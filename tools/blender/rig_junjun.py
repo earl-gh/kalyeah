@@ -11,6 +11,7 @@ import sys
 import numpy as np
 
 import bpy
+import bmesh
 from mathutils import Euler, Vector
 
 V = Vector
@@ -64,6 +65,17 @@ def _seg_dist(points, a, b):
     return np.linalg.norm(points - (a + t[:, None] * ab), axis=1)
 
 
+# bones each clothing part may follow, so a hand resting on the shorts never drags them
+ALLOWED = {
+    "Red_Shorts": {"hips", "spine", "thigh", "shin"},
+    "White_Sando": {"hips", "spine", "chest", "neck", "clavicle", "upper_arm", "head"},
+    "Blue_Slippers": {"shin", "foot", "thigh"},
+    "Dark_Accents": {"hips", "spine", "chest", "thigh", "shin", "foot"},
+    "Hair": {"head", "neck"},
+    "Face": {"head", "neck"},
+}
+
+
 def skin(mesh, rig):
     """Weights by position, not by shell: every vertex follows the bones within
     their radius, so the body, shorts and shirt layers at the same place always
@@ -78,10 +90,45 @@ def skin(mesh, rig):
         r = RADIUS[n.split(".")[0]]
         if r > 0:
             w[:, j] = np.clip(1.0 - dist[:, j] / r, 0.0, 1.0) ** 2
+    for prefix, bones in ALLOWED.items():
+        if mesh.name.startswith(prefix):
+            for j, n in enumerate(names):
+                if n.split(".")[0] not in bones:
+                    w[:, j] = 0.0
+            dist = dist + np.array([0.0 if n.split(".")[0] in bones else 99.0 for n in names])
+    # the head is rigid: everything above the neck follows the head bone only, so hair,
+    # eyes and skin never slide against each other
+    head = names.index("head")
+    top = pts[:, 2] > 0.40
+    w[top] = 0.0
+    w[top, head] = 1.0
     # nobody in range (the hair tips, the toes): follow the nearest bone
     none = w.sum(axis=1) < 1e-6
     nearest = np.argmin(dist + np.where(np.array([n == "root" for n in names]), 9.0, 0.0), axis=1)
     w[none, nearest[none]] = 1.0
+    if mesh.name.startswith("Body_Skin"):
+        # this part is loose chips (knuckles, toes, wrist patches): every chip moves as one
+        # rigid piece, or a chip that straddles two bones is stretched into a long spike
+        bm = bmesh.new()
+        bm.from_mesh(mesh.data)
+        bm.verts.ensure_lookup_table()
+        seen = set()
+        for v in bm.verts:
+            if v.index in seen:
+                continue
+            seen.add(v.index)
+            comp, stack = [], [v]
+            while stack:
+                a = stack.pop()
+                comp.append(a.index)
+                for e in a.link_edges:
+                    b = e.other_vert(a)
+                    if b.index not in seen:
+                        seen.add(b.index)
+                        stack.append(b)
+            centre = pts[comp].mean(axis=0)
+            w[comp] = w[comp[int(np.argmin(np.linalg.norm(pts[comp] - centre, axis=1)))]]
+        bm.free()
     # keep the 4 strongest and normalise
     order = np.argsort(-w, axis=1)
     keep = np.zeros_like(w)
@@ -156,8 +203,8 @@ def build_actions(rig):
            (19, run_mid, {"hips": (0, 0, 0.04)}), (25, run_a, {"hips": (0, 0, 0.0)})]
     cast = [
         (1, {"upper_arm.R": (0, 0, 4), "chest": (0, 0, 0)}, {}),
-        (8, {"upper_arm.R": (55, 0, 45), "forearm.R": (-75, 0, 0), "chest": (-4, 0, -10), "spine": (3, 0, -4), "head": (0, 0, 4)}, {}),
-        (14, {"upper_arm.R": (-105, 0, 25), "forearm.R": (-8, 0, 0), "chest": (6, 0, 12), "spine": (-4, 0, 5), "head": (-4, 0, -3)}, {}),
+        (8, {"upper_arm.R": (40, 0, 70), "forearm.R": (-60, 0, 0), "chest": (-4, 0, -10), "spine": (3, 0, -4), "head": (0, 0, 4)}, {}),
+        (14, {"upper_arm.R": (-95, 0, 55), "forearm.R": (-8, 0, 0), "chest": (6, 0, 12), "spine": (-4, 0, 5), "head": (-4, 0, -3)}, {}),
         (24, {"upper_arm.R": (0, 0, 4), "chest": (0, 0, 0)}, {}),
     ]
     make_action(rig, "idle", idle, 25)
@@ -171,10 +218,10 @@ def main():
     mode = argv[2] if len(argv) > 2 else "export"
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=src)
-    mesh = [o for o in bpy.data.objects if o.type == "MESH"][0]
-    mesh.name = "junjun"
+    meshes = [o for o in bpy.data.objects if o.type == "MESH"]
     rig = build_armature()
-    skin(mesh, rig)
+    for mesh in meshes:  # a file with separate body / clothes / hair parts keeps them separate
+        skin(mesh, rig)
     build_actions(rig)
     if mode == "test":
         import rig_test
