@@ -12,7 +12,7 @@ import numpy as np
 
 import bpy
 import bmesh
-from mathutils import Euler, Vector
+from mathutils import Euler, Matrix, Vector
 
 V = Vector
 FLOOR = -0.951
@@ -76,6 +76,78 @@ ALLOWED = {
 }
 
 
+def _components(mesh, pts):
+    """Shells of one mesh, with vertices at the same spot (UV/normal splits) merged."""
+    key = {}
+    parent = list(range(len(pts)))
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    for i, p in enumerate(np.round(pts / 0.0008).astype(np.int64)):
+        j = key.setdefault(tuple(p), i)
+        parent[find(i)] = find(j)
+    for e in mesh.data.edges:
+        parent[find(e.vertices[0])] = find(e.vertices[1])
+    return np.array([find(i) for i in range(len(pts))])
+
+
+LOWER = {"hips", "thigh", "shin", "foot"}
+
+
+def _vertex_colors(mesh):
+    """Base-colour texture sampled at every vertex (average over its corners)."""
+    img = None
+    for node in mesh.data.materials[0].node_tree.nodes:
+        if node.type == "BSDF_PRINCIPLED" and node.inputs["Base Color"].links:
+            img = node.inputs["Base Color"].links[0].from_node.image
+    px = np.array(img.pixels[:], dtype=np.float32).reshape(img.size[1], img.size[0], 4)
+    uv = np.zeros((len(mesh.data.loops), 2))
+    mesh.data.uv_layers.active.data.foreach_get("uv", uv.ravel())
+    x = np.clip((uv[:, 0] % 1.0) * img.size[0], 0, img.size[0] - 1).astype(int)
+    y = np.clip((uv[:, 1] % 1.0) * img.size[1], 0, img.size[1] - 1).astype(int)
+    col = px[y, x, :3]
+    vi = np.zeros(len(mesh.data.loops), dtype=np.int64)
+    mesh.data.loops.foreach_get("vertex_index", vi)
+    out = np.zeros((len(mesh.data.vertices), 3))
+    cnt = np.zeros(len(mesh.data.vertices))
+    np.add.at(out, vi, col)
+    np.add.at(cnt, vi, 1)
+    return out / np.maximum(cnt, 1)[:, None]
+
+
+def _single_mesh_rules(mesh, pts, names, w):
+    """One joined mesh: the biggest shell is the upper body (arms, shirt, head, hair); the
+    shorts, legs and slippers are their own shells, so the hands never drag them."""
+    shell = _components(mesh, pts)
+    ids, counts = np.unique(shell, return_counts=True)
+    biggest = ids[np.argmax(counts)]
+    for sid in ids:
+        if sid == biggest:
+            continue
+        idx = np.nonzero(shell == sid)[0]
+        if pts[idx, 2].mean() < -0.1:
+            ok = LOWER | ({"spine"} if pts[idx, 2].mean() > -0.5 and len(idx) > 400 else set())
+            for j, n in enumerate(names):
+                if n.split(".")[0] not in ok:
+                    w[idx, j] = 0.0
+        else:  # eyes, teeth and the like: rigid with the head
+            w[idx] = 0.0
+            w[idx, names.index("head")] = 1.0
+    # shorts pieces welded into the upper-body shell (waistband, trim): red or white cloth
+    # below the shirt hem follows the lower body, whatever the hands do
+    col = _vertex_colors(mesh)
+    red = (col[:, 0] > 0.5) & (col[:, 1] < 0.35) & (col[:, 2] < 0.35)
+    white = (col.min(axis=1) > 0.75)
+    cloth = (red | white) & (pts[:, 2] < -0.05) & (shell == biggest)
+    for j, n in enumerate(names):
+        if n.split(".")[0] not in LOWER | {"spine"}:
+            w[cloth, j] = 0.0
+
+
 def skin(mesh, rig):
     """Weights by position, not by shell: every vertex follows the bones within
     their radius, so the body, shorts and shirt layers at the same place always
@@ -96,6 +168,8 @@ def skin(mesh, rig):
                 if n.split(".")[0] not in bones:
                     w[:, j] = 0.0
             dist = dist + np.array([0.0 if n.split(".")[0] in bones else 99.0 for n in names])
+    if mesh.name.startswith("Mesh_"):
+        _single_mesh_rules(mesh, pts, names, w)
     # the head is rigid: everything above the neck follows the head bone only, so hair,
     # eyes and skin never slide against each other
     head = names.index("head")
@@ -135,6 +209,22 @@ def skin(mesh, rig):
     rows = np.arange(len(w))[:, None]
     keep[rows, order[:, :4]] = w[rows, order[:, :4]]
     keep /= keep.sum(axis=1, keepdims=True)
+    # fists resting on the shorts are welded to them in the source mesh; cut those faces so the
+    # hand can swing away without pulling the shorts along (the overlap hides the cut at rest)
+    arm_cols = [j for j, n in enumerate(names) if n.split(".")[0] in ("forearm", "hand")]
+    low_cols = [j for j, n in enumerate(names) if n.split(".")[0] in ("hips", "thigh", "spine")]
+    dom = np.argmax(keep, axis=1)
+    is_arm = np.isin(dom, arm_cols)
+    is_low = np.isin(dom, low_cols)
+    bm = bmesh.new()
+    bm.from_mesh(mesh.data)
+    bm.faces.ensure_lookup_table()
+    cut = [f for f in bm.faces
+           if any(is_arm[v.index] for v in f.verts) and any(is_low[v.index] for v in f.verts)]
+    if cut:
+        bmesh.ops.delete(bm, geom=cut, context="FACES_ONLY")
+        bm.to_mesh(mesh.data)
+    bm.free()
     mesh.parent = rig
     mesh.matrix_parent_inverse = rig.matrix_world.inverted()
     mod = mesh.modifiers.new("Armature", "ARMATURE")
@@ -219,6 +309,12 @@ def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=src)
     meshes = [o for o in bpy.data.objects if o.type == "MESH"]
+    # the skeleton is built for a 1.9 m tall Junjun; models exported at another size are scaled up
+    height = max(v.co.z for m in meshes for v in m.data.vertices) - min(v.co.z for m in meshes for v in m.data.vertices)
+    factor = 1.898 / height
+    if abs(factor - 1.0) > 0.02:
+        for m in meshes:
+            m.data.transform(Matrix.Scale(factor, 4))
     rig = build_armature()
     for mesh in meshes:  # a file with separate body / clothes / hair parts keeps them separate
         skin(mesh, rig)
