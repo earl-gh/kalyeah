@@ -279,7 +279,12 @@ func _build() -> void:
 	_materials = ModelLook.apply(_model)
 	_player = _model.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	for clip: String in _player.get_animation_list():
-		_player.get_animation(clip).loop_mode = Animation.LOOP_LINEAR if clip in LOOPING else Animation.LOOP_NONE
+		var animation: Animation = _player.get_animation(clip)
+		if clip in LOOPING:
+			animation.loop_mode = Animation.LOOP_LINEAR
+			_close_loop(animation)
+		else:
+			animation.loop_mode = Animation.LOOP_NONE
 	_stars = _build_stars()
 	add_child(_stars)
 	_can = MeshInstance3D.new()
@@ -288,6 +293,18 @@ func _build() -> void:
 	_can.visible = false
 	add_child(_can)
 	LowPoly.add_outline(_can, 0.02)
+
+
+## The clips end one frame before they start again: the loop is one frame longer, so the last
+## pose blends into the first instead of jumping (and no frame is held twice).
+static func _close_loop(animation: Animation) -> void:
+	# the imported clips are shared between every kid: do it once
+	if animation.has_meta("loop_closed"):
+		return
+	animation.set_meta("loop_closed", true)
+	var keys: int = animation.track_get_key_count(0)
+	if keys > 1:
+		animation.length += animation.length / float(keys - 1)
 
 
 ## A ring of little yellow stars over the head while stunned.

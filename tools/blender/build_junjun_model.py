@@ -4,7 +4,7 @@ given the game's animations (idle, run, cast, stun, ko), exported as one GLB.
 usage: python build_junjun_model.py -- model.glb out.glb [target_triangles]
  * mesh decimated to ~target triangles (weights kept), one 1024 px base-colour texture,
    no normal / metal-roughness maps (the game lights him matte);
- * every animation is made with throw_boy.pose_frame (spine only twists about the vertical,
+ * run is the model's own Meshy "Running" loop; the others are made with throw_boy.pose_frame (spine only twists about the vertical,
    feet IK-planted, arms follow the torso), 30 fps, loops are seamless.
 The source GLB is the owner's Meshy export and is not stored in the repo.
 """
@@ -46,18 +46,6 @@ def idle(i, n):
                sr=(0, 1.4 * s), sl=(0, 1.4 * s), arm_r=arm_r, fore_r=fore_r, hand_r=fore_r,
                arm_l=arm_l, fore_l=fore_l, hand_l=fore_l,
                foot_l=(0.13, 0.0, 0.0), foot_r=(-0.13, 0.0, 0.0))
-
-
-def run(i, n):
-    th = math.tau * i / n
-    c, s = math.cos(th), math.sin(th)
-    amp, lift = 0.36, 0.2
-    arm_r, fore_r = torso_arm(-1, 40 * c, 78)    # right arm forward when the left foot is back
-    arm_l, fore_l = torso_arm(1, -40 * c, 78)
-    return key(hips=(0.0, -0.03, -0.07 - 0.03 * math.cos(2 * th)), hyaw=8 * c, cyaw=-10 * c, lean=14,
-               hy=3 * c, hp=-6, sr=(-3 * c, 0), sl=(3 * c, 0),
-               arm_r=arm_r, fore_r=fore_r, hand_r=fore_r, arm_l=arm_l, fore_l=fore_l, hand_l=fore_l,
-               foot_l=(0.12, -amp * c, lift * max(0.0, -s)), foot_r=(-0.12, amp * c, lift * max(0.0, s)))
 
 
 def stun(i, n):
@@ -139,8 +127,13 @@ def main():
             bpy.data.objects.remove(bpy.data.objects[name])
     rig = bpy.data.objects["target_character"]
     mesh = bpy.data.objects["Mesh0"]
-    if "Running" in bpy.data.actions:
-        bpy.data.actions.remove(bpy.data.actions["Running"])
+    # the run is the model's own Meshy/Mixamo "Running" loop: frames 0..16 end where they start,
+    # so the last frame is dropped to loop without a double frame
+    run = bpy.data.actions["Running"]
+    run.name = "run"
+    run.use_fake_user = True
+    run.use_frame_range = True
+    run.frame_start, run.frame_end = 0, 15
     print("TRIS", lighten_mesh(mesh, target))
     rig.animation_data_create()
     rest = {}
@@ -151,7 +144,6 @@ def main():
     bpy.context.scene.render.fps = FPS
     T.THROW_KEYS = copy.deepcopy(T.KEYS)
     make_action(rig, rest, "idle", 72, idle)
-    make_action(rig, rest, "run", 18, run)
     make_action(rig, rest, "stun", 36, stun)
     make_action(rig, rest, "ko", 14, ko)
     make_cast(rig, rest)
