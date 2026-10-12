@@ -26,50 +26,50 @@ RELEASE = 28
 # key time -> pose. dirs are world directions head->tail of each bone.
 KEYS = [
     (1, dict(  # ready, ball held low in the right hand
-        hips=(0, 0, 0), hyaw=0, cyaw=0, lean=0,
-        sh_r=V(-1, -0.05, 0.1), sh_l=V(1, -0.05, 0.1),
-        arm_r=V(-0.3, -0.1, -1), fore_r=V(-0.12, -0.85, -0.5), hand_r=V(-0.1, -0.8, -0.6),
-        arm_l=V(0.3, -0.05, -1), fore_l=V(0.15, -0.45, -0.88), hand_l=V(0.1, -0.5, -0.85),
-        foot_l=(0.12, 0.0, 0.0), foot_r=(-0.12, 0.0, 0.0), head=V(0, -0.1, 1))),
-    (8, dict(  # anticipation: sink a little, turn away, arm swings down and back
-        hips=(0, 0.04, -0.05), hyaw=-8, cyaw=-16, lean=-3,
-        sh_r=V(-1, 0.1, 0.05), sh_l=V(1, -0.1, 0.1),
-        arm_r=V(-0.35, 0.25, -0.92), fore_r=V(-0.2, -0.2, -0.95), hand_r=V(-0.1, -0.2, -0.95),
-        arm_l=V(0.4, -0.35, -0.85), fore_l=V(0.3, -0.7, -0.65), hand_l=V(0.2, -0.7, -0.6),
-        foot_l=(0.13, -0.1, 0.1), foot_r=(-0.13, 0.02, 0.0), head=V(0, -0.15, 1))),
-    (15, dict(  # wind-up: lean back, elbow high, ball behind the ear, lead foot reaching
-        hips=(0.02, 0.1, -0.09), hyaw=-26, cyaw=-44, lean=-14,
-        sh_r=V(-1, 0.35, 0.3), sh_l=V(1, -0.3, 0.05),
-        arm_r=V(-0.62, 0.42, 0.5), fore_r=V(-0.1, 0.45, 0.88), hand_r=V(-0.05, 0.4, 0.9),
-        arm_l=V(0.45, -0.85, 0.2), fore_l=V(0.4, -0.9, 0.1), hand_l=V(0.4, -0.9, 0.0),
-        foot_l=(0.17, -0.42, 0.28), foot_r=(-0.14, 0.08, 0.0), head=V(0.02, -0.2, 1))),
-    (19, dict(  # stride lands: hips begin to open, the forearm lags behind (lay-back)
-        hips=(0.02, -0.02, -0.12), hyaw=-6, cyaw=-34, lean=-8,
-        sh_r=V(-1, 0.3, 0.3), sh_l=V(1, -0.2, 0.0),
-        arm_r=V(-0.65, 0.3, 0.38), fore_r=V(-0.1, 0.78, 0.6), hand_r=V(-0.1, 0.75, 0.55),
-        arm_l=V(0.5, -0.55, 0.25), fore_l=V(0.4, -0.7, 0.2), hand_l=V(0.4, -0.7, 0.1),
-        foot_l=(0.17, -0.56, 0.0), foot_r=(-0.14, 0.08, 0.0), head=V(0.0, -0.18, 1))),
-    (24, dict(  # release: hips and chest snap forward, arm whips through, wrist snaps
-        hips=(0.0, -0.2, -0.13), hyaw=28, cyaw=40, lean=24,
-        sh_r=V(-1, -0.3, 0.2), sh_l=V(1, 0.2, -0.05),
-        arm_r=V(-0.3, -0.82, 0.48), fore_r=V(-0.1, -0.97, 0.22), hand_r=V(-0.05, -0.9, 0.45),
-        arm_l=V(0.55, 0.3, -0.5), fore_l=V(0.35, 0.5, -0.75), hand_l=V(0.3, 0.5, -0.8),
-        foot_l=(0.17, -0.56, 0.0), foot_r=(-0.14, 0.06, 0.1), head=V(0.02, -0.3, 1))),
+        hips=(0, 0, 0), hyaw=0, cyaw=0, lean=0, hy=0, hp=0,
+        sr=(0, 0), sl=(0, 0),
+        arm_r=V(-0.2, -0.05, -1), fore_r=V(-0.1, -0.85, -0.5), hand_r=V(-0.1, -0.8, -0.6),
+        arm_l=V(0.2, -0.05, -1), fore_l=V(0.12, -0.45, -0.88), hand_l=V(0.1, -0.5, -0.85),
+        foot_l=(0.12, 0.0, 0.0), foot_r=(-0.12, 0.0, 0.0))),
+    (8, dict(  # anticipation: sink a little over the back foot, turn away
+        hips=(-0.03, 0.04, -0.05), hyaw=-8, cyaw=-16, lean=-3, hy=-4, hp=2,
+        sr=(-4, 0), sl=(2, 0),
+        arm_r=V(-0.3, 0.2, -0.95), fore_r=V(-0.15, -0.35, -0.9), hand_r=V(-0.1, -0.35, -0.9),
+        arm_l=V(0.35, -0.3, -0.88), fore_l=V(0.3, -0.7, -0.65), hand_l=V(0.2, -0.7, -0.6),
+        foot_l=(0.13, -0.1, 0.1), foot_r=(-0.13, 0.02, 0.0))),
+    (15, dict(  # wind-up: weight on the back leg, elbow high at shoulder height, lead foot reaching
+        hips=(-0.05, 0.1, -0.09), hyaw=-26, cyaw=-44, lean=-12, hy=-10, hp=3,
+        sr=(-12, 4), sl=(8, 0),
+        arm_r=V(-0.9, 0.12, 0.38), fore_r=V(-0.25, 0.2, 0.95), hand_r=V(-0.2, 0.15, 0.97),
+        arm_l=V(0.65, -0.7, 0.25), fore_l=V(0.55, -0.75, 0.2), hand_l=V(0.5, -0.8, 0.1),
+        foot_l=(0.17, -0.42, 0.28), foot_r=(-0.14, 0.08, 0.0))),
+    (19, dict(  # stride lands: weight moves forward, the forearm lags behind (lay-back)
+        hips=(0.0, -0.02, -0.12), hyaw=-6, cyaw=-34, lean=-8, hy=-8, hp=3,
+        sr=(-12, 4), sl=(6, 0),
+        arm_r=V(-0.88, 0.25, 0.3), fore_r=V(-0.15, 0.6, 0.75), hand_r=V(-0.15, 0.6, 0.75),
+        arm_l=V(0.6, -0.6, 0.15), fore_l=V(0.5, -0.7, 0.1), hand_l=V(0.45, -0.75, 0.05),
+        foot_l=(0.17, -0.56, 0.0), foot_r=(-0.14, 0.08, 0.0))),
+    (24, dict(  # release: hips and chest snap round, arm whips through, wrist snaps
+        hips=(0.04, -0.2, -0.13), hyaw=28, cyaw=40, lean=22, hy=6, hp=4,
+        sr=(14, 6), sl=(-6, 0),
+        arm_r=V(-0.62, -0.7, 0.4), fore_r=V(-0.5, -0.82, 0.28), hand_r=V(-0.45, -0.85, 0.35),
+        arm_l=V(0.55, 0.5, -0.55), fore_l=V(0.4, 0.45, -0.8), hand_l=V(0.35, 0.45, -0.8),
+        foot_l=(0.17, -0.56, 0.0), foot_r=(-0.14, 0.06, 0.1))),
     (30, dict(  # follow-through: arm sweeps across, back foot drags forward
-        hips=(0.0, -0.27, -0.15), hyaw=40, cyaw=52, lean=34,
-        sh_r=V(-1, -0.45, 0.1), sh_l=V(1, 0.3, -0.1),
-        arm_r=V(0.1, -0.6, -0.8), fore_r=V(0.35, -0.75, -0.55), hand_r=V(0.4, -0.7, -0.6),
-        arm_l=V(0.5, 0.45, -0.6), fore_l=V(0.35, 0.3, -0.88), hand_l=V(0.3, 0.3, -0.9),
-        foot_l=(0.17, -0.56, 0.0), foot_r=(-0.14, -0.05, 0.14), head=V(0.04, -0.4, 1))),
+        hips=(0.05, -0.27, -0.15), hyaw=40, cyaw=52, lean=32, hy=14, hp=10,
+        sr=(18, 6), sl=(-10, 0),
+        arm_r=V(-0.41, -0.45, -0.8), fore_r=V(-0.38, -0.74, -0.55), hand_r=V(-0.35, -0.7, -0.6),
+        arm_l=V(0.6, -0.1, -0.7), fore_l=V(0.4, -0.15, -0.9), hand_l=V(0.35, -0.15, -0.9),
+        foot_l=(0.17, -0.56, 0.0), foot_r=(-0.14, -0.05, 0.14))),
     (42, dict(  # settle: stand up, arms hang loose
-        hips=(0.0, -0.2, -0.04), hyaw=10, cyaw=14, lean=6,
-        sh_r=V(-1, -0.05, 0.05), sh_l=V(1, -0.05, 0.05),
+        hips=(0.0, -0.2, -0.04), hyaw=10, cyaw=14, lean=6, hy=4, hp=2,
+        sr=(0, 0), sl=(0, 0),
         arm_r=V(-0.2, -0.1, -1), fore_r=V(-0.1, -0.4, -0.9), hand_r=V(-0.1, -0.4, -0.9),
         arm_l=V(0.25, -0.05, -1), fore_l=V(0.12, -0.4, -0.9), hand_l=V(0.1, -0.4, -0.9),
-        foot_l=(0.17, -0.56, 0.0), foot_r=(-0.14, -0.02, 0.0), head=V(0.0, -0.1, 1))),
+        foot_l=(0.17, -0.56, 0.0), foot_r=(-0.14, -0.02, 0.0))),
 ]
 # how many frames each part trails the hips (the whip)
-LAG = {"spine": 1, "spine1": 2, "spine2": 3, "sh": 2.5, "arm": 3, "fore": 4.5, "hand": 6, "head": 4,
+LAG = {"spine": 1, "spine1": 2, "spine2": 3, "sh": 2.5, "arm": 3, "fore": 4.5, "hand": 6, "head": 3,
        "legs": 0}
 
 
@@ -128,36 +128,56 @@ def two_bone_ik(rig, rest, thigh, shin, foot, ankle, pole):
     aim(sh_, rest, ((H + axis * dist) - knee).normalized(), shin)
 
 
+def rz(deg):
+    return Matrix.Rotation(math.radians(deg), 3, "Z")
+
+
+def rx(deg):
+    return Matrix.Rotation(math.radians(deg), 3, "X")
+
+
+def ry(deg):
+    return Matrix.Rotation(math.radians(deg), 3, "Y")
+
+
+SPINE = (("Spine", 0.3, 0.3, LAG["spine"]), ("Spine1", 0.65, 0.7, LAG["spine1"]), ("Spine2", 1.0, 1.0, LAG["spine2"]))
+
+
 def pose_frame(rig, rest, f):
+    """One frame. The spine only ever twists about the vertical and bends forward/back about
+    its own side axis (never sideways), the shoulder line stays level, and the arms are aimed
+    in the torso's turning frame, so nothing looks bent or dislocated."""
     pb = rig.pose.bones
     for b in pb:
         b.rotation_mode = "QUATERNION"
         b.rotation_quaternion = (1, 0, 0, 0)
         b.location = (0, 0, 0)
     bpy.context.view_layer.update()
-    hips_off = sample("hips", f)
     hyaw = sample("hyaw", f)
-    hb = pb[P + "Hips"]
-    set_bone(hb, rest["Hips"]["head"] + hips_off,
-             Matrix.Rotation(math.radians(hyaw), 3, "Z") @ rest["Hips"]["rot"])
-    shares = {"Spine": (0.3, 0.3, LAG["spine"]), "Spine1": (0.35, 0.4, LAG["spine1"]), "Spine2": (0.35, 0.3, LAG["spine2"])}
-    for name, (yaw_share, lean_share, lag) in shares.items():
+    set_bone(pb[P + "Hips"], rest["Hips"]["head"] + sample("hips", f), rz(hyaw) @ rest["Hips"]["rot"])
+    chest_yaw = hyaw
+    for name, yaw_cum, pitch_cum, lag in SPINE:
         t = f - lag
-        extra_yaw = sample("cyaw", t) - sample("hyaw", t)
+        yaw = sample("hyaw", t) + (sample("cyaw", t) - sample("hyaw", t)) * yaw_cum
         pbn = pb[P + name]
-        rot = Matrix.Rotation(math.radians(extra_yaw * yaw_share), 3, "Z") @ \
-            Matrix.Rotation(math.radians(sample("lean", t) * lean_share), 3, "X") @ pbn.matrix.to_3x3()
-        set_bone(pbn, pbn.matrix.translation.copy(), rot)
+        set_bone(pbn, pbn.matrix.translation.copy(), rz(yaw) @ rx(sample("lean", t) * pitch_cum) @ rest[name]["rot"])
+        chest_yaw = yaw
+    frame = rz(chest_yaw)  # the torso's turning frame (yaw only, arms still hang under gravity)
     t = f - LAG["head"]
-    aim(pb[P + "Head"], rest, direction("head", t), "Head")
+    hy, hp = sample("hy", t), sample("hp", t)
+    neck = pb[P + "Neck"]
+    set_bone(neck, neck.matrix.translation.copy(), rz(hy * 0.4) @ rx(hp * 0.4) @ rest["Neck"]["rot"])
+    head = pb[P + "Head"]
+    set_bone(head, head.matrix.translation.copy(), rz(hy) @ rx(hp) @ rest["Head"]["rot"])
     t = f - LAG["sh"]
-    aim(pb[P + "RightShoulder"], rest, direction("sh_r", t), "RightShoulder")
-    aim(pb[P + "LeftShoulder"], rest, direction("sh_l", t), "LeftShoulder")
-    for side in ("r", "l"):
-        S = "Right" if side == "r" else "Left"
-        aim(pb[P + S + "Arm"], rest, direction("arm_" + side, f - LAG["arm"]), S + "Arm")
-        aim(pb[P + S + "ForeArm"], rest, direction("fore_" + side, f - LAG["fore"]), S + "ForeArm")
-        aim(pb[P + S + "Hand"], rest, direction("hand_" + side, f - LAG["hand"]), S + "Hand")
+    for side, S, sgn in (("r", "Right", 1.0), ("l", "Left", -1.0)):
+        prot, elev = sample("s" + side, t)
+        shd = pb[P + S + "Shoulder"]
+        set_bone(shd, shd.matrix.translation.copy(), rz(sgn * prot) @ ry(sgn * elev) @ shd.matrix.to_3x3())
+    for side, S in (("r", "Right"), ("l", "Left")):
+        aim(pb[P + S + "Arm"], rest, frame @ direction("arm_" + side, f - LAG["arm"]), S + "Arm")
+        aim(pb[P + S + "ForeArm"], rest, frame @ direction("fore_" + side, f - LAG["fore"]), S + "ForeArm")
+        aim(pb[P + S + "Hand"], rest, frame @ direction("hand_" + side, f - LAG["hand"]), S + "Hand")
     for side, S, sx in (("l", "Left", 1.0), ("r", "Right", -1.0)):
         o = sample("foot_" + side, f)
         ankle = Vector((o.x, o.y, rest[S + "Foot"]["head"].z + o.z))
@@ -168,6 +188,25 @@ def pose_frame(rig, rest, f):
     for b in pb:
         b.keyframe_insert("location", frame=f)
         b.keyframe_insert("rotation_quaternion", frame=f)
+
+
+def audit(rig):
+    """Numbers behind 'no scoliosis': shoulder-line tilt and sideways spine bend per frame."""
+    worst_sh, worst_bend = 0.0, 0.0
+    for f in range(1, FRAMES + 1):
+        bpy.context.scene.frame_set(f)
+        pb = rig.pose.bones
+        la, ra = pb[P + "LeftArm"].head, pb[P + "RightArm"].head
+        line = la - ra
+        tilt = math.degrees(math.asin(max(-1, min(1, line.z / line.length))))
+        worst_sh = max(worst_sh, abs(tilt))
+        pts = [pb[P + n].head for n in ("Hips", "Spine", "Spine1", "Spine2", "Neck", "Head")]
+        fwd = Vector((0, -1, 0))
+        yaw = math.atan2(line.y, line.x)
+        side = Vector((math.cos(yaw), math.sin(yaw), 0))  # the body's own left-right axis
+        lat = [(p - pts[0]).dot(side) for p in pts]
+        worst_bend = max(worst_bend, max(abs(l) for l in lat) * 100)
+    print(f"AUDIT shoulder-line tilt max {worst_sh:.1f} deg, spine sideways offset max {worst_bend:.1f} cm")
 
 
 def make_ball(rig):
@@ -221,6 +260,7 @@ def main():
         pose_frame(rig, rest, f)
     scene = bpy.context.scene
     scene.frame_start, scene.frame_end = 1, FRAMES
+    audit(rig)
     make_ball(rig)
 
     if mode == "export":
@@ -252,6 +292,13 @@ def main():
         cam.location = Vector((-7.0, -1.6, 1.1))
         cam.rotation_euler = (Vector((0, -1.6, 0.95)) - cam.location).to_track_quat("-Z", "Y").to_euler()
         scene.render.filepath = f"{out_dir}/throw_{i}.png"
+        bpy.ops.render.render(write_still=True)
+    scene.render.resolution_x, scene.render.resolution_y = 380, 470
+    for i, f in enumerate([1, 15, 24, 30]):  # from the front, where a crooked spine shows
+        scene.frame_set(f)
+        cam.location = Vector((-1.2, -7.0, 1.1))
+        cam.rotation_euler = (Vector((-0.2, 0.0, 0.95)) - cam.location).to_track_quat("-Z", "Y").to_euler()
+        scene.render.filepath = f"{out_dir}/front_{i}.png"
         bpy.ops.render.render(write_still=True)
 
 
