@@ -96,18 +96,23 @@ func test_the_stick_sits_in_the_middle_with_a_skill_on_each_side() -> void:
 	var stick: Rect2 = hud.joystick.get_rect()
 	var left: Rect2 = hud.weapon_buttons[0].get_rect()
 	var right: Rect2 = hud.weapon_buttons[1].get_rect()
-	assert_almost_eq(stick.get_center().x, screen.x / 2.0, 1.0, "stick on the centre line")
+	assert_lt(stick.get_center().x, screen.x / 2.0, "the stick is on the left")
 	assert_gt(stick.get_center().y, screen.y * 0.8, "at the bottom")
+	assert_gte(stick.position.x, 0.0, "on screen")
 	for button: Rect2 in [left, right]:
 		assert_almost_eq(button.get_center().y, stick.get_center().y, 0.5, "one row")
 		assert_false(button.intersects(stick), "the skills do not cover the stick")
+		assert_gt(button.get_center().x, screen.x / 2.0, "the skills are on the right")
 		assert_gte(button.position.x, 0.0, "on screen")
 		assert_lte(button.end.x, screen.x, "on screen")
 		assert_lt(button.end.y, screen.y, "on screen")
-	assert_lt(left.get_center().x, stick.get_center().x, "weapon 1 on the left")
-	assert_gt(right.get_center().x, stick.get_center().x, "weapon 2 on the right")
-	assert_almost_eq(left.get_center().x + right.get_center().x, screen.x, 1.0, "symmetric")
-	assert_almost_eq(left.size.x, VirtualJoystick.THUMB_RADIUS * 2.0, 0.5, "a skill is the size of the stick's knob")
+	assert_lt(left.get_center().x, right.get_center().x, "weapon 1 left of weapon 2")
+	assert_false(left.intersects(right), "a gap between the two skills")
+	assert_gte(left.size.x, 84.0, "a thumb-sized skill (44 pt)")
+	assert_almost_eq(screen.x - right.end.x, MatchHud.WEAPON_MARGIN, 0.5, "the second against the right margin")
+	var cancel: Rect2 = hud.cancel_zone.get_rect()
+	assert_gt(cancel.get_center().x, screen.x / 2.0, "the cancel zone is above the skills")
+	assert_lt(cancel.end.y, left.position.y, "clear of the skills")
 
 
 func test_hiding_the_controls_lets_go_of_the_stick() -> void:

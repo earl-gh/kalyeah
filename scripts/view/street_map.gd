@@ -95,6 +95,10 @@ const BARRIER_HEIGHTS: Dictionary[String, float] = {
 ## Things whose long side is their depth: they are turned a quarter so the long side faces the play area.
 const BARRIER_TURNED: Array[String] = ["tricycle"]
 ## The nanay on the sidewalk by the sari-sari store, outside the play area, facing the street.
+## Parked beyond the barrier rows and on the sidewalk, outside the play area (heights in metres).
+const JEEP_HEIGHT: float = 2.5
+const PEDICAB_HEIGHT: float = 2.0
+const ICE_CREAM_CART_HEIGHT: float = 2.1
 const NANAY_HEIGHT: float = 2.2
 const NANAY_SWAY_DEGREES: float = 4.0
 const NANAY_SWAY_SECONDS: float = 3.5
@@ -596,6 +600,7 @@ func _add_details() -> void:
 	var turned_in: float = nanay.rotation.y
 	sway.tween_property(nanay, "rotation:y", turned_in + deg_to_rad(NANAY_SWAY_DEGREES), NANAY_SWAY_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	sway.tween_property(nanay, "rotation:y", turned_in - deg_to_rad(NANAY_SWAY_DEGREES), NANAY_SWAY_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_add_parked_vehicles(half_w, half_l, walk_x)
 	for lz: float in [-half_l * 0.7, half_l * 0.3]:
 		_add(Props.laundry_line(4.0), Vector3(-walk_x - 0.6, CURB_HEIGHT, lz))
 	for lz: float in [-half_l * 0.25, half_l * 0.75]:
@@ -609,6 +614,22 @@ func _add_details() -> void:
 	for tz: float in [-30.0, -14.0, 4.0, 22.0]:
 		_add(Props.mango_tree(), Vector3(-tree_x - 1.0, 0.0, tz))
 		_add(Props.banana_plant(), Vector3(tree_x, 0.0, tz + 6.0))
+
+
+## The jeepney parked across the street behind the top barrier row, the pedicab behind the bottom
+## one, and the ice cream cart on the right sidewalk (all outside the play area).
+func _add_parked_vehicles(half_w: float, half_l: float, walk_x: float) -> void:
+	var jeep: Node3D = PropModel.by_height("jeep", JEEP_HEIGHT)
+	jeep.name = "Jeep"
+	var jeep_size: Vector3 = PropModel.size_of("jeep") * jeep.scale
+	_add_prop(jeep, Vector3(-half_w * 0.3, 0.0, -(half_l + BARRIER_SETBACK + BARRIER_JITTER + 2.0 + jeep_size.z / 2.0)))
+	var pedicab: Node3D = PropModel.by_height("pedicab", PEDICAB_HEIGHT)
+	pedicab.name = "Pedicab"
+	var pedicab_size: Vector3 = PropModel.size_of("pedicab") * pedicab.scale
+	_add_prop(pedicab, Vector3(half_w * 0.35, 0.0, half_l + BARRIER_SETBACK + BARRIER_JITTER + 2.0 + pedicab_size.x / 2.0), PI / 2.0)
+	var cart: Node3D = PropModel.by_height("ice_cream_cart", ICE_CREAM_CART_HEIGHT)
+	cart.name = "IceCreamCart"
+	_add_prop(cart, Vector3(walk_x, CURB_HEIGHT, -half_l * 0.6), -PI / 2.0)
 
 
 func _add_sign(texture_name: String, height: float, at: Vector3) -> void:

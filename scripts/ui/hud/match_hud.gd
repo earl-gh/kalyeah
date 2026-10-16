@@ -30,18 +30,22 @@ const FEED_MAX: int = 3
 const FEED_OWN: Color = Color(0.2, 0.42, 0.85, 0.92)
 const FEED_ENEMY: Color = Color(0.82, 0.22, 0.2, 0.92)
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
-## Controls, as (offset from the screen centre line, distance from the bottom) of
-## each control's centre on the 720x1280 base.
-## Arc angles (degrees from straight left over the top to straight right) of
-## The control row near the bottom (thumb reach): the stick in the middle, a skill on
-## each side of it.
+## Controls (owner), as (distance from their screen edge, distance from the bottom) of each
+## control's centre on the 720x1280 base: the movement stick at the bottom left, the two skill
+## buttons at the bottom right, all in one row within thumb reach.
 const ROW_HEIGHT: float = 150.0
 ## The square the stick listens in: its outer ring plus a margin for the thumb.
 const STICK_ZONE: float = (VirtualJoystick.OUTER_RADIUS + 20.0) * 2.0
-const ROW_GAP: float = 24.0
-## The skill buttons are drawn the same size as the stick's knob.
-const WEAPON_SIZE: float = VirtualJoystick.THUMB_RADIUS * 2.0
-const CANCEL_AT: Vector2 = Vector2(-242.0, 520.0)
+## The stick's centre from the left edge (its outer ring stays on screen).
+const STICK_FROM_LEFT: float = STICK_ZONE / 2.0 + 6.0
+## The skill buttons: big enough for a thumb (Apple's 44 pt is 84 px), a gap apart, the
+## second against the right margin and the first to its left.
+const WEAPON_SIZE: float = 124.0
+const WEAPON_GAP: float = 30.0
+const WEAPON_MARGIN: float = 34.0
+## The cancel zone sits above the skill buttons (drag a skill onto it to cancel the cast).
+const CANCEL_FROM_RIGHT: float = WEAPON_MARGIN + WEAPON_SIZE + WEAPON_GAP / 2.0
+const CANCEL_AT: Vector2 = Vector2(CANCEL_FROM_RIGHT, 440.0)
 const CANCEL_SIZE: Vector2 = Vector2(110.0, 100.0)
 
 var overhead: OverheadHud
@@ -264,19 +268,25 @@ func _build() -> void:
 	menu.closed.connect(set_controls_active.bind(true))
 
 
-## The stick at the bottom centre, weapon 1 on its left and weapon 2 on its right.
+## The stick at the bottom left, weapon 1 and weapon 2 side by side at the bottom right.
 func layout_controls() -> void:
-	var side: float = STICK_ZONE / 2.0 + ROW_GAP + WEAPON_SIZE / 2.0
-	_put(joystick, Vector2(0.0, ROW_HEIGHT), Vector2(STICK_ZONE, STICK_ZONE))
-	_put(weapon_buttons[0], Vector2(-side, ROW_HEIGHT), Vector2(WEAPON_SIZE, WEAPON_SIZE))
-	_put(weapon_buttons[1], Vector2(side, ROW_HEIGHT), Vector2(WEAPON_SIZE, WEAPON_SIZE))
-	_put(cancel_zone, CANCEL_AT, CANCEL_SIZE)
+	_put(joystick, false, Vector2(STICK_FROM_LEFT, ROW_HEIGHT), Vector2(STICK_ZONE, STICK_ZONE))
+	var second: float = WEAPON_MARGIN + WEAPON_SIZE / 2.0
+	_put(weapon_buttons[1], true, Vector2(second, ROW_HEIGHT), Vector2(WEAPON_SIZE, WEAPON_SIZE))
+	_put(weapon_buttons[0], true, Vector2(second + WEAPON_SIZE + WEAPON_GAP, ROW_HEIGHT), Vector2(WEAPON_SIZE, WEAPON_SIZE))
+	_put(cancel_zone, true, CANCEL_AT, CANCEL_SIZE)
 
 
-## Places `control` with its centre `at` = (from the centre line, from the bottom).
-func _put(control: Control, at: Vector2, extent: Vector2) -> void:
-	_place(control, Vector4(0.5, 1, 0.5, 1), Vector4(
-		at.x - extent.x / 2.0, -at.y - extent.y / 2.0, at.x + extent.x / 2.0, -at.y + extent.y / 2.0))
+## Places `control` with its centre `at` = (from the right or left edge, from the bottom).
+func _put(control: Control, from_right: bool, at: Vector2, extent: Vector2) -> void:
+	var edge: float = 1.0 if from_right else 0.0
+	var side: float = -1.0 if from_right else 1.0
+	var near: float = side * at.x
+	var half: float = extent.x / 2.0
+	var low: float = near - half
+	var high: float = near + half
+	_place(control, Vector4(edge, 1, edge, 1), Vector4(
+		minf(low, high), -at.y - extent.y / 2.0, maxf(low, high), -at.y + extent.y / 2.0))
 
 
 func _build_top_row() -> void:
