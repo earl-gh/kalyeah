@@ -28,7 +28,7 @@ static func slider(value: float) -> HSlider:
 	slider.value = value
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	slider.custom_minimum_size = Vector2(0.0, 72.0)
+	slider.custom_minimum_size = Vector2(0.0, 84.0)
 	var track: StyleBoxFlat = StyleBoxFlat.new()
 	track.bg_color = TRACK
 	track.set_corner_radius_all(14)
