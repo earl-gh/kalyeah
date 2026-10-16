@@ -58,3 +58,12 @@ The current art is a first pass built **in code**: procedural meshes, vector ico
   - `sidewalk_top.png`, **the top of both raised sidewalks**: **seamless in both directions, 1024 x 1024 px = 3 x 3 m** (`SIDEWALK_TOP_TILE`). Lighter gray cement slabs with expansion joints about every 1.5 m across the walk, chipped slab corners, light grime.
   - `sidewalk_side.png`, **the raised face of each sidewalk toward the street** (0.4 m tall): **seamless left to right, 1024 x 136 px = 3 m long x 0.4 m high** (`SIDEWALK_SIDE_TILE`); the image covers the full height. Darker gray cement, a slightly rounded top lip that is only a little lighter (no white line, owner), grime and small chips toward the bottom.
 - **Soft colours (owner):** the map must not tire the eyes. The environment is deliberately calm: lower sun and glow, saturation 0.9, contrast 0.97 (all constants at the top of `street_map.gd`), the base and box tints mixed toward grey (`BASE_SOFTEN`), muted yellow curbs and softer roof reds in `palette.gd`.
+
+## Apple HIG pass (owner): main screen, lobby, character and weapon select
+`scripts/ui/hig.gd` (`Hig`) holds the numbers and small builders; the UI is 720 px wide, about 390 pt on an iPhone (1 pt = 1.85 px). `tests/unit/test_hig.gd` audits the screens.
+- **Tap targets at least 44 pt (84 px)** for every button, field, slider and segment; **text at least 11 pt (20 px)**, body 17 pt (31 px), footnotes 13 pt (24 px), captions 12 pt (22 px).
+- **Margins 16 pt (30 px)** plus the notch / status bar / home-bar safe area; spacing in multiples of 8 pt.
+- **Navigation:** a bar with a "< Back" button at the top left and the title centred (lobby; the select screen in practice). Online, the select has no back (the match is already running).
+- **Grouped sections:** a small grey caps header, a rounded group, a footnote (lobby: Game server, Your name, Mode, Room code, the two teams, Match length). **Segmented controls** for the short choices (1v1 / 2v2 / 3v3, best of 3 / 5 / 7); a **scrolling segmented tab row** for the street games. The selected segment is filled and its text turns dark: shape and contrast, not only colour.
+- **One primary action** per screen (the big painted button: Create / Join, Start match, Ready, Practice); secondary actions are quiet text buttons; destructive ones (Leave room) are tinted red and quiet; Quit asks first.
+- **Reading text** has no painted outline; the painted outline stays on buttons and the game title. The lobby uses the main screen's diamond picture, calmed down, so it reads as the same app.

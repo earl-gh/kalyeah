@@ -140,17 +140,7 @@ func _apply_safe_area() -> void:
 ## The unsafe screen edges (left, top, right, bottom) in UI pixels: the notch, the status bar,
 ## rounded corners and the home bar. Zero where the window has none.
 func safe_insets() -> Vector4:
-	var window: Vector2i = DisplayServer.window_get_size()
-	if window.x <= 0 or window.y <= 0:
-		return Vector4.ZERO
-	var safe: Rect2i = DisplayServer.get_display_safe_area()
-	var origin: Vector2i = DisplayServer.window_get_position()
-	var to_ui: Vector2 = get_viewport().get_visible_rect().size / Vector2(window)
-	var left: float = maxf(0.0, float(safe.position.x - origin.x))
-	var top: float = maxf(0.0, float(safe.position.y - origin.y))
-	var right: float = maxf(0.0, float(origin.x + window.x - (safe.position.x + safe.size.x)))
-	var bottom: float = maxf(0.0, float(origin.y + window.y - (safe.position.y + safe.size.y)))
-	return Vector4(minf(left * to_ui.x, 120.0), minf(top * to_ui.y, 120.0), minf(right * to_ui.x, 120.0), minf(bottom * to_ui.y, 120.0))
+	return Hig.safe_insets(get_viewport())
 
 
 func _build_top_bar() -> Control:
@@ -191,7 +181,7 @@ func _build_top_bar() -> Control:
 	texts.add_child(_name_label)
 	var hint: Label = Label.new()
 	hint.text = "Tap to change your name"
-	hint.add_theme_font_size_override("font_size", 19)
+	hint.add_theme_font_size_override("font_size", Hig.CAPTION)
 	hint.add_theme_color_override("font_color", Color(0.8, 0.88, 1.0, 0.8))
 	hint.add_theme_constant_override("outline_size", 0)
 	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -265,7 +255,7 @@ func _build_wordmark() -> Control:
 	var tagline: Label = Label.new()
 	tagline.theme_type_variation = &"HudPill"
 	tagline.text = "MGA LARONG PINOY SA KALYE"
-	tagline.add_theme_font_size_override("font_size", 23)
+	tagline.add_theme_font_size_override("font_size", Hig.FOOTNOTE)
 	tagline.add_theme_color_override("font_color", CREAM)
 	tagline.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ribbon.add_child(tagline)
@@ -447,7 +437,7 @@ func _open_play_dialog(title: String, hotspot: bool, hint: String) -> MenuDialog
 		address.name = "AddressField"
 		address.text = Settings.hotspot_url
 		address.placeholder_text = "192.168.43.1:9080"
-		address.custom_minimum_size = Vector2(0.0, 76.0)
+		address.custom_minimum_size = Vector2(0.0, Hig.MIN_TAP)
 		address.add_theme_font_size_override("font_size", 28)
 		card.body.add_child(address)
 	var create: Button = MenuDialog.make_button("CREATE ROOM", "blue", 32)
@@ -487,7 +477,7 @@ func open_settings() -> MenuDialog:
 	slider.drag_ended.connect(func(_changed: bool) -> void: Settings.play_ui())
 	if Settings.can_vibrate():
 		var buzz: HBoxContainer = _settings_row(card, "Vibration")
-		var toggle: Button = MenuDialog.make_button("ON" if Settings.vibration else "OFF", "green" if Settings.vibration else "grey", 28, Vector2(150.0, 72.0))
+		var toggle: Button = MenuDialog.make_button("ON" if Settings.vibration else "OFF", "green" if Settings.vibration else "grey", 28, Vector2(150.0, Hig.MIN_TAP))
 		toggle.name = "VibrationToggle"
 		toggle.pressed.connect(func() -> void:
 			Settings.set_vibration(not Settings.vibration)
@@ -499,7 +489,7 @@ func open_settings() -> MenuDialog:
 	server.name = "ServerField"
 	server.text = Settings.server_url
 	server.placeholder_text = "wss://your-server"
-	server.custom_minimum_size = Vector2(0.0, 76.0)
+	server.custom_minimum_size = Vector2(0.0, Hig.MIN_TAP)
 	server.add_theme_font_size_override("font_size", 28)
 	card.body.add_child(server)
 	card.add_hint("Used by ONLINE. Leave it as it is unless you run your own server.")

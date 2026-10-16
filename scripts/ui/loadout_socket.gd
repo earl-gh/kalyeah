@@ -32,7 +32,7 @@ func _draw() -> void:
 		caption = weapon.display_name
 	else:
 		_centered(font, "%d" % number, center + Vector2(0.0, radius * 0.25), int(radius * 0.8), EMPTY_TEXT)
-	_centered(font, caption, Vector2(size.x / 2.0, size.y - 6.0), 18, Color.WHITE if weapon != null else EMPTY_TEXT)
+	_centered(font, caption, Vector2(size.x / 2.0, size.y - 6.0), 20, Color.WHITE if weapon != null else EMPTY_TEXT)
 
 
 func _centered(font: Font, text: String, baseline: Vector2, font_size: int, color: Color) -> void:

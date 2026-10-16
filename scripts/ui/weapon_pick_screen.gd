@@ -15,16 +15,18 @@ signal character_changed(id: StringName)
 ## Swap mode: a new pair of weapons was picked (applied at once).
 signal swapped(picks: Array[StringName])
 signal closed
+## The "< Back" button (only offered when `back_enabled`): leave the select.
+signal back_pressed
 
 ## The character cards are exactly 3:4 (width:height).
-const PROFILE_SIZE: Vector2 = Vector2(108.0, 144.0)
-const CARD_HEIGHT: float = 100.0
-const CARD_ICON: float = 76.0
-const TITLE_FONT: int = 30
-const TAB_FONT: int = 17
-const NAME_FONT: int = 24
-const DESCRIPTION_FONT: int = 18
-const STAT_FONT: int = 15
+const PROFILE_SIZE: Vector2 = Vector2(96.0, 128.0)
+const CARD_HEIGHT: float = 140.0
+const CARD_ICON: float = 84.0
+const TITLE_FONT: int = 28
+const NAME_FONT: int = 30
+const DESCRIPTION_FONT: int = 24
+const STAT_FONT: int = 22
+const TAG_FONT: int = 20
 const SOCKET_SIZE: float = 76.0
 const BACKDROP: Color = Color(0.05, 0.06, 0.14, 0.92)
 const PICKED_COLOR: Color = Color(1.0, 0.82, 0.25)
@@ -39,6 +41,8 @@ const KIND_COLORS: Dictionary[WeaponDef.Kind, Color] = {
 }
 
 var pick: WeaponPick
+## Offline practice can step back to the main screen from here; in an online match it cannot.
+var back_enabled: bool = false
 ## The character picked on this screen (the kid you play as).
 var character_id: StringName = &""
 ## Respawn swap mode: no pick timer, every full pair is applied, Done closes.
@@ -49,6 +53,8 @@ var _profiles: Dictionary[StringName, Button] = {}
 var _taken_labels: Dictionary[StringName, Label] = {}
 var _taken: Array[StringName] = []
 var _character_row: Control
+var _back_button: Button
+var _tab_scroll: ScrollContainer
 var _tabs: Dictionary[String, Button] = {}
 var _pages: Dictionary[String, Control] = {}
 var _buttons: Dictionary[StringName, Button] = {}
@@ -115,6 +121,7 @@ func _show(defs: Array[WeaponDef], heading: String) -> void:
 		_build(defs)
 	_title.text = heading
 	_character_row.visible = not swap_mode and not _characters.is_empty()
+	_back_button.visible = back_enabled and not swap_mode
 	_open_tab(_first_tab())
 	visible = true
 	_refresh()
@@ -136,6 +143,8 @@ func _open_tab(group: String) -> void:
 	for name: String in _pages:
 		_pages[name].visible = name == group
 		_tabs[name].set_pressed_no_signal(name == group)
+	if _tab_scroll != null and _tabs.has(group):
+		_tab_scroll.ensure_control_visible.call_deferred(_tabs[group])
 
 
 func current_tab() -> String:
@@ -245,13 +254,14 @@ func _build(defs: Array[WeaponDef]) -> void:
 	add_child(backdrop)
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side: String in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 12)
-	margin.add_theme_constant_override("margin_top", 56)
-	margin.add_theme_constant_override("margin_bottom", 36)
+	var inset: Vector4 = Hig.safe_insets(get_viewport())
+	margin.add_theme_constant_override("margin_left", int(Hig.MARGIN + inset.x))
+	margin.add_theme_constant_override("margin_right", int(Hig.MARGIN + inset.z))
+	margin.add_theme_constant_override("margin_top", int(Hig.MARGIN + maxf(inset.y, 24.0)))
+	margin.add_theme_constant_override("margin_bottom", int(Hig.MARGIN + inset.w))
 	add_child(margin)
 	var column: VBoxContainer = VBoxContainer.new()
-	column.add_theme_constant_override("separation", 8)
+	column.add_theme_constant_override("separation", 12)
 	margin.add_child(column)
 	column.add_child(_header())
 	_character_row = _profile_row()
@@ -260,9 +270,8 @@ func _build(defs: Array[WeaponDef]) -> void:
 	column.add_child(_tab_row(defs))
 	column.add_child(_weapon_pages(defs))
 	_ready_button = Button.new()
-	_ready_button.custom_minimum_size = Vector2(360.0, 84.0)
-	_ready_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_ready_button.add_theme_font_size_override("font_size", 32)
+	_ready_button.custom_minimum_size = Vector2(0.0, 100.0)
+	_ready_button.add_theme_font_size_override("font_size", 38)
 	_ready_button.pressed.connect(press_ready)
 	column.add_child(_ready_button)
 
@@ -309,20 +318,20 @@ func _profile_card(character: CharacterDef) -> Button:
 	var plate: ColorRect = ColorRect.new()
 	plate.color = Color(0.03, 0.04, 0.1, 0.82)
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	plate.position = Vector2(0.0, PROFILE_SIZE.y - 30.0)
-	plate.size = Vector2(PROFILE_SIZE.x, 30.0)
+	plate.position = Vector2(0.0, PROFILE_SIZE.y - 34.0)
+	plate.size = Vector2(PROFILE_SIZE.x, 34.0)
 	button.add_child(plate)
-	var name_label: Label = _text(character.display_name, 18, Color.WHITE)
+	var name_label: Label = _text(character.display_name, Hig.CAPTION, Color.WHITE)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_label.position = plate.position
 	name_label.size = plate.size
 	button.add_child(name_label)
-	var taken: Label = _text("TEAMMATE", 17, Color.WHITE)
+	var taken: Label = _text("TEAMMATE", Hig.MIN_TEXT, Color.WHITE)
 	taken.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	taken.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	taken.position = Vector2(0.0, PROFILE_SIZE.y / 2.0 - 14.0)
-	taken.size = Vector2(PROFILE_SIZE.x, 28.0)
+	taken.position = Vector2(0.0, PROFILE_SIZE.y / 2.0 - 16.0)
+	taken.size = Vector2(PROFILE_SIZE.x, 32.0)
 	taken.add_theme_stylebox_override("normal", _card(Color(0.02, 0.02, 0.06, 0.88), Color(0.5, 0.5, 0.6), 2))
 	taken.visible = false
 	button.add_child(taken)
@@ -331,34 +340,27 @@ func _profile_card(character: CharacterDef) -> Button:
 	return button
 
 
-## Row 2: one tab per street game.
+## Row 2: one tab per street game, a segmented control that scrolls sideways when the names are long.
 func _tab_row(defs: Array[WeaponDef]) -> Control:
-	var row: HBoxContainer = HBoxContainer.new()
-	row.name = "Tabs"
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 6)
+	var tabs: Array[Button] = []
 	for def: WeaponDef in defs:
 		if _tabs.has(def.street_game):
 			continue
 		var tab: Button = Button.new()
 		tab.name = "Tab_" + def.street_game
 		tab.text = def.street_game
-		tab.toggle_mode = true
-		tab.custom_minimum_size = Vector2(0.0, 56.0)
-		tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		tab.add_theme_font_size_override("font_size", TAB_FONT)
-		tab.add_theme_color_override("font_color", Color.WHITE)
-		tab.add_theme_color_override("font_pressed_color", INK)
-		tab.add_theme_color_override("font_hover_pressed_color", INK)
-		tab.add_theme_stylebox_override("normal", _card(CARD_COLOR, Color(0.35, 0.4, 0.7), 2))
-		tab.add_theme_stylebox_override("hover", _card(CARD_COLOR.lightened(0.08), Color(0.5, 0.55, 0.85), 2))
-		var on: StyleBoxFlat = _card(PICKED_COLOR, INK, 3)
-		tab.add_theme_stylebox_override("pressed", on)
-		tab.add_theme_stylebox_override("hover_pressed", on)
+		tab.custom_minimum_size = Vector2(0.0, 0.0)
 		tab.pressed.connect(_open_tab.bind(def.street_game))
-		row.add_child(tab)
 		_tabs[def.street_game] = tab
-	return row
+		tabs.append(tab)
+	var rail: PanelContainer = Hig.segmented(tabs)
+	_tab_scroll = ScrollContainer.new()
+	_tab_scroll.name = "Tabs"
+	_tab_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_tab_scroll.custom_minimum_size = Vector2(0.0, Hig.MIN_TAP + 14.0)
+	rail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tab_scroll.add_child(rail)
+	return _tab_scroll
 
 
 ## The weapon cards of every street game, one page per tab (only one shows), scrollable.
@@ -388,10 +390,18 @@ func _header() -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 14)
+	_back_button = Hig.text_button("\u2039 Back")
+	_back_button.name = "BackButton"
+	_back_button.custom_minimum_size = Vector2(160.0, Hig.MIN_TAP)
+	_back_button.visible = false
+	_back_button.pressed.connect(func() -> void: back_pressed.emit())
+	row.add_child(_back_button)
 	_title = Label.new()
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_title.custom_minimum_size = Vector2(440.0, 70.0)
+	_title.custom_minimum_size = Vector2(0.0, 84.0)
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_title.clip_text = true
 	_title.add_theme_font_size_override("font_size", TITLE_FONT)
 	_title.add_theme_color_override("font_color", Color.WHITE)
 	_title.add_theme_color_override("font_outline_color", INK)
@@ -465,10 +475,13 @@ func _weapon_card(def: WeaponDef) -> Button:
 	var name_label: Label = _text(def.display_name, NAME_FONT, Color.WHITE)
 	name_label.clip_text = false
 	title.add_child(name_label)
-	var tag: Label = _text(def.kind_label(), 14, Color.WHITE)
+	var meta: HBoxContainer = HBoxContainer.new()
+	meta.add_theme_constant_override("separation", 12)
+	meta.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tag: Label = _text(def.kind_label(), TAG_FONT, Color.WHITE)
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	tag.custom_minimum_size = Vector2(46.0, 22.0)
+	tag.custom_minimum_size = Vector2(60.0, 30.0)
 	tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var pill: StyleBoxFlat = StyleBoxFlat.new()
 	pill.bg_color = kind_color(def.kind).darkened(0.15)
@@ -476,7 +489,7 @@ func _weapon_card(def: WeaponDef) -> Button:
 	pill.set_border_width_all(2)
 	pill.set_corner_radius_all(9)
 	tag.add_theme_stylebox_override("normal", pill)
-	title.add_child(tag)
+	meta.add_child(tag)
 	var description: Label = _text(def.description, DESCRIPTION_FONT, Color(0.86, 0.9, 1.0))
 	description.name = "Description"
 	description.clip_text = false
@@ -485,7 +498,9 @@ func _weapon_card(def: WeaponDef) -> Button:
 	texts.add_child(description)
 	var stats: Label = _text(_stat_line(def), STAT_FONT, Color(1.0, 0.86, 0.5))
 	stats.add_theme_constant_override("outline_size", 0)
-	texts.add_child(stats)
+	stats.clip_text = false
+	meta.add_child(stats)
+	texts.add_child(meta)
 	var badge: Label = _text("1", 18, INK)
 	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -498,8 +513,8 @@ func _weapon_card(def: WeaponDef) -> Button:
 	badge.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	badge.offset_left = -26.0
 	badge.offset_right = 6.0
-	badge.offset_top = -8.0
-	badge.offset_bottom = 24.0
+	badge.offset_top = -10.0
+	badge.offset_bottom = 22.0
 	badge.visible = false
 	button.add_child(badge)
 	button.pressed.connect(tap.bind(def.id))

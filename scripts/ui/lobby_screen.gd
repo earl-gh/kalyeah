@@ -11,8 +11,8 @@ const MATCH_SCENE: String = "res://scenes/match/online.tscn"
 const TITLE_SCENE: String = "res://scenes/ui/title_screen.tscn"
 const TEAM_NAMES: Array[String] = ["Blue team", "Red team"]
 const TEAM_COLORS: Array[Color] = [Color(0.45, 0.65, 1.0), Color(1.0, 0.45, 0.45)]
-const FONT: int = 28
-const BIG_FONT: int = 56
+const FONT: int = Hig.BODY
+const BIG_FONT: int = 64
 
 var client: GameClient
 var intent: Intent = Intent.CREATE
@@ -38,6 +38,7 @@ var _team_buttons: Array[Button] = []
 var _ready_button: Button
 var _start_button: Button
 var _best_of_label: Label
+var _best_of_rail: Control
 var _best_of_buttons: Dictionary[int, Button] = {}
 var _team_size: int = 1
 
@@ -199,9 +200,9 @@ func _on_room_changed(room: Dictionary) -> void:
 			if member["player_id"] == client.player_id:
 				line += " - you"
 			line += "   READY" if member["ready"] else "   ..."
-			list.add_child(_label(line, FONT, TEAM_COLORS[team]))
+			list.add_child(_member_row(line, TEAM_COLORS[team]))
 		for empty: int in size - count:
-			list.add_child(_label("(open)", FONT, Color(1, 1, 1, 0.4)))
+			list.add_child(_member_row("Open slot", Hig.SECONDARY))
 		_team_buttons[team].disabled = client.my_team() == team or count >= size
 	var me_ready: bool = false
 	for member: Dictionary in members:
@@ -213,8 +214,8 @@ func _on_room_changed(room: Dictionary) -> void:
 	_best_of_label.text = "Best of %d - first to %d points wins" % [best_of, best_of / 2 + 1]
 	for count: int in _best_of_buttons:
 		var button: Button = _best_of_buttons[count]
-		button.visible = client.is_host()
 		button.set_pressed_no_signal(count == best_of)
+	_best_of_rail.visible = client.is_host()
 	_start_button.visible = client.is_host()
 	_start_button.disabled = not (room.get("can_start", false) as bool)
 
@@ -246,128 +247,178 @@ func _show_room(in_room: bool) -> void:
 
 
 func _build() -> void:
-	var backdrop: ColorRect = ColorRect.new()
-	backdrop.color = Color(0.1, 0.09, 0.14)
-	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(backdrop)
+	_build_background()
+	var inset: Vector4 = Hig.safe_insets(get_viewport())
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	for side: String in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 32)
-	margin.add_theme_constant_override("margin_top", 96)
-	margin.add_theme_constant_override("margin_bottom", 64)
+	margin.add_theme_constant_override("margin_left", int(Hig.MARGIN + inset.x))
+	margin.add_theme_constant_override("margin_right", int(Hig.MARGIN + inset.z))
+	margin.add_theme_constant_override("margin_top", int(Hig.MARGIN + maxf(inset.y, 24.0)))
+	margin.add_theme_constant_override("margin_bottom", int(Hig.MARGIN + inset.w))
 	add_child(margin)
 	var column: VBoxContainer = VBoxContainer.new()
-	column.add_theme_constant_override("separation", 18)
+	column.add_theme_constant_override("separation", int(Hig.GAP))
 	margin.add_child(column)
-	var top: HBoxContainer = HBoxContainer.new()
-	column.add_child(top)
-	top.add_child(_button("Back", _on_back))
-	var title: Label = _label("CREATE ROOM" if intent == Intent.CREATE else "JOIN ROOM", 44)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(title)
+	column.add_child(Hig.nav_bar("Create room" if intent == Intent.CREATE else "Join room", _on_back))
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(scroll)
+	var body: VBoxContainer = VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", int(Hig.GAP * 1.5))
+	scroll.add_child(body)
 	_setup = VBoxContainer.new()
-	_setup.add_theme_constant_override("separation", 14)
-	column.add_child(_setup)
-	_setup.add_child(_label("Hotspot address" if Session.lobby_hotspot else "Game server", FONT))
-	_url_edit = _edit(Settings.lobby_url(Session.lobby_hotspot), "192.168.43.1:9080" if Session.lobby_hotspot else "wss://your-server.example.com")
-	_setup.add_child(_url_edit)
-	_setup.add_child(_label("Your name", FONT))
-	_name_edit = _edit(Session.player_name, "Player")
-	_name_edit.max_length = 12
-	_setup.add_child(_name_edit)
-	if intent == Intent.CREATE:
-		_setup.add_child(_label("Mode", FONT))
-		var sizes: HBoxContainer = HBoxContainer.new()
-		sizes.add_theme_constant_override("separation", 12)
-		_setup.add_child(sizes)
-		for size: int in [1, 2, 3]:
-			var button: Button = _button("%dv%d" % [size, size], choose_size.bind(size))
-			_make_toggle(button)
-			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			sizes.add_child(button)
-			_size_buttons.append(button)
-		choose_size(1)
-	else:
-		_setup.add_child(_label("Room code", FONT))
-		_code_edit = _edit("", "ABC234")
-		_code_edit.max_length = 6
-		_code_edit.add_theme_font_size_override("font_size", BIG_FONT)
-		_code_edit.text_changed.connect(func(text: String) -> void:
-			var caret: int = _code_edit.caret_column
-			_code_edit.text = text.to_upper()
-			_code_edit.caret_column = caret)
-		_setup.add_child(_code_edit)
-	_go_button = _button("CREATE" if intent == Intent.CREATE else "JOIN", submit)
-	_go_button.custom_minimum_size = Vector2(0, 96)
-	_setup.add_child(_go_button)
-	_rejoin_button = _button("REJOIN LAST MATCH", rejoin)
-	_rejoin_button.visible = not Session.reconnect_token.is_empty()
-	_setup.add_child(_rejoin_button)
+	_setup.add_theme_constant_override("separation", int(Hig.GAP * 1.5))
+	body.add_child(_setup)
+	_build_setup()
 	_room_box = VBoxContainer.new()
-	_room_box.add_theme_constant_override("separation", 14)
-	column.add_child(_room_box)
-	_room_box.add_child(_label("ROOM CODE - share it with your squad", FONT))
-	_code_label = _label("", BIG_FONT, Color(1.0, 0.86, 0.3))
-	_room_box.add_child(_code_label)
-	for team: int in 2:
-		var header: HBoxContainer = HBoxContainer.new()
-		_room_box.add_child(header)
-		var name_label: Label = _label(TEAM_NAMES[team], FONT, TEAM_COLORS[team])
-		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		header.add_child(name_label)
-		var join_team: Button = _button("Join", client.pick_team.bind(team))
-		header.add_child(join_team)
-		_team_buttons.append(join_team)
-		var list: VBoxContainer = VBoxContainer.new()
-		_room_box.add_child(list)
-		_team_lists.append(list)
-	_best_of_label = _label("", FONT, Color(1.0, 0.86, 0.3))
-	_room_box.add_child(_best_of_label)
-	var counts: HBoxContainer = HBoxContainer.new()
-	counts.add_theme_constant_override("separation", 12)
-	_room_box.add_child(counts)
-	for count: int in [3, 5, 7]:
-		var choice: Button = _button("Best of %d" % count, client.set_best_of.bind(count))
-		_make_toggle(choice)
-		choice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		counts.add_child(choice)
-		_best_of_buttons[count] = choice
-	_ready_button = _button("Tap when you're ready", func() -> void: client.set_ready(_ready_button.button_pressed))
-	_make_toggle(_ready_button)
-	_ready_button.custom_minimum_size = Vector2(0, 96)
-	_room_box.add_child(_ready_button)
-	_start_button = _button("START MATCH", client.start_match)
-	_start_button.custom_minimum_size = Vector2(0, 96)
-	_room_box.add_child(_start_button)
-	_room_box.add_child(_button("Leave room", _on_leave))
-	_status = _label("", FONT, Color(1.0, 0.75, 0.5))
-	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_room_box.add_theme_constant_override("separation", int(Hig.GAP * 1.5))
+	body.add_child(_room_box)
+	_build_room()
+	_status = Hig.footnote("", Color(1.0, 0.78, 0.5))
 	column.add_child(_status)
 	var gate: Node = (load("res://scenes/ui/orientation_gate.tscn") as PackedScene).instantiate()
 	add_child(gate)
 
 
-func _label(text: String, font_size: int, color: Color = Color.WHITE) -> Label:
-	var label: Label = Label.new()
-	label.text = text
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", color)
-	return label
+## The same blue diamond picture as the main screen, calmed down so the forms read first.
+func _build_background() -> void:
+	var picture: TextureRect = TextureRect.new()
+	picture.name = "Background"
+	picture.texture = TitleScreen.BACKGROUND
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	picture.set_anchors_preset(Control.PRESET_FULL_RECT)
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(picture)
+	var calm: ColorRect = ColorRect.new()
+	calm.color = Color(0.02, 0.04, 0.13, 0.7)
+	calm.set_anchors_preset(Control.PRESET_FULL_RECT)
+	calm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(calm)
+
+
+## Before the room: server, name, then Create's mode or Join's code, and the one primary button.
+func _build_setup() -> void:
+	_setup.add_child(_section("Hotspot address" if Session.lobby_hotspot else "Game server"))
+	var server: PanelContainer = Hig.group()
+	_url_edit = _edit(Settings.lobby_url(Session.lobby_hotspot), "192.168.43.1:9080" if Session.lobby_hotspot else "wss://your-server.example.com")
+	Hig.rows(server).add_child(_url_edit)
+	_setup.add_child(server)
+	_setup.add_child(_section("Your name"))
+	var who: PanelContainer = Hig.group()
+	_name_edit = _edit(Session.player_name, "Player")
+	_name_edit.max_length = 12
+	Hig.rows(who).add_child(_name_edit)
+	_setup.add_child(who)
+	if intent == Intent.CREATE:
+		_setup.add_child(_section("Mode"))
+		for size: int in [1, 2, 3]:
+			var button: Button = _button("%dv%d" % [size, size], choose_size.bind(size))
+			_size_buttons.append(button)
+		_setup.add_child(Hig.segmented(_size_buttons))
+		choose_size(1)
+	else:
+		_setup.add_child(_section("Room code"))
+		var code: PanelContainer = Hig.group()
+		_code_edit = _edit("", "ABC234")
+		_code_edit.max_length = 6
+		_code_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_code_edit.add_theme_font_size_override("font_size", BIG_FONT)
+		_code_edit.custom_minimum_size = Vector2(0.0, 110.0)
+		_code_edit.text_changed.connect(func(text: String) -> void:
+			var caret: int = _code_edit.caret_column
+			_code_edit.text = text.to_upper()
+			_code_edit.caret_column = caret)
+		Hig.rows(code).add_child(_code_edit)
+		_setup.add_child(code)
+		_setup.add_child(Hig.footnote("Six letters or numbers from the friend who made the room."))
+	_go_button = _primary("Create" if intent == Intent.CREATE else "Join", submit)
+	_setup.add_child(_go_button)
+	_rejoin_button = Hig.text_button("Rejoin last match")
+	_rejoin_button.pressed.connect(rejoin)
+	_rejoin_button.visible = not Session.reconnect_token.is_empty()
+	_setup.add_child(_rejoin_button)
+
+
+## In the room: the code to share, the two teams (a group each), best of, then Ready / Start.
+func _build_room() -> void:
+	_room_box.add_child(_section("Room code"))
+	var code_card: PanelContainer = Hig.group()
+	_code_label = Hig.label("", BIG_FONT, Color(1.0, 0.86, 0.3), HORIZONTAL_ALIGNMENT_CENTER)
+	Hig.rows(code_card).add_child(_code_label)
+	_room_box.add_child(code_card)
+	_room_box.add_child(Hig.footnote("Share it with your squad."))
+	for team: int in 2:
+		_room_box.add_child(_section(TEAM_NAMES[team], TEAM_COLORS[team]))
+		var card: PanelContainer = Hig.group()
+		var list: VBoxContainer = VBoxContainer.new()
+		list.add_theme_constant_override("separation", 4)
+		Hig.rows(card).add_child(list)
+		_team_lists.append(list)
+		var join_team: Button = Hig.text_button("Join %s" % TEAM_NAMES[team].to_lower(), TEAM_COLORS[team])
+		join_team.pressed.connect(client.pick_team.bind(team))
+		Hig.rows(card).add_child(join_team)
+		_team_buttons.append(join_team)
+		_room_box.add_child(card)
+	_room_box.add_child(_section("Match length"))
+	var counts: Array[Button] = []
+	for count: int in [3, 5, 7]:
+		var choice: Button = _button("Best of %d" % count, client.set_best_of.bind(count))
+		_best_of_buttons[count] = choice
+		counts.append(choice)
+	_best_of_rail = Hig.segmented(counts)
+	_room_box.add_child(_best_of_rail)
+	_best_of_label = Hig.footnote("")
+	_room_box.add_child(_best_of_label)
+	_ready_button = _primary("Tap when you're ready", func() -> void: client.set_ready(_ready_button.button_pressed))
+	_make_toggle(_ready_button)
+	_room_box.add_child(_ready_button)
+	_start_button = _primary("Start match", client.start_match)
+	_room_box.add_child(_start_button)
+	var leave: Button = Hig.text_button("Leave room", Hig.DESTRUCTIVE)
+	leave.pressed.connect(_on_leave)
+	_room_box.add_child(leave)
+
+
+func _section(text: String, color: Color = Hig.SECONDARY) -> Label:
+	var header: Label = Hig.section_header(text)
+	header.add_theme_color_override("font_color", color)
+	return header
+
+
+## A person in a team's group.
+func _member_row(text: String, color: Color) -> Label:
+	var row: Label = Hig.label(text, Hig.BODY, color)
+	row.custom_minimum_size = Vector2(0.0, 64.0)
+	row.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	return row
 
 
 func _edit(text: String, placeholder: String) -> LineEdit:
 	var edit: LineEdit = LineEdit.new()
 	edit.text = text
 	edit.placeholder_text = placeholder
-	edit.custom_minimum_size = Vector2(0, 72)
-	edit.add_theme_font_size_override("font_size", FONT)
+	edit.custom_minimum_size = Vector2(0.0, Hig.MIN_TAP + 12.0)
+	edit.add_theme_font_size_override("font_size", Hig.BODY)
+	var field: StyleBoxFlat = StyleBoxFlat.new()
+	field.bg_color = Color(1.0, 1.0, 1.0, 0.1)
+	field.set_corner_radius_all(Hig.RADIUS - 8)
+	field.set_content_margin_all(Hig.GAP)
+	edit.add_theme_stylebox_override("normal", field)
+	var editing: StyleBoxFlat = field.duplicate() as StyleBoxFlat
+	editing.border_color = Hig.TINT
+	editing.set_border_width_all(3)
+	edit.add_theme_stylebox_override("focus", editing)
+	edit.add_theme_color_override("font_color", Hig.LABEL)
+	edit.add_theme_color_override("caret_color", Hig.TINT)
+	edit.add_theme_color_override("font_placeholder_color", Color(Hig.SECONDARY, 0.55))
 	return edit
 
 
-## Toggle buttons light up yellow when on (like picked weapons).
+## The ready toggle lights up yellow when on.
 func _make_toggle(button: Button) -> void:
 	button.toggle_mode = true
 	var on: StyleBoxFlat = KalyeahTheme.button_box(WeaponPickScreen.PICKED_COLOR, true)
@@ -377,10 +428,19 @@ func _make_toggle(button: Button) -> void:
 		button.add_theme_color_override(state, Color.BLACK)
 
 
+## The screen's one primary action: the painted game button, big.
+func _primary(text: String, action: Callable) -> Button:
+	var button: Button = Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(0.0, 104.0)
+	button.add_theme_font_size_override("font_size", 38)
+	button.pressed.connect(action)
+	return button
+
+
+## A segment of a segmented control (see Hig.segmented).
 func _button(text: String, action: Callable) -> Button:
 	var button: Button = Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(120, 72)
-	button.add_theme_font_size_override("font_size", FONT)
 	button.pressed.connect(action)
 	return button
