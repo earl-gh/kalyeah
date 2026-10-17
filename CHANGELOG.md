@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.1](https://github.com/earl-gh/kalyeah/compare/kalyeah-v0.6.0...kalyeah-v0.6.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **lobby:** use eight-character room codes ([be91322](https://github.com/earl-gh/kalyeah/commit/be9132213015c048920089caddd67b0cb3704120))
+* **multiplayer:** preserve authority across interruptions ([e934bd9](https://github.com/earl-gh/kalyeah/commit/e934bd941bce6e624aaf0385f67c5af1a482a8ae))
+
 ## [0.6.0](https://github.com/earl-gh/kalyeah/compare/kalyeah-v0.5.1...kalyeah-v0.6.0) (2026-10-16)
 
 
