@@ -107,6 +107,37 @@ func test_no_vehicle_stands_where_the_kids_play() -> void:
 		assert_false(map.layout.lane_rect().grow(0.5).has_point(spot), "%s is outside the play area" % id)
 
 
+func test_the_tricycle_terminal_stands_in_the_left_row_at_the_top_end() -> void:
+	var map: StreetMap = _map()
+	var found: Node3D = null
+	for child: Node in map.get_node("%Geometry").get_children():
+		var node: Node3D = child as Node3D
+		if node != null and node.scene_file_path.get_file().get_basename() == StreetMap.TERMINAL:
+			found = node
+	assert_not_null(found, "the terminal is in the street")
+	var front: float = map.layout.lane_width / 2.0 + map.layout.boundary_thickness + StreetMap.SIDEWALK_WIDTH
+	assert_lt(found.position.x, -front, "on the left, in line with the buildings")
+	assert_lt(found.position.z, 0.0, "at the top end")
+	assert_lt(absf(found.position.z + map.layout.lane_length / 2.0), StreetMap.HOUSE_SPACING, "near the top end line")
+
+
+func test_the_pets_and_things_lie_on_the_sidewalks() -> void:
+	var map: StreetMap = _map()
+	var half_w: float = map.layout.lane_width / 2.0 + map.layout.boundary_thickness
+	var seen: Dictionary = {}
+	for child: Node in map.get_node("%Geometry").get_children():
+		var node: Node3D = child as Node3D
+		if node == null:
+			continue
+		var id: String = node.scene_file_path.get_file().get_basename()
+		if ["cat", "dog", "chicken_cage", "drainage_cover"].has(id):
+			seen[id] = true
+			assert_gt(absf(node.position.x), half_w, "%s is off the play area" % id)
+			assert_lt(absf(node.position.x), half_w + StreetMap.SIDEWALK_WIDTH + 0.5, "%s is on the sidewalk" % id)
+			assert_almost_eq(node.position.y, StreetMap.CURB_HEIGHT, 0.001)
+	assert_eq(seen.size(), 4, "all four are there")
+
+
 func test_what_does_not_fit_in_a_row_stands_on_the_road_beyond() -> void:
 	var map: StreetMap = _map()
 	var rowed: Dictionary = {}
