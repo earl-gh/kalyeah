@@ -231,3 +231,20 @@ func test_the_kid_cards_are_rounded_with_a_shadow() -> void:
 	assert_gt(box.shadow_size, 0, "a shadow")
 	var picture: TextureRect = view.kid_cards["toni"].get_child(0) as TextureRect
 	assert_not_null(picture.material, "the picture is cropped to the same corners")
+
+
+func test_the_map_carousel_lists_tumbang_preso_and_patintero_as_coming_soon() -> void:
+	var view: HotspotRoomView = _view(_room(2))
+	var picked: Array[StringName] = []
+	view.map_chosen.connect(func(id: StringName) -> void: picked.append(id))
+	view.map_card.pressed.emit()
+	assert_eq(view.map_carousel.cards.size(), 3, "three street games")
+	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[0]), "AGAWAN BASE")
+	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[1]), "TUMBANG PRESO")
+	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[2]), "PATINTERO")
+	assert_false((view.map_carousel.cards[0].get_node("Heading") as Label).visible)
+	assert_eq((view.map_carousel.cards[1].get_node("Heading") as Label).text, "COMING SOON")
+	view.map_carousel.select(1, false)
+	assert_true(picked.is_empty(), "a game that is not playable yet is not picked")
+	assert_string_contains((view.find_child("MapHint", true, false) as Label).text, "coming soon")
+	view.close_map_carousel()

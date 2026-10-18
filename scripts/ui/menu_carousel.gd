@@ -41,7 +41,7 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		card.queue_free()
 	cards.clear()
 	for option: Dictionary in options:
-		var card: Button = ChoiceCard.make_card(heading, String(option["title"]), String(option["color"]), card_size, String(option["id"]))
+		var card: Button = ChoiceCard.make_card(String(option.get("heading", heading)), String(option["title"]), String(option["color"]), card_size, String(option["id"]))
 		card.size = card_size
 		card.pivot_offset = card_size / 2.0
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE

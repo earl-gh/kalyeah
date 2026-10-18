@@ -21,18 +21,24 @@ signal team_chosen(team: int)
 ## The big button: START for the host, READY (on or off) for everyone else.
 signal action_pressed
 
-const MAP_NAMES: Dictionary[StringName, String] = {&"street": "AGAWAN BASE"}
+const MAP_NAMES: Dictionary[StringName, String] = {&"street": "AGAWAN BASE", &"tumbang_preso": "TUMBANG PRESO", &"patintero": "PATINTERO"}
+const MAP_COLORS: Dictionary[StringName, String] = {&"street": "blue", &"tumbang_preso": "orange", &"patintero": "green"}
 ## The cards in the map carousel are 3:4.
 const MAP_PICK_CARD: Vector2 = Vector2(414.0, 552.0)
 const TEAM_COLORS: Array[Color] = [Color(0.45, 0.65, 1.0), Color(1.0, 0.45, 0.45)]
-const MARGIN: float = 28.0
-const GAP: float = 10.0
+## Spacing and type scale of the screen: one set of values so it reads as one system.
+const MARGIN: float = 24.0
+const GAP: float = 8.0
+const SECTION_GAP: int = 14
 ## The map card is 2:1 (width:height) and fills a row; the six character cards are 3:4.
-const MAP_CARD: Vector2 = Vector2(664.0, 332.0)
-const KID_CARD: Vector2 = Vector2(104.0, 139.0)
+const MAP_CARD: Vector2 = Vector2(672.0, 336.0)
+const KID_CARD: Vector2 = Vector2(105.0, 140.0)
 const KID_RADIUS: int = 16
-const BAR_HEIGHT: float = 84.0
-const NUMBER_WIDTH: float = 78.0
+const BAR_HEIGHT: float = 58.0
+const NUMBER_WIDTH: float = 56.0
+const NAME_SIZE: int = 26
+const NUMBER_SIZE: int = 32
+const TAG_SIZE: int = 15
 ## The solid number blocks and tags of the mock-up, and the navy of the names on the white bars.
 const TEAM_BLOCKS: Array[Color] = [Color(0.18, 0.17, 0.82), Color(0.94, 0.14, 0.2)]
 const NAME_COLOR: Color = Color(0.12, 0.27, 0.52)
@@ -44,6 +50,7 @@ var settings_button: Button
 var map_card: Button
 var map_carousel: MenuCarousel
 var _map_overlay: Control
+var _map_hint: Label
 var size_buttons: Dictionary[int, Button] = {}
 var player_grid: GridContainer
 var player_cards: Array[Control] = []
@@ -68,19 +75,19 @@ func _build() -> void:
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right"]:
 		margin.add_theme_constant_override("margin_" + side, int(MARGIN))
-	margin.add_theme_constant_override("margin_top", 24)
-	margin.add_theme_constant_override("margin_bottom", 24)
+	margin.add_theme_constant_override("margin_top", 20)
+	margin.add_theme_constant_override("margin_bottom", 20)
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(margin)
 	var column: VBoxContainer = VBoxContainer.new()
-	column.add_theme_constant_override("separation", 18)
+	column.add_theme_constant_override("separation", SECTION_GAP)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_child(column)
 	column.add_child(_build_top_row())
 	_content = VBoxContainer.new()
 	_content.name = "Content"
 	_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_content.add_theme_constant_override("separation", 18)
+	_content.add_theme_constant_override("separation", SECTION_GAP)
 	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_content.visible = false
 	column.add_child(_content)
@@ -91,7 +98,7 @@ func _build() -> void:
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_content.add_child(spacer)
-	action_button = MenuDialog.make_button("READY", "orange", 36, Vector2(0.0, 96.0))
+	action_button = MenuDialog.make_button("READY", "orange", 32, Vector2(0.0, 80.0))
 	action_button.name = "ActionButton"
 	action_button.pressed.connect(action_pressed.emit)
 	_content.add_child(action_button)
@@ -99,18 +106,18 @@ func _build() -> void:
 	status_label.name = "Status"
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	status_label.add_theme_font_size_override("font_size", 24)
+	status_label.add_theme_font_size_override("font_size", 20)
 	status_label.add_theme_color_override("font_color", Color("ffb4a8"))
-	status_label.custom_minimum_size = Vector2(0.0, 30.0)
+	status_label.custom_minimum_size = Vector2(0.0, 26.0)
 	column.add_child(status_label)
 
 
 func _build_top_row() -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.name = "TopRow"
-	row.add_theme_constant_override("separation", 16)
+	row.add_theme_constant_override("separation", 12)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	back_button = MenuDialog.make_button("LOBBY", "grey", 26, Vector2(150.0, 72.0))
+	back_button = MenuDialog.make_button("LOBBY", "grey", 22, Vector2(124.0, 56.0))
 	back_button.name = "BackButton"
 	back_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	back_button.pressed.connect(back_pressed.emit)
@@ -119,14 +126,14 @@ func _build_top_row() -> Control:
 	bar.name = "Divider"
 	bar.text = "|"
 	bar.theme_type_variation = &"DisplayLabel"
-	bar.add_theme_font_size_override("font_size", 46)
+	bar.add_theme_font_size_override("font_size", 38)
 	bar.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.45))
 	bar.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(bar)
 	code_label = Label.new()
 	code_label.name = "Code"
 	code_label.theme_type_variation = &"DisplayLabel"
-	code_label.add_theme_font_size_override("font_size", 46)
+	code_label.add_theme_font_size_override("font_size", 38)
 	code_label.add_theme_color_override("font_color", KalyeahTheme.AMBER)
 	code_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	code_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -138,7 +145,7 @@ func _build_top_row() -> Control:
 	settings_button.name = "SettingsButton"
 	settings_button.flat = true
 	settings_button.focus_mode = Control.FOCUS_NONE
-	settings_button.custom_minimum_size = Vector2(72.0, 72.0)
+	settings_button.custom_minimum_size = Vector2(56.0, 56.0)
 	settings_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	for state: String in ["normal", "hover", "pressed", "focus"]:
 		settings_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
@@ -159,7 +166,7 @@ func _build_top_row() -> Control:
 func _build_map_section() -> Control:
 	var column: VBoxContainer = VBoxContainer.new()
 	column.name = "MapSection"
-	column.add_theme_constant_override("separation", 14)
+	column.add_theme_constant_override("separation", int(GAP) + 4)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	map_card = ChoiceCard.make_card("", "AGAWAN BASE", "blue", MAP_CARD)
 	map_card.name = "MapCard"
@@ -169,14 +176,14 @@ func _build_map_section() -> Control:
 	column.add_child(map_card)
 	var sizes: HBoxContainer = HBoxContainer.new()
 	sizes.name = "Sizes"
-	sizes.add_theme_constant_override("separation", 12)
+	sizes.add_theme_constant_override("separation", int(GAP) + 2)
 	sizes.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(sizes)
 	for size: int in [1, 2, 3]:
-		var button: Button = LobbyWidgets.button("%dv%d" % [size, size], size_chosen.emit.bind(size), "grey", 34)
+		var button: Button = LobbyWidgets.button("%dv%d" % [size, size], size_chosen.emit.bind(size), "grey", 28)
 		LobbyWidgets.make_toggle(button)
 		button.name = "Size%d" % size
-		button.custom_minimum_size = Vector2(0.0, 76.0)
+		button.custom_minimum_size = Vector2(0.0, 60.0)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		sizes.add_child(button)
 		size_buttons[size] = button
@@ -209,7 +216,8 @@ func open_map_carousel() -> void:
 	for id: StringName in RoomService.MAP_IDS:
 		if id == chosen:
 			current = maps.size()
-		maps.append({"id": String(id), "title": MAP_NAMES.get(id, String(id).to_upper()), "color": "blue"})
+		maps.append({"id": String(id), "title": MAP_NAMES.get(id, String(id).to_upper()), "color": MAP_COLORS.get(id, "blue"),
+			"heading": "" if id in RoomService.PLAYABLE_MAP_IDS else "COMING SOON"})
 	map_carousel = MenuCarousel.new()
 	map_carousel.name = "MapCarousel"
 	map_carousel.card_size = MAP_PICK_CARD
@@ -224,6 +232,23 @@ func open_map_carousel() -> void:
 	map_carousel.offset_top = -(MAP_PICK_CARD.y + 24.0) / 2.0
 	map_carousel.offset_bottom = (MAP_PICK_CARD.y + 24.0) / 2.0
 	_map_overlay.add_child(map_carousel)
+	_map_hint = Label.new()
+	_map_hint.name = "MapHint"
+	_map_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_map_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_map_hint.add_theme_font_size_override("font_size", 22)
+	_map_hint.add_theme_color_override("font_color", KalyeahTheme.CREAM)
+	# just under the carousel (which is centred up and down)
+	_map_hint.anchor_left = 0.0
+	_map_hint.anchor_right = 1.0
+	_map_hint.anchor_top = 0.5
+	_map_hint.anchor_bottom = 0.5
+	_map_hint.offset_left = MARGIN
+	_map_hint.offset_right = -MARGIN
+	_map_hint.offset_top = MAP_PICK_CARD.y / 2.0 + 40.0
+	_map_hint.offset_bottom = MAP_PICK_CARD.y / 2.0 + 110.0
+	_map_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map_overlay.add_child(_map_hint)
 	map_carousel.setup("", maps, current)
 	map_carousel.selected.connect(_on_map_carousel_selected)
 
@@ -243,6 +268,11 @@ func _on_tint_input(event: InputEvent) -> void:
 
 func _on_map_carousel_selected(index: int) -> void:
 	var id: StringName = RoomService.MAP_IDS[index]
+	if not id in RoomService.PLAYABLE_MAP_IDS:
+		# listed, but not playable yet: say so and keep the room on its map
+		_map_hint.text = "%s is coming soon. Agawan Base is the only game to play for now." % MAP_NAMES.get(id, String(id).to_upper())
+		return
+	_map_hint.text = ""
 	map_chosen.emit(id)
 	# a moment to see the card come forward, then back to the room
 	get_tree().create_timer(0.35).timeout.connect(close_map_carousel)
@@ -302,7 +332,7 @@ func _kid_card(id: String) -> Button:
 	var label: Label = Label.new()
 	label.theme_type_variation = &"DisplayLabel"
 	label.text = (definition.display_name if definition != null else id).to_upper()
-	label.add_theme_font_size_override("font_size", 17)
+	label.add_theme_font_size_override("font_size", 15)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	label.offset_top = -30.0
@@ -434,7 +464,7 @@ func _player_card(member: Dictionary, team: int) -> Control:
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if team == 0 else HORIZONTAL_ALIGNMENT_RIGHT
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	name_label.add_theme_font_size_override("font_size", 34)
+	name_label.add_theme_font_size_override("font_size", NAME_SIZE)
 	name_label.add_theme_color_override("font_color", NAME_COLOR)
 	name_label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
 	name_label.add_theme_constant_override("outline_size", 0)
@@ -443,9 +473,9 @@ func _player_card(member: Dictionary, team: int) -> Control:
 	if team == 0:
 		name_label.add_theme_constant_override("line_spacing", 0)
 		row.add_child(number)
-		row.add_child(_padded(name_label, 18.0, 8.0))
+		row.add_child(_padded(name_label, 14.0, 6.0))
 	else:
-		row.add_child(_padded(name_label, 8.0, 18.0))
+		row.add_child(_padded(name_label, 6.0, 14.0))
 		row.add_child(number)
 	var tag_text: String = ""
 	if member["player_id"] == _room.get("host", -1):
@@ -494,7 +524,7 @@ func _number_block(number: int, team: int, hollow: bool) -> Control:
 	label.theme_type_variation = &"DisplayLabel"
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 44)
+	label.add_theme_font_size_override("font_size", NUMBER_SIZE)
 	label.add_theme_color_override("font_color", TEAM_BLOCKS[team].lightened(0.35) if hollow else Color.WHITE)
 	label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
 	label.add_theme_constant_override("outline_size", 0)
@@ -521,14 +551,14 @@ func _tag(text: String, team: int) -> Control:
 	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = TEAM_BLOCKS[team]
-	box.content_margin_left = 12.0
-	box.content_margin_right = 12.0
-	box.content_margin_top = 3.0
-	box.content_margin_bottom = 3.0
+	box.content_margin_left = 8.0
+	box.content_margin_right = 8.0
+	box.content_margin_top = 1.0
+	box.content_margin_bottom = 1.0
 	tag.add_theme_stylebox_override("panel", box)
 	var label: Label = Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 20)
+	label.add_theme_font_size_override("font_size", TAG_SIZE)
 	label.add_theme_color_override("font_color", Color.WHITE)
 	label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
 	label.add_theme_constant_override("outline_size", 0)
