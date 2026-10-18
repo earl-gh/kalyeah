@@ -12,6 +12,7 @@ const MODEL_PATH: String = "res://assets/models/characters/%s.glb"
 const PORTRAIT_PATH: String = "res://assets/portraits/%s.png"
 ## A kid's face cropped from the boot screen key art (tools/art/crop_minimap_faces.py), for the minimap.
 const FACE_PATH: String = "res://assets/portraits/faces/%s.png"
+const CARD_PATH: String = "res://assets/portraits/cards/%s.png"
 const FALLBACK_SET: StringName = &"junjun"
 ## How tall the kid stands in the world, in metres (a little taller than life so the kids
 ## read through the wide lens).
@@ -334,6 +335,17 @@ static func portrait(character_id: StringName) -> Texture2D:
 	if not _portraits.has(set_id):
 		_portraits[set_id] = load(PORTRAIT_PATH % set_id) as Texture2D
 	return _portraits[set_id]
+
+
+## A character's 3:4 profile card picture: the face cropped out of the boot screen key art at its own
+## zoom (tools/art/crop_room_cards.py), or null when there is none.
+static func card_face(character_id: StringName) -> Texture2D:
+	var path: String = CARD_PATH % String(character_id)
+	if not ResourceLoader.exists(path):
+		return null
+	if not _faces.has(path):
+		_faces[path] = load(path) as Texture2D
+	return _faces[path]
 
 
 ## The square face of a character from the boot screen art, or null when there is none.

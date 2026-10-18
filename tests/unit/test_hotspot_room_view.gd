@@ -114,3 +114,41 @@ func test_nothing_but_the_top_row_shows_before_a_room_exists() -> void:
 	assert_false(view.has_room())
 	view.show_room(_room(1), 1)
 	assert_true(view.has_room())
+
+
+func test_player_cards_have_no_picture_and_the_slot_numbers_run_1_to_3_then_4_to_6() -> void:
+	var view: HotspotRoomView = _view(_room(3))
+	for card: Control in view.player_cards:
+		assert_eq(card.find_children("*", "TextureRect", true, false).size(), 0, "no character image on a player card")
+	assert_eq(HotspotRoomView.slot_number(0, 0), 1)
+	assert_eq(HotspotRoomView.slot_number(0, 2), 3)
+	assert_eq(HotspotRoomView.slot_number(1, 0), 4)
+	assert_eq(HotspotRoomView.slot_number(1, 2), 6)
+	# row 0: Ana (blue, number 1, name first) and Ben (red, number 4, number first)
+	var ana: Control = view.find_child("Player1", true, false) as Control
+	var ben: Control = view.find_child("Player2", true, false) as Control
+	assert_eq(ana.find_child("Number", true, false).get_child(0).text, "1")
+	assert_eq(ben.find_child("Number", true, false).get_child(0).text, "4")
+	var ana_row: Node = ana.find_child("Number", true, false).get_parent()
+	assert_eq(ana_row.get_child(0).find_child("Name", true, false).text, "Ana", "blue: the name then the number")
+	assert_eq(ana_row.get_child(0).find_child("Name", true, false).horizontal_alignment, HORIZONTAL_ALIGNMENT_LEFT)
+	var ben_row: Node = ben.find_child("Number", true, false).get_parent()
+	assert_eq(ben_row.get_child(0).name, "Number", "red: the number then the name")
+	assert_eq(ben_row.get_child(1).find_child("Name", true, false).horizontal_alignment, HORIZONTAL_ALIGNMENT_RIGHT)
+
+
+func test_the_kid_cards_use_the_faces_cropped_from_the_loading_screen_art() -> void:
+	var view: HotspotRoomView = _view(_room(2))
+	for id: String in Session.AVATARS:
+		var face: Texture2D = KidModel.card_face(StringName(id))
+		assert_not_null(face, "%s has a cropped face" % id)
+		assert_almost_eq(float(face.get_width()) / float(face.get_height()), 0.75, 0.01, "%s is cropped 3:4" % id)
+		var picture: TextureRect = view.kid_cards[id].get_child(0) as TextureRect
+		assert_eq(picture.texture, face, "%s shows it, not a screenshot of its 3D model" % id)
+
+
+func test_my_chosen_kid_has_the_amber_frame() -> void:
+	var room: Dictionary = _room(2)
+	var view: HotspotRoomView = _view(room)
+	assert_true((view.kid_cards["junjun"].get_node("Chosen") as Panel).visible, "Ana is junjun")
+	assert_false((view.kid_cards["toni"].get_node("Chosen") as Panel).visible)
