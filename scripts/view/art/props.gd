@@ -92,42 +92,6 @@ static func manhole() -> ArrayMesh:
 		return kit.commit())
 
 
-## A blue plastic drum (water / trash).
-static func drum() -> ArrayMesh:
-	return cached("drum", func() -> ArrayMesh:
-		var kit: LowPoly = LowPoly.new()
-		kit.cylinder(Vector3.ZERO, 0.38, 0.38, 0.9, 8, Palette.JEEP_BLUE, Palette.JEEP_BLUE.lightened(0.15))
-		kit.cylinder(Vector3(0.0, 0.35, 0.0), 0.4, 0.4, 0.08, 8, Palette.JEEP_BLUE.darkened(0.2))
-		return kit.commit())
-
-
-static func banana_plant() -> ArrayMesh:
-	return cached("banana", func() -> ArrayMesh:
-		var kit: LowPoly = LowPoly.new()
-		kit.cylinder(Vector3.ZERO, 0.2, 0.15, 2.2, 6, Color(0.55, 0.62, 0.3))
-		for i: int in 6:
-			var angle: float = TAU * float(i) / 6.0
-			var dir: Vector3 = Vector3(cos(angle), 0.0, sin(angle))
-			var root: Vector3 = Vector3(0.0, 2.2, 0.0)
-			var tip: Vector3 = root + dir * 1.5 + Vector3(0.0, 0.2 - float(i % 2) * 0.5, 0.0)
-			var side: Vector3 = dir.cross(Vector3.UP) * 0.35
-			kit.quad(root, root + side + dir * 0.5, tip, root - side + dir * 0.5, Palette.LEAF if i % 2 == 0 else Palette.LEAF_DARK, root + Vector3(0.0, -0.5, 0.0))
-		return kit.commit())
-
-
-static func mango_tree() -> ArrayMesh:
-	return cached("mango", func() -> ArrayMesh:
-		var kit: LowPoly = LowPoly.new()
-		kit.cylinder(Vector3.ZERO, 0.3, 0.22, 2.4, 6, Palette.WOOD)
-		kit.sphere(Vector3(0.0, 3.4, 0.0), 1.6, Palette.LEAF_DARK, 7, 4)
-		kit.sphere(Vector3(0.8, 3.0, 0.5), 1.1, Palette.LEAF, 6, 3)
-		kit.sphere(Vector3(-0.7, 3.2, -0.4), 1.0, Palette.LEAF, 6, 3)
-		for i: int in 5:
-			var angle: float = TAU * float(i) / 5.0
-			kit.sphere(Vector3(cos(angle) * 1.3, 2.7, sin(angle) * 1.3), 0.13, Palette.SARI_YELLOW, 5, 3)
-		return kit.commit())
-
-
 ## The concrete base pad around a post: painted rings, team colour applied separately.
 static func base_pad(radius: float) -> ArrayMesh:
 	return cached("pad%.1f" % radius, func() -> ArrayMesh:
@@ -185,39 +149,6 @@ static func sari_sari() -> ArrayMesh:
 		return kit.commit())
 
 
-## Two poles and a sagging line of clothes, spanning `length` along Z.
-static func laundry_line(length: float) -> ArrayMesh:
-	return cached("laundry%.1f" % length, func() -> ArrayMesh:
-		var kit: LowPoly = LowPoly.new()
-		var half: float = length / 2.0
-		for z: float in [-half, half]:
-			kit.box(Vector3(0.0, 1.4, z), Vector3(0.12, 2.8, 0.12), Palette.WOOD)
-		kit.box(Vector3(0.0, 2.6, 0.0), Vector3(0.03, 0.03, length), Palette.WIRE)
-		var count: int = maxi(3, int(length / 0.9))
-		for i: int in count:
-			var z: float = -half + 0.5 + (length - 1.0) * float(i) / float(count - 1)
-			var tall: float = 0.5 + float(i % 3) * 0.15
-			kit.box(Vector3(0.0, 2.6 - tall / 2.0, z), Vector3(0.05, tall, 0.55), Palette.LAUNDRY[i % Palette.LAUNDRY.size()])
-		return kit.commit())
-
-
-## A big striped market umbrella on a pole, for in front of the store.
-static func umbrella() -> ArrayMesh:
-	return cached("umbrella", func() -> ArrayMesh:
-		var kit: LowPoly = LowPoly.new()
-		kit.box(Vector3(0.0, 1.2, 0.0), Vector3(0.07, 2.4, 0.07), Palette.WHITE)
-		var colors: Array[Color] = [Palette.JEEP_RED, Palette.SARI_YELLOW, Palette.JEEP_BLUE, Palette.LEAF]
-		var sides: int = 8
-		for i: int in sides:
-			var a0: float = TAU * float(i) / sides
-			var a1: float = TAU * float(i + 1) / sides
-			var rim0: Vector3 = Vector3(cos(a0) * 1.3, 2.1, sin(a0) * 1.3)
-			var rim1: Vector3 = Vector3(cos(a1) * 1.3, 2.1, sin(a1) * 1.3)
-			kit.tri(Vector3(0.0, 2.55, 0.0), rim1, rim0, colors[i % colors.size()], Vector3(0.0, 1.0, 0.0))
-			kit.tri(Vector3(0.0, 2.5, 0.0), rim0, rim1, colors[i % colors.size()].darkened(0.3), Vector3(0.0, 3.0, 0.0))
-		return kit.commit())
-
-
 static func basketball_ring() -> ArrayMesh:
 	return cached("hoop", func() -> ArrayMesh:
 		var kit: LowPoly = LowPoly.new()
@@ -228,15 +159,6 @@ static func basketball_ring() -> ArrayMesh:
 		for i: int in 8:
 			var angle: float = TAU * float(i) / 8.0
 			kit.box(Vector3(1.0 + cos(angle) * 0.24, 2.95, sin(angle) * 0.24), Vector3(0.09, 0.04, 0.09), Palette.RING_ORANGE)
-		return kit.commit())
-
-
-static func potted_plant() -> ArrayMesh:
-	return cached("plant", func() -> ArrayMesh:
-		var kit: LowPoly = LowPoly.new()
-		kit.cylinder(Vector3.ZERO, 0.32, 0.25, 0.5, 6, Palette.POT)
-		kit.sphere(Vector3(0.0, 0.85, 0.0), 0.45, Palette.LEAF)
-		kit.sphere(Vector3(0.18, 1.2, 0.05), 0.28, Palette.LEAF_DARK)
 		return kit.commit())
 
 

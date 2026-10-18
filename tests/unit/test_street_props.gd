@@ -39,9 +39,7 @@ func test_the_rows_still_fit_the_street_at_true_size() -> void:
 	for row: Array in map.barrier_rows:
 		var used: float = 0.0
 		for id: Variant in row:
-			var natural: Vector3 = PropModel.size_of(id as String)
-			var side: float = natural.z if StreetMap.BARRIER_TURNED.has(id) else natural.x
-			used += side * StreetMap.BARRIER_HEIGHTS[id] / natural.y + StreetMap.BARRIER_GAP
+			used += StreetMap.barrier_width(id as String) + StreetMap.BARRIER_GAP
 		assert_lt(used - StreetMap.BARRIER_GAP, map.layout.lane_width + 0.001, "the row fits the street")
 
 
@@ -107,3 +105,63 @@ func test_no_vehicle_stands_where_the_kids_play() -> void:
 		var node: Node3D = map.find_child(id, true, false) as Node3D
 		var spot: Vector2 = Vector2(node.position.x, node.position.z)
 		assert_false(map.layout.lane_rect().grow(0.5).has_point(spot), "%s is outside the play area" % id)
+
+
+func test_the_tricycle_terminal_stands_in_the_left_row_at_the_top_end() -> void:
+	var map: StreetMap = _map()
+	var found: Node3D = null
+	for child: Node in map.get_node("%Geometry").get_children():
+		var node: Node3D = child as Node3D
+		if node != null and node.scene_file_path.get_file().get_basename() == StreetMap.TERMINAL:
+			found = node
+	assert_not_null(found, "the terminal is in the street")
+	var front: float = map.layout.lane_width / 2.0 + map.layout.boundary_thickness + StreetMap.SIDEWALK_WIDTH
+	assert_lt(found.position.x, -front, "on the left, in line with the buildings")
+	assert_lt(found.position.z, 0.0, "at the top end")
+	assert_lt(absf(found.position.z + map.layout.lane_length / 2.0), StreetMap.HOUSE_SPACING, "near the top end line")
+
+
+func test_the_pets_and_things_lie_on_the_sidewalks() -> void:
+	var map: StreetMap = _map()
+	var half_w: float = map.layout.lane_width / 2.0 + map.layout.boundary_thickness
+	var seen: Dictionary = {}
+	for child: Node in map.get_node("%Geometry").get_children():
+		var node: Node3D = child as Node3D
+		if node == null:
+			continue
+		var id: String = node.scene_file_path.get_file().get_basename()
+		if ["cat", "dog", "chicken_cage", "drainage_cover"].has(id):
+			seen[id] = true
+			assert_gt(absf(node.position.x), half_w, "%s is off the play area" % id)
+			assert_lt(absf(node.position.x), half_w + StreetMap.SIDEWALK_WIDTH + 0.5, "%s is on the sidewalk" % id)
+			assert_almost_eq(node.position.y, StreetMap.CURB_HEIGHT, 0.001)
+	assert_eq(seen.size(), 4, "all four are there")
+
+
+func test_what_does_not_fit_in_a_row_stands_on_the_road_beyond() -> void:
+	var map: StreetMap = _map()
+	var rowed: Dictionary = {}
+	for row: Array in map.barrier_rows:
+		for id: Variant in row:
+			rowed[id] = true
+	assert_gt(map.far_props.size(), 0, "something did not fit")
+	for id: String in map.far_props:
+		assert_true(StreetMap.BARRIER_HEIGHTS.has(id))
+	for id: String in StreetMap.BARRIER_HEIGHTS:
+		assert_true(rowed.has(id) or map.far_props.has(id), "%s is in a row or on the far road" % id)
+
+
+func test_only_houses_stand_along_the_street_beyond_the_ends() -> void:
+	var map: StreetMap = _map()
+	var half_l: float = map.layout.lane_length / 2.0
+	var beyond: int = 0
+	for child: Node in map.get_node("%Geometry").get_children():
+		var node: Node3D = child as Node3D
+		if node == null or absf(node.position.z) <= half_l + StreetMap.HOUSE_SPACING / 2.0:
+			continue
+		var id: String = node.scene_file_path.get_file().get_basename()
+		if StreetMap.BUILDINGS.has(id) or id == "tricycle_terminal":
+			assert_true(false, "%s is a shop and stands beyond the end" % id)
+		if StreetMap.FILLER_HOUSES.has(id):
+			beyond += 1
+	assert_gt(beyond, 4, "a run of houses beyond the ends")

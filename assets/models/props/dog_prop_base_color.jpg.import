@@ -2,16 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://pw7p2b3brr7f"
-path="res://.godot/imported/chalk_piko.png-85057bc31a000bb8d0e425d3ac48c35d.ctex"
+uid="uid://d2dbjdjr60tcc"
+path="res://.godot/imported/dog_prop_base_color.jpg-10cadcac65549acefdd3964f3d04a200.ctex"
 metadata={
 "vram_texture": false
+}
+generator_parameters={
+"md5": "7cc82647a8e8dcbbd65bf5b9d0646fb8"
 }
 
 [deps]
 
-source_file="res://assets/textures/chalk_piko.png"
-dest_files=["res://.godot/imported/chalk_piko.png-85057bc31a000bb8d0e425d3ac48c35d.ctex"]
+source_file="res://assets/models/props/dog_prop_base_color.jpg"
+dest_files=["res://.godot/imported/dog_prop_base_color.jpg-10cadcac65549acefdd3964f3d04a200.ctex"]
 
 [params]
 
@@ -37,4 +40,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=0
+detect_3d/compress_to=1

@@ -2,16 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://lha8gs2u0c8r"
-path="res://.godot/imported/chalk_preso.png-09ddc1aa938c274b15701e733e284aeb.ctex"
+uid="uid://ft1kc77hgrus"
+path="res://.godot/imported/cat_prop_base_color.jpg-1ccc7fea3f8baf42c43a3f73a5c54910.ctex"
 metadata={
 "vram_texture": false
+}
+generator_parameters={
+"md5": "f0f20d5d4d11bd2621dd513ebee024c0"
 }
 
 [deps]
 
-source_file="res://assets/textures/chalk_preso.png"
-dest_files=["res://.godot/imported/chalk_preso.png-09ddc1aa938c274b15701e733e284aeb.ctex"]
+source_file="res://assets/models/props/cat_prop_base_color.jpg"
+dest_files=["res://.godot/imported/cat_prop_base_color.jpg-1ccc7fea3f8baf42c43a3f73a5c54910.ctex"]
 
 [params]
 
@@ -37,4 +40,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=0
+detect_3d/compress_to=1
