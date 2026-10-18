@@ -1,16 +1,19 @@
 class_name MenuCarousel
 extends Control
-## A horizontal carousel of 3:4 cards. The chosen card is in the middle at full size; the previous
-## and next ones peek out to its left and right, smaller, see-through and behind it. Drag or swipe
-## sideways (or use the mouse wheel) to scroll, tap a card to bring it to the middle.
+## A horizontal carousel of 3:4 cards. The chosen card is in the middle at full size; every other
+## card is stacked behind it, pushed only a little to its left or right, smaller and see-through but
+## always visible. Drag or swipe sideways (or use the mouse wheel) to scroll, tap a card to bring it to
+## the middle.
 
 signal selected(index: int)
 
 const CARD: Vector2 = ChoiceCard.CARD_SIZE
 ## Distance between the middles of two neighbouring cards: less than a card's width, so they overlap.
-const STEP: float = 200.0
-const SIDE_SCALE: float = 0.82
-const SIDE_ALPHA: float = 0.45
+const STEP: float = 112.0
+## Each step away from the middle shrinks a card by this much (and a card is never smaller than the
+## one two steps away).
+const SCALE_LOSS: float = 0.14
+const SIDE_ALPHA: float = 0.6
 const DRAG_START: float = 12.0
 const SNAP_TIME: float = 0.18
 
@@ -80,12 +83,12 @@ func _move_to(value: float) -> void:
 func _layout() -> void:
 	for i: int in cards.size():
 		var offset: float = float(i) - _position
-		var near: float = clampf(absf(offset), 0.0, 1.0)
+		var away: float = clampf(absf(offset), 0.0, 2.0)
 		var card: Button = cards[i]
-		var scale_now: float = lerpf(1.0, SIDE_SCALE, near)
-		card.scale = Vector2.ONE * scale_now
+		card.scale = Vector2.ONE * (1.0 - SCALE_LOSS * away)
 		card.position = Vector2(size.x / 2.0 + offset * STEP - CARD.x / 2.0, (size.y - CARD.y) / 2.0)
-		card.modulate.a = lerpf(1.0, SIDE_ALPHA, near) if absf(offset) < 2.0 else 0.0
+		# every card stays visible: the middle one is solid, the others a little see-through
+		card.modulate.a = lerpf(1.0, SIDE_ALPHA, clampf(absf(offset), 0.0, 1.0))
 		card.z_index = 10 - int(roundf(absf(offset) * 5.0))
 
 
@@ -126,8 +129,6 @@ func _card_at(at: Vector2) -> int:
 	var best_z: int = -999
 	for i: int in cards.size():
 		var card: Button = cards[i]
-		if card.modulate.a <= 0.0:
-			continue
 		var half: Vector2 = CARD * card.scale / 2.0
 		var centre: Vector2 = card.position + CARD / 2.0
 		if absf(at.x - centre.x) <= half.x and absf(at.y - centre.y) <= half.y and card.z_index > best_z:

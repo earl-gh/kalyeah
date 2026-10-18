@@ -33,7 +33,7 @@ func _phone_screen() -> TitleScreen:
 
 func test_the_characters_page_picks_your_face() -> void:
 	var screen: TitleScreen = _phone_screen()
-	screen.open_page(&"characters")
+	screen.open_page(&"codex")
 	await wait_frames(2)
 	var page: CharactersPage = screen.characters_page
 	assert_eq(page.cards.size(), Session.AVATARS.size())
@@ -43,9 +43,23 @@ func test_the_characters_page_picks_your_face() -> void:
 	assert_eq(Session.avatar_id, "popoy")
 
 
+func test_the_book_has_a_characters_tab_and_a_weapons_tab() -> void:
+	var screen: TitleScreen = _phone_screen()
+	screen.open_page(&"codex")
+	await wait_frames(2)
+	assert_true(screen.characters_page.visible)
+	assert_false(screen.weapons_page.visible)
+	screen.codex_page.tab_buttons[&"weapons"].pressed.emit()
+	assert_false(screen.characters_page.visible)
+	assert_true(screen.weapons_page.visible)
+	screen.codex_page.tab_buttons[&"characters"].pressed.emit()
+	assert_true(screen.characters_page.visible)
+
+
 func test_the_weapons_page_lists_every_weapon_with_its_text() -> void:
 	var screen: TitleScreen = _phone_screen()
-	screen.open_page(&"weapons")
+	screen.open_page(&"codex")
+	screen.codex_page.show_tab(&"weapons")
 	await wait_frames(2)
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 	var page: WeaponsPage = screen.weapons_page

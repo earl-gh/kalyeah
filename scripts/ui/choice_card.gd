@@ -4,7 +4,7 @@ extends RefCounted
 ## bottom left, no subtitle. If the owner's card art exists (assets/ui/cards/<id>.png, 3:4) it
 ## fills the card.
 
-const CARD_SIZE: Vector2 = Vector2(240.0, 320.0)
+const CARD_SIZE: Vector2 = Vector2(312.0, 416.0)
 const PAD: float = 14.0
 const ART_DIR: String = "res://assets/ui/cards/"
 
@@ -37,7 +37,7 @@ static func make_card(heading: String, choice: String, color: String, size: Vect
 	var name_label: Label = Label.new()
 	name_label.name = "Choice"
 	name_label.theme_type_variation = &"DisplayLabel"
-	name_label.add_theme_font_size_override("font_size", 28)
+	name_label.add_theme_font_size_override("font_size", 34)
 	name_label.add_theme_color_override("font_color", KalyeahTheme.semantic_text_color(color))
 	name_label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
 	name_label.add_theme_constant_override("outline_size", 0)

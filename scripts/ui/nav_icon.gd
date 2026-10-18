@@ -43,6 +43,16 @@ func _draw() -> void:
 				draw_line(c + Vector2(-s * 0.32, -s * 0.32 * side), c + Vector2(s * 0.32, s * 0.32 * side), color, w * 1.6)
 				draw_circle(c + Vector2(s * 0.32, s * 0.32 * side), w * 1.3, color)
 				draw_circle(c + Vector2(-s * 0.32, -s * 0.32 * side), w * 1.3, color)
+		&"book":
+			# an open book: two pages meeting at the spine, with a few lines of text
+			var left: PackedVector2Array = PackedVector2Array([c + Vector2(-s * 0.4, -s * 0.28), c + Vector2(-s * 0.02, -s * 0.2), c + Vector2(-s * 0.02, s * 0.36), c + Vector2(-s * 0.4, s * 0.28)])
+			var right: PackedVector2Array = PackedVector2Array([c + Vector2(s * 0.02, -s * 0.2), c + Vector2(s * 0.4, -s * 0.28), c + Vector2(s * 0.4, s * 0.28), c + Vector2(s * 0.02, s * 0.36)])
+			draw_colored_polygon(left, color)
+			draw_colored_polygon(right, color)
+			for line: int in 3:
+				var y: float = -s * 0.1 + float(line) * s * 0.14
+				draw_line(c + Vector2(-s * 0.32, y), c + Vector2(-s * 0.1, y + s * 0.02), Color(0, 0, 0, 0.35), w * 0.7)
+				draw_line(c + Vector2(s * 0.1, y + s * 0.02), c + Vector2(s * 0.32, y), Color(0, 0, 0, 0.35), w * 0.7)
 		&"history":
 			draw_arc(c, s * 0.34, 0.0, TAU, 32, color, w)
 			draw_line(c, c + Vector2(0.0, -s * 0.22), color, w)

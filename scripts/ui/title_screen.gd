@@ -1,10 +1,11 @@
 class_name TitleScreen
 extends Control
-## The main screen. The home page: a horizontal carousel of 3:4 mode cards (Hotspot, Online,
-## Practice), the chosen mode's name and one phrase, its action buttons below, then a section of
-## buttons that open the Characters, Weapons, History and Settings pages. A page opens over the home
-## page with a Back button (so does Android Back). Settings holds the player's name and the
-## infrequent quit action, while Android Back on the home page asks to quit.
+## The main screen. The home page: a top row with the book (left), the KALYEAH! logo (middle) and
+## the history and settings buttons (right); a horizontal carousel of large 3:4 mode cards (Hotspot,
+## Online, Practice) with every card always visible, stacked behind the chosen one; and the chosen
+## mode's name, one phrase and action buttons low on the screen. A page opens over the home page with
+## a Back button (so does Android Back). Settings holds the player's name and the infrequent quit
+## action, while Android Back on the home page asks to quit.
 
 const SERVER_SCENE: String = "res://server/main.tscn"
 const LOBBY_SCENE: String = "res://scenes/ui/lobby.tscn"
@@ -20,17 +21,20 @@ const MODES: Array[Dictionary] = [
 	{"id": "practice", "title": "PRACTICE", "color": "green",
 		"text": "Train alone against dummies."},
 ]
-const CAROUSEL_HEIGHT: float = 350.0
 ## The KALYEAH! logo (the owner's cardboard sign) at the centre top of the home page.
 const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
-const LOGO_WIDTH: float = 400.0
-## The section of page buttons under the mode actions.
-const SECTIONS: Array[Dictionary] = [
-	{"id": &"characters", "label": "Characters"},
-	{"id": &"weapons", "label": "Weapons"},
-	{"id": &"history", "label": "History"},
-	{"id": &"settings", "label": "Settings"},
+const LOGO_WIDTH: float = 300.0
+## How far the logo and the corner buttons sit down from the top.
+const TOP_ROW_DROP: float = 26.0
+const CORNER_BUTTON: float = 84.0
+## The corner buttons: the book on the left, history and settings on the right.
+const CORNERS: Array[Dictionary] = [
+	{"id": &"codex", "icon": &"book", "side": &"left"},
+	{"id": &"history", "icon": &"history", "side": &"right"},
+	{"id": &"settings", "icon": &"settings", "side": &"right"},
 ]
+## Room left under the action buttons so they sit low on the screen, but not at its very bottom.
+const ACTIONS_LIFT: float = 84.0
 
 const SIDE_MARGIN: float = 34.0
 const TOP_MARGIN: float = 26.0
@@ -50,10 +54,11 @@ var primary_button: Button
 var secondary_button: Button
 var quit_button: Button
 var dialog: MenuDialog
-var section_buttons: Dictionary[StringName, Button] = {}
+var corner_buttons: Dictionary[StringName, Button] = {}
 var pages: Dictionary[StringName, Control] = {}
 var current_page: StringName = &""
 var back_button: Button
+var codex_page: CodexPage
 var characters_page: CharactersPage
 var weapons_page: WeaponsPage
 var history_page: HistoryPage
@@ -140,34 +145,80 @@ func _build_layout() -> void:
 func _build_home() -> VBoxContainer:
 	var home: VBoxContainer = VBoxContainer.new()
 	home.name = "Home"
-	home.add_theme_constant_override("separation", 8)
+	home.add_theme_constant_override("separation", 6)
 	home.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# the KALYEAH! logo at the centre top, kept in its own proportions
+	home.add_child(_build_top_row())
+	# the cards fill the space between the top row and the action buttons, centred in it
+	carousel = MenuCarousel.new()
+	carousel.name = "ModeCarousel"
+	carousel.custom_minimum_size = Vector2(0.0, ChoiceCard.CARD_SIZE.y)
+	carousel.size_flags_horizontal = Control.SIZE_FILL
+	carousel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	home.add_child(carousel)
+	carousel.setup("", MODES, Session.menu_mode)
+	home.add_child(_build_details())
+	# a little room under the buttons: low on the screen, but not at the very bottom
+	var lift: Control = Control.new()
+	lift.custom_minimum_size = Vector2(0.0, ACTIONS_LIFT)
+	lift.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	home.add_child(lift)
+	return home
+
+
+## The top row: the book at the left, the KALYEAH! logo in the middle, history and settings at the
+## right, all on one line (the logo level with the buttons).
+func _build_top_row() -> Control:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "TopRow"
+	row.add_theme_constant_override("separation", 8)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var left: HBoxContainer = HBoxContainer.new()
+	left.name = "Left"
+	left.custom_minimum_size = Vector2(CORNER_BUTTON * 2.0 + 12.0, 0.0)
+	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var right: HBoxContainer = HBoxContainer.new()
+	right.name = "Right"
+	right.custom_minimum_size = Vector2(CORNER_BUTTON * 2.0 + 12.0, 0.0)
+	right.alignment = BoxContainer.ALIGNMENT_END
+	right.add_theme_constant_override("separation", 12)
+	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(left)
 	logo = TextureRect.new()
 	logo.name = "Logo"
 	logo.texture = LOGO
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	logo.custom_minimum_size = Vector2(LOGO_WIDTH, LOGO_WIDTH * float(LOGO.get_height()) / float(LOGO.get_width()))
-	logo.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	# it takes the width left between the corner buttons (never wider than LOGO_WIDTH) and keeps its shape
+	logo.custom_minimum_size = Vector2(0.0, LOGO_WIDTH * float(LOGO.get_height()) / float(LOGO.get_width()))
+	logo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	logo.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	home.add_child(logo)
-	var body: VBoxContainer = VBoxContainer.new()
-	body.name = "Body"
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.alignment = BoxContainer.ALIGNMENT_CENTER
-	body.add_theme_constant_override("separation", 14)
-	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	home.add_child(body)
-	carousel = MenuCarousel.new()
-	carousel.name = "ModeCarousel"
-	carousel.custom_minimum_size = Vector2(0.0, CAROUSEL_HEIGHT)
-	carousel.size_flags_horizontal = Control.SIZE_FILL
-	body.add_child(carousel)
-	carousel.setup("", MODES, Session.menu_mode)
-	body.add_child(_build_details())
-	body.add_child(_build_sections())
-	return home
+	row.add_child(logo)
+	row.add_child(right)
+	for corner: Dictionary in CORNERS:
+		var id: StringName = corner["id"]
+		var button: Button = MenuDialog.make_button("", "blue", 20, Vector2(CORNER_BUTTON, CORNER_BUTTON))
+		button.name = "%sButton" % String(id).capitalize()
+		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var centre: CenterContainer = CenterContainer.new()
+		centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var icon: NavIcon = NavIcon.new(corner["icon"] as StringName)
+		icon.color = CREAM
+		centre.add_child(icon)
+		button.add_child(centre)
+		button.pressed.connect(open_page.bind(id))
+		(left if corner["side"] == &"left" else right).add_child(button)
+		corner_buttons[id] = button
+	# the row sits a little down from the top of the screen
+	var holder: VBoxContainer = VBoxContainer.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var drop: Control = Control.new()
+	drop.custom_minimum_size = Vector2(0.0, TOP_ROW_DROP)
+	drop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(drop)
+	holder.add_child(row)
+	return holder
 
 
 func _build_details() -> Control:
@@ -199,40 +250,6 @@ func _build_details() -> Control:
 	return details
 
 
-## The section under the actions: one button each for Characters, Weapons, History and Settings.
-func _build_sections() -> Control:
-	var row: HBoxContainer = HBoxContainer.new()
-	row.name = "Sections"
-	row.add_theme_constant_override("separation", 12)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for section: Dictionary in SECTIONS:
-		var id: StringName = section["id"]
-		var button: Button = MenuDialog.make_button("", "grey", 20, Vector2(0.0, 118.0))
-		button.name = "%sButton" % String(id).capitalize()
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var stack: VBoxContainer = VBoxContainer.new()
-		stack.alignment = BoxContainer.ALIGNMENT_CENTER
-		stack.add_theme_constant_override("separation", 4)
-		stack.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		button.add_child(stack)
-		var icon: NavIcon = NavIcon.new(id)
-		icon.color = CREAM
-		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		stack.add_child(icon)
-		var label: Label = Label.new()
-		label.text = String(section["label"])
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.add_theme_font_size_override("font_size", 19)
-		label.add_theme_color_override("font_color", CREAM)
-		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		stack.add_child(label)
-		button.pressed.connect(open_page.bind(id))
-		row.add_child(button)
-		section_buttons[id] = button
-	return row
-
-
 ## The pages open here, over the home page, under a Back button.
 func _build_page_layer() -> VBoxContainer:
 	var layer: VBoxContainer = VBoxContainer.new()
@@ -251,11 +268,10 @@ func _build_page_layer() -> VBoxContainer:
 	_page_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_page_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(_page_holder)
-	characters_page = CharactersPage.new()
-	weapons_page = WeaponsPage.new()
+	codex_page = CodexPage.new()
 	history_page = HistoryPage.new()
 	settings_page = SettingsPage.new()
-	pages = {&"characters": characters_page, &"weapons": weapons_page, &"history": history_page, &"settings": settings_page}
+	pages = {&"codex": codex_page, &"history": history_page, &"settings": settings_page}
 	for id: StringName in pages:
 		var page: Control = pages[id]
 		page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -263,10 +279,14 @@ func _build_page_layer() -> VBoxContainer:
 		_page_holder.add_child(page)
 	settings_page.profile_pressed.connect(open_name_editor)
 	settings_page.quit_pressed.connect(open_quit_confirm)
+	# the book's two tabs are built when it enters the tree: expose them once it has
+	codex_page.ready.connect(func() -> void:
+		characters_page = codex_page.characters_page
+		weapons_page = codex_page.weapons_page)
 	return layer
 
 
-## Opens one of the pages (characters, weapons, history, settings) over the home page.
+## Opens one of the pages (codex = the book, history, settings) over the home page.
 func open_page(id: StringName) -> void:
 	if not pages.has(id):
 		return
@@ -275,8 +295,8 @@ func open_page(id: StringName) -> void:
 		pages[other].visible = other == id
 	if id == &"history":
 		history_page.refresh()
-	elif id == &"characters":
-		characters_page.refresh()
+	elif id == &"codex":
+		codex_page.show_tab(codex_page.current)
 	_home.visible = false
 	_page_layer.visible = true
 
@@ -359,8 +379,8 @@ func safe_insets() -> Vector4:
 ## The buttons pop up in turn when the screen opens.
 func _pop_in() -> void:
 	var buttons: Array[Control] = [primary_button, secondary_button]
-	for id: StringName in section_buttons:
-		buttons.append(section_buttons[id])
+	for id: StringName in corner_buttons:
+		buttons.append(corner_buttons[id])
 	for i: int in buttons.size():
 		var button: Control = buttons[i]
 		button.pivot_offset = button.size / 2.0

@@ -70,51 +70,76 @@ func test_the_screen_has_everything_the_owner_asked_for() -> void:
 	assert_null(screen.quit_button, "quit stays out of the main action area")
 
 
-func test_the_home_page_stacks_carousel_then_actions_then_the_page_buttons() -> void:
+func test_the_top_row_has_the_book_left_the_logo_in_the_middle_and_history_and_settings_right() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(3)
-	var strip: Rect2 = screen.carousel.get_global_rect()
+	var book: Rect2 = screen.corner_buttons[&"codex"].get_global_rect()
+	var history: Rect2 = screen.corner_buttons[&"history"].get_global_rect()
+	var settings: Rect2 = screen.corner_buttons[&"settings"].get_global_rect()
+	var mark: Rect2 = screen.logo.get_global_rect()
+	assert_lt(book.end.x, mark.position.x, "the book is left of the logo")
+	assert_gt(history.position.x, mark.end.x - 1.0, "history is right of the logo")
+	assert_lt(history.position.x, settings.position.x, "history, then settings")
+	assert_almost_eq(book.position.x, TitleScreen.SIDE_MARGIN, 1.0, "the book is at the top left")
+	assert_almost_eq(settings.end.x, 720.0 - TitleScreen.SIDE_MARGIN, 1.0, "settings is at the top right")
+	assert_almost_eq(book.get_center().y, mark.get_center().y, 3.0, "the buttons are level with the logo")
+	assert_almost_eq(history.get_center().y, mark.get_center().y, 3.0)
+	assert_almost_eq(settings.get_center().y, mark.get_center().y, 3.0)
+	for id: StringName in screen.corner_buttons:
+		assert_gte(screen.corner_buttons[id].get_global_rect().size.y, 80.0, "%s is tall enough for a thumb" % id)
+	assert_almost_eq(mark.get_center().x, 360.0, 2.0, "the logo is at the centre")
+	assert_gt(mark.position.y, 40.0, "lowered from the very top")
+	assert_eq(screen.logo.texture, load("res://assets/ui/kalyeah_logo.png"), "the owner's KALYEAH! logo")
+	var shown_width: float = minf(mark.size.x, mark.size.y * 1000.0 / 357.0)
+	assert_lt(shown_width, 330.0, "the picture itself is a bit smaller than before")
+	assert_gt(shown_width, 220.0, "but still clear")
+	assert_null(screen.find_child("BottomNav", true, false), "no bottom nav bar")
+
+
+func test_the_cards_are_large_and_every_one_is_always_visible_stacked_behind_the_chosen_one() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(3)
+	var strip: MenuCarousel = screen.carousel
+	var chosen: Rect2 = strip.cards[0].get_global_rect()
+	assert_almost_eq(chosen.size.x / chosen.size.y, 0.75, 0.01, "3:4")
+	assert_gt(chosen.size.x, 290.0, "large")
+	for index: int in 3:
+		strip.select(index, false)
+		for card: Button in strip.cards:
+			assert_gt(card.modulate.a, 0.4, "%s is always visible" % ChoiceCard.choice_of(card))
+			assert_gt(card.scale.x, 0.6)
+		var middle: Rect2 = strip.cards[index].get_global_rect()
+		assert_almost_eq(middle.get_center().x, 360.0, 2.0, "the chosen card is in the middle")
+		for other: int in 3:
+			if other == index:
+				continue
+			var behind: Rect2 = strip.cards[other].get_global_rect()
+			assert_lt(strip.cards[other].z_index, strip.cards[index].z_index, "behind")
+			assert_lt(absf(behind.get_center().x - middle.get_center().x), 260.0, "pushed only a little to the side, mostly behind")
+			assert_gt(behind.get_center().x - middle.get_center().x if other > index else middle.get_center().x - behind.get_center().x, 0.0, "later cards on the right, earlier on the left")
+			assert_gte(behind.position.x, -5.0, "inside the screen")
+			assert_lte(behind.end.x, 725.0)
+
+
+func test_the_actions_sit_low_on_the_screen_but_not_at_the_very_bottom() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(3)
 	var create: Rect2 = screen.primary_button.get_global_rect()
 	var join: Rect2 = screen.secondary_button.get_global_rect()
-	assert_gt(strip.size.x, 600.0, "the carousel runs across the screen")
-	assert_gte(strip.position.x, 0.0)
-	assert_lte(strip.end.x, 720.0)
-	assert_lt(strip.end.y, create.position.y, "the action buttons are below the cards")
 	assert_almost_eq(create.position.y, join.position.y, 1.0, "create and join are in one row")
-	var previous: float = create.end.y
-	for section: Dictionary in TitleScreen.SECTIONS:
-		var button: Rect2 = screen.section_buttons[section["id"]].get_global_rect()
-		assert_gt(button.position.y, previous - 1.0, "the section is under the actions")
-		assert_lt(button.end.y, 1280.0)
-		assert_gte(button.size.y, 88.0, "%s is tall enough for a thumb" % section["label"])
-	assert_null(screen.find_child("BottomNav", true, false), "no bottom nav bar")
-	var mark: Rect2 = screen.logo.get_global_rect()
-	assert_almost_eq(mark.get_center().x, 360.0, 2.0, "the logo is at the centre")
-	assert_lt(mark.position.y, 140.0, "at the top")
-	assert_lt(mark.end.y, strip.position.y, "above the cards")
-	assert_eq(screen.logo.texture, load("res://assets/ui/kalyeah_logo.png"), "the owner's KALYEAH! logo, not the K!")
-	assert_almost_eq(mark.size.x / mark.size.y, 1000.0 / 357.0, 0.02, "in its own proportions")
+	assert_gt(create.position.y, 1280.0 * 0.75, "in the bottom part")
+	assert_lt(create.end.y, 1280.0 - 60.0, "but with room under them")
+	assert_lt(screen.carousel.get_global_rect().end.y, create.position.y, "below the cards")
+	assert_gt(screen.carousel.get_global_rect().position.y, screen.logo.get_global_rect().end.y - 1.0, "the cards are under the top row")
+	assert_gt(create.size.x + join.size.x, 600.0)
 
 
-func test_the_section_has_a_button_each_for_characters_weapons_history_and_settings() -> void:
-	var screen: TitleScreen = _phone_screen()
-	await wait_frames(3)
-	var ids: Array[StringName] = []
-	var last_x: float = -1.0
-	for section: Dictionary in TitleScreen.SECTIONS:
-		ids.append(section["id"])
-		var button: Rect2 = screen.section_buttons[section["id"]].get_global_rect()
-		assert_gt(button.position.x, last_x, "left to right in order")
-		last_x = button.position.x
-	assert_eq(ids, [&"characters", &"weapons", &"history", &"settings"])
-
-
-func test_a_section_button_opens_its_page_and_back_returns_home() -> void:
+func test_a_corner_button_opens_its_page_and_back_returns_home() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(2)
-	for section: Dictionary in TitleScreen.SECTIONS:
-		var id: StringName = section["id"]
-		screen.section_buttons[id].pressed.emit()
+	for corner: Dictionary in TitleScreen.CORNERS:
+		var id: StringName = corner["id"]
+		screen.corner_buttons[id].pressed.emit()
 		assert_eq(screen.current_page, id)
 		assert_true(screen.pages[id].visible, "%s page is open" % id)
 		assert_false(screen.carousel.is_visible_in_tree(), "over the home page")
@@ -127,7 +152,7 @@ func test_a_section_button_opens_its_page_and_back_returns_home() -> void:
 
 func test_android_back_closes_a_page_before_asking_to_quit() -> void:
 	var screen: TitleScreen = _screen()
-	screen.open_page(&"weapons")
+	screen.open_page(&"codex")
 	screen._go_back()
 	assert_eq(screen.current_page, &"")
 	assert_null(screen.dialog, "no quit question yet")
@@ -189,7 +214,7 @@ func test_swiping_and_tapping_the_carousel_changes_the_card() -> void:
 	await wait_seconds(0.4)
 	var tap: InputEventMouseButton = InputEventMouseButton.new()
 	tap.button_index = MOUSE_BUTTON_LEFT
-	tap.position = Vector2(strip.size.x / 2.0 - MenuCarousel.STEP, strip.size.y / 2.0)
+	tap.position = Vector2(strip.size.x / 2.0 - 200.0, strip.size.y / 2.0)
 	tap.pressed = true
 	strip._gui_input(tap)
 	tap.pressed = false
