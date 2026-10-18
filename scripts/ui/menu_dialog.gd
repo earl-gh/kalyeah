@@ -3,6 +3,11 @@ extends Control
 ## A centred card over a dimmed screen (settings, rename, quit). Typography,
 ## spacing and focus states come from KalyeahTheme so every modal reads as one system.
 
+## The draw order of every modal and its tint: above any component of the screen (the engine's
+## highest is 4096). Use it for each full-screen overlay so a card, a button or a page never shows
+## through or over it.
+const MODAL_Z: int = 4000
+
 signal closed
 ## Emitted once the dialog is in the tree and showing.
 signal opened
@@ -28,7 +33,7 @@ static func create(title: String, width: float = 600.0) -> MenuDialog:
 	dialog._width = width
 	dialog.name = "MenuDialog"
 	# above everything on the screen, including the main screen's carousel cards (z_index up to 10)
-	dialog.z_index = 100
+	dialog.z_index = MODAL_Z
 	dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dialog.mouse_filter = Control.MOUSE_FILTER_STOP
 	var dim: ColorRect = ColorRect.new()

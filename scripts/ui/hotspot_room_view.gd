@@ -209,7 +209,7 @@ func open_map_carousel() -> void:
 	_map_overlay.name = "MapOverlay"
 	_map_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_map_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	_map_overlay.z_index = 100
+	_map_overlay.z_index = MenuDialog.MODAL_Z
 	add_child(_map_overlay)
 	var tint: ColorRect = ColorRect.new()
 	tint.name = "Tint"

@@ -463,3 +463,16 @@ func test_private_addresses_use_plain_ws_and_public_ones_wss() -> void:
 	assert_eq(Settings.normalize_url("172.32.0.1"), "wss://172.32.0.1", "not a private range")
 	assert_eq(Settings.normalize_url("example.org"), "wss://example.org")
 	assert_eq(Settings.normalize_url("wss://x"), "wss://x")
+
+
+func test_modals_and_tints_draw_above_every_component_of_the_main_screen() -> void:
+	var screen: TitleScreen = _screen()
+	var highest_card: int = -1000
+	for card: Button in screen.carousel.cards:
+		highest_card = maxi(highest_card, card.z_index)
+	assert_gt(MenuDialog.MODAL_Z, highest_card + 100, "far above the carousel cards")
+	screen.secondary_button.pressed.emit()
+	assert_eq(screen.dialog.z_index, MenuDialog.MODAL_Z, "a dialog (and its dim) is on top")
+	screen.dialog.close(false)
+	screen._show_loading("GETTING READY")
+	assert_eq((screen.find_child("Loading", true, false) as Control).z_index, MenuDialog.MODAL_Z, "so is the loading tint")

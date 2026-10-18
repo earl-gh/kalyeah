@@ -479,6 +479,7 @@ func _process(_delta: float) -> void:
 func _show_loading(message: String) -> void:
 	var cover: ColorRect = ColorRect.new()
 	cover.name = "Loading"
+	cover.z_index = MenuDialog.MODAL_Z  # over the mode cards too
 	cover.color = Color(0.02, 0.05, 0.16, 0.0)
 	cover.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	cover.mouse_filter = Control.MOUSE_FILTER_STOP
