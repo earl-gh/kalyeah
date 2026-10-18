@@ -8,12 +8,13 @@ const SAVE_PATH: String = "user://session.cfg"
 var player_name: String = ""
 ## The character whose face is your avatar on the main screen (picked once, saved).
 var avatar_id: String = ""
+var saved_loadout: Array[StringName] = []
 var room_code: String = ""
 ## LobbyScreen.Intent (CREATE or JOIN) chosen on the title screen.
 var lobby_intent: int = 0
 ## True when the lobby was opened from the HOTSPOT button (it uses the hotspot address).
 var lobby_hotspot: bool = false
-## The room code typed in the Join dialog (8 characters), for the hotspot lobby to join with.
+## Legacy entry value; hotspot joining never reads a room code.
 var lobby_code: String = ""
 ## Web builds only: show the hotspot room screen with made-up players (the web cannot host a room).
 var lobby_preview: bool = false
@@ -28,6 +29,11 @@ func _ready() -> void:
 	if file.load(SAVE_PATH) == OK:
 		player_name = file.get_value("player", "name", "") as String
 		avatar_id = file.get_value("player", "avatar", "") as String
+		var stored: Variant = file.get_value("player", "loadout", [])
+		if stored is Array or stored is PackedStringArray:
+			for id: Variant in stored:
+				if id is String or id is StringName:
+					saved_loadout.append(StringName(id))
 		reconnect_token = file.get_value("match", "token", "") as String
 		reconnect_url = file.get_value("match", "url", "") as String
 
@@ -36,6 +42,7 @@ func save() -> void:
 	var file: ConfigFile = ConfigFile.new()
 	file.set_value("player", "name", player_name)
 	file.set_value("player", "avatar", avatar_id)
+	file.set_value("player", "loadout", saved_loadout)
 	file.set_value("match", "token", reconnect_token)
 	file.set_value("match", "url", reconnect_url)
 	file.save(SAVE_PATH)
@@ -63,3 +70,17 @@ func ensure_profile() -> void:
 ## The name as the game will use it: trimmed and at most MAX_NAME_LENGTH characters.
 static func clean_name(raw: String) -> String:
 	return raw.strip_edges().left(MAX_NAME_LENGTH).strip_edges()
+
+
+func loadout_for(available: Array[StringName]) -> Array[StringName]:
+	var valid: Array[StringName] = []
+	for id: StringName in saved_loadout:
+		if available.has(id) and not valid.has(id) and valid.size() < WeaponPick.SLOTS:
+			valid.append(id)
+	return valid
+
+
+func remember_loadout(picks: Array[StringName]) -> void:
+	if picks.size() == WeaponPick.SLOTS and picks[0] != picks[1]:
+		saved_loadout = picks.duplicate()
+		save()

@@ -1,4 +1,6 @@
 extends GutTest
+
+var _saved_loadout: Array[StringName] = []
 ## The pages behind the main screen's section buttons: characters, weapons, history, settings.
 
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
@@ -8,6 +10,8 @@ var _saved_history: String
 
 
 func before_each() -> void:
+	_saved_loadout = Session.saved_loadout.duplicate()
+	Session.saved_loadout.clear()
 	_saved_avatar = Session.avatar_id
 	_saved_history = MatchHistory.path
 	MatchHistory.path = "user://history_test.cfg"
@@ -15,6 +19,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	Session.saved_loadout = _saved_loadout
 	MatchHistory.clear()
 	MatchHistory.path = _saved_history
 	Session.avatar_id = _saved_avatar

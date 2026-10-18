@@ -34,6 +34,7 @@ func connect_hud() -> void:
 		owner.hud.aim_buttons[slot].aim_released.connect(owner.aim_released.bind(slot))
 	owner.hud.hurt_button.pressed.connect(owner.hurt_local.bind(PracticeMatch.DEBUG_DAMAGE))
 	owner.hud.menu.set_practice(not owner.online)
+	owner.hud.again_button.text = "RETURN HOME" if owner.online else "PRACTICE AGAIN"
 	owner.hud.status_test_pressed.connect(owner.play_status_test)
 	owner.hud.again_pressed.connect(_on_again_pressed)
 	owner.hud.watch_requested.connect(func(id: int) -> void: owner.watch_id = id)
@@ -223,8 +224,7 @@ func _on_match_won(team: int) -> void:
 
 func _on_again_pressed() -> void:
 	if owner.online:
-		owner.client.leave_room()
-		owner.get_tree().change_scene_to_file("res://scenes/ui/lobby.tscn")
+		owner._on_exit_pressed()
 		return
 	owner.get_tree().reload_current_scene()
 

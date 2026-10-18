@@ -7,7 +7,8 @@ static func open(owner: PracticeMatch, heading: String, current: Array[StringNam
 	var mine: StringName = owner.sim.players[owner.local_id].character_id if owner.online else StringName(Session.avatar_id)
 	if not owner.rules.characters.any(func(c: CharacterDef) -> bool: return c.id == mine):
 		mine = owner.sim.players[owner.local_id].character_id
-	owner._pick_screen.open(WeaponPick.new(_weapon_ids(owner), owner.rules.weapon_pick_time, current), owner.rules.weapons, heading, owner.sim.rng, owner.rules.characters, mine)
+	var remembered: Array[StringName] = Session.loadout_for(_weapon_ids(owner)) if current.is_empty() else current
+	owner._pick_screen.open(WeaponPick.new(_weapon_ids(owner), owner.rules.weapon_pick_time, remembered), owner.rules.weapons, heading, owner.sim.rng, owner.rules.characters, mine, not owner.online)
 	owner._set_controls_active(false)
 
 
@@ -25,6 +26,7 @@ static func _weapon_ids(owner: PracticeMatch) -> Array[StringName]:
 
 
 static func confirm(owner: PracticeMatch, picks: Array[StringName]) -> void:
+	Session.remember_loadout(picks)
 	owner._audio.start_music()
 	owner.sim.set_loadout(owner.local_id, picks[0], picks[1])
 	var kid: StringName = owner._pick_screen.character_id
@@ -47,6 +49,7 @@ static func confirm(owner: PracticeMatch, picks: Array[StringName]) -> void:
 
 
 static func swap(owner: PracticeMatch, picks: Array[StringName]) -> void:
+	Session.remember_loadout(picks)
 	if owner.online:
 		owner.client.swap_weapons(picks[0], picks[1])
 		owner.sim.players[owner.local_id].weapons.assign(picks)

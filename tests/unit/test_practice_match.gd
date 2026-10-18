@@ -1,5 +1,7 @@
 extends GutTest
 
+var _saved_loadout: Array[StringName] = []
+
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const CAMERA: CameraRules = preload("res://data/rules/camera_rules.tres")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
@@ -188,16 +190,14 @@ func test_pick_screen_has_a_card_for_every_weapon() -> void:
 	assert_eq(cards.size(), 14, "14 weapons")
 
 
-func test_pick_timer_runs_out_and_auto_fills() -> void:
+func test_practice_setup_waits_for_confirmation() -> void:
 	var practice: PracticeMatch = _picking()
 	_pick_screen(practice).tap(&"jacks")
 	for i: int in 310:
 		practice.advance(DT)
-	assert_false(practice.is_picking())
-	var weapons: Array[StringName] = practice.sim.players[PracticeMatch.LOCAL_ID].weapons
-	assert_eq(weapons[0], &"jacks")
-	assert_ne(weapons[1], &"jacks")
-	assert_gt(practice.sim.tick, 0)
+	assert_true(practice.is_picking())
+	assert_eq(_pick_screen(practice).pick.picks, [&"jacks"] as Array[StringName])
+	assert_eq(practice.sim.tick, 0)
 
 
 func test_the_swap_screen_opens_from_the_box_with_your_weapons_and_a_rescue_closes_it() -> void:
@@ -312,11 +312,19 @@ func test_a_reconnect_is_not_reported_restored_until_the_server_confirms_the_slo
 	practice.skip_intro()
 	practice._on_connection_changed(false)
 	practice._on_connection_changed(true)
-	assert_eq(practice.banner_text(), "Restoring match...")
+	assert_eq(practice.hud.feedback.message.text, "Restoring match…")
+	practice.hud.sync_score(practice.sim, practice.local_team, 10.0)
+	assert_true(practice.hud.feedback.connection.visible)
+	practice.hud.menu.closed.emit()
+	assert_false(practice.controls_active())
 	practice._on_welcomed(false)
-	assert_eq(practice.banner_text(), "Match expired\nExit to reconnect")
+	assert_eq(practice.hud.feedback.message.text, "Match unavailable")
+	assert_true(practice.hud.feedback.leave.visible)
 	assert_false(practice.controls_active())
 	assert_true(practice._resume_rejected)
+	practice._on_connection_changed(false)
+	assert_true(practice._resume_rejected, "an expired match never restarts recovery")
+	assert_eq(practice.hud.feedback.message.text, "Match unavailable")
 
 
 # ---- visuals -------------------------------------------------------------------
@@ -390,8 +398,9 @@ func test_while_tagged_weapons_can_be_swapped_again_and_again() -> void:
 	for i: int in 60:
 		practice.advance(DT)
 	assert_true(practice.is_picking(), "no pick timer: stays open while tagged")
+	screen.select_slot(0)
 	screen.tap(&"trumpo")
-	assert_eq(player.weapons, [&"jacks", &"trumpo"] as Array[StringName])
+	assert_eq(player.weapons, [&"trumpo", &"jacks"] as Array[StringName], "only the chosen slot changes")
 
 
 func test_done_closes_and_the_swap_button_reopens_while_tagged() -> void:
@@ -452,6 +461,7 @@ func test_match_over_shows_play_again() -> void:
 		_finish_freeze(practice)
 	assert_eq(practice.sim.phase, MatchSim.Phase.MATCH_OVER, "best of 3: two points win")
 	assert_true(again.visible)
+	assert_eq(again.text, "PRACTICE AGAIN")
 	assert_eq(practice.banner_text(), "VICTORY!")
 
 
@@ -661,3 +671,46 @@ func test_the_hero_sits_near_the_lower_centre_of_a_portrait_screen() -> void:
 	assert_almost_eq(on_screen.y / size.y, CAMERA.player_screen_y, 0.02, "in the lower part, the field ahead above")
 
 
+
+
+func before_each() -> void:
+	_saved_loadout = Session.saved_loadout.duplicate()
+	Session.saved_loadout.clear()
+
+
+func after_each() -> void:
+	Session.saved_loadout = _saved_loadout
+	Session.save()
+
+
+func test_reconnect_releases_controls_only_after_confirmed_resume() -> void:
+	var practice: PracticeMatch = _practice()
+	practice._on_connection_changed(false)
+	assert_false(practice.controls_active())
+	practice._on_connection_changed(true)
+	assert_false(practice.controls_active())
+	practice._on_welcomed(true)
+	assert_true(practice.controls_active())
+	assert_false(practice.hud.feedback.connection.visible)
+
+
+func test_control_hint_explains_stun_aim_and_auto_run() -> void:
+	var practice: PracticeMatch = _practice()
+	practice.hud.joystick.auto_run = true
+	practice.advance(DT)
+	assert_string_contains(practice.hud.feedback.hint.text, "Auto-run")
+	practice.sim.apply_effect(PracticeMatch.LOCAL_ID, StatusEffects.Type.STUN, 1.0, 0.0)
+	practice.advance(DT)
+	assert_string_contains(practice.hud.feedback.hint.text, "Stunned")
+	assert_string_contains(practice.hud.feedback.hint.text, "skills unavailable")
+	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
+	player.effects.clear()
+	practice.hud.joystick.auto_run = false
+	var button: AimButton = _weapon_button(practice, 0)
+	button.aiming = true
+	practice.hud.sync_player(practice.sim, player, -1, false)
+	assert_string_contains(practice.hud.feedback.hint.text, "Release to cast")
+	button.over_cancel = true
+	practice.hud.sync_player(practice.sim, player, -1, false)
+	assert_eq(practice.hud.feedback.hint.text, "Release to cancel")
+	button.cancel_aim()

@@ -66,3 +66,11 @@ func fill(rng: RandomNumberGenerator) -> void:
 			left.append(id)
 	while picks.size() < SLOTS and not left.is_empty():
 		picks.append(left.pop_at(rng.randi_range(0, left.size() - 1)))
+
+
+## Deliberately replace a selected socket; the available/unique constraints still apply.
+func replace_slot(slot: int, id: StringName) -> bool:
+	if done or slot < 0 or slot >= picks.size() or not _available.has(id) or picks.has(id):
+		return false
+	picks[slot] = id
+	return true

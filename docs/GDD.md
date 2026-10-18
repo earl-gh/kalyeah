@@ -10,12 +10,12 @@ Kalyeah's core match is based on **Agawan Base**. `Langit Lupa` is a weapon cate
 | Player max HP | 100 (same for everyone) |
 | Move speed | 5.0 m/s |
 | Server tick | 30 Hz; snapshots to clients at 20 Hz |
-| Weapon pick time | 10 s (match start); unpicked slots auto-fill with random weapons |
+| Weapon pick time | 10 s in multiplayer; unpicked slots auto-fill with random weapons. Practice setup is untimed |
 | Tag | No deaths: at 0 HP you are **tagged** and wait in your team's box until a teammate rescues you (see Tag); weapons can be swapped any number of times while you wait (D13) |
 | Basic attack | **None.** There is no basic attack: players only use the two weapons they picked (owner decision). There are no default skills either: Takbo (dash) and the pin were removed (owner) |
 
 ## Character and weapon select (owner, like a fighting game)
-One screen at the start of a match (practice and online; the 10 s timer is the same): the title plate with the countdown ring, your two weapon sockets, then **row 1: the six characters as 3:4 profile cards** (portrait, name; tap to pick, gold frame on the chosen one), **row 2: a horizontally scrolling tab per street game** (Bato-bato-pik, Tumbang preso, Jackstone, Trumpo, Langit Lupa) over that game's **weapon cards**: the painted art on the left, the name with its type tag, **its description below the name** (`description` in `data/weapons/*.tres`) and the numbers under that. The character row can also scroll on unusually narrow screens. Tap two weapons, then READY (an empty weapon slot is filled at random when the timer ends; the kid is always the selected one). The respawn swap in the box shows only the weapons: a kid is fixed for the match.
+One screen at match start: six scrollable 3:4 character cards, two selectable weapon slots, street-game tabs, readable weapon cards, and a fixed READY action. Practice waits for confirmation; multiplayer keeps its server-controlled 10 s deadline and random fill for empty slots. The last confirmed weapon pair is saved locally and restored after removing unavailable or duplicate weapons. Choose two different weapons; to replace one, tap its slot, then a new weapon. Tapping a selected weapon removes it. Cards show effect descriptions, cooldown, range and damage per hit/snip/bounce/tick where relevant. The respawn swap only shows weapons, applies every full pair immediately, and closes on Done or rescue; the character stays fixed for the match.
 
 ## Characters (cosmetic, chosen by the player)
 - Roster (`data/characters/*.tres`, `CharacterDef`): `junjun` boy, `ligaya` girl, `migo` gay boy, `toni` lesbian girl, `popoy` chubby boy, `inday` dark-skinned girl. Outfits in `docs/PROJECT.md` §3.2.
@@ -151,6 +151,10 @@ Before the first round (6 s, `intro_time`; the server runs it too, nobody moves 
   - Snapshots go out at 20 Hz.
   - Your own movement is predicted and corrected; other players are drawn 0.1 s in the past between snapshots.
   - Server-side events (hits, tags, rescues, points) are replayed on the client as the same signals the offline game uses.
+
+## Match feedback and connection recovery
+
+The HUD explains active auto-run, touch aiming/cancel, and status effects that prevent casting. Cooldown numbers and arcs remain on the weapon buttons. Controls are hidden during selection, intro, tagging, and match results. A persistent connection notice blocks controls from disconnection until the server confirms the restored slot. If restoration fails, Return Home leaves the match. The result action is Practice Again offline and Return Home in multiplayer; no rematch is implied.
 
 ## Open decisions (defaults are implemented; change if the designer says so)
 - **D1** ~~Basic attack~~ **Decided: no basic attack** (owner). See D10.
