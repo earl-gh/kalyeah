@@ -1,6 +1,9 @@
 """Makes a rigged, animated kid light enough for phones (the six kids from the owner's rig pass).
 
-usage: python build_kid_game_model.py -- rigged_kid.glb out.glb [target_triangles]
+usage: python build_kid_game_model.py -- rigged_kid.glb out.glb [target_triangles] [keep_uv]
+ * keep_uv: keep the owner's own UV layout and base colour image (scaled to KID_TEXTURE px, default
+   2048) instead of unwrapping and baking again. Far sharper, and the only way that works for the
+   dense rebuilt rigs (70,000+ triangles), where the bake came out as scrambled speckles.
 The source GLB is the owner's full-resolution rigged kid (skeleton with .L/.R names, spring
 bones, 8 corrective blend shapes, 12 clips at 30 fps); it is not stored in the repo. A Mixamo
 rig (`mixamorig:` bones, clips named Idle / Run / Throw ...; Junjun's "Boy_rebuilt_rig") is
@@ -67,6 +70,44 @@ def channelbag_fcurves(action):
         for strip in layer.strips:
             for bag in strip.channelbags:
                 yield from bag.fcurves
+
+
+def source_base_color(obj):
+    """The image wired into the model's Base Color (the owner's own texture)."""
+    for node in obj.data.materials[0].node_tree.nodes:
+        if node.type == "BSDF_PRINCIPLED":
+            link = node.inputs["Base Color"].links
+            if link and link[0].from_node.type == "TEX_IMAGE":
+                return link[0].from_node.image
+    raise SystemExit("no base colour image on the model")
+
+
+def use_source_texture(mesh, image):
+    """Keeps the mesh's own UVs and gives it the owner's base colour image, matte, at KID_TEXTURE px."""
+    size = int(os.environ.get("KID_TEXTURE", "2048"))
+    image.name = "kid_base_color"
+    if image.size[0] != size:
+        image.scale(size, size)
+    else:
+        image.pixels[:] = image.pixels[:]  # a touched image is re-encoded as a JPEG, not copied as the big source
+    image.pack()
+    if mesh.data.has_custom_normals:
+        bpy.context.view_layer.objects.active = mesh
+        bpy.ops.object.select_all(action="DESELECT")
+        mesh.select_set(True)
+        bpy.ops.mesh.customdata_custom_splitnormals_clear()
+    bpy.ops.object.shade_smooth()
+    mat = bpy.data.materials.new("kid")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
+    bsdf.inputs["Metallic"].default_value = 0.0
+    bsdf.inputs["Roughness"].default_value = 1.0
+    tex = nodes.new("ShaderNodeTexImage")
+    tex.image = image
+    mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    mesh.data.materials.clear()
+    mesh.data.materials.append(mat)
 
 
 def bake_texture(mesh, ref):
@@ -175,6 +216,7 @@ def main():
     argv = sys.argv[sys.argv.index("--") + 1:]
     src, out = argv[0], argv[1]
     target = int(argv[2]) if len(argv) > 2 else DEFAULT_TRIANGLES
+    keep_uv = "keep_uv" in argv[3:] or os.environ.get("KID_KEEP_UV") == "1"
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=src, merge_vertices=True)
     rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
@@ -184,6 +226,7 @@ def main():
         if o is not mesh:
             bpy.data.objects.remove(o)
     mesh.name = "Mesh0"
+    source_image = source_base_color(mesh) if keep_uv else None
     normalize_mixamo(rig)
 
     # the full-resolution reference: positions, weights and blend-shape offsets per vertex
@@ -271,7 +314,10 @@ def main():
             kb.data.foreach_set("co", (gco + gd[k]).ravel())
     # decimation scrambles the UVs along seams: give the light mesh its own UVs and bake the
     # full model's colours onto one small texture
-    bake_texture(mesh, ref)
+    if keep_uv:
+        use_source_texture(mesh, source_image)
+    else:
+        bake_texture(mesh, ref)
     bpy.data.objects.remove(ref)
     if key_name and mesh.data.shape_keys:
         for old in [k for k in bpy.data.shape_keys if k != mesh.data.shape_keys]:
