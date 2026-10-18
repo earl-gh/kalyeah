@@ -213,7 +213,7 @@ func test_each_tagged_box_has_two_cardboard_walls_on_its_street_side() -> void:
 
 func test_props_stay_low_poly() -> void:
 	var budgets: Dictionary = {
-		"house": Props.house(0), "store": Props.sari_sari(), "crates_free": Props.umbrella(),
+		"house": Props.house(0), "store": Props.sari_sari(),
 	}
 	for name: String in budgets:
 		var mesh: ArrayMesh = budgets[name]

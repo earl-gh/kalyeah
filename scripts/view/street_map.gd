@@ -664,16 +664,15 @@ func _add_houses() -> void:
 
 
 ## Life around the street (no power poles or bunting, owner):
-## laundry, the store's umbrella and bench, drums and trees. The play area itself
+## the store's bench and the nanay, the owner's pets and things. The play area itself
 ## stays plain cement.
 func _add_details() -> void:
 	var half_w: float = layout.lane_width / 2.0
 	var half_l: float = layout.lane_length / 2.0
 	var walk_x: float = half_w + layout.boundary_thickness + SIDEWALK_WIDTH / 2.0
 	var store_z: float = -layout.lane_length * 0.18
-	_add(Props.umbrella(), Vector3(-walk_x, CURB_HEIGHT, store_z + 1.6))
 	_add_prop(PropModel.fit("bench", Vector2(2.0, 0.7), 1.0), Vector3(-walk_x - 0.3, CURB_HEIGHT, store_z - 1.0), PI / 2.0)
-	# the nanay stands between the umbrella and the bench, a little swaying as she waits
+	# the nanay stands by the bench, a little swaying as she waits
 	var nanay: Node3D = _add_prop(PropModel.by_height("nanay", NANAY_HEIGHT), Vector3(-walk_x, CURB_HEIGHT, store_z + 0.3), PI / 2.0)
 	nanay.name = "Nanay"
 	var sway: Tween = nanay.create_tween().set_loops()
@@ -682,19 +681,6 @@ func _add_details() -> void:
 	sway.tween_property(nanay, "rotation:y", turned_in - deg_to_rad(NANAY_SWAY_DEGREES), NANAY_SWAY_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_add_parked_vehicles(half_w, half_l, walk_x)
 	_add_sidewalk_props(walk_x)
-	for lz: float in [-half_l * 0.45, half_l * 0.3]:
-		_add(Props.laundry_line(4.0), Vector3(-walk_x - 0.6, CURB_HEIGHT, lz))
-	for lz: float in [-half_l * 0.25, half_l * 0.75]:
-		_add(Props.laundry_line(3.0), Vector3(walk_x + 0.6, CURB_HEIGHT, lz))
-	for spot: Vector3 in [Vector3(walk_x, CURB_HEIGHT, 6.0), Vector3(-walk_x, CURB_HEIGHT, 15.0), Vector3(walk_x, CURB_HEIGHT, -20.0)]:
-		_add(Props.drum(), spot)
-	for pz: float in [-half_l * 0.85, half_l * 0.5]:
-		_add(Props.potted_plant(), Vector3(walk_x + 0.5, CURB_HEIGHT, pz))
-		_add(Props.potted_plant(), Vector3(-walk_x - 0.5, CURB_HEIGHT, -pz))
-	var tree_x: float = half_w + layout.boundary_thickness + SIDEWALK_WIDTH + 7.0
-	for tz: float in [-30.0, -14.0, 4.0, 22.0]:
-		_add(Props.mango_tree(), Vector3(-tree_x - 1.0, 0.0, tz))
-		_add(Props.banana_plant(), Vector3(tree_x, 0.0, tz + 6.0))
 
 
 ## The owner's cat, dog, chicken cage and drainage covers on the sidewalks, facing the street.
@@ -722,12 +708,6 @@ func _add_parked_vehicles(half_w: float, half_l: float, walk_x: float) -> void:
 	var cart: Node3D = PropModel.by_height("ice_cream_cart", ICE_CREAM_CART_HEIGHT)
 	cart.name = "IceCreamCart"
 	_add_prop(cart, Vector3(walk_x, CURB_HEIGHT, -half_l * 0.6), -PI / 2.0)
-
-
-func _add_sign(texture_name: String, height: float, at: Vector3) -> void:
-	var sign: Sprite3D = StreetArt.billboard(texture_name, height)
-	sign.position = at
-	_geometry.add_child(sign)
 
 
 func _add(mesh: Mesh, at: Vector3, yaw: float = 0.0) -> MeshInstance3D:
