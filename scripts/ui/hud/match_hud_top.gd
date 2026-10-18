@@ -58,5 +58,3 @@ static func build_intro(hud: MatchHud) -> void:
 	hud.intro_sub.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.1))
 	hud.intro_sub.add_theme_constant_override("outline_size", 6)
 	hud.intro_bar.add_child(hud.intro_sub)
-
-
