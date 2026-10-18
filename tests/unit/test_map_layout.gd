@@ -347,8 +347,9 @@ func test_the_play_area_has_puddles_clear_of_the_bases_boxes_and_cover() -> void
 	add_child(map)
 	var puddles: Array[Node3D] = []
 	for child: Node in map.get_node("%Geometry").get_children():
-		if "Puddle" in String(child.name):
-			puddles.append(child as Node3D)
+		var instance: MeshInstance3D = child as MeshInstance3D
+		if instance != null and instance.material_override is ShaderMaterial and (instance.material_override as ShaderMaterial).shader == StreetMap.PUDDLE_SHADER:
+			puddles.append(instance)
 	assert_gt(puddles.size(), 5, "a good few puddles")
 	for puddle: Node3D in puddles:
 		var at: Vector2 = Vector2(puddle.position.x, puddle.position.z)
