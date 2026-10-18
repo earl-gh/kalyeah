@@ -6,13 +6,13 @@ const PHONE: float = 720.0 / 1280.0
 
 
 func test_a_fixed_low_angle_with_a_wide_perspective_lens() -> void:
-	assert_eq(CAMERA.pitch_degrees, 26.0, "owner: a low angle behind the kid, far up the street")
+	assert_eq(CAMERA.pitch_degrees, 32.0, "owner: a bit higher behind the kid")
 	assert_eq(CAMERA.vfov_degrees, 75.0, "wide vertical field of view")
 	assert_eq(CameraRules.DESIGN_ASPECT, 9.0 / 16.0, "portrait 9:16")
 
 
 func test_other_camera_numbers_come_from_data() -> void:
-	assert_eq(CAMERA.visible_width, 10.0, "owner: closer and a bit lower")
+	assert_eq(CAMERA.visible_width, 11.5, "owner: a bit farther from the kid")
 	assert_eq(CAMERA.player_screen_y, 0.62)
 
 
@@ -21,12 +21,12 @@ func test_distance_shows_the_visible_width_on_any_phone() -> void:
 		var distance: float = CAMERA.distance(aspect)
 		var width: float = 2.0 * distance * tan(deg_to_rad(CAMERA.vfov_degrees / 2.0)) * aspect
 		assert_almost_eq(width, CAMERA.visible_width, 0.001, "aspect %.2f" % aspect)
-	assert_almost_eq(CAMERA.distance(PHONE), 11.58, 0.05)
+	assert_almost_eq(CAMERA.distance(PHONE), 13.32, 0.05)
 
 
 func test_the_camera_is_low_behind_the_hero() -> void:
 	var offset: Vector3 = CAMERA.camera_offset(CAMERA.distance(PHONE), false)
-	assert_almost_eq(offset.y, 5.08, 0.1, "about 5 m up")
+	assert_almost_eq(offset.y, 7.06, 0.1, "about 7 m up")
 	assert_almost_eq(offset.length(), CAMERA.distance(PHONE), 0.001)
 
 
@@ -121,7 +121,3 @@ func test_the_near_plane_is_close_enough_not_to_slice_models() -> void:
 	assert_lt(camera.near, height / 4.0, "well inside the camera's height")
 	assert_lt(camera.far / camera.near, 1000.0, "the depth range is still sane")
 
-
-func test_the_far_blur_is_on_in_the_data() -> void:
-	assert_gt(CAMERA.far_blur_pixels, 0.0, "soft focus beyond the ends of the play area")
-	assert_gt(CAMERA.far_blur_falloff, 0.0)

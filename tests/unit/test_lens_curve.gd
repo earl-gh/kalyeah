@@ -3,8 +3,15 @@ extends GutTest
 const CAMERA: CameraRules = preload("res://data/rules/camera_rules.tres")
 
 
+## The shipped lens is off (it re-samples, and so softens, the whole picture); the maths is tested at
+## the strength it had.
+func test_the_shipped_lens_is_off_so_nothing_is_resampled() -> void:
+	assert_eq(CAMERA.lens_k(), 0.0)
+	assert_null(Cinematic.add_lens(self, CAMERA.lens_k()), "no lens layer at all")
+
+
 func test_the_lens_leaves_the_centre_alone_and_pulls_the_edges_in() -> void:
-	var k: float = CAMERA.lens_k()
+	var k: float = -0.0498
 	assert_lt(k, 0.0, "slightly concave, never convex")
 	assert_gt(k, -0.05, "and so subtle the curve is hardly visible")
 	assert_eq(LensCurve.source(Vector2(0.5, 0.5), k), Vector2(0.5, 0.5))
