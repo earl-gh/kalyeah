@@ -38,16 +38,42 @@ func test_the_top_row_has_a_text_only_back_button_the_code_and_a_bare_settings_i
 	assert_not_null(view.settings_button.find_children("*", "NavIcon", true, false)[0])
 
 
-func test_the_map_card_is_three_to_four_and_only_the_host_changes_it() -> void:
+func test_the_map_card_is_two_to_one_in_its_own_row_with_no_buttons() -> void:
 	var host: HotspotRoomView = _view(_room(2))
-	assert_almost_eq(host.map_card.custom_minimum_size.x / host.map_card.custom_minimum_size.y, 0.75, 0.01, "3:4")
-	assert_true(host.map_previous.visible and host.map_next.visible, "the host has the arrows")
+	assert_almost_eq(host.map_card.custom_minimum_size.x / host.map_card.custom_minimum_size.y, 2.0, 0.01, "2:1")
+	var section: Node = host.find_child("MapSection", true, false)
+	assert_eq(section.get_child(0), host.map_card, "the map card is the first row")
+	assert_eq(section.get_child(1).name, "Sizes", "the size choice is the one row under it")
+	assert_null(host.find_child("MapPrevious", true, false), "no arrows")
+	assert_false(host.map_card.disabled, "the host can open it")
+	assert_true(_view(_room(2), 2).map_card.disabled, "a guest cannot")
+
+
+func test_the_size_choice_is_one_row_of_three_and_only_the_host_changes_it() -> void:
+	var host: HotspotRoomView = _view(_room(2))
 	var guest: HotspotRoomView = _view(_room(2), 2)
-	assert_false(guest.map_previous.visible, "a guest only sees the map")
+	var row: Node = host.find_child("Sizes", true, false)
+	assert_true(row is HBoxContainer, "one row")
+	assert_eq(row.get_child_count(), 3)
 	for choice: int in [1, 2, 3]:
-		assert_true(host.size_buttons[choice].disabled == false)
-		assert_true(guest.size_buttons[choice].disabled, "and cannot change the size")
+		assert_false(host.size_buttons[choice].disabled)
+		assert_true(guest.size_buttons[choice].disabled, "a guest cannot change the size")
 	assert_true(host.size_buttons[2].button_pressed, "2v2 is the chosen size")
+
+
+func test_tapping_the_map_card_opens_the_carousel_over_a_tint_and_picking_a_map_emits() -> void:
+	var view: HotspotRoomView = _view(_room(2))
+	var picked: Array[StringName] = []
+	view.map_chosen.connect(func(id: StringName) -> void: picked.append(id))
+	view.map_card.pressed.emit()
+	assert_not_null(view.map_carousel, "the carousel opens")
+	assert_not_null(view.find_child("Tint", true, false), "over a tinted background")
+	assert_eq(view.map_carousel.cards.size(), RoomService.MAP_IDS.size())
+	view.close_map_carousel()
+	assert_null(view.map_carousel)
+	var guest: HotspotRoomView = _view(_room(2), 2)
+	guest.map_card.pressed.emit()
+	assert_null(guest.map_carousel, "a guest cannot open it")
 
 
 func test_players_are_two_columns_with_one_row_per_team_slot_and_three_at_most() -> void:

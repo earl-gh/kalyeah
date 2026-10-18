@@ -2,7 +2,8 @@ class_name HotspotRoomView
 extends Control
 ## The hotspot room screen (portrait), a pure view fed by the room's plain data (`show_room`):
 ##   top row     BACK (text only) and the 8-character room code at the left, settings (icon only) at the right
-##   section 1   the map card (3:4; only the host changes it) and the 1v1 / 2v2 / 3v3 choice (host only)
+##   section 1   the map card (2:1, a row to itself, no buttons: the host taps it to open the map carousel),
+##               and under it one row with the 1v1 / 2v2 / 3v3 choice (host only)
 ##   section 2   the players: two columns (the two teams), up to three rows, one card each, no picture:
 ##               white bars like the owner's mock-up: blue number block then the name (1 to 3) at the left,
 ##               the name then a red number block (4 to 6) at the right, a Host / Ready tag in the far corner
@@ -12,8 +13,8 @@ extends Control
 
 signal back_pressed
 signal settings_pressed
-## -1 / +1: the previous / next map.
-signal map_step(direction: int)
+## The host picked a map in the carousel.
+signal map_chosen(map_id: StringName)
 signal size_chosen(size: int)
 signal character_chosen(character_id: String)
 signal team_chosen(team: int)
@@ -24,8 +25,8 @@ const MAP_NAMES: Dictionary[StringName, String] = {&"street": "KALYEAH STREET"}
 const TEAM_COLORS: Array[Color] = [Color(0.45, 0.65, 1.0), Color(1.0, 0.45, 0.45)]
 const MARGIN: float = 28.0
 const GAP: float = 10.0
-## The map card and the six character cards are exactly 3:4 (width:height).
-const MAP_CARD: Vector2 = Vector2(210.0, 280.0)
+## The map card is 2:1 (width:height) and fills a row; the six character cards are 3:4.
+const MAP_CARD: Vector2 = Vector2(664.0, 332.0)
 const KID_CARD: Vector2 = Vector2(104.0, 139.0)
 const BAR_HEIGHT: float = 84.0
 const NUMBER_WIDTH: float = 78.0
@@ -38,8 +39,8 @@ var code_label: Label
 var back_button: Button
 var settings_button: Button
 var map_card: Button
-var map_previous: Button
-var map_next: Button
+var map_carousel: MenuCarousel
+var _map_overlay: Control
 var size_buttons: Dictionary[int, Button] = {}
 var player_grid: GridContainer
 var player_cards: Array[Control] = []
@@ -142,54 +143,101 @@ func _build_top_row() -> Control:
 	return row
 
 
+## Section 1: the map card, 2:1, filling its own row, no buttons. The host taps it to open the
+## carousel of maps. Under it, one row: 1v1, 2v2, 3v3.
 func _build_map_section() -> Control:
-	var row: HBoxContainer = HBoxContainer.new()
-	row.name = "MapSection"
-	row.add_theme_constant_override("separation", 20)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var left: VBoxContainer = VBoxContainer.new()
-	left.add_theme_constant_override("separation", 8)
-	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(left)
+	var column: VBoxContainer = VBoxContainer.new()
+	column.name = "MapSection"
+	column.add_theme_constant_override("separation", 14)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	map_card = ChoiceCard.make_card("MAP", "KALYEAH STREET", "blue", MAP_CARD)
 	map_card.name = "MapCard"
-	map_card.disabled = true
+	map_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map_card.focus_mode = Control.FOCUS_NONE
-	var map_name: Label = map_card.get_node("Choice") as Label
-	map_name.add_theme_font_size_override("font_size", 26)
-	map_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	left.add_child(map_card)
-	var arrows: HBoxContainer = HBoxContainer.new()
-	arrows.add_theme_constant_override("separation", 8)
-	left.add_child(arrows)
-	map_previous = MenuDialog.make_button("<", "grey", 30, Vector2(0.0, 56.0))
-	map_previous.name = "MapPrevious"
-	map_previous.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	map_previous.pressed.connect(map_step.emit.bind(-1))
-	arrows.add_child(map_previous)
-	map_next = MenuDialog.make_button(">", "grey", 30, Vector2(0.0, 56.0))
-	map_next.name = "MapNext"
-	map_next.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	map_next.pressed.connect(map_step.emit.bind(1))
-	arrows.add_child(map_next)
-	var sizes: VBoxContainer = VBoxContainer.new()
+	map_card.pressed.connect(open_map_carousel)
+	column.add_child(map_card)
+	var sizes: HBoxContainer = HBoxContainer.new()
 	sizes.name = "Sizes"
-	sizes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sizes.alignment = BoxContainer.ALIGNMENT_CENTER
 	sizes.add_theme_constant_override("separation", 12)
 	sizes.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(sizes)
-	var hint: Label = LobbyWidgets.field_label("PLAYERS PER TEAM")
-	sizes.add_child(hint)
+	column.add_child(sizes)
 	for size: int in [1, 2, 3]:
 		var button: Button = LobbyWidgets.button("%dv%d" % [size, size], size_chosen.emit.bind(size), "grey", 34)
 		LobbyWidgets.make_toggle(button)
 		button.name = "Size%d" % size
-		button.custom_minimum_size = Vector2(0.0, 84.0)
+		button.custom_minimum_size = Vector2(0.0, 76.0)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		sizes.add_child(button)
 		size_buttons[size] = button
-	return row
+	return column
+
+
+## The host's map carousel: the same horizontal carousel as the main screen, over a tinted
+## background. Tap a map to pick it; tap the tint to close.
+func open_map_carousel() -> void:
+	if _map_overlay != null and is_instance_valid(_map_overlay):
+		return
+	if not _is_host():
+		return
+	_map_overlay = Control.new()
+	_map_overlay.name = "MapOverlay"
+	_map_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_map_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_map_overlay.z_index = 100
+	add_child(_map_overlay)
+	var tint: ColorRect = ColorRect.new()
+	tint.name = "Tint"
+	tint.color = Color(0.01, 0.025, 0.06, 0.82)
+	tint.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	tint.mouse_filter = Control.MOUSE_FILTER_STOP
+	tint.gui_input.connect(_on_tint_input)
+	_map_overlay.add_child(tint)
+	var maps: Array[Dictionary] = []
+	var current: int = 0
+	var chosen: StringName = StringName(_room.get("map", "street") as String)
+	for id: StringName in RoomService.MAP_IDS:
+		if id == chosen:
+			current = maps.size()
+		maps.append({"id": String(id), "title": MAP_NAMES.get(id, String(id).to_upper()), "color": "blue"})
+	map_carousel = MenuCarousel.new()
+	map_carousel.name = "MapCarousel"
+	map_carousel.custom_minimum_size = Vector2(0.0, ChoiceCard.CARD_SIZE.y + 24.0)
+	# the full width, centred up and down
+	map_carousel.anchor_left = 0.0
+	map_carousel.anchor_right = 1.0
+	map_carousel.anchor_top = 0.5
+	map_carousel.anchor_bottom = 0.5
+	map_carousel.offset_left = 0.0
+	map_carousel.offset_right = 0.0
+	map_carousel.offset_top = -(ChoiceCard.CARD_SIZE.y + 24.0) / 2.0
+	map_carousel.offset_bottom = (ChoiceCard.CARD_SIZE.y + 24.0) / 2.0
+	_map_overlay.add_child(map_carousel)
+	map_carousel.setup("MAP", maps, current)
+	map_carousel.selected.connect(_on_map_carousel_selected)
+
+
+func close_map_carousel() -> void:
+	if _map_overlay != null and is_instance_valid(_map_overlay):
+		_map_overlay.queue_free()
+	_map_overlay = null
+	map_carousel = null
+
+
+func _on_tint_input(event: InputEvent) -> void:
+	var click: InputEventMouseButton = event as InputEventMouseButton
+	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+		close_map_carousel()
+
+
+func _on_map_carousel_selected(index: int) -> void:
+	var id: StringName = RoomService.MAP_IDS[index]
+	map_chosen.emit(id)
+	# a moment to see the card come forward, then back to the room
+	get_tree().create_timer(0.35).timeout.connect(close_map_carousel)
+
+
+func _is_host() -> bool:
+	return _room.get("host", -1) == _my_id
 
 
 func _build_player_section() -> Control:
@@ -286,11 +334,8 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	# section 1: the map and the team size (the host changes them, everyone sees them)
 	var map_id: StringName = StringName(room.get("map", "street") as String)
 	ChoiceCard.set_card(map_card, "MAP", MAP_NAMES.get(map_id, String(map_id).to_upper()) as String, "blue")
-	var maps: Array = RoomService.MAP_IDS
-	map_previous.visible = host
-	map_next.visible = host
-	map_previous.disabled = maps.size() < 2
-	map_next.disabled = maps.size() < 2
+	# only the host opens the map carousel
+	map_card.disabled = not host
 	var size: int = room.get("team_size", 1) as int
 	for choice: int in size_buttons:
 		size_buttons[choice].set_pressed_no_signal(choice == size)
