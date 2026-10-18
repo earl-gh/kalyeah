@@ -39,9 +39,7 @@ func test_the_rows_still_fit_the_street_at_true_size() -> void:
 	for row: Array in map.barrier_rows:
 		var used: float = 0.0
 		for id: Variant in row:
-			var natural: Vector3 = PropModel.size_of(id as String)
-			var side: float = natural.z if StreetMap.BARRIER_TURNED.has(id) else natural.x
-			used += side * StreetMap.BARRIER_HEIGHTS[id] / natural.y + StreetMap.BARRIER_GAP
+			used += StreetMap.barrier_width(id as String) + StreetMap.BARRIER_GAP
 		assert_lt(used - StreetMap.BARRIER_GAP, map.layout.lane_width + 0.001, "the row fits the street")
 
 
