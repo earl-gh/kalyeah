@@ -7,7 +7,7 @@ const PROPS: Array[String] = [
 	"basketball_pole", "bench", "cardboard_wall", "crates", "electric_pole",
 	"fishball_cart", "ironing_board", "rooster_tent", "school_zone", "truck_wheels",
 	"tricycle", "ebike", "sacks", "sewing_machine", "no_id_no_entry", "jeep", "pedicab", "ice_cream_cart", "nanay",
-	"nena_store", "vulcanizing", "barber_shop", "house_1", "house_2", "house_3", "plank_fence", "roof_wall", "roof_wall_2",
+	"nena_store", "vulcanizing", "barber_shop", "house_1", "house_2", "house_3", "karinderya", "plank_fence", "roof_wall", "roof_wall_2",
 ]
 ## Open edges as a fraction of the triangles: the torn models were 0.9 to 1.3; whole ones are under 0.3.
 const MAX_OPEN_FRACTION: float = 0.35

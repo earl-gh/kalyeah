@@ -61,7 +61,7 @@ const HOUSE_SPACING: float = 6.4
 ## The owner's shopfront models, in the order they repeat, and how wide each is on the street.
 const BUILDINGS: Array[String] = ["vulcanizing", "barber_shop", "nena_store"]
 ## The two houses that fill in between the shopfronts (shop, house, shop, house, ...).
-const FILLER_HOUSES: Array[String] = ["house_1", "house_2", "house_3"]
+const FILLER_HOUSES: Array[String] = ["house_1", "house_2", "house_3", "karinderya"]
 const BUILDING_WIDTH: float = 6.0
 const SHADOW_DISTANCE: float = 75.0
 ## Painted ground sits just above the coloured road and sidewalk boxes.
