@@ -23,9 +23,6 @@ const AMBIENT_COLOR: Color = Color(0.78, 0.86, 1.0)
 const AMBIENT_ENERGY: float = 0.82
 const EXPOSURE: float = 0.94
 const TONEMAP_WHITE: float = 4.0
-const GLOW_INTENSITY: float = 0.18
-const GLOW_BLOOM: float = 0.03
-const GLOW_THRESHOLD: float = 1.1
 const SATURATION: float = 0.9
 const CONTRAST: float = 0.97
 const BRIGHTNESS: float = 0.97
@@ -171,11 +168,8 @@ static func make_environment() -> Environment:
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env.tonemap_exposure = EXPOSURE
 	env.tonemap_white = TONEMAP_WHITE
-	env.glow_enabled = true
-	env.glow_intensity = GLOW_INTENSITY
-	env.glow_bloom = GLOW_BLOOM
-	env.glow_hdr_threshold = GLOW_THRESHOLD
-	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
+	# no bloom: it is a blur laid over the bright parts (owner: nothing blurred during gameplay)
+	env.glow_enabled = false
 	env.adjustment_enabled = true
 	env.adjustment_saturation = SATURATION
 	env.adjustment_contrast = CONTRAST
