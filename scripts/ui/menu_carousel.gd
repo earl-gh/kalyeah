@@ -21,6 +21,8 @@ const BACK_ALPHA: float = 0.86
 const DRAG_START: float = 12.0
 const SNAP_TIME: float = 0.18
 
+## The size of a card (2.5:4 on the main screen; the room's map carousel sets 3:4 before `setup`).
+var card_size: Vector2 = CARD
 var index: int = 0
 var cards: Array[Button] = []
 
@@ -39,9 +41,9 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		card.queue_free()
 	cards.clear()
 	for option: Dictionary in options:
-		var card: Button = ChoiceCard.make_card(heading, String(option["title"]), String(option["color"]), CARD, String(option["id"]))
-		card.size = CARD
-		card.pivot_offset = CARD / 2.0
+		var card: Button = ChoiceCard.make_card(String(option.get("heading", heading)), String(option["title"]), String(option["color"]), card_size, String(option["id"]))
+		card.size = card_size
+		card.pivot_offset = card_size / 2.0
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(card)
 		cards.append(card)
@@ -90,7 +92,7 @@ func _layout() -> void:
 		var away: float = clampf(absf(offset), 0.0, 2.0)
 		var card: Button = cards[i]
 		card.scale = Vector2.ONE * (1.0 - SCALE_LOSS * away)
-		card.position = Vector2(size.x / 2.0 + offset * STEP - CARD.x / 2.0, (size.y - CARD.y) / 2.0 - RISE * away)
+		card.position = Vector2(size.x / 2.0 + offset * STEP - card_size.x / 2.0, (size.y - card_size.y) / 2.0 - RISE * away)
 		# every card stays visible: the ones further back are darker and slightly see-through
 		var shade: float = 1.0 - SHADE_LOSS * away
 		card.modulate = Color(shade, shade, shade, lerpf(1.0, BACK_ALPHA, clampf(absf(offset), 0.0, 1.0)))
@@ -134,8 +136,8 @@ func _card_at(at: Vector2) -> int:
 	var best_z: int = -999
 	for i: int in cards.size():
 		var card: Button = cards[i]
-		var half: Vector2 = CARD * card.scale / 2.0
-		var centre: Vector2 = card.position + CARD / 2.0
+		var half: Vector2 = card_size * card.scale / 2.0
+		var centre: Vector2 = card.position + card_size / 2.0
 		if absf(at.x - centre.x) <= half.x and absf(at.y - centre.y) <= half.y and card.z_index > best_z:
 			best = i
 			best_z = card.z_index

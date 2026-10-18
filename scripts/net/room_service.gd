@@ -51,8 +51,10 @@ class Room extends RefCounted:
 		return count
 
 
-## The maps a host can pick from.
-const MAP_IDS: Array[StringName] = [&"street"]
+## The street games a host sees in the map list, and the ones that can be played so far (the other
+## two are listed as coming soon).
+const MAP_IDS: Array[StringName] = [&"street", &"tumbang_preso", &"patintero"]
+const PLAYABLE_MAP_IDS: Array[StringName] = [&"street"]
 
 var rooms: Dictionary[String, Room] = {}
 ## What a host may pick, and what a new room starts with (GameRules.best_of*).
@@ -193,13 +195,13 @@ func set_team_size(peer_id: int, size: int) -> bool:
 	return true
 
 
-## Host only, in the lobby: the map the match is played on (one of `MAP_IDS`).
+## Host only, in the lobby: the map the match is played on (one of `PLAYABLE_MAP_IDS`).
 func set_map(peer_id: int, map_id: StringName) -> bool:
 	var room: Room = room_of_peer(peer_id)
 	var m: Member = member_of_peer(peer_id)
 	if m == null or m.player_id != room.host_player_id or room.state != State.LOBBY:
 		return false
-	if not map_id in MAP_IDS:
+	if not map_id in PLAYABLE_MAP_IDS:
 		return false
 	room.map_id = map_id
 	return true

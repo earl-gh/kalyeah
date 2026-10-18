@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dtsuy3r8hxdrw"
-path="res://.godot/imported/ligaya.png-390dd7c063a466a44d0af55dff22eb5a.ctex"
+uid="uid://cftx3l3oyurhb"
+path="res://.godot/imported/inday.webp-9d44f56a5781f52be945b9d48fe5edba.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/portraits/cards/ligaya.png"
-dest_files=["res://.godot/imported/ligaya.png-390dd7c063a466a44d0af55dff22eb5a.ctex"]
+source_file="res://assets/portraits/cards/inday.webp"
+dest_files=["res://.godot/imported/inday.webp-9d44f56a5781f52be945b9d48fe5edba.ctex"]
 
 [params]
 

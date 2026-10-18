@@ -330,7 +330,7 @@ func _build_hotspot() -> void:
 	_status = _hotspot_view.status_label
 	_hotspot_view.back_pressed.connect(_on_back)
 	_hotspot_view.settings_pressed.connect(_open_settings)
-	_hotspot_view.map_step.connect(_on_map_step)
+	_hotspot_view.map_chosen.connect(_on_map_chosen)
 	_hotspot_view.size_chosen.connect(_on_size_chosen)
 	_hotspot_view.character_chosen.connect(_on_character_chosen)
 	_hotspot_view.team_chosen.connect(_on_team_chosen)
@@ -357,14 +357,11 @@ func _open_settings() -> void:
 	card.open(self)
 
 
-func _on_map_step(direction: int) -> void:
-	var maps: Array[StringName] = RoomService.MAP_IDS
-	var current: int = maps.find(StringName(_current_room().get("map", "street") as String))
-	var next: StringName = maps[posmod(maxi(current, 0) + direction, maps.size())]
+func _on_map_chosen(map_id: StringName) -> void:
 	if _preview_room.is_empty():
-		client.set_map(next)
+		client.set_map(map_id)
 	else:
-		_preview_room["map"] = next
+		_preview_room["map"] = map_id
 		_hotspot_view.show_room(_preview_room, PREVIEW_ME)
 
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cu7yfp0feeqse"
-path="res://.godot/imported/junjun.png-6b9da20ee2f2ea8ddfed718174400451.ctex"
+uid="uid://c0vvxmvuwomuh"
+path="res://.godot/imported/toni.webp-d61f31faa75459e2e51d5070b54ebae9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/portraits/cards/junjun.png"
-dest_files=["res://.godot/imported/junjun.png-6b9da20ee2f2ea8ddfed718174400451.ctex"]
+source_file="res://assets/portraits/cards/toni.webp"
+dest_files=["res://.godot/imported/toni.webp-d61f31faa75459e2e51d5070b54ebae9.ctex"]
 
 [params]
 

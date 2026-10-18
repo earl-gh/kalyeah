@@ -1,40 +1,56 @@
 class_name HotspotRoomView
 extends Control
 ## The hotspot room screen (portrait), a pure view fed by the room's plain data (`show_room`):
-##   top row     BACK (text only) and the 8-character room code at the left, settings (icon only) at the right
-##   section 1   the map card (3:4; only the host changes it) and the 1v1 / 2v2 / 3v3 choice (host only)
+##   top row     BACK (text only) then the text LOBBY | the 8-character room code at the left, settings (icon only) at the right
+##   section 1   the map card (2:1, a row to itself, no buttons: the host taps it to open the map carousel),
+##               and under it one row with the 1v1 / 2v2 / 3v3 choice (host only)
 ##   section 2   the players: two columns (the two teams), up to three rows, one card each, no picture:
-##               left "name [1]" to "[3]" in blue, right "[4]" to "[6] name" in red
+##               white bars like the owner's mock-up: blue number block then the name (1 to 3) at the left,
+##               the name then a red number block (4 to 6) at the right, a Host / Ready tag in the far corner
 ##   section 3   one row of the six kids as 3:4 profile cards, tap one to be it
 ##   bottom      the host's START, or everyone else's READY
 ## It never talks to the network: LobbyScreen listens to the signals and sends what they ask for.
 
 signal back_pressed
 signal settings_pressed
-## -1 / +1: the previous / next map.
-signal map_step(direction: int)
+## The host picked a map in the carousel.
+signal map_chosen(map_id: StringName)
 signal size_chosen(size: int)
 signal character_chosen(character_id: String)
 signal team_chosen(team: int)
 ## The big button: START for the host, READY (on or off) for everyone else.
 signal action_pressed
 
-const MAP_NAMES: Dictionary[StringName, String] = {&"street": "KALYEAH STREET"}
+const MAP_NAMES: Dictionary[StringName, String] = {&"street": "AGAWAN BASE", &"tumbang_preso": "TUMBANG PRESO", &"patintero": "PATINTERO"}
+const MAP_COLORS: Dictionary[StringName, String] = {&"street": "blue", &"tumbang_preso": "orange", &"patintero": "green"}
+## The cards in the map carousel are 3:4.
+const MAP_PICK_CARD: Vector2 = Vector2(414.0, 552.0)
 const TEAM_COLORS: Array[Color] = [Color(0.45, 0.65, 1.0), Color(1.0, 0.45, 0.45)]
-const MARGIN: float = 28.0
-const GAP: float = 10.0
-## The map card and the six character cards are exactly 3:4 (width:height).
-const MAP_CARD: Vector2 = Vector2(210.0, 280.0)
-const KID_CARD: Vector2 = Vector2(104.0, 139.0)
-const PLAYER_CARD_HEIGHT: float = 122.0
+## Spacing and type scale of the screen: one set of values so it reads as one system.
+const MARGIN: float = 24.0
+const GAP: float = 8.0
+const SECTION_GAP: int = 14
+## The map card is 2:1 (width:height) and fills a row; the six character cards are 3:4.
+const MAP_CARD: Vector2 = Vector2(672.0, 336.0)
+const KID_CARD: Vector2 = Vector2(105.0, 140.0)
+const KID_RADIUS: int = 16
+const BAR_HEIGHT: float = 58.0
+const NUMBER_WIDTH: float = 56.0
+const NAME_SIZE: int = 26
+const NUMBER_SIZE: int = 32
+const TAG_SIZE: int = 15
+## The solid number blocks and tags of the mock-up, and the navy of the names on the white bars.
+const TEAM_BLOCKS: Array[Color] = [Color(0.18, 0.17, 0.82), Color(0.94, 0.14, 0.2)]
+const NAME_COLOR: Color = Color(0.12, 0.27, 0.52)
 const MAX_ROWS: int = 3
 
 var code_label: Label
 var back_button: Button
 var settings_button: Button
 var map_card: Button
-var map_previous: Button
-var map_next: Button
+var map_carousel: MenuCarousel
+var _map_overlay: Control
+var _map_hint: Label
 var size_buttons: Dictionary[int, Button] = {}
 var player_grid: GridContainer
 var player_cards: Array[Control] = []
@@ -59,19 +75,19 @@ func _build() -> void:
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right"]:
 		margin.add_theme_constant_override("margin_" + side, int(MARGIN))
-	margin.add_theme_constant_override("margin_top", 24)
-	margin.add_theme_constant_override("margin_bottom", 24)
+	margin.add_theme_constant_override("margin_top", 20)
+	margin.add_theme_constant_override("margin_bottom", 20)
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(margin)
 	var column: VBoxContainer = VBoxContainer.new()
-	column.add_theme_constant_override("separation", 18)
+	column.add_theme_constant_override("separation", SECTION_GAP)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_child(column)
 	column.add_child(_build_top_row())
 	_content = VBoxContainer.new()
 	_content.name = "Content"
 	_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_content.add_theme_constant_override("separation", 18)
+	_content.add_theme_constant_override("separation", SECTION_GAP)
 	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_content.visible = false
 	column.add_child(_content)
@@ -82,7 +98,7 @@ func _build() -> void:
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_content.add_child(spacer)
-	action_button = MenuDialog.make_button("READY", "orange", 36, Vector2(0.0, 96.0))
+	action_button = MenuDialog.make_button("READY", "orange", 32, Vector2(0.0, 80.0))
 	action_button.name = "ActionButton"
 	action_button.pressed.connect(action_pressed.emit)
 	_content.add_child(action_button)
@@ -90,26 +106,42 @@ func _build() -> void:
 	status_label.name = "Status"
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	status_label.add_theme_font_size_override("font_size", 24)
+	status_label.add_theme_font_size_override("font_size", 20)
 	status_label.add_theme_color_override("font_color", Color("ffb4a8"))
-	status_label.custom_minimum_size = Vector2(0.0, 30.0)
+	status_label.custom_minimum_size = Vector2(0.0, 26.0)
 	column.add_child(status_label)
 
 
 func _build_top_row() -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.name = "TopRow"
-	row.add_theme_constant_override("separation", 16)
+	row.add_theme_constant_override("separation", 12)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	back_button = MenuDialog.make_button("BACK", "grey", 26, Vector2(140.0, 72.0))
+	back_button = MenuDialog.make_button("BACK", "grey", 22, Vector2(112.0, 56.0))
 	back_button.name = "BackButton"
 	back_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	back_button.pressed.connect(back_pressed.emit)
 	row.add_child(back_button)
+	var title: Label = Label.new()
+	title.name = "Title"
+	title.text = "LOBBY"
+	title.theme_type_variation = &"DisplayLabel"
+	title.add_theme_font_size_override("font_size", 38)
+	title.add_theme_color_override("font_color", KalyeahTheme.CREAM)
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(title)
+	var bar: Label = Label.new()
+	bar.name = "Divider"
+	bar.text = "|"
+	bar.theme_type_variation = &"DisplayLabel"
+	bar.add_theme_font_size_override("font_size", 38)
+	bar.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.45))
+	bar.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(bar)
 	code_label = Label.new()
 	code_label.name = "Code"
 	code_label.theme_type_variation = &"DisplayLabel"
-	code_label.add_theme_font_size_override("font_size", 46)
+	code_label.add_theme_font_size_override("font_size", 38)
 	code_label.add_theme_color_override("font_color", KalyeahTheme.AMBER)
 	code_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	code_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -121,7 +153,7 @@ func _build_top_row() -> Control:
 	settings_button.name = "SettingsButton"
 	settings_button.flat = true
 	settings_button.focus_mode = Control.FOCUS_NONE
-	settings_button.custom_minimum_size = Vector2(72.0, 72.0)
+	settings_button.custom_minimum_size = Vector2(56.0, 56.0)
 	settings_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	for state: String in ["normal", "hover", "pressed", "focus"]:
 		settings_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
@@ -137,54 +169,125 @@ func _build_top_row() -> Control:
 	return row
 
 
+## Section 1: the map card, 2:1, filling its own row, no buttons. The host taps it to open the
+## carousel of maps. Under it, one row: 1v1, 2v2, 3v3.
 func _build_map_section() -> Control:
-	var row: HBoxContainer = HBoxContainer.new()
-	row.name = "MapSection"
-	row.add_theme_constant_override("separation", 20)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var left: VBoxContainer = VBoxContainer.new()
-	left.add_theme_constant_override("separation", 8)
-	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(left)
-	map_card = ChoiceCard.make_card("MAP", "KALYEAH STREET", "blue", MAP_CARD)
+	var column: VBoxContainer = VBoxContainer.new()
+	column.name = "MapSection"
+	column.add_theme_constant_override("separation", int(GAP) + 4)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	map_card = ChoiceCard.make_card("", "AGAWAN BASE", "blue", MAP_CARD)
 	map_card.name = "MapCard"
-	map_card.disabled = true
+	map_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map_card.focus_mode = Control.FOCUS_NONE
-	var map_name: Label = map_card.get_node("Choice") as Label
-	map_name.add_theme_font_size_override("font_size", 26)
-	map_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	left.add_child(map_card)
-	var arrows: HBoxContainer = HBoxContainer.new()
-	arrows.add_theme_constant_override("separation", 8)
-	left.add_child(arrows)
-	map_previous = MenuDialog.make_button("<", "grey", 30, Vector2(0.0, 56.0))
-	map_previous.name = "MapPrevious"
-	map_previous.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	map_previous.pressed.connect(map_step.emit.bind(-1))
-	arrows.add_child(map_previous)
-	map_next = MenuDialog.make_button(">", "grey", 30, Vector2(0.0, 56.0))
-	map_next.name = "MapNext"
-	map_next.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	map_next.pressed.connect(map_step.emit.bind(1))
-	arrows.add_child(map_next)
-	var sizes: VBoxContainer = VBoxContainer.new()
+	map_card.pressed.connect(open_map_carousel)
+	column.add_child(map_card)
+	var sizes: HBoxContainer = HBoxContainer.new()
 	sizes.name = "Sizes"
-	sizes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sizes.alignment = BoxContainer.ALIGNMENT_CENTER
-	sizes.add_theme_constant_override("separation", 12)
+	sizes.add_theme_constant_override("separation", int(GAP) + 2)
 	sizes.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(sizes)
-	var hint: Label = LobbyWidgets.field_label("PLAYERS PER TEAM")
-	sizes.add_child(hint)
+	column.add_child(sizes)
 	for size: int in [1, 2, 3]:
-		var button: Button = LobbyWidgets.button("%dv%d" % [size, size], size_chosen.emit.bind(size), "grey", 34)
+		var button: Button = LobbyWidgets.button("%dv%d" % [size, size], size_chosen.emit.bind(size), "grey", 28)
 		LobbyWidgets.make_toggle(button)
 		button.name = "Size%d" % size
-		button.custom_minimum_size = Vector2(0.0, 84.0)
+		button.custom_minimum_size = Vector2(0.0, 60.0)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		sizes.add_child(button)
 		size_buttons[size] = button
-	return row
+	return column
+
+
+## The host's map carousel: the same horizontal carousel as the main screen, over a tinted
+## background. Tap a map to pick it; tap the tint to close.
+func open_map_carousel() -> void:
+	if _map_overlay != null and is_instance_valid(_map_overlay):
+		return
+	if not _is_host():
+		return
+	_map_overlay = Control.new()
+	_map_overlay.name = "MapOverlay"
+	_map_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_map_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_map_overlay.z_index = 100
+	add_child(_map_overlay)
+	var tint: ColorRect = ColorRect.new()
+	tint.name = "Tint"
+	tint.color = Color(0.01, 0.025, 0.06, 0.82)
+	tint.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	tint.mouse_filter = Control.MOUSE_FILTER_STOP
+	tint.gui_input.connect(_on_tint_input)
+	_map_overlay.add_child(tint)
+	var maps: Array[Dictionary] = []
+	var current: int = 0
+	var chosen: StringName = StringName(_room.get("map", "street") as String)
+	for id: StringName in RoomService.MAP_IDS:
+		if id == chosen:
+			current = maps.size()
+		maps.append({"id": String(id), "title": MAP_NAMES.get(id, String(id).to_upper()), "color": MAP_COLORS.get(id, "blue"),
+			"heading": "" if id in RoomService.PLAYABLE_MAP_IDS else "COMING SOON"})
+	map_carousel = MenuCarousel.new()
+	map_carousel.name = "MapCarousel"
+	map_carousel.card_size = MAP_PICK_CARD
+	map_carousel.custom_minimum_size = Vector2(0.0, MAP_PICK_CARD.y + 24.0)
+	# the full width, centred up and down
+	map_carousel.anchor_left = 0.0
+	map_carousel.anchor_right = 1.0
+	map_carousel.anchor_top = 0.5
+	map_carousel.anchor_bottom = 0.5
+	map_carousel.offset_left = 0.0
+	map_carousel.offset_right = 0.0
+	map_carousel.offset_top = -(MAP_PICK_CARD.y + 24.0) / 2.0
+	map_carousel.offset_bottom = (MAP_PICK_CARD.y + 24.0) / 2.0
+	_map_overlay.add_child(map_carousel)
+	_map_hint = Label.new()
+	_map_hint.name = "MapHint"
+	_map_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_map_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_map_hint.add_theme_font_size_override("font_size", 22)
+	_map_hint.add_theme_color_override("font_color", KalyeahTheme.CREAM)
+	# just under the carousel (which is centred up and down)
+	_map_hint.anchor_left = 0.0
+	_map_hint.anchor_right = 1.0
+	_map_hint.anchor_top = 0.5
+	_map_hint.anchor_bottom = 0.5
+	_map_hint.offset_left = MARGIN
+	_map_hint.offset_right = -MARGIN
+	_map_hint.offset_top = MAP_PICK_CARD.y / 2.0 + 40.0
+	_map_hint.offset_bottom = MAP_PICK_CARD.y / 2.0 + 110.0
+	_map_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map_overlay.add_child(_map_hint)
+	map_carousel.setup("", maps, current)
+	map_carousel.selected.connect(_on_map_carousel_selected)
+
+
+func close_map_carousel() -> void:
+	if _map_overlay != null and is_instance_valid(_map_overlay):
+		_map_overlay.queue_free()
+	_map_overlay = null
+	map_carousel = null
+
+
+func _on_tint_input(event: InputEvent) -> void:
+	var click: InputEventMouseButton = event as InputEventMouseButton
+	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+		close_map_carousel()
+
+
+func _on_map_carousel_selected(index: int) -> void:
+	var id: StringName = RoomService.MAP_IDS[index]
+	if not id in RoomService.PLAYABLE_MAP_IDS:
+		# listed, but not playable yet: say so and keep the room on its map
+		_map_hint.text = "%s is coming soon. Agawan Base is the only game to play for now." % MAP_NAMES.get(id, String(id).to_upper())
+		return
+	_map_hint.text = ""
+	map_chosen.emit(id)
+	# a moment to see the card come forward, then back to the room
+	get_tree().create_timer(0.35).timeout.connect(close_map_carousel)
+
+
+func _is_host() -> bool:
+	return _room.get("host", -1) == _my_id
 
 
 func _build_player_section() -> Control:
@@ -216,7 +319,6 @@ func _kid_card(id: String) -> Button:
 	card.name = id.capitalize()
 	card.custom_minimum_size = KID_CARD
 	card.focus_mode = Control.FOCUS_NONE
-	card.clip_contents = true
 	MenuDialog.feel_press(card)
 	card.pressed.connect(character_chosen.emit.bind(id))
 	var picture: TextureRect = TextureRect.new()
@@ -227,12 +329,18 @@ func _kid_card(id: String) -> Button:
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# the picture follows the card's rounded corners
+	var crop: ShaderMaterial = ShaderMaterial.new()
+	crop.shader = ChoiceCard.CROP_SHADER
+	crop.set_shader_parameter("rect_size", KID_CARD)
+	crop.set_shader_parameter("radius", float(KID_RADIUS))
+	picture.material = crop
 	card.add_child(picture)
 	var definition: CharacterDef = load("res://data/characters/%s.tres" % id) as CharacterDef
 	var label: Label = Label.new()
 	label.theme_type_variation = &"DisplayLabel"
 	label.text = (definition.display_name if definition != null else id).to_upper()
-	label.add_theme_font_size_override("font_size", 17)
+	label.add_theme_font_size_override("font_size", 15)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	label.offset_top = -30.0
@@ -243,9 +351,12 @@ func _kid_card(id: String) -> Button:
 
 
 func _style_kid_card(card: Button, chosen: bool) -> void:
-	var box: StyleBoxFlat = KalyeahTheme.surface_box(14, 2, 0.0)
+	# rounded corners and a soft drop shadow
+	var box: StyleBoxFlat = KalyeahTheme.surface_box(KID_RADIUS, 0, 0.0)
 	box.bg_color = Color(KalyeahTheme.INK, 0.8)
-	box.border_color = Color(1.0, 1.0, 1.0, 0.2)
+	box.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
+	box.shadow_size = 8
+	box.shadow_offset = Vector2(0.0, 4.0)
 	for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
 		card.add_theme_stylebox_override(state, box)
 	# the amber frame is an overlay (the picture covers the button's own border)
@@ -255,7 +366,7 @@ func _style_kid_card(card: Button, chosen: bool) -> void:
 		frame.name = "Chosen"
 		frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var ring: StyleBoxFlat = KalyeahTheme.surface_box(14, 6, 0.0)
+		var ring: StyleBoxFlat = KalyeahTheme.surface_box(KID_RADIUS, 5, 0.0)
 		ring.draw_center = false
 		ring.shadow_size = 0
 		ring.border_color = KalyeahTheme.AMBER
@@ -280,12 +391,9 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	code_label.text = String(room.get("code", "--------"))
 	# section 1: the map and the team size (the host changes them, everyone sees them)
 	var map_id: StringName = StringName(room.get("map", "street") as String)
-	ChoiceCard.set_card(map_card, "MAP", MAP_NAMES.get(map_id, String(map_id).to_upper()) as String, "blue")
-	var maps: Array = RoomService.MAP_IDS
-	map_previous.visible = host
-	map_next.visible = host
-	map_previous.disabled = maps.size() < 2
-	map_next.disabled = maps.size() < 2
+	ChoiceCard.set_card(map_card, "", MAP_NAMES.get(map_id, String(map_id).to_upper()) as String, "blue")
+	# only the host opens the map carousel
+	map_card.disabled = not host
 	var size: int = room.get("team_size", 1) as int
 	for choice: int in size_buttons:
 		size_buttons[choice].set_pressed_no_signal(choice == size)
@@ -334,53 +442,63 @@ func _fill_players(members: Array, size: int) -> void:
 			player_cards.append(card)
 
 
-## A player card with no picture: the left column (blue team) reads "name [1]", the right column
-## (red team) "[4] name"; `number` is the slot, 1 to 3 on the left and 4 to 6 on the right.
+## A player card, like the owner's mock-up: a white bar with the name in bold navy and the slot
+## number in a solid team-coloured block at the outer edge (blue at the left of the left column,
+## red at the right of the right column), and a small Host / Ready tag in the far top corner.
 func _player_card(member: Dictionary, team: int) -> Control:
-	var card: PanelContainer = PanelContainer.new()
+	var card: Control = Control.new()
 	card.name = "Player%d" % (member["player_id"] as int)
-	card.custom_minimum_size = Vector2(0.0, PLAYER_CARD_HEIGHT)
+	card.custom_minimum_size = Vector2(0.0, BAR_HEIGHT)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var box: StyleBoxFlat = KalyeahTheme.surface_box(16, 3, 12.0)
-	box.bg_color = Color(KalyeahTheme.INK, 0.78)
-	box.border_color = TEAM_COLORS[team]
-	card.add_theme_stylebox_override("panel", box)
+	var bar: Panel = Panel.new()
+	bar.name = "Bar"
+	bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = Color.WHITE
+	box.border_color = Color(1.0, 1.0, 1.0, 0.55)
+	box.set_border_width_all(1)
+	bar.add_theme_stylebox_override("panel", box)
+	card.add_child(bar)
 	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.add_theme_constant_override("separation", 0)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(row)
-	var text: VBoxContainer = VBoxContainer.new()
-	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.alignment = BoxContainer.ALIGNMENT_CENTER
-	var align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT if team == 0 else HORIZONTAL_ALIGNMENT_RIGHT
-	var name_label: Label = LobbyWidgets.label(member["name"] as String, 28)
+	var name_label: Label = Label.new()
 	name_label.name = "Name"
-	name_label.horizontal_alignment = align
+	name_label.text = member["name"] as String
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if team == 0 else HORIZONTAL_ALIGNMENT_RIGHT
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	text.add_child(name_label)
-	var tags: PackedStringArray = PackedStringArray()
-	if member["player_id"] == _room.get("host", -1):
-		tags.append("HOST")
-	if member["player_id"] == _my_id:
-		tags.append("YOU")
-	if member["ready"] or member["player_id"] == _room.get("host", -1):
-		tags.append("READY")
-	var tag_label: Label = LobbyWidgets.label("  ".join(tags), 19, TEAM_COLORS[team])
-	tag_label.name = "Tags"
-	tag_label.horizontal_alignment = align
-	text.add_child(tag_label)
-	var badge: Control = _badge(slot_number(team, _row_of(member, team)), team)
+	name_label.add_theme_font_size_override("font_size", NAME_SIZE)
+	name_label.add_theme_color_override("font_color", NAME_COLOR)
+	name_label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	name_label.add_theme_constant_override("outline_size", 0)
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var number: Control = _number_block(slot_number(team, _row_of(member, team), _room.get("team_size", 1) as int), team, false)
 	if team == 0:
-		row.add_child(text)
-		row.add_child(badge)
+		name_label.add_theme_constant_override("line_spacing", 0)
+		row.add_child(number)
+		row.add_child(_padded(name_label, 14.0, 6.0))
 	else:
-		row.add_child(badge)
-		row.add_child(text)
+		row.add_child(_padded(name_label, 6.0, 14.0))
+		row.add_child(number)
+	var tag_text: String = ""
+	if member["player_id"] == _room.get("host", -1):
+		tag_text = "Host"
+	elif member["ready"]:
+		tag_text = "Ready"
+	if not tag_text.is_empty():
+		card.add_child(_tag(tag_text, team))
 	return card
 
 
-## The slot number: 1 to 3 down the left column (blue), 4 to 6 down the right (red).
-static func slot_number(team: int, row: int) -> int:
-	return team * MAX_ROWS + row + 1
+## The slot number: the places in the room counted down the left column (blue) and then the right
+## (red): 1 to 3 and 4 to 6 in a 3v3, 1 to 2 and 3 to 4 in a 2v2, 1 and 2 in a 1v1.
+static func slot_number(team: int, row: int, size: int) -> int:
+	return team * size + row + 1
 
 
 func _row_of(member: Dictionary, team: int) -> int:
@@ -394,59 +512,125 @@ func _row_of(member: Dictionary, team: int) -> int:
 	return row
 
 
-## The number in a team-coloured round badge.
-func _badge(number: int, team: int) -> Control:
-	var badge: PanelContainer = PanelContainer.new()
-	badge.name = "Number"
-	badge.custom_minimum_size = Vector2(64.0, 64.0)
-	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var box: StyleBoxFlat = KalyeahTheme.surface_box(32, 0, 0.0)
-	box.bg_color = TEAM_COLORS[team]
-	badge.add_theme_stylebox_override("panel", box)
-	var label: Label = LobbyWidgets.label(str(number), 36, KalyeahTheme.INK_DEEP)
+## The number in a solid team-coloured block (`hollow`: only the outline and the number, for a slot
+## nobody has taken yet).
+func _number_block(number: int, team: int, hollow: bool) -> Control:
+	var block: PanelContainer = PanelContainer.new()
+	block.name = "Number"
+	block.custom_minimum_size = Vector2(NUMBER_WIDTH, 0.0)
+	block.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	if hollow:
+		box.bg_color = Color(TEAM_BLOCKS[team], 0.28)
+		box.border_color = Color(TEAM_BLOCKS[team].lightened(0.3), 0.6)
+		box.set_border_width_all(2)
+	else:
+		box.bg_color = TEAM_BLOCKS[team]
+	block.add_theme_stylebox_override("panel", box)
+	var label: Label = Label.new()
+	label.text = str(number)
 	label.theme_type_variation = &"DisplayLabel"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	badge.add_child(label)
-	return badge
+	label.add_theme_font_size_override("font_size", NUMBER_SIZE)
+	label.add_theme_color_override("font_color", TEAM_BLOCKS[team].lightened(0.35) if hollow else Color.WHITE)
+	label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	label.add_theme_constant_override("outline_size", 0)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	block.add_child(label)
+	return block
 
 
-## A free slot: its number and JOIN (tap to join that team) or OPEN.
+## A control with a margin each side (so the name does not touch the number block).
+func _padded(child: Control, left: float, right: float) -> Control:
+	var margin: MarginContainer = MarginContainer.new()
+	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	margin.add_theme_constant_override("margin_left", int(left))
+	margin.add_theme_constant_override("margin_right", int(right))
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(child)
+	return margin
+
+
+## The small Host / Ready tag in the far top corner (the right for blue, the left for red).
+func _tag(text: String, team: int) -> Control:
+	var tag: PanelContainer = PanelContainer.new()
+	tag.name = "Tag"
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = TEAM_BLOCKS[team]
+	box.content_margin_left = 8.0
+	box.content_margin_right = 8.0
+	box.content_margin_top = 1.0
+	box.content_margin_bottom = 1.0
+	tag.add_theme_stylebox_override("panel", box)
+	var label: Label = Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", TAG_SIZE)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	label.add_theme_constant_override("outline_size", 0)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tag.add_child(label)
+	# pinned to the top corner and left to size itself to its text
+	var right: float = 1.0 if team == 0 else 0.0
+	tag.anchor_left = right
+	tag.anchor_right = right
+	tag.anchor_top = 0.0
+	tag.anchor_bottom = 0.0
+	tag.offset_left = 0.0
+	tag.offset_right = 0.0
+	tag.offset_top = 0.0
+	tag.offset_bottom = 0.0
+	tag.grow_horizontal = Control.GROW_DIRECTION_BEGIN if team == 0 else Control.GROW_DIRECTION_END
+	tag.grow_vertical = Control.GROW_DIRECTION_END
+	return tag
+
+
+## A slot nobody has taken yet: a soft frosted card (a faint fill, a team-coloured edge and a tinted
+## number block) with a "+" and what to do: tap to join that team, or just waiting. Tap it to join.
 func _open_slot(team: int, row: int, can_join: bool) -> Control:
 	var card: Button = Button.new()
 	card.name = "OpenSlot%d" % team
-	card.custom_minimum_size = Vector2(0.0, PLAYER_CARD_HEIGHT)
+	card.custom_minimum_size = Vector2(0.0, BAR_HEIGHT)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.focus_mode = Control.FOCUS_NONE
 	card.disabled = not can_join
-	var box: StyleBoxFlat = KalyeahTheme.surface_box(16, 2, 12.0)
-	box.bg_color = Color(KalyeahTheme.INK, 0.4)
-	box.border_color = Color(TEAM_COLORS[team], 0.5)
-	for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = Color(1.0, 1.0, 1.0, 0.07)
+	box.border_color = Color(TEAM_BLOCKS[team].lightened(0.3), 0.6)
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(4)
+	for state: String in ["normal", "disabled"]:
 		card.add_theme_stylebox_override(state, box)
+	var lit: StyleBoxFlat = box.duplicate() as StyleBoxFlat
+	lit.bg_color = Color(TEAM_BLOCKS[team].lightened(0.3), 0.18)
+	for state: String in ["hover", "pressed", "focus"]:
+		card.add_theme_stylebox_override(state, lit)
 	card.pressed.connect(team_chosen.emit.bind(team))
 	var inner: HBoxContainer = HBoxContainer.new()
 	inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	inner.offset_left = 12.0
-	inner.offset_right = -12.0
-	inner.add_theme_constant_override("separation", 12)
+	inner.add_theme_constant_override("separation", 0)
 	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(inner)
-	var text: Label = LobbyWidgets.label("JOIN" if can_join else "OPEN", 26, Color(TEAM_COLORS[team], 0.85 if can_join else 0.45))
-	text.name = "Text"
-	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if team == 0 else HORIZONTAL_ALIGNMENT_RIGHT
-	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var badge: Control = _badge(slot_number(team, row), team)
-	badge.modulate.a = 0.6
-	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hint: Label = Label.new()
+	hint.name = "Hint"
+	hint.text = "+  TAP TO JOIN" if can_join else "WAITING FOR A PLAYER..."
+	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 18)
+	hint.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.6 if can_join else 0.38))
+	hint.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	hint.add_theme_constant_override("outline_size", 0)
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var number: Control = _number_block(slot_number(team, row, _room.get("team_size", 1) as int), team, true)
 	if team == 0:
-		inner.add_child(text)
-		inner.add_child(badge)
+		inner.add_child(number)
+		inner.add_child(hint)
 	else:
-		inner.add_child(badge)
-		inner.add_child(text)
+		inner.add_child(hint)
+		inner.add_child(number)
 	return card
 
 

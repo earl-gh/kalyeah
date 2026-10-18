@@ -172,6 +172,8 @@ func test_the_host_picks_the_map_from_the_list() -> void:
 	assert_eq(room.map_id, &"street")
 	assert_false(service.set_map(2, &"street"), "only the host")
 	assert_false(service.set_map(1, &"nowhere"), "only a listed map")
+	assert_false(service.set_map(1, &"patintero"), "listed, but not playable yet")
+	assert_eq(RoomService.MAP_IDS.size(), 3, "Agawan Base, Tumbang Preso and Patintero")
 	assert_true(service.set_map(1, &"street"))
 	assert_eq(service.describe(room)["map"], &"street")
 
