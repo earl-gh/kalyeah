@@ -6,6 +6,7 @@ extends RefCounted
 const DISPLAY_FONT: Font = preload("res://assets/fonts/dagsen/Dagsen_Inked.otf")
 const ACTION_FONT: Font = preload("res://assets/fonts/dagsen/Dagsen_Black.otf")
 const FALLBACK_FONT: Font = preload("res://assets/fonts/nunito_sans/NunitoSans-Variable.ttf")
+const INTER_FONT: Font = preload("res://assets/fonts/inter/Inter-Variable.ttf")
 static var BODY_FONT: Font = _body_font()
 
 const INK: Color = Color("10192d")
@@ -31,8 +32,9 @@ const PANEL_PADDING: float = 30.0
 
 
 static func _body_font() -> Font:
-	var font: SystemFont = SystemFont.new()
-	font.font_names = PackedStringArray(["SF Pro Text", "SF Pro Display", "Helvetica Neue", "Roboto", "Noto Sans"])
+	# Inter for all regular text (owner), the same on every phone and in the browser
+	var font: FontVariation = FontVariation.new()
+	font.base_font = INTER_FONT
 	font.fallbacks = [FALLBACK_FONT]
 	return font
 

@@ -14,15 +14,15 @@ const CROP_SHADER: Shader = preload("res://shaders/minimap_crop.gdshader")
 
 ## The game modes, first is the default (owner: hotspot first, not online).
 const MODES: Array[Dictionary] = [
-	{"id": "hotspot", "title": "HOTSPOT", "note": "Same Wi-Fi", "color": "blue"},
-	{"id": "online", "title": "ONLINE", "note": "Rooms on the server", "color": "orange"},
-	{"id": "practice", "title": "PRACTICE", "note": "Alone with dummies", "color": "green"},
+	{"id": "hotspot", "title": "HOTSPOT", "color": "blue"},
+	{"id": "online", "title": "ONLINE", "color": "orange"},
+	{"id": "practice", "title": "PRACTICE", "color": "green"},
 ]
 ## The maps, first is the default. Only Agawan Base can be played yet.
 const MAPS: Array[Dictionary] = [
-	{"id": "agawan_base", "title": "AGAWAN BASE", "note": "Capture the post", "color": "gold", "playable": true},
-	{"id": "tumbang_preso", "title": "TUMBANG PRESO", "note": "Coming soon", "color": "gold", "playable": false},
-	{"id": "patintero", "title": "PATINTERO", "note": "Coming soon", "color": "gold", "playable": false},
+	{"id": "agawan_base", "title": "AGAWAN BASE", "color": "gold", "playable": true},
+	{"id": "tumbang_preso", "title": "TUMBANG PRESO", "color": "gold", "playable": false},
+	{"id": "patintero", "title": "PATINTERO", "color": "gold", "playable": false},
 ]
 
 const SIDE_MARGIN: float = 34.0
@@ -313,10 +313,8 @@ func _make_card(row: HBoxContainer, card_name: String) -> Button:
 	ratio.ratio = 2.0
 	ratio.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ratio.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var card: Button = MenuDialog.make_button("", "blue", 20, Vector2(0.0, 96.0))
+	var card: Button = ChoiceCarousel.make_card("", "", "blue", Vector2(0.0, 96.0))
 	card.name = card_name
-	card.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	card.clip_text = true
 	ratio.add_child(card)
 	row.add_child(ratio)
 	return card
@@ -325,10 +323,8 @@ func _make_card(row: HBoxContainer, card_name: String) -> Button:
 func _refresh_choices() -> void:
 	var mode: Dictionary = MODES[Session.menu_mode]
 	var map: Dictionary = MAPS[Session.menu_map]
-	mode_card.text = "MODE\n%s" % mode["title"]
-	KalyeahTheme.style_button(mode_card, String(mode["color"]))
-	map_card.text = "MAP\n%s" % map["title"]
-	KalyeahTheme.style_button(map_card, String(map["color"]))
+	ChoiceCarousel.set_card(mode_card, "MODE", String(mode["title"]), String(mode["color"]))
+	ChoiceCarousel.set_card(map_card, "MAP", String(map["title"]), String(map["color"]))
 	var playable: bool = bool(map["playable"])
 	start_button.disabled = not playable
 	start_button.text = "START" if playable else "SOON"
@@ -361,13 +357,13 @@ func _pop_in() -> void:
 
 ## The card choices: MODE and MAP each open a carousel over a tint.
 func open_mode_choices() -> ChoiceCarousel:
-	return _open_carousel("CHOOSE MODE", MODES, Session.menu_mode, func(index: int) -> void:
+	return _open_carousel("MODE", MODES, Session.menu_mode, func(index: int) -> void:
 		Session.menu_mode = index
 		_refresh_choices())
 
 
 func open_map_choices() -> ChoiceCarousel:
-	return _open_carousel("CHOOSE MAP", MAPS, Session.menu_map, func(index: int) -> void:
+	return _open_carousel("MAP", MAPS, Session.menu_map, func(index: int) -> void:
 		Session.menu_map = index
 		_refresh_choices())
 
