@@ -28,9 +28,10 @@ func _view(room: Dictionary, my_id: int = 1) -> HotspotRoomView:
 	return view
 
 
-func test_the_top_row_has_a_text_only_back_button_the_code_and_a_bare_settings_icon() -> void:
+func test_the_top_row_reads_lobby_bar_code_with_a_bare_settings_icon_the_code_and_a_bare_settings_icon() -> void:
 	var view: HotspotRoomView = _view(_room(2))
-	assert_eq(view.back_button.text, "BACK", "text only, no chevron")
+	assert_eq(view.back_button.text, "LOBBY", "text only, no chevron: Lobby | code")
+	assert_eq((view.find_child("Divider", true, false) as Label).text, "|")
 	assert_eq(view.code_label.text, "K7M2Q9XA")
 	assert_eq(view.code_label.text.length(), 8)
 	assert_true(view.settings_button.flat, "no button container round the icon")
@@ -146,10 +147,12 @@ func test_player_cards_are_white_bars_with_no_picture_and_numbered_blocks() -> v
 	var view: HotspotRoomView = _view(_room(3))
 	for card: Control in view.player_cards:
 		assert_eq(card.find_children("*", "TextureRect", true, false).size(), 0, "no character image on a player card")
-	assert_eq(HotspotRoomView.slot_number(0, 0), 1)
-	assert_eq(HotspotRoomView.slot_number(0, 2), 3)
-	assert_eq(HotspotRoomView.slot_number(1, 0), 4)
-	assert_eq(HotspotRoomView.slot_number(1, 2), 6)
+	assert_eq(HotspotRoomView.slot_number(0, 0, 3), 1)
+	assert_eq(HotspotRoomView.slot_number(0, 2, 3), 3)
+	assert_eq(HotspotRoomView.slot_number(1, 0, 3), 4)
+	assert_eq(HotspotRoomView.slot_number(1, 2, 3), 6)
+	assert_eq(HotspotRoomView.slot_number(1, 0, 2), 3, "in a 2v2 the red column starts at 3: the numbers count the places in the room")
+	assert_eq(HotspotRoomView.slot_number(1, 0, 1), 2, "and in a 1v1 at 2")
 	var ana: Control = view.find_child("Player1", true, false) as Control
 	var ben: Control = view.find_child("Player2", true, false) as Control
 	var bar: StyleBoxFlat = ana.get_node("Bar").get_theme_stylebox("panel") as StyleBoxFlat
@@ -158,7 +161,7 @@ func test_player_cards_are_white_bars_with_no_picture_and_numbered_blocks() -> v
 	var ana_number: Control = ana.find_child("Number", true, false) as Control
 	var ben_number: Control = ben.find_child("Number", true, false) as Control
 	assert_eq((ana_number.get_child(0) as Label).text, "1")
-	assert_eq((ben_number.get_child(0) as Label).text, "4")
+	assert_eq((ben_number.get_child(0) as Label).text, "4", "3v3: the red column runs 4 to 6")
 	assert_eq(ana_number.get_parent().get_child(0), ana_number, "blue: the number block comes first")
 	assert_eq(ben_number.get_parent().get_child(ben_number.get_parent().get_child_count() - 1), ben_number, "red: the number block comes last")
 	assert_eq((ana_number.get_theme_stylebox("panel") as StyleBoxFlat).bg_color, HotspotRoomView.TEAM_BLOCKS[0])
@@ -196,3 +199,35 @@ func test_my_chosen_kid_has_the_amber_frame() -> void:
 	var view: HotspotRoomView = _view(room)
 	assert_true((view.kid_cards["junjun"].get_node("Chosen") as Panel).visible, "Ana is junjun")
 	assert_false((view.kid_cards["toni"].get_node("Chosen") as Panel).visible)
+
+
+func test_an_empty_slot_is_a_hollow_card_with_its_number() -> void:
+	var view: HotspotRoomView = _view(_room(3))
+	var open: Button = view.find_child("OpenSlot1", true, false) as Button
+	assert_not_null(open)
+	var box: StyleBoxFlat = open.get_theme_stylebox("normal") as StyleBoxFlat
+	assert_false(box.draw_center, "hollow: no fill")
+	var number: Control = open.find_child("Number", true, false) as Control
+	assert_false((number.get_theme_stylebox("panel") as StyleBoxFlat).draw_center, "the number block is hollow too")
+	assert_eq(open.find_children("*", "TextureRect", true, false).size(), 0)
+	var two: HotspotRoomView = _view(_room(2))
+	assert_eq((two.find_child("Player2", true, false).find_child("Number", true, false).get_child(0) as Label).text, "3", "a 2v2: Ben is number 3")
+
+
+func test_the_map_card_has_no_map_word_and_is_agawan_base_and_the_carousel_cards_are_three_to_four() -> void:
+	var view: HotspotRoomView = _view(_room(2))
+	assert_false((view.map_card.get_node("Heading") as Label).visible, "no \"Map\" word on the card")
+	assert_eq(ChoiceCard.choice_of(view.map_card), "AGAWAN BASE")
+	view.map_card.pressed.emit()
+	var card: Button = view.map_carousel.cards[0]
+	assert_almost_eq(card.size.x / card.size.y, 0.75, 0.01, "3:4")
+	view.close_map_carousel()
+
+
+func test_the_kid_cards_are_rounded_with_a_shadow() -> void:
+	var view: HotspotRoomView = _view(_room(2))
+	var box: StyleBoxFlat = view.kid_cards["toni"].get_theme_stylebox("normal") as StyleBoxFlat
+	assert_gt(box.corner_radius_top_left, 8, "rounded corners")
+	assert_gt(box.shadow_size, 0, "a shadow")
+	var picture: TextureRect = view.kid_cards["toni"].get_child(0) as TextureRect
+	assert_not_null(picture.material, "the picture is cropped to the same corners")
