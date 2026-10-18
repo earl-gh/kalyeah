@@ -252,3 +252,10 @@ func test_the_map_carousel_lists_tumbang_preso_and_patintero_as_coming_soon() ->
 	assert_true(picked.is_empty(), "a game that is not playable yet is not picked")
 	assert_string_contains((view.find_child("MapHint", true, false) as Label).text, "coming soon")
 	view.close_map_carousel()
+
+
+func test_the_map_carousel_overlay_is_above_everything() -> void:
+	var view: HotspotRoomView = _view(_room(2))
+	view.map_card.pressed.emit()
+	assert_eq((view.find_child("MapOverlay", true, false) as Control).z_index, MenuDialog.MODAL_Z)
+	view.close_map_carousel()
