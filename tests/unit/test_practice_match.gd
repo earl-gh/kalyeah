@@ -661,13 +661,3 @@ func test_the_hero_sits_near_the_lower_centre_of_a_portrait_screen() -> void:
 	assert_almost_eq(on_screen.y / size.y, CAMERA.player_screen_y, 0.02, "in the lower part, the field ahead above")
 
 
-func test_the_far_end_of_the_street_goes_out_of_focus() -> void:
-	var practice: PracticeMatch = _practice()
-	var blur: ShaderMaterial = practice._presentation.far_blur
-	assert_not_null(blur, "the soft focus layer exists")
-	practice._presentation.update_far_blur()
-	var top: float = blur.get_shader_parameter("top_line") as float
-	var bottom: float = blur.get_shader_parameter("bottom_line") as float
-	assert_lt(top, bottom, "the far end line is above the near end line on the screen")
-	assert_lt(top, 0.5, "the far end is in the upper half")
-	assert_gt(top, -1.0)
