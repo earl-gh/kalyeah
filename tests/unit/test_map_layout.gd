@@ -340,3 +340,21 @@ func test_the_street_and_sidewalks_use_the_code_drawn_cement() -> void:
 	assert_almost_eq(float(material.get_shader_parameter("curb_height")), StreetMap.CURB_HEIGHT, 0.001)
 	assert_false(ResourceLoader.exists("res://assets/textures/cement_generated.png"), "no generated image files")
 
+
+
+func test_the_play_area_has_puddles_clear_of_the_bases_boxes_and_cover() -> void:
+	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
+	add_child(map)
+	var puddles: Array[Node3D] = []
+	for child: Node in map.get_node("%Geometry").get_children():
+		if "Puddle" in String(child.name):
+			puddles.append(child as Node3D)
+	assert_gt(puddles.size(), 5, "a good few puddles")
+	for puddle: Node3D in puddles:
+		var at: Vector2 = Vector2(puddle.position.x, puddle.position.z)
+		assert_true(LAYOUT.lane_rect().has_point(at), "inside the play area")
+		for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
+			assert_false(LAYOUT.in_base(side, at), "not in a base")
+			assert_false(LAYOUT.jail_rect(side).has_point(at), "not in a box")
+		for rect: Rect2 in LAYOUT.obstacle_rects():
+			assert_false(rect.has_point(at), "not under cover")

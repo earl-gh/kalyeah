@@ -12,7 +12,6 @@ uniform float slab_length = 1.5;
 uniform float joint_width = 0.025;
 // 1 = the full cement wear; less for the small main-screen model, where it would look busy
 uniform float wear = 1.0;
-uniform float crack_width = 0.008;
 // patched repairs on the street: the grid they are picked from (m)
 uniform float patch_size = 3.0;
 
@@ -74,12 +73,6 @@ void fragment() {
 				float patch = smoothstep(0.0, aa_patch, edge);
 				shade += patch * (pick > 0.93 ? 0.07 : -0.06);
 			}
-			// a few hairline cracks, only in some places, anti-aliased and faded with distance
-			float ridge = abs(value_noise(uv * 0.45 + 31.0) - 0.5);
-			float aa = fwidth(ridge);
-			float crack = 1.0 - smoothstep(crack_width, crack_width + aa * 1.5, ridge);
-			crack *= smoothstep(0.5, 0.72, value_noise(uv * 0.07 + 5.0));
-			shade -= crack * 0.2 * keep(footprint, 0.3);
 		}
 	} else {
 		// the raised face toward the street: grime toward the bottom, soft streaks along it

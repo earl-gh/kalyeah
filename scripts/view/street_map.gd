@@ -85,6 +85,14 @@ const SIDEWALK_TOP_TILE: float = 3.0
 const SIDEWALK_SIDE_TILE: float = 3.0
 const ART_LIFT: float = 0.003
 const STREET_SHADER: Shader = preload("res://shaders/street_cement.gdshader")
+const PUDDLE_SHADER: Shader = preload("res://shaders/puddle.gdshader")
+## Puddles on the play area (replacing the old hairline cracks): how many, how big (radius, m), how far
+## apart (m) and the seed that fixes where they lie, the same every match.
+const PUDDLE_COUNT: int = 11
+const PUDDLE_RADIUS: Vector2 = Vector2(0.8, 2.0)
+const PUDDLE_SPACING: float = 3.2
+const PUDDLE_SEED: int = 23
+const PUDDLE_LIFT: float = 0.008
 ## Paving around the whole map, so the street never ends in sky.
 const OUTER_MARGIN: float = 40.0
 const OUTER_DROP: float = -0.12
@@ -263,6 +271,7 @@ func _build_map() -> void:
 		_add_corner_props()
 		return
 	_add_ground_textures()
+	_add_puddles()
 	for index: int in layout.obstacle_rects().size():
 		_add_obstacle(index)
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
@@ -383,6 +392,72 @@ func _add_cement_art() -> void:
 	art.position.y = CEMENT_LIFT
 	art.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_geometry.add_child(art)
+
+
+## Randomly placed puddles on the play area (never in a base, a box, a rescue area or under a cover
+## piece, and never touching each other): flat, soft-edged, wobbly blobs drawn by the puddle shader.
+func _add_puddles() -> void:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = PUDDLE_SEED
+	var material: ShaderMaterial = ShaderMaterial.new()
+	material.shader = PUDDLE_SHADER
+	var keep_out: Array[Rect2] = []
+	for rect: Rect2 in layout.obstacle_rects():
+		keep_out.append(rect.grow(1.0))
+	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
+		keep_out.append(layout.jail_rect(side).grow(1.0))
+		keep_out.append(layout.rescue_rect(side).grow(1.0))
+	var placed: Array[Vector3] = []
+	var tries: int = 0
+	while placed.size() < PUDDLE_COUNT and tries < 400:
+		tries += 1
+		var radius: float = rng.randf_range(PUDDLE_RADIUS.x, PUDDLE_RADIUS.y)
+		var reach: float = radius * 1.4
+		var at: Vector2 = Vector2(
+			rng.randf_range(-layout.lane_width / 2.0 + reach, layout.lane_width / 2.0 - reach),
+			rng.randf_range(-layout.lane_length / 2.0 + reach, layout.lane_length / 2.0 - reach))
+		var blocked: bool = false
+		for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
+			if layout.in_base(side, at) or at.distance_to(layout.base_center(side)) < 6.0 + reach:
+				blocked = true
+		for rect: Rect2 in keep_out:
+			if rect.grow(reach).has_point(at):
+				blocked = true
+		for other: Vector3 in placed:
+			if Vector2(other.x, other.y).distance_to(at) < other.z + radius + PUDDLE_SPACING:
+				blocked = true
+		if blocked:
+			continue
+		placed.append(Vector3(at.x, at.y, radius))
+		var puddle: MeshInstance3D = MeshInstance3D.new()
+		puddle.name = "Puddle"
+		puddle.mesh = _puddle_mesh(rng)
+		puddle.material_override = material
+		puddle.position = Vector3(at.x, PUDDLE_LIFT, at.y)
+		puddle.scale = Vector3(radius, 1.0, radius * rng.randf_range(0.6, 0.9))
+		puddle.rotation.y = rng.randf_range(0.0, TAU)
+		puddle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_geometry.add_child(puddle)
+
+
+## A unit puddle: a wobbly blob (a fan of triangles) whose uv is its position, 0 in the middle and
+## length 1 at the edge, for the shader.
+func _puddle_mesh(rng: RandomNumberGenerator) -> ArrayMesh:
+	var phase: Array[float] = [rng.randf_range(0.0, TAU), rng.randf_range(0.0, TAU), rng.randf_range(0.0, TAU)]
+	var steps: int = 32
+	var tool: SurfaceTool = SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_normal(Vector3.UP)
+	for i: int in steps:
+		var a0: float = TAU * float(i) / float(steps)
+		var a1: float = TAU * float(i + 1) / float(steps)
+		tool.set_uv(Vector2.ZERO)
+		tool.add_vertex(Vector3.ZERO)
+		for angle: float in [a1, a0]:
+			var wobble: float = 1.0 + 0.14 * sin(2.0 * angle + phase[0]) + 0.09 * sin(3.0 * angle + phase[1]) + 0.05 * sin(5.0 * angle + phase[2])
+			tool.set_uv(Vector2(cos(angle), sin(angle)))
+			tool.add_vertex(Vector3(cos(angle) * wobble, 0.0, sin(angle) * wobble))
+	return tool.commit()
 
 
 ## The cover piece `index` (MapLayout.obstacle_rects order), drawn as its prop.
