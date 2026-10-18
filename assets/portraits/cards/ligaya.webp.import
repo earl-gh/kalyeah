@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b7450lxtkle88"
-path="res://.godot/imported/popoy.png-b5a02f85c8ce48a500d46d4a546ac4f0.ctex"
+uid="uid://d04b1jyqmwfoi"
+path="res://.godot/imported/ligaya.webp-cf2c764bfe139bd4162919aced7ff83d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/portraits/cards/popoy.png"
-dest_files=["res://.godot/imported/popoy.png-b5a02f85c8ce48a500d46d4a546ac4f0.ctex"]
+source_file="res://assets/portraits/cards/ligaya.webp"
+dest_files=["res://.godot/imported/ligaya.webp-cf2c764bfe139bd4162919aced7ff83d.ctex"]
 
 [params]
 

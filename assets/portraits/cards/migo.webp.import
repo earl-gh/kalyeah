@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://clwpjiktcfv5c"
-path="res://.godot/imported/migo.png-56c09ee8d9398f3816397932d27ad43e.ctex"
+uid="uid://bscdhrjgrqra1"
+path="res://.godot/imported/migo.webp-844c43abe1fb391025cef20d3703cf05.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/portraits/cards/migo.png"
-dest_files=["res://.godot/imported/migo.png-56c09ee8d9398f3816397932d27ad43e.ctex"]
+source_file="res://assets/portraits/cards/migo.webp"
+dest_files=["res://.godot/imported/migo.webp-844c43abe1fb391025cef20d3703cf05.ctex"]
 
 [params]
 

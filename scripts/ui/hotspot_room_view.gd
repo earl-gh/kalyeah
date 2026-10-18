@@ -4,7 +4,8 @@ extends Control
 ##   top row     BACK (text only) and the 8-character room code at the left, settings (icon only) at the right
 ##   section 1   the map card (3:4; only the host changes it) and the 1v1 / 2v2 / 3v3 choice (host only)
 ##   section 2   the players: two columns (the two teams), up to three rows, one card each, no picture:
-##               left "name [1]" to "[3]" in blue, right "[4]" to "[6] name" in red
+##               white bars like the owner's mock-up: blue number block then the name (1 to 3) at the left,
+##               the name then a red number block (4 to 6) at the right, a Host / Ready tag in the far corner
 ##   section 3   one row of the six kids as 3:4 profile cards, tap one to be it
 ##   bottom      the host's START, or everyone else's READY
 ## It never talks to the network: LobbyScreen listens to the signals and sends what they ask for.
@@ -26,7 +27,11 @@ const GAP: float = 10.0
 ## The map card and the six character cards are exactly 3:4 (width:height).
 const MAP_CARD: Vector2 = Vector2(210.0, 280.0)
 const KID_CARD: Vector2 = Vector2(104.0, 139.0)
-const PLAYER_CARD_HEIGHT: float = 122.0
+const BAR_HEIGHT: float = 84.0
+const NUMBER_WIDTH: float = 78.0
+## The solid number blocks and tags of the mock-up, and the navy of the names on the white bars.
+const TEAM_BLOCKS: Array[Color] = [Color(0.18, 0.17, 0.82), Color(0.94, 0.14, 0.2)]
+const NAME_COLOR: Color = Color(0.12, 0.27, 0.52)
 const MAX_ROWS: int = 3
 
 var code_label: Label
@@ -334,47 +339,56 @@ func _fill_players(members: Array, size: int) -> void:
 			player_cards.append(card)
 
 
-## A player card with no picture: the left column (blue team) reads "name [1]", the right column
-## (red team) "[4] name"; `number` is the slot, 1 to 3 on the left and 4 to 6 on the right.
+## A player card, like the owner's mock-up: a white bar with the name in bold navy and the slot
+## number in a solid team-coloured block at the outer edge (blue at the left of the left column,
+## red at the right of the right column), and a small Host / Ready tag in the far top corner.
 func _player_card(member: Dictionary, team: int) -> Control:
-	var card: PanelContainer = PanelContainer.new()
+	var card: Control = Control.new()
 	card.name = "Player%d" % (member["player_id"] as int)
-	card.custom_minimum_size = Vector2(0.0, PLAYER_CARD_HEIGHT)
+	card.custom_minimum_size = Vector2(0.0, BAR_HEIGHT)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var box: StyleBoxFlat = KalyeahTheme.surface_box(16, 3, 12.0)
-	box.bg_color = Color(KalyeahTheme.INK, 0.78)
-	box.border_color = TEAM_COLORS[team]
-	card.add_theme_stylebox_override("panel", box)
+	var bar: Panel = Panel.new()
+	bar.name = "Bar"
+	bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = Color.WHITE
+	box.border_color = Color(1.0, 1.0, 1.0, 0.55)
+	box.set_border_width_all(1)
+	bar.add_theme_stylebox_override("panel", box)
+	card.add_child(bar)
 	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.add_theme_constant_override("separation", 0)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(row)
-	var text: VBoxContainer = VBoxContainer.new()
-	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.alignment = BoxContainer.ALIGNMENT_CENTER
-	var align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT if team == 0 else HORIZONTAL_ALIGNMENT_RIGHT
-	var name_label: Label = LobbyWidgets.label(member["name"] as String, 28)
+	var name_label: Label = Label.new()
 	name_label.name = "Name"
-	name_label.horizontal_alignment = align
+	name_label.text = member["name"] as String
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if team == 0 else HORIZONTAL_ALIGNMENT_RIGHT
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	text.add_child(name_label)
-	var tags: PackedStringArray = PackedStringArray()
-	if member["player_id"] == _room.get("host", -1):
-		tags.append("HOST")
-	if member["player_id"] == _my_id:
-		tags.append("YOU")
-	if member["ready"] or member["player_id"] == _room.get("host", -1):
-		tags.append("READY")
-	var tag_label: Label = LobbyWidgets.label("  ".join(tags), 19, TEAM_COLORS[team])
-	tag_label.name = "Tags"
-	tag_label.horizontal_alignment = align
-	text.add_child(tag_label)
-	var badge: Control = _badge(slot_number(team, _row_of(member, team)), team)
+	name_label.add_theme_font_size_override("font_size", 34)
+	name_label.add_theme_color_override("font_color", NAME_COLOR)
+	name_label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	name_label.add_theme_constant_override("outline_size", 0)
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var number: Control = _number_block(slot_number(team, _row_of(member, team)), team, false)
 	if team == 0:
-		row.add_child(text)
-		row.add_child(badge)
+		name_label.add_theme_constant_override("line_spacing", 0)
+		row.add_child(number)
+		row.add_child(_padded(name_label, 18.0, 8.0))
 	else:
-		row.add_child(badge)
-		row.add_child(text)
+		row.add_child(_padded(name_label, 8.0, 18.0))
+		row.add_child(number)
+	var tag_text: String = ""
+	if member["player_id"] == _room.get("host", -1):
+		tag_text = "Host"
+	elif member["ready"]:
+		tag_text = "Ready"
+	if not tag_text.is_empty():
+		card.add_child(_tag(tag_text, team))
 	return card
 
 
@@ -394,59 +408,113 @@ func _row_of(member: Dictionary, team: int) -> int:
 	return row
 
 
-## The number in a team-coloured round badge.
-func _badge(number: int, team: int) -> Control:
-	var badge: PanelContainer = PanelContainer.new()
-	badge.name = "Number"
-	badge.custom_minimum_size = Vector2(64.0, 64.0)
-	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var box: StyleBoxFlat = KalyeahTheme.surface_box(32, 0, 0.0)
-	box.bg_color = TEAM_COLORS[team]
-	badge.add_theme_stylebox_override("panel", box)
-	var label: Label = LobbyWidgets.label(str(number), 36, KalyeahTheme.INK_DEEP)
+## The number in a solid team-coloured block.
+func _number_block(number: int, team: int, faded: bool) -> Control:
+	var block: PanelContainer = PanelContainer.new()
+	block.name = "Number"
+	block.custom_minimum_size = Vector2(NUMBER_WIDTH, 0.0)
+	block.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = Color(TEAM_BLOCKS[team], 0.55 if faded else 1.0)
+	block.add_theme_stylebox_override("panel", box)
+	var label: Label = Label.new()
+	label.text = str(number)
 	label.theme_type_variation = &"DisplayLabel"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	badge.add_child(label)
-	return badge
+	label.add_theme_font_size_override("font_size", 44)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	label.add_theme_constant_override("outline_size", 0)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	block.add_child(label)
+	return block
 
 
-## A free slot: its number and JOIN (tap to join that team) or OPEN.
+## A control with a margin each side (so the name does not touch the number block).
+func _padded(child: Control, left: float, right: float) -> Control:
+	var margin: MarginContainer = MarginContainer.new()
+	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	margin.add_theme_constant_override("margin_left", int(left))
+	margin.add_theme_constant_override("margin_right", int(right))
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(child)
+	return margin
+
+
+## The small Host / Ready tag in the far top corner (the right for blue, the left for red).
+func _tag(text: String, team: int) -> Control:
+	var tag: PanelContainer = PanelContainer.new()
+	tag.name = "Tag"
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = TEAM_BLOCKS[team]
+	box.content_margin_left = 12.0
+	box.content_margin_right = 12.0
+	box.content_margin_top = 3.0
+	box.content_margin_bottom = 3.0
+	tag.add_theme_stylebox_override("panel", box)
+	var label: Label = Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 20)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	label.add_theme_constant_override("outline_size", 0)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tag.add_child(label)
+	# pinned to the top corner and left to size itself to its text
+	var right: float = 1.0 if team == 0 else 0.0
+	tag.anchor_left = right
+	tag.anchor_right = right
+	tag.anchor_top = 0.0
+	tag.anchor_bottom = 0.0
+	tag.offset_left = 0.0
+	tag.offset_right = 0.0
+	tag.offset_top = 0.0
+	tag.offset_bottom = 0.0
+	tag.grow_horizontal = Control.GROW_DIRECTION_BEGIN if team == 0 else Control.GROW_DIRECTION_END
+	tag.grow_vertical = Control.GROW_DIRECTION_END
+	return tag
+
+
+## A free slot: a faded bar and block with JOIN (tap to join that team) or OPEN.
 func _open_slot(team: int, row: int, can_join: bool) -> Control:
 	var card: Button = Button.new()
 	card.name = "OpenSlot%d" % team
-	card.custom_minimum_size = Vector2(0.0, PLAYER_CARD_HEIGHT)
+	card.custom_minimum_size = Vector2(0.0, BAR_HEIGHT)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.focus_mode = Control.FOCUS_NONE
 	card.disabled = not can_join
-	var box: StyleBoxFlat = KalyeahTheme.surface_box(16, 2, 12.0)
-	box.bg_color = Color(KalyeahTheme.INK, 0.4)
-	box.border_color = Color(TEAM_COLORS[team], 0.5)
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = Color(1.0, 1.0, 1.0, 0.18)
+	box.border_color = Color(1.0, 1.0, 1.0, 0.35)
+	box.set_border_width_all(1)
 	for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
 		card.add_theme_stylebox_override(state, box)
 	card.pressed.connect(team_chosen.emit.bind(team))
 	var inner: HBoxContainer = HBoxContainer.new()
 	inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	inner.offset_left = 12.0
-	inner.offset_right = -12.0
-	inner.add_theme_constant_override("separation", 12)
+	inner.add_theme_constant_override("separation", 0)
 	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(inner)
-	var text: Label = LobbyWidgets.label("JOIN" if can_join else "OPEN", 26, Color(TEAM_COLORS[team], 0.85 if can_join else 0.45))
+	var text: Label = Label.new()
 	text.name = "Text"
+	text.text = "Join" if can_join else "Open"
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if team == 0 else HORIZONTAL_ALIGNMENT_RIGHT
+	text.add_theme_font_size_override("font_size", 30)
+	text.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.7 if can_join else 0.4))
+	text.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	text.add_theme_constant_override("outline_size", 0)
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var badge: Control = _badge(slot_number(team, row), team)
-	badge.modulate.a = 0.6
-	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var number: Control = _number_block(slot_number(team, row), team, true)
 	if team == 0:
-		inner.add_child(text)
-		inner.add_child(badge)
+		inner.add_child(number)
+		inner.add_child(_padded(text, 18.0, 8.0))
 	else:
-		inner.add_child(badge)
-		inner.add_child(text)
+		inner.add_child(_padded(text, 8.0, 18.0))
+		inner.add_child(number)
 	return card
 
 

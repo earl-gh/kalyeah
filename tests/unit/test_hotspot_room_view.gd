@@ -116,7 +116,7 @@ func test_nothing_but_the_top_row_shows_before_a_room_exists() -> void:
 	assert_true(view.has_room())
 
 
-func test_player_cards_have_no_picture_and_the_slot_numbers_run_1_to_3_then_4_to_6() -> void:
+func test_player_cards_are_white_bars_with_no_picture_and_numbered_blocks() -> void:
 	var view: HotspotRoomView = _view(_room(3))
 	for card: Control in view.player_cards:
 		assert_eq(card.find_children("*", "TextureRect", true, false).size(), 0, "no character image on a player card")
@@ -124,17 +124,35 @@ func test_player_cards_have_no_picture_and_the_slot_numbers_run_1_to_3_then_4_to
 	assert_eq(HotspotRoomView.slot_number(0, 2), 3)
 	assert_eq(HotspotRoomView.slot_number(1, 0), 4)
 	assert_eq(HotspotRoomView.slot_number(1, 2), 6)
-	# row 0: Ana (blue, number 1, name first) and Ben (red, number 4, number first)
 	var ana: Control = view.find_child("Player1", true, false) as Control
 	var ben: Control = view.find_child("Player2", true, false) as Control
-	assert_eq(ana.find_child("Number", true, false).get_child(0).text, "1")
-	assert_eq(ben.find_child("Number", true, false).get_child(0).text, "4")
-	var ana_row: Node = ana.find_child("Number", true, false).get_parent()
-	assert_eq(ana_row.get_child(0).find_child("Name", true, false).text, "Ana", "blue: the name then the number")
-	assert_eq(ana_row.get_child(0).find_child("Name", true, false).horizontal_alignment, HORIZONTAL_ALIGNMENT_LEFT)
-	var ben_row: Node = ben.find_child("Number", true, false).get_parent()
-	assert_eq(ben_row.get_child(0).name, "Number", "red: the number then the name")
-	assert_eq(ben_row.get_child(1).find_child("Name", true, false).horizontal_alignment, HORIZONTAL_ALIGNMENT_RIGHT)
+	var bar: StyleBoxFlat = ana.get_node("Bar").get_theme_stylebox("panel") as StyleBoxFlat
+	assert_eq(bar.bg_color, Color.WHITE, "a white bar")
+	# row 0: Ana (blue, number 1 at the left of the bar) and Ben (red, number 4 at the right)
+	var ana_number: Control = ana.find_child("Number", true, false) as Control
+	var ben_number: Control = ben.find_child("Number", true, false) as Control
+	assert_eq((ana_number.get_child(0) as Label).text, "1")
+	assert_eq((ben_number.get_child(0) as Label).text, "4")
+	assert_eq(ana_number.get_parent().get_child(0), ana_number, "blue: the number block comes first")
+	assert_eq(ben_number.get_parent().get_child(ben_number.get_parent().get_child_count() - 1), ben_number, "red: the number block comes last")
+	assert_eq((ana_number.get_theme_stylebox("panel") as StyleBoxFlat).bg_color, HotspotRoomView.TEAM_BLOCKS[0])
+	assert_eq((ben_number.get_theme_stylebox("panel") as StyleBoxFlat).bg_color, HotspotRoomView.TEAM_BLOCKS[1])
+	assert_eq((ana.find_child("Name", true, false) as Label).text, "Ana")
+	assert_eq((ben.find_child("Name", true, false) as Label).horizontal_alignment, HORIZONTAL_ALIGNMENT_RIGHT, "red names are right-aligned")
+
+
+func test_the_host_and_ready_tags_sit_in_the_far_corner() -> void:
+	var view: HotspotRoomView = _view(_room(2))
+	var ana_tag: Control = view.find_child("Player1", true, false).find_child("Tag", true, false) as Control
+	assert_eq((ana_tag.get_child(0) as Label).text, "Host", "the host's tag")
+	var ben_tag: Control = view.find_child("Player2", true, false).find_child("Tag", true, false) as Control
+	assert_eq((ben_tag.get_child(0) as Label).text, "Ready")
+	assert_almost_eq(ana_tag.anchor_left, 1.0, 0.001, "blue: the top right corner")
+	assert_almost_eq(ben_tag.anchor_left, 0.0, 0.001, "red: the top left corner")
+	var waiting: Dictionary = _room(2)
+	(waiting["members"][1] as Dictionary)["ready"] = false
+	view.show_room(waiting, 1)
+	assert_null(view.find_child("Player2", true, false).find_child("Tag", true, false), "no tag until Ben is ready")
 
 
 func test_the_kid_cards_use_the_faces_cropped_from_the_loading_screen_art() -> void:

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dst6xhd64hnbk"
-path="res://.godot/imported/inday.png-d94afe398c65a5f8859357386c9b6fc0.ctex"
+uid="uid://dsel863lsrljx"
+path="res://.godot/imported/popoy.webp-ab39dd98c7f07ec6b08b6562548de477.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/portraits/cards/inday.png"
-dest_files=["res://.godot/imported/inday.png-d94afe398c65a5f8859357386c9b6fc0.ctex"]
+source_file="res://assets/portraits/cards/popoy.webp"
+dest_files=["res://.godot/imported/popoy.webp-ab39dd98c7f07ec6b08b6562548de477.ctex"]
 
 [params]
 
