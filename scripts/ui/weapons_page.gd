@@ -13,7 +13,7 @@ func _ready() -> void:
 	add_theme_constant_override("separation", 12)
 	var title: Label = Label.new()
 	title.theme_type_variation = &"DisplayLabel"
-	title.text = "WEAPONS"
+	title.text = "STREET-GAME GEAR"
 	title.add_theme_font_size_override("font_size", 38)
 	add_child(title)
 	var scroll: ScrollContainer = ScrollContainer.new()

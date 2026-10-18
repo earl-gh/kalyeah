@@ -28,21 +28,21 @@ func _view(room: Dictionary, my_id: int = 1) -> HotspotRoomView:
 	return view
 
 
-func test_the_top_row_reads_lobby_bar_code_with_a_bare_settings_icon_the_code_and_a_bare_settings_icon() -> void:
+func test_hotspot_header_has_back_lobby_settings_and_no_code() -> void:
 	var view: HotspotRoomView = _view(_room(2))
 	assert_eq(view.back_button.text, "BACK", "a text-only back button, no chevron")
 	assert_eq((view.find_child("Title", true, false) as Label).text, "LOBBY", "then the text Lobby | code")
 	assert_eq((view.find_child("Divider", true, false) as Label).text, "|")
-	assert_eq(view.code_label.text, "K7M2Q9XA")
-	assert_eq(view.code_label.text.length(), 8)
+	assert_eq(view.code_label.text, "", "hotspot has no code")
+	assert_false(view.code_label.visible)
 	assert_true(view.settings_button.flat, "no button container round the icon")
 	assert_eq(view.settings_button.text, "")
 	assert_not_null(view.settings_button.find_children("*", "NavIcon", true, false)[0])
 
 
-func test_the_map_card_is_two_to_one_in_its_own_row_with_no_buttons() -> void:
+func test_map_header_is_compact_and_only_the_host_can_change_it() -> void:
 	var host: HotspotRoomView = _view(_room(2))
-	assert_almost_eq(host.map_card.custom_minimum_size.x / host.map_card.custom_minimum_size.y, 2.0, 0.01, "2:1")
+	assert_lte(host.map_card.custom_minimum_size.y, 120.0, "a compact map header")
 	var section: Node = host.find_child("MapSection", true, false)
 	assert_eq(section.get_child(0), host.map_card, "the map card is the first row")
 	assert_eq(section.get_child(1).name, "Sizes", "the size choice is the one row under it")
@@ -167,7 +167,7 @@ func test_player_cards_are_white_bars_with_no_picture_and_numbered_blocks() -> v
 	assert_eq(ben_number.get_parent().get_child(ben_number.get_parent().get_child_count() - 1), ben_number, "red: the number block comes last")
 	assert_eq((ana_number.get_theme_stylebox("panel") as StyleBoxFlat).bg_color, HotspotRoomView.TEAM_BLOCKS[0])
 	assert_eq((ben_number.get_theme_stylebox("panel") as StyleBoxFlat).bg_color, HotspotRoomView.TEAM_BLOCKS[1])
-	assert_eq((ana.find_child("Name", true, false) as Label).text, "Ana")
+	assert_eq((ana.find_child("Name", true, false) as Label).text, "Ana · You")
 	assert_eq((ben.find_child("Name", true, false) as Label).horizontal_alignment, HORIZONTAL_ALIGNMENT_RIGHT, "red names are right-aligned")
 
 
@@ -211,8 +211,8 @@ func test_an_empty_slot_is_a_frosted_card_with_its_number_and_a_hint() -> void:
 	assert_lt(box.bg_color.a, 0.2, "but still see-through")
 	var number: Control = open.find_child("Number", true, false) as Control
 	assert_lt((number.get_theme_stylebox("panel") as StyleBoxFlat).bg_color.a, 0.5, "the number block is tinted, not solid")
-	assert_eq((open.find_child("Hint", true, false) as Label).text, "+  TAP TO JOIN")
-	assert_eq((view.find_child("OpenSlot0", true, false).find_child("Hint", true, false) as Label).text, "WAITING FOR A PLAYER...", "your own team's open slot just waits")
+	assert_eq((open.find_child("Hint", true, false) as Label).text, "+ JOIN TEAM")
+	assert_eq((view.find_child("OpenSlot0", true, false).find_child("Hint", true, false) as Label).text, "WAITING...", "your own team's open slot just waits")
 	assert_eq(open.find_children("*", "TextureRect", true, false).size(), 0)
 	var two: HotspotRoomView = _view(_room(2))
 	assert_eq((two.find_child("Player2", true, false).find_child("Number", true, false).get_child(0) as Label).text, "3", "a 2v2: Ben is number 3")

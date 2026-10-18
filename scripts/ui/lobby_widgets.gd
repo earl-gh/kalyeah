@@ -77,3 +77,21 @@ static func button(text: String, action: Callable, color: String = "orange", fon
 	MenuDialog.feel_press(result)
 	result.pressed.connect(action)
 	return result
+
+
+## Adds platform safe-area insets to design margins; browser viewports already exclude chrome.
+static func apply_safe_area(margin: MarginContainer, horizontal: float, vertical: float) -> void:
+	var inset: Vector4 = Vector4.ZERO
+	var window: Vector2i = DisplayServer.window_get_size()
+	var safe: Rect2i = DisplayServer.get_display_safe_area()
+	if not OS.has_feature("web") and safe.size.x > 0 and safe.size.y > 0 and window.x > 0 and window.y > 0:
+		var scale: Vector2 = margin.get_viewport().get_visible_rect().size / Vector2(window)
+		var origin: Vector2i = DisplayServer.window_get_position()
+		inset = Vector4(maxf(0.0, safe.position.x - origin.x) * scale.x,
+			maxf(0.0, safe.position.y - origin.y) * scale.y,
+			maxf(0.0, origin.x + window.x - safe.end.x) * scale.x,
+			maxf(0.0, origin.y + window.y - safe.end.y) * scale.y)
+	margin.add_theme_constant_override("margin_left", int(horizontal + minf(inset.x, 120.0)))
+	margin.add_theme_constant_override("margin_right", int(horizontal + minf(inset.z, 120.0)))
+	margin.add_theme_constant_override("margin_top", int(vertical + minf(inset.y, 120.0)))
+	margin.add_theme_constant_override("margin_bottom", int(vertical + minf(inset.w, 120.0)))

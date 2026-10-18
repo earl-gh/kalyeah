@@ -68,6 +68,8 @@ func test_an_online_server_never_joins_a_room_without_its_code() -> void:
 func test_the_finder_finds_the_room_server_among_dead_addresses() -> void:
 	var host: GameServer = GameServer.new(RULES, LAYOUT, NET, 4)
 	assert_eq(host.listen(18943), OK)
+	host.auto_join = true
+	host.rooms.create_room(700, "Host", 1)
 	var finder: HotspotFinder = HotspotFinder.new()
 	finder.start(PackedStringArray(["ws://127.0.0.1:18999", "ws://127.0.0.1:18943"]))
 	for i: int in 300:

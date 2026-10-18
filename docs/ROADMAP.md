@@ -14,10 +14,9 @@ What is built, what is next, and the rules for building it. Rules and numbers li
 | M5 Look and feel (first pass) | Procedural low-poly street, props and kids, themed UI, vector icons, synthesised audio, MOBA HUD, camera, rigged kid animation |
 | Tag street (owner redesign) | The street-game redesign from the reference video: a 24 × 48 m barangay street with your post bottom left and theirs top right, a matching tall minimap, a few cover pieces (crates, benches, a sawhorse, a NO ENTRY board) that block both teams, Tag (always, at 0 HP) with taped boxes and rescues, captures (whole team in the enemy base, or every enemy tagged) held 5 s, first to 3; the guava, the tricycle, the breakable walls and the death delay are gone; a 40° wide-lens camera |
 | Controls (owner) | The movement stick at the bottom left with weapon 1 and 2 at the bottom right (tilt was tried and removed), no dash and no pin; one-tier scoring, best of 3 / 5 / 7 picked by the host in the lobby, every point a new round; score at the top right |
-| Hotspot rooms (owner) | Create starts the room server inside the Android app; Join finds it on the hotspot by itself, no server, address or room code |
+| Hotspot rooms (owner) | Create starts the room server inside the Android app; Join verifies the host's active room on the hotspot automatically, no address or room code |
 | Map 1:2 (owner) | The playing area is 24 × 48 m (1:2, was 30 × 40 m 3:4); the minimap is 90 × 180 px and draws the street at exactly 1:2; posts, boxes, cover and dummies re-placed |
 | Character select (owner) | A fighting-game style select at the start of every match: six 3:4 profile cards, then a tab per street game over weapon cards (art, name, description below); the kid you pick is the kid you play (also your main-screen face); a team never has the same kid twice (the other team may have it once); online, the server settles swaps and greys out kids a teammate locked in |
-| Hotspot rooms (owner) | Create starts the room server inside the Android app; Join finds it on the hotspot by itself, no server, address or room code |
 | Map 1:2 (owner) | The playing area is 24 × 48 m (1:2, was 3:4 24 × 32 m); the minimap is 100 × 200 px at exactly that shape; the cover wall keeps its distance from the base |
 | Home UI refinement (owner) | Bungee typography, a compact profile bar, the titled Agawan Base model, one primary Online action, concise dialogs and a responsive phone layout |
 | Lobby and match UI refinement | Narrow-phone lobby and loadout layouts, concise room states, unified match announcements, and a score card with clock and best-of context |
@@ -64,3 +63,7 @@ Budgets (M6): 60 fps on a recommended Android phone, 30+ on the minimum; APK und
 - Game name: **Kalyeah**. Tagline: *Mga larong Pinoy sa kalye*. Android package `com.kalyeah.game`.
 - Environment assets are made in Blender (the `bpy` Python module works in the cloud session). The kids are rigged, animated GLB models from the owner; `tools/blender/build_kid_game_model.py` makes them light for phones (`build_junjun_model.py` was the first, Mixamo-based Junjun; the owner's rebuilt-rig boy now goes through the same script).
 - Multiplayer is built and tested; deploying the server and setting `KALYEAH_SERVER_URL` is the owner's step (`server/README.md`).
+
+## UI room-flow polish
+
+Code-free hotspot discovery now checks Kalyeah protocol and active-room availability before connecting. Lobby choices persist into matches, with team-unique reservations. The hotspot room uses a compact map header, larger team rows and touch targets, best-of controls, scrollable kid cards, a readiness explanation and an explicit web-preview label. Character-book portraits reuse owner-provided face art. Online layout and room header/map/player presentation are separated from controller logic. Signed Android delivery, broader gateway discovery and physical phone-to-phone checks remain separate release work.

@@ -293,56 +293,19 @@ func _mouse_aim(slot: int) -> Vector2:
 # ---- weapon pick and swap ------------------------------------------------------------
 
 func _open_pick(heading: String, current: Array[StringName]) -> void:
-	# your kid from last time is selected first (online, the server's random one is only a default)
-	var mine: StringName = StringName(Session.avatar_id)
-	if not rules.characters.any(func(c: CharacterDef) -> bool: return c.id == mine):
-		mine = sim.players[local_id].character_id
-	_pick_screen.open(WeaponPick.new(_weapon_ids(), rules.weapon_pick_time, current), rules.weapons, heading, sim.rng, rules.characters, mine)
-	_set_controls_active(false)
+	MatchLoadoutFlow.open(self, heading, current)
 
 
 func _open_swap_screen() -> void:
-	var player: PlayerState = sim.players[local_id]
-	_pick_screen.open_swap(WeaponPick.new(_weapon_ids(), 0.0, player.weapons), rules.weapons, "CHANGE WEAPONS")
-	_set_controls_active(false)
-
-
-func _weapon_ids() -> Array[StringName]:
-	var ids: Array[StringName] = []
-	for def: WeaponDef in rules.weapons:
-		ids.append(def.id)
-	return ids
+	MatchLoadoutFlow.open_swap(self)
 
 
 func _on_pick_confirmed(picks: Array[StringName]) -> void:
-	_audio.start_music()
-	sim.set_loadout(local_id, picks[0], picks[1])
-	var kid: StringName = _pick_screen.character_id
-	if kid != &"":
-		sim.set_character(local_id, kid)
-		# the kid you pick is also your face on the main screen from now on
-		Session.avatar_id = String(kid)
-		Session.save()
-		_presentation.refresh_kids()
-	if online:
-		# the server starts play for everyone once all have picked (or time is up)
-		client.pick_weapons(picks[0], picks[1], kid)
-		if client.stage != "play":
-			show_banner("Waiting for the other players...")
-			return
-	_opening_pick = false
-	sim.begin_intro()
-	_set_controls_active(true)
-	_presentation.sync(0.0)
+	MatchLoadoutFlow.confirm(self, picks)
 
 
 func _on_swapped(picks: Array[StringName]) -> void:
-	if online:
-		client.swap_weapons(picks[0], picks[1])
-		sim.players[local_id].weapons.assign(picks)
-	else:
-		sim.swap_loadout(local_id, picks[0], picks[1])
-	_presentation.sync(0.0)
+	MatchLoadoutFlow.swap(self, picks)
 
 
 ## The touch controls read raw touches, so they are switched off under the pick

@@ -41,7 +41,7 @@ Players without the app can join the same rooms from a browser.
 
 ### 3.1 Rooms and lobby
 - **Create or join** a room. No accounts, no ranked or random matchmaking.
-- Multiplayer has two connection paths: **Hotspot** for players on the same local network, and **Online** through the game server.
+- Multiplayer has two connection paths: **Hotspot** for players on the same local network, and **Online** through the game server. Hotspot Join detects the host's active room automatically, without a room code; room codes belong to Online only.
 - For Online play, the host picks **1v1, 2v2 or 3v3** and creates a private room. The server generates an **8-character alphanumeric room code**.
 - Others join with the passcode, pick a team slot and toggle **Ready**.
 - Host can start when all present players are ready and **at least one team is full** while the other is at most one short (2v2 and 3v3). 1v1 needs both players.

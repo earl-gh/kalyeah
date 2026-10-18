@@ -2,7 +2,7 @@
 # This file is auto-generated as part of the release process.  GUT maintainers
 # should not change this file manually.
 static var class_ref = [
-	AccessibilityServer,
+	# AccessibilityServer is not available in the pinned Godot 4.6.x build.
 	AudioServer,
 	CameraServer,
 	ClassDB,

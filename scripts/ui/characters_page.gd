@@ -12,12 +12,12 @@ func _ready() -> void:
 	add_theme_constant_override("separation", 14)
 	var title: Label = Label.new()
 	title.theme_type_variation = &"DisplayLabel"
-	title.text = "CHARACTERS"
+	title.text = "CHOOSE YOUR PROFILE"
 	title.add_theme_font_size_override("font_size", 38)
 	add_child(title)
 	var hint: Label = Label.new()
 	hint.theme_type_variation = &"MutedLabel"
-	hint.text = "Tap a kid to make it your face. You pick who you play before every match."
+	hint.text = "Choose your profile picture. Choose your match character before play."
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.add_theme_font_size_override("font_size", 20)
 	add_child(hint)
@@ -43,7 +43,9 @@ func _card(id: String) -> Button:
 	card.focus_mode = Control.FOCUS_NONE
 	MenuDialog.feel_press(card)
 	var picture: TextureRect = TextureRect.new()
-	picture.texture = KidModel.portrait(StringName(id))
+	picture.texture = KidModel.card_face(StringName(id))
+	if picture.texture == null:
+		picture.texture = KidModel.portrait(StringName(id))
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

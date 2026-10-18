@@ -101,7 +101,12 @@ func test_online_match_screen_picks_then_plays_against_the_server() -> void:
 	for lobby: LobbyScreen in pair:
 		var view: PracticeMatch = autofree(ONLINE.instantiate()) as PracticeMatch
 		view.client = lobby.client
+		var profile_before: String = Session.avatar_id
+		var lobby_kid: StringName = lobby.client.mirror.players[lobby.client.player_id].character_id
+		Session.avatar_id = "inday" if lobby_kid != &"inday" else "toni"
 		add_child(view)
+		assert_eq((view.get_node("%PickScreen") as WeaponPickScreen).character_id, lobby_kid, "the server's room choice overrides a different profile preference")
+		Session.avatar_id = profile_before
 		views.append(view)
 		screens.append(view)
 		assert_true(view.is_picking(), "weapon pick first")

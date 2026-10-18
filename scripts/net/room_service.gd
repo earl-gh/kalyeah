@@ -129,6 +129,9 @@ func pick_team(peer_id: int, team: int) -> bool:
 		return false
 	if room.team_count(team) >= room.team_size:
 		return false
+	for other: Member in room.members:
+		if other.team == team and m.character != &"" and other.character == m.character:
+			return false
 	m.team = team
 	m.ready = false
 	return true
@@ -213,7 +216,11 @@ func set_character(peer_id: int, character: StringName) -> bool:
 	var m: Member = member_of_peer(peer_id)
 	if m == null or room.state != State.LOBBY or not String(character) in Session.AVATARS:
 		return false
+	for other: Member in room.members:
+		if other != m and other.team == m.team and other.character == character:
+			return false
 	m.character = character
+	m.ready = false
 	return true
 
 
@@ -316,6 +323,10 @@ func _add_member(room: Room, peer_id: int, player_name: String) -> Member:
 	var team: int = 0 if room.team_count(0) <= room.team_count(1) else 1
 	if room.team_count(team) < room.team_size:
 		m.team = team
+	for avatar: String in Session.AVATARS:
+		if not room.members.any(func(other: Member) -> bool: return other.team == m.team and other.character == StringName(avatar)):
+			m.character = StringName(avatar)
+			break
 	room.members.append(m)
 	_peer_rooms[peer_id] = room.code
 	return m
