@@ -242,7 +242,7 @@ func _build_top_bar() -> Control:
 	_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	texts.add_child(_name_label)
 	var role: Label = Label.new()
-	role.text = "PLAYER"
+	role.text = "Player"
 	role.theme_type_variation = &"MutedLabel"
 	role.add_theme_font_size_override("font_size", 17)
 	role.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -323,8 +323,8 @@ func _make_card(row: HBoxContainer, card_name: String) -> Button:
 func _refresh_choices() -> void:
 	var mode: Dictionary = MODES[Session.menu_mode]
 	var map: Dictionary = MAPS[Session.menu_map]
-	ChoiceCarousel.set_card(mode_card, "MODE", String(mode["title"]), String(mode["color"]))
-	ChoiceCarousel.set_card(map_card, "MAP", String(map["title"]), String(map["color"]))
+	ChoiceCarousel.set_card(mode_card, "Mode", String(mode["title"]), String(mode["color"]))
+	ChoiceCarousel.set_card(map_card, "Map", String(map["title"]), String(map["color"]))
 	var playable: bool = bool(map["playable"])
 	start_button.disabled = not playable
 	start_button.text = "START" if playable else "SOON"
@@ -357,13 +357,13 @@ func _pop_in() -> void:
 
 ## The card choices: MODE and MAP each open a carousel over a tint.
 func open_mode_choices() -> ChoiceCarousel:
-	return _open_carousel("MODE", MODES, Session.menu_mode, func(index: int) -> void:
+	return _open_carousel("Mode", MODES, Session.menu_mode, func(index: int) -> void:
 		Session.menu_mode = index
 		_refresh_choices())
 
 
 func open_map_choices() -> ChoiceCarousel:
-	return _open_carousel("MAP", MAPS, Session.menu_map, func(index: int) -> void:
+	return _open_carousel("Map", MAPS, Session.menu_map, func(index: int) -> void:
 		Session.menu_map = index
 		_refresh_choices())
 

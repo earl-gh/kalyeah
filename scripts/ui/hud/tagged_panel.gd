@@ -95,7 +95,7 @@ func sync(sim: MatchSim, player: PlayerState, watched: int, pick_open: bool) -> 
 		var ally: bool = other.team == player.team
 		_portraits[i].texture = KidModel.portrait(other.character_id)
 		_names[i].text = _display_name(sim, other)
-		_states[i].text = "TAGGED" if other.tagged else ""
+		_states[i].text = "Tagged" if other.tagged else ""
 		_portraits[i].modulate = Color(0.55, 0.55, 0.6) if other.tagged else Color.WHITE
 		card.add_theme_stylebox_override("normal", _card_box(OWN if ally else ENEMY, card_ids[i] == watched))
 		card.add_theme_stylebox_override("hover", _card_box(OWN if ally else ENEMY, card_ids[i] == watched))

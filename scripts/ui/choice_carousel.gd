@@ -84,7 +84,7 @@ func _build(heading: String, options: Array[Dictionary], current: int) -> void:
 	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	center.add_child(stack)
 	var title: Label = Label.new()
-	title.text = "CHOOSE %s" % heading
+	title.text = "CHOOSE %s" % heading.to_upper()
 	title.theme_type_variation = &"DisplayLabel"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 40)

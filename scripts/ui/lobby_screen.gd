@@ -123,7 +123,7 @@ func submit() -> void:
 	if client.is_online():
 		_send_pending()
 	else:
-		_status.text = "CONNECTING..."
+		_status.text = "Connecting..."
 		if client.connect_to(url) != OK:
 			_status.text = "Can't reach that address."
 
@@ -135,7 +135,7 @@ func rejoin() -> void:
 	client.token = Session.reconnect_token
 	client.player_name = Session.player_name
 	_rejoining = true
-	_status.text = "REJOINING..."
+	_status.text = "Rejoining..."
 	if client.connect_to(Session.reconnect_url) != OK:
 		_status.text = "Can't reach that address."
 
@@ -224,7 +224,7 @@ func _on_room_changed(room: Dictionary) -> void:
 
 
 func _on_match_loading(_info: Dictionary) -> void:
-	_status.text = "LOADING..."
+	_status.text = "Loading..."
 	if enter_match_on_start:
 		get_tree().change_scene_to_file(MATCH_SCENE)
 

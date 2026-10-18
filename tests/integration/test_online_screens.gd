@@ -80,7 +80,7 @@ func test_lobby_create_join_ready_start() -> void:
 	assert_false(pair[1].start_enabled(), "only the host has Start")
 	pair[0].press_start()
 	assert_true(_until(func() -> bool: return pair[0].client.in_match() and pair[1].client.in_match()))
-	assert_eq(pair[1].status_text(), "LOADING...")
+	assert_eq(pair[1].status_text(), "Loading...")
 
 
 func test_join_with_a_bad_code_shows_why() -> void:
