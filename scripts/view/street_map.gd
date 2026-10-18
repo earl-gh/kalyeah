@@ -10,25 +10,25 @@ extends Node3D
 const OWN_COLOR: Color = Palette.TEAM_OWN
 const ENEMY_COLOR: Color = Palette.TEAM_ENEMY
 const SKY_COLOR: Color = Color(0.74, 0.8, 0.9)
-# golden hour, like the owner's key art: a low warm sun from the front right, a deep blue sky
-const SKY_TOP: Color = Color(0.2, 0.5, 0.96)
-const SKY_HORIZON: Color = Color(0.72, 0.87, 1.0)
-const SUN_ANGLES: Vector3 = Vector3(-24.0, 52.0, 0.0)
-const SUN_COLOR: Color = Color(1.0, 0.8, 0.52)
-const SUN_ENERGY: float = 1.55
+# afternoon with a cool tone (owner): a higher, neutral-cool sun from the front right, a clear blue sky
+const SKY_TOP: Color = Color(0.27, 0.54, 0.95)
+const SKY_HORIZON: Color = Color(0.78, 0.88, 1.0)
+const SUN_ANGLES: Vector3 = Vector3(-46.0, 52.0, 0.0)
+const SUN_COLOR: Color = Color(0.9, 0.95, 1.0)
+const SUN_ENERGY: float = 1.3
 const SHADOW_OPACITY: float = 0.7
 const SHADOW_BLUR: float = 1.6
 const FILL_ANGLES: Vector3 = Vector3(-30.0, 258.0, 0.0)
-const FILL_COLOR: Color = Color(0.45, 0.62, 1.0)
-const FILL_ENERGY: float = 0.5
-const AMBIENT_COLOR: Color = Color(0.72, 0.78, 1.0)
+const FILL_COLOR: Color = Color(0.64, 0.76, 1.0)
+const FILL_ENERGY: float = 0.45
+const AMBIENT_COLOR: Color = Color(0.85, 0.91, 1.0)
 const AMBIENT_ENERGY: float = 0.82
 const EXPOSURE: float = 1.0
 const TONEMAP_WHITE: float = 4.0
-const SATURATION: float = 1.2
-const CONTRAST: float = 1.06
+const SATURATION: float = 1.1
+const CONTRAST: float = 1.03
 const BRIGHTNESS: float = 1.0
-const HAZE_COLOR: Color = Color(1.0, 0.84, 0.64)
+const HAZE_COLOR: Color = Color(0.82, 0.9, 1.0)
 const HAZE_DENSITY: float = 0.003
 const RING_HEIGHT: float = 0.03
 ## The base chalk and the box tape are tinted toward a soft grey so they are calm, not neon.
@@ -170,10 +170,9 @@ func _ready() -> void:
 	_back_button.pressed.connect(_on_back_pressed)
 
 
-## Golden hour (the owner's key art): a low golden sun (long soft shadows), a cool blue fill from
-## the other side and a soft lavender ambient so the shadows stay blue against the
-## warm light, a gentle bloom on the highlights and a golden morning mist into the
-## distance.
+## Afternoon in a cool tone (owner): a high, neutral-cool sun (shorter shadows), a blue fill from the
+## other side and a cool blue ambient so the shadows stay blue, a clear blue sky and a pale blue haze
+## into the distance. No bloom.
 static func make_environment() -> Environment:
 	var env: Environment = Environment.new()
 	var sky_material: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
