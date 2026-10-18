@@ -63,6 +63,14 @@ const BUILDINGS: Array[String] = ["vulcanizing", "barber_shop", "nena_store"]
 ## The two houses that fill in between the shopfronts (shop, house, shop, house, ...).
 const FILLER_HOUSES: Array[String] = ["house_1", "house_2", "house_3"]
 const BUILDING_WIDTH: float = 6.0
+## The tricycle terminal stands in the left row of buildings at the top end of the play area.
+const TERMINAL: String = "tricycle_terminal"
+## Sidewalk pets and things (heights in metres, in proportion to the kids): the cat and the dog lie
+## about, the chicken cage stands by a building, the drainage cover (a metre wide) is set in the walk.
+const CAT_HEIGHT: float = 0.45
+const DOG_HEIGHT: float = 0.75
+const CHICKEN_CAGE_HEIGHT: float = 0.9
+const DRAINAGE_COVER_WIDTH: float = 1.1
 const SHADOW_DISTANCE: float = 75.0
 ## Painted ground sits just above the coloured road and sidewalk boxes.
 const PAVER_TILE: float = 2.4
@@ -590,6 +598,8 @@ func _add_houses() -> void:
 	var half_l: float = layout.lane_length / 2.0 + END_REACH
 	var front: float = half_w + layout.boundary_thickness + SIDEWALK_WIDTH
 	var store_z: float = -layout.lane_length * 0.18
+	# the top end of the play area, a little in from its end line
+	var terminal_z: float = -layout.lane_length / 2.0 + 3.0
 	var variant: int = 0
 	for side: float in [-1.0, 1.0]:
 		var z: float = -half_l + HOUSE_SPACING / 2.0
@@ -598,6 +608,9 @@ func _add_houses() -> void:
 			if side < 0.0 and absf(z - store_z) < HOUSE_SPACING / 2.0:
 				id = "nena_store"
 				z = store_z
+			elif side < 0.0 and absf(z - terminal_z) < HOUSE_SPACING / 2.0:
+				id = TERMINAL
+				z = terminal_z
 			var natural: Vector3 = PropModel.size_of(id)
 			var scale_to: float = BUILDING_WIDTH / natural.x
 			var depth: float = natural.z * scale_to
@@ -626,7 +639,8 @@ func _add_details() -> void:
 	sway.tween_property(nanay, "rotation:y", turned_in + deg_to_rad(NANAY_SWAY_DEGREES), NANAY_SWAY_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	sway.tween_property(nanay, "rotation:y", turned_in - deg_to_rad(NANAY_SWAY_DEGREES), NANAY_SWAY_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_add_parked_vehicles(half_w, half_l, walk_x)
-	for lz: float in [-half_l * 0.7, half_l * 0.3]:
+	_add_sidewalk_props(walk_x)
+	for lz: float in [-half_l * 0.45, half_l * 0.3]:
 		_add(Props.laundry_line(4.0), Vector3(-walk_x - 0.6, CURB_HEIGHT, lz))
 	for lz: float in [-half_l * 0.25, half_l * 0.75]:
 		_add(Props.laundry_line(3.0), Vector3(walk_x + 0.6, CURB_HEIGHT, lz))
@@ -639,6 +653,17 @@ func _add_details() -> void:
 	for tz: float in [-30.0, -14.0, 4.0, 22.0]:
 		_add(Props.mango_tree(), Vector3(-tree_x - 1.0, 0.0, tz))
 		_add(Props.banana_plant(), Vector3(tree_x, 0.0, tz + 6.0))
+
+
+## The owner's cat, dog, chicken cage and drainage covers on the sidewalks, facing the street.
+func _add_sidewalk_props(walk_x: float) -> void:
+	var left: float = PI / 2.0
+	var right: float = -PI / 2.0
+	_add_prop(PropModel.by_height("cat", CAT_HEIGHT), Vector3(-walk_x - 0.2, CURB_HEIGHT, -3.0), left)
+	_add_prop(PropModel.by_height("dog", DOG_HEIGHT), Vector3(walk_x + 0.2, CURB_HEIGHT, -9.0), right)
+	_add_prop(PropModel.by_height("chicken_cage", CHICKEN_CAGE_HEIGHT), Vector3(walk_x + 0.3, CURB_HEIGHT, 14.0), right)
+	for spot: Vector2 in [Vector2(-walk_x, -17.0), Vector2(-walk_x, 7.0), Vector2(walk_x, 0.0), Vector2(walk_x, 19.0)]:
+		_add_prop(PropModel.make("drainage_cover", Vector3.ONE * (DRAINAGE_COVER_WIDTH / PropModel.size_of("drainage_cover").x)), Vector3(spot.x, CURB_HEIGHT, spot.y))
 
 
 ## The jeepney parked across the street behind the top barrier row, the pedicab behind the bottom
