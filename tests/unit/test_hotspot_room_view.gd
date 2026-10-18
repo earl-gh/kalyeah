@@ -30,7 +30,8 @@ func _view(room: Dictionary, my_id: int = 1) -> HotspotRoomView:
 
 func test_the_top_row_reads_lobby_bar_code_with_a_bare_settings_icon_the_code_and_a_bare_settings_icon() -> void:
 	var view: HotspotRoomView = _view(_room(2))
-	assert_eq(view.back_button.text, "LOBBY", "text only, no chevron: Lobby | code")
+	assert_eq(view.back_button.text, "BACK", "a text-only back button, no chevron")
+	assert_eq((view.find_child("Title", true, false) as Label).text, "LOBBY", "then the text Lobby | code")
 	assert_eq((view.find_child("Divider", true, false) as Label).text, "|")
 	assert_eq(view.code_label.text, "K7M2Q9XA")
 	assert_eq(view.code_label.text.length(), 8)
@@ -201,14 +202,17 @@ func test_my_chosen_kid_has_the_amber_frame() -> void:
 	assert_false((view.kid_cards["toni"].get_node("Chosen") as Panel).visible)
 
 
-func test_an_empty_slot_is_a_hollow_card_with_its_number() -> void:
+func test_an_empty_slot_is_a_frosted_card_with_its_number_and_a_hint() -> void:
 	var view: HotspotRoomView = _view(_room(3))
 	var open: Button = view.find_child("OpenSlot1", true, false) as Button
 	assert_not_null(open)
 	var box: StyleBoxFlat = open.get_theme_stylebox("normal") as StyleBoxFlat
-	assert_false(box.draw_center, "hollow: no fill")
+	assert_gt(box.bg_color.a, 0.0, "a faint fill, not just an outline")
+	assert_lt(box.bg_color.a, 0.2, "but still see-through")
 	var number: Control = open.find_child("Number", true, false) as Control
-	assert_false((number.get_theme_stylebox("panel") as StyleBoxFlat).draw_center, "the number block is hollow too")
+	assert_lt((number.get_theme_stylebox("panel") as StyleBoxFlat).bg_color.a, 0.5, "the number block is tinted, not solid")
+	assert_eq((open.find_child("Hint", true, false) as Label).text, "+  TAP TO JOIN")
+	assert_eq((view.find_child("OpenSlot0", true, false).find_child("Hint", true, false) as Label).text, "WAITING FOR A PLAYER...", "your own team's open slot just waits")
 	assert_eq(open.find_children("*", "TextureRect", true, false).size(), 0)
 	var two: HotspotRoomView = _view(_room(2))
 	assert_eq((two.find_child("Player2", true, false).find_child("Number", true, false).get_child(0) as Label).text, "3", "a 2v2: Ben is number 3")

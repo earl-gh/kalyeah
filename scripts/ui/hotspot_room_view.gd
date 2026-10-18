@@ -1,7 +1,7 @@
 class_name HotspotRoomView
 extends Control
 ## The hotspot room screen (portrait), a pure view fed by the room's plain data (`show_room`):
-##   top row     LOBBY (the text-only back button) | the 8-character room code at the left, settings (icon only) at the right
+##   top row     BACK (text only) then the text LOBBY | the 8-character room code at the left, settings (icon only) at the right
 ##   section 1   the map card (2:1, a row to itself, no buttons: the host taps it to open the map carousel),
 ##               and under it one row with the 1v1 / 2v2 / 3v3 choice (host only)
 ##   section 2   the players: two columns (the two teams), up to three rows, one card each, no picture:
@@ -117,11 +117,19 @@ func _build_top_row() -> Control:
 	row.name = "TopRow"
 	row.add_theme_constant_override("separation", 12)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	back_button = MenuDialog.make_button("LOBBY", "grey", 22, Vector2(124.0, 56.0))
+	back_button = MenuDialog.make_button("BACK", "grey", 22, Vector2(112.0, 56.0))
 	back_button.name = "BackButton"
 	back_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	back_button.pressed.connect(back_pressed.emit)
 	row.add_child(back_button)
+	var title: Label = Label.new()
+	title.name = "Title"
+	title.text = "LOBBY"
+	title.theme_type_variation = &"DisplayLabel"
+	title.add_theme_font_size_override("font_size", 38)
+	title.add_theme_color_override("font_color", KalyeahTheme.CREAM)
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(title)
 	var bar: Label = Label.new()
 	bar.name = "Divider"
 	bar.text = "|"
@@ -513,9 +521,9 @@ func _number_block(number: int, team: int, hollow: bool) -> Control:
 	block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	if hollow:
-		box.draw_center = false
-		box.border_color = TEAM_BLOCKS[team]
-		box.set_border_width_all(3)
+		box.bg_color = Color(TEAM_BLOCKS[team], 0.28)
+		box.border_color = Color(TEAM_BLOCKS[team].lightened(0.3), 0.6)
+		box.set_border_width_all(2)
 	else:
 		box.bg_color = TEAM_BLOCKS[team]
 	block.add_theme_stylebox_override("panel", box)
@@ -579,8 +587,8 @@ func _tag(text: String, team: int) -> Control:
 	return tag
 
 
-## A slot nobody has taken yet: a hollow card (only its outline and its number, no fill, no
-## name). Tap it to join that team.
+## A slot nobody has taken yet: a soft frosted card (a faint fill, a team-coloured edge and a tinted
+## number block) with a "+" and what to do: tap to join that team, or just waiting. Tap it to join.
 func _open_slot(team: int, row: int, can_join: bool) -> Control:
 	var card: Button = Button.new()
 	card.name = "OpenSlot%d" % team
@@ -589,26 +597,39 @@ func _open_slot(team: int, row: int, can_join: bool) -> Control:
 	card.focus_mode = Control.FOCUS_NONE
 	card.disabled = not can_join
 	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.draw_center = false
-	box.border_color = Color(1.0, 1.0, 1.0, 0.6)
+	box.bg_color = Color(1.0, 1.0, 1.0, 0.07)
+	box.border_color = Color(TEAM_BLOCKS[team].lightened(0.3), 0.6)
 	box.set_border_width_all(2)
-	for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
+	box.set_corner_radius_all(4)
+	for state: String in ["normal", "disabled"]:
 		card.add_theme_stylebox_override(state, box)
+	var lit: StyleBoxFlat = box.duplicate() as StyleBoxFlat
+	lit.bg_color = Color(TEAM_BLOCKS[team].lightened(0.3), 0.18)
+	for state: String in ["hover", "pressed", "focus"]:
+		card.add_theme_stylebox_override(state, lit)
 	card.pressed.connect(team_chosen.emit.bind(team))
 	var inner: HBoxContainer = HBoxContainer.new()
 	inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	inner.add_theme_constant_override("separation", 0)
 	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(inner)
-	var space: Control = Control.new()
-	space.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	space.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hint: Label = Label.new()
+	hint.name = "Hint"
+	hint.text = "+  TAP TO JOIN" if can_join else "WAITING FOR A PLAYER..."
+	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 18)
+	hint.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.6 if can_join else 0.38))
+	hint.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	hint.add_theme_constant_override("outline_size", 0)
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var number: Control = _number_block(slot_number(team, row, _room.get("team_size", 1) as int), team, true)
 	if team == 0:
 		inner.add_child(number)
-		inner.add_child(space)
+		inner.add_child(hint)
 	else:
-		inner.add_child(space)
+		inner.add_child(hint)
 		inner.add_child(number)
 	return card
 
