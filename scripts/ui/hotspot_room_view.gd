@@ -3,7 +3,8 @@ extends Control
 ## The hotspot room screen (portrait), a pure view fed by the room's plain data (`show_room`):
 ##   top row     BACK (text only) and the 8-character room code at the left, settings (icon only) at the right
 ##   section 1   the map card (3:4; only the host changes it) and the 1v1 / 2v2 / 3v3 choice (host only)
-##   section 2   the players: two columns (the two teams), up to three rows, one card each
+##   section 2   the players: two columns (the two teams), up to three rows, one card each, no picture:
+##               left "name [1]" to "[3]" in blue, right "[4]" to "[6] name" in red
 ##   section 3   one row of the six kids as 3:4 profile cards, tap one to be it
 ##   bottom      the host's START, or everyone else's READY
 ## It never talks to the network: LobbyScreen listens to the signals and sends what they ask for.
@@ -219,7 +220,9 @@ func _kid_card(id: String) -> Button:
 	MenuDialog.feel_press(card)
 	card.pressed.connect(character_chosen.emit.bind(id))
 	var picture: TextureRect = TextureRect.new()
-	picture.texture = KidModel.portrait(StringName(id))
+	picture.texture = KidModel.card_face(StringName(id))
+	if picture.texture == null:
+		picture.texture = KidModel.portrait(StringName(id))
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -240,11 +243,27 @@ func _kid_card(id: String) -> Button:
 
 
 func _style_kid_card(card: Button, chosen: bool) -> void:
-	var box: StyleBoxFlat = KalyeahTheme.surface_box(14, 6 if chosen else 2, 0.0)
+	var box: StyleBoxFlat = KalyeahTheme.surface_box(14, 2, 0.0)
 	box.bg_color = Color(KalyeahTheme.INK, 0.8)
-	box.border_color = KalyeahTheme.AMBER if chosen else Color(1.0, 1.0, 1.0, 0.2)
+	box.border_color = Color(1.0, 1.0, 1.0, 0.2)
 	for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
 		card.add_theme_stylebox_override(state, box)
+	# the amber frame is an overlay (the picture covers the button's own border)
+	var frame: Panel = card.get_node_or_null("Chosen") as Panel
+	if frame == null:
+		frame = Panel.new()
+		frame.name = "Chosen"
+		frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var ring: StyleBoxFlat = KalyeahTheme.surface_box(14, 6, 0.0)
+		ring.draw_center = false
+		ring.shadow_size = 0
+		ring.border_color = KalyeahTheme.AMBER
+		frame.add_theme_stylebox_override("panel", ring)
+		card.add_child(frame)
+	frame.visible = chosen
+	var picture: Control = card.get_child(0) as Control
+	picture.modulate = Color.WHITE if chosen else Color(0.78, 0.78, 0.82)
 
 
 ## Shows the room (plain data from the server) for the player `my_id`.
@@ -271,7 +290,7 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	for choice: int in size_buttons:
 		size_buttons[choice].set_pressed_no_signal(choice == size)
 		size_buttons[choice].disabled = not host
-	_fill_players(members, size, host)
+	_fill_players(members, size)
 	var picked: String = String(me.get("char", ""))
 	if picked.is_empty():
 		picked = Session.avatar_id
@@ -291,7 +310,7 @@ func show_room(room: Dictionary, my_id: int) -> void:
 
 ## Two columns (blue team, red team) of at most three rows: a card for each player, an open slot
 ## (tap it to join that team) for each place still free.
-func _fill_players(members: Array, size: int, host: bool) -> void:
+func _fill_players(members: Array, size: int) -> void:
 	for card: Control in player_cards:
 		card.queue_free()
 		player_grid.remove_child(card)
@@ -308,43 +327,34 @@ func _fill_players(members: Array, size: int, host: bool) -> void:
 		for team: int in 2:
 			var card: Control
 			if row < teams[team].size():
-				card = _player_card(teams[team][row] as Dictionary, team, host)
+				card = _player_card(teams[team][row] as Dictionary, team)
 			else:
-				card = _open_slot(team, my_team != team)
+				card = _open_slot(team, row, my_team != team)
 			player_grid.add_child(card)
 			player_cards.append(card)
 
 
-func _player_card(member: Dictionary, team: int, _host: bool) -> Control:
+## A player card with no picture: the left column (blue team) reads "name [1]", the right column
+## (red team) "[4] name"; `number` is the slot, 1 to 3 on the left and 4 to 6 on the right.
+func _player_card(member: Dictionary, team: int) -> Control:
 	var card: PanelContainer = PanelContainer.new()
 	card.name = "Player%d" % (member["player_id"] as int)
 	card.custom_minimum_size = Vector2(0.0, PLAYER_CARD_HEIGHT)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var box: StyleBoxFlat = KalyeahTheme.surface_box(16, 3, 10.0)
+	var box: StyleBoxFlat = KalyeahTheme.surface_box(16, 3, 12.0)
 	box.bg_color = Color(KalyeahTheme.INK, 0.78)
 	box.border_color = TEAM_COLORS[team]
 	card.add_theme_stylebox_override("panel", box)
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	card.add_child(row)
-	var face: TextureRect = TextureRect.new()
-	var kid: String = String(member.get("char", ""))
-	if kid.is_empty():
-		kid = Session.AVATARS[(member["player_id"] as int) % Session.AVATARS.size()]
-	face.texture = KidModel.minimap_face(StringName(kid))
-	if face.texture == null:
-		face.texture = KidModel.portrait(StringName(kid))
-	face.custom_minimum_size = Vector2(88.0, 88.0)
-	face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	face.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(face)
 	var text: VBoxContainer = VBoxContainer.new()
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_child(text)
-	var name_label: Label = LobbyWidgets.label(member["name"] as String, 26)
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT if team == 0 else HORIZONTAL_ALIGNMENT_RIGHT
+	var name_label: Label = LobbyWidgets.label(member["name"] as String, 28)
+	name_label.name = "Name"
+	name_label.horizontal_alignment = align
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	text.add_child(name_label)
 	var tags: PackedStringArray = PackedStringArray()
@@ -355,28 +365,88 @@ func _player_card(member: Dictionary, team: int, _host: bool) -> Control:
 	if member["ready"] or member["player_id"] == _room.get("host", -1):
 		tags.append("READY")
 	var tag_label: Label = LobbyWidgets.label("  ".join(tags), 19, TEAM_COLORS[team])
-	tag_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	tag_label.name = "Tags"
+	tag_label.horizontal_alignment = align
 	text.add_child(tag_label)
+	var badge: Control = _badge(slot_number(team, _row_of(member, team)), team)
+	if team == 0:
+		row.add_child(text)
+		row.add_child(badge)
+	else:
+		row.add_child(badge)
+		row.add_child(text)
 	return card
 
 
-func _open_slot(team: int, can_join: bool) -> Control:
+## The slot number: 1 to 3 down the left column (blue), 4 to 6 down the right (red).
+static func slot_number(team: int, row: int) -> int:
+	return team * MAX_ROWS + row + 1
+
+
+func _row_of(member: Dictionary, team: int) -> int:
+	var row: int = 0
+	for other: Dictionary in _room.get("members", []) as Array:
+		if other["team"] != team:
+			continue
+		if other["player_id"] == member["player_id"]:
+			return row
+		row += 1
+	return row
+
+
+## The number in a team-coloured round badge.
+func _badge(number: int, team: int) -> Control:
+	var badge: PanelContainer = PanelContainer.new()
+	badge.name = "Number"
+	badge.custom_minimum_size = Vector2(64.0, 64.0)
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var box: StyleBoxFlat = KalyeahTheme.surface_box(32, 0, 0.0)
+	box.bg_color = TEAM_COLORS[team]
+	badge.add_theme_stylebox_override("panel", box)
+	var label: Label = LobbyWidgets.label(str(number), 36, KalyeahTheme.INK_DEEP)
+	label.theme_type_variation = &"DisplayLabel"
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	badge.add_child(label)
+	return badge
+
+
+## A free slot: its number and JOIN (tap to join that team) or OPEN.
+func _open_slot(team: int, row: int, can_join: bool) -> Control:
 	var card: Button = Button.new()
 	card.name = "OpenSlot%d" % team
 	card.custom_minimum_size = Vector2(0.0, PLAYER_CARD_HEIGHT)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.focus_mode = Control.FOCUS_NONE
-	card.text = "JOIN" if can_join else "OPEN"
 	card.disabled = not can_join
-	card.add_theme_font_size_override("font_size", 24)
-	var box: StyleBoxFlat = KalyeahTheme.surface_box(16, 2, 10.0)
+	var box: StyleBoxFlat = KalyeahTheme.surface_box(16, 2, 12.0)
 	box.bg_color = Color(KalyeahTheme.INK, 0.4)
 	box.border_color = Color(TEAM_COLORS[team], 0.5)
 	for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
 		card.add_theme_stylebox_override(state, box)
-	card.add_theme_color_override("font_color", Color(TEAM_COLORS[team], 0.8))
-	card.add_theme_color_override("font_disabled_color", Color(1.0, 1.0, 1.0, 0.4))
 	card.pressed.connect(team_chosen.emit.bind(team))
+	var inner: HBoxContainer = HBoxContainer.new()
+	inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	inner.offset_left = 12.0
+	inner.offset_right = -12.0
+	inner.add_theme_constant_override("separation", 12)
+	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(inner)
+	var text: Label = LobbyWidgets.label("JOIN" if can_join else "OPEN", 26, Color(TEAM_COLORS[team], 0.85 if can_join else 0.45))
+	text.name = "Text"
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if team == 0 else HORIZONTAL_ALIGNMENT_RIGHT
+	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var badge: Control = _badge(slot_number(team, row), team)
+	badge.modulate.a = 0.6
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if team == 0:
+		inner.add_child(text)
+		inner.add_child(badge)
+	else:
+		inner.add_child(badge)
+		inner.add_child(text)
 	return card
 
 
