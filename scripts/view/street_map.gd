@@ -581,11 +581,11 @@ func _add_barricades() -> void:
 			x += widths[k] + BARRIER_GAP + spare * shares[k + 1] / total
 
 
-## The owner's three shopfronts (Nena store, vulcanizing, barber shop) along both sides (none
-## beyond the two ends, so the street opens out there), one of them (the Nena store) where the sari-sari store stood.
+## The owner's three shopfronts (Nena store, vulcanizing, barber shop) along both sides of the street, running on past
+## the ends (none across the ends), one of them (the Nena store) where the sari-sari store stood.
 func _add_houses() -> void:
 	var half_w: float = layout.lane_width / 2.0
-	var half_l: float = layout.lane_length / 2.0  # no buildings beyond the ends
+	var half_l: float = layout.lane_length / 2.0 + END_REACH
 	var front: float = half_w + layout.boundary_thickness + SIDEWALK_WIDTH
 	var store_z: float = -layout.lane_length * 0.18
 	var variant: int = 0
