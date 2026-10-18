@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://bbgws7hc0cjlj"
-path="res://.godot/imported/Inter-Variable.ttf-ff332eee6f600fbfbcc6420f992d2b8a.fontdata"
+uid="uid://bsu36jt4odx0w"
+path="res://.godot/imported/Poppins-Bold.ttf-cde410df043ef75531297a8da066b415.fontdata"
 
 [deps]
 
-source_file="res://assets/fonts/inter/Inter-Variable.ttf"
-dest_files=["res://.godot/imported/Inter-Variable.ttf-ff332eee6f600fbfbcc6420f992d2b8a.fontdata"]
+source_file="res://assets/fonts/poppins/Poppins-Bold.ttf"
+dest_files=["res://.godot/imported/Poppins-Bold.ttf-cde410df043ef75531297a8da066b415.fontdata"]
 
 [params]
 
