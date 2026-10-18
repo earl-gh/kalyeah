@@ -45,7 +45,10 @@ const JAIL_WALL_THICKNESS: float = 0.5
 const CURB_HEIGHT: float = 0.4
 const SIDEWALK_WIDTH: float = 1.2
 ## The street goes on past both ends of the play area (behind a barricade).
-const END_REACH: float = 16.0
+## The road, the sidewalks and the ground go on this far past each end of the play area (m); the
+## buildings only part of the way (HOUSE_REACH), then the empty road carries on into the haze.
+const END_REACH: float = 70.0
+const HOUSE_REACH: float = 24.0
 ## The main screen shows the play area alone as a small model, the game's exact 1:2 shape: the
 ## cement on a chunky stone base with only the corner props (the electric posts and the cardboard
 ## walls of the tagged boxes). No sidewalks, no team colours and no street past the ends.
@@ -101,11 +104,14 @@ const POST_HEIGHT: float = 8.5
 ## in this order (the far end starts half way along, so the two rows differ).
 const BARRIER_HEIGHTS: Dictionary[String, float] = {
 	"fishball_cart": 2.0, "tricycle": 2.3, "bench": 0.7, "crates": 0.8, "sacks": 0.9, "school_zone": 1.8,
-	"basketball_pole": 4.2, "ebike": 1.6, "truck_wheels": 1.4, "sewing_machine": 1.1, "ironing_board": 1.0,
+	"basketball_pole": 6.0, "ebike": 1.6, "truck_wheels": 1.4, "sewing_machine": 1.1, "ironing_board": 1.0,
 	"no_id_no_entry": 1.7, "rooster_tent": 1.4, "plank_fence": 1.8, "roof_wall": 2.2, "roof_wall_2": 2.4,
 }
 ## Things whose long side is their depth: they are turned a quarter so the long side faces the play area.
 const BARRIER_TURNED: Array[String] = ["tricycle"]
+## Things laid down on their side across the street (the basketball pole, so its whole length is
+## the boundary): their BARRIER_HEIGHTS entry is their length along the row.
+const BARRIER_LYING: Array[String] = ["basketball_pole"]
 ## The nanay on the sidewalk by the sari-sari store, outside the play area, facing the street.
 ## Parked beyond the barrier rows and on the sidewalk, outside the play area (heights in metres).
 const JEEP_HEIGHT: float = 2.8
@@ -530,6 +536,15 @@ func _add_tape(outer: Array[Vector2], inner: Array[Vector2], keep: Array[bool], 
 	_add(mesh, Vector3.ZERO).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
+## How wide (m, along the row) a barrier thing is at its true size.
+static func barrier_width(id: String) -> float:
+	if BARRIER_LYING.has(id):
+		return BARRIER_HEIGHTS[id]
+	var natural: Vector3 = PropModel.size_of(id)
+	var side: float = natural.z if BARRIER_TURNED.has(id) else natural.x
+	return side * BARRIER_HEIGHTS[id] / natural.y
+
+
 ## The ends of the play area are walled off by a row of street things (a fishball cart, a bench,
 ## crates, the SLOW DOWN SCHOOL ZONE sign, a basketball hoop, stacked truck tyres, an ironing board
 ## and the wooden A-frame), each at its true size (never stretched to fill a gap), facing the play
@@ -548,8 +563,7 @@ func _add_barricades() -> void:
 		while true:
 			var id: String = ids[i % ids.size()]
 			var natural: Vector3 = PropModel.size_of(id)
-			var side: float = natural.z if BARRIER_TURNED.has(id) else natural.x
-			var width: float = side * BARRIER_HEIGHTS[id] / natural.y  # true size, never stretched
+			var width: float = barrier_width(id)  # true size, never stretched
 			var need: float = width + (BARRIER_GAP if not picked.is_empty() else 0.0)
 			if used + need > layout.lane_width:
 				break
@@ -579,7 +593,12 @@ func _add_barricades() -> void:
 			var at_z: float = end * (layout.lane_length / 2.0 + setback + depth / 2.0 + swing)
 			var turn: float = deg_to_rad(rng.randf_range(-BARRIER_TURN, BARRIER_TURN))
 			var yaw: float = (0.0 if end < 0.0 else PI) + (PI / 2.0 if turned else 0.0)
-			_add_prop(model, Vector3(x + widths[k] / 2.0, 0.0, at_z), yaw + turn)
+			var placed: Node3D = _add_prop(model, Vector3(x + widths[k] / 2.0, 0.0, at_z), yaw + turn)
+			if BARRIER_LYING.has(id):
+				# on its side: the pole's length runs along the row, its width becomes its height
+				placed.rotation = Vector3(0.0, turn, -PI / 2.0)
+				var along: Vector3 = Vector3(cos(turn), 0.0, -sin(turn))
+				placed.position = Vector3(x + widths[k] / 2.0, natural.x * model.scale.x / 2.0, at_z) - along * (widths[k] / 2.0)
 			x += widths[k] + BARRIER_GAP + spare * shares[k + 1] / total
 
 
@@ -587,7 +606,7 @@ func _add_barricades() -> void:
 ## the ends (none across the ends), one of them (the Nena store) where the sari-sari store stood.
 func _add_houses() -> void:
 	var half_w: float = layout.lane_width / 2.0
-	var half_l: float = layout.lane_length / 2.0 + END_REACH
+	var half_l: float = layout.lane_length / 2.0 + HOUSE_REACH
 	var front: float = half_w + layout.boundary_thickness + SIDEWALK_WIDTH
 	var store_z: float = -layout.lane_length * 0.18
 	var variant: int = 0
