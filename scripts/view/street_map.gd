@@ -10,24 +10,26 @@ extends Node3D
 const OWN_COLOR: Color = Palette.TEAM_OWN
 const ENEMY_COLOR: Color = Palette.TEAM_ENEMY
 const SKY_COLOR: Color = Color(0.74, 0.8, 0.9)
-# cinematic morning (see make_environment)
-const SUN_ANGLES: Vector3 = Vector3(-30.0, 52.0, 0.0)
-const SUN_COLOR: Color = Color(1.0, 0.88, 0.7)
-const SUN_ENERGY: float = 1.15
-const SHADOW_OPACITY: float = 0.62
+# golden hour, like the owner's key art: a low warm sun from the front right, a deep blue sky
+const SKY_TOP: Color = Color(0.2, 0.5, 0.96)
+const SKY_HORIZON: Color = Color(0.72, 0.87, 1.0)
+const SUN_ANGLES: Vector3 = Vector3(-24.0, 52.0, 0.0)
+const SUN_COLOR: Color = Color(1.0, 0.8, 0.52)
+const SUN_ENERGY: float = 1.55
+const SHADOW_OPACITY: float = 0.7
 const SHADOW_BLUR: float = 1.6
 const FILL_ANGLES: Vector3 = Vector3(-30.0, 258.0, 0.0)
-const FILL_COLOR: Color = Color(0.58, 0.7, 1.0)
-const FILL_ENERGY: float = 0.38
-const AMBIENT_COLOR: Color = Color(0.78, 0.86, 1.0)
+const FILL_COLOR: Color = Color(0.45, 0.62, 1.0)
+const FILL_ENERGY: float = 0.5
+const AMBIENT_COLOR: Color = Color(0.72, 0.78, 1.0)
 const AMBIENT_ENERGY: float = 0.82
-const EXPOSURE: float = 0.94
+const EXPOSURE: float = 1.0
 const TONEMAP_WHITE: float = 4.0
-const SATURATION: float = 0.9
-const CONTRAST: float = 0.97
-const BRIGHTNESS: float = 0.97
-const HAZE_COLOR: Color = Color(1.0, 0.9, 0.8)
-const HAZE_DENSITY: float = 0.002
+const SATURATION: float = 1.2
+const CONTRAST: float = 1.06
+const BRIGHTNESS: float = 1.0
+const HAZE_COLOR: Color = Color(1.0, 0.84, 0.64)
+const HAZE_DENSITY: float = 0.003
 const RING_HEIGHT: float = 0.03
 ## The base chalk and the box tape are tinted toward a soft grey so they are calm, not neon.
 const SOFT_GREY: Color = Color(0.62, 0.64, 0.7)
@@ -168,14 +170,23 @@ func _ready() -> void:
 	_back_button.pressed.connect(_on_back_pressed)
 
 
-## Cinematic morning: a low golden sun (long soft shadows), a cool blue fill from
+## Golden hour (the owner's key art): a low golden sun (long soft shadows), a cool blue fill from
 ## the other side and a soft lavender ambient so the shadows stay blue against the
 ## warm light, a gentle bloom on the highlights and a golden morning mist into the
 ## distance.
 static func make_environment() -> Environment:
 	var env: Environment = Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = SKY_COLOR
+	var sky_material: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = SKY_TOP
+	sky_material.sky_horizon_color = SKY_HORIZON
+	sky_material.ground_horizon_color = SKY_HORIZON
+	sky_material.ground_bottom_color = SKY_HORIZON
+	sky_material.sky_curve = 0.25
+	sky_material.sun_angle_max = 0.0
+	var sky: Sky = Sky.new()
+	sky.sky_material = sky_material
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = AMBIENT_COLOR
 	env.ambient_light_energy = AMBIENT_ENERGY

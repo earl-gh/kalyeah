@@ -128,6 +128,21 @@ func set_best_of(count: int) -> void:
 	send({"t": NetProtocol.Msg.SET_BEST_OF, "n": count})
 
 
+## Host only: 1v1, 2v2 or 3v3.
+func set_team_size(size: int) -> void:
+	send({"t": NetProtocol.Msg.SET_TEAM_SIZE, "n": size})
+
+
+## Host only: the map to play on.
+func set_map(map_id: StringName) -> void:
+	send({"t": NetProtocol.Msg.SET_MAP, "map": String(map_id)})
+
+
+## The kid you will play, shown to the others in the room.
+func set_character(character: StringName) -> void:
+	send({"t": NetProtocol.Msg.SET_CHARACTER, "c": String(character)})
+
+
 func set_ready(ready: bool) -> void:
 	send({"t": NetProtocol.Msg.SET_READY, "ready": ready})
 

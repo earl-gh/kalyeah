@@ -374,11 +374,34 @@ func _on_primary_pressed() -> void:
 		"online":
 			_open_lobby(LobbyScreen.Intent.CREATE, false)
 		_:
-			_open_lobby(LobbyScreen.Intent.CREATE, true)
+			open_hotspot_create()
 
 
 func _on_secondary_pressed() -> void:
-	_open_lobby(LobbyScreen.Intent.JOIN, String(MODES[Session.menu_mode]["id"]) == "hotspot")
+	if String(MODES[Session.menu_mode]["id"]) == "hotspot":
+		open_hotspot_join()
+	else:
+		_open_lobby(LobbyScreen.Intent.JOIN, false)
+
+
+## Hotspot Create: a dialog checks the hotspot is on, then the room opens.
+func open_hotspot_create() -> MenuDialog:
+	var card: MenuDialog = HotspotDialogs.create_check(
+		func() -> void: _open_lobby(LobbyScreen.Intent.CREATE, true),
+		func() -> void:
+			Session.lobby_preview = true
+			_open_lobby(LobbyScreen.Intent.CREATE, true))
+	_show_dialog(card)
+	return card
+
+
+## Hotspot Join: a dialog with a box for each character of the room code.
+func open_hotspot_join() -> MenuDialog:
+	var card: MenuDialog = HotspotDialogs.join(func(code: String) -> void:
+		Session.lobby_code = code
+		_open_lobby(LobbyScreen.Intent.JOIN, true))
+	_show_dialog(card)
+	return card
 
 
 ## Keeps everything clear of notches, rounded corners and the home bar.
@@ -488,6 +511,8 @@ func _show_loading(message: String) -> void:
 func _open_lobby(intent: LobbyScreen.Intent, hotspot: bool) -> void:
 	Session.lobby_intent = intent
 	Session.lobby_hotspot = hotspot
+	if not (hotspot and Session.lobby_preview):
+		Session.lobby_preview = false
 	open_lobby_action.call(intent)
 
 

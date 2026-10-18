@@ -13,6 +13,10 @@ var room_code: String = ""
 var lobby_intent: int = 0
 ## True when the lobby was opened from the HOTSPOT button (it uses the hotspot address).
 var lobby_hotspot: bool = false
+## The room code typed in the Join dialog (8 characters), for the hotspot lobby to join with.
+var lobby_code: String = ""
+## Web builds only: show the hotspot room screen with made-up players (the web cannot host a room).
+var lobby_preview: bool = false
 ## The mode card chosen on the main screen (an index into TitleScreen.MODES); Hotspot by default.
 var menu_mode: int = 0
 var reconnect_token: String = ""
