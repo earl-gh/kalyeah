@@ -2,16 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dxilwqkevskiv"
-path="res://.godot/imported/sari_sign.png-80578df3cbf0434e97076e5fc99dd27a.ctex"
+uid="uid://cu8xhwbbma7k6"
+path="res://.godot/imported/chicken_cage_prop_base_color.jpg-beb94ab6cd9ad0daa9f5478e6ea1823f.ctex"
 metadata={
 "vram_texture": false
+}
+generator_parameters={
+"md5": "b9fd85a458768b00ab81bec58ba5a6a3"
 }
 
 [deps]
 
-source_file="res://assets/textures/sari_sign.png"
-dest_files=["res://.godot/imported/sari_sign.png-80578df3cbf0434e97076e5fc99dd27a.ctex"]
+source_file="res://assets/models/props/chicken_cage_prop_base_color.jpg"
+dest_files=["res://.godot/imported/chicken_cage_prop_base_color.jpg-beb94ab6cd9ad0daa9f5478e6ea1823f.ctex"]
 
 [params]
 
@@ -37,4 +40,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=0
+detect_3d/compress_to=1

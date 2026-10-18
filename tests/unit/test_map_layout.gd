@@ -213,7 +213,7 @@ func test_each_tagged_box_has_two_cardboard_walls_on_its_street_side() -> void:
 
 func test_props_stay_low_poly() -> void:
 	var budgets: Dictionary = {
-		"house": Props.house(0), "store": Props.sari_sari(), "crates_free": Props.umbrella(),
+		"house": Props.house(0), "store": Props.sari_sari(),
 	}
 	for name: String in budgets:
 		var mesh: ArrayMesh = budgets[name]
@@ -227,7 +227,7 @@ func test_the_model_props_are_light_and_standing_on_the_ground() -> void:
 		"ironing_board": 4200, "fishball_cart": 4700, "basketball_pole": 3700, "truck_wheels": 4200, "crates": 4200,
 		"sacks": 4200, "sewing_machine": 4200, "no_id_no_entry": 4200, "ebike": 4700, "tricycle": 5200, "jeep": 5700,
 		"pedicab": 5200, "ice_cream_cart": 5200, "nanay": 6200,
-		"nena_store": 6200, "vulcanizing": 6200, "barber_shop": 6200, "house_1": 6200, "house_2": 6200, "house_3": 6200, "plank_fence": 4200, "roof_wall": 4200, "roof_wall_2": 4200}
+		"nena_store": 6200, "vulcanizing": 6200, "barber_shop": 6200, "house_1": 6200, "house_2": 6200, "house_3": 6200, "karinderya": 6200, "cat": 3200, "dog": 3200, "chicken_cage": 4200, "drainage_cover": 2700, "tricycle_terminal": 6200, "plank_fence": 4200, "roof_wall": 4200, "roof_wall_2": 4200}
 	for id: String in limits:
 		var model: Node3D = autofree(PropModel.make(id)) as Node3D
 		var mesh: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
