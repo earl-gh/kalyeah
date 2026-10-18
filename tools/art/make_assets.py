@@ -492,21 +492,6 @@ def tex_doodle(kind):
     return img.resize((512, 384), Image.LANCZOS)
 
 
-def tex_sari_sign():
-    w, h = 1024, 280
-    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle([6, 10, w - 6, h - 6], 26, fill=(40, 24, 20, 255))
-    d.rounded_rectangle([14, 16, w - 14, h - 14], 22, fill=(255, 214, 60, 255))
-    d.rounded_rectangle([30, 32, w - 30, h - 30], 16, outline=(214, 50, 50, 255), width=10)
-    font = ImageFont.truetype(FONT_BOLD, 132)
-    small = ImageFont.truetype(FONT_BOLD, 40)
-    d.text((w // 2 + 4, 128 + 6), "SARI-SARI STORE", font=font, fill=(40, 24, 20, 255), anchor="mm")
-    d.text((w // 2, 128), "SARI-SARI STORE", font=font, fill=(30, 60, 160, 255), anchor="mm")
-    d.text((w // 2, 214), "kay Aling Nena  ·  LOAD NA DITO", font=small, fill=(200, 40, 40, 255), anchor="mm")
-    return img
-
-
 def _chalk(d, pts, color, width, rnd, closed=False):
     """A dusty chalk line: several thin, jittered passes."""
     if closed:
@@ -516,64 +501,11 @@ def _chalk(d, pts, color, width, rnd, closed=False):
         d.line(j, fill=color + (rnd.randint(110, 170),), width=max(2, width - k * 2), joint="curve")
 
 
-def tex_road_text(text, color):
-    """Road paint, like the barangay's 'DAHAN-DAHAN' (slow down) before a crossing."""
-    img = Image.new("RGBA", (1024, 256), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    font = ImageFont.truetype(FONT_BOLD, 132)
-    d.text((512, 128), text, font=font, fill=color + (215,), anchor="mm")
-    rng = np.random.default_rng(5)
-    a = np.asarray(img).astype(np.float32)
-    wear = rng.random(a.shape[:2]) * 0.55 + _noise_rect(a.shape[1], a.shape[0], 24, 6) * 0.45
-    a[..., 3] *= np.clip(wear * 1.5, 0.0, 1.0)
-    return Image.fromarray(a.astype(np.uint8), "RGBA")
-
-
 def _noise_rect(w, h, scale, seed):
     rng = np.random.default_rng(seed)
     small = rng.random((max(2, h // scale), max(2, w // scale))).astype(np.float32)
     img = Image.fromarray((small * 255).astype(np.uint8), "L").resize((w, h), Image.BICUBIC)
     return np.asarray(img).astype(np.float32) / 255.0
-
-
-def tex_chalk_piko():
-    """Chalk hopscotch (piko) with numbers, drawn by kids on the road."""
-    img = Image.new("RGBA", (512, 1024), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    rnd = random.Random(12)
-    white, pink, yellow = (250, 250, 245), (255, 150, 190), (255, 230, 120)
-    font = ImageFont.truetype(FONT_BOLD, 64)
-    rows = [(1, 0), (2, 1), (1, 0), (2, 1), (1, 0)]
-    y = 900
-    n = 1
-    for single, _ in rows:
-        if single == 1:
-            _chalk(d, [(196, y), (316, y), (316, y - 120), (196, y - 120)], white, 9, rnd, True)
-            d.text((256, y - 60), str(n), font=font, fill=pink + (200,), anchor="mm")
-            n += 1
-        else:
-            for x0 in (136, 256):
-                _chalk(d, [(x0, y), (x0 + 120, y), (x0 + 120, y - 120), (x0, y - 120)], white, 9, rnd, True)
-                d.text((x0 + 60, y - 60), str(n), font=font, fill=pink + (200,), anchor="mm")
-                n += 1
-        y -= 120
-    _chalk(d, [(256 + 90 * math.cos(math.pi + math.pi * k / 16), y - 80 + 80 * math.sin(math.pi + math.pi * k / 16)) for k in range(17)], white, 9, rnd)
-    d.text((256, y - 40), "LANGIT", font=ImageFont.truetype(FONT_BOLD, 40), fill=yellow + (210,), anchor="mm")
-    return img
-
-
-def tex_chalk_preso():
-    """Tumbang preso marks: the can's circle and the throwing line, with a chalk can."""
-    img = Image.new("RGBA", (768, 512), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    rnd = random.Random(21)
-    white, yellow = (250, 250, 245), (255, 230, 120)
-    _chalk(d, [(384 + 110 * math.cos(math.tau * k / 30), 150 + 70 * math.sin(math.tau * k / 30)) for k in range(30)], white, 9, rnd, True)
-    _chalk(d, [(296, 128), (296, 176), (330, 190), (330, 142)], yellow, 7, rnd, True)
-    _chalk(d, [(80, 430), (688, 430)], white, 10, rnd)
-    font = ImageFont.truetype(FONT_BOLD, 46)
-    d.text((384, 476), "TUMBANG PRESO", font=font, fill=yellow + (200,), anchor="mm")
-    return img
 
 
 def tex_cardboard_tears():
@@ -627,10 +559,6 @@ def main(only=None):
     save(tex_asphalt(), TEXTURES, "asphalt")
     save(tex_pavers(), TEXTURES, "pavers")
     save(tex_alley(), TEXTURES, "alley")
-    save(tex_sari_sign(), TEXTURES, "sari_sign")
-    save(tex_road_text("DAHAN-DAHAN", (255, 214, 60)), TEXTURES, "road_dahan")
-    save(tex_chalk_piko(), TEXTURES, "chalk_piko")
-    save(tex_chalk_preso(), TEXTURES, "chalk_preso")
 
 
 if __name__ == "__main__":

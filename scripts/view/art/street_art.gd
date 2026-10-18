@@ -57,15 +57,3 @@ static func decal(name: String, size: Vector2) -> MeshInstance3D:
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return instance
 
-
-## A sign that always faces the camera, `height` metres tall, bottom at the origin.
-static func billboard(name: String, height: float) -> Sprite3D:
-	var sprite: Sprite3D = Sprite3D.new()
-	sprite.texture = texture(name)
-	sprite.pixel_size = height / sprite.texture.get_size().y
-	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	sprite.shaded = false
-	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	sprite.offset = Vector2(0.0, sprite.texture.get_size().y / 2.0)
-	sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return sprite
