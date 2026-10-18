@@ -103,7 +103,7 @@ func _animation_after(kid: KidModel, state: PlayerState, speed: float = 0.0) -> 
 
 
 func test_each_state_plays_its_own_animation() -> void:
-	var kid: KidModel = _kid(2)
+	var kid: KidModel = _kid(3)  # Toni: his model has every clip, including the landing squash
 	var state: PlayerState = PlayerState.new()
 	for i: int in 10:
 		kid.animate(0.05, 5.0, state)
@@ -367,3 +367,16 @@ func test_the_card_portrait_is_a_picture_of_the_kid() -> void:
 	assert_not_null(portrait)
 	assert_gt(portrait.get_size().y, portrait.get_size().x, "a tall portrait, not a wide empty cell")
 	assert_eq(KidModel.portrait(&"nobody"), portrait, "kids with no portrait use Junjun's")
+
+
+func test_the_rebuilt_kids_without_a_landing_clip_still_play_every_other_state() -> void:
+	for index: int in [1, 2]:  # Ligaya and Migo (the owner's rebuilt rigs have no landing clip)
+		var kid: KidModel = _kid(index)
+		var state: PlayerState = PlayerState.new()
+		for i: int in 10:
+			kid.animate(0.05, 5.0, state)
+		assert_eq(kid.current_animation(), "run", "%s runs" % RULES.characters[index].id)
+		state.effects.apply(StatusEffects.Type.AIRBORNE, 2.0)
+		assert_eq(_animation_after(kid, state), "airborne")
+		state.effects.clear()
+		assert_ne(_animation_after(kid, state), "airborne", "back on the ground, with or without a landing squash")
