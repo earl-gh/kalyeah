@@ -105,3 +105,32 @@ func test_no_vehicle_stands_where_the_kids_play() -> void:
 		var node: Node3D = map.find_child(id, true, false) as Node3D
 		var spot: Vector2 = Vector2(node.position.x, node.position.z)
 		assert_false(map.layout.lane_rect().grow(0.5).has_point(spot), "%s is outside the play area" % id)
+
+
+func test_what_does_not_fit_in_a_row_stands_on_the_road_beyond() -> void:
+	var map: StreetMap = _map()
+	var rowed: Dictionary = {}
+	for row: Array in map.barrier_rows:
+		for id: Variant in row:
+			rowed[id] = true
+	assert_gt(map.far_props.size(), 0, "something did not fit")
+	for id: String in map.far_props:
+		assert_true(StreetMap.BARRIER_HEIGHTS.has(id))
+	for id: String in StreetMap.BARRIER_HEIGHTS:
+		assert_true(rowed.has(id) or map.far_props.has(id), "%s is in a row or on the far road" % id)
+
+
+func test_only_houses_stand_along_the_street_beyond_the_ends() -> void:
+	var map: StreetMap = _map()
+	var half_l: float = map.layout.lane_length / 2.0
+	var beyond: int = 0
+	for child: Node in map.get_node("%Geometry").get_children():
+		var node: Node3D = child as Node3D
+		if node == null or absf(node.position.z) <= half_l + StreetMap.HOUSE_SPACING / 2.0:
+			continue
+		var id: String = node.scene_file_path.get_file().get_basename()
+		if StreetMap.BUILDINGS.has(id) or id == "tricycle_terminal":
+			assert_true(false, "%s is a shop and stands beyond the end" % id)
+		if StreetMap.FILLER_HOUSES.has(id):
+			beyond += 1
+	assert_gt(beyond, 4, "a run of houses beyond the ends")

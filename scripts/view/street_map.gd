@@ -48,7 +48,7 @@ const SIDEWALK_WIDTH: float = 1.2
 ## The road, the sidewalks and the ground go on this far past each end of the play area (m); the
 ## buildings only part of the way (HOUSE_REACH), then the empty road carries on into the haze.
 const END_REACH: float = 70.0
-const HOUSE_REACH: float = 24.0
+const HOUSE_REACH: float = 30.0
 ## The main screen shows the play area alone as a small model, the game's exact 1:2 shape: the
 ## cement on a chunky stone base with only the corner props (the electric posts and the cardboard
 ## walls of the tagged boxes). No sidewalks, no team colours and no street past the ends.
@@ -103,8 +103,8 @@ const POST_HEIGHT: float = 8.5
 ## the kids (who stand 1.85 m, so a real thing is about 1.4 times its true size), side by side
 ## in this order (the far end starts half way along, so the two rows differ).
 const BARRIER_HEIGHTS: Dictionary[String, float] = {
-	"fishball_cart": 2.0, "tricycle": 2.3, "bench": 0.7, "crates": 0.8, "sacks": 0.9, "school_zone": 1.8,
-	"basketball_pole": 6.0, "ebike": 1.6, "truck_wheels": 1.4, "sewing_machine": 1.1, "ironing_board": 1.0,
+	"fishball_cart": 2.1, "tricycle": 2.4, "bench": 0.8, "crates": 0.85, "sacks": 1.0, "school_zone": 1.7,
+	"basketball_pole": 6.0, "ebike": 1.5, "truck_wheels": 1.4, "sewing_machine": 1.3, "ironing_board": 1.2,
 	"no_id_no_entry": 1.7, "rooster_tent": 1.4, "plank_fence": 1.8, "roof_wall": 2.2, "roof_wall_2": 2.4,
 }
 ## Things whose long side is their depth: they are turned a quarter so the long side faces the play area.
@@ -121,7 +121,11 @@ const NANAY_HEIGHT: float = 2.2
 const NANAY_SWAY_DEGREES: float = 4.0
 const NANAY_SWAY_SECONDS: float = 3.5
 ## The smallest gap between two things in a row; the rest of the room is shared out unevenly.
-const BARRIER_GAP: float = 0.25
+## Things that do not fit in a row stand on the road beyond the end: how far out the first is (m past
+## the end line) and how far apart they are.
+const FAR_PROPS_START: float = 10.0
+const FAR_PROPS_SPACING: float = 6.0
+const BARRIER_GAP: float = 0.7
 ## How far a thing may sit back from the line (m) and turn (degrees), so the row looks set down by hand.
 const BARRIER_JITTER: float = 0.5
 const BARRIER_TURN: float = 12.0
@@ -136,6 +140,8 @@ const BARRIER_SETBACK: float = 0.15
 @export var show_overview_camera: bool = true
 ## What stands in each end's barrier row (index 0 = the far end), for tests and the minimap.
 var barrier_rows: Array[Array] = []
+## The things that did not fit in a row and stand on the road beyond the ends instead.
+var far_props: Array[String] = []
 ## side -> [base tape, base fill, rescue tape, rescue fill] materials (recoloured per viewer).
 var _base_materials: Dictionary[int, Array] = {}
 ## side -> that base's team colour as the viewer sees it (blue yours, red theirs).
@@ -592,14 +598,34 @@ func _add_barricades() -> void:
 			var swing: float = widths[k] * sin(deg_to_rad(BARRIER_TURN)) / 2.0
 			var at_z: float = end * (layout.lane_length / 2.0 + setback + depth / 2.0 + swing)
 			var turn: float = deg_to_rad(rng.randf_range(-BARRIER_TURN, BARRIER_TURN))
-			var yaw: float = (0.0 if end < 0.0 else PI) + (PI / 2.0 if turned else 0.0)
-			var placed: Node3D = _add_prop(model, Vector3(x + widths[k] / 2.0, 0.0, at_z), yaw + turn)
-			if BARRIER_LYING.has(id):
-				# on its side: the pole's length runs along the row, its width becomes its height
-				placed.rotation = Vector3(0.0, turn, -PI / 2.0)
-				var along: Vector3 = Vector3(cos(turn), 0.0, -sin(turn))
-				placed.position = Vector3(x + widths[k] / 2.0, natural.x * model.scale.x / 2.0, at_z) - along * (widths[k] / 2.0)
+			_put_barrier(model, id, Vector3(x + widths[k] / 2.0, 0.0, at_z), end, turn)
 			x += widths[k] + BARRIER_GAP + spare * shares[k + 1] / total
+		# what did not fit in the row stands about on the road beyond the end instead
+		var z_far: float = layout.lane_length / 2.0 + FAR_PROPS_START
+		var side: float = 1.0 if rng.randf() < 0.5 else -1.0
+		for id: String in ids:
+			if picked.has(id):
+				continue
+			var width: float = barrier_width(id)
+			var room: float = layout.lane_width / 2.0 - width / 2.0 - 0.5
+			var far_x: float = clampf(side * rng.randf_range(0.2, 1.0) * room, -room, room)
+			var far_turn: float = deg_to_rad(rng.randf_range(-BARRIER_TURN, BARRIER_TURN) * 2.0)
+			_put_barrier(PropModel.by_height(id, BARRIER_HEIGHTS[id]), id, Vector3(far_x, 0.0, end * z_far), end, far_turn)
+			far_props.append(id)
+			side = -side
+			z_far += FAR_PROPS_SPACING
+
+
+## Sets one barrier thing down at `at` (the middle of it), facing the play area at `end`.
+func _put_barrier(model: Node3D, id: String, at: Vector3, end: float, turn: float) -> void:
+	var yaw: float = (0.0 if end < 0.0 else PI) + (PI / 2.0 if BARRIER_TURNED.has(id) else 0.0)
+	var placed: Node3D = _add_prop(model, at, yaw + turn)
+	if BARRIER_LYING.has(id):
+		# on its side: the pole's length runs along the row, its width becomes its height
+		var natural: Vector3 = PropModel.size_of(id)
+		placed.rotation = Vector3(0.0, turn, -PI / 2.0)
+		var along: Vector3 = Vector3(cos(turn), 0.0, -sin(turn))
+		placed.position = Vector3(at.x, natural.x * model.scale.x / 2.0, at.z) - along * (barrier_width(id) / 2.0)
 
 
 ## The owner's three shopfronts (Nena store, vulcanizing, barber shop) with his two houses between them, along both sides of the street, running on past
@@ -614,6 +640,9 @@ func _add_houses() -> void:
 		var z: float = -half_l + HOUSE_SPACING / 2.0
 		while z < half_l:
 			var id: String = BUILDINGS[(variant / 2) % BUILDINGS.size()] if variant % 2 == 0 else FILLER_HOUSES[(variant / 2) % FILLER_HOUSES.size()]
+			if absf(z) > layout.lane_length / 2.0:
+				# beyond the ends of the play area only houses, repeated (no shops, no terminal)
+				id = FILLER_HOUSES[variant % FILLER_HOUSES.size()]
 			if side < 0.0 and absf(z - store_z) < HOUSE_SPACING / 2.0:
 				id = "nena_store"
 				z = store_z
