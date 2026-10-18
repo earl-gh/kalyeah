@@ -78,6 +78,11 @@ func send(peer_id: int, message: Dictionary) -> void:
 func _handle(from: int, message: Dictionary) -> void:
 	var M := NetProtocol.Msg
 	match message["t"] as int:
+		M.DISCOVER_ROOM:
+			var status: String = "incompatible"
+			if message.get("game", "") == "kalyeah" and message.get("v", -1) == NetProtocol.VERSION:
+				status = _discovery_status()
+			send(from, {"t": M.ROOM_DISCOVERED, "game": "kalyeah", "v": NetProtocol.VERSION, "status": status})
 		M.HELLO:
 			_names[from] = rooms.clean_name(message.get("name", "") as String)
 			var member: RoomService.Member = rooms.reconnect(message.get("token", "") as String, from)
@@ -124,6 +129,8 @@ func _handle(from: int, message: Dictionary) -> void:
 		M.PICK_TEAM:
 			if rooms.pick_team(from, message.get("team", 0) as int):
 				_send_room(rooms.room_of_peer(from))
+			else:
+				_error(from, "That team is full or already has your kid. Choose another kid first.")
 		M.SET_READY:
 			if rooms.set_ready(from, message.get("ready", false) as bool):
 				_send_room(rooms.room_of_peer(from))
@@ -139,6 +146,8 @@ func _handle(from: int, message: Dictionary) -> void:
 		M.SET_CHARACTER:
 			if rooms.set_character(from, StringName(message.get("c", "") as String)):
 				_send_room(rooms.room_of_peer(from))
+			else:
+				_error(from, "Choose an available kid. A teammate may already have that one.")
 		M.START:
 			if rooms.start(from):
 				var room: RoomService.Room = rooms.room_of_peer(from)
@@ -155,6 +164,20 @@ func _handle(from: int, message: Dictionary) -> void:
 				_send_room(left)
 		M.LOADED, M.PICK_WEAPONS, M.SWAP_WEAPONS, M.INPUT:
 			_handle_match(from, message)
+
+
+## Discovery never joins or reveals a room code. Only the phone host advertises a room.
+func _discovery_status() -> String:
+	if not auto_join:
+		return "not_hotspot"
+	if rooms.rooms.size() != 1:
+		return "no_room"
+	var room: RoomService.Room = rooms.rooms.values()[0] as RoomService.Room
+	if room.state != RoomService.State.LOBBY:
+		return "in_progress"
+	if room.members.size() >= room.team_size * 2:
+		return "full"
+	return "ready"
 
 
 func _handle_match(from: int, message: Dictionary) -> void:

@@ -81,6 +81,7 @@ func _start_1v1() -> void:
 
 func test_two_clients_create_join_ready_and_start() -> void:
 	_start_1v1()
+	var running: ServerMatch = server.matches.values()[0]
 	assert_eq(a.room["host"], a.player_id)
 	assert_true(a.is_host())
 	assert_false(b.is_host())
@@ -88,10 +89,9 @@ func test_two_clients_create_join_ready_and_start() -> void:
 	assert_eq(a.mirror.players.size(), 2)
 	assert_eq(a.mirror.players[a.player_id].weapons, [&"bato_light", &"lata"] as Array[StringName])
 	assert_eq(b.mirror.players[a.player_id].weapons, [&"bato_light", &"lata"] as Array[StringName], "everyone sees the loadouts")
-	var chars: Dictionary = {}
 	for id: int in a.mirror.players:
-		chars[a.mirror.players[id].character_id] = true
-	assert_eq(chars.size(), 2, "different characters")
+		assert_eq(a.mirror.players[id].character_id, running.sim.players[id].character_id, "the lobby choice reaches the mirror")
+		assert_eq(b.mirror.players[id].character_id, running.sim.players[id].character_id, "both clients agree")
 
 
 func test_wrong_code_is_an_error() -> void:

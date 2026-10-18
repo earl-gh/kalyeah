@@ -46,6 +46,11 @@ func _init(server: GameServer, p_room: RoomService.Room, rules: GameRules, layou
 		_queues[m.player_id] = []
 		_acks[m.player_id] = -1
 	sim.assign_characters()
+	# Apply explicit lobby choices after seeded defaults. set_character swaps a teammate's
+	# random default away, so a later unpicked member cannot displace the chosen kid.
+	for m: RoomService.Member in room.members:
+		if m.character != &"":
+			sim.set_character(m.player_id, m.character)
 	for id: int in sim.players:
 		var loadout: Array[StringName] = sim.random_loadout()
 		sim.set_loadout(id, loadout[0], loadout[1])

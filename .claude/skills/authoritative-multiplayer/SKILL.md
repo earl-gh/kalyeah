@@ -24,7 +24,8 @@ Do not change simulation rules, weapon balance, presentation timing, shaders, or
 
 - Hotspot and Online are the two multiplayer entry paths.
 - Both paths support Create and Join.
-- A created room receives a server-generated, uppercase, 8-character alphanumeric code.
+- Online rooms use a server-generated, uppercase, 8-character alphanumeric code.
+- Hotspot Join verifies the host's active room automatically; never ask for or display a code in that flow. Internal room identifiers are not player input.
 - Hotspot connects to a server on the same hotspot or local Wi-Fi through `ws://`.
 - Online connects to the configured public server through secure WebSocket where configured.
 - The headless server alone decides gameplay outcomes. Clients send inputs and render snapshots.

@@ -23,7 +23,7 @@ func _ready() -> void:
 	profile_button.pressed.connect(profile_pressed.emit)
 	add_child(profile_button)
 	fill(self)
-	quit_button = MenuDialog.make_button("QUIT GAME", "red", 30, Vector2(0.0, 88.0))
+	quit_button = MenuDialog.make_button("QUIT GAME", "grey", 26, Vector2(0.0, 88.0))
 	quit_button.name = "QuitButton"
 	quit_button.pressed.connect(quit_pressed.emit)
 	add_child(quit_button)

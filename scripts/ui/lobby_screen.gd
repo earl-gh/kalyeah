@@ -149,6 +149,8 @@ func _connect_or_send(url: String) -> void:
 		_status.text = "Connecting..."
 		if client.connect_to(url) != OK:
 			_status.text = "Can't reach that address."
+			if _hotspot_view != null:
+				_hotspot_view.show_retry()
 
 
 ## A hotspot room needs no server address and no code. Create starts the room on this phone; Join
@@ -161,6 +163,7 @@ func _submit_hotspot() -> void:
 	var addresses: PackedStringArray = IP.get_local_addresses()
 	if HotspotNet.local_ip(addresses).is_empty():
 		_status.text = "Turn on your hotspot or connect to Wi-Fi first."
+		_hotspot_view.show_retry()
 		return
 	if intent == Intent.CREATE:
 		if Net.start_host() != OK:
@@ -170,7 +173,9 @@ func _submit_hotspot() -> void:
 		_pending = client.create_room.bind(_team_size)
 		_connect_or_send(_connected_url)
 		return
-	_pending = client.join_room.bind(Session.lobby_code)
+	client.close()
+	_hotspot_view.clear_room()
+	_pending = client.join_room.bind("")
 	_status.text = "Looking for the room..."
 	_finder.start(HotspotNet.candidates(addresses, NET_RULES.default_port))
 	set_process(true)
@@ -186,7 +191,8 @@ func _process(delta: float) -> void:
 	elif _finder.failed:
 		_finder.failed = false
 		set_process(false)
-		_status.text = "No room found. Join the host's hotspot first."
+		_status.text = _finder.failure_message
+		_hotspot_view.show_retry()
 
 
 ## Takes our slot in a running match back (after a reload or a long drop).
@@ -220,6 +226,9 @@ func _on_connection_changed(online: bool) -> void:
 	else:
 		_status.text = "Disconnected from the server."
 		_show_room(false)
+		if _hotspot_view != null:
+			_hotspot_view.clear_room()
+			_hotspot_view.show_retry()
 
 
 func _on_welcomed(reconnected: bool) -> void:
@@ -237,6 +246,8 @@ func _on_welcomed(reconnected: bool) -> void:
 
 func _on_error(text: String) -> void:
 	_status.text = text
+	if _hotspot_view != null and client.room.is_empty():
+		_hotspot_view.show_retry()
 
 
 func _on_room_changed(room: Dictionary) -> void:
@@ -246,10 +257,16 @@ func _on_room_changed(room: Dictionary) -> void:
 	Session.reconnect_url = _connected_url
 	Session.save()
 	if _hotspot_view != null:
+		_status.text = ""
 		_hotspot_view.show_room(room, client.player_id)
 		if not _announced_character:
 			_announced_character = true
 			client.set_character(StringName(Session.avatar_id))
+		else:
+			for member: Dictionary in room.get("members", []) as Array:
+				if member.get("player_id", -1) == client.player_id:
+					Session.avatar_id = String(member.get("char", Session.avatar_id))
+					Session.save()
 		return
 	var size: int = room.get("team_size", 1) as int
 	_code_label.text = Session.room_code
@@ -335,6 +352,13 @@ func _build_hotspot() -> void:
 	_hotspot_view.character_chosen.connect(_on_character_chosen)
 	_hotspot_view.team_chosen.connect(_on_team_chosen)
 	_hotspot_view.action_pressed.connect(_on_action)
+	_hotspot_view.retry_pressed.connect(submit)
+	_hotspot_view.best_of_chosen.connect(func(count: int) -> void:
+		if _preview_room.is_empty():
+			client.set_best_of(count)
+		else:
+			_preview_room["best_of"] = count
+			_hotspot_view.show_room(_preview_room, PREVIEW_ME))
 	var gate: Node = (load("res://scenes/ui/orientation_gate.tscn") as PackedScene).instantiate()
 	add_child(gate)
 
@@ -375,12 +399,11 @@ func _on_size_chosen(size: int) -> void:
 
 
 func _on_character_chosen(id: String) -> void:
-	Session.avatar_id = id
-	Session.save()
 	if _preview_room.is_empty():
 		client.set_character(StringName(id))
-		_hotspot_view.show_room(client.room, client.player_id)
 		return
+	Session.avatar_id = id
+	Session.save()
 	_preview_member(PREVIEW_ME)["char"] = id
 	_hotspot_view.show_room(_preview_room, PREVIEW_ME)
 
@@ -422,7 +445,7 @@ func _start_preview() -> void:
 	for i: int in names.size():
 		members.append({"player_id": i + 1, "name": names[i], "team": i % 2, "ready": i > 0, "connected": true, "char": kids[i]})
 	_preview_room = {"code": "K7M2Q9XA", "team_size": 2, "host": PREVIEW_ME, "best_of": 3, "state": 0, "members": members,
-		"can_start": false, "can_start_host": true, "map": &"street"}
+		"can_start": false, "can_start_host": true, "map": &"street", "preview": true}
 	_hotspot_view.show_room(_preview_room, PREVIEW_ME)
 
 
@@ -446,138 +469,4 @@ func _preview_fit(size: int) -> void:
 
 
 func _build() -> void:
-	LobbyWidgets.add_backdrop(self, BACKGROUND)
-	var margin: MarginContainer = MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_top", 28)
-	margin.add_theme_constant_override("margin_bottom", 24)
-	add_child(margin)
-	var column: VBoxContainer = VBoxContainer.new()
-	column.add_theme_constant_override("separation", 16)
-	margin.add_child(column)
-	column.add_child(LobbyWidgets.header("CREATE ROOM" if intent == Intent.CREATE else "JOIN ROOM", _on_back))
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.name = "LobbyScroll"
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	column.add_child(scroll)
-	var card: PanelContainer = PanelContainer.new()
-	card.name = "LobbyCard"
-	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.add_theme_stylebox_override("panel", KalyeahTheme.painted_panel(20.0))
-	scroll.add_child(card)
-	var content: VBoxContainer = VBoxContainer.new()
-	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 16)
-	card.add_child(content)
-	_build_setup(content)
-	_build_room(content)
-	_status = LobbyWidgets.label("", 24, Color("ffb4a8"))
-	_status.name = "Status"
-	_status.custom_minimum_size = Vector2(0.0, 30.0)
-	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(_status)
-	var gate: Node = (load("res://scenes/ui/orientation_gate.tscn") as PackedScene).instantiate()
-	add_child(gate)
-
-
-func _build_setup(parent: Control) -> void:
-	_setup = VBoxContainer.new()
-	_setup.add_theme_constant_override("separation", 10)
-	parent.add_child(_setup)
-	_setup.add_child(LobbyWidgets.field_label("NAME"))
-	_name_edit = LobbyWidgets.edit(Session.player_name, "Player", FONT)
-	_name_edit.max_length = 12
-	_setup.add_child(_name_edit)
-	if intent == Intent.CREATE:
-		_setup.add_child(LobbyWidgets.field_label("TEAM SIZE"))
-		var sizes: HBoxContainer = HBoxContainer.new()
-		sizes.add_theme_constant_override("separation", 8)
-		_setup.add_child(sizes)
-		for size: int in [1, 2, 3]:
-			var button: Button = LobbyWidgets.button("%dv%d" % [size, size], choose_size.bind(size), "grey")
-			LobbyWidgets.make_toggle(button)
-			button.custom_minimum_size = Vector2(0.0, 66.0)
-			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			sizes.add_child(button)
-			_size_buttons.append(button)
-		choose_size(1)
-	elif not Session.lobby_hotspot:
-		_setup.add_child(LobbyWidgets.field_label("ROOM CODE"))
-		_code_edit = LobbyWidgets.edit("", "ABC234XY", FONT)
-		_code_edit.max_length = NET_RULES.passcode_length
-		_code_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_code_edit.add_theme_font_override("font", KalyeahTheme.DISPLAY_FONT)
-		_code_edit.add_theme_font_size_override("font_size", BIG_FONT)
-		_code_edit.text_changed.connect(func(text: String) -> void:
-			var caret: int = _code_edit.caret_column
-			_code_edit.text = text.to_upper()
-			_code_edit.caret_column = caret)
-		_setup.add_child(_code_edit)
-	_go_button = LobbyWidgets.button("CREATE" if intent == Intent.CREATE else "JOIN", submit, "orange")
-	_go_button.custom_minimum_size = Vector2(0, 96)
-	_setup.add_child(_go_button)
-	_rejoin_button = LobbyWidgets.button("REJOIN", rejoin, "blue")
-	_rejoin_button.visible = not Session.reconnect_token.is_empty()
-	_setup.add_child(_rejoin_button)
-
-
-func _build_room(parent: Control) -> void:
-	_room_box = VBoxContainer.new()
-	_room_box.add_theme_constant_override("separation", 12)
-	parent.add_child(_room_box)
-	var code_hint: Label = LobbyWidgets.label("SHARE WITH FRIENDS", 20, KalyeahTheme.TEXT_MUTED)
-	code_hint.theme_type_variation = &"MutedLabel"
-	_room_box.add_child(code_hint)
-	_code_label = LobbyWidgets.label("", BIG_FONT, KalyeahTheme.AMBER)
-	_code_label.theme_type_variation = &"DisplayLabel"
-	_code_label.visible = not Session.lobby_hotspot
-	_room_box.add_child(_code_label)
-	for team: int in 2:
-		var team_card: PanelContainer = PanelContainer.new()
-		var team_style: StyleBoxFlat = KalyeahTheme.surface_box(16, 2, 14.0)
-		team_style.bg_color = Color(KalyeahTheme.INK, 0.72)
-		team_style.border_color = Color(TEAM_COLORS[team], 0.72)
-		team_style.shadow_size = 3
-		team_card.add_theme_stylebox_override("panel", team_style)
-		_room_box.add_child(team_card)
-		var team_column: VBoxContainer = VBoxContainer.new()
-		team_column.add_theme_constant_override("separation", 8)
-		team_card.add_child(team_column)
-		var header: HBoxContainer = HBoxContainer.new()
-		team_column.add_child(header)
-		var name_label: Label = LobbyWidgets.label(TEAM_NAMES[team], FONT, TEAM_COLORS[team])
-		name_label.theme_type_variation = &"SectionLabel"
-		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		header.add_child(name_label)
-		var join_team: Button = LobbyWidgets.button("JOIN", client.pick_team.bind(team), "blue" if team == 0 else "red")
-		join_team.custom_minimum_size = Vector2(104.0, 56.0)
-		header.add_child(join_team)
-		_team_buttons.append(join_team)
-		var list: VBoxContainer = VBoxContainer.new()
-		list.add_theme_constant_override("separation", 4)
-		team_column.add_child(list)
-		_team_lists.append(list)
-	_best_of_label = LobbyWidgets.label("", FONT, KalyeahTheme.CREAM)
-	_room_box.add_child(_best_of_label)
-	var counts: HBoxContainer = HBoxContainer.new()
-	counts.add_theme_constant_override("separation", 8)
-	_room_box.add_child(counts)
-	for count: int in [3, 5, 7]:
-		var choice: Button = LobbyWidgets.button("BO%d" % count, client.set_best_of.bind(count), "grey", 25)
-		LobbyWidgets.make_toggle(choice)
-		choice.custom_minimum_size = Vector2(0.0, 62.0)
-		choice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		counts.add_child(choice)
-		_best_of_buttons[count] = choice
-	_ready_button = LobbyWidgets.button("READY UP", func() -> void: client.set_ready(_ready_button.button_pressed), "grey")
-	LobbyWidgets.make_toggle(_ready_button)
-	_ready_button.custom_minimum_size = Vector2(0, 96)
-	_room_box.add_child(_ready_button)
-	_start_button = LobbyWidgets.button("START MATCH", client.start_match, "orange")
-	_start_button.custom_minimum_size = Vector2(0, 96)
-	_room_box.add_child(_start_button)
-	_room_box.add_child(LobbyWidgets.button("LEAVE ROOM", _on_leave, "red"))
+	LobbyOnlineLayout.new(self).build()

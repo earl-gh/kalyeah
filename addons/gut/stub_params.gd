@@ -10,7 +10,7 @@ var logger = _lgr :
 	set(val): _lgr = val
 
 
-var return_val = GutConstants.NOT_SET :
+var return_val: Variant = GutConstants.NOT_SET :
 	get():
 		if(GutConstants.is_not_set(return_val)):
 			return null
