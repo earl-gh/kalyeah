@@ -22,6 +22,8 @@ class Member extends RefCounted:
 	var reconnect_left: float = 0.0
 	## Secret handed to the client so it can take its slot back after a drop.
 	var token: String = ""
+	## The kid the member picked in the room (cosmetic, shown to the others); &"" = not picked.
+	var character: StringName = &""
 
 
 class Room extends RefCounted:
@@ -30,6 +32,8 @@ class Room extends RefCounted:
 	var host_player_id: int
 	## The match is best of this many points (the host picks it in the lobby).
 	var best_of: int = 0
+	## The street the match is played on (the host picks it; one so far).
+	var map_id: StringName = &"street"
 	var state: State = State.LOBBY
 	var members: Array[Member] = []
 
@@ -46,6 +50,9 @@ class Room extends RefCounted:
 				count += 1
 		return count
 
+
+## The maps a host can pick from.
+const MAP_IDS: Array[StringName] = [&"street"]
 
 var rooms: Dictionary[String, Room] = {}
 ## What a host may pick, and what a new room starts with (GameRules.best_of*).
@@ -136,11 +143,13 @@ func set_ready(peer_id: int, ready: bool) -> bool:
 
 ## GDD: every present player is Ready and has a team; one team has N players and
 ## the other at least N-1 (1v1 needs both players).
-func can_start(room: Room) -> bool:
+## `host_ready`: count the host as ready (the room screen's one button readies and starts at once).
+func can_start(room: Room, host_ready: bool = false) -> bool:
 	if room.state != State.LOBBY:
 		return false
 	for m: Member in room.members:
-		if not m.ready or m.team < 0:
+		var is_ready: bool = m.ready or (host_ready and m.player_id == room.host_player_id)
+		if not is_ready or m.team < 0:
 			return false
 	var a: int = room.team_count(0)
 	var b: int = room.team_count(1)
@@ -159,6 +168,50 @@ func set_best_of(peer_id: int, count: int) -> bool:
 	if not count in best_of_choices:
 		return false
 	room.best_of = count
+	return true
+
+
+## Host only, in the lobby: 1v1, 2v2 or 3v3, if everyone already in the room still fits. Un-readies
+## everyone (the match they agreed to changed).
+func set_team_size(peer_id: int, size: int) -> bool:
+	var room: Room = room_of_peer(peer_id)
+	var m: Member = member_of_peer(peer_id)
+	if m == null or m.player_id != room.host_player_id or room.state != State.LOBBY:
+		return false
+	if size < 1 or size > 3 or size == room.team_size:
+		return false
+	if room.team_count(0) > size or room.team_count(1) > size or room.members.size() > size * 2:
+		return false
+	room.team_size = size
+	for other: Member in room.members:
+		other.ready = false
+		# a member with no team slot yet takes a free one if there is room
+		if other.team < 0:
+			var team: int = 0 if room.team_count(0) <= room.team_count(1) else 1
+			if room.team_count(team) < size:
+				other.team = team
+	return true
+
+
+## Host only, in the lobby: the map the match is played on (one of `MAP_IDS`).
+func set_map(peer_id: int, map_id: StringName) -> bool:
+	var room: Room = room_of_peer(peer_id)
+	var m: Member = member_of_peer(peer_id)
+	if m == null or m.player_id != room.host_player_id or room.state != State.LOBBY:
+		return false
+	if not map_id in MAP_IDS:
+		return false
+	room.map_id = map_id
+	return true
+
+
+## Any member, in the lobby: the kid they will play (one of Session.AVATARS), shown to the others.
+func set_character(peer_id: int, character: StringName) -> bool:
+	var room: Room = room_of_peer(peer_id)
+	var m: Member = member_of_peer(peer_id)
+	if m == null or room.state != State.LOBBY or not String(character) in Session.AVATARS:
+		return false
+	m.character = character
 	return true
 
 
@@ -241,11 +294,12 @@ func describe(room: Room) -> Dictionary:
 	for m: Member in room.members:
 		members.append({
 			"player_id": m.player_id, "name": m.name, "team": m.team,
-			"ready": m.ready, "connected": m.connected,
+			"ready": m.ready, "connected": m.connected, "char": m.character,
 		})
 	return {
 		"code": room.code, "team_size": room.team_size, "host": room.host_player_id, "best_of": room.best_of,
 		"state": room.state, "members": members, "can_start": can_start(room),
+		"can_start_host": can_start(room, true), "map": room.map_id,
 	}
 
 

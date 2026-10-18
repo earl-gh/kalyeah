@@ -158,13 +158,13 @@ func test_the_match_screen_reconnects_by_itself_after_a_drop() -> void:
 	Session.reconnect_url = ""
 
 
-func test_a_hotspot_lobby_asks_for_no_address_and_no_code() -> void:
+func test_a_hotspot_lobby_is_the_room_screen_with_no_form() -> void:
 	Session.lobby_hotspot = true
 	var joining: LobbyScreen = _lobby(LobbyScreen.Intent.JOIN)
 	assert_null(joining.find_child("ServerField", true, false), "no address to type on a hotspot")
-	assert_null(joining._code_edit, "no room code to type either")
-	var creating: LobbyScreen = _lobby(LobbyScreen.Intent.CREATE)
-	assert_false(creating._code_label.visible, "and no code to show")
+	assert_null(joining.find_child("LobbyCard", true, false), "no form: the room screen is all there is")
+	assert_not_null(joining._hotspot_view, "the hotspot room screen")
+	assert_false(joining._hotspot_view.has_room(), "nothing to show until a room exists")
 	Session.lobby_hotspot = false
 
 

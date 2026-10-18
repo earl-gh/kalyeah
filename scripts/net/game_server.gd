@@ -130,6 +130,15 @@ func _handle(from: int, message: Dictionary) -> void:
 		M.SET_BEST_OF:
 			if rooms.set_best_of(from, message.get("n", 0) as int):
 				_send_room(rooms.room_of_peer(from))
+		M.SET_TEAM_SIZE:
+			if rooms.set_team_size(from, message.get("n", 0) as int):
+				_send_room(rooms.room_of_peer(from))
+		M.SET_MAP:
+			if rooms.set_map(from, StringName(message.get("map", "") as String)):
+				_send_room(rooms.room_of_peer(from))
+		M.SET_CHARACTER:
+			if rooms.set_character(from, StringName(message.get("c", "") as String)):
+				_send_room(rooms.room_of_peer(from))
 		M.START:
 			if rooms.start(from):
 				var room: RoomService.Room = rooms.room_of_peer(from)

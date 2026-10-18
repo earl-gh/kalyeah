@@ -4,6 +4,8 @@ extends Control
 ## spacing and focus states come from KalyeahTheme so every modal reads as one system.
 
 signal closed
+## Emitted once the dialog is in the tree and showing.
+signal opened
 
 const POP_SECONDS: float = 0.22
 const DIM: Color = Color(0.01, 0.025, 0.06, 0.76)
@@ -25,6 +27,8 @@ static func create(title: String, width: float = 600.0) -> MenuDialog:
 	var dialog: MenuDialog = MenuDialog.new()
 	dialog._width = width
 	dialog.name = "MenuDialog"
+	# above everything on the screen, including the main screen's carousel cards (z_index up to 10)
+	dialog.z_index = 100
 	dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dialog.mouse_filter = Control.MOUSE_FILTER_STOP
 	var dim: ColorRect = ColorRect.new()
@@ -60,6 +64,7 @@ func open(parent: Node) -> void:
 	tween.tween_property(panel, "scale", Vector2.ONE, POP_SECONDS).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	# the card is centred once it has its size: pivot again next frame
 	_pivot_later.call_deferred()
+	opened.emit()
 
 
 func _pivot_later() -> void:

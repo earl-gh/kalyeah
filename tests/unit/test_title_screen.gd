@@ -419,16 +419,28 @@ func test_safe_insets_are_never_negative_or_huge() -> void:
 		assert_between(value, 0.0, 120.0)
 
 
-func test_hotspot_creates_and_joins_without_an_address_or_code() -> void:
+func test_hotspot_create_opens_the_checking_dialog() -> void:
+	var screen: TitleScreen = _screen()
+	screen.primary_button.pressed.emit()
+	assert_not_null(screen.dialog, "a dialog")
+	assert_eq(screen.dialog.name, "HotspotCheckDialog")
+	assert_true(screen.dialog.is_open)
+
+
+func test_hotspot_join_asks_for_the_code_in_eight_boxes_then_opens_the_lobby() -> void:
 	var screen: TitleScreen = _screen()
 	var opened: Array = []
 	screen.open_lobby_action = func(intent: int) -> void: opened.append(intent)
-	screen.primary_button.pressed.emit()
-	assert_true(Session.lobby_hotspot, "the lobby is in hotspot mode")
-	assert_eq(Session.lobby_intent, LobbyScreen.Intent.CREATE)
 	screen.secondary_button.pressed.emit()
+	assert_eq(screen.dialog.name, "HotspotJoinDialog")
+	var input: HotspotCodeInput = screen.dialog.get_meta("input") as HotspotCodeInput
+	assert_eq(input.fields.size(), 8)
+	input.set_code("k7m2q9xa")
+	(screen.dialog.find_child("Join", true, false) as Button).pressed.emit()
+	assert_true(Session.lobby_hotspot, "the lobby is in hotspot mode")
 	assert_eq(Session.lobby_intent, LobbyScreen.Intent.JOIN)
-	assert_eq(opened.size(), 2)
+	assert_eq(Session.lobby_code, "K7M2Q9XA")
+	assert_eq(opened.size(), 1)
 
 
 func test_online_opens_the_lobby_on_the_game_server() -> void:

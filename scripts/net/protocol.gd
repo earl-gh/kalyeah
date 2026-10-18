@@ -13,6 +13,8 @@ enum Msg {
 	PICK_WEAPONS, SWAP_WEAPONS, INPUT, SET_BEST_OF,
 	# server -> client
 	WELCOME, ERROR, ROOM, MATCH_LOADING, MATCH_PLAY, SNAPSHOT, EVENTS,
+	# client -> server, added later (appended so the numbers above stay the same)
+	SET_TEAM_SIZE, SET_MAP, SET_CHARACTER,
 }
 
 

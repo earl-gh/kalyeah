@@ -141,3 +141,54 @@ func test_only_the_host_picks_best_of_3_5_or_7_in_the_lobby() -> void:
 	assert_eq(room.best_of, 7)
 	assert_false(service.set_best_of(10, 4), "only 3, 5 or 7")
 	assert_eq(service.describe(room)["best_of"], 7, "everyone in the room sees it")
+
+
+func test_the_host_changes_the_team_size_and_everyone_is_unreadied() -> void:
+	var service: RoomService = _service()
+	var room: RoomService.Room = service.create_room(1, "A", 1)
+	service.join(room.code, 2, "B")
+	service.set_ready(2, true)
+	assert_false(service.set_team_size(2, 2), "only the host")
+	assert_true(service.set_team_size(1, 3))
+	assert_eq(room.team_size, 3)
+	assert_false(room.member(room.members[1].player_id).ready, "the match changed, so Ready is cleared")
+	assert_false(service.set_team_size(1, 4), "1v1, 2v2 or 3v3 only")
+	assert_false(service.set_team_size(1, 3), "no change is no change")
+
+
+func test_the_team_size_cannot_shrink_below_the_people_in_the_room() -> void:
+	var service: RoomService = _service()
+	var room: RoomService.Room = service.create_room(1, "A", 3)
+	service.join(room.code, 2, "B")
+	service.join(room.code, 3, "C")
+	assert_false(service.set_team_size(1, 1), "three players do not fit 1v1")
+	assert_true(service.set_team_size(1, 2))
+
+
+func test_the_host_picks_the_map_from_the_list() -> void:
+	var service: RoomService = _service()
+	var room: RoomService.Room = service.create_room(1, "A", 1)
+	service.join(room.code, 2, "B")
+	assert_eq(room.map_id, &"street")
+	assert_false(service.set_map(2, &"street"), "only the host")
+	assert_false(service.set_map(1, &"nowhere"), "only a listed map")
+	assert_true(service.set_map(1, &"street"))
+	assert_eq(service.describe(room)["map"], &"street")
+
+
+func test_a_member_picks_a_kid_and_the_others_see_it() -> void:
+	var service: RoomService = _service()
+	var room: RoomService.Room = service.create_room(1, "A", 1)
+	assert_true(service.set_character(1, &"toni"))
+	assert_false(service.set_character(1, &"nobody"), "only a real kid")
+	assert_eq(service.describe(room)["members"][0]["char"], &"toni")
+
+
+func test_can_start_can_count_the_host_as_ready() -> void:
+	var service: RoomService = _service()
+	var room: RoomService.Room = service.create_room(1, "A", 1)
+	service.join(room.code, 2, "B")
+	service.set_ready(2, true)
+	assert_false(service.can_start(room), "the host has not readied")
+	assert_true(service.can_start(room, true), "but the one button readies and starts")
+	assert_true(service.describe(room)["can_start_host"])
