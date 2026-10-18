@@ -57,3 +57,14 @@ func test_respawn_swap_starts_with_the_current_loadout() -> void:
 	assert_true(pick.can_confirm())
 	pick.step(10.0, _rng())
 	assert_eq(pick.picks, [&"jacks", &"lata"] as Array[StringName], "timeout keeps your weapons")
+
+
+func test_explicit_slot_replacement_preserves_other_weapon_and_rejects_invalid_picks() -> void:
+	var pick: WeaponPick = WeaponPick.new(IDS, 10.0, [&"lata", &"jacks"] as Array[StringName])
+	assert_true(pick.replace_slot(1, &"bato_light"))
+	assert_eq(pick.picks, [&"lata", &"bato_light"] as Array[StringName])
+	assert_false(pick.replace_slot(0, &"bato_light"))
+	assert_false(pick.replace_slot(0, &"missing"))
+	assert_false(pick.replace_slot(2, &"jacks"))
+	pick.confirm()
+	assert_false(pick.replace_slot(0, &"jacks"))

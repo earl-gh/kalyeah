@@ -1,4 +1,6 @@
 extends GutTest
+
+var _saved_loadout: Array[StringName] = []
 ## The lobby and the online match screen against a real in-process server.
 
 var RULES: GameRules = load("res://data/rules/game_rules.tres") as GameRules
@@ -16,6 +18,8 @@ var screens: Array[Node] = []
 
 
 func before_each() -> void:
+	_saved_loadout = Session.saved_loadout.duplicate()
+	Session.saved_loadout.clear()
 	server = GameServer.new(RULES, LAYOUT, NET, 9)
 	assert_eq(server.listen(PORT), OK)
 	clients.clear()
@@ -23,6 +27,8 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	Session.saved_loadout = _saved_loadout
+	Session.save()
 	for client: GameClient in clients:
 		client.close()
 	server.stop()
@@ -120,6 +126,7 @@ func test_online_match_screen_picks_then_plays_against_the_server() -> void:
 	(views[1].get_node("%PickScreen") as WeaponPickScreen).tap(&"bola")
 	(views[1].get_node("%PickScreen") as WeaponPickScreen).press_ready()
 	assert_true(_until(func() -> bool: return not views[0].is_picking() and not views[1].is_picking()), "both playing")
+	assert_eq(views[0].hud.again_button.text, "RETURN HOME")
 	assert_false(views[0].hud.hurt_button.visible, "no practice buttons online")
 	var server_sim: MatchSim = server.matches.values()[0].sim
 	assert_eq(server_sim.phase, MatchSim.Phase.INTRO, "the opening show plays first online too")
@@ -155,7 +162,18 @@ func test_the_match_screen_reconnects_by_itself_after_a_drop() -> void:
 	screens.append(view)
 	var mirror: MatchSim = guest.mirror
 	guest.close()
+	assert_true(view.hud.connection_blocked)
+	assert_true(view.hud.feedback.connection.visible)
+	assert_false(view.controls_active())
 	assert_true(_until(func() -> bool: return guest.is_online() and guest.stage != "", 8.0), "back online")
+	if view._awaiting_reconnect_welcome:
+		var before: int = view._input_tick
+		view._step_once(FRAME)
+		assert_eq(view._input_tick, before, "socket recovery cannot send input before WELCOME")
+	assert_true(_until(func() -> bool: return not view._awaiting_reconnect_welcome), "server confirms restored slot")
+	assert_false(view.hud.connection_blocked)
+	assert_false(view.hud.feedback.connection.visible)
+	assert_false(view.controls_active(), "still selecting weapons after reconnect")
 	assert_eq(guest.mirror, mirror, "same mirror, so the screen keeps working")
 	var member: RoomService.Member = server.rooms.rooms.values()[0].member(guest.player_id)
 	assert_true(_until(func() -> bool: return member.connected, 3.0), "the server gave the slot back")

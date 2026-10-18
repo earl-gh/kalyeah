@@ -254,7 +254,7 @@ func _setup_online() -> void:
 
 func _step_once(dt: float) -> void:
 	if online:
-		if _resume_rejected or not client.is_online():
+		if _resume_rejected or _awaiting_reconnect_welcome or not client.is_online():
 			return
 		_input_tick += 1
 		client.send_input(input.build(_flip(), _mouse_aim, _input_tick), dt)
@@ -339,12 +339,15 @@ func _on_stage_changed(stage: String) -> void:
 func _on_connection_changed(is_up: bool) -> void:
 	if is_up:
 		_reconnect_left = -1.0
-		show_banner("Restoring match..." if _awaiting_reconnect_welcome else "Back online!")
+		if _awaiting_reconnect_welcome:
+			hud.set_connection("Restoring match…")
+		return
+	if _resume_rejected:
 		return
 	_cancel_local_input()
+	hud.set_connection("Connection lost\nReconnecting…")
 	_awaiting_reconnect_welcome = true
 	_resume_rejected = false
-	show_banner("Connection lost\nReconnecting...")
 	_reconnect_left = 0.0
 
 
@@ -353,11 +356,13 @@ func _on_welcomed(reconnected: bool) -> void:
 		return
 	_awaiting_reconnect_welcome = false
 	if reconnected:
+		hud.set_connection("")
+		_set_controls_active(not is_picking() and not hud.menu.visible)
 		show_banner("Back online!")
 		return
 	_resume_rejected = true
 	_set_controls_active(false)
-	show_banner("Match expired\nExit to reconnect")
+	hud.set_connection("Match unavailable", true)
 
 
 func _try_reconnect(delta: float) -> void:

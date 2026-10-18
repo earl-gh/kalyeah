@@ -75,6 +75,9 @@ var settings_button: TextureButton
 var menu: MatchMenu
 var banner: Label
 
+var feedback: MatchFeedback
+var connection_blocked: bool = false
+
 var _banner_left: float = 0.0
 
 
@@ -91,6 +94,7 @@ func set_top_inset(pixels: float) -> void:
 
 
 func set_controls_active(active: bool) -> void:
+	active = active and not connection_blocked
 	if not active:
 		cancel_controls()
 	joystick.set_process_input(active)
@@ -132,14 +136,15 @@ func sync_player(sim: MatchSim, player: PlayerState, watched: int, pick_open: bo
 	tagged_panel.sync(sim, player, watched, pick_open)
 	# while you wait in the box the controls are hidden so the card sits alone at the bottom
 	# no buttons while you wait in the box or during the opening show
-	var playing: bool = not player.tagged and sim.phase != MatchSim.Phase.INTRO
+	var playing: bool = not player.tagged and sim.phase == MatchSim.Phase.PLAYING and not pick_open and not connection_blocked
 	for button: AimButton in weapon_buttons:
 		button.visible = playing
 	joystick.visible = playing
 	if not playing:
 		joystick.release()
 	# disabled while on cooldown too: no pressing or precasting until ready
-	var weapons_off: bool = player.tagged or not player.effects.can_cast()
+	var weapons_off: bool = not playing or not player.effects.can_cast()
+	feedback.sync_hint(player, joystick, aim_buttons, playing)
 	for slot: int in weapon_buttons.size():
 		var button: AimButton = weapon_buttons[slot]
 		if slot >= player.weapons.size():
@@ -233,7 +238,7 @@ func _build() -> void:
 	overhead = OverheadHud.new()
 	_place(overhead, Vector4(0, 0, 1, 1), Vector4.ZERO)
 	add_child(overhead)
-	_build_top_row()
+	MatchHudTop.build(self)
 	cancel_zone = _build_cancel_zone()
 	var weapon_one: AimButton = _aim_button()
 	var weapon_two: AimButton = _aim_button()
@@ -270,7 +275,7 @@ func _build() -> void:
 	swap_button = tagged_panel.swap_button
 	tagged_panel.swap_pressed.connect(swap_pressed.emit)
 	tagged_panel.watch_requested.connect(watch_requested.emit)
-	_build_intro_bar()
+	MatchHudTop.build_intro(self)
 	# last, so it draws over the skill buttons
 	menu = MatchMenu.new()
 	add_child(menu)
@@ -279,6 +284,9 @@ func _build() -> void:
 	menu.status_pressed.connect(status_test_pressed.emit)
 	menu.exit_pressed.connect(exit_pressed.emit)
 	menu.closed.connect(set_controls_active.bind(true))
+	feedback = MatchFeedback.new()
+	add_child(feedback)
+	feedback.return_home.connect(exit_pressed.emit)
 
 
 ## The stick at the bottom left, weapon 1 and weapon 2 side by side at the bottom right.
@@ -300,64 +308,6 @@ func _put(control: Control, from_right: bool, at: Vector2, extent: Vector2) -> v
 	var high: float = near + half
 	_place(control, Vector4(edge, 1, edge, 1), Vector4(
 		minf(low, high), -at.y - extent.y / 2.0, maxf(low, high), -at.y + extent.y / 2.0))
-
-
-func _build_top_row() -> void:
-	top = Control.new()
-	_place(top, Vector4(0, 0, 1, 0), Vector4(0, 0, 0, 520))
-	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(top)
-	# left: the tall street minimap, then the settings button beside it (top aligned)
-	minimap = LaneMinimap.new()
-	_place(minimap, Vector4(0, 0, 0, 0), Vector4(MARGIN, TOP_ROW_Y, MARGIN + MINIMAP_SIZE.x, TOP_ROW_Y + MINIMAP_SIZE.y))
-	minimap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	top.add_child(minimap)
-	settings_button = TextureButton.new()
-	settings_button.texture_normal = Icons.art(&"gear")
-	settings_button.ignore_texture_size = true
-	settings_button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-	var gear_x: float = MARGIN * 1.6 + MINIMAP_SIZE.x
-	_place(settings_button, Vector4(0, 0, 0, 0), Vector4(gear_x, TOP_ROW_Y, gear_x + GEAR_SIZE, TOP_ROW_Y + GEAR_SIZE))
-	settings_button.pressed.connect(toggle_menu)
-	top.add_child(settings_button)
-	# under the minimap: the TAGGED!/RESCUED! feed
-	feed_box = VBoxContainer.new()
-	var feed_top: float = TOP_ROW_Y + MINIMAP_SIZE.y + 12.0
-	_place(feed_box, Vector4(0, 0, 0, 0), Vector4(MARGIN, feed_top, MARGIN + FEED_SIZE.x, feed_top + FEED_SIZE.y * FEED_MAX + 12.0))
-	feed_box.add_theme_constant_override("separation", 6)
-	feed_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	top.add_child(feed_box)
-	# right: the score card (points and the match clock)
-	scoreboard = Scoreboard.new()
-	_place(scoreboard, Vector4(1, 0, 1, 0), Vector4(-MARGIN - SCORE_SIZE.x, TOP_ROW_Y, -MARGIN, TOP_ROW_Y + SCORE_SIZE.y))
-	scoreboard.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	top.add_child(scoreboard)
-
-
-## The opening show's banner: a dark band at the bottom with the goal in gold.
-func _build_intro_bar() -> void:
-	intro_bar = ColorRect.new()
-	(intro_bar as ColorRect).color = Color(0.05, 0.04, 0.08, 0.72)
-	_place(intro_bar, Vector4(0, 1, 1, 1), Vector4(0, -260, 0, -120))
-	intro_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	intro_bar.visible = false
-	add_child(intro_bar)
-	intro_title = Label.new()
-	intro_title.theme_type_variation = &"DisplayLabel"
-	_place(intro_title, Vector4(0, 0, 1, 0), Vector4(0, 18, 0, 78))
-	intro_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	intro_title.add_theme_font_size_override("font_size", 40)
-	intro_title.add_theme_color_override("font_color", Color(1.0, 0.82, 0.25))
-	intro_title.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.1))
-	intro_title.add_theme_constant_override("outline_size", 10)
-	intro_bar.add_child(intro_title)
-	intro_sub = Label.new()
-	_place(intro_sub, Vector4(0, 0, 1, 0), Vector4(0, 80, 0, 120))
-	intro_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	intro_sub.add_theme_font_size_override("font_size", 26)
-	intro_sub.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.1))
-	intro_sub.add_theme_constant_override("outline_size", 6)
-	intro_bar.add_child(intro_sub)
 
 
 ## Shows the opening show's banner (`title`, `subtitle`), or hides it with "".
@@ -439,10 +389,8 @@ func _aim_button() -> AimButton:
 	return button
 
 
-func _skill_button(icon: StringName, label: String) -> TouchButton:
-	var button: TouchButton = TouchButton.new()
-	button.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.icon_id = icon
-	button.label_text = label
-	add_child(button)
-	return button
+func set_connection(text: String, terminal: bool = false) -> void:
+	connection_blocked = not text.is_empty()
+	feedback.show_connection(text, terminal)
+	if connection_blocked:
+		set_controls_active(false)

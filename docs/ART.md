@@ -85,3 +85,8 @@ The current art is a first pass built **in code**: procedural meshes, vector ico
 ## Room-flow UI polish
 
 Retain Bungee and Source Sans 3. The hotspot header has no room code. Replace the large empty map panel with a compact Agawan Base header; give team names, You/Host/Ready states and character choice more space. Essential room targets are 88+ design pixels high. Character cards scroll horizontally and reuse the owner's face art across the lobby and character book, avoiding cropped model portraits. Content can scroll independently of Start/Ready. The preview label is persistent; Settings uses a subdued Quit action. No new artwork is generated.
+
+
+### Loadout readability and control feedback
+
+Loadout setup uses an opaque navy surface, amber selected slots, the existing painted weapon art, and scrollable 3:4 character cards. Descriptions use 26 px body text at the 720 px design width; weapon names use 28 px and statistics 24 px. Weapon cards grow with wrapped content. Slots remain above the scrolling list, with an 88 px confirmation action below it. The match HUD shows one contextual hint above the controls for auto-run, aim/cancel or casting restrictions. Connection recovery uses a persistent central notice until server confirmation.

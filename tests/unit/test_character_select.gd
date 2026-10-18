@@ -1,4 +1,6 @@
 extends GutTest
+
+var _saved_loadout: Array[StringName] = []
 ## The character and weapon select: six 3:4 profile cards, a tab per street game, weapon cards
 ## (art | name, description below), and the kid you pick is the kid you play.
 
@@ -12,10 +14,13 @@ func _rules() -> GameRules:
 
 
 func before_each() -> void:
+	_saved_loadout = Session.saved_loadout.duplicate()
+	Session.saved_loadout.clear()
 	_saved_avatar = Session.avatar_id
 
 
 func after_each() -> void:
+	Session.saved_loadout = _saved_loadout
 	Session.avatar_id = _saved_avatar
 	Session.save()
 
@@ -74,7 +79,9 @@ func test_a_weapon_card_has_art_then_the_name_with_its_description_below() -> vo
 	var description: Label = card.find_child("Description", true, false) as Label
 	assert_false(description.text.is_empty(), "a description")
 	var name_label: Label = card.find_children("*", "Label", true, false)[0] as Label
-	assert_eq(name_label.text, (load("res://data/weapons/lata.tres") as WeaponDef).display_name)
+	var def: WeaponDef = load("res://data/weapons/lata.tres") as WeaponDef
+	assert_string_contains(name_label.text, def.display_name)
+	assert_string_contains(name_label.text, def.kind_label())
 	await wait_frames(2)
 	assert_lt(art.global_position.x, name_label.global_position.x, "the art is on the left")
 	assert_gt(description.global_position.y, name_label.global_position.y, "the description is below the name")
@@ -195,3 +202,45 @@ func test_the_respawn_swap_screen_only_changes_weapons() -> void:
 	var before: StringName = screen.character_id
 	screen.pick_character(&"ligaya")
 	assert_eq(screen.character_id, before, "no kid change in the box")
+
+
+func test_confirmed_pair_is_remembered_and_validated_on_next_setup() -> void:
+	var practice: PracticeMatch = _picking()
+	var screen: WeaponPickScreen = _screen(practice)
+	screen.tap(&"lata")
+	screen.tap(&"trumpo")
+	screen.press_ready()
+	assert_eq(Session.saved_loadout, [&"lata", &"trumpo"] as Array[StringName])
+	var saved: ConfigFile = ConfigFile.new()
+	assert_eq(saved.load(Session.SAVE_PATH), OK)
+	assert_eq(saved.get_value("player", "loadout"), Session.saved_loadout)
+	var next: WeaponPickScreen = _screen(_picking())
+	assert_eq(next.pick.picks, Session.saved_loadout)
+	next.select_slot(0)
+	next.tap(&"jacks")
+	assert_eq(next.pick.picks, [&"jacks", &"trumpo"] as Array[StringName])
+	assert_eq(Session.saved_loadout, [&"lata", &"trumpo"] as Array[StringName], "changes are saved only after confirmation")
+	Session.saved_loadout = [&"missing", &"lata", &"lata", &"jacks"]
+	assert_eq(Session.loadout_for([&"lata", &"jacks"] as Array[StringName]), [&"lata", &"jacks"] as Array[StringName])
+
+
+func test_multiplayer_pick_keeps_timeout_while_practice_does_not() -> void:
+	var screen: WeaponPickScreen = autofree(WeaponPickScreen.new()) as WeaponPickScreen
+	add_child(screen)
+	var ids: Array[StringName] = []
+	for def: WeaponDef in _rules().weapons:
+		ids.append(def.id)
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	screen.open(WeaponPick.new(ids, 1.0), _rules().weapons, "", rng)
+	screen.tick(2.0)
+	assert_false(screen.visible)
+	assert_eq(screen.pick.picks.size(), 2)
+
+
+func test_weapon_statistics_preserve_fractional_range_and_damage_units() -> void:
+	var heavy: WeaponDef = load("res://data/weapons/gunting_heavy.tres") as WeaponDef
+	assert_string_contains(LoadoutCards.stat_line(heavy), "Range 3.5m")
+	var light: WeaponDef = load("res://data/weapons/gunting_light.tres") as WeaponDef
+	assert_string_contains(LoadoutCards.stat_line(light), "4 dmg / snip")
+	var field: WeaponDef = load("res://data/weapons/jacks.tres") as WeaponDef
+	assert_string_contains(LoadoutCards.stat_line(field), "3 dmg / 0.5s")
