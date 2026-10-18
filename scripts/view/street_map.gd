@@ -94,19 +94,20 @@ const OBSTACLE_MODELS: Dictionary[StringName, String] = {
 }
 const COVER_HEIGHT: float = 1.15
 const POST_HEIGHT: float = 8.5
-## The barrier rows across both ends: every street thing at its real height (m), side by side
+## The barrier rows across both ends: every street thing at its real height (m), in proportion to
+## the kids (who stand 1.85 m, so a real thing is about 1.4 times its true size), side by side
 ## in this order (the far end starts half way along, so the two rows differ).
 const BARRIER_HEIGHTS: Dictionary[String, float] = {
-	"fishball_cart": 2.1, "tricycle": 2.0, "bench": 0.9, "crates": 1.1, "sacks": 1.2, "school_zone": 1.1,
-	"basketball_pole": 3.2, "ebike": 1.5, "truck_wheels": 0.8, "sewing_machine": 1.0, "ironing_board": 0.9,
-	"no_id_no_entry": 1.5, "rooster_tent": 1.3,
+	"fishball_cart": 2.0, "tricycle": 2.3, "bench": 0.7, "crates": 0.8, "sacks": 0.9, "school_zone": 1.8,
+	"basketball_pole": 4.2, "ebike": 1.6, "truck_wheels": 1.4, "sewing_machine": 1.1, "ironing_board": 1.0,
+	"no_id_no_entry": 1.7, "rooster_tent": 1.4,
 }
 ## Things whose long side is their depth: they are turned a quarter so the long side faces the play area.
 const BARRIER_TURNED: Array[String] = ["tricycle"]
 ## The nanay on the sidewalk by the sari-sari store, outside the play area, facing the street.
 ## Parked beyond the barrier rows and on the sidewalk, outside the play area (heights in metres).
-const JEEP_HEIGHT: float = 2.5
-const PEDICAB_HEIGHT: float = 2.0
+const JEEP_HEIGHT: float = 2.8
+const PEDICAB_HEIGHT: float = 2.4
 const ICE_CREAM_CART_HEIGHT: float = 2.1
 const NANAY_HEIGHT: float = 2.2
 const NANAY_SWAY_DEGREES: float = 4.0
@@ -571,15 +572,17 @@ func _add_barricades() -> void:
 			var depth: float = (natural.x if turned else natural.z) * model.scale.z
 			# set down by hand: a little in or out of line and a little turned
 			var setback: float = BARRIER_SETBACK + rng.randf_range(0.0, BARRIER_JITTER)
-			var at_z: float = end * (layout.lane_length / 2.0 + setback + depth / 2.0)
+			# turning a long thing swings its corners toward the play area: leave room for that
+			var swing: float = widths[k] * sin(deg_to_rad(BARRIER_TURN)) / 2.0
+			var at_z: float = end * (layout.lane_length / 2.0 + setback + depth / 2.0 + swing)
 			var turn: float = deg_to_rad(rng.randf_range(-BARRIER_TURN, BARRIER_TURN))
 			var yaw: float = (0.0 if end < 0.0 else PI) + (PI / 2.0 if turned else 0.0)
 			_add_prop(model, Vector3(x + widths[k] / 2.0, 0.0, at_z), yaw + turn)
 			x += widths[k] + BARRIER_GAP + spare * shares[k + 1] / total
 
 
-## The owner's three shopfronts (Nena store, vulcanizing, barber shop) along both sides and across
-## both far ends, one of them (the Nena store) where the sari-sari store stood.
+## The owner's three shopfronts (Nena store, vulcanizing, barber shop) along both sides of the street, running on past
+## the ends (none across the ends), one of them (the Nena store) where the sari-sari store stood.
 func _add_houses() -> void:
 	var half_w: float = layout.lane_width / 2.0
 	var half_l: float = layout.lane_length / 2.0 + END_REACH
@@ -601,15 +604,6 @@ func _add_houses() -> void:
 			_add_prop(PropModel.make(id, Vector3.ONE * scale_to), Vector3(side * (front + depth / 2.0 + 0.2), 0.0, z), yaw)
 			variant += 1
 			z += HOUSE_SPACING
-	# the street ends in more shopfronts, facing back up the street
-	for end: float in [-1.0, 1.0]:
-		var x: float = -half_w - 2.0
-		while x < half_w + 3.0:
-			var id: String = BUILDINGS[variant % BUILDINGS.size()]
-			var scale_to: float = BUILDING_WIDTH / PropModel.size_of(id).x
-			_add_prop(PropModel.make(id, Vector3.ONE * scale_to), Vector3(x, 0.0, end * (half_l + 2.2)), 0.0 if end < 0.0 else PI)
-			variant += 1
-			x += HOUSE_SPACING
 
 
 ## Life around the street (no power poles or bunting, owner):
