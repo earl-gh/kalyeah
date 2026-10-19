@@ -15,16 +15,19 @@ signal opened
 const POP_SECONDS: float = 0.22
 const DIM: Color = Color(0.01, 0.025, 0.06, 0.76)
 const TITLE_COLOR: Color = KalyeahTheme.CREAM
-const TITLE_SIZE: int = 44
-const TEXT_SIZE: int = 28
+const TITLE_SIZE: int = UiMetrics.TITLE
+const TEXT_SIZE: int = UiMetrics.BODY
 const HINT_COLOR: Color = KalyeahTheme.TEXT_MUTED
 
 var panel: PanelContainer
 var body: VBoxContainer
 var title_label: Label
 var is_open: bool = true
+## HUD menus retain wired controls across repeated opens. Ordinary dialogs free on close.
+var persistent: bool = false
 
 var _width: float = 600.0
+var _safe: MarginContainer
 
 
 ## A dialog with `title`, `width` px wide (in the 720 px design width).
@@ -41,17 +44,27 @@ static func create(title: String, width: float = 600.0) -> MenuDialog:
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	dialog.add_child(dim)
+	dialog._safe = MarginContainer.new()
+	dialog._safe.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dialog.add_child(dialog._safe)
 	var center: CenterContainer = CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog.add_child(center)
+	dialog._safe.add_child(center)
 	dialog.panel = PanelContainer.new()
 	dialog.panel.custom_minimum_size = Vector2(width, 0.0)
-	dialog.panel.add_theme_stylebox_override("panel", KalyeahTheme.painted_panel(36.0))
+	dialog.panel.add_theme_stylebox_override("panel", KalyeahTheme.painted_panel(UiMetrics.PAGE_MARGIN))
 	center.add_child(dialog.panel)
 	dialog.body = VBoxContainer.new()
-	dialog.body.add_theme_constant_override("separation", 20)
-	dialog.panel.add_child(dialog.body)
+	dialog.body.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.name = "DialogScroll"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	dialog.panel.add_child(scroll)
+	dialog.body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(dialog.body)
+	dialog.body.minimum_size_changed.connect(dialog._fit.call_deferred)
+	dialog.resized.connect(dialog._fit.call_deferred)
 	dialog.title_label = dialog.add_label(title, TITLE_SIZE, TITLE_COLOR, HORIZONTAL_ALIGNMENT_LEFT)
 	dialog.title_label.theme_type_variation = &"DisplayLabel"
 	return dialog
@@ -60,6 +73,7 @@ static func create(title: String, width: float = 600.0) -> MenuDialog:
 ## Shows the dialog over `parent` with a short pop.
 func open(parent: Node) -> void:
 	parent.add_child(self)
+	_fit()
 	is_open = true
 	panel.pivot_offset = panel.size / 2.0
 	panel.scale = Vector2.ONE * 0.88
@@ -83,6 +97,9 @@ func close(animate: bool = true) -> void:
 		return
 	is_open = false
 	closed.emit()
+	if persistent:
+		hide()
+		return
 	if animate and is_inside_tree():
 		var tween: Tween = create_tween().set_parallel(true)
 		tween.tween_property(self, "modulate:a", 0.0, POP_SECONDS * 0.7)
@@ -92,7 +109,7 @@ func close(animate: bool = true) -> void:
 		queue_free()
 
 
-func add_label(text: String, size: int = TEXT_SIZE, color: Color = Color.WHITE, align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_CENTER) -> Label:
+func add_label(text: String, size: int = TEXT_SIZE, color: Color = Color.WHITE, align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT) -> Label:
 	var label: Label = Label.new()
 	label.text = text
 	label.horizontal_alignment = align
@@ -105,7 +122,7 @@ func add_label(text: String, size: int = TEXT_SIZE, color: Color = Color.WHITE, 
 
 
 func add_hint(text: String) -> Label:
-	var label: Label = add_label(text, 22, HINT_COLOR)
+	var label: Label = add_label(text, UiMetrics.DETAIL, HINT_COLOR)
 	label.theme_type_variation = &"MutedLabel"
 	label.add_theme_constant_override("outline_size", 0)
 	return label
@@ -151,3 +168,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 		close()
+
+
+func _fit() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	LobbyWidgets.apply_safe_area(_safe, UiMetrics.PAGE_MARGIN, UiMetrics.PAGE_MARGIN)
+	var available: Vector2 = size - Vector2(
+		_safe.get_theme_constant("margin_left") + _safe.get_theme_constant("margin_right"),
+		_safe.get_theme_constant("margin_top") + _safe.get_theme_constant("margin_bottom"))
+	panel.custom_minimum_size = Vector2(minf(_width, available.x), minf(body.get_combined_minimum_size().y + UiMetrics.PAGE_MARGIN * 2.0, available.y))
+
+
+func reopen() -> void:
+	is_open = true
+	show()
+	_fit()

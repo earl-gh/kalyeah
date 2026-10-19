@@ -132,6 +132,7 @@ Before the first round (6 s, `intro_time`; the server runs it too, nobody moves 
 - Training dummies never count for a capture: in practice you score alone even though the ally dummy stays home, and the dummy team can't score.
 
 ## Lobby rules
+- Online and Hotspot share the same room layout. Online exposes a copyable eight-character code; Hotspot joins by verifying the host room on the local network, with no code. Guests see current match settings as a summary; only hosts edit them.
 - The host picks **Best of 3 / 5 / 7** in the room (default 3); only the host can change it, only before the start.
 - Modes: 1v1, 2v2, 3v3. Passcode: 8 characters, A–Z/2–9, no ambiguous characters.
 - Start allowed when: every present player is Ready AND one team has N players AND the other has ≥ N−1 (N=1 requires both).
@@ -153,6 +154,8 @@ Before the first round (6 s, `intro_time`; the server runs it too, nobody moves 
   - Server-side events (hits, tags, rescues, points) are replayed on the client as the same signals the offline game uses.
 
 ## Match feedback and connection recovery
+
+Back leaves untimed Practice setup directly. Multiplayer setup and gameplay ask before leaving; confirming releases the slot (and returning home stops a local hotspot host). Opening a leave confirmation does not pause multiplayer selection or its deadline.
 
 The HUD explains active auto-run, touch aiming/cancel, and status effects that prevent casting. Cooldown numbers and arcs remain on the weapon buttons. Controls are hidden during selection, intro, tagging, and match results. A persistent connection notice blocks controls from disconnection until the server confirms the restored slot. If restoration fails, Return Home leaves the match. The result action is Practice Again offline and Return Home in multiplayer; no rematch is implied.
 

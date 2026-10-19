@@ -7,7 +7,7 @@ const NUMBER_WIDTH: float = 56.0
 const NAME_SIZE: int = 26
 const NUMBER_SIZE: int = 32
 const TAG_SIZE: int = 22
-const TEAM_BLOCKS: Array[Color] = [Color(0.18, 0.17, 0.82), Color(0.94, 0.14, 0.2)]
+const TEAM_BLOCKS: Array[Color] = [KalyeahTheme.TEAM_BLUE, KalyeahTheme.TEAM_RED]
 const NAME_COLOR: Color = Color(0.12, 0.27, 0.52)
 
 static func player_card(member: Dictionary, team: int, room: Dictionary) -> Control:
@@ -160,7 +160,7 @@ static func open_slot(team: int, row: int, can_join: bool, room: Dictionary, on_
 	card.name = "OpenSlot%d" % team
 	card.custom_minimum_size = Vector2(0.0, BAR_HEIGHT)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.focus_mode = Control.FOCUS_NONE
+	card.focus_mode = Control.FOCUS_ALL
 	card.disabled = not can_join
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = Color(1.0, 1.0, 1.0, 0.07)
@@ -181,12 +181,12 @@ static func open_slot(team: int, row: int, can_join: bool, room: Dictionary, on_
 	card.add_child(inner)
 	var hint: Label = Label.new()
 	hint.name = "Hint"
-	hint.text = "+ JOIN TEAM" if can_join else "WAITING..."
+	hint.text = "+ JOIN TEAM" if can_join else "OPEN SLOT"
 	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 24)
-	hint.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.6 if can_join else 0.38))
+	hint.add_theme_color_override("font_color", KalyeahTheme.TEXT if can_join else KalyeahTheme.TEXT_MUTED)
 	hint.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
 	hint.add_theme_constant_override("outline_size", 0)
 	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE

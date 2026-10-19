@@ -9,17 +9,17 @@ var cards: Dictionary[String, Button] = {}
 
 func _ready() -> void:
 	name = "CharactersPage"
-	add_theme_constant_override("separation", 14)
+	add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	var title: Label = Label.new()
 	title.theme_type_variation = &"DisplayLabel"
-	title.text = "CHOOSE YOUR PROFILE"
+	title.text = "PROFILE PICTURE"
 	title.add_theme_font_size_override("font_size", 38)
 	add_child(title)
 	var hint: Label = Label.new()
 	hint.theme_type_variation = &"MutedLabel"
-	hint.text = "Choose your profile picture. Choose your match character before play."
+	hint.text = "Match characters are chosen before play."
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.add_theme_font_size_override("font_size", 20)
+	hint.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
 	add_child(hint)
 	var grid: GridContainer = GridContainer.new()
 	grid.columns = 3
@@ -40,7 +40,7 @@ func _card(id: String) -> Button:
 	card.name = id.capitalize()
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.custom_minimum_size = Vector2(0.0, 300.0)
-	card.focus_mode = Control.FOCUS_NONE
+	card.tooltip_text = "Use %s as profile picture" % id.capitalize()
 	MenuDialog.feel_press(card)
 	var picture: TextureRect = TextureRect.new()
 	picture.texture = KidModel.card_face(StringName(id))
@@ -55,7 +55,7 @@ func _card(id: String) -> Button:
 	var label: Label = Label.new()
 	label.theme_type_variation = &"DisplayLabel"
 	label.text = (definition.display_name if definition != null else id).to_upper()
-	label.add_theme_font_size_override("font_size", 22)
+	label.add_theme_font_size_override("font_size", UiMetrics.CAPTION)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	label.offset_top = -40.0

@@ -1,8 +1,7 @@
 class_name LobbyScreen
 extends Control
-## Online lobby (portrait): server address and name, then Create (1v1 / 2v2 / 3v3)
-## or Join (8-character alphanumeric code), then the room: two team columns, best of 3 / 5 / 7
-## (the host picks, everyone sees it), Ready, Start (host) and Leave. When the host starts, it switches to the online match scene.
+## Shared multiplayer lobby. Online joins by code; Hotspot discovers the host room.
+## Both use one room view; GameClient and the server own room state.
 ## Built in code; all networking goes through the GameClient in `Net`.
 
 enum Intent { CREATE, JOIN }
@@ -11,58 +10,60 @@ const MATCH_SCENE: String = "res://scenes/match/online.tscn"
 const TITLE_SCENE: String = "res://scenes/ui/title_screen.tscn"
 const BACKGROUND: Texture2D = preload("res://assets/ui/main_bg.webp")
 const NET_RULES: NetRules = preload("res://data/rules/net_rules.tres")
-const TEAM_NAMES: Array[String] = ["BLUE TEAM", "RED TEAM"]
-const TEAM_COLORS: Array[Color] = [Color(0.45, 0.65, 1.0), Color(1.0, 0.45, 0.45)]
-const FONT: int = 28
+const FONT: int = UiMetrics.BODY
 ## The id of the player the preview shows as "you".
 const PREVIEW_ME: int = 1
 const BIG_FONT: int = 56
 
 var client: GameClient
 var intent: Intent = Intent.CREATE
+## Capture transport once; deferred callbacks must not read another screen's selection.
+var hotspot: bool = false
+var _preview_requested: bool = false
 ## Off in tests: stay on this screen when the match starts loading.
 var enter_match_on_start: bool = true
 var _intent_set: bool = false
 var _rejoining: bool = false
+var _transport_ready: bool = false
+var _identified_name: String = ""
 var _rejoin_button: Button
 ## The action to send once the connection is up.
 var _pending: Callable = Callable()
 
 var _setup: VBoxContainer
-var _room_box: VBoxContainer
+var _setup_layer: Control
+var _setup_status: Label
+var _code_error: Label
 var _name_edit: LineEdit
 var _code_edit: LineEdit
 var _size_buttons: Array[Button] = []
 var _go_button: Button
 var _status: Label
-var _code_label: Label
-var _team_lists: Array[VBoxContainer] = []
-var _team_buttons: Array[Button] = []
-var _ready_button: Button
-var _start_button: Button
-var _best_of_label: Label
-var _best_of_buttons: Dictionary[int, Button] = {}
 var _team_size: int = 1
 ## The address the lobby connected to (kept so a dropped player can rejoin).
 var _connected_url: String = ""
 var _finder: HotspotFinder = HotspotFinder.new()
-## The hotspot room screen (hotspot mode only; online keeps the form and team columns below).
-var _hotspot_view: HotspotRoomView
+## One room presentation for both transports.
+var _room_view: HotspotRoomView
 var _announced_character: bool = false
 ## Preview (web): the made-up room the hotspot screen shows, changed locally by the buttons.
 var _preview_room: Dictionary = {}
 
 
 func _ready() -> void:
+	hotspot = Session.lobby_hotspot
+	_preview_requested = Session.lobby_preview
 	set_process(false)
 	if client == null:
 		client = Net.client
+	_transport_ready = client.is_online()
+	_identified_name = client.player_name
 	if not _intent_set:
 		intent = Session.lobby_intent as Intent
-	if Session.lobby_hotspot:
-		_build_hotspot()
-	else:
+	LobbyWidgets.add_backdrop(self, BACKGROUND)
+	if not hotspot:
 		_build()
+	_build_room_view()
 	client.connection_changed.connect(_on_connection_changed)
 	client.error_received.connect(_on_error)
 	client.room_changed.connect(_on_room_changed)
@@ -71,7 +72,7 @@ func _ready() -> void:
 	_show_room(not client.room.is_empty())
 	if not client.room.is_empty():
 		_on_room_changed(client.room)
-	elif Session.lobby_hotspot:
+	elif hotspot:
 		_start_hotspot.call_deferred()
 
 
@@ -91,44 +92,48 @@ func set_fields(url: String, player_name: String, code: String = "") -> void:
 
 
 func code_text() -> String:
-	return _code_label.text
+	return _room_view.code_label.text
 
 
 func in_room() -> bool:
-	return _room_box.visible
+	return _room_view.visible and _room_view.has_room()
 
 
 func press_ready() -> void:
-	_ready_button.button_pressed = not _ready_button.button_pressed
-	client.set_ready(_ready_button.button_pressed)
+	for member: Dictionary in client.room.get("members", []) as Array:
+		if member.get("player_id", -1) == client.player_id:
+			client.set_ready(not bool(member.get("ready", false)))
+			return
 
 
 func press_start() -> void:
-	if _start_button.visible and not _start_button.disabled:
-		client.start_match()
+	if start_enabled():
+		_on_action()
 
 
 func start_enabled() -> bool:
-	return _start_button.visible and not _start_button.disabled
+	return client.is_host() and in_room() and not _room_view.action_button.disabled
 
 
 func status_text() -> String:
-	return _status.text
+	return _code_error.text if _code_error != null and _code_error.visible else _status.text
 
 
 ## Create / Join pressed: remember the name and server, connect if needed, then send.
 func submit() -> void:
 	if _name_edit != null:
-		Session.player_name = _name_edit.text.strip_edges()
+		Session.player_name = Session.clean_name(_name_edit.text)
+		if Session.player_name.is_empty():
+			Session.player_name = "Player"
 		Session.save()
 	client.player_name = Session.player_name
-	if Session.lobby_hotspot:
+	if hotspot:
 		_submit_hotspot()
 		return
 	var url: String = Settings.normalize_url(Settings.server_url)
 	if url.is_empty():
 		# the online server is built into the game; players never type it
-		_status.text = "Online isn't available yet."
+		_set_status("Online isn't available yet.")
 		return
 	_connected_url = url
 	if intent == Intent.CREATE:
@@ -136,21 +141,25 @@ func submit() -> void:
 	else:
 		var code: String = _code_edit.text.strip_edges().to_upper()
 		if code.length() != NET_RULES.passcode_length:
-			_status.text = "Room codes have %d characters." % NET_RULES.passcode_length
+			_code_error.text = "Enter all %d characters." % NET_RULES.passcode_length
+			_code_error.show()
+			_code_edit.grab_focus()
 			return
+		_code_error.hide()
 		_pending = client.join_room.bind(code)
 	_connect_or_send(url)
 
 
 func _connect_or_send(url: String) -> void:
-	if client.is_online():
-		_send_pending()
+	if client.is_online() and _identified_name == client.player_name:
+		if _transport_ready:
+			_send_pending()
 	else:
-		_status.text = "Connecting..."
+		_set_status("Connecting...")
 		if client.connect_to(url) != OK:
-			_status.text = "Can't reach that address."
-			if _hotspot_view != null:
-				_hotspot_view.show_retry()
+			_set_status("Can't reach that address.")
+			if _room_view != null:
+				_room_view.show_retry()
 
 
 ## A hotspot room needs no server address and no code. Create starts the room on this phone; Join
@@ -158,25 +167,25 @@ func _connect_or_send(url: String) -> void:
 ## hotspot can be the host, and everyone else on it can join).
 func _submit_hotspot() -> void:
 	if not Net.can_host():
-		_status.text = "Hotspot rooms need the Android app."
+		_set_status("Hotspot rooms need the Android app.")
 		return
 	var addresses: PackedStringArray = IP.get_local_addresses()
 	if HotspotNet.local_ip(addresses).is_empty():
-		_status.text = "Turn on your hotspot or connect to Wi-Fi first."
-		_hotspot_view.show_retry()
+		_set_status("Turn on your hotspot or connect to Wi-Fi first.")
+		_room_view.show_retry()
 		return
 	if intent == Intent.CREATE:
 		if Net.start_host() != OK:
-			_status.text = "Can't start the room on this phone."
+			_set_status("Can't start the room on this phone.")
 			return
 		_connected_url = Net.host_url()
 		_pending = client.create_room.bind(_team_size)
 		_connect_or_send(_connected_url)
 		return
 	client.close()
-	_hotspot_view.clear_room()
+	_room_view.clear_room()
 	_pending = client.join_room.bind("")
-	_status.text = "Looking for the room..."
+	_set_status("Looking for the room...")
 	_finder.start(HotspotNet.candidates(addresses, NET_RULES.default_port))
 	set_process(true)
 
@@ -191,8 +200,8 @@ func _process(delta: float) -> void:
 	elif _finder.failed:
 		_finder.failed = false
 		set_process(false)
-		_status.text = _finder.failure_message
-		_hotspot_view.show_retry()
+		_set_status(_finder.failure_message)
+		_room_view.show_retry()
 
 
 ## Takes our slot in a running match back (after a reload or a long drop).
@@ -202,9 +211,9 @@ func rejoin() -> void:
 	client.token = Session.reconnect_token
 	client.player_name = Session.player_name
 	_rejoining = true
-	_status.text = "Rejoining..."
+	_set_status("Rejoining...")
 	if client.connect_to(Session.reconnect_url) != OK:
-		_status.text = "Can't reach that address."
+		_set_status("Can't reach that address.")
 
 
 func choose_size(size: int) -> void:
@@ -215,28 +224,31 @@ func choose_size(size: int) -> void:
 
 func _send_pending() -> void:
 	if _pending.is_valid():
-		_status.text = ""
+		_set_status("")
 		_pending.call()
 		_pending = Callable()
 
 
 func _on_connection_changed(online: bool) -> void:
+	_transport_ready = false
 	if online:
-		_send_pending()
+		_set_status("Connecting…")
 	else:
-		_status.text = "Disconnected from the server."
 		_show_room(false)
-		if _hotspot_view != null:
-			_hotspot_view.clear_room()
-			_hotspot_view.show_retry()
+		_set_status("Connection lost. Try again.")
+		if _room_view != null:
+			_room_view.show_retry()
 
 
 func _on_welcomed(reconnected: bool) -> void:
+	_transport_ready = true
+	_identified_name = client.player_name
+	_send_pending()
 	if not _rejoining:
 		return
 	_rejoining = false
 	if not reconnected:
-		_status.text = "That match has ended."
+		_set_status("That match has ended.")
 		Session.reconnect_token = ""
 		Session.save()
 		client.token = ""
@@ -245,9 +257,9 @@ func _on_welcomed(reconnected: bool) -> void:
 
 
 func _on_error(text: String) -> void:
-	_status.text = text
-	if _hotspot_view != null and client.room.is_empty():
-		_hotspot_view.show_retry()
+	_set_status(text)
+	if _room_view != null and client.room.is_empty():
+		_room_view.show_retry()
 
 
 func _on_room_changed(room: Dictionary) -> void:
@@ -256,65 +268,26 @@ func _on_room_changed(room: Dictionary) -> void:
 	Session.reconnect_token = client.token
 	Session.reconnect_url = _connected_url
 	Session.save()
-	if _hotspot_view != null:
-		_status.text = ""
-		_hotspot_view.show_room(room, client.player_id)
-		if not _announced_character:
-			_announced_character = true
-			client.set_character(StringName(Session.avatar_id))
-		else:
-			for member: Dictionary in room.get("members", []) as Array:
-				if member.get("player_id", -1) == client.player_id:
-					Session.avatar_id = String(member.get("char", Session.avatar_id))
-					Session.save()
-		return
-	var size: int = room.get("team_size", 1) as int
-	_code_label.text = Session.room_code
-	var members: Array = room.get("members", []) as Array
-	for team: int in 2:
-		var list: VBoxContainer = _team_lists[team]
-		for child: Node in list.get_children():
-			child.free()
-		var count: int = 0
-		for member: Dictionary in members:
-			if member["team"] != team:
-				continue
-			count += 1
-			var line: String = member["name"] as String
-			var tags: PackedStringArray = PackedStringArray()
-			if member["player_id"] == client.player_id:
-				tags.append("YOU")
-			if member["player_id"] == room.get("host", -1):
-				tags.append("HOST")
-			tags.append("READY" if member["ready"] else "WAITING")
-			line += "  •  " + "  •  ".join(tags)
-			list.add_child(LobbyWidgets.label(line, 24, TEAM_COLORS[team]))
-		for empty: int in size - count:
-			list.add_child(LobbyWidgets.label("OPEN SLOT", 22, Color(1, 1, 1, 0.42)))
-		_team_buttons[team].disabled = client.my_team() == team or count >= size
-	var me_ready: bool = false
-	for member: Dictionary in members:
-		if member["player_id"] == client.player_id:
-			me_ready = member["ready"] as bool
-	_ready_button.button_pressed = me_ready
-	_ready_button.text = "READY" if me_ready else "READY UP"
-	var best_of: int = room.get("best_of", 3) as int
-	_best_of_label.text = "BEST OF %d  •  FIRST TO %d" % [best_of, best_of / 2 + 1]
-	for count: int in _best_of_buttons:
-		var button: Button = _best_of_buttons[count]
-		button.visible = client.is_host()
-		button.set_pressed_no_signal(count == best_of)
-	_start_button.visible = client.is_host()
-	_start_button.disabled = not (room.get("can_start", false) as bool)
+	_set_status("")
+	_room_view.show_room(room, client.player_id)
+	if not _announced_character:
+		_announced_character = true
+		client.set_character(StringName(Session.avatar_id))
+	else:
+		for member: Dictionary in room.get("members", []) as Array:
+			if member.get("player_id", -1) == client.player_id:
+				Session.avatar_id = String(member.get("char", Session.avatar_id))
+				Session.save()
 
 
 func _on_match_loading(_info: Dictionary) -> void:
-	_status.text = "Loading..."
+	_set_status("Loading...")
 	if enter_match_on_start:
 		get_tree().change_scene_to_file(MATCH_SCENE)
 
 
 func _on_leave() -> void:
+	_announced_character = false
 	client.leave_room()
 	if _rejoin_button != null:
 		_rejoin_button.visible = false
@@ -332,43 +305,47 @@ func _on_back() -> void:
 	get_tree().change_scene_to_file(TITLE_SCENE)
 
 
-func _show_room(in_room: bool) -> void:
-	if _setup == null:
-		return
-	_setup.visible = not in_room
-	_room_box.visible = in_room
+func _show_room(joined: bool) -> void:
+	if _setup_layer != null:
+		_setup_layer.visible = not joined
+	_room_view.visible = hotspot or joined
+	_status = _room_view.status_label if _room_view.visible else _setup_status
+	if not joined:
+		_room_view.clear_room()
 
 
-## The hotspot room screen: no form, the room appears as soon as the connection is up.
-func _build_hotspot() -> void:
-	LobbyWidgets.add_backdrop(self, BACKGROUND)
-	_hotspot_view = HotspotRoomView.new()
-	add_child(_hotspot_view)
-	_status = _hotspot_view.status_label
-	_hotspot_view.back_pressed.connect(_on_back)
-	_hotspot_view.settings_pressed.connect(_open_settings)
-	_hotspot_view.map_chosen.connect(_on_map_chosen)
-	_hotspot_view.size_chosen.connect(_on_size_chosen)
-	_hotspot_view.character_chosen.connect(_on_character_chosen)
-	_hotspot_view.team_chosen.connect(_on_team_chosen)
-	_hotspot_view.action_pressed.connect(_on_action)
-	_hotspot_view.retry_pressed.connect(submit)
-	_hotspot_view.best_of_chosen.connect(func(count: int) -> void:
+## Shared room view: only Online exposes its room code.
+func _build_room_view() -> void:
+	_room_view = HotspotRoomView.new()
+	add_child(_room_view)
+	_room_view.set_online(not hotspot)
+	_status = _room_view.status_label
+	_room_view.back_pressed.connect(_on_back)
+	_room_view.settings_pressed.connect(_open_settings)
+	_room_view.map_chosen.connect(_on_map_chosen)
+	_room_view.size_chosen.connect(_on_size_chosen)
+	_room_view.character_chosen.connect(_on_character_chosen)
+	_room_view.team_chosen.connect(_on_team_chosen)
+	_room_view.action_pressed.connect(_on_action)
+	_room_view.retry_pressed.connect(submit)
+	_room_view.best_of_chosen.connect(func(count: int) -> void:
 		if _preview_room.is_empty():
 			client.set_best_of(count)
 		else:
 			_preview_room["best_of"] = count
-			_hotspot_view.show_room(_preview_room, PREVIEW_ME))
+			_room_view.show_room(_preview_room, PREVIEW_ME))
 	var gate: Node = (load("res://scenes/ui/orientation_gate.tscn") as PackedScene).instantiate()
 	add_child(gate)
 
 
 ## Create or Join was pressed on the main screen (its dialog already checked the hotspot): go on.
 func _start_hotspot() -> void:
-	if Session.lobby_preview:
-		_start_preview()
+	if not is_inside_tree() or is_queued_for_deletion():
 		return
-	_status.text = "Starting the room..." if intent == Intent.CREATE else "Looking for the room..."
+	if _preview_requested:
+		LobbyPreview.start(self)
+		return
+	_set_status("Starting the room..." if intent == Intent.CREATE else "Looking for the room...")
 	submit()
 
 
@@ -386,7 +363,7 @@ func _on_map_chosen(map_id: StringName) -> void:
 		client.set_map(map_id)
 	else:
 		_preview_room["map"] = map_id
-		_hotspot_view.show_room(_preview_room, PREVIEW_ME)
+		_room_view.show_room(_preview_room, PREVIEW_ME)
 
 
 func _on_size_chosen(size: int) -> void:
@@ -394,8 +371,8 @@ func _on_size_chosen(size: int) -> void:
 		client.set_team_size(size)
 		return
 	_preview_room["team_size"] = size
-	_preview_fit(size)
-	_hotspot_view.show_room(_preview_room, PREVIEW_ME)
+	LobbyPreview.fit(self, size)
+	_room_view.show_room(_preview_room, PREVIEW_ME)
 
 
 func _on_character_chosen(id: String) -> void:
@@ -404,23 +381,23 @@ func _on_character_chosen(id: String) -> void:
 		return
 	Session.avatar_id = id
 	Session.save()
-	_preview_member(PREVIEW_ME)["char"] = id
-	_hotspot_view.show_room(_preview_room, PREVIEW_ME)
+	LobbyPreview.member(self, PREVIEW_ME)["char"] = id
+	_room_view.show_room(_preview_room, PREVIEW_ME)
 
 
 func _on_team_chosen(team: int) -> void:
 	if _preview_room.is_empty():
 		client.pick_team(team)
 		return
-	var me: Dictionary = _preview_member(PREVIEW_ME)
+	var me: Dictionary = LobbyPreview.member(self, PREVIEW_ME)
 	me["team"] = team
-	_hotspot_view.show_room(_preview_room, PREVIEW_ME)
+	_room_view.show_room(_preview_room, PREVIEW_ME)
 
 
 ## The big button: the host starts, everyone else flips Ready.
 func _on_action() -> void:
 	if not _preview_room.is_empty():
-		_status.text = "This is a preview: a real room needs the Android app."
+		_set_status("This is a preview: a real room needs the Android app.")
 		return
 	if client.is_host():
 		client.set_ready(true)
@@ -437,36 +414,16 @@ func _current_room() -> Dictionary:
 	return _preview_room if not _preview_room.is_empty() else client.room
 
 
-func _start_preview() -> void:
-	_status.text = ""
-	var names: Array[String] = [Session.player_name, "Migo", "Ligaya", "Popoy"]
-	var kids: Array[String] = [Session.avatar_id, "migo", "ligaya", "popoy"]
-	var members: Array = []
-	for i: int in names.size():
-		members.append({"player_id": i + 1, "name": names[i], "team": i % 2, "ready": i > 0, "connected": true, "char": kids[i]})
-	_preview_room = {"code": "K7M2Q9XA", "team_size": 2, "host": PREVIEW_ME, "best_of": 3, "state": 0, "members": members,
-		"can_start": false, "can_start_host": true, "map": &"street", "preview": true}
-	_hotspot_view.show_room(_preview_room, PREVIEW_ME)
-
-
-func _preview_member(player_id: int) -> Dictionary:
-	for member: Dictionary in _preview_room["members"] as Array:
-		if member["player_id"] == player_id:
-			return member
-	return {}
-
-
-## Keeps the made-up players inside the chosen team size (the extras step out).
-func _preview_fit(size: int) -> void:
-	var kept: Array = []
-	var counts: Array[int] = [0, 0]
-	for member: Dictionary in _preview_room["members"] as Array:
-		var team: int = member["team"] as int
-		if counts[team] < size:
-			counts[team] += 1
-			kept.append(member)
-	_preview_room["members"] = kept
 
 
 func _build() -> void:
 	LobbyOnlineLayout.new(self).build()
+
+
+func _set_status(text: String) -> void:
+	_status.text = text
+	_status.visible = not text.is_empty()
+
+
+func _exit_tree() -> void:
+	_finder.stop()

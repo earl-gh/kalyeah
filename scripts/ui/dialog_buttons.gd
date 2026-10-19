@@ -4,7 +4,7 @@ extends RefCounted
 ## (the grabber is a smooth anti-aliased disc), matching the painted buttons and panels.
 
 const TRACK: Color = Color(0.05, 0.08, 0.2, 0.9)
-const FILL: Color = Color(1.0, 0.7, 0.18)
+const FILL: Color = KalyeahTheme.AMBER
 const GRABBER_SIZE: int = 64
 
 
@@ -28,7 +28,7 @@ static func slider(value: float) -> HSlider:
 	slider.value = value
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	slider.custom_minimum_size = Vector2(0.0, 72.0)
+	slider.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
 	var track: StyleBoxFlat = StyleBoxFlat.new()
 	track.bg_color = TRACK
 	track.set_corner_radius_all(14)
@@ -64,3 +64,17 @@ static func grabber_texture() -> Texture2D:
 			var face: Color = Color(1.0, 0.97, 0.9).lerp(Color(0.32, 0.18, 0.1), rim * 0.9)
 			image.set_pixel(x, y, Color(face, edge))
 	return ImageTexture.create_from_image(image)
+
+
+## One leave confirmation for loadout and gameplay; neither pauses the authoritative match.
+static func leave_match(hosting: bool, on_leave: Callable) -> MenuDialog:
+	var dialog: MenuDialog = MenuDialog.create("LEAVE MATCH?")
+	dialog.add_label("The hotspot room will close for everyone." if hosting else "Your place will be released.")
+	var cancel: Button = MenuDialog.make_button("CANCEL", "grey", UiMetrics.ACTION)
+	var leave: Button = MenuDialog.make_button("LEAVE", "red", UiMetrics.ACTION)
+	cancel.pressed.connect(dialog.close)
+	leave.pressed.connect(func() -> void:
+		dialog.close(false)
+		on_leave.call())
+	dialog.add_buttons([cancel, leave])
+	return dialog

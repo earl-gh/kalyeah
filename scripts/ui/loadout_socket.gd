@@ -21,6 +21,6 @@ func _draw() -> void:
 	var icon: Texture2D = Icons.art(StringName("btn_" + String(weapon.id))) if weapon != null else null
 	if icon != null:
 		draw_texture_rect(icon, Rect2(12.0, 12.0, 76.0, 76.0), false)
-	var caption: String = weapon.short_name if weapon != null else "Choose weapon"
+	var caption: String = weapon.short_name if weapon != null else "Empty"
 	draw_string(font, Vector2(102.0, 34.0), "SLOT %d" % number, HORIZONTAL_ALIGNMENT_LEFT, size.x - 110.0, 22, KalyeahTheme.AMBER if active else KalyeahTheme.TEXT_MUTED)
 	draw_string(font, Vector2(102.0, 76.0), caption, HORIZONTAL_ALIGNMENT_LEFT, size.x - 110.0, 26, KalyeahTheme.TEXT)

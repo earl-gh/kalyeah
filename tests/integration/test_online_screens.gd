@@ -32,6 +32,7 @@ func after_each() -> void:
 	for client: GameClient in clients:
 		client.close()
 	server.stop()
+	await wait_process_frames(2) # Flush room cards queued during synchronous network pumping.
 
 
 func _pump(seconds: float) -> void:
@@ -84,6 +85,9 @@ func _two_lobbies_ready() -> Array[LobbyScreen]:
 func test_lobby_create_join_ready_start() -> void:
 	var pair: Array[LobbyScreen] = _two_lobbies_ready()
 	assert_false(pair[1].start_enabled(), "only the host has Start")
+	var room: RoomService.Room = server.rooms.rooms.values()[0]
+	assert_eq(room.member(pair[0].client.player_id).name, "Ana", "Create waits for HELLO/WELCOME so the chosen name is preserved")
+	assert_eq(room.member(pair[1].client.player_id).name, "Ben", "Join also preserves the chosen name")
 	pair[0].press_start()
 	assert_true(_until(func() -> bool: return pair[0].client.in_match() and pair[1].client.in_match()))
 	assert_eq(pair[1].status_text(), "Loading...")
@@ -93,10 +97,19 @@ func test_join_with_a_bad_code_shows_why() -> void:
 	var guest: LobbyScreen = _lobby(LobbyScreen.Intent.JOIN)
 	guest.set_fields(URL, "Ben", "ABC")
 	guest.submit()
-	assert_eq(guest.status_text(), "Room codes have 8 characters.")
+	assert_eq(guest.status_text(), "Enter all 8 characters.")
 	guest.set_fields(URL, "Ben", "ZZZZZZZZ")
 	guest.submit()
 	assert_true(_until(func() -> bool: return guest.status_text() == "No room with that code."))
+	var host: LobbyScreen = _lobby(LobbyScreen.Intent.CREATE)
+	host.set_fields(URL, "Ana")
+	host.submit()
+	assert_true(_until(func() -> bool: return host.in_room()))
+	guest.set_fields(URL, "Carlo", host.code_text())
+	guest.submit()
+	assert_true(_until(func() -> bool: return guest.in_room()))
+	var room: RoomService.Room = server.rooms.rooms.values()[0]
+	assert_eq(room.member(guest.client.player_id).name, "Carlo", "correcting a failed join also refreshes an edited name")
 
 
 func test_online_match_screen_picks_then_plays_against_the_server() -> void:
@@ -186,9 +199,10 @@ func test_a_hotspot_lobby_is_the_room_screen_with_no_form() -> void:
 	var joining: LobbyScreen = _lobby(LobbyScreen.Intent.JOIN)
 	assert_null(joining.find_child("ServerField", true, false), "no address to type on a hotspot")
 	assert_null(joining.find_child("LobbyCard", true, false), "no form: the room screen is all there is")
-	assert_not_null(joining._hotspot_view, "the hotspot room screen")
-	assert_false(joining._hotspot_view.has_room(), "nothing to show until a room exists")
+	assert_not_null(joining._room_view, "the hotspot room screen")
+	assert_false(joining._room_view.has_room(), "nothing to show until a room exists")
 	Session.lobby_hotspot = false
+	assert_true(joining.hotspot, "a deferred hotspot connection retains its original transport")
 
 
 func test_the_online_lobby_has_no_server_field_and_says_so_when_none_is_built_in() -> void:
@@ -201,3 +215,26 @@ func test_the_online_lobby_has_no_server_field_and_says_so_when_none_is_built_in
 	assert_eq(lobby.status_text(), "Online isn't available yet.")
 	assert_eq(lobby.find_children("*", "LineEdit", true, false).size(), 1, "only the name box")
 	Settings.server_url = saved
+
+
+func test_online_uses_shared_room_controls_and_server_confirmed_choices() -> void:
+	var pair: Array[LobbyScreen] = _two_lobbies_ready()
+	var host: LobbyScreen = pair[0]
+	var guest: LobbyScreen = pair[1]
+	assert_true(host._room_view.visible)
+	assert_false(host._setup_layer.visible)
+	assert_true(host._room_view.code_row.visible)
+	assert_eq(guest.code_text(), host.code_text())
+	assert_eq(guest._room_view.action_button.text, "CANCEL READY")
+	host._room_view.best_of_chosen.emit(5)
+	assert_true(_until(func() -> bool: return guest._room_view.format_summary.text.contains("Best of 5")))
+	host._room_view.size_chosen.emit(2)
+	assert_true(_until(func() -> bool: return guest._room_view.format_summary.text.begins_with("2v2")))
+	assert_true(guest._room_view.size_buttons[3].disabled)
+	guest._room_view.character_chosen.emit("toni")
+	assert_true(_until(func() -> bool: return guest._room_view.selection_label.text == "Character: Toni"))
+	assert_eq(guest._room_view.action_button.text, "READY", "changing a character requires confirmation again")
+	guest._on_leave()
+	assert_false(guest.in_room())
+	assert_true(guest._setup_layer.visible)
+	assert_eq(guest.code_text(), "")

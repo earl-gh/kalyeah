@@ -4,12 +4,12 @@ extends Control
 ## match clock in the middle counting up ("2:45"), like the street-game video.
 ## Team-relative: you are always on the left.
 
-const OWN: Color = Color(0.2, 0.5, 1.0)
-const ENEMY: Color = Color(1.0, 0.3, 0.3)
+const OWN: Color = KalyeahTheme.TEAM_BLUE
+const ENEMY: Color = KalyeahTheme.TEAM_RED
 const PANEL: Color = Color(0.055, 0.09, 0.16, 0.94)
 const RIM: Color = Color(1.0, 0.82, 0.35)
 const BIG_FONT: int = 40
-const SMALL_FONT: int = 17
+const SMALL_FONT: int = UiMetrics.CAPTION
 
 var mine: int = 0
 var theirs: int = 0
@@ -56,7 +56,7 @@ func _draw() -> void:
 	_center_text(KalyeahTheme.ACTION_FONT, str(mine), Vector2(6.0 + box * 0.625, h / 2.0), BIG_FONT, Color.WHITE)
 	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), Vector2(w - 6.0 - box * 0.625, h / 2.0), BIG_FONT, Color.WHITE)
 	_center_text(KalyeahTheme.BODY_FONT, clock_text(), Vector2(w / 2.0, h * 0.36), SMALL_FONT + 4, Color.WHITE)
-	_center_text(KalyeahTheme.ACTION_FONT, "BO%d" % best_of, Vector2(w / 2.0, h * 0.72), SMALL_FONT - 3, KalyeahTheme.AMBER)
+	_center_text(KalyeahTheme.ACTION_FONT, "BO%d" % best_of, Vector2(w / 2.0, h * 0.72), SMALL_FONT, KalyeahTheme.AMBER)
 
 
 func _round_rect(rect: Rect2, color: Color, radius: float) -> void:

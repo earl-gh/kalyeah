@@ -9,7 +9,7 @@ const ACTION_FONT: Font = DISPLAY_FONT
 ## The owner's Source Sans 3 (a variable font) for all regular text.
 const SOURCE_SANS: Font = preload("res://assets/fonts/source_sans_3/SourceSans3-Variable.ttf")
 ## How heavy the regular text is (Source Sans 3 runs from 200 to 900; 400 is Regular).
-const BODY_WEIGHT: int = 600
+const BODY_WEIGHT: int = 500
 static var BODY_FONT: Font = _body_font()
 
 const INK: Color = Color("10192d")
@@ -21,17 +21,21 @@ const TEXT: Color = Color("f8fbff")
 const TEXT_MUTED: Color = Color("aebbd0")
 const AMBER: Color = Color("f6ae2d")
 const AMBER_HOVER: Color = Color("ffc653")
-const BLUE: Color = Color("3478d8")
-const GREEN: Color = Color("26966a")
-const RED: Color = Color("c94e56")
+const BLUE: Color = Color("2861ae")
+const GREEN: Color = Color("18764e")
+const RED: Color = Color("ad3544")
 const SLATE: Color = Color("44546d")
 const FOCUS: Color = Color("ffe59b")
+const SUCCESS: Color = Color("79daa5")
+const ERROR: Color = Color("ffb4ab")
+const TEAM_BLUE: Color = Color("435bc2")
+const TEAM_RED: Color = Color("b83246")
 const FIELD: Color = Color("0d1729")
 
 const CORNER: int = 16
 const BUTTON_SHADOW: int = 6
-const FONT_SIZE: int = 26
-const PANEL_PADDING: float = 30.0
+const FONT_SIZE: int = UiMetrics.BODY
+const PANEL_PADDING: float = UiMetrics.PADDING
 
 
 static func _body_font() -> Font:
@@ -76,7 +80,7 @@ static func build() -> Theme:
 	theme.set_constant("outline_size", "HudPill", 0)
 
 	theme.set_font("font", "Button", ACTION_FONT)
-	theme.set_font_size("font_size", "Button", 30)
+	theme.set_font_size("font_size", "Button", UiMetrics.ACTION)
 	set_button_styles(theme, "Button", "orange")
 	theme.set_stylebox("disabled", "Button", painted_button("grey"))
 	theme.set_stylebox("focus", "Button", focus_ring(CORNER + 2))
@@ -88,14 +92,14 @@ static func build() -> Theme:
 	theme.set_constant("h_separation", "Button", 10)
 
 	theme.set_font("font", "LineEdit", BODY_FONT)
-	theme.set_font_size("font_size", "LineEdit", 27)
+	theme.set_font_size("font_size", "LineEdit", UiMetrics.BODY)
 	theme.set_stylebox("normal", "LineEdit", field_box(false))
 	theme.set_stylebox("focus", "LineEdit", field_box(true))
 	theme.set_stylebox("read_only", "LineEdit", field_box(false, true))
 	theme.set_color("font_color", "LineEdit", TEXT)
 	theme.set_color("font_selected_color", "LineEdit", INK_DEEP)
 	theme.set_color("font_uneditable_color", "LineEdit", TEXT_MUTED)
-	theme.set_color("font_placeholder_color", "LineEdit", Color(TEXT_MUTED, 0.62))
+	theme.set_color("font_placeholder_color", "LineEdit", TEXT_MUTED)
 	theme.set_color("caret_color", "LineEdit", AMBER)
 	theme.set_color("selection_color", "LineEdit", AMBER)
 
