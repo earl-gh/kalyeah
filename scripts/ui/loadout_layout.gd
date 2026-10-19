@@ -21,11 +21,11 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	var header: HBoxContainer = HBoxContainer.new()
 	header.add_theme_constant_override("separation", UiMetrics.GAP)
 	column.add_child(header)
-	screen.back_button = MenuDialog.make_button("BACK", "grey", UiMetrics.CAPTION, Vector2(120.0, UiMetrics.TOUCH))
+	screen.back_button = MenuDialog.make_button("BACK", "grey", UiMetrics.ACTION, Vector2(120.0, UiMetrics.TOUCH))
 	screen.back_button.pressed.connect(screen.request_back)
 	screen.back_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	header.add_child(screen.back_button)
-	screen._title = LoadoutCards.label("CHOOSE 2 WEAPONS", 30, KalyeahTheme.CREAM)
+	screen._title = LoadoutCards.label("CHOOSE 2 WEAPONS", UiMetrics.TITLE, KalyeahTheme.CREAM)
 	screen._title.theme_type_variation = &"DisplayLabel"
 	screen._title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var heading: VBoxContainer = VBoxContainer.new()

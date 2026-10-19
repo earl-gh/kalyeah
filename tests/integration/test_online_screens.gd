@@ -232,7 +232,7 @@ func test_online_uses_shared_room_controls_and_server_confirmed_choices() -> voi
 	assert_true(_until(func() -> bool: return guest._room_view.format_summary.text.begins_with("2v2")))
 	assert_true(guest._room_view.size_buttons[3].disabled)
 	guest._room_view.character_chosen.emit("toni")
-	assert_true(_until(func() -> bool: return guest._room_view.selection_label.text == "Character: Toni"))
+	assert_true(_until(func() -> bool: return (guest._room_view.kid_cards["toni"].get_node("Chosen") as Control).visible))
 	assert_eq(guest._room_view.action_button.text, "READY", "changing a character requires confirmation again")
 	guest._on_leave()
 	assert_false(guest.in_room())

@@ -1,112 +1,53 @@
 extends GutTest
 
-var RULES: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 const PRACTICE: PackedScene = preload("res://scenes/match/practice.tscn")
 const SETTINGS_SCRIPT: Script = preload("res://scripts/autoload/settings.gd")
 
-var _scale: float
 var _motion: bool
 var _loadout: Array[StringName]
 
 
 func before_each() -> void:
-	_scale = Settings.text_scale
 	_motion = Settings.reduced_motion
 	_loadout = Session.saved_loadout.duplicate()
-	Settings.set_text_scale(1.0)
 	Settings.set_reduced_motion(false)
 
 
 func after_each() -> void:
 	Session.saved_loadout = _loadout
 	Session.save()
-	Settings.set_text_scale(_scale)
 	Settings.set_reduced_motion(_motion)
 	await wait_process_frames(3)
 
 
-func _screen() -> WeaponPickScreen:
-	var screen: WeaponPickScreen = autofree(WeaponPickScreen.new()) as WeaponPickScreen
-	add_child(screen)
-	var ids: Array[StringName] = []
-	for weapon: WeaponDef in RULES.weapons:
-		ids.append(weapon.id)
-	screen.open(WeaponPick.new(ids, 10.0), RULES.weapons, "", RandomNumberGenerator.new(), RULES.characters, &"junjun", true)
-	return screen
-
-
-func test_live_preferences_sync_across_settings_without_compounding_font_sizes() -> void:
+func test_motion_syncs_across_settings_and_obsolete_text_size_is_ignored() -> void:
+	var file: ConfigFile = ConfigFile.new()
+	file.load(Settings.SAVE_PATH)
+	file.set_value("accessibility", "text_scale", 1.4)
+	file.set_value("accessibility", "reduced_motion", true)
+	file.save(Settings.SAVE_PATH)
+	var loaded: Node = autofree(SETTINGS_SCRIPT.new()) as Node
+	add_child(loaded)
+	assert_true(loaded.get("reduced_motion") as bool)
 	var first: AccessibilityOptions = autofree(AccessibilityOptions.new()) as AccessibilityOptions
 	var second: AccessibilityOptions = autofree(AccessibilityOptions.new()) as AccessibilityOptions
 	add_child(first)
 	add_child(second)
+	assert_eq(first.find_children("*", "Button", true, false).size(), 1, "settings has only the motion toggle")
 	var label: Label = autofree(Label.new()) as Label
-	label.add_theme_font_size_override("font_size", 34)
+	label.add_theme_font_size_override("font_size", UiMetrics.BODY)
 	add_child(label)
-	first.size_buttons[1.4].pressed.emit()
-	assert_eq(label.get_theme_font_size("font_size"), 48)
-	assert_true(second.size_buttons[1.4].button_pressed)
-	Settings.set_text_scale(1.4)
-	assert_eq(label.get_theme_font_size("font_size"), 48, "reapplying does not enlarge already-scaled text")
-	second.size_buttons[1.0].pressed.emit()
-	assert_eq(label.get_theme_font_size("font_size"), 34)
 	first.motion_button.pressed.emit()
 	assert_eq(second.motion_button.text, "ON")
-	var file: ConfigFile = ConfigFile.new()
-	assert_eq(file.load(Settings.SAVE_PATH), OK)
-	assert_eq(file.get_value("accessibility", "text_scale"), 1.0)
-	assert_true(file.get_value("accessibility", "reduced_motion") as bool)
-
-
-func test_preferences_reload_and_malformed_values_fall_back_safely() -> void:
-	Settings.set_text_scale(1.4)
-	Settings.set_reduced_motion(true)
-	var loaded: Node = autofree(SETTINGS_SCRIPT.new()) as Node
-	add_child(loaded)
-	assert_eq(loaded.get("text_scale"), 1.4)
-	assert_true(loaded.get("reduced_motion") as bool)
-	var file: ConfigFile = ConfigFile.new()
+	await wait_process_frames(3)
+	assert_eq(label.get_theme_font_size("font_size"), UiMetrics.BODY, "legacy preference cannot enlarge the interface")
 	file.load(Settings.SAVE_PATH)
-	file.set_value("accessibility", "text_scale", "broken")
-	file.set_value("accessibility", "reduced_motion", "yes")
+	assert_true(file.get_value("accessibility", "reduced_motion") as bool)
+	file.set_value("accessibility", "reduced_motion", "broken")
 	file.save(Settings.SAVE_PATH)
 	var fallback: Node = autofree(SETTINGS_SCRIPT.new()) as Node
 	add_child(fallback)
-	assert_eq(fallback.get("text_scale"), 1.0)
 	assert_false(fallback.get("reduced_motion") as bool)
-	assert_eq(UiAccessibility.valid_scale(INF), 1.0)
-	assert_eq(UiAccessibility.valid_scale(-100), 1.0)
-	assert_eq(UiAccessibility.valid_scale(200), 1.4)
-
-
-func test_large_loadout_reflows_without_resetting_selection_and_new_labels_inherit_size() -> void:
-	var screen: WeaponPickScreen = _screen()
-	screen.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	screen.size = Vector2(720.0, 1280.0)
-	screen.tap(&"bato_light")
-	screen.tap(&"bato_heavy")
-	var before: Array[StringName] = screen.pick.picks.duplicate()
-	var card: Button = screen.find_child("Weapon_bato_light", true, false) as Button
-	await wait_process_frames(3)
-	var initial: float = card.custom_minimum_size.y
-	Settings.set_text_scale(1.4)
-	await wait_process_frames(4)
-	assert_eq(screen.pick.picks, before)
-	assert_eq(screen.character_id, &"junjun")
-	var description: Label = card.find_child("Description", true, false) as Label
-	assert_eq(description.get_theme_font_size("font_size"), 48)
-	assert_gte(card.custom_minimum_size.y, initial)
-	var title: Label = card.find_child("WeaponName", true, false) as Label
-	assert_lte(title.get_global_rect().end.x, screen._badges[&"bato_light"].get_global_rect().position.x, "selection badge must not cover enlarged weapon names")
-	assert_false((screen.find_child("Weapons", true, false) as ScrollContainer).is_ancestor_of(screen._ready_button))
-	var later: Label = Label.new()
-	later.text = "Added after the setting changed"
-	later.add_theme_font_size_override("font_size", 28)
-	screen.add_child(later)
-	await wait_process_frames(2)
-	assert_eq(later.get_theme_font_size("font_size"), 39)
-	Settings.set_text_scale(1.0)
-	assert_eq(description.get_theme_font_size("font_size"), 34)
 
 
 func test_reduced_motion_clears_carousel_button_and_modal_animation() -> void:
@@ -221,8 +162,7 @@ func test_decorative_sway_stops_and_can_resume_when_preference_changes() -> void
 	assert_ne(subject.rotation.y, 0.8)
 
 
-func test_largest_reading_size_keeps_room_content_and_dialog_within_phone_width() -> void:
-	Settings.set_text_scale(1.4)
+func test_room_content_and_dialog_stay_within_phone_width() -> void:
 	Settings.set_reduced_motion(true)
 	var phone: Control = autofree(Control.new()) as Control
 	phone.size = Vector2(720.0, 1280.0)

@@ -159,6 +159,10 @@ func _build_home() -> VBoxContainer:
 	home.add_child(above)
 	home.add_child(_build_stage())
 	home.add_child(_build_titles())
+	var below: Control = Control.new()
+	below.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	below.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	home.add_child(below)
 	home.add_child(_build_actions())
 	# a little room under the buttons: low on the screen, but not at the very bottom
 	var lift: Control = Control.new()
@@ -252,8 +256,6 @@ func _build_titles() -> Control:
 	var titles: VBoxContainer = VBoxContainer.new()
 	titles.name = "Titles"
 	titles.alignment = BoxContainer.ALIGNMENT_CENTER
-	titles.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	titles.size_flags_stretch_ratio = 1.0
 	titles.add_theme_constant_override("separation", 6)
 	titles.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mode_name_label = Label.new()
@@ -292,10 +294,10 @@ func _build_page_layer() -> VBoxContainer:
 	layer.visible = false
 	layer.add_theme_constant_override("separation", 12)
 	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	back_button = MenuDialog.make_button("BACK", "grey", 26, Vector2(0.0, UiMetrics.TOUCH))
+	back_button = MenuDialog.make_button("BACK", "grey", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
 	back_button.name = "BackButton"
 	back_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	back_button.custom_minimum_size = Vector2(190.0, UiMetrics.TOUCH)
+	back_button.custom_minimum_size = Vector2(120.0, UiMetrics.TOUCH)
 	back_button.pressed.connect(close_page)
 	layer.add_child(back_button)
 	_page_holder = Control.new()

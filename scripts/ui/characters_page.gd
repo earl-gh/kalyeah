@@ -54,7 +54,6 @@ func _card(id: String) -> Button:
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(picture)
 	var label: Label = Label.new()
-	label.set_meta(UiAccessibility.FIXED, true)
 	label.theme_type_variation = &"DisplayLabel"
 	label.text = (definition.display_name if definition != null else id).to_upper()
 	label.add_theme_font_size_override("font_size", UiMetrics.CAPTION)

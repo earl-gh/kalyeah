@@ -12,13 +12,13 @@ signal exit_requested
 
 ## The character cards are exactly 3:4 (width:height).
 const PROFILE_SIZE: Vector2 = Vector2(96.0, 128.0)
-const TAB_FONT: int = 24
+const TAB_FONT: int = UiMetrics.ACTION
 const NAME_FONT: int = UiMetrics.BODY
 const DESCRIPTION_FONT: int = UiMetrics.BODY
 const STAT_FONT: int = UiMetrics.DETAIL
 const PICKED_COLOR: Color = Color(1.0, 0.82, 0.25)
-const CARD_COLOR: Color = Color(0.13, 0.16, 0.32, 0.95)
-const SURFACE_SELECTED: Color = Color(0.2, 0.27, 0.4)
+const CARD_COLOR: Color = KalyeahTheme.SURFACE
+const SURFACE_SELECTED: Color = KalyeahTheme.SURFACE_RAISED
 const INK: Color = Color(0.1, 0.06, 0.06)
 const KIND_COLORS: Dictionary[WeaponDef.Kind, Color] = {
 	WeaponDef.Kind.ATTACK: Color(1.0, 0.42, 0.34),

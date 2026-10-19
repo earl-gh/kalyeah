@@ -83,7 +83,7 @@ func test_the_ui_theme_is_applied_everywhere() -> void:
 	var box: StyleBoxFlat = button.get_theme_stylebox("normal") as StyleBoxFlat
 	assert_not_null(box, "every button gets the raised Kalyeah action style")
 	assert_eq(box.bg_color, KalyeahTheme.AMBER)
-	assert_eq(button.get_theme_font("font"), KalyeahTheme.ACTION_FONT, "actions use Bungee")
+	assert_eq(button.get_theme_font("font"), KalyeahTheme.BODY_FONT, "actions use the readable body face")
 	assert_eq(KalyeahTheme.build().default_font, KalyeahTheme.BODY_FONT, "body copy uses Source Sans 3")
 	assert_eq((KalyeahTheme.BODY_FONT as FontVariation).base_font, KalyeahTheme.SOURCE_SANS)
 	assert_eq(KalyeahTheme.DISPLAY_FONT.get_font_name(), "Bungee", "headings use Bungee")

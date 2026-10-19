@@ -169,9 +169,7 @@ func test_the_actions_sit_low_on_the_screen_but_not_at_the_very_bottom() -> void
 	var title: Rect2 = screen.mode_name_label.get_global_rect()
 	var phrase: Rect2 = screen.mode_text_label.get_global_rect()
 	var cards_bottom: float = screen.carousel.cards[0].get_global_rect().end.y
-	var gap_middle: float = (cards_bottom + create.position.y) / 2.0
-	var block_middle: float = (title.position.y + phrase.end.y) / 2.0
-	assert_almost_eq(block_middle, gap_middle, 40.0, "the title and phrase are centred between the cards and the buttons")
+	assert_lte(title.position.y - cards_bottom, 48.0, "mode title belongs with its illustration")
 	assert_gt(title.position.y, cards_bottom, "under the cards")
 	assert_lt(phrase.end.y, create.position.y - 10.0, "and clear of the buttons")
 	assert_almost_eq(title.get_center().x, 360.0, 2.0, "centred left to right")
@@ -372,7 +370,7 @@ func test_settings_change_the_volume() -> void:
 	assert_almost_eq(Settings.volume, 0.4, 0.001)
 	assert_almost_eq(AudioServer.get_bus_volume_db(0), linear_to_db(0.4), 0.01, "the master volume follows")
 	assert_null(_find(page, "ServerField"), "no server address to type")
-	assert_eq((_find(page, "QuitButton") as Button).text, "QUIT GAME")
+	assert_eq((_find(page, "QuitButton") as Button).text, "Quit game")
 	slider.value = 0.0
 	assert_true(AudioServer.is_bus_mute(0), "zero is silent")
 

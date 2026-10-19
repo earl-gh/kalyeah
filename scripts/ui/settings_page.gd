@@ -18,18 +18,18 @@ func _ready() -> void:
 	_content = VBoxContainer.new()
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(_content)
-	_content.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
+	_content.add_theme_constant_override("separation", UiMetrics.PAGE_MARGIN)
 	var title: Label = Label.new()
 	title.theme_type_variation = &"DisplayLabel"
 	title.text = "SETTINGS"
 	title.add_theme_font_size_override("font_size", UiMetrics.TITLE)
 	_content.add_child(title)
-	profile_button = MenuDialog.make_button("PROFILE", "grey", 30, Vector2(0.0, 88.0))
+	profile_button = MenuDialog.make_button("Player name", "grey", UiMetrics.ACTION, Vector2(0.0, 88.0))
 	profile_button.name = "ProfileButton"
 	profile_button.pressed.connect(profile_pressed.emit)
 	_content.add_child(profile_button)
 	fill(_content)
-	quit_button = MenuDialog.make_button("QUIT GAME", "grey", 26, Vector2(0.0, 88.0))
+	quit_button = MenuDialog.make_button("Quit game", "grey", UiMetrics.ACTION, Vector2(0.0, 88.0))
 	quit_button.name = "QuitButton"
 	quit_button.pressed.connect(quit_pressed.emit)
 	_content.add_child(quit_button)
@@ -37,10 +37,13 @@ func _ready() -> void:
 
 ## Sound and vibration (phones only), added to `parent`.
 static func fill(parent: Control) -> void:
-	var sound: HBoxContainer = _row(parent, "Sound")
+	var audio: VBoxContainer = VBoxContainer.new()
+	audio.add_theme_constant_override("separation", 4)
+	parent.add_child(audio)
+	var sound: HBoxContainer = _row(audio, "Sound")
 	var slider: HSlider = DialogButtons.slider(Settings.volume)
 	slider.name = "VolumeSlider"
-	parent.add_child(slider)
+	audio.add_child(slider)
 	var percent: Label = Label.new()
 	percent.custom_minimum_size = Vector2(84.0, 0.0)
 	percent.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
