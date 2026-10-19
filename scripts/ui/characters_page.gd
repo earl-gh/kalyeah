@@ -13,6 +13,7 @@ func _ready() -> void:
 	var title: Label = Label.new()
 	title.theme_type_variation = &"DisplayLabel"
 	title.text = "PROFILE PICTURE"
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.add_theme_font_size_override("font_size", 38)
 	add_child(title)
 	var hint: Label = Label.new()
@@ -53,6 +54,7 @@ func _card(id: String) -> Button:
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(picture)
 	var label: Label = Label.new()
+	label.set_meta(UiAccessibility.FIXED, true)
 	label.theme_type_variation = &"DisplayLabel"
 	label.text = (definition.display_name if definition != null else id).to_upper()
 	label.add_theme_font_size_override("font_size", UiMetrics.CAPTION)
@@ -79,5 +81,6 @@ func refresh() -> void:
 		var mine: bool = id == Session.avatar_id
 		style.set_border_width_all(5 if mine else 2)
 		style.border_color = KalyeahTheme.AMBER if mine else Color(1, 1, 1, 0.18)
-		for state: String in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+		for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
 			cards[id].add_theme_stylebox_override(state, style)
+		cards[id].add_theme_stylebox_override("focus", KalyeahTheme.focus_ring(24))

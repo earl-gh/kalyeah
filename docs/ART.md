@@ -95,3 +95,8 @@ Loadout setup uses an opaque navy surface, amber selected slots, the existing pa
 ### Shared UI hierarchy
 
 `UiMetrics` owns menu typography and spacing at the 720 px design width: body 34, detail/action 28, caption 24 and heading 40. Use 32 px page margins, 24 px panel padding, 16 px component gaps and 24 px section gaps. Preserve negative space; reading content wraps or scrolls. Amber is primary/selected, slate secondary, green confirmation, red destructive/error, and blue navigation/game context. Active action text is contrast-tested. See [the HIG audit](audits/2026-10-19-ui-hig.md) for findings, validation and remaining accessibility work.
+
+
+### Reading size and reduced motion
+
+Reading labels and text fields use saved 100/120/140% scaling from their original font size. Wrap or scroll rather than trim instructions. Buttons, portrait captions, drawn counters and already prominent intro/result text retain their geometry. Menu focus uses the shared visible ring; modal navigation stays within enabled controls and scrolls the focused item into view. Reduced motion removes decorative UI pops, carousel snapping animation, shake, animated grain and NPC sway; the opening show uses the normal gameplay camera. Preserve telegraphs, character action animation and authoritative timing. See [accessibility follow-up](audits/2026-10-19-accessibility.md).

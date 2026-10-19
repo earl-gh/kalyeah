@@ -685,10 +685,7 @@ func _add_details() -> void:
 	# the nanay stands by the bench, a little swaying as she waits
 	var nanay: Node3D = _add_prop(PropModel.by_height("nanay", NANAY_HEIGHT), Vector3(-walk_x, CURB_HEIGHT, store_z + 0.3), PI / 2.0)
 	nanay.name = "Nanay"
-	var sway: Tween = nanay.create_tween().set_loops()
-	var turned_in: float = nanay.rotation.y
-	sway.tween_property(nanay, "rotation:y", turned_in + deg_to_rad(NANAY_SWAY_DEGREES), NANAY_SWAY_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	sway.tween_property(nanay, "rotation:y", turned_in - deg_to_rad(NANAY_SWAY_DEGREES), NANAY_SWAY_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	nanay.add_child(DecorativeSway.new(nanay, NANAY_SWAY_DEGREES, NANAY_SWAY_SECONDS))
 	_add_parked_vehicles(half_w, half_l, walk_x)
 	_add_sidewalk_props(walk_x)
 

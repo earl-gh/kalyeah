@@ -62,6 +62,9 @@ func clear() -> void:
 	pending_buttons = 0
 	for slot: int in SLOTS:
 		touch_held[slot] = false
+		key_held[slot] = false
+		key_aim[slot] = Vector2.ZERO
+		key_cancel[slot] = false
 		_release_pending[slot] = false
 		_sent_held[slot] = false
 

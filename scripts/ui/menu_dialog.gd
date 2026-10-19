@@ -28,6 +28,8 @@ var persistent: bool = false
 
 var _width: float = 600.0
 var _safe: MarginContainer
+var _animation: Tween
+var _previous_focus: WeakRef
 
 
 ## A dialog with `title`, `width` px wide (in the 720 px design width).
@@ -59,6 +61,7 @@ static func create(title: String, width: float = 600.0) -> MenuDialog:
 	dialog.body.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.name = "DialogScroll"
+	scroll.follow_focus = true
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	dialog.panel.add_child(scroll)
 	dialog.body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -75,14 +78,20 @@ func open(parent: Node) -> void:
 	parent.add_child(self)
 	_fit()
 	is_open = true
-	panel.pivot_offset = panel.size / 2.0
-	panel.scale = Vector2.ONE * 0.88
-	modulate.a = 0.0
-	var tween: Tween = create_tween().set_parallel(true)
-	tween.tween_property(self, "modulate:a", 1.0, POP_SECONDS)
-	tween.tween_property(panel, "scale", Vector2.ONE, POP_SECONDS).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	# the card is centred once it has its size: pivot again next frame
+	_previous_focus = weakref(get_viewport().gui_get_focus_owner()) if get_viewport().gui_get_focus_owner() != null else null
+	Settings.accessibility_changed.connect(_on_accessibility_changed)
+	if Settings.reduced_motion:
+		panel.scale = Vector2.ONE
+		modulate.a = 1.0
+	else:
+		panel.pivot_offset = panel.size / 2.0
+		panel.scale = Vector2.ONE * 0.88
+		modulate.a = 0.0
+		_animation = create_tween().set_parallel(true)
+		_animation.tween_property(self, "modulate:a", 1.0, POP_SECONDS)
+		_animation.tween_property(panel, "scale", Vector2.ONE, POP_SECONDS).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_pivot_later.call_deferred()
+	_focus_first.call_deferred()
 	opened.emit()
 
 
@@ -96,15 +105,18 @@ func close(animate: bool = true) -> void:
 	if not is_open:
 		return
 	is_open = false
+	if is_instance_valid(_animation):
+		_animation.kill()
+	UiFocus.restore.call_deferred(_previous_focus)
 	closed.emit()
 	if persistent:
 		hide()
 		return
-	if animate and is_inside_tree():
-		var tween: Tween = create_tween().set_parallel(true)
-		tween.tween_property(self, "modulate:a", 0.0, POP_SECONDS * 0.7)
-		tween.tween_property(panel, "scale", Vector2.ONE * 0.94, POP_SECONDS * 0.7)
-		tween.chain().tween_callback(queue_free)
+	if animate and not Settings.reduced_motion and is_inside_tree():
+		_animation = create_tween().set_parallel(true)
+		_animation.tween_property(self, "modulate:a", 0.0, POP_SECONDS * 0.7)
+		_animation.tween_property(panel, "scale", Vector2.ONE * 0.94, POP_SECONDS * 0.7)
+		_animation.chain().tween_callback(queue_free)
 	else:
 		queue_free()
 
@@ -159,12 +171,21 @@ static func feel_press(button: Button) -> void:
 static func _squish(button: Button, target: float) -> void:
 	if not button.is_inside_tree():
 		return
+	var previous: Tween = (button.get_meta(&"press_tween") as Tween) if button.has_meta(&"press_tween") else null
+	if is_instance_valid(previous):
+		previous.kill()
+	if Settings.reduced_motion:
+		button.scale = Vector2.ONE
+		return
 	button.pivot_offset = button.size / 2.0
 	var tween: Tween = button.create_tween()
+	button.set_meta(&"press_tween", tween)
 	tween.tween_property(button, "scale", Vector2.ONE * target, 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not is_open or not is_visible_in_tree():
+		return
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 		close()
@@ -181,6 +202,38 @@ func _fit() -> void:
 
 
 func reopen() -> void:
+	_previous_focus = weakref(get_viewport().gui_get_focus_owner()) if get_viewport().gui_get_focus_owner() != null else null
 	is_open = true
 	show()
+	panel.scale = Vector2.ONE
+	modulate.a = 1.0
 	_fit()
+	_focus_first.call_deferred()
+
+
+func _focus_first() -> void:
+	if is_open and is_visible_in_tree():
+		UiFocus.first(self)
+
+
+func _input(event: InputEvent) -> void:
+	if not is_open or not is_visible_in_tree():
+		return
+	var current: Control = get_viewport().gui_get_focus_owner()
+	if current == null or not is_ancestor_of(current):
+		return
+	if event.is_action_pressed("ui_focus_next") or event.is_action_pressed("ui_focus_prev"):
+		UiFocus.advance(self, event.is_action_pressed("ui_focus_prev"))
+		get_viewport().set_input_as_handled()
+
+
+func _on_accessibility_changed() -> void:
+	_fit.call_deferred()
+	if not Settings.reduced_motion:
+		return
+	if is_instance_valid(_animation):
+		_animation.kill()
+	panel.scale = Vector2.ONE
+	modulate.a = 1.0
+	if not is_open and not persistent:
+		queue_free()

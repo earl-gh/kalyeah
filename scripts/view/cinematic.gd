@@ -40,12 +40,7 @@ static func add_film_finish(parent: Node) -> CanvasLayer:
 	var layer: CanvasLayer = CanvasLayer.new()
 	layer.name = "FilmFinish"
 	layer.layer = FINISH_LAYER
-	var rect: ColorRect = ColorRect.new()
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var material: ShaderMaterial = ShaderMaterial.new()
-	material.shader = SHADER
-	rect.material = material
+	var rect: FilmFinish = FilmFinish.new()
 	layer.add_child(rect)
 	parent.add_child(layer)
 	return layer
