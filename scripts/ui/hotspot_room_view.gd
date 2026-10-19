@@ -26,7 +26,7 @@ const GAP: float = 16.0
 const SECTION_GAP: int = UiMetrics.SECTION_GAP
 ## The compact arena header fills a row; character cards keep a 3:4 portrait ratio.
 const MAP_CARD: Vector2 = Vector2(0.0, 108.0)
-const KID_CARD: Vector2 = Vector2(138.0, 184.0)
+const KID_CARD: Vector2 = Vector2(96.0, 128.0)
 const KID_RADIUS: int = 16
 const BAR_HEIGHT: float = 96.0
 const NUMBER_WIDTH: float = 56.0
@@ -57,7 +57,6 @@ var kid_cards: Dictionary[String, Button] = {}
 var best_of_buttons: Dictionary[int, Button] = {}
 var retry_button: Button
 var readiness_label: Label
-var selection_label: Label
 var format_summary: Label
 var _kid_scroll: ScrollContainer
 var _last_kid: String = ""
@@ -166,7 +165,7 @@ func _build_map_section() -> Control:
 	sizes.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(sizes)
 	for size: int in [1, 2, 3]:
-		var button: Button = LobbyWidgets.button("%dv%d" % [size, size], size_chosen.emit.bind(size), "grey", 28)
+		var button: Button = LobbyWidgets.button("%dv%d" % [size, size], size_chosen.emit.bind(size), "grey", UiMetrics.ACTION)
 		LobbyWidgets.make_toggle(button)
 		button.name = "Size%d" % size
 		button.custom_minimum_size = Vector2(0.0, 88.0)
@@ -178,7 +177,7 @@ func _build_map_section() -> Control:
 	formats.add_theme_constant_override("separation", int(GAP) + 2)
 	column.add_child(formats)
 	for count: int in [3, 5, 7]:
-		var button: Button = MenuDialog.make_button("Best of %d" % count, "grey", 26, Vector2(0.0, 88.0))
+		var button: Button = MenuDialog.make_button("Best of %d" % count, "grey", UiMetrics.ACTION, Vector2(0.0, 88.0))
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		LobbyWidgets.make_toggle(button)
 		button.pressed.connect(best_of_chosen.emit.bind(count))
@@ -239,9 +238,6 @@ func _build_kid_section() -> Control:
 		kid_cards[id] = card
 	var column: VBoxContainer = VBoxContainer.new()
 	column.add_theme_constant_override("separation", 12)
-	selection_label = Label.new()
-	selection_label.add_theme_font_size_override("font_size", 26)
-	column.add_child(selection_label)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	_kid_scroll = scroll
 	scroll.name = "KidScroll"
@@ -293,7 +289,6 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	var picked: String = String(me.get("char", ""))
 	if picked.is_empty():
 		picked = Session.avatar_id
-	selection_label.text = "Character: %s" % picked.capitalize()
 	if picked != _last_kid and kid_cards.has(picked):
 		_last_kid = picked
 		_kid_scroll.ensure_control_visible.call_deferred(kid_cards[picked])

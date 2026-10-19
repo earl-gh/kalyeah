@@ -3,7 +3,7 @@ extends RefCounted
 ## Kalyeah's portrait UI system: the Bungee display face, compact spacing and raised,
 ## toy-like controls inspired by the visual weight of polished mobile strategy games.
 
-## The owner's Bungee font (capital letters) for headings, plates, buttons and numbers.
+## Bungee gives display headings and HUD numbers their game identity.
 const DISPLAY_FONT: Font = preload("res://assets/fonts/bungee/Bungee-Regular.ttf")
 const ACTION_FONT: Font = DISPLAY_FONT
 ## The owner's Source Sans 3 (a variable font) for all regular text.
@@ -33,7 +33,7 @@ const TEAM_RED: Color = Color("b83246")
 const FIELD: Color = Color("0d1729")
 
 const CORNER: int = 16
-const BUTTON_SHADOW: int = 6
+const BUTTON_SHADOW: int = 2
 const FONT_SIZE: int = UiMetrics.BODY
 const PANEL_PADDING: float = UiMetrics.PADDING
 
@@ -79,7 +79,7 @@ static func build() -> Theme:
 	theme.set_stylebox("normal", "HudPill", painted_pill())
 	theme.set_constant("outline_size", "HudPill", 0)
 
-	theme.set_font("font", "Button", ACTION_FONT)
+	theme.set_font("font", "Button", BODY_FONT)
 	theme.set_font_size("font_size", "Button", UiMetrics.ACTION)
 	set_button_styles(theme, "Button", "orange")
 	theme.set_stylebox("disabled", "Button", painted_button("grey"))
@@ -135,11 +135,11 @@ static func painted_button(color: String, pressed: bool = false, tint: Color = C
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = face
 	box.set_corner_radius_all(CORNER)
-	box.set_border_width_all(2)
+	box.set_border_width_all(1)
 	box.border_color = face.lightened(0.2) if color != "grey" else SLATE.lightened(0.18)
 	box.shadow_color = Color(INK_DEEP, 0.85)
 	box.shadow_size = 1
-	box.shadow_offset = Vector2(0.0, 2.0 if pressed else BUTTON_SHADOW)
+	box.shadow_offset = Vector2(0.0, 0.0 if pressed else BUTTON_SHADOW)
 	box.content_margin_left = 20.0
 	box.content_margin_right = 20.0
 	box.content_margin_top = 15.0 + (3.0 if pressed else 0.0)

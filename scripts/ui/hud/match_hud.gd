@@ -260,7 +260,6 @@ func _build() -> void:
 	for button: AimButton in aim_buttons:
 		button.cancel_zone = cancel_zone
 	banner = Label.new()
-	banner.set_meta(UiAccessibility.FIXED, true)
 	_place(banner, Vector4(0, 0.3, 1, 0.3), Vector4(0, -60, 0, 60))
 	banner.visible = false
 	banner.theme_type_variation = &"DisplayLabel"

@@ -18,23 +18,22 @@ static func build(view: HotspotRoomView, id: String) -> Button:
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	picture.offset_bottom = -36.0
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# the picture follows the card's rounded corners
 	var crop: ShaderMaterial = ShaderMaterial.new()
 	crop.shader = ChoiceCard.CROP_SHADER
-	crop.set_shader_parameter("rect_size", HotspotRoomView.KID_CARD)
+	crop.set_shader_parameter("rect_size", HotspotRoomView.KID_CARD - Vector2(0.0, 36.0))
 	crop.set_shader_parameter("radius", float(HotspotRoomView.KID_RADIUS))
 	picture.material = crop
 	card.add_child(picture)
 	var definition: CharacterDef = load("res://data/characters/%s.tres" % id) as CharacterDef
 	var label: Label = Label.new()
-	label.set_meta(UiAccessibility.FIXED, true)
-	label.theme_type_variation = &"DisplayLabel"
-	label.text = (definition.display_name if definition != null else id).to_upper()
+	label.text = definition.display_name if definition != null else id.capitalize()
 	label.add_theme_font_size_override("font_size", 24)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	label.offset_top = -42.0
+	label.offset_top = -36.0
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(label)
 	style(card, false)
@@ -46,8 +45,8 @@ static func style(card: Button, chosen: bool) -> void:
 	var box: StyleBoxFlat = KalyeahTheme.surface_box(HotspotRoomView.KID_RADIUS, 0, 0.0)
 	box.bg_color = Color(KalyeahTheme.INK, 0.8)
 	box.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
-	box.shadow_size = 8
-	box.shadow_offset = Vector2(0.0, 4.0)
+	box.shadow_size = 4
+	box.shadow_offset = Vector2(0.0, 2.0)
 	for state: String in ["normal", "hover", "pressed", "disabled"]:
 		card.add_theme_stylebox_override(state, box)
 	card.add_theme_stylebox_override("focus", KalyeahTheme.focus_ring(HotspotRoomView.KID_RADIUS + 2))

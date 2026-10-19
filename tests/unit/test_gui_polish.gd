@@ -1,19 +1,7 @@
 extends GutTest
 ## Regression coverage for short-phone loadout space and unambiguous local identity.
 
-var _scale: float
-
-
-func before_each() -> void:
-	_scale = Settings.text_scale
-
-
-func after_each() -> void:
-	Settings.set_text_scale(_scale)
-	await wait_process_frames(3)
-
-
-func test_first_weapon_details_and_ready_fit_the_short_phone_at_every_reading_size() -> void:
+func test_first_weapon_details_and_ready_fit_short_and_tall_phones() -> void:
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 	var phone: Control = autofree(Control.new()) as Control
 	phone.size = Vector2(720.0, 1280.0)
@@ -28,18 +16,21 @@ func test_first_weapon_details_and_ready_fit_the_short_phone_at_every_reading_si
 	screen.open(WeaponPick.new(ids, 10.0), rules.weapons, "", RandomNumberGenerator.new(), rules.characters, &"ligaya", true)
 	var scroll: ScrollContainer = screen.find_child("Weapons", true, false) as ScrollContainer
 	var first: Button = screen.find_child("Weapon_bato_light", true, false) as Button
-	for scale: float in UiAccessibility.SCALES:
-		Settings.set_text_scale(scale)
+	for height: float in [1280.0, 1558.0]:
+		phone.size.y = height
+		screen.size = phone.size
 		await wait_process_frames(8)
 		var stats: Label = first.find_child("Stats", true, false) as Label
-		assert_lte(stats.get_global_rect().end.y, scroll.get_global_rect().end.y, "first weapon stats fit at %s" % scale)
+		assert_lte(stats.get_global_rect().end.y, scroll.get_global_rect().end.y, "first weapon stats fit at height %s" % height)
 		assert_lte(first.get_global_rect().end.x, scroll.get_global_rect().end.x)
 		assert_lte(screen._ready_button.get_global_rect().end.y, phone.get_global_rect().end.y)
 		assert_gte(screen._ready_button.size.y, UiMetrics.TOUCH)
 		assert_false(scroll.is_ancestor_of(screen._ready_button))
-		assert_eq((first.find_child("Description", true, false) as Label).get_theme_font_size("font_size"), roundi(UiMetrics.BODY * scale), "reading text remains enlarged")
+		assert_eq((first.find_child("Description", true, false) as Label).get_theme_font_size("font_size"), UiMetrics.BODY, "body text uses one readable scale")
 		for portrait: Button in screen._profiles.values():
 			assert_gte(portrait.size.x, UiMetrics.TOUCH, "compact portraits keep touch width")
+	phone.size.y = 1280.0
+	screen.size = phone.size
 	screen.open(WeaponPick.new(ids, 10.0), rules.weapons, "", RandomNumberGenerator.new(), rules.characters, &"ligaya")
 	await wait_process_frames(8)
 	assert_lte((first.find_child("Stats", true, false) as Label).get_global_rect().end.y, scroll.get_global_rect().end.y, "timed setup also fits with its explanation visible")
@@ -54,7 +45,6 @@ func test_first_weapon_details_and_ready_fit_the_short_phone_at_every_reading_si
 
 
 func test_you_stays_in_the_status_tag_for_either_team_with_a_long_name() -> void:
-	Settings.set_text_scale(1.4)
 	for team: int in 2:
 		for status: String in ["Host", "Ready", ""]:
 			var member: Dictionary = {"player_id": 1, "name": "LongName1234", "team": team, "ready": status == "Ready"}

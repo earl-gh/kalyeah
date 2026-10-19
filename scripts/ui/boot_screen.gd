@@ -103,7 +103,6 @@ func _build() -> void:
 	_fill_rect = _bar_layer(cardboard, _fill_clip)
 	_fill_rect.stretch_mode = TextureRect.STRETCH_SCALE
 	_percent = Label.new()
-	_percent.set_meta(UiAccessibility.FIXED, true)
 	_percent.add_theme_font_override("font", PERCENT_FONT)
 	_percent.add_theme_color_override("font_color", Color.WHITE)
 	_percent.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.02))

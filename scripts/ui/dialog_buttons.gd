@@ -5,7 +5,7 @@ extends RefCounted
 
 const TRACK: Color = Color(0.05, 0.08, 0.2, 0.9)
 const FILL: Color = KalyeahTheme.AMBER
-const GRABBER_SIZE: int = 64
+const GRABBER_SIZE: int = 44
 
 
 ## A square painted button with an icon (`color`: orange, green, red, blue, grey or gold).
@@ -32,14 +32,14 @@ static func slider(value: float) -> HSlider:
 	var track: StyleBoxFlat = StyleBoxFlat.new()
 	track.bg_color = TRACK
 	track.set_corner_radius_all(14)
-	track.content_margin_top = 14.0
-	track.content_margin_bottom = 14.0
+	track.content_margin_top = 4.0
+	track.content_margin_bottom = 4.0
 	track.anti_aliasing = true
 	var fill: StyleBoxFlat = StyleBoxFlat.new()
 	fill.bg_color = FILL
 	fill.set_corner_radius_all(14)
-	fill.content_margin_top = 14.0
-	fill.content_margin_bottom = 14.0
+	fill.content_margin_top = 4.0
+	fill.content_margin_bottom = 4.0
 	fill.anti_aliasing = true
 	slider.add_theme_stylebox_override("slider", track)
 	slider.add_theme_stylebox_override("grabber_area", fill)

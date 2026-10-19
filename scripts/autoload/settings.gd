@@ -12,7 +12,6 @@ var server_url: String = ""
 ## Master volume 0..1 and whether button presses buzz the phone (owner-facing settings screen).
 var volume: float = 1.0
 var vibration: bool = true
-var text_scale: float = 1.0
 var reduced_motion: bool = false
 
 var _ui_voice: AudioStreamPlayer
@@ -30,7 +29,6 @@ func _ready() -> void:
 	if file.load(SAVE_PATH) == OK:
 		volume = clampf(float(file.get_value("audio", "volume", 1.0)), 0.0, 1.0)
 		vibration = bool(file.get_value("input", "vibration", true))
-		text_scale = UiAccessibility.valid_scale(file.get_value("accessibility", "text_scale", 1.0))
 		var motion: Variant = file.get_value("accessibility", "reduced_motion", false)
 		reduced_motion = motion if motion is bool else false
 	apply_volume()
@@ -108,7 +106,7 @@ func _save_value(section: String, key: String, value: Variant) -> void:
 
 
 func _on_node_added(node: Node) -> void:
-	if node is Control:
+	if node is Control and reduced_motion:
 		UiAccessibility.apply_weak.call_deferred(weakref(node))
 	if node is BaseButton:
 		(node as BaseButton).pressed.connect(play_ui, CONNECT_DEFERRED)
@@ -118,13 +116,6 @@ func play_ui(id: StringName = &"ui_click") -> void:
 	vibrate()
 	_ui_voice.stream = SoundBank.get_sound(id)
 	_ui_voice.play()
-
-
-func set_text_scale(value: float) -> void:
-	text_scale = UiAccessibility.valid_scale(value)
-	_save_value("accessibility", "text_scale", text_scale)
-	UiAccessibility.apply_tree(get_tree().root)
-	accessibility_changed.emit()
 
 
 func set_reduced_motion(enabled: bool) -> void:

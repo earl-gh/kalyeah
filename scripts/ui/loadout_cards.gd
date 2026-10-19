@@ -43,13 +43,11 @@ static func profile(screen: WeaponPickScreen, character: CharacterDef) -> Button
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(art)
 	var name_label: Label = label(character.display_name, 24)
-	name_label.set_meta(UiAccessibility.FIXED, true)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	name_label.offset_top = -36.0
 	button.add_child(name_label)
 	var taken: Label = label("TEAMMATE", 22)
-	taken.set_meta(UiAccessibility.FIXED, true)
 	taken.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	taken.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	taken.offset_left = -60.0
@@ -70,7 +68,7 @@ static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 	button.toggle_mode = true
 	button.custom_minimum_size = Vector2(0.0, 180.0)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.add_theme_stylebox_override("normal", box(screen.CARD_COLOR, screen.kind_color(def.kind).darkened(0.3)))
+	button.add_theme_stylebox_override("normal", box(screen.CARD_COLOR, KalyeahTheme.SLATE))
 	for state: String in ["pressed", "hover_pressed"]:
 		button.add_theme_stylebox_override(state, box(screen.SURFACE_SELECTED, screen.PICKED_COLOR, 4))
 	var margin: MarginContainer = MarginContainer.new()

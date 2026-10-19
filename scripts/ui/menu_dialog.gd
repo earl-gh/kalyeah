@@ -152,7 +152,7 @@ func add_buttons(buttons: Array[Button]) -> HBoxContainer:
 
 
 ## A painted button of `color` (orange, green, red, blue, grey or gold) with press feedback.
-static func make_button(text: String, color: String, font_size: int = 32, min_size: Vector2 = Vector2(0.0, 88.0)) -> Button:
+static func make_button(text: String, color: String, font_size: int = UiMetrics.ACTION, min_size: Vector2 = Vector2(0.0, 88.0)) -> Button:
 	var button: Button = Button.new()
 	button.text = text
 	button.custom_minimum_size = min_size
