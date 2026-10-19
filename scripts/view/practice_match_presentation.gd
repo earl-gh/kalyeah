@@ -159,6 +159,15 @@ func _first_watch_id() -> int:
 
 
 func _play_intro_shot() -> void:
+	var best_of: int = owner.sim.score.best_of
+	owner.hud.show_intro(
+		"TAG THEIR BASE!",
+		"BO%d  •  FIRST TO %d" % [best_of, owner.sim.score.points_to_win()]
+	)
+	if Settings.reduced_motion:
+		var player: PlayerState = owner.sim.players[owner.local_id]
+		owner._camera.follow(player.position, owner._flip(), 0.0)
+		return
 	var length: float = maxf(owner.rules.intro_time, 0.001)
 	var t: float = clampf(1.0 - owner.sim.intro_left / length, 0.0, 1.0)
 	var split: float = INTRO_SPLIT
@@ -175,11 +184,6 @@ func _play_intro_shot() -> void:
 	var look: Vector3 = ground + Vector3.UP * lerpf(INTRO_POST_TOP, 0.8, minf(u * 1.6, 1.0))
 	look += out * lerpf(0.5, 2.0, u)
 	owner._camera.frame_shot(eye, look)
-	var best_of: int = owner.sim.score.best_of
-	owner.hud.show_intro(
-		"TAG THEIR BASE!",
-		"BO%d  •  FIRST TO %d" % [best_of, owner.sim.score.points_to_win()]
-	)
 
 
 func _on_player_tagged(id: int) -> void:

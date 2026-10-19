@@ -1,5 +1,5 @@
 class_name SettingsPage
-extends VBoxContainer
+extends ScrollContainer
 ## The Settings tab: your profile, sound, vibration (phones) and quitting. There is no server
 ## address here: the online server is built into the game (the player only needs a room code).
 
@@ -8,25 +8,31 @@ signal quit_pressed
 
 var profile_button: Button
 var quit_button: Button
+var _content: VBoxContainer
 
 
 func _ready() -> void:
 	name = "SettingsPage"
-	add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
+	horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	follow_focus = true
+	_content = VBoxContainer.new()
+	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	add_child(_content)
+	_content.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	var title: Label = Label.new()
 	title.theme_type_variation = &"DisplayLabel"
 	title.text = "SETTINGS"
 	title.add_theme_font_size_override("font_size", UiMetrics.TITLE)
-	add_child(title)
+	_content.add_child(title)
 	profile_button = MenuDialog.make_button("PROFILE", "grey", 30, Vector2(0.0, 88.0))
 	profile_button.name = "ProfileButton"
 	profile_button.pressed.connect(profile_pressed.emit)
-	add_child(profile_button)
-	fill(self)
+	_content.add_child(profile_button)
+	fill(_content)
 	quit_button = MenuDialog.make_button("QUIT GAME", "grey", 26, Vector2(0.0, 88.0))
 	quit_button.name = "QuitButton"
 	quit_button.pressed.connect(quit_pressed.emit)
-	add_child(quit_button)
+	_content.add_child(quit_button)
 
 
 ## Sound and vibration (phones only), added to `parent`.
@@ -54,6 +60,7 @@ static func fill(parent: Control) -> void:
 			toggle.text = "ON" if Settings.vibration else "OFF"
 			KalyeahTheme.style_button(toggle, "green" if Settings.vibration else "grey"))
 		buzz.add_child(toggle)
+	parent.add_child(AccessibilityOptions.new())
 
 
 static func _row(parent: Control, label_text: String) -> HBoxContainer:
@@ -61,6 +68,7 @@ static func _row(parent: Control, label_text: String) -> HBoxContainer:
 	row.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	var label: Label = Label.new()
 	label.text = label_text
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.add_theme_font_size_override("font_size", UiMetrics.BODY)
 	row.add_child(label)

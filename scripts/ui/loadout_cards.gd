@@ -43,11 +43,13 @@ static func profile(screen: WeaponPickScreen, character: CharacterDef) -> Button
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(art)
 	var name_label: Label = label(character.display_name, 24)
+	name_label.set_meta(UiAccessibility.FIXED, true)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	name_label.offset_top = -36.0
 	button.add_child(name_label)
 	var taken: Label = label("TEAMMATE", 22)
+	taken.set_meta(UiAccessibility.FIXED, true)
 	taken.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	taken.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	taken.offset_left = -60.0
@@ -94,7 +96,13 @@ static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 	texts.add_theme_constant_override("separation", 5)
 	texts.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(texts)
-	texts.add_child(label("%s · %s" % [def.display_name, def.kind_label()], screen.NAME_FONT))
+	var heading: MarginContainer = MarginContainer.new()
+	heading.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	heading.add_theme_constant_override("margin_right", 42)
+	var title: Label = label("%s · %s" % [def.display_name, def.kind_label()], screen.NAME_FONT)
+	title.name = "WeaponName"
+	heading.add_child(title)
+	texts.add_child(heading)
 	var description: Label = label(def.description, screen.DESCRIPTION_FONT)
 	description.name = "Description"
 	texts.add_child(description)

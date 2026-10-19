@@ -43,6 +43,7 @@ static func build_intro(hud: MatchHud) -> void:
 	hud.intro_bar.visible = false
 	hud.add_child(hud.intro_bar)
 	hud.intro_title = Label.new()
+	hud.intro_title.set_meta(UiAccessibility.FIXED, true)
 	hud.intro_title.theme_type_variation = &"DisplayLabel"
 	hud._place(hud.intro_title, Vector4(0, 0, 1, 0), Vector4(0, 18, 0, 78))
 	hud.intro_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -52,6 +53,7 @@ static func build_intro(hud: MatchHud) -> void:
 	hud.intro_title.add_theme_constant_override("outline_size", 10)
 	hud.intro_bar.add_child(hud.intro_title)
 	hud.intro_sub = Label.new()
+	hud.intro_sub.set_meta(UiAccessibility.FIXED, true)
 	hud._place(hud.intro_sub, Vector4(0, 0, 1, 0), Vector4(0, 80, 0, 120))
 	hud.intro_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hud.intro_sub.add_theme_font_size_override("font_size", 26)

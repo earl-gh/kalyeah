@@ -32,6 +32,7 @@ var _dragging: bool = false
 var _press_x: float = 0.0
 var _press_position: float = 0.0
 var _tween: Tween
+var _focus_frame: Panel
 
 
 ## `options` are {id, title, color}; the card at `current` starts in the middle. `heading` is the
@@ -45,6 +46,7 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		card.size = card_size
 		card.pivot_offset = card_size / 2.0
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.focus_mode = Control.FOCUS_NONE
 		add_child(card)
 		cards.append(card)
 	index = clampi(current, 0, maxi(cards.size() - 1, 0))
@@ -53,6 +55,16 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 
 
 func _ready() -> void:
+	focus_mode = Control.FOCUS_ALL
+	tooltip_text = "Choose with Left and Right arrows"
+	_focus_frame = Panel.new()
+	_focus_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_focus_frame.z_index = 20
+	_focus_frame.add_theme_stylebox_override("panel", KalyeahTheme.focus_ring(KalyeahTheme.CORNER))
+	add_child(_focus_frame)
+	focus_entered.connect(_layout)
+	focus_exited.connect(_layout)
+	Settings.accessibility_changed.connect(_on_accessibility_changed)
 	clip_contents = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_layout()
@@ -70,7 +82,7 @@ func select(at: int, animate: bool = true) -> void:
 	index = target
 	if _tween != null:
 		_tween.kill()
-	if animate:
+	if animate and not Settings.reduced_motion:
 		_tween = create_tween()
 		_tween.tween_method(_move_to, _position, float(target), SNAP_TIME).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	else:
@@ -98,8 +110,25 @@ func _layout() -> void:
 		card.modulate = Color(shade, shade, shade, lerpf(1.0, BACK_ALPHA, clampf(absf(offset), 0.0, 1.0)))
 		card.z_index = 10 - int(roundf(absf(offset) * 5.0))
 
+	if _focus_frame != null:
+		_focus_frame.visible = has_focus() and not cards.is_empty()
+		if not cards.is_empty():
+			_focus_frame.size = card_size * cards[index].scale
+			_focus_frame.position = cards[index].position + (card_size - _focus_frame.size) / 2.0
+
+
+func _on_accessibility_changed() -> void:
+	if Settings.reduced_motion:
+		_pressed = false
+		_dragging = false
+		select(index, false)
+
 
 func _gui_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_left") or event.is_action_pressed("ui_right"):
+		select(index + (-1 if event.is_action_pressed("ui_left") else 1))
+		accept_event()
+		return
 	if event is InputEventMouseButton:
 		var button: InputEventMouseButton = event as InputEventMouseButton
 		if button.button_index == MOUSE_BUTTON_WHEEL_UP and button.pressed:
@@ -108,6 +137,7 @@ func _gui_input(event: InputEvent) -> void:
 			select(index + 1)
 		elif button.button_index == MOUSE_BUTTON_LEFT:
 			if button.pressed:
+				grab_focus()
 				_pressed = true
 				_dragging = false
 				_press_x = button.position.x

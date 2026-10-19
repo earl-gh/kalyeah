@@ -267,8 +267,9 @@ func _build_titles() -> Control:
 	mode_text_label.name = "ModeText"
 	mode_text_label.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
 	mode_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mode_text_label.clip_text = true
-	mode_text_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	mode_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mode_text_label.clip_text = false
+	mode_text_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	titles.add_child(mode_text_label)
 	return titles
 
@@ -436,6 +437,8 @@ func safe_insets() -> Vector4:
 
 ## The buttons pop up in turn when the screen opens.
 func _pop_in() -> void:
+	if Settings.reduced_motion:
+		return
 	var buttons: Array[Control] = [primary_button, secondary_button]
 	for id: StringName in corner_buttons:
 		buttons.append(corner_buttons[id])
@@ -445,6 +448,7 @@ func _pop_in() -> void:
 		button.scale = Vector2.ONE * 0.85
 		button.modulate.a = 0.0
 		var pop: Tween = create_tween().set_parallel(true)
+		button.set_meta(&"entrance_tween", pop)
 		pop.tween_property(button, "modulate:a", 1.0, 0.25).set_delay(0.1 * i)
 		pop.tween_property(button, "scale", Vector2.ONE, 0.35).set_delay(0.1 * i).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
@@ -506,8 +510,11 @@ func _show_loading(message: String) -> void:
 	_loading_dots.add_theme_font_size_override("font_size", 56)
 	_loading_dots.add_theme_color_override("font_color", Color.WHITE)
 	stack.add_child(_loading_dots)
-	var fade: Tween = create_tween()
-	fade.tween_property(cover, "color:a", 0.88, 0.25)
+	if Settings.reduced_motion:
+		cover.color.a = 0.88
+	else:
+		var fade: Tween = create_tween()
+		fade.tween_property(cover, "color:a", 0.88, 0.25)
 
 
 func _open_lobby(intent: LobbyScreen.Intent, hotspot: bool) -> void:

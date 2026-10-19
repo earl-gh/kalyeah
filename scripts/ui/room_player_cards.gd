@@ -14,6 +14,7 @@ static func player_card(member: Dictionary, team: int, room: Dictionary) -> Cont
 	var card: Control = Control.new()
 	card.name = "Player%d" % (member["player_id"] as int)
 	card.custom_minimum_size = Vector2(0.0, BAR_HEIGHT)
+	card.set_meta(UiAccessibility.FIT_HEIGHT, true)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var bar: Panel = Panel.new()
 	bar.name = "Bar"
@@ -33,6 +34,7 @@ static func player_card(member: Dictionary, team: int, room: Dictionary) -> Cont
 	var name_label: Label = Label.new()
 	name_label.name = "Name"
 	name_label.text = (member["name"] as String) + (" · You" if member["player_id"] == room.get("you", -1) else "")
+	name_label.tooltip_text = name_label.text
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if team == 0 else HORIZONTAL_ALIGNMENT_RIGHT
@@ -110,7 +112,7 @@ static func _number_block(number: int, team: int, hollow: bool) -> Control:
 static func _padded(child: Control, left: float, right: float) -> Control:
 	var margin: MarginContainer = MarginContainer.new()
 	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	margin.add_theme_constant_override("margin_top", 22)
+	margin.add_theme_constant_override("margin_top", 44)
 	margin.add_theme_constant_override("margin_left", int(left))
 	margin.add_theme_constant_override("margin_right", int(right))
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -132,6 +134,7 @@ static func _tag(text: String, team: int) -> Control:
 	tag.add_theme_stylebox_override("panel", box)
 	var label: Label = Label.new()
 	label.text = text
+	label.set_meta(UiAccessibility.FIXED, true)
 	label.add_theme_font_size_override("font_size", TAG_SIZE)
 	label.add_theme_color_override("font_color", Color.WHITE)
 	label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
@@ -159,6 +162,7 @@ static func open_slot(team: int, row: int, can_join: bool, room: Dictionary, on_
 	var card: Button = Button.new()
 	card.name = "OpenSlot%d" % team
 	card.custom_minimum_size = Vector2(0.0, BAR_HEIGHT)
+	card.set_meta(UiAccessibility.FIT_HEIGHT, true)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.focus_mode = Control.FOCUS_ALL
 	card.disabled = not can_join

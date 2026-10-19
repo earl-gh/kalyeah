@@ -131,6 +131,12 @@ Before the first round (6 s, `intro_time`; the server runs it too, nobody moves 
 - **Match (owner):** one tier, points only: no sets and no switching ends. The match is **best of 3, 5 or 7 points**, picked by the **host in the lobby** (everyone in the room sees the choice): the first team to win a majority (2, 3 or 4 points) wins. Practice is best of 3. After the last point the game stops and shows the result. Numbers in `data/rules/game_rules.tres` (`capture_time`, `point_freeze_time`, `best_of`, `best_of_choices`).
 - Training dummies never count for a capture: in practice you score alone even though the ally dummy stays home, and the dummy team can't score.
 
+## Accessibility preferences
+
+Reading text has saved 100%, 120% and 140% sizes, shared by Home, room and match settings. Reading labels/fields reflow; action labels, portrait captions and already prominent intro/result lettering retain their geometry. This is an in-game preference, independent of Android font scaling and iOS Dynamic Type.
+
+Reduce motion skips menu/button/banner pops and carousel snapping animation, removes camera shake and moving film grain, stops decorative NPC sway, and holds the normal camera during the opening show. Objective text and the server's intro/round/cast timings remain unchanged. Gameplay animation, aiming telegraphs and follow-camera movement remain visible. Keyboard users can select modes with Left/Right and navigate modal controls with Tab/Shift-Tab; focus returns to the opener. Opening match settings blocks local movement/casting and cancels a held aim without firing; multiplayer continues running.
+
 ## Lobby rules
 - Online and Hotspot share the same room layout. Online exposes a copyable eight-character code; Hotspot joins by verifying the host room on the local network, with no code. Guests see current match settings as a summary; only hosts edit them.
 - The host picks **Best of 3 / 5 / 7** in the room (default 3); only the host can change it, only before the start.

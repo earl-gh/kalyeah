@@ -103,6 +103,7 @@ static func _tabs(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> Control:
 static func _weapons(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> Control:
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.name = "Weapons"
+	scroll.follow_focus = true
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var holder: VBoxContainer = VBoxContainer.new()

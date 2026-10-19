@@ -88,11 +88,12 @@ func frame_shot(eye: Vector3, target: Vector3) -> void:
 
 ## Kick the camera (a hit on you, a wall breaking). `strength` ~0.1 small, 0.4 big.
 func shake(strength: float) -> void:
-	_shake = maxf(_shake, strength)
+	if not Settings.reduced_motion:
+		_shake = maxf(_shake, strength)
 
 
 func _process(delta: float) -> void:
-	if _shake <= 0.001:
+	if Settings.reduced_motion or _shake <= 0.001:
 		_shake = 0.0
 		h_offset = 0.0
 		v_offset = 0.0

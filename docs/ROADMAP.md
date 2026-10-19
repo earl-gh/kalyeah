@@ -20,6 +20,7 @@ What is built, what is next, and the rules for building it. Rules and numbers li
 | Map 1:2 (owner) | The playing area is 24 × 48 m (1:2, was 3:4 24 × 32 m); the minimap is 100 × 200 px at exactly that shape; the cover wall keeps its distance from the base |
 | Home UI refinement (owner) | Bungee typography, a compact profile bar, the titled Agawan Base model, one primary Online action, concise dialogs and a responsive phone layout |
 | Shared lobby and UI hierarchy | One Online/Hotspot room view, Online code copying, guest format summaries, shared typography/spacing/color roles, readable guide/history/HUD, bounded dialogs, and explicit setup/exit navigation. Accessibility and device follow-up in [UI audit](audits/2026-10-19-ui-hig.md). |
+| Accessibility preferences | Saved reading sizes with reflow, reduced decorative motion, modal focus/navigation and keyboard-safe match settings. Scope, exceptions and native checks in [accessibility follow-up](audits/2026-10-19-accessibility.md). |
 | Loadout and control feedback | Untimed Practice setup, saved validated weapon pairs, explicit replacement slots, larger readable cards, contextual control hints, persistent reconnect state, and truthful result actions |
 | Lobby and match UI refinement | Narrow-phone lobby and loadout layouts, concise room states, unified match announcements, and a score card with clock and best-of context |
 

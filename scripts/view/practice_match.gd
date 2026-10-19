@@ -258,10 +258,18 @@ func _step_once(dt: float) -> void:
 		if _resume_rejected or _awaiting_reconnect_welcome or not client.is_online():
 			return
 		_input_tick += 1
-		client.send_input(input.build(_flip(), _mouse_aim, _input_tick), dt)
+		client.send_input(_local_input(_input_tick), dt)
 		return
-	sim.set_input(local_id, input.build(_flip(), _mouse_aim, sim.tick))
+	sim.set_input(local_id, _local_input(sim.tick))
 	sim.step(dt)
+
+
+## Menus consume keyboard intent too; a held aim must cancel rather than cast.
+func _local_input(tick: int) -> PlayerInput:
+	if not controls_active() or is_picking() or hud.menu.visible:
+		input.clear()
+		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_AIM_CANCEL, tick)
+	return input.build(_flip(), _mouse_aim, tick)
 
 
 ## The camera and stick are turned around when the local team defends the -Z base.

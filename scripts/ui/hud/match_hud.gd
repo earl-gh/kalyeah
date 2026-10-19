@@ -78,6 +78,8 @@ var banner: Label
 var feedback: MatchFeedback
 var connection_blocked: bool = false
 
+var _banner_tween: Tween
+
 var _banner_left: float = 0.0
 
 
@@ -85,6 +87,7 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build()
+	Settings.accessibility_changed.connect(_on_accessibility_changed)
 	layout_controls()
 
 
@@ -117,13 +120,19 @@ func show_banner(text: String) -> void:
 	banner.text = text
 	banner.visible = true
 	_banner_left = BANNER_TIME
+	if is_instance_valid(_banner_tween):
+		_banner_tween.kill()
+	if Settings.reduced_motion:
+		banner.scale = Vector2.ONE
+		banner.modulate.a = 1.0
+		return
 	# pop in: starts big and transparent, settles with a little overshoot
 	banner.pivot_offset = banner.size / 2.0
 	banner.scale = Vector2.ONE * 1.5
 	banner.modulate.a = 0.0
-	var tween: Tween = create_tween().set_parallel(true)
-	tween.tween_property(banner, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(banner, "modulate:a", 1.0, 0.12)
+	_banner_tween = create_tween().set_parallel(true)
+	_banner_tween.tween_property(banner, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_banner_tween.tween_property(banner, "modulate:a", 1.0, 0.12)
 
 
 func banner_text() -> String:
@@ -251,6 +260,7 @@ func _build() -> void:
 	for button: AimButton in aim_buttons:
 		button.cancel_zone = cancel_zone
 	banner = Label.new()
+	banner.set_meta(UiAccessibility.FIXED, true)
 	_place(banner, Vector4(0, 0.3, 1, 0.3), Vector4(0, -60, 0, 60))
 	banner.visible = false
 	banner.theme_type_variation = &"DisplayLabel"
@@ -264,6 +274,7 @@ func _build() -> void:
 	add_child(banner)
 	capture_label = _pill_label("", 34, Vector4(0, 0.4, 1, 0.4), Vector4(120, -56, -120, 56))
 	capture_label.theme_type_variation = &"DisplayLabel"
+	capture_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	capture_label.add_theme_color_override("font_outline_color", Color(0.08, 0.05, 0.1))
 	capture_label.add_theme_constant_override("outline_size", 10)
 	again_button = _button("PLAY AGAIN", 32, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-160, -30, 160, 60))
@@ -394,3 +405,11 @@ func set_connection(text: String, terminal: bool = false) -> void:
 	feedback.show_connection(text, terminal)
 	if connection_blocked:
 		set_controls_active(false)
+
+
+func _on_accessibility_changed() -> void:
+	if Settings.reduced_motion:
+		if is_instance_valid(_banner_tween):
+			_banner_tween.kill()
+		banner.scale = Vector2.ONE
+		banner.modulate.a = 1.0

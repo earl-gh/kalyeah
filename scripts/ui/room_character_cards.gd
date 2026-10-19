@@ -28,6 +28,7 @@ static func build(view: HotspotRoomView, id: String) -> Button:
 	card.add_child(picture)
 	var definition: CharacterDef = load("res://data/characters/%s.tres" % id) as CharacterDef
 	var label: Label = Label.new()
+	label.set_meta(UiAccessibility.FIXED, true)
 	label.theme_type_variation = &"DisplayLabel"
 	label.text = (definition.display_name if definition != null else id).to_upper()
 	label.add_theme_font_size_override("font_size", 24)
@@ -47,8 +48,9 @@ static func style(card: Button, chosen: bool) -> void:
 	box.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
 	box.shadow_size = 8
 	box.shadow_offset = Vector2(0.0, 4.0)
-	for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
+	for state: String in ["normal", "hover", "pressed", "disabled"]:
 		card.add_theme_stylebox_override(state, box)
+	card.add_theme_stylebox_override("focus", KalyeahTheme.focus_ring(HotspotRoomView.KID_RADIUS + 2))
 	# the amber frame is an overlay (the picture covers the button's own border)
 	var frame: Panel = card.get_node_or_null("Chosen") as Panel
 	if frame == null:

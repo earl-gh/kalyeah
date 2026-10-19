@@ -35,10 +35,12 @@ func _ready() -> void:
 	connection.hide()
 	hint = Label.new()
 	hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	hint.offset_top = -350.0
-	hint.offset_bottom = -294.0
+	hint.offset_top = -420.0
+	hint.offset_bottom = -280.0
 	hint.offset_left = 20.0
 	hint.offset_right = -20.0
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
 	hint.add_theme_color_override("font_outline_color", Color(0.03, 0.04, 0.08))
