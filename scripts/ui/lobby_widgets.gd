@@ -23,7 +23,7 @@ static func header(title_text: String, back_action: Callable) -> HBoxContainer:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	var back: Button = button("BACK", back_action, "grey", 24)
-	back.custom_minimum_size = Vector2(108.0, 66.0)
+	back.custom_minimum_size = Vector2(120.0, UiMetrics.TOUCH)
 	row.add_child(back)
 	var title: Label = label(title_text, 38)
 	title.theme_type_variation = &"DisplayLabel"
@@ -44,8 +44,8 @@ static func label(text: String, font_size: int, color: Color = Color.WHITE) -> L
 
 
 static func field_label(text: String) -> Label:
-	var result: Label = label(text, 21, KalyeahTheme.AMBER)
-	result.theme_type_variation = &"SectionLabel"
+	var result: Label = label(text, UiMetrics.DETAIL, KalyeahTheme.TEXT_MUTED)
+	result.theme_type_variation = &"MutedLabel"
 	result.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	return result
 
@@ -54,7 +54,7 @@ static func edit(text: String, placeholder: String, font_size: int) -> LineEdit:
 	var result: LineEdit = LineEdit.new()
 	result.text = text
 	result.placeholder_text = placeholder
-	result.custom_minimum_size = Vector2(0.0, 72.0)
+	result.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
 	result.add_theme_font_size_override("font_size", font_size)
 	return result
 
@@ -71,7 +71,7 @@ static func make_toggle(button_control: Button) -> void:
 static func button(text: String, action: Callable, color: String = "orange", font_size: int = 28) -> Button:
 	var result: Button = Button.new()
 	result.text = text
-	result.custom_minimum_size = Vector2(120.0, 72.0)
+	result.custom_minimum_size = Vector2(120.0, UiMetrics.TOUCH)
 	result.add_theme_font_size_override("font_size", font_size)
 	KalyeahTheme.style_button(result, color)
 	MenuDialog.feel_press(result)

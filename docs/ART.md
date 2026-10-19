@@ -89,4 +89,9 @@ Retain Bungee and Source Sans 3. The hotspot header has no room code. Replace th
 
 ### Loadout readability and control feedback
 
-Loadout setup uses an opaque navy surface, amber selected slots, the existing painted weapon art, and scrollable 3:4 character cards. Descriptions use 26 px body text at the 720 px design width; weapon names use 28 px and statistics 24 px. Weapon cards grow with wrapped content. Slots remain above the scrolling list, with an 88 px confirmation action below it. The match HUD shows one contextual hint above the controls for auto-run, aim/cancel or casting restrictions. Connection recovery uses a persistent central notice until server confirmation.
+Loadout setup uses an opaque navy surface, amber selected slots, the existing painted weapon art, and scrollable 3:4 character cards. Descriptions and weapon names use 34 px body text at the 720 px design width; statistics use 28 px. Weapon cards grow with wrapped content. Slots remain above the scrolling list, with an 88 px confirmation action below it. The match HUD shows one contextual hint above the controls for auto-run, aim/cancel or casting restrictions. Connection recovery uses a persistent central notice until server confirmation.
+
+
+### Shared UI hierarchy
+
+`UiMetrics` owns menu typography and spacing at the 720 px design width: body 34, detail/action 28, caption 24 and heading 40. Use 32 px page margins, 24 px panel padding, 16 px component gaps and 24 px section gaps. Preserve negative space; reading content wraps or scrolls. Amber is primary/selected, slate secondary, green confirmation, red destructive/error, and blue navigation/game context. Active action text is contrast-tested. See [the HIG audit](audits/2026-10-19-ui-hig.md) for findings, validation and remaining accessibility work.

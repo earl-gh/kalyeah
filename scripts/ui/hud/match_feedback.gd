@@ -22,7 +22,7 @@ func _ready() -> void:
 	add_child(connection)
 	message = Label.new()
 	message.theme_type_variation = &"HudPill"
-	message.add_theme_font_size_override("font_size", 30)
+	message.add_theme_font_size_override("font_size", UiMetrics.BODY)
 	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	connection.add_child(message)
@@ -40,7 +40,7 @@ func _ready() -> void:
 	hint.offset_left = 20.0
 	hint.offset_right = -20.0
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 26)
+	hint.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
 	hint.add_theme_color_override("font_outline_color", Color(0.03, 0.04, 0.08))
 	hint.add_theme_constant_override("outline_size", 8)
 	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE

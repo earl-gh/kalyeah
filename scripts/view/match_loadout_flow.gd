@@ -7,6 +7,7 @@ static func open(owner: PracticeMatch, heading: String, current: Array[StringNam
 	var mine: StringName = owner.sim.players[owner.local_id].character_id if owner.online else StringName(Session.avatar_id)
 	if not owner.rules.characters.any(func(c: CharacterDef) -> bool: return c.id == mine):
 		mine = owner.sim.players[owner.local_id].character_id
+	owner._pick_screen.hosting = owner.online and Net.host != null
 	var remembered: Array[StringName] = Session.loadout_for(_weapon_ids(owner)) if current.is_empty() else current
 	owner._pick_screen.open(WeaponPick.new(_weapon_ids(owner), owner.rules.weapon_pick_time, remembered), owner.rules.weapons, heading, owner.sim.rng, owner.rules.characters, mine, not owner.online)
 	owner._set_controls_active(false)

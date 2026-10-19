@@ -28,7 +28,7 @@ const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
 const LOGO_WIDTH: float = 270.0
 ## How far the logo and the corner buttons sit down from the top.
 const TOP_ROW_DROP: float = 26.0
-const CORNER_BUTTON: float = 84.0
+const CORNER_BUTTON: float = UiMetrics.TOUCH
 ## The corner buttons: the book and history in a column at the left of the cards, settings at the
 ## top right.
 const CORNERS: Array[Dictionary] = [
@@ -265,7 +265,7 @@ func _build_titles() -> Control:
 	titles.add_child(mode_name_label)
 	mode_text_label = Label.new()
 	mode_text_label.name = "ModeText"
-	mode_text_label.add_theme_font_size_override("font_size", 22)
+	mode_text_label.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
 	mode_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mode_text_label.clip_text = true
 	mode_text_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -291,10 +291,10 @@ func _build_page_layer() -> VBoxContainer:
 	layer.visible = false
 	layer.add_theme_constant_override("separation", 12)
 	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	back_button = MenuDialog.make_button("< BACK", "grey", 26, Vector2(0.0, 76.0))
+	back_button = MenuDialog.make_button("BACK", "grey", 26, Vector2(0.0, UiMetrics.TOUCH))
 	back_button.name = "BackButton"
 	back_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	back_button.custom_minimum_size = Vector2(190.0, 76.0)
+	back_button.custom_minimum_size = Vector2(190.0, UiMetrics.TOUCH)
 	back_button.pressed.connect(close_page)
 	layer.add_child(back_button)
 	_page_holder = Control.new()
@@ -359,7 +359,8 @@ func _refresh_mode() -> void:
 	mode_text_label.text = String(mode["text"])
 	primary_button.text = "CREATE" if rooms else "START"
 	secondary_button.visible = rooms
-	KalyeahTheme.style_button(primary_button, "blue" if rooms else "orange")
+	KalyeahTheme.style_button(primary_button, "orange")
+	KalyeahTheme.style_button(secondary_button, "grey")
 
 
 func _on_mode_selected(index: int) -> void:
@@ -537,18 +538,18 @@ func open_name_editor() -> MenuDialog:
 	field.placeholder_text = "Your name"
 	field.max_length = Session.MAX_NAME_LENGTH
 	field.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	field.custom_minimum_size = Vector2(0.0, 84.0)
+	field.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
 	field.add_theme_font_size_override("font_size", 36)
 	card.body.add_child(field)
 	var hint: Label = card.add_hint("%d characters max." % Session.MAX_NAME_LENGTH)
 	var cancel: Button = MenuDialog.make_button("CANCEL", "grey", 30)
-	var save: Button = MenuDialog.make_button("SAVE", "green", 30)
+	var save: Button = MenuDialog.make_button("SAVE", "orange", 30)
 	card.add_buttons([cancel, save])
 	var apply: Callable = func() -> void:
 		var clean: String = Session.clean_name(field.text)
 		if clean.is_empty():
-			hint.text = "Your name can't be empty."
-			hint.add_theme_color_override("font_color", Color(1.0, 0.55, 0.5))
+			hint.text = "Enter a name."
+			hint.add_theme_color_override("font_color", KalyeahTheme.ERROR)
 			return
 		Session.player_name = clean
 		Session.save()

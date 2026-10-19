@@ -282,7 +282,7 @@ func test_create_and_join_share_one_row_and_the_texts_are_one_line() -> void:
 		assert_false((card.get_node("Heading") as Label).visible, "no 'Mode' on the cards")
 	for mode: Dictionary in TitleScreen.MODES:
 		assert_lt(String(mode["text"]).length(), 34, "one short line")
-	assert_lt(screen.mode_text_label.get_minimum_size().y, 40.0, "it stays on one line")
+	assert_eq(screen.mode_text_label.get_line_count(), 1, "the larger text still fits one line")
 
 
 func test_the_screen_shows_no_version_online_caption_or_server_line() -> void:

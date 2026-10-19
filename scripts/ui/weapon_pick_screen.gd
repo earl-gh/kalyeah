@@ -8,13 +8,14 @@ signal character_changed(id: StringName)
 ## Swap mode: a new pair of weapons was picked (applied at once).
 signal swapped(picks: Array[StringName])
 signal closed
+signal exit_requested
 
 ## The character cards are exactly 3:4 (width:height).
 const PROFILE_SIZE: Vector2 = Vector2(126.0, 168.0)
 const TAB_FONT: int = 24
-const NAME_FONT: int = 28
-const DESCRIPTION_FONT: int = 26
-const STAT_FONT: int = 24
+const NAME_FONT: int = UiMetrics.BODY
+const DESCRIPTION_FONT: int = UiMetrics.BODY
+const STAT_FONT: int = UiMetrics.DETAIL
 const PICKED_COLOR: Color = Color(1.0, 0.82, 0.25)
 const CARD_COLOR: Color = Color(0.13, 0.16, 0.32, 0.95)
 const SURFACE_SELECTED: Color = Color(0.2, 0.27, 0.4)
@@ -33,6 +34,9 @@ var character_id: StringName = &""
 var swap_mode: bool = false
 var untimed: bool = false
 var replacement_slot: int = 0
+var back_button: Button
+var _exit_dialog: MenuDialog
+var hosting: bool = false
 var _hint: Label
 var _mode_label: Label
 var _kid_label: Label
@@ -112,8 +116,8 @@ func show_time(seconds: float) -> void:
 func _show(defs: Array[WeaponDef], _heading: String) -> void:
 	if _buttons.is_empty():
 		_build(defs)
-	_title.text = "CHANGE WEAPONS" if swap_mode else "CHOOSE 2 WEAPONS"
-	_mode_label.text = "Changes apply immediately" if swap_mode else ("Practice · Take your time" if untimed else "Confirm before the timer ends")
+	_title.text = "CHANGE WEAPONS" if swap_mode else "LOADOUT"
+	_mode_label.text = "Changes apply immediately" if swap_mode else ("Practice" if untimed else "Auto-picks when time runs out")
 	_ring.visible = not untimed
 	LobbyWidgets.apply_safe_area(_safe_margin, 24.0, 24.0)
 	_character_row.visible = not swap_mode and not _characters.is_empty()
@@ -211,6 +215,7 @@ func tick(delta: float) -> void:
 
 
 func _finish() -> void:
+	_close_exit_dialog()
 	visible = false
 	confirmed.emit(pick.picks.duplicate())
 
@@ -234,14 +239,14 @@ func _refresh() -> void:
 		_sockets[slot].active = slot == replacement_slot
 		_sockets[slot].show_weapon(_defs.get(id) as WeaponDef)
 	_hint.text = selection_hint()
-	_kid_label.text = "Kid: %s · swipe to change" % String(character_id).capitalize()
+	_kid_label.text = "Character: %s" % String(character_id).capitalize()
 	var can_go: bool = swap_mode or pick.can_confirm()
 	_ready_button.disabled = not can_go
 	_style_ready(can_go)
 	if swap_mode:
 		_ready_button.text = "DONE"
 	else:
-		_ready_button.text = "READY" if pick.can_confirm() else "CHOOSE 2 WEAPONS"
+		_ready_button.text = "READY"
 
 
 func _build(defs: Array[WeaponDef]) -> void:
@@ -259,7 +264,7 @@ func select_slot(slot: int) -> void:
 
 func selection_hint() -> String:
 	if swap_mode:
-		return "Changes apply immediately · tap a slot to replace it"
+		return "Slot %d selected · choose a replacement" % (replacement_slot + 1)
 	if pick.picks.size() < WeaponPick.SLOTS:
 		return "Choose %d more weapon%s" % [WeaponPick.SLOTS - pick.picks.size(), "" if pick.picks.size() == 1 else "s"]
 	return "Slot %d selected · tap a weapon to replace it" % (replacement_slot + 1)
@@ -281,6 +286,30 @@ func force_finish() -> void:
 
 
 func dismiss() -> void:
+	_close_exit_dialog()
 	if pick != null:
 		pick.done = true
 	visible = false
+
+
+func request_back() -> void:
+	if not is_open():
+		return
+	if swap_mode:
+		close()
+	elif untimed:
+		exit_requested.emit()
+	elif not is_instance_valid(_exit_dialog) or not _exit_dialog.is_open:
+		_exit_dialog = DialogButtons.leave_match(hosting, exit_requested.emit)
+		_exit_dialog.open(self)
+
+
+func _close_exit_dialog() -> void:
+	if is_instance_valid(_exit_dialog):
+		_exit_dialog.close(false)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if is_open() and event.is_action_pressed("ui_cancel"):
+		get_viewport().set_input_as_handled()
+		request_back()

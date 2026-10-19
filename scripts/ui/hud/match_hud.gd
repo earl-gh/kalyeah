@@ -24,8 +24,8 @@ const TOP_ROW_Y: float = 40.0
 const MARGIN: float = 14.0
 ## The street is 1:2 (width:length), and so is its minimap.
 const MINIMAP_SIZE: Vector2 = Vector2(100.0, 200.0)
-const GEAR_SIZE: float = 64.0
-const SCORE_SIZE: Vector2 = Vector2(210.0, 64.0)
+const GEAR_SIZE: float = UiMetrics.TOUCH
+const SCORE_SIZE: Vector2 = Vector2(280.0, 88.0)
 const FEED_TIME: float = 2.6
 const FEED_SIZE: Vector2 = Vector2(250.0, 46.0)
 const FEED_MAX: int = 3
@@ -193,9 +193,9 @@ func _sync_capture(sim: MatchSim, local_team: int) -> void:
 func feed(kind: Feed, our_team: bool, who: String) -> void:
 	var pill: Label = Label.new()
 	pill.text = "%s  %s" % ["TAGGED!" if kind == Feed.TAGGED else "RESCUED!", who]
-	pill.add_theme_font_override("font", KalyeahTheme.ACTION_FONT)
+	pill.add_theme_font_override("font", KalyeahTheme.BODY_FONT)
 	pill.custom_minimum_size = FEED_SIZE
-	pill.add_theme_font_size_override("font_size", 20)
+	pill.add_theme_font_size_override("font_size", UiMetrics.CAPTION)
 	pill.add_theme_color_override("font_outline_color", Color(0.08, 0.05, 0.1))
 	pill.add_theme_constant_override("outline_size", 6)
 	pill.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

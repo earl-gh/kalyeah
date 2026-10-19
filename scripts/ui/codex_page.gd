@@ -16,7 +16,7 @@ func _ready() -> void:
 	tabs.add_theme_constant_override("separation", 12)
 	add_child(tabs)
 	for tab: Dictionary in [{"id": &"characters", "label": "CHARACTERS"}, {"id": &"weapons", "label": "WEAPONS"}]:
-		var button: Button = MenuDialog.make_button(String(tab["label"]), "grey", 26, Vector2(0.0, 76.0))
+		var button: Button = MenuDialog.make_button(String(tab["label"]), "grey", 26, Vector2(0.0, UiMetrics.TOUCH))
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.pressed.connect(show_tab.bind(tab["id"] as StringName))
 		tabs.add_child(button)
@@ -38,6 +38,6 @@ func show_tab(tab: StringName) -> void:
 	characters_page.visible = tab == &"characters"
 	weapons_page.visible = tab == &"weapons"
 	for id: StringName in tab_buttons:
-		KalyeahTheme.style_button(tab_buttons[id], "blue" if id == tab else "grey")
+		KalyeahTheme.style_button(tab_buttons[id], "orange" if id == tab else "grey")
 	if tab == &"characters":
 		characters_page.refresh()

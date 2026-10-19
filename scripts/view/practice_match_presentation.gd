@@ -33,7 +33,7 @@ func connect_hud() -> void:
 		owner.hud.aim_buttons[slot].aim_started.connect(owner.aim_started.bind(slot))
 		owner.hud.aim_buttons[slot].aim_released.connect(owner.aim_released.bind(slot))
 	owner.hud.hurt_button.pressed.connect(owner.hurt_local.bind(PracticeMatch.DEBUG_DAMAGE))
-	owner.hud.menu.set_practice(not owner.online)
+	owner.hud.menu.set_practice(not owner.online, Net.host != null)
 	owner.hud.again_button.text = "RETURN HOME" if owner.online else "PRACTICE AGAIN"
 	owner.hud.status_test_pressed.connect(owner.play_status_test)
 	owner.hud.again_pressed.connect(_on_again_pressed)

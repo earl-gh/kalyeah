@@ -71,9 +71,9 @@ func _ready() -> void:
 		_build_card(row, i)
 	swap_button = Button.new()
 	swap_button.text = "CHANGE WEAPONS"
-	swap_button.custom_minimum_size = Vector2(360.0, 64.0)
+	swap_button.custom_minimum_size = Vector2(400.0, UiMetrics.TOUCH)
 	swap_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	swap_button.add_theme_font_size_override("font_size", 24)
+	swap_button.add_theme_font_size_override("font_size", UiMetrics.ACTION)
 	KalyeahTheme.style_button(swap_button, "orange")
 	swap_button.pressed.connect(swap_pressed.emit)
 	column.add_child(swap_button)
@@ -141,19 +141,19 @@ func _build_card(row: HBoxContainer, index: int) -> void:
 	portrait.offset_left = 6.0
 	portrait.offset_right = -6.0
 	portrait.offset_top = 6.0
-	portrait.offset_bottom = -34.0
+	portrait.offset_bottom = -46.0
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(portrait)
-	var name_label: Label = _label("", 17, Color.WHITE)
+	var name_label: Label = _label("", UiMetrics.CAPTION, Color.WHITE)
 	name_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	name_label.offset_top = -32.0
+	name_label.offset_top = -44.0
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(name_label)
-	var state_label: Label = _label("", 16, TITLE_COLOR)
+	var state_label: Label = _label("", UiMetrics.CAPTION, TITLE_COLOR)
 	state_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	state_label.offset_bottom = 28.0
+	state_label.offset_bottom = 40.0
 	state_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(state_label)
 	_cards.append(card)

@@ -14,12 +14,16 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	screen.add_child(margin)
 	screen._safe_margin = margin
-	margin.resized.connect(LobbyWidgets.apply_safe_area.bind(margin, 24.0, 24.0))
+	margin.resized.connect(LobbyWidgets.apply_safe_area.bind(margin, UiMetrics.PAGE_MARGIN, UiMetrics.PAGE_MARGIN))
 	var column: VBoxContainer = VBoxContainer.new()
-	column.add_theme_constant_override("separation", 12)
+	column.add_theme_constant_override("separation", UiMetrics.GAP)
 	margin.add_child(column)
 	var header: HBoxContainer = HBoxContainer.new()
+	header.add_theme_constant_override("separation", UiMetrics.GAP)
 	column.add_child(header)
+	screen.back_button = MenuDialog.make_button("BACK", "grey", UiMetrics.CAPTION, Vector2(120.0, UiMetrics.TOUCH))
+	screen.back_button.pressed.connect(screen.request_back)
+	header.add_child(screen.back_button)
 	screen._title = LoadoutCards.label("CHOOSE 2 WEAPONS", 30, KalyeahTheme.CREAM)
 	screen._title.theme_type_variation = &"DisplayLabel"
 	screen._title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -35,7 +39,7 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	screen._character_row = _characters(screen)
 	column.add_child(screen._character_row)
 	var sockets: HBoxContainer = HBoxContainer.new()
-	sockets.add_theme_constant_override("separation", 12)
+	sockets.add_theme_constant_override("separation", UiMetrics.GAP)
 	column.add_child(sockets)
 	for slot: int in WeaponPick.SLOTS:
 		var socket: LoadoutSocket = LoadoutSocket.new()
@@ -108,7 +112,7 @@ static func _weapons(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> Contro
 		var page: VBoxContainer = VBoxContainer.new()
 		page.name = "Page_" + group
 		page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		page.add_theme_constant_override("separation", 12)
+		page.add_theme_constant_override("separation", UiMetrics.GAP)
 		holder.add_child(page)
 		screen._pages[group] = page
 		for def: WeaponDef in defs:

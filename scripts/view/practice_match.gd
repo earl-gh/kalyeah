@@ -81,6 +81,7 @@ func _ready() -> void:
 	_presentation.setup_hud()
 	_presentation.connect_hud()
 	_presentation.connect_sim()
+	_pick_screen.exit_requested.connect(_on_exit_pressed)
 	_pick_screen.confirmed.connect(_on_pick_confirmed)
 	_pick_screen.swapped.connect(_on_swapped)
 	_pick_screen.closed.connect(_set_controls_active.bind(true))

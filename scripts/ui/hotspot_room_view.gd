@@ -1,6 +1,6 @@
 class_name HotspotRoomView
 extends Control
-## Code-free hotspot room: compact arena header, team slots, kid selection and readiness.
+## Shared Online/Hotspot room: arena, teams, character selection and readiness.
 ## Presentation only; LobbyScreen sends changes to the authoritative server.
 
 signal retry_pressed
@@ -21,9 +21,9 @@ const MAP_COLORS: Dictionary[StringName, String] = {&"street": "blue", &"tumbang
 const MAP_PICK_CARD: Vector2 = Vector2(414.0, 552.0)
 const TEAM_COLORS: Array[Color] = [Color(0.45, 0.65, 1.0), Color(1.0, 0.45, 0.45)]
 ## Spacing and type scale of the screen: one set of values so it reads as one system.
-const MARGIN: float = 24.0
-const GAP: float = 8.0
-const SECTION_GAP: int = 14
+const MARGIN: float = UiMetrics.PAGE_MARGIN
+const GAP: float = 16.0
+const SECTION_GAP: int = UiMetrics.SECTION_GAP
 ## The compact arena header fills a row; character cards keep a 3:4 portrait ratio.
 const MAP_CARD: Vector2 = Vector2(672.0, 108.0)
 const KID_CARD: Vector2 = Vector2(138.0, 184.0)
@@ -34,11 +34,15 @@ const NAME_SIZE: int = 26
 const NUMBER_SIZE: int = 32
 const TAG_SIZE: int = 22
 ## The solid number blocks and tags of the mock-up, and the navy of the names on the white bars.
-const TEAM_BLOCKS: Array[Color] = [Color(0.18, 0.17, 0.82), Color(0.94, 0.14, 0.2)]
+const TEAM_BLOCKS: Array[Color] = [KalyeahTheme.TEAM_BLUE, KalyeahTheme.TEAM_RED]
 const NAME_COLOR: Color = Color(0.12, 0.27, 0.52)
 const MAX_ROWS: int = 3
 
+var online_room: bool = false
 var code_label: Label
+var code_row: HBoxContainer
+var copy_button: Button
+var _copy_timer: Timer
 var back_button: Button
 var settings_button: Button
 var map_card: Button
@@ -54,6 +58,7 @@ var best_of_buttons: Dictionary[int, Button] = {}
 var retry_button: Button
 var readiness_label: Label
 var selection_label: Label
+var format_summary: Label
 var _kid_scroll: ScrollContainer
 var _last_kid: String = ""
 var action_button: Button
@@ -105,6 +110,8 @@ func _build() -> void:
 	column.add_child(scroll)
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_content)
+	code_row = RoomHeader.code_row(self)
+	_content.add_child(code_row)
 	_content.add_child(_build_map_section())
 	_content.add_child(_build_player_section())
 	_content.add_child(_build_kid_section())
@@ -124,8 +131,8 @@ func _build() -> void:
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status_label.add_theme_font_size_override("font_size", 26)
-	status_label.add_theme_color_override("font_color", Color("ffb4a8"))
-	status_label.custom_minimum_size = Vector2(0.0, 26.0)
+	status_label.add_theme_color_override("font_color", KalyeahTheme.ERROR)
+	status_label.visible = false
 	column.add_child(status_label)
 	retry_button = MenuDialog.make_button("RETRY", "blue", 30)
 	retry_button.name = "Retry"
@@ -171,12 +178,15 @@ func _build_map_section() -> Control:
 	formats.add_theme_constant_override("separation", int(GAP) + 2)
 	column.add_child(formats)
 	for count: int in [3, 5, 7]:
-		var button: Button = MenuDialog.make_button("BO%d" % count, "grey", 26, Vector2(0.0, 88.0))
+		var button: Button = MenuDialog.make_button("Best of %d" % count, "grey", 26, Vector2(0.0, 88.0))
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		LobbyWidgets.make_toggle(button)
 		button.pressed.connect(best_of_chosen.emit.bind(count))
 		formats.add_child(button)
 		best_of_buttons[count] = button
+	format_summary = LobbyWidgets.label("", UiMetrics.BODY, KalyeahTheme.TEXT)
+	format_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	column.add_child(format_summary)
 	return column
 
 
@@ -204,7 +214,17 @@ func _build_player_section() -> Control:
 	player_grid.add_theme_constant_override("h_separation", int(GAP))
 	player_grid.add_theme_constant_override("v_separation", int(GAP))
 	player_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return player_grid
+	var column: VBoxContainer = VBoxContainer.new()
+	column.add_theme_constant_override("separation", UiMetrics.GAP)
+	var headers: HBoxContainer = HBoxContainer.new()
+	headers.add_theme_constant_override("separation", int(GAP))
+	column.add_child(headers)
+	for team_name: String in ["Blue team", "Red team"]:
+		var label: Label = LobbyWidgets.label(team_name, UiMetrics.DETAIL, KalyeahTheme.TEXT_MUTED)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		headers.add_child(label)
+	column.add_child(player_grid)
+	return column
 
 
 func _build_kid_section() -> Control:
@@ -214,7 +234,7 @@ func _build_kid_section() -> Control:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for id: String in Session.AVATARS:
-		var card: Button = _kid_card(id)
+		var card: Button = RoomCharacterCards.build(self, id)
 		row.add_child(card)
 		kid_cards[id] = card
 	var column: VBoxContainer = VBoxContainer.new()
@@ -233,70 +253,6 @@ func _build_kid_section() -> Control:
 	return column
 
 
-## One 3:4 profile card: the kid's picture, the name along the bottom.
-func _kid_card(id: String) -> Button:
-	var card: Button = Button.new()
-	card.name = id.capitalize()
-	card.custom_minimum_size = KID_CARD
-	card.focus_mode = Control.FOCUS_NONE
-	MenuDialog.feel_press(card)
-	card.pressed.connect(character_chosen.emit.bind(id))
-	var picture: TextureRect = TextureRect.new()
-	picture.texture = KidModel.card_face(StringName(id))
-	if picture.texture == null:
-		picture.texture = KidModel.portrait(StringName(id))
-	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# the picture follows the card's rounded corners
-	var crop: ShaderMaterial = ShaderMaterial.new()
-	crop.shader = ChoiceCard.CROP_SHADER
-	crop.set_shader_parameter("rect_size", KID_CARD)
-	crop.set_shader_parameter("radius", float(KID_RADIUS))
-	picture.material = crop
-	card.add_child(picture)
-	var definition: CharacterDef = load("res://data/characters/%s.tres" % id) as CharacterDef
-	var label: Label = Label.new()
-	label.theme_type_variation = &"DisplayLabel"
-	label.text = (definition.display_name if definition != null else id).to_upper()
-	label.add_theme_font_size_override("font_size", 24)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	label.offset_top = -42.0
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(label)
-	_style_kid_card(card, false)
-	return card
-
-
-func _style_kid_card(card: Button, chosen: bool) -> void:
-	# rounded corners and a soft drop shadow
-	var box: StyleBoxFlat = KalyeahTheme.surface_box(KID_RADIUS, 0, 0.0)
-	box.bg_color = Color(KalyeahTheme.INK, 0.8)
-	box.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
-	box.shadow_size = 8
-	box.shadow_offset = Vector2(0.0, 4.0)
-	for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
-		card.add_theme_stylebox_override(state, box)
-	# the amber frame is an overlay (the picture covers the button's own border)
-	var frame: Panel = card.get_node_or_null("Chosen") as Panel
-	if frame == null:
-		frame = Panel.new()
-		frame.name = "Chosen"
-		frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var ring: StyleBoxFlat = KalyeahTheme.surface_box(KID_RADIUS, 5, 0.0)
-		ring.draw_center = false
-		ring.shadow_size = 0
-		ring.border_color = KalyeahTheme.AMBER
-		frame.add_theme_stylebox_override("panel", ring)
-		card.add_child(frame)
-	frame.visible = chosen
-	var picture: Control = card.get_child(0) as Control
-	picture.modulate = Color.WHITE if chosen else Color(0.78, 0.78, 0.82)
-
-
 ## Shows the room (plain data from the server) for the player `my_id`.
 func show_room(room: Dictionary, my_id: int) -> void:
 	_room = room.duplicate()
@@ -309,7 +265,10 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	for member: Dictionary in members:
 		if member["player_id"] == my_id:
 			me = member
-	code_label.text = ""
+	code_label.text = String(room.get("code", "")) if online_room else ""
+	code_row.visible = online_room
+	copy_button.text = "COPY"
+	_copy_timer.stop()
 	readiness_label.text = _readiness(room)
 	action_button.visible = true
 	retry_button.visible = false
@@ -326,11 +285,15 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	for choice: int in size_buttons:
 		size_buttons[choice].set_pressed_no_signal(choice == size)
 		size_buttons[choice].disabled = not host
+	(size_buttons[1].get_parent() as Control).visible = host
+	(best_of_buttons[3].get_parent() as Control).visible = host
+	format_summary.text = "%dv%d · Best of %d" % [size, size, count]
+	format_summary.visible = not host
 	_fill_players(members, size)
 	var picked: String = String(me.get("char", ""))
 	if picked.is_empty():
 		picked = Session.avatar_id
-	selection_label.text = "Your kid: %s · swipe to change" % picked.capitalize()
+	selection_label.text = "Character: %s" % picked.capitalize()
 	if picked != _last_kid and kid_cards.has(picked):
 		_last_kid = picked
 		_kid_scroll.ensure_control_visible.call_deferred(kid_cards[picked])
@@ -338,7 +301,7 @@ func show_room(room: Dictionary, my_id: int) -> void:
 		var taken: bool = members.any(func(m: Dictionary) -> bool: return m.get("player_id", -1) != my_id and m.get("team", -1) == me.get("team", -2) and String(m.get("char", "")) == id)
 		kid_cards[id].disabled = taken
 		kid_cards[id].tooltip_text = "Selected by a teammate" if taken else id.capitalize()
-		_style_kid_card(kid_cards[id], id == picked)
+		RoomCharacterCards.style(kid_cards[id], id == picked)
 		if taken:
 			kid_cards[id].modulate = Color(0.5, 0.5, 0.55)
 		else:
@@ -350,9 +313,9 @@ func show_room(room: Dictionary, my_id: int) -> void:
 		KalyeahTheme.style_button(action_button, "orange")
 	else:
 		var ready: bool = me.get("ready", false) as bool
-		action_button.text = "READY!" if ready else "READY"
+		action_button.text = "CANCEL READY" if ready else "READY"
 		action_button.disabled = false
-		KalyeahTheme.style_button(action_button, "green" if ready else "orange")
+		KalyeahTheme.style_button(action_button, "grey" if ready else "orange")
 
 
 ## Two columns (blue team, red team) of at most three rows: a card for each player, an open slot
@@ -393,6 +356,9 @@ func clear_room() -> void:
 	_content.visible = false
 	action_button.visible = false
 	readiness_label.text = ""
+	code_label.text = ""
+	code_row.hide()
+	_copy_timer.stop()
 
 
 func show_retry() -> void:
@@ -415,16 +381,30 @@ static func _readiness(room: Dictionary) -> String:
 	if room.get("can_start_host", false):
 		return "Ready to play · First to %d" % (int(room.get("best_of", 3)) / 2 + 1)
 	if maxi(teams[0], teams[1]) < n or mini(teams[0], teams[1]) < maxi(1, n - 1):
-		return "Waiting for players · %dv%d" % [n, n]
+		return "Waiting for players"
 	if unready > 0:
-		return "Waiting for %d to ready up" % unready
+		return "Waiting for %d player%s to ready up" % [unready, "" if unready == 1 else "s"]
 	return "Choose a team to continue"
 
 
 func set_status(text: String) -> void:
 	status_label.text = text
+	status_label.visible = not text.is_empty()
 
 
 ## True once a room has been shown (before that only the top row and the status are visible).
 func has_room() -> bool:
 	return _content.visible
+
+
+func set_online(enabled: bool) -> void:
+	online_room = enabled
+	code_row.visible = enabled and has_room()
+
+
+func copy_code() -> void:
+	if not online_room or not has_room() or code_label.text.is_empty():
+		return
+	DisplayServer.clipboard_set(code_label.text)
+	copy_button.text = "COPIED"
+	_copy_timer.start()
