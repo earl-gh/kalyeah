@@ -167,14 +167,14 @@ func test_player_cards_are_white_bars_with_no_picture_and_numbered_blocks() -> v
 	assert_eq(ben_number.get_parent().get_child(ben_number.get_parent().get_child_count() - 1), ben_number, "red: the number block comes last")
 	assert_eq((ana_number.get_theme_stylebox("panel") as StyleBoxFlat).bg_color, HotspotRoomView.TEAM_BLOCKS[0])
 	assert_eq((ben_number.get_theme_stylebox("panel") as StyleBoxFlat).bg_color, HotspotRoomView.TEAM_BLOCKS[1])
-	assert_eq((ana.find_child("Name", true, false) as Label).text, "Ana · You")
+	assert_eq((ana.find_child("Name", true, false) as Label).text, "Ana")
 	assert_eq((ben.find_child("Name", true, false) as Label).horizontal_alignment, HORIZONTAL_ALIGNMENT_RIGHT, "red names are right-aligned")
 
 
 func test_the_host_and_ready_tags_sit_in_the_far_corner() -> void:
 	var view: HotspotRoomView = _view(_room(2))
 	var ana_tag: Control = view.find_child("Player1", true, false).find_child("Tag", true, false) as Control
-	assert_eq((ana_tag.get_child(0) as Label).text, "Host", "the host's tag")
+	assert_eq((ana_tag.get_child(0) as Label).text, "You · Host", "identity stays outside the truncated name")
 	var ben_tag: Control = view.find_child("Player2", true, false).find_child("Tag", true, false) as Control
 	assert_eq((ben_tag.get_child(0) as Label).text, "Ready")
 	assert_almost_eq(ana_tag.anchor_left, 1.0, 0.001, "blue: the top right corner")

@@ -79,30 +79,32 @@ static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 		margin.add_theme_constant_override("margin_" + side, 16)
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(margin)
+	var texts: VBoxContainer = VBoxContainer.new()
+	texts.add_theme_constant_override("separation", UiMetrics.GAP / 2)
+	texts.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(texts)
 	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 14)
+	row.add_theme_constant_override("separation", UiMetrics.GAP)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.add_child(row)
+	texts.add_child(row)
 	var art: TextureRect = TextureRect.new()
 	art.texture = Icons.art(StringName("btn_" + String(def.id)))
-	art.custom_minimum_size = Vector2(88.0, 88.0)
+	art.custom_minimum_size = Vector2(112.0, 112.0)
 	art.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(art)
-	var texts: VBoxContainer = VBoxContainer.new()
-	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	texts.add_theme_constant_override("separation", 5)
-	texts.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(texts)
 	var heading: MarginContainer = MarginContainer.new()
 	heading.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	heading.add_theme_constant_override("margin_right", 42)
 	var title: Label = label("%s · %s" % [def.display_name, def.kind_label()], screen.NAME_FONT)
 	title.name = "WeaponName"
+	title.theme_type_variation = &"DisplayLabel"
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	heading.add_child(title)
-	texts.add_child(heading)
+	row.add_child(heading)
 	var description: Label = label(def.description, screen.DESCRIPTION_FONT)
 	description.name = "Description"
 	texts.add_child(description)
