@@ -16,6 +16,11 @@
       "repository": "https://github.com/garrytan/gstack",
       "commit": "2d42e4ece834a7fa2c16edda87ec136af6db4c26",
       "license": "MIT"
+    },
+    "mattpocock": {
+      "repository": "https://github.com/mattpocock/skills",
+      "commit": "49dd158d1076134a641b33efb035946536778336",
+      "license": "MIT"
     }
   },
   "skills": [
@@ -184,7 +189,7 @@
       "files": [
         {
           "path": ".claude/skills/router/SKILL.md",
-          "sha256": "d1402e0ad5976d141ff0e502ed76ccf68e3d7317e81cef9e964ac6697164f60d"
+          "sha256": "679427e24b9e15a5a370a4a634e4cd716eb1a619697ae70b5db7bd47e317ae96"
         }
       ]
     },
@@ -244,6 +249,83 @@
         {
           "path": ".claude/skills/gstack-investigate/SKILL.md",
           "sha256": "48ff50e16fece19ddca6474dc9f0743568e301c6a79989754516323168257fb7"
+        }
+      ]
+    },
+    {
+      "name": "tdd",
+      "provider": "mattpocock",
+      "mode": "vendored-with-project-override",
+      "upstream_path": "skills/engineering/tdd",
+      "files": [
+        {
+          "path": ".claude/skills/tdd/SKILL.md",
+          "sha256": "64b7579465ff648297092ef7d87bea7942398eb6c3ed6cdde9ddaf2cf9966cfd",
+          "upstream_sha256": "5505d25bbaa8fc14a79e4d20163936958992a2995b7f1dd1d6197edc9ed722e0"
+        },
+        {
+          "path": ".claude/skills/tdd/agents/openai.yaml",
+          "sha256": "ea6f01cf1b8c06a4b0f5b649d74b1b8ce8685e72af1b38d70d877693e092af0b",
+          "upstream_sha256": "ea6f01cf1b8c06a4b0f5b649d74b1b8ce8685e72af1b38d70d877693e092af0b"
+        },
+        {
+          "path": ".claude/skills/tdd/mocking.md",
+          "sha256": "3ceb807fdf4a47d6a93d4d9a891e5ba6d362a6247bd08adc451feebfc17361ef",
+          "upstream_sha256": "3ceb807fdf4a47d6a93d4d9a891e5ba6d362a6247bd08adc451feebfc17361ef"
+        },
+        {
+          "path": ".claude/skills/tdd/tests.md",
+          "sha256": "859f9e592c188fda4fc7277dd180e4ce9c7a2e13f6efe1f6f29eccc9d28c106a",
+          "upstream_sha256": "859f9e592c188fda4fc7277dd180e4ce9c7a2e13f6efe1f6f29eccc9d28c106a"
+        }
+      ]
+    },
+    {
+      "name": "domain-modeling",
+      "provider": "mattpocock",
+      "mode": "vendored-with-project-override",
+      "upstream_path": "skills/engineering/domain-modeling",
+      "files": [
+        {
+          "path": ".claude/skills/domain-modeling/ADR-FORMAT.md",
+          "sha256": "944c92aa790e8fbdc9199640b170979abb8a34ba8d0fe18c2a01a63bce140ca0",
+          "upstream_sha256": "944c92aa790e8fbdc9199640b170979abb8a34ba8d0fe18c2a01a63bce140ca0"
+        },
+        {
+          "path": ".claude/skills/domain-modeling/GLOSSARY-FORMAT.md",
+          "sha256": "21dcc40cdec8e151a829b98ab1517c1867bc444e3665134a98c6983411996801",
+          "upstream_sha256": "21dcc40cdec8e151a829b98ab1517c1867bc444e3665134a98c6983411996801"
+        },
+        {
+          "path": ".claude/skills/domain-modeling/SKILL.md",
+          "sha256": "7ea9b89c0cb6036f78ec06a005fc8b9cbdd07815bbb090e206abc414b9a65d7c",
+          "upstream_sha256": "7b925d7b1e341a2eeae33ad68a8a8c0ab889a38ddd22a7598e4c240e5a7556a3"
+        },
+        {
+          "path": ".claude/skills/domain-modeling/agents/openai.yaml",
+          "sha256": "f6bf2aa996c6e6f53fdd0708e18a0d16a56aed8322cca59fedbe3c0d2c75f06b",
+          "upstream_sha256": "f6bf2aa996c6e6f53fdd0708e18a0d16a56aed8322cca59fedbe3c0d2c75f06b"
+        }
+      ]
+    },
+    {
+      "name": "gameplay-engineering",
+      "provider": "mattpocock",
+      "mode": "project-workflow-port",
+      "upstream_files": [
+        {
+          "path": "skills/engineering/tdd/SKILL.md",
+          "sha256": "5505d25bbaa8fc14a79e4d20163936958992a2995b7f1dd1d6197edc9ed722e0"
+        },
+        {
+          "path": "skills/engineering/domain-modeling/SKILL.md",
+          "sha256": "7b925d7b1e341a2eeae33ad68a8a8c0ab889a38ddd22a7598e4c240e5a7556a3"
+        }
+      ],
+      "files": [
+        {
+          "path": ".claude/skills/gameplay-engineering/SKILL.md",
+          "sha256": "dc82306b710b89aff76b2da29368128b66ee892fc968f6646420a1bcb0624e1a"
         }
       ]
     }

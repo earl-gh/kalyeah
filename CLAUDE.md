@@ -74,3 +74,7 @@ gstack planning/review/investigation ports when appropriate. The existing five
 specialists own implementation; upstream skills are supporting methods/API references.
 Pinned Godot 4.6.2, architecture, owner art policy and this PR workflow remain binding.
 Do not execute upstream plugin installers, hooks, telemetry or auto-updaters.
+
+For gameplay behavior changes, use the local `gameplay-engineering` companion and
+Matt Pocock's `tdd` under the existing specialist. Read `GLOSSARY.md`; use
+`domain-modeling` to resolve terminology without adding speculative abstractions.

@@ -1,6 +1,6 @@
 ---
 name: router
-description: Route Kalyeah tasks to one responsible specialist and the smallest useful set of installed game-development, Ponytail and gstack references.
+description: Route Kalyeah tasks to one responsible specialist and the smallest useful set of installed game-development, Matt Pocock, Ponytail and gstack references.
 ---
 
 # Kalyeah game-development router
@@ -23,6 +23,13 @@ upstream new-project engine baselines.
 | CPU/GPU/memory, touch, lifecycle | android-performance | performance-optimization |
 | Build/export compatibility | android-performance | godot-export |
 | Test coverage and release readiness | game-qa-release | gstack-review |
+
+For gameplay behavior changes, use `gameplay-engineering` and `tdd` under the
+responsible specialist. Select the existing public test boundary and one behavior;
+red/green proof comes from real GUT behavior, not private helper call counts.
+Use `domain-modeling` only to sharpen domain language or record a consequential
+trade-off; read `GLOSSARY.md` for already-settled terms. Do not create an ADR for
+each routine implementation choice. These supporting workflows do not own files.
 
 Use `ponytail` for smallest-complete implementation choices. Use `ponytail-audit`
 for an explicitly scoped codebase audit; it produces findings, not edits.
