@@ -161,3 +161,18 @@ func test_a_dropped_client_reconnects_into_its_slot() -> void:
 	assert_true(_until(func() -> bool: return c.in_match() and c.stage == "play", 5.0), "back in the match")
 	assert_eq(c.player_id, id, "same slot")
 	assert_true(member.connected)
+
+
+func test_dropping_while_aiming_cancels_instead_of_casting() -> void:
+	_start_1v1()
+	var running: ServerMatch = server.matches.values()[0]
+	var player: PlayerState = running.sim.players[a.player_id]
+	a.send_input(PlayerInput.create(Vector2.RIGHT, Vector2.UP, PlayerInput.BTN_WEAPON_1, 1), RULES.tick_dt())
+	assert_true(_until(func() -> bool: return player.aim_hold[0] >= 0.0))
+	a.close()
+	_pump(0.3)
+	assert_eq(player.aim_hold[0], -1.0)
+	assert_eq(player.weapon_cooldowns[0], 0.0, "socket loss is a cancellation, not a release")
+	var stopped: Vector2 = player.position
+	_pump(0.3)
+	assert_eq(player.position, stopped)

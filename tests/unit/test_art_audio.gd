@@ -295,7 +295,10 @@ func test_a_knockout_knocks_the_kid_down_on_their_back_and_back_up() -> void:
 	var kid: KidModel = _kid(1)
 	var body: Node3D = kid.find_child("Body", true, false) as Node3D
 	var player: AnimationPlayer = kid.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	await wait_frames(2)
+	# This test advances the clip explicitly; idle frames must not advance a second clock.
+	player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	player.advance(0.0)
+	await wait_process_frames(2)
 	var standing: float = _hips_height(kid)
 	var state: PlayerState = PlayerState.new()
 	state.effects.apply(StatusEffects.Type.KNOCKOUT, 3.0)
@@ -303,7 +306,9 @@ func test_a_knockout_knocks_the_kid_down_on_their_back_and_back_up() -> void:
 		kid.animate(0.02, 0.0, state)
 	assert_eq(player.current_animation, "ko", "the kid's own knock-down clip")
 	player.advance(1.5)
-	await wait_frames(2)  # the skeleton applies the new pose on the next frame
+	# Evaluate the settled blend at the same clip time before sampling the bones.
+	player.advance(0.0)
+	await wait_process_frames(2)  # the skeleton applies the new pose on the next frame
 	assert_lt(_hips_height(kid), standing * 0.35, "lying on the street")
 	assert_almost_eq(body.rotation.x, 0.0, 0.05, "the clip falls, the body is not tipped as well")
 	state.effects.clear()
