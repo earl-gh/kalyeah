@@ -24,6 +24,13 @@ What is built, what is next, and the rules for building it. Rules and numbers li
 | Loadout and control feedback | Untimed Practice setup, saved validated weapon pairs, explicit replacement slots, larger readable cards, contextual control hints, persistent reconnect state, and truthful result actions |
 | Lobby and match UI refinement | Narrow-phone lobby and loadout layouts, concise room states, unified match announcements, and a score card with clock and best-of context |
 
+## Short-phone GUI follow-up
+
+Loadout uses compact touch-sized portraits, full-width weapon effects/stats and a
+fixed Ready action. Timed setup groups the auto-pick explanation with its heading.
+Lobby identity lives in the status tag so an ellipsized name cannot hide You.
+Validation and remaining GUI work: [GUI follow-up](audits/2026-10-19-gui-loadout.md).
+
 ## Android validation follow-up
 
 Application interruptions now cancel local gestures and immediately send stop/cancel

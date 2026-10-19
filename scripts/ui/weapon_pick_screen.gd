@@ -11,7 +11,7 @@ signal closed
 signal exit_requested
 
 ## The character cards are exactly 3:4 (width:height).
-const PROFILE_SIZE: Vector2 = Vector2(126.0, 168.0)
+const PROFILE_SIZE: Vector2 = Vector2(96.0, 128.0)
 const TAB_FONT: int = 24
 const NAME_FONT: int = UiMetrics.BODY
 const DESCRIPTION_FONT: int = UiMetrics.BODY
@@ -39,7 +39,6 @@ var _exit_dialog: MenuDialog
 var hosting: bool = false
 var _hint: Label
 var _mode_label: Label
-var _kid_label: Label
 var _safe_margin: MarginContainer
 
 var _characters: Array[CharacterDef] = []
@@ -117,9 +116,10 @@ func _show(defs: Array[WeaponDef], _heading: String) -> void:
 	if _buttons.is_empty():
 		_build(defs)
 	_title.text = "CHANGE WEAPONS" if swap_mode else "LOADOUT"
-	_mode_label.text = "Changes apply immediately" if swap_mode else ("Practice" if untimed else "Auto-picks when time runs out")
+	_mode_label.text = "Changes apply immediately" if swap_mode else "Auto-pick at timeout"
+	_mode_label.visible = swap_mode or not untimed
 	_ring.visible = not untimed
-	LobbyWidgets.apply_safe_area(_safe_margin, 24.0, 24.0)
+	LobbyWidgets.apply_safe_area(_safe_margin, UiMetrics.PAGE_MARGIN, UiMetrics.PAGE_MARGIN)
 	_character_row.visible = not swap_mode and not _characters.is_empty()
 	(find_child("Characters", true, false) as Control).visible = _character_row.visible
 	_open_tab(_first_tab())
@@ -239,7 +239,6 @@ func _refresh() -> void:
 		_sockets[slot].active = slot == replacement_slot
 		_sockets[slot].show_weapon(_defs.get(id) as WeaponDef)
 	_hint.text = selection_hint()
-	_kid_label.text = "Character: %s" % String(character_id).capitalize()
 	var can_go: bool = swap_mode or pick.can_confirm()
 	_ready_button.disabled = not can_go
 	_style_ready(can_go)
@@ -264,10 +263,10 @@ func select_slot(slot: int) -> void:
 
 func selection_hint() -> String:
 	if swap_mode:
-		return "Slot %d selected · choose a replacement" % (replacement_slot + 1)
+		return "Replace slot %d" % (replacement_slot + 1)
 	if pick.picks.size() < WeaponPick.SLOTS:
-		return "Choose %d more weapon%s" % [WeaponPick.SLOTS - pick.picks.size(), "" if pick.picks.size() == 1 else "s"]
-	return "Slot %d selected · tap a weapon to replace it" % (replacement_slot + 1)
+		return "Choose 2 weapons" if pick.picks.is_empty() else "Choose 1 more weapon"
+	return "Replace slot %d" % (replacement_slot + 1)
 
 
 func _style_ready(enabled: bool) -> void:

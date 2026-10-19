@@ -23,19 +23,25 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	column.add_child(header)
 	screen.back_button = MenuDialog.make_button("BACK", "grey", UiMetrics.CAPTION, Vector2(120.0, UiMetrics.TOUCH))
 	screen.back_button.pressed.connect(screen.request_back)
+	screen.back_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	header.add_child(screen.back_button)
 	screen._title = LoadoutCards.label("CHOOSE 2 WEAPONS", 30, KalyeahTheme.CREAM)
 	screen._title.theme_type_variation = &"DisplayLabel"
 	screen._title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(screen._title)
+	var heading: VBoxContainer = VBoxContainer.new()
+	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heading.add_theme_constant_override("separation", 4)
+	heading.add_child(screen._title)
+	screen._mode_label = LoadoutCards.label("", UiMetrics.CAPTION, KalyeahTheme.TEXT_MUTED)
+	heading.add_child(screen._mode_label)
+	header.add_child(heading)
 	screen._ring = CountdownRing.new()
 	screen._ring.custom_minimum_size = Vector2(72.0, 72.0)
+	screen._ring.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	header.add_child(screen._ring)
 	screen._timer = Label.new()
 	screen._timer.visible = false
 	header.add_child(screen._timer)
-	screen._mode_label = LoadoutCards.label("", 26, KalyeahTheme.TEXT_MUTED)
-	column.add_child(screen._mode_label)
 	screen._character_row = _characters(screen)
 	column.add_child(screen._character_row)
 	var sockets: HBoxContainer = HBoxContainer.new()
@@ -61,8 +67,6 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 static func _characters(screen: WeaponPickScreen) -> Control:
 	var column: VBoxContainer = VBoxContainer.new()
 	column.add_theme_constant_override("separation", 8)
-	screen._kid_label = LoadoutCards.label("", 24, KalyeahTheme.TEXT_MUTED)
-	column.add_child(screen._kid_label)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.name = "Characters"
 	scroll.custom_minimum_size.y = screen.PROFILE_SIZE.y + 12.0

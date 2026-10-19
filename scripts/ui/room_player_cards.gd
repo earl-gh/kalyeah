@@ -33,7 +33,7 @@ static func player_card(member: Dictionary, team: int, room: Dictionary) -> Cont
 	card.add_child(row)
 	var name_label: Label = Label.new()
 	name_label.name = "Name"
-	name_label.text = (member["name"] as String) + (" · You" if member["player_id"] == room.get("you", -1) else "")
+	name_label.text = member["name"] as String
 	name_label.tooltip_text = name_label.text
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -57,6 +57,8 @@ static func player_card(member: Dictionary, team: int, room: Dictionary) -> Cont
 		tag_text = "Host"
 	elif member["ready"]:
 		tag_text = "Ready"
+	if member["player_id"] == room.get("you", -1):
+		tag_text = "You" + (" · " + tag_text if not tag_text.is_empty() else "")
 	if not tag_text.is_empty():
 		card.add_child(_tag(tag_text, team))
 	return card
