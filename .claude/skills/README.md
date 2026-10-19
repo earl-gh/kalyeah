@@ -1,6 +1,6 @@
 # KalyeAh project skills
 
-These project-local Claude skills encode the specialist workflows used to change KalyeAh without broadening its scope or weakening its architecture. Each skill reads `CLAUDE.md` first; that file remains the source of truth.
+These project-local agent skills encode the specialist workflows used to change KalyeAh without broadening its scope or weakening its architecture. Each skill reads `CLAUDE.md` first; that file remains the source of truth.
 
 | Skill | Owns | Does not own |
 | --- | --- | --- |
@@ -24,10 +24,19 @@ Start with [router](router/SKILL.md) when the task crosses concerns.
 | awesome-gamedev-agent-skills | `godot-gdscript`, `godot-ui-control`, `godot-animation`, `godot-shaders`, `godot-export`, `game-ui-ux`, `performance-optimization`; project-scoped `router` port | Concrete Godot APIs, responsive UI and measured optimization |
 | Ponytail | `ponytail`, `ponytail-audit` (standalone upstream skills) | Smallest complete implementation; evidence-based codebase audits |
 | gstack | `gstack-plan-eng-review`, `gstack-review`, `gstack-investigate` (compact Kalyeah workflow ports) | Architecture/code/tests/performance review, trust-boundary and test-gate review, root-cause debugging |
+| Matt Pocock — Skills for Real Engineers | `tdd`, `domain-modeling` (vendored with project overrides) | Behavior-first tests, stable public test boundaries, precise game terminology and proportionate architecture records |
+| Kalyeah companion adapted from Matt's methods | `gameplay-engineering` | Connect player intent, fixed-tick simulation, authority, readable feedback and device evidence through the existing specialists |
+
+There are **21 installed skills**: the five original specialists plus 16 supporting
+skills/workflow ports. The game-specific companion is project-authored; it is not
+an official Matt Pocock game-development package.
 
 Use one responsible specialist and the smallest relevant reference set per task.
 Use Ponytail when choosing an implementation, gstack engineering review for complex
-plans, gstack review before PRs, and investigation for reproduced bugs. An audit or
+plans, gstack review before PRs, and investigation for reproduced bugs. Use `gameplay-engineering` with `tdd` for
+gameplay behavior changes; use `domain-modeling` when terminology actually needs
+clarification. [GLOSSARY.md](../../GLOSSARY.md) records settled player terms.
+An audit or
 review-only request produces findings without changing implementation.
 
 ### Compatibility and installation scope
@@ -53,9 +62,25 @@ If a client does not follow project skill links, read this catalog directly;
 restart or reopen the project if its skill picker caches discovery. Skills can
 also be used immediately by reading the named `SKILL.md`.
 
+### Matt Pocock integration
+
+The copied `tdd` and `domain-modeling` folders retain their references and agent
+metadata, plus the original MIT license. Marked local additions require Godot/GUT
+and existing ownership; their TypeScript examples do not add a JavaScript stack.
+The local TDD notice explicitly replaces upstream's per-seam confirmation rule:
+already-authorized behavior at an existing public boundary does not need another
+confirmation. New interfaces or unresolved product rules still need clarification.
+No testing requirement is relaxed. Optional related skills are not auto-installed.
+
+The `gameplay-engineering` companion applies the methods to simulation, multiplayer,
+input interruptions, animation feedback and measured Android/build validation.
+It is a workflow reference, not another implementation owner. Existing game-dev
+references remain the concrete API guides. No new test runner or engine bundle
+is installed. First use: [behavior-first skill review](../../docs/audits/2026-10-19-behavior-first-skills.md).
+
 ### Provenance and maintenance
 
-[sources.lock.json](sources.lock.json) pins all three upstream commit SHAs and
+[sources.lock.json](sources.lock.json) pins all four upstream commit SHAs and
 SHA-256 hashes for installed upstream-derived files. It identifies unchanged
 copies, added compatibility notices and workflow ports, including the source
 files used for each adaptation. Licenses and the Apache NOTICE are in `licenses/`.

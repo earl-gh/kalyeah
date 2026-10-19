@@ -35,7 +35,9 @@ separates automated evidence, APK build status and outstanding physical-phone te
 ## Development workflow
 
 Selected awesome-gamedev-agent-skills, standalone Ponytail and compact gstack
-workflow ports are installed for Claude and Codex. The five project specialists
+workflow ports are installed for Claude and Codex. Selected Matt Pocock TDD/domain
+skills and a project-authored gameplay-engineering companion add behavior-first
+methods without a new engine or test framework. The five project specialists
 retain ownership. [Catalog](../.claude/skills/README.md), provenance lock and
 [first-use review](audits/2026-10-19-skill-adoption.md) record scope and validation.
 

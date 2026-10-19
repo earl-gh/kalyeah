@@ -7,12 +7,17 @@ Read `.claude/skills/README.md`; start with `router` when ownership is unclear.
 Canonical skills live in `.claude/skills/`; `.agents/skills/` points to that tree
 for Codex discovery. Load only the selected SKILL.md and needed references.
 
-The owner requested awesome-gamedev-agent-skills, Ponytail and gstack. The catalog
+The owner requested awesome-gamedev-agent-skills, Ponytail, gstack and selected
+Matt Pocock skills with a game-specific engineering companion. The catalog
 records the exact selection, upstream versions/licenses, compatibility overrides,
 and which gstack workflows are local ports rather than installed CLI commands.
 Use Ponytail to keep changes complete and small; apply the local gstack review
 before PRs. Existing specialists retain ownership; supporting skills do not
 change Godot 4.6.2, sim authority, export settings or authorization boundaries.
+Use `gameplay-engineering` + `tdd` for relevant gameplay behavior changes and
+`domain-modeling` when terminology needs work.
+Read `GLOSSARY.md` for player terms. Do not reconfirm already-authorized test
+boundaries; clarify genuinely new interfaces or unresolved game rules.
 Do not spawn agents merely because a skill describes a studio role.
 
 Work on a task branch, validate locally and open a reviewable PR; the owner merges.
