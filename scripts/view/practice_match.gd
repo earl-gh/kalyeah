@@ -51,6 +51,8 @@ var _reconnect_left: float = -1.0
 ## A new socket is not a restored match until WELCOME confirms the old slot.
 var _awaiting_reconnect_welcome: bool = false
 var _resume_rejected: bool = false
+var _application_focused: bool = true
+var _application_paused: bool = false
 var _presentation: PracticeMatchPresentation
 
 @onready var hud: MatchHud = %Hud
@@ -103,8 +105,23 @@ func _process(delta: float) -> void:
 
 
 func _notification(what: int) -> void:
-	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED]:
-		_cancel_local_input()
+	match what:
+		NOTIFICATION_APPLICATION_FOCUS_IN:
+			_application_focused = true
+			return
+		NOTIFICATION_APPLICATION_RESUMED:
+			_application_paused = false
+			return
+		NOTIFICATION_APPLICATION_FOCUS_OUT:
+			_application_focused = false
+		NOTIFICATION_APPLICATION_PAUSED:
+			_application_paused = true
+		_:
+			return
+	_cancel_local_input()
+	# Android can stop rendering now; send cancellation before the next frame.
+	if is_node_ready() and online and client.is_online():
+		_step_once(0.0)
 
 
 func _exit_tree() -> void:
@@ -266,7 +283,7 @@ func _step_once(dt: float) -> void:
 
 ## Menus consume keyboard intent too; a held aim must cancel rather than cast.
 func _local_input(tick: int) -> PlayerInput:
-	if not controls_active() or is_picking() or hud.menu.visible:
+	if not _application_focused or _application_paused or not controls_active() or is_picking() or hud.menu.visible:
 		input.clear()
 		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_AIM_CANCEL, tick)
 	return input.build(_flip(), _mouse_aim, tick)
@@ -326,9 +343,10 @@ func _set_controls_active(active: bool) -> void:
 
 
 func _cancel_local_input() -> void:
-	input.clear()
 	if is_node_ready():
 		hud.cancel_controls()
+	input.clear()
+	input.pending_buttons = PlayerInput.BTN_AIM_CANCEL
 
 
 ## Online: the server ended the weapon pick (loadouts are final) and play starts.

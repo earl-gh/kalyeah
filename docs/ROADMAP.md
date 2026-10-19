@@ -24,6 +24,14 @@ What is built, what is next, and the rules for building it. Rules and numbers li
 | Loadout and control feedback | Untimed Practice setup, saved validated weapon pairs, explicit replacement slots, larger readable cards, contextual control hints, persistent reconnect state, and truthful result actions |
 | Lobby and match UI refinement | Narrow-phone lobby and loadout layouts, concise room states, unified match announcements, and a score card with clock and best-of context |
 
+## Android validation follow-up
+
+Application interruptions now cancel local gestures and immediately send stop/cancel
+input to a connected server, even if no further client frame runs. Regression
+coverage includes pause/focus ordering, quick resume, real touch state, stopped
+client polling and disconnects. The [Android validation record](audits/2026-10-19-android-validation.md)
+separates automated evidence, APK build status and outstanding physical-phone tests.
+
 ## Development workflow
 
 Selected awesome-gamedev-agent-skills, standalone Ponytail and compact gstack

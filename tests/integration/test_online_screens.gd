@@ -238,3 +238,44 @@ func test_online_uses_shared_room_controls_and_server_confirmed_choices() -> voi
 	assert_false(guest.in_room())
 	assert_true(guest._setup_layer.visible)
 	assert_eq(guest.code_text(), "")
+
+
+func test_backgrounding_stops_server_input_without_another_view_frame() -> void:
+	var pair: Array[LobbyScreen] = _two_lobbies_ready()
+	pair[0].press_start()
+	assert_true(_until(func() -> bool: return pair[0].client.in_match() and pair[1].client.in_match()))
+	var view: PracticeMatch = autofree(ONLINE.instantiate()) as PracticeMatch
+	view.client = pair[0].client
+	add_child(view)
+	view.set_process(false)
+	screens.append(view)
+	pair[1].client.loaded()
+	assert_true(_until(func() -> bool: return view.client.stage == "pick"))
+	view.finish_pick()
+	pair[1].client.pick_weapons(&"bato_light", &"lata")
+	assert_true(_until(func() -> bool: return not view.is_picking()))
+	var server_sim: MatchSim = server.matches.values()[0].sim
+	server_sim.intro_left = 0.0
+	_pump(0.2)
+	var player: PlayerState = server_sim.players[view.local_id]
+	view.set_stick(Vector2.RIGHT)
+	view.aim_started(0)
+	_pump(0.2)
+	assert_gte(player.aim_hold[0], 0.0)
+	view._notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	screens.erase(view) # Android may stop rendering before another advance() call.
+	clients.erase(view.client) # Its Net autoload also stops polling when backgrounded.
+	_pump(0.4)
+	assert_eq(player.aim_hold[0], -1.0, "server must receive cancel without waiting for a rendered frame")
+	assert_eq(player.weapon_cooldowns[0], 0.0)
+	var stopped: Vector2 = player.position
+	_pump(0.3)
+	assert_eq(player.position, stopped, "server must not repeat pre-pause movement")
+	view._notification(Node.NOTIFICATION_APPLICATION_PAUSED)
+	view._notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
+	view._notification(Node.NOTIFICATION_APPLICATION_RESUMED)
+	clients.append(view.client)
+	screens.append(view)
+	view.set_stick(Vector2.LEFT)
+	_pump(0.3)
+	assert_ne(player.position, stopped, "fresh input works without rebuilding the connection")

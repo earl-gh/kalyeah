@@ -165,6 +165,10 @@ Back leaves untimed Practice setup directly. Multiplayer setup and gameplay ask 
 
 The HUD explains active auto-run, touch aiming/cancel, and status effects that prevent casting. Cooldown numbers and arcs remain on the weapon buttons. Controls are hidden during selection, intro, tagging, and match results. A persistent connection notice blocks controls from disconnection until the server confirms the restored slot. If restoration fails, Return Home leaves the match. The result action is Practice Again offline and Return Home in multiplayer; no rematch is implied.
 
+### Application interruptions
+
+Losing application focus or pausing clears auto-run, touch ownership, pending releases and cached keyboard aim. A connected multiplayer client sends neutral movement plus aim cancellation immediately through the existing input sequence, without waiting for another rendered frame. Input remains blocked until both focus returns and the application resumes. Practice retains a cancel input for its next tick, including a pause/resume between ticks. Fresh input works afterward; opening/closing menus or reconnecting cannot override an outstanding application interruption. This does not pause the authoritative multiplayer match or guarantee delivery after the OS terminates the process or the network disappears.
+
 ## Open decisions (defaults are implemented; change if the designer says so)
 - **D1** ~~Basic attack~~ **Decided: no basic attack** (owner). See D10.
 - **D2 / D3 / D4 / D5 / D11** Retired: the guava, the tricycle and the breakable walls are gone (owner).
