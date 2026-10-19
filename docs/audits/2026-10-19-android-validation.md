@@ -60,6 +60,19 @@ helper notices and the ObjectDB shutdown warning remain visible in the log.
 Use the existing manual **Android APK** workflow on the feature branch to build a
 debug APK. The run/artifact link and exact automated results are recorded in the
 PR. A successful APK build proves export/build compatibility, not device readiness.
+The feature-branch [Android APK run](https://github.com/earl-gh/kalyeah/actions/runs/39209731329)
+succeeded at runtime commit `fc33cf2` and uploaded
+[artifact 12167545706](https://github.com/earl-gh/kalyeah/actions/runs/39209731329/artifacts/12167545706)
+(`kalyeah-debug-apk`). The artifact archive is 181,667,160 bytes. Local artifact
+download was denied with HTTP 403 by the download endpoint, so its contained APK
+was not independently inspected here; use the authenticated GitHub artifact link.
+
+The local Web pack is 154,607,520 bytes versus the pre-fix pack's 154,600,964 bytes
+(a 6,556-byte increase). The existing package-size budgets are not met by these
+raw artifacts; final APK file size and compressed Web delivery still need direct
+inspection. Inventory exported assets before choosing exclusions or compression;
+do not remove dynamically loaded character/weapon resources blindly.
+
 No deployment or release signing is part of this change. UI pixels are unchanged;
 no new visual screenshot is claimed for this input-only fix.
 
