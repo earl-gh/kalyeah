@@ -24,6 +24,13 @@ What is built, what is next, and the rules for building it. Rules and numbers li
 | Loadout and control feedback | Untimed Practice setup, saved validated weapon pairs, explicit replacement slots, larger readable cards, contextual control hints, persistent reconnect state, and truthful result actions |
 | Lobby and match UI refinement | Narrow-phone lobby and loadout layouts, concise room states, unified match announcements, and a score card with clock and best-of context |
 
+## Development workflow
+
+Selected awesome-gamedev-agent-skills, standalone Ponytail and compact gstack
+workflow ports are installed for Claude and Codex. The five project specialists
+retain ownership. [Catalog](../.claude/skills/README.md), provenance lock and
+[first-use review](audits/2026-10-19-skill-adoption.md) record scope and validation.
+
 ## Next: the Kalyeah visual overhaul
 
 Goal: the look of the owner's reference image (League of Legends mid view, Clash of Clans design language, Filipino street): soft, chunky, painted-looking 3D with readable effects. Procedural boxes are not enough; real Blender-authored assets are.

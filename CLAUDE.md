@@ -65,3 +65,12 @@ Keep the existing procedural/code-drawn stand-ins working until the owner's asse
 - **No basic attack.** Players only use their picked weapons plus the default skills (Dash, Bookmark).
 - Never let a character choice change gameplay (hitbox, stats, timing).
 - Don't guess on items listed under "Open decisions" in GDD: implement the default and keep it a data toggle.
+
+## Project skills
+
+Read `.claude/skills/README.md` and select only the skills relevant to the task.
+Use `router` for ownership, `ponytail` for smallest-complete changes and the local
+gstack planning/review/investigation ports when appropriate. The existing five
+specialists own implementation; upstream skills are supporting methods/API references.
+Pinned Godot 4.6.2, architecture, owner art policy and this PR workflow remain binding.
+Do not execute upstream plugin installers, hooks, telemetry or auto-updaters.
