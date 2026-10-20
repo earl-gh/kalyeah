@@ -17,9 +17,9 @@ const LENS_K_AT_FULL: float = 0.5
 ## The design screen: portrait 9:16.
 const DESIGN_ASPECT: float = 9.0 / 16.0
 
-## The camera sits behind and to the right of the hero (a bird's-eye view from the
-## back right): it is turned this many degrees around the hero, so the street runs
-## diagonally up the screen from bottom left to top right.
+## The camera sits behind and a little to the right of the hero: it is turned this many
+## degrees around the hero (a slight 8 degrees: enough to see the sides of props and houses
+## and lose the look of a straight corridor, not enough to favour one curb).
 @export var yaw_offset_degrees: float = 0.0
 ## Pitch from horizontal, in degrees.
 @export var pitch_degrees: float = 0.0
@@ -100,8 +100,14 @@ func look_ahead(camera_distance: float) -> float:
 ## hero sits at `player_screen_y`. Nothing about the map holds it back (the hero is the one
 ## limited by the play area), so it follows the hero all the way to every edge.
 func camera_target(world_pos: Vector2, flip: bool, camera_distance: float) -> Vector2:
-	var forward: float = 1.0 if flip else -1.0  # toward the enemy base, in world Z
-	return Vector2(world_pos.x, world_pos.y + forward * look_ahead(camera_distance))
+	return world_pos + ground_forward(flip) * look_ahead(camera_distance)
+
+
+## The direction the camera looks along the ground (x, z): toward the enemy base, turned with the yaw, so the
+## hero stays on the screen's centre line.
+func ground_forward(flip: bool) -> Vector2:
+	var yaw: float = deg_to_rad(yaw_degrees(flip))
+	return Vector2(-sin(yaw), -cos(yaw))
 
 
 ## Fraction of the remaining distance to cover this frame (frame-rate independent).

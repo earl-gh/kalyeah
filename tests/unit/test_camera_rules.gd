@@ -8,7 +8,7 @@ const PHONE: float = 720.0 / 1280.0
 func test_a_fixed_moba_angle_with_a_moderate_perspective_lens() -> void:
 	assert_eq(CAMERA.pitch_degrees, 42.0, "high enough to read the ground, low enough to see the kids' faces")
 	assert_eq(CAMERA.vfov_degrees, 60.0, "a moderate lens: little stretch at the edges, so little to get used to")
-	assert_eq(CAMERA.yaw_offset_degrees, 0.0, "straight behind: left and right stay mirror images (see docs/audits/2026-10-20-camera.md)")
+	assert_eq(CAMERA.yaw_offset_degrees, 8.0, "a slight yaw: the sides of props and houses show, the street stops looking like a corridor")
 	assert_eq(CameraRules.DESIGN_ASPECT, 9.0 / 16.0, "portrait 9:16")
 
 
@@ -60,8 +60,12 @@ func test_the_aim_point_is_far_enough_ahead_to_hold_the_hero_low_on_screen() -> 
 	var reach: float = CAMERA.distance(PHONE)
 	var ahead: float = CAMERA.look_ahead(reach)
 	assert_almost_eq(ahead, 2.93, 0.05, "about 3 m ahead")
-	assert_eq(CAMERA.camera_target(Vector2(0.0, 10.0), false, reach), Vector2(0.0, 10.0 - ahead), "own side looks toward -Z")
-	assert_eq(CAMERA.camera_target(Vector2(0.0, -10.0), true, reach), Vector2(0.0, -10.0 + ahead), "flipped looks toward +Z")
+	var own: Vector2 = CAMERA.camera_target(Vector2(0.0, 10.0), false, reach)
+	assert_almost_eq(own.distance_to(Vector2(0.0, 10.0)), ahead, 0.001, "the aim is `ahead` metres from the hero")
+	assert_lt(own.y, 10.0, "own side looks toward -Z")
+	var other: Vector2 = CAMERA.camera_target(Vector2(0.0, -10.0), true, reach)
+	assert_gt(other.y, -10.0, "flipped looks toward +Z")
+	assert_almost_eq(other.x, -own.x, 0.001, "the other team's view is the same view turned half way round")
 
 
 func test_the_camera_follows_the_hero_everywhere_the_map_never_holds_it_back() -> void:
@@ -73,8 +77,8 @@ func test_the_camera_follows_the_hero_everywhere_the_map_never_holds_it_back() -
 	for x: float in [-half_w, 0.0, half_w]:
 		for z: float in [-half_l, 0.0, half_l]:
 			var hero: Vector2 = Vector2(x, z)
-			assert_eq(CAMERA.camera_target(hero, false, reach), Vector2(x, z - ahead), "own view at %s" % hero)
-			assert_eq(CAMERA.camera_target(hero, true, reach), Vector2(x, z + ahead), "flipped view at %s" % hero)
+			assert_eq(CAMERA.camera_target(hero, false, reach), hero + CAMERA.ground_forward(false) * ahead, "own view at %s" % hero)
+			assert_eq(CAMERA.camera_target(hero, true, reach), hero + CAMERA.ground_forward(true) * ahead, "flipped view at %s" % hero)
 	# walking on toward an edge always moves the camera on too (it is never stuck)
 	var near_edge: Vector2 = CAMERA.camera_target(Vector2(half_w - 1.0, -half_l + 1.0), false, reach)
 	var at_edge: Vector2 = CAMERA.camera_target(Vector2(half_w - 0.5, -half_l + 0.5), false, reach)
@@ -162,3 +166,15 @@ func test_the_ground_is_not_squashed_too_flat_for_aiming() -> void:
 	var ground: float = reach * cos(pitch) - CAMERA.look_ahead(reach)
 	var depression: float = atan(reach * sin(pitch) / ground)
 	assert_gt(sin(depression), 0.7, "ground circles look at least 70% as tall as wide (they were 75% to 80%)")
+
+
+func test_the_hero_stays_on_the_screens_centre_line_with_the_yaw() -> void:
+	# the aim point is `ahead` metres along the way the camera looks: the hero is straight below the middle of the screen
+	var reach: float = CAMERA.distance(PHONE)
+	for flip: bool in [false, true]:
+		var hero: Vector2 = Vector2(3.0, 5.0)
+		var target: Vector2 = CAMERA.camera_target(hero, flip, reach)
+		var camera: Vector2 = target + Vector2(CAMERA.camera_offset(reach, flip).x, CAMERA.camera_offset(reach, flip).z)
+		var view: Vector2 = (target - camera).normalized()
+		var to_hero: Vector2 = (hero - camera).normalized()
+		assert_almost_eq(view.cross(to_hero), 0.0, 0.0001, "hero on the line the camera looks along (flip %s)" % flip)
