@@ -2,6 +2,8 @@ extends SceneTree
 ## Plays every two-weapon loadout against every other, both ways round, as bot-versus-bot duels (BalanceDuel),
 ## and writes one line per duel to a CSV. Run headless, after an import:
 ##   godot --headless -s tools/balance/duels.gd -- --out duels.csv [--seeds 1] [--shard 0 --of 1] [--seconds 60]
+##                                                  [--skill 0] [--cover 0]
+## `--skill` is how well both bots aim (0 to 1, FightBrain.skill); `--cover 1` leaves the street's cover in.
 ## `--shard i --of n` plays every n-th pairing, so several processes can share the work.
 ## tools/balance/report.py turns the CSVs into the tables in docs/audits/.
 
@@ -14,6 +16,8 @@ func _init() -> void:
 	var shard: int = int(options.get("shard", "0"))
 	var shards: int = maxi(1, int(options.get("of", "1")))
 	var seconds: float = float(options.get("seconds", str(BalanceDuel.MAX_SECONDS)))
+	var skill: float = float(options.get("skill", "0"))
+	var cover: bool = options.get("cover", "0") == "1"
 	var out: FileAccess = FileAccess.open(options.get("out", "duels.csv"), FileAccess.WRITE)
 	if out == null:
 		push_error("cannot write %s" % options.get("out", "duels.csv"))
@@ -32,7 +36,7 @@ func _init() -> void:
 					# `first_side` 0: loadout i is team 0; 1: loadout j is team 0 (the sides swapped)
 					var a: Array[StringName] = _ids(loadouts[i] if first_side == 0 else loadouts[j])
 					var b: Array[StringName] = _ids(loadouts[j] if first_side == 0 else loadouts[i])
-					var result: Dictionary = BalanceDuel.run(rules, layout, a, b, seed_value * 1000 + index, seconds)
+					var result: Dictionary = BalanceDuel.run(rules, layout, a, b, seed_value * 1000 + index, seconds, skill, cover)
 					var winner: int = result["winner"] as int
 					# report the winner as "first" (loadout i), "second" (loadout j) or draw
 					var who: String = "draw"

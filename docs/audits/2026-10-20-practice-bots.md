@@ -14,10 +14,12 @@ never be hit, tagged, or pressed on a capture, and the weapons could never be ba
   to its spot when you leave.
 - **In Practice** the patrol dummy is the sparring partner by default (`practice_fighters = 1`; 2 adds the standing
   one; 0 is the old behaviour). It gets a random pair of weapons with at least one that damages.
-- All five tuning numbers are data (`game_rules.tres`): `practice_fighters`, `bot_aggro_range`, `bot_cast_gap`,
+- All the tuning numbers are data (six now: `bot_skill` was added with the aim fix) (`game_rules.tres`): `practice_fighters`, `bot_aggro_range`, `bot_cast_gap`,
   `bot_aim_error_degrees`, `bot_standoff_share`.
 
-## A first number
+## A first number (before the aim fix)
+
+*These times are from the first version of the bot, which threw ground circles at full range and never led a target; [the balance duels](2026-10-20-balance-duels.md) explain the fix. The bot is now a little harder (`bot_skill` = 0.4).*
 
 A bot with one damaging weapon and a heal, against a player standing still 6 m away, takes **20 to 50 seconds** to tag
 them (bato light 29 s, bato heavy 49 s, tsinelas heavy 21 s, jacks 36 s, gunting heavy 38 s); weapons that mostly
