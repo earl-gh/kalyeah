@@ -47,7 +47,7 @@ static var _cache: Dictionary[String, StyleBoxTexture] = {}
 const WARM_PLATES: Array[Array] = [
 	["glass", PLATE_RADIUS], ["raised", PLATE_RADIUS], ["inset", PLATE_RADIUS], ["night", PLATE_RADIUS], ["picked", PLATE_RADIUS],
 	["glass", 22], ["glass", 18], ["raised", 26], ["raised", 22], ["picked", 22], ["picked", 18], ["night", 34], ["raised", 34],
-	["night", 18],
+	["night", 18], ["night", 22],
 ]
 static var _warmed: int = 0
 
