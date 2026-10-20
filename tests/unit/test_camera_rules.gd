@@ -6,13 +6,13 @@ const PHONE: float = 720.0 / 1280.0
 
 
 func test_a_fixed_low_angle_with_a_wide_perspective_lens() -> void:
-	assert_eq(CAMERA.pitch_degrees, 32.0, "owner: a bit higher behind the kid")
+	assert_eq(CAMERA.pitch_degrees, 46.0, "owner: higher and pitched forward, like a MOBA")
 	assert_eq(CAMERA.vfov_degrees, 75.0, "wide vertical field of view")
 	assert_eq(CameraRules.DESIGN_ASPECT, 9.0 / 16.0, "portrait 9:16")
 
 
 func test_other_camera_numbers_come_from_data() -> void:
-	assert_eq(CAMERA.visible_width, 11.5, "owner: a bit farther from the kid")
+	assert_eq(CAMERA.visible_width, 12.0, "a little farther from the kid for the higher view")
 	assert_eq(CAMERA.player_screen_y, 0.62)
 
 
@@ -21,12 +21,12 @@ func test_distance_shows_the_visible_width_on_any_phone() -> void:
 		var distance: float = CAMERA.distance(aspect)
 		var width: float = 2.0 * distance * tan(deg_to_rad(CAMERA.vfov_degrees / 2.0)) * aspect
 		assert_almost_eq(width, CAMERA.visible_width, 0.001, "aspect %.2f" % aspect)
-	assert_almost_eq(CAMERA.distance(PHONE), 13.32, 0.05)
+	assert_almost_eq(CAMERA.distance(PHONE), 13.9, 0.05)
 
 
-func test_the_camera_is_low_behind_the_hero() -> void:
+func test_the_camera_is_high_above_and_behind_the_hero() -> void:
 	var offset: Vector3 = CAMERA.camera_offset(CAMERA.distance(PHONE), false)
-	assert_almost_eq(offset.y, 7.06, 0.1, "about 7 m up")
+	assert_almost_eq(offset.y, 10.0, 0.1, "about 10 m up (was 7)")
 	assert_almost_eq(offset.length(), CAMERA.distance(PHONE), 0.001)
 
 
@@ -58,7 +58,7 @@ func test_other_team_view_is_mirrored() -> void:
 func test_the_aim_point_is_far_enough_ahead_to_hold_the_hero_low_on_screen() -> void:
 	var reach: float = CAMERA.distance(PHONE)
 	var ahead: float = CAMERA.look_ahead(reach)
-	assert_almost_eq(ahead, 3.53, 0.05, "about 3.8 m ahead")
+	assert_almost_eq(ahead, 3.02, 0.05, "about 3 m ahead")
 	assert_eq(CAMERA.camera_target(Vector2(0.0, 10.0), false, reach), Vector2(0.0, 10.0 - ahead), "own side looks toward -Z")
 	assert_eq(CAMERA.camera_target(Vector2(0.0, -10.0), true, reach), Vector2(0.0, -10.0 + ahead), "flipped looks toward +Z")
 
@@ -86,7 +86,8 @@ func test_ground_offsets_cover_the_whole_screen() -> void:
 	assert_almost_eq(CAMERA.ground_offset(reach, 0.5), 0.0, 0.001, "the screen centre is the aim point")
 	assert_gt(CAMERA.ground_offset(reach, 1.0), 0.0, "the bottom edge is behind the aim point")
 	assert_lt(CAMERA.ground_offset(reach, 0.0), 0.0, "the top edge is ahead of it (or the sky)")
-	assert_eq(CAMERA.ground_offset(reach, 0.0), -INF, "a low angle shows the sky at the very top")
+	assert_lt(CAMERA.ground_offset(reach, 0.0), -30.0, "the very top of the screen is ground far up the street, not sky")
+	assert_gt(CAMERA.ground_offset(reach, 0.0), -INF, "a pitched-down camera has no sky on screen")
 	assert_lt(CAMERA.ground_offset(reach, 1.0), reach, "the bottom edge is in front of the camera")
 
 
