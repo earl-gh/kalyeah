@@ -8,7 +8,7 @@ func _ready() -> void:
 	add_theme_constant_override("separation", 12)
 	var title: Label = Label.new()
 	title.theme_type_variation = &"DisplayLabel"
-	title.text = "HISTORY"
+	title.text = "History"
 	title.add_theme_font_size_override("font_size", UiMetrics.TITLE)
 	add_child(title)
 	var scroll: ScrollContainer = ScrollContainer.new()
@@ -60,7 +60,7 @@ func _row(entry: Dictionary, now: int) -> Control:
 	var result: Label = Label.new()
 	result.name = "Result"
 	result.theme_type_variation = &"DisplayLabel"
-	result.text = "VICTORY" if won else "DEFEAT"
+	result.text = "Victory" if won else "Defeat"
 	result.add_theme_font_size_override("font_size", UiMetrics.ACTION)
 	result.add_theme_color_override("font_color", KalyeahTheme.SUCCESS if won else KalyeahTheme.ERROR)
 	result.size_flags_horizontal = Control.SIZE_EXPAND_FILL

@@ -1,16 +1,16 @@
 class_name KalyeahTheme
 extends RefCounted
-## Kalyeah's portrait UI system: the Bungee display face, compact spacing and raised,
-## toy-like controls inspired by the visual weight of polished mobile strategy games.
+## Kalyeah's portrait UI system: calm grouped surfaces and direct controls, with
+## the display face reserved for game identity and high-salience match moments.
 
 ## Bungee gives display headings and HUD numbers their game identity.
 const DISPLAY_FONT: Font = preload("res://assets/fonts/bungee/Bungee-Regular.ttf")
-const ACTION_FONT: Font = DISPLAY_FONT
 ## The owner's Source Sans 3 (a variable font) for all regular text.
 const SOURCE_SANS: Font = preload("res://assets/fonts/source_sans_3/SourceSans3-Variable.ttf")
 ## How heavy the regular text is (Source Sans 3 runs from 200 to 900; 400 is Regular).
 const BODY_WEIGHT: int = 500
 static var BODY_FONT: Font = _body_font()
+static var ACTION_FONT: Font = BODY_FONT
 
 const INK: Color = Color("10192d")
 const INK_DEEP: Color = Color("080f1d")
@@ -19,12 +19,12 @@ const SURFACE_RAISED: Color = Color("203657")
 const CREAM: Color = Color("fff3d6")
 const TEXT: Color = Color("f8fbff")
 const TEXT_MUTED: Color = Color("aebbd0")
-const AMBER: Color = Color("f6ae2d")
-const AMBER_HOVER: Color = Color("ffc653")
-const BLUE: Color = Color("2861ae")
-const GREEN: Color = Color("18764e")
-const RED: Color = Color("ad3544")
-const SLATE: Color = Color("44546d")
+const AMBER: Color = Color("ff9f0a")
+const AMBER_HOVER: Color = Color("ffb340")
+const BLUE: Color = Color("0a84ff")
+const GREEN: Color = Color("30a46c")
+const RED: Color = Color("ff5e57")
+const SLATE: Color = Color("3a4b63")
 const FOCUS: Color = Color("ffe59b")
 const SUCCESS: Color = Color("79daa5")
 const ERROR: Color = Color("ffb4ab")
@@ -32,8 +32,8 @@ const TEAM_BLUE: Color = Color("435bc2")
 const TEAM_RED: Color = Color("b83246")
 const FIELD: Color = Color("0d1729")
 
-const CORNER: int = 16
-const BUTTON_SHADOW: int = 2
+const CORNER: int = 18
+const BUTTON_SHADOW: int = 0
 const FONT_SIZE: int = UiMetrics.BODY
 const PANEL_PADDING: float = UiMetrics.PADDING
 
@@ -123,11 +123,11 @@ static func semantic_color(name: String) -> Color:
 
 
 static func semantic_text_color(name: String) -> Color:
-	return INK_DEEP if name == "orange" or name == "gold" else TEXT
+	return TEXT if name == "grey" else INK_DEEP
 
 
-## A clean raised action surface. The thicker lower shadow gives touch feedback
-## without the plastic gloss of the old image buttons.
+## A calm action surface. State changes come from color and a small press scale,
+## keeping the interface legible without stacking decorative shadows.
 static func painted_button(color: String, pressed: bool = false, tint: Color = Color.WHITE) -> StyleBoxFlat:
 	var face: Color = semantic_color(color) * tint
 	if pressed:
@@ -136,14 +136,12 @@ static func painted_button(color: String, pressed: bool = false, tint: Color = C
 	box.bg_color = face
 	box.set_corner_radius_all(CORNER)
 	box.set_border_width_all(1)
-	box.border_color = face.lightened(0.2) if color != "grey" else SLATE.lightened(0.18)
-	box.shadow_color = Color(INK_DEEP, 0.85)
-	box.shadow_size = 1
-	box.shadow_offset = Vector2(0.0, 0.0 if pressed else BUTTON_SHADOW)
+	box.border_color = Color(face.lightened(0.22), 0.72) if color != "grey" else Color(TEXT_MUTED, 0.24)
+	box.shadow_size = 0
 	box.content_margin_left = 20.0
 	box.content_margin_right = 20.0
-	box.content_margin_top = 15.0 + (3.0 if pressed else 0.0)
-	box.content_margin_bottom = 17.0 - (3.0 if pressed else 0.0)
+	box.content_margin_top = 15.0
+	box.content_margin_bottom = 15.0
 	box.anti_aliasing = true
 	return box
 
@@ -178,30 +176,26 @@ static func style_button(button: Button, color: String) -> void:
 	button.add_theme_constant_override("outline_size", 0)
 
 
-static func surface_box(corner: int = 20, border: int = 2, padding: float = PANEL_PADDING) -> StyleBoxFlat:
+static func surface_box(corner: int = 20, border: int = 1, padding: float = PANEL_PADDING) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = Color(SURFACE, 0.97)
 	box.set_corner_radius_all(corner)
 	box.set_border_width_all(border)
-	box.border_color = Color(CREAM, 0.24)
-	box.shadow_color = Color(INK_DEEP, 0.72)
-	box.shadow_size = 10
-	box.shadow_offset = Vector2(0.0, 8.0)
+	box.border_color = Color(TEXT_MUTED, 0.2)
+	box.shadow_size = 0
 	box.set_content_margin_all(padding)
 	box.anti_aliasing = true
 	return box
 
 
 static func painted_panel(padding: float = PANEL_PADDING) -> StyleBoxFlat:
-	return surface_box(24, 2, padding)
+	return surface_box(24, 1, padding)
 
 
 static func painted_pill() -> StyleBoxFlat:
-	var box: StyleBoxFlat = surface_box(22, 2, 0.0)
-	box.bg_color = Color(INK, 0.9)
-	box.border_color = Color(CREAM, 0.24)
-	box.shadow_size = 3
-	box.shadow_offset = Vector2(0.0, 3.0)
+	var box: StyleBoxFlat = surface_box(22, 1, 0.0)
+	box.bg_color = Color(INK, 0.88)
+	box.border_color = Color(TEXT_MUTED, 0.2)
 	box.content_margin_left = 18.0
 	box.content_margin_right = 18.0
 	box.content_margin_top = 9.0
@@ -210,11 +204,10 @@ static func painted_pill() -> StyleBoxFlat:
 
 
 static func map_title_plate() -> StyleBoxFlat:
-	var box: StyleBoxFlat = surface_box(14, 3, 0.0)
+	var box: StyleBoxFlat = surface_box(14, 2, 0.0)
 	box.bg_color = Color("213b61")
 	box.border_color = AMBER
-	box.shadow_size = 4
-	box.shadow_offset = Vector2(0.0, 5.0)
+	box.shadow_size = 0
 	box.content_margin_left = 28.0
 	box.content_margin_right = 28.0
 	box.content_margin_top = 8.0
@@ -226,15 +219,13 @@ static func field_box(focused: bool, read_only: bool = false) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = Color(SURFACE_RAISED if read_only else FIELD, 0.98)
 	box.set_corner_radius_all(14)
-	box.set_border_width_all(3 if focused else 2)
-	box.border_color = AMBER if focused else Color(TEXT_MUTED, 0.38)
+	box.set_border_width_all(3 if focused else 1)
+	box.border_color = BLUE if focused else Color(TEXT_MUTED, 0.3)
 	box.content_margin_left = 18.0
 	box.content_margin_right = 18.0
 	box.content_margin_top = 15.0
 	box.content_margin_bottom = 15.0
-	box.shadow_color = Color(INK_DEEP, 0.48)
-	box.shadow_size = 3
-	box.shadow_offset = Vector2(0.0, 3.0)
+	box.shadow_size = 0
 	box.anti_aliasing = true
 	return box
 

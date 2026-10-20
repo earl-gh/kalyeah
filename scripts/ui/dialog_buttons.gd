@@ -68,10 +68,10 @@ static func grabber_texture() -> Texture2D:
 
 ## One leave confirmation for loadout and gameplay; neither pauses the authoritative match.
 static func leave_match(hosting: bool, on_leave: Callable) -> MenuDialog:
-	var dialog: MenuDialog = MenuDialog.create("LEAVE MATCH?")
+	var dialog: MenuDialog = MenuDialog.create("Leave match?")
 	dialog.add_label("The hotspot room will close for everyone." if hosting else "Your place will be released.")
-	var cancel: Button = MenuDialog.make_button("CANCEL", "grey", UiMetrics.ACTION)
-	var leave: Button = MenuDialog.make_button("LEAVE", "red", UiMetrics.ACTION)
+	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.ACTION)
+	var leave: Button = MenuDialog.make_button("Leave", "red", UiMetrics.ACTION)
 	cancel.pressed.connect(dialog.close)
 	leave.pressed.connect(func() -> void:
 		dialog.close(false)

@@ -6,7 +6,9 @@ Text-size controls, persistence loading, live font scaling and per-label size ex
 
 Actions use the readable body face; Bungee remains for display headings/HUD identity. Buttons retain 88-design-pixel touch height (44pt at the 360pt reference), with lighter borders/elevation. Back, Copy and weapon-tab labels use the common action size. Selection controls use calm surfaces with a blue active state; weapon cards use the shared palette. Slider art is smaller without shrinking its touch area.
 
-Home artwork, mode and description form one group, with open space before the bottom actions. Settings groups sound with its slider, removes size controls and labels the rename action Player name. Lobby character cards match loadout sizing; captions no longer compete with faces or repeat the selected name above the strip.
+The complete interface pass extends that contract from Home through gameplay. Utility copy and actions use sentence case and explicit verbs such as Create room, Join room, Start match and Return home. Fields use a blue focus state. Settings, lobby configuration, room sections and loadout sockets use the same grouped material. Decorative shadows were removed from controls, panels, fields, the score card and the map plate. The opening objective and tagged spectator state now appear in inset floating sheets, preserving more of the play field while matching the menu hierarchy.
+
+Home artwork, mode and description form one group, with open space before the bottom actions. The repeated game-name logo is removed; Settings stays in the quiet top-right navigation area and “Agawan Base” titles the room map plate. Settings groups sound with its slider, removes size controls and labels the rename action Player name. Lobby character cards match loadout sizing; captions no longer compete with faces or repeat the selected name above the strip.
 
 ![Simplified Settings at 390 × 844](images/ui-density-settings.png)
 

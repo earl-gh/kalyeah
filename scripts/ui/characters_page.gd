@@ -12,7 +12,7 @@ func _ready() -> void:
 	add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	var title: Label = Label.new()
 	title.theme_type_variation = &"DisplayLabel"
-	title.text = "PROFILE PICTURE"
+	title.text = "Profile picture"
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.add_theme_font_size_override("font_size", 38)
 	add_child(title)
@@ -55,7 +55,7 @@ func _card(id: String) -> Button:
 	card.add_child(picture)
 	var label: Label = Label.new()
 	label.theme_type_variation = &"DisplayLabel"
-	label.text = (definition.display_name if definition != null else id).to_upper()
+	label.text = definition.display_name if definition != null else id.capitalize()
 	label.add_theme_font_size_override("font_size", UiMetrics.CAPTION)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)

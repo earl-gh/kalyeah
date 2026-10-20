@@ -1,5 +1,5 @@
 extends GutTest
-## The main screen: the K! logo and settings on top, a vertical map carousel on the left, the map's details and the action buttons on the right.
+## The main screen: quiet top navigation, a centred mode carousel and low primary actions.
 
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
 
@@ -63,37 +63,31 @@ func test_the_screen_has_everything_the_owner_asked_for() -> void:
 	var screen: TitleScreen = _screen()
 	assert_null(screen.find_child("TopBar", true, false), "no top row: no K! and no settings icon")
 	assert_not_null(screen.carousel, "the mode carousel")
-	assert_eq(screen.mode_name_label.text, "HOTSPOT", "hotspot is the default mode")
+	assert_eq(screen.mode_name_label.text, "Hotspot", "hotspot is the default mode")
 	assert_null(screen.find_child("MapButton", true, false), "no map button")
-	assert_eq(screen.primary_button.text, "CREATE")
-	assert_eq(screen.secondary_button.text, "JOIN")
+	assert_eq(screen.primary_button.text, "Create room")
+	assert_eq(screen.secondary_button.text, "Join room")
 	assert_null(screen.quit_button, "quit stays out of the main action area")
 
 
-func test_the_logo_is_top_left_settings_top_right_and_book_and_history_left_of_the_cards() -> void:
+func test_settings_is_top_right_and_book_and_history_stay_left_of_the_cards() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(3)
 	var book: Rect2 = screen.corner_buttons[&"codex"].get_global_rect()
 	var history: Rect2 = screen.corner_buttons[&"history"].get_global_rect()
 	var settings: Rect2 = screen.corner_buttons[&"settings"].get_global_rect()
-	var mark: Rect2 = screen.logo.get_global_rect()
-	var strip: Rect2 = screen.carousel.get_global_rect()
-	assert_almost_eq(mark.position.x, TitleScreen.SIDE_MARGIN, 1.0, "the logo is at the top left")
-	assert_lt(mark.position.y, 120.0, "at the top")
-	assert_gt(mark.position.y, 20.0, "lowered from the very top")
 	assert_almost_eq(settings.end.x, 720.0 - TitleScreen.SIDE_MARGIN, 1.0, "settings is at the top right")
-	assert_almost_eq(settings.get_center().y, mark.get_center().y, 3.0, "level with the logo")
+	assert_lt(settings.position.y, 140.0, "settings stays at the top")
+	assert_gt(settings.position.y, 20.0, "settings clears the very top")
 	assert_almost_eq(book.position.x, history.position.x, 1.0, "the book and history are in one column")
 	assert_lt(book.position.y, history.position.y, "the book above history")
 	assert_almost_eq(book.position.x, TitleScreen.SIDE_MARGIN, 1.0, "at the left margin")
 	assert_lte(book.end.x, screen.carousel.cards[0].get_global_rect().position.x, "left of the cards")
 	assert_lte(history.end.x, screen.carousel.cards[0].get_global_rect().position.x)
-	assert_gt(book.position.y, mark.end.y, "under the top row")
+	assert_gt(book.position.y, settings.end.y, "under the top row")
 	for id: StringName in screen.corner_buttons:
 		assert_gte(screen.corner_buttons[id].get_global_rect().size.y, 80.0, "%s is tall enough for a thumb" % id)
-	var shown_width: float = minf(mark.size.x, mark.size.y * 1000.0 / 357.0)
-	assert_lt(shown_width, 330.0, "the picture is a bit smaller than before")
-	assert_eq(screen.logo.texture, load("res://assets/ui/kalyeah_logo.png"), "the owner's KALYEAH! logo")
+	assert_null(screen.find_child("Logo", true, false), "the home screen does not repeat the game name")
 	assert_null(screen.find_child("BottomNav", true, false), "no bottom nav bar")
 
 
@@ -164,7 +158,7 @@ func test_the_actions_sit_low_on_the_screen_but_not_at_the_very_bottom() -> void
 	assert_gt(create.position.y, 1280.0 * 0.75, "in the bottom part")
 	assert_lt(create.end.y, 1280.0 - 60.0, "but with room under them")
 	assert_lt(screen.carousel.get_global_rect().end.y, create.position.y, "below the cards")
-	assert_gt(screen.carousel.get_global_rect().position.y, screen.logo.get_global_rect().end.y - 1.0, "the cards are under the top row")
+	assert_gt(screen.carousel.get_global_rect().position.y, screen.corner_buttons[&"settings"].get_global_rect().end.y - 1.0, "the cards are under the top row")
 	assert_gt(create.size.x + join.size.x, 600.0)
 	var title: Rect2 = screen.mode_name_label.get_global_rect()
 	var phrase: Rect2 = screen.mode_text_label.get_global_rect()
@@ -207,9 +201,9 @@ func test_the_carousel_is_hotspot_online_practice_with_the_chosen_card_in_front(
 	await wait_frames(3)
 	var strip: MenuCarousel = screen.carousel
 	assert_eq(strip.cards.size(), 3)
-	assert_eq(ChoiceCard.choice_of(strip.cards[0]), "HOTSPOT", "hotspot first, not online")
-	assert_eq(ChoiceCard.choice_of(strip.cards[1]), "ONLINE")
-	assert_eq(ChoiceCard.choice_of(strip.cards[2]), "PRACTICE")
+	assert_eq(ChoiceCard.choice_of(strip.cards[0]), "Hotspot", "hotspot first, not online")
+	assert_eq(ChoiceCard.choice_of(strip.cards[1]), "Online")
+	assert_eq(ChoiceCard.choice_of(strip.cards[2]), "Practice")
 	var middle: Button = strip.cards[0]
 	var next: Button = strip.cards[1]
 	assert_almost_eq(middle.size.x / middle.size.y, 2.5 / 4.0, 0.01, "2.5:4 cards")
@@ -225,11 +219,11 @@ func test_the_carousel_is_hotspot_online_practice_with_the_chosen_card_in_front(
 	assert_eq(strip.cards[1].modulate.r, 1.0, "the chosen card comes forward at full brightness")
 	assert_lt(strip.cards[0].modulate.r, 1.0)
 	assert_lt(strip.cards[0].get_global_rect().get_center().x, strip.cards[1].get_global_rect().get_center().x, "the previous card is on the left")
-	assert_eq(screen.mode_name_label.text, "ONLINE", "the details follow the chosen card")
-	assert_eq(screen.primary_button.text, "CREATE")
+	assert_eq(screen.mode_name_label.text, "Online", "the details follow the chosen card")
+	assert_eq(screen.primary_button.text, "Create room")
 	strip.select(2, false)
-	assert_eq(screen.mode_name_label.text, "PRACTICE")
-	assert_eq(screen.primary_button.text, "START", "practice just starts")
+	assert_eq(screen.mode_name_label.text, "Practice")
+	assert_eq(screen.primary_button.text, "Start practice", "practice just starts")
 	assert_false(screen.secondary_button.visible, "and has nothing to join")
 
 
@@ -391,10 +385,10 @@ func test_quit_asks_first_and_only_quits_on_yes() -> void:
 	var buttons: Array[Node] = card.find_children("*", "Button", true, false)
 	var stay: Button = buttons[0] as Button
 	var leave: Button = buttons[1] as Button
-	assert_eq(stay.text, "CANCEL")
-	assert_eq(leave.text, "QUIT")
+	assert_eq(stay.text, "Cancel")
+	assert_eq(leave.text, "Quit")
 	stay.pressed.emit()
-	assert_eq(quit_calls[0], 0, "CANCEL keeps playing")
+	assert_eq(quit_calls[0], 0, "Cancel keeps playing")
 	assert_false(card.is_open)
 	var again: MenuDialog = screen.open_quit_confirm()
 	(again.find_children("*", "Button", true, false)[1] as Button).pressed.emit()

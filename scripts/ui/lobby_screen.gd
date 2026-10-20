@@ -350,9 +350,9 @@ func _start_hotspot() -> void:
 
 
 func _open_settings() -> void:
-	var card: MenuDialog = MenuDialog.create("SETTINGS")
+	var card: MenuDialog = MenuDialog.create("Settings")
 	SettingsPage.fill(card.body)
-	var close: Button = MenuDialog.make_button("CLOSE", "blue", 32)
+	var close: Button = MenuDialog.make_button("Done", "blue", 32)
 	close.pressed.connect(card.close)
 	card.add_buttons([close])
 	card.open(self)

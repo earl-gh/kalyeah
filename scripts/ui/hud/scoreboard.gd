@@ -46,9 +46,7 @@ func _draw() -> void:
 	frame.border_color = RIM
 	frame.set_border_width_all(3)
 	frame.set_corner_radius_all(18)
-	frame.shadow_color = Color(0.0, 0.0, 0.0, 0.48)
-	frame.shadow_size = 3
-	frame.shadow_offset = Vector2(0.0, 4.0)
+	frame.shadow_size = 0
 	draw_style_box(frame, Rect2(0.0, 0.0, w, h))
 	var box: float = h - 12.0
 	_round_rect(Rect2(6.0, 6.0, box * 1.25, box), OWN, 12.0)

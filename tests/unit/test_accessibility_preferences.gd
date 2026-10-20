@@ -38,7 +38,7 @@ func test_motion_syncs_across_settings_and_obsolete_text_size_is_ignored() -> vo
 	label.add_theme_font_size_override("font_size", UiMetrics.BODY)
 	add_child(label)
 	first.motion_button.pressed.emit()
-	assert_eq(second.motion_button.text, "ON")
+	assert_eq(second.motion_button.text, "On")
 	await wait_process_frames(3)
 	assert_eq(label.get_theme_font_size("font_size"), UiMetrics.BODY, "legacy preference cannot enlarge the interface")
 	file.load(Settings.SAVE_PATH)

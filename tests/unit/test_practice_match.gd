@@ -461,7 +461,7 @@ func test_match_over_shows_play_again() -> void:
 		_finish_freeze(practice)
 	assert_eq(practice.sim.phase, MatchSim.Phase.MATCH_OVER, "best of 3: two points win")
 	assert_true(again.visible)
-	assert_eq(again.text, "PRACTICE AGAIN")
+	assert_eq(again.text, "Practice again")
 	assert_eq(practice.banner_text(), "VICTORY!")
 
 
@@ -625,7 +625,7 @@ func test_the_match_opens_with_both_teams_then_go() -> void:
 
 # ---- watching others while tagged -------------------------------------------------
 
-func test_tagged_shows_a_grey_band_with_2_by_3_cards_of_everyone_else() -> void:
+func test_tagged_shows_a_grouped_sheet_with_2_by_3_cards_of_everyone_else() -> void:
 	var practice: PracticeMatch = _practice()
 	practice.hurt_local(100)
 	practice.advance(DT)

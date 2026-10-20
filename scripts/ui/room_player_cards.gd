@@ -184,7 +184,7 @@ static func open_slot(team: int, row: int, can_join: bool, room: Dictionary, on_
 	card.add_child(inner)
 	var hint: Label = Label.new()
 	hint.name = "Hint"
-	hint.text = "+ JOIN TEAM" if can_join else "OPEN SLOT"
+	hint.text = "Join team" if can_join else "Open slot"
 	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

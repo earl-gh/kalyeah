@@ -47,7 +47,7 @@ static func profile(screen: WeaponPickScreen, character: CharacterDef) -> Button
 	name_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	name_label.offset_top = -36.0
 	button.add_child(name_label)
-	var taken: Label = label("TEAMMATE", 22)
+	var taken: Label = label("Teammate", 22)
 	taken.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	taken.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	taken.offset_left = -60.0

@@ -15,10 +15,10 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	connection = VBoxContainer.new()
 	connection.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	connection.offset_left = -290.0
-	connection.offset_right = 290.0
+	connection.offset_left = -270.0
+	connection.offset_right = 270.0
 	connection.offset_top = -100.0
-	connection.add_theme_constant_override("separation", 16)
+	connection.add_theme_constant_override("separation", UiMetrics.GAP)
 	add_child(connection)
 	message = Label.new()
 	message.theme_type_variation = &"HudPill"
@@ -27,7 +27,7 @@ func _ready() -> void:
 	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	connection.add_child(message)
 	leave = Button.new()
-	leave.text = "RETURN HOME"
+	leave.text = "Return home"
 	leave.custom_minimum_size.y = 88.0
 	KalyeahTheme.style_button(leave, "orange")
 	leave.pressed.connect(return_home.emit)
@@ -66,7 +66,7 @@ func sync_hint(player: PlayerState, joystick: VirtualJoystick, buttons: Array[Ai
 	else:
 		for button: AimButton in buttons:
 			if button.aiming:
-				hint.text = "Release to cancel" if button.over_cancel else "Release to cast · drag to CANCEL"
+				hint.text = "Release to cancel" if button.over_cancel else "Release to cast · drag to cancel"
 				break
 		if hint.text.is_empty() and joystick.auto_run:
 			hint.text = "Auto-run · tap stick to stop"

@@ -22,7 +22,7 @@ static func add_backdrop(parent: Control, texture: Texture2D) -> void:
 static func header(title_text: String, back_action: Callable) -> HBoxContainer:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
-	var back: Button = button("BACK", back_action, "grey", UiMetrics.ACTION)
+	var back: Button = button("Back", back_action, "grey", UiMetrics.ACTION)
 	back.custom_minimum_size = Vector2(120.0, UiMetrics.TOUCH)
 	row.add_child(back)
 	var title: Label = label(title_text, 38)
@@ -41,6 +41,15 @@ static func label(text: String, font_size: int, color: Color = Color.WHITE) -> L
 	result.add_theme_font_size_override("font_size", font_size)
 	result.add_theme_color_override("font_color", color)
 	return result
+
+
+## A grouped surface for related controls. Screens keep ownership of their content;
+## this only supplies the shared material and padding.
+static func group(content: Control, padding: float = UiMetrics.PADDING) -> PanelContainer:
+	var panel: PanelContainer = PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", KalyeahTheme.painted_panel(padding))
+	panel.add_child(content)
+	return panel
 
 
 static func field_label(text: String) -> Label:

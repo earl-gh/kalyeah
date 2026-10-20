@@ -115,7 +115,7 @@ func show_time(seconds: float) -> void:
 func _show(defs: Array[WeaponDef], _heading: String) -> void:
 	if _buttons.is_empty():
 		_build(defs)
-	_title.text = "CHANGE WEAPONS" if swap_mode else "LOADOUT"
+	_title.text = "Change weapons" if swap_mode else "Loadout"
 	_mode_label.text = "Changes apply immediately" if swap_mode else "Auto-pick at timeout"
 	_mode_label.visible = swap_mode or not untimed
 	_ring.visible = not untimed
@@ -243,9 +243,9 @@ func _refresh() -> void:
 	_ready_button.disabled = not can_go
 	_style_ready(can_go)
 	if swap_mode:
-		_ready_button.text = "DONE"
+		_ready_button.text = "Done"
 	else:
-		_ready_button.text = "READY"
+		_ready_button.text = "Ready"
 
 
 func _build(defs: Array[WeaponDef]) -> void:

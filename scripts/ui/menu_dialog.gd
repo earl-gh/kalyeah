@@ -143,7 +143,7 @@ func add_hint(text: String) -> Label:
 ## A row of equally wide buttons at the bottom of the card.
 func add_buttons(buttons: Array[Button]) -> HBoxContainer:
 	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 14)
+	row.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	for button: Button in buttons:
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(button)
