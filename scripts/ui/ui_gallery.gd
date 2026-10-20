@@ -102,10 +102,12 @@ func _controls() -> Control:
 	switches.add_theme_constant_override("separation", UiMetrics.GAP)
 	var off: UiToggle = UiToggle.new()
 	off.name = "SwitchOff"
+	off.accessibility_name = "Example switch, off"
 	switches.add_child(off)
 	switches.add_child(UiKit.text("Off", UiMetrics.DETAIL, KalyeahTheme.TEXT_MUTED, false))
 	var on: UiToggle = UiToggle.new()
 	on.name = "SwitchOn"
+	on.accessibility_name = "Example switch, on"
 	on.set_state(true)
 	switches.add_child(on)
 	switches.add_child(UiKit.text("On", UiMetrics.DETAIL, KalyeahTheme.TEXT_MUTED, false))
@@ -136,6 +138,7 @@ func _controls() -> Control:
 	field.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
 	column.add_child(field)
 	var slider: HSlider = HSlider.new()
+	slider.accessibility_name = "Example slider"
 	slider.min_value = 0.0
 	slider.max_value = 1.0
 	slider.step = 0.05

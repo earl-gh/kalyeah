@@ -37,7 +37,16 @@ func show_score(score: MatchScore, my_team: int, match_time: float) -> void:
 		theirs = values[1]
 		best_of = values[2]
 		seconds = values[3]
+		_describe()
 		queue_redraw()
+
+
+func _ready() -> void:
+	_describe()
+
+
+func _describe() -> void:
+	accessibility_name = "Score: you %d, them %d, best of %d, time %s" % [mine, theirs, best_of, clock_text()]
 
 
 ## The strip along the card's lower edge that fills while a team holds the other base (or the other team is all
@@ -75,7 +84,7 @@ func _draw() -> void:
 	_center_text(KalyeahTheme.ACTION_FONT, str(mine), Vector2(6.0 + box * 0.625, h / 2.0), BIG_FONT, Color.WHITE)
 	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), Vector2(w - 6.0 - box * 0.625, h / 2.0), BIG_FONT, Color.WHITE)
 	_center_text(KalyeahTheme.BODY_FONT, clock_text(), Vector2(w / 2.0, h * 0.36), SMALL_FONT + 4, Color.WHITE)
-	_center_text(KalyeahTheme.ACTION_FONT, "BO%d" % best_of, Vector2(w / 2.0, h * 0.72), SMALL_FONT, KalyeahTheme.AMBER)
+	_center_text(KalyeahTheme.ACTION_FONT, UiText.f("BO%d", [best_of]), Vector2(w / 2.0, h * 0.72), SMALL_FONT, KalyeahTheme.AMBER)
 	if capture >= 0.0:
 		var track: Rect2 = Rect2(CAPTURE_INSET, h - 6.0 - CAPTURE_HEIGHT, w - CAPTURE_INSET * 2.0, CAPTURE_HEIGHT)
 		_round_rect(track, CAPTURE_TRACK, CAPTURE_HEIGHT / 2.0)

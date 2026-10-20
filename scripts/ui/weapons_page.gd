@@ -138,6 +138,7 @@ func _groups(id: StringName) -> Array[Dictionary]:
 func _tile(weapon: WeaponDef) -> Button:
 	var tile: Button = Button.new()
 	tile.name = String(weapon.id)
+	tile.accessibility_name = "%s, %s: read about this weapon" % [weapon.display_name, weapon.kind_label()]
 	tile.custom_minimum_size = Vector2(0.0, TILE_HEIGHT)
 	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tile.focus_mode = Control.FOCUS_ALL

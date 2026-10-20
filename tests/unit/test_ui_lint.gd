@@ -58,6 +58,21 @@ func _problems(root: Node, where: String) -> Array[String]:
 			for word: String in BANNED:
 				if (button as Button).text.containsn(word):
 					found.append("%s: button '%s' says '%s'" % [where, (button as Button).text, word])
+		if not UiA11y.is_named(button):
+			found.append("%s: '%s' (%s) has no text and no accessibility name [%s]" % [where, button.name, button.get_class(), str(button.get_path()).get_slice("/", 4) + "/" + str(button.get_parent().name)])
+	for node: Node in root.find_children("*", "HSlider", true, false):
+		var slider: Control = node as Control
+		if slider.is_visible_in_tree() and not UiA11y.is_named(slider):
+			found.append("%s: slider '%s' has no accessibility name" % [where, slider.name])
+	for node: Node in root.find_children("*", "LineEdit", true, false):
+		var field: Control = node as Control
+		if field.is_visible_in_tree() and not UiA11y.is_named(field):
+			found.append("%s: text field '%s' has no accessibility name" % [where, field.name])
+	for kind: String in ["TouchButton", "VirtualJoystick", "MenuCarousel"]:
+		for node: Node in root.find_children("*", kind, true, false):
+			var drawn: Control = node as Control
+			if drawn.is_visible_in_tree() and drawn.accessibility_name.is_empty():
+				found.append("%s: %s '%s' has no accessibility name" % [where, kind, drawn.name])
 	return found
 
 

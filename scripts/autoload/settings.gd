@@ -6,12 +6,22 @@ extends Node
 signal accessibility_changed
 ## The on-screen controls moved or changed size (left-handed layout, control size).
 signal controls_changed
+## The developer tools (the UI gallery) were switched on or off.
+signal developer_changed
+## The language was changed (texts re-translate by themselves; drawn text redraws).
+signal language_changed
 
 ## The three minimap sizes (a share of the 100 x 200 base): the default is a bigger one, since 100 px is about 54 pt on a phone.
 const MINIMAP_SIZES: Dictionary[StringName, float] = {&"small": 1.0, &"normal": 1.3, &"large": 1.6}
 
 ## The three control sizes the player can pick: the weapon buttons and the stick are scaled by this.
 const CONTROL_SIZES: Dictionary[StringName, float] = {&"small": 0.85, &"normal": 1.0, &"large": 1.2}
+
+## Languages the game can show: code to the language written in itself. One is offered once its translation file
+## (res://data/i18n/strings.<code>.translation, made from the CSV) is there with at least MIN_TRANSLATED messages.
+const LANGUAGES: Dictionary[String, String] = {"en": "English", "fil": "Filipino"}
+const TRANSLATION_PATH: String = "res://data/i18n/strings.%s.translation"
+const MIN_TRANSLATED: int = 30
 
 const SAVE_PATH: String = "user://settings.cfg"
 const PROJECT_KEY: String = "kalyeah/network/server_url"
@@ -26,6 +36,11 @@ var left_handed: bool = false
 ## True once a key or gamepad was used and until the next touch or click: only then do dialogs put a focus ring on a
 ## button when they open (a finger does not need one, and it would be a second gold thing beside the real action).
 var keyboard_active: bool = false
+## Developer tools (the UI gallery in Settings). Off for players: seven quick taps on the Settings title toggle it, and on the
+## web `?dev=1` turns it on for that visit.
+var developer: bool = false
+## The language of the words ("en" until another one is offered and chosen).
+var language: String = "en"
 ## Size of the match controls, one of `CONTROL_SIZES`.
 var control_scale: float = 1.0
 ## Size of the match minimap, one of `MINIMAP_SIZES`.
@@ -52,12 +67,20 @@ func _ready() -> void:
 		left_handed = hand if hand is bool else false
 		control_scale = nearest_control_scale(file.get_value("input", "control_scale", 1.0))
 		minimap_scale = nearest_minimap_scale(file.get_value("input", "minimap_scale", 1.3))
+		developer = file.get_value("dev", "developer", false) == true
+		language = String(file.get_value("ui", "language", "en"))
+	_load_translations()
+	if not available_languages().has(language):
+		language = "en"
+	TranslationServer.set_locale(language)
 	apply_volume()
 	if OS.has_feature("web"):
 		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
 		var from_query: String = url_from_query(search as String if search is String else "")
 		if not from_query.is_empty():
 			server_url = from_query
+		if search is String and (search as String).contains("dev=1"):
+			developer = true
 
 
 ## `?server=wss%3A%2F%2Fexample.com&x=1` -> "wss://example.com".
@@ -133,6 +156,45 @@ func set_minimap_scale(value: float) -> void:
 	minimap_scale = chosen
 	_save_value("input", "minimap_scale", chosen)
 	controls_changed.emit()
+
+
+## Loads every language file that exists (a language without one is simply not offered).
+func _load_translations() -> void:
+	for code: String in LANGUAGES:
+		var path: String = TRANSLATION_PATH % code
+		if code != "en" and ResourceLoader.exists(path):
+			var translation: Translation = load(path) as Translation
+			if translation != null:
+				TranslationServer.add_translation(translation)
+
+
+## The languages the player can pick now: English, and each other one whose translation has enough messages.
+func available_languages() -> Array[String]:
+	var found: Array[String] = ["en"]
+	for code: String in LANGUAGES:
+		if code == "en":
+			continue
+		var translation: Translation = TranslationServer.get_translation_object(code)
+		if translation != null and translation.get_message_count() >= MIN_TRANSLATED:
+			found.append(code)
+	return found
+
+
+func set_language(code: String) -> void:
+	if code == language or not available_languages().has(code):
+		return
+	language = code
+	TranslationServer.set_locale(code)
+	_save_value("ui", "language", code)
+	language_changed.emit()
+
+
+func set_developer(on: bool) -> void:
+	if on == developer:
+		return
+	developer = on
+	_save_value("dev", "developer", on)
+	developer_changed.emit()
 
 
 func set_left_handed(on: bool) -> void:

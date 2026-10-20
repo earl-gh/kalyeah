@@ -66,6 +66,8 @@ func _init(p_length: int = 8, p_alphabet: String = "", p_editable: bool = true) 
 func _build_input() -> void:
 	edit = LineEdit.new()
 	edit.name = "Input"
+	edit.accessibility_name = "Room code"
+	edit.accessibility_description = "Eight letters and numbers"
 	edit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	edit.max_length = length
 	edit.caret_blink = false

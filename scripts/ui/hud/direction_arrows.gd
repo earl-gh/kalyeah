@@ -107,7 +107,7 @@ func tick(delta: float) -> void:
 			var marker_to: float = 1.0 if on_screen and kind == &"rescue" else 0.0
 			_marker[kind] = move_toward(_marker.get(kind, 0.0) as float, marker_to, FADE_SPEED * delta) if delta > 0.0 else marker_to
 			arrows.append({
-				"kind": kind, "label": "%s · %d m" % [target["label"], roundi(((me.position if me != null else world) - world).length())],
+				"kind": kind, "label": "%s · %d m" % [UiText.t(target["label"] as String), roundi(((me.position if me != null else world) - world).length())],
 				"color": target["color"], "point": edge, "angle": direction.angle(), "alpha": _alpha[kind],
 				"marker": _marker[kind], "target": point if point != null else Vector2.ZERO,
 				"metres": roundi(((me.position if me != null else world) - world).length()),

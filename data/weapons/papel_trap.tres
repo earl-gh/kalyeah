@@ -5,8 +5,8 @@
 [resource]
 script = ExtResource("1_weapon")
 id = &"papel_trap"
-display_name = "Papel Trap"
-short_name = "Trap"
+display_name = "Papel · Trap"
+short_name = "Papel Trap"
 description = "A paper trap on the road: enemies who step on it get slowed."
 street_game = "Bato-bato-pik"
 kind = 1

@@ -57,9 +57,11 @@ func text_for(id: int) -> String:
 
 
 func _status_text(state: PlayerState) -> String:
-	var words: PackedStringArray = state.effects.display_names()
+	var words: PackedStringArray = PackedStringArray()
 	if state.tagged:
-		words.insert(0, "Tagged")
+		words.append(UiText.t("Tagged"))
+	for word: String in state.effects.display_names():
+		words.append(UiText.t(word))
 	return " · ".join(words)
 
 

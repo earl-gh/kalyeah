@@ -5,8 +5,8 @@
 [resource]
 script = ExtResource("1_weapon")
 id = &"bato_light"
-display_name = "Bato (Light)"
-short_name = "Bato"
+display_name = "Bato · Light"
+short_name = "Bato Light"
 description = "Throws a rock that homes in on the nearest enemy."
 street_game = "Bato-bato-pik"
 kind = 0
