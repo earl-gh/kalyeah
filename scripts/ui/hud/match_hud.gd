@@ -20,6 +20,14 @@ signal exit_pressed
 enum Feed { TAGGED, RESCUED }
 
 const BANNER_TIME: float = 2.0
+## The short word on a weapon button for each status that stops casting.
+const CAST_BLOCK_TAGS: Dictionary[int, String] = {
+	StatusEffects.Type.STUN: "STUNNED",
+	StatusEffects.Type.AIRBORNE: "AIRBORNE",
+	StatusEffects.Type.BOUNCE: "BOUNCED",
+	StatusEffects.Type.KNOCKOUT: "DOWN",
+	StatusEffects.Type.POLYMORPH: "CAN",
+}
 const TOP_ROW_Y: float = 40.0
 const MARGIN: float = 14.0
 ## The street is 1:2 (width:length), and so is its minimap.
@@ -38,19 +46,21 @@ const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 const ROW_HEIGHT: float = 150.0
 ## The square the stick listens in: its outer ring plus a margin for the thumb.
 const STICK_ZONE: float = (VirtualJoystick.OUTER_RADIUS + 20.0) * 2.0
-## The stick's centre from the left edge (its outer ring stays on screen).
-const STICK_FROM_LEFT: float = STICK_ZONE / 2.0 + 6.0
+## The stick's outer ring stays this far from its screen edge.
+const STICK_MARGIN: float = 6.0
 ## The skill buttons: big enough for a thumb (Apple's 44 pt is 84 px), a gap apart, the
 ## second against the right margin and the first to its left.
 const WEAPON_SIZE: float = 124.0
 const WEAPON_GAP: float = 30.0
 const WEAPON_MARGIN: float = 34.0
-## The cancel zone sits above the skill buttons (drag a skill onto it to cancel the cast).
-const CANCEL_FROM_RIGHT: float = WEAPON_MARGIN + WEAPON_SIZE + WEAPON_GAP / 2.0
-const CANCEL_AT: Vector2 = Vector2(CANCEL_FROM_RIGHT, 440.0)
+## The cancel zone sits above the skill buttons (drag a skill onto it to cancel the cast); this is its height
+## from the bottom (its distance from the edge follows the buttons).
+const CANCEL_AT: Vector2 = Vector2(0.0, 440.0)
 const CANCEL_SIZE: Vector2 = Vector2(110.0, 100.0)
 
 var overhead: OverheadHud
+## The red glow round the screen edge when you are hit (under the controls).
+var pulse: HurtPulse
 var top: Control
 var scoreboard: Scoreboard
 var minimap: LaneMinimap
@@ -93,6 +103,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build()
 	Settings.accessibility_changed.connect(_on_accessibility_changed)
+	Settings.controls_changed.connect(layout_controls)
 	layout_controls()
 
 
@@ -171,8 +182,19 @@ func sync_player(sim: MatchSim, player: PlayerState, watched: int, pick_open: bo
 			button.icon_id = def.id
 			button.sub_color = WeaponPickScreen.kind_color(def.kind)
 			button.queue_redraw()
+		button.blocked_text = _block_tag(player) if playing else ""
 		button.set_locked(weapons_off or player.weapon_cooldowns[slot] > 0.0)
 		button.set_cooldown(player.weapon_cooldowns[slot], def.cooldown)
+
+
+## What to print on a weapon button while a status stops you casting ("" when nothing does).
+func _block_tag(player: PlayerState) -> String:
+	if player.effects.can_cast():
+		return ""
+	for type: int in CAST_BLOCK_TAGS:
+		if player.effects.has(type as StatusEffects.Type):
+			return CAST_BLOCK_TAGS[type] as String
+	return ""
 
 
 ## Top row: the score card; the capture countdown; banners and the feed fade out.
@@ -253,6 +275,8 @@ func _build() -> void:
 	overhead = OverheadHud.new()
 	_place(overhead, Vector4(0, 0, 1, 1), Vector4.ZERO)
 	add_child(overhead)
+	pulse = HurtPulse.new()
+	add_child(pulse)
 	MatchHudTop.build(self)
 	cancel_zone = _build_cancel_zone()
 	var weapon_one: AimButton = _aim_button()
@@ -312,13 +336,22 @@ func _build() -> void:
 	feedback.return_home.connect(exit_pressed.emit)
 
 
-## The stick at the bottom left, weapon 1 and weapon 2 side by side at the bottom right.
+## The stick at the bottom left, weapon 1 and weapon 2 side by side at the bottom right: mirrored for
+## a left-handed player, and scaled by the control size setting.
 func layout_controls() -> void:
-	_put(joystick, false, Vector2(STICK_FROM_LEFT, ROW_HEIGHT), Vector2(STICK_ZONE, STICK_ZONE))
-	var second: float = WEAPON_MARGIN + WEAPON_SIZE / 2.0
-	_put(weapon_buttons[1], true, Vector2(second, ROW_HEIGHT), Vector2(WEAPON_SIZE, WEAPON_SIZE))
-	_put(weapon_buttons[0], true, Vector2(second + WEAPON_SIZE + WEAPON_GAP, ROW_HEIGHT), Vector2(WEAPON_SIZE, WEAPON_SIZE))
-	_put(cancel_zone, true, CANCEL_AT, CANCEL_SIZE)
+	var scale_by: float = Settings.control_scale
+	var mirrored: bool = Settings.left_handed
+	var weapon: float = WEAPON_SIZE * scale_by
+	var gap: float = WEAPON_GAP * scale_by
+	var stick_zone: float = STICK_ZONE * scale_by
+	# the stick keeps its zone; scaling it around its middle makes the rings and the grab area grow together
+	_put(joystick, mirrored, Vector2(stick_zone / 2.0 + STICK_MARGIN, ROW_HEIGHT), Vector2(STICK_ZONE, STICK_ZONE))
+	joystick.pivot_offset = Vector2(STICK_ZONE, STICK_ZONE) / 2.0
+	joystick.scale = Vector2.ONE * scale_by
+	var second: float = WEAPON_MARGIN + weapon / 2.0
+	_put(weapon_buttons[1], not mirrored, Vector2(second, ROW_HEIGHT), Vector2(weapon, weapon))
+	_put(weapon_buttons[0], not mirrored, Vector2(second + weapon + gap, ROW_HEIGHT), Vector2(weapon, weapon))
+	_put(cancel_zone, not mirrored, Vector2(WEAPON_MARGIN + weapon + gap / 2.0, CANCEL_AT.y), CANCEL_SIZE)
 
 
 ## Places `control` with its centre `at` = (from the right or left edge, from the bottom).

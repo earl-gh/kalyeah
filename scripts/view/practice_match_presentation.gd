@@ -50,7 +50,8 @@ func connect_hud() -> void:
 func connect_sim() -> void:
 	owner.sim.player_damaged.connect(func(id: int, amount: int) -> void:
 		if id == owner.local_id:
-			owner._camera.shake(minf(0.1 + amount * 0.01, 0.4)))
+			owner._camera.shake(minf(0.1 + amount * 0.01, 0.4))
+			owner.hud.pulse.hit(amount, owner.sim.rules.player_max_hp))
 	owner.sim.weapon_cast.connect(func(id: int, weapon: StringName) -> void:
 		var def: WeaponDef = owner.sim.weapon_defs[weapon]
 		(owner._views[id] as KidModel).play_cast(def.cast_lock, KidModel.is_spell(def)))
@@ -200,6 +201,7 @@ func _on_player_tagged(id: int) -> void:
 	owner.hud.feed(MatchHud.Feed.TAGGED, owner.sim.players[id].team == owner.local_team, _name_of(id))
 	if id == owner.local_id:
 		owner._camera.shake(0.25)
+		owner.hud.pulse.tagged()
 		owner.watch_id = _first_watch_id()
 
 
