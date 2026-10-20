@@ -153,7 +153,8 @@ func _sync_aim(player: PlayerState) -> void:
 		var def: WeaponDef = owner.sim.weapon_defs[player.weapons[slot]]
 		var aim: Vector2 = owner.sim.resolved_aim(player, slot, stick)
 		owner._aim_indicator.show_aim(
-			owner.sim, player, def, aim, owner.sim.resolved_target(player, slot), cancelled, maxf(player.aim_hold[slot], 0.0)
+			owner.sim, player, def, aim, owner.sim.resolved_target(player, slot), cancelled, maxf(player.aim_hold[slot], 0.0),
+			stick.length() >= owner.sim.rules.aim_deadzone
 		)
 		any_aiming = true
 		any_cancelling = cancelled

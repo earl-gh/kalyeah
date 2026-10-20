@@ -20,11 +20,6 @@ const KIND_COLORS: Dictionary[int, Color] = {
 	WeaponDef.Kind.ATTACK: Color("e0463e"), WeaponDef.Kind.CROWD_CONTROL: Color("8a55e8"),
 	WeaponDef.Kind.BLOCK: Color("2a7be6"), WeaponDef.Kind.HEAL: Color("2fbf5a"),
 }
-## The kind's chip fill: the rim colours above are bright for the round holder, these keep white text readable.
-const KIND_CHIPS: Dictionary[int, Color] = {
-	WeaponDef.Kind.ATTACK: UiKit.CHIP_RED, WeaponDef.Kind.CROWD_CONTROL: UiKit.CHIP_PURPLE,
-	WeaponDef.Kind.BLOCK: UiKit.CHIP_BLUE, WeaponDef.Kind.HEAL: UiKit.CHIP_GREEN,
-}
 const COLUMNS: int = 2
 ## The grouping switch sits under the book's own switch, so it is a size smaller (still a thumb).
 const SWITCH_HEIGHT: float = 68.0
@@ -170,9 +165,9 @@ func _tile(weapon: WeaponDef) -> Button:
 	name_label.add_theme_constant_override("outline_size", 5)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(name_label)
-	# the other axis of the grouping as a chip: the kind under a game, the game under a type
-	var kind: PanelContainer = UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, KIND_CHIPS.get(weapon.kind, UiKit.CHIP_SLATE) as Color, Color.WHITE, 20)
-	var game: PanelContainer = UiKit.chip(weapon.street_game, UiKit.CHIP_SLATE, Color.WHITE, 20)
+	# the other axis of the grouping as coloured words (no pill): the kind under a game, the game under a type
+	var kind: PanelContainer = UiKit.tag(KIND_NAMES.get(weapon.kind, "") as String, (KIND_COLORS.get(weapon.kind, Color.WHITE) as Color).lightened(0.35), 22)
+	var game: PanelContainer = UiKit.tag(weapon.street_game, Color("9fb0d6"), 22)
 	for chip: PanelContainer in [kind, game]:
 		chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -218,7 +213,7 @@ static func detail(weapon: WeaponDef) -> MenuDialog:
 	var tags: HBoxContainer = HBoxContainer.new()
 	tags.alignment = BoxContainer.ALIGNMENT_CENTER
 	tags.add_theme_constant_override("separation", 12)
-	tags.add_child(UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, KIND_CHIPS.get(weapon.kind, UiKit.CHIP_SLATE) as Color, Color.WHITE, 22))
+	tags.add_child(UiKit.tag(KIND_NAMES.get(weapon.kind, "") as String, (KIND_COLORS.get(weapon.kind, Color.WHITE) as Color).lightened(0.35), 22))
 	tags.add_child(UiKit.text(weapon.street_game, UiMetrics.DETAIL, Color("9fb0d6"), false))
 	card.body.add_child(tags)
 	var about: Label = card.add_label(weapon.description, UiMetrics.BODY, KalyeahTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)

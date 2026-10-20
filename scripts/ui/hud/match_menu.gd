@@ -27,7 +27,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_dialog = MenuDialog.create("Match settings")
 	_dialog.persistent = true
-	SettingsPage.fill(_dialog.body)
+	SettingsPage.fill(_dialog.body, true)
 	_tools = VBoxContainer.new()
 	_tools.add_theme_constant_override("separation", UiMetrics.GAP)
 	_dialog.body.add_child(_tools)

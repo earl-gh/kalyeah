@@ -35,8 +35,8 @@ const KIND_COLORS: Dictionary[WeaponDef.Kind, Color] = {
 ## The warning of a delayed cone: its edge shows at once, the red fills out from the caster
 ## until the strike (the same red as a landing circle).
 const WINDUP_COLOR: Color = Color(1.0, 0.22, 0.15)
-const WINDUP_RIM: float = 0.18
-const WINDUP_FILL: float = 0.3
+const WINDUP_RIM: float = 0.08
+const WINDUP_FILL: float = 0.22
 ## The burst on a kid who is hit: a flash and flying sparks, sized by the damage (a bigger hit is
 ## bigger, a tick of damage is small), gone in `BURST_TIME`.
 const BURST_TIME: float = 0.35
@@ -274,8 +274,8 @@ func _on_cone_winding(owner_id: int, def: WeaponDef, origin: Vector2, direction:
 	node.position = Vector3(origin.x, 0.0, origin.y)
 	var rim: ImmediateMesh = ImmediateMesh.new()
 	rim.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
-	AimIndicator.fill(rim, wedge, Color(WINDUP_COLOR, 0.12), ZONE_HEIGHT * 3.0)
-	AimIndicator.ribbon(rim, wedge, WINDUP_RIM, Color(WINDUP_COLOR, 0.9), ZONE_HEIGHT * 4.0)
+	AimIndicator.fill(rim, wedge, Color(WINDUP_COLOR, 0.06), ZONE_HEIGHT * 3.0)
+	AimIndicator.ribbon(rim, wedge, WINDUP_RIM, Color(WINDUP_COLOR, 0.8), ZONE_HEIGHT * 4.0)
 	rim.surface_end()
 	node.add_child(_overlay(rim))
 	var growing: ImmediateMesh = ImmediateMesh.new()

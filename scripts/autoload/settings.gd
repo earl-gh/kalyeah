@@ -20,6 +20,8 @@ var vibration: bool = true
 var reduced_motion: bool = false
 ## Mirrors the match controls: the stick on the right, the weapons on the left.
 var left_handed: bool = false
+## Whether holding a weapon shows its simple aim guide on the street (off = nothing is drawn).
+var aim_guide: bool = true
 ## Size of the match controls, one of `CONTROL_SIZES`.
 var control_scale: float = 1.0
 
@@ -43,6 +45,8 @@ func _ready() -> void:
 		var hand: Variant = file.get_value("input", "left_handed", false)
 		left_handed = hand if hand is bool else false
 		control_scale = nearest_control_scale(file.get_value("input", "control_scale", 1.0))
+		var guide: Variant = file.get_value("input", "aim_guide", true)
+		aim_guide = guide if guide is bool else true
 	apply_volume()
 	if OS.has_feature("web"):
 		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
@@ -111,6 +115,14 @@ func set_left_handed(on: bool) -> void:
 		return
 	left_handed = on
 	_save_value("input", "left_handed", on)
+	controls_changed.emit()
+
+
+func set_aim_guide(on: bool) -> void:
+	if on == aim_guide:
+		return
+	aim_guide = on
+	_save_value("input", "aim_guide", on)
 	controls_changed.emit()
 
 
