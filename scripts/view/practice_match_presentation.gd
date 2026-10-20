@@ -132,6 +132,7 @@ func _sync_actor(state: PlayerState, delta: float) -> void:
 
 func _sync_aim(player: PlayerState) -> void:
 	var any_aiming: bool = false
+	var any_cancelling: bool = false
 	for slot: int in MatchInput.SLOTS:
 		if player.tagged:
 			break
@@ -152,13 +153,15 @@ func _sync_aim(player: PlayerState) -> void:
 		var def: WeaponDef = owner.sim.weapon_defs[player.weapons[slot]]
 		var aim: Vector2 = owner.sim.resolved_aim(player, slot, stick)
 		owner._aim_indicator.show_aim(
-			owner.sim, player, def, aim, owner.sim.resolved_target(player, slot), cancelled
+			owner.sim, player, def, aim, owner.sim.resolved_target(player, slot), cancelled, maxf(player.aim_hold[slot], 0.0)
 		)
 		any_aiming = true
+		any_cancelling = cancelled
 		break
 	if not any_aiming:
 		owner._aim_indicator.clear()
 	owner.hud.cancel_zone.visible = owner.input.any_touch_held()
+	owner.hud.set_cancel_hot(any_cancelling)
 
 
 func _first_watch_id() -> int:

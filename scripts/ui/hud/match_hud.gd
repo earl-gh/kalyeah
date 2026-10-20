@@ -57,6 +57,10 @@ const WEAPON_MARGIN: float = 34.0
 ## from the bottom (its distance from the edge follows the buttons).
 const CANCEL_AT: Vector2 = Vector2(0.0, 440.0)
 const CANCEL_SIZE: Vector2 = Vector2(110.0, 100.0)
+## The cancel zone: a quiet red tile while you aim, a bright one with "Let go to cancel" while your finger is on it.
+const CANCEL_COLD: Color = Color(0.5, 0.1, 0.14, 0.6)
+const CANCEL_HOT: Color = Color(0.95, 0.2, 0.22, 0.95)
+const CANCEL_RIM: Color = Color(1.0, 0.7, 0.7, 0.85)
 
 var overhead: OverheadHud
 ## The red glow round the screen edge when you are hit (under the controls).
@@ -69,6 +73,9 @@ var weapon_buttons: Array[AimButton] = []
 ## Weapon 1, weapon 2 (the order MatchInput uses).
 var aim_buttons: Array[AimButton] = []
 var cancel_zone: Control
+var _cancel_panel: Panel
+var _cancel_label: Label
+var _cancel_hot: bool = true
 var tagged_panel: TaggedPanel
 ## The opening show's banner along the bottom ("TAG THEIR BASE!").
 var intro_bar: Control
@@ -387,20 +394,35 @@ func _build_cancel_zone() -> Control:
 	zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	zone.visible = false
 	add_child(zone)
-	var back: ColorRect = ColorRect.new()
-	_place(back, Vector4(0, 0, 1, 1), Vector4.ZERO)
-	back.color = Color(0.85, 0.15, 0.15, 0.55)
-	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	zone.add_child(back)
-	var label: Label = Label.new()
-	_place(label, Vector4(0, 0, 1, 1), Vector4.ZERO)
-	label.text = "Cancel"
-	label.add_theme_font_override("font", KalyeahTheme.ACTION_FONT)
-	label.add_theme_font_size_override("font_size", 24)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	zone.add_child(label)
+	_cancel_panel = Panel.new()
+	_place(_cancel_panel, Vector4(0, 0, 1, 1), Vector4.ZERO)
+	_cancel_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	zone.add_child(_cancel_panel)
+	_cancel_label = Label.new()
+	_place(_cancel_label, Vector4(0, 0, 1, 1), Vector4(6, 0, -6, 0))
+	_cancel_label.add_theme_font_override("font", KalyeahTheme.ACTION_FONT)
+	_cancel_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_cancel_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_cancel_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_cancel_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	zone.add_child(_cancel_label)
+	set_cancel_hot(false)
 	return zone
+
+
+## The finger is (true) or is not (false) on the cancel zone: the tile lights up and says what a release does.
+func set_cancel_hot(hot: bool) -> void:
+	if hot == _cancel_hot:
+		return
+	_cancel_hot = hot
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = CANCEL_HOT if hot else CANCEL_COLD
+	box.set_corner_radius_all(18)
+	box.set_border_width_all(4 if hot else 2)
+	box.border_color = CANCEL_RIM
+	_cancel_panel.add_theme_stylebox_override("panel", box)
+	_cancel_label.text = "Let go to cancel" if hot else "Cancel"
+	_cancel_label.add_theme_font_size_override("font_size", 20 if hot else 24)
 
 
 ## Anchors first, then offsets (setting an anchor can move offsets).
