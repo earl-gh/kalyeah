@@ -32,6 +32,33 @@ static func entries() -> Array[Dictionary]:
 	return found
 
 
+## The numbers over a list of battles (newest first): how many were played and won, the win rate as a whole
+## percent, and the current streak (wins in a row since the newest; 0 if the newest was lost).
+static func summary(list: Array[Dictionary]) -> Dictionary:
+	var wins: int = 0
+	for entry: Dictionary in list:
+		if bool(entry.get("won", false)):
+			wins += 1
+	var streak: int = 0
+	for entry: Dictionary in list:
+		if not bool(entry.get("won", false)):
+			break
+		streak += 1
+	var rate: int = roundi(100.0 * float(wins) / float(list.size())) if not list.is_empty() else 0
+	return {"played": list.size(), "wins": wins, "rate": rate, "streak": streak}
+
+
+## Only the battles of one `mode` ("practice", "hotspot" or "online"); an empty `mode` keeps them all.
+static func of_mode(list: Array[Dictionary], mode: String) -> Array[Dictionary]:
+	if mode.is_empty():
+		return list
+	var kept: Array[Dictionary] = []
+	for entry: Dictionary in list:
+		if String(entry.get("mode", "")) == mode:
+			kept.append(entry)
+	return kept
+
+
 static func clear() -> void:
 	DirAccess.remove_absolute(path)
 

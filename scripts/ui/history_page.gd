@@ -4,50 +4,121 @@ extends VBoxContainer
 ## Victory / Defeat badge, the score and when and where it was played.
 
 
+const FILTERS: Array[Dictionary] = [
+	{"id": &"", "label": "All"}, {"id": &"practice", "label": "Practice"},
+	{"id": &"hotspot", "label": "Hotspot"}, {"id": &"online", "label": "Online"},
+]
+
+## Which battles are shown: every mode (an empty name) or one.
+var filter: StringName = &""
+var summary_card: Control
+var filter_bar: UiSegmented
+var played_label: Label
+var rate_label: Label
+var streak_label: Label
+
+var _top: VBoxContainer
+var _list: VBoxContainer
+
+
 func _ready() -> void:
 	name = "HistoryPage"
 	add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	add_child(UiKit.page_header("History", "Your last battles on this phone."))
+	_top = VBoxContainer.new()
+	_top.name = "Top"
+	_top.add_theme_constant_override("separation", UiMetrics.GAP)
+	add_child(_top)
+	summary_card = _summary()
+	_top.add_child(summary_card)
+	filter_bar = UiSegmented.new(FILTERS, 64.0, UiMetrics.CAPTION)
+	filter_bar.chosen.connect(show_filter)
+	_top.add_child(filter_bar)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.name = "Scroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(scroll)
-	var list: VBoxContainer = VBoxContainer.new()
-	list.name = "List"
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list.add_theme_constant_override("separation", UiMetrics.GAP)
-	scroll.add_child(list)
+	_list = VBoxContainer.new()
+	_list.name = "List"
+	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_list.add_theme_constant_override("separation", UiMetrics.GAP)
+	scroll.add_child(_list)
 	refresh()
 
 
-## Rebuilds the list from the saved battles.
+## Shows the battles of one mode ("practice", "hotspot", "online") or all of them (an empty name).
+func show_filter(id: StringName) -> void:
+	filter = id
+	filter_bar.select(id, false)
+	refresh()
+
+
+## Played, win rate and streak: three big figures over the list.
+func _summary() -> Control:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "Summary"
+	row.add_theme_constant_override("separation", UiMetrics.GAP)
+	played_label = _figure(row, "Played", Color("ffd25a"))
+	rate_label = _figure(row, "Won", Color("6fe39a"))
+	streak_label = _figure(row, "Streak", Color("8fd0ff"))
+	return UiKit.card(row, "glass", 18.0)
+
+
+func _figure(parent: HBoxContainer, caption: String, color: Color) -> Label:
+	var column: VBoxContainer = VBoxContainer.new()
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_theme_constant_override("separation", 0)
+	var number: Label = Label.new()
+	number.name = caption
+	number.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
+	number.add_theme_font_size_override("font_size", 52)
+	number.add_theme_color_override("font_color", color)
+	number.add_theme_constant_override("outline_size", 0)
+	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(number)
+	var label: Label = UiKit.text(caption, UiMetrics.CAPTION, Color("9fb0d6"), false)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(label)
+	parent.add_child(column)
+	return number
+
+
+## Rebuilds the figures and the list from the saved battles (of the chosen mode).
 func refresh() -> void:
-	var list: VBoxContainer = find_child("List", true, false) as VBoxContainer
-	if list == null:
+	if _list == null:
 		return
-	for child: Node in list.get_children():
-		list.remove_child(child)
+	for child: Node in _list.get_children():
+		_list.remove_child(child)
 		child.queue_free()
-	var found: Array[Dictionary] = MatchHistory.entries()
+	var all: Array[Dictionary] = MatchHistory.entries()
+	_top.visible = not all.is_empty()
+	if all.is_empty():
+		_list.add_child(_empty())
+		return
+	var found: Array[Dictionary] = MatchHistory.of_mode(all, String(filter))
+	var numbers: Dictionary = MatchHistory.summary(found)
+	played_label.text = str(numbers["played"])
+	rate_label.text = "%d%%" % int(numbers["rate"]) if int(numbers["played"]) > 0 else "-"
+	streak_label.text = str(numbers["streak"])
 	if found.is_empty():
-		list.add_child(_empty())
+		_list.add_child(_empty("No %s battles yet" % String(filter), "Play one and it shows here."))
 		return
 	var now: int = int(Time.get_unix_time_from_system())
 	for entry: Dictionary in found:
-		list.add_child(_row(entry, now))
+		_list.add_child(_row(entry, now))
 
 
 ## Nothing yet: a friendly card instead of a blank page.
-func _empty() -> Control:
+func _empty(heading: String = "No battles yet", hint_text: String = "Play a match to start your history.") -> Control:
 	var column: VBoxContainer = VBoxContainer.new()
 	column.name = "Empty"
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_theme_constant_override("separation", 8)
-	var title: Label = UiKit.text("No battles yet", UiMetrics.ACTION)
+	var title: Label = UiKit.text(heading, UiMetrics.ACTION)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(title)
-	var hint: Label = UiKit.text("Play a match to start your history.", UiMetrics.DETAIL, Color("9fb0d6"))
+	var hint: Label = UiKit.text(hint_text, UiMetrics.DETAIL, Color("9fb0d6"))
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(hint)
 	return UiKit.card(column, "glass", 40.0)

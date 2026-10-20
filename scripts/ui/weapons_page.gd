@@ -8,6 +8,7 @@ extends VBoxContainer
 signal weapon_opened(weapon: WeaponDef)
 
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
+const GAMES_PATH: String = "res://data/rules/street_games.tres"
 const ICON_PATH: String = "res://assets/icons/art/%s.png"
 const BY_GAME: StringName = &"game"
 const BY_TYPE: StringName = &"type"
@@ -30,6 +31,8 @@ const SWITCH_HEIGHT: float = 68.0
 const TILE_HEIGHT: float = 292.0
 const TILE_ICON: float = 128.0
 const DETAIL_ICON: float = 168.0
+## The colour of each stat bar: power (damage or healing), time (cooldown) and reach (range).
+const BAR_COLORS: Dictionary[String, Color] = {"Damage": Color("ffc233"), "Heal": Color("45dd78"), "Cooldown": Color("4aa0ff"), "Range": Color("b48cff")}
 const PLATE_FOCUS_RADIUS: int = 32
 
 ## One tile per weapon, in the order of the rules (whichever way they are grouped).
@@ -98,6 +101,12 @@ func show_grouping(id: StringName) -> void:
 		var header: Label = UiKit.section_label("%s · %d" % [String(group["label"]), (group["members"] as Array).size()])
 		header.name = "Header"
 		section.add_child(header)
+		if id == BY_GAME:
+			var blurb: String = street_games().blurb_of(String(group["label"]))
+			if not blurb.is_empty():
+				var line: Label = UiKit.text(blurb, UiMetrics.CAPTION, Color("9fb0d6"))
+				line.name = "Blurb"
+				section.add_child(line)
 		section.add_child(grid)
 		_list.add_child(section)
 		sections.append(section)
@@ -214,12 +223,22 @@ static func detail(weapon: WeaponDef) -> MenuDialog:
 	card.body.add_child(tags)
 	var about: Label = card.add_label(weapon.description, UiMetrics.BODY, KalyeahTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	about.name = "About"
-	var figures: HBoxContainer = HBoxContainer.new()
+	var figures: VBoxContainer = VBoxContainer.new()
 	figures.name = "Figures"
-	figures.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	figures.add_theme_constant_override("separation", 10)
+	var maxima: Dictionary = stat_maxima(_all_weapons())
 	for figure: Dictionary in figures_of(weapon):
-		figures.add_child(_figure(String(figure["value"]), String(figure["caption"])))
-	card.body.add_child(figures)
+		figures.add_child(_bar_row(String(figure["caption"]), String(figure["value"]), fraction_of(String(figure["caption"]), weapon, maxima)))
+	card.body.add_child(UiKit.card(figures, "inset", 16.0))
+	var blurb: String = street_games().blurb_of(weapon.street_game)
+	if not blurb.is_empty():
+		var column: VBoxContainer = VBoxContainer.new()
+		column.add_theme_constant_override("separation", 4)
+		column.add_child(UiKit.section_label("The game · %s" % weapon.street_game))
+		var story: Label = UiKit.text(blurb, UiMetrics.DETAIL, Color("c9d6f2"))
+		story.name = "GameBlurb"
+		column.add_child(story)
+		card.body.add_child(column)
 	var close: Button = MenuDialog.make_button("Close", "grey", UiMetrics.ACTION)
 	close.name = "Close"
 	close.pressed.connect(card.close)
@@ -241,25 +260,79 @@ static func figures_of(weapon: WeaponDef) -> Array[Dictionary]:
 	return found
 
 
-static func _figure(value: String, caption: String) -> Control:
-	var column: VBoxContainer = VBoxContainer.new()
-	column.add_theme_constant_override("separation", 0)
-	# the heavy body face (not Bungee, which is all capitals: "8 m" would read "8 M")
+## The biggest power (damage or healing), cooldown and range among `weapons`: what a full bar means.
+static func stat_maxima(weapons: Array[WeaponDef]) -> Dictionary:
+	var found: Dictionary = {"power": 0.0, "cooldown": 0.0, "range": 0.0}
+	for weapon: WeaponDef in weapons:
+		found["power"] = maxf(found["power"] as float, float(maxi(weapon.damage, weapon.heal)))
+		found["cooldown"] = maxf(found["cooldown"] as float, weapon.cooldown)
+		found["range"] = maxf(found["range"] as float, weapon.max_range)
+	return found
+
+
+## How full a stat's bar is (0 to 1): the weapon's number over the biggest of any weapon.
+static func fraction_of(caption: String, weapon: WeaponDef, maxima: Dictionary) -> float:
+	var value: float = 0.0
+	var top: float = 0.0
+	match caption:
+		"Damage", "Heal":
+			value = float(maxi(weapon.damage, weapon.heal))
+			top = maxima["power"] as float
+		"Cooldown":
+			value = weapon.cooldown
+			top = maxima["cooldown"] as float
+		"Range":
+			value = weapon.max_range
+			top = maxima["range"] as float
+	return clampf(value / top, 0.0, 1.0) if top > 0.0 else 0.0
+
+
+## One stat: its name, a bar as full as it is next to every other weapon, and the exact number.
+static func _bar_row(caption: String, value: String, fraction: float) -> Control:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "Stat_%s" % caption
+	row.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	var name_label: Label = UiKit.text(caption, UiMetrics.CAPTION, Color("9fb0d6"), false)
+	name_label.custom_minimum_size = Vector2(120.0, 0.0)
+	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(name_label)
+	var meter: ProgressBar = ProgressBar.new()
+	meter.name = "Meter"
+	meter.min_value = 0.0
+	meter.max_value = 1.0
+	meter.step = 0.001
+	meter.value = fraction
+	meter.show_percentage = false
+	meter.custom_minimum_size = Vector2(0.0, 26.0)
+	meter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	meter.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var track: StyleBoxFlat = StyleBoxFlat.new()
+	track.bg_color = Color("0a1433")
+	track.set_corner_radius_all(13)
+	track.anti_aliasing = true
+	var fill: StyleBoxFlat = StyleBoxFlat.new()
+	fill.bg_color = BAR_COLORS.get(caption, Color("ffc233")) as Color
+	fill.set_corner_radius_all(13)
+	fill.anti_aliasing = true
+	meter.add_theme_stylebox_override("background", track)
+	meter.add_theme_stylebox_override("fill", fill)
+	row.add_child(meter)
 	var number: Label = Label.new()
-	number.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
+	number.name = "Value"
 	number.text = value
-	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	number.add_theme_font_size_override("font_size", 46)
+	number.custom_minimum_size = Vector2(110.0, 0.0)
+	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	number.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
+	number.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
 	number.add_theme_color_override("font_color", Color("ffd25a"))
-	number.add_theme_constant_override("outline_size", 6)
-	column.add_child(number)
-	column.add_child(_caption(caption))
-	var box: PanelContainer = UiKit.card(column, "inset", 12.0)
-	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	return box
+	number.add_theme_constant_override("outline_size", 0)
+	row.add_child(number)
+	return row
 
 
-static func _caption(text: String) -> Label:
-	var label: Label = UiKit.text(text, UiMetrics.CAPTION, Color("9fb0d6"), false)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	return label
+static func street_games() -> StreetGames:
+	return load(GAMES_PATH) as StreetGames
+
+
+static func _all_weapons() -> Array[WeaponDef]:
+	return (load(RULES_PATH) as GameRules).weapons

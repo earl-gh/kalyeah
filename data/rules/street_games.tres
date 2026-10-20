@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StreetGames" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/street_games.gd" id="1_games"]
+
+[resource]
+script = ExtResource("1_games")
+blurbs = {
+"Bato-bato-pik": "The Filipino rock-paper-scissors: rock breaks scissors, scissors cut paper, paper covers rock.",
+"Jackstone": "Toss a small ball in the air, pick up the jacks from the ground, and catch the ball.",
+"Langit Lupa": "A game of tag where players standing on high ground, the langit, are safe from the one who is it.",
+"Tumbang preso": "Players throw a tsinelas to knock down a tin can while the guard, the taya, defends it.",
+"Trumpo": "A wooden top is wound with string and thrown to spin, and tops try to knock each other out."
+}
