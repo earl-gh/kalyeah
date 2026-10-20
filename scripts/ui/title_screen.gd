@@ -31,6 +31,19 @@ const TABS: Array[Dictionary] = [
 ]
 ## The hero cards (2.5:4, like the owner's card pictures) and how high the stage is.
 const HERO_CARD: Vector2 = Vector2(400.0, 640.0)
+## The hero grows with the stage (phones taller than 16:9 have the room): 2.5:4, between these heights, with
+## this much air round it for the glow and the bob.
+const HERO_RATIO: float = 0.625
+const HERO_MIN_HEIGHT: float = 480.0
+const HERO_MAX_HEIGHT: float = 780.0
+const HERO_AIR: float = 56.0
+const AMBIENT_BOB: float = 7.0
+## The mode chips need a stage at least this tall to leave the hero a good size; on a shorter screen they step aside.
+const CHIPS_HEIGHT: float = 42.0
+const CHIPS_MIN_STAGE: float = 640.0
+## Which way a page slides in: the pages left to right as their tabs are.
+const PAGE_RANK: Dictionary[StringName, int] = {&"": 0, &"codex": 1, &"history": 2, &"settings": 3, &"gallery": 3, &"howto": 3}
+const RULES_PATH: String = "res://data/rules/game_rules.tres"
 const LOGO_HEIGHT: float = 92.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
@@ -71,6 +84,8 @@ var _loading_dots: Label
 var _margin: MarginContainer
 var _home: VBoxContainer
 var _top_bar: Control
+var mode_chips: HBoxContainer
+var last_match: Button
 var _page_holder: Control
 var _dots: Array[Panel] = []
 var _page_tween: Tween
@@ -94,6 +109,7 @@ func _ready() -> void:
 	_build_layout()
 	_apply_safe_area()
 	_refresh_mode()
+	refresh_last_match()
 	carousel.selected.connect(_on_mode_selected)
 	primary_button.pressed.connect(_on_primary_pressed)
 	secondary_button.pressed.connect(_on_secondary_pressed)
@@ -171,6 +187,8 @@ func _build_home() -> VBoxContainer:
 	home.name = "Home"
 	home.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	home.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	last_match = _build_last_match()
+	home.add_child(last_match)
 	var stage: Control = Control.new()
 	stage.name = "Stage"
 	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -183,7 +201,8 @@ func _build_home() -> VBoxContainer:
 	carousel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(carousel)
 	carousel.setup("", MODES, Session.menu_mode)
-	carousel.bob = 7.0
+	carousel.bob = AMBIENT_BOB
+	stage.resized.connect(_fit_hero)
 	home.add_child(_build_titles())
 	home.add_child(_build_actions())
 	return home
@@ -212,6 +231,12 @@ func _build_titles() -> Control:
 	mode_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mode_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	titles.add_child(mode_text_label)
+	mode_chips = HBoxContainer.new()
+	mode_chips.name = "ModeChips"
+	mode_chips.alignment = BoxContainer.ALIGNMENT_CENTER
+	mode_chips.add_theme_constant_override("separation", 10)
+	mode_chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	titles.add_child(mode_chips)
 	var dots: HBoxContainer = HBoxContainer.new()
 	dots.name = "Dots"
 	dots.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -277,10 +302,12 @@ func _on_tab_pressed(id: StringName) -> void:
 		open_page(id)
 
 
-## Opens one of the pages (codex = the book, history, settings) in the middle of the screen.
+## Opens one of the pages (codex = the book, history, settings) in the middle of the screen; it slides in from the
+## side its tab is on.
 func open_page(id: StringName) -> void:
 	if not pages.has(id):
 		return
+	var way: int = signi(int(PAGE_RANK.get(id, 0)) - int(PAGE_RANK.get(current_page, 0)))
 	current_page = id
 	for other: StringName in pages:
 		pages[other].visible = other == id
@@ -292,33 +319,126 @@ func open_page(id: StringName) -> void:
 	_top_bar.visible = false
 	# the gallery and How to play are parts of Settings: that tab stays lit and opens it again
 	tab_bar.set_active(&"settings" if id == &"gallery" or id == &"howto" else id)
-	_fade_in(pages[id])
-
+	_sync_ambient()
+	_fade_in(pages[id], way)
 
 ## Back to the Play page.
 func close_page() -> void:
+	var way: int = signi(0 - int(PAGE_RANK.get(current_page, 0)))
 	current_page = &""
 	for id: StringName in pages:
 		pages[id].visible = false
 	_home.visible = true
 	_top_bar.visible = true
+	refresh_last_match()
 	tab_bar.set_active(&"home")
-	_fade_in(_home)
+	_sync_ambient()
+	_fade_in(_home, way)
 
-
-## A short fade and rise when the middle of the screen changes.
-func _fade_in(content: Control) -> void:
+## A short slide and fade when the middle of the screen changes: `way` is -1 from the left, 1 from the right.
+func _fade_in(content: Control, way: int = 0) -> void:
 	if is_instance_valid(_page_tween):
 		_page_tween.kill()
 	content.modulate.a = 1.0
-	content.position.y = 0.0
+	content.position = Vector2.ZERO
 	if Settings.reduced_motion or not is_inside_tree():
 		return
 	content.modulate.a = 0.0
-	content.position.y = 18.0
+	content.position = Vector2(float(way) * 56.0, 0.0 if way != 0 else 18.0)
 	_page_tween = create_tween().set_parallel(true)
 	_page_tween.tween_property(content, "modulate:a", 1.0, 0.2)
-	_page_tween.tween_property(content, "position:y", 0.0, 0.26).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_page_tween.tween_property(content, "position", Vector2.ZERO, 0.26).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+## The facts of a mode as small chips, from the rules (players, best-of choices), never typed in here.
+func mode_facts(id: String) -> Array[String]:
+	var rules: GameRules = load(RULES_PATH) as GameRules
+	if id == "practice":
+		return ["Solo", "Dummies don't fight back"] as Array[String]
+	var choices: PackedStringArray = []
+	for choice: int in rules.best_of_choices:
+		choices.append(str(choice))
+	var best: String = "Best of %s" % (choices[0] if choices.size() == 1 else "%s or %s" % [", ".join(choices.slice(0, choices.size() - 1)), choices[choices.size() - 1]])
+	var players: String = "2 to %d players" % (RoomService.MAX_TEAM_SIZE * 2)
+	return [players, best if id == "hotspot" else "Join with a code"] as Array[String]
+
+
+func _fill_chips(id: String) -> void:
+	for child: Node in mode_chips.get_children():
+		mode_chips.remove_child(child)
+		child.queue_free()
+	for fact: String in mode_facts(id):
+		var chip: PanelContainer = UiKit.chip(fact, UiKit.CHIP_SLATE, Color.WHITE, 22)
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		mode_chips.add_child(chip)
+
+
+## The strip at the top of Play: how the last battle went. Tap it for the whole history.
+func _build_last_match() -> Button:
+	var strip: Button = Button.new()
+	strip.name = "LastMatch"
+	strip.custom_minimum_size = Vector2(0.0, 64.0)
+	strip.focus_mode = Control.FOCUS_ALL
+	for state: String in ["normal", "hover"]:
+		strip.add_theme_stylebox_override(state, UiSkin.plate("night", 0.0, 34))
+	strip.add_theme_stylebox_override("pressed", UiSkin.plate("raised", 0.0, 34))
+	strip.add_theme_stylebox_override("focus", UiSkin.focus_ring(34))
+	MenuDialog.feel_press(strip)
+	strip.pressed.connect(open_page.bind(&"history"))
+	strip.visible = false
+	return strip
+
+
+## Fills the strip from the newest history entry (hidden when nothing has been played).
+func refresh_last_match() -> void:
+	for child: Node in last_match.get_children():
+		last_match.remove_child(child)
+		child.queue_free()
+	var found: Array[Dictionary] = MatchHistory.entries()
+	last_match.visible = not found.is_empty()
+	if found.is_empty():
+		return
+	var entry: Dictionary = found[0]
+	var won: bool = bool(entry.get("won", false))
+	var row: HBoxContainer = HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 18.0
+	row.offset_right = -22.0
+	row.add_theme_constant_override("separation", 14)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var badge: PanelContainer = UiKit.chip("Victory" if won else "Defeat", UiKit.CHIP_GREEN if won else UiKit.CHIP_RED, Color.WHITE, 22)
+	badge.name = "Result"
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(badge)
+	var words: Label = UiKit.text("%s · %d - %d" % [String(entry.get("mode", "")).capitalize(), int(entry.get("mine", 0)), int(entry.get("theirs", 0))], UiMetrics.DETAIL, KalyeahTheme.TEXT, false)
+	words.name = "Words"
+	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(words)
+	var when: Label = UiKit.text(MatchHistory.ago(int(entry.get("at", 0)), int(Time.get_unix_time_from_system())), UiMetrics.CAPTION, Color("9fb0d6"), false)
+	when.name = "When"
+	when.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	when.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(when)
+	last_match.add_child(row)
+
+
+## Sizes the hero cards to the stage (taller phones get a bigger card), then rebuilds them.
+func _fit_hero() -> void:
+	var stage: Control = carousel.get_parent() as Control
+	if stage.size.y < 100.0:
+		return
+	# the stage as it would be without the chips decides whether they show (so showing them never flips it back)
+	var bare: float = stage.size.y + (CHIPS_HEIGHT if mode_chips.visible else 0.0)
+	mode_chips.visible = bare - CHIPS_HEIGHT >= CHIPS_MIN_STAGE
+	var height: float = clampf(bare - (CHIPS_HEIGHT if mode_chips.visible else 0.0) - HERO_AIR, HERO_MIN_HEIGHT, HERO_MAX_HEIGHT)
+	var width: float = minf(height * HERO_RATIO, stage.size.x - 120.0)
+	var fitted: Vector2 = Vector2(roundf(width), roundf(width / HERO_RATIO))
+	if fitted.distance_to(carousel.card_size) < 3.0:
+		return
+	carousel.card_size = fitted
+	carousel.setup("", MODES, carousel.index)
 
 
 ## The chosen mode's name and phrase, the action buttons, the glow and the dots.
@@ -327,6 +447,7 @@ func _refresh_mode() -> void:
 	var rooms: bool = String(mode["id"]) != "practice"
 	mode_name_label.text = String(mode["title"])
 	mode_text_label.text = String(mode["text"])
+	_fill_chips(String(mode["id"]))
 	primary_button.text = "Create room" if rooms else "Start practice"
 	secondary_button.visible = rooms
 	KalyeahTheme.style_button(primary_button, "orange")
@@ -537,8 +658,17 @@ func _show_dialog(new_dialog: MenuDialog) -> void:
 	if dialog != null and is_instance_valid(dialog) and dialog.is_open:
 		dialog.close(false)
 	dialog = new_dialog
+	dialog.closed.connect(_sync_ambient)
 	dialog.open(self)
+	_sync_ambient()
 
+
+## The idle motion of Home (the card's bob, the drifting lights) runs only while Home is what you see: not under a
+## page and not under a sheet, where nothing needs redrawing.
+func _sync_ambient() -> void:
+	var covered: bool = current_page != &"" or (dialog != null and is_instance_valid(dialog) and dialog.is_open)
+	backdrop.ambient = not covered
+	carousel.bob = 0.0 if covered else AMBIENT_BOB
 
 ## The detail sheet of a kid from the Book.
 func open_character_detail(character: CharacterDef) -> MenuDialog:

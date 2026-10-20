@@ -53,6 +53,8 @@ class Room extends RefCounted:
 
 ## The street games a host sees in the map list, and the ones that can be played so far (the other
 ## two are listed as coming soon).
+## The biggest team: 3v3 (a room is 2 to 6 players).
+const MAX_TEAM_SIZE: int = 3
 const MAP_IDS: Array[StringName] = [&"street", &"tumbang_preso", &"patintero"]
 const PLAYABLE_MAP_IDS: Array[StringName] = [&"street"]
 
@@ -95,7 +97,7 @@ func member_of_peer(peer_id: int) -> Member:
 
 ## Creates a room for 1v1 (team_size 1), 2v2 or 3v3; the creator joins as host.
 func create_room(peer_id: int, player_name: String, team_size: int) -> Room:
-	if room_of_peer(peer_id) != null or team_size < 1 or team_size > 3:
+	if room_of_peer(peer_id) != null or team_size < 1 or team_size > MAX_TEAM_SIZE:
 		return null
 	var room: Room = Room.new()
 	room.code = _new_code()

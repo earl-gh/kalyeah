@@ -10,6 +10,12 @@ const MOTES: int = 14
 
 var glow: TextureRect
 var motes: CPUParticles2D
+## False while a page or a sheet covers the screen: the motes rest (nothing under a cover needs redrawing).
+var ambient: bool = true:
+	set(value):
+		ambient = value
+		if motes != null:
+			_apply_motion()
 var _accent: Color = Color("3d7bff")
 var _tween: Tween
 
@@ -80,8 +86,9 @@ func set_accent(color: Color) -> void:
 
 
 func _apply_motion() -> void:
-	motes.emitting = not Settings.reduced_motion
-	motes.visible = not Settings.reduced_motion
+	var on: bool = ambient and not Settings.reduced_motion
+	motes.emitting = on
+	motes.visible = on
 
 
 func _fit_motes() -> void:

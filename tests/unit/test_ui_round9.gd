@@ -1,0 +1,297 @@
+extends GutTest
+## Round 9 of the interface plan: a skin that builds fast and ahead of time, a Home that fits every phone (the hero,
+## mode facts, a last-match strip), pages that slide from their tab's side, a tab plate that glides, and idle motion
+## that rests under a cover.
+
+const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
+const BOOT_SCENE: PackedScene = preload("res://scenes/ui/boot_screen.tscn")
+
+var _motion: bool
+var _history_path: String
+var _name: String
+
+
+func before_each() -> void:
+	_motion = Settings.reduced_motion
+	_history_path = MatchHistory.path
+	MatchHistory.path = "user://history_r9.cfg"
+	MatchHistory.clear()
+	Settings.set_reduced_motion(true)
+
+
+func after_each() -> void:
+	MatchHistory.clear()
+	MatchHistory.path = _history_path
+	Settings.set_reduced_motion(_motion)
+
+
+func _phone(height: float = 1280.0) -> TitleScreen:
+	var phone: Control = autofree(Control.new()) as Control
+	phone.custom_minimum_size = Vector2(720.0, height)
+	phone.size = Vector2(720.0, height)
+	add_child(phone)
+	var screen: TitleScreen = autofree(TITLE_SCENE.instantiate()) as TitleScreen
+	phone.add_child(screen)
+	return screen
+
+
+# ---- the skin --------------------------------------------------------------------------
+
+func test_every_texture_is_the_same_left_and_right_so_drawing_half_is_exact() -> void:
+	for variant: String in ["gold", "slate", "disabled"]:
+		for state: String in ["normal", "pressed"]:
+			var image: Image = UiSkin.button(variant, state).texture.get_image()
+			for y: int in range(0, image.get_height(), 7):
+				for x: int in image.get_width() / 2:
+					assert_eq(image.get_pixel(x, y), image.get_pixel(image.get_width() - 1 - x, y), "%s/%s at %d,%d" % [variant, state, x, y])
+	for kind: String in UiSkin.PLATES:
+		var plate: Image = UiSkin.plate(kind).texture.get_image()
+		for y: int in range(0, plate.get_height(), 7):
+			for x: int in plate.get_width() / 2:
+				assert_eq(plate.get_pixel(x, y), plate.get_pixel(plate.get_width() - 1 - x, y), "%s plate at %d,%d" % [kind, x, y])
+
+
+func test_the_faster_drawing_gives_the_same_pixels_as_before() -> void:
+	# recorded from the per-pixel drawing before the half-and-mirror change
+	var gold: Image = UiSkin.button("gold", "normal").texture.get_image()
+	assert_almost_eq(gold.get_pixel(39, 40).g, 0.7059, 0.002, "the face")
+	assert_almost_eq(gold.get_pixel(39, 40).b, 0.2039, 0.002)
+	assert_eq(gold.get_pixel(39, 40).a, 1.0)
+	assert_almost_eq(gold.get_pixel(60, 68).a, 0.4902, 0.002, "the drop shadow")
+	assert_almost_eq(gold.get_pixel(20, 14).a, 0.0706, 0.002, "the soft edge of the shadow")
+	var glass: Image = UiSkin.plate("glass", 0.0, 30).texture.get_image()
+	assert_almost_eq(glass.get_pixel(55, 56).r, 0.1216, 0.002)
+	assert_almost_eq(glass.get_pixel(55, 56).b, 0.3725, 0.002)
+	assert_almost_eq(glass.get_pixel(21, 56).a, 0.5451, 0.002, "the plate's shadow")
+	var picked: Image = UiSkin.plate("picked", 0.0, 22).texture.get_image()
+	assert_almost_eq(picked.get_pixel(47, 48).b, 0.4549, 0.002)
+
+
+func test_warming_builds_one_texture_per_call_and_ends_with_everything_built() -> void:
+	UiSkin._cache.clear()
+	UiSkin._warmed = 0
+	assert_eq(UiSkin.warm_total(), UiSkin.BUTTONS.size() * 3 + UiSkin.WARM_PLATES.size())
+	assert_eq(UiSkin.warm_fraction(), 0.0)
+	var before: int = UiSkin._cache.size()
+	UiSkin.warm_next()
+	assert_eq(UiSkin._cache.size(), before + 1, "one texture per call")
+	var calls: int = 1
+	while not UiSkin.warm_next():
+		calls += 1
+		assert_lt(calls, 200, "it ends")
+	assert_eq(UiSkin.warm_fraction(), 1.0)
+	assert_eq(UiSkin._cache.size(), UiSkin.warm_total(), "every texture built exactly once")
+	assert_true(UiSkin.warm_next(), "asking again does nothing and says it is done")
+
+
+func test_after_warming_the_first_screens_draw_nothing_new() -> void:
+	UiSkin._cache.clear()
+	UiSkin._warmed = 0
+	while not UiSkin.warm_next():
+		pass
+	var warmed: Array = UiSkin._cache.keys()
+	var screen: TitleScreen = _phone()
+	await wait_frames(3)
+	for id: StringName in [&"codex", &"history", &"settings", &"gallery", &"howto"]:
+		screen.open_page(id)
+	screen.codex_page.show_tab(&"weapons")
+	screen.weapons_page.tiles[0].pressed.emit()
+	screen.dialog.close(false)
+	screen.codex_page.show_tab(&"characters")
+	screen.characters_page.cards["toni"].pressed.emit()
+	screen.dialog.close(false)
+	screen.open_name_editor()
+	screen.dialog.close(false)
+	screen.open_quit_confirm()
+	screen.dialog.close(false)
+	var results: MatchResults = autofree(MatchResults.new()) as MatchResults
+	add_child(results)
+	var extra: Array[String] = []
+	for key: String in UiSkin._cache.keys():
+		if not warmed.has(key):
+			extra.append(key)
+	assert_eq(extra, [] as Array[String], "these were drawn on first use instead of during loading: add them to WARM_PLATES")
+
+
+func test_the_boot_screen_warms_the_skin_one_texture_a_frame_and_counts_it_in_the_bar() -> void:
+	UiSkin._cache.clear()
+	UiSkin._warmed = 0
+	var boot: BootScreen = autofree(BOOT_SCENE.instantiate()) as BootScreen
+	add_child(boot)
+	boot.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	boot.set_process(false)
+	boot._process(0.016)
+	assert_eq(UiSkin._cache.size(), 1, "one texture in the first frame")
+	assert_gt(UiSkin.warm_fraction(), 0.0)
+	for i: int in UiSkin.warm_total():
+		boot._process(0.016)
+	assert_eq(UiSkin.warm_fraction(), 1.0)
+	assert_gte(boot._loaded, BootScreen.SKIN_SHARE - 0.001, "the skin is its share of the bar")
+	assert_lte(boot._loaded, 1.0)
+
+
+# ---- the hero -------------------------------------------------------------------------
+
+func test_the_hero_fills_a_tall_phone_and_stays_2_5_to_4() -> void:
+	var standard: TitleScreen = _phone(1280.0)
+	await wait_frames(3)
+	var standard_card: Vector2 = standard.carousel.card_size
+	var tall: TitleScreen = _phone(1558.0)
+	await wait_frames(3)
+	var tall_card: Vector2 = tall.carousel.card_size
+	assert_gt(tall_card.y, standard_card.y + 60.0, "a taller phone gets a bigger card")
+	for card: Vector2 in [standard_card, tall_card]:
+		assert_almost_eq(card.x / card.y, TitleScreen.HERO_RATIO, 0.01, "2.5:4")
+		assert_gte(card.y, TitleScreen.HERO_MIN_HEIGHT)
+		assert_lte(card.y, TitleScreen.HERO_MAX_HEIGHT)
+	var stage: Control = tall.carousel.get_parent() as Control
+	assert_lte(tall_card.y + TitleScreen.HERO_AIR, stage.size.y + 1.0, "it fits its stage with room for the glow")
+	assert_eq(tall.carousel.cards[0].size, tall_card, "the cards themselves are that size")
+
+
+func test_the_chosen_mode_survives_the_hero_being_resized() -> void:
+	var screen: TitleScreen = _phone(1558.0)
+	await wait_frames(3)
+	screen.carousel.select(2, false)
+	var wide: Control = screen.carousel.get_parent() as Control
+	wide.size = Vector2(wide.size.x, wide.size.y - 140.0)
+	await wait_frames(3)
+	assert_eq(screen.carousel.index, 2, "still on Practice")
+	assert_eq(screen.mode_name_label.text, "Practice")
+
+
+# ---- mode facts -----------------------------------------------------------------------
+
+func test_the_mode_facts_come_from_the_rules() -> void:
+	var screen: TitleScreen = _phone()
+	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
+	assert_eq(rules.best_of_choices, [3, 5, 7] as Array[int], "the numbers below follow this")
+	assert_eq(screen.mode_facts("hotspot"), ["2 to 6 players", "Best of 3, 5 or 7"] as Array[String])
+	assert_eq(screen.mode_facts("online"), ["2 to 6 players", "Join with a code"] as Array[String])
+	assert_eq(screen.mode_facts("practice"), ["Solo", "Dummies don't fight back"] as Array[String])
+	assert_eq(RoomService.MAX_TEAM_SIZE * 2, 6)
+
+
+func test_the_chips_follow_the_mode_and_step_aside_on_a_short_stage() -> void:
+	var tall: TitleScreen = _phone(1558.0)
+	await wait_frames(3)
+	assert_true(tall.mode_chips.visible, "room for them on a tall phone")
+	assert_eq(tall.mode_chips.get_child_count(), 2)
+	tall.carousel.select(2, false)
+	assert_eq((tall.mode_chips.get_child(0).get_node("Text") as Label).text, "Solo")
+	MatchHistory.record("hotspot", true, 2, 1)
+	var short: TitleScreen = _phone(1280.0)
+	await wait_frames(3)
+	assert_true(short.last_match.visible)
+	assert_false(short.mode_chips.visible, "with the last-match strip on a 16:9 phone the hero keeps its size")
+
+
+# ---- last match -----------------------------------------------------------------------
+
+func test_the_last_match_strip_is_hidden_until_there_is_a_match_and_then_tells_the_result() -> void:
+	var screen: TitleScreen = _phone()
+	await wait_frames(2)
+	assert_false(screen.last_match.visible)
+	MatchHistory.record("hotspot", true, 2, 1)
+	screen.refresh_last_match()
+	assert_true(screen.last_match.visible)
+	assert_eq((screen.last_match.find_child("Result", true, false).get_node("Text") as Label).text, "Victory")
+	assert_eq((screen.last_match.find_child("Words", true, false) as Label).text, "Hotspot · 2 - 1")
+	assert_eq((screen.last_match.find_child("When", true, false) as Label).text, "just now")
+	MatchHistory.record("online", false, 0, 2)
+	screen.refresh_last_match()
+	assert_eq((screen.last_match.find_child("Result", true, false).get_node("Text") as Label).text, "Defeat", "always the newest")
+
+
+func test_tapping_the_strip_opens_history_and_coming_back_refreshes_it() -> void:
+	var screen: TitleScreen = _phone()
+	MatchHistory.record("practice", true, 2, 0)
+	screen.refresh_last_match()
+	assert_gte(screen.last_match.custom_minimum_size.y, 60.0, "a thumb-sized strip")
+	screen.last_match.pressed.emit()
+	assert_eq(screen.current_page, &"history")
+	MatchHistory.record("online", false, 1, 2)
+	screen.corner_buttons[&"home"].pressed.emit()
+	assert_eq((screen.last_match.find_child("Words", true, false) as Label).text, "Online · 1 - 2", "a match played meanwhile shows at once")
+
+
+# ---- slides ---------------------------------------------------------------------------
+
+func test_a_page_slides_in_from_the_side_its_tab_is_on() -> void:
+	Settings.set_reduced_motion(false)
+	var screen: TitleScreen = _phone()
+	await wait_frames(3)
+	screen.open_page(&"history")
+	assert_gt(screen.pages[&"history"].position.x, 10.0, "from the right: History is right of Play")
+	await wait_seconds(0.4)
+	assert_eq(screen.pages[&"history"].position, Vector2.ZERO, "and it settles")
+	screen.open_page(&"codex")
+	assert_lt(screen.pages[&"codex"].position.x, -10.0, "from the left: the Book is left of History")
+	await wait_seconds(0.4)
+	screen.close_page()
+	assert_lt(screen._home.position.x, -10.0, "Play comes back from the left")
+
+
+func test_with_reduce_motion_pages_just_appear() -> void:
+	var screen: TitleScreen = _phone()
+	screen.open_page(&"settings")
+	assert_eq(screen.pages[&"settings"].position, Vector2.ZERO)
+	assert_eq(screen.pages[&"settings"].modulate.a, 1.0)
+
+
+# ---- the tab plate ---------------------------------------------------------------------
+
+func test_the_tab_plate_sits_under_the_open_tab_and_follows_it() -> void:
+	var bar: UiTabBar = autofree(UiTabBar.new(TitleScreen.TABS)) as UiTabBar
+	bar.custom_minimum_size = Vector2(664.0, 128.0)
+	add_child(bar)
+	bar.size = Vector2(664.0, 128.0)
+	await wait_frames(3)
+	bar.set_active(&"history")
+	var tab: Control = bar.tabs[&"history"]
+	assert_true(bar.glide.visible)
+	assert_almost_eq(bar.glide.global_position.x, tab.global_position.x, 1.0, "under History")
+	assert_almost_eq(bar.glide.size.x, tab.size.x, 1.0)
+	bar.set_active(&"settings")
+	assert_almost_eq(bar.glide.global_position.x, bar.tabs[&"settings"].global_position.x, 1.0)
+	for id: StringName in bar.tabs:
+		assert_true(bar.tabs[id].get_theme_stylebox("normal") is StyleBoxEmpty, "the plate is one thing, not a style on each tab")
+	bar.set_active(&"")
+	assert_false(bar.glide.visible, "no tab open, no plate")
+
+
+func test_with_motion_the_plate_glides_and_arrives() -> void:
+	Settings.set_reduced_motion(false)
+	var bar: UiTabBar = autofree(UiTabBar.new(TitleScreen.TABS)) as UiTabBar
+	add_child(bar)
+	bar.size = Vector2(664.0, 128.0)
+	await wait_frames(3)
+	bar.set_active(&"home")
+	await wait_seconds(0.1)
+	bar.set_active(&"settings")
+	var target: float = bar.tabs[&"settings"].global_position.x
+	assert_lt(bar.glide.global_position.x, target - 5.0, "still on its way")
+	await wait_seconds(0.35)
+	assert_almost_eq(bar.glide.global_position.x, target, 1.0, "arrived")
+
+
+# ---- idle motion ----------------------------------------------------------------------
+
+func test_idle_motion_rests_under_a_page_and_a_sheet_and_returns() -> void:
+	Settings.set_reduced_motion(false)
+	var screen: TitleScreen = _phone()
+	await wait_frames(3)
+	assert_eq(screen.carousel.bob, TitleScreen.AMBIENT_BOB)
+	assert_true(screen.backdrop.ambient)
+	screen.open_page(&"history")
+	assert_eq(screen.carousel.bob, 0.0, "nothing to bob under a page")
+	assert_false(screen.backdrop.ambient)
+	assert_false(screen.backdrop.motes.emitting, "the lights rest too")
+	screen.close_page()
+	assert_eq(screen.carousel.bob, TitleScreen.AMBIENT_BOB)
+	assert_true(screen.backdrop.motes.emitting)
+	var card: MenuDialog = screen.open_quit_confirm()
+	assert_eq(screen.carousel.bob, 0.0, "and under a sheet")
+	card.close(false)
+	await wait_process_frames(2)
+	assert_eq(screen.carousel.bob, TitleScreen.AMBIENT_BOB, "back when the sheet closes")
