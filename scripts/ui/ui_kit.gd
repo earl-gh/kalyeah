@@ -57,6 +57,28 @@ static func section_label(text: String) -> Label:
 	return label
 
 
+## Chip fills that keep white text readable (every one is at least 4.5:1 against white; see `contrast`).
+const CHIP_GREEN: Color = Color("1a8340")
+const CHIP_RED: Color = Color("c2332e")
+const CHIP_BLUE: Color = Color("2068d0")
+const CHIP_PURPLE: Color = Color("8a55e8")
+const CHIP_SLATE: Color = Color("3b4c74")
+
+
+## The WCAG contrast ratio between two colours (1 to 21; 4.5 is the bar for small text).
+static func contrast(a: Color, b: Color) -> float:
+	var la: float = _luminance(a)
+	var lb: float = _luminance(b)
+	return (maxf(la, lb) + 0.05) / (minf(la, lb) + 0.05)
+
+
+static func _luminance(color: Color) -> float:
+	var channels: Array[float] = []
+	for value: float in [color.r, color.g, color.b]:
+		channels.append(value / 12.92 if value <= 0.03928 else pow((value + 0.055) / 1.055, 2.4))
+	return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+
+
 ## A round or pill tag: "Victory", "ATK", "Host" in a solid colour.
 static func chip(text: String, fill: Color, ink: Color = Color.WHITE, size: int = UiMetrics.CAPTION) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()

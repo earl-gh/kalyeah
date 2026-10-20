@@ -423,6 +423,8 @@ func _build() -> void:
 func _set_status(text: String) -> void:
 	_status.text = text
 	_status.visible = not text.is_empty()
+	if not text.is_empty():
+		UiStatusStrip.style(_status, UiStatusStrip.kind_of(text))
 
 
 func _exit_tree() -> void:

@@ -401,5 +401,6 @@ func copy_code() -> void:
 	if not online_room or not has_room() or code_label.text.is_empty():
 		return
 	DisplayServer.clipboard_set(code_label.text)
+	UiToast.say(self, "Room code copied")
 	copy_button.text = "Copied"
 	_copy_timer.start()

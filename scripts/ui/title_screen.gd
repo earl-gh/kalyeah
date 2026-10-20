@@ -63,6 +63,7 @@ var weapons_page: WeaponsPage:
 	get: return codex_page.weapons_page
 var history_page: HistoryPage
 var settings_page: SettingsPage
+var gallery_page: UiGallery
 
 var _loading: bool = false
 var _loading_dots: Label
@@ -251,7 +252,8 @@ func _build_pages() -> void:
 	codex_page = CodexPage.new()
 	history_page = HistoryPage.new()
 	settings_page = SettingsPage.new()
-	pages = {&"codex": codex_page, &"history": history_page, &"settings": settings_page}
+	gallery_page = UiGallery.new()
+	pages = {&"codex": codex_page, &"history": history_page, &"settings": settings_page, &"gallery": gallery_page}
 	for id: StringName in pages:
 		var page: Control = pages[id]
 		page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -261,6 +263,7 @@ func _build_pages() -> void:
 	codex_page.characters_page.character_opened.connect(open_character_detail)
 	settings_page.profile_pressed.connect(open_name_editor)
 	settings_page.quit_pressed.connect(open_quit_confirm)
+	settings_page.gallery_pressed.connect(open_page.bind(&"gallery"))
 
 
 func _on_tab_pressed(id: StringName) -> void:
@@ -283,7 +286,8 @@ func open_page(id: StringName) -> void:
 		codex_page.show_tab(codex_page.current)
 	_home.visible = false
 	_top_bar.visible = false
-	tab_bar.set_active(id)
+	# the gallery is a part of Settings: that tab stays lit and opens it again
+	tab_bar.set_active(&"settings" if id == &"gallery" else id)
 	_fade_in(pages[id])
 
 
@@ -543,37 +547,17 @@ func open_weapon_detail(weapon: WeaponDef) -> MenuDialog:
 	return card
 
 
-## Rename: a text box (12 letters at most) with Cancel / Save.
+## Your profile: the name and the face (see `ProfileSheet`). The chip, the Settings card and a toast answer a save.
 func open_name_editor() -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create("Player name")
-	var field: LineEdit = LineEdit.new()
-	field.name = "NameField"
-	field.text = Session.player_name
-	field.placeholder_text = "Your name"
-	field.max_length = Session.MAX_NAME_LENGTH
-	field.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	field.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
-	field.add_theme_font_size_override("font_size", 36)
-	card.body.add_child(field)
-	var hint: Label = card.add_hint("%d characters max." % Session.MAX_NAME_LENGTH)
-	var cancel: Button = MenuDialog.make_button("Cancel", "grey", 30)
-	var save: Button = MenuDialog.make_button("Save", "orange", 30)
-	card.add_buttons([cancel, save])
-	var apply: Callable = func() -> void:
-		var clean: String = Session.clean_name(field.text)
-		if clean.is_empty():
-			hint.text = "Enter a name."
-			hint.add_theme_color_override("font_color", KalyeahTheme.ERROR)
-			return
-		Session.player_name = clean
-		Session.save()
-		card.close()
-	save.pressed.connect(apply)
-	field.text_submitted.connect(func(_text: String) -> void: apply.call())
-	cancel.pressed.connect(card.close)
+	var card: MenuDialog = ProfileSheet.build(_on_profile_saved)
 	_show_dialog(card)
-	field.grab_focus.call_deferred()
 	return card
+
+
+func _on_profile_saved() -> void:
+	profile_chip.refresh()
+	settings_page.refresh()
+	UiToast.say(self, "Profile saved")
 
 
 ## Quit: asks first (a stray tap must not close the game).
