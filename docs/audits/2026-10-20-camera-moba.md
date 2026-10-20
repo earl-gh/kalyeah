@@ -1,5 +1,7 @@
 # Camera: higher and pitched forward
 
+> **Superseded by [2026-10-20-camera.md](2026-10-20-camera.md).** The "kids are about 4% smaller" note below is wrong: at 46° / 12 m the kid was about a third smaller on screen (9.7% to 6.5% of the screen height). The numbers in the table are no longer the ones in use.
+
 Owner request: more height and a more forward pitch for a better MOBA view. Data only (`data/rules/camera_rules.tres`):
 
 | | Before | Now |

@@ -1,8 +1,9 @@
 class_name CameraRules
 extends Resource
 ## The gameplay camera for a portrait (9:16) phone: a perspective camera above and
-## behind the hero at a fixed, low downward angle (20 degrees: you see far up the
-## street) with a wide lens, straight behind
+## behind the hero at a fixed downward angle (42 degrees: high enough to read the ground
+## and the kids' shapes, low enough to still see well up the street) with a moderate
+## lens, straight behind
 ## (`yaw_offset_degrees`), with the hero held near the lower centre of the screen
 ## so the battlefield ahead fills the rest. The distance is derived so that
 ## `visible_width` metres of lane are on screen at the camera's aim point, whatever
