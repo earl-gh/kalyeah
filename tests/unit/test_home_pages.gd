@@ -36,16 +36,35 @@ func _phone_screen() -> TitleScreen:
 	return screen
 
 
-func test_the_characters_page_picks_your_face() -> void:
+func test_the_characters_page_only_shows_and_describes_it_never_changes_your_face() -> void:
+	Session.avatar_id = "toni"
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"codex")
 	await wait_frames(2)
 	var page: CharactersPage = screen.characters_page
 	assert_eq(page.cards.size(), Session.AVATARS.size())
-	page.cards["toni"].pressed.emit()
-	assert_eq(Session.avatar_id, "toni")
-	page.cards["popoy"].pressed.emit()
-	assert_eq(Session.avatar_id, "popoy")
+	for id: String in Session.AVATARS:
+		var definition: CharacterDef = load("res://data/characters/%s.tres" % id) as CharacterDef
+		assert_false(definition.description.is_empty(), "%s has a description" % id)
+		page.cards[id].pressed.emit()
+		assert_not_null(screen.dialog, "%s opens a sheet" % id)
+		assert_eq(screen.dialog.title_label.text, definition.display_name)
+		assert_eq((screen.dialog.find_child("About", true, false) as Label).text, definition.description)
+		assert_eq(Session.avatar_id, "toni", "reading about %s does not choose them" % id)
+	assert_null(page.find_child("Mine", true, false), "no 'You' tag: nothing here is selected")
+	assert_false(page.find_child("Scroll", true, false).get_child(0).get_children().any(func(card: Node) -> bool: return card.find_child("Frame", true, false) != null), "no selection frame")
+	screen.dialog.find_child("Close", true, false).pressed.emit()
+	assert_false(screen.dialog.is_open)
+
+
+func test_the_character_sheet_says_the_look_changes_nothing_about_play() -> void:
+	var definition: CharacterDef = load("res://data/characters/popoy.tres") as CharacterDef
+	var card: MenuDialog = autofree(CharactersPage.detail(definition)) as MenuDialog
+	add_child(card)
+	var text: String = ""
+	for label: Node in card.find_children("*", "Label", true, false):
+		text += (label as Label).text + " "
+	assert_true(text.contains("same health, speed and size"), "cosmetic only, as the design says")
 
 
 func test_the_book_has_a_characters_tab_and_a_weapons_tab() -> void:

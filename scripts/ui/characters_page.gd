@@ -1,8 +1,15 @@
 class_name CharactersPage
 extends VBoxContainer
-## The Characters tab: the six kids as 3:4 cards. Tap one to make it your face on the main screen.
+## The Characters tab: the six kids as 3:4 cards, to look at and read about. Tapping one asks for its
+## detail sheet (`detail`); it never changes who you are: the kid you play is picked in the room and
+## again at the start of every match.
 
-signal chosen(character_id: String)
+signal character_opened(character: CharacterDef)
+
+## Two columns of large faces: this tab is a gallery to look at, not a row of small buttons.
+const COLUMNS: int = 2
+const CARD: Vector2 = Vector2(325.0, 440.0)
+const NOTE: String = "Only the look is yours to pick. Every kid has the same health, speed and size."
 
 var cards: Dictionary[String, Button] = {}
 
@@ -10,14 +17,14 @@ var cards: Dictionary[String, Button] = {}
 func _ready() -> void:
 	name = "CharactersPage"
 	add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
-	add_child(UiKit.page_header("Characters", "Tap a kid to wear their face. You pick who you play before every match."))
+	add_child(UiKit.page_header("Characters", "Meet the six kids. Tap one to read about them."))
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.name = "Scroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(scroll)
 	var grid: GridContainer = GridContainer.new()
-	grid.columns = 3
+	grid.columns = COLUMNS
 	grid.add_theme_constant_override("h_separation", 14)
 	grid.add_theme_constant_override("v_separation", 14)
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -26,7 +33,6 @@ func _ready() -> void:
 		var card: Button = _card(id)
 		grid.add_child(card)
 		cards[id] = card
-	refresh()
 
 
 func _card(id: String) -> Button:
@@ -34,8 +40,13 @@ func _card(id: String) -> Button:
 	var card: Button = Button.new()
 	card.name = id.capitalize()
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.custom_minimum_size = Vector2(0.0, 330.0)
-	card.tooltip_text = "Use %s as profile picture" % id.capitalize()
+	card.custom_minimum_size = Vector2(0.0, CARD.y)
+	card.tooltip_text = "About %s" % id.capitalize()
+	for state: String in ["normal", "hover"]:
+		card.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, 22))
+	for state: String in ["pressed", "hover_pressed"]:
+		card.add_theme_stylebox_override(state, UiSkin.plate("raised", 0.0, 22))
+	card.add_theme_stylebox_override("focus", KalyeahTheme.focus_ring(24))
 	MenuDialog.feel_press(card)
 	var picture: TextureRect = TextureRect.new()
 	picture.name = "Picture"
@@ -48,7 +59,7 @@ func _card(id: String) -> Button:
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var crop: ShaderMaterial = ShaderMaterial.new()
 	crop.shader = UiKit.CROP
-	crop.set_shader_parameter("rect_size", Vector2(206.0, 330.0))
+	crop.set_shader_parameter("rect_size", CARD)
 	crop.set_shader_parameter("radius", 22.0)
 	picture.material = crop
 	card.add_child(picture)
@@ -72,18 +83,7 @@ func _card(id: String) -> Button:
 	label.offset_bottom = -10.0
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(label)
-	var mine: PanelContainer = UiKit.chip("You", Color("ffc233"), Color("3a1c00"), 20)
-	mine.name = "Mine"
-	mine.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT, Control.PRESET_MODE_MINSIZE)
-	mine.position = Vector2(10.0, 10.0)
-	mine.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(mine)
-	var frame: Panel = Panel.new()
-	frame.name = "Frame"
-	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(frame)
-	card.pressed.connect(_pick.bind(id))
+	card.pressed.connect(_open.bind(id))
 	return card
 
 
@@ -100,34 +100,38 @@ static func _fade() -> GradientTexture2D:
 	return texture
 
 
-func _pick(id: String) -> void:
-	Session.avatar_id = id
-	Session.save()
-	refresh()
-	chosen.emit(id)
+func _open(id: String) -> void:
+	var definition: CharacterDef = load("res://data/characters/%s.tres" % id) as CharacterDef
+	if definition != null:
+		character_opened.emit(definition)
 
 
-## Frames the kid that is your face in gold (and says "You"); the others keep a quiet edge.
-func refresh() -> void:
-	for id: String in cards:
-		var mine: bool = id == Session.avatar_id
-		var base: StyleBoxFlat = StyleBoxFlat.new()
-		base.bg_color = Color("0a1433")
-		base.set_corner_radius_all(22)
-		base.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
-		base.shadow_size = 10
-		base.shadow_offset = Vector2(0.0, 5.0)
-		base.anti_aliasing = true
-		for state: String in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
-			cards[id].add_theme_stylebox_override(state, base)
-		cards[id].add_theme_stylebox_override("focus", KalyeahTheme.focus_ring(24))
-		var ring: StyleBoxFlat = StyleBoxFlat.new()
-		ring.draw_center = false
-		ring.set_corner_radius_all(22)
-		ring.set_border_width_all(7 if mine else 2)
-		ring.border_color = Color("ffc233") if mine else Color(1.0, 1.0, 1.0, 0.18)
-		ring.shadow_color = Color(Color("ffc233"), 0.5) if mine else Color.TRANSPARENT
-		ring.shadow_size = 14 if mine else 0
-		ring.anti_aliasing = true
-		(cards[id].get_node("Frame") as Panel).add_theme_stylebox_override("panel", ring)
-		(cards[id].get_node("Mine") as Control).visible = mine
+## The detail sheet of `character`: the face large, the name, what they wear, and a note that the look
+## changes nothing about how they play.
+static func detail(character: CharacterDef) -> MenuDialog:
+	var card: MenuDialog = MenuDialog.create(character.display_name, 600.0)
+	card.name = "CharacterDetail"
+	var picture: TextureRect = TextureRect.new()
+	picture.name = "Picture"
+	var id: StringName = character.id
+	picture.texture = KidModel.card_face(id)
+	if picture.texture == null:
+		picture.texture = KidModel.portrait(id)
+	picture.custom_minimum_size = Vector2(240.0, 320.0)
+	picture.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	var crop: ShaderMaterial = ShaderMaterial.new()
+	crop.shader = UiKit.CROP
+	crop.set_shader_parameter("rect_size", Vector2(240.0, 320.0))
+	crop.set_shader_parameter("radius", 26.0)
+	picture.material = crop
+	card.body.add_child(picture)
+	var about: Label = card.add_label(character.description, UiMetrics.BODY, KalyeahTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	about.name = "About"
+	card.add_hint(NOTE).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var close: Button = MenuDialog.make_button("Close", "grey", UiMetrics.ACTION)
+	close.name = "Close"
+	close.pressed.connect(card.close)
+	card.add_buttons([close])
+	return card

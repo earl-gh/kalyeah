@@ -34,5 +34,3 @@ func show_tab(tab: StringName) -> void:
 	characters_page.visible = tab == &"characters"
 	weapons_page.visible = tab == &"weapons"
 	segmented.select(tab, false)
-	if tab == &"characters":
-		characters_page.refresh()

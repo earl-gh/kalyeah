@@ -150,3 +150,29 @@ Self-critique of this pass:
 - **Still missing:** a weapon's effect (stun length, slow strength) is not shown, only the three numbers. The
   numbers live in `data/weapons/*.tres`, so adding it is a data-driven change; I left it so the sheet stays
   readable.
+
+---
+
+# Round 5: the Book is display only
+
+Owner direction: the Weapons and Characters tabs of the Book are for looking and reading, not for choosing.
+
+- **Characters** had a selection model (tap a kid to wear their face, a gold "You" frame, a "You" tag). All of
+  that is removed. The tab is now a two-column gallery of large faces, and a tap opens a sheet with the picture,
+  a description of what the kid wears (new `CharacterDef.description`, written from the outfit table in
+  `docs/PROJECT.md` 3.2: clothes and style only) and a note that the look changes nothing about how they play.
+- **Weapons** was already read-only (a tap opens a sheet); nothing to remove.
+- Who you are is still set where it matters: the room's character strip and the pre-match loadout (both save the
+  kid as your profile face). Nothing else in the game read the Book's choice.
+
+![characters gallery and sheet](images/ui-rebuild-characters.png)
+
+Self-critique:
+
+- **The gallery was first three small columns** with a quarter of the page empty under them, which made a display
+  page look like a button row. Two columns of large faces fill the page and let the art carry it.
+- **Descriptions are deliberately plain.** Only what is in the outfit table; no invented personalities, and
+  nothing about identity, per the design note that identity shows through clothes and style.
+- **Profile face drift.** With no way to pick in the Book, the face on the main screen is now the last kid you
+  played. That is a quiet change in behaviour; if the owner wants a deliberate "my face" choice, it belongs in
+  Settings next to the name, not in the Book.

@@ -6,6 +6,7 @@
 script = ExtResource("1_char")
 id = &"ligaya"
 display_name = "Ligaya"
+description = "Wears a floral bestida and tsinelas, with long wavy hair held by a clip."
 tint = Color(1, 0.95, 0.88, 1)
 skin = Color(0.68, 0.5, 0.38, 1)
 hair_color = Color(0.4, 0.23, 0.12, 1)
