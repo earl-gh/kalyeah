@@ -10,7 +10,7 @@ signal swap_pressed
 ## The player tapped the card of player `id` (the camera should follow them).
 signal watch_requested(id: int)
 
-const BAND_HEIGHT: float = 400.0
+const BAND_HEIGHT: float = 430.0
 const INK: Color = Color(0.1, 0.06, 0.06)
 const TITLE_COLOR: Color = Color(1.0, 0.4, 0.34)
 const MAX_CARDS: int = 5
@@ -21,9 +21,12 @@ const OWN: Color = Color(0.3, 0.6, 1.0)
 const ENEMY: Color = Color(1.0, 0.35, 0.35)
 const WATCHED: Color = Color(1.0, 0.86, 0.3)
 const WAIT_TEXT: String = "Tagged · Wait for a rescue"
+const HINT_TEXT: String = "Teammates can run into your box to set you free."
 
 ## How to get out (kept as a label for screen readers and tests).
 var wait_label: Label
+## One line on how it ends (the box, the teammate), under the title.
+var hint_label: Label
 var swap_button: Button
 ## Player ids in card order (left to right).
 var card_ids: Array[int] = []
@@ -60,6 +63,10 @@ func _ready() -> void:
 	wait_label = _label(WAIT_TEXT, 26, TITLE_COLOR)
 	wait_label.theme_type_variation = &"DisplayLabel"
 	column.add_child(wait_label)
+	hint_label = _label(HINT_TEXT, UiMetrics.CAPTION, Color("c9d6f2"))
+	hint_label.name = "Hint"
+	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(hint_label)
 	var row: HBoxContainer = HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", int(CARD_GAP))

@@ -9,6 +9,9 @@ const POP: float = 0.35
 const WIN_COLOR: Color = Color("ffd25a")
 const LOSS_COLOR: Color = Color("ff8a80")
 const WIDTH: float = 600.0
+## The scores count up from 0 over this long, and a win throws confetti (a loss never does).
+const COUNT_SECONDS: float = 0.7
+const CONFETTI: bool = true
 
 signal home_pressed
 
@@ -22,7 +25,10 @@ var weapons_row: HBoxContainer
 var primary: Button
 var home_button: Button
 
+var confetti: CPUParticles2D
 var _card: PanelContainer
+var _final_mine: int = 0
+var _final_theirs: int = 0
 var _tween: Tween
 var _shown: bool = false
 
@@ -69,6 +75,8 @@ func _init() -> void:
 	home_button.name = "HomeButton"
 	home_button.pressed.connect(home_pressed.emit)
 	buttons.add_child(home_button)
+	confetti = _make_confetti()
+	add_child(confetti)
 
 
 ## Takes the HUD's existing main button (Play again or Return home) as the card's gold action, so the
@@ -167,13 +175,44 @@ func set_over(over: bool, sim: MatchSim, local_id: int, local_team: int, mode_te
 	_reveal()
 
 
+## A one-shot burst of paper squares from the top edge: gold, blue, red and green, tumbling as they fall.
+func _make_confetti() -> CPUParticles2D:
+	var burst: CPUParticles2D = CPUParticles2D.new()
+	burst.name = "Confetti"
+	burst.emitting = false
+	burst.one_shot = true
+	burst.amount = 70
+	burst.lifetime = 2.6
+	burst.explosiveness = 0.85
+	burst.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	burst.emission_rect_extents = Vector2(360.0, 6.0)
+	burst.position = Vector2(360.0, -30.0)
+	burst.direction = Vector2(0.0, 1.0)
+	burst.spread = 35.0
+	burst.initial_velocity_min = 220.0
+	burst.initial_velocity_max = 520.0
+	burst.gravity = Vector2(0.0, 520.0)
+	burst.angular_velocity_min = -360.0
+	burst.angular_velocity_max = 360.0
+	burst.angle_min = 0.0
+	burst.angle_max = 360.0
+	burst.scale_amount_min = 9.0
+	burst.scale_amount_max = 17.0
+	var ramp: Gradient = Gradient.new()
+	ramp.offsets = PackedFloat32Array([0.0, 0.33, 0.66, 1.0])
+	ramp.colors = PackedColorArray([Color("ffc233"), Color("4aa0ff"), Color("ff7a70"), Color("45dd78")])
+	burst.color_initial_ramp = ramp
+	return burst
+
+
 func _fill(sim: MatchSim, local_id: int, local_team: int, mode_text: String) -> void:
 	var won: bool = sim.score.winner == local_team
 	title.text = "VICTORY!" if won else "DEFEAT"
 	title.add_theme_color_override("font_color", WIN_COLOR if won else LOSS_COLOR)
 	subtitle.text = "%s · Best of %d" % [mode_text, sim.score.best_of]
-	mine_label.text = str(sim.score.points[local_team])
-	theirs_label.text = str(sim.score.points[1 - local_team])
+	_final_mine = sim.score.points[local_team]
+	_final_theirs = sim.score.points[1 - local_team]
+	_show_scores(1.0)
 	var seconds: int = int(sim.match_time)
 	time_label.text = "%d:%02d" % [seconds / 60, seconds % 60]
 	for child: Node in kid_holder.get_children():
@@ -193,15 +232,26 @@ func _fill(sim: MatchSim, local_id: int, local_team: int, mode_text: String) -> 
 			weapons_row.add_child(WeaponsPage.holder(def, 64.0))
 
 
+## The two scores at `progress` (0 to 1) of the way to their final numbers.
+func _show_scores(progress: float) -> void:
+	mine_label.text = str(roundi(_final_mine * progress))
+	theirs_label.text = str(roundi(_final_theirs * progress))
+
+
 func _reveal() -> void:
 	visible = true
 	if is_instance_valid(_tween):
 		_tween.kill()
+	confetti.emitting = false
+	confetti.position = Vector2(size.x / 2.0, -30.0)
+	confetti.emission_rect_extents = Vector2(size.x / 2.0, 6.0)
 	if Settings.reduced_motion or not is_inside_tree():
 		modulate.a = 1.0
 		_card.scale = Vector2.ONE
 		mouse_filter = Control.MOUSE_FILTER_STOP
+		_show_scores(1.0)
 		return
+	_show_scores(0.0)
 	# the street's own banner first, then the card eases in and takes the touches
 	modulate.a = 0.0
 	_card.pivot_offset = _card.size / 2.0
@@ -211,14 +261,18 @@ func _reveal() -> void:
 	_tween.tween_interval(DELAY)
 	_tween.tween_callback(func() -> void:
 		_card.pivot_offset = _card.size / 2.0
-		mouse_filter = Control.MOUSE_FILTER_STOP)
+		mouse_filter = Control.MOUSE_FILTER_STOP
+		if CONFETTI and _final_mine > _final_theirs:
+			confetti.restart())
 	_tween.set_parallel(true)
 	_tween.tween_property(self, "modulate:a", 1.0, POP)
 	_tween.tween_property(_card, "scale", Vector2.ONE, POP).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_tween.tween_method(_show_scores, 0.0, 1.0, COUNT_SECONDS).set_delay(POP)
 
 
 func _hide() -> void:
 	if is_instance_valid(_tween):
 		_tween.kill()
 	visible = false
+	confetti.emitting = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE

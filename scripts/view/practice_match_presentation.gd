@@ -24,6 +24,7 @@ func setup_hud() -> void:
 	Cinematic.add_film_finish(owner)
 	owner.hud.overhead.setup(owner.sim, owner._camera, owner.local_id, owner.local_team)
 	owner.hud.minimap.setup(owner.sim, owner.local_id, owner.local_team)
+	owner.hud.arrows.setup(owner.sim, owner._camera, owner.local_id, owner.local_team, owner.layout)
 	owner.hud.set_top_inset(_safe_top_inset())
 
 
@@ -79,6 +80,7 @@ func sync(delta: float) -> void:
 	_sync_aim(player)
 	owner._fx.sync(owner.sim, delta)
 	owner.hud.overhead.tick(delta)
+	owner.hud.arrows.tick(delta)
 	owner.hud.sync_score(owner.sim, owner.local_team, delta, owner.local_id)
 	if owner.sim.phase == MatchSim.Phase.INTRO:
 		_play_intro_shot()
