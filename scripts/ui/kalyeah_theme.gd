@@ -78,7 +78,7 @@ static func build() -> Theme:
 	theme.set_constant("outline_size", "MutedLabel", 0)
 	theme.set_type_variation("HudPill", "Label")
 	theme.set_font("font", "HudPill", BODY_FONT)
-	theme.set_stylebox("normal", "HudPill", painted_pill())
+	theme.set_stylebox("normal", "HudPill", UiSkin.pill())
 	theme.set_constant("outline_size", "HudPill", 0)
 
 	theme.set_font("font", "Button", BUTTON_FONT)

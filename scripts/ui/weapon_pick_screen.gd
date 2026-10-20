@@ -38,6 +38,11 @@ var back_button: Button
 var _exit_dialog: MenuDialog
 var hosting: bool = false
 var _hint: Label
+## Stat bars on every weapon card are scaled by the biggest number of any weapon.
+var _maxima: Dictionary = {}
+## The pair offered to a player who has not picked yet (see `WeaponPick.suggestion`), and the button that takes it.
+var suggestion: Array[StringName] = []
+var _suggest_button: Button
 var _mode_label: Label
 var _safe_margin: MarginContainer
 
@@ -239,6 +244,7 @@ func _refresh() -> void:
 		_sockets[slot].active = slot == replacement_slot
 		_sockets[slot].show_weapon(_defs.get(id) as WeaponDef)
 	_hint.text = selection_hint()
+	_suggest_button.visible = not swap_mode and not suggestion.is_empty() and pick.picks.size() < WeaponPick.SLOTS
 	var can_go: bool = swap_mode or pick.can_confirm()
 	_ready_button.disabled = not can_go
 	_style_ready(can_go)
@@ -254,6 +260,19 @@ func _build(defs: Array[WeaponDef]) -> void:
 
 static func _stat_line(def: WeaponDef) -> String:
 	return LoadoutCards.stat_line(def)
+
+
+## Takes the suggested pair: the two weapons are tapped in, as if the player had chosen them.
+func use_suggestion() -> void:
+	if not is_open() or swap_mode:
+		return
+	# exactly the suggested pair, whatever was picked before
+	for id: StringName in pick.picks.duplicate():
+		pick.toggle(id)
+	for id: StringName in suggestion:
+		pick.toggle(id)
+	replacement_slot = mini(pick.picks.size(), 1)
+	_refresh()
 
 
 func select_slot(slot: int) -> void:

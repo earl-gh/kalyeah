@@ -6,6 +6,8 @@ extends RefCounted
 static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	for def: WeaponDef in defs:
 		screen._defs[def.id] = def
+	screen._maxima = WeaponsPage.stat_maxima(defs)
+	screen.suggestion = WeaponPick.suggestion(defs)
 	screen.add_child(UiBackdrop.new())
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -33,7 +35,7 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	heading.add_child(screen._mode_label)
 	header.add_child(heading)
 	screen._ring = CountdownRing.new()
-	screen._ring.custom_minimum_size = Vector2(72.0, 72.0)
+	screen._ring.custom_minimum_size = Vector2(CountdownRing.LOADOUT_SIZE, CountdownRing.LOADOUT_SIZE)
 	screen._ring.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	header.add_child(screen._ring)
 	screen._timer = Label.new()
@@ -52,8 +54,22 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 		socket.pressed.connect(screen.select_slot.bind(slot))
 		sockets.add_child(socket)
 		screen._sockets.append(socket)
+	# the hint on the left and, for a player with no picks yet, a suggested pair on the right (no extra height)
+	var hint_row: HBoxContainer = HBoxContainer.new()
+	hint_row.add_theme_constant_override("separation", UiMetrics.GAP)
+	column.add_child(hint_row)
 	screen._hint = LoadoutCards.label("", 24, KalyeahTheme.AMBER)
-	column.add_child(screen._hint)
+	screen._hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	screen._hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hint_row.add_child(screen._hint)
+	var pair_names: Array[String] = []
+	for id: StringName in screen.suggestion:
+		pair_names.append((screen._defs[id] as WeaponDef).short_name)
+	screen._suggest_button = MenuDialog.make_button("Suggested: %s" % " + ".join(pair_names), "blue", 24, Vector2(0.0, 64.0))
+	screen._suggest_button.name = "SuggestButton"
+	screen._suggest_button.visible = false
+	screen._suggest_button.pressed.connect(screen.use_suggestion)
+	hint_row.add_child(screen._suggest_button)
 	column.add_child(_tabs(screen, defs))
 	column.add_child(_weapons(screen, defs))
 	screen._ready_button = MenuDialog.make_button("Ready", "orange", 30, Vector2(0.0, 88.0))

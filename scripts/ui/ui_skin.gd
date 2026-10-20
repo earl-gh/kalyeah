@@ -146,6 +146,17 @@ static func _render_plate(kind: String, radius: int) -> StyleBoxTexture:
 	return _nine_slice(image, radius + PLATE_PAD, PLATE_PAD)
 
 
+## A label's pill (the HUD's capture line, status messages): a night panel with the label's own side padding. The
+## radius is small enough that a one-line label is tall enough for the corners.
+static func pill(radius: int = 20) -> StyleBoxTexture:
+	var box: StyleBoxTexture = plate("night", 0.0, radius)
+	box.content_margin_left = 18.0
+	box.content_margin_right = 18.0
+	box.content_margin_top = 9.0
+	box.content_margin_bottom = 10.0
+	return box
+
+
 ## A thin lit outline for a focused control (kept flat so it reads on any surface).
 static func focus_ring(radius: int = BUTTON_RADIUS + 2) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()

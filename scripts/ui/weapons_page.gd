@@ -228,7 +228,7 @@ static func detail(weapon: WeaponDef) -> MenuDialog:
 	figures.add_theme_constant_override("separation", 10)
 	var maxima: Dictionary = stat_maxima(_all_weapons())
 	for figure: Dictionary in figures_of(weapon):
-		figures.add_child(_bar_row(String(figure["caption"]), String(figure["value"]), fraction_of(String(figure["caption"]), weapon, maxima)))
+		figures.add_child(bar_row(String(figure["caption"]), String(figure["value"]), fraction_of(String(figure["caption"]), weapon, maxima)))
 	card.body.add_child(UiKit.card(figures, "inset", 16.0))
 	var blurb: String = street_games().blurb_of(weapon.street_game)
 	if not blurb.is_empty():
@@ -287,13 +287,14 @@ static func fraction_of(caption: String, weapon: WeaponDef, maxima: Dictionary) 
 	return clampf(value / top, 0.0, 1.0) if top > 0.0 else 0.0
 
 
-## One stat: its name, a bar as full as it is next to every other weapon, and the exact number.
-static func _bar_row(caption: String, value: String, fraction: float) -> Control:
+## One stat: its name, a bar as full as it is next to every other weapon, and the exact number (`compact`: a slimmer
+## row without the number, for a card that already prints its numbers).
+static func bar_row(caption: String, value: String, fraction: float, compact: bool = false) -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.name = "Stat_%s" % caption
 	row.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	var name_label: Label = UiKit.text(caption, UiMetrics.CAPTION, Color("9fb0d6"), false)
-	name_label.custom_minimum_size = Vector2(120.0, 0.0)
+	name_label.custom_minimum_size = Vector2(90.0 if compact else 120.0, 0.0)
 	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(name_label)
 	var meter: ProgressBar = ProgressBar.new()
@@ -303,7 +304,7 @@ static func _bar_row(caption: String, value: String, fraction: float) -> Control
 	meter.step = 0.001
 	meter.value = fraction
 	meter.show_percentage = false
-	meter.custom_minimum_size = Vector2(0.0, 26.0)
+	meter.custom_minimum_size = Vector2(0.0, 16.0 if compact else 26.0)
 	meter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	meter.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var track: StyleBoxFlat = StyleBoxFlat.new()
@@ -321,6 +322,7 @@ static func _bar_row(caption: String, value: String, fraction: float) -> Control
 	number.name = "Value"
 	number.text = value
 	number.custom_minimum_size = Vector2(110.0, 0.0)
+	number.visible = not compact
 	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	number.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
 	number.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
@@ -328,6 +330,21 @@ static func _bar_row(caption: String, value: String, fraction: float) -> Control
 	number.add_theme_constant_override("outline_size", 0)
 	row.add_child(number)
 	return row
+
+
+## The stat bars of `weapon` as a column of compact rows (no numbers), scaled by `maxima` (see `stat_maxima`).
+static func compact_bars(weapon: WeaponDef, maxima: Dictionary) -> VBoxContainer:
+	var column: VBoxContainer = VBoxContainer.new()
+	column.name = "Bars"
+	column.add_theme_constant_override("separation", 4)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for figure: Dictionary in figures_of(weapon):
+		var row: Control = bar_row(String(figure["caption"]), String(figure["value"]), fraction_of(String(figure["caption"]), weapon, maxima), true)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		for node: Node in row.find_children("*", "Control", true, false):
+			(node as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+		column.add_child(row)
+	return column
 
 
 static func street_games() -> StreetGames:
