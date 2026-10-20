@@ -4,6 +4,11 @@ extends Node
 ## server/README.md), or the web page's `?server=wss://...` query for testing.
 
 signal accessibility_changed
+## The on-screen controls moved or changed size (left-handed layout, control size).
+signal controls_changed
+
+## The three control sizes the player can pick: the weapon buttons and the stick are scaled by this.
+const CONTROL_SIZES: Dictionary[StringName, float] = {&"small": 0.85, &"normal": 1.0, &"large": 1.2}
 
 const SAVE_PATH: String = "user://settings.cfg"
 const PROJECT_KEY: String = "kalyeah/network/server_url"
@@ -13,6 +18,10 @@ var server_url: String = ""
 var volume: float = 1.0
 var vibration: bool = true
 var reduced_motion: bool = false
+## Mirrors the match controls: the stick on the right, the weapons on the left.
+var left_handed: bool = false
+## Size of the match controls, one of `CONTROL_SIZES`.
+var control_scale: float = 1.0
 
 var _ui_voice: AudioStreamPlayer
 
@@ -31,6 +40,9 @@ func _ready() -> void:
 		vibration = bool(file.get_value("input", "vibration", true))
 		var motion: Variant = file.get_value("accessibility", "reduced_motion", false)
 		reduced_motion = motion if motion is bool else false
+		var hand: Variant = file.get_value("input", "left_handed", false)
+		left_handed = hand if hand is bool else false
+		control_scale = nearest_control_scale(file.get_value("input", "control_scale", 1.0))
 	apply_volume()
 	if OS.has_feature("web"):
 		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
@@ -81,6 +93,34 @@ func set_volume(value: float) -> void:
 	volume = clampf(value, 0.0, 1.0)
 	apply_volume()
 	_save_value("audio", "volume", volume)
+
+
+## The allowed control size closest to `value` (anything that is not a number is the normal size).
+static func nearest_control_scale(value: Variant) -> float:
+	if not (value is float or value is int):
+		return 1.0
+	var best: float = 1.0
+	for option: float in CONTROL_SIZES.values():
+		if absf(option - float(value)) < absf(best - float(value)):
+			best = option
+	return best
+
+
+func set_left_handed(on: bool) -> void:
+	if on == left_handed:
+		return
+	left_handed = on
+	_save_value("input", "left_handed", on)
+	controls_changed.emit()
+
+
+func set_control_scale(value: float) -> void:
+	var chosen: float = nearest_control_scale(value)
+	if is_equal_approx(chosen, control_scale):
+		return
+	control_scale = chosen
+	_save_value("input", "control_scale", chosen)
+	controls_changed.emit()
 
 
 func set_vibration(on: bool) -> void:

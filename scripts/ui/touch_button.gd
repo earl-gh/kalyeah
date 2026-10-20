@@ -26,6 +26,12 @@ const TEXT_OUTLINE: int = 5
 const COOLDOWN_FONT_SIZE: int = 34
 const READY_FLASH_TIME: float = 0.45
 const READY_GLOW: Color = Color(1.0, 0.9, 0.4)
+## The ready pop: the button swells this much (a fraction) and a bright wash fades over it.
+const READY_POP: float = 0.14
+const READY_WASH: float = 0.4
+## While the cause of a block (stunned, ...) is shown the dimming is deeper, and the tag turns this colour.
+const BLOCKED_COLOR: Color = Color(0.0, 0.0, 0.0, 0.62)
+const BLOCKED_TAG: Color = Color(1.0, 0.78, 0.3)
 const COOLDOWN_COLOR: Color = Color(0.0, 0.0, 0.0, 0.45)
 const ARC_COLOR: Color = Color(1.0, 1.0, 1.0, 0.8)
 const TEXT_COLOR: Color = Color(1.0, 1.0, 1.0, 0.95)
@@ -52,6 +58,12 @@ var highlight: bool = false:
 	set(value):
 		if value != highlight:
 			highlight = value
+			queue_redraw()
+## Why the skill cannot be used right now ("STUNNED"), shown in the tag under the art. Empty = no reason to show.
+var blocked_text: String = "":
+	set(value):
+		if value != blocked_text:
+			blocked_text = value
 			queue_redraw()
 ## Brief glow when the skill becomes ready again.
 var _ready_flash: float = 0.0
@@ -84,6 +96,19 @@ func _process(delta: float) -> void:
 	if _ready_flash > 0.0:
 		_ready_flash = maxf(0.0, _ready_flash - delta)
 		queue_redraw()
+		_pop()
+
+
+## Swells the button as it becomes ready, and settles it back (not with Reduce motion).
+func _pop() -> void:
+	if Settings.reduced_motion:
+		return
+	pivot_offset = size / 2.0
+	if _ready_flash <= 0.0:
+		scale = Vector2.ONE
+		return
+	var progress: float = 1.0 - _ready_flash / READY_FLASH_TIME
+	scale = Vector2.ONE * (1.0 + READY_POP * sin(progress * PI))
 
 
 ## False while locked, or while a different skill button is being held.
@@ -138,7 +163,9 @@ func _draw() -> void:
 		draw_arc(center, radius + 3.0, 0.0, TAU, ARC_POINTS, READY_GLOW, 7.0)
 	var font: Font = KalyeahTheme.ACTION_FONT
 	if button_art != null:
-		if not sub_text.is_empty():
+		if not blocked_text.is_empty():
+			_tag(font, blocked_text, center + Vector2(0.0, radius * 0.86), BLOCKED_TAG)
+		elif not sub_text.is_empty():
 			_tag(font, sub_text, center + Vector2(0.0, radius * 0.86), sub_color)
 	elif icon_id != &"":
 		# no drawn stand-in: a missing painted button is a bug, so say so
@@ -148,7 +175,9 @@ func _draw() -> void:
 		_text(font, label_text, center + Vector2(0.0, line_shift), FONT_SIZE, TEXT_COLOR)
 		if not sub_text.is_empty():
 			_text(font, sub_text, center + Vector2(0.0, FONT_SIZE * 0.6), SMALL_FONT_SIZE, sub_color)
-	if locked or cooldown_fraction > 0.0:
+	if not blocked_text.is_empty():
+		draw_circle(center, radius, BLOCKED_COLOR)
+	elif locked or cooldown_fraction > 0.0:
 		draw_circle(center, radius, COOLDOWN_COLOR)
 	if cooldown_fraction > 0.0:
 		draw_arc(center, radius - ARC_WIDTH, -PI / 2.0, -PI / 2.0 + TAU * cooldown_fraction, ARC_POINTS, ARC_COLOR, ARC_WIDTH)
@@ -157,6 +186,7 @@ func _draw() -> void:
 		var glow: Color = READY_GLOW
 		glow.a = _ready_flash / READY_FLASH_TIME
 		draw_arc(center, radius + 4.0 + 10.0 * (1.0 - glow.a), 0.0, TAU, ARC_POINTS, glow, 6.0)
+		draw_circle(center, radius, Color(glow, glow.a * READY_WASH))
 
 
 ## A small coloured pill with the weapon type in it.

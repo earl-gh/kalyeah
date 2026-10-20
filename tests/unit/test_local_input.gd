@@ -151,11 +151,12 @@ func test_the_score_sits_at_the_top_right() -> void:
 	assert_lt(score.position.y, 200.0, "at the top")
 
 
-func test_the_menu_has_no_handedness_switch() -> void:
+func test_the_match_menu_has_no_hand_buttons_and_right_handed_is_the_default() -> void:
 	var hud: MatchHud = autofree(MatchHud.new()) as MatchHud
 	add_child(hud)
-	assert_false("left_button" in hud.menu, "controls are fixed")
-	assert_false("left_handed" in Settings)
+	assert_false("left_button" in hud.menu, "the hand is chosen in Settings, not with buttons in the match menu")
+	var fresh: Node = autofree(preload("res://scripts/autoload/settings.gd").new()) as Node
+	assert_false(fresh.get("left_handed") as bool, "right-handed until the player says otherwise")
 
 
 func test_the_stick_follows_the_turned_camera() -> void:

@@ -110,6 +110,8 @@ static func fill(parent: Control) -> void:
 		toggle.name = "VibrationToggle"
 		toggle.set_state(Settings.vibration)
 		toggle.pressed.connect(func() -> void: Settings.set_vibration(toggle.button_pressed))
-		parent.add_child(UiKit.setting_row("Vibration", "Buzz when you press a button", toggle))
+		parent.add_child(UiKit.setting_row("Vibration", "Buzz on buttons and when you are hit", toggle))
 		parent.add_child(UiKit.divider())
 	parent.add_child(AccessibilityOptions.new())
+	parent.add_child(UiKit.divider())
+	parent.add_child(ControlOptions.new())
