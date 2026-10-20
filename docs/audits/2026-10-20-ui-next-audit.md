@@ -72,6 +72,9 @@ results card, dialogs and loadout all wear the skin.
 
 ## Plan
 
+> **Superseded by [the UI roadmap](2026-10-20-ui-roadmap.md)**, which is written around screens and player
+> experience and folds these fixes in. This first plan is kept as it was.
+
 Four pull requests, in this order. Each is a meaningful chunk with tests; only the last needs a phone.
 
 | # | Chunk | Fixes | How it is verified |
