@@ -40,6 +40,7 @@ const MAX_ROWS: int = 3
 
 var online_room: bool = false
 var code_label: Label
+var code_boxes: UiCodeBoxes
 var code_row: HBoxContainer
 var copy_button: Button
 var _copy_timer: Timer
@@ -262,6 +263,7 @@ func show_room(room: Dictionary, my_id: int) -> void:
 		if member["player_id"] == my_id:
 			me = member
 	code_label.text = String(room.get("code", "")) if online_room else ""
+	code_boxes.set_text(code_label.text)
 	code_row.visible = online_room
 	copy_button.text = "Copy"
 	_copy_timer.stop()
@@ -352,6 +354,7 @@ func clear_room() -> void:
 	action_button.visible = false
 	readiness_label.text = ""
 	code_label.text = ""
+	code_boxes.set_text("")
 	code_row.hide()
 	_copy_timer.stop()
 

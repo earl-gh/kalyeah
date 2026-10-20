@@ -46,13 +46,15 @@ static func code_row(view: HotspotRoomView) -> HBoxContainer:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.name = "RoomCode"
 	row.add_theme_constant_override("separation", UiMetrics.GAP)
-	var caption: Label = LobbyWidgets.label("Code", UiMetrics.DETAIL, KalyeahTheme.TEXT_MUTED)
-	row.add_child(caption)
+	# the code as a Label for the screen and its tests (hidden), and as boxes for people
 	view.code_label = LobbyWidgets.label("", UiMetrics.BODY, KalyeahTheme.TEXT)
 	view.code_label.name = "Code"
-	view.code_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	view.code_label.add_theme_font_override("font", KalyeahTheme.DISPLAY_FONT)
+	view.code_label.visible = false
 	row.add_child(view.code_label)
+	view.code_boxes = UiCodeBoxes.new(8, "", false)
+	view.code_boxes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	view.code_boxes.custom_minimum_size = Vector2(0.0, 76.0)
+	row.add_child(view.code_boxes)
 	view.copy_button = MenuDialog.make_button("Copy", "grey", UiMetrics.ACTION, Vector2(128.0, UiMetrics.TOUCH))
 	view.copy_button.tooltip_text = "Copy room code"
 	view.copy_button.pressed.connect(view.copy_code)

@@ -36,6 +36,7 @@ var _setup_status: Label
 var _code_error: Label
 var _name_edit: LineEdit
 var _code_edit: LineEdit
+var _code_boxes: UiCodeBoxes
 var _size_buttons: Array[Button] = []
 var _go_button: Button
 var _status: Label
@@ -139,10 +140,12 @@ func submit() -> void:
 	if intent == Intent.CREATE:
 		_pending = client.create_room.bind(_team_size)
 	else:
-		var code: String = _code_edit.text.strip_edges().to_upper()
+		var code: String = _code_boxes.clean(_code_edit.text)
 		if code.length() != NET_RULES.passcode_length:
 			_code_error.text = "Enter all %d characters." % NET_RULES.passcode_length
 			_code_error.show()
+			UiStatusStrip.style(_code_error, "error")
+			_code_boxes.set_error(true)
 			_code_edit.grab_focus()
 			return
 		_code_error.hide()
@@ -258,6 +261,15 @@ func _on_welcomed(reconnected: bool) -> void:
 
 func _on_error(text: String) -> void:
 	_set_status(text)
+	# a refused join marks the code itself: the boxes turn red until it is edited
+	if _code_boxes != null and client.room.is_empty():
+		_code_boxes.set_error(true)
+		_code_error.text = text
+		_code_error.show()
+		UiStatusStrip.style(_code_error, UiStatusStrip.kind_of(text))
+		if _status == _setup_status:
+			_status.text = ""
+			_status.visible = false
 	if _room_view != null and client.room.is_empty():
 		_room_view.show_retry()
 
@@ -418,6 +430,25 @@ func _current_room() -> Dictionary:
 
 func _build() -> void:
 	LobbyOnlineLayout.new(self).build()
+
+
+## Fills the boxes from the clipboard (the code a friend sent): capitals only, the code alphabet only. `clipboard`
+## replaces the real clipboard (tests).
+func paste_code(clipboard: Variant = null) -> void:
+	if _code_boxes == null:
+		return
+	var raw: String = clipboard as String if clipboard is String else DisplayServer.clipboard_get()
+	var value: String = _code_boxes.clean(raw)
+	if value.is_empty():
+		UiToast.say(self, "Nothing to paste. Copy the room code first.", "info")
+		return
+	_code_boxes.set_text(value)
+	_code_boxes.set_error(false)
+	_code_error.hide()
+	if value.length() == NET_RULES.passcode_length:
+		UiToast.say(self, "Code pasted")
+	else:
+		UiToast.say(self, "Pasted %d of %d characters" % [value.length(), NET_RULES.passcode_length], "warn")
 
 
 func _set_status(text: String) -> void:
