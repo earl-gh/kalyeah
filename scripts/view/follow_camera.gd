@@ -20,6 +20,8 @@ const FAR: float = 170.0
 var _shake: float = 0.0
 var _placed: bool = false
 var _flip: bool = false
+## The camera's turn right now (CameraRules.yaw_for, eased as the hero crosses the street): stick and aim read it.
+var _yaw: float = 0.0
 
 
 func _ready() -> void:
@@ -60,22 +62,28 @@ func distance() -> float:
 	return rules.distance(screen_aspect())
 
 
-## Where the camera wants to be for a hero at `world_pos`.
-func desired_position(world_pos: Vector2, flip: bool) -> Vector3:
-	var target: Vector2 = rules.camera_target(world_pos, flip, distance())
-	return Vector3(target.x, 0.0, target.y) + rules.camera_offset(distance(), flip)
+## The camera's turn (degrees, without the other team's half turn) right now: screen directions follow it.
+func yaw_offset() -> float:
+	return _yaw
+
+
+## Where the camera wants to be for a hero at `world_pos`, turned by `yaw` (default: where it should be for that spot).
+func desired_position(world_pos: Vector2, flip: bool, yaw: float = NAN) -> Vector3:
+	var turn: float = rules.yaw_for(world_pos.x, flip) if is_nan(yaw) else yaw
+	var target: Vector2 = rules.camera_target(world_pos, flip, distance(), turn)
+	return Vector3(target.x, 0.0, target.y) + rules.camera_offset(distance(), flip, turn)
 
 
 ## `delta` 0 snaps straight to the target.
 func follow(world_pos: Vector2, flip: bool, delta: float = 0.0) -> void:
-	var desired: Vector3 = desired_position(world_pos, flip)
-	if not _placed or flip != _flip or delta <= 0.0:
-		position = desired
-	else:
-		position = position.lerp(desired, rules.follow_weight(delta))
+	var wanted_yaw: float = rules.yaw_for(world_pos.x, flip)
+	var snap: bool = not _placed or flip != _flip or delta <= 0.0
+	_yaw = wanted_yaw if snap else lerpf(_yaw, wanted_yaw, rules.follow_weight(delta))
+	var desired: Vector3 = desired_position(world_pos, flip, _yaw)
+	position = desired if snap else position.lerp(desired, rules.follow_weight(delta))
 	_placed = true
 	_flip = flip
-	rotation_degrees = Vector3(-rules.pitch_degrees, rules.yaw_degrees(flip), 0.0)
+	rotation_degrees = Vector3(-rules.pitch_degrees, rules.yaw_degrees(flip, _yaw), 0.0)
 
 
 ## A fixed cinematic shot (the opening show): stand at `eye` looking at `target`.

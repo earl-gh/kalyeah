@@ -19,7 +19,7 @@ func _init(owner: PracticeMatch) -> void:
 
 
 func setup_hud() -> void:
-	owner.input.camera_yaw = owner._camera.rules.yaw_offset_degrees
+	owner.input.camera_yaw = owner._camera.yaw_offset()
 	Cinematic.add_lens(owner, owner._camera.rules.lens_k())
 	Cinematic.add_film_finish(owner)
 	owner.hud.overhead.setup(owner.sim, owner._camera, owner.local_id, owner.local_team)
@@ -92,6 +92,8 @@ func sync(delta: float) -> void:
 		target = owner.sim.players[owner.watch_id].position
 	owner._camera.follow(target, owner._flip(), 0.0 if owner._snap_camera else delta)
 	owner._snap_camera = false
+	# what is on screen decides what a push of the stick or a drag of the aim means
+	owner.input.camera_yaw = owner._camera.yaw_offset()
 
 
 func make_actor_view(state: PlayerState) -> void:

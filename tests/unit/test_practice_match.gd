@@ -140,7 +140,7 @@ func test_pushing_the_stick_up_runs_up_the_screen() -> void:
 	practice.hud.joystick.changed.emit(Vector2(0.0, -1.0))
 	for i: int in 30:
 		practice.advance(DT)
-	var ran: Vector2 = LocalInput.to_screen(player.position - start, practice._flip(), CAMERA.yaw_offset_degrees)
+	var ran: Vector2 = LocalInput.to_screen(player.position - start, practice._flip(), practice._camera.yaw_offset())
 	assert_lt(ran.y, -3.0, "toward the top of the screen")
 	assert_almost_eq(ran.x, 0.0, 0.3, "straight up the screen (the world direction turns with the camera's yaw)")
 	practice.hud.joystick.changed.emit(Vector2.ZERO)
@@ -149,6 +149,23 @@ func test_pushing_the_stick_up_runs_up_the_screen() -> void:
 	for i: int in 10:
 		practice.advance(DT)
 	assert_eq(player.position, at, "let go: standing still")
+
+
+func test_the_controls_use_the_yaw_that_is_on_screen_at_the_curb_too() -> void:
+	var practice: PracticeMatch = _practice()
+	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
+	player.position = Vector2(-9.0, 10.0)
+	practice._snap_camera = true
+	practice.advance(DT)
+	assert_almost_eq(practice.input.camera_yaw, practice._camera.yaw_offset(), 0.0001, "the stick reads what the camera shows")
+	assert_lt(practice._camera.yaw_offset(), -3.0, "leaning left at the left curb")
+	var start: Vector2 = player.position
+	practice.hud.joystick.changed.emit(Vector2(0.0, -1.0))
+	for i: int in 6:
+		practice.advance(DT)
+	var ran: Vector2 = LocalInput.to_screen(player.position - start, practice._flip(), practice._camera.yaw_offset())
+	assert_lt(ran.y, -0.5, "up the screen")
+	assert_lt(absf(ran.x), 0.15, "straight up the screen, not drifting to a side")
 
 
 func test_match_waits_on_the_opening_weapon_pick() -> void:
@@ -566,7 +583,7 @@ func test_skill_buttons_are_art_with_only_the_type_tag() -> void:
 ## The screen direction (stick or drag) that heads straight for the enemy base.
 func _toward_enemy(practice: PracticeMatch) -> Vector2:
 	var flip: bool = practice.own_side() == MapLayout.SIDE_ENEMY
-	return LocalInput.to_screen(Vector2(0.0, -float(practice.own_side())), flip, CAMERA.yaw_offset_degrees)
+	return LocalInput.to_screen(Vector2(0.0, -float(practice.own_side())), flip, practice._camera.yaw_offset())
 
 
 func test_a_spinner_and_countdown_show_while_holding_the_enemy_base() -> void:

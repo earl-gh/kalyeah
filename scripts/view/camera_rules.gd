@@ -17,11 +17,15 @@ const LENS_K_AT_FULL: float = 0.5
 ## The design screen: portrait 9:16.
 const DESIGN_ASPECT: float = 9.0 / 16.0
 
-## The camera sits behind and a little to the left of the hero (negative = left, positive =
-## right): it is turned this many degrees around the hero (a slight -8 degrees, which also
-## looks a little toward the enemy base's side of the street: enough to see the sides of props and houses
-## and lose the look of a straight corridor, not enough to favour one curb).
+## The camera's turn around the hero when the hero is in the middle of the street (0 = straight behind).
 @export var yaw_offset_degrees: float = 0.0
+## The camera leans toward the side the hero is on, so it always looks a little inward, across the
+## street: this many degrees at the curb (negative on the left of the screen, positive on the right),
+## easing to 0 in the middle. Enough to see the sides of props and houses and lose the look of a
+## straight corridor, not enough to favour one curb.
+@export var yaw_side_degrees: float = 0.0
+## The distance from the middle of the street (metres) at which the lean is at its full `yaw_side_degrees`.
+@export var yaw_side_reach: float = 12.0
 ## Pitch from horizontal, in degrees.
 @export var pitch_degrees: float = 0.0
 ## The wide curve lens (0 = none, 0.5 = the owner's setting): distortion over the 3D view (negative = concave)
@@ -60,19 +64,28 @@ func distance(aspect: float) -> float:
 	return visible_width / (2.0 * tan(deg_to_rad(vfov_degrees / 2.0)) * clamped)
 
 
+## The camera's turn (without the half turn of the other team) for a hero standing at world x
+## `world_x`: `yaw_offset_degrees` plus a lean toward the side of the screen the hero is on, easing
+## from 0 in the middle to `yaw_side_degrees` at `yaw_side_reach` metres out. The other team sees the
+## street turned half way round, so its left of the screen is world +x.
+func yaw_for(world_x: float, flip: bool) -> float:
+	var across: float = clampf((-world_x if flip else world_x) / maxf(yaw_side_reach, 0.001), -1.0, 1.0)
+	return yaw_offset_degrees + yaw_side_degrees * signf(across) * smoothstep(0.0, 1.0, absf(across))
+
+
 ## Camera position relative to the target. Own side (+Z, no flip) looks toward -Z,
-## so the camera sits behind on the +Z side (and `yaw_offset_degrees` to the right when positive, to the left when negative);
-## the other team is mirrored.
-func camera_offset(camera_distance: float, flip: bool) -> Vector3:
+## so the camera sits behind on the +Z side (and `yaw_offset` to the right when positive, to the left
+## when negative); the other team is turned half way round. `yaw_offset` defaults to the middle-of-street yaw.
+func camera_offset(camera_distance: float, flip: bool, yaw_offset: float = NAN) -> Vector3:
 	var pitch: float = deg_to_rad(pitch_degrees)
 	var back: float = camera_distance * cos(pitch)
-	var yaw: float = deg_to_rad(yaw_degrees(flip))
+	var yaw: float = deg_to_rad(yaw_degrees(flip, yaw_offset))
 	return Vector3(back * sin(yaw), camera_distance * sin(pitch), back * cos(yaw))
 
 
 ## The camera's turn around the vertical axis (0 = looking straight down -Z).
-func yaw_degrees(flip: bool) -> float:
-	return yaw_offset_degrees + (180.0 if flip else 0.0)
+func yaw_degrees(flip: bool, yaw_offset: float = NAN) -> float:
+	return (yaw_offset_degrees if is_nan(yaw_offset) else yaw_offset) + (180.0 if flip else 0.0)
 
 
 ## Ground distance (m) from the aim point to the place that shows `screen_y` of the
@@ -100,14 +113,14 @@ func look_ahead(camera_distance: float) -> float:
 ## Where the camera aims: straight on the hero, moved ahead toward the enemy base so the
 ## hero sits at `player_screen_y`. Nothing about the map holds it back (the hero is the one
 ## limited by the play area), so it follows the hero all the way to every edge.
-func camera_target(world_pos: Vector2, flip: bool, camera_distance: float) -> Vector2:
-	return world_pos + ground_forward(flip) * look_ahead(camera_distance)
+func camera_target(world_pos: Vector2, flip: bool, camera_distance: float, yaw_offset: float = NAN) -> Vector2:
+	return world_pos + ground_forward(flip, yaw_offset) * look_ahead(camera_distance)
 
 
 ## The direction the camera looks along the ground (x, z): toward the enemy base, turned with the yaw, so the
 ## hero stays on the screen's centre line.
-func ground_forward(flip: bool) -> Vector2:
-	var yaw: float = deg_to_rad(yaw_degrees(flip))
+func ground_forward(flip: bool, yaw_offset: float = NAN) -> Vector2:
+	var yaw: float = deg_to_rad(yaw_degrees(flip, yaw_offset))
 	return Vector2(-sin(yaw), -cos(yaw))
 
 

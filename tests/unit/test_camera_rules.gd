@@ -8,7 +8,8 @@ const PHONE: float = 720.0 / 1280.0
 func test_a_fixed_moba_angle_with_a_moderate_perspective_lens() -> void:
 	assert_eq(CAMERA.pitch_degrees, 42.0, "high enough to read the ground, low enough to see the kids' faces")
 	assert_eq(CAMERA.vfov_degrees, 60.0, "a moderate lens: little stretch at the edges, so little to get used to")
-	assert_eq(CAMERA.yaw_offset_degrees, -8.0, "a slight yaw to the left (it looks a little toward the enemy base's side): the sides of props and houses show, the street stops looking like a corridor")
+	assert_eq(CAMERA.yaw_offset_degrees, 0.0, "straight behind in the middle of the street")
+	assert_eq(CAMERA.yaw_side_degrees, 8.0, "leaning 8 degrees toward the side the hero is on: the sides of props and houses show, the street stops looking like a corridor")
 	assert_eq(CameraRules.DESIGN_ASPECT, 9.0 / 16.0, "portrait 9:16")
 
 
@@ -37,18 +38,19 @@ func test_aspect_is_kept_in_a_sane_range() -> void:
 
 
 func test_offset_sits_behind_and_above_the_target() -> void:
-	var offset: Vector3 = CAMERA.camera_offset(20.0, false)
+	var offset: Vector3 = CAMERA.camera_offset(20.0, false, 8.0)
 	assert_almost_eq(offset.y, 20.0 * sin(deg_to_rad(CAMERA.pitch_degrees)), 0.001)
 	var back: float = 20.0 * cos(deg_to_rad(CAMERA.pitch_degrees))
 	assert_almost_eq(Vector2(offset.x, offset.z).length(), back, 0.001)
 	assert_gt(offset.z, 0.0, "own side: camera behind on +Z, looking toward -Z")
-	assert_eq(signf(offset.x), signf(CAMERA.yaw_offset_degrees), "to the side the yaw says")
-	assert_almost_eq(rad_to_deg(atan2(offset.x, offset.z)), CAMERA.yaw_offset_degrees, 0.001)
+	assert_gt(offset.x, 0.0, "a positive yaw puts the camera on the right")
+	assert_lt(CAMERA.camera_offset(20.0, false, -8.0).x, 0.0, "a negative one on the left")
+	assert_almost_eq(rad_to_deg(atan2(offset.x, offset.z)), 8.0, 0.001)
 
 
 func test_other_team_view_is_mirrored() -> void:
-	var own: Vector3 = CAMERA.camera_offset(20.0, false)
-	var other: Vector3 = CAMERA.camera_offset(20.0, true)
+	var own: Vector3 = CAMERA.camera_offset(20.0, false, 8.0)
+	var other: Vector3 = CAMERA.camera_offset(20.0, true, 8.0)
 	assert_almost_eq(other.z, -own.z, 0.0001)
 	assert_almost_eq(other.x, -own.x, 0.0001)
 	assert_almost_eq(other.y, own.y, 0.0001)
@@ -172,9 +174,51 @@ func test_the_hero_stays_on_the_screens_centre_line_with_the_yaw() -> void:
 	# the aim point is `ahead` metres along the way the camera looks: the hero is straight below the middle of the screen
 	var reach: float = CAMERA.distance(PHONE)
 	for flip: bool in [false, true]:
-		var hero: Vector2 = Vector2(3.0, 5.0)
-		var target: Vector2 = CAMERA.camera_target(hero, flip, reach)
-		var camera: Vector2 = target + Vector2(CAMERA.camera_offset(reach, flip).x, CAMERA.camera_offset(reach, flip).z)
-		var view: Vector2 = (target - camera).normalized()
-		var to_hero: Vector2 = (hero - camera).normalized()
-		assert_almost_eq(view.cross(to_hero), 0.0, 0.0001, "hero on the line the camera looks along (flip %s)" % flip)
+		for turn: float in [-8.0, 0.0, 5.0, 8.0]:
+			var hero: Vector2 = Vector2(3.0, 5.0)
+			var target: Vector2 = CAMERA.camera_target(hero, flip, reach, turn)
+			var offset: Vector3 = CAMERA.camera_offset(reach, flip, turn)
+			var camera: Vector2 = target + Vector2(offset.x, offset.z)
+			var view: Vector2 = (target - camera).normalized()
+			var to_hero: Vector2 = (hero - camera).normalized()
+			assert_almost_eq(view.cross(to_hero), 0.0, 0.0001, "hero on the line the camera looks along (flip %s, yaw %.0f)" % [flip, turn])
+
+
+# ---- the lean toward the side the hero is on ---------------------------------------------
+
+func test_the_camera_leans_toward_the_side_the_hero_is_on_and_eases_in_the_middle() -> void:
+	assert_almost_eq(CAMERA.yaw_for(0.0, false), 0.0, 0.0001, "straight in the middle")
+	assert_almost_eq(CAMERA.yaw_for(-CAMERA.yaw_side_reach, false), -8.0, 0.0001, "left curb: -8")
+	assert_almost_eq(CAMERA.yaw_for(CAMERA.yaw_side_reach, false), 8.0, 0.0001, "right curb: +8")
+	assert_almost_eq(CAMERA.yaw_for(-99.0, false), -8.0, 0.0001, "never more than the full lean")
+	var last: float = CAMERA.yaw_for(-12.0, false)
+	for x: float in [-9.0, -6.0, -3.0, 0.0, 3.0, 6.0, 9.0, 12.0]:
+		var now: float = CAMERA.yaw_for(x, false)
+		assert_gt(now, last, "it turns steadily from the left to the right (x %.0f)" % x)
+		last = now
+	assert_lt(absf(CAMERA.yaw_for(1.0, false)), 0.2, "a step to the side hardly turns it (it eases in)")
+
+
+func test_the_other_team_leans_the_same_way_on_its_own_screen() -> void:
+	# its left of the screen is world +x: the same lean on the same side of the screen
+	assert_almost_eq(CAMERA.yaw_for(CAMERA.yaw_side_reach, true), -8.0, 0.0001, "left of its screen")
+	assert_almost_eq(CAMERA.yaw_for(-CAMERA.yaw_side_reach, true), 8.0, 0.0001, "right of its screen")
+
+
+func test_the_follow_camera_eases_its_turn_as_the_hero_crosses_and_snaps_when_told() -> void:
+	var camera: FollowCamera = autofree(FollowCamera.new()) as FollowCamera
+	camera.rules = CAMERA
+	camera.layout = LAYOUT
+	add_child(camera)
+	camera.follow(Vector2(-10.0, 0.0), false)
+	assert_almost_eq(camera.yaw_offset(), CAMERA.yaw_for(-10.0, false), 0.0001, "placed straight away")
+	camera.follow(Vector2(10.0, 0.0), false, 1.0 / 30.0)
+	var after_one_frame: float = camera.yaw_offset()
+	assert_gt(after_one_frame, CAMERA.yaw_for(-10.0, false), "it has started to turn")
+	assert_lt(after_one_frame, CAMERA.yaw_for(10.0, false), "but not jumped")
+	for i: int in 120:
+		camera.follow(Vector2(10.0, 0.0), false, 1.0 / 30.0)
+	assert_almost_eq(camera.yaw_offset(), CAMERA.yaw_for(10.0, false), 0.05, "and it gets there")
+	assert_almost_eq(camera.rotation_degrees.y, camera.yaw_offset(), 0.001, "what you see is the yaw the controls use")
+	camera.follow(Vector2(-10.0, 0.0), false)
+	assert_almost_eq(camera.yaw_offset(), CAMERA.yaw_for(-10.0, false), 0.0001, "delta 0 snaps")
