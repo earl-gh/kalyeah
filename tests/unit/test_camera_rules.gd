@@ -8,7 +8,7 @@ const PHONE: float = 720.0 / 1280.0
 func test_a_fixed_moba_angle_with_a_moderate_perspective_lens() -> void:
 	assert_eq(CAMERA.pitch_degrees, 42.0, "high enough to read the ground, low enough to see the kids' faces")
 	assert_eq(CAMERA.vfov_degrees, 60.0, "a moderate lens: little stretch at the edges, so little to get used to")
-	assert_eq(CAMERA.yaw_offset_degrees, 8.0, "a slight yaw: the sides of props and houses show, the street stops looking like a corridor")
+	assert_eq(CAMERA.yaw_offset_degrees, -8.0, "a slight yaw to the left (it looks a little toward the enemy base's side): the sides of props and houses show, the street stops looking like a corridor")
 	assert_eq(CameraRules.DESIGN_ASPECT, 9.0 / 16.0, "portrait 9:16")
 
 
@@ -42,7 +42,7 @@ func test_offset_sits_behind_and_above_the_target() -> void:
 	var back: float = 20.0 * cos(deg_to_rad(CAMERA.pitch_degrees))
 	assert_almost_eq(Vector2(offset.x, offset.z).length(), back, 0.001)
 	assert_gt(offset.z, 0.0, "own side: camera behind on +Z, looking toward -Z")
-	assert_gte(offset.x, 0.0, "never to the left of the hero")
+	assert_eq(signf(offset.x), signf(CAMERA.yaw_offset_degrees), "to the side the yaw says")
 	assert_almost_eq(rad_to_deg(atan2(offset.x, offset.z)), CAMERA.yaw_offset_degrees, 0.001)
 
 

@@ -17,8 +17,9 @@ const LENS_K_AT_FULL: float = 0.5
 ## The design screen: portrait 9:16.
 const DESIGN_ASPECT: float = 9.0 / 16.0
 
-## The camera sits behind and a little to the right of the hero: it is turned this many
-## degrees around the hero (a slight 8 degrees: enough to see the sides of props and houses
+## The camera sits behind and a little to the left of the hero (negative = left, positive =
+## right): it is turned this many degrees around the hero (a slight -8 degrees, which also
+## looks a little toward the enemy base's side of the street: enough to see the sides of props and houses
 ## and lose the look of a straight corridor, not enough to favour one curb).
 @export var yaw_offset_degrees: float = 0.0
 ## Pitch from horizontal, in degrees.
@@ -60,7 +61,7 @@ func distance(aspect: float) -> float:
 
 
 ## Camera position relative to the target. Own side (+Z, no flip) looks toward -Z,
-## so the camera sits behind on the +Z side (and `yaw_offset_degrees` to the right);
+## so the camera sits behind on the +Z side (and `yaw_offset_degrees` to the right when positive, to the left when negative);
 ## the other team is mirrored.
 func camera_offset(camera_distance: float, flip: bool) -> Vector3:
 	var pitch: float = deg_to_rad(pitch_degrees)
