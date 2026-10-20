@@ -7,9 +7,11 @@ extends ScrollContainer
 signal profile_pressed
 signal quit_pressed
 signal gallery_pressed
+signal howto_pressed
 
 var profile_button: Button
 var gallery_button: Button
+var howto_button: Button
 var quit_button: Button
 var name_label: Label
 var face: TextureRect
@@ -34,6 +36,10 @@ func _ready() -> void:
 	fill(rows)
 	preferences.add_child(UiKit.card(rows))
 	_content.add_child(preferences)
+	howto_button = MenuDialog.make_button("How to play", "grey", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
+	howto_button.name = "HowToButton"
+	howto_button.pressed.connect(howto_pressed.emit)
+	_content.add_child(howto_button)
 	gallery_button = MenuDialog.make_button("UI gallery", "grey", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
 	gallery_button.name = "GalleryButton"
 	gallery_button.pressed.connect(gallery_pressed.emit)

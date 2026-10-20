@@ -64,6 +64,7 @@ var weapons_page: WeaponsPage:
 var history_page: HistoryPage
 var settings_page: SettingsPage
 var gallery_page: UiGallery
+var howto_page: HowToPlayPage
 
 var _loading: bool = false
 var _loading_dots: Label
@@ -253,7 +254,8 @@ func _build_pages() -> void:
 	history_page = HistoryPage.new()
 	settings_page = SettingsPage.new()
 	gallery_page = UiGallery.new()
-	pages = {&"codex": codex_page, &"history": history_page, &"settings": settings_page, &"gallery": gallery_page}
+	howto_page = HowToPlayPage.new()
+	pages = {&"codex": codex_page, &"history": history_page, &"settings": settings_page, &"gallery": gallery_page, &"howto": howto_page}
 	for id: StringName in pages:
 		var page: Control = pages[id]
 		page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -264,6 +266,8 @@ func _build_pages() -> void:
 	settings_page.profile_pressed.connect(open_name_editor)
 	settings_page.quit_pressed.connect(open_quit_confirm)
 	settings_page.gallery_pressed.connect(open_page.bind(&"gallery"))
+	settings_page.howto_pressed.connect(open_page.bind(&"howto"))
+	howto_page.walkthrough_requested.connect(start_walkthrough)
 
 
 func _on_tab_pressed(id: StringName) -> void:
@@ -286,8 +290,8 @@ func open_page(id: StringName) -> void:
 		codex_page.show_tab(codex_page.current)
 	_home.visible = false
 	_top_bar.visible = false
-	# the gallery is a part of Settings: that tab stays lit and opens it again
-	tab_bar.set_active(&"settings" if id == &"gallery" else id)
+	# the gallery and How to play are parts of Settings: that tab stays lit and opens it again
+	tab_bar.set_active(&"settings" if id == &"gallery" or id == &"howto" else id)
 	_fade_in(pages[id])
 
 
@@ -455,6 +459,9 @@ func _on_accessibility_changed() -> void:
 func _on_practice_pressed() -> void:
 	if _loading:
 		return
+	# the first practice match opens with the walkthrough
+	if not Session.coach_seen:
+		Session.coach_pending = true
 	_loading = true
 	_show_loading("Getting the street ready")
 	ResourceLoader.load_threaded_request(PRACTICE_SCENE)
@@ -603,3 +610,9 @@ func _notification(what: int) -> void:
 			dialog.close()
 		else:
 			_go_back()
+
+
+## How to play, "Practice with the walkthrough": a practice match that opens with the four steps again.
+func start_walkthrough() -> void:
+	Session.coach_pending = true
+	_on_practice_pressed()

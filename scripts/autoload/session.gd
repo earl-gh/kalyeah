@@ -20,6 +20,10 @@ var lobby_code: String = ""
 var lobby_preview: bool = false
 ## The mode card chosen on the main screen (an index into TitleScreen.MODES); Hotspot by default.
 var menu_mode: int = 0
+## True once the first-run walkthrough has been finished or skipped (saved).
+var coach_seen: bool = false
+## Set (not saved) when the next practice match should open with the walkthrough: the first one, or a replay.
+var coach_pending: bool = false
 var reconnect_token: String = ""
 var reconnect_url: String = ""
 
@@ -29,6 +33,7 @@ func _ready() -> void:
 	if file.load(SAVE_PATH) == OK:
 		player_name = file.get_value("player", "name", "") as String
 		avatar_id = file.get_value("player", "avatar", "") as String
+		coach_seen = file.get_value("player", "coach_seen", false) as bool
 		var stored: Variant = file.get_value("player", "loadout", [])
 		if stored is Array or stored is PackedStringArray:
 			for id: Variant in stored:
@@ -42,6 +47,7 @@ func save() -> void:
 	var file: ConfigFile = ConfigFile.new()
 	file.set_value("player", "name", player_name)
 	file.set_value("player", "avatar", avatar_id)
+	file.set_value("player", "coach_seen", coach_seen)
 	file.set_value("player", "loadout", saved_loadout)
 	file.set_value("match", "token", reconnect_token)
 	file.set_value("match", "url", reconnect_url)

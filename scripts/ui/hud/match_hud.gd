@@ -68,6 +68,7 @@ var swap_button: Button
 var hurt_button: Button
 var again_button: Button
 var results: MatchResults
+var coach: CoachMarks
 ## What the results card says the match was ("Practice", "Hotspot", "Online").
 var results_mode: String = "Practice"
 ## Big countdown in the middle while a capture is running.
@@ -293,6 +294,8 @@ func _build() -> void:
 	tagged_panel.swap_pressed.connect(swap_pressed.emit)
 	tagged_panel.watch_requested.connect(watch_requested.emit)
 	MatchHudTop.build_intro(self)
+	coach = CoachMarks.new(self)
+	add_child(coach)
 	# last, so it draws over the skill buttons
 	menu = MatchMenu.new()
 	add_child(menu)

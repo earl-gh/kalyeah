@@ -113,6 +113,24 @@ func _controls() -> Control:
 	var segmented: UiSegmented = UiSegmented.new([{"id": &"a", "label": "One"}, {"id": &"b", "label": "Two"}], 68.0)
 	segmented.select(&"a", false)
 	column.add_child(segmented)
+	for sample: Dictionary in [{"label": "Room code boxes: empty, typing, wrong, shown", "text": ""}]:
+		column.add_child(UiKit.text(String(sample["label"]), UiMetrics.CAPTION, KalyeahTheme.TEXT_MUTED, false))
+	var empty: UiCodeBoxes = UiCodeBoxes.new(8, "ABCDEFGHJKMNPQRSTUVWXYZ23456789")
+	empty.name = "CodeEmpty"
+	column.add_child(empty)
+	var typing: UiCodeBoxes = UiCodeBoxes.new(8, "ABCDEFGHJKMNPQRSTUVWXYZ23456789")
+	typing.name = "CodeTyping"
+	typing.set_text("ABC23")
+	column.add_child(typing)
+	var wrong: UiCodeBoxes = UiCodeBoxes.new(8, "ABCDEFGHJKMNPQRSTUVWXYZ23456789")
+	wrong.name = "CodeWrong"
+	wrong.set_text("ABC234X")
+	wrong.set_error(true)
+	column.add_child(wrong)
+	var shown: UiCodeBoxes = UiCodeBoxes.new(8, "", false)
+	shown.name = "CodeShown"
+	shown.set_text("K7M2Q9XA")
+	column.add_child(shown)
 	var field: LineEdit = LineEdit.new()
 	field.placeholder_text = "A text field"
 	field.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)

@@ -70,22 +70,20 @@ func _build_setup(parent: Control) -> void:
 		screen.choose_size(1)
 	elif not screen.hotspot:
 		screen._setup.add_child(LobbyWidgets.field_label("Room code"))
-		screen._code_edit = LobbyWidgets.edit("", "ABC234XY", screen.FONT)
-		screen._code_edit.max_length = screen.NET_RULES.passcode_length
-		screen._code_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
-		screen._code_edit.add_theme_font_override("font", KalyeahTheme.DISPLAY_FONT)
-		screen._code_edit.add_theme_font_size_override("font_size", screen.BIG_FONT)
-		screen._code_edit.text_changed.connect(func(text: String) -> void:
-			var caret: int = screen._code_edit.caret_column
-			screen._code_edit.text = text.to_upper()
-			screen._code_edit.caret_column = caret)
-		screen._setup.add_child(screen._code_edit)
+		screen._code_boxes = UiCodeBoxes.new(screen.NET_RULES.passcode_length, screen.NET_RULES.passcode_alphabet)
+		screen._code_edit = screen._code_boxes.edit
+		screen._setup.add_child(screen._code_boxes)
+		var paste: Button = LobbyWidgets.button("Paste the code", screen.paste_code, "grey", UiMetrics.DETAIL)
+		paste.name = "PasteButton"
+		paste.custom_minimum_size = Vector2(0.0, 72.0)
+		screen._setup.add_child(paste)
 		screen._code_error = LobbyWidgets.label("", UiMetrics.DETAIL, KalyeahTheme.ERROR)
 		screen._code_error.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		screen._code_error.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		screen._code_error.hide()
 		screen._setup.add_child(screen._code_error)
-		screen._code_edit.text_changed.connect(func(_text: String) -> void: screen._code_error.hide())
+		screen._code_boxes.changed.connect(func(_text: String) -> void: screen._code_error.hide())
+		screen._code_boxes.completed.connect(func(_text: String) -> void: screen._go_button.grab_focus())
 	screen._go_button = LobbyWidgets.button("Create room" if screen.intent == screen.Intent.CREATE else "Join room", screen.submit, "orange")
 	screen._go_button.custom_minimum_size = Vector2(0, 96)
 	screen._setup.add_child(screen._go_button)
