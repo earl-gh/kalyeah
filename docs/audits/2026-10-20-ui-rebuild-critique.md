@@ -150,3 +150,32 @@ Self-critique of this pass:
 - **Still missing:** a weapon's effect (stun length, slow strength) is not shown, only the three numbers. The
   numbers live in `data/weapons/*.tres`, so adding it is a data-driven change; I left it so the sheet stays
   readable.
+
+---
+
+# Round 4: weapons in two categories
+
+The owner asked for the weapons to be categorised two ways: by the street game each is inspired by, and by
+weapon type (attack, block, crowd control, heal). The round-3 kind filter covered only the second. The page now
+has a **By game | By type** switch over **headed sections** (`BATO-BATO-PIK · 6`, `ATTACK · 6`) of two-column
+tiles; each tile shows the *other* axis as its chip (the type under a game, the game under a type), and the
+detail sheet shows both. Games come in the order they first appear in the rules, types in the order of the
+`Kind` enum, so adding a weapon to `data/weapons/` files it under the right section with no code change.
+
+![by game and by type](images/ui-rebuild-weapons-groups.png)
+
+I chose grouped sections over two stacked filter rows: with 14 weapons and 5 games a filter hides most of the
+list and the player has to know what to look for, while sections show the whole set and where each belongs.
+
+Self-critique:
+
+- **Scroll position leaked between views.** The first version opened "By type" halfway down the list, because it
+  kept the offset of "By game". It now starts at the top of the new grouping (pinned by a test).
+- **Two stacked blue switches competed** with the Characters | Weapons one. The grouping switch is a size
+  smaller (68 px, still a thumb target) so the book's own switch stays the main one.
+- **A bug in an autoload surfaced.** Moving a tile between groups re-adds a button to the tree, and `Settings`
+  wired its click sound each time, which logs an "already connected" engine error (and would have played two
+  sounds after a second move). It now wires once; a test pins that. Any screen that re-parents buttons was
+  affected, not only this one.
+- **Not done:** the Loadout still groups by street game only. Giving it the same By type view is a small
+  follow-up if the owner wants the two screens to match.

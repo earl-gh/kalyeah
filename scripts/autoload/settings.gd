@@ -108,7 +108,8 @@ func _save_value(section: String, key: String, value: Variant) -> void:
 func _on_node_added(node: Node) -> void:
 	if node is Control and reduced_motion:
 		UiAccessibility.apply_weak.call_deferred(weakref(node))
-	if node is BaseButton:
+	# a button that leaves the tree and comes back (a tile moved between groups) is not wired twice
+	if node is BaseButton and not (node as BaseButton).pressed.is_connected(play_ui):
 		(node as BaseButton).pressed.connect(play_ui, CONNECT_DEFERRED)
 
 

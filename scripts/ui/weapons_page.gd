@@ -1,14 +1,16 @@
 class_name WeaponsPage
 extends VBoxContainer
-## The Weapons tab of the book: a row of filters (All, Attack, Control, Block, Heal) over a two-column
-## grid of weapon tiles (the picture in a round holder, the name and its kind). Tapping a tile asks
-## for its detail sheet (`detail`): the picture large, what it does and its damage, cooldown and range.
+## The Weapons tab of the book, in two groupings the player switches between: **by game** (the street
+## game each weapon is inspired by: Bato-bato-pik, Tumbang preso ...) and **by type** (Attack, Control,
+## Block, Heal). Each group is a headed section of weapon tiles in two columns (the picture, the name and
+## the other axis as a chip). Tapping a tile asks for its detail sheet (`detail`).
 
 signal weapon_opened(weapon: WeaponDef)
 
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
 const ICON_PATH: String = "res://assets/icons/art/%s.png"
-const ALL: StringName = &"all"
+const BY_GAME: StringName = &"game"
+const BY_TYPE: StringName = &"type"
 const KIND_NAMES: Dictionary[int, String] = {
 	WeaponDef.Kind.ATTACK: "Attack", WeaponDef.Kind.CROWD_CONTROL: "Control",
 	WeaponDef.Kind.BLOCK: "Block", WeaponDef.Kind.HEAL: "Heal",
@@ -18,75 +20,105 @@ const KIND_COLORS: Dictionary[int, Color] = {
 	WeaponDef.Kind.BLOCK: Color("2a7be6"), WeaponDef.Kind.HEAL: Color("2fbf5a"),
 }
 const COLUMNS: int = 2
+## The grouping switch sits under the book's own switch, so it is a size smaller (still a thumb).
+const SWITCH_HEIGHT: float = 68.0
 const TILE_HEIGHT: float = 292.0
 const TILE_ICON: float = 128.0
 const DETAIL_ICON: float = 168.0
 const PLATE_FOCUS_RADIUS: int = 32
 
-## One tile per weapon, in the order of the rules.
+## One tile per weapon, in the order of the rules (whichever way they are grouped).
 var tiles: Array[Button] = []
-## The filter buttons by id: `all` and one per kind of weapon (the kind's number).
-var filter_buttons: Dictionary[StringName, Button] = {}
-var filter: StringName = ALL
+## The headed sections now on show, top to bottom (each has a `Header` and a `Grid`).
+var sections: Array[Control] = []
+var grouping: StringName = BY_GAME
+var segmented: UiSegmented
 
 var _weapons: Array[WeaponDef] = []
-var _grid: GridContainer
+var _list: VBoxContainer
+var _scroll: ScrollContainer
+var _game_chips: Array[Control] = []
+var _kind_chips: Array[Control] = []
 
 
 func _ready() -> void:
 	name = "WeaponsPage"
 	add_theme_constant_override("separation", UiMetrics.GAP)
 	_weapons = (load(RULES_PATH) as GameRules).weapons
-	add_child(_build_filters())
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.name = "Scroll"
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(scroll)
-	_grid = GridContainer.new()
-	_grid.columns = COLUMNS
-	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_grid.add_theme_constant_override("h_separation", UiMetrics.GAP)
-	_grid.add_theme_constant_override("v_separation", UiMetrics.GAP)
-	scroll.add_child(_grid)
+	segmented = UiSegmented.new([{"id": BY_GAME, "label": "By game"}, {"id": BY_TYPE, "label": "By type"}], SWITCH_HEIGHT)
+	segmented.chosen.connect(show_grouping)
+	add_child(segmented)
+	_scroll = ScrollContainer.new()
+	_scroll.name = "Scroll"
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(_scroll)
+	_list = VBoxContainer.new()
+	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_list.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
+	_scroll.add_child(_list)
 	for weapon: WeaponDef in _weapons:
 		var tile: Button = _tile(weapon)
-		_grid.add_child(tile)
 		tiles.append(tile)
-	show_filter(ALL)
+	show_grouping(BY_GAME)
 
 
-## Shows only the weapons of `id` (`all`, or a weapon kind's number as a string name).
-func show_filter(id: StringName) -> void:
-	filter = id
+## Groups the tiles by street game (`game`) or by weapon type (`type`).
+func show_grouping(id: StringName) -> void:
+	grouping = id
+	segmented.select(id, false)
+	_scroll.scroll_vertical = 0
+	for tile: Button in tiles:
+		if tile.get_parent() != null:
+			tile.get_parent().remove_child(tile)
+	for section: Control in sections:
+		_list.remove_child(section)
+		section.queue_free()
+	sections.clear()
 	for i: int in tiles.size():
-		tiles[i].visible = id == ALL or StringName(str(_weapons[i].kind)) == id
-	for other: StringName in filter_buttons:
-		filter_buttons[other].set_pressed_no_signal(other == id)
+		_game_chips[i].visible = id == BY_TYPE
+		_kind_chips[i].visible = id == BY_GAME
+	for group: Dictionary in _groups(id):
+		var grid: GridContainer = GridContainer.new()
+		grid.name = "Grid"
+		grid.columns = COLUMNS
+		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_theme_constant_override("h_separation", UiMetrics.GAP)
+		grid.add_theme_constant_override("v_separation", UiMetrics.GAP)
+		for index: int in group["members"] as Array[int]:
+			grid.add_child(tiles[index])
+		var section: VBoxContainer = VBoxContainer.new()
+		section.name = "Section_%s" % String(group["label"])
+		section.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+		var header: Label = UiKit.section_label("%s · %d" % [String(group["label"]), (group["members"] as Array).size()])
+		header.name = "Header"
+		section.add_child(header)
+		section.add_child(grid)
+		_list.add_child(section)
+		sections.append(section)
 
 
-func _build_filters() -> Control:
-	var row: HBoxContainer = HBoxContainer.new()
-	row.name = "Filters"
-	row.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP / 2)
-	var options: Array[Dictionary] = [{"id": ALL, "label": "All"}]
-	for kind: int in KIND_NAMES:
-		options.append({"id": StringName(str(kind)), "label": KIND_NAMES[kind]})
-	for option: Dictionary in options:
-		var button: Button = MenuDialog.make_button(String(option["label"]), "grey", UiMetrics.CAPTION, Vector2(0.0, 80.0))
-		button.name = "Filter_%s" % String(option["id"])
-		LobbyWidgets.make_toggle(button)
-		# five filters share one row: slimmer sides than a full-size button
-		for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
-			var slim: StyleBoxTexture = button.get_theme_stylebox(state).duplicate() as StyleBoxTexture
-			slim.content_margin_left = 6.0
-			slim.content_margin_right = 6.0
-			button.add_theme_stylebox_override(state, slim)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.pressed.connect(show_filter.bind(option["id"] as StringName))
-		row.add_child(button)
-		filter_buttons[option["id"] as StringName] = button
-	return row
+## The groups of the weapons for a grouping: {label, members (indexes into the rules' list)}. Games come
+## in the order they first appear in the rules; types in the order of the Kind enum.
+func _groups(id: StringName) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	var labels: Array[String] = []
+	if id == BY_GAME:
+		for weapon: WeaponDef in _weapons:
+			if not labels.has(weapon.street_game):
+				labels.append(weapon.street_game)
+	else:
+		for kind: int in KIND_NAMES:
+			labels.append(KIND_NAMES[kind])
+	for label: String in labels:
+		var members: Array[int] = []
+		for i: int in _weapons.size():
+			var key: String = _weapons[i].street_game if id == BY_GAME else String(KIND_NAMES.get(_weapons[i].kind, ""))
+			if key == label:
+				members.append(i)
+		if not members.is_empty():
+			found.append({"label": label, "members": members})
+	return found
 
 
 func _tile(weapon: WeaponDef) -> Button:
@@ -124,10 +156,15 @@ func _tile(weapon: WeaponDef) -> Button:
 	name_label.add_theme_constant_override("outline_size", 5)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(name_label)
+	# the other axis of the grouping as a chip: the kind under a game, the game under a type
 	var kind: PanelContainer = UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, KIND_COLORS.get(weapon.kind, Color("3b4c74")) as Color, Color.WHITE, 20)
-	kind.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	kind.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_child(kind)
+	var game: PanelContainer = UiKit.chip(weapon.street_game, Color("3b4c74"), Color.WHITE, 20)
+	for chip: PanelContainer in [kind, game]:
+		chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		column.add_child(chip)
+	_kind_chips.append(kind)
+	_game_chips.append(game)
 	tile.pressed.connect(weapon_opened.emit.bind(weapon))
 	return tile
 
