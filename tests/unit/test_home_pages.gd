@@ -96,25 +96,64 @@ func test_the_weapons_page_is_a_grid_with_a_tile_for_every_weapon() -> void:
 	assert_eq(columns.size(), WeaponsPage.COLUMNS, "two columns, not one long list")
 
 
-func test_the_filters_show_one_kind_at_a_time_and_all_shows_every_weapon() -> void:
+func test_weapons_group_by_street_game_or_by_type_and_every_weapon_is_in_exactly_one_group() -> void:
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"codex")
 	screen.codex_page.show_tab(&"weapons")
 	await wait_frames(2)
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 	var page: WeaponsPage = screen.weapons_page
-	assert_eq(page.filter, WeaponsPage.ALL)
-	for kind: int in WeaponsPage.KIND_NAMES:
-		page.filter_buttons[StringName(str(kind))].pressed.emit()
-		var shown: int = 0
-		for i: int in page.tiles.size():
-			assert_eq(page.tiles[i].visible, rules.weapons[i].kind == kind, "%s only" % WeaponsPage.KIND_NAMES[kind])
-			shown += int(page.tiles[i].visible)
-		assert_gt(shown, 0, "%s has weapons in it" % WeaponsPage.KIND_NAMES[kind])
-		assert_true(page.filter_buttons[StringName(str(kind))].button_pressed, "its filter is lit")
-		assert_false(page.filter_buttons[WeaponsPage.ALL].button_pressed)
-	page.filter_buttons[WeaponsPage.ALL].pressed.emit()
-	assert_eq(page.tiles.filter(func(tile: Button) -> bool: return tile.visible).size(), rules.weapons.size())
+	assert_eq(page.grouping, WeaponsPage.BY_GAME, "inspired-by-game first")
+	var games: Array[String] = []
+	for weapon: WeaponDef in rules.weapons:
+		if not games.has(weapon.street_game):
+			games.append(weapon.street_game)
+	assert_eq(page.sections.size(), games.size(), "one section per street game")
+	for grouping: StringName in [WeaponsPage.BY_GAME, WeaponsPage.BY_TYPE]:
+		page.segmented.buttons[grouping].pressed.emit()
+		assert_eq(page.grouping, grouping)
+		var seen: int = 0
+		for section: Control in page.sections:
+			var grid: GridContainer = section.find_child("Grid", true, false) as GridContainer
+			var header: String = (section.find_child("Header", true, false) as Label).text
+			assert_true(header.ends_with(" · %d" % grid.get_child_count()), "the header counts its tiles: %s" % header)
+			seen += grid.get_child_count()
+			for tile: Node in grid.get_children():
+				var weapon: WeaponDef = rules.weapons[page.tiles.find(tile as Button)]
+				var key: String = weapon.street_game if grouping == WeaponsPage.BY_GAME else String(WeaponsPage.KIND_NAMES[weapon.kind])
+				assert_true(header.to_upper().begins_with(key.to_upper()), "%s sits under %s" % [weapon.id, header])
+		assert_eq(seen, rules.weapons.size(), "no weapon is lost or doubled")
+	assert_eq(page.sections.size(), WeaponsPage.KIND_NAMES.size(), "one section per type")
+
+
+func test_switching_the_grouping_starts_again_at_the_top() -> void:
+	var screen: TitleScreen = _phone_screen()
+	screen.open_page(&"codex")
+	screen.codex_page.show_tab(&"weapons")
+	await wait_frames(2)
+	var scroll: ScrollContainer = screen.weapons_page.find_child("Scroll", true, false) as ScrollContainer
+	scroll.scroll_vertical = 600
+	await wait_frames(1)
+	screen.weapons_page.segmented.buttons[WeaponsPage.BY_TYPE].pressed.emit()
+	assert_eq(scroll.scroll_vertical, 0, "a new grouping is read from its first section")
+
+
+func test_a_tile_shows_the_other_axis_as_its_chip() -> void:
+	var screen: TitleScreen = _phone_screen()
+	screen.open_page(&"codex")
+	screen.codex_page.show_tab(&"weapons")
+	await wait_frames(2)
+	var page: WeaponsPage = screen.weapons_page
+	var weapon: WeaponDef = (load("res://data/rules/game_rules.tres") as GameRules).weapons[0]
+	var texts: Callable = func() -> Array[String]:
+		var found: Array[String] = []
+		for chip: Node in page.tiles[0].find_children("*", "PanelContainer", true, false):
+			if (chip as Control).visible and chip.has_node("Text"):
+				found.append((chip.get_node("Text") as Label).text)
+		return found
+	assert_eq(texts.call(), [WeaponsPage.KIND_NAMES[weapon.kind]] as Array[String], "under a game: the type")
+	page.show_grouping(WeaponsPage.BY_TYPE)
+	assert_eq(texts.call(), [weapon.street_game] as Array[String], "under a type: the game")
 
 
 func test_tapping_a_tile_opens_the_detail_sheet_with_the_text_and_figures() -> void:
