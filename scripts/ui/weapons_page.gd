@@ -49,7 +49,7 @@ func _row(weapon: WeaponDef) -> Control:
 	var name_label: Label = Label.new()
 	name_label.name = "Name"
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	name_label.text = weapon.display_name.to_upper()
+	name_label.text = weapon.display_name
 	name_label.add_theme_font_size_override("font_size", UiMetrics.BODY)
 	texts.add_child(name_label)
 	var game: Label = Label.new()

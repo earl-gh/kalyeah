@@ -34,7 +34,7 @@ func open_map_carousel() -> void:
 		if id == chosen:
 			current = maps.size()
 		maps.append({"id": String(id), "title": view.MAP_NAMES.get(id, String(id).to_upper()), "color": view.MAP_COLORS.get(id, "blue"),
-			"heading": "" if id in RoomService.PLAYABLE_MAP_IDS else "COMING SOON"})
+			"heading": "" if id in RoomService.PLAYABLE_MAP_IDS else "Coming soon"})
 	view.map_carousel = MenuCarousel.new()
 	view.map_carousel.name = "MapCarousel"
 	view.map_carousel.card_size = view.MAP_PICK_CARD

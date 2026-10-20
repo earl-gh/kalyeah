@@ -23,7 +23,7 @@ func build() -> void:
 	var column: VBoxContainer = VBoxContainer.new()
 	column.add_theme_constant_override("separation", 16)
 	margin.add_child(column)
-	column.add_child(LobbyWidgets.header("CREATE ROOM" if screen.intent == screen.Intent.CREATE else "JOIN ROOM", screen._on_back))
+	column.add_child(LobbyWidgets.header("Create room" if screen.intent == screen.Intent.CREATE else "Join room", screen._on_back))
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.name = "LobbyScroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -32,7 +32,7 @@ func build() -> void:
 	var card: PanelContainer = PanelContainer.new()
 	card.name = "LobbyCard"
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.add_theme_stylebox_override("panel", KalyeahTheme.painted_panel(20.0))
+	card.add_theme_stylebox_override("panel", KalyeahTheme.painted_panel(UiMetrics.PAGE_MARGIN))
 	scroll.add_child(card)
 	var content: VBoxContainer = VBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -51,12 +51,12 @@ func _build_setup(parent: Control) -> void:
 	screen._setup = VBoxContainer.new()
 	screen._setup.add_theme_constant_override("separation", UiMetrics.GAP)
 	parent.add_child(screen._setup)
-	screen._setup.add_child(LobbyWidgets.field_label("NAME"))
+	screen._setup.add_child(LobbyWidgets.field_label("Name"))
 	screen._name_edit = LobbyWidgets.edit(Session.player_name, "Player", screen.FONT)
 	screen._name_edit.max_length = 12
 	screen._setup.add_child(screen._name_edit)
 	if screen.intent == screen.Intent.CREATE:
-		screen._setup.add_child(LobbyWidgets.field_label("TEAM SIZE"))
+		screen._setup.add_child(LobbyWidgets.field_label("Team size"))
 		var sizes: HBoxContainer = HBoxContainer.new()
 		sizes.add_theme_constant_override("separation", 8)
 		screen._setup.add_child(sizes)
@@ -69,7 +69,7 @@ func _build_setup(parent: Control) -> void:
 			screen._size_buttons.append(button)
 		screen.choose_size(1)
 	elif not screen.hotspot:
-		screen._setup.add_child(LobbyWidgets.field_label("ROOM CODE"))
+		screen._setup.add_child(LobbyWidgets.field_label("Room code"))
 		screen._code_edit = LobbyWidgets.edit("", "ABC234XY", screen.FONT)
 		screen._code_edit.max_length = screen.NET_RULES.passcode_length
 		screen._code_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -86,9 +86,9 @@ func _build_setup(parent: Control) -> void:
 		screen._code_error.hide()
 		screen._setup.add_child(screen._code_error)
 		screen._code_edit.text_changed.connect(func(_text: String) -> void: screen._code_error.hide())
-	screen._go_button = LobbyWidgets.button("CREATE" if screen.intent == screen.Intent.CREATE else "JOIN", screen.submit, "orange")
+	screen._go_button = LobbyWidgets.button("Create room" if screen.intent == screen.Intent.CREATE else "Join room", screen.submit, "orange")
 	screen._go_button.custom_minimum_size = Vector2(0, 96)
 	screen._setup.add_child(screen._go_button)
-	screen._rejoin_button = LobbyWidgets.button("REJOIN MATCH", screen.rejoin, "grey")
+	screen._rejoin_button = LobbyWidgets.button("Rejoin match", screen.rejoin, "grey")
 	screen._rejoin_button.visible = not Session.reconnect_token.is_empty()
 	screen._setup.add_child(screen._rejoin_button)

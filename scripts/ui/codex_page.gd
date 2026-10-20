@@ -15,7 +15,7 @@ func _ready() -> void:
 	var tabs: HBoxContainer = HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 12)
 	add_child(tabs)
-	for tab: Dictionary in [{"id": &"characters", "label": "CHARACTERS"}, {"id": &"weapons", "label": "WEAPONS"}]:
+	for tab: Dictionary in [{"id": &"characters", "label": "Characters"}, {"id": &"weapons", "label": "Weapons"}]:
 		var button: Button = MenuDialog.make_button(String(tab["label"]), "grey", 26, Vector2(0.0, UiMetrics.TOUCH))
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.pressed.connect(show_tab.bind(tab["id"] as StringName))

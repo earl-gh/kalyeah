@@ -13,3 +13,4 @@ const PAGE_MARGIN: float = 32.0
 const PADDING: float = 24.0
 const GAP: int = 16
 const SECTION_GAP: int = 24
+const COMPACT_GAP: int = 12

@@ -17,7 +17,15 @@ static func build(hud: MatchHud) -> void:
 	hud.settings_button.ignore_texture_size = true
 	hud.settings_button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 	var gear_x: float = MatchHud.MARGIN * 1.6 + MatchHud.MINIMAP_SIZE.x
+	var gear_surface: Panel = Panel.new()
+	var gear_style: StyleBoxFlat = KalyeahTheme.painted_pill()
+	gear_style.bg_color = Color(KalyeahTheme.INK, 0.82)
+	gear_surface.add_theme_stylebox_override("panel", gear_style)
+	hud._place(gear_surface, Vector4(0, 0, 0, 0), Vector4(gear_x, MatchHud.TOP_ROW_Y, gear_x + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE))
+	gear_surface.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud.top.add_child(gear_surface)
 	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), Vector4(gear_x, MatchHud.TOP_ROW_Y, gear_x + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE))
+	hud.settings_button.tooltip_text = "Match settings"
 	hud.settings_button.pressed.connect(hud.toggle_menu)
 	hud.top.add_child(hud.settings_button)
 	# under the minimap: the TAGGED!/RESCUED! feed
@@ -34,17 +42,20 @@ static func build(hud: MatchHud) -> void:
 	hud.top.add_child(hud.scoreboard)
 
 
-## The opening show's banner: a dark band at the bottom with the goal in gold.
+## The opening objective appears as a compact floating sheet above the controls.
 static func build_intro(hud: MatchHud) -> void:
-	hud.intro_bar = ColorRect.new()
-	(hud.intro_bar as ColorRect).color = Color(0.05, 0.04, 0.08, 0.72)
-	hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(0, -260, 0, -120))
+	var panel: Panel = Panel.new()
+	var style: StyleBoxFlat = KalyeahTheme.painted_pill()
+	style.bg_color = Color(KalyeahTheme.INK, 0.9)
+	panel.add_theme_stylebox_override("panel", style)
+	hud.intro_bar = panel
+	hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(80, -276, -80, -132))
 	hud.intro_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.intro_bar.visible = false
 	hud.add_child(hud.intro_bar)
 	hud.intro_title = Label.new()
 	hud.intro_title.theme_type_variation = &"DisplayLabel"
-	hud._place(hud.intro_title, Vector4(0, 0, 1, 0), Vector4(0, 18, 0, 78))
+	hud._place(hud.intro_title, Vector4(0, 0, 1, 0), Vector4(0, 14, 0, 72))
 	hud.intro_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hud.intro_title.add_theme_font_size_override("font_size", 40)
 	hud.intro_title.add_theme_color_override("font_color", Color(1.0, 0.82, 0.25))
@@ -52,7 +63,7 @@ static func build_intro(hud: MatchHud) -> void:
 	hud.intro_title.add_theme_constant_override("outline_size", 10)
 	hud.intro_bar.add_child(hud.intro_title)
 	hud.intro_sub = Label.new()
-	hud._place(hud.intro_sub, Vector4(0, 0, 1, 0), Vector4(0, 80, 0, 120))
+	hud._place(hud.intro_sub, Vector4(0, 0, 1, 0), Vector4(0, 72, 0, 112))
 	hud.intro_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hud.intro_sub.add_theme_font_size_override("font_size", 26)
 	hud.intro_sub.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.1))

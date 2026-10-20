@@ -70,7 +70,7 @@ func test_the_weapons_page_lists_every_weapon_with_its_text() -> void:
 	var page: WeaponsPage = screen.weapons_page
 	assert_eq(page.rows.size(), rules.weapons.size())
 	for i: int in rules.weapons.size():
-		assert_eq((page.rows[i].find_child("Name", true, false) as Label).text, rules.weapons[i].display_name.to_upper())
+		assert_eq((page.rows[i].find_child("Name", true, false) as Label).text, rules.weapons[i].display_name)
 		assert_eq((page.rows[i].find_child("About", true, false) as Label).text, rules.weapons[i].description)
 
 
@@ -87,7 +87,7 @@ func test_history_starts_empty_and_lists_battles_newest_first() -> void:
 	for label: Node in screen.history_page.find_children("Result", "Label", true, false):
 		if not label.is_queued_for_deletion():
 			results.append((label as Label).text)
-	assert_eq(results, ["DEFEAT", "VICTORY"], "the newest battle is first")
+	assert_eq(results, ["Defeat", "Victory"], "the newest battle is first")
 
 
 func test_the_history_keeps_the_last_thirty_and_words_the_age() -> void:

@@ -1,7 +1,7 @@
 class_name TitleScreen
 extends Control
-## The main screen. The home page: a top row with the KALYEAH! logo (left) and the settings button
-## (right); under it a horizontal carousel of large 3:4 mode cards (Hotspot, Online, Practice), centred
+## The main screen. The home page: a quiet top row with the settings button at the right; under it
+## a horizontal carousel of large 3:4 mode cards (Hotspot, Online, Practice), centred
 ## on the screen, with the book and history buttons in a column over its left side (cards scroll
 ## behind them, never over them), every card always
 ## visible, stacked behind the chosen one; and the chosen
@@ -16,17 +16,14 @@ const BACKGROUND: Texture2D = preload("res://assets/ui/main_bg.webp")
 
 ## The game modes, first is the default (owner: hotspot first, not online).
 const MODES: Array[Dictionary] = [
-	{"id": "hotspot", "title": "HOTSPOT", "color": "blue",
-		"text": "Play with your friends offline."},
-	{"id": "online", "title": "ONLINE", "color": "orange",
-		"text": "Invite friends online."},
-	{"id": "practice", "title": "PRACTICE", "color": "green",
-		"text": "Train alone against dummies."},
+	{"id": "hotspot", "title": "Hotspot", "color": "blue",
+		"text": "Play on one local network."},
+	{"id": "online", "title": "Online", "color": "orange",
+		"text": "Invite friends with a room code."},
+	{"id": "practice", "title": "Practice", "color": "green",
+		"text": "Train against dummies."},
 ]
-## The KALYEAH! logo (the owner's cardboard sign) at the centre top of the home page.
-const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
-const LOGO_WIDTH: float = 270.0
-## How far the logo and the corner buttons sit down from the top.
+## How far the corner buttons sit down from the top.
 const TOP_ROW_DROP: float = 26.0
 const CORNER_BUTTON: float = UiMetrics.TOUCH
 ## The corner buttons: the book and history in a column at the left of the cards, settings at the
@@ -49,7 +46,6 @@ var quit_action: Callable = _quit_game
 ## The screen leaves for the lobby (replaced in tests).
 var open_lobby_action: Callable = _change_to_lobby
 
-var logo: TextureRect
 var carousel: MenuCarousel
 var mode_name_label: Label
 var mode_text_label: Label
@@ -172,8 +168,7 @@ func _build_home() -> VBoxContainer:
 	return home
 
 
-## The top row: the KALYEAH! logo at the left and the settings button at the right, level with
-## each other and a little down from the top of the screen.
+## The top row leaves the branding area open and keeps Settings at the top right.
 func _build_top_row() -> Control:
 	var holder: VBoxContainer = VBoxContainer.new()
 	holder.name = "TopRow"
@@ -185,16 +180,6 @@ func _build_top_row() -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(row)
-	logo = TextureRect.new()
-	logo.name = "Logo"
-	logo.texture = LOGO
-	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	logo.custom_minimum_size = Vector2(LOGO_WIDTH, LOGO_WIDTH * float(LOGO.get_height()) / float(LOGO.get_width()))
-	logo.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	logo.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(logo)
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -283,7 +268,7 @@ func _build_actions() -> Control:
 	actions.add_theme_constant_override("separation", 14)
 	actions.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	primary_button = _action_button(actions, "PrimaryButton", "", "blue")
-	secondary_button = _action_button(actions, "SecondaryButton", "JOIN", "green")
+	secondary_button = _action_button(actions, "SecondaryButton", "Join room", "green")
 	return actions
 
 
@@ -294,7 +279,7 @@ func _build_page_layer() -> VBoxContainer:
 	layer.visible = false
 	layer.add_theme_constant_override("separation", 12)
 	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	back_button = MenuDialog.make_button("BACK", "grey", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
+	back_button = MenuDialog.make_button("Back", "grey", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
 	back_button.name = "BackButton"
 	back_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	back_button.custom_minimum_size = Vector2(120.0, UiMetrics.TOUCH)
@@ -360,7 +345,7 @@ func _refresh_mode() -> void:
 	var rooms: bool = String(mode["id"]) != "practice"
 	mode_name_label.text = String(mode["title"])
 	mode_text_label.text = String(mode["text"])
-	primary_button.text = "CREATE" if rooms else "START"
+	primary_button.text = "Create room" if rooms else "Start practice"
 	secondary_button.visible = rooms
 	KalyeahTheme.style_button(primary_button, "orange")
 	KalyeahTheme.style_button(secondary_button, "grey")
@@ -461,7 +446,7 @@ func _on_practice_pressed() -> void:
 	if _loading:
 		return
 	_loading = true
-	_show_loading("GETTING THE STREET READY")
+	_show_loading("Getting the street ready")
 	ResourceLoader.load_threaded_request(PRACTICE_SCENE)
 	set_process(true)
 
@@ -540,7 +525,7 @@ func _show_dialog(new_dialog: MenuDialog) -> void:
 
 ## Rename: a text box (12 letters at most) with Cancel / Save.
 func open_name_editor() -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create("YOUR NAME")
+	var card: MenuDialog = MenuDialog.create("Player name")
 	var field: LineEdit = LineEdit.new()
 	field.name = "NameField"
 	field.text = Session.player_name
@@ -551,8 +536,8 @@ func open_name_editor() -> MenuDialog:
 	field.add_theme_font_size_override("font_size", 36)
 	card.body.add_child(field)
 	var hint: Label = card.add_hint("%d characters max." % Session.MAX_NAME_LENGTH)
-	var cancel: Button = MenuDialog.make_button("CANCEL", "grey", 30)
-	var save: Button = MenuDialog.make_button("SAVE", "orange", 30)
+	var cancel: Button = MenuDialog.make_button("Cancel", "grey", 30)
+	var save: Button = MenuDialog.make_button("Save", "orange", 30)
 	card.add_buttons([cancel, save])
 	var apply: Callable = func() -> void:
 		var clean: String = Session.clean_name(field.text)
@@ -573,9 +558,9 @@ func open_name_editor() -> MenuDialog:
 
 ## Quit: asks first (a stray tap must not close the game).
 func open_quit_confirm() -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create("QUIT GAME?", 560.0)
-	var stay: Button = MenuDialog.make_button("CANCEL", "grey", 32)
-	var leave: Button = MenuDialog.make_button("QUIT", "red", 32)
+	var card: MenuDialog = MenuDialog.create("Quit game?", 560.0)
+	var stay: Button = MenuDialog.make_button("Cancel", "grey", 32)
+	var leave: Button = MenuDialog.make_button("Quit", "red", 32)
 	card.add_buttons([stay, leave])
 	stay.pressed.connect(card.close)
 	leave.pressed.connect(func() -> void:

@@ -7,7 +7,7 @@ signal exit_pressed
 signal hurt_pressed
 signal status_pressed(type: int)
 
-const STATUS_TESTS: Array[Array] = [["STUNNED", StatusEffects.Type.STUN], ["AIRBORNE", StatusEffects.Type.AIRBORNE], ["KNOCKED DOWN", StatusEffects.Type.KNOCKOUT]]
+const STATUS_TESTS: Array[Array] = [["Stunned", StatusEffects.Type.STUN], ["Airborne", StatusEffects.Type.AIRBORNE], ["Knocked down", StatusEffects.Type.KNOCKOUT]]
 
 var hurt_button: Button
 var status_buttons: Dictionary[int, Button] = {}
@@ -25,13 +25,13 @@ var _confirmation: MenuDialog
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	_dialog = MenuDialog.create("MENU")
+	_dialog = MenuDialog.create("Match settings")
 	_dialog.persistent = true
 	SettingsPage.fill(_dialog.body)
 	_tools = VBoxContainer.new()
 	_tools.add_theme_constant_override("separation", UiMetrics.GAP)
 	_dialog.body.add_child(_tools)
-	tools_button = _button("PRACTICE TOOLS +", "grey", _tools)
+	tools_button = _button("Practice tools +", "grey", _tools)
 	tools_button.tooltip_text = "Show practice tools"
 	_details = VBoxContainer.new()
 	_details.add_theme_constant_override("separation", UiMetrics.GAP)
@@ -39,16 +39,16 @@ func _ready() -> void:
 	_tools.add_child(_details)
 	tools_button.pressed.connect(func() -> void:
 		_details.visible = not _details.visible
-		tools_button.text = "PRACTICE TOOLS −" if _details.visible else "PRACTICE TOOLS +")
-	hurt_button = _button("TAKE 30 DAMAGE", "grey", _details)
+		tools_button.text = "Practice tools −" if _details.visible else "Practice tools +")
+	hurt_button = _button("Take 30 damage", "grey", _details)
 	hurt_button.pressed.connect(hurt_pressed.emit)
 	for test: Array in STATUS_TESTS:
 		var play: Button = _button(test[0] as String, "grey", _details)
 		play.pressed.connect(status_pressed.emit.bind(test[1] as int))
 		status_buttons[test[1] as int] = play
-	resume_button = _button("RESUME", "orange", _dialog.body)
+	resume_button = _button("Resume", "orange", _dialog.body)
 	resume_button.pressed.connect(close)
-	leave_button = _button("LEAVE MATCH", "red", _dialog.body)
+	leave_button = _button("Leave match", "red", _dialog.body)
 	leave_button.pressed.connect(request_exit)
 	_dialog.open(self)
 	_dialog.close(false)

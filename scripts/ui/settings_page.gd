@@ -21,15 +21,20 @@ func _ready() -> void:
 	_content.add_theme_constant_override("separation", UiMetrics.PAGE_MARGIN)
 	var title: Label = Label.new()
 	title.theme_type_variation = &"DisplayLabel"
-	title.text = "SETTINGS"
+	title.text = "Settings"
 	title.add_theme_font_size_override("font_size", UiMetrics.TITLE)
 	_content.add_child(title)
-	profile_button = MenuDialog.make_button("Player name", "grey", UiMetrics.ACTION, Vector2(0.0, 88.0))
+	profile_button = MenuDialog.make_button("Player name", "grey", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
 	profile_button.name = "ProfileButton"
 	profile_button.pressed.connect(profile_pressed.emit)
-	_content.add_child(profile_button)
-	fill(_content)
-	quit_button = MenuDialog.make_button("Quit game", "grey", UiMetrics.ACTION, Vector2(0.0, 88.0))
+	var account: VBoxContainer = VBoxContainer.new()
+	account.add_child(profile_button)
+	_content.add_child(LobbyWidgets.group(account))
+	var preferences: VBoxContainer = VBoxContainer.new()
+	preferences.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
+	fill(preferences)
+	_content.add_child(LobbyWidgets.group(preferences))
+	quit_button = MenuDialog.make_button("Quit game", "red", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
 	quit_button.name = "QuitButton"
 	quit_button.pressed.connect(quit_pressed.emit)
 	_content.add_child(quit_button)
@@ -56,11 +61,11 @@ static func fill(parent: Control) -> void:
 	slider.drag_ended.connect(func(_changed: bool) -> void: Settings.play_ui())
 	if Settings.can_vibrate():
 		var buzz: HBoxContainer = _row(parent, "Vibration")
-		var toggle: Button = MenuDialog.make_button("ON" if Settings.vibration else "OFF", "green" if Settings.vibration else "grey", 28, Vector2(150.0, UiMetrics.TOUCH))
+		var toggle: Button = MenuDialog.make_button("On" if Settings.vibration else "Off", "green" if Settings.vibration else "grey", 28, Vector2(150.0, UiMetrics.TOUCH))
 		toggle.name = "VibrationToggle"
 		toggle.pressed.connect(func() -> void:
 			Settings.set_vibration(not Settings.vibration)
-			toggle.text = "ON" if Settings.vibration else "OFF"
+			toggle.text = "On" if Settings.vibration else "Off"
 			KalyeahTheme.style_button(toggle, "green" if Settings.vibration else "grey"))
 		buzz.add_child(toggle)
 	parent.add_child(AccessibilityOptions.new())

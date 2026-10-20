@@ -15,7 +15,7 @@ signal team_chosen(team: int)
 ## The big button: START for the host, READY (on or off) for everyone else.
 signal action_pressed
 
-const MAP_NAMES: Dictionary[StringName, String] = {&"street": "AGAWAN BASE", &"tumbang_preso": "TUMBANG PRESO", &"patintero": "PATINTERO"}
+const MAP_NAMES: Dictionary[StringName, String] = {&"street": "Agawan Base", &"tumbang_preso": "Tumbang Preso", &"patintero": "Patintero"}
 const MAP_COLORS: Dictionary[StringName, String] = {&"street": "blue", &"tumbang_preso": "orange", &"patintero": "green"}
 ## The cards in the map carousel are 3:4.
 const MAP_PICK_CARD: Vector2 = Vector2(414.0, 552.0)
@@ -111,16 +111,16 @@ func _build() -> void:
 	scroll.add_child(_content)
 	code_row = RoomHeader.code_row(self)
 	_content.add_child(code_row)
-	_content.add_child(_build_map_section())
-	_content.add_child(_build_player_section())
-	_content.add_child(_build_kid_section())
+	_content.add_child(LobbyWidgets.group(_build_map_section()))
+	_content.add_child(LobbyWidgets.group(_build_player_section()))
+	_content.add_child(LobbyWidgets.group(_build_kid_section()))
 	readiness_label = Label.new()
 	readiness_label.name = "Readiness"
 	readiness_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	readiness_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	readiness_label.add_theme_font_size_override("font_size", 26)
 	column.add_child(readiness_label)
-	action_button = MenuDialog.make_button("READY", "orange", 32, Vector2(0.0, 88.0))
+	action_button = MenuDialog.make_button("Ready", "orange", 32, Vector2(0.0, 88.0))
 	action_button.name = "ActionButton"
 	action_button.pressed.connect(action_pressed.emit)
 	action_button.visible = false
@@ -133,7 +133,7 @@ func _build() -> void:
 	status_label.add_theme_color_override("font_color", KalyeahTheme.ERROR)
 	status_label.visible = false
 	column.add_child(status_label)
-	retry_button = MenuDialog.make_button("RETRY", "blue", 30)
+	retry_button = MenuDialog.make_button("Try again", "blue", 30)
 	retry_button.name = "Retry"
 	retry_button.visible = false
 	retry_button.pressed.connect(func() -> void:
@@ -151,7 +151,7 @@ func _build_map_section() -> Control:
 	column.name = "MapSection"
 	column.add_theme_constant_override("separation", int(GAP) + 4)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	map_card = ChoiceCard.make_card("", "AGAWAN BASE", "blue", MAP_CARD)
+	map_card = ChoiceCard.make_card("", "Agawan Base", "blue", MAP_CARD)
 	map_card.name = "MapCard"
 	map_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map_card.focus_mode = Control.FOCUS_NONE
@@ -263,7 +263,7 @@ func show_room(room: Dictionary, my_id: int) -> void:
 			me = member
 	code_label.text = String(room.get("code", "")) if online_room else ""
 	code_row.visible = online_room
-	copy_button.text = "COPY"
+	copy_button.text = "Copy"
 	_copy_timer.stop()
 	readiness_label.text = _readiness(room)
 	action_button.visible = true
@@ -303,12 +303,12 @@ func show_room(room: Dictionary, my_id: int) -> void:
 			kid_cards[id].modulate = Color.WHITE
 	# the one button
 	if host:
-		action_button.text = "PREVIEW ONLY" if room.get("preview", false) else "START"
+		action_button.text = "Preview only" if room.get("preview", false) else "Start match"
 		action_button.disabled = bool(room.get("preview", false)) or not (room.get("can_start_host", false) as bool)
 		KalyeahTheme.style_button(action_button, "orange")
 	else:
 		var ready: bool = me.get("ready", false) as bool
-		action_button.text = "CANCEL READY" if ready else "READY"
+		action_button.text = "Cancel ready" if ready else "Ready"
 		action_button.disabled = false
 		KalyeahTheme.style_button(action_button, "grey" if ready else "orange")
 
@@ -401,5 +401,5 @@ func copy_code() -> void:
 	if not online_room or not has_room() or code_label.text.is_empty():
 		return
 	DisplayServer.clipboard_set(code_label.text)
-	copy_button.text = "COPIED"
+	copy_button.text = "Copied"
 	_copy_timer.start()

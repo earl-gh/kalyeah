@@ -13,11 +13,11 @@ static func state(can_host: bool, addresses: PackedStringArray) -> State:
 
 
 static func create_check(on_ready: Callable, on_preview: Callable, can_host: bool = Net.can_host(), addresses: PackedStringArray = PackedStringArray()) -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create("HOTSPOT")
+	var card: MenuDialog = MenuDialog.create("Hotspot")
 	card.name = "HotspotCheckDialog"
 	var message: Label = card.add_label("Checking local connection...", 30, KalyeahTheme.CREAM)
 	message.name = "Message"
-	var cancel: Button = MenuDialog.make_button("CANCEL", "grey", 30)
+	var cancel: Button = MenuDialog.make_button("Cancel", "grey", 30)
 	cancel.name = "Cancel"
 	cancel.pressed.connect(card.close)
 	var buttons: HBoxContainer = card.add_buttons([cancel])
@@ -37,14 +37,14 @@ static func create_check(on_ready: Callable, on_preview: Callable, can_host: boo
 			State.OFF:
 				message.text = "No local network. Turn on your hotspot or connect to Wi-Fi, then retry."
 				if buttons.get_node_or_null("TryAgain") == null:
-					var again: Button = MenuDialog.make_button("RETRY", "blue", 30)
+					var again: Button = MenuDialog.make_button("Try again", "blue", 30)
 					again.name = "TryAgain"
 					again.pressed.connect(timer.start)
 					buttons.add_child(again)
 			State.UNSUPPORTED:
 				message.text = "Hotspot rooms need the Android app."
 				if OS.has_feature("web"):
-					var preview: Button = MenuDialog.make_button("PREVIEW ROOM", "blue", 30)
+					var preview: Button = MenuDialog.make_button("Preview room", "blue", 30)
 					preview.name = "Preview"
 					preview.pressed.connect(func() -> void:
 						card.close(false)
@@ -57,10 +57,10 @@ static func create_check(on_ready: Callable, on_preview: Callable, can_host: boo
 
 ## Android proceeds immediately to the cancellable discovery screen. Web explains why it cannot.
 static func join(on_join: Callable, supported: bool = Net.can_host()) -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create("JOIN HOTSPOT")
+	var card: MenuDialog = MenuDialog.create("Join hotspot")
 	card.name = "HotspotJoinDialog"
 	card.add_label("Finding the host's room..." if supported else "Hotspot rooms need the Android app.", 30)
-	var cancel: Button = MenuDialog.make_button("BACK", "grey", 30)
+	var cancel: Button = MenuDialog.make_button("Back", "grey", 30)
 	cancel.name = "Cancel"
 	cancel.pressed.connect(card.close)
 	card.add_buttons([cancel])

@@ -15,7 +15,7 @@ func _ready() -> void:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(label)
-	motion_button = MenuDialog.make_button("OFF", "grey", UiMetrics.ACTION, Vector2(140.0, UiMetrics.TOUCH))
+	motion_button = MenuDialog.make_button("Off", "grey", UiMetrics.ACTION, Vector2(140.0, UiMetrics.TOUCH))
 	motion_button.name = "ReducedMotion"
 	motion_button.pressed.connect(func() -> void: Settings.set_reduced_motion(not Settings.reduced_motion))
 	row.add_child(motion_button)
@@ -25,5 +25,5 @@ func _ready() -> void:
 
 
 func _refresh() -> void:
-	motion_button.text = "ON" if Settings.reduced_motion else "OFF"
+	motion_button.text = "On" if Settings.reduced_motion else "Off"
 	KalyeahTheme.style_button(motion_button, "green" if Settings.reduced_motion else "grey")

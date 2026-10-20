@@ -1,7 +1,7 @@
 class_name TaggedPanel
 extends Control
-## What you see while tagged and waiting in the box: a grey band over the bottom
-## of the screen with "TAGGED!", a row of up to five 2:3 player cards (everyone
+## What you see while tagged and waiting in the box: a grouped sheet over the bottom
+## of the screen, a row of up to five 2:3 player cards (everyone
 ## else in the match: teammates first) and a Change weapons button. Tap a card and
 ## the camera follows that player; the watched card is lit. Built in code;
 ## MatchHud feeds it with `sync()`.
@@ -10,7 +10,6 @@ signal swap_pressed
 ## The player tapped the card of player `id` (the camera should follow them).
 signal watch_requested(id: int)
 
-const BAND: Color = Color(0.16, 0.16, 0.18, 0.82)
 const BAND_HEIGHT: float = 400.0
 const INK: Color = Color(0.1, 0.06, 0.06)
 const TITLE_COLOR: Color = Color(1.0, 0.4, 0.34)
@@ -21,7 +20,7 @@ const CARD_GAP: float = 12.0
 const OWN: Color = Color(0.3, 0.6, 1.0)
 const ENEMY: Color = Color(1.0, 0.35, 0.35)
 const WATCHED: Color = Color(1.0, 0.86, 0.3)
-const WAIT_TEXT: String = "TAGGED  •  WAIT FOR A RESCUE"
+const WAIT_TEXT: String = "Tagged · Wait for a rescue"
 
 ## How to get out (kept as a label for screen readers and tests).
 var wait_label: Label
@@ -39,26 +38,25 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
-	var band: ColorRect = ColorRect.new()
-	band.color = BAND
+	var band: PanelContainer = PanelContainer.new()
+	var sheet: StyleBoxFlat = KalyeahTheme.surface_box(28, 1, UiMetrics.PADDING)
+	sheet.bg_color = Color(KalyeahTheme.INK, 0.94)
+	band.add_theme_stylebox_override("panel", sheet)
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	band.anchor_left = 0.0
 	band.anchor_right = 1.0
 	band.anchor_top = 1.0
 	band.anchor_bottom = 1.0
-	band.offset_top = -BAND_HEIGHT
+	band.offset_left = UiMetrics.GAP
+	band.offset_right = -UiMetrics.GAP
+	band.offset_top = -BAND_HEIGHT - UiMetrics.GAP
+	band.offset_bottom = -UiMetrics.GAP
 	add_child(band)
 	var column: VBoxContainer = VBoxContainer.new()
-	column.anchor_left = 0.0
-	column.anchor_right = 1.0
-	column.anchor_top = 1.0
-	column.anchor_bottom = 1.0
-	column.offset_top = -BAND_HEIGHT + 14.0
-	column.offset_bottom = -18.0
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	column.add_theme_constant_override("separation", 12)
+	column.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(column)
+	band.add_child(column)
 	wait_label = _label(WAIT_TEXT, 26, TITLE_COLOR)
 	wait_label.theme_type_variation = &"DisplayLabel"
 	column.add_child(wait_label)
@@ -70,7 +68,7 @@ func _ready() -> void:
 	for i: int in MAX_CARDS:
 		_build_card(row, i)
 	swap_button = Button.new()
-	swap_button.text = "CHANGE WEAPONS"
+	swap_button.text = "Change weapons"
 	swap_button.custom_minimum_size = Vector2(400.0, UiMetrics.TOUCH)
 	swap_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	swap_button.add_theme_font_size_override("font_size", UiMetrics.ACTION)
@@ -133,7 +131,6 @@ func _display_name(sim: MatchSim, state: PlayerState) -> String:
 func _build_card(row: HBoxContainer, index: int) -> void:
 	var card: Button = Button.new()
 	card.custom_minimum_size = CARD_SIZE
-	card.focus_mode = Control.FOCUS_NONE
 	card.pressed.connect(press_card.bind(index))
 	row.add_child(card)
 	var portrait: TextureRect = TextureRect.new()
@@ -160,14 +157,15 @@ func _build_card(row: HBoxContainer, index: int) -> void:
 	_portraits.append(portrait)
 	_names.append(name_label)
 	_states.append(state_label)
+	card.add_theme_stylebox_override("focus", KalyeahTheme.focus_ring(16))
 
 
 func _card_box(team: Color, lit: bool) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = Color(0.1, 0.09, 0.14, 0.92)
+	box.bg_color = Color(KalyeahTheme.SURFACE_RAISED, 0.94)
 	box.set_corner_radius_all(14)
 	box.border_color = WATCHED if lit else team
-	box.set_border_width_all(6 if lit else 4)
+	box.set_border_width_all(4 if lit else 2)
 	return box
 
 

@@ -7,14 +7,14 @@ static func build(view: HotspotRoomView) -> Control:
 	row.name = "TopRow"
 	row.add_theme_constant_override("separation", 12)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	view.back_button = MenuDialog.make_button("BACK", "grey", UiMetrics.ACTION, Vector2(120.0, 88.0))
+	view.back_button = MenuDialog.make_button("Back", "grey", UiMetrics.ACTION, Vector2(120.0, 88.0))
 	view.back_button.name = "BackButton"
 	view.back_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	view.back_button.pressed.connect(view.back_pressed.emit)
 	row.add_child(view.back_button)
 	var title: Label = Label.new()
 	title.name = "Title"
-	title.text = "LOBBY"
+	title.text = "Lobby"
 	title.theme_type_variation = &"DisplayLabel"
 	title.add_theme_font_size_override("font_size", UiMetrics.TITLE)
 	title.add_theme_color_override("font_color", KalyeahTheme.CREAM)
@@ -53,14 +53,14 @@ static func code_row(view: HotspotRoomView) -> HBoxContainer:
 	view.code_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	view.code_label.add_theme_font_override("font", KalyeahTheme.DISPLAY_FONT)
 	row.add_child(view.code_label)
-	view.copy_button = MenuDialog.make_button("COPY", "grey", UiMetrics.ACTION, Vector2(128.0, UiMetrics.TOUCH))
+	view.copy_button = MenuDialog.make_button("Copy", "grey", UiMetrics.ACTION, Vector2(128.0, UiMetrics.TOUCH))
 	view.copy_button.tooltip_text = "Copy room code"
 	view.copy_button.pressed.connect(view.copy_code)
 	row.add_child(view.copy_button)
 	view._copy_timer = Timer.new()
 	view._copy_timer.one_shot = true
 	view._copy_timer.wait_time = 2.0
-	view._copy_timer.timeout.connect(func() -> void: view.copy_button.text = "COPY")
+	view._copy_timer.timeout.connect(func() -> void: view.copy_button.text = "Copy")
 	view.add_child(view._copy_timer)
 	row.visible = false
 	return row

@@ -30,8 +30,8 @@ func _view(room: Dictionary, my_id: int = 1) -> HotspotRoomView:
 
 func test_hotspot_header_has_back_lobby_settings_and_no_code() -> void:
 	var view: HotspotRoomView = _view(_room(2))
-	assert_eq(view.back_button.text, "BACK", "a text-only back button, no chevron")
-	assert_eq((view.find_child("Title", true, false) as Label).text, "LOBBY", "then the text Lobby | code")
+	assert_eq(view.back_button.text, "Back", "a text-only back button, no chevron")
+	assert_eq((view.find_child("Title", true, false) as Label).text, "Lobby", "then the text Lobby | code")
 	assert_null(view.find_child("Divider", true, false), "spacing separates header elements")
 	assert_eq(view.code_label.text, "", "hotspot has no code")
 	assert_false(view.code_row.visible)
@@ -118,18 +118,18 @@ func test_choosing_a_kid_emits_and_the_room_picks_are_marked() -> void:
 
 func test_the_big_button_starts_for_the_host_and_readies_for_everyone_else() -> void:
 	var host: HotspotRoomView = _view(_room(2))
-	assert_eq(host.action_button.text, "START")
+	assert_eq(host.action_button.text, "Start match")
 	assert_false(host.action_button.disabled)
 	var blocked: Dictionary = _room(2)
 	blocked["can_start_host"] = false
 	host.show_room(blocked, 1)
 	assert_true(host.action_button.disabled, "not until the others are ready")
 	var guest: HotspotRoomView = _view(_room(2), 2)
-	assert_eq(guest.action_button.text, "CANCEL READY", "the action explains how to undo readiness")
+	assert_eq(guest.action_button.text, "Cancel ready", "the action explains how to undo readiness")
 	var guest_two: HotspotRoomView = _view(_room(2), 1)
 	var other: Dictionary = _room(2, 2)
 	guest_two.show_room(other, 1)
-	assert_eq(guest_two.action_button.text, "READY", "Ana is not")
+	assert_eq(guest_two.action_button.text, "Ready", "Ana is not")
 	var pressed: Array[bool] = []
 	guest_two.action_pressed.connect(func() -> void: pressed.append(true))
 	guest_two.action_button.pressed.emit()
@@ -211,8 +211,8 @@ func test_an_empty_slot_is_a_frosted_card_with_its_number_and_a_hint() -> void:
 	assert_lt(box.bg_color.a, 0.2, "but still see-through")
 	var number: Control = open.find_child("Number", true, false) as Control
 	assert_lt((number.get_theme_stylebox("panel") as StyleBoxFlat).bg_color.a, 0.5, "the number block is tinted, not solid")
-	assert_eq((open.find_child("Hint", true, false) as Label).text, "+ JOIN TEAM")
-	assert_eq((view.find_child("OpenSlot0", true, false).find_child("Hint", true, false) as Label).text, "OPEN SLOT", "your own team's open slot just waits")
+	assert_eq((open.find_child("Hint", true, false) as Label).text, "Join team")
+	assert_eq((view.find_child("OpenSlot0", true, false).find_child("Hint", true, false) as Label).text, "Open slot", "your own team's open slot just waits")
 	assert_eq(open.find_children("*", "TextureRect", true, false).size(), 0)
 	var two: HotspotRoomView = _view(_room(2))
 	assert_eq((two.find_child("Player2", true, false).find_child("Number", true, false).get_child(0) as Label).text, "3", "a 2v2: Ben is number 3")
@@ -221,7 +221,7 @@ func test_an_empty_slot_is_a_frosted_card_with_its_number_and_a_hint() -> void:
 func test_the_map_card_has_no_map_word_and_is_agawan_base_and_the_carousel_cards_are_three_to_four() -> void:
 	var view: HotspotRoomView = _view(_room(2))
 	assert_false((view.map_card.get_node("Heading") as Label).visible, "no \"Map\" word on the card")
-	assert_eq(ChoiceCard.choice_of(view.map_card), "AGAWAN BASE")
+	assert_eq(ChoiceCard.choice_of(view.map_card), "Agawan Base")
 	view.map_card.pressed.emit()
 	var card: Button = view.map_carousel.cards[0]
 	assert_almost_eq(card.size.x / card.size.y, 0.75, 0.01, "3:4")
@@ -243,11 +243,11 @@ func test_the_map_carousel_lists_tumbang_preso_and_patintero_as_coming_soon() ->
 	view.map_chosen.connect(func(id: StringName) -> void: picked.append(id))
 	view.map_card.pressed.emit()
 	assert_eq(view.map_carousel.cards.size(), 3, "three street games")
-	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[0]), "AGAWAN BASE")
-	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[1]), "TUMBANG PRESO")
-	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[2]), "PATINTERO")
+	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[0]), "Agawan Base")
+	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[1]), "Tumbang Preso")
+	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[2]), "Patintero")
 	assert_false((view.map_carousel.cards[0].get_node("Heading") as Label).visible)
-	assert_eq((view.map_carousel.cards[1].get_node("Heading") as Label).text, "COMING SOON")
+	assert_eq((view.map_carousel.cards[1].get_node("Heading") as Label).text, "Coming soon")
 	view.map_carousel.select(1, false)
 	assert_true(picked.is_empty(), "a game that is not playable yet is not picked")
 	assert_string_contains((view.find_child("MapHint", true, false) as Label).text, "coming soon")

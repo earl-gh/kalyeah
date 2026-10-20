@@ -276,7 +276,7 @@ func _build() -> void:
 	capture_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	capture_label.add_theme_color_override("font_outline_color", Color(0.08, 0.05, 0.1))
 	capture_label.add_theme_constant_override("outline_size", 10)
-	again_button = _button("PLAY AGAIN", 32, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-160, -30, 160, 60))
+	again_button = _button("Play again", 32, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-160, -30, 160, 60))
 	KalyeahTheme.style_button(again_button, "orange")
 	again_button.pressed.connect(again_pressed.emit)
 	again_button.visible = false
@@ -348,7 +348,7 @@ func _build_cancel_zone() -> Control:
 	zone.add_child(back)
 	var label: Label = Label.new()
 	_place(label, Vector4(0, 0, 1, 1), Vector4.ZERO)
-	label.text = "CANCEL"
+	label.text = "Cancel"
 	label.add_theme_font_override("font", KalyeahTheme.ACTION_FONT)
 	label.add_theme_font_size_override("font_size", 24)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
