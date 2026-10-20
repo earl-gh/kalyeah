@@ -41,13 +41,8 @@ func summary() -> String:
 func _draw() -> void:
 	var w: float = size.x
 	var h: float = size.y
-	var frame: StyleBoxFlat = StyleBoxFlat.new()
-	frame.bg_color = PANEL
-	frame.border_color = RIM
-	frame.set_border_width_all(3)
-	frame.set_corner_radius_all(18)
-	frame.shadow_size = 0
-	draw_style_box(frame, Rect2(0.0, 0.0, w, h))
+	# the same night panel as every other card, with its lit edge and soft shadow
+	draw_style_box(UiSkin.plate("night", 0.0, 18), Rect2(0.0, 0.0, w, h))
 	var box: float = h - 12.0
 	_round_rect(Rect2(6.0, 6.0, box * 1.25, box), OWN, 12.0)
 	_round_rect(Rect2(w - 6.0 - box * 1.25, 6.0, box * 1.25, box), ENEMY, 12.0)

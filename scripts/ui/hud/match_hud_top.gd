@@ -45,9 +45,7 @@ static func build(hud: MatchHud) -> void:
 ## The opening objective appears as a compact floating sheet above the controls.
 static func build_intro(hud: MatchHud) -> void:
 	var panel: Panel = Panel.new()
-	var style: StyleBoxFlat = KalyeahTheme.painted_pill()
-	style.bg_color = Color(KalyeahTheme.INK, 0.9)
-	panel.add_theme_stylebox_override("panel", style)
+	panel.add_theme_stylebox_override("panel", UiSkin.plate("night", 0.0, 30))
 	hud.intro_bar = panel
 	hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(80, -276, -80, -132))
 	hud.intro_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE

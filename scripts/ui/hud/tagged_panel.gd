@@ -39,9 +39,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
 	var band: PanelContainer = PanelContainer.new()
-	var sheet: StyleBoxFlat = KalyeahTheme.surface_box(28, 1, UiMetrics.PADDING)
-	sheet.bg_color = Color(KalyeahTheme.INK, 0.94)
-	band.add_theme_stylebox_override("panel", sheet)
+	band.add_theme_stylebox_override("panel", UiSkin.plate("raised", UiMetrics.PADDING, 30))
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	band.anchor_left = 0.0
 	band.anchor_right = 1.0

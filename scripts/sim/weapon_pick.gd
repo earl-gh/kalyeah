@@ -26,6 +26,29 @@ func _init(available: Array[StringName], time: float, current: Array[StringName]
 			picks.append(id)
 
 
+## A pair for a player who does not know the weapons yet: an attack that aims itself (a homing throw) and the first
+## block, or failing that the first crowd control. Empty if the arsenal has no such pair. Only a suggestion: the
+## picker still lets anyone choose any two.
+static func suggestion(defs: Array[WeaponDef]) -> Array[StringName]:
+	var attack: WeaponDef = null
+	var support: WeaponDef = null
+	var fallback: WeaponDef = null
+	for def: WeaponDef in defs:
+		if attack == null and def.kind == WeaponDef.Kind.ATTACK and def.shape == WeaponDef.Shape.TARGETED:
+			attack = def
+		elif support == null and def.kind == WeaponDef.Kind.BLOCK:
+			support = def
+		elif fallback == null and def.kind == WeaponDef.Kind.CROWD_CONTROL:
+			fallback = def
+	if support == null:
+		support = fallback
+	var found: Array[StringName] = []
+	if attack != null and support != null:
+		found.append(attack.id)
+		found.append(support.id)
+	return found
+
+
 func toggle(id: StringName) -> void:
 	if done or not _available.has(id):
 		return

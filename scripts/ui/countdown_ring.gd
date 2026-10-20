@@ -10,6 +10,8 @@ const URGENT: Color = Color(1.0, 0.35, 0.3)
 const INK: Color = Color(0.1, 0.06, 0.06)
 const URGENT_SECONDS: float = 3.0
 const POINTS: int = 48
+## The size on the loadout screen: big enough to feel the seconds, not just read them.
+const LOADOUT_SIZE: float = 104.0
 
 var seconds: float = 0.0
 var total: float = 1.0
@@ -18,6 +20,16 @@ var total: float = 1.0
 func show_time(p_seconds: float, p_total: float) -> void:
 	seconds = maxf(p_seconds, 0.0)
 	total = maxf(p_total, 0.001)
+	# in the last seconds the ring pulses (still, with Reduce motion)
+	set_process(is_urgent() and not Settings.reduced_motion)
+	queue_redraw()
+
+
+func is_urgent() -> bool:
+	return seconds <= URGENT_SECONDS and seconds > 0.0
+
+
+func _process(_delta: float) -> void:
 	queue_redraw()
 
 
@@ -34,6 +46,9 @@ func _draw() -> void:
 	draw_circle(center, radius - 3.0, FACE)
 	draw_arc(center, radius - width / 2.0 - 4.0, 0.0, TAU, POINTS, TRACK, width)
 	var color: Color = URGENT if seconds <= URGENT_SECONDS else FILL
+	if is_urgent():
+		var beat: float = 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) / 1000.0 * TAU * 1.6) if not Settings.reduced_motion else 1.0
+		draw_arc(center, radius + 3.0, 0.0, TAU, POINTS, Color(URGENT, 0.25 + 0.4 * beat), 6.0, true)
 	if fraction() > 0.0:
 		draw_arc(center, radius - width / 2.0 - 4.0, -PI / 2.0, -PI / 2.0 + TAU * fraction(), POINTS, color, width, true)
 	var font: Font = ThemeDB.fallback_font

@@ -108,6 +108,8 @@ static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 	var description: Label = label(def.description, screen.DESCRIPTION_FONT)
 	description.name = "Description"
 	texts.add_child(description)
+	# the bars compare it with every other weapon at a glance; the line under them keeps the exact numbers
+	texts.add_child(WeaponsPage.compact_bars(def, screen._maxima))
 	var stats: Label = label(stat_line(def), screen.STAT_FONT, KalyeahTheme.AMBER)
 	stats.name = "Stats"
 	texts.add_child(stats)
