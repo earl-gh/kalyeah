@@ -30,6 +30,15 @@ const FACE_STEPS: int = 40
 ## A tagged kid's face is dimmed.
 const TAGGED_DIM: float = 0.5
 const BASE_STEPS: int = 48
+## A ping is a ring that grows from the spot and fades, over PING_TIME seconds: gold where a teammate was sent to the
+## box, in the scoring team's colour round the base that was captured. (Start radius, end radius) in minimap pixels.
+const PING_TIME: float = 1.0
+const PING_RADII: Vector2 = Vector2(FACE, 30.0)
+const BASE_PING_RADII: Vector2 = Vector2(16.0, 46.0)
+const PING_ALERT: Color = Color(1.0, 0.82, 0.3)
+const PING_WIDTH: float = 1.6
+## With Reduce motion a ping does not grow: it stays at this share of its full size and only fades.
+const PING_STILL: float = 0.6
 
 var _sim: MatchSim
 var _local_id: int = -1
@@ -37,6 +46,7 @@ var _local_team: int = 0
 var _view: SubViewport
 var _canvas: MinimapCanvas
 var _shown: TextureRect
+var _pings: Array[Dictionary] = []
 
 
 func setup(sim: MatchSim, local_id: int, local_team: int) -> void:
@@ -71,6 +81,8 @@ func setup(sim: MatchSim, local_id: int, local_team: int) -> void:
 	add_child(_shown)
 	resized.connect(_update_size)
 	_update_size()
+	sim.player_tagged.connect(_on_player_tagged)
+	sim.point_scored.connect(_on_point_scored)
 
 
 func _update_size() -> void:
@@ -80,9 +92,48 @@ func _update_size() -> void:
 	(_shown.material as ShaderMaterial).set_shader_parameter("rect_size", size)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	var alive: Array[Dictionary] = []
+	for ping_data: Dictionary in _pings:
+		ping_data["left"] = (ping_data["left"] as float) - delta
+		if (ping_data["left"] as float) > 0.0:
+			alive.append(ping_data)
+	_pings = alive
 	if _canvas != null:
 		_canvas.queue_redraw()
+
+
+## Starts a ring at street position `world` (x, z).
+func ping(world: Vector2, color: Color, radii: Vector2 = PING_RADII) -> void:
+	_pings.append({"at": world, "color": color, "radii": radii, "left": PING_TIME})
+
+
+## The rings alive now (tests).
+func pings() -> Array[Dictionary]:
+	return _pings
+
+
+## A ring's current radius and opacity: it grows quickly then slows, and fades out.
+func ring_of(ping_data: Dictionary) -> Dictionary:
+	var progress: float = 1.0 - clampf((ping_data["left"] as float) / PING_TIME, 0.0, 1.0)
+	var radii: Vector2 = ping_data["radii"] as Vector2
+	var grown: float = lerpf(radii.x, radii.y, 1.0 - pow(1.0 - progress, 2.0))
+	if Settings.reduced_motion:
+		grown = lerpf(radii.x, radii.y, PING_STILL)
+	return {"radius": grown, "alpha": 1.0 - progress}
+
+
+## A teammate was sent to the box: ring the box. (An enemy's tag is not pinged: that would show where they are.)
+func _on_player_tagged(id: int) -> void:
+	var state: PlayerState = _sim.players.get(id) as PlayerState
+	if state != null and state.team == _local_team:
+		ping(state.position, PING_ALERT)
+
+
+## A point was scored: ring the base that was captured, in the scoring team's colour.
+func _on_point_scored(team: int, _how: int) -> void:
+	var base: Vector2 = _sim.layout.base_center(-_sim.side_for_team(team))
+	ping(base, OWN if team == _local_team else ENEMY, BASE_PING_RADII)
 
 
 ## Street x/z to minimap pixels, turned so the local team's end is at the bottom.

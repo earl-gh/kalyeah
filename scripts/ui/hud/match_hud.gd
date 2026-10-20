@@ -170,6 +170,7 @@ func sync_player(sim: MatchSim, player: PlayerState, watched: int, pick_open: bo
 	# disabled while on cooldown too: no pressing or precasting until ready
 	var weapons_off: bool = not playing or not player.effects.can_cast()
 	feedback.sync_hint(player, joystick, aim_buttons, playing)
+	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 	for slot: int in weapon_buttons.size():
 		var button: AimButton = weapon_buttons[slot]
 		if slot >= player.weapons.size():
@@ -200,6 +201,7 @@ func _block_tag(player: PlayerState) -> String:
 ## Top row: the score card; the capture countdown; banners and the feed fade out.
 func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1) -> void:
 	scoreboard.show_score(sim.score, local_team, sim.match_time)
+	scoreboard.show_capture(sim, local_team)
 	_sync_capture(sim, local_team)
 	again_button.visible = sim.phase == MatchSim.Phase.MATCH_OVER
 	results.set_over(sim.phase == MatchSim.Phase.MATCH_OVER, sim, local_id, local_team, results_mode)
