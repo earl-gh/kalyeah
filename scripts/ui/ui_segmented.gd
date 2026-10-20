@@ -9,13 +9,14 @@ var buttons: Dictionary[StringName, Button] = {}
 var current: StringName = &""
 
 
-## `options`: {id, label} in order; `height` is the thumb height of each segment.
-func _init(options: Array[Dictionary] = [], height: float = 80.0) -> void:
+## `options`: {id, label} in order; `height` is the thumb height of each segment and `font_size` the label size
+## (smaller for four or more segments).
+func _init(options: Array[Dictionary] = [], height: float = 80.0, font_size: int = UiMetrics.ACTION) -> void:
 	name = "Segmented"
 	add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	for option: Dictionary in options:
 		var id: StringName = option["id"] as StringName
-		var button: Button = MenuDialog.make_button(String(option["label"]), "grey", UiMetrics.ACTION, Vector2(0.0, height))
+		var button: Button = MenuDialog.make_button(String(option["label"]), "grey", font_size, Vector2(0.0, height))
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.pressed.connect(select.bind(id))
 		add_child(button)

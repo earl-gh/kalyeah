@@ -106,6 +106,49 @@ func _open(id: String) -> void:
 		character_opened.emit(definition)
 
 
+## The colours the kid's outfit is made of, as {label, color}: hair, top, its accent, bottom (if any), footwear and
+## the extra (if any). Skin tone is not a swatch on purpose: the palette is about clothes and style.
+static func palette_of(character: CharacterDef) -> Array[Dictionary]:
+	var found: Array[Dictionary] = [
+		{"label": "Hair", "color": character.hair_color},
+		{"label": "Top", "color": character.tint},
+		{"label": "Accent", "color": character.top_accent},
+	]
+	if character.bottom != CharacterDef.Bottom.NONE:
+		found.append({"label": "Bottom", "color": character.bottom_color})
+	found.append({"label": "Footwear", "color": character.shoe_color})
+	if character.extra != CharacterDef.Extra.NONE:
+		found.append({"label": "Extra", "color": character.extra_color})
+	return found
+
+
+static func _palette(character: CharacterDef) -> Control:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "Palette"
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	for swatch: Dictionary in palette_of(character):
+		var column: VBoxContainer = VBoxContainer.new()
+		column.add_theme_constant_override("separation", 4)
+		var dot: Panel = Panel.new()
+		dot.name = "Swatch_%s" % String(swatch["label"])
+		dot.custom_minimum_size = Vector2(52.0, 52.0)
+		dot.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		var box: StyleBoxFlat = StyleBoxFlat.new()
+		box.bg_color = swatch["color"] as Color
+		box.set_corner_radius_all(26)
+		box.border_color = Color(1.0, 1.0, 1.0, 0.55)
+		box.set_border_width_all(3)
+		box.anti_aliasing = true
+		dot.add_theme_stylebox_override("panel", box)
+		column.add_child(dot)
+		var caption: Label = UiKit.text(String(swatch["label"]), 18, Color("9fb0d6"), false)
+		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		column.add_child(caption)
+		row.add_child(column)
+	return row
+
+
 ## The detail sheet of `character`: the face large, the name, what they wear, and a note that the look
 ## changes nothing about how they play.
 static func detail(character: CharacterDef) -> MenuDialog:
@@ -129,6 +172,7 @@ static func detail(character: CharacterDef) -> MenuDialog:
 	card.body.add_child(picture)
 	var about: Label = card.add_label(character.description, UiMetrics.BODY, KalyeahTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	about.name = "About"
+	card.body.add_child(_palette(character))
 	card.add_hint(NOTE).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var close: Button = MenuDialog.make_button("Close", "grey", UiMetrics.ACTION)
 	close.name = "Close"
