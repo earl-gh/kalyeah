@@ -12,7 +12,9 @@ signal exit_requested
 
 ## The character cards are exactly 3:4 (width:height).
 const PROFILE_SIZE: Vector2 = Vector2(96.0, 128.0)
-const TAB_FONT: int = UiMetrics.ACTION
+## The weapon grid: tiles across, and how tall each tile is.
+const GRID_COLUMNS: int = 3
+const TILE_HEIGHT: float = 200.0
 const NAME_FONT: int = UiMetrics.BODY
 const DESCRIPTION_FONT: int = UiMetrics.BODY
 const STAT_FONT: int = UiMetrics.DETAIL
@@ -51,8 +53,13 @@ var _profiles: Dictionary[StringName, Button] = {}
 var _taken_labels: Dictionary[StringName, Label] = {}
 var _taken: Array[StringName] = []
 var _character_row: Control
-var _tabs: Dictionary[String, Button] = {}
-var _pages: Dictionary[String, Control] = {}
+## The weapon shown in the info panel: the one you touched last (the first of your pair, else the suggested one).
+var focused: StringName = &""
+var _info_name: Label
+var _info_kind: Label
+var _info_text: Label
+var _info_bars: VBoxContainer
+var _info_stats: Label
 var _buttons: Dictionary[StringName, Button] = {}
 var _badges: Dictionary[StringName, Label] = {}
 var _defs: Dictionary[StringName, WeaponDef] = {}
@@ -127,34 +134,9 @@ func _show(defs: Array[WeaponDef], _heading: String) -> void:
 	LobbyWidgets.apply_safe_area(_safe_margin, UiMetrics.PAGE_MARGIN, UiMetrics.PAGE_MARGIN)
 	_character_row.visible = not swap_mode and not _characters.is_empty()
 	(find_child("Characters", true, false) as Control).visible = _character_row.visible
-	_open_tab(_first_tab())
+	_focus_first()
 	visible = true
 	_refresh()
-
-
-## The tab shown first: the street game of your first weapon, else the first one.
-func _first_tab() -> String:
-	if pick != null and not pick.picks.is_empty() and _defs.has(pick.picks[0]):
-		return _defs[pick.picks[0]].street_game
-	return _tabs.keys()[0] as String
-
-
-## Shows one street game's weapon cards.
-func open_tab(group: String) -> void:
-	_open_tab(group)
-
-
-func _open_tab(group: String) -> void:
-	for name: String in _pages:
-		_pages[name].visible = name == group
-		_tabs[name].set_pressed_no_signal(name == group)
-
-
-func current_tab() -> String:
-	for name: String in _pages:
-		if _pages[name].visible:
-			return name
-	return ""
 
 
 ## The kids a teammate already locked in: they are greyed out and cannot be picked (the other
@@ -188,9 +170,33 @@ func is_open() -> bool:
 	return visible and pick != null and not pick.done
 
 
+## Shows `id` in the info panel (without picking it).
+func show_info(id: StringName) -> void:
+	if not _defs.has(id):
+		return
+	focused = id
+	var def: WeaponDef = _defs[id]
+	_info_name.text = def.display_name
+	_info_kind.text = String(WeaponsPage.KIND_NAMES.get(def.kind, ""))
+	_info_kind.add_theme_color_override("font_color", kind_color(def.kind))
+	_info_text.text = def.description
+	for child: Node in _info_bars.get_children():
+		_info_bars.remove_child(child)
+		child.queue_free()
+	var bars: Control = LoadoutCards.bar_strip(def, _maxima)
+	_info_bars.add_child(bars)
+	_info_stats.text = _stat_line(def)
+
+
+func _focus_first() -> void:
+	var id: StringName = pick.picks[0] if pick != null and not pick.picks.is_empty() else (suggestion[0] if not suggestion.is_empty() else (_defs.keys()[0] as StringName))
+	show_info(id)
+
+
 func tap(id: StringName) -> void:
 	if not is_open():
 		return
+	show_info(id)
 	if pick.picks.size() == WeaponPick.SLOTS and not pick.picks.has(id):
 		pick.replace_slot(replacement_slot, id)
 		replacement_slot = 1 - replacement_slot
