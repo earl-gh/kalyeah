@@ -21,7 +21,9 @@ const CORNER: float = 12.0
 const CROP_SHADER: Shader = preload("res://shaders/minimap_crop.gdshader")
 ## A player's face circle: its radius, how thick the one team-colour ring on its edge is, and how
 ## much bigger you are than the others (px).
-const FACE: float = 8.0
+const FACE: float = 9.0
+## The width the constants below are written for; a bigger minimap scales them all (`unit()`).
+const BASE_WIDTH: float = 100.0
 const RING: float = 0.6
 const SELF_SCALE: float = 1.25
 ## The minimap is drawn this many times bigger and scaled down, which smooths every edge.
@@ -83,6 +85,11 @@ func setup(sim: MatchSim, local_id: int, local_team: int) -> void:
 	_update_size()
 	sim.player_tagged.connect(_on_player_tagged)
 	sim.point_scored.connect(_on_point_scored)
+
+
+## How much bigger than the 100 px base this minimap is, for faces, rings and pings.
+func unit() -> float:
+	return maxf(size.x, 1.0) / BASE_WIDTH
 
 
 func _update_size() -> void:

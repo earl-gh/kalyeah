@@ -181,7 +181,7 @@ func test_tapping_two_weapons_and_ready_sets_the_loadout() -> void:
 	practice.advance(DT)
 	assert_eq(practice.sim.tick, 1, "the match starts")
 	assert_eq(_weapon_button(practice, 0).label_text, "Lata")
-	assert_eq(_weapon_button(practice, 0).sub_text, "CC")
+	assert_eq(_weapon_button(practice, 0).sub_text, "Control")
 
 
 func test_pick_screen_has_a_card_for_every_weapon() -> void:
@@ -558,8 +558,8 @@ func test_skill_buttons_are_art_with_only_the_type_tag() -> void:
 	practice.advance(DT)
 	var block: AimButton = _weapon_button(practice, 0)
 	assert_eq(block.icon_id, &"papel_shield")
-	assert_eq(block.sub_text, "BLK")
-	assert_eq(_weapon_button(practice, 1).sub_text, "ATK")
+	assert_eq(block.sub_text, "Block")
+	assert_eq(_weapon_button(practice, 1).sub_text, "Attack")
 
 
 ## The screen direction (stick or drag) that heads straight for the enemy base.

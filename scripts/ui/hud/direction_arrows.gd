@@ -7,6 +7,9 @@ extends Control
 
 ## Pixels kept clear of the screen edge on each side: left, top (minimap and score row), right, bottom (controls).
 const INSET: Vector4 = Vector4(70.0, 250.0, 70.0, 380.0)
+## A label sits on a dark pill so it reads over the street and over the kids' bars.
+const LABEL_PILL: Color = Color(0.05, 0.07, 0.14, 0.78)
+const LABEL_PAD: Vector2 = Vector2(14.0, 6.0)
 ## A target counts as on screen this far inside the edge.
 const ON_SCREEN_MARGIN: float = 60.0
 const ARROW_SIZE: float = 30.0
@@ -24,6 +27,8 @@ const MARKER_BOB: float = 7.0
 ## What is shown now: {kind, label, color, point (on the edge), angle, alpha, metres, marker (0 to 1: how much the
 ## marker over the target is shown), target (where the target is on screen)}. Tests read this.
 var arrows: Array[Dictionary] = []
+## Where the minimap ends (the hud sets it): arrows stay below it as well as below the INSET.
+var minimap_bottom: float = 0.0
 
 var _sim: MatchSim
 var _camera: Camera3D
@@ -84,7 +89,8 @@ func tick(delta: float) -> void:
 	arrows.clear()
 	var wanted: Array[Dictionary] = targets()
 	var shown: Dictionary[StringName, bool] = {}
-	var rect: Rect2 = Rect2(Vector2(INSET.x, INSET.y), size - Vector2(INSET.x + INSET.z, INSET.y + INSET.w))
+	var top: float = maxf(INSET.y, minimap_bottom + 12.0)
+	var rect: Rect2 = Rect2(Vector2(INSET.x, top), size - Vector2(INSET.x + INSET.z, top + INSET.w))
 	if rect.size.x > 0.0 and rect.size.y > 0.0:
 		var me: PlayerState = _sim.players[_local_id] if _sim != null and _sim.players.has(_local_id) else null
 		for target: Dictionary in wanted:
@@ -143,6 +149,11 @@ func _draw() -> void:
 		var inward: Vector2 = (size / 2.0 - at).normalized()
 		var anchor: Vector2 = at + inward * (ARROW_SIZE + 30.0) - Vector2(width / 2.0, -LABEL_FONT * 0.35)
 		anchor.x = clampf(anchor.x, 16.0, size.x - width - 16.0)
+		var pill: StyleBoxFlat = StyleBoxFlat.new()
+		pill.bg_color = Color(LABEL_PILL, LABEL_PILL.a * alpha)
+		pill.set_corner_radius_all(18)
+		pill.anti_aliasing = true
+		draw_style_box(pill, Rect2(anchor + Vector2(-LABEL_PAD.x, -LABEL_FONT - LABEL_PAD.y + 4.0), Vector2(width + LABEL_PAD.x * 2.0, LABEL_FONT + LABEL_PAD.y * 2.0 + 4.0)))
 		draw_string_outline(font, anchor, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, LABEL_FONT, 8, Color(0.08, 0.05, 0.1, alpha))
 		draw_string(font, anchor, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, LABEL_FONT, Color(1.0, 1.0, 1.0, alpha))
 
@@ -154,7 +165,7 @@ func _draw_marker(arrow: Dictionary, font: Font) -> void:
 		return
 	var bob: float = 0.0 if Settings.reduced_motion else sin(float(Time.get_ticks_msec()) / 1000.0 * TAU * 1.4) * MARKER_BOB
 	var anchor: Vector2 = (arrow["target"] as Vector2) + Vector2(0.0, -MARKER_LIFT + bob)
-	anchor = anchor.clamp(Vector2(60.0, INSET.y), size - Vector2(60.0, INSET.w))
+	anchor = anchor.clamp(Vector2(60.0, maxf(INSET.y, minimap_bottom + 12.0)), size - Vector2(60.0, INSET.w))
 	var color: Color = arrow["color"] as Color
 	var points: PackedVector2Array = PackedVector2Array([anchor + Vector2(0.0, MARKER_SIZE), anchor + Vector2(-MARKER_SIZE, -MARKER_SIZE * 0.6), anchor + Vector2(MARKER_SIZE, -MARKER_SIZE * 0.6)])
 	draw_colored_polygon(points, Color(color, 0.95 * alpha))

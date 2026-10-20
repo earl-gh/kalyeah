@@ -75,12 +75,12 @@ func deals_damage() -> bool:
 func kind_label() -> String:
 	match kind:
 		Kind.ATTACK:
-			return "ATK"
+			return "Attack"
 		Kind.CROWD_CONTROL:
-			return "CC"
+			return "Control"
 		Kind.HEAL:
-			return "HEAL"
-	return "BLK"
+			return "Heal"
+	return "Block"
 
 
 ## Snips for a cone cast after holding the button for `hold_seconds`.

@@ -40,7 +40,7 @@ func _draw() -> void:
 			_draw_player(_sim.players[id] as PlayerState)
 	for ping_data: Dictionary in _minimap.pings():
 		var ring: Dictionary = _minimap.ring_of(ping_data)
-		draw_arc(_minimap.to_map(ping_data["at"] as Vector2), ring["radius"] as float, 0.0, TAU, LaneMinimap.FACE_STEPS, Color(ping_data["color"] as Color, ring["alpha"] as float), LaneMinimap.PING_WIDTH, true)
+		draw_arc(_minimap.to_map(ping_data["at"] as Vector2), (ring["radius"] as float) * _minimap.unit(), 0.0, TAU, LaneMinimap.FACE_STEPS, Color(ping_data["color"] as Color, ring["alpha"] as float), LaneMinimap.PING_WIDTH * _minimap.unit(), true)
 
 
 ## One player: their face (cropped from the boot screen art; the top of the portrait without one)
@@ -51,13 +51,13 @@ func _draw_player(state: PlayerState) -> void:
 	var dim: bool = state.tagged or _sim.hides_in_box(state, _local_team)
 	var team_color: Color = LaneMinimap.OWN if state.team == _local_team else LaneMinimap.ENEMY
 	var ring: Color = team_color.darkened(0.35) if dim else team_color
-	var radius: float = LaneMinimap.FACE * (LaneMinimap.SELF_SCALE if state.id == _local_id else 1.0)
+	var radius: float = LaneMinimap.FACE * _minimap.unit() * (LaneMinimap.SELF_SCALE if state.id == _local_id else 1.0)
 	var texture: Texture2D = KidModel.minimap_face(state.character_id)
 	if texture == null:
 		texture = KidModel.portrait(state.character_id)
 	# the face reaches under the ring, so no gap shows between them
 	draw_colored_polygon(LaneMinimap.face_points(at, radius), Color.WHITE.darkened(LaneMinimap.TAGGED_DIM) if dim else Color.WHITE, LaneMinimap.face_uvs(texture), texture)
-	draw_arc(at, radius, 0.0, TAU, LaneMinimap.FACE_STEPS, ring, LaneMinimap.RING, true)
+	draw_arc(at, radius, 0.0, TAU, LaneMinimap.FACE_STEPS, ring, LaneMinimap.RING * _minimap.unit(), true)
 
 
 func _draw_world_rect(rect: Rect2, color: Color) -> void:

@@ -7,6 +7,9 @@ signal accessibility_changed
 ## The on-screen controls moved or changed size (left-handed layout, control size).
 signal controls_changed
 
+## The three minimap sizes (a share of the 100 x 200 base): the default is a bigger one, since 100 px is about 54 pt on a phone.
+const MINIMAP_SIZES: Dictionary[StringName, float] = {&"small": 1.0, &"normal": 1.3, &"large": 1.6}
+
 ## The three control sizes the player can pick: the weapon buttons and the stick are scaled by this.
 const CONTROL_SIZES: Dictionary[StringName, float] = {&"small": 0.85, &"normal": 1.0, &"large": 1.2}
 
@@ -25,6 +28,8 @@ var left_handed: bool = false
 var keyboard_active: bool = false
 ## Size of the match controls, one of `CONTROL_SIZES`.
 var control_scale: float = 1.0
+## Size of the match minimap, one of `MINIMAP_SIZES`.
+var minimap_scale: float = 1.3
 
 var _ui_voice: AudioStreamPlayer
 
@@ -46,6 +51,7 @@ func _ready() -> void:
 		var hand: Variant = file.get_value("input", "left_handed", false)
 		left_handed = hand if hand is bool else false
 		control_scale = nearest_control_scale(file.get_value("input", "control_scale", 1.0))
+		minimap_scale = nearest_minimap_scale(file.get_value("input", "minimap_scale", 1.3))
 	apply_volume()
 	if OS.has_feature("web"):
 		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
@@ -107,6 +113,26 @@ static func nearest_control_scale(value: Variant) -> float:
 		if absf(option - float(value)) < absf(best - float(value)):
 			best = option
 	return best
+
+
+## The allowed minimap size closest to `value` (anything that is not a number is the normal size).
+static func nearest_minimap_scale(value: Variant) -> float:
+	if not (value is float or value is int):
+		return 1.3
+	var best: float = 1.3
+	for option: float in MINIMAP_SIZES.values():
+		if absf(option - float(value)) < absf(best - float(value)):
+			best = option
+	return best
+
+
+func set_minimap_scale(value: float) -> void:
+	var chosen: float = nearest_minimap_scale(value)
+	if is_equal_approx(chosen, minimap_scale):
+		return
+	minimap_scale = chosen
+	_save_value("input", "minimap_scale", chosen)
+	controls_changed.emit()
 
 
 func set_left_handed(on: bool) -> void:
