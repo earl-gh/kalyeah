@@ -142,3 +142,18 @@ func test_the_shared_choice_toggle_is_a_slate_button_that_turns_blue() -> void:
 	assert_true(button.toggle_mode)
 	assert_eq(button.get_theme_stylebox("normal"), UiSkin.button("slate"))
 	assert_eq(button.get_theme_stylebox("pressed"), UiSkin.button("blue", "pressed"))
+
+
+func test_a_button_that_leaves_the_tree_and_returns_is_wired_for_its_click_sound_once() -> void:
+	var holder: Control = autofree(Control.new()) as Control
+	add_child(holder)
+	var button: Button = Button.new()
+	holder.add_child(button)
+	holder.remove_child(button)
+	holder.add_child(button)
+	var wired: int = 0
+	for connection: Dictionary in button.pressed.get_connections():
+		if (connection["callable"] as Callable).get_object() == Settings:
+			wired += 1
+	assert_eq(wired, 1, "one click sound per press, and no 'already connected' error")
+	button.free()
