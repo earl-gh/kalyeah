@@ -5,14 +5,15 @@ const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const PHONE: float = 720.0 / 1280.0
 
 
-func test_a_fixed_low_angle_with_a_wide_perspective_lens() -> void:
-	assert_eq(CAMERA.pitch_degrees, 32.0, "owner: a bit higher behind the kid")
-	assert_eq(CAMERA.vfov_degrees, 75.0, "wide vertical field of view")
+func test_a_fixed_moba_angle_with_a_moderate_perspective_lens() -> void:
+	assert_eq(CAMERA.pitch_degrees, 42.0, "high enough to read the ground, low enough to see the kids' faces")
+	assert_eq(CAMERA.vfov_degrees, 60.0, "a moderate lens: little stretch at the edges, so little to get used to")
+	assert_eq(CAMERA.yaw_offset_degrees, 0.0, "straight behind: left and right stay mirror images (see docs/audits/2026-10-20-camera.md)")
 	assert_eq(CameraRules.DESIGN_ASPECT, 9.0 / 16.0, "portrait 9:16")
 
 
 func test_other_camera_numbers_come_from_data() -> void:
-	assert_eq(CAMERA.visible_width, 11.5, "owner: a bit farther from the kid")
+	assert_eq(CAMERA.visible_width, 10.6, "metres of street across the screen at the aim point")
 	assert_eq(CAMERA.player_screen_y, 0.62)
 
 
@@ -21,12 +22,12 @@ func test_distance_shows_the_visible_width_on_any_phone() -> void:
 		var distance: float = CAMERA.distance(aspect)
 		var width: float = 2.0 * distance * tan(deg_to_rad(CAMERA.vfov_degrees / 2.0)) * aspect
 		assert_almost_eq(width, CAMERA.visible_width, 0.001, "aspect %.2f" % aspect)
-	assert_almost_eq(CAMERA.distance(PHONE), 13.32, 0.05)
+	assert_almost_eq(CAMERA.distance(PHONE), 16.32, 0.05)
 
 
-func test_the_camera_is_low_behind_the_hero() -> void:
+func test_the_camera_is_high_behind_the_hero() -> void:
 	var offset: Vector3 = CAMERA.camera_offset(CAMERA.distance(PHONE), false)
-	assert_almost_eq(offset.y, 7.06, 0.1, "about 7 m up")
+	assert_almost_eq(offset.y, 10.92, 0.1, "about 11 m up")
 	assert_almost_eq(offset.length(), CAMERA.distance(PHONE), 0.001)
 
 
@@ -58,7 +59,7 @@ func test_other_team_view_is_mirrored() -> void:
 func test_the_aim_point_is_far_enough_ahead_to_hold_the_hero_low_on_screen() -> void:
 	var reach: float = CAMERA.distance(PHONE)
 	var ahead: float = CAMERA.look_ahead(reach)
-	assert_almost_eq(ahead, 3.53, 0.05, "about 3.8 m ahead")
+	assert_almost_eq(ahead, 2.93, 0.05, "about 3 m ahead")
 	assert_eq(CAMERA.camera_target(Vector2(0.0, 10.0), false, reach), Vector2(0.0, 10.0 - ahead), "own side looks toward -Z")
 	assert_eq(CAMERA.camera_target(Vector2(0.0, -10.0), true, reach), Vector2(0.0, -10.0 + ahead), "flipped looks toward +Z")
 
@@ -86,7 +87,8 @@ func test_ground_offsets_cover_the_whole_screen() -> void:
 	assert_almost_eq(CAMERA.ground_offset(reach, 0.5), 0.0, 0.001, "the screen centre is the aim point")
 	assert_gt(CAMERA.ground_offset(reach, 1.0), 0.0, "the bottom edge is behind the aim point")
 	assert_lt(CAMERA.ground_offset(reach, 0.0), 0.0, "the top edge is ahead of it (or the sky)")
-	assert_eq(CAMERA.ground_offset(reach, 0.0), -INF, "a low angle shows the sky at the very top")
+	assert_lt(CAMERA.ground_offset(reach, 0.0), -30.0, "the very top of the screen is street, 30 m and more ahead (no sky)")
+	assert_ne(CAMERA.ground_offset(reach, 0.0), -INF, "the steep angle never shows the sky")
 	assert_lt(CAMERA.ground_offset(reach, 1.0), reach, "the bottom edge is in front of the camera")
 
 
@@ -114,10 +116,49 @@ func test_the_near_plane_is_close_enough_not_to_slice_models() -> void:
 	camera.layout = LAYOUT
 	add_child(camera)
 	camera.follow(Vector2.ZERO, false)
-	# the camera is only about 5 m up: with a plane any further out, the ground and props
+	# the camera is only about 11 m up: with a plane any further out, the ground and props
 	# directly beneath and in front of it are cut off
 	var height: float = CAMERA.camera_offset(CAMERA.distance(PHONE), false).y
 	assert_lt(camera.near, 1.0, "the near plane is about half a metre out")
 	assert_lt(camera.near, height / 4.0, "well inside the camera's height")
 	assert_lt(camera.far / camera.near, 1000.0, "the depth range is still sane")
 
+
+
+## Fraction of the screen height a `height`-metre-tall thing standing on the hero's spot fills
+## (flat view, no lens), for a phone of `aspect`.
+func _hero_height_fraction(height: float, aspect: float) -> float:
+	var reach: float = CAMERA.distance(aspect)
+	var pitch: float = deg_to_rad(CAMERA.pitch_degrees)
+	var ground: float = reach * cos(pitch) - CAMERA.look_ahead(reach)  # camera foot to hero
+	var half: float = tan(deg_to_rad(CAMERA.vfov_degrees / 2.0))
+	var forward: Vector2 = Vector2(cos(pitch), -sin(pitch))
+	var up: Vector2 = Vector2(sin(pitch), cos(pitch))
+	var feet: Vector2 = Vector2(ground, -reach * sin(pitch))
+	var head: Vector2 = feet + Vector2(0.0, height)
+	return (head.dot(up) / head.dot(forward) - feet.dot(up) / feet.dot(forward)) / (2.0 * half)
+
+
+func test_kids_fill_enough_of_the_screen_to_read() -> void:
+	# a steeper camera shrinks the kid on screen (foreshortening), so the width is chosen with it
+	var fraction: float = _hero_height_fraction(KidModel.KID_HEIGHT, PHONE)
+	assert_gt(fraction, 0.078, "the kid is at least ~8% of the screen height (100 px of 1280)")
+	assert_lt(fraction, 0.10, "and not so big that the street gets narrow")
+
+
+func test_the_street_is_wide_enough_at_the_heros_row() -> void:
+	var reach: float = CAMERA.distance(PHONE)
+	var pitch: float = deg_to_rad(CAMERA.pitch_degrees)
+	var ground: float = reach * cos(pitch) - CAMERA.look_ahead(reach)
+	var depth: float = Vector2(ground, -reach * sin(pitch)).dot(Vector2(cos(pitch), -sin(pitch)))
+	var across: float = 2.0 * depth * tan(deg_to_rad(CAMERA.vfov_degrees / 2.0)) * PHONE
+	assert_gt(across, 9.0, "at the hero's own row you see at least 9 m across (the old camera showed 8.9)")
+
+
+func test_the_ground_is_not_squashed_too_flat_for_aiming() -> void:
+	# a circle on the ground around the hero looks like an ellipse: height / width on screen
+	var pitch: float = deg_to_rad(CAMERA.pitch_degrees)
+	var reach: float = CAMERA.distance(PHONE)
+	var ground: float = reach * cos(pitch) - CAMERA.look_ahead(reach)
+	var depression: float = atan(reach * sin(pitch) / ground)
+	assert_gt(sin(depression), 0.7, "ground circles look at least 70% as tall as wide (they were 75% to 80%)")
