@@ -174,13 +174,13 @@ func _practice() -> PracticeMatch:
 	return practice
 
 
-func test_the_status_pill_wears_the_skin_and_the_opening_and_tagged_views_have_no_card() -> void:
+func test_the_status_pill_and_the_tagged_sheet_wear_the_skin_and_the_opening_words_have_no_card() -> void:
 	var practice: PracticeMatch = _practice()
 	var pill: Label = practice.hud.feedback.message
 	assert_true(pill.get_theme_stylebox("normal") is StyleBoxTexture, "status messages are night pills")
 	assert_false(practice.hud.intro_bar is Panel, "the opening words stand on the street: no card behind them")
 	var band: PanelContainer = practice.hud.tagged_panel.find_children("*", "PanelContainer", true, false)[0] as PanelContainer
-	assert_true(band.get_theme_stylebox("panel") is StyleBoxEmpty, "the tagged row has no sheet behind it")
+	assert_true(band.get_theme_stylebox("panel") is StyleBoxTexture, "and the tagged sheet")
 
 
 func test_a_pill_is_tall_enough_for_its_corners_and_the_scoreboard_for_its_frame() -> void:

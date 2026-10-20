@@ -189,8 +189,15 @@ func _draw() -> void:
 		draw_circle(center, radius, Color(glow, glow.a * READY_WASH))
 
 
-## The weapon type (ATK / CC / BLK) under the art: coloured letters with an outline, no pill behind them.
+## A small coloured pill with the weapon type in it.
 func _tag(font: Font, text: String, at: Vector2, color: Color) -> void:
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, TAG_FONT_SIZE).x + 20.0
+	var pill: StyleBoxFlat = StyleBoxFlat.new()
+	pill.bg_color = Color(0.1, 0.08, 0.14, 0.92)
+	pill.border_color = color
+	pill.set_border_width_all(2)
+	pill.set_corner_radius_all(12)
+	draw_style_box(pill, Rect2(at - Vector2(width / 2.0, 11.0), Vector2(width, 22.0)))
 	_text(font, text, at, TAG_FONT_SIZE, color)
 
 
