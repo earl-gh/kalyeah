@@ -257,6 +257,7 @@ func _build_pages() -> void:
 		page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		page.visible = false
 		_page_holder.add_child(page)
+	codex_page.weapons_page.weapon_opened.connect(open_weapon_detail)
 	settings_page.profile_pressed.connect(open_name_editor)
 	settings_page.quit_pressed.connect(open_quit_confirm)
 
@@ -525,6 +526,13 @@ func _show_dialog(new_dialog: MenuDialog) -> void:
 		dialog.close(false)
 	dialog = new_dialog
 	dialog.open(self)
+
+
+## The detail sheet of a weapon from the Book.
+func open_weapon_detail(weapon: WeaponDef) -> MenuDialog:
+	var card: MenuDialog = WeaponsPage.detail(weapon)
+	_show_dialog(card)
+	return card
 
 
 ## Rename: a text box (12 letters at most) with Cancel / Save.

@@ -61,17 +61,76 @@ func test_the_book_has_a_characters_tab_and_a_weapons_tab() -> void:
 	assert_true(screen.characters_page.visible)
 
 
-func test_the_weapons_page_lists_every_weapon_with_its_text() -> void:
+func test_the_weapons_page_is_a_grid_with_a_tile_for_every_weapon() -> void:
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"codex")
 	screen.codex_page.show_tab(&"weapons")
 	await wait_frames(2)
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 	var page: WeaponsPage = screen.weapons_page
-	assert_eq(page.rows.size(), rules.weapons.size())
+	assert_eq(page.tiles.size(), rules.weapons.size())
+	var columns: Dictionary[int, bool] = {}
 	for i: int in rules.weapons.size():
-		assert_eq((page.rows[i].find_child("Name", true, false) as Label).text, rules.weapons[i].display_name)
-		assert_eq((page.rows[i].find_child("About", true, false) as Label).text, rules.weapons[i].description)
+		assert_eq((page.tiles[i].find_child("Name", true, false) as Label).text, rules.weapons[i].display_name)
+		assert_gte(page.tiles[i].get_global_rect().size.y, 88.0, "a tile is a big touch target")
+		columns[int(page.tiles[i].get_global_rect().position.x)] = true
+	assert_eq(columns.size(), WeaponsPage.COLUMNS, "two columns, not one long list")
+
+
+func test_the_filters_show_one_kind_at_a_time_and_all_shows_every_weapon() -> void:
+	var screen: TitleScreen = _phone_screen()
+	screen.open_page(&"codex")
+	screen.codex_page.show_tab(&"weapons")
+	await wait_frames(2)
+	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
+	var page: WeaponsPage = screen.weapons_page
+	assert_eq(page.filter, WeaponsPage.ALL)
+	for kind: int in WeaponsPage.KIND_NAMES:
+		page.filter_buttons[StringName(str(kind))].pressed.emit()
+		var shown: int = 0
+		for i: int in page.tiles.size():
+			assert_eq(page.tiles[i].visible, rules.weapons[i].kind == kind, "%s only" % WeaponsPage.KIND_NAMES[kind])
+			shown += int(page.tiles[i].visible)
+		assert_gt(shown, 0, "%s has weapons in it" % WeaponsPage.KIND_NAMES[kind])
+		assert_true(page.filter_buttons[StringName(str(kind))].button_pressed, "its filter is lit")
+		assert_false(page.filter_buttons[WeaponsPage.ALL].button_pressed)
+	page.filter_buttons[WeaponsPage.ALL].pressed.emit()
+	assert_eq(page.tiles.filter(func(tile: Button) -> bool: return tile.visible).size(), rules.weapons.size())
+
+
+func test_tapping_a_tile_opens_the_detail_sheet_with_the_text_and_figures() -> void:
+	var screen: TitleScreen = _phone_screen()
+	screen.open_page(&"codex")
+	screen.codex_page.show_tab(&"weapons")
+	await wait_frames(2)
+	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
+	for i: int in rules.weapons.size():
+		var weapon: WeaponDef = rules.weapons[i]
+		screen.weapons_page.tiles[i].pressed.emit()
+		assert_not_null(screen.dialog, "%s opens a sheet" % weapon.id)
+		assert_not_null(screen.dialog.find_child("Figures", true, false), "the sheet shows its figures")
+		assert_eq((screen.dialog.find_child("About", true, false) as Label).text, weapon.description)
+		assert_eq(screen.dialog.title_label.text, weapon.display_name)
+		var figures: Control = screen.dialog.find_child("Figures", true, false)
+		assert_eq(figures.get_child_count(), WeaponsPage.figures_of(weapon).size())
+		assert_gt(figures.get_child_count(), 0, "every weapon has a figure to show")
+	screen.dialog.find_child("Close", true, false).pressed.emit()
+	assert_false(screen.dialog.is_open)
+
+
+func test_the_figures_name_damage_or_healing_cooldown_and_range() -> void:
+	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
+	var saw_heal: bool = false
+	for weapon: WeaponDef in rules.weapons:
+		var captions: Array[String] = []
+		for figure: Dictionary in WeaponsPage.figures_of(weapon):
+			captions.append(String(figure["caption"]))
+		assert_eq(captions.has("Heal"), weapon.heal > 0, "%s: healing is named as healing" % weapon.id)
+		assert_eq(captions.has("Damage"), weapon.heal <= 0 and weapon.damage > 0, "%s: damage" % weapon.id)
+		assert_eq(captions.has("Cooldown"), weapon.cooldown > 0.0)
+		assert_eq(captions.has("Range"), weapon.max_range > 0.0)
+		saw_heal = saw_heal or weapon.heal > 0
+	assert_true(saw_heal, "the healing weapon is among them")
 
 
 func test_history_starts_empty_and_lists_battles_newest_first() -> void:

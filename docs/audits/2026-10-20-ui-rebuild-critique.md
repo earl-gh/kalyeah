@@ -124,3 +124,29 @@ Also done from the critique list:
 - **Weapons page** is still one long list of cards; a grid with a detail sheet is the AAA answer.
 - **Painted button art** from the owner would replace the procedural gloss (the skin is built for that swap).
 - **Android hardware** is still unchecked: first-open texture cost, safe areas, touch feel.
+
+---
+
+# Round 3: the Weapons page
+
+The critique listed the Weapons page as one long list: three weapons per screen, each with a paragraph, and
+no way to grow past six. It is now a **filter row** (All, Attack, Control, Block, Heal), a **two-column grid**
+of tiles (the picture in a rim of its kind's colour, the name, the kind), and a **detail sheet** on tap
+(the picture large, the street game, the sentence, and the damage or healing, cooldown and range as three
+figures). Roughly three times as many weapons are visible at once, and the paragraph appears only for the
+weapon you ask about.
+
+![weapons grid, a filter, and two detail sheets](images/ui-rebuild-weapons.png)
+
+Self-critique of this pass:
+
+- **A layout bug I nearly shipped.** The first filter row was a scroll that cut off at "Block", so "Heal" was
+  hidden. Five filters now share one row (smaller type, slimmer sides) with equal widths.
+- **A typography bug the screenshot showed.** The display face is all capitals, so "8 m" read "8 M" (mega).
+  The figures use the heavy body face instead.
+- **The sheet reuses the dialog, not a new component.** It inherits the dim, focus restore, Android Back and
+  draw order of every other modal. A real bottom sheet would feel more native on a phone, but it would be a new
+  surface to keep consistent; not worth it for one screen.
+- **Still missing:** a weapon's effect (stun length, slow strength) is not shown, only the three numbers. The
+  numbers live in `data/weapons/*.tres`, so adding it is a data-driven change; I left it so the sheet stays
+  readable.
