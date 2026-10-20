@@ -11,6 +11,8 @@ enum Extra { NONE, BIMPO, HAIR_CLIP, HEADBAND_BELT_BAG, ICE_CANDY, PONY_BANDS }
 
 @export var id: StringName = &""
 @export var display_name: String = ""
+## What the kid wears and how they look, for the Book (never gameplay).
+@export_multiline var description: String = ""
 ## Main outfit colour (also used for small UI accents).
 @export var tint: Color = Color.WHITE
 @export var skin: Color = Color(0.78, 0.58, 0.42)
