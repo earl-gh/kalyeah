@@ -226,7 +226,7 @@ func _sync_capture(sim: MatchSim, local_team: int) -> void:
 	capture_label.add_theme_color_override("font_color", CAPTURE_COLOR.lerp(FEED_OWN if ours else FEED_ENEMY, 0.35))
 
 
-## Adds a TAGGED! or RESCUED! line under the minimap: blue for your team, red for theirs.
+## Adds a TAGGED! or RESCUED! pill under the minimap: blue for your team, red for theirs.
 func feed(kind: Feed, our_team: bool, who: String) -> void:
 	var pill: Label = Label.new()
 	pill.text = "%s  %s" % ["TAGGED!" if kind == Feed.TAGGED else "RESCUED!", who]
@@ -237,8 +237,12 @@ func feed(kind: Feed, our_team: bool, who: String) -> void:
 	pill.add_theme_constant_override("outline_size", 6)
 	pill.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# no pill behind it: the team colour is the text's colour
-	pill.add_theme_color_override("font_color", FEED_OWN.lightened(0.3) if our_team else FEED_ENEMY.lightened(0.3))
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = FEED_OWN if our_team else FEED_ENEMY
+	style.set_corner_radius_all(10)
+	style.content_margin_left = 14.0
+	style.skew = Vector2(0.18, 0.0)
+	pill.add_theme_stylebox_override("normal", style)
 	pill.set_meta(&"left", FEED_TIME)
 	feed_box.add_child(pill)
 	while feed_box.get_child_count() > FEED_MAX:
