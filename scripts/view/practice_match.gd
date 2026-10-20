@@ -245,11 +245,12 @@ func advance(delta: float) -> void:
 func _setup_practice() -> void:
 	sim = MatchSim.new(rules, layout, Time.get_ticks_usec())
 	sim.add_player(local_id, local_team)
-	sim.add_dummy(ENEMY_STAND_ID, 1, Vector2(rules.dummy_stand_x, rules.dummy_z), DummyBrain.standing())
-	var patrol: DummyBrain = DummyBrain.patrolling(
-		rules.dummy_patrol_x, rules.dummy_patrol_range, rules.dummy_patrol_speed_scale
-	)
-	sim.add_dummy(ENEMY_PATROL_ID, 1, Vector2(rules.dummy_patrol_x, rules.dummy_z), patrol)
+	var stand_spot: Vector2 = Vector2(rules.dummy_stand_x, rules.dummy_z)
+	var patrol_spot: Vector2 = Vector2(rules.dummy_patrol_x, rules.dummy_z)
+	var patrol: DummyBrain = DummyBrain.patrolling(rules.dummy_patrol_x, rules.dummy_patrol_range, rules.dummy_patrol_speed_scale)
+	# the first sparring partners are the patrol dummy, then the standing one (`practice_fighters`)
+	sim.add_dummy(ENEMY_STAND_ID, 1, stand_spot, FightBrain.fighter(stand_spot) if rules.practice_fighters >= 2 else DummyBrain.standing())
+	sim.add_dummy(ENEMY_PATROL_ID, 1, patrol_spot, FightBrain.fighter(patrol_spot) if rules.practice_fighters >= 1 else patrol)
 	var ally_spot: Vector2 = Vector2(rules.dummy_ally_x, rules.dummy_ally_z)
 	sim.add_dummy(ALLY_ID, local_team, ally_spot, DummyBrain.rescuer(ally_spot))
 	var box_spot: Vector2 = layout.jail_slot(sim.side_for_team(1), 0)
@@ -258,6 +259,10 @@ func _setup_practice() -> void:
 	sim.set_character(local_id, StringName(Session.avatar_id))
 	var loadout: Array[StringName] = sim.random_loadout()
 	sim.set_loadout(local_id, loadout[0], loadout[1])
+	for id: int in [ENEMY_STAND_ID, ENEMY_PATROL_ID]:
+		if sim.is_fighter(id):
+			var arms: Array[StringName] = sim.fighting_loadout()
+			sim.set_loadout(id, arms[0], arms[1])
 
 
 func _setup_online() -> void:

@@ -353,7 +353,12 @@ func _fade_in(content: Control, way: int = 0) -> void:
 func mode_facts(id: String) -> Array[String]:
 	var rules: GameRules = load(RULES_PATH) as GameRules
 	if id == "practice":
-		return ["Solo", "Dummies don't fight back"] as Array[String]
+		var foes: String = "Dummies don't fight back"
+		if rules.practice_fighters == 1:
+			foes = "A sparring partner"
+		elif rules.practice_fighters > 1:
+			foes = "%d sparring partners" % rules.practice_fighters
+		return ["Solo", foes] as Array[String]
 	var choices: PackedStringArray = []
 	for choice: int in rules.best_of_choices:
 		choices.append(str(choice))
