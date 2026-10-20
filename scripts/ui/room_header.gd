@@ -14,7 +14,7 @@ static func build(view: HotspotRoomView) -> Control:
 	row.add_child(view.back_button)
 	var title: Label = Label.new()
 	title.name = "Title"
-	title.text = "Lobby"
+	title.text = "Room"
 	title.theme_type_variation = &"DisplayLabel"
 	title.add_theme_font_size_override("font_size", UiMetrics.TITLE)
 	title.add_theme_color_override("font_color", KalyeahTheme.CREAM)

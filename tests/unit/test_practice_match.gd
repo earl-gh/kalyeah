@@ -702,7 +702,7 @@ func test_control_hint_explains_stun_aim_and_auto_run() -> void:
 	practice.sim.apply_effect(PracticeMatch.LOCAL_ID, StatusEffects.Type.STUN, 1.0, 0.0)
 	practice.advance(DT)
 	assert_string_contains(practice.hud.feedback.hint.text, "Stunned")
-	assert_string_contains(practice.hud.feedback.hint.text, "skills unavailable")
+	assert_string_contains(practice.hud.feedback.hint.text, "weapons unavailable")
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 	player.effects.clear()
 	practice.hud.joystick.auto_run = false

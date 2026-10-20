@@ -17,13 +17,14 @@ static func controls(root: Node) -> Array[Control]:
 	return result
 
 
-static func first(root: Control) -> void:
+## Focuses a text field (typing needs one) and, when `buttons_too`, the first control otherwise.
+static func first(root: Control, buttons_too: bool = true) -> void:
 	var choices: Array[Control] = controls(root)
 	for control: Control in choices:
 		if control is LineEdit:
 			control.grab_focus()
 			return
-	if not choices.is_empty():
+	if buttons_too and not choices.is_empty():
 		choices[0].grab_focus()
 
 

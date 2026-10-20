@@ -31,7 +31,7 @@ func _ready() -> void:
 	_tools = VBoxContainer.new()
 	_tools.add_theme_constant_override("separation", UiMetrics.GAP)
 	_dialog.body.add_child(_tools)
-	tools_button = _button("Practice tools +", "grey", _tools)
+	tools_button = _button("Show practice tools", "grey", _tools)
 	tools_button.tooltip_text = "Show practice tools"
 	_details = VBoxContainer.new()
 	_details.add_theme_constant_override("separation", UiMetrics.GAP)
@@ -39,7 +39,7 @@ func _ready() -> void:
 	_tools.add_child(_details)
 	tools_button.pressed.connect(func() -> void:
 		_details.visible = not _details.visible
-		tools_button.text = "Practice tools −" if _details.visible else "Practice tools +")
+		tools_button.text = "Hide practice tools" if _details.visible else "Show practice tools")
 	hurt_button = _button("Take 30 damage", "grey", _details)
 	hurt_button.pressed.connect(hurt_pressed.emit)
 	for test: Array in STATUS_TESTS:

@@ -171,8 +171,8 @@ func _tile(weapon: WeaponDef) -> Button:
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(name_label)
 	# the other axis of the grouping as a chip: the kind under a game, the game under a type
-	var kind: PanelContainer = UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, KIND_CHIPS.get(weapon.kind, UiKit.CHIP_SLATE) as Color, Color.WHITE, 20)
-	var game: PanelContainer = UiKit.chip(weapon.street_game, UiKit.CHIP_SLATE, Color.WHITE, 20)
+	var kind: PanelContainer = UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, KIND_CHIPS.get(weapon.kind, UiKit.CHIP_SLATE) as Color, Color.WHITE, UiMetrics.MIN_TEXT)
+	var game: PanelContainer = UiKit.chip(weapon.street_game, UiKit.CHIP_SLATE, Color.WHITE, UiMetrics.MIN_TEXT)
 	for chip: PanelContainer in [kind, game]:
 		chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE

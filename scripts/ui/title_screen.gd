@@ -20,7 +20,7 @@ const MODES: Array[Dictionary] = [
 	{"id": "online", "title": "Online", "color": "orange", "accent": "ffa63a",
 		"text": "Invite friends with a room code."},
 	{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78",
-		"text": "Train against dummies."},
+		"text": "Train against a sparring partner."},
 ]
 ## The bottom tabs: Play is the home page, the others are pages.
 const TABS: Array[Dictionary] = [
@@ -381,7 +381,7 @@ func _fill_chips(id: String) -> void:
 func _build_last_match() -> Button:
 	var strip: Button = Button.new()
 	strip.name = "LastMatch"
-	strip.custom_minimum_size = Vector2(0.0, 64.0)
+	strip.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
 	strip.focus_mode = Control.FOCUS_ALL
 	for state: String in ["normal", "hover"]:
 		strip.add_theme_stylebox_override(state, UiSkin.plate("night", 0.0, 34))
