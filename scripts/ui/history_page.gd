@@ -55,7 +55,7 @@ func _empty() -> Control:
 
 func _row(entry: Dictionary, now: int) -> Control:
 	var won: bool = bool(entry.get("won", false))
-	var accent: Color = Color("2fbf5a") if won else Color("e0463e")
+	var accent: Color = UiKit.CHIP_GREEN if won else UiKit.CHIP_RED
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", UiMetrics.GAP)
 	var badge: PanelContainer = UiKit.chip("Victory" if won else "Defeat", accent, Color.WHITE, UiMetrics.DETAIL)

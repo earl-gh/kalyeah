@@ -55,8 +55,8 @@ func _init() -> void:
 	text.add_child(name_label)
 	hint_label = Label.new()
 	hint_label.name = "Hint"
-	hint_label.text = "Change name"
-	hint_label.add_theme_font_size_override("font_size", UiMetrics.CAPTION - 4)
+	hint_label.text = "Edit profile"
+	hint_label.add_theme_font_size_override("font_size", UiMetrics.CAPTION - 2)
 	hint_label.add_theme_color_override("font_color", Color("9fb0d6"))
 	hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	text.add_child(hint_label)
