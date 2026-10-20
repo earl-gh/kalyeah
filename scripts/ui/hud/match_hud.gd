@@ -67,6 +67,9 @@ var intro_sub: Label
 var swap_button: Button
 var hurt_button: Button
 var again_button: Button
+var results: MatchResults
+## What the results card says the match was ("Practice", "Hotspot", "Online").
+var results_mode: String = "Practice"
 ## Big countdown in the middle while a capture is running.
 var capture_label: Label
 ## TAGGED! / RESCUED! pills under the minimap (newest at the bottom).
@@ -171,10 +174,11 @@ func sync_player(sim: MatchSim, player: PlayerState, watched: int, pick_open: bo
 
 
 ## Top row: the score card; the capture countdown; banners and the feed fade out.
-func sync_score(sim: MatchSim, local_team: int, delta: float) -> void:
+func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1) -> void:
 	scoreboard.show_score(sim.score, local_team, sim.match_time)
 	_sync_capture(sim, local_team)
 	again_button.visible = sim.phase == MatchSim.Phase.MATCH_OVER
+	results.set_over(sim.phase == MatchSim.Phase.MATCH_OVER, sim, local_id, local_team, results_mode)
 	if sim.phase != MatchSim.Phase.MATCH_OVER and _banner_left > 0.0:
 		_banner_left -= delta
 		if _banner_left <= 0.0:
@@ -280,6 +284,9 @@ func _build() -> void:
 	KalyeahTheme.style_button(again_button, "orange")
 	again_button.pressed.connect(again_pressed.emit)
 	again_button.visible = false
+	results = MatchResults.new()
+	add_child(results)
+	results.adopt(again_button, true)
 	tagged_panel = TaggedPanel.new()
 	add_child(tagged_panel)
 	swap_button = tagged_panel.swap_button

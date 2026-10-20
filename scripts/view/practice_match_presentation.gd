@@ -37,6 +37,10 @@ func connect_hud() -> void:
 	owner.hud.again_button.text = "Return home" if owner.online else "Practice again"
 	owner.hud.status_test_pressed.connect(owner.play_status_test)
 	owner.hud.again_pressed.connect(_on_again_pressed)
+	# online, the card's one button is already "Return home"; in practice Home sits beside Play again
+	owner.hud.results.home_button.visible = not owner.online
+	owner.hud.results.home_pressed.connect(owner._on_exit_pressed)
+	owner.hud.results_mode = ("Hotspot" if Session.lobby_hotspot else "Online") if owner.online else "Practice"
 	owner.hud.watch_requested.connect(func(id: int) -> void: owner.watch_id = id)
 	owner.hud.swap_pressed.connect(owner.open_swap)
 	owner.hud.exit_pressed.connect(owner._on_exit_pressed)
@@ -71,7 +75,7 @@ func sync(delta: float) -> void:
 	_sync_aim(player)
 	owner._fx.sync(owner.sim, delta)
 	owner.hud.overhead.tick(delta)
-	owner.hud.sync_score(owner.sim, owner.local_team, delta)
+	owner.hud.sync_score(owner.sim, owner.local_team, delta, owner.local_id)
 	if owner.sim.phase == MatchSim.Phase.INTRO:
 		_play_intro_shot()
 		return
