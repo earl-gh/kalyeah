@@ -29,6 +29,9 @@ const SPINNER_COLOR: Color = Color(1.0, 0.86, 0.3)
 const SPINNER_BACK: Color = Color(0.08, 0.06, 0.1, 0.7)
 const SPINNER_SPEED: float = 5.0
 
+## How much bigger than real the kids are drawn (CameraRules.kid_view_scale): the bar rides on their heads.
+var view_scale: float = 1.0
+
 var _sim: MatchSim
 var _camera: Camera3D
 var _local_id: int = -1
@@ -91,7 +94,7 @@ func _on_healed(id: int, amount: int) -> void:
 
 
 func _head(state: PlayerState) -> Variant:
-	var world: Vector3 = Vector3(state.position.x, HEAD_HEIGHT, state.position.y)
+	var world: Vector3 = Vector3(state.position.x, HEAD_HEIGHT * view_scale, state.position.y)
 	if _camera == null or _camera.is_position_behind(world):
 		return null
 	return _camera.screen_position(world) if _camera is FollowCamera else _camera.unproject_position(world)

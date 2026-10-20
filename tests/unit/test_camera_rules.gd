@@ -6,7 +6,7 @@ const PHONE: float = 720.0 / 1280.0
 
 
 func test_a_fixed_moba_angle_with_a_moderate_perspective_lens() -> void:
-	assert_eq(CAMERA.pitch_degrees, 42.0, "high enough to read the ground, low enough to see the kids' faces")
+	assert_eq(CAMERA.pitch_degrees, 44.0, "high enough to read the ground, low enough to see the kids' faces")
 	assert_eq(CAMERA.vfov_degrees, 60.0, "a moderate lens: little stretch at the edges, so little to get used to")
 	assert_eq(CAMERA.yaw_offset_degrees, 0.0, "straight behind in the middle of the street")
 	assert_eq(CAMERA.yaw_side_degrees, 8.0, "leaning 8 degrees toward the side the hero is on: the sides of props and houses show, the street stops looking like a corridor")
@@ -14,8 +14,8 @@ func test_a_fixed_moba_angle_with_a_moderate_perspective_lens() -> void:
 
 
 func test_other_camera_numbers_come_from_data() -> void:
-	assert_eq(CAMERA.visible_width, 10.6, "metres of street across the screen at the aim point")
-	assert_eq(CAMERA.player_screen_y, 0.62)
+	assert_eq(CAMERA.visible_width, 13.5, "metres of street across the screen at the aim point: wide enough to see a threat at the side")
+	assert_eq(CAMERA.player_screen_y, 0.52, "the kid sits near the middle: you see as much behind and beside as ahead")
 
 
 func test_distance_shows_the_visible_width_on_any_phone() -> void:
@@ -23,12 +23,12 @@ func test_distance_shows_the_visible_width_on_any_phone() -> void:
 		var distance: float = CAMERA.distance(aspect)
 		var width: float = 2.0 * distance * tan(deg_to_rad(CAMERA.vfov_degrees / 2.0)) * aspect
 		assert_almost_eq(width, CAMERA.visible_width, 0.001, "aspect %.2f" % aspect)
-	assert_almost_eq(CAMERA.distance(PHONE), 16.32, 0.05)
+	assert_almost_eq(CAMERA.distance(PHONE), 20.78, 0.05)
 
 
 func test_the_camera_is_high_behind_the_hero() -> void:
 	var offset: Vector3 = CAMERA.camera_offset(CAMERA.distance(PHONE), false)
-	assert_almost_eq(offset.y, 10.92, 0.1, "about 11 m up")
+	assert_almost_eq(offset.y, 14.43, 0.1, "about 14 m up")
 	assert_almost_eq(offset.length(), CAMERA.distance(PHONE), 0.001)
 
 
@@ -61,7 +61,7 @@ func test_other_team_view_is_mirrored() -> void:
 func test_the_aim_point_is_far_enough_ahead_to_hold_the_hero_low_on_screen() -> void:
 	var reach: float = CAMERA.distance(PHONE)
 	var ahead: float = CAMERA.look_ahead(reach)
-	assert_almost_eq(ahead, 2.93, 0.05, "about 3 m ahead")
+	assert_almost_eq(ahead, 0.67, 0.05, "the kid is nearly under the middle of the screen")
 	var own: Vector2 = CAMERA.camera_target(Vector2(0.0, 10.0), false, reach)
 	assert_almost_eq(own.distance_to(Vector2(0.0, 10.0)), ahead, 0.001, "the aim is `ahead` metres from the hero")
 	assert_lt(own.y, 10.0, "own side looks toward -Z")
@@ -147,7 +147,8 @@ func _hero_height_fraction(height: float, aspect: float) -> float:
 
 func test_kids_fill_enough_of_the_screen_to_read() -> void:
 	# a steeper camera shrinks the kid on screen (foreshortening), so the width is chosen with it
-	var fraction: float = _hero_height_fraction(KidModel.KID_HEIGHT, PHONE)
+	# the kid is drawn kid_view_scale times its real size, so the street across the screen can be wide
+	var fraction: float = _hero_height_fraction(KidModel.KID_HEIGHT * CAMERA.kid_view_scale, PHONE)
 	assert_gt(fraction, 0.078, "the kid is at least ~8% of the screen height (100 px of 1280)")
 	assert_lt(fraction, 0.10, "and not so big that the street gets narrow")
 
@@ -222,3 +223,40 @@ func test_the_follow_camera_eases_its_turn_as_the_hero_crosses_and_snaps_when_to
 	assert_almost_eq(camera.rotation_degrees.y, camera.yaw_offset(), 0.001, "what you see is the yaw the controls use")
 	camera.follow(Vector2(-10.0, 0.0), false)
 	assert_almost_eq(camera.yaw_offset(), CAMERA.yaw_for(-10.0, false), 0.0001, "delta 0 snaps")
+
+
+func test_the_kids_are_drawn_bigger_than_they_are_but_the_hit_area_is_not() -> void:
+	assert_almost_eq(CAMERA.kid_view_scale, 1.35, 0.0001, "bigger on screen so the street can be wider")
+	var practice: PracticeMatch = autofree(preload("res://scenes/match/practice.tscn").instantiate()) as PracticeMatch
+	add_child(practice)
+	practice.finish_pick()
+	practice.skip_intro()
+	for view: Node in practice.get_node("%Actors").get_children():
+		assert_almost_eq((view as Node3D).scale.x, CAMERA.kid_view_scale, 0.0001, "every kid the same")
+	assert_almost_eq(practice.overhead().view_scale, CAMERA.kid_view_scale, 0.0001, "the health bar rides on the drawn head")
+
+
+func test_the_camera_peeks_toward_a_dragged_aim_and_comes_back() -> void:
+	var camera: FollowCamera = autofree(FollowCamera.new()) as FollowCamera
+	camera.rules = CAMERA
+	camera.layout = LAYOUT
+	add_child(camera)
+	var hero: Vector2 = Vector2(0.0, 5.0)
+	camera.follow(hero, false)
+	var rest: Vector3 = camera.position
+	var aim: Vector2 = Vector2(0.0, -1.0)
+	var peek: Vector2 = CAMERA.peek_for(aim, 9.0)
+	assert_almost_eq(peek.length(), CAMERA.peek_max, 0.0001, "a long reach is capped")
+	assert_almost_eq(CAMERA.peek_for(aim, 4.0).length(), 4.0 * CAMERA.peek_fraction, 0.0001, "half the reach of a short one")
+	assert_eq(CAMERA.peek_for(Vector2.ZERO, 9.0), Vector2.ZERO, "no aim, no peek")
+	camera.follow(hero, false, 1.0 / 30.0, peek)
+	assert_gt(camera.peek_offset().length(), 0.0, "it has started")
+	assert_lt(camera.peek_offset().length(), peek.length(), "but not jumped")
+	for i: int in 90:
+		camera.follow(hero, false, 1.0 / 30.0, peek)
+	assert_almost_eq(camera.peek_offset().length(), peek.length(), 0.05, "and it gets there")
+	assert_lt(camera.position.z, rest.z - 3.0, "the camera has moved toward the aim (up the street)")
+	for i: int in 120:
+		camera.follow(hero, false, 1.0 / 30.0)
+	assert_lt(camera.peek_offset().length(), 0.05, "it comes back when the aim is let go")
+	assert_almost_eq(camera.position.z, rest.z, 0.1)

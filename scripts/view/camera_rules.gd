@@ -39,6 +39,16 @@ const DESIGN_ASPECT: float = 9.0 / 16.0
 ## Where the hero sits on screen, as a fraction of the height from the top (0.5 =
 ## centre, larger = lower). The aim point is placed ahead of the hero to match.
 @export var player_screen_y: float = 0.5
+## How much bigger the kids (and what they throw) are drawn than their real size, so they stay readable while
+## the street shown across the screen is wide enough to see a threat coming from the side. The hit area (the ring
+## under a kid, the weapon shapes) is the real size and is the same for every kid.
+@export var kid_view_scale: float = 1.0
+## While you drag an aim by hand the camera eases this fraction of the weapon's reach toward where you aim (never more
+## than `peek_max` metres), so the part of the street you are aiming at is on screen. It eases back on release.
+@export var peek_fraction: float = 0.0
+@export var peek_max: float = 0.0
+## How fast the peek eases in and out (1/s).
+@export var peek_rate: float = 6.0
 ## How fast the camera catches up (1/s). Higher = snappier.
 @export var follow_rate: float = 0.0
 ## Aspect ratios (width / height) the distance is computed for are kept in this range.
@@ -122,6 +132,11 @@ func camera_target(world_pos: Vector2, flip: bool, camera_distance: float, yaw_o
 func ground_forward(flip: bool, yaw_offset: float = NAN) -> Vector2:
 	var yaw: float = deg_to_rad(yaw_degrees(flip, yaw_offset))
 	return Vector2(-sin(yaw), -cos(yaw))
+
+
+## How far the camera peeks (world metres from the hero) for an aim `aim_world` (length 0..1) with a weapon that reaches `weapon_range`.
+func peek_for(aim_world: Vector2, weapon_range: float) -> Vector2:
+	return (aim_world * weapon_range * peek_fraction).limit_length(peek_max)
 
 
 ## Fraction of the remaining distance to cover this frame (frame-rate independent).

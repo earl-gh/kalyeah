@@ -80,6 +80,8 @@ var again_button: Button
 var results: MatchResults
 var coach: CoachMarks
 var arrows: DirectionArrows
+## Small ticks on the screen edge for enemies in weapon reach that are off screen.
+var threats: ThreatTicks
 ## What the results card says the match was ("Practice", "Hotspot", "Online").
 var results_mode: String = "Practice"
 ## Big countdown in the middle while a capture is running.
@@ -321,6 +323,8 @@ func _build() -> void:
 	MatchHudTop.build_intro(self)
 	arrows = DirectionArrows.new()
 	add_child(arrows)
+	threats = ThreatTicks.new()
+	add_child(threats)
 	coach = CoachMarks.new(self)
 	add_child(coach)
 	# last, so it draws over the skill buttons

@@ -732,3 +732,27 @@ func test_control_hint_explains_stun_aim_and_auto_run() -> void:
 	practice.hud.sync_player(practice.sim, player, -1, false)
 	assert_eq(practice.hud.feedback.hint.text, "Release to cancel")
 	button.cancel_aim()
+
+
+func test_dragging_an_aim_peeks_the_camera_toward_it_and_a_tap_does_not() -> void:
+	var practice: PracticeMatch = _practice()
+	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
+	player.position = Vector2(0.0, 5.0)
+	practice.sim.set_loadout(PracticeMatch.LOCAL_ID, &"bola", &"papel_shield")
+	practice._snap_camera = true
+	practice.advance(DT)
+	var camera: FollowCamera = practice.get_node("%FollowCamera") as FollowCamera
+	practice.aim_started(0)
+	_weapon_button(practice, 0).aim = Vector2.ZERO  # a tap: auto-aim, no drag
+	for i: int in 60:
+		practice.advance(DT)
+	assert_lt(camera.peek_offset().length(), 0.05, "auto-aim: the camera stays put")
+	_weapon_button(practice, 0).aim = Vector2(0.0, -0.9)
+	for i: int in 60:
+		practice.advance(DT)
+	assert_gt(camera.peek_offset().length(), 1.0, "a dragged aim: the camera leans toward it")
+	practice.aim_released(Vector2.ZERO, true, 0)
+	_weapon_button(practice, 0).aim = Vector2.ZERO
+	for i: int in 90:
+		practice.advance(DT)
+	assert_lt(camera.peek_offset().length(), 0.1, "and comes back")

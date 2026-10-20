@@ -22,6 +22,8 @@ var _placed: bool = false
 var _flip: bool = false
 ## The camera's turn right now (CameraRules.yaw_for, eased as the hero crosses the street): stick and aim read it.
 var _yaw: float = 0.0
+## How far the camera has peeked toward an aim (world metres from the hero), eased by CameraRules.peek_rate.
+var _peek: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -74,12 +76,18 @@ func desired_position(world_pos: Vector2, flip: bool, yaw: float = NAN) -> Vecto
 	return Vector3(target.x, 0.0, target.y) + rules.camera_offset(distance(), flip, turn)
 
 
-## `delta` 0 snaps straight to the target.
-func follow(world_pos: Vector2, flip: bool, delta: float = 0.0) -> void:
+## The peek the camera has made right now (world metres from the hero).
+func peek_offset() -> Vector2:
+	return _peek
+
+
+## `delta` 0 snaps straight to the target. `peek` is where the camera should lean (see CameraRules.peek_for).
+func follow(world_pos: Vector2, flip: bool, delta: float = 0.0, peek: Vector2 = Vector2.ZERO) -> void:
 	var wanted_yaw: float = rules.yaw_for(world_pos.x, flip)
 	var snap: bool = not _placed or flip != _flip or delta <= 0.0
 	_yaw = wanted_yaw if snap else lerpf(_yaw, wanted_yaw, rules.follow_weight(delta))
-	var desired: Vector3 = desired_position(world_pos, flip, _yaw)
+	_peek = peek if snap else _peek.lerp(peek, 1.0 - exp(-rules.peek_rate * delta))
+	var desired: Vector3 = desired_position(world_pos + _peek, flip, _yaw)
 	position = desired if snap else position.lerp(desired, rules.follow_weight(delta))
 	_placed = true
 	_flip = flip

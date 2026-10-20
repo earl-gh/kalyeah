@@ -45,6 +45,8 @@ var _nodes: Dictionary[int, Node3D] = {}
 var _zone_kinds: Dictionary[int, WeaponSystem.ZoneKind] = {}
 var _flashes: Array[MeshInstance3D] = []
 var _flash_time: Dictionary[MeshInstance3D, float] = {}
+## How much bigger than real thrown objects are drawn (CameraRules.kid_view_scale), like the kids who throw them.
+var view_scale: float = 1.0
 var _sim: MatchSim
 var _crosses: Array[Node3D] = []
 var _cross_time: Dictionary[Node3D, float] = {}
@@ -68,7 +70,8 @@ func sync(sim: MatchSim, delta: float) -> void:
 		var node: Node3D = _nodes.get(projectile.id) as Node3D
 		if node == null:
 			node = _add_node(projectile.id, _projectile_node(projectile.def))
-		node.position = Vector3(projectile.position.x, PROJECTILE_HEIGHT, projectile.position.y)
+		node.scale = Vector3.ONE * view_scale
+		node.position = Vector3(projectile.position.x, PROJECTILE_HEIGHT * view_scale, projectile.position.y)
 		node.rotation.y += delta * TAU * (TOP_SPIN if projectile.def.id == &"trumpo" else SPIN)
 	for zone: WeaponSystem.Zone in sim.weapons.zones:
 		seen[zone.id] = true
@@ -80,6 +83,8 @@ func sync(sim: MatchSim, delta: float) -> void:
 			node = _add_node(zone.id, _zone_node(zone))
 			_zone_kinds[zone.id] = zone.kind
 		node.position = Vector3(zone.center.x, ZONE_HEIGHT, zone.center.y)
+		if zone.kind == WeaponSystem.ZoneKind.TRAP:
+			node.scale = Vector3.ONE * view_scale  # the paper ball, like the other thrown things (not the circles: those are real size)
 		var meteor: Node3D = node.get_node_or_null("Meteor") as Node3D
 		if meteor != null:
 			# it falls onto the circle and lands as the delay ends
@@ -237,7 +242,7 @@ func _on_healed(_owner_id: int, target_id: int, _def: WeaponDef) -> void:
 	var cross: Node3D = WeaponModel.cross()
 	cross.name = "HealCross"
 	var at: Vector2 = _sim.players[target_id].position
-	cross.position = Vector3(at.x, CROSS_START, at.y)
+	cross.position = Vector3(at.x, CROSS_START * view_scale, at.y)
 	add_child(cross)
 	_crosses.append(cross)
 	_cross_time[cross] = CROSS_TIME
@@ -249,7 +254,7 @@ func _step_crosses(delta: float) -> void:
 		_cross_time[cross] -= delta
 		var left: float = _cross_time[cross] / CROSS_TIME
 		if left > 0.0:
-			cross.position.y = CROSS_START + CROSS_RISE * (1.0 - left)
+			cross.position.y = (CROSS_START + CROSS_RISE * (1.0 - left)) * view_scale
 			cross.rotation.y += delta * TAU
 			# it pops in, then shrinks away
 			cross.scale = Vector3.ONE * clampf(minf((1.0 - left) * 8.0, left * 2.5), 0.01, 1.0)

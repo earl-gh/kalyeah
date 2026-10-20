@@ -23,8 +23,11 @@ func setup_hud() -> void:
 	Cinematic.add_lens(owner, owner._camera.rules.lens_k())
 	Cinematic.add_film_finish(owner)
 	owner.hud.overhead.setup(owner.sim, owner._camera, owner.local_id, owner.local_team)
+	owner.hud.overhead.view_scale = owner._camera.rules.kid_view_scale
+	owner._fx.view_scale = owner._camera.rules.kid_view_scale
 	owner.hud.minimap.setup(owner.sim, owner.local_id, owner.local_team)
 	owner.hud.arrows.setup(owner.sim, owner._camera, owner.local_id, owner.local_team, owner.layout)
+	owner.hud.threats.setup(owner.sim, owner._camera, owner.local_id)
 	owner.hud.set_top_inset(_safe_top_inset())
 
 
@@ -78,10 +81,11 @@ func sync(delta: float) -> void:
 		_sync_actor(owner.sim.players[id], delta)
 	var player: PlayerState = owner.sim.players[owner.local_id]
 	owner.hud.sync_player(owner.sim, player, owner.watch_id, owner._pick_screen.visible)
-	_sync_aim(player)
+	var peek: Vector2 = _sync_aim(player)
 	owner._fx.sync(owner.sim, delta)
 	owner.hud.overhead.tick(delta)
 	owner.hud.arrows.tick(delta)
+	owner.hud.threats.tick()
 	owner.hud.sync_score(owner.sim, owner.local_team, delta, owner.local_id)
 	if owner.sim.phase == MatchSim.Phase.INTRO:
 		_play_intro_shot()
@@ -90,7 +94,7 @@ func sync(delta: float) -> void:
 	var target: Vector2 = player.position
 	if player.tagged and owner.sim.players.has(owner.watch_id):
 		target = owner.sim.players[owner.watch_id].position
-	owner._camera.follow(target, owner._flip(), 0.0 if owner._snap_camera else delta)
+	owner._camera.follow(target, owner._flip(), 0.0 if owner._snap_camera else delta, peek if target == player.position else Vector2.ZERO)
 	owner._snap_camera = false
 	# what is on screen decides what a push of the stick or a drag of the aim means
 	owner.input.camera_yaw = owner._camera.yaw_offset()
@@ -107,6 +111,7 @@ func make_actor_view(state: PlayerState) -> void:
 		character = owner.rules.characters[0]
 	var view: KidModel = KidModel.new()
 	view.setup(character, team_color, owner.rules.player_radius)
+	view.scale = Vector3.ONE * owner._camera.rules.kid_view_scale
 	owner._actors.add_child(view)
 	owner._views[state.id] = view
 
@@ -132,7 +137,9 @@ func _sync_actor(state: PlayerState, delta: float) -> void:
 	view.animate(delta, minf(view.ground_speed(state.position, delta), 20.0), state)
 
 
-func _sync_aim(player: PlayerState) -> void:
+## Draws the aim guide for the weapon being held and returns where the camera should peek (zero unless the aim is dragged by hand).
+func _sync_aim(player: PlayerState) -> Vector2:
+	var peek: Vector2 = Vector2.ZERO
 	var any_aiming: bool = false
 	for slot: int in MatchInput.SLOTS:
 		if player.tagged:
@@ -157,10 +164,13 @@ func _sync_aim(player: PlayerState) -> void:
 			owner.sim, player, def, aim, owner.sim.resolved_target(player, slot), cancelled
 		)
 		any_aiming = true
+		if stick.length() >= owner.sim.rules.aim_deadzone and not cancelled and not Settings.reduced_motion:
+			peek = owner._camera.rules.peek_for(aim, def.max_range)
 		break
 	if not any_aiming:
 		owner._aim_indicator.clear()
 	owner.hud.cancel_zone.visible = owner.input.any_touch_held()
+	return peek
 
 
 func _first_watch_id() -> int:
