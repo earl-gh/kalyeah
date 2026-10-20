@@ -8,7 +8,8 @@ const NAME_SIZE: int = 26
 const NUMBER_SIZE: int = 32
 const TAG_SIZE: int = 22
 const TEAM_BLOCKS: Array[Color] = [KalyeahTheme.TEAM_BLUE, KalyeahTheme.TEAM_RED]
-const NAME_COLOR: Color = Color(0.12, 0.27, 0.52)
+const NAME_COLOR: Color = Color("f4f7ff")
+const BAR_COLOR: Color = Color("14234f")
 
 static func player_card(member: Dictionary, team: int, room: Dictionary) -> Control:
 	var card: Control = Control.new()
@@ -20,9 +21,14 @@ static func player_card(member: Dictionary, team: int, room: Dictionary) -> Cont
 	bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = Color.WHITE
-	box.border_color = Color(1.0, 1.0, 1.0, 0.55)
-	box.set_border_width_all(1)
+	box.bg_color = BAR_COLOR
+	box.border_color = TEAM_BLOCKS[team].lightened(0.15)
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(14)
+	box.anti_aliasing = true
+	box.shadow_color = Color(0.0, 0.0, 0.05, 0.45)
+	box.shadow_size = 6
+	box.shadow_offset = Vector2(0.0, 3.0)
 	bar.add_theme_stylebox_override("panel", box)
 	card.add_child(bar)
 	var row: HBoxContainer = HBoxContainer.new()
@@ -94,6 +100,8 @@ static func _number_block(number: int, team: int, hollow: bool) -> Control:
 		box.set_border_width_all(2)
 	else:
 		box.bg_color = TEAM_BLOCKS[team]
+	box.set_corner_radius_all(12)
+	box.anti_aliasing = true
 	block.add_theme_stylebox_override("panel", box)
 	var label: Label = Label.new()
 	label.text = str(number)
@@ -128,6 +136,7 @@ static func _tag(text: String, team: int) -> Control:
 	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = TEAM_BLOCKS[team]
+	box.set_corner_radius_all(8)
 	box.content_margin_left = 8.0
 	box.content_margin_right = 8.0
 	box.content_margin_top = 1.0
@@ -169,7 +178,8 @@ static func open_slot(team: int, row: int, can_join: bool, room: Dictionary, on_
 	box.bg_color = Color(1.0, 1.0, 1.0, 0.07)
 	box.border_color = Color(TEAM_BLOCKS[team].lightened(0.3), 0.6)
 	box.set_border_width_all(2)
-	box.set_corner_radius_all(4)
+	box.set_corner_radius_all(14)
+	box.anti_aliasing = true
 	for state: String in ["normal", "disabled"]:
 		card.add_theme_stylebox_override(state, box)
 	var lit: StyleBoxFlat = box.duplicate() as StyleBoxFlat

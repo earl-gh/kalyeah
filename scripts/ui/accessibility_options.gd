@@ -1,29 +1,22 @@
 class_name AccessibilityOptions
 extends VBoxContainer
-## Live preferences shared by home, room and match settings.
+## Live comfort preferences shared by home, room and match settings: Reduce motion as a switch.
 
-var motion_button: Button
+## The switch (on = motion reduced).
+var motion_toggle: UiToggle
 
 
 func _ready() -> void:
 	name = "AccessibilityOptions"
 	add_theme_constant_override("separation", UiMetrics.GAP)
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", UiMetrics.GAP)
-	var label: Label = LobbyWidgets.label("Reduce motion", UiMetrics.BODY)
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(label)
-	motion_button = MenuDialog.make_button("Off", "grey", UiMetrics.ACTION, Vector2(140.0, UiMetrics.TOUCH))
-	motion_button.name = "ReducedMotion"
-	motion_button.pressed.connect(func() -> void: Settings.set_reduced_motion(not Settings.reduced_motion))
-	row.add_child(motion_button)
-	add_child(row)
+	motion_toggle = UiToggle.new()
+	motion_toggle.name = "ReducedMotion"
+	motion_toggle.set_state(Settings.reduced_motion)
+	motion_toggle.toggled.connect(Settings.set_reduced_motion)
+	add_child(UiKit.setting_row("Reduce motion", "Calmer menus, no drifting lights", motion_toggle))
 	Settings.accessibility_changed.connect(_refresh)
-	_refresh()
 
 
 func _refresh() -> void:
-	motion_button.text = "On" if Settings.reduced_motion else "Off"
-	KalyeahTheme.style_button(motion_button, "green" if Settings.reduced_motion else "grey")
+	if is_instance_valid(motion_toggle):
+		motion_toggle.set_state(Settings.reduced_motion)

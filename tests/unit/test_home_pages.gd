@@ -84,9 +84,9 @@ func test_history_starts_empty_and_lists_battles_newest_first() -> void:
 	screen.history_page.refresh()
 	await wait_frames(2)
 	var results: Array[String] = []
-	for label: Node in screen.history_page.find_children("Result", "Label", true, false):
-		if not label.is_queued_for_deletion():
-			results.append((label as Label).text)
+	for badge: Node in screen.history_page.find_children("Result", "PanelContainer", true, false):
+		if not badge.is_queued_for_deletion():
+			results.append((badge.get_node("Text") as Label).text)
 	assert_eq(results, ["Defeat", "Victory"], "the newest battle is first")
 
 

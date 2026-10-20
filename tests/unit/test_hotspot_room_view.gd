@@ -157,7 +157,7 @@ func test_player_cards_are_white_bars_with_no_picture_and_numbered_blocks() -> v
 	var ana: Control = view.find_child("Player1", true, false) as Control
 	var ben: Control = view.find_child("Player2", true, false) as Control
 	var bar: StyleBoxFlat = ana.get_node("Bar").get_theme_stylebox("panel") as StyleBoxFlat
-	assert_eq(bar.bg_color, Color.WHITE, "a white bar")
+	assert_eq(bar.bg_color, RoomPlayerCards.BAR_COLOR, "a dark glass bar")
 	# row 0: Ana (blue, number 1 at the left of the bar) and Ben (red, number 4 at the right)
 	var ana_number: Control = ana.find_child("Number", true, false) as Control
 	var ben_number: Control = ben.find_child("Number", true, false) as Control
