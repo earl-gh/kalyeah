@@ -140,8 +140,9 @@ func test_pushing_the_stick_up_runs_up_the_screen() -> void:
 	practice.hud.joystick.changed.emit(Vector2(0.0, -1.0))
 	for i: int in 30:
 		practice.advance(DT)
-	assert_lt(player.position.y, start.y - 3.0, "toward the enemy end")
-	assert_almost_eq(player.position.x, start.x, 0.3, "straight")
+	var ran: Vector2 = LocalInput.to_screen(player.position - start, practice._flip(), CAMERA.yaw_offset_degrees)
+	assert_lt(ran.y, -3.0, "toward the top of the screen")
+	assert_almost_eq(ran.x, 0.0, 0.3, "straight up the screen (the world direction turns with the camera's yaw)")
 	practice.hud.joystick.changed.emit(Vector2.ZERO)
 	practice.advance(DT)
 	var at: Vector2 = player.position
