@@ -128,6 +128,22 @@ func add_player(id: int, team: int) -> PlayerState:
 	return state
 
 
+## A random pair of weapons with at least one that hurts, for a sparring bot (a bot with two shields is no
+## sparring partner).
+func fighting_loadout() -> Array[StringName]:
+	var pair: Array[StringName] = random_loadout()
+	for attempt: int in 20:
+		if weapon_defs[pair[0]].damage > 0 or weapon_defs[pair[1]].damage > 0:
+			break
+		pair = random_loadout()
+	return pair
+
+
+## True when `id` is driven by a bot that fights back.
+func is_fighter(id: int) -> bool:
+	return _brains.get(id) is FightBrain
+
+
 ## Equips two different weapons. Returns false (and changes nothing) for an
 ## unknown weapon or the same weapon twice; two of the same *type* is fine.
 func set_loadout(id: int, first: StringName, second: StringName) -> bool:

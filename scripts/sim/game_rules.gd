@@ -44,6 +44,14 @@ extends Resource
 @export var dummy_patrol_speed_scale: float = 0.0
 @export var dummy_ally_x: float = 0.0
 @export var dummy_ally_z: float = 0.0
+## Practice sparring partners: how many of the enemy dummies fight back (the patrol one first, then the
+## standing one), how close an enemy must come before one reacts, the seconds between its casts, how far off
+## its aim can be (degrees) and the share of its weapon reach it likes to keep from an enemy.
+@export var practice_fighters: int = 0
+@export var bot_aggro_range: float = 0.0
+@export var bot_cast_gap: float = 0.0
+@export var bot_aim_error_degrees: float = 0.0
+@export var bot_standoff_share: float = 0.0
 
 
 ## Fixed simulation step in seconds (1 / tick_rate).
