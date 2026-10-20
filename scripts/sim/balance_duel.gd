@@ -20,12 +20,17 @@ static func arena(layout: MapLayout) -> MapLayout:
 
 
 ## Plays `first` (team 0) against `second` (team 1). Returns {winner: 0, 1 or NO_WINNER, seconds, hp: [first, second]}.
-static func run(rules: GameRules, layout: MapLayout, first: Array[StringName], second: Array[StringName], seed_value: int, max_seconds: float = MAX_SECONDS) -> Dictionary:
-	var sim: MatchSim = MatchSim.new(rules, arena(layout), seed_value)
+## `skill` is how well both bots aim (0 to 1, see FightBrain); `cover` keeps the street's own cover in the way.
+static func run(rules: GameRules, layout: MapLayout, first: Array[StringName], second: Array[StringName], seed_value: int, max_seconds: float = MAX_SECONDS, skill: float = 0.0, cover: bool = false) -> Dictionary:
+	var sim: MatchSim = MatchSim.new(rules, layout if cover else arena(layout), seed_value)
 	var top: Vector2 = Vector2(0.0, -START_DISTANCE / 2.0)
 	var bottom: Vector2 = Vector2(0.0, START_DISTANCE / 2.0)
-	sim.add_dummy(1, 0, bottom, FightBrain.fighter(bottom))
-	sim.add_dummy(2, 1, top, FightBrain.fighter(top))
+	var low: FightBrain = FightBrain.fighter(bottom)
+	var high: FightBrain = FightBrain.fighter(top)
+	low.skill = skill
+	high.skill = skill
+	sim.add_dummy(1, 0, bottom, low)
+	sim.add_dummy(2, 1, top, high)
 	sim.set_loadout(1, first[0], first[1])
 	sim.set_loadout(2, second[0], second[1])
 	var dt: float = rules.tick_dt()

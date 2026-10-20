@@ -52,6 +52,8 @@ extends Resource
 @export var bot_cast_gap: float = 0.0
 @export var bot_aim_error_degrees: float = 0.0
 @export var bot_standoff_share: float = 0.0
+## How well a bot aims, 0 (at where you are) to 1 (at where you will be, with little error).
+@export var bot_skill: float = 0.0
 
 
 ## Fixed simulation step in seconds (1 / tick_rate).

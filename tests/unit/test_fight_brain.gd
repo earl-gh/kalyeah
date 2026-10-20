@@ -186,3 +186,104 @@ func test_a_practice_fighter_goes_for_you_once_the_match_is_on() -> void:
 	for i: int in 150:
 		practice.advance(DT)
 	assert_lt(me.hp, RULES.player_max_hp, "the sparring partner hit you")
+
+
+# ---- aim, lead and cover ------------------------------------------------------------------
+
+func _rules_without_error() -> GameRules:
+	var rules: GameRules = RULES.duplicate() as GameRules
+	rules.bot_aim_error_degrees = 0.0
+	return rules
+
+
+## A bot (team 1) at the origin and an enemy (team 0) `where` away, with `speed` along x remembered from the last step.
+func _aim_setup(rules: GameRules, where: Vector2, speed: float, skill: float) -> Array:
+	var sim: MatchSim = MatchSim.new(rules, LAYOUT, 4)
+	var enemy: PlayerState = sim.add_dummy(1, 0, where - Vector2(speed / 30.0, 0.0), DummyBrain.standing())
+	var brain: FightBrain = FightBrain.fighter(Vector2.ZERO)
+	brain.skill = skill
+	var me: PlayerState = sim.add_dummy(2, 1, Vector2.ZERO, brain)
+	brain._track(me, sim)
+	enemy.position = where
+	brain._track(me, sim)
+	return [sim, brain, me, enemy]
+
+
+func test_a_ground_circle_is_thrown_at_the_enemys_distance_not_at_full_range() -> void:
+	var made: Array = _aim_setup(_rules_without_error(), Vector2(0.0, 4.0), 0.0, 0.0)
+	var def: WeaponDef = (made[0] as MatchSim).weapon_defs[&"bato_heavy"]
+	var aim: Vector2 = (made[1] as FightBrain)._aim_at(made[2] as PlayerState, made[3] as PlayerState, def, made[0] as MatchSim)
+	assert_almost_eq(aim.length(), 4.0 / def.max_range, 0.01, "the circle lands where the enemy is")
+	assert_almost_eq(aim.normalized().y, 1.0, 0.01)
+
+
+func test_a_thrown_weapon_is_aimed_along_a_direction_of_length_one() -> void:
+	var made: Array = _aim_setup(_rules_without_error(), Vector2(0.0, 5.0), 0.0, 0.0)
+	var def: WeaponDef = (made[0] as MatchSim).weapon_defs[&"tsinelas_light"]
+	var aim: Vector2 = (made[1] as FightBrain)._aim_at(made[2] as PlayerState, made[3] as PlayerState, def, made[0] as MatchSim)
+	assert_almost_eq(aim.length(), 1.0, 0.001)
+
+
+func test_a_skilled_bot_aims_ahead_of_a_moving_enemy_and_an_unskilled_one_does_not() -> void:
+	var rules: GameRules = _rules_without_error()
+	var plain: Array = _aim_setup(rules, Vector2(0.0, 6.0), 5.0, 0.0)
+	var sharp: Array = _aim_setup(rules, Vector2(0.0, 6.0), 5.0, 1.0)
+	var def: WeaponDef = (plain[0] as MatchSim).weapon_defs[&"tsinelas_light"]
+	var at_it: Vector2 = (plain[1] as FightBrain)._aim_at(plain[2] as PlayerState, plain[3] as PlayerState, def, plain[0] as MatchSim)
+	var ahead: Vector2 = (sharp[1] as FightBrain)._aim_at(sharp[2] as PlayerState, sharp[3] as PlayerState, def, sharp[0] as MatchSim)
+	assert_almost_eq(at_it.x, 0.0, 0.001, "skill 0: straight at where it is")
+	assert_gt(ahead.x, 0.1, "skill 1: toward where it is going (it runs along +x)")
+
+
+func test_a_delayed_circle_is_led_by_its_delay() -> void:
+	var rules: GameRules = _rules_without_error()
+	var sharp: Array = _aim_setup(rules, Vector2(0.0, 6.0), 5.0, 1.0)
+	var def: WeaponDef = (sharp[0] as MatchSim).weapon_defs[&"bato_heavy"]
+	var aim: Vector2 = (sharp[1] as FightBrain)._aim_at(sharp[2] as PlayerState, sharp[3] as PlayerState, def, sharp[0] as MatchSim)
+	var landing: Vector2 = aim * def.max_range
+	assert_almost_eq(landing.x, 5.0 * def.delay, 0.2, "it lands where the enemy will be after the wind-up")
+
+
+func test_skill_comes_from_the_rules_unless_it_is_set() -> void:
+	var sim: MatchSim = MatchSim.new(RULES, LAYOUT, 1)
+	var brain: FightBrain = FightBrain.fighter(Vector2.ZERO)
+	assert_eq(brain._skill(sim), RULES.bot_skill)
+	brain.skill = 1.0
+	assert_eq(brain._skill(sim), 1.0)
+	brain.skill = 7.0
+	assert_eq(brain._skill(sim), 1.0, "clamped")
+
+
+func test_a_segment_is_stopped_by_a_rect_it_crosses_and_not_by_one_it_misses() -> void:
+	var wall: Rect2 = Rect2(-2.0, -1.0, 4.0, 2.0)
+	assert_true(FightBrain.segment_hits_rect(Vector2(0.0, -5.0), Vector2(0.0, 5.0), wall), "straight through")
+	assert_false(FightBrain.segment_hits_rect(Vector2(5.0, -5.0), Vector2(5.0, 5.0), wall), "beside it")
+	assert_false(FightBrain.segment_hits_rect(Vector2(0.0, -5.0), Vector2(0.0, -2.0), wall), "stops short")
+	assert_true(FightBrain.segment_hits_rect(Vector2(0.0, 0.0), Vector2(0.0, 5.0), wall), "starts inside")
+	assert_true(FightBrain.segment_hits_rect(Vector2(-5.0, 0.0), Vector2(5.0, 0.0), wall), "across, parallel to an edge")
+	assert_false(FightBrain.segment_hits_rect(Vector2(-5.0, 3.0), Vector2(5.0, 3.0), wall), "parallel and outside")
+
+
+func test_a_bot_behind_cover_steps_aside_and_never_throws_into_it() -> void:
+	var layout: MapLayout = LAYOUT.duplicate() as MapLayout
+	var wall: Rect2 = Rect2(-3.0, -0.5, 6.0, 1.0)
+	var rects: Array[Rect2] = [wall]
+	layout.obstacles = rects
+	var sim: MatchSim = MatchSim.new(RULES, layout, 8)
+	var target: PlayerState = sim.add_player(PLAYER, 0)
+	target.position = Vector2(0.0, 5.0)
+	var spot: Vector2 = Vector2(0.0, -5.0)
+	sim.add_dummy(BOT, 1, spot, FightBrain.fighter(spot))
+	sim.set_loadout(BOT, &"bato_light", &"tsinelas_light")
+	sim.set_loadout(PLAYER, &"bola", &"papel_shield")
+	var bad_casts: Array[int] = []
+	var casts: Array[StringName] = []
+	sim.weapon_cast.connect(func(id: int, weapon: StringName) -> void:
+		if id == BOT:
+			casts.append(weapon)
+			if FightBrain.segment_hits_rect(sim.players[BOT].position, target.position, wall.grow(0.3)):
+				bad_casts.append(sim.tick))
+	_run(sim, 12.0)
+	assert_gt(casts.size(), 0, "it found a way to throw")
+	assert_eq(bad_casts.size(), 0, "never into the wall")
+	assert_lt(target.hp, RULES.player_max_hp, "and it landed")
