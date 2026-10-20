@@ -3,7 +3,8 @@ extends Control
 ## The main screen, built as a game lobby: a living backdrop, a top bar with the game's logo and who
 ## you are, the mode carousel as the hero (the chosen card framed in light, floating a little), the
 ## mode's name, one phrase and the main action under it, and a tab bar at the bottom (Play, Book,
-## History, Settings). The tabs swap the middle of the screen; the chrome around it never moves.
+## History, Settings). The tabs swap the middle of the screen; the pages take the whole height (the logo and
+## profile chip show on Play only, each page has its own title and Settings holds the profile).
 ## Android Back closes a tab back to Play, and on Play asks to quit.
 
 const SERVER_SCENE: String = "res://server/main.tscn"
@@ -29,7 +30,7 @@ const TABS: Array[Dictionary] = [
 	{"id": &"settings", "label": "Settings", "icon": &"settings"},
 ]
 ## The hero cards (2.5:4, like the owner's card pictures) and how high the stage is.
-const HERO_CARD: Vector2 = Vector2(372.0, 595.0)
+const HERO_CARD: Vector2 = Vector2(400.0, 640.0)
 const LOGO_HEIGHT: float = 92.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
@@ -67,6 +68,7 @@ var _loading: bool = false
 var _loading_dots: Label
 var _margin: MarginContainer
 var _home: VBoxContainer
+var _top_bar: Control
 var _page_holder: Control
 var _dots: Array[Panel] = []
 var _page_tween: Tween
@@ -112,7 +114,8 @@ func _build_layout() -> void:
 	shell.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	shell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_margin.add_child(shell)
-	shell.add_child(_build_top_bar())
+	_top_bar = _build_top_bar()
+	shell.add_child(_top_bar)
 	var middle: Control = Control.new()
 	middle.name = "Middle"
 	middle.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -277,6 +280,7 @@ func open_page(id: StringName) -> void:
 	elif id == &"codex":
 		codex_page.show_tab(codex_page.current)
 	_home.visible = false
+	_top_bar.visible = false
 	tab_bar.set_active(id)
 	_fade_in(pages[id])
 
@@ -287,6 +291,7 @@ func close_page() -> void:
 	for id: StringName in pages:
 		pages[id].visible = false
 	_home.visible = true
+	_top_bar.visible = true
 	tab_bar.set_active(&"home")
 	_fade_in(_home)
 

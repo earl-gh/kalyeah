@@ -23,7 +23,7 @@ What is built, what is next, and the rules for building it. Rules and numbers li
 | UI preferences and navigation | Reduced decorative motion, modal focus/navigation and keyboard-safe match settings. Owner-requested simplification removes text-size modes and uses one readable scale; [current GUI follow-up](audits/2026-10-19-ui-density.md). |
 | Loadout and control feedback | Untimed Practice setup, saved validated weapon pairs, explicit replacement slots, larger readable cards, contextual control hints, persistent reconnect state, and truthful result actions |
 | Lobby and match UI refinement | Narrow-phone lobby and loadout layouts, concise room states, unified match announcements, and a score card with clock and best-of context |
-| UI rebuild, phase 1 | A code-drawn game skin (`UiSkin`: glossy buttons that sink into a lip, lit panels, soft shadows), a component kit, and a rebuilt Home (hero carousel, tab bar), pages, dialogs and room cards. Loadout and match HUD are phase 2. Critique and decisions: [UI rebuild](audits/2026-10-20-ui-rebuild-critique.md). |
+| UI rebuild, phase 1 | A code-drawn game skin (`UiSkin`: glossy buttons that sink into a lip, lit panels, soft shadows), a component kit, and a rebuilt Home (hero carousel, tab bar), pages, dialogs and room cards. Round 2 added the Loadout, the shared choice buttons, a Play-only top bar and a gold-only-for-the-main-action rule. The match HUD waits for a device-checked pass. Critique and decisions: [UI rebuild](audits/2026-10-20-ui-rebuild-critique.md). |
 
 ## Short-phone GUI follow-up
 

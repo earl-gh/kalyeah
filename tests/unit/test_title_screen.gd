@@ -182,6 +182,23 @@ func test_a_tab_opens_its_page_and_play_returns_home() -> void:
 
 
 
+func test_the_logo_and_profile_show_on_play_only_so_pages_get_the_height() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(3)
+	var top: Control = screen.find_child("TopBar", true, false) as Control
+	assert_true(top.is_visible_in_tree(), "Play shows the logo and who you are")
+	var play_height: float = screen.get_node("Safe").get_global_rect().size.y
+	screen.open_page(&"history")
+	await wait_frames(2)
+	assert_false(top.is_visible_in_tree(), "a page has its own title")
+	assert_gte(screen.pages[&"history"].get_global_rect().position.y, 0.0)
+	assert_lt(screen.pages[&"history"].get_global_rect().position.y, 60.0, "and starts near the top of the screen")
+	screen.close_page()
+	await wait_frames(2)
+	assert_true(top.is_visible_in_tree(), "Play brings them back")
+	assert_gt(play_height, 0.0)
+
+
 func test_android_back_closes_a_page_before_asking_to_quit() -> void:
 	var screen: TitleScreen = _screen()
 	screen.open_page(&"codex")
@@ -248,7 +265,7 @@ func test_swiping_and_tapping_the_carousel_changes_the_card() -> void:
 	await wait_seconds(0.4)
 	var tap: InputEventMouseButton = InputEventMouseButton.new()
 	tap.button_index = MOUSE_BUTTON_LEFT
-	tap.position = Vector2(strip.size.x / 2.0 - 200.0, strip.size.y / 2.0)
+	tap.position = Vector2(strip.cards[1].get_global_rect().position.x - strip.get_global_rect().position.x + 12.0, strip.size.y / 2.0)
 	tap.pressed = true
 	strip._gui_input(tap)
 	tap.pressed = false

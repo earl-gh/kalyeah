@@ -1,7 +1,7 @@
 class_name UiSegmented
 extends HBoxContainer
 ## A row of two to four big choices of which one is on (Characters | Weapons). The chosen one is a
-## gold game button, the rest are quiet slate ones; every segment shares the width.
+## blue game button, the rest are quiet slate ones; every segment shares the width.
 
 signal chosen(id: StringName)
 
@@ -27,6 +27,6 @@ func select(id: StringName, announce: bool = true) -> void:
 	var changed: bool = id != current
 	current = id
 	for other: StringName in buttons:
-		KalyeahTheme.style_button(buttons[other], "orange" if other == id else "grey")
+		KalyeahTheme.style_button(buttons[other], "blue" if other == id else "grey")
 	if changed and announce:
 		chosen.emit(id)
