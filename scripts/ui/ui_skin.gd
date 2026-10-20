@@ -42,6 +42,40 @@ const PLATE_PAD: int = 22
 
 static var _cache: Dictionary[String, StyleBoxTexture] = {}
 
+## The panels (kind, corner radius) the first screens use. They are built one at a time behind the boot screen's
+## loading bar (`warm_next`), so the first tap on Home or a dialog does not pay for drawing them.
+const WARM_PLATES: Array[Array] = [
+	["glass", PLATE_RADIUS], ["raised", PLATE_RADIUS], ["inset", PLATE_RADIUS], ["night", PLATE_RADIUS], ["picked", PLATE_RADIUS],
+	["glass", 22], ["glass", 18], ["raised", 26], ["raised", 22], ["picked", 22], ["picked", 18], ["night", 34], ["raised", 34],
+]
+static var _warmed: int = 0
+
+
+## How many textures `warm_next` builds in all: every button in its three states, then the panels.
+static func warm_total() -> int:
+	return BUTTONS.size() * 3 + WARM_PLATES.size()
+
+
+## Builds the next texture of the warm-up list (one per call). Returns true once everything is built.
+static func warm_next() -> bool:
+	if _warmed >= warm_total():
+		return true
+	var buttons: int = BUTTONS.size() * 3
+	if _warmed < buttons:
+		var variants: Array = BUTTONS.keys()
+		var states: Array[String] = ["normal", "hover", "pressed"]
+		button(variants[_warmed / 3] as String, states[_warmed % 3])
+	else:
+		var spec: Array = WARM_PLATES[_warmed - buttons]
+		plate(spec[0] as String, 0.0, spec[1] as int)
+	_warmed += 1
+	return _warmed >= warm_total()
+
+
+## 0 to 1: how much of the warm-up list is built.
+static func warm_fraction() -> float:
+	return float(_warmed) / float(warm_total())
+
 
 ## A game button of `variant` (gold, blue, green, red, slate, disabled) in `state` (normal, hover,
 ## pressed). The face sinks into its lip when pressed.
@@ -61,8 +95,9 @@ static func button(variant: String, state: String = "normal", radius: int = BUTT
 	var body: Rect2 = Rect2(BUTTON_PAD, BUTTON_PAD + sink, size - BUTTON_PAD * 2, size - BUTTON_PAD * 2 - sink)
 	var face: Rect2 = Rect2(body.position, body.size - Vector2(0.0, lip))
 	var shadow_alpha: float = 0.0 if pressed or variant == "disabled" else 0.5
+	# the shape is the same left and right: draw the left half and mirror it
 	for y: int in size:
-		for x: int in size:
+		for x: int in (size + 1) / 2:
 			var at: Vector2 = Vector2(x + 0.5, y + 0.5)
 			var d_body: float = _distance(at, body, radius)
 			var d_face: float = _distance(at, face, radius)
@@ -84,6 +119,7 @@ static func button(variant: String, state: String = "normal", radius: int = BUTT
 				var s: float = shadow_alpha * (1.0 - smoothstep(0.0, 10.0, d_shadow)) * (1.0 - alpha)
 				out = _over(Color(0.0, 0.01, 0.06, s), out)
 			image.set_pixel(x, y, out)
+			image.set_pixel(size - 1 - x, y, out)
 	var box: StyleBoxTexture = _nine_slice(image, radius + BUTTON_PAD, BUTTON_PAD)
 	box.content_margin_left = 26.0
 	box.content_margin_right = 26.0
@@ -126,7 +162,7 @@ static func _render_plate(kind: String, radius: int) -> StyleBoxTexture:
 	var light: float = spec["light"] as float
 	var line: float = spec.get("line_width", 2.0) as float
 	for y: int in size:
-		for x: int in size:
+		for x: int in (size + 1) / 2:
 			var at: Vector2 = Vector2(x + 0.5, y + 0.5)
 			var d: float = _distance(at, body, radius)
 			var t: float = clampf((at.y - body.position.y) / body.size.y, 0.0, 1.0)
@@ -143,6 +179,7 @@ static func _render_plate(kind: String, radius: int) -> StyleBoxTexture:
 				var d_shadow: float = _distance(at, Rect2(body.position + Vector2(0.0, 8.0), body.size), radius)
 				out = _over(Color(0.0, 0.01, 0.06, shadow * (1.0 - smoothstep(0.0, 18.0, d_shadow)) * (1.0 - alpha)), out)
 			image.set_pixel(x, y, out)
+			image.set_pixel(size - 1 - x, y, out)
 	return _nine_slice(image, radius + PLATE_PAD, PLATE_PAD)
 
 

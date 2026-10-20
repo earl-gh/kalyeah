@@ -40,6 +40,8 @@ const TIPS: Array[String] = [
 ]
 ## The bar never fills faster than this, so the screen is seen even when loading is instant.
 const MAX_FILL_PER_SECOND: float = 0.7
+## The part of the bar that is the interface skin being drawn (the rest is the scenes loading).
+const SKIN_SHARE: float = 0.2
 
 signal finished
 
@@ -186,10 +188,12 @@ func _apply_progress() -> void:
 func _process(delta: float) -> void:
 	if _done or _base == null:
 		return
-	_loaded = _loading_fraction()
+	# one skin texture per frame while the scenes load, so the first screens open without a stall
+	UiSkin.warm_next()
+	_loaded = _loading_fraction() * (1.0 - SKIN_SHARE) + UiSkin.warm_fraction() * SKIN_SHARE
 	progress = minf(_loaded, progress + MAX_FILL_PER_SECOND * delta)
 	_apply_progress()
-	if progress >= 1.0:
+	if progress >= 0.9999:
 		_done = true
 		finished.emit()
 		var packed: PackedScene = ResourceLoader.load_threaded_get(TITLE_SCENE) as PackedScene
