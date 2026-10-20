@@ -1,26 +1,22 @@
 class_name CodexPage
 extends VBoxContainer
-## The book at the top left of the main screen: the Characters and the Weapons of the game, one
-## tab each.
+## The Book: the Characters and the Weapons of the game, one segment each under a big switcher.
 
 var characters_page: CharactersPage
 var weapons_page: WeaponsPage
+var segmented: UiSegmented
 var current: StringName = &"characters"
+## The two segment buttons by id (characters, weapons).
 var tab_buttons: Dictionary[StringName, Button] = {}
 
 
 func _ready() -> void:
 	name = "CodexPage"
-	add_theme_constant_override("separation", 12)
-	var tabs: HBoxContainer = HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 12)
-	add_child(tabs)
-	for tab: Dictionary in [{"id": &"characters", "label": "Characters"}, {"id": &"weapons", "label": "Weapons"}]:
-		var button: Button = MenuDialog.make_button(String(tab["label"]), "grey", 26, Vector2(0.0, UiMetrics.TOUCH))
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.pressed.connect(show_tab.bind(tab["id"] as StringName))
-		tabs.add_child(button)
-		tab_buttons[tab["id"] as StringName] = button
+	add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
+	segmented = UiSegmented.new([{"id": &"characters", "label": "Characters"}, {"id": &"weapons", "label": "Weapons"}])
+	segmented.chosen.connect(show_tab)
+	tab_buttons = segmented.buttons
+	add_child(segmented)
 	var holder: Control = Control.new()
 	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(holder)
@@ -37,7 +33,6 @@ func show_tab(tab: StringName) -> void:
 	current = tab
 	characters_page.visible = tab == &"characters"
 	weapons_page.visible = tab == &"weapons"
-	for id: StringName in tab_buttons:
-		KalyeahTheme.style_button(tab_buttons[id], "orange" if id == tab else "grey")
+	segmented.select(tab, false)
 	if tab == &"characters":
 		characters_page.refresh()

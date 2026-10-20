@@ -11,6 +11,8 @@ const SOURCE_SANS: Font = preload("res://assets/fonts/source_sans_3/SourceSans3-
 const BODY_WEIGHT: int = 500
 static var BODY_FONT: Font = _body_font()
 static var ACTION_FONT: Font = BODY_FONT
+## Buttons read heavier than body text (Source Sans 3 at weight 800) so a label holds up on a bright face.
+static var BUTTON_FONT: Font = _body_font(800)
 
 const INK: Color = Color("10192d")
 const INK_DEEP: Color = Color("080f1d")
@@ -38,12 +40,12 @@ const FONT_SIZE: int = UiMetrics.BODY
 const PANEL_PADDING: float = UiMetrics.PADDING
 
 
-static func _body_font() -> Font:
+static func _body_font(weight: int = BODY_WEIGHT) -> Font:
 	# Source Sans 3 for all regular text (owner), the same on every phone and in the browser
 	var font: FontVariation = FontVariation.new()
 	font.base_font = SOURCE_SANS
 	# the axis is addressed by its OpenType tag number ("wght")
-	font.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): BODY_WEIGHT}
+	font.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
 	return font
 
 
@@ -79,7 +81,7 @@ static func build() -> Theme:
 	theme.set_stylebox("normal", "HudPill", painted_pill())
 	theme.set_constant("outline_size", "HudPill", 0)
 
-	theme.set_font("font", "Button", BODY_FONT)
+	theme.set_font("font", "Button", BUTTON_FONT)
 	theme.set_font_size("font_size", "Button", UiMetrics.ACTION)
 	set_button_styles(theme, "Button", "orange")
 	theme.set_stylebox("disabled", "Button", painted_button("grey"))
@@ -126,8 +128,19 @@ static func semantic_text_color(name: String) -> Color:
 	return TEXT if name == "grey" else INK_DEEP
 
 
-## A calm action surface. State changes come from color and a small press scale,
-## keeping the interface legible without stacking decorative shadows.
+## The UiSkin variant that draws a semantic colour name.
+static func skin_variant(color: String) -> String:
+	match color:
+		"orange", "gold":
+			return "gold"
+		"blue", "green", "red":
+			return color
+		_:
+			return "slate"
+
+
+## The flat version of a button colour, kept for the few places that need an editable StyleBoxFlat
+## (tests and small custom surfaces). Buttons themselves use UiSkin.
 static func painted_button(color: String, pressed: bool = false, tint: Color = Color.WHITE) -> StyleBoxFlat:
 	var face: Color = semantic_color(color) * tint
 	if pressed:
@@ -155,25 +168,24 @@ static func button_box(color: Color, pressed: bool = false) -> StyleBoxFlat:
 
 
 static func set_button_styles(theme: Theme, type: String, color: String) -> void:
-	theme.set_stylebox("normal", type, painted_button(color))
-	theme.set_stylebox("hover", type, painted_button(color, false, Color(1.06, 1.06, 1.06)))
-	theme.set_stylebox("pressed", type, painted_button(color, true))
-	theme.set_stylebox("hover_pressed", type, painted_button(color, true))
+	var variant: String = skin_variant(color)
+	theme.set_stylebox("normal", type, UiSkin.button(variant))
+	theme.set_stylebox("hover", type, UiSkin.button(variant, "hover"))
+	theme.set_stylebox("pressed", type, UiSkin.button(variant, "pressed"))
+	theme.set_stylebox("hover_pressed", type, UiSkin.button(variant, "pressed"))
 
 
+## Dresses a button in a game-button variant: a gradient face with a lip (UiSkin), a heavy label.
 static func style_button(button: Button, color: String) -> void:
-	button.add_theme_stylebox_override("normal", painted_button(color))
-	button.add_theme_stylebox_override("hover", painted_button(color, false, Color(1.06, 1.06, 1.06)))
-	button.add_theme_stylebox_override("pressed", painted_button(color, true))
-	button.add_theme_stylebox_override("hover_pressed", painted_button(color, true))
-	button.add_theme_stylebox_override("disabled", painted_button("grey"))
-	button.add_theme_stylebox_override("focus", focus_ring(CORNER + 2))
-	var text_color: Color = semantic_text_color(color)
-	for state: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
-		button.add_theme_color_override(state, text_color)
-	button.add_theme_color_override("font_disabled_color", Color(TEXT_MUTED, 0.62))
-	button.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
-	button.add_theme_constant_override("outline_size", 0)
+	var variant: String = skin_variant(color)
+	button.add_theme_stylebox_override("normal", UiSkin.button(variant))
+	button.add_theme_stylebox_override("hover", UiSkin.button(variant, "hover"))
+	button.add_theme_stylebox_override("pressed", UiSkin.button(variant, "pressed"))
+	button.add_theme_stylebox_override("hover_pressed", UiSkin.button(variant, "pressed"))
+	button.add_theme_stylebox_override("disabled", UiSkin.button("disabled"))
+	button.add_theme_stylebox_override("focus", UiSkin.focus_ring())
+	button.add_theme_font_override("font", BUTTON_FONT)
+	UiSkin.style_label(button, variant)
 
 
 static func surface_box(corner: int = 20, border: int = 1, padding: float = PANEL_PADDING) -> StyleBoxFlat:
@@ -188,8 +200,9 @@ static func surface_box(corner: int = 20, border: int = 1, padding: float = PANE
 	return box
 
 
-static func painted_panel(padding: float = PANEL_PADDING) -> StyleBoxFlat:
-	return surface_box(24, 1, padding)
+## The standard panel: a lit glass plate with a soft shadow (UiSkin).
+static func painted_panel(padding: float = PANEL_PADDING) -> StyleBox:
+	return UiSkin.plate("glass", padding)
 
 
 static func painted_pill() -> StyleBoxFlat:

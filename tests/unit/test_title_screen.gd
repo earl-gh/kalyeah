@@ -1,5 +1,5 @@
 extends GutTest
-## The main screen: quiet top navigation, a centred mode carousel and low primary actions.
+## The main screen: logo and profile on top, the hero mode carousel, low main actions and a tab bar.
 
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
 
@@ -61,51 +61,46 @@ func _phone_screen() -> TitleScreen:
 
 func test_the_screen_has_everything_the_owner_asked_for() -> void:
 	var screen: TitleScreen = _screen()
-	assert_null(screen.find_child("TopBar", true, false), "no top row: no K! and no settings icon")
+	assert_not_null(screen.find_child("TopBar", true, false), "a top bar with the logo and who you are")
+	assert_not_null(screen.find_child("Logo", true, false), "the game's logo")
+	assert_not_null(screen.profile_chip, "your profile")
 	assert_not_null(screen.carousel, "the mode carousel")
 	assert_eq(screen.mode_name_label.text, "Hotspot", "hotspot is the default mode")
 	assert_null(screen.find_child("MapButton", true, false), "no map button")
 	assert_eq(screen.primary_button.text, "Create room")
 	assert_eq(screen.secondary_button.text, "Join room")
-	assert_null(screen.quit_button, "quit stays out of the main action area")
+	assert_false(screen.primary_button.get_parent().is_ancestor_of(screen.settings_page), "quit stays out of the main action area")
 
 
-func test_settings_is_top_right_and_book_and_history_stay_left_of_the_cards() -> void:
+
+func test_the_tab_bar_holds_play_book_history_and_settings_along_the_bottom() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(3)
-	var book: Rect2 = screen.corner_buttons[&"codex"].get_global_rect()
-	var history: Rect2 = screen.corner_buttons[&"history"].get_global_rect()
-	var settings: Rect2 = screen.corner_buttons[&"settings"].get_global_rect()
-	assert_almost_eq(settings.end.x, 720.0 - TitleScreen.SIDE_MARGIN, 1.0, "settings is at the top right")
-	assert_lt(settings.position.y, 140.0, "settings stays at the top")
-	assert_gt(settings.position.y, 20.0, "settings clears the very top")
-	assert_almost_eq(book.position.x, history.position.x, 1.0, "the book and history are in one column")
-	assert_lt(book.position.y, history.position.y, "the book above history")
-	assert_almost_eq(book.position.x, TitleScreen.SIDE_MARGIN, 1.0, "at the left margin")
-	assert_lte(book.end.x, screen.carousel.cards[0].get_global_rect().position.x, "left of the cards")
-	assert_lte(history.end.x, screen.carousel.cards[0].get_global_rect().position.x)
-	assert_gt(book.position.y, settings.end.y, "under the top row")
-	for id: StringName in screen.corner_buttons:
-		assert_gte(screen.corner_buttons[id].get_global_rect().size.y, 80.0, "%s is tall enough for a thumb" % id)
-	assert_null(screen.find_child("Logo", true, false), "the home screen does not repeat the game name")
-	assert_null(screen.find_child("BottomNav", true, false), "no bottom nav bar")
+	var ids: Array[StringName] = [&"home", &"codex", &"history", &"settings"]
+	var last_x: float = -1.0
+	for id: StringName in ids:
+		var tab: Rect2 = screen.corner_buttons[id].get_global_rect()
+		assert_gt(tab.position.x, last_x, "%s is right of the one before it" % id)
+		last_x = tab.position.x
+		assert_gt(tab.position.y, 1280.0 * 0.85, "%s is at the bottom, under the thumb" % id)
+		assert_gte(tab.size.y, 88.0, "%s is tall enough for a thumb" % id)
+		assert_gte(tab.size.x, 120.0, "%s is wide enough for a thumb" % id)
+	assert_eq(screen.tab_bar.active, &"home", "Play is the page you start on")
+	assert_gt(screen.carousel.get_global_rect().position.y, screen.profile_chip.get_global_rect().position.y, "the cards are under the top bar")
+	assert_null(screen.find_child("BottomNav", true, false), "the old bottom nav is gone")
 
 
-func test_the_centre_card_stays_centred_on_the_screen_and_the_buttons_are_drawn_above_the_cards() -> void:
+
+func test_the_centre_card_stays_centred_on_the_screen() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(3)
 	var strip: MenuCarousel = screen.carousel
 	for index: int in 3:
 		strip.select(index, false)
 		assert_almost_eq(strip.cards[index].get_global_rect().get_center().x, 360.0, 2.0, "the chosen card is centred on the screen")
-	var stage: Node = strip.get_parent()
-	var column: Node = stage.find_child("Left", false, false)
-	assert_gt(column.get_index(), strip.get_index(), "the book and history are drawn after (above) the cards")
 	strip.select(0, false)
-	var book: Rect2 = screen.corner_buttons[&"codex"].get_global_rect()
-	var card: Rect2 = strip.cards[0].get_global_rect()
-	assert_lt(book.end.x, card.position.x, "at rest the buttons are clear of the centre card")
-	assert_gt(card.size.y, 540.0, "the centre card is large")
+	assert_gt(strip.cards[0].get_global_rect().size.y, 540.0, "the centre card is large")
+
 
 
 func test_the_cards_show_the_owners_pictures_and_no_text() -> void:
@@ -158,32 +153,33 @@ func test_the_actions_sit_low_on_the_screen_but_not_at_the_very_bottom() -> void
 	assert_gt(create.position.y, 1280.0 * 0.75, "in the bottom part")
 	assert_lt(create.end.y, 1280.0 - 60.0, "but with room under them")
 	assert_lt(screen.carousel.get_global_rect().end.y, create.position.y, "below the cards")
-	assert_gt(screen.carousel.get_global_rect().position.y, screen.corner_buttons[&"settings"].get_global_rect().end.y - 1.0, "the cards are under the top row")
+	assert_gt(screen.carousel.get_global_rect().position.y, screen.profile_chip.get_global_rect().position.y, "the cards are under the top bar")
 	assert_gt(create.size.x + join.size.x, 600.0)
 	var title: Rect2 = screen.mode_name_label.get_global_rect()
 	var phrase: Rect2 = screen.mode_text_label.get_global_rect()
 	var cards_bottom: float = screen.carousel.cards[0].get_global_rect().end.y
-	assert_lte(title.position.y - cards_bottom, 48.0, "mode title belongs with its illustration")
+	assert_lte(title.position.y - cards_bottom, 96.0, "mode title belongs with its illustration (a little air for the glow)")
 	assert_gt(title.position.y, cards_bottom, "under the cards")
 	assert_lt(phrase.end.y, create.position.y - 10.0, "and clear of the buttons")
 	assert_almost_eq(title.get_center().x, 360.0, 2.0, "centred left to right")
 	assert_almost_eq(phrase.get_center().x, 360.0, 2.0)
 
 
-func test_a_corner_button_opens_its_page_and_back_returns_home() -> void:
+func test_a_tab_opens_its_page_and_play_returns_home() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(2)
-	for corner: Dictionary in TitleScreen.CORNERS:
-		var id: StringName = corner["id"]
+	for id: StringName in [&"codex", &"history", &"settings"]:
 		screen.corner_buttons[id].pressed.emit()
 		assert_eq(screen.current_page, id)
 		assert_true(screen.pages[id].visible, "%s page is open" % id)
 		assert_false(screen.carousel.is_visible_in_tree(), "over the home page")
 		for other: StringName in screen.pages:
 			assert_eq(screen.pages[other].visible, other == id)
-		screen.back_button.pressed.emit()
+		assert_eq(screen.tab_bar.active, id, "its tab is lit")
+		screen.corner_buttons[&"home"].pressed.emit()
 		assert_eq(screen.current_page, &"")
 		assert_true(screen.carousel.is_visible_in_tree(), "back on the home page")
+
 
 
 func test_android_back_closes_a_page_before_asking_to_quit() -> void:
@@ -284,7 +280,7 @@ func test_the_screen_shows_no_version_online_caption_or_server_line() -> void:
 	assert_false(text.contains("No server"), "no server hint")
 	assert_eq(text.count("v0."), 0, "no version")
 	assert_null(screen.find_child("VersionLabel", true, false))
-	assert_null(screen.find_child("Wordmark", true, false), "the game name was removed")
+	assert_null(screen.find_child("Wordmark", true, false), "no text wordmark: the logo is the owner's picture")
 
 
 func _all_text(root: Node) -> String:
@@ -297,10 +293,11 @@ func _all_text(root: Node) -> String:
 
 func test_the_background_is_the_owners_diamond_picture_covering_the_screen() -> void:
 	var screen: TitleScreen = _screen()
-	var background: TextureRect = _find(screen, "Background") as TextureRect
-	assert_eq(background.texture, TitleScreen.BACKGROUND)
-	assert_eq(background.stretch_mode, TextureRect.STRETCH_KEEP_ASPECT_COVERED, "cropped, never stretched")
-	assert_eq(TitleScreen.BACKGROUND.get_size(), Vector2(941.0, 1672.0))
+	var picture: TextureRect = _find(screen.backdrop, "Picture") as TextureRect
+	assert_eq(picture.texture, UiBackdrop.PICTURE)
+	assert_eq(picture.stretch_mode, TextureRect.STRETCH_KEEP_ASPECT_COVERED, "cropped, never stretched")
+	assert_eq(UiBackdrop.PICTURE.get_size(), Vector2(941.0, 1672.0))
+
 
 
 func test_every_tap_target_is_big_enough_for_a_thumb() -> void:

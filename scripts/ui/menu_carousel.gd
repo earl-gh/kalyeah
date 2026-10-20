@@ -23,6 +23,11 @@ const SNAP_TIME: float = 0.18
 
 ## The size of a card (2.5:4 on the main screen; the room's map carousel sets 3:4 before `setup`).
 var card_size: Vector2 = CARD
+## How far (px) the middle card bobs up and down while the screen idles (0 = holds still).
+var bob: float = 0.0:
+	set(value):
+		bob = value
+		set_process(value > 0.0)
 var index: int = 0
 var cards: Array[Button] = []
 
@@ -47,11 +52,30 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		card.pivot_offset = card_size / 2.0
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.focus_mode = Control.FOCUS_NONE
+		card.add_child(_frame(String(option.get("accent", "ffd25a"))))
 		add_child(card)
 		cards.append(card)
 	index = clampi(current, 0, maxi(cards.size() - 1, 0))
 	_position = float(index)
 	_layout()
+
+
+## The bright rim of the card in the middle: a glowing frame in the card's accent colour.
+func _frame(accent: String) -> Panel:
+	var frame: Panel = Panel.new()
+	frame.name = "Frame"
+	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ring: StyleBoxFlat = StyleBoxFlat.new()
+	ring.draw_center = false
+	ring.set_corner_radius_all(KalyeahTheme.CORNER)
+	ring.set_border_width_all(5)
+	ring.border_color = Color(accent)
+	ring.shadow_color = Color(Color(accent), 0.55)
+	ring.shadow_size = 18
+	ring.anti_aliasing = true
+	frame.add_theme_stylebox_override("panel", ring)
+	return frame
 
 
 func _ready() -> void:
@@ -67,6 +91,10 @@ func _ready() -> void:
 	Settings.accessibility_changed.connect(_on_accessibility_changed)
 	clip_contents = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	_layout()
+
+
+func _process(_delta: float) -> void:
 	_layout()
 
 
@@ -104,11 +132,15 @@ func _layout() -> void:
 		var away: float = clampf(absf(offset), 0.0, 2.0)
 		var card: Button = cards[i]
 		card.scale = Vector2.ONE * (1.0 - SCALE_LOSS * away)
-		card.position = Vector2(size.x / 2.0 + offset * STEP - card_size.x / 2.0, (size.y - card_size.y) / 2.0 - RISE * away)
+		var drift: float = sin(float(Time.get_ticks_msec()) / 1000.0 * 1.7) * bob * (1.0 - away / 2.0) if bob > 0.0 and not Settings.reduced_motion else 0.0
+		card.position = Vector2(size.x / 2.0 + offset * STEP - card_size.x / 2.0, (size.y - card_size.y) / 2.0 - RISE * away + drift)
 		# every card stays visible: the ones further back are darker and slightly see-through
 		var shade: float = 1.0 - SHADE_LOSS * away
 		card.modulate = Color(shade, shade, shade, lerpf(1.0, BACK_ALPHA, clampf(absf(offset), 0.0, 1.0)))
 		card.z_index = 10 - int(roundf(absf(offset) * 5.0))
+		var frame: Control = card.get_node_or_null("Frame") as Control
+		if frame != null:
+			frame.modulate.a = clampf(1.0 - absf(offset) * 1.6, 0.0, 1.0)
 
 	if _focus_frame != null:
 		_focus_frame.visible = has_focus() and not cards.is_empty()

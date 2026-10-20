@@ -1,44 +1,40 @@
 class_name TitleScreen
 extends Control
-## The main screen. The home page: a quiet top row with the settings button at the right; under it
-## a horizontal carousel of large 3:4 mode cards (Hotspot, Online, Practice), centred
-## on the screen, with the book and history buttons in a column over its left side (cards scroll
-## behind them, never over them), every card always
-## visible, stacked behind the chosen one; and the chosen
-## mode's name and one phrase centred between the cards and the action buttons, which sit low on
-## the screen. A page opens over the home page with a Back button (so does Android Back). Settings holds the player's name and the infrequent quit
-## action, while Android Back on the home page asks to quit.
+## The main screen, built as a game lobby: a living backdrop, a top bar with the game's logo and who
+## you are, the mode carousel as the hero (the chosen card framed in light, floating a little), the
+## mode's name, one phrase and the main action under it, and a tab bar at the bottom (Play, Book,
+## History, Settings). The tabs swap the middle of the screen; the chrome around it never moves.
+## Android Back closes a tab back to Play, and on Play asks to quit.
 
 const SERVER_SCENE: String = "res://server/main.tscn"
 const LOBBY_SCENE: String = "res://scenes/ui/lobby.tscn"
 const PRACTICE_SCENE: String = "res://scenes/match/practice.tscn"
-const BACKGROUND: Texture2D = preload("res://assets/ui/main_bg.webp")
+const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
 
-## The game modes, first is the default (owner: hotspot first, not online).
+## The game modes, first is the default (owner: hotspot first, not online). `accent` tints the
+## frame of the card and the glow behind it.
 const MODES: Array[Dictionary] = [
-	{"id": "hotspot", "title": "Hotspot", "color": "blue",
+	{"id": "hotspot", "title": "Hotspot", "color": "blue", "accent": "4aa0ff",
 		"text": "Play on one local network."},
-	{"id": "online", "title": "Online", "color": "orange",
+	{"id": "online", "title": "Online", "color": "orange", "accent": "ffa63a",
 		"text": "Invite friends with a room code."},
-	{"id": "practice", "title": "Practice", "color": "green",
+	{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78",
 		"text": "Train against dummies."},
 ]
-## How far the corner buttons sit down from the top.
-const TOP_ROW_DROP: float = 26.0
-const CORNER_BUTTON: float = UiMetrics.TOUCH
-## The corner buttons: the book and history in a column at the left of the cards, settings at the
-## top right.
-const CORNERS: Array[Dictionary] = [
-	{"id": &"codex", "icon": &"book", "side": &"left"},
-	{"id": &"history", "icon": &"history", "side": &"left"},
-	{"id": &"settings", "icon": &"settings", "side": &"right"},
+## The bottom tabs: Play is the home page, the others are pages.
+const TABS: Array[Dictionary] = [
+	{"id": &"home", "label": "Play", "icon": &"battle"},
+	{"id": &"codex", "label": "Book", "icon": &"book"},
+	{"id": &"history", "label": "History", "icon": &"history"},
+	{"id": &"settings", "label": "Settings", "icon": &"settings"},
 ]
-## Room left under the action buttons so they sit low on the screen, but not at its very bottom.
-const ACTIONS_LIFT: float = 84.0
-
-const SIDE_MARGIN: float = 34.0
-const TOP_MARGIN: float = 26.0
-const BOTTOM_MARGIN: float = 22.0
+## The hero cards (2.5:4, like the owner's card pictures) and how high the stage is.
+const HERO_CARD: Vector2 = Vector2(372.0, 595.0)
+const LOGO_HEIGHT: float = 92.0
+const SIDE_MARGIN: float = 28.0
+const TOP_MARGIN: float = 20.0
+const BOTTOM_MARGIN: float = 18.0
+const CTA_HEIGHT: float = 104.0
 const CREAM: Color = KalyeahTheme.CREAM
 
 ## The screen asks for the game to close (replaced in tests).
@@ -46,25 +42,35 @@ var quit_action: Callable = _quit_game
 ## The screen leaves for the lobby (replaced in tests).
 var open_lobby_action: Callable = _change_to_lobby
 
+var backdrop: UiBackdrop
 var carousel: MenuCarousel
+var profile_chip: UiProfileChip
+var tab_bar: UiTabBar
 var mode_name_label: Label
 var mode_text_label: Label
 var primary_button: Button
 var secondary_button: Button
-var quit_button: Button
 var dialog: MenuDialog
+## The tab buttons by page id (home, codex, history, settings).
 var corner_buttons: Dictionary[StringName, Button] = {}
 var pages: Dictionary[StringName, Control] = {}
 var current_page: StringName = &""
-var back_button: Button
 var codex_page: CodexPage
-var characters_page: CharactersPage
-var weapons_page: WeaponsPage
+var characters_page: CharactersPage:
+	get: return codex_page.characters_page
+var weapons_page: WeaponsPage:
+	get: return codex_page.weapons_page
 var history_page: HistoryPage
 var settings_page: SettingsPage
 
 var _loading: bool = false
 var _loading_dots: Label
+var _margin: MarginContainer
+var _home: VBoxContainer
+var _page_holder: Control
+var _dots: Array[Panel] = []
+var _page_tween: Tween
+var _pulse: Tween
 
 
 ## True for the dedicated server export or `godot --headless -- --server`.
@@ -79,7 +85,8 @@ func _ready() -> void:
 	Session.ensure_profile()
 	Net.stop_host()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_build_background()
+	backdrop = UiBackdrop.new()
+	add_child(backdrop)
 	_build_layout()
 	_apply_safe_area()
 	_refresh_mode()
@@ -87,44 +94,12 @@ func _ready() -> void:
 	primary_button.pressed.connect(_on_primary_pressed)
 	secondary_button.pressed.connect(_on_secondary_pressed)
 	get_viewport().size_changed.connect(_apply_safe_area)
+	Settings.accessibility_changed.connect(_on_accessibility_changed)
 	set_process(false)
 	_pop_in.call_deferred()
 
 
 # ---- layout ---------------------------------------------------------------------------
-
-## The blue diamond picture covers the whole screen (cropped, never stretched), softly vignetted.
-func _build_background() -> void:
-	var picture: TextureRect = TextureRect.new()
-	picture.name = "Background"
-	picture.texture = BACKGROUND
-	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(picture)
-	var vignette: GradientTexture2D = GradientTexture2D.new()
-	vignette.fill = GradientTexture2D.FILL_RADIAL
-	vignette.fill_from = Vector2(0.5, 0.46)
-	vignette.fill_to = Vector2(1.0, 1.0)
-	var gradient: Gradient = Gradient.new()
-	gradient.offsets = PackedFloat32Array([0.45, 1.0])
-	gradient.colors = PackedColorArray([Color(0.0, 0.02, 0.1, 0.0), Color(0.0, 0.02, 0.1, 0.55)])
-	vignette.gradient = gradient
-	var shade: TextureRect = TextureRect.new()
-	shade.name = "Vignette"
-	shade.texture = vignette
-	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(shade)
-
-
-var _margin: MarginContainer
-var _home: VBoxContainer
-var _page_layer: VBoxContainer
-var _page_holder: Control
-
 
 func _build_layout() -> void:
 	_margin = MarginContainer.new()
@@ -132,164 +107,144 @@ func _build_layout() -> void:
 	_margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_margin)
-	_apply_safe_area()
+	var shell: VBoxContainer = VBoxContainer.new()
+	shell.name = "Shell"
+	shell.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	shell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_margin.add_child(shell)
+	shell.add_child(_build_top_bar())
+	var middle: Control = Control.new()
+	middle.name = "Middle"
+	middle.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	middle.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shell.add_child(middle)
 	_home = _build_home()
-	_margin.add_child(_home)
-	_page_layer = _build_page_layer()
-	_margin.add_child(_page_layer)
+	_home.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	middle.add_child(_home)
+	_page_holder = Control.new()
+	_page_holder.name = "Pages"
+	_page_holder.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_page_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	middle.add_child(_page_holder)
+	_build_pages()
+	tab_bar = UiTabBar.new(TABS)
+	tab_bar.tab_pressed.connect(_on_tab_pressed)
+	shell.add_child(tab_bar)
+	for id: StringName in tab_bar.tabs:
+		corner_buttons[id] = tab_bar.tabs[id]
+	tab_bar.set_active(&"home")
 
 
-## The home page, centred: the mode carousel, the chosen mode's details and actions, then the
-## section of page buttons.
-func _build_home() -> VBoxContainer:
-	var home: VBoxContainer = VBoxContainer.new()
-	home.name = "Home"
-	home.add_theme_constant_override("separation", 6)
-	home.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	home.add_child(_build_top_row())
-	# a little room above the cards, then the stage at its own height
-	var above: Control = Control.new()
-	above.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	above.size_flags_stretch_ratio = 0.5
-	above.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	home.add_child(above)
-	home.add_child(_build_stage())
-	home.add_child(_build_titles())
-	var below: Control = Control.new()
-	below.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	below.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	home.add_child(below)
-	home.add_child(_build_actions())
-	# a little room under the buttons: low on the screen, but not at the very bottom
-	var lift: Control = Control.new()
-	lift.custom_minimum_size = Vector2(0.0, ACTIONS_LIFT)
-	lift.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	home.add_child(lift)
-	return home
-
-
-## The top row leaves the branding area open and keeps Settings at the top right.
-func _build_top_row() -> Control:
-	var holder: VBoxContainer = VBoxContainer.new()
-	holder.name = "TopRow"
-	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var drop: Control = Control.new()
-	drop.custom_minimum_size = Vector2(0.0, TOP_ROW_DROP)
-	drop.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	holder.add_child(drop)
+## The top bar: the KALYEAH! logo at the left, who you are at the right.
+func _build_top_bar() -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "TopBar"
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	holder.add_child(row)
+	var logo: TextureRect = TextureRect.new()
+	logo.name = "Logo"
+	logo.texture = LOGO
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	logo.custom_minimum_size = Vector2(LOGO_HEIGHT * float(LOGO.get_width()) / float(LOGO.get_height()), LOGO_HEIGHT)
+	logo.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(logo)
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(spacer)
-	for corner: Dictionary in CORNERS:
-		if corner["side"] == &"right":
-			row.add_child(_corner_button(corner))
-	return holder
+	profile_chip = UiProfileChip.new()
+	profile_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	profile_chip.pressed.connect(open_name_editor)
+	row.add_child(profile_chip)
+	return row
 
 
-## The stage: the carousel runs the full width, so the chosen card is centred on the screen, and the
-## book and history buttons stand in a column over its left side. The buttons are drawn after (above)
-## the cards, so a card sliding by while scrolling goes behind them, never over them.
-func _build_stage() -> Control:
+## The Play page: the hero carousel, the mode's name and phrase, the page dots and the actions.
+func _build_home() -> VBoxContainer:
+	var home: VBoxContainer = VBoxContainer.new()
+	home.name = "Home"
+	home.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	home.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var stage: Control = Control.new()
 	stage.name = "Stage"
-	stage.custom_minimum_size = Vector2(0.0, ChoiceCard.CARD_SIZE.y + 24.0)
+	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stage.custom_minimum_size = Vector2(0.0, HERO_CARD.y * 0.5)
 	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	home.add_child(stage)
 	carousel = MenuCarousel.new()
 	carousel.name = "ModeCarousel"
+	carousel.card_size = HERO_CARD
 	carousel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(carousel)
 	carousel.setup("", MODES, Session.menu_mode)
-	var column: VBoxContainer = VBoxContainer.new()
-	column.name = "Left"
-	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	column.add_theme_constant_override("separation", 16)
-	column.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
-	column.offset_right = CORNER_BUTTON
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stage.add_child(column)
-	for corner: Dictionary in CORNERS:
-		if corner["side"] == &"left":
-			column.add_child(_corner_button(corner))
-	return stage
+	carousel.bob = 7.0
+	home.add_child(_build_titles())
+	home.add_child(_build_actions())
+	return home
 
 
-## One of the painted round-cornered icon buttons (book, history, settings).
-func _corner_button(corner: Dictionary) -> Button:
-	var id: StringName = corner["id"]
-	var button: Button = MenuDialog.make_button("", "blue", 20, Vector2(CORNER_BUTTON, CORNER_BUTTON))
-	button.name = "%sButton" % String(id).capitalize()
-	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var centre: CenterContainer = CenterContainer.new()
-	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var icon: NavIcon = NavIcon.new(corner["icon"] as StringName)
-	icon.color = CREAM
-	centre.add_child(icon)
-	button.add_child(centre)
-	button.pressed.connect(open_page.bind(id))
-	corner_buttons[id] = button
-	return button
-
-
-## The mode's name and its one short phrase, centred in the space between the cards and the
-## action buttons.
+## The mode's name (big, outlined), its one phrase and a dot for each mode.
 func _build_titles() -> Control:
 	var titles: VBoxContainer = VBoxContainer.new()
 	titles.name = "Titles"
 	titles.alignment = BoxContainer.ALIGNMENT_CENTER
-	titles.add_theme_constant_override("separation", 6)
+	titles.add_theme_constant_override("separation", 2)
 	titles.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mode_name_label = Label.new()
 	mode_name_label.name = "ModeName"
 	mode_name_label.theme_type_variation = &"DisplayLabel"
-	mode_name_label.add_theme_font_size_override("font_size", 40)
+	mode_name_label.add_theme_font_size_override("font_size", 56)
 	mode_name_label.add_theme_color_override("font_color", CREAM)
+	mode_name_label.add_theme_color_override("font_outline_color", Color("060d22"))
+	mode_name_label.add_theme_constant_override("outline_size", 10)
 	mode_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	titles.add_child(mode_name_label)
 	mode_text_label = Label.new()
 	mode_text_label.name = "ModeText"
 	mode_text_label.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
+	mode_text_label.add_theme_color_override("font_color", Color("c9d6f2"))
 	mode_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mode_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	mode_text_label.clip_text = false
-	mode_text_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	titles.add_child(mode_text_label)
+	var dots: HBoxContainer = HBoxContainer.new()
+	dots.name = "Dots"
+	dots.alignment = BoxContainer.ALIGNMENT_CENTER
+	dots.add_theme_constant_override("separation", 10)
+	dots.custom_minimum_size = Vector2(0.0, 26.0)
+	dots.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for i: int in MODES.size():
+		var dot: Panel = Panel.new()
+		dot.custom_minimum_size = Vector2(12.0, 12.0)
+		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		dots.add_child(dot)
+		_dots.append(dot)
+	titles.add_child(dots)
 	return titles
 
 
-## The action buttons in one row: Create and Join, or Start.
+## The main action in one row: Create room and Join room, or Start practice.
 func _build_actions() -> Control:
 	var actions: HBoxContainer = HBoxContainer.new()
 	actions.name = "Actions"
-	actions.add_theme_constant_override("separation", 14)
+	actions.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	actions.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	primary_button = _action_button(actions, "PrimaryButton", "", "blue")
-	secondary_button = _action_button(actions, "SecondaryButton", "Join room", "green")
+	primary_button = _action_button(actions, "PrimaryButton", "", 2.0)
+	secondary_button = _action_button(actions, "SecondaryButton", "Join room", 1.0)
 	return actions
 
 
-## The pages open here, over the home page, under a Back button.
-func _build_page_layer() -> VBoxContainer:
-	var layer: VBoxContainer = VBoxContainer.new()
-	layer.name = "PageLayer"
-	layer.visible = false
-	layer.add_theme_constant_override("separation", 12)
-	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	back_button = MenuDialog.make_button("Back", "grey", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
-	back_button.name = "BackButton"
-	back_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	back_button.custom_minimum_size = Vector2(120.0, UiMetrics.TOUCH)
-	back_button.pressed.connect(close_page)
-	layer.add_child(back_button)
-	_page_holder = Control.new()
-	_page_holder.name = "Pages"
-	_page_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_page_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.add_child(_page_holder)
+func _action_button(parent: Control, button_name: String, text: String, weight: float) -> Button:
+	var button: Button = MenuDialog.make_button(text, "gold", 38, Vector2(0.0, CTA_HEIGHT))
+	button.name = button_name
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.size_flags_stretch_ratio = weight
+	parent.add_child(button)
+	return button
+
+
+func _build_pages() -> void:
 	codex_page = CodexPage.new()
 	history_page = HistoryPage.new()
 	settings_page = SettingsPage.new()
@@ -301,14 +256,16 @@ func _build_page_layer() -> VBoxContainer:
 		_page_holder.add_child(page)
 	settings_page.profile_pressed.connect(open_name_editor)
 	settings_page.quit_pressed.connect(open_quit_confirm)
-	# the book's two tabs are built when it enters the tree: expose them once it has
-	codex_page.ready.connect(func() -> void:
-		characters_page = codex_page.characters_page
-		weapons_page = codex_page.weapons_page)
-	return layer
 
 
-## Opens one of the pages (codex = the book, history, settings) over the home page.
+func _on_tab_pressed(id: StringName) -> void:
+	if id == &"home":
+		close_page()
+	else:
+		open_page(id)
+
+
+## Opens one of the pages (codex = the book, history, settings) in the middle of the screen.
 func open_page(id: StringName) -> void:
 	if not pages.has(id):
 		return
@@ -320,26 +277,36 @@ func open_page(id: StringName) -> void:
 	elif id == &"codex":
 		codex_page.show_tab(codex_page.current)
 	_home.visible = false
-	_page_layer.visible = true
+	tab_bar.set_active(id)
+	_fade_in(pages[id])
 
 
-## Back to the home page.
+## Back to the Play page.
 func close_page() -> void:
 	current_page = &""
-	_page_layer.visible = false
+	for id: StringName in pages:
+		pages[id].visible = false
 	_home.visible = true
+	tab_bar.set_active(&"home")
+	_fade_in(_home)
 
 
-func _action_button(parent: Control, button_name: String, text: String, color: String) -> Button:
-	var button: Button = MenuDialog.make_button(text, color, 32, Vector2(0.0, 88.0))
-	button.name = button_name
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	parent.add_child(button)
-	return button
+## A short fade and rise when the middle of the screen changes.
+func _fade_in(content: Control) -> void:
+	if is_instance_valid(_page_tween):
+		_page_tween.kill()
+	content.modulate.a = 1.0
+	content.position.y = 0.0
+	if Settings.reduced_motion or not is_inside_tree():
+		return
+	content.modulate.a = 0.0
+	content.position.y = 18.0
+	_page_tween = create_tween().set_parallel(true)
+	_page_tween.tween_property(content, "modulate:a", 1.0, 0.2)
+	_page_tween.tween_property(content, "position:y", 0.0, 0.26).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
-## The chosen mode's name, one line of text and buttons: Hotspot and Online create or join a room
-## (side by side), Practice just starts.
+## The chosen mode's name and phrase, the action buttons, the glow and the dots.
 func _refresh_mode() -> void:
 	var mode: Dictionary = MODES[Session.menu_mode]
 	var rooms: bool = String(mode["id"]) != "practice"
@@ -349,6 +316,14 @@ func _refresh_mode() -> void:
 	secondary_button.visible = rooms
 	KalyeahTheme.style_button(primary_button, "orange")
 	KalyeahTheme.style_button(secondary_button, "grey")
+	backdrop.set_accent(Color(String(mode["accent"])))
+	for i: int in _dots.size():
+		var dot: StyleBoxFlat = StyleBoxFlat.new()
+		dot.set_corner_radius_all(8)
+		dot.bg_color = Color(String(mode["accent"])) if i == Session.menu_mode else Color(1.0, 1.0, 1.0, 0.28)
+		dot.anti_aliasing = true
+		_dots[i].add_theme_stylebox_override("panel", dot)
+		_dots[i].custom_minimum_size = Vector2(26.0 if i == Session.menu_mode else 12.0, 12.0)
 
 
 func _on_mode_selected(index: int) -> void:
@@ -422,22 +397,46 @@ func safe_insets() -> Vector4:
 
 # ---- what the screen shows ---------------------------------------------------------------
 
-## The buttons pop up in turn when the screen opens.
+## The hero cards fade in, then the buttons pop up in turn, and the main action breathes.
 func _pop_in() -> void:
 	if Settings.reduced_motion:
 		return
-	var buttons: Array[Control] = [primary_button, secondary_button]
-	for id: StringName in corner_buttons:
-		buttons.append(corner_buttons[id])
-	for i: int in buttons.size():
-		var button: Control = buttons[i]
-		button.pivot_offset = button.size / 2.0
-		button.scale = Vector2.ONE * 0.85
-		button.modulate.a = 0.0
+	var parts: Array[Control] = [carousel, primary_button, secondary_button]
+	for i: int in parts.size():
+		var part: Control = parts[i]
+		part.pivot_offset = part.size / 2.0
+		part.scale = Vector2.ONE * 0.9
+		part.modulate.a = 0.0
 		var pop: Tween = create_tween().set_parallel(true)
-		button.set_meta(&"entrance_tween", pop)
-		pop.tween_property(button, "modulate:a", 1.0, 0.25).set_delay(0.1 * i)
-		pop.tween_property(button, "scale", Vector2.ONE, 0.35).set_delay(0.1 * i).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		part.set_meta(&"entrance_tween", pop)
+		pop.tween_property(part, "modulate:a", 1.0, 0.3).set_delay(0.12 * i)
+		pop.tween_property(part, "scale", Vector2.ONE, 0.4).set_delay(0.12 * i).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_start_pulse.call_deferred()
+
+
+## The main action swells and settles slowly, drawing the eye to it.
+func _start_pulse() -> void:
+	if Settings.reduced_motion or not is_instance_valid(primary_button):
+		return
+	if is_instance_valid(_pulse):
+		_pulse.kill()
+	await get_tree().create_timer(1.2).timeout
+	if not is_inside_tree() or Settings.reduced_motion or not is_instance_valid(primary_button):
+		return
+	primary_button.pivot_offset = primary_button.size / 2.0
+	_pulse = create_tween().set_loops()
+	_pulse.tween_property(primary_button, "scale", Vector2.ONE * 1.025, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_pulse.tween_property(primary_button, "scale", Vector2.ONE, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _on_accessibility_changed() -> void:
+	if Settings.reduced_motion:
+		if is_instance_valid(_pulse):
+			_pulse.kill()
+		if is_instance_valid(primary_button):
+			primary_button.scale = Vector2.ONE
+	else:
+		_start_pulse()
 
 
 # ---- actions ----------------------------------------------------------------------------
