@@ -13,7 +13,7 @@ const RELAYED: Dictionary[String, Array] = {
 		"player_tagged", "player_rescued",
 		"point_scored", "match_won", "point_reset", "weapon_cast", "player_damaged", "player_healed", "effect_applied",
 	],
-	"weapons": ["cone_struck"],
+	"weapons": ["cone_struck", "cone_winding"],
 }
 
 var room: RoomService.Room
