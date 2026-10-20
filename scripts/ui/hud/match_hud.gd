@@ -30,7 +30,7 @@ const CAST_BLOCK_TAGS: Dictionary[int, String] = {
 }
 const TOP_ROW_Y: float = 40.0
 const MARGIN: float = 14.0
-## The street is 1:2 (width:length), and so is its minimap.
+## The street is 1:2 (width:length), and so is its minimap. This is the base size; `minimap_size()` is what is shown.
 const MINIMAP_SIZE: Vector2 = Vector2(100.0, 200.0)
 const GEAR_SIZE: float = UiMetrics.TOUCH
 const SCORE_SIZE: Vector2 = Vector2(280.0, 88.0)
@@ -64,6 +64,7 @@ var pulse: HurtPulse
 var top: Control
 var scoreboard: Scoreboard
 var minimap: LaneMinimap
+var gear_surface: Panel
 var joystick: VirtualJoystick
 var weapon_buttons: Array[AimButton] = []
 ## Weapon 1, weapon 2 (the order MatchInput uses).
@@ -338,11 +339,17 @@ func _build() -> void:
 	feedback.return_home.connect(exit_pressed.emit)
 
 
+## The minimap as shown: the base size times the player's choice (Settings, a bigger one by default).
+static func minimap_size() -> Vector2:
+	return MINIMAP_SIZE * Settings.minimap_scale
+
+
 ## The stick at the bottom left, weapon 1 and weapon 2 side by side at the bottom right: mirrored for
 ## a left-handed player, and scaled by the control size setting.
 func layout_controls() -> void:
 	var scale_by: float = Settings.control_scale
 	var mirrored: bool = Settings.left_handed
+	MatchHudTop.layout(self)
 	var weapon: float = WEAPON_SIZE * scale_by
 	var gap: float = WEAPON_GAP * scale_by
 	var stick_zone: float = STICK_ZONE * scale_by

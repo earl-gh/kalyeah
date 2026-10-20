@@ -6,6 +6,7 @@ extends VBoxContainer
 ## The switch (on = stick on the right, weapons on the left).
 var hand_toggle: UiToggle
 var size_choice: UiSegmented
+var map_choice: UiSegmented
 
 
 func _ready() -> void:
@@ -27,6 +28,17 @@ func _ready() -> void:
 	size_choice.chosen.connect(func(id: StringName) -> void: Settings.set_control_scale(Settings.CONTROL_SIZES[id]))
 	add_child(UiKit.setting_row("Control size", "The stick and the weapon buttons", Control.new()))
 	add_child(size_choice)
+	add_child(UiKit.divider())
+	map_choice = UiSegmented.new([
+		{"id": &"small", "label": "Small"},
+		{"id": &"normal", "label": "Normal"},
+		{"id": &"large", "label": "Large"},
+	], 72.0, UiMetrics.BODY)
+	map_choice.name = "MinimapSize"
+	map_choice.select(minimap_id(Settings.minimap_scale), false)
+	map_choice.chosen.connect(func(id: StringName) -> void: Settings.set_minimap_scale(Settings.MINIMAP_SIZES[id]))
+	add_child(UiKit.setting_row("Minimap size", "The street map in the corner", Control.new()))
+	add_child(map_choice)
 	Settings.controls_changed.connect(_refresh)
 
 
@@ -39,8 +51,19 @@ static func size_id(scale: float) -> StringName:
 	return &"normal"
 
 
+## The name of the minimap size closest to `scale`.
+static func minimap_id(scale: float) -> StringName:
+	var wanted: float = Settings.nearest_minimap_scale(scale)
+	for id: StringName in Settings.MINIMAP_SIZES:
+		if is_equal_approx(Settings.MINIMAP_SIZES[id], wanted):
+			return id
+	return &"normal"
+
+
 func _refresh() -> void:
 	if is_instance_valid(hand_toggle):
 		hand_toggle.set_state(Settings.left_handed)
 	if is_instance_valid(size_choice):
 		size_choice.select(size_id(Settings.control_scale), false)
+	if is_instance_valid(map_choice):
+		map_choice.select(minimap_id(Settings.minimap_scale), false)

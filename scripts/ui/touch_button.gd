@@ -43,7 +43,7 @@ const NO_POINTER: int = -1
 const MOUSE_POINTER: int = -2
 
 @export var label_text: String = ""
-## The weapon type tag (ATK / CC / BLK) shown under the art.
+## The weapon type tag (Attack / Control / Block / Heal, in capitals) shown under the art.
 @export var sub_text: String = ""
 @export var sub_color: Color = Color(1.0, 1.0, 1.0, 0.8)
 ## Skill id ("dash", "bato_light", ...); its painted button is btn_<id>.png. Empty = text only.
@@ -166,7 +166,7 @@ func _draw() -> void:
 		if not blocked_text.is_empty():
 			_tag(font, blocked_text, center + Vector2(0.0, radius * 0.86), BLOCKED_TAG)
 		elif not sub_text.is_empty():
-			_tag(font, sub_text, center + Vector2(0.0, radius * 0.86), sub_color)
+			_tag(font, sub_text.to_upper(), center + Vector2(0.0, radius * 0.86), sub_color)
 	elif icon_id != &"":
 		# no drawn stand-in: a missing painted button is a bug, so say so
 		push_error("missing painted button art: %s%s" % [BUTTON_ART_PREFIX, icon_id])
