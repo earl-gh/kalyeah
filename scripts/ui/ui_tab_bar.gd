@@ -1,14 +1,14 @@
 class_name UiTabBar
 extends PanelContainer
 ## The main screen's bottom navigation: a night-glass bar with one big tab per destination (an icon
-## over a label). The open tab lifts into a raised plate and turns gold; the others stay quiet.
+## over a label). The open tab lifts into a raised plate and turns light blue (gold is kept for the one main action); the others stay quiet.
 ## Tabs are at least a thumb tall and share the width equally.
 
 signal tab_pressed(id: StringName)
 
 const HEIGHT: float = 128.0
 const ICON_SIZE: float = 52.0
-const ACTIVE: Color = Color("ffd25a")
+const ACTIVE: Color = Color("8fd0ff")
 const IDLE: Color = Color("9fb0d6")
 
 var tabs: Dictionary[StringName, Button] = {}

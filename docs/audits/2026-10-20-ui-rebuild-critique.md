@@ -88,3 +88,39 @@ stack leaning to one side with two small icon buttons floating on its left. Noth
 2. Logo on Play only (bigger hero), or on every page?
 3. Tab bar instead of Back and corner icons: keep?
 4. Should the next pass be Loadout + HUD, or a second round on Home?
+
+---
+
+# Round 2: the four decisions, audited and made
+
+The owner merged phase 1 (#182) and asked me to make the four open decisions myself, after auditing what
+is best. The method: measure the real layout, look at the screens not yet rebuilt, then decide. Each
+decision below says what the evidence was.
+
+| # | Decision | Evidence | Verdict |
+| --- | --- | --- | --- |
+| 1 | **Keep the AAA direction.** | The owner's latest instruction asked for it and they merged phase 1. The accessibility and touch gains of #180/#181 are all still in place (88 px targets, focus restore, Reduce motion, contrast checks). | Keep. |
+| 2 | **Logo and profile chip on Play only.** | Measured at 720x1280: the top bar is 92 px plus a gap, so about 104 px of every page, spent on a logo and chip the page already shows (each page has its own title, and Settings holds the profile). Hiding the bar gives pages that height back (about one more weapon card on screen). Hiding only the logo would have saved nothing, since the chip is nearly as tall. | The whole bar shows on Play only. The hero card grew from 372x595 to 400x640 (the stage is 716 px tall, so it still fits). |
+| 3 | **Keep the bottom tab bar.** | Four destinations, always reachable by the thumb, 128 px tall, and Android Back still closes a tab to Play and asks to quit on Play. A drawer or corner icons put the controls at the far top, where the thumb does not reach. | Keep. |
+| 4 | **Next: the Loadout (and the shared choice buttons), not the match HUD.** | I rendered both. The Loadout is a menu every player sees before every match and it was the one screen left looking like the old UI: black backdrop, flat tabs, flat cards, flat slots. The HUD already reads as a game (round skill buttons, score pill, joystick) and changing it touches thumb controls and frame time, which I cannot check without a device and which the gameplay tests protect for good reason. | Restyle the Loadout now. The HUD waits for a device-checked pass of its own. |
+
+Also done from the critique list:
+
+- **Gold only for the main action.** The tab bar and the Book switcher now use blue and light blue for
+  "selected"; gold is left for Create room, Ready and a picked card's rim. A screen again has one gold thing.
+- **Loadout on the same skin:** the diamond backdrop, game-button tabs (slate to blue), glass weapon cards
+  with a thick gold rim and a slot badge when picked, inset weapon slots that light up when active, character
+  cards as glass tiles. `LobbyWidgets.make_toggle` (also the room's 1v1/2v2/3v3 and best-of choices) now
+  uses the same buttons, so the room and Loadout match.
+- **Tests:** a picked card has a gold rim and a plain one does not; the shared toggle is slate and turns blue;
+  the top bar shows on Play only and pages start at the top; the carousel tap test no longer relies on the old
+  card width.
+
+![round 2: loadout, home, weapons](images/ui-rebuild-round2.png)
+
+## Still open after round 2
+
+- **Match HUD, results card and the pause menu** keep their current look. Next pass, with a device check.
+- **Weapons page** is still one long list of cards; a grid with a detail sheet is the AAA answer.
+- **Painted button art** from the owner would replace the procedural gloss (the skin is built for that swap).
+- **Android hardware** is still unchecked: first-open texture cost, safe areas, touch feel.

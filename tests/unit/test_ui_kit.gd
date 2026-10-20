@@ -123,3 +123,22 @@ func test_page_pieces_name_their_parts() -> void:
 	assert_eq(inline.autowrap_mode, TextServer.AUTOWRAP_OFF, "figures never wrap")
 	var chip: PanelContainer = autofree(UiKit.chip("Victory", Color("2fbf5a"))) as PanelContainer
 	assert_eq((chip.get_node("Text") as Label).text, "Victory")
+
+
+func test_a_picked_card_wears_a_gold_rim_and_a_plain_one_does_not() -> void:
+	var picked: Image = UiSkin.plate("picked").texture.get_image()
+	var plain: Image = UiSkin.plate("glass").texture.get_image()
+	var rim: Color = picked.get_pixel(UiSkin.PLATE_PAD + 2, picked.get_height() / 2)
+	assert_gt(rim.r, 0.85, "gold")
+	assert_gt(rim.g, 0.6)
+	assert_lt(rim.b, 0.4)
+	var edge: Color = plain.get_pixel(UiSkin.PLATE_PAD + 2, plain.get_height() / 2)
+	assert_lt(edge.r, 0.4, "a plain card has no gold")
+
+
+func test_the_shared_choice_toggle_is_a_slate_button_that_turns_blue() -> void:
+	var button: Button = autofree(Button.new()) as Button
+	LobbyWidgets.make_toggle(button)
+	assert_true(button.toggle_mode)
+	assert_eq(button.get_theme_stylebox("normal"), UiSkin.button("slate"))
+	assert_eq(button.get_theme_stylebox("pressed"), UiSkin.button("blue", "pressed"))

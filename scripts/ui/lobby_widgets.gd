@@ -70,17 +70,13 @@ static func edit(text: String, placeholder: String, font_size: int) -> LineEdit:
 
 static func make_toggle(button_control: Button) -> void:
 	button_control.toggle_mode = true
-	var off: StyleBoxFlat = KalyeahTheme.surface_box(12, 0, 12.0)
-	off.bg_color = KalyeahTheme.SURFACE_RAISED
-	off.shadow_size = 0
-	var on: StyleBoxFlat = off.duplicate() as StyleBoxFlat
-	on.bg_color = KalyeahTheme.BLUE
-	button_control.add_theme_stylebox_override("normal", off)
-	button_control.add_theme_stylebox_override("hover", off)
-	button_control.add_theme_stylebox_override("pressed", on)
-	button_control.add_theme_stylebox_override("hover_pressed", on)
-	for state: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
-		button_control.add_theme_color_override(state, KalyeahTheme.TEXT)
+	for state: String in ["normal", "hover"]:
+		button_control.add_theme_stylebox_override(state, UiSkin.button("slate"))
+	for state: String in ["pressed", "hover_pressed"]:
+		button_control.add_theme_stylebox_override(state, UiSkin.button("blue", "pressed"))
+	UiSkin.style_label(button_control, "slate")
+	for state: String in ["font_pressed_color", "font_hover_pressed_color"]:
+		button_control.add_theme_color_override(state, Color.WHITE)
 
 
 static func button(text: String, action: Callable, color: String = "orange", font_size: int = 28) -> Button:

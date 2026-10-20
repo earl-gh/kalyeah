@@ -25,12 +25,14 @@ const BUTTONS: Dictionary[String, Dictionary] = {
 	"disabled": {"top": Color("3a4562"), "bottom": Color("2d374f"), "lip": Color("232b40"), "line": Color("151a2b"),
 		"text": Color(0.72, 0.76, 0.84, 0.7), "outline": Color(0.0, 0.0, 0.0, 0.0), "outline_size": 0},
 }
-## Panel kinds: the body (top, bottom), the outer line, and the shadow strength.
+## Panel kinds: the body (top, bottom), the outer line (and its width), and the shadow strength.
 const PLATES: Dictionary[String, Dictionary] = {
 	"glass": {"top": Color("22396f"), "bottom": Color("111f48"), "line": Color("050b1e"), "light": 0.2, "shadow": 0.55},
 	"raised": {"top": Color("2c4685"), "bottom": Color("182a5c"), "line": Color("050b1e"), "light": 0.26, "shadow": 0.6},
 	"inset": {"top": Color("060d24"), "bottom": Color("0b1635"), "line": Color("2b4072"), "light": 0.0, "shadow": 0.0},
 	"night": {"top": Color("0f1c42"), "bottom": Color("08112c"), "line": Color("040a1a"), "light": 0.12, "shadow": 0.5},
+	# a chosen card: a warm body in a thick gold rim
+	"picked": {"top": Color("3a4a7e"), "bottom": Color("1d2d63"), "line": Color("ffc83a"), "line_width": 5.0, "light": 0.22, "shadow": 0.6},
 }
 const BUTTON_RADIUS: int = 24
 const BUTTON_LIP: int = 9
@@ -122,6 +124,7 @@ static func _render_plate(kind: String, radius: int) -> StyleBoxTexture:
 	var body: Rect2 = Rect2(PLATE_PAD, PLATE_PAD, size - PLATE_PAD * 2, size - PLATE_PAD * 2)
 	var shadow: float = spec["shadow"] as float
 	var light: float = spec["light"] as float
+	var line: float = spec.get("line_width", 2.0) as float
 	for y: int in size:
 		for x: int in size:
 			var at: Vector2 = Vector2(x + 0.5, y + 0.5)
@@ -130,10 +133,10 @@ static func _render_plate(kind: String, radius: int) -> StyleBoxTexture:
 			var color: Color = (spec["top"] as Color).lerp(spec["bottom"] as Color, t)
 			var alpha: float = _cover(d)
 			# the outer line, then a lit 2px line just inside the top edge
-			var inner: float = _cover(d + 2.0)
+			var inner: float = _cover(d + line)
 			color = (spec["line"] as Color).lerp(color, inner / maxf(alpha, 0.001))
-			var rim: float = clampf(1.0 - (at.y - body.position.y - 2.0) / 3.0, 0.0, 1.0) * _cover(d + 2.0)
-			var side: float = (1.0 - clampf((d + 3.0) / 2.0, 0.0, 1.0)) * _cover(d + 2.0) * 0.25
+			var rim: float = clampf(1.0 - (at.y - body.position.y - line) / 3.0, 0.0, 1.0) * _cover(d + line)
+			var side: float = (1.0 - clampf((d + line + 1.0) / 2.0, 0.0, 1.0)) * _cover(d + line) * 0.25
 			color = color.lerp(Color.WHITE, (rim + side * (1.0 - t)) * light)
 			var out: Color = Color(color, alpha)
 			if shadow > 0.0 and alpha < 1.0:

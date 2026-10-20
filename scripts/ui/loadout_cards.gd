@@ -26,9 +26,10 @@ static func profile(screen: WeaponPickScreen, character: CharacterDef) -> Button
 	button.toggle_mode = true
 	button.custom_minimum_size = screen.PROFILE_SIZE
 	button.clip_contents = true
-	button.add_theme_stylebox_override("normal", box(screen.CARD_COLOR, KalyeahTheme.SLATE))
-	button.add_theme_stylebox_override("pressed", box(screen.SURFACE_SELECTED, screen.PICKED_COLOR, 5))
-	button.add_theme_stylebox_override("hover_pressed", box(screen.SURFACE_SELECTED, screen.PICKED_COLOR, 5))
+	for state: String in ["normal", "hover"]:
+		button.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, 18))
+	for state: String in ["pressed", "hover_pressed"]:
+		button.add_theme_stylebox_override(state, UiSkin.plate("picked", 0.0, 18))
 	var art: TextureRect = TextureRect.new()
 	art.texture = KidModel.card_face(character.id)
 	if art.texture == null:
@@ -68,9 +69,10 @@ static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 	button.toggle_mode = true
 	button.custom_minimum_size = Vector2(0.0, 180.0)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.add_theme_stylebox_override("normal", box(screen.CARD_COLOR, KalyeahTheme.SLATE))
+	for state: String in ["normal", "hover"]:
+		button.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0))
 	for state: String in ["pressed", "hover_pressed"]:
-		button.add_theme_stylebox_override(state, box(screen.SURFACE_SELECTED, screen.PICKED_COLOR, 4))
+		button.add_theme_stylebox_override(state, UiSkin.plate("picked", 0.0))
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right", "top", "bottom"]:

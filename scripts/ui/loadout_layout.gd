@@ -6,10 +6,7 @@ extends RefCounted
 static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	for def: WeaponDef in defs:
 		screen._defs[def.id] = def
-	var backdrop: ColorRect = ColorRect.new()
-	backdrop.color = KalyeahTheme.INK_DEEP
-	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	screen.add_child(backdrop)
+	screen.add_child(UiBackdrop.new())
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	screen.add_child(margin)
