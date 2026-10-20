@@ -20,6 +20,9 @@ var vibration: bool = true
 var reduced_motion: bool = false
 ## Mirrors the match controls: the stick on the right, the weapons on the left.
 var left_handed: bool = false
+## True once a key or gamepad was used and until the next touch or click: only then do dialogs put a focus ring on a
+## button when they open (a finger does not need one, and it would be a second gold thing beside the real action).
+var keyboard_active: bool = false
 ## Size of the match controls, one of `CONTROL_SIZES`.
 var control_scale: float = 1.0
 
@@ -143,6 +146,13 @@ func _save_value(section: String, key: String, value: Variant) -> void:
 	file.load(SAVE_PATH)
 	file.set_value(section, key, value)
 	file.save(SAVE_PATH)
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey or event is InputEventJoypadButton:
+		keyboard_active = true
+	elif event is InputEventScreenTouch or event is InputEventMouseButton:
+		keyboard_active = false
 
 
 func _on_node_added(node: Node) -> void:

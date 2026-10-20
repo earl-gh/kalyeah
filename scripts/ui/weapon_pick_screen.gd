@@ -282,10 +282,10 @@ func select_slot(slot: int) -> void:
 
 func selection_hint() -> String:
 	if swap_mode:
-		return "Replace slot %d" % (replacement_slot + 1)
+		return "Tap a weapon for slot %d" % (replacement_slot + 1)
 	if pick.picks.size() < WeaponPick.SLOTS:
 		return "Choose 2 weapons" if pick.picks.is_empty() else "Choose 1 more weapon"
-	return "Replace slot %d" % (replacement_slot + 1)
+	return "Tap a weapon for slot %d" % (replacement_slot + 1)
 
 
 func _style_ready(enabled: bool) -> void:

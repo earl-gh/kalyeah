@@ -158,9 +158,9 @@ func _connect_or_send(url: String) -> void:
 		if _transport_ready:
 			_send_pending()
 	else:
-		_set_status("Connecting...")
+		_set_status("Connecting…")
 		if client.connect_to(url) != OK:
-			_set_status("Can't reach that address.")
+			_set_status("Can't reach the server. Check your connection and try again.")
 			if _room_view != null:
 				_room_view.show_retry()
 
@@ -188,7 +188,7 @@ func _submit_hotspot() -> void:
 	client.close()
 	_room_view.clear_room()
 	_pending = client.join_room.bind("")
-	_set_status("Looking for the room...")
+	_set_status("Looking for the room…")
 	_finder.start(HotspotNet.candidates(addresses, NET_RULES.default_port))
 	set_process(true)
 
@@ -214,9 +214,9 @@ func rejoin() -> void:
 	client.token = Session.reconnect_token
 	client.player_name = Session.player_name
 	_rejoining = true
-	_set_status("Rejoining...")
+	_set_status("Rejoining…")
 	if client.connect_to(Session.reconnect_url) != OK:
-		_set_status("Can't reach that address.")
+		_set_status("Can't reach the server. Check your connection and try again.")
 
 
 func choose_size(size: int) -> void:
@@ -293,7 +293,7 @@ func _on_room_changed(room: Dictionary) -> void:
 
 
 func _on_match_loading(_info: Dictionary) -> void:
-	_set_status("Loading...")
+	_set_status("Loading…")
 	if enter_match_on_start:
 		get_tree().change_scene_to_file(MATCH_SCENE)
 
@@ -357,7 +357,7 @@ func _start_hotspot() -> void:
 	if _preview_requested:
 		LobbyPreview.start(self)
 		return
-	_set_status("Starting the room..." if intent == Intent.CREATE else "Looking for the room...")
+	_set_status("Starting the room…" if intent == Intent.CREATE else "Looking for the room…")
 	submit()
 
 

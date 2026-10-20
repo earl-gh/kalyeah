@@ -377,7 +377,7 @@ static func _readiness(room: Dictionary) -> String:
 		if member.get("player_id", -1) != room.get("host", -2) and not member.get("ready", false):
 			unready += 1
 	if room.get("can_start_host", false):
-		return "Ready to play · First to %d" % (int(room.get("best_of", 3)) / 2 + 1)
+		return "Ready to play"
 	if maxi(teams[0], teams[1]) < n or mini(teams[0], teams[1]) < maxi(1, n - 1):
 		return "Waiting for players"
 	if unready > 0:

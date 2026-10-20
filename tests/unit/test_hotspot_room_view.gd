@@ -31,7 +31,7 @@ func _view(room: Dictionary, my_id: int = 1) -> HotspotRoomView:
 func test_hotspot_header_has_back_lobby_settings_and_no_code() -> void:
 	var view: HotspotRoomView = _view(_room(2))
 	assert_eq(view.back_button.text, "Back", "a text-only back button, no chevron")
-	assert_eq((view.find_child("Title", true, false) as Label).text, "Lobby", "then the text Lobby | code")
+	assert_eq((view.find_child("Title", true, false) as Label).text, "Room", "then the text Room | code")
 	assert_null(view.find_child("Divider", true, false), "spacing separates header elements")
 	assert_eq(view.code_label.text, "", "hotspot has no code")
 	assert_false(view.code_row.visible)

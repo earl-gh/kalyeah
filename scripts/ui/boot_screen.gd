@@ -30,13 +30,13 @@ const BAND_HEIGHT: float = 52.0
 const PERCENT_HEIGHT: float = 64.0
 ## One tip is shown per launch.
 const TIPS: Array[String] = [
-	"Lure the other team away from their post, then dash in to capture it.",
+	"Lure the other team away from their post, then rush in and hold it.",
 	"Tagged kids wait in the box. A teammate can run in and rescue them.",
 	"Drag a weapon button to aim, then let go to throw it.",
 	"Block a throw with a paper shield, or play it safe behind cover.",
 	"Practice is the safest place to try every weapon.",
 	"Hotspot rooms need no server: share a hotspot and play.",
-	"Two weapons, two skills: pick a pair that covers each other.",
+	"Pick two weapons that cover each other.",
 ]
 ## The bar never fills faster than this, so the screen is seen even when loading is instant.
 const MAX_FILL_PER_SECOND: float = 0.7
