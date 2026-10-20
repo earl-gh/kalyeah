@@ -42,11 +42,12 @@ text. Everything else (the muted text, tabs, gold figures, buttons) is 4.9 to 13
 
 ### 4. Other screens still wear the old flat style (consistency)
 The opening card ("TAG THEIR BASE!"), the tagged panel, the capture pill, the scoreboard frame and the
-hotspot/online room rows are flat navy rectangles beside skinned buttons. 24 places still build flat styles by
-hand and 25 font sizes and about 60 sizes are hard-coded instead of coming from `UiMetrics`.
+hotspot/online room rows are flat navy rectangles beside skinned buttons. About 40 places still build flat styles by hand
+(13 of them inside the theme itself, which is expected), and 25 font sizes and about 60 sizes are hard-coded
+instead of coming from `UiMetrics`.
 
 ### 5. Online create and join are bare (UX)
-Join is a name field, an eight-box-less code field and a button on a mostly empty screen. There is no paste
+Join is a name field, one plain code field and a button on a mostly empty screen. There is no paste
 affordance, the code is not shown as eight clear boxes, and errors are only text. Create is a name and a
 size switch. They work and pass tests, but they are the first screens of the online flow.
 
