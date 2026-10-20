@@ -15,8 +15,14 @@ const FADE_SPEED: float = 6.0
 const BASE_COLOR: Color = Color(1.0, 0.45, 0.4)
 const RESCUE_COLOR: Color = Color(1.0, 0.82, 0.3)
 const TARGET_HEIGHT: float = 0.8
+## The rescue marker: when the box is on screen the arrow gives way to a bobbing marker standing over it.
+const MARKER_LIFT: float = 150.0
+const MARKER_SIZE: float = 22.0
+const MARKER_FONT: int = 24
+const MARKER_BOB: float = 7.0
 
-## What is shown now: {kind, label, color, point (on the edge), angle, alpha, metres}. Tests read this.
+## What is shown now: {kind, label, color, point (on the edge), angle, alpha, metres, marker (0 to 1: how much the
+## marker over the target is shown), target (where the target is on screen)}. Tests read this.
 var arrows: Array[Dictionary] = []
 
 var _sim: MatchSim
@@ -25,6 +31,7 @@ var _layout: MapLayout
 var _local_id: int = -1
 var _local_team: int = 0
 var _alpha: Dictionary[StringName, float] = {}
+var _marker: Dictionary[StringName, float] = {}
 
 
 func setup(sim: MatchSim, camera: Camera3D, local_id: int, local_team: int, layout: MapLayout) -> void:
@@ -91,14 +98,18 @@ func tick(delta: float) -> void:
 			var fade_to: float = 0.0 if on_screen else 1.0
 			_alpha[kind] = move_toward(_alpha.get(kind, 0.0) as float, fade_to, FADE_SPEED * delta) if delta > 0.0 else fade_to
 			var direction: Vector2 = ((point as Vector2) - origin) if point != null else Vector2(0.0, 1.0)
+			var marker_to: float = 1.0 if on_screen and kind == &"rescue" else 0.0
+			_marker[kind] = move_toward(_marker.get(kind, 0.0) as float, marker_to, FADE_SPEED * delta) if delta > 0.0 else marker_to
 			arrows.append({
 				"kind": kind, "label": "%s · %d m" % [target["label"], roundi(((me.position if me != null else world) - world).length())],
 				"color": target["color"], "point": edge, "angle": direction.angle(), "alpha": _alpha[kind],
+				"marker": _marker[kind], "target": point if point != null else Vector2.ZERO,
 				"metres": roundi(((me.position if me != null else world) - world).length()),
 			})
 	for kind: StringName in _alpha.keys():
 		if not shown.has(kind):
 			_alpha.erase(kind)
+			_marker.erase(kind)
 	queue_redraw()
 
 
@@ -114,6 +125,7 @@ func _draw() -> void:
 	var beat: float = 1.0 if Settings.reduced_motion else 1.0 + 0.08 * sin(float(Time.get_ticks_msec()) / 1000.0 * TAU * 1.2)
 	var font: Font = KalyeahTheme.BUTTON_FONT
 	for arrow: Dictionary in arrows:
+		_draw_marker(arrow, font)
 		var alpha: float = arrow["alpha"] as float
 		if alpha <= 0.01:
 			continue
@@ -133,3 +145,23 @@ func _draw() -> void:
 		anchor.x = clampf(anchor.x, 16.0, size.x - width - 16.0)
 		draw_string_outline(font, anchor, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, LABEL_FONT, 8, Color(0.08, 0.05, 0.1, alpha))
 		draw_string(font, anchor, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, LABEL_FONT, Color(1.0, 1.0, 1.0, alpha))
+
+
+## The marker over the rescue box once the box is on screen: a gold pointer bobbing above it, with "Rescue".
+func _draw_marker(arrow: Dictionary, font: Font) -> void:
+	var alpha: float = arrow["marker"] as float
+	if alpha <= 0.01:
+		return
+	var bob: float = 0.0 if Settings.reduced_motion else sin(float(Time.get_ticks_msec()) / 1000.0 * TAU * 1.4) * MARKER_BOB
+	var anchor: Vector2 = (arrow["target"] as Vector2) + Vector2(0.0, -MARKER_LIFT + bob)
+	anchor = anchor.clamp(Vector2(60.0, INSET.y), size - Vector2(60.0, INSET.w))
+	var color: Color = arrow["color"] as Color
+	var points: PackedVector2Array = PackedVector2Array([anchor + Vector2(0.0, MARKER_SIZE), anchor + Vector2(-MARKER_SIZE, -MARKER_SIZE * 0.6), anchor + Vector2(MARKER_SIZE, -MARKER_SIZE * 0.6)])
+	draw_colored_polygon(points, Color(color, 0.95 * alpha))
+	draw_polyline(PackedVector2Array([points[0], points[1], points[2], points[0]]), Color(0.08, 0.05, 0.1, 0.85 * alpha), 4.0, true)
+	var text: String = arrow["label"] as String
+	text = text.get_slice(" · ", 0)
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, MARKER_FONT).x
+	var origin: Vector2 = anchor + Vector2(-width / 2.0, -MARKER_SIZE - 12.0)
+	draw_string_outline(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, MARKER_FONT, 8, Color(0.08, 0.05, 0.1, alpha))
+	draw_string(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, MARKER_FONT, Color(1.0, 1.0, 1.0, alpha))

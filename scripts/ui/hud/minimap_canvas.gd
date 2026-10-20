@@ -38,6 +38,9 @@ func _draw() -> void:
 	for id: int in ids:
 		if _sim.players.has(id):
 			_draw_player(_sim.players[id] as PlayerState)
+	for ping_data: Dictionary in _minimap.pings():
+		var ring: Dictionary = _minimap.ring_of(ping_data)
+		draw_arc(_minimap.to_map(ping_data["at"] as Vector2), ring["radius"] as float, 0.0, TAU, LaneMinimap.FACE_STEPS, Color(ping_data["color"] as Color, ring["alpha"] as float), LaneMinimap.PING_WIDTH, true)
 
 
 ## One player: their face (cropped from the boot screen art; the top of the portrait without one)
