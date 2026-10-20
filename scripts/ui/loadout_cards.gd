@@ -23,6 +23,7 @@ static func box(fill: Color, border: Color, width: int = 2) -> StyleBoxFlat:
 static func profile(screen: WeaponPickScreen, character: CharacterDef) -> Button:
 	var button: Button = Button.new()
 	button.name = "Profile_" + String(character.id)
+	button.accessibility_name = "Play as %s" % character.display_name
 	button.toggle_mode = true
 	button.custom_minimum_size = screen.PROFILE_SIZE
 	button.clip_contents = true
@@ -68,6 +69,8 @@ static func profile(screen: WeaponPickScreen, character: CharacterDef) -> Button
 static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 	var button: Button = Button.new()
 	button.name = "Weapon_" + String(def.id)
+	button.accessibility_name = "%s, %s" % [def.display_name, def.kind_label()]
+	button.accessibility_description = "Picks it for a slot"
 	button.toggle_mode = true
 	button.custom_minimum_size = Vector2(0.0, screen.TILE_HEIGHT)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL

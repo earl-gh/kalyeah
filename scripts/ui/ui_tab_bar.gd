@@ -51,6 +51,7 @@ func _init(items: Array[Dictionary] = []) -> void:
 func _add_tab(id: StringName, text: String, icon_kind: StringName) -> void:
 	var button: Button = Button.new()
 	button.name = "Tab%s" % String(id).capitalize()
+	button.accessibility_name = text
 	button.focus_mode = Control.FOCUS_ALL
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.custom_minimum_size = Vector2(0.0, HEIGHT - 16.0)

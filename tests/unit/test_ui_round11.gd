@@ -156,8 +156,8 @@ func test_a_slot_names_its_weapon_the_way_its_tile_does() -> void:
 	var screen: WeaponPickScreen = _pick_screen()
 	await wait_process_frames(2)
 	screen.tap(&"tsinelas_heavy")
-	assert_eq(screen._sockets[0].weapon.display_name, "Tsinelas (Heavy)")
-	assert_eq((screen.find_child("Weapon_tsinelas_heavy", true, false).find_child("WeaponName", true, false) as Label).text, "Tsinelas (Heavy)")
+	assert_eq(screen._sockets[0].weapon.display_name, "Tsinelas · Heavy")
+	assert_eq((screen.find_child("Weapon_tsinelas_heavy", true, false).find_child("WeaponName", true, false) as Label).text, "Tsinelas · Heavy")
 
 
 # ---- the countdown ring ------------------------------------------------------------------

@@ -9,6 +9,8 @@ var active: bool = false
 
 func show_weapon(def: WeaponDef) -> void:
 	weapon = def
+	accessibility_name = "Slot %d: %s" % [number, def.display_name if def != null else "empty"]
+	accessibility_description = "Tap to choose which slot the next weapon fills"
 	queue_redraw()
 
 

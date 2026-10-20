@@ -5,8 +5,8 @@
 [resource]
 script = ExtResource("1_weapon")
 id = &"gunting_heavy"
-display_name = "Gunting (Heavy)"
-short_name = "Gunting H"
+display_name = "Gunting · Heavy"
+short_name = "Gunting Heavy"
 description = "One big delayed snip that hits hard up close."
 street_game = "Bato-bato-pik"
 kind = 0

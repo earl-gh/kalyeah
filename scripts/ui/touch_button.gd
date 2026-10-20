@@ -164,17 +164,17 @@ func _draw() -> void:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	if button_art != null:
 		if not blocked_text.is_empty():
-			_tag(font, blocked_text, center + Vector2(0.0, radius * 0.86), BLOCKED_TAG)
+			_tag(font, UiText.t(blocked_text), center + Vector2(0.0, radius * 0.86), BLOCKED_TAG)
 		elif not sub_text.is_empty():
-			_tag(font, sub_text.to_upper(), center + Vector2(0.0, radius * 0.86), sub_color)
+			_tag(font, UiText.t(sub_text).to_upper(), center + Vector2(0.0, radius * 0.86), sub_color)
 	elif icon_id != &"":
 		# no drawn stand-in: a missing painted button is a bug, so say so
 		push_error("missing painted button art: %s%s" % [BUTTON_ART_PREFIX, icon_id])
 	else:
 		var line_shift: float = 0.0 if sub_text.is_empty() else -FONT_SIZE * 0.3
-		_text(font, label_text, center + Vector2(0.0, line_shift), FONT_SIZE, TEXT_COLOR)
+		_text(font, UiText.t(label_text), center + Vector2(0.0, line_shift), FONT_SIZE, TEXT_COLOR)
 		if not sub_text.is_empty():
-			_text(font, sub_text, center + Vector2(0.0, FONT_SIZE * 0.6), SMALL_FONT_SIZE, sub_color)
+			_text(font, UiText.t(sub_text), center + Vector2(0.0, FONT_SIZE * 0.6), SMALL_FONT_SIZE, sub_color)
 	if not blocked_text.is_empty():
 		draw_circle(center, radius, BLOCKED_COLOR)
 	elif locked or cooldown_fraction > 0.0:

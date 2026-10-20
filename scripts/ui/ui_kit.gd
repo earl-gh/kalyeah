@@ -148,6 +148,11 @@ static func setting_row(title_text: String, detail: String, control: Control) ->
 		words.add_child(line)
 	row.add_child(words)
 	row.add_child(control)
+	# a switch or a slider has no words of its own: it is read by its row's title
+	if control.accessibility_name.is_empty():
+		control.accessibility_name = title_text
+		if not detail.is_empty():
+			control.accessibility_description = detail
 	return row
 
 

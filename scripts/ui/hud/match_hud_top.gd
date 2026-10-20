@@ -9,6 +9,8 @@ static func build(hud: MatchHud) -> void:
 	hud.add_child(hud.top)
 	# left: the tall street minimap, then the settings button beside it (top aligned)
 	hud.minimap = LaneMinimap.new()
+	hud.minimap.accessibility_name = "Minimap"
+	hud.minimap.accessibility_description = "The street from above: your base bottom left, theirs top right"
 	hud.minimap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.top.add_child(hud.minimap)
 	hud.settings_button = TextureButton.new()
@@ -23,6 +25,7 @@ static func build(hud: MatchHud) -> void:
 	gear_surface.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.top.add_child(gear_surface)
 	hud.settings_button.tooltip_text = "Match settings"
+	hud.settings_button.accessibility_name = "Match settings"
 	hud.settings_button.pressed.connect(hud.toggle_menu)
 	hud.top.add_child(hud.settings_button)
 	# under the minimap: the TAGGED!/RESCUED! feed

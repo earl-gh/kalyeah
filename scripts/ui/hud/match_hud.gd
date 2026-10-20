@@ -184,6 +184,10 @@ func sync_player(sim: MatchSim, player: PlayerState, watched: int, pick_open: bo
 			button.icon_id = def.id
 			button.sub_color = WeaponPickScreen.kind_color(def.kind)
 			button.queue_redraw()
+			button.accessibility_name = "Weapon %d: %s, %s" % [slot + 1, def.display_name, def.kind_label()]
+		var cooldown_words: String = "Hold and drag to aim, let go to throw" if player.weapon_cooldowns[slot] <= 0.0 else "Ready in %d seconds" % ceili(player.weapon_cooldowns[slot])
+		if button.accessibility_description != cooldown_words:
+			button.accessibility_description = cooldown_words
 		button.blocked_text = _block_tag(player) if playing else ""
 		button.set_locked(weapons_off or player.weapon_cooldowns[slot] > 0.0)
 		button.set_cooldown(player.weapon_cooldowns[slot], def.cooldown)
@@ -287,6 +291,8 @@ func _build() -> void:
 	weapon_buttons = [weapon_one, weapon_two]
 	aim_buttons = [weapon_one, weapon_two]
 	joystick = VirtualJoystick.new()
+	joystick.accessibility_name = "Movement stick"
+	joystick.accessibility_description = "Drag to run; let go to stop"
 	joystick.rest_fraction = Vector2(0.5, 0.5)
 	joystick.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(joystick)

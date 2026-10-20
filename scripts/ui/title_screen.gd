@@ -196,6 +196,7 @@ func _build_home() -> VBoxContainer:
 	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	home.add_child(stage)
 	carousel = MenuCarousel.new()
+	carousel.accessibility_name = "Game mode"
 	carousel.name = "ModeCarousel"
 	carousel.card_size = HERO_CARD
 	carousel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -404,6 +405,8 @@ func refresh_last_match() -> void:
 		return
 	var entry: Dictionary = found[0]
 	var won: bool = bool(entry.get("won", false))
+	last_match.accessibility_name = "Last match: %s, %s, %d to %d" % ["Victory" if won else "Defeat", String(entry.get("mode", "")).capitalize(), int(entry.get("mine", 0)), int(entry.get("theirs", 0))]
+	last_match.accessibility_description = "Opens your history"
 	var row: HBoxContainer = HBoxContainer.new()
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	row.offset_left = 18.0
