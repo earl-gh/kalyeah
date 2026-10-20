@@ -405,7 +405,7 @@ func refresh_last_match() -> void:
 	row.offset_right = -22.0
 	row.add_theme_constant_override("separation", 14)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var badge: PanelContainer = UiKit.chip("Victory" if won else "Defeat", UiKit.CHIP_GREEN if won else UiKit.CHIP_RED, Color.WHITE, 22)
+	var badge: PanelContainer = UiKit.tag("Victory" if won else "Defeat", (UiKit.CHIP_GREEN if won else UiKit.CHIP_RED).lightened(0.3), 22)
 	badge.name = "Result"
 	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE

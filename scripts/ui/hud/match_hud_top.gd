@@ -17,13 +17,6 @@ static func build(hud: MatchHud) -> void:
 	hud.settings_button.ignore_texture_size = true
 	hud.settings_button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 	var gear_x: float = MatchHud.MARGIN * 1.6 + MatchHud.MINIMAP_SIZE.x
-	var gear_surface: Panel = Panel.new()
-	var gear_style: StyleBoxFlat = KalyeahTheme.painted_pill()
-	gear_style.bg_color = Color(KalyeahTheme.INK, 0.82)
-	gear_surface.add_theme_stylebox_override("panel", gear_style)
-	hud._place(gear_surface, Vector4(0, 0, 0, 0), Vector4(gear_x, MatchHud.TOP_ROW_Y, gear_x + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE))
-	gear_surface.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hud.top.add_child(gear_surface)
 	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), Vector4(gear_x, MatchHud.TOP_ROW_Y, gear_x + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE))
 	hud.settings_button.tooltip_text = "Match settings"
 	hud.settings_button.pressed.connect(hud.toggle_menu)
@@ -44,8 +37,8 @@ static func build(hud: MatchHud) -> void:
 
 ## The opening objective appears as a compact floating sheet above the controls.
 static func build_intro(hud: MatchHud) -> void:
-	var panel: Panel = Panel.new()
-	panel.add_theme_stylebox_override("panel", UiSkin.plate("night", 0.0, 30))
+	# no plate: the words stand on the street with an outline
+	var panel: Control = Control.new()
 	hud.intro_bar = panel
 	hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(80, -276, -80, -132))
 	hud.intro_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE

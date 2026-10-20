@@ -57,10 +57,6 @@ const WEAPON_MARGIN: float = 34.0
 ## from the bottom (its distance from the edge follows the buttons).
 const CANCEL_AT: Vector2 = Vector2(0.0, 440.0)
 const CANCEL_SIZE: Vector2 = Vector2(110.0, 100.0)
-## The cancel zone: a quiet red tile while you aim, a bright one with "Let go to cancel" while your finger is on it.
-const CANCEL_COLD: Color = Color(0.5, 0.1, 0.14, 0.6)
-const CANCEL_HOT: Color = Color(0.95, 0.2, 0.22, 0.95)
-const CANCEL_RIM: Color = Color(1.0, 0.7, 0.7, 0.85)
 
 var overhead: OverheadHud
 ## The red glow round the screen edge when you are hit (under the controls).
@@ -72,10 +68,7 @@ var joystick: VirtualJoystick
 var weapon_buttons: Array[AimButton] = []
 ## Weapon 1, weapon 2 (the order MatchInput uses).
 var aim_buttons: Array[AimButton] = []
-var cancel_zone: Control
-var _cancel_panel: Panel
-var _cancel_label: Label
-var _cancel_hot: bool = true
+var cancel_zone: CancelMark
 var tagged_panel: TaggedPanel
 ## The opening show's banner along the bottom ("TAG THEIR BASE!").
 var intro_bar: Control
@@ -233,7 +226,7 @@ func _sync_capture(sim: MatchSim, local_team: int) -> void:
 	capture_label.add_theme_color_override("font_color", CAPTURE_COLOR.lerp(FEED_OWN if ours else FEED_ENEMY, 0.35))
 
 
-## Adds a TAGGED! or RESCUED! pill under the minimap: blue for your team, red for theirs.
+## Adds a TAGGED! or RESCUED! line under the minimap: blue for your team, red for theirs.
 func feed(kind: Feed, our_team: bool, who: String) -> void:
 	var pill: Label = Label.new()
 	pill.text = "%s  %s" % ["TAGGED!" if kind == Feed.TAGGED else "RESCUED!", who]
@@ -244,12 +237,8 @@ func feed(kind: Feed, our_team: bool, who: String) -> void:
 	pill.add_theme_constant_override("outline_size", 6)
 	pill.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = FEED_OWN if our_team else FEED_ENEMY
-	style.set_corner_radius_all(10)
-	style.content_margin_left = 14.0
-	style.skew = Vector2(0.18, 0.0)
-	pill.add_theme_stylebox_override("normal", style)
+	# no pill behind it: the team colour is the text's colour
+	pill.add_theme_color_override("font_color", FEED_OWN.lightened(0.3) if our_team else FEED_ENEMY.lightened(0.3))
 	pill.set_meta(&"left", FEED_TIME)
 	feed_box.add_child(pill)
 	while feed_box.get_child_count() > FEED_MAX:
@@ -389,40 +378,17 @@ func toggle_menu() -> void:
 	menu.open()
 
 
-func _build_cancel_zone() -> Control:
-	var zone: Control = Control.new()
+func _build_cancel_zone() -> CancelMark:
+	var zone: CancelMark = CancelMark.new()
 	zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	zone.visible = false
 	add_child(zone)
-	_cancel_panel = Panel.new()
-	_place(_cancel_panel, Vector4(0, 0, 1, 1), Vector4.ZERO)
-	_cancel_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	zone.add_child(_cancel_panel)
-	_cancel_label = Label.new()
-	_place(_cancel_label, Vector4(0, 0, 1, 1), Vector4(6, 0, -6, 0))
-	_cancel_label.add_theme_font_override("font", KalyeahTheme.ACTION_FONT)
-	_cancel_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_cancel_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_cancel_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_cancel_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	zone.add_child(_cancel_label)
-	set_cancel_hot(false)
 	return zone
 
 
-## The finger is (true) or is not (false) on the cancel zone: the tile lights up and says what a release does.
+## The finger is (true) or is not (false) on the cancel mark: it lights up.
 func set_cancel_hot(hot: bool) -> void:
-	if hot == _cancel_hot:
-		return
-	_cancel_hot = hot
-	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = CANCEL_HOT if hot else CANCEL_COLD
-	box.set_corner_radius_all(18)
-	box.set_border_width_all(4 if hot else 2)
-	box.border_color = CANCEL_RIM
-	_cancel_panel.add_theme_stylebox_override("panel", box)
-	_cancel_label.text = "Let go to cancel" if hot else "Cancel"
-	_cancel_label.add_theme_font_size_override("font_size", 20 if hot else 24)
+	cancel_zone.hot = hot
 
 
 ## Anchors first, then offsets (setting an anchor can move offsets).

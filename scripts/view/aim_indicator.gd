@@ -1,41 +1,25 @@
 class_name AimIndicator
 extends MeshInstance3D
-## What the ground shows while a weapon button is held: a faint range circle, the shape the
-## weapon will cover (cone, landing circle, lane, wall) as a filled, thick-rimmed area in the
-## weapon's colour, a ring under every kid the cast would reach right now, and a grey "nothing to
-## hit" look when releasing would cast nothing (no cooldown spent). A landing circle stands alone:
-## no line runs from the player to it. Uses the sim's own aim helpers so the preview matches the
-## real cast.
+## What the ground shows while a weapon button is held, kept as light as it can be so the street
+## stays readable: one thin line for the shape the weapon will cover (cone, landing circle, lane,
+## wall) only while you drag it by hand, a thin ring under every kid the cast would reach right now
+## (a tap that auto-aims shows only these rings), pale grey when releasing would cast nothing (no
+## cooldown spent), red over Cancel. No fills, no range circle, no pulse. A landing circle stands
+## alone: no line runs from the player to it. Uses the sim's own aim helpers so the preview matches
+## the real cast.
 
 const HEIGHT: float = 0.06
 const CIRCLE_POINTS: int = 40
-## The rim of the shape (metres wide), the dark line under it that keeps it readable on any
-## ground, and the thin range circle.
-const RIM_WIDTH: float = 0.16
-const RIM_UNDER: float = 0.3
-const RANGE_WIDTH: float = 0.07
-const UNDER_COLOR: Color = Color(0.05, 0.04, 0.1, 0.4)
-const RANGE_ALPHA: float = 0.55
-const FILL_ALPHA: float = 0.26
-const CANCEL_COLOR: Color = Color(1.0, 0.3, 0.3, 1.0)
-## Releasing would cast nothing: the preview goes grey.
-const NO_CAST_COLOR: Color = Color(0.72, 0.74, 0.8, 1.0)
+## How wide the line is on the ground (metres).
+const LINE_WIDTH: float = 0.07
+const LINE_COLOR: Color = Color(1.0, 1.0, 1.0, 0.8)
+const CANCEL_COLOR: Color = Color(1.0, 0.35, 0.3, 0.9)
+## Releasing would cast nothing: the preview goes pale and quiet.
+const NO_CAST_COLOR: Color = Color(0.8, 0.82, 0.88, 0.4)
 ## The ring under a kid the cast would reach: red for an enemy, green for a heal's patient.
-const REACH_ENEMY: Color = Color(1.0, 0.25, 0.2, 1.0)
-const REACH_FRIEND: Color = Color(0.45, 1.0, 0.45, 1.0)
-const REACH_PAD: float = 0.3
-const REACH_FILL: float = 0.3
-## The rim breathes a little so a held aim feels alive (not with Reduce motion).
-const PULSE_SPEED: float = 5.0
-const PULSE_DEPTH: float = 0.15
-## The weapon's colour on the ground, by type.
-const KIND_COLORS: Dictionary[WeaponDef.Kind, Color] = {
-	WeaponDef.Kind.ATTACK: Color(1.0, 0.5, 0.22),
-	WeaponDef.Kind.CROWD_CONTROL: Color(0.78, 0.55, 1.0),
-	WeaponDef.Kind.BLOCK: Color(0.6, 0.85, 1.0),
-	WeaponDef.Kind.HEAL: Color(0.5, 1.0, 0.5),
-}
-
+const REACH_ENEMY: Color = Color(1.0, 0.3, 0.25, 0.9)
+const REACH_FRIEND: Color = Color(0.5, 1.0, 0.5, 0.9)
+const REACH_PAD: float = 0.25
 ## How thick the wall of a paper shield / block of earth is drawn on the ground.
 const SHIELD_THICKNESS: float = 0.4
 
@@ -142,13 +126,11 @@ static func fill(mesh: ImmediateMesh, polygon: PackedVector2Array, color: Color,
 			mesh.surface_add_vertex(Vector3(point.x, height, point.y))
 
 
-## The colour a weapon's preview takes on the ground.
-static func color_for(def: WeaponDef, castable: bool, cancelled: bool) -> Color:
+## The colour of the preview line.
+static func color_for(castable: bool, cancelled: bool) -> Color:
 	if cancelled:
 		return CANCEL_COLOR
-	if not castable:
-		return NO_CAST_COLOR
-	return KIND_COLORS[def.kind]
+	return LINE_COLOR if castable else NO_CAST_COLOR
 
 
 func _ready() -> void:
@@ -165,50 +147,41 @@ func clear() -> void:
 	_mesh.clear_surfaces()
 
 
-func show_aim(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector2, target_id: int, cancelled: bool, hold_seconds: float = 0.0) -> void:
+## `manual`: the finger is dragging the aim (the shape is drawn); a tap that auto-aims shows only the
+## rings under the kids it will reach.
+func show_aim(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector2, target_id: int, cancelled: bool,
+		hold_seconds: float = 0.0, manual: bool = true) -> void:
+	if not Settings.aim_guide:
+		_mesh.clear_surfaces()
+		return
 	var castable: bool = sim.weapons.would_cast(sim, caster, def, aim, target_id)
-	var reached: Array[PlayerState] = sim.weapons.would_reach(sim, caster, def, aim, target_id)
 	var rings: Array[PackedVector2Array] = []
 	var ring_colors: Array[Color] = []
-	for target: PlayerState in reached:
+	for target: PlayerState in sim.weapons.would_reach(sim, caster, def, aim, target_id):
 		rings.append(circle(target.position, target.radius + REACH_PAD))
 		ring_colors.append(REACH_FRIEND if target.team == caster.team else REACH_ENEMY)
+	var shape: Array[PackedVector2Array] = []
+	if manual:
+		shape = outline(sim, caster, def, aim, target_id)
+		if def.max_range > 0.0 and not shape.is_empty():
+			shape.remove_at(0)  # the range circle: the shape already shows how far it goes
+		if def.shape == WeaponDef.Shape.TARGETED:
+			shape.clear()  # the ring under the target says it all
 	var pips: Array[PackedVector2Array] = snip_pips(caster.position, sim.weapons.aim_direction(caster, aim), def)
-	show_lines(outline(sim, caster, def, aim, target_id), color_for(def, castable, cancelled), def.max_range > 0.0, rings, ring_colors, cancelled, pips, def.snip_count(hold_seconds))
+	show_lines(shape, color_for(castable, cancelled), rings, ring_colors, pips, def.snip_count(hold_seconds))
 
 
-## Draws the polylines: the first is the faint range circle when `has_range`, the rest are the
-## shape (filled when closed, with a rim). `rings` go under the kids reached, in `ring_colors`.
-func show_lines(lines: Array[PackedVector2Array], color: Color, has_range: bool = true,
-		rings: Array[PackedVector2Array] = [], ring_colors: Array[Color] = [], cancelled: bool = false,
-		pips: Array[PackedVector2Array] = [], pips_lit: int = 0) -> void:
+## Draws the shape lines, the rings under the kids reached and the snip pips (the first `pips_lit` are bright).
+func show_lines(lines: Array[PackedVector2Array], color: Color, rings: Array[PackedVector2Array] = [],
+		ring_colors: Array[Color] = [], pips: Array[PackedVector2Array] = [], pips_lit: int = 0) -> void:
 	_mesh.clear_surfaces()
-	var pulse: float = 1.0
-	if not Settings.reduced_motion:
-		pulse = 1.0 - PULSE_DEPTH * (0.5 + 0.5 * sin(float(Time.get_ticks_msec()) / 1000.0 * PULSE_SPEED))
-	var rim: Color = Color(color, pulse)
+	if lines.is_empty() and rings.is_empty() and pips.is_empty():
+		return
 	_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
-	for index: int in lines.size():
-		var line: PackedVector2Array = lines[index]
-		if index == 0 and has_range:
-			ribbon(_mesh, line, RANGE_WIDTH, Color(color, RANGE_ALPHA * (0.6 if cancelled else 1.0)))
-		elif line.size() >= 4:
-			fill(_mesh, line, Color(color, FILL_ALPHA * (0.6 if cancelled else 1.0)), HEIGHT)
-	for index: int in lines.size():
-		if index == 0 and has_range:
-			continue
-		ribbon(_mesh, lines[index], RIM_UNDER, UNDER_COLOR, HEIGHT + 0.002)
-	for index: int in lines.size():
-		if index == 0 and has_range:
-			continue
-		ribbon(_mesh, lines[index], RIM_WIDTH, rim, HEIGHT + 0.004)
+	for line: PackedVector2Array in lines:
+		ribbon(_mesh, line, LINE_WIDTH, color)
 	for index: int in pips.size():
-		var lit: bool = index < pips_lit
-		ribbon(_mesh, pips[index], RIM_WIDTH * 1.2, Color(UNDER_COLOR, 0.5 if lit else 0.25), HEIGHT + 0.012)
-		ribbon(_mesh, pips[index], RIM_WIDTH, Color(1.0, 1.0, 1.0, 0.95) if lit else Color(color, 0.3), HEIGHT + 0.014)
+		ribbon(_mesh, pips[index], LINE_WIDTH, color if index < pips_lit else Color(color, color.a * 0.35))
 	for index: int in rings.size():
-		var ring_color: Color = ring_colors[index]
-		fill(_mesh, rings[index], Color(ring_color, REACH_FILL), HEIGHT + 0.006)
-		ribbon(_mesh, rings[index], RIM_UNDER, UNDER_COLOR, HEIGHT + 0.008)
-		ribbon(_mesh, rings[index], RIM_WIDTH, ring_color, HEIGHT + 0.01)
+		ribbon(_mesh, rings[index], LINE_WIDTH, ring_colors[index])
 	_mesh.surface_end()

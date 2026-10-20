@@ -1,8 +1,8 @@
 class_name TaggedPanel
 extends Control
-## What you see while tagged and waiting in the box: a grouped sheet over the bottom
-## of the screen, a row of up to five 2:3 player cards (everyone
-## else in the match: teammates first) and a Change weapons button. Tap a card and
+## What you see while tagged and waiting in the box: over the bottom of the screen, with no sheet
+## behind it (the street stays visible), a row of up to five 2:3 player portraits (everyone
+## else in the match: teammates first, names in their team's colour) and a Change weapons button. Tap a card and
 ## the camera follows that player; the watched card is lit. Built in code;
 ## MatchHud feeds it with `sync()`.
 
@@ -10,12 +10,12 @@ signal swap_pressed
 ## The player tapped the card of player `id` (the camera should follow them).
 signal watch_requested(id: int)
 
-const BAND_HEIGHT: float = 430.0
+const BAND_HEIGHT: float = 360.0
 const INK: Color = Color(0.1, 0.06, 0.06)
 const TITLE_COLOR: Color = Color(1.0, 0.4, 0.34)
 const MAX_CARDS: int = 5
 ## Cards are 2:3 (width:height).
-const CARD_SIZE: Vector2 = Vector2(120.0, 180.0)
+const CARD_SIZE: Vector2 = Vector2(96.0, 144.0)
 const CARD_GAP: float = 12.0
 const OWN: Color = Color(0.3, 0.6, 1.0)
 const ENEMY: Color = Color(1.0, 0.35, 0.35)
@@ -42,7 +42,9 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
 	var band: PanelContainer = PanelContainer.new()
-	band.add_theme_stylebox_override("panel", UiSkin.plate("raised", UiMetrics.PADDING, 30))
+	var bare: StyleBoxEmpty = StyleBoxEmpty.new()
+	bare.set_content_margin_all(UiMetrics.PADDING)
+	band.add_theme_stylebox_override("panel", bare)
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	band.anchor_left = 0.0
 	band.anchor_right = 1.0
@@ -99,6 +101,7 @@ func sync(sim: MatchSim, player: PlayerState, watched: int, pick_open: bool) -> 
 		_portraits[i].texture = KidModel.portrait(other.character_id)
 		_names[i].text = _display_name(sim, other)
 		_states[i].text = "Tagged" if other.tagged else ""
+		_names[i].add_theme_color_override("font_color", OWN.lightened(0.3) if ally else ENEMY.lightened(0.2))
 		_portraits[i].modulate = Color(0.55, 0.55, 0.6) if other.tagged else Color.WHITE
 		card.add_theme_stylebox_override("normal", _card_box(OWN if ally else ENEMY, card_ids[i] == watched))
 		card.add_theme_stylebox_override("hover", _card_box(OWN if ally else ENEMY, card_ids[i] == watched))
@@ -143,14 +146,14 @@ func _build_card(row: HBoxContainer, index: int) -> void:
 	portrait.offset_left = 6.0
 	portrait.offset_right = -6.0
 	portrait.offset_top = 6.0
-	portrait.offset_bottom = -46.0
+	portrait.offset_bottom = -34.0
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(portrait)
 	var name_label: Label = _label("", UiMetrics.CAPTION, Color.WHITE)
 	name_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	name_label.offset_top = -44.0
+	name_label.offset_top = -34.0
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(name_label)
 	var state_label: Label = _label("", UiMetrics.CAPTION, TITLE_COLOR)
@@ -165,12 +168,13 @@ func _build_card(row: HBoxContainer, index: int) -> void:
 	card.add_theme_stylebox_override("focus", KalyeahTheme.focus_ring(16))
 
 
-func _card_box(team: Color, lit: bool) -> StyleBoxFlat:
+## No box behind a portrait: only the one being watched gets a gold ring.
+func _card_box(_team: Color, lit: bool) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = Color(KalyeahTheme.SURFACE_RAISED, 0.94)
+	box.bg_color = Color(0.0, 0.0, 0.0, 0.0)
 	box.set_corner_radius_all(14)
-	box.border_color = WATCHED if lit else team
-	box.set_border_width_all(4 if lit else 2)
+	box.border_color = WATCHED
+	box.set_border_width_all(4 if lit else 0)
 	return box
 
 

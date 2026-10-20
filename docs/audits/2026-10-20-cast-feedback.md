@@ -1,5 +1,9 @@
 # Gameplay audit: how a cast looks and feels, and what was still plain
 
+> **Update:** the owner then asked for a simpler, non-obstructive version. The filled, thick-rimmed previews, range circle, pulse and Cancel tile described below were
+> replaced by one thin line, a ring under the kids it will hit, and a ring-and-cross Cancel mark: see [2026-10-20-quiet-hud.md](2026-10-20-quiet-hud.md). The findings
+> (nothing showed who is hit, no "nothing to cast" state, no warning for the big snip, no snip charge) are still what the preview now says, just quieter.
+
 Owner request: the skill-cast hover (the aim preview) is still plain; look for other rough gameplay design that is still lurking, then improve it.
 
 Method: I put every one of the 14 weapons through the same scene (an enemy in front, a teammate beside, 720x1280), took the aim preview and

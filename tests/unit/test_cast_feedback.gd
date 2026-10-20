@@ -176,17 +176,12 @@ func test_a_kid_who_is_hit_gets_a_short_burst() -> void:
 
 # ---- the aim preview itself ---------------------------------------------------------
 
-func test_the_preview_takes_the_weapons_colour_and_goes_grey_or_red_when_it_should() -> void:
-	var sim: MatchSim = _sim(&"bato_light")
-	var rock: WeaponDef = sim.weapon_defs[&"bato_light"]
-	assert_eq(AimIndicator.color_for(rock, true, false), AimIndicator.KIND_COLORS[WeaponDef.Kind.ATTACK])
-	assert_eq(AimIndicator.color_for(rock, false, false), AimIndicator.NO_CAST_COLOR, "nothing to hit: grey")
-	assert_eq(AimIndicator.color_for(rock, true, true), AimIndicator.CANCEL_COLOR, "over cancel: red")
-	assert_eq(AimIndicator.color_for(rock, false, true), AimIndicator.CANCEL_COLOR, "cancel wins")
-	var kinds: Array[Color] = []
-	for color: Color in AimIndicator.KIND_COLORS.values():
-		assert_false(kinds.has(color), "each type has its own colour")
-		kinds.append(color)
+func test_the_preview_is_one_quiet_colour_that_goes_pale_or_red_when_it_should() -> void:
+	assert_eq(AimIndicator.color_for(true, false), AimIndicator.LINE_COLOR)
+	assert_eq(AimIndicator.color_for(false, false), AimIndicator.NO_CAST_COLOR, "nothing to hit: pale")
+	assert_eq(AimIndicator.color_for(true, true), AimIndicator.CANCEL_COLOR, "over cancel: red")
+	assert_eq(AimIndicator.color_for(false, true), AimIndicator.CANCEL_COLOR, "cancel wins")
+	assert_lt(AimIndicator.LINE_WIDTH, 0.1, "a thin line: it must not hide the street")
 
 
 func test_a_ribbon_is_two_triangles_per_segment_and_a_fill_one_per_fan_step() -> void:
@@ -199,21 +194,37 @@ func test_a_ribbon_is_two_triangles_per_segment_and_a_fill_one_per_fan_step() ->
 	assert_eq(vertices.size(), 2 * 6 + (AimIndicator.CIRCLE_POINTS + 1 - 3) * 3)
 
 
-func test_showing_every_weapons_preview_draws_something() -> void:
+func test_a_dragged_aim_draws_the_shape_and_a_tap_draws_only_the_rings() -> void:
+	var sim: MatchSim = _sim(&"bato_heavy", &"gunting_light")
+	var foe: PlayerState = _foe(sim, Vector2(0.0, -4.0))
+	var indicator: AimIndicator = autofree(AimIndicator.new()) as AimIndicator
+	add_child(indicator)
+	var blast: WeaponDef = sim.weapon_defs[&"bato_heavy"]
+	var aim: Vector2 = Vector2(0.0, -4.0) / blast.max_range
+	indicator.show_aim(sim, sim.players[CASTER], blast, aim, foe.id, false, 0.0, true)
+	var dragged: int = (indicator.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	indicator.show_aim(sim, sim.players[CASTER], blast, aim, foe.id, false, 0.0, false)
+	var tapped: int = (indicator.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	assert_gt(dragged, tapped, "the landing circle is drawn only when dragged")
+	assert_gt(tapped, 0, "the ring under the kid it will hit is still there")
+	indicator.show_aim(sim, sim.players[CASTER], blast, Vector2(0.0, -1.0), foe.id, false, 0.0, false)
+	assert_eq(indicator.mesh.get_surface_count(), 0, "aimed at nobody and not dragged: nothing at all")
+
+
+func test_every_weapons_preview_draws_without_error_and_no_range_circle() -> void:
 	var sim: MatchSim = _sim(&"bato_light")
 	var foe: PlayerState = _foe(sim, Vector2(0.0, -3.0))
 	var indicator: AimIndicator = autofree(AimIndicator.new()) as AimIndicator
 	add_child(indicator)
 	for def: WeaponDef in RULES.weapons:
 		indicator.show_aim(sim, sim.players[CASTER], def, Vector2(0.0, -0.8), foe.id, false)
-		assert_eq(indicator.mesh.get_surface_count(), 1, def.id)
 		indicator.show_aim(sim, sim.players[CASTER], def, Vector2(0.0, -0.8), foe.id, true)
-		assert_eq(indicator.mesh.get_surface_count(), 1, "%s cancelled" % def.id)
+		assert_lte(indicator.mesh.get_surface_count(), 1, def.id)
 	indicator.clear()
 	assert_eq(indicator.mesh.get_surface_count(), 0)
 
 
-func test_the_shield_preview_is_a_filled_wall_not_a_hairline() -> void:
+func test_the_shield_preview_is_the_walls_real_thickness() -> void:
 	var sim: MatchSim = _sim(&"papel_shield", &"lata")
 	var def: WeaponDef = sim.weapon_defs[&"papel_shield"]
 	var lines: Array[PackedVector2Array] = AimIndicator.outline(sim, sim.players[CASTER], def, Vector2(0.0, -1.0))
@@ -221,16 +232,17 @@ func test_the_shield_preview_is_a_filled_wall_not_a_hairline() -> void:
 	assert_gte(lines[0].size(), 4, "a closed rectangle (it can be filled)")
 
 
-# ---- the cancel tile ----------------------------------------------------------------
+# ---- the cancel mark ----------------------------------------------------------------
 
-func test_the_cancel_tile_says_what_a_release_does_when_the_finger_is_on_it() -> void:
+func test_the_cancel_mark_has_no_tile_and_lights_up_under_the_finger() -> void:
 	var practice: PracticeMatch = _practice()
-	var label: Label = practice.hud.cancel_zone.get_child(1) as Label
-	assert_eq(label.text, "Cancel")
+	var mark: CancelMark = practice.hud.cancel_zone
+	assert_eq(mark.get_child_count(), 0, "nothing behind it: no panel, no label")
+	assert_false(mark.hot)
 	practice.hud.set_cancel_hot(true)
-	assert_eq(label.text, "Let go to cancel")
+	assert_true(mark.hot)
 	practice.hud.set_cancel_hot(false)
-	assert_eq(label.text, "Cancel")
+	assert_false(mark.hot)
 
 
 # ---- the snip charge ----------------------------------------------------------------
@@ -253,5 +265,45 @@ func test_more_pips_light_up_the_longer_the_button_is_held() -> void:
 	assert_eq(light.snip_count(10.0), light.snips_max)
 	var indicator: AimIndicator = autofree(AimIndicator.new()) as AimIndicator
 	add_child(indicator)
-	indicator.show_aim(sim, sim.players[CASTER], light, Vector2(0.0, -1.0), -1, false, 1.0)
-	assert_eq(indicator.mesh.get_surface_count(), 1)
+	indicator.show_aim(sim, sim.players[CASTER], light, Vector2.ZERO, -1, false, 1.0, false)
+	assert_eq(indicator.mesh.get_surface_count(), 1, "the pips show even when a tap auto-aims")
+
+
+# ---- the aim guide switch -----------------------------------------------------------
+
+func test_the_aim_guide_can_be_turned_off_and_then_nothing_is_drawn() -> void:
+	var sim: MatchSim = _sim(&"bato_heavy", &"gunting_light")
+	var foe: PlayerState = _foe(sim, Vector2(0.0, -4.0))
+	var indicator: AimIndicator = autofree(AimIndicator.new()) as AimIndicator
+	add_child(indicator)
+	var blast: WeaponDef = sim.weapon_defs[&"bato_heavy"]
+	var saved: bool = Settings.aim_guide
+	Settings.set_aim_guide(true)
+	indicator.show_aim(sim, sim.players[CASTER], blast, Vector2(0.0, -0.5), foe.id, false)
+	assert_eq(indicator.mesh.get_surface_count(), 1, "on by default")
+	Settings.set_aim_guide(false)
+	indicator.show_aim(sim, sim.players[CASTER], blast, Vector2(0.0, -0.5), foe.id, false)
+	assert_eq(indicator.mesh.get_surface_count(), 0, "off: nothing on the street")
+	Settings.set_aim_guide(saved)
+
+
+func test_the_aim_guide_switch_lives_with_the_other_control_options() -> void:
+	var options: ControlOptions = autofree(ControlOptions.new()) as ControlOptions
+	add_child(options)
+	assert_not_null(options.guide_toggle)
+	var saved: bool = Settings.aim_guide
+	options.guide_toggle.toggled.emit(false)
+	assert_false(Settings.aim_guide)
+	options.guide_toggle.toggled.emit(true)
+	assert_true(Settings.aim_guide)
+	Settings.set_aim_guide(saved)
+
+
+func test_the_match_menu_keeps_its_list_short_so_the_aim_guide_is_a_settings_page_option() -> void:
+	var settings_options: ControlOptions = autofree(ControlOptions.new()) as ControlOptions
+	add_child(settings_options)
+	assert_not_null(settings_options.guide_toggle, "on the Settings page")
+	var match_options: ControlOptions = autofree(ControlOptions.new()) as ControlOptions
+	match_options.in_match = true
+	add_child(match_options)
+	assert_null(match_options.guide_toggle, "not in the match menu: Resume and Leave stay in view")

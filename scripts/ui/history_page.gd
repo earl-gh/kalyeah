@@ -129,7 +129,7 @@ func _row(entry: Dictionary, now: int) -> Control:
 	var accent: Color = UiKit.CHIP_GREEN if won else UiKit.CHIP_RED
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", UiMetrics.GAP)
-	var badge: PanelContainer = UiKit.chip("Victory" if won else "Defeat", accent, Color.WHITE, UiMetrics.DETAIL)
+	var badge: PanelContainer = UiKit.tag("Victory" if won else "Defeat", accent.lightened(0.3), UiMetrics.DETAIL)
 	badge.name = "Result"
 	badge.custom_minimum_size = Vector2(176.0, 0.0)
 	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER

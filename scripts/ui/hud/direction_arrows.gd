@@ -1,18 +1,21 @@
 class_name DirectionArrows
 extends Control
-## Soft arrows on the screen edge that say where to go: one toward the enemy base while you are free and playing, and
-## one toward your team's box (marked "Rescue") while a teammate is tagged in it. Each shows its distance in
-## metres and fades out when its target is already on screen. They sit inside a margin that keeps them off the
-## minimap, the score and the controls, and never take a touch. It only reads the sim and the camera.
+## A small chevron on the screen edge that says where to go: one toward the enemy base while you are free and
+## playing, and a gold one toward your team's box while a teammate is tagged in it. No words and no distance (the
+## minimap has the whole street); it hugs the edge so it stays out of the field, fades out when its target is on
+## screen, and never takes a touch. It only reads the sim and the camera.
 
-## Pixels kept clear of the screen edge on each side: left, top (minimap and score row), right, bottom (controls).
-const INSET: Vector4 = Vector4(70.0, 250.0, 70.0, 380.0)
+## Pixels kept clear of the screen edge on each side: left, top (the score row), right, bottom (the controls).
+const INSET: Vector4 = Vector4(36.0, 150.0, 36.0, 330.0)
+## The minimap and the settings button sit in this corner: an arrow is moved out of it.
+const CORNER: Vector2 = Vector2(280.0, 290.0)
 ## A target counts as on screen this far inside the edge.
 const ON_SCREEN_MARGIN: float = 60.0
-const ARROW_SIZE: float = 30.0
-const LABEL_FONT: int = 26
+const ARROW_SIZE: float = 16.0
+const LINE_WIDTH: float = 5.0
 const FADE_SPEED: float = 6.0
-const BASE_COLOR: Color = Color(1.0, 0.45, 0.4)
+const MAX_ALPHA: float = 0.75
+const BASE_COLOR: Color = Color(1.0, 0.5, 0.45)
 const RESCUE_COLOR: Color = Color(1.0, 0.82, 0.3)
 const TARGET_HEIGHT: float = 0.8
 
@@ -54,6 +57,13 @@ static func edge_point(origin: Vector2, target: Vector2, rect: Rect2) -> Vector2
 	return start + direction * reach
 
 
+## `point` moved out of the minimap corner (along whichever way is shorter).
+static func clear_of_corner(point: Vector2) -> Vector2:
+	if point.x >= CORNER.x or point.y >= CORNER.y:
+		return point
+	return Vector2(CORNER.x, point.y) if CORNER.x - point.x < CORNER.y - point.y else Vector2(point.x, CORNER.y)
+
+
 ## What should be pointed at now, as {kind, world (x, z), label, color}: nothing unless the match is being played
 ## and you are free.
 func targets() -> Array[Dictionary]:
@@ -85,6 +95,7 @@ func tick(delta: float) -> void:
 			var point: Variant = _project(world)
 			var origin: Vector2 = (_project(me.position) as Vector2) if me != null and _project(me.position) != null else size / 2.0
 			var edge: Vector2 = edge_point(origin, point as Vector2, rect) if point != null else edge_point(origin, origin + Vector2(0.0, 1.0) * size.y, rect)
+			edge = clear_of_corner(edge)
 			var on_screen: bool = point != null and Rect2(Vector2.ONE * ON_SCREEN_MARGIN, size - Vector2.ONE * ON_SCREEN_MARGIN * 2.0).has_point(point as Vector2)
 			var kind: StringName = target["kind"] as StringName
 			shown[kind] = true
@@ -111,25 +122,16 @@ func _project(world: Vector2) -> Variant:
 
 
 func _draw() -> void:
-	var beat: float = 1.0 if Settings.reduced_motion else 1.0 + 0.08 * sin(float(Time.get_ticks_msec()) / 1000.0 * TAU * 1.2)
-	var font: Font = KalyeahTheme.BUTTON_FONT
 	for arrow: Dictionary in arrows:
-		var alpha: float = arrow["alpha"] as float
+		var alpha: float = (arrow["alpha"] as float) * MAX_ALPHA
 		if alpha <= 0.01:
 			continue
 		var color: Color = arrow["color"] as Color
 		var at: Vector2 = arrow["point"] as Vector2
-		var angle: float = arrow["angle"] as float
-		var unit: Vector2 = Vector2.from_angle(angle)
+		var unit: Vector2 = Vector2.from_angle(arrow["angle"] as float)
 		var side: Vector2 = unit.rotated(PI / 2.0)
-		var tip: float = ARROW_SIZE * beat
-		var points: PackedVector2Array = PackedVector2Array([at + unit * tip, at - unit * tip * 0.6 + side * tip * 0.75, at - unit * tip * 0.2, at - unit * tip * 0.6 - side * tip * 0.75])
-		draw_colored_polygon(points, Color(color, 0.92 * alpha))
-		draw_polyline(PackedVector2Array([points[0], points[1], points[2], points[3], points[0]]), Color(0.08, 0.05, 0.1, 0.85 * alpha), 4.0, true)
-		var text: String = arrow["label"] as String
-		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, LABEL_FONT).x
-		var inward: Vector2 = (size / 2.0 - at).normalized()
-		var anchor: Vector2 = at + inward * (ARROW_SIZE + 30.0) - Vector2(width / 2.0, -LABEL_FONT * 0.35)
-		anchor.x = clampf(anchor.x, 16.0, size.x - width - 16.0)
-		draw_string_outline(font, anchor, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, LABEL_FONT, 8, Color(0.08, 0.05, 0.1, alpha))
-		draw_string(font, anchor, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, LABEL_FONT, Color(1.0, 1.0, 1.0, alpha))
+		var chevron: PackedVector2Array = PackedVector2Array([
+			at - unit * ARROW_SIZE * 0.5 + side * ARROW_SIZE, at + unit * ARROW_SIZE * 0.5, at - unit * ARROW_SIZE * 0.5 - side * ARROW_SIZE,
+		])
+		draw_polyline(chevron, Color(0.05, 0.04, 0.1, alpha * 0.45), LINE_WIDTH + 4.0, true)
+		draw_polyline(chevron, Color(color, alpha), LINE_WIDTH, true)

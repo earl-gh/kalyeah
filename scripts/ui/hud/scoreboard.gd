@@ -1,14 +1,12 @@
 class_name Scoreboard
 extends Control
-## Top-right scoreboard pill: your team's points (blue) and theirs (red), with the
-## match clock in the middle counting up ("2:45"), like the street-game video.
-## Team-relative: you are always on the left.
+## Top-right scoreboard: your team's points (blue) and theirs (red), with the match clock in
+## the middle counting up ("2:45"), like the street-game video. Just the numbers with an outline
+## (no card, no tiles); the team colour is the number's colour. Team-relative: you are always on the left.
 
-const OWN: Color = KalyeahTheme.TEAM_BLUE
-const ENEMY: Color = KalyeahTheme.TEAM_RED
-const PANEL: Color = Color(0.055, 0.09, 0.16, 0.94)
-const RIM: Color = Color(1.0, 0.82, 0.35)
-const BIG_FONT: int = 40
+const OWN: Color = Color(0.45, 0.7, 1.0)
+const ENEMY: Color = Color(1.0, 0.4, 0.38)
+const BIG_FONT: int = 46
 const SMALL_FONT: int = UiMetrics.CAPTION
 
 var mine: int = 0
@@ -41,22 +39,10 @@ func summary() -> String:
 func _draw() -> void:
 	var w: float = size.x
 	var h: float = size.y
-	# the same night panel as every other card, with its lit edge and soft shadow
-	draw_style_box(UiSkin.plate("night", 0.0, 18), Rect2(0.0, 0.0, w, h))
-	var box: float = h - 12.0
-	_round_rect(Rect2(6.0, 6.0, box * 1.25, box), OWN, 12.0)
-	_round_rect(Rect2(w - 6.0 - box * 1.25, 6.0, box * 1.25, box), ENEMY, 12.0)
-	_center_text(KalyeahTheme.ACTION_FONT, str(mine), Vector2(6.0 + box * 0.625, h / 2.0), BIG_FONT, Color.WHITE)
-	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), Vector2(w - 6.0 - box * 0.625, h / 2.0), BIG_FONT, Color.WHITE)
+	_center_text(KalyeahTheme.ACTION_FONT, str(mine), Vector2(w * 0.17, h / 2.0), BIG_FONT, OWN)
+	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), Vector2(w * 0.83, h / 2.0), BIG_FONT, ENEMY)
 	_center_text(KalyeahTheme.BODY_FONT, clock_text(), Vector2(w / 2.0, h * 0.36), SMALL_FONT + 4, Color.WHITE)
 	_center_text(KalyeahTheme.ACTION_FONT, "BO%d" % best_of, Vector2(w / 2.0, h * 0.72), SMALL_FONT, KalyeahTheme.AMBER)
-
-
-func _round_rect(rect: Rect2, color: Color, radius: float) -> void:
-	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = color
-	box.set_corner_radius_all(int(radius))
-	draw_style_box(box, rect)
 
 
 func _center_text(font: Font, text: String, center: Vector2, font_size: int, color: Color) -> void:
