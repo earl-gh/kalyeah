@@ -20,7 +20,9 @@ func _init(owner: PracticeMatch) -> void:
 
 func setup_hud() -> void:
 	owner.input.camera_yaw = owner._camera.rules.yaw_offset_degrees
-	owner._camera.bottom_reserve_px = MatchHud.CONSOLE_HEIGHT
+	owner.hud.console_height_changed.connect(func(height: float) -> void: owner._camera.bottom_reserve_px = height)
+	owner.hud.set_bottom_inset(_safe_bottom_inset())
+	owner._camera.bottom_reserve_px = owner.hud.console_height()
 	Cinematic.add_lens(owner, owner._camera.rules.lens_k())
 	Cinematic.add_film_finish(owner)
 	owner.hud.overhead.setup(owner.sim, owner._camera, owner.local_id, owner.local_team)
@@ -229,6 +231,16 @@ func _on_again_pressed() -> void:
 		owner._on_exit_pressed()
 		return
 	owner.get_tree().reload_current_scene()
+
+
+## The part of the screen's bottom edge the system keeps (a home bar), in UI pixels; 0 in a browser and on a phone without one.
+func _safe_bottom_inset() -> float:
+	var window: Vector2i = DisplayServer.window_get_size()
+	var safe: Rect2i = DisplayServer.get_display_safe_area()
+	if OS.has_feature("web") or window.y <= 0 or safe.size.y <= 0:
+		return 0.0
+	var below: float = maxf(0.0, float(DisplayServer.window_get_position().y + window.y - safe.end.y))
+	return below * owner.get_viewport().get_visible_rect().size.y / float(window.y)
 
 
 func _safe_top_inset() -> float:

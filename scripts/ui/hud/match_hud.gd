@@ -15,6 +15,8 @@ signal hurt_pressed
 signal status_test_pressed(type: int)
 ## A card in the tagged panel was tapped: follow player `id`.
 signal exit_pressed
+## The console's height changed (the bottom inset did): the camera keeps this much of the screen clear.
+signal console_height_changed(height: float)
 
 enum Feed { TAGGED, RESCUED }
 
@@ -41,6 +43,8 @@ const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## The Game Boy body at the bottom of the screen: the arena sits above it. The camera reserves the same height.
 const CONSOLE_HEIGHT: float = 294.0
 const ROW_HEIGHT: float = CONSOLE_HEIGHT / 2.0
+## The most the bottom inset can add (a tall gesture bar), so the console never eats the street.
+const MAX_BOTTOM_INSET: float = 80.0
 ## The square the stick listens in: its outer ring plus a margin for the thumb.
 const DPAD_ZONE: float = (DPad.OUTER_RADIUS + 20.0) * 2.0
 ## The D-pad's centre is this far from its screen edge (the left, or the right for a left-handed player).
@@ -65,6 +69,8 @@ var overhead: OverheadHud
 var pulse: HurtPulse
 ## The Game Boy body at the bottom (it only draws).
 var console: ConsolePanel
+## UI pixels of the screen's bottom edge the system keeps (home bar), set by the match screen.
+var bottom_inset: float = 0.0
 var top: Control
 var scoreboard: Scoreboard
 var dpad: DPad
@@ -113,6 +119,21 @@ func _ready() -> void:
 ## Pixels the top row is pushed down to clear a notch or status bar.
 func set_top_inset(pixels: float) -> void:
 	top.position.y = pixels
+
+
+## The home bar or gesture area under the screen (UI pixels): the console grows by it and the controls ride above it,
+## so a thumb that rests on the bar never lands on a button, and the camera keeps the taller console clear.
+func set_bottom_inset(pixels: float) -> void:
+	var inset: float = clampf(pixels, 0.0, MAX_BOTTOM_INSET)
+	if is_equal_approx(inset, bottom_inset):
+		return
+	bottom_inset = inset
+	layout_controls()
+
+
+## The console's height now: its own plus the bottom inset.
+func console_height() -> float:
+	return CONSOLE_HEIGHT + bottom_inset
 
 
 func set_controls_active(active: bool) -> void:
@@ -292,7 +313,6 @@ func _build() -> void:
 	add_child(pulse)
 	console = ConsolePanel.new()
 	console.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_place(console, Vector4(0, 1, 1, 1), Vector4(0, -CONSOLE_HEIGHT, 0, 0))
 	add_child(console)
 	MatchHudTop.build(self)
 	cancel_zone = _build_cancel_zone()
@@ -359,19 +379,24 @@ func layout_controls() -> void:
 	var scale_by: float = Settings.control_scale
 	var mirrored: bool = Settings.left_handed
 	MatchHudTop.layout(self)
+	_place(console, Vector4(0, 1, 1, 1), Vector4(0, -console_height(), 0, 0))
+	if feedback != null:
+		feedback.set_console_height(console_height())
+	console_height_changed.emit(console_height())
+	var lift: float = bottom_inset
 	var weapon: float = WEAPON_SIZE * scale_by
 	var gap: float = WEAPON_GAP * scale_by
 	var stagger: float = WEAPON_STAGGER * scale_by
 	var zone: float = DPAD_ZONE
 	# the pad keeps its zone; scaling it around its middle makes the disc and the grab area grow together
-	_put(dpad, mirrored, Vector2(DPAD_MARGIN, ROW_HEIGHT), Vector2(zone, zone))
+	_put(dpad, mirrored, Vector2(DPAD_MARGIN, ROW_HEIGHT + lift), Vector2(zone, zone))
 	dpad.pivot_offset = Vector2(zone, zone) / 2.0
 	dpad.scale = Vector2.ONE * scale_by
 	var second: float = WEAPON_MARGIN + weapon / 2.0
 	var first: float = second + weapon + gap
-	_put(weapon_buttons[1], not mirrored, Vector2(second, ROW_HEIGHT + stagger), Vector2(weapon, weapon))
-	_put(weapon_buttons[0], not mirrored, Vector2(first, ROW_HEIGHT - stagger), Vector2(weapon, weapon))
-	_put(cancel_zone, not mirrored, Vector2((second + first) / 2.0, CANCEL_AT.y), CANCEL_SIZE)
+	_put(weapon_buttons[1], not mirrored, Vector2(second, ROW_HEIGHT + stagger + lift), Vector2(weapon, weapon))
+	_put(weapon_buttons[0], not mirrored, Vector2(first, ROW_HEIGHT - stagger + lift), Vector2(weapon, weapon))
+	_put(cancel_zone, not mirrored, Vector2((second + first) / 2.0, CANCEL_AT.y + lift), CANCEL_SIZE)
 	# the sockets in the shell, in the panel's own coordinates (from its top-left)
 	var width: float = size.x
 	var across: float = 1.0 if not mirrored else -1.0
