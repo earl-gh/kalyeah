@@ -165,8 +165,8 @@ func test_the_chosen_mode_survives_the_hero_being_resized() -> void:
 func test_the_mode_facts_come_from_the_rules() -> void:
 	var screen: TitleScreen = _phone()
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
-	assert_eq(rules.best_of_choices, [3, 5, 7] as Array[int], "the numbers below follow this")
-	assert_eq(screen.mode_facts("hotspot"), ["2 to 6 players", "Best of 3, 5 or 7"] as Array[String])
+	assert_eq(rules.first_to_choices, [3, 5, 7] as Array[int], "the numbers below follow this")
+	assert_eq(screen.mode_facts("hotspot"), ["2 to 6 players", "First to 3, 5 or 7"] as Array[String])
 	assert_eq(screen.mode_facts("online"), ["2 to 6 players", "Join with a code"] as Array[String])
 	assert_eq(screen.mode_facts("practice"), ["Solo", "3 v 3 against bots"] as Array[String], "you and two allies against three")
 	assert_eq(RoomService.MAX_TEAM_SIZE * 2, 6)

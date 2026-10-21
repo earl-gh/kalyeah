@@ -17,7 +17,7 @@ func _room(team_size: int, host: int = 1) -> Dictionary:
 		{"player_id": 1, "name": "Ana", "team": 0, "ready": false, "connected": true, "char": "junjun"},
 		{"player_id": 2, "name": "Ben", "team": 1, "ready": true, "connected": true, "char": "migo"},
 	]
-	return {"code": "K7M2Q9XA", "team_size": team_size, "host": host, "best_of": 3, "state": 0, "members": members,
+	return {"code": "K7M2Q9XA", "team_size": team_size, "host": host, "first_to": 3, "state": 0, "members": members,
 		"can_start": false, "can_start_host": true, "map": &"street"}
 
 

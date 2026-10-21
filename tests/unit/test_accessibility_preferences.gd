@@ -172,7 +172,7 @@ func test_room_content_and_dialog_stay_within_phone_width() -> void:
 	var members: Array = []
 	for i: int in 6:
 		members.append({"player_id": i + 1, "team": i % 2, "name": "LongName1234", "char": Session.AVATARS[i], "ready": true})
-	room.show_room({"code": "ABC234XY", "host": 1, "team_size": 3, "best_of": 7, "members": members}, 1)
+	room.show_room({"code": "ABC234XY", "host": 1, "team_size": 3, "first_to": 7, "members": members}, 1)
 	await wait_process_frames(5)
 	var scroll: ScrollContainer = room.find_child("RoomScroll", true, false) as ScrollContainer
 	assert_lte(room._content.get_combined_minimum_size().x, scroll.size.x, "room columns must not force a horizontal overflow")

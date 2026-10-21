@@ -356,9 +356,9 @@ func mode_facts(id: String) -> Array[String]:
 	if id == "practice":
 		return ["Solo", "%d v %d against bots" % [PracticeMatch.BOT_ALLY_IDS.size() + 1, PracticeMatch.BOT_ENEMY_IDS.size()]] as Array[String]
 	var choices: PackedStringArray = []
-	for choice: int in rules.best_of_choices:
+	for choice: int in rules.first_to_choices:
 		choices.append(str(choice))
-	var best: String = "Best of %s" % (choices[0] if choices.size() == 1 else "%s or %s" % [", ".join(choices.slice(0, choices.size() - 1)), choices[choices.size() - 1]])
+	var best: String = "First to %s" % (choices[0] if choices.size() == 1 else "%s or %s" % [", ".join(choices.slice(0, choices.size() - 1)), choices[choices.size() - 1]])
 	var players: String = "2 to %d players" % (RoomService.MAX_TEAM_SIZE * 2)
 	return [players, best if id == "hotspot" else "Join with a code"] as Array[String]
 

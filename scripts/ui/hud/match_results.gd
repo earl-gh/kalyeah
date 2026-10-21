@@ -246,7 +246,7 @@ func _fill(sim: MatchSim, local_id: int, local_team: int, mode_text: String) -> 
 	var won: bool = sim.score.winner == local_team
 	title.text = "VICTORY!" if won else "DEFEAT"
 	title.add_theme_color_override("font_color", WIN_COLOR if won else LOSS_COLOR)
-	subtitle.text = "%s · Best of %d" % [mode_text, sim.score.best_of]
+	subtitle.text = "%s · First to %d" % [mode_text, sim.score.first_to]
 	_final_mine = sim.score.points[local_team]
 	_final_theirs = sim.score.points[1 - local_team]
 	_show_scores(1.0)

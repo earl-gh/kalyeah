@@ -31,7 +31,7 @@ static func capture(sim: MatchSim, acks: Dictionary[int, int]) -> Dictionary:
 		"t": NetProtocol.Msg.SNAPSHOT, "tick": sim.tick, "acks": acks.duplicate(),
 		"players": players, "projectiles": projectiles, "zones": zones, "shields": shields,
 		"phase": sim.phase, "freeze": sim.freeze_left, "intro": sim.intro_left, "clock": sim.match_time,
-		"score": {"p": sim.score.points.duplicate(), "bo": sim.score.best_of, "w": sim.score.winner},
+		"score": {"p": sim.score.points.duplicate(), "ft": sim.score.first_to, "w": sim.score.winner},
 		"log": _log_of(sim),
 		"cap": {"team": sim.capture_team, "k": sim.capture_kind, "e": sim.capture_elapsed, "need": sim.capture_needed},
 	}
@@ -66,7 +66,7 @@ static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 	var score: Dictionary = data.get("score", {}) as Dictionary
 	if not score.is_empty():
 		sim.score.points.assign(score["p"] as Array)
-		sim.score.best_of = score["bo"] as int
+		sim.score.first_to = score["ft"] as int
 		sim.score.winner = score["w"] as int
 	if data.has("log"):
 		sim.point_log.clear()

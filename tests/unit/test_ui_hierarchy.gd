@@ -73,7 +73,7 @@ func test_match_menu_retains_controls_and_requires_confirmation_only_online() ->
 
 
 func test_room_code_and_read_only_format_are_mode_specific() -> void:
-	var room: Dictionary = {"code": "ABC234XY", "host": 1, "team_size": 2, "best_of": 5, "members": [], "can_start_host": false}
+	var room: Dictionary = {"code": "ABC234XY", "host": 1, "team_size": 2, "first_to": 5, "members": [], "can_start_host": false}
 	var view: HotspotRoomView = autofree(HotspotRoomView.new()) as HotspotRoomView
 	add_child(view)
 	view.show_room(room, 2)
@@ -84,7 +84,7 @@ func test_room_code_and_read_only_format_are_mode_specific() -> void:
 	assert_true(view.code_row.visible)
 	assert_eq(view.code_label.text, "ABC234XY")
 	assert_true(view.format_summary.visible)
-	assert_eq(view.format_summary.text, "2v2 · Best of 5")
+	assert_eq(view.format_summary.text, "2v2 · First to 5")
 	assert_false((view.size_buttons[1].get_parent() as Control).visible, "guests see a summary instead of disabled controls")
 	view.show_room(room, 1)
 	assert_false(view.format_summary.visible)

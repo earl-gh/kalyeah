@@ -10,7 +10,7 @@ static func start(screen: LobbyScreen) -> void:
 	var members: Array = []
 	for i: int in names.size():
 		members.append({"player_id": i + 1, "name": names[i], "team": i % 2, "ready": i > 0, "connected": true, "char": kids[i]})
-	screen._preview_room = {"code": "K7M2Q9XA", "team_size": 2, "host": LobbyScreen.PREVIEW_ME, "best_of": 3, "state": 0, "members": members,
+	screen._preview_room = {"code": "K7M2Q9XA", "team_size": 2, "host": LobbyScreen.PREVIEW_ME, "first_to": 3, "state": 0, "members": members,
 		"can_start": false, "can_start_host": true, "map": &"street", "preview": true}
 	screen._room_view.show_room(screen._preview_room, LobbyScreen.PREVIEW_ME)
 

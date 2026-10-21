@@ -170,7 +170,7 @@ func test_the_room_views_meet_the_floors() -> void:
 			view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			holder.add_child(view)
 			view.set_online(online)
-			view.show_room({"code": "K7M2Q9XA" if online else "", "team_size": 2, "host": 1, "best_of": 3, "state": 0, "members": members, "can_start": false, "can_start_host": me == 1, "map": &"street"}, me)
+			view.show_room({"code": "K7M2Q9XA" if online else "", "team_size": 2, "host": 1, "first_to": 3, "state": 0, "members": members, "can_start": false, "can_start_host": me == 1, "map": &"street"}, me)
 			await wait_process_frames(3)
 			all.append_array(_problems(view, "room online=%s me=%d" % [online, me]))
 			holder.queue_free()

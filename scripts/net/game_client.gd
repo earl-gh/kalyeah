@@ -123,8 +123,8 @@ func pick_team(team: int) -> void:
 	send({"t": NetProtocol.Msg.PICK_TEAM, "team": team})
 
 
-## Host only: the match will be best of `count` points (3, 5 or 7).
-func set_best_of(count: int) -> void:
+## Host only: the match is won by the first team to `count` points (3, 5 or 7).
+func set_first_to(count: int) -> void:
 	send({"t": NetProtocol.Msg.SET_BEST_OF, "n": count})
 
 

@@ -186,7 +186,7 @@ func _translation(locale: String, count: int) -> Translation:
 	var translation: Translation = Translation.new()
 	translation.locale = locale
 	translation.add_message("Stunned", "Nakatulala")
-	translation.add_message("Best of %d", "Pinakamahusay sa %d")
+	translation.add_message("First to %d", "Una sa %d")
 	for i: int in count:
 		translation.add_message("filler %d" % i, "x")
 	return translation
@@ -198,7 +198,7 @@ func test_drawn_words_go_through_the_translation_and_fall_back_to_english() -> v
 	TranslationServer.add_translation(fil)
 	TranslationServer.set_locale("fil")
 	assert_eq(UiText.t("Stunned"), "Nakatulala")
-	assert_eq(UiText.f("Best of %d", [3]), "Pinakamahusay sa 3", "the places stay where the translator put them")
+	assert_eq(UiText.f("First to %d", [3]), "Una sa 3", "the places stay where the translator put them")
 	assert_eq(UiText.t("Never translated"), "Never translated")
 	TranslationServer.remove_translation(fil)
 
@@ -260,7 +260,7 @@ func test_the_string_table_exists_and_covers_the_words_a_player_reads() -> void:
 	var text: String = FileAccess.get_file_as_string("res://data/i18n/strings.csv")
 	assert_true(text.begins_with("keys,en"), "a header, then one row a string")
 	assert_gt(text.split("\n").size(), 200)
-	for word: String in ["Play", "Create room", "Join room", "Quit game", "Best of %d", "Stunned", "BO%d"]:
+	for word: String in ["Play", "Create room", "Join room", "Quit game", "First to %d", "Stunned", "FIRST TO"]:
 		assert_true(text.contains("\n%s," % word) or text.contains("\n\"%s\"," % word), "'%s' is a key" % word)
 	for def: WeaponDef in _rules().weapons:
 		assert_true(text.contains(def.display_name), "%s is a key" % def.display_name)

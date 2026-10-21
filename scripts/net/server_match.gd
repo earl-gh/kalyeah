@@ -40,7 +40,7 @@ func _init(server: GameServer, p_room: RoomService.Room, rules: GameRules, layou
 	_net = net
 	seed_value = p_seed
 	sim = MatchSim.new(rules, layout, p_seed)
-	sim.set_best_of(room.best_of)
+	sim.set_first_to(room.first_to)
 	for m: RoomService.Member in room.members:
 		sim.add_player(m.player_id, m.team)
 		_queues[m.player_id] = []
