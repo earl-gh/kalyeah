@@ -31,6 +31,9 @@ static func build(hud: MatchHud) -> void:
 	hud._place(hud.scoreboard, Vector4(0.5, 0, 0.5, 0), Vector4(-MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y, MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y))
 	hud.scoreboard.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.top.add_child(hud.scoreboard)
+	# right: the match clock, the counterpart of the settings button
+	hud.clock_chip = ClockChip.new()
+	hud.top.add_child(hud.clock_chip)
 	layout(hud)
 
 
@@ -42,6 +45,7 @@ static func layout(hud: MatchHud) -> void:
 	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear)
 	var feed_top: float = MatchHud.HEADER_HEIGHT + 12.0
 	hud._place(hud.feed_box, Vector4(0, 0, 0, 0), Vector4(MatchHud.MARGIN, feed_top, MatchHud.MARGIN + MatchHud.FEED_SIZE.x, feed_top + MatchHud.FEED_SIZE.y * MatchHud.FEED_MAX + 12.0))
+	hud._place(hud.clock_chip, Vector4(1, 0, 1, 0), Vector4(-MatchHud.MARGIN - MatchHud.CLOCK_SIZE.x, MatchHud.TOP_ROW_Y, -MatchHud.MARGIN, MatchHud.TOP_ROW_Y + MatchHud.CLOCK_SIZE.y))
 
 
 ## The opening objective appears as a compact floating sheet above the controls.

@@ -12,6 +12,11 @@ const WELL_RIM: Color = Color(0.7, 0.76, 0.95, 0.16)
 const CORNER: float = 40.0
 const HEALTH_FONT: int = 40
 const HEALTH_TEXT: Color = Color(0.93, 0.95, 1.0)
+## The bar keeps your own colour above this share of your health, turns amber below it and red below the second.
+const HEALTH_LOW: float = 0.5
+const HEALTH_CRITICAL: float = 0.25
+const HEALTH_AMBER: Color = Color(1.0, 0.76, 0.2)
+const HEALTH_RED: Color = Color(1.0, 0.3, 0.28)
 
 ## Round recesses {centre (from this panel's top-left), radius}: set by the HUD's layout.
 var sockets: Array[Dictionary] = []
@@ -70,28 +75,62 @@ func gap() -> Vector2:
 	return Vector2((pad_edge + near_edge) / 2.0, absf(near_edge - pad_edge))
 
 
+## The colour of your health bar: your own colour while healthy, amber below half, red below a quarter.
+static func health_color(fraction: float) -> Color:
+	if fraction >= HEALTH_LOW:
+		return TeamColors.bar_self()
+	return HEALTH_AMBER if fraction > HEALTH_CRITICAL else HEALTH_RED
+
+
+## Your health on a small plate in the middle of the deck: a heart and the number over a bar that turns amber, then red, as it empties.
 func _draw_health() -> void:
 	var free: Vector2 = gap()
 	if not health_shown or free.y < 90.0:
 		return
-	var width: float = minf(free.y - 24.0, 120.0)
-	var top: float = 70.0
-	var font: Font = KalyeahTheme.ACTION_FONT
-	var label: String = health_text
-	var label_size: Vector2 = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HEALTH_FONT)
-	draw_string(font, Vector2(free.x - label_size.x / 2.0, top + label_size.y * 0.7), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HEALTH_FONT, HEALTH_TEXT)
-	var track: Rect2 = Rect2(free.x - width / 2.0, top + label_size.y + 8.0, width, 16.0)
+	var width: float = minf(free.y - 16.0, 150.0)
+	var plate: Rect2 = Rect2(Vector2(free.x - width / 2.0, 52.0), Vector2(width, 112.0))
 	var shell: StyleBoxFlat = StyleBoxFlat.new()
-	shell.bg_color = Color(0.03, 0.035, 0.055)
-	shell.set_corner_radius_all(8)
+	shell.bg_color = WELL
+	shell.border_color = WELL_RIM
+	shell.set_border_width_all(2)
+	shell.set_corner_radius_all(22)
 	shell.anti_aliasing = true
-	draw_style_box(shell, track.grow(3.0))
-	var fill: StyleBoxFlat = StyleBoxFlat.new()
-	fill.bg_color = TeamColors.bar_self()
-	fill.set_corner_radius_all(6)
-	fill.anti_aliasing = true
+	draw_style_box(shell, plate)
+	var font: Font = KalyeahTheme.ACTION_FONT
+	var label_size: Vector2 = font.get_string_size(health_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HEALTH_FONT)
+	var heart: float = 15.0
+	var row_width: float = heart * 2.0 + 10.0 + label_size.x
+	var row_left: float = free.x - row_width / 2.0
+	var color: Color = health_color(health_fraction)
+	_draw_heart(Vector2(row_left + heart, plate.position.y + 36.0), heart, color)
+	draw_string(font, Vector2(row_left + heart * 2.0 + 10.0, plate.position.y + 36.0 + label_size.y * 0.32), health_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HEALTH_FONT, HEALTH_TEXT)
+	var track: Rect2 = Rect2(plate.position + Vector2(14.0, 74.0), Vector2(plate.size.x - 28.0, 16.0))
+	var well: StyleBoxFlat = StyleBoxFlat.new()
+	well.bg_color = Color(0.03, 0.035, 0.055)
+	well.set_corner_radius_all(8)
+	well.anti_aliasing = true
+	draw_style_box(well, track.grow(3.0))
 	if health_fraction > 0.0:
+		var fill: StyleBoxFlat = StyleBoxFlat.new()
+		fill.bg_color = color
+		fill.set_corner_radius_all(6)
+		fill.anti_aliasing = true
 		draw_style_box(fill, Rect2(track.position, Vector2(maxf(track.size.x * health_fraction, 12.0), track.size.y)))
+		var sheen: StyleBoxFlat = StyleBoxFlat.new()
+		sheen.bg_color = Color(1.0, 1.0, 1.0, 0.25)
+		sheen.set_corner_radius_all(4)
+		draw_style_box(sheen, Rect2(track.position + Vector2(3.0, 2.0), Vector2(maxf(track.size.x * health_fraction - 6.0, 6.0), 4.0)))
+
+
+## A heart centred on `at`, `radius` wide from its middle to a side: two lobes and a point.
+func _draw_heart(at: Vector2, radius: float, color: Color) -> void:
+	var lobe: float = radius * 0.56
+	draw_circle(at + Vector2(-radius * 0.46, -radius * 0.22), lobe, Icons.OUTLINE)
+	draw_circle(at + Vector2(radius * 0.46, -radius * 0.22), lobe, Icons.OUTLINE)
+	draw_colored_polygon(PackedVector2Array([at + Vector2(-radius - 1.0, -radius * 0.12), at + Vector2(radius + 1.0, -radius * 0.12), at + Vector2(0.0, radius + 3.0)]), Icons.OUTLINE)
+	draw_circle(at + Vector2(-radius * 0.46, -radius * 0.22), lobe - 1.5, color)
+	draw_circle(at + Vector2(radius * 0.46, -radius * 0.22), lobe - 1.5, color)
+	draw_colored_polygon(PackedVector2Array([at + Vector2(-radius, -radius * 0.12), at + Vector2(radius, -radius * 0.12), at + Vector2(0.0, radius)]), color)
 
 
 func _draw() -> void:

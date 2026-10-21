@@ -89,3 +89,41 @@ func test_a_status_word_stays_under_the_header_and_inside_the_screen() -> void:
 	var edge: Vector2 = overhead.keep_on_screen(Vector2(2.0, 600.0), font, "Slowed", OverheadHud.STATUS_FONT)
 	assert_gt(edge.x, 20.0, "nor past the left side")
 	assert_eq(overhead.keep_on_screen(Vector2(360.0, 600.0), font, "Slowed", OverheadHud.STATUS_FONT), Vector2(360.0, 600.0), "and a kid in the middle is untouched")
+
+
+func test_the_clock_sits_on_the_header_opposite_the_gear_and_counts_up() -> void:
+	var practice: PracticeMatch = await _practice()
+	var hud: MatchHud = practice.hud
+	var header: Rect2 = hud.header.get_global_rect()
+	var chip: Rect2 = hud.clock_chip.get_global_rect()
+	assert_true(header.encloses(chip), "the clock stands on the header")
+	assert_gt(chip.position.x, hud.scoreboard.get_global_rect().end.x - 1.0, "right of the score")
+	assert_almost_eq(chip.get_center().y, hud.settings_button.get_global_rect().get_center().y, 1.0, "level with the gear")
+	assert_eq(hud.clock_chip.mouse_filter, Control.MOUSE_FILTER_IGNORE)
+	hud.clock_chip.show_time(65.4, false)
+	assert_eq(hud.clock_chip.text(), "1:05")
+	assert_false(hud.clock_chip.overtime)
+	hud.clock_chip.show_time(65.4, true)
+	assert_true(hud.clock_chip.overtime)
+	assert_string_contains(hud.clock_chip.accessibility_name, "overtime")
+
+
+func test_overtime_is_when_the_round_passes_the_rules_overtime_time() -> void:
+	var practice: PracticeMatch = await _practice()
+	var sim: MatchSim = practice.sim
+	sim.rules = sim.rules.duplicate() as GameRules
+	sim.rules.overtime_after = 30.0
+	sim.round_time = 29.0
+	assert_false(sim.in_overtime())
+	sim.round_time = 30.0
+	assert_true(sim.in_overtime())
+	assert_eq(sim.current_capture_time(), minf(sim.rules.capture_time, sim.rules.overtime_capture_time))
+	sim.rules.overtime_after = 0.0
+	assert_false(sim.in_overtime(), "0 means never")
+
+
+func test_your_health_bar_turns_amber_then_red_as_it_empties() -> void:
+	assert_eq(ConsolePanel.health_color(1.0), TeamColors.bar_self())
+	assert_eq(ConsolePanel.health_color(0.5), TeamColors.bar_self(), "half is still healthy")
+	assert_eq(ConsolePanel.health_color(0.4), ConsolePanel.HEALTH_AMBER)
+	assert_eq(ConsolePanel.health_color(0.2), ConsolePanel.HEALTH_RED)

@@ -468,9 +468,14 @@ func all_enemies_tagged(team: int) -> bool:
 
 ## How long a capture has to hold right now: the capture time, or the overtime one once the round has dragged on.
 func current_capture_time() -> float:
-	if rules.overtime_after > 0.0 and round_time >= rules.overtime_after:
+	if in_overtime():
 		return minf(rules.capture_time, rules.overtime_capture_time)
 	return rules.capture_time
+
+
+## True once the round has dragged on past `rules.overtime_after` (the header says OVERTIME).
+func in_overtime() -> bool:
+	return rules.overtime_after > 0.0 and round_time >= rules.overtime_after
 
 
 ## `team` is all in the enemy base but a defender is still standing in it (the capture waits).

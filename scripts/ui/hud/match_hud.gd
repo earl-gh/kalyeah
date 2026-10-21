@@ -37,6 +37,7 @@ const HEADER_HEIGHT: float = TOP_ROW_Y * 2.0 + 88.0
 const MARGIN: float = 14.0
 const GEAR_SIZE: float = UiMetrics.TOUCH
 const SCORE_SIZE: Vector2 = Vector2(280.0, 88.0)
+const CLOCK_SIZE: Vector2 = Vector2(152.0, 88.0)
 const FEED_TIME: float = 2.6
 const FEED_SIZE: Vector2 = Vector2(250.0, 46.0)
 const FEED_MAX: int = 3
@@ -82,6 +83,8 @@ var top_inset: float = 0.0
 var header: HeaderPanel
 var top: Control
 var scoreboard: Scoreboard
+## The match clock at the right of the header.
+var clock_chip: ClockChip
 var dpad: DPad
 var weapon_buttons: Array[AimButton] = []
 ## Weapon 1, weapon 2 (the order MatchInput uses).
@@ -255,6 +258,7 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 	scoreboard.show_score(sim.score, local_team, sim.match_time)
 	scoreboard.show_capture(sim, local_team)
 	scoreboard.show_roster(sim, local_team)
+	clock_chip.show_time(sim.match_time, sim.in_overtime())
 	_sync_capture(sim, local_team)
 	again_button.visible = sim.phase == MatchSim.Phase.MATCH_OVER
 	results.set_over(sim.phase == MatchSim.Phase.MATCH_OVER, sim, local_id, local_team, results_mode)
