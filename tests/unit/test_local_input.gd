@@ -141,16 +141,16 @@ func test_hiding_the_controls_cancels_an_active_aim() -> void:
 	assert_null(TouchButton.holder)
 
 
-func test_the_score_sits_at_the_top_right() -> void:
+func test_the_score_sits_in_the_middle_of_the_header() -> void:
 	var screen_root: Control = autofree(Control.new()) as Control
 	screen_root.size = Vector2(720.0, 1280.0)
 	add_child(screen_root)
 	var hud: MatchHud = MatchHud.new()
 	screen_root.add_child(hud)
 	var score: Rect2 = hud.scoreboard.get_global_rect()
-	assert_gt(score.position.x, 720.0 / 2.0, "right half")
-	assert_almost_eq(score.end.x, 720.0 - MatchHud.MARGIN, 1.0, "against the right edge")
-	assert_lt(score.position.y, 200.0, "at the top")
+	assert_almost_eq(score.get_center().x, 360.0, 1.0, "in the middle")
+	assert_lt(score.end.y, MatchHud.HEADER_HEIGHT, "inside the header")
+	assert_lt(hud.settings_button.get_global_rect().get_center().x, 360.0, "the settings button is on the left")
 
 
 func test_the_match_menu_has_no_hand_buttons_and_right_handed_is_the_default() -> void:

@@ -14,6 +14,10 @@ const INTRO_POST_TOP: float = 3.5
 var owner: PracticeMatch
 
 
+## The arena starts this far (UI pixels) below the header, so its shadow falls on the street's end and not on the play.
+const HEADER_GAP: float = 12.0
+
+
 func _init(owner: PracticeMatch) -> void:
 	self.owner = owner
 
@@ -21,6 +25,7 @@ func _init(owner: PracticeMatch) -> void:
 func setup_hud() -> void:
 	owner.input.camera_yaw = owner._camera.rules.yaw_offset_degrees
 	owner.hud.console_height_changed.connect(func(height: float) -> void: owner._camera.bottom_reserve_px = height)
+	owner.hud.header_height_changed.connect(func(height: float) -> void: owner._camera.top_reserve_px = height + HEADER_GAP)
 	owner.hud.set_bottom_inset(_safe_bottom_inset())
 	owner._camera.bottom_reserve_px = owner.hud.console_height()
 	Cinematic.add_lens(owner, owner._camera.rules.lens_k())
@@ -30,6 +35,7 @@ func setup_hud() -> void:
 	owner.hud.overhead.bar_scale = owner._camera.rules.bar_scale
 	owner._fx.view_scale = owner._camera.rules.kid_view_scale
 	owner.hud.set_top_inset(_safe_top_inset())
+	owner._camera.top_reserve_px = owner.hud.header_height() + HEADER_GAP
 
 
 func connect_hud() -> void:

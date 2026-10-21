@@ -3,6 +3,9 @@ extends RefCounted
 
 
 static func build(hud: MatchHud) -> void:
+	hud.header = HeaderPanel.new()
+	hud.header.set_header_height(MatchHud.HEADER_HEIGHT)
+	hud.add_child(hud.header)
 	hud.top = Control.new()
 	hud._place(hud.top, Vector4(0, 0, 1, 0), Vector4(0, 0, 0, 520))
 	hud.top.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -18,14 +21,14 @@ static func build(hud: MatchHud) -> void:
 	hud.top.add_child(hud.settings_button)
 	# under the settings button: the TAGGED!/RESCUED! feed
 	hud.feed_box = VBoxContainer.new()
-	var feed_top: float = MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE + 12.0
+	var feed_top: float = MatchHud.HEADER_HEIGHT + 12.0
 	hud._place(hud.feed_box, Vector4(0, 0, 0, 0), Vector4(MatchHud.MARGIN, feed_top, MatchHud.MARGIN + MatchHud.FEED_SIZE.x, feed_top + MatchHud.FEED_SIZE.y * MatchHud.FEED_MAX + 12.0))
 	hud.feed_box.add_theme_constant_override("separation", 6)
 	hud.feed_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.top.add_child(hud.feed_box)
-	# right: the score card (points and the match clock)
+	# the middle of the header: the score (points and the match clock)
 	hud.scoreboard = Scoreboard.new()
-	hud._place(hud.scoreboard, Vector4(1, 0, 1, 0), Vector4(-MatchHud.MARGIN - MatchHud.SCORE_SIZE.x, MatchHud.TOP_ROW_Y, -MatchHud.MARGIN, MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y))
+	hud._place(hud.scoreboard, Vector4(0.5, 0, 0.5, 0), Vector4(-MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y, MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y))
 	hud.scoreboard.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.top.add_child(hud.scoreboard)
 	layout(hud)
@@ -37,7 +40,7 @@ static func layout(hud: MatchHud) -> void:
 		hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(80, -(hud.console_height() + 150.0), -80, -(hud.console_height() + 6.0)))
 	var gear: Vector4 = Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE)
 	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear)
-	var feed_top: float = MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE + 12.0
+	var feed_top: float = MatchHud.HEADER_HEIGHT + 12.0
 	hud._place(hud.feed_box, Vector4(0, 0, 0, 0), Vector4(MatchHud.MARGIN, feed_top, MatchHud.MARGIN + MatchHud.FEED_SIZE.x, feed_top + MatchHud.FEED_SIZE.y * MatchHud.FEED_MAX + 12.0))
 
 
