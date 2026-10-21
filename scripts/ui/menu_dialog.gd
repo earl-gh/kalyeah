@@ -126,6 +126,7 @@ func add_label(text: String, size: int = TEXT_SIZE, color: Color = Color.WHITE, 
 	label.text = text
 	label.horizontal_alignment = align
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
 	label.add_theme_font_size_override("font_size", size)
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_constant_override("outline_size", 0)

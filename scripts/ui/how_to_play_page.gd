@@ -47,7 +47,7 @@ func _card(number: int, step: Dictionary) -> Control:
 	title.name = "Title"
 	title.theme_type_variation = &"DisplayLabel"
 	title.text = (step["title"] as String).to_upper()
-	title.add_theme_font_size_override("font_size", 34)
+	title.add_theme_font_size_override("font_size", UiMetrics.TITLE)
 	title.add_theme_constant_override("outline_size", 6)
 	words.add_child(title)
 	var text: Label = UiKit.text(step["text"] as String, UiMetrics.DETAIL, Color("c9d6f2"))

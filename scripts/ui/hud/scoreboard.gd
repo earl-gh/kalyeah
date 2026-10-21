@@ -30,8 +30,8 @@ const PIP_SPACING: float = 17.0
 const PIP_LIFT: float = 14.0
 const NUMBER_RISE: float = 0.06
 ## A team's cell is this much wider than tall; its corners are this round.
-const CELL_ASPECT: float = 1.3
-const CELL_RADIUS: int = 14
+const CELL_ASPECT: float = 1.2
+const CELL_RADIUS: int = 16
 
 
 func show_score(score: MatchScore, my_team: int, match_time: float) -> void:
@@ -123,24 +123,9 @@ func _draw() -> void:
 			_round_rect(Rect2(track.position, Vector2(track.size.x * capture, track.size.y)), TeamColors.capture_own() if capture_ours else TeamColors.capture_enemy(), CAPTURE_HEIGHT / 2.0)
 
 
-## A team's cell: its colour with a lit edge, a soft sheen over the upper half and a shadow under, like a key on the deck.
+## A team's cell: its colour in a thick navy outline with a glossy sheen on the upper half, like a Clash Royale panel.
 func _draw_cell(rect: Rect2, color: Color) -> void:
-	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = color.darkened(0.12)
-	box.border_color = color.lightened(0.45)
-	box.set_border_width_all(2)
-	box.set_corner_radius_all(CELL_RADIUS)
-	box.anti_aliasing = true
-	box.shadow_color = Color(0.0, 0.0, 0.0, 0.4)
-	box.shadow_size = 6
-	box.shadow_offset = Vector2(0.0, 3.0)
-	draw_style_box(box, rect)
-	var sheen: StyleBoxFlat = StyleBoxFlat.new()
-	sheen.bg_color = Color(1.0, 1.0, 1.0, 0.13)
-	sheen.corner_radius_top_left = CELL_RADIUS - 2
-	sheen.corner_radius_top_right = CELL_RADIUS - 2
-	sheen.anti_aliasing = true
-	draw_style_box(sheen, Rect2(rect.position + Vector2(3.0, 3.0), Vector2(rect.size.x - 6.0, rect.size.y * 0.42)))
+	RoyaleStyle.chunky(self, rect, color.lightened(0.1), CELL_RADIUS)
 
 
 ## A row of dots centred on `centre`: filled white for a free kid, a dark hollow ring for a tagged one.

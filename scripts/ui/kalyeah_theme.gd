@@ -3,16 +3,24 @@ extends RefCounted
 ## Kalyeah's portrait UI system: calm grouped surfaces and direct controls, with
 ## the display face reserved for game identity and high-salience match moments.
 
-## Bungee gives display headings and HUD numbers their game identity.
+## Bungee is the one typeface (owner): headings, body copy, buttons, fields and HUD numbers all use it. Its capitals are tight and heavy, so the
+## roles differ by size, colour and tracking (extra space between letters and words) instead of by face:
+## display (titles, big numbers, the score) is untracked; body copy and buttons are opened a little; captions and section labels a little more.
 const DISPLAY_FONT: Font = preload("res://assets/fonts/bungee/Bungee-Regular.ttf")
-## The owner's Source Sans 3 (a variable font) for all regular text.
-const SOURCE_SANS: Font = preload("res://assets/fonts/source_sans_3/SourceSans3-Variable.ttf")
-## How heavy the regular text is (Source Sans 3 runs from 200 to 900; 400 is Regular).
-const BODY_WEIGHT: int = 500
-static var BODY_FONT: Font = _body_font()
-static var ACTION_FONT: Font = BODY_FONT
-## Buttons read heavier than body text (Source Sans 3 at weight 800) so a label holds up on a bright face.
-static var BUTTON_FONT: Font = _body_font(800)
+const BODY_TRACKING: int = 0
+const BUTTON_TRACKING: int = 0
+const CAPTION_TRACKING: int = 2
+## Extra space at every word gap: all-capital words run together without it.
+const WORD_GAP: int = 4
+## Extra space between the lines of wrapped text.
+const LINE_SPACING: int = 0
+## Paragraphs (descriptions, tips, hints) open their lines up a little more; tight tiles and buttons keep the default.
+const READING_LINE_SPACING: int = 6
+static var BODY_FONT: Font = _tracked(BODY_TRACKING, WORD_GAP)
+static var CAPTION_FONT: Font = _tracked(CAPTION_TRACKING, WORD_GAP)
+static var BUTTON_FONT: Font = _tracked(BUTTON_TRACKING, WORD_GAP - 2)
+## Numbers and the match's drawn text: untracked, so digits and scores stay compact.
+static var ACTION_FONT: Font = DISPLAY_FONT
 
 const INK: Color = Color("10192d")
 const INK_DEEP: Color = Color("080f1d")
@@ -40,12 +48,11 @@ const FONT_SIZE: int = UiMetrics.BODY
 const PANEL_PADDING: float = UiMetrics.PADDING
 
 
-static func _body_font(weight: int = BODY_WEIGHT) -> Font:
-	# Source Sans 3 for all regular text (owner), the same on every phone and in the browser
+static func _tracked(glyph: int, word: int) -> Font:
 	var font: FontVariation = FontVariation.new()
-	font.base_font = SOURCE_SANS
-	# the axis is addressed by its OpenType tag number ("wght")
-	font.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
+	font.base_font = DISPLAY_FONT
+	font.spacing_glyph = glyph
+	font.spacing_space = word
 	return font
 
 
@@ -64,16 +71,18 @@ static func build() -> Theme:
 	theme.set_color("font_color", "Label", TEXT)
 	theme.set_color("font_outline_color", "Label", INK_DEEP)
 	theme.set_constant("outline_size", "Label", 0)
+	theme.set_constant("line_spacing", "Label", LINE_SPACING)
 	theme.set_type_variation("DisplayLabel", "Label")
 	theme.set_font("font", "DisplayLabel", DISPLAY_FONT)
 	theme.set_color("font_color", "DisplayLabel", CREAM)
 	theme.set_color("font_outline_color", "DisplayLabel", INK_DEEP)
 	theme.set_constant("outline_size", "DisplayLabel", 3)
 	theme.set_type_variation("SectionLabel", "Label")
-	theme.set_font("font", "SectionLabel", DISPLAY_FONT)
+	theme.set_font("font", "SectionLabel", CAPTION_FONT)
 	theme.set_color("font_color", "SectionLabel", AMBER)
 	theme.set_constant("outline_size", "SectionLabel", 0)
 	theme.set_type_variation("MutedLabel", "Label")
+	theme.set_font("font", "MutedLabel", CAPTION_FONT)
 	theme.set_color("font_color", "MutedLabel", TEXT_MUTED)
 	theme.set_constant("outline_size", "MutedLabel", 0)
 	theme.set_type_variation("HudPill", "Label")
@@ -153,8 +162,8 @@ static func painted_button(color: String, pressed: bool = false, tint: Color = C
 	box.shadow_size = 0
 	box.content_margin_left = 20.0
 	box.content_margin_right = 20.0
-	box.content_margin_top = 15.0
-	box.content_margin_bottom = 15.0
+	box.content_margin_top = 21.0
+	box.content_margin_bottom = 21.0
 	box.anti_aliasing = true
 	return box
 

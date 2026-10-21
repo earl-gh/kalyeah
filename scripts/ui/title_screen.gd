@@ -231,6 +231,7 @@ func _build_titles() -> Control:
 	mode_text_label.add_theme_color_override("font_color", Color("c9d6f2"))
 	mode_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mode_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mode_text_label.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
 	titles.add_child(mode_text_label)
 	mode_chips = HBoxContainer.new()
 	mode_chips.name = "ModeChips"

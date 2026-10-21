@@ -75,7 +75,7 @@ func _build_setup(parent: Control) -> void:
 		screen._setup.add_child(screen._code_boxes)
 		var paste: Button = LobbyWidgets.button("Paste the code", screen.paste_code, "grey", UiMetrics.DETAIL)
 		paste.name = "PasteButton"
-		paste.custom_minimum_size = Vector2(0.0, 72.0)
+		paste.custom_minimum_size = Vector2(0.0, UiMetrics.MIN_TARGET)
 		screen._setup.add_child(paste)
 		screen._code_error = LobbyWidgets.label("", UiMetrics.DETAIL, KalyeahTheme.ERROR)
 		screen._code_error.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

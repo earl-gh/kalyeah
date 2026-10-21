@@ -69,7 +69,7 @@ static func build_intro(hud: MatchHud) -> void:
 	hud.intro_sub = Label.new()
 	hud._place(hud.intro_sub, Vector4(0, 0, 1, 0), Vector4(0, 72, 0, 112))
 	hud.intro_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hud.intro_sub.add_theme_font_size_override("font_size", 26)
+	hud.intro_sub.add_theme_font_size_override("font_size", UiMetrics.ACTION)
 	hud.intro_sub.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.1))
 	hud.intro_sub.add_theme_constant_override("outline_size", 6)
 	hud.intro_bar.add_child(hud.intro_sub)

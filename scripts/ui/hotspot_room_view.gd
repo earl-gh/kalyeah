@@ -118,8 +118,9 @@ func _build() -> void:
 	readiness_label = Label.new()
 	readiness_label.name = "Readiness"
 	readiness_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	readiness_label.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
 	readiness_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	readiness_label.add_theme_font_size_override("font_size", 26)
+	readiness_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
 	column.add_child(readiness_label)
 	action_button = MenuDialog.make_button("Ready", "orange", 32, Vector2(0.0, 88.0))
 	action_button.name = "ActionButton"
@@ -130,7 +131,8 @@ func _build() -> void:
 	status_label.name = "Status"
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	status_label.add_theme_font_size_override("font_size", 26)
+	status_label.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
+	status_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
 	status_label.add_theme_color_override("font_color", KalyeahTheme.ERROR)
 	status_label.visible = false
 	column.add_child(status_label)

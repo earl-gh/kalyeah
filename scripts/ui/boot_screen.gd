@@ -116,13 +116,14 @@ func _build() -> void:
 	_tip = Label.new()
 	_tip.text = TIPS[randi() % TIPS.size()]
 	_tip.add_theme_font_override("font", KalyeahTheme.BODY_FONT)
-	_tip.add_theme_font_size_override("font_size", 26)
+	_tip.add_theme_font_size_override("font_size", UiMetrics.ACTION)
 	_tip.add_theme_color_override("font_color", Color.WHITE)
 	_tip.add_theme_color_override("font_outline_color", Color(0.03, 0.05, 0.12))
 	_tip.add_theme_constant_override("outline_size", 8)
 	_tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_tip.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_tip.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
 	_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_tip)
 

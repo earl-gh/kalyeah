@@ -31,7 +31,7 @@ static func build(view: HotspotRoomView, id: String) -> Button:
 	var definition: CharacterDef = load("res://data/characters/%s.tres" % id) as CharacterDef
 	var label: Label = Label.new()
 	label.text = definition.display_name if definition != null else id.capitalize()
-	label.add_theme_font_size_override("font_size", 24)
+	label.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	label.offset_top = -36.0

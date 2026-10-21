@@ -45,6 +45,7 @@ func _ready() -> void:
 	hint.offset_left = 20.0
 	hint.offset_right = -20.0
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
 	hint.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", UiMetrics.DETAIL)

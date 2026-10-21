@@ -31,8 +31,8 @@ const CAST_BLOCK_TAGS: Dictionary[int, String] = {
 	StatusEffects.Type.KNOCKOUT: "DOWN",
 	StatusEffects.Type.POLYMORPH: "CAN",
 }
-## The header at the top of the screen (the same deck as the bottom, turned over): the settings button and the score sit in this row.
-const TOP_ROW_Y: float = 21.0
+## The header at the top of the screen (floating over the street, like Clash Royale): the settings button, the score and the clock sit in this row.
+const TOP_ROW_Y: float = 12.0
 const HEADER_HEIGHT: float = TOP_ROW_Y * 2.0 + 88.0
 const MARGIN: float = 14.0
 const GEAR_SIZE: float = UiMetrics.TOUCH

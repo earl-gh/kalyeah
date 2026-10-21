@@ -25,7 +25,7 @@ func _ready() -> void:
 		{"id": &"small", "label": "Small"},
 		{"id": &"normal", "label": "Normal"},
 		{"id": &"large", "label": "Large"},
-	], 72.0, UiMetrics.BODY)
+	], UiMetrics.MIN_TARGET, UiMetrics.BODY)
 	size_choice.name = "ControlSize"
 	size_choice.select(size_id(Settings.control_scale), false)
 	size_choice.chosen.connect(func(id: StringName) -> void: Settings.set_control_scale(Settings.CONTROL_SIZES[id]))
