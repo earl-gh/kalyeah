@@ -67,10 +67,10 @@ const BUILDING_WIDTH: float = 6.0
 const TERMINAL: String = "tricycle_terminal"
 ## Sidewalk pets and things (heights in metres, in proportion to the kids): the cat and the dog lie
 ## about, the chicken cage stands by a building, the drainage cover (a metre wide) is set in the walk.
-const CAT_HEIGHT: float = 0.45
-const DOG_HEIGHT: float = 0.75
+const CAT_HEIGHT: float = 0.3
+const DOG_HEIGHT: float = 0.62
 const CHICKEN_CAGE_HEIGHT: float = 0.9
-const DRAINAGE_COVER_WIDTH: float = 1.1
+const DRAINAGE_COVER_WIDTH: float = 0.75
 const SHADOW_DISTANCE: float = 400.0
 ## Painted ground sits just above the coloured road and sidewalk boxes.
 const PAVER_TILE: float = 2.4
@@ -108,9 +108,9 @@ const POST_HEIGHT: float = 8.5
 ## the kids (who stand 1.85 m, so a real thing is about 1.4 times its true size), side by side
 ## in this order (the far end starts half way along, so the two rows differ).
 const BARRIER_HEIGHTS: Dictionary[String, float] = {
-	"fishball_cart": 2.1, "tricycle": 2.4, "bench": 0.8, "crates": 0.85, "sacks": 1.0, "school_zone": 1.7,
+	"fishball_cart": 2.1, "tricycle": 2.4, "bench": 1.1, "crates": 1.1, "sacks": 1.0, "school_zone": 3.0,
 	"basketball_pole": 6.0, "ebike": 1.5, "truck_wheels": 1.4, "sewing_machine": 1.3, "ironing_board": 1.2,
-	"no_id_no_entry": 1.7, "rooster_tent": 1.4, "plank_fence": 1.8, "roof_wall": 2.2, "roof_wall_2": 2.4,
+	"no_id_no_entry": 1.7, "rooster_tent": 1.4, "plank_fence": 1.8, "roof_wall": 2.9, "roof_wall_2": 2.9,
 }
 ## Things whose long side is their depth: they are turned a quarter so the long side faces the play area.
 const BARRIER_TURNED: Array[String] = ["tricycle"]
@@ -121,7 +121,7 @@ const BARRIER_LYING: Array[String] = ["basketball_pole"]
 ## Parked beyond the barrier rows and on the sidewalk, outside the play area (heights in metres).
 const JEEP_HEIGHT: float = 2.8
 const PEDICAB_HEIGHT: float = 2.4
-const ICE_CREAM_CART_HEIGHT: float = 2.1
+const ICE_CREAM_CART_HEIGHT: float = 2.5
 const NANAY_HEIGHT: float = 2.2
 const NANAY_SWAY_DEGREES: float = 4.0
 const NANAY_SWAY_SECONDS: float = 3.5
@@ -428,7 +428,7 @@ func _add_obstacle(index: int) -> void:
 	var turned: bool = rect.size.y > rect.size.x
 	var footprint: Vector2 = Vector2(maxf(rect.size.x, rect.size.y), minf(rect.size.x, rect.size.y))
 	var id: String = String(OBSTACLE_MODELS.get(layout.obstacle_prop(index), "cardboard_wall"))
-	_add_prop(PropModel.fit(id, footprint, cover_height()), at, PI / 2.0 if turned else 0.0)
+	_add_prop(PropModel.fit(id, footprint, cover_height(), not diorama), at, PI / 2.0 if turned else 0.0)
 
 
 ## The base: a faint team-tinted circle round the post, cut off by the street edges,
@@ -463,7 +463,7 @@ func _add_jail(side: int) -> void:
 		var center: Vector2 = wall.get_center()
 		var turned: bool = wall.size.y > wall.size.x
 		var footprint: Vector2 = Vector2(maxf(wall.size.x, wall.size.y), minf(wall.size.x, wall.size.y))
-		_add_prop(PropModel.fit("cardboard_wall", footprint, cover_height()), Vector3(center.x, 0.0, center.y), PI / 2.0 if turned else 0.0)
+		_add_prop(PropModel.fit("cardboard_wall", footprint, cover_height(), not diorama), Vector3(center.x, 0.0, center.y), PI / 2.0 if turned else 0.0)
 
 
 ## The rescue area round the box: the same look as the base circle (a faint team fill and team
@@ -692,7 +692,7 @@ func _add_details() -> void:
 	var half_l: float = layout.lane_length / 2.0
 	var walk_x: float = half_w + layout.boundary_thickness + SIDEWALK_WIDTH / 2.0
 	var store_z: float = -layout.lane_length * 0.18
-	_add_prop(PropModel.fit("bench", Vector2(2.0, 0.7) * scenery(), scenery()), Vector3(-walk_x - 0.3, CURB_HEIGHT, store_z - 1.0), PI / 2.0)
+	_add_prop(PropModel.fit("bench", Vector2(2.0, 0.7) * scenery(), 1.1 * scenery(), true), Vector3(-walk_x - 0.3, CURB_HEIGHT, store_z - 1.0), PI / 2.0)
 	# the nanay stands by the bench, a little swaying as she waits
 	var nanay: Node3D = _add_prop(PropModel.by_height("nanay", NANAY_HEIGHT * scenery()), Vector3(-walk_x, CURB_HEIGHT, store_z + 0.3), PI / 2.0)
 	nanay.name = "Nanay"

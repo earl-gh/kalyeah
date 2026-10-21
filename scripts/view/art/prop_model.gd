@@ -42,10 +42,11 @@ static func by_height(id: String, height: float) -> Node3D:
 
 
 ## Fits a footprint (x, z) in metres, the long side along X: the height keeps the model's look
-## (the geometric mean of the two stretches) but never taller than `max_height`.
-static func fit(id: String, footprint: Vector2, max_height: float) -> Node3D:
+## (the geometric mean of the two stretches) but never taller than `max_height`; with `exact` it is
+## `max_height` (cover that has to read as cover, whatever the footprint's shape).
+static func fit(id: String, footprint: Vector2, max_height: float, exact: bool = false) -> Node3D:
 	var natural: Vector3 = size_of(id)
 	var sx: float = footprint.x / natural.x
 	var sz: float = footprint.y / natural.z
-	var sy: float = minf(sqrt(sx * sz), max_height / natural.y)
+	var sy: float = max_height / natural.y if exact else minf(sqrt(sx * sz), max_height / natural.y)
 	return make(id, Vector3(sx, sy, sz))
