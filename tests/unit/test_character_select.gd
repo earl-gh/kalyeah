@@ -240,6 +240,6 @@ func test_weapon_statistics_preserve_fractional_range_and_damage_units() -> void
 	var heavy: WeaponDef = load("res://data/weapons/gunting_heavy.tres") as WeaponDef
 	assert_string_contains(LoadoutCards.stat_line(heavy), "Range 3.5m")
 	var light: WeaponDef = load("res://data/weapons/gunting_light.tres") as WeaponDef
-	assert_string_contains(LoadoutCards.stat_line(light), "4 dmg / snip")
+	assert_string_contains(LoadoutCards.stat_line(light), "6 dmg / snip")
 	var field: WeaponDef = load("res://data/weapons/jacks.tres") as WeaponDef
 	assert_string_contains(LoadoutCards.stat_line(field), "3 dmg / 0.5s")

@@ -51,17 +51,19 @@ Status effects: `STUN` (no move/cast), `SLOW(x%)`, `AIRBORNE` (stun + vertical a
 - **Aim guide (cast-feedback pass, made quiet in the quiet pass):** while a weapon button is held the street shows as little as it can. **One thin white line** (about 4 px) for the shape the weapon will cover (cone, landing circle, lane, wall), drawn **only while you drag the aim by hand**; no fill, no range circle, no colour per weapon, no pulse. **A thin ring under every kid the cast would reach right now** (red enemy, green for a heal's patient), using the same tests as the real hit; a tap that auto-aims shows only these rings. When releasing would cast **nothing** (a homing rock with nobody locked in range, a heal dragged at nobody; neither spends cooldown) the line goes pale; over the Cancel mark it goes red. The scissors that snip more the longer you hold show **six short ticks in the wedge, one more lit for each snip you will get**. **Settings > Aim guide** turns all of it off (default on; not in the match menu, where Resume and Leave must stay in view) (`scripts/view/aim_indicator.gd`, `WeaponSystem.would_cast` / `would_reach`).
 - **Warning for the big snip (cast-feedback pass):** Gunting (heavy) lands 0.5 s after the cast, so its wedge shows on the ground at once for everyone: a thin red edge and a light red wedge that fills outward from the caster until the strike (it goes if the caster is tagged first). It is an event of the sim (`cone_winding`) relayed to online clients like `cone_struck`; it changes no rule.
 - **Hit burst (cast-feedback pass):** a kid who is hit gets a short flash and sparks (a third of a second; bigger for a bigger hit, a flash only with Reduce motion). Still **no damage numbers** (owner).
+**Crowd-control immunity (`cc_immunity`, 1 s):** once a hard crowd control (stun, airborne, bounce, knock-out, polymorph) runs out, a new one is ignored for 1 s, so one kid cannot be chained out of a round. Slows are never blocked, damage still lands, re-applying the *same* effect while it is still on still extends it, and a tag or rescue starts fresh.
+
 Statuses never stack: only one is active at a time and a new status of a different kind overwrites the current one. The same status re-applied keeps the longer time (SLOW keeps the stronger slow).
 
 | ID | Type | Shape | Range | Damage | Effect | CD |
 |---|---|---|---|---|---|---|
-| bato_light | ATK | targeted projectile, nearest enemy in range | 7 | 14 | — | 4 |
+| bato_light | ATK | targeted projectile, nearest enemy in range | 7 | 12 | — | 4 |
 | bato_heavy | ATK | ground AoE r=2.0, 0.6 s delay | 8 | 22 | STUN 2 s | 12 |
-| gunting_light | ATK | cone 60°, 3 m, 2–6 snips (by hold/tap) | 3 | 4/snip | — | 5 |
+| gunting_light | ATK | cone 60°, 3 m, 2–6 snips (by hold/tap) | 3 | 6/snip | — | 5 |
 | gunting_heavy | ATK | cone 60°, 3.5 m, 0.5 s delay | 3.5 | 24 | — | 9 |
 | papel_trap | CC | placed, 0.75 s arm; triggers r=1.5 → slow zone r=2.5, 3 s | 6 | 0 | SLOW 40% | 12 |
 | papel_shield | BLOCK | wall 3 m wide in front, 2.5 s, blocks enemy projectiles | — | — | — | 14 |
-| tsinelas_light | ATK | 3 boomerangs, fast, 0.15 s apart, out + back | 7 | 8 each way | — | 6 |
+| tsinelas_light | ATK | 3 boomerangs, fast, 0.15 s apart, out + back | 7 | 5 each way | — | 8 |
 | tsinelas_heavy | ATK | 1 large boomerang, slow, out + back | 8 | 18 each way | — | 10 |
 | lata | CC | thrown to point, r=1.5 | 7 | 5 | POLYMORPH 2 s | 14 |
 | jacks | CC | scatter field r=2.0, lasts 4 s | 6 | 3 per 0.5 s | SLOW 30% | 11 |
@@ -190,7 +192,7 @@ Losing application focus or pausing clears auto-run, touch ownership, pending re
 - **D8 / D9** Retired with the death delay (replaced by Tag).
 - **D17** Contested base (`capture_contested`): default on. **D18** Capture time: kept at 5 s; in bot rounds 5 s and 8 s gave the same results once bases are contested (see [round rules](audits/2026-10-21-round-rules.md)). **D19** Overtime: off. **D20** Timed release from the box: off online, 20 s in Practice. **D25** Box placement: each team's box is at the *enemy's* end, so a rusher who is tagged is rescued by teammates already there, while a defender tagged at home is sent across the whole street. Bot rounds favour the rusher because of it. Default unchanged (owner's design from the video); say if the box should move.
 - **D16** Tag defaults not given by the owner: one teammate in the box rescues **everyone** in it (`rescue_frees_all`, off = one per touch); rescued players keep their cooldowns; the tagged can't move inside the box; the capture counts **every** player of the team (so rescue first). Each capture wins one point; the match is best of 3, 5 or 7 (owner). Confirm or change.
-- **D10** With no basic attack, a loadout of only non-damaging weapons (e.g. `papel_trap` + `papel_shield`) deals no damage. Default: allowed; consider requiring at least one damaging weapon at pick time. In bot duels all six loadouts with no damaging weapon won 0 of their duels ([balance duels](audits/2026-10-20-balance-duels.md)); the default is still "allowed".
+- **D10** With no basic attack, a loadout of only non-damaging weapons (e.g. `papel_trap` + `papel_shield`) deals no damage. Default: allowed; consider requiring at least one damaging weapon at pick time. In bot duels all six loadouts with no damaging weapon won 0 of their duels ([balance duels](audits/2026-10-20-balance-duels.md)); the default is still "allowed". **Now:** still allowed, and the pick screen says *This pair deals no damage* when both weapons are harmless (decided in P2).
 - **D12** Unarmed papel trap lifetime (not in the brief): default 20 s.
 - **D13** ~~Respawn weapon swap~~ **Decided (owner): swap with no limit while waiting.** Now: while tagged (in the box) you can change weapons as often as you like. The **Change weapons** button on the tagged card opens the swap screen with your current weapons pre-picked (it no longer opens by itself, so you can watch your team come for you); every full pair applies at once; **Done** closes it. It closes when you are rescued. No swapping while free. A weapon kept across a swap keeps its cooldown.
 - **D14** *Heal* numbers were not given by the owner: defaults 30 HP, 12 s cooldown, 8 m range, 60° pick cone, tap = self (all in `data/weapons/heal.tres`). Confirm or change.
