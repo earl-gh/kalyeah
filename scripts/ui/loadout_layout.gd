@@ -45,7 +45,7 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	column.add_child(screen._character_row)
 	var sockets: HBoxContainer = HBoxContainer.new()
 	sockets.add_theme_constant_override("separation", UiMetrics.GAP)
-	column.add_child(LobbyWidgets.group(sockets, UiMetrics.GAP))
+	column.add_child(sockets)  # the sockets are the only plates: no second one around them
 	for slot: int in WeaponPick.SLOTS:
 		var socket: LoadoutSocket = LoadoutSocket.new()
 		socket.number = slot + 1

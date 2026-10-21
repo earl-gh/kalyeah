@@ -344,7 +344,7 @@ func _on_events(list: Array) -> void:
 		if event.size() != 3 or not targets.has(event[0] as String):
 			continue
 		var args: Array = (event[2] as Array).duplicate()
-		if event[1] == "cone_struck" and args.size() == 4:
+		if (event[1] == "cone_struck" or event[1] == "cone_winding") and args.size() == 4:
 			args[1] = mirror.weapon_defs.get(args[1] as StringName)
 			if args[1] == null:
 				continue

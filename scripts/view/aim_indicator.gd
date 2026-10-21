@@ -1,17 +1,27 @@
 class_name AimIndicator
 extends MeshInstance3D
-## Ground lines showing where a weapon will go while its button is held: the range
-## circle plus a shape-specific marker (cone, landing circle, lane, wall). A landing
-## circle stands alone: no line runs from the player to it.
-## Uses the sim's own aim helpers so the preview matches the real cast.
+## What the ground shows while a weapon button is held, kept as light as it can be so the street
+## stays readable: one thin line for the shape the weapon will cover (cone, landing circle, lane,
+## wall) only while you drag it by hand, a thin ring under every kid the cast would reach right now
+## (a tap that auto-aims shows only these rings), pale grey when releasing would cast nothing (no
+## cooldown spent), red over Cancel. No fills, no range circle, no pulse. A landing circle stands
+## alone: no line runs from the player to it. Uses the sim's own aim helpers so the preview matches
+## the real cast.
 
 const HEIGHT: float = 0.06
 const CIRCLE_POINTS: int = 40
-const READY_COLOR: Color = Color(1.0, 1.0, 1.0, 0.9)
-const CANCEL_COLOR: Color = Color(1.0, 0.3, 0.3, 0.9)
-const RANGE_COLOR: Color = Color(1.0, 1.0, 1.0, 0.45)
-const BOUNCE_MARK_RADIUS: float = 0.3
-const FILL_ALPHA: float = 0.22
+## How wide the line is on the ground (metres).
+const LINE_WIDTH: float = 0.18
+const LINE_COLOR: Color = Color(1.0, 1.0, 1.0, 0.8)
+const CANCEL_COLOR: Color = Color(1.0, 0.35, 0.3, 0.9)
+## Releasing would cast nothing: the preview goes pale and quiet.
+const NO_CAST_COLOR: Color = Color(0.8, 0.82, 0.88, 0.4)
+## The ring under a kid the cast would reach: red for an enemy, green for a heal's patient.
+const REACH_ENEMY: Color = Color(1.0, 0.3, 0.25, 0.9)
+const REACH_FRIEND: Color = Color(0.5, 1.0, 0.5, 0.9)
+const REACH_PAD: float = 0.25
+## How thick the wall of a paper shield / block of earth is drawn on the ground.
+const SHIELD_THICKNESS: float = 0.4
 
 var _mesh: ImmediateMesh = ImmediateMesh.new()
 var _material: StandardMaterial3D = StandardMaterial3D.new()
@@ -59,8 +69,7 @@ static func outline(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vec
 		WeaponDef.Shape.SHIELD:
 			var facing: Vector2 = sim.weapons.aim_direction(caster, aim)
 			var center: Vector2 = origin + facing * def.offset
-			var along: Vector2 = facing.orthogonal() * def.width / 2.0
-			lines.append(PackedVector2Array([center - along, center + along]))
+			lines.append(lane(center - facing * SHIELD_THICKNESS / 2.0, facing, SHIELD_THICKNESS, def.width / 2.0))
 	return lines
 
 
@@ -79,12 +88,58 @@ static func circle(center: Vector2, radius: float) -> PackedVector2Array:
 	return points
 
 
+## The charge pips of a cone that snips more the longer you hold (the little scissors): one short
+## tick across the wedge per possible snip, drawn near the far edge.
+static func snip_pips(origin: Vector2, direction: Vector2, def: WeaponDef) -> Array[PackedVector2Array]:
+	var pips: Array[PackedVector2Array] = []
+	if def.shape != WeaponDef.Shape.CONE or def.snips_max <= def.snips_min:
+		return pips
+	var spread: float = deg_to_rad(def.angle_degrees / 2.0) * 0.8
+	for i: int in def.snips_max:
+		var angle: float = -spread + 2.0 * spread * float(i) / float(maxi(def.snips_max - 1, 1))
+		var ray: Vector2 = direction.rotated(angle)
+		pips.append(PackedVector2Array([origin + ray * def.max_range * 0.62, origin + ray * def.max_range * 0.9]))
+	return pips
+
+
+## Thick line along `points` (metres wide, as flat triangles on the ground) added to a
+## TRIANGLES surface of `mesh`.
+static func ribbon(mesh: ImmediateMesh, points: PackedVector2Array, width: float, color: Color, height: float = HEIGHT) -> void:
+	var half: float = width / 2.0
+	for i: int in points.size() - 1:
+		var a: Vector2 = points[i]
+		var b: Vector2 = points[i + 1]
+		if a.is_equal_approx(b):
+			continue
+		var side: Vector2 = (b - a).normalized().orthogonal() * half
+		var corners: Array[Vector2] = [a + side, b + side, b - side, a + side, b - side, a - side]
+		for corner: Vector2 in corners:
+			mesh.surface_set_color(color)
+			mesh.surface_add_vertex(Vector3(corner.x, height, corner.y))
+
+
+## A filled convex polygon (a fan from its first point) added to a TRIANGLES surface of `mesh`.
+static func fill(mesh: ImmediateMesh, polygon: PackedVector2Array, color: Color, height: float = HEIGHT) -> void:
+	for i: int in range(1, polygon.size() - 2):
+		for point: Vector2 in [polygon[0], polygon[i], polygon[i + 1]]:
+			mesh.surface_set_color(color)
+			mesh.surface_add_vertex(Vector3(point.x, height, point.y))
+
+
+## The colour of the preview line.
+static func color_for(castable: bool, cancelled: bool) -> Color:
+	if cancelled:
+		return CANCEL_COLOR
+	return LINE_COLOR if castable else NO_CAST_COLOR
+
+
 func _ready() -> void:
 	mesh = _mesh
 	_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_material.vertex_color_use_as_albedo = true
 	_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_material.no_depth_test = true
+	_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material_override = _material
 
 
@@ -92,35 +147,41 @@ func clear() -> void:
 	_mesh.clear_surfaces()
 
 
-func show_aim(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector2, target_id: int, cancelled: bool) -> void:
-	show_lines(outline(sim, caster, def, aim, target_id), cancelled, def.max_range > 0.0)
+## `manual`: the finger is dragging the aim (the shape is drawn); a tap that auto-aims shows only the
+## rings under the kids it will reach.
+func show_aim(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector2, target_id: int, cancelled: bool,
+		hold_seconds: float = 0.0, manual: bool = true) -> void:
+	if not Settings.aim_guide:
+		_mesh.clear_surfaces()
+		return
+	var castable: bool = sim.weapons.would_cast(sim, caster, def, aim, target_id)
+	var rings: Array[PackedVector2Array] = []
+	var ring_colors: Array[Color] = []
+	for target: PlayerState in sim.weapons.would_reach(sim, caster, def, aim, target_id):
+		rings.append(circle(target.position, target.radius + REACH_PAD))
+		ring_colors.append(REACH_FRIEND if target.team == caster.team else REACH_ENEMY)
+	var shape: Array[PackedVector2Array] = []
+	if manual:
+		shape = outline(sim, caster, def, aim, target_id)
+		if def.max_range > 0.0 and not shape.is_empty():
+			shape.remove_at(0)  # the range circle: the shape already shows how far it goes
+		if def.shape == WeaponDef.Shape.TARGETED:
+			shape.clear()  # the ring under the target says it all
+	var pips: Array[PackedVector2Array] = snip_pips(caster.position, sim.weapons.aim_direction(caster, aim), def)
+	show_lines(shape, color_for(castable, cancelled), rings, ring_colors, pips, def.snip_count(hold_seconds))
 
 
-## Draws polylines; the first is drawn faint as the range circle when `has_range`.
-func show_lines(lines: Array[PackedVector2Array], cancelled: bool, has_range: bool = true, fill_index: int = -1) -> void:
+## Draws the shape lines, the rings under the kids reached and the snip pips (the first `pips_lit` are bright).
+func show_lines(lines: Array[PackedVector2Array], color: Color, rings: Array[PackedVector2Array] = [],
+		ring_colors: Array[Color] = [], pips: Array[PackedVector2Array] = [], pips_lit: int = 0) -> void:
 	_mesh.clear_surfaces()
-	var color: Color = CANCEL_COLOR if cancelled else READY_COLOR
-	_mesh.surface_begin(Mesh.PRIMITIVE_LINES)
-	for index: int in lines.size():
-		var line: PackedVector2Array = lines[index]
-		var line_color: Color = RANGE_COLOR if index == 0 and has_range and not cancelled else color
-		for i: int in line.size() - 1:
-			_mesh.surface_set_color(line_color)
-			_mesh.surface_add_vertex(Vector3(line[i].x, HEIGHT, line[i].y))
-			_mesh.surface_set_color(line_color)
-			_mesh.surface_add_vertex(Vector3(line[i + 1].x, HEIGHT, line[i + 1].y))
-	_mesh.surface_end()
-	if fill_index >= 0 and fill_index < lines.size():
-		_fill(lines[fill_index], Color(color.r, color.g, color.b, FILL_ALPHA))
-
-
-## A see-through fan fill of a closed polygon (the rectangle of a lane).
-func _fill(polygon: PackedVector2Array, color: Color) -> void:
-	if polygon.size() < 4:
+	if lines.is_empty() and rings.is_empty() and pips.is_empty():
 		return
 	_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i: int in range(1, polygon.size() - 2):
-		for point: Vector2 in [polygon[0], polygon[i], polygon[i + 1]]:
-			_mesh.surface_set_color(color)
-			_mesh.surface_add_vertex(Vector3(point.x, HEIGHT, point.y))
+	for line: PackedVector2Array in lines:
+		ribbon(_mesh, line, LINE_WIDTH, color)
+	for index: int in pips.size():
+		ribbon(_mesh, pips[index], LINE_WIDTH, color if index < pips_lit else Color(color, color.a * 0.35))
+	for index: int in rings.size():
+		ribbon(_mesh, rings[index], LINE_WIDTH, ring_colors[index])
 	_mesh.surface_end()

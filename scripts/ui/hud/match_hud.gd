@@ -70,11 +70,10 @@ var console: ConsolePanel
 var top: Control
 var scoreboard: Scoreboard
 var dpad: DPad
-var gear_surface: Panel
 var weapon_buttons: Array[AimButton] = []
 ## Weapon 1, weapon 2 (the order MatchInput uses).
 var aim_buttons: Array[AimButton] = []
-var cancel_zone: Control
+var cancel_zone: CancelMark
 var tagged_panel: TaggedPanel
 ## The opening show's banner along the bottom ("TAG THEIR BASE!").
 var intro_bar: Control
@@ -411,25 +410,17 @@ func toggle_menu() -> void:
 	menu.open()
 
 
-func _build_cancel_zone() -> Control:
-	var zone: Control = Control.new()
+func _build_cancel_zone() -> CancelMark:
+	var zone: CancelMark = CancelMark.new()
 	zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	zone.visible = false
 	add_child(zone)
-	var back: ColorRect = ColorRect.new()
-	_place(back, Vector4(0, 0, 1, 1), Vector4.ZERO)
-	back.color = Color(0.85, 0.15, 0.15, 0.55)
-	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	zone.add_child(back)
-	var label: Label = Label.new()
-	_place(label, Vector4(0, 0, 1, 1), Vector4.ZERO)
-	label.text = "Cancel"
-	label.add_theme_font_override("font", KalyeahTheme.ACTION_FONT)
-	label.add_theme_font_size_override("font_size", 24)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	zone.add_child(label)
 	return zone
+
+
+## The finger is (true) or is not (false) on the cancel mark: it lights up.
+func set_cancel_hot(hot: bool) -> void:
+	cancel_zone.hot = hot
 
 
 ## Anchors first, then offsets (setting an anchor can move offsets).

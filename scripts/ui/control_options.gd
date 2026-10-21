@@ -1,11 +1,15 @@
 class_name ControlOptions
 extends VBoxContainer
-## How the match controls sit under your thumbs: a left-handed switch and a size. Shared by the
+## How the match controls sit under your thumbs: a left-handed switch, a size and the aim guide. Shared by the
 ## Settings page and the in-match menu; changes apply to the controls at once.
 
 ## The switch (on = D-pad on the right, weapons on the left).
 var hand_toggle: UiToggle
 var size_choice: UiSegmented
+## On = a thin line and rings while you aim; off = nothing is drawn.
+var guide_toggle: UiToggle
+## In the match menu the list must stay short enough that Resume and Leave stay in view, so the aim guide is only on the Settings page.
+var in_match: bool = false
 
 
 func _ready() -> void:
@@ -27,6 +31,15 @@ func _ready() -> void:
 	size_choice.chosen.connect(func(id: StringName) -> void: Settings.set_control_scale(Settings.CONTROL_SIZES[id]))
 	add_child(UiKit.setting_row("Control size", "The D-pad and the weapon buttons", Control.new()))
 	add_child(size_choice)
+	if in_match:
+		Settings.controls_changed.connect(_refresh)
+		return
+	add_child(UiKit.divider())
+	guide_toggle = UiToggle.new()
+	guide_toggle.name = "AimGuide"
+	guide_toggle.set_state(Settings.aim_guide)
+	guide_toggle.toggled.connect(Settings.set_aim_guide)
+	add_child(UiKit.setting_row("Aim guide", "A thin line while you aim", guide_toggle))
 	Settings.controls_changed.connect(_refresh)
 
 
@@ -44,3 +57,5 @@ func _refresh() -> void:
 		hand_toggle.set_state(Settings.left_handed)
 	if is_instance_valid(size_choice):
 		size_choice.select(size_id(Settings.control_scale), false)
+	if is_instance_valid(guide_toggle):
+		guide_toggle.set_state(Settings.aim_guide)

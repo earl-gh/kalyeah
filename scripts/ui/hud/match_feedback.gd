@@ -69,5 +69,5 @@ func sync_hint(player: PlayerState, dpad: DPad, buttons: Array[AimButton], playi
 				hint.text = "Release to cancel" if button.over_cancel else "Release to cast · drag to cancel"
 				break
 		if hint.text.is_empty() and dpad.auto_run:
-			hint.text = "Auto-run · tap stick to stop"
+			hint.text = "Auto-run · tap the D-pad to stop"
 	hint.visible = not hint.text.is_empty()

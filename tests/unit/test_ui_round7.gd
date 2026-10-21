@@ -159,8 +159,9 @@ func test_every_chip_fill_keeps_white_text_readable() -> void:
 	}
 	for label: String in fills:
 		assert_gte(UiKit.contrast(fills[label], Color.WHITE), 4.5, "%s chip" % label)
-	for kind: int in WeaponsPage.KIND_CHIPS:
-		assert_gte(UiKit.contrast(WeaponsPage.KIND_CHIPS[kind], Color.WHITE), 4.5, "weapon kind %d" % kind)
+	# the weapon type is coloured words now (no pill): they must read on the dark card
+	for kind: int in WeaponsPage.KIND_COLORS:
+		assert_gte(UiKit.contrast((WeaponsPage.KIND_COLORS[kind] as Color).lightened(0.35), KalyeahTheme.SURFACE), 4.5, "weapon kind %d" % kind)
 
 
 # ---- profile sheet ----------------------------------------------------------------------

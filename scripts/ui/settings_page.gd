@@ -131,7 +131,7 @@ func refresh() -> void:
 
 
 ## Sound, vibration (phones only) and comfort, added to `parent` as setting rows.
-static func fill(parent: Control) -> void:
+static func fill(parent: Control, in_match: bool = false) -> void:
 	var sound: VBoxContainer = VBoxContainer.new()
 	sound.add_theme_constant_override("separation", 0)
 	var percent: Label = UiKit.text("%d%%" % roundi(Settings.volume * 100.0), UiMetrics.BODY, Color("ffd25a"), false)
@@ -158,7 +158,9 @@ static func fill(parent: Control) -> void:
 		parent.add_child(UiKit.divider())
 	parent.add_child(AccessibilityOptions.new())
 	parent.add_child(UiKit.divider())
-	parent.add_child(ControlOptions.new())
+	var controls: ControlOptions = ControlOptions.new()
+	controls.in_match = in_match
+	parent.add_child(controls)
 	var languages: Array[String] = Settings.available_languages()
 	if languages.size() > 1:
 		parent.add_child(UiKit.divider())
