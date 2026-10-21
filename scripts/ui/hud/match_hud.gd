@@ -40,7 +40,7 @@ const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## Controls (owner), as (distance from their screen edge, distance from the bottom) of each
 ## control's centre on the 720x1280 base: the movement stick at the bottom left, the two skill
 ## buttons at the bottom right, all in one row within thumb reach.
-## The Game Boy body at the bottom of the screen: the arena sits above it. The camera reserves the same height.
+## The controller deck at the bottom of the screen: the arena sits above it. The camera reserves the same height.
 const CONSOLE_HEIGHT: float = 294.0
 const ROW_HEIGHT: float = CONSOLE_HEIGHT / 2.0
 ## The most the bottom inset can add (a tall gesture bar), so the console never eats the street.
@@ -54,7 +54,7 @@ const DPAD_MARGIN: float = 170.0
 ## The skill buttons: big enough for a thumb (Apple's 44 pt is 84 px), a gap apart, the
 ## second against the right margin and the first to its left.
 const WEAPON_SIZE: float = 124.0
-## Like the A and B buttons of a Game Boy: weapon 2 (the nearer the edge) a little higher, weapon 1 beside it a little lower.
+## Staggered like the face buttons of a controller: weapon 2 (the nearer the edge) a little higher, weapon 1 beside it a little lower.
 const WEAPON_GAP: float = 0.0
 const WEAPON_STAGGER: float = 24.0
 const WEAPON_MARGIN: float = 34.0
@@ -69,7 +69,7 @@ const CANCEL_SIZE: Vector2 = Vector2(110.0, 100.0)
 var overhead: OverheadHud
 ## The red glow round the screen edge when you are hit (under the controls).
 var pulse: HurtPulse
-## The Game Boy body at the bottom (it only draws).
+## The controller deck at the bottom (it only draws).
 var console: ConsolePanel
 ## UI pixels of the screen's bottom edge the system keeps (home bar), set by the match screen.
 var bottom_inset: float = 0.0

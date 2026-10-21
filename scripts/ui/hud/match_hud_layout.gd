@@ -1,6 +1,6 @@
 class_name MatchHudLayout
 extends RefCounted
-## Where the match controls sit: the D-pad at the bottom left and the two skill buttons at the bottom right (like a Game Boy: weapon 2
+## Where the match controls sit: the D-pad at the bottom left and the two skill buttons at the bottom right (weapon 2
 ## a little higher than weapon 1), all in sockets on the console shell. Mirrored for a left-handed player, scaled by the control size
 ## setting and lifted by the bottom inset (the home bar). Split out of MatchHud so the HUD keeps to what it shows.
 
