@@ -2,6 +2,7 @@ extends SceneTree
 ## Plays whole rounds of tag between two teams of bots (TeamBrain) and counts who scores, how fast, and how often nobody does.
 ## Run headless, after an import:
 ##   godot --headless -s tools/balance/team_rounds.gd -- [--seeds 80] [--size 3] [--capture 5,8,12] [--seconds 120] [--skill 0.5]
+##                                                      [--only rush-defend,mixed-mixed]
 ## Every matchup is rush / defend / mixed (one rusher, the rest defend) for team 0 against team 1, so a team that always wins a mirror
 ## shows up as a bias, and a rule that makes rushing or turtling always right shows up as a lopsided matchup.
 ## Bots are crude (no cover use, rushers only rescue by a fixed rule), so read the direction and the size of a gap, not an exact number.
@@ -25,6 +26,8 @@ func _init() -> void:
 		print("== capture_time %s, contested %s" % [capture, str(rules.capture_contested)])
 		for size_text: String in sizes:
 			for matchup: Array in MATCHUPS:
+				if options.has("only") and not (options["only"] as String).split(",").has("%s-%s" % [matchup[0], matchup[1]]):
+					continue
 				_report(rules, layout, matchup, int(size_text), seeds, seconds, skill)
 	quit()
 
