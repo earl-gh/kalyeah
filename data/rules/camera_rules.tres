@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_camera")
 yaw_offset_degrees = 0.0
-pitch_degrees = 50.0
+pitch_degrees = 56.0
 lens_curve = 0.0
 vfov_degrees = 20.0
 frame_top = 0.12

@@ -16,7 +16,7 @@ func _corners(distance: float, aspect: float, shift: float) -> Array[Vector2]:
 
 
 func test_a_fixed_steep_camera_with_a_narrow_lens() -> void:
-	assert_eq(CAMERA.pitch_degrees, 50.0, "steep, so the arena reads like a board")
+	assert_eq(CAMERA.pitch_degrees, 56.0, "owner reference (Clash Royale): tilted, so fronts of kids and props show, yet the arena still reads like a board")
 	assert_eq(CAMERA.vfov_degrees, 20.0, "narrow: the far end is only a little smaller than the near end")
 	assert_eq(CAMERA.yaw_offset_degrees, 0.0, "straight along the street")
 	assert_eq(CameraRules.DESIGN_ASPECT, 9.0 / 16.0, "portrait 9:16")
