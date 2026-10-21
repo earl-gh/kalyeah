@@ -660,20 +660,26 @@ func _add_houses() -> void:
 	# the top end of the play area, a little in from its end line
 	var terminal_z: float = -layout.lane_length / 2.0 + 3.0
 	var variant: int = 0
+	# the shopfronts rotate through the slots along the play area only (so every shop shows however wide the lots are drawn)
+	var shops: int = 0
 	for side: float in [-1.0, 1.0]:
 		var spacing: float = HOUSE_SPACING * scenery()
 		var z: float = -half_l + spacing / 2.0
+		var played: int = 0
 		while z < half_l:
-			var id: String = BUILDINGS[(variant / 2) % BUILDINGS.size()] if variant % 2 == 0 else FILLER_HOUSES[(variant / 2) % FILLER_HOUSES.size()]
-			if absf(z) > layout.lane_length / 2.0:
-				# beyond the ends of the play area only houses, repeated (no shops, no terminal)
-				id = FILLER_HOUSES[variant % FILLER_HOUSES.size()]
+			var id: String = FILLER_HOUSES[variant % FILLER_HOUSES.size()]
+			if absf(z) <= layout.lane_length / 2.0:
+				# beside the play area: a shop, a house, a shop, ... (beyond its ends only houses, repeated: no shops, no terminal)
+				id = BUILDINGS[shops % BUILDINGS.size()] if played % 2 == 0 else FILLER_HOUSES[(played / 2) % FILLER_HOUSES.size()]
+				played += 1
 			if side < 0.0 and absf(z - store_z) < spacing / 2.0:
 				id = "nena_store"
 				z = store_z
 			elif side < 0.0 and absf(z - terminal_z) < spacing / 2.0:
 				id = TERMINAL
 				z = terminal_z
+			if BUILDINGS.has(id):
+				shops += 1
 			var natural: Vector3 = PropModel.size_of(id)
 			var scale_to: float = BUILDING_WIDTH * scenery() / natural.x
 			var depth: float = natural.z * scale_to

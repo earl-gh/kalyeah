@@ -7,7 +7,7 @@ const CAMERA: CameraRules = preload("res://data/rules/camera_rules.tres")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 var RULES: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 ## How far a thrown weapon's drawn size may be from the diameter of its hit circle.
-const THROWN_RANGE: Vector2 = Vector2(0.8, 2.1)
+const THROWN_RANGE: Vector2 = Vector2(0.8, 2.8)
 
 
 func _map() -> StreetMap:

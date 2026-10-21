@@ -33,6 +33,9 @@ const SPINNER_SPEED: float = 5.0
 var view_scale: float = 1.0
 ## How much smaller the health bar is drawn (CameraRules.bar_scale): the kids are small on a screen that shows the whole street.
 var bar_scale: float = 1.0
+## Words and counters never ride higher than this (the header's bottom edge), nor past the screen's sides: a kid at the street's far end
+## keeps its status readable instead of hiding under the header.
+var top_limit: float = 0.0
 
 var _sim: MatchSim
 var _camera: Camera3D
@@ -138,10 +141,17 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 	var status: String = _status_text(state)
 	var lift: float = 0.0
 	if not status.is_empty():
-		_text(_italic, status, head + Vector2(0.0, -8.0), STATUS_FONT, STATUS_COLOR, 6)
+		_text(_italic, status, keep_on_screen(head + Vector2(0.0, -8.0), _italic, status, STATUS_FONT), STATUS_FONT, STATUS_COLOR, 6)
 		lift = 22.0
 	if spinner_visible(state):
 		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.capture_elapsed / maxf(_sim.capture_needed, 0.001))
+
+
+## Where `text` is drawn: its centre pulled inside the screen's sides and its baseline kept under `top_limit`.
+func keep_on_screen(centre: Vector2, font: Font, text: String, font_size: int) -> Vector2:
+	var half: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x / 2.0 + 4.0
+	var x: float = clampf(centre.x, half, maxf(size.x - half, half))
+	return Vector2(x, maxf(centre.y, top_limit + float(font_size) + 4.0))
 
 
 ## A small shape at the left end of the bar that says whose kid it is without colour: a circle for an ally, a diamond for an enemy
