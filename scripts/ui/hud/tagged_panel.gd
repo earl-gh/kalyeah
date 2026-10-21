@@ -7,9 +7,9 @@ extends Control
 
 signal swap_pressed
 
-const INK: Color = Color(0.1, 0.06, 0.06)
-const TITLE_COLOR: Color = Color(1.0, 0.4, 0.34)
-const HINT_COLOR: Color = Color(0.78, 0.84, 0.97)
+const INK: Color = RoyaleStyle.NAVY
+const TITLE_COLOR: Color = RoyaleStyle.GOLD
+const HINT_COLOR: Color = RoyaleStyle.CREAM
 const WAIT_TEXT: String = "Tagged · Wait for a rescue"
 const HINT_TEXT: String = "Teammates can run into your box to set you free."
 ## The same side margin the controls keep.

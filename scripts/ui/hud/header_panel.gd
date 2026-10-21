@@ -1,8 +1,7 @@
 class_name HeaderPanel
 extends Control
-## The top of the match screen, the same controller deck as the bottom turned over: graphite that is darkest at the screen's edge, rounded
-## bottom corners with a thin lit lip along them and a soft shadow on the street. The settings button and the score sit on it. The arena
-## stays below it (the camera reserves the same height). It only draws; it never takes a touch.
+## The top of the match screen (owner: like Clash Royale): no deck, only the settings button, the score and the clock floating over the street
+## on a soft dark shade. The camera reserves its height so the whole arena stays clear of them. It only draws; it never takes a touch.
 
 
 func _init() -> void:
@@ -19,22 +18,9 @@ func set_header_height(height: float) -> void:
 
 
 func _draw() -> void:
+	# no deck at the top (like Clash Royale): the pieces float over the street on a soft dark shade that fades out below them
 	var w: float = size.x
 	var h: float = size.y
-	var corner: float = ConsolePanel.CORNER
-	var shell: StyleBoxFlat = StyleBoxFlat.new()
-	shell.bg_color = ConsolePanel.BODY_TOP
-	shell.corner_radius_bottom_left = int(corner)
-	shell.corner_radius_bottom_right = int(corner)
-	shell.anti_aliasing = true
-	shell.shadow_color = Color(0.0, 0.0, 0.0, 0.4)
-	shell.shadow_size = 16
-	draw_style_box(shell, Rect2(0.0, -30.0, w, h + 30.0))
-	# darkest at the screen's edge, lifting toward the lip
-	var edge: Color = Color(ConsolePanel.BODY_BOTTOM, 1.0)
-	var clear: Color = Color(ConsolePanel.BODY_BOTTOM, 0.0)
-	draw_polygon(PackedVector2Array([Vector2(0.0, 0.0), Vector2(w, 0.0), Vector2(w, h - corner), Vector2(0.0, h - corner)]), PackedColorArray([edge, edge, clear, clear]))
-	# the lit lip along the rounded bottom
-	draw_arc(Vector2(corner, h - corner), corner - 1.5, PI * 0.5, PI, 16, ConsolePanel.LIP, 3.0, true)
-	draw_arc(Vector2(w - corner, h - corner), corner - 1.5, 0.0, PI * 0.5, 16, ConsolePanel.LIP, 3.0, true)
-	draw_line(Vector2(corner, h - 1.5), Vector2(w - corner, h - 1.5), ConsolePanel.LIP, 3.0, true)
+	var dark: Color = Color(RoyaleStyle.NAVY, 0.6)
+	var clear: Color = Color(RoyaleStyle.NAVY, 0.0)
+	draw_polygon(PackedVector2Array([Vector2(0.0, 0.0), Vector2(w, 0.0), Vector2(w, h + 16.0), Vector2(0.0, h + 16.0)]), PackedColorArray([dark, dark, clear, clear]))
