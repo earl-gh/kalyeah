@@ -154,6 +154,7 @@ func _build_map_section() -> Control:
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	map_card = ChoiceCard.make_card("", "Agawan Base", "blue", MAP_CARD)
 	map_card.name = "MapCard"
+	map_card.accessibility_name = "Map: Agawan Base"
 	map_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map_card.focus_mode = Control.FOCUS_NONE
 	map_card.pressed.connect(open_map_carousel)
@@ -377,7 +378,7 @@ static func _readiness(room: Dictionary) -> String:
 		if member.get("player_id", -1) != room.get("host", -2) and not member.get("ready", false):
 			unready += 1
 	if room.get("can_start_host", false):
-		return "Ready to play · First to %d" % (int(room.get("best_of", 3)) / 2 + 1)
+		return "Ready to play"
 	if maxi(teams[0], teams[1]) < n or mini(teams[0], teams[1]) < maxi(1, n - 1):
 		return "Waiting for players"
 	if unready > 0:

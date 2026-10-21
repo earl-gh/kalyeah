@@ -159,8 +159,9 @@ func test_every_chip_fill_keeps_white_text_readable() -> void:
 	}
 	for label: String in fills:
 		assert_gte(UiKit.contrast(fills[label], Color.WHITE), 4.5, "%s chip" % label)
-	for kind: int in WeaponsPage.KIND_CHIPS:
-		assert_gte(UiKit.contrast(WeaponsPage.KIND_CHIPS[kind], Color.WHITE), 4.5, "weapon kind %d" % kind)
+	# the weapon type is coloured words now (no pill): they must read on the dark card
+	for kind: int in WeaponsPage.KIND_COLORS:
+		assert_gte(UiKit.contrast((WeaponsPage.KIND_COLORS[kind] as Color).lightened(0.35), KalyeahTheme.SURFACE), 4.5, "weapon kind %d" % kind)
 
 
 # ---- profile sheet ----------------------------------------------------------------------
@@ -246,8 +247,10 @@ func test_copying_the_room_code_is_answered_with_a_toast() -> void:
 
 func test_the_gallery_is_reached_from_settings_and_keeps_the_settings_tab_lit() -> void:
 	var screen: TitleScreen = _screen()
+	Settings.set_developer(true)
 	screen.open_page(&"settings")
 	screen.settings_page.gallery_button.pressed.emit()
+	Settings.set_developer(false)
 	assert_eq(screen.current_page, &"gallery")
 	assert_true(screen.gallery_page.visible)
 	assert_eq(screen.tab_bar.active, &"settings", "it is a part of Settings")

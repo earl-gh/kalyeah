@@ -25,6 +25,8 @@ What is built, what is next, and the rules for building it. Rules and numbers li
 | Lobby and match UI refinement | Narrow-phone lobby and loadout layouts, concise room states, unified match announcements, and a score card with clock and best-of context |
 | UI rebuild, phase 1 | A code-drawn game skin (`UiSkin`: glossy buttons that sink into a lip, lit panels, soft shadows), a component kit, and a rebuilt Home (hero carousel, tab bar), pages, dialogs and room cards. Round 2 added the Loadout, the shared choice buttons, a Play-only top bar and a gold-only-for-the-main-action rule. The Weapons page groups by street game or by type into headed sections of tiles, with a detail sheet. The match HUD waits for a device-checked pass. Critique and decisions: [UI rebuild](audits/2026-10-20-ui-rebuild-critique.md). |
 
+| Lead review, P0 and P1 | The stranded UI, cast-feedback and sparring-bot work on `main`; fair round rules (no team-0 tie-break, contested bases, optional overtime and timed box release) and a team-round bot harness. [Review](audits/2026-10-21-lead-review.md), [round rules](audits/2026-10-21-round-rules.md). Next: P2 weapons, P3 practice 3v3 vs bots, P4 UI polish. |
+
 ## Short-phone GUI follow-up
 
 Loadout uses compact touch-sized portraits, full-width weapon effects/stats and a
@@ -71,7 +73,7 @@ Budgets (M6): 60 fps on a recommended Android phone, 30+ on the minimum; APK und
 - No player name above the health bar.
 - A status such as *Stunned* is **italic** and shown **above** the health bar.
 - (Superseded: no cooldown bars under the health bar since dash and the pin were removed.)
-- Skill buttons are art only, plus the weapon type (ATK, CC or BLK) as a small tag. No health panel in the top-left corner.
+- Skill buttons are art only, plus the weapon type (Attack, Control, Block or Heal, in capitals) as a small tag. No health panel in the top-left corner.
 
 ### Camera spec (owner): exactly League of Legends
 - Pitch **56°** from horizontal, field of view **30°** (vertical), far camera with a flat perspective.

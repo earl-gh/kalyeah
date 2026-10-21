@@ -49,42 +49,41 @@ func test_row_one_is_six_profile_cards_in_3_by_4() -> void:
 	assert_eq(tops.size(), 1, "all six are in one row")
 
 
-func test_row_two_has_a_tab_per_street_game_and_one_page_shows() -> void:
+func test_the_weapons_are_a_grid_of_three_across_and_all_of_them_are_there() -> void:
 	var screen: WeaponPickScreen = _screen(_picking())
-	assert_true(screen.find_child("Tabs", true, false) is ScrollContainer, "game tabs scroll instead of clipping")
-	var tabs: Array[Node] = screen.find_children("Tab_*", "Button", true, false)
-	var games: Array[String] = []
-	for def: WeaponDef in _rules().weapons:
-		if not games.has(def.street_game):
-			games.append(def.street_game)
-	assert_eq(tabs.size(), games.size())
-	assert_true(games.has("Bato-bato-pik") and games.has("Tumbang preso"))
-	var shown: int = 0
-	for page: Node in screen.find_children("Page_*", "VBoxContainer", true, false):
-		if (page as Control).visible:
-			shown += 1
-	assert_eq(shown, 1, "only the open tab's weapons show")
-	screen.open_tab("Tumbang preso")
-	assert_eq(screen.current_tab(), "Tumbang preso")
-	assert_true((screen.find_child("Weapon_lata", true, false) as Control).is_visible_in_tree())
-	assert_false((screen.find_child("Weapon_bato_light", true, false) as Control).is_visible_in_tree())
-
-
-func test_a_weapon_card_has_art_then_the_name_with_its_description_below() -> void:
-	var screen: WeaponPickScreen = _screen(_picking())
-	screen.open_tab("Tumbang preso")
-	var card: Button = screen.find_child("Weapon_lata", true, false) as Button
-	var art: TextureRect = card.find_children("*", "TextureRect", true, false)[0] as TextureRect
-	assert_not_null(art.texture, "painted art")
-	var description: Label = card.find_child("Description", true, false) as Label
-	assert_false(description.text.is_empty(), "a description")
-	var name_label: Label = card.find_children("*", "Label", true, false)[0] as Label
-	var def: WeaponDef = load("res://data/weapons/lata.tres") as WeaponDef
-	assert_string_contains(name_label.text, def.display_name)
-	assert_string_contains(name_label.text, def.kind_label())
+	var grid: GridContainer = screen.find_child("WeaponGrid", true, false) as GridContainer
+	assert_not_null(grid)
+	assert_eq(grid.columns, 3)
+	assert_eq(grid.get_child_count(), _rules().weapons.size(), "a tile for every weapon")
+	assert_true(screen.find_child("Weapons", true, false) is ScrollContainer, "the grid scrolls, the slots and Ready stay")
+	assert_null(screen.find_child("Tabs", true, false), "no tabs: one grid")
 	await wait_frames(2)
-	assert_lt(art.global_position.x, name_label.global_position.x, "the art is on the left")
-	assert_gt(description.global_position.y, name_label.global_position.y, "the description is below the name")
+	var tops: Dictionary = {}
+	for tile: Node in grid.get_children():
+		tops[snappedf((tile as Control).global_position.y, 1.0)] = true
+	assert_gt(tops.size(), 1)
+	var first_row: Array[float] = []
+	for i: int in 3:
+		first_row.append((grid.get_child(i) as Control).global_position.y)
+	assert_eq(first_row[0], first_row[1], "three tiles in the first row")
+	assert_eq(first_row[1], first_row[2])
+
+
+func test_a_weapon_tile_has_art_a_name_and_its_kind_and_the_info_panel_has_the_words() -> void:
+	var screen: WeaponPickScreen = _screen(_picking())
+	var tile: Button = screen.find_child("Weapon_lata", true, false) as Button
+	var art: TextureRect = tile.find_child("Art", true, false) as TextureRect
+	assert_not_null(art.texture, "painted art")
+	var def: WeaponDef = load("res://data/weapons/lata.tres") as WeaponDef
+	assert_eq((tile.find_child("WeaponName", true, false) as Label).text, def.display_name)
+	assert_eq((tile.find_child("Kind", true, false) as Label).text, "Control")
+	assert_null(tile.find_child("Description", true, false), "the words are in the info panel, once")
+	screen.tap(&"lata")
+	assert_eq(screen.focused, &"lata")
+	assert_eq((screen.find_child("Description", true, false) as Label).text, def.description)
+	assert_eq((screen.find_child("InfoName", true, false) as Label).text, def.display_name)
+	await wait_frames(2)
+	assert_lt(art.global_position.y, (tile.find_child("WeaponName", true, false) as Label).global_position.y, "the art is above the name")
 
 
 func test_every_weapon_has_a_description() -> void:

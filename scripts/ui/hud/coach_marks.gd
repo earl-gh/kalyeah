@@ -1,7 +1,7 @@
 class_name CoachMarks
 extends Control
 ## The first-run walkthrough over a practice match: the screen dims, a round spotlight shows the control being
-## explained (the joystick, then the weapon buttons), and a card says what to do in one or two sentences. Four
+## explained (the dpad, then the weapon buttons), and a card says what to do in one or two sentences. Four
 ## steps: move, aim and throw, how a point is scored, what being tagged means. Next goes on, Skip (or Back on
 ## Android) ends it. It runs once, the first time you play practice, and is replayed from Settings, How to play.
 ## While it shows the match's own controls are off, so a stray touch cannot throw anything.
@@ -29,10 +29,10 @@ var _spots: Array[Vector3] = []
 var _pulse: Tween
 
 
-## The four steps. `target` names what is lit: joystick, skills, or nothing.
+## The four steps. `target` names what is lit: dpad, skills, or nothing.
 static func steps_for(capture_seconds: float, points_to_win: int) -> Array[Dictionary]:
 	return [
-		{"title": "Move", "target": &"joystick", "text": "Drag the circle on the left to run. Let go to stop."},
+		{"title": "Move", "target": &"dpad", "text": "Press a direction on the D-pad to run. Let go to stop."},
 		{"title": "Aim and throw", "target": &"skills", "text": "Hold a weapon button, drag to aim, then let go to throw. You carry the two weapons you picked."},
 		{"title": "Score a point", "target": &"",
 			"text": "Get your whole team into the enemy base and hold it for %s seconds, or tag everyone on the other team. First to %d points wins." % [String.num(capture_seconds, 0 if is_equal_approx(capture_seconds, roundf(capture_seconds)) else 1), points_to_win]},
@@ -161,8 +161,8 @@ func _spots_for(target: StringName) -> Array[Vector3]:
 	if _hud == null:
 		return found
 	var controls: Array[Control] = []
-	if target == &"joystick":
-		controls.append(_hud.joystick)
+	if target == &"dpad":
+		controls.append(_hud.dpad)
 	elif target == &"skills":
 		for button: AimButton in _hud.aim_buttons:
 			controls.append(button)

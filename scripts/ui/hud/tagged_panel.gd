@@ -96,6 +96,7 @@ func sync(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 		_portraits[i].texture = KidModel.portrait(other.character_id)
 		_names[i].text = _display_name(sim, other)
 		_states[i].text = "Tagged" if other.tagged else ""
+		card.accessibility_name = "%s, %s: watch" % [_names[i].text, "tagged" if other.tagged else ("your teammate" if ally else "an opponent")]
 		_portraits[i].modulate = Color(0.55, 0.55, 0.6) if other.tagged else Color.WHITE
 		for state: String in ["normal", "hover", "pressed", "disabled"]:
 			card.add_theme_stylebox_override(state, _card_box(OWN if ally else ENEMY))
@@ -156,9 +157,10 @@ func _build_card(row: HBoxContainer) -> void:
 	card.add_theme_stylebox_override("focus", KalyeahTheme.focus_ring(16))
 
 
+## No fill behind a portrait (the sheet is already the container): a thin ring in the player's team colour.
 func _card_box(team: Color) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = Color(KalyeahTheme.SURFACE_RAISED, 0.94)
+	box.bg_color = Color(0.0, 0.0, 0.0, 0.0)
 	box.set_corner_radius_all(14)
 	box.border_color = team
 	box.set_border_width_all(2)

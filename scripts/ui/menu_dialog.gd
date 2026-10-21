@@ -213,7 +213,7 @@ func reopen() -> void:
 
 func _focus_first() -> void:
 	if is_open and is_visible_in_tree():
-		UiFocus.first(self)
+		UiFocus.first(self, Settings.keyboard_active)
 
 
 func _input(event: InputEvent) -> void:
@@ -221,6 +221,10 @@ func _input(event: InputEvent) -> void:
 		return
 	var current: Control = get_viewport().gui_get_focus_owner()
 	if current == null or not is_ancestor_of(current):
+		# a dialog opened by touch has no focus ring; the first key press brings it
+		if event.is_action_pressed("ui_focus_next") or event.is_action_pressed("ui_focus_prev") or event.is_action_pressed("ui_down") or event.is_action_pressed("ui_up"):
+			UiFocus.first(self, true)
+			get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("ui_focus_next") or event.is_action_pressed("ui_focus_prev"):
 		UiFocus.advance(self, event.is_action_pressed("ui_focus_prev"))

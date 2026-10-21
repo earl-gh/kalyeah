@@ -138,6 +138,7 @@ func _groups(id: StringName) -> Array[Dictionary]:
 func _tile(weapon: WeaponDef) -> Button:
 	var tile: Button = Button.new()
 	tile.name = String(weapon.id)
+	tile.accessibility_name = "%s, %s: read about this weapon" % [weapon.display_name, weapon.kind_label()]
 	tile.custom_minimum_size = Vector2(0.0, TILE_HEIGHT)
 	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tile.focus_mode = Control.FOCUS_ALL
@@ -171,8 +172,8 @@ func _tile(weapon: WeaponDef) -> Button:
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(name_label)
 	# the other axis of the grouping as a chip: the kind under a game, the game under a type
-	var kind: PanelContainer = UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, KIND_CHIPS.get(weapon.kind, UiKit.CHIP_SLATE) as Color, Color.WHITE, 20)
-	var game: PanelContainer = UiKit.chip(weapon.street_game, UiKit.CHIP_SLATE, Color.WHITE, 20)
+	var kind: PanelContainer = UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, KIND_CHIPS.get(weapon.kind, UiKit.CHIP_SLATE) as Color, Color.WHITE, UiMetrics.MIN_TEXT)
+	var game: PanelContainer = UiKit.chip(weapon.street_game, UiKit.CHIP_SLATE, Color.WHITE, UiMetrics.MIN_TEXT)
 	for chip: PanelContainer in [kind, game]:
 		chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -287,16 +288,8 @@ static func fraction_of(caption: String, weapon: WeaponDef, maxima: Dictionary) 
 	return clampf(value / top, 0.0, 1.0) if top > 0.0 else 0.0
 
 
-## One stat: its name, a bar as full as it is next to every other weapon, and the exact number (`compact`: a slimmer
-## row without the number, for a card that already prints its numbers).
-static func bar_row(caption: String, value: String, fraction: float, compact: bool = false) -> Control:
-	var row: HBoxContainer = HBoxContainer.new()
-	row.name = "Stat_%s" % caption
-	row.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
-	var name_label: Label = UiKit.text(caption, UiMetrics.CAPTION, Color("9fb0d6"), false)
-	name_label.custom_minimum_size = Vector2(90.0 if compact else 120.0, 0.0)
-	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(name_label)
+## A stat meter: a dark track and a fill in the stat's colour, `fraction` full.
+static func meter_bar(caption: String, fraction: float, height: float) -> ProgressBar:
 	var meter: ProgressBar = ProgressBar.new()
 	meter.name = "Meter"
 	meter.min_value = 0.0
@@ -304,7 +297,7 @@ static func bar_row(caption: String, value: String, fraction: float, compact: bo
 	meter.step = 0.001
 	meter.value = fraction
 	meter.show_percentage = false
-	meter.custom_minimum_size = Vector2(0.0, 16.0 if compact else 26.0)
+	meter.custom_minimum_size = Vector2(0.0, height)
 	meter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	meter.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var track: StyleBoxFlat = StyleBoxFlat.new()
@@ -317,6 +310,20 @@ static func bar_row(caption: String, value: String, fraction: float, compact: bo
 	fill.anti_aliasing = true
 	meter.add_theme_stylebox_override("background", track)
 	meter.add_theme_stylebox_override("fill", fill)
+	return meter
+
+
+## One stat: its name, a bar as full as it is next to every other weapon, and the exact number (`compact`: a slimmer
+## row without the number, for a card that already prints its numbers).
+static func bar_row(caption: String, value: String, fraction: float, compact: bool = false) -> Control:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "Stat_%s" % caption
+	row.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	var name_label: Label = UiKit.text(caption, UiMetrics.CAPTION, Color("9fb0d6"), false)
+	name_label.custom_minimum_size = Vector2(90.0 if compact else 120.0, 0.0)
+	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(name_label)
+	var meter: ProgressBar = meter_bar(caption, fraction, 16.0 if compact else 26.0)
 	row.add_child(meter)
 	var number: Label = Label.new()
 	number.name = "Value"

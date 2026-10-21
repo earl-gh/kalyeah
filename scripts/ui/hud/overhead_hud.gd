@@ -11,7 +11,7 @@ const BAR_SIZE: Vector2 = Vector2(92.0, 13.0)
 const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 const POPUP_TIME: float = 0.9
 const POPUP_RISE: float = 56.0
-const STATUS_FONT: int = 19
+const STATUS_FONT: int = 22
 const POPUP_FONT: int = 30
 ## Italic = the regular font slanted (the bundled font has no italic face).
 const ITALIC_SLANT: float = -0.22
@@ -62,9 +62,11 @@ func text_for(id: int) -> String:
 
 
 func _status_text(state: PlayerState) -> String:
-	var words: PackedStringArray = state.effects.display_names()
+	var words: PackedStringArray = PackedStringArray()
 	if state.tagged:
-		words.insert(0, "Tagged")
+		words.append(UiText.t("Tagged"))
+	for word: String in state.effects.display_names():
+		words.append(UiText.t(word))
 	return " · ".join(words)
 
 
@@ -138,7 +140,7 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 		_text(_italic, status, head + Vector2(0.0, -8.0), STATUS_FONT, STATUS_COLOR, 6)
 		lift = 22.0
 	if spinner_visible(state):
-		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.capture_elapsed / _sim.rules.capture_time)
+		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.capture_elapsed / maxf(_sim.capture_needed, 0.001))
 
 
 ## A spinning ring over a hero holding the enemy base: the ring fills as the point

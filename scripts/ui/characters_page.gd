@@ -42,6 +42,7 @@ func _card(id: String) -> Button:
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.custom_minimum_size = Vector2(0.0, CARD.y)
 	card.tooltip_text = "About %s" % id.capitalize()
+	card.accessibility_name = "%s: read about this kid" % definition.display_name
 	for state: String in ["normal", "hover"]:
 		card.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, 22))
 	for state: String in ["pressed", "hover_pressed"]:
@@ -142,7 +143,7 @@ static func _palette(character: CharacterDef) -> Control:
 		box.anti_aliasing = true
 		dot.add_theme_stylebox_override("panel", box)
 		column.add_child(dot)
-		var caption: Label = UiKit.text(String(swatch["label"]), 18, Color("9fb0d6"), false)
+		var caption: Label = UiKit.text(String(swatch["label"]), UiMetrics.MIN_TEXT, Color("9fb0d6"), false)
 		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		column.add_child(caption)
 		row.add_child(column)

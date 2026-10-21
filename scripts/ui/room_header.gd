@@ -14,7 +14,7 @@ static func build(view: HotspotRoomView) -> Control:
 	row.add_child(view.back_button)
 	var title: Label = Label.new()
 	title.name = "Title"
-	title.text = "Lobby"
+	title.text = "Room"
 	title.theme_type_variation = &"DisplayLabel"
 	title.add_theme_font_size_override("font_size", UiMetrics.TITLE)
 	title.add_theme_color_override("font_color", KalyeahTheme.CREAM)
@@ -26,6 +26,7 @@ static func build(view: HotspotRoomView) -> Control:
 	view.settings_button.name = "SettingsButton"
 	view.settings_button.flat = true
 	view.settings_button.tooltip_text = "Settings"
+	view.settings_button.accessibility_name = "Settings"
 	view.settings_button.custom_minimum_size = Vector2(88.0, 88.0)
 	view.settings_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	for state: String in ["normal", "hover", "pressed"]:

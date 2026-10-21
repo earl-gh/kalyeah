@@ -20,6 +20,7 @@ func _init(owner: PracticeMatch) -> void:
 
 func setup_hud() -> void:
 	owner.input.camera_yaw = owner._camera.rules.yaw_offset_degrees
+	owner._camera.bottom_reserve_px = MatchHud.CONSOLE_HEIGHT
 	Cinematic.add_lens(owner, owner._camera.rules.lens_k())
 	Cinematic.add_film_finish(owner)
 	owner.hud.overhead.setup(owner.sim, owner._camera, owner.local_id, owner.local_team)
@@ -30,7 +31,7 @@ func setup_hud() -> void:
 
 
 func connect_hud() -> void:
-	owner.hud.joystick.changed.connect(owner.set_stick)
+	owner.hud.dpad.changed.connect(owner.set_stick)
 	for slot: int in owner.hud.aim_buttons.size():
 		owner.hud.aim_buttons[slot].aim_started.connect(owner.aim_started.bind(slot))
 		owner.hud.aim_buttons[slot].aim_released.connect(owner.aim_released.bind(slot))
@@ -59,7 +60,7 @@ func connect_sim() -> void:
 	owner.sim.point_scored.connect(_on_point_scored)
 	owner.sim.match_won.connect(_on_match_won)
 	owner.sim.point_reset.connect(func() -> void:
-		owner.hud.joystick.release())
+		owner.hud.dpad.release())
 	owner.sim.intro_finished.connect(func() -> void:
 		owner.show_banner("GO!")
 		# the first practice match (or a replay from How to play) opens with the walkthrough
@@ -125,6 +126,7 @@ func _sync_actor(state: PlayerState, delta: float) -> void:
 
 func _sync_aim(player: PlayerState) -> void:
 	var any_aiming: bool = false
+	var any_cancelling: bool = false
 	for slot: int in MatchInput.SLOTS:
 		if player.tagged:
 			break
@@ -145,20 +147,23 @@ func _sync_aim(player: PlayerState) -> void:
 		var def: WeaponDef = owner.sim.weapon_defs[player.weapons[slot]]
 		var aim: Vector2 = owner.sim.resolved_aim(player, slot, stick)
 		owner._aim_indicator.show_aim(
-			owner.sim, player, def, aim, owner.sim.resolved_target(player, slot), cancelled
+			owner.sim, player, def, aim, owner.sim.resolved_target(player, slot), cancelled, maxf(player.aim_hold[slot], 0.0),
+			stick.length() >= owner.sim.rules.aim_deadzone
 		)
 		any_aiming = true
+		any_cancelling = cancelled
 		break
 	if not any_aiming:
 		owner._aim_indicator.clear()
 	owner.hud.cancel_zone.visible = owner.input.any_touch_held()
+	owner.hud.set_cancel_hot(any_cancelling)
 
 
 func _play_intro_shot() -> void:
 	var best_of: int = owner.sim.score.best_of
 	owner.hud.show_intro(
 		"TAG THEIR BASE!",
-		"BO%d  •  FIRST TO %d" % [best_of, owner.sim.score.points_to_win()]
+		"BEST OF %d" % best_of
 	)
 	if Settings.reduced_motion:
 		owner._camera.place(owner._flip())

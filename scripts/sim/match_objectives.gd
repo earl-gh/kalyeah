@@ -79,20 +79,41 @@ func all_enemies_tagged(sim: MatchSim, team: int, brains: Dictionary[int, DummyB
 	return true
 
 
-## The capture countdown runs while a team keeps a capture going (whole team in the
-## enemy base, or every enemy tagged); it restarts as soon as that breaks.
+## A free player of the team that owns the base `team` is invading stands in that base.
+func base_defended(sim: MatchSim, team: int) -> bool:
+	var enemy_side: int = -sim.side_for_team(team)
+	for id: int in sim.players:
+		var other: PlayerState = sim.players[id]
+		if other.team != team and not other.tagged and sim.layout.in_base(enemy_side, other.position):
+			return true
+	return false
+
+
+## `team` is all in the enemy base but a defender still stands there, so the capture cannot run.
+func base_contested_by(sim: MatchSim, team: int, brains: Dictionary[int, DummyBrain]) -> bool:
+	return sim.rules.capture_contested and team_in_enemy_base(sim, team, brains) and base_defended(sim, team)
+
+
+## The capture countdown runs while exactly one team keeps a capture going (whole team in the enemy base with
+## nobody defending it, or every enemy tagged); it restarts as soon as that breaks. When both teams qualify at
+## once (a mirror rush) nobody's countdown runs: the tie is broken by tagging, not by which team has the lower number.
 func check_captures(sim: MatchSim, brains: Dictionary[int, DummyBrain], dt: float) -> void:
 	var team: int = -1
 	var kind: MatchSim.CaptureKind = MatchSim.CaptureKind.NONE
+	var running: int = 0
 	for candidate: int in [0, 1]:
-		if team_in_enemy_base(sim, candidate, brains):
+		var how: MatchSim.CaptureKind = MatchSim.CaptureKind.NONE
+		if team_in_enemy_base(sim, candidate, brains) and not base_contested_by(sim, candidate, brains):
+			how = MatchSim.CaptureKind.BASE
+		elif all_enemies_tagged(sim, candidate, brains):
+			how = MatchSim.CaptureKind.ALL_TAGGED
+		if how != MatchSim.CaptureKind.NONE:
+			running += 1
 			team = candidate
-			kind = MatchSim.CaptureKind.BASE
-			break
-		if all_enemies_tagged(sim, candidate, brains):
-			team = candidate
-			kind = MatchSim.CaptureKind.ALL_TAGGED
-			break
+			kind = how
+	if running != 1:
+		team = -1
+		kind = MatchSim.CaptureKind.NONE
 	if team != sim.capture_team or kind != sim.capture_kind:
 		sim.capture_team = team
 		sim.capture_kind = kind
@@ -100,14 +121,14 @@ func check_captures(sim: MatchSim, brains: Dictionary[int, DummyBrain], dt: floa
 	if team < 0:
 		return
 	sim.capture_elapsed += dt
-	if sim.capture_elapsed >= sim.rules.capture_time:
+	if sim.capture_elapsed >= sim.capture_needed:
 		_score_point(sim, team, kind)
 
 
 func capture_time_left(sim: MatchSim) -> float:
 	if sim.capture_team < 0:
 		return 0.0
-	return maxf(0.0, sim.rules.capture_time - sim.capture_elapsed)
+	return maxf(0.0, sim.capture_needed - sim.capture_elapsed)
 
 
 func end_freeze(sim: MatchSim) -> void:
@@ -148,6 +169,8 @@ func _clear_capture(sim: MatchSim) -> void:
 func _reset_round(sim: MatchSim) -> void:
 	sim.weapons.reset()
 	_clear_capture(sim)
+	sim.round_time = 0.0
+	sim.capture_needed = sim.rules.capture_time
 	for id: int in sim.players:
 		var state: PlayerState = sim.players[id]
 		var was_tagged: bool = state.tagged
