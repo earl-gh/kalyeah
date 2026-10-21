@@ -35,6 +35,8 @@ plus half the draws, averaged over every loadout that contains the weapon. The b
 - The six loadouts with no damaging weapon still win 0 duels; the warning on the pick screen is the answer, not a block.
 - **Crowd-control immunity** is not visible in the duel table (the bots rarely chain). Its tests are in `tests/unit/test_cc_immunity.gd`.
 - Side bias stays at 50/50.
+- **Round harness after the change** (3v3, random loadouts, 30 seeds): rush vs guard 26 / 0 with 4 stalled, mixed vs mixed 2 / 0 with 28 stalled, about 1.3 to 2.7
+  tags per round: the same shape as before the weapon pass, so the round rules from P1 are not disturbed.
 
 ## Not decided here (your call)
 - `bato_light` is still the easiest damage in the game (it homes) and the top duel weapon at 79%. If new players dominate with it, lower it again (12 to 11)
