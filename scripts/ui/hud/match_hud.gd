@@ -73,7 +73,7 @@ var dpad: DPad
 var weapon_buttons: Array[AimButton] = []
 ## Weapon 1, weapon 2 (the order MatchInput uses).
 var aim_buttons: Array[AimButton] = []
-var cancel_zone: Control
+var cancel_zone: CancelMark
 var tagged_panel: TaggedPanel
 ## The opening show's banner along the bottom ("TAG THEIR BASE!").
 var intro_bar: Control
@@ -174,6 +174,7 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	# disabled while on cooldown too: no pressing or precasting until ready
 	var weapons_off: bool = not playing or not player.effects.can_cast()
 	feedback.sync_hint(player, dpad, aim_buttons, playing)
+	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 	for slot: int in weapon_buttons.size():
 		var button: AimButton = weapon_buttons[slot]
 		if slot >= player.weapons.size():
@@ -186,6 +187,10 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 			button.icon_id = def.id
 			button.sub_color = WeaponPickScreen.kind_color(def.kind)
 			button.queue_redraw()
+			button.accessibility_name = "Weapon %d: %s, %s" % [slot + 1, def.display_name, def.kind_label()]
+		var cooldown_words: String = "Hold and drag to aim, let go to throw" if player.weapon_cooldowns[slot] <= 0.0 else "Ready in %d seconds" % ceili(player.weapon_cooldowns[slot])
+		if button.accessibility_description != cooldown_words:
+			button.accessibility_description = cooldown_words
 		button.blocked_text = _block_tag(player) if playing else ""
 		button.set_locked(weapons_off or player.weapon_cooldowns[slot] > 0.0)
 		button.set_cooldown(player.weapon_cooldowns[slot], def.cooldown)
@@ -204,6 +209,7 @@ func _block_tag(player: PlayerState) -> String:
 ## Top row: the score card; the capture countdown; banners and the feed fade out.
 func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1) -> void:
 	scoreboard.show_score(sim.score, local_team, sim.match_time)
+	scoreboard.show_capture(sim, local_team)
 	_sync_capture(sim, local_team)
 	again_button.visible = sim.phase == MatchSim.Phase.MATCH_OVER
 	results.set_over(sim.phase == MatchSim.Phase.MATCH_OVER, sim, local_id, local_team, results_mode)
@@ -216,8 +222,13 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 
 ## "CAPTURING 3" for us, "DEFEND! 3" against us, in the middle of the screen.
 func _sync_capture(sim: MatchSim, local_team: int) -> void:
-	capture_label.visible = sim.capture_team >= 0 and sim.phase == MatchSim.Phase.PLAYING
+	var contested: bool = sim.base_contested_by(local_team) or sim.base_contested_by(1 - local_team)
+	capture_label.visible = (sim.capture_team >= 0 or contested) and sim.phase == MatchSim.Phase.PLAYING
 	if not capture_label.visible:
+		return
+	if sim.capture_team < 0:
+		capture_label.text = "CONTESTED!"
+		capture_label.add_theme_color_override("font_color", CAPTURE_COLOR)
 		return
 	var seconds: int = ceili(sim.capture_time_left())
 	var ours: bool = sim.capture_team == local_team
@@ -292,6 +303,8 @@ func _build() -> void:
 	weapon_buttons = [weapon_one, weapon_two]
 	aim_buttons = [weapon_one, weapon_two]
 	dpad = DPad.new()
+	dpad.accessibility_name = "Movement pad"
+	dpad.accessibility_description = "Press a direction to run; let go to stop"
 	dpad.rest_fraction = Vector2(0.5, 0.5)
 	dpad.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dpad)
@@ -347,6 +360,7 @@ func _build() -> void:
 func layout_controls() -> void:
 	var scale_by: float = Settings.control_scale
 	var mirrored: bool = Settings.left_handed
+	MatchHudTop.layout(self)
 	var weapon: float = WEAPON_SIZE * scale_by
 	var gap: float = WEAPON_GAP * scale_by
 	var stagger: float = WEAPON_STAGGER * scale_by
@@ -401,25 +415,17 @@ func toggle_menu() -> void:
 	menu.open()
 
 
-func _build_cancel_zone() -> Control:
-	var zone: Control = Control.new()
+func _build_cancel_zone() -> CancelMark:
+	var zone: CancelMark = CancelMark.new()
 	zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	zone.visible = false
 	add_child(zone)
-	var back: ColorRect = ColorRect.new()
-	_place(back, Vector4(0, 0, 1, 1), Vector4.ZERO)
-	back.color = Color(0.85, 0.15, 0.15, 0.55)
-	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	zone.add_child(back)
-	var label: Label = Label.new()
-	_place(label, Vector4(0, 0, 1, 1), Vector4.ZERO)
-	label.text = "Cancel"
-	label.add_theme_font_override("font", KalyeahTheme.ACTION_FONT)
-	label.add_theme_font_size_override("font_size", 24)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	zone.add_child(label)
 	return zone
+
+
+## The finger is (true) or is not (false) on the cancel mark: it lights up.
+func set_cancel_hot(hot: bool) -> void:
+	cancel_zone.hot = hot
 
 
 ## Anchors first, then offsets (setting an anchor can move offsets).

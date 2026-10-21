@@ -50,16 +50,16 @@ func _buttons() -> Control:
 	grid.add_theme_constant_override("h_separation", UiMetrics.COMPACT_GAP)
 	grid.add_theme_constant_override("v_separation", UiMetrics.COMPACT_GAP)
 	for variant: String in VARIANTS:
-		var live: Button = MenuDialog.make_button(variant.capitalize(), variant, UiMetrics.DETAIL, Vector2(0.0, 72.0))
+		var live: Button = MenuDialog.make_button(variant.capitalize(), variant, UiMetrics.DETAIL, Vector2(0.0, UiMetrics.TOUCH))
 		live.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		grid.add_child(live)
-		var pressed: Button = MenuDialog.make_button("%s pressed" % variant.capitalize(), variant, UiMetrics.DETAIL, Vector2(0.0, 72.0))
+		var pressed: Button = MenuDialog.make_button("%s pressed" % variant.capitalize(), variant, UiMetrics.DETAIL, Vector2(0.0, UiMetrics.TOUCH))
 		pressed.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		pressed.focus_mode = Control.FOCUS_NONE
 		pressed.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		pressed.add_theme_stylebox_override("normal", UiSkin.button(variant, "pressed"))
 		grid.add_child(pressed)
-	var off: Button = MenuDialog.make_button("Disabled", "grey", UiMetrics.DETAIL, Vector2(0.0, 72.0))
+	var off: Button = MenuDialog.make_button("Disabled", "grey", UiMetrics.DETAIL, Vector2(0.0, UiMetrics.TOUCH))
 	off.disabled = true
 	off.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.add_child(off)
@@ -87,7 +87,7 @@ func _chips() -> Control:
 		var ratio: float = UiKit.contrast(spec["fill"] as Color, Color.WHITE)
 		chip_ratios[String(spec["text"])] = ratio
 		var good: bool = ratio >= CONTRAST_BAR
-		var note: Label = UiKit.text("%.1f:1 %s" % [ratio, "ok" if good else "too low"], UiMetrics.CAPTION - 4,
+		var note: Label = UiKit.text("%.1f:1 %s" % [ratio, "ok" if good else "too low"], UiMetrics.MIN_TEXT,
 			KalyeahTheme.SUCCESS if good else KalyeahTheme.ERROR, false)
 		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		column.add_child(note)
@@ -102,15 +102,17 @@ func _controls() -> Control:
 	switches.add_theme_constant_override("separation", UiMetrics.GAP)
 	var off: UiToggle = UiToggle.new()
 	off.name = "SwitchOff"
+	off.accessibility_name = "Example switch, off"
 	switches.add_child(off)
 	switches.add_child(UiKit.text("Off", UiMetrics.DETAIL, KalyeahTheme.TEXT_MUTED, false))
 	var on: UiToggle = UiToggle.new()
 	on.name = "SwitchOn"
+	on.accessibility_name = "Example switch, on"
 	on.set_state(true)
 	switches.add_child(on)
 	switches.add_child(UiKit.text("On", UiMetrics.DETAIL, KalyeahTheme.TEXT_MUTED, false))
 	column.add_child(switches)
-	var segmented: UiSegmented = UiSegmented.new([{"id": &"a", "label": "One"}, {"id": &"b", "label": "Two"}], 68.0)
+	var segmented: UiSegmented = UiSegmented.new([{"id": &"a", "label": "One"}, {"id": &"b", "label": "Two"}], UiMetrics.TOUCH)
 	segmented.select(&"a", false)
 	column.add_child(segmented)
 	for sample: Dictionary in [{"label": "Room code boxes: empty, typing, wrong, shown", "text": ""}]:
@@ -136,6 +138,7 @@ func _controls() -> Control:
 	field.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
 	column.add_child(field)
 	var slider: HSlider = HSlider.new()
+	slider.accessibility_name = "Example slider"
 	slider.min_value = 0.0
 	slider.max_value = 1.0
 	slider.step = 0.05
@@ -164,13 +167,13 @@ func _feedback() -> Control:
 	row.add_theme_constant_override("h_separation", UiMetrics.COMPACT_GAP)
 	row.add_theme_constant_override("v_separation", UiMetrics.COMPACT_GAP)
 	for tone: String in UiToast.KINDS:
-		var button: Button = MenuDialog.make_button("Toast: %s" % tone, "grey", UiMetrics.DETAIL, Vector2(0.0, 72.0))
+		var button: Button = MenuDialog.make_button("Toast: %s" % tone, "grey", UiMetrics.DETAIL, Vector2(0.0, UiMetrics.TOUCH))
 		button.name = "Toast_%s" % tone
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.pressed.connect(func() -> void: UiToast.say(self, "This is a %s message" % tone, tone))
 		row.add_child(button)
 	column.add_child(row)
-	column.add_child(UiStatusStrip.strip("Connecting...", "wait"))
+	column.add_child(UiStatusStrip.strip("Connecting…", "wait"))
 	column.add_child(UiStatusStrip.strip("Connection lost. Try again.", "error"))
 	column.add_child(UiStatusStrip.strip("This is a preview: a real room needs the Android app.", "info"))
 	return column

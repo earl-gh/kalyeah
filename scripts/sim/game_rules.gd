@@ -28,6 +28,17 @@ extends Resource
 ## Scoring: a capture (the whole team in the enemy base, or every enemy tagged) has
 ## to hold this long to win the point.
 @export var capture_time: float = 0.0
+## A base capture does not run while a free player of the defending team stands in that base (the defenders must
+## be tagged or leave first). Off: only the capture time decides.
+@export var capture_contested: bool = true
+## Overtime: once a round has gone on this long (seconds, 0 = never) the capture time drops to `overtime_capture_time`,
+## so a round always ends.
+@export var overtime_after: float = 0.0
+@export var overtime_capture_time: float = 0.0
+## A tagged player walks out of the box alone after this many seconds (0 = they wait for a rescue), online and in rooms.
+@export var tag_release_time: float = 0.0
+## The same, for a Practice match.
+@export var practice_tag_release_time: float = 0.0
 ## The opening show before the first round (both teams at their posts, then GO!).
 @export var intro_time: float = 0.0
 ## Freeze after a point before everyone is reset to their posts.
@@ -44,6 +55,16 @@ extends Resource
 @export var dummy_patrol_speed_scale: float = 0.0
 @export var dummy_ally_x: float = 0.0
 @export var dummy_ally_z: float = 0.0
+## Practice sparring partners: how many of the enemy dummies fight back (the patrol one first, then the
+## standing one), how close an enemy must come before one reacts, the seconds between its casts, how far off
+## its aim can be (degrees) and the share of its weapon reach it likes to keep from an enemy.
+@export var practice_fighters: int = 0
+@export var bot_aggro_range: float = 0.0
+@export var bot_cast_gap: float = 0.0
+@export var bot_aim_error_degrees: float = 0.0
+@export var bot_standoff_share: float = 0.0
+## How well a bot aims, 0 (at where you are) to 1 (at where you will be, with little error).
+@export var bot_skill: float = 0.0
 
 
 ## Fixed simulation step in seconds (1 / tick_rate).

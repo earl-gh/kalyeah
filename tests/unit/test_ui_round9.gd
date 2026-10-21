@@ -168,7 +168,15 @@ func test_the_mode_facts_come_from_the_rules() -> void:
 	assert_eq(rules.best_of_choices, [3, 5, 7] as Array[int], "the numbers below follow this")
 	assert_eq(screen.mode_facts("hotspot"), ["2 to 6 players", "Best of 3, 5 or 7"] as Array[String])
 	assert_eq(screen.mode_facts("online"), ["2 to 6 players", "Join with a code"] as Array[String])
+	var shipped: GameRules = load("res://data/rules/game_rules.tres") as GameRules
+	var kept: int = shipped.practice_fighters
+	shipped.practice_fighters = 1
+	assert_eq(screen.mode_facts("practice"), ["Solo", "A sparring partner"] as Array[String], "one dummy fights back (practice_fighters)")
+	shipped.practice_fighters = 2
+	assert_eq(screen.mode_facts("practice"), ["Solo", "2 sparring partners"] as Array[String])
+	shipped.practice_fighters = 0
 	assert_eq(screen.mode_facts("practice"), ["Solo", "Dummies don't fight back"] as Array[String])
+	shipped.practice_fighters = kept
 	assert_eq(RoomService.MAX_TEAM_SIZE * 2, 6)
 
 

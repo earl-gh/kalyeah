@@ -1,7 +1,7 @@
 class_name UiStatusStrip
 extends RefCounted
-## How a screen's status line looks: a tinted strip, amber while waiting ("Connecting...", "Looking for the
-## room..."), red for a problem ("Connection lost. Try again."), blue for a plain note. The line itself stays
+## How a screen's status line looks: a tinted strip, amber while waiting ("Connecting…", "Looking for the
+## room…"), red for a problem ("Connection lost. Try again."), blue for a plain note. The line itself stays
 ## the screen's own Label (so what it says and when it shows are unchanged); this only dresses it.
 
 const KINDS: Dictionary[String, Color] = {

@@ -20,7 +20,7 @@ func test_the_state_needs_the_android_app_and_a_network_address() -> void:
 func test_create_checks_then_goes_to_the_room_when_the_hotspot_is_on() -> void:
 	var went: Array = []
 	var card: MenuDialog = _open(HotspotDialogs.create_check(func() -> void: went.append(true), func() -> void: pass, true, PHONE_HOTSPOT))
-	assert_eq((card.find_child("Message", true, false) as Label).text, "Checking local connection...", "it shows the loading state first")
+	assert_eq((card.find_child("Message", true, false) as Label).text, "Checking local connection…", "it shows the loading state first")
 	assert_true(went.is_empty())
 	await wait_seconds(HotspotDialogs.CHECK_SECONDS + 0.4)
 	assert_eq(went.size(), 1, "and goes to the room")

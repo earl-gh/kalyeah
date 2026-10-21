@@ -16,6 +16,18 @@ var theirs: int = 0
 var best_of: int = 3
 ## Whole seconds of play shown on the clock.
 var seconds: int = 0
+## How far the running capture is, 0 to 1 (-1: none runs), and whether it is your team's.
+var capture: float = -1.0
+var capture_ours: bool = true
+
+const CAPTURE_HEIGHT: float = 7.0
+## Lighter than the score boxes it runs along, so the fill reads against them.
+const CAPTURE_OWN: Color = Color(0.62, 0.8, 1.0)
+const CAPTURE_ENEMY: Color = Color(1.0, 0.62, 0.6)
+const CAPTURE_INSET: float = 14.0
+const CAPTURE_TRACK: Color = Color(0.0, 0.0, 0.0, 0.5)
+## Progress is shown in steps of this much, so the card is not redrawn every frame for nothing.
+const CAPTURE_STEP: float = 0.02
 
 
 func show_score(score: MatchScore, my_team: int, match_time: float) -> void:
@@ -25,6 +37,29 @@ func show_score(score: MatchScore, my_team: int, match_time: float) -> void:
 		theirs = values[1]
 		best_of = values[2]
 		seconds = values[3]
+		_describe()
+		queue_redraw()
+
+
+func _ready() -> void:
+	_describe()
+
+
+func _describe() -> void:
+	accessibility_name = "Score: you %d, them %d, best of %d, time %s" % [mine, theirs, best_of, clock_text()]
+
+
+## The strip along the card's lower edge that fills while a team holds the other base (or the other team is all
+## tagged): blue when it is yours, red when it is theirs. Hidden when no capture runs.
+func show_capture(sim: MatchSim, my_team: int) -> void:
+	var value: float = -1.0
+	var ours: bool = capture_ours
+	if sim.capture_team >= 0 and sim.phase == MatchSim.Phase.PLAYING:
+		value = snappedf(clampf(sim.capture_elapsed / maxf(sim.capture_needed, 0.001), 0.0, 1.0), CAPTURE_STEP)
+		ours = sim.capture_team == my_team
+	if not is_equal_approx(value, capture) or ours != capture_ours:
+		capture = value
+		capture_ours = ours
 		queue_redraw()
 
 
@@ -49,7 +84,12 @@ func _draw() -> void:
 	_center_text(KalyeahTheme.ACTION_FONT, str(mine), Vector2(6.0 + box * 0.625, h / 2.0), BIG_FONT, Color.WHITE)
 	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), Vector2(w - 6.0 - box * 0.625, h / 2.0), BIG_FONT, Color.WHITE)
 	_center_text(KalyeahTheme.BODY_FONT, clock_text(), Vector2(w / 2.0, h * 0.36), SMALL_FONT + 4, Color.WHITE)
-	_center_text(KalyeahTheme.ACTION_FONT, "BO%d" % best_of, Vector2(w / 2.0, h * 0.72), SMALL_FONT, KalyeahTheme.AMBER)
+	_center_text(KalyeahTheme.ACTION_FONT, UiText.f("BO%d", [best_of]), Vector2(w / 2.0, h * 0.72), SMALL_FONT, KalyeahTheme.AMBER)
+	if capture >= 0.0:
+		var track: Rect2 = Rect2(CAPTURE_INSET, h - 6.0 - CAPTURE_HEIGHT, w - CAPTURE_INSET * 2.0, CAPTURE_HEIGHT)
+		_round_rect(track, CAPTURE_TRACK, CAPTURE_HEIGHT / 2.0)
+		if capture > 0.0:
+			_round_rect(Rect2(track.position, Vector2(track.size.x * capture, track.size.y)), CAPTURE_OWN if capture_ours else CAPTURE_ENEMY, CAPTURE_HEIGHT / 2.0)
 
 
 func _round_rect(rect: Rect2, color: Color, radius: float) -> void:

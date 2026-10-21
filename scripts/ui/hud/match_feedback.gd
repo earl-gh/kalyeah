@@ -62,12 +62,12 @@ func sync_hint(player: PlayerState, dpad: DPad, buttons: Array[AimButton], playi
 		hint.hide()
 		return
 	if not player.effects.can_cast():
-		hint.text = "%s · skills unavailable" % ", ".join(player.effects.display_names())
+		hint.text = "%s · weapons unavailable" % ", ".join(player.effects.display_names())
 	else:
 		for button: AimButton in buttons:
 			if button.aiming:
 				hint.text = "Release to cancel" if button.over_cancel else "Release to cast · drag to cancel"
 				break
 		if hint.text.is_empty() and dpad.auto_run:
-			hint.text = "Auto-run · tap stick to stop"
+			hint.text = "Auto-run · tap the D-pad to stop"
 	hint.visible = not hint.text.is_empty()

@@ -11,6 +11,9 @@ enum ZoneKind { EXPLOSION, TRAP, SLOW_ZONE, FIELD }
 
 ## A cone weapon struck (instant, so the view gets a signal to flash it).
 signal cone_struck(owner_id: int, def: WeaponDef, origin: Vector2, direction: Vector2)
+## A delayed cone (the big snip) was cast: it strikes `def.delay` seconds later. View only: the
+## ground shows the warning for the kids standing in it.
+signal cone_winding(owner_id: int, def: WeaponDef, origin: Vector2, direction: Vector2)
 ## A heal landed on `target_id` (the caster or a teammate).
 signal healed(owner_id: int, target_id: int, def: WeaponDef)
 
@@ -105,6 +108,7 @@ func fire(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector2, hold
 				cone.direction = direction
 				cone.time_left = def.delay
 				_cones.append(cone)
+				cone_winding.emit(caster.id, def, caster.position, direction)
 			else:
 				_hit_cone(sim, caster, def, direction, def.snip_count(hold_seconds))
 		WeaponDef.Shape.GROUND_AOE:
@@ -216,10 +220,69 @@ func aim_point(caster: PlayerState, def: WeaponDef, aim: Vector2) -> Vector2:
 	return caster.position + aim.limit_length(1.0) * def.max_range
 
 
+## False when releasing now would cast nothing and spend no cooldown (see `fire`): a targeted
+## throw with nobody locked in range, or a heal with nobody there. The aim preview says so.
+func would_cast(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector2, target_id: int = -1) -> bool:
+	match def.shape:
+		WeaponDef.Shape.TARGETED:
+			var target: PlayerState = sim.players.get(target_id) as PlayerState
+			return (
+				target != null and sim.is_targetable(target) and target.team != caster.team
+				and caster.position.distance_to(target.position) <= def.max_range
+			)
+		WeaponDef.Shape.HEAL:
+			return heal_target(sim, caster, def, aim) != null
+	return true
+
+
+## Who a cast with `aim` would reach right now (the aim preview rings them): the enemies inside a
+## cone, circle or lane, the locked target, the patient of a heal. Uses the same tests as the real
+## hit checks; a cast that moves (boomerang, spinning top) is judged along its whole path.
+func would_reach(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector2, target_id: int = -1) -> Array[PlayerState]:
+	var reached: Array[PlayerState] = []
+	if not would_cast(sim, caster, def, aim, target_id):
+		return reached
+	match def.shape:
+		WeaponDef.Shape.TARGETED:
+			reached.append(sim.players[target_id] as PlayerState)
+		WeaponDef.Shape.HEAL:
+			reached.append(heal_target(sim, caster, def, aim))
+		WeaponDef.Shape.CONE:
+			reached = _cone_targets(sim, caster, def, aim_direction(caster, aim))
+		WeaponDef.Shape.GROUND_AOE, WeaponDef.Shape.FIELD:
+			reached = _enemies_within(sim, caster.team, aim_point(caster, def, aim), def.radius)
+		WeaponDef.Shape.TRAP:
+			reached = _enemies_within(sim, caster.team, aim_point(caster, def, aim), def.trigger_radius)
+		WeaponDef.Shape.BOUNCER:
+			var direction: Vector2 = aim_direction(caster, aim)
+			for i: int in def.count:
+				var at: Vector2 = caster.position + direction * def.max_range * float(i + 1) / float(maxi(def.count, 1))
+				for target: PlayerState in _enemies_within(sim, caster.team, at, def.radius):
+					if not reached.has(target):
+						reached.append(target)
+		WeaponDef.Shape.BOOMERANG, WeaponDef.Shape.SPINNER:
+			var direction: Vector2 = aim_direction(caster, aim)
+			var end: Vector2 = caster.position + direction * def.max_range
+			var width: float = maxf(def.projectile_radius, def.radius if def.shape == WeaponDef.Shape.SPINNER else 0.0)
+			for target: PlayerState in sim.enemies_of(caster.team):
+				var nearest: Vector2 = Geometry2D.get_closest_point_to_segment(target.position, caster.position, end)
+				if nearest.distance_to(target.position) <= width + target.radius:
+					reached.append(target)
+	return reached
+
+
 # ---- per shape --------------------------------------------------------------
 
 func _hit_cone(sim: MatchSim, caster: PlayerState, def: WeaponDef, direction: Vector2, hits: int) -> void:
 	cone_struck.emit(caster.id, def, caster.position, direction)
+	for target: PlayerState in _cone_targets(sim, caster, def, direction):
+		for i: int in hits:
+			_hit(sim, target, def)
+
+
+## The enemies a cone from `caster` along `direction` reaches.
+func _cone_targets(sim: MatchSim, caster: PlayerState, def: WeaponDef, direction: Vector2) -> Array[PlayerState]:
+	var reached: Array[PlayerState] = []
 	var half_angle: float = deg_to_rad(def.angle_degrees / 2.0)
 	for target: PlayerState in sim.enemies_of(caster.team):
 		var offset: Vector2 = target.position - caster.position
@@ -227,8 +290,8 @@ func _hit_cone(sim: MatchSim, caster: PlayerState, def: WeaponDef, direction: Ve
 			continue
 		if offset.length() > 0.001 and absf(direction.angle_to(offset)) > half_angle:
 			continue
-		for i: int in hits:
-			_hit(sim, target, def)
+		reached.append(target)
+	return reached
 
 
 func _step_cones(sim: MatchSim, dt: float) -> void:

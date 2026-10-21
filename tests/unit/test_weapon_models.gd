@@ -120,7 +120,8 @@ func test_the_jacks_field_is_spikes_on_a_circle() -> void:
 	var practice: PracticeMatch = _casting(&"jacks", &"lata")
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
 	_cast(practice, 0)
-	assert_eq(fx.find_children("*", "MeshInstance3D", true, false).size(), WeaponModel.SPIKE_CLUSTERS + 1, "the spike clusters and the tinted circle")
+	var meshes: Array[Node] = fx.find_children("*", "MeshInstance3D", true, false).filter(func(n: Node) -> bool: return not n.get_parent().name.begins_with("Burst"))
+	assert_eq(meshes.size(), WeaponModel.SPIKE_CLUSTERS + 1, "the spike clusters and the tinted circle (not the hit bursts)")
 
 
 func test_the_spinning_top_is_its_model_and_spins_fast() -> void:

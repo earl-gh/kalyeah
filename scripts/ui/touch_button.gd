@@ -20,8 +20,8 @@ const RIM_COLOR: Color = Color(1.0, 0.9, 0.6, 0.95)
 const RIM_WIDTH: float = 5.0
 const SHADOW_DROP: float = 5.0
 const FONT_SIZE: int = 26
-const SMALL_FONT_SIZE: int = 18
-const TAG_FONT_SIZE: int = 15
+const SMALL_FONT_SIZE: int = 22
+const TAG_FONT_SIZE: int = 20
 const TEXT_OUTLINE: int = 5
 const COOLDOWN_FONT_SIZE: int = 34
 const READY_FLASH_TIME: float = 0.45
@@ -43,7 +43,7 @@ const NO_POINTER: int = -1
 const MOUSE_POINTER: int = -2
 
 @export var label_text: String = ""
-## The weapon type tag (ATK / CC / BLK) shown under the art.
+## The weapon type tag (Attack / Control / Block / Heal, in capitals) shown under the art.
 @export var sub_text: String = ""
 @export var sub_color: Color = Color(1.0, 1.0, 1.0, 0.8)
 ## Skill id ("dash", "bato_light", ...); its painted button is btn_<id>.png. Empty = text only.
@@ -164,17 +164,17 @@ func _draw() -> void:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	if button_art != null:
 		if not blocked_text.is_empty():
-			_tag(font, blocked_text, center + Vector2(0.0, radius * 0.86), BLOCKED_TAG)
+			_tag(font, UiText.t(blocked_text), center + Vector2(0.0, radius * 0.86), BLOCKED_TAG)
 		elif not sub_text.is_empty():
-			_tag(font, sub_text, center + Vector2(0.0, radius * 0.86), sub_color)
+			_tag(font, UiText.t(sub_text).to_upper(), center + Vector2(0.0, radius * 0.86), sub_color)
 	elif icon_id != &"":
 		# no drawn stand-in: a missing painted button is a bug, so say so
 		push_error("missing painted button art: %s%s" % [BUTTON_ART_PREFIX, icon_id])
 	else:
 		var line_shift: float = 0.0 if sub_text.is_empty() else -FONT_SIZE * 0.3
-		_text(font, label_text, center + Vector2(0.0, line_shift), FONT_SIZE, TEXT_COLOR)
+		_text(font, UiText.t(label_text), center + Vector2(0.0, line_shift), FONT_SIZE, TEXT_COLOR)
 		if not sub_text.is_empty():
-			_text(font, sub_text, center + Vector2(0.0, FONT_SIZE * 0.6), SMALL_FONT_SIZE, sub_color)
+			_text(font, UiText.t(sub_text), center + Vector2(0.0, FONT_SIZE * 0.6), SMALL_FONT_SIZE, sub_color)
 	if not blocked_text.is_empty():
 		draw_circle(center, radius, BLOCKED_COLOR)
 	elif locked or cooldown_fraction > 0.0:

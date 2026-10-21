@@ -103,6 +103,21 @@ static func chip(text: String, fill: Color, ink: Color = Color.WHITE, size: int 
 	return panel
 
 
+## A tag that is only coloured words ("Attack", "Victory"): no pill behind it. Use it when the colour and the
+## word already say it; a chip (solid fill) is for a number or a status that must stand out from its card.
+static func tag(text: String, color: Color, size: int = UiMetrics.CAPTION) -> PanelContainer:
+	var panel: PanelContainer = PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	var label: Label = Label.new()
+	label.name = "Text"
+	label.text = text
+	label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", color)
+	panel.add_child(label)
+	return panel
+
+
 ## A kid's face cropped to a circle (`px` wide), from the owner's key-art crops.
 static func avatar(character_id: String, px: float) -> TextureRect:
 	var face: TextureRect = TextureRect.new()
@@ -148,6 +163,11 @@ static func setting_row(title_text: String, detail: String, control: Control) ->
 		words.add_child(line)
 	row.add_child(words)
 	row.add_child(control)
+	# a switch or a slider has no words of its own: it is read by its row's title
+	if control.accessibility_name.is_empty():
+		control.accessibility_name = title_text
+		if not detail.is_empty():
+			control.accessibility_description = detail
 	return row
 
 

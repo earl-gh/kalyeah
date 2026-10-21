@@ -66,6 +66,7 @@ static func _face(id: String, group: ButtonGroup, chosen: Array[String]) -> Butt
 	button.custom_minimum_size = Vector2(FACE + 24.0, FACE + 24.0)
 	button.focus_mode = Control.FOCUS_ALL
 	button.tooltip_text = id.capitalize()
+	button.accessibility_name = "Face: %s" % id.capitalize()
 	var ring: StyleBoxFlat = StyleBoxFlat.new()
 	ring.draw_center = false
 	ring.set_corner_radius_all(int((FACE + 24.0) / 2.0))

@@ -1,7 +1,8 @@
 class_name WeaponFxView
 extends Node3D
 ## Draws the sim's live weapon objects: projectiles, zones (landing warnings,
-## traps, slow zones, jacks fields), paper shields, plus a short flash for cones.
+## traps, slow zones, jacks fields), paper shields, a short flash for cones, the warning on the
+## ground while a delayed cone winds up, and a small burst on a kid who is hit.
 ## Read-only: rebuilt from WeaponSystem state every frame, keyed by object id.
 
 const PROJECTILE_HEIGHT: float = 0.7
@@ -31,6 +32,18 @@ const KIND_COLORS: Dictionary[WeaponDef.Kind, Color] = {
 	WeaponDef.Kind.BLOCK: Color(0.92, 0.92, 0.85),
 	WeaponDef.Kind.HEAL: Color(0.45, 0.9, 0.4),
 }
+## The warning of a delayed cone: its edge shows at once, the red fills out from the caster
+## until the strike (the same red as a landing circle).
+const WINDUP_COLOR: Color = Color(1.0, 0.22, 0.15)
+const WINDUP_RIM: float = 0.08
+const WINDUP_FILL: float = 0.22
+## The burst on a kid who is hit: a flash and flying sparks, sized by the damage (a bigger hit is
+## bigger, a tick of damage is small), gone in `BURST_TIME`.
+const BURST_TIME: float = 0.35
+const BURST_HEIGHT: float = 1.0
+const BURST_SPARKS: int = 6
+const BURST_SPARK_SPEED: float = 5.0
+const BURST_COLOR: Color = Color(1.0, 0.92, 0.55)
 const SOIL_HEIGHT: float = 1.7
 const SOIL_RISE_TIME: float = 0.22
 const SOIL_COLLAPSE_TIME: float = 0.6
@@ -50,17 +63,34 @@ var view_scale: float = 1.0
 var _sim: MatchSim
 var _crosses: Array[Node3D] = []
 var _cross_time: Dictionary[Node3D, float] = {}
+## Delayed cones winding up: the warning node, its growing fill, the owner and the time left.
+var _windups: Array[Dictionary] = []
+var _bursts: Array[Dictionary] = []
+var _spark_material: StandardMaterial3D
+var _overlay_material: StandardMaterial3D
 
 
 ## Starts listening for cone flashes from `sim`.
 func watch(sim: MatchSim) -> void:
 	_sim = sim
 	sim.weapons.cone_struck.connect(_on_cone_struck)
+	sim.weapons.cone_winding.connect(_on_cone_winding)
 	sim.weapons.healed.connect(_on_healed)
+	sim.player_damaged.connect(_on_damaged)
 
 
 func live_count() -> int:
 	return _nodes.size()
+
+
+## Delayed-cone warnings on the ground right now.
+func windup_count() -> int:
+	return _windups.size()
+
+
+## Hit bursts playing right now.
+func burst_count() -> int:
+	return _bursts.size()
 
 
 func sync(sim: MatchSim, delta: float) -> void:
@@ -120,6 +150,8 @@ func sync(sim: MatchSim, delta: float) -> void:
 			_remove(id)
 	_step_flashes(delta)
 	_step_crosses(delta)
+	_step_windups(delta)
+	_step_bursts(delta)
 
 
 func _add(id: int, mesh: Mesh) -> MeshInstance3D:
@@ -233,6 +265,124 @@ func _step_flashes(delta: float) -> void:
 			_flash_time.erase(node)
 			node.queue_free()
 	_flashes = still
+
+
+## The warning of a delayed cone, from the cast to the strike: the wedge's edge on the ground, and
+## a red wedge that fills outward from the caster as the time runs out.
+func _on_cone_winding(owner_id: int, def: WeaponDef, origin: Vector2, direction: Vector2) -> void:
+	var wedge: PackedVector2Array = PackedVector2Array([Vector2.ZERO])
+	var half: float = deg_to_rad(def.angle_degrees / 2.0)
+	for i: int in CONE_POINTS + 1:
+		wedge.append(direction.rotated(-half + 2.0 * half * float(i) / float(CONE_POINTS)) * def.max_range)
+	wedge.append(Vector2.ZERO)
+	var node: Node3D = Node3D.new()
+	node.position = Vector3(origin.x, 0.0, origin.y)
+	var rim: ImmediateMesh = ImmediateMesh.new()
+	rim.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	AimIndicator.fill(rim, wedge, Color(WINDUP_COLOR, 0.06), ZONE_HEIGHT * 3.0)
+	AimIndicator.ribbon(rim, wedge, WINDUP_RIM, Color(WINDUP_COLOR, 0.8), ZONE_HEIGHT * 4.0)
+	rim.surface_end()
+	node.add_child(_overlay(rim))
+	var growing: ImmediateMesh = ImmediateMesh.new()
+	growing.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	AimIndicator.fill(growing, wedge, Color(WINDUP_COLOR, WINDUP_FILL), ZONE_HEIGHT * 3.5)
+	growing.surface_end()
+	var fill: MeshInstance3D = _overlay(growing)
+	fill.scale = Vector3(0.05, 1.0, 0.05)
+	node.add_child(fill)
+	add_child(node)
+	_windups.append({"node": node, "fill": fill, "owner": owner_id, "left": def.delay, "total": maxf(def.delay, 0.01)})
+
+
+func _overlay(shape: Mesh) -> MeshInstance3D:
+	if _overlay_material == null:
+		_overlay_material = StandardMaterial3D.new()
+		_overlay_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_overlay_material.vertex_color_use_as_albedo = true
+		_overlay_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_overlay_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var instance: MeshInstance3D = MeshInstance3D.new()
+	instance.mesh = shape
+	instance.material_override = _overlay_material
+	return instance
+
+
+func _step_windups(delta: float) -> void:
+	var still: Array[Dictionary] = []
+	for windup: Dictionary in _windups:
+		windup["left"] = (windup["left"] as float) - delta
+		var caster: PlayerState = _sim.players.get(windup["owner"] as int) as PlayerState if _sim != null else null
+		# the strike lands (or the caster was tagged first and it never will): the warning goes
+		if (windup["left"] as float) <= 0.0 or caster == null or caster.tagged:
+			(windup["node"] as Node3D).queue_free()
+			continue
+		var progress: float = 1.0 - (windup["left"] as float) / (windup["total"] as float)
+		var size: float = lerpf(0.05, 1.0, progress)
+		(windup["fill"] as Node3D).scale = Vector3(size, 1.0, size)
+		still.append(windup)
+	_windups = still
+
+
+## A burst on a kid who is hit: a flash, and sparks flying out (not with Reduce motion).
+func _on_damaged(id: int, amount: int) -> void:
+	if _sim == null or not _sim.players.has(id):
+		return
+	var at: Vector2 = _sim.players[id].position
+	var size: float = clampf(0.6 + float(amount) / 30.0, 0.6, 1.4)
+	var node: Node3D = Node3D.new()
+	node.name = "Burst"
+	node.position = Vector3(at.x, BURST_HEIGHT, at.y)
+	var flash: MeshInstance3D = MeshInstance3D.new()
+	var ball: SphereMesh = SphereMesh.new()
+	ball.radius = 0.6
+	ball.height = 1.2
+	flash.mesh = ball
+	var flash_material: StandardMaterial3D = StandardMaterial3D.new()
+	flash_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	flash_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	flash_material.albedo_color = Color(BURST_COLOR, 0.9)
+	flash.material_override = flash_material
+	node.add_child(flash)
+	var sparks: Array[Node3D] = []
+	if not Settings.reduced_motion:
+		if _spark_material == null:
+			_spark_material = StandardMaterial3D.new()
+			_spark_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			_spark_material.albedo_color = BURST_COLOR
+		for i: int in BURST_SPARKS:
+			var spark: MeshInstance3D = MeshInstance3D.new()
+			var bar: BoxMesh = BoxMesh.new()
+			bar.size = Vector3(0.14, 0.14, 0.55)
+			spark.mesh = bar
+			spark.material_override = _spark_material
+			var angle: float = TAU * (float(i) + 0.5 * float(id % 2)) / float(BURST_SPARKS)
+			spark.set_meta("dir", Vector3(cos(angle), 0.5 + 0.35 * float(i % 3), sin(angle)).normalized())
+			spark.rotation.y = -angle + PI / 2.0
+			node.add_child(spark)
+			sparks.append(spark)
+	add_child(node)
+	_bursts.append({"node": node, "flash": flash, "material": flash_material, "sparks": sparks, "age": 0.0, "size": size})
+
+
+func _step_bursts(delta: float) -> void:
+	var still: Array[Dictionary] = []
+	for burst: Dictionary in _bursts:
+		burst["age"] = (burst["age"] as float) + delta
+		var progress: float = (burst["age"] as float) / BURST_TIME
+		if progress >= 1.0:
+			(burst["node"] as Node3D).queue_free()
+			continue
+		var size: float = burst["size"] as float
+		var flash: Node3D = burst["flash"] as Node3D
+		flash.scale = Vector3.ONE * size * lerpf(0.5, 1.5, progress)
+		var material: StandardMaterial3D = burst["material"] as StandardMaterial3D
+		material.albedo_color.a = 0.9 * (1.0 - progress) * (1.0 - progress)
+		for spark: Node3D in burst["sparks"] as Array[Node3D]:
+			var dir: Vector3 = spark.get_meta("dir") as Vector3
+			spark.position = dir * BURST_SPARK_SPEED * size * progress * (1.0 - 0.4 * progress)
+			spark.scale = Vector3.ONE * (1.0 - progress)
+		still.append(burst)
+	_bursts = still
 
 
 ## A green cross floats up over a healed kid and fades away.
