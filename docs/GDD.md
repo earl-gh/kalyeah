@@ -149,7 +149,7 @@ Before the first round (6 s, `intro_time`; the server runs it too, nobody moves 
 
 ## Accessibility preferences
 
-The interface uses one readable type scale, shared spacing and 44pt minimum touch targets. Text-size controls and their saved scaling behavior have been removed at the owner’s request; old stored text-size values are ignored. Body copy and action labels use Source Sans 3, while display headings retain Bungee. Reduce motion remains available in Home, room and match settings.
+The interface uses one readable type scale, shared spacing and 44pt minimum touch targets. Text-size controls and their saved scaling behavior have been removed at the owner’s request; old stored text-size values are ignored. **One typeface (owner): Bungee for everything** (headings, body copy, buttons, fields and HUD numbers; Source Sans 3 is removed). Reduce motion remains available in Home, room and match settings.
 
 Reduce motion skips menu/button/banner pops and carousel snapping animation, removes camera shake and moving film grain, stops decorative NPC sway, and holds the normal camera during the opening show. Objective text and the server's intro/round/cast timings remain unchanged. Gameplay animation, aiming telegraphs and follow-camera movement remain visible. Keyboard users can select modes with Left/Right and navigate modal controls with Tab/Shift-Tab; focus returns to the opener. Opening match settings blocks local movement/casting and cancels a held aim without firing; multiplayer continues running.
 

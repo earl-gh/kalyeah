@@ -3,16 +3,11 @@ extends RefCounted
 ## Kalyeah's portrait UI system: calm grouped surfaces and direct controls, with
 ## the display face reserved for game identity and high-salience match moments.
 
-## Bungee gives display headings and HUD numbers their game identity.
+## Bungee is the one typeface (owner): headings, body copy, buttons, fields and HUD numbers all use it.
 const DISPLAY_FONT: Font = preload("res://assets/fonts/bungee/Bungee-Regular.ttf")
-## The owner's Source Sans 3 (a variable font) for all regular text.
-const SOURCE_SANS: Font = preload("res://assets/fonts/source_sans_3/SourceSans3-Variable.ttf")
-## How heavy the regular text is (Source Sans 3 runs from 200 to 900; 400 is Regular).
-const BODY_WEIGHT: int = 500
-static var BODY_FONT: Font = _body_font()
-static var ACTION_FONT: Font = BODY_FONT
-## Buttons read heavier than body text (Source Sans 3 at weight 800) so a label holds up on a bright face.
-static var BUTTON_FONT: Font = _body_font(800)
+static var BODY_FONT: Font = DISPLAY_FONT
+static var ACTION_FONT: Font = DISPLAY_FONT
+static var BUTTON_FONT: Font = DISPLAY_FONT
 
 const INK: Color = Color("10192d")
 const INK_DEEP: Color = Color("080f1d")
@@ -38,15 +33,6 @@ const CORNER: int = 18
 const BUTTON_SHADOW: int = 0
 const FONT_SIZE: int = UiMetrics.BODY
 const PANEL_PADDING: float = UiMetrics.PADDING
-
-
-static func _body_font(weight: int = BODY_WEIGHT) -> Font:
-	# Source Sans 3 for all regular text (owner), the same on every phone and in the browser
-	var font: FontVariation = FontVariation.new()
-	font.base_font = SOURCE_SANS
-	# the axis is addressed by its OpenType tag number ("wght")
-	font.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
-	return font
 
 
 static func apply() -> void:
@@ -153,8 +139,8 @@ static func painted_button(color: String, pressed: bool = false, tint: Color = C
 	box.shadow_size = 0
 	box.content_margin_left = 20.0
 	box.content_margin_right = 20.0
-	box.content_margin_top = 15.0
-	box.content_margin_bottom = 15.0
+	box.content_margin_top = 21.0
+	box.content_margin_bottom = 21.0
 	box.anti_aliasing = true
 	return box
 

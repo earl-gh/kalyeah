@@ -3,11 +3,12 @@ extends RefCounted
 ## Shared design pixels at 720px width (2x the 360pt reference phone).
 ## One readable type scale with 44pt minimum touch targets; no in-game text-size modes.
 
-const TITLE: int = 40
-const BODY: int = 34
-const ACTION: int = 32
-const DETAIL: int = 28
-const CAPTION: int = 24
+## Sized for Bungee, which is much wider than a text face: the same room as the old scale in a lighter face.
+const TITLE: int = 34
+const BODY: int = 28
+const ACTION: int = 26
+const DETAIL: int = 24
+const CAPTION: int = 22
 const TOUCH: float = 88.0
 ## The floors the lint test (tests/unit/test_ui_lint.gd) holds every screen to: no text smaller than MIN_TEXT px and
 ## no tappable control shorter than MIN_TARGET px (the joystick and the weapon buttons are bigger by design).
