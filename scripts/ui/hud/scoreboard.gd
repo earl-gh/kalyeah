@@ -1,9 +1,9 @@
 class_name Scoreboard
 extends Control
-## The score in the middle of the header: your team's points (blue) and theirs (red), with the match clock between them counting up
-## ("2:45"), like the street-game video. It stands on the header deck without a card of its own. Team-relative: you are always on the left.
+## The score in the middle of the header: your team's points (blue) and theirs (red), with how many points win the match between them
+## (the match clock is the chip at the header's right). It stands on the header deck without a card of its own. Team-relative: you are always on the left.
 
-const BIG_FONT: int = 40
+const BIG_FONT: int = 44
 const SMALL_FONT: int = UiMetrics.CAPTION
 
 var mine: int = 0
@@ -28,6 +28,9 @@ const PIP_SPACING: float = 17.0
 ## The pips sit this far above the cell's lower edge; the number rides a little above the middle to leave them room.
 const PIP_LIFT: float = 14.0
 const NUMBER_RISE: float = 0.06
+## A team's cell is this much wider than tall; its corners are this round.
+const CELL_ASPECT: float = 1.3
+const CELL_RADIUS: int = 14
 
 
 func show_score(score: MatchScore, my_team: int, match_time: float) -> void:
@@ -99,20 +102,43 @@ func _draw() -> void:
 	var w: float = size.x
 	var h: float = size.y
 	var box: float = h - 12.0
-	_round_rect(Rect2(6.0, 6.0, box * 1.25, box), TeamColors.ui_own(), 12.0)
-	_round_rect(Rect2(w - 6.0 - box * 1.25, 6.0, box * 1.25, box), TeamColors.ui_enemy(), 12.0)
+	var cell: Vector2 = Vector2(box * CELL_ASPECT, box)
+	var mine_cell: Rect2 = Rect2(Vector2(6.0, 6.0), cell)
+	var theirs_cell: Rect2 = Rect2(Vector2(w - 6.0 - cell.x, 6.0), cell)
+	_draw_cell(mine_cell, TeamColors.ui_own())
+	_draw_cell(theirs_cell, TeamColors.ui_enemy())
 	var number_y: float = h / 2.0 - box * NUMBER_RISE
-	_center_text(KalyeahTheme.ACTION_FONT, str(mine), Vector2(6.0 + box * 0.625, number_y), BIG_FONT, Color.WHITE)
-	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), Vector2(w - 6.0 - box * 0.625, number_y), BIG_FONT, Color.WHITE)
-	_draw_pips(roster_mine, Vector2(6.0 + box * 0.625, 6.0 + box - PIP_LIFT))
-	_draw_pips(roster_theirs, Vector2(w - 6.0 - box * 0.625, 6.0 + box - PIP_LIFT))
-	_center_text(KalyeahTheme.BODY_FONT, clock_text(), Vector2(w / 2.0, h * 0.36), SMALL_FONT + 4, Color.WHITE)
-	_center_text(KalyeahTheme.ACTION_FONT, UiText.f("BO%d", [best_of]), Vector2(w / 2.0, h * 0.72), SMALL_FONT, KalyeahTheme.AMBER)
+	_center_text(KalyeahTheme.ACTION_FONT, str(mine), Vector2(mine_cell.get_center().x, number_y), BIG_FONT, Color.WHITE)
+	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), Vector2(theirs_cell.get_center().x, number_y), BIG_FONT, Color.WHITE)
+	_draw_pips(roster_mine, Vector2(mine_cell.get_center().x, mine_cell.end.y - PIP_LIFT))
+	_draw_pips(roster_theirs, Vector2(theirs_cell.get_center().x, theirs_cell.end.y - PIP_LIFT))
+	# between the cells: how many points win the match (the clock is the chip at the header's right)
+	_center_text(KalyeahTheme.ACTION_FONT, UiText.f("BO%d", [best_of]), Vector2(w / 2.0, h * 0.5), SMALL_FONT, KalyeahTheme.AMBER)
 	if capture >= 0.0:
 		var track: Rect2 = Rect2(CAPTURE_INSET, h - 6.0 - CAPTURE_HEIGHT, w - CAPTURE_INSET * 2.0, CAPTURE_HEIGHT)
 		_round_rect(track, CAPTURE_TRACK, CAPTURE_HEIGHT / 2.0)
 		if capture > 0.0:
 			_round_rect(Rect2(track.position, Vector2(track.size.x * capture, track.size.y)), TeamColors.capture_own() if capture_ours else TeamColors.capture_enemy(), CAPTURE_HEIGHT / 2.0)
+
+
+## A team's cell: its colour with a lit edge, a soft sheen over the upper half and a shadow under, like a key on the deck.
+func _draw_cell(rect: Rect2, color: Color) -> void:
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = color.darkened(0.12)
+	box.border_color = color.lightened(0.45)
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(CELL_RADIUS)
+	box.anti_aliasing = true
+	box.shadow_color = Color(0.0, 0.0, 0.0, 0.4)
+	box.shadow_size = 6
+	box.shadow_offset = Vector2(0.0, 3.0)
+	draw_style_box(box, rect)
+	var sheen: StyleBoxFlat = StyleBoxFlat.new()
+	sheen.bg_color = Color(1.0, 1.0, 1.0, 0.13)
+	sheen.corner_radius_top_left = CELL_RADIUS - 2
+	sheen.corner_radius_top_right = CELL_RADIUS - 2
+	sheen.anti_aliasing = true
+	draw_style_box(sheen, Rect2(rect.position + Vector2(3.0, 3.0), Vector2(rect.size.x - 6.0, rect.size.y * 0.42)))
 
 
 ## A row of dots centred on `centre`: filled white for a free kid, a dark hollow ring for a tagged one.
