@@ -8,6 +8,8 @@ extends Control
 ## Handles real touches (multi-touch safe) and the real mouse; ignores mouse events emulated from touch.
 
 signal changed(value: Vector2)
+## One of the eight directions was entered by the thumb (or the pad let go): the match gives a short tick on a phone.
+signal direction_changed(value: Vector2)
 
 ## The disc.
 const MAX_RADIUS: float = 100.0
@@ -39,6 +41,8 @@ var rest_fraction: Vector2 = Vector2(0.5, 0.5)
 var auto_run: bool = false
 
 var _pointer: int = NO_POINTER
+## The direction the last tick was given for (so only a change of direction buzzes).
+var _last_direction: Vector2 = Vector2.ZERO
 var _armed: bool = false  # the thumb is past the disc: a release locks the run
 var _origin: Vector2 = Vector2.ZERO
 
@@ -88,6 +92,7 @@ func release() -> void:
 	_armed = false
 	auto_run = false
 	value = Vector2.ZERO
+	_last_direction = Vector2.ZERO
 	if moving:
 		changed.emit(value)
 	queue_redraw()
@@ -172,6 +177,9 @@ func _update(viewport_position: Vector2) -> void:
 	var offset: Vector2 = _to_local(viewport_position) - _origin
 	value = stick_from_offset(offset, MAX_RADIUS, DEADZONE)
 	_armed = offset.length() > MAX_RADIUS
+	if not value.is_equal_approx(_last_direction):
+		_last_direction = value
+		direction_changed.emit(value)
 	changed.emit(value)
 	queue_redraw()
 
@@ -185,5 +193,6 @@ func _end() -> void:
 		auto_run = false
 		value = Vector2.ZERO
 	_armed = false
+	_last_direction = Vector2.ZERO
 	changed.emit(value)
 	queue_redraw()

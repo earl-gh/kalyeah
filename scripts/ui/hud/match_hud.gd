@@ -45,6 +45,8 @@ const CONSOLE_HEIGHT: float = 294.0
 const ROW_HEIGHT: float = CONSOLE_HEIGHT / 2.0
 ## The most the bottom inset can add (a tall gesture bar), so the console never eats the street.
 const MAX_BOTTOM_INSET: float = 80.0
+## How long the tick is when the thumb moves to another direction of the pad.
+const PAD_TICK_MS: int = 8
 ## The square the stick listens in: its outer ring plus a margin for the thumb.
 const DPAD_ZONE: float = (DPad.OUTER_RADIUS + 20.0) * 2.0
 ## The D-pad's centre is this far from its screen edge (the left, or the right for a left-handed player).
@@ -117,6 +119,12 @@ func _ready() -> void:
 
 
 ## Pixels the top row is pushed down to clear a notch or status bar.
+## A short tick each time the thumb enters a new direction (phones only; off with the vibration setting).
+func _on_pad_direction(direction: Vector2) -> void:
+	if direction != Vector2.ZERO:
+		Settings.vibrate(PAD_TICK_MS)
+
+
 func set_top_inset(pixels: float) -> void:
 	top.position.y = pixels
 
@@ -194,6 +202,7 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	var weapons_off: bool = not playing or not player.effects.can_cast()
 	feedback.sync_hint(player, dpad, aim_buttons, playing)
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
+	console.set_health(player.hp, sim.rules.player_max_hp, playing)
 	for slot: int in weapon_buttons.size():
 		var button: AimButton = weapon_buttons[slot]
 		if slot >= player.weapons.size():
@@ -325,6 +334,7 @@ func _build() -> void:
 	dpad.accessibility_description = "Press a direction to run; let go to stop"
 	dpad.rest_fraction = Vector2(0.5, 0.5)
 	dpad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dpad.direction_changed.connect(_on_pad_direction)
 	add_child(dpad)
 	for button: AimButton in aim_buttons:
 		button.cancel_zone = cancel_zone

@@ -50,3 +50,42 @@ func test_the_cancel_zone_and_intro_follow_the_inset() -> void:
 	practice.hud.set_bottom_inset(30.0)
 	assert_almost_eq(practice.hud.cancel_zone.get_rect().get_center().y, cancel_before - 30.0, 0.5)
 	assert_almost_eq(practice.hud.intro_bar.offset_bottom, intro_before - 30.0, 0.5)
+
+
+# ---- your health in the middle of the console --------------------------------------------
+
+func test_the_console_shows_your_health_between_the_pad_and_the_buttons() -> void:
+	var practice: PracticeMatch = await _practice()
+	practice.finish_pick()
+	practice.skip_intro()
+	practice.advance(1.0 / 30.0)
+	var console: ConsolePanel = practice.hud.console
+	assert_true(console.health_shown)
+	assert_eq(console.health_text, str(practice.rules.player_max_hp))
+	assert_eq(console.health_fraction, 1.0)
+	var free: Vector2 = console.gap()
+	assert_gt(free.y, 90.0, "there is room between the pad and the weapons")
+	var pad: Rect2 = practice.hud.dpad.get_global_rect()
+	var weapon: Rect2 = practice.hud.weapon_buttons[0].get_global_rect()
+	assert_gt(free.x + practice.hud.console.get_global_rect().position.x, pad.get_center().x, "right of the pad")
+	assert_lt(free.x + practice.hud.console.get_global_rect().position.x, weapon.get_center().x, "left of the weapons")
+	practice.sim.damage(practice.local_id, 40)
+	practice.advance(1.0 / 30.0)
+	assert_eq(console.health_text, str(practice.rules.player_max_hp - 40))
+	assert_almost_eq(console.health_fraction, 0.6, 0.001)
+	practice.sim.kill(practice.local_id)
+	practice.advance(1.0 / 30.0)
+	assert_false(console.health_shown, "tagged: nothing to show")
+
+
+func test_the_health_gap_follows_a_left_handed_layout() -> void:
+	Settings.set_left_handed(true)
+	var practice: PracticeMatch = await _practice()
+	var free: Vector2 = practice.hud.console.gap()
+	var x: float = free.x + practice.hud.console.get_global_rect().position.x
+	var pad: float = practice.hud.dpad.get_global_rect().get_center().x
+	var weapon: float = practice.hud.weapon_buttons[0].get_global_rect().get_center().x
+	Settings.set_left_handed(false)
+	assert_gt(free.y, 90.0)
+	assert_lt(x, pad, "left of the pad, which is on the right now")
+	assert_gt(x, weapon, "right of the weapons")
