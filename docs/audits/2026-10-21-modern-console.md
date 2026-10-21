@@ -11,6 +11,8 @@ Owner request: the bottom part should have a modern design rather than the old G
   neighbouring arms**, which tint gold with their notches lit (`DPad.pressed_arms`). The outer auto-run ring is unchanged.
 - Nothing about the input changed: still eight directions, a full-speed run, the same grab zone and the same dead zone.
 
+![at rest, up-right pressed, left pressed, down held out to the auto-run ring](images/modern-console.jpg)
+
 ## Not the real thing
 The real pad is a faceted, concave moulded part; this is a flat drawing of it with a shaded rim, so it reads as the same shape and not as the same material.
 A painted pad and deck would be a **2D image** asset for you (the deck, the dish and the cross as separate layers, plus a lit version of each arm); everything here is
