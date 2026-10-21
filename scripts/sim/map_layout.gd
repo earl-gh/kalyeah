@@ -11,9 +11,18 @@ extends Resource
 const SIDE_OWN: int = 1
 const SIDE_ENEMY: int = -1
 
-## Playable street (width along X, length along Z).
-@export var lane_length: float = 0.0
-@export var lane_width: float = 0.0
+## The street is a grid of square tiles, like Clash Royale's arena: 18 tiles across and 32 tiles long (9:16, the
+## shape of a portrait phone), each tile 1.5 m. Tile (0, 0) is the top-left corner as the own team sees it (the
+## far left of the enemy end); x runs right, z runs down toward the own end.
+@export var tiles: Vector2i = Vector2i(18, 32)
+@export var tile_size: float = 1.5
+## Playable street (width along X, length along Z), from the grid.
+var lane_width: float:
+	get:
+		return float(tiles.x) * tile_size
+var lane_length: float:
+	get:
+		return float(tiles.y) * tile_size
 ## The post stands this far in from both edges of its corner.
 @export var post_inset: float = 0.0
 ## The base is a chalk circle of this radius around the post (clipped by the street).
@@ -39,6 +48,21 @@ const SIDE_ENEMY: int = -1
 @export var boundary_thickness: float = 0.0
 @export var overview_height: float = 0.0
 @export var overview_size: float = 0.0
+
+
+## Centre of the tile `tile` (see `tiles`) in world metres (x, z).
+func tile_center(tile: Vector2i) -> Vector2:
+	return Vector2((float(tile.x) + 0.5 - float(tiles.x) / 2.0) * tile_size, (float(tile.y) + 0.5 - float(tiles.y) / 2.0) * tile_size)
+
+
+## The tile a world point (x, z) is in (it may be outside the street).
+func tile_at(position: Vector2) -> Vector2i:
+	return Vector2i(floori(position.x / tile_size + float(tiles.x) / 2.0), floori(position.y / tile_size + float(tiles.y) / 2.0))
+
+
+## A world point (x, z) in tiles, measured from the top-left corner: (0.5, 0.5) is the middle of tile (0, 0).
+func to_tiles(position: Vector2) -> Vector2:
+	return Vector2(position.x / tile_size + float(tiles.x) / 2.0, position.y / tile_size + float(tiles.y) / 2.0)
 
 
 ## Center of a side's post in the XZ plane (x, z): own bottom-left, enemy top-right.
