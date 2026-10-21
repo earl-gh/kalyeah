@@ -5,12 +5,13 @@ extends DummyBrain
 ## finger would (press one tick, release the next, aimed at the enemy with a little error). A hurt one
 ## heals itself, a free one fetches a tagged teammate when no enemy is close. Same PlayerInput as everyone
 ## else, no RNG of its own (the match's seeded one for the aim error), so it is deterministic and testable.
+## Its priorities, in order: 1. tag enemies by killing them (any enemy within `bot_aggro_range` is fought, whatever else is going on),
+## 2. stay at its post (or the enemy base for a rusher), 3. rescue a tagged teammate, but only from its post, so a rescue never
+## pulls a bot off the job it is doing: it sets off once it stands at its post, and keeps going until the teammate is free or an enemy shows up.
 ## `skill` (0 to 1, `bot_skill` in the rules unless set) is how well it aims: at 0 it throws at where the enemy
 ## is, at 1 where the enemy will be, and its aim error shrinks. At any skill it throws ground circles at the
 ## enemy's distance (not at full range) and never throws a projectile into cover, stepping aside until it can.
 
-## A tagged teammate is only fetched when no enemy is this close (metres).
-const RESCUE_SAFE_DISTANCE: float = 7.0
 ## Below this share of health a bot heals itself.
 const HEAL_BELOW: float = 0.5
 ## Closest and farthest a bot stands from an enemy, whatever its weapons reach.
@@ -31,6 +32,8 @@ const COVER_MARGIN: float = 0.3
 var skill: float = -1.0
 
 var _press_slot: int = -1
+## True once a bot standing at its post has set off to rescue a tagged teammate (it keeps going until it is free or an enemy comes).
+var _rescuing: bool = false
 var _aim: Vector2 = Vector2.ZERO
 var _cooldown: float = 0.0
 ## Where each enemy was at the last think, and how fast it is going (metres a second), for leading shots.
@@ -56,22 +59,36 @@ func think(state: PlayerState, sim: MatchSim) -> PlayerInput:
 	var enemy: PlayerState = sim.nearest_enemy(state, sim.rules.bot_aggro_range)
 	if enemy == null:
 		return _no_enemy(state, sim)
+	_rescuing = false
 	return _fight(state, sim, enemy)
 
 
+## No enemy in reach: stay at the post, and rescue only from there (priorities 2 and 3).
 func _no_enemy(state: PlayerState, sim: MatchSim) -> PlayerInput:
-	var target: Vector2 = home
-	if _teammate_tagged(state, sim):
-		target = sim.layout.jail_rect(sim.side_for_team(state.team)).get_center()
-	return _walk_to(state, target)
+	if _rescue_due(state, sim):
+		return _walk_to(state, sim.layout.jail_rect(sim.side_for_team(state.team)).get_center())
+	return _walk_to(state, home)
+
+
+## True while this bot should be off rescuing: a teammate is tagged and the bot is either already on its way or standing at its post.
+func _rescue_due(state: PlayerState, sim: MatchSim) -> bool:
+	if not _teammate_tagged(state, sim):
+		_rescuing = false
+		return false
+	if not _rescuing and _at_post(state, sim):
+		_rescuing = true
+	return _rescuing
+
+
+## Whether the bot stands where it is meant to stay (a fighter: its spot).
+func _at_post(state: PlayerState, _sim: MatchSim) -> bool:
+	return state.position.distance_to(home) <= HOME_TOLERANCE * 2.0
 
 
 func _fight(state: PlayerState, sim: MatchSim, enemy: PlayerState) -> PlayerInput:
 	var offset: Vector2 = enemy.position - state.position
 	var distance: float = offset.length()
 	var toward: Vector2 = offset.normalized() if distance > 0.001 else Vector2.DOWN
-	if _teammate_tagged(state, sim) and distance > RESCUE_SAFE_DISTANCE:
-		return _walk_to(state, sim.layout.jail_rect(sim.side_for_team(state.team)).get_center())
 	var blocked: bool = _in_cover(state.position, enemy.position, sim)
 	var slot: int = _slot_to_cast(state, sim, distance, blocked)
 	if slot >= 0 and _cooldown <= 0.0 and state.can_act():

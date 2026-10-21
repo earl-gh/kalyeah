@@ -1,8 +1,8 @@
 class_name TeamBrain
 extends FightBrain
-## A bot that plays a round of tag, not just a duel: a RUSHER walks into the enemy base to capture it (casting at whoever is in
-## reach on the way, without stopping to fight) and the lowest-numbered free rusher goes to fetch a tagged teammate instead; a
-## DEFENDER is a sparring partner (FightBrain) that holds its post and fights whatever comes within `bot_aggro_range`.
+## A bot that plays a round of tag, not just a duel, in this order (owner): 1. tag enemies by killing them (anything within
+## `bot_aggro_range` is fought), 2. stay at the enemy base (a RUSHER walks in and holds it; a DEFENDER holds its own base and does not
+## chase out of it), 3. rescue a tagged teammate (the lowest-numbered free one, and only once it stands at its post).
 ## Pure sim, deterministic for a seed, used by the round balance tool and (later) by practice teams.
 
 ## A defender stays this far inside its base's edge (metres).
@@ -39,16 +39,25 @@ static func defender(spot: Vector2) -> TeamBrain:
 
 
 func think(state: PlayerState, sim: MatchSim) -> PlayerInput:
-	if role == Role.DEFEND:
-		return _guard(state, sim, super.think(state, sim))
-	var was_pressing: bool = _press_slot >= 0
 	var input: PlayerInput = super.think(state, sim)
-	if was_pressing or input.buttons != 0:
-		# the two halves of a tap (press, then release aimed): the rusher stands still for them
-		return input
-	if _teammate_tagged(state, sim) and _is_rescuer(state, sim):
+	if role == Role.DEFEND:
+		return _guard(state, sim, input)
+	return input
+
+
+## No enemy in reach: a rusher goes to and stays in the enemy base, a defender stays in its own, and only one already at its post (the
+## lowest-numbered free one) sets off to rescue (priorities 2 and 3, see FightBrain). A rusher that meets an enemy on the way now
+## stops and fights it (priority 1): killing is what keeps the base open.
+func _no_enemy(state: PlayerState, sim: MatchSim) -> PlayerInput:
+	if _rescue_due(state, sim) and _is_rescuer(state, sim):
 		return _walk_to(state, sim.layout.jail_rect(sim.side_for_team(state.team)).get_center())
-	return _walk_to(state, target)
+	return _walk_to(state, target if role == Role.RUSH else home)
+
+
+## A rusher is at its post in the enemy base, a defender in its own.
+func _at_post(state: PlayerState, sim: MatchSim) -> bool:
+	var side: int = -sim.side_for_team(state.team) if role == Role.RUSH else sim.side_for_team(state.team)
+	return sim.layout.in_base(side, state.position)
 
 
 ## A defender fights from inside its own base and does not chase out of it (stepping out would leave the base open); with
