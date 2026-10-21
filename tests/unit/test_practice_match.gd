@@ -235,7 +235,7 @@ func test_a_quick_tap_still_casts_with_auto_aim() -> void:
 	assert_gt(player.weapon_cooldowns[0], 3.9)
 	for i: int in 30:
 		practice.advance(DT)
-	assert_eq(enemy.hp, 86)
+	assert_eq(enemy.hp, 88)
 	assert_gt(_weapon_button(practice, 0).cooldown_fraction, 0.0)
 
 

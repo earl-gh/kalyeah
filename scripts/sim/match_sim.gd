@@ -132,6 +132,7 @@ func add_player(id: int, team: int) -> PlayerState:
 	state.facing = Vector2(0.0, -side)
 	state.hp = rules.player_max_hp
 	state.radius = rules.player_radius
+	state.effects.immunity_length = rules.cc_immunity
 	players[id] = state
 	return state
 
@@ -265,8 +266,8 @@ func apply_effect(id: int, type: StatusEffects.Type, duration: float, magnitude:
 		return
 	var state: PlayerState = players[id]
 	var fresh: bool = type != StatusEffects.Type.NONE and not state.effects.has(type)
-	state.effects.apply(type, duration, magnitude)
-	if fresh:
+	var applied: bool = state.effects.apply(type, duration, magnitude)
+	if fresh and applied:
 		effect_applied.emit(id, type)
 
 

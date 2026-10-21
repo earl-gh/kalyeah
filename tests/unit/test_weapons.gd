@@ -53,13 +53,13 @@ func test_the_weapons_match_the_gdd_table() -> void:
 	assert_eq(RULES.weapons.size(), 14)
 	var expected: Dictionary = {
 		# id: [kind, cooldown, range, damage]
-		&"bato_light": [WeaponDef.Kind.ATTACK, 4.0, 7.0, 14],
+		&"bato_light": [WeaponDef.Kind.ATTACK, 4.0, 7.0, 12],
 		&"bato_heavy": [WeaponDef.Kind.ATTACK, 12.0, 8.0, 22],
-		&"gunting_light": [WeaponDef.Kind.ATTACK, 5.0, 3.0, 4],
+		&"gunting_light": [WeaponDef.Kind.ATTACK, 5.0, 3.0, 6],
 		&"gunting_heavy": [WeaponDef.Kind.ATTACK, 9.0, 3.5, 24],
 		&"papel_trap": [WeaponDef.Kind.CROWD_CONTROL, 12.0, 6.0, 0],
 		&"papel_shield": [WeaponDef.Kind.BLOCK, 14.0, 0.0, 0],
-		&"tsinelas_light": [WeaponDef.Kind.ATTACK, 6.0, 7.0, 8],
+		&"tsinelas_light": [WeaponDef.Kind.ATTACK, 8.0, 7.0, 5],
 		&"tsinelas_heavy": [WeaponDef.Kind.ATTACK, 10.0, 8.0, 18],
 		&"lata": [WeaponDef.Kind.CROWD_CONTROL, 14.0, 7.0, 5],
 		&"jacks": [WeaponDef.Kind.CROWD_CONTROL, 11.0, 6.0, 3],
@@ -115,7 +115,7 @@ func test_weapons_cast_on_release_and_go_on_cooldown() -> void:
 	sim.step(DT)
 	assert_almost_eq(caster.weapon_cooldowns[0], 4.0, 0.001)
 	_wait(sim, 1.0)
-	assert_eq(enemy.hp, 86)
+	assert_eq(enemy.hp, 88)
 
 
 func test_release_over_the_cancel_zone_does_not_cast() -> void:
@@ -136,11 +136,11 @@ func test_cooldown_blocks_recasting() -> void:
 	_wait(sim, 1.0)
 	_cast(sim, 0)
 	_wait(sim, 1.0)
-	assert_eq(enemy.hp, 86, "second cast inside 4 s does nothing")
+	assert_eq(enemy.hp, 88, "second cast inside 4 s does nothing")
 	_wait(sim, 2.5)
 	_cast(sim, 0)
 	_wait(sim, 1.0)
-	assert_eq(enemy.hp, 72)
+	assert_eq(enemy.hp, 76)
 
 
 func test_cannot_cast_while_stunned_polymorphed_or_tagged() -> void:
@@ -151,6 +151,7 @@ func test_cannot_cast_while_stunned_polymorphed_or_tagged() -> void:
 	_cast(sim, 0)
 	assert_eq(caster.weapon_cooldowns[0], 0.0)
 	_wait(sim, 1.0)
+	_wait(sim, 1.1)  # the stun's immunity (cc_immunity) has to wear off before a polymorph can land
 	sim.apply_effect(CASTER, T.POLYMORPH, 1.0, 0.0)
 	_cast(sim, 0)
 	assert_eq(caster.weapon_cooldowns[0], 0.0)
@@ -208,7 +209,7 @@ func test_targeted_bato_hits_the_nearest_enemy_only_in_range() -> void:
 	var near: PlayerState = _target(sim, 3, Vector2(3.0, -3.0))
 	_cast(sim, 0)
 	_wait(sim, 1.0)
-	assert_eq(near.hp, 86)
+	assert_eq(near.hp, 88)
 	assert_eq(far.hp, 100)
 
 
@@ -242,12 +243,12 @@ func test_gunting_light_snips_by_hold_time_in_a_cone() -> void:
 	var behind: PlayerState = _target(sim, 3, Vector2(0.0, 2.0))
 	var too_far: PlayerState = _target(sim, 4, Vector2(0.5, -3.8))
 	_cast(sim, 0, Vector2(0.0, -1.0), 1)
-	assert_eq(front.hp, 92, "a tap is 2 snips of 4")
+	assert_eq(front.hp, 88, "a tap is 2 snips of 6")
 	assert_eq(behind.hp, 100)
 	assert_eq(too_far.hp, 100)
 	_wait(sim, 5.0)
 	_cast(sim, 0, Vector2(0.0, -1.0), 40)
-	assert_eq(front.hp, 68, "a long hold is 6 snips")
+	assert_eq(front.hp, 52, "a long hold is 6 snips")
 
 
 func test_snip_count_from_hold_time() -> void:
@@ -305,7 +306,7 @@ func test_papel_shield_blocks_enemy_projectiles_not_own() -> void:
 	assert_eq(me.hp, 100, "enemy rock stopped by the paper wall")
 	_cast(sim, 1)
 	_wait(sim, 1.0)
-	assert_eq(enemy.hp, 86, "own rock passes own shield")
+	assert_eq(enemy.hp, 88, "own rock passes own shield")
 	_wait(sim, 3.0)
 	assert_true(sim.weapons.shields.is_empty(), "gone after 2.5 s")
 
@@ -316,7 +317,7 @@ func test_tsinelas_light_three_boomerangs_hit_out_and_back() -> void:
 	var enemy: PlayerState = _target(sim, 2, Vector2(0.0, -4.0))
 	_cast(sim, 0, Vector2(0.0, -1.0))
 	_wait(sim, 2.5)
-	assert_eq(enemy.hp, 100 - 3 * 2 * 8)
+	assert_eq(enemy.hp, 100 - 3 * 2 * 5)
 	assert_true(sim.weapons.projectiles.is_empty(), "all caught again")
 
 
@@ -425,11 +426,11 @@ func test_holding_a_weapon_through_its_cooldown_does_not_precast() -> void:
 	var enemy: PlayerState = _target(sim, 2, Vector2(0.0, -5.0))
 	_cast(sim, 0)
 	_wait(sim, 1.0)
-	assert_eq(enemy.hp, 86)
+	assert_eq(enemy.hp, 88)
 	# press during the cooldown and keep holding until it is over, then let go
 	_cast(sim, 0, Vector2.ZERO, 150)
 	_wait(sim, 1.0)
-	assert_eq(enemy.hp, 86, "a press during the cooldown never starts an aim")
+	assert_eq(enemy.hp, 88, "a press during the cooldown never starts an aim")
 	assert_eq(caster.weapon_cooldowns[0], 0.0)
 
 
@@ -460,7 +461,7 @@ func test_targeted_bato_throws_at_the_enemy_locked_at_the_press() -> void:
 	first.position = Vector2(0.0, -6.5)
 	_cast(sim, 0, Vector2.ZERO, 0)
 	_wait(sim, 1.0)
-	assert_eq(first.hp, 86, "still the locked enemy, not the now-nearer one")
+	assert_eq(first.hp, 88, "still the locked enemy, not the now-nearer one")
 	assert_eq(second.hp, 100)
 	assert_gt(caster.weapon_cooldowns[0], 0.0)
 

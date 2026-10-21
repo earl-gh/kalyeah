@@ -131,8 +131,8 @@ func test_a_cast_on_the_server_reaches_the_other_client() -> void:
 	a.send_input(PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_WEAPON_1, 1), dt)
 	a.send_input(PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 2), dt)
 	_pump(1.2)
-	assert_eq(them.hp, 86, "bato light hit on the server")
-	assert_eq(b.mirror.players[b.player_id].hp, 86, "and the target's client knows")
+	assert_eq(them.hp, 88, "bato light hit on the server")
+	assert_eq(b.mirror.players[b.player_id].hp, 88, "and the target's client knows")
 
 
 func test_events_are_replayed_as_signals_on_the_mirror() -> void:

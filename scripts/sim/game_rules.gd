@@ -23,6 +23,9 @@ extends Resource
 @export var polymorph_speed_scale: float = 0.0
 ## Aim stick shorter than this counts as "no aim" and the weapon auto-aims.
 @export var aim_deadzone: float = 0.0
+## After a hard crowd control (stun, airborne, bounce, knock-out, polymorph) runs out, a new one is ignored for this many
+## seconds (0 = no immunity), so one kid cannot be chain-stunned out of a round. Slows are never blocked.
+@export var cc_immunity: float = 0.0
 ## A returning boomerang is caught when this close to its thrower.
 @export var boomerang_catch_distance: float = 0.0
 ## Scoring: a capture (the whole team in the enemy base, or every enemy tagged) has
