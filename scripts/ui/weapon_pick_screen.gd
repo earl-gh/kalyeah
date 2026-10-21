@@ -287,6 +287,8 @@ func select_slot(slot: int) -> void:
 
 
 func selection_hint() -> String:
+	if pick.picks.size() >= WeaponPick.SLOTS and WeaponPick.deals_no_damage(pick.picks, _defs):
+		return "This pair deals no damage"
 	if swap_mode:
 		return "Tap a weapon for slot %d" % (replacement_slot + 1)
 	if pick.picks.size() < WeaponPick.SLOTS:

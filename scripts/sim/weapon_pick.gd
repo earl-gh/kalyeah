@@ -49,6 +49,18 @@ static func suggestion(defs: Array[WeaponDef]) -> Array[StringName]:
 	return found
 
 
+## True when none of `ids` can hurt anyone (no damage on any of them): a pair of traps, shields and heals only
+## slows, blocks and heals. Allowed (open decision D10), but the picker says so. `defs` maps id to definition.
+static func deals_no_damage(ids: Array[StringName], defs: Dictionary[StringName, WeaponDef]) -> bool:
+	if ids.is_empty():
+		return false
+	for id: StringName in ids:
+		var def: WeaponDef = defs.get(id) as WeaponDef
+		if def == null or def.damage > 0:
+			return false
+	return true
+
+
 func toggle(id: StringName) -> void:
 	if done or not _available.has(id):
 		return

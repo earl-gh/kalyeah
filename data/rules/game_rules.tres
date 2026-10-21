@@ -62,3 +62,4 @@ weapon_pick_time = 10.0
 polymorph_speed_scale = 0.5
 aim_deadzone = 0.1
 boomerang_catch_distance = 0.8
+cc_immunity = 1.0

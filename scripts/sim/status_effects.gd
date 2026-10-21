@@ -18,13 +18,23 @@ const DISPLAY_NAMES: Dictionary[int, String] = {
 ## Effects that stop movement and casting.
 const HARD_CC: Array[Type] = [Type.STUN, Type.AIRBORNE, Type.BOUNCE, Type.KNOCKOUT]
 
+## What `cc_immunity` guards against: everything that stops moving or casting, polymorph included.
+const IMMUNITY_TYPES: Array[Type] = [Type.STUN, Type.AIRBORNE, Type.BOUNCE, Type.KNOCKOUT, Type.POLYMORPH]
+
+## Seconds of immunity to a new hard crowd control once one has run out (0 = none); set by the match from the rules.
+var immunity_length: float = 0.0
+
 var _time_left: Dictionary[int, float] = {}
 var _slow: float = 0.0
+var _immune_left: float = 0.0
 
 
-func apply(type: Type, duration: float, magnitude: float = 0.0) -> void:
+## Returns false when nothing was applied (no effect, no time, or the player is still immune to a new hard CC).
+func apply(type: Type, duration: float, magnitude: float = 0.0) -> bool:
 	if type == Type.NONE or duration <= 0.0:
-		return
+		return false
+	if IMMUNITY_TYPES.has(type) and _immune_left > 0.0 and not _time_left.has(type):
+		return false
 	var current: float = _time_left[type] if _time_left.has(type) else 0.0
 	if current <= 0.0:
 		_time_left.clear()
@@ -32,20 +42,25 @@ func apply(type: Type, duration: float, magnitude: float = 0.0) -> void:
 	_time_left[type] = maxf(current, duration)
 	if type == Type.SLOW:
 		_slow = maxf(_slow if current > 0.0 else 0.0, magnitude)
+	return true
 
 
 func step(dt: float) -> void:
+	_immune_left = maxf(0.0, _immune_left - dt)
 	for type: int in _time_left.keys():
 		_time_left[type] -= dt
 		if _time_left[type] <= 0.0:
 			_time_left.erase(type)
 			if type == Type.SLOW:
 				_slow = 0.0
+			elif IMMUNITY_TYPES.has(type as Type):
+				_immune_left = immunity_length
 
 
 func clear() -> void:
 	_time_left.clear()
 	_slow = 0.0
+	_immune_left = 0.0
 
 
 func has(type: Type) -> bool:
