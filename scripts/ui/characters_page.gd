@@ -76,7 +76,7 @@ func _card(id: String) -> Button:
 	label.name = "Name"
 	label.theme_type_variation = &"DisplayLabel"
 	label.text = (definition.display_name if definition != null else id.capitalize()).to_upper()
-	label.add_theme_font_size_override("font_size", 28)
+	label.add_theme_font_size_override("font_size", UiMetrics.BODY)
 	label.add_theme_constant_override("outline_size", 6)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)

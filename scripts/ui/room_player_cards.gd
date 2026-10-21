@@ -199,7 +199,7 @@ static func open_slot(team: int, row: int, can_join: bool, room: Dictionary, on_
 	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 24)
+	hint.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
 	hint.add_theme_color_override("font_color", KalyeahTheme.TEXT if can_join else KalyeahTheme.TEXT_MUTED)
 	hint.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
 	hint.add_theme_constant_override("outline_size", 0)

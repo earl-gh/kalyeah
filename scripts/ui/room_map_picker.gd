@@ -53,7 +53,7 @@ func open_map_carousel() -> void:
 	view._map_hint.name = "MapHint"
 	view._map_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	view._map_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	view._map_hint.add_theme_font_size_override("font_size", 22)
+	view._map_hint.add_theme_font_size_override("font_size", UiMetrics.CAPTION)
 	view._map_hint.add_theme_color_override("font_color", KalyeahTheme.CREAM)
 	# just under the carousel (which is centred up and down)
 	view._map_hint.anchor_left = 0.0

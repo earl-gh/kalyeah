@@ -24,6 +24,7 @@ static func page_header(title_text: String, subtitle: String = "") -> VBoxContai
 		line.name = "Subtitle"
 		line.text = subtitle
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		line.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
 		line.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
 		line.add_theme_color_override("font_color", Color("b4c3e6"))
 		column.add_child(line)
@@ -158,8 +159,10 @@ static func setting_row(title_text: String, detail: String, control: Control) ->
 	title.name = "Title"
 	words.add_child(title)
 	if not detail.is_empty():
-		var line: Label = text(detail, UiMetrics.CAPTION, Color("9fb0d6"), false)
+		var line: Label = text(detail, UiMetrics.CAPTION, Color("9fb0d6"))
 		line.name = "Detail"
+		line.theme_type_variation = &"MutedLabel"
+		line.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
 		words.add_child(line)
 	row.add_child(words)
 	row.add_child(control)
