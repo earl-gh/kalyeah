@@ -282,3 +282,14 @@ func test_the_pad_says_when_the_thumb_enters_a_new_direction_and_only_then() -> 
 	pad._update(pad.get_global_rect().get_center() + Vector2(1.0, 0.0))
 	assert_eq(seen.size(), 3, "back to the middle is a change too (the match only buzzes for a direction)")
 	assert_eq(seen[2], Vector2.ZERO)
+
+
+func test_the_pad_presses_one_arm_for_a_direction_and_two_for_a_diagonal() -> void:
+	# arms in the order right, down, left, up
+	assert_eq(DPad.pressed_arms(Vector2.RIGHT), [true, false, false, false] as Array[bool])
+	assert_eq(DPad.pressed_arms(Vector2.DOWN), [false, true, false, false] as Array[bool])
+	assert_eq(DPad.pressed_arms(Vector2.LEFT), [false, false, true, false] as Array[bool])
+	assert_eq(DPad.pressed_arms(Vector2.UP), [false, false, false, true] as Array[bool])
+	assert_eq(DPad.pressed_arms(Vector2(1.0, -1.0).normalized()), [true, false, false, true] as Array[bool], "up-right presses two arms")
+	assert_eq(DPad.pressed_arms(Vector2(-1.0, 1.0).normalized()), [false, true, true, false] as Array[bool], "down-left too")
+	assert_eq(DPad.pressed_arms(Vector2.ZERO), [false, false, false, false] as Array[bool])

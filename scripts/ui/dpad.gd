@@ -1,8 +1,8 @@
 class_name DPad
 extends Control
-## The on-screen D-pad, like a Game Boy's but round: a dark disc with eight arrows (up, down, left, right and the four
-## in between). Put a thumb anywhere on the disc and the kid runs the way the arrow under it points; slide the thumb
-## to turn, lift it to stop. It is digital: eight directions only, always a full-speed run (owner: no slow walk).
+## The on-screen D-pad, shaped like the Xbox Series one: a round dark dish with a raised cross in it, an arrow notch on each arm and a
+## shallow dish in the middle. Up, down, left and right are the four arms and the diagonals press two neighbouring arms. Put a thumb
+## anywhere on the disc and the kid runs the way it points; slide the thumb to turn, lift it to stop. It is digital: eight directions only, always a full-speed run (owner: no slow walk).
 ## Slide the thumb out past the disc (the outer ring lights up) and let go there: the kid keeps running that way on
 ## his own (auto-run). A touch on the pad always takes over at once. Put it over the area it should listen in.
 ## Handles real touches (multi-touch safe) and the real mouse; ignores mouse events emulated from touch.
@@ -21,11 +21,19 @@ const DEADZONE: float = 0.22
 const STEP: float = PI / 4.0
 const NO_POINTER: int = -1
 const MOUSE_POINTER: int = -2
-const BODY_COLOR: Color = Color(0.13, 0.14, 0.21)
-const RIM_COLOR: Color = Color(0.6, 0.63, 0.75)
-const ARROW_COLOR: Color = Color(0.8, 0.82, 0.9)
+## The dish the cross sits in (graphite, a little lighter inside the rim), the cross, its arrow notches and the middle dish.
+const BODY_COLOR: Color = Color(0.075, 0.08, 0.1)
+const DISH_COLOR: Color = Color(0.125, 0.135, 0.165)
+const RIM_COLOR: Color = Color(0.5, 0.53, 0.62)
+const CROSS_COLOR: Color = Color(0.235, 0.25, 0.3)
+const ARROW_COLOR: Color = Color(0.66, 0.69, 0.78)
 const PRESSED_COLOR: Color = Color(1.0, 0.86, 0.3)
-const CENTER_COLOR: Color = Color(0.2, 0.21, 0.31)
+const CENTER_COLOR: Color = Color(0.1, 0.11, 0.14)
+## The cross: each arm is this wide and reaches this far, as shares of the disc's radius.
+const ARM_WIDTH: float = 0.62
+const ARM_REACH: float = 0.93
+## A direction counts as pressing an arm when that axis of the stick is at least this much (a diagonal is 0.71 on both).
+const ARM_PRESS: float = 0.38
 const RING_COLOR: Color = Color(1.0, 1.0, 1.0, 0.6)
 const RING_WIDTH: float = 4.0
 ## The ring that is not "active" is the same white, dimmer: the outer one until it lights up (auto-run armed).
@@ -128,31 +136,64 @@ func _draw() -> void:
 			var band: float = OUTER_RADIUS - MAX_RADIUS
 			draw_arc(center, MAX_RADIUS + band / 2.0, 0.0, TAU, 72, BAND_COLOR, band, true)
 		draw_arc(center, OUTER_RADIUS, 0.0, TAU, 72, ring_colors()[1], RING_WIDTH, true)
-	# the disc, with a lit rim and a soft bevel
-	draw_circle(center, radius, BODY_COLOR)
-	draw_arc(center, radius - 2.0, 0.0, TAU, 64, RIM_COLOR, 3.0, true)
-	draw_arc(center, radius * 0.6, 0.0, TAU, 64, Color(1.0, 1.0, 1.0, 0.07), 2.0, true)
+	_draw_dish(center, radius)
 	var pressed: Vector2 = value
-	# the pressed direction lights up as a wedge
-	if pressed != Vector2.ZERO:
-		var angle: float = pressed.angle()
-		var wedge: PackedVector2Array = PackedVector2Array([center])
-		for i: int in 9:
-			wedge.append(center + Vector2.from_angle(angle - STEP / 2.0 + STEP * float(i) / 8.0) * (radius - 3.0))
-		draw_colored_polygon(wedge, Color(PRESSED_COLOR, 0.3))
-	# the eight arrows
-	for i: int in 8:
-		var direction: Vector2 = Vector2.from_angle(STEP * float(i))
+	var arms: Array[bool] = pressed_arms(pressed)
+	_draw_cross(center, radius, arms)
+	# the middle dish leans a little toward what is pressed, like the real pad's
+	var middle: Vector2 = center + pressed * radius * 0.04
+	draw_circle(middle, radius * 0.3, CENTER_COLOR)
+	draw_arc(middle, radius * 0.3, PI * 0.15, PI * 1.15, 24, Color(0.0, 0.0, 0.0, 0.5), 3.0, true)
+	draw_arc(middle, radius * 0.3, PI * 1.15, PI * 2.15, 24, Color(1.0, 1.0, 1.0, 0.16), 2.0, true)
+
+
+## Which of the four arms (right, down, left, up: the angles 0, 90, 180, 270 degrees) a stick direction presses.
+static func pressed_arms(direction: Vector2) -> Array[bool]:
+	return [direction.x >= ARM_PRESS, direction.y >= ARM_PRESS, direction.x <= -ARM_PRESS, direction.y <= -ARM_PRESS]
+
+
+## The round dish: a dark body, a lit lower rim and a shaded upper one (it is hollow), a lighter floor.
+func _draw_dish(center: Vector2, radius: float) -> void:
+	draw_circle(center, radius, BODY_COLOR)
+	draw_arc(center, radius - 2.0, PI * 0.1, PI * 1.1, 48, Color(1.0, 1.0, 1.0, 0.2), 3.0, true)
+	draw_arc(center, radius - 2.0, PI * 1.1, PI * 2.1, 48, Color(0.0, 0.0, 0.0, 0.55), 3.0, true)
+	draw_circle(center, radius - 7.0, DISH_COLOR)
+	# a soft shadow on the upper left of the floor and a little light on the lower right: the dish is concave
+	draw_circle(center + Vector2(-5.0, -7.0), radius - 22.0, Color(0.0, 0.0, 0.0, 0.2))
+	draw_circle(center + Vector2(3.0, 5.0), radius - 26.0, DISH_COLOR)
+	draw_arc(center, radius - 7.0, 0.0, TAU, 64, RIM_COLOR.darkened(0.45), 2.0, true)
+
+
+## The raised cross with a notch at the end of every arm; a pressed arm is tinted and its notch lit.
+func _draw_cross(center: Vector2, radius: float, arms: Array[bool]) -> void:
+	var half: float = radius * ARM_WIDTH / 2.0
+	var reach: float = radius * ARM_REACH
+	var outline: PackedVector2Array = PackedVector2Array([
+		center + Vector2(half, -reach), center + Vector2(half, -half), center + Vector2(reach, -half), center + Vector2(reach, half),
+		center + Vector2(half, half), center + Vector2(half, reach), center + Vector2(-half, reach), center + Vector2(-half, half),
+		center + Vector2(-reach, half), center + Vector2(-reach, -half), center + Vector2(-half, -half), center + Vector2(-half, -reach)])
+	# the cross stands a little above the dish: a dark edge under it, then its face
+	var lowered: PackedVector2Array = PackedVector2Array()
+	for point: Vector2 in outline:
+		lowered.append(point + Vector2(0.0, 4.0))
+	draw_colored_polygon(lowered, Color(0.0, 0.0, 0.0, 0.5))
+	draw_colored_polygon(outline, CROSS_COLOR)
+	var closed: PackedVector2Array = outline.duplicate()
+	closed.append(outline[0])
+	draw_polyline(closed, Color(1.0, 1.0, 1.0, 0.13), 2.0, true)
+	for index: int in 4:
+		var direction: Vector2 = Vector2.from_angle(float(index) * PI / 2.0)
 		var side: Vector2 = direction.orthogonal()
-		var lit: bool = pressed != Vector2.ZERO and pressed.is_equal_approx(direction)
-		var tip: Vector2 = center + direction * radius * 0.88
-		var base: Vector2 = center + direction * radius * 0.58
-		var half: float = radius * (0.17 if i % 2 == 0 else 0.13)
-		draw_colored_polygon(PackedVector2Array([tip, base + side * half, base - side * half]), PRESSED_COLOR if lit else ARROW_COLOR)
-	# the middle button leans a little toward the pressed arrow, like a real pad
-	var middle: Vector2 = center + pressed * radius * 0.05
-	draw_circle(middle, radius * 0.22, CENTER_COLOR)
-	draw_arc(middle, radius * 0.22, 0.0, TAU, 32, Color(1.0, 1.0, 1.0, 0.18), 2.0, true)
+		var lit: bool = arms[index]
+		if lit:
+			var near: Vector2 = center + direction * half * 0.3
+			var far: Vector2 = center + direction * reach
+			draw_colored_polygon(PackedVector2Array([near + side * half, far + side * half, far - side * half, near - side * half]), Color(PRESSED_COLOR, 0.32))
+		# the notch: a small triangle pointing out, near the end of the arm
+		var tip: Vector2 = center + direction * (reach - 12.0)
+		var base: Vector2 = center + direction * (reach - 32.0)
+		var wing: float = half * 0.45
+		draw_colored_polygon(PackedVector2Array([tip, base + side * wing, base - side * wing]), PRESSED_COLOR if lit else ARROW_COLOR)
 
 
 func _to_local(viewport_position: Vector2) -> Vector2:
