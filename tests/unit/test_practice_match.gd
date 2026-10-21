@@ -593,21 +593,21 @@ func test_the_match_opens_with_both_teams_then_go() -> void:
 	assert_true(practice.hud.weapon_buttons[0].visible)
 
 
-# ---- watching others while tagged -------------------------------------------------
+# ---- the tagged message ------------------------------------------------------------
 
-func test_tagged_shows_a_grouped_sheet_with_2_by_3_cards_of_everyone_else() -> void:
+func test_tagged_shows_a_message_on_the_deck_as_tall_as_the_console_and_no_player_cards() -> void:
 	var practice: PracticeMatch = _practice()
 	practice.hurt_local(100)
 	practice.advance(DT)
 	var panel: TaggedPanel = practice.hud.tagged_panel
 	assert_true(panel.visible)
-	assert_eq(panel.card_ids.size(), 4, "practice: the ally and the three enemy dummies")
-	assert_eq(panel.card_ids[0], PracticeMatch.ALLY_ID, "teammates first")
-	assert_almost_eq(TaggedPanel.CARD_SIZE.x / TaggedPanel.CARD_SIZE.y, 2.0 / 3.0, 0.001)
-	assert_eq(TaggedPanel.MAX_CARDS, 5, "room for everyone else in a 3v3")
+	assert_almost_eq(panel.size.y, practice.hud.console_height(), 0.5, "the deck keeps its size")
+	assert_almost_eq(panel.get_global_rect().end.y, practice.hud.console.get_global_rect().end.y, 0.5, "and its place")
+	assert_false(practice.hud.console.wells_shown, "the empty wells give way to the message")
+	assert_eq(panel.find_children("*", "Button", true, false).size(), 1, "no other player can be picked: only Change weapons")
 
 
-func test_the_camera_does_not_move_when_you_are_tagged_and_the_cards_are_not_buttons() -> void:
+func test_the_camera_does_not_move_when_you_are_tagged() -> void:
 	var practice: PracticeMatch = _practice()
 	var camera: ArenaCamera = practice.get_node("%ArenaCamera") as ArenaCamera
 	practice.advance(DT)
@@ -616,9 +616,9 @@ func test_the_camera_does_not_move_when_you_are_tagged_and_the_cards_are_not_but
 	for i: int in 30:
 		practice.advance(DT)
 	assert_eq(camera.position, at, "the whole street is on screen: there is nobody to follow")
-	for card: Node in practice.hud.tagged_panel.find_children("*", "Button", true, false):
-		if card != practice.hud.tagged_panel.swap_button:
-			assert_eq((card as Button).mouse_filter, Control.MOUSE_FILTER_IGNORE, "a card only shows who is there")
+	practice.sim.objectives.rescue(practice.sim, practice.sim.players[practice.local_id], 99)
+	practice.advance(DT)
+	assert_true(practice.hud.console.wells_shown, "rescued: the controls come back")
 
 
 func test_the_whole_street_is_on_screen_at_once_with_your_base_at_the_bottom() -> void:

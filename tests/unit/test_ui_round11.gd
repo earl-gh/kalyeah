@@ -197,8 +197,7 @@ func test_the_status_pill_and_the_tagged_sheet_wear_the_skin_and_the_opening_wor
 	var pill: Label = practice.hud.feedback.message
 	assert_true(pill.get_theme_stylebox("normal") is StyleBoxTexture, "status messages are night pills")
 	assert_false(practice.hud.intro_bar is Panel, "the opening words stand on the street: no card behind them")
-	var band: PanelContainer = practice.hud.tagged_panel.find_children("*", "PanelContainer", true, false)[0] as PanelContainer
-	assert_true(band.get_theme_stylebox("panel") is StyleBoxTexture, "and the tagged sheet")
+	assert_eq(practice.hud.tagged_panel.find_children("*", "PanelContainer", true, false).size(), 0, "the tagged message sits on the console deck: no sheet of its own")
 
 
 func test_a_pill_is_tall_enough_for_its_corners_and_the_scoreboard_for_its_frame() -> void:

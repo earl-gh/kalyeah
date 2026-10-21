@@ -20,3 +20,10 @@ code that stays as the fallback.
 
 ## Check on a phone
 Practice: a dark deck under the street, your health in its middle, the cross-shaped pad on the left. Press up, then up-right: one arm, then two, tinted gold.
+
+## The tagged state on the same deck
+Owner: no selecting other players while tagged, and the bottom part of it should match the controls in design and scale. The row of five player portraits is gone (no other
+player can be picked or watched). The message (*Tagged · Wait for a rescue*, one line on how it ends, **Change weapons**) now sits on the **same deck at exactly the console's
+height and place** (it follows the home-bar inset), and the empty wells under the missing controls are hidden. Rescued, the pad and buttons come back.
+
+![playing (left) and tagged (right) on the same deck](images/tagged-deck.jpg)
