@@ -4,14 +4,12 @@ extends Control
 ## lit lip along its rounded top, and soft round wells where the D-pad and the two skill buttons sit. The arena stays above it
 ## (there are no cards to deploy here, so the space is the controller). It only draws; it never takes a touch.
 
-const BODY_TOP: Color = Color(0.165, 0.175, 0.225)
-const BODY_BOTTOM: Color = Color(0.055, 0.06, 0.085)
-const LIP: Color = Color(0.62, 0.68, 0.85, 0.55)
-const WELL: Color = Color(0.0, 0.0, 0.0, 0.34)
-const WELL_RIM: Color = Color(0.7, 0.76, 0.95, 0.16)
-const CORNER: float = 40.0
+const BODY_TOP: Color = RoyaleStyle.BLUE_TOP
+const BODY_BOTTOM: Color = RoyaleStyle.BLUE_BOTTOM
+const LIP: Color = RoyaleStyle.GOLD
+const CORNER: float = 36.0
 const HEALTH_FONT: int = 40
-const HEALTH_TEXT: Color = Color(0.93, 0.95, 1.0)
+const HEALTH_TEXT: Color = Color.WHITE
 ## The bar keeps your own colour above this share of your health, turns amber below it and red below the second.
 const HEALTH_LOW: float = 0.5
 const HEALTH_CRITICAL: float = 0.25
@@ -82,44 +80,44 @@ static func health_color(fraction: float) -> Color:
 	return HEALTH_AMBER if fraction > HEALTH_CRITICAL else HEALTH_RED
 
 
-## Your health on a small plate in the middle of the deck: a heart and the number over a bar that turns amber, then red, as it empties.
+## Your health on a dark plate in the middle of the deck, like the elixir bar: a heart and the number over a chunky bar marked in tenths
+## that turns amber, then red, as it empties.
 func _draw_health() -> void:
 	var free: Vector2 = gap()
 	if not health_shown or free.y < 90.0:
 		return
 	var width: float = minf(free.y - 16.0, 150.0)
 	var plate: Rect2 = Rect2(Vector2(free.x - width / 2.0, 52.0), Vector2(width, 112.0))
-	var shell: StyleBoxFlat = StyleBoxFlat.new()
-	shell.bg_color = WELL
-	shell.border_color = WELL_RIM
-	shell.set_border_width_all(2)
-	shell.set_corner_radius_all(22)
-	shell.anti_aliasing = true
-	draw_style_box(shell, plate)
+	RoyaleStyle.chunky(self, plate, RoyaleStyle.BLUE_WELL, 24, false)
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var label_size: Vector2 = font.get_string_size(health_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HEALTH_FONT)
 	var heart: float = 15.0
 	var row_width: float = heart * 2.0 + 10.0 + label_size.x
 	var row_left: float = free.x - row_width / 2.0
 	var color: Color = health_color(health_fraction)
-	_draw_heart(Vector2(row_left + heart, plate.position.y + 36.0), heart, color)
-	draw_string(font, Vector2(row_left + heart * 2.0 + 10.0, plate.position.y + 36.0 + label_size.y * 0.32), health_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HEALTH_FONT, HEALTH_TEXT)
-	var track: Rect2 = Rect2(plate.position + Vector2(14.0, 74.0), Vector2(plate.size.x - 28.0, 16.0))
+	_draw_heart(Vector2(row_left + heart, plate.position.y + 38.0), heart, color)
+	RoyaleStyle.lettered(self, font, health_text, Vector2(row_left + heart * 2.0 + 10.0, plate.position.y + 38.0 + label_size.y * 0.32), HEALTH_FONT, HEALTH_TEXT)
+	var track: Rect2 = Rect2(plate.position + Vector2(16.0, 76.0), Vector2(plate.size.x - 32.0, 20.0))
 	var well: StyleBoxFlat = StyleBoxFlat.new()
-	well.bg_color = Color(0.03, 0.035, 0.055)
-	well.set_corner_radius_all(8)
+	well.bg_color = Color(0.02, 0.06, 0.17)
+	well.border_color = RoyaleStyle.NAVY
+	well.set_border_width_all(3)
+	well.set_corner_radius_all(10)
 	well.anti_aliasing = true
 	draw_style_box(well, track.grow(3.0))
 	if health_fraction > 0.0:
 		var fill: StyleBoxFlat = StyleBoxFlat.new()
 		fill.bg_color = color
-		fill.set_corner_radius_all(6)
+		fill.set_corner_radius_all(8)
 		fill.anti_aliasing = true
-		draw_style_box(fill, Rect2(track.position, Vector2(maxf(track.size.x * health_fraction, 12.0), track.size.y)))
+		draw_style_box(fill, Rect2(track.position, Vector2(maxf(track.size.x * health_fraction, 16.0), track.size.y)))
 		var sheen: StyleBoxFlat = StyleBoxFlat.new()
-		sheen.bg_color = Color(1.0, 1.0, 1.0, 0.25)
-		sheen.set_corner_radius_all(4)
-		draw_style_box(sheen, Rect2(track.position + Vector2(3.0, 2.0), Vector2(maxf(track.size.x * health_fraction - 6.0, 6.0), 4.0)))
+		sheen.bg_color = Color(1.0, 1.0, 1.0, 0.35)
+		sheen.set_corner_radius_all(5)
+		draw_style_box(sheen, Rect2(track.position + Vector2(4.0, 2.0), Vector2(maxf(track.size.x * health_fraction - 8.0, 8.0), 5.0)))
+	for tenth: int in range(1, 10):
+		var x: float = track.position.x + track.size.x * float(tenth) / 10.0
+		draw_line(Vector2(x, track.position.y + 2.0), Vector2(x, track.end.y - 2.0), Color(0.0, 0.0, 0.0, 0.3), 2.0)
 
 
 ## A heart centred on `at`, `radius` wide from its middle to a side: two lobes and a point.
@@ -136,30 +134,31 @@ func _draw_heart(at: Vector2, radius: float, color: Color) -> void:
 func _draw() -> void:
 	var w: float = size.x
 	var h: float = size.y
+	# the deck: royal blue, a thick navy outline along its rounded top, a lighter top and a darker bottom, a gold trim and a sheen
 	var shell: StyleBoxFlat = StyleBoxFlat.new()
-	shell.bg_color = BODY_TOP
+	shell.bg_color = BODY_BOTTOM
 	shell.corner_radius_top_left = int(CORNER)
 	shell.corner_radius_top_right = int(CORNER)
+	shell.border_color = RoyaleStyle.NAVY
+	shell.border_width_top = RoyaleStyle.OUTLINE + 2
+	shell.border_width_left = RoyaleStyle.OUTLINE + 2
+	shell.border_width_right = RoyaleStyle.OUTLINE + 2
 	shell.anti_aliasing = true
-	shell.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
+	shell.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
 	shell.shadow_size = 18
 	draw_style_box(shell, Rect2(0.0, 0.0, w, h + 30.0))
-	# the deck darkens toward the bottom edge
-	var fade_top: Color = Color(BODY_BOTTOM, 0.0)
-	var fade_bottom: Color = Color(BODY_BOTTOM, 1.0)
-	draw_polygon(PackedVector2Array([Vector2(0.0, CORNER), Vector2(w, CORNER), Vector2(w, h + 30.0), Vector2(0.0, h + 30.0)]),
-		PackedColorArray([fade_top, fade_top, fade_bottom, fade_bottom]))
-	# the lit lip along the rounded top
-	draw_arc(Vector2(CORNER, CORNER), CORNER - 1.5, PI, PI * 1.5, 16, LIP, 3.0, true)
-	draw_arc(Vector2(w - CORNER, CORNER), CORNER - 1.5, PI * 1.5, TAU, 16, LIP, 3.0, true)
-	draw_line(Vector2(CORNER, 1.5), Vector2(w - CORNER, 1.5), LIP, 3.0, true)
+	var inset: float = float(RoyaleStyle.OUTLINE + 2)
+	var top_c: Color = BODY_TOP
+	var bottom_c: Color = BODY_BOTTOM
+	draw_polygon(PackedVector2Array([Vector2(inset, CORNER), Vector2(w - inset, CORNER), Vector2(w - inset, h * 0.7), Vector2(inset, h * 0.7)]),
+		PackedColorArray([top_c, top_c, bottom_c, bottom_c]))
+	draw_polygon(PackedVector2Array([Vector2(inset + 4.0, inset), Vector2(w - inset - 4.0, inset), Vector2(w - inset, CORNER), Vector2(inset, CORNER)]),
+		PackedColorArray([top_c, top_c, top_c, top_c]))
+	# the gold trim along the top, and a light sheen under it
+	draw_line(Vector2(CORNER, inset + 5.0), Vector2(w - CORNER, inset + 5.0), LIP, 5.0, true)
+	draw_line(Vector2(CORNER, inset + 12.0), Vector2(w - CORNER, inset + 12.0), Color(1.0, 1.0, 1.0, 0.22), 3.0, true)
 	for socket: Dictionary in sockets:
 		if not wells_shown:
 			break
-		var at: Vector2 = socket["at"] as Vector2
-		var radius: float = socket["radius"] as float
-		draw_circle(at, radius, WELL)
-		draw_arc(at, radius, PI * 0.1, PI * 1.1, 32, WELL_RIM, 2.0, true)
+		RoyaleStyle.well(self, socket["at"] as Vector2, socket["radius"] as float)
 	_draw_health()
-
-

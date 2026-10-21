@@ -20,13 +20,13 @@ const STEP: float = PI / 4.0
 const NO_POINTER: int = -1
 const MOUSE_POINTER: int = -2
 ## The dish the cross sits in (graphite, a little lighter inside the rim), the cross, its arrow notches and the middle dish.
-const BODY_COLOR: Color = Color(0.075, 0.08, 0.1)
-const DISH_COLOR: Color = Color(0.125, 0.135, 0.165)
-const RIM_COLOR: Color = Color(0.5, 0.53, 0.62)
-const CROSS_COLOR: Color = Color(0.235, 0.25, 0.3)
-const ARROW_COLOR: Color = Color(0.66, 0.69, 0.78)
-const PRESSED_COLOR: Color = Color(1.0, 0.86, 0.3)
-const CENTER_COLOR: Color = Color(0.1, 0.11, 0.14)
+const BODY_COLOR: Color = Color(0.035, 0.1, 0.27)
+const DISH_COLOR: Color = Color(0.07, 0.22, 0.55)
+const RIM_COLOR: Color = Color(1.0, 0.8, 0.25)
+const CROSS_COLOR: Color = Color(0.93, 0.95, 1.0)
+const ARROW_COLOR: Color = Color(0.2, 0.36, 0.75)
+const PRESSED_COLOR: Color = Color(1.0, 0.72, 0.12)
+const CENTER_COLOR: Color = Color(0.74, 0.8, 0.95)
 ## The cross: each arm is this wide and reaches this far, as shares of the disc's radius.
 const ARM_WIDTH: float = 0.62
 const ARM_REACH: float = 0.93
@@ -108,8 +108,7 @@ func _draw() -> void:
 	# the middle dish leans a little toward what is pressed, like the real pad's
 	var middle: Vector2 = center + pressed * radius * 0.04
 	draw_circle(middle, radius * 0.3, CENTER_COLOR)
-	draw_arc(middle, radius * 0.3, PI * 0.15, PI * 1.15, 24, Color(0.0, 0.0, 0.0, 0.5), 3.0, true)
-	draw_arc(middle, radius * 0.3, PI * 1.15, PI * 2.15, 24, Color(1.0, 1.0, 1.0, 0.16), 2.0, true)
+	draw_arc(middle, radius * 0.3, 0.0, TAU, 32, BODY_COLOR, 4.0, true)
 
 
 ## Which of the four arms (right, down, left, up: the angles 0, 90, 180, 270 degrees) a stick direction presses.
@@ -117,16 +116,15 @@ static func pressed_arms(direction: Vector2) -> Array[bool]:
 	return [direction.x >= ARM_PRESS, direction.y >= ARM_PRESS, direction.x <= -ARM_PRESS, direction.y <= -ARM_PRESS]
 
 
-## The round dish: a dark body, a lit lower rim and a shaded upper one (it is hollow), a lighter floor.
+## The round dish: a navy body, a gold rim and a royal blue floor.
 func _draw_dish(center: Vector2, radius: float) -> void:
 	draw_circle(center, radius, BODY_COLOR)
-	draw_arc(center, radius - 2.0, PI * 0.1, PI * 1.1, 48, Color(1.0, 1.0, 1.0, 0.2), 3.0, true)
-	draw_arc(center, radius - 2.0, PI * 1.1, PI * 2.1, 48, Color(0.0, 0.0, 0.0, 0.55), 3.0, true)
-	draw_circle(center, radius - 7.0, DISH_COLOR)
+	draw_arc(center, radius - 4.0, 0.0, TAU, 64, RIM_COLOR, 6.0, true)
+	draw_arc(center, radius - 9.0, PI * 1.05, PI * 1.95, 40, Color(0.0, 0.0, 0.0, 0.3), 3.0, true)
+	draw_circle(center, radius - 9.0, DISH_COLOR)
 	# a soft shadow on the upper left of the floor and a little light on the lower right: the dish is concave
 	draw_circle(center + Vector2(-5.0, -7.0), radius - 22.0, Color(0.0, 0.0, 0.0, 0.2))
 	draw_circle(center + Vector2(3.0, 5.0), radius - 26.0, DISH_COLOR)
-	draw_arc(center, radius - 7.0, 0.0, TAU, 64, RIM_COLOR.darkened(0.45), 2.0, true)
 
 
 ## The raised cross with a notch at the end of every arm; a pressed arm is tinted and its notch lit.
@@ -145,7 +143,7 @@ func _draw_cross(center: Vector2, radius: float, arms: Array[bool]) -> void:
 	draw_colored_polygon(outline, CROSS_COLOR)
 	var closed: PackedVector2Array = outline.duplicate()
 	closed.append(outline[0])
-	draw_polyline(closed, Color(1.0, 1.0, 1.0, 0.13), 2.0, true)
+	draw_polyline(closed, BODY_COLOR, 4.0, true)
 	for index: int in 4:
 		var direction: Vector2 = Vector2.from_angle(float(index) * PI / 2.0)
 		var side: Vector2 = direction.orthogonal()
@@ -153,7 +151,7 @@ func _draw_cross(center: Vector2, radius: float, arms: Array[bool]) -> void:
 		if lit:
 			var near: Vector2 = center + direction * half * 0.3
 			var far: Vector2 = center + direction * reach
-			draw_colored_polygon(PackedVector2Array([near + side * half, far + side * half, far - side * half, near - side * half]), Color(PRESSED_COLOR, 0.32))
+			draw_colored_polygon(PackedVector2Array([near + side * half, far + side * half, far - side * half, near - side * half]), Color(PRESSED_COLOR, 0.75))
 		# the notch: a small triangle pointing out, near the end of the arm
 		var tip: Vector2 = center + direction * (reach - 12.0)
 		var base: Vector2 = center + direction * (reach - 32.0)
