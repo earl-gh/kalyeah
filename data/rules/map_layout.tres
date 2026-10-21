@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_layout")
-lane_length = 48.0
-lane_width = 27.0
+tiles = Vector2i(18, 32)
+tile_size = 1.5
 post_inset = 2.5
 base_radius = 4.5
 spawn_offset = 2.0
