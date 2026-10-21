@@ -66,6 +66,8 @@ var freeze_left: float = 0.0
 var intro_left: float = 0.0
 ## The match clock: seconds of play so far (counts up; stops in freezes and the intro).
 var match_time: float = 0.0
+## How every point of the match was won, in order: (team that scored, CaptureKind).
+var point_log: Array[Vector2i] = []
 
 var _inputs: Dictionary[int, PlayerInput] = {}
 var _brains: Dictionary[int, DummyBrain] = {}

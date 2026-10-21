@@ -22,6 +22,8 @@ var theirs_label: Label
 var time_label: Label
 var kid_holder: Control
 var weapons_row: HBoxContainer
+## One chip per point, in order, saying how it was won (held their base, tagged them all) and by whom.
+var how_flow: HFlowContainer
 var primary: Button
 var home_button: Button
 
@@ -66,6 +68,7 @@ func _init() -> void:
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(subtitle)
 	column.add_child(_score_card())
+	column.add_child(_how_card())
 	column.add_child(_you_row())
 	var buttons: VBoxContainer = VBoxContainer.new()
 	buttons.name = "Buttons"
@@ -111,6 +114,40 @@ func _score_card() -> Control:
 	row.add_child(dash)
 	row.add_child(theirs)
 	return UiKit.card(row, "inset", 18.0)
+
+
+## "How the points went": a chip for each point, blue when you scored it and red when they did.
+func _how_card() -> Control:
+	var box: VBoxContainer = VBoxContainer.new()
+	box.name = "HowCard"
+	box.add_theme_constant_override("separation", 6)
+	box.add_child(UiKit.section_label("How the points went"))
+	how_flow = HFlowContainer.new()
+	how_flow.name = "How"
+	how_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	how_flow.custom_minimum_size = Vector2(WIDTH - 120.0, 0.0)
+	how_flow.add_theme_constant_override("h_separation", 10)
+	how_flow.add_theme_constant_override("v_separation", 8)
+	box.add_child(how_flow)
+	return box
+
+
+## The words for one point (the chip's colour says who scored it): blue held their base or tagged them all, red held yours or tagged you.
+static func how_text(ours: bool, how: int) -> String:
+	if how == MatchSim.CaptureKind.ALL_TAGGED:
+		return "Tagged them all" if ours else "Tagged you all"
+	return "Held their base" if ours else "Held your base"
+
+
+func _fill_how(sim: MatchSim, local_team: int) -> void:
+	for child: Node in how_flow.get_children():
+		how_flow.remove_child(child)
+		child.queue_free()
+	for entry: Vector2i in sim.point_log:
+		var ours: bool = entry.x == local_team
+		var chip: PanelContainer = UiKit.chip(how_text(ours, entry.y), KalyeahTheme.TEAM_BLUE if ours else KalyeahTheme.TEAM_RED, Color.WHITE, UiMetrics.CAPTION)
+		how_flow.add_child(chip)
+	how_flow.get_parent().visible = not sim.point_log.is_empty()
 
 
 func _side(caption: String, color: Color) -> VBoxContainer:
@@ -213,6 +250,7 @@ func _fill(sim: MatchSim, local_id: int, local_team: int, mode_text: String) -> 
 	_final_mine = sim.score.points[local_team]
 	_final_theirs = sim.score.points[1 - local_team]
 	_show_scores(1.0)
+	_fill_how(sim, local_team)
 	var seconds: int = int(sim.match_time)
 	time_label.text = "%d:%02d" % [seconds / 60, seconds % 60]
 	for child: Node in kid_holder.get_children():

@@ -70,6 +70,9 @@ extends Resource
 @export var bot_skill: float = 0.0
 ## A bot team in a Practice match waits this many seconds into a round before it attacks (0 = at once).
 @export var bot_assault_delay: float = 0.0
+## Then it attacks in waves: this many seconds of attack (0 = it never stops), then `bot_rest_time` seconds back at its base.
+@export var bot_assault_window: float = 0.0
+@export var bot_rest_time: float = 0.0
 
 
 ## Fixed simulation step in seconds (1 / tick_rate).

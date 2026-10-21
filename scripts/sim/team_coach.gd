@@ -5,7 +5,8 @@ extends RefCounted
 ## enemy base) or defends (everyone holds its base, fights what comes near and fetches a tagged teammate).
 ## A team with a human to follow (the player's allies) attacks while that human is free in the enemy half and defends otherwise,
 ## so the allies back up what the player does. A team without one (the enemies) waits `bot_assault_delay` seconds into the round,
-## then attacks while at least two thirds of it are free, and falls back to defending when more are tagged.
+## then attacks in waves (`bot_assault_window` seconds of attack, `bot_rest_time` seconds back home), and only while at least two
+## thirds of it are free: with more tagged it falls back to defending.
 
 enum Plan { DEFEND, ASSAULT }
 
@@ -57,6 +58,9 @@ func decide(sim: MatchSim) -> Plan:
 		var human: PlayerState = sim.players[follow_id]
 		return Plan.ASSAULT if not human.tagged and _in_enemy_half(sim, human) else Plan.DEFEND
 	if sim.round_time < sim.rules.bot_assault_delay:
+		return Plan.DEFEND
+	var window: float = sim.rules.bot_assault_window
+	if window > 0.0 and fmod(sim.round_time - sim.rules.bot_assault_delay, window + sim.rules.bot_rest_time) >= window:
 		return Plan.DEFEND
 	var free: int = 0
 	for id: int in _brains:

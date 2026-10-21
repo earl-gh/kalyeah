@@ -186,3 +186,30 @@ func test_the_bots_move_when_the_match_runs() -> void:
 		practice.advance(DT)
 	assert_ne(practice.sim.players[PracticeMatch.BOT_ENEMY_IDS[0]].position, practice.sim.players[PracticeMatch.BOT_ENEMY_IDS[0]].spawn_position, "an enemy has set off")
 	assert_ne(start, Vector2.INF)
+
+
+func test_the_enemy_attacks_in_waves_and_rests_between_them() -> void:
+	_rules.bot_assault_delay = 10.0
+	_rules.bot_assault_window = 8.0
+	_rules.bot_rest_time = 6.0
+	var sim: MatchSim = _sim()
+	var coach: TeamCoach = _enemies(sim)
+	var seen: Dictionary[int, int] = {}
+	for second: int in 40:
+		_run(sim, [coach] as Array[TeamCoach], 1.0)
+		# players are never tagged here: only the clock decides
+		seen[second] = coach.plan
+	assert_eq(seen[5], TeamCoach.Plan.DEFEND, "waiting")
+	assert_eq(seen[12], TeamCoach.Plan.ASSAULT, "first wave (10 to 18 s)")
+	assert_eq(seen[20], TeamCoach.Plan.DEFEND, "resting (18 to 24 s)")
+	assert_eq(seen[27], TeamCoach.Plan.ASSAULT, "second wave (24 to 32 s)")
+	assert_eq(seen[35], TeamCoach.Plan.DEFEND, "resting again")
+
+
+func test_a_window_of_zero_means_the_enemy_never_stops_attacking() -> void:
+	_rules.bot_assault_delay = 0.0
+	_rules.bot_assault_window = 0.0
+	var sim: MatchSim = _sim()
+	var coach: TeamCoach = _enemies(sim)
+	_run(sim, [coach] as Array[TeamCoach], 60.0)
+	assert_eq(coach.plan, TeamCoach.Plan.ASSAULT)

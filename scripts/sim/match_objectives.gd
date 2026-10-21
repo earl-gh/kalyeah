@@ -148,6 +148,7 @@ func _capture_members(sim: MatchSim, team: int, brains: Dictionary[int, DummyBra
 
 func _score_point(sim: MatchSim, team: int, how: MatchSim.CaptureKind) -> void:
 	var result: MatchScore.Result = sim.score.award_point(team)
+	sim.point_log.append(Vector2i(team, how))
 	_clear_capture(sim)
 	sim.point_scored.emit(team, how)
 	if result == MatchScore.Result.MATCH:
