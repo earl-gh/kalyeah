@@ -67,5 +67,7 @@ func _init() -> void:
 ## Shows the name and the face you have now.
 func refresh() -> void:
 	name_label.text = Session.player_name
+	accessibility_name = "Your profile: %s" % Session.player_name
+	accessibility_description = "Opens the name and face editor"
 	var picture: Texture2D = KidModel.minimap_face(StringName(Session.avatar_id))
 	face.texture = picture if picture != null else KidModel.portrait(StringName(Session.avatar_id))

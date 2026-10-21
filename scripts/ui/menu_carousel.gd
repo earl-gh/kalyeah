@@ -48,6 +48,7 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 	cards.clear()
 	for option: Dictionary in options:
 		var card: Button = ChoiceCard.make_card(String(option.get("heading", heading)), String(option["title"]), String(option["color"]), card_size, String(option["id"]))
+		card.accessibility_name = String(option["title"])
 		card.size = card_size
 		card.pivot_offset = card_size / 2.0
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -55,6 +56,9 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		card.add_child(_frame(String(option.get("accent", "ffd25a"))))
 		add_child(card)
 		cards.append(card)
+	if accessibility_name.is_empty():
+		accessibility_name = heading if not heading.is_empty() else "Choices"
+	accessibility_description = "Swipe or use the arrow keys to change"
 	index = clampi(current, 0, maxi(cards.size() - 1, 0))
 	_position = float(index)
 	_layout()

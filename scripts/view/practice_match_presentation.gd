@@ -159,7 +159,7 @@ func _play_intro_shot() -> void:
 	var best_of: int = owner.sim.score.best_of
 	owner.hud.show_intro(
 		"TAG THEIR BASE!",
-		"BO%d  •  FIRST TO %d" % [best_of, owner.sim.score.points_to_win()]
+		"BEST OF %d" % best_of
 	)
 	if Settings.reduced_motion:
 		owner._camera.place(owner._flip())

@@ -20,7 +20,7 @@ const MODES: Array[Dictionary] = [
 	{"id": "online", "title": "Online", "color": "orange", "accent": "ffa63a",
 		"text": "Invite friends with a room code."},
 	{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78",
-		"text": "Train against dummies."},
+		"text": "Train against a sparring partner."},
 ]
 ## The bottom tabs: Play is the home page, the others are pages.
 const TABS: Array[Dictionary] = [
@@ -196,6 +196,7 @@ func _build_home() -> VBoxContainer:
 	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	home.add_child(stage)
 	carousel = MenuCarousel.new()
+	carousel.accessibility_name = "Game mode"
 	carousel.name = "ModeCarousel"
 	carousel.card_size = HERO_CARD
 	carousel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -353,7 +354,12 @@ func _fade_in(content: Control, way: int = 0) -> void:
 func mode_facts(id: String) -> Array[String]:
 	var rules: GameRules = load(RULES_PATH) as GameRules
 	if id == "practice":
-		return ["Solo", "Dummies don't fight back"] as Array[String]
+		var foes: String = "Dummies don't fight back"
+		if rules.practice_fighters == 1:
+			foes = "A sparring partner"
+		elif rules.practice_fighters > 1:
+			foes = "%d sparring partners" % rules.practice_fighters
+		return ["Solo", foes] as Array[String]
 	var choices: PackedStringArray = []
 	for choice: int in rules.best_of_choices:
 		choices.append(str(choice))
@@ -376,7 +382,7 @@ func _fill_chips(id: String) -> void:
 func _build_last_match() -> Button:
 	var strip: Button = Button.new()
 	strip.name = "LastMatch"
-	strip.custom_minimum_size = Vector2(0.0, 64.0)
+	strip.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
 	strip.focus_mode = Control.FOCUS_ALL
 	for state: String in ["normal", "hover"]:
 		strip.add_theme_stylebox_override(state, UiSkin.plate("night", 0.0, 34))
@@ -399,6 +405,8 @@ func refresh_last_match() -> void:
 		return
 	var entry: Dictionary = found[0]
 	var won: bool = bool(entry.get("won", false))
+	last_match.accessibility_name = "Last match: %s, %s, %d to %d" % ["Victory" if won else "Defeat", String(entry.get("mode", "")).capitalize(), int(entry.get("mine", 0)), int(entry.get("theirs", 0))]
+	last_match.accessibility_description = "Opens your history"
 	var row: HBoxContainer = HBoxContainer.new()
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	row.offset_left = 18.0

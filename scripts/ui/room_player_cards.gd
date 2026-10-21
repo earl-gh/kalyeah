@@ -170,6 +170,7 @@ static func _tag(text: String, team: int) -> Control:
 static func open_slot(team: int, row: int, can_join: bool, room: Dictionary, on_team: Callable) -> Control:
 	var card: Button = Button.new()
 	card.name = "OpenSlot%d" % team
+	card.accessibility_name = "Open slot in the %s team" % ("blue" if team == 0 else "red")
 	card.custom_minimum_size = Vector2(0.0, BAR_HEIGHT)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.focus_mode = Control.FOCUS_ALL

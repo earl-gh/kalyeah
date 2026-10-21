@@ -70,6 +70,7 @@ var console: ConsolePanel
 var top: Control
 var scoreboard: Scoreboard
 var dpad: DPad
+var gear_surface: Panel
 var weapon_buttons: Array[AimButton] = []
 ## Weapon 1, weapon 2 (the order MatchInput uses).
 var aim_buttons: Array[AimButton] = []
@@ -174,6 +175,7 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	# disabled while on cooldown too: no pressing or precasting until ready
 	var weapons_off: bool = not playing or not player.effects.can_cast()
 	feedback.sync_hint(player, dpad, aim_buttons, playing)
+	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 	for slot: int in weapon_buttons.size():
 		var button: AimButton = weapon_buttons[slot]
 		if slot >= player.weapons.size():
@@ -186,6 +188,10 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 			button.icon_id = def.id
 			button.sub_color = WeaponPickScreen.kind_color(def.kind)
 			button.queue_redraw()
+			button.accessibility_name = "Weapon %d: %s, %s" % [slot + 1, def.display_name, def.kind_label()]
+		var cooldown_words: String = "Hold and drag to aim, let go to throw" if player.weapon_cooldowns[slot] <= 0.0 else "Ready in %d seconds" % ceili(player.weapon_cooldowns[slot])
+		if button.accessibility_description != cooldown_words:
+			button.accessibility_description = cooldown_words
 		button.blocked_text = _block_tag(player) if playing else ""
 		button.set_locked(weapons_off or player.weapon_cooldowns[slot] > 0.0)
 		button.set_cooldown(player.weapon_cooldowns[slot], def.cooldown)
@@ -204,6 +210,7 @@ func _block_tag(player: PlayerState) -> String:
 ## Top row: the score card; the capture countdown; banners and the feed fade out.
 func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1) -> void:
 	scoreboard.show_score(sim.score, local_team, sim.match_time)
+	scoreboard.show_capture(sim, local_team)
 	_sync_capture(sim, local_team)
 	again_button.visible = sim.phase == MatchSim.Phase.MATCH_OVER
 	results.set_over(sim.phase == MatchSim.Phase.MATCH_OVER, sim, local_id, local_team, results_mode)
@@ -292,6 +299,8 @@ func _build() -> void:
 	weapon_buttons = [weapon_one, weapon_two]
 	aim_buttons = [weapon_one, weapon_two]
 	dpad = DPad.new()
+	dpad.accessibility_name = "Movement pad"
+	dpad.accessibility_description = "Press a direction to run; let go to stop"
 	dpad.rest_fraction = Vector2(0.5, 0.5)
 	dpad.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dpad)
@@ -347,6 +356,7 @@ func _build() -> void:
 func layout_controls() -> void:
 	var scale_by: float = Settings.control_scale
 	var mirrored: bool = Settings.left_handed
+	MatchHudTop.layout(self)
 	var weapon: float = WEAPON_SIZE * scale_by
 	var gap: float = WEAPON_GAP * scale_by
 	var stagger: float = WEAPON_STAGGER * scale_by

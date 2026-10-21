@@ -246,8 +246,10 @@ func test_copying_the_room_code_is_answered_with_a_toast() -> void:
 
 func test_the_gallery_is_reached_from_settings_and_keeps_the_settings_tab_lit() -> void:
 	var screen: TitleScreen = _screen()
+	Settings.set_developer(true)
 	screen.open_page(&"settings")
 	screen.settings_page.gallery_button.pressed.emit()
+	Settings.set_developer(false)
 	assert_eq(screen.current_page, &"gallery")
 	assert_true(screen.gallery_page.visible)
 	assert_eq(screen.tab_bar.active, &"settings", "it is a part of Settings")

@@ -117,29 +117,47 @@ func test_the_suggestion_is_not_offered_when_swapping_weapons() -> void:
 
 # ---- bars on the cards ------------------------------------------------------------------
 
-func test_every_weapon_card_has_bars_for_its_stats_and_keeps_its_exact_numbers() -> void:
+func test_the_info_panel_has_meters_for_the_weapons_stats_and_keeps_its_exact_numbers() -> void:
 	var rules: GameRules = _rules()
 	var screen: WeaponPickScreen = _pick_screen()
 	await wait_process_frames(2)
 	var maxima: Dictionary = WeaponsPage.stat_maxima(rules.weapons)
 	for weapon: WeaponDef in rules.weapons:
-		var card: Button = screen.find_child("Weapon_%s" % String(weapon.id), true, false) as Button
-		var bars: Control = card.find_child("Bars", true, false)
+		screen.show_info(weapon.id)
+		var bars: Control = screen.find_child("Bars", true, false)
 		var figures: Array[Dictionary] = WeaponsPage.figures_of(weapon)
 		assert_eq(bars.get_child_count(), figures.size(), weapon.id)
 		for i: int in figures.size():
 			var meter: ProgressBar = bars.get_child(i).find_child("Meter", true, false) as ProgressBar
 			assert_almost_eq(meter.value, WeaponsPage.fraction_of(String(figures[i]["caption"]), weapon, maxima), 0.002)
-			assert_false(bars.get_child(i).find_child("Value", true, false).visible, "the card prints its numbers once, in the line")
-		assert_eq((card.find_child("Stats", true, false) as Label).text, LoadoutCards.stat_line(weapon), "the exact numbers, with their per hit or per tick wording")
+		assert_eq((screen.find_child("Stats", true, false) as Label).text, LoadoutCards.stat_line(weapon), "the exact numbers, with their per hit or per tick wording")
 
 
-func test_the_bars_never_swallow_a_tap_meant_for_the_card() -> void:
+func test_showing_a_weapon_replaces_the_meters_instead_of_adding_to_them() -> void:
 	var screen: WeaponPickScreen = _pick_screen()
 	await wait_process_frames(2)
-	var card: Button = screen.find_child("Weapon_bato_light", true, false) as Button
-	for node: Node in card.find_child("Bars", true, false).find_children("*", "Control", true, false):
-		assert_eq((node as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE, "%s lets touches through" % node.name)
+	screen.show_info(&"bato_light")
+	screen.show_info(&"jacks")
+	await wait_process_frames(2)
+	assert_eq(screen.find_children("Bars", "", true, false).size(), 1)
+
+
+func test_a_tile_taps_through_to_the_pick_and_shows_the_weapon() -> void:
+	var screen: WeaponPickScreen = _pick_screen()
+	await wait_process_frames(2)
+	screen.tap(&"bato_light")
+	assert_eq(screen.pick.picks, [&"bato_light"] as Array[StringName])
+	assert_eq(screen.focused, &"bato_light")
+	screen.tap(&"jacks")
+	assert_eq(screen.focused, &"jacks", "the panel follows the last tile touched")
+
+
+func test_a_slot_names_its_weapon_the_way_its_tile_does() -> void:
+	var screen: WeaponPickScreen = _pick_screen()
+	await wait_process_frames(2)
+	screen.tap(&"tsinelas_heavy")
+	assert_eq(screen._sockets[0].weapon.display_name, "Tsinelas · Heavy")
+	assert_eq((screen.find_child("Weapon_tsinelas_heavy", true, false).find_child("WeaponName", true, false) as Label).text, "Tsinelas · Heavy")
 
 
 # ---- the countdown ring ------------------------------------------------------------------

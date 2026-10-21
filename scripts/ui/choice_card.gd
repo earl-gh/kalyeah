@@ -33,7 +33,7 @@ static func make_card(heading: String, choice: String, color: String, size: Vect
 	var top: Label = Label.new()
 	top.name = "Heading"
 	top.text = heading
-	top.add_theme_font_size_override("font_size", 19)
+	top.add_theme_font_size_override("font_size", UiMetrics.MIN_TEXT)
 	top.add_theme_color_override("font_color", KalyeahTheme.semantic_text_color(color))
 	top.modulate.a = 0.75
 	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)

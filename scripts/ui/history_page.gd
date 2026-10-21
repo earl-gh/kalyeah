@@ -31,7 +31,7 @@ func _ready() -> void:
 	add_child(_top)
 	summary_card = _summary()
 	_top.add_child(summary_card)
-	filter_bar = UiSegmented.new(FILTERS, 64.0, UiMetrics.CAPTION)
+	filter_bar = UiSegmented.new(FILTERS, UiMetrics.TOUCH, UiMetrics.CAPTION)
 	filter_bar.chosen.connect(show_filter)
 	_top.add_child(filter_bar)
 	var scroll: ScrollContainer = ScrollContainer.new()

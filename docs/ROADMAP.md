@@ -71,7 +71,7 @@ Budgets (M6): 60 fps on a recommended Android phone, 30+ on the minimum; APK und
 - No player name above the health bar.
 - A status such as *Stunned* is **italic** and shown **above** the health bar.
 - (Superseded: no cooldown bars under the health bar since dash and the pin were removed.)
-- Skill buttons are art only, plus the weapon type (ATK, CC or BLK) as a small tag. No health panel in the top-left corner.
+- Skill buttons are art only, plus the weapon type (Attack, Control, Block or Heal, in capitals) as a small tag. No health panel in the top-left corner.
 
 ### Camera spec (owner): exactly League of Legends
 - Pitch **56°** from horizontal, field of view **30°** (vertical), far camera with a flat perspective.

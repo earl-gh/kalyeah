@@ -62,7 +62,7 @@ func sync_hint(player: PlayerState, dpad: DPad, buttons: Array[AimButton], playi
 		hint.hide()
 		return
 	if not player.effects.can_cast():
-		hint.text = "%s · skills unavailable" % ", ".join(player.effects.display_names())
+		hint.text = "%s · weapons unavailable" % ", ".join(player.effects.display_names())
 	else:
 		for button: AimButton in buttons:
 			if button.aiming:

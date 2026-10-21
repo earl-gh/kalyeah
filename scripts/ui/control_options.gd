@@ -3,7 +3,7 @@ extends VBoxContainer
 ## How the match controls sit under your thumbs: a left-handed switch and a size. Shared by the
 ## Settings page and the in-match menu; changes apply to the controls at once.
 
-## The switch (on = stick on the right, weapons on the left).
+## The switch (on = D-pad on the right, weapons on the left).
 var hand_toggle: UiToggle
 var size_choice: UiSegmented
 
@@ -15,7 +15,7 @@ func _ready() -> void:
 	hand_toggle.name = "LeftHanded"
 	hand_toggle.set_state(Settings.left_handed)
 	hand_toggle.toggled.connect(Settings.set_left_handed)
-	add_child(UiKit.setting_row("Left-handed", "Stick on the right, weapons on the left", hand_toggle))
+	add_child(UiKit.setting_row("Left-handed", "D-pad on the right, weapons on the left", hand_toggle))
 	add_child(UiKit.divider())
 	size_choice = UiSegmented.new([
 		{"id": &"small", "label": "Small"},
@@ -25,7 +25,7 @@ func _ready() -> void:
 	size_choice.name = "ControlSize"
 	size_choice.select(size_id(Settings.control_scale), false)
 	size_choice.chosen.connect(func(id: StringName) -> void: Settings.set_control_scale(Settings.CONTROL_SIZES[id]))
-	add_child(UiKit.setting_row("Control size", "The stick and the weapon buttons", Control.new()))
+	add_child(UiKit.setting_row("Control size", "The D-pad and the weapon buttons", Control.new()))
 	add_child(size_choice)
 	Settings.controls_changed.connect(_refresh)
 

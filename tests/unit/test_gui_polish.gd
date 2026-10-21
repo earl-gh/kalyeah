@@ -20,20 +20,21 @@ func test_first_weapon_details_and_ready_fit_short_and_tall_phones() -> void:
 		phone.size.y = height
 		screen.size = phone.size
 		await wait_process_frames(8)
-		var stats: Label = first.find_child("Stats", true, false) as Label
-		assert_lte(stats.get_global_rect().end.y, scroll.get_global_rect().end.y, "first weapon stats fit at height %s" % height)
+		var stats: Label = screen.find_child("Stats", true, false) as Label
+		assert_lte(stats.get_global_rect().end.y, screen._ready_button.get_global_rect().position.y, "the info panel sits above Ready at height %s" % height)
+		assert_gte(scroll.size.y, WeaponPickScreen.TILE_HEIGHT, "at least one whole row of tiles shows at height %s" % height)
 		assert_lte(first.get_global_rect().end.x, scroll.get_global_rect().end.x)
 		assert_lte(screen._ready_button.get_global_rect().end.y, phone.get_global_rect().end.y)
 		assert_gte(screen._ready_button.size.y, UiMetrics.TOUCH)
 		assert_false(scroll.is_ancestor_of(screen._ready_button))
-		assert_eq((first.find_child("Description", true, false) as Label).get_theme_font_size("font_size"), UiMetrics.BODY, "body text uses one readable scale")
+		assert_gte((screen.find_child("Description", true, false) as Label).get_theme_font_size("font_size"), UiMetrics.DETAIL, "the description is readable")
 		for portrait: Button in screen._profiles.values():
 			assert_gte(portrait.size.x, UiMetrics.TOUCH, "compact portraits keep touch width")
 	phone.size.y = 1280.0
 	screen.size = phone.size
 	screen.open(WeaponPick.new(ids, 10.0), rules.weapons, "", RandomNumberGenerator.new(), rules.characters, &"ligaya")
 	await wait_process_frames(8)
-	assert_lte((first.find_child("Stats", true, false) as Label).get_global_rect().end.y, scroll.get_global_rect().end.y, "timed setup also fits with its explanation visible")
+	assert_lte((screen.find_child("Stats", true, false) as Label).get_global_rect().end.y, screen._ready_button.get_global_rect().position.y, "timed setup also fits with its explanation visible")
 	assert_true(screen._ring.visible)
 	screen.tap(&"bato_light")
 	screen.tap(&"bato_heavy")

@@ -16,6 +16,12 @@ var quit_button: Button
 var name_label: Label
 var face: TextureRect
 var _content: VBoxContainer
+var _header_taps: int = 0
+var _last_header_tap: int = 0
+
+const DEV_TAPS: int = 7
+## Taps count as quick when each is within this many milliseconds of the one before.
+const TAP_WINDOW_MS: int = 700
 
 
 func _ready() -> void:
@@ -26,7 +32,10 @@ func _ready() -> void:
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	add_child(_content)
-	_content.add_child(UiKit.page_header("Settings", "Make Kalyeah yours."))
+	var header: Control = UiKit.page_header("Settings", "Make Kalyeah yours.")
+	header.mouse_filter = Control.MOUSE_FILTER_STOP
+	header.gui_input.connect(_on_header_input)
+	_content.add_child(header)
 	_content.add_child(_profile_card())
 	var preferences: VBoxContainer = VBoxContainer.new()
 	preferences.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
@@ -43,12 +52,45 @@ func _ready() -> void:
 	gallery_button = MenuDialog.make_button("UI gallery", "grey", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
 	gallery_button.name = "GalleryButton"
 	gallery_button.pressed.connect(gallery_pressed.emit)
+	gallery_button.visible = Settings.developer
+	Settings.developer_changed.connect(func() -> void: gallery_button.visible = Settings.developer)
 	_content.add_child(gallery_button)
 	quit_button = MenuDialog.make_button("Quit game", "red", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
 	quit_button.name = "QuitButton"
 	quit_button.pressed.connect(quit_pressed.emit)
 	_content.add_child(quit_button)
 	visibility_changed.connect(refresh)
+
+
+## The language choice: shown only when a second language is ready (see Settings.available_languages).
+static func _language_row(languages: Array[String]) -> Control:
+	var options: Array[Dictionary] = []
+	for code: String in languages:
+		options.append({"id": StringName(code), "label": Settings.LANGUAGES[code]})
+	var choice: UiSegmented = UiSegmented.new(options, 72.0, UiMetrics.BODY)
+	choice.name = "LanguageChoice"
+	choice.select(StringName(Settings.language), false)
+	choice.chosen.connect(func(id: StringName) -> void: Settings.set_language(String(id)))
+	var column: VBoxContainer = VBoxContainer.new()
+	column.name = "LanguageOptions"
+	column.add_theme_constant_override("separation", UiMetrics.GAP)
+	column.add_child(UiKit.setting_row("Language", "The words in the game", Control.new()))
+	column.add_child(choice)
+	return column
+
+
+## Seven quick taps on the title switch the developer tools on or off (a player never meets them by accident).
+func _on_header_input(event: InputEvent) -> void:
+	var tapped: bool = (event is InputEventMouseButton and (event as InputEventMouseButton).pressed) or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed)
+	if not tapped:
+		return
+	var now: int = Time.get_ticks_msec()
+	_header_taps = _header_taps + 1 if now - _last_header_tap < TAP_WINDOW_MS else 1
+	_last_header_tap = now
+	if _header_taps >= DEV_TAPS:
+		_header_taps = 0
+		Settings.set_developer(not Settings.developer)
+		UiToast.say(self, "Developer tools on" if Settings.developer else "Developer tools off", "info")
 
 
 ## The profile card: your face, your name and the button that changes it.
@@ -63,7 +105,8 @@ func _profile_card() -> Control:
 	words.add_theme_constant_override("separation", 6)
 	name_label = Label.new()
 	name_label.name = "PlayerName"
-	name_label.theme_type_variation = &"DisplayLabel"
+	# the body font, so the name is shown as it was typed (the display font is all capitals)
+	name_label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
 	name_label.add_theme_font_size_override("font_size", 40)
 	name_label.add_theme_constant_override("outline_size", 6)
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -97,6 +140,7 @@ static func fill(parent: Control) -> void:
 	percent.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	sound.add_child(UiKit.setting_row("Sound", "", percent))
 	var slider: HSlider = DialogButtons.slider(Settings.volume)
+	slider.accessibility_name = "Sound volume"
 	slider.name = "VolumeSlider"
 	sound.add_child(slider)
 	slider.value_changed.connect(func(value: float) -> void:
@@ -115,3 +159,7 @@ static func fill(parent: Control) -> void:
 	parent.add_child(AccessibilityOptions.new())
 	parent.add_child(UiKit.divider())
 	parent.add_child(ControlOptions.new())
+	var languages: Array[String] = Settings.available_languages()
+	if languages.size() > 1:
+		parent.add_child(UiKit.divider())
+		parent.add_child(_language_row(languages))

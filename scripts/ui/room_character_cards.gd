@@ -9,6 +9,7 @@ static func build(view: HotspotRoomView, id: String) -> Button:
 	card.name = id.capitalize()
 	card.custom_minimum_size = HotspotRoomView.KID_CARD
 	card.tooltip_text = "Choose %s" % id.capitalize()
+	card.accessibility_name = "Choose %s" % id.capitalize()
 	MenuDialog.feel_press(card)
 	card.pressed.connect(view.character_chosen.emit.bind(id))
 	var picture: TextureRect = TextureRect.new()

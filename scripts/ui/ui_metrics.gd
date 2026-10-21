@@ -9,6 +9,10 @@ const ACTION: int = 32
 const DETAIL: int = 28
 const CAPTION: int = 24
 const TOUCH: float = 88.0
+## The floors the lint test (tests/unit/test_ui_lint.gd) holds every screen to: no text smaller than MIN_TEXT px and
+## no tappable control shorter than MIN_TARGET px (the joystick and the weapon buttons are bigger by design).
+const MIN_TEXT: int = 22
+const MIN_TARGET: float = 80.0
 const PAGE_MARGIN: float = 32.0
 const PADDING: float = 24.0
 const GAP: int = 16

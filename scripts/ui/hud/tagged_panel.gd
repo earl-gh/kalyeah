@@ -96,6 +96,7 @@ func sync(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 		_portraits[i].texture = KidModel.portrait(other.character_id)
 		_names[i].text = _display_name(sim, other)
 		_states[i].text = "Tagged" if other.tagged else ""
+		card.accessibility_name = "%s, %s: watch" % [_names[i].text, "tagged" if other.tagged else ("your teammate" if ally else "an opponent")]
 		_portraits[i].modulate = Color(0.55, 0.55, 0.6) if other.tagged else Color.WHITE
 		for state: String in ["normal", "hover", "pressed", "disabled"]:
 			card.add_theme_stylebox_override(state, _card_box(OWN if ally else ENEMY))
