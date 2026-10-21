@@ -151,6 +151,7 @@ func test_cannot_cast_while_stunned_polymorphed_or_tagged() -> void:
 	_cast(sim, 0)
 	assert_eq(caster.weapon_cooldowns[0], 0.0)
 	_wait(sim, 1.0)
+	_wait(sim, 1.1)  # the stun's immunity (cc_immunity) has to wear off before a polymorph can land
 	sim.apply_effect(CASTER, T.POLYMORPH, 1.0, 0.0)
 	_cast(sim, 0)
 	assert_eq(caster.weapon_cooldowns[0], 0.0)
