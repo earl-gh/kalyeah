@@ -25,8 +25,8 @@ const MAX_DISTANCE: float = 3000.0
 @export var lens_curve: float = 0.0
 ## VERTICAL field of view, in degrees. Narrow: the camera is far away and the picture is nearly flat.
 @export var vfov_degrees: float = 0.0
-## Fractions of the screen kept clear of the arena: the top (score and settings), the bottom (stick and skills)
-## and each side.
+## Fractions of the screen kept clear of the arena: the top (score and settings), the bottom (the controller body
+## with the D-pad and the skills; at least this, and the real height of the controller when it is taller) and each side.
 @export var frame_top: float = 0.0
 @export var frame_bottom: float = 0.0
 @export var frame_side: float = 0.0
@@ -61,8 +61,9 @@ func screen_point(distance: float, aspect: float, ground: Vector2, aim_z: float,
 
 ## The shift of the aim point along the street (metres, + toward the own end) that centres the arena's two ends in
 ## the band of the screen left between the top and bottom margins, for a camera `distance` away.
-func centring_shift(distance: float, aspect: float, arena: Vector2) -> float:
-	var want: float = ((1.0 - 2.0 * frame_top) + (-1.0 + 2.0 * frame_bottom)) / 2.0
+func centring_shift(distance: float, aspect: float, arena: Vector2, bottom: float = -1.0) -> float:
+	var kept: float = frame_bottom if bottom < 0.0 else bottom
+	var want: float = ((1.0 - 2.0 * frame_top) + (-1.0 + 2.0 * kept)) / 2.0
 	var low: float = -arena.y
 	var high: float = arena.y
 	for i: int in 50:
@@ -77,11 +78,12 @@ func centring_shift(distance: float, aspect: float, arena: Vector2) -> float:
 
 
 ## True when the whole `arena` (x, z extents) fits inside the margins at `distance`.
-func fits(distance: float, aspect: float, arena: Vector2) -> bool:
-	var shift: float = centring_shift(distance, aspect, arena)
+func fits(distance: float, aspect: float, arena: Vector2, bottom: float = -1.0) -> bool:
+	var kept: float = frame_bottom if bottom < 0.0 else bottom
+	var shift: float = centring_shift(distance, aspect, arena, bottom)
 	var top: float = screen_point(distance, aspect, Vector2(0.0, -arena.y / 2.0), shift).y
-	var bottom: float = screen_point(distance, aspect, Vector2(0.0, arena.y / 2.0), shift).y
-	if top > 1.0 - 2.0 * frame_top or bottom < -1.0 + 2.0 * frame_bottom:
+	var bottom_edge: float = screen_point(distance, aspect, Vector2(0.0, arena.y / 2.0), shift).y
+	if top > 1.0 - 2.0 * frame_top or bottom_edge < -1.0 + 2.0 * kept:
 		return false
 	for sx: float in [-1.0, 1.0]:
 		for sz: float in [-1.0, 1.0]:
@@ -93,16 +95,16 @@ func fits(distance: float, aspect: float, arena: Vector2) -> bool:
 
 ## The camera's distance from the aim point (x) and the aim point's shift along the street (y) that put the whole
 ## `arena` on a screen of `aspect`: the nearest the camera can be and still fit.
-func frame(aspect: float, arena: Vector2) -> Vector2:
+func frame(aspect: float, arena: Vector2, bottom: float = -1.0) -> Vector2:
 	var near: float = MIN_DISTANCE
 	var far: float = MAX_DISTANCE
 	for i: int in 50:
 		var middle: float = (near + far) / 2.0
-		if fits(middle, aspect, arena):
+		if fits(middle, aspect, arena, bottom):
 			far = middle
 		else:
 			near = middle
-	return Vector2(far, centring_shift(far, aspect, arena))
+	return Vector2(far, centring_shift(far, aspect, arena, bottom))
 
 
 ## Camera position relative to the aim point. Own side (+Z, no flip) looks toward -Z, so the camera sits on the

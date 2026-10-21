@@ -137,13 +137,13 @@ func test_pushing_the_stick_up_runs_up_the_screen() -> void:
 	var practice: PracticeMatch = _practice()
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 	var start: Vector2 = player.position
-	practice.hud.joystick.changed.emit(Vector2(0.0, -1.0))
+	practice.hud.dpad.changed.emit(Vector2(0.0, -1.0))
 	for i: int in 30:
 		practice.advance(DT)
 	var ran: Vector2 = LocalInput.to_screen(player.position - start, practice._flip(), CAMERA.yaw_offset_degrees)
 	assert_lt(ran.y, -3.0, "toward the top of the screen")
 	assert_almost_eq(ran.x, 0.0, 0.3, "straight up the screen (the world direction turns with the camera's yaw)")
-	practice.hud.joystick.changed.emit(Vector2.ZERO)
+	practice.hud.dpad.changed.emit(Vector2.ZERO)
 	practice.advance(DT)
 	var at: Vector2 = player.position
 	for i: int in 10:
@@ -664,7 +664,7 @@ func test_reconnect_releases_controls_only_after_confirmed_resume() -> void:
 
 func test_control_hint_explains_stun_aim_and_auto_run() -> void:
 	var practice: PracticeMatch = _practice()
-	practice.hud.joystick.auto_run = true
+	practice.hud.dpad.auto_run = true
 	practice.advance(DT)
 	assert_string_contains(practice.hud.feedback.hint.text, "Auto-run")
 	practice.sim.apply_effect(PracticeMatch.LOCAL_ID, StatusEffects.Type.STUN, 1.0, 0.0)
@@ -673,7 +673,7 @@ func test_control_hint_explains_stun_aim_and_auto_run() -> void:
 	assert_string_contains(practice.hud.feedback.hint.text, "skills unavailable")
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 	player.effects.clear()
-	practice.hud.joystick.auto_run = false
+	practice.hud.dpad.auto_run = false
 	var button: AimButton = _weapon_button(practice, 0)
 	button.aiming = true
 	practice.hud.sync_player(practice.sim, player, false)

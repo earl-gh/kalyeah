@@ -95,7 +95,7 @@ func test_left_handed_swaps_the_sides_and_keeps_everything_on_screen() -> void:
 	Settings.set_left_handed(true)
 	var hud: MatchHud = _hud()
 	var screen: Vector2 = hud.get_rect().size
-	var stick: Rect2 = hud.joystick.get_rect()
+	var stick: Rect2 = hud.dpad.get_rect()
 	var first: Rect2 = hud.weapon_buttons[0].get_rect()
 	var second: Rect2 = hud.weapon_buttons[1].get_rect()
 	assert_gt(stick.get_center().x, screen.x / 2.0, "the stick is on the right")
@@ -110,11 +110,11 @@ func test_left_handed_swaps_the_sides_and_keeps_everything_on_screen() -> void:
 
 func test_changing_the_setting_moves_a_live_hud() -> void:
 	var hud: MatchHud = _hud()
-	var before: float = hud.joystick.get_rect().get_center().x
+	var before: float = hud.dpad.get_rect().get_center().x
 	Settings.set_left_handed(true)
-	assert_ne(hud.joystick.get_rect().get_center().x, before, "moved without rebuilding")
+	assert_ne(hud.dpad.get_rect().get_center().x, before, "moved without rebuilding")
 	Settings.set_left_handed(false)
-	assert_eq(hud.joystick.get_rect().get_center().x, before, "and back")
+	assert_eq(hud.dpad.get_rect().get_center().x, before, "and back")
 
 
 func test_large_controls_are_bigger_and_still_fit() -> void:
@@ -123,10 +123,10 @@ func test_large_controls_are_bigger_and_still_fit() -> void:
 	var screen: Vector2 = hud.get_rect().size
 	var button: Rect2 = hud.weapon_buttons[0].get_rect()
 	assert_almost_eq(button.size.x, MatchHud.WEAPON_SIZE * 1.2, 0.5)
-	var stick: Rect2 = hud.joystick.get_rect()
-	assert_almost_eq(hud.joystick.scale.x, 1.2, 0.001)
-	assert_almost_eq(stick.size.x, MatchHud.STICK_ZONE * 1.2, 0.5, "a rect is the size it is drawn at")
-	var ring: float = VirtualJoystick.OUTER_RADIUS * 1.2
+	var stick: Rect2 = hud.dpad.get_rect()
+	assert_almost_eq(hud.dpad.scale.x, 1.2, 0.001)
+	assert_almost_eq(stick.size.x, MatchHud.DPAD_ZONE * 1.2, 0.5, "a rect is the size it is drawn at")
+	var ring: float = DPad.OUTER_RADIUS * 1.2
 	assert_gte(stick.get_center().x - ring, 0.0, "the outer ring stays on screen")
 	for each: AimButton in hud.weapon_buttons:
 		assert_lte(each.get_rect().end.x, screen.x)
@@ -142,11 +142,11 @@ func test_small_controls_are_still_thumb_sized() -> void:
 
 func test_a_larger_stick_grabs_from_further_out() -> void:
 	var hud: MatchHud = _hud()
-	var centre: Vector2 = hud.joystick.get_global_rect().get_center()
-	var probe: Vector2 = centre + Vector2(VirtualJoystick.MAX_RADIUS * 1.1, 0.0)
-	assert_false(hud.joystick._in_zone(probe), "just outside the normal ring")
+	var centre: Vector2 = hud.dpad.get_global_rect().get_center()
+	var probe: Vector2 = centre + Vector2(DPad.MAX_RADIUS * 1.1, 0.0)
+	assert_false(hud.dpad._in_zone(probe), "just outside the normal ring")
 	Settings.set_control_scale(1.2)
-	assert_true(hud.joystick._in_zone(probe), "inside the larger ring")
+	assert_true(hud.dpad._in_zone(probe), "inside the larger ring")
 
 
 # ---- the glow ----------------------------------------------------------------------------

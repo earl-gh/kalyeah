@@ -21,8 +21,11 @@ var _shake: float = 0.0
 var _placed: bool = false
 var _flip: bool = false
 var _aspect: float = -1.0
+var _bottom: float = -1.0
 ## (distance, shift along the street) for the aspect framed last.
 var _frame: Vector2 = Vector2.ZERO
+## The height (UI pixels) of the controller body at the bottom of the screen: the arena stays above it.
+var bottom_reserve_px: float = 0.0
 
 
 func _ready() -> void:
@@ -70,7 +73,7 @@ func desired_position(flip: bool) -> Vector3:
 ## Puts the camera where it frames the whole arena (a no-op when nothing changed).
 func place(flip: bool) -> void:
 	var aspect: float = screen_aspect()
-	if _placed and flip == _flip and is_equal_approx(aspect, _aspect):
+	if _placed and flip == _flip and is_equal_approx(aspect, _aspect) and is_equal_approx(_bottom, _current_bottom()):
 		return
 	var framed: Vector2 = _framed()
 	position = desired_position(flip)
@@ -110,9 +113,20 @@ func _process(delta: float) -> void:
 	_shake = maxf(0.0, _shake - delta * SHAKE_DECAY)
 
 
+## The bottom margin the current screen needs (a fraction of its height).
+func _current_bottom() -> float:
+	var viewport: Viewport = get_viewport()
+	var height: float = viewport.get_visible_rect().size.y if viewport != null else 1280.0
+	return maxf(rules.frame_bottom, bottom_reserve_px / maxf(height, 1.0))
+
+
 func _framed() -> Vector2:
 	var aspect: float = screen_aspect()
-	if not is_equal_approx(aspect, _aspect):
+	var viewport: Viewport = get_viewport()
+	var height: float = viewport.get_visible_rect().size.y if viewport != null else 1280.0
+	var bottom: float = maxf(rules.frame_bottom, bottom_reserve_px / maxf(height, 1.0))
+	if not is_equal_approx(aspect, _aspect) or not is_equal_approx(bottom, _bottom):
 		_aspect = aspect
-		_frame = rules.frame(aspect, Vector2(layout.lane_width, layout.lane_length))
+		_bottom = bottom
+		_frame = rules.frame(aspect, Vector2(layout.lane_width, layout.lane_length), bottom)
 	return _frame

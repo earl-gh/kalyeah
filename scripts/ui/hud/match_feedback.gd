@@ -35,8 +35,8 @@ func _ready() -> void:
 	connection.hide()
 	hint = Label.new()
 	hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	hint.offset_top = -420.0
-	hint.offset_bottom = -280.0
+	hint.offset_top = -(MatchHud.CONSOLE_HEIGHT + 130.0)
+	hint.offset_bottom = -(MatchHud.CONSOLE_HEIGHT + 10.0)
 	hint.offset_left = 20.0
 	hint.offset_right = -20.0
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -56,7 +56,7 @@ func show_connection(text: String, terminal: bool) -> void:
 	hint.hide()
 
 
-func sync_hint(player: PlayerState, joystick: VirtualJoystick, buttons: Array[AimButton], playing: bool) -> void:
+func sync_hint(player: PlayerState, dpad: DPad, buttons: Array[AimButton], playing: bool) -> void:
 	hint.text = ""
 	if not playing or connection.visible:
 		hint.hide()
@@ -68,6 +68,6 @@ func sync_hint(player: PlayerState, joystick: VirtualJoystick, buttons: Array[Ai
 			if button.aiming:
 				hint.text = "Release to cancel" if button.over_cancel else "Release to cast · drag to cancel"
 				break
-		if hint.text.is_empty() and joystick.auto_run:
+		if hint.text.is_empty() and dpad.auto_run:
 			hint.text = "Auto-run · tap stick to stop"
 	hint.visible = not hint.text.is_empty()

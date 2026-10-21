@@ -40,27 +40,36 @@ const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## Controls (owner), as (distance from their screen edge, distance from the bottom) of each
 ## control's centre on the 720x1280 base: the movement stick at the bottom left, the two skill
 ## buttons at the bottom right, all in one row within thumb reach.
-const ROW_HEIGHT: float = 150.0
+## The Game Boy body at the bottom of the screen: the arena sits above it. The camera reserves the same height.
+const CONSOLE_HEIGHT: float = 294.0
+const ROW_HEIGHT: float = CONSOLE_HEIGHT / 2.0
 ## The square the stick listens in: its outer ring plus a margin for the thumb.
-const STICK_ZONE: float = (VirtualJoystick.OUTER_RADIUS + 20.0) * 2.0
-## The stick's outer ring stays this far from its screen edge.
-const STICK_MARGIN: float = 6.0
+const DPAD_ZONE: float = (DPad.OUTER_RADIUS + 20.0) * 2.0
+## The D-pad's centre is this far from its screen edge (the left, or the right for a left-handed player).
+const DPAD_MARGIN: float = 170.0
 ## The skill buttons: big enough for a thumb (Apple's 44 pt is 84 px), a gap apart, the
 ## second against the right margin and the first to its left.
 const WEAPON_SIZE: float = 124.0
-const WEAPON_GAP: float = 30.0
+## Like the A and B buttons of a Game Boy: weapon 2 (the nearer the edge) a little higher, weapon 1 beside it a little lower.
+const WEAPON_GAP: float = 0.0
+const WEAPON_STAGGER: float = 24.0
 const WEAPON_MARGIN: float = 34.0
+## The round sockets in the shell around the D-pad and each skill button.
+const DPAD_SOCKET: float = 120.0
+const WEAPON_SOCKET: float = 74.0
 ## The cancel zone sits above the skill buttons (drag a skill onto it to cancel the cast); this is its height
 ## from the bottom (its distance from the edge follows the buttons).
-const CANCEL_AT: Vector2 = Vector2(0.0, 440.0)
+const CANCEL_AT: Vector2 = Vector2(0.0, CONSOLE_HEIGHT + 78.0)
 const CANCEL_SIZE: Vector2 = Vector2(110.0, 100.0)
 
 var overhead: OverheadHud
 ## The red glow round the screen edge when you are hit (under the controls).
 var pulse: HurtPulse
+## The Game Boy body at the bottom (it only draws).
+var console: ConsolePanel
 var top: Control
 var scoreboard: Scoreboard
-var joystick: VirtualJoystick
+var dpad: DPad
 var weapon_buttons: Array[AimButton] = []
 ## Weapon 1, weapon 2 (the order MatchInput uses).
 var aim_buttons: Array[AimButton] = []
@@ -99,6 +108,7 @@ func _ready() -> void:
 	_build()
 	Settings.accessibility_changed.connect(_on_accessibility_changed)
 	Settings.controls_changed.connect(layout_controls)
+	resized.connect(layout_controls)
 	layout_controls()
 
 
@@ -111,14 +121,14 @@ func set_controls_active(active: bool) -> void:
 	active = active and not connection_blocked
 	if not active:
 		cancel_controls()
-	joystick.set_process_input(active)
+	dpad.set_process_input(active)
 	for control: Control in aim_buttons:
 		control.set_process_input(active)
 
 
 ## Clears every live gesture while leaving input processing in its current state.
 func cancel_controls() -> void:
-	joystick.release()
+	dpad.release()
 	for button: AimButton in aim_buttons:
 		button.cancel_aim()
 
@@ -158,12 +168,12 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	var playing: bool = not player.tagged and sim.phase == MatchSim.Phase.PLAYING and not pick_open and not connection_blocked
 	for button: AimButton in weapon_buttons:
 		button.visible = playing
-	joystick.visible = playing
+	dpad.visible = playing
 	if not playing:
-		joystick.release()
+		dpad.release()
 	# disabled while on cooldown too: no pressing or precasting until ready
 	var weapons_off: bool = not playing or not player.effects.can_cast()
-	feedback.sync_hint(player, joystick, aim_buttons, playing)
+	feedback.sync_hint(player, dpad, aim_buttons, playing)
 	for slot: int in weapon_buttons.size():
 		var button: AimButton = weapon_buttons[slot]
 		if slot >= player.weapons.size():
@@ -271,16 +281,20 @@ func _build() -> void:
 	add_child(overhead)
 	pulse = HurtPulse.new()
 	add_child(pulse)
+	console = ConsolePanel.new()
+	console.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place(console, Vector4(0, 1, 1, 1), Vector4(0, -CONSOLE_HEIGHT, 0, 0))
+	add_child(console)
 	MatchHudTop.build(self)
 	cancel_zone = _build_cancel_zone()
 	var weapon_one: AimButton = _aim_button()
 	var weapon_two: AimButton = _aim_button()
 	weapon_buttons = [weapon_one, weapon_two]
 	aim_buttons = [weapon_one, weapon_two]
-	joystick = VirtualJoystick.new()
-	joystick.rest_fraction = Vector2(0.5, 0.5)
-	joystick.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(joystick)
+	dpad = DPad.new()
+	dpad.rest_fraction = Vector2(0.5, 0.5)
+	dpad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(dpad)
 	for button: AimButton in aim_buttons:
 		button.cancel_zone = cancel_zone
 	banner = Label.new()
@@ -327,22 +341,36 @@ func _build() -> void:
 	feedback.return_home.connect(exit_pressed.emit)
 
 
-## The stick at the bottom left, weapon 1 and weapon 2 side by side at the bottom right: mirrored for
-## a left-handed player, and scaled by the control size setting.
+## The D-pad at the bottom left and the two skill buttons at the bottom right (like a Game Boy: weapon 2 a little
+## higher than weapon 1), all in sockets on the shell: mirrored for a left-handed player, and scaled by the control
+## size setting.
 func layout_controls() -> void:
 	var scale_by: float = Settings.control_scale
 	var mirrored: bool = Settings.left_handed
 	var weapon: float = WEAPON_SIZE * scale_by
 	var gap: float = WEAPON_GAP * scale_by
-	var stick_zone: float = STICK_ZONE * scale_by
-	# the stick keeps its zone; scaling it around its middle makes the rings and the grab area grow together
-	_put(joystick, mirrored, Vector2(stick_zone / 2.0 + STICK_MARGIN, ROW_HEIGHT), Vector2(STICK_ZONE, STICK_ZONE))
-	joystick.pivot_offset = Vector2(STICK_ZONE, STICK_ZONE) / 2.0
-	joystick.scale = Vector2.ONE * scale_by
+	var stagger: float = WEAPON_STAGGER * scale_by
+	var zone: float = DPAD_ZONE
+	# the pad keeps its zone; scaling it around its middle makes the disc and the grab area grow together
+	_put(dpad, mirrored, Vector2(DPAD_MARGIN, ROW_HEIGHT), Vector2(zone, zone))
+	dpad.pivot_offset = Vector2(zone, zone) / 2.0
+	dpad.scale = Vector2.ONE * scale_by
 	var second: float = WEAPON_MARGIN + weapon / 2.0
-	_put(weapon_buttons[1], not mirrored, Vector2(second, ROW_HEIGHT), Vector2(weapon, weapon))
-	_put(weapon_buttons[0], not mirrored, Vector2(second + weapon + gap, ROW_HEIGHT), Vector2(weapon, weapon))
-	_put(cancel_zone, not mirrored, Vector2(WEAPON_MARGIN + weapon + gap / 2.0, CANCEL_AT.y), CANCEL_SIZE)
+	var first: float = second + weapon + gap
+	_put(weapon_buttons[1], not mirrored, Vector2(second, ROW_HEIGHT + stagger), Vector2(weapon, weapon))
+	_put(weapon_buttons[0], not mirrored, Vector2(first, ROW_HEIGHT - stagger), Vector2(weapon, weapon))
+	_put(cancel_zone, not mirrored, Vector2((second + first) / 2.0, CANCEL_AT.y), CANCEL_SIZE)
+	# the sockets in the shell, in the panel's own coordinates (from its top-left)
+	var width: float = size.x
+	var across: float = 1.0 if not mirrored else -1.0
+	var pad_x: float = DPAD_MARGIN if not mirrored else width - DPAD_MARGIN
+	var weapon_x: Callable = func(from_edge: float) -> float: return width - from_edge if not mirrored else from_edge
+	var sockets: Array[Dictionary] = [
+		{"at": Vector2(pad_x, CONSOLE_HEIGHT - ROW_HEIGHT), "radius": DPAD_SOCKET * scale_by},
+		{"at": Vector2(weapon_x.call(second), CONSOLE_HEIGHT - ROW_HEIGHT - stagger), "radius": WEAPON_SOCKET * scale_by},
+		{"at": Vector2(weapon_x.call(first), CONSOLE_HEIGHT - ROW_HEIGHT + stagger), "radius": WEAPON_SOCKET * scale_by},
+	]
+	console.set_sockets(sockets, across > 0.0)
 
 
 ## Places `control` with its centre `at` = (from the right or left edge, from the bottom).

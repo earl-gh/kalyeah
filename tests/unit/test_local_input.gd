@@ -56,12 +56,14 @@ func test_holding_one_skill_button_locks_every_other_one() -> void:
 
 
 func test_any_drag_past_the_dead_zone_is_a_full_speed_run() -> void:
-	assert_eq(VirtualJoystick.stick_from_offset(Vector2(45.0, 0.0), 90.0, 0.1), Vector2(1.0, 0.0), "half way is already full speed")
-	assert_eq(VirtualJoystick.stick_from_offset(Vector2(10.0, 0.0), 90.0, 0.1), Vector2(1.0, 0.0), "a slight drag runs too")
-	assert_almost_eq(VirtualJoystick.stick_from_offset(Vector2(20.0, 20.0), 90.0, 0.1).length(), 1.0, 0.0001, "diagonals too")
-	assert_eq(VirtualJoystick.stick_from_offset(Vector2(0.0, -300.0), 90.0, 0.1), Vector2(0.0, -1.0))
-	assert_eq(VirtualJoystick.stick_from_offset(Vector2(5.0, 0.0), 90.0, 0.1), Vector2.ZERO, "dead zone")
-	assert_eq(VirtualJoystick.stick_from_offset(Vector2.ZERO, 90.0, 0.1), Vector2.ZERO)
+	assert_eq(DPad.stick_from_offset(Vector2(45.0, 0.0), 90.0, 0.1), Vector2(1.0, 0.0), "half way is already full speed")
+	assert_eq(DPad.stick_from_offset(Vector2(10.0, 0.0), 90.0, 0.1), Vector2(1.0, 0.0), "a slight drag runs too")
+	assert_almost_eq(DPad.stick_from_offset(Vector2(20.0, 20.0), 90.0, 0.1).length(), 1.0, 0.0001, "diagonals too")
+	assert_true(DPad.stick_from_offset(Vector2(50.0, 20.0), 90.0, 0.1).is_equal_approx(Vector2.RIGHT), "a pad has eight directions: this is still right")
+	assert_true(DPad.stick_from_offset(Vector2(50.0, 40.0), 90.0, 0.1).is_equal_approx(Vector2(1.0, 1.0).normalized()), "and this one is down-right")
+	assert_true(DPad.stick_from_offset(Vector2(0.0, -300.0), 90.0, 0.1).is_equal_approx(Vector2(0.0, -1.0)))
+	assert_eq(DPad.stick_from_offset(Vector2(5.0, 0.0), 90.0, 0.1), Vector2.ZERO, "dead zone")
+	assert_eq(DPad.stick_from_offset(Vector2.ZERO, 90.0, 0.1), Vector2.ZERO)
 
 
 func test_the_stick_moves_and_the_other_team_is_turned_around() -> void:
@@ -95,14 +97,14 @@ func test_the_stick_sits_in_the_middle_with_a_skill_on_each_side() -> void:
 	hud.layout_controls()
 	assert_eq(hud.aim_buttons.size(), 2, "weapon 1 and weapon 2")
 	var screen: Vector2 = hud.get_rect().size
-	var stick: Rect2 = hud.joystick.get_rect()
+	var stick: Rect2 = hud.dpad.get_rect()
 	var left: Rect2 = hud.weapon_buttons[0].get_rect()
 	var right: Rect2 = hud.weapon_buttons[1].get_rect()
 	assert_lt(stick.get_center().x, screen.x / 2.0, "the stick is on the left")
 	assert_gt(stick.get_center().y, screen.y * 0.8, "at the bottom")
 	assert_gte(stick.position.x, 0.0, "on screen")
 	for button: Rect2 in [left, right]:
-		assert_almost_eq(button.get_center().y, stick.get_center().y, 0.5, "one row")
+		assert_lt(absf(button.get_center().y - stick.get_center().y), MatchHud.ROW_HEIGHT * 0.5, "the buttons sit in the same band as the pad")
 		assert_false(button.intersects(stick), "the skills do not cover the stick")
 		assert_gt(button.get_center().x, screen.x / 2.0, "the skills are on the right")
 		assert_gte(button.position.x, 0.0, "on screen")
@@ -120,11 +122,11 @@ func test_the_stick_sits_in_the_middle_with_a_skill_on_each_side() -> void:
 func test_hiding_the_controls_lets_go_of_the_stick() -> void:
 	var hud: MatchHud = autofree(MatchHud.new()) as MatchHud
 	add_child(hud)
-	watch_signals(hud.joystick)
-	hud.joystick._begin(-2, hud.joystick.get_global_rect().get_center() + Vector2(0.0, -80.0))
-	assert_ne(hud.joystick.value, Vector2.ZERO)
+	watch_signals(hud.dpad)
+	hud.dpad._begin(-2, hud.dpad.get_global_rect().get_center() + Vector2(0.0, -80.0))
+	assert_ne(hud.dpad.value, Vector2.ZERO)
 	hud.set_controls_active(false)
-	assert_eq(hud.joystick.value, Vector2.ZERO, "no running on by itself under a menu")
+	assert_eq(hud.dpad.value, Vector2.ZERO, "no running on by itself under a menu")
 
 
 func test_hiding_the_controls_cancels_an_active_aim() -> void:
@@ -171,8 +173,8 @@ func test_the_stick_follows_the_turned_camera() -> void:
 			assert_almost_eq(back.y, stick.y, 0.0001)
 
 
-func _stick() -> VirtualJoystick:
-	var stick: VirtualJoystick = autofree(VirtualJoystick.new()) as VirtualJoystick
+func _stick() -> DPad:
+	var stick: DPad = autofree(DPad.new()) as DPad
 	stick.size = Vector2(290.0, 290.0)
 	stick.rest_fraction = Vector2(0.5, 0.5)
 	add_child(stick)
@@ -180,14 +182,14 @@ func _stick() -> VirtualJoystick:
 
 
 func test_letting_go_past_the_inner_ring_keeps_running() -> void:
-	var stick: VirtualJoystick = _stick()
+	var stick: DPad = _stick()
 	var centre: Vector2 = stick.rest_position()
-	stick._begin(VirtualJoystick.MOUSE_POINTER, centre + Vector2(0.0, -50.0))
+	stick._begin(DPad.MOUSE_POINTER, centre + Vector2(0.0, -50.0))
 	assert_false(stick.outer_lit(), "inside the inner ring: a normal stick")
 	var colors: Array[Color] = stick.ring_colors()
 	assert_gt(colors[0].a, colors[1].a, "not lit: the outer ring is the dimmer one")
 	assert_eq(Color(colors[1], 1.0), Color.WHITE, "and white")
-	stick._update(centre + Vector2(VirtualJoystick.MAX_RADIUS + 10.0, 0.0))
+	stick._update(centre + Vector2(DPad.MAX_RADIUS + 10.0, 0.0))
 	assert_true(stick.outer_lit(), "most of the knob past the inner ring lights the outer ring")
 	assert_gt(stick.ring_colors()[1].a, stick.ring_colors()[0].a, "lit: the outer ring is the bright one")
 	stick._end()
@@ -197,10 +199,10 @@ func test_letting_go_past_the_inner_ring_keeps_running() -> void:
 
 
 func test_letting_go_inside_the_inner_ring_stops() -> void:
-	var stick: VirtualJoystick = _stick()
+	var stick: DPad = _stick()
 	var centre: Vector2 = stick.rest_position()
-	stick._begin(VirtualJoystick.MOUSE_POINTER, centre + Vector2(VirtualJoystick.MAX_RADIUS + 20.0, 0.0))
-	stick._update(centre + Vector2(VirtualJoystick.MAX_RADIUS - 10.0, 0.0))
+	stick._begin(DPad.MOUSE_POINTER, centre + Vector2(DPad.MAX_RADIUS + 20.0, 0.0))
+	stick._update(centre + Vector2(DPad.MAX_RADIUS - 10.0, 0.0))
 	assert_false(stick.outer_lit(), "back inside: not lit")
 	stick._end()
 	assert_false(stick.auto_run)
@@ -208,9 +210,9 @@ func test_letting_go_inside_the_inner_ring_stops() -> void:
 
 
 func test_a_touch_grabs_the_knob_at_once_out_of_auto_run() -> void:
-	var stick: VirtualJoystick = _stick()
+	var stick: DPad = _stick()
 	var centre: Vector2 = stick.rest_position()
-	stick._begin(VirtualJoystick.MOUSE_POINTER, centre + Vector2(0.0, -120.0))
+	stick._begin(DPad.MOUSE_POINTER, centre + Vector2(0.0, -120.0))
 	stick._end()
 	assert_true(stick.auto_run)
 	# a new touch to the left: the very first event steers left, no unlock delay
@@ -225,9 +227,9 @@ func test_a_touch_grabs_the_knob_at_once_out_of_auto_run() -> void:
 
 
 func test_release_stops_auto_run() -> void:
-	var stick: VirtualJoystick = _stick()
+	var stick: DPad = _stick()
 	var centre: Vector2 = stick.rest_position()
-	stick._begin(VirtualJoystick.MOUSE_POINTER, centre + Vector2(0.0, 120.0))
+	stick._begin(DPad.MOUSE_POINTER, centre + Vector2(0.0, 120.0))
 	stick._end()
 	assert_true(stick.auto_run)
 	stick.release()
@@ -235,7 +237,7 @@ func test_release_stops_auto_run() -> void:
 	assert_eq(stick.value, Vector2.ZERO)
 
 
-func _press(stick: VirtualJoystick, offset: Vector2) -> void:
+func _press(stick: DPad, offset: Vector2) -> void:
 	var press: InputEventMouseButton = InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT
 	press.pressed = true
@@ -244,9 +246,9 @@ func _press(stick: VirtualJoystick, offset: Vector2) -> void:
 
 
 func test_the_outer_ring_appears_only_once_the_knob_is_held() -> void:
-	var stick: VirtualJoystick = _stick()
+	var stick: DPad = _stick()
 	assert_false(stick.outer_visible(), "at rest: the knob and the inner ring only")
-	_press(stick, Vector2(VirtualJoystick.MAX_RADIUS + 15.0, 0.0))
+	_press(stick, Vector2(DPad.MAX_RADIUS + 15.0, 0.0))
 	assert_eq(stick.value, Vector2.ZERO, "a touch in the (hidden) outer ring does not grab")
 	assert_false(stick.outer_visible())
 	_press(stick, Vector2(30.0, 0.0))
@@ -255,12 +257,12 @@ func test_the_outer_ring_appears_only_once_the_knob_is_held() -> void:
 
 
 func test_while_auto_running_a_touch_in_the_outer_ring_grabs_too() -> void:
-	var stick: VirtualJoystick = _stick()
+	var stick: DPad = _stick()
 	_press(stick, Vector2(0.0, -20.0))
 	stick._update(stick.get_global_rect().position + stick.rest_position() + Vector2(0.0, -120.0))
 	stick._end()
 	assert_true(stick.auto_run)
 	assert_true(stick.outer_visible(), "showing while auto-running")
-	_press(stick, Vector2(VirtualJoystick.MAX_RADIUS + 15.0, 0.0))
+	_press(stick, Vector2(DPad.MAX_RADIUS + 15.0, 0.0))
 	assert_false(stick.auto_run, "grabbed from the outer ring at once")
 	assert_gt(stick.value.x, 0.9, "steering right on the same touch")

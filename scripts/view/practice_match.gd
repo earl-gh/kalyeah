@@ -128,7 +128,7 @@ func _exit_tree() -> void:
 
 # ---- public API (used by tests and the HUD) ---------------------------------------
 
-## The movement stick (the on-screen joystick, tests).
+## The movement stick (the on-screen dpad, tests).
 func set_stick(value: Vector2) -> void:
 	input.set_stick(value)
 

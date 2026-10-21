@@ -60,7 +60,7 @@ func test_focus_and_pause_both_need_to_clear_before_fresh_input_works() -> void:
 
 func test_interrupting_real_touch_discards_release_and_auto_run_state() -> void:
 	var view: PracticeMatch = _practice()
-	var stick: VirtualJoystick = view.hud.joystick
+	var stick: DPad = view.hud.dpad
 	var centre: Vector2 = stick.get_global_transform_with_canvas() * stick.rest_position()
 	var touch: InputEventScreenTouch = InputEventScreenTouch.new()
 	touch.index = 10
