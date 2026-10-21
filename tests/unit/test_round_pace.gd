@@ -112,3 +112,21 @@ func test_practice_uses_its_own_release_time() -> void:
 	practice.set_process(false)
 	assert_eq(practice.sim.tag_release_time, practice.rules.practice_tag_release_time)
 	assert_gt(practice.rules.practice_tag_release_time, 0.0)
+
+
+func test_the_hud_says_contested_when_a_defender_blocks_your_capture() -> void:
+	var practice: PracticeMatch = autofree(preload("res://scenes/match/practice.tscn").instantiate()) as PracticeMatch
+	add_child(practice)
+	practice.set_process(false)
+	practice.finish_pick()
+	practice.skip_intro()
+	var enemy_base: Vector2 = practice.layout.base_center(-practice.own_side())
+	practice.sim.players[practice.local_id].position = enemy_base
+	practice.sim.players[PracticeMatch.ENEMY_STAND_ID].position = enemy_base + Vector2(1.5, 0.0)
+	practice.advance(DT)
+	assert_true(practice.sim.base_contested_by(practice.local_team))
+	assert_true(practice.hud.capture_label.visible)
+	assert_eq(practice.hud.capture_label.text, "CONTESTED!")
+	practice.sim.kill(PracticeMatch.ENEMY_STAND_ID)
+	practice.advance(DT)
+	assert_ne(practice.hud.capture_label.text, "CONTESTED!", "the defender is tagged: the capture runs")
