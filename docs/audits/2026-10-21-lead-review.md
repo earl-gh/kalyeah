@@ -1,5 +1,10 @@
 # Lead designer + developer review: gameplay, UI, and the plan
 
+> **Status (after #215, #217 and #218 merged):** P0 is done (the stranded UI, cast-feedback and sparring-bot work is on `main`) and P1 is done
+> except the box-placement decision (D25), see [round rules](2026-10-21-round-rules.md). Findings G1 (tie-break), G2 (contested base), U1 (wording),
+> U5 (aim line) and U6 (intro banner) are fixed; the capture time stayed at 5 s (D18) because the bot rounds gave the same result at 5, 8 and 12 s.
+> Still open: P2 weapons, P3 practice 3v3 vs bots, P4 UI polish, P5 device checks, P6 assets and release. The text below is the review as written.
+
 Scope: everything on `main` plus PR #215 (Game Boy console), and the finished work that is **not on `main` yet** (branches `feat/ui-round17` and
 `feat/hud-quiet`). Method: read the rules and the sim, ran headless experiments on the real sim, took 720x1280 screenshots of every screen, read the
 earlier audits. Nothing in the game was changed by this review; it is a report and a plan.
