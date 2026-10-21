@@ -14,8 +14,8 @@ var first_to: int = 3
 var winner: int = -1
 
 
-func _init(p_best_of: int) -> void:
-	first_to = p_best_of
+func _init(p_first_to: int) -> void:
+	first_to = p_first_to
 
 
 ## Points a team needs: `first_to` itself.

@@ -125,7 +125,7 @@ func pick_team(team: int) -> void:
 
 ## Host only: the match is won by the first team to `count` points (3, 5 or 7).
 func set_first_to(count: int) -> void:
-	send({"t": NetProtocol.Msg.SET_BEST_OF, "n": count})
+	send({"t": NetProtocol.Msg.SET_FIRST_TO, "n": count})
 
 
 ## Host only: 1v1, 2v2 or 3v3.

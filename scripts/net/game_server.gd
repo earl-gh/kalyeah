@@ -134,7 +134,7 @@ func _handle(from: int, message: Dictionary) -> void:
 		M.SET_READY:
 			if rooms.set_ready(from, message.get("ready", false) as bool):
 				_send_room(rooms.room_of_peer(from))
-		M.SET_BEST_OF:
+		M.SET_FIRST_TO:
 			if rooms.set_first_to(from, message.get("n", 0) as int):
 				_send_room(rooms.room_of_peer(from))
 		M.SET_TEAM_SIZE:

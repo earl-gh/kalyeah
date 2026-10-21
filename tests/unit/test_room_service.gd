@@ -129,7 +129,7 @@ func test_the_token_expires_after_60_s() -> void:
 	assert_true(service.rooms.has(room.code), "the match goes on")
 
 
-func test_only_the_host_picks_best_of_3_5_or_7_in_the_lobby() -> void:
+func test_only_the_host_picks_first_to_3_5_or_7_in_the_lobby() -> void:
 	var service: RoomService = _service()
 	service.first_to_choices = [3, 5, 7] as Array[int]
 	service.default_first_to = 3
