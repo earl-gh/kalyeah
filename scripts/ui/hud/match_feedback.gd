@@ -61,7 +61,7 @@ func show_connection(text: String, terminal: bool) -> void:
 	hint.hide()
 
 
-func sync_hint(player: PlayerState, dpad: DPad, buttons: Array[AimButton], playing: bool) -> void:
+func sync_hint(player: PlayerState, buttons: Array[AimButton], playing: bool) -> void:
 	hint.text = ""
 	if not playing or connection.visible:
 		hint.hide()
@@ -73,6 +73,4 @@ func sync_hint(player: PlayerState, dpad: DPad, buttons: Array[AimButton], playi
 			if button.aiming:
 				hint.text = "Release to cancel" if button.over_cancel else "Release to cast · drag to cancel"
 				break
-		if hint.text.is_empty() and dpad.auto_run:
-			hint.text = "Auto-run · tap the D-pad to stop"
 	hint.visible = not hint.text.is_empty()

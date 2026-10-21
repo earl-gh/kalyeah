@@ -126,8 +126,8 @@ func test_large_controls_are_bigger_and_still_fit() -> void:
 	var stick: Rect2 = hud.dpad.get_rect()
 	assert_almost_eq(hud.dpad.scale.x, 1.2, 0.001)
 	assert_almost_eq(stick.size.x, MatchHud.DPAD_ZONE * 1.2, 0.5, "a rect is the size it is drawn at")
-	var ring: float = DPad.OUTER_RADIUS * 1.2
-	assert_gte(stick.get_center().x - ring, 0.0, "the outer ring stays on screen")
+	var ring: float = DPad.MAX_RADIUS * 1.2
+	assert_gte(stick.get_center().x - ring, 0.0, "the disc stays on screen")
 	for each: AimButton in hud.weapon_buttons:
 		assert_lte(each.get_rect().end.x, screen.x)
 		assert_gt(each.get_rect().position.x, stick.get_center().x + ring, "the buttons clear the outer ring")

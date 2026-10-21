@@ -662,18 +662,16 @@ func test_reconnect_releases_controls_only_after_confirmed_resume() -> void:
 	assert_false(practice.hud.feedback.connection.visible)
 
 
-func test_control_hint_explains_stun_aim_and_auto_run() -> void:
+func test_control_hint_explains_stun_and_aim() -> void:
 	var practice: PracticeMatch = _practice()
-	practice.hud.dpad.auto_run = true
 	practice.advance(DT)
-	assert_string_contains(practice.hud.feedback.hint.text, "Auto-run")
+	assert_eq(practice.hud.feedback.hint.text, "", "nothing to say while you just run (there is no auto-run)")
 	practice.sim.apply_effect(PracticeMatch.LOCAL_ID, StatusEffects.Type.STUN, 1.0, 0.0)
 	practice.advance(DT)
 	assert_string_contains(practice.hud.feedback.hint.text, "Stunned")
 	assert_string_contains(practice.hud.feedback.hint.text, "weapons unavailable")
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 	player.effects.clear()
-	practice.hud.dpad.auto_run = false
 	var button: AimButton = _weapon_button(practice, 0)
 	button.aiming = true
 	practice.hud.sync_player(practice.sim, player, false)

@@ -8,10 +8,10 @@ Owner request: the bottom part should have a modern design rather than the old G
   it, and quiet round wells under the controls instead of grey sockets. The four speaker grooves are gone. Your health number is white on it.
 - **The D-pad:** drawn as the Xbox Series pad: a round dark dish (lit lower rim, shaded upper rim, a lighter floor), a raised cross in it with a lit edge, a small arrow
   notch on every arm and a shallow dish in the middle that leans a little toward the thumb. Up, down, left and right are the four arms; **a diagonal presses two
-  neighbouring arms**, which tint gold with their notches lit (`DPad.pressed_arms`). The outer auto-run ring is unchanged.
-- Nothing about the input changed: still eight directions, a full-speed run, the same grab zone and the same dead zone.
+  neighbouring arms**, which tint gold with their notches lit (`DPad.pressed_arms`).
+- The input is the same: eight directions, a full-speed run, the same dead zone. **Auto-run was removed afterwards** (owner: it is a D-pad now): no outer ring, no lock; letting go always stops.
 
-![at rest, up-right pressed, left pressed, down held out to the auto-run ring](images/modern-console.jpg)
+![at rest, up-right pressed, left pressed, down held out past the disc](images/modern-console.jpg)
 
 ## Not the real thing
 The real pad is a faceted, concave moulded part; this is a flat drawing of it with a shaded rim, so it reads as the same shape and not as the same material.
