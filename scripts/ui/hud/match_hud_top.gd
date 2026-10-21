@@ -33,6 +33,8 @@ static func build(hud: MatchHud) -> void:
 
 ## Places the settings button at the top left and the feed under it.
 static func layout(hud: MatchHud) -> void:
+	if hud.intro_bar != null:
+		hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(80, -(hud.console_height() + 150.0), -80, -(hud.console_height() + 6.0)))
 	var gear: Vector4 = Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE)
 	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear)
 	var feed_top: float = MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE + 12.0

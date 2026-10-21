@@ -89,8 +89,8 @@ func bar_visible(state: PlayerState) -> bool:
 
 func bar_color(state: PlayerState) -> Color:
 	if state.id == _local_id:
-		return SELF_COLOR
-	return ALLY_COLOR if state.team == _local_team else ENEMY_COLOR
+		return TeamColors.bar_self()
+	return TeamColors.bar_ally() if state.team == _local_team else TeamColors.bar_enemy()
 
 
 func _on_healed(id: int, amount: int) -> void:
@@ -134,6 +134,7 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 	var color: Color = bar_color(state)
 	draw_rect(Rect2(rect.position, Vector2(rect.size.x * fill, rect.size.y)), color)
 	draw_rect(Rect2(rect.position, Vector2(rect.size.x * fill, rect.size.y * 0.35)), color.lightened(0.35))
+	_draw_team_mark(state, rect, color)
 	var status: String = _status_text(state)
 	var lift: float = 0.0
 	if not status.is_empty():
@@ -141,6 +142,26 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 		lift = 22.0
 	if spinner_visible(state):
 		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.capture_elapsed / maxf(_sim.capture_needed, 0.001))
+
+
+## A small shape at the left end of the bar that says whose kid it is without colour: a circle for an ally, a diamond for an enemy
+## (you have none: the bar itself is brighter and the kid wears your ring).
+func _draw_team_mark(state: PlayerState, rect: Rect2, color: Color) -> void:
+	if state.id == _local_id:
+		return
+	var radius: float = maxf(rect.size.y * 0.62, 4.5)
+	var centre: Vector2 = Vector2(rect.position.x - radius - 3.0, rect.position.y + rect.size.y / 2.0)
+	if state.team == _local_team:
+		draw_circle(centre, radius + 1.5, BACK)
+		draw_circle(centre, radius, color)
+		return
+	var outer: PackedVector2Array = _diamond(centre, radius + 2.0)
+	draw_colored_polygon(outer, BACK)
+	draw_colored_polygon(_diamond(centre, radius + 0.5), color)
+
+
+static func _diamond(centre: Vector2, radius: float) -> PackedVector2Array:
+	return PackedVector2Array([centre + Vector2(0.0, -radius), centre + Vector2(radius, 0.0), centre + Vector2(0.0, radius), centre + Vector2(-radius, 0.0)])
 
 
 ## A spinning ring over a hero holding the enemy base: the ring fills as the point

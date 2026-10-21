@@ -15,6 +15,8 @@ signal hurt_pressed
 signal status_test_pressed(type: int)
 ## A card in the tagged panel was tapped: follow player `id`.
 signal exit_pressed
+## The console's height changed (the bottom inset did): the camera keeps this much of the screen clear.
+signal console_height_changed(height: float)
 
 enum Feed { TAGGED, RESCUED }
 
@@ -34,8 +36,6 @@ const SCORE_SIZE: Vector2 = Vector2(280.0, 88.0)
 const FEED_TIME: float = 2.6
 const FEED_SIZE: Vector2 = Vector2(250.0, 46.0)
 const FEED_MAX: int = 3
-const FEED_OWN: Color = Color(0.2, 0.42, 0.85, 0.92)
-const FEED_ENEMY: Color = Color(0.82, 0.22, 0.2, 0.92)
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## Controls (owner), as (distance from their screen edge, distance from the bottom) of each
 ## control's centre on the 720x1280 base: the movement stick at the bottom left, the two skill
@@ -43,6 +43,10 @@ const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## The Game Boy body at the bottom of the screen: the arena sits above it. The camera reserves the same height.
 const CONSOLE_HEIGHT: float = 294.0
 const ROW_HEIGHT: float = CONSOLE_HEIGHT / 2.0
+## The most the bottom inset can add (a tall gesture bar), so the console never eats the street.
+const MAX_BOTTOM_INSET: float = 80.0
+## How long the tick is when the thumb moves to another direction of the pad.
+const PAD_TICK_MS: int = 8
 ## The square the stick listens in: its outer ring plus a margin for the thumb.
 const DPAD_ZONE: float = (DPad.OUTER_RADIUS + 20.0) * 2.0
 ## The D-pad's centre is this far from its screen edge (the left, or the right for a left-handed player).
@@ -67,6 +71,8 @@ var overhead: OverheadHud
 var pulse: HurtPulse
 ## The Game Boy body at the bottom (it only draws).
 var console: ConsolePanel
+## UI pixels of the screen's bottom edge the system keeps (home bar), set by the match screen.
+var bottom_inset: float = 0.0
 var top: Control
 var scoreboard: Scoreboard
 var dpad: DPad
@@ -113,8 +119,29 @@ func _ready() -> void:
 
 
 ## Pixels the top row is pushed down to clear a notch or status bar.
+## A short tick each time the thumb enters a new direction (phones only; off with the vibration setting).
+func _on_pad_direction(direction: Vector2) -> void:
+	if direction != Vector2.ZERO:
+		Settings.vibrate(PAD_TICK_MS)
+
+
 func set_top_inset(pixels: float) -> void:
 	top.position.y = pixels
+
+
+## The home bar or gesture area under the screen (UI pixels): the console grows by it and the controls ride above it,
+## so a thumb that rests on the bar never lands on a button, and the camera keeps the taller console clear.
+func set_bottom_inset(pixels: float) -> void:
+	var inset: float = clampf(pixels, 0.0, MAX_BOTTOM_INSET)
+	if is_equal_approx(inset, bottom_inset):
+		return
+	bottom_inset = inset
+	layout_controls()
+
+
+## The console's height now: its own plus the bottom inset.
+func console_height() -> float:
+	return CONSOLE_HEIGHT + bottom_inset
 
 
 func set_controls_active(active: bool) -> void:
@@ -175,6 +202,7 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	var weapons_off: bool = not playing or not player.effects.can_cast()
 	feedback.sync_hint(player, dpad, aim_buttons, playing)
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
+	console.set_health(player.hp, sim.rules.player_max_hp, playing)
 	for slot: int in weapon_buttons.size():
 		var button: AimButton = weapon_buttons[slot]
 		if slot >= player.weapons.size():
@@ -238,7 +266,7 @@ func _sync_capture(sim: MatchSim, local_team: int) -> void:
 	else:
 		how = "HOLD THE BASE!" if ours else "DEFEND YOUR BASE!"
 	capture_label.text = "%s\n%d" % [how, seconds]
-	capture_label.add_theme_color_override("font_color", CAPTURE_COLOR.lerp(FEED_OWN if ours else FEED_ENEMY, 0.35))
+	capture_label.add_theme_color_override("font_color", CAPTURE_COLOR.lerp(TeamColors.feed_own() if ours else TeamColors.feed_enemy(), 0.35))
 
 
 ## Adds a TAGGED! or RESCUED! pill under the settings button: blue for your team, red for theirs.
@@ -253,7 +281,7 @@ func feed(kind: Feed, our_team: bool, who: String) -> void:
 	pill.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = FEED_OWN if our_team else FEED_ENEMY
+	style.bg_color = TeamColors.feed_own() if our_team else TeamColors.feed_enemy()
 	style.set_corner_radius_all(10)
 	style.content_margin_left = 14.0
 	style.skew = Vector2(0.18, 0.0)
@@ -294,7 +322,6 @@ func _build() -> void:
 	add_child(pulse)
 	console = ConsolePanel.new()
 	console.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_place(console, Vector4(0, 1, 1, 1), Vector4(0, -CONSOLE_HEIGHT, 0, 0))
 	add_child(console)
 	MatchHudTop.build(self)
 	cancel_zone = _build_cancel_zone()
@@ -307,6 +334,7 @@ func _build() -> void:
 	dpad.accessibility_description = "Press a direction to run; let go to stop"
 	dpad.rest_fraction = Vector2(0.5, 0.5)
 	dpad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dpad.direction_changed.connect(_on_pad_direction)
 	add_child(dpad)
 	for button: AimButton in aim_buttons:
 		button.cancel_zone = cancel_zone
@@ -354,49 +382,9 @@ func _build() -> void:
 	feedback.return_home.connect(exit_pressed.emit)
 
 
-## The D-pad at the bottom left and the two skill buttons at the bottom right (like a Game Boy: weapon 2 a little
-## higher than weapon 1), all in sockets on the shell: mirrored for a left-handed player, and scaled by the control
-## size setting.
+## Places the console, the D-pad, the skill buttons and the cancel zone (see MatchHudLayout).
 func layout_controls() -> void:
-	var scale_by: float = Settings.control_scale
-	var mirrored: bool = Settings.left_handed
-	MatchHudTop.layout(self)
-	var weapon: float = WEAPON_SIZE * scale_by
-	var gap: float = WEAPON_GAP * scale_by
-	var stagger: float = WEAPON_STAGGER * scale_by
-	var zone: float = DPAD_ZONE
-	# the pad keeps its zone; scaling it around its middle makes the disc and the grab area grow together
-	_put(dpad, mirrored, Vector2(DPAD_MARGIN, ROW_HEIGHT), Vector2(zone, zone))
-	dpad.pivot_offset = Vector2(zone, zone) / 2.0
-	dpad.scale = Vector2.ONE * scale_by
-	var second: float = WEAPON_MARGIN + weapon / 2.0
-	var first: float = second + weapon + gap
-	_put(weapon_buttons[1], not mirrored, Vector2(second, ROW_HEIGHT + stagger), Vector2(weapon, weapon))
-	_put(weapon_buttons[0], not mirrored, Vector2(first, ROW_HEIGHT - stagger), Vector2(weapon, weapon))
-	_put(cancel_zone, not mirrored, Vector2((second + first) / 2.0, CANCEL_AT.y), CANCEL_SIZE)
-	# the sockets in the shell, in the panel's own coordinates (from its top-left)
-	var width: float = size.x
-	var across: float = 1.0 if not mirrored else -1.0
-	var pad_x: float = DPAD_MARGIN if not mirrored else width - DPAD_MARGIN
-	var weapon_x: Callable = func(from_edge: float) -> float: return width - from_edge if not mirrored else from_edge
-	var sockets: Array[Dictionary] = [
-		{"at": Vector2(pad_x, CONSOLE_HEIGHT - ROW_HEIGHT), "radius": DPAD_SOCKET * scale_by},
-		{"at": Vector2(weapon_x.call(second), CONSOLE_HEIGHT - ROW_HEIGHT - stagger), "radius": WEAPON_SOCKET * scale_by},
-		{"at": Vector2(weapon_x.call(first), CONSOLE_HEIGHT - ROW_HEIGHT + stagger), "radius": WEAPON_SOCKET * scale_by},
-	]
-	console.set_sockets(sockets, across > 0.0)
-
-
-## Places `control` with its centre `at` = (from the right or left edge, from the bottom).
-func _put(control: Control, from_right: bool, at: Vector2, extent: Vector2) -> void:
-	var edge: float = 1.0 if from_right else 0.0
-	var side: float = -1.0 if from_right else 1.0
-	var near: float = side * at.x
-	var half: float = extent.x / 2.0
-	var low: float = near - half
-	var high: float = near + half
-	_place(control, Vector4(edge, 1, edge, 1), Vector4(
-		minf(low, high), -at.y - extent.y / 2.0, maxf(low, high), -at.y + extent.y / 2.0))
+	MatchHudLayout.apply(self)
 
 
 ## Shows the opening show's banner (`title`, `subtitle`), or hides it with "".

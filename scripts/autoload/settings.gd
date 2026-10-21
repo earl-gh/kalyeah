@@ -28,6 +28,8 @@ var server_url: String = ""
 var volume: float = 1.0
 var vibration: bool = true
 var reduced_motion: bool = false
+## Team colours that stay apart for colour-blind players: blue and orange instead of blue and red, and no green for you.
+var colorblind: bool = false
 ## Mirrors the match controls: the stick on the right, the weapons on the left.
 var left_handed: bool = false
 ## True once a key or gamepad was used and until the next touch or click: only then do dialogs put a focus ring on a
@@ -60,6 +62,8 @@ func _ready() -> void:
 		vibration = bool(file.get_value("input", "vibration", true))
 		var motion: Variant = file.get_value("accessibility", "reduced_motion", false)
 		reduced_motion = motion if motion is bool else false
+		var blind: Variant = file.get_value("accessibility", "colorblind", false)
+		colorblind = blind if blind is bool else false
 		var hand: Variant = file.get_value("input", "left_handed", false)
 		left_handed = hand if hand is bool else false
 		control_scale = nearest_control_scale(file.get_value("input", "control_scale", 1.0))
@@ -241,6 +245,14 @@ func play_ui(id: StringName = &"ui_click") -> void:
 	vibrate()
 	_ui_voice.stream = SoundBank.get_sound(id)
 	_ui_voice.play()
+
+
+func set_colorblind(enabled: bool) -> void:
+	if enabled == colorblind:
+		return
+	colorblind = enabled
+	_save_value("accessibility", "colorblind", colorblind)
+	accessibility_changed.emit()
 
 
 func set_reduced_motion(enabled: bool) -> void:

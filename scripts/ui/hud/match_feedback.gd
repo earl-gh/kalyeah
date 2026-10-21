@@ -10,6 +10,12 @@ var leave: Button
 var hint: Label
 
 
+## Keeps the hint line just above the console, whatever its height.
+func set_console_height(height: float) -> void:
+	hint.offset_top = -(height + 130.0)
+	hint.offset_bottom = -(height + 10.0)
+
+
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -35,8 +41,7 @@ func _ready() -> void:
 	connection.hide()
 	hint = Label.new()
 	hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	hint.offset_top = -(MatchHud.CONSOLE_HEIGHT + 130.0)
-	hint.offset_bottom = -(MatchHud.CONSOLE_HEIGHT + 10.0)
+	set_console_height(MatchHud.CONSOLE_HEIGHT)
 	hint.offset_left = 20.0
 	hint.offset_right = -20.0
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

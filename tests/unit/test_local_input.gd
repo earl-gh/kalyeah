@@ -266,3 +266,19 @@ func test_while_auto_running_a_touch_in_the_outer_ring_grabs_too() -> void:
 	_press(stick, Vector2(DPad.MAX_RADIUS + 15.0, 0.0))
 	assert_false(stick.auto_run, "grabbed from the outer ring at once")
 	assert_gt(stick.value.x, 0.9, "steering right on the same touch")
+
+
+func test_the_pad_says_when_the_thumb_enters_a_new_direction_and_only_then() -> void:
+	var pad: DPad = autofree(DPad.new()) as DPad
+	add_child(pad)
+	pad.size = Vector2(DPad.OUTER_RADIUS * 2.0, DPad.OUTER_RADIUS * 2.0)
+	var seen: Array[Vector2] = []
+	pad.direction_changed.connect(func(direction: Vector2) -> void: seen.append(direction))
+	pad._begin(-2, pad.get_global_rect().get_center() + Vector2(40.0, 0.0))
+	pad._update(pad.get_global_rect().get_center() + Vector2(50.0, 2.0))
+	assert_eq(seen.size(), 1, "right, still right: one tick")
+	pad._update(pad.get_global_rect().get_center() + Vector2(0.0, -50.0))
+	assert_eq(seen.size(), 2, "up: a second tick")
+	pad._update(pad.get_global_rect().get_center() + Vector2(1.0, 0.0))
+	assert_eq(seen.size(), 3, "back to the middle is a change too (the match only buzzes for a direction)")
+	assert_eq(seen[2], Vector2.ZERO)

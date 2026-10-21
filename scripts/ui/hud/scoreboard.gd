@@ -4,8 +4,6 @@ extends Control
 ## match clock in the middle counting up ("2:45"), like the street-game video.
 ## Team-relative: you are always on the left.
 
-const OWN: Color = KalyeahTheme.TEAM_BLUE
-const ENEMY: Color = KalyeahTheme.TEAM_RED
 const PANEL: Color = Color(0.055, 0.09, 0.16, 0.94)
 const RIM: Color = Color(1.0, 0.82, 0.35)
 const BIG_FONT: int = 40
@@ -21,9 +19,6 @@ var capture: float = -1.0
 var capture_ours: bool = true
 
 const CAPTURE_HEIGHT: float = 7.0
-## Lighter than the score boxes it runs along, so the fill reads against them.
-const CAPTURE_OWN: Color = Color(0.62, 0.8, 1.0)
-const CAPTURE_ENEMY: Color = Color(1.0, 0.62, 0.6)
 const CAPTURE_INSET: float = 14.0
 const CAPTURE_TRACK: Color = Color(0.0, 0.0, 0.0, 0.5)
 ## Progress is shown in steps of this much, so the card is not redrawn every frame for nothing.
@@ -79,8 +74,8 @@ func _draw() -> void:
 	# the same night panel as every other card, with its lit edge and soft shadow
 	draw_style_box(UiSkin.plate("night", 0.0, 18), Rect2(0.0, 0.0, w, h))
 	var box: float = h - 12.0
-	_round_rect(Rect2(6.0, 6.0, box * 1.25, box), OWN, 12.0)
-	_round_rect(Rect2(w - 6.0 - box * 1.25, 6.0, box * 1.25, box), ENEMY, 12.0)
+	_round_rect(Rect2(6.0, 6.0, box * 1.25, box), TeamColors.ui_own(), 12.0)
+	_round_rect(Rect2(w - 6.0 - box * 1.25, 6.0, box * 1.25, box), TeamColors.ui_enemy(), 12.0)
 	_center_text(KalyeahTheme.ACTION_FONT, str(mine), Vector2(6.0 + box * 0.625, h / 2.0), BIG_FONT, Color.WHITE)
 	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), Vector2(w - 6.0 - box * 0.625, h / 2.0), BIG_FONT, Color.WHITE)
 	_center_text(KalyeahTheme.BODY_FONT, clock_text(), Vector2(w / 2.0, h * 0.36), SMALL_FONT + 4, Color.WHITE)
@@ -89,7 +84,7 @@ func _draw() -> void:
 		var track: Rect2 = Rect2(CAPTURE_INSET, h - 6.0 - CAPTURE_HEIGHT, w - CAPTURE_INSET * 2.0, CAPTURE_HEIGHT)
 		_round_rect(track, CAPTURE_TRACK, CAPTURE_HEIGHT / 2.0)
 		if capture > 0.0:
-			_round_rect(Rect2(track.position, Vector2(track.size.x * capture, track.size.y)), CAPTURE_OWN if capture_ours else CAPTURE_ENEMY, CAPTURE_HEIGHT / 2.0)
+			_round_rect(Rect2(track.position, Vector2(track.size.x * capture, track.size.y)), TeamColors.capture_own() if capture_ours else TeamColors.capture_enemy(), CAPTURE_HEIGHT / 2.0)
 
 
 func _round_rect(rect: Rect2, color: Color, radius: float) -> void:
