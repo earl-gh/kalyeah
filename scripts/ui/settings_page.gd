@@ -112,7 +112,7 @@ func _profile_card() -> Control:
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_label.text = Session.player_name
 	words.add_child(name_label)
-	profile_button = MenuDialog.make_button("Edit profile", "grey", UiMetrics.DETAIL, Vector2(0.0, 64.0))
+	profile_button = MenuDialog.make_button("Edit profile", "grey", UiMetrics.DETAIL, Vector2(0.0, UiMetrics.MIN_TARGET))
 	profile_button.name = "ProfileButton"
 	profile_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	profile_button.pressed.connect(profile_pressed.emit)

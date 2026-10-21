@@ -27,7 +27,7 @@ const KIND_CHIPS: Dictionary[int, Color] = {
 }
 const COLUMNS: int = 2
 ## The grouping switch sits under the book's own switch, so it is a size smaller (still a thumb).
-const SWITCH_HEIGHT: float = 68.0
+const SWITCH_HEIGHT: float = UiMetrics.MIN_TARGET
 const TILE_HEIGHT: float = 292.0
 const TILE_ICON: float = 128.0
 const DETAIL_ICON: float = 168.0
