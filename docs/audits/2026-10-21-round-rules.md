@@ -28,7 +28,7 @@ After the fix, with contested bases:
   give the same wins. That is why `capture_time` stays 5 s (D18).
 - **Rushers still win about 95% of decided rounds against a guard, and the reason is the map, not the capture time.** Each team's box is at the *enemy's*
   end of the street. A rusher who is tagged lands in a box beside teammates already there; a defender tagged at home is sent 48 m across the street and
-  its rescuers have to follow. Dmg dealt was about equal both ways in the probes, the tags were not. This is D25 in the GDD: the owner's design from
+  its rescuers have to follow. In three probe rounds the rushers took as much damage as they dealt or more, and still won: the tags cost the two sides very different amounts. This is D25 in the GDD: the owner's design from
   the reference video, left unchanged, but it is the biggest remaining lever on who wins a round.
 - **A timed release evens it out and costs pace.** Releasing a tagged kid after 12 s: rush vs guard drops from 24 decided of 30 to 6 of 30 (rounds stall);
   20 s: 12 of 30. In a real game both teams attack, so stalls are not the same as in bot rounds, but it is a reason to keep it off online until it is played.
