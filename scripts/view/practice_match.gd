@@ -239,6 +239,7 @@ func advance(delta: float) -> void:
 
 func _setup_practice() -> void:
 	sim = MatchSim.new(rules, layout, Time.get_ticks_usec())
+	sim.tag_release_time = rules.practice_tag_release_time
 	sim.add_player(local_id, local_team)
 	var stand_spot: Vector2 = Vector2(rules.dummy_stand_x, rules.dummy_z)
 	var patrol_spot: Vector2 = Vector2(rules.dummy_patrol_x, rules.dummy_z)

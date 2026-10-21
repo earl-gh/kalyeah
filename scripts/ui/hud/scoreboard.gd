@@ -55,7 +55,7 @@ func show_capture(sim: MatchSim, my_team: int) -> void:
 	var value: float = -1.0
 	var ours: bool = capture_ours
 	if sim.capture_team >= 0 and sim.phase == MatchSim.Phase.PLAYING:
-		value = snappedf(clampf(sim.capture_elapsed / maxf(sim.rules.capture_time, 0.001), 0.0, 1.0), CAPTURE_STEP)
+		value = snappedf(clampf(sim.capture_elapsed / maxf(sim.capture_needed, 0.001), 0.0, 1.0), CAPTURE_STEP)
 		ours = sim.capture_team == my_team
 	if not is_equal_approx(value, capture) or ours != capture_ours:
 		capture = value

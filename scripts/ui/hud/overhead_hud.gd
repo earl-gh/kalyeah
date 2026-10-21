@@ -140,7 +140,7 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 		_text(_italic, status, head + Vector2(0.0, -8.0), STATUS_FONT, STATUS_COLOR, 6)
 		lift = 22.0
 	if spinner_visible(state):
-		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.capture_elapsed / _sim.rules.capture_time)
+		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.capture_elapsed / maxf(_sim.capture_needed, 0.001))
 
 
 ## A spinning ring over a hero holding the enemy base: the ring fills as the point

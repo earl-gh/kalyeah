@@ -28,6 +28,17 @@ extends Resource
 ## Scoring: a capture (the whole team in the enemy base, or every enemy tagged) has
 ## to hold this long to win the point.
 @export var capture_time: float = 0.0
+## A base capture does not run while a free player of the defending team stands in that base (the defenders must
+## be tagged or leave first). Off: only the capture time decides.
+@export var capture_contested: bool = true
+## Overtime: once a round has gone on this long (seconds, 0 = never) the capture time drops to `overtime_capture_time`,
+## so a round always ends.
+@export var overtime_after: float = 0.0
+@export var overtime_capture_time: float = 0.0
+## A tagged player walks out of the box alone after this many seconds (0 = they wait for a rescue), online and in rooms.
+@export var tag_release_time: float = 0.0
+## The same, for a Practice match.
+@export var practice_tag_release_time: float = 0.0
 ## The opening show before the first round (both teams at their posts, then GO!).
 @export var intro_time: float = 0.0
 ## Freeze after a point before everyone is reset to their posts.

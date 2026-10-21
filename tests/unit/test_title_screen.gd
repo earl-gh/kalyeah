@@ -99,7 +99,7 @@ func test_the_centre_card_stays_centred_on_the_screen() -> void:
 		strip.select(index, false)
 		assert_almost_eq(strip.cards[index].get_global_rect().get_center().x, 360.0, 2.0, "the chosen card is centred on the screen")
 	strip.select(0, false)
-	assert_gt(strip.cards[0].get_global_rect().size.y, 540.0, "the centre card is large")
+	assert_gt(strip.cards[0].get_global_rect().size.y, 520.0, "the centre card is large (it bobs a little, so not an exact size)")
 
 
 

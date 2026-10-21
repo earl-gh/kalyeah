@@ -53,6 +53,12 @@ var score: MatchScore
 var capture_team: int = -1
 var capture_kind: CaptureKind = CaptureKind.NONE
 var capture_elapsed: float = 0.0
+## Seconds a capture has to hold now (the capture time, or the shorter overtime one).
+var capture_needed: float = 0.0
+## Seconds into this round (counts up in play; back to 0 after a point).
+var round_time: float = 0.0
+## A tagged player walks out of the box alone after this long (0 = waits for a rescue).
+var tag_release_time: float = 0.0
 var phase: Phase = Phase.PLAYING
 ## Seconds left in the freeze after a point.
 var freeze_left: float = 0.0
@@ -78,6 +84,8 @@ func _init(p_rules: GameRules, p_layout: MapLayout, seed_value: int) -> void:
 	for def: WeaponDef in rules.weapons:
 		weapon_defs[def.id] = def
 	score = MatchScore.new(rules.best_of)
+	capture_needed = rules.capture_time
+	tag_release_time = rules.tag_release_time
 
 
 ## Team 0 plays from the own (+Z) end, team 1 from the enemy (-Z) end.
@@ -346,6 +354,8 @@ func step(dt: float) -> void:
 		else:
 			_step_free(state, input, dt)
 	match_time += dt
+	round_time += dt
+	capture_needed = current_capture_time()
 	weapons.step(self, dt)
 	objectives.check_rescues(self)
 	objectives.check_captures(self, _brains, dt)
@@ -372,7 +382,9 @@ func _step_tagged(state: PlayerState, input: PlayerInput, dt: float) -> void:
 	state.tag_time += dt
 	if input != null:
 		state.previous_buttons = input.buttons
-	if _brains.has(state.id) and state.tag_time >= rules.dummy_release_time:
+	var training_dummy: bool = _brains.has(state.id) and state.tag_time >= rules.dummy_release_time
+	var timed_out: bool = tag_release_time > 0.0 and state.tag_time >= tag_release_time
+	if training_dummy or timed_out:
 		objectives.rescue(self, state, RELEASED_ALONE)
 
 
@@ -449,6 +461,18 @@ func team_in_enemy_base(team: int) -> bool:
 ## never scores this way).
 func all_enemies_tagged(team: int) -> bool:
 	return objectives.all_enemies_tagged(self, team, _brains)
+
+
+## How long a capture has to hold right now: the capture time, or the overtime one once the round has dragged on.
+func current_capture_time() -> float:
+	if rules.overtime_after > 0.0 and round_time >= rules.overtime_after:
+		return minf(rules.capture_time, rules.overtime_capture_time)
+	return rules.capture_time
+
+
+## `team` is all in the enemy base but a defender is still standing in it (the capture waits).
+func base_contested_by(team: int) -> bool:
+	return objectives.base_contested_by(self, team, _brains)
 
 
 ## Seconds left on the running capture countdown (0 when none runs).
