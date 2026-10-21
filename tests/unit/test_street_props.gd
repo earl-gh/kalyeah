@@ -31,7 +31,7 @@ func test_the_new_things_are_in_the_barrier_rows_at_both_ends() -> void:
 			seen[id] = true
 	for id: String in NEW_BARRIERS:
 		assert_true(StreetMap.BARRIER_HEIGHTS.has(id), "%s has a height" % id)
-		assert_true(seen.has(id), "%s stands in a row" % id)
+		assert_true(seen.has(id) or map.far_props.has(id), "%s stands in a row or on the road beyond the end" % id)
 
 
 func test_the_rows_still_fit_the_street_at_true_size() -> void:
@@ -39,7 +39,7 @@ func test_the_rows_still_fit_the_street_at_true_size() -> void:
 	for row: Array in map.barrier_rows:
 		var used: float = 0.0
 		for id: Variant in row:
-			used += StreetMap.barrier_width(id as String) + StreetMap.BARRIER_GAP
+			used += StreetMap.barrier_width(id as String, map.scenery()) + StreetMap.BARRIER_GAP
 		assert_lt(used - StreetMap.BARRIER_GAP, map.layout.lane_width + 0.001, "the row fits the street")
 
 
@@ -52,7 +52,7 @@ func test_the_nanay_stands_on_the_sidewalk_outside_the_play_area_facing_the_stre
 	assert_lt(nanay.position.x, 0.0)
 	assert_almost_eq(nanay.rotation.y, PI / 2.0, 0.1, "turned toward the street")
 	var mesh: MeshInstance3D = nanay.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
-	assert_almost_eq(mesh.get_aabb().size.y * nanay.scale.y, StreetMap.NANAY_HEIGHT, 0.01)
+	assert_almost_eq(mesh.get_aabb().size.y * nanay.scale.y, StreetMap.NANAY_HEIGHT * map.scenery(), 0.01)
 
 
 func test_the_nanay_sways_a_little() -> void:
@@ -96,7 +96,7 @@ func test_the_vehicles_are_parked_outside_the_play_area() -> void:
 	assert_gt(cart.position.x, half_w + map.layout.boundary_thickness, "the cart is on the right sidewalk")
 	assert_almost_eq(cart.position.y, StreetMap.CURB_HEIGHT, 0.001)
 	var mesh: MeshInstance3D = jeep.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
-	assert_almost_eq(mesh.get_aabb().size.y * jeep.scale.y, StreetMap.JEEP_HEIGHT, 0.01)
+	assert_almost_eq(mesh.get_aabb().size.y * jeep.scale.y, StreetMap.JEEP_HEIGHT * map.scenery(), 0.01)
 
 
 func test_no_vehicle_stands_where_the_kids_play() -> void:

@@ -68,9 +68,10 @@ func test_the_camera_sits_behind_the_own_end_and_the_other_team_is_turned_half_w
 	assert_eq(CAMERA.camera_target(3.0, true), -CAMERA.camera_target(3.0, false), "the shift is the other way for the other team")
 
 
-func test_the_kids_are_drawn_bigger_than_they_are_and_their_bars_smaller() -> void:
-	assert_almost_eq(CAMERA.kid_view_scale, 3.2, 0.0001, "so they stay readable with the whole street on screen")
+func test_the_kids_are_drawn_a_little_bigger_than_their_model_and_their_bars_smaller() -> void:
+	assert_almost_eq(CAMERA.kid_view_scale, 1.5, 0.0001, "world scale: a kid is about a third of a house, not as tall as one (it was 3.2)")
 	assert_lt(CAMERA.bar_scale, 1.0)
+	assert_gt(LAYOUT.scenery_scale, 1.0, "the scenery is drawn bigger to match")
 
 
 func test_the_kid_is_readable_at_this_size() -> void:
@@ -78,9 +79,9 @@ func test_the_kid_is_readable_at_this_size() -> void:
 	var feet: Vector2 = CAMERA.screen_point(framed.x, PHONE, Vector2.ZERO, framed.y)
 	var head: Vector2 = CAMERA.screen_point(framed.x, PHONE, Vector2.ZERO, framed.y, KidModel.KID_HEIGHT * CAMERA.kid_view_scale)
 	var tall: float = (head.y - feet.y) / 2.0 * 1280.0
-	assert_gt(tall, 60.0, "at least 60 px tall on a 1280 px screen")
+	assert_gt(tall, 36.0, "at least 36 px tall on a 1280 px screen (about 40 at the shipped scale: do not shrink the kids further)")
 	var wide: float = absf(CAMERA.screen_point(framed.x, PHONE, Vector2(0.35 * CAMERA.kid_view_scale, 0.0), framed.y).x - feet.x) * 360.0 * 2.0
-	assert_gt(wide, 30.0, "and at least 30 px wide")
+	assert_gt(wide, 20.0, "and at least 20 px wide (about 23)")
 
 
 func test_the_arena_camera_places_itself_and_keeps_the_whole_street_in_view() -> void:
