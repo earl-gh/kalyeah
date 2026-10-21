@@ -382,54 +382,9 @@ func _build() -> void:
 	feedback.return_home.connect(exit_pressed.emit)
 
 
-## The D-pad at the bottom left and the two skill buttons at the bottom right (like a Game Boy: weapon 2 a little
-## higher than weapon 1), all in sockets on the shell: mirrored for a left-handed player, and scaled by the control
-## size setting.
+## Places the console, the D-pad, the skill buttons and the cancel zone (see MatchHudLayout).
 func layout_controls() -> void:
-	var scale_by: float = Settings.control_scale
-	var mirrored: bool = Settings.left_handed
-	MatchHudTop.layout(self)
-	_place(console, Vector4(0, 1, 1, 1), Vector4(0, -console_height(), 0, 0))
-	if feedback != null:
-		feedback.set_console_height(console_height())
-	console_height_changed.emit(console_height())
-	var lift: float = bottom_inset
-	var weapon: float = WEAPON_SIZE * scale_by
-	var gap: float = WEAPON_GAP * scale_by
-	var stagger: float = WEAPON_STAGGER * scale_by
-	var zone: float = DPAD_ZONE
-	# the pad keeps its zone; scaling it around its middle makes the disc and the grab area grow together
-	_put(dpad, mirrored, Vector2(DPAD_MARGIN, ROW_HEIGHT + lift), Vector2(zone, zone))
-	dpad.pivot_offset = Vector2(zone, zone) / 2.0
-	dpad.scale = Vector2.ONE * scale_by
-	var second: float = WEAPON_MARGIN + weapon / 2.0
-	var first: float = second + weapon + gap
-	_put(weapon_buttons[1], not mirrored, Vector2(second, ROW_HEIGHT + stagger + lift), Vector2(weapon, weapon))
-	_put(weapon_buttons[0], not mirrored, Vector2(first, ROW_HEIGHT - stagger + lift), Vector2(weapon, weapon))
-	_put(cancel_zone, not mirrored, Vector2((second + first) / 2.0, CANCEL_AT.y + lift), CANCEL_SIZE)
-	# the sockets in the shell, in the panel's own coordinates (from its top-left)
-	var width: float = size.x
-	var across: float = 1.0 if not mirrored else -1.0
-	var pad_x: float = DPAD_MARGIN if not mirrored else width - DPAD_MARGIN
-	var weapon_x: Callable = func(from_edge: float) -> float: return width - from_edge if not mirrored else from_edge
-	var sockets: Array[Dictionary] = [
-		{"at": Vector2(pad_x, CONSOLE_HEIGHT - ROW_HEIGHT), "radius": DPAD_SOCKET * scale_by},
-		{"at": Vector2(weapon_x.call(second), CONSOLE_HEIGHT - ROW_HEIGHT - stagger), "radius": WEAPON_SOCKET * scale_by},
-		{"at": Vector2(weapon_x.call(first), CONSOLE_HEIGHT - ROW_HEIGHT + stagger), "radius": WEAPON_SOCKET * scale_by},
-	]
-	console.set_sockets(sockets, across > 0.0)
-
-
-## Places `control` with its centre `at` = (from the right or left edge, from the bottom).
-func _put(control: Control, from_right: bool, at: Vector2, extent: Vector2) -> void:
-	var edge: float = 1.0 if from_right else 0.0
-	var side: float = -1.0 if from_right else 1.0
-	var near: float = side * at.x
-	var half: float = extent.x / 2.0
-	var low: float = near - half
-	var high: float = near + half
-	_place(control, Vector4(edge, 1, edge, 1), Vector4(
-		minf(low, high), -at.y - extent.y / 2.0, maxf(low, high), -at.y + extent.y / 2.0))
+	MatchHudLayout.apply(self)
 
 
 ## Shows the opening show's banner (`title`, `subtitle`), or hides it with "".
