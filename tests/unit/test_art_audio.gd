@@ -86,8 +86,11 @@ func test_the_ui_theme_is_applied_everywhere() -> void:
 	assert_eq(button.get_theme_font("font"), KalyeahTheme.BUTTON_FONT)
 	assert_eq(KalyeahTheme.build().default_font, KalyeahTheme.BODY_FONT)
 	assert_eq(KalyeahTheme.DISPLAY_FONT.get_font_name(), "Bungee", "headings use Bungee")
-	for font: Font in [KalyeahTheme.BODY_FONT, KalyeahTheme.ACTION_FONT, KalyeahTheme.BUTTON_FONT]:
-		assert_eq(font, KalyeahTheme.DISPLAY_FONT, "one typeface everywhere (owner): Bungee for body copy, actions and numbers too")
+	for font: Font in [KalyeahTheme.BODY_FONT, KalyeahTheme.CAPTION_FONT, KalyeahTheme.BUTTON_FONT]:
+		assert_eq((font as FontVariation).base_font, KalyeahTheme.DISPLAY_FONT, "one typeface everywhere (owner): Bungee, tracked for its role")
+	assert_eq(KalyeahTheme.ACTION_FONT, KalyeahTheme.DISPLAY_FONT, "numbers stay untracked")
+	assert_lt((KalyeahTheme.BODY_FONT as FontVariation).spacing_glyph, (KalyeahTheme.CAPTION_FONT as FontVariation).spacing_glyph, "the smaller the text, the more it is opened up")
+	assert_gt(KalyeahTheme.READING_LINE_SPACING, KalyeahTheme.LINE_SPACING, "paragraphs have air between their lines")
 	var field: LineEdit = autofree(LineEdit.new()) as LineEdit
 	add_child(field)
 	var normal: StyleBoxFlat = field.get_theme_stylebox("normal") as StyleBoxFlat
@@ -386,3 +389,12 @@ func test_the_rebuilt_kids_without_a_landing_clip_still_play_every_other_state()
 		assert_eq(_animation_after(kid, state), "airborne")
 		state.effects.clear()
 		assert_ne(_animation_after(kid, state), "airborne", "back on the ground, with or without a landing squash")
+
+
+func test_a_settings_row_detail_wraps_in_the_muted_tracked_caption_style() -> void:
+	var row: HBoxContainer = autofree(UiKit.setting_row("Reduce motion", "Calmer menus, no drifting lights", Control.new())) as HBoxContainer
+	add_child(row)
+	var detail: Label = row.find_child("Detail", true, false) as Label
+	assert_eq(detail.autowrap_mode, TextServer.AUTOWRAP_WORD_SMART, "long details wrap instead of running off the page")
+	assert_eq(detail.theme_type_variation, &"MutedLabel")
+	assert_eq(detail.get_theme_font("font"), KalyeahTheme.CAPTION_FONT, "small text is opened up")

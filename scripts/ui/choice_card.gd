@@ -45,7 +45,7 @@ static func make_card(heading: String, choice: String, color: String, size: Vect
 	var name_label: Label = Label.new()
 	name_label.name = "Choice"
 	name_label.theme_type_variation = &"DisplayLabel"
-	name_label.add_theme_font_size_override("font_size", 34)
+	name_label.add_theme_font_size_override("font_size", UiMetrics.TITLE)
 	name_label.add_theme_color_override("font_color", KalyeahTheme.semantic_text_color(color))
 	name_label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
 	name_label.add_theme_constant_override("outline_size", 0)
