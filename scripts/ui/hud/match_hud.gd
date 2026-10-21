@@ -1,8 +1,8 @@
 class_name MatchHud
 extends Control
 ## The whole in-match HUD, built in code (no scene text to patch): overhead bars,
-## top row (tall street minimap and settings button on the left, score in the
-## centre, who is tagged on the right), the TAGGED!/RESCUED! feed under the minimap,
+## top row (the settings button on the left, the score on the right; the whole street is
+## always on screen, so there is no minimap), the TAGGED!/RESCUED! feed under the settings button,
 ## the capture countdown, the settings menu, and the controls: the movement stick
 ## at the bottom centre with weapon 1 on its left and weapon 2 on its right, all in
 ## one row within thumb reach. The score card (points and the match clock) is at the top right.
@@ -14,7 +14,6 @@ signal hurt_pressed
 ## Practice: play the animation of status `type` (stunned, airborne, knocked down) on yourself.
 signal status_test_pressed(type: int)
 ## A card in the tagged panel was tapped: follow player `id`.
-signal watch_requested(id: int)
 signal exit_pressed
 
 enum Feed { TAGGED, RESCUED }
@@ -30,8 +29,6 @@ const CAST_BLOCK_TAGS: Dictionary[int, String] = {
 }
 const TOP_ROW_Y: float = 40.0
 const MARGIN: float = 14.0
-## The street is 1:2 (width:length), and so is its minimap.
-const MINIMAP_SIZE: Vector2 = Vector2(100.0, 200.0)
 const GEAR_SIZE: float = UiMetrics.TOUCH
 const SCORE_SIZE: Vector2 = Vector2(280.0, 88.0)
 const FEED_TIME: float = 2.6
@@ -63,7 +60,6 @@ var overhead: OverheadHud
 var pulse: HurtPulse
 var top: Control
 var scoreboard: Scoreboard
-var minimap: LaneMinimap
 var joystick: VirtualJoystick
 var weapon_buttons: Array[AimButton] = []
 ## Weapon 1, weapon 2 (the order MatchInput uses).
@@ -79,12 +75,11 @@ var hurt_button: Button
 var again_button: Button
 var results: MatchResults
 var coach: CoachMarks
-var arrows: DirectionArrows
 ## What the results card says the match was ("Practice", "Hotspot", "Online").
 var results_mode: String = "Practice"
 ## Big countdown in the middle while a capture is running.
 var capture_label: Label
-## TAGGED! / RESCUED! pills under the minimap (newest at the bottom).
+## TAGGED! / RESCUED! pills under the settings button (newest at the bottom).
 var feed_box: VBoxContainer
 var settings_button: TextureButton
 var menu: MatchMenu
@@ -156,9 +151,8 @@ func banner_text() -> String:
 
 
 ## Buttons, labels and cooldowns for the local player.
-## `watched` is the player the camera follows while you are tagged.
-func sync_player(sim: MatchSim, player: PlayerState, watched: int, pick_open: bool) -> void:
-	tagged_panel.sync(sim, player, watched, pick_open)
+func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
+	tagged_panel.sync(sim, player, pick_open)
 	# while you wait in the box the controls are hidden so the card sits alone at the bottom
 	# no buttons while you wait in the box or during the opening show
 	var playing: bool = not player.tagged and sim.phase == MatchSim.Phase.PLAYING and not pick_open and not connection_blocked
@@ -226,7 +220,7 @@ func _sync_capture(sim: MatchSim, local_team: int) -> void:
 	capture_label.add_theme_color_override("font_color", CAPTURE_COLOR.lerp(FEED_OWN if ours else FEED_ENEMY, 0.35))
 
 
-## Adds a TAGGED! or RESCUED! pill under the minimap: blue for your team, red for theirs.
+## Adds a TAGGED! or RESCUED! pill under the settings button: blue for your team, red for theirs.
 func feed(kind: Feed, our_team: bool, who: String) -> void:
 	var pill: Label = Label.new()
 	pill.text = "%s  %s" % ["TAGGED!" if kind == Feed.TAGGED else "RESCUED!", who]
@@ -317,10 +311,7 @@ func _build() -> void:
 	add_child(tagged_panel)
 	swap_button = tagged_panel.swap_button
 	tagged_panel.swap_pressed.connect(swap_pressed.emit)
-	tagged_panel.watch_requested.connect(watch_requested.emit)
 	MatchHudTop.build_intro(self)
-	arrows = DirectionArrows.new()
-	add_child(arrows)
 	coach = CoachMarks.new(self)
 	add_child(coach)
 	# last, so it draws over the skill buttons

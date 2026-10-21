@@ -23,8 +23,9 @@ func setup_hud() -> void:
 	Cinematic.add_lens(owner, owner._camera.rules.lens_k())
 	Cinematic.add_film_finish(owner)
 	owner.hud.overhead.setup(owner.sim, owner._camera, owner.local_id, owner.local_team)
-	owner.hud.minimap.setup(owner.sim, owner.local_id, owner.local_team)
-	owner.hud.arrows.setup(owner.sim, owner._camera, owner.local_id, owner.local_team, owner.layout)
+	owner.hud.overhead.view_scale = owner._camera.rules.kid_view_scale
+	owner.hud.overhead.bar_scale = owner._camera.rules.bar_scale
+	owner._fx.view_scale = owner._camera.rules.kid_view_scale
 	owner.hud.set_top_inset(_safe_top_inset())
 
 
@@ -42,7 +43,6 @@ func connect_hud() -> void:
 	owner.hud.results.home_button.visible = not owner.online
 	owner.hud.results.home_pressed.connect(owner._on_exit_pressed)
 	owner.hud.results_mode = ("Hotspot" if Session.lobby_hotspot else "Online") if owner.online else "Practice"
-	owner.hud.watch_requested.connect(func(id: int) -> void: owner.watch_id = id)
 	owner.hud.swap_pressed.connect(owner.open_swap)
 	owner.hud.exit_pressed.connect(owner._on_exit_pressed)
 
@@ -59,11 +59,8 @@ func connect_sim() -> void:
 	owner.sim.point_scored.connect(_on_point_scored)
 	owner.sim.match_won.connect(_on_match_won)
 	owner.sim.point_reset.connect(func() -> void:
-		owner.hud.joystick.release()
-		owner.watch_id = -1
-		owner._snap_camera = true)
+		owner.hud.joystick.release())
 	owner.sim.intro_finished.connect(func() -> void:
-		owner._snap_camera = true
 		owner.show_banner("GO!")
 		# the first practice match (or a replay from How to play) opens with the walkthrough
 		if Session.coach_pending and not owner.online:
@@ -77,21 +74,16 @@ func sync(delta: float) -> void:
 	for id: int in owner.sim.players:
 		_sync_actor(owner.sim.players[id], delta)
 	var player: PlayerState = owner.sim.players[owner.local_id]
-	owner.hud.sync_player(owner.sim, player, owner.watch_id, owner._pick_screen.visible)
+	owner.hud.sync_player(owner.sim, player, owner._pick_screen.visible)
 	_sync_aim(player)
 	owner._fx.sync(owner.sim, delta)
 	owner.hud.overhead.tick(delta)
-	owner.hud.arrows.tick(delta)
 	owner.hud.sync_score(owner.sim, owner.local_team, delta, owner.local_id)
 	if owner.sim.phase == MatchSim.Phase.INTRO:
 		_play_intro_shot()
 		return
 	owner.hud.show_intro("")
-	var target: Vector2 = player.position
-	if player.tagged and owner.sim.players.has(owner.watch_id):
-		target = owner.sim.players[owner.watch_id].position
-	owner._camera.follow(target, owner._flip(), 0.0 if owner._snap_camera else delta)
-	owner._snap_camera = false
+	owner._camera.place(owner._flip())
 
 
 func make_actor_view(state: PlayerState) -> void:
@@ -105,6 +97,7 @@ func make_actor_view(state: PlayerState) -> void:
 		character = owner.rules.characters[0]
 	var view: KidModel = KidModel.new()
 	view.setup(character, team_color, owner.rules.player_radius)
+	view.scale = Vector3.ONE * owner._camera.rules.kid_view_scale
 	owner._actors.add_child(view)
 	owner._views[state.id] = view
 
@@ -161,14 +154,6 @@ func _sync_aim(player: PlayerState) -> void:
 	owner.hud.cancel_zone.visible = owner.input.any_touch_held()
 
 
-func _first_watch_id() -> int:
-	var ids: Array[int] = TaggedPanel.cards_for(owner.sim, owner.sim.players[owner.local_id])
-	for id: int in ids:
-		if owner.sim.players[id].team == owner.local_team and not owner.sim.players[id].tagged:
-			return id
-	return ids[0] if not ids.is_empty() else -1
-
-
 func _play_intro_shot() -> void:
 	var best_of: int = owner.sim.score.best_of
 	owner.hud.show_intro(
@@ -176,8 +161,7 @@ func _play_intro_shot() -> void:
 		"BO%d  •  FIRST TO %d" % [best_of, owner.sim.score.points_to_win()]
 	)
 	if Settings.reduced_motion:
-		var player: PlayerState = owner.sim.players[owner.local_id]
-		owner._camera.follow(player.position, owner._flip(), 0.0)
+		owner._camera.place(owner._flip())
 		return
 	var length: float = maxf(owner.rules.intro_time, 0.001)
 	var t: float = clampf(1.0 - owner.sim.intro_left / length, 0.0, 1.0)
@@ -202,15 +186,12 @@ func _on_player_tagged(id: int) -> void:
 	if id == owner.local_id:
 		owner._camera.shake(0.25)
 		owner.hud.pulse.tagged()
-		owner.watch_id = _first_watch_id()
 
 
 func _on_player_rescued(id: int, by_id: int) -> void:
 	if by_id != MatchSim.RELEASED_ALONE:
 		owner.hud.feed(MatchHud.Feed.RESCUED, owner.sim.players[id].team == owner.local_team, _name_of(id))
 	if id == owner.local_id:
-		owner.watch_id = -1
-		owner._snap_camera = true
 		if owner._pick_screen.visible:
 			owner._pick_screen.force_finish()
 

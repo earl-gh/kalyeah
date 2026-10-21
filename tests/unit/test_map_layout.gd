@@ -4,21 +4,10 @@ const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const MAP_SCENE: PackedScene = preload("res://scenes/map/street_map.tscn")
 
 
-func test_the_playing_area_is_one_by_two() -> void:
-	assert_eq(LAYOUT.lane_width, 24.0)
+func test_the_playing_area_is_nine_by_sixteen_like_a_phone_screen() -> void:
+	assert_eq(LAYOUT.lane_width, 27.0)
 	assert_eq(LAYOUT.lane_length, 48.0)
-	assert_almost_eq(LAYOUT.lane_width / LAYOUT.lane_length, 0.5, 0.001, "1:2 (width:length)")
-
-
-func test_the_minimap_has_exactly_the_streets_ratio() -> void:
-	assert_almost_eq(MatchHud.MINIMAP_SIZE.x / MatchHud.MINIMAP_SIZE.y, LAYOUT.lane_width / LAYOUT.lane_length, 0.0001)
-	var minimap: LaneMinimap = autofree(LaneMinimap.new()) as LaneMinimap
-	minimap.size = MatchHud.MINIMAP_SIZE
-	minimap.setup(MatchSim.new(load("res://data/rules/game_rules.tres") as GameRules, LAYOUT, 1), 1, 0)
-	var corner: Vector2 = minimap.to_map(LAYOUT.lane_rect().position)
-	var far: Vector2 = minimap.to_map(LAYOUT.lane_rect().end)
-	var drawn: Vector2 = (far - corner).abs()
-	assert_almost_eq(drawn.x / drawn.y, 0.5, 0.0001, "the street drawn inside the frame is exactly 1:2")
+	assert_almost_eq(LAYOUT.lane_width / LAYOUT.lane_length, 9.0 / 16.0, 0.001, "9:16 (width:length), so the whole street fits a portrait screen")
 
 
 func test_own_post_bottom_left_enemy_post_top_right() -> void:
@@ -340,3 +329,31 @@ func test_the_street_and_sidewalks_use_the_code_drawn_cement() -> void:
 	assert_almost_eq(float(material.get_shader_parameter("curb_height")), StreetMap.CURB_HEIGHT, 0.001)
 	assert_false(ResourceLoader.exists("res://assets/textures/cement_generated.png"), "no generated image files")
 
+
+
+# ---- the tile grid (Clash Royale's arena: 18 x 32 tiles) -------------------------------
+
+func test_the_street_is_an_18_by_32_tile_grid_of_1_5_metre_tiles() -> void:
+	assert_eq(LAYOUT.tiles, Vector2i(18, 32), "like Clash Royale's arena")
+	assert_almost_eq(LAYOUT.tile_size, 1.5, 0.0001)
+	assert_almost_eq(LAYOUT.lane_width, 27.0, 0.0001, "18 tiles across")
+	assert_almost_eq(LAYOUT.lane_length, 48.0, 0.0001, "32 tiles long")
+
+
+func test_tiles_and_metres_convert_both_ways() -> void:
+	assert_eq(LAYOUT.tile_center(Vector2i(0, 0)), Vector2(-12.75, -23.25), "the top-left tile")
+	assert_eq(LAYOUT.tile_center(Vector2i(17, 31)), Vector2(12.75, 23.25), "the bottom-right tile")
+	for tile: Vector2i in [Vector2i(0, 0), Vector2i(8, 15), Vector2i(9, 16), Vector2i(17, 31)]:
+		assert_eq(LAYOUT.tile_at(LAYOUT.tile_center(tile)), tile, "round trip %s" % tile)
+	assert_eq(LAYOUT.to_tiles(Vector2.ZERO), Vector2(9.0, 16.0), "the middle of the street is the corner of four tiles")
+	assert_eq(LAYOUT.lane_rect().size, Vector2(27.0, 48.0))
+
+
+func test_the_posts_and_boxes_sit_where_the_grid_says() -> void:
+	var own: Vector2 = LAYOUT.to_tiles(LAYOUT.base_center(MapLayout.SIDE_OWN))
+	assert_almost_eq(own.x, 2.5 / 1.5, 0.0001, "your post: 1 2/3 tiles from the left curb")
+	assert_almost_eq(own.y, 32.0 - 2.5 / 1.5, 0.0001, "and 1 2/3 tiles from your end")
+	assert_almost_eq(LAYOUT.base_radius / LAYOUT.tile_size, 3.0, 0.0001, "the base circle is 3 tiles")
+	var wall: Rect2 = LAYOUT.obstacle_rects()[0]
+	assert_almost_eq(wall.position.x, -LAYOUT.lane_width / 2.0, 0.0001, "the cover wall is against the left curb")
+	assert_almost_eq(wall.size.x / LAYOUT.tile_size, 2.0, 0.0001, "two tiles long")

@@ -2,13 +2,11 @@ class_name TaggedPanel
 extends Control
 ## What you see while tagged and waiting in the box: a grouped sheet over the bottom
 ## of the screen, a row of up to five 2:3 player cards (everyone
-## else in the match: teammates first) and a Change weapons button. Tap a card and
-## the camera follows that player; the watched card is lit. Built in code;
+## else in the match: teammates first) and a Change weapons button. The whole street is on screen, so the
+## cards only say who is tagged and whose team they are on. Built in code;
 ## MatchHud feeds it with `sync()`.
 
 signal swap_pressed
-## The player tapped the card of player `id` (the camera should follow them).
-signal watch_requested(id: int)
 
 const BAND_HEIGHT: float = 430.0
 const INK: Color = Color(0.1, 0.06, 0.06)
@@ -19,7 +17,6 @@ const CARD_SIZE: Vector2 = Vector2(120.0, 180.0)
 const CARD_GAP: float = 12.0
 const OWN: Color = Color(0.3, 0.6, 1.0)
 const ENEMY: Color = Color(1.0, 0.35, 0.35)
-const WATCHED: Color = Color(1.0, 0.86, 0.3)
 const WAIT_TEXT: String = "Tagged · Wait for a rescue"
 const HINT_TEXT: String = "Teammates can run into your box to set you free."
 
@@ -71,7 +68,7 @@ func _ready() -> void:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(row)
 	for i: int in MAX_CARDS:
-		_build_card(row, i)
+		_build_card(row)
 	swap_button = Button.new()
 	swap_button.text = "Change weapons"
 	swap_button.custom_minimum_size = Vector2(400.0, UiMetrics.TOUCH)
@@ -82,8 +79,8 @@ func _ready() -> void:
 	column.add_child(swap_button)
 
 
-## Shown while `player` is tagged. `watched` is the id the camera follows (lit).
-func sync(sim: MatchSim, player: PlayerState, watched: int, pick_open: bool) -> void:
+## Shown while `player` is tagged.
+func sync(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	visible = player.tagged
 	swap_button.visible = visible and not pick_open
 	if not visible:
@@ -100,9 +97,8 @@ func sync(sim: MatchSim, player: PlayerState, watched: int, pick_open: bool) -> 
 		_names[i].text = _display_name(sim, other)
 		_states[i].text = "Tagged" if other.tagged else ""
 		_portraits[i].modulate = Color(0.55, 0.55, 0.6) if other.tagged else Color.WHITE
-		card.add_theme_stylebox_override("normal", _card_box(OWN if ally else ENEMY, card_ids[i] == watched))
-		card.add_theme_stylebox_override("hover", _card_box(OWN if ally else ENEMY, card_ids[i] == watched))
-		card.add_theme_stylebox_override("pressed", _card_box(OWN if ally else ENEMY, true))
+		for state: String in ["normal", "hover", "pressed", "disabled"]:
+			card.add_theme_stylebox_override(state, _card_box(OWN if ally else ENEMY))
 
 
 ## Everyone but `player`, teammates first, at most MAX_CARDS (a full 3v3 has five others).
@@ -120,12 +116,6 @@ static func cards_for(sim: MatchSim, player: PlayerState) -> Array[int]:
 	return allies.slice(0, MAX_CARDS)
 
 
-## Taps a card (tests and the touch handler).
-func press_card(index: int) -> void:
-	if index < card_ids.size():
-		watch_requested.emit(card_ids[index])
-
-
 func _display_name(sim: MatchSim, state: PlayerState) -> String:
 	for def: CharacterDef in sim.rules.characters:
 		if def.id == state.character_id:
@@ -133,10 +123,11 @@ func _display_name(sim: MatchSim, state: PlayerState) -> String:
 	return "Player %d" % state.id
 
 
-func _build_card(row: HBoxContainer, index: int) -> void:
+func _build_card(row: HBoxContainer) -> void:
 	var card: Button = Button.new()
 	card.custom_minimum_size = CARD_SIZE
-	card.pressed.connect(press_card.bind(index))
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE  # not a button: it only shows who is there
+	card.focus_mode = Control.FOCUS_NONE
 	row.add_child(card)
 	var portrait: TextureRect = TextureRect.new()
 	portrait.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -165,12 +156,12 @@ func _build_card(row: HBoxContainer, index: int) -> void:
 	card.add_theme_stylebox_override("focus", KalyeahTheme.focus_ring(16))
 
 
-func _card_box(team: Color, lit: bool) -> StyleBoxFlat:
+func _card_box(team: Color) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = Color(KalyeahTheme.SURFACE_RAISED, 0.94)
 	box.set_corner_radius_all(14)
-	box.border_color = WATCHED if lit else team
-	box.set_border_width_all(4 if lit else 2)
+	box.border_color = team
+	box.set_border_width_all(2)
 	return box
 
 

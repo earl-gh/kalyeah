@@ -179,7 +179,7 @@ func test_running_makes_footstep_signals() -> void:
 
 
 func test_camera_shake_kicks_then_settles() -> void:
-	var camera: FollowCamera = autofree(FollowCamera.new()) as FollowCamera
+	var camera: ArenaCamera = autofree(ArenaCamera.new()) as ArenaCamera
 	camera.rules = load("res://data/rules/camera_rules.tres") as CameraRules
 	camera.layout = LAYOUT
 	add_child(camera)
