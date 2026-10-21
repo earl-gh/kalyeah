@@ -32,6 +32,7 @@ static func capture(sim: MatchSim, acks: Dictionary[int, int]) -> Dictionary:
 		"players": players, "projectiles": projectiles, "zones": zones, "shields": shields,
 		"phase": sim.phase, "freeze": sim.freeze_left, "intro": sim.intro_left, "clock": sim.match_time,
 		"score": {"p": sim.score.points.duplicate(), "bo": sim.score.best_of, "w": sim.score.winner},
+		"log": _log_of(sim),
 		"cap": {"team": sim.capture_team, "k": sim.capture_kind, "e": sim.capture_elapsed, "need": sim.capture_needed},
 	}
 
@@ -67,12 +68,23 @@ static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 		sim.score.points.assign(score["p"] as Array)
 		sim.score.best_of = score["bo"] as int
 		sim.score.winner = score["w"] as int
+	if data.has("log"):
+		sim.point_log.clear()
+		for entry: Variant in data["log"] as Array:
+			sim.point_log.append(Vector2i((entry as Array)[0] as int, (entry as Array)[1] as int))
 	var capture: Dictionary = data.get("cap", {}) as Dictionary
 	if not capture.is_empty():
 		sim.capture_team = capture["team"] as int
 		sim.capture_kind = capture["k"] as MatchSim.CaptureKind
 		sim.capture_elapsed = capture["e"] as float
 		sim.capture_needed = capture.get("need", sim.capture_needed) as float
+
+
+static func _log_of(sim: MatchSim) -> Array:
+	var log: Array = []
+	for entry: Vector2i in sim.point_log:
+		log.append([entry.x, entry.y])
+	return log
 
 
 static func _apply_weapons(sim: MatchSim, data: Dictionary) -> void:

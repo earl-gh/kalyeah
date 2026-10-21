@@ -3,6 +3,7 @@ extends SceneTree
 ## Run headless, after an import:
 ##   godot --headless -s tools/balance/team_rounds.gd -- [--seeds 80] [--size 3] [--capture 5,8,12] [--seconds 120] [--skill 0.5]
 ##                                                      [--only rush-defend,mixed-mixed] [--release 0,12,20]
+##                                                      [--skill1 0.2]   (team 1's aim, when it should differ from team 0's)
 ## Every matchup is rush / defend / mixed (one rusher, the rest defend) for team 0 against team 1, so a team that always wins a mirror
 ## shows up as a bias, and a rule that makes rushing or turtling always right shows up as a lopsided matchup.
 ## Bots are crude (no cover use, rushers only rescue by a fixed rule), so read the direction and the size of a gap, not an exact number.
@@ -22,6 +23,7 @@ func _init() -> void:
 	var releases: PackedStringArray = options.get("release", str(rules.tag_release_time)).split(",")
 	var seconds: float = float(options.get("seconds", "120"))
 	var skill: float = float(options.get("skill", "0.5"))
+	var skill1: float = float(options.get("skill1", str(skill)))
 	for capture: String in captures:
 		for release: String in releases:
 			rules.capture_time = float(capture)
@@ -31,11 +33,11 @@ func _init() -> void:
 				for matchup: Array in MATCHUPS:
 					if options.has("only") and not (options["only"] as String).split(",").has("%s-%s" % [matchup[0], matchup[1]]):
 						continue
-					_report(rules, layout, matchup, int(size_text), seeds, seconds, skill)
+					_report(rules, layout, matchup, int(size_text), seeds, seconds, [skill, skill1])
 	quit()
 
 
-func _report(rules: GameRules, layout: MapLayout, matchup: Array, size: int, seeds: int, seconds: float, skill: float) -> void:
+func _report(rules: GameRules, layout: MapLayout, matchup: Array, size: int, seeds: int, seconds: float, skill: Array) -> void:
 	var wins: Array[int] = [0, 0]
 	var none: int = 0
 	var total: float = 0.0
@@ -54,7 +56,7 @@ func _report(rules: GameRules, layout: MapLayout, matchup: Array, size: int, see
 
 
 ## One round to the first point (or `seconds`). {winner: team or -1, seconds, tagged: kids tagged when it ended}.
-static func play(rules: GameRules, layout: MapLayout, plan0: String, plan1: String, size: int, seed_value: int, seconds: float, skill: float) -> Dictionary:
+static func play(rules: GameRules, layout: MapLayout, plan0: String, plan1: String, size: int, seed_value: int, seconds: float, skill: Array) -> Dictionary:
 	var sim: MatchSim = MatchSim.new(rules, layout, seed_value)
 	var scored: Array[int] = []
 	sim.point_scored.connect(func(team: int, _how: int) -> void: scored.append(team))
@@ -72,7 +74,7 @@ static func play(rules: GameRules, layout: MapLayout, plan0: String, plan1: Stri
 				brain = TeamBrain.rusher(state.spawn_position, spot)
 			else:
 				brain = TeamBrain.defender(state.spawn_position)
-			brain.skill = skill
+			brain.skill = skill[team] as float
 			brains[next_id] = brain
 			var pair: Array[StringName] = sim.random_loadout()
 			sim.set_loadout(next_id, pair[0], pair[1])

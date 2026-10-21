@@ -24,6 +24,13 @@ static func rusher(spot: Vector2, enemy_base_spot: Vector2) -> TeamBrain:
 	return brain
 
 
+## A member of a squad that switches between attacking and defending (TeamCoach sets `role`): it starts as a defender.
+static func member(spot: Vector2, enemy_base_spot: Vector2) -> TeamBrain:
+	var brain: TeamBrain = TeamBrain.rusher(spot, enemy_base_spot)
+	brain.role = Role.DEFEND
+	return brain
+
+
 static func defender(spot: Vector2) -> TeamBrain:
 	var brain: TeamBrain = TeamBrain.new()
 	brain.mode = Mode.STAND

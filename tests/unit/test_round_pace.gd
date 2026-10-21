@@ -130,3 +130,47 @@ func test_the_hud_says_contested_when_a_defender_blocks_your_capture() -> void:
 	practice.sim.kill(PracticeMatch.ENEMY_STAND_ID)
 	practice.advance(DT)
 	assert_ne(practice.hud.capture_label.text, "CONTESTED!", "the defender is tagged: the capture runs")
+
+
+func test_the_match_remembers_how_every_point_was_won() -> void:
+	var sim: MatchSim = _sim()
+	sim.kill(3)
+	sim.kill(4)
+	_wait(sim, _rules.capture_time + 0.5)
+	assert_eq(sim.point_log, [Vector2i(0, MatchSim.CaptureKind.ALL_TAGGED)] as Array[Vector2i])
+	sim.objectives.end_freeze(sim)
+	var base: Vector2 = LAYOUT.base_center(MapLayout.SIDE_OWN)
+	sim.players[3].position = base
+	sim.players[4].position = base + Vector2(1.0, 0.0)
+	sim.players[1].position = Vector2(0.0, 0.0)
+	sim.players[2].position = Vector2(2.0, 0.0)
+	_wait(sim, _rules.capture_time + 0.5)
+	assert_eq(sim.point_log.size(), 2)
+	assert_eq(sim.point_log[1], Vector2i(1, MatchSim.CaptureKind.BASE))
+
+
+func test_the_point_log_travels_in_the_snapshot() -> void:
+	var sim: MatchSim = _sim()
+	sim.point_log = [Vector2i(0, 1), Vector2i(1, 0)] as Array[Vector2i]
+	var mirror: MatchSim = _sim()
+	Snapshot.apply(mirror, Snapshot.capture(sim, {} as Dictionary[int, int]), 1)
+	assert_eq(mirror.point_log, sim.point_log)
+
+
+func test_the_results_card_says_how_each_point_was_won() -> void:
+	var sim: MatchSim = _sim()
+	sim.point_log = [Vector2i(0, MatchSim.CaptureKind.BASE), Vector2i(1, MatchSim.CaptureKind.ALL_TAGGED), Vector2i(0, MatchSim.CaptureKind.ALL_TAGGED)] as Array[Vector2i]
+	sim.score.award_point(0)
+	sim.score.award_point(1)
+	sim.score.award_point(0)
+	var card: MatchResults = autofree(MatchResults.new()) as MatchResults
+	add_child(card)
+	card.set_over(true, sim, 1, 0, "Practice")
+	assert_eq(card.how_flow.get_child_count(), 3)
+	assert_true(card.how_flow.get_parent().visible)
+	assert_eq(MatchResults.how_text(true, MatchSim.CaptureKind.BASE), "Held their base")
+	assert_eq(MatchResults.how_text(false, MatchSim.CaptureKind.ALL_TAGGED), "Tagged you all")
+	card.set_over(false, sim, 1, 0, "Practice")
+	var none: MatchSim = _sim()
+	card.set_over(true, none, 1, 0, "Practice")
+	assert_false(card.how_flow.get_parent().visible, "nothing to say without a point")

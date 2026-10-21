@@ -25,7 +25,7 @@ What is built, what is next, and the rules for building it. Rules and numbers li
 | Lobby and match UI refinement | Narrow-phone lobby and loadout layouts, concise room states, unified match announcements, and a score card with clock and best-of context |
 | UI rebuild, phase 1 | A code-drawn game skin (`UiSkin`: glossy buttons that sink into a lip, lit panels, soft shadows), a component kit, and a rebuilt Home (hero carousel, tab bar), pages, dialogs and room cards. Round 2 added the Loadout, the shared choice buttons, a Play-only top bar and a gold-only-for-the-main-action rule. The Weapons page groups by street game or by type into headed sections of tiles, with a detail sheet. The match HUD waits for a device-checked pass. Critique and decisions: [UI rebuild](audits/2026-10-20-ui-rebuild-critique.md). |
 
-| Lead review, P0 and P1 | The stranded UI, cast-feedback and sparring-bot work on `main`; fair round rules (no team-0 tie-break, contested bases, optional overtime and timed box release) and a team-round bot harness. [Review](audits/2026-10-21-lead-review.md), [round rules](audits/2026-10-21-round-rules.md). Next: P2 weapons, P3 practice 3v3 vs bots, P4 UI polish. |
+| Lead review, P0 and P1 | The stranded UI, cast-feedback and sparring-bot work on `main`; fair round rules (no team-0 tie-break, contested bases, optional overtime and timed box release) and a team-round bot harness. [Review](audits/2026-10-21-lead-review.md), [round rules](audits/2026-10-21-round-rules.md). Then P2 weapons ([weapon pass](audits/2026-10-21-weapon-pass.md)) and P3 a 3v3 Practice against bots ([practice vs bots](audits/2026-10-21-practice-bots.md)). Next: P4 UI polish, P5 device checks. |
 
 ## Short-phone GUI follow-up
 

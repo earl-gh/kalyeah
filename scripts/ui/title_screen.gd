@@ -20,7 +20,7 @@ const MODES: Array[Dictionary] = [
 	{"id": "online", "title": "Online", "color": "orange", "accent": "ffa63a",
 		"text": "Invite friends with a room code."},
 	{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78",
-		"text": "Train against a sparring partner."},
+		"text": "Face 3 bots, or just train."},
 ]
 ## The bottom tabs: Play is the home page, the others are pages.
 const TABS: Array[Dictionary] = [
@@ -255,7 +255,7 @@ func _build_titles() -> Control:
 	return titles
 
 
-## The main action in one row: Create room and Join room, or Start practice.
+## The main action in one row: Create room and Join room, or Play vs bots and Training.
 func _build_actions() -> Control:
 	var actions: HBoxContainer = HBoxContainer.new()
 	actions.name = "Actions"
@@ -354,12 +354,7 @@ func _fade_in(content: Control, way: int = 0) -> void:
 func mode_facts(id: String) -> Array[String]:
 	var rules: GameRules = load(RULES_PATH) as GameRules
 	if id == "practice":
-		var foes: String = "Dummies don't fight back"
-		if rules.practice_fighters == 1:
-			foes = "A sparring partner"
-		elif rules.practice_fighters > 1:
-			foes = "%d sparring partners" % rules.practice_fighters
-		return ["Solo", foes] as Array[String]
+		return ["Solo", "%d v %d against bots" % [PracticeMatch.BOT_ALLY_IDS.size() + 1, PracticeMatch.BOT_ENEMY_IDS.size()]] as Array[String]
 	var choices: PackedStringArray = []
 	for choice: int in rules.best_of_choices:
 		choices.append(str(choice))
@@ -456,8 +451,9 @@ func _refresh_mode() -> void:
 	mode_name_label.text = String(mode["title"])
 	mode_text_label.text = String(mode["text"])
 	_fill_chips(String(mode["id"]))
-	primary_button.text = "Create room" if rooms else "Start practice"
-	secondary_button.visible = rooms
+	primary_button.text = "Create room" if rooms else "Play vs bots"
+	secondary_button.text = "Join room" if rooms else "Training"
+	secondary_button.visible = true
 	KalyeahTheme.style_button(primary_button, "orange")
 	KalyeahTheme.style_button(secondary_button, "grey")
 	backdrop.set_accent(Color(String(mode["accent"])))
@@ -478,7 +474,7 @@ func _on_mode_selected(index: int) -> void:
 func _on_primary_pressed() -> void:
 	match String(MODES[Session.menu_mode]["id"]):
 		"practice":
-			_on_practice_pressed()
+			_on_practice_pressed(&"match")
 		"online":
 			_open_lobby(LobbyScreen.Intent.CREATE, false)
 		_:
@@ -486,7 +482,9 @@ func _on_primary_pressed() -> void:
 
 
 func _on_secondary_pressed() -> void:
-	if String(MODES[Session.menu_mode]["id"]) == "hotspot":
+	if String(MODES[Session.menu_mode]["id"]) == "practice":
+		_on_practice_pressed(&"training")
+	elif String(MODES[Session.menu_mode]["id"]) == "hotspot":
 		open_hotspot_join()
 	else:
 		_open_lobby(LobbyScreen.Intent.JOIN, false)
@@ -585,9 +583,11 @@ func _on_accessibility_changed() -> void:
 
 # ---- actions ----------------------------------------------------------------------------
 
-func _on_practice_pressed() -> void:
+## `kind`: `match` (3 v 3 against bots) or `training` (the sandbox with dummies and a sparring partner).
+func _on_practice_pressed(kind: StringName = &"training") -> void:
 	if _loading:
 		return
+	Session.practice_kind = kind
 	# the first practice match opens with the walkthrough
 	if not Session.coach_seen:
 		Session.coach_pending = true
