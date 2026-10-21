@@ -77,11 +77,10 @@ func test_static_intro_preserves_timing_and_reduced_motion_clears_shake_and_grai
 	add_child(practice)
 	practice.set_process(false)
 	practice.finish_pick()
-	var camera: FollowCamera = practice.get_node("%FollowCamera") as FollowCamera
-	var player: PlayerState = practice.sim.players[practice.local_id]
+	var camera: ArenaCamera = practice.get_node("%ArenaCamera") as ArenaCamera
 	assert_eq(practice.sim.phase, MatchSim.Phase.INTRO)
 	assert_almost_eq(practice.sim.intro_left, practice.rules.intro_time, 0.001)
-	assert_true(camera.position.is_equal_approx(camera.desired_position(player.position, practice._flip())))
+	assert_true(camera.position.is_equal_approx(camera.desired_position(practice._flip())))
 	camera.shake(0.4)
 	camera._process(1.0 / 30.0)
 	assert_eq(camera.h_offset, 0.0)

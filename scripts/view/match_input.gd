@@ -14,7 +14,7 @@ const SLOTS: int = 2
 
 ## The on-screen stick, in screen terms.
 var stick: Vector2 = Vector2.ZERO
-## The camera's turn right now (FollowCamera.yaw_offset): screen directions follow it.
+## The camera's turn right now (CameraRules.yaw_offset_degrees): screen directions follow it.
 var camera_yaw: float = 0.0
 var pending_buttons: int = 0
 ## Per aimed slot: finger down, release waiting to be sent, Q/E/R aiming.

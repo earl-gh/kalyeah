@@ -31,6 +31,8 @@ const SPINNER_SPEED: float = 5.0
 
 ## How much bigger than real the kids are drawn (CameraRules.kid_view_scale): the bar rides on their heads.
 var view_scale: float = 1.0
+## How much smaller the health bar is drawn (CameraRules.bar_scale): the kids are small on a screen that shows the whole street.
+var bar_scale: float = 1.0
 
 var _sim: MatchSim
 var _camera: Camera3D
@@ -97,7 +99,7 @@ func _head(state: PlayerState) -> Variant:
 	var world: Vector3 = Vector3(state.position.x, HEAD_HEIGHT * view_scale, state.position.y)
 	if _camera == null or _camera.is_position_behind(world):
 		return null
-	return _camera.screen_position(world) if _camera is FollowCamera else _camera.unproject_position(world)
+	return _camera.screen_position(world) if _camera is ArenaCamera else _camera.unproject_position(world)
 
 
 func _draw() -> void:
@@ -122,7 +124,8 @@ func spinner_visible(state: PlayerState) -> bool:
 
 
 func _draw_hero(state: PlayerState, head: Vector2) -> void:
-	var rect: Rect2 = Rect2(head - Vector2(BAR_SIZE.x / 2.0, 0.0), BAR_SIZE)
+	var bar: Vector2 = BAR_SIZE * bar_scale
+	var rect: Rect2 = Rect2(head - Vector2(bar.x / 2.0, 0.0), bar)
 	draw_rect(rect.grow(2.0), BACK)
 	var max_hp: float = float(_sim.rules.player_max_hp)
 	var fill: float = clampf(float(state.hp) / max_hp, 0.0, 1.0)

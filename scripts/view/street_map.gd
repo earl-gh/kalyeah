@@ -28,8 +28,6 @@ const TONEMAP_WHITE: float = 4.0
 const SATURATION: float = 1.1
 const CONTRAST: float = 1.03
 const BRIGHTNESS: float = 1.0
-const HAZE_COLOR: Color = Color(0.82, 0.9, 1.0)
-const HAZE_DENSITY: float = 0.003
 const RING_HEIGHT: float = 0.03
 ## The base chalk and the box tape are tinted toward a soft grey so they are calm, not neon.
 const SOFT_GREY: Color = Color(0.62, 0.64, 0.7)
@@ -73,7 +71,7 @@ const CAT_HEIGHT: float = 0.45
 const DOG_HEIGHT: float = 0.75
 const CHICKEN_CAGE_HEIGHT: float = 0.9
 const DRAINAGE_COVER_WIDTH: float = 1.1
-const SHADOW_DISTANCE: float = 75.0
+const SHADOW_DISTANCE: float = 400.0
 ## Painted ground sits just above the coloured road and sidewalk boxes.
 const PAVER_TILE: float = 2.4
 ## The play area is one flat, dark grey cement slab (owner): no repeating tiles.
@@ -198,10 +196,8 @@ static func make_environment() -> Environment:
 	env.adjustment_saturation = SATURATION
 	env.adjustment_contrast = CONTRAST
 	env.adjustment_brightness = BRIGHTNESS
-	env.fog_enabled = true
-	env.fog_light_color = HAZE_COLOR
-	env.fog_density = HAZE_DENSITY
-	env.fog_sky_affect = 0.0
+	# no haze: the camera is far above the whole street, and fog by distance would wash all of it out
+	env.fog_enabled = false
 	return env
 
 
@@ -333,7 +329,7 @@ func _street() -> ArrayMesh:
 	var half_w: float = layout.lane_width / 2.0
 	var length: float = layout.lane_length + _reach() * 2.0
 	if diorama:
-		# the main-screen model is the far half only: the exact lane_width x lane_length / 2 area (1:1 when the street is 1:2)
+		# the main-screen model is the far half only: the exact lane_width x lane_length / 2 area
 		var half: float = layout.lane_length / 2.0
 		kit.rounded_slab(Vector3(0.0, -0.05, -half / 2.0), Vector3(layout.lane_width, 0.1, half), CORNER_RADIUS, CEMENT, CEMENT)
 		# the chunky stone base the map model stands on

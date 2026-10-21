@@ -34,11 +34,6 @@ var client: GameClient
 var local_id: int = LOCAL_ID
 var local_team: int = LOCAL_TEAM
 var input: MatchInput = MatchInput.new()
-## While you are tagged: the player the camera follows (-1 = yourself).
-var watch_id: int = -1
-## Next camera update jumps straight to its target (after a rescue).
-var _snap_camera: bool = false
-
 var _accumulator: float = 0.0
 var _views: Dictionary[int, KidModel] = {}
 var _characters: Dictionary[StringName, CharacterDef] = {}
@@ -56,7 +51,7 @@ var _application_paused: bool = false
 var _presentation: PracticeMatchPresentation
 
 @onready var hud: MatchHud = %Hud
-@onready var _camera: FollowCamera = %FollowCamera
+@onready var _camera: ArenaCamera = %ArenaCamera
 @onready var _actors: Node3D = %Actors
 @onready var _fx: WeaponFxView = %WeaponFx
 @onready var _aim_indicator: AimIndicator = %AimIndicator

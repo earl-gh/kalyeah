@@ -7,16 +7,12 @@ static func build(hud: MatchHud) -> void:
 	hud._place(hud.top, Vector4(0, 0, 1, 0), Vector4(0, 0, 0, 520))
 	hud.top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(hud.top)
-	# left: the tall street minimap, then the settings button beside it (top aligned)
-	hud.minimap = LaneMinimap.new()
-	hud._place(hud.minimap, Vector4(0, 0, 0, 0), Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.MINIMAP_SIZE.x, MatchHud.TOP_ROW_Y + MatchHud.MINIMAP_SIZE.y))
-	hud.minimap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hud.top.add_child(hud.minimap)
+	# left: the settings button (the whole street is always on screen: no minimap)
 	hud.settings_button = TextureButton.new()
 	hud.settings_button.texture_normal = Icons.art(&"gear")
 	hud.settings_button.ignore_texture_size = true
 	hud.settings_button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-	var gear_x: float = MatchHud.MARGIN * 1.6 + MatchHud.MINIMAP_SIZE.x
+	var gear_x: float = MatchHud.MARGIN
 	var gear_surface: Panel = Panel.new()
 	var gear_style: StyleBoxFlat = KalyeahTheme.painted_pill()
 	gear_style.bg_color = Color(KalyeahTheme.INK, 0.82)
@@ -28,9 +24,9 @@ static func build(hud: MatchHud) -> void:
 	hud.settings_button.tooltip_text = "Match settings"
 	hud.settings_button.pressed.connect(hud.toggle_menu)
 	hud.top.add_child(hud.settings_button)
-	# under the minimap: the TAGGED!/RESCUED! feed
+	# under the settings button: the TAGGED!/RESCUED! feed
 	hud.feed_box = VBoxContainer.new()
-	var feed_top: float = MatchHud.TOP_ROW_Y + MatchHud.MINIMAP_SIZE.y + 12.0
+	var feed_top: float = MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE + 12.0
 	hud._place(hud.feed_box, Vector4(0, 0, 0, 0), Vector4(MatchHud.MARGIN, feed_top, MatchHud.MARGIN + MatchHud.FEED_SIZE.x, feed_top + MatchHud.FEED_SIZE.y * MatchHud.FEED_MAX + 12.0))
 	hud.feed_box.add_theme_constant_override("separation", 6)
 	hud.feed_box.mouse_filter = Control.MOUSE_FILTER_IGNORE

@@ -140,7 +140,7 @@ func test_pushing_the_stick_up_runs_up_the_screen() -> void:
 	practice.hud.joystick.changed.emit(Vector2(0.0, -1.0))
 	for i: int in 30:
 		practice.advance(DT)
-	var ran: Vector2 = LocalInput.to_screen(player.position - start, practice._flip(), practice._camera.yaw_offset())
+	var ran: Vector2 = LocalInput.to_screen(player.position - start, practice._flip(), CAMERA.yaw_offset_degrees)
 	assert_lt(ran.y, -3.0, "toward the top of the screen")
 	assert_almost_eq(ran.x, 0.0, 0.3, "straight up the screen (the world direction turns with the camera's yaw)")
 	practice.hud.joystick.changed.emit(Vector2.ZERO)
@@ -149,23 +149,6 @@ func test_pushing_the_stick_up_runs_up_the_screen() -> void:
 	for i: int in 10:
 		practice.advance(DT)
 	assert_eq(player.position, at, "let go: standing still")
-
-
-func test_the_controls_use_the_yaw_that_is_on_screen_at_the_curb_too() -> void:
-	var practice: PracticeMatch = _practice()
-	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
-	player.position = Vector2(-9.0, 10.0)
-	practice._snap_camera = true
-	practice.advance(DT)
-	assert_almost_eq(practice.input.camera_yaw, practice._camera.yaw_offset(), 0.0001, "the stick reads what the camera shows")
-	assert_lt(practice._camera.yaw_offset(), -3.0, "leaning left at the left curb")
-	var start: Vector2 = player.position
-	practice.hud.joystick.changed.emit(Vector2(0.0, -1.0))
-	for i: int in 6:
-		practice.advance(DT)
-	var ran: Vector2 = LocalInput.to_screen(player.position - start, practice._flip(), practice._camera.yaw_offset())
-	assert_lt(ran.y, -0.5, "up the screen")
-	assert_lt(absf(ran.x), 0.15, "straight up the screen, not drifting to a side")
 
 
 func test_match_waits_on_the_opening_weapon_pick() -> void:
@@ -510,37 +493,6 @@ func test_an_enemy_in_its_box_has_no_bar_over_it() -> void:
 	assert_true(hud.bar_visible(ally), "even in your own box")
 
 
-func test_the_minimap_shows_each_players_boot_art_face_in_a_circle() -> void:
-	var practice: PracticeMatch = _practice()
-	for def: CharacterDef in practice.sim.rules.characters:
-		var face: Texture2D = KidModel.minimap_face(def.id)
-		assert_not_null(face, "%s has a face cropped from the boot art" % def.id)
-		assert_eq(face.get_width(), face.get_height(), "square")
-	for id: int in practice.sim.players:
-		var face: Texture2D = KidModel.minimap_face(practice.sim.players[id].character_id)
-		var uvs: PackedVector2Array = LaneMinimap.face_uvs(face)
-		var points: PackedVector2Array = LaneMinimap.face_points(Vector2(50.0, 80.0), LaneMinimap.FACE)
-		assert_eq(points.size(), uvs.size())
-		assert_eq(points.size(), LaneMinimap.FACE_STEPS)
-		for i: int in points.size():
-			assert_almost_eq(points[i].distance_to(Vector2(50.0, 80.0)), LaneMinimap.FACE, 0.001, "a circle")
-			assert_between(uvs[i].x, 0.0, 1.0, "inside the face image, across")
-			assert_between(uvs[i].y, 0.0, 1.0, "and down")
-	assert_null(KidModel.minimap_face(&"nobody"), "no face for an unknown character")
-
-
-func test_minimap_puts_our_base_at_the_bottom() -> void:
-	var practice: PracticeMatch = _practice()
-	var minimap: LaneMinimap = practice.hud.minimap
-	var own_base: Vector2 = minimap.to_map(LAYOUT.base_center(practice.own_side()))
-	var their_base: Vector2 = minimap.to_map(LAYOUT.base_center(-practice.own_side()))
-	assert_gt(own_base.y, their_base.y, "at the bottom")
-	assert_lt(own_base.x, their_base.x, "our base bottom left, theirs top right")
-	var own_box: Vector2 = minimap.to_map(LAYOUT.jail_rect(practice.own_side()).get_center())
-	assert_lt(own_box.y, own_base.y, "our box is at the top")
-	assert_lt(own_box.x, their_base.x, "on the left")
-
-
 func test_skill_buttons_show_cooldown_seconds() -> void:
 	var practice: PracticeMatch = _practice()
 	_equip(practice, &"papel_shield", &"bato_light")
@@ -583,7 +535,7 @@ func test_skill_buttons_are_art_with_only_the_type_tag() -> void:
 ## The screen direction (stick or drag) that heads straight for the enemy base.
 func _toward_enemy(practice: PracticeMatch) -> Vector2:
 	var flip: bool = practice.own_side() == MapLayout.SIDE_ENEMY
-	return LocalInput.to_screen(Vector2(0.0, -float(practice.own_side())), flip, practice._camera.yaw_offset())
+	return LocalInput.to_screen(Vector2(0.0, -float(practice.own_side())), flip, CAMERA.yaw_offset_degrees)
 
 
 func test_a_spinner_and_countdown_show_while_holding_the_enemy_base() -> void:
@@ -615,7 +567,7 @@ func test_the_match_opens_with_both_teams_then_go() -> void:
 	var practice: PracticeMatch = _picking()
 	practice.finish_pick()
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
-	var camera: FollowCamera = practice.get_node("%FollowCamera") as FollowCamera
+	var camera: ArenaCamera = practice.get_node("%ArenaCamera") as ArenaCamera
 	assert_eq(practice.sim.phase, MatchSim.Phase.INTRO)
 	practice.advance(DT)
 	assert_true(practice.hud.intro_bar.visible)
@@ -655,41 +607,39 @@ func test_tagged_shows_a_grouped_sheet_with_2_by_3_cards_of_everyone_else() -> v
 	assert_eq(TaggedPanel.MAX_CARDS, 5, "room for everyone else in a 3v3")
 
 
-func test_tagged_camera_follows_the_watched_player_then_snaps_back_on_rescue() -> void:
+func test_the_camera_does_not_move_when_you_are_tagged_and_the_cards_are_not_buttons() -> void:
 	var practice: PracticeMatch = _practice()
-	var camera: FollowCamera = practice.get_node("%FollowCamera") as FollowCamera
+	var camera: ArenaCamera = practice.get_node("%ArenaCamera") as ArenaCamera
+	practice.advance(DT)
+	var at: Vector3 = camera.position
 	practice.hurt_local(100)
-	assert_eq(practice.watch_id, PracticeMatch.ALLY_ID, "first the free teammate coming for you")
-	practice.hud.tagged_panel.press_card(1)
-	assert_eq(practice.watch_id, practice.hud.tagged_panel.card_ids[1], "tap a card to watch that player")
-	var enemy: PlayerState = practice.sim.players[practice.watch_id]
 	for i: int in 30:
 		practice.advance(DT)
-	assert_true(camera.position.is_equal_approx(camera.desired_position(enemy.position, false)) or camera.position.distance_to(camera.desired_position(enemy.position, false)) < 0.5, "following them")
-	practice.hud.tagged_panel.press_card(0)
-	for i: int in 30 * 15:
-		practice.advance(DT)
-		if not practice.sim.players[PracticeMatch.LOCAL_ID].tagged:
-			break
-	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
-	assert_false(player.tagged)
-	assert_eq(practice.watch_id, -1)
-	assert_true(camera.position.is_equal_approx(camera.desired_position(player.position, false)), "snapped straight back to you at your post")
+	assert_eq(camera.position, at, "the whole street is on screen: there is nobody to follow")
+	for card: Node in practice.hud.tagged_panel.find_children("*", "Button", true, false):
+		if card != practice.hud.tagged_panel.swap_button:
+			assert_eq((card as Button).mouse_filter, Control.MOUSE_FILTER_IGNORE, "a card only shows who is there")
 
 
-func test_the_hero_sits_near_the_lower_centre_of_a_portrait_screen() -> void:
+func test_the_whole_street_is_on_screen_at_once_with_your_base_at_the_bottom() -> void:
 	var practice: PracticeMatch = _practice()
-	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
-	player.position = Vector2(0.0, 0.0)
-	var camera: FollowCamera = practice.get_node("%FollowCamera") as FollowCamera
-	camera.follow(player.position, practice.own_side() == MapLayout.SIDE_ENEMY, 0.0)
-	var on_screen: Vector2 = camera.screen_position(Vector3(player.position.x, 0.0, player.position.y))
+	practice.advance(DT)
+	var camera: ArenaCamera = practice.get_node("%ArenaCamera") as ArenaCamera
 	var size: Vector2 = camera.get_viewport().get_visible_rect().size
-	assert_almost_eq(on_screen.x / size.x, 0.5, 0.01, "centred left to right")
-	assert_almost_eq(on_screen.y / size.y, CAMERA.player_screen_y, 0.02, "in the lower part, the field ahead above")
-
-
-
+	var rect: Rect2 = Rect2(Vector2.ZERO, size)
+	var corners: Array[Vector2] = [LAYOUT.lane_rect().position, LAYOUT.lane_rect().end, Vector2(LAYOUT.lane_rect().position.x, LAYOUT.lane_rect().end.y), Vector2(LAYOUT.lane_rect().end.x, LAYOUT.lane_rect().position.y)]
+	for corner: Vector2 in corners:
+		assert_true(rect.has_point(camera.screen_position(Vector3(corner.x, 0.0, corner.y))), "corner %s on screen" % corner)
+	var own_base: Vector2 = camera.screen_position(Vector3(LAYOUT.base_center(practice.own_side()).x, 0.0, LAYOUT.base_center(practice.own_side()).y))
+	var their_base: Vector2 = camera.screen_position(Vector3(LAYOUT.base_center(-practice.own_side()).x, 0.0, LAYOUT.base_center(-practice.own_side()).y))
+	assert_gt(own_base.y, their_base.y, "your base is lower on the screen")
+	assert_lt(own_base.x, their_base.x, "your post bottom left, theirs top right")
+	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
+	var before: Vector3 = camera.position
+	player.position = Vector2(8.0, -15.0)
+	for i: int in 10:
+		practice.advance(DT)
+	assert_eq(camera.position, before, "the camera never follows anyone")
 
 func before_each() -> void:
 	_saved_loadout = Session.saved_loadout.duplicate()
@@ -726,33 +676,9 @@ func test_control_hint_explains_stun_aim_and_auto_run() -> void:
 	practice.hud.joystick.auto_run = false
 	var button: AimButton = _weapon_button(practice, 0)
 	button.aiming = true
-	practice.hud.sync_player(practice.sim, player, -1, false)
+	practice.hud.sync_player(practice.sim, player, false)
 	assert_string_contains(practice.hud.feedback.hint.text, "Release to cast")
 	button.over_cancel = true
-	practice.hud.sync_player(practice.sim, player, -1, false)
+	practice.hud.sync_player(practice.sim, player, false)
 	assert_eq(practice.hud.feedback.hint.text, "Release to cancel")
 	button.cancel_aim()
-
-
-func test_dragging_an_aim_peeks_the_camera_toward_it_and_a_tap_does_not() -> void:
-	var practice: PracticeMatch = _practice()
-	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
-	player.position = Vector2(0.0, 5.0)
-	practice.sim.set_loadout(PracticeMatch.LOCAL_ID, &"bola", &"papel_shield")
-	practice._snap_camera = true
-	practice.advance(DT)
-	var camera: FollowCamera = practice.get_node("%FollowCamera") as FollowCamera
-	practice.aim_started(0)
-	_weapon_button(practice, 0).aim = Vector2.ZERO  # a tap: auto-aim, no drag
-	for i: int in 60:
-		practice.advance(DT)
-	assert_lt(camera.peek_offset().length(), 0.05, "auto-aim: the camera stays put")
-	_weapon_button(practice, 0).aim = Vector2(0.0, -0.9)
-	for i: int in 60:
-		practice.advance(DT)
-	assert_gt(camera.peek_offset().length(), 1.0, "a dragged aim: the camera leans toward it")
-	practice.aim_released(Vector2.ZERO, true, 0)
-	_weapon_button(practice, 0).aim = Vector2.ZERO
-	for i: int in 90:
-		practice.advance(DT)
-	assert_lt(camera.peek_offset().length(), 0.1, "and comes back")
