@@ -44,9 +44,10 @@ func think(state: PlayerState, sim: MatchSim) -> PlayerInput:
 	return _walk_to(state, target)
 
 
-## A defender fights from inside its own base and does not chase out of it (stepping out would leave the base open).
+## A defender fights from inside its own base and does not chase out of it (stepping out would leave the base open); with
+## no enemy near it is free to go, for instance to fetch a tagged teammate.
 func _guard(state: PlayerState, sim: MatchSim, input: PlayerInput) -> PlayerInput:
-	if input.move == Vector2.ZERO:
+	if input.move == Vector2.ZERO or sim.nearest_enemy(state, sim.rules.bot_aggro_range) == null:
 		return input
 	var centre: Vector2 = sim.layout.base_center(sim.side_for_team(state.team))
 	var edge: float = sim.layout.base_radius - GUARD_MARGIN
