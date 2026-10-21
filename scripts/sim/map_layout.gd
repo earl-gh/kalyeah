@@ -46,6 +46,13 @@ var lane_length: float:
 ## Cosmetic: what each obstacle is drawn as (bench, cardboard_wall, school_zone, tent).
 @export var obstacle_props: Array[StringName] = []
 @export var boundary_thickness: float = 0.0
+## Cosmetic, how big the scenery is drawn next to the kids (the play area, hitboxes and every rule are untouched): the houses, shops,
+## vehicles, props and pets are this many times their real size (a kid is drawn about 1.5x its model's 1.85 m, so a real house of about
+## 6 m would look no taller than two kids). Cover and the electric posts have their own heights below.
+@export var scenery_scale: float = 1.0
+## How tall the cardboard cover walls and the boxes' walls are drawn (m), and the electric posts.
+@export var cover_height: float = 1.15
+@export var post_height: float = 8.5
 @export var overview_height: float = 0.0
 @export var overview_size: float = 0.0
 
