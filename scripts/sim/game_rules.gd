@@ -68,6 +68,8 @@ extends Resource
 @export var bot_standoff_share: float = 0.0
 ## How well a bot aims, 0 (at where you are) to 1 (at where you will be, with little error).
 @export var bot_skill: float = 0.0
+## A bot team in a Practice match waits this many seconds into a round before it attacks (0 = at once).
+@export var bot_assault_delay: float = 0.0
 
 
 ## Fixed simulation step in seconds (1 / tick_rate).

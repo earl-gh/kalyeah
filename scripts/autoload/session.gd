@@ -24,6 +24,9 @@ var menu_mode: int = 0
 var coach_seen: bool = false
 ## Set (not saved) when the next practice match should open with the walkthrough: the first one, or a replay.
 var coach_pending: bool = false
+## Which Practice the next match is: `training` (a sandbox with dummies and one sparring partner) or `match` (a full 3v3 against
+## bots). Not saved; the Practice card sets it just before the match loads.
+var practice_kind: StringName = &"training"
 var reconnect_token: String = ""
 var reconnect_url: String = ""
 

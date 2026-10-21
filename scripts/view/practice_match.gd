@@ -14,6 +14,9 @@ const ENEMY_PATROL_ID: int = 3
 const ALLY_ID: int = 4
 ## A free enemy standing in its own tagged box (bottom right), to see its bar hide (owner).
 const ENEMY_BOX_ID: int = 5
+## Practice match vs bots: your two allies and the three enemies (real players of the sim, driven by TeamCoach).
+const BOT_ALLY_IDS: Array[int] = [2, 3]
+const BOT_ENEMY_IDS: Array[int] = [4, 5, 6]
 const MAX_STEPS_PER_FRAME: int = 8
 const WEAPON_SLOTS: int = 2
 const RECONNECT_INTERVAL: float = 2.0
@@ -49,6 +52,8 @@ var _resume_rejected: bool = false
 var _application_focused: bool = true
 var _application_paused: bool = false
 var _presentation: PracticeMatchPresentation
+## The bot teams of a Practice match vs bots (empty in training and online).
+var _coaches: Array[TeamCoach] = []
 
 @onready var hud: MatchHud = %Hud
 @onready var _camera: ArenaCamera = %ArenaCamera
@@ -240,6 +245,9 @@ func advance(delta: float) -> void:
 func _setup_practice() -> void:
 	sim = MatchSim.new(rules, layout, Time.get_ticks_usec())
 	sim.tag_release_time = rules.practice_tag_release_time
+	if Session.practice_kind == &"match":
+		_setup_bot_match()
+		return
 	sim.add_player(local_id, local_team)
 	var stand_spot: Vector2 = Vector2(rules.dummy_stand_x, rules.dummy_z)
 	var patrol_spot: Vector2 = Vector2(rules.dummy_patrol_x, rules.dummy_z)
@@ -261,6 +269,28 @@ func _setup_practice() -> void:
 			sim.set_loadout(id, arms[0], arms[1])
 
 
+## Three kids a side: you and two allies against three enemies, all real players of the sim. The allies back you up (they attack
+## when you do, defend and rescue otherwise); the enemies wait, then attack (see TeamCoach).
+func _setup_bot_match() -> void:
+	sim.add_player(local_id, local_team)
+	var allies: TeamCoach = TeamCoach.new(local_team, local_id)
+	var foes: TeamCoach = TeamCoach.new(1 - local_team)
+	for id: int in BOT_ALLY_IDS:
+		sim.add_player(id, local_team)
+		allies.add(sim, id, rules.bot_skill)
+	for id: int in BOT_ENEMY_IDS:
+		sim.add_player(id, 1 - local_team)
+		foes.add(sim, id, rules.bot_skill)
+	_coaches = [allies, foes]
+	sim.assign_characters()
+	sim.set_character(local_id, StringName(Session.avatar_id))
+	var loadout: Array[StringName] = sim.random_loadout()
+	sim.set_loadout(local_id, loadout[0], loadout[1])
+	for id: int in BOT_ALLY_IDS + BOT_ENEMY_IDS:
+		var arms: Array[StringName] = sim.fighting_loadout()
+		sim.set_loadout(id, arms[0], arms[1])
+
+
 func _setup_online() -> void:
 	if client == null:
 		client = Net.client
@@ -278,6 +308,8 @@ func _step_once(dt: float) -> void:
 		_input_tick += 1
 		client.send_input(_local_input(_input_tick), dt)
 		return
+	for coach: TeamCoach in _coaches:
+		coach.drive(sim)
 	sim.set_input(local_id, _local_input(sim.tick))
 	sim.step(dt)
 

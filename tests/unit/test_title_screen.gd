@@ -236,8 +236,9 @@ func test_the_carousel_is_hotspot_online_practice_with_the_chosen_card_in_front(
 	assert_eq(screen.primary_button.text, "Create room")
 	strip.select(2, false)
 	assert_eq(screen.mode_name_label.text, "Practice")
-	assert_eq(screen.primary_button.text, "Start practice", "practice just starts")
-	assert_false(screen.secondary_button.visible, "and has nothing to join")
+	assert_eq(screen.primary_button.text, "Play vs bots", "practice is a 3 v 3 match against bots")
+	assert_eq(screen.secondary_button.text, "Training", "or the sandbox")
+	assert_true(screen.secondary_button.visible)
 
 
 func test_swiping_and_tapping_the_carousel_changes_the_card() -> void:
