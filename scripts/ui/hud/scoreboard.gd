@@ -1,11 +1,8 @@
 class_name Scoreboard
 extends Control
-## Top-right scoreboard pill: your team's points (blue) and theirs (red), with the
-## match clock in the middle counting up ("2:45"), like the street-game video.
-## Team-relative: you are always on the left.
+## The score in the middle of the header: your team's points (blue) and theirs (red), with the match clock between them counting up
+## ("2:45"), like the street-game video. It stands on the header deck without a card of its own. Team-relative: you are always on the left.
 
-const PANEL: Color = Color(0.055, 0.09, 0.16, 0.94)
-const RIM: Color = Color(1.0, 0.82, 0.35)
 const BIG_FONT: int = 40
 const SMALL_FONT: int = UiMetrics.CAPTION
 
@@ -71,8 +68,6 @@ func summary() -> String:
 func _draw() -> void:
 	var w: float = size.x
 	var h: float = size.y
-	# the same night panel as every other card, with its lit edge and soft shadow
-	draw_style_box(UiSkin.plate("night", 0.0, 18), Rect2(0.0, 0.0, w, h))
 	var box: float = h - 12.0
 	_round_rect(Rect2(6.0, 6.0, box * 1.25, box), TeamColors.ui_own(), 12.0)
 	_round_rect(Rect2(w - 6.0 - box * 1.25, 6.0, box * 1.25, box), TeamColors.ui_enemy(), 12.0)

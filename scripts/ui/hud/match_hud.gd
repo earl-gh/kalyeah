@@ -17,6 +17,8 @@ signal status_test_pressed(type: int)
 signal exit_pressed
 ## The console's height changed (the bottom inset did): the camera keeps this much of the screen clear.
 signal console_height_changed(height: float)
+## The header's height (with the top inset) changed: the camera keeps this much of the screen clear at the top.
+signal header_height_changed(height: float)
 
 enum Feed { TAGGED, RESCUED }
 
@@ -29,7 +31,9 @@ const CAST_BLOCK_TAGS: Dictionary[int, String] = {
 	StatusEffects.Type.KNOCKOUT: "DOWN",
 	StatusEffects.Type.POLYMORPH: "CAN",
 }
-const TOP_ROW_Y: float = 40.0
+## The header at the top of the screen (the same deck as the bottom, turned over): the settings button and the score sit in this row.
+const TOP_ROW_Y: float = 21.0
+const HEADER_HEIGHT: float = TOP_ROW_Y * 2.0 + 88.0
 const MARGIN: float = 14.0
 const GEAR_SIZE: float = UiMetrics.TOUCH
 const SCORE_SIZE: Vector2 = Vector2(280.0, 88.0)
@@ -73,6 +77,9 @@ var pulse: HurtPulse
 var console: ConsolePanel
 ## UI pixels of the screen's bottom edge the system keeps (home bar), set by the match screen.
 var bottom_inset: float = 0.0
+## UI pixels the notch or status bar keeps at the top: the header grows by it.
+var top_inset: float = 0.0
+var header: HeaderPanel
 var top: Control
 var scoreboard: Scoreboard
 var dpad: DPad
@@ -127,6 +134,14 @@ func _on_pad_direction(direction: Vector2) -> void:
 
 func set_top_inset(pixels: float) -> void:
 	top.position.y = pixels
+	top_inset = pixels
+	header.set_header_height(header_height())
+	header_height_changed.emit(header_height())
+
+
+## The header's height now: its own plus the notch's inset.
+func header_height() -> float:
+	return HEADER_HEIGHT + top_inset
 
 
 ## The home bar or gesture area under the screen (UI pixels): the console grows by it and the controls ride above it,

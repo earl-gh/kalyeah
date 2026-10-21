@@ -27,3 +27,12 @@ player can be picked or watched). The message (*Tagged · Wait for a rescue*, on
 height and place** (it follows the home-bar inset), and the empty wells under the missing controls are hidden. Rescued, the pad and buttons come back.
 
 ![playing (left) and tagged (right) on the same deck](images/tagged-deck.jpg)
+
+## The header on the same deck
+Owner: change the header of the gameplay too. The top of the match is now the bottom deck turned over (`header_panel.gd`): full width, 130 px (taller by a notch's inset),
+darkest at the screen's edge, rounded bottom corners with the same lit lip and shadow. The settings button sits at its left and the score in its middle, with no card of
+its own (the deck is the container); the scoreboard keeps its team cells, clock and capture bar. The camera reserves the header's height (`top_reserve_px`, like the bottom),
+so a taller notch pushes the street down instead of hiding it, and the TAGGED! feed starts under it. The top end's scenery (the jeepney and the end props, all outside the
+play area) is now partly under the header.
+
+![the match with the new header, playing and tagged](images/modern-header.jpg)
