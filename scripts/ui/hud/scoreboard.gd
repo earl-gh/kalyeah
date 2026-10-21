@@ -4,11 +4,12 @@ extends Control
 ## (the match clock is the chip at the header's right). It stands on the header deck without a card of its own. Team-relative: you are always on the left.
 
 const BIG_FONT: int = 44
+const CENTER_CAPTION: int = 18
 const SMALL_FONT: int = UiMetrics.CAPTION
 
 var mine: int = 0
 var theirs: int = 0
-var best_of: int = 3
+var first_to: int = 3
 ## Whole seconds of play shown on the clock.
 var seconds: int = 0
 ## How far the running capture is, 0 to 1 (-1: none runs), and whether it is your team's.
@@ -34,11 +35,11 @@ const CELL_RADIUS: int = 16
 
 
 func show_score(score: MatchScore, my_team: int, match_time: float) -> void:
-	var values: Array[int] = [score.points[my_team], score.points[1 - my_team], score.best_of, floori(match_time)]
-	if values != [mine, theirs, best_of, seconds]:
+	var values: Array[int] = [score.points[my_team], score.points[1 - my_team], score.first_to, floori(match_time)]
+	if values != [mine, theirs, first_to, seconds]:
 		mine = values[0]
 		theirs = values[1]
-		best_of = values[2]
+		first_to = values[2]
 		seconds = values[3]
 		_describe()
 		queue_redraw()
@@ -49,8 +50,8 @@ func _ready() -> void:
 
 
 func _describe() -> void:
-	accessibility_name = "Score: you %d, them %d, best of %d, time %s. Kids free: you %d of %d, them %d of %d" % [
-		mine, theirs, best_of, clock_text(), roster_mine.count(true), roster_mine.size(), roster_theirs.count(true), roster_theirs.size()]
+	accessibility_name = "Score: you %d, them %d, first to %d, time %s. Kids free: you %d of %d, them %d of %d" % [
+		mine, theirs, first_to, clock_text(), roster_mine.count(true), roster_mine.size(), roster_theirs.count(true), roster_theirs.size()]
 
 
 ## The strip along the card's lower edge that fills while a team holds the other base (or the other team is all
@@ -112,8 +113,9 @@ func _draw() -> void:
 	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), Vector2(theirs_cell.get_center().x, number_y), BIG_FONT, Color.WHITE)
 	_draw_pips(roster_mine, Vector2(mine_cell.get_center().x, mine_cell.end.y - PIP_LIFT))
 	_draw_pips(roster_theirs, Vector2(theirs_cell.get_center().x, theirs_cell.end.y - PIP_LIFT))
-	# between the cells: how many points win the match (the clock is the chip at the header's right)
-	_center_text(KalyeahTheme.ACTION_FONT, UiText.f("BO%d", [best_of]), Vector2(w / 2.0, h * 0.5), SMALL_FONT, KalyeahTheme.AMBER)
+	# between the cells: how many points win the match, FIRST TO over the number (the clock is the chip at the header's right)
+	_center_text(KalyeahTheme.ACTION_FONT, UiText.t("FIRST TO"), Vector2(w / 2.0, h * 0.34), CENTER_CAPTION, KalyeahTheme.AMBER)
+	_center_text(KalyeahTheme.ACTION_FONT, str(first_to), Vector2(w / 2.0, h * 0.66), BIG_FONT - 6, KalyeahTheme.AMBER)
 	if capture >= 0.0:
 		var track: Rect2 = Rect2(CAPTURE_INSET, h - 6.0 - CAPTURE_HEIGHT, w - CAPTURE_INSET * 2.0, CAPTURE_HEIGHT)
 		_round_rect(track, CAPTURE_TRACK, CAPTURE_HEIGHT / 2.0)

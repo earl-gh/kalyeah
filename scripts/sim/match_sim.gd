@@ -85,7 +85,7 @@ func _init(p_rules: GameRules, p_layout: MapLayout, seed_value: int) -> void:
 	_blocking.append_array(obstacles)
 	for def: WeaponDef in rules.weapons:
 		weapon_defs[def.id] = def
-	score = MatchScore.new(rules.best_of)
+	score = MatchScore.new(rules.first_to)
 	capture_needed = rules.capture_time
 	tag_release_time = rules.tag_release_time
 
@@ -103,10 +103,10 @@ func hides_in_box(state: PlayerState, viewer_team: int) -> bool:
 	return state.team != viewer_team and layout.jail_rect(side_for_team(state.team)).has_point(state.position)
 
 
-## Best of `count` points (one of `rules.best_of_choices`; anything else is ignored).
+## First to `count` points (one of `rules.first_to_choices`; anything else is ignored).
 ## Set before play starts: it restarts the score.
-func set_best_of(count: int) -> void:
-	if count in rules.best_of_choices:
+func set_first_to(count: int) -> void:
+	if count in rules.first_to_choices:
 		score = MatchScore.new(count)
 
 

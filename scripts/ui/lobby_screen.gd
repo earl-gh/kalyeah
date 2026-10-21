@@ -340,11 +340,11 @@ func _build_room_view() -> void:
 	_room_view.team_chosen.connect(_on_team_chosen)
 	_room_view.action_pressed.connect(_on_action)
 	_room_view.retry_pressed.connect(submit)
-	_room_view.best_of_chosen.connect(func(count: int) -> void:
+	_room_view.first_to_chosen.connect(func(count: int) -> void:
 		if _preview_room.is_empty():
-			client.set_best_of(count)
+			client.set_first_to(count)
 		else:
-			_preview_room["best_of"] = count
+			_preview_room["first_to"] = count
 			_room_view.show_room(_preview_room, PREVIEW_ME))
 	var gate: Node = (load("res://scenes/ui/orientation_gate.tscn") as PackedScene).instantiate()
 	add_child(gate)

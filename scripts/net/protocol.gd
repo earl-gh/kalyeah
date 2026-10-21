@@ -10,7 +10,7 @@ const VERSION: int = 1
 enum Msg {
 	# client -> server
 	HELLO, CREATE_ROOM, JOIN_ROOM, PICK_TEAM, SET_READY, START, LEAVE, LOADED,
-	PICK_WEAPONS, SWAP_WEAPONS, INPUT, SET_BEST_OF,
+	PICK_WEAPONS, SWAP_WEAPONS, INPUT, SET_FIRST_TO,
 	# server -> client
 	WELCOME, ERROR, ROOM, MATCH_LOADING, MATCH_PLAY, SNAPSHOT, EVENTS,
 	# client -> server, added later (appended so the numbers above stay the same)

@@ -22,7 +22,7 @@ func _ready() -> void:
 	add_child(content)
 	content.add_child(UiKit.page_header("How to play", "Four things to know. Then try them."))
 	var rules: GameRules = load(RULES_PATH) as GameRules
-	var steps: Array[Dictionary] = CoachMarks.steps_for(rules.capture_time, rules.best_of / 2 + 1)
+	var steps: Array[Dictionary] = CoachMarks.steps_for(rules.capture_time, rules.first_to)
 	for i: int in steps.size():
 		var card: Control = _card(i + 1, steps[i])
 		content.add_child(card)

@@ -232,7 +232,7 @@ func test_copying_the_room_code_is_answered_with_a_toast() -> void:
 	var view: HotspotRoomView = autofree(HotspotRoomView.new()) as HotspotRoomView
 	add_child(view)
 	view.set_online(true)
-	view.show_room({"code": "K7M2Q9XA", "team_size": 2, "host": 1, "best_of": 3, "state": 0, "members": [
+	view.show_room({"code": "K7M2Q9XA", "team_size": 2, "host": 1, "first_to": 3, "state": 0, "members": [
 		{"player_id": 1, "name": "Ana", "team": 0, "ready": false, "connected": true, "char": "junjun"}],
 		"can_start": false, "can_start_host": true, "map": &"street"}, 1)
 	view.set_online(true)

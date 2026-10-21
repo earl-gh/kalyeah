@@ -195,7 +195,7 @@ func test_the_online_room_header_shows_the_code_as_boxes_and_a_hidden_label_keep
 	var view: HotspotRoomView = autofree(HotspotRoomView.new()) as HotspotRoomView
 	add_child(view)
 	view.set_online(true)
-	view.show_room({"code": "K7M2Q9XA", "team_size": 2, "host": 1, "best_of": 3, "state": 0, "members": [
+	view.show_room({"code": "K7M2Q9XA", "team_size": 2, "host": 1, "first_to": 3, "state": 0, "members": [
 		{"player_id": 1, "name": "Ana", "team": 0, "ready": false, "connected": true, "char": "junjun"}],
 		"can_start": false, "can_start_host": true, "map": &"street"}, 1)
 	assert_eq(view.code_label.text, "K7M2Q9XA")
@@ -314,7 +314,7 @@ func test_how_to_play_is_reached_from_settings_and_shows_the_same_four_steps() -
 	var page: HowToPlayPage = screen.howto_page
 	assert_eq(page.cards.size(), 4)
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
-	var steps: Array[Dictionary] = CoachMarks.steps_for(rules.capture_time, rules.best_of / 2 + 1)
+	var steps: Array[Dictionary] = CoachMarks.steps_for(rules.capture_time, rules.first_to)
 	for i: int in 4:
 		assert_eq((page.cards[i].find_child("Words", true, false) as Label).text, steps[i]["text"], "step %d text" % (i + 1))
 		assert_eq((page.cards[i].find_child("Number", true, false).get_node("Text") as Label).text, str(i + 1))

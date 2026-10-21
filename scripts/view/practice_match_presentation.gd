@@ -171,10 +171,10 @@ func _sync_aim(player: PlayerState) -> void:
 
 
 func _play_intro_shot() -> void:
-	var best_of: int = owner.sim.score.best_of
+	var first_to: int = owner.sim.score.first_to
 	owner.hud.show_intro(
 		"TAG THEIR BASE!",
-		"BEST OF %d" % best_of
+		"FIRST TO %d" % first_to
 	)
 	if Settings.reduced_motion:
 		owner._camera.place(owner._flip())

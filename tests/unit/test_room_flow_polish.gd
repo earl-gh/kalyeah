@@ -77,7 +77,7 @@ func test_open_server_without_a_room_is_not_a_discovery_success() -> void:
 
 
 func test_room_controls_stay_accessible_and_readiness_explains_blocked_start() -> void:
-	var room: Dictionary = {"team_size": 3, "host": 1, "members": [], "best_of": 5}
+	var room: Dictionary = {"team_size": 3, "host": 1, "members": [], "first_to": 5}
 	var view: HotspotRoomView = autofree(HotspotRoomView.new()) as HotspotRoomView
 	add_child(view)
 	view.show_room(room, 1)
@@ -88,4 +88,4 @@ func test_room_controls_stay_accessible_and_readiness_explains_blocked_start() -
 	var scroll: ScrollContainer = view.find_child("RoomScroll", true, false) as ScrollContainer
 	assert_not_null(scroll, "room content can scroll without moving Start off-screen")
 	assert_false(scroll.is_ancestor_of(view.action_button))
-	assert_eq(view.best_of_buttons.size(), 3)
+	assert_eq(view.first_to_buttons.size(), 3)

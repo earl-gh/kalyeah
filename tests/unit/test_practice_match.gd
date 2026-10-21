@@ -457,10 +457,10 @@ func test_scoring_shows_a_banner_and_updates_the_scoreboard() -> void:
 func test_match_over_shows_play_again() -> void:
 	var practice: PracticeMatch = _practice()
 	var again: Button = practice.hud.again_button
-	for i: int in 2:
+	for i: int in 3:
 		_score_point(practice)
 		_finish_freeze(practice)
-	assert_eq(practice.sim.phase, MatchSim.Phase.MATCH_OVER, "best of 3: two points win")
+	assert_eq(practice.sim.phase, MatchSim.Phase.MATCH_OVER, "first to 3: three points win")
 	assert_true(again.visible)
 	assert_eq(again.text, "Practice again")
 	assert_eq(practice.banner_text(), "VICTORY!")

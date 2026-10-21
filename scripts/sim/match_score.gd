@@ -1,26 +1,26 @@
 class_name MatchScore
 extends RefCounted
 ## One-tier scoring (docs/GDD.md "Scoring"): every capture is one point and the
-## match is best of 3, 5 or 7 (the host picks it in the lobby): the first team to
-## win more than half of them wins. Plain data; MatchSim decides when a point happens.
+## match is first to 3, 5 or 7 points (the host picks it in the lobby): the first team to
+## reach that many wins (it used to be best of 3, 5 or 7). Plain data; MatchSim decides when a point happens.
 
 enum Result { POINT, MATCH }
 
 ## Points per team (0, 1). Kept as-is when the match ends.
 var points: Array[int] = [0, 0]
-## How many points the match is "best of" (3, 5 or 7).
-var best_of: int = 3
+## How many points win the match (3, 5 or 7): the first team to reach it wins.
+var first_to: int = 3
 ## Team that won the match, or -1.
 var winner: int = -1
 
 
-func _init(p_best_of: int) -> void:
-	best_of = p_best_of
+func _init(p_first_to: int) -> void:
+	first_to = p_first_to
 
 
-## Points a team needs: a majority of `best_of` (2 of 3, 3 of 5, 4 of 7).
+## Points a team needs: `first_to` itself.
 func points_to_win() -> int:
-	return best_of / 2 + 1
+	return first_to
 
 
 func award_point(team: int) -> Result:

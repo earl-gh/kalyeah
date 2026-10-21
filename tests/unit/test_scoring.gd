@@ -29,42 +29,43 @@ func _finish_freeze(sim: MatchSim) -> void:
 	_wait(sim, RULES.point_freeze_time + 0.1)
 
 
-# ---- MatchScore: one tier, best of 3 / 5 / 7 -------------------------------------
+# ---- MatchScore: one tier, first to 3 / 5 / 7 -------------------------------------
 
 func test_scoring_numbers_come_from_data() -> void:
 	assert_eq(RULES.capture_time, 5.0)
 	assert_eq(RULES.point_freeze_time, 3.0)
-	assert_eq(RULES.best_of, 3, "practice and new rooms: best of 3")
-	assert_eq(RULES.best_of_choices, [3, 5, 7] as Array[int], "what the host can pick")
+	assert_eq(RULES.first_to, 3, "practice and new rooms: first to 3")
+	assert_eq(RULES.first_to_choices, [3, 5, 7] as Array[int], "what the host can pick")
 
 
-func test_best_of_three_is_won_with_two_points() -> void:
+func test_first_to_three_is_won_with_three_points() -> void:
 	var score: MatchScore = MatchScore.new(3)
-	assert_eq(score.points_to_win(), 2)
+	assert_eq(score.points_to_win(), 3)
 	assert_eq(score.award_point(0), MatchScore.Result.POINT)
 	assert_eq(score.award_point(1), MatchScore.Result.POINT, "1-1")
+	assert_eq(score.award_point(1), MatchScore.Result.POINT, "1-2: two points are not enough any more")
 	assert_eq(score.award_point(1), MatchScore.Result.MATCH)
 	assert_eq(score.winner, 1)
 	assert_eq(score.award_point(0), MatchScore.Result.MATCH, "nothing changes after the match")
-	assert_eq(score.points, [1, 2] as Array[int])
+	assert_eq(score.points, [1, 3] as Array[int])
 
 
-func test_best_of_five_and_seven_need_three_and_four() -> void:
-	assert_eq(MatchScore.new(5).points_to_win(), 3)
-	assert_eq(MatchScore.new(7).points_to_win(), 4)
+func test_first_to_five_and_seven_need_five_and_seven() -> void:
+	assert_eq(MatchScore.new(5).points_to_win(), 5)
+	assert_eq(MatchScore.new(7).points_to_win(), 7)
 	var score: MatchScore = MatchScore.new(7)
-	for i: int in 3:
+	for i: int in 6:
 		assert_eq(score.award_point(0), MatchScore.Result.POINT)
 	assert_eq(score.award_point(0), MatchScore.Result.MATCH)
 
 
 func test_the_sim_takes_the_hosts_choice_and_ignores_anything_else() -> void:
 	var sim: MatchSim = _sim()
-	assert_eq(sim.score.best_of, 3)
-	sim.set_best_of(7)
-	assert_eq(sim.score.best_of, 7)
-	sim.set_best_of(4)
-	assert_eq(sim.score.best_of, 7, "only 3, 5 or 7")
+	assert_eq(sim.score.first_to, 3)
+	sim.set_first_to(7)
+	assert_eq(sim.score.first_to, 7)
+	sim.set_first_to(4)
+	assert_eq(sim.score.first_to, 7, "only 3, 5 or 7")
 
 
 # ---- capture: the whole team in the enemy base ------------------------------------
@@ -187,16 +188,16 @@ func test_freeze_then_everyone_is_reset_at_full_hp_out_of_the_boxes() -> void:
 	assert_eq(sim.capture_team, -1)
 
 
-func test_best_of_five_ends_after_three_points_and_the_ends_never_switch() -> void:
+func test_first_to_five_ends_after_five_points_and_the_ends_never_switch() -> void:
 	var sim: MatchSim = _sim()
-	sim.set_best_of(5)
+	sim.set_first_to(5)
 	var me: PlayerState = sim.add_player(1, 0)
 	var start: Vector2 = me.spawn_position
 	watch_signals(sim)
-	for i: int in 2:
+	for i: int in 4:
 		_score(sim, me)
 		_finish_freeze(sim)
-	assert_eq(sim.phase, MatchSim.Phase.PLAYING, "2 of 5 is not enough")
+	assert_eq(sim.phase, MatchSim.Phase.PLAYING, "4 of 5 is not enough")
 	assert_eq(me.spawn_position, start, "same end all match")
 	_score(sim, me)
 	_finish_freeze(sim)

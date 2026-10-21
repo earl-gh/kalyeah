@@ -4,7 +4,7 @@ extends Control
 ## Presentation only; LobbyScreen sends changes to the authoritative server.
 
 signal retry_pressed
-signal best_of_chosen(count: int)
+signal first_to_chosen(count: int)
 signal back_pressed
 signal settings_pressed
 ## The host picked a map in the carousel.
@@ -55,7 +55,7 @@ var size_buttons: Dictionary[int, Button] = {}
 var player_grid: GridContainer
 var player_cards: Array[Control] = []
 var kid_cards: Dictionary[String, Button] = {}
-var best_of_buttons: Dictionary[int, Button] = {}
+var first_to_buttons: Dictionary[int, Button] = {}
 var retry_button: Button
 var readiness_label: Label
 var format_summary: Label
@@ -177,16 +177,16 @@ func _build_map_section() -> Control:
 		sizes.add_child(button)
 		size_buttons[size] = button
 	var formats: HBoxContainer = HBoxContainer.new()
-	formats.name = "BestOf"
+	formats.name = "FirstTo"
 	formats.add_theme_constant_override("separation", int(GAP) + 2)
 	column.add_child(formats)
 	for count: int in [3, 5, 7]:
-		var button: Button = MenuDialog.make_button("Best of %d" % count, "grey", UiMetrics.ACTION, Vector2(0.0, 88.0))
+		var button: Button = MenuDialog.make_button("First to %d" % count, "grey", UiMetrics.ACTION, Vector2(0.0, 88.0))
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		LobbyWidgets.make_toggle(button)
-		button.pressed.connect(best_of_chosen.emit.bind(count))
+		button.pressed.connect(first_to_chosen.emit.bind(count))
 		formats.add_child(button)
-		best_of_buttons[count] = button
+		first_to_buttons[count] = button
 	format_summary = LobbyWidgets.label("", UiMetrics.BODY, KalyeahTheme.TEXT)
 	format_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	column.add_child(format_summary)
@@ -273,10 +273,10 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	readiness_label.text = _readiness(room)
 	action_button.visible = true
 	retry_button.visible = false
-	var count: int = room.get("best_of", 3) as int
-	for choice: int in best_of_buttons:
-		best_of_buttons[choice].set_pressed_no_signal(choice == count)
-		best_of_buttons[choice].disabled = not host
+	var count: int = room.get("first_to", 3) as int
+	for choice: int in first_to_buttons:
+		first_to_buttons[choice].set_pressed_no_signal(choice == count)
+		first_to_buttons[choice].disabled = not host
 	# section 1: the map and the team size (the host changes them, everyone sees them)
 	var map_id: StringName = StringName(room.get("map", "street") as String)
 	ChoiceCard.set_card(map_card, "", MAP_NAMES.get(map_id, String(map_id).to_upper()) as String, "blue")
@@ -287,8 +287,8 @@ func show_room(room: Dictionary, my_id: int) -> void:
 		size_buttons[choice].set_pressed_no_signal(choice == size)
 		size_buttons[choice].disabled = not host
 	(size_buttons[1].get_parent() as Control).visible = host
-	(best_of_buttons[3].get_parent() as Control).visible = host
-	format_summary.text = "%dv%d · Best of %d" % [size, size, count]
+	(first_to_buttons[3].get_parent() as Control).visible = host
+	format_summary.text = "%dv%d · First to %d" % [size, size, count]
 	format_summary.visible = not host
 	_fill_players(members, size)
 	var picked: String = String(me.get("char", ""))

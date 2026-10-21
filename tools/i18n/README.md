@@ -18,7 +18,7 @@ the English words and are made by a script; each other language is one more colu
 
 - A Label's or a Button's text is translated by Godot itself when it is a key (the English string) of a loaded translation.
 - Text that is *drawn* (the weapon tag, the word over a kid, an arrow's label) goes through `UiText.t()` or `UiText.f()`.
-- A sentence with a place in it is translated by code only when it is written `UiText.f("Best of %d", [3])`. Most of the
+- A sentence with a place in it is translated by code only when it is written `UiText.f("First to %d", [3])`. Most of the
   game's formatted sentences are not yet, and say so in the CSV by a `%` in the key: convert them one at a time.
 
 Run `python3 tools/i18n/extract.py --check` to see whether the CSV is out of date (a new string was added in the code).

@@ -129,18 +129,18 @@ func test_the_token_expires_after_60_s() -> void:
 	assert_true(service.rooms.has(room.code), "the match goes on")
 
 
-func test_only_the_host_picks_best_of_3_5_or_7_in_the_lobby() -> void:
+func test_only_the_host_picks_first_to_3_5_or_7_in_the_lobby() -> void:
 	var service: RoomService = _service()
-	service.best_of_choices = [3, 5, 7] as Array[int]
-	service.default_best_of = 3
+	service.first_to_choices = [3, 5, 7] as Array[int]
+	service.default_first_to = 3
 	var room: RoomService.Room = service.create_room(10, "Host", 1)
 	service.join(room.code, 11, "Guest")
-	assert_eq(room.best_of, 3, "new rooms start at best of 3")
-	assert_false(service.set_best_of(11, 5), "not the guest")
-	assert_true(service.set_best_of(10, 7))
-	assert_eq(room.best_of, 7)
-	assert_false(service.set_best_of(10, 4), "only 3, 5 or 7")
-	assert_eq(service.describe(room)["best_of"], 7, "everyone in the room sees it")
+	assert_eq(room.first_to, 3, "new rooms start at first to 3")
+	assert_false(service.set_first_to(11, 5), "not the guest")
+	assert_true(service.set_first_to(10, 7))
+	assert_eq(room.first_to, 7)
+	assert_false(service.set_first_to(10, 4), "only 3, 5 or 7")
+	assert_eq(service.describe(room)["first_to"], 7, "everyone in the room sees it")
 
 
 func test_the_host_changes_the_team_size_and_everyone_is_unreadied() -> void:

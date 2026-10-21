@@ -1,9 +1,8 @@
 keys,en
-%dv%d · Best of %d,%dv%d · Best of %d
+%dv%d · First to %d,%dv%d · First to %d
 %s is coming soon. Agawan Base is the only game to play for now.,%s is coming soon. Agawan Base is the only game to play for now.
 %s panel,%s panel
 %s pressed,%s pressed
-%s · %d m,%s · %d m
 "%s, %s: read about this weapon","%s, %s: read about this weapon"
 %s: read about this kid,%s: read about this kid
 A bouncing ball that knocks enemies off their feet.,A bouncing ball that knocks enemies off their feet.
@@ -12,9 +11,11 @@ A paper wall in front of you that blocks enemy throws.,A paper wall in front of 
 A rock meteor lands where you aim and stuns everyone it hits.,A rock meteor lands where you aim and stuns everyone it hits.
 "A short haircut under a backward cap, an oversized basketball jersey, cargo shorts and rubber shoes.","A short haircut under a backward cap, an oversized basketball jersey, cargo shorts and rubber shoes."
 A spinning top that sends enemies flying.,A spinning top that sends enemies flying.
+A thin line while you aim,A thin line while you aim
 A tossed can turns whoever it hits into a can for a moment.,A tossed can turns whoever it hits into a can for a moment.
 About %s,About %s
 Accent,Accent
+Aim guide,Aim guide
 AIRBORNE,AIRBORNE
 Airborne,Airborne
 All,All
@@ -22,17 +23,14 @@ ALL OF YOU TAGGED!,ALL OF YOU TAGGED!
 ALL TAGGED!,ALL TAGGED!
 Attack,Attack
 Auto-pick at timeout,Auto-pick at timeout
-Auto-run · tap stick to stop,Auto-run · tap stick to stop
 Back,Back
 Back in %d,Back in %d
 Back online!,Back online!
 Bato · Heavy,Bato · Heavy
 Bato · Light,Bato · Light
 Bato-bato-pik,Bato-bato-pik
-BEST OF %d,BEST OF %d
-Best of %d,Best of %d
 Block,Block
-BO%d,BO%d
+Blue and orange teams; the street changes next match,Blue and orange teams; the street changes next match
 Body %d: the main reading size,Body %d: the main reading size
 Bola,Bola
 Book,Book
@@ -59,12 +57,14 @@ Choose %s,Choose %s
 Choose with Left and Right arrows,Choose with Left and Right arrows
 Close,Close
 Code pasted,Code pasted
+Colour-blind colours,Colour-blind colours
 Coming soon,Coming soon
 Connecting…,Connecting…
 "Connection lost
 Reconnecting…","Connection lost
 Reconnecting…"
 Connection lost. Try again.,Connection lost. Try again.
+CONTESTED!,CONTESTED!
 Control,Control
 Control size,Control size
 Cooldown,Cooldown
@@ -72,6 +72,7 @@ Copied,Copied
 Copy,Copy
 Copy room code,Copy room code
 Create room,Create room
+"D-pad on the right, weapons on the left","D-pad on the right, weapons on the left"
 Damage,Damage
 DEFEAT,DEFEAT
 Defeat,Defeat
@@ -81,7 +82,6 @@ Developer tools off,Developer tools off
 Developer tools on,Developer tools on
 Done,Done
 DOWN,DOWN
-Drag to run; let go to stop,Drag to run; let go to stop
 Edit profile,Edit profile
 Eight letters and numbers,Eight letters and numbers
 Enter a name.,Enter a name.
@@ -91,24 +91,31 @@ Example slider,Example slider
 "Example switch, off","Example switch, off"
 "Example switch, on","Example switch, on"
 Extra,Extra
+"Face 3 bots, or just train.","Face 3 bots, or just train."
 Face: %s,Face: %s
 Finding the host's room…,Finding the host's room…
+FIRST TO,FIRST TO
+FIRST TO %d,FIRST TO %d
+First to %d,First to %d
 Footwear,Footwear
 Four things to know. Then try them.,Four things to know. Then try them.
 Game mode,Game mode
-"Get your whole team into the enemy base and hold it for %s seconds, or tag everyone on the other team. First to %d points wins.","Get your whole team into the enemy base and hold it for %s seconds, or tag everyone on the other team. First to %d points wins."
+"Get your whole team into the enemy base and hold it for %s seconds, with no defender left inside it, or tag everyone on the other team. First to %d points wins.","Get your whole team into the enemy base and hold it for %s seconds, with no defender left inside it, or tag everyone on the other team. First to %d points wins."
 GO!,GO!
 Got it,Got it
 Gunting · Heavy,Gunting · Heavy
 Gunting · Light,Gunting · Light
 Hair,Hair
 Heal,Heal
+Held their base,Held their base
+Held your base,Held your base
 Hide practice tools,Hide practice tools
 History,History
 "Hold and drag to aim, let go to throw","Hold and drag to aim, let go to throw"
 HOLD THE BASE!,HOLD THE BASE!
 Hotspot,Hotspot
 Hotspot rooms need the Android app.,Hotspot rooms need the Android app.
+How the points went,How the points went
 How to play,How to play
 Inday,Inday
 Invite friends with a room code.,Invite friends with a room code.
@@ -117,10 +124,8 @@ Join hotspot,Join hotspot
 Join room,Join room
 Join team,Join team
 Junjun,Junjun
-kind,kind
 Knocked down,Knocked down
 Knocked out,Knocked out
-label,label
 Langit · Heal,Langit · Heal
 Language,Language
 Large,Large
@@ -141,7 +146,6 @@ Match settings,Match settings
 Match unavailable,Match unavailable
 Meet the six kids. Tap one to read about them.,Meet the six kids. Tap one to read about them.
 Migo,Migo
-Minimap size,Minimap size
 Name,Name
 "No local network. Turn on your hotspot or connect to Wi-Fi, then retry.","No local network. Turn on your hotspot or connect to Wi-Fi, then retry."
 Normal,Normal
@@ -156,6 +160,7 @@ Open slot,Open slot
 Open slot in the %s team,Open slot in the %s team
 Opens the name and face editor,Opens the name and face editor
 Opens your history,Opens your history
+OVERTIME,OVERTIME
 Papel · Shield,Papel · Shield
 Papel · Trap,Papel · Trap
 Paste the code,Paste the code
@@ -166,12 +171,14 @@ Play,Play
 Play again,Play again
 Play as %s,Play as %s
 Play on one local network.,Play on one local network.
+Play vs bots,Play vs bots
 Player %d,Player %d
 Polymorphed,Polymorphed
 Popoy,Popoy
 Practice,Practice
 Practice again,Practice again
 Practice with the walkthrough,Practice with the walkthrough
+Press a direction to run; let go to stop,Press a direction to run; let go to stop
 Preview only,Preview only
 Preview room,Preview room
 Profile saved,Profile saved
@@ -208,16 +215,16 @@ Sound,Sound
 Sound and feel,Sound and feel
 Sound volume,Sound volume
 Start match,Start match
-Start practice,Start practice
 Starting the room…,Starting the room…
 Step %d of %d,Step %d of %d
-"Stick on the right, weapons on the left","Stick on the right, weapons on the left"
 STUNNED,STUNNED
 Stunned,Stunned
 Suggested: %s,Suggested: %s
 Swipe or use the arrow keys to change,Swipe or use the arrow keys to change
 TAG THEIR BASE!,TAG THEIR BASE!
 Tagged,Tagged
+Tagged them all,Tagged them all
+Tagged you all,Tagged you all
 Tagged · Wait for a rescue,Tagged · Wait for a rescue
 TAGGED!,TAGGED!
 Take 30 damage,Take 30 damage
@@ -226,11 +233,9 @@ Tap to choose which slot the next weapon fills,Tap to choose which slot the next
 Team size,Team size
 Teammates can run into your box to set you free.,Teammates can run into your box to set you free.
 That match has ended.,That match has ended.
+The D-pad and the weapon buttons,The D-pad and the weapon buttons
 The game · %s,The game · %s
 The hotspot room will close for everyone.,The hotspot room will close for everyone.
-The stick and the weapon buttons,The stick and the weapon buttons
-"The street from above: your base bottom left, theirs top right","The street from above: your base bottom left, theirs top right"
-The street map in the corner,The street map in the corner
 The words in the game,The words in the game
 THEM,THEM
 Them,Them
@@ -243,7 +248,7 @@ Toast: %s,Toast: %s
 Toni,Toni
 too low,too low
 Top,Top
-Train against a sparring partner.,Train against a sparring partner.
+Training,Training
 Trumpo,Trumpo
 Try again,Try again
 Tsinelas · Heavy,Tsinelas · Heavy

@@ -26,7 +26,7 @@ func _practice() -> PracticeMatch:
 
 
 func _win_the_match(practice: PracticeMatch) -> void:
-	for point: int in 2:
+	for point: int in practice.sim.score.points_to_win():
 		var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 		player.position = LAYOUT.base_center(-practice.own_side())
 		for i: int in ceili((practice.sim.rules.capture_time + 0.3) / DT):
@@ -48,9 +48,9 @@ func test_winning_shows_victory_the_score_your_kid_and_both_weapons() -> void:
 	assert_eq(practice.sim.phase, MatchSim.Phase.MATCH_OVER)
 	assert_true(results.visible)
 	assert_eq(results.title.text, "VICTORY!")
-	assert_eq(results.mine_label.text, "2")
+	assert_eq(results.mine_label.text, str(practice.sim.score.points_to_win()))
 	assert_eq(results.theirs_label.text, "0")
-	assert_eq(results.subtitle.text, "Practice · Best of 3")
+	assert_eq(results.subtitle.text, "Practice · First to 3")
 	assert_eq(results.kid_holder.get_child_count(), 1, "your kid's face")
 	assert_eq(results.weapons_row.get_child_count(), practice.sim.players[PracticeMatch.LOCAL_ID].weapons.size(), "the weapons you carried")
 	assert_true(results.time_label.text.contains(":"), "the match time as m:ss")

@@ -30,8 +30,8 @@ class Room extends RefCounted:
 	var code: String
 	var team_size: int
 	var host_player_id: int
-	## The match is best of this many points (the host picks it in the lobby).
-	var best_of: int = 0
+	## The first team to this many points wins the match (the host picks 3, 5 or 7 in the lobby).
+	var first_to: int = 0
 	## The street the match is played on (the host picks it; one so far).
 	var map_id: StringName = &"street"
 	var state: State = State.LOBBY
@@ -59,9 +59,9 @@ const MAP_IDS: Array[StringName] = [&"street", &"tumbang_preso", &"patintero"]
 const PLAYABLE_MAP_IDS: Array[StringName] = [&"street"]
 
 var rooms: Dictionary[String, Room] = {}
-## What a host may pick, and what a new room starts with (GameRules.best_of*).
-var best_of_choices: Array[int] = [3]
-var default_best_of: int = 3
+## What a host may pick, and what a new room starts with (GameRules.first_to*).
+var first_to_choices: Array[int] = [3]
+var default_first_to: int = 3
 
 var _rules: NetRules
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -102,7 +102,7 @@ func create_room(peer_id: int, player_name: String, team_size: int) -> Room:
 	var room: Room = Room.new()
 	room.code = _new_code()
 	room.team_size = team_size
-	room.best_of = default_best_of
+	room.first_to = default_first_to
 	rooms[room.code] = room
 	var host: Member = _add_member(room, peer_id, player_name)
 	room.host_player_id = host.player_id
@@ -166,15 +166,15 @@ func can_start(room: Room, host_ready: bool = false) -> bool:
 	return (a == n and b >= n - 1) or (b == n and a >= n - 1)
 
 
-## Host only, in the lobby: best of 3, 5 or 7 (one of `best_of_choices`).
-func set_best_of(peer_id: int, count: int) -> bool:
+## Host only, in the lobby: first to 3, 5 or 7 (one of `first_to_choices`).
+func set_first_to(peer_id: int, count: int) -> bool:
 	var room: Room = room_of_peer(peer_id)
 	var m: Member = member_of_peer(peer_id)
 	if m == null or m.player_id != room.host_player_id or room.state != State.LOBBY:
 		return false
-	if not count in best_of_choices:
+	if not count in first_to_choices:
 		return false
-	room.best_of = count
+	room.first_to = count
 	return true
 
 
@@ -308,7 +308,7 @@ func describe(room: Room) -> Dictionary:
 			"ready": m.ready, "connected": m.connected, "char": m.character,
 		})
 	return {
-		"code": room.code, "team_size": room.team_size, "host": room.host_player_id, "best_of": room.best_of,
+		"code": room.code, "team_size": room.team_size, "host": room.host_player_id, "first_to": room.first_to,
 		"state": room.state, "members": members, "can_start": can_start(room),
 		"can_start_host": can_start(room, true), "map": room.map_id,
 	}

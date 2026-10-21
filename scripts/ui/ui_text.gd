@@ -10,6 +10,6 @@ static func t(key: String) -> String:
 	return TranslationServer.translate(key)
 
 
-## A sentence with places in it ("Best of %d"): the translated sentence with `args` put in.
+## A sentence with places in it ("First to %d"): the translated sentence with `args` put in.
 static func f(key: String, args: Array) -> String:
 	return t(key) % args

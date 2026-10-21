@@ -46,10 +46,10 @@ extends Resource
 @export var intro_time: float = 0.0
 ## Freeze after a point before everyone is reset to their posts.
 @export var point_freeze_time: float = 0.0
-## The match is best of this many points (practice, and the lobby's default).
-@export var best_of: int = 0
+## The match is won by the first team to this many points (practice, and the lobby's default).
+@export var first_to: int = 0
 ## What the host can pick in the lobby.
-@export var best_of_choices: Array[int] = []
+@export var first_to_choices: Array[int] = []
 ## Practice-mode training dummies (two enemies and one ally).
 @export var dummy_z: float = 0.0
 @export var dummy_stand_x: float = 0.0
