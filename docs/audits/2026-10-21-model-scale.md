@@ -14,7 +14,7 @@ holds it. The real sizes are in `scripts/view/art/scale_reference.gd` (my estima
 | **Is a model's measured size true?** `PropModel.size_of` reads the first mesh of a GLB | All 34 props are exactly one mesh at the origin, each authored with its longest side at 1.0: the code tables are the single source of scale. A test now fails if a model ever gets a second mesh or an offset. |
 | **Are the six kids the same height?** | Yes: 1.699 to 1.712 m in the model (under 1%), so one scale gives every kid the same height. Tested. |
 | **Buildings** (houses, shops, the terminal) | Correct: each is a 4.8 m wide lot at true scale and 4.1 to 5.1 m tall (one to two storeys), about 3 to 4 kids tall. They were sized by width, so their heights differ a little; that is the owner's models and it reads right. |
-| **Props, one by one** | 9 of 25 were off. See below. |
+| **Props, one by one** | 7 of 26 were outside the allowed band and 3 more sat at its edge; all 10 are corrected below. |
 | **Thrown objects** | Drawn 0.84x to 2.0x the diameter of what they hit, all inside the 0.8 to 2.1 band the test allows. They are game-sized on purpose (a real top is 6 cm); left as they are. |
 
 ## What was off and what I changed (all constants in `street_map.gd`)
