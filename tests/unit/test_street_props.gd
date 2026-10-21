@@ -26,7 +26,7 @@ func test_the_new_things_are_in_the_barrier_rows_at_both_ends() -> void:
 	assert_eq(map.barrier_rows.size(), 2, "a row at each end")
 	var seen: Dictionary = {}
 	for row: Array in map.barrier_rows:
-		assert_gt(row.size(), 5, "a full row")
+		assert_gte(row.size(), 5, "a full row (the bigger the things are drawn, the fewer fit across the street; the rest stand on the road beyond)")
 		for id: Variant in row:
 			seen[id] = true
 	for id: String in NEW_BARRIERS:

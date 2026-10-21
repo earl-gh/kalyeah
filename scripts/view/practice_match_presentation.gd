@@ -25,7 +25,9 @@ func _init(owner: PracticeMatch) -> void:
 func setup_hud() -> void:
 	owner.input.camera_yaw = owner._camera.rules.yaw_offset_degrees
 	owner.hud.console_height_changed.connect(func(height: float) -> void: owner._camera.bottom_reserve_px = height)
-	owner.hud.header_height_changed.connect(func(height: float) -> void: owner._camera.top_reserve_px = height + HEADER_GAP)
+	owner.hud.header_height_changed.connect(func(height: float) -> void:
+		owner._camera.top_reserve_px = height + HEADER_GAP
+		owner.hud.overhead.top_limit = height)
 	owner.hud.set_bottom_inset(_safe_bottom_inset())
 	owner._camera.bottom_reserve_px = owner.hud.console_height()
 	Cinematic.add_lens(owner, owner._camera.rules.lens_k())
@@ -36,6 +38,7 @@ func setup_hud() -> void:
 	owner._fx.view_scale = owner._camera.rules.kid_view_scale
 	owner.hud.set_top_inset(_safe_top_inset())
 	owner._camera.top_reserve_px = owner.hud.header_height() + HEADER_GAP
+	owner.hud.overhead.top_limit = owner.hud.header_height()
 
 
 func connect_hud() -> void:

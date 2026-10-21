@@ -58,3 +58,34 @@ func test_the_camera_frames_the_whole_street_below_a_taller_header() -> void:
 	var taller: Vector2 = rules.frame(720.0 / 1280.0, arena, -1.0, 0.2)
 	assert_gt(taller.x, normal.x, "a taller header needs the camera further back to keep the whole street clear of it")
 	assert_true(rules.fits(taller.x * 1.001, 720.0 / 1280.0, arena, -1.0, 0.2))
+
+
+func test_the_pips_under_the_score_show_who_is_still_free() -> void:
+	var practice: PracticeMatch = await _practice()
+	practice.finish_pick()
+	practice.skip_intro()
+	var board: Scoreboard = practice.hud.scoreboard
+	board.show_roster(practice.sim, practice.local_team)
+	var mine: int = board.roster_mine.size()
+	var theirs: int = board.roster_theirs.size()
+	assert_gt(mine, 0, "a pip for every kid on your team")
+	assert_gt(theirs, 0, "and on theirs")
+	assert_eq(board.roster_mine.count(true), mine, "all free at the start")
+	practice.sim.kill(practice.local_id)
+	board.show_roster(practice.sim, practice.local_team)
+	assert_eq(board.roster_mine.count(true), mine - 1, "a tagged kid's pip goes hollow")
+	assert_eq(board.roster_theirs.count(true), theirs, "theirs are untouched")
+	assert_string_contains(board.accessibility_name, "you %d of %d" % [mine - 1, mine], "and a screen reader says so")
+
+
+func test_a_status_word_stays_under_the_header_and_inside_the_screen() -> void:
+	var overhead: OverheadHud = autofree(OverheadHud.new()) as OverheadHud
+	overhead.size = Vector2(720.0, 1280.0)
+	overhead.top_limit = 130.0
+	add_child(overhead)
+	var font: Font = KalyeahTheme.BODY_FONT
+	var high: Vector2 = overhead.keep_on_screen(Vector2(360.0, 90.0), font, "Slowed", OverheadHud.STATUS_FONT)
+	assert_gt(high.y, 130.0, "a kid at the far end does not push its words under the header")
+	var edge: Vector2 = overhead.keep_on_screen(Vector2(2.0, 600.0), font, "Slowed", OverheadHud.STATUS_FONT)
+	assert_gt(edge.x, 20.0, "nor past the left side")
+	assert_eq(overhead.keep_on_screen(Vector2(360.0, 600.0), font, "Slowed", OverheadHud.STATUS_FONT), Vector2(360.0, 600.0), "and a kid in the middle is untouched")

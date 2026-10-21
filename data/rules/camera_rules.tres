@@ -11,5 +11,5 @@ vfov_degrees = 20.0
 frame_top = 0.12
 frame_bottom = 0.04
 frame_side = 0.04
-kid_view_scale = 1.5
+kid_view_scale = 2.0
 bar_scale = 0.5
