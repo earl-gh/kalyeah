@@ -12,6 +12,8 @@ static func apply(hud: MatchHud) -> void:
 	hud._place(hud.console, Vector4(0, 1, 1, 1), Vector4(0, -hud.console_height(), 0, 0))
 	if hud.feedback != null:
 		hud.feedback.set_console_height(hud.console_height())
+	if hud.tagged_panel != null:
+		hud.tagged_panel.set_console_height(hud.console_height())
 	hud.console_height_changed.emit(hud.console_height())
 	var lift: float = hud.bottom_inset
 	var weapon: float = MatchHud.WEAPON_SIZE * scale_by

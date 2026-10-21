@@ -48,8 +48,12 @@ func test_the_opening_words_gear_and_loadout_sockets_have_no_container_of_their_
 		assert_false(socket.get_parent().get_parent() is PanelContainer, "the sockets are the plates: no plate around them")
 
 
-func test_portraits_in_the_tagged_sheet_have_a_ring_but_no_second_fill() -> void:
+func test_the_tagged_message_has_no_player_cards_and_no_sheet() -> void:
 	var practice: PracticeMatch = _practice()
-	var box: StyleBoxFlat = practice.hud.tagged_panel._card_box(Color.BLUE)
-	assert_eq(box.bg_color.a, 0.0, "the sheet is already the container")
-	assert_gt(box.border_width_left, 0, "a ring shows whose team it is")
+	practice.hurt_local(100)
+	practice.advance(1.0 / 30.0)
+	var panel: TaggedPanel = practice.hud.tagged_panel
+	assert_true(panel.visible)
+	assert_eq(panel.find_children("*", "PanelContainer", true, false).size(), 0, "the console deck is the container")
+	var buttons: Array[Node] = panel.find_children("*", "Button", true, false)
+	assert_eq(buttons, [panel.swap_button] as Array[Node], "nothing to pick or watch: the only button is Change weapons")

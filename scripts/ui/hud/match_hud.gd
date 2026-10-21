@@ -203,6 +203,7 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	feedback.sync_hint(player, aim_buttons, playing)
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 	console.set_health(player.hp, sim.rules.player_max_hp, playing)
+	console.set_wells_shown(playing)
 	for slot: int in weapon_buttons.size():
 		var button: AimButton = weapon_buttons[slot]
 		if slot >= player.weapons.size():

@@ -107,5 +107,5 @@ func test_the_tagged_sheet_says_how_it_ends_and_still_fits() -> void:
 	assert_eq(panel.wait_label.text, TaggedPanel.WAIT_TEXT, "the title is unchanged")
 	await wait_process_frames(3)
 	assert_eq(panel.hint_label.get_line_count(), 1, "one short line, no orphan word")
-	var band: Control = panel.find_children("*", "PanelContainer", true, false)[0] as Control
-	assert_gte(band.size.y, band.get_combined_minimum_size().y - 1.0, "the sheet is tall enough for its contents")
+	assert_gte(panel.size.y, panel.column.get_combined_minimum_size().y + 20.0, "the deck is tall enough for its message and button")
+	assert_almost_eq(panel.size.y, practice.hud.console_height(), 0.5, "exactly as tall as the console it stands on")

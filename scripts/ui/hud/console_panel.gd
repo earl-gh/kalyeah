@@ -21,6 +21,16 @@ var slots_right: bool = true
 var health_fraction: float = 1.0
 var health_text: String = ""
 var health_shown: bool = false
+## The wells show only while the controls do (not while you wait in the box, when the deck carries a message instead).
+var wells_shown: bool = true
+
+
+## Shows or hides the wells under the controls.
+func set_wells_shown(shown: bool) -> void:
+	if shown == wells_shown:
+		return
+	wells_shown = shown
+	queue_redraw()
 
 
 func set_sockets(list: Array[Dictionary], right: bool) -> void:
@@ -105,6 +115,8 @@ func _draw() -> void:
 	draw_arc(Vector2(w - CORNER, CORNER), CORNER - 1.5, PI * 1.5, TAU, 16, LIP, 3.0, true)
 	draw_line(Vector2(CORNER, 1.5), Vector2(w - CORNER, 1.5), LIP, 3.0, true)
 	for socket: Dictionary in sockets:
+		if not wells_shown:
+			break
 		var at: Vector2 = socket["at"] as Vector2
 		var radius: float = socket["radius"] as float
 		draw_circle(at, radius, WELL)
