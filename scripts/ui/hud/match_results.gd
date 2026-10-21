@@ -100,9 +100,9 @@ func _score_card() -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 28)
-	var mine: VBoxContainer = _side("YOU", KalyeahTheme.TEAM_BLUE)
+	var mine: VBoxContainer = _side("YOU", TeamColors.ui_own())
 	mine_label = mine.get_node("Number") as Label
-	var theirs: VBoxContainer = _side("THEM", KalyeahTheme.TEAM_RED)
+	var theirs: VBoxContainer = _side("THEM", TeamColors.ui_enemy())
 	theirs_label = theirs.get_node("Number") as Label
 	var dash: Label = Label.new()
 	dash.text = "-"
@@ -145,7 +145,7 @@ func _fill_how(sim: MatchSim, local_team: int) -> void:
 		child.queue_free()
 	for entry: Vector2i in sim.point_log:
 		var ours: bool = entry.x == local_team
-		var chip: PanelContainer = UiKit.chip(how_text(ours, entry.y), KalyeahTheme.TEAM_BLUE if ours else KalyeahTheme.TEAM_RED, Color.WHITE, UiMetrics.CAPTION)
+		var chip: PanelContainer = UiKit.chip(how_text(ours, entry.y), TeamColors.ui_own() if ours else TeamColors.ui_enemy(), Color.WHITE, UiMetrics.CAPTION)
 		how_flow.add_child(chip)
 	how_flow.get_parent().visible = not sim.point_log.is_empty()
 

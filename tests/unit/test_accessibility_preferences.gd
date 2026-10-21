@@ -33,7 +33,7 @@ func test_motion_syncs_across_settings_and_obsolete_text_size_is_ignored() -> vo
 	var second: AccessibilityOptions = autofree(AccessibilityOptions.new()) as AccessibilityOptions
 	add_child(first)
 	add_child(second)
-	assert_eq(first.find_children("*", "Button", true, false).size(), 1, "settings has only the motion toggle")
+	assert_eq(first.find_children("*", "Button", true, false).size(), 2, "settings has the motion and colour-blind toggles")
 	var label: Label = autofree(Label.new()) as Label
 	label.add_theme_font_size_override("font_size", UiMetrics.BODY)
 	add_child(label)

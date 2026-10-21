@@ -88,11 +88,11 @@ func sync(delta: float) -> void:
 
 
 func make_actor_view(state: PlayerState) -> void:
-	var team_color: Color = Palette.TEAM_ENEMY
+	var team_color: Color = TeamColors.world_enemy()
 	if state.id == owner.local_id:
-		team_color = Palette.TEAM_OWN
+		team_color = TeamColors.world_own()
 	elif state.team == owner.local_team:
-		team_color = Palette.TEAM_ALLY
+		team_color = TeamColors.world_ally()
 	var character: CharacterDef = owner._characters.get(state.character_id) as CharacterDef
 	if character == null:
 		character = owner.rules.characters[0]

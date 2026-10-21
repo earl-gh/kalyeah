@@ -34,8 +34,6 @@ const SCORE_SIZE: Vector2 = Vector2(280.0, 88.0)
 const FEED_TIME: float = 2.6
 const FEED_SIZE: Vector2 = Vector2(250.0, 46.0)
 const FEED_MAX: int = 3
-const FEED_OWN: Color = Color(0.2, 0.42, 0.85, 0.92)
-const FEED_ENEMY: Color = Color(0.82, 0.22, 0.2, 0.92)
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## Controls (owner), as (distance from their screen edge, distance from the bottom) of each
 ## control's centre on the 720x1280 base: the movement stick at the bottom left, the two skill
@@ -238,7 +236,7 @@ func _sync_capture(sim: MatchSim, local_team: int) -> void:
 	else:
 		how = "HOLD THE BASE!" if ours else "DEFEND YOUR BASE!"
 	capture_label.text = "%s\n%d" % [how, seconds]
-	capture_label.add_theme_color_override("font_color", CAPTURE_COLOR.lerp(FEED_OWN if ours else FEED_ENEMY, 0.35))
+	capture_label.add_theme_color_override("font_color", CAPTURE_COLOR.lerp(TeamColors.feed_own() if ours else TeamColors.feed_enemy(), 0.35))
 
 
 ## Adds a TAGGED! or RESCUED! pill under the settings button: blue for your team, red for theirs.
@@ -253,7 +251,7 @@ func feed(kind: Feed, our_team: bool, who: String) -> void:
 	pill.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = FEED_OWN if our_team else FEED_ENEMY
+	style.bg_color = TeamColors.feed_own() if our_team else TeamColors.feed_enemy()
 	style.set_corner_radius_all(10)
 	style.content_margin_left = 14.0
 	style.skew = Vector2(0.18, 0.0)
