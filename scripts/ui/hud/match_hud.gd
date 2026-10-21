@@ -47,8 +47,8 @@ const ROW_HEIGHT: float = CONSOLE_HEIGHT / 2.0
 const MAX_BOTTOM_INSET: float = 80.0
 ## How long the tick is when the thumb moves to another direction of the pad.
 const PAD_TICK_MS: int = 8
-## The square the stick listens in: its outer ring plus a margin for the thumb.
-const DPAD_ZONE: float = (DPad.OUTER_RADIUS + 20.0) * 2.0
+## The square the D-pad sits in: its disc plus a margin for the thumb.
+const DPAD_ZONE: float = (DPad.MAX_RADIUS + 20.0) * 2.0
 ## The D-pad's centre is this far from its screen edge (the left, or the right for a left-handed player).
 const DPAD_MARGIN: float = 170.0
 ## The skill buttons: big enough for a thumb (Apple's 44 pt is 84 px), a gap apart, the
@@ -200,7 +200,7 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 		dpad.release()
 	# disabled while on cooldown too: no pressing or precasting until ready
 	var weapons_off: bool = not playing or not player.effects.can_cast()
-	feedback.sync_hint(player, dpad, aim_buttons, playing)
+	feedback.sync_hint(player, aim_buttons, playing)
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 	console.set_health(player.hp, sim.rules.player_max_hp, playing)
 	for slot: int in weapon_buttons.size():

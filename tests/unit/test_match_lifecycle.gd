@@ -58,7 +58,7 @@ func test_focus_and_pause_both_need_to_clear_before_fresh_input_works() -> void:
 	assert_gt(view._local_input(12).move.length(), 0.0, "fresh input resumes after both states clear")
 
 
-func test_interrupting_real_touch_discards_release_and_auto_run_state() -> void:
+func test_interrupting_real_touch_discards_the_pad_and_the_aim() -> void:
 	var view: PracticeMatch = _practice()
 	var stick: DPad = view.hud.dpad
 	var centre: Vector2 = stick.get_global_transform_with_canvas() * stick.rest_position()
@@ -71,9 +71,7 @@ func test_interrupting_real_touch_discards_release_and_auto_run_state() -> void:
 	drag.index = 10
 	drag.position = centre + Vector2(120.0, 0.0)
 	stick._input(drag)
-	touch.pressed = false
-	stick._input(touch)
-	assert_true(stick.auto_run)
+	assert_eq(stick.value, Vector2.RIGHT, "the thumb holds the pad")
 	var button: AimButton = view.hud.aim_buttons[0]
 	touch.index = 11
 	touch.position = button.get_global_transform_with_canvas() * (button.size / 2.0)
@@ -83,7 +81,7 @@ func test_interrupting_real_touch_discards_release_and_auto_run_state() -> void:
 	var player: PlayerState = view.sim.players[view.local_id]
 	assert_gte(player.aim_hold[0], 0.0)
 	view._notification(Node.NOTIFICATION_APPLICATION_PAUSED)
-	assert_false(stick.auto_run)
+	assert_eq(stick.value, Vector2.ZERO, "an interruption lets go of the pad")
 	assert_false(button.aiming)
 	assert_null(TouchButton.holder)
 	assert_eq(view.input.stick, Vector2.ZERO)

@@ -2,9 +2,9 @@ class_name DPad
 extends Control
 ## The on-screen D-pad, shaped like the Xbox Series one: a round dark dish with a raised cross in it, an arrow notch on each arm and a
 ## shallow dish in the middle. Up, down, left and right are the four arms and the diagonals press two neighbouring arms. Put a thumb
-## anywhere on the disc and the kid runs the way it points; slide the thumb to turn, lift it to stop. It is digital: eight directions only, always a full-speed run (owner: no slow walk).
-## Slide the thumb out past the disc (the outer ring lights up) and let go there: the kid keeps running that way on
-## his own (auto-run). A touch on the pad always takes over at once. Put it over the area it should listen in.
+## anywhere on the disc and the kid runs the way it points; slide the thumb to turn, lift it to stop. It is digital: eight directions
+## only, always a full-speed run (owner: no slow walk) and no auto-run: the kid runs only while a thumb is on the pad (owner: it is a
+## D-pad now). Sliding past the disc keeps the direction. Put it over the area it should listen in.
 ## Handles real touches (multi-touch safe) and the real mouse; ignores mouse events emulated from touch.
 
 signal changed(value: Vector2)
@@ -13,8 +13,6 @@ signal direction_changed(value: Vector2)
 
 ## The disc.
 const MAX_RADIUS: float = 100.0
-## The outer ring: the thumb can slide out to it; past the disc a release locks the run.
-const OUTER_RADIUS: float = 140.0
 ## Inside this share of the disc's radius (the middle button) nothing is pressed.
 const DEADZONE: float = 0.22
 ## Eight directions, 45 degrees apart.
@@ -34,24 +32,15 @@ const ARM_WIDTH: float = 0.62
 const ARM_REACH: float = 0.93
 ## A direction counts as pressing an arm when that axis of the stick is at least this much (a diagonal is 0.71 on both).
 const ARM_PRESS: float = 0.38
-const RING_COLOR: Color = Color(1.0, 1.0, 1.0, 0.6)
-const RING_WIDTH: float = 4.0
-## The ring that is not "active" is the same white, dimmer: the outer one until it lights up (auto-run armed).
-const DIM_RING_COLOR: Color = Color(1.0, 1.0, 1.0, 0.25)
-## While the outer ring is lit, the band between the disc and the ring is tinted too.
-const BAND_COLOR: Color = Color(1.0, 1.0, 1.0, 0.16)
 
 var value: Vector2 = Vector2.ZERO
 ## Resting spot of the pad inside the zone (0..1 of its size).
 var rest_fraction: Vector2 = Vector2(0.5, 0.5)
 
-## Running on its own after a release past the disc (value stays at full speed).
-var auto_run: bool = false
 
 var _pointer: int = NO_POINTER
 ## The direction the last tick was given for (so only a change of direction buzzes).
 var _last_direction: Vector2 = Vector2.ZERO
-var _armed: bool = false  # the thumb is past the disc: a release locks the run
 var _origin: Vector2 = Vector2.ZERO
 
 
@@ -93,34 +82,15 @@ func _input(event: InputEvent) -> void:
 			_update(motion.position)
 
 
-## Stops the pad dead: lets go of a thumb and ends auto-run (the controls were hidden, or a new round began).
+## Stops the pad dead: lets go of a thumb (the controls were hidden, or a new round began).
 func release() -> void:
-	var moving: bool = _pointer != NO_POINTER or auto_run or value != Vector2.ZERO
+	var moving: bool = _pointer != NO_POINTER or value != Vector2.ZERO
 	_pointer = NO_POINTER
-	_armed = false
-	auto_run = false
 	value = Vector2.ZERO
 	_last_direction = Vector2.ZERO
 	if moving:
 		changed.emit(value)
 	queue_redraw()
-
-
-## The outer ring is lit: letting go now (or already let go) keeps running.
-func outer_lit() -> bool:
-	return auto_run or (_pointer != NO_POINTER and _armed)
-
-
-## The outer ring shows only while a thumb is on the pad or it is auto-running.
-func outer_visible() -> bool:
-	return _pointer != NO_POINTER or auto_run
-
-
-## [disc rim, outer ring] colours: both white and as thick; the lit one is the brighter.
-func ring_colors() -> Array[Color]:
-	if outer_lit():
-		return [DIM_RING_COLOR, RING_COLOR]
-	return [RING_COLOR, DIM_RING_COLOR]
 
 
 ## Where the pad rests (always visible).
@@ -131,11 +101,6 @@ func rest_position() -> Vector2:
 func _draw() -> void:
 	var center: Vector2 = rest_position()
 	var radius: float = MAX_RADIUS
-	if outer_visible():
-		if outer_lit():
-			var band: float = OUTER_RADIUS - MAX_RADIUS
-			draw_arc(center, MAX_RADIUS + band / 2.0, 0.0, TAU, 72, BAND_COLOR, band, true)
-		draw_arc(center, OUTER_RADIUS, 0.0, TAU, 72, ring_colors()[1], RING_WIDTH, true)
 	_draw_dish(center, radius)
 	var pressed: Vector2 = value
 	var arms: Array[bool] = pressed_arms(pressed)
@@ -200,15 +165,12 @@ func _to_local(viewport_position: Vector2) -> Vector2:
 	return get_global_transform_with_canvas().affine_inverse() * viewport_position
 
 
-## Where a touch grabs the pad: on the disc, or anywhere in the outer ring while auto-running (it is showing then).
+## Where a touch grabs the pad: on the disc.
 func _in_zone(viewport_position: Vector2) -> bool:
-	var reach: float = OUTER_RADIUS if auto_run else MAX_RADIUS
-	return _to_local(viewport_position).distance_to(rest_position()) <= reach
+	return _to_local(viewport_position).distance_to(rest_position()) <= MAX_RADIUS
 
 
 func _begin(pointer: int, viewport_position: Vector2) -> void:
-	# grabs at once, also out of auto-run: the thumb takes over on this very touch
-	auto_run = false
 	_pointer = pointer
 	_origin = rest_position()
 	_update(viewport_position)
@@ -217,7 +179,6 @@ func _begin(pointer: int, viewport_position: Vector2) -> void:
 func _update(viewport_position: Vector2) -> void:
 	var offset: Vector2 = _to_local(viewport_position) - _origin
 	value = stick_from_offset(offset, MAX_RADIUS, DEADZONE)
-	_armed = offset.length() > MAX_RADIUS
 	if not value.is_equal_approx(_last_direction):
 		_last_direction = value
 		direction_changed.emit(value)
@@ -227,13 +188,7 @@ func _update(viewport_position: Vector2) -> void:
 
 func _end() -> void:
 	_pointer = NO_POINTER
-	if _armed and value != Vector2.ZERO:
-		# let go past the disc: keep running that way at full speed
-		auto_run = true
-	else:
-		auto_run = false
-		value = Vector2.ZERO
-	_armed = false
+	value = Vector2.ZERO
 	_last_direction = Vector2.ZERO
 	changed.emit(value)
 	queue_redraw()

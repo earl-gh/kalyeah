@@ -181,62 +181,6 @@ func _stick() -> DPad:
 	return stick
 
 
-func test_letting_go_past_the_inner_ring_keeps_running() -> void:
-	var stick: DPad = _stick()
-	var centre: Vector2 = stick.rest_position()
-	stick._begin(DPad.MOUSE_POINTER, centre + Vector2(0.0, -50.0))
-	assert_false(stick.outer_lit(), "inside the inner ring: a normal stick")
-	var colors: Array[Color] = stick.ring_colors()
-	assert_gt(colors[0].a, colors[1].a, "not lit: the outer ring is the dimmer one")
-	assert_eq(Color(colors[1], 1.0), Color.WHITE, "and white")
-	stick._update(centre + Vector2(DPad.MAX_RADIUS + 10.0, 0.0))
-	assert_true(stick.outer_lit(), "most of the knob past the inner ring lights the outer ring")
-	assert_gt(stick.ring_colors()[1].a, stick.ring_colors()[0].a, "lit: the outer ring is the bright one")
-	stick._end()
-	assert_true(stick.auto_run)
-	assert_eq(stick.value, Vector2(1.0, 0.0), "keeps running that way at full speed")
-	assert_true(stick.outer_lit(), "the outer ring stays lit while auto-running")
-
-
-func test_letting_go_inside_the_inner_ring_stops() -> void:
-	var stick: DPad = _stick()
-	var centre: Vector2 = stick.rest_position()
-	stick._begin(DPad.MOUSE_POINTER, centre + Vector2(DPad.MAX_RADIUS + 20.0, 0.0))
-	stick._update(centre + Vector2(DPad.MAX_RADIUS - 10.0, 0.0))
-	assert_false(stick.outer_lit(), "back inside: not lit")
-	stick._end()
-	assert_false(stick.auto_run)
-	assert_eq(stick.value, Vector2.ZERO, "idle")
-
-
-func test_a_touch_grabs_the_knob_at_once_out_of_auto_run() -> void:
-	var stick: DPad = _stick()
-	var centre: Vector2 = stick.rest_position()
-	stick._begin(DPad.MOUSE_POINTER, centre + Vector2(0.0, -120.0))
-	stick._end()
-	assert_true(stick.auto_run)
-	# a new touch to the left: the very first event steers left, no unlock delay
-	var press: InputEventMouseButton = InputEventMouseButton.new()
-	press.button_index = MOUSE_BUTTON_LEFT
-	press.pressed = true
-	press.position = stick.get_global_rect().position + centre + Vector2(-60.0, 0.0)
-	stick._input(press)
-	assert_false(stick.auto_run, "grabbed")
-	assert_almost_eq(stick.value.x, -1.0, 0.01, "follows the finger on the same touch (full speed, the other way)")
-	assert_almost_eq(stick.value.y, 0.0, 0.01)
-
-
-func test_release_stops_auto_run() -> void:
-	var stick: DPad = _stick()
-	var centre: Vector2 = stick.rest_position()
-	stick._begin(DPad.MOUSE_POINTER, centre + Vector2(0.0, 120.0))
-	stick._end()
-	assert_true(stick.auto_run)
-	stick.release()
-	assert_false(stick.auto_run)
-	assert_eq(stick.value, Vector2.ZERO)
-
-
 func _press(stick: DPad, offset: Vector2) -> void:
 	var press: InputEventMouseButton = InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT
@@ -245,33 +189,38 @@ func _press(stick: DPad, offset: Vector2) -> void:
 	stick._input(press)
 
 
-func test_the_outer_ring_appears_only_once_the_knob_is_held() -> void:
+func test_letting_go_always_stops_even_past_the_disc() -> void:
 	var stick: DPad = _stick()
-	assert_false(stick.outer_visible(), "at rest: the knob and the inner ring only")
-	_press(stick, Vector2(DPad.MAX_RADIUS + 15.0, 0.0))
-	assert_eq(stick.value, Vector2.ZERO, "a touch in the (hidden) outer ring does not grab")
-	assert_false(stick.outer_visible())
-	_press(stick, Vector2(30.0, 0.0))
-	assert_ne(stick.value, Vector2.ZERO, "a touch inside the inner ring grabs")
-	assert_true(stick.outer_visible(), "the outer ring shows while held")
-
-
-func test_while_auto_running_a_touch_in_the_outer_ring_grabs_too() -> void:
-	var stick: DPad = _stick()
-	_press(stick, Vector2(0.0, -20.0))
-	stick._update(stick.get_global_rect().position + stick.rest_position() + Vector2(0.0, -120.0))
+	var centre: Vector2 = stick.rest_position()
+	stick._begin(DPad.MOUSE_POINTER, centre + Vector2(0.0, -50.0))
+	assert_true(stick.value.is_equal_approx(Vector2.UP), "running up while held")
+	stick._update(centre + Vector2(DPad.MAX_RADIUS + 60.0, 0.0))
+	assert_eq(stick.value, Vector2(1.0, 0.0), "sliding far past the disc keeps the direction")
 	stick._end()
-	assert_true(stick.auto_run)
-	assert_true(stick.outer_visible(), "showing while auto-running")
+	assert_eq(stick.value, Vector2.ZERO, "and letting go there stops: there is no auto-run on a D-pad")
+
+
+func test_a_touch_outside_the_disc_does_not_grab_the_pad() -> void:
+	var stick: DPad = _stick()
 	_press(stick, Vector2(DPad.MAX_RADIUS + 15.0, 0.0))
-	assert_false(stick.auto_run, "grabbed from the outer ring at once")
-	assert_gt(stick.value.x, 0.9, "steering right on the same touch")
+	assert_eq(stick.value, Vector2.ZERO, "only the disc grabs")
+	_press(stick, Vector2(30.0, 0.0))
+	assert_ne(stick.value, Vector2.ZERO, "a touch on the disc does")
+
+
+func test_release_stops_the_pad() -> void:
+	var stick: DPad = _stick()
+	var centre: Vector2 = stick.rest_position()
+	stick._begin(DPad.MOUSE_POINTER, centre + Vector2(0.0, 80.0))
+	assert_ne(stick.value, Vector2.ZERO)
+	stick.release()
+	assert_eq(stick.value, Vector2.ZERO)
 
 
 func test_the_pad_says_when_the_thumb_enters_a_new_direction_and_only_then() -> void:
 	var pad: DPad = autofree(DPad.new()) as DPad
 	add_child(pad)
-	pad.size = Vector2(DPad.OUTER_RADIUS * 2.0, DPad.OUTER_RADIUS * 2.0)
+	pad.size = Vector2(DPad.MAX_RADIUS * 2.0, DPad.MAX_RADIUS * 2.0)
 	var seen: Array[Vector2] = []
 	pad.direction_changed.connect(func(direction: Vector2) -> void: seen.append(direction))
 	pad._begin(-2, pad.get_global_rect().get_center() + Vector2(40.0, 0.0))

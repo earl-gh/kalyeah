@@ -103,30 +103,26 @@ func test_explicit_cancel_ends_an_active_aim_without_casting() -> void:
 	assert_null(TouchButton.holder)
 
 
-func test_dpad_normal_release_still_arms_auto_run() -> void:
+func test_dpad_normal_release_stops_even_past_the_disc() -> void:
 	var stick: DPad = _stick()
 	var centre: Vector2 = stick.rest_position()
 	stick._input(_touch(9, centre, true))
 	stick._input(_drag(9, centre + Vector2(DPad.MAX_RADIUS + 20.0, 0.0)))
+	assert_eq(stick.value, Vector2.RIGHT, "still running right while held")
 	stick._input(_touch(9, centre, false))
-	assert_true(stick.auto_run)
-	assert_eq(stick.value, Vector2.RIGHT)
+	assert_eq(stick.value, Vector2.ZERO, "a D-pad has no auto-run: letting go stops")
 	assert_eq(stick._pointer, DPad.NO_POINTER)
 
 
-func test_dpad_cancelled_touch_stops_and_disarms_auto_run() -> void:
+func test_dpad_cancelled_touch_stops() -> void:
 	var stick: DPad = _stick()
 	var centre: Vector2 = stick.rest_position()
 	watch_signals(stick)
 	stick._input(_touch(10, centre, true))
 	stick._input(_drag(10, centre + Vector2(DPad.MAX_RADIUS + 20.0, 0.0)))
-	assert_true(stick.outer_lit(), "a normal release here would arm auto-run")
 	stick._input(_touch(10, Vector2.ZERO, false, true))
-	assert_false(stick.auto_run)
 	assert_eq(stick.value, Vector2.ZERO)
 	assert_eq(stick._pointer, DPad.NO_POINTER)
-	assert_false(stick._armed)
-	assert_false(stick.outer_visible())
 	assert_signal_emitted_with_parameters(stick, "changed", [Vector2.ZERO])
 
 
@@ -138,6 +134,5 @@ func test_dpad_ignores_cancellation_from_a_non_owner_pointer() -> void:
 	stick._input(_touch(12, Vector2.ZERO, false, true))
 	assert_eq(stick._pointer, 11)
 	assert_eq(stick.value, Vector2.RIGHT)
-	assert_true(stick.outer_visible())
 	stick._input(_touch(11, Vector2.ZERO, false, true))
 	assert_eq(stick.value, Vector2.ZERO)
