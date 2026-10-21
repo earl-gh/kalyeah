@@ -67,10 +67,10 @@ const BUILDING_WIDTH: float = 6.0
 const TERMINAL: String = "tricycle_terminal"
 ## Sidewalk pets and things (heights in metres, in proportion to the kids): the cat and the dog lie
 ## about, the chicken cage stands by a building, the drainage cover (a metre wide) is set in the walk.
-const CAT_HEIGHT: float = 0.45
-const DOG_HEIGHT: float = 0.75
+const CAT_HEIGHT: float = 0.3
+const DOG_HEIGHT: float = 0.62
 const CHICKEN_CAGE_HEIGHT: float = 0.9
-const DRAINAGE_COVER_WIDTH: float = 1.1
+const DRAINAGE_COVER_WIDTH: float = 0.75
 const SHADOW_DISTANCE: float = 400.0
 ## Painted ground sits just above the coloured road and sidewalk boxes.
 const PAVER_TILE: float = 2.4
@@ -108,9 +108,9 @@ const POST_HEIGHT: float = 8.5
 ## the kids (who stand 1.85 m, so a real thing is about 1.4 times its true size), side by side
 ## in this order (the far end starts half way along, so the two rows differ).
 const BARRIER_HEIGHTS: Dictionary[String, float] = {
-	"fishball_cart": 2.1, "tricycle": 2.4, "bench": 0.8, "crates": 0.85, "sacks": 1.0, "school_zone": 1.7,
+	"fishball_cart": 2.1, "tricycle": 2.4, "bench": 1.1, "crates": 1.1, "sacks": 1.0, "school_zone": 3.0,
 	"basketball_pole": 6.0, "ebike": 1.5, "truck_wheels": 1.4, "sewing_machine": 1.3, "ironing_board": 1.2,
-	"no_id_no_entry": 1.7, "rooster_tent": 1.4, "plank_fence": 1.8, "roof_wall": 2.2, "roof_wall_2": 2.4,
+	"no_id_no_entry": 1.7, "rooster_tent": 1.4, "plank_fence": 1.8, "roof_wall": 2.9, "roof_wall_2": 2.9,
 }
 ## Things whose long side is their depth: they are turned a quarter so the long side faces the play area.
 const BARRIER_TURNED: Array[String] = ["tricycle"]
@@ -121,7 +121,7 @@ const BARRIER_LYING: Array[String] = ["basketball_pole"]
 ## Parked beyond the barrier rows and on the sidewalk, outside the play area (heights in metres).
 const JEEP_HEIGHT: float = 2.8
 const PEDICAB_HEIGHT: float = 2.4
-const ICE_CREAM_CART_HEIGHT: float = 2.1
+const ICE_CREAM_CART_HEIGHT: float = 2.5
 const NANAY_HEIGHT: float = 2.2
 const NANAY_SWAY_DEGREES: float = 4.0
 const NANAY_SWAY_SECONDS: float = 3.5
@@ -271,6 +271,20 @@ func _platform() -> ArrayMesh:
 	return kit.commit()
 
 
+## The scenery's size next to the kids (`MapLayout.scenery_scale`), the cover walls' and the posts' drawn heights. The main-screen model
+## (`diorama`) keeps the true sizes: it frames its own little street.
+func scenery() -> float:
+	return 1.0 if diorama else layout.scenery_scale
+
+
+func cover_height() -> float:
+	return COVER_HEIGHT if diorama else layout.cover_height
+
+
+func post_height() -> float:
+	return POST_HEIGHT if diorama else layout.post_height
+
+
 func _build_map() -> void:
 	_add(_street(), Vector3.ZERO).material_override = street_material()
 	if diorama:
@@ -288,7 +302,7 @@ func _build_map() -> void:
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var color: Color = TeamColors.world_own() if side == MapLayout.SIDE_OWN else TeamColors.world_enemy()
 		var center: Vector2 = layout.base_center(side)
-		var post: Node3D = _add_prop(PropModel.by_height("electric_pole", POST_HEIGHT), Vector3(center.x, 0.0, center.y))
+		var post: Node3D = _add_prop(PropModel.by_height("electric_pole", post_height()), Vector3(center.x, 0.0, center.y))
 		_posts[side] = post
 		var base: Array[StandardMaterial3D] = _add_base_zone(side, color)
 		_add_jail(side)
@@ -305,7 +319,7 @@ func _build_map() -> void:
 func _add_corner_props() -> void:
 	# only the far half of the street is modelled: the enemy post (top right) and your box (top left)
 	var center: Vector2 = layout.base_center(MapLayout.SIDE_ENEMY)
-	_posts[MapLayout.SIDE_ENEMY] = _add_prop(PropModel.by_height("electric_pole", POST_HEIGHT), Vector3(center.x, 0.0, center.y))
+	_posts[MapLayout.SIDE_ENEMY] = _add_prop(PropModel.by_height("electric_pole", post_height()), Vector3(center.x, 0.0, center.y))
 	_add_jail(MapLayout.SIDE_OWN)
 	_turn_posts(MapLayout.SIDE_OWN)
 
@@ -414,7 +428,7 @@ func _add_obstacle(index: int) -> void:
 	var turned: bool = rect.size.y > rect.size.x
 	var footprint: Vector2 = Vector2(maxf(rect.size.x, rect.size.y), minf(rect.size.x, rect.size.y))
 	var id: String = String(OBSTACLE_MODELS.get(layout.obstacle_prop(index), "cardboard_wall"))
-	_add_prop(PropModel.fit(id, footprint, COVER_HEIGHT), at, PI / 2.0 if turned else 0.0)
+	_add_prop(PropModel.fit(id, footprint, cover_height(), not diorama), at, PI / 2.0 if turned else 0.0)
 
 
 ## The base: a faint team-tinted circle round the post, cut off by the street edges,
@@ -449,7 +463,7 @@ func _add_jail(side: int) -> void:
 		var center: Vector2 = wall.get_center()
 		var turned: bool = wall.size.y > wall.size.x
 		var footprint: Vector2 = Vector2(maxf(wall.size.x, wall.size.y), minf(wall.size.x, wall.size.y))
-		_add_prop(PropModel.fit("cardboard_wall", footprint, COVER_HEIGHT), Vector3(center.x, 0.0, center.y), PI / 2.0 if turned else 0.0)
+		_add_prop(PropModel.fit("cardboard_wall", footprint, cover_height(), not diorama), Vector3(center.x, 0.0, center.y), PI / 2.0 if turned else 0.0)
 
 
 ## The rescue area round the box: the same look as the base circle (a faint team fill and team
@@ -551,12 +565,12 @@ func _add_tape(outer: Array[Vector2], inner: Array[Vector2], keep: Array[bool], 
 
 
 ## How wide (m, along the row) a barrier thing is at its true size.
-static func barrier_width(id: String) -> float:
+static func barrier_width(id: String, scale: float = 1.0) -> float:
 	if BARRIER_LYING.has(id):
-		return BARRIER_HEIGHTS[id]
+		return BARRIER_HEIGHTS[id] * scale
 	var natural: Vector3 = PropModel.size_of(id)
 	var side: float = natural.z if BARRIER_TURNED.has(id) else natural.x
-	return side * BARRIER_HEIGHTS[id] / natural.y
+	return side * BARRIER_HEIGHTS[id] * scale / natural.y
 
 
 ## The ends of the play area are walled off by a row of street things (a fishball cart, a bench,
@@ -577,7 +591,7 @@ func _add_barricades() -> void:
 		while true:
 			var id: String = ids[i % ids.size()]
 			var natural: Vector3 = PropModel.size_of(id)
-			var width: float = barrier_width(id)  # true size, never stretched
+			var width: float = barrier_width(id, scenery())  # its drawn size, never stretched
 			var need: float = width + (BARRIER_GAP if not picked.is_empty() else 0.0)
 			if used + need > layout.lane_width:
 				break
@@ -596,7 +610,7 @@ func _add_barricades() -> void:
 		var x: float = -layout.lane_width / 2.0 + spare * shares[0] / total
 		for k: int in picked.size():
 			var id: String = picked[k]
-			var model: Node3D = PropModel.by_height(id, BARRIER_HEIGHTS[id])
+			var model: Node3D = PropModel.by_height(id, BARRIER_HEIGHTS[id] * scenery())
 			var turned: bool = BARRIER_TURNED.has(id)
 			var natural: Vector3 = PropModel.size_of(id)
 			var depth: float = (natural.x if turned else natural.z) * model.scale.z
@@ -609,19 +623,19 @@ func _add_barricades() -> void:
 			_put_barrier(model, id, Vector3(x + widths[k] / 2.0, 0.0, at_z), end, turn)
 			x += widths[k] + BARRIER_GAP + spare * shares[k + 1] / total
 		# what did not fit in the row stands about on the road beyond the end instead
-		var z_far: float = layout.lane_length / 2.0 + FAR_PROPS_START
+		var z_far: float = layout.lane_length / 2.0 + FAR_PROPS_START * scenery()
 		var side: float = 1.0 if rng.randf() < 0.5 else -1.0
 		for id: String in ids:
 			if picked.has(id):
 				continue
-			var width: float = barrier_width(id)
+			var width: float = barrier_width(id, scenery())
 			var room: float = layout.lane_width / 2.0 - width / 2.0 - 0.5
 			var far_x: float = clampf(side * rng.randf_range(0.2, 1.0) * room, -room, room)
 			var far_turn: float = deg_to_rad(rng.randf_range(-BARRIER_TURN, BARRIER_TURN) * 2.0)
-			_put_barrier(PropModel.by_height(id, BARRIER_HEIGHTS[id]), id, Vector3(far_x, 0.0, end * z_far), end, far_turn)
+			_put_barrier(PropModel.by_height(id, BARRIER_HEIGHTS[id] * scenery()), id, Vector3(far_x, 0.0, end * z_far), end, far_turn)
 			far_props.append(id)
 			side = -side
-			z_far += FAR_PROPS_SPACING
+			z_far += FAR_PROPS_SPACING * scenery()
 
 
 ## Sets one barrier thing down at `at` (the middle of it), facing the play area at `end`.
@@ -633,7 +647,7 @@ func _put_barrier(model: Node3D, id: String, at: Vector3, end: float, turn: floa
 		var natural: Vector3 = PropModel.size_of(id)
 		placed.rotation = Vector3(0.0, turn, -PI / 2.0)
 		var along: Vector3 = Vector3(cos(turn), 0.0, -sin(turn))
-		placed.position = Vector3(at.x, natural.x * model.scale.x / 2.0, at.z) - along * (barrier_width(id) / 2.0)
+		placed.position = Vector3(at.x, natural.x * model.scale.x / 2.0, at.z) - along * (barrier_width(id, scenery()) / 2.0)
 
 
 ## The owner's three shopfronts (Nena store, vulcanizing, barber shop) with his two houses between them, along both sides of the street, running on past
@@ -647,26 +661,27 @@ func _add_houses() -> void:
 	var terminal_z: float = -layout.lane_length / 2.0 + 3.0
 	var variant: int = 0
 	for side: float in [-1.0, 1.0]:
-		var z: float = -half_l + HOUSE_SPACING / 2.0
+		var spacing: float = HOUSE_SPACING * scenery()
+		var z: float = -half_l + spacing / 2.0
 		while z < half_l:
 			var id: String = BUILDINGS[(variant / 2) % BUILDINGS.size()] if variant % 2 == 0 else FILLER_HOUSES[(variant / 2) % FILLER_HOUSES.size()]
 			if absf(z) > layout.lane_length / 2.0:
 				# beyond the ends of the play area only houses, repeated (no shops, no terminal)
 				id = FILLER_HOUSES[variant % FILLER_HOUSES.size()]
-			if side < 0.0 and absf(z - store_z) < HOUSE_SPACING / 2.0:
+			if side < 0.0 and absf(z - store_z) < spacing / 2.0:
 				id = "nena_store"
 				z = store_z
-			elif side < 0.0 and absf(z - terminal_z) < HOUSE_SPACING / 2.0:
+			elif side < 0.0 and absf(z - terminal_z) < spacing / 2.0:
 				id = TERMINAL
 				z = terminal_z
 			var natural: Vector3 = PropModel.size_of(id)
-			var scale_to: float = BUILDING_WIDTH / natural.x
+			var scale_to: float = BUILDING_WIDTH * scenery() / natural.x
 			var depth: float = natural.z * scale_to
 			# the front faces the street: +X on the left side, -X on the right
 			var yaw: float = PI / 2.0 if side < 0.0 else -PI / 2.0
 			_add_prop(PropModel.make(id, Vector3.ONE * scale_to), Vector3(side * (front + depth / 2.0 + 0.2), 0.0, z), yaw)
 			variant += 1
-			z += HOUSE_SPACING
+			z += spacing
 
 
 ## Life around the street (no power poles or bunting, owner):
@@ -677,9 +692,9 @@ func _add_details() -> void:
 	var half_l: float = layout.lane_length / 2.0
 	var walk_x: float = half_w + layout.boundary_thickness + SIDEWALK_WIDTH / 2.0
 	var store_z: float = -layout.lane_length * 0.18
-	_add_prop(PropModel.fit("bench", Vector2(2.0, 0.7), 1.0), Vector3(-walk_x - 0.3, CURB_HEIGHT, store_z - 1.0), PI / 2.0)
+	_add_prop(PropModel.fit("bench", Vector2(2.0, 0.7) * scenery(), 1.1 * scenery(), true), Vector3(-walk_x - 0.3, CURB_HEIGHT, store_z - 1.0), PI / 2.0)
 	# the nanay stands by the bench, a little swaying as she waits
-	var nanay: Node3D = _add_prop(PropModel.by_height("nanay", NANAY_HEIGHT), Vector3(-walk_x, CURB_HEIGHT, store_z + 0.3), PI / 2.0)
+	var nanay: Node3D = _add_prop(PropModel.by_height("nanay", NANAY_HEIGHT * scenery()), Vector3(-walk_x, CURB_HEIGHT, store_z + 0.3), PI / 2.0)
 	nanay.name = "Nanay"
 	nanay.add_child(DecorativeSway.new(nanay, NANAY_SWAY_DEGREES, NANAY_SWAY_SECONDS))
 	_add_parked_vehicles(half_w, half_l, walk_x)
@@ -690,25 +705,25 @@ func _add_details() -> void:
 func _add_sidewalk_props(walk_x: float) -> void:
 	var left: float = PI / 2.0
 	var right: float = -PI / 2.0
-	_add_prop(PropModel.by_height("cat", CAT_HEIGHT), Vector3(-walk_x - 0.2, CURB_HEIGHT, -3.0), left)
-	_add_prop(PropModel.by_height("dog", DOG_HEIGHT), Vector3(walk_x + 0.2, CURB_HEIGHT, -9.0), right)
-	_add_prop(PropModel.by_height("chicken_cage", CHICKEN_CAGE_HEIGHT), Vector3(walk_x + 0.3, CURB_HEIGHT, 14.0), right)
+	_add_prop(PropModel.by_height("cat", CAT_HEIGHT * scenery()), Vector3(-walk_x - 0.2, CURB_HEIGHT, -3.0), left)
+	_add_prop(PropModel.by_height("dog", DOG_HEIGHT * scenery()), Vector3(walk_x + 0.2, CURB_HEIGHT, -9.0), right)
+	_add_prop(PropModel.by_height("chicken_cage", CHICKEN_CAGE_HEIGHT * scenery()), Vector3(walk_x + 0.3, CURB_HEIGHT, 14.0), right)
 	for spot: Vector2 in [Vector2(-walk_x, -17.0), Vector2(-walk_x, 7.0), Vector2(walk_x, 0.0), Vector2(walk_x, 19.0)]:
-		_add_prop(PropModel.make("drainage_cover", Vector3.ONE * (DRAINAGE_COVER_WIDTH / PropModel.size_of("drainage_cover").x)), Vector3(spot.x, CURB_HEIGHT, spot.y))
+		_add_prop(PropModel.make("drainage_cover", Vector3.ONE * (DRAINAGE_COVER_WIDTH * scenery() / PropModel.size_of("drainage_cover").x)), Vector3(spot.x, CURB_HEIGHT, spot.y))
 
 
 ## The jeepney parked across the street behind the top barrier row, the pedicab behind the bottom
 ## one, and the ice cream cart on the right sidewalk (all outside the play area).
 func _add_parked_vehicles(half_w: float, half_l: float, walk_x: float) -> void:
-	var jeep: Node3D = PropModel.by_height("jeep", JEEP_HEIGHT)
+	var jeep: Node3D = PropModel.by_height("jeep", JEEP_HEIGHT * scenery())
 	jeep.name = "Jeep"
 	var jeep_size: Vector3 = PropModel.size_of("jeep") * jeep.scale
 	_add_prop(jeep, Vector3(-half_w * 0.3, 0.0, -(half_l + BARRIER_SETBACK + BARRIER_JITTER + 2.0 + jeep_size.z / 2.0)))
-	var pedicab: Node3D = PropModel.by_height("pedicab", PEDICAB_HEIGHT)
+	var pedicab: Node3D = PropModel.by_height("pedicab", PEDICAB_HEIGHT * scenery())
 	pedicab.name = "Pedicab"
 	var pedicab_size: Vector3 = PropModel.size_of("pedicab") * pedicab.scale
 	_add_prop(pedicab, Vector3(half_w * 0.35, 0.0, half_l + BARRIER_SETBACK + BARRIER_JITTER + 2.0 + pedicab_size.x / 2.0), PI / 2.0)
-	var cart: Node3D = PropModel.by_height("ice_cream_cart", ICE_CREAM_CART_HEIGHT)
+	var cart: Node3D = PropModel.by_height("ice_cream_cart", ICE_CREAM_CART_HEIGHT * scenery())
 	cart.name = "IceCreamCart"
 	_add_prop(cart, Vector3(walk_x, CURB_HEIGHT, -half_l * 0.6), -PI / 2.0)
 
