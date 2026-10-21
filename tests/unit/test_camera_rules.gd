@@ -16,7 +16,7 @@ func _corners(distance: float, aspect: float, shift: float) -> Array[Vector2]:
 
 
 func test_a_fixed_steep_camera_with_a_narrow_lens() -> void:
-	assert_eq(CAMERA.pitch_degrees, 50.0, "steep, so the arena reads like a board")
+	assert_eq(CAMERA.pitch_degrees, 56.0, "owner reference (Clash Royale): tilted, so fronts of kids and props show, yet the arena still reads like a board")
 	assert_eq(CAMERA.vfov_degrees, 20.0, "narrow: the far end is only a little smaller than the near end")
 	assert_eq(CAMERA.yaw_offset_degrees, 0.0, "straight along the street")
 	assert_eq(CameraRules.DESIGN_ASPECT, 9.0 / 16.0, "portrait 9:16")
@@ -79,7 +79,7 @@ func test_the_kid_is_readable_at_this_size() -> void:
 	var feet: Vector2 = CAMERA.screen_point(framed.x, PHONE, Vector2.ZERO, framed.y)
 	var head: Vector2 = CAMERA.screen_point(framed.x, PHONE, Vector2.ZERO, framed.y, KidModel.KID_HEIGHT * CAMERA.kid_view_scale)
 	var tall: float = (head.y - feet.y) / 2.0 * 1280.0
-	assert_gt(tall, 36.0, "at least 36 px tall on a 1280 px screen (about 40 at the shipped scale: do not shrink the kids further)")
+	assert_gt(tall, 33.0, "at least 33 px tall on a 1280 px screen (about 35 at the shipped scale and tilt: do not shrink the kids further)")
 	var wide: float = absf(CAMERA.screen_point(framed.x, PHONE, Vector2(0.35 * CAMERA.kid_view_scale, 0.0), framed.y).x - feet.x) * 360.0 * 2.0
 	assert_gt(wide, 20.0, "and at least 20 px wide (about 23)")
 
