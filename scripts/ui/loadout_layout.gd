@@ -3,6 +3,10 @@ extends RefCounted
 ## Portrait loadout layout; sockets and confirmation stay visible while weapons scroll.
 
 
+## The height kept for the suggested-pair button (it never changes the layout when it hides).
+const SUGGEST_HEIGHT: float = 80.0
+
+
 static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	for def: WeaponDef in defs:
 		screen._defs[def.id] = def
@@ -54,22 +58,28 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 		socket.pressed.connect(screen.select_slot.bind(slot))
 		sockets.add_child(socket)
 		screen._sockets.append(socket)
-	# the hint on the left and, for a player with no picks yet, a suggested pair on the right (no extra height)
-	var hint_row: HBoxContainer = HBoxContainer.new()
-	hint_row.add_theme_constant_override("separation", UiMetrics.GAP)
-	column.add_child(hint_row)
-	screen._hint = LoadoutCards.label("", 24, KalyeahTheme.AMBER)
+	# the hint on its own line, and under it a slot of fixed height for the suggested pair: the slot stays when the button is hidden,
+	# so picking or un-picking a weapon never moves the grid under the finger
+	screen._hint = LoadoutCards.label("", UiMetrics.DETAIL, KalyeahTheme.AMBER)
 	screen._hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	screen._hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	hint_row.add_child(screen._hint)
+	screen._hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	screen._hint.autowrap_mode = TextServer.AUTOWRAP_OFF
+	screen._hint.clip_text = true
+	column.add_child(screen._hint)
 	var pair_names: Array[String] = []
 	for id: StringName in screen.suggestion:
 		pair_names.append((screen._defs[id] as WeaponDef).short_name)
-	screen._suggest_button = MenuDialog.make_button("Suggested: %s" % " + ".join(pair_names), "blue", 24, Vector2(0.0, 64.0))
+	var slot_box: Control = Control.new()
+	slot_box.name = "SuggestSlot"
+	slot_box.custom_minimum_size = Vector2(0.0, SUGGEST_HEIGHT)
+	slot_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(slot_box)
+	screen._suggest_button = MenuDialog.make_button("Suggested: %s" % " + ".join(pair_names), "blue", UiMetrics.DETAIL, Vector2(0.0, SUGGEST_HEIGHT))
 	screen._suggest_button.name = "SuggestButton"
 	screen._suggest_button.visible = false
+	screen._suggest_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	screen._suggest_button.pressed.connect(screen.use_suggestion)
-	hint_row.add_child(screen._suggest_button)
+	slot_box.add_child(screen._suggest_button)
 	column.add_child(_weapons(screen, defs))
 	column.add_child(LoadoutCards.info_panel(screen))
 	screen._ready_button = MenuDialog.make_button("Ready", "orange", 30, Vector2(0.0, 88.0))

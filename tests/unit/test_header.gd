@@ -127,3 +127,11 @@ func test_your_health_bar_turns_amber_then_red_as_it_empties() -> void:
 	assert_eq(ConsolePanel.health_color(0.5), TeamColors.bar_self(), "half is still healthy")
 	assert_eq(ConsolePanel.health_color(0.4), ConsolePanel.HEALTH_AMBER)
 	assert_eq(ConsolePanel.health_color(0.2), ConsolePanel.HEALTH_RED)
+
+
+# ---- the interaction audit's P0 and P1 (docs/audits/2026-10-22-interaction-audit.md) ----
+
+func test_the_clock_says_time_because_it_counts_up_and_a_match_has_no_limit() -> void:
+	assert_eq(ClockChip.new().text(), "0:00")
+	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
+	assert_eq(rules.overtime_after, 0.0, "no overtime: nothing says time is left")

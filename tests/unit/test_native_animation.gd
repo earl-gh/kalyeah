@@ -7,6 +7,18 @@ const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const DT: float = 1.0 / 30.0
 
 
+var _developer: bool
+
+
+func before_each() -> void:
+	_developer = Settings.developer
+	Settings.developer = true  # the practice tools are developer tools
+
+
+func after_each() -> void:
+	Settings.developer = _developer
+
+
 func _def(id: StringName) -> CharacterDef:
 	for def: CharacterDef in (load("res://data/rules/game_rules.tres") as GameRules).characters:
 		if def.id == id:

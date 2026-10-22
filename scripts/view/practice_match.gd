@@ -30,6 +30,9 @@ const TITLE_SCENE: String = "res://scenes/ui/title_screen.tscn"
 @export var layout: MapLayout
 ## Online match: driven by Net.client (set `client` before adding to the tree to
 ## use another one, e.g. in tests).
+## A Practice match left after this many seconds counts as a loss in History.
+const ABANDON_AFTER: float = 15.0
+
 @export var online: bool = false
 
 var sim: MatchSim
@@ -54,6 +57,7 @@ var _application_paused: bool = false
 var _presentation: PracticeMatchPresentation
 ## The bot teams of a Practice match vs bots (empty in training and online).
 var _coaches: Array[TeamCoach] = []
+var _hold_ticked: bool = false
 
 @onready var hud: MatchHud = %Hud
 @onready var _camera: ArenaCamera = %ArenaCamera
@@ -228,6 +232,14 @@ func advance(delta: float) -> void:
 	if _opening_pick:
 		_presentation.sync(delta)
 		return
+	if _held_still():
+		if not _hold_ticked:
+			# one neutral tick on the way in, so a held aim is cancelled before the match stands still
+			_hold_ticked = true
+			_step_once(rules.tick_dt())
+		_presentation.sync(delta)
+		return
+	_hold_ticked = false
 	_accumulator += delta
 	var dt: float = rules.tick_dt()
 	var steps: int = 0
@@ -238,6 +250,12 @@ func advance(delta: float) -> void:
 	if steps == MAX_STEPS_PER_FRAME:
 		_accumulator = 0.0
 	_presentation.sync(delta)
+
+
+## Offline, the match stands still while the match menu or the first-run walkthrough is open (a match against the clock of bots
+## does not wait for nobody online, so online play keeps running).
+func _held_still() -> bool:
+	return not online and (hud.menu.visible or hud.coach.visible)
 
 
 # ---- setup ---------------------------------------------------------------------------
@@ -435,8 +453,19 @@ func _try_reconnect(delta: float) -> void:
 		client.connect_to(url)
 
 
+## Leaving a Practice match against bots that has really started counts as a loss, so History does not forget it.
+func record_if_abandoned() -> bool:
+	if Session.practice_kind != &"match" or sim == null or sim.phase == MatchSim.Phase.MATCH_OVER or sim.match_time < ABANDON_AFTER:
+		return false
+	var points: Array[int] = sim.score.points
+	MatchHistory.record("practice", false, points[local_team], points[1 - local_team])
+	return true
+
+
 ## Settings menu > Exit match: online, give the room slot back first.
 func _on_exit_pressed() -> void:
 	if online:
 		client.leave_room()
+	else:
+		record_if_abandoned()
 	get_tree().change_scene_to_file(TITLE_SCENE)

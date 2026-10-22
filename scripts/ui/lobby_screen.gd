@@ -62,7 +62,9 @@ func _ready() -> void:
 	if not _intent_set:
 		intent = Session.lobby_intent as Intent
 	LobbyWidgets.add_backdrop(self, BACKGROUND)
-	if not hotspot:
+	# Create needs no form: the room opens at once (the name is your profile's, team size and first to are chosen in the room).
+	# Only Join asks for something, the room code.
+	if not hotspot and intent == Intent.JOIN:
 		_build()
 	_build_room_view()
 	client.connection_changed.connect(_on_connection_changed)
@@ -75,6 +77,8 @@ func _ready() -> void:
 		_on_room_changed(client.room)
 	elif hotspot:
 		_start_hotspot.call_deferred()
+	elif intent == Intent.CREATE:
+		_start_online_create.call_deferred()
 
 
 ## Tests / callers: choose Create or Join before the screen enters the tree.
@@ -87,7 +91,7 @@ func set_intent(value: Intent) -> void:
 func set_fields(url: String, player_name: String, code: String = "") -> void:
 	if not url.is_empty():
 		Settings.server_url = url
-	_name_edit.text = player_name
+	Session.player_name = player_name
 	if _code_edit != null:
 		_code_edit.text = code
 
@@ -320,7 +324,8 @@ func _on_back() -> void:
 func _show_room(joined: bool) -> void:
 	if _setup_layer != null:
 		_setup_layer.visible = not joined
-	_room_view.visible = hotspot or joined
+	# a hotspot or an online Create has no form: the room view carries the status until the room opens
+	_room_view.visible = hotspot or joined or intent == Intent.CREATE
 	_status = _room_view.status_label if _room_view.visible else _setup_status
 	if not joined:
 		_room_view.clear_room()
@@ -351,6 +356,13 @@ func _build_room_view() -> void:
 
 
 ## Create or Join was pressed on the main screen (its dialog already checked the hotspot): go on.
+func _start_online_create() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	_set_status("Creating the room…")
+	submit()
+
+
 func _start_hotspot() -> void:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return

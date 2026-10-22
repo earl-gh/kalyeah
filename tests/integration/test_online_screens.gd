@@ -213,7 +213,7 @@ func test_the_online_lobby_has_no_server_field_and_says_so_when_none_is_built_in
 	lobby.set_fields("", "Ana")
 	lobby.submit()
 	assert_eq(lobby.status_text(), "Online isn't available yet.")
-	assert_eq(lobby.find_children("*", "LineEdit", true, false).size(), 1, "only the name box")
+	assert_eq(lobby.find_children("*", "LineEdit", true, false).size(), 0, "Create has no form: no name box either (the name is the profile's)")
 	Settings.server_url = saved
 
 
@@ -222,7 +222,7 @@ func test_online_uses_shared_room_controls_and_server_confirmed_choices() -> voi
 	var host: LobbyScreen = pair[0]
 	var guest: LobbyScreen = pair[1]
 	assert_true(host._room_view.visible)
-	assert_false(host._setup_layer.visible)
+	assert_null(host._setup_layer, "Create has no form to hide")
 	assert_true(host._room_view.code_row.visible)
 	assert_eq(guest.code_text(), host.code_text())
 	assert_eq(guest._room_view.action_button.text, "Cancel ready")

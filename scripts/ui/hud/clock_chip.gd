@@ -1,7 +1,7 @@
 class_name ClockChip
 extends Control
-## The match clock at the right of the header, the counterpart of the settings button at the left: a navy panel with "TIME LEFT" over the time
-## (m:ss), like Clash Royale's. In overtime the caption turns gold and says OVERTIME. It only draws; it never takes a touch.
+## The match clock at the right of the header, the counterpart of the settings button at the left: a navy panel with "TIME" over the time
+## (m:ss, counting up: a match has no time limit). In overtime the caption turns gold and says OVERTIME. It only draws; it never takes a touch.
 
 const TIME_FONT: int = 40
 const CAPTION_FONT: int = 18
@@ -36,7 +36,7 @@ func _draw() -> void:
 	if overtime:
 		draw_rect(Rect2(Vector2(10.0, size.y - 14.0), Vector2(size.x - 20.0, 4.0)), RoyaleStyle.GOLD)
 	var font: Font = KalyeahTheme.ACTION_FONT
-	var caption: String = UiText.t("OVERTIME") if overtime else UiText.t("TIME LEFT")
+	var caption: String = UiText.t("OVERTIME") if overtime else UiText.t("TIME")
 	var caption_color: Color = RoyaleStyle.GOLD if overtime else RoyaleStyle.BLUE_LIGHT
 	var caption_size: Vector2 = font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1.0, CAPTION_FONT)
 	draw_string(font, Vector2((size.x - caption_size.x) / 2.0, 26.0), caption, HORIZONTAL_ALIGNMENT_LEFT, -1.0, CAPTION_FONT, caption_color)

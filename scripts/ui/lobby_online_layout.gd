@@ -51,10 +51,7 @@ func _build_setup(parent: Control) -> void:
 	screen._setup = VBoxContainer.new()
 	screen._setup.add_theme_constant_override("separation", UiMetrics.GAP)
 	parent.add_child(screen._setup)
-	screen._setup.add_child(LobbyWidgets.field_label("Name"))
-	screen._name_edit = LobbyWidgets.edit(Session.player_name, "Player", screen.FONT)
-	screen._name_edit.max_length = 12
-	screen._setup.add_child(screen._name_edit)
+	# no Name field: your name is the profile's (Edit profile), one place to set it
 	if screen.intent == screen.Intent.CREATE:
 		screen._setup.add_child(LobbyWidgets.field_label("Team size"))
 		var sizes: HBoxContainer = HBoxContainer.new()

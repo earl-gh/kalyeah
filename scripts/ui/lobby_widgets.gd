@@ -48,6 +48,7 @@ static func label(text: String, font_size: int, color: Color = Color.WHITE) -> L
 static func group(content: Control, padding: float = UiMetrics.PADDING) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", KalyeahTheme.painted_panel(padding))
+	panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	panel.add_child(content)
 	return panel
 

@@ -20,6 +20,8 @@ var lobby_code: String = ""
 var lobby_preview: bool = false
 ## The mode card chosen on the main screen (an index into TitleScreen.MODES); Hotspot by default.
 var menu_mode: int = 0
+## True once the player has picked a mode card (until then a browser opens on Practice, the only mode it can play alone).
+var menu_mode_chosen: bool = false
 ## True once the first-run walkthrough has been finished or skipped (saved).
 var coach_seen: bool = false
 ## Set (not saved) when the next practice match should open with the walkthrough: the first one, or a replay.

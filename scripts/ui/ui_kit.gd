@@ -43,6 +43,8 @@ static func page_header(title_text: String, subtitle: String = "") -> VBoxContai
 static func card(content: Control = null, kind: String = "glass", padding: float = UiMetrics.PADDING) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", UiSkin.plate(kind, padding))
+	# a card never swallows a touch of its own: a drag that starts on it scrolls the page it sits in
+	panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	if content != null:
 		panel.add_child(content)
 	return panel

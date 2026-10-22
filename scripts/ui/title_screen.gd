@@ -201,6 +201,9 @@ func _build_home() -> VBoxContainer:
 	carousel.card_size = HERO_CARD
 	carousel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(carousel)
+	if not Session.menu_mode_chosen and not Net.can_host():
+		# a browser cannot host or join a hotspot room: it opens on Practice instead of on a dead end
+		Session.menu_mode = MODES.size() - 1
 	carousel.setup("", MODES, Session.menu_mode)
 	carousel.bob = AMBIENT_BOB
 	stage.resized.connect(_fit_hero)
@@ -451,6 +454,8 @@ func _refresh_mode() -> void:
 	var rooms: bool = String(mode["id"]) != "practice"
 	mode_name_label.text = String(mode["title"])
 	mode_text_label.text = String(mode["text"])
+	if String(mode["id"]) == "hotspot" and not Net.can_host():
+		mode_text_label.text = "Needs the Android app."
 	_fill_chips(String(mode["id"]))
 	primary_button.text = "Create room" if rooms else "Play vs bots"
 	secondary_button.text = "Join room" if rooms else "Training"
@@ -469,6 +474,7 @@ func _refresh_mode() -> void:
 
 func _on_mode_selected(index: int) -> void:
 	Session.menu_mode = index
+	Session.menu_mode_chosen = true
 	_refresh_mode()
 
 
@@ -559,7 +565,7 @@ func _pop_in() -> void:
 
 ## The main action swells and settles slowly, drawing the eye to it.
 func _start_pulse() -> void:
-	if Settings.reduced_motion or not is_instance_valid(primary_button):
+	if not is_inside_tree() or Settings.reduced_motion or not is_instance_valid(primary_button):
 		return
 	if is_instance_valid(_pulse):
 		_pulse.kill()
