@@ -65,7 +65,7 @@ All six are written with respect: identity is shown through the clothes and styl
 
 ### 3.3 Players and combat
 - **Fixed health** for everyone; no levels, items, hero classes or damage types.
-- **Weapon pick:** 10 seconds at match start to choose 2 weapons from the arsenal. Duplicate weapon *types* allowed.
+- **Weapon cards (owner, replaces the weapon pick):** every weapon is in a shuffled deck; the player holds two cards, using one sends it to the back and the next card arrives when its cooldown is over. See `docs/GDD.md` "Weapon cards".
 - **Death delay:** at 0 HP you get temporary gray HP that drains while you walk, with skills disabled; a teammate touching you, or you touching your own base post, revives you with the gray HP left. Once per respawn.
 - **Death:** when gray HP runs out (or HP hits 0 again after a revive), a 10-second respawn at base, with the option to swap both weapons.
 - **No basic attack:** players only use the skills and weapons they picked.

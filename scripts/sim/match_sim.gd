@@ -22,6 +22,8 @@ signal effect_applied(id: int, type: int)
 signal player_healed(id: int, amount: int)
 ## A weapon was cast (for sounds and effects).
 signal weapon_cast(id: int, weapon_id: StringName)
+## A new card took a slot of a hand (cards mode).
+signal card_drawn(id: int, slot: int)
 ## A player lost HP.
 signal player_damaged(id: int, amount: int)
 
@@ -169,10 +171,65 @@ func set_loadout(id: int, first: StringName, second: StringName) -> bool:
 	return true
 
 
+## Cards mode: shuffles every weapon into the player's deck (with the match's seeded rng) and deals the first two as the hand.
+func deal_cards(id: int) -> bool:
+	if not players.has(id) or weapon_defs.size() < 3:
+		return false
+	var state: PlayerState = players[id]
+	var ids: Array[StringName] = []
+	for def: WeaponDef in rules.weapons:
+		ids.append(def.id)
+	# Fisher-Yates with the match rng: the same seed deals the same decks
+	for i: int in range(ids.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var held: StringName = ids[i]
+		ids[i] = ids[j]
+		ids[j] = held
+	state.weapons = [ids[0], ids[1]]
+	state.deck.assign(ids.slice(2))
+	state.reloading = [false, false]
+	state.weapon_cooldowns = [0.0, 0.0]
+	state.aim_hold = [-1.0, -1.0]
+	return true
+
+
+## Equips a player for the match: a dealt hand in cards mode, else a random pair (`fighter`: one that hurts).
+func equip(id: int, fighter: bool = false) -> void:
+	if rules.card_cycle:
+		deal_cards(id)
+		return
+	var pair: Array[StringName] = fighting_loadout() if fighter else random_loadout()
+	set_loadout(id, pair[0], pair[1])
+
+
+## A card was used from `slot`: it goes to the back of the deck now and the slot reloads for its cooldown; the next card arrives then.
+func cycle_used(state: PlayerState, slot: int) -> void:
+	if state.deck.is_empty():
+		return
+	state.deck.append(state.weapons[slot])
+	state.reloading[slot] = true
+
+
+## Cards mode: the slots whose reload is over take the next card of the deck.
+func _draw_ready(state: PlayerState) -> void:
+	for slot: int in state.reloading.size():
+		if state.reloading[slot] and state.weapon_cooldowns[slot] <= 0.0 and not state.deck.is_empty():
+			state.weapons[slot] = state.deck.pop_front()
+			state.reloading[slot] = false
+			card_drawn.emit(state.id, slot)
+
+
+## A new round: every reload finishes at once (the cooldowns are cleared too).
+func finish_reloads(state: PlayerState) -> void:
+	for slot: int in state.weapon_cooldowns.size():
+		state.weapon_cooldowns[slot] = 0.0
+	_draw_ready(state)
+
+
 ## Box swap: only while tagged (waiting in the box), as often as you like.
 ## A weapon you keep keeps its cooldown, so swapping away and back clears nothing.
 func swap_loadout(id: int, first: StringName, second: StringName) -> bool:
-	if not players.has(id) or not players[id].tagged:
+	if rules.card_cycle or not players.has(id) or not players[id].tagged:
 		return false
 	var state: PlayerState = players[id]
 	var kept: Dictionary[StringName, float] = {}
@@ -368,6 +425,7 @@ func step(dt: float) -> void:
 func _tick_cooldowns(state: PlayerState, dt: float) -> void:
 	for slot: int in state.weapon_cooldowns.size():
 		state.weapon_cooldowns[slot] = maxf(0.0, state.weapon_cooldowns[slot] - dt)
+	_draw_ready(state)
 
 
 func _step_free(state: PlayerState, input: PlayerInput, dt: float) -> void:

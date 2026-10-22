@@ -52,8 +52,7 @@ func _init(server: GameServer, p_room: RoomService.Room, rules: GameRules, layou
 		if m.character != &"":
 			sim.set_character(m.player_id, m.character)
 	for id: int in sim.players:
-		var loadout: Array[StringName] = sim.random_loadout()
-		sim.set_loadout(id, loadout[0], loadout[1])
+		sim.equip(id)
 	stage_left = net.load_timeout
 	_relay_signals()
 
@@ -113,7 +112,9 @@ func next_input_sequence(player_id: int) -> int:
 ## `character` is the kid the player chose (empty keeps the random one). A kid a teammate has
 ## already confirmed is not taken from them (the other team may have the same kid).
 func pick(player_id: int, first: StringName, second: StringName, character: StringName = &"") -> void:
-	if stage != Stage.PLAYING and sim.set_loadout(player_id, first, second):
+	# cards mode: nobody picks weapons, the hand was dealt at the start; only the kid comes with the confirmation
+	var accepted: bool = sim.rules.card_cycle or sim.set_loadout(player_id, first, second)
+	if stage != Stage.PLAYING and accepted:
 		_picked[player_id] = true
 		if character != &"" and not taken_kids(player_id).has(character):
 			sim.set_character(player_id, character)

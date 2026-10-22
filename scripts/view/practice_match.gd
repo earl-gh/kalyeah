@@ -289,12 +289,10 @@ func _setup_practice() -> void:
 	sim.add_dummy(ENEMY_BOX_ID, 1, box_spot, DummyBrain.standing())
 	sim.assign_characters()
 	sim.set_character(local_id, StringName(Session.avatar_id))
-	var loadout: Array[StringName] = sim.random_loadout()
-	sim.set_loadout(local_id, loadout[0], loadout[1])
+	sim.equip(local_id)
 	for id: int in [ENEMY_STAND_ID, ENEMY_PATROL_ID]:
 		if sim.is_fighter(id):
-			var arms: Array[StringName] = sim.fighting_loadout()
-			sim.set_loadout(id, arms[0], arms[1])
+			sim.equip(id, true)
 
 
 ## Three kids a side: you and two allies against three enemies, all real players of the sim. The allies back you up (they attack
@@ -312,11 +310,9 @@ func _setup_bot_match() -> void:
 	_coaches = [allies, foes]
 	sim.assign_characters()
 	sim.set_character(local_id, StringName(Session.avatar_id))
-	var loadout: Array[StringName] = sim.random_loadout()
-	sim.set_loadout(local_id, loadout[0], loadout[1])
+	sim.equip(local_id)
 	for id: int in BOT_ALLY_IDS + BOT_ENEMY_IDS:
-		var arms: Array[StringName] = sim.fighting_loadout()
-		sim.set_loadout(id, arms[0], arms[1])
+		sim.equip(id, true)
 
 
 func _setup_online() -> void:

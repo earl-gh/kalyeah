@@ -50,6 +50,7 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	var sockets: HBoxContainer = HBoxContainer.new()
 	sockets.add_theme_constant_override("separation", UiMetrics.GAP)
 	column.add_child(sockets)  # the sockets are the only plates: no second one around them
+	screen._weapon_parts.append(sockets)
 	for slot: int in WeaponPick.SLOTS:
 		var socket: LoadoutSocket = LoadoutSocket.new()
 		socket.number = slot + 1
@@ -66,6 +67,7 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	screen._hint.autowrap_mode = TextServer.AUTOWRAP_OFF
 	screen._hint.clip_text = true
 	column.add_child(screen._hint)
+	screen._weapon_parts.append(screen._hint)
 	var pair_names: Array[String] = []
 	for id: StringName in screen.suggestion:
 		pair_names.append((screen._defs[id] as WeaponDef).short_name)
@@ -74,14 +76,42 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	slot_box.custom_minimum_size = Vector2(0.0, SUGGEST_HEIGHT)
 	slot_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(slot_box)
+	screen._weapon_parts.append(slot_box)
 	screen._suggest_button = MenuDialog.make_button("Suggested: %s" % " + ".join(pair_names), "blue", UiMetrics.DETAIL, Vector2(0.0, SUGGEST_HEIGHT))
 	screen._suggest_button.name = "SuggestButton"
 	screen._suggest_button.visible = false
 	screen._suggest_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	screen._suggest_button.pressed.connect(screen.use_suggestion)
 	slot_box.add_child(screen._suggest_button)
-	column.add_child(_weapons(screen, defs))
-	column.add_child(LoadoutCards.info_panel(screen))
+	var grid_scroll: Control = _weapons(screen, defs)
+	column.add_child(grid_scroll)
+	screen._weapon_parts.append(grid_scroll)
+	var info: Control = LoadoutCards.info_panel(screen)
+	column.add_child(info)
+	screen._weapon_parts.append(info)
+	# cards mode: the weapons are gone and this space just keeps the kid row at the top and Play at the bottom
+	var filler: Control = Control.new()
+	filler.name = "Filler"
+	filler.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	filler.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	filler.visible = false
+	column.add_child(filler)
+	screen._filler = filler
+	var hero_box: VBoxContainer = VBoxContainer.new()
+	hero_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hero_box.add_theme_constant_override("separation", UiMetrics.GAP)
+	hero_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	filler.add_child(hero_box)
+	screen._hero = TextureRect.new()
+	screen._hero.name = "Hero"
+	screen._hero.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	screen._hero.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	screen._hero.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	screen._hero.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hero_box.add_child(screen._hero)
+	screen._hero_name = LoadoutCards.label("", UiMetrics.TITLE, KalyeahTheme.CREAM)
+	screen._hero_name.theme_type_variation = &"DisplayLabel"
+	hero_box.add_child(screen._hero_name)
 	screen._ready_button = MenuDialog.make_button("Ready", "orange", 30, Vector2(0.0, 88.0))
 	screen._ready_button.pressed.connect(screen.press_ready)
 	column.add_child(screen._ready_button)

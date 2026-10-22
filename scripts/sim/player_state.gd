@@ -26,6 +26,10 @@ var character_id: StringName = &""
 ## The two equipped weapon ids (slot 0 = weapon 1, slot 1 = weapon 2).
 var weapons: Array[StringName] = []
 var weapon_cooldowns: Array[float] = [0.0, 0.0]
+## Weapon cards (see GameRules.card_cycle): the deck's order, next card first (empty without cards), and for each slot whether its
+## used card is still reloading (the next card of the deck takes the slot when the cooldown is over).
+var deck: Array[StringName] = []
+var reloading: Array[bool] = [false, false]
 ## Seconds each weapon button has been held; -1 when not held.
 var aim_hold: Array[float] = [-1.0, -1.0]
 ## Buttons from the previous tick, to see presses and releases.
