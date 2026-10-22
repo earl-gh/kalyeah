@@ -38,6 +38,8 @@ const TEAM_BLOCKS: Array[Color] = [KalyeahTheme.TEAM_BLUE, KalyeahTheme.TEAM_RED
 const NAME_COLOR: Color = Color(0.12, 0.27, 0.52)
 const MAX_ROWS: int = 3
 
+## Width of each of the three first-to number buttons.
+const FIRST_TO_WIDTH: float = 120.0
 var online_room: bool = false
 var code_label: Label
 var code_boxes: UiCodeBoxes
@@ -180,9 +182,15 @@ func _build_map_section() -> Control:
 	formats.name = "FirstTo"
 	formats.add_theme_constant_override("separation", int(GAP) + 2)
 	column.add_child(formats)
+	# "FIRST TO" once, then the three numbers: three buttons that each said "First to 5" were wider than a phone
+	var first_caption: Label = LobbyWidgets.label("First to", UiMetrics.ACTION, KalyeahTheme.TEXT_MUTED)
+	first_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	first_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	first_caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	formats.add_child(first_caption)
 	for count: int in [3, 5, 7]:
-		var button: Button = MenuDialog.make_button("First to %d" % count, "grey", UiMetrics.ACTION, Vector2(0.0, 88.0))
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var button: Button = MenuDialog.make_button("%d" % count, "grey", UiMetrics.TITLE, Vector2(FIRST_TO_WIDTH, 88.0))
+		button.accessibility_name = "First to %d" % count
 		LobbyWidgets.make_toggle(button)
 		button.pressed.connect(first_to_chosen.emit.bind(count))
 		formats.add_child(button)
@@ -382,7 +390,7 @@ static func _readiness(room: Dictionary) -> String:
 	if room.get("can_start_host", false):
 		return "Ready to play"
 	if maxi(teams[0], teams[1]) < n or mini(teams[0], teams[1]) < maxi(1, n - 1):
-		return "Waiting for players"
+		return "Waiting for players · Blue %d of %d · Red %d of %d" % [teams[0], n, teams[1], n]
 	if unready > 0:
 		return "Waiting for %d player%s to ready up" % [unready, "" if unready == 1 else "s"]
 	return "Choose a team to continue"

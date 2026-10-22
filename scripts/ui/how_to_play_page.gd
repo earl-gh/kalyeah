@@ -5,11 +5,14 @@ extends ScrollContainer
 ## rules data (capture time, points to win), never from this file.
 
 signal walkthrough_requested
+## The Back button (How to play is a sub-page of Settings).
+signal back_pressed
 
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
 
 var cards: Array[Control] = []
 var walkthrough_button: Button
+var back_button: Button
 
 
 func _ready() -> void:
@@ -20,6 +23,11 @@ func _ready() -> void:
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", UiMetrics.GAP)
 	add_child(content)
+	back_button = MenuDialog.make_button("Back", "grey", UiMetrics.ACTION, Vector2(160.0, UiMetrics.TOUCH))
+	back_button.name = "BackButton"
+	back_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	back_button.pressed.connect(back_pressed.emit)
+	content.add_child(back_button)
 	content.add_child(UiKit.page_header("How to play", "Four things to know. Then try them."))
 	var rules: GameRules = load(RULES_PATH) as GameRules
 	var steps: Array[Dictionary] = CoachMarks.steps_for(rules.capture_time, rules.first_to)

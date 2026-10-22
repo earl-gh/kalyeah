@@ -28,7 +28,7 @@ const CAST_BLOCK_TAGS: Dictionary[int, String] = {
 	StatusEffects.Type.STUN: "STUNNED",
 	StatusEffects.Type.AIRBORNE: "AIRBORNE",
 	StatusEffects.Type.BOUNCE: "BOUNCED",
-	StatusEffects.Type.KNOCKOUT: "DOWN",
+	StatusEffects.Type.KNOCKOUT: "OUT",
 	StatusEffects.Type.POLYMORPH: "CAN",
 }
 ## The header at the top of the screen (floating over the street, like Clash Royale): the settings button, the score and the clock sit in this row.
@@ -60,7 +60,7 @@ const DPAD_MARGIN: float = 170.0
 ## second against the right margin and the first to its left.
 const WEAPON_SIZE: float = 124.0
 ## Staggered like the face buttons of a controller: weapon 2 (the nearer the edge) a little higher, weapon 1 beside it a little lower.
-const WEAPON_GAP: float = 0.0
+const WEAPON_GAP: float = 20.0
 const WEAPON_STAGGER: float = 24.0
 const WEAPON_MARGIN: float = 34.0
 ## The round sockets in the shell around the D-pad and each skill button.

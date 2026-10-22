@@ -51,10 +51,7 @@ func _build_setup(parent: Control) -> void:
 	screen._setup = VBoxContainer.new()
 	screen._setup.add_theme_constant_override("separation", UiMetrics.GAP)
 	parent.add_child(screen._setup)
-	screen._setup.add_child(LobbyWidgets.field_label("Name"))
-	screen._name_edit = LobbyWidgets.edit(Session.player_name, "Player", screen.FONT)
-	screen._name_edit.max_length = 12
-	screen._setup.add_child(screen._name_edit)
+	# no Name field: your name is the profile's (Edit profile), one place to set it
 	if screen.intent == screen.Intent.CREATE:
 		screen._setup.add_child(LobbyWidgets.field_label("Team size"))
 		var sizes: HBoxContainer = HBoxContainer.new()
@@ -73,10 +70,18 @@ func _build_setup(parent: Control) -> void:
 		screen._code_boxes = UiCodeBoxes.new(screen.NET_RULES.passcode_length, screen.NET_RULES.passcode_alphabet)
 		screen._code_edit = screen._code_boxes.edit
 		screen._setup.add_child(screen._code_boxes)
+		var paste_row: HBoxContainer = HBoxContainer.new()
+		paste_row.add_theme_constant_override("separation", UiMetrics.GAP)
+		screen._setup.add_child(paste_row)
 		var paste: Button = LobbyWidgets.button("Paste the code", screen.paste_code, "grey", UiMetrics.DETAIL)
 		paste.name = "PasteButton"
 		paste.custom_minimum_size = Vector2(0.0, UiMetrics.MIN_TARGET)
-		screen._setup.add_child(paste)
+		paste.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		paste_row.add_child(paste)
+		var clear: Button = LobbyWidgets.button("Clear", screen.clear_code, "grey", UiMetrics.DETAIL)
+		clear.name = "ClearButton"
+		clear.custom_minimum_size = Vector2(160.0, UiMetrics.MIN_TARGET)
+		paste_row.add_child(clear)
 		screen._code_error = LobbyWidgets.label("", UiMetrics.DETAIL, KalyeahTheme.ERROR)
 		screen._code_error.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		screen._code_error.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT

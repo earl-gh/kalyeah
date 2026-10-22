@@ -47,7 +47,7 @@ func connect_hud() -> void:
 		owner.hud.aim_buttons[slot].aim_started.connect(owner.aim_started.bind(slot))
 		owner.hud.aim_buttons[slot].aim_released.connect(owner.aim_released.bind(slot))
 	owner.hud.hurt_button.pressed.connect(owner.hurt_local.bind(PracticeMatch.DEBUG_DAMAGE))
-	owner.hud.menu.set_practice(not owner.online, Net.host != null)
+	owner.hud.menu.set_practice(not owner.online, Net.host != null, Session.practice_kind == &"match")
 	owner.hud.again_button.text = "Return home" if owner.online else "Practice again"
 	owner.hud.status_test_pressed.connect(owner.play_status_test)
 	owner.hud.again_pressed.connect(_on_again_pressed)
@@ -172,10 +172,10 @@ func _sync_aim(player: PlayerState) -> void:
 
 func _play_intro_shot() -> void:
 	var first_to: int = owner.sim.score.first_to
-	owner.hud.show_intro(
-		"TAG THEIR BASE!",
-		"FIRST TO %d" % first_to
-	)
+	var sub: String = "FIRST TO %d" % first_to
+	if not owner.online:
+		sub += " · TAP TO SKIP"
+	owner.hud.show_intro("TAG THEIR BASE!", sub)
 	if Settings.reduced_motion:
 		owner._camera.place(owner._flip())
 		return

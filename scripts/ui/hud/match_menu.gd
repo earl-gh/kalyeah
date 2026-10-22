@@ -7,7 +7,7 @@ signal exit_pressed
 signal hurt_pressed
 signal status_pressed(type: int)
 
-const STATUS_TESTS: Array[Array] = [["Stunned", StatusEffects.Type.STUN], ["Airborne", StatusEffects.Type.AIRBORNE], ["Knocked down", StatusEffects.Type.KNOCKOUT]]
+const STATUS_TESTS: Array[Array] = [["Stunned", StatusEffects.Type.STUN], ["Airborne", StatusEffects.Type.AIRBORNE], ["Knocked out", StatusEffects.Type.KNOCKOUT]]
 
 var hurt_button: Button
 var status_buttons: Dictionary[int, Button] = {}
@@ -19,6 +19,8 @@ var _details: VBoxContainer
 var _tools: VBoxContainer
 var _networked: bool = false
 var _hosting: bool = false
+## Leaving asks first (a Practice match against bots: it counts as a loss). Training leaves at once.
+var _confirm_practice: bool = false
 var _confirmation: MenuDialog
 
 
@@ -56,14 +58,16 @@ func _ready() -> void:
 	visible = false
 
 
-func set_practice(on: bool, hosting: bool = false) -> void:
+func set_practice(on: bool, hosting: bool = false, confirm_leave: bool = false) -> void:
 	_networked = not on
 	_hosting = hosting
-	_tools.visible = on
+	_confirm_practice = on and confirm_leave
+	# the test buttons are developer tools: not in the player menu unless the developer switch is on
+	_tools.visible = on and Settings.developer
 	# Keep these flags truthful for callers, even while the entire group is hidden.
-	hurt_button.visible = on
+	hurt_button.visible = on and Settings.developer
 	for button: Button in status_buttons.values():
-		button.visible = on
+		button.visible = on and Settings.developer
 
 
 func open() -> void:
@@ -82,12 +86,12 @@ func close() -> void:
 
 
 func request_exit() -> void:
-	if not _networked:
+	if not _networked and not _confirm_practice:
 		exit_pressed.emit()
 		return
 	if is_instance_valid(_confirmation) and _confirmation.is_open:
 		return
-	_confirmation = DialogButtons.leave_match(_hosting, exit_pressed.emit)
+	_confirmation = DialogButtons.leave_match(_hosting, exit_pressed.emit, _confirm_practice)
 	_confirmation.open(self)
 
 

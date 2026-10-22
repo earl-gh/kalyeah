@@ -81,7 +81,19 @@ func _build_input() -> void:
 	edit.text_changed.connect(_on_typed)
 	edit.focus_entered.connect(_paint)
 	edit.focus_exited.connect(_paint)
+	# a tap on the boxes always lands after the last letter: typing then appends instead of inserting into the middle
+	edit.gui_input.connect(func(event: InputEvent) -> void:
+		var pressed: bool = (event is InputEventMouseButton and (event as InputEventMouseButton).pressed) \
+			or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed)
+		if pressed:
+			_caret_to_end.call_deferred())
 	add_child(edit)
+
+
+func _caret_to_end() -> void:
+	if edit != null:
+		edit.deselect()
+		edit.caret_column = edit.text.length()
 
 
 func _process(_delta: float) -> void:
