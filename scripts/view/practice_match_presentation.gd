@@ -3,13 +3,6 @@ extends RefCounted
 ## Owns PracticeMatch's HUD wiring, actor views, camera presentation, and banners.
 
 const AIRBORNE_LIFT: float = 1.0
-const INTRO_SPLIT: float = 0.45
-const INTRO_NEAR: float = 9.0
-const INTRO_FAR: float = 13.0
-const INTRO_LOW: float = 4.5
-const INTRO_HIGH: float = 7.5
-const INTRO_SIDE: float = 2.5
-const INTRO_POST_TOP: float = 3.5
 
 var owner: PracticeMatch
 
@@ -176,25 +169,8 @@ func _play_intro_shot() -> void:
 	if not owner.online:
 		sub += " · TAP TO SKIP"
 	owner.hud.show_intro("TAG THEIR BASE!", sub)
-	if Settings.reduced_motion:
-		owner._camera.place(owner._flip())
-		return
-	var length: float = maxf(owner.rules.intro_time, 0.001)
-	var t: float = clampf(1.0 - owner.sim.intro_left / length, 0.0, 1.0)
-	var split: float = INTRO_SPLIT
-	var side: int = -owner.own_side() if t < split else owner.own_side()
-	var u: float = t / split if t < split else (t - split) / (1.0 - split)
-	var post: Vector2 = owner.layout.base_center(side)
-	var to_field: Vector2 = -post.normalized()
-	var across: Vector2 = to_field.orthogonal()
-	var ground: Vector3 = Vector3(post.x, 0.0, post.y)
-	var out: Vector3 = Vector3(to_field.x, 0.0, to_field.y)
-	var eye: Vector3 = ground + out * lerpf(INTRO_NEAR, INTRO_FAR, u)
-	eye += Vector3(across.x, 0.0, across.y) * INTRO_SIDE
-	eye += Vector3.UP * lerpf(INTRO_LOW, INTRO_HIGH, u)
-	var look: Vector3 = ground + Vector3.UP * lerpf(INTRO_POST_TOP, 0.8, minf(u * 1.6, 1.0))
-	look += out * lerpf(0.5, 2.0, u)
-	owner._camera.frame_shot(eye, look)
+	# no fly-through of the two teams (owner): the fixed street, with the objective on it
+	owner._camera.place(owner._flip())
 
 
 func _on_player_tagged(id: int) -> void:

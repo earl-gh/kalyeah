@@ -189,7 +189,7 @@ func test_bots_play_with_cards_too_and_their_hands_keep_cycling() -> void:
 		assert_eq(sim.players[id].weapons.size() + sim.players[id].deck.size(), _rules.weapons.size(), "no card is lost or doubled")
 
 
-func test_the_kid_screen_shows_the_whole_deck() -> void:
+func test_the_kid_screen_is_only_the_kid_row_the_portrait_and_play() -> void:
 	var screen: WeaponPickScreen = WeaponPickScreen.new()
 	var phone: Control = autofree(Control.new()) as Control
 	phone.size = Vector2(720.0, 1280.0)
@@ -203,8 +203,8 @@ func test_the_kid_screen_shows_the_whole_deck() -> void:
 		ids.append(weapon.id)
 	screen.open(WeaponPick.new(ids, 10.0), _rules.weapons, "", RandomNumberGenerator.new(), _rules.characters, &"toni", true)
 	await wait_process_frames(2)
-	var preview: Control = screen.find_child("DeckPreview", true, false) as Control
-	assert_not_null(preview)
-	assert_eq(preview.find_children("Card_*", "TextureRect", true, false).size(), _rules.weapons.size(), "a card for every weapon")
+	assert_null(screen.find_child("DeckPreview", true, false), "the deck is in the Book, not on the way to the match")
+	assert_false(screen._mode_label.visible, "no subtitle")
+	assert_not_null(screen._hero.texture, "the chosen kid's portrait")
 	assert_eq(screen._ready_button.text, "Play")
 	assert_false(screen._hint.visible, "no weapon hints in cards mode")
