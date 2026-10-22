@@ -3,6 +3,8 @@ extends VBoxContainer
 ## The History page: the last battles this phone played, newest first, each a card with a big
 ## Victory / Defeat badge, the score and when and where it was played.
 
+## The empty state's button: go and play.
+signal play_pressed
 
 const FILTERS: Array[Dictionary] = [
 	{"id": &"", "label": "All"}, {"id": &"practice", "label": "Practice"},
@@ -121,6 +123,10 @@ func _empty(heading: String = "No battles yet", hint_text: String = "Play a matc
 	var hint: Label = UiKit.text(hint_text, UiMetrics.DETAIL, Color("9fb0d6"))
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(hint)
+	var play: Button = MenuDialog.make_button("Play a match", "orange", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
+	play.name = "PlayButton"
+	play.pressed.connect(play_pressed.emit)
+	column.add_child(play)
 	return UiKit.card(column, "glass", 40.0)
 
 

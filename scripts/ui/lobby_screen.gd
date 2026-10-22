@@ -47,6 +47,8 @@ var _finder: HotspotFinder = HotspotFinder.new()
 ## One room presentation for both transports.
 var _room_view: HotspotRoomView
 var _announced_character: bool = false
+## Who hosted the room at the last update (-1 before the first), to tell a player they became the host.
+var _last_host_id: int = -1
 ## Preview (web): the made-up room the hotspot screen shows, changed locally by the buttons.
 var _preview_room: Dictionary = {}
 
@@ -285,6 +287,10 @@ func _on_room_changed(room: Dictionary) -> void:
 	Session.reconnect_url = _connected_url
 	Session.save()
 	_set_status("")
+	var host_id: int = room.get("host", -1) as int
+	if _last_host_id >= 0 and host_id == client.player_id and _last_host_id != client.player_id:
+		UiToast.say(self, "The host left. You are the host now.", "info")
+	_last_host_id = host_id
 	_room_view.show_room(room, client.player_id)
 	if not _announced_character:
 		_announced_character = true
@@ -303,6 +309,7 @@ func _on_match_loading(_info: Dictionary) -> void:
 
 
 func _on_leave() -> void:
+	_last_host_id = -1
 	_announced_character = false
 	client.leave_room()
 	if _rejoin_button != null:
@@ -442,6 +449,17 @@ func _current_room() -> Dictionary:
 
 func _build() -> void:
 	LobbyOnlineLayout.new(self).build()
+
+
+## Empties the code boxes (and their error), to start the code again.
+func clear_code() -> void:
+	if _code_boxes == null:
+		return
+	_code_boxes.set_text("")
+	_code_boxes.set_error(false)
+	if _code_error != null:
+		_code_error.hide()
+	_code_edit.grab_focus()
 
 
 ## Fills the boxes from the clipboard (the code a friend sent): capitals only, the code alphabet only. `clipboard`

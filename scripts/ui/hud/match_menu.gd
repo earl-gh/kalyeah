@@ -7,7 +7,7 @@ signal exit_pressed
 signal hurt_pressed
 signal status_pressed(type: int)
 
-const STATUS_TESTS: Array[Array] = [["Stunned", StatusEffects.Type.STUN], ["Airborne", StatusEffects.Type.AIRBORNE], ["Knocked down", StatusEffects.Type.KNOCKOUT]]
+const STATUS_TESTS: Array[Array] = [["Stunned", StatusEffects.Type.STUN], ["Airborne", StatusEffects.Type.AIRBORNE], ["Knocked out", StatusEffects.Type.KNOCKOUT]]
 
 var hurt_button: Button
 var status_buttons: Dictionary[int, Button] = {}

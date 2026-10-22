@@ -165,3 +165,67 @@ func test_a_browser_opens_on_practice_and_says_why_hotspot_is_not_there() -> voi
 func test_cards_pass_touches_on_so_a_drag_that_starts_on_one_scrolls_the_page() -> void:
 	var card: PanelContainer = autofree(UiKit.card(Control.new())) as PanelContainer
 	assert_eq(card.mouse_filter, Control.MOUSE_FILTER_PASS)
+
+
+# ---- P2 ----
+
+func test_the_two_skill_wells_do_not_overlap() -> void:
+	var practice: PracticeMatch = _practice()
+	var sockets: Array[Dictionary] = practice.hud.console.sockets
+	var a: Dictionary = sockets[1]
+	var b: Dictionary = sockets[2]
+	var apart: float = (a["at"] as Vector2).distance_to(b["at"] as Vector2)
+	assert_gte(apart, (a["radius"] as float) + (b["radius"] as float), "two wells, side by side, not one on the other")
+
+
+func test_the_room_status_says_how_many_players_each_team_has() -> void:
+	var room: Dictionary = {"host": 1, "team_size": 3, "members": [{"player_id": 1, "team": 0, "ready": true}]}
+	assert_eq(HotspotRoomView._readiness(room), "Waiting for players · Blue 1 of 3 · Red 0 of 3")
+
+
+func test_one_name_for_a_knocked_out_kid() -> void:
+	assert_eq(StatusEffects.new().display_names().size(), 0)
+	assert_eq(MatchMenu.STATUS_TESTS[2][0], "Knocked out")
+	assert_eq(MatchHud.CAST_BLOCK_TAGS[StatusEffects.Type.KNOCKOUT], "OUT")
+
+
+func test_how_to_play_has_a_back_button_and_history_a_play_button() -> void:
+	var page: HowToPlayPage = autofree(HowToPlayPage.new()) as HowToPlayPage
+	add_child(page)
+	var backs: Array[bool] = []
+	page.back_pressed.connect(func() -> void: backs.append(true))
+	page.back_button.pressed.emit()
+	assert_eq(backs.size(), 1)
+	var history: HistoryPage = autofree(HistoryPage.new()) as HistoryPage
+	add_child(history)
+	history.refresh()
+	var plays: Array[bool] = []
+	history.play_pressed.connect(func() -> void: plays.append(true))
+	(history.find_child("PlayButton", true, false) as Button).pressed.emit()
+	assert_eq(plays.size(), 1, "an empty History leads to a match")
+
+
+func test_a_tap_skips_the_opening_show_offline() -> void:
+	Session.practice_kind = &"match"
+	var practice: PracticeMatch = autofree(PRACTICE_SCENE.instantiate()) as PracticeMatch
+	add_child(practice)
+	practice.set_process(false)
+	practice.finish_pick()
+	practice.advance(DT)
+	assert_eq(practice.sim.phase, MatchSim.Phase.INTRO)
+	assert_string_contains(practice.hud.intro_sub.text, "TAP TO SKIP")
+	var tap: InputEventScreenTouch = InputEventScreenTouch.new()
+	tap.pressed = true
+	practice._input(tap)
+	assert_eq(practice.sim.phase, MatchSim.Phase.PLAYING)
+
+
+func test_clear_empties_the_code_and_its_error() -> void:
+	var boxes: UiCodeBoxes = autofree(UiCodeBoxes.new(8, "ABCDEFGHJKLMNPQRSTUVWXYZ23456789")) as UiCodeBoxes
+	add_child(boxes)
+	boxes.set_text("ABCD2345")
+	boxes.set_error(true)
+	boxes.set_text("")
+	boxes.set_error(false)
+	assert_eq(boxes.get_text(), "")
+	assert_false(boxes.has_error)

@@ -298,6 +298,8 @@ func _build_pages() -> void:
 	settings_page.gallery_pressed.connect(open_page.bind(&"gallery"))
 	settings_page.howto_pressed.connect(open_page.bind(&"howto"))
 	howto_page.walkthrough_requested.connect(start_walkthrough)
+	history_page.play_pressed.connect(close_page)
+	howto_page.back_pressed.connect(open_page.bind(&"settings"))
 
 
 func _on_tab_pressed(id: StringName) -> void:

@@ -390,7 +390,7 @@ static func _readiness(room: Dictionary) -> String:
 	if room.get("can_start_host", false):
 		return "Ready to play"
 	if maxi(teams[0], teams[1]) < n or mini(teams[0], teams[1]) < maxi(1, n - 1):
-		return "Waiting for players"
+		return "Waiting for players · Blue %d of %d · Red %d of %d" % [teams[0], n, teams[1], n]
 	if unready > 0:
 		return "Waiting for %d player%s to ready up" % [unready, "" if unready == 1 else "s"]
 	return "Choose a team to continue"

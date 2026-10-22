@@ -172,10 +172,10 @@ func _sync_aim(player: PlayerState) -> void:
 
 func _play_intro_shot() -> void:
 	var first_to: int = owner.sim.score.first_to
-	owner.hud.show_intro(
-		"TAG THEIR BASE!",
-		"FIRST TO %d" % first_to
-	)
+	var sub: String = "FIRST TO %d" % first_to
+	if not owner.online:
+		sub += " · TAP TO SKIP"
+	owner.hud.show_intro("TAG THEIR BASE!", sub)
 	if Settings.reduced_motion:
 		owner._camera.place(owner._flip())
 		return

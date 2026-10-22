@@ -108,6 +108,16 @@ func _process(delta: float) -> void:
 	advance(delta)
 
 
+## A tap anywhere skips the opening show (offline: online the server runs it for everyone).
+func _input(event: InputEvent) -> void:
+	if online or sim == null or sim.phase != MatchSim.Phase.INTRO or is_picking():
+		return
+	var tapped: bool = (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed) \
+		or (event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).device != InputEvent.DEVICE_ID_EMULATION)
+	if tapped:
+		skip_intro()
+
+
 func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_APPLICATION_FOCUS_IN:
