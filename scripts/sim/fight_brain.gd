@@ -139,6 +139,8 @@ func _slot_to_cast(state: PlayerState, sim: MatchSim, distance: float, blocked: 
 func _standoff(state: PlayerState, sim: MatchSim) -> float:
 	var reach: float = 0.0
 	for weapon_id: StringName in state.weapons:
+		if weapon_id == &"":
+			continue  # an empty slot: its card is in the shuffler
 		var def: WeaponDef = sim.weapon_defs[weapon_id]
 		if def.kind != WeaponDef.Kind.HEAL and def.shape != WeaponDef.Shape.SHIELD:
 			reach = maxf(reach, def.max_range)

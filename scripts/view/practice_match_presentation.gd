@@ -21,6 +21,7 @@ func setup_hud() -> void:
 	owner.hud.header_height_changed.connect(func(height: float) -> void:
 		owner._camera.top_reserve_px = height + HEADER_GAP
 		owner.hud.overhead.top_limit = height)
+	owner.hud.set_card_mode(owner.sim.rules.card_cycle)
 	owner.hud.set_bottom_inset(_safe_bottom_inset())
 	owner._camera.bottom_reserve_px = owner.hud.console_height()
 	Cinematic.add_lens(owner, owner._camera.rules.lens_k())

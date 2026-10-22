@@ -13,7 +13,7 @@ static func capture(sim: MatchSim, acks: Dictionary[int, int]) -> Dictionary:
 		players.append({
 			"id": id, "pos": p.position, "face": p.facing, "hp": p.hp, "tag": p.tagged, "tt": p.tag_time,
 			"wcd": p.weapon_cooldowns.duplicate(), "w": p.weapons.duplicate(), "fx": p.effects.snapshot(),
-			"cl": p.cast_lock_left, "nx": p.deck[0] if not p.deck.is_empty() else &"", "rl": p.reloading.duplicate(),
+			"cl": p.cast_lock_left, "nx": p.next_card, "sc": p.shuffle_card, "sl": p.shuffle_left, "st": p.shuffle_total, "cd": p.cards,
 		})
 	var projectiles: Array[Dictionary] = []
 	for projectile: WeaponSystem.Projectile in sim.weapons.projectiles:
@@ -54,9 +54,11 @@ static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 		p.tag_time = entry["tt"] as float
 		p.weapon_cooldowns.assign(entry["wcd"] as Array)
 		p.weapons.assign(entry["w"] as Array)
-		var next_card: StringName = entry.get("nx", &"") as StringName
-		p.deck.assign([] if next_card == &"" else [next_card])
-		p.reloading.assign(entry.get("rl", [false, false]) as Array)
+		p.cards = entry.get("cd", false) as bool
+		p.next_card = entry.get("nx", &"") as StringName
+		p.shuffle_card = entry.get("sc", &"") as StringName
+		p.shuffle_left = entry.get("sl", 0.0) as float
+		p.shuffle_total = entry.get("st", 0.0) as float
 		p.effects.restore(entry["fx"] as Dictionary)
 	_apply_weapons(sim, data)
 	var was_intro: bool = sim.phase == MatchSim.Phase.INTRO

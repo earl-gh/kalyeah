@@ -26,10 +26,17 @@ var character_id: StringName = &""
 ## The two equipped weapon ids (slot 0 = weapon 1, slot 1 = weapon 2).
 var weapons: Array[StringName] = []
 var weapon_cooldowns: Array[float] = [0.0, 0.0]
-## Weapon cards (see GameRules.card_cycle): the deck's order, next card first (empty without cards), and for each slot whether its
-## used card is still reloading (the next card of the deck takes the slot when the cooldown is over).
+## Weapon cards (see GameRules.card_cycle). `weapons` is the hand (an empty id = an empty slot, waiting for the shuffler). `next_card` waits
+## in the shuffler's window and drops into the hand when a card is used. A used card goes to the shuffler (`shuffle_card`), which plays that
+## card's own cooldown (`shuffle_left` of `shuffle_total`) and then puts the front card of `deck` in a free slot, or in the window.
+## Cards used meanwhile wait in `incoming`. The cards in the hand are never slowed by the cooldown of a card you just used.
+var cards: bool = false
 var deck: Array[StringName] = []
-var reloading: Array[bool] = [false, false]
+var next_card: StringName = &""
+var shuffle_card: StringName = &""
+var shuffle_left: float = 0.0
+var shuffle_total: float = 0.0
+var incoming: Array[StringName] = []
 ## Seconds each weapon button has been held; -1 when not held.
 var aim_hold: Array[float] = [-1.0, -1.0]
 ## Buttons from the previous tick, to see presses and releases.
