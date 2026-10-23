@@ -96,15 +96,16 @@ First use and remaining checks: [skill adoption review](../../docs/audits/2026-1
 
 ## Studio subagents
 
-Six role agents live in `.claude/agents/` (Claude Code subagents, started by name from a task or with `/agents`). They are a Supercell-style studio team; each reads `CLAUDE.md` first and obeys the owner rules (no asset generation, never merge, GDD stays the source of rules).
+Seven agents live in `.claude/agents/` (Claude Code subagents, started by name from a task or with `/agents`): a Supercell-style studio team (inspired by, never copied). Each reads `CLAUDE.md` first and obeys the owner rules (no asset generation, never merge, the GDD stays the source of rules). **All of them audit and apply changes**; each fixes what it finds, with a test or a checked screenshot.
 
-| Agent | Role | Edits files? |
-| --- | --- | --- |
-| `game-designer` | Core loop, combat, card cycle, balance by bot-run evidence | No: proposes exact numbers |
-| `ux-ui-artist` | Portrait HUD, menus, flow, touch ergonomics | Yes (UI code and layout tests) |
-| `concept-artist` | Characters, street, animation and VFX as written briefs | No: briefs for the owner to make |
-| `art-director` | Brand and visual consistency, originality line | No: approve, change or reject |
-| `gameplay-engineer` | Fixed-tick sim, server-authoritative multiplayer, client architecture | Yes (with GUT tests) |
-| `qa-engineer` | Regression tests, Playwright interaction audits, bot-run evidence, release readiness | Yes (tests) |
+| Agent | Role |
+| --- | --- |
+| `orchestrator` | Plans, delegates, integrates, and is the **release gate**: acceptance criteria for production and deployment quality (scope, code, full GUT suite, screenshots, platform, docs, PR). Rejects half-finished work. Use first on a multi-part task and last before every PR |
+| `game-designer` | Core loop, combat, card cycle; balance by bot-run before/after numbers; applies data tuning, GDD and tests |
+| `ux-ui-artist` | Portrait HUD, menus, flow, touch ergonomics; audits real screenshots and fixes the UI with layout tests |
+| `concept-artist` | Characters, street, animation and VFX: audits the look, writes briefs, adjusts code-drawn stand-ins; never adds asset files |
+| `art-director` | Brand consistency and the originality line; fixes palette, type and docs; never adds asset files |
+| `gameplay-engineer` | Fixed-tick sim, server-authoritative multiplayer, client architecture, always with tests |
+| `qa-engineer` | Regression tests, Playwright interaction audits, bot-run evidence, release readiness; fixes small issues |
 
-They sit next to the specialist skills above, not instead of them: `gameplay-engineer` uses `gameplay-simulation`, `authoritative-multiplayer` and `tdd`; `qa-engineer` uses `game-qa-release`; `ux-ui-artist` uses `game-ui-ux` and `godot-ui-control`.
+They sit next to the specialist skills above, not instead of them: `gameplay-engineer` uses `gameplay-simulation`, `authoritative-multiplayer` and `tdd`; `qa-engineer` uses `game-qa-release`; `ux-ui-artist` uses `game-ui-ux` and `godot-ui-control`; the orchestrator's gate is `game-qa-release` plus `gstack-review`.
