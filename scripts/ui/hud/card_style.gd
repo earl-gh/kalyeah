@@ -58,8 +58,50 @@ static func draw_empty(canvas: CanvasItem, rect: Rect2) -> void:
 	canvas.draw_style_box(hollow, rect)
 
 
+## The slot of a card that is on its way (owner: an empty slot is not a hole, the card is coming): a card back with a ring that fills as the
+## shuffler works, and the seconds left. `progress` 0 to 1.
+static func draw_back(canvas: CanvasItem, rect: Rect2, progress: float, seconds: int) -> void:
+	var back: StyleBoxFlat = StyleBoxFlat.new()
+	back.bg_color = Color(0.07, 0.14, 0.34)
+	back.border_color = Color(RoyaleStyle.BLUE_LIGHT, 0.5)
+	back.set_border_width_all(BORDER)
+	back.set_corner_radius_all(RADIUS)
+	back.anti_aliasing = true
+	canvas.draw_style_box(back, rect)
+	var inset: Rect2 = rect.grow(-(BORDER + 9.0))
+	var inner: StyleBoxFlat = StyleBoxFlat.new()
+	inner.bg_color = Color(0.0, 0.0, 0.0, 0.0)
+	inner.border_color = Color(RoyaleStyle.GOLD, 0.35)
+	inner.set_border_width_all(2)
+	inner.set_corner_radius_all(RADIUS - 6)
+	inner.anti_aliasing = true
+	canvas.draw_style_box(inner, inset)
+	var centre: Vector2 = rect.get_center()
+	var radius: float = rect.size.x * 0.26
+	canvas.draw_arc(centre, radius, 0.0, TAU, 40, Color(1.0, 1.0, 1.0, 0.15), 8.0, true)
+	canvas.draw_arc(centre, radius, -PI / 2.0, -PI / 2.0 + TAU * clampf(progress, 0.0, 1.0), 40, RoyaleStyle.GOLD, 8.0, true)
+	if seconds > 0:
+		var font: Font = KalyeahTheme.ACTION_FONT
+		var text: String = "%d" % seconds
+		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 40).x
+		canvas.draw_string(font, centre + Vector2(-width / 2.0, 14.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 40, Color(1.0, 1.0, 1.0, 0.9))
+
+
 static func plate_height(rect: Rect2) -> float:
 	return clampf(rect.size.y * 0.2, 22.0, 40.0)
+
+
+## Draws `def` darkened from the top down: `ready` (0 to 1) of the card, from the bottom up, is bright (a cooldown that fills the card).
+static func draw_filling(canvas: CanvasItem, rect: Rect2, def: WeaponDef, ready: float, dim: float = 0.55) -> void:
+	draw(canvas, rect, def)
+	var covered: float = rect.size.y * (1.0 - clampf(ready, 0.0, 1.0))
+	if covered <= 1.0:
+		return
+	var shade: StyleBoxFlat = StyleBoxFlat.new()
+	shade.bg_color = Color(0.0, 0.0, 0.0, dim)
+	shade.set_corner_radius_all(RADIUS)
+	shade.anti_aliasing = true
+	canvas.draw_style_box(shade, Rect2(rect.position, Vector2(rect.size.x, covered)))
 
 
 static func _name(canvas: CanvasItem, plate: Rect2, text: String) -> void:

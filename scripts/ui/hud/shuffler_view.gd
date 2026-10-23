@@ -6,6 +6,8 @@ extends Control
 ## It only draws; it never takes a touch.
 
 const FLASH_TIME: float = 0.4
+## The new NEXT card swells this much (a fraction) as it arrives.
+const POP: float = 0.16
 const LABEL_FONT: int = 20
 const NEXT_COLOR: Color = Color(0.45, 0.72, 1.0)
 
@@ -46,24 +48,33 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+## The window's card, in this view's own coordinates.
+func card_rect() -> Rect2:
+	return Rect2(Vector2(0.0, LABEL_FONT + 8.0), Vector2(size.x, size.y - LABEL_FONT - 8.0))
+
+
 func _draw() -> void:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var label: String = UiText.t("NEXT")
 	var label_size: Vector2 = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, LABEL_FONT)
 	draw_string(font, Vector2((size.x - label_size.x) / 2.0, LABEL_FONT), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, LABEL_FONT, NEXT_COLOR)
-	var card: Rect2 = Rect2(Vector2(0.0, LABEL_FONT + 8.0), Vector2(size.x, size.y - LABEL_FONT - 8.0))
+	var card: Rect2 = card_rect()
 	if shuffle_def != null:
-		CardStyle.draw(self, card, shuffle_def, 0.55)
+		# the used card fills with colour from the bottom as its cooldown runs down: bright means it is about to come back round
 		var centre: Vector2 = card.get_center()
-		var fraction: float = clampf(shuffle_left / maxf(shuffle_total, 0.001), 0.0, 1.0)
-		draw_arc(centre, card.size.x * 0.32, -PI / 2.0, -PI / 2.0 + TAU * fraction, 40, Color(1.0, 1.0, 1.0, 0.9), 7.0, true)
+		CardStyle.draw_filling(self, card, shuffle_def, 1.0 - clampf(shuffle_left / maxf(shuffle_total, 0.001), 0.0, 1.0))
 		var seconds: String = "%d" % ceili(shuffle_left)
 		var seconds_size: Vector2 = font.get_string_size(seconds, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 34)
 		draw_string_outline(font, centre + Vector2(-seconds_size.x / 2.0, 12.0), seconds, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 34, 6, Icons.OUTLINE)
 		draw_string(font, centre + Vector2(-seconds_size.x / 2.0, 12.0), seconds, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 34, Color.WHITE)
 	elif next_def != null:
+		var pop: float = 1.0
+		if _flash > 0.0:
+			pop += POP * sin((1.0 - _flash / FLASH_TIME) * PI)
+			draw_set_transform(card.get_center() * (1.0 - pop), 0.0, Vector2(pop, pop))
 		CardStyle.draw(self, card, next_def)
 		if _flash > 0.0:
-			draw_rect(card, Color(1.0, 0.9, 0.4, 0.6 * _flash / FLASH_TIME), true)
+			draw_rect(card, Color(1.0, 0.9, 0.4, 0.45 * _flash / FLASH_TIME), true)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	else:
 		CardStyle.draw_empty(self, card)

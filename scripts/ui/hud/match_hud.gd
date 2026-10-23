@@ -248,7 +248,7 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	console.set_wells_shown(shown)
 	shuffler.show_state(sim, player)
 	shuffler.visible = shown and sim.rules.card_cycle and player.cards
-	
+
 	for slot: int in weapon_buttons.size():
 		var button: AimButton = weapon_buttons[slot]
 		if slot >= player.weapons.size():
@@ -257,9 +257,12 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 		if sim.rules.card_cycle:
 			button.card_style = true
 			var card: WeaponDef = sim.weapon_defs.get(player.weapons[slot]) as WeaponDef
-			if card != button.weapon_def:
-				button.weapon_def = card
-				button.queue_redraw()
+			var old: WeaponDef = button.weapon_def
+			if card != old and old != null and button.visible and (player.shuffle_card == old.id or player.incoming.has(old.id)):
+				# the card you used flies from its slot to the shuffler
+				CardFlight.fly(self, old, button.get_rect(), Rect2(shuffler.position + shuffler.card_rect().position, shuffler.card_rect().size))
+			button.set_card(card)
+			button.set_waiting(1.0 - clampf(player.shuffle_left / maxf(player.shuffle_total, 0.001), 0.0, 1.0), ceili(player.shuffle_left))
 			var in_hand: bool = card != null
 			button.accessibility_name = "Card %d: %s" % [slot + 1, card.display_name if in_hand else "waiting for the shuffler"]
 			button.blocked_text = _block_tag(player) if (playing and in_hand) else ""
