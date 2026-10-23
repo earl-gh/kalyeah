@@ -6,7 +6,7 @@
 script = ExtResource("1_weapon")
 id = &"tsinelas_light"
 display_name = "Tsinelas · Light"
-short_name = "Tsinelas Light"
+short_name = "Flick"
 description = "Three slippers fly out and come back, hitting both ways."
 street_game = "Tumbang preso"
 kind = 0
