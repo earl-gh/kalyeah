@@ -30,6 +30,7 @@ func setup_hud() -> void:
 	owner.hud.overhead.view_scale = owner._camera.rules.kid_view_scale
 	owner.hud.overhead.bar_scale = owner._camera.rules.bar_scale
 	owner._fx.view_scale = owner._camera.rules.kid_view_scale
+	owner._fx.local_team = owner.local_team
 	owner.hud.set_top_inset(_safe_top_inset())
 	owner._camera.top_reserve_px = owner.hud.header_height() + HEADER_GAP
 	owner.hud.overhead.top_limit = owner.hud.header_height()

@@ -1,12 +1,16 @@
 class_name TeamColors
 extends RefCounted
 ## The one place the match asks "what colour is my team, and theirs". By default blue and red (and a green bar for you); with
-## `Settings.colorblind` blue and orange (the Okabe-Ito pair, apart for every common colour vision) and a pale yellow bar for you,
+## `Settings.colorblind` blue and orange (the Okabe-Ito pair, apart for every common colour vision) and a near-white bar for you,
 ## so green against red can never be the only difference. Shapes on the health bars say the same thing without colour.
 
 const BLIND_OWN: Color = Color("0072b2")
 const BLIND_ENEMY: Color = Color("e07b00")
-const BLIND_SELF: Color = Color(1.0, 0.95, 0.45)
+## Your own bar: near white, the brightest of the three and no hue of its own, so it is never read as the enemy's orange.
+const BLIND_SELF: Color = Color(0.96, 0.96, 0.96)
+## The street's base tints are pulled this far toward a calm grey; colour-blind colours keep their hue (a softened orange read as khaki).
+const BASE_SOFTEN: float = 0.3
+const BLIND_BASE_SOFTEN: float = 0.08
 
 
 ## The flat blue and red of the score card, the results card and the feed.
@@ -47,6 +51,11 @@ static func world_ally() -> Color:
 
 static func world_enemy() -> Color:
 	return BLIND_ENEMY if Settings.colorblind else Palette.TEAM_ENEMY
+
+
+## How far the street's team tints are pulled toward grey.
+static func base_soften() -> float:
+	return BLIND_BASE_SOFTEN if Settings.colorblind else BASE_SOFTEN
 
 
 ## The health bars over the kids.
