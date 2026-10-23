@@ -12,6 +12,10 @@ const WIDTH: float = 600.0
 ## The scores count up from 0 over this long, and a win throws confetti (a loss never does).
 const COUNT_SECONDS: float = 0.7
 const CONFETTI: bool = true
+## Confetti paper size range (px; visual pass: were 9 to 17, specks at phone size) and the weapon icons beside your kid (were 64).
+const CONFETTI_MIN: float = 14.0
+const CONFETTI_MAX: float = 24.0
+const WEAPON_ICON: float = 84.0
 
 signal home_pressed
 
@@ -22,7 +26,8 @@ var theirs_label: Label
 var time_label: Label
 var kid_holder: Control
 var weapons_row: HBoxContainer
-## One chip per point, in order, saying how it was won (held their base, tagged them all) and by whom.
+## One chip per way a point was won (held their base, tagged them all) and by whom, with a count when it happened more than
+## once ("Tagged them all × 3"), in the order each first happened.
 var how_flow: HFlowContainer
 var primary: Button
 var home_button: Button
@@ -141,13 +146,34 @@ static func how_text(ours: bool, how: int) -> String:
 	return "Held their base" if ours else "Held your base"
 
 
+## The point log grouped: [ours, how, count] for each way a point was won, in the order each first happened.
+static func how_groups(point_log: Array[Vector2i], local_team: int) -> Array[Array]:
+	var groups: Array[Array] = []
+	for entry: Vector2i in point_log:
+		var ours: bool = entry.x == local_team
+		var found: bool = false
+		for group: Array in groups:
+			if group[0] == ours and group[1] == entry.y:
+				group[2] = (group[2] as int) + 1
+				found = true
+				break
+		if not found:
+			groups.append([ours, entry.y, 1])
+	return groups
+
+
+## The words on one chip: how, and "× N" when it happened more than once.
+static func group_text(ours: bool, how: int, times: int) -> String:
+	return how_text(ours, how) if times < 2 else "%s × %d" % [UiText.t(how_text(ours, how)), times]
+
+
 func _fill_how(sim: MatchSim, local_team: int) -> void:
 	for child: Node in how_flow.get_children():
 		how_flow.remove_child(child)
 		child.queue_free()
-	for entry: Vector2i in sim.point_log:
-		var ours: bool = entry.x == local_team
-		var chip: PanelContainer = UiKit.chip(how_text(ours, entry.y), TeamColors.ui_own() if ours else TeamColors.ui_enemy(), Color.WHITE, UiMetrics.CAPTION)
+	for group: Array in how_groups(sim.point_log, local_team):
+		var ours: bool = group[0] as bool
+		var chip: PanelContainer = UiKit.chip(group_text(ours, group[1] as int, group[2] as int), TeamColors.ui_own() if ours else TeamColors.ui_enemy(), Color.WHITE, UiMetrics.CAPTION)
 		how_flow.add_child(chip)
 	how_flow.get_parent().visible = not sim.point_log.is_empty()
 
@@ -235,8 +261,8 @@ func _make_confetti() -> CPUParticles2D:
 	burst.angular_velocity_max = 360.0
 	burst.angle_min = 0.0
 	burst.angle_max = 360.0
-	burst.scale_amount_min = 9.0
-	burst.scale_amount_max = 17.0
+	burst.scale_amount_min = CONFETTI_MIN
+	burst.scale_amount_max = CONFETTI_MAX
 	var ramp: Gradient = Gradient.new()
 	ramp.offsets = PackedFloat32Array([0.0, 0.33, 0.66, 1.0])
 	ramp.colors = PackedColorArray([Color("ffc233"), Color("4aa0ff"), Color("ff7a70"), Color("45dd78")])
@@ -269,7 +295,7 @@ func _fill(sim: MatchSim, local_id: int, local_team: int, mode_text: String) -> 
 	for id: StringName in player.weapons:
 		var def: WeaponDef = sim.weapon_defs.get(id) as WeaponDef
 		if def != null:
-			weapons_row.add_child(WeaponsPage.holder(def, 64.0))
+			weapons_row.add_child(WeaponsPage.holder(def, WEAPON_ICON))
 
 
 ## The two scores at `progress` (0 to 1) of the way to their final numbers.

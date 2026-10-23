@@ -23,6 +23,15 @@ signal header_height_changed(height: float)
 enum Feed { TAGGED, RESCUED }
 
 const BANNER_TIME: float = 2.0
+## GO!, SCORED and VICTORY / DEFEAT on the street (visual pass: were 44 px with a 12 px outline): big gold words in a thick navy
+## outline with a drop shadow; a long one is set smaller to keep `BANNER_MARGIN` from the screen's sides. They pop in from
+## `BANNER_POP_FROM` times their size over `BANNER_POP_TIME` (not with Reduce motion).
+const BANNER_FONT: int = 72
+const BANNER_OUTLINE: int = 18
+const BANNER_SHADOW: Vector2 = Vector2(0.0, 6.0)
+const BANNER_MARGIN: float = 40.0
+const BANNER_POP_FROM: float = 1.5
+const BANNER_POP_TIME: float = 0.28
 ## The short word on a weapon button for each status that stops casting.
 const CAST_BLOCK_TAGS: Dictionary[int, String] = {
 	StatusEffects.Type.STUN: "STUNNED",
@@ -218,6 +227,7 @@ func controls_active() -> bool:
 
 func show_banner(text: String) -> void:
 	banner.text = text
+	banner.add_theme_font_size_override("font_size", banner_font_size(text))
 	banner.visible = true
 	_banner_left = BANNER_TIME
 	if is_instance_valid(_banner_tween):
@@ -228,11 +238,20 @@ func show_banner(text: String) -> void:
 		return
 	# pop in: starts big and transparent, settles with a little overshoot
 	banner.pivot_offset = banner.size / 2.0
-	banner.scale = Vector2.ONE * 1.5
+	banner.scale = Vector2.ONE * BANNER_POP_FROM
 	banner.modulate.a = 0.0
 	_banner_tween = create_tween().set_parallel(true)
-	_banner_tween.tween_property(banner, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_banner_tween.tween_property(banner, "scale", Vector2.ONE, BANNER_POP_TIME).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_banner_tween.tween_property(banner, "modulate:a", 1.0, 0.12)
+
+
+## The banner's font size for `text`: `BANNER_FONT`, or smaller so the words keep `BANNER_MARGIN` from both sides.
+func banner_font_size(text: String) -> int:
+	var room: float = maxf(size.x - BANNER_MARGIN * 2.0 - BANNER_OUTLINE * 2.0, 1.0)
+	var width: float = KalyeahTheme.DISPLAY_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, BANNER_FONT).x
+	if width <= room:
+		return BANNER_FONT
+	return int(floorf(float(BANNER_FONT) * room / width))
 
 
 func banner_text() -> String:
@@ -438,10 +457,14 @@ func _build() -> void:
 	_place(banner, Vector4(0, 0.3, 1, 0.3), Vector4(0, -60, 0, 60))
 	banner.visible = false
 	banner.theme_type_variation = &"DisplayLabel"
-	banner.add_theme_color_override("font_color", Color(1, 0.86, 0.3))
-	banner.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.1))
-	banner.add_theme_constant_override("outline_size", 12)
-	banner.add_theme_font_size_override("font_size", 44)
+	banner.add_theme_color_override("font_color", RoyaleStyle.GOLD)
+	banner.add_theme_color_override("font_outline_color", RoyaleStyle.NAVY)
+	banner.add_theme_constant_override("outline_size", BANNER_OUTLINE)
+	banner.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.45))
+	banner.add_theme_constant_override("shadow_offset_x", int(BANNER_SHADOW.x))
+	banner.add_theme_constant_override("shadow_offset_y", int(BANNER_SHADOW.y))
+	banner.add_theme_constant_override("shadow_outline_size", BANNER_OUTLINE)
+	banner.add_theme_font_size_override("font_size", BANNER_FONT)
 	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE

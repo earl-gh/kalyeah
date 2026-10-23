@@ -16,6 +16,18 @@ const HEALTH_LOW: float = 0.5
 const HEALTH_CRITICAL: float = 0.25
 const HEALTH_AMBER: Color = Color(1.0, 0.76, 0.2)
 const HEALTH_RED: Color = Color(1.0, 0.3, 0.28)
+## The card tray's depth (visual pass; it was one flat navy): the body shades from `TRAY_TOP` to `TRAY_BOTTOM`, a light line
+## and a dark line under the gold trim make a bevel, and the hand sits in a sunken well (dark at its top edge, lit at its lip).
+const TRAY_TOP: Color = Color(0.11, 0.22, 0.5)
+const TRAY_BOTTOM: Color = Color(0.03, 0.07, 0.19)
+const TRAY_CORNER: int = 28
+const TRAY_TRIM_Y: float = 7.0
+const TRAY_LIGHT: Color = Color(1.0, 1.0, 1.0, 0.2)
+const TRAY_BEVEL_DARK: Color = Color(0.0, 0.0, 0.0, 0.35)
+const WELL_FILL: Color = Color(0.0, 0.02, 0.08, 0.4)
+const WELL_SHADE: Color = Color(0.0, 0.0, 0.0, 0.4)
+const WELL_LIP: Color = Color(0.45, 0.72, 1.0, 0.3)
+const WELL_RADIUS: int = 22
 
 ## Round recesses {centre (from this panel's top-left), radius}: set by the HUD's layout.
 var sockets: Array[Dictionary] = []
@@ -153,28 +165,40 @@ func _draw_tray() -> void:
 	var w: float = size.x
 	var h: float = size.y
 	var shell: StyleBoxFlat = StyleBoxFlat.new()
-	shell.bg_color = Color(0.04, 0.09, 0.22)
-	shell.corner_radius_top_left = 28
-	shell.corner_radius_top_right = 28
+	shell.bg_color = TRAY_TOP
+	shell.corner_radius_top_left = TRAY_CORNER
+	shell.corner_radius_top_right = TRAY_CORNER
 	shell.border_color = RoyaleStyle.NAVY
 	shell.border_width_top = 5
 	shell.anti_aliasing = true
 	shell.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
 	shell.shadow_size = 16
 	draw_style_box(shell, Rect2(0.0, 0.0, w, h + 30.0))
-	draw_line(Vector2(28.0, 7.0), Vector2(w - 28.0, 7.0), Color(RoyaleStyle.GOLD, 0.8), 3.0, true)
-	var shade_top: Color = Color(0.1, 0.2, 0.45, 0.0)
-	var shade_bottom: Color = Color(0.1, 0.2, 0.45, 0.35)
-	draw_polygon(PackedVector2Array([Vector2(0.0, 24.0), Vector2(w, 24.0), Vector2(w, h), Vector2(0.0, h)]), PackedColorArray([shade_top, shade_top, shade_bottom, shade_bottom]))
+	# the body darkens toward the screen's edge, under the rounded top
+	var band: float = float(TRAY_CORNER)
+	draw_polygon(PackedVector2Array([Vector2(0.0, band), Vector2(w, band), Vector2(w, h), Vector2(0.0, h)]),
+		PackedColorArray([TRAY_TOP, TRAY_TOP, TRAY_BOTTOM, TRAY_BOTTOM]))
+	# the gold trim, a light line under it and a dark one under that: a bevelled top edge
+	draw_line(Vector2(band, TRAY_TRIM_Y), Vector2(w - band, TRAY_TRIM_Y), Color(RoyaleStyle.GOLD, 0.8), 3.0, true)
+	draw_line(Vector2(band, TRAY_TRIM_Y + 4.0), Vector2(w - band, TRAY_TRIM_Y + 4.0), TRAY_LIGHT, 2.0, true)
+	draw_line(Vector2(band, TRAY_TRIM_Y + 7.0), Vector2(w - band, TRAY_TRIM_Y + 7.0), TRAY_BEVEL_DARK, 2.0, true)
 	if wells_shown and not hand_rects.is_empty():
 		var tray: Rect2 = shuffler_rect.merge(hand_rects[0]).merge(hand_rects[hand_rects.size() - 1]).grow(14.0)
 		var back: StyleBoxFlat = StyleBoxFlat.new()
-		back.bg_color = Color(0.0, 0.0, 0.0, 0.3)
-		back.border_color = Color(RoyaleStyle.BLUE_LIGHT, 0.18)
-		back.set_border_width_all(2)
-		back.set_corner_radius_all(22)
+		back.bg_color = WELL_FILL
+		back.border_color = WELL_LIP
+		back.border_width_bottom = 2
+		back.set_corner_radius_all(WELL_RADIUS)
 		back.anti_aliasing = true
 		draw_style_box(back, tray)
+		# sunken: a shade along the well's top edge
+		var shade: StyleBoxFlat = StyleBoxFlat.new()
+		shade.bg_color = Color.TRANSPARENT
+		shade.border_color = WELL_SHADE
+		shade.border_width_top = 4
+		shade.set_corner_radius_all(WELL_RADIUS)
+		shade.anti_aliasing = true
+		draw_style_box(shade, tray)
 	_draw_bar()
 
 

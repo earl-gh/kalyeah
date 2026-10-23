@@ -26,6 +26,15 @@ const CAST_TIME: float = 0.38
 const KO_FALL_TIME: float = 0.35
 const HIT_TIME: float = 0.28
 const SHADOW_SIZE: float = 1.1
+## The team ring on the ground under the kid (visual pass): a see-through disc with an opaque rim in the colour the
+## health bar uses (you, an ally, an enemy). Sizes are in the kid's own units (the kid is drawn `kid_view_scale` big,
+## so the ring is too); it is a team mark, not the hit area. You get the bolder rim and the fuller disc.
+const RING_RIM: float = 0.07
+const RING_RIM_SELF: float = 0.11
+const RING_FILL_ALPHA: float = 0.18
+const RING_FILL_SELF_ALPHA: float = 0.32
+const RING_SEGMENTS: int = 28
+const RING_LIFT: float = 0.05
 const BLEND: float = 0.14
 ## The sim steps at 30 Hz but the screen draws faster: with no new position for this
 ## long the kid is standing still.
@@ -55,6 +64,7 @@ static var _layers: Dictionary[String, AnimationLibrary] = {}
 static var _portraits: Dictionary[String, Texture2D] = {}
 static var _faces: Dictionary[String, Texture2D] = {}
 static var _shadow_texture: GradientTexture2D
+static var _ring_material: StandardMaterial3D
 
 var character: CharacterDef
 var team_color: Color = Color.WHITE
@@ -73,6 +83,8 @@ var _land_left: float = 0.0
 var _layer_played: int = 0
 var _materials: Array[StandardMaterial3D] = []
 var _shadow: MeshInstance3D
+## The team ring under the kid (null until `setup`).
+var ring: MeshInstance3D
 var _stars: Node3D
 var _can: MeshInstance3D
 var _facing: Vector2 = Vector2(0.0, 1.0)
@@ -99,14 +111,63 @@ var _ground_speed: float = 0.0
 var pose: String = "idle"
 
 
-## `team` is kept for callers; teams are told apart by the health bar, not the kid.
-func setup(def: CharacterDef, team: Color, _ring_radius: float) -> void:
+## `team` is the colour of the ring under the kid (the health bar's colour); `ring_radius` its size in the kid's units.
+## `is_self` gives your own kid the bolder ring. The kid itself wears no team colour.
+func setup(def: CharacterDef, team: Color, ring_radius: float, is_self: bool = false) -> void:
 	character = def
 	_native = def.native_animation
 	team_color = team
 	_set = def.id if ResourceLoader.exists(MODEL_PATH % def.id) else FALLBACK_SET
 	_build()
+	ring = MeshInstance3D.new()
+	ring.name = "TeamRing"
+	ring.mesh = ring_mesh(ring_radius, team, is_self)
+	ring.material_override = _shared_ring_material()
+	ring.position.y = RING_LIFT
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(ring)
 	_play("idle", 1.0)
+
+
+## Recolours the ring (the colour-blind setting changed mid-match).
+func set_ring_color(team: Color, ring_radius: float, is_self: bool = false) -> void:
+	team_color = team
+	if ring != null:
+		ring.mesh = ring_mesh(ring_radius, team, is_self)
+
+
+## A flat disc of `radius` with an opaque rim, in vertex colours (built once per kid, never per frame).
+static func ring_mesh(radius: float, color: Color, is_self: bool) -> ArrayMesh:
+	var rim: float = RING_RIM_SELF if is_self else RING_RIM
+	var fill: Color = Color(color, RING_FILL_SELF_ALPHA if is_self else RING_FILL_ALPHA)
+	var edge: Color = Color(color, 1.0)
+	var tool: SurfaceTool = SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_normal(Vector3.UP)
+	for i: int in RING_SEGMENTS:
+		var a: Vector2 = Vector2.from_angle(TAU * float(i) / float(RING_SEGMENTS))
+		var b: Vector2 = Vector2.from_angle(TAU * float(i + 1) / float(RING_SEGMENTS))
+		var inner_a: Vector2 = a * (radius - rim)
+		var inner_b: Vector2 = b * (radius - rim)
+		for point: Vector2 in [Vector2.ZERO, inner_b, inner_a]:
+			tool.set_color(fill)
+			tool.add_vertex(Vector3(point.x, 0.0, point.y))
+		for point: Vector2 in [inner_a, inner_b, b * radius, inner_a, b * radius, a * radius]:
+			tool.set_color(edge)
+			tool.add_vertex(Vector3(point.x, 0.0, point.y))
+	return tool.commit()
+
+
+static func _shared_ring_material() -> StandardMaterial3D:
+	if _ring_material == null:
+		_ring_material = StandardMaterial3D.new()
+		_ring_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_ring_material.vertex_color_use_as_albedo = true
+		_ring_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_ring_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		# drawn before the kids and the props, so it lies on the road under everything standing
+		_ring_material.render_priority = -50
+	return _ring_material
 
 
 ## Turns the kid to look along `facing` (world x/z).

@@ -11,7 +11,9 @@ const INK: Color = RoyaleStyle.NAVY
 const TITLE_COLOR: Color = RoyaleStyle.GOLD
 const HINT_COLOR: Color = RoyaleStyle.CREAM
 const WAIT_TEXT: String = "Tagged · Wait for a rescue"
-const HINT_TEXT: String = "Teammates can run into your box to set you free."
+const HINT_TEXT: String = "Teammates run into your box to free you."
+## The countdown to walking out alone, when the match has one (Practice): a ring beside the faces.
+const RELEASE_RING_SIZE: float = 64.0
 ## The same side margin the controls keep.
 const SIDE_MARGIN: float = 34.0
 
@@ -20,6 +22,10 @@ var wait_label: Label
 ## One line on how it ends (the box, the teammate), under the title.
 var hint_label: Label
 var swap_button: Button
+## Your teammates: who is free and who is on the way.
+var pips: TeammatePips
+## Seconds until you walk out alone (shown only when the match sets a release time).
+var release_ring: CountdownRing
 ## What the title, the hint and the button sit in.
 var column: VBoxContainer
 
@@ -42,6 +48,22 @@ func _ready() -> void:
 	wait_label = _label(WAIT_TEXT, 34, TITLE_COLOR)
 	wait_label.theme_type_variation = &"DisplayLabel"
 	column.add_child(wait_label)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "Teammates"
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", UiMetrics.GAP)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(row)
+	pips = TeammatePips.new()
+	row.add_child(pips)
+	release_ring = CountdownRing.new()
+	release_ring.name = "ReleaseRing"
+	release_ring.custom_minimum_size = Vector2.ONE * RELEASE_RING_SIZE
+	release_ring.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	release_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	release_ring.accessibility_name = "Out alone in"
+	release_ring.visible = false
+	row.add_child(release_ring)
 	hint_label = _label(HINT_TEXT, UiMetrics.CAPTION, HINT_COLOR)
 	hint_label.name = "Hint"
 	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -69,6 +91,12 @@ func sync(_sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	visible = player.tagged and _sim.phase != MatchSim.Phase.MATCH_OVER
 	# cards mode: the weapons are cards that keep cycling, so there is nothing to change in the box
 	swap_button.visible = visible and not pick_open and not _sim.rules.card_cycle
+	if not visible:
+		return
+	pips.sync(_sim, player)
+	release_ring.visible = _sim.tag_release_time > 0.0
+	if release_ring.visible:
+		release_ring.show_time(_sim.tag_release_time - player.tag_time, _sim.tag_release_time)
 
 
 func _label(text: String, font_size: int, color: Color) -> Label:

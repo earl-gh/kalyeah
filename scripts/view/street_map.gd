@@ -17,12 +17,14 @@ const SUN_ANGLES: Vector3 = Vector3(-46.0, 52.0, 0.0)
 const SUN_COLOR: Color = Color(0.9, 0.95, 1.0)
 const SUN_ENERGY: float = 1.3
 const SHADOW_OPACITY: float = 0.7
-const SHADOW_BLUR: float = 1.6
+## Soft shadow edges (visual pass: 1.6 read as hard dark patches beside the buildings).
+const SHADOW_BLUR: float = 2.2
 const FILL_ANGLES: Vector3 = Vector3(-30.0, 258.0, 0.0)
 const FILL_COLOR: Color = Color(0.64, 0.76, 1.0)
 const FILL_ENERGY: float = 0.45
 const AMBIENT_COLOR: Color = Color(0.85, 0.91, 1.0)
-const AMBIENT_ENERGY: float = 0.82
+## Raised from 0.82 (visual pass): the shadow side of the street was muddy; the sun, its colour and the shadow opacity stay the owner's.
+const AMBIENT_ENERGY: float = 0.95
 const EXPOSURE: float = 1.0
 const TONEMAP_WHITE: float = 4.0
 const SATURATION: float = 1.1
@@ -32,8 +34,10 @@ const RING_HEIGHT: float = 0.03
 ## The base chalk and the box tape are tinted toward a soft grey so they are calm, not neon (how far: TeamColors.base_soften()).
 const SOFT_GREY: Color = Color(0.62, 0.64, 0.7)
 ## The base circle and the tagged box share one look: a faint team fill and team tape.
-const ZONE_FILL_ALPHA: float = 0.22
-const TAPE_WIDTH: float = 0.16
+## Visual pass: the bases and rescue areas were the faintest marks on the street (fill 0.22, tape 0.16 m); a stronger fill
+## that still lets the cement show and a thick chalk edge make the objective read second, after the kids.
+const ZONE_FILL_ALPHA: float = 0.34
+const TAPE_WIDTH: float = 0.3
 const BASE_STEPS: int = 36
 ## The tagged box has no tint and no tape: cardboard walls close its sides.
 const JAIL_WALL_THICKNESS: float = 0.5

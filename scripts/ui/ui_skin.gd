@@ -35,7 +35,18 @@ const PLATES: Dictionary[String, Dictionary] = {
 	"picked": {"top": Color("3a4a7e"), "bottom": Color("1d2d63"), "line": Color("ffc83a"), "line_width": 5.0, "light": 0.22, "shadow": 0.6},
 }
 const BUTTON_RADIUS: int = 24
-const BUTTON_LIP: int = 9
+## The lip the face sits on (visual pass: 9 px read flat next to the brand's chunky look) and how far the face sinks into it
+## when pressed (down to `BUTTON_PRESSED_LIP`).
+const BUTTON_LIP: int = 12
+const BUTTON_PRESSED_LIP: int = 3
+## The label's room above and below inside a button with a lip, in all: kept at the old 12 + 9 + 12 so no button changes
+## size; a disabled button (a flat lip) keeps its old `BUTTON_TEXT_PAD` above and below.
+const BUTTON_CONTENT_Y: float = 33.0
+const BUTTON_TEXT_PAD: float = 12.0
+## How bright the face's lit top edge and its gloss are, and the panels' lit edge round their sides.
+const BUTTON_EDGE_LIGHT: float = 0.5
+const BUTTON_GLOSS: float = 0.22
+const PLATE_SIDE_LIGHT: float = 0.4
 const BUTTON_PAD: int = 12
 const PLATE_RADIUS: int = 30
 const PLATE_PAD: int = 22
@@ -86,7 +97,7 @@ static func button(variant: String, state: String = "normal", radius: int = BUTT
 		return _cache[key]
 	var spec: Dictionary = BUTTONS.get(variant, BUTTONS["slate"]) as Dictionary
 	var pressed: bool = state == "pressed"
-	var lip: int = 3 if pressed or variant == "disabled" else BUTTON_LIP
+	var lip: int = BUTTON_PRESSED_LIP if pressed or variant == "disabled" else BUTTON_LIP
 	var sink: int = BUTTON_LIP - lip if variant != "disabled" else 0
 	var lift: float = 0.1 if state == "hover" else 0.0
 	var size: int = (radius + BUTTON_PAD) * 2 + 8
@@ -112,7 +123,7 @@ static func button(variant: String, state: String = "normal", radius: int = BUTT
 			var g: float = clampf(1.0 - (at.y - face.position.y) / gloss_h, 0.0, 1.0)
 			var edge: float = clampf(1.0 - (at.y - face.position.y - 2.0) / 3.0, 0.0, 1.0)
 			var on_face: float = _cover(d_face + 2.0)
-			color = color.lerp(Color.WHITE, (g * g * 0.22 + edge * 0.35) * on_face)
+			color = color.lerp(Color.WHITE, (g * g * BUTTON_GLOSS + edge * BUTTON_EDGE_LIGHT) * on_face)
 			var alpha: float = _cover(d_body)
 			var out: Color = Color(color, alpha)
 			if shadow_alpha > 0.0 and alpha < 1.0:
@@ -124,8 +135,9 @@ static func button(variant: String, state: String = "normal", radius: int = BUTT
 	var box: StyleBoxTexture = _nine_slice(image, radius + BUTTON_PAD, BUTTON_PAD)
 	box.content_margin_left = 26.0
 	box.content_margin_right = 26.0
-	box.content_margin_top = 12.0 + sink
-	box.content_margin_bottom = 12.0 + lip
+	var text_pad: float = BUTTON_TEXT_PAD if variant == "disabled" else (BUTTON_CONTENT_Y - BUTTON_LIP) / 2.0
+	box.content_margin_top = text_pad + sink
+	box.content_margin_bottom = text_pad + lip
 	_cache[key] = box
 	return box
 
@@ -173,7 +185,7 @@ static func _render_plate(kind: String, radius: int) -> StyleBoxTexture:
 			var inner: float = _cover(d + line)
 			color = (spec["line"] as Color).lerp(color, inner / maxf(alpha, 0.001))
 			var rim: float = clampf(1.0 - (at.y - body.position.y - line) / 3.0, 0.0, 1.0) * _cover(d + line)
-			var side: float = (1.0 - clampf((d + line + 1.0) / 2.0, 0.0, 1.0)) * _cover(d + line) * 0.25
+			var side: float = (1.0 - clampf((d + line + 1.0) / 2.0, 0.0, 1.0)) * _cover(d + line) * PLATE_SIDE_LIGHT
 			color = color.lerp(Color.WHITE, (rim + side * (1.0 - t)) * light)
 			var out: Color = Color(color, alpha)
 			if shadow > 0.0 and alpha < 1.0:
