@@ -19,10 +19,8 @@ static func build(hud: MatchHud) -> void:
 	hud.settings_button.accessibility_name = "Match settings"
 	hud.settings_button.pressed.connect(hud.toggle_menu)
 	hud.top.add_child(hud.settings_button)
-	# under the settings button: the TAGGED!/RESCUED! feed
+	# the TAGGED!/RESCUED! feed (placed in layout())
 	hud.feed_box = VBoxContainer.new()
-	var feed_top: float = MatchHud.HEADER_HEIGHT + 12.0
-	hud._place(hud.feed_box, Vector4(0, 0, 0, 0), Vector4(MatchHud.MARGIN, feed_top, MatchHud.MARGIN + MatchHud.FEED_SIZE.x, feed_top + MatchHud.FEED_SIZE.y * MatchHud.FEED_MAX + 12.0))
 	hud.feed_box.add_theme_constant_override("separation", 6)
 	hud.feed_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.top.add_child(hud.feed_box)
@@ -37,13 +35,13 @@ static func build(hud: MatchHud) -> void:
 	layout(hud)
 
 
-## Places the settings button at the top left and the feed under it.
+## Places the settings button at the top left and the feed on the left, under the tagged box (which it must not cover).
 static func layout(hud: MatchHud) -> void:
 	if hud.intro_bar != null:
 		hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(80, -(hud.console_height() + 150.0), -80, -(hud.console_height() + 6.0)))
 	var gear: Vector4 = Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE)
 	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear)
-	var feed_top: float = MatchHud.HEADER_HEIGHT + 12.0
+	var feed_top: float = MatchHud.HEADER_HEIGHT + MatchHud.FEED_DROP
 	hud._place(hud.feed_box, Vector4(0, 0, 0, 0), Vector4(MatchHud.MARGIN, feed_top, MatchHud.MARGIN + MatchHud.FEED_SIZE.x, feed_top + MatchHud.FEED_SIZE.y * MatchHud.FEED_MAX + 12.0))
 	hud._place(hud.clock_chip, Vector4(1, 0, 1, 0), Vector4(-MatchHud.MARGIN - MatchHud.CLOCK_SIZE.x, MatchHud.TOP_ROW_Y, -MatchHud.MARGIN, MatchHud.TOP_ROW_Y + MatchHud.CLOCK_SIZE.y))
 

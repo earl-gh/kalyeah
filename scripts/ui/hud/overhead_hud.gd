@@ -12,6 +12,10 @@ const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 const POPUP_TIME: float = 0.9
 const POPUP_RISE: float = 56.0
 const STATUS_FONT: int = 22
+## The RESCUE marker over your team's tagged box: a pill with a pointer that bobs (still with Reduce motion).
+const RESCUE_FONT: int = 24
+const RESCUE_BOB: float = 7.0
+const RESCUE_POINTER: float = 12.0
 const POPUP_FONT: int = 30
 ## Italic = the regular font slanted (the bundled font has no italic face).
 const ITALIC_SLANT: float = -0.22
@@ -115,8 +119,53 @@ func _draw() -> void:
 		var at: Variant = _head(state)
 		if at != null and bar_visible(state):
 			_draw_hero(state, at as Vector2)
+	if rescue_cue_visible():
+		_draw_rescue_cue()
 	for popup: Dictionary in _popups:
 		_draw_popup(popup)
+
+
+## True while a teammate waits in the tagged box and you are free to run there and set them loose.
+func rescue_cue_visible() -> bool:
+	if _sim.phase != MatchSim.Phase.PLAYING:
+		return false
+	var me: PlayerState = _sim.players.get(_local_id) as PlayerState
+	if me == null or me.tagged:
+		return false
+	for id: int in _sim.players:
+		var state: PlayerState = _sim.players[id]
+		if state.team == _local_team and state.tagged:
+			return true
+	return false
+
+
+## "RESCUE" over the middle of your team's box (it is the end of the street the other team defends, so it is easy to lose among the props).
+func _draw_rescue_cue() -> void:
+	var box: Vector2 = _sim.layout.jail_rect(_sim.side_for_team(_local_team)).get_center()
+	var world: Vector3 = Vector3(box.x, HEAD_HEIGHT * view_scale, box.y)
+	if _camera == null or _camera.is_position_behind(world):
+		return
+	var tip: Vector2 = _camera.screen_position(world) if _camera is ArenaCamera else _camera.unproject_position(world)
+	if not Settings.reduced_motion:
+		tip.y -= RESCUE_BOB * (0.5 + 0.5 * sin(float(Time.get_ticks_msec()) / 1000.0 * TAU * 1.4))
+	var font: Font = KalyeahTheme.ACTION_FONT
+	var label: String = UiText.t("RESCUE")
+	var label_size: Vector2 = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, RESCUE_FONT)
+	var pill: Rect2 = Rect2(Vector2(tip.x - label_size.x / 2.0 - 14.0, tip.y - RESCUE_POINTER - label_size.y - 14.0), label_size + Vector2(28.0, 14.0))
+	pill.position.x = clampf(pill.position.x, 4.0, maxf(size.x - pill.size.x - 4.0, 4.0))
+	pill.position.y = maxf(pill.position.y, top_limit + 4.0)
+	var color: Color = TeamColors.feed_own()
+	var box_style: StyleBoxFlat = StyleBoxFlat.new()
+	box_style.bg_color = color
+	box_style.border_color = Icons.OUTLINE
+	box_style.set_border_width_all(3)
+	box_style.set_corner_radius_all(14)
+	box_style.anti_aliasing = true
+	draw_style_box(box_style, pill)
+	var centre_x: float = clampf(tip.x, pill.position.x + 18.0, pill.end.x - 18.0)
+	var point: PackedVector2Array = PackedVector2Array([Vector2(centre_x - 10.0, pill.end.y - 2.0), Vector2(centre_x + 10.0, pill.end.y - 2.0), Vector2(centre_x, pill.end.y + RESCUE_POINTER)])
+	draw_colored_polygon(point, color)
+	draw_string(font, Vector2(pill.position.x + 14.0, pill.end.y - 9.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, RESCUE_FONT, Color.WHITE)
 
 
 ## True while `state`'s team holds the enemy base and this kid stands in it.

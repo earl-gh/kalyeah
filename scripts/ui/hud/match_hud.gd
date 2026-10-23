@@ -41,6 +41,8 @@ const CLOCK_SIZE: Vector2 = Vector2(152.0, 88.0)
 const FEED_TIME: float = 2.6
 const FEED_SIZE: Vector2 = Vector2(250.0, 46.0)
 const FEED_MAX: int = 3
+## The feed starts this far under the header: just below your team's tagged box, which is in the top left corner of the street.
+const FEED_DROP: float = 130.0
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## Controls (owner), as (distance from their screen edge, distance from the bottom) of each
 ## control's centre on the 720x1280 base: the movement stick at the bottom left, the two skill
