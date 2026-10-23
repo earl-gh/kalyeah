@@ -52,19 +52,20 @@ func test_every_texture_is_the_same_left_and_right_so_drawing_half_is_exact() ->
 
 
 func test_the_faster_drawing_gives_the_same_pixels_as_before() -> void:
-	# recorded from the per-pixel drawing before the half-and-mirror change
+	# recorded from the per-pixel drawing before the half-and-mirror change; the face and plate colours re-recorded for the
+	# visual pass (a 12 px lip, a brighter lit edge, a stronger side light), the shadows are unchanged
 	var gold: Image = UiSkin.button("gold", "normal").texture.get_image()
-	assert_almost_eq(gold.get_pixel(39, 40).g, 0.7059, 0.002, "the face")
-	assert_almost_eq(gold.get_pixel(39, 40).b, 0.2039, 0.002)
+	assert_almost_eq(gold.get_pixel(39, 40).g, 0.698, 0.002, "the face")
+	assert_almost_eq(gold.get_pixel(39, 40).b, 0.1922, 0.002)
 	assert_eq(gold.get_pixel(39, 40).a, 1.0)
 	assert_almost_eq(gold.get_pixel(60, 68).a, 0.4902, 0.002, "the drop shadow")
 	assert_almost_eq(gold.get_pixel(20, 14).a, 0.0706, 0.002, "the soft edge of the shadow")
 	var glass: Image = UiSkin.plate("glass", 0.0, 30).texture.get_image()
-	assert_almost_eq(glass.get_pixel(55, 56).r, 0.1216, 0.002)
-	assert_almost_eq(glass.get_pixel(55, 56).b, 0.3725, 0.002)
+	assert_almost_eq(glass.get_pixel(55, 56).r, 0.1333, 0.002)
+	assert_almost_eq(glass.get_pixel(55, 56).b, 0.3804, 0.002)
 	assert_almost_eq(glass.get_pixel(21, 56).a, 0.5451, 0.002, "the plate's shadow")
 	var picked: Image = UiSkin.plate("picked", 0.0, 22).texture.get_image()
-	assert_almost_eq(picked.get_pixel(47, 48).b, 0.4549, 0.002)
+	assert_almost_eq(picked.get_pixel(47, 48).b, 0.4627, 0.002)
 
 
 func test_warming_builds_one_texture_per_call_and_ends_with_everything_built() -> void:

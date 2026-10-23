@@ -37,6 +37,7 @@ func setup_hud() -> void:
 
 
 func connect_hud() -> void:
+	Settings.accessibility_changed.connect(recolor_rings)
 	owner.hud.dpad.changed.connect(owner.set_stick)
 	for slot: int in owner.hud.aim_buttons.size():
 		owner.hud.aim_buttons[slot].aim_started.connect(owner.aim_started.bind(slot))
@@ -93,17 +94,28 @@ func sync(delta: float) -> void:
 	owner._camera.place(owner._flip())
 
 
-func make_actor_view(state: PlayerState) -> void:
-	var team_color: Color = TeamColors.world_enemy()
+## The colour of the ring under `state`'s kid: the same colour as its health bar (you, an ally, an enemy).
+func ring_color(state: PlayerState) -> Color:
 	if state.id == owner.local_id:
-		team_color = TeamColors.world_own()
-	elif state.team == owner.local_team:
-		team_color = TeamColors.world_ally()
+		return TeamColors.bar_self()
+	return TeamColors.bar_ally() if state.team == owner.local_team else TeamColors.bar_enemy()
+
+
+## The colour-blind setting changed: the rings follow the bars.
+func recolor_rings() -> void:
+	for id: int in owner.sim.players:
+		var view: KidModel = owner._views.get(id) as KidModel
+		if view != null:
+			view.set_ring_color(ring_color(owner.sim.players[id]), owner.rules.player_radius, id == owner.local_id)
+
+
+func make_actor_view(state: PlayerState) -> void:
+	var team_color: Color = ring_color(state)
 	var character: CharacterDef = owner._characters.get(state.character_id) as CharacterDef
 	if character == null:
 		character = owner.rules.characters[0]
 	var view: KidModel = KidModel.new()
-	view.setup(character, team_color, owner.rules.player_radius)
+	view.setup(character, team_color, owner.rules.player_radius, state.id == owner.local_id)
 	view.scale = Vector3.ONE * owner._camera.rules.kid_view_scale
 	owner._actors.add_child(view)
 	owner._views[state.id] = view

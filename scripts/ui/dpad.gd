@@ -27,6 +27,15 @@ const CROSS_COLOR: Color = Color(0.93, 0.95, 1.0)
 const ARROW_COLOR: Color = Color(0.2, 0.36, 0.75)
 const PRESSED_COLOR: Color = Color(1.0, 0.72, 0.12)
 const CENTER_COLOR: Color = Color(0.74, 0.8, 0.95)
+## The crafted cross (visual pass): the cross is a raised block, `CROSS_DEPTH` px of darker side under its face, the face
+## shaded from `CROSS_COLOR` at the top to `CROSS_SHADE` at the bottom with a light edge along its upper sides; a pressed
+## arm sinks `PRESS_SINK` px into the side and is tinted.
+const CROSS_SHADE: Color = Color(0.72, 0.78, 0.92)
+const CROSS_SIDE: Color = Color(0.36, 0.44, 0.66)
+const CROSS_LIGHT: Color = Color(1.0, 1.0, 1.0, 0.85)
+const CROSS_LIGHT_WIDTH: float = 3.0
+const CROSS_DEPTH: float = 7.0
+const PRESS_SINK: float = 5.0
 ## The cross: each arm is this wide and reaches this far, as shares of the disc's radius.
 const ARM_WIDTH: float = 0.62
 const ARM_REACH: float = 0.93
@@ -127,36 +136,65 @@ func _draw_dish(center: Vector2, radius: float) -> void:
 	draw_circle(center + Vector2(3.0, 5.0), radius - 26.0, DISH_COLOR)
 
 
-## The raised cross with a notch at the end of every arm; a pressed arm is tinted and its notch lit.
+## The raised cross: a dark shadow, the darker side, the shaded face with a lit upper edge and a notch at the end of every
+## arm; a pressed arm sinks into the side, tinted, its notch lit.
 func _draw_cross(center: Vector2, radius: float, arms: Array[bool]) -> void:
 	var half: float = radius * ARM_WIDTH / 2.0
 	var reach: float = radius * ARM_REACH
-	var outline: PackedVector2Array = PackedVector2Array([
-		center + Vector2(half, -reach), center + Vector2(half, -half), center + Vector2(reach, -half), center + Vector2(reach, half),
-		center + Vector2(half, half), center + Vector2(half, reach), center + Vector2(-half, reach), center + Vector2(-half, half),
-		center + Vector2(-reach, half), center + Vector2(-reach, -half), center + Vector2(-half, -half), center + Vector2(-half, -reach)])
-	# the cross stands a little above the dish: a dark edge under it, then its face
-	var lowered: PackedVector2Array = PackedVector2Array()
-	for point: Vector2 in outline:
-		lowered.append(point + Vector2(0.0, 4.0))
-	draw_colored_polygon(lowered, Color(0.0, 0.0, 0.0, 0.5))
-	draw_colored_polygon(outline, CROSS_COLOR)
+	var outline: PackedVector2Array = cross_outline(center, half, reach)
+	var down: Vector2 = Vector2(0.0, CROSS_DEPTH)
+	draw_colored_polygon(_moved(outline, down + Vector2(0.0, 4.0)), Color(0.0, 0.0, 0.0, 0.45))
+	draw_colored_polygon(_moved(outline, down), CROSS_SIDE)
+	_shaded(outline, center.y - reach, center.y + reach)
 	var closed: PackedVector2Array = outline.duplicate()
 	closed.append(outline[0])
-	draw_polyline(closed, BODY_COLOR, 4.0, true)
+	# the lit edge along the face's upper and left sides (the light comes from the top left)
+	for index: int in outline.size():
+		var from: Vector2 = outline[index]
+		var to: Vector2 = outline[(index + 1) % outline.size()]
+		# the outward normal of this edge (the corners run clockwise on screen)
+		var outward: Vector2 = (to - from).orthogonal().normalized()
+		if outward.y < -0.5 or outward.x < -0.5:
+			draw_line(from - outward * CROSS_LIGHT_WIDTH, to - outward * CROSS_LIGHT_WIDTH, CROSS_LIGHT, CROSS_LIGHT_WIDTH, true)
 	for index: int in 4:
 		var direction: Vector2 = Vector2.from_angle(float(index) * PI / 2.0)
 		var side: Vector2 = direction.orthogonal()
 		var lit: bool = arms[index]
+		var sink: Vector2 = Vector2(0.0, PRESS_SINK) if lit else Vector2.ZERO
 		if lit:
-			var near: Vector2 = center + direction * half * 0.3
+			var near: Vector2 = center + direction * half
 			var far: Vector2 = center + direction * reach
-			draw_colored_polygon(PackedVector2Array([near + side * half, far + side * half, far - side * half, near - side * half]), Color(PRESSED_COLOR, 0.75))
+			var arm: PackedVector2Array = PackedVector2Array([near + side * half, far + side * half, far - side * half, near - side * half])
+			draw_colored_polygon(_moved(arm, sink), Color(PRESSED_COLOR, 0.9))
 		# the notch: a small triangle pointing out, near the end of the arm
-		var tip: Vector2 = center + direction * (reach - 12.0)
-		var base: Vector2 = center + direction * (reach - 32.0)
+		var tip: Vector2 = center + direction * (reach - 12.0) + sink
+		var base: Vector2 = center + direction * (reach - 32.0) + sink
 		var wing: float = half * 0.45
-		draw_colored_polygon(PackedVector2Array([tip, base + side * wing, base - side * wing]), PRESSED_COLOR if lit else ARROW_COLOR)
+		draw_colored_polygon(PackedVector2Array([tip, base + side * wing, base - side * wing]), PRESSED_COLOR.darkened(0.35) if lit else ARROW_COLOR)
+	draw_polyline(closed, BODY_COLOR, 4.0, true)
+
+
+## The cross's twelve corners round `center`: arms `half` wide on each side, reaching `reach`.
+static func cross_outline(center: Vector2, half: float, reach: float) -> PackedVector2Array:
+	return PackedVector2Array([
+		center + Vector2(half, -reach), center + Vector2(half, -half), center + Vector2(reach, -half), center + Vector2(reach, half),
+		center + Vector2(half, half), center + Vector2(half, reach), center + Vector2(-half, reach), center + Vector2(-half, half),
+		center + Vector2(-reach, half), center + Vector2(-reach, -half), center + Vector2(-half, -half), center + Vector2(-half, -reach)])
+
+
+static func _moved(points: PackedVector2Array, by: Vector2) -> PackedVector2Array:
+	var moved: PackedVector2Array = PackedVector2Array()
+	for point: Vector2 in points:
+		moved.append(point + by)
+	return moved
+
+
+## The cross's face, shaded from light at `top` to darker at `bottom` (one colour per corner).
+func _shaded(outline: PackedVector2Array, top: float, bottom: float) -> void:
+	var colors: PackedColorArray = PackedColorArray()
+	for point: Vector2 in outline:
+		colors.append(CROSS_COLOR.lerp(CROSS_SHADE, clampf((point.y - top) / maxf(bottom - top, 1.0), 0.0, 1.0)))
+	draw_polygon(outline, colors)
 
 
 func _to_local(viewport_position: Vector2) -> Vector2:

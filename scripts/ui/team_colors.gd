@@ -9,7 +9,8 @@ const BLIND_ENEMY: Color = Color("e07b00")
 ## Your own bar: near white, the brightest of the three and no hue of its own, so it is never read as the enemy's orange.
 const BLIND_SELF: Color = Color(0.96, 0.96, 0.96)
 ## The street's base tints are pulled this far toward a calm grey; colour-blind colours keep their hue (a softened orange read as khaki).
-const BASE_SOFTEN: float = 0.3
+## (0.3 before the visual pass: the bases read as faint grey.)
+const BASE_SOFTEN: float = 0.15
 const BLIND_BASE_SOFTEN: float = 0.08
 
 

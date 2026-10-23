@@ -27,6 +27,7 @@ What is built, what is next, and the rules for building it. Rules and numbers li
 
 | Lead review, P0 and P1 | The stranded UI, cast-feedback and sparring-bot work on `main`; fair round rules (no team-0 tie-break, contested bases, optional overtime and timed box release) and a team-round bot harness. [Review](audits/2026-10-21-lead-review.md), [round rules](audits/2026-10-21-round-rules.md). Then P2 weapons ([weapon pass](audits/2026-10-21-weapon-pass.md)) and P3 a 3v3 Practice against bots ([practice vs bots](audits/2026-10-21-practice-bots.md)). Next: P4 UI polish, P5 device checks. |
 | Card tray audit 4 | Cancel mark out of every full aim, tray wells under the cards, *Nobody in range* / NO TARGET feedback, web touch-cancel keeps the card, one RESCUE marker under the box and no per-kid *Tagged*, drawn text at the 22 px floor, kid names that fit, results layering; protocol v2 checked at the handshake, no mid-match PICK, the shuffler queue in snapshots, reconnect hands with an empty slot; effects in the thrower's team colour from frame one, colour-blind self near white |
+| Visual pass (code-drawn) | Lighter street shadows and calmer cement, readable bases and rescue areas, a team ring under every kid, chunky rounded bars, bigger impacts and landing rims, big outlined banners, a bevelled tray and D-pad, deeper buttons with unchanged sizes, teammate faces and the release ring while tagged, a grouped results card, a stage and name on the kid screen; art briefs in `docs/art-briefs/` |
 
 ## Short-phone GUI follow-up
 
@@ -64,7 +65,7 @@ Goal: the look of the owner's reference image (League of Legends mid view, Clash
 | P3 ✅ | League of Legends camera | numbers below, camera tests updated |
 | P4 | 3D kids (rigged GLB models): done, all six kids use their own rigged and animated model and portrait | all six kids use their own model |
 | P5 | Environment kit in Blender (tin roofs, cardboard sheets, tyres, plants, hoop, drains, tricycle with driver, base post with posters) | street matches the reference |
-| P6 | Effects: impact debris, trails, dust, ground rings, per-weapon projectiles | every weapon has a clear effect |
+| P6 | Effects: impact debris, trails, dust, ground rings, per-weapon projectiles (ground rings and code-drawn impacts done in the visual pass; sprite sheets briefed in `docs/art-briefs/`) | every weapon has a clear effect |
 | P7 | UI pass: painted skill icons, team portraits and timer across the top, framed minimap | HUD matches the reference |
 | P8 | Performance and Android: frame rate, download size, APK | budgets below |
 

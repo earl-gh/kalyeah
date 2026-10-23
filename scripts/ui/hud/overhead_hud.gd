@@ -6,7 +6,13 @@ extends Control
 ## team holds the enemy base, a spinner fills over its kids' heads. Reads the sim
 ## and projects through the match camera.
 
-const BAR_SIZE: Vector2 = Vector2(92.0, 13.0)
+## The bar before `bar_scale` (visual pass: 92 x 13 read as a hairline at phone size; now a chunky rounded bar).
+const BAR_SIZE: Vector2 = Vector2(96.0, 18.0)
+## The dark outline round the bar (screen px, kept at any bar_scale so the bar always reads on the street) and the
+## quarter marks across the fill.
+const BAR_OUTLINE: float = 3.0
+const BAR_MARKS: int = 4
+const BAR_MARK: Color = Color(0.0, 0.0, 0.0, 0.35)
 ## The bar sits just above the top of the head (the kid's model is KID_HEIGHT tall).
 const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 const POPUP_TIME: float = 0.9
@@ -48,6 +54,10 @@ var _camera: Camera3D
 var _local_id: int = -1
 var _local_team: int = 0
 var _italic: FontVariation
+## The bar's back, fill and gloss, made once and recoloured as each kid is drawn (no allocation per frame).
+var _bar_back: StyleBoxFlat
+var _bar_fill: StyleBoxFlat
+var _bar_gloss: StyleBoxFlat
 ## {id, amount, age, heal, jitter}
 var _popups: Array[Dictionary] = []
 
@@ -62,6 +72,15 @@ func setup(sim: MatchSim, camera: Camera3D, local_id: int, local_team: int) -> v
 	_italic.base_font = KalyeahTheme.BODY_FONT
 	_italic.variation_transform = Transform2D(Vector2(1.0, 0.0), Vector2(ITALIC_SLANT, 1.0), Vector2.ZERO)
 	sim.player_healed.connect(_on_healed)
+	_bar_back = StyleBoxFlat.new()
+	_bar_back.bg_color = BACK
+	_bar_back.border_color = Icons.OUTLINE
+	_bar_back.anti_aliasing = true
+	_bar_fill = StyleBoxFlat.new()
+	_bar_fill.anti_aliasing = true
+	_bar_gloss = StyleBoxFlat.new()
+	_bar_gloss.bg_color = Color(1.0, 1.0, 1.0, 0.35)
+	_bar_gloss.anti_aliasing = true
 
 
 ## The status words shown (in italic) above a hero's bar: "Stunned", "Slowed", ...
@@ -209,12 +228,10 @@ func spinner_visible(state: PlayerState) -> bool:
 func _draw_hero(state: PlayerState, head: Vector2) -> void:
 	var bar: Vector2 = BAR_SIZE * bar_scale
 	var rect: Rect2 = Rect2(head - Vector2(bar.x / 2.0, 0.0), bar)
-	draw_rect(rect.grow(2.0), BACK)
 	var max_hp: float = float(_sim.rules.player_max_hp)
 	var fill: float = clampf(float(state.hp) / max_hp, 0.0, 1.0)
 	var color: Color = bar_color(state)
-	draw_rect(Rect2(rect.position, Vector2(rect.size.x * fill, rect.size.y)), color)
-	draw_rect(Rect2(rect.position, Vector2(rect.size.x * fill, rect.size.y * 0.35)), color.lightened(0.35))
+	_draw_bar(rect, fill, color)
 	_draw_team_mark(state, rect, color)
 	var status: String = _status_text(state)
 	var lift: float = 0.0
@@ -223,6 +240,24 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 		lift = 22.0
 	if spinner_visible(state):
 		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.capture_elapsed / maxf(_sim.capture_needed, 0.001))
+
+
+## A rounded bar with a dark outline: the fill in `color`, a gloss on its upper third and a mark every quarter.
+func _draw_bar(rect: Rect2, fill: float, color: Color) -> void:
+	var round_px: int = int(ceilf(rect.size.y / 2.0 + BAR_OUTLINE))
+	_bar_back.set_border_width_all(int(BAR_OUTLINE))
+	_bar_back.set_corner_radius_all(round_px)
+	draw_style_box(_bar_back, rect.grow(BAR_OUTLINE))
+	if fill > 0.0:
+		var width: float = maxf(rect.size.x * fill, rect.size.y)
+		_bar_fill.bg_color = color
+		_bar_fill.set_corner_radius_all(int(ceilf(rect.size.y / 2.0)))
+		draw_style_box(_bar_fill, Rect2(rect.position, Vector2(width, rect.size.y)))
+		_bar_gloss.set_corner_radius_all(int(ceilf(rect.size.y / 4.0)))
+		draw_style_box(_bar_gloss, Rect2(rect.position + Vector2(rect.size.y / 3.0, 1.0), Vector2(maxf(width - rect.size.y / 1.5, 1.0), rect.size.y / 3.0)))
+	for mark: int in range(1, BAR_MARKS):
+		var x: float = rect.position.x + rect.size.x * float(mark) / float(BAR_MARKS)
+		draw_line(Vector2(x, rect.position.y + 1.0), Vector2(x, rect.end.y - 1.0), BAR_MARK, 1.0)
 
 
 ## Where `text` is drawn: its centre pulled inside the screen's sides and its baseline kept under `top_limit`.

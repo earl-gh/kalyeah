@@ -15,6 +15,11 @@ uniform float wear = 1.0;
 uniform float crack_width = 0.008;
 // patched repairs on the street: the grid they are picked from (m)
 uniform float patch_size = 3.0;
+// how dark the broad blotches, the stains and the hairline cracks are (visual pass: lower, so the
+// street reads calm and the bases, boxes and kids stand out; were 0.18, 0.08 and 0.2)
+uniform float blotch_depth = 0.11;
+uniform float stain_depth = 0.05;
+uniform float crack_depth = 0.09;
 
 varying vec3 world_position;
 varying vec3 world_normal;
@@ -48,11 +53,11 @@ void fragment() {
 	float shade = 1.0;
 	if (world_normal.y > 0.5) {
 		// broad soft blotches, a mottle and a fine grain (faded with distance)
-		shade += (value_noise(uv * 0.12) - 0.5) * 0.18;
+		shade += (value_noise(uv * 0.12) - 0.5) * blotch_depth;
 		shade += (value_noise(uv * 0.9 + 7.0) - 0.5) * 0.14 * keep(footprint, 1.1);
 		shade += (value_noise(uv * 6.0 + 3.0) - 0.5) * 0.08 * keep(footprint, 0.17);
 		// old stains and patched spots
-		shade -= smoothstep(0.62, 0.82, value_noise(uv * 0.35 + 17.0)) * 0.08;
+		shade -= smoothstep(0.62, 0.82, value_noise(uv * 0.35 + 17.0)) * stain_depth;
 		bool sidewalk = abs(world_position.x) > lane_half_width;
 		if (sidewalk) {
 			// slab joints across the walk, anti-aliased
@@ -79,7 +84,7 @@ void fragment() {
 			float aa = fwidth(ridge);
 			float crack = 1.0 - smoothstep(crack_width, crack_width + aa * 1.5, ridge);
 			crack *= smoothstep(0.5, 0.72, value_noise(uv * 0.07 + 5.0));
-			shade -= crack * 0.2 * keep(footprint, 0.3);
+			shade -= crack * crack_depth * keep(footprint, 0.3);
 		}
 	} else {
 		// the raised face toward the street: grime toward the bottom, soft streaks along it
