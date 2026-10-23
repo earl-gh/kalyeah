@@ -166,27 +166,22 @@ func test_every_chip_fill_keeps_white_text_readable() -> void:
 
 # ---- profile sheet ----------------------------------------------------------------------
 
-func test_the_profile_sheet_has_the_six_faces_with_yours_lit_and_your_name() -> void:
+func test_the_profile_sheet_has_only_your_name_and_no_face_to_pick() -> void:
 	var screen: TitleScreen = _screen()
 	var card: MenuDialog = screen.open_name_editor()
-	var faces: GridContainer = card.find_child("Faces", true, false) as GridContainer
-	assert_eq(faces.get_child_count(), Session.AVATARS.size())
-	for id: String in Session.AVATARS:
-		var face: Button = card.find_child("Face_%s" % id, true, false) as Button
-		assert_gte(face.custom_minimum_size.y, 88.0, "a thumb target")
-		assert_eq(face.button_pressed, id == "junjun", "only your face is lit")
+	assert_null(card.find_child("Faces", true, false), "no face selection at the main screen (owner)")
+	assert_eq(card.find_children("Face_*", "Button", true, false).size(), 0)
 	assert_eq((card.find_child("NameField", true, false) as LineEdit).text, "Ana")
 
 
-func test_saving_changes_the_name_and_the_face_and_updates_the_chip_and_the_settings_card() -> void:
+func test_saving_changes_the_name_and_updates_the_chip_and_the_settings_card() -> void:
 	var screen: TitleScreen = _screen()
 	await wait_frames(2)
 	var card: MenuDialog = screen.open_name_editor()
-	(card.find_child("Face_toni", true, false) as Button).pressed.emit()
 	(card.find_child("NameField", true, false) as LineEdit).text = "Maria"
 	(card.find_child("Save", true, false) as Button).pressed.emit()
 	assert_eq(Session.player_name, "Maria")
-	assert_eq(Session.avatar_id, "toni")
+	assert_eq(Session.avatar_id, "junjun", "the face is the kid you played last: saving the name leaves it")
 	assert_false(card.is_open)
 	assert_eq(screen.profile_chip.name_label.text, "Maria", "the main screen shows the new name at once")
 	assert_eq(screen.settings_page.name_label.text, "Maria")
@@ -195,35 +190,32 @@ func test_saving_changes_the_name_and_the_face_and_updates_the_chip_and_the_sett
 	assert_eq(_toasts()[0].text, "Profile saved")
 
 
-func test_cancel_keeps_the_old_name_and_face() -> void:
+func test_cancel_keeps_the_old_name() -> void:
 	var screen: TitleScreen = _screen()
 	var card: MenuDialog = screen.open_name_editor()
-	(card.find_child("Face_migo", true, false) as Button).pressed.emit()
 	(card.find_child("NameField", true, false) as LineEdit).text = "Changed"
 	(card.find_child("Cancel", true, false) as Button).pressed.emit()
 	assert_eq(Session.player_name, "Ana")
-	assert_eq(Session.avatar_id, "junjun")
 	assert_eq(_toasts().size(), 0, "nothing was saved, nothing is announced")
 
 
-func test_an_empty_name_is_refused_and_the_face_is_not_saved_either() -> void:
+func test_an_empty_name_is_refused() -> void:
 	var screen: TitleScreen = _screen()
 	var card: MenuDialog = screen.open_name_editor()
-	(card.find_child("Face_popoy", true, false) as Button).pressed.emit()
 	(card.find_child("NameField", true, false) as LineEdit).text = "   "
 	(card.find_child("Save", true, false) as Button).pressed.emit()
 	assert_true(card.is_open, "it stays open")
-	assert_eq(Session.avatar_id, "junjun", "a refused save changes nothing")
+	assert_eq(Session.player_name, "Ana", "a refused save changes nothing")
 
 
 func test_the_home_chip_and_the_settings_card_both_open_the_sheet() -> void:
 	var screen: TitleScreen = _screen()
 	screen.profile_chip.pressed.emit()
-	assert_not_null(screen.dialog.find_child("Faces", true, false), "the profile sheet")
+	assert_not_null(screen.dialog.find_child("NameField", true, false), "the profile sheet")
 	screen.dialog.close(false)
 	screen.open_page(&"settings")
 	screen.settings_page.profile_button.pressed.emit()
-	assert_not_null(screen.dialog.find_child("Faces", true, false), "the same sheet from Settings")
+	assert_not_null(screen.dialog.find_child("NameField", true, false), "the same sheet from Settings")
 
 
 # ---- copy code --------------------------------------------------------------------------
