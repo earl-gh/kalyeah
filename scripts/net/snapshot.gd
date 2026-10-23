@@ -14,6 +14,7 @@ static func capture(sim: MatchSim, acks: Dictionary[int, int]) -> Dictionary:
 			"id": id, "pos": p.position, "face": p.facing, "hp": p.hp, "tag": p.tagged, "tt": p.tag_time,
 			"wcd": p.weapon_cooldowns.duplicate(), "w": p.weapons.duplicate(), "fx": p.effects.snapshot(),
 			"cl": p.cast_lock_left, "nx": p.next_card, "sc": p.shuffle_card, "sl": p.shuffle_left, "st": p.shuffle_total, "cd": p.cards,
+			"in": p.incoming.duplicate(),
 		})
 	var projectiles: Array[Dictionary] = []
 	for projectile: WeaponSystem.Projectile in sim.weapons.projectiles:
@@ -59,6 +60,7 @@ static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 		p.shuffle_card = entry.get("sc", &"") as StringName
 		p.shuffle_left = entry.get("sl", 0.0) as float
 		p.shuffle_total = entry.get("st", 0.0) as float
+		p.incoming.assign(entry.get("in", []) as Array)
 		p.effects.restore(entry["fx"] as Dictionary)
 	_apply_weapons(sim, data)
 	var was_intro: bool = sim.phase == MatchSim.Phase.INTRO

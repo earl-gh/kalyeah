@@ -112,9 +112,11 @@ func next_input_sequence(player_id: int) -> int:
 ## `character` is the kid the player chose (empty keeps the random one). A kid a teammate has
 ## already confirmed is not taken from them (the other team may have the same kid).
 func pick(player_id: int, first: StringName, second: StringName, character: StringName = &"") -> void:
+	if stage == Stage.PLAYING:
+		return  # the pick is over: a late or forged PICK must not change weapons or clear cooldowns
 	# cards mode: nobody picks weapons, the hand was dealt at the start; only the kid comes with the confirmation
 	var accepted: bool = sim.rules.card_cycle or sim.set_loadout(player_id, first, second)
-	if stage != Stage.PLAYING and accepted:
+	if accepted:
 		_picked[player_id] = true
 		if character != &"" and not taken_kids(player_id).has(character):
 			sim.set_character(player_id, character)
