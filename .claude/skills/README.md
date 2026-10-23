@@ -96,7 +96,7 @@ First use and remaining checks: [skill adoption review](../../docs/audits/2026-1
 
 ## Studio subagents
 
-Seven agents in `.claude/agents/` (Claude Code subagents, run by name or with `/agents`), a Supercell-style studio team (inspired by, never copied). Shared rules, ownership of paths, commands and the report format are in [docs/STUDIO.md](../../docs/STUDIO.md); each agent file holds only its own role. All of them audit **and** apply changes, and are judged on proof (tests, screenshots, measured numbers), not on prose.
+Six agents in `.claude/agents/` (Claude Code subagents, run by name or with `/agents`), a Supercell-style studio team (inspired by, never copied). Shared rules, ownership of paths, commands and the report format are in [docs/STUDIO.md](../../docs/STUDIO.md); each agent file holds only its own role. All of them audit **and** apply changes, and are judged on proof (tests, screenshots, measured numbers), not on prose.
 
 | Agent | Owns |
 | --- | --- |
@@ -104,6 +104,5 @@ Seven agents in `.claude/agents/` (Claude Code subagents, run by name or with `/
 | `game-designer` | Weapons, rules numbers, balance by before/after bot runs, `docs/GDD.md` |
 | `gameplay-engineer` | Sim, multiplayer, snapshots, autoloads, server, with tests |
 | `ux-ui-artist` | Screens, HUD, flows, touch ergonomics, layout tests |
-| `art-director` | Brand tokens, `docs/ART.md`, originality, veto on off-brand |
-| `concept-artist` | Art briefs (`docs/art-briefs/`), code-drawn stand-ins, effect timing; no asset files |
+| `art-director` | Brand tokens, `docs/ART.md`, art briefs (`docs/art-briefs/`), code-drawn stand-ins and effect timing, originality, veto on off-brand; no asset files |
 | `qa-engineer` | Tests, Playwright audits, defect reports, regression |

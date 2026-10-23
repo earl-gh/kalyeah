@@ -17,8 +17,7 @@ Edit only your own paths. Anything else: a one-line request to the orchestrator 
 | game-designer | `data/weapons/`, `data/rules/game_rules.tres`, `docs/GDD.md`, balance reports in `docs/audits/` |
 | gameplay-engineer | `scripts/sim/`, `scripts/net/`, `scripts/autoload/`, `server/` and their tests |
 | ux-ui-artist | `scripts/ui/` (not the tokens), `scripts/ui/hud/`, `scenes/ui/`, `scripts/input/`, `data/i18n/` |
-| art-director | tokens: `scripts/ui/hud/royale_style.gd`, `scripts/ui/kalyeah_theme.gd`, `scripts/ui/team_colors.gd`, `scripts/ui/ui_skin.gd`; `docs/ART.md` |
-| concept-artist | `docs/art-briefs/`, `scripts/view/art/`, `scripts/view/weapon_fx_view.gd`, `scripts/view/aim_indicator.gd` |
+| art-director | tokens: `scripts/ui/hud/royale_style.gd`, `scripts/ui/kalyeah_theme.gd`, `scripts/ui/team_colors.gd`, `scripts/ui/ui_skin.gd`; `docs/ART.md`, `docs/art-briefs/`, `scripts/view/art/`, `scripts/view/weapon_fx_view.gd`, `scripts/view/aim_indicator.gd` |
 | qa-engineer | `tests/`, QA tooling, defect reports in `docs/audits/` |
 
 ## Commands (Godot 4.6.2, see `.godot-version`)
