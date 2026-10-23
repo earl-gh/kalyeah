@@ -5,6 +5,9 @@ extends RefCounted
 
 ## The height kept for the suggested-pair button (it never changes the layout when it hides).
 const SUGGEST_HEIGHT: float = 80.0
+## The deck preview of the kid screen: round cards, this many across.
+const DECK_COLUMNS: int = 7
+const DECK_CARD: float = 84.0
 
 
 static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
@@ -112,6 +115,7 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	screen._hero_name = LoadoutCards.label("", UiMetrics.TITLE, KalyeahTheme.CREAM)
 	screen._hero_name.theme_type_variation = &"DisplayLabel"
 	hero_box.add_child(screen._hero_name)
+	hero_box.add_child(_deck_preview(screen, defs))
 	screen._ready_button = MenuDialog.make_button("Ready", "orange", 30, Vector2(0.0, 88.0))
 	screen._ready_button.pressed.connect(screen.press_ready)
 	column.add_child(screen._ready_button)
@@ -154,3 +158,30 @@ static func _weapons(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> Contro
 	for def: WeaponDef in defs:
 		grid.add_child(LoadoutCards.weapon(screen, def))
 	return scroll
+
+
+## The deck in one look (cards mode): every weapon as a round card, so the player knows what will come. Two are in hand at a time.
+static func _deck_preview(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> Control:
+	var box: VBoxContainer = VBoxContainer.new()
+	box.name = "DeckPreview"
+	box.add_theme_constant_override("separation", 8)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var caption: Label = LoadoutCards.label("Your deck · %d weapons · 2 in hand" % defs.size(), UiMetrics.CAPTION, KalyeahTheme.AMBER)
+	box.add_child(caption)
+	var grid: GridContainer = GridContainer.new()
+	grid.columns = DECK_COLUMNS
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
+	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(grid)
+	for def: WeaponDef in defs:
+		var card: TextureRect = TextureRect.new()
+		card.name = "Card_%s" % def.id
+		card.texture = Icons.art(StringName("btn_%s" % String(def.id)))
+		card.custom_minimum_size = Vector2(DECK_CARD, DECK_CARD)
+		card.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		card.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		grid.add_child(card)
+	return box

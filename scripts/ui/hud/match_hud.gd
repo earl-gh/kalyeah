@@ -211,9 +211,11 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	# while you wait in the box the controls are hidden so the card sits alone at the bottom
 	# no buttons while you wait in the box or during the opening show
 	var playing: bool = not player.tagged and sim.phase == MatchSim.Phase.PLAYING and not pick_open and not connection_blocked
+	# during the opening show the controls and the first hand are on the deck, dimmed and locked, instead of an empty deck
+	var shown: bool = playing or (sim.phase == MatchSim.Phase.INTRO and not player.tagged and not pick_open and not connection_blocked)
 	for button: AimButton in weapon_buttons:
-		button.visible = playing
-	dpad.visible = playing
+		button.visible = shown
+	dpad.visible = shown
 	if not playing:
 		dpad.release()
 	# disabled while on cooldown too: no pressing or precasting until ready
@@ -221,7 +223,7 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	feedback.sync_hint(player, aim_buttons, playing)
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 	console.set_health(player.hp, sim.rules.player_max_hp, playing)
-	console.set_wells_shown(playing)
+	console.set_wells_shown(shown)
 	console.set_next(player.deck[0] if not player.deck.is_empty() else &"")
 	for slot: int in weapon_buttons.size():
 		var button: AimButton = weapon_buttons[slot]

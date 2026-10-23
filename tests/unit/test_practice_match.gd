@@ -572,7 +572,7 @@ func test_the_match_opens_with_both_teams_then_go() -> void:
 	practice.advance(DT)
 	assert_true(practice.hud.intro_bar.visible)
 	assert_eq(practice.hud.intro_title.text, "TAG THEIR BASE!")
-	assert_false(practice.hud.weapon_buttons[0].visible, "no buttons during the show")
+	assert_true(practice.hud.weapon_buttons[0].locked, "the buttons are dimmed and locked during the show (not hidden)")
 	var enemy_post: Vector2 = LAYOUT.base_center(-practice.own_side())
 	var seen: Vector2 = Vector2(camera.position.x, camera.position.z)
 	assert_lt(seen.distance_to(enemy_post), seen.distance_to(LAYOUT.base_center(practice.own_side())), "first: their post and team")
