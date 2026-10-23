@@ -93,3 +93,18 @@ Never auto-update or overwrite the existing specialist skills. New runtime tools
 frameworks and unrelated bundles require a separate justified task.
 
 First use and remaining checks: [skill adoption review](../../docs/audits/2026-10-19-skill-adoption.md).
+
+## Studio subagents
+
+Six role agents live in `.claude/agents/` (Claude Code subagents, started by name from a task or with `/agents`). They are a Supercell-style studio team; each reads `CLAUDE.md` first and obeys the owner rules (no asset generation, never merge, GDD stays the source of rules).
+
+| Agent | Role | Edits files? |
+| --- | --- | --- |
+| `game-designer` | Core loop, combat, card cycle, balance by bot-run evidence | No: proposes exact numbers |
+| `ux-ui-artist` | Portrait HUD, menus, flow, touch ergonomics | Yes (UI code and layout tests) |
+| `concept-artist` | Characters, street, animation and VFX as written briefs | No: briefs for the owner to make |
+| `art-director` | Brand and visual consistency, originality line | No: approve, change or reject |
+| `gameplay-engineer` | Fixed-tick sim, server-authoritative multiplayer, client architecture | Yes (with GUT tests) |
+| `qa-engineer` | Regression tests, Playwright interaction audits, bot-run evidence, release readiness | Yes (tests) |
+
+They sit next to the specialist skills above, not instead of them: `gameplay-engineer` uses `gameplay-simulation`, `authoritative-multiplayer` and `tdd`; `qa-engineer` uses `game-qa-release`; `ux-ui-artist` uses `game-ui-ux` and `godot-ui-control`.
