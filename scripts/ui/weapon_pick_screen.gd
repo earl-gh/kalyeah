@@ -45,7 +45,6 @@ var cards_mode: bool = false
 var _weapon_parts: Array[Control] = []
 var _filler: Control
 var _hero: TextureRect
-var _hero_name: Label
 ## Stat bars on every weapon card are scaled by the biggest number of any weapon.
 var _maxima: Dictionary = {}
 ## The pair offered to a player who has not picked yet (see `WeaponPick.suggestion`), and the button that takes it.
@@ -135,7 +134,7 @@ func _show(defs: Array[WeaponDef], _heading: String) -> void:
 		_build(defs)
 	_title.text = "Change weapons" if swap_mode else ("Choose your kid" if cards_mode else "Loadout")
 	_mode_label.text = "Changes apply immediately" if swap_mode else ("Your weapons come as cards" if cards_mode else "Auto-pick at timeout")
-	_mode_label.visible = swap_mode or not untimed or cards_mode
+	_mode_label.visible = swap_mode or (not untimed and not cards_mode)
 	_ring.visible = not untimed and not cards_mode
 	for part: Control in _weapon_parts:
 		part.visible = not cards_mode
@@ -262,7 +261,6 @@ func _refresh() -> void:
 		_sockets[slot].show_weapon(_defs.get(id) as WeaponDef)
 	if cards_mode and _hero != null:
 		_hero.texture = KidModel.portrait(character_id)
-		_hero_name.text = String(character_id).to_upper()
 	_hint.text = selection_hint()
 	_suggest_button.visible = not swap_mode and not suggestion.is_empty() and pick.picks.size() < WeaponPick.SLOTS
 	var can_go: bool = swap_mode or cards_mode or pick.can_confirm()

@@ -563,7 +563,7 @@ func test_the_score_card_shows_a_match_clock_counting_up() -> void:
 
 # ---- the opening show (like the video) --------------------------------------------
 
-func test_the_match_opens_with_both_teams_then_go() -> void:
+func test_the_match_opens_on_the_street_with_the_objective_then_go() -> void:
 	var practice: PracticeMatch = _picking()
 	practice.finish_pick()
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
@@ -573,16 +573,12 @@ func test_the_match_opens_with_both_teams_then_go() -> void:
 	assert_true(practice.hud.intro_bar.visible)
 	assert_eq(practice.hud.intro_title.text, "TAG THEIR BASE!")
 	assert_true(practice.hud.weapon_buttons[0].locked, "the buttons are dimmed and locked during the show (not hidden)")
-	var enemy_post: Vector2 = LAYOUT.base_center(-practice.own_side())
-	var seen: Vector2 = Vector2(camera.position.x, camera.position.z)
-	assert_lt(seen.distance_to(enemy_post), seen.distance_to(LAYOUT.base_center(practice.own_side())), "first: their post and team")
+	assert_true(camera.position.is_equal_approx(camera.desired_position(practice._flip())), "no flight past the two teams: the fixed street all along")
 	var start: Vector2 = player.position
 	practice.set_stick(Vector2(0.0, -1.0))
 	for i: int in ceili(practice.rules.intro_time * 0.6 / DT):
 		practice.advance(DT)
-	var own_post: Vector2 = LAYOUT.base_center(practice.own_side())
-	seen = Vector2(camera.position.x, camera.position.z)
-	assert_lt(seen.distance_to(own_post), seen.distance_to(enemy_post), "then: our post and team")
+	assert_true(camera.position.is_equal_approx(camera.desired_position(practice._flip())))
 	assert_eq(player.position, start, "nobody moves during the show")
 	assert_string_ends_with(practice.scoreboard().summary(), "0:00", "the clock waits")
 	for i: int in ceili(practice.rules.intro_time * 0.5 / DT):
