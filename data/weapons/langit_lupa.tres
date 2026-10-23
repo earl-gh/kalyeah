@@ -6,7 +6,7 @@
 script = ExtResource("1_weapon")
 id = &"langit_lupa"
 display_name = "Lupa · Soil Block"
-short_name = "Lupa"
+short_name = "Block"
 description = "Raises a block of earth that stops enemy throws, then falls."
 street_game = "Langit Lupa"
 kind = 2

@@ -359,7 +359,7 @@ func _screen_to_world(screen_aim: Vector2) -> Vector2:
 func _mouse_aim(slot: int) -> Vector2:
 	var player: PlayerState = sim.players[local_id]
 	var viewport: Viewport = get_viewport()
-	if viewport == null or slot >= player.weapons.size():
+	if viewport == null or slot >= player.weapons.size() or player.weapons[slot] == &"":
 		return Vector2.ZERO
 	var mouse: Vector2 = viewport.get_mouse_position()
 	var flat: Vector2 = _camera.flat_position(mouse)

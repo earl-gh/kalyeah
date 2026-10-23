@@ -6,7 +6,7 @@
 script = ExtResource("1_weapon")
 id = &"heal"
 display_name = "Langit · Heal"
-short_name = "Langit Heal"
+short_name = "Heal"
 description = "Tap to heal yourself, or drag toward a teammate to heal them."
 street_game = "Langit Lupa"
 kind = 3

@@ -6,7 +6,7 @@
 script = ExtResource("1_weapon")
 id = &"gunting_heavy"
 display_name = "Gunting · Heavy"
-short_name = "Gunting Heavy"
+short_name = "Cut"
 description = "One big delayed snip that hits hard up close."
 street_game = "Bato-bato-pik"
 kind = 0

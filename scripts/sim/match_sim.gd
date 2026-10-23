@@ -171,9 +171,10 @@ func set_loadout(id: int, first: StringName, second: StringName) -> bool:
 	return true
 
 
-## Cards mode: shuffles every weapon into the player's deck (with the match's seeded rng) and deals the first two as the hand.
+## Cards mode: shuffles every weapon into the player's deck (with the match's seeded rng); the first two are the hand, the third waits in
+## the shuffler's window as the next card.
 func deal_cards(id: int) -> bool:
-	if not players.has(id) or weapon_defs.size() < 3:
+	if not players.has(id) or weapon_defs.size() < 4:
 		return false
 	var state: PlayerState = players[id]
 	var ids: Array[StringName] = []
@@ -185,9 +186,14 @@ func deal_cards(id: int) -> bool:
 		var held: StringName = ids[i]
 		ids[i] = ids[j]
 		ids[j] = held
+	state.cards = true
 	state.weapons = [ids[0], ids[1]]
-	state.deck.assign(ids.slice(2))
-	state.reloading = [false, false]
+	state.next_card = ids[2]
+	state.deck.assign(ids.slice(3))
+	state.incoming.clear()
+	state.shuffle_card = &""
+	state.shuffle_left = 0.0
+	state.shuffle_total = 0.0
 	state.weapon_cooldowns = [0.0, 0.0]
 	state.aim_hold = [-1.0, -1.0]
 	return true
@@ -202,28 +208,70 @@ func equip(id: int, fighter: bool = false) -> void:
 	set_loadout(id, pair[0], pair[1])
 
 
-## A card was used from `slot`: it goes to the back of the deck now and the slot reloads for its cooldown; the next card arrives then.
+## A card was used from `slot`: the next card drops into the slot at once (if the shuffler has one in its window) and the used card goes
+## to the shuffler, which plays its cooldown. The other card in the hand is untouched.
 func cycle_used(state: PlayerState, slot: int) -> void:
+	if not state.cards:
+		return
+	state.incoming.append(state.weapons[slot])
+	state.weapons[slot] = state.next_card
+	state.next_card = &""
+	state.weapon_cooldowns[slot] = 0.0
+	if state.weapons[slot] != &"":
+		card_drawn.emit(state.id, slot)
+	_tick_shuffler(state, 0.0)  # an idle shuffler takes the card now
+
+
+## The shuffler: it takes a used card, plays that card's cooldown, then sends the card to the back of the deck and puts the front card of the
+## deck in an empty hand slot, or in its window when the hand is full.
+func _tick_shuffler(state: PlayerState, dt: float) -> void:
+	if not state.cards:
+		return
+	if state.shuffle_card == &"" and not state.incoming.is_empty():
+		state.shuffle_card = state.incoming.pop_front()
+		state.shuffle_total = weapon_defs[state.shuffle_card].cooldown
+		state.shuffle_left = state.shuffle_total
+	if state.shuffle_card == &"":
+		return
+	state.shuffle_left -= dt
+	if state.shuffle_left > 0.0:
+		return
+	state.deck.append(state.shuffle_card)
+	state.shuffle_card = &""
+	state.shuffle_left = 0.0
+	state.shuffle_total = 0.0
+	_place_next(state)
+
+
+## The front card of the deck goes to the first empty hand slot, else to the window.
+func _place_next(state: PlayerState) -> void:
 	if state.deck.is_empty():
 		return
-	state.deck.append(state.weapons[slot])
-	state.reloading[slot] = true
-
-
-## Cards mode: the slots whose reload is over take the next card of the deck.
-func _draw_ready(state: PlayerState) -> void:
-	for slot: int in state.reloading.size():
-		if state.reloading[slot] and state.weapon_cooldowns[slot] <= 0.0 and not state.deck.is_empty():
+	for slot: int in state.weapons.size():
+		if state.weapons[slot] == &"":
 			state.weapons[slot] = state.deck.pop_front()
-			state.reloading[slot] = false
 			card_drawn.emit(state.id, slot)
+			return
+	if state.next_card == &"":
+		state.next_card = state.deck.pop_front()
+		card_drawn.emit(state.id, -1)
 
 
-## A new round: every reload finishes at once (the cooldowns are cleared too).
+## A new round: the shuffler finishes at once and the hand and the window are full again.
 func finish_reloads(state: PlayerState) -> void:
 	for slot: int in state.weapon_cooldowns.size():
 		state.weapon_cooldowns[slot] = 0.0
-	_draw_ready(state)
+	if not state.cards:
+		return
+	if state.shuffle_card != &"":
+		state.deck.append(state.shuffle_card)
+	state.deck.append_array(state.incoming)
+	state.incoming.clear()
+	state.shuffle_card = &""
+	state.shuffle_left = 0.0
+	state.shuffle_total = 0.0
+	for attempt: int in 3:
+		_place_next(state)
 
 
 ## Box swap: only while tagged (waiting in the box), as often as you like.
@@ -425,7 +473,7 @@ func step(dt: float) -> void:
 func _tick_cooldowns(state: PlayerState, dt: float) -> void:
 	for slot: int in state.weapon_cooldowns.size():
 		state.weapon_cooldowns[slot] = maxf(0.0, state.weapon_cooldowns[slot] - dt)
-	_draw_ready(state)
+	_tick_shuffler(state, dt)
 
 
 func _step_free(state: PlayerState, input: PlayerInput, dt: float) -> void:

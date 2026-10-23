@@ -24,6 +24,9 @@ const SMALL_FONT_SIZE: int = 22
 const TAG_FONT_SIZE: int = 20
 const TEXT_OUTLINE: int = 5
 const COOLDOWN_FONT_SIZE: int = 34
+## A held card rises this much; its touch area is this much bigger on every side.
+const CARD_LIFT: float = 10.0
+const CARD_SLACK: float = 8.0
 const READY_FLASH_TIME: float = 0.45
 const READY_GLOW: Color = Color(1.0, 0.9, 0.4)
 ## The ready pop: the button swells this much (a fraction) and a bright wash fades over it.
@@ -48,6 +51,11 @@ const MOUSE_POINTER: int = -2
 @export var sub_color: Color = Color(1.0, 1.0, 1.0, 0.8)
 ## Skill id ("dash", "bato_light", ...); its painted button is btn_<id>.png. Empty = text only.
 @export var icon_id: StringName = &""
+
+## Weapon cards (owner): the button is an upright card in the hand instead of a round button. `weapon_def` is the card in it
+## (null = an empty slot waiting for the shuffler).
+var card_style: bool = false
+var weapon_def: WeaponDef
 
 ## 1.0 = just used, 0.0 = ready.
 var cooldown_fraction: float = 0.0
@@ -149,6 +157,9 @@ func _input(event: InputEvent) -> void:
 
 
 func _draw() -> void:
+	if card_style:
+		_draw_card()
+		return
 	var center: Vector2 = size / 2.0
 	var radius: float = minf(size.x, size.y) / 2.0
 	var button_art: Texture2D = Icons.art(StringName(BUTTON_ART_PREFIX + String(icon_id))) if icon_id != &"" else null
@@ -189,6 +200,22 @@ func _draw() -> void:
 		draw_circle(center, radius, Color(glow, glow.a * READY_WASH))
 
 
+## The card in the hand: dimmed while it cannot be used (locked, stunned), raised with a gold edge while the finger holds it, a hollow
+## when the slot is empty, a tag with the reason when something blocks it.
+func _draw_card() -> void:
+	var rect: Rect2 = Rect2(Vector2.ZERO, size)
+	if weapon_def == null:
+		CardStyle.draw_empty(self, rect)
+		return
+	var held: bool = _pointer != NO_POINTER
+	var lifted: Rect2 = Rect2(rect.position + Vector2(0.0, -CARD_LIFT if held else 0.0), rect.size)
+	CardStyle.draw(self, lifted, weapon_def, (0.55 if (locked or not blocked_text.is_empty()) else 0.0), held or highlight)
+	if not blocked_text.is_empty():
+		_tag(KalyeahTheme.ACTION_FONT, UiText.t(blocked_text), lifted.get_center(), BLOCKED_TAG)
+	if _ready_flash > 0.0:
+		draw_rect(lifted, Color(READY_GLOW, _ready_flash / READY_FLASH_TIME * 0.5), true)
+
+
 ## A small coloured pill with the weapon type in it.
 func _tag(font: Font, text: String, at: Vector2, color: Color) -> void:
 	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, TAG_FONT_SIZE).x + 20.0
@@ -213,4 +240,6 @@ func _text(font: Font, text: String, at: Vector2, font_size: int, color: Color) 
 
 func _hit(viewport_position: Vector2) -> bool:
 	var local: Vector2 = get_global_transform_with_canvas().affine_inverse() * viewport_position
+	if card_style:
+		return Rect2(Vector2.ZERO, size).grow(CARD_SLACK).has_point(local)
 	return hit_test(local, size)

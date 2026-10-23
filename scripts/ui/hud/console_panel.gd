@@ -10,7 +10,7 @@ const LIP: Color = RoyaleStyle.GOLD
 const CORNER: float = 36.0
 const HEALTH_FONT: int = 40
 const HEALTH_TEXT: Color = Color.WHITE
-const NEXT_FONT: int = 20
+const BAR_FONT: int = 28
 ## The bar keeps your own colour above this share of your health, turns amber below it and red below the second.
 const HEALTH_LOW: float = 0.5
 const HEALTH_CRITICAL: float = 0.25
@@ -27,8 +27,12 @@ var health_text: String = ""
 var health_shown: bool = false
 ## The wells show only while the controls do (not while you wait in the box, when the deck carries a message instead).
 var wells_shown: bool = true
-## The next card of the deck (cards mode): a small round picture with NEXT beside it, above the health plate.
-var next_card: StringName = &""
+## Cards mode (GameRules.card_cycle): the bottom is a card tray, not a controller. Where the two hand cards, the shuffler's window and the
+## health bar go (this panel's own coordinates), set by the HUD's layout.
+var cards_mode: bool = false
+var hand_rects: Array[Rect2] = []
+var shuffler_rect: Rect2 = Rect2()
+var health_rect: Rect2 = Rect2()
 
 
 ## Shows or hides the wells under the controls.
@@ -39,10 +43,12 @@ func set_wells_shown(shown: bool) -> void:
 	queue_redraw()
 
 
-func set_next(id: StringName) -> void:
-	if id == next_card:
-		return
-	next_card = id
+## Cards mode: the layout of the tray (see `cards_mode`).
+func set_card_layout(hands: Array[Rect2], shuffler: Rect2, health: Rect2) -> void:
+	cards_mode = true
+	hand_rects = hands
+	shuffler_rect = shuffler
+	health_rect = health
 	queue_redraw()
 
 
@@ -141,24 +147,76 @@ func _draw_heart(at: Vector2, radius: float, color: Color) -> void:
 	draw_colored_polygon(PackedVector2Array([at + Vector2(-radius, -radius * 0.12), at + Vector2(radius, -radius * 0.12), at + Vector2(0.0, radius)]), color)
 
 
-## NEXT and the next card's round button picture, in the top of the deck's middle gap.
-func _draw_next() -> void:
-	var free: Vector2 = gap()
-	if next_card == &"" or not wells_shown or free.y < 90.0:
+## The card tray (cards mode): a dark navy strip under the street with a gold line along its top, a darker tray behind the hand and the
+## shuffler like Clash Royale's card row, and your health along the bottom edge like its elixir bar.
+func _draw_tray() -> void:
+	var w: float = size.x
+	var h: float = size.y
+	var shell: StyleBoxFlat = StyleBoxFlat.new()
+	shell.bg_color = Color(0.04, 0.09, 0.22)
+	shell.corner_radius_top_left = 28
+	shell.corner_radius_top_right = 28
+	shell.border_color = RoyaleStyle.NAVY
+	shell.border_width_top = 5
+	shell.anti_aliasing = true
+	shell.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
+	shell.shadow_size = 16
+	draw_style_box(shell, Rect2(0.0, 0.0, w, h + 30.0))
+	draw_line(Vector2(28.0, 7.0), Vector2(w - 28.0, 7.0), Color(RoyaleStyle.GOLD, 0.8), 3.0, true)
+	var shade_top: Color = Color(0.1, 0.2, 0.45, 0.0)
+	var shade_bottom: Color = Color(0.1, 0.2, 0.45, 0.35)
+	draw_polygon(PackedVector2Array([Vector2(0.0, 24.0), Vector2(w, 24.0), Vector2(w, h), Vector2(0.0, h)]), PackedColorArray([shade_top, shade_top, shade_bottom, shade_bottom]))
+	if wells_shown and not hand_rects.is_empty():
+		var tray: Rect2 = shuffler_rect.merge(hand_rects[0]).merge(hand_rects[hand_rects.size() - 1]).grow(14.0)
+		var back: StyleBoxFlat = StyleBoxFlat.new()
+		back.bg_color = Color(0.0, 0.0, 0.0, 0.3)
+		back.border_color = Color(RoyaleStyle.BLUE_LIGHT, 0.18)
+		back.set_border_width_all(2)
+		back.set_corner_radius_all(22)
+		back.anti_aliasing = true
+		draw_style_box(back, tray)
+	_draw_bar()
+
+
+## Your health as a long bar along the bottom (like the elixir bar): a heart, then a bar marked in tenths with the number in it; amber
+## below half and red below a quarter.
+func _draw_bar() -> void:
+	if not health_shown or health_rect.size.x <= 0.0:
 		return
-	var texture: Texture2D = Icons.art(StringName("btn_%s" % String(next_card)))
-	var radius: float = 24.0
-	var centre: Vector2 = Vector2(free.x + 30.0, 34.0)
-	draw_circle(centre, radius + 3.0, RoyaleStyle.NAVY)
-	if texture != null:
-		draw_texture_rect(texture, Rect2(centre - Vector2(radius, radius), Vector2(radius, radius) * 2.0), false)
+	var color: Color = health_color(health_fraction)
+	var heart: float = health_rect.size.y * 0.42
+	_draw_heart(Vector2(health_rect.position.x + heart + 2.0, health_rect.get_center().y - 2.0), heart, color)
+	var track: Rect2 = Rect2(health_rect.position + Vector2(heart * 2.0 + 14.0, 0.0), Vector2(health_rect.size.x - heart * 2.0 - 14.0, health_rect.size.y))
+	var well: StyleBoxFlat = StyleBoxFlat.new()
+	well.bg_color = Color(0.02, 0.05, 0.14)
+	well.border_color = RoyaleStyle.NAVY
+	well.set_border_width_all(4)
+	well.set_corner_radius_all(int(track.size.y / 2.0))
+	well.anti_aliasing = true
+	draw_style_box(well, track)
+	var inner: Rect2 = track.grow(-5.0)
+	if health_fraction > 0.0:
+		var fill: StyleBoxFlat = StyleBoxFlat.new()
+		fill.bg_color = color
+		fill.set_corner_radius_all(int(inner.size.y / 2.0))
+		fill.anti_aliasing = true
+		draw_style_box(fill, Rect2(inner.position, Vector2(maxf(inner.size.x * health_fraction, inner.size.y), inner.size.y)))
+		var sheen: StyleBoxFlat = StyleBoxFlat.new()
+		sheen.bg_color = Color(1.0, 1.0, 1.0, 0.3)
+		sheen.set_corner_radius_all(4)
+		draw_style_box(sheen, Rect2(inner.position + Vector2(6.0, 3.0), Vector2(maxf(inner.size.x * health_fraction - 12.0, 6.0), 5.0)))
+	for tenth: int in range(1, 10):
+		var x: float = inner.position.x + inner.size.x * float(tenth) / 10.0
+		draw_line(Vector2(x, inner.position.y + 3.0), Vector2(x, inner.end.y - 3.0), Color(0.0, 0.0, 0.0, 0.25), 2.0)
 	var font: Font = KalyeahTheme.ACTION_FONT
-	var label: String = UiText.t("NEXT")
-	var label_size: Vector2 = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT)
-	draw_string(font, Vector2(centre.x - radius - 10.0 - label_size.x, centre.y + NEXT_FONT * 0.35), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT, RoyaleStyle.BLUE_LIGHT)
+	var number_size: Vector2 = font.get_string_size(health_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, BAR_FONT)
+	RoyaleStyle.lettered(self, font, health_text, Vector2(track.get_center().x - number_size.x / 2.0, track.get_center().y + BAR_FONT * 0.35), BAR_FONT)
 
 
 func _draw() -> void:
+	if cards_mode:
+		_draw_tray()
+		return
 	var w: float = size.x
 	var h: float = size.y
 	# the deck: royal blue, a thick navy outline along its rounded top, a lighter top and a darker bottom, a gold trim and a sheen
@@ -189,4 +247,3 @@ func _draw() -> void:
 			break
 		RoyaleStyle.well(self, socket["at"] as Vector2, socket["radius"] as float)
 	_draw_health()
-	_draw_next()

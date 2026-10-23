@@ -68,6 +68,19 @@ const DPAD_SOCKET: float = 120.0
 const WEAPON_SOCKET: float = 74.0
 ## The cancel zone sits above the skill buttons (drag a skill onto it to cancel the cast); this is its height
 ## from the bottom (its distance from the edge follows the buttons).
+## Cards mode: the hand cards (upright, like a Clash Royale card), how far they sit from the screen edge and the tray's top, the shuffler's
+## window beside them, and the health bar along the bottom of the tray.
+const CARD_SIZE: Vector2 = Vector2(132.0, 178.0)
+const CARD_GAP: float = 14.0
+const CARD_MARGIN: float = 22.0
+const CARD_TOP: float = 20.0
+const SHUFFLER_SIZE: Vector2 = Vector2(92.0, 124.0)
+const SHUFFLER_LIFT: float = 0.0
+const CARD_PAD_LIFT: float = 24.0
+const CARD_PAD_SCALE: float = 0.92
+const BAR_HEIGHT: float = 36.0
+const BAR_BOTTOM: float = 22.0
+const BAR_MARGIN: float = 26.0
 const CANCEL_AT: Vector2 = Vector2(0.0, CONSOLE_HEIGHT + 78.0)
 const CANCEL_SIZE: Vector2 = Vector2(110.0, 100.0)
 
@@ -87,6 +100,9 @@ var scoreboard: Scoreboard
 var clock_chip: ClockChip
 var dpad: DPad
 var weapon_buttons: Array[AimButton] = []
+## Cards mode (GameRules.card_cycle), set by the match screen before the first layout: the hand of two cards, the shuffler and the health bar instead of two round buttons.
+var card_mode: bool = false
+var shuffler: ShufflerView
 ## Weapon 1, weapon 2 (the order MatchInput uses).
 var aim_buttons: Array[AimButton] = []
 var cancel_zone: CancelMark
@@ -157,6 +173,12 @@ func set_bottom_inset(pixels: float) -> void:
 	layout_controls()
 
 
+## Switches the bottom between the controller deck and the card tray (GameRules.card_cycle) and lays it out again.
+func set_card_mode(on: bool) -> void:
+	card_mode = on
+	layout_controls()
+
+
 ## The console's height now: its own plus the bottom inset.
 func console_height() -> float:
 	return CONSOLE_HEIGHT + bottom_inset
@@ -224,11 +246,24 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 	console.set_health(player.hp, sim.rules.player_max_hp, playing)
 	console.set_wells_shown(shown)
-	console.set_next(player.deck[0] if not player.deck.is_empty() else &"")
+	shuffler.show_state(sim, player)
+	shuffler.visible = shown and sim.rules.card_cycle and player.cards
+	
 	for slot: int in weapon_buttons.size():
 		var button: AimButton = weapon_buttons[slot]
 		if slot >= player.weapons.size():
 			button.set_locked(true)
+			continue
+		if sim.rules.card_cycle:
+			button.card_style = true
+			var card: WeaponDef = sim.weapon_defs.get(player.weapons[slot]) as WeaponDef
+			if card != button.weapon_def:
+				button.weapon_def = card
+				button.queue_redraw()
+			var in_hand: bool = card != null
+			button.accessibility_name = "Card %d: %s" % [slot + 1, card.display_name if in_hand else "waiting for the shuffler"]
+			button.blocked_text = _block_tag(player) if (playing and in_hand) else ""
+			button.set_locked(weapons_off or not in_hand)
 			continue
 		var def: WeaponDef = sim.weapon_defs[player.weapons[slot]]
 		if button.label_text != def.short_name or button.sub_text != def.kind_label():
@@ -353,6 +388,9 @@ func _build() -> void:
 	var weapon_two: AimButton = _aim_button()
 	weapon_buttons = [weapon_one, weapon_two]
 	aim_buttons = [weapon_one, weapon_two]
+	shuffler = ShufflerView.new()
+	shuffler.visible = false
+	add_child(shuffler)
 	dpad = DPad.new()
 	dpad.accessibility_name = "Movement pad"
 	dpad.accessibility_description = "Press a direction to run; let go to stop"

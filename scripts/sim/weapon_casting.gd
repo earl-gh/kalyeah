@@ -21,7 +21,7 @@ func handle(sim: MatchSim, state: PlayerState, input: PlayerInput, dt: float) ->
 func weapon_ready(state: PlayerState, slot: int) -> bool:
 	return (
 		not state.tagged and state.effects.can_cast()
-		and slot >= 0 and slot < state.weapons.size()
+		and slot >= 0 and slot < state.weapons.size() and state.weapons[slot] != &""
 		and slot < state.weapon_cooldowns.size()
 		and state.weapon_cooldowns[slot] <= 0.0
 	)
