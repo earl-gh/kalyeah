@@ -27,6 +27,9 @@ const COOLDOWN_FONT_SIZE: int = 34
 ## A held card rises this much; its touch area is this much bigger on every side.
 const CARD_LIFT: float = 10.0
 const CARD_SLACK: float = 8.0
+## A card that arrives in the hand rises this far into its slot in `DEAL_TIME` seconds.
+const DEAL_RISE: float = 30.0
+const DEAL_TIME: float = 0.26
 const READY_FLASH_TIME: float = 0.45
 const READY_GLOW: Color = Color(1.0, 0.9, 0.4)
 ## The ready pop: the button swells this much (a fraction) and a bright wash fades over it.
@@ -56,6 +59,10 @@ const MOUSE_POINTER: int = -2
 ## (null = an empty slot waiting for the shuffler).
 var card_style: bool = false
 var weapon_def: WeaponDef
+## While the slot is empty: how far the shuffler is (0 to 1) and its seconds left, drawn on the card back.
+var wait_fraction: float = 0.0
+var wait_seconds: int = 0
+var _deal: float = 0.0
 
 ## 1.0 = just used, 0.0 = ready.
 var cooldown_fraction: float = 0.0
@@ -100,7 +107,30 @@ func set_cooldown(remaining: float, total: float) -> void:
 		queue_redraw()
 
 
+## Puts `def` in the slot (null = empty): a new card rises into place (not with Reduce motion).
+func set_card(def: WeaponDef) -> void:
+	if def == weapon_def:
+		return
+	weapon_def = def
+	if def != null and not Settings.reduced_motion:
+		_deal = DEAL_TIME
+	queue_redraw()
+
+
+## The shuffler's progress for the empty slot's card back.
+func set_waiting(fraction: float, seconds: int) -> void:
+	if is_equal_approx(fraction, wait_fraction) and seconds == wait_seconds:
+		return
+	wait_fraction = fraction
+	wait_seconds = seconds
+	if weapon_def == null:
+		queue_redraw()
+
+
 func _process(delta: float) -> void:
+	if _deal > 0.0:
+		_deal = maxf(0.0, _deal - delta)
+		queue_redraw()
 	if _ready_flash > 0.0:
 		_ready_flash = maxf(0.0, _ready_flash - delta)
 		queue_redraw()
@@ -205,10 +235,12 @@ func _draw() -> void:
 func _draw_card() -> void:
 	var rect: Rect2 = Rect2(Vector2.ZERO, size)
 	if weapon_def == null:
-		CardStyle.draw_empty(self, rect)
+		CardStyle.draw_back(self, rect, wait_fraction, wait_seconds)
 		return
 	var held: bool = _pointer != NO_POINTER
-	var lifted: Rect2 = Rect2(rect.position + Vector2(0.0, -CARD_LIFT if held else 0.0), rect.size)
+	var settle: float = 1.0 - _deal / DEAL_TIME
+	var rise: float = DEAL_RISE * (1.0 - settle * settle * (3.0 - 2.0 * settle)) if _deal > 0.0 else 0.0
+	var lifted: Rect2 = Rect2(rect.position + Vector2(0.0, rise - (CARD_LIFT if held else 0.0)), rect.size)
 	CardStyle.draw(self, lifted, weapon_def, (0.55 if (locked or not blocked_text.is_empty()) else 0.0), held or highlight)
 	if not blocked_text.is_empty():
 		_tag(KalyeahTheme.ACTION_FONT, UiText.t(blocked_text), lifted.get_center(), BLOCKED_TAG)
