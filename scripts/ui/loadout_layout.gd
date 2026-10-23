@@ -124,7 +124,7 @@ static func _characters(screen: WeaponPickScreen) -> Control:
 	scroll.follow_focus = true
 	column.add_child(scroll)
 	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	row.add_theme_constant_override("separation", WeaponPickScreen.PROFILE_GAP)
 	scroll.add_child(row)
 	for character: CharacterDef in screen._characters:
 		var card: Button = LoadoutCards.profile(screen, character)

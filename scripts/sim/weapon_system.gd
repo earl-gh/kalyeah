@@ -84,6 +84,14 @@ var _throws: Array[QueuedThrow] = []
 var _next_id: int = 1
 
 
+## The enemy a TARGETED cast of `def` would throw at: `target_id` while it is a targetable enemy in range, else null.
+func target_in_range(sim: MatchSim, caster: PlayerState, def: WeaponDef, target_id: int) -> PlayerState:
+	var target: PlayerState = sim.players.get(target_id) as PlayerState
+	if target == null or not sim.is_targetable(target) or target.team == caster.team:
+		return null
+	return target if caster.position.distance_to(target.position) <= def.max_range else null
+
+
 ## Casts `def` for `caster`. `aim` is the already-resolved world-space aim (length
 ## 0..1 of the range; see MatchSim.resolved_aim). TARGETED weapons throw at
 ## `target_id`, the enemy locked when the button was pressed, if it is still in
@@ -91,9 +99,8 @@ var _next_id: int = 1
 func fire(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector2, hold_seconds: float, target_id: int = -1) -> bool:
 	match def.shape:
 		WeaponDef.Shape.TARGETED:
-			var target: PlayerState = sim.players.get(target_id) as PlayerState
-			var valid: bool = target != null and sim.is_targetable(target) and target.team != caster.team
-			if valid and caster.position.distance_to(target.position) <= def.max_range:
+			var target: PlayerState = target_in_range(sim, caster, def, target_id)
+			if target != null:
 				var projectile: Projectile = _new_projectile(caster, def, caster.position.direction_to(target.position))
 				projectile.target_id = target.id
 			else:

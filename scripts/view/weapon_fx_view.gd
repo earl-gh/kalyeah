@@ -26,17 +26,15 @@ const CROSS_TIME: float = 0.9
 ## Turns per second of a thrown object (the spinning top spins fast).
 const SPIN: float = 2.0
 const TOP_SPIN: float = 6.0
-const KIND_COLORS: Dictionary[WeaponDef.Kind, Color] = {
-	WeaponDef.Kind.ATTACK: Color(1.0, 0.55, 0.25),
-	WeaponDef.Kind.CROWD_CONTROL: Color(0.7, 0.45, 1.0),
-	WeaponDef.Kind.BLOCK: Color(0.92, 0.92, 0.85),
-	WeaponDef.Kind.HEAL: Color(0.45, 0.9, 0.4),
-}
-## The warning of a delayed cone: its edge shows at once, the red fills out from the caster
-## until the strike (the same red as a landing circle).
-const WINDUP_COLOR: Color = Color(1.0, 0.22, 0.15)
+## The warning of a delayed cone: its edge shows at once, the thrower's team colour fills out from the caster
+## until the strike (the same look as a landing circle).
 const WINDUP_RIM: float = 0.08
 const WINDUP_FILL: float = 0.22
+## Landing circles and the cone flash say who threw them (TeamColors, yours or theirs) from their first frame: an opaque rim
+## (`FX_RIM` m wide) round a see-through fill.
+const FX_RIM: float = 0.12
+const FX_RIM_ALPHA: float = 0.95
+const FX_FILL_ALPHA: float = 0.3
 ## The burst on a kid who is hit: a flash and flying sparks, sized by the damage (a bigger hit is
 ## bigger, a tick of damage is small), gone in `BURST_TIME`.
 const BURST_TIME: float = 0.35
@@ -48,7 +46,6 @@ const SOIL_HEIGHT: float = 1.7
 const SOIL_RISE_TIME: float = 0.22
 const SOIL_COLLAPSE_TIME: float = 0.6
 const ZONE_COLORS: Dictionary[WeaponSystem.ZoneKind, Color] = {
-	WeaponSystem.ZoneKind.EXPLOSION: Color(1.0, 0.2, 0.15, 0.35),
 	WeaponSystem.ZoneKind.TRAP: Color(0.95, 0.95, 0.9, 1.0),
 	WeaponSystem.ZoneKind.SLOW_ZONE: Color(0.35, 0.65, 1.0, 0.35),
 	WeaponSystem.ZoneKind.FIELD: Color(1.0, 0.85, 0.3, 0.35),
@@ -60,6 +57,8 @@ var _flashes: Array[MeshInstance3D] = []
 var _flash_time: Dictionary[MeshInstance3D, float] = {}
 ## How much bigger than real thrown objects are drawn (CameraRules.kid_view_scale), like the kids who throw them.
 var view_scale: float = 1.0
+## The viewer's team: effects thrown by it are drawn in your team's colour, the rest in theirs.
+var local_team: int = 0
 var _sim: MatchSim
 var _crosses: Array[Node3D] = []
 var _cross_time: Dictionary[Node3D, float] = {}
@@ -191,8 +190,13 @@ func _projectile_mesh(def: WeaponDef) -> Mesh:
 func _zone_node(zone: WeaponSystem.Zone) -> Node3D:
 	if zone.kind == WeaponSystem.ZoneKind.TRAP:
 		return WeaponModel.make(&"papel_trap", false)
-	var node: MeshInstance3D = MeshInstance3D.new()
-	node.mesh = _zone_mesh(zone)
+	var node: MeshInstance3D
+	if zone.kind == WeaponSystem.ZoneKind.EXPLOSION:
+		# where it lands and who threw it: the thrower's team colour
+		node = _marked(AimIndicator.circle(Vector2.ZERO, zone.radius), team_color(zone.team), 0.0)
+	else:
+		node = MeshInstance3D.new()
+		node.mesh = _zone_mesh(zone)
 	if zone.def != null and zone.def.id == &"bato_heavy":
 		var meteor: Node3D = WeaponModel.meteor()
 		meteor.name = "Meteor"
@@ -204,6 +208,21 @@ func _zone_node(zone: WeaponSystem.Zone) -> Node3D:
 	elif zone.def != null and zone.def.id == &"jacks":
 		node.add_child(WeaponModel.spikes(zone.radius))
 	return node
+
+
+## Your team's colour for an effect thrown by `team`, else the other team's.
+func team_color(team: int) -> Color:
+	return TeamColors.world_own() if team == local_team else TeamColors.world_enemy()
+
+
+## An opaque rim along `outline` round a see-through fill, in `color`, drawn on the ground at `height` (both sides, no culling).
+func _marked(outline: PackedVector2Array, color: Color, height: float) -> MeshInstance3D:
+	var mesh: ImmediateMesh = ImmediateMesh.new()
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	AimIndicator.fill(mesh, outline, Color(color, FX_FILL_ALPHA), height)
+	AimIndicator.ribbon(mesh, outline, FX_RIM, Color(color, FX_RIM_ALPHA), height + ZONE_HEIGHT)
+	mesh.surface_end()
+	return _overlay(mesh)
 
 
 func _zone_mesh(zone: WeaponSystem.Zone) -> Mesh:
@@ -225,19 +244,10 @@ func _material(color: Color) -> StandardMaterial3D:
 	return material
 
 
-func _on_cone_struck(_owner_id: int, def: WeaponDef, origin: Vector2, direction: Vector2) -> void:
-	var wedge: ImmediateMesh = ImmediateMesh.new()
-	var half: float = deg_to_rad(def.angle_degrees / 2.0)
-	wedge.surface_begin(Mesh.PRIMITIVE_TRIANGLES, _material(Color(KIND_COLORS[def.kind], 0.5)))
-	for i: int in CONE_POINTS:
-		var a: Vector2 = origin + direction.rotated(-half + 2.0 * half * float(i) / float(CONE_POINTS)) * def.max_range
-		var b: Vector2 = origin + direction.rotated(-half + 2.0 * half * float(i + 1) / float(CONE_POINTS)) * def.max_range
-		wedge.surface_add_vertex(Vector3(origin.x, ZONE_HEIGHT * 2.0, origin.y))
-		wedge.surface_add_vertex(Vector3(b.x, ZONE_HEIGHT * 2.0, b.y))
-		wedge.surface_add_vertex(Vector3(a.x, ZONE_HEIGHT * 2.0, a.y))
-	wedge.surface_end()
-	var node: MeshInstance3D = MeshInstance3D.new()
-	node.mesh = wedge
+## The cone's strike: the wedge in the thrower's team colour, whole from the first frame until it goes (it used to be a one-sided
+## mesh seen from below, so only the scissors showed).
+func _on_cone_struck(owner_id: int, def: WeaponDef, origin: Vector2, direction: Vector2) -> void:
+	var node: MeshInstance3D = _marked(_wedge(origin, direction, def), team_color(_team_of(owner_id)), ZONE_HEIGHT * 2.0)
 	add_child(node)
 	if def.id == &"gunting_light" or def.id == &"gunting_heavy":
 		var scissors: Node3D = WeaponModel.scissors(def.max_range * SNIP_AT * 1.2)
@@ -267,25 +277,37 @@ func _step_flashes(delta: float) -> void:
 	_flashes = still
 
 
-## The warning of a delayed cone, from the cast to the strike: the wedge's edge on the ground, and
-## a red wedge that fills outward from the caster as the time runs out.
-func _on_cone_winding(owner_id: int, def: WeaponDef, origin: Vector2, direction: Vector2) -> void:
-	var wedge: PackedVector2Array = PackedVector2Array([Vector2.ZERO])
+## The outline of `def`'s cone from `origin` along `direction`: the tip, the arc, back to the tip.
+func _wedge(origin: Vector2, direction: Vector2, def: WeaponDef) -> PackedVector2Array:
+	var wedge: PackedVector2Array = PackedVector2Array([origin])
 	var half: float = deg_to_rad(def.angle_degrees / 2.0)
 	for i: int in CONE_POINTS + 1:
-		wedge.append(direction.rotated(-half + 2.0 * half * float(i) / float(CONE_POINTS)) * def.max_range)
-	wedge.append(Vector2.ZERO)
+		wedge.append(origin + direction.rotated(-half + 2.0 * half * float(i) / float(CONE_POINTS)) * def.max_range)
+	wedge.append(origin)
+	return wedge
+
+
+func _team_of(id: int) -> int:
+	var state: PlayerState = _sim.players.get(id) as PlayerState if _sim != null else null
+	return state.team if state != null else local_team
+
+
+## The warning of a delayed cone, from the cast to the strike: the wedge's edge on the ground, and
+## a wedge in the thrower's team colour that fills outward from the caster as the time runs out.
+func _on_cone_winding(owner_id: int, def: WeaponDef, origin: Vector2, direction: Vector2) -> void:
+	var wedge: PackedVector2Array = _wedge(Vector2.ZERO, direction, def)
+	var color: Color = team_color(_team_of(owner_id))
 	var node: Node3D = Node3D.new()
 	node.position = Vector3(origin.x, 0.0, origin.y)
 	var rim: ImmediateMesh = ImmediateMesh.new()
 	rim.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
-	AimIndicator.fill(rim, wedge, Color(WINDUP_COLOR, 0.06), ZONE_HEIGHT * 3.0)
-	AimIndicator.ribbon(rim, wedge, WINDUP_RIM, Color(WINDUP_COLOR, 0.8), ZONE_HEIGHT * 4.0)
+	AimIndicator.fill(rim, wedge, Color(color, 0.06), ZONE_HEIGHT * 3.0)
+	AimIndicator.ribbon(rim, wedge, WINDUP_RIM, Color(color, 0.8), ZONE_HEIGHT * 4.0)
 	rim.surface_end()
 	node.add_child(_overlay(rim))
 	var growing: ImmediateMesh = ImmediateMesh.new()
 	growing.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
-	AimIndicator.fill(growing, wedge, Color(WINDUP_COLOR, WINDUP_FILL), ZONE_HEIGHT * 3.5)
+	AimIndicator.fill(growing, wedge, Color(color, WINDUP_FILL), ZONE_HEIGHT * 3.5)
 	growing.surface_end()
 	var fill: MeshInstance3D = _overlay(growing)
 	fill.scale = Vector3(0.05, 1.0, 0.05)

@@ -29,9 +29,8 @@ const SATURATION: float = 1.1
 const CONTRAST: float = 1.03
 const BRIGHTNESS: float = 1.0
 const RING_HEIGHT: float = 0.03
-## The base chalk and the box tape are tinted toward a soft grey so they are calm, not neon.
+## The base chalk and the box tape are tinted toward a soft grey so they are calm, not neon (how far: TeamColors.base_soften()).
 const SOFT_GREY: Color = Color(0.62, 0.64, 0.7)
-const BASE_SOFTEN: float = 0.3
 ## The base circle and the tagged box share one look: a faint team fill and team tape.
 const ZONE_FILL_ALPHA: float = 0.22
 const TAPE_WIDTH: float = 0.16
@@ -229,7 +228,7 @@ func set_own_side(own_side: int) -> void:
 		var tint: Color = TeamColors.world_own() if side == own_side else TeamColors.world_enemy()
 		_side_tint[side] = tint
 		for material: StandardMaterial3D in _base_materials[side]:
-			var color: Color = tint.lerp(SOFT_GREY, BASE_SOFTEN)
+			var color: Color = tint.lerp(SOFT_GREY, TeamColors.base_soften())
 			color.a = material.albedo_color.a
 			material.albedo_color = color
 
@@ -518,7 +517,7 @@ static func jail_wall_rects(box: Rect2, side: int) -> Array[Rect2]:
 
 ## [tape, fill] for a base or tagged box: soft team colour, the fill faint.
 func _zone_materials(color: Color) -> Array[StandardMaterial3D]:
-	var soft: Color = color.lerp(SOFT_GREY, BASE_SOFTEN)
+	var soft: Color = color.lerp(SOFT_GREY, TeamColors.base_soften())
 	var tape: StandardMaterial3D = StandardMaterial3D.new()
 	tape.albedo_color = soft
 	tape.cull_mode = BaseMaterial3D.CULL_DISABLED

@@ -512,7 +512,8 @@ func test_a_status_is_shown_as_words_and_clears() -> void:
 	practice.sim.players[PracticeMatch.ENEMY_STAND_ID].effects.clear()
 	assert_eq(hud.text_for(PracticeMatch.ENEMY_STAND_ID), "")
 	practice.hurt_local(100)
-	assert_eq(hud.text_for(PracticeMatch.LOCAL_ID), "Tagged")
+	assert_true(practice.sim.players[PracticeMatch.LOCAL_ID].tagged)
+	assert_eq(hud.text_for(PracticeMatch.LOCAL_ID), "", "a tagged kid stands in the box, which says it: no word over each kid (audit 4)")
 
 
 func test_the_status_font_is_a_slanted_italic() -> void:

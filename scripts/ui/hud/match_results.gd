@@ -80,6 +80,8 @@ func _init() -> void:
 	buttons.add_child(home_button)
 	confetti = _make_confetti()
 	add_child(confetti)
+	# the paper falls behind the card, over the dimmed street: it never covers a button's words
+	move_child(confetti, dim.get_index() + 1)
 
 
 ## Takes the HUD's existing main button (Play again or Return home) as the card's gold action, so the

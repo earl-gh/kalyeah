@@ -41,9 +41,18 @@ static func layout(hud: MatchHud) -> void:
 		hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(80, -(hud.console_height() + 150.0), -80, -(hud.console_height() + 6.0)))
 	var gear: Vector4 = Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE)
 	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear)
-	var feed_top: float = MatchHud.HEADER_HEIGHT + MatchHud.FEED_DROP
-	hud._place(hud.feed_box, Vector4(0, 0, 0, 0), Vector4(MatchHud.MARGIN, feed_top, MatchHud.MARGIN + MatchHud.FEED_SIZE.x, feed_top + MatchHud.FEED_SIZE.y * MatchHud.FEED_MAX + 12.0))
+	place_feed(hud, 0.0)
 	hud._place(hud.clock_chip, Vector4(1, 0, 1, 0), Vector4(-MatchHud.MARGIN - MatchHud.CLOCK_SIZE.x, MatchHud.TOP_ROW_Y, -MatchHud.MARGIN, MatchHud.TOP_ROW_Y + MatchHud.CLOCK_SIZE.y))
+
+
+## The feed sits `FEED_DROP` under the header, or lower when your tagged box and its RESCUE marker reach further down the screen
+## (`box_clear_y`, in screen space; a taller phone shows the box lower): a TAGGED! pill never covers the box it is about.
+static func place_feed(hud: MatchHud, box_clear_y: float) -> void:
+	# the feed lives in `top`, which the notch's inset moves down
+	var feed_top: float = maxf(MatchHud.HEADER_HEIGHT + MatchHud.FEED_DROP, box_clear_y + MatchHud.MARGIN - hud.top.position.y)
+	if hud.feed_box.position.y == feed_top:
+		return
+	hud._place(hud.feed_box, Vector4(0, 0, 0, 0), Vector4(MatchHud.MARGIN, feed_top, MatchHud.MARGIN + MatchHud.FEED_SIZE.x, feed_top + MatchHud.FEED_SIZE.y * MatchHud.FEED_MAX + 12.0))
 
 
 ## The opening objective appears as a compact floating sheet above the controls.

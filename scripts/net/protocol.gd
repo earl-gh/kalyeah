@@ -3,9 +3,11 @@ extends RefCounted
 ## Message format between clients and the server. Every message is a Dictionary
 ## with "t" = Msg type, sent as var_to_bytes (no objects, so decoding is safe).
 
-## Additive protocol revision advertised by WELCOME. Older clients ignore it and
-## newer clients keep defaults for fields omitted by older servers.
-const VERSION: int = 1
+## Protocol revision, sent in HELLO and WELCOME; both ends refuse another one. Bump it when a field an older peer
+## reads changes meaning (2: hand slots can be empty, the card cycle). New fields keep a default for older peers.
+const VERSION: int = 2
+## What a player sees when the two phones run different versions.
+const INCOMPATIBLE_TEXT: String = "Update both phones to the same game version."
 
 enum Msg {
 	# client -> server

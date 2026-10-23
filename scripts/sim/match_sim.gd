@@ -512,6 +512,16 @@ func resolved_target(state: PlayerState, slot: int) -> int:
 	return casting.resolved_target(self, state, slot)
 
 
+## True when releasing `slot` now would throw nothing: a TARGETED weapon with nobody to throw at in range (the card stays in the hand).
+func lacks_target(state: PlayerState, slot: int) -> bool:
+	if slot < 0 or slot >= state.weapons.size():
+		return false
+	var def: WeaponDef = weapon_defs.get(state.weapons[slot]) as WeaponDef
+	if def == null or def.shape != WeaponDef.Shape.TARGETED:
+		return false
+	return weapons.target_in_range(self, state, def, resolved_target(state, slot)) == null
+
+
 func _move(state: PlayerState, input: PlayerInput, dt: float) -> void:
 	if state.cast_lock_left > 0.0:
 		# a heavy attack's cast animation: aiming was free while moving, but now stand still

@@ -90,7 +90,7 @@ func poll(delta: float) -> void:
 		_was_online = online
 		connection_changed.emit(online)
 		if online:
-			send({"t": NetProtocol.Msg.HELLO, "name": player_name, "token": token})
+			send({"t": NetProtocol.Msg.HELLO, "name": player_name, "token": token, "v": NetProtocol.VERSION})
 	if _peer == null:
 		return
 	if _peer.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED:
@@ -236,6 +236,9 @@ func _handle(message: Dictionary) -> void:
 	var M := NetProtocol.Msg
 	match message["t"] as int:
 		M.WELCOME:
+			if message.get("v", -1) != NetProtocol.VERSION:
+				error_received.emit(NetProtocol.INCOMPATIBLE_TEXT)
+				return
 			var reconnected: bool = message.get("reconnected", false) as bool
 			if message.has("input_next"):
 				next_input_sequence = maxi(next_input_sequence, message["input_next"] as int)
@@ -283,7 +286,12 @@ func _on_stage(message: Dictionary) -> void:
 		var loadouts: Dictionary = message.get("loadouts", {}) as Dictionary
 		for id: Variant in loadouts:
 			var pair: Array = loadouts[id] as Array
-			if pair.size() == 2 and mirror.players.has(id as int):
+			if pair.size() != 2 or not mirror.players.has(id as int):
+				continue
+			if mirror.rules.card_cycle:
+				# a hand can have an empty slot while the shuffler works; the server dealt it, so take it as it is
+				mirror.players[id as int].weapons.assign(pair)
+			else:
 				mirror.set_loadout(id as int, pair[0] as StringName, pair[1] as StringName)
 		# the server settled who plays which kid (a pick may have swapped two players' kids)
 		var kids: Dictionary = message.get("chars", {}) as Dictionary

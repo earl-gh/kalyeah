@@ -4,7 +4,7 @@ extends Control
 ## (the match clock is the chip at the header's right). It stands on the header deck without a card of its own. Team-relative: you are always on the left.
 
 const BIG_FONT: int = 44
-const CENTER_CAPTION: int = 18
+const CENTER_CAPTION: int = UiMetrics.CAPTION
 const SMALL_FONT: int = UiMetrics.CAPTION
 
 var mine: int = 0

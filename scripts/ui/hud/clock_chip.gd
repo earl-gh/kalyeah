@@ -4,7 +4,7 @@ extends Control
 ## (m:ss, counting up: a match has no time limit). In overtime the caption turns gold and says OVERTIME. It only draws; it never takes a touch.
 
 const TIME_FONT: int = 40
-const CAPTION_FONT: int = 18
+const CAPTION_FONT: int = UiMetrics.CAPTION
 
 var seconds: int = 0
 var overtime: bool = false

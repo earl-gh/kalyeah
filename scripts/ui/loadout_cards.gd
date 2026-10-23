@@ -44,7 +44,8 @@ static func profile(screen: WeaponPickScreen, character: CharacterDef) -> Button
 	art.offset_bottom = -36.0
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(art)
-	var name_label: Label = label(character.display_name, 24)
+	var name_label: Label = label(character.display_name, UiMetrics.CAPTION)
+	name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	name_label.offset_top = -36.0

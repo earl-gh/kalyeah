@@ -8,7 +8,7 @@ const MESSAGES: Dictionary[String, String] = {
 	"no_room": "The host has no room. Ask them to tap Create, then retry.",
 	"full": "The host's room is full.",
 	"in_progress": "The host's match has already started.",
-	"incompatible": "Update both phones to the same game version.",
+	"incompatible": NetProtocol.INCOMPATIBLE_TEXT,
 	"not_hotspot": "No hotspot room found on this network.",
 }
 

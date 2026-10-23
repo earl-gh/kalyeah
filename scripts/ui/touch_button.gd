@@ -21,7 +21,8 @@ const RIM_WIDTH: float = 5.0
 const SHADOW_DROP: float = 5.0
 const FONT_SIZE: int = 26
 const SMALL_FONT_SIZE: int = 22
-const TAG_FONT_SIZE: int = 20
+const TAG_FONT_SIZE: int = UiMetrics.CAPTION
+const TAG_HEIGHT: float = 26.0
 const TEXT_OUTLINE: int = 5
 const COOLDOWN_FONT_SIZE: int = 34
 ## A held card rises this much; its touch area is this much bigger on every side.
@@ -79,6 +80,12 @@ var blocked_text: String = "":
 	set(value):
 		if value != blocked_text:
 			blocked_text = value
+			queue_redraw()
+## A passing note on a usable skill ("NO TARGET"): drawn in the tag like `blocked_text`, without dimming it. Empty = none.
+var notice_text: String = "":
+	set(value):
+		if value != notice_text:
+			notice_text = value
 			queue_redraw()
 ## Brief glow when the skill becomes ready again.
 var _ready_flash: float = 0.0
@@ -206,6 +213,8 @@ func _draw() -> void:
 	if button_art != null:
 		if not blocked_text.is_empty():
 			_tag(font, UiText.t(blocked_text), center + Vector2(0.0, radius * 0.86), BLOCKED_TAG)
+		elif not notice_text.is_empty():
+			_tag(font, UiText.t(notice_text), center + Vector2(0.0, radius * 0.86), BLOCKED_TAG)
 		elif not sub_text.is_empty():
 			_tag(font, UiText.t(sub_text).to_upper(), center + Vector2(0.0, radius * 0.86), sub_color)
 	elif icon_id != &"":
@@ -242,8 +251,9 @@ func _draw_card() -> void:
 	var rise: float = DEAL_RISE * (1.0 - settle * settle * (3.0 - 2.0 * settle)) if _deal > 0.0 else 0.0
 	var lifted: Rect2 = Rect2(rect.position + Vector2(0.0, rise - (CARD_LIFT if held else 0.0)), rect.size)
 	CardStyle.draw(self, lifted, weapon_def, (0.55 if (locked or not blocked_text.is_empty()) else 0.0), held or highlight)
-	if not blocked_text.is_empty():
-		_tag(KalyeahTheme.ACTION_FONT, UiText.t(blocked_text), lifted.get_center(), BLOCKED_TAG)
+	var tag: String = blocked_text if not blocked_text.is_empty() else notice_text
+	if not tag.is_empty():
+		_tag(KalyeahTheme.ACTION_FONT, UiText.t(tag), lifted.get_center(), BLOCKED_TAG)
 	if _ready_flash > 0.0:
 		draw_rect(lifted, Color(READY_GLOW, _ready_flash / READY_FLASH_TIME * 0.5), true)
 
@@ -256,7 +266,7 @@ func _tag(font: Font, text: String, at: Vector2, color: Color) -> void:
 	pill.border_color = color
 	pill.set_border_width_all(2)
 	pill.set_corner_radius_all(12)
-	draw_style_box(pill, Rect2(at - Vector2(width / 2.0, 11.0), Vector2(width, 22.0)))
+	draw_style_box(pill, Rect2(at - Vector2(width / 2.0, TAG_HEIGHT / 2.0), Vector2(width, TAG_HEIGHT)))
 	_text(font, text, at, TAG_FONT_SIZE, color)
 
 

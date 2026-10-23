@@ -31,6 +31,9 @@ const CAST_BLOCK_TAGS: Dictionary[int, String] = {
 	StatusEffects.Type.KNOCKOUT: "OUT",
 	StatusEffects.Type.POLYMORPH: "CAN",
 }
+## Let go of a weapon with nobody to throw at in range: nothing is thrown, the weapon stays, and its button says why for this long.
+const NO_TARGET_TAG: String = "NO TARGET"
+const NO_TARGET_MS: int = 1200
 ## The header at the top of the screen (floating over the street, like Clash Royale): the settings button, the score and the clock sit in this row.
 const TOP_ROW_Y: float = 12.0
 const HEADER_HEIGHT: float = TOP_ROW_Y * 2.0 + 88.0
@@ -85,6 +88,10 @@ const BAR_BOTTOM: float = 22.0
 const BAR_MARGIN: float = 26.0
 const CANCEL_AT: Vector2 = Vector2(0.0, CONSOLE_HEIGHT + 78.0)
 const CANCEL_SIZE: Vector2 = Vector2(110.0, 100.0)
+## Cards mode: the cancel mark sits up and inward from the inner card, this far from any card's touch area (a full aim from anywhere on a
+## card ends `CANCEL_MARGIN` short of it, so only a drag past the aim ring on purpose reaches it).
+const CANCEL_MARGIN: float = 24.0
+const CANCEL_CLEARANCE: float = AimButton.DRAG_RADIUS + CANCEL_MARGIN
 
 var overhead: OverheadHud
 ## The red glow round the screen edge when you are hit (under the controls).
@@ -129,6 +136,9 @@ var menu: MatchMenu
 var banner: Label
 
 var feedback: MatchFeedback
+## Per weapon slot: letting go now would throw nothing (nobody in range); until when the button says so after a release.
+var _no_target: Array[bool] = [false, false]
+var _no_target_until: Array[int] = [0, 0]
 var connection_blocked: bool = false
 
 var _banner_tween: Tween
@@ -244,7 +254,9 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 		dpad.release()
 	# disabled while on cooldown too: no pressing or precasting until ready
 	var weapons_off: bool = not playing or not player.effects.can_cast()
-	feedback.sync_hint(player, aim_buttons, playing)
+	for slot: int in _no_target.size():
+		_no_target[slot] = playing and sim.lacks_target(player, slot)
+	feedback.sync_hint(player, aim_buttons, playing, _no_target)
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 	console.set_health(player.hp, sim.rules.player_max_hp, playing)
 	console.set_wells_shown(shown)
@@ -267,7 +279,11 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 			button.set_waiting(1.0 - clampf(player.shuffle_left / maxf(player.shuffle_total, 0.001), 0.0, 1.0), ceili(player.shuffle_left))
 			var in_hand: bool = card != null
 			button.accessibility_name = "Card %d: %s" % [slot + 1, card.display_name if in_hand else "waiting for the shuffler"]
+			var card_words: String = "Hold and drag to aim, let go to throw" if in_hand else "Ready in %d seconds" % ceili(player.shuffle_left)
+			if button.accessibility_description != card_words:
+				button.accessibility_description = card_words
 			button.blocked_text = _block_tag(player) if (playing and in_hand) else ""
+			button.notice_text = _notice(slot) if (playing and in_hand) else ""
 			button.set_locked(weapons_off or not in_hand)
 			continue
 		var def: WeaponDef = sim.weapon_defs[player.weapons[slot]]
@@ -282,8 +298,19 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 		if button.accessibility_description != cooldown_words:
 			button.accessibility_description = cooldown_words
 		button.blocked_text = _block_tag(player) if playing else ""
+		button.notice_text = _notice(slot) if playing else ""
 		button.set_locked(weapons_off or player.weapon_cooldowns[slot] > 0.0)
 		button.set_cooldown(player.weapon_cooldowns[slot], def.cooldown)
+
+
+## A weapon let go with nobody in range threw nothing: say so on its button for a moment.
+func _on_aim_released(_aim: Vector2, cancelled: bool, slot: int) -> void:
+	if not cancelled and _no_target[slot]:
+		_no_target_until[slot] = Time.get_ticks_msec() + NO_TARGET_MS
+
+
+func _notice(slot: int) -> String:
+	return NO_TARGET_TAG if Time.get_ticks_msec() < _no_target_until[slot] else ""
 
 
 ## What to print on a weapon button while a status stops you casting ("" when nothing does).
@@ -302,6 +329,7 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 	scoreboard.show_capture(sim, local_team)
 	scoreboard.show_roster(sim, local_team)
 	clock_chip.show_time(sim.match_time, sim.in_overtime())
+	MatchHudTop.place_feed(self, overhead.box_clear_y())
 	_sync_capture(sim, local_team)
 	again_button.visible = sim.phase == MatchSim.Phase.MATCH_OVER
 	results.set_over(sim.phase == MatchSim.Phase.MATCH_OVER, sim, local_id, local_team, results_mode)
@@ -403,8 +431,9 @@ func _build() -> void:
 	dpad.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	dpad.direction_changed.connect(_on_pad_direction)
 	add_child(dpad)
-	for button: AimButton in aim_buttons:
-		button.cancel_zone = cancel_zone
+	for slot: int in aim_buttons.size():
+		aim_buttons[slot].cancel_zone = cancel_zone
+		aim_buttons[slot].aim_released.connect(_on_aim_released.bind(slot))
 	banner = Label.new()
 	_place(banner, Vector4(0, 0.3, 1, 0.3), Vector4(0, -60, 0, 60))
 	banner.visible = false

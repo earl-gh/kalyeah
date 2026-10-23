@@ -84,6 +84,10 @@ func _handle(from: int, message: Dictionary) -> void:
 				status = _discovery_status()
 			send(from, {"t": M.ROOM_DISCOVERED, "game": "kalyeah", "v": NetProtocol.VERSION, "status": status})
 		M.HELLO:
+			# an older or newer build reads the match differently (an old one has no "v" at all): refuse it before it joins anything
+			if message.get("v", -1) != NetProtocol.VERSION:
+				_error(from, NetProtocol.INCOMPATIBLE_TEXT)
+				return
 			_names[from] = rooms.clean_name(message.get("name", "") as String)
 			var member: RoomService.Member = rooms.reconnect(message.get("token", "") as String, from)
 			var welcome: Dictionary = {

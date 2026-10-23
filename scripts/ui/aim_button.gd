@@ -30,6 +30,10 @@ static func aim_from_drag(offset: Vector2) -> Vector2:
 	return Vector2.ZERO if value.length() < TAP_DEADZONE else value
 
 
+func _ready() -> void:
+	WebTouchCancel.install()
+
+
 func set_locked(value: bool) -> void:
 	super.set_locked(value)
 	if value and aiming:
@@ -50,7 +54,8 @@ func _input(event: InputEvent) -> void:
 				_pointer = touch.index
 				_begin(touch.position)
 		elif touch.index == _pointer:
-			if touch.canceled:
+			# on the web a system-cancelled touch arrives as a plain release (see WebTouchCancel)
+			if touch.canceled or WebTouchCancel.take():
 				_finish(true)
 			else:
 				_drag(touch.position)
