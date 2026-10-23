@@ -204,7 +204,11 @@ func test_the_loadout_and_the_match_meet_the_floors() -> void:
 
 
 func test_the_text_drawn_on_the_buttons_and_over_the_kids_is_at_the_floor() -> void:
-	assert_gte(TouchButton.TAG_FONT_SIZE, 20, "the weapon type tag")
+	assert_gte(TouchButton.TAG_FONT_SIZE, UiMetrics.MIN_TEXT, "the weapon type tag")
+	assert_gte(ClockChip.CAPTION_FONT, UiMetrics.MIN_TEXT, "TIME over the clock")
+	assert_gte(Scoreboard.CENTER_CAPTION, UiMetrics.MIN_TEXT, "FIRST TO between the scores")
+	assert_gte(ShufflerView.LABEL_FONT, UiMetrics.MIN_TEXT, "NEXT over the shuffler")
+	assert_gte(CardStyle.NAME_MIN, UiMetrics.MIN_TEXT, "a card's name")
 	assert_gte(TouchButton.SMALL_FONT_SIZE, UiMetrics.MIN_TEXT)
 	assert_gte(OverheadHud.STATUS_FONT, UiMetrics.MIN_TEXT, "the status over a kid")
 

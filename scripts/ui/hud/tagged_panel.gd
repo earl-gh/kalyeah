@@ -65,7 +65,8 @@ func set_console_height(height: float) -> void:
 
 ## Shown while `player` is tagged.
 func sync(_sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
-	visible = player.tagged
+	# once the match is over the results card says what happened; the box's words would show through its dimmed backdrop
+	visible = player.tagged and _sim.phase != MatchSim.Phase.MATCH_OVER
 	# cards mode: the weapons are cards that keep cycling, so there is nothing to change in the box
 	swap_button.visible = visible and not pick_open and not _sim.rules.card_cycle
 

@@ -2,7 +2,7 @@ class_name OverheadHud
 extends Control
 ## MOBA-style overhead display drawn in screen space over each hero, like League
 ## of Legends: a solid health bar (green you, blue ally, red enemy), a status
-## in *italic* above it ("Stunned", "Tagged"). No names and no damage numbers (heals still pop a green "+N"). While a
+## in *italic* above it ("Stunned", "Slowed"). No names and no damage numbers (heals still pop a green "+N"). While a
 ## team holds the enemy base, a spinner fills over its kids' heads. Reads the sim
 ## and projects through the match camera.
 
@@ -12,8 +12,10 @@ const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 const POPUP_TIME: float = 0.9
 const POPUP_RISE: float = 56.0
 const STATUS_FONT: int = 22
-## The RESCUE marker over your team's tagged box: a pill with a pointer that bobs (still with Reduce motion).
+## The RESCUE marker under your team's tagged box: a pill with a pointer up at the box that bobs (held still with Reduce motion). It sits under
+## the box so it never covers a waiting kid or their bar.
 const RESCUE_FONT: int = 24
+const RESCUE_PAD: Vector2 = Vector2(14.0, 7.0)
 const RESCUE_BOB: float = 7.0
 const RESCUE_POINTER: float = 12.0
 const POPUP_FONT: int = 30
@@ -62,16 +64,15 @@ func setup(sim: MatchSim, camera: Camera3D, local_id: int, local_team: int) -> v
 	sim.player_healed.connect(_on_healed)
 
 
-## The status words shown (in italic) above a hero's bar: "Stunned", "Tagged", ...
+## The status words shown (in italic) above a hero's bar: "Stunned", "Slowed", ...
 ## Empty when nothing is wrong. Heroes have no name text.
 func text_for(id: int) -> String:
 	return _status_text(_sim.players[id])
 
 
+## A tagged kid stands in the box, which already says it: no "Tagged" over each one (two of them ran into one word).
 func _status_text(state: PlayerState) -> String:
 	var words: PackedStringArray = PackedStringArray()
-	if state.tagged:
-		words.append(UiText.t("Tagged"))
 	for word: String in state.effects.display_names():
 		words.append(UiText.t(word))
 	return " · ".join(words)
@@ -139,21 +140,49 @@ func rescue_cue_visible() -> bool:
 	return false
 
 
-## "RESCUE" over the middle of your team's box (it is the end of the street the other team defends, so it is easy to lose among the props).
+## Your team's tagged box on the screen: the rect round its four ground corners (empty while the camera cannot see it).
+func own_box_on_screen() -> Rect2:
+	if _camera == null or _sim == null:
+		return Rect2()
+	var box: Rect2 = _sim.layout.jail_rect(_sim.side_for_team(_local_team))
+	var corners: Array[Vector2] = [box.position, Vector2(box.end.x, box.position.y), box.end, Vector2(box.position.x, box.end.y)]
+	var on_screen: Rect2 = Rect2()
+	for index: int in corners.size():
+		var world: Vector3 = Vector3(corners[index].x, 0.0, corners[index].y)
+		if _camera.is_position_behind(world):
+			return Rect2()
+		var at: Vector2 = _camera.screen_position(world) if _camera is ArenaCamera else _camera.unproject_position(world)
+		on_screen = Rect2(at, Vector2.ZERO) if index == 0 else on_screen.expand(at)
+	return on_screen
+
+
+## The RESCUE pill (at rest): under the near edge of your box, its pointer up at the box's middle.
+func rescue_pill_rect() -> Rect2:
+	var box: Rect2 = own_box_on_screen()
+	if box.size == Vector2.ZERO:
+		return Rect2()
+	var label_size: Vector2 = KalyeahTheme.ACTION_FONT.get_string_size(UiText.t("RESCUE"), HORIZONTAL_ALIGNMENT_LEFT, -1.0, RESCUE_FONT)
+	var pill_size: Vector2 = label_size + RESCUE_PAD * 2.0
+	var x: float = clampf(box.get_center().x - pill_size.x / 2.0, 4.0, maxf(size.x - pill_size.x - 4.0, 4.0))
+	return Rect2(Vector2(x, box.end.y + RESCUE_POINTER), pill_size)
+
+
+## The lowest screen y the box and its RESCUE pill take (the feed starts under it); 0 while the box is not on screen.
+func box_clear_y() -> float:
+	var pill: Rect2 = rescue_pill_rect()
+	return 0.0 if pill.size == Vector2.ZERO else pill.end.y + RESCUE_BOB
+
+
+## "RESCUE" under your team's box (it is the end of the street the other team defends, so it is easy to lose among the props).
 func _draw_rescue_cue() -> void:
-	var box: Vector2 = _sim.layout.jail_rect(_sim.side_for_team(_local_team)).get_center()
-	var world: Vector3 = Vector3(box.x, HEAD_HEIGHT * view_scale, box.y)
-	if _camera == null or _camera.is_position_behind(world):
+	var pill: Rect2 = rescue_pill_rect()
+	if pill.size == Vector2.ZERO:
 		return
-	var tip: Vector2 = _camera.screen_position(world) if _camera is ArenaCamera else _camera.unproject_position(world)
 	if not Settings.reduced_motion:
-		tip.y -= RESCUE_BOB * (0.5 + 0.5 * sin(float(Time.get_ticks_msec()) / 1000.0 * TAU * 1.4))
+		pill.position.y += RESCUE_BOB * (0.5 + 0.5 * sin(float(Time.get_ticks_msec()) / 1000.0 * TAU * 1.4))
+	var tip_x: float = own_box_on_screen().get_center().x
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var label: String = UiText.t("RESCUE")
-	var label_size: Vector2 = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, RESCUE_FONT)
-	var pill: Rect2 = Rect2(Vector2(tip.x - label_size.x / 2.0 - 14.0, tip.y - RESCUE_POINTER - label_size.y - 14.0), label_size + Vector2(28.0, 14.0))
-	pill.position.x = clampf(pill.position.x, 4.0, maxf(size.x - pill.size.x - 4.0, 4.0))
-	pill.position.y = maxf(pill.position.y, top_limit + 4.0)
 	var color: Color = TeamColors.feed_own()
 	var box_style: StyleBoxFlat = StyleBoxFlat.new()
 	box_style.bg_color = color
@@ -162,10 +191,10 @@ func _draw_rescue_cue() -> void:
 	box_style.set_corner_radius_all(14)
 	box_style.anti_aliasing = true
 	draw_style_box(box_style, pill)
-	var centre_x: float = clampf(tip.x, pill.position.x + 18.0, pill.end.x - 18.0)
-	var point: PackedVector2Array = PackedVector2Array([Vector2(centre_x - 10.0, pill.end.y - 2.0), Vector2(centre_x + 10.0, pill.end.y - 2.0), Vector2(centre_x, pill.end.y + RESCUE_POINTER)])
+	var centre_x: float = clampf(tip_x, pill.position.x + 18.0, pill.end.x - 18.0)
+	var point: PackedVector2Array = PackedVector2Array([Vector2(centre_x - 10.0, pill.position.y + 2.0), Vector2(centre_x + 10.0, pill.position.y + 2.0), Vector2(centre_x, pill.position.y - RESCUE_POINTER)])
 	draw_colored_polygon(point, color)
-	draw_string(font, Vector2(pill.position.x + 14.0, pill.end.y - 9.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, RESCUE_FONT, Color.WHITE)
+	draw_string(font, Vector2(pill.position.x + RESCUE_PAD.x, pill.end.y - RESCUE_PAD.y - 2.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, RESCUE_FONT, Color.WHITE)
 
 
 ## True while `state`'s team holds the enemy base and this kid stands in it.

@@ -11,7 +11,9 @@ signal closed
 signal exit_requested
 
 ## The character cards are exactly 3:4 (width:height).
-const PROFILE_SIZE: Vector2 = Vector2(96.0, 128.0)
+## The kid tiles (3:4): six across the 656 px column, wide enough for the longest name at the caption floor.
+const PROFILE_SIZE: Vector2 = Vector2(102.0, 136.0)
+const PROFILE_GAP: int = 8
 ## The weapon grid: tiles across, and how tall each tile is.
 const GRID_COLUMNS: int = 3
 const TILE_HEIGHT: float = 200.0

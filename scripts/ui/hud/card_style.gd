@@ -7,7 +7,8 @@ extends RefCounted
 const RADIUS: int = 18
 const BORDER: int = 5
 const NAME_MAX: int = 22
-const NAME_MIN: int = 12
+## Names are never drawn smaller than the caption floor: a card too small for that (the shuffler's window) shows only its art.
+const NAME_MIN: int = UiMetrics.CAPTION
 
 
 ## Draws the card of `def` in `rect` on `canvas`. `dim` (0 to 1) darkens it (locked, used, waiting); `lift` raises it with a gold edge
@@ -30,15 +31,17 @@ static func draw(canvas: CanvasItem, rect: Rect2, def: WeaponDef, dim: float = 0
 	var art_rect: Rect2 = Rect2(rect.position + Vector2(BORDER + 3.0, BORDER + 3.0), Vector2(inner, inner))
 	if texture != null:
 		canvas.draw_texture_rect(texture, art_rect, false)
-	# the name on a navy plate along the bottom
+	# the name on a navy plate along the bottom (no plate on a card too small for a readable name)
 	var plate: Rect2 = Rect2(rect.position + Vector2(BORDER, rect.size.y - BORDER - plate_height(rect)), Vector2(rect.size.x - 2.0 * BORDER, plate_height(rect)))
-	var plate_box: StyleBoxFlat = StyleBoxFlat.new()
-	plate_box.bg_color = RoyaleStyle.NAVY
-	plate_box.corner_radius_bottom_left = RADIUS - BORDER
-	plate_box.corner_radius_bottom_right = RADIUS - BORDER
-	plate_box.anti_aliasing = true
-	canvas.draw_style_box(plate_box, plate)
-	_name(canvas, plate, def.short_name)
+	var name_size: int = _name_size(plate, def.short_name)
+	if name_size > 0:
+		var plate_box: StyleBoxFlat = StyleBoxFlat.new()
+		plate_box.bg_color = RoyaleStyle.NAVY
+		plate_box.corner_radius_bottom_left = RADIUS - BORDER
+		plate_box.corner_radius_bottom_right = RADIUS - BORDER
+		plate_box.anti_aliasing = true
+		canvas.draw_style_box(plate_box, plate)
+		_name(canvas, plate, def.short_name, name_size)
 	if dim > 0.0:
 		var shade: StyleBoxFlat = StyleBoxFlat.new()
 		shade.bg_color = Color(0.0, 0.0, 0.0, dim)
@@ -104,11 +107,17 @@ static func draw_filling(canvas: CanvasItem, rect: Rect2, def: WeaponDef, ready:
 	canvas.draw_style_box(shade, Rect2(rect.position, Vector2(rect.size.x, covered)))
 
 
-static func _name(canvas: CanvasItem, plate: Rect2, text: String) -> void:
+## The font size `text` fits its plate at, or 0 when that would be under `NAME_MIN`.
+static func _name_size(plate: Rect2, text: String) -> int:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var size: int = NAME_MAX
 	while size > NAME_MIN and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x > plate.size.x - 8.0:
 		size -= 1
 	size = mini(size, int(plate.size.y * 0.62))
+	return size if size >= NAME_MIN else 0
+
+
+static func _name(canvas: CanvasItem, plate: Rect2, text: String, size: int) -> void:
+	var font: Font = KalyeahTheme.ACTION_FONT
 	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x
 	canvas.draw_string(font, Vector2(plate.position.x + (plate.size.x - width) / 2.0, plate.position.y + plate.size.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size, Color.WHITE)

@@ -62,7 +62,8 @@ func show_connection(text: String, terminal: bool) -> void:
 	hint.hide()
 
 
-func sync_hint(player: PlayerState, buttons: Array[AimButton], playing: bool) -> void:
+## `no_target[slot]`: letting go of that weapon now would throw nothing (nobody in range).
+func sync_hint(player: PlayerState, buttons: Array[AimButton], playing: bool, no_target: Array[bool] = []) -> void:
 	hint.text = ""
 	if not playing or connection.visible:
 		hint.hide()
@@ -70,8 +71,15 @@ func sync_hint(player: PlayerState, buttons: Array[AimButton], playing: bool) ->
 	if not player.effects.can_cast():
 		hint.text = "%s · weapons unavailable" % ", ".join(player.effects.display_names())
 	else:
-		for button: AimButton in buttons:
-			if button.aiming:
-				hint.text = "Release to cancel" if button.over_cancel else "Release to cast · drag to cancel"
-				break
+		for slot: int in buttons.size():
+			var button: AimButton = buttons[slot]
+			if not button.aiming:
+				continue
+			if button.over_cancel:
+				hint.text = "Release to cancel"
+			elif slot < no_target.size() and no_target[slot]:
+				hint.text = "Nobody in range · release keeps it"
+			else:
+				hint.text = "Release to cast · drag to cancel"
+			break
 	hint.visible = not hint.text.is_empty()

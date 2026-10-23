@@ -76,10 +76,15 @@ static func _apply_cards(hud: MatchHud, mirrored: bool, lift: float) -> void:
 	var window: Vector2 = MatchHud.SHUFFLER_SIZE
 	var shuffler_x: float = first + card.x / 2.0 + MatchHud.CARD_GAP + window.x / 2.0
 	put(hud, hud.shuffler, not mirrored, Vector2(shuffler_x, from_bottom + (card.y - window.y) / 2.0 - MatchHud.SHUFFLER_LIFT), window)
-	put(hud, hud.cancel_zone, not mirrored, Vector2((second + first) / 2.0, MatchHud.CANCEL_AT.y + lift), MatchHud.CANCEL_SIZE)
-	# the same places in the tray's own coordinates (from its top-left)
+	# up the diagonal from the inner card's top corner (towards the middle, away from the main up aim), clear of every full aim
+	var reach: float = MatchHud.CANCEL_CLEARANCE / sqrt(2.0)
+	var cancel: Vector2 = MatchHud.CANCEL_SIZE
+	var cancel_x: float = first + card.x / 2.0 + TouchButton.CARD_SLACK + reach + cancel.x / 2.0
+	var cancel_y: float = from_bottom + card.y / 2.0 + TouchButton.CARD_SLACK + reach + cancel.y / 2.0
+	put(hud, hud.cancel_zone, not mirrored, Vector2(cancel_x, cancel_y), cancel)
+	# the same places in the tray's own coordinates (from its top-left); `from_edge` is the far side's distance from the control's edge
 	var width: float = hud.size.x
-	var tray_x: Callable = func(from_edge: float, extent: float) -> float: return width - from_edge - extent / 2.0 if not mirrored else from_edge - extent / 2.0
+	var tray_x: Callable = func(from_edge: float, extent: float) -> float: return width - from_edge if not mirrored else from_edge - extent
 	var top: float = MatchHud.CARD_TOP
 	var hands: Array[Rect2] = [
 		Rect2(Vector2(tray_x.call(first + card.x / 2.0, card.x), top), card),

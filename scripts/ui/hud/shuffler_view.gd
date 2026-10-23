@@ -8,7 +8,7 @@ extends Control
 const FLASH_TIME: float = 0.4
 ## The new NEXT card swells this much (a fraction) as it arrives.
 const POP: float = 0.16
-const LABEL_FONT: int = 20
+const LABEL_FONT: int = UiMetrics.CAPTION
 const NEXT_COLOR: Color = Color(0.45, 0.72, 1.0)
 
 var next_def: WeaponDef
