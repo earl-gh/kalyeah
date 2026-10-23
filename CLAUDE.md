@@ -62,7 +62,7 @@ Keep the existing procedural/code-drawn stand-ins working until the owner's asse
 - No C#/GDExtension (breaks single-threaded web export). No addons except GUT unless asked.
 - No ENet/UDP for gameplay (doesn't work in browsers).
 - No accounts, ranked, leveling, items, hero classes/abilities, damage types — out of scope by design. Characters are cosmetic only and chosen by the player on the select screen (docs/GDD.md).
-- **No basic attack.** Players only use their picked weapons plus the default skills (Dash, Bookmark).
+- **No basic attack.** Players only use the two weapon cards in their hand (every weapon is in a shuffled deck that cycles like Clash Royale; nobody picks weapons, owner), plus the default skills (Dash, Bookmark).
 - Never let a character choice change gameplay (hitbox, stats, timing).
 - Don't guess on items listed under "Open decisions" in GDD: implement the default and keep it a data toggle.
 

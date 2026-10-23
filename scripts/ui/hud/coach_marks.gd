@@ -33,7 +33,7 @@ var _pulse: Tween
 static func steps_for(capture_seconds: float, points_to_win: int) -> Array[Dictionary]:
 	return [
 		{"title": "Move", "target": &"dpad", "text": "Press a direction on the D-pad to run. Let go to stop."},
-		{"title": "Aim and throw", "target": &"skills", "text": "Hold a weapon button, drag to aim, then let go to throw. You carry the two weapons you picked."},
+		{"title": "Aim and throw", "target": &"skills", "text": "Hold a weapon button, drag to aim, then let go to throw. Your two cards are your weapons: use one and a new card arrives when it has reloaded. NEXT shows what is coming."},
 		{"title": "Score a point", "target": &"",
 			"text": "Get your whole team into the enemy base and hold it for %s seconds, with no defender left inside it, or tag everyone on the other team. First to %d points wins." % [String.num(capture_seconds, 0 if is_equal_approx(capture_seconds, roundf(capture_seconds)) else 1), points_to_win]},
 		{"title": "Tagged?", "target": &"", "text": "When your health runs out you wait in your box. A free teammate who runs into the rescue area sets you free."},

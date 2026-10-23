@@ -42,6 +42,7 @@ practice_tag_release_time = 20.0
 intro_time = 6.0
 point_freeze_time = 3.0
 first_to = 3
+card_cycle = true
 first_to_choices = Array[int]([3, 5, 7])
 dummy_z = 0.0
 dummy_stand_x = -5.0

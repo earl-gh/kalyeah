@@ -181,7 +181,6 @@ func _reset_round(sim: MatchSim) -> void:
 		state.hp = sim.rules.player_max_hp
 		state.tagged = false
 		state.tag_time = 0.0
-		for slot: int in state.weapon_cooldowns.size():
-			state.weapon_cooldowns[slot] = 0.0
+		sim.finish_reloads(state)
 		if was_tagged:
 			sim.player_rescued.emit(id, MatchSim.RELEASED_ALONE)

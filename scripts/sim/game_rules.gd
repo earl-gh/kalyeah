@@ -46,6 +46,10 @@ extends Resource
 @export var intro_time: float = 0.0
 ## Freeze after a point before everyone is reset to their posts.
 @export var point_freeze_time: float = 0.0
+## Weapon cards (owner): nobody picks weapons. Every player has a shuffled deck of all the weapons and a hand of two cards (the two
+## skill buttons). Using a card sends it to the back of the deck; when its cooldown is over, the next card of the deck takes its
+## place. Off = the old pick of two weapons before the match and the swap in the box.
+@export var card_cycle: bool = true
 ## The match is won by the first team to this many points (practice, and the lobby's default).
 @export var first_to: int = 0
 ## What the host can pick in the lobby.

@@ -100,5 +100,6 @@ func _try_fire(sim: MatchSim, state: PlayerState, slot: int, stick: Vector2, hol
 	var aim: Vector2 = resolved_aim(sim, state, slot, stick)
 	if sim.weapons.fire(sim, state, def, aim, hold_seconds, state.aim_target[slot]):
 		state.weapon_cooldowns[slot] = def.cooldown
+		sim.cycle_used(state, slot)
 		state.cast_lock_left = def.cast_lock
 		sim.weapon_cast.emit(state.id, def.id)

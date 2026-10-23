@@ -40,6 +40,12 @@ var back_button: Button
 var _exit_dialog: MenuDialog
 var hosting: bool = false
 var _hint: Label
+## Cards mode (GameRules.card_cycle): there is nothing to pick but the kid. The weapon parts of the screen are hidden, Ready says Play.
+var cards_mode: bool = false
+var _weapon_parts: Array[Control] = []
+var _filler: Control
+var _hero: TextureRect
+var _hero_name: Label
 ## Stat bars on every weapon card are scaled by the biggest number of any weapon.
 var _maxima: Dictionary = {}
 ## The pair offered to a player who has not picked yet (see `WeaponPick.suggestion`), and the button that takes it.
@@ -127,10 +133,13 @@ func show_time(seconds: float) -> void:
 func _show(defs: Array[WeaponDef], _heading: String) -> void:
 	if _buttons.is_empty():
 		_build(defs)
-	_title.text = "Change weapons" if swap_mode else "Loadout"
-	_mode_label.text = "Changes apply immediately" if swap_mode else "Auto-pick at timeout"
-	_mode_label.visible = swap_mode or not untimed
-	_ring.visible = not untimed
+	_title.text = "Change weapons" if swap_mode else ("Choose your kid" if cards_mode else "Loadout")
+	_mode_label.text = "Changes apply immediately" if swap_mode else ("Your weapons come as cards" if cards_mode else "Auto-pick at timeout")
+	_mode_label.visible = swap_mode or not untimed or cards_mode
+	_ring.visible = not untimed and not cards_mode
+	for part: Control in _weapon_parts:
+		part.visible = not cards_mode
+	_filler.visible = cards_mode
 	LobbyWidgets.apply_safe_area(_safe_margin, UiMetrics.PAGE_MARGIN, UiMetrics.PAGE_MARGIN)
 	_character_row.visible = not swap_mode and not _characters.is_empty()
 	(find_child("Characters", true, false) as Control).visible = _character_row.visible
@@ -211,13 +220,15 @@ func tap(id: StringName) -> void:
 func press_ready() -> void:
 	if swap_mode:
 		close()
+	elif is_open() and cards_mode:
+		force_finish()
 	elif is_open() and pick.confirm():
 		_finish()
 
 
 ## Counts the pick timer down (call every frame while open).
 func tick(delta: float) -> void:
-	if not is_open() or swap_mode or untimed:
+	if not is_open() or swap_mode or untimed or cards_mode:
 		return
 	if pick.step(delta, _rng):
 		_finish()
@@ -249,15 +260,18 @@ func _refresh() -> void:
 		var id: StringName = pick.picks[slot] if slot < pick.picks.size() else &""
 		_sockets[slot].active = slot == replacement_slot
 		_sockets[slot].show_weapon(_defs.get(id) as WeaponDef)
+	if cards_mode and _hero != null:
+		_hero.texture = KidModel.portrait(character_id)
+		_hero_name.text = String(character_id).to_upper()
 	_hint.text = selection_hint()
 	_suggest_button.visible = not swap_mode and not suggestion.is_empty() and pick.picks.size() < WeaponPick.SLOTS
-	var can_go: bool = swap_mode or pick.can_confirm()
+	var can_go: bool = swap_mode or cards_mode or pick.can_confirm()
 	_ready_button.disabled = not can_go
 	_style_ready(can_go)
 	if swap_mode:
 		_ready_button.text = "Done"
 	else:
-		_ready_button.text = "Ready"
+		_ready_button.text = "Play" if cards_mode else "Ready"
 
 
 func _build(defs: Array[WeaponDef]) -> void:

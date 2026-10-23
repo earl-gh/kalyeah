@@ -10,6 +10,7 @@ const LIP: Color = RoyaleStyle.GOLD
 const CORNER: float = 36.0
 const HEALTH_FONT: int = 40
 const HEALTH_TEXT: Color = Color.WHITE
+const NEXT_FONT: int = 20
 ## The bar keeps your own colour above this share of your health, turns amber below it and red below the second.
 const HEALTH_LOW: float = 0.5
 const HEALTH_CRITICAL: float = 0.25
@@ -26,6 +27,8 @@ var health_text: String = ""
 var health_shown: bool = false
 ## The wells show only while the controls do (not while you wait in the box, when the deck carries a message instead).
 var wells_shown: bool = true
+## The next card of the deck (cards mode): a small round picture with NEXT beside it, above the health plate.
+var next_card: StringName = &""
 
 
 ## Shows or hides the wells under the controls.
@@ -33,6 +36,13 @@ func set_wells_shown(shown: bool) -> void:
 	if shown == wells_shown:
 		return
 	wells_shown = shown
+	queue_redraw()
+
+
+func set_next(id: StringName) -> void:
+	if id == next_card:
+		return
+	next_card = id
 	queue_redraw()
 
 
@@ -131,6 +141,23 @@ func _draw_heart(at: Vector2, radius: float, color: Color) -> void:
 	draw_colored_polygon(PackedVector2Array([at + Vector2(-radius, -radius * 0.12), at + Vector2(radius, -radius * 0.12), at + Vector2(0.0, radius)]), color)
 
 
+## NEXT and the next card's round button picture, in the top of the deck's middle gap.
+func _draw_next() -> void:
+	var free: Vector2 = gap()
+	if next_card == &"" or not wells_shown or free.y < 90.0:
+		return
+	var texture: Texture2D = Icons.art(StringName("btn_%s" % String(next_card)))
+	var radius: float = 24.0
+	var centre: Vector2 = Vector2(free.x + 30.0, 34.0)
+	draw_circle(centre, radius + 3.0, RoyaleStyle.NAVY)
+	if texture != null:
+		draw_texture_rect(texture, Rect2(centre - Vector2(radius, radius), Vector2(radius, radius) * 2.0), false)
+	var font: Font = KalyeahTheme.ACTION_FONT
+	var label: String = UiText.t("NEXT")
+	var label_size: Vector2 = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT)
+	draw_string(font, Vector2(centre.x - radius - 10.0 - label_size.x, centre.y + NEXT_FONT * 0.35), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT, RoyaleStyle.BLUE_LIGHT)
+
+
 func _draw() -> void:
 	var w: float = size.x
 	var h: float = size.y
@@ -162,3 +189,4 @@ func _draw() -> void:
 			break
 		RoyaleStyle.well(self, socket["at"] as Vector2, socket["radius"] as float)
 	_draw_health()
+	_draw_next()

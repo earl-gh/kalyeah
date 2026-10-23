@@ -222,6 +222,7 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 	console.set_health(player.hp, sim.rules.player_max_hp, playing)
 	console.set_wells_shown(playing)
+	console.set_next(player.deck[0] if not player.deck.is_empty() else &"")
 	for slot: int in weapon_buttons.size():
 		var button: AimButton = weapon_buttons[slot]
 		if slot >= player.weapons.size():

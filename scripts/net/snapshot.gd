@@ -13,7 +13,7 @@ static func capture(sim: MatchSim, acks: Dictionary[int, int]) -> Dictionary:
 		players.append({
 			"id": id, "pos": p.position, "face": p.facing, "hp": p.hp, "tag": p.tagged, "tt": p.tag_time,
 			"wcd": p.weapon_cooldowns.duplicate(), "w": p.weapons.duplicate(), "fx": p.effects.snapshot(),
-			"cl": p.cast_lock_left,
+			"cl": p.cast_lock_left, "nx": p.deck[0] if not p.deck.is_empty() else &"", "rl": p.reloading.duplicate(),
 		})
 	var projectiles: Array[Dictionary] = []
 	for projectile: WeaponSystem.Projectile in sim.weapons.projectiles:
@@ -54,6 +54,9 @@ static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 		p.tag_time = entry["tt"] as float
 		p.weapon_cooldowns.assign(entry["wcd"] as Array)
 		p.weapons.assign(entry["w"] as Array)
+		var next_card: StringName = entry.get("nx", &"") as StringName
+		p.deck.assign([] if next_card == &"" else [next_card])
+		p.reloading.assign(entry.get("rl", [false, false]) as Array)
 		p.effects.restore(entry["fx"] as Dictionary)
 	_apply_weapons(sim, data)
 	var was_intro: bool = sim.phase == MatchSim.Phase.INTRO
