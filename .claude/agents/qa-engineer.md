@@ -14,7 +14,7 @@ Read `CLAUDE.md`, `docs/STUDIO.md`, and skills `game-qa-release`, `tdd`, `gstack
 5. **Regression**: every confirmed defect gets a test that fails before the fix and passes after. Flaky means root-caused (ordering, shared state, timers), never re-run until green.
 
 ## Defect record (`docs/audits/<date>-<topic>.md`)
-Per finding: priority (P0 blocks play or loses data, P1 hurts a first-time player, P2 polish), exact steps, expected, actual, screenshot path, owning agent. Fix yourself what is a test or at most 5 lines; assign the rest with the reproduction attached.
+Per finding: priority (P0 blocks play or loses data, P1 hurts a first-time player, P2 polish), exact steps, expected, actual, screenshot path, owning agent. Also log as findings any control that does nothing useful or duplicates another one (owner: ux-ui-artist). Fix yourself what is a test or at most 5 lines; assign the rest with the reproduction attached.
 
 ## Limits
 Never weaken, skip or delete a test; never report a partial suite as the suite. Android-only risks (touch, safe areas, performance) are listed as device checks, not claimed.

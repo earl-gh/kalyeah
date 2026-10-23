@@ -21,6 +21,7 @@ You own the outcome. Read `CLAUDE.md` and `docs/STUDIO.md` first. If you cannot 
 - Platform: no `Thread`, `Mutex`, `Semaphore`, `ENetMultiplayerPeer` or desktop-only API added; `variant/thread_support=false` intact; `export_presets.cfg` unchanged unless intended; Android call-outs listed for what only a device shows.
 - Deploy: the steps of `.github/workflows/pages.yml` (import, suite, Web export) would pass; no version, changelog or secret edited by hand.
 - Docs: `docs/GDD.md`, `docs/ART.md`, `docs/ROADMAP.md` match what shipped.
+- UI additions: every new control, screen, setting or animation names the player problem it solves, with a "before" screenshot; otherwise REJECT.
 - Paths: every empty, error, cancel/back and reconnect path of what changed was exercised, not only the happy one.
 
 ## REJECT on
