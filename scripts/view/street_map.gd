@@ -1,8 +1,8 @@
 class_name StreetMap
 extends Node3D
 ## The barangay street the game is played on (view only; reads MapLayout, holds no
-## rules). The play area is one flat, dark grey cement slab (no tiles or
-## markings) with curbs and sidewalks, house fronts, a sari-sari store with an
+## rules). The play area is the owner's tiled floor (cement.png) over a flat cement
+## slab (no markings) with curbs and sidewalks, house fronts, a sari-sari store with an
 ## umbrella around it; the few cover
 ## pieces kids hide behind (cardboard walls); each team's electric post in its corner with a chalk base
 ## circle; and the taped box where each team's tagged kids wait.
@@ -41,8 +41,8 @@ const TAPE_WIDTH: float = 0.3
 const BASE_STEPS: int = 36
 ## The tagged box has no tint and no tape: cardboard walls close its sides.
 const JAIL_WALL_THICKNESS: float = 0.5
-## How high the sidewalks stand above the street (owner: raised, was 0.18 m).
-const CURB_HEIGHT: float = 0.4
+## The sidewalks are flat, level with the street (owner: no raised curb).
+const CURB_HEIGHT: float = 0.0
 const SIDEWALK_WIDTH: float = 1.2
 ## The street goes on past both ends of the play area (behind a barricade).
 ## The road, the sidewalks and the ground go on this far past each end of the play area (m); the
@@ -75,26 +75,14 @@ const DOG_HEIGHT: float = 0.62
 const CHICKEN_CAGE_HEIGHT: float = 0.9
 const DRAINAGE_COVER_WIDTH: float = 0.75
 const SHADOW_DISTANCE: float = 400.0
-## Painted ground sits just above the coloured road and sidewalk boxes.
+## Painted ground sits just above the road slab.
 const PAVER_TILE: float = 2.4
-## The play area is one flat, dark grey cement slab (owner): no repeating tiles.
+## The slab under the owner's tiled floor (and the street past both ends): dark grey cement.
 const CEMENT: Color = Color(0.3, 0.3, 0.31)
 ## Optional realistic cement art (owner-made 2D image, see docs/ART.md): when this
 ## file exists it is laid ONCE over the whole play area (stretched, never tiled).
 const CEMENT_ART: String = "res://assets/textures/cement.png"
 const CEMENT_LIFT: float = 0.004
-## The sidewalks are plain gray cement (owner), lighter than the dark street; their raised
-## edge facing the street is a darker gray, not a light line.
-const SIDEWALK_CEMENT: Color = Color(0.4, 0.4, 0.42)
-const SIDEWALK_EDGE: Color = Color(0.3, 0.3, 0.32)
-## Optional owner-made 2D images for the sidewalks (docs/ART.md "Ground art"): when a file exists
-## it is laid on the sidewalk top / on the raised face toward the street, repeated every
-## *_TILE metres along the street. Without them the sidewalks stay flat gray cement.
-const SIDEWALK_TOP_ART: String = "res://assets/textures/sidewalk_top.png"
-const SIDEWALK_SIDE_ART: String = "res://assets/textures/sidewalk_side.png"
-const SIDEWALK_TOP_TILE: float = 3.0
-const SIDEWALK_SIDE_TILE: float = 3.0
-const ART_LIFT: float = 0.003
 const STREET_SHADER: Shader = preload("res://shaders/street_cement.gdshader")
 ## Paving around the whole map, so the street never ends in sky.
 const OUTER_MARGIN: float = 40.0
@@ -333,7 +321,6 @@ func street_material() -> ShaderMaterial:
 	var material: ShaderMaterial = ShaderMaterial.new()
 	material.shader = STREET_SHADER
 	material.set_shader_parameter("lane_half_width", layout.lane_width / 2.0)
-	material.set_shader_parameter("curb_height", CURB_HEIGHT)
 	material.set_shader_parameter("wear", 0.3 if diorama else 1.0)
 	return material
 
@@ -343,7 +330,6 @@ func street_material() -> ShaderMaterial:
 ## kids at the edge, in the strip `boundary_thickness` wide).
 func _street() -> ArrayMesh:
 	var kit: LowPoly = LowPoly.new()
-	var half_w: float = layout.lane_width / 2.0
 	var length: float = layout.lane_length + _reach() * 2.0
 	if diorama:
 		# the main-screen model is the far half only: the exact lane_width x lane_length / 2 area
@@ -352,74 +338,49 @@ func _street() -> ArrayMesh:
 		# the chunky stone base the map model stands on
 		kit.rounded_slab(Vector3(0.0, -0.1 - PLINTH_HEIGHT / 2.0, -half / 2.0), Vector3(layout.lane_width, PLINTH_HEIGHT, half), CORNER_RADIUS, PLINTH, PLINTH)
 		return kit.commit()
-	kit.plain_box(Vector3(0.0, -0.05, 0.0), Vector3(layout.lane_width, 0.1, length), CEMENT, CEMENT)
-	for side: float in [-1.0, 1.0]:
-		var reach: float = layout.boundary_thickness + SIDEWALK_WIDTH
-		kit.plain_box(Vector3(side * (half_w + reach / 2.0), CURB_HEIGHT / 2.0 - 0.02, 0.0), Vector3(reach, CURB_HEIGHT, length), SIDEWALK_EDGE, SIDEWALK_CEMENT)
+	# one flat slab under the street and both sidewalks (owner: no raised curb)
+	var reach: float = layout.boundary_thickness + SIDEWALK_WIDTH
+	kit.plain_box(Vector3(0.0, -0.05, 0.0), Vector3(layout.lane_width + reach * 2.0, 0.1, length), CEMENT, CEMENT)
 	return kit.commit()
 
 
-## The cement art if there is one and paving all around (the sidewalks are plain gray cement).
+## The owner's floor if there is one and paving all around.
 func _add_ground_textures() -> void:
-	var half_w: float = layout.lane_width / 2.0
 	var length: float = layout.lane_length + _reach() * 2.0
 	_add_cement_art()
-	add_sidewalk_art(_owner_art(SIDEWALK_TOP_ART), _owner_art(SIDEWALK_SIDE_ART))
 	var outer: MeshInstance3D = StreetArt.ground("pavers", Vector2(layout.lane_width + OUTER_MARGIN * 2.0, length + OUTER_MARGIN * 2.0), PAVER_TILE, OUTER_TINT)
 	outer.position = Vector3(0.0, OUTER_DROP, 0.0)
 	_geometry.add_child(outer)
 
 
-## An owner-made image by path, or null while it does not exist yet.
-static func _owner_art(path: String) -> Texture2D:
-	return load(path) as Texture2D if ResourceLoader.exists(path) else null
-
-
-## Lays the owner's sidewalk images, if given: `top` on both sidewalk tops, `face` on the raised
-## face of each sidewalk toward the street (its image covers the whole face height).
-func add_sidewalk_art(top: Texture2D, face: Texture2D) -> void:
-	var half_w: float = layout.lane_width / 2.0
-	var length: float = layout.lane_length + _reach() * 2.0
-	var reach: float = layout.boundary_thickness + SIDEWALK_WIDTH
-	for side: float in [-1.0, 1.0]:
-		if top != null:
-			var plane: PlaneMesh = PlaneMesh.new()
-			plane.size = Vector2(reach, length)
-			plane.material = StreetArt.material_for(top, Vector2(reach, length) / SIDEWALK_TOP_TILE)
-			var top_art: MeshInstance3D = MeshInstance3D.new()
-			top_art.name = "SidewalkTopLeft" if side < 0.0 else "SidewalkTopRight"
-			top_art.mesh = plane
-			top_art.position = Vector3(side * (half_w + reach / 2.0), CURB_HEIGHT - 0.02 + ART_LIFT, 0.0)
-			top_art.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			_geometry.add_child(top_art)
-		if face != null:
-			var quad: QuadMesh = QuadMesh.new()
-			quad.size = Vector2(length, CURB_HEIGHT)
-			quad.material = StreetArt.material_for(face, Vector2(length / SIDEWALK_SIDE_TILE, 1.0))
-			var face_art: MeshInstance3D = MeshInstance3D.new()
-			face_art.name = "SidewalkSideLeft" if side < 0.0 else "SidewalkSideRight"
-			face_art.mesh = quad
-			# the quad faces +Z: turn it to face the middle of the street
-			face_art.rotation.y = -side * PI / 2.0
-			face_art.position = Vector3(side * (half_w - ART_LIFT), CURB_HEIGHT / 2.0 - 0.02, 0.0)
-			face_art.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			_geometry.add_child(face_art)
-
-
-## Lays the owner's cement image once across the play area (no tiling), if present.
+## Lays the owner's floor image over all the ground the camera sees (owner): one whole picture on the play area, repeated
+## past both ends and under the sides, lined up so the play area holds exactly one copy.
 func _add_cement_art() -> void:
 	if not ResourceLoader.exists(CEMENT_ART):
 		return
-	var plane: PlaneMesh = PlaneMesh.new()
-	plane.size = Vector2(layout.lane_width, layout.lane_length)
-	var material: StandardMaterial3D = StreetArt.material("cement", Vector2.ONE)
-	plane.material = material
-	var art: MeshInstance3D = MeshInstance3D.new()
-	art.name = "CementArt"
-	art.mesh = plane
+	var size: Vector2 = Vector2(layout.lane_width, layout.lane_length + _reach() * 2.0) + Vector2.ONE * OUTER_MARGIN * 2.0
+	var art: MeshInstance3D = _floor_patch("CementArt", size, Vector2.ZERO)
 	art.position.y = CEMENT_LIFT
-	art.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_geometry.add_child(art)
+
+
+## A flat patch of the owner's floor `size` metres (x, z) centred on `centre` (x, z), its picture repeated every play-area
+## size and lined up with the play area.
+func _floor_patch(patch_name: String, size: Vector2, centre: Vector2) -> MeshInstance3D:
+	var period: Vector2 = Vector2(layout.lane_width, layout.lane_length)
+	var plane: PlaneMesh = PlaneMesh.new()
+	plane.size = size
+	var material: StandardMaterial3D = StreetArt.material("cement", size / period)
+	material.albedo_color = StreetArt.CEMENT_TINT
+	# the picture's edges fall on the play area's edges
+	var start: Vector2 = (centre - size / 2.0 + period / 2.0) / period
+	material.uv1_offset = Vector3(start.x - floorf(start.x), start.y - floorf(start.y), 0.0)
+	plane.material = material
+	var patch: MeshInstance3D = MeshInstance3D.new()
+	patch.name = patch_name
+	patch.mesh = plane
+	patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return patch
 
 
 ## The cover piece `index` (MapLayout.obstacle_rects order), drawn as its prop.
