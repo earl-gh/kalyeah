@@ -95,7 +95,7 @@ func test_left_handed_moves_next_to_the_right_and_keeps_everything_on_screen() -
 	var screen: Vector2 = hud.get_rect().size
 	assert_lt(right_next, screen.x / 2.0, "right-handed: NEXT at the left")
 	assert_gt(hud.hand.next_rect.get_center().x, screen.x / 2.0, "left-handed: at the right, moved without rebuilding")
-	assert_lt(hud.hand.card_rects[0].position.x, right_next, "the cards shift toward the left thumb")
+	assert_gt(hud.hand.chat_rect.get_center().x, screen.x / 2.0, "left-handed: the chat button moves over with NEXT")
 	for card: Rect2 in hud.hand.card_rects:
 		var on_screen: Rect2 = Rect2(hud.hand.get_global_rect().position + card.position, card.size)
 		assert_true(Rect2(Vector2.ZERO, screen).encloses(on_screen), "card on screen")

@@ -46,8 +46,13 @@ func test_next_then_four_upright_cards_then_the_bar_under_them() -> void:
 		var cards: Array[Rect2] = []
 		for card: Rect2 in hand.card_rects:
 			cards.append(_on_screen(hud, card))
-		assert_lt(next.end.x, cards[0].position.x, "%s: NEXT at the left of the hand" % shape)
+		assert_lt(next.end.y, cards[0].position.y, "%s: NEXT above the hand, outside the tray (owner)" % shape)
+		assert_lt(next.position.x, shape.x / 2.0, "%s: at the left" % shape)
 		assert_lt(next.size.x, cards[0].size.x, "%s: and smaller" % shape)
+		assert_true(Rect2(Vector2.ZERO, shape).encloses(next), "%s: on screen" % shape)
+		var chat: Rect2 = _on_screen(hud, hand.chat_rect)
+		assert_lt(chat.end.y, next.position.y, "%s: the chat button above NEXT" % shape)
+		assert_gte(minf(chat.size.x, chat.size.y), UiMetrics.MIN_TARGET, "%s: thumb-sized" % shape)
 		for slot: int in cards.size():
 			var card: Rect2 = cards[slot]
 			assert_gt(card.size.y, card.size.x, "%s: upright cards" % shape)

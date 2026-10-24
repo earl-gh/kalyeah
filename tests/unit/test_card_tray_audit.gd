@@ -60,15 +60,20 @@ static func _gap(a: Rect2, b: Rect2) -> float:
 	return Vector2(dx, dy).length()
 
 
-# ---- 6: the tray's well -----------------------------------------------------------------------
+# ---- 6: NEXT and the chat button stand outside the tray ----------------------------------------
 
-func test_the_well_sits_under_next_and_the_four_cards() -> void:
+func test_next_and_the_chat_button_stand_outside_the_tray_above_it() -> void:
 	for left: bool in [false, true]:
 		var hud: MatchHud = _hud(left)
+		var tray: Rect2 = Rect2(Vector2.ZERO, hud.hand.size)
+		assert_lte(hud.hand.next_rect.end.y, 0.0, "left-handed %s: NEXT is above the tray (owner)" % left)
+		assert_lt(hud.hand.chat_rect.end.y, hud.hand.next_rect.position.y, "the chat button is above NEXT")
+		assert_false(tray.intersects(hud.hand.next_rect))
+		assert_false(tray.intersects(hud.hand.chat_rect))
 		var well: Rect2 = hud.hand.row_rect()
-		assert_true(well.encloses(hud.hand.next_rect), "left-handed %s: NEXT is in the well" % left)
 		for card: Rect2 in hud.hand.card_rects:
-			assert_true(well.encloses(card), "left-handed %s: every card is in the well" % left)
+			assert_true(well.encloses(card), "left-handed %s: every card is on the cardboard" % left)
+			assert_true(tray.encloses(card))
 
 
 # ---- 2: nobody in range ---------------------------------------------------------------------

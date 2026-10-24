@@ -52,7 +52,7 @@ const SCORE_SIZE: Vector2 = Vector2(330.0, 88.0)
 const CLOCK_SIZE: Vector2 = Vector2(152.0, 88.0)
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## The tray at the bottom of the screen (the hand and the elixir bar): the arena sits above it. The camera reserves the same height.
-const CONSOLE_HEIGHT: float = 260.0
+const CONSOLE_HEIGHT: float = 292.0
 ## The most the bottom inset can add (a tall gesture bar), so the tray never eats the street.
 const MAX_BOTTOM_INSET: float = 80.0
 
@@ -61,6 +61,8 @@ var overhead: OverheadHud
 var pulse: HurtPulse
 ## The tray at the bottom (it only draws).
 var console: ConsolePanel
+## The quick chat button above NEXT, outside the tray; what it says shows over your kid.
+var chat: QuickChat
 ## UI pixels of the screen's bottom edge the system keeps (home bar), set by the match screen.
 var bottom_inset: float = 0.0
 ## UI pixels the notch or status bar keeps at the top: the header grows by it.
@@ -295,6 +297,8 @@ func _build() -> void:
 	MatchHudTop.build(self)
 	hand = CardHand.new()
 	add_child(hand)
+	chat = QuickChat.new()
+	add_child(chat)
 	street = StreetTouch.new()
 	add_child(street)
 	banner = Label.new()

@@ -23,32 +23,35 @@ signal card_cancelled(slot: int)
 signal card_denied(slot: int)
 
 const SLOTS: int = 4
-## Layout on the 720 px base (the tray's own height is MatchHud.CONSOLE_HEIGHT): side margin, the NEXT column, the gaps, the
-## row's top, the card's height for its width, the bar's height and the gap above it.
-const SIDE: float = 18.0
-const NEXT_WIDTH: float = 96.0
-const NEXT_GAP: float = 16.0
+## Layout on the 720 px base (the tray's own height is MatchHud.CONSOLE_HEIGHT): side margin (the cardboard's rim), the gap between
+## cards, the row's top (under the cardboard's top rim), the card's height for its width, the bar's height, the gap above it and the room
+## under it (the bottom rim).
+const SIDE: float = 48.0
 const CARD_GAP: float = 10.0
-const ROW_TOP: float = 18.0
+const ROW_TOP: float = 28.0
 const CARD_ASPECT: float = 1.3
 const BAR_HEIGHT: float = 34.0
 const BAR_GAP: float = 14.0
-## The NEXT card is this share of a hand card, under its label.
-const NEXT_SCALE: float = 0.72
+const BOTTOM_PAD: float = 24.0
+## NEXT and the chat button sit OUTSIDE the tray (owner): over the street, above the tray's near corner (the other corner for a left-handed
+## player), the NEXT card this share of a hand card under its label, the chat button above it.
+const NEXT_SCALE: float = 0.6
+const OUT_EDGE: float = 14.0
+const OUT_RISE: float = 14.0
+const OUT_GAP: float = 8.0
+const CHAT_HEIGHT: float = 80.0
 const NEXT_FONT: int = UiMetrics.CAPTION
 const NEXT_COLOR: Color = RoyaleStyle.BLUE_LIGHT
-## The cost drop on a card (belly radius) and its number; the bar's drop and its number.
-const COST_RADIUS: float = 19.0
+## The ice water bag on a card (its height) and its number; the bar's bag and its number.
+const COST_BAG: float = 60.0
 const COST_FONT: int = UiMetrics.CAPTION
-const BAR_DROP_RADIUS: float = 25.0
+const BAR_BAG: float = 66.0
 const BAR_FONT: int = UiMetrics.ACTION
 const HEALTH_FONT: int = UiMetrics.ACTION
 const HEALTH_WIDTH: float = 112.0
 ## The ice water colour: a code-drawn stand-in until the art-director sets a token (docs/ART.md has none yet).
 const ICE_WATER: Color = Color(0.36, 0.8, 1.0)
 const ICE_WATER_FULL_EDGE: Color = RoyaleStyle.GOLD
-const WELL: Color = Color(0.0, 0.02, 0.08, 0.45)
-const WELL_RADIUS: int = UiSkin.RADIUS_L
 ## A card you cannot afford: a grey wash over the part the bar has not reached yet, a lighter one over the rest.
 const GREY: Color = Color(0.2, 0.21, 0.25, 0.8)
 const GREY_REACHED: Color = Color(0.2, 0.21, 0.25, 0.5)
@@ -76,6 +79,8 @@ var mirrored: bool = false
 ## Where everything sits, in this control's own pixels (set by `_layout()` from the size).
 var card_rects: Array[Rect2] = []
 var next_rect: Rect2 = Rect2()
+## The quick chat button's rect, above NEXT (outside the tray, like it).
+var chat_rect: Rect2 = Rect2()
 var bar_rect: Rect2 = Rect2()
 var health_rect: Rect2 = Rect2()
 
@@ -142,12 +147,12 @@ func _ready() -> void:
 
 ## The tray's height on the 720 px base for a `width` wide screen: the card row, the bar and their margins.
 static func tray_height(width: float = 720.0) -> float:
-	return ROW_TOP + card_size(width).y + BAR_GAP + BAR_HEIGHT + ROW_TOP
+	return ROW_TOP + card_size(width).y + BAR_GAP + BAR_HEIGHT + BOTTOM_PAD
 
 
-## A hand card's size when the row is `width` wide: four cards and the NEXT column share it.
+## A hand card's size when the row is `width` wide: the four cards share it (NEXT is outside the tray).
 static func card_size(width: float) -> Vector2:
-	var card_width: float = floorf((width - SIDE * 2.0 - NEXT_WIDTH - NEXT_GAP - CARD_GAP * float(SLOTS - 1)) / float(SLOTS))
+	var card_width: float = floorf((width - SIDE * 2.0 - CARD_GAP * float(SLOTS - 1)) / float(SLOTS))
 	return Vector2(card_width, roundf(card_width * CARD_ASPECT))
 
 
@@ -160,26 +165,24 @@ func _layout() -> void:
 	var card: Vector2 = card_size(size.x)
 	var next_size: Vector2 = card * NEXT_SCALE
 	var label_room: float = float(NEXT_FONT) + 8.0
-	var next_x: float = SIDE + (NEXT_WIDTH - next_size.x) / 2.0
-	var row_x: float = SIDE + NEXT_WIDTH + NEXT_GAP
-	if mirrored:
-		next_x = size.x - SIDE - NEXT_WIDTH + (NEXT_WIDTH - next_size.x) / 2.0
-		row_x = SIDE
-	next_rect = Rect2(Vector2(next_x, ROW_TOP + card.y - next_size.y), next_size)
-	next_rect.position.y = maxf(next_rect.position.y, ROW_TOP + label_room)
+	var edge_x: float = OUT_EDGE if not mirrored else size.x - OUT_EDGE - next_size.x
+	next_rect = Rect2(Vector2(edge_x, -OUT_RISE - next_size.y), next_size)
+	var chat_size: Vector2 = Vector2(CHAT_HEIGHT * HandArt.CHAT_ASPECT, CHAT_HEIGHT)
+	var chat_x: float = OUT_EDGE if not mirrored else size.x - OUT_EDGE - chat_size.x
+	chat_rect = Rect2(Vector2(chat_x, next_rect.position.y - label_room - OUT_GAP - chat_size.y), chat_size)
 	card_rects.clear()
 	for slot: int in SLOTS:
-		card_rects.append(Rect2(Vector2(row_x + float(slot) * (card.x + CARD_GAP), ROW_TOP), card))
+		card_rects.append(Rect2(Vector2(SIDE + float(slot) * (card.x + CARD_GAP), ROW_TOP), card))
 	var bar_top: float = ROW_TOP + card.y + BAR_GAP
-	var bar_left: float = SIDE + BAR_DROP_RADIUS
+	var bar_left: float = SIDE + BAR_BAG * HandArt.ICE_ASPECT / 2.0
 	health_rect = Rect2(Vector2(size.x - SIDE - HEALTH_WIDTH, bar_top), Vector2(HEALTH_WIDTH, BAR_HEIGHT))
 	bar_rect = Rect2(Vector2(bar_left, bar_top), Vector2(health_rect.position.x - CARD_GAP - bar_left, BAR_HEIGHT))
 	queue_redraw()
 
 
-## The whole hand's rect (NEXT and the four cards), in own pixels: the sunken well they sit in.
+## The four cards' rect, in own pixels.
 func row_rect() -> Rect2:
-	var rect: Rect2 = next_rect
+	var rect: Rect2 = card_rects[0] if not card_rects.is_empty() else Rect2()
 	for card: Rect2 in card_rects:
 		rect = rect.merge(card)
 	return rect
@@ -426,11 +429,6 @@ func held_card_rect() -> Rect2:
 # ---- drawing --------------------------------------------------------------------
 
 func _draw() -> void:
-	var well: StyleBoxFlat = StyleBoxFlat.new()
-	well.bg_color = WELL
-	well.set_corner_radius_all(WELL_RADIUS)
-	well.anti_aliasing = true
-	draw_style_box(well, row_rect().grow(UiMetrics.COMPACT_GAP))
 	_draw_next()
 	for slot: int in card_rects.size():
 		_draw_slot(slot)
@@ -507,13 +505,13 @@ func _draw_grey(rect: Rect2, share: float) -> void:
 	draw_style_box(dark, Rect2(rect.position, Vector2(rect.size.x, missing)))
 
 
-## The card's cost in a drop at its top-left corner (elixir only); a cost the bar has not reached is drawn in grey.
+## The card's cost on an ice water bag at its top-left corner (elixir only); a cost the bar has not reached is drawn in grey.
 func _draw_cost(rect: Rect2, def: WeaponDef, affordable: bool) -> void:
 	if not uses_elixir:
 		return
-	var radius: float = minf(COST_RADIUS, rect.size.x * 0.16)
-	var centre: Vector2 = rect.position + Vector2(radius + 2.0, radius * CardStyle.DROP_TIP + 2.0)
-	CardStyle.draw_drop(self, centre, radius, str(def.elixir_cost), ICE_WATER if affordable else ICE_WATER.lerp(Color(0.5, 0.5, 0.55), 0.7), COST_FONT)
+	var height: float = minf(COST_BAG, rect.size.x * 0.42)
+	var centre: Vector2 = rect.position + Vector2(height * HandArt.ICE_ASPECT / 2.0 + 2.0, height / 2.0 + 2.0)
+	HandArt.draw_ice(self, centre, height, str(def.elixir_cost), COST_FONT, affordable)
 
 
 ## The pill for `tag` would be wider than one card.
@@ -538,7 +536,7 @@ func _draw_tag(at: Vector2, text: String) -> void:
 
 
 ## The ice water bar: a dark track cut into `elixir_max` segments, filled smoothly to the shown elixir, a gold edge when it is full,
-## and the whole points in a drop at its left end.
+## and the whole points on an ice water bag at its left end.
 func _draw_bar() -> void:
 	if not uses_elixir or bar_rect.size.x <= 0.0:
 		return
@@ -566,8 +564,7 @@ func _draw_bar() -> void:
 	for segment: int in range(1, segments):
 		var x: float = inner.position.x + inner.size.x * float(segment) / float(segments)
 		draw_line(Vector2(x, inner.position.y + 2.0), Vector2(x, inner.end.y - 2.0), Color(0.0, 0.0, 0.0, 0.4), 2.0)
-	var drop_centre: Vector2 = Vector2(bar_rect.position.x, bar_rect.get_center().y + BAR_DROP_RADIUS * 0.15)
-	CardStyle.draw_drop(self, drop_centre, BAR_DROP_RADIUS, str(floori(elixir + 0.001)), ICE_WATER, BAR_FONT)
+	HandArt.draw_ice(self, Vector2(bar_rect.position.x, bar_rect.get_center().y), BAR_BAG, str(floori(elixir + 0.001)), BAR_FONT)
 
 
 ## Your health at the bar's right end: a heart and the number (amber below half, red below a quarter, the number always there).
