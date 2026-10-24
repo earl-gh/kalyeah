@@ -1,7 +1,7 @@
 extends GutTest
-## Audit 4 of the card tray and the tagged screen: the cancel mark is out of every normal aim, the tray backing wraps the cards, a
-## release with nobody in range says so, a touch the system cancels keeps the card, the box has one clear marker, the kid names fit and
-## the results card stays clean.
+## Audit 4 of the card tray and the tagged screen: the tray's well wraps the cards, a release with nobody in range says so, a touch
+## the system cancels keeps the card, the box has one clear marker, the kid names fit and the results card stays clean. (The cancel
+## mark is gone: a card dropped back on the hand cancels.)
 
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
@@ -24,7 +24,6 @@ func before_each() -> void:
 func after_each() -> void:
 	_rules.card_cycle = _was
 	Settings.left_handed = _left
-	TouchButton.holder = null
 	WebTouchCancel.clear()
 
 
@@ -35,7 +34,6 @@ func _hud(left_handed: bool = false) -> MatchHud:
 	add_child(phone)
 	var hud: MatchHud = MatchHud.new()
 	phone.add_child(hud)
-	hud.set_card_mode(true)
 	return hud
 
 
@@ -62,44 +60,15 @@ static func _gap(a: Rect2, b: Rect2) -> float:
 	return Vector2(dx, dy).length()
 
 
-# ---- 1: the cancel mark ---------------------------------------------------------------------
+# ---- 6: the tray's well -----------------------------------------------------------------------
 
-func test_no_full_aim_from_anywhere_on_a_card_reaches_the_cancel_mark() -> void:
+func test_the_well_sits_under_next_and_the_four_cards() -> void:
 	for left: bool in [false, true]:
 		var hud: MatchHud = _hud(left)
-		var cancel: Rect2 = hud.cancel_zone.get_global_rect()
-		for button: AimButton in hud.weapon_buttons:
-			var touch_area: Rect2 = button.get_global_rect().grow(TouchButton.CARD_SLACK)
-			assert_gt(_gap(touch_area, cancel), AimButton.DRAG_RADIUS, "%s, left-handed %s: a full aim ends short of the mark" % [button.name, left])
-
-
-func test_the_cancel_mark_is_on_screen_and_still_cancels_on_purpose() -> void:
-	for left: bool in [false, true]:
-		var hud: MatchHud = _hud(left)
-		var cancel: Rect2 = hud.cancel_zone.get_global_rect()
-		assert_true(Rect2(Vector2.ZERO, PHONE).encloses(cancel), "left-handed %s: the mark is on the screen" % left)
-		assert_lt(cancel.end.y, hud.weapon_buttons[0].get_global_rect().position.y, "it sits above the cards")
-		var card: AimButton = hud.weapon_buttons[0]
-		card._begin(card.get_global_rect().get_center())
-		hud.cancel_zone.visible = true  # the match shows the mark while a card is held
-		card._drag(cancel.get_center())
-		assert_true(card.over_cancel, "dragging the card onto the mark still cancels")
-		card._finish(true)
-
-
-# ---- 6: the tray backing --------------------------------------------------------------------
-
-func test_the_tray_backing_sits_under_the_cards_and_the_window() -> void:
-	for left: bool in [false, true]:
-		var hud: MatchHud = _hud(left)
-		var origin: Vector2 = hud.console.get_global_rect().position
-		for slot: int in 2:
-			# hand_rects runs from the inner card (slot 0) to the outer one
-			var card: Rect2 = hud.weapon_buttons[slot].get_global_rect()
-			var drawn: Rect2 = hud.console.hand_rects[slot]
-			assert_almost_eq(drawn.position.x + origin.x, card.position.x, 0.5, "left-handed %s: card %d's well is under it" % [left, slot + 1])
-		var window: Rect2 = hud.shuffler.get_global_rect()
-		assert_almost_eq(hud.console.shuffler_rect.position.x + origin.x, window.position.x, 0.5, "left-handed %s: the window's well" % left)
+		var well: Rect2 = hud.hand.row_rect()
+		assert_true(well.encloses(hud.hand.next_rect), "left-handed %s: NEXT is in the well" % left)
+		for card: Rect2 in hud.hand.card_rects:
+			assert_true(well.encloses(card), "left-handed %s: every card is in the well" % left)
 
 
 # ---- 2: nobody in range ---------------------------------------------------------------------
@@ -109,39 +78,33 @@ func test_aiming_a_card_with_nobody_in_range_says_so() -> void:
 	var hud: MatchHud = _hud()
 	var player: PlayerState = sim.players[1]
 	hud.sync_player(sim, player, false)
-	var toss: AimButton = hud.weapon_buttons[0]
-	toss._begin(toss.get_global_rect().get_center())
-	hud.sync_player(sim, player, false)
+	hud.sync_hold_hint(player, true, MatchInput.Release.TAP, sim.lacks_target(player, 0))
 	assert_string_contains(hud.feedback.hint.text, "Nobody in range")
-	toss._finish(false)
+	hud.note_released(0, false)
 	hud.sync_player(sim, player, false)
-	assert_eq(toss.notice_text, MatchHud.NO_TARGET_TAG, "the card says why nothing was thrown")
+	assert_eq(hud.hand.notices[0], MatchHud.NO_TARGET_TAG, "the card says why nothing was thrown")
 	assert_eq(player.weapons[0], &"bato_light", "and stays in the hand")
 
 
-func test_aiming_a_card_with_someone_in_range_still_says_release_to_cast() -> void:
+func test_aiming_a_card_with_someone_in_range_says_how_it_goes() -> void:
 	var sim: MatchSim = _sim(2.0)
 	var hud: MatchHud = _hud()
 	var player: PlayerState = sim.players[1]
 	hud.sync_player(sim, player, false)
-	var toss: AimButton = hud.weapon_buttons[0]
-	toss._begin(toss.get_global_rect().get_center())
+	hud.sync_hold_hint(player, true, MatchInput.Release.TAP, sim.lacks_target(player, 0))
+	assert_string_contains(hud.feedback.hint.text, "auto-aim")
+	hud.note_released(0, false)
 	hud.sync_player(sim, player, false)
-	assert_string_contains(hud.feedback.hint.text, "Release to cast")
-	toss._finish(false)
-	hud.sync_player(sim, player, false)
-	assert_eq(toss.notice_text, "")
+	assert_eq(hud.hand.notices[0], "")
 
 
-func test_a_cancelled_aim_with_nobody_in_range_shows_no_tag() -> void:
+func test_a_cancelled_card_with_nobody_in_range_shows_no_tag() -> void:
 	var sim: MatchSim = _sim(100.0)
 	var hud: MatchHud = _hud()
 	hud.sync_player(sim, sim.players[1], false)
-	var toss: AimButton = hud.weapon_buttons[0]
-	toss._begin(toss.get_global_rect().get_center())
-	toss._finish(true)
+	hud.note_released(0, true)
 	hud.sync_player(sim, sim.players[1], false)
-	assert_eq(toss.notice_text, "", "a cancel is the player's own choice: nothing to explain")
+	assert_eq(hud.hand.notices[0], "", "a cancel is the player's own choice: nothing to explain")
 
 
 func test_a_card_that_needs_no_target_never_lacks_one() -> void:
@@ -154,35 +117,44 @@ func test_a_card_that_needs_no_target_never_lacks_one() -> void:
 
 # ---- 9: a touch the browser cancels -----------------------------------------------------------
 
-func _touch(button: AimButton, pressed: bool) -> void:
+func _ready_hand(hud: MatchHud) -> CardHand:
+	var hand: CardHand = hud.hand
+	var def: WeaponDef = WeaponDef.new()
+	def.id = &"test"
+	hand.defs[0] = def
+	hand.pickable[0] = true
+	hand.active = true
+	hand.visible = true
+	return hand
+
+
+func _touch(hand: CardHand, pressed: bool) -> void:
 	var touch: InputEventScreenTouch = InputEventScreenTouch.new()
 	touch.index = 0
 	touch.pressed = pressed
-	touch.position = button.get_global_rect().get_center() + Vector2(0.0, -120.0 if not pressed else 0.0)
-	button._input(touch)
+	touch.position = hand.get_global_rect().position + hand.card_rects[0].get_center() + Vector2(0.0, -400.0 if not pressed else 0.0)
+	hand._input(touch)
 
 
 func test_a_touch_the_browser_cancels_keeps_the_card() -> void:
-	var hud: MatchHud = _hud()
-	var card: AimButton = hud.weapon_buttons[0]
-	watch_signals(card)
-	_touch(card, true)
-	assert_true(card.aiming)
+	var hand: CardHand = _ready_hand(_hud())
+	watch_signals(hand)
+	_touch(hand, true)
+	assert_true(hand.holding())
 	WebTouchCancel.note()  # what the window's touchcancel listener does before Godot's release arrives
-	_touch(card, false)
-	var released: Array = get_signal_parameters(card, "aim_released") as Array
-	assert_true(released[1] as bool, "the release is a cancel: nothing is thrown")
+	_touch(hand, false)
+	assert_signal_emitted(hand, "card_cancelled", "the release is a cancel: nothing is thrown")
+	assert_signal_not_emitted(hand, "card_released")
 
 
 func test_an_old_browser_cancel_does_not_cancel_a_later_throw() -> void:
-	var hud: MatchHud = _hud()
-	var card: AimButton = hud.weapon_buttons[0]
-	watch_signals(card)
+	var hand: CardHand = _ready_hand(_hud())
+	watch_signals(hand)
 	WebTouchCancel._noted_at = Time.get_ticks_msec() - WebTouchCancel.WINDOW_MS - 1
-	_touch(card, true)
-	_touch(card, false)
-	var released: Array = get_signal_parameters(card, "aim_released") as Array
-	assert_false(released[1] as bool, "the release throws")
+	_touch(hand, true)
+	_touch(hand, false)
+	assert_signal_emitted(hand, "card_released", "the release throws")
+	assert_signal_not_emitted(hand, "card_cancelled")
 
 
 # ---- 7: the tagged box ----------------------------------------------------------------------
@@ -257,8 +229,9 @@ func test_a_card_tells_a_screen_reader_how_to_use_it() -> void:
 	var sim: MatchSim = _sim(2.0)
 	var hud: MatchHud = _hud()
 	hud.sync_player(sim, sim.players[1], false)
-	for button: AimButton in hud.weapon_buttons:
-		assert_ne(button.accessibility_description, "", "%s has a description" % button.accessibility_name)
+	assert_eq(hud.hand.accessibility_name, "Your hand")
+	assert_string_contains(hud.hand.accessibility_description, "Card 1: ", "each card is read out")
+	assert_string_contains(hud.hand.accessibility_description, "elixir", "with its cost")
 
 
 # ---- 13: results ----------------------------------------------------------------------------

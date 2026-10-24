@@ -1,7 +1,7 @@
 class_name CoachMarks
 extends Control
 ## The first-run walkthrough over a practice match: the screen dims, a round spotlight shows the control being
-## explained (the dpad, then the weapon buttons), and a card says what to do in one or two sentences. Four
+## explained (the hand of cards), and a card says what to do in one or two sentences. Four
 ## steps: move, aim and throw, how a point is scored, what being tagged means. Next goes on, Skip (or Back on
 ## Android) ends it. It runs once, the first time you play practice, and is replayed from Settings, How to play.
 ## While it shows the match's own controls are off, so a stray touch cannot throw anything.
@@ -29,11 +29,11 @@ var _spots: Array[Vector3] = []
 var _pulse: Tween
 
 
-## The four steps. `target` names what is lit: dpad, skills, or nothing.
+## The four steps. `target` names what is lit: the hand, or nothing.
 static func steps_for(capture_seconds: float, points_to_win: int) -> Array[Dictionary]:
 	return [
-		{"title": "Move", "target": &"dpad", "text": "Press a direction on the D-pad to run. Let go to stop."},
-		{"title": "Aim and throw", "target": &"skills", "text": "Hold a card, drag to aim, then let go to throw. The NEXT card drops into its place at once; the card you used reloads in the shuffler, then goes to the back of your deck."},
+		{"title": "Move", "target": &"", "text": "Tap the street to run there; hold and drag to steer. Running uses stamina: stand still to get it back."},
+		{"title": "Aim and throw", "target": &"hand", "text": "Drag a card onto the street and let go to throw it. A quick tap aims for you. Drop it back on your hand to cancel. Each card costs the elixir in its drop; the bar fills by itself."},
 		{"title": "Score a point", "target": &"",
 			"text": "Get your whole team into the enemy base and hold it for %s seconds, with no defender left inside it, or tag everyone on the other team. First to %d points wins." % [String.num(capture_seconds, 0 if is_equal_approx(capture_seconds, roundf(capture_seconds)) else 1), points_to_win]},
 		{"title": "Tagged?", "target": &"", "text": "When your health runs out you wait in your box. A free teammate who runs into the rescue area sets you free."},
@@ -156,16 +156,15 @@ func _spots_for(target: StringName) -> Array[Vector3]:
 	var found: Array[Vector3] = []
 	if _hud == null:
 		return found
-	var controls: Array[Control] = []
-	if target == &"dpad":
-		controls.append(_hud.dpad)
-	elif target == &"skills":
-		for button: AimButton in _hud.aim_buttons:
-			controls.append(button)
-	for control: Control in controls:
-		var rect: Rect2 = control.get_global_rect()
-		var centre: Vector2 = rect.get_center() - global_position
-		found.append(Vector3(centre.x, centre.y, maxf(rect.size.x, rect.size.y) * 0.5 + 22.0))
+	if target != &"hand":
+		return found
+	# two circles, each round a pair of cards (the shader lights two spots)
+	var hand: CardHand = _hud.hand
+	var origin: Vector2 = hand.get_global_rect().position - global_position
+	for pair: int in 2:
+		var rect: Rect2 = hand.card_rects[pair * 2].merge(hand.card_rects[pair * 2 + 1])
+		var centre: Vector2 = origin + rect.get_center()
+		found.append(Vector3(centre.x, centre.y, rect.size.x * 0.5 + 12.0))
 	return found
 
 

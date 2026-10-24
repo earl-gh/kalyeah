@@ -67,12 +67,10 @@ Connection lost. Try again.,Connection lost. Try again.
 CONTESTED!,CONTESTED!
 Control,Control
 Control size,Control size
-Cooldown,Cooldown
 Copied,Copied
 Copy,Copy
 Copy room code,Copy room code
 Create room,Create room
-"D-pad on the right, weapons on the left","D-pad on the right, weapons on the left"
 Damage,Damage
 DEFEAT,DEFEAT
 Defeat,Defeat
@@ -235,7 +233,6 @@ Tap to choose which slot the next weapon fills,Tap to choose which slot the next
 Team size,Team size
 Teammates run into your box to free you.,Teammates run into your box to free you.
 That match has ended.,That match has ended.
-The D-pad and the weapon buttons,The D-pad and the weapon buttons
 The game · %s,The game · %s
 The hotspot room will close for everyone.,The hotspot room will close for everyone.
 The words in the game,The words in the game

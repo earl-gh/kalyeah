@@ -169,15 +169,6 @@ func test_cards_pass_touches_on_so_a_drag_that_starts_on_one_scrolls_the_page() 
 
 # ---- P2 ----
 
-func test_the_two_skill_wells_do_not_overlap() -> void:
-	var practice: PracticeMatch = _practice()
-	var sockets: Array[Dictionary] = practice.hud.console.sockets
-	var a: Dictionary = sockets[1]
-	var b: Dictionary = sockets[2]
-	var apart: float = (a["at"] as Vector2).distance_to(b["at"] as Vector2)
-	assert_gte(apart, (a["radius"] as float) + (b["radius"] as float), "two wells, side by side, not one on the other")
-
-
 func test_the_room_status_says_how_many_players_each_team_has() -> void:
 	var room: Dictionary = {"host": 1, "team_size": 3, "members": [{"player_id": 1, "team": 0, "ready": true}]}
 	assert_eq(HotspotRoomView._readiness(room), "Waiting for players · Blue 1 of 3 · Red 0 of 3")

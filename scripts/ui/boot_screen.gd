@@ -32,11 +32,11 @@ const PERCENT_HEIGHT: float = 64.0
 const TIPS: Array[String] = [
 	"Lure the other team away from their post, then rush in and hold it.",
 	"Tagged kids wait in the box. A teammate can run in and rescue them.",
-	"Drag a weapon button to aim, then let go to throw it.",
+	"Drag a card onto the street, then let go to throw it.",
 	"Block a throw with a paper shield, or play it safe behind cover.",
 	"Practice is the safest place to try every weapon.",
 	"Hotspot rooms need no server: share a hotspot and play.",
-	"Pick two weapons that cover each other.",
+	"A quick tap on a card aims at the nearest enemy for you.",
 ]
 ## The bar never fills faster than this, so the screen is seen even when loading is instant.
 const MAX_FILL_PER_SECOND: float = 0.7

@@ -17,11 +17,12 @@ func _init(owner: PracticeMatch) -> void:
 
 func setup_hud() -> void:
 	owner.input.camera_yaw = owner._camera.rules.yaw_offset_degrees
+	owner.input.tap_time = owner.sim.rules.card_tap_time
+	owner.input.follow_hold = owner.sim.rules.move_follow_hold
 	owner.hud.console_height_changed.connect(func(height: float) -> void: owner._camera.bottom_reserve_px = height)
 	owner.hud.header_height_changed.connect(func(height: float) -> void:
 		owner._camera.top_reserve_px = height + HEADER_GAP
 		owner.hud.overhead.top_limit = height)
-	owner.hud.set_card_mode(owner.sim.rules.card_cycle)
 	owner.hud.set_bottom_inset(_safe_bottom_inset())
 	owner._camera.bottom_reserve_px = owner.hud.console_height()
 	Cinematic.add_lens(owner, owner._camera.rules.lens_k())
@@ -29,6 +30,7 @@ func setup_hud() -> void:
 	owner.hud.overhead.setup(owner.sim, owner._camera, owner.local_id, owner.local_team)
 	owner.hud.overhead.view_scale = owner._camera.rules.kid_view_scale
 	owner.hud.overhead.bar_scale = owner._camera.rules.bar_scale
+	owner.hud.marker.setup(owner.sim, owner._camera, owner.local_id)
 	owner._fx.view_scale = owner._camera.rules.kid_view_scale
 	owner._fx.local_team = owner.local_team
 	owner.hud.set_top_inset(_safe_top_inset())
@@ -38,10 +40,13 @@ func setup_hud() -> void:
 
 func connect_hud() -> void:
 	Settings.accessibility_changed.connect(recolor_rings)
-	owner.hud.dpad.changed.connect(owner.set_stick)
-	for slot: int in owner.hud.aim_buttons.size():
-		owner.hud.aim_buttons[slot].aim_started.connect(owner.aim_started.bind(slot))
-		owner.hud.aim_buttons[slot].aim_released.connect(owner.aim_released.bind(slot))
+	owner.hud.hand.card_pressed.connect(owner.card_pressed)
+	owner.hud.hand.card_moved.connect(owner.card_moved)
+	owner.hud.hand.card_released.connect(owner.card_released)
+	owner.hud.hand.card_cancelled.connect(owner.card_cancelled)
+	owner.hud.street.move_pressed.connect(owner.move_pressed)
+	owner.hud.street.move_dragged.connect(owner.move_dragged)
+	owner.hud.street.move_released.connect(owner.move_released)
 	owner.hud.hurt_button.pressed.connect(owner.hurt_local.bind(PracticeMatch.DEBUG_DAMAGE))
 	owner.hud.menu.set_practice(not owner.online, Net.host != null, Session.practice_kind == &"match")
 	owner.hud.again_button.text = "Return home" if owner.online else "Practice again"
@@ -67,7 +72,7 @@ func connect_sim() -> void:
 	owner.sim.point_scored.connect(_on_point_scored)
 	owner.sim.match_won.connect(_on_match_won)
 	owner.sim.point_reset.connect(func() -> void:
-		owner.hud.dpad.release())
+		owner.hud.street.release())
 	owner.sim.intro_finished.connect(func() -> void:
 		owner.show_banner("GO!")
 		# the first practice match (or a replay from How to play) opens with the walkthrough
@@ -86,6 +91,7 @@ func sync(delta: float) -> void:
 	_sync_aim(player)
 	owner._fx.sync(owner.sim, delta)
 	owner.hud.overhead.tick(delta)
+	owner.hud.marker.tick(delta)
 	owner.hud.sync_score(owner.sim, owner.local_team, delta, owner.local_id)
 	if owner.sim.phase == MatchSim.Phase.INTRO:
 		_play_intro_shot()
@@ -142,39 +148,33 @@ func _sync_actor(state: PlayerState, delta: float) -> void:
 	view.animate(delta, minf(view.ground_speed(state.position, delta), 20.0), state)
 
 
+## The aim guide and the hint for the held card: before it leaves its card only the rings a tap would reach; over the street the
+## weapon's shape toward the street point under the finger, clamped to its range from where the kid stands now; back over the hand
+## the last shape in red (letting go there cancels).
 func _sync_aim(player: PlayerState) -> void:
-	var any_aiming: bool = false
-	var any_cancelling: bool = false
-	for slot: int in MatchInput.SLOTS:
-		if player.tagged:
-			break
-		var stick: Vector2
-		var cancelled: bool
-		if owner.input.touch_held[slot]:
-			stick = owner._screen_to_world(owner.hud.aim_buttons[slot].aim)
-			cancelled = owner.hud.aim_buttons[slot].over_cancel
-		elif owner.input.key_held[slot]:
-			stick = owner.input.key_aim[slot]
-			cancelled = owner.input.key_cancel[slot]
-		else:
-			continue
-		if slot >= player.weapons.size():
-			continue
-		if player.aim_hold[slot] < 0.0 and not owner.sim.weapon_ready(player, slot):
-			continue
-		var def: WeaponDef = owner.sim.weapon_defs[player.weapons[slot]]
-		var aim: Vector2 = owner.sim.resolved_aim(player, slot, stick)
-		owner._aim_indicator.show_aim(
-			owner.sim, player, def, aim, owner.sim.resolved_target(player, slot), cancelled, maxf(player.aim_hold[slot], 0.0),
-			stick.length() >= owner.sim.rules.aim_deadzone
-		)
-		any_aiming = true
-		any_cancelling = cancelled
-		break
-	if not any_aiming:
+	var input: MatchInput = owner.input
+	var slot: int = input.held_slot
+	var playing: bool = owner.hud.street.active
+	var release: MatchInput.Release = input.release_kind(Time.get_ticks_msec())
+	var nobody: bool = false
+	if slot < 0 or player.tagged or slot >= player.weapons.size() or (player.aim_hold[slot] < 0.0 and not owner.sim.weapon_ready(player, slot)):
 		owner._aim_indicator.clear()
-	owner.hud.cancel_zone.visible = owner.input.any_touch_held()
-	owner.hud.set_cancel_hot(any_cancelling)
+		owner.hud.sync_hold_hint(player, playing, release if slot >= 0 else MatchInput.Release.NONE, false)
+		return
+	var def: WeaponDef = owner.sim.weapon_defs[player.weapons[slot]]
+	var hold: float = maxf(player.aim_hold[slot], 0.0)
+	if not input.left_card:
+		owner._aim_indicator.show_aim(owner.sim, player, def, owner.sim.resolved_aim(player, slot, Vector2.ZERO),
+			owner.sim.resolved_target(player, slot), false, hold, false)
+		nobody = owner.sim.lacks_target(player, slot)
+	elif not input.aimed:
+		owner._aim_indicator.clear()  # dragged along the hand, never onto the street: nothing to show yet
+	else:
+		var aim: Vector2 = owner.sim.aim_from_point(player, def, input.aim_point)
+		var target: int = owner.sim.target_near_point(player, def, input.aim_point) if def.shape == WeaponDef.Shape.TARGETED else -1
+		owner._aim_indicator.show_aim(owner.sim, player, def, aim, target, not input.over_street, hold, true)
+		nobody = not owner.sim.weapons.would_cast(owner.sim, player, def, aim, target)
+	owner.hud.sync_hold_hint(player, playing, release, nobody)
 
 
 func _play_intro_shot() -> void:

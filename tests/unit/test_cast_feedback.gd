@@ -150,8 +150,8 @@ func test_the_warning_shows_while_the_big_snip_winds_up_and_goes_when_it_lands()
 	practice.sim.players[PracticeMatch.ENEMY_STAND_ID].position = Vector2(0.0, 1.0)
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
 	assert_eq(fx.windup_count(), 0)
-	practice.aim_started(0)
-	practice.aim_released(Vector2.ZERO, false, 0)
+	practice.card_pressed(0)
+	practice.card_released(0, Vector2.ZERO, true, true)
 	for i: int in 4:
 		practice.advance(DT)
 	assert_eq(fx.windup_count(), 1, "the wedge is on the ground for the kid in it")
@@ -233,17 +233,25 @@ func test_the_shield_preview_is_the_walls_real_thickness() -> void:
 	assert_gte(lines[0].size(), 4, "a closed rectangle (it can be filled)")
 
 
-# ---- the cancel mark ----------------------------------------------------------------
+# ---- the guide under a dragged card --------------------------------------------------
 
-func test_the_cancel_mark_has_no_tile_and_lights_up_under_the_finger() -> void:
+func test_the_guide_shows_while_a_card_is_over_the_street_and_goes_when_it_is_dropped() -> void:
 	var practice: PracticeMatch = _practice()
-	var mark: CancelMark = practice.hud.cancel_zone
-	assert_eq(mark.get_child_count(), 0, "nothing behind it: no panel, no label")
-	assert_false(mark.hot)
-	practice.hud.set_cancel_hot(true)
-	assert_true(mark.hot)
-	practice.hud.set_cancel_hot(false)
-	assert_false(mark.hot)
+	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
+	player.weapons[0] = &"gunting_light"
+	player.elixir = practice.sim.rules.elixir_max
+	player.position = Vector2(0.0, 4.0)
+	var indicator: AimIndicator = practice.get_node("%AimIndicator") as AimIndicator
+	practice.input.card_press(0, Time.get_ticks_msec())
+	practice.input.card_drag(false, Vector2(0.0, 1.0))
+	practice.advance(DT)
+	assert_gt(indicator.mesh.get_surface_count(), 0, "the cone toward the finger's street point")
+	practice.input.card_drag(false, null)
+	practice.advance(DT)
+	assert_gt(indicator.mesh.get_surface_count(), 0, "back over the hand: still drawn (in red: letting go cancels)")
+	practice.input.card_cancel()
+	practice.advance(DT)
+	assert_eq(indicator.mesh.get_surface_count(), 0, "dropped: gone")
 
 
 # ---- the snip charge ----------------------------------------------------------------

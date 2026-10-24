@@ -181,7 +181,7 @@ func test_the_bots_move_when_the_match_runs() -> void:
 	practice.skip_intro()
 	var start: Vector2 = practice.sim.players[PracticeMatch.BOT_ALLY_IDS[0]].position
 	practice.rules.bot_assault_delay = 0.0
-	practice.input.set_stick(Vector2.UP)
+	practice.input.move_press(practice.sim.players[practice.local_id].position + Vector2(0.0, -3.0))
 	for i: int in 90:
 		practice.advance(DT)
 	assert_ne(practice.sim.players[PracticeMatch.BOT_ENEMY_IDS[0]].position, practice.sim.players[PracticeMatch.BOT_ENEMY_IDS[0]].spawn_position, "an enemy has set off")

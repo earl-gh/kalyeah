@@ -139,26 +139,36 @@ func test_a_control_with_no_text_is_not_named_until_it_is_given_a_name() -> void
 	assert_true(UiA11y.is_named(words), "its own text is read")
 
 
-func test_the_match_hud_is_named_for_a_screen_reader() -> void:
+## A practice match with the weapon cards on for the rest of the test (the suite runs with them off, tests/pre_run.gd).
+func _card_practice() -> PracticeMatch:
+	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
+	var was: bool = rules.card_cycle
+	rules.card_cycle = true
 	var practice: PracticeMatch = _practice()
+	practice.tree_exiting.connect(func() -> void: rules.card_cycle = was)
+	return practice
+
+
+func test_the_match_hud_is_named_for_a_screen_reader() -> void:
+	var practice: PracticeMatch = _card_practice()
 	var hud: MatchHud = practice.hud
 	assert_eq(hud.settings_button.accessibility_name, "Match settings")
-	assert_eq(hud.dpad.accessibility_name, "Movement pad")
 	assert_true(hud.scoreboard.accessibility_name.begins_with("Score: you 0, them 0"))
-	for slot: int in 2:
-		var button: AimButton = hud.weapon_buttons[slot]
-		assert_true(button.accessibility_name.begins_with("Weapon %d: " % (slot + 1)), button.accessibility_name)
-		assert_string_contains(button.accessibility_name, button.sub_text)
+	assert_eq(hud.hand.accessibility_name, "Your hand")
+	for slot: int in 4:
+		assert_string_contains(hud.hand.accessibility_description, "Card %d: " % (slot + 1))
 
 
-func test_a_weapon_button_says_when_it_will_be_ready() -> void:
-	var practice: PracticeMatch = _practice()
-	var button: AimButton = practice.hud.weapon_buttons[0]
-	assert_string_contains(button.accessibility_description, "aim")
+func test_a_card_says_when_it_cannot_be_afforded() -> void:
+	var practice: PracticeMatch = _card_practice()
 	var player: PlayerState = practice.sim.players[practice.local_id]
-	player.weapon_cooldowns[0] = 4.5
+	player.elixir = practice.sim.rules.elixir_max
 	practice.advance(DT)
-	assert_string_contains(button.accessibility_description, "Ready in 5 seconds")
+	assert_false(practice.hud.hand.accessibility_description.contains("not ready"), "all affordable")
+	player.elixir = 0.0
+	practice.advance(DT)
+	assert_string_contains(practice.hud.hand.accessibility_description, "not ready")
+	assert_string_contains(practice.hud.hand.accessibility_description, "Elixir 0 of 10")
 
 
 func test_a_switch_and_a_slider_are_read_by_their_rows_title() -> void:

@@ -36,16 +36,3 @@ func test_weapon_kinds_are_said_in_words_everywhere() -> void:
 		assert_eq(def.kind_label(), String(WeaponsPage.KIND_NAMES[def.kind]), "%s: the button and the Book say the same word" % def.id)
 	assert_eq(seen.keys().size(), 4)
 	assert_false(seen.has("CC") or seen.has("ATK") or seen.has("BLK"))
-
-
-func test_the_longest_kind_word_fits_its_tag_under_a_weapon_button() -> void:
-	var font: Font = KalyeahTheme.ACTION_FONT
-	for word: String in ["ATTACK", "CONTROL", "BLOCK", "HEAL"]:
-		var width: float = font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1.0, TouchButton.TAG_FONT_SIZE).x + 20.0
-		assert_lte(width, MatchHud.WEAPON_SIZE * 1.05, "%s fits under a %d px button" % [word, MatchHud.WEAPON_SIZE])
-
-
-func test_the_in_match_buttons_show_the_kind_word() -> void:
-	var practice: PracticeMatch = _practice()
-	var first: AimButton = practice.hud.weapon_buttons[0]
-	assert_true(["Attack", "Control", "Block", "Heal"].has(first.sub_text))

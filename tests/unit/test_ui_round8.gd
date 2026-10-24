@@ -217,8 +217,10 @@ func _practice() -> PracticeMatch:
 func test_the_four_steps_use_the_rules_numbers() -> void:
 	var steps: Array[Dictionary] = CoachMarks.steps_for(5.0, 2)
 	assert_eq(steps.size(), 4)
-	assert_eq(steps[0]["target"], &"dpad")
-	assert_eq(steps[1]["target"], &"skills")
+	assert_eq(steps[0]["target"], &"", "moving is a tap anywhere on the street: nothing to light")
+	assert_true((steps[0]["text"] as String).contains("Tap the street"))
+	assert_eq(steps[1]["target"], &"hand")
+	assert_true((steps[1]["text"] as String).contains("Drag a card"))
 	assert_true((steps[2]["text"] as String).contains("5 seconds"))
 	assert_true((steps[2]["text"] as String).contains("First to 2 points"))
 	assert_true((CoachMarks.steps_for(4.5, 3)[2]["text"] as String).contains("4.5 seconds"))
@@ -235,10 +237,10 @@ func test_the_first_practice_match_opens_with_the_walkthrough_and_quiets_the_con
 	assert_false(practice.hud.controls_active(), "no stray throw while it is up")
 	assert_eq(coach.kicker_label.text, "Step 1 of 4")
 	assert_eq(coach.title_label.text, "MOVE")
-	assert_eq(coach._spots.size(), 1, "the dpad is lit")
+	assert_eq(coach._spots.size(), 0, "the street is the control: nothing to light")
 
 
-func test_next_walks_the_steps_lights_the_weapon_buttons_and_ends_with_got_it() -> void:
+func test_next_walks_the_steps_lights_the_hand_and_ends_with_got_it() -> void:
 	Session.coach_pending = true
 	var practice: PracticeMatch = _practice()
 	practice.skip_intro()
@@ -247,7 +249,7 @@ func test_next_walks_the_steps_lights_the_weapon_buttons_and_ends_with_got_it() 
 	coach.finished.connect(func(completed: bool) -> void: ended.append(completed))
 	coach.next()
 	assert_eq(coach.title_label.text, "AIM AND THROW")
-	assert_eq(coach._spots.size(), practice.hud.aim_buttons.size(), "both weapon buttons are lit")
+	assert_eq(coach._spots.size(), 2, "the hand is lit, two cards to a spot")
 	coach.next()
 	assert_eq(coach._spots.size(), 0, "nothing to light for the rules")
 	coach.next()

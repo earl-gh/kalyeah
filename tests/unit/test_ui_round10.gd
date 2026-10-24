@@ -81,7 +81,7 @@ func test_a_full_bar_means_the_biggest_number_of_any_weapon() -> void:
 	for weapon: WeaponDef in weapons:
 		top_power = maxf(top_power, float(maxi(weapon.damage, weapon.heal)))
 	assert_eq(maxima["power"], top_power)
-	var any_full: Dictionary[String, bool] = {"Damage": false, "Cooldown": false, "Range": false}
+	var any_full: Dictionary[String, bool] = {"Damage": false, "Elixir": false, "Range": false}
 	for weapon: WeaponDef in weapons:
 		for figure: Dictionary in WeaponsPage.figures_of(weapon):
 			var caption: String = String(figure["caption"])
@@ -96,8 +96,8 @@ func test_a_full_bar_means_the_biggest_number_of_any_weapon() -> void:
 
 func test_a_missing_stat_is_an_empty_bar_not_a_crash() -> void:
 	var none: WeaponDef = WeaponDef.new()
-	assert_eq(WeaponsPage.fraction_of("Damage", none, {"power": 0.0, "cooldown": 0.0, "range": 0.0}), 0.0)
-	assert_eq(WeaponsPage.fraction_of("Nonsense", none, {"power": 10.0, "cooldown": 1.0, "range": 1.0}), 0.0)
+	assert_eq(WeaponsPage.fraction_of("Damage", none, {"power": 0.0, "elixir": 0.0, "range": 0.0}), 0.0)
+	assert_eq(WeaponsPage.fraction_of("Nonsense", none, {"power": 10.0, "elixir": 1.0, "range": 1.0}), 0.0)
 
 
 func test_the_sheet_shows_one_bar_per_stat_with_its_exact_number_and_the_game() -> void:

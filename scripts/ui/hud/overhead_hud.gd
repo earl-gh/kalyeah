@@ -2,7 +2,8 @@ class_name OverheadHud
 extends Control
 ## MOBA-style overhead display drawn in screen space over each hero, like League
 ## of Legends: a solid health bar (green you, blue ally, red enemy), a status
-## in *italic* above it ("Stunned", "Slowed"). No names and no damage numbers (heals still pop a green "+N"). While a
+## in *italic* above it ("Stunned", "Slowed", "Exhausted"). Under your own bar a thin stamina bar shows while it is not full (your eyes
+## are on your kid while you tap to walk, and stamina only matters while walking); at 0 it reads EXHAUSTED and runs out over the 2 s. No names and no damage numbers (heals still pop a green "+N"). While a
 ## team holds the enemy base, a spinner fills over its kids' heads. Reads the sim
 ## and projects through the match camera.
 
@@ -18,6 +19,17 @@ const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 const POPUP_TIME: float = 0.9
 const POPUP_RISE: float = 56.0
 const STATUS_FONT: int = UiMetrics.CAPTION
+## Your stamina under your health bar (before `bar_scale`): a thin bar, a gap above it; it warns below `STAMINA_LOW` of full, and while
+## you are exhausted it shows the time left in red. Other kids' stamina is never drawn (docs/GDD.md D33), only their *Exhausted*.
+const STAMINA_SIZE: Vector2 = Vector2(96.0, 8.0)
+const STAMINA_GAP: float = 5.0
+const STAMINA_LOW: float = 0.25
+const STAMINA_COLOR: Color = RoyaleStyle.CREAM
+const STAMINA_LOW_COLOR: Color = ConsolePanel.HEALTH_AMBER
+const EXHAUSTED_COLOR: Color = ConsolePanel.HEALTH_RED
+## The word over your own kid while it is exhausted (owner: "EXHAUSTED shown on your kid"); other kids show the italic status word.
+const EXHAUSTED_SELF: String = "EXHAUSTED"
+const EXHAUSTED_OTHER: String = "Exhausted"
 ## The RESCUE marker under your team's tagged box: a pill with a pointer up at the box that bobs (held still with Reduce motion). It sits under
 ## the box so it never covers a waiting kid or their bar.
 const RESCUE_FONT: int = UiMetrics.DETAIL
@@ -92,9 +104,26 @@ func text_for(id: int) -> String:
 ## A tagged kid stands in the box, which already says it: no "Tagged" over each one (two of them ran into one word).
 func _status_text(state: PlayerState) -> String:
 	var words: PackedStringArray = PackedStringArray()
+	if state.exhaust_left > 0.0:
+		words.append(UiText.t(EXHAUSTED_SELF if state.id == _local_id else EXHAUSTED_OTHER))
 	for word: String in state.effects.display_names():
 		words.append(UiText.t(word))
 	return " · ".join(words)
+
+
+## True while your own stamina bar is drawn: stamina is on, not full, or you are exhausted (never for another kid).
+func stamina_visible(state: PlayerState) -> bool:
+	if state.id != _local_id or state.tagged or not _sim.rules.stamina_enabled or not state.has_stamina:
+		return false
+	return state.exhaust_left > 0.0 or state.stamina < _sim.rules.stamina_max - 0.01
+
+
+## The share and colour of your stamina bar: the stamina left (amber when low) or, while exhausted, the time left (red).
+func stamina_fill(state: PlayerState) -> Array:
+	if state.exhaust_left > 0.0:
+		return [clampf(state.exhaust_left / maxf(_sim.rules.exhaust_seconds, 0.001), 0.0, 1.0), EXHAUSTED_COLOR]
+	var share: float = clampf(state.stamina / maxf(_sim.rules.stamina_max, 0.001), 0.0, 1.0)
+	return [share, STAMINA_LOW_COLOR if share < STAMINA_LOW else STAMINA_COLOR]
 
 
 func popup_count() -> int:
@@ -233,6 +262,11 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 	var color: Color = bar_color(state)
 	_draw_bar(rect, fill, color)
 	_draw_team_mark(state, rect, color)
+	if stamina_visible(state):
+		var stamina: Vector2 = STAMINA_SIZE * bar_scale
+		var under: Rect2 = Rect2(Vector2(head.x - stamina.x / 2.0, rect.end.y + BAR_OUTLINE + STAMINA_GAP), stamina)
+		var look: Array = stamina_fill(state)
+		_draw_thin(under, look[0] as float, look[1] as Color)
 	var status: String = _status_text(state)
 	var lift: float = 0.0
 	if not status.is_empty():
@@ -258,6 +292,19 @@ func _draw_bar(rect: Rect2, fill: float, color: Color) -> void:
 	for mark: int in range(1, BAR_MARKS):
 		var x: float = rect.position.x + rect.size.x * float(mark) / float(BAR_MARKS)
 		draw_line(Vector2(x, rect.position.y + 1.0), Vector2(x, rect.end.y - 1.0), BAR_MARK, 1.0)
+
+
+## A thin bar with a dark outline, filled to `fill` in `color` (your stamina).
+func _draw_thin(rect: Rect2, fill: float, color: Color) -> void:
+	var round_px: int = UiSkin.round_radius(rect.size.y + BAR_OUTLINE * 2.0)
+	_bar_back.set_border_width_all(int(BAR_OUTLINE))
+	_bar_back.set_corner_radius_all(round_px)
+	draw_style_box(_bar_back, rect.grow(BAR_OUTLINE))
+	if fill <= 0.0:
+		return
+	_bar_fill.bg_color = color
+	_bar_fill.set_corner_radius_all(UiSkin.round_radius(rect.size.y))
+	draw_style_box(_bar_fill, Rect2(rect.position, Vector2(maxf(rect.size.x * fill, rect.size.y), rect.size.y)))
 
 
 ## Where `text` is drawn: its centre pulled inside the screen's sides and its baseline kept under `top_limit`.

@@ -67,12 +67,12 @@ func test_the_match_draws_the_models_for_the_casts() -> void:
 	player.position = Vector2(0.0, 4.0)
 	practice.sim.set_loadout(PracticeMatch.LOCAL_ID, &"tsinelas_heavy", &"papel_shield")
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
-	practice.aim_started(0)
-	practice.aim_released(Vector2.ZERO, false, 0)
+	practice.card_pressed(0)
+	practice.card_released(0, Vector2.ZERO, true, true)
 	practice.advance(DT)
 	practice.advance(DT)
-	practice.aim_started(1)
-	practice.aim_released(Vector2.ZERO, false, 1)
+	practice.card_pressed(1)
+	practice.card_released(1, Vector2.ZERO, true, true)
 	practice.advance(DT)
 	practice.advance(DT)
 	assert_eq(fx.live_count(), 2)
@@ -97,8 +97,8 @@ func _casting(first: StringName, second: StringName) -> PracticeMatch:
 
 
 func _cast(practice: PracticeMatch, slot: int) -> void:
-	practice.aim_started(slot)
-	practice.aim_released(Vector2.ZERO, false, slot)
+	practice.card_pressed(slot)
+	practice.card_released(slot, Vector2.ZERO, true, true)
 	practice.advance(DT)
 	practice.advance(DT)
 
@@ -150,8 +150,8 @@ func test_the_scissors_snip_for_gunting() -> void:
 	var practice: PracticeMatch = _casting(&"gunting_heavy", &"lata")
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
 	for i: int in 30:
-		practice.aim_started(0)
-		practice.aim_released(Vector2.ZERO, false, 0)
+		practice.card_pressed(0)
+		practice.card_released(0, Vector2.ZERO, true, true)
 		practice.advance(DT)
 		if fx.find_child("Scissors", true, false) != null:
 			break
@@ -185,8 +185,8 @@ func test_every_weapon_shows_its_model_when_cast() -> void:
 	for weapon: StringName in all:
 		var practice: PracticeMatch = _casting(weapon, &"heal" if weapon != &"heal" else &"bola")
 		var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
-		practice.aim_started(0)
-		practice.aim_released(Vector2.ZERO, false, 0)
+		practice.card_pressed(0)
+		practice.card_released(0, Vector2.ZERO, true, true)
 		var models: int = 0
 		for step: int in 40:
 			practice.advance(DT)
