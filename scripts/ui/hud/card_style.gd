@@ -9,14 +9,16 @@ const RADIUS: int = UiSkin.RADIUS_M
 ## The black outline round a card, and the polished gloss just inside it (Clash Royale's card look): ONE connected band that starts white
 ## along the top, turns the top right corner and fades through gray down the right side, and comes back as light gray along the bottom.
 const BORDER: int = 3
-const GLOSS: int = 5
+const GLOSS: int = 3
+## The round art sits this far in from the card's edge (it does not change with the gloss).
+const ART_EDGE: float = 9.0
 const GLOSS_TOP: Color = Color(1.0, 1.0, 1.0)
 const GLOSS_RIGHT: Color = Color(0.55, 0.58, 0.64)
 const GLOSS_BOTTOM: Color = Color(0.84, 0.86, 0.9)
 ## How strong the band is at the top, in the middle of the right side (where it has faded most) and along the bottom.
-const GLOSS_ALPHA_TOP: float = 0.95
-const GLOSS_ALPHA_RIGHT: float = 0.45
-const GLOSS_ALPHA_BOTTOM: float = 0.85
+const GLOSS_ALPHA_TOP: float = 0.6
+const GLOSS_ALPHA_RIGHT: float = 0.28
+const GLOSS_ALPHA_BOTTOM: float = 0.5
 const GLOSS_STEPS: int = 18
 ## The shine on the top right corner: a thin bright arc over the band where it turns, as wide as this share of the band.
 const SHINE_WIDTH: float = 0.45
@@ -42,7 +44,7 @@ static func draw(canvas: CanvasItem, rect: Rect2, def: WeaponDef, dim: float = 0
 	canvas.draw_style_box(frame, rect)
 	_glosses(canvas, rect)
 	# the round art, as wide as the card allows
-	var edge: float = float(BORDER + GLOSS + 1)
+	var edge: float = ART_EDGE
 	var inner: float = rect.size.x - 2.0 * edge
 	var texture: Texture2D = Icons.art(StringName("btn_%s" % String(def.id)))
 	var art_rect: Rect2 = Rect2(rect.position + Vector2(edge, edge), Vector2(inner, inner))
@@ -103,7 +105,7 @@ static func _glosses(canvas: CanvasItem, rect: Rect2) -> void:
 		var shine: PackedColorArray = PackedColorArray()
 		for index: int in arc.size():
 			var share: float = float(index) / float(arc.size() - 1)
-			shine.append(Color(1.0, 1.0, 1.0, sin(share * PI) * 0.85))
+			shine.append(Color(1.0, 1.0, 1.0, sin(share * PI) * 0.55))
 		canvas.draw_polyline_colors(arc, shine, float(GLOSS) * SHINE_WIDTH, true)
 
 
