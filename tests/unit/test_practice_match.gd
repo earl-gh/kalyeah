@@ -70,7 +70,6 @@ func test_zero_hp_tags_you_into_the_box_with_the_tagged_card() -> void:
 	practice.advance(DT)
 	assert_false(practice.hud.hand.visible, "the hand is hidden while you wait")
 	assert_true((practice.get_node("%Actors").get_child(0) as Node3D).visible, "you still stand in the box")
-	assert_string_contains(practice.hud.feed_texts()[-1], "TAGGED!")
 	assert_false(practice.is_picking(), "the field stays in view: the swap screen only opens on request")
 
 
@@ -102,7 +101,6 @@ func test_the_ally_dummy_runs_over_and_rescues_you() -> void:
 	assert_false(player.tagged, "rescued")
 	assert_eq(player.hp, 100)
 	assert_true(LAYOUT.in_base(practice.own_side(), player.position), "back at our post")
-	assert_string_contains(practice.hud.feed_texts()[-1], "RESCUED!")
 	assert_false(practice.hud.tagged_panel.visible)
 	for i: int in 30 * 15:
 		practice.advance(DT)

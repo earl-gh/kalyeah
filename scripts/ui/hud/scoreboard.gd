@@ -1,12 +1,9 @@
 class_name Scoreboard
 extends Control
-## The score in the middle of the header: your team's points (blue) and theirs (red), with how many points win the match between them
-## (the match clock is the chip at the header's right). It stands on the header deck without a card of its own. Team-relative: you are always on the left.
+## The score in the middle of the header: your team's points (blue) and theirs (red)
+## (the match clock is the chip at the header's right; the points to win are said by the opening objective and the results). It stands on the header deck without a card of its own. Team-relative: you are always on the left.
 
 const BIG_FONT: int = UiMetrics.HEADLINE
-## The "first to" number between the scores: a step under the scores.
-const FIRST_TO_FONT: int = UiMetrics.TITLE
-const CENTER_CAPTION: int = UiMetrics.CAPTION
 const SMALL_FONT: int = UiMetrics.CAPTION
 
 var mine: int = 0
@@ -115,9 +112,6 @@ func _draw() -> void:
 	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), Vector2(theirs_cell.get_center().x, number_y), BIG_FONT, Color.WHITE)
 	_draw_pips(roster_mine, Vector2(mine_cell.get_center().x, mine_cell.end.y - PIP_LIFT))
 	_draw_pips(roster_theirs, Vector2(theirs_cell.get_center().x, theirs_cell.end.y - PIP_LIFT))
-	# between the cells: how many points win the match, FIRST TO over the number (the clock is the chip at the header's right)
-	_center_text(KalyeahTheme.ACTION_FONT, UiText.t("FIRST TO"), Vector2(w / 2.0, h * 0.34), CENTER_CAPTION, KalyeahTheme.AMBER)
-	_center_text(KalyeahTheme.ACTION_FONT, str(first_to), Vector2(w / 2.0, h * 0.66), FIRST_TO_FONT, KalyeahTheme.AMBER)
 	if capture >= 0.0:
 		var track: Rect2 = Rect2(CAPTURE_INSET, h - 6.0 - CAPTURE_HEIGHT, w - CAPTURE_INSET * 2.0, CAPTURE_HEIGHT)
 		_round_rect(track, CAPTURE_TRACK, CAPTURE_HEIGHT / 2.0)

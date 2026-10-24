@@ -12,18 +12,13 @@ static func build(hud: MatchHud) -> void:
 	hud.add_child(hud.top)
 	# left: the settings button (the whole street is always on screen: no minimap)
 	hud.settings_button = TextureButton.new()
-	hud.settings_button.texture_normal = Icons.art(&"gear")
+	hud.settings_button.texture_normal = UiTabBar.picture(&"settings")
 	hud.settings_button.ignore_texture_size = true
 	hud.settings_button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 	hud.settings_button.tooltip_text = "Match settings"
 	hud.settings_button.accessibility_name = "Match settings"
 	hud.settings_button.pressed.connect(hud.toggle_menu)
 	hud.top.add_child(hud.settings_button)
-	# the TAGGED!/RESCUED! feed (placed in layout())
-	hud.feed_box = VBoxContainer.new()
-	hud.feed_box.add_theme_constant_override("separation", 6)
-	hud.feed_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hud.top.add_child(hud.feed_box)
 	# the middle of the header: the score (points and the match clock)
 	hud.scoreboard = Scoreboard.new()
 	hud._place(hud.scoreboard, Vector4(0.5, 0, 0.5, 0), Vector4(-MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y, MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y))
@@ -35,24 +30,13 @@ static func build(hud: MatchHud) -> void:
 	layout(hud)
 
 
-## Places the settings button at the top left and the feed on the left, under the tagged box (which it must not cover).
+## Places the settings button at the top left, the clock at the top right and the opening objective sheet.
 static func layout(hud: MatchHud) -> void:
 	if hud.intro_bar != null:
 		hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(80, -(hud.console_height() + 150.0), -80, -(hud.console_height() + 6.0)))
 	var gear: Vector4 = Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE)
 	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear)
-	place_feed(hud, 0.0)
 	hud._place(hud.clock_chip, Vector4(1, 0, 1, 0), Vector4(-MatchHud.MARGIN - MatchHud.CLOCK_SIZE.x, MatchHud.TOP_ROW_Y, -MatchHud.MARGIN, MatchHud.TOP_ROW_Y + MatchHud.CLOCK_SIZE.y))
-
-
-## The feed sits `FEED_DROP` under the header, or lower when your tagged box and its RESCUE marker reach further down the screen
-## (`box_clear_y`, in screen space; a taller phone shows the box lower): a TAGGED! pill never covers the box it is about.
-static func place_feed(hud: MatchHud, box_clear_y: float) -> void:
-	# the feed lives in `top`, which the notch's inset moves down
-	var feed_top: float = maxf(MatchHud.HEADER_HEIGHT + MatchHud.FEED_DROP, box_clear_y + MatchHud.MARGIN - hud.top.position.y)
-	if hud.feed_box.position.y == feed_top:
-		return
-	hud._place(hud.feed_box, Vector4(0, 0, 0, 0), Vector4(MatchHud.MARGIN, feed_top, MatchHud.MARGIN + MatchHud.FEED_SIZE.x, feed_top + MatchHud.FEED_SIZE.y * MatchHud.FEED_MAX + 12.0))
 
 
 ## The opening objective appears as a compact floating sheet above the controls.

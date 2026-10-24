@@ -13,18 +13,6 @@ func _practice() -> PracticeMatch:
 	return practice
 
 
-func test_a_feed_line_sits_on_a_team_coloured_pill() -> void:
-	var practice: PracticeMatch = _practice()
-	practice.hud.feed(MatchHud.Feed.TAGGED, true, "Junjun")
-	practice.hud.feed(MatchHud.Feed.RESCUED, false, "Inday")
-	var lines: Array[Node] = practice.hud.feed_box.get_children()
-	assert_eq(lines.size(), 2)
-	for line: Node in lines:
-		var box: StyleBox = (line as Label).get_theme_stylebox("normal")
-		assert_true(box is StyleBoxFlat, "a pill behind it")
-	assert_ne((lines[0] as Label).get_theme_stylebox("normal").get("bg_color"), (lines[1] as Label).get_theme_stylebox("normal").get("bg_color"), "blue for your team, red for theirs")
-
-
 func test_the_scoreboard_keeps_its_card() -> void:
 	var board: Scoreboard = autofree(Scoreboard.new()) as Scoreboard
 	assert_gte(Scoreboard.BIG_FONT, 40, "big numbers on a card, not bare text on the street")

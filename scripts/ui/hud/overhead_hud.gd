@@ -9,11 +9,12 @@ extends Control
 
 ## The bar before `bar_scale` (visual pass: 92 x 13 read as a hairline at phone size; now a chunky rounded bar).
 const BAR_SIZE: Vector2 = Vector2(96.0, 18.0)
-## The dark outline round the bar (screen px, kept at any bar_scale so the bar always reads on the street) and the
-## quarter marks across the fill.
+## The dark outline round the bar (screen px, kept at any bar_scale so the bar always reads on the street).
 const BAR_OUTLINE: float = 3.0
-const BAR_MARKS: int = 4
-const BAR_MARK: Color = Color(0.0, 0.0, 0.0, 0.35)
+## The health number over the bar's top left corner (its left edge lines up with the bar's), and the height of that line.
+const COUNT_FONT: int = UiMetrics.CAPTION
+const COUNT_LINE: float = 24.0
+const COUNT_GAP: float = 6.0
 ## The bar sits just above the top of the head (the kid's model is KID_HEIGHT tall).
 const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 const POPUP_TIME: float = 0.9
@@ -224,12 +225,6 @@ func rescue_pill_rect() -> Rect2:
 	return Rect2(Vector2(x, box.end.y + RESCUE_POINTER), pill_size)
 
 
-## The lowest screen y the box and its RESCUE pill take (the feed starts under it); 0 while the box is not on screen.
-func box_clear_y() -> float:
-	var pill: Rect2 = rescue_pill_rect()
-	return 0.0 if pill.size == Vector2.ZERO else pill.end.y + RESCUE_BOB
-
-
 ## "RESCUE" under your team's box (it is the end of the street the other team defends, so it is easy to lose among the props).
 func _draw_rescue_cue() -> void:
 	var pill: Rect2 = rescue_pill_rect()
@@ -275,6 +270,7 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 	var fill: float = clampf(float(state.hp) / max_hp, 0.0, 1.0)
 	var color: Color = bar_color(state)
 	_draw_bar(rect, fill, color)
+	_draw_count(state, rect)
 	_draw_team_mark(state, rect, color)
 	if stamina_visible(state):
 		var stamina: Vector2 = STAMINA_SIZE * bar_scale
@@ -282,17 +278,24 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 		var look: Array = stamina_fill(state)
 		_draw_thin(under, look[0] as float, look[1] as Color)
 	var status: String = _status_text(state)
-	var lift: float = 0.0
+	var lift: float = COUNT_LINE
 	if not status.is_empty():
-		_text(_italic, status, keep_on_screen(head + Vector2(0.0, -8.0), _italic, status, STATUS_FONT), STATUS_FONT, STATUS_COLOR, 6)
-		lift = 22.0
+		_text(_italic, status, keep_on_screen(head + Vector2(0.0, -8.0 - COUNT_LINE), _italic, status, STATUS_FONT), STATUS_FONT, STATUS_COLOR, 6)
+		lift += 22.0
 	if spinner_visible(state):
 		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.capture_elapsed / maxf(_sim.capture_needed, 0.001), SPINNER_COLOR)
 	elif rescue_visible(state):
 		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.rescue_elapsed[state.team] / maxf(_sim.rules.rescue_hold_time, 0.001), RESCUE_COLOR)
 
 
-## A rounded bar with a dark outline: the fill in `color`, a gloss on its upper third and a mark every quarter.
+## The health number just over the bar's top left corner, left-aligned with the bar.
+func _draw_count(state: PlayerState, rect: Rect2) -> void:
+	var text: String = str(maxi(state.hp, 0))
+	var width: float = KalyeahTheme.ACTION_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, COUNT_FONT).x
+	_text(KalyeahTheme.ACTION_FONT, text, Vector2(rect.position.x + width / 2.0, rect.position.y - BAR_OUTLINE - COUNT_GAP), COUNT_FONT, Color.WHITE, 5)
+
+
+## A rounded bar with a dark outline: the fill in `color`, and a gloss on its upper third.
 func _draw_bar(rect: Rect2, fill: float, color: Color) -> void:
 	var round_px: int = int(ceilf(rect.size.y / 2.0 + BAR_OUTLINE))
 	_bar_back.set_border_width_all(int(BAR_OUTLINE))
@@ -305,9 +308,6 @@ func _draw_bar(rect: Rect2, fill: float, color: Color) -> void:
 		draw_style_box(_bar_fill, Rect2(rect.position, Vector2(width, rect.size.y)))
 		_bar_gloss.set_corner_radius_all(int(ceilf(rect.size.y / 4.0)))
 		draw_style_box(_bar_gloss, Rect2(rect.position + Vector2(rect.size.y / 3.0, 1.0), Vector2(maxf(width - rect.size.y / 1.5, 1.0), rect.size.y / 3.0)))
-	for mark: int in range(1, BAR_MARKS):
-		var x: float = rect.position.x + rect.size.x * float(mark) / float(BAR_MARKS)
-		draw_line(Vector2(x, rect.position.y + 1.0), Vector2(x, rect.end.y - 1.0), BAR_MARK, 1.0)
 
 
 ## A thin bar with a dark outline, filled to `fill` in `color` (your stamina).

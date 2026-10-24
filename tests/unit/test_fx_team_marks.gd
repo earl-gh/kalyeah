@@ -95,12 +95,3 @@ func test_colour_blind_you_are_not_the_enemys_orange() -> void:
 	var mine: Color = TeamColors.bar_self()
 	assert_lt(mine.s, 0.1, "your bar has no hue of its own")
 	assert_gt(mine.get_luminance(), TeamColors.bar_enemy().get_luminance() + 0.3, "and is far brighter than theirs")
-
-
-func test_colour_blind_base_tints_keep_their_hue() -> void:
-	Settings.set_colorblind(true)
-	var tinted: Color = TeamColors.world_enemy().lerp(StreetMap.SOFT_GREY, TeamColors.base_soften())
-	assert_almost_eq(tinted.h, TeamColors.BLIND_ENEMY.h, 0.02, "still orange, not khaki")
-	assert_gt(tinted.s, TeamColors.BLIND_ENEMY.s * 0.8)
-	Settings.set_colorblind(false)
-	assert_eq(TeamColors.base_soften(), TeamColors.BASE_SOFTEN, "the default street keeps its calm tints")
