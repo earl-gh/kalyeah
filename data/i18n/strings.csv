@@ -91,6 +91,7 @@ Eight letters and numbers,Eight letters and numbers
 Enter a name.,Enter a name.
 Enter all %d characters.,Enter all %d characters.
 Every control in every state.,Every control in every state.
+Every game is a street. Pick one and see how it plays.,Every game is a street. Pick one and see how it plays.
 Example slider,Example slider
 "Example switch, off","Example switch, off"
 "Example switch, on","Example switch, on"
@@ -119,6 +120,7 @@ History,History
 HOLD THE BASE!,HOLD THE BASE!
 Hotspot,Hotspot
 Hotspot rooms need the Android app.,Hotspot rooms need the Android app.
+How it plays,How it plays
 How the points went,How the points went
 How to play,How to play
 Ice water,Ice water
@@ -168,6 +170,7 @@ Open slot,Open slot
 Open slot in the %s team,Open slot in the %s team
 Opens the name and face editor,Opens the name and face editor
 Opens your history,Opens your history
+Or tag all of them and hold it for %d s.,Or tag all of them and hold it for %d s.
 OUT,OUT
 OVERTIME,OVERTIME
 Papel · Shield,Papel · Shield
@@ -182,6 +185,7 @@ Play again,Play again
 Play as %s,Play as %s
 Play on one local network.,Play on one local network.
 Play vs bots,Play vs bots
+Playable,Playable
 Player %d,Player %d
 Polymorphed,Polymorphed
 Popoy,Popoy
@@ -224,12 +228,15 @@ Sound and feel,Sound and feel
 Sound volume,Sound volume
 Start match,Start match
 Starting the room…,Starting the room…
+"Stay in their base to capture it: %d s alone, faster with teammates. Nobody can throw while capturing.","Stay in their base to capture it: %d s alone, faster with teammates. Nobody can throw while capturing."
 Step %d of %d,Step %d of %d
+Street,Street
 STUNNED,STUNNED
 Stunned,Stunned
 Suggested: %s,Suggested: %s
 Swipe or use the arrow keys to change,Swipe or use the arrow keys to change
 TAG THEIR BASE!,TAG THEIR BASE!
+Tagged kids wait in their box. A teammate who stays beside it for %d s frees the one tagged first.,Tagged kids wait in their box. A teammate who stays beside it for %d s frees the one tagged first.
 Tagged them all,Tagged them all
 Tagged you all,Tagged you all
 Tagged · Wait for a rescue,Tagged · Wait for a rescue
@@ -274,6 +281,8 @@ Weapons,Weapons
 YOU,YOU
 You,You
 YOU %d - %d THEM   %s,YOU %d - %d THEM   %s
+Your kids and the weapons,Your kids and the weapons
+Your last battles,Your last battles
 Your last battles on this phone.,Your last battles on this phone.
 Your profile,Your profile
 Your profile: %s,Your profile: %s

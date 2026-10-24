@@ -244,15 +244,20 @@ func test_a_page_slides_in_from_the_side_its_tab_is_on() -> void:
 	Settings.set_reduced_motion(false)
 	var screen: TitleScreen = _phone()
 	await wait_frames(3)
-	screen.open_page(&"history")
-	assert_gt(screen.pages[&"history"].position.x, 10.0, "from the right: History is right of Play")
+	screen.open_page(&"settings")
+	assert_gt(screen.pages[&"settings"].position.x, 10.0, "from the right: Settings is right of Play")
 	await wait_seconds(0.4)
-	assert_eq(screen.pages[&"history"].position, Vector2.ZERO, "and it settles")
-	screen.open_page(&"codex")
-	assert_lt(screen.pages[&"codex"].position.x, -10.0, "from the left: the Book is left of History")
+	assert_eq(screen.pages[&"settings"].position, Vector2.ZERO, "and it settles")
+	screen.open_page(&"street")
+	assert_lt(screen.pages[&"street"].position.x, -10.0, "from the left: Street is left of Settings")
 	await wait_seconds(0.4)
 	screen.close_page()
-	assert_lt(screen._home.position.x, -10.0, "Play comes back from the left")
+	assert_gt(screen._home.position.x, 10.0, "Play comes back from the right when you leave Street")
+	await wait_seconds(0.4)
+	screen.open_page(&"settings")
+	await wait_seconds(0.4)
+	screen.close_page()
+	assert_lt(screen._home.position.x, -10.0, "and from the left when you leave Settings")
 
 
 func test_with_reduce_motion_pages_just_appear() -> void:
@@ -262,40 +267,81 @@ func test_with_reduce_motion_pages_just_appear() -> void:
 	assert_eq(screen.pages[&"settings"].modulate.a, 1.0)
 
 
-# ---- the tab plate ---------------------------------------------------------------------
+# ---- the bottom bar ---------------------------------------------------------------------
 
-func test_the_tab_plate_sits_under_the_open_tab_and_follows_it() -> void:
+func test_the_open_tab_is_bigger_and_shows_its_name_and_its_arrows() -> void:
 	var bar: UiTabBar = autofree(UiTabBar.new(TitleScreen.TABS)) as UiTabBar
-	bar.custom_minimum_size = Vector2(664.0, 128.0)
 	add_child(bar)
-	bar.size = Vector2(664.0, 128.0)
+	bar.size = Vector2(720.0, UiTabBar.HEIGHT)
 	await wait_frames(3)
-	bar.set_active(&"history")
-	var tab: Control = bar.tabs[&"history"]
-	assert_true(bar.glide.visible)
-	assert_almost_eq(bar.glide.global_position.x, tab.global_position.x, 1.0, "under History")
-	assert_almost_eq(bar.glide.size.x, tab.size.x, 1.0)
+	bar.set_active(&"home")
+	var open: TextureRect = bar.tabs[&"home"].get_node("Picture") as TextureRect
+	var idle: TextureRect = bar.tabs[&"street"].get_node("Picture") as TextureRect
+	assert_gt(open.size.x, idle.size.x * 1.2, "the open tab's picture is bigger")
+	assert_eq(bar.tabs[&"home"].size.x, bar.tabs[&"street"].size.x, "but the tabs stay equal: nothing is pushed aside")
+	assert_eq(open.global_position.y + open.size.y / 2.0, idle.global_position.y + idle.size.y / 2.0, "every picture is centred on one line, so the open one is not pushed up")
+	assert_true((bar.tabs[&"home"].get_node("Name") as Label).visible, "it shows its name")
+	assert_false((bar.tabs[&"street"].get_node("Name") as Label).visible, "the others do not")
+	assert_true(bar.arrow_left.visible and bar.arrow_right.visible, "Play has an arrow on each side")
+	var picture_middle: float = open.global_position.y + open.size.y / 2.0
+	for arrow: Button in [bar.arrow_left, bar.arrow_right]:
+		assert_almost_eq(arrow.global_position.y + arrow.size.y / 2.0, picture_middle, 1.0, "the arrows are level with the picture")
+	assert_lt(bar.arrow_left.global_position.x, open.global_position.x, "one on its left")
+	assert_gt(bar.arrow_right.global_position.x, open.global_position.x + open.size.x, "one on its right")
+
+
+func test_the_ends_have_only_the_arrow_that_leads_somewhere() -> void:
+	var bar: UiTabBar = autofree(UiTabBar.new(TitleScreen.TABS)) as UiTabBar
+	add_child(bar)
+	bar.size = Vector2(720.0, UiTabBar.HEIGHT)
+	await wait_frames(3)
+	bar.set_active(&"street")
+	assert_false(bar.arrow_left.visible, "Street is the first tab: nothing to its left")
+	assert_true(bar.arrow_right.visible)
 	bar.set_active(&"settings")
-	assert_almost_eq(bar.glide.global_position.x, bar.tabs[&"settings"].global_position.x, 1.0)
-	for id: StringName in bar.tabs:
-		assert_true(bar.tabs[id].get_theme_stylebox("normal") is StyleBoxEmpty, "the plate is one thing, not a style on each tab")
-	bar.set_active(&"")
-	assert_false(bar.glide.visible, "no tab open, no plate")
+	assert_true(bar.arrow_left.visible)
+	assert_false(bar.arrow_right.visible, "Settings is the last tab: nothing to its right")
 
 
-func test_with_motion_the_plate_glides_and_arrives() -> void:
+func test_an_arrow_goes_to_the_neighbouring_tab() -> void:
+	var bar: UiTabBar = autofree(UiTabBar.new(TitleScreen.TABS)) as UiTabBar
+	add_child(bar)
+	bar.size = Vector2(720.0, UiTabBar.HEIGHT)
+	await wait_frames(2)
+	var heard: Array[StringName] = []
+	bar.tab_pressed.connect(func(id: StringName) -> void: heard.append(id))
+	bar.set_active(&"home")
+	bar.arrow_left.pressed.emit()
+	bar.arrow_right.pressed.emit()
+	assert_eq(heard, [&"street", &"settings"] as Array[StringName], "left of Play is Street, right of it Settings")
+	assert_gte(bar.arrow_left.size.x, UiMetrics.MIN_TARGET, "an arrow is a thumb-sized target")
+	assert_gte(bar.arrow_left.size.y, UiMetrics.MIN_TARGET)
+
+
+func test_with_motion_the_open_tab_grows_over_a_moment_and_with_reduce_motion_at_once() -> void:
 	Settings.set_reduced_motion(false)
 	var bar: UiTabBar = autofree(UiTabBar.new(TitleScreen.TABS)) as UiTabBar
 	add_child(bar)
-	bar.size = Vector2(664.0, 128.0)
+	bar.size = Vector2(720.0, UiTabBar.HEIGHT)
 	await wait_frames(3)
 	bar.set_active(&"home")
-	await wait_seconds(0.1)
-	bar.set_active(&"settings")
-	var target: float = bar.tabs[&"settings"].global_position.x
-	assert_lt(bar.glide.global_position.x, target - 5.0, "still on its way")
 	await wait_seconds(0.35)
-	assert_almost_eq(bar.glide.global_position.x, target, 1.0, "arrived")
+	var big: float = (bar.tabs[&"home"].get_node("Picture") as TextureRect).size.x
+	var small: float = (bar.tabs[&"settings"].get_node("Picture") as TextureRect).size.x
+	assert_gt(big, small, "Play is open")
+	bar.set_active(&"settings")
+	await wait_seconds(0.05)
+	var home_now: float = (bar.tabs[&"home"].get_node("Picture") as TextureRect).size.x
+	var settings_now: float = (bar.tabs[&"settings"].get_node("Picture") as TextureRect).size.x
+	assert_lt(home_now, big, "Play is shrinking")
+	assert_gt(home_now, small, "but still on its way")
+	assert_gt(settings_now, small, "Settings is growing")
+	assert_lt(settings_now, big, "but not as big as it will be")
+	await wait_seconds(0.35)
+	assert_almost_eq((bar.tabs[&"settings"].get_node("Picture") as TextureRect).size.x, big, 1.0, "arrived")
+	Settings.set_reduced_motion(true)
+	bar.set_active(&"street")
+	assert_almost_eq((bar.tabs[&"street"].get_node("Picture") as TextureRect).size.x, big, 1.0, "with Reduce motion it is there at once")
 
 
 # ---- idle motion ----------------------------------------------------------------------

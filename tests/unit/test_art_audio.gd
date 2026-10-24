@@ -85,7 +85,7 @@ func test_the_ui_theme_is_applied_everywhere() -> void:
 	assert_eq(box, UiSkin.button("gold"), "the default button is the gold one")
 	assert_eq(button.get_theme_font("font"), KalyeahTheme.BUTTON_FONT)
 	assert_eq(KalyeahTheme.build().default_font, KalyeahTheme.BODY_FONT)
-	assert_eq(KalyeahTheme.DISPLAY_FONT.get_font_name(), "Bungee", "headings use Bungee")
+	assert_eq(KalyeahTheme.DISPLAY_FONT.get_font_name(), "Kalyeah Sentence Case", "headings use the sentence-case Bungee")
 	for font: Font in [KalyeahTheme.BODY_FONT, KalyeahTheme.CAPTION_FONT, KalyeahTheme.BUTTON_FONT]:
 		assert_eq((font as FontVariation).base_font, KalyeahTheme.DISPLAY_FONT, "one typeface everywhere (owner): Bungee, tracked for its role")
 	assert_eq(KalyeahTheme.ACTION_FONT, KalyeahTheme.DISPLAY_FONT, "numbers stay untracked")

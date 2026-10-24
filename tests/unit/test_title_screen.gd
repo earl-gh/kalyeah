@@ -73,16 +73,16 @@ func test_the_screen_has_everything_the_owner_asked_for() -> void:
 
 
 
-func test_the_tab_bar_holds_play_book_history_and_settings_along_the_bottom() -> void:
+func test_the_tab_bar_holds_street_play_and_settings_along_the_bottom() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(3)
-	var ids: Array[StringName] = [&"home", &"codex", &"history", &"settings"]
+	var ids: Array[StringName] = [&"street", &"home", &"settings"]
 	var last_x: float = -1.0
 	for id: StringName in ids:
 		var tab: Rect2 = screen.corner_buttons[id].get_global_rect()
 		assert_gt(tab.position.x, last_x, "%s is right of the one before it" % id)
 		last_x = tab.position.x
-		assert_gt(tab.position.y, 1280.0 * 0.85, "%s is at the bottom, under the thumb" % id)
+		assert_gt(tab.position.y, 1280.0 * 0.8, "%s is at the bottom, under the thumb" % id)
 		assert_gte(tab.size.y, 88.0, "%s is tall enough for a thumb" % id)
 		assert_gte(tab.size.x, 120.0, "%s is wide enough for a thumb" % id)
 	assert_eq(screen.tab_bar.active, &"home", "Play is the page you start on")
@@ -124,7 +124,7 @@ func test_the_cards_are_large_and_every_one_is_always_visible_stacked_behind_the
 	var strip: MenuCarousel = screen.carousel
 	var chosen: Rect2 = strip.cards[0].get_global_rect()
 	assert_almost_eq(chosen.size.x / chosen.size.y, 2.5 / 4.0, 0.01, "2.5:4")
-	assert_gt(chosen.size.y, 540.0, "large")
+	assert_gt(chosen.size.y, 480.0, "large (the bottom bar is the cardboard plate now, so a little less than before)")
 	for index: int in 3:
 		strip.select(index, false)
 		for card: Button in strip.cards:
@@ -150,7 +150,7 @@ func test_the_actions_sit_low_on_the_screen_but_not_at_the_very_bottom() -> void
 	var create: Rect2 = screen.primary_button.get_global_rect()
 	var join: Rect2 = screen.secondary_button.get_global_rect()
 	assert_almost_eq(create.position.y, join.position.y, 1.0, "create and join are in one row")
-	assert_gt(create.position.y, 1280.0 * 0.75, "in the bottom part")
+	assert_gt(create.position.y, 1280.0 * 0.7, "in the bottom part")
 	assert_lt(create.end.y, 1280.0 - 60.0, "but with room under them")
 	assert_lt(screen.carousel.get_global_rect().end.y, create.position.y, "below the cards")
 	assert_gt(screen.carousel.get_global_rect().position.y, screen.profile_chip.get_global_rect().position.y, "the cards are under the top bar")
@@ -168,7 +168,7 @@ func test_the_actions_sit_low_on_the_screen_but_not_at_the_very_bottom() -> void
 func test_a_tab_opens_its_page_and_play_returns_home() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(2)
-	for id: StringName in [&"codex", &"history", &"settings"]:
+	for id: StringName in [&"street", &"settings"]:
 		screen.corner_buttons[id].pressed.emit()
 		assert_eq(screen.current_page, id)
 		assert_true(screen.pages[id].visible, "%s page is open" % id)
@@ -179,6 +179,27 @@ func test_a_tab_opens_its_page_and_play_returns_home() -> void:
 		screen.corner_buttons[&"home"].pressed.emit()
 		assert_eq(screen.current_page, &"")
 		assert_true(screen.carousel.is_visible_in_tree(), "back on the home page")
+
+
+## The Book and History have no tab any more: Settings opens them, and its tab stays lit; History from the last match keeps Play lit.
+func test_the_book_and_history_open_from_settings_and_keep_its_tab_lit() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(2)
+	screen.corner_buttons[&"settings"].pressed.emit()
+	screen.settings_page.book_button.pressed.emit()
+	assert_eq(screen.current_page, &"codex")
+	assert_eq(screen.tab_bar.active, &"settings", "Settings stays lit under the Book")
+	screen.corner_buttons[&"settings"].pressed.emit()
+	assert_eq(screen.current_page, &"settings", "its tab takes you back")
+	screen.settings_page.history_button.pressed.emit()
+	assert_eq(screen.current_page, &"history")
+	assert_eq(screen.tab_bar.active, &"settings")
+	screen.close_page()
+	MatchHistory.record("practice", true, 2, 0)
+	screen.refresh_last_match()
+	screen.last_match.pressed.emit()
+	assert_eq(screen.current_page, &"history")
+	assert_eq(screen.tab_bar.active, &"home", "History opened from the last match on Play keeps Play lit")
 
 
 
