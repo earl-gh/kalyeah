@@ -31,7 +31,7 @@ const PIP_LIFT: float = 14.0
 const NUMBER_RISE: float = 0.06
 ## A team's cell is this much wider than tall; its corners are this round.
 const CELL_ASPECT: float = 1.2
-const CELL_RADIUS: int = 16
+const CELL_RADIUS: int = UiSkin.RADIUS_M
 
 
 func show_score(score: MatchScore, my_team: int, match_time: float) -> void:

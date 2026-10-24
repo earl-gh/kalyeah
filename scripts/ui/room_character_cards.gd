@@ -10,7 +10,7 @@ static func build(view: HotspotRoomView, id: String) -> Button:
 	card.custom_minimum_size = HotspotRoomView.KID_CARD
 	card.tooltip_text = "Choose %s" % id.capitalize()
 	card.accessibility_name = "Choose %s" % id.capitalize()
-	MenuDialog.feel_press(card)
+	UiKit.feel_press(card)
 	card.pressed.connect(view.character_chosen.emit.bind(id))
 	var picture: TextureRect = TextureRect.new()
 	picture.texture = KidModel.card_face(StringName(id))
@@ -50,7 +50,7 @@ static func style(card: Button, chosen: bool) -> void:
 	box.shadow_offset = Vector2(0.0, 2.0)
 	for state: String in ["normal", "hover", "pressed", "disabled"]:
 		card.add_theme_stylebox_override(state, box)
-	card.add_theme_stylebox_override("focus", KalyeahTheme.focus_ring(HotspotRoomView.KID_RADIUS + 2))
+	card.add_theme_stylebox_override("focus", UiSkin.focus_ring(HotspotRoomView.KID_RADIUS))
 	# the amber frame is an overlay (the picture covers the button's own border)
 	var frame: Panel = card.get_node_or_null("Chosen") as Panel
 	if frame == null:

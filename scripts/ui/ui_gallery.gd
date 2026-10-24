@@ -39,7 +39,7 @@ func _section(title: String, content: Control) -> void:
 	box.name = "Section_%s" % title
 	box.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	box.add_child(UiKit.section_label(title))
-	box.add_child(UiKit.card(content, "glass", 20.0))
+	box.add_child(UiKit.card(content, "glass", float(UiKit.NEST_GAP)))
 	_content.add_child(box)
 
 
@@ -152,7 +152,7 @@ func _panels() -> Control:
 	var column: VBoxContainer = VBoxContainer.new()
 	column.add_theme_constant_override("separation", UiMetrics.GAP)
 	for kind: String in UiSkin.PLATES:
-		var plate: PanelContainer = UiKit.card(UiKit.text("%s panel" % kind.capitalize(), UiMetrics.DETAIL), kind, 22.0)
+		var plate: PanelContainer = UiKit.card(UiKit.text("%s panel" % kind.capitalize(), UiMetrics.DETAIL), kind, 22.0, UiKit.NESTED_RADIUS)
 		plate.name = "Plate_%s" % kind
 		column.add_child(plate)
 	return column
@@ -182,8 +182,8 @@ func _feedback() -> Control:
 func _type_scale() -> Control:
 	var column: VBoxContainer = VBoxContainer.new()
 	column.add_theme_constant_override("separation", 6)
-	var display: Label = UiKit.text("DISPLAY", UiMetrics.TITLE + 16, KalyeahTheme.CREAM, false)
-	display.theme_type_variation = &"DisplayLabel"
+	var display: Label = UiKit.text("DISPLAY", UiMetrics.DISPLAY, KalyeahTheme.CREAM, false)
+	UiKit.letter(display, UiMetrics.DISPLAY)
 	column.add_child(display)
 	column.add_child(UiKit.text("Body %d: the main reading size" % UiMetrics.BODY, UiMetrics.BODY, KalyeahTheme.TEXT, false))
 	column.add_child(UiKit.text("Detail %d: sentences under a title" % UiMetrics.DETAIL, UiMetrics.DETAIL, KalyeahTheme.TEXT, false))

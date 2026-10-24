@@ -107,7 +107,7 @@ func _profile_card() -> Control:
 	name_label.name = "PlayerName"
 	# the body font, so the name is shown as it was typed (the display font is all capitals)
 	name_label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
-	name_label.add_theme_font_size_override("font_size", 40)
+	name_label.add_theme_font_size_override("font_size", UiMetrics.HEADLINE)
 	name_label.add_theme_constant_override("outline_size", 6)
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_label.text = Session.player_name

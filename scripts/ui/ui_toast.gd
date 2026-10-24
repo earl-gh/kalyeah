@@ -63,7 +63,7 @@ func _ready() -> void:
 	_panel.name = "Pill"
 	_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_panel.add_theme_stylebox_override("panel", UiSkin.plate("night", 16.0, 34))
+	_panel.add_theme_stylebox_override("panel", UiSkin.plate("night", 16.0, UiSkin.RADIUS_XL))
 	column.add_child(_panel)
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)

@@ -24,11 +24,11 @@ enum Feed { TAGGED, RESCUED }
 
 const BANNER_TIME: float = 2.0
 ## GO!, SCORED and VICTORY / DEFEAT on the street (visual pass: were 44 px with a 12 px outline): big gold words in a thick navy
-## outline with a drop shadow; a long one is set smaller to keep `BANNER_MARGIN` from the screen's sides. They pop in from
+## outline with a drop shadow, lettered at `UiMetrics.HERO` like every big word (`UiKit.letter`); a long one is set smaller to keep `BANNER_MARGIN` from the screen's sides. They pop in from
 ## `BANNER_POP_FROM` times their size over `BANNER_POP_TIME` (not with Reduce motion).
-const BANNER_FONT: int = 72
-const BANNER_OUTLINE: int = 18
-const BANNER_SHADOW: Vector2 = Vector2(0.0, 6.0)
+const BANNER_FONT: int = UiMetrics.HERO
+## The lettered outline at that size (`UiSkin.letter_outline`), kept clear of the screen's sides.
+const BANNER_OUTLINE: int = roundi(BANNER_FONT * UiSkin.LETTER_OUTLINE_SHARE)
 const BANNER_MARGIN: float = 40.0
 const BANNER_POP_FROM: float = 1.5
 const BANNER_POP_TIME: float = 0.28
@@ -393,7 +393,7 @@ func feed(kind: Feed, our_team: bool, who: String) -> void:
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = TeamColors.feed_own() if our_team else TeamColors.feed_enemy()
-	style.set_corner_radius_all(10)
+	style.set_corner_radius_all(UiSkin.RADIUS_S)
 	style.content_margin_left = 14.0
 	style.skew = Vector2(0.18, 0.0)
 	pill.add_theme_stylebox_override("normal", style)
@@ -456,15 +456,7 @@ func _build() -> void:
 	banner = Label.new()
 	_place(banner, Vector4(0, 0.3, 1, 0.3), Vector4(0, -60, 0, 60))
 	banner.visible = false
-	banner.theme_type_variation = &"DisplayLabel"
-	banner.add_theme_color_override("font_color", RoyaleStyle.GOLD)
-	banner.add_theme_color_override("font_outline_color", RoyaleStyle.NAVY)
-	banner.add_theme_constant_override("outline_size", BANNER_OUTLINE)
-	banner.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.45))
-	banner.add_theme_constant_override("shadow_offset_x", int(BANNER_SHADOW.x))
-	banner.add_theme_constant_override("shadow_offset_y", int(BANNER_SHADOW.y))
-	banner.add_theme_constant_override("shadow_outline_size", BANNER_OUTLINE)
-	banner.add_theme_font_size_override("font_size", BANNER_FONT)
+	UiKit.letter(banner, BANNER_FONT, RoyaleStyle.GOLD)
 	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE

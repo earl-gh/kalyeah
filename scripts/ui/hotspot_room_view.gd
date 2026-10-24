@@ -27,7 +27,7 @@ const SECTION_GAP: int = UiMetrics.SECTION_GAP
 ## The compact arena header fills a row; character cards keep a 3:4 portrait ratio.
 const MAP_CARD: Vector2 = Vector2(0.0, 108.0)
 const KID_CARD: Vector2 = Vector2(96.0, 128.0)
-const KID_RADIUS: int = 16
+const KID_RADIUS: int = UiSkin.RADIUS_M
 const BAR_HEIGHT: float = 96.0
 const NUMBER_WIDTH: float = 56.0
 const NAME_SIZE: int = 26

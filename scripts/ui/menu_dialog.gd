@@ -152,36 +152,14 @@ func add_buttons(buttons: Array[Button]) -> HBoxContainer:
 	return row
 
 
-## A painted button of `color` (orange, green, red, blue, grey or gold) with press feedback.
+## A painted button of `color` (orange, green, red, blue, grey or gold); the theme gives it the shared press feel.
 static func make_button(text: String, color: String, font_size: int = UiMetrics.ACTION, min_size: Vector2 = Vector2(0.0, 88.0)) -> Button:
 	var button: Button = Button.new()
 	button.text = text
 	button.custom_minimum_size = min_size
 	button.add_theme_font_size_override("font_size", font_size)
 	KalyeahTheme.style_button(button, color)
-	feel_press(button)
 	return button
-
-
-## The button sinks a little while it is held (a quick scale), like a real key.
-static func feel_press(button: Button) -> void:
-	button.button_down.connect(func() -> void: _squish(button, 0.955))
-	button.button_up.connect(func() -> void: _squish(button, 1.0))
-
-
-static func _squish(button: Button, target: float) -> void:
-	if not button.is_inside_tree():
-		return
-	var previous: Tween = (button.get_meta(&"press_tween") as Tween) if button.has_meta(&"press_tween") else null
-	if is_instance_valid(previous):
-		previous.kill()
-	if Settings.reduced_motion:
-		button.scale = Vector2.ONE
-		return
-	button.pivot_offset = button.size / 2.0
-	var tween: Tween = button.create_tween()
-	button.set_meta(&"press_tween", tween)
-	tween.tween_property(button, "scale", Vector2.ONE * target, 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func _unhandled_input(event: InputEvent) -> void:

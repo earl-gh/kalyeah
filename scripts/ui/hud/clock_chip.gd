@@ -32,7 +32,7 @@ func text() -> String:
 
 
 func _draw() -> void:
-	RoyaleStyle.chunky(self, Rect2(Vector2.ZERO, size), Color(0.05, 0.14, 0.36), 18, false)
+	RoyaleStyle.chunky(self, Rect2(Vector2.ZERO, size), Color(0.05, 0.14, 0.36), UiSkin.RADIUS_M, false)
 	if overtime:
 		draw_rect(Rect2(Vector2(10.0, size.y - 14.0), Vector2(size.x - 20.0, 4.0)), RoyaleStyle.GOLD)
 	var font: Font = KalyeahTheme.ACTION_FONT

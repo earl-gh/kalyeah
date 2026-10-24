@@ -11,6 +11,10 @@ const HEIGHT: float = 128.0
 const ICON_SIZE: float = 52.0
 const ACTIVE: Color = Color("8fd0ff")
 const IDLE: Color = Color("9fb0d6")
+## The bar's plate pads its tabs by `INSET`; the open tab's plate (and a tab's focus ring) sits that far inside the bar, so
+## its corners are the bar's less the inset and the two curves run parallel.
+const INSET: int = 8
+const GLIDE_RADIUS: int = UiSkin.RADIUS_XL - INSET
 
 var tabs: Dictionary[StringName, Button] = {}
 var active: StringName = &""
@@ -26,18 +30,18 @@ var _glide_tween: Tween
 ## `items`: {id, label, icon} in order, left to right.
 func _init(items: Array[Dictionary] = []) -> void:
 	name = "TabBar"
-	add_theme_stylebox_override("panel", UiSkin.plate("night", 8.0, 34))
+	add_theme_stylebox_override("panel", UiSkin.plate("night", float(INSET), UiSkin.RADIUS_XL))
 	custom_minimum_size = Vector2(0.0, HEIGHT)
 	# a plain Control holds the plate and the row, so the plate can be placed by hand
 	_stack = Control.new()
 	_stack.name = "Stack"
-	_stack.custom_minimum_size = Vector2(0.0, HEIGHT - 16.0)
+	_stack.custom_minimum_size = Vector2(0.0, HEIGHT - 2.0 * INSET)
 	add_child(_stack)
 	glide = Panel.new()
 	glide.name = "Glide"
 	glide.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	glide.visible = false
-	glide.add_theme_stylebox_override("panel", UiSkin.plate("raised", 0.0, 26))
+	glide.add_theme_stylebox_override("panel", UiSkin.plate("raised", 0.0, GLIDE_RADIUS))
 	_stack.add_child(glide)
 	_row = HBoxContainer.new()
 	_row.add_theme_constant_override("separation", 6)
@@ -54,10 +58,10 @@ func _add_tab(id: StringName, text: String, icon_kind: StringName) -> void:
 	button.accessibility_name = text
 	button.focus_mode = Control.FOCUS_ALL
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.custom_minimum_size = Vector2(0.0, HEIGHT - 16.0)
-	button.add_theme_stylebox_override("focus", UiSkin.focus_ring(26))
+	button.custom_minimum_size = Vector2(0.0, HEIGHT - 2.0 * INSET)
+	button.add_theme_stylebox_override("focus", UiSkin.focus_ring(GLIDE_RADIUS))
 	button.pressed.connect(tab_pressed.emit.bind(id))
-	MenuDialog.feel_press(button)
+	UiKit.feel_press(button)
 	var stack: VBoxContainer = VBoxContainer.new()
 	stack.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stack.alignment = BoxContainer.ALIGNMENT_CENTER

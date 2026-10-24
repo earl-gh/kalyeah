@@ -14,7 +14,7 @@ static func label(text: String, size: int, color: Color = KalyeahTheme.TEXT) -> 
 
 
 static func box(fill: Color, border: Color, width: int = 2) -> StyleBoxFlat:
-	var result: StyleBoxFlat = KalyeahTheme.surface_box(14, width, 0.0)
+	var result: StyleBoxFlat = KalyeahTheme.surface_box(UiSkin.RADIUS_M, width, 0.0)
 	result.bg_color = fill
 	result.border_color = border
 	return result
@@ -28,9 +28,9 @@ static func profile(screen: WeaponPickScreen, character: CharacterDef) -> Button
 	button.custom_minimum_size = screen.PROFILE_SIZE
 	button.clip_contents = true
 	for state: String in ["normal", "hover"]:
-		button.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, 18))
+		button.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, UiSkin.RADIUS_M))
 	for state: String in ["pressed", "hover_pressed"]:
-		button.add_theme_stylebox_override(state, UiSkin.plate("picked", 0.0, 18))
+		button.add_theme_stylebox_override(state, UiSkin.plate("picked", 0.0, UiSkin.RADIUS_M))
 	var art: TextureRect = TextureRect.new()
 	art.texture = KidModel.card_face(character.id)
 	if art.texture == null:
@@ -76,9 +76,9 @@ static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 	button.custom_minimum_size = Vector2(0.0, screen.TILE_HEIGHT)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for state: String in ["normal", "hover"]:
-		button.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, 22))
+		button.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, UiSkin.RADIUS_L))
 	for state: String in ["pressed", "hover_pressed"]:
-		button.add_theme_stylebox_override(state, UiSkin.plate("picked", 0.0, 22))
+		button.add_theme_stylebox_override(state, UiSkin.plate("picked", 0.0, UiSkin.RADIUS_L))
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right", "top", "bottom"]:
@@ -152,7 +152,7 @@ static func bar_strip(def: WeaponDef, maxima: Dictionary) -> HBoxContainer:
 static func info_panel(screen: WeaponPickScreen) -> Control:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.name = "WeaponInfo"
-	panel.add_theme_stylebox_override("panel", UiSkin.plate("night", 0.0, 22))
+	panel.add_theme_stylebox_override("panel", UiSkin.plate("night", 0.0, UiSkin.RADIUS_L))
 	var margin: MarginContainer = MarginContainer.new()
 	for side: String in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 16)

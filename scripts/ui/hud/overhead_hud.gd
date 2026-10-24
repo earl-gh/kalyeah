@@ -207,7 +207,7 @@ func _draw_rescue_cue() -> void:
 	box_style.bg_color = color
 	box_style.border_color = Icons.OUTLINE
 	box_style.set_border_width_all(3)
-	box_style.set_corner_radius_all(14)
+	box_style.set_corner_radius_all(UiSkin.RADIUS_M)
 	box_style.anti_aliasing = true
 	draw_style_box(box_style, pill)
 	var centre_x: float = clampf(tip_x, pill.position.x + 18.0, pill.end.x - 18.0)

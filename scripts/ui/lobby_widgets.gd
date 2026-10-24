@@ -86,7 +86,6 @@ static func button(text: String, action: Callable, color: String = "orange", fon
 	result.custom_minimum_size = Vector2(120.0, UiMetrics.TOUCH)
 	result.add_theme_font_size_override("font_size", font_size)
 	KalyeahTheme.style_button(result, color)
-	MenuDialog.feel_press(result)
 	result.pressed.connect(action)
 	return result
 

@@ -19,3 +19,9 @@ const PADDING: float = 24.0
 const GAP: int = 16
 const SECTION_GAP: int = 24
 const COMPACT_GAP: int = 12
+## The display scale (docs/ART.md "Shared UI hierarchy"): the only sizes for big lettered words, each step about 1.4x the
+## one before so no two read as "almost the same". Lettered with `UiKit.letter`.
+const HEADLINE: int = 40
+const DISPLAY: int = 56
+const HERO: int = 80
+const SCORE: int = 120

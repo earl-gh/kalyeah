@@ -265,7 +265,7 @@ func _tag(font: Font, text: String, at: Vector2, color: Color) -> void:
 	pill.bg_color = Color(0.1, 0.08, 0.14, 0.92)
 	pill.border_color = color
 	pill.set_border_width_all(2)
-	pill.set_corner_radius_all(12)
+	pill.set_corner_radius_all(UiSkin.round_radius(TAG_HEIGHT))
 	draw_style_box(pill, Rect2(at - Vector2(width / 2.0, TAG_HEIGHT / 2.0), Vector2(width, TAG_HEIGHT)))
 	_text(font, text, at, TAG_FONT_SIZE, color)
 

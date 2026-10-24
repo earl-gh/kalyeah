@@ -33,7 +33,7 @@ static func style(label: Label, tone: String) -> void:
 	box.bg_color = Color(color, 0.16)
 	box.border_color = Color(color, 0.85)
 	box.set_border_width_all(2)
-	box.set_corner_radius_all(16)
+	box.set_corner_radius_all(UiSkin.RADIUS_M)
 	box.anti_aliasing = true
 	box.content_margin_left = 18.0
 	box.content_margin_right = 18.0

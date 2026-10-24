@@ -49,6 +49,11 @@ const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
 const BOTTOM_MARGIN: float = 18.0
 const CTA_HEIGHT: float = 104.0
+## The main action's breath: it waits `PULSE_DELAY` seconds, then swells to `PULSE_SCALE` and settles, each way in
+## `PULSE_HALF` seconds.
+const PULSE_DELAY: float = 1.2
+const PULSE_SCALE: float = 1.025
+const PULSE_HALF: float = 0.9
 const CREAM: Color = KalyeahTheme.CREAM
 
 ## The screen asks for the game to close (replaced in tests).
@@ -90,6 +95,8 @@ var _page_holder: Control
 var _dots: Array[Panel] = []
 var _page_tween: Tween
 var _pulse: Tween
+## Bumped by every start and stop of the breath: a start still waiting out its delay gives up if another came after it.
+var _pulse_generation: int = 0
 
 
 ## True for the dedicated server export or `godot --headless -- --server`.
@@ -112,6 +119,9 @@ func _ready() -> void:
 	refresh_last_match()
 	carousel.selected.connect(_on_mode_selected)
 	primary_button.pressed.connect(_on_primary_pressed)
+	# the press and the breath both scale the main action: the breath rests while a thumb is on it
+	primary_button.button_down.connect(_stop_pulse)
+	primary_button.button_up.connect(_start_pulse)
 	secondary_button.pressed.connect(_on_secondary_pressed)
 	get_viewport().size_changed.connect(_apply_safe_area)
 	Settings.accessibility_changed.connect(_on_accessibility_changed)
@@ -221,11 +231,7 @@ func _build_titles() -> Control:
 	titles.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mode_name_label = Label.new()
 	mode_name_label.name = "ModeName"
-	mode_name_label.theme_type_variation = &"DisplayLabel"
-	mode_name_label.add_theme_font_size_override("font_size", 56)
-	mode_name_label.add_theme_color_override("font_color", CREAM)
-	mode_name_label.add_theme_color_override("font_outline_color", Color("060d22"))
-	mode_name_label.add_theme_constant_override("outline_size", 10)
+	UiKit.letter(mode_name_label, UiMetrics.DISPLAY, CREAM)
 	mode_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	titles.add_child(mode_name_label)
 	mode_text_label = Label.new()
@@ -386,10 +392,10 @@ func _build_last_match() -> Button:
 	strip.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
 	strip.focus_mode = Control.FOCUS_ALL
 	for state: String in ["normal", "hover"]:
-		strip.add_theme_stylebox_override(state, UiSkin.plate("night", 0.0, 34))
-	strip.add_theme_stylebox_override("pressed", UiSkin.plate("raised", 0.0, 34))
-	strip.add_theme_stylebox_override("focus", UiSkin.focus_ring(34))
-	MenuDialog.feel_press(strip)
+		strip.add_theme_stylebox_override(state, UiSkin.plate("night", 0.0, UiSkin.RADIUS_XL))
+	strip.add_theme_stylebox_override("pressed", UiSkin.plate("raised", 0.0, UiSkin.RADIUS_XL))
+	strip.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_XL))
+	UiKit.feel_press(strip)
 	strip.pressed.connect(open_page.bind(&"history"))
 	strip.visible = false
 	return strip
@@ -467,7 +473,7 @@ func _refresh_mode() -> void:
 	backdrop.set_accent(Color(String(mode["accent"])))
 	for i: int in _dots.size():
 		var dot: StyleBoxFlat = StyleBoxFlat.new()
-		dot.set_corner_radius_all(8)
+		dot.set_corner_radius_all(UiSkin.RADIUS_S)
 		dot.bg_color = Color(String(mode["accent"])) if i == Session.menu_mode else Color(1.0, 1.0, 1.0, 0.28)
 		dot.anti_aliasing = true
 		_dots[i].add_theme_stylebox_override("panel", dot)
@@ -565,25 +571,32 @@ func _pop_in() -> void:
 	_start_pulse.call_deferred()
 
 
-## The main action swells and settles slowly, drawing the eye to it.
+## The main action swells and settles slowly, drawing the eye to it. Only the latest call starts a breath, so quick taps
+## or a quick Reduce motion toggle never leave two breaths fighting over the button's scale.
 func _start_pulse() -> void:
+	_stop_pulse()
 	if not is_inside_tree() or Settings.reduced_motion or not is_instance_valid(primary_button):
 		return
-	if is_instance_valid(_pulse):
-		_pulse.kill()
-	await get_tree().create_timer(1.2).timeout
-	if not is_inside_tree() or Settings.reduced_motion or not is_instance_valid(primary_button):
+	var generation: int = _pulse_generation
+	await get_tree().create_timer(PULSE_DELAY).timeout
+	if generation != _pulse_generation or not is_inside_tree() or Settings.reduced_motion or not is_instance_valid(primary_button):
 		return
 	primary_button.pivot_offset = primary_button.size / 2.0
 	_pulse = create_tween().set_loops()
-	_pulse.tween_property(primary_button, "scale", Vector2.ONE * 1.025, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_pulse.tween_property(primary_button, "scale", Vector2.ONE, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_pulse.tween_property(primary_button, "scale", Vector2.ONE * PULSE_SCALE, PULSE_HALF).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_pulse.tween_property(primary_button, "scale", Vector2.ONE, PULSE_HALF).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+## Stops the breath, and any start still waiting to begin one.
+func _stop_pulse() -> void:
+	_pulse_generation += 1
+	if is_instance_valid(_pulse):
+		_pulse.kill()
 
 
 func _on_accessibility_changed() -> void:
 	if Settings.reduced_motion:
-		if is_instance_valid(_pulse):
-			_pulse.kill()
+		_stop_pulse()
 		if is_instance_valid(primary_button):
 			primary_button.scale = Vector2.ONE
 	else:
@@ -640,16 +653,13 @@ func _show_loading(message: String) -> void:
 	center.add_child(stack)
 	var text: Label = Label.new()
 	text.text = message
-	text.theme_type_variation = &"DisplayLabel"
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	text.add_theme_font_size_override("font_size", 40)
-	text.add_theme_color_override("font_color", CREAM)
-	text.add_theme_constant_override("outline_size", 4)
+	UiKit.letter(text, UiMetrics.HEADLINE, CREAM)
 	stack.add_child(text)
 	_loading_dots = Label.new()
 	_loading_dots.text = "."
 	_loading_dots.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_loading_dots.add_theme_font_size_override("font_size", 56)
+	_loading_dots.add_theme_font_size_override("font_size", UiMetrics.DISPLAY)
 	_loading_dots.add_theme_color_override("font_color", Color.WHITE)
 	stack.add_child(_loading_dots)
 	if Settings.reduced_motion:

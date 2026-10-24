@@ -24,7 +24,7 @@ static func player_card(member: Dictionary, team: int, room: Dictionary) -> Cont
 	box.bg_color = BAR_COLOR
 	box.border_color = TEAM_BLOCKS[team].lightened(0.15)
 	box.set_border_width_all(2)
-	box.set_corner_radius_all(14)
+	box.set_corner_radius_all(UiSkin.RADIUS_M)
 	box.anti_aliasing = true
 	box.shadow_color = Color(0.0, 0.0, 0.05, 0.45)
 	box.shadow_size = 6
@@ -100,7 +100,7 @@ static func _number_block(number: int, team: int, hollow: bool) -> Control:
 		box.set_border_width_all(2)
 	else:
 		box.bg_color = TEAM_BLOCKS[team]
-	box.set_corner_radius_all(12)
+	box.set_corner_radius_all(UiSkin.RADIUS_M)
 	box.anti_aliasing = true
 	block.add_theme_stylebox_override("panel", box)
 	var label: Label = Label.new()
@@ -136,7 +136,7 @@ static func _tag(text: String, team: int) -> Control:
 	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = TEAM_BLOCKS[team]
-	box.set_corner_radius_all(8)
+	box.set_corner_radius_all(UiSkin.RADIUS_S)
 	box.content_margin_left = 8.0
 	box.content_margin_right = 8.0
 	box.content_margin_top = 1.0
@@ -179,7 +179,7 @@ static func open_slot(team: int, row: int, can_join: bool, room: Dictionary, on_
 	box.bg_color = Color(1.0, 1.0, 1.0, 0.07)
 	box.border_color = Color(TEAM_BLOCKS[team].lightened(0.3), 0.6)
 	box.set_border_width_all(2)
-	box.set_corner_radius_all(14)
+	box.set_corner_radius_all(UiSkin.RADIUS_M)
 	box.anti_aliasing = true
 	for state: String in ["normal", "disabled"]:
 		card.add_theme_stylebox_override(state, box)

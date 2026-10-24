@@ -16,9 +16,9 @@ func _init() -> void:
 	focus_mode = Control.FOCUS_ALL
 	custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
 	for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
-		add_theme_stylebox_override(state, UiSkin.plate("night", 10.0, 34))
-	add_theme_stylebox_override("focus", UiSkin.focus_ring(40))
-	MenuDialog.feel_press(self)
+		add_theme_stylebox_override(state, UiSkin.plate("night", 10.0, UiSkin.RADIUS_XL))
+	add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_XL))
+	UiKit.feel_press(self)
 	var row: HBoxContainer = HBoxContainer.new()
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	row.offset_left = 10.0

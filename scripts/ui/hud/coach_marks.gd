@@ -70,11 +70,7 @@ func _init(hud: MatchHud = null) -> void:
 	column.add_child(kicker_label)
 	title_label = Label.new()
 	title_label.name = "Title"
-	title_label.theme_type_variation = &"DisplayLabel"
-	title_label.add_theme_font_size_override("font_size", 52)
-	title_label.add_theme_color_override("font_color", Color("ffd25a"))
-	title_label.add_theme_color_override("font_outline_color", Color("1a0c02"))
-	title_label.add_theme_constant_override("outline_size", 10)
+	UiKit.letter(title_label, UiMetrics.DISPLAY, Color("ffd25a"))
 	column.add_child(title_label)
 	text_label = UiKit.text("", UiMetrics.BODY, KalyeahTheme.TEXT)
 	text_label.name = "Words"
@@ -146,7 +142,7 @@ func _show_step() -> void:
 		var dot: Panel = dots.get_child(i) as Panel
 		var box: StyleBoxFlat = StyleBoxFlat.new()
 		box.bg_color = Color("ffc233") if i == index else Color("3a4a7e")
-		box.set_corner_radius_all(7)
+		box.set_corner_radius_all(UiSkin.RADIUS_S)
 		dot.add_theme_stylebox_override("panel", box)
 	_spots = _spots_for(step["target"] as StringName)
 	_material.set_shader_parameter("spot_a", _spots[0] if _spots.size() > 0 else Vector3.ZERO)
