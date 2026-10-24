@@ -4,8 +4,15 @@ extends RefCounted
 ## the round painted art filling its width; no name on it (the ice water cost sits on its bottom edge, drawn by the hand). The hand's cards
 ## and the NEXT card use the same drawing, at two sizes.
 
-const RADIUS: int = UiSkin.RADIUS_M
-const BORDER: int = 4
+const RADIUS: int = UiSkin.RADIUS_S
+## The black outline round a card, and the three inner glosses just inside it (Clash Royale's card look): white along the top,
+## gray along the right, light gray along the bottom (none on the left).
+const BORDER: int = 3
+const GLOSS: int = 4
+const GLOSS_TOP: Color = Color(1.0, 1.0, 1.0, 0.9)
+const GLOSS_RIGHT: Color = Color(0.55, 0.57, 0.62, 0.9)
+const GLOSS_BOTTOM: Color = Color(0.82, 0.84, 0.88, 0.9)
+const OUTLINE: Color = Color(0.0, 0.0, 0.0, 1.0)
 ## How far the thin gold inner frame of a cooling card stands inside its edge; its corners are the card's less this, so the
 ## two curves stay parallel.
 const INNER_INSET: int = BORDER + 9
@@ -16,8 +23,8 @@ const INNER_INSET: int = BORDER + 9
 static func draw(canvas: CanvasItem, rect: Rect2, def: WeaponDef, dim: float = 0.0, lift: bool = false) -> void:
 	var kind: Color = WeaponPickScreen.kind_color(def.kind)
 	var frame: StyleBoxFlat = StyleBoxFlat.new()
-	frame.bg_color = kind.darkened(0.62)
-	frame.border_color = RoyaleStyle.GOLD if lift else kind
+	frame.bg_color = kind.darkened(0.5)
+	frame.border_color = RoyaleStyle.GOLD if lift else OUTLINE
 	frame.set_border_width_all(BORDER)
 	frame.set_corner_radius_all(RADIUS)
 	frame.anti_aliasing = true
@@ -25,10 +32,12 @@ static func draw(canvas: CanvasItem, rect: Rect2, def: WeaponDef, dim: float = 0
 	frame.shadow_size = 6
 	frame.shadow_offset = Vector2(0.0, 5.0)
 	canvas.draw_style_box(frame, rect)
+	_glosses(canvas, rect)
 	# the round art, as wide as the card allows
-	var inner: float = rect.size.x - 2.0 * (BORDER + 3.0)
+	var edge: float = float(BORDER + GLOSS + 1)
+	var inner: float = rect.size.x - 2.0 * edge
 	var texture: Texture2D = Icons.art(StringName("btn_%s" % String(def.id)))
-	var art_rect: Rect2 = Rect2(rect.position + Vector2(BORDER + 3.0, BORDER + 3.0), Vector2(inner, inner))
+	var art_rect: Rect2 = Rect2(rect.position + Vector2(edge, edge), Vector2(inner, inner))
 	if texture != null:
 		canvas.draw_texture_rect(texture, art_rect, false)
 	if dim > 0.0:
@@ -37,6 +46,20 @@ static func draw(canvas: CanvasItem, rect: Rect2, def: WeaponDef, dim: float = 0
 		shade.set_corner_radius_all(RADIUS)
 		shade.anti_aliasing = true
 		canvas.draw_style_box(shade, rect)
+
+
+## The three inner glosses of a card, a few pixels inside its black outline: white along the top, gray along the right and light gray
+## along the bottom, each stopping short of the rounded corners.
+static func _glosses(canvas: CanvasItem, rect: Rect2) -> void:
+	var inset: float = float(BORDER) + float(GLOSS) / 2.0
+	var corner: float = float(RADIUS)
+	var left: float = rect.position.x + inset + corner
+	var right: float = rect.end.x - inset - corner
+	var top: float = rect.position.y + inset
+	var bottom: float = rect.end.y - inset
+	canvas.draw_line(Vector2(left, top), Vector2(right, top), GLOSS_TOP, float(GLOSS))
+	canvas.draw_line(Vector2(rect.end.x - inset, rect.position.y + inset + corner), Vector2(rect.end.x - inset, bottom - corner), GLOSS_RIGHT, float(GLOSS))
+	canvas.draw_line(Vector2(left, bottom), Vector2(right, bottom), GLOSS_BOTTOM, float(GLOSS))
 
 
 ## The empty slot of a hand: a faint card-shaped hollow, waiting for the shuffler.

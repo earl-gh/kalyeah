@@ -7,7 +7,9 @@ extends RefCounted
 const PLATE: Texture2D = preload("res://assets/ui/hand/hand_plate.webp")
 const ICE: Texture2D = preload("res://assets/ui/hand/ice_water.webp")
 const CHAT: Texture2D = preload("res://assets/ui/hand/chat.webp")
-const PLATE_PART: Rect2 = Rect2(0.14848, 0.28269, 0.84254, 0.4733)
+## Only the plate's flat face and its top and left rims: its thick right and bottom sides are cut off, so it runs off the screen's right and
+## bottom edges looking flat (owner). The full art is x 215 to 1435 and y 307 to 821 of the file; this is x 215 to 1378 and y 307 to 765.
+const PLATE_PART: Rect2 = Rect2(0.14848, 0.28269, 0.80318, 0.4217)
 const ICE_PART: Rect2 = Rect2(0.23604, 0.10287, 0.52951, 0.86124)
 const CHAT_PART: Rect2 = Rect2(0.11418, 0.14161, 0.77018, 0.73427)
 ## Width over height of the visible art.
