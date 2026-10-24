@@ -30,10 +30,11 @@ static func chunky(canvas: CanvasItem, rect: Rect2, fill: Color, radius: int, sh
 	box.shadow_offset = Vector2(0.0, 4.0)
 	canvas.draw_style_box(box, rect)
 	if sheen:
+		# nested in the outline: its corners are the shape's minus the outline, so the two curves stay parallel
 		var gloss: StyleBoxFlat = StyleBoxFlat.new()
 		gloss.bg_color = SHEEN
-		gloss.corner_radius_top_left = maxi(radius - OUTLINE, 2)
-		gloss.corner_radius_top_right = maxi(radius - OUTLINE, 2)
+		gloss.corner_radius_top_left = maxi(radius - OUTLINE, 0)
+		gloss.corner_radius_top_right = maxi(radius - OUTLINE, 0)
 		gloss.anti_aliasing = true
 		canvas.draw_style_box(gloss, Rect2(rect.position + Vector2(OUTLINE + 1.0, OUTLINE + 1.0), Vector2(rect.size.x - 2.0 * (OUTLINE + 1.0), rect.size.y * 0.4)))
 
