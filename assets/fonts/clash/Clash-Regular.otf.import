@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://dsf5fk2f100vy"
-path="res://.godot/imported/Bungee-Regular.ttf-153ae8d237587c6d2bca17ccefa68b5d.fontdata"
+uid="uid://bg7aj46xe3tjn"
+path="res://.godot/imported/Clash-Regular.otf-9c9c4c6d66e5b8bfb0ff421f6de3e36c.fontdata"
 
 [deps]
 
-source_file="res://assets/fonts/bungee/Bungee-Regular.ttf"
-dest_files=["res://.godot/imported/Bungee-Regular.ttf-153ae8d237587c6d2bca17ccefa68b5d.fontdata"]
+source_file="res://assets/fonts/clash/Clash-Regular.otf"
+dest_files=["res://.godot/imported/Clash-Regular.otf-9c9c4c6d66e5b8bfb0ff421f6de3e36c.fontdata"]
 
 [params]
 

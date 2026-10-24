@@ -286,8 +286,11 @@ func test_the_open_tab_is_bigger_and_shows_its_name_and_its_arrows() -> void:
 	var picture_middle: float = open.global_position.y + open.size.y / 2.0
 	for arrow: Button in [bar.arrow_left, bar.arrow_right]:
 		assert_almost_eq(arrow.global_position.y + arrow.size.y / 2.0, picture_middle, 1.0, "the arrows are level with the picture")
-	assert_lt(bar.arrow_left.global_position.x, open.global_position.x, "one on its left")
-	assert_gt(bar.arrow_right.global_position.x, open.global_position.x + open.size.x, "one on its right")
+	var left_arrow: Control = bar.arrow_left.get_node("Arrow") as Control
+	var right_arrow: Control = bar.arrow_right.get_node("Arrow") as Control
+	assert_lt(left_arrow.global_position.x + left_arrow.size.x, open.global_position.x, "one on its left, clear of the picture")
+	assert_gt(right_arrow.global_position.x, open.global_position.x + open.size.x, "one on its right, clear of the picture")
+	assert_lte(left_arrow.size.x, UiMetrics.MIN_TEXT * 1.5, "and small")
 
 
 func test_the_ends_have_only_the_arrow_that_leads_somewhere() -> void:

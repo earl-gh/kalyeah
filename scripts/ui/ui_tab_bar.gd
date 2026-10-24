@@ -16,11 +16,11 @@ const ICON_ACTIVE: float = 116.0
 const ICON_IDLE: float = 84.0
 const ICON_Y: float = 86.0
 ## The open tab's name sits under its picture (it rises a few pixels into place as it fades in).
-const LABEL_Y: float = 148.0
-const LABEL_HEIGHT: float = 38.0
+const LABEL_Y: float = 152.0
+const LABEL_HEIGHT: float = 32.0
 const LABEL_RISE: float = 8.0
 ## The arrows: how big they are drawn, how big they are to the thumb, and how far from the picture's edge.
-const ARROW_SIZE: float = 40.0
+const ARROW_SIZE: float = 26.0
 const ARROW_TOUCH: float = 88.0
 const ARROW_GAP: float = 30.0
 const IDLE_SHADE: Color = Color(0.82, 0.82, 0.86)
@@ -113,7 +113,7 @@ func _add_tab(id: StringName, text: String, icon_kind: StringName) -> void:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	UiKit.letter(label, UiMetrics.TITLE)
+	UiKit.letter(label, UiMetrics.CAPTION)
 	button.add_child(label)
 	add_child(button)
 	tabs[id] = button

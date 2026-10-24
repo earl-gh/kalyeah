@@ -1,5 +1,5 @@
 extends GutTest
-## The Street page (left tab) and the Settings entries that took over the Book and History, plus the sentence-case typeface.
+## The Street page (left tab) and the Settings entries that took over the Book and History.
 
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
 
@@ -65,13 +65,3 @@ func test_the_book_and_history_open_from_settings_and_keep_its_tab_lit() -> void
 	await wait_frames(2)
 	assert_eq(screen.current_page, &"history")
 	assert_eq(screen.tab_bar.active, &"settings")
-
-
-func test_the_typeface_writes_lowercase_as_smaller_capitals() -> void:
-	var font: Font = KalyeahTheme.DISPLAY_FONT
-	var capital: float = font.get_string_size("A", HORIZONTAL_ALIGNMENT_LEFT, -1, 100).y
-	var small: Vector2 = font.get_string_size("a", HORIZONTAL_ALIGNMENT_LEFT, -1, 100)
-	var big: Vector2 = font.get_string_size("A", HORIZONTAL_ALIGNMENT_LEFT, -1, 100)
-	assert_gt(capital, 0.0)
-	assert_lt(small.x, big.x, "a lowercase letter is narrower than its capital")
-	assert_gt(small.x, big.x * 0.6, "but still a readable letter, not a speck")
