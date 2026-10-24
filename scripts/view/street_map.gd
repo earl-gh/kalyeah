@@ -88,7 +88,7 @@ const OUTER_TINT: Color = Color(0.62, 0.58, 0.54)
 const SARI_SIGN_HEIGHT: float = 1.15
 ## Which model each cover piece (MapLayout.obstacle_props) is drawn as.
 const OBSTACLE_MODELS: Dictionary[StringName, String] = {
-	&"bench": "bench", &"cardboard_wall": "cardboard_wall", &"school_zone": "school_zone", &"tent": "rooster_tent",
+	&"bench": "bench", &"cardboard_wall": "cardboard_wall", &"tent": "rooster_tent",
 }
 const COVER_HEIGHT: float = 1.15
 const POST_HEIGHT: float = 8.5
@@ -96,8 +96,8 @@ const POST_HEIGHT: float = 8.5
 ## the kids (who stand 1.85 m, so a real thing is about 1.4 times its true size), side by side
 ## in this order (the far end starts half way along, so the two rows differ).
 const BARRIER_HEIGHTS: Dictionary[String, float] = {
-	"fishball_cart": 2.1, "tricycle": 2.4, "bench": 1.1, "crates": 1.1, "sacks": 1.0, "school_zone": 3.0,
-	"basketball_pole": 6.0, "ebike": 1.5, "truck_wheels": 1.4, "sewing_machine": 1.3, "ironing_board": 1.2,
+	"tricycle": 2.4, "bench": 1.1, "crates": 1.1, "sacks": 1.0,
+	"basketball_pole": 6.0, "ebike": 1.5, "truck_wheels": 1.4,
 	"no_id_no_entry": 1.7, "rooster_tent": 1.4, "plank_fence": 1.8, "roof_wall": 2.9, "roof_wall_2": 2.9,
 }
 ## Things whose long side is their depth: they are turned a quarter so the long side faces the play area.
@@ -106,9 +106,7 @@ const BARRIER_TURNED: Array[String] = ["tricycle"]
 ## the boundary): their BARRIER_HEIGHTS entry is their length along the row.
 const BARRIER_LYING: Array[String] = ["basketball_pole"]
 ## The nanay on the sidewalk by the sari-sari store, outside the play area, facing the street.
-## Parked beyond the barrier rows and on the sidewalk, outside the play area (heights in metres).
-const JEEP_HEIGHT: float = 2.8
-const PEDICAB_HEIGHT: float = 2.4
+## Parked on the sidewalk, outside the play area (heights in metres).
 const ICE_CREAM_CART_HEIGHT: float = 2.5
 const NANAY_HEIGHT: float = 2.2
 const NANAY_SWAY_DEGREES: float = 4.0
@@ -512,9 +510,8 @@ static func barrier_width(id: String, scale: float = 1.0) -> float:
 	return side * BARRIER_HEIGHTS[id] * scale / natural.y
 
 
-## The ends of the play area are walled off by a row of street things (a fishball cart, a bench,
-## crates, the SLOW DOWN SCHOOL ZONE sign, a basketball hoop, stacked truck tyres, an ironing board
-## and the wooden A-frame), each at its true size (never stretched to fill a gap), facing the play
+## The ends of the play area are walled off by a row of street things (a bench, crates, a basketball hoop, stacked truck
+## tyres and the wooden A-frame), each at its true size (never stretched to fill a gap), facing the play
 ## area, with uneven gaps and a little turned or set back, as if put down by hand.
 func _add_barricades() -> void:
 	var ids: Array = BARRIER_HEIGHTS.keys()
@@ -642,7 +639,7 @@ func _add_details() -> void:
 	var nanay: Node3D = _add_prop(PropModel.by_height("nanay", NANAY_HEIGHT * scenery()), Vector3(-walk_x, CURB_HEIGHT, store_z + 0.3), PI / 2.0)
 	nanay.name = "Nanay"
 	nanay.add_child(DecorativeSway.new(nanay, NANAY_SWAY_DEGREES, NANAY_SWAY_SECONDS))
-	_add_parked_vehicles(half_w, half_l, walk_x)
+	_add_ice_cream_cart(half_l, walk_x)
 	_add_sidewalk_props(walk_x)
 
 
@@ -657,17 +654,8 @@ func _add_sidewalk_props(walk_x: float) -> void:
 		_add_prop(PropModel.make("drainage_cover", Vector3.ONE * (DRAINAGE_COVER_WIDTH * scenery() / PropModel.size_of("drainage_cover").x)), Vector3(spot.x, CURB_HEIGHT, spot.y))
 
 
-## The jeepney parked across the street behind the top barrier row, the pedicab behind the bottom
-## one, and the ice cream cart on the right sidewalk (all outside the play area).
-func _add_parked_vehicles(half_w: float, half_l: float, walk_x: float) -> void:
-	var jeep: Node3D = PropModel.by_height("jeep", JEEP_HEIGHT * scenery())
-	jeep.name = "Jeep"
-	var jeep_size: Vector3 = PropModel.size_of("jeep") * jeep.scale
-	_add_prop(jeep, Vector3(-half_w * 0.3, 0.0, -(half_l + BARRIER_SETBACK + BARRIER_JITTER + 2.0 + jeep_size.z / 2.0)))
-	var pedicab: Node3D = PropModel.by_height("pedicab", PEDICAB_HEIGHT * scenery())
-	pedicab.name = "Pedicab"
-	var pedicab_size: Vector3 = PropModel.size_of("pedicab") * pedicab.scale
-	_add_prop(pedicab, Vector3(half_w * 0.35, 0.0, half_l + BARRIER_SETBACK + BARRIER_JITTER + 2.0 + pedicab_size.x / 2.0), PI / 2.0)
+## The ice cream cart on the right sidewalk (outside the play area).
+func _add_ice_cream_cart(half_l: float, walk_x: float) -> void:
 	var cart: Node3D = PropModel.by_height("ice_cream_cart", ICE_CREAM_CART_HEIGHT * scenery())
 	cart.name = "IceCreamCart"
 	_add_prop(cart, Vector3(walk_x, CURB_HEIGHT, -half_l * 0.6), -PI / 2.0)

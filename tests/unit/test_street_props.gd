@@ -1,9 +1,9 @@
 extends GutTest
 ## The owner's street models: the nanay outside the play area and the five new barrier things
-## (tricycle, e-bike, sacks, sewing machine, NO ID NO ENTRY sign) across both ends.
+## (tricycle, e-bike, sacks, NO ID NO ENTRY sign) across both ends.
 
 const MAP_SCENE: PackedScene = preload("res://scenes/map/street_map.tscn")
-const NEW_BARRIERS: Array[String] = ["tricycle", "ebike", "sacks", "sewing_machine", "no_id_no_entry", "plank_fence", "roof_wall", "roof_wall_2"]
+const NEW_BARRIERS: Array[String] = ["tricycle", "ebike", "sacks", "no_id_no_entry", "plank_fence", "roof_wall", "roof_wall_2"]
 
 
 func _map() -> StreetMap:
@@ -26,7 +26,7 @@ func test_the_new_things_are_in_the_barrier_rows_at_both_ends() -> void:
 	assert_eq(map.barrier_rows.size(), 2, "a row at each end")
 	var seen: Dictionary = {}
 	for row: Array in map.barrier_rows:
-		assert_gte(row.size(), 5, "a full row (the bigger the things are drawn, the fewer fit across the street; the rest stand on the road beyond)")
+		assert_gte(row.size(), 4, "a full row (the bigger the things are drawn, the fewer fit across the street; the rest stand on the road beyond)")
 		for id: Variant in row:
 			seen[id] = true
 	for id: String in NEW_BARRIERS:
@@ -74,34 +74,30 @@ func test_the_main_screen_model_has_no_nanay_or_barriers() -> void:
 	assert_eq(map.barrier_rows.size(), 0)
 
 
-func test_the_jeep_pedicab_and_ice_cream_cart_are_light_and_whole() -> void:
-	for id: String in ["jeep", "pedicab", "ice_cream_cart"]:
+func test_the_ice_cream_cart_is_light_and_whole() -> void:
+	for id: String in ["ice_cream_cart"]:
 		var counts: Vector2i = MeshAudit.open_edges_and_triangles(PropModel.PATH % id)
 		assert_between(counts.y, 3000, 5500, "%s is light for phones" % id)
 		assert_lt(float(counts.x) / float(counts.y), 0.35, "%s is a whole surface" % id)
 
 
-func test_the_vehicles_are_parked_outside_the_play_area() -> void:
+func test_the_ice_cream_cart_is_parked_on_the_sidewalk_and_the_removed_models_are_gone() -> void:
 	var map: StreetMap = _map()
 	var half_w: float = map.layout.lane_width / 2.0
-	var half_l: float = map.layout.lane_length / 2.0
-	var jeep: Node3D = map.find_child("Jeep", true, false) as Node3D
-	var pedicab: Node3D = map.find_child("Pedicab", true, false) as Node3D
 	var cart: Node3D = map.find_child("IceCreamCart", true, false) as Node3D
-	assert_not_null(jeep)
-	assert_not_null(pedicab)
 	assert_not_null(cart)
-	assert_lt(jeep.position.z, -half_l - 1.0, "the jeep is behind the top barrier row")
-	assert_gt(pedicab.position.z, half_l + 1.0, "the pedicab is behind the bottom barrier row")
 	assert_gt(cart.position.x, half_w + map.layout.boundary_thickness, "the cart is on the right sidewalk")
 	assert_almost_eq(cart.position.y, StreetMap.CURB_HEIGHT, 0.001)
-	var mesh: MeshInstance3D = jeep.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
-	assert_almost_eq(mesh.get_aabb().size.y * jeep.scale.y, StreetMap.JEEP_HEIGHT * map.scenery(), 0.01)
+	for gone: String in ["Jeep", "Pedicab"]:
+		assert_null(map.find_child(gone, true, false), "%s is removed (owner)" % gone)
+	for id: String in ["jeep", "pedicab", "fishball_cart", "ironing_board", "sewing_machine", "school_zone"]:
+		assert_false(FileAccess.file_exists(PropModel.PATH % id), "the %s model file is deleted (owner)" % id)
+		assert_false(StreetMap.BARRIER_HEIGHTS.has(id), "and it is not in the barrier rows")
 
 
 func test_no_vehicle_stands_where_the_kids_play() -> void:
 	var map: StreetMap = _map()
-	for id: String in ["Jeep", "Pedicab", "IceCreamCart"]:
+	for id: String in ["IceCreamCart"]:
 		var node: Node3D = map.find_child(id, true, false) as Node3D
 		var spot: Vector2 = Vector2(node.position.x, node.position.z)
 		assert_false(map.layout.lane_rect().grow(0.5).has_point(spot), "%s is outside the play area" % id)
