@@ -51,6 +51,28 @@ func test_every_texture_is_the_same_left_and_right_so_drawing_half_is_exact() ->
 				assert_eq(plate.get_pixel(x, y), plate.get_pixel(plate.get_width() - 1 - x, y), "%s plate at %d,%d" % [kind, x, y])
 
 
+func test_every_button_has_straight_sides_in_its_stretched_middle_band() -> void:
+	# a nine-slice stretches the rows between the top and bottom texture margins: if a corner arc reaches into them the
+	# side is a stretched sliver of the arc and reads slanted, so the outline column must be one pixel on every band row
+	for radius: int in [UiSkin.BUTTON_RADIUS, UiSkin.RADIUS_M, UiSkin.RADIUS_XL]:
+		for variant: String in UiSkin.BUTTONS:
+			for state: String in ["normal", "hover", "pressed"]:
+				var box: StyleBoxTexture = UiSkin.button(variant, state, radius)
+				var image: Image = box.texture.get_image()
+				var what: String = "%s/%s r%d" % [variant, state, radius]
+				var from: int = int(box.texture_margin_top)
+				var to: int = image.get_height() - int(box.texture_margin_bottom)
+				assert_gt(to, from, "%s: the stretched middle band is not empty" % what)
+				for x: int in [UiSkin.BUTTON_PAD, image.get_width() - 1 - UiSkin.BUTTON_PAD]:
+					var side: Color = image.get_pixel(x, from)
+					assert_gt(side.a, 0.0, "%s: the outline column %d is drawn" % [what, x])
+					var bent: Array[int] = []
+					for y: int in range(from, to):
+						if image.get_pixel(x, y) != side:
+							bent.append(y)
+					assert_eq(bent, [] as Array[int], "%s: column %d is the same on every band row %d-%d" % [what, x, from, to - 1])
+
+
 func test_the_faster_drawing_gives_the_same_pixels_as_before() -> void:
 	# recorded from the per-pixel drawing before the half-and-mirror change; the face and plate colours re-recorded for the
 	# visual pass (a 12 px lip, a brighter lit edge, a stronger side light), the shadows are unchanged
