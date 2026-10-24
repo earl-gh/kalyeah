@@ -36,7 +36,7 @@ static func steps_for(capture_seconds: float, points_to_win: int) -> Array[Dicti
 		{"title": "Aim and throw", "target": &"hand", "text": "Drag a card onto the street and let go to throw it. A quick tap aims for you. Drop it back on your hand to cancel. Each card costs the elixir in its drop; the bar fills by itself."},
 		{"title": "Score a point", "target": &"",
 			"text": "Get your whole team into the enemy base and hold it for %s seconds, with no defender left inside it, or tag everyone on the other team. First to %d points wins." % [String.num(capture_seconds, 0 if is_equal_approx(capture_seconds, roundf(capture_seconds)) else 1), points_to_win]},
-		{"title": "Tagged?", "target": &"", "text": "When your health runs out you wait in your box. A free teammate who runs into the rescue area sets you free."},
+		{"title": "Tagged?", "target": &"", "text": "When your health runs out you wait in your box. A free teammate who stays by your box for five seconds sets you free."},
 	]
 
 

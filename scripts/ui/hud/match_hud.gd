@@ -40,6 +40,9 @@ const CAST_BLOCK_TAGS: Dictionary[int, String] = {
 	StatusEffects.Type.KNOCKOUT: "OUT",
 	StatusEffects.Type.POLYMORPH: "CAN",
 }
+## What the cards say while you stand where nothing can be cast: in the enemy base, or by the box with a teammate waiting.
+const CAPTURING_TAG: String = "CAPTURING"
+const RESCUING_TAG: String = "RESCUING"
 ## Let go of a card with nobody to throw at in range: nothing is thrown, the card stays, and it says why for this long.
 const NO_TARGET_TAG: String = "NO TARGET"
 const NO_TARGET_MS: int = 1200
@@ -216,7 +219,7 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	var notices: Array[String] = []
 	for slot: int in _no_target.size():
 		notices.append(_notice(slot) if playing else "")
-	hand.show_state(sim, player, playing, _block_tag(player) if playing else "", notices)
+	hand.show_state(sim, player, playing, _block_tag(sim, player) if playing else "", notices)
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 
 
@@ -235,8 +238,10 @@ func _notice(slot: int) -> String:
 	return NO_TARGET_TAG if Time.get_ticks_msec() < _no_target_until[slot] else ""
 
 
-## What to print on the cards while a status stops you casting ("" when nothing does).
-func _block_tag(player: PlayerState) -> String:
+## What to print on the cards while a status (or the place you stand in) stops you casting ("" when nothing does).
+func _block_tag(sim: MatchSim, player: PlayerState) -> String:
+	if sim.casting_blocked(player):
+		return CAPTURING_TAG if sim.layout.in_base(-sim.side_for_team(player.team), player.position) else RESCUING_TAG
 	if player.effects.can_cast():
 		return ""
 	for type: int in CAST_BLOCK_TAGS:

@@ -39,15 +39,15 @@ _Avoid_: Loadout (players no longer pick or equip weapons)
 **Next**:
 The card that fills the hand's slot as soon as a card is played.
 
-**Elixir**:
-A player's own bar (up to 10) that refills over time and pays for casting a card; each weapon has a cost. It replaces per-weapon cooldowns.
-_Avoid_: Cooldown, mana
+**Ice water**:
+A player's own bar (up to 10) that refills over time and pays for casting a card; each weapon has a cost. It replaces per-weapon cooldowns. The game calls it ice water; the code and data still say `elixir`.
+_Avoid_: Cooldown, mana, elixir (in the game's words)
 
 **Stamina**:
 A player's own bar that drains while the kid moves and refills while it stands still.
 
-**Exhausted**:
-The two seconds a kid cannot move after its stamina runs out; it can still cast.
+**Overclocked**:
+What a kid is when its stamina runs out: the bar blinks red for two seconds, then refills while the kid can only walk until it is full. It can still cast. The screen shows it as "Exhausted".
 
 **Move target**:
 The street point a player tapped (or right-clicked); the kid walks there in a straight line and stops.

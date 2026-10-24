@@ -3,6 +3,7 @@ keys,en
 %s is coming soon. Agawan Base is the only game to play for now.,%s is coming soon. Agawan Base is the only game to play for now.
 %s panel,%s panel
 %s pressed,%s pressed
+%s × %d,%s × %d
 "%s, %s: read about this weapon","%s, %s: read about this weapon"
 %s: read about this kid,%s: read about this kid
 A bouncing ball that knocks enemies off their feet.,A bouncing ball that knocks enemies off their feet.
@@ -11,6 +12,7 @@ A paper wall in front of you that blocks enemy throws.,A paper wall in front of 
 A rock meteor lands where you aim and stuns everyone it hits.,A rock meteor lands where you aim and stuns everyone it hits.
 "A short haircut under a backward cap, an oversized basketball jersey, cargo shorts and rubber shoes.","A short haircut under a backward cap, an oversized basketball jersey, cargo shorts and rubber shoes."
 A spinning top that sends enemies flying.,A spinning top that sends enemies flying.
+A teammate frees you after %d s at your box.,A teammate frees you after %d s at your box.
 A thin line while you aim,A thin line while you aim
 A tossed can turns whoever it hits into a can for a moment.,A tossed can turns whoever it hits into a can for a moment.
 About %s,About %s
@@ -25,6 +27,7 @@ Attack,Attack
 Auto-pick at timeout,Auto-pick at timeout
 Back,Back
 Back in %d,Back in %d
+Back on your hand to cancel,Back on your hand to cancel
 Back online!,Back online!
 Bato · Heavy,Bato · Heavy
 Bato · Light,Bato · Light
@@ -47,6 +50,8 @@ Can't start the room on this phone.,Can't start the room on this phone.
 Cancel,Cancel
 Cancel ready,Cancel ready
 Caption %d: the smallest text,Caption %d: the smallest text
+CAPTURING,CAPTURING
+"Card %d: %s, %d ice water%s","Card %d: %s, %d ice water%s"
 CHANGE WEAPONS,CHANGE WEAPONS
 Change weapons,Change weapons
 Changes apply immediately,Changes apply immediately
@@ -55,6 +60,8 @@ Checking local connection…,Checking local connection…
 Choices,Choices
 Choose %s,Choose %s
 Choose with Left and Right arrows,Choose with Left and Right arrows
+Choose your kid,Choose your kid
+Clear,Clear
 Close,Close
 Code pasted,Code pasted
 Colour-blind colours,Colour-blind colours
@@ -66,11 +73,11 @@ Reconnecting…"
 Connection lost. Try again.,Connection lost. Try again.
 CONTESTED!,CONTESTED!
 Control,Control
-Control size,Control size
 Copied,Copied
 Copy,Copy
 Copy room code,Copy room code
 Create room,Create room
+Creating the room…,Creating the room…
 Damage,Damage
 DEFEAT,DEFEAT
 Defeat,Defeat
@@ -79,7 +86,6 @@ Detail %d: sentences under a title,Detail %d: sentences under a title
 Developer tools off,Developer tools off
 Developer tools on,Developer tools on
 Done,Done
-DOWN,DOWN
 Edit profile,Edit profile
 Eight letters and numbers,Eight letters and numbers
 Enter a name.,Enter a name.
@@ -88,11 +94,12 @@ Every control in every state.,Every control in every state.
 Example slider,Example slider
 "Example switch, off","Example switch, off"
 "Example switch, on","Example switch, on"
+EXHAUSTED,EXHAUSTED
 Extra,Extra
 "Face 3 bots, or just train.","Face 3 bots, or just train."
-Face: %s,Face: %s
 Finding the host's room…,Finding the host's room…
 FIRST TO,FIRST TO
+First to,First to
 FIRST TO %d,FIRST TO %d
 First to %d,First to %d
 Footwear,Footwear
@@ -109,12 +116,13 @@ Held their base,Held their base
 Held your base,Held your base
 Hide practice tools,Hide practice tools
 History,History
-"Hold and drag to aim, let go to throw","Hold and drag to aim, let go to throw"
 HOLD THE BASE!,HOLD THE BASE!
 Hotspot,Hotspot
 Hotspot rooms need the Android app.,Hotspot rooms need the Android app.
 How the points went,How the points went
 How to play,How to play
+Ice water,Ice water
+Ice water %d of %d,Ice water %d of %d
 Inday,Inday
 Invite friends with a room code.,Invite friends with a room code.
 Jacks,Jacks
@@ -122,17 +130,16 @@ Join hotspot,Join hotspot
 Join room,Join room
 Join team,Join team
 Junjun,Junjun
-Knocked down,Knocked down
 Knocked out,Knocked out
 Langit · Heal,Langit · Heal
 Language,Language
-Large,Large
 "Last match: %s, %s, %d to %d","Last match: %s, %s, %d to %d"
 Lata,Lata
 Leave,Leave
 Leave match,Leave match
 Leave match?,Leave match?
 Left-handed,Left-handed
+Let go to auto-aim · drag out to aim,Let go to auto-aim · drag out to aim
 Ligaya,Ligaya
 Loading…,Loading…
 Loadout,Loadout
@@ -144,11 +151,12 @@ Match settings,Match settings
 Match unavailable,Match unavailable
 Meet the six kids. Tap one to read about them.,Meet the six kids. Tap one to read about them.
 Migo,Migo
-Name,Name
+Needs the Android app.,Needs the Android app.
+NEXT,NEXT
+"NEXT card on the right, your cards to the left","NEXT card on the right, your cards to the left"
 "No local network. Turn on your hotspot or connect to Wi-Fi, then retry.","No local network. Turn on your hotspot or connect to Wi-Fi, then retry."
 NO TARGET,NO TARGET
 Nobody in range · release keeps it,Nobody in range · release keeps it
-Normal,Normal
 Nothing to paste. Copy the room code first.,Nothing to paste. Copy the room code first.
 Off,Off
 On,On
@@ -160,6 +168,7 @@ Open slot,Open slot
 Open slot in the %s team,Open slot in the %s team
 Opens the name and face editor,Opens the name and face editor
 Opens your history,Opens your history
+OUT,OUT
 OVERTIME,OVERTIME
 Papel · Shield,Papel · Shield
 Papel · Trap,Papel · Trap
@@ -168,6 +177,7 @@ Pasted %d of %d characters,Pasted %d of %d characters
 PICK A KID + 2 WEAPONS,PICK A KID + 2 WEAPONS
 Picks it for a slot,Picks it for a slot
 Play,Play
+Play a match,Play a match
 Play again,Play again
 Play as %s,Play as %s
 Play on one local network.,Play on one local network.
@@ -178,7 +188,6 @@ Popoy,Popoy
 Practice,Practice
 Practice again,Practice again
 Practice with the walkthrough,Practice with the walkthrough
-Press a direction to run; let go to stop,Press a direction to run; let go to stop
 Preview only,Preview only
 Preview room,Preview room
 Profile saved,Profile saved
@@ -188,13 +197,13 @@ Quit game?,Quit game?
 "Raises a block of earth that stops enemy throws, then falls.","Raises a block of earth that stops enemy throws, then falls."
 Range,Range
 Ready,Ready
-Ready in %d seconds,Ready in %d seconds
 Reduce motion,Reduce motion
 Rejoin match,Rejoin match
 Rejoining…,Rejoining…
-Release to cancel,Release to cancel
-Release to cast · drag to cancel,Release to cast · drag to cancel
+Release here to cancel,Release here to cancel
+RESCUE,RESCUE
 RESCUED!,RESCUED!
+RESCUING,RESCUING
 Restoring match…,Restoring match…
 Return home,Return home
 Room,Room
@@ -209,7 +218,6 @@ Settings,Settings
 Show practice tools,Show practice tools
 Slot %d: %s,Slot %d: %s
 Slowed,Slowed
-Small,Small
 Snips in front of you: hold longer for more snips.,Snips in front of you: hold longer for more snips.
 Sound,Sound
 Sound and feel,Sound and feel
@@ -222,7 +230,6 @@ Stunned,Stunned
 Suggested: %s,Suggested: %s
 Swipe or use the arrow keys to change,Swipe or use the arrow keys to change
 TAG THEIR BASE!,TAG THEIR BASE!
-Tagged,Tagged
 Tagged them all,Tagged them all
 Tagged you all,Tagged you all
 Tagged · Wait for a rescue,Tagged · Wait for a rescue
@@ -231,10 +238,9 @@ Take 30 damage,Take 30 damage
 Tap to choose which slot the next weapon fills,Tap to choose which slot the next weapon fills
 "Tap to heal yourself, or drag toward a teammate to heal them.","Tap to heal yourself, or drag toward a teammate to heal them."
 Team size,Team size
-Teammates run into your box to free you.,Teammates run into your box to free you.
 That match has ended.,That match has ended.
 The game · %s,The game · %s
-The hotspot room will close for everyone.,The hotspot room will close for everyone.
+The host left. You are the host now.,The host left. You are the host now.
 The words in the game,The words in the game
 THEM,THEM
 Them,Them
@@ -243,6 +249,7 @@ This is a %s message,This is a %s message
 This is a preview: a real room needs the Android app.,This is a preview: a real room needs the Android app.
 "Three slippers fly out and come back, hitting both ways.","Three slippers fly out and come back, hitting both ways."
 Throws a rock that homes in on the nearest enemy.,Throws a rock that homes in on the nearest enemy.
+TIME,TIME
 Toast: %s,Toast: %s
 Toni,Toni
 too low,too low
@@ -268,7 +275,7 @@ YOU,YOU
 You,You
 YOU %d - %d THEM   %s,YOU %d - %d THEM   %s
 Your last battles on this phone.,Your last battles on this phone.
-Your place will be released.,Your place will be released.
 Your profile,Your profile
 Your profile: %s,Your profile: %s
 Your weapons,Your weapons
+Your weapons come as cards,Your weapons come as cards

@@ -11,7 +11,8 @@ const INK: Color = RoyaleStyle.NAVY
 const TITLE_COLOR: Color = RoyaleStyle.GOLD
 const HINT_COLOR: Color = RoyaleStyle.CREAM
 const WAIT_TEXT: String = "Tagged · Wait for a rescue"
-const HINT_TEXT: String = "Teammates run into your box to free you."
+## `%d`: the seconds a teammate has to stay by your box (the rules say).
+const HINT_TEXT: String = "A teammate frees you after %d s at your box."
 ## The countdown to walking out alone, when the match has one (Practice): a ring beside the faces.
 const RELEASE_RING_SIZE: float = 64.0
 ## The same side margin the controls keep.
@@ -28,6 +29,8 @@ var swap_button: Button
 var pips: TeammatePips
 ## Seconds until you walk out alone (shown only when the match sets a release time).
 var release_ring: CountdownRing
+## Seconds until the teammate who is rescuing frees you (shown while one stays by the box and you are next in line).
+var rescue_ring: CountdownRing
 ## What the title, the hint and the button sit in.
 var column: VBoxContainer
 
@@ -66,7 +69,15 @@ func _ready() -> void:
 	release_ring.accessibility_name = "Out alone in"
 	release_ring.visible = false
 	row.add_child(release_ring)
-	hint_label = _label(HINT_TEXT, UiMetrics.CAPTION, HINT_COLOR)
+	rescue_ring = CountdownRing.new()
+	rescue_ring.name = "RescueRing"
+	rescue_ring.custom_minimum_size = Vector2.ONE * RELEASE_RING_SIZE
+	rescue_ring.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rescue_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rescue_ring.accessibility_name = "Freed in"
+	rescue_ring.visible = false
+	row.add_child(rescue_ring)
+	hint_label = _label(UiText.f(HINT_TEXT, [5]), UiMetrics.CAPTION, HINT_COLOR)
 	hint_label.name = "Hint"
 	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(hint_label)
@@ -98,9 +109,23 @@ func sync(_sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	if not visible:
 		return
 	pips.sync(_sim, player)
+	hint_label.text = UiText.f(HINT_TEXT, [ceili(_sim.rules.rescue_hold_time)])
+	var hold: float = _sim.rules.rescue_hold_time
+	rescue_ring.visible = hold > 0.0 and _sim.rescue_rescuer[player.team] >= 0 and _is_next_in_line(_sim, player)
+	if rescue_ring.visible:
+		rescue_ring.show_time(hold - _sim.rescue_elapsed[player.team], hold)
 	release_ring.visible = _sim.tag_release_time > 0.0
 	if release_ring.visible:
 		release_ring.show_time(_sim.tag_release_time - player.tag_time, _sim.tag_release_time)
+
+
+## You were tagged first of the teammates waiting: the rescuer is working on you.
+func _is_next_in_line(sim: MatchSim, player: PlayerState) -> bool:
+	for id: int in sim.players:
+		var other: PlayerState = sim.players[id]
+		if other.team == player.team and other.tagged and other.tag_order < player.tag_order:
+			return false
+	return true
 
 
 func _label(text: String, font_size: int, color: Color) -> Label:

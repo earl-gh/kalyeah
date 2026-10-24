@@ -231,7 +231,7 @@ func test_a_card_tells_a_screen_reader_how_to_use_it() -> void:
 	hud.sync_player(sim, sim.players[1], false)
 	assert_eq(hud.hand.accessibility_name, "Your hand")
 	assert_string_contains(hud.hand.accessibility_description, "Card 1: ", "each card is read out")
-	assert_string_contains(hud.hand.accessibility_description, "elixir", "with its cost")
+	assert_string_contains(hud.hand.accessibility_description, "ice water", "with its cost")
 
 
 # ---- 13: results ----------------------------------------------------------------------------

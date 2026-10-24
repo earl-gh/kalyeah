@@ -81,7 +81,7 @@ func test_a_full_bar_means_the_biggest_number_of_any_weapon() -> void:
 	for weapon: WeaponDef in weapons:
 		top_power = maxf(top_power, float(maxi(weapon.damage, weapon.heal)))
 	assert_eq(maxima["power"], top_power)
-	var any_full: Dictionary[String, bool] = {"Damage": false, "Elixir": false, "Range": false}
+	var any_full: Dictionary[String, bool] = {"Damage": false, "Ice water": false, "Range": false}
 	for weapon: WeaponDef in weapons:
 		for figure: Dictionary in WeaponsPage.figures_of(weapon):
 			var caption: String = String(figure["caption"])

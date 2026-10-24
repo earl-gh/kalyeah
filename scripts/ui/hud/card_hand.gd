@@ -1,7 +1,7 @@
 class_name CardHand
 extends Control
 ## The bottom of the match screen (owner: "make the bottom part exactly like clash royale"; docs/GDD.md "Controls: tap to move,
-## cards to cast"): the NEXT card small at one side, the four cards of the hand in a row, and the elixir bar along the bottom with
+## cards to cast"): the NEXT card small at one side, the four cards of the hand in a row, and the ice water bar along the bottom with
 ## the whole points in a drop at its left end and your health at its right end. Each card shows its cost in a drop at its top
 ## corner; a card you cannot afford is greyed, filling up from the bottom as the bar gets there.
 ##
@@ -44,9 +44,9 @@ const BAR_DROP_RADIUS: float = 25.0
 const BAR_FONT: int = UiMetrics.ACTION
 const HEALTH_FONT: int = UiMetrics.ACTION
 const HEALTH_WIDTH: float = 112.0
-## The elixir colour: a code-drawn stand-in until the art-director sets a token (docs/ART.md has none yet).
-const ELIXIR: Color = Color(0.84, 0.36, 0.94)
-const ELIXIR_FULL_EDGE: Color = RoyaleStyle.GOLD
+## The ice water colour: a code-drawn stand-in until the art-director sets a token (docs/ART.md has none yet).
+const ICE_WATER: Color = Color(0.36, 0.8, 1.0)
+const ICE_WATER_FULL_EDGE: Color = RoyaleStyle.GOLD
 const WELL: Color = Color(0.0, 0.02, 0.08, 0.45)
 const WELL_RADIUS: int = UiSkin.RADIUS_L
 ## A card you cannot afford: a grey wash over the part the bar has not reached yet, a lighter one over the rest.
@@ -253,8 +253,8 @@ func _describe() -> void:
 		var def: WeaponDef = defs[slot]
 		if def == null:
 			continue
-		parts.append("Card %d: %s, %d elixir%s" % [slot + 1, def.display_name, def.elixir_cost, "" if pickable[slot] else ", not ready"])
-	parts.append("Elixir %d of %d" % [floori(elixir), roundi(elixir_max)])
+		parts.append("Card %d: %s, %d ice water%s" % [slot + 1, def.display_name, def.elixir_cost, "" if pickable[slot] else ", not ready"])
+	parts.append("Ice water %d of %d" % [floori(elixir), roundi(elixir_max)])
 	var words: String = ". ".join(parts)
 	if accessibility_description != words:
 		accessibility_description = words
@@ -434,6 +434,11 @@ func _draw() -> void:
 	_draw_next()
 	for slot: int in card_rects.size():
 		_draw_slot(slot)
+	if not blocked_text.is_empty() and _tag_too_wide(blocked_text) and not card_rects.is_empty():
+		var cards: Rect2 = card_rects[0]
+		for card: Rect2 in card_rects:
+			cards = cards.merge(card)
+		_draw_tag(cards.get_center(), UiText.t(blocked_text))
 	_draw_bar()
 	_draw_health()
 	if held_slot >= 0 and defs[held_slot] != null:
@@ -474,7 +479,8 @@ func _draw_slot(slot: int) -> void:
 		_draw_grey(rect, reached[slot])
 	_draw_cost(rect, def, pickable[slot] or reached[slot] >= 1.0)
 	var tag: String = blocked_text if blocked else notices[slot]
-	if not tag.is_empty():
+	# a word wider than a card (CAPTURING) is said once across the hand, not four times over one another
+	if not tag.is_empty() and not _tag_too_wide(tag):
 		_draw_tag(rect.get_center(), UiText.t(tag))
 	if _deny[slot] > 0.0:
 		var flash: StyleBoxFlat = StyleBoxFlat.new()
@@ -507,7 +513,15 @@ func _draw_cost(rect: Rect2, def: WeaponDef, affordable: bool) -> void:
 		return
 	var radius: float = minf(COST_RADIUS, rect.size.x * 0.16)
 	var centre: Vector2 = rect.position + Vector2(radius + 2.0, radius * CardStyle.DROP_TIP + 2.0)
-	CardStyle.draw_drop(self, centre, radius, str(def.elixir_cost), ELIXIR if affordable else ELIXIR.lerp(Color(0.5, 0.5, 0.55), 0.7), COST_FONT)
+	CardStyle.draw_drop(self, centre, radius, str(def.elixir_cost), ICE_WATER if affordable else ICE_WATER.lerp(Color(0.5, 0.5, 0.55), 0.7), COST_FONT)
+
+
+## The pill for `tag` would be wider than one card.
+func _tag_too_wide(tag: String) -> bool:
+	if card_rects.is_empty():
+		return false
+	var width: float = KalyeahTheme.ACTION_FONT.get_string_size(UiText.t(tag), HORIZONTAL_ALIGNMENT_LEFT, -1.0, COST_FONT).x + 20.0
+	return width > card_rects[0].size.x
 
 
 func _draw_tag(at: Vector2, text: String) -> void:
@@ -523,7 +537,7 @@ func _draw_tag(at: Vector2, text: String) -> void:
 	draw_string(font, at + Vector2(-width / 2.0 + 10.0, COST_FONT * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, COST_FONT, TAG_COLOR)
 
 
-## The elixir bar: a dark track cut into `elixir_max` segments, filled smoothly to the shown elixir, a gold edge when it is full,
+## The ice water bar: a dark track cut into `elixir_max` segments, filled smoothly to the shown elixir, a gold edge when it is full,
 ## and the whole points in a drop at its left end.
 func _draw_bar() -> void:
 	if not uses_elixir or bar_rect.size.x <= 0.0:
@@ -532,7 +546,7 @@ func _draw_bar() -> void:
 	var full: bool = elixir >= elixir_max - 0.001
 	var track: StyleBoxFlat = StyleBoxFlat.new()
 	track.bg_color = Color(0.02, 0.05, 0.14)
-	track.border_color = ELIXIR_FULL_EDGE if full else RoyaleStyle.NAVY
+	track.border_color = ICE_WATER_FULL_EDGE if full else RoyaleStyle.NAVY
 	track.set_border_width_all(RoyaleStyle.OUTLINE)
 	track.set_corner_radius_all(UiSkin.round_radius(bar_rect.size.y))
 	track.anti_aliasing = true
@@ -541,7 +555,7 @@ func _draw_bar() -> void:
 	var share: float = clampf(shown_elixir / maxf(elixir_max, 0.001), 0.0, 1.0)
 	if share > 0.0:
 		var fill: StyleBoxFlat = StyleBoxFlat.new()
-		fill.bg_color = ELIXIR.lightened(0.15) if full else ELIXIR
+		fill.bg_color = ICE_WATER.lightened(0.15) if full else ICE_WATER
 		fill.set_corner_radius_all(UiSkin.round_radius(inner.size.y))
 		fill.anti_aliasing = true
 		draw_style_box(fill, Rect2(inner.position, Vector2(maxf(inner.size.x * share, inner.size.y), inner.size.y)))
@@ -553,7 +567,7 @@ func _draw_bar() -> void:
 		var x: float = inner.position.x + inner.size.x * float(segment) / float(segments)
 		draw_line(Vector2(x, inner.position.y + 2.0), Vector2(x, inner.end.y - 2.0), Color(0.0, 0.0, 0.0, 0.4), 2.0)
 	var drop_centre: Vector2 = Vector2(bar_rect.position.x, bar_rect.get_center().y + BAR_DROP_RADIUS * 0.15)
-	CardStyle.draw_drop(self, drop_centre, BAR_DROP_RADIUS, str(floori(elixir + 0.001)), ELIXIR, BAR_FONT)
+	CardStyle.draw_drop(self, drop_centre, BAR_DROP_RADIUS, str(floori(elixir + 0.001)), ICE_WATER, BAR_FONT)
 
 
 ## Your health at the bar's right end: a heart and the number (amber below half, red below a quarter, the number always there).

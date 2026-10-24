@@ -168,7 +168,7 @@ func test_a_card_says_when_it_cannot_be_afforded() -> void:
 	player.elixir = 0.0
 	practice.advance(DT)
 	assert_string_contains(practice.hud.hand.accessibility_description, "not ready")
-	assert_string_contains(practice.hud.hand.accessibility_description, "Elixir 0 of 10")
+	assert_string_contains(practice.hud.hand.accessibility_description, "Ice water 0 of 10")
 
 
 func test_a_switch_and_a_slider_are_read_by_their_rows_title() -> void:

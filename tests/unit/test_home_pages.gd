@@ -185,7 +185,7 @@ func test_the_figures_name_damage_or_healing_elixir_and_range() -> void:
 			captions.append(String(figure["caption"]))
 		assert_eq(captions.has("Heal"), weapon.heal > 0, "%s: healing is named as healing" % weapon.id)
 		assert_eq(captions.has("Damage"), weapon.heal <= 0 and weapon.damage > 0, "%s: damage" % weapon.id)
-		assert_eq(captions.has("Elixir"), weapon.elixir_cost > 0, "%s: the Book shows the elixir cost, not the cooldown" % weapon.id)
+		assert_eq(captions.has("Ice water"), weapon.elixir_cost > 0, "%s: the Book shows the ice water cost, not the cooldown" % weapon.id)
 		assert_false(captions.has("Cooldown"))
 		assert_eq(captions.has("Range"), weapon.max_range > 0.0)
 		saw_heal = saw_heal or weapon.heal > 0

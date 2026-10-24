@@ -31,8 +31,8 @@ const SWITCH_HEIGHT: float = UiMetrics.MIN_TARGET
 const TILE_HEIGHT: float = 292.0
 const TILE_ICON: float = 128.0
 const DETAIL_ICON: float = 168.0
-## The colour of each stat bar: power (damage or healing), price (elixir, the hand's own drop colour) and reach (range).
-const BAR_COLORS: Dictionary[String, Color] = {"Damage": Color("ffc233"), "Heal": Color("45dd78"), "Elixir": CardHand.ELIXIR, "Range": Color("4aa0ff")}
+## The colour of each stat bar: power (damage or healing), price (ice water, the hand's own drop colour) and reach (range).
+const BAR_COLORS: Dictionary[String, Color] = {"Damage": Color("ffc233"), "Heal": Color("45dd78"), "Ice water": CardHand.ICE_WATER, "Range": Color("4aa0ff")}
 const PLATE_FOCUS_RADIUS: int = UiSkin.PLATE_RADIUS
 
 ## One tile per weapon, in the order of the rules (whichever way they are grouped).
@@ -255,7 +255,7 @@ static func figures_of(weapon: WeaponDef) -> Array[Dictionary]:
 	elif weapon.damage > 0:
 		found.append({"value": str(weapon.damage), "caption": "Damage"})
 	if weapon.elixir_cost > 0:
-		found.append({"value": str(weapon.elixir_cost), "caption": "Elixir"})
+		found.append({"value": str(weapon.elixir_cost), "caption": "Ice water"})
 	if weapon.max_range > 0.0:
 		found.append({"value": "%s m" % String.num(weapon.max_range, 1).trim_suffix(".0"), "caption": "Range"})
 	return found
@@ -279,7 +279,7 @@ static func fraction_of(caption: String, weapon: WeaponDef, maxima: Dictionary) 
 		"Damage", "Heal":
 			value = float(maxi(weapon.damage, weapon.heal))
 			top = maxima["power"] as float
-		"Elixir":
+		"Ice water":
 			value = float(weapon.elixir_cost)
 			top = maxima["elixir"] as float
 		"Range":
