@@ -185,7 +185,8 @@ static func set_button_styles(theme: Theme, type: String, color: String) -> void
 	theme.set_stylebox("hover_pressed", type, UiSkin.button(variant, "pressed"))
 
 
-## Dresses a button in a game-button variant: a gradient face with a lip (UiSkin), a heavy label.
+## Dresses a button in a game-button variant: a gradient face with a lip (UiSkin), a heavy label, and the shared press
+## feel (UiKit.feel_press), wired once.
 static func style_button(button: Button, color: String) -> void:
 	var variant: String = skin_variant(color)
 	button.add_theme_stylebox_override("normal", UiSkin.button(variant))
@@ -196,6 +197,7 @@ static func style_button(button: Button, color: String) -> void:
 	button.add_theme_stylebox_override("focus", UiSkin.focus_ring())
 	button.add_theme_font_override("font", BUTTON_FONT)
 	UiSkin.style_label(button, variant)
+	UiKit.feel_press(button)
 
 
 static func surface_box(corner: int = UiSkin.RADIUS_L, border: int = 1, padding: float = PANEL_PADDING) -> StyleBoxFlat:
