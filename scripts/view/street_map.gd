@@ -16,14 +16,11 @@ const SKY_HORIZON: Color = Color(0.78, 0.88, 1.0)
 const SUN_ANGLES: Vector3 = Vector3(-46.0, 52.0, 0.0)
 const SUN_COLOR: Color = Color(0.9, 0.95, 1.0)
 const SUN_ENERGY: float = 1.3
-const SHADOW_OPACITY: float = 0.7
-## Soft shadow edges (visual pass: 1.6 read as hard dark patches beside the buildings).
-const SHADOW_BLUR: float = 2.2
 const FILL_ANGLES: Vector3 = Vector3(-30.0, 258.0, 0.0)
 const FILL_COLOR: Color = Color(0.64, 0.76, 1.0)
 const FILL_ENERGY: float = 0.45
 const AMBIENT_COLOR: Color = Color(0.85, 0.91, 1.0)
-## Raised from 0.82 (visual pass): the shadow side of the street was muddy; the sun, its colour and the shadow opacity stay the owner's.
+## Raised from 0.82 (visual pass): the shadow side of the street was muddy; the sun and its colour stay the owner's.
 const AMBIENT_ENERGY: float = 0.95
 const EXPOSURE: float = 1.0
 const TONEMAP_WHITE: float = 4.0
@@ -73,7 +70,6 @@ const CAT_HEIGHT: float = 0.3
 const DOG_HEIGHT: float = 0.62
 const CHICKEN_CAGE_HEIGHT: float = 0.9
 const DRAINAGE_COVER_WIDTH: float = 0.75
-const SHADOW_DISTANCE: float = 400.0
 ## Painted ground sits just above the road slab.
 const PAVER_TILE: float = 2.4
 ## The slab under the owner's tiled floor (and the street past both ends): dark grey cement.
@@ -196,12 +192,8 @@ static func _light_scene(parent: Node, sun: DirectionalLight3D) -> void:
 	sun.rotation_degrees = SUN_ANGLES
 	sun.light_color = SUN_COLOR
 	sun.light_energy = SUN_ENERGY
-	# real shadows give the toy-town depth; one cheap orthogonal map
-	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-	sun.directional_shadow_max_distance = SHADOW_DISTANCE
-	sun.shadow_opacity = SHADOW_OPACITY
-	sun.shadow_blur = SHADOW_BLUR
+	# no environment shadows (owner): the street, props and houses cast none; each kid keeps its soft blob under its feet
+	sun.shadow_enabled = false
 	var fill: DirectionalLight3D = DirectionalLight3D.new()
 	fill.name = "SkyFill"
 	fill.rotation_degrees = FILL_ANGLES

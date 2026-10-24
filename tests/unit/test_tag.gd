@@ -299,3 +299,11 @@ func test_weapons_can_be_swapped_only_while_tagged() -> void:
 	sim.kill(1)
 	assert_true(sim.swap_loadout(1, &"jacks", &"bola"))
 	assert_eq(sim.players[1].weapons, [&"jacks", &"bola"] as Array[StringName])
+
+
+func test_a_tagged_kid_in_the_box_faces_the_enemy_post() -> void:
+	var sim: MatchSim = _sim()
+	var kid: PlayerState = sim.add_player(1, 0)
+	sim.kill(1)
+	var to_post: Vector2 = (LAYOUT.base_center(-sim.side_for_team(kid.team)) - kid.position).normalized()
+	assert_almost_eq(kid.facing, to_post, Vector2(0.001, 0.001), "toward the post of the team that holds it")

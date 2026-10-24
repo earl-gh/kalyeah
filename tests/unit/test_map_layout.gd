@@ -42,8 +42,7 @@ func test_each_tagged_box_sits_in_a_corner_of_the_play_area_a_little_in_from_the
 	assert_true(own.position.x > lane.position.x and own.position.y > lane.position.y, "yours: the top left corner, set in from both edges")
 	assert_true(enemy.end.x < lane.end.x and enemy.end.y < lane.end.y, "theirs: the bottom right corner, set in from both edges")
 	assert_almost_eq(own.position - lane.position, lane.end - enemy.end, Vector2(0.001, 0.001), "the same distance in for both teams")
-	assert_gt(own.size.y, own.size.x, "a portrait box, taller than wide (owner)")
-	assert_lt(own.size.x / own.size.y, 0.9, "clearly portrait, not nearly square")
+	assert_almost_eq(own.size.y / own.size.x, 2.0, 0.001, "a portrait box, 1:2 (owner)")
 	assert_true(lane.grow(0.001).encloses(own))
 	assert_true(lane.grow(0.001).encloses(enemy))
 
