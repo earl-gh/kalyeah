@@ -16,6 +16,8 @@ const SKY_HORIZON: Color = Color(0.78, 0.88, 1.0)
 const SUN_ANGLES: Vector3 = Vector3(-46.0, 52.0, 0.0)
 const SUN_COLOR: Color = Color(0.9, 0.95, 1.0)
 const SUN_ENERGY: float = 1.3
+## How far the (invisible) shadow pass reaches.
+const SHADOW_DISTANCE: float = 400.0
 const FILL_ANGLES: Vector3 = Vector3(-30.0, 258.0, 0.0)
 const FILL_COLOR: Color = Color(0.64, 0.76, 1.0)
 const FILL_ENERGY: float = 0.45
@@ -192,8 +194,12 @@ static func _light_scene(parent: Node, sun: DirectionalLight3D) -> void:
 	sun.rotation_degrees = SUN_ANGLES
 	sun.light_color = SUN_COLOR
 	sun.light_energy = SUN_ENERGY
-	# no environment shadows (owner): the street, props and houses cast none; each kid keeps its soft blob under its feet
-	sun.shadow_enabled = false
+	# no shadows on the street (owner): the shadow is fully see-through. The light keeps its shadow pass on purpose: switching it
+	# off made the whole street much darker (about 30%) in the Compatibility renderer, and the owner only asked for no shadows.
+	sun.shadow_enabled = true
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	sun.directional_shadow_max_distance = SHADOW_DISTANCE
+	sun.shadow_opacity = 0.0
 	var fill: DirectionalLight3D = DirectionalLight3D.new()
 	fill.name = "SkyFill"
 	fill.rotation_degrees = FILL_ANGLES
