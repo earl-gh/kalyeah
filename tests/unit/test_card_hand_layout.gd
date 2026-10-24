@@ -46,12 +46,12 @@ func test_next_then_four_upright_cards_then_the_bar_under_them() -> void:
 		var cards: Array[Rect2] = []
 		for card: Rect2 in hand.card_rects:
 			cards.append(_on_screen(hud, card))
-		assert_lt(next.end.y, cards[0].position.y, "%s: NEXT above the hand, outside the tray (owner)" % shape)
-		assert_lt(next.position.x, shape.x / 2.0, "%s: at the left" % shape)
+		assert_lt(next.end.x, cards[0].position.x, "%s: NEXT in the column at the left, beside the cardboard (owner)" % shape)
 		assert_lt(next.size.x, cards[0].size.x, "%s: and smaller" % shape)
 		assert_true(Rect2(Vector2.ZERO, shape).encloses(next), "%s: on screen" % shape)
 		var chat: Rect2 = _on_screen(hud, hand.chat_rect)
 		assert_lt(chat.end.y, next.position.y, "%s: the chat button above NEXT" % shape)
+		assert_lt(chat.end.x, cards[0].position.x, "%s: in the column too" % shape)
 		assert_gte(minf(chat.size.x, chat.size.y), UiMetrics.MIN_TARGET, "%s: thumb-sized" % shape)
 		for slot: int in cards.size():
 			var card: Rect2 = cards[slot]
@@ -62,11 +62,9 @@ func test_next_then_four_upright_cards_then_the_bar_under_them() -> void:
 			if slot > 0:
 				assert_gt(card.position.x - cards[slot - 1].end.x, 0.0, "%s: a gap between cards %d and %d" % [shape, slot, slot + 1])
 		var bar: Rect2 = _on_screen(hud, hand.bar_rect)
-		var health: Rect2 = _on_screen(hud, hand.health_rect)
 		assert_gt(bar.position.y, cards[0].end.y, "%s: the elixir bar under the cards" % shape)
 		assert_gt(bar.size.x, shape.x * 0.6, "%s: running along the bottom" % shape)
-		assert_gt(health.position.x, bar.end.x, "%s: your health at its right end" % shape)
-		assert_lte(health.end.x, shape.x, "%s: on screen" % shape)
+		assert_gt(bar.end.x, cards[3].end.x - 1.0, "%s: the bar runs under all four cards" % shape)
 		assert_lte(bar.end.y, shape.y, "%s: on screen" % shape)
 
 

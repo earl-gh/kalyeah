@@ -60,20 +60,27 @@ static func _gap(a: Rect2, b: Rect2) -> float:
 	return Vector2(dx, dy).length()
 
 
-# ---- 6: NEXT and the chat button stand outside the tray ----------------------------------------
+# ---- 6: NEXT and the chat button stand in a column beside the cardboard --------------------
 
-func test_next_and_the_chat_button_stand_outside_the_tray_above_it() -> void:
+func test_next_and_the_chat_button_stand_beside_the_cardboard_not_on_it() -> void:
 	for left: bool in [false, true]:
 		var hud: MatchHud = _hud(left)
-		var tray: Rect2 = Rect2(Vector2.ZERO, hud.hand.size)
-		assert_lte(hud.hand.next_rect.end.y, 0.0, "left-handed %s: NEXT is above the tray (owner)" % left)
-		assert_lt(hud.hand.chat_rect.end.y, hud.hand.next_rect.position.y, "the chat button is above NEXT")
-		assert_false(tray.intersects(hud.hand.next_rect))
-		assert_false(tray.intersects(hud.hand.chat_rect))
-		var well: Rect2 = hud.hand.row_rect()
-		for card: Rect2 in hud.hand.card_rects:
-			assert_true(well.encloses(card), "left-handed %s: every card is on the cardboard" % left)
-			assert_true(tray.encloses(card))
+		var hand: CardHand = hud.hand
+		var cards: Rect2 = hand.row_rect()
+		assert_false(cards.intersects(hand.next_rect), "left-handed %s: NEXT is not among the cards (owner)" % left)
+		assert_false(cards.intersects(hand.chat_rect))
+		assert_lt(hand.chat_rect.end.y, hand.next_rect.position.y, "the chat button is above NEXT")
+		var tray: Rect2 = Rect2(Vector2.ZERO, hand.size)
+		assert_true(tray.encloses(hand.next_rect), "inside the tray's band, so the camera keeps the arena clear of it")
+		assert_true(tray.encloses(hand.chat_rect))
+		if left:
+			assert_gt(hand.next_rect.position.x, cards.end.x, "left-handed: the column is at the right")
+		else:
+			assert_lt(hand.next_rect.end.x, cards.position.x, "the column is at the left")
+		var plate_left: float = hud.console.column_width if hud.console.column_left else 0.0
+		for card: Rect2 in hand.card_rects:
+			assert_gte(card.position.x, plate_left, "every card is on the cardboard")
+			assert_lte(card.end.x, plate_left + hand.size.x - hud.console.column_width, "left-handed %s: and inside its edge" % left)
 
 
 # ---- 2: nobody in range ---------------------------------------------------------------------

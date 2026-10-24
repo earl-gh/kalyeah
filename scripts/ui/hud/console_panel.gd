@@ -27,6 +27,19 @@ static func draw_heart(canvas: CanvasItem, at: Vector2, radius: float, color: Co
 	canvas.draw_colored_polygon(PackedVector2Array([at + Vector2(-radius, -radius * 0.12), at + Vector2(radius, -radius * 0.12), at + Vector2(0.0, radius)]), color)
 
 
+## The width of the column beside the cardboard (NEXT and the chat button stand there, over the street) and whether it is at the left.
+var column_width: float = 0.0
+var column_left: bool = true
+
+
+func set_column(width: float, at_left: bool) -> void:
+	column_width = width
+	column_left = at_left
+	queue_redraw()
+
+
 func _draw() -> void:
-	# the owner's cardboard plate (assets/ui/hand/) under the cards, edge to edge and down to the bottom of the screen
-	draw_texture_rect(HandArt.plate(), Rect2(Vector2.ZERO, size), false)
+	# the owner's cardboard plate (assets/ui/hand/) under the cards, down to the bottom of the screen and to the screen's edge on the
+	# side away from the column (like Clash Royale's bottom: the column beside it shows the street)
+	var left: float = column_width if column_left else 0.0
+	draw_texture_rect(HandArt.plate(), Rect2(Vector2(left, 0.0), Vector2(maxf(size.x - column_width, 0.0), size.y)), false)

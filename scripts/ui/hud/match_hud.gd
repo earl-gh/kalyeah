@@ -52,7 +52,7 @@ const SCORE_SIZE: Vector2 = Vector2(330.0, 88.0)
 const CLOCK_SIZE: Vector2 = Vector2(152.0, 88.0)
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## The tray at the bottom of the screen (the hand and the elixir bar): the arena sits above it. The camera reserves the same height.
-const CONSOLE_HEIGHT: float = 292.0
+const CONSOLE_HEIGHT: float = 260.0
 ## The most the bottom inset can add (a tall gesture bar), so the tray never eats the street.
 const MAX_BOTTOM_INSET: float = 80.0
 
@@ -203,6 +203,8 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	# during the opening show the first hand is on the tray, dimmed and locked, instead of an empty tray
 	var shown: bool = playing or (sim.phase == MatchSim.Phase.INTRO and not player.tagged and not pick_open and not connection_blocked)
 	hand.visible = shown
+	chat.visible = shown
+	console.set_column(CardHand.COLUMN if shown else 0.0, not Settings.left_handed)
 	street.active = playing
 	if not playing:
 		street.release()

@@ -23,21 +23,21 @@ signal card_cancelled(slot: int)
 signal card_denied(slot: int)
 
 const SLOTS: int = 4
-## Layout on the 720 px base (the tray's own height is MatchHud.CONSOLE_HEIGHT): side margin (the cardboard's rim), the gap between
-## cards, the row's top (under the cardboard's top rim), the card's height for its width, the bar's height, the gap above it and the room
-## under it (the bottom rim).
-const SIDE: float = 48.0
+## Layout on the 720 px base (the tray's own height is MatchHud.CONSOLE_HEIGHT), like Clash Royale's bottom: a column BESIDE the cardboard
+## (the chat button above NEXT, over the street's edge) and the cardboard with the four cards and the ice water bar. Side margin (the
+## cardboard's rim), the gap between cards, the row's top (under the cardboard's top rim), the card's height for its width, the bar's
+## height, the gap above it and the room under it (the bottom rim).
+const COLUMN: float = 116.0
+const SIDE: float = 40.0
 const CARD_GAP: float = 10.0
 const ROW_TOP: float = 28.0
 const CARD_ASPECT: float = 1.3
 const BAR_HEIGHT: float = 34.0
 const BAR_GAP: float = 14.0
 const BOTTOM_PAD: float = 24.0
-## NEXT and the chat button sit OUTSIDE the tray (owner): over the street, above the tray's near corner (the other corner for a left-handed
-## player), the NEXT card this share of a hand card under its label, the chat button above it.
-const NEXT_SCALE: float = 0.6
-const OUT_EDGE: float = 14.0
-const OUT_RISE: float = 14.0
+## The NEXT card is this share of a hand card, under its label, in the column beside the cardboard; the chat button is above it.
+const NEXT_SCALE: float = 0.66
+const COLUMN_BOTTOM: float = 18.0
 const OUT_GAP: float = 8.0
 const CHAT_HEIGHT: float = 80.0
 const NEXT_FONT: int = UiMetrics.CAPTION
@@ -47,8 +47,6 @@ const COST_BAG: float = 60.0
 const COST_FONT: int = UiMetrics.CAPTION
 const BAR_BAG: float = 66.0
 const BAR_FONT: int = UiMetrics.ACTION
-const HEALTH_FONT: int = UiMetrics.ACTION
-const HEALTH_WIDTH: float = 112.0
 ## The ice water colour: a code-drawn stand-in until the art-director sets a token (docs/ART.md has none yet).
 const ICE_WATER: Color = Color(0.36, 0.8, 1.0)
 const ICE_WATER_FULL_EDGE: Color = RoyaleStyle.GOLD
@@ -82,7 +80,6 @@ var next_rect: Rect2 = Rect2()
 ## The quick chat button's rect, above NEXT (outside the tray, like it).
 var chat_rect: Rect2 = Rect2()
 var bar_rect: Rect2 = Rect2()
-var health_rect: Rect2 = Rect2()
 
 ## What the hand shows (from `show_state()`).
 var defs: Array[WeaponDef] = []
@@ -101,9 +98,6 @@ var uses_elixir: bool = true
 var elixir: float = 0.0
 var elixir_max: float = 10.0
 var shown_elixir: float = 0.0
-var hp: int = 0
-var max_hp: int = 1
-var health_shown: bool = true
 ## Gestures are taken (false under a menu, in the box, during the opening show).
 var active: bool = false
 
@@ -150,9 +144,9 @@ static func tray_height(width: float = 720.0) -> float:
 	return ROW_TOP + card_size(width).y + BAR_GAP + BAR_HEIGHT + BOTTOM_PAD
 
 
-## A hand card's size when the row is `width` wide: the four cards share it (NEXT is outside the tray).
+## A hand card's size when the row is `width` wide: the four cards share what the column leaves.
 static func card_size(width: float) -> Vector2:
-	var card_width: float = floorf((width - SIDE * 2.0 - CARD_GAP * float(SLOTS - 1)) / float(SLOTS))
+	var card_width: float = floorf((width - COLUMN - SIDE * 2.0 - CARD_GAP * float(SLOTS - 1)) / float(SLOTS))
 	return Vector2(card_width, roundf(card_width * CARD_ASPECT))
 
 
@@ -165,18 +159,19 @@ func _layout() -> void:
 	var card: Vector2 = card_size(size.x)
 	var next_size: Vector2 = card * NEXT_SCALE
 	var label_room: float = float(NEXT_FONT) + 8.0
-	var edge_x: float = OUT_EDGE if not mirrored else size.x - OUT_EDGE - next_size.x
-	next_rect = Rect2(Vector2(edge_x, -OUT_RISE - next_size.y), next_size)
+	# the column is beside the cardboard: at the left, or at the right for a left-handed player
+	var column_x: float = 0.0 if not mirrored else size.x - COLUMN
+	var cards_x: float = (COLUMN if not mirrored else 0.0) + SIDE
+	next_rect = Rect2(Vector2(column_x + (COLUMN - next_size.x) / 2.0, size.y - COLUMN_BOTTOM - next_size.y), next_size)
 	var chat_size: Vector2 = Vector2(CHAT_HEIGHT * HandArt.CHAT_ASPECT, CHAT_HEIGHT)
-	var chat_x: float = OUT_EDGE if not mirrored else size.x - OUT_EDGE - chat_size.x
-	chat_rect = Rect2(Vector2(chat_x, next_rect.position.y - label_room - OUT_GAP - chat_size.y), chat_size)
+	chat_rect = Rect2(Vector2(column_x + (COLUMN - chat_size.x) / 2.0, next_rect.position.y - label_room - OUT_GAP - chat_size.y), chat_size)
 	card_rects.clear()
 	for slot: int in SLOTS:
-		card_rects.append(Rect2(Vector2(SIDE + float(slot) * (card.x + CARD_GAP), ROW_TOP), card))
+		card_rects.append(Rect2(Vector2(cards_x + float(slot) * (card.x + CARD_GAP), ROW_TOP), card))
 	var bar_top: float = ROW_TOP + card.y + BAR_GAP
-	var bar_left: float = SIDE + BAR_BAG * HandArt.ICE_ASPECT / 2.0
-	health_rect = Rect2(Vector2(size.x - SIDE - HEALTH_WIDTH, bar_top), Vector2(HEALTH_WIDTH, BAR_HEIGHT))
-	bar_rect = Rect2(Vector2(bar_left, bar_top), Vector2(health_rect.position.x - CARD_GAP - bar_left, BAR_HEIGHT))
+	var bar_left: float = cards_x + BAR_BAG * HandArt.ICE_ASPECT / 2.0
+	var bar_right: float = cards_x + 4.0 * card.x + 3.0 * CARD_GAP
+	bar_rect = Rect2(Vector2(bar_left, bar_top), Vector2(bar_right - bar_left, BAR_HEIGHT))
 	queue_redraw()
 
 
@@ -195,8 +190,6 @@ func show_state(sim: MatchSim, player: PlayerState, playing: bool, block: String
 	uses_elixir = sim.pays_elixir(player)
 	elixir = player.elixir
 	elixir_max = sim.rules.elixir_max
-	hp = player.hp
-	max_hp = sim.rules.player_max_hp
 	blocked_text = block
 	var new_next: WeaponDef = sim.weapon_defs.get(player.next_card) as WeaponDef
 	var shuffling: WeaponDef = sim.weapon_defs.get(player.shuffle_card) as WeaponDef
@@ -438,7 +431,6 @@ func _draw() -> void:
 			cards = cards.merge(card)
 		_draw_tag(cards.get_center(), UiText.t(blocked_text))
 	_draw_bar()
-	_draw_health()
 	if held_slot >= 0 and defs[held_slot] != null:
 		var rect: Rect2 = held_card_rect()
 		CardStyle.draw(self, rect, defs[held_slot], 0.0, true)
@@ -565,21 +557,3 @@ func _draw_bar() -> void:
 		var x: float = inner.position.x + inner.size.x * float(segment) / float(segments)
 		draw_line(Vector2(x, inner.position.y + 2.0), Vector2(x, inner.end.y - 2.0), Color(0.0, 0.0, 0.0, 0.4), 2.0)
 	HandArt.draw_ice(self, Vector2(bar_rect.position.x, bar_rect.get_center().y), BAR_BAG, str(floori(elixir + 0.001)), BAR_FONT)
-
-
-## Your health at the bar's right end: a heart and the number (amber below half, red below a quarter, the number always there).
-func _draw_health() -> void:
-	if not health_shown or health_rect.size.x <= 0.0:
-		return
-	var fraction: float = clampf(float(hp) / maxf(float(max_hp), 1.0), 0.0, 1.0)
-	var color: Color = ConsolePanel.health_color(fraction)
-	RoyaleStyle.chunky(self, health_rect, RoyaleStyle.BLUE_WELL, UiSkin.round_radius(health_rect.size.y), false)
-	var heart: float = health_rect.size.y * 0.32
-	var heart_at: Vector2 = Vector2(health_rect.position.x + heart + 12.0, health_rect.get_center().y)
-	ConsolePanel.draw_heart(self, heart_at, heart, color)
-	var font: Font = KalyeahTheme.ACTION_FONT
-	var text: String = str(hp)
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HEALTH_FONT).x
-	var room_left: float = heart_at.x + heart + 6.0
-	var x: float = room_left + (health_rect.end.x - room_left - width) / 2.0
-	RoyaleStyle.lettered(self, font, text, Vector2(x, health_rect.get_center().y + HEALTH_FONT * 0.36), HEALTH_FONT)

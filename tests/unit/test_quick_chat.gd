@@ -12,12 +12,12 @@ func _hud() -> MatchHud:
 	return hud
 
 
-func test_the_chat_button_sits_above_next_outside_the_tray() -> void:
+func test_the_chat_button_sits_above_next_in_the_column_beside_the_cardboard() -> void:
 	var hud: MatchHud = _hud()
 	var tray_top: float = hud.hand.get_global_rect().position.y
 	var chat: Rect2 = hud.chat.get_global_rect()
 	assert_lt(chat.end.y, hud.hand.next_rect.position.y + tray_top, "above NEXT")
-	assert_lt(chat.end.y, tray_top, "and outside the tray")
+	assert_lt(chat.end.x, hud.hand.card_rects[0].position.x, "beside the cardboard, not above it")
 	assert_gte(minf(chat.size.x, chat.size.y), UiMetrics.MIN_TARGET, "thumb-sized")
 	assert_eq(hud.chat.button.texture_normal, HandArt.chat(), "the owner's speech bubble")
 
