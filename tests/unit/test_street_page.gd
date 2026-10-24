@@ -65,3 +65,13 @@ func test_the_book_and_history_open_from_settings_and_keep_its_tab_lit() -> void
 	await wait_frames(2)
 	assert_eq(screen.current_page, &"history")
 	assert_eq(screen.tab_bar.active, &"settings")
+
+
+func test_the_bottom_bar_runs_edge_to_edge_with_no_margin_around_it() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(3)
+	var rect: Rect2 = screen.tab_bar.get_global_rect()
+	var whole: Rect2 = screen.get_global_rect()
+	assert_almost_eq(rect.position.x, whole.position.x, 0.5, "flush with the left edge")
+	assert_almost_eq(rect.end.x, whole.end.x, 0.5, "flush with the right edge")
+	assert_almost_eq(rect.end.y, whole.end.y, 0.5, "flush with the bottom edge")

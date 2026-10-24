@@ -49,7 +49,6 @@ const RULES_PATH: String = "res://data/rules/game_rules.tres"
 const LOGO_HEIGHT: float = 92.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
-const BOTTOM_MARGIN: float = 18.0
 const CTA_HEIGHT: float = 104.0
 ## The main action's breath: it waits `PULSE_DELAY` seconds, then swells to `PULSE_SCALE` and settles, each way in
 ## `PULSE_HALF` seconds.
@@ -161,9 +160,10 @@ func _build_layout() -> void:
 	_page_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	middle.add_child(_page_holder)
 	_build_pages()
+	# the bottom bar is not inside the margins: it runs edge to edge and down to the bottom of the screen
 	tab_bar = UiTabBar.new(TABS)
 	tab_bar.tab_pressed.connect(_on_tab_pressed)
-	shell.add_child(tab_bar)
+	add_child(tab_bar)
 	for id: StringName in tab_bar.tabs:
 		corner_buttons[id] = tab_bar.tabs[id]
 	tab_bar.set_active(&"home")
@@ -544,7 +544,13 @@ func _apply_safe_area() -> void:
 	_margin.add_theme_constant_override("margin_left", int(SIDE_MARGIN + inset.x))
 	_margin.add_theme_constant_override("margin_top", int(TOP_MARGIN + inset.y))
 	_margin.add_theme_constant_override("margin_right", int(SIDE_MARGIN + inset.z))
-	_margin.add_theme_constant_override("margin_bottom", int(BOTTOM_MARGIN + inset.w))
+	# the page and the home stop above the bar, which is flush with the bottom edge (and reaches under the home bar)
+	_margin.add_theme_constant_override("margin_bottom", int(UiTabBar.HEIGHT + inset.w + UiMetrics.COMPACT_GAP))
+	tab_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	tab_bar.offset_left = 0.0
+	tab_bar.offset_right = 0.0
+	tab_bar.offset_bottom = 0.0
+	tab_bar.offset_top = -(UiTabBar.HEIGHT + inset.w)
 
 
 ## The unsafe screen edges (left, top, right, bottom) in UI pixels: the notch, the status bar,
