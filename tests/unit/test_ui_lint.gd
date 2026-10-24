@@ -464,6 +464,23 @@ func _bare_font_sizes(path: String, calls: Dictionary[String, int]) -> Array[Str
 		var where: Dictionary = _line_of(text, hit.get_start())
 		if not where["comment"] and _bare_whole_number(hit.get_string(1)):
 			found.append("%s:%d %s" % [path, where["number"], where["code"]])
+	for spot: Dictionary in _font_spots(text, calls, false):
+		if _bare_whole_number(spot["arg"] as String):
+			found.append("%s:%d %s" % [path, spot["line"], spot["code"]])
+	return found
+
+
+## Engine calls that take a font size, and its index: the text drawing calls, and (`with_overrides`) the theme overrides,
+## which the `"font_size", N)` lint above already reads for bare numbers.
+const DRAW_FONT_ARGS: Dictionary[String, int] = {
+	"draw_string": 5, "draw_string_outline": 5, "draw_multiline_string": 5, "get_string_size": 3, "get_multiline_string_size": 3,
+}
+const OVERRIDE_FONT_ARGS: Dictionary[String, int] = {"add_theme_font_size_override": 1, "set_font_size": 2}
+
+
+## Every argument in `text` that is a font size: {line, code, arg} for each call to a `calls` entry, to one of this file's own
+## `font_size` functions or to an engine text call (`with_overrides`: the theme overrides too). Comments and declarations skipped.
+func _font_spots(text: String, calls: Dictionary[String, int], with_overrides: bool) -> Array[Dictionary]:
 	var spots: Dictionary[String, int] = {}
 	for key: String in calls:
 		var dot: int = key.find(".")
@@ -473,6 +490,12 @@ func _bare_font_sizes(path: String, calls: Dictionary[String, int]) -> Array[Str
 	for name: String in local:
 		if name != "_init":
 			spots["(?<![\\w.])" + name + "\\("] = local[name]
+	var engine: Dictionary[String, int] = DRAW_FONT_ARGS.duplicate()
+	if with_overrides:
+		engine.merge(OVERRIDE_FONT_ARGS)
+	for name: String in engine:
+		spots["\\b" + name + "\\("] = engine[name]
+	var found: Array[Dictionary] = []
 	for pattern: String in spots:
 		for hit: RegExMatch in RegEx.create_from_string(pattern).search_all(text):
 			var where: Dictionary = _line_of(text, hit.get_start())
@@ -481,8 +504,8 @@ func _bare_font_sizes(path: String, calls: Dictionary[String, int]) -> Array[Str
 				continue
 			var args: Array[String] = _call_args(text, hit.get_end() - 1)
 			var index: int = spots[pattern]
-			if index < args.size() and _bare_whole_number(args[index]):
-				found.append("%s:%d %s" % [path, where["number"], code])
+			if index < args.size():
+				found.append({"line": where["number"], "code": code, "arg": args[index]})
 	return found
 
 
@@ -528,4 +551,83 @@ func _bare_font_sizes_in(code: String) -> int:
 	file.close()
 	var count: int = _bare_font_sizes(path, _font_calls()).size()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	return count
+
+
+## Every constant among `paths` that sets a font size from a bare whole number: an int constant named `*FONT*`, or any constant
+## used as a font size (at a spot `_font_spots` finds, here or as `Class.NAME` from another file). `GRABBER_SIZE` used for a
+## Vector2 is not a font size and passes; `const NAME_SIZE: int = 26` handed to a label does not.
+func _bare_font_constants(paths: Array[String], calls: Dictionary[String, int]) -> Array[String]:
+	var texts: Dictionary[String, String] = {}
+	var local_uses: Dictionary[String, Dictionary] = {}
+	var qualified_uses: Dictionary[String, bool] = {}
+	var qualified: RegEx = RegEx.create_from_string("(?<![\\w.])([A-Z]\\w*)\\.([A-Z][A-Z0-9_]+)\\b(?!\\s*\\()")
+	var bare_name: RegEx = RegEx.create_from_string("(?<![\\w.])([A-Z][A-Z0-9_]+)\\b(?!\\s*[.(])")
+	for path: String in paths:
+		var text: String = FileAccess.get_file_as_string(path)
+		texts[path] = text
+		var mine: Dictionary = {}
+		for spot: Dictionary in _font_spots(text, calls, true):
+			var arg: String = spot["arg"] as String
+			for hit: RegExMatch in qualified.search_all(arg):
+				qualified_uses["%s.%s" % [hit.get_string(1), hit.get_string(2)]] = true
+			for hit: RegExMatch in bare_name.search_all(arg):
+				mine[hit.get_string(1)] = true
+		local_uses[path] = mine
+	var found: Array[String] = []
+	var named: RegEx = RegEx.create_from_string("(?m)^class_name\\s+(\\w+)")
+	var constant: RegEx = RegEx.create_from_string("(?m)^\\s*const\\s+([A-Z][A-Z0-9_]*)\\s*(?::\\s*(\\w+)\\s*)?:?=([^\\n#]*)")
+	for path: String in paths:
+		var text: String = texts[path]
+		var owner: RegExMatch = named.search(text)
+		for hit: RegExMatch in constant.search_all(text):
+			var name: String = hit.get_string(1)
+			var type: String = hit.get_string(2)
+			if type != "" and type != "int":
+				continue
+			var used: bool = local_uses[path].has(name) or (owner != null and qualified_uses.has("%s.%s" % [owner.get_string(1), name]))
+			if (used or (type == "int" and name.contains("FONT"))) and _bare_whole_number(hit.get_string(3)):
+				var where: Dictionary = _line_of(text, hit.get_start(1))
+				found.append("%s:%d %s" % [path, where["number"], where["code"]])
+	return found
+
+
+## One type scale, in the constants too: a constant used as a font size (or an int named *FONT*) is defined from UiMetrics, so a
+## bare 30 cannot move out of a call into a local constant and pass. ui_metrics.gd holds the scale itself.
+func test_every_font_size_constant_comes_from_the_type_scale() -> void:
+	var paths: Array[String] = []
+	for folder: String in SHAPE_SOURCES:
+		for file: String in DirAccess.get_files_at(folder):
+			if file.ends_with(".gd") and file != "ui_metrics.gd":
+				paths.append("%s/%s" % [folder, file])
+	var found: Array[String] = _bare_font_constants(paths, _font_calls())
+	assert_eq(found, [] as Array[String], "%d font-size constants must come from UiMetrics:\n%s" % [found.size(), "\n".join(found)])
+
+
+## The constant lint catches a bare font constant and nothing else: a Vector2 size, a float and a count pass.
+func test_the_font_constant_lint_tells_a_font_size_from_another_size() -> void:
+	assert_eq(_bare_font_constants_in(["const NAME_SIZE: int = UiMetrics.DETAIL\nfunc _go() -> void:\n\tMenuDialog.make_button(\"x\", \"grey\", NAME_SIZE)"]), 0)
+	assert_eq(_bare_font_constants_in(["const NAME_SIZE: int = 26\nfunc _go() -> void:\n\tlabel.add_theme_font_size_override(\"font_size\", NAME_SIZE)"]), 1, "used by an override")
+	assert_eq(_bare_font_constants_in(["const PAD: int = 30\nfunc _draw() -> void:\n\tdraw_string(font, at, t, HORIZONTAL_ALIGNMENT_LEFT, -1.0, PAD, Color.WHITE)"]), 1, "used by a draw, whatever its name")
+	assert_eq(_bare_font_constants_in(["const STATUS_FONT: int = 22"]), 1, "an int named FONT")
+	assert_eq(_bare_font_constants_in(["const BIG_FONT: int = UiMetrics.TITLE - 6"]), 1, "a bare offset off the scale")
+	assert_eq(_bare_font_constants_in(["const BIG_FONT: int = UiMetrics.TITLE\nfunc _go() -> void:\n\t_center_text(BIG_FONT)"]), 0)
+	assert_eq(_bare_font_constants_in(["const GRABBER_SIZE: int = 44\nfunc _go() -> void:\n\tMenuDialog.make_button(\"\", \"grey\", UiMetrics.ACTION, Vector2(GRABBER_SIZE, GRABBER_SIZE))"]), 0, "a min_size")
+	assert_eq(_bare_font_constants_in(["const ICON_SIZE: float = 52.0\nconst CARD_SIZE: Vector2 = Vector2(132.0, 178.0)"]), 0, "not ints")
+	assert_eq(_bare_font_constants_in(["const ALIGN: int = 1\nfunc _go() -> void:\n\tfont.get_string_size(t, ALIGN, -1.0, UiMetrics.BODY)"]), 0, "another argument of a text call")
+	assert_eq(_bare_font_constants_in(["class_name LintProbeA\nconst TAG_SIZE: int = 22", "func _go() -> void:\n\tUiKit.chip(\"x\", fill, Color.WHITE, LintProbeA.TAG_SIZE)"]), 1, "used from another file")
+	assert_eq(_bare_font_constants_in(["class_name LintProbeA\nconst TAG_SIZE: int = 22", "func _go() -> void:\n\tUiKit.chip(\"x\", fill, Color.WHITE, UiMetrics.CAPTION)"]), 0, "named SIZE but no font size")
+
+
+func _bare_font_constants_in(codes: Array[String]) -> int:
+	var paths: Array[String] = []
+	for i: int in codes.size():
+		var path: String = "user://lint_const_probe_%d.gd" % i
+		var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+		file.store_string(codes[i] + "\n")
+		file.close()
+		paths.append(path)
+	var count: int = _bare_font_constants(paths, _font_calls()).size()
+	for path: String in paths:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	return count
