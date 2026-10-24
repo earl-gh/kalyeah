@@ -68,10 +68,11 @@ func test_a_player_starts_with_five_elixir() -> void:
 	assert_almost_eq(_sim().players[1].elixir, 5.0, 0.0001)
 
 
-func test_elixir_fills_at_0_36_a_second() -> void:
+## One second of fill, from the rules (tuned in bot rounds: docs/audits/2026-10-24-tap-move-elixir-stamina.md), not a pinned number.
+func test_elixir_fills_at_the_rules_rate() -> void:
 	var sim: MatchSim = _sim()
 	_steps(sim, 30)
-	assert_almost_eq(sim.players[1].elixir, 5.36, 0.001)
+	assert_almost_eq(sim.players[1].elixir, 5.0 + _rules.elixir_regen_per_s, 0.001)
 
 
 func test_elixir_stops_at_ten() -> void:
@@ -92,7 +93,7 @@ func test_a_cast_spends_the_cards_cost() -> void:
 	_hold(sim, &"lata")
 	sim.players[1].elixir = 6.0
 	_tap(sim)
-	assert_almost_eq(sim.players[1].elixir, 1.0, 0.03, "lata costs 5 (plus two ticks of fill)")
+	assert_almost_eq(sim.players[1].elixir, 1.0 + _rules.elixir_regen_per_s * 2.0 * DT, 0.001, "lata costs 5 (plus two ticks of fill)")
 
 
 func test_a_card_above_the_bar_cannot_be_picked_up_or_cast() -> void:
@@ -132,7 +133,7 @@ func test_a_cancel_spends_nothing() -> void:
 	watch_signals(sim)
 	_tap(sim, PlayerInput.BTN_AIM_CANCEL)
 	assert_signal_not_emitted(sim, "weapon_cast")
-	assert_almost_eq(sim.players[1].elixir, 5.0 + 2.0 * 0.36 / 30.0, 0.0001)
+	assert_almost_eq(sim.players[1].elixir, 5.0 + 2.0 * 0.6 / 30.0, 0.0001)
 	assert_eq(sim.players[1].weapons[0], &"lata")
 
 
@@ -143,7 +144,7 @@ func test_a_release_that_casts_nothing_spends_nothing() -> void:
 	watch_signals(sim)
 	_tap(sim)
 	assert_signal_not_emitted(sim, "weapon_cast", "a homing rock with nobody in range throws nothing")
-	assert_almost_eq(sim.players[1].elixir, 5.0 + 2.0 * 0.36 / 30.0, 0.0001)
+	assert_almost_eq(sim.players[1].elixir, 5.0 + 2.0 * 0.6 / 30.0, 0.0001)
 	assert_eq(sim.players[1].weapons[0], &"bato_light")
 
 
@@ -163,9 +164,10 @@ func test_elixir_keeps_filling_while_tagged_and_a_rescue_keeps_it() -> void:
 	sim.players[1].elixir = 2.0
 	sim.kill(1)
 	_steps(sim, 30)
-	assert_almost_eq(sim.players[1].elixir, 2.36, 0.001)
+	var filled: float = 2.0 + _rules.elixir_regen_per_s
+	assert_almost_eq(sim.players[1].elixir, filled, 0.001)
 	sim.objectives.rescue(sim, sim.players[1], 3)
-	assert_almost_eq(sim.players[1].elixir, 2.36, 0.001, "a rescue keeps what you have")
+	assert_almost_eq(sim.players[1].elixir, filled, 0.001, "a rescue keeps what you have")
 
 
 func _play_a_point(sim: MatchSim) -> void:

@@ -91,6 +91,19 @@ them (see "What the harness must print").
 Per matchup, besides today's columns: casts per player per minute, exhaustions per kid per round, share of tags with every hit inside 3 s, and
 per-weapon share of casts. Run with `--seeds 80 --size 3`, the same as the baseline, once with `elixir_enabled` on and once off (shuffler build).
 
+## After the build (2026-10-24, `team_rounds --seeds 80 --size 3`, elixir on, hand 4, stamina on, `elixir_regen_per_s` 0.6)
+| matchup | team 0 / team 1 | no point | seconds to a point | tags | casts / player / min | exhaustions / kid / round | burst tags |
+|---|---|---|---|---|---|---|---|
+| rush v rush | 45 / 33 | 2 | 67.2 | 3.5 | 7.69 | 5.03 | 2.7% |
+| rush v defend | 55 / 25 | 0 | 46.3 | 3.8 | 7.63 | 1.63 | 2.6% |
+| defend v rush | 21 / 57 | 2 | 46.2 | 3.6 | 7.34 | 1.80 | 5.1% |
+| mixed v mixed | 0 / 0 | 80 | none | 0.9 | 4.06 | 3.25 | 0.0% |
+| mixed v rush | 26 / 52 | 2 | 74.6 | 3.7 | 7.05 | 3.76 | 1.7% |
+| defend v defend | 0 / 0 | 80 | none | 0 | 0 | 0 | 0 |
+
+How it got here: at the first spec value (0.36) the same build took 86.2 s a point in the rush mirror with 48 of 80 rounds ending with no point (the elixir-off, hand-2 control: 72.8 s, 16 of 80); stamina off barely changed it, so the slowdown was the elixir rate. Raising it to 0.6 fixes the round length.
+Against the thresholds: seconds to a point (rush mirror 67.2 s against 72.8 s with the shuffler) and rounds with no point (2) pass; burst tags (at most 5.1%) pass. **Fail:** casts per player per minute are +37% against the shuffler build (7.7 against 5.6; a feel question: a faster game is closer to Clash Royale), exhaustions per kid per round are 1.6-5.0 (allowed 0.1-1.5), and gunting_light and gunting_heavy are 1-4% of casts in most matchups (bots stand off and rarely reach 3 m). Mixed v mixed and defend v defend never score with these bots, as before.
+Next, by owner: a tired bot stops strafing in a fight and the scissors need closing-in behaviour (gameplay-engineer, bot code); then re-run and, if the casts-per-minute overshoot matters, try 0.45-0.5.
+
 ## Status
-SPEC. No numbers measured with the new rules yet. Re-run after the engineer lands the fields and bots; keep or change the costs by the thresholds
-above, one group at a time (costs of blocks; then cheap attacks; then stamina), and write the after table here.
+BUILT. First after-table above; three thresholds still fail (bot behaviour and the cast rate). Costs kept as specified.
