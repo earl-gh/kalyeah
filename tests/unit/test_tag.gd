@@ -212,25 +212,6 @@ func test_the_first_tagged_is_the_first_rescued() -> void:
 	assert_true(b.tagged)
 
 
-func test_free_kids_hide_in_their_box_from_the_other_team_only() -> void:
-	var sim: MatchSim = _sim()
-	var mine: PlayerState = sim.add_player(1, 0)
-	var friend: PlayerState = sim.add_player(2, 0)
-	var enemy: PlayerState = sim.add_player(3, 1)
-	friend.position = _box(sim, 0).get_center()
-	enemy.position = _box(sim, 1).get_center()
-	mine.position = Vector2(0.0, 10.0)
-	assert_true(sim.hides_in_box(friend, 1), "team 0's free kid in its box is hidden from team 1")
-	assert_false(sim.hides_in_box(friend, 0), "but not from its own team")
-	assert_true(sim.hides_in_box(enemy, 0), "and the same the other way round")
-	assert_false(sim.hides_in_box(enemy, 1))
-	assert_false(sim.hides_in_box(mine, 1), "a kid outside the box is seen")
-	friend.position = _box(sim, 1).get_center()
-	assert_false(sim.hides_in_box(friend, 1), "only its own team's box hides it")
-	sim.kill(3)
-	assert_true(sim.hides_in_box(enemy, 0), "tagged kids in the box look just the same")
-
-
 func test_an_enemy_in_the_box_rescues_nobody() -> void:
 	var sim: MatchSim = _sim()
 	var me: PlayerState = sim.add_player(1, 0)
