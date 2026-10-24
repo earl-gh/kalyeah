@@ -135,7 +135,7 @@ func test_a_free_enemy_stands_in_its_own_box_and_its_bar_is_hidden() -> void:
 	for i: int in 30:
 		practice.advance(DT)
 	assert_eq(boxed.position, start, "it stands still")
-	assert_false(practice.overhead().bar_visible(boxed), "its bar is hidden from you")
+	assert_true(practice.overhead().bar_visible(boxed), "its bar shows like any free kid's")
 	assert_true(practice.overhead().bar_visible(practice.sim.players[PracticeMatch.ENEMY_STAND_ID]), "the other enemies keep theirs")
 
 
@@ -476,14 +476,13 @@ func test_overhead_bars_use_ml_colours() -> void:
 	assert_eq(hud.bar_color(practice.sim.players[PracticeMatch.ENEMY_STAND_ID]), OverheadHud.ENEMY_COLOR)
 
 
-func test_an_enemy_in_its_box_has_no_bar_over_it() -> void:
+func test_every_free_kid_has_a_bar_wherever_it_stands_and_a_tagged_kid_has_none() -> void:
 	var practice: PracticeMatch = _practice()
 	var hud: OverheadHud = practice.overhead()
 	var enemy: PlayerState = practice.sim.players[PracticeMatch.ENEMY_STAND_ID]
 	assert_true(hud.bar_visible(enemy), "out in the street it has a bar")
 	enemy.position = LAYOUT.jail_rect(-practice.own_side()).get_center()
-	assert_false(hud.bar_visible(enemy), "inside its team's box it blends in with the tagged kids")
-	assert_true(hud.bar_visible(practice.sim.players[PracticeMatch.ALLY_ID]), "your own team is always shown")
+	assert_true(hud.bar_visible(enemy), "in its team's box too: nothing hides there any more (owner)")
 	var ally: PlayerState = practice.sim.players[PracticeMatch.ALLY_ID]
 	ally.position = LAYOUT.jail_rect(practice.own_side()).get_center()
 	assert_true(hud.bar_visible(ally), "a free kid on your team is shown, even standing in your own box")

@@ -111,14 +111,6 @@ func side_for_team(team: int) -> int:
 	return MapLayout.SIDE_OWN if team == 0 else MapLayout.SIDE_ENEMY
 
 
-## True when `state` is a player of the other team standing in its own team's tagged box, as
-## `viewer_team` sees it. Free kids hide there among the tagged ones (owner): to the other team
-## their bar and status are hidden and their minimap dot looks tagged, so they cannot be told
-## apart from the tagged kids and the other team cannot tell who a rescuer is.
-func hides_in_box(state: PlayerState, viewer_team: int) -> bool:
-	return state.team != viewer_team and layout.jail_rect(side_for_team(state.team)).has_point(state.position)
-
-
 ## First to `count` points (one of `rules.first_to_choices`; anything else is ignored).
 ## Set before play starts: it restarts the score.
 func set_first_to(count: int) -> void:

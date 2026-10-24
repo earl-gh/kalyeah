@@ -47,17 +47,30 @@ func test_each_tagged_box_sits_in_a_corner_of_the_play_area_a_little_in_from_the
 	assert_true(lane.grow(0.001).encloses(enemy))
 
 
-func test_the_rescue_area_is_an_even_ring_round_the_box_inside_the_street() -> void:
+func test_the_rescue_area_looks_balanced_round_the_box_and_stays_inside_the_street() -> void:
 	var lane: Rect2 = LAYOUT.lane_rect().grow(0.001)
-	var ring: float = LAYOUT.jail_size.x * LAYOUT.rescue_scale
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var box: Rect2 = LAYOUT.jail_rect(side)
 		var area: Rect2 = LAYOUT.rescue_rect(side)
 		assert_true(area.grow(0.001).encloses(box), "the area holds the box")
 		assert_true(lane.encloses(area), "and stays in the play area")
-		assert_almost_eq(area.size.x, box.size.x + ring * 2.0, 0.001, "the same ring on every side: the box is the inside, the ring the outside")
-		assert_almost_eq(area.size.y, box.size.y + ring * 2.0, 0.001)
-		assert_almost_eq(box.position.x - area.position.x, ring, 0.001, "the ring is there on the street's edge side too (the street does not cut it)")
+		assert_almost_eq(box.position.x - area.position.x, LAYOUT.rescue_ring.x, 0.001, "the same space left and right")
+		assert_almost_eq(area.end.x - box.end.x, LAYOUT.rescue_ring.x, 0.001)
+		assert_almost_eq(box.position.y - area.position.y, LAYOUT.rescue_ring.y, 0.001, "and the same space above and below")
+		assert_almost_eq(area.end.y - box.end.y, LAYOUT.rescue_ring.y, 0.001)
+	# the camera looks down at 45 degrees: a metre along the street shows as sin(pitch) of a metre across it
+	var camera: CameraRules = load("res://data/rules/camera_rules.tres") as CameraRules
+	var on_screen: float = LAYOUT.rescue_ring.y * sin(deg_to_rad(camera.pitch_degrees))
+	assert_almost_eq(on_screen, LAYOUT.rescue_ring.x, 0.03, "so on screen the space above and below equals the space at the sides")
+
+
+func test_the_outer_line_of_each_tag_box_is_level_with_the_base_line_beside_it() -> void:
+	var own_area: Rect2 = LAYOUT.rescue_rect(MapLayout.SIDE_OWN)
+	var enemy_base: Rect2 = LAYOUT.base_rect(MapLayout.SIDE_ENEMY)
+	assert_almost_eq(own_area.position.y, enemy_base.end.y, 0.001, "the top line of the top left box is the bottom line of the top right base")
+	var enemy_area: Rect2 = LAYOUT.rescue_rect(MapLayout.SIDE_ENEMY)
+	var own_base: Rect2 = LAYOUT.base_rect(MapLayout.SIDE_OWN)
+	assert_almost_eq(enemy_area.end.y, own_base.position.y, 0.001, "and the bottom line of the bottom right box is the top line of the bottom left base")
 
 
 func test_a_base_is_a_rounded_rectangle_inside_the_street_the_other_team_captures_in() -> void:
@@ -199,8 +212,6 @@ func test_each_tagged_box_is_a_gently_rounded_portrait_rectangle_with_no_cardboa
 		var street: Rect2 = LAYOUT.lane_rect()
 		assert_gt(box.position.x - street.position.x, 1.0, "set in from the street's edge")
 		assert_gt(street.end.x - box.end.x, 1.0)
-		assert_gt(box.position.y - street.position.y, 1.0, "and from its end")
-		assert_gt(street.end.y - box.end.y, 1.0)
 
 
 func test_props_stay_low_poly() -> void:

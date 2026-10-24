@@ -135,10 +135,9 @@ func tick(delta: float) -> void:
 	queue_redraw()
 
 
-## False for a tagged kid (owner: no health for tagged players) and for an enemy standing in its own team's tagged box: it blends in
-## with the tagged kids (owner), so no bar, number, status or spinner is drawn over it.
+## False for a tagged kid (owner: no health for tagged players). Free kids always show their bar, wherever they stand.
 func bar_visible(state: PlayerState) -> bool:
-	return not state.tagged and not _sim.hides_in_box(state, _local_team)
+	return not state.tagged
 
 
 func bar_color(state: PlayerState) -> Color:

@@ -32,15 +32,17 @@ var lane_length: float:
 ## Where a side's players start and come back to after a rescue: this far from the
 ## post toward the middle of the street (along each axis).
 @export var spawn_offset: float = 0.0
-## The tagged box (a taped rectangle on the road) and its center's inset from its corner of
-## the play area; half the size puts the box flush in the corner (no margin).
-## It is just big enough for its slots: columns across, rows along the street.
+## The tagged box (a rectangle on the road, 1:2) and how far its centre is from the side of the street. It is just big enough for
+## its slots: columns across, rows along the street. Along the street it sits where its rescue area's outer line meets the line of
+## the base beside it (see `jail_rect`).
 @export var jail_size: Vector2 = Vector2.ZERO
-@export var jail_inset: Vector2 = Vector2.ZERO
+@export var jail_inset: float = 0.0
 @export var jail_columns: int = 1
 @export var jail_rows: int = 1
-## The rescue area round the tagged box: a ring this fraction of the box's width wide on every side (the street's edge cuts it off).
-@export var rescue_scale: float = 0.0
+## The rescue area round the tagged box: a ring this wide (m) on the sides (x) and along the street (z). The camera looks down at 45
+## degrees, so a metre along the street shows only about 0.7 as tall as a metre across it: the ring is 1 / sin(45) = 1.4 times wider
+## along the street, so the space round the box looks the same on all four sides.
+@export var rescue_ring: Vector2 = Vector2.ZERO
 ## Cover on the own half of the street (x, z rects); the enemy half gets the same
 ## pieces turned around the center. They block walking and throws for both teams.
 @export var obstacles: Array[Rect2] = []
@@ -102,18 +104,20 @@ func spawn_center(side: int) -> Vector2:
 	return base_center(side) + Vector2(side, -side) * spawn_offset
 
 
-## The box a side's tagged players are sent to: own top-left, enemy bottom-right.
+## The box a side's tagged players are sent to: own top-left, enemy bottom-right. Along the street the outer line of its rescue area
+## is level with the inner line of the other team's base on the same end (the top line of your box with the bottom line of the
+## base at the top right; the bottom line of theirs with the top line of the base at the bottom left).
 func jail_rect(side: int) -> Rect2:
-	var center: Vector2 = Vector2(
-		-side * (lane_width / 2.0 - jail_inset.x), -side * (lane_length / 2.0 - jail_inset.y)
-	)
+	var other_base: Rect2 = base_rect(-side)
+	var edge: float = other_base.end.y if side == SIDE_OWN else other_base.position.y
+	var center: Vector2 = Vector2(-side * (lane_width / 2.0 - jail_inset), edge + side * (rescue_ring.y + jail_size.y / 2.0))
 	return Rect2(center - jail_size / 2.0, jail_size)
 
 
-## The rescue area of a side's box: the box and a ring round it, `rescue_scale` of the box's size wide, cut off by the street's
-## edge. A free teammate stepping into the ring (or the box) frees the tagged kids.
+## The rescue area of a side's box: the box and the ring round it (`rescue_ring`), cut off by the street's edge. A free teammate
+## stepping into the ring (or the box) frees the tagged kids.
 func rescue_rect(side: int) -> Rect2:
-	return jail_rect(side).grow(jail_size.x * rescue_scale).intersection(lane_rect())
+	return jail_rect(side).grow_individual(rescue_ring.x, rescue_ring.y, rescue_ring.x, rescue_ring.y).intersection(lane_rect())
 
 
 ## Where the `index`-th tagged player of a side stands in its box (a grid of
