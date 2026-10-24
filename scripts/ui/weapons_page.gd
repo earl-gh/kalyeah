@@ -31,8 +31,8 @@ const SWITCH_HEIGHT: float = UiMetrics.MIN_TARGET
 const TILE_HEIGHT: float = 292.0
 const TILE_ICON: float = 128.0
 const DETAIL_ICON: float = 168.0
-## The colour of each stat bar: power (damage or healing), time (cooldown) and reach (range).
-const BAR_COLORS: Dictionary[String, Color] = {"Damage": Color("ffc233"), "Heal": Color("45dd78"), "Cooldown": Color("4aa0ff"), "Range": Color("b48cff")}
+## The colour of each stat bar: power (damage or healing), price (ice water, the hand's own drop colour) and reach (range).
+const BAR_COLORS: Dictionary[String, Color] = {"Damage": Color("ffc233"), "Heal": Color("45dd78"), "Ice water": CardHand.ICE_WATER, "Range": Color("4aa0ff")}
 const PLATE_FOCUS_RADIUS: int = UiSkin.PLATE_RADIUS
 
 ## One tile per weapon, in the order of the rules (whichever way they are grouped).
@@ -247,26 +247,26 @@ static func detail(weapon: WeaponDef) -> MenuDialog:
 	return card
 
 
-## The weapon's numbers as {value, caption}: damage (or healing), cooldown and range.
+## The weapon's numbers as {value, caption}: damage (or healing), elixir cost and range.
 static func figures_of(weapon: WeaponDef) -> Array[Dictionary]:
 	var found: Array[Dictionary] = []
 	if weapon.heal > 0:
 		found.append({"value": str(weapon.heal), "caption": "Heal"})
 	elif weapon.damage > 0:
 		found.append({"value": str(weapon.damage), "caption": "Damage"})
-	if weapon.cooldown > 0.0:
-		found.append({"value": "%ss" % String.num(weapon.cooldown, 1).trim_suffix(".0"), "caption": "Cooldown"})
+	if weapon.elixir_cost > 0:
+		found.append({"value": str(weapon.elixir_cost), "caption": "Ice water"})
 	if weapon.max_range > 0.0:
 		found.append({"value": "%s m" % String.num(weapon.max_range, 1).trim_suffix(".0"), "caption": "Range"})
 	return found
 
 
-## The biggest power (damage or healing), cooldown and range among `weapons`: what a full bar means.
+## The biggest power (damage or healing), elixir cost and range among `weapons`: what a full bar means.
 static func stat_maxima(weapons: Array[WeaponDef]) -> Dictionary:
-	var found: Dictionary = {"power": 0.0, "cooldown": 0.0, "range": 0.0}
+	var found: Dictionary = {"power": 0.0, "elixir": 0.0, "range": 0.0}
 	for weapon: WeaponDef in weapons:
 		found["power"] = maxf(found["power"] as float, float(maxi(weapon.damage, weapon.heal)))
-		found["cooldown"] = maxf(found["cooldown"] as float, weapon.cooldown)
+		found["elixir"] = maxf(found["elixir"] as float, float(weapon.elixir_cost))
 		found["range"] = maxf(found["range"] as float, weapon.max_range)
 	return found
 
@@ -279,9 +279,9 @@ static func fraction_of(caption: String, weapon: WeaponDef, maxima: Dictionary) 
 		"Damage", "Heal":
 			value = float(maxi(weapon.damage, weapon.heal))
 			top = maxima["power"] as float
-		"Cooldown":
-			value = weapon.cooldown
-			top = maxima["cooldown"] as float
+		"Ice water":
+			value = float(weapon.elixir_cost)
+			top = maxima["elixir"] as float
 		"Range":
 			value = weapon.max_range
 			top = maxima["range"] as float

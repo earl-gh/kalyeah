@@ -7,16 +7,25 @@ const DT: float = 1.0 / 30.0
 
 var _rules: GameRules
 var _was: bool
+var _was_elixir: bool
+var _was_hand: int
 
 
 func before_each() -> void:
 	_rules = load("res://data/rules/game_rules.tres") as GameRules
 	_was = _rules.card_cycle
 	_rules.card_cycle = true
+	# The shuffler with a hand of two is the elixir-off path now (docs/GDD.md "Controls: tap to move, cards to cast", D26).
+	_was_elixir = _rules.elixir_enabled
+	_was_hand = _rules.hand_size
+	_rules.elixir_enabled = false
+	_rules.hand_size = 2
 
 
 func after_each() -> void:
 	_rules.card_cycle = _was
+	_rules.elixir_enabled = _was_elixir
+	_rules.hand_size = _was_hand
 
 
 func _sim(seed_value: int = 5) -> MatchSim:
@@ -247,26 +256,3 @@ func test_the_kid_screen_is_only_the_kid_row_the_portrait_and_play() -> void:
 	assert_not_null(screen._hero.texture, "the chosen kid's portrait")
 	assert_eq(screen._ready_button.text, "Play")
 	assert_false(screen._hint.visible, "no weapon hints in cards mode")
-
-
-func test_the_bottom_is_a_card_tray_with_cards_at_the_right_and_the_bar_under() -> void:
-	var phone: Control = autofree(Control.new()) as Control
-	phone.size = Vector2(720.0, 1280.0)
-	add_child(phone)
-	var hud: MatchHud = MatchHud.new()
-	phone.add_child(hud)
-	hud.set_card_mode(true)
-	var pad: Rect2 = hud.dpad.get_global_rect()
-	var first: Rect2 = hud.weapon_buttons[0].get_rect()
-	var second: Rect2 = hud.weapon_buttons[1].get_rect()
-	var window: Rect2 = hud.shuffler.get_rect()
-	assert_gt(first.size.y, first.size.x, "upright cards, not round buttons")
-	assert_lt(first.get_center().x, second.get_center().x, "card 1 beside card 2")
-	assert_lte(second.end.x, 720.0, "on screen")
-	assert_lt(window.get_center().x, first.get_center().x, "the shuffler window is left of the hand")
-	assert_false(window.intersects(first), "and does not cover it")
-	assert_lt(pad.get_center().x, window.position.x, "the pad stays at the left of the window")
-	var bar: Rect2 = hud.console.health_rect
-	assert_gt(bar.size.x, 500.0, "the health bar runs along the bottom")
-	assert_gte(bar.position.y, first.end.y - (1280.0 - hud.console_height()), "under the cards")
-	assert_lte(pad.end.y, 1280.0 - hud.console_height() + bar.position.y, "the pad clears the bar")

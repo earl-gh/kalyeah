@@ -144,7 +144,7 @@ func test_the_match_remembers_how_every_point_was_won() -> void:
 	sim.players[4].position = base + Vector2(1.0, 0.0)
 	sim.players[1].position = Vector2(0.0, 0.0)
 	sim.players[2].position = Vector2(2.0, 0.0)
-	_wait(sim, _rules.capture_time + 0.5)
+	_wait(sim, _rules.capture_solo_time + 0.5)
 	assert_eq(sim.point_log.size(), 2)
 	assert_eq(sim.point_log[1], Vector2i(1, MatchSim.CaptureKind.BASE))
 

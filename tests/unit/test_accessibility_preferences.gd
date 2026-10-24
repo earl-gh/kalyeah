@@ -202,27 +202,27 @@ func test_menu_blocks_local_input_and_cancels_aim_without_moving_or_casting() ->
 	practice.finish_pick()
 	practice.skip_intro()
 	var player: PlayerState = practice.sim.players[practice.local_id]
-	practice.input.aim_started(0)
+	player.elixir = practice.rules.elixir_max
+	var held: StringName = player.weapons[0]
+	practice.input.card_press(0, Time.get_ticks_msec())
 	practice.advance(practice.rules.tick_dt())
 	assert_gte(player.aim_hold[0], 0.0)
 	practice.hud.toggle_menu()
 	var start: Vector2 = player.position
-	practice.input.set_stick(Vector2.RIGHT)
-	practice.input.key_held[0] = true
-	practice.input.key_aim[0] = Vector2.UP
+	practice.input.move_press(start + Vector2(3.0, 0.0))
 	var blocked: PlayerInput = practice._local_input(123)
 	assert_eq(blocked.move, Vector2.ZERO)
 	assert_eq(blocked.buttons, PlayerInput.BTN_AIM_CANCEL)
 	assert_eq(blocked.tick, 123)
-	assert_false(practice.input.key_held[0], "discard stale keyboard aim on menu entry")
+	assert_false(practice.input.card_held(), "discard the held card on menu entry")
 	practice.advance(practice.rules.tick_dt() * 3.0)
 	assert_eq(player.position, start, "menu navigation must not move the player")
-	assert_eq(player.aim_hold[0], -1.0, "opening a menu cancels a held aim")
-	assert_eq(player.weapon_cooldowns[0], 0.0, "cancel must not fire a release cast")
+	assert_eq(player.aim_hold[0], -1.0, "opening a menu cancels a held card")
+	assert_eq(player.weapons[0], held, "cancel must not fire a release cast")
 	practice.hud.menu.close()
 	practice.advance(practice.rules.tick_dt())
 	assert_true(practice.controls_active())
-	assert_eq(player.weapon_cooldowns[0], 0.0)
-	practice.input.set_stick(Vector2.RIGHT)
+	assert_eq(player.weapons[0], held)
+	practice.input.move_press(start + Vector2(3.0, 0.0))
 	practice.advance(practice.rules.tick_dt())
 	assert_ne(player.position, start, "fresh input works after closing the menu")

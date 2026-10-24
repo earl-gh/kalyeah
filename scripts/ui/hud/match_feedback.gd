@@ -4,13 +4,16 @@ extends Control
 
 signal return_home
 
+## Letting go of the held card would throw nothing (nobody in range): it stays in the hand and nothing is spent.
+const NOBODY: String = "Nobody in range · release keeps it"
+
 var connection: VBoxContainer
 var message: Label
 var leave: Button
 var hint: Label
 
 
-## Keeps the hint line just above the console, whatever its height.
+## Keeps the hint line just above the tray, whatever its height.
 func set_console_height(height: float) -> void:
 	hint.offset_top = -(height + 130.0)
 	hint.offset_bottom = -(height + 10.0)
@@ -62,24 +65,20 @@ func show_connection(text: String, terminal: bool) -> void:
 	hint.hide()
 
 
-## `no_target[slot]`: letting go of that weapon now would throw nothing (nobody in range).
-func sync_hint(player: PlayerState, buttons: Array[AimButton], playing: bool, no_target: Array[bool] = []) -> void:
+## The line over the tray while a card is held: what letting go now does (`release`), or that it would throw nothing (`nobody`).
+func sync_hint(player: PlayerState, playing: bool, release: MatchInput.Release, nobody: bool = false) -> void:
 	hint.text = ""
 	if not playing or connection.visible:
 		hint.hide()
 		return
 	if not player.effects.can_cast():
-		hint.text = "%s · weapons unavailable" % ", ".join(player.effects.display_names())
+		hint.text = "%s · cards unavailable" % ", ".join(player.effects.display_names())
 	else:
-		for slot: int in buttons.size():
-			var button: AimButton = buttons[slot]
-			if not button.aiming:
-				continue
-			if button.over_cancel:
-				hint.text = "Release to cancel"
-			elif slot < no_target.size() and no_target[slot]:
-				hint.text = "Nobody in range · release keeps it"
-			else:
-				hint.text = "Release to cast · drag to cancel"
-			break
+		match release:
+			MatchInput.Release.TAP:
+				hint.text = NOBODY if nobody else "Let go to auto-aim · drag out to aim"
+			MatchInput.Release.CAST:
+				hint.text = NOBODY if nobody else "Back on your hand to cancel"
+			MatchInput.Release.CANCEL:
+				hint.text = "Release here to cancel"
 	hint.visible = not hint.text.is_empty()

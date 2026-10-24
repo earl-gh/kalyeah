@@ -29,7 +29,7 @@ func _win_the_match(practice: PracticeMatch) -> void:
 	for point: int in practice.sim.score.points_to_win():
 		var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 		player.position = LAYOUT.base_center(-practice.own_side())
-		for i: int in ceili((practice.sim.rules.capture_time + 0.3) / DT):
+		for i: int in ceili((practice.sim.rules.capture_solo_time + 0.3) / DT):
 			practice.advance(DT)
 		for i: int in 100:
 			practice.advance(DT)

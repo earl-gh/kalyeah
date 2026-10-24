@@ -3,9 +3,9 @@ extends Control
 ## The whole in-match HUD, built in code (no scene text to patch): overhead bars,
 ## top row (the settings button on the left, the score on the right; the whole street is
 ## always on screen, so there is no minimap), the TAGGED!/RESCUED! feed under the settings button,
-## the capture countdown, the settings menu, and the controls: the movement stick
-## at the bottom centre with weapon 1 on its left and weapon 2 on its right, all in
-## one row within thumb reach. The score card (points and the match clock) is at the top right.
+## the capture countdown, the settings menu, and the controls (docs/GDD.md "Controls: tap to move, cards to cast"):
+## the hand at the bottom (NEXT, four cards, the elixir bar and your health) within thumb reach, taps on the street to
+## walk (StreetTouch) and the ring where you are walking to (MoveMarker).
 ## The match screen feeds it sim state through `sync_player()` and `sync_score()`.
 
 signal swap_pressed
@@ -15,7 +15,7 @@ signal hurt_pressed
 signal status_test_pressed(type: int)
 ## A card in the tagged panel was tapped: follow player `id`.
 signal exit_pressed
-## The console's height changed (the bottom inset did): the camera keeps this much of the screen clear.
+## The tray's height changed (the bottom inset did): the camera keeps this much of the screen clear.
 signal console_height_changed(height: float)
 ## The header's height (with the top inset) changed: the camera keeps this much of the screen clear at the top.
 signal header_height_changed(height: float)
@@ -32,7 +32,7 @@ const BANNER_OUTLINE: int = roundi(BANNER_FONT * UiSkin.LETTER_OUTLINE_SHARE)
 const BANNER_MARGIN: float = 40.0
 const BANNER_POP_FROM: float = 1.5
 const BANNER_POP_TIME: float = 0.28
-## The short word on a weapon button for each status that stops casting.
+## The short word on the hand's cards for each status that stops casting.
 const CAST_BLOCK_TAGS: Dictionary[int, String] = {
 	StatusEffects.Type.STUN: "STUNNED",
 	StatusEffects.Type.AIRBORNE: "AIRBORNE",
@@ -40,7 +40,10 @@ const CAST_BLOCK_TAGS: Dictionary[int, String] = {
 	StatusEffects.Type.KNOCKOUT: "OUT",
 	StatusEffects.Type.POLYMORPH: "CAN",
 }
-## Let go of a weapon with nobody to throw at in range: nothing is thrown, the weapon stays, and its button says why for this long.
+## What the cards say while you stand where nothing can be cast: in the enemy base, or by the box with a teammate waiting.
+const CAPTURING_TAG: String = "CAPTURING"
+const RESCUING_TAG: String = "RESCUING"
+## Let go of a card with nobody to throw at in range: nothing is thrown, the card stays, and it says why for this long.
 const NO_TARGET_TAG: String = "NO TARGET"
 const NO_TARGET_MS: int = 1200
 ## The header at the top of the screen (floating over the street, like Clash Royale): the settings button, the score and the clock sit in this row.
@@ -56,56 +59,15 @@ const FEED_MAX: int = 3
 ## The feed starts this far under the header: just below your team's tagged box, which is in the top left corner of the street.
 const FEED_DROP: float = 130.0
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
-## Controls (owner), as (distance from their screen edge, distance from the bottom) of each
-## control's centre on the 720x1280 base: the movement stick at the bottom left, the two skill
-## buttons at the bottom right, all in one row within thumb reach.
-## The controller deck at the bottom of the screen: the arena sits above it. The camera reserves the same height.
-const CONSOLE_HEIGHT: float = 294.0
-const ROW_HEIGHT: float = CONSOLE_HEIGHT / 2.0
-## The most the bottom inset can add (a tall gesture bar), so the console never eats the street.
+## The tray at the bottom of the screen (the hand and the elixir bar): the arena sits above it. The camera reserves the same height.
+const CONSOLE_HEIGHT: float = 260.0
+## The most the bottom inset can add (a tall gesture bar), so the tray never eats the street.
 const MAX_BOTTOM_INSET: float = 80.0
-## How long the tick is when the thumb moves to another direction of the pad.
-const PAD_TICK_MS: int = 8
-## The square the D-pad sits in: its disc plus a margin for the thumb.
-const DPAD_ZONE: float = (DPad.MAX_RADIUS + 20.0) * 2.0
-## The D-pad's centre is this far from its screen edge (the left, or the right for a left-handed player).
-const DPAD_MARGIN: float = 170.0
-## The skill buttons: big enough for a thumb (Apple's 44 pt is 84 px), a gap apart, the
-## second against the right margin and the first to its left.
-const WEAPON_SIZE: float = 124.0
-## Staggered like the face buttons of a controller: weapon 2 (the nearer the edge) a little higher, weapon 1 beside it a little lower.
-const WEAPON_GAP: float = 20.0
-const WEAPON_STAGGER: float = 24.0
-const WEAPON_MARGIN: float = 34.0
-## The round sockets in the shell around the D-pad and each skill button.
-const DPAD_SOCKET: float = 120.0
-const WEAPON_SOCKET: float = 74.0
-## The cancel zone sits above the skill buttons (drag a skill onto it to cancel the cast); this is its height
-## from the bottom (its distance from the edge follows the buttons).
-## Cards mode: the hand cards (upright, like a Clash Royale card), how far they sit from the screen edge and the tray's top, the shuffler's
-## window beside them, and the health bar along the bottom of the tray.
-const CARD_SIZE: Vector2 = Vector2(132.0, 178.0)
-const CARD_GAP: float = 14.0
-const CARD_MARGIN: float = 22.0
-const CARD_TOP: float = 20.0
-const SHUFFLER_SIZE: Vector2 = Vector2(92.0, 124.0)
-const SHUFFLER_LIFT: float = 0.0
-const CARD_PAD_LIFT: float = 24.0
-const CARD_PAD_SCALE: float = 0.92
-const BAR_HEIGHT: float = 36.0
-const BAR_BOTTOM: float = 22.0
-const BAR_MARGIN: float = 26.0
-const CANCEL_AT: Vector2 = Vector2(0.0, CONSOLE_HEIGHT + 78.0)
-const CANCEL_SIZE: Vector2 = Vector2(110.0, 100.0)
-## Cards mode: the cancel mark sits up and inward from the inner card, this far from any card's touch area (a full aim from anywhere on a
-## card ends `CANCEL_MARGIN` short of it, so only a drag past the aim ring on purpose reaches it).
-const CANCEL_MARGIN: float = 24.0
-const CANCEL_CLEARANCE: float = AimButton.DRAG_RADIUS + CANCEL_MARGIN
 
 var overhead: OverheadHud
 ## The red glow round the screen edge when you are hit (under the controls).
 var pulse: HurtPulse
-## The controller deck at the bottom (it only draws).
+## The tray at the bottom (it only draws).
 var console: ConsolePanel
 ## UI pixels of the screen's bottom edge the system keeps (home bar), set by the match screen.
 var bottom_inset: float = 0.0
@@ -116,14 +78,12 @@ var top: Control
 var scoreboard: Scoreboard
 ## The match clock at the right of the header.
 var clock_chip: ClockChip
-var dpad: DPad
-var weapon_buttons: Array[AimButton] = []
-## Cards mode (GameRules.card_cycle), set by the match screen before the first layout: the hand of two cards, the shuffler and the health bar instead of two round buttons.
-var card_mode: bool = false
-var shuffler: ShufflerView
-## Weapon 1, weapon 2 (the order MatchInput uses).
-var aim_buttons: Array[AimButton] = []
-var cancel_zone: CancelMark
+## The hand: NEXT, four cards, the elixir bar and your health (it takes the touches on the tray).
+var hand: CardHand
+## Taps on the street (move orders).
+var street: StreetTouch
+## The ring where your kid is walking to.
+var marker: MoveMarker
 var tagged_panel: TaggedPanel
 ## The opening show's banner along the bottom ("TAG THEIR BASE!").
 var intro_bar: Control
@@ -145,9 +105,9 @@ var menu: MatchMenu
 var banner: Label
 
 var feedback: MatchFeedback
-## Per weapon slot: letting go now would throw nothing (nobody in range); until when the button says so after a release.
-var _no_target: Array[bool] = [false, false]
-var _no_target_until: Array[int] = [0, 0]
+## Per hand slot: letting go now would throw nothing (nobody in range); until when the card says so after a release.
+var _no_target: Array[bool] = [false, false, false, false]
+var _no_target_until: Array[int] = [0, 0, 0, 0]
 var connection_blocked: bool = false
 
 var _banner_tween: Tween
@@ -165,13 +125,6 @@ func _ready() -> void:
 	layout_controls()
 
 
-## Pixels the top row is pushed down to clear a notch or status bar.
-## A short tick each time the thumb enters a new direction (phones only; off with the vibration setting).
-func _on_pad_direction(direction: Vector2) -> void:
-	if direction != Vector2.ZERO:
-		Settings.vibrate(PAD_TICK_MS)
-
-
 func set_top_inset(pixels: float) -> void:
 	top.position.y = pixels
 	top_inset = pixels
@@ -184,8 +137,8 @@ func header_height() -> float:
 	return HEADER_HEIGHT + top_inset
 
 
-## The home bar or gesture area under the screen (UI pixels): the console grows by it and the controls ride above it,
-## so a thumb that rests on the bar never lands on a button, and the camera keeps the taller console clear.
+## The home bar or gesture area under the screen (UI pixels): the tray grows by it and the cards ride above it,
+## so a thumb that rests on the bar never lands on a card, and the camera keeps the taller tray clear.
 func set_bottom_inset(pixels: float) -> void:
 	var inset: float = clampf(pixels, 0.0, MAX_BOTTOM_INSET)
 	if is_equal_approx(inset, bottom_inset):
@@ -194,13 +147,7 @@ func set_bottom_inset(pixels: float) -> void:
 	layout_controls()
 
 
-## Switches the bottom between the controller deck and the card tray (GameRules.card_cycle) and lays it out again.
-func set_card_mode(on: bool) -> void:
-	card_mode = on
-	layout_controls()
-
-
-## The console's height now: its own plus the bottom inset.
+## The tray's height now: its own plus the bottom inset.
 func console_height() -> float:
 	return CONSOLE_HEIGHT + bottom_inset
 
@@ -209,20 +156,18 @@ func set_controls_active(active: bool) -> void:
 	active = active and not connection_blocked
 	if not active:
 		cancel_controls()
-	dpad.set_process_input(active)
-	for control: Control in aim_buttons:
-		control.set_process_input(active)
+	hand.set_process_input(active)
+	street.set_process_unhandled_input(active)
 
 
-## Clears every live gesture while leaving input processing in its current state.
+## Clears every live gesture (a held card is dropped, a finger on the street lets go) while leaving input processing as it is.
 func cancel_controls() -> void:
-	dpad.release()
-	for button: AimButton in aim_buttons:
-		button.cancel_aim()
+	hand.cancel_hold()
+	street.release()
 
 
 func controls_active() -> bool:
-	return weapon_buttons[0].is_processing_input()
+	return hand.is_processing_input()
 
 
 func show_banner(text: String) -> void:
@@ -258,73 +203,34 @@ func banner_text() -> String:
 	return banner.text if banner.visible else ""
 
 
-## Buttons, labels and cooldowns for the local player.
+## The hand, the street taps and the hint for the local player.
 func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	tagged_panel.sync(sim, player, pick_open)
-	# while you wait in the box the controls are hidden so the card sits alone at the bottom
-	# no buttons while you wait in the box or during the opening show
+	# no hand while you wait in the box (the tagged panel takes the tray)
 	var playing: bool = not player.tagged and sim.phase == MatchSim.Phase.PLAYING and not pick_open and not connection_blocked
-	# during the opening show the controls and the first hand are on the deck, dimmed and locked, instead of an empty deck
+	# during the opening show the first hand is on the tray, dimmed and locked, instead of an empty tray
 	var shown: bool = playing or (sim.phase == MatchSim.Phase.INTRO and not player.tagged and not pick_open and not connection_blocked)
-	for button: AimButton in weapon_buttons:
-		button.visible = shown
-	dpad.visible = shown
+	hand.visible = shown
+	street.active = playing
 	if not playing:
-		dpad.release()
-	# disabled while on cooldown too: no pressing or precasting until ready
-	var weapons_off: bool = not playing or not player.effects.can_cast()
+		street.release()
 	for slot: int in _no_target.size():
 		_no_target[slot] = playing and sim.lacks_target(player, slot)
-	feedback.sync_hint(player, aim_buttons, playing, _no_target)
+	var notices: Array[String] = []
+	for slot: int in _no_target.size():
+		notices.append(_notice(slot) if playing else "")
+	hand.show_state(sim, player, playing, _block_tag(sim, player) if playing else "", notices)
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
-	console.set_health(player.hp, sim.rules.player_max_hp, playing)
-	console.set_wells_shown(shown)
-	shuffler.show_state(sim, player)
-	shuffler.visible = shown and sim.rules.card_cycle and player.cards
-
-	for slot: int in weapon_buttons.size():
-		var button: AimButton = weapon_buttons[slot]
-		if slot >= player.weapons.size():
-			button.set_locked(true)
-			continue
-		if sim.rules.card_cycle:
-			button.card_style = true
-			var card: WeaponDef = sim.weapon_defs.get(player.weapons[slot]) as WeaponDef
-			var old: WeaponDef = button.weapon_def
-			if card != old and old != null and button.visible and (player.shuffle_card == old.id or player.incoming.has(old.id)):
-				# the card you used flies from its slot to the shuffler
-				CardFlight.fly(self, old, button.get_rect(), Rect2(shuffler.position + shuffler.card_rect().position, shuffler.card_rect().size))
-			button.set_card(card)
-			button.set_waiting(1.0 - clampf(player.shuffle_left / maxf(player.shuffle_total, 0.001), 0.0, 1.0), ceili(player.shuffle_left))
-			var in_hand: bool = card != null
-			button.accessibility_name = "Card %d: %s" % [slot + 1, card.display_name if in_hand else "waiting for the shuffler"]
-			var card_words: String = "Hold and drag to aim, let go to throw" if in_hand else "Ready in %d seconds" % ceili(player.shuffle_left)
-			if button.accessibility_description != card_words:
-				button.accessibility_description = card_words
-			button.blocked_text = _block_tag(player) if (playing and in_hand) else ""
-			button.notice_text = _notice(slot) if (playing and in_hand) else ""
-			button.set_locked(weapons_off or not in_hand)
-			continue
-		var def: WeaponDef = sim.weapon_defs[player.weapons[slot]]
-		if button.label_text != def.short_name or button.sub_text != def.kind_label():
-			button.label_text = def.short_name
-			button.sub_text = def.kind_label()
-			button.icon_id = def.id
-			button.sub_color = WeaponPickScreen.kind_color(def.kind)
-			button.queue_redraw()
-			button.accessibility_name = "Weapon %d: %s, %s" % [slot + 1, def.display_name, def.kind_label()]
-		var cooldown_words: String = "Hold and drag to aim, let go to throw" if player.weapon_cooldowns[slot] <= 0.0 else "Ready in %d seconds" % ceili(player.weapon_cooldowns[slot])
-		if button.accessibility_description != cooldown_words:
-			button.accessibility_description = cooldown_words
-		button.blocked_text = _block_tag(player) if playing else ""
-		button.notice_text = _notice(slot) if playing else ""
-		button.set_locked(weapons_off or player.weapon_cooldowns[slot] > 0.0)
-		button.set_cooldown(player.weapon_cooldowns[slot], def.cooldown)
 
 
-## A weapon let go with nobody in range threw nothing: say so on its button for a moment.
-func _on_aim_released(_aim: Vector2, cancelled: bool, slot: int) -> void:
-	if not cancelled and _no_target[slot]:
+## The hint over the tray while a card is held (`release`: what letting go now would do; `nobody`: it would throw nothing).
+func sync_hold_hint(player: PlayerState, playing: bool, release: MatchInput.Release, nobody: bool) -> void:
+	feedback.sync_hint(player, playing, release, nobody)
+
+
+## A card let go with nobody in range threw nothing: say so on it for a moment.
+func note_released(slot: int, cancelled: bool) -> void:
+	if slot >= 0 and slot < _no_target.size() and not cancelled and _no_target[slot]:
 		_no_target_until[slot] = Time.get_ticks_msec() + NO_TARGET_MS
 
 
@@ -332,8 +238,10 @@ func _notice(slot: int) -> String:
 	return NO_TARGET_TAG if Time.get_ticks_msec() < _no_target_until[slot] else ""
 
 
-## What to print on a weapon button while a status stops you casting ("" when nothing does).
-func _block_tag(player: PlayerState) -> String:
+## What to print on the cards while a status (or the place you stand in) stops you casting ("" when nothing does).
+func _block_tag(sim: MatchSim, player: PlayerState) -> String:
+	if sim.casting_blocked(player):
+		return CAPTURING_TAG if sim.layout.in_base(-sim.side_for_team(player.team), player.position) else RESCUING_TAG
 	if player.effects.can_cast():
 		return ""
 	for type: int in CAST_BLOCK_TAGS:
@@ -427,32 +335,23 @@ func _tick_feed(delta: float) -> void:
 
 func _build() -> void:
 	overhead = OverheadHud.new()
+	overhead.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_place(overhead, Vector4(0, 0, 1, 1), Vector4.ZERO)
 	add_child(overhead)
+	marker = MoveMarker.new()
+	marker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(marker)
+	move_child(marker, 0)  # under the bars over the kids
 	pulse = HurtPulse.new()
 	add_child(pulse)
 	console = ConsolePanel.new()
 	console.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(console)
 	MatchHudTop.build(self)
-	cancel_zone = _build_cancel_zone()
-	var weapon_one: AimButton = _aim_button()
-	var weapon_two: AimButton = _aim_button()
-	weapon_buttons = [weapon_one, weapon_two]
-	aim_buttons = [weapon_one, weapon_two]
-	shuffler = ShufflerView.new()
-	shuffler.visible = false
-	add_child(shuffler)
-	dpad = DPad.new()
-	dpad.accessibility_name = "Movement pad"
-	dpad.accessibility_description = "Press a direction to run; let go to stop"
-	dpad.rest_fraction = Vector2(0.5, 0.5)
-	dpad.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dpad.direction_changed.connect(_on_pad_direction)
-	add_child(dpad)
-	for slot: int in aim_buttons.size():
-		aim_buttons[slot].cancel_zone = cancel_zone
-		aim_buttons[slot].aim_released.connect(_on_aim_released.bind(slot))
+	hand = CardHand.new()
+	add_child(hand)
+	street = StreetTouch.new()
+	add_child(street)
 	banner = Label.new()
 	_place(banner, Vector4(0, 0.3, 1, 0.3), Vector4(0, -60, 0, 60))
 	banner.visible = false
@@ -480,7 +379,7 @@ func _build() -> void:
 	MatchHudTop.build_intro(self)
 	coach = CoachMarks.new(self)
 	add_child(coach)
-	# last, so it draws over the skill buttons
+	# last, so it draws over the hand
 	menu = MatchMenu.new()
 	add_child(menu)
 	hurt_button = menu.hurt_button
@@ -493,7 +392,7 @@ func _build() -> void:
 	feedback.return_home.connect(exit_pressed.emit)
 
 
-## Places the console, the D-pad, the skill buttons and the cancel zone (see MatchHudLayout).
+## Places the tray and the hand (see MatchHudLayout).
 func layout_controls() -> void:
 	MatchHudLayout.apply(self)
 
@@ -512,19 +411,6 @@ func toggle_menu() -> void:
 		return
 	set_controls_active(false)
 	menu.open()
-
-
-func _build_cancel_zone() -> CancelMark:
-	var zone: CancelMark = CancelMark.new()
-	zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	zone.visible = false
-	add_child(zone)
-	return zone
-
-
-## The finger is (true) or is not (false) on the cancel mark: it lights up.
-func set_cancel_hot(hot: bool) -> void:
-	cancel_zone.hot = hot
 
 
 ## Anchors first, then offsets (setting an anchor can move offsets).
@@ -559,13 +445,6 @@ func _button(text: String, font_size: int, anchors: Vector4, offsets: Vector4, p
 	button.text = text
 	button.add_theme_font_size_override("font_size", font_size)
 	(parent if parent != null else self).add_child(button)
-	return button
-
-
-func _aim_button() -> AimButton:
-	var button: AimButton = AimButton.new()
-	button.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(button)
 	return button
 
 

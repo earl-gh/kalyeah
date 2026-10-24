@@ -22,7 +22,7 @@ func _enemy_post(sim: MatchSim, player: PlayerState) -> Vector2:
 ## Puts `player` on the enemy post and waits for the point.
 func _score(sim: MatchSim, player: PlayerState) -> void:
 	player.position = _enemy_post(sim, player)
-	_wait(sim, RULES.capture_time + 0.1)
+	_wait(sim, RULES.capture_solo_time + 0.1)
 
 
 func _finish_freeze(sim: MatchSim) -> void:
@@ -68,14 +68,14 @@ func test_the_sim_takes_the_hosts_choice_and_ignores_anything_else() -> void:
 	assert_eq(sim.score.first_to, 7, "only 3, 5 or 7")
 
 
-# ---- capture: the whole team in the enemy base ------------------------------------
+# ---- capture: free players standing in the enemy base -----------------------------
 
-func test_standing_in_the_enemy_base_for_five_seconds_scores() -> void:
+func test_standing_alone_in_the_enemy_base_for_the_solo_time_scores() -> void:
 	var sim: MatchSim = _sim()
 	var me: PlayerState = sim.add_player(1, 0)
 	watch_signals(sim)
 	me.position = _enemy_post(sim, me) + Vector2(0.0, 1.5)
-	_wait(sim, RULES.capture_time - 0.2)
+	_wait(sim, RULES.capture_solo_time - 0.2)
 	assert_eq(sim.score.points[0], 0, "not yet")
 	assert_eq(sim.capture_team, 0)
 	assert_eq(sim.capture_kind, MatchSim.CaptureKind.BASE)
@@ -86,28 +86,27 @@ func test_standing_in_the_enemy_base_for_five_seconds_scores() -> void:
 	assert_eq(sim.phase, MatchSim.Phase.POINT_FREEZE)
 
 
-func test_the_countdown_starts_only_when_the_whole_team_is_in() -> void:
+func test_one_teammate_in_the_base_is_enough_and_the_one_outside_does_not_stop_it() -> void:
 	var sim: MatchSim = _sim()
 	var a: PlayerState = sim.add_player(1, 0)
 	var b: PlayerState = sim.add_player(2, 0)
 	a.position = _enemy_post(sim, a)
-	_wait(sim, RULES.capture_time + 1.0)
-	assert_eq(sim.capture_team, -1, "one teammate is still outside")
-	assert_eq(sim.score.points[0], 0)
-	b.position = _enemy_post(sim, b) + Vector2(0.0, 1.0)
-	_wait(sim, RULES.capture_time + 0.1)
+	b.position = Vector2(0.0, 0.0)
+	_wait(sim, 1.0)
+	assert_eq(sim.capture_team, 0, "the count runs with the first teammate in")
+	_wait(sim, RULES.capture_solo_time)
 	assert_eq(sim.score.points[0], 1)
 
 
-func test_a_tagged_teammate_stops_the_capture() -> void:
+func test_a_tagged_teammate_does_not_stop_the_capture() -> void:
 	var sim: MatchSim = _sim()
 	var a: PlayerState = sim.add_player(1, 0)
 	var b: PlayerState = sim.add_player(2, 0)
 	a.position = _enemy_post(sim, a)
 	b.position = _enemy_post(sim, b)
 	sim.kill(2)
-	_wait(sim, RULES.capture_time + 0.5)
-	assert_eq(sim.score.points[0], 0, "everyone has to be in the base, so rescue them first")
+	_wait(sim, RULES.capture_solo_time + 0.5)
+	assert_eq(sim.score.points[0], 1, "the free one captures alone")
 
 
 func test_stepping_out_restarts_the_countdown() -> void:
@@ -115,12 +114,12 @@ func test_stepping_out_restarts_the_countdown() -> void:
 	var me: PlayerState = sim.add_player(1, 0)
 	var post: Vector2 = _enemy_post(sim, me)
 	me.position = post
-	_wait(sim, RULES.capture_time - 0.5)
+	_wait(sim, RULES.capture_solo_time - 0.5)
 	me.position = Vector2.ZERO
 	sim.step(DT)
 	assert_eq(sim.capture_team, -1)
 	me.position = post
-	_wait(sim, RULES.capture_time - 0.5)
+	_wait(sim, RULES.capture_solo_time - 0.5)
 	assert_eq(sim.score.points[0], 0)
 
 
@@ -136,7 +135,7 @@ func test_training_dummies_do_not_count_for_a_capture() -> void:
 	var me: PlayerState = sim.add_player(1, 0)
 	sim.add_dummy(2, 0, Vector2(0.0, 10.0), DummyBrain.standing())
 	me.position = _enemy_post(sim, me)
-	_wait(sim, RULES.capture_time + 0.1)
+	_wait(sim, RULES.capture_solo_time + 0.1)
 	assert_eq(sim.score.points[0], 1, "the ally dummy stays home, you still score")
 
 

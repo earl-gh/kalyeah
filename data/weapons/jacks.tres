@@ -12,6 +12,7 @@ street_game = "Jackstone"
 kind = 1
 shape = 4
 cooldown = 11.0
+elixir_cost = 4
 max_range = 6.0
 damage = 3
 radius = 2.0

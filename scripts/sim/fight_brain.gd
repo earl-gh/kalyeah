@@ -11,6 +11,9 @@ extends DummyBrain
 ## `skill` (0 to 1, `bot_skill` in the rules unless set) is how well it aims: at 0 it throws at where the enemy
 ## is, at 1 where the enemy will be, and its aim error shrinks. At any skill it throws ground circles at the
 ## enemy's distance (not at full range) and never throws a projectile into cover, stepping aside until it can.
+## It plays by the players' rules (docs/GDD.md "Bots and the coach play by the same rules"): it walks by move targets, casts only the
+## cards it can afford (released at a street point, a heal as a tap), and with no enemy near it stops to refill its stamina below
+## `bot_stamina_rest` until it is back to `bot_stamina_resume`.
 
 ## Below this share of health a bot heals itself.
 const HEAL_BELOW: float = 0.5
@@ -27,6 +30,8 @@ const SKILLED_ERROR_SHARE: float = 0.3
 const SIDESTEPS: Array[float] = [2.0, 4.0, 6.0, 8.0]
 ## A projectile is blocked by cover this much bigger than the cover (its own width).
 const COVER_MARGIN: float = 0.3
+## While fighting it steers by putting its move target this far ahead in the way it wants to go (re-sent every tick).
+const STEER_AHEAD: float = 1.0
 
 ## Aim quality 0 to 1; -1 takes `bot_skill` from the rules.
 var skill: float = -1.0
@@ -35,6 +40,11 @@ var _press_slot: int = -1
 ## True once a bot standing at its post has set off to rescue a tagged teammate (it keeps going until it is free or an enemy comes).
 var _rescuing: bool = false
 var _aim: Vector2 = Vector2.ZERO
+## The street point the held card is released at; `_tap_release` = released as a tap (a heal on itself).
+var _aim_point: Vector2 = Vector2.ZERO
+var _tap_release: bool = false
+## True while it stands to refill its stamina.
+var _resting: bool = false
 var _cooldown: float = 0.0
 ## Where each enemy was at the last think, and how fast it is going (metres a second), for leading shots.
 var _seen: Dictionary[int, Vector2] = {}
@@ -53,14 +63,42 @@ func think(state: PlayerState, sim: MatchSim) -> PlayerInput:
 	_cooldown = maxf(0.0, _cooldown - sim.rules.tick_dt())
 	_track(state, sim)
 	if _press_slot >= 0:
-		# the second half of a tap: let go, aimed
+		# the second half of a tap: let go, at the aimed point (or as a tap)
 		_press_slot = -1
-		return PlayerInput.create(Vector2.ZERO, _aim, 0, sim.tick)
+		var release: PlayerInput = PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick)
+		return release if _tap_release else release.with_aim_point(_aim_point)
 	var enemy: PlayerState = sim.nearest_enemy(state, sim.rules.bot_aggro_range)
+	if _rest_due(state, sim, enemy):
+		return _stop(state, sim)
 	if enemy == null:
 		return _no_enemy(state, sim)
 	_rescuing = false
 	return _fight(state, sim, enemy)
+
+
+## A brain choice, not a rule: with no enemy near and stamina below `bot_stamina_rest`, stand until it is back to `bot_stamina_resume`.
+func _rest_due(state: PlayerState, sim: MatchSim, enemy: PlayerState) -> bool:
+	if not sim.rules.stamina_enabled or not state.has_stamina or enemy != null:
+		_resting = false
+		return false
+	var share: float = state.stamina / maxf(sim.rules.stamina_max, 0.001)
+	if share < sim.rules.bot_stamina_rest:
+		_resting = true
+	elif share >= sim.rules.bot_stamina_resume:
+		_resting = false
+	return _resting
+
+
+## Stands where it is (a move target on itself ends any walk).
+func _stop(state: PlayerState, sim: MatchSim) -> PlayerInput:
+	return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_move_target(state.position)
+
+
+## Walks the way of `direction` (zero: stands), by a move target `STEER_AHEAD` in front of it.
+func _steer(state: PlayerState, sim: MatchSim, direction: Vector2) -> PlayerInput:
+	if direction.length_squared() <= 0.0:
+		return _stop(state, sim)
+	return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_move_target(state.position + direction.normalized() * STEER_AHEAD)
 
 
 ## No enemy in reach: stay at the post, and rescue only from there (priorities 2 and 3).
@@ -86,19 +124,25 @@ func _at_post(state: PlayerState, _sim: MatchSim) -> bool:
 
 
 func _fight(state: PlayerState, sim: MatchSim, enemy: PlayerState) -> PlayerInput:
+	if sim.casting_blocked(state):
+		# in the enemy base or the rescue area nothing can be cast: step out and fight from outside
+		return _steer(state, sim, _out_of_zone(state, sim))
 	var offset: Vector2 = enemy.position - state.position
 	var distance: float = offset.length()
 	var toward: Vector2 = offset.normalized() if distance > 0.001 else Vector2.DOWN
 	var blocked: bool = _in_cover(state.position, enemy.position, sim)
-	var slot: int = _slot_to_cast(state, sim, distance, blocked)
-	if slot >= 0 and _cooldown <= 0.0 and state.can_act():
+	# only looked for when it could cast now (the hand scan is the brain's hottest path)
+	var slot: int = _slot_to_cast(state, sim, distance, blocked) if _cooldown <= 0.0 and state.can_act() else -1
+	if slot >= 0:
 		_press_slot = slot
 		_cooldown = sim.rules.bot_cast_gap
 		var def: WeaponDef = sim.weapon_defs[state.weapons[slot]]
-		# a tap on a heal heals yourself; a drag would look for a teammate
-		_aim = Vector2.ZERO if def.kind == WeaponDef.Kind.HEAL else _aim_at(state, enemy, def, sim)
-		var bit: int = WeaponCasting.WEAPON_BITS[slot]
-		return PlayerInput.create(Vector2.ZERO, _aim, bit, sim.tick)
+		# a tap on a heal heals yourself; anything else is released at the point it aims at
+		_tap_release = def.kind == WeaponDef.Kind.HEAL
+		_aim = Vector2.ZERO if _tap_release else _aim_at(state, enemy, def, sim)
+		_aim_point = state.position + _aim * maxf(def.max_range, 1.0)
+		var bit: int = WeaponCasting.CARD_BITS[slot]
+		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, bit, sim.tick)
 	var standoff: float = _standoff(state, sim)
 	var move: Vector2 = Vector2.ZERO
 	if blocked:
@@ -107,19 +151,40 @@ func _fight(state: PlayerState, sim: MatchSim, enemy: PlayerState) -> PlayerInpu
 		move = toward
 	elif distance < standoff - TOO_CLOSE_SLACK:
 		move = -toward
+	elif _tired(state, sim):
+		move = Vector2.ZERO  # stand and refill instead of strafing the bar empty
 	else:
 		var side: float = 1.0 if (int(float(sim.tick) * sim.rules.tick_dt() / STRAFE_SWITCH) + state.id) % 2 == 0 else -1.0
-		move = toward.rotated(side * PI / 2.0) * 0.6
-	return PlayerInput.create(move, Vector2.ZERO, 0, sim.tick)
+		move = toward.rotated(side * PI / 2.0)
+	return _steer(state, sim, move)
+
+
+## Low on stamina (and not yet overclocked): a bot in a fight stands still to refill rather than strafe.
+func _tired(state: PlayerState, sim: MatchSim) -> bool:
+	if not sim.rules.stamina_enabled or not state.has_stamina or state.overclocked:
+		return false
+	return state.stamina / maxf(sim.rules.stamina_max, 0.001) < sim.rules.bot_stamina_rest
+
+
+## The way out of the place where nothing can be cast: away from the enemy base's centre, or from the rescue area's.
+func _out_of_zone(state: PlayerState, sim: MatchSim) -> Vector2:
+	var enemy_side: int = -sim.side_for_team(state.team)
+	var from: Vector2 = sim.layout.rescue_rect(sim.side_for_team(state.team)).get_center()
+	if sim.layout.in_base(enemy_side, state.position):
+		from = sim.layout.base_center(enemy_side)
+	var way: Vector2 = state.position - from
+	return way if way.length_squared() > 0.01 else Vector2(0.0, sim.side_for_team(state.team))
 
 
 ## The first ready weapon that makes sense at `distance`: a heal when hurt, a shield when the enemy is
 ## near, anything else once the enemy is within its reach. -1 for none.
 func _slot_to_cast(state: PlayerState, sim: MatchSim, distance: float, blocked: bool) -> int:
+	var paying: bool = sim.pays_elixir(state)
 	for slot: int in state.weapons.size():
-		if not sim.weapon_ready(state, slot):
+		var def: WeaponDef = sim.weapon_defs.get(state.weapons[slot]) as WeaponDef
+		# the cheap test first: most ticks of a fight wait for elixir
+		if def == null or (paying and state.elixir + MatchSim.EPSILON < float(def.elixir_cost)) or not sim.weapon_ready(state, slot):
 			continue
-		var def: WeaponDef = sim.weapon_defs[state.weapons[slot]]
 		if def.kind == WeaponDef.Kind.HEAL:
 			if float(state.hp) < float(sim.rules.player_max_hp) * HEAL_BELOW:
 				return slot
@@ -246,8 +311,7 @@ func _teammate_tagged(state: PlayerState, sim: MatchSim) -> bool:
 	return false
 
 
+## Walks to `target` by a move target (stands once within HOME_TOLERANCE).
 func _walk_to(state: PlayerState, target: Vector2) -> PlayerInput:
-	var offset: Vector2 = target - state.position
-	if offset.length() <= HOME_TOLERANCE:
-		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 0)
-	return PlayerInput.create(offset.normalized(), Vector2.ZERO, 0, 0)
+	var point: Vector2 = state.position if state.position.distance_to(target) <= HOME_TOLERANCE else target
+	return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 0).with_move_target(point)

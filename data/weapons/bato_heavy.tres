@@ -12,6 +12,7 @@ street_game = "Bato-bato-pik"
 kind = 0
 shape = 2
 cooldown = 12.0
+elixir_cost = 4
 max_range = 8.0
 damage = 22
 radius = 2.0

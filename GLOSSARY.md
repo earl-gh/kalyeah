@@ -32,8 +32,25 @@ _Avoid_: Set
 **Match**:
 A best-of contest between two teams, decided by points.
 
-**Loadout**:
-The pair of street-game weapons a player equips.
+**Hand**:
+The four weapon cards a player can cast right now, drawn from a shuffled deck of every weapon; a played card goes to the back of the deck.
+_Avoid_: Loadout (players no longer pick or equip weapons)
+
+**Next**:
+The card that fills the hand's slot as soon as a card is played.
+
+**Ice water**:
+A player's own bar (up to 10) that refills over time and pays for casting a card; each weapon has a cost. It replaces per-weapon cooldowns. The game calls it ice water; the code and data still say `elixir`.
+_Avoid_: Cooldown, mana, elixir (in the game's words)
+
+**Stamina**:
+A player's own bar that drains while the kid moves and refills while it stands still.
+
+**Overclocked**:
+What a kid is when its stamina runs out: the bar blinks red for two seconds, then refills while the kid can only walk until it is full. It can still cast. The screen shows it as "Exhausted".
+
+**Move target**:
+The street point a player tapped (or right-clicked); the kid walks there in a straight line and stops.
 
 **Hotspot**:
 Local multiplayer in which friends discover and join the host's active room without entering a room code.

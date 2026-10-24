@@ -27,7 +27,10 @@ enum Shape {
 @export var street_game: String = ""
 @export var kind: Kind = Kind.ATTACK
 @export var shape: Shape = Shape.TARGETED
+## Seconds; used only with `GameRules.elixir_enabled` off or `card_cycle` off.
 @export var cooldown: float = 0.0
+## Elixir points a cast costs (1..`GameRules.elixir_max`), spent on the cast only.
+@export var elixir_cost: int = 3
 @export var max_range: float = 0.0
 @export var damage: int = 0
 ## Area radius (AoE, trap/field zone, bounce AoE) or the pass-through hit radius (spinner).

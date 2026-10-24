@@ -47,6 +47,42 @@ var aim_lock: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
 var aim_target: Array[int] = [-1, -1]
 var effects: StatusEffects = StatusEffects.new()
 
+## docs/GDD.md "Controls: tap to move, cards to cast".
+## Elixir (fraction kept; the bar shows whole points). Pays for cards when GameRules.uses_elixir().
+var elixir: float = 0.0
+## Stamina: moving drains it, standing still refills it after `still_time` reaches the regen delay.
+var stamina: float = 0.0
+## Overclock (stamina ran out): the kid only walks until the bar is full again. Its own state, not a status effect.
+var overclocked: bool = false
+## Seconds left of the overclock's blink (the bar blinks red and does not refill yet); 0 once it refills.
+var exhaust_left: float = 0.0
+## Order in which the kid was tagged (rescues free the lowest first); 0 while free.
+var tag_order: int = 0
+## Seconds the kid has stood still (any movement restarts it).
+var still_time: float = 0.0
+## False for training dummies: no drain, no exhaustion.
+var has_stamina: bool = true
+## The street point the kid walks to (straight line, wall slide), while `has_move_target`.
+var move_target: Vector2 = Vector2.ZERO
+var has_move_target: bool = false
+## Seconds of ticks that made too little progress toward the target (the move ends at `move_stuck_time`).
+var stuck_time: float = 0.0
+
+
+## One cooldown, hold timer and aim lock per hand slot; a slot that is new is idle (not held, no lock).
+func resize_slots() -> void:
+	var count: int = weapons.size()
+	var had: int = aim_hold.size()
+	weapon_cooldowns.resize(count)
+	aim_hold.resize(count)
+	aim_lock.resize(count)
+	aim_target.resize(count)
+	for slot: int in range(had, count):
+		weapon_cooldowns[slot] = 0.0
+		aim_hold[slot] = -1.0
+		aim_lock[slot] = Vector2.ZERO
+		aim_target[slot] = -1
+
 
 ## Not tagged and not under a status that stops casting: free to use weapons.
 func can_act() -> bool:

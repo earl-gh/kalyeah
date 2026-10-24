@@ -1,10 +1,6 @@
 extends GutTest
-
-
-func after_each() -> void:
-	# The holder is shared across buttons, so a failed assertion must not leak it
-	# into the next test.
-	TouchButton.holder = null
+## A touch the system takes back (notification shade, an OS gesture, a call) never casts the held card, another finger's cancel never
+## drops it, and switching the controls off drops it without a cast.
 
 
 func _touch(pointer: int, position: Vector2, pressed: bool, cancelled: bool = false) -> InputEventScreenTouch:
@@ -23,116 +19,82 @@ func _drag(pointer: int, position: Vector2) -> InputEventScreenDrag:
 	return event
 
 
-func _aim_button() -> AimButton:
-	var button: AimButton = autofree(AimButton.new()) as AimButton
-	button.size = Vector2(100.0, 100.0)
-	add_child(button)
-	return button
+func _hand() -> CardHand:
+	var hand: CardHand = CardHand.new()
+	hand.size = Vector2(720.0, MatchHud.CONSOLE_HEIGHT)
+	add_child_autofree(hand)
+	var def: WeaponDef = WeaponDef.new()
+	def.id = &"test"
+	def.short_name = "TEST"
+	for slot: int in CardHand.SLOTS:
+		hand.defs[slot] = def
+		hand.pickable[slot] = true
+	hand.active = true
+	return hand
 
 
-func _stick() -> DPad:
-	var stick: DPad = autofree(DPad.new()) as DPad
-	stick.size = Vector2(290.0, 290.0)
-	stick.rest_fraction = Vector2(0.5, 0.5)
-	add_child(stick)
-	return stick
+func _on_card(hand: CardHand) -> Vector2:
+	return hand.card_rects[0].get_center()
 
 
-func test_aim_normal_release_still_casts() -> void:
-	var button: AimButton = _aim_button()
-	watch_signals(button)
-	button._input(_touch(3, Vector2(50.0, 50.0), true))
-	button._input(_drag(3, Vector2(50.0, 0.0)))
-	button._input(_touch(3, Vector2(50.0, 0.0), false))
-	assert_signal_emitted_with_parameters(button, "aim_released", [Vector2(0.0, -50.0 / AimButton.DRAG_RADIUS), false])
-	assert_false(button.aiming)
-	assert_eq(button._pointer, TouchButton.NO_POINTER)
-	assert_null(TouchButton.holder)
+func test_a_normal_release_over_the_street_casts() -> void:
+	var hand: CardHand = _hand()
+	watch_signals(hand)
+	hand._input(_touch(3, _on_card(hand), true))
+	hand._input(_drag(3, Vector2(300.0, -400.0)))
+	hand._input(_touch(3, Vector2(300.0, -400.0), false))
+	assert_signal_emitted_with_parameters(hand, "card_released", [0, Vector2(300.0, -400.0), false, false])
+	assert_signal_not_emitted(hand, "card_cancelled")
+	assert_eq(hand._pointer, CardHand.NO_POINTER)
 
 
-func test_aim_cancelled_touch_cancels_and_clears_ownership() -> void:
-	var button: AimButton = _aim_button()
-	watch_signals(button)
-	button._input(_touch(4, Vector2(50.0, 50.0), true))
-	button._input(_drag(4, Vector2(100.0, 50.0)))
-	button._input(_touch(4, Vector2.ZERO, false, true))
-	assert_signal_emitted_with_parameters(button, "aim_released", [Vector2(50.0 / AimButton.DRAG_RADIUS, 0.0), true])
-	assert_false(button.aiming)
-	assert_eq(button.aim, Vector2.ZERO)
-	assert_eq(button._pointer, TouchButton.NO_POINTER)
-	assert_null(TouchButton.holder)
+func test_a_cancelled_touch_drops_the_card_and_frees_the_pointer() -> void:
+	var hand: CardHand = _hand()
+	watch_signals(hand)
+	hand._input(_touch(4, _on_card(hand), true))
+	hand._input(_drag(4, Vector2(300.0, -400.0)))
+	hand._input(_touch(4, Vector2.ZERO, false, true))
+	assert_signal_emitted_with_parameters(hand, "card_cancelled", [0])
+	assert_signal_not_emitted(hand, "card_released")
+	assert_eq(hand._pointer, CardHand.NO_POINTER)
+	assert_false(hand.holding())
 
 
-func test_aim_ignores_cancellation_from_a_non_owner_pointer() -> void:
-	var button: AimButton = _aim_button()
-	watch_signals(button)
-	button._input(_touch(5, Vector2(50.0, 50.0), true))
-	button._input(_touch(6, Vector2.ZERO, false, true))
-	assert_signal_not_emitted(button, "aim_released")
-	assert_true(button.aiming)
-	assert_eq(button._pointer, 5)
-	assert_eq(TouchButton.holder, button)
-	button._input(_touch(5, Vector2(50.0, 50.0), false, true))
+func test_the_browser_cancel_counts_too() -> void:
+	var hand: CardHand = _hand()
+	watch_signals(hand)
+	hand._input(_touch(5, _on_card(hand), true))
+	WebTouchCancel.note()
+	hand._input(_touch(5, Vector2(300.0, -400.0), false))
+	assert_signal_emitted(hand, "card_cancelled", "the web turns touchcancel into a plain release")
+	assert_signal_not_emitted(hand, "card_released")
+	WebTouchCancel.clear()
 
 
-func test_locking_while_aiming_cancels_and_unlocking_allows_a_fresh_press() -> void:
-	var button: AimButton = _aim_button()
-	watch_signals(button)
-	button._input(_touch(7, Vector2(50.0, 50.0), true))
-	button.set_locked(true)
-	assert_signal_emitted_with_parameters(button, "aim_released", [Vector2.ZERO, true])
-	assert_false(button.aiming)
-	assert_eq(button._pointer, TouchButton.NO_POINTER)
-	assert_null(TouchButton.holder)
-	button._input(_touch(8, Vector2(50.0, 50.0), true))
-	assert_false(button.aiming, "locked buttons ignore new touches")
-	button.set_locked(false)
-	button._input(_touch(8, Vector2(50.0, 50.0), true))
-	assert_true(button.aiming, "unlock requires and accepts a fresh press")
-	button._input(_touch(8, Vector2(50.0, 50.0), false, true))
+func test_another_fingers_cancel_does_not_drop_the_card() -> void:
+	var hand: CardHand = _hand()
+	watch_signals(hand)
+	hand._input(_touch(5, _on_card(hand), true))
+	hand._input(_touch(6, Vector2.ZERO, false, true))
+	assert_signal_not_emitted(hand, "card_cancelled")
+	assert_eq(hand._pointer, 5)
+	assert_true(hand.holding())
 
 
-func test_explicit_cancel_ends_an_active_aim_without_casting() -> void:
-	var button: AimButton = _aim_button()
-	watch_signals(button)
-	button._input(_touch(12, Vector2(50.0, 50.0), true))
-	button.cancel_aim()
-	assert_signal_emitted_with_parameters(button, "aim_released", [Vector2.ZERO, true])
-	assert_false(button.aiming)
-	assert_eq(button._pointer, TouchButton.NO_POINTER)
-	assert_null(TouchButton.holder)
-
-
-func test_dpad_normal_release_stops_even_past_the_disc() -> void:
-	var stick: DPad = _stick()
-	var centre: Vector2 = stick.rest_position()
-	stick._input(_touch(9, centre, true))
-	stick._input(_drag(9, centre + Vector2(DPad.MAX_RADIUS + 20.0, 0.0)))
-	assert_eq(stick.value, Vector2.RIGHT, "still running right while held")
-	stick._input(_touch(9, centre, false))
-	assert_eq(stick.value, Vector2.ZERO, "a D-pad has no auto-run: letting go stops")
-	assert_eq(stick._pointer, DPad.NO_POINTER)
-
-
-func test_dpad_cancelled_touch_stops() -> void:
-	var stick: DPad = _stick()
-	var centre: Vector2 = stick.rest_position()
-	watch_signals(stick)
-	stick._input(_touch(10, centre, true))
-	stick._input(_drag(10, centre + Vector2(DPad.MAX_RADIUS + 20.0, 0.0)))
-	stick._input(_touch(10, Vector2.ZERO, false, true))
-	assert_eq(stick.value, Vector2.ZERO)
-	assert_eq(stick._pointer, DPad.NO_POINTER)
-	assert_signal_emitted_with_parameters(stick, "changed", [Vector2.ZERO])
-
-
-func test_dpad_ignores_cancellation_from_a_non_owner_pointer() -> void:
-	var stick: DPad = _stick()
-	var centre: Vector2 = stick.rest_position()
-	stick._input(_touch(11, centre, true))
-	stick._input(_drag(11, centre + Vector2(50.0, 0.0)))
-	stick._input(_touch(12, Vector2.ZERO, false, true))
-	assert_eq(stick._pointer, 11)
-	assert_eq(stick.value, Vector2.RIGHT)
-	stick._input(_touch(11, Vector2.ZERO, false, true))
-	assert_eq(stick.value, Vector2.ZERO)
+func test_switching_the_controls_off_while_holding_drops_the_card() -> void:
+	var hud: MatchHud = MatchHud.new()
+	add_child_autofree(hud)
+	var hand: CardHand = hud.hand
+	var def: WeaponDef = WeaponDef.new()
+	def.id = &"test"
+	hand.defs[0] = def
+	hand.pickable[0] = true
+	hand.active = true
+	hand.visible = true
+	watch_signals(hand)
+	hand.press_at(7, hand.get_global_rect().position + hand.card_rects[0].get_center())
+	assert_true(hand.holding())
+	hud.set_controls_active(false)
+	assert_signal_emitted_with_parameters(hand, "card_cancelled", [0])
+	assert_false(hand.holding())
+	assert_false(hud.controls_active())

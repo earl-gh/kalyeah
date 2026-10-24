@@ -1,8 +1,8 @@
 class_name CardStyle
 extends RefCounted
-## How a weapon card is drawn on the match deck (owner: like a Clash Royale card in the hand and in the shuffler, not a console button):
-## an upright card with a frame in the weapon's kind colour, the round painted art on top and the weapon's name on a plate at the bottom.
-## The hand's two buttons and the shuffler's window use the same drawing, at two sizes.
+## How a weapon card is drawn in the hand (owner: like a Clash Royale card): an upright card with a frame in the weapon's kind colour,
+## the round painted art on top and the weapon's name on a plate at the bottom. The hand's cards and the NEXT card use the same drawing,
+## at two sizes; the elixir drop (a card's cost, the bar's number) is drawn here too.
 
 const RADIUS: int = UiSkin.RADIUS_M
 const BORDER: int = 5
@@ -12,6 +12,11 @@ const INNER_INSET: int = BORDER + 9
 const NAME_MAX: int = 22
 ## Names are never drawn smaller than the caption floor: a card too small for that (the shuffler's window) shows only its art.
 const NAME_MIN: int = UiMetrics.CAPTION
+## The elixir drop (a card's cost, the bar's number): its tip stands this many belly radii above the belly's centre, its outline is
+## this thick, and its belly is drawn with this many points.
+const DROP_TIP: float = 1.55
+const DROP_OUTLINE: float = 3.0
+const DROP_POINTS: int = 20
 
 
 ## Draws the card of `def` in `rect` on `canvas`. `dim` (0 to 1) darkens it (locked, used, waiting); `lift` raises it with a gold edge
@@ -124,3 +129,27 @@ static func _name(canvas: CanvasItem, plate: Rect2, text: String, size: int) -> 
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x
 	canvas.draw_string(font, Vector2(plate.position.x + (plate.size.x - width) / 2.0, plate.position.y + plate.size.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size, Color.WHITE)
+
+
+## A drop of elixir centred on its round belly at `centre` (`radius` wide), tip up, with `text` (the cost or the bar's whole points)
+## lettered in it at `font_size`. `fill` is the drop's colour; a dark outline keeps it readable on any card or on the street.
+static func draw_drop(canvas: CanvasItem, centre: Vector2, radius: float, text: String, fill: Color, font_size: int) -> void:
+	canvas.draw_colored_polygon(drop_points(centre, radius + DROP_OUTLINE), RoyaleStyle.NAVY)
+	canvas.draw_colored_polygon(drop_points(centre, radius), fill)
+	canvas.draw_circle(centre + Vector2(-radius * 0.35, -radius * 0.35), radius * 0.22, Color(1.0, 1.0, 1.0, 0.45))
+	if text.is_empty():
+		return
+	var font: Font = KalyeahTheme.ACTION_FONT
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+	RoyaleStyle.lettered(canvas, font, text, centre + Vector2(-width / 2.0, font_size * 0.36), font_size)
+
+
+## The outline of a drop: a round belly of `radius` at `centre` and a tip `DROP_TIP` radii above it, joined by the belly's tangents.
+static func drop_points(centre: Vector2, radius: float) -> PackedVector2Array:
+	var tip: Vector2 = centre + Vector2(0.0, -radius * DROP_TIP)
+	var spread: float = acos(1.0 / DROP_TIP)
+	var points: PackedVector2Array = PackedVector2Array([tip])
+	for i: int in DROP_POINTS + 1:
+		var angle: float = -PI / 2.0 + spread + (TAU - 2.0 * spread) * float(i) / float(DROP_POINTS)
+		points.append(centre + Vector2.from_angle(angle) * radius)
+	return points

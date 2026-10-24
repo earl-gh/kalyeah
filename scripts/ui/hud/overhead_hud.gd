@@ -2,7 +2,8 @@ class_name OverheadHud
 extends Control
 ## MOBA-style overhead display drawn in screen space over each hero, like League
 ## of Legends: a solid health bar (green you, blue ally, red enemy), a status
-## in *italic* above it ("Stunned", "Slowed"). No names and no damage numbers (heals still pop a green "+N"). While a
+## in *italic* above it ("Stunned", "Slowed", "Exhausted"). Under your own bar a thin stamina bar shows while it is not full (your eyes
+## are on your kid while you tap to walk, and stamina only matters while walking); at 0 it reads EXHAUSTED and runs out over the 2 s. No names and no damage numbers (heals still pop a green "+N"). While a
 ## team holds the enemy base, a spinner fills over its kids' heads. Reads the sim
 ## and projects through the match camera.
 
@@ -18,6 +19,20 @@ const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 const POPUP_TIME: float = 0.9
 const POPUP_RISE: float = 56.0
 const STATUS_FONT: int = UiMetrics.CAPTION
+## Your stamina under your health bar (before `bar_scale`): a thin bar, a gap above it; it warns below `STAMINA_LOW` of full. When it runs
+## out you are overclocked (owner): the bar blinks blank and red for `exhaust_seconds`, then refills in amber while you only walk, until
+## it is full. Other kids' stamina is never drawn (docs/GDD.md D33), only their *Exhausted*.
+const STAMINA_SIZE: Vector2 = Vector2(96.0, 8.0)
+const STAMINA_GAP: float = 5.0
+const STAMINA_LOW: float = 0.25
+const STAMINA_COLOR: Color = RoyaleStyle.CREAM
+const STAMINA_LOW_COLOR: Color = ConsolePanel.HEALTH_AMBER
+const EXHAUSTED_COLOR: Color = ConsolePanel.HEALTH_RED
+## How long the overclock's red / blank blink holds each state (seconds); steady red with Reduce motion.
+const BLINK_PERIOD: float = 0.25
+## The word over your own kid while it is exhausted (owner: "EXHAUSTED shown on your kid"); other kids show the italic status word.
+const EXHAUSTED_SELF: String = "EXHAUSTED"
+const EXHAUSTED_OTHER: String = "Exhausted"
 ## The RESCUE marker under your team's tagged box: a pill with a pointer up at the box that bobs (held still with Reduce motion). It sits under
 ## the box so it never covers a waiting kid or their bar.
 const RESCUE_FONT: int = UiMetrics.DETAIL
@@ -38,6 +53,8 @@ const HEAL_COLOR: Color = Color(0.55, 1.0, 0.45)
 const SPINNER_RADIUS: float = 15.0
 const SPINNER_LIFT: float = 36.0
 const SPINNER_COLOR: Color = Color(1.0, 0.86, 0.3)
+## The rescuer's ring (green: it frees a teammate), the capturer's stays gold.
+const RESCUE_COLOR: Color = Color(0.45, 0.9, 0.5)
 const SPINNER_BACK: Color = Color(0.08, 0.06, 0.1, 0.7)
 const SPINNER_SPEED: float = 5.0
 
@@ -92,9 +109,30 @@ func text_for(id: int) -> String:
 ## A tagged kid stands in the box, which already says it: no "Tagged" over each one (two of them ran into one word).
 func _status_text(state: PlayerState) -> String:
 	var words: PackedStringArray = PackedStringArray()
+	if state.overclocked:
+		words.append(UiText.t(EXHAUSTED_SELF if state.id == _local_id else EXHAUSTED_OTHER))
 	for word: String in state.effects.display_names():
 		words.append(UiText.t(word))
 	return " · ".join(words)
+
+
+## True while your own stamina bar is drawn: stamina is on, not full, or you are exhausted (never for another kid).
+func stamina_visible(state: PlayerState) -> bool:
+	if state.id != _local_id or state.tagged or not _sim.rules.stamina_enabled or not state.has_stamina:
+		return false
+	return state.overclocked or state.stamina < _sim.rules.stamina_max - 0.01
+
+
+## The share and colour of your stamina bar: the stamina left (amber when low). Overclocked: blinking blank and red while the blink
+## runs (steady red with Reduce motion), then the refill in amber.
+func stamina_fill(state: PlayerState) -> Array:
+	if state.overclocked and state.exhaust_left > 0.0:
+		var lit: bool = Settings.reduced_motion or int(state.exhaust_left / BLINK_PERIOD) % 2 == 0
+		return [1.0 if lit else 0.0, EXHAUSTED_COLOR]
+	var share: float = clampf(state.stamina / maxf(_sim.rules.stamina_max, 0.001), 0.0, 1.0)
+	if state.overclocked:
+		return [share, STAMINA_LOW_COLOR]
+	return [share, STAMINA_LOW_COLOR if share < STAMINA_LOW else STAMINA_COLOR]
 
 
 func popup_count() -> int:
@@ -225,6 +263,11 @@ func spinner_visible(state: PlayerState) -> bool:
 	)
 
 
+## True while this kid is the teammate rescuing a tagged one (it stands in the rescue area and the count is running).
+func rescue_visible(state: PlayerState) -> bool:
+	return not state.tagged and state.team >= 0 and state.team < _sim.rescue_rescuer.size() and _sim.rescue_rescuer[state.team] == state.id
+
+
 func _draw_hero(state: PlayerState, head: Vector2) -> void:
 	var bar: Vector2 = BAR_SIZE * bar_scale
 	var rect: Rect2 = Rect2(head - Vector2(bar.x / 2.0, 0.0), bar)
@@ -233,13 +276,20 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 	var color: Color = bar_color(state)
 	_draw_bar(rect, fill, color)
 	_draw_team_mark(state, rect, color)
+	if stamina_visible(state):
+		var stamina: Vector2 = STAMINA_SIZE * bar_scale
+		var under: Rect2 = Rect2(Vector2(head.x - stamina.x / 2.0, rect.end.y + BAR_OUTLINE + STAMINA_GAP), stamina)
+		var look: Array = stamina_fill(state)
+		_draw_thin(under, look[0] as float, look[1] as Color)
 	var status: String = _status_text(state)
 	var lift: float = 0.0
 	if not status.is_empty():
 		_text(_italic, status, keep_on_screen(head + Vector2(0.0, -8.0), _italic, status, STATUS_FONT), STATUS_FONT, STATUS_COLOR, 6)
 		lift = 22.0
 	if spinner_visible(state):
-		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.capture_elapsed / maxf(_sim.capture_needed, 0.001))
+		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.capture_elapsed / maxf(_sim.capture_needed, 0.001), SPINNER_COLOR)
+	elif rescue_visible(state):
+		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.rescue_elapsed[state.team] / maxf(_sim.rules.rescue_hold_time, 0.001), RESCUE_COLOR)
 
 
 ## A rounded bar with a dark outline: the fill in `color`, a gloss on its upper third and a mark every quarter.
@@ -258,6 +308,19 @@ func _draw_bar(rect: Rect2, fill: float, color: Color) -> void:
 	for mark: int in range(1, BAR_MARKS):
 		var x: float = rect.position.x + rect.size.x * float(mark) / float(BAR_MARKS)
 		draw_line(Vector2(x, rect.position.y + 1.0), Vector2(x, rect.end.y - 1.0), BAR_MARK, 1.0)
+
+
+## A thin bar with a dark outline, filled to `fill` in `color` (your stamina).
+func _draw_thin(rect: Rect2, fill: float, color: Color) -> void:
+	var round_px: int = UiSkin.round_radius(rect.size.y + BAR_OUTLINE * 2.0)
+	_bar_back.set_border_width_all(int(BAR_OUTLINE))
+	_bar_back.set_corner_radius_all(round_px)
+	draw_style_box(_bar_back, rect.grow(BAR_OUTLINE))
+	if fill <= 0.0:
+		return
+	_bar_fill.bg_color = color
+	_bar_fill.set_corner_radius_all(UiSkin.round_radius(rect.size.y))
+	draw_style_box(_bar_fill, Rect2(rect.position, Vector2(maxf(rect.size.x * fill, rect.size.y), rect.size.y)))
 
 
 ## Where `text` is drawn: its centre pulled inside the screen's sides and its baseline kept under `top_limit`.
@@ -289,12 +352,12 @@ static func _diamond(centre: Vector2, radius: float) -> PackedVector2Array:
 
 ## A spinning ring over a hero holding the enemy base: the ring fills as the point
 ## gets closer (it scores when it is full).
-func _draw_spinner(center: Vector2, progress: float) -> void:
+func _draw_spinner(center: Vector2, progress: float, color: Color) -> void:
 	draw_circle(center, SPINNER_RADIUS + 4.0, SPINNER_BACK)
 	draw_arc(center, SPINNER_RADIUS, 0.0, TAU, 28, Color(1.0, 1.0, 1.0, 0.25), 4.0)
 	var spin: float = float(Time.get_ticks_msec()) / 1000.0 * SPINNER_SPEED
 	draw_arc(center, SPINNER_RADIUS, spin, spin + TAU * 0.28, 12, Color(1.0, 1.0, 1.0, 0.9), 4.0)
-	draw_arc(center, SPINNER_RADIUS - 6.0, -PI / 2.0, -PI / 2.0 + TAU * clampf(progress, 0.0, 1.0), 24, SPINNER_COLOR, 4.0)
+	draw_arc(center, SPINNER_RADIUS - 6.0, -PI / 2.0, -PI / 2.0 + TAU * clampf(progress, 0.0, 1.0), 24, color, 4.0)
 
 
 func _draw_popup(popup: Dictionary) -> void:

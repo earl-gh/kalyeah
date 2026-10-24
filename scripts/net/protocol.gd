@@ -4,8 +4,9 @@ extends RefCounted
 ## with "t" = Msg type, sent as var_to_bytes (no objects, so decoding is safe).
 
 ## Protocol revision, sent in HELLO and WELCOME; both ends refuse another one. Bump it when a field an older peer
-## reads changes meaning (2: hand slots can be empty, the card cycle). New fields keep a default for older peers.
-const VERSION: int = 2
+## reads changes meaning (2: hand slots can be empty, the card cycle; 3: tap to move, a hand of 4 paid with elixir, stamina).
+## New fields keep a default for older peers.
+const VERSION: int = 3
 ## What a player sees when the two phones run different versions.
 const INCOMPATIBLE_TEXT: String = "Update both phones to the same game version."
 
@@ -36,10 +37,34 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 
 
 static func input_to_dict(input: PlayerInput) -> Dictionary:
-	return {"t": Msg.INPUT, "k": input.tick, "m": input.move, "a": input.aim, "b": input.buttons}
+	var message: Dictionary = {"t": Msg.INPUT, "k": input.tick, "m": input.move, "a": input.aim, "b": input.buttons}
+	if input.is_pressed(PlayerInput.BTN_MOVE_TARGET):
+		message["mt"] = input.move_target
+	if input.is_pressed(PlayerInput.BTN_AIM_POINT):
+		message["ap"] = input.aim_point
+	return message
 
 
+## Untrusted client input: a field of the wrong type or not finite becomes its default, unknown buttons are dropped, and a point flag
+## with no valid point is cleared. Points are only checked here; the sim pulls them into the street and to the range itself.
 static func input_from_dict(message: Dictionary) -> PlayerInput:
-	var move: Vector2 = message.get("m", Vector2.ZERO) as Vector2
-	var aim: Vector2 = message.get("a", Vector2.ZERO) as Vector2
-	return PlayerInput.create(move.limit_length(1.0), aim.limit_length(1.0), message.get("b", 0) as int, message.get("k", 0) as int)
+	var buttons: int = (message.get("b", 0) as int if message.get("b", 0) is int else 0) & PlayerInput.KNOWN_BITS
+	var tick: int = message.get("k", 0) as int if message.get("k", 0) is int else 0
+	var input: PlayerInput = PlayerInput.create(_vector(message, "m").limit_length(1.0), _vector(message, "a").limit_length(1.0), buttons, tick)
+	if _has_vector(message, "mt"):
+		input.move_target = message["mt"] as Vector2
+	else:
+		input.buttons &= ~PlayerInput.BTN_MOVE_TARGET
+	if _has_vector(message, "ap"):
+		input.aim_point = message["ap"] as Vector2
+	else:
+		input.buttons &= ~PlayerInput.BTN_AIM_POINT
+	return input
+
+
+static func _has_vector(message: Dictionary, key: String) -> bool:
+	return message.get(key) is Vector2 and (message[key] as Vector2).is_finite()
+
+
+static func _vector(message: Dictionary, key: String) -> Vector2:
+	return message[key] as Vector2 if _has_vector(message, key) else Vector2.ZERO

@@ -18,7 +18,6 @@ const ENEMY_BOX_ID: int = 5
 const BOT_ALLY_IDS: Array[int] = [2, 3]
 const BOT_ENEMY_IDS: Array[int] = [4, 5, 6]
 const MAX_STEPS_PER_FRAME: int = 8
-const WEAPON_SLOTS: int = 2
 const RECONNECT_INTERVAL: float = 2.0
 ## Practice-only debug button to test getting tagged without an enemy that fights back.
 const DEBUG_DAMAGE: int = 30
@@ -147,24 +146,54 @@ func _exit_tree() -> void:
 
 # ---- public API (used by tests and the HUD) ---------------------------------------
 
-## The movement stick (the on-screen dpad, tests).
-func set_stick(value: Vector2) -> void:
-	input.set_stick(value)
+## The street point (sim XZ) under screen point `screen` (viewport pixels), or null when that ray misses the ground.
+func street_point(screen: Vector2) -> Variant:
+	var flat: Vector2 = _camera.flat_position(screen)
+	var hit: Variant = Plane(Vector3.UP, 0.0).intersects_ray(_camera.project_ray_origin(flat), _camera.project_ray_normal(flat))
+	if hit == null:
+		return null
+	return Vector2((hit as Vector3).x, (hit as Vector3).z)
 
 
-## A skill button was pressed; it is sent with the next sim tick.
-func press_skill(button_bit: int) -> void:
-	input.press_skill(button_bit)
+## A tap (or the right button) on the street at screen point `at`: walk there.
+func move_pressed(at: Vector2) -> void:
+	var point: Variant = street_point(at)
+	if point is Vector2:
+		input.move_press(point as Vector2)
+		hud.marker.ping(point as Vector2)
 
 
-## A weapon button started aiming.
-func aim_started(slot: int) -> void:
-	input.aim_started(slot)
+## The finger held on the street moved to `at`: the target follows it.
+func move_dragged(at: Vector2) -> void:
+	var point: Variant = street_point(at)
+	if point is Vector2 and input.move_held and input.follow_hold:
+		input.move_drag(point as Vector2)
+		hud.marker.ping(point as Vector2)
 
 
-## A weapon button was let go with a screen-space `aim` (zero = auto-aim).
-func aim_released(aim: Vector2, cancelled: bool, slot: int) -> void:
-	input.aim_released(_screen_to_world(aim), cancelled, slot)
+func move_released() -> void:
+	input.move_release()
+
+
+## A card in `slot` was picked up from the hand.
+func card_pressed(slot: int) -> void:
+	input.card_press(slot, Time.get_ticks_msec())
+
+
+## The held card's finger is at screen point `at` (on its own card, over the hand).
+func card_moved(_slot: int, at: Vector2, on_card: bool, over_hand: bool) -> void:
+	input.card_drag(on_card, null if over_hand else street_point(at))
+
+
+## The held card was let go at screen point `at`: a cast there, a tap, or a drop back on the hand (MatchInput decides).
+func card_released(slot: int, at: Vector2, on_card: bool, over_hand: bool) -> void:
+	card_moved(slot, at, on_card, over_hand)
+	var kind: MatchInput.Release = input.card_release(Time.get_ticks_msec())
+	hud.note_released(slot, kind == MatchInput.Release.CANCEL)
+
+
+func card_cancelled(_slot: int) -> void:
+	input.card_cancel()
 
 
 ## Practice menu: plays the animation a skill hit causes (stunned, airborne, knocked down) on the
@@ -343,34 +372,18 @@ func _local_input(tick: int) -> PlayerInput:
 	if not _application_focused or _application_paused or not controls_active() or is_picking() or hud.menu.visible:
 		input.clear()
 		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_AIM_CANCEL, tick)
-	return input.build(_flip(), _mouse_aim, tick)
+	return input.build(_flip(), _key_point, tick, Time.get_ticks_msec())
 
 
-## The camera and stick are turned around when the local team defends the -Z base.
+## The camera and WASD are turned around when the local team defends the -Z base.
 func _flip() -> bool:
 	return own_side() == MapLayout.SIDE_ENEMY
 
 
-func _screen_to_world(screen_aim: Vector2) -> Vector2:
-	return LocalInput.to_world(screen_aim, _flip(), input.camera_yaw)
-
-
-## Mouse position on the ground, relative to the player, scaled by the weapon range.
-func _mouse_aim(slot: int) -> Vector2:
-	var player: PlayerState = sim.players[local_id]
+## The street point under the mouse (keys 1-4 aim there), or null off the street.
+func _key_point() -> Variant:
 	var viewport: Viewport = get_viewport()
-	if viewport == null or slot >= player.weapons.size() or player.weapons[slot] == &"":
-		return Vector2.ZERO
-	var mouse: Vector2 = viewport.get_mouse_position()
-	var flat: Vector2 = _camera.flat_position(mouse)
-	var hit: Variant = Plane(Vector3.UP, 0.0).intersects_ray(_camera.project_ray_origin(flat), _camera.project_ray_normal(flat))
-	if hit == null:
-		return Vector2.ZERO
-	var point: Vector3 = hit as Vector3
-	var offset: Vector2 = Vector2(point.x, point.z) - player.position
-	var def: WeaponDef = sim.weapon_defs[player.weapons[slot]]
-	var reach: float = def.max_range if def.max_range > 0.0 else 1.0
-	return (offset / reach).limit_length(1.0)
+	return street_point(viewport.get_mouse_position()) if viewport != null else null
 
 
 # ---- weapon pick and swap ------------------------------------------------------------

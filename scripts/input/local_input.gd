@@ -1,6 +1,6 @@
 class_name LocalInput
 extends RefCounted
-## Turns local devices (keyboard, on-screen stick) into movement for PlayerInput.
+## Reads the keyboard for PlayerInput (desktop testing): WASD / arrows walk, 1-4 hold a card, Esc drops it.
 
 
 ## WASD / arrow keys. Up is -1 on Y (screen up = toward the enemy base).
@@ -18,28 +18,18 @@ static func keyboard_vector() -> Vector2:
 	return Vector2(x, y).limit_length(1.0)
 
 
-## Q = weapon 1, E = weapon 2 (held to aim with the mouse, released to cast).
-static func weapon_key_held(slot: int) -> bool:
-	var keys: Array[Key] = [KEY_Q, KEY_E]
-	return slot < keys.size() and Input.is_physical_key_pressed(keys[slot])
+## Keys 1-4 = hand slots 1-4 (held to aim at the mouse, released to cast).
+static func card_key_held(slot: int) -> bool:
+	var keys: Array[Key] = [KEY_1, KEY_2, KEY_3, KEY_4]
+	return slot >= 0 and slot < keys.size() and Input.is_physical_key_pressed(keys[slot])
 
 
-## Escape or right mouse button while aiming with Q/E cancels the cast.
+## Escape while a number key holds a card drops it (the right button cancels through the hand, see CardHand).
 static func cancel_held() -> bool:
-	return Input.is_physical_key_pressed(KEY_ESCAPE) or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
+	return Input.is_physical_key_pressed(KEY_ESCAPE)
 
 
-## Keys that are plain buttons. None now: the weapons are
-## aimed slots (see weapon_key_held).
-static func keyboard_buttons() -> int:
-	return 0
-
-
-static func combine(a: Vector2, b: Vector2) -> Vector2:
-	return (a + b).limit_length(1.0)
-
-
-## Screen-relative stick to world movement: screen up is where the camera looks.
+## Screen-relative keys to world movement: screen up is where the camera looks.
 ## The camera is turned `yaw_degrees` (behind-right view), and the other team's view
 ## is turned another 180 degrees, so the stick is turned the same way.
 static func to_world(stick: Vector2, flip: bool, yaw_degrees: float = 0.0) -> Vector2:

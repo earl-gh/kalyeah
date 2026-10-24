@@ -47,7 +47,7 @@ func _problems(root: Node, where: String) -> Array[String]:
 				found.append("%s: '%s' says '%s'" % [where, label.text.substr(0, 40), word])
 	for node: Node in root.find_children("*", "BaseButton", true, false):
 		var button: Control = node as Control
-		if not button.is_visible_in_tree() or button is TouchButton:
+		if not button.is_visible_in_tree():
 			continue
 		var rect: Rect2 = button.get_global_rect()
 		if rect.size.x < 1.0 or rect.size.y < 1.0:
@@ -68,7 +68,7 @@ func _problems(root: Node, where: String) -> Array[String]:
 		var field: Control = node as Control
 		if field.is_visible_in_tree() and not UiA11y.is_named(field):
 			found.append("%s: text field '%s' has no accessibility name" % [where, field.name])
-	for kind: String in ["TouchButton", "VirtualJoystick", "MenuCarousel"]:
+	for kind: String in ["CardHand", "MenuCarousel"]:
 		for node: Node in root.find_children("*", kind, true, false):
 			var drawn: Control = node as Control
 			if drawn.is_visible_in_tree() and drawn.accessibility_name.is_empty():
@@ -204,12 +204,13 @@ func test_the_loadout_and_the_match_meet_the_floors() -> void:
 
 
 func test_the_text_drawn_on_the_buttons_and_over_the_kids_is_at_the_floor() -> void:
-	assert_gte(TouchButton.TAG_FONT_SIZE, UiMetrics.MIN_TEXT, "the weapon type tag")
+	assert_gte(CardHand.COST_FONT, UiMetrics.MIN_TEXT, "a card's cost and its tag")
+	assert_gte(CardHand.BAR_FONT, UiMetrics.MIN_TEXT, "the elixir number")
+	assert_gte(CardHand.HEALTH_FONT, UiMetrics.MIN_TEXT, "your health at the bar's end")
 	assert_gte(ClockChip.CAPTION_FONT, UiMetrics.MIN_TEXT, "TIME over the clock")
 	assert_gte(Scoreboard.CENTER_CAPTION, UiMetrics.MIN_TEXT, "FIRST TO between the scores")
-	assert_gte(ShufflerView.LABEL_FONT, UiMetrics.MIN_TEXT, "NEXT over the shuffler")
+	assert_gte(CardHand.NEXT_FONT, UiMetrics.MIN_TEXT, "NEXT over the next card")
 	assert_gte(CardStyle.NAME_MIN, UiMetrics.MIN_TEXT, "a card's name")
-	assert_gte(TouchButton.SMALL_FONT_SIZE, UiMetrics.MIN_TEXT)
 	assert_gte(OverheadHud.STATUS_FONT, UiMetrics.MIN_TEXT, "the status over a kid")
 
 

@@ -103,7 +103,7 @@ func test_the_tagged_sheet_says_how_it_ends_and_still_fits() -> void:
 	_run(practice, 6)
 	var panel: TaggedPanel = practice.hud.tagged_panel
 	assert_true(panel.visible)
-	assert_eq(panel.hint_label.text, TaggedPanel.HINT_TEXT)
+	assert_eq(panel.hint_label.text, UiText.f(TaggedPanel.HINT_TEXT, [ceili(practice.sim.rules.rescue_hold_time)]))
 	assert_eq(panel.wait_label.text, TaggedPanel.WAIT_TEXT, "the title is unchanged")
 	await wait_process_frames(3)
 	assert_eq(panel.hint_label.get_line_count(), 1, "one short line, no orphan word")

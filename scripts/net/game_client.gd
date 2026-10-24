@@ -200,6 +200,9 @@ func send_input(input: PlayerInput, dt: float) -> void:
 		return
 	var wire_tick: int = maxi(input.tick, next_input_sequence)
 	var wire_input: PlayerInput = PlayerInput.create(input.move, input.aim, input.buttons, wire_tick)
+	# the tapped street point and the point under a dragged card ride along (the buttons already carry their bits)
+	wire_input.move_target = input.move_target
+	wire_input.aim_point = input.aim_point
 	send(NetProtocol.input_to_dict(wire_input))
 	next_input_sequence = wire_tick + 1
 	if stage != "play":
@@ -286,11 +289,16 @@ func _on_stage(message: Dictionary) -> void:
 		var loadouts: Dictionary = message.get("loadouts", {}) as Dictionary
 		for id: Variant in loadouts:
 			var pair: Array = loadouts[id] as Array
-			if pair.size() != 2 or not mirror.players.has(id as int):
+			if pair.is_empty() or pair.size() > PlayerInput.CARD_BITS.size() or not mirror.players.has(id as int):
 				continue
 			if mirror.rules.card_cycle:
-				# a hand can have an empty slot while the shuffler works; the server dealt it, so take it as it is
-				mirror.players[id as int].weapons.assign(pair)
+				# a hand of `hand_size` cards (an empty slot while the old shuffler works); the server dealt it, so take it as it is
+				var player: PlayerState = mirror.players[id as int]
+				player.weapons.assign(pair)
+				player.cards = true
+				player.resize_slots()
+			elif pair.size() != 2:
+				continue
 			else:
 				mirror.set_loadout(id as int, pair[0] as StringName, pair[1] as StringName)
 		# the server settled who plays which kid (a pick may have swapped two players' kids)

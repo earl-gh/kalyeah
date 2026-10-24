@@ -106,7 +106,9 @@ func test_tag_clears_the_active_aim_and_held_input_cannot_cast_after_rescue() ->
 	assert_eq(player.aim_hold, [-1.0, -1.0] as Array[float])
 	var rescuer: PlayerState = sim.add_player(2, 0)
 	rescuer.position = player.position
-	_send_input(sim, PlayerInput.BTN_WEAPON_1)
+	# the rescue takes `rescue_hold_time` in the area; the held press runs through all of it
+	for i: int in ceili((sim.rules.rescue_hold_time + 0.3) / (1.0 / 30.0)):
+		_send_input(sim, PlayerInput.BTN_WEAPON_1)
 	assert_false(player.tagged, "the teammate rescues the player")
 	_send_input(sim, PlayerInput.BTN_WEAPON_1)
 	_send_input(sim, 0)

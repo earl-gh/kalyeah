@@ -153,12 +153,14 @@ func test_online_match_screen_picks_then_plays_against_the_server() -> void:
 	assert_eq(views[1].sim.players[me].character_id, &"popoy", "the other player sees our kid")
 	assert_eq((views[1]._views[me] as KidModel).character.id, &"popoy", "and its 3D model")
 	var start: Vector2 = server_sim.players[me].position
-	views[0].set_stick(Vector2(0.0, -1.0))
-	_pump(1.0)
-	views[0].set_stick(Vector2.ZERO)
-	_pump(0.5)
+	var goal: Vector2 = start + Vector2(0.0, 4.0 * -float(server_sim.side_for_team(server_sim.players[me].team)))
+	views[0].input.move_press(goal)
+	views[0].input.move_release()
+	_pump(1.5)
 	var walked: float = start.distance_to(server_sim.players[me].position)
 	assert_gt(walked, 3.0, "the server moved us")
+	# the tapped street point crosses the wire (it once did not: every tap walked toward (0, 0))
+	assert_almost_eq(server_sim.players[me].position.distance_to(goal), 0.0, 0.3, "the server walked us to the tapped point")
 	assert_almost_eq(views[0].sim.players[me].position.distance_to(server_sim.players[me].position), 0.0, 0.3, "our screen agrees")
 	assert_almost_eq(views[1].sim.players[me].position.distance_to(server_sim.players[me].position), 0.0, 0.3, "and theirs")
 
@@ -258,8 +260,9 @@ func test_backgrounding_stops_server_input_without_another_view_frame() -> void:
 	server_sim.intro_left = 0.0
 	_pump(0.2)
 	var player: PlayerState = server_sim.players[view.local_id]
-	view.set_stick(Vector2.RIGHT)
-	view.aim_started(0)
+	player.elixir = server_sim.rules.elixir_max  # every card affordable
+	var held: StringName = player.weapons[0]
+	view.input.card_press(0, Time.get_ticks_msec())
 	_pump(0.2)
 	assert_gte(player.aim_hold[0], 0.0)
 	view._notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
@@ -267,7 +270,7 @@ func test_backgrounding_stops_server_input_without_another_view_frame() -> void:
 	clients.erase(view.client) # Its Net autoload also stops polling when backgrounded.
 	_pump(0.4)
 	assert_eq(player.aim_hold[0], -1.0, "server must receive cancel without waiting for a rendered frame")
-	assert_eq(player.weapon_cooldowns[0], 0.0)
+	assert_eq(player.weapons[0], held, "nothing cast")
 	var stopped: Vector2 = player.position
 	_pump(0.3)
 	assert_eq(player.position, stopped, "server must not repeat pre-pause movement")
@@ -276,6 +279,6 @@ func test_backgrounding_stops_server_input_without_another_view_frame() -> void:
 	view._notification(Node.NOTIFICATION_APPLICATION_RESUMED)
 	clients.append(view.client)
 	screens.append(view)
-	view.set_stick(Vector2.LEFT)
+	view.input.move_press(stopped + Vector2(2.0, 0.0))
 	_pump(0.3)
 	assert_ne(player.position, stopped, "fresh input works without rebuilding the connection")

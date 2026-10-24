@@ -1,9 +1,13 @@
 class_name WeaponCasting
 extends RefCounted
-## Authoritative weapon-button arbitration and cast-on-release state machine.
-## A player can aim only one slot at a time; simultaneous presses prefer slot 0.
+## Authoritative card-button arbitration and cast-on-release state machine (docs/GDD.md "Controls: tap to move, cards to cast").
+## A player can hold only one slot at a time; simultaneous presses prefer the lowest slot. The release casts: at the aim point sent
+## with it (clamped by the sim to the range from where the kid is), else the legacy stick aim, else the auto-aim taken at the press.
 
-const WEAPON_BITS: Array[int] = [PlayerInput.BTN_WEAPON_1, PlayerInput.BTN_WEAPON_2]
+## Hand slot -> its PlayerInput bit.
+const CARD_BITS: Array[int] = PlayerInput.CARD_BITS
+## Superseded name (two weapon buttons), kept for callers that index slot 0 and 1.
+const WEAPON_BITS: Array[int] = PlayerInput.CARD_BITS
 
 
 ## Advances one player's weapon input. Releasing an active aim consumes the tick,
@@ -60,26 +64,27 @@ func _active_slot(state: PlayerState) -> int:
 
 
 func _step_active(sim: MatchSim, state: PlayerState, input: PlayerInput, dt: float, slot: int) -> void:
-	var bit: int = WEAPON_BITS[slot]
+	var bit: int = CARD_BITS[slot]
 	if input.is_pressed(bit):
-		if state.tagged or not state.effects.can_cast():
+		if state.tagged or not state.effects.can_cast() or sim.casting_blocked(state):
 			state.aim_hold[slot] = -1.0
 		else:
 			state.aim_hold[slot] += dt
 		return
 	if (state.previous_buttons & bit) != 0:
 		if not input.is_pressed(PlayerInput.BTN_AIM_CANCEL):
-			_try_fire(sim, state, slot, input.aim, state.aim_hold[slot])
+			_try_fire(sim, state, slot, input, state.aim_hold[slot])
 	state.aim_hold[slot] = -1.0
 
 
 func _start_fresh_aim(sim: MatchSim, state: PlayerState, input: PlayerInput) -> void:
-	for slot: int in mini(WEAPON_BITS.size(), state.aim_hold.size()):
-		var bit: int = WEAPON_BITS[slot]
+	for slot: int in mini(CARD_BITS.size(), state.aim_hold.size()):
+		var bit: int = CARD_BITS[slot]
 		var fresh_press: bool = input.is_pressed(bit) and (state.previous_buttons & bit) == 0
 		if not fresh_press:
 			continue
-		if weapon_ready(state, slot):
+		# an unaffordable card cannot be picked up (no precasting: holding it while the bar fills does nothing)
+		if sim.weapon_ready(state, slot):
 			state.aim_hold[slot] = 0.0
 			_lock_aim(sim, state, slot)
 		# The lowest freshly pressed slot owns this input even when it was not ready.
@@ -93,13 +98,26 @@ func _lock_aim(sim: MatchSim, state: PlayerState, slot: int) -> void:
 	state.aim_target[slot] = target.id if target != null else -1
 
 
-func _try_fire(sim: MatchSim, state: PlayerState, slot: int, stick: Vector2, hold_seconds: float) -> void:
-	if not state.can_act() or not weapon_ready(state, slot):
+func _try_fire(sim: MatchSim, state: PlayerState, slot: int, input: PlayerInput, hold_seconds: float) -> void:
+	if not state.can_act() or not sim.weapon_ready(state, slot):
 		return
 	var def: WeaponDef = sim.weapon_defs[state.weapons[slot]]
-	var aim: Vector2 = resolved_aim(sim, state, slot, stick)
-	if sim.weapons.fire(sim, state, def, aim, hold_seconds, state.aim_target[slot]):
+	var aim: Vector2
+	var target_id: int = state.aim_target[slot]
+	if input.is_pressed(PlayerInput.BTN_AIM_POINT) and input.aim_point.is_finite():
+		aim = sim.aim_from_point(state, def, input.aim_point)
+		if def.shape == WeaponDef.Shape.TARGETED:
+			target_id = sim.target_near_point(state, def, input.aim_point)
+	else:
+		aim = resolved_aim(sim, state, slot, input.aim if input.aim.is_finite() else Vector2.ZERO)
+	if not sim.weapons.fire(sim, state, def, aim, hold_seconds, target_id):
+		return  # nothing was cast: the card keeps its slot and nothing is spent
+	if sim.pays_elixir(state):
+		state.elixir = maxf(0.0, state.elixir - float(def.elixir_cost))
+	else:
 		state.weapon_cooldowns[slot] = def.cooldown
-		sim.cycle_used(state, slot)
-		state.cast_lock_left = def.cast_lock
-		sim.weapon_cast.emit(state.id, def.id)
+	sim.cycle_used(state, slot)
+	state.cast_lock_left = def.cast_lock
+	if def.cast_lock > 0.0:
+		sim.end_move(state)  # a heavy roots the kid and ends its walk
+	sim.weapon_cast.emit(state.id, def.id)

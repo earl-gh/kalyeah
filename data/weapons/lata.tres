@@ -12,6 +12,7 @@ street_game = "Tumbang preso"
 kind = 1
 shape = 2
 cooldown = 14.0
+elixir_cost = 5
 max_range = 7.0
 damage = 5
 radius = 1.5

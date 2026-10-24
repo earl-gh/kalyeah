@@ -12,47 +12,97 @@ func tag(sim: MatchSim, state: PlayerState) -> void:
 	state.tagged = true
 	state.hp = 0
 	state.tag_time = 0.0
+	sim.tag_counter += 1
+	state.tag_order = sim.tag_counter
 	clear_actions(state)
 	state.position = sim.layout.jail_slot(sim.side_for_team(state.team), waiting)
 	state.facing = Vector2(0.0, sim.side_for_team(state.team))
 	sim.player_tagged.emit(state.id)
 
 
-## A free teammate stepping into the rescue area round the box (or the box) frees whoever
-## waits there (everyone, or one per touch when `rescue_frees_all` is off).
-func check_rescues(sim: MatchSim) -> void:
+## A tagged teammate waits in the box (the rescue area is only a rescue area while someone needs rescuing).
+func teammate_waiting(sim: MatchSim, team: int) -> bool:
 	for id: int in sim.players:
-		var rescuer: PlayerState = sim.players[id]
-		if rescuer.tagged:
-			continue
-		var box: Rect2 = sim.layout.rescue_rect(sim.side_for_team(rescuer.team)).grow(rescuer.radius)
-		if not box.has_point(rescuer.position):
-			continue
-		for other_id: int in sim.players:
-			var waiting: PlayerState = sim.players[other_id]
-			if waiting.team == rescuer.team and waiting.tagged:
-				rescue(sim, waiting, rescuer.id)
-				if not sim.rules.rescue_frees_all:
+		if sim.players[id].team == team and sim.players[id].tagged:
+			return true
+	return false
+
+
+## `state` stands in the rescue area round its own team's box (or the box).
+func in_rescue_area(sim: MatchSim, state: PlayerState) -> bool:
+	return sim.layout.rescue_rect(sim.side_for_team(state.team)).grow(state.radius).has_point(state.position)
+
+
+## Rescuing (owner): one free teammate at a time stays in the rescue area for `rescue_hold_time` and frees the teammate who was
+## tagged first (everyone waiting when `rescue_frees_all` is on). The first to arrive holds the rescue; the others can stand there
+## but cannot start one. Leaving the area, being tagged or a new round starts the count over, and the next in line takes over.
+func check_rescues(sim: MatchSim, dt: float) -> void:
+	for team: int in [0, 1]:
+		var holder: PlayerState = sim.players.get(sim.rescue_rescuer[team]) as PlayerState
+		if holder != null and (holder.tagged or holder.team != team or not in_rescue_area(sim, holder)):
+			holder = null
+		if holder == null or not teammate_waiting(sim, team):
+			holder = null
+			sim.rescue_elapsed[team] = 0.0
+			for id: int in sim.players:
+				var candidate: PlayerState = sim.players[id]
+				if candidate.team == team and not candidate.tagged and in_rescue_area(sim, candidate) and teammate_waiting(sim, team):
+					holder = candidate
 					break
+		sim.rescue_rescuer[team] = holder.id if holder != null else -1
+		if holder == null:
+			continue
+		sim.rescue_elapsed[team] += dt
+		if sim.rescue_elapsed[team] + 1e-6 < sim.rules.rescue_hold_time:
+			continue
+		sim.rescue_elapsed[team] = 0.0
+		for waiting: PlayerState in _waiting_in_tag_order(sim, team):
+			rescue(sim, waiting, holder.id)
+			if not sim.rules.rescue_frees_all:
+				break
+
+
+## The tagged players of `team`, the one tagged first at the front.
+func _waiting_in_tag_order(sim: MatchSim, team: int) -> Array[PlayerState]:
+	var found: Array[PlayerState] = []
+	for id: int in sim.players:
+		if sim.players[id].team == team and sim.players[id].tagged:
+			found.append(sim.players[id])
+	found.sort_custom(func(a: PlayerState, b: PlayerState) -> bool: return a.tag_order < b.tag_order)
+	return found
 
 
 ## Back to the post at full HP.
 func rescue(sim: MatchSim, state: PlayerState, by_id: int) -> void:
 	state.tagged = false
 	state.tag_time = 0.0
+	state.tag_order = 0
 	state.hp = sim.rules.player_max_hp
 	state.position = state.spawn_position
 	state.facing = Vector2(0.0, -sim.side_for_team(state.team))
 	clear_actions(state)
+	sim.refill_stamina(state)
 	sim.player_rescued.emit(state.id, by_id)
 
 
-## Status effects, cast locks and weapon aiming end on a tag or rescue.
-## Cooldowns keep running.
+## Status effects, cast locks, weapon aiming and the walk to a move target end on a tag or rescue.
+## Cooldowns and elixir keep running.
 func clear_actions(state: PlayerState) -> void:
 	state.cast_lock_left = 0.0
 	state.effects.clear()
-	state.aim_hold = [-1.0, -1.0]
+	state.aim_hold.fill(-1.0)
+	state.has_move_target = false
+	state.stuck_time = 0.0
+
+
+## How many free players of `team` stand in the enemy base (training dummies never count).
+func capturers_in_enemy_base(sim: MatchSim, team: int, brains: Dictionary[int, DummyBrain]) -> int:
+	var enemy_side: int = -sim.side_for_team(team)
+	var count: int = 0
+	for state: PlayerState in _capture_members(sim, team, brains):
+		if not state.tagged and sim.layout.in_base(enemy_side, state.position):
+			count += 1
+	return count
 
 
 ## Every player of `team` free and standing in the enemy base.
@@ -89,22 +139,26 @@ func base_defended(sim: MatchSim, team: int) -> bool:
 	return false
 
 
-## `team` is all in the enemy base but a defender still stands there, so the capture cannot run.
+## `team` has players in the enemy base but a defender still stands there, so the capture cannot run.
 func base_contested_by(sim: MatchSim, team: int, brains: Dictionary[int, DummyBrain]) -> bool:
-	return sim.rules.capture_contested and team_in_enemy_base(sim, team, brains) and base_defended(sim, team)
+	return sim.rules.capture_contested and capturers_in_enemy_base(sim, team, brains) > 0 and base_defended(sim, team)
 
 
-## The capture countdown runs while exactly one team keeps a capture going (whole team in the enemy base with
-## nobody defending it, or every enemy tagged); it restarts as soon as that breaks. When both teams qualify at
-## once (a mirror rush) nobody's countdown runs: the tie is broken by tagging, not by which team has the lower number.
+## The capture countdown runs while exactly one team keeps a capture going (at least one free player in the enemy base with
+## nobody defending it, or every enemy tagged); it restarts as soon as that breaks. A base capture runs faster with every
+## teammate in the base (`capture_solo_time`, `capture_ally_bonus`). When both teams qualify at once (a mirror rush) nobody's
+## countdown runs: the tie is broken by tagging, not by which team has the lower number.
 func check_captures(sim: MatchSim, brains: Dictionary[int, DummyBrain], dt: float) -> void:
 	var team: int = -1
 	var kind: MatchSim.CaptureKind = MatchSim.CaptureKind.NONE
 	var running: int = 0
+	var in_base: int = 0
 	for candidate: int in [0, 1]:
 		var how: MatchSim.CaptureKind = MatchSim.CaptureKind.NONE
-		if team_in_enemy_base(sim, candidate, brains) and not base_contested_by(sim, candidate, brains):
+		var here: int = capturers_in_enemy_base(sim, candidate, brains)
+		if here > 0 and not base_contested_by(sim, candidate, brains):
 			how = MatchSim.CaptureKind.BASE
+			in_base = here
 		elif all_enemies_tagged(sim, candidate, brains):
 			how = MatchSim.CaptureKind.ALL_TAGGED
 		if how != MatchSim.CaptureKind.NONE:
@@ -118,9 +172,13 @@ func check_captures(sim: MatchSim, brains: Dictionary[int, DummyBrain], dt: floa
 		sim.capture_team = team
 		sim.capture_kind = kind
 		sim.capture_elapsed = 0.0
+	sim.capture_rate = 1.0
 	if team < 0:
 		return
-	sim.capture_elapsed += dt
+	if kind == MatchSim.CaptureKind.BASE:
+		sim.capture_needed = sim.current_base_capture_time()
+		sim.capture_rate = 1.0 + float(in_base - 1) * sim.rules.capture_ally_bonus
+	sim.capture_elapsed += dt * sim.capture_rate
 	if sim.capture_elapsed >= sim.capture_needed:
 		_score_point(sim, team, kind)
 
@@ -128,7 +186,7 @@ func check_captures(sim: MatchSim, brains: Dictionary[int, DummyBrain], dt: floa
 func capture_time_left(sim: MatchSim) -> float:
 	if sim.capture_team < 0:
 		return 0.0
-	return maxf(0.0, sim.capture_needed - sim.capture_elapsed)
+	return maxf(0.0, sim.capture_needed - sim.capture_elapsed) / maxf(sim.capture_rate, 0.001)
 
 
 func end_freeze(sim: MatchSim) -> void:
@@ -150,6 +208,8 @@ func _score_point(sim: MatchSim, team: int, how: MatchSim.CaptureKind) -> void:
 	var result: MatchScore.Result = sim.score.award_point(team)
 	sim.point_log.append(Vector2i(team, how))
 	_clear_capture(sim)
+	for id: int in sim.players:
+		sim.end_move(sim.players[id])  # the point freeze: everyone stops where they are
 	sim.point_scored.emit(team, how)
 	if result == MatchScore.Result.MATCH:
 		sim.phase = MatchSim.Phase.MATCH_OVER
@@ -172,6 +232,8 @@ func _reset_round(sim: MatchSim) -> void:
 	_clear_capture(sim)
 	sim.round_time = 0.0
 	sim.capture_needed = sim.rules.capture_time
+	sim.rescue_rescuer = [-1, -1]
+	sim.rescue_elapsed = [0.0, 0.0]
 	for id: int in sim.players:
 		var state: PlayerState = sim.players[id]
 		var was_tagged: bool = state.tagged
@@ -181,6 +243,10 @@ func _reset_round(sim: MatchSim) -> void:
 		state.hp = sim.rules.player_max_hp
 		state.tagged = false
 		state.tag_time = 0.0
+		state.tag_order = 0
+		sim.refill_stamina(state)
+		if sim.rules.elixir_reset_on_round and sim.pays_elixir(state):
+			state.elixir = sim.rules.elixir_start
 		sim.finish_reloads(state)
 		if was_tagged:
 			sim.player_rescued.emit(id, MatchSim.RELEASED_ALONE)

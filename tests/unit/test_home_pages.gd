@@ -176,7 +176,7 @@ func test_tapping_a_tile_opens_the_detail_sheet_with_the_text_and_figures() -> v
 	assert_false(screen.dialog.is_open)
 
 
-func test_the_figures_name_damage_or_healing_cooldown_and_range() -> void:
+func test_the_figures_name_damage_or_healing_elixir_and_range() -> void:
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 	var saw_heal: bool = false
 	for weapon: WeaponDef in rules.weapons:
@@ -185,7 +185,8 @@ func test_the_figures_name_damage_or_healing_cooldown_and_range() -> void:
 			captions.append(String(figure["caption"]))
 		assert_eq(captions.has("Heal"), weapon.heal > 0, "%s: healing is named as healing" % weapon.id)
 		assert_eq(captions.has("Damage"), weapon.heal <= 0 and weapon.damage > 0, "%s: damage" % weapon.id)
-		assert_eq(captions.has("Cooldown"), weapon.cooldown > 0.0)
+		assert_eq(captions.has("Ice water"), weapon.elixir_cost > 0, "%s: the Book shows the ice water cost, not the cooldown" % weapon.id)
+		assert_false(captions.has("Cooldown"))
 		assert_eq(captions.has("Range"), weapon.max_range > 0.0)
 		saw_heal = saw_heal or weapon.heal > 0
 	assert_true(saw_heal, "the healing weapon is among them")

@@ -1,6 +1,6 @@
 extends GutTest
-## Round 13 of the interface plan: how a match feels. A red glow when you are hit or tagged, a weapon button that
-## pops when it is ready and says why it cannot be used, and controls that fit your hands (left-handed, small to large).
+## Round 13 of the interface plan: how a match feels. A red glow when you are hit or tagged, cards that say why they cannot
+## be used, and controls that fit your hands (left-handed).
 
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const DT: float = 1.0 / 30.0
@@ -74,10 +74,7 @@ func test_the_options_row_follows_the_settings_both_ways() -> void:
 	add_child(options)
 	options.hand_toggle.button_pressed = true
 	assert_true(Settings.left_handed, "the switch changes the setting")
-	options.size_choice.select(&"small")
-	assert_eq(Settings.control_scale, 0.85, "so does the size")
-	Settings.set_control_scale(1.2)
-	assert_eq(options.size_choice.current, &"large", "a change from elsewhere shows here")
+	assert_null(options.find_child("ControlSize", true, false), "no control size: the hand spans the width (it went with the D-pad)")
 	Settings.set_left_handed(false)
 	assert_false(options.hand_toggle.button_pressed)
 
@@ -91,62 +88,20 @@ func test_the_settings_page_has_the_control_options() -> void:
 
 # ---- the layout -------------------------------------------------------------------------
 
-func test_left_handed_swaps_the_sides_and_keeps_everything_on_screen() -> void:
-	Settings.set_left_handed(true)
+func test_left_handed_moves_next_to_the_right_and_keeps_everything_on_screen() -> void:
 	var hud: MatchHud = _hud()
+	var right_next: float = hud.hand.next_rect.get_center().x
+	Settings.set_left_handed(true)
 	var screen: Vector2 = hud.get_rect().size
-	var stick: Rect2 = hud.dpad.get_rect()
-	var first: Rect2 = hud.weapon_buttons[0].get_rect()
-	var second: Rect2 = hud.weapon_buttons[1].get_rect()
-	assert_gt(stick.get_center().x, screen.x / 2.0, "the stick is on the right")
-	for button: Rect2 in [first, second]:
-		assert_lt(button.get_center().x, screen.x / 2.0, "the weapons are on the left")
-		assert_gte(button.position.x, 0.0)
-		assert_false(button.intersects(stick))
-	assert_lt(second.get_center().x, first.get_center().x, "weapon 2 is against the edge, as it is on the right")
-	assert_almost_eq(second.position.x, MatchHud.WEAPON_MARGIN, 0.5, "against the left margin")
-	assert_lt(hud.cancel_zone.get_rect().get_center().x, screen.x / 2.0, "the cancel zone follows the weapons")
-
-
-func test_changing_the_setting_moves_a_live_hud() -> void:
-	var hud: MatchHud = _hud()
-	var before: float = hud.dpad.get_rect().get_center().x
-	Settings.set_left_handed(true)
-	assert_ne(hud.dpad.get_rect().get_center().x, before, "moved without rebuilding")
+	assert_lt(right_next, screen.x / 2.0, "right-handed: NEXT at the left")
+	assert_gt(hud.hand.next_rect.get_center().x, screen.x / 2.0, "left-handed: at the right, moved without rebuilding")
+	assert_lt(hud.hand.card_rects[0].position.x, right_next, "the cards shift toward the left thumb")
+	for card: Rect2 in hud.hand.card_rects:
+		var on_screen: Rect2 = Rect2(hud.hand.get_global_rect().position + card.position, card.size)
+		assert_true(Rect2(Vector2.ZERO, screen).encloses(on_screen), "card on screen")
+		assert_false(card.intersects(hud.hand.next_rect))
 	Settings.set_left_handed(false)
-	assert_eq(hud.dpad.get_rect().get_center().x, before, "and back")
-
-
-func test_large_controls_are_bigger_and_still_fit() -> void:
-	Settings.set_control_scale(1.2)
-	var hud: MatchHud = _hud()
-	var screen: Vector2 = hud.get_rect().size
-	var button: Rect2 = hud.weapon_buttons[0].get_rect()
-	assert_almost_eq(button.size.x, MatchHud.WEAPON_SIZE * 1.2, 0.5)
-	var stick: Rect2 = hud.dpad.get_rect()
-	assert_almost_eq(hud.dpad.scale.x, 1.2, 0.001)
-	assert_almost_eq(stick.size.x, MatchHud.DPAD_ZONE * 1.2, 0.5, "a rect is the size it is drawn at")
-	var ring: float = DPad.MAX_RADIUS * 1.2
-	assert_gte(stick.get_center().x - ring, 0.0, "the disc stays on screen")
-	for each: AimButton in hud.weapon_buttons:
-		assert_lte(each.get_rect().end.x, screen.x)
-		assert_gt(each.get_rect().position.x, stick.get_center().x + ring, "the buttons clear the outer ring")
-	assert_false(hud.weapon_buttons[0].get_rect().intersects(hud.weapon_buttons[1].get_rect()))
-
-
-func test_small_controls_are_still_thumb_sized() -> void:
-	Settings.set_control_scale(0.85)
-	var hud: MatchHud = _hud()
-	assert_gte(hud.weapon_buttons[0].get_rect().size.x, 84.0, "44 pt")
-
-
-func test_a_larger_stick_grabs_from_further_out() -> void:
-	var hud: MatchHud = _hud()
-	var centre: Vector2 = hud.dpad.get_global_rect().get_center()
-	var probe: Vector2 = centre + Vector2(DPad.MAX_RADIUS * 1.1, 0.0)
-	assert_false(hud.dpad._in_zone(probe), "just outside the normal ring")
-	Settings.set_control_scale(1.2)
-	assert_true(hud.dpad._in_zone(probe), "inside the larger ring")
+	assert_almost_eq(hud.hand.next_rect.get_center().x, right_next, 0.5, "and back")
 
 
 # ---- the glow ----------------------------------------------------------------------------
@@ -245,53 +200,30 @@ func test_being_tagged_in_a_match_glows_hardest() -> void:
 
 # ---- the weapon buttons -----------------------------------------------------------------
 
-func test_a_button_pops_when_it_is_ready_and_settles() -> void:
-	var button: TouchButton = autofree(TouchButton.new()) as TouchButton
-	button.size = Vector2(124.0, 124.0)
-	add_child(button)
-	button.set_cooldown(2.0, 3.0)
-	button.set_cooldown(0.0, 3.0)
-	button._process(TouchButton.READY_FLASH_TIME * 0.5)
-	assert_gt(button.scale.x, 1.05, "swollen at the middle of the pop")
-	button._process(TouchButton.READY_FLASH_TIME)
-	assert_eq(button.scale, Vector2.ONE, "back to its size")
-
-
-func test_reduce_motion_keeps_the_button_still_when_ready() -> void:
-	Settings.set_reduced_motion(true)
-	var button: TouchButton = autofree(TouchButton.new()) as TouchButton
-	button.size = Vector2(124.0, 124.0)
-	add_child(button)
-	button.set_cooldown(2.0, 3.0)
-	button.set_cooldown(0.0, 3.0)
-	button._process(TouchButton.READY_FLASH_TIME * 0.5)
-	assert_eq(button.scale, Vector2.ONE)
-
-
 func test_a_button_says_why_it_cannot_be_used() -> void:
 	var practice: PracticeMatch = _practice()
 	var player: PlayerState = practice.sim.players[practice.local_id]
 	practice.advance(DT)
-	assert_true(practice.hud.weapon_buttons[0].visible, "in play")
-	assert_eq(practice.hud.weapon_buttons[0].blocked_text, "", "nothing in the way")
+	assert_true(practice.hud.hand.visible, "in play")
+	assert_eq(practice.hud.hand.blocked_text, "", "nothing in the way")
 	player.effects.apply(StatusEffects.Type.STUN, 2.0)
 	practice.advance(DT)
-	for button: AimButton in practice.hud.weapon_buttons:
-		assert_eq(button.blocked_text, "STUNNED")
-		assert_true(button.locked)
+	assert_eq(practice.hud.hand.blocked_text, "STUNNED")
+	for slot: int in CardHand.SLOTS:
+		assert_false(practice.hud.hand.pickable[slot], "no card can be picked up")
 	player.effects.apply(StatusEffects.Type.POLYMORPH, 2.0)
 	practice.advance(DT)
-	assert_eq(practice.hud.weapon_buttons[0].blocked_text, "CAN", "polymorphed into a can")
+	assert_eq(practice.hud.hand.blocked_text, "CAN", "polymorphed into a can")
 	player.effects.clear()
 	practice.advance(DT)
-	assert_eq(practice.hud.weapon_buttons[0].blocked_text, "", "gone with the status")
+	assert_eq(practice.hud.hand.blocked_text, "", "gone with the status")
 
 
 func test_a_slow_does_not_block_a_button() -> void:
 	var practice: PracticeMatch = _practice()
 	practice.sim.players[practice.local_id].effects.apply(StatusEffects.Type.SLOW, 2.0, 0.5)
 	practice.advance(DT)
-	assert_eq(practice.hud.weapon_buttons[0].blocked_text, "", "slowed, but you can still cast")
+	assert_eq(practice.hud.hand.blocked_text, "", "slowed, but you can still cast")
 
 
 func test_every_blocking_status_has_a_short_word() -> void:
