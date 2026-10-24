@@ -4,6 +4,56 @@ extends RefCounted
 ## it appears. (The look itself is UiSkin; the sizes are UiMetrics.)
 
 const CROP: Shader = preload("res://shaders/minimap_crop.gdshader")
+## The press feel every styled button shares (Play again, Leave, Swap, Ready, the segmented control and the choice cards
+## gave nothing under the thumb): held, the button sinks to `PRESS_SCALE` toward its centre in `PRESS_DOWN` seconds; let
+## go, it springs back in `PRESS_UP` with a small overshoot. Under Reduce motion it does not move.
+const PRESS_SCALE: float = 0.955
+const PRESS_DOWN: float = 0.07
+const PRESS_UP: float = 0.16
+## A card nested in a big (`UiSkin.RADIUS_XL`) panel: it sits `NEST_GAP` in from the panel's edge and its corners are the
+## panel's less that gap, so the two curves run parallel (docs/ART.md "Nested curves are parallel").
+const NEST_GAP: int = UiMetrics.GAP
+const NESTED_RADIUS: int = UiSkin.RADIUS_XL - NEST_GAP
+## The page header's gold bar under the title.
+const HEADER_BAR: Vector2 = Vector2(110.0, 8.0)
+
+
+## Wires `button` for the shared press feel. Safe to call again on the same button: it is wired once.
+static func feel_press(button: BaseButton) -> void:
+	if button.has_meta(&"feels_press"):
+		return
+	button.set_meta(&"feels_press", true)
+	button.button_down.connect(_press_to.bind(button, PRESS_SCALE, PRESS_DOWN, Tween.TRANS_QUAD))
+	button.button_up.connect(_press_to.bind(button, 1.0, PRESS_UP, Tween.TRANS_BACK))
+
+
+static func _press_to(button: BaseButton, target: float, seconds: float, transition: Tween.TransitionType) -> void:
+	if not is_instance_valid(button) or not button.is_inside_tree():
+		return
+	var previous: Tween = (button.get_meta(&"press_tween") as Tween) if button.has_meta(&"press_tween") else null
+	if is_instance_valid(previous):
+		previous.kill()
+	if Settings.reduced_motion:
+		button.scale = Vector2.ONE
+		return
+	button.pivot_offset = button.size / 2.0
+	var tween: Tween = button.create_tween()
+	button.set_meta(&"press_tween", tween)
+	tween.tween_property(button, "scale", Vector2.ONE * target, seconds).set_trans(transition).set_ease(Tween.EASE_OUT)
+
+
+## Letters a big word (`UiMetrics.HEADLINE`, `DISPLAY`, `HERO` or `SCORE`): the display face, an outline that grows with
+## the size and a shadow dropped under it, so every title, banner and score reads as one family (docs/ART.md).
+static func letter(label: Label, size: int, color: Color = KalyeahTheme.CREAM, ink: Color = UiSkin.LETTER_INK) -> void:
+	label.theme_type_variation = &"DisplayLabel"
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_color_override("font_outline_color", ink)
+	label.add_theme_constant_override("outline_size", UiSkin.letter_outline(size))
+	label.add_theme_color_override("font_shadow_color", UiSkin.LETTER_SHADOW)
+	label.add_theme_constant_override("shadow_offset_x", 0)
+	label.add_theme_constant_override("shadow_offset_y", UiSkin.letter_shadow(size))
+	label.add_theme_constant_override("shadow_outline_size", UiSkin.letter_outline(size))
 
 
 ## A page's heading: a big outlined display title, a quiet line under it and a short gold bar.
@@ -14,10 +64,7 @@ static func page_header(title_text: String, subtitle: String = "") -> VBoxContai
 	var title: Label = Label.new()
 	title.name = "Title"
 	title.text = title_text
-	title.theme_type_variation = &"DisplayLabel"
-	title.add_theme_font_size_override("font_size", 52)
-	title.add_theme_color_override("font_outline_color", Color("060d22"))
-	title.add_theme_constant_override("outline_size", 9)
+	letter(title, UiMetrics.DISPLAY)
 	column.add_child(title)
 	if not subtitle.is_empty():
 		var line: Label = Label.new()
@@ -29,20 +76,20 @@ static func page_header(title_text: String, subtitle: String = "") -> VBoxContai
 		line.add_theme_color_override("font_color", Color("b4c3e6"))
 		column.add_child(line)
 	var bar: Panel = Panel.new()
-	bar.custom_minimum_size = Vector2(110.0, 8.0)
+	bar.custom_minimum_size = HEADER_BAR
 	bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	var fill: StyleBoxFlat = StyleBoxFlat.new()
 	fill.bg_color = Color("ffc233")
-	fill.set_corner_radius_all(4)
+	fill.set_corner_radius_all(UiSkin.round_radius(HEADER_BAR.y))
 	bar.add_theme_stylebox_override("panel", fill)
 	column.add_child(bar)
 	return column
 
 
-## A glass card holding `content` (or empty, to fill later).
-static func card(content: Control = null, kind: String = "glass", padding: float = UiMetrics.PADDING) -> PanelContainer:
+## A glass card holding `content` (or empty, to fill later); `NESTED_RADIUS` for a card inside a big panel.
+static func card(content: Control = null, kind: String = "glass", padding: float = UiMetrics.PADDING, radius: int = UiSkin.PLATE_RADIUS) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UiSkin.plate(kind, padding))
+	panel.add_theme_stylebox_override("panel", UiSkin.plate(kind, padding, radius))
 	# a card never swallows a touch of its own: a drag that starts on it scrolls the page it sits in
 	panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	if content != null:
@@ -87,7 +134,7 @@ static func chip(text: String, fill: Color, ink: Color = Color.WHITE, size: int 
 	var panel: PanelContainer = PanelContainer.new()
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = fill
-	box.set_corner_radius_all(20)
+	box.set_corner_radius_all(UiSkin.RADIUS_L)
 	box.border_color = fill.darkened(0.35)
 	box.set_border_width_all(2)
 	box.content_margin_left = 16.0

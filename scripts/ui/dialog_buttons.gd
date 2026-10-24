@@ -10,7 +10,7 @@ const GRABBER_SIZE: int = 44
 
 ## A square painted button with an icon (`color`: orange, green, red, blue, grey or gold).
 static func icon_button(icon: Texture2D, color: String, size: float) -> Button:
-	var button: Button = MenuDialog.make_button("", color, 30, Vector2(size, size))
+	var button: Button = MenuDialog.make_button("", color, UiMetrics.BODY, Vector2(size, size))
 	button.icon = icon
 	button.expand_icon = true
 	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -31,13 +31,13 @@ static func slider(value: float) -> HSlider:
 	slider.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
 	var track: StyleBoxFlat = StyleBoxFlat.new()
 	track.bg_color = TRACK
-	track.set_corner_radius_all(14)
+	track.set_corner_radius_all(UiSkin.RADIUS_M)
 	track.content_margin_top = 4.0
 	track.content_margin_bottom = 4.0
 	track.anti_aliasing = true
 	var fill: StyleBoxFlat = StyleBoxFlat.new()
 	fill.bg_color = FILL
-	fill.set_corner_radius_all(14)
+	fill.set_corner_radius_all(UiSkin.RADIUS_M)
 	fill.content_margin_top = 4.0
 	fill.content_margin_bottom = 4.0
 	fill.anti_aliasing = true

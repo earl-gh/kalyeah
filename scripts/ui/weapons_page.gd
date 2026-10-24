@@ -33,7 +33,7 @@ const TILE_ICON: float = 128.0
 const DETAIL_ICON: float = 168.0
 ## The colour of each stat bar: power (damage or healing), time (cooldown) and reach (range).
 const BAR_COLORS: Dictionary[String, Color] = {"Damage": Color("ffc233"), "Heal": Color("45dd78"), "Cooldown": Color("4aa0ff"), "Range": Color("b48cff")}
-const PLATE_FOCUS_RADIUS: int = 32
+const PLATE_FOCUS_RADIUS: int = UiSkin.PLATE_RADIUS
 
 ## One tile per weapon, in the order of the rules (whichever way they are grouped).
 var tiles: Array[Button] = []
@@ -147,7 +147,7 @@ func _tile(weapon: WeaponDef) -> Button:
 	for state: String in ["pressed", "hover_pressed"]:
 		tile.add_theme_stylebox_override(state, UiSkin.plate("raised", 0.0))
 	tile.add_theme_stylebox_override("focus", UiSkin.focus_ring(PLATE_FOCUS_RADIUS))
-	MenuDialog.feel_press(tile)
+	UiKit.feel_press(tile)
 	var column: VBoxContainer = VBoxContainer.new()
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	column.offset_left = 14.0
@@ -219,7 +219,7 @@ static func detail(weapon: WeaponDef) -> MenuDialog:
 	var tags: HBoxContainer = HBoxContainer.new()
 	tags.alignment = BoxContainer.ALIGNMENT_CENTER
 	tags.add_theme_constant_override("separation", 12)
-	tags.add_child(UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, KIND_CHIPS.get(weapon.kind, UiKit.CHIP_SLATE) as Color, Color.WHITE, 22))
+	tags.add_child(UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, KIND_CHIPS.get(weapon.kind, UiKit.CHIP_SLATE) as Color))
 	tags.add_child(UiKit.text(weapon.street_game, UiMetrics.DETAIL, Color("9fb0d6"), false))
 	card.body.add_child(tags)
 	var about: Label = card.add_label(weapon.description, UiMetrics.BODY, KalyeahTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
@@ -230,7 +230,7 @@ static func detail(weapon: WeaponDef) -> MenuDialog:
 	var maxima: Dictionary = stat_maxima(_all_weapons())
 	for figure: Dictionary in figures_of(weapon):
 		figures.add_child(bar_row(String(figure["caption"]), String(figure["value"]), fraction_of(String(figure["caption"]), weapon, maxima)))
-	card.body.add_child(UiKit.card(figures, "inset", 16.0))
+	card.body.add_child(UiKit.card(figures, "inset", 16.0, UiKit.NESTED_RADIUS))
 	var blurb: String = street_games().blurb_of(weapon.street_game)
 	if not blurb.is_empty():
 		var column: VBoxContainer = VBoxContainer.new()
@@ -302,11 +302,11 @@ static func meter_bar(caption: String, fraction: float, height: float) -> Progre
 	meter.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var track: StyleBoxFlat = StyleBoxFlat.new()
 	track.bg_color = Color("0a1433")
-	track.set_corner_radius_all(13)
+	track.set_corner_radius_all(UiSkin.round_radius(height))
 	track.anti_aliasing = true
 	var fill: StyleBoxFlat = StyleBoxFlat.new()
 	fill.bg_color = BAR_COLORS.get(caption, Color("ffc233")) as Color
-	fill.set_corner_radius_all(13)
+	fill.set_corner_radius_all(UiSkin.round_radius(height))
 	fill.anti_aliasing = true
 	meter.add_theme_stylebox_override("background", track)
 	meter.add_theme_stylebox_override("fill", fill)

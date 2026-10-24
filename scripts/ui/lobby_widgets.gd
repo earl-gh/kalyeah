@@ -25,7 +25,7 @@ static func header(title_text: String, back_action: Callable) -> HBoxContainer:
 	var back: Button = button("Back", back_action, "grey", UiMetrics.ACTION)
 	back.custom_minimum_size = Vector2(120.0, UiMetrics.TOUCH)
 	row.add_child(back)
-	var title: Label = label(title_text, 38)
+	var title: Label = label(title_text, UiMetrics.HEADLINE)
 	title.theme_type_variation = &"DisplayLabel"
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -80,13 +80,12 @@ static func make_toggle(button_control: Button) -> void:
 		button_control.add_theme_color_override(state, Color.WHITE)
 
 
-static func button(text: String, action: Callable, color: String = "orange", font_size: int = 28) -> Button:
+static func button(text: String, action: Callable, color: String = "orange", font_size: int = UiMetrics.BODY) -> Button:
 	var result: Button = Button.new()
 	result.text = text
 	result.custom_minimum_size = Vector2(120.0, UiMetrics.TOUCH)
 	result.add_theme_font_size_override("font_size", font_size)
 	KalyeahTheme.style_button(result, color)
-	MenuDialog.feel_press(result)
 	result.pressed.connect(action)
 	return result
 

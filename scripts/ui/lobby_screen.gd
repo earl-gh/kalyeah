@@ -13,7 +13,7 @@ const NET_RULES: NetRules = preload("res://data/rules/net_rules.tres")
 const FONT: int = UiMetrics.BODY
 ## The id of the player the preview shows as "you".
 const PREVIEW_ME: int = 1
-const BIG_FONT: int = 56
+const BIG_FONT: int = UiMetrics.DISPLAY
 
 var client: GameClient
 var intent: Intent = Intent.CREATE
@@ -383,7 +383,7 @@ func _start_hotspot() -> void:
 func _open_settings() -> void:
 	var card: MenuDialog = MenuDialog.create("Settings")
 	SettingsPage.fill(card.body)
-	var close: Button = MenuDialog.make_button("Done", "blue", 32)
+	var close: Button = MenuDialog.make_button("Done", "blue", UiMetrics.BODY)
 	close.pressed.connect(card.close)
 	card.add_buttons([close])
 	card.open(self)

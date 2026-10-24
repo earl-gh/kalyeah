@@ -62,11 +62,8 @@ func _init() -> void:
 	_card.add_child(column)
 	title = Label.new()
 	title.name = "Title"
-	title.theme_type_variation = &"DisplayLabel"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 80)
-	title.add_theme_color_override("font_outline_color", Color("1a0c02"))
-	title.add_theme_constant_override("outline_size", 14)
+	UiKit.letter(title, UiMetrics.HERO)
 	column.add_child(title)
 	subtitle = UiKit.text("", UiMetrics.DETAIL, Color("c9d6f2"), false)
 	subtitle.name = "Subtitle"
@@ -113,14 +110,12 @@ func _score_card() -> Control:
 	theirs_label = theirs.get_node("Number") as Label
 	var dash: Label = Label.new()
 	dash.text = "-"
-	dash.theme_type_variation = &"DisplayLabel"
-	dash.add_theme_font_size_override("font_size", 96)
-	dash.add_theme_color_override("font_color", Color("9fb0d6"))
+	UiKit.letter(dash, UiMetrics.HERO, Color("9fb0d6"))
 	dash.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(mine)
 	row.add_child(dash)
 	row.add_child(theirs)
-	return UiKit.card(row, "inset", 18.0)
+	return UiKit.card(row, "inset", 18.0, UiKit.NESTED_RADIUS)
 
 
 ## "How the points went": a chip for each point, blue when you scored it and red when they did.
@@ -184,12 +179,8 @@ func _side(caption: String, color: Color) -> VBoxContainer:
 	column.custom_minimum_size = Vector2(150.0, 0.0)
 	var number: Label = Label.new()
 	number.name = "Number"
-	number.theme_type_variation = &"DisplayLabel"
 	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	number.add_theme_font_size_override("font_size", 120)
-	number.add_theme_color_override("font_color", color.lightened(0.55))
-	number.add_theme_color_override("font_outline_color", color.darkened(0.6))
-	number.add_theme_constant_override("outline_size", 14)
+	UiKit.letter(number, UiMetrics.SCORE, color.lightened(0.55), color.darkened(0.6))
 	column.add_child(number)
 	var chip: PanelContainer = UiKit.chip(caption, color, Color.WHITE, UiMetrics.CAPTION)
 	chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -287,7 +278,7 @@ func _fill(sim: MatchSim, local_id: int, local_team: int, mode_text: String) -> 
 	for child: Node in weapons_row.get_children():
 		weapons_row.remove_child(child)
 		child.queue_free()
-	var player: PlayerState = sim.players[local_id] if local_id >= 0 and local_id < sim.players.size() else null
+	var player: PlayerState = sim.players.get(local_id) as PlayerState
 	kid_holder.visible = player != null
 	if player == null:
 		return

@@ -73,10 +73,7 @@ func _figure(parent: HBoxContainer, caption: String, color: Color) -> Label:
 	column.add_theme_constant_override("separation", 0)
 	var number: Label = Label.new()
 	number.name = caption
-	number.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
-	number.add_theme_font_size_override("font_size", 52)
-	number.add_theme_color_override("font_color", color)
-	number.add_theme_constant_override("outline_size", 0)
+	UiKit.letter(number, UiMetrics.DISPLAY, color)
 	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(number)
 	var label: Label = UiKit.text(caption, UiMetrics.CAPTION, Color("9fb0d6"), false)
@@ -151,10 +148,8 @@ func _row(entry: Dictionary, now: int) -> Control:
 	row.add_child(words)
 	var score: Label = Label.new()
 	score.name = "Score"
-	score.theme_type_variation = &"DisplayLabel"
 	score.text = "%d - %d" % [int(entry.get("mine", 0)), int(entry.get("theirs", 0))]
-	score.add_theme_font_size_override("font_size", 44)
-	score.add_theme_constant_override("outline_size", 6)
+	UiKit.letter(score, UiMetrics.HEADLINE)
 	score.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(score)
 	return UiKit.card(row, "glass", 22.0)

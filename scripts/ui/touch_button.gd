@@ -19,12 +19,12 @@ const SHADOW_COLOR: Color = Color(0.0, 0.0, 0.0, 0.35)
 const RIM_COLOR: Color = Color(1.0, 0.9, 0.6, 0.95)
 const RIM_WIDTH: float = 5.0
 const SHADOW_DROP: float = 5.0
-const FONT_SIZE: int = 26
-const SMALL_FONT_SIZE: int = 22
+const FONT_SIZE: int = UiMetrics.ACTION
+const SMALL_FONT_SIZE: int = UiMetrics.CAPTION
 const TAG_FONT_SIZE: int = UiMetrics.CAPTION
 const TAG_HEIGHT: float = 26.0
 const TEXT_OUTLINE: int = 5
-const COOLDOWN_FONT_SIZE: int = 34
+const COOLDOWN_FONT_SIZE: int = UiMetrics.TITLE
 ## A held card rises this much; its touch area is this much bigger on every side.
 const CARD_LIFT: float = 10.0
 const CARD_SLACK: float = 8.0
@@ -265,7 +265,7 @@ func _tag(font: Font, text: String, at: Vector2, color: Color) -> void:
 	pill.bg_color = Color(0.1, 0.08, 0.14, 0.92)
 	pill.border_color = color
 	pill.set_border_width_all(2)
-	pill.set_corner_radius_all(12)
+	pill.set_corner_radius_all(UiSkin.round_radius(TAG_HEIGHT))
 	draw_style_box(pill, Rect2(at - Vector2(width / 2.0, TAG_HEIGHT / 2.0), Vector2(width, TAG_HEIGHT)))
 	_text(font, text, at, TAG_FONT_SIZE, color)
 

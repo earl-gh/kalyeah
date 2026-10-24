@@ -47,12 +47,9 @@ func _init(p_length: int = 8, p_alphabet: String = "", p_editable: bool = true) 
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var letter: Label = Label.new()
 		letter.name = "Letter"
-		letter.theme_type_variation = &"DisplayLabel"
 		letter.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		letter.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		letter.add_theme_font_size_override("font_size", 52)
-		letter.add_theme_color_override("font_color", KalyeahTheme.CREAM)
-		letter.add_theme_constant_override("outline_size", 6)
+		UiKit.letter(letter, UiMetrics.DISPLAY)
 		letter.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.add_child(letter)
 		row.add_child(box)
@@ -172,6 +169,6 @@ func _paint() -> void:
 		box.bg_color = BOX_FILL
 		box.border_color = line
 		box.set_border_width_all(width)
-		box.set_corner_radius_all(14)
+		box.set_corner_radius_all(UiSkin.RADIUS_M)
 		box.anti_aliasing = true
 		_boxes[i].add_theme_stylebox_override("panel", box)

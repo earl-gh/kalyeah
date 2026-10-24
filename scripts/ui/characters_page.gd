@@ -44,11 +44,11 @@ func _card(id: String) -> Button:
 	card.tooltip_text = "About %s" % id.capitalize()
 	card.accessibility_name = "%s: read about this kid" % definition.display_name
 	for state: String in ["normal", "hover"]:
-		card.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, 22))
+		card.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, UiSkin.RADIUS_L))
 	for state: String in ["pressed", "hover_pressed"]:
-		card.add_theme_stylebox_override(state, UiSkin.plate("raised", 0.0, 22))
-	card.add_theme_stylebox_override("focus", KalyeahTheme.focus_ring(24))
-	MenuDialog.feel_press(card)
+		card.add_theme_stylebox_override(state, UiSkin.plate("raised", 0.0, UiSkin.RADIUS_L))
+	card.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_L))
+	UiKit.feel_press(card)
 	var picture: TextureRect = TextureRect.new()
 	picture.name = "Picture"
 	picture.texture = KidModel.card_face(StringName(id))
@@ -137,7 +137,7 @@ static func _palette(character: CharacterDef) -> Control:
 		dot.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		var box: StyleBoxFlat = StyleBoxFlat.new()
 		box.bg_color = swatch["color"] as Color
-		box.set_corner_radius_all(26)
+		box.set_corner_radius_all(UiSkin.round_radius(dot.custom_minimum_size.y))
 		box.border_color = Color(1.0, 1.0, 1.0, 0.55)
 		box.set_border_width_all(3)
 		box.anti_aliasing = true

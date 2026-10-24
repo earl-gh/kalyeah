@@ -669,6 +669,9 @@ func test_control_hint_explains_stun_and_aim() -> void:
 	assert_string_contains(practice.hud.feedback.hint.text, "weapons unavailable")
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 	player.effects.clear()
+	# the practice deck is shuffled from a clock seed: a targeted card in slot 0 with nobody in range shows "Nobody in range"
+	# instead (flaky), so slot 0 holds a cone card that always casts; the no-target hint is its own test
+	player.weapons[0] = &"gunting_light"
 	var button: AimButton = _weapon_button(practice, 0)
 	button.aiming = true
 	practice.hud.sync_player(practice.sim, player, false)

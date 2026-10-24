@@ -65,13 +65,9 @@ static func build_intro(hud: MatchHud) -> void:
 	hud.intro_bar.visible = false
 	hud.add_child(hud.intro_bar)
 	hud.intro_title = Label.new()
-	hud.intro_title.theme_type_variation = &"DisplayLabel"
 	hud._place(hud.intro_title, Vector4(0, 0, 1, 0), Vector4(0, 14, 0, 72))
 	hud.intro_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hud.intro_title.add_theme_font_size_override("font_size", 40)
-	hud.intro_title.add_theme_color_override("font_color", Color(1.0, 0.82, 0.25))
-	hud.intro_title.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.1))
-	hud.intro_title.add_theme_constant_override("outline_size", 10)
+	UiKit.letter(hud.intro_title, UiMetrics.HEADLINE, Color(1.0, 0.82, 0.25))
 	hud.intro_bar.add_child(hud.intro_title)
 	hud.intro_sub = Label.new()
 	hud._place(hud.intro_sub, Vector4(0, 0, 1, 0), Vector4(0, 72, 0, 112))

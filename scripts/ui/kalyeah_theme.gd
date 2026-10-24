@@ -35,14 +35,15 @@ const BLUE: Color = Color("0a84ff")
 const GREEN: Color = Color("30a46c")
 const RED: Color = Color("ff5e57")
 const SLATE: Color = Color("3a4b63")
-const FOCUS: Color = Color("ffe59b")
+const FOCUS: Color = UiSkin.FOCUS_COLOR
 const SUCCESS: Color = Color("79daa5")
 const ERROR: Color = Color("ffb4ab")
 const TEAM_BLUE: Color = Color("435bc2")
 const TEAM_RED: Color = Color("b83246")
 const FIELD: Color = Color("0d1729")
 
-const CORNER: int = 18
+## Flat surfaces share the skin's corner scale: CORNER is the button and card radius.
+const CORNER: int = UiSkin.RADIUS_L
 const BUTTON_SHADOW: int = 0
 const FONT_SIZE: int = UiMetrics.BODY
 const PANEL_PADDING: float = UiMetrics.PADDING
@@ -94,7 +95,7 @@ static func build() -> Theme:
 	theme.set_font_size("font_size", "Button", UiMetrics.ACTION)
 	set_button_styles(theme, "Button", "orange")
 	theme.set_stylebox("disabled", "Button", painted_button("grey"))
-	theme.set_stylebox("focus", "Button", focus_ring(CORNER + 2))
+	theme.set_stylebox("focus", "Button", focus_ring(UiSkin.BUTTON_RADIUS))
 	for state: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
 		theme.set_color(state, "Button", INK_DEEP)
 	theme.set_color("font_disabled_color", "Button", Color(TEXT_MUTED, 0.62))
@@ -115,7 +116,7 @@ static func build() -> Theme:
 	theme.set_color("selection_color", "LineEdit", AMBER)
 
 	for type: String in ["Panel", "PanelContainer"]:
-		theme.set_stylebox("panel", type, surface_box(18, 2, 20.0))
+		theme.set_stylebox("panel", type, surface_box(UiSkin.RADIUS_L, 2, 20.0))
 	return theme
 
 
@@ -184,7 +185,8 @@ static func set_button_styles(theme: Theme, type: String, color: String) -> void
 	theme.set_stylebox("hover_pressed", type, UiSkin.button(variant, "pressed"))
 
 
-## Dresses a button in a game-button variant: a gradient face with a lip (UiSkin), a heavy label.
+## Dresses a button in a game-button variant: a gradient face with a lip (UiSkin), a heavy label, and the shared press
+## feel (UiKit.feel_press), wired once.
 static func style_button(button: Button, color: String) -> void:
 	var variant: String = skin_variant(color)
 	button.add_theme_stylebox_override("normal", UiSkin.button(variant))
@@ -195,9 +197,10 @@ static func style_button(button: Button, color: String) -> void:
 	button.add_theme_stylebox_override("focus", UiSkin.focus_ring())
 	button.add_theme_font_override("font", BUTTON_FONT)
 	UiSkin.style_label(button, variant)
+	UiKit.feel_press(button)
 
 
-static func surface_box(corner: int = 20, border: int = 1, padding: float = PANEL_PADDING) -> StyleBoxFlat:
+static func surface_box(corner: int = UiSkin.RADIUS_L, border: int = 1, padding: float = PANEL_PADDING) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = Color(SURFACE, 0.97)
 	box.set_corner_radius_all(corner)
@@ -215,7 +218,7 @@ static func painted_panel(padding: float = PANEL_PADDING) -> StyleBox:
 
 
 static func painted_pill() -> StyleBoxFlat:
-	var box: StyleBoxFlat = surface_box(22, 1, 0.0)
+	var box: StyleBoxFlat = surface_box(UiSkin.RADIUS_L, 1, 0.0)
 	box.bg_color = Color(INK, 0.88)
 	box.border_color = Color(TEXT_MUTED, 0.2)
 	box.content_margin_left = 18.0
@@ -226,7 +229,7 @@ static func painted_pill() -> StyleBoxFlat:
 
 
 static func map_title_plate() -> StyleBoxFlat:
-	var box: StyleBoxFlat = surface_box(14, 2, 0.0)
+	var box: StyleBoxFlat = surface_box(UiSkin.RADIUS_M, 2, 0.0)
 	box.bg_color = Color("213b61")
 	box.border_color = AMBER
 	box.shadow_size = 0
@@ -240,7 +243,7 @@ static func map_title_plate() -> StyleBoxFlat:
 static func field_box(focused: bool, read_only: bool = false) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = Color(SURFACE_RAISED if read_only else FIELD, 0.98)
-	box.set_corner_radius_all(14)
+	box.set_corner_radius_all(UiSkin.RADIUS_M)
 	box.set_border_width_all(3 if focused else 1)
 	box.border_color = BLUE if focused else Color(TEXT_MUTED, 0.3)
 	box.content_margin_left = 18.0
@@ -252,12 +255,6 @@ static func field_box(focused: bool, read_only: bool = false) -> StyleBoxFlat:
 	return box
 
 
+## The focus ring round a control whose corners are `radius`: the one ring, UiSkin's.
 static func focus_ring(radius: int) -> StyleBoxFlat:
-	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = Color.TRANSPARENT
-	box.set_corner_radius_all(radius)
-	box.set_border_width_all(3)
-	box.border_color = FOCUS
-	box.set_expand_margin_all(3.0)
-	box.anti_aliasing = true
-	return box
+	return UiSkin.focus_ring(radius)

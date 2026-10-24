@@ -4,8 +4,11 @@ extends RefCounted
 ## an upright card with a frame in the weapon's kind colour, the round painted art on top and the weapon's name on a plate at the bottom.
 ## The hand's two buttons and the shuffler's window use the same drawing, at two sizes.
 
-const RADIUS: int = 18
+const RADIUS: int = UiSkin.RADIUS_M
 const BORDER: int = 5
+## How far the thin gold inner frame of a cooling card stands inside its edge; its corners are the card's less this, so the
+## two curves stay parallel.
+const INNER_INSET: int = BORDER + 9
 const NAME_MAX: int = 22
 ## Names are never drawn smaller than the caption floor: a card too small for that (the shuffler's window) shows only its art.
 const NAME_MIN: int = UiMetrics.CAPTION
@@ -71,12 +74,12 @@ static func draw_back(canvas: CanvasItem, rect: Rect2, progress: float, seconds:
 	back.set_corner_radius_all(RADIUS)
 	back.anti_aliasing = true
 	canvas.draw_style_box(back, rect)
-	var inset: Rect2 = rect.grow(-(BORDER + 9.0))
+	var inset: Rect2 = rect.grow(-float(INNER_INSET))
 	var inner: StyleBoxFlat = StyleBoxFlat.new()
 	inner.bg_color = Color(0.0, 0.0, 0.0, 0.0)
 	inner.border_color = Color(RoyaleStyle.GOLD, 0.35)
 	inner.set_border_width_all(2)
-	inner.set_corner_radius_all(RADIUS - 6)
+	inner.set_corner_radius_all(RADIUS - INNER_INSET)
 	inner.anti_aliasing = true
 	canvas.draw_style_box(inner, inset)
 	var centre: Vector2 = rect.get_center()
@@ -86,8 +89,8 @@ static func draw_back(canvas: CanvasItem, rect: Rect2, progress: float, seconds:
 	if seconds > 0:
 		var font: Font = KalyeahTheme.ACTION_FONT
 		var text: String = "%d" % seconds
-		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 40).x
-		canvas.draw_string(font, centre + Vector2(-width / 2.0, 14.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 40, Color(1.0, 1.0, 1.0, 0.9))
+		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.HEADLINE).x
+		canvas.draw_string(font, centre + Vector2(-width / 2.0, 14.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.HEADLINE, Color(1.0, 1.0, 1.0, 0.9))
 
 
 static func plate_height(rect: Rect2) -> float:

@@ -34,7 +34,16 @@ const PLATES: Dictionary[String, Dictionary] = {
 	# a chosen card: a warm body in a thick gold rim
 	"picked": {"top": Color("3a4a7e"), "bottom": Color("1d2d63"), "line": Color("ffc83a"), "line_width": 5.0, "light": 0.22, "shadow": 0.6},
 }
-const BUTTON_RADIUS: int = 24
+## The one corner scale (art direction, docs/ART.md "Shared UI hierarchy"): on the same 8 px rhythm as the spacing in
+## `UiMetrics`. Small: bars' gloss, dots, small tags; medium: fields, code boxes, rows, strips, small tiles; large: buttons,
+## cards, tiles, chips on panels; extra large: big panels, the toast, the tab bar, the profile chip, the card tray.
+## A shape that should be fully round takes `round_radius` of its height; a shape nested in another takes the outer
+## radius minus the gap between them, so the two curves stay parallel (the focus ring is the same rule outward).
+const RADIUS_S: int = 8
+const RADIUS_M: int = 16
+const RADIUS_L: int = 24
+const RADIUS_XL: int = 32
+const BUTTON_RADIUS: int = RADIUS_L
 ## The lip the face sits on (visual pass: 9 px read flat next to the brand's chunky look) and how far the face sinks into it
 ## when pressed (down to `BUTTON_PRESSED_LIP`).
 const BUTTON_LIP: int = 12
@@ -48,17 +57,27 @@ const BUTTON_EDGE_LIGHT: float = 0.5
 const BUTTON_GLOSS: float = 0.22
 const PLATE_SIDE_LIGHT: float = 0.4
 const BUTTON_PAD: int = 12
-const PLATE_RADIUS: int = 30
+const PLATE_RADIUS: int = RADIUS_XL
 const PLATE_PAD: int = 22
+## The focus ring: how far it stands outside its control (also its line), and its one colour for the whole game.
+const FOCUS_EXPAND: int = 4
+const FOCUS_COLOR: Color = Color("fff0a8")
+## Big lettered words (the display scale, `UiMetrics.HEADLINE` to `SCORE`): the outline and the drop of the shadow are
+## shares of the font size so every size reads as one family; the ink is the HUD chrome's navy and the shadow the same
+## blue-black the skin's button and panel shadows use.
+const LETTER_OUTLINE_SHARE: float = 1.0 / 6.0
+const LETTER_INK: Color = RoyaleStyle.NAVY
+const LETTER_SHADOW_SHARE: float = 1.0 / 12.0
+const LETTER_SHADOW: Color = Color(0.0, 0.01, 0.06, 0.5)
 
 static var _cache: Dictionary[String, StyleBoxTexture] = {}
 
 ## The panels (kind, corner radius) the first screens use. They are built one at a time behind the boot screen's
 ## loading bar (`warm_next`), so the first tap on Home or a dialog does not pay for drawing them.
 const WARM_PLATES: Array[Array] = [
-	["glass", PLATE_RADIUS], ["raised", PLATE_RADIUS], ["inset", PLATE_RADIUS], ["night", PLATE_RADIUS], ["picked", PLATE_RADIUS],
-	["glass", 22], ["glass", 18], ["raised", 26], ["raised", 22], ["picked", 22], ["picked", 18], ["night", 34], ["raised", 34],
-	["night", 18], ["night", 22],
+	["glass", RADIUS_XL], ["raised", RADIUS_XL], ["inset", RADIUS_XL], ["night", RADIUS_XL], ["picked", RADIUS_XL],
+	["glass", RADIUS_L], ["raised", RADIUS_L], ["inset", RADIUS_L], ["night", RADIUS_L], ["picked", RADIUS_L],
+	["glass", RADIUS_M], ["raised", RADIUS_M], ["inset", RADIUS_M], ["night", RADIUS_M], ["picked", RADIUS_M],
 ]
 static var _warmed: int = 0
 
@@ -101,14 +120,17 @@ static func button(variant: String, state: String = "normal", radius: int = BUTT
 	var sink: int = BUTTON_LIP - lip if variant != "disabled" else 0
 	var lift: float = 0.1 if state == "hover" else 0.0
 	var size: int = (radius + BUTTON_PAD) * 2 + 8
-	var image: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
+	# the sink moves the body's top corners down: the texture grows by it so the corners stay in the top slice and the
+	# stretched middle rows are straight sides (docs/ART.md "Nine-slice")
+	var height: int = size + sink
+	var image: Image = Image.create(size, height, false, Image.FORMAT_RGBA8)
 	var top: Color = (spec["top"] as Color).lightened(lift)
 	var bottom: Color = (spec["bottom"] as Color).lightened(lift)
-	var body: Rect2 = Rect2(BUTTON_PAD, BUTTON_PAD + sink, size - BUTTON_PAD * 2, size - BUTTON_PAD * 2 - sink)
+	var body: Rect2 = Rect2(BUTTON_PAD, BUTTON_PAD + sink, size - BUTTON_PAD * 2, size - BUTTON_PAD * 2)
 	var face: Rect2 = Rect2(body.position, body.size - Vector2(0.0, lip))
 	var shadow_alpha: float = 0.0 if pressed or variant == "disabled" else 0.5
 	# the shape is the same left and right: draw the left half and mirror it
-	for y: int in size:
+	for y: int in height:
 		for x: int in (size + 1) / 2:
 			var at: Vector2 = Vector2(x + 0.5, y + 0.5)
 			var d_body: float = _distance(at, body, radius)
@@ -133,6 +155,7 @@ static func button(variant: String, state: String = "normal", radius: int = BUTT
 			image.set_pixel(x, y, out)
 			image.set_pixel(size - 1 - x, y, out)
 	var box: StyleBoxTexture = _nine_slice(image, radius + BUTTON_PAD, BUTTON_PAD)
+	box.texture_margin_top = float(radius + BUTTON_PAD + sink)
 	box.content_margin_left = 26.0
 	box.content_margin_right = 26.0
 	var text_pad: float = BUTTON_TEXT_PAD if variant == "disabled" else (BUTTON_CONTENT_Y - BUTTON_LIP) / 2.0
@@ -198,7 +221,7 @@ static func _render_plate(kind: String, radius: int) -> StyleBoxTexture:
 
 ## A label's pill (the HUD's capture line, status messages): a night panel with the label's own side padding. The
 ## radius is small enough that a one-line label is tall enough for the corners.
-static func pill(radius: int = 20) -> StyleBoxTexture:
+static func pill(radius: int = RADIUS_L) -> StyleBoxTexture:
 	var box: StyleBoxTexture = plate("night", 0.0, radius)
 	box.content_margin_left = 18.0
 	box.content_margin_right = 18.0
@@ -207,16 +230,32 @@ static func pill(radius: int = 20) -> StyleBoxTexture:
 	return box
 
 
-## A thin lit outline for a focused control (kept flat so it reads on any surface).
-static func focus_ring(radius: int = BUTTON_RADIUS + 2) -> StyleBoxFlat:
+## The one focus ring, round a control whose corners are `radius`: it stands `FOCUS_EXPAND` outside the control and its
+## own corners grow by the same amount, so it follows the control's curve. Flat, so it reads on any surface.
+static func focus_ring(radius: int = BUTTON_RADIUS) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = Color.TRANSPARENT
-	box.set_corner_radius_all(radius)
-	box.set_border_width_all(4)
-	box.border_color = Color("fff0a8")
-	box.set_expand_margin_all(4.0)
+	box.set_corner_radius_all(radius + FOCUS_EXPAND)
+	box.set_border_width_all(FOCUS_EXPAND)
+	box.border_color = FOCUS_COLOR
+	box.set_expand_margin_all(float(FOCUS_EXPAND))
 	box.anti_aliasing = true
 	return box
+
+
+## The radius that makes a shape `height` tall fully round at its ends (a pill, a bar, a switch).
+static func round_radius(height: float) -> int:
+	return int(ceilf(height / 2.0))
+
+
+## The outline of a lettered word `size` px tall (Label `outline_size`).
+static func letter_outline(size: int) -> int:
+	return roundi(size * LETTER_OUTLINE_SHARE)
+
+
+## How far a lettered word's shadow drops below it at `size` px.
+static func letter_shadow(size: int) -> int:
+	return roundi(size * LETTER_SHADOW_SHARE)
 
 
 static func _nine_slice(image: Image, margin: int, pad: int) -> StyleBoxTexture:

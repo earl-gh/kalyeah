@@ -17,7 +17,7 @@ func _init() -> void:
 	size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	for state: String in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
 		add_theme_stylebox_override(state, StyleBoxEmpty.new())
-	add_theme_stylebox_override("focus", UiSkin.focus_ring(40))
+	add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.round_radius(UiMetrics.TOUCH)))
 	toggled.connect(_on_toggled)
 
 
@@ -52,7 +52,7 @@ func _draw() -> void:
 	var track: Rect2 = Rect2((size.x - WIDTH) / 2.0, (size.y - HEIGHT) / 2.0, WIDTH, HEIGHT)
 	var body: StyleBoxFlat = StyleBoxFlat.new()
 	body.bg_color = Color("2e3d63").lerp(Color("2fbf5a"), _knob)
-	body.set_corner_radius_all(int(HEIGHT / 2.0))
+	body.set_corner_radius_all(UiSkin.round_radius(HEIGHT))
 	body.set_border_width_all(3)
 	body.border_color = Color("0a1230").lerp(Color("0c5a24"), _knob)
 	body.shadow_color = Color(0.0, 0.0, 0.0, 0.35)

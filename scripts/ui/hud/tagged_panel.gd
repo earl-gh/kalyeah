@@ -45,7 +45,7 @@ func _ready() -> void:
 	column.offset_top = 22.0
 	column.offset_bottom = -22.0
 	add_child(column)
-	wait_label = _label(WAIT_TEXT, 34, TITLE_COLOR)
+	wait_label = _label(WAIT_TEXT, UiMetrics.TITLE, TITLE_COLOR)
 	wait_label.theme_type_variation = &"DisplayLabel"
 	column.add_child(wait_label)
 	var row: HBoxContainer = HBoxContainer.new()

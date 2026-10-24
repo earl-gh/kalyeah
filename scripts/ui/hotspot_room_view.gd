@@ -27,12 +27,9 @@ const SECTION_GAP: int = UiMetrics.SECTION_GAP
 ## The compact arena header fills a row; character cards keep a 3:4 portrait ratio.
 const MAP_CARD: Vector2 = Vector2(0.0, 108.0)
 const KID_CARD: Vector2 = Vector2(96.0, 128.0)
-const KID_RADIUS: int = 16
+const KID_RADIUS: int = UiSkin.RADIUS_M
 const BAR_HEIGHT: float = 96.0
 const NUMBER_WIDTH: float = 56.0
-const NAME_SIZE: int = 26
-const NUMBER_SIZE: int = 32
-const TAG_SIZE: int = 22
 ## The solid number blocks and tags of the mock-up, and the navy of the names on the white bars.
 const TEAM_BLOCKS: Array[Color] = [KalyeahTheme.TEAM_BLUE, KalyeahTheme.TEAM_RED]
 const NAME_COLOR: Color = Color(0.12, 0.27, 0.52)
@@ -124,7 +121,7 @@ func _build() -> void:
 	readiness_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	readiness_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
 	column.add_child(readiness_label)
-	action_button = MenuDialog.make_button("Ready", "orange", 32, Vector2(0.0, 88.0))
+	action_button = MenuDialog.make_button("Ready", "orange", UiMetrics.BODY, Vector2(0.0, 88.0))
 	action_button.name = "ActionButton"
 	action_button.pressed.connect(action_pressed.emit)
 	action_button.visible = false
@@ -138,7 +135,7 @@ func _build() -> void:
 	status_label.add_theme_color_override("font_color", KalyeahTheme.ERROR)
 	status_label.visible = false
 	column.add_child(status_label)
-	retry_button = MenuDialog.make_button("Try again", "blue", 30)
+	retry_button = MenuDialog.make_button("Try again", "blue", UiMetrics.BODY)
 	retry_button.name = "Retry"
 	retry_button.visible = false
 	retry_button.pressed.connect(func() -> void:

@@ -475,3 +475,72 @@ func test_modals_and_tints_draw_above_every_component_of_the_main_screen() -> vo
 	screen.dialog.close(false)
 	screen._show_loading("GETTING READY")
 	assert_eq((screen.find_child("Loading", true, false) as Control).z_index, MenuDialog.MODAL_Z, "so is the loading tint")
+
+
+## Every running tween that loops for ever (the main action's breath is the only one Home starts).
+func _breathing_loops() -> int:
+	var loops: int = 0
+	for tween: Tween in get_tree().get_processed_tweens():
+		if tween.is_valid() and tween.is_running() and tween.get_loops_left() == -1:
+			loops += 1
+	return loops
+
+
+## Two quick taps on the main action before its breath has started (a 1.2 s delay) must not start two breaths that fight
+## each other on the same scale: once everything settles there is exactly one.
+func test_two_quick_taps_leave_the_main_action_one_breath() -> void:
+	var motion: bool = Settings.reduced_motion
+	Settings.set_reduced_motion(false)
+	var screen: TitleScreen = _screen()
+	await wait_seconds(0.1)
+	for i: int in 2:
+		screen.primary_button.button_down.emit()
+		await wait_seconds(0.05)
+		screen.primary_button.button_up.emit()
+		await wait_seconds(0.05)
+	await wait_seconds(3.0)
+	assert_eq(_breathing_loops(), 1, "one breath on the main action")
+	assert_true(is_instance_valid(screen._pulse) and screen._pulse.is_running(), "and it is the screen's breath")
+	Settings.set_reduced_motion(motion)
+
+
+## While the main action is held it stays sunk: the breath does not swell it back under the thumb. Let go, it breathes again.
+func test_holding_the_main_action_stops_its_breath_fighting_the_press() -> void:
+	var motion: bool = Settings.reduced_motion
+	Settings.set_reduced_motion(false)
+	var screen: TitleScreen = _screen()
+	await wait_seconds(1.8)
+	var button: Button = screen.primary_button
+	button.button_down.emit()
+	await wait_seconds(0.3)
+	var lowest: float = button.scale.x
+	var highest: float = button.scale.x
+	for i: int in 20:
+		await wait_seconds(0.1)
+		lowest = minf(lowest, button.scale.x)
+		highest = maxf(highest, button.scale.x)
+	assert_lt(highest, 1.0, "held through a whole breath, it never swells back to full size")
+	assert_lt(highest - lowest, 0.005, "and it holds still")
+	button.button_up.emit()
+	var breathed: bool = false
+	for i: int in 40:
+		await wait_seconds(0.1)
+		breathed = breathed or button.scale.x > 1.005
+	assert_true(breathed, "let go, the main action breathes again")
+	assert_eq(_breathing_loops(), 1, "with one breath")
+	Settings.set_reduced_motion(motion)
+
+
+## The same race through Settings: Reduce motion switched on and off again before the breath has started must not leave a
+## second breath behind (each restart waited out its own delay and started its own loop).
+func test_reduce_motion_toggled_quickly_leaves_the_main_action_one_breath() -> void:
+	var motion: bool = Settings.reduced_motion
+	Settings.set_reduced_motion(false)
+	var screen: TitleScreen = _screen()
+	await wait_seconds(0.1)
+	Settings.set_reduced_motion(true)
+	Settings.set_reduced_motion(false)
+	await wait_seconds(3.0)
+	assert_eq(_breathing_loops(), 1, "one breath on the main action")
+	assert_true(is_instance_valid(screen._pulse) and screen._pulse.is_running(), "and it is the screen's breath")
+	Settings.set_reduced_motion(motion)

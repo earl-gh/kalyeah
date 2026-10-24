@@ -7,8 +7,7 @@ extends RefCounted
 const SUGGEST_HEIGHT: float = 80.0
 ## The kid screen (visual pass): the chosen kid stands on a soft oval stage (a floor shadow under the feet and a lit rim) and
 ## its name is set large under it. The stage is `STAGE_SIZE` of the hero's width and height, drawn behind the picture.
-const HERO_NAME_FONT: int = 56
-const HERO_NAME_OUTLINE: int = 14
+const HERO_NAME_FONT: int = UiMetrics.DISPLAY
 const STAGE_SIZE: Vector2 = Vector2(0.78, 0.09)
 const STAGE_FILL: Color = Color(0.03, 0.08, 0.24, 0.85)
 const STAGE_RIM: Color = Color(0.45, 0.72, 1.0, 0.55)
@@ -129,15 +128,11 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	stage.add_child(screen._hero)
 	screen._hero_name = Label.new()
 	screen._hero_name.name = "HeroName"
-	screen._hero_name.theme_type_variation = &"DisplayLabel"
 	screen._hero_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	screen._hero_name.add_theme_font_size_override("font_size", HERO_NAME_FONT)
-	screen._hero_name.add_theme_color_override("font_color", RoyaleStyle.GOLD)
-	screen._hero_name.add_theme_color_override("font_outline_color", RoyaleStyle.NAVY)
-	screen._hero_name.add_theme_constant_override("outline_size", HERO_NAME_OUTLINE)
+	UiKit.letter(screen._hero_name, HERO_NAME_FONT, RoyaleStyle.GOLD)
 	screen._hero_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hero_box.add_child(screen._hero_name)
-	screen._ready_button = MenuDialog.make_button("Ready", "orange", 30, Vector2(0.0, 88.0))
+	screen._ready_button = MenuDialog.make_button("Ready", "orange", UiMetrics.BODY, Vector2(0.0, 88.0))
 	screen._ready_button.pressed.connect(screen.press_ready)
 	column.add_child(screen._ready_button)
 

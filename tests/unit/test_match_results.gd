@@ -105,3 +105,48 @@ func test_the_card_clears_when_a_new_match_starts() -> void:
 	practice.sim.phase = MatchSim.Phase.PLAYING
 	practice.hud.sync_score(practice.sim, practice.local_team, DT, practice.local_id)
 	assert_false(practice.hud.results.visible)
+
+
+## A sim of six kids under ids 1..6 (`sim.players` is keyed by player id, not a list index), each with a known pair.
+func _six() -> MatchSim:
+	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
+	var sim: MatchSim = MatchSim.new(rules, LAYOUT, 6)
+	for id: int in range(1, 7):
+		var state: PlayerState = sim.add_player(id, 0 if id <= 3 else 1)
+		state.character_id = &"junjun"
+		sim.set_loadout(id, rules.weapons[0].id, rules.weapons[1].id)
+	return sim
+
+
+func _card_for(sim: MatchSim, local_id: int) -> MatchResults:
+	var results: MatchResults = autofree(MatchResults.new()) as MatchResults
+	add_child(results)
+	var team: int = sim.players[local_id].team if sim.players.has(local_id) else 1
+	results.set_over(true, sim, local_id, team, "Practice")
+	return results
+
+
+## The card looks the local kid up by id: the last id (6 of 6 kids) is a player like any other.
+func test_the_card_shows_the_kid_and_weapons_of_the_highest_player_id() -> void:
+	var sim: MatchSim = _six()
+	var results: MatchResults = _card_for(sim, 6)
+	assert_true(results.kid_holder.visible, "player 6's kid is shown")
+	assert_eq(results.kid_holder.get_child_count(), 1, "player 6's kid's face")
+	assert_eq(results.weapons_row.get_child_count(), 2, "player 6's two weapons")
+
+
+func test_the_card_shows_the_kid_and_weapons_of_a_middle_player_id() -> void:
+	var sim: MatchSim = _six()
+	var results: MatchResults = _card_for(sim, 3)
+	assert_true(results.kid_holder.visible)
+	assert_eq(results.kid_holder.get_child_count(), 1)
+	assert_eq(results.weapons_row.get_child_count(), 2)
+
+
+func test_an_id_with_no_player_shows_no_kid_and_does_not_crash() -> void:
+	var sim: MatchSim = _six()
+	var results: MatchResults = _card_for(sim, 99)
+	assert_true(results.visible, "the card still opens")
+	assert_false(results.kid_holder.visible, "no kid for an id nobody has")
+	assert_eq(results.kid_holder.get_child_count(), 0)
+	assert_eq(results.weapons_row.get_child_count(), 0)

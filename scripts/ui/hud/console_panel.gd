@@ -8,9 +8,9 @@ const BODY_TOP: Color = RoyaleStyle.BLUE_TOP
 const BODY_BOTTOM: Color = RoyaleStyle.BLUE_BOTTOM
 const LIP: Color = RoyaleStyle.GOLD
 const CORNER: float = 36.0
-const HEALTH_FONT: int = 40
+const HEALTH_FONT: int = UiMetrics.HEADLINE
 const HEALTH_TEXT: Color = Color.WHITE
-const BAR_FONT: int = 28
+const BAR_FONT: int = UiMetrics.BODY
 ## The bar keeps your own colour above this share of your health, turns amber below it and red below the second.
 const HEALTH_LOW: float = 0.5
 const HEALTH_CRITICAL: float = 0.25
@@ -20,14 +20,18 @@ const HEALTH_RED: Color = Color(1.0, 0.3, 0.28)
 ## and a dark line under the gold trim make a bevel, and the hand sits in a sunken well (dark at its top edge, lit at its lip).
 const TRAY_TOP: Color = Color(0.11, 0.22, 0.5)
 const TRAY_BOTTOM: Color = Color(0.03, 0.07, 0.19)
-const TRAY_CORNER: int = 28
+const TRAY_CORNER: int = UiSkin.RADIUS_XL
 const TRAY_TRIM_Y: float = 7.0
 const TRAY_LIGHT: Color = Color(1.0, 1.0, 1.0, 0.2)
 const TRAY_BEVEL_DARK: Color = Color(0.0, 0.0, 0.0, 0.35)
 const WELL_FILL: Color = Color(0.0, 0.02, 0.08, 0.4)
 const WELL_SHADE: Color = Color(0.0, 0.0, 0.0, 0.4)
 const WELL_LIP: Color = Color(0.45, 0.72, 1.0, 0.3)
-const WELL_RADIUS: int = 22
+const WELL_RADIUS: int = UiSkin.RADIUS_L
+## The health bar: the dark well stands this far round its fill (its corners the fill's plus this, parallel), and the gloss
+## strip on a bar is this tall (fully round).
+const HEALTH_WELL_GAP: int = 3
+const SHEEN_HEIGHT: float = 5.0
 
 ## Round recesses {centre (from this panel's top-left), radius}: set by the HUD's layout.
 var sockets: Array[Dictionary] = []
@@ -116,7 +120,7 @@ func _draw_health() -> void:
 		return
 	var width: float = minf(free.y - 16.0, 150.0)
 	var plate: Rect2 = Rect2(Vector2(free.x - width / 2.0, 52.0), Vector2(width, 112.0))
-	RoyaleStyle.chunky(self, plate, RoyaleStyle.BLUE_WELL, 24, false)
+	RoyaleStyle.chunky(self, plate, RoyaleStyle.BLUE_WELL, UiSkin.RADIUS_L, false)
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var label_size: Vector2 = font.get_string_size(health_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HEALTH_FONT)
 	var heart: float = 15.0
@@ -130,19 +134,19 @@ func _draw_health() -> void:
 	well.bg_color = Color(0.02, 0.06, 0.17)
 	well.border_color = RoyaleStyle.NAVY
 	well.set_border_width_all(3)
-	well.set_corner_radius_all(10)
+	well.set_corner_radius_all(UiSkin.RADIUS_S + HEALTH_WELL_GAP)
 	well.anti_aliasing = true
-	draw_style_box(well, track.grow(3.0))
+	draw_style_box(well, track.grow(float(HEALTH_WELL_GAP)))
 	if health_fraction > 0.0:
 		var fill: StyleBoxFlat = StyleBoxFlat.new()
 		fill.bg_color = color
-		fill.set_corner_radius_all(8)
+		fill.set_corner_radius_all(UiSkin.RADIUS_S)
 		fill.anti_aliasing = true
 		draw_style_box(fill, Rect2(track.position, Vector2(maxf(track.size.x * health_fraction, 16.0), track.size.y)))
 		var sheen: StyleBoxFlat = StyleBoxFlat.new()
 		sheen.bg_color = Color(1.0, 1.0, 1.0, 0.35)
-		sheen.set_corner_radius_all(5)
-		draw_style_box(sheen, Rect2(track.position + Vector2(4.0, 2.0), Vector2(maxf(track.size.x * health_fraction - 8.0, 8.0), 5.0)))
+		sheen.set_corner_radius_all(UiSkin.round_radius(SHEEN_HEIGHT))
+		draw_style_box(sheen, Rect2(track.position + Vector2(4.0, 2.0), Vector2(maxf(track.size.x * health_fraction - 8.0, 8.0), SHEEN_HEIGHT)))
 	for tenth: int in range(1, 10):
 		var x: float = track.position.x + track.size.x * float(tenth) / 10.0
 		draw_line(Vector2(x, track.position.y + 2.0), Vector2(x, track.end.y - 2.0), Color(0.0, 0.0, 0.0, 0.3), 2.0)
@@ -227,8 +231,8 @@ func _draw_bar() -> void:
 		draw_style_box(fill, Rect2(inner.position, Vector2(maxf(inner.size.x * health_fraction, inner.size.y), inner.size.y)))
 		var sheen: StyleBoxFlat = StyleBoxFlat.new()
 		sheen.bg_color = Color(1.0, 1.0, 1.0, 0.3)
-		sheen.set_corner_radius_all(4)
-		draw_style_box(sheen, Rect2(inner.position + Vector2(6.0, 3.0), Vector2(maxf(inner.size.x * health_fraction - 12.0, 6.0), 5.0)))
+		sheen.set_corner_radius_all(UiSkin.round_radius(SHEEN_HEIGHT))
+		draw_style_box(sheen, Rect2(inner.position + Vector2(6.0, 3.0), Vector2(maxf(inner.size.x * health_fraction - 12.0, 6.0), SHEEN_HEIGHT)))
 	for tenth: int in range(1, 10):
 		var x: float = inner.position.x + inner.size.x * float(tenth) / 10.0
 		draw_line(Vector2(x, inner.position.y + 3.0), Vector2(x, inner.end.y - 3.0), Color(0.0, 0.0, 0.0, 0.25), 2.0)

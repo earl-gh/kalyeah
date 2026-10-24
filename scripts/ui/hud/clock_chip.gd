@@ -3,7 +3,7 @@ extends Control
 ## The match clock at the right of the header, the counterpart of the settings button at the left: a navy panel with "TIME" over the time
 ## (m:ss, counting up: a match has no time limit). In overtime the caption turns gold and says OVERTIME. It only draws; it never takes a touch.
 
-const TIME_FONT: int = 40
+const TIME_FONT: int = UiMetrics.HEADLINE
 const CAPTION_FONT: int = UiMetrics.CAPTION
 
 var seconds: int = 0
@@ -32,7 +32,7 @@ func text() -> String:
 
 
 func _draw() -> void:
-	RoyaleStyle.chunky(self, Rect2(Vector2.ZERO, size), Color(0.05, 0.14, 0.36), 18, false)
+	RoyaleStyle.chunky(self, Rect2(Vector2.ZERO, size), Color(0.05, 0.14, 0.36), UiSkin.RADIUS_M, false)
 	if overtime:
 		draw_rect(Rect2(Vector2(10.0, size.y - 14.0), Vector2(size.x - 20.0, 4.0)), RoyaleStyle.GOLD)
 	var font: Font = KalyeahTheme.ACTION_FONT

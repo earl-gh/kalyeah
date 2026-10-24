@@ -92,7 +92,8 @@ func test_the_tab_bar_lights_only_the_open_tab_and_announces_presses() -> void:
 	bar.tab_pressed.connect(func(id: StringName) -> void: heard.append(id))
 	bar.set_active(&"history")
 	assert_eq(bar.active, &"history")
-	assert_eq((bar.glide.get_theme_stylebox("panel") as StyleBoxTexture).texture, UiSkin.plate("raised", 0.0, 26).texture, "the open tab has the raised plate under it")
+	# re-pinned from the one-off 26 to the corner scale's large step (same exact texture identity, not loosened)
+	assert_eq((bar.glide.get_theme_stylebox("panel") as StyleBoxTexture).texture, UiSkin.plate("raised", 0.0, UiSkin.RADIUS_L).texture, "the open tab has the raised plate under it")
 	assert_true(bar.tabs[&"codex"].get_theme_stylebox("normal") is StyleBoxEmpty, "the others are quiet")
 	bar.tabs[&"settings"].pressed.emit()
 	assert_eq(heard, [&"settings"] as Array[StringName])
@@ -156,3 +157,70 @@ func test_a_button_that_leaves_the_tree_and_returns_is_wired_for_its_click_sound
 			wired += 1
 	assert_eq(wired, 1, "one click sound per press, and no 'already connected' error")
 	button.free()
+
+
+## Every styled button gives under the thumb (Play again, Leave, Swap and the room's Ready had no press feel), and is wired
+## once however often it is restyled (the segmented control restyles on every change).
+func test_every_styled_button_is_wired_for_its_press_once() -> void:
+	var button: Button = autofree(Button.new()) as Button
+	add_child(button)
+	KalyeahTheme.style_button(button, "orange")
+	KalyeahTheme.style_button(button, "grey")
+	UiKit.feel_press(button)
+	assert_eq(button.button_down.get_connections().size(), 1, "restyling and wiring again do not sink the press twice")
+	assert_eq(button.button_up.get_connections().size(), 1, "nor spring it back twice")
+	var dialog_button: Button = autofree(MenuDialog.make_button("TEST", "orange")) as Button
+	assert_eq(dialog_button.button_down.get_connections().size(), 1, "a dialog button is wired by the same one path")
+
+
+func test_a_held_button_sinks_toward_its_centre_and_springs_back() -> void:
+	var motion: bool = Settings.reduced_motion
+	Settings.set_reduced_motion(false)
+	var button: Button = autofree(Button.new()) as Button
+	add_child(button)
+	button.size = Vector2(200.0, 90.0)
+	KalyeahTheme.style_button(button, "orange")
+	assert_lt(UiKit.PRESS_SCALE, 1.0, "a press sinks, it does not swell")
+	button.button_down.emit()
+	await wait_seconds(UiKit.PRESS_DOWN + 0.1)
+	assert_almost_eq(button.scale.x, UiKit.PRESS_SCALE, 0.005, "a held button sinks")
+	assert_almost_eq(button.scale.y, UiKit.PRESS_SCALE, 0.005)
+	assert_eq(button.pivot_offset, button.size / 2.0, "toward its centre")
+	button.button_up.emit()
+	await wait_seconds(UiKit.PRESS_UP + 0.1)
+	assert_almost_eq(button.scale.x, 1.0, 0.001, "let go, it springs back to its own size")
+	assert_almost_eq(button.scale.y, 1.0, 0.001)
+	Settings.set_reduced_motion(motion)
+
+
+func test_under_reduce_motion_a_pressed_button_keeps_its_size() -> void:
+	var motion: bool = Settings.reduced_motion
+	Settings.set_reduced_motion(true)
+	var button: Button = autofree(Button.new()) as Button
+	add_child(button)
+	button.size = Vector2(200.0, 90.0)
+	KalyeahTheme.style_button(button, "orange")
+	button.button_down.emit()
+	await wait_seconds(UiKit.PRESS_DOWN + 0.1)
+	assert_eq(button.scale, Vector2.ONE, "held, it does not move")
+	button.button_up.emit()
+	await wait_seconds(UiKit.PRESS_UP + 0.1)
+	assert_eq(button.scale, Vector2.ONE, "let go, it does not move")
+	Settings.set_reduced_motion(motion)
+
+
+## Every big word is lettered the same way: the display face, an outline that grows with it and a visible shadow dropped
+## under it, at each step of the display scale.
+func test_lettered_words_scale_their_outline_and_drop_a_shadow() -> void:
+	var steps: Array[int] = [UiMetrics.HEADLINE, UiMetrics.DISPLAY, UiMetrics.HERO, UiMetrics.SCORE]
+	assert_eq(steps, [40, 56, 80, 120] as Array[int], "the display scale")
+	for size: int in steps:
+		var label: Label = autofree(Label.new()) as Label
+		UiKit.letter(label, size)
+		assert_eq(label.theme_type_variation, &"DisplayLabel", "%d px is in the display face" % size)
+		assert_eq(label.get_theme_font_size("font_size"), size)
+		assert_eq(label.get_theme_constant("outline_size"), UiSkin.letter_outline(size), "the outline grows with the word")
+		assert_eq(label.get_theme_color("font_outline_color"), UiSkin.LETTER_INK, "in the shared ink")
+		assert_eq(label.get_theme_constant("shadow_offset_y"), UiSkin.letter_shadow(size), "the shadow drops by its share")
+		assert_gt(label.get_theme_constant("shadow_offset_y"), 0, "under the word")
+		assert_gt(label.get_theme_color("font_shadow_color").a, 0.0, "and can be seen")
