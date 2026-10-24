@@ -120,14 +120,17 @@ static func button(variant: String, state: String = "normal", radius: int = BUTT
 	var sink: int = BUTTON_LIP - lip if variant != "disabled" else 0
 	var lift: float = 0.1 if state == "hover" else 0.0
 	var size: int = (radius + BUTTON_PAD) * 2 + 8
-	var image: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
+	# the sink moves the body's top corners down: the texture grows by it so the corners stay in the top slice and the
+	# stretched middle rows are straight sides (docs/ART.md "Nine-slice")
+	var height: int = size + sink
+	var image: Image = Image.create(size, height, false, Image.FORMAT_RGBA8)
 	var top: Color = (spec["top"] as Color).lightened(lift)
 	var bottom: Color = (spec["bottom"] as Color).lightened(lift)
-	var body: Rect2 = Rect2(BUTTON_PAD, BUTTON_PAD + sink, size - BUTTON_PAD * 2, size - BUTTON_PAD * 2 - sink)
+	var body: Rect2 = Rect2(BUTTON_PAD, BUTTON_PAD + sink, size - BUTTON_PAD * 2, size - BUTTON_PAD * 2)
 	var face: Rect2 = Rect2(body.position, body.size - Vector2(0.0, lip))
 	var shadow_alpha: float = 0.0 if pressed or variant == "disabled" else 0.5
 	# the shape is the same left and right: draw the left half and mirror it
-	for y: int in size:
+	for y: int in height:
 		for x: int in (size + 1) / 2:
 			var at: Vector2 = Vector2(x + 0.5, y + 0.5)
 			var d_body: float = _distance(at, body, radius)
@@ -152,6 +155,7 @@ static func button(variant: String, state: String = "normal", radius: int = BUTT
 			image.set_pixel(x, y, out)
 			image.set_pixel(size - 1 - x, y, out)
 	var box: StyleBoxTexture = _nine_slice(image, radius + BUTTON_PAD, BUTTON_PAD)
+	box.texture_margin_top = float(radius + BUTTON_PAD + sink)
 	box.content_margin_left = 26.0
 	box.content_margin_right = 26.0
 	var text_pad: float = BUTTON_TEXT_PAD if variant == "disabled" else (BUTTON_CONTENT_Y - BUTTON_LIP) / 2.0
