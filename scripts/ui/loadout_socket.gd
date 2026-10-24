@@ -23,7 +23,7 @@ func _draw() -> void:
 	# the same name as on the tile; the size steps down (never below the text floor) until it fits
 	var caption: String = weapon.display_name if weapon != null else "Empty"
 	var room: float = size.x - 110.0
-	var caption_size: int = 26
+	var caption_size: int = UiMetrics.ACTION
 	while caption_size > UiMetrics.MIN_TEXT and font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1.0, caption_size).x > room:
 		caption_size -= 1
 	draw_string(font, Vector2(102.0, 34.0), "SLOT %d" % number, HORIZONTAL_ALIGNMENT_LEFT, room, UiMetrics.CAPTION, KalyeahTheme.AMBER if active else KalyeahTheme.TEXT_MUTED)

@@ -50,7 +50,7 @@ static func profile(screen: WeaponPickScreen, character: CharacterDef) -> Button
 	name_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	name_label.offset_top = -36.0
 	button.add_child(name_label)
-	var taken: Label = label("Teammate", 22)
+	var taken: Label = label("Teammate", UiMetrics.CAPTION)
 	taken.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	taken.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	taken.offset_left = -60.0
@@ -111,7 +111,7 @@ static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 	kind.name = "Kind"
 	kind.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(kind)
-	var badge: Label = label("1", 26, KalyeahTheme.INK)
+	var badge: Label = label("1", UiMetrics.ACTION, KalyeahTheme.INK)
 	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge.add_theme_stylebox_override("normal", box(screen.PICKED_COLOR, screen.INK))
 	badge.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -181,7 +181,7 @@ static func info_panel(screen: WeaponPickScreen) -> Control:
 	screen._info_bars.name = "InfoBars"
 	screen._info_bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(screen._info_bars)
-	screen._info_stats = label("", UiMetrics.MIN_TEXT + 2, KalyeahTheme.AMBER)
+	screen._info_stats = label("", UiMetrics.DETAIL, KalyeahTheme.AMBER)
 	screen._info_stats.name = "Stats"
 	column.add_child(screen._info_stats)
 	return panel
