@@ -128,8 +128,9 @@ func _fight(state: PlayerState, sim: MatchSim, enemy: PlayerState) -> PlayerInpu
 	var distance: float = offset.length()
 	var toward: Vector2 = offset.normalized() if distance > 0.001 else Vector2.DOWN
 	var blocked: bool = _in_cover(state.position, enemy.position, sim)
-	var slot: int = _slot_to_cast(state, sim, distance, blocked)
-	if slot >= 0 and _cooldown <= 0.0 and state.can_act():
+	# only looked for when it could cast now (the hand scan is the brain's hottest path)
+	var slot: int = _slot_to_cast(state, sim, distance, blocked) if _cooldown <= 0.0 and state.can_act() else -1
+	if slot >= 0:
 		_press_slot = slot
 		_cooldown = sim.rules.bot_cast_gap
 		var def: WeaponDef = sim.weapon_defs[state.weapons[slot]]
@@ -156,10 +157,12 @@ func _fight(state: PlayerState, sim: MatchSim, enemy: PlayerState) -> PlayerInpu
 ## The first ready weapon that makes sense at `distance`: a heal when hurt, a shield when the enemy is
 ## near, anything else once the enemy is within its reach. -1 for none.
 func _slot_to_cast(state: PlayerState, sim: MatchSim, distance: float, blocked: bool) -> int:
+	var paying: bool = sim.pays_elixir(state)
 	for slot: int in state.weapons.size():
-		if not sim.weapon_ready(state, slot):
+		var def: WeaponDef = sim.weapon_defs.get(state.weapons[slot]) as WeaponDef
+		# the cheap test first: most ticks of a fight wait for elixir
+		if def == null or (paying and state.elixir + MatchSim.EPSILON < float(def.elixir_cost)) or not sim.weapon_ready(state, slot):
 			continue
-		var def: WeaponDef = sim.weapon_defs[state.weapons[slot]]
 		if def.kind == WeaponDef.Kind.HEAL:
 			if float(state.hp) < float(sim.rules.player_max_hp) * HEAL_BELOW:
 				return slot

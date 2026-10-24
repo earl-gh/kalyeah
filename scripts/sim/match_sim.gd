@@ -79,6 +79,8 @@ var _inputs: Dictionary[int, PlayerInput] = {}
 var _brains: Dictionary[int, DummyBrain] = {}
 var _team_counts: Dictionary[int, int] = {}
 var _blocking: Array[Rect2] = []
+## The street (layout.lane_rect()), kept for the move-target clamp that runs every tick a target is sent.
+var _street: Rect2
 ## Which side team 0 defends this set (teams switch bases every set).
 
 
@@ -87,6 +89,7 @@ func _init(p_rules: GameRules, p_layout: MapLayout, seed_value: int) -> void:
 	layout = p_layout
 	rng.seed = seed_value
 	obstacles = layout.obstacle_rects()
+	_street = layout.lane_rect()
 	_blocking.append_array(layout.boundary_rects())
 	_blocking.append_array(obstacles)
 	for def: WeaponDef in rules.weapons:
@@ -568,7 +571,7 @@ func _step_tagged(state: PlayerState, input: PlayerInput, dt: float) -> void:
 ## The street point a move target of a kid of `radius` really goes to: pulled into the street (`radius` inside its edges) and pushed out
 ## of cover by the nearest way that stays in the street. The server's own clamp: a client's point is never used as it is.
 func clamp_move_target(point: Vector2, radius: float) -> Vector2:
-	var street: Rect2 = layout.lane_rect().grow(-radius)
+	var street: Rect2 = _street.grow(-radius)
 	var result: Vector2 = point.clamp(street.position, street.end)
 	for rect: Rect2 in obstacles:
 		var grown: Rect2 = rect.grow(radius)
