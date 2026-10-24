@@ -1,6 +1,9 @@
 class_name MatchHudTop
 extends RefCounted
 
+## Empty space round the gear's art inside its button, as a share of the art's size on each side (0.3: the art is about 0.62 of the button).
+const GEAR_PADDING: float = 0.3
+
 
 static func build(hud: MatchHud) -> void:
 	hud.header = HeaderPanel.new()
@@ -12,7 +15,11 @@ static func build(hud: MatchHud) -> void:
 	hud.add_child(hud.top)
 	# left: the settings button (the whole street is always on screen: no minimap)
 	hud.settings_button = TextureButton.new()
-	hud.settings_button.texture_normal = UiTabBar.picture(&"settings")
+	# the home screen's gear, drawn smaller than its button (the thumb target stays the full size)
+	var gear: AtlasTexture = UiTabBar.picture(&"settings") as AtlasTexture
+	var pad: Vector2 = gear.region.size * GEAR_PADDING
+	gear.margin = Rect2(pad, pad * 2.0)
+	hud.settings_button.texture_normal = gear
 	hud.settings_button.ignore_texture_size = true
 	hud.settings_button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 	hud.settings_button.tooltip_text = "Match settings"
@@ -34,8 +41,8 @@ static func build(hud: MatchHud) -> void:
 static func layout(hud: MatchHud) -> void:
 	if hud.intro_bar != null:
 		hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(80, -(hud.console_height() + 150.0), -80, -(hud.console_height() + 6.0)))
-	var gear: Vector4 = Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE)
-	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear)
+	var gear_box: Vector4 = Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE)
+	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear_box)
 	hud._place(hud.clock_chip, Vector4(1, 0, 1, 0), Vector4(-MatchHud.MARGIN - MatchHud.CLOCK_SIZE.x, MatchHud.TOP_ROW_Y, -MatchHud.MARGIN, MatchHud.TOP_ROW_Y + MatchHud.CLOCK_SIZE.y))
 
 

@@ -36,12 +36,10 @@ const RING_HEIGHT: float = 0.03
 const ZONE_FILL_ALPHA: float = 0.34
 const TAPE_WIDTH: float = 0.3
 ## Bases, tagged boxes and rescue areas are rounded rectangles on the street, each with a fixed team colour (blue yours, red
-## theirs: owner) and a full outline. The box (inside) is tinted more than the rescue area round it (outside).
-const JAIL_CORNER_RADIUS: float = 0.8
+## theirs: owner) and a full outline. The tagged box (inside) has no tint of its own: only the rescue area round it (outside) is tinted.
+const JAIL_CORNER_RADIUS: float = 0.4
+const RESCUE_CORNER_RADIUS: float = 0.9
 const ZONE_CORNER_STEPS: int = 6
-const BOX_FILL_ALPHA: float = 0.5
-## The box's fill lies this far above the rescue area's, so the two never fight over the same pixels.
-const BOX_LIFT: float = 0.004
 ## The sidewalks are flat, level with the street (owner: no raised curb).
 const CURB_HEIGHT: float = 0.0
 const SIDEWALK_WIDTH: float = 1.2
@@ -241,7 +239,7 @@ func base_color(side: int) -> Color:
 	return _side_tint[side]
 
 
-## [base tape, base fill, rescue tape, rescue fill, box fill] colours for `side`.
+## [base tape, base fill, rescue tape, rescue fill] colours for `side`.
 func zone_colors(side: int) -> Array[Color]:
 	var colors: Array[Color] = []
 	for material: StandardMaterial3D in _base_materials[side]:
@@ -298,7 +296,7 @@ func _build_map() -> void:
 		_posts[side] = post
 		var base: Array[StandardMaterial3D] = _add_base_zone(side, color)
 		var rescue: Array[StandardMaterial3D] = _add_rescue_area(side, color)
-		_base_materials[side] = [base[0], base[1], rescue[0], rescue[1], rescue[2]]
+		_base_materials[side] = [base[0], base[1], rescue[0], rescue[1]]
 		_side_tint[side] = color
 	_turn_posts(MapLayout.SIDE_OWN)
 	_add_barricades()
@@ -398,44 +396,45 @@ func _add_obstacle(index: int) -> void:
 ## with team tape on its curved rim (the same look as the tagged box).
 ## Returns [tape, fill] materials (recoloured per viewer).
 func _add_base_zone(side: int, color: Color) -> Array[StandardMaterial3D]:
-	var centre: Vector2 = layout.base_center(side)
-	var reach: Vector2 = Vector2.ONE * layout.base_radius
 	var materials: Array[StandardMaterial3D] = _zone_materials(color)
-	_add_zone(Rect2(centre - reach, reach * 2.0), layout.base_corner, materials[0], materials[1])
+	_add_zone(layout.base_rect(side), layout.base_corner, materials[0], materials[1])
 	return materials
 
 
-## The tagged box and the rescue area round it, in two parts: the box inside (a rounded square, tinted more) and the ring
-## outside it (the rescue area, tinted less), each with a full outline in the team's colour. They are only marks on the
-## ground: nothing is blocked, so a teammate walks straight in to rescue. Returns [tape, area fill, box fill].
+## The tagged box and the rescue area round it, in two parts: the box inside (outline only, no colour) and the ring outside it
+## (the rescue area: a faint tint), each with a full outline in the team's fixed colour. They are only marks on the ground:
+## nothing is blocked, so a teammate walks straight in to rescue. Returns [tape, fill].
 func _add_rescue_area(side: int, color: Color) -> Array[StandardMaterial3D]:
 	var materials: Array[StandardMaterial3D] = _zone_materials(color)
-	var box_fill: StandardMaterial3D = _fill_material(color, BOX_FILL_ALPHA)
 	var area: Rect2 = layout.rescue_rect(side)
 	var box: Rect2 = layout.jail_rect(side)
-	var ring: float = layout.jail_size.x * layout.rescue_scale
-	_add_zone(area, JAIL_CORNER_RADIUS + ring, materials[0], materials[1])
-	_add_zone(box, JAIL_CORNER_RADIUS, materials[0], box_fill, BOX_LIFT)
-	return [materials[0], materials[1], box_fill]
+	var outer: Array[Vector2] = rounded_outline(area, RESCUE_CORNER_RADIUS)
+	var inner: Array[Vector2] = rounded_outline(box, JAIL_CORNER_RADIUS)
+	var keep: Array[bool] = _all(outer.size())
+	# the tint is the ring between the two outlines (a strip a hair under the outlines), the box inside it stays clear
+	_add_tape(outer, inner, keep, materials[1], -0.006)
+	_add_outline(area, RESCUE_CORNER_RADIUS, materials[0])
+	_add_outline(box, JAIL_CORNER_RADIUS, materials[0])
+	return materials
 
 
-## A zone's mark on the road: a faint team fill inside a team-coloured outline all round (`rect` rounded to `corner`, cut off
-## by the street's edge).
-func _add_zone(rect: Rect2, corner: float, tape: StandardMaterial3D, fill: StandardMaterial3D, lift: float = 0.0) -> void:
-	var street: Rect2 = layout.lane_rect()
-	var rim: Array[Vector2] = _clamped(rounded_outline(rect, corner), street)
-	var inner: Array[Vector2] = _clamped(rounded_outline(rect.grow(-TAPE_WIDTH), maxf(corner - TAPE_WIDTH, 0.0)), street.grow(-TAPE_WIDTH))
-	var keep: Array[bool] = []
-	keep.resize(rim.size())
-	keep.fill(true)
-	_add_fill(rect.intersection(street).get_center(), rim, fill, lift)
-	_add_tape(rim, inner, keep, tape, lift)
+## A zone's mark on the road: a faint team fill inside a team-coloured outline all round (`rect` with its corners rounded).
+func _add_zone(rect: Rect2, corner: float, tape: StandardMaterial3D, fill: StandardMaterial3D) -> void:
+	_add_fill(rect.get_center(), rounded_outline(rect, corner), fill)
+	_add_outline(rect, corner, tape)
 
 
-static func _clamped(points: Array[Vector2], within: Rect2) -> Array[Vector2]:
-	var kept: Array[Vector2] = []
-	for point: Vector2 in points:
-		kept.append(point.clamp(within.position, within.end))
+## The team-coloured line round `rect` (its corners rounded), `TAPE_WIDTH` wide, drawn inside the rectangle.
+func _add_outline(rect: Rect2, corner: float, tape: StandardMaterial3D) -> void:
+	var rim: Array[Vector2] = rounded_outline(rect, corner)
+	var inner: Array[Vector2] = rounded_outline(rect.grow(-TAPE_WIDTH), maxf(corner - TAPE_WIDTH, 0.0))
+	_add_tape(rim, inner, _all(rim.size()), tape)
+
+
+static func _all(count: int) -> Array[bool]:
+	var kept: Array[bool] = []
+	kept.resize(count)
+	kept.fill(true)
 	return kept
 
 
