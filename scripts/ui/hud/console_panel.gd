@@ -8,9 +8,9 @@ const BODY_TOP: Color = RoyaleStyle.BLUE_TOP
 const BODY_BOTTOM: Color = RoyaleStyle.BLUE_BOTTOM
 const LIP: Color = RoyaleStyle.GOLD
 const CORNER: float = 36.0
-const HEALTH_FONT: int = 40
+const HEALTH_FONT: int = UiMetrics.HEADLINE
 const HEALTH_TEXT: Color = Color.WHITE
-const BAR_FONT: int = 28
+const BAR_FONT: int = UiMetrics.BODY
 ## The bar keeps your own colour above this share of your health, turns amber below it and red below the second.
 const HEALTH_LOW: float = 0.5
 const HEALTH_CRITICAL: float = 0.25

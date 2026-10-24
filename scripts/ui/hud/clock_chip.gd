@@ -3,7 +3,7 @@ extends Control
 ## The match clock at the right of the header, the counterpart of the settings button at the left: a navy panel with "TIME" over the time
 ## (m:ss, counting up: a match has no time limit). In overtime the caption turns gold and says OVERTIME. It only draws; it never takes a touch.
 
-const TIME_FONT: int = 40
+const TIME_FONT: int = UiMetrics.HEADLINE
 const CAPTION_FONT: int = UiMetrics.CAPTION
 
 var seconds: int = 0

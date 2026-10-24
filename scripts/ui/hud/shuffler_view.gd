@@ -64,9 +64,9 @@ func _draw() -> void:
 		var centre: Vector2 = card.get_center()
 		CardStyle.draw_filling(self, card, shuffle_def, 1.0 - clampf(shuffle_left / maxf(shuffle_total, 0.001), 0.0, 1.0))
 		var seconds: String = "%d" % ceili(shuffle_left)
-		var seconds_size: Vector2 = font.get_string_size(seconds, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 34)
-		draw_string_outline(font, centre + Vector2(-seconds_size.x / 2.0, 12.0), seconds, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 34, 6, Icons.OUTLINE)
-		draw_string(font, centre + Vector2(-seconds_size.x / 2.0, 12.0), seconds, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 34, Color.WHITE)
+		var seconds_size: Vector2 = font.get_string_size(seconds, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.TITLE)
+		draw_string_outline(font, centre + Vector2(-seconds_size.x / 2.0, 12.0), seconds, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.TITLE, 6, Icons.OUTLINE)
+		draw_string(font, centre + Vector2(-seconds_size.x / 2.0, 12.0), seconds, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.TITLE, Color.WHITE)
 	elif next_def != null:
 		var pop: float = 1.0
 		if _flash > 0.0:

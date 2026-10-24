@@ -277,7 +277,7 @@ func _build_actions() -> Control:
 
 
 func _action_button(parent: Control, button_name: String, text: String, weight: float) -> Button:
-	var button: Button = MenuDialog.make_button(text, "gold", 38, Vector2(0.0, CTA_HEIGHT))
+	var button: Button = MenuDialog.make_button(text, "gold", UiMetrics.TITLE, Vector2(0.0, CTA_HEIGHT))
 	button.name = button_name
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.size_flags_stretch_ratio = weight
@@ -380,7 +380,7 @@ func _fill_chips(id: String) -> void:
 		mode_chips.remove_child(child)
 		child.queue_free()
 	for fact: String in mode_facts(id):
-		var chip: PanelContainer = UiKit.chip(fact, UiKit.CHIP_SLATE, Color.WHITE, 22)
+		var chip: PanelContainer = UiKit.chip(fact, UiKit.CHIP_SLATE)
 		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		mode_chips.add_child(chip)
 
@@ -420,7 +420,7 @@ func refresh_last_match() -> void:
 	row.offset_right = -22.0
 	row.add_theme_constant_override("separation", 14)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var badge: PanelContainer = UiKit.chip("Victory" if won else "Defeat", UiKit.CHIP_GREEN if won else UiKit.CHIP_RED, Color.WHITE, 22)
+	var badge: PanelContainer = UiKit.chip("Victory" if won else "Defeat", UiKit.CHIP_GREEN if won else UiKit.CHIP_RED)
 	badge.name = "Result"
 	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -727,8 +727,8 @@ func _on_profile_saved() -> void:
 ## Quit: asks first (a stray tap must not close the game).
 func open_quit_confirm() -> MenuDialog:
 	var card: MenuDialog = MenuDialog.create("Quit game?", 560.0)
-	var stay: Button = MenuDialog.make_button("Cancel", "grey", 32)
-	var leave: Button = MenuDialog.make_button("Quit", "red", 32)
+	var stay: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
+	var leave: Button = MenuDialog.make_button("Quit", "red", UiMetrics.BODY)
 	card.add_buttons([stay, leave])
 	stay.pressed.connect(card.close)
 	leave.pressed.connect(func() -> void:

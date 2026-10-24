@@ -26,5 +26,5 @@ func _draw() -> void:
 	var caption_size: int = 26
 	while caption_size > UiMetrics.MIN_TEXT and font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1.0, caption_size).x > room:
 		caption_size -= 1
-	draw_string(font, Vector2(102.0, 34.0), "SLOT %d" % number, HORIZONTAL_ALIGNMENT_LEFT, room, 22, KalyeahTheme.AMBER if active else KalyeahTheme.TEXT_MUTED)
+	draw_string(font, Vector2(102.0, 34.0), "SLOT %d" % number, HORIZONTAL_ALIGNMENT_LEFT, room, UiMetrics.CAPTION, KalyeahTheme.AMBER if active else KalyeahTheme.TEXT_MUTED)
 	draw_string(font, Vector2(102.0, 70.0), caption, HORIZONTAL_ALIGNMENT_LEFT, room, caption_size, KalyeahTheme.TEXT)

@@ -219,7 +219,7 @@ static func detail(weapon: WeaponDef) -> MenuDialog:
 	var tags: HBoxContainer = HBoxContainer.new()
 	tags.alignment = BoxContainer.ALIGNMENT_CENTER
 	tags.add_theme_constant_override("separation", 12)
-	tags.add_child(UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, KIND_CHIPS.get(weapon.kind, UiKit.CHIP_SLATE) as Color, Color.WHITE, 22))
+	tags.add_child(UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, KIND_CHIPS.get(weapon.kind, UiKit.CHIP_SLATE) as Color))
 	tags.add_child(UiKit.text(weapon.street_game, UiMetrics.DETAIL, Color("9fb0d6"), false))
 	card.body.add_child(tags)
 	var about: Label = card.add_label(weapon.description, UiMetrics.BODY, KalyeahTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)

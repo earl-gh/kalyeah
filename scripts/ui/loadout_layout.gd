@@ -132,7 +132,7 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	UiKit.letter(screen._hero_name, HERO_NAME_FONT, RoyaleStyle.GOLD)
 	screen._hero_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hero_box.add_child(screen._hero_name)
-	screen._ready_button = MenuDialog.make_button("Ready", "orange", 30, Vector2(0.0, 88.0))
+	screen._ready_button = MenuDialog.make_button("Ready", "orange", UiMetrics.BODY, Vector2(0.0, 88.0))
 	screen._ready_button.pressed.connect(screen.press_ready)
 	column.add_child(screen._ready_button)
 

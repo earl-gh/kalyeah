@@ -278,7 +278,7 @@ func _fill(sim: MatchSim, local_id: int, local_team: int, mode_text: String) -> 
 	for child: Node in weapons_row.get_children():
 		weapons_row.remove_child(child)
 		child.queue_free()
-	var player: PlayerState = sim.players[local_id] if local_id >= 0 and local_id < sim.players.size() else null
+	var player: PlayerState = sim.players.get(local_id) as PlayerState
 	kid_holder.visible = player != null
 	if player == null:
 		return

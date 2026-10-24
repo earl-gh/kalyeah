@@ -4,9 +4,9 @@ extends RefCounted
 
 const BAR_HEIGHT: float = 96.0
 const NUMBER_WIDTH: float = 56.0
-const NAME_SIZE: int = 26
-const NUMBER_SIZE: int = 32
-const TAG_SIZE: int = 22
+const NAME_SIZE: int = UiMetrics.ACTION
+const NUMBER_SIZE: int = UiMetrics.TITLE
+const TAG_SIZE: int = UiMetrics.CAPTION
 const TEAM_BLOCKS: Array[Color] = [KalyeahTheme.TEAM_BLUE, KalyeahTheme.TEAM_RED]
 const NAME_COLOR: Color = Color("f4f7ff")
 const BAR_COLOR: Color = Color("14234f")

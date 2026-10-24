@@ -10,7 +10,7 @@ const GRABBER_SIZE: int = 44
 
 ## A square painted button with an icon (`color`: orange, green, red, blue, grey or gold).
 static func icon_button(icon: Texture2D, color: String, size: float) -> Button:
-	var button: Button = MenuDialog.make_button("", color, 30, Vector2(size, size))
+	var button: Button = MenuDialog.make_button("", color, UiMetrics.BODY, Vector2(size, size))
 	button.icon = icon
 	button.expand_icon = true
 	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER

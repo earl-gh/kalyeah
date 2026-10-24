@@ -81,7 +81,7 @@ func _chips() -> Control:
 	for spec: Dictionary in specs:
 		var column: VBoxContainer = VBoxContainer.new()
 		column.add_theme_constant_override("separation", 2)
-		var chip: PanelContainer = UiKit.chip(String(spec["text"]), spec["fill"] as Color, Color.WHITE, 22)
+		var chip: PanelContainer = UiKit.chip(String(spec["text"]), spec["fill"] as Color)
 		chip.name = "Chip_%s" % String(spec["text"])
 		column.add_child(chip)
 		var ratio: float = UiKit.contrast(spec["fill"] as Color, Color.WHITE)

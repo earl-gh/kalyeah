@@ -12,7 +12,7 @@ const ART_DIR: String = "res://assets/ui/cards/"
 
 ## A card: `heading` small at the top left, `choice` big at the bottom left, no subtitle.
 static func make_card(heading: String, choice: String, color: String, size: Vector2 = CARD_SIZE, art_id: String = "") -> Button:
-	var card: Button = MenuDialog.make_button("", color, 26, size)
+	var card: Button = MenuDialog.make_button("", color, UiMetrics.ACTION, size)
 	var art_path: String = "%s%s.webp" % [ART_DIR, art_id]
 	var has_art: bool = not art_id.is_empty() and ResourceLoader.exists(art_path)
 	if has_art:

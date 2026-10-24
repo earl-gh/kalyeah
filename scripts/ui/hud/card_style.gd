@@ -89,8 +89,8 @@ static func draw_back(canvas: CanvasItem, rect: Rect2, progress: float, seconds:
 	if seconds > 0:
 		var font: Font = KalyeahTheme.ACTION_FONT
 		var text: String = "%d" % seconds
-		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 40).x
-		canvas.draw_string(font, centre + Vector2(-width / 2.0, 14.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 40, Color(1.0, 1.0, 1.0, 0.9))
+		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.HEADLINE).x
+		canvas.draw_string(font, centre + Vector2(-width / 2.0, 14.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.HEADLINE, Color(1.0, 1.0, 1.0, 0.9))
 
 
 static func plate_height(rect: Rect2) -> float:

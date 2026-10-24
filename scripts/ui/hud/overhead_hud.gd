@@ -17,14 +17,14 @@ const BAR_MARK: Color = Color(0.0, 0.0, 0.0, 0.35)
 const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 const POPUP_TIME: float = 0.9
 const POPUP_RISE: float = 56.0
-const STATUS_FONT: int = 22
+const STATUS_FONT: int = UiMetrics.CAPTION
 ## The RESCUE marker under your team's tagged box: a pill with a pointer up at the box that bobs (held still with Reduce motion). It sits under
 ## the box so it never covers a waiting kid or their bar.
-const RESCUE_FONT: int = 24
+const RESCUE_FONT: int = UiMetrics.DETAIL
 const RESCUE_PAD: Vector2 = Vector2(14.0, 7.0)
 const RESCUE_BOB: float = 7.0
 const RESCUE_POINTER: float = 12.0
-const POPUP_FONT: int = 30
+const POPUP_FONT: int = UiMetrics.BODY
 ## Italic = the regular font slanted (the bundled font has no italic face).
 const ITALIC_SLANT: float = -0.22
 const BACK: Color = Color(0.08, 0.06, 0.1, 0.85)

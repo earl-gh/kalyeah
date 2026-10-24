@@ -19,9 +19,9 @@ static func build(on_saved: Callable) -> MenuDialog:
 	field.add_theme_font_size_override("font_size", UiMetrics.HEADLINE)
 	card.body.add_child(field)
 	var hint: Label = card.add_hint("%d characters max." % Session.MAX_NAME_LENGTH)
-	var cancel: Button = MenuDialog.make_button("Cancel", "grey", 30)
+	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
 	cancel.name = "Cancel"
-	var save: Button = MenuDialog.make_button("Save", "orange", 30)
+	var save: Button = MenuDialog.make_button("Save", "orange", UiMetrics.BODY)
 	save.name = "Save"
 	card.add_buttons([cancel, save])
 	var apply: Callable = func() -> void:
