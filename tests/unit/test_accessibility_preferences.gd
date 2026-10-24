@@ -62,7 +62,13 @@ func test_reduced_motion_clears_carousel_button_and_modal_animation() -> void:
 	assert_lt(carousel.cards[0].scale.x, 1.0, "layout depth is preserved; reduced motion only stops animation")
 	var button: Button = autofree(MenuDialog.make_button("TEST", "orange")) as Button
 	add_child(button)
-	MenuDialog._squish(button, 0.955)
+	# through the public press (the private squish is gone), and checked after the press had time to animate, held and let go:
+	# stronger than the old instant check, not looser
+	button.button_down.emit()
+	await wait_seconds(0.25)
+	assert_eq(button.scale, Vector2.ONE, "a held button does not sink under reduced motion")
+	button.button_up.emit()
+	await wait_seconds(0.25)
 	assert_eq(button.scale, Vector2.ONE)
 	var dialog: MenuDialog = MenuDialog.create("TEST")
 	dialog.open(self)
