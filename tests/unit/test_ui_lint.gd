@@ -631,3 +631,95 @@ func _bare_font_constants_in(codes: Array[String]) -> int:
 	for path: String in paths:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	return count
+
+
+## The font-size spots `_font_spots` cannot see in one file: plain `name(` calls to this file's own class's font-size functions
+## (`label("Teammate", 22)` inside LoadoutCards, where only `LoadoutCards.label(` was matched). {line, code, arg} each.
+func _self_font_spots(text: String, calls: Dictionary[String, int]) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	var owner: RegExMatch = RegEx.create_from_string("(?m)^class_name\\s+(\\w+)").search(text)
+	if owner == null:
+		return found
+	var prefix: String = owner.get_string(1) + "."
+	for key: String in calls:
+		if not key.begins_with(prefix) or key == prefix + "new":
+			continue
+		var name: String = key.substr(prefix.length())
+		for hit: RegExMatch in RegEx.create_from_string("(?<![\\w.])" + name + "\\(").search_all(text):
+			var where: Dictionary = _line_of(text, hit.get_start())
+			var code: String = where["code"] as String
+			if where["comment"] or code.begins_with("func ") or code.begins_with("static func "):
+				continue
+			var args: Array[String] = _call_args(text, hit.get_end() - 1)
+			if calls[key] < args.size():
+				found.append({"line": where["number"], "code": code, "arg": args[calls[key]]})
+	return found
+
+
+## In one file: a bare size handed to the file's own font-size function by its plain name, and an int variable that holds a bare
+## whole number and is either used as a font size (at any font-size spot in the file) or named for a font.
+func _bare_font_vars_and_self_calls(path: String, calls: Dictionary[String, int]) -> Array[String]:
+	var found: Array[String] = []
+	var text: String = FileAccess.get_file_as_string(path)
+	var own: Array[Dictionary] = _self_font_spots(text, calls)
+	for spot: Dictionary in own:
+		if _bare_whole_number(spot["arg"] as String):
+			found.append("%s:%d %s" % [path, spot["line"], spot["code"]])
+	var used: Dictionary[String, bool] = {}
+	var word: RegEx = RegEx.create_from_string("(?<![\\w.])([a-z_]\\w*)\\b(?!\\s*[.(])")
+	var spots: Array[Dictionary] = _font_spots(text, calls, true)
+	spots.append_array(own)
+	for spot: Dictionary in spots:
+		for hit: RegExMatch in word.search_all(spot["arg"] as String):
+			used[hit.get_string(1)] = true
+	var variable: RegEx = RegEx.create_from_string("(?m)^\\s*var\\s+(\\w+)\\s*(?::\\s*(\\w+)\\s*)?:?=([^\\n#]*)")
+	for hit: RegExMatch in variable.search_all(text):
+		var name: String = hit.get_string(1)
+		var type: String = hit.get_string(2)
+		if type != "" and type != "int":
+			continue
+		if (used.has(name) or (type == "int" and name.containsn("font"))) and _bare_whole_number(hit.get_string(3)):
+			var where: Dictionary = _line_of(text, hit.get_start(1))
+			if not where["comment"]:
+				found.append("%s:%d %s" % [path, where["number"], where["code"]])
+	return found
+
+
+## One type scale, in a class's own calls and in its variables: `label("Teammate", 22)` inside LoadoutCards and a
+## `var caption_size: int = 26` later drawn come from UiMetrics too, not just qualified calls and constants.
+func test_every_font_size_in_own_calls_and_variables_comes_from_the_type_scale() -> void:
+	var calls: Dictionary[String, int] = _font_calls()
+	var found: Array[String] = []
+	for folder: String in SHAPE_SOURCES:
+		for file: String in DirAccess.get_files_at(folder):
+			if file.ends_with(".gd") and file != "ui_metrics.gd":
+				found.append_array(_bare_font_vars_and_self_calls("%s/%s" % [folder, file], calls))
+	assert_eq(found, [] as Array[String], "%d font sizes must come from UiMetrics:\n%s" % [found.size(), "\n".join(found)])
+
+
+## The lint above catches a plain own call and a font variable, and leaves counts, floats and other sizes alone.
+func test_the_own_call_and_variable_lint_tells_a_font_size_from_a_count() -> void:
+	var cards: String = "class_name LoadoutCards\nstatic func label(text: String, size: int, color: Color = Color.WHITE) -> Label:\n\treturn null\nfunc _go() -> void:\n\t"
+	assert_eq(_own_and_vars_in(cards + "var taken: Label = label(\"Teammate\", 22)"), 1, "the class's own size-named function by its plain name")
+	assert_eq(_own_and_vars_in(cards + "var badge: Label = label(\"1\", 26, KalyeahTheme.INK)"), 1)
+	assert_eq(_own_and_vars_in(cards + "var taken: Label = label(\"Teammate\", UiMetrics.CAPTION)"), 0)
+	assert_eq(_own_and_vars_in(cards + "var other: Label = row.label(\"x\", 22)"), 0, "someone else's label method")
+	assert_eq(_own_and_vars_in("func _go() -> void:\n\tlabel(\"x\", 22)"), 0, "no class: not LoadoutCards.label")
+	var draw: String = "func _draw() -> void:\n\tdraw_string(font, at, t, HORIZONTAL_ALIGNMENT_LEFT, -1.0, caption_size, Color.WHITE)\n"
+	assert_eq(_own_and_vars_in("func _draw() -> void:\n\tvar caption_size: int = 26\n" + draw.substr(draw.find("\n") + 1)), 1, "a drawn size variable")
+	assert_eq(_own_and_vars_in("func _draw() -> void:\n\tvar caption_size: int = UiMetrics.BODY\n" + draw.substr(draw.find("\n") + 1)), 0)
+	assert_eq(_own_and_vars_in("func _go() -> void:\n\tvar count := 26\n\tlabel.add_theme_font_size_override(\"font_size\", count)"), 1, "untyped, by use")
+	assert_eq(_own_and_vars_in("var font_px: int = 30"), 1, "named for a font")
+	assert_eq(_own_and_vars_in("func _go() -> void:\n\tvar grid_size: int = 3\n\tfor i: int in grid_size:\n\t\tpass"), 0, "a size that is a count")
+	assert_eq(_own_and_vars_in("var size_hint: Vector2 = Vector2(10, 10)\nvar ratio: float = 26.0"), 0, "not ints")
+	assert_eq(_own_and_vars_in("func _go() -> void:\n\tvar slot: int = 2\n\tfont.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, slot, UiMetrics.BODY)"), 0, "another argument of a text call")
+
+
+func _own_and_vars_in(code: String) -> int:
+	var path: String = "user://lint_vars_probe.gd"
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(code + "\n")
+	file.close()
+	var count: int = _bare_font_vars_and_self_calls(path, _font_calls()).size()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	return count
