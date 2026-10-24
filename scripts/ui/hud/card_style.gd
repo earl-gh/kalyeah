@@ -4,7 +4,8 @@ extends RefCounted
 ## the round painted art filling its width; no name on it (the ice water cost sits on its bottom edge, drawn by the hand). The hand's cards
 ## and the NEXT card use the same drawing, at two sizes.
 
-const RADIUS: int = UiSkin.RADIUS_S
+## The card's corners: round enough for the gloss to curve with them (it follows the outline `BORDER + GLOSS / 2` pixels inside).
+const RADIUS: int = UiSkin.RADIUS_M
 ## The black outline round a card, and the polished gloss just inside it (Clash Royale's card look): ONE connected band that starts white
 ## along the top, turns the top right corner and fades through gray down the right side, and comes back as light gray along the bottom.
 const BORDER: int = 3
@@ -16,7 +17,9 @@ const GLOSS_BOTTOM: Color = Color(0.84, 0.86, 0.9)
 const GLOSS_ALPHA_TOP: float = 0.95
 const GLOSS_ALPHA_RIGHT: float = 0.45
 const GLOSS_ALPHA_BOTTOM: float = 0.85
-const GLOSS_STEPS: int = 6
+const GLOSS_STEPS: int = 18
+## The shine on the top right corner: a thin bright arc over the band where it turns, as wide as this share of the band.
+const SHINE_WIDTH: float = 0.45
 const OUTLINE: Color = Color(0.0, 0.0, 0.0, 1.0)
 ## How far the thin gold inner frame of a cooling card stands inside its edge; its corners are the card's less this, so the
 ## two curves stay parallel.
@@ -62,6 +65,7 @@ static func _glosses(canvas: CanvasItem, rect: Rect2) -> void:
 	var corner: float = maxf(float(RADIUS) - inset, 2.0)
 	var points: PackedVector2Array = PackedVector2Array()
 	var marks: PackedFloat32Array = PackedFloat32Array()  # which part of the path each point is on: 0 top, 1 right, 2 bottom
+	var arc_from_top: Array[int] = []  # the points on the top right curve
 	points.append(Vector2(box.position.x + corner, box.position.y))
 	marks.append(0.0)
 	points.append(Vector2(box.end.x - corner, box.position.y))
@@ -69,13 +73,14 @@ static func _glosses(canvas: CanvasItem, rect: Rect2) -> void:
 	for step: int in range(1, GLOSS_STEPS + 1):
 		var angle: float = -PI / 2.0 + PI / 2.0 * float(step) / float(GLOSS_STEPS)
 		points.append(Vector2(box.end.x - corner, box.position.y + corner) + Vector2.from_angle(angle) * corner)
-		marks.append(0.5)
+		marks.append(0.5 * float(step) / float(GLOSS_STEPS))  # white to gray right round the curve
+		arc_from_top.append(points.size() - 1)
 	points.append(Vector2(box.end.x, box.end.y - corner))
 	marks.append(1.0)
 	for step: int in range(1, GLOSS_STEPS + 1):
 		var angle: float = PI / 2.0 * float(step) / float(GLOSS_STEPS)
 		points.append(Vector2(box.end.x - corner, box.end.y - corner) + Vector2.from_angle(angle) * corner)
-		marks.append(1.5)
+		marks.append(1.0 + 0.5 * float(step) / float(GLOSS_STEPS))  # gray to light gray right round the curve
 	points.append(Vector2(box.position.x + corner, box.end.y))
 	marks.append(2.0)
 	var lengths: PackedFloat32Array = PackedFloat32Array([0.0])
@@ -90,6 +95,16 @@ static func _glosses(canvas: CanvasItem, rect: Rect2) -> void:
 		glow.append(Color(color, color.a * 0.3))
 	canvas.draw_polyline_colors(points, glow, float(GLOSS) * 2.0, true)
 	canvas.draw_polyline_colors(points, colors, float(GLOSS), true)
+	# the shine: a thin bright arc over the top right curve, strongest where it turns and fading to nothing at both ends
+	var arc: PackedVector2Array = PackedVector2Array()
+	for index: int in arc_from_top:
+		arc.append(points[index])
+	if arc.size() > 2:
+		var shine: PackedColorArray = PackedColorArray()
+		for index: int in arc.size():
+			var share: float = float(index) / float(arc.size() - 1)
+			shine.append(Color(1.0, 1.0, 1.0, sin(share * PI) * 0.85))
+		canvas.draw_polyline_colors(arc, shine, float(GLOSS) * SHINE_WIDTH, true)
 
 
 ## The gloss colour at a point of its path: `part` 0 on the top, 1 on the right side, 2 on the bottom (halves between are the corners);
