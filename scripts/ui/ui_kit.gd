@@ -60,7 +60,7 @@ static func letter(label: Label, size: int, color: Color = KalyeahTheme.CREAM, i
 static func page_header(title_text: String, subtitle: String = "") -> VBoxContainer:
 	var column: VBoxContainer = VBoxContainer.new()
 	column.name = "Header"
-	column.add_theme_constant_override("separation", 2)
+	column.add_theme_constant_override("separation", 8)
 	var title: Label = Label.new()
 	title.name = "Title"
 	title.text = title_text

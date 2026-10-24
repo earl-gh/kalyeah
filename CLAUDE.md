@@ -42,7 +42,7 @@ assets/{models,textures,audio,icons,fonts}   server/   tests/{unit,integration}
 
 ## Art and orientation (binding)
 - **Portrait (vertical) only**: Android locked to portrait; the web build shows a "rotate your phone" prompt if held in landscape. Kalyeah is a vertical MOBA by design (see `docs/PROJECT.md` section 3.8 and `docs/GDD.md` "Vertical layout").
-- Art style: **Clash of Clans design language** on a **League of Legends camera** (56° pitch, 30° vertical FOV): soft, chunky, painted-looking stylised 3D with a Filipino street theme, readable at phone size. Inspired by, never copied: no Supercell or Riot assets, names or logos. Assets are authored in Blender (`bpy` works in the cloud session). Specs: `docs/PROJECT.md` section 3.8, `docs/ART.md`, `docs/ROADMAP.md`.
+- Art style: **Clash of Clans design language** on a fixed **orthographic camera tilted 45°** (nothing shrinks with distance; the whole street is always on screen; `docs/GDD.md` "Vertical layout"): soft, chunky, painted-looking stylised 3D with a Filipino street theme, readable at phone size. Inspired by, never copied: no Supercell or Riot assets, names or logos. Assets are authored in Blender (`bpy` works in the cloud session). Specs: `docs/PROJECT.md` section 3.8, `docs/ART.md`, `docs/ROADMAP.md`.
 
 ## Assets: advise, don't generate (owner rule)
 When an asset is needed (a prop, a character, an effect, an icon, a texture, a screen background), **do not generate it**. Say which kind it should be and why, and leave the making to the owner:
@@ -62,7 +62,7 @@ Keep the existing procedural/code-drawn stand-ins working until the owner's asse
 - No C#/GDExtension (breaks single-threaded web export). No addons except GUT unless asked.
 - No ENet/UDP for gameplay (doesn't work in browsers).
 - No accounts, ranked, leveling, items, hero classes/abilities, damage types — out of scope by design. Characters are cosmetic only and chosen by the player on the select screen (docs/GDD.md).
-- **No basic attack.** Players only use the two weapon cards in their hand (every weapon is in a shuffled deck that cycles like Clash Royale; nobody picks weapons, owner), plus the default skills (Dash, Bookmark).
+- **No basic attack.** Players only use the four weapon cards in their hand (plus Next, the card that comes in) (every weapon is in a shuffled deck that cycles like Clash Royale; nobody picks weapons, owner), plus the default skills (Dash, Bookmark).
 - Never let a character choice change gameplay (hitbox, stats, timing).
 - Don't guess on items listed under "Open decisions" in GDD: implement the default and keep it a data toggle.
 

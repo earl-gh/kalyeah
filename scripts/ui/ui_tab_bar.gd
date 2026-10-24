@@ -1,55 +1,92 @@
 class_name UiTabBar
-extends PanelContainer
-## The main screen's bottom navigation: a night-glass bar with one big tab per destination (an icon
-## over a label). The open tab turns light blue (gold is kept for the one main action) and a raised plate glides
-## under it from the tab it left (it jumps with Reduce motion); the others stay quiet.
-## Tabs are at least a thumb tall and share the width equally.
+extends Control
+## The main screen's bottom navigation, in the style of Clash Royale's: the owner's cardboard plate along the bottom with one
+## picture per destination (Street, Play, Settings). The layout never moves: three equal tabs, every picture centred on the same line.
+## The open tab's picture only grows (round its own centre) and its name fades in under it, and two small arrows float over the
+## bar, a little way out from the picture, to go to the neighbouring tab (the leftmost tab has only a right arrow, the rightmost
+## only a left one). Changing tab is one smooth move: the picture grows and shrinks, the name fades, the arrows slide to the new tab.
+## The pictures are the owner's files in `assets/ui/nav/`.
 
 signal tab_pressed(id: StringName)
 
-const HEIGHT: float = 128.0
-const ICON_SIZE: float = 52.0
-const ACTIVE: Color = Color("8fd0ff")
-const IDLE: Color = Color("9fb0d6")
-## The bar's plate pads its tabs by `INSET`; the open tab's plate (and a tab's focus ring) sits that far inside the bar, so
-## its corners are the bar's less the inset and the two curves run parallel.
-const INSET: int = 8
-const GLIDE_RADIUS: int = UiSkin.RADIUS_XL - INSET
+## The plate's picture is 1804 x 493 of its file; the bar is that tall at the design width.
+const HEIGHT: float = 196.0
+## The pictures' sizes (design pixels) for the open and an idle tab, and the one line their centres sit on, from the bar's top.
+const ICON_ACTIVE: float = 116.0
+const ICON_IDLE: float = 84.0
+const ICON_Y: float = 86.0
+## The open tab's name sits under its picture (it rises a few pixels into place as it fades in).
+const LABEL_Y: float = 152.0
+const LABEL_HEIGHT: float = 32.0
+const LABEL_RISE: float = 8.0
+## The arrows: how big they are drawn, how big they are to the thumb, and how far from the picture's edge.
+const ARROW_SIZE: float = 26.0
+const ARROW_TOUCH: float = 88.0
+const ARROW_GAP: float = 30.0
+const IDLE_SHADE: Color = Color(0.82, 0.82, 0.86)
+## The time a change of tab takes (instant with Reduce motion).
+const GROW_TIME: float = 0.28
+
+const PLATE: Texture2D = preload("res://assets/ui/nav/nav_plate.webp")
+const ARROW: Texture2D = preload("res://assets/ui/nav/nav_arrow.png")
+const PICTURES: Dictionary[StringName, Texture2D] = {
+	&"street": preload("res://assets/ui/nav/nav_street.webp"),
+	&"play": preload("res://assets/ui/nav/nav_play.webp"),
+	&"settings": preload("res://assets/ui/nav/nav_settings.png"),
+}
+## The visible part of each picture inside its file, as shares of the file (the files have clear margins and their art is not
+## centred), so the bar can place the art itself: {x, y, width, height}.
+const PLATE_PART: Rect2 = Rect2(0.04539, 0.25221, 0.90974, 0.62169)
+const ARROW_PART: Rect2 = Rect2(0.29538, 0.18151, 0.52537, 0.63923)
+const PICTURE_PARTS: Dictionary[StringName, Rect2] = {
+	&"street": Rect2(0.08453, 0.06459, 0.84927, 0.86124),
+	&"play": Rect2(0.14317, 0.12514, 0.85683, 0.80158),
+	&"settings": Rect2(0.11387, 0.11387, 0.78803, 0.79061),
+}
 
 var tabs: Dictionary[StringName, Button] = {}
 var active: StringName = &""
-var _icons: Dictionary[StringName, NavIcon] = {}
+## The arrows floating beside the open tab: to the tab on its left and on its right (faded out at the ends).
+var arrow_left: Button
+var arrow_right: Button
+
+var _order: Array[StringName] = []
+var _pictures: Dictionary[StringName, TextureRect] = {}
 var _labels: Dictionary[StringName, Label] = {}
-## The raised plate under the open tab.
-var glide: Panel
-var _row: HBoxContainer
-var _stack: Control
-var _glide_tween: Tween
+## How open each tab is now (0 idle, 1 open), tweened.
+var _openness: Dictionary[StringName, float] = {}
+var _tween: Tween
 
 
-## `items`: {id, label, icon} in order, left to right.
+## `items`: {id, label, icon} in order, left to right (`icon`: the key of PICTURES).
 func _init(items: Array[Dictionary] = []) -> void:
 	name = "TabBar"
-	add_theme_stylebox_override("panel", UiSkin.plate("night", float(INSET), UiSkin.RADIUS_XL))
 	custom_minimum_size = Vector2(0.0, HEIGHT)
-	# a plain Control holds the plate and the row, so the plate can be placed by hand
-	_stack = Control.new()
-	_stack.name = "Stack"
-	_stack.custom_minimum_size = Vector2(0.0, HEIGHT - 2.0 * INSET)
-	add_child(_stack)
-	glide = Panel.new()
-	glide.name = "Glide"
-	glide.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	glide.visible = false
-	glide.add_theme_stylebox_override("panel", UiSkin.plate("raised", 0.0, GLIDE_RADIUS))
-	_stack.add_child(glide)
-	_row = HBoxContainer.new()
-	_row.add_theme_constant_override("separation", 6)
-	_row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_stack.add_child(_row)
-	_stack.resized.connect(_place_glide.bind(false))
+	mouse_filter = Control.MOUSE_FILTER_PASS
+	var plate: TextureRect = TextureRect.new()
+	plate.name = "Plate"
+	plate.texture = _part(PLATE, PLATE_PART)
+	plate.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	plate.stretch_mode = TextureRect.STRETCH_SCALE
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(plate)
 	for item: Dictionary in items:
 		_add_tab(item["id"] as StringName, String(item["label"]), item["icon"] as StringName)
+	# added last, so they float over the tabs
+	arrow_left = _arrow("ArrowLeft", false, "Previous tab")
+	arrow_right = _arrow("ArrowRight", true, "Next tab")
+	resized.connect(_layout)
+
+
+## A picture's visible part as a texture of its own (the part is shares of the file, so it holds at any import size).
+static func _part(texture: Texture2D, part: Rect2) -> AtlasTexture:
+	var atlas: AtlasTexture = AtlasTexture.new()
+	atlas.atlas = texture
+	var size: Vector2 = texture.get_size()
+	atlas.region = Rect2(part.position * size, part.size * size)
+	atlas.filter_clip = true
+	return atlas
 
 
 func _add_tab(id: StringName, text: String, icon_kind: StringName) -> void:
@@ -57,74 +94,146 @@ func _add_tab(id: StringName, text: String, icon_kind: StringName) -> void:
 	button.name = "Tab%s" % String(id).capitalize()
 	button.accessibility_name = text
 	button.focus_mode = Control.FOCUS_ALL
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.custom_minimum_size = Vector2(0.0, HEIGHT - 2.0 * INSET)
-	button.add_theme_stylebox_override("focus", UiSkin.focus_ring(GLIDE_RADIUS))
-	button.pressed.connect(tab_pressed.emit.bind(id))
-	UiKit.feel_press(button)
-	var stack: VBoxContainer = VBoxContainer.new()
-	stack.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	stack.alignment = BoxContainer.ALIGNMENT_CENTER
-	stack.add_theme_constant_override("separation", 2)
-	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.add_child(stack)
-	var holder: CenterContainer = CenterContainer.new()
-	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var icon: NavIcon = NavIcon.new(icon_kind)
-	icon.custom_minimum_size = Vector2(ICON_SIZE, ICON_SIZE)
-	icon.color = IDLE
-	holder.add_child(icon)
-	stack.add_child(holder)
-	var label: Label = Label.new()
-	label.text = text
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
-	label.add_theme_font_size_override("font_size", UiMetrics.CAPTION)
-	label.add_theme_color_override("font_color", IDLE)
-	label.add_theme_constant_override("outline_size", 0)
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack.add_child(label)
-	_row.add_child(button)
-	tabs[id] = button
-	_icons[id] = icon
-	_labels[id] = label
-	_paint(id, false)
-
-
-## Lifts `id` and quiets the rest.
-func set_active(id: StringName) -> void:
-	active = id
-	for other: StringName in tabs:
-		_paint(other, other == id)
-	_place_glide(true)
-
-
-func _paint(id: StringName, on: bool) -> void:
-	var button: Button = tabs[id]
+	button.flat = true
+	button.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_L))
 	for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
 		button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
-	var color: Color = ACTIVE if on else IDLE
-	_icons[id].color = color
-	_labels[id].add_theme_color_override("font_color", color)
+	button.pressed.connect(tab_pressed.emit.bind(id))
+	UiKit.feel_press(button)
+	var picture: TextureRect = TextureRect.new()
+	picture.name = "Picture"
+	picture.texture = _part(PICTURES[icon_kind], PICTURE_PARTS[icon_kind])
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(picture)
+	var label: Label = Label.new()
+	label.name = "Name"
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	UiKit.letter(label, UiMetrics.CAPTION)
+	button.add_child(label)
+	add_child(button)
+	tabs[id] = button
+	_pictures[id] = picture
+	_labels[id] = label
+	_openness[id] = 0.0
+	_order.append(id)
 
 
-## Puts the plate under the open tab (`animate`: it glides there from where it was).
-func _place_glide(animate: bool) -> void:
-	if not tabs.has(active):
-		glide.visible = false
+func _arrow(node_name: String, flip: bool, say: String) -> Button:
+	var button: Button = Button.new()
+	button.name = node_name
+	button.accessibility_name = say
+	button.flat = true
+	button.focus_mode = Control.FOCUS_ALL
+	button.visible = false
+	for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
+		button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	button.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_L))
+	var arrow: TextureRect = TextureRect.new()
+	arrow.name = "Arrow"
+	arrow.texture = _part(ARROW, ARROW_PART)
+	arrow.flip_h = flip
+	arrow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	arrow.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	arrow.size = Vector2.ONE * ARROW_SIZE
+	arrow.position = (Vector2.ONE * ARROW_TOUCH - arrow.size) / 2.0
+	button.add_child(arrow)
+	button.custom_minimum_size = Vector2.ONE * ARROW_TOUCH
+	button.size = Vector2.ONE * ARROW_TOUCH
+	UiKit.feel_press(button)
+	button.pressed.connect(_step.bind(1 if flip else -1))
+	add_child(button)
+	return button
+
+
+## The arrows go to the tab beside the open one.
+func _step(way: int) -> void:
+	var at: int = _order.find(active) + way
+	if at >= 0 and at < _order.size():
+		tab_pressed.emit(_order[at])
+
+
+## Opens `id`: its picture grows and its name fades in while the others shrink, and the arrows slide to it: one smooth move.
+func set_active(id: StringName) -> void:
+	active = id
+	if is_instance_valid(_tween):
+		_tween.kill()
+	if Settings.reduced_motion or not is_inside_tree() or size.x <= 0.0:
+		for other: StringName in _order:
+			_openness[other] = 1.0 if other == id else 0.0
+		_layout()
 		return
-	var button: Button = tabs[active]
-	if button.size.x <= 0.0 or _stack.size.x <= 0.0:
-		# not laid out yet: the stack's resized signal places it
+	_tween = create_tween().set_parallel(true)
+	for other: StringName in _order:
+		_tween.tween_method(_set_openness.bind(other), _openness[other], 1.0 if other == id else 0.0, GROW_TIME).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+
+func _set_openness(value: float, id: StringName) -> void:
+	_openness[id] = value
+	_layout()
+
+
+## The width of every tab: equal, whichever tab is open (nothing restructures when the tab changes).
+func slot_width() -> float:
+	return size.x / float(maxi(_order.size(), 1))
+
+
+## Places every picture, name and arrow for the current openness. The bar scales with its width over the design width.
+func _layout() -> void:
+	if _order.is_empty() or size.x <= 0.0:
 		return
-	var target: Vector2 = button.global_position - _stack.global_position
-	var was_visible: bool = glide.visible
-	glide.visible = true
-	glide.size = button.size
-	if is_instance_valid(_glide_tween):
-		_glide_tween.kill()
-	if not animate or not was_visible or Settings.reduced_motion or not is_inside_tree():
-		glide.position = target
+	var scale_to: float = size.x / 720.0
+	var slot: float = slot_width()
+	var total: float = 0.0
+	var centre_sum: float = 0.0
+	var right_share: float = 0.0
+	var left_share: float = 0.0
+	for i: int in _order.size():
+		var id: StringName = _order[i]
+		var open: float = _openness[id]
+		var button: Button = tabs[id]
+		button.position = Vector2(slot * float(i), 0.0)
+		button.size = Vector2(slot, size.y)
+		var edge: float = lerpf(ICON_IDLE, ICON_ACTIVE, open) * scale_to
+		var picture: TextureRect = _pictures[id]
+		picture.size = Vector2.ONE * edge
+		# every picture is centred on the same line, so a growing one never pushes itself up or its neighbours aside
+		picture.position = Vector2(slot / 2.0 - edge / 2.0, ICON_Y * scale_to - edge / 2.0)
+		picture.modulate = IDLE_SHADE.lerp(Color.WHITE, open)
+		var label: Label = _labels[id]
+		label.size = Vector2(slot, LABEL_HEIGHT * scale_to)
+		label.position = Vector2(0.0, (LABEL_Y + (1.0 - open) * LABEL_RISE) * scale_to)
+		label.modulate.a = open
+		label.visible = open > 0.01
+		total += open
+		centre_sum += open * slot * (float(i) + 0.5)
+		if i > 0:
+			left_share += open
+		if i < _order.size() - 1:
+			right_share += open
+	_place_arrows(centre_sum, total, left_share, right_share, scale_to)
+
+
+## The arrows follow the open tab's centre (a weighted one while two tabs are changing places) and fade by how much of the open
+## tab has a neighbour on their side. They are floating controls: they never take room from the tabs.
+func _place_arrows(centre_sum: float, total: float, left_share: float, right_share: float, scale_to: float) -> void:
+	if total <= 0.001:
+		arrow_left.visible = false
+		arrow_right.visible = false
 		return
-	_glide_tween = create_tween()
-	_glide_tween.tween_property(glide, "position", target, 0.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	var centre: float = centre_sum / total
+	var reach: float = (ICON_ACTIVE / 2.0 + ARROW_GAP + ARROW_SIZE / 2.0) * scale_to
+	var y: float = ICON_Y * scale_to - ARROW_TOUCH / 2.0
+	arrow_left.position = Vector2(centre - reach - ARROW_TOUCH / 2.0, y)
+	arrow_right.position = Vector2(centre + reach - ARROW_TOUCH / 2.0, y)
+	var left_alpha: float = left_share / total
+	var right_alpha: float = right_share / total
+	arrow_left.modulate.a = left_alpha
+	arrow_right.modulate.a = right_alpha
+	arrow_left.visible = left_alpha > 0.02
+	arrow_right.visible = right_alpha > 0.02

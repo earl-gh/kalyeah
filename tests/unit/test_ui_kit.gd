@@ -85,19 +85,22 @@ func test_the_segmented_control_announces_changes_and_lights_one_segment() -> vo
 
 
 func test_the_tab_bar_lights_only_the_open_tab_and_announces_presses() -> void:
+	var motion: bool = Settings.reduced_motion
+	Settings.set_reduced_motion(true)
 	var bar: UiTabBar = autofree(UiTabBar.new(TitleScreen.TABS)) as UiTabBar
 	add_child(bar)
-	assert_eq(bar.tabs.size(), 4)
+	bar.size = Vector2(720.0, UiTabBar.HEIGHT)
+	assert_eq(bar.tabs.size(), 3, "Street, Play, Settings")
 	var heard: Array[StringName] = []
 	bar.tab_pressed.connect(func(id: StringName) -> void: heard.append(id))
-	bar.set_active(&"history")
-	assert_eq(bar.active, &"history")
-	# re-pinned from the one-off 26 to the corner scale's large step (same exact texture identity, not loosened)
-	assert_eq((bar.glide.get_theme_stylebox("panel") as StyleBoxTexture).texture, UiSkin.plate("raised", 0.0, UiSkin.RADIUS_L).texture, "the open tab has the raised plate under it")
-	assert_true(bar.tabs[&"codex"].get_theme_stylebox("normal") is StyleBoxEmpty, "the others are quiet")
+	bar.set_active(&"street")
+	assert_eq(bar.active, &"street")
+	assert_true((bar.tabs[&"street"].get_node("Name") as Label).visible, "the open tab says its name")
+	assert_false((bar.tabs[&"settings"].get_node("Name") as Label).visible, "the others are quiet")
 	bar.tabs[&"settings"].pressed.emit()
 	assert_eq(heard, [&"settings"] as Array[StringName])
 	assert_gte(bar.custom_minimum_size.y, 112.0, "a deep bar: easy to hit with a thumb")
+	Settings.set_reduced_motion(motion)
 
 
 func test_the_profile_chip_shows_the_name_and_a_change_hint() -> void:

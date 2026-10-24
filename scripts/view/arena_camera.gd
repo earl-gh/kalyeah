@@ -1,14 +1,14 @@
 class_name ArenaCamera
 extends Camera3D
-## The fixed gameplay camera (see CameraRules): it never moves, so the whole arena is on screen. Own base is
+## The fixed orthographic gameplay camera (see CameraRules): it never moves, so the whole arena is on screen. Own base is
 ## always at the bottom of the screen; the other team's view is rotated 180 degrees. It only re-frames when the
 ## screen's shape changes (a window resize, a rotation) or the view flips.
 
 const SHAKE_DECAY: float = 1.4
-## The depth range is cut tight around the arena (it is far away), for depth precision and for the shadows.
+## The depth range is cut tight around the arena (the camera stands CameraRules.STANDOFF away), for depth precision and for the shadows.
 const NEAR_MARGIN: float = 70.0
 const FAR_MARGIN: float = 100.0
-## The opening show flies close to the post: a wide lens and a long depth range.
+## The opening show flies close to the post with a perspective lens: a wide lens and a long depth range.
 const CINEMATIC_FOV: float = 60.0
 const CINEMATIC_NEAR: float = 0.4
 const CINEMATIC_FAR: float = 400.0
@@ -32,9 +32,8 @@ var top_reserve_px: float = 0.0
 
 
 func _ready() -> void:
-	projection = Camera3D.PROJECTION_PERSPECTIVE
+	_use_gameplay_lens(1.0)
 	keep_aspect = Camera3D.KEEP_HEIGHT
-	fov = rules.render_vfov_degrees()
 	environment = StreetMap.make_environment()
 
 
@@ -61,16 +60,21 @@ func flat_position(screen: Vector2) -> Vector2:
 	return LensCurve.source_px(screen, size, rules.lens_k())
 
 
-## Distance from the aim point to the camera for this screen.
-func distance() -> float:
+## How many metres tall the view is for this screen (the orthographic size that fits the whole arena).
+func view_size() -> float:
 	return _framed().x
+
+
+## Distance from the aim point to the camera (fixed: an orthographic camera looks the same from any distance).
+func distance() -> float:
+	return CameraRules.STANDOFF
 
 
 ## Where the camera wants to be for the team that flips (or not).
 func desired_position(flip: bool) -> Vector3:
 	var framed: Vector2 = _framed()
 	var target: Vector2 = rules.camera_target(framed.y, flip)
-	return Vector3(target.x, 0.0, target.y) + rules.camera_offset(framed.x, flip)
+	return Vector3(target.x, 0.0, target.y) + rules.camera_offset(CameraRules.STANDOFF, flip)
 
 
 ## Puts the camera where it frames the whole arena (a no-op when nothing changed).
@@ -81,9 +85,9 @@ func place(flip: bool) -> void:
 	var framed: Vector2 = _framed()
 	position = desired_position(flip)
 	rotation_degrees = Vector3(-rules.pitch_degrees, rules.yaw_degrees(flip), 0.0)
-	fov = rules.render_vfov_degrees()
-	near = maxf(1.0, framed.x - NEAR_MARGIN)
-	far = framed.x + FAR_MARGIN
+	_use_gameplay_lens(framed.x)
+	near = maxf(1.0, CameraRules.STANDOFF - NEAR_MARGIN)
+	far = CameraRules.STANDOFF + FAR_MARGIN
 	_placed = true
 	_flip = flip
 
@@ -93,10 +97,17 @@ func place(flip: bool) -> void:
 func frame_shot(eye: Vector3, target: Vector3) -> void:
 	position = eye
 	look_at(target, Vector3.UP)
+	projection = Camera3D.PROJECTION_PERSPECTIVE
 	fov = CINEMATIC_FOV
 	near = CINEMATIC_NEAR
 	far = CINEMATIC_FAR
 	_placed = false
+
+
+## The gameplay lens: orthographic, `size` metres tall.
+func _use_gameplay_lens(size_metres: float) -> void:
+	projection = Camera3D.PROJECTION_ORTHOGONAL
+	size = size_metres
 
 
 ## Kick the camera (a hit on you, a wall breaking). `strength` ~0.1 small, 0.4 big.

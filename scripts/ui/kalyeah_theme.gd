@@ -3,10 +3,10 @@ extends RefCounted
 ## Kalyeah's portrait UI system: calm grouped surfaces and direct controls, with
 ## the display face reserved for game identity and high-salience match moments.
 
-## Bungee is the one typeface (owner): headings, body copy, buttons, fields and HUD numbers all use it. Its capitals are tight and heavy, so the
+## Clash (the owner's font, `assets/fonts/clash/`) is the one typeface: headings, body copy, buttons, fields and HUD numbers all use it. It has real lowercase letters, so the
 ## roles differ by size, colour and tracking (extra space between letters and words) instead of by face:
 ## display (titles, big numbers, the score) is untracked; body copy and buttons are opened a little; captions and section labels a little more.
-const DISPLAY_FONT: Font = preload("res://assets/fonts/bungee/Bungee-Regular.ttf")
+const DISPLAY_FONT: Font = preload("res://assets/fonts/clash/Clash-Regular.otf")
 const BODY_TRACKING: int = 0
 const BUTTON_TRACKING: int = 0
 const CAPTION_TRACKING: int = 2

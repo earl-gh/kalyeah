@@ -186,8 +186,10 @@ func test_the_home_controls_are_named() -> void:
 	await wait_process_frames(3)
 	assert_eq(screen.carousel.accessibility_name, "Game mode")
 	assert_string_contains(screen.profile_chip.accessibility_name, "Your profile")
-	for id: StringName in [&"home", &"codex", &"history", &"settings"]:
+	for id: StringName in [&"street", &"home", &"settings"]:
 		assert_false(screen.corner_buttons[id].accessibility_name.is_empty(), "%s tab" % id)
+	assert_false(screen.tab_bar.arrow_left.accessibility_name.is_empty(), "the left arrow is named")
+	assert_false(screen.tab_bar.arrow_right.accessibility_name.is_empty(), "and the right one")
 
 
 # ---- translation -----------------------------------------------------------------------------

@@ -78,7 +78,7 @@ Budgets (M6): 60 fps on a recommended Android phone, 30+ on the minimum; APK und
 - (Superseded: no cooldown bars under the health bar since dash and the pin were removed.)
 - Skill buttons are art only, plus the weapon type (Attack, Control, Block or Heal, in capitals) as a small tag. No health panel in the top-left corner.
 
-### Camera spec (owner): exactly League of Legends
+### Camera spec (owner): superseded: now orthographic at 45° (see `docs/GDD.md`); the original League of Legends numbers follow for history
 - Pitch **56°** from horizontal, field of view **30°** (vertical), far camera with a flat perspective.
 - The camera distance is derived from the screen shape so about 13 m of the lane width is visible on any phone; the angle and field of view are not changed for that. It looks 2.5 m ahead of the hero.
 - It follows the hero and eases after them; it does not tilt or roll.

@@ -22,13 +22,15 @@ const MODES: Array[Dictionary] = [
 	{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78",
 		"text": "Face 3 bots, or just train."},
 ]
-## The bottom tabs: Play is the home page, the others are pages.
+## The bottom tabs, left to right: Street (what each game is and how it plays), Play (the home page) and Settings. The Book and
+## History are reached from Settings (and History from the last match on Play).
 const TABS: Array[Dictionary] = [
-	{"id": &"home", "label": "Play", "icon": &"battle"},
-	{"id": &"codex", "label": "Book", "icon": &"book"},
-	{"id": &"history", "label": "History", "icon": &"history"},
+	{"id": &"street", "label": "Street", "icon": &"street"},
+	{"id": &"home", "label": "Play", "icon": &"play"},
 	{"id": &"settings", "label": "Settings", "icon": &"settings"},
 ]
+## The pages that belong to Settings: its tab stays lit while one is open.
+const SETTINGS_PAGES: Array[StringName] = [&"codex", &"history", &"gallery", &"howto"]
 ## The hero cards (2.5:4, like the owner's card pictures) and how high the stage is.
 const HERO_CARD: Vector2 = Vector2(400.0, 640.0)
 ## The hero grows with the stage (phones taller than 16:9 have the room): 2.5:4, between these heights, with
@@ -42,12 +44,11 @@ const AMBIENT_BOB: float = 7.0
 const CHIPS_HEIGHT: float = 42.0
 const CHIPS_MIN_STAGE: float = 640.0
 ## Which way a page slides in: the pages left to right as their tabs are.
-const PAGE_RANK: Dictionary[StringName, int] = {&"": 0, &"codex": 1, &"history": 2, &"settings": 3, &"gallery": 3, &"howto": 3}
+const PAGE_RANK: Dictionary[StringName, int] = {&"street": -1, &"": 0, &"settings": 1, &"codex": 2, &"history": 2, &"gallery": 2, &"howto": 2}
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
 const LOGO_HEIGHT: float = 92.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
-const BOTTOM_MARGIN: float = 18.0
 const CTA_HEIGHT: float = 104.0
 ## The main action's breath: it waits `PULSE_DELAY` seconds, then swells to `PULSE_SCALE` and settles, each way in
 ## `PULSE_HALF` seconds.
@@ -70,10 +71,11 @@ var mode_text_label: Label
 var primary_button: Button
 var secondary_button: Button
 var dialog: MenuDialog
-## The tab buttons by page id (home, codex, history, settings).
+## The tab buttons by page id (street, home, settings).
 var corner_buttons: Dictionary[StringName, Button] = {}
 var pages: Dictionary[StringName, Control] = {}
 var current_page: StringName = &""
+var street_page: StreetPage
 var codex_page: CodexPage
 var characters_page: CharactersPage:
 	get: return codex_page.characters_page
@@ -158,9 +160,10 @@ func _build_layout() -> void:
 	_page_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	middle.add_child(_page_holder)
 	_build_pages()
+	# the bottom bar is not inside the margins: it runs edge to edge and down to the bottom of the screen
 	tab_bar = UiTabBar.new(TABS)
 	tab_bar.tab_pressed.connect(_on_tab_pressed)
-	shell.add_child(tab_bar)
+	add_child(tab_bar)
 	for id: StringName in tab_bar.tabs:
 		corner_buttons[id] = tab_bar.tabs[id]
 	tab_bar.set_active(&"home")
@@ -286,12 +289,13 @@ func _action_button(parent: Control, button_name: String, text: String, weight: 
 
 
 func _build_pages() -> void:
+	street_page = StreetPage.new()
 	codex_page = CodexPage.new()
 	history_page = HistoryPage.new()
 	settings_page = SettingsPage.new()
 	gallery_page = UiGallery.new()
 	howto_page = HowToPlayPage.new()
-	pages = {&"codex": codex_page, &"history": history_page, &"settings": settings_page, &"gallery": gallery_page, &"howto": howto_page}
+	pages = {&"street": street_page, &"codex": codex_page, &"history": history_page, &"settings": settings_page, &"gallery": gallery_page, &"howto": howto_page}
 	for id: StringName in pages:
 		var page: Control = pages[id]
 		page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -303,6 +307,8 @@ func _build_pages() -> void:
 	settings_page.quit_pressed.connect(open_quit_confirm)
 	settings_page.gallery_pressed.connect(open_page.bind(&"gallery"))
 	settings_page.howto_pressed.connect(open_page.bind(&"howto"))
+	settings_page.book_pressed.connect(open_page.bind(&"codex"))
+	settings_page.history_pressed.connect(open_page.bind(&"history"))
 	howto_page.walkthrough_requested.connect(start_walkthrough)
 	history_page.play_pressed.connect(close_page)
 	howto_page.back_pressed.connect(open_page.bind(&"settings"))
@@ -315,12 +321,13 @@ func _on_tab_pressed(id: StringName) -> void:
 		open_page(id)
 
 
-## Opens one of the pages (codex = the book, history, settings) in the middle of the screen; it slides in from the
+## Opens one of the pages (street, codex = the book, history, settings) in the middle of the screen; it slides in from the
 ## side its tab is on.
 func open_page(id: StringName) -> void:
 	if not pages.has(id):
 		return
 	var way: int = signi(int(PAGE_RANK.get(id, 0)) - int(PAGE_RANK.get(current_page, 0)))
+	var was_home: bool = current_page == &""
 	current_page = id
 	for other: StringName in pages:
 		pages[other].visible = other == id
@@ -330,8 +337,12 @@ func open_page(id: StringName) -> void:
 		codex_page.show_tab(codex_page.current)
 	_home.visible = false
 	_top_bar.visible = false
-	# the gallery and How to play are parts of Settings: that tab stays lit and opens it again
-	tab_bar.set_active(&"settings" if id == &"gallery" or id == &"howto" else id)
+	# the Book, History, the gallery and How to play are reached from Settings: that tab stays lit (History opened from the last match
+	# on Play keeps Play lit) and opens Settings again
+	var lit: StringName = &"settings" if id in SETTINGS_PAGES else id
+	if id == &"history" and was_home:
+		lit = &"home"
+	tab_bar.set_active(lit)
 	_sync_ambient()
 	_fade_in(pages[id], way)
 
@@ -533,7 +544,13 @@ func _apply_safe_area() -> void:
 	_margin.add_theme_constant_override("margin_left", int(SIDE_MARGIN + inset.x))
 	_margin.add_theme_constant_override("margin_top", int(TOP_MARGIN + inset.y))
 	_margin.add_theme_constant_override("margin_right", int(SIDE_MARGIN + inset.z))
-	_margin.add_theme_constant_override("margin_bottom", int(BOTTOM_MARGIN + inset.w))
+	# the page and the home stop above the bar, which is flush with the bottom edge (and reaches under the home bar)
+	_margin.add_theme_constant_override("margin_bottom", int(UiTabBar.HEIGHT + inset.w + UiMetrics.COMPACT_GAP))
+	tab_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	tab_bar.offset_left = 0.0
+	tab_bar.offset_right = 0.0
+	tab_bar.offset_bottom = 0.0
+	tab_bar.offset_top = -(UiTabBar.HEIGHT + inset.w)
 
 
 ## The unsafe screen edges (left, top, right, bottom) in UI pixels: the notch, the status bar,
