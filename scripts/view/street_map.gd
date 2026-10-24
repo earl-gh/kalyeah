@@ -1,8 +1,8 @@
 class_name StreetMap
 extends Node3D
 ## The barangay street the game is played on (view only; reads MapLayout, holds no
-## rules). The play area is one flat, dark grey cement slab (no tiles or
-## markings) with curbs and sidewalks, house fronts, a sari-sari store with an
+## rules). The play area is the owner's tiled floor (cement.png) over a flat cement
+## slab (no markings) with curbs and sidewalks, house fronts, a sari-sari store with an
 ## umbrella around it; the few cover
 ## pieces kids hide behind (cardboard walls); each team's electric post in its corner with a chalk base
 ## circle; and the taped box where each team's tagged kids wait.
@@ -77,7 +77,7 @@ const DRAINAGE_COVER_WIDTH: float = 0.75
 const SHADOW_DISTANCE: float = 400.0
 ## Painted ground sits just above the coloured road and sidewalk boxes.
 const PAVER_TILE: float = 2.4
-## The play area is one flat, dark grey cement slab (owner): no repeating tiles.
+## The slab under the owner's tiled floor (and the street past both ends): dark grey cement.
 const CEMENT: Color = Color(0.3, 0.3, 0.31)
 ## Optional realistic cement art (owner-made 2D image, see docs/ART.md): when this
 ## file exists it is laid ONCE over the whole play area (stretched, never tiled).
@@ -413,6 +413,7 @@ func _add_cement_art() -> void:
 	var plane: PlaneMesh = PlaneMesh.new()
 	plane.size = Vector2(layout.lane_width, layout.lane_length)
 	var material: StandardMaterial3D = StreetArt.material("cement", Vector2.ONE)
+	material.albedo_color = StreetArt.CEMENT_TINT
 	plane.material = material
 	var art: MeshInstance3D = MeshInstance3D.new()
 	art.name = "CementArt"
