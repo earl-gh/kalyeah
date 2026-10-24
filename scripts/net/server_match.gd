@@ -12,6 +12,7 @@ const RELAYED: Dictionary[String, Array] = {
 	"sim": [
 		"player_tagged", "player_rescued",
 		"point_scored", "match_won", "point_reset", "weapon_cast", "player_damaged", "player_healed", "effect_applied",
+		"exhausted",
 	],
 	"weapons": ["cone_struck", "cone_winding"],
 }
@@ -179,13 +180,26 @@ func _play(delta: float) -> void:
 		_events.clear()
 	if _snapshot_accumulator >= 1.0 / _net.snapshot_rate:
 		_snapshot_accumulator = 0.0
-		_broadcast(Snapshot.capture(sim, _acks))
+		_send_snapshots(Snapshot.capture(sim, _acks))
+
+
+## The same public snapshot to everyone, each with only its own private part (elixir, stamina, move target).
+func _send_snapshots(public: Dictionary) -> void:
+	if _server == null:
+		return
+	for m: RoomService.Member in room.members:
+		if m.connected:
+			var message: Dictionary = public.duplicate()
+			message.merge(Snapshot.private_for(sim, m.player_id))
+			_server.send(m.peer_id, message)
 
 
 ## One input per tick per player, oldest first, so taps are never lost. With none
-## queued the last one repeats (held buttons stay held); a dropped player idles.
+## queued the last one repeats (held buttons stay held, but a move order is not given twice); a dropped player idles (stands still).
 func _next_input(m: RoomService.Member) -> PlayerInput:
 	if not m.connected:
+		if sim.players.has(m.player_id):
+			sim.end_move(sim.players[m.player_id])
 		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick)
 	var queue: Array = _queues[m.player_id]
 	if not queue.is_empty():
@@ -194,7 +208,9 @@ func _next_input(m: RoomService.Member) -> PlayerInput:
 		_acks[m.player_id] = input.tick
 		return input
 	if _last_input.has(m.player_id):
-		return _last_input[m.player_id]
+		var repeated: PlayerInput = _last_input[m.player_id]
+		repeated.buttons &= ~PlayerInput.BTN_MOVE_TARGET
+		return repeated
 	return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick)
 
 

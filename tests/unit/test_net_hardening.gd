@@ -7,6 +7,8 @@ const DT: float = 1.0 / 30.0
 
 var _rules: GameRules
 var _was: bool
+var _was_elixir: bool
+var _was_hand: int
 
 
 ## Keeps what the server would have sent instead of writing it to a socket.
@@ -20,10 +22,14 @@ class RecordingServer extends GameServer:
 func before_each() -> void:
 	_rules = load("res://data/rules/game_rules.tres") as GameRules
 	_was = _rules.card_cycle
+	_was_elixir = _rules.elixir_enabled
+	_was_hand = _rules.hand_size
 
 
 func after_each() -> void:
 	_rules.card_cycle = _was
+	_rules.elixir_enabled = _was_elixir
+	_rules.hand_size = _was_hand
 
 
 func _server() -> RecordingServer:
@@ -74,6 +80,9 @@ func test_a_pick_during_play_changes_nothing() -> void:
 
 func _card_sim() -> MatchSim:
 	_rules.card_cycle = true
+	# the shuffler queue is the elixir-off path (docs/GDD.md "Controls: tap to move, cards to cast", D26)
+	_rules.elixir_enabled = false
+	_rules.hand_size = 2
 	var sim: MatchSim = MatchSim.new(_rules, LAYOUT, 5)
 	sim.add_player(1, 0)
 	sim.deal_cards(1)

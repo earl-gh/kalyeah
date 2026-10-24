@@ -14,7 +14,7 @@ static func capture(sim: MatchSim, acks: Dictionary[int, int]) -> Dictionary:
 			"id": id, "pos": p.position, "face": p.facing, "hp": p.hp, "tag": p.tagged, "tt": p.tag_time,
 			"wcd": p.weapon_cooldowns.duplicate(), "w": p.weapons.duplicate(), "fx": p.effects.snapshot(),
 			"cl": p.cast_lock_left, "nx": p.next_card, "sc": p.shuffle_card, "sl": p.shuffle_left, "st": p.shuffle_total, "cd": p.cards,
-			"in": p.incoming.duplicate(),
+			"in": p.incoming.duplicate(), "ex": p.exhaust_left,
 		})
 	var projectiles: Array[Dictionary] = []
 	for projectile: WeaponSystem.Projectile in sim.weapons.projectiles:
@@ -38,6 +38,18 @@ static func capture(sim: MatchSim, acks: Dictionary[int, int]) -> Dictionary:
 	}
 
 
+## The part of a snapshot only `id`'s own client gets (merged into its copy as "me"): its elixir, stamina and move target. Nobody
+## else learns where a kid is walking or how much elixir it has (the other team sees only who is exhausted, in the public part).
+static func private_for(sim: MatchSim, id: int) -> Dictionary:
+	var p: PlayerState = sim.players.get(id) as PlayerState
+	if p == null:
+		return {}
+	return {"me": {
+		"id": id, "el": p.elixir, "sta": p.stamina, "still": p.still_time,
+		"mt": p.move_target, "hmt": p.has_move_target, "stk": p.stuck_time,
+	}}
+
+
 ## Writes `data` into `sim`. `local_id`'s position is left to the caller (prediction).
 static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 	sim.tick = data.get("tick", sim.tick) as int
@@ -53,15 +65,20 @@ static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 		p.hp = entry["hp"] as int
 		p.tagged = entry["tag"] as bool
 		p.tag_time = entry["tt"] as float
-		p.weapon_cooldowns.assign(entry["wcd"] as Array)
 		p.weapons.assign(entry["w"] as Array)
+		p.resize_slots()
+		var cooldowns: Array = entry["wcd"] as Array
+		for slot: int in mini(cooldowns.size(), p.weapon_cooldowns.size()):
+			p.weapon_cooldowns[slot] = float(cooldowns[slot])
 		p.cards = entry.get("cd", false) as bool
 		p.next_card = entry.get("nx", &"") as StringName
 		p.shuffle_card = entry.get("sc", &"") as StringName
 		p.shuffle_left = entry.get("sl", 0.0) as float
 		p.shuffle_total = entry.get("st", 0.0) as float
 		p.incoming.assign(entry.get("in", []) as Array)
+		p.exhaust_left = _number(entry.get("ex", 0.0))
 		p.effects.restore(entry["fx"] as Dictionary)
+	_apply_private(sim, data.get("me", {}) as Dictionary, local_id)
 	_apply_weapons(sim, data)
 	var was_intro: bool = sim.phase == MatchSim.Phase.INTRO
 	sim.phase = data.get("phase", sim.phase) as MatchSim.Phase
@@ -85,6 +102,23 @@ static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 		sim.capture_kind = capture["k"] as MatchSim.CaptureKind
 		sim.capture_elapsed = capture["e"] as float
 		sim.capture_needed = capture.get("need", sim.capture_needed) as float
+
+
+## The recipient's own elixir, stamina and move target (absent from an old server: the mirror keeps its own).
+static func _apply_private(sim: MatchSim, mine: Dictionary, local_id: int) -> void:
+	if mine.is_empty() or mine.get("id", -1) != local_id or not sim.players.has(local_id):
+		return
+	var p: PlayerState = sim.players[local_id]
+	p.elixir = _number(mine.get("el", p.elixir))
+	p.stamina = _number(mine.get("sta", p.stamina))
+	p.still_time = _number(mine.get("still", p.still_time))
+	p.has_move_target = mine.get("hmt", false) as bool
+	p.move_target = mine.get("mt", Vector2.ZERO) as Vector2 if mine.get("mt") is Vector2 else Vector2.ZERO
+	p.stuck_time = _number(mine.get("stk", 0.0))
+
+
+static func _number(value: Variant) -> float:
+	return float(value) if value is float or value is int else 0.0
 
 
 static func _log_of(sim: MatchSim) -> Array:
