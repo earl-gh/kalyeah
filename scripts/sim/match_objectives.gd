@@ -44,15 +44,18 @@ func rescue(sim: MatchSim, state: PlayerState, by_id: int) -> void:
 	state.position = state.spawn_position
 	state.facing = Vector2(0.0, -sim.side_for_team(state.team))
 	clear_actions(state)
+	sim.refill_stamina(state)
 	sim.player_rescued.emit(state.id, by_id)
 
 
-## Status effects, cast locks and weapon aiming end on a tag or rescue.
-## Cooldowns keep running.
+## Status effects, cast locks, weapon aiming and the walk to a move target end on a tag or rescue.
+## Cooldowns and elixir keep running.
 func clear_actions(state: PlayerState) -> void:
 	state.cast_lock_left = 0.0
 	state.effects.clear()
-	state.aim_hold = [-1.0, -1.0]
+	state.aim_hold.fill(-1.0)
+	state.has_move_target = false
+	state.stuck_time = 0.0
 
 
 ## Every player of `team` free and standing in the enemy base.
@@ -150,6 +153,8 @@ func _score_point(sim: MatchSim, team: int, how: MatchSim.CaptureKind) -> void:
 	var result: MatchScore.Result = sim.score.award_point(team)
 	sim.point_log.append(Vector2i(team, how))
 	_clear_capture(sim)
+	for id: int in sim.players:
+		sim.end_move(sim.players[id])  # the point freeze: everyone stops where they are
 	sim.point_scored.emit(team, how)
 	if result == MatchScore.Result.MATCH:
 		sim.phase = MatchSim.Phase.MATCH_OVER
@@ -181,6 +186,9 @@ func _reset_round(sim: MatchSim) -> void:
 		state.hp = sim.rules.player_max_hp
 		state.tagged = false
 		state.tag_time = 0.0
+		sim.refill_stamina(state)
+		if sim.rules.elixir_reset_on_round and sim.pays_elixir(state):
+			state.elixir = sim.rules.elixir_start
 		sim.finish_reloads(state)
 		if was_tagged:
 			sim.player_rescued.emit(id, MatchSim.RELEASED_ALONE)

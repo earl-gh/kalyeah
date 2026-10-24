@@ -12,6 +12,7 @@ street_game = "Trumpo"
 kind = 1
 shape = 8
 cooldown = 15.0
+elixir_cost = 5
 max_range = 8.0
 damage = 10
 radius = 0.8

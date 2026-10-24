@@ -7,16 +7,25 @@ const DT: float = 1.0 / 30.0
 
 var _rules: GameRules
 var _was: bool
+var _was_elixir: bool
+var _was_hand: int
 
 
 func before_each() -> void:
 	_rules = load("res://data/rules/game_rules.tres") as GameRules
 	_was = _rules.card_cycle
 	_rules.card_cycle = true
+	# The shuffler with a hand of two is the elixir-off path now (docs/GDD.md "Controls: tap to move, cards to cast", D26).
+	_was_elixir = _rules.elixir_enabled
+	_was_hand = _rules.hand_size
+	_rules.elixir_enabled = false
+	_rules.hand_size = 2
 
 
 func after_each() -> void:
 	_rules.card_cycle = _was
+	_rules.elixir_enabled = _was_elixir
+	_rules.hand_size = _was_hand
 
 
 func _sim(seed_value: int = 5) -> MatchSim:

@@ -12,6 +12,7 @@ street_game = "Langit Lupa"
 kind = 2
 shape = 6
 cooldown = 14.0
+elixir_cost = 5
 duration = 3.5
 width = 1.2
 offset = 2.2

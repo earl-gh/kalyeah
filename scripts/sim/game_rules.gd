@@ -50,6 +50,46 @@ extends Resource
 ## skill buttons). Using a card sends it to the back of the deck; when its cooldown is over, the next card of the deck takes its
 ## place. Off = the old pick of two weapons before the match and the swap in the box.
 @export var card_cycle: bool = true
+## docs/GDD.md "Controls: tap to move, cards to cast". Defaults are the GDD's; the .tres may override them.
+## Cards in the hand (NEXT is extra).
+@export var hand_size: int = 4
+## Elixir pays for cards (D26). Off = the old shuffler that plays each card's `cooldown`.
+@export var elixir_enabled: bool = true
+@export var elixir_max: float = 10.0
+## Elixir at match start (and at every round start with `elixir_reset_on_round`).
+@export var elixir_start: float = 5.0
+## Every round starts at `elixir_start`; off = keep what you had (D30).
+@export var elixir_reset_on_round: bool = true
+## Points per second; it also fills while tagged.
+@export var elixir_regen_per_s: float = 0.36
+## Off = no stamina, no exhaustion.
+@export var stamina_enabled: bool = true
+@export var stamina_max: float = 100.0
+## Points per second of moving, at any speed (D29).
+@export var stamina_drain_per_s: float = 10.0
+## Points per second standing still (after `stamina_regen_delay`) and while exhausted (no delay).
+@export var stamina_regen_per_s: float = 25.0
+## Seconds standing still before stamina refills.
+@export var stamina_regen_delay: float = 0.5
+## Seconds a kid cannot move once its stamina hits 0 (owner).
+@export var exhaust_seconds: float = 2.0
+## Metres; within it the move target is reached.
+@export var move_arrival_radius: float = 0.1
+## A tick that makes less than this share of its intended progress toward the target counts as stuck.
+@export var move_stuck_share: float = 0.25
+## Seconds of stuck ticks that end the move (D28).
+@export var move_stuck_time: float = 0.2
+## Input: a held finger / right button drags the move target (D27). Not read by the sim.
+@export var move_follow_hold: bool = true
+## Input: a press and release on a card within this many seconds is an auto-aim tap. Not read by the sim.
+@export var card_tap_time: float = 0.3
+## Metres; a heal dropped this close to your own kid heals you.
+@export var self_cast_radius: float = 1.0
+## Metres; a card dropped this close to your kid has no direction, so the kid's facing is used.
+@export var aim_no_direction_radius: float = 0.1
+## Bots: with no enemy near, a bot below this share of stamina stops to refill, until it is back to `bot_stamina_resume`.
+@export var bot_stamina_rest: float = 0.2
+@export var bot_stamina_resume: float = 0.6
 ## The match is won by the first team to this many points (practice, and the lobby's default).
 @export var first_to: int = 0
 ## What the host can pick in the lobby.
@@ -82,3 +122,8 @@ extends Resource
 ## Fixed simulation step in seconds (1 / tick_rate).
 func tick_dt() -> float:
 	return 1.0 / tick_rate
+
+
+## True when cards are paid for with elixir (cards on and elixir on); otherwise each card plays its `cooldown`.
+func uses_elixir() -> bool:
+	return card_cycle and elixir_enabled

@@ -12,6 +12,7 @@ street_game = "Langit Lupa"
 kind = 3
 shape = 9
 cooldown = 12.0
+elixir_cost = 4
 max_range = 8.0
 angle_degrees = 60.0
 heal = 30
