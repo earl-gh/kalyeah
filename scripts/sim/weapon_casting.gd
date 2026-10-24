@@ -66,7 +66,7 @@ func _active_slot(state: PlayerState) -> int:
 func _step_active(sim: MatchSim, state: PlayerState, input: PlayerInput, dt: float, slot: int) -> void:
 	var bit: int = CARD_BITS[slot]
 	if input.is_pressed(bit):
-		if state.tagged or not state.effects.can_cast():
+		if state.tagged or not state.effects.can_cast() or sim.casting_blocked(state):
 			state.aim_hold[slot] = -1.0
 		else:
 			state.aim_hold[slot] += dt

@@ -432,7 +432,7 @@ func test_done_closes_and_the_swap_button_reopens_while_tagged() -> void:
 func _score_point(practice: PracticeMatch) -> void:
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 	player.position = LAYOUT.base_center(-practice.own_side())
-	for i: int in ceili((practice.sim.rules.capture_time + 0.3) / DT):
+	for i: int in ceili((practice.sim.rules.capture_solo_time + 0.3) / DT):
 		practice.advance(DT)
 
 

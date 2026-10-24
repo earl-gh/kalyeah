@@ -26,7 +26,7 @@ signal weapon_cast(id: int, weapon_id: StringName)
 signal card_drawn(id: int, slot: int)
 ## A player lost HP.
 signal player_damaged(id: int, amount: int)
-## A kid's stamina ran out: it cannot move for `exhaust_seconds` (not a status effect).
+## A kid's stamina ran out: it is overclocked (walks until the bar is full again; not a status effect).
 signal exhausted(id: int)
 
 const RELEASED_ALONE: int = -1
@@ -61,6 +61,13 @@ var capture_kind: CaptureKind = CaptureKind.NONE
 var capture_elapsed: float = 0.0
 ## Seconds a capture has to hold now (the capture time, or the shorter overtime one).
 var capture_needed: float = 0.0
+## How fast the running capture counts (1 = one player's speed; a base capture runs faster with more teammates in the base).
+var capture_rate: float = 1.0
+## Per team (0, 1): the teammate rescuing right now (-1: none) and the seconds into the rescue.
+var rescue_rescuer: Array[int] = [-1, -1]
+var rescue_elapsed: Array[float] = [0.0, 0.0]
+## Counts tags, so the first tagged is the first rescued.
+var tag_counter: int = 0
 ## Seconds into this round (counts up in play; back to 0 after a point).
 var round_time: float = 0.0
 ## A tagged player walks out of the box alone after this long (0 = waits for a rescue).
@@ -494,7 +501,7 @@ func step(dt: float) -> void:
 	round_time += dt
 	capture_needed = current_capture_time()
 	weapons.step(self, dt)
-	objectives.check_rescues(self)
+	objectives.check_rescues(self, dt)
 	objectives.check_captures(self, _brains, dt)
 	tick += 1
 
@@ -522,23 +529,29 @@ func _tick_elixir(state: PlayerState, dt: float) -> void:
 		state.elixir = minf(rules.elixir_max, state.elixir + rules.elixir_regen_per_s * dt)
 
 
-## Moving drains stamina; standing still refills it once the kid has stood `stamina_regen_delay`. At 0 the kid is exhausted for
-## `exhaust_seconds` (its own timer, not a status): it cannot move, refills with no delay meanwhile, and its move ends.
+## Running drains stamina; standing still refills it once the kid has stood `stamina_regen_delay`. At 0 the kid is overclocked (its
+## own state, not a status): for `exhaust_seconds` the bar blinks and does not refill, then it refills at the normal rate while the
+## kid walks (`overclock_speed_share` of its run speed) until the bar is full; the kid keeps its move target and can still cast.
 func _tick_stamina(state: PlayerState, moved: bool, dt: float) -> void:
 	if not rules.stamina_enabled or not state.has_stamina:
 		return
-	if state.exhaust_left > 0.0:
-		state.exhaust_left = state.exhaust_left - dt if state.exhaust_left - dt > EPSILON else 0.0
-		state.stamina = minf(rules.stamina_max, state.stamina + rules.stamina_regen_per_s * dt)
+	if state.overclocked:
 		state.still_time = 0.0
+		if state.exhaust_left > 0.0:
+			state.exhaust_left = state.exhaust_left - dt if state.exhaust_left - dt > EPSILON else 0.0
+			return
+		state.stamina = minf(rules.stamina_max, state.stamina + rules.stamina_regen_per_s * dt)
+		if state.stamina >= rules.stamina_max - EPSILON:
+			state.stamina = rules.stamina_max
+			state.overclocked = false
 		return
 	if moved:
 		state.still_time = 0.0
 		state.stamina = maxf(0.0, state.stamina - rules.stamina_drain_per_s * dt)
 		if state.stamina <= EPSILON:
 			state.stamina = 0.0
+			state.overclocked = true
 			state.exhaust_left = rules.exhaust_seconds
-			end_move(state)
 			exhausted.emit(state.id)
 		return
 	var refill: float = clampf(state.still_time + dt - rules.stamina_regen_delay, 0.0, dt)
@@ -546,9 +559,10 @@ func _tick_stamina(state: PlayerState, moved: bool, dt: float) -> void:
 	state.stamina = minf(rules.stamina_max, state.stamina + rules.stamina_regen_per_s * refill)
 
 
-## Full stamina, not exhausted (match start, round start, rescue, timed release).
+## Full stamina, not overclocked (match start, round start, rescue, timed release).
 func refill_stamina(state: PlayerState) -> void:
 	state.stamina = rules.stamina_max
+	state.overclocked = false
 	state.exhaust_left = 0.0
 	state.still_time = 0.0
 
@@ -639,7 +653,17 @@ func target_near_point(state: PlayerState, def: WeaponDef, point: Vector2) -> in
 
 
 func weapon_ready(state: PlayerState, slot: int) -> bool:
-	return casting.weapon_ready(state, slot) and can_afford(state, slot)
+	return casting.weapon_ready(state, slot) and can_afford(state, slot) and not casting_blocked(state)
+
+
+## Where a free player cannot cast (owner): standing in the enemy base (capturing it), or in their own team's rescue area while a
+## teammate waits in the box (rescuing). Both are data toggles.
+func casting_blocked(state: PlayerState) -> bool:
+	if state.tagged:
+		return false
+	if rules.no_cast_in_enemy_base and layout.in_base(-side_for_team(state.team), state.position):
+		return true
+	return rules.no_cast_in_rescue_area and objectives.teammate_waiting(self, state.team) and objectives.in_rescue_area(self, state)
 
 
 ## The aim a release would use: the stick if it is past the deadzone, otherwise the
@@ -670,9 +694,11 @@ func _move(state: PlayerState, input: PlayerInput, dt: float) -> void:
 		# a heavy attack's cast animation: aiming was free while moving, but now stand still
 		state.cast_lock_left = maxf(0.0, state.cast_lock_left - dt)
 		return
-	if not state.effects.can_move() or state.exhaust_left > 0.0:
+	if not state.effects.can_move():
 		return  # a move target set meanwhile is kept and walked once the kid can move
 	var speed: float = rules.move_speed
+	if state.overclocked:
+		speed *= rules.overclock_speed_share
 	speed *= state.effects.speed_multiplier(rules.polymorph_speed_scale)
 	var move: Vector2 = input.move.limit_length(1.0) if input != null else Vector2.ZERO
 	if move.length_squared() > 0.0:
@@ -761,6 +787,11 @@ func team_in_enemy_base(team: int) -> bool:
 	return objectives.team_in_enemy_base(self, team, _brains)
 
 
+## How many free players of `team` stand in the enemy base (training dummies never count).
+func capturers_in_enemy_base(team: int) -> int:
+	return objectives.capturers_in_enemy_base(self, team, _brains)
+
+
 ## Every player of the other team waiting in a box (a team of training dummies
 ## never scores this way).
 func all_enemies_tagged(team: int) -> bool:
@@ -772,6 +803,13 @@ func current_capture_time() -> float:
 	if in_overtime():
 		return minf(rules.capture_time, rules.overtime_capture_time)
 	return rules.capture_time
+
+
+## How long a base capture takes one player alone: the solo time, or the shorter overtime one.
+func current_base_capture_time() -> float:
+	if in_overtime():
+		return minf(rules.capture_solo_time, rules.overtime_capture_time)
+	return rules.capture_solo_time
 
 
 ## True once the round has dragged on past `rules.overtime_after` (the header says OVERTIME).

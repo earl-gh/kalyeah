@@ -124,6 +124,9 @@ func _at_post(state: PlayerState, _sim: MatchSim) -> bool:
 
 
 func _fight(state: PlayerState, sim: MatchSim, enemy: PlayerState) -> PlayerInput:
+	if sim.casting_blocked(state):
+		# in the enemy base or the rescue area nothing can be cast: step out and fight from outside
+		return _steer(state, sim, _out_of_zone(state, sim))
 	var offset: Vector2 = enemy.position - state.position
 	var distance: float = offset.length()
 	var toward: Vector2 = offset.normalized() if distance > 0.001 else Vector2.DOWN
@@ -148,10 +151,29 @@ func _fight(state: PlayerState, sim: MatchSim, enemy: PlayerState) -> PlayerInpu
 		move = toward
 	elif distance < standoff - TOO_CLOSE_SLACK:
 		move = -toward
+	elif _tired(state, sim):
+		move = Vector2.ZERO  # stand and refill instead of strafing the bar empty
 	else:
 		var side: float = 1.0 if (int(float(sim.tick) * sim.rules.tick_dt() / STRAFE_SWITCH) + state.id) % 2 == 0 else -1.0
 		move = toward.rotated(side * PI / 2.0)
 	return _steer(state, sim, move)
+
+
+## Low on stamina (and not yet overclocked): a bot in a fight stands still to refill rather than strafe.
+func _tired(state: PlayerState, sim: MatchSim) -> bool:
+	if not sim.rules.stamina_enabled or not state.has_stamina or state.overclocked:
+		return false
+	return state.stamina / maxf(sim.rules.stamina_max, 0.001) < sim.rules.bot_stamina_rest
+
+
+## The way out of the place where nothing can be cast: away from the enemy base's centre, or from the rescue area's.
+func _out_of_zone(state: PlayerState, sim: MatchSim) -> Vector2:
+	var enemy_side: int = -sim.side_for_team(state.team)
+	var from: Vector2 = sim.layout.rescue_rect(sim.side_for_team(state.team)).get_center()
+	if sim.layout.in_base(enemy_side, state.position):
+		from = sim.layout.base_center(enemy_side)
+	var way: Vector2 = state.position - from
+	return way if way.length_squared() > 0.01 else Vector2(0.0, sim.side_for_team(state.team))
 
 
 ## The first ready weapon that makes sense at `distance`: a heal when hurt, a shield when the enemy is

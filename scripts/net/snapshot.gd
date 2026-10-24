@@ -14,7 +14,7 @@ static func capture(sim: MatchSim, acks: Dictionary[int, int]) -> Dictionary:
 			"id": id, "pos": p.position, "face": p.facing, "hp": p.hp, "tag": p.tagged, "tt": p.tag_time,
 			"wcd": p.weapon_cooldowns.duplicate(), "w": p.weapons.duplicate(), "fx": p.effects.snapshot(),
 			"cl": p.cast_lock_left, "nx": p.next_card, "sc": p.shuffle_card, "sl": p.shuffle_left, "st": p.shuffle_total, "cd": p.cards,
-			"in": p.incoming.duplicate(), "ex": p.exhaust_left,
+			"in": p.incoming.duplicate(), "ex": p.exhaust_left, "oc": p.overclocked, "to": p.tag_order,
 		})
 	var projectiles: Array[Dictionary] = []
 	for projectile: WeaponSystem.Projectile in sim.weapons.projectiles:
@@ -34,7 +34,8 @@ static func capture(sim: MatchSim, acks: Dictionary[int, int]) -> Dictionary:
 		"phase": sim.phase, "freeze": sim.freeze_left, "intro": sim.intro_left, "clock": sim.match_time,
 		"score": {"p": sim.score.points.duplicate(), "ft": sim.score.first_to, "w": sim.score.winner},
 		"log": _log_of(sim),
-		"cap": {"team": sim.capture_team, "k": sim.capture_kind, "e": sim.capture_elapsed, "need": sim.capture_needed},
+		"cap": {"team": sim.capture_team, "k": sim.capture_kind, "e": sim.capture_elapsed, "need": sim.capture_needed, "r": sim.capture_rate},
+		"resc": {"who": sim.rescue_rescuer.duplicate(), "e": sim.rescue_elapsed.duplicate()},
 	}
 
 
@@ -77,6 +78,8 @@ static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 		p.shuffle_total = entry.get("st", 0.0) as float
 		p.incoming.assign(entry.get("in", []) as Array)
 		p.exhaust_left = _number(entry.get("ex", 0.0))
+		p.overclocked = entry.get("oc", false) as bool
+		p.tag_order = int(_number(entry.get("to", 0)))
 		p.effects.restore(entry["fx"] as Dictionary)
 	_apply_private(sim, data.get("me", {}) as Dictionary, local_id)
 	_apply_weapons(sim, data)
@@ -102,6 +105,14 @@ static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 		sim.capture_kind = capture["k"] as MatchSim.CaptureKind
 		sim.capture_elapsed = capture["e"] as float
 		sim.capture_needed = capture.get("need", sim.capture_needed) as float
+		sim.capture_rate = _number(capture.get("r", 1.0))
+	var rescue: Dictionary = data.get("resc", {}) as Dictionary
+	if not rescue.is_empty():
+		var who: Array = rescue["who"] as Array
+		var elapsed: Array = rescue["e"] as Array
+		for team: int in mini(2, mini(who.size(), elapsed.size())):
+			sim.rescue_rescuer[team] = int(_number(who[team]))
+			sim.rescue_elapsed[team] = _number(elapsed[team])
 
 
 ## The recipient's own elixir, stamina and move target (absent from an old server: the mirror keeps its own).

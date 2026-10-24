@@ -99,6 +99,30 @@ func test_a_snapshot_round_trip_carries_hand_next_elixir_stamina_exhaustion_and_
 	assert_eq(seen.stuck_time, 0.1)
 
 
+func test_a_snapshot_carries_the_overclock_the_rescue_and_the_capture_speed() -> void:
+	var sim: MatchSim = _sim()
+	sim.players[2].overclocked = true
+	sim.players[2].exhaust_left = 1.25
+	sim.kill(1)
+	sim.players[1].tag_order = 4
+	sim.rescue_rescuer = [2, -1]
+	sim.rescue_elapsed = [3.5, 0.0]
+	sim.capture_team = 1
+	sim.capture_kind = MatchSim.CaptureKind.BASE
+	sim.capture_elapsed = 6.0
+	sim.capture_needed = 12.0
+	sim.capture_rate = 1.75
+	var mirror: MatchSim = _mirror()
+	Snapshot.apply(mirror, _wire(Snapshot.capture(sim, {})), 1)
+	assert_true(mirror.players[2].overclocked, "everyone can see who is overclocked")
+	assert_eq(mirror.players[2].exhaust_left, 1.25)
+	assert_eq(mirror.players[1].tag_order, 4)
+	assert_eq(mirror.rescue_rescuer, [2, -1] as Array[int])
+	assert_eq(mirror.rescue_elapsed, [3.5, 0.0] as Array[float])
+	assert_eq(mirror.capture_rate, 1.75)
+	assert_almost_eq(mirror.capture_time_left(), 6.0 / 1.75, 0.001, "the countdown the HUD shows follows the speed")
+
+
 func test_a_snapshot_never_tells_you_where_another_kid_walks_or_its_elixir() -> void:
 	var sim: MatchSim = _sim()
 	var them: PlayerState = sim.players[2]

@@ -52,8 +52,12 @@ var effects: StatusEffects = StatusEffects.new()
 var elixir: float = 0.0
 ## Stamina: moving drains it, standing still refills it after `still_time` reaches the regen delay.
 var stamina: float = 0.0
-## Seconds left unable to move after the stamina ran out (0 = not exhausted). Its own timer, not a status effect.
+## Overclock (stamina ran out): the kid only walks until the bar is full again. Its own state, not a status effect.
+var overclocked: bool = false
+## Seconds left of the overclock's blink (the bar blinks red and does not refill yet); 0 once it refills.
 var exhaust_left: float = 0.0
+## Order in which the kid was tagged (rescues free the lowest first); 0 while free.
+var tag_order: int = 0
 ## Seconds the kid has stood still (any movement restarts it).
 var still_time: float = 0.0
 ## False for training dummies: no drain, no exhaustion.
