@@ -56,7 +56,8 @@ func test_the_camera_frames_the_whole_street_below_a_taller_header() -> void:
 	var arena: Vector2 = Vector2(layout.lane_width, layout.lane_length)
 	var normal: Vector2 = rules.frame(720.0 / 1280.0, arena)
 	var taller: Vector2 = rules.frame(720.0 / 1280.0, arena, -1.0, 0.2)
-	assert_gt(taller.x, normal.x, "a taller header needs the camera further back to keep the whole street clear of it")
+	assert_gte(taller.x, normal.x, "a taller header never lets the view shrink")
+	assert_lt(taller.y, normal.y, "the street sits lower on the screen to keep clear of a taller header")
 	assert_true(rules.fits(taller.x * 1.001, 720.0 / 1280.0, arena, -1.0, 0.2))
 
 

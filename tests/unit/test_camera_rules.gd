@@ -15,9 +15,8 @@ func _corners(distance: float, aspect: float, shift: float) -> Array[Vector2]:
 	return points
 
 
-func test_a_fixed_steep_camera_with_a_narrow_lens() -> void:
-	assert_eq(CAMERA.pitch_degrees, 56.0, "owner reference (Clash Royale): tilted, so fronts of kids and props show, yet the arena still reads like a board")
-	assert_eq(CAMERA.vfov_degrees, 20.0, "narrow: the far end is only a little smaller than the near end")
+func test_a_fixed_orthographic_camera_tilted_about_45_degrees() -> void:
+	assert_eq(CAMERA.pitch_degrees, 45.0, "owner reference (Clash Royale): tilted, so fronts of kids and props show, yet the arena still reads like a board")
 	assert_eq(CAMERA.yaw_offset_degrees, 0.0, "straight along the street")
 	assert_eq(CameraRules.DESIGN_ASPECT, 9.0 / 16.0, "portrait 9:16")
 
@@ -49,12 +48,11 @@ func test_the_arena_is_centred_in_the_space_between_the_margins() -> void:
 	assert_almost_eq((far + near) / 2.0, band_middle, 0.001)
 
 
-func test_the_far_end_is_only_a_little_smaller_than_the_near_end() -> void:
+func test_the_far_end_is_exactly_as_big_as_the_near_end() -> void:
 	var framed: Vector2 = CAMERA.frame(PHONE, ARENA)
 	var far: float = absf(CAMERA.screen_point(framed.x, PHONE, Vector2(ARENA.x / 2.0, -ARENA.y / 2.0), framed.y).x)
 	var near: float = absf(CAMERA.screen_point(framed.x, PHONE, Vector2(ARENA.x / 2.0, ARENA.y / 2.0), framed.y).x)
-	assert_gt(far / near, 0.75, "a nearly flat picture, like a board seen from above")
-	assert_lt(far, near, "but still a perspective")
+	assert_almost_eq(far, near, 0.0001, "orthographic: nothing shrinks with distance")
 
 
 func test_the_camera_sits_behind_the_own_end_and_the_other_team_is_turned_half_way_round() -> void:
@@ -91,7 +89,8 @@ func test_the_arena_camera_places_itself_and_keeps_the_whole_street_in_view() ->
 	add_child(camera)
 	assert_eq(camera.keep_aspect, Camera3D.KEEP_HEIGHT)
 	camera.place(false)
-	assert_almost_eq(camera.fov, CAMERA.render_vfov_degrees(), 0.001)
+	assert_eq(camera.projection, Camera3D.PROJECTION_ORTHOGONAL, "the gameplay camera is orthographic")
+	assert_almost_eq(camera.size, camera.view_size(), 0.001)
 	assert_almost_eq(camera.rotation_degrees.x, -CAMERA.pitch_degrees, 0.001)
 	var before: Vector3 = camera.position
 	camera.place(false)
@@ -102,15 +101,15 @@ func test_the_arena_camera_places_itself_and_keeps_the_whole_street_in_view() ->
 	assert_lt(camera.position.z, 0.0, "the other team looks from the other end")
 
 
-func test_a_cinematic_shot_uses_a_wide_lens_and_the_camera_goes_back_after() -> void:
+func test_a_cinematic_shot_uses_a_perspective_lens_and_the_camera_goes_back_after() -> void:
 	var camera: ArenaCamera = autofree(ArenaCamera.new()) as ArenaCamera
 	camera.rules = CAMERA
 	camera.layout = LAYOUT
 	add_child(camera)
 	camera.place(false)
-	var framed_fov: float = camera.fov
 	camera.frame_shot(Vector3(0.0, 5.0, 10.0), Vector3.ZERO)
-	assert_gt(camera.fov, framed_fov, "a wide lens close to the post")
+	assert_eq(camera.projection, Camera3D.PROJECTION_PERSPECTIVE, "the opening show flies with a perspective lens")
+	assert_gt(camera.fov, 30.0, "a wide lens close to the post")
 	assert_lt(camera.near, 1.0)
 	camera.place(false)
-	assert_almost_eq(camera.fov, framed_fov, 0.001, "and the fixed camera again")
+	assert_eq(camera.projection, Camera3D.PROJECTION_ORTHOGONAL, "and the fixed orthographic camera again")
