@@ -52,7 +52,7 @@ const SCORE_SIZE: Vector2 = Vector2(330.0, 88.0)
 const CLOCK_SIZE: Vector2 = Vector2(136.0, 84.0)
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## The tray at the bottom of the screen (the hand and the elixir bar): the arena sits above it. The camera reserves the same height.
-const CONSOLE_HEIGHT: float = 260.0
+const CONSOLE_HEIGHT: float = 255.0
 ## The most the bottom inset can add (a tall gesture bar), so the tray never eats the street.
 const MAX_BOTTOM_INSET: float = 80.0
 

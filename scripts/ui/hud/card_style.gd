@@ -5,13 +5,18 @@ extends RefCounted
 ## and the NEXT card use the same drawing, at two sizes.
 
 const RADIUS: int = UiSkin.RADIUS_S
-## The black outline round a card, and the three inner glosses just inside it (Clash Royale's card look): white along the top,
-## gray along the right, light gray along the bottom (none on the left).
+## The black outline round a card, and the polished gloss just inside it (Clash Royale's card look): ONE connected band that starts white
+## along the top, turns the top right corner and fades through gray down the right side, and comes back as light gray along the bottom.
 const BORDER: int = 3
-const GLOSS: int = 4
-const GLOSS_TOP: Color = Color(1.0, 1.0, 1.0, 0.9)
-const GLOSS_RIGHT: Color = Color(0.55, 0.57, 0.62, 0.9)
-const GLOSS_BOTTOM: Color = Color(0.82, 0.84, 0.88, 0.9)
+const GLOSS: int = 5
+const GLOSS_TOP: Color = Color(1.0, 1.0, 1.0)
+const GLOSS_RIGHT: Color = Color(0.55, 0.58, 0.64)
+const GLOSS_BOTTOM: Color = Color(0.84, 0.86, 0.9)
+## How strong the band is at the top, in the middle of the right side (where it has faded most) and along the bottom.
+const GLOSS_ALPHA_TOP: float = 0.95
+const GLOSS_ALPHA_RIGHT: float = 0.45
+const GLOSS_ALPHA_BOTTOM: float = 0.85
+const GLOSS_STEPS: int = 6
 const OUTLINE: Color = Color(0.0, 0.0, 0.0, 1.0)
 ## How far the thin gold inner frame of a cooling card stands inside its edge; its corners are the card's less this, so the
 ## two curves stay parallel.
@@ -48,18 +53,65 @@ static func draw(canvas: CanvasItem, rect: Rect2, def: WeaponDef, dim: float = 0
 		canvas.draw_style_box(shade, rect)
 
 
-## The three inner glosses of a card, a few pixels inside its black outline: white along the top, gray along the right and light gray
-## along the bottom, each stopping short of the rounded corners.
+## The gloss of a card: a band a few pixels inside its black outline that runs from the top left, along the top, round the top right corner,
+## down the right side and round the bottom right corner to the bottom left, as one connected stroke (with a soft wider glow under it):
+## white at the top, fading through gray on the right, light gray along the bottom. Nothing on the left side.
 static func _glosses(canvas: CanvasItem, rect: Rect2) -> void:
 	var inset: float = float(BORDER) + float(GLOSS) / 2.0
-	var corner: float = float(RADIUS)
-	var left: float = rect.position.x + inset + corner
-	var right: float = rect.end.x - inset - corner
-	var top: float = rect.position.y + inset
-	var bottom: float = rect.end.y - inset
-	canvas.draw_line(Vector2(left, top), Vector2(right, top), GLOSS_TOP, float(GLOSS))
-	canvas.draw_line(Vector2(rect.end.x - inset, rect.position.y + inset + corner), Vector2(rect.end.x - inset, bottom - corner), GLOSS_RIGHT, float(GLOSS))
-	canvas.draw_line(Vector2(left, bottom), Vector2(right, bottom), GLOSS_BOTTOM, float(GLOSS))
+	var box: Rect2 = rect.grow(-inset)
+	var corner: float = maxf(float(RADIUS) - inset, 2.0)
+	var points: PackedVector2Array = PackedVector2Array()
+	var marks: PackedFloat32Array = PackedFloat32Array()  # which part of the path each point is on: 0 top, 1 right, 2 bottom
+	points.append(Vector2(box.position.x + corner, box.position.y))
+	marks.append(0.0)
+	points.append(Vector2(box.end.x - corner, box.position.y))
+	marks.append(0.0)
+	for step: int in range(1, GLOSS_STEPS + 1):
+		var angle: float = -PI / 2.0 + PI / 2.0 * float(step) / float(GLOSS_STEPS)
+		points.append(Vector2(box.end.x - corner, box.position.y + corner) + Vector2.from_angle(angle) * corner)
+		marks.append(0.5)
+	points.append(Vector2(box.end.x, box.end.y - corner))
+	marks.append(1.0)
+	for step: int in range(1, GLOSS_STEPS + 1):
+		var angle: float = PI / 2.0 * float(step) / float(GLOSS_STEPS)
+		points.append(Vector2(box.end.x - corner, box.end.y - corner) + Vector2.from_angle(angle) * corner)
+		marks.append(1.5)
+	points.append(Vector2(box.position.x + corner, box.end.y))
+	marks.append(2.0)
+	var lengths: PackedFloat32Array = PackedFloat32Array([0.0])
+	for index: int in range(1, points.size()):
+		lengths.append(lengths[index - 1] + points[index].distance_to(points[index - 1]))
+	var total: float = maxf(lengths[lengths.size() - 1], 1.0)
+	var colors: PackedColorArray = PackedColorArray()
+	var glow: PackedColorArray = PackedColorArray()
+	for index: int in points.size():
+		var color: Color = gloss_color(marks[index], lengths[index] / total)
+		colors.append(color)
+		glow.append(Color(color, color.a * 0.3))
+	canvas.draw_polyline_colors(points, glow, float(GLOSS) * 2.0, true)
+	canvas.draw_polyline_colors(points, colors, float(GLOSS), true)
+
+
+## The gloss colour at a point of its path: `part` 0 on the top, 1 on the right side, 2 on the bottom (halves between are the corners);
+## `along` 0 to 1 is how far along the path it is (the band fades in at its start and out at its end).
+static func gloss_color(part: float, along: float) -> Color:
+	var color: Color
+	var alpha: float
+	if part <= 0.5:
+		color = GLOSS_TOP.lerp(GLOSS_RIGHT, part * 2.0)
+		alpha = lerpf(GLOSS_ALPHA_TOP, GLOSS_ALPHA_RIGHT, part * 2.0)
+	elif part <= 1.0:
+		color = GLOSS_RIGHT
+		alpha = GLOSS_ALPHA_RIGHT
+	elif part <= 1.5:
+		color = GLOSS_RIGHT.lerp(GLOSS_BOTTOM, (part - 1.0) * 2.0)
+		alpha = lerpf(GLOSS_ALPHA_RIGHT, GLOSS_ALPHA_BOTTOM, (part - 1.0) * 2.0)
+	else:
+		color = GLOSS_BOTTOM
+		alpha = GLOSS_ALPHA_BOTTOM
+	# fade in at the top left and out at the bottom left
+	alpha *= clampf(along / 0.06, 0.0, 1.0) * clampf((1.0 - along) / 0.1, 0.0, 1.0)
+	return Color(color, alpha)
 
 
 ## The empty slot of a hand: a faint card-shaped hollow, waiting for the shuffler.

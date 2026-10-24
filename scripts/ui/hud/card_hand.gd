@@ -31,7 +31,8 @@ const COLUMN: float = 116.0
 const SIDE: float = 40.0
 const CARD_GAP: float = 10.0
 const ROW_TOP: float = 28.0
-const CARD_ASPECT: float = 1.3
+## The card's height over its width, measured on the Clash Royale reference (about 276 x 219 px).
+const CARD_ASPECT: float = 1.26
 const BAR_HEIGHT: float = 26.0
 const BAR_GAP: float = 14.0
 const BOTTOM_PAD: float = 32.0
