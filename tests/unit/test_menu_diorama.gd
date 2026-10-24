@@ -31,7 +31,7 @@ func test_the_model_is_the_far_half_of_the_play_area_and_fits_its_frame() -> voi
 	assert_almost_eq(platform.size.x / platform.size.z, (layout.lane_width + StreetMap.PLATFORM_MARGIN * 2.0) / (layout.lane_length / 2.0 + StreetMap.PLATFORM_MARGIN * 2.0), 0.001, "and keeps that shape too")
 	assert_gt(StreetMap.PLATFORM_HEIGHT, StreetMap.PLINTH_HEIGHT, "a thick stone base on a thicker platform")
 	var props: Array[Node] = model.map.find_children("*", "MeshInstance3D", true, false)
-	assert_eq(props.size(), 2 + 1 + model.map.jail_wall_rects(layout.jail_rect(MapLayout.SIDE_OWN), MapLayout.SIDE_OWN).size(), "slab + platform + post + tagged-box walls and nothing else")
+	assert_eq(props.size(), 2 + 1, "slab + platform + post and nothing else")
 	assert_eq(model.viewport.find_children("*", "KidModel", true, false).size(), 0, "no characters")
 	for cx: float in [-layout.lane_width / 2.0, layout.lane_width / 2.0]:
 		for cz: float in [-layout.lane_length / 2.0, 0.0]:

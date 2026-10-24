@@ -93,11 +93,13 @@ func test_the_bases_and_rescue_areas_are_a_clear_fill_and_a_thick_edge() -> void
 	assert_gt(tape.s, 0.5, "their tape reads red, not grey")
 
 
-func test_the_street_is_calmer_with_lighter_shadows() -> void:
+func test_the_street_is_calm_and_casts_no_shadows() -> void:
 	assert_lt(_uniform("crack_depth"), 0.12, "faint hairline cracks")
 	assert_lt(_uniform("blotch_depth"), 0.15, "soft blotches")
 	assert_gt(StreetMap.AMBIENT_ENERGY, 0.9, "the shadow side is not muddy")
-	assert_eq(StreetMap.SHADOW_OPACITY, 0.7, "the owner's shadow strength is kept")
+	var sun: DirectionalLight3D = autofree(DirectionalLight3D.new()) as DirectionalLight3D
+	StreetMap._light_scene(sun, sun)
+	assert_false(sun.shadow_enabled, "no environment shadows (owner)")
 	assert_eq(StreetMap.SUN_COLOR, Color(0.9, 0.95, 1.0), "and the owner's cool sun")
 
 

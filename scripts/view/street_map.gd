@@ -5,7 +5,7 @@ extends Node3D
 ## slab (no markings) with curbs and sidewalks, house fronts, a sari-sari store with an
 ## umbrella around it; the few cover
 ## pieces kids hide behind (cardboard walls); each team's electric post in its corner with a chalk base
-## circle; and the taped box where each team's tagged kids wait.
+## circle; and the rounded, taped box where each team's tagged kids wait.
 
 const OWN_COLOR: Color = Palette.TEAM_OWN
 const ENEMY_COLOR: Color = Palette.TEAM_ENEMY
@@ -16,14 +16,11 @@ const SKY_HORIZON: Color = Color(0.78, 0.88, 1.0)
 const SUN_ANGLES: Vector3 = Vector3(-46.0, 52.0, 0.0)
 const SUN_COLOR: Color = Color(0.9, 0.95, 1.0)
 const SUN_ENERGY: float = 1.3
-const SHADOW_OPACITY: float = 0.7
-## Soft shadow edges (visual pass: 1.6 read as hard dark patches beside the buildings).
-const SHADOW_BLUR: float = 2.2
 const FILL_ANGLES: Vector3 = Vector3(-30.0, 258.0, 0.0)
 const FILL_COLOR: Color = Color(0.64, 0.76, 1.0)
 const FILL_ENERGY: float = 0.45
 const AMBIENT_COLOR: Color = Color(0.85, 0.91, 1.0)
-## Raised from 0.82 (visual pass): the shadow side of the street was muddy; the sun, its colour and the shadow opacity stay the owner's.
+## Raised from 0.82 (visual pass): the shadow side of the street was muddy; the sun and its colour stay the owner's.
 const AMBIENT_ENERGY: float = 0.95
 const EXPOSURE: float = 1.0
 const TONEMAP_WHITE: float = 4.0
@@ -31,16 +28,15 @@ const SATURATION: float = 1.1
 const CONTRAST: float = 1.03
 const BRIGHTNESS: float = 1.0
 const RING_HEIGHT: float = 0.03
-## The base chalk and the box tape are tinted toward a soft grey so they are calm, not neon (how far: TeamColors.base_soften()).
-const SOFT_GREY: Color = Color(0.62, 0.64, 0.7)
-## The base circle and the tagged box share one look: a faint team fill and team tape.
 ## Visual pass: the bases and rescue areas were the faintest marks on the street (fill 0.22, tape 0.16 m); a stronger fill
 ## that still lets the cement show and a thick chalk edge make the objective read second, after the kids.
 const ZONE_FILL_ALPHA: float = 0.34
 const TAPE_WIDTH: float = 0.3
-const BASE_STEPS: int = 36
-## The tagged box has no tint and no tape: cardboard walls close its sides.
-const JAIL_WALL_THICKNESS: float = 0.5
+## Bases, tagged boxes and rescue areas are rounded rectangles on the street, each with a fixed team colour (blue yours, red
+## theirs: owner) and a full outline. The tagged box (inside) has no tint of its own: only the rescue area round it (outside) is tinted.
+const JAIL_CORNER_RADIUS: float = 0.4
+const RESCUE_CORNER_RADIUS: float = 0.9
+const ZONE_CORNER_STEPS: int = 6
 ## The sidewalks are flat, level with the street (owner: no raised curb).
 const CURB_HEIGHT: float = 0.0
 const SIDEWALK_WIDTH: float = 1.2
@@ -50,8 +46,8 @@ const SIDEWALK_WIDTH: float = 1.2
 const END_REACH: float = 70.0
 const HOUSE_REACH: float = 30.0
 ## The main screen shows the play area alone as a small model, the game's exact 1:2 shape: the
-## cement on a chunky stone base with only the corner props (the electric posts and the cardboard
-## walls of the tagged boxes). No sidewalks, no team colours and no street past the ends.
+## cement on a chunky stone base with only the far base's electric post. No sidewalks, no team colours and no
+## street past the ends.
 const PLINTH: Color = Color(0.4, 0.43, 0.54)
 const PLINTH_HEIGHT: float = 4.0
 ## The main-screen model sits on a thicker blue platform that reaches this far past it.
@@ -74,7 +70,6 @@ const CAT_HEIGHT: float = 0.3
 const DOG_HEIGHT: float = 0.62
 const CHICKEN_CAGE_HEIGHT: float = 0.9
 const DRAINAGE_COVER_WIDTH: float = 0.75
-const SHADOW_DISTANCE: float = 400.0
 ## Painted ground sits just above the road slab.
 const PAVER_TILE: float = 2.4
 ## The slab under the owner's tiled floor (and the street past both ends): dark grey cement.
@@ -197,12 +192,8 @@ static func _light_scene(parent: Node, sun: DirectionalLight3D) -> void:
 	sun.rotation_degrees = SUN_ANGLES
 	sun.light_color = SUN_COLOR
 	sun.light_energy = SUN_ENERGY
-	# real shadows give the toy-town depth; one cheap orthogonal map
-	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-	sun.directional_shadow_max_distance = SHADOW_DISTANCE
-	sun.shadow_opacity = SHADOW_OPACITY
-	sun.shadow_blur = SHADOW_BLUR
+	# no environment shadows (owner): the street, props and houses cast none; each kid keeps its soft blob under its feet
+	sun.shadow_enabled = false
 	var fill: DirectionalLight3D = DirectionalLight3D.new()
 	fill.name = "SkyFill"
 	fill.rotation_degrees = FILL_ANGLES
@@ -217,10 +208,10 @@ static func _light_scene(parent: Node, sun: DirectionalLight3D) -> void:
 func set_own_side(own_side: int) -> void:
 	_turn_posts(own_side)
 	for side: int in _base_materials:
-		var tint: Color = TeamColors.world_own() if side == own_side else TeamColors.world_enemy()
+		var tint: Color = OWN_COLOR if side == own_side else ENEMY_COLOR
 		_side_tint[side] = tint
 		for material: StandardMaterial3D in _base_materials[side]:
-			var color: Color = tint.lerp(SOFT_GREY, TeamColors.base_soften())
+			var color: Color = tint
 			color.a = material.albedo_color.a
 			material.albedo_color = color
 
@@ -240,7 +231,7 @@ func base_color(side: int) -> Color:
 	return _side_tint[side]
 
 
-## [base tape, base fill, rescue tape, rescue fill] colours for `side` (the tagged box itself has no tint).
+## [base tape, base fill, rescue tape, rescue fill] colours for `side`.
 func zone_colors(side: int) -> Array[Color]:
 	var colors: Array[Color] = []
 	for material: StandardMaterial3D in _base_materials[side]:
@@ -291,12 +282,11 @@ func _build_map() -> void:
 	for index: int in layout.obstacle_rects().size():
 		_add_obstacle(index)
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
-		var color: Color = TeamColors.world_own() if side == MapLayout.SIDE_OWN else TeamColors.world_enemy()
+		var color: Color = OWN_COLOR if side == MapLayout.SIDE_OWN else ENEMY_COLOR
 		var center: Vector2 = layout.base_center(side)
 		var post: Node3D = _add_prop(PropModel.by_height("electric_pole", post_height()), Vector3(center.x, 0.0, center.y))
 		_posts[side] = post
 		var base: Array[StandardMaterial3D] = _add_base_zone(side, color)
-		_add_jail(side)
 		var rescue: Array[StandardMaterial3D] = _add_rescue_area(side, color)
 		_base_materials[side] = [base[0], base[1], rescue[0], rescue[1]]
 		_side_tint[side] = color
@@ -306,12 +296,11 @@ func _build_map() -> void:
 	_add_details()
 
 
-## The main-screen model's props: each base's electric post and each tagged box's cardboard walls.
+## The main-screen model's props: the far base's electric post.
 func _add_corner_props() -> void:
-	# only the far half of the street is modelled: the enemy post (top right) and your box (top left)
+	# only the far half of the street is modelled: the enemy post (top right)
 	var center: Vector2 = layout.base_center(MapLayout.SIDE_ENEMY)
 	_posts[MapLayout.SIDE_ENEMY] = _add_prop(PropModel.by_height("electric_pole", post_height()), Vector3(center.x, 0.0, center.y))
-	_add_jail(MapLayout.SIDE_OWN)
 	_turn_posts(MapLayout.SIDE_OWN)
 
 
@@ -399,104 +388,84 @@ func _add_obstacle(index: int) -> void:
 ## with team tape on its curved rim (the same look as the tagged box).
 ## Returns [tape, fill] materials (recoloured per viewer).
 func _add_base_zone(side: int, color: Color) -> Array[StandardMaterial3D]:
-	var center: Vector2 = layout.base_center(side)
-	var street: Rect2 = layout.lane_rect()
-	var rim: Array[Vector2] = []
-	var inner: Array[Vector2] = []
-	for i: int in BASE_STEPS:
-		var angle: float = TAU * float(i) / float(BASE_STEPS)
-		var direction: Vector2 = Vector2(cos(angle), sin(angle))
-		rim.append((center + direction * layout.base_radius).clamp(street.position, street.end))
-		inner.append(center + direction * (layout.base_radius - TAPE_WIDTH))
 	var materials: Array[StandardMaterial3D] = _zone_materials(color)
-	_add_fill(center, rim, materials[1])
-	# the tape runs along the curved rim only (not along the street edges)
-	var on_rim: Array[bool] = []
-	for point: Vector2 in rim:
-		on_rim.append(absf(point.distance_to(center) - layout.base_radius) < 0.01)
-	_add_tape(rim, inner, on_rim, materials[0])
+	_add_zone(layout.base_rect(side), layout.base_corner, materials[0], materials[1])
 	return materials
 
 
-## The box where a team's tagged kids wait: a square sitting flush in a corner of the street,
-## with no tint and no tape. Cardboard walls close its two sides that face the street (the
-## other two are the curb and the end line). They are scenery only: nothing is blocked, so a
-## teammate walks straight in to rescue.
-func _add_jail(side: int) -> void:
-	for wall: Rect2 in jail_wall_rects(layout.jail_rect(side), side):
-		var center: Vector2 = wall.get_center()
-		var turned: bool = wall.size.y > wall.size.x
-		var footprint: Vector2 = Vector2(maxf(wall.size.x, wall.size.y), minf(wall.size.x, wall.size.y))
-		_add_prop(PropModel.fit("cardboard_wall", footprint, cover_height(), not diorama), Vector3(center.x, 0.0, center.y), PI / 2.0 if turned else 0.0)
-
-
-## The rescue area round the box: the same look as the base circle (a faint team fill and team
-## tape), on the strips round the box and with tape only on its outer sides that face the street
-## (yours: bottom and right; theirs: top and left). Returns [tape, fill] materials.
+## The tagged box and the rescue area round it, in two parts: the box inside (outline only, no colour) and the ring outside it
+## (the rescue area: a faint tint), each with a full outline in the team's fixed colour. They are only marks on the ground:
+## nothing is blocked, so a teammate walks straight in to rescue. Returns [tape, fill].
 func _add_rescue_area(side: int, color: Color) -> Array[StandardMaterial3D]:
 	var materials: Array[StandardMaterial3D] = _zone_materials(color)
-	for strip: Rect2 in layout.rescue_strips(side):
-		_add_flat_rect(strip, 0.0, materials[1])
-	for tape: Rect2 in rescue_tape_rects(layout.rescue_rect(side), side):
-		_add_flat_rect(tape, 0.006, materials[0])
+	var area: Rect2 = layout.rescue_rect(side)
+	var box: Rect2 = layout.jail_rect(side)
+	var outer: Array[Vector2] = rounded_outline(area, RESCUE_CORNER_RADIUS)
+	var inner: Array[Vector2] = rounded_outline(box, JAIL_CORNER_RADIUS)
+	var keep: Array[bool] = _all(outer.size())
+	# the tint is the ring between the two outlines (a strip a hair under the outlines), the box inside it stays clear
+	_add_tape(outer, inner, keep, materials[1], -0.006)
+	_add_outline(area, RESCUE_CORNER_RADIUS, materials[0])
+	_add_outline(box, JAIL_CORNER_RADIUS, materials[0])
 	return materials
 
 
-## The tape round a rescue area: on the two sides that face the street, TAPE_WIDTH wide.
-static func rescue_tape_rects(area: Rect2, side: int) -> Array[Rect2]:
-	var tape: float = TAPE_WIDTH
-	if side == MapLayout.SIDE_OWN:
-		return [
-			Rect2(area.position.x, area.end.y - tape, area.size.x, tape),
-			Rect2(area.end.x - tape, area.position.y, tape, area.size.y - tape),
-		]
-	return [
-		Rect2(area.position.x, area.position.y, area.size.x, tape),
-		Rect2(area.position.x, area.position.y + tape, tape, area.size.y - tape),
+## A zone's mark on the road: a faint team fill inside a team-coloured outline all round (`rect` with its corners rounded).
+func _add_zone(rect: Rect2, corner: float, tape: StandardMaterial3D, fill: StandardMaterial3D) -> void:
+	_add_fill(rect.get_center(), rounded_outline(rect, corner), fill)
+	_add_outline(rect, corner, tape)
+
+
+## The team-coloured line round `rect` (its corners rounded), `TAPE_WIDTH` wide, drawn inside the rectangle.
+func _add_outline(rect: Rect2, corner: float, tape: StandardMaterial3D) -> void:
+	var rim: Array[Vector2] = rounded_outline(rect, corner)
+	var inner: Array[Vector2] = rounded_outline(rect.grow(-TAPE_WIDTH), maxf(corner - TAPE_WIDTH, 0.0))
+	_add_tape(rim, inner, _all(rim.size()), tape)
+
+
+static func _all(count: int) -> Array[bool]:
+	var kept: Array[bool] = []
+	kept.resize(count)
+	kept.fill(true)
+	return kept
+
+
+## The outline of `rect` with its corners rounded to `radius`, as a closed list of points (the same count for any rect).
+static func rounded_outline(rect: Rect2, radius: float) -> Array[Vector2]:
+	var points: Array[Vector2] = []
+	var corners: Array[Vector2] = [
+		Vector2(rect.end.x - radius, rect.position.y + radius),
+		Vector2(rect.end.x - radius, rect.end.y - radius),
+		Vector2(rect.position.x + radius, rect.end.y - radius),
+		Vector2(rect.position.x + radius, rect.position.y + radius),
 	]
+	for corner: int in 4:
+		for step: int in ZONE_CORNER_STEPS + 1:
+			var angle: float = -PI / 2.0 + (float(corner) + float(step) / float(ZONE_CORNER_STEPS)) * PI / 2.0
+			points.append(corners[corner] + Vector2(cos(angle), sin(angle)) * radius)
+	return points
 
 
-## A flat, thin rectangle lying on the road (`lift` above the fill height), casting no shadow.
-func _add_flat_rect(rect: Rect2, lift: float, material: StandardMaterial3D) -> void:
-	var mesh: BoxMesh = BoxMesh.new()
-	mesh.size = Vector3(rect.size.x, 0.01 + lift, rect.size.y)
-	mesh.material = material
-	var center: Vector2 = rect.get_center()
-	_add(mesh, Vector3(center.x, RING_HEIGHT + lift / 2.0, center.y)).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-
-
-## The two cardboard walls of a side's box, as rects inside it: yours (top left corner) has
-## them on its bottom and right, theirs (bottom right corner) on its top and left. The
-## side wall is one wall-thickness shorter so the two do not overlap at the corner.
-static func jail_wall_rects(box: Rect2, side: int) -> Array[Rect2]:
-	var thick: float = JAIL_WALL_THICKNESS
-	var walls: Array[Rect2] = []
-	if side == MapLayout.SIDE_OWN:
-		walls.append(Rect2(box.position.x, box.end.y - thick, box.size.x, thick))
-		walls.append(Rect2(box.end.x - thick, box.position.y, thick, box.size.y - thick))
-	else:
-		walls.append(Rect2(box.position.x, box.position.y, box.size.x, thick))
-		walls.append(Rect2(box.position.x, box.position.y + thick, thick, box.size.y - thick))
-	return walls
-
-
-## [tape, fill] for a base or tagged box: soft team colour, the fill faint.
+## [tape, fill] for a zone: the team's colour in full for the outline, faint for the fill.
 func _zone_materials(color: Color) -> Array[StandardMaterial3D]:
-	var soft: Color = color.lerp(SOFT_GREY, TeamColors.base_soften())
 	var tape: StandardMaterial3D = StandardMaterial3D.new()
-	tape.albedo_color = soft
+	tape.albedo_color = color
 	tape.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return [tape, _fill_material(color, ZONE_FILL_ALPHA)]
+
+
+func _fill_material(color: Color, alpha: float) -> StandardMaterial3D:
 	var fill: StandardMaterial3D = StandardMaterial3D.new()
-	fill.albedo_color = Color(soft.r, soft.g, soft.b, ZONE_FILL_ALPHA)
+	fill.albedo_color = Color(color.r, color.g, color.b, alpha)
 	fill.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	fill.cull_mode = BaseMaterial3D.CULL_DISABLED
 	# drawn first, so the kids and everything else stand on top of the tint, never under it
 	fill.render_priority = -100
-	return [tape, fill]
+	return fill
 
 
 ## A flat fan from `center` out to the closed `outline`, just above the road.
-func _add_fill(center: Vector2, outline: Array[Vector2], material: StandardMaterial3D) -> void:
+func _add_fill(center: Vector2, outline: Array[Vector2], material: StandardMaterial3D, lift: float = 0.0) -> void:
 	var tool: SurfaceTool = SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_normal(Vector3.UP)
@@ -504,7 +473,7 @@ func _add_fill(center: Vector2, outline: Array[Vector2], material: StandardMater
 		var a: Vector2 = outline[i]
 		var b: Vector2 = outline[(i + 1) % outline.size()]
 		for point: Vector2 in [center, b, a]:
-			tool.add_vertex(Vector3(point.x, RING_HEIGHT, point.y))
+			tool.add_vertex(Vector3(point.x, RING_HEIGHT + lift, point.y))
 	var mesh: ArrayMesh = tool.commit()
 	mesh.surface_set_material(0, material)
 	_add(mesh, Vector3.ZERO).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -512,11 +481,11 @@ func _add_fill(center: Vector2, outline: Array[Vector2], material: StandardMater
 
 ## Tape between the closed `outer` line and the matching `inner` line, on the
 ## segments whose both ends are marked in `keep`.
-func _add_tape(outer: Array[Vector2], inner: Array[Vector2], keep: Array[bool], material: StandardMaterial3D) -> void:
+func _add_tape(outer: Array[Vector2], inner: Array[Vector2], keep: Array[bool], material: StandardMaterial3D, lift: float = 0.0) -> void:
 	var tool: SurfaceTool = SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_normal(Vector3.UP)
-	var height: float = RING_HEIGHT + 0.006
+	var height: float = RING_HEIGHT + 0.006 + lift
 	for i: int in outer.size():
 		var j: int = (i + 1) % outer.size()
 		if not (keep[i] and keep[j]):

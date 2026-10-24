@@ -2,8 +2,7 @@ class_name MatchHud
 extends Control
 ## The whole in-match HUD, built in code (no scene text to patch): overhead bars,
 ## top row (the settings button on the left, the score on the right; the whole street is
-## always on screen, so there is no minimap), the TAGGED!/RESCUED! feed under the settings button,
-## the capture countdown, the settings menu, and the controls (docs/GDD.md "Controls: tap to move, cards to cast"):
+## always on screen, so there is no minimap), ## the capture countdown, the settings menu, and the controls (docs/GDD.md "Controls: tap to move, cards to cast"):
 ## the hand at the bottom (NEXT, four cards, the elixir bar and your health) within thumb reach, taps on the street to
 ## walk (StreetTouch) and the ring where you are walking to (MoveMarker).
 ## The match screen feeds it sim state through `sync_player()` and `sync_score()`.
@@ -19,8 +18,6 @@ signal exit_pressed
 signal console_height_changed(height: float)
 ## The header's height (with the top inset) changed: the camera keeps this much of the screen clear at the top.
 signal header_height_changed(height: float)
-
-enum Feed { TAGGED, RESCUED }
 
 const BANNER_TIME: float = 2.0
 ## GO!, SCORED and VICTORY / DEFEAT on the street (visual pass: were 44 px with a 12 px outline): big gold words in a thick navy
@@ -53,11 +50,6 @@ const MARGIN: float = 14.0
 const GEAR_SIZE: float = UiMetrics.TOUCH
 const SCORE_SIZE: Vector2 = Vector2(330.0, 88.0)
 const CLOCK_SIZE: Vector2 = Vector2(152.0, 88.0)
-const FEED_TIME: float = 2.6
-const FEED_SIZE: Vector2 = Vector2(250.0, 46.0)
-const FEED_MAX: int = 3
-## The feed starts this far under the header: just below your team's tagged box, which is in the top left corner of the street.
-const FEED_DROP: float = 130.0
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## The tray at the bottom of the screen (the hand and the elixir bar): the arena sits above it. The camera reserves the same height.
 const CONSOLE_HEIGHT: float = 260.0
@@ -98,8 +90,6 @@ var coach: CoachMarks
 var results_mode: String = "Practice"
 ## Big countdown in the middle while a capture is running.
 var capture_label: Label
-## TAGGED! / RESCUED! pills under the settings button (newest at the bottom).
-var feed_box: VBoxContainer
 var settings_button: TextureButton
 var menu: MatchMenu
 var banner: Label
@@ -250,13 +240,12 @@ func _block_tag(sim: MatchSim, player: PlayerState) -> String:
 	return ""
 
 
-## Top row: the score card; the capture countdown; banners and the feed fade out.
+## Top row: the score card; the capture countdown; banners fade out.
 func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1) -> void:
 	scoreboard.show_score(sim.score, local_team, sim.match_time)
 	scoreboard.show_capture(sim, local_team)
 	scoreboard.show_roster(sim, local_team)
 	clock_chip.show_time(sim.match_time, sim.in_overtime())
-	MatchHudTop.place_feed(self, overhead.box_clear_y())
 	_sync_capture(sim, local_team)
 	again_button.visible = sim.phase == MatchSim.Phase.MATCH_OVER
 	results.set_over(sim.phase == MatchSim.Phase.MATCH_OVER, sim, local_id, local_team, results_mode)
@@ -264,7 +253,6 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 		_banner_left -= delta
 		if _banner_left <= 0.0:
 			banner.visible = false
-	_tick_feed(delta)
 
 
 ## "CAPTURING 3" for us, "DEFEND! 3" against us, in the middle of the screen.
@@ -286,49 +274,6 @@ func _sync_capture(sim: MatchSim, local_team: int) -> void:
 		how = "HOLD THE BASE!" if ours else "DEFEND YOUR BASE!"
 	capture_label.text = "%s\n%d" % [how, seconds]
 	capture_label.add_theme_color_override("font_color", CAPTURE_COLOR.lerp(TeamColors.feed_own() if ours else TeamColors.feed_enemy(), 0.35))
-
-
-## Adds a TAGGED! or RESCUED! pill under the settings button: blue for your team, red for theirs.
-func feed(kind: Feed, our_team: bool, who: String) -> void:
-	var pill: Label = Label.new()
-	pill.text = "%s  %s" % ["TAGGED!" if kind == Feed.TAGGED else "RESCUED!", who]
-	pill.add_theme_font_override("font", KalyeahTheme.BODY_FONT)
-	pill.custom_minimum_size = FEED_SIZE
-	pill.add_theme_font_size_override("font_size", UiMetrics.CAPTION)
-	pill.add_theme_color_override("font_outline_color", Color(0.08, 0.05, 0.1))
-	pill.add_theme_constant_override("outline_size", 6)
-	pill.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = TeamColors.feed_own() if our_team else TeamColors.feed_enemy()
-	style.set_corner_radius_all(UiSkin.RADIUS_S)
-	style.content_margin_left = 14.0
-	style.skew = Vector2(0.18, 0.0)
-	pill.add_theme_stylebox_override("normal", style)
-	pill.set_meta(&"left", FEED_TIME)
-	feed_box.add_child(pill)
-	while feed_box.get_child_count() > FEED_MAX:
-		var oldest: Node = feed_box.get_child(0)
-		feed_box.remove_child(oldest)
-		oldest.queue_free()
-
-
-## Text of the feed pills, oldest first (tests).
-func feed_texts() -> PackedStringArray:
-	var texts: PackedStringArray = PackedStringArray()
-	for pill: Node in feed_box.get_children():
-		texts.append((pill as Label).text)
-	return texts
-
-
-func _tick_feed(delta: float) -> void:
-	for pill: Node in feed_box.get_children():
-		var left: float = (pill.get_meta(&"left") as float) - delta
-		pill.set_meta(&"left", left)
-		(pill as Label).modulate.a = clampf(left / 0.4, 0.0, 1.0)
-		if left <= 0.0:
-			feed_box.remove_child(pill)
-			pill.queue_free()
 
 
 # ---- building ------------------------------------------------------------------

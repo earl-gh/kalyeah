@@ -208,7 +208,7 @@ func test_the_text_drawn_on_the_buttons_and_over_the_kids_is_at_the_floor() -> v
 	assert_gte(CardHand.BAR_FONT, UiMetrics.MIN_TEXT, "the elixir number")
 	assert_gte(CardHand.HEALTH_FONT, UiMetrics.MIN_TEXT, "your health at the bar's end")
 	assert_gte(ClockChip.CAPTION_FONT, UiMetrics.MIN_TEXT, "TIME over the clock")
-	assert_gte(Scoreboard.CENTER_CAPTION, UiMetrics.MIN_TEXT, "FIRST TO between the scores")
+	assert_gte(OverheadHud.COUNT_FONT, UiMetrics.MIN_TEXT, "the health number over a bar")
 	assert_gte(CardHand.NEXT_FONT, UiMetrics.MIN_TEXT, "NEXT over the next card")
 	assert_gte(CardStyle.NAME_MIN, UiMetrics.MIN_TEXT, "a card's name")
 	assert_gte(OverheadHud.STATUS_FONT, UiMetrics.MIN_TEXT, "the status over a kid")

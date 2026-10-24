@@ -174,35 +174,6 @@ func test_two_tagged_kids_have_no_words_over_them() -> void:
 			assert_eq(practice.overhead().text_for(id), "", "the box says tagged: no word over each kid")
 
 
-func test_the_rescue_marker_and_the_feed_sit_under_the_box() -> void:
-	var window_was: Vector2i = get_window().size
-	for shape: Vector2 in [PHONE, Vector2(720.0, 1558.0)]:
-		get_window().size = Vector2i(shape)
-		var practice: PracticeMatch = autofree(PRACTICE_SCENE.instantiate()) as PracticeMatch
-		add_child(practice)
-		await wait_process_frames(2)
-		practice.finish_pick()
-		practice.skip_intro()
-		practice.advance(DT)
-		var overhead: OverheadHud = practice.overhead()
-		var box: Rect2 = overhead.own_box_on_screen()
-		assert_gt(box.size.x, 0.0, "%s: the box is on screen" % shape)
-		var pill: Rect2 = overhead.rescue_pill_rect()
-		assert_gt(pill.position.y, box.end.y, "%s: the RESCUE pill is under the box, off the waiting kids" % shape)
-		var feed_y: float = practice.hud.feed_box.get_global_rect().position.y
-		assert_gte(feed_y, overhead.box_clear_y(), "%s: the feed starts under the box and its marker" % shape)
-		practice.hud.set_top_inset(UiMetrics.TOUCH)
-		await wait_process_frames(2)  # the camera re-frames for the taller header
-		practice.advance(DT)
-		feed_y = practice.hud.feed_box.get_global_rect().position.y
-		var expected: float = maxf(practice.hud.header_height() + MatchHud.FEED_DROP, overhead.box_clear_y() + MatchHud.MARGIN)
-		assert_almost_eq(feed_y, expected, 0.5, "%s with a notch: just under the box or the header, not a notch lower" % shape)
-		practice.queue_free()
-		await wait_process_frames(1)
-	get_window().size = window_was
-	await wait_process_frames(2)
-
-
 # ---- 12: names and descriptions -----------------------------------------------------------
 
 func test_every_kid_name_fits_its_tile() -> void:

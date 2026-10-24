@@ -28,7 +28,6 @@ func test_the_header_spans_the_top_and_holds_the_gear_and_the_score() -> void:
 func test_the_scoreboard_has_no_card_of_its_own_on_the_header() -> void:
 	var practice: PracticeMatch = await _practice()
 	assert_eq(practice.hud.scoreboard.find_children("*", "PanelContainer", true, false).size(), 0)
-	assert_eq(practice.hud.feed_box.get_global_rect().position.y > practice.hud.header_height(), true, "the TAGGED! feed starts below the header")
 
 
 func test_the_camera_keeps_the_arena_below_the_header() -> void:

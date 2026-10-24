@@ -70,7 +70,6 @@ func test_zero_hp_tags_you_into_the_box_with_the_tagged_card() -> void:
 	practice.advance(DT)
 	assert_false(practice.hud.hand.visible, "the hand is hidden while you wait")
 	assert_true((practice.get_node("%Actors").get_child(0) as Node3D).visible, "you still stand in the box")
-	assert_string_contains(practice.hud.feed_texts()[-1], "TAGGED!")
 	assert_false(practice.is_picking(), "the field stays in view: the swap screen only opens on request")
 
 
@@ -102,7 +101,6 @@ func test_the_ally_dummy_runs_over_and_rescues_you() -> void:
 	assert_false(player.tagged, "rescued")
 	assert_eq(player.hp, 100)
 	assert_true(LAYOUT.in_base(practice.own_side(), player.position), "back at our post")
-	assert_string_contains(practice.hud.feed_texts()[-1], "RESCUED!")
 	assert_false(practice.hud.tagged_panel.visible)
 	for i: int in 30 * 15:
 		practice.advance(DT)
@@ -488,7 +486,9 @@ func test_an_enemy_in_its_box_has_no_bar_over_it() -> void:
 	assert_true(hud.bar_visible(practice.sim.players[PracticeMatch.ALLY_ID]), "your own team is always shown")
 	var ally: PlayerState = practice.sim.players[PracticeMatch.ALLY_ID]
 	ally.position = LAYOUT.jail_rect(practice.own_side()).get_center()
-	assert_true(hud.bar_visible(ally), "even in your own box")
+	assert_true(hud.bar_visible(ally), "a free kid on your team is shown, even standing in your own box")
+	ally.tagged = true
+	assert_false(hud.bar_visible(ally), "but a tagged kid has no health bar or number (owner)")
 
 
 func test_a_status_is_shown_as_words_and_clears() -> void:
@@ -504,11 +504,10 @@ func test_a_status_is_shown_as_words_and_clears() -> void:
 	assert_eq(hud.text_for(PracticeMatch.LOCAL_ID), "", "a tagged kid stands in the box, which says it: no word over each kid (audit 4)")
 
 
-func test_the_status_font_is_a_slanted_italic() -> void:
+func test_the_status_font_is_the_regular_font_not_slanted() -> void:
 	var practice: PracticeMatch = _practice()
-	var italic: FontVariation = practice.overhead()._italic
-	assert_not_null(italic)
-	assert_lt(italic.variation_transform.y.x, 0.0, "slanted")
+	assert_null(practice.overhead().get("_italic"), "no slanted font any more (owner)")
+	assert_eq(OverheadHud.STATUS_FONT, UiMetrics.CAPTION)
 
 
 # ---- the opening show (like the video) --------------------------------------------

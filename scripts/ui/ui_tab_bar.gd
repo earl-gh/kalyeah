@@ -79,6 +79,11 @@ func _init(items: Array[Dictionary] = []) -> void:
 	resized.connect(_layout)
 
 
+## One of the bar's pictures (&"street", &"play", &"settings") as a texture of its own: the same art elsewhere, like the gear in a match.
+static func picture(kind: StringName) -> Texture2D:
+	return _part(PICTURES[kind], PICTURE_PARTS[kind])
+
+
 ## A picture's visible part as a texture of its own (the part is shares of the file, so it holds at any import size).
 static func _part(texture: Texture2D, part: Rect2) -> AtlasTexture:
 	var atlas: AtlasTexture = AtlasTexture.new()

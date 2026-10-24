@@ -16,7 +16,8 @@ func tag(sim: MatchSim, state: PlayerState) -> void:
 	state.tag_order = sim.tag_counter
 	clear_actions(state)
 	state.position = sim.layout.jail_slot(sim.side_for_team(state.team), waiting)
-	state.facing = Vector2(0.0, sim.side_for_team(state.team))
+	# the tagged kid in the box looks toward the enemy's post, where the other team is holding it (owner)
+	state.facing = (sim.layout.base_center(-sim.side_for_team(state.team)) - state.position).normalized()
 	sim.player_tagged.emit(state.id)
 
 

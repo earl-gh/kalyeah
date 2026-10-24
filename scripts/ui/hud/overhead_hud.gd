@@ -2,18 +2,19 @@ class_name OverheadHud
 extends Control
 ## MOBA-style overhead display drawn in screen space over each hero, like League
 ## of Legends: a solid health bar (green you, blue ally, red enemy), a status
-## in *italic* above it ("Stunned", "Slowed", "Exhausted"). Under your own bar a thin stamina bar shows while it is not full (your eyes
+## in plain words above it ("Stunned", "Slowed", "Exhausted"). Under your own bar a thin stamina bar shows while it is not full (your eyes
 ## are on your kid while you tap to walk, and stamina only matters while walking); at 0 it reads EXHAUSTED and runs out over the 2 s. No names and no damage numbers (heals still pop a green "+N"). While a
 ## team holds the enemy base, a spinner fills over its kids' heads. Reads the sim
 ## and projects through the match camera.
 
 ## The bar before `bar_scale` (visual pass: 92 x 13 read as a hairline at phone size; now a chunky rounded bar).
 const BAR_SIZE: Vector2 = Vector2(96.0, 18.0)
-## The dark outline round the bar (screen px, kept at any bar_scale so the bar always reads on the street) and the
-## quarter marks across the fill.
+## The dark outline round the bar (screen px, kept at any bar_scale so the bar always reads on the street).
 const BAR_OUTLINE: float = 3.0
-const BAR_MARKS: int = 4
-const BAR_MARK: Color = Color(0.0, 0.0, 0.0, 0.35)
+## The health number over the bar's top left corner (its left edge lines up with the bar's), and the height of that line.
+const COUNT_FONT: int = UiMetrics.CAPTION
+const COUNT_LINE: float = 24.0
+const COUNT_GAP: float = 6.0
 ## The bar sits just above the top of the head (the kid's model is KID_HEIGHT tall).
 const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 const POPUP_TIME: float = 0.9
@@ -30,18 +31,10 @@ const STAMINA_LOW_COLOR: Color = ConsolePanel.HEALTH_AMBER
 const EXHAUSTED_COLOR: Color = ConsolePanel.HEALTH_RED
 ## How long the overclock's red / blank blink holds each state (seconds); steady red with Reduce motion.
 const BLINK_PERIOD: float = 0.25
-## The word over your own kid while it is exhausted (owner: "EXHAUSTED shown on your kid"); other kids show the italic status word.
+## The word over your own kid while it is exhausted (owner: "EXHAUSTED shown on your kid"); other kids show the plain status word.
 const EXHAUSTED_SELF: String = "EXHAUSTED"
 const EXHAUSTED_OTHER: String = "Exhausted"
-## The RESCUE marker under your team's tagged box: a pill with a pointer up at the box that bobs (held still with Reduce motion). It sits under
-## the box so it never covers a waiting kid or their bar.
-const RESCUE_FONT: int = UiMetrics.DETAIL
-const RESCUE_PAD: Vector2 = Vector2(14.0, 7.0)
-const RESCUE_BOB: float = 7.0
-const RESCUE_POINTER: float = 12.0
 const POPUP_FONT: int = UiMetrics.BODY
-## Italic = the regular font slanted (the bundled font has no italic face).
-const ITALIC_SLANT: float = -0.22
 const BACK: Color = Color(0.08, 0.06, 0.1, 0.85)
 const SELF_COLOR: Color = Color(0.35, 0.95, 0.35)
 const ALLY_COLOR: Color = Color(0.35, 0.65, 1.0)
@@ -70,7 +63,6 @@ var _sim: MatchSim
 var _camera: Camera3D
 var _local_id: int = -1
 var _local_team: int = 0
-var _italic: FontVariation
 ## The bar's back, fill and gloss, made once and recoloured as each kid is drawn (no allocation per frame).
 var _bar_back: StyleBoxFlat
 var _bar_fill: StyleBoxFlat
@@ -85,9 +77,6 @@ func setup(sim: MatchSim, camera: Camera3D, local_id: int, local_team: int) -> v
 	_local_id = local_id
 	_local_team = local_team
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_italic = FontVariation.new()
-	_italic.base_font = KalyeahTheme.BODY_FONT
-	_italic.variation_transform = Transform2D(Vector2(1.0, 0.0), Vector2(ITALIC_SLANT, 1.0), Vector2.ZERO)
 	sim.player_healed.connect(_on_healed)
 	_bar_back = StyleBoxFlat.new()
 	_bar_back.bg_color = BACK
@@ -100,7 +89,7 @@ func setup(sim: MatchSim, camera: Camera3D, local_id: int, local_team: int) -> v
 	_bar_gloss.anti_aliasing = true
 
 
-## The status words shown (in italic) above a hero's bar: "Stunned", "Slowed", ...
+## The status words shown above a hero's bar: "Stunned", "Slowed", ...
 ## Empty when nothing is wrong. Heroes have no name text.
 func text_for(id: int) -> String:
 	return _status_text(_sim.players[id])
@@ -146,10 +135,10 @@ func tick(delta: float) -> void:
 	queue_redraw()
 
 
-## False for an enemy standing in its own team's tagged box: it blends in with the tagged kids
-## (owner), so no bar, status or spinner is drawn over it. Your own team always sees its kids.
+## False for a tagged kid (owner: no health for tagged players) and for an enemy standing in its own team's tagged box: it blends in
+## with the tagged kids (owner), so no bar, number, status or spinner is drawn over it.
 func bar_visible(state: PlayerState) -> bool:
-	return not _sim.hides_in_box(state, _local_team)
+	return not state.tagged and not _sim.hides_in_box(state, _local_team)
 
 
 func bar_color(state: PlayerState) -> Color:
@@ -177,81 +166,8 @@ func _draw() -> void:
 		var at: Variant = _head(state)
 		if at != null and bar_visible(state):
 			_draw_hero(state, at as Vector2)
-	if rescue_cue_visible():
-		_draw_rescue_cue()
 	for popup: Dictionary in _popups:
 		_draw_popup(popup)
-
-
-## True while a teammate waits in the tagged box and you are free to run there and set them loose.
-func rescue_cue_visible() -> bool:
-	if _sim.phase != MatchSim.Phase.PLAYING:
-		return false
-	var me: PlayerState = _sim.players.get(_local_id) as PlayerState
-	if me == null or me.tagged:
-		return false
-	for id: int in _sim.players:
-		var state: PlayerState = _sim.players[id]
-		if state.team == _local_team and state.tagged:
-			return true
-	return false
-
-
-## Your team's tagged box on the screen: the rect round its four ground corners (empty while the camera cannot see it).
-func own_box_on_screen() -> Rect2:
-	if _camera == null or _sim == null:
-		return Rect2()
-	var box: Rect2 = _sim.layout.jail_rect(_sim.side_for_team(_local_team))
-	var corners: Array[Vector2] = [box.position, Vector2(box.end.x, box.position.y), box.end, Vector2(box.position.x, box.end.y)]
-	var on_screen: Rect2 = Rect2()
-	for index: int in corners.size():
-		var world: Vector3 = Vector3(corners[index].x, 0.0, corners[index].y)
-		if _camera.is_position_behind(world):
-			return Rect2()
-		var at: Vector2 = _camera.screen_position(world) if _camera is ArenaCamera else _camera.unproject_position(world)
-		on_screen = Rect2(at, Vector2.ZERO) if index == 0 else on_screen.expand(at)
-	return on_screen
-
-
-## The RESCUE pill (at rest): under the near edge of your box, its pointer up at the box's middle.
-func rescue_pill_rect() -> Rect2:
-	var box: Rect2 = own_box_on_screen()
-	if box.size == Vector2.ZERO:
-		return Rect2()
-	var label_size: Vector2 = KalyeahTheme.ACTION_FONT.get_string_size(UiText.t("RESCUE"), HORIZONTAL_ALIGNMENT_LEFT, -1.0, RESCUE_FONT)
-	var pill_size: Vector2 = label_size + RESCUE_PAD * 2.0
-	var x: float = clampf(box.get_center().x - pill_size.x / 2.0, 4.0, maxf(size.x - pill_size.x - 4.0, 4.0))
-	return Rect2(Vector2(x, box.end.y + RESCUE_POINTER), pill_size)
-
-
-## The lowest screen y the box and its RESCUE pill take (the feed starts under it); 0 while the box is not on screen.
-func box_clear_y() -> float:
-	var pill: Rect2 = rescue_pill_rect()
-	return 0.0 if pill.size == Vector2.ZERO else pill.end.y + RESCUE_BOB
-
-
-## "RESCUE" under your team's box (it is the end of the street the other team defends, so it is easy to lose among the props).
-func _draw_rescue_cue() -> void:
-	var pill: Rect2 = rescue_pill_rect()
-	if pill.size == Vector2.ZERO:
-		return
-	if not Settings.reduced_motion:
-		pill.position.y += RESCUE_BOB * (0.5 + 0.5 * sin(float(Time.get_ticks_msec()) / 1000.0 * TAU * 1.4))
-	var tip_x: float = own_box_on_screen().get_center().x
-	var font: Font = KalyeahTheme.ACTION_FONT
-	var label: String = UiText.t("RESCUE")
-	var color: Color = TeamColors.feed_own()
-	var box_style: StyleBoxFlat = StyleBoxFlat.new()
-	box_style.bg_color = color
-	box_style.border_color = Icons.OUTLINE
-	box_style.set_border_width_all(3)
-	box_style.set_corner_radius_all(UiSkin.RADIUS_M)
-	box_style.anti_aliasing = true
-	draw_style_box(box_style, pill)
-	var centre_x: float = clampf(tip_x, pill.position.x + 18.0, pill.end.x - 18.0)
-	var point: PackedVector2Array = PackedVector2Array([Vector2(centre_x - 10.0, pill.position.y + 2.0), Vector2(centre_x + 10.0, pill.position.y + 2.0), Vector2(centre_x, pill.position.y - RESCUE_POINTER)])
-	draw_colored_polygon(point, color)
-	draw_string(font, Vector2(pill.position.x + RESCUE_PAD.x, pill.end.y - RESCUE_PAD.y - 2.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, RESCUE_FONT, Color.WHITE)
 
 
 ## True while `state`'s team holds the enemy base and this kid stands in it.
@@ -275,6 +191,7 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 	var fill: float = clampf(float(state.hp) / max_hp, 0.0, 1.0)
 	var color: Color = bar_color(state)
 	_draw_bar(rect, fill, color)
+	_draw_count(state, rect)
 	_draw_team_mark(state, rect, color)
 	if stamina_visible(state):
 		var stamina: Vector2 = STAMINA_SIZE * bar_scale
@@ -282,17 +199,24 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 		var look: Array = stamina_fill(state)
 		_draw_thin(under, look[0] as float, look[1] as Color)
 	var status: String = _status_text(state)
-	var lift: float = 0.0
+	var lift: float = COUNT_LINE
 	if not status.is_empty():
-		_text(_italic, status, keep_on_screen(head + Vector2(0.0, -8.0), _italic, status, STATUS_FONT), STATUS_FONT, STATUS_COLOR, 6)
-		lift = 22.0
+		_text(KalyeahTheme.BODY_FONT, status, keep_on_screen(head + Vector2(0.0, -8.0 - COUNT_LINE), KalyeahTheme.BODY_FONT, status, STATUS_FONT), STATUS_FONT, STATUS_COLOR, 6)
+		lift += 22.0
 	if spinner_visible(state):
 		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.capture_elapsed / maxf(_sim.capture_needed, 0.001), SPINNER_COLOR)
 	elif rescue_visible(state):
 		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.rescue_elapsed[state.team] / maxf(_sim.rules.rescue_hold_time, 0.001), RESCUE_COLOR)
 
 
-## A rounded bar with a dark outline: the fill in `color`, a gloss on its upper third and a mark every quarter.
+## The health number just over the bar's top left corner, left-aligned with the bar.
+func _draw_count(state: PlayerState, rect: Rect2) -> void:
+	var text: String = str(maxi(state.hp, 0))
+	var width: float = KalyeahTheme.ACTION_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, COUNT_FONT).x
+	_text(KalyeahTheme.ACTION_FONT, text, Vector2(rect.position.x + width / 2.0, rect.position.y - BAR_OUTLINE - COUNT_GAP), COUNT_FONT, Color.WHITE, 5)
+
+
+## A rounded bar with a dark outline: the fill in `color`, and a gloss on its upper third.
 func _draw_bar(rect: Rect2, fill: float, color: Color) -> void:
 	var round_px: int = int(ceilf(rect.size.y / 2.0 + BAR_OUTLINE))
 	_bar_back.set_border_width_all(int(BAR_OUTLINE))
@@ -305,9 +229,6 @@ func _draw_bar(rect: Rect2, fill: float, color: Color) -> void:
 		draw_style_box(_bar_fill, Rect2(rect.position, Vector2(width, rect.size.y)))
 		_bar_gloss.set_corner_radius_all(int(ceilf(rect.size.y / 4.0)))
 		draw_style_box(_bar_gloss, Rect2(rect.position + Vector2(rect.size.y / 3.0, 1.0), Vector2(maxf(width - rect.size.y / 1.5, 1.0), rect.size.y / 3.0)))
-	for mark: int in range(1, BAR_MARKS):
-		var x: float = rect.position.x + rect.size.x * float(mark) / float(BAR_MARKS)
-		draw_line(Vector2(x, rect.position.y + 1.0), Vector2(x, rect.end.y - 1.0), BAR_MARK, 1.0)
 
 
 ## A thin bar with a dark outline, filled to `fill` in `color` (your stamina).

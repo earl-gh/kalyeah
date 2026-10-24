@@ -188,25 +188,15 @@ func _play_intro_shot() -> void:
 
 
 func _on_player_tagged(id: int) -> void:
-	owner.hud.feed(MatchHud.Feed.TAGGED, owner.sim.players[id].team == owner.local_team, _name_of(id))
 	if id == owner.local_id:
 		owner._camera.shake(0.25)
 		owner.hud.pulse.tagged()
 
 
-func _on_player_rescued(id: int, by_id: int) -> void:
-	if by_id != MatchSim.RELEASED_ALONE:
-		owner.hud.feed(MatchHud.Feed.RESCUED, owner.sim.players[id].team == owner.local_team, _name_of(id))
+func _on_player_rescued(id: int, _by_id: int) -> void:
 	if id == owner.local_id:
 		if owner._pick_screen.visible:
 			owner._pick_screen.force_finish()
-
-
-func _name_of(id: int) -> String:
-	if id == owner.local_id:
-		return "YOU"
-	var character: CharacterDef = owner._characters.get(owner.sim.players[id].character_id) as CharacterDef
-	return character.display_name if character != null else "Player %d" % id
 
 
 func _on_point_scored(team: int, _how: int) -> void:
