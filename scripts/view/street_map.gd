@@ -5,7 +5,7 @@ extends Node3D
 ## slab (no markings) with curbs and sidewalks, house fronts, a sari-sari store with an
 ## umbrella around it; the few cover
 ## pieces kids hide behind (cardboard walls); each team's electric post in its corner with a chalk base
-## circle; and the taped box where each team's tagged kids wait.
+## circle; and the rounded, taped box where each team's tagged kids wait.
 
 const OWN_COLOR: Color = Palette.TEAM_OWN
 const ENEMY_COLOR: Color = Palette.TEAM_ENEMY
@@ -39,8 +39,9 @@ const SOFT_GREY: Color = Color(0.62, 0.64, 0.7)
 const ZONE_FILL_ALPHA: float = 0.34
 const TAPE_WIDTH: float = 0.3
 const BASE_STEPS: int = 36
-## The tagged box has no tint and no tape: cardboard walls close its sides.
-const JAIL_WALL_THICKNESS: float = 0.5
+## The tagged box is a rounded square on the street with the rescue area's tint and tape (no cardboard walls).
+const JAIL_CORNER_RADIUS: float = 0.8
+const JAIL_CORNER_STEPS: int = 6
 ## The sidewalks are flat, level with the street (owner: no raised curb).
 const CURB_HEIGHT: float = 0.0
 const SIDEWALK_WIDTH: float = 1.2
@@ -50,8 +51,8 @@ const SIDEWALK_WIDTH: float = 1.2
 const END_REACH: float = 70.0
 const HOUSE_REACH: float = 30.0
 ## The main screen shows the play area alone as a small model, the game's exact 1:2 shape: the
-## cement on a chunky stone base with only the corner props (the electric posts and the cardboard
-## walls of the tagged boxes). No sidewalks, no team colours and no street past the ends.
+## cement on a chunky stone base with only the far base's electric post. No sidewalks, no team colours and no
+## street past the ends.
 const PLINTH: Color = Color(0.4, 0.43, 0.54)
 const PLINTH_HEIGHT: float = 4.0
 ## The main-screen model sits on a thicker blue platform that reaches this far past it.
@@ -296,8 +297,8 @@ func _build_map() -> void:
 		var post: Node3D = _add_prop(PropModel.by_height("electric_pole", post_height()), Vector3(center.x, 0.0, center.y))
 		_posts[side] = post
 		var base: Array[StandardMaterial3D] = _add_base_zone(side, color)
-		_add_jail(side)
 		var rescue: Array[StandardMaterial3D] = _add_rescue_area(side, color)
+		_add_jail(side, rescue)
 		_base_materials[side] = [base[0], base[1], rescue[0], rescue[1]]
 		_side_tint[side] = color
 	_turn_posts(MapLayout.SIDE_OWN)
@@ -306,12 +307,11 @@ func _build_map() -> void:
 	_add_details()
 
 
-## The main-screen model's props: each base's electric post and each tagged box's cardboard walls.
+## The main-screen model's props: the far base's electric post.
 func _add_corner_props() -> void:
-	# only the far half of the street is modelled: the enemy post (top right) and your box (top left)
+	# only the far half of the street is modelled: the enemy post (top right)
 	var center: Vector2 = layout.base_center(MapLayout.SIDE_ENEMY)
 	_posts[MapLayout.SIDE_ENEMY] = _add_prop(PropModel.by_height("electric_pole", post_height()), Vector3(center.x, 0.0, center.y))
-	_add_jail(MapLayout.SIDE_OWN)
 	_turn_posts(MapLayout.SIDE_OWN)
 
 
@@ -418,16 +418,34 @@ func _add_base_zone(side: int, color: Color) -> Array[StandardMaterial3D]:
 	return materials
 
 
-## The box where a team's tagged kids wait: a square sitting flush in a corner of the street,
-## with no tint and no tape. Cardboard walls close its two sides that face the street (the
-## other two are the curb and the end line). They are scenery only: nothing is blocked, so a
-## teammate walks straight in to rescue.
-func _add_jail(side: int) -> void:
-	for wall: Rect2 in jail_wall_rects(layout.jail_rect(side), side):
-		var center: Vector2 = wall.get_center()
-		var turned: bool = wall.size.y > wall.size.x
-		var footprint: Vector2 = Vector2(maxf(wall.size.x, wall.size.y), minf(wall.size.x, wall.size.y))
-		_add_prop(PropModel.fit("cardboard_wall", footprint, cover_height(), not diorama), Vector3(center.x, 0.0, center.y), PI / 2.0 if turned else 0.0)
+## The box where a team's tagged kids wait: a rounded square set in from the street's edge and end, with the
+## rescue area's tint and tape (`materials` = [tape, fill]). It is only a mark on the ground: nothing is blocked,
+## so a teammate walks straight in to rescue.
+func _add_jail(side: int, materials: Array[StandardMaterial3D]) -> void:
+	var box: Rect2 = layout.jail_rect(side)
+	var rim: Array[Vector2] = rounded_outline(box, JAIL_CORNER_RADIUS)
+	var inner: Array[Vector2] = rounded_outline(box.grow(-TAPE_WIDTH), JAIL_CORNER_RADIUS - TAPE_WIDTH)
+	var keep: Array[bool] = []
+	keep.resize(rim.size())
+	keep.fill(true)
+	_add_fill(box.get_center(), rim, materials[1])
+	_add_tape(rim, inner, keep, materials[0])
+
+
+## The outline of `rect` with its corners rounded to `radius`, as a closed list of points (the same count for any rect).
+static func rounded_outline(rect: Rect2, radius: float) -> Array[Vector2]:
+	var points: Array[Vector2] = []
+	var corners: Array[Vector2] = [
+		Vector2(rect.end.x - radius, rect.position.y + radius),
+		Vector2(rect.end.x - radius, rect.end.y - radius),
+		Vector2(rect.position.x + radius, rect.end.y - radius),
+		Vector2(rect.position.x + radius, rect.position.y + radius),
+	]
+	for corner: int in 4:
+		for step: int in JAIL_CORNER_STEPS + 1:
+			var angle: float = -PI / 2.0 + (float(corner) + float(step) / float(JAIL_CORNER_STEPS)) * PI / 2.0
+			points.append(corners[corner] + Vector2(cos(angle), sin(angle)) * radius)
+	return points
 
 
 ## The rescue area round the box: the same look as the base circle (a faint team fill and team
@@ -463,21 +481,6 @@ func _add_flat_rect(rect: Rect2, lift: float, material: StandardMaterial3D) -> v
 	mesh.material = material
 	var center: Vector2 = rect.get_center()
 	_add(mesh, Vector3(center.x, RING_HEIGHT + lift / 2.0, center.y)).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-
-
-## The two cardboard walls of a side's box, as rects inside it: yours (top left corner) has
-## them on its bottom and right, theirs (bottom right corner) on its top and left. The
-## side wall is one wall-thickness shorter so the two do not overlap at the corner.
-static func jail_wall_rects(box: Rect2, side: int) -> Array[Rect2]:
-	var thick: float = JAIL_WALL_THICKNESS
-	var walls: Array[Rect2] = []
-	if side == MapLayout.SIDE_OWN:
-		walls.append(Rect2(box.position.x, box.end.y - thick, box.size.x, thick))
-		walls.append(Rect2(box.end.x - thick, box.position.y, thick, box.size.y - thick))
-	else:
-		walls.append(Rect2(box.position.x, box.position.y, box.size.x, thick))
-		walls.append(Rect2(box.position.x, box.position.y + thick, thick, box.size.y - thick))
-	return walls
 
 
 ## [tape, fill] for a base or tagged box: soft team colour, the fill faint.
