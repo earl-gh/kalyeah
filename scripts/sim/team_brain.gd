@@ -63,13 +63,16 @@ func _at_post(state: PlayerState, sim: MatchSim) -> bool:
 ## A defender fights from inside its own base and does not chase out of it (stepping out would leave the base open); with
 ## no enemy near it is free to go, for instance to fetch a tagged teammate.
 func _guard(state: PlayerState, sim: MatchSim, input: PlayerInput) -> PlayerInput:
-	if input.move == Vector2.ZERO or sim.nearest_enemy(state, sim.rules.bot_aggro_range) == null:
+	if not input.is_pressed(PlayerInput.BTN_MOVE_TARGET) or sim.nearest_enemy(state, sim.rules.bot_aggro_range) == null:
+		return input
+	var way: Vector2 = input.move_target - state.position
+	if way.length_squared() <= 0.0:
 		return input
 	var centre: Vector2 = sim.layout.base_center(sim.side_for_team(state.team))
 	var edge: float = sim.layout.base_radius - GUARD_MARGIN
-	var ahead: Vector2 = state.position + input.move.normalized() * 0.3
+	var ahead: Vector2 = state.position + way.normalized() * 0.3
 	if ahead.distance_to(centre) > edge and ahead.distance_to(centre) > state.position.distance_to(centre):
-		return PlayerInput.create(Vector2.ZERO, input.aim, input.buttons, input.tick)
+		input.move_target = state.position  # stand at the edge instead of stepping out
 	return input
 
 

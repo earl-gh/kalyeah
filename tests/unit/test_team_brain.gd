@@ -22,6 +22,18 @@ func _sim() -> MatchSim:
 	return sim
 
 
+## Where a bot's input walks it, as a unit direction (zero: it stands). Bots walk by move targets now, not a stick
+## (docs/GDD.md "Controls: tap to move, cards to cast" > Bots and the coach play by the same rules).
+func _way(input: PlayerInput, state: PlayerState) -> Vector2:
+	var offset: Vector2 = input.move_target - state.position if input.is_pressed(PlayerInput.BTN_MOVE_TARGET) else input.move
+	return offset.normalized() if offset.length() > 0.001 else Vector2.ZERO
+
+
+## Any hand-slot bit (a card held).
+func _card_bits(input: PlayerInput) -> int:
+	return input.buttons & (PlayerInput.BTN_CARD_1 | PlayerInput.BTN_CARD_2 | PlayerInput.BTN_CARD_3 | PlayerInput.BTN_CARD_4)
+
+
 func _spot(sim: MatchSim) -> Vector2:
 	return LAYOUT.spawn_center(-sim.side_for_team(0))
 
@@ -32,7 +44,7 @@ func test_a_rusher_walks_toward_the_enemy_base() -> void:
 	var brain: TeamBrain = TeamBrain.rusher(sim.players[1].spawn_position, _spot(sim))
 	var input: PlayerInput = brain.think(sim.players[1], sim)
 	var way: Vector2 = (_spot(sim) - sim.players[1].position).normalized()
-	assert_gt(input.move.dot(way), 0.99)
+	assert_gt(_way(input, sim.players[1]).dot(way), 0.99)
 
 
 func test_a_rusher_that_has_arrived_stands_still() -> void:
@@ -40,7 +52,7 @@ func test_a_rusher_that_has_arrived_stands_still() -> void:
 	sim.players[3].position = Vector2(100.0, 100.0)
 	sim.players[1].position = _spot(sim)
 	var brain: TeamBrain = TeamBrain.rusher(sim.players[1].spawn_position, _spot(sim))
-	assert_eq(brain.think(sim.players[1], sim).move, Vector2.ZERO)
+	assert_eq(_way(brain.think(sim.players[1], sim), sim.players[1]), Vector2.ZERO)
 
 
 func test_a_defender_holds_its_post_until_an_enemy_comes() -> void:
@@ -49,7 +61,7 @@ func test_a_defender_holds_its_post_until_an_enemy_comes() -> void:
 	sim.players[1].position = sim.players[1].spawn_position + Vector2(3.0, 0.0)
 	var brain: TeamBrain = TeamBrain.defender(sim.players[1].spawn_position)
 	var input: PlayerInput = brain.think(sim.players[1], sim)
-	assert_lt(input.move.dot(Vector2(1.0, 0.0)), -0.99, "it walks back to its post")
+	assert_lt(_way(input, sim.players[1]).dot(Vector2(1.0, 0.0)), -0.99, "it walks back to its post")
 
 
 func test_a_rusher_that_meets_an_enemy_stops_and_fights_it_then_goes_on() -> void:
@@ -60,15 +72,15 @@ func test_a_rusher_that_meets_an_enemy_stops_and_fights_it_then_goes_on() -> voi
 	var pressed: bool = false
 	for i: int in 6:
 		var input: PlayerInput = brain.think(sim.players[1], sim)
-		if input.buttons != 0:
+		if _card_bits(input) != 0:
 			pressed = true
 			break
 	assert_true(pressed, "an enemy in reach is thrown at")
 	var after: PlayerInput = brain.think(sim.players[1], sim)
-	assert_eq(after.buttons, 0, "the second half of the tap lets go")
+	assert_eq(_card_bits(after), 0, "the second half of the tap lets go")
 	sim.players[3].position = Vector2(100.0, 100.0)
 	var next: PlayerInput = brain.think(sim.players[1], sim)
-	assert_gt(next.move.dot((_spot(sim) - sim.players[1].position).normalized()), 0.99, "with the enemy gone it goes on toward their base")
+	assert_gt(_way(next, sim.players[1]).dot((_spot(sim) - sim.players[1].position).normalized()), 0.99, "with the enemy gone it goes on toward their base")
 
 
 func test_priority_one_an_enemy_in_reach_is_fought_before_the_base_and_before_a_rescue() -> void:
@@ -84,7 +96,7 @@ func test_priority_one_an_enemy_in_reach_is_fought_before_the_base_and_before_a_
 	var brain: TeamBrain = TeamBrain.rusher(sim.players[1].spawn_position, _spot(sim))
 	var input: PlayerInput = brain.think(sim.players[1], sim)
 	var way: Vector2 = (behind - sim.players[1].position).normalized()
-	assert_gt(input.move.dot(way), 0.9, "it closes on the enemy instead of holding the base or leaving for the box")
+	assert_gt(_way(input, sim.players[1]).dot(way), 0.9, "it closes on the enemy instead of holding the base or leaving for the box")
 
 
 func test_priority_two_the_base_comes_before_a_rescue_so_a_rusher_not_there_yet_keeps_going() -> void:
@@ -95,7 +107,7 @@ func test_priority_two_the_base_comes_before_a_rescue_so_a_rusher_not_there_yet_
 	sim.kill(4)
 	var brain: TeamBrain = TeamBrain.rusher(sim.players[1].spawn_position, _spot(sim))
 	var input: PlayerInput = brain.think(sim.players[1], sim)
-	assert_gt(input.move.dot((_spot(sim) - sim.players[1].position).normalized()), 0.99, "to their base first, though a teammate waits")
+	assert_gt(_way(input, sim.players[1]).dot((_spot(sim) - sim.players[1].position).normalized()), 0.99, "to their base first, though a teammate waits")
 
 
 func test_priority_three_from_the_enemy_base_the_lowest_numbered_free_rusher_fetches_a_tagged_teammate() -> void:
@@ -111,8 +123,8 @@ func test_priority_three_from_the_enemy_base_the_lowest_numbered_free_rusher_fet
 	var second: TeamBrain = TeamBrain.rusher(sim.players[2].spawn_position, _spot(sim))
 	var one: PlayerInput = first.think(sim.players[1], sim)
 	var two: PlayerInput = second.think(sim.players[2], sim)
-	assert_gt(one.move.dot((box - sim.players[1].position).normalized()), 0.99, "number 1 goes to the box")
-	assert_lt(two.move.length(), 0.5, "number 2 stays holding the base")
+	assert_gt(_way(one, sim.players[1]).dot((box - sim.players[1].position).normalized()), 0.99, "number 1 goes to the box")
+	assert_lt(_way(two, sim.players[2]).length(), 0.5, "number 2 stays holding the base")
 
 
 func test_a_rescue_that_has_started_is_not_called_off_by_leaving_the_base() -> void:
@@ -127,7 +139,7 @@ func test_a_rescue_that_has_started_is_not_called_off_by_leaving_the_base() -> v
 	brain.think(sim.players[1], sim)
 	sim.players[1].position = (_spot(sim) + box) / 2.0
 	var input: PlayerInput = brain.think(sim.players[1], sim)
-	assert_gt(input.move.dot((box - sim.players[1].position).normalized()), 0.99, "it keeps going to the box")
+	assert_gt(_way(input, sim.players[1]).dot((box - sim.players[1].position).normalized()), 0.99, "it keeps going to the box")
 
 
 func test_a_defender_at_its_post_fetches_a_tagged_teammate_only_from_the_post() -> void:
@@ -140,8 +152,8 @@ func test_a_defender_at_its_post_fetches_a_tagged_teammate_only_from_the_post() 
 	var away: TeamBrain = TeamBrain.defender(sim.players[1].spawn_position)
 	sim.players[1].position = LAYOUT.base_center(MapLayout.SIDE_ENEMY)
 	var wandering: PlayerInput = away.think(sim.players[1], sim)
-	assert_gt(wandering.move.dot((sim.players[1].spawn_position - sim.players[1].position).normalized()), 0.99, "a defender out of its base goes home first")
+	assert_gt(_way(wandering, sim.players[1]).dot((sim.players[1].spawn_position - sim.players[1].position).normalized()), 0.99, "a defender out of its base goes home first")
 	var home: TeamBrain = TeamBrain.defender(sim.players[1].spawn_position)
 	sim.players[1].position = sim.players[1].spawn_position
 	var input: PlayerInput = home.think(sim.players[1], sim)
-	assert_gt(input.move.dot((box - sim.players[1].position).normalized()), 0.99, "from its post it goes for the box")
+	assert_gt(_way(input, sim.players[1]).dot((box - sim.players[1].position).normalized()), 0.99, "from its post it goes for the box")
