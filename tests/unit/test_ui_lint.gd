@@ -413,3 +413,119 @@ func test_every_font_size_comes_from_the_type_scale() -> void:
 				if not where["comment"]:
 					found.append("%s:%d %s" % [path, where["number"], where["code"]])
 	assert_eq(found, [] as Array[String], "%d font sizes must come from UiMetrics:\n%s" % [found.size(), "\n".join(found)])
+
+
+## Font-size arguments whose parameter is not named `font_size` (a `size` that is a text size): the call and the argument index.
+## `.add_label` is MenuDialog's instance method, called on a card variable.
+const FONT_ARGS: Dictionary[String, int] = {
+	"UiKit.letter": 1, "UiKit.chip": 3, "UiKit.tag": 2, "UiKit.text": 1, "LoadoutCards.label": 1, "RoyaleStyle.lettered": 4,
+	".add_label": 1,
+}
+
+
+## Every `func` in `text` with a parameter named `font_size`: {name: index of that parameter}.
+func _font_params(text: String) -> Dictionary[String, int]:
+	var found: Dictionary[String, int] = {}
+	var decl: RegEx = RegEx.create_from_string("(?m)^\\s*(?:static\\s+)?func\\s+(\\w+)\\s*\\(")
+	for hit: RegExMatch in decl.search_all(text):
+		var params: Array[String] = _call_args(text, hit.get_end() - 1)
+		for i: int in params.size():
+			if params[i].begins_with("font_size:") or params[i] == "font_size":
+				found[hit.get_string(1)] = i
+	return found
+
+
+## Every font-size call in the interface folders, qualified by its class: {"MenuDialog.make_button": 2, "UiSegmented.new": 2, ...},
+## plus FONT_ARGS.
+func _font_calls() -> Dictionary[String, int]:
+	var calls: Dictionary[String, int] = FONT_ARGS.duplicate()
+	var named: RegEx = RegEx.create_from_string("(?m)^class_name\\s+(\\w+)")
+	for folder: String in SHAPE_SOURCES:
+		for file: String in DirAccess.get_files_at(folder):
+			if not file.ends_with(".gd"):
+				continue
+			var text: String = FileAccess.get_file_as_string("%s/%s" % [folder, file])
+			var owner: RegExMatch = named.search(text)
+			if owner == null:
+				continue
+			var params: Dictionary[String, int] = _font_params(text)
+			for name: String in params:
+				calls["%s.%s" % [owner.get_string(1), "new" if name == "_init" else name]] = params[name]
+	return calls
+
+
+## Every font size in one source file that is a bare whole number: a `font_size: int = 28` default, or a call to a
+## `calls` entry (or to one of this file's own `font_size` functions) passing one at the font-size argument.
+func _bare_font_sizes(path: String, calls: Dictionary[String, int]) -> Array[String]:
+	var found: Array[String] = []
+	var text: String = FileAccess.get_file_as_string(path)
+	var default: RegEx = RegEx.create_from_string("\\bfont_size\\s*:\\s*int\\s*=([^\\n,)#]*)")
+	for hit: RegExMatch in default.search_all(text):
+		var where: Dictionary = _line_of(text, hit.get_start())
+		if not where["comment"] and _bare_whole_number(hit.get_string(1)):
+			found.append("%s:%d %s" % [path, where["number"], where["code"]])
+	var spots: Dictionary[String, int] = {}
+	for key: String in calls:
+		var dot: int = key.find(".")
+		var pattern: String = "\\." + key.substr(1) if dot == 0 else "\\b" + key.replace(".", "\\.")
+		spots[pattern + "\\("] = calls[key]
+	var local: Dictionary[String, int] = _font_params(text)
+	for name: String in local:
+		if name != "_init":
+			spots["(?<![\\w.])" + name + "\\("] = local[name]
+	for pattern: String in spots:
+		for hit: RegExMatch in RegEx.create_from_string(pattern).search_all(text):
+			var where: Dictionary = _line_of(text, hit.get_start())
+			var code: String = where["code"] as String
+			if where["comment"] or code.begins_with("func ") or code.begins_with("static func "):
+				continue
+			var args: Array[String] = _call_args(text, hit.get_end() - 1)
+			var index: int = spots[pattern]
+			if index < args.size() and _bare_whole_number(args[index]):
+				found.append("%s:%d %s" % [path, where["number"], code])
+	return found
+
+
+## One type scale, on buttons too (docs/ART.md): a size handed to MenuDialog.make_button, LobbyWidgets.button or any function with a
+## `font_size` parameter (and that parameter's default) comes from UiMetrics, never a bare number. The `"font_size", N)` lint above
+## cannot see these: the number sits in the call, not in the override.
+func test_every_font_size_handed_to_a_button_or_label_comes_from_the_type_scale() -> void:
+	var calls: Dictionary[String, int] = _font_calls()
+	assert_eq(calls.get("MenuDialog.make_button", -1), 2, "the scanner found make_button's font_size")
+	assert_eq(calls.get("LobbyWidgets.button", -1), 3, "the scanner found LobbyWidgets.button's font_size")
+	var found: Array[String] = []
+	for folder: String in SHAPE_SOURCES:
+		for file: String in DirAccess.get_files_at(folder):
+			if file.ends_with(".gd"):
+				found.append_array(_bare_font_sizes("%s/%s" % [folder, file], calls))
+	assert_eq(found, [] as Array[String], "%d font sizes must come from UiMetrics:\n%s" % [found.size(), "\n".join(found)])
+
+
+## The lint above catches a bare size and nothing else: a min_size Vector2, a bound count, a float and a named size pass.
+func test_the_font_size_lint_tells_a_size_from_a_count_or_a_min_size() -> void:
+	assert_eq(_bare_font_sizes_in("MenuDialog.make_button(\"Go\", \"grey\", 30)"), 1)
+	assert_eq(_bare_font_sizes_in("MenuDialog.make_button(\"Go\", \"grey\", UiMetrics.ACTION, Vector2(120.0, 88))"), 0, "min_size is not a font size")
+	assert_eq(_bare_font_sizes_in("MenuDialog.make_button(\"Go\", \"grey\")"), 0, "the default")
+	assert_eq(_bare_font_sizes_in("MenuDialog.make_button(\n\t\"Go\", \"grey\",\n\t32)"), 1, "a call over three lines")
+	assert_eq(_bare_font_sizes_in("# MenuDialog.make_button(\"Go\", \"grey\", 30)"), 0, "a comment")
+	assert_eq(_bare_font_sizes_in("LobbyWidgets.button(\"%dv%d\" % [2, 2], pick.bind(2), \"grey\")"), 0, "counts in other arguments")
+	assert_eq(_bare_font_sizes_in("LobbyWidgets.button(\"Go\", go, \"orange\", 28)"), 1)
+	assert_eq(_bare_font_sizes_in("UiSegmented.new(options, 80.0, 30)"), 1, "a constructor's font_size")
+	assert_eq(_bare_font_sizes_in("UiSegmented.new(options, 80.0)"), 0, "a float height")
+	assert_eq(_bare_font_sizes_in("static func button(text: String, font_size: int = 28) -> Button:\n\tpass"), 1, "a bare default")
+	assert_eq(_bare_font_sizes_in("func _init(height: float = 80.0, font_size: int = UiMetrics.ACTION) -> void:\n\tpass"), 0, "a named default")
+	assert_eq(_bare_font_sizes_in("func _pill(text: String, font_size: int) -> void:\n\tpass\nfunc _go() -> void:\n\t_pill(\"x\", 34)"), 1, "a file's own font_size function")
+	assert_eq(_bare_font_sizes_in("func _pill(text: String, font_size: int) -> void:\n\tpass\nfunc _go() -> void:\n\t_pill(\"x\", PILL_FONT)"), 0)
+	assert_eq(_bare_font_sizes_in("UiKit.chip(\"x\", fill, Color.WHITE, 22)"), 1, "a size-named text size")
+	assert_eq(_bare_font_sizes_in("card.add_label(\"x\", 30, KalyeahTheme.CREAM)"), 1)
+	assert_eq(_bare_font_sizes_in("var count: int = 30\nvar gap: Vector2 = Vector2(0.0, 88.0)"), 0, "unrelated numbers")
+
+
+func _bare_font_sizes_in(code: String) -> int:
+	var path: String = "user://lint_font_probe.gd"
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(code + "\n")
+	file.close()
+	var count: int = _bare_font_sizes(path, _font_calls()).size()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	return count
