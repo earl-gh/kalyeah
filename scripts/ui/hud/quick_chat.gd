@@ -8,6 +8,8 @@ const PHRASES: Array[String] = ["Good luck!", "Nice one!", "Oops!", "Thanks!", "
 const COLUMNS: int = 2
 ## A bubble over a kid lasts this long (seconds).
 const SAY_TIME: float = 2.6
+## The bubble is drawn this much smaller than its button (empty space round the art, a share of its size on each side); the touch area stays full size.
+const ART_PAD: float = 0.12
 
 signal said(text: String)
 
@@ -21,7 +23,7 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button = TextureButton.new()
 	button.name = "ChatButton"
-	button.texture_normal = HandArt.chat()
+	button.texture_normal = HandArt.chat_padded(ART_PAD)
 	button.ignore_texture_size = true
 	button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 	button.tooltip_text = "Quick chat"

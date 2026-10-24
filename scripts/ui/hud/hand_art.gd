@@ -41,6 +41,14 @@ static func chat() -> AtlasTexture:
 	return _chat
 
 
+## The speech bubble drawn smaller inside its button: `pad` is the empty space round the art as a share of its size, on each side.
+static func chat_padded(pad: float) -> AtlasTexture:
+	var atlas: AtlasTexture = _part(CHAT, CHAT_PART)
+	var margin: Vector2 = atlas.region.size * pad
+	atlas.margin = Rect2(margin, margin * 2.0)
+	return atlas
+
+
 static func _part(texture: Texture2D, part: Rect2) -> AtlasTexture:
 	var atlas: AtlasTexture = AtlasTexture.new()
 	atlas.atlas = texture

@@ -1,10 +1,11 @@
 class_name ClockChip
 extends Control
-## The match clock at the right of the header, the counterpart of the settings button at the left: a navy panel with "TIME" over the time
-## (m:ss, counting up: a match has no time limit). In overtime the caption turns gold and says OVERTIME. It only draws; it never takes a touch.
+## The match clock in the top right corner, laid out like Clash Royale's "Time left" box: "TIME" over the time (m:ss, counting up: a match
+## has no time limit). In overtime the caption turns gold and says OVERTIME. It only draws; it never takes a touch.
 
 const TIME_FONT: int = UiMetrics.HEADLINE
 const CAPTION_FONT: int = UiMetrics.CAPTION
+const BOX_COLOR: Color = Color(0.0, 0.0, 0.0, 0.62)
 
 var seconds: int = 0
 var overtime: bool = false
@@ -32,14 +33,24 @@ func text() -> String:
 
 
 func _draw() -> void:
-	RoyaleStyle.chunky(self, Rect2(Vector2.ZERO, size), Color(0.05, 0.14, 0.36), UiSkin.RADIUS_M, false)
-	if overtime:
-		draw_rect(Rect2(Vector2(10.0, size.y - 14.0), Vector2(size.x - 20.0, 4.0)), RoyaleStyle.GOLD)
+	# like Clash Royale's "Time left" box: a dark see-through box in the screen's top right corner (flush with the top and the side, only
+	# its inner corner rounded), a small caption over a big clock, both white with a black outline
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = BOX_COLOR
+	box.corner_radius_bottom_left = UiSkin.RADIUS_M
+	box.anti_aliasing = true
+	draw_style_box(box, Rect2(Vector2.ZERO, size))
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var caption: String = UiText.t("OVERTIME") if overtime else UiText.t("TIME")
-	var caption_color: Color = RoyaleStyle.GOLD if overtime else RoyaleStyle.BLUE_LIGHT
+	var caption_color: Color = RoyaleStyle.GOLD if overtime else Color.WHITE
 	var caption_size: Vector2 = font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1.0, CAPTION_FONT)
-	draw_string(font, Vector2((size.x - caption_size.x) / 2.0, 26.0), caption, HORIZONTAL_ALIGNMENT_LEFT, -1.0, CAPTION_FONT, caption_color)
+	_lettered(font, caption, Vector2((size.x - caption_size.x) / 2.0, 28.0), CAPTION_FONT, caption_color)
 	var line: String = text()
 	var line_size: Vector2 = font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, TIME_FONT)
-	RoyaleStyle.lettered(self, font, line, Vector2((size.x - line_size.x) / 2.0, 70.0), TIME_FONT)
+	_lettered(font, line, Vector2((size.x - line_size.x) / 2.0, size.y - 12.0), TIME_FONT, Color.WHITE)
+
+
+## White (or `color`) letters with a black outline.
+func _lettered(font: Font, text_line: String, origin: Vector2, font_size: int, color: Color) -> void:
+	draw_string_outline(font, origin, text_line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, 7, Color.BLACK)
+	draw_string(font, origin, text_line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, color)

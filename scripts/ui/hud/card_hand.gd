@@ -32,20 +32,22 @@ const SIDE: float = 40.0
 const CARD_GAP: float = 10.0
 const ROW_TOP: float = 28.0
 const CARD_ASPECT: float = 1.3
-const BAR_HEIGHT: float = 34.0
+const BAR_HEIGHT: float = 26.0
 const BAR_GAP: float = 14.0
-const BOTTOM_PAD: float = 24.0
+const BOTTOM_PAD: float = 32.0
 ## The NEXT card is this share of a hand card, under its label, in the column beside the cardboard; the chat button is above it.
 const NEXT_SCALE: float = 0.66
 const COLUMN_BOTTOM: float = 18.0
 const OUT_GAP: float = 8.0
 const CHAT_HEIGHT: float = 80.0
 const NEXT_FONT: int = UiMetrics.CAPTION
-const NEXT_COLOR: Color = RoyaleStyle.BLUE_LIGHT
+const NEXT_COLOR: Color = Color.WHITE
 ## The ice water bag on a card (its height) and its number; the bar's bag and its number.
 const COST_BAG: float = 60.0
 const COST_FONT: int = UiMetrics.CAPTION
 const BAR_BAG: float = 66.0
+## The "Max: 10" caption under the bar's start.
+const MAX_FONT: int = UiMetrics.CAPTION
 const BAR_FONT: int = UiMetrics.ACTION
 ## The ice water colour: a code-drawn stand-in until the art-director sets a token (docs/ART.md has none yet).
 const ICE_WATER: Color = Color(0.36, 0.8, 1.0)
@@ -441,7 +443,9 @@ func _draw_next() -> void:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var label: String = UiText.t("NEXT")
 	var width: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT).x
-	draw_string(font, Vector2(next_rect.get_center().x - width / 2.0, next_rect.position.y - 8.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT, NEXT_COLOR)
+	var at: Vector2 = Vector2(next_rect.get_center().x - width / 2.0, next_rect.position.y - 8.0)
+	draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT, 7, Color.BLACK)
+	draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT, NEXT_COLOR)
 	if next_def == null:
 		CardStyle.draw_empty(self, next_rect)
 	elif next_fill < 1.0:
@@ -497,12 +501,13 @@ func _draw_grey(rect: Rect2, share: float) -> void:
 	draw_style_box(dark, Rect2(rect.position, Vector2(rect.size.x, missing)))
 
 
-## The card's cost on an ice water bag at its top-left corner (elixir only); a cost the bar has not reached is drawn in grey.
+## The card's cost on an ice water bag on its bottom edge, in the middle (elixir only); a cost the bar has not reached is drawn in grey.
 func _draw_cost(rect: Rect2, def: WeaponDef, affordable: bool) -> void:
 	if not uses_elixir:
 		return
 	var height: float = minf(COST_BAG, rect.size.x * 0.42)
-	var centre: Vector2 = rect.position + Vector2(height * HandArt.ICE_ASPECT / 2.0 + 2.0, height / 2.0 + 2.0)
+	# like Clash Royale: on the card's bottom edge, in the middle, half over the edge
+	var centre: Vector2 = Vector2(rect.get_center().x, rect.end.y - height * 0.2)
 	HandArt.draw_ice(self, centre, height, str(def.elixir_cost), COST_FONT, affordable)
 
 
@@ -556,4 +561,12 @@ func _draw_bar() -> void:
 	for segment: int in range(1, segments):
 		var x: float = inner.position.x + inner.size.x * float(segment) / float(segments)
 		draw_line(Vector2(x, inner.position.y + 2.0), Vector2(x, inner.end.y - 2.0), Color(0.0, 0.0, 0.0, 0.4), 2.0)
-	HandArt.draw_ice(self, Vector2(bar_rect.position.x, bar_rect.get_center().y), BAR_BAG, str(floori(elixir + 0.001)), BAR_FONT)
+	# like Clash Royale: the bag overlaps the bar's start, the whole points in big letters just right of it (over the bar's start), and the
+	# most you can hold in small letters under them
+	var bag: Vector2 = Vector2(bar_rect.position.x, bar_rect.get_center().y - BAR_BAG * 0.12)
+	HandArt.draw_ice(self, bag, BAR_BAG, "", BAR_FONT)
+	var font: Font = KalyeahTheme.ACTION_FONT
+	var number_at: Vector2 = Vector2(bag.x + BAR_BAG * HandArt.ICE_ASPECT / 2.0 + 6.0, bar_rect.get_center().y - BAR_HEIGHT * 0.1)
+	RoyaleStyle.lettered(self, font, str(floori(elixir + 0.001)), number_at, BAR_FONT)
+	var max_text: String = UiText.f("Max: %d", [roundi(elixir_max)])
+	RoyaleStyle.lettered(self, font, max_text, Vector2(number_at.x, bar_rect.end.y + float(MAX_FONT) + 4.0), MAX_FONT)

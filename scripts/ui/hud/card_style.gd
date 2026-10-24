@@ -1,17 +1,14 @@
 class_name CardStyle
 extends RefCounted
-## How a weapon card is drawn in the hand (owner: like a Clash Royale card): an upright card with a frame in the weapon's kind colour,
-## the round painted art on top and the weapon's name on a plate at the bottom. The hand's cards and the NEXT card use the same drawing,
-## at two sizes.
+## How a weapon card is drawn in the hand (owner: like a Clash Royale card): an upright card with a frame in the weapon's kind colour and
+## the round painted art filling its width; no name on it (the ice water cost sits on its bottom edge, drawn by the hand). The hand's cards
+## and the NEXT card use the same drawing, at two sizes.
 
 const RADIUS: int = UiSkin.RADIUS_M
-const BORDER: int = 5
+const BORDER: int = 4
 ## How far the thin gold inner frame of a cooling card stands inside its edge; its corners are the card's less this, so the
 ## two curves stay parallel.
 const INNER_INSET: int = BORDER + 9
-const NAME_MAX: int = 22
-## Names are never drawn smaller than the caption floor: a card too small for that (the shuffler's window) shows only its art.
-const NAME_MIN: int = UiMetrics.CAPTION
 
 
 ## Draws the card of `def` in `rect` on `canvas`. `dim` (0 to 1) darkens it (locked, used, waiting); `lift` raises it with a gold edge
@@ -34,17 +31,6 @@ static func draw(canvas: CanvasItem, rect: Rect2, def: WeaponDef, dim: float = 0
 	var art_rect: Rect2 = Rect2(rect.position + Vector2(BORDER + 3.0, BORDER + 3.0), Vector2(inner, inner))
 	if texture != null:
 		canvas.draw_texture_rect(texture, art_rect, false)
-	# the name on a navy plate along the bottom (no plate on a card too small for a readable name)
-	var plate: Rect2 = Rect2(rect.position + Vector2(BORDER, rect.size.y - BORDER - plate_height(rect)), Vector2(rect.size.x - 2.0 * BORDER, plate_height(rect)))
-	var name_size: int = _name_size(plate, def.short_name)
-	if name_size > 0:
-		var plate_box: StyleBoxFlat = StyleBoxFlat.new()
-		plate_box.bg_color = RoyaleStyle.NAVY
-		plate_box.corner_radius_bottom_left = RADIUS - BORDER
-		plate_box.corner_radius_bottom_right = RADIUS - BORDER
-		plate_box.anti_aliasing = true
-		canvas.draw_style_box(plate_box, plate)
-		_name(canvas, plate, def.short_name, name_size)
 	if dim > 0.0:
 		var shade: StyleBoxFlat = StyleBoxFlat.new()
 		shade.bg_color = Color(0.0, 0.0, 0.0, dim)
@@ -93,10 +79,6 @@ static func draw_back(canvas: CanvasItem, rect: Rect2, progress: float, seconds:
 		canvas.draw_string(font, centre + Vector2(-width / 2.0, 14.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.HEADLINE, Color(1.0, 1.0, 1.0, 0.9))
 
 
-static func plate_height(rect: Rect2) -> float:
-	return clampf(rect.size.y * 0.2, 22.0, 40.0)
-
-
 ## Draws `def` darkened from the top down: `ready` (0 to 1) of the card, from the bottom up, is bright (a cooldown that fills the card).
 static func draw_filling(canvas: CanvasItem, rect: Rect2, def: WeaponDef, ready: float, dim: float = 0.55) -> void:
 	draw(canvas, rect, def)
@@ -108,19 +90,3 @@ static func draw_filling(canvas: CanvasItem, rect: Rect2, def: WeaponDef, ready:
 	shade.set_corner_radius_all(RADIUS)
 	shade.anti_aliasing = true
 	canvas.draw_style_box(shade, Rect2(rect.position, Vector2(rect.size.x, covered)))
-
-
-## The font size `text` fits its plate at, or 0 when that would be under `NAME_MIN`.
-static func _name_size(plate: Rect2, text: String) -> int:
-	var font: Font = KalyeahTheme.ACTION_FONT
-	var size: int = NAME_MAX
-	while size > NAME_MIN and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x > plate.size.x - 8.0:
-		size -= 1
-	size = mini(size, int(plate.size.y * 0.62))
-	return size if size >= NAME_MIN else 0
-
-
-static func _name(canvas: CanvasItem, plate: Rect2, text: String, size: int) -> void:
-	var font: Font = KalyeahTheme.ACTION_FONT
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x
-	canvas.draw_string(font, Vector2(plate.position.x + (plate.size.x - width) / 2.0, plate.position.y + plate.size.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size, Color.WHITE)

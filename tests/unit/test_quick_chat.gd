@@ -19,7 +19,9 @@ func test_the_chat_button_sits_above_next_in_the_column_beside_the_cardboard() -
 	assert_lt(chat.end.y, hud.hand.next_rect.position.y + tray_top, "above NEXT")
 	assert_lt(chat.end.x, hud.hand.card_rects[0].position.x, "beside the cardboard, not above it")
 	assert_gte(minf(chat.size.x, chat.size.y), UiMetrics.MIN_TARGET, "thumb-sized")
-	assert_eq(hud.chat.button.texture_normal, HandArt.chat(), "the owner's speech bubble")
+	var art: AtlasTexture = hud.chat.button.texture_normal as AtlasTexture
+	assert_eq(art.atlas, HandArt.CHAT, "the owner's speech bubble")
+	assert_gt(art.margin.size.x, 0.0, "drawn a little smaller than its button")
 
 
 func test_a_tap_opens_the_phrases_and_picking_one_says_it_and_closes() -> void:
