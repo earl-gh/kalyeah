@@ -38,9 +38,6 @@ static func draw(canvas: CanvasItem, rect: Rect2, def: WeaponDef, dim: float = 0
 	frame.set_border_width_all(BORDER)
 	frame.set_corner_radius_all(RADIUS)
 	frame.anti_aliasing = true
-	frame.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
-	frame.shadow_size = 6
-	frame.shadow_offset = Vector2(0.0, 5.0)
 	canvas.draw_style_box(frame, rect)
 	_glosses(canvas, rect)
 	# the round art, as wide as the card allows
