@@ -13,8 +13,8 @@ const BAR_SIZE: Vector2 = Vector2(96.0, 18.0)
 const BAR_OUTLINE: float = 2.0
 ## The health number at the bar's top left corner (its left edge lines up with the bar's, its bottom resting on the bar's top outline),
 ## and how far it reaches above the bar.
-const COUNT_FONT: int = UiMetrics.CAPTION
-const COUNT_LINE: float = 16.0
+const COUNT_FONT: int = UiMetrics.WORLD
+const COUNT_LINE: float = 14.0
 ## The bar sits just above the top of the head (the kid's model is KID_HEIGHT tall).
 const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 const POPUP_TIME: float = 0.9

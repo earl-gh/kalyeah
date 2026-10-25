@@ -48,7 +48,7 @@ const COST_BAG: float = 60.0
 const COST_FONT: int = UiMetrics.CAPTION
 const BAR_BAG: float = 66.0
 ## The "Max: 10" caption under the bar's start.
-const MAX_FONT: int = UiMetrics.CAPTION
+const MAX_FONT: int = UiMetrics.WORLD
 const BAR_FONT: int = UiMetrics.ACTION
 ## The ice water colour: a code-drawn stand-in until the art-director sets a token (docs/ART.md has none yet).
 const ICE_WATER: Color = Color(0.36, 0.8, 1.0)

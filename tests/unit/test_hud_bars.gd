@@ -88,3 +88,12 @@ func test_a_stamina_bar_in_play_is_blue_and_low_is_amber() -> void:
 	assert_eq(overhead.stamina_fill(me)[1], OverheadHud.STAMINA_COLOR, "blue while it is fine")
 	me.stamina = rules.stamina_max * 0.1
 	assert_eq(overhead.stamina_fill(me)[1], OverheadHud.STAMINA_LOW_COLOR, "amber when low")
+
+
+func test_the_small_street_numbers_are_smaller_than_the_reading_size_and_max_is_smaller_than_the_counter() -> void:
+	assert_lt(UiMetrics.WORLD, UiMetrics.MIN_TEXT, "below the reading floor on purpose: they are glanced at")
+	assert_gte(UiMetrics.WORLD, 16, "but still legible")
+	assert_lt(OverheadHud.COUNT_FONT, UiMetrics.CAPTION, "the health number is smaller than it was")
+	assert_lt(CardHand.MAX_FONT, CardHand.BAR_FONT, "\"Max: 10\" is smaller than the ice water counter")
+	assert_lt(float(CardHand.MAX_FONT), float(CardHand.BAR_FONT) * 0.8, "clearly smaller, not nearly the same")
+	assert_gt(UiMetrics.WORLD, 0)
