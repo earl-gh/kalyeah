@@ -6,9 +6,9 @@ extends RefCounted
 
 const TEXTURE_PATH: String = "res://assets/textures/%s.png"
 ## Multiplies the owner's play-area floor (cement.png, light beige tiles) so it renders at
-## its own painted beige-grey under the cool sun instead of washing out to white (render
+## its own painted beige-grey under Clash Royale's warm sun instead of washing out to white (render
 ## measured 247/255 untinted); keeps the white chalk, base and box tints and shadows readable.
-const CEMENT_TINT: Color = Color(0.6, 0.56, 0.51)
+const CEMENT_TINT: Color = Color(0.64, 0.61, 0.57)
 
 static var _textures: Dictionary[String, Texture2D] = {}
 

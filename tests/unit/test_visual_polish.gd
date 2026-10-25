@@ -101,7 +101,8 @@ func test_the_street_is_calm_and_shows_no_shadows() -> void:
 	StreetMap._light_scene(sun, sun)
 	assert_eq(sun.shadow_opacity, 0.0, "no shadows on the street (owner): fully see-through")
 	assert_true(sun.shadow_enabled, "but the shadow pass stays, or the whole street goes dark")
-	assert_eq(StreetMap.SUN_COLOR, Color(0.9, 0.95, 1.0), "and the owner's cool sun")
+	assert_gt(StreetMap.SUN_COLOR.r, StreetMap.SUN_COLOR.b, "a warm sun like Clash Royale's (owner)")
+	assert_gt(StreetMap.SATURATION, 1.1, "with more colour in the picture")
 
 
 ## The default of a float uniform in the street's cement shader.

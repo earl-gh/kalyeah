@@ -10,24 +10,25 @@ extends Node3D
 const OWN_COLOR: Color = Palette.TEAM_OWN
 const ENEMY_COLOR: Color = Palette.TEAM_ENEMY
 const SKY_COLOR: Color = Color(0.74, 0.8, 0.9)
-# afternoon with a cool tone (owner): a higher, neutral-cool sun from the front right, a clear blue sky
+# Clash Royale's light (owner: match its colour and shading): a warm, bright sun, a warm ambient so nothing goes muddy, only a faint cool fill
+# and more colour in the picture; a clear blue sky
 const SKY_TOP: Color = Color(0.27, 0.54, 0.95)
 const SKY_HORIZON: Color = Color(0.78, 0.88, 1.0)
 const SUN_ANGLES: Vector3 = Vector3(-46.0, 52.0, 0.0)
-const SUN_COLOR: Color = Color(0.9, 0.95, 1.0)
+const SUN_COLOR: Color = Color(1.0, 0.98, 0.94)
 const SUN_ENERGY: float = 1.3
 ## How far the (invisible) shadow pass reaches.
 const SHADOW_DISTANCE: float = 400.0
 const FILL_ANGLES: Vector3 = Vector3(-30.0, 258.0, 0.0)
-const FILL_COLOR: Color = Color(0.64, 0.76, 1.0)
-const FILL_ENERGY: float = 0.45
-const AMBIENT_COLOR: Color = Color(0.85, 0.91, 1.0)
+const FILL_COLOR: Color = Color(0.75, 0.85, 1.0)
+const FILL_ENERGY: float = 0.3
+const AMBIENT_COLOR: Color = Color(0.95, 0.97, 1.0)
 ## Raised from 0.82 (visual pass): the shadow side of the street was muddy; the sun and its colour stay the owner's.
 const AMBIENT_ENERGY: float = 0.95
 const EXPOSURE: float = 1.0
 const TONEMAP_WHITE: float = 4.0
-const SATURATION: float = 1.1
-const CONTRAST: float = 1.03
+const SATURATION: float = 1.15
+const CONTRAST: float = 1.05
 const BRIGHTNESS: float = 1.0
 const RING_HEIGHT: float = 0.03
 ## Visual pass: the bases and rescue areas were the faintest marks on the street (fill 0.22, tape 0.16 m); a stronger fill
