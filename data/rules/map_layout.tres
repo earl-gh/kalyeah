@@ -20,6 +20,6 @@ obstacle_props = Array[StringName]([&"cardboard_wall"])
 boundary_thickness = 0.6
 scenery_scale = 2.27
 cover_height = 3.2
-post_height = 14.0
+post_height = 6.5
 overview_height = 60.0
 overview_size = 58.0
