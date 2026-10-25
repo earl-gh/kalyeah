@@ -144,6 +144,8 @@ func _sync_actor(state: PlayerState, delta: float) -> void:
 	var view: KidModel = owner._views[state.id]
 	var lift: float = AIRBORNE_LIFT if state.effects.has(StatusEffects.Type.AIRBORNE) else 0.0
 	view.position = Vector3(state.position.x, lift, state.position.y)
+	# a tagged kid waits on the sidewalk with no ring: the ring marks a kid in play
+	view.ring.visible = not state.tagged
 	view.face(state.facing)
 	view.animate(delta, minf(view.ground_speed(state.position, delta), 20.0), state)
 
