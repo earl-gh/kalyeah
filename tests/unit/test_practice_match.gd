@@ -60,16 +60,17 @@ func test_hurt_button_path_and_no_health_panel_in_the_corner() -> void:
 	assert_null(practice.get_node_or_null("%PlayerCard"))
 
 
-func test_zero_hp_tags_you_into_the_box_with_the_tagged_card() -> void:
+func test_zero_hp_tags_you_onto_the_sidewalk_with_the_tagged_card() -> void:
 	var practice: PracticeMatch = _practice()
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 	practice.hurt_local(100)
 	assert_true(player.tagged)
-	assert_true(LAYOUT.jail_rect(practice.own_side()).has_point(player.position), "sent to our box")
+	assert_false(LAYOUT.lane_rect().has_point(player.position), "sent out to the sidewalk")
+	assert_lt(player.position.x, 0.0, "on our side of the street")
 	assert_true(practice.hud.tagged_panel.visible)
 	practice.advance(DT)
 	assert_false(practice.hud.hand.visible, "the hand is hidden while you wait")
-	assert_true((practice.get_node("%Actors").get_child(0) as Node3D).visible, "you still stand in the box")
+	assert_true((practice.get_node("%Actors").get_child(0) as Node3D).visible, "you still stand on the sidewalk")
 	assert_false(practice.is_picking(), "the field stays in view: the swap screen only opens on request")
 
 
@@ -84,7 +85,7 @@ func test_skill_presses_do_nothing_while_tagged() -> void:
 		practice.advance(DT)
 	assert_eq(player.position, at)
 	assert_eq(player.weapon_cooldowns[0], 0.0, "nothing cast")
-	assert_false(practice.hud.street.active, "street taps are off in the box")
+	assert_false(practice.hud.street.active, "street taps are off while tagged")
 	assert_true(player.tagged)
 
 
@@ -125,12 +126,12 @@ func test_practice_has_three_enemy_dummies_and_one_ally() -> void:
 	assert_eq(ally.position, Vector2(-6.0, 6.0))
 
 
-func test_a_free_enemy_stands_in_its_own_box_and_its_bar_is_hidden() -> void:
+func test_a_free_enemy_stands_in_its_own_rescue_area_and_keeps_its_bar() -> void:
 	var practice: PracticeMatch = _practice()
-	var boxed: PlayerState = practice.sim.players[PracticeMatch.ENEMY_BOX_ID]
+	var boxed: PlayerState = practice.sim.players[PracticeMatch.ENEMY_RESCUE_ID]
 	assert_eq(boxed.team, 1)
 	assert_false(boxed.tagged, "free, not tagged")
-	assert_true(LAYOUT.jail_rect(-practice.own_side()).has_point(boxed.position), "in the enemy's box (bottom right)")
+	assert_true(LAYOUT.rescue_rect(-practice.own_side()).has_point(boxed.position), "in the enemy's rescue area (bottom right)")
 	var start: Vector2 = boxed.position
 	for i: int in 30:
 		practice.advance(DT)
@@ -481,11 +482,11 @@ func test_every_free_kid_has_a_bar_wherever_it_stands_and_a_tagged_kid_has_none(
 	var hud: OverheadHud = practice.overhead()
 	var enemy: PlayerState = practice.sim.players[PracticeMatch.ENEMY_STAND_ID]
 	assert_true(hud.bar_visible(enemy), "out in the street it has a bar")
-	enemy.position = LAYOUT.jail_rect(-practice.own_side()).get_center()
-	assert_true(hud.bar_visible(enemy), "in its team's box too: nothing hides there any more (owner)")
+	enemy.position = LAYOUT.rescue_rect(-practice.own_side()).get_center()
+	assert_true(hud.bar_visible(enemy), "in its team's rescue area too: nothing hides there (owner)")
 	var ally: PlayerState = practice.sim.players[PracticeMatch.ALLY_ID]
-	ally.position = LAYOUT.jail_rect(practice.own_side()).get_center()
-	assert_true(hud.bar_visible(ally), "a free kid on your team is shown, even standing in your own box")
+	ally.position = LAYOUT.rescue_rect(practice.own_side()).get_center()
+	assert_true(hud.bar_visible(ally), "a free kid on your team is shown, even standing in your own rescue area")
 	ally.tagged = true
 	assert_false(hud.bar_visible(ally), "but a tagged kid has no health bar or number (owner)")
 
@@ -500,7 +501,7 @@ func test_a_status_is_shown_as_words_and_clears() -> void:
 	assert_eq(hud.text_for(PracticeMatch.ENEMY_STAND_ID), "")
 	practice.hurt_local(100)
 	assert_true(practice.sim.players[PracticeMatch.LOCAL_ID].tagged)
-	assert_eq(hud.text_for(PracticeMatch.LOCAL_ID), "", "a tagged kid stands in the box, which says it: no word over each kid (audit 4)")
+	assert_eq(hud.text_for(PracticeMatch.LOCAL_ID), "", "a tagged kid stands on the sidewalk, which says it: no word over each kid (audit 4)")
 
 
 func test_the_status_font_is_the_regular_font_not_slanted() -> void:

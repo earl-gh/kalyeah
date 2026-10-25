@@ -1,6 +1,6 @@
 class_name ConsolePanel
 extends Control
-## The tray at the bottom of the match screen that the hand sits on (and the tagged panel, while you wait in the box): the owner's blue
+## The tray at the bottom of the match screen that the hand sits on (and the tagged panel, while you wait on the sidewalk): the owner's blue
 ## plate, edge to edge. It only draws; it never takes a touch. The health colours and the heart are shared with the hand, which shows your health at the bar's end.
 
 ## The bar keeps your own colour above this share of your health, turns amber below it and red below the second.

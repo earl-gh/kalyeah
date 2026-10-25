@@ -1,6 +1,6 @@
 extends GutTest
 ## Where a kid cannot cast (docs/GDD.md, Rescue and Capture): standing in the enemy base (capturing it), or in its own team's rescue
-## area while a teammate waits in the box (rescuing). Nowhere else. Both are data toggles.
+## area while a teammate waits on the sidewalk (rescuing). Nowhere else. Both are data toggles.
 ## Seam: MatchSim (PlayerInput in, weapon_cast signal and elixir out).
 
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
@@ -43,9 +43,7 @@ func _in_enemy_base(sim: MatchSim) -> void:
 
 
 func _in_rescue_area(sim: MatchSim) -> void:
-	var area: Rect2 = LAYOUT.rescue_rect(sim.side_for_team(0))
-	var box: Rect2 = LAYOUT.jail_rect(sim.side_for_team(0))
-	sim.players[1].position = Vector2((box.end.x + area.end.x) / 2.0, box.get_center().y)
+	sim.players[1].position = LAYOUT.rescue_rect(sim.side_for_team(0)).get_center()
 
 
 func test_a_card_casts_in_the_open_street() -> void:

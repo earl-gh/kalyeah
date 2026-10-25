@@ -37,7 +37,7 @@ const CAST_BLOCK_TAGS: Dictionary[int, String] = {
 	StatusEffects.Type.KNOCKOUT: "OUT",
 	StatusEffects.Type.POLYMORPH: "CAN",
 }
-## What the cards say while you stand where nothing can be cast: in the enemy base, or by the box with a teammate waiting.
+## What the cards say while you stand where nothing can be cast: in the enemy base, or in the rescue area with a teammate waiting.
 const CAPTURING_TAG: String = "CAPTURING"
 const RESCUING_TAG: String = "RESCUING"
 ## Let go of a card with nobody to throw at in range: nothing is thrown, the card stays, and it says why for this long.
@@ -207,7 +207,7 @@ func banner_text() -> String:
 ## The hand, the street taps and the hint for the local player.
 func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	tagged_panel.sync(sim, player, pick_open)
-	# no hand while you wait in the box (the tagged panel takes the tray)
+	# no hand while you wait on the sidewalk (the tagged panel takes the tray)
 	var playing: bool = not player.tagged and sim.phase == MatchSim.Phase.PLAYING and not pick_open and not connection_blocked
 	# during the opening show the first hand is on the tray, dimmed and locked, instead of an empty tray
 	var shown: bool = playing or (sim.phase == MatchSim.Phase.INTRO and not player.tagged and not pick_open and not connection_blocked)

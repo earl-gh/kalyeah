@@ -1,5 +1,5 @@
 extends GutTest
-## Tag (docs/GDD.md "Tag"): at 0 HP a player is tagged and sent to their team's box;
+## Tag (docs/GDD.md "Tag"): at 0 HP a player is tagged and sent to the sidewalk beside their team's rescue area, facing in;
 ## a free teammate who stays in the rescue area for five seconds rescues them back to their post.
 
 const RULES: GameRules = preload("res://data/rules/game_rules.tres")
@@ -16,11 +16,11 @@ func _wait(sim: MatchSim, seconds: float) -> void:
 		sim.step(DT)
 
 
-func _box(sim: MatchSim, team: int) -> Rect2:
-	return LAYOUT.jail_rect(sim.side_for_team(team))
+func _area(sim: MatchSim, team: int) -> Rect2:
+	return LAYOUT.rescue_rect(sim.side_for_team(team))
 
 
-func test_zero_hp_tags_and_sends_you_to_your_teams_box() -> void:
+func test_zero_hp_tags_and_sends_you_to_the_sidewalk_beside_your_teams_rescue_area() -> void:
 	var sim: MatchSim = _sim()
 	var me: PlayerState = sim.add_player(1, 0)
 	me.position = Vector2(3.0, -10.0)
@@ -28,28 +28,41 @@ func test_zero_hp_tags_and_sends_you_to_your_teams_box() -> void:
 	sim.damage(1, 500)
 	assert_true(me.tagged)
 	assert_eq(me.hp, 0)
-	assert_true(_box(sim, 0).has_point(me.position), "in the box")
-	assert_lt(me.position.x, 0.0, "your team's box is top left")
-	assert_lt(me.position.y, 0.0)
+	assert_false(LAYOUT.lane_rect().has_point(me.position), "outside the play area")
+	assert_lt(me.position.x, 0.0, "your team's tagged kids are on the left sidewalk")
+	assert_lt(me.position.y, 0.0, "at the top")
+	assert_eq(me.facing, Vector2.RIGHT, "facing in, toward the street")
+	var area: Rect2 = _area(sim, 0)
+	assert_between(me.position.y, area.position.y, area.end.y, "level with the rescue area")
 	assert_signal_emitted_with_parameters(sim, "player_tagged", [1])
 
 
-func test_tagged_opponents_go_to_the_bottom_right_box() -> void:
+func test_tagged_opponents_go_to_the_right_sidewalk_at_the_bottom_facing_in() -> void:
 	var sim: MatchSim = _sim()
 	var them: PlayerState = sim.add_player(2, 1)
 	sim.damage(2, 500)
+	assert_false(LAYOUT.lane_rect().has_point(them.position), "outside the play area")
 	assert_gt(them.position.x, 0.0)
 	assert_gt(them.position.y, 0.0)
-	assert_true(_box(sim, 1).has_point(them.position))
+	assert_eq(them.facing, Vector2.LEFT)
+	var area: Rect2 = _area(sim, 1)
+	assert_between(them.position.y, area.position.y, area.end.y, "level with the rescue area")
 
 
-func test_tagged_kids_stand_side_by_side_in_the_box() -> void:
+func test_tagged_kids_stand_in_a_row_along_the_sidewalk_each_beside_the_rescue_area() -> void:
 	var sim: MatchSim = _sim()
 	var a: PlayerState = sim.add_player(1, 0)
 	var b: PlayerState = sim.add_player(2, 0)
+	var c: PlayerState = sim.add_player(3, 0)
 	sim.kill(1)
 	sim.kill(2)
-	assert_ne(a.position, b.position)
+	sim.kill(3)
+	assert_eq([a.position.x, b.position.x], [c.position.x, c.position.x], "one row against the street's edge")
+	assert_lt(a.position.y, b.position.y)
+	assert_lt(b.position.y, c.position.y)
+	var area: Rect2 = _area(sim, 0)
+	for kid: PlayerState in [a, b, c]:
+		assert_between(kid.position.y, area.position.y, area.end.y)
 
 
 func test_tagged_players_cannot_move_act_or_be_hit() -> void:
@@ -61,18 +74,16 @@ func test_tagged_players_cannot_move_act_or_be_hit() -> void:
 	for i: int in 10:
 		sim.set_input(1, PlayerInput.create(Vector2(1.0, 0.0), Vector2.ZERO, PlayerInput.BTN_WEAPON_1, sim.tick))
 		sim.step(DT)
-	assert_eq(me.position, at, "waiting in the box")
+	assert_eq(me.position, at, "waiting on the sidewalk")
 	assert_false(me.can_act())
 	assert_false(sim.weapon_ready(me, 0))
 	assert_false(sim.is_targetable(me))
-	assert_eq(sim.heal(1, 50), 0, "no healing in the box")
+	assert_eq(sim.heal(1, 50), 0, "no healing while tagged")
 
 
-## Stands `friend` in the rescue area beside the box (not in the box itself).
+## Stands `friend` in the middle of its team's rescue area.
 func _in_area(sim: MatchSim, friend: PlayerState) -> void:
-	var area: Rect2 = LAYOUT.rescue_rect(sim.side_for_team(friend.team))
-	var box: Rect2 = _box(sim, friend.team)
-	friend.position = Vector2((box.end.x + area.end.x) / 2.0, box.get_center().y)
+	friend.position = _area(sim, friend.team).get_center()
 
 
 func test_you_get_tagged_every_time_not_just_once() -> void:
@@ -128,21 +139,21 @@ func test_a_touch_is_not_enough_and_leaving_starts_the_count_over() -> void:
 	assert_false(me.tagged)
 
 
-func test_the_rescue_area_round_the_box_counts_as_well_as_the_box() -> void:
+func test_only_the_rescue_area_beside_the_sidewalk_counts_not_the_street_round_it() -> void:
 	var sim: MatchSim = _sim()
 	var me: PlayerState = sim.add_player(1, 0)
 	var friend: PlayerState = sim.add_player(2, 0)
 	sim.kill(1)
-	var area: Rect2 = LAYOUT.rescue_rect(sim.side_for_team(0))
-	var box: Rect2 = _box(sim, 0)
-	# just outside the area: nothing happens however long
-	friend.position = Vector2(area.end.x + friend.radius + 0.3, box.get_center().y)
+	var area: Rect2 = _area(sim, 0)
+	assert_almost_eq(area.position.x, LAYOUT.lane_rect().position.x, 0.001, "against the street's side edge")
+	# just outside the area, further in: nothing happens however long
+	friend.position = Vector2(area.end.x + friend.radius + 0.3, area.get_center().y)
 	_wait(sim, 6.0)
 	assert_true(me.tagged, "outside the rescue area")
-	# in the box itself: rescued as well
-	friend.position = box.get_center()
+	# at the street's edge, level with the kids: rescued
+	friend.position = Vector2(area.position.x + friend.radius, area.get_center().y)
 	_wait(sim, 5.2)
-	assert_false(me.tagged, "in the box")
+	assert_false(me.tagged, "at the edge beside the tagged kids")
 
 
 func test_only_one_teammate_rescues_at_a_time_and_a_second_adds_no_speed() -> void:
@@ -212,17 +223,17 @@ func test_the_first_tagged_is_the_first_rescued() -> void:
 	assert_true(b.tagged)
 
 
-func test_an_enemy_in_the_box_rescues_nobody() -> void:
+func test_an_enemy_in_the_rescue_area_rescues_nobody() -> void:
 	var sim: MatchSim = _sim()
 	var me: PlayerState = sim.add_player(1, 0)
 	var them: PlayerState = sim.add_player(2, 1)
 	sim.kill(1)
-	them.position = _box(sim, 0).get_center()
+	them.position = _area(sim, 0).get_center()
 	_wait(sim, 6.0)
 	assert_true(me.tagged)
 
 
-func test_with_the_toggle_on_one_rescue_frees_everyone_in_the_box() -> void:
+func test_with_the_toggle_on_one_rescue_frees_everyone_waiting() -> void:
 	var rules: GameRules = RULES.duplicate() as GameRules
 	rules.rescue_frees_all = true
 	var sim: MatchSim = MatchSim.new(rules, LAYOUT, 3)
@@ -282,9 +293,31 @@ func test_weapons_can_be_swapped_only_while_tagged() -> void:
 	assert_eq(sim.players[1].weapons, [&"jacks", &"bola"] as Array[StringName])
 
 
-func test_a_tagged_kid_in_the_box_faces_the_enemy_post() -> void:
+func test_a_free_kid_walking_to_the_edge_stops_in_the_street_and_never_touches_a_tagged_kid() -> void:
 	var sim: MatchSim = _sim()
 	var kid: PlayerState = sim.add_player(1, 0)
+	var enemy: PlayerState = sim.add_player(2, 1)
 	sim.kill(1)
-	var to_post: Vector2 = (LAYOUT.base_center(-sim.side_for_team(kid.team)) - kid.position).normalized()
-	assert_almost_eq(kid.facing, to_post, Vector2(0.001, 0.001), "toward the post of the team that holds it")
+	var spot: Vector2 = kid.position
+	var edge: Rect2 = _area(sim, 0)
+	enemy.position = edge.get_center()
+	for i: int in 60:
+		sim.set_input(2, PlayerInput.create(Vector2.LEFT, Vector2.ZERO, 0, sim.tick))
+		sim.step(DT)
+	assert_true(LAYOUT.lane_rect().has_point(enemy.position), "the street's edge holds a free kid in")
+	assert_eq(kid.position, spot, "the tagged kid is not pushed")
+	assert_eq(kid.hp, 0)
+
+
+func test_a_clients_mirror_shows_a_tagged_kid_on_the_sidewalk_facing_in() -> void:
+	var sim: MatchSim = _sim()
+	sim.add_player(1, 0)
+	sim.add_player(2, 1)
+	sim.kill(2)
+	var mirror: MatchSim = _sim()
+	mirror.add_player(1, 0)
+	mirror.add_player(2, 1)
+	Snapshot.apply(mirror, bytes_to_var(NetProtocol.encode(Snapshot.capture(sim, {}))) as Dictionary, 1)
+	assert_eq(mirror.players[2].position, sim.players[2].position, "the same place on the wire, nothing clamps it back into the street")
+	assert_false(LAYOUT.lane_rect().has_point(mirror.players[2].position))
+	assert_eq(mirror.players[2].facing, Vector2.LEFT)

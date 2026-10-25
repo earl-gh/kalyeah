@@ -1,6 +1,6 @@
 class_name TaggedPanel
 extends Control
-## What you see while tagged and waiting in the box: the tray at the bottom keeps its place and size (the same height as the hand's
+## What you see while tagged and waiting on the sidewalk: the tray at the bottom keeps its place and size (the same height as the hand's
 ## tray, so the screen does not jump) but the hand gives way to the way out: a title, your teammates, one line on how it ends and
 ## (the old two-weapon pick only) a Change weapons button. No other player can be picked or watched (owner: the whole street is on screen and the camera never moves).
 ## Built in code; MatchHud feeds it with `sync()` and the console's height with `set_console_height()`.
@@ -11,8 +11,8 @@ const INK: Color = RoyaleStyle.NAVY
 const TITLE_COLOR: Color = RoyaleStyle.GOLD
 const HINT_COLOR: Color = RoyaleStyle.CREAM
 const WAIT_TEXT: String = "Tagged · Wait for a rescue"
-## `%d`: the seconds a teammate has to stay by your box (the rules say).
-const HINT_TEXT: String = "A teammate frees you after %d s at your box."
+## `%d`: the seconds a teammate has to stay in your rescue area (the rules say).
+const HINT_TEXT: String = "A teammate frees you after %d s beside you."
 ## The countdown to walking out alone, when the match has one (Practice): a ring beside the faces.
 const RELEASE_RING_SIZE: float = 64.0
 ## The same side margin the controls keep.
@@ -22,14 +22,14 @@ const SWAP_WIDTH: float = 360.0
 
 ## How to get out (kept as a label for screen readers and tests).
 var wait_label: Label
-## One line on how it ends (the box, the teammate), under the title.
+## One line on how it ends (the rescue area, the teammate), under the title.
 var hint_label: Label
 var swap_button: Button
 ## Your teammates: who is free and who is on the way.
 var pips: TeammatePips
 ## Seconds until you walk out alone (shown only when the match sets a release time).
 var release_ring: CountdownRing
-## Seconds until the teammate who is rescuing frees you (shown while one stays by the box and you are next in line).
+## Seconds until the teammate who is rescuing frees you (shown while one stays in the rescue area and you are next in line).
 var rescue_ring: CountdownRing
 ## What the title, the hint and the button sit in.
 var column: VBoxContainer
@@ -81,7 +81,7 @@ func _ready() -> void:
 	hint_label.name = "Hint"
 	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(hint_label)
-	# beside the teammates (the old two-weapon pick only): the tray is only as tall as the hand of cards, so the box's
+	# beside the teammates (the old two-weapon pick only): the tray is only as tall as the hand of cards, so the tagged
 	# title, the teammates with the button and the hint make three rows
 	swap_button = Button.new()
 	swap_button.text = "Change weapons"
@@ -102,9 +102,9 @@ func set_console_height(height: float) -> void:
 
 ## Shown while `player` is tagged.
 func sync(_sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
-	# once the match is over the results card says what happened; the box's words would show through its dimmed backdrop
+	# once the match is over the results card says what happened; the tagged words would show through its dimmed backdrop
 	visible = player.tagged and _sim.phase != MatchSim.Phase.MATCH_OVER
-	# cards mode: the weapons are cards that keep cycling, so there is nothing to change in the box
+	# cards mode: the weapons are cards that keep cycling, so there is nothing to change while tagged
 	swap_button.visible = visible and not pick_open and not _sim.rules.card_cycle
 	if not visible:
 		return

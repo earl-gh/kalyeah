@@ -4,7 +4,7 @@ extends RefCounted
 ## rendering; the same class runs on the server, in offline practice and in tests.
 ## Advances only through step(dt) and uses its own seeded RNG (no randf()).
 
-## At 0 HP a player is tagged: sent to their team's box until a teammate rescues them.
+## At 0 HP a player is tagged: sent to the sidewalk until a teammate rescues them.
 signal player_tagged(id: int)
 ## `by_id` is the rescuing teammate, or -1 when a training dummy walked out on its own.
 signal player_rescued(id: int, by_id: int)
@@ -35,7 +35,7 @@ const EPSILON: float = 0.00001
 
 ## INTRO: the opening show of both teams at their posts; nothing moves.
 enum Phase { PLAYING, POINT_FREEZE, MATCH_OVER, INTRO }
-## How a team is scoring: everyone in the enemy base, or every enemy in the box.
+## How a team is scoring: everyone in the enemy base, or every enemy tagged.
 enum CaptureKind { NONE = -1, BASE = 0, ALL_TAGGED = 1 }
 
 var rules: GameRules
@@ -70,7 +70,7 @@ var rescue_elapsed: Array[float] = [0.0, 0.0]
 var tag_counter: int = 0
 ## Seconds into this round (counts up in play; back to 0 after a point).
 var round_time: float = 0.0
-## A tagged player walks out of the box alone after this long (0 = waits for a rescue).
+## A tagged player walks out alone after this long (0 = waits for a rescue).
 var tag_release_time: float = 0.0
 var phase: Phase = Phase.PLAYING
 ## Seconds left in the freeze after a point.
@@ -299,7 +299,7 @@ func finish_reloads(state: PlayerState) -> void:
 		_place_next(state)
 
 
-## Box swap: only while tagged (waiting in the box), as often as you like.
+## Swap: only while tagged, as often as you like.
 ## A weapon you keep keeps its cooldown, so swapping away and back clears nothing.
 func swap_loadout(id: int, first: StringName, second: StringName) -> bool:
 	if rules.card_cycle or not players.has(id) or not players[id].tagged:
@@ -367,7 +367,7 @@ func assign_characters() -> void:
 		index += 1
 
 
-## Players that can be hit (everyone not waiting in a box).
+## Players that can be hit (everyone not waiting on the sidewalk).
 func is_targetable(state: PlayerState) -> bool:
 	return not state.tagged
 
@@ -406,7 +406,7 @@ func apply_effect(id: int, type: StatusEffects.Type, duration: float, magnitude:
 
 
 ## A training dummy: a normal player on `team` placed at `position`, driven by `brain`.
-## Tagged dummies walk out of the box on their own after `dummy_release_time` and go
+## Tagged dummies walk out on their own after `dummy_release_time` and go
 ## back to this spot. Dummies don't count for captures.
 func add_dummy(id: int, team: int, position: Vector2, brain: DummyBrain) -> PlayerState:
 	var state: PlayerState = add_player(id, team)
@@ -515,7 +515,7 @@ func _step_free(state: PlayerState, input: PlayerInput, dt: float) -> void:
 	_tick_stamina(state, state.position.distance_squared_to(before) > EPSILON * EPSILON, dt)
 
 
-## Elixir fills while the match runs (also in the box), up to the bar; the extra is lost.
+## Elixir fills while the match runs (also while tagged), up to the bar; the extra is lost.
 func _tick_elixir(state: PlayerState, dt: float) -> void:
 	if pays_elixir(state):
 		state.elixir = minf(rules.elixir_max, state.elixir + rules.elixir_regen_per_s * dt)
@@ -559,7 +559,7 @@ func refill_stamina(state: PlayerState) -> void:
 	state.still_time = 0.0
 
 
-## Waiting in the box: no moving or skills, cooldowns keep running. Training dummies
+## Waiting on the sidewalk: no moving or skills, cooldowns keep running. Training dummies
 ## walk out on their own after a while.
 func _step_tagged(state: PlayerState, input: PlayerInput, dt: float) -> void:
 	_tick_cooldowns(state, dt)
@@ -649,7 +649,7 @@ func weapon_ready(state: PlayerState, slot: int) -> bool:
 
 
 ## Where a free player cannot cast (owner): standing in the enemy base (capturing it), or in their own team's rescue area while a
-## teammate waits in the box (rescuing). Both are data toggles.
+## teammate waits on the sidewalk (rescuing). Both are data toggles.
 func casting_blocked(state: PlayerState) -> bool:
 	if state.tagged:
 		return false
@@ -784,7 +784,7 @@ func capturers_in_enemy_base(team: int) -> int:
 	return objectives.capturers_in_enemy_base(self, team, _brains)
 
 
-## Every player of the other team waiting in a box (a team of training dummies
+## Every player of the other team waiting on the sidewalk (a team of training dummies
 ## never scores this way).
 func all_enemies_tagged(team: int) -> bool:
 	return objectives.all_enemies_tagged(self, team, _brains)

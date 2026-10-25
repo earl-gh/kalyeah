@@ -200,7 +200,7 @@ func test_the_respawn_swap_screen_only_changes_weapons() -> void:
 	assert_false((screen.find_child("Characters", true, false) as Control).visible, "a kid is fixed for the match")
 	var before: StringName = screen.character_id
 	screen.pick_character(&"ligaya")
-	assert_eq(screen.character_id, before, "no kid change in the box")
+	assert_eq(screen.character_id, before, "no kid change while tagged")
 
 
 func test_confirmed_pair_is_remembered_and_validated_on_next_setup() -> void:

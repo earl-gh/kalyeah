@@ -63,6 +63,7 @@ func _report(rules: GameRules, layout: MapLayout, matchup: Array, size: int, see
 	var exhaustions: int = 0
 	var tags: int = 0
 	var bursts: int = 0
+	var rescues: int = 0
 	var per_weapon: Dictionary[StringName, int] = {}
 	for seed_value: int in seeds:
 		var result: Dictionary = play(rules, layout, matchup[0] as String, matchup[1] as String, size, 1000 + seed_value, seconds, skill)
@@ -77,15 +78,16 @@ func _report(rules: GameRules, layout: MapLayout, matchup: Array, size: int, see
 		exhaustions += result["exhaustions"] as int
 		tags += result["tags"] as int
 		bursts += result["bursts"] as int
+		rescues += result["rescues"] as int
 		var weapons: Dictionary = result["casts"] as Dictionary
 		for weapon: StringName in weapons:
 			per_weapon[weapon] = per_weapon.get(weapon, 0) + (weapons[weapon] as int)
 			casts += weapons[weapon] as int
 	var decided: int = seeds - none
 	var kids: int = size * 2
-	print("%-7s vs %-7s %dv%d: team0 %3d  team1 %3d  none %3d  avg %5.1fs  tags/round %.1f  casts/player/min %.2f  exhaustions/kid/round %.2f  burst tags %5.1f%% (%d of %d)" % [
+	print("%-7s vs %-7s %dv%d: team0 %3d  team1 %3d  none %3d  avg %5.1fs  tags/round %.1f  rescues/round %.2f  casts/player/min %.2f  exhaustions/kid/round %.2f  burst tags %5.1f%% (%d of %d)" % [
 		matchup[0], matchup[1], size, size, wins[0], wins[1], none, total / maxf(1.0, float(decided)), float(tagged) / float(seeds),
-		float(casts) / float(kids) / maxf(played / 60.0, 0.001), float(exhaustions) / float(kids * seeds),
+		float(rescues) / float(seeds), float(casts) / float(kids) / maxf(played / 60.0, 0.001), float(exhaustions) / float(kids * seeds),
 		100.0 * float(bursts) / maxf(float(tags), 1.0), bursts, tags,
 	])
 	var shares: PackedStringArray = []
@@ -95,12 +97,13 @@ func _report(rules: GameRules, layout: MapLayout, matchup: Array, size: int, see
 
 
 ## One round to the first point (or `seconds`). {winner: team or -1, seconds, tagged: kids tagged when it ended, casts: {weapon id: count},
-## exhaustions, tags (every tag in the round), bursts (tags where every hit since full health landed within BURST_SECONDS)}.
+## exhaustions, tags (every tag in the round), bursts (tags where every hit since full health landed within BURST_SECONDS), rescues
+## (kids freed by a teammate; a timed release does not count)}.
 static func play(rules: GameRules, layout: MapLayout, plan0: String, plan1: String, size: int, seed_value: int, seconds: float, skill: Array) -> Dictionary:
 	var sim: MatchSim = MatchSim.new(rules, layout, seed_value)
 	var scored: Array[int] = []
 	sim.point_scored.connect(func(team: int, _how: int) -> void: scored.append(team))
-	var counts: Dictionary = {"exhaustions": 0, "tags": 0, "bursts": 0}
+	var counts: Dictionary = {"exhaustions": 0, "tags": 0, "bursts": 0, "rescues": 0}
 	var casts: Dictionary[StringName, int] = {}
 	var first_hit: Dictionary[int, float] = {}
 	# the handlers hold the players and a clock, never the sim itself (a sim -> handler -> sim cycle would leak every round)
@@ -115,6 +118,9 @@ static func play(rules: GameRules, layout: MapLayout, plan0: String, plan1: Stri
 		counts["tags"] = (counts["tags"] as int) + 1
 		if first_hit.has(id) and clock[0] - first_hit[id] <= BURST_SECONDS + MatchSim.EPSILON:
 			counts["bursts"] = (counts["bursts"] as int) + 1)
+	sim.player_rescued.connect(func(_id: int, by_id: int) -> void:
+		if by_id != MatchSim.RELEASED_ALONE:
+			counts["rescues"] = (counts["rescues"] as int) + 1)
 	var plans: Array[String] = [plan0, plan1]
 	var brains: Dictionary[int, TeamBrain] = {}
 	var next_id: int = 1
@@ -148,7 +154,7 @@ static func play(rules: GameRules, layout: MapLayout, plan0: String, plan1: Stri
 			tagged += 1
 	return {
 		"winner": scored[0] if not scored.is_empty() else -1, "seconds": time, "tagged": tagged, "casts": casts,
-		"exhaustions": counts["exhaustions"], "tags": counts["tags"], "bursts": counts["bursts"],
+		"exhaustions": counts["exhaustions"], "tags": counts["tags"], "bursts": counts["bursts"], "rescues": counts["rescues"],
 	}
 
 

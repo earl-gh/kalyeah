@@ -34,7 +34,7 @@ func test_kid_turns_into_a_can_and_greys_out() -> void:
 	state.tagged = true
 	kid.animate(0.1, 0.0, state)
 	assert_false(kid.is_can())
-	assert_true(kid.is_ghost(), "tagged kids wait greyed out in the box")
+	assert_true(kid.is_ghost(), "tagged kids wait greyed out on the sidewalk")
 
 
 func test_kid_faces_its_movement() -> void:
@@ -103,7 +103,7 @@ func test_each_state_plays_its_own_animation() -> void:
 	assert_eq(_animation_after(kid, state), "land", "a landing squash when back on the ground")
 	state = PlayerState.new()
 	state.tagged = true
-	assert_eq(_animation_after(kid, state), "idle", "tagged kids stand in the box")
+	assert_eq(_animation_after(kid, state), "idle", "tagged kids stand on the sidewalk")
 
 
 func test_a_knockout_falls_then_lies() -> void:
@@ -205,7 +205,7 @@ func test_the_model_gets_the_matte_look_and_a_tint() -> void:
 	assert_almost_eq(material.albedo_color.r, ModelLook.ALBEDO_GAIN, 0.001, "untinted")
 	state.tagged = true
 	kid.animate(0.05, 0.0, state)
-	assert_lt(material.albedo_color.r, ModelLook.ALBEDO_GAIN * 0.6, "greyed out in the box")
+	assert_lt(material.albedo_color.r, ModelLook.ALBEDO_GAIN * 0.6, "greyed out on the sidewalk")
 
 
 func test_the_run_cycle_follows_the_ground_speed() -> void:

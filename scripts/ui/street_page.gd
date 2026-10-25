@@ -56,7 +56,7 @@ static func mechanics_for(id: StringName, rules: GameRules) -> Array[String]:
 		"Tap the street to walk there. Drag a card onto the street to throw it, drop it back on your hand to cancel.",
 		"You hold four cards. Each costs ice water, which refills over time.",
 		"Run too long and you can only walk until your stamina is full again.",
-		UiText.f("Tagged kids wait in their box. A teammate who stays beside it for %d s frees the one tagged first.", [ceili(rules.rescue_hold_time)]),
+		UiText.f("Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d s frees the one tagged first.", [ceili(rules.rescue_hold_time)]),
 		UiText.f("Stay in their base to capture it: %d s alone, faster with teammates. Nobody can throw while capturing.", [ceili(rules.capture_solo_time)]),
 		UiText.f("Or tag all of them and hold it for %d s.", [ceili(rules.capture_time)]),
 	] as Array[String]
