@@ -22,6 +22,8 @@ const MIN_TRANSLATED: int = 30
 
 const SAVE_PATH: String = "user://settings.cfg"
 const PROJECT_KEY: String = "kalyeah/network/server_url"
+## Build-wide kill switch: while true the master bus is muted whatever the volume slider says (sounds still "play" silently, so tests and events are unchanged). Set to false to bring sound back.
+const SOUND_OFF: bool = true
 
 var server_url: String = ""
 ## Master volume 0..1 and whether button presses buzz the phone (owner-facing settings screen).
@@ -120,7 +122,7 @@ static func is_local_address(address: String) -> bool:
 func apply_volume() -> void:
 	var bus: int = AudioServer.get_bus_index("Master")
 	AudioServer.set_bus_volume_db(bus, linear_to_db(maxf(volume, 0.0001)))
-	AudioServer.set_bus_mute(bus, volume <= 0.001)
+	AudioServer.set_bus_mute(bus, SOUND_OFF or volume <= 0.001)
 
 
 func set_volume(value: float) -> void:
