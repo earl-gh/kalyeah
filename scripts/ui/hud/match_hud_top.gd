@@ -3,6 +3,8 @@ extends RefCounted
 
 ## Empty space round the gear's art inside its button, as a share of the art's size on each side (0.3: the art is about 0.62 of the button).
 const GEAR_PADDING: float = 0.3
+## The owner's settings gear for the match (cropped to its visible art).
+const GEAR: Texture2D = preload("res://assets/ui/match_gear.webp")
 
 
 static func build(hud: MatchHud) -> void:
@@ -15,8 +17,10 @@ static func build(hud: MatchHud) -> void:
 	hud.add_child(hud.top)
 	# left: the settings button (the whole street is always on screen: no minimap)
 	hud.settings_button = TextureButton.new()
-	# the home screen's gear, drawn smaller than its button (the thumb target stays the full size)
-	var gear: AtlasTexture = UiTabBar.picture(&"settings") as AtlasTexture
+	# the owner's gear, drawn smaller than its button (the thumb target stays the full size)
+	var gear: AtlasTexture = AtlasTexture.new()
+	gear.atlas = GEAR
+	gear.region = Rect2(Vector2.ZERO, GEAR.get_size())
 	var pad: Vector2 = gear.region.size * GEAR_PADDING
 	gear.margin = Rect2(pad, pad * 2.0)
 	hud.settings_button.texture_normal = gear
