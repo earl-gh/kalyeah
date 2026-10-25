@@ -67,6 +67,7 @@ func test_every_3d_model_is_matte() -> void:
 				assert_eq(material.metallic, 0.0, "%s is not metal" % id)
 				assert_false(material.normal_enabled, "%s has no normal map" % id)
 				assert_false(material.emission_enabled, "%s glows by nothing" % id)
+				assert_eq(material.texture_filter, BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC, "%s keeps its textures sharp at an angle" % id)
 		assert_gt(seen, 0, "%s has surfaces" % id)
 
 
@@ -101,3 +102,10 @@ func test_the_ground_outside_the_play_area_is_slightly_darker_than_the_play_area
 	var size: Vector2 = (inside.mesh as PlaneMesh).size
 	assert_almost_eq(size.x, map.layout.lane_width, 0.001, "the play area patch is exactly the play area")
 	assert_almost_eq(size.y, map.layout.lane_length, 0.001, "end to end")
+
+
+func test_the_pole_meshes_are_not_simplified_when_small_on_screen() -> void:
+	for id: String in ["post_blue", "post_red"]:
+		var config: ConfigFile = ConfigFile.new()
+		assert_eq(config.load("res://assets/models/props/%s.glb.import" % id), OK)
+		assert_false(config.get_value("params", "meshes/generate_lods", true), "%s keeps its full mesh" % id)

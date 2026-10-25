@@ -27,6 +27,7 @@ static func apply(root: Node) -> Array[StandardMaterial3D]:
 			material.metallic = 0.0
 			material.roughness = 1.0
 			material.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+			material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 			material.normal_enabled = false
 			material.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
 			material.rim_enabled = true
