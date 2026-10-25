@@ -95,6 +95,8 @@ const POST_HEIGHT: float = 8.5
 ## crossarm, a transformer and a router box): blue for the viewer's own base, red for the other. The pole's foot is the model's origin and
 ## its front (the flyers and the router label) looks toward +Z, where the camera stands, so the post turns half way round when the view flips.
 const POST_BLUE: String = "post_blue"
+## The blue post stands with its back to the camera (owner): turned half way round from the red one, whose front (flyers, router label) faces the camera.
+const BLUE_POST_TURN: float = PI
 const POST_RED: String = "post_red"
 ## The barrier rows across both ends: every street thing at its real height (m), in proportion to
 ## the kids (who stand 1.85 m, so a real thing is about 1.4 times its true size), side by side
@@ -650,6 +652,7 @@ func _add_post(center: Vector2) -> Node3D:
 		var model: Node3D = PropModel.by_height(id, post_height())
 		model.name = id
 		ModelLook.use_baked_shading(model)
+		model.rotation.y = BLUE_POST_TURN if id == POST_BLUE else 0.0
 		post.add_child(model)
 	_dress_post(post, true, false)
 	_add_prop(post, Vector3(center.x, 0.0, center.y))

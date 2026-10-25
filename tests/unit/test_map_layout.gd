@@ -211,6 +211,8 @@ func test_the_base_posts_are_the_owners_models_blue_for_you_and_red_for_them_fac
 			var model: Node3D = post.get_node(id) as Node3D
 			assert_almost_eq(PropModel.size_of(id).y * model.scale.y, map.post_height(), 0.01, "%s is as tall as the post height in the data" % id)
 		assert_almost_eq(post.rotation.y, 0.0, 0.001, "its front (the flyers) faces the camera at the +Z end")
+		assert_almost_eq((post.get_node(StreetMap.POST_BLUE) as Node3D).rotation.y, StreetMap.BLUE_POST_TURN, 0.001, "the blue pole has its back to the camera")
+		assert_almost_eq((post.get_node(StreetMap.POST_RED) as Node3D).rotation.y, 0.0, 0.001, "the red pole's front faces the camera")
 	assert_eq(Vector2(own.position.x, own.position.z), LAYOUT.base_center(MapLayout.SIDE_OWN), "at the base's centre")
 	map.set_own_side(MapLayout.SIDE_ENEMY)
 	assert_true((enemy.get_node(StreetMap.POST_BLUE) as Node3D).visible, "the other team sees their own post blue")
