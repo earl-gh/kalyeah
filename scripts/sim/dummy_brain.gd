@@ -2,7 +2,7 @@ class_name DummyBrain
 extends RefCounted
 ## Training-dummy behaviour for practice mode. Produces a PlayerInput each tick;
 ## dummies never use skills. Pure data in, input out, so it stays deterministic.
-## The practice ally is a RESCUER: it runs to its team's box when a teammate is
+## The practice ally is a RESCUER: it runs to its team's rescue area when a teammate is
 ## tagged, then walks back to where it stood.
 
 enum Mode { STAND, PATROL, RESCUER }
@@ -58,7 +58,7 @@ func _rescue(state: PlayerState, sim: MatchSim) -> PlayerInput:
 	for id: int in sim.players:
 		var other: PlayerState = sim.players[id]
 		if other.team == state.team and other.tagged:
-			target = sim.layout.jail_rect(sim.side_for_team(state.team)).get_center()
+			target = sim.layout.rescue_rect(sim.side_for_team(state.team)).get_center()
 			break
 	var offset: Vector2 = target - state.position
 	if offset.length() <= HOME_TOLERANCE:

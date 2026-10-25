@@ -31,7 +31,7 @@ const PERCENT_HEIGHT: float = 64.0
 ## One tip is shown per launch.
 const TIPS: Array[String] = [
 	"Lure the other team away from their post, then rush in and hold it.",
-	"Tagged kids wait in the box. A teammate who stays five seconds frees them.",
+	"Tagged kids wait on the sidewalk. A teammate in the rescue area frees them.",
 	"Drag a card onto the street, then let go to throw it.",
 	"Block a throw with a paper shield, or play it safe behind cover.",
 	"Practice is the safest place to try every weapon.",

@@ -3,7 +3,7 @@ extends RefCounted
 ## Tagging, rescue, capture scoring, and between-point round reset rules.
 
 
-## Off to the box of the player's team (own: top-left, enemy: bottom-right).
+## Off to the sidewalk beside the player's team's rescue area (own: top-left, enemy: bottom-right).
 func tag(sim: MatchSim, state: PlayerState) -> void:
 	var waiting: int = 0
 	for id: int in sim.players:
@@ -15,13 +15,12 @@ func tag(sim: MatchSim, state: PlayerState) -> void:
 	sim.tag_counter += 1
 	state.tag_order = sim.tag_counter
 	clear_actions(state)
-	state.position = sim.layout.jail_slot(sim.side_for_team(state.team), waiting)
-	# the tagged kid in the box looks toward the enemy's post, where the other team is holding it (owner)
-	state.facing = (sim.layout.base_center(-sim.side_for_team(state.team)) - state.position).normalized()
+	state.position = sim.layout.tagged_place(sim.side_for_team(state.team), waiting)
+	state.facing = sim.layout.tagged_facing(sim.side_for_team(state.team))
 	sim.player_tagged.emit(state.id)
 
 
-## A tagged teammate waits in the box (the rescue area is only a rescue area while someone needs rescuing).
+## A tagged teammate waits on the sidewalk (the rescue area is only a rescue area while someone needs rescuing).
 func teammate_waiting(sim: MatchSim, team: int) -> bool:
 	for id: int in sim.players:
 		if sim.players[id].team == team and sim.players[id].tagged:
@@ -29,7 +28,7 @@ func teammate_waiting(sim: MatchSim, team: int) -> bool:
 	return false
 
 
-## `state` stands in the rescue area round its own team's box (or the box).
+## `state` stands in its own team's rescue area.
 func in_rescue_area(sim: MatchSim, state: PlayerState) -> bool:
 	return sim.layout.rescue_rect(sim.side_for_team(state.team)).grow(state.radius).has_point(state.position)
 
@@ -118,7 +117,7 @@ func team_in_enemy_base(sim: MatchSim, team: int, brains: Dictionary[int, DummyB
 	return true
 
 
-## Every player of the other team waiting in a box (a team of training dummies
+## Every player of the other team waiting on the sidewalk (a team of training dummies
 ## never scores this way).
 func all_enemies_tagged(sim: MatchSim, team: int, brains: Dictionary[int, DummyBrain]) -> bool:
 	var members: Array[PlayerState] = _capture_members(sim, 1 - team, brains)
@@ -226,7 +225,7 @@ func _clear_capture(sim: MatchSim) -> void:
 	sim.capture_elapsed = 0.0
 
 
-## Everyone back to their post at full HP, out of the boxes, cooldowns and effects
+## Everyone back to their post at full HP, back from the sidewalk, cooldowns and effects
 ## cleared; weapon objects are removed.
 func _reset_round(sim: MatchSim) -> void:
 	sim.weapons.reset()

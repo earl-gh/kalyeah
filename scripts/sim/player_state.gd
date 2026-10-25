@@ -9,10 +9,10 @@ var position: Vector2 = Vector2.ZERO
 ## Last non-zero move direction.
 var facing: Vector2 = Vector2.ZERO
 var hp: int = 0
-## At 0 HP a player is tagged: they wait in their team's box until a teammate
+## At 0 HP a player is tagged: they wait on the sidewalk until a teammate
 ## steps in to rescue them (hp stays 0 meanwhile).
 var tagged: bool = false
-## Seconds spent in the box this time.
+## Seconds spent tagged this time.
 var tag_time: float = 0.0
 var radius: float = 0.0
 ## Where this player starts, and comes back to after a rescue (next to the post).

@@ -161,7 +161,7 @@ func test_practice_has_one_sparring_partner_by_default() -> void:
 	var practice: PracticeMatch = _practice(1)
 	assert_true(practice.sim.is_fighter(PracticeMatch.ENEMY_PATROL_ID))
 	assert_false(practice.sim.is_fighter(PracticeMatch.ENEMY_STAND_ID))
-	assert_false(practice.sim.is_fighter(PracticeMatch.ENEMY_BOX_ID))
+	assert_false(practice.sim.is_fighter(PracticeMatch.ENEMY_RESCUE_ID))
 	assert_false(practice.sim.is_fighter(PracticeMatch.ALLY_ID), "the ally stays a rescuer")
 	var arms: PlayerState = practice.sim.players[PracticeMatch.ENEMY_PATROL_ID]
 	assert_eq(arms.weapons.size(), 2, "it is armed")

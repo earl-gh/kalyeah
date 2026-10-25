@@ -176,7 +176,7 @@ func test_the_capture_runs_once_the_defender_is_tagged() -> void:
 	_wait(sim, 2.0)
 	sim.kill(20)
 	_wait(sim, _base_time(2) + 0.5)
-	assert_eq(_scored, [0] as Array[int], "a tagged kid is in the box, not in the base")
+	assert_eq(_scored, [0] as Array[int], "a tagged kid is on the sidewalk, not in the base")
 
 
 func test_the_capture_runs_once_the_defender_walks_out() -> void:
