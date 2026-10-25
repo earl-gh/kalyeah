@@ -7,6 +7,7 @@ Don't:
 - rebuild a material in code without copying all its settings
 - claim a visual you haven't seen; say what was unchecked
 - generate assets (owner makes them)
+- use `ui_cancel` for Android Back (it is Esc): handle `NOTIFICATION_WM_GO_BACK_REQUEST`, deferred
 Do:
 - `md5sum` copied files; remove temp files you made; `git push -u`
 - ask delete permission before removing lock/temp files

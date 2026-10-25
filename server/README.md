@@ -18,14 +18,14 @@ godot --headless -- --server            # port 8080
 PORT=9000 godot --headless -- --server  # another port
 ```
 
-The game has no server field: it uses the built-in address (below). To try a
-server on your computer, open the game with `?server=ws://localhost:8080` in the link
-(or the `kalyeah/network/server_url` project setting for a local build).
+The game has no server field: it uses the address the APK was built with (below,
+the `kalyeah/network/server_url` project setting).
 
 ## Deploy for free (from a phone works too)
 
-The web build is served over **https**, so it can only talk to a **wss://**
-server. Both hosts below give you https/wss automatically.
+Online play should use a **wss://** (TLS) server. Both hosts below give you https/wss
+automatically. (Hotspot rooms are the exception: the host's phone is the server and
+friends reach it with a plain `ws://` address on the local network.)
 
 ### Render (easiest, all in the browser)
 
@@ -48,13 +48,9 @@ Address: `wss://<app-name>.fly.dev`.
 
 ## Tell the game where the server is
 
-Use any one of these:
-
-- **In the link:** `https://earl-gh.github.io/kalyeah/?server=wss://kalyeah-xxxx.onrender.com`
-- **For everyone (recommended once deployed):** GitHub → Settings → Secrets and
-  variables → Actions → **Variables** → New variable `KALYEAH_SERVER_URL` =
-  `wss://kalyeah-xxxx.onrender.com`. The next deploy of the web build uses it
-  by default.
+GitHub → Settings → Secrets and variables → Actions → **Variables** → New variable
+`KALYEAH_SERVER_URL` = `wss://kalyeah-xxxx.onrender.com`. The next `Android APK` build
+stamps it into the app.
 
 ## How it works (for developers)
 

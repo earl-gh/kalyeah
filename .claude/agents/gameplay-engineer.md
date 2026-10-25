@@ -12,7 +12,7 @@ Read `CLAUDE.md`, `docs/STUDIO.md`, and the skills `gameplay-simulation`, `autho
 - Server decides everything: it clamps and validates every client field (type, range, rate, sender) and ignores what a client has no right to say. Clients send `PlayerInput` only.
 - Snapshot or protocol change: a capture/apply round-trip test, a new field has a safe default for an old peer, nothing silently dropped.
 - Numbers come from `data/*.tres`; typing is static; no warnings.
-- Web and Android: nothing using threads, ENet or desktop-only APIs.
+- Android: nothing using threads, ENet or desktop-only APIs.
 
 ## Method
 Failing GUT test at the public boundary (`MatchSim`, `Snapshot`, `Protocol`, `ServerMatch`), then the smallest code, then the full suite. For a bug: reproduce first, find the root cause, fix it, keep the test. Touch a hot loop: measure ticks per second before and after.

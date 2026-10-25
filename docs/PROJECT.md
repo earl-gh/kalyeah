@@ -4,7 +4,7 @@
 
 ## 1. Abstract
 
-Kalyeah is a stylised 3D multiplayer action game built in Godot 4 for Android, with optional browser play, themed around classic Filipino street games. Instead of heroes and levels, every player shares the same fixed health and equips two weapons from an arsenal of street-game items: bato-bato-pik, tumbang preso tsinelas and lata, jackstones, and trumpo, each reimagined as an attack, crowd-control or block skill. Each player chooses one of six Filipino kids in everyday Pinoy outfits. The core match is **Agawan Base**, played 1v1, 2v2 or 3v3 on a Filipino barangay street. A player brought to 0 HP is tagged and waits in a taped box until a teammate rescues them; a team scores by holding the enemy's electric-post base together or by tagging the whole other team. With no accounts, ranks or leveling, every match is quick to join and decided by skill.
+Kalyeah is a stylised 3D multiplayer action game built in Godot 4 for Android, themed around classic Filipino street games. Instead of heroes and levels, every player shares the same fixed health and equips two weapons from an arsenal of street-game items: bato-bato-pik, tumbang preso tsinelas and lata, jackstones, and trumpo, each reimagined as an attack, crowd-control or block skill. Each player chooses one of six Filipino kids in everyday Pinoy outfits. The core match is **Agawan Base**, played 1v1, 2v2 or 3v3 on a Filipino barangay street. A player brought to 0 HP is tagged and waits in a taped box until a teammate rescues them; a team scores by holding the enemy's electric-post base together or by tagging the whole other team. With no accounts, ranks or leveling, every match is quick to join and decided by skill.
 
 ## 2. Hardware and Software Requirements (for playing)
 
@@ -23,19 +23,6 @@ Kalyeah is a stylised 3D multiplayer action game built in Godot 4 for Android, w
 | Software | Kalyeah APK installed (no Google account or sign-in needed) | — |
 
 Practice mode works offline; online rooms need an internet connection.
-
-### 2.2 Web browser (optional)
-
-Players without the app can join the same rooms from a browser.
-
-| Item | Minimum |
-|---|---|
-| Android browser | Chrome 110+ on Android 8.0+, same phone specs as above |
-| Other devices (optional) | Safari 16.4+ on iOS/iPadOS, or a desktop browser (Chrome, Edge, Firefox, Safari) with WebGL 2 |
-| Graphics | WebGL 2.0 enabled |
-| Memory | 3 GB RAM on mobile, 4 GB on desktop |
-| Network | Same as the Android app; first load downloads about 40–50 MB |
-| Input | Touch on mobile, keyboard + mouse on desktop |
 
 ## 3. Product Features
 
@@ -71,7 +58,7 @@ All six are written with respect: identity is shown through the clothes and styl
 - **No basic attack:** players only use the skills and weapons they picked.
 - **Default skills for all:**
   - (Removed by the owner: Takbo (dash) and Bookmark/pin. Players use only their two weapons.)
-- MOBA-style aiming (drag-to-aim on mobile, mouse on desktop) with range indicators.
+- MOBA-style aiming (drag a card onto the street) with range indicators.
 
 ### 3.4 Arsenal (12 weapons, 3 types: Attack, Crowd Control, Block)
 
@@ -101,12 +88,12 @@ Every weapon has a type icon. All values (damage, cooldowns, ranges) are data-dr
 - None (the guava and the tricycle were removed by the owner).
 
 ### 3.7 Platforms and delivery
-- **Android app** is the main release (APK). The **browser version is optional**, built from the same code and hosted on GitHub Pages; app and browser players can play in the same rooms.
-- **Offline practice mode** (vs. training dummies) so builds can be tested on a phone without a server.
-- **One live web link** (GitHub Pages, rebuilt on every merge to `main`) for testing from an iPhone.
+- **Android app** is the only client (APK). There is no web or desktop build; the headless Linux **Server** export is the only other build.
+- **Offline practice mode** (vs. training dummies and bots) so builds can be tested on a phone without a server.
+- **Debug APK** from the `Android APK` workflow (every push to `main`, or run on demand) for testing; signed release in M6.
 
 ### 3.8 Visual style and orientation
-- **Portrait (vertical) only, by design.** Kalyeah is a one-hand-friendly vertical MOBA: the phone is held upright, the lane runs up the screen, your base is at the bottom and the enemy base at the top. Android is locked to portrait; the web build shows a "rotate your phone" prompt if held in landscape.
+- **Portrait (vertical) only, by design.** Kalyeah is a one-hand-friendly vertical MOBA: the phone is held upright, the lane runs up the screen, your base is at the bottom and the enemy base at the top. Android is locked to portrait.
 - **Vertical UI layout:** the movement stick at the bottom left; the two weapon buttons (art only, ATK / CC / BLK tag) sit at the bottom right with drag-to-aim and a cancel zone; the minimap and settings at the top left, the score (best of 3 / 5 / 7) at the top right; the TAGGED!/RESCUED! feed and the weapon pick screen are designed for a tall screen. Over each hero: a health bar and an italic status line above it (no names). Keep the centre of the screen clear for gameplay.
 - **Camera: orthographic (owner, replaces the old League of Legends perspective numbers).** The gameplay camera is a fixed orthographic camera tilted 45° (see `docs/GDD.md` "Vertical layout"). The older text below about a 56° pitch, a 30° lens and a visible lane width is superseded. Its distance is chosen so about 13 m of the lane width is visible on a phone (see `docs/ROADMAP.md`). The lane minimap shows the rest; rules and numbers are unchanged (see `docs/GDD.md`).
 - **Style target: Clash of Clans design language, stylised 3D, Filipino street theme.** Chunky, toy-like proportions; soft rounded shapes with bevels and painted-looking textures; bright, saturated, high-contrast colours; soft shadows; thick readable silhouettes; bouncy, exaggerated animation; big rounded buttons and painted icons. Everything must read clearly from the camera on a small phone screen.
