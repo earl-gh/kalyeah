@@ -11,7 +11,6 @@ const REAL_KID: float = 1.3
 const CHUNK: float = 1.3
 ## Real heights in metres (height of what you see; the basketball pole is its length lying down; the drainage cover its width).
 const REAL_HEIGHT: Dictionary[String, float] = {
-	"electric_pole": 9.0,
 	"ice_cream_cart": 2.1, "tricycle": 1.7, "ebike": 1.15,
 	"truck_wheels": 1.2, "bench": 0.9, "crates": 0.9, "sacks": 0.9, "no_id_no_entry": 1.5,
 	"rooster_tent": 1.3, "plank_fence": 1.5, "roof_wall": 2.4, "roof_wall_2": 2.4,
@@ -27,7 +26,6 @@ const BUILDING_WIDTH_TOLERANCE: float = 0.2
 const REAL_BUILDING_HEIGHT: Vector2 = Vector2(3.5, 7.0)
 ## Things drawn on purpose off the true proportion, and why (the audit and the test accept the listed range instead of the general one).
 const EXCEPTIONS: Dictionary[String, Vector2] = {
-	"electric_pole": Vector2(0.5, 1.3),  # kept lower than true: a pole at true scale would hide a column of the street behind it
 	"cardboard_wall": Vector2(0.65, 1.3),  # cover: its footprint is a gameplay rectangle, its height is chosen to read as cover and not to hide the street
 }
 

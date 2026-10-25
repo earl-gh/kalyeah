@@ -92,6 +92,12 @@ const OBSTACLE_MODELS: Dictionary[StringName, String] = {
 }
 const COVER_HEIGHT: float = 1.15
 const POST_HEIGHT: float = 8.5
+## The base posts are the owner's pictures (assets/textures/posts/, unedited): blue for the viewer's own base, red for the other. Each is
+## drawn standing up and always facing the camera. The part rects are the visible art as shares of its file.
+const POST_BLUE: Texture2D = preload("res://assets/textures/posts/post_blue.webp")
+const POST_RED: Texture2D = preload("res://assets/textures/posts/post_red.webp")
+const POST_BLUE_PART: Rect2 = Rect2(0.28376, 0.00964, 0.4673, 0.98071)
+const POST_RED_PART: Rect2 = Rect2(0.2711, 0.00964, 0.45464, 0.96805)
 ## The barrier rows across both ends: every street thing at its real height (m), in proportion to
 ## the kids (who stand 1.85 m, so a real thing is about 1.4 times its true size), side by side
 ## in this order (the far end starts half way along, so the two rows differ).
@@ -220,14 +226,11 @@ func set_own_side(own_side: int) -> void:
 			material.albedo_color = color
 
 
-## The post's front (the side with the flyers, the model's +Z): the enemy post faces the middle
-## of the play area; your own (blue) post is turned the other way round (owner), so from your
-## end you see its flyers too.
+## Each base's post shows the viewer's colours: the owner's blue picture for your own base, the red one for theirs (they swap when the teams
+## switch ends).
 func _turn_posts(own_side: int) -> void:
 	for side: int in _posts:
-		var center: Vector2 = layout.base_center(side)
-		var inward: float = atan2(-center.x, -center.y)
-		_posts[side].rotation.y = inward + (PI if side == own_side else 0.0)
+		_dress_post(_posts[side] as Sprite3D, side == own_side)
 
 
 ## The team colour of base `side` as the viewer sees it: blue for yours, red for theirs.
@@ -288,8 +291,7 @@ func _build_map() -> void:
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var color: Color = OWN_COLOR if side == MapLayout.SIDE_OWN else ENEMY_COLOR
 		var center: Vector2 = layout.base_center(side)
-		var post: Node3D = _add_prop(PropModel.by_height("electric_pole", post_height()), Vector3(center.x, 0.0, center.y))
-		_posts[side] = post
+		_posts[side] = _add_post(center)
 		var base: Array[StandardMaterial3D] = _add_base_zone(side, color)
 		var rescue: Array[StandardMaterial3D] = _add_rescue_area(side, color)
 		_base_materials[side] = [base[0], base[1], rescue[0], rescue[1]]
@@ -304,7 +306,7 @@ func _build_map() -> void:
 func _add_corner_props() -> void:
 	# only the far half of the street is modelled: the enemy post (top right)
 	var center: Vector2 = layout.base_center(MapLayout.SIDE_ENEMY)
-	_posts[MapLayout.SIDE_ENEMY] = _add_prop(PropModel.by_height("electric_pole", post_height()), Vector3(center.x, 0.0, center.y))
+	_posts[MapLayout.SIDE_ENEMY] = _add_post(center)
 	_turn_posts(MapLayout.SIDE_OWN)
 
 
@@ -668,6 +670,39 @@ func _add(mesh: Mesh, at: Vector3, yaw: float = 0.0) -> MeshInstance3D:
 	instance.rotation.y = yaw
 	_geometry.add_child(instance)
 	return instance
+
+
+## The owner's picture of a post, standing on the ground at `center` (x, z), `post_height()` tall and always facing the camera.
+func _add_post(center: Vector2) -> Sprite3D:
+	var sprite: Sprite3D = Sprite3D.new()
+	sprite.name = "Post"
+	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.shaded = false
+	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	sprite.centered = false
+	_dress_post(sprite, true)
+	_add_prop(sprite, Vector3(center.x, 0.0, center.y))
+	return sprite
+
+
+## Shows the blue (`own`) or red picture on a post, `post_height()` tall with its foot on the ground point and the picture standing up from it.
+func _dress_post(sprite: Sprite3D, own: bool) -> void:
+	sprite.texture = post_picture(own)
+	var picture: Vector2 = sprite.texture.get_size()
+	sprite.pixel_size = post_height() / picture.y
+	sprite.offset = Vector2(-picture.x / 2.0, 0.0)
+
+
+## The post's picture for `own` (blue) or the other team (red).
+static func post_picture(own: bool) -> AtlasTexture:
+	var atlas: AtlasTexture = AtlasTexture.new()
+	atlas.atlas = POST_BLUE if own else POST_RED
+	var part: Rect2 = POST_BLUE_PART if own else POST_RED_PART
+	var size: Vector2 = atlas.atlas.get_size()
+	atlas.region = Rect2(part.position * size, part.size * size)
+	atlas.filter_clip = true
+	return atlas
 
 
 func _add_prop(model: Node3D, at: Vector3, yaw: float = 0.0) -> Node3D:

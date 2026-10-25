@@ -138,3 +138,4 @@ Use one readable type scale; the owner removed in-game text-size modes. Wrap or 
 - Buttons: a 12 px lip and a brighter lit top edge; the label's room is unchanged (33 px with a lip, 27 disabled) so no layout moves; pressed sinks the face. Panels: a stronger lit edge (0.4).
 - Kid screen: the kid stands on an oval stage (floor shadow, dark floor, lit rim) with its name at 56 px under it.
 - Briefs for the owner's assets that replace these stand-ins: `docs/art-briefs/README.md`.
+- **Base posts (owner's pictures):** `assets/textures/posts/post_blue.webp` (the viewer's own base) and `post_red.webp` (the other), unedited, shown by `StreetMap._add_post` as upright sprites that always face the camera (`Sprite3D`, full billboard, unshaded), `post_height` (14 m) tall with their foot on the base's centre. They swap when the teams switch ends. The `electric_pole` 3D model and its files were deleted.

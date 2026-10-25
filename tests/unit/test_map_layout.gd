@@ -226,7 +226,7 @@ func test_props_stay_low_poly() -> void:
 
 
 func test_the_model_props_are_light_and_standing_on_the_ground() -> void:
-	var limits: Dictionary = {"electric_pole": 3200, "cardboard_wall": 4200, "bench": 4200, "rooster_tent": 4200,
+	var limits: Dictionary = {"cardboard_wall": 4200, "bench": 4200, "rooster_tent": 4200,
 		"basketball_pole": 3700, "truck_wheels": 4200, "crates": 4200,
 		"sacks": 4200, "no_id_no_entry": 4200, "ebike": 4700, "tricycle": 5200,
 		"ice_cream_cart": 5200, "nanay": 6200,
@@ -255,25 +255,22 @@ func test_cover_models_fill_their_footprint_and_stay_about_a_metre_high() -> voi
 		assert_gt(box.size.y * model.scale.y, 0.5, "%s is tall enough to hide behind" % id)
 
 
-func _post_front(map: StreetMap, side: int) -> float:
-	var center: Vector2 = LAYOUT.base_center(side)
-	for child: Node in map.get_node("%Geometry").get_children():
-		var node: Node3D = child as Node3D
-		if node != null and node.scene_file_path.ends_with("electric_pole.glb") and Vector2(node.position.x, node.position.z).is_equal_approx(center):
-			var front: Vector3 = node.global_basis.z.normalized()
-			return front.dot(Vector3(-center.x, 0.0, -center.y).normalized())
-	fail_test("no post at base %d" % side)
-	return 0.0
-
-
-func test_the_enemy_post_faces_the_middle_and_your_own_is_turned_round() -> void:
+func test_the_base_posts_are_the_owners_pictures_blue_for_you_and_red_for_them_standing_up_and_facing_the_camera() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
-	assert_gt(_post_front(map, MapLayout.SIDE_ENEMY), 0.99, "their flyers face the play area")
-	assert_lt(_post_front(map, MapLayout.SIDE_OWN), -0.99, "your (blue) post is turned 180 degrees")
+	var own: Sprite3D = map._posts[MapLayout.SIDE_OWN] as Sprite3D
+	var enemy: Sprite3D = map._posts[MapLayout.SIDE_ENEMY] as Sprite3D
+	assert_eq((own.texture as AtlasTexture).atlas, StreetMap.POST_BLUE, "your post is the blue picture")
+	assert_eq((enemy.texture as AtlasTexture).atlas, StreetMap.POST_RED, "theirs the red one")
+	for post: Sprite3D in [own, enemy]:
+		assert_eq(post.billboard, BaseMaterial3D.BILLBOARD_ENABLED, "it always faces the camera")
+		assert_almost_eq(post.texture.get_size().y * post.pixel_size, map.post_height(), 0.01, "as tall as the post height in the data")
+		assert_almost_eq(post.position.y, 0.0, 0.001, "its foot on the ground")
+	assert_eq(Vector2(own.position.x, own.position.z), LAYOUT.base_center(MapLayout.SIDE_OWN), "at the base's centre")
 	map.set_own_side(MapLayout.SIDE_ENEMY)
-	assert_lt(_post_front(map, MapLayout.SIDE_ENEMY), -0.99, "the other team: their own post is the turned one")
-	assert_gt(_post_front(map, MapLayout.SIDE_OWN), 0.99)
+	assert_eq((enemy.texture as AtlasTexture).atlas, StreetMap.POST_BLUE, "the other team sees their own post blue")
+	assert_eq((own.texture as AtlasTexture).atlas, StreetMap.POST_RED)
+	assert_false(FileAccess.file_exists("res://assets/models/props/electric_pole.glb"), "the electric pole model is replaced (owner)")
 
 
 func test_the_end_rows_mix_every_street_thing_and_stay_out_of_the_play_area() -> void:
