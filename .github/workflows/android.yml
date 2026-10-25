@@ -1,26 +1,39 @@
 name: Android APK
-# Manual: Actions -> "Android APK" -> Run workflow. Builds a debug APK from the chosen
-# branch and attaches it to the run as the `kalyeah-debug-apk` artifact.
+# The quality gate and the only CI. On every push to main, and on demand (Actions -> "Android APK" -> Run workflow, pick a branch):
+#   import -> full GUT suite (any failure stops the build) -> debug APK -> APK inspection -> artifact `kalyeah-debug-apk`.
+# A manual run also installs the same build on an emulator and plays it for 30 s (the `smoke` job).
+# The APK is the only way the game is tested: install `kalyeah-debug-apk` from the run on main (or from the branch you started).
+# Release signing is not here yet (docs/ROADMAP.md M6): no keystore or password is ever committed.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-  android-debug-apk:
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       ANDROID_BUILD_TOOLS: "35.0.1"
       ANDROID_PLATFORM: "android-35"
     steps:
       - uses: actions/checkout@v4
-      - name: Read Godot version
+      - name: Read versions
         id: gv
-        run: echo "version=$(cat .godot-version)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "godot=$(cat .godot-version)" >> "$GITHUB_OUTPUT"
+          echo "app=$(cat version.txt)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
       - uses: chickensoft-games/setup-godot@v2
         with:
-          version: ${{ steps.gv.outputs.version }}
+          version: ${{ steps.gv.outputs.godot }}
           use-dotnet: false
           include-templates: true
       - name: Install Android SDK packages
@@ -28,12 +41,20 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
             "platform-tools" "build-tools;${ANDROID_BUILD_TOOLS}" "platforms;${ANDROID_PLATFORM}"
-      - name: Generate debug keystore
+      - name: Debug keystore
+        env:
+          # Optional repository secret: a base64 debug keystore (alias androiddebugkey, password android) so every build is signed
+          # alike and installs over the last one. Without it a throw-away key is made and the old app must be removed first.
+          KEYSTORE_B64: ${{ secrets.KALYEAH_DEBUG_KEYSTORE_B64 }}
         run: |
-          keytool -genkeypair -v -keystore "$RUNNER_TEMP/debug.keystore" \
-            -alias androiddebugkey -storepass android -keypass android \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/debug.keystore"
+          else
+            keytool -genkeypair -keystore "$RUNNER_TEMP/debug.keystore" \
+              -alias androiddebugkey -storepass android -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
       - name: Point Godot at the Android SDK and JDK
         run: |
           mkdir -p ~/.config/godot
@@ -46,7 +67,24 @@ jobs:
           EOS
       - name: Import project
         run: godot --headless --import
-      - name: Export debug APK
+      - name: Unit and integration tests (GUT)
+        run: |
+          set -o pipefail
+          godot --headless -s addons/gut/gut_cmdln.gd -gexit 2>&1 | tee gut.log
+          if grep -aq "Failing Tests" gut.log; then echo "::error::GUT has failing tests"; exit 1; fi
+          grep -aE "^(Scripts|Tests|Passing Tests|Risky/Pending)" gut.log
+      - name: Stamp version, build number and server address
+        env:
+          # Optional repository variable (Settings -> Secrets and variables -> Actions -> Variables): the deployed game server,
+          # e.g. wss://kalyeah.onrender.com (server/README.md). Without it Online says the server is not set up.
+          SERVER_URL: ${{ vars.KALYEAH_SERVER_URL || vars.BAYABAS_SERVER_URL }}
+        run: |
+          sed -i "s|^config/version=.*|config/version=\"${{ steps.gv.outputs.app }}+${GITHUB_SHA::7}\"|" project.godot
+          sed -i "s|^version/name=.*|version/name=\"${{ steps.gv.outputs.app }}\"|; s|^version/code=.*|version/code=${GITHUB_RUN_NUMBER}|" export_presets.cfg
+          if [ -n "$SERVER_URL" ]; then
+            sed -i "s|^network/server_url=.*|network/server_url=\"$SERVER_URL\"|" project.godot
+          fi
+      - name: Export debug APK (arm64)
         env:
           GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ runner.temp }}/debug.keystore
           GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
@@ -55,8 +93,61 @@ jobs:
           mkdir -p build/android
           godot --headless --export-debug "Android" build/android/kalyeah-debug.apk
           test -f build/android/kalyeah-debug.apk
+      - name: Inspect the APK
+        run: bash .github/scripts/inspect-apk.sh build/android/kalyeah-debug.apk "${{ steps.gv.outputs.app }}"
       - uses: actions/upload-artifact@v4
         with:
           name: kalyeah-debug-apk
           path: build/android/kalyeah-debug.apk
           if-no-files-found: error
+      # The emulator on a hosted runner is x86_64, so a manual run builds the same project once more for that CPU.
+      - name: Export the same build for the emulator (x86_64)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ runner.temp }}/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        run: |
+          sed -i "s|^architectures/arm64-v8a=.*|architectures/arm64-v8a=false|; s|^architectures/x86_64=.*|architectures/x86_64=true|" export_presets.cfg
+          godot --headless --export-debug "Android" build/android/kalyeah-emulator.apk
+          test -f build/android/kalyeah-emulator.apk
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: kalyeah-emulator-apk
+          path: build/android/kalyeah-emulator.apk
+          if-no-files-found: error
+
+  # Manual runs only: a hosted emulator draws with software GL and can be slow, so this does not hold up main until it has proved
+  # steady. It installs the build, starts it, lets it run 30 s, sends Back and Home, and fails on a dead process, a SCRIPT ERROR or a
+  # fatal signal in logcat. The screenshots and the log are kept in the artifact `kalyeah-smoke`.
+  smoke:
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: kalyeah-emulator-apk
+          path: smoke
+      - name: Allow hardware acceleration (KVM)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: bash .github/scripts/smoke-test.sh smoke/kalyeah-emulator.apk smoke/out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kalyeah-smoke
+          path: smoke/out
+          if-no-files-found: warn
