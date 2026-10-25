@@ -26,7 +26,7 @@ func test_the_floor_is_the_owners_picture_unshaded_and_untinted() -> void:
 	var map: StreetMap = _map()
 	var floor_patch: MeshInstance3D = map.get_node("%Geometry").find_child("CementArt", true, false) as MeshInstance3D
 	assert_not_null(floor_patch, "the floor patch is laid")
-	var material: StandardMaterial3D = (floor_patch.mesh as PlaneMesh).material as StandardMaterial3D
+	var material: StandardMaterial3D = floor_patch.mesh.surface_get_material(0) as StandardMaterial3D
 	assert_eq(material.shading_mode, BaseMaterial3D.SHADING_MODE_UNSHADED, "no light on the floor")
 	assert_eq(material.albedo_color, Color.WHITE, "no tint on the floor")
 	assert_eq(material.albedo_texture, StreetArt.texture("cement"), "the owner's picture")
@@ -95,13 +95,13 @@ func test_the_ground_outside_the_play_area_is_slightly_darker_than_the_play_area
 	var inside: MeshInstance3D = map.get_node("%Geometry").find_child("CementArt", true, false) as MeshInstance3D
 	var outside: MeshInstance3D = map.get_node("%Geometry").find_child("OutsideArt", true, false) as MeshInstance3D
 	assert_not_null(outside, "the outside patch is laid")
-	assert_eq(((inside.mesh as PlaneMesh).material as StandardMaterial3D).albedo_color, Color.WHITE, "the play area is the picture itself")
+	assert_eq((inside.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color, Color.WHITE, "the play area is the picture itself")
 	var shade: Color = ((outside.mesh as PlaneMesh).material as StandardMaterial3D).albedo_color
 	assert_lt(shade.v, 0.9, "outside is darker")
 	assert_gt(shade.v, 0.6, "but only slightly")
-	var size: Vector2 = (inside.mesh as PlaneMesh).size
+	var size: Vector3 = inside.mesh.get_aabb().size
 	assert_almost_eq(size.x, map.layout.lane_width, 0.001, "the play area patch is exactly the play area")
-	assert_almost_eq(size.y, map.layout.lane_length, 0.001, "end to end")
+	assert_almost_eq(size.z, map.layout.lane_length, 0.001, "end to end")
 
 
 func test_the_pole_meshes_are_not_simplified_when_small_on_screen() -> void:

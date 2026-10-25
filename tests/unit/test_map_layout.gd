@@ -213,7 +213,7 @@ func test_the_base_posts_are_the_owners_models_blue_for_you_and_red_for_them_fac
 		assert_almost_eq(post.rotation.y, 0.0, 0.001, "its front (the flyers) faces the camera at the +Z end")
 		assert_almost_eq((post.get_node(StreetMap.POST_BLUE) as Node3D).rotation.y, StreetMap.BLUE_POST_TURN, 0.001, "the blue pole has its back to the camera")
 		assert_almost_eq((post.get_node(StreetMap.POST_RED) as Node3D).rotation.y, 0.0, 0.001, "the red pole's front faces the camera")
-	assert_eq(Vector2(own.position.x, own.position.z), LAYOUT.base_center(MapLayout.SIDE_OWN), "at the base's centre")
+	assert_eq(Vector2(own.position.x, own.position.z), LAYOUT.post_position(MapLayout.SIDE_OWN), "in the street's corner")
 	map.set_own_side(MapLayout.SIDE_ENEMY)
 	assert_true((enemy.get_node(StreetMap.POST_BLUE) as Node3D).visible, "the other team sees their own post blue")
 	assert_true((own.get_node(StreetMap.POST_RED) as Node3D).visible)
@@ -300,7 +300,7 @@ func test_tiles_and_metres_convert_both_ways() -> void:
 
 func test_the_posts_and_boxes_sit_where_the_grid_says() -> void:
 	var own: Vector2 = LAYOUT.to_tiles(LAYOUT.base_center(MapLayout.SIDE_OWN))
-	assert_almost_eq(own.x, 2.5 / 1.5, 0.0001, "your post: 1 2/3 tiles from the left curb")
+	assert_almost_eq(own.x, 2.5 / 1.5, 0.0001, "your base's centre: 1 2/3 tiles from the left curb")
 	assert_almost_eq(own.y, 32.0 - 2.5 / 1.5, 0.0001, "and 1 2/3 tiles from your end")
 	assert_almost_eq(LAYOUT.base_radius / LAYOUT.tile_size, 3.0, 0.0001, "the base circle is 3 tiles")
 
@@ -311,12 +311,12 @@ func _model_box(id: String) -> AABB:
 	return (model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).get_aabb()
 
 
-func test_each_post_model_stands_with_its_foot_on_the_base_centre() -> void:
+func test_each_post_model_stands_with_its_foot_in_the_corner() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var post: Node3D = map._posts[side]
-		assert_eq(Vector2(post.position.x, post.position.z), LAYOUT.base_center(side), "the pole stands on the base's centre")
+		assert_eq(Vector2(post.position.x, post.position.z), LAYOUT.post_position(side), "the pole stands in the street's corner")
 		assert_almost_eq(post.position.y, 0.0, 0.001, "on the ground")
 	for id: String in [StreetMap.POST_BLUE, StreetMap.POST_RED]:
 		var box: AABB = _model_box(id)

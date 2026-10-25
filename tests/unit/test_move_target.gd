@@ -86,7 +86,9 @@ func test_a_point_past_the_street_edge_is_pulled_in_where_the_kid_fits() -> void
 	var sim: MatchSim = _sim()
 	_tap_to(sim, Vector2(100.0, -100.0))
 	var r: float = _rules.player_radius
-	assert_almost_eq(sim.players[1].move_target, Vector2(LAYOUT.lane_width / 2.0 - r, -LAYOUT.lane_length / 2.0 + r), Vector2(0.0001, 0.0001))
+	# the street's corner is rounded like the bases: the kid fits on the curve, `base_corner` - r from the middle of the corner's arc
+	var arc_centre: Vector2 = Vector2(LAYOUT.lane_width / 2.0 - LAYOUT.base_corner, -LAYOUT.lane_length / 2.0 + LAYOUT.base_corner)
+	assert_almost_eq(sim.players[1].move_target, arc_centre + Vector2(1.0, -1.0).normalized() * (LAYOUT.base_corner - r), Vector2(0.0001, 0.0001))
 
 
 func test_a_point_inside_the_cover_wall_is_pushed_out() -> void:
