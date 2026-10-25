@@ -1,6 +1,6 @@
 name: Android APK
 # The quality gate and the only CI. On every push to main, and on demand (Actions -> "Android APK" -> Run workflow, pick a branch):
-#   import -> full GUT suite (any failure stops the build) -> debug APK -> APK inspection -> artifact `kalyeah-debug-apk`.
+#   import -> full GUT suite (any failure stops the build) -> debug APK -> artifact `kalyeah-debug-apk` -> APK inspection.
 # A manual run also installs the same build on an emulator and plays it for 30 s (the `smoke` job).
 # The APK is the only way the game is tested: install `kalyeah-debug-apk` from the run on main (or from the branch you started).
 # Release signing is not here yet (docs/ROADMAP.md M6): no keystore or password is ever committed.
@@ -17,6 +17,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      emulator_ready: ${{ steps.emulator.outputs.ready }}
     env:
       ANDROID_BUILD_TOOLS: "35.0.1"
       ANDROID_PLATFORM: "android-35"
@@ -93,8 +95,7 @@ jobs:
           mkdir -p build/android
           godot --headless --export-debug "Android" build/android/kalyeah-debug.apk
           test -f build/android/kalyeah-debug.apk
-      - name: Inspect the APK
-        run: bash .github/scripts/inspect-apk.sh build/android/kalyeah-debug.apk "${{ steps.gv.outputs.app }}"
+      # Uploaded before the inspection: a failed check turns the build red but never hides an APK that can be installed.
       - uses: actions/upload-artifact@v4
         with:
           name: kalyeah-debug-apk
@@ -117,13 +118,21 @@ jobs:
           name: kalyeah-emulator-apk
           path: build/android/kalyeah-emulator.apk
           if-no-files-found: error
+      - name: Mark the emulator build as ready
+        id: emulator
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "ready=true" >> "$GITHUB_OUTPUT"
+      # Last, so that a failing check never stops the artifacts above or the smoke test from being produced.
+      - name: Inspect the APK
+        run: bash .github/scripts/inspect-apk.sh build/android/kalyeah-debug.apk "${{ steps.gv.outputs.app }}"
 
   # Manual runs only: a hosted emulator draws with software GL and can be slow, so this does not hold up main until it has proved
   # steady. It installs the build, starts it, lets it run 30 s, sends Back and Home, and fails on a dead process, a SCRIPT ERROR or a
   # fatal signal in logcat. The screenshots and the log are kept in the artifact `kalyeah-smoke`.
   smoke:
     needs: build
-    if: github.event_name == 'workflow_dispatch'
+    # Runs after a failed inspection too (the build is red but the emulator APK exists), never after a failed import, suite or export.
+    if: ${{ !cancelled() && needs.build.outputs.emulator_ready == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
