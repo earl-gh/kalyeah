@@ -8,17 +8,17 @@ extends Resource
 @export var move_speed: float = 0.0
 @export var player_radius: float = 0.0
 @export var spawn_spacing: float = 0.0
-## Tag: at 0 HP a player is sent to their team's box. A free teammate who stays in the rescue area for `rescue_hold_time`
+## Tag: at 0 HP a player is sent to the sidewalk beside their team's rescue area. A free teammate who stays in the rescue area for `rescue_hold_time`
 ## frees the teammate who was tagged first (data toggle: on = everyone waiting there at once).
 @export var rescue_frees_all: bool = false
 ## Seconds a teammate has to stay in the rescue area to free one tagged teammate (0 = a touch frees at once). Only one teammate
 ## rescues at a time (the first to arrive); leaving, being tagged or a new round starts the count over.
 @export var rescue_hold_time: float = 5.0
-## A free player cannot cast while standing in their own team's rescue area with a teammate waiting in the box.
+## A free player cannot cast while standing in their own team's rescue area with a teammate waiting on the sidewalk.
 @export var no_cast_in_rescue_area: bool = true
 ## A free player cannot cast while standing in the enemy base (capturing it).
 @export var no_cast_in_enemy_base: bool = true
-## Practice: a tagged training dummy walks out of the box on its own after this long.
+## Practice: a tagged training dummy walks out on its own after this long.
 @export var dummy_release_time: float = 0.0
 ## Every weapon in the game (docs/GDD.md "Weapons"); each player equips two different ones.
 @export var weapons: Array[WeaponDef] = []
@@ -35,7 +35,7 @@ extends Resource
 @export var cc_immunity: float = 0.0
 ## A returning boomerang is caught when this close to its thrower.
 @export var boomerang_catch_distance: float = 0.0
-## Scoring: an "all tagged" capture (every enemy waiting in a box) has to hold this long to win the point.
+## Scoring: an "all tagged" capture (every enemy waiting on the sidewalk) has to hold this long to win the point.
 @export var capture_time: float = 0.0
 ## A base capture (free players of one team standing in the enemy base): one player alone needs this long ...
 @export var capture_solo_time: float = 12.0
@@ -49,7 +49,7 @@ extends Resource
 ## so a round always ends.
 @export var overtime_after: float = 0.0
 @export var overtime_capture_time: float = 0.0
-## A tagged player walks out of the box alone after this many seconds (0 = they wait for a rescue), online and in rooms.
+## A tagged player walks out alone after this many seconds (0 = they wait for a rescue), online and in rooms.
 @export var tag_release_time: float = 0.0
 ## The same, for a Practice match.
 @export var practice_tag_release_time: float = 0.0
@@ -59,7 +59,7 @@ extends Resource
 @export var point_freeze_time: float = 0.0
 ## Weapon cards (owner): nobody picks weapons. Every player has a shuffled deck of all the weapons and a hand of two cards (the two
 ## skill buttons). Using a card sends it to the back of the deck; when its cooldown is over, the next card of the deck takes its
-## place. Off = the old pick of two weapons before the match and the swap in the box.
+## place. Off = the old pick of two weapons before the match and the swap while tagged.
 @export var card_cycle: bool = true
 ## docs/GDD.md "Controls: tap to move, cards to cast". Defaults are the GDD's; the .tres may override them.
 ## Cards in the hand (NEXT is extra).

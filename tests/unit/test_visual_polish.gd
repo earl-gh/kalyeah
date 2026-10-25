@@ -82,10 +82,11 @@ func test_your_ring_is_bolder_and_the_ring_never_changes_the_hit_area() -> void:
 
 # ---- the objective -------------------------------------------------------------------------------------------------
 
-func test_the_bases_and_rescue_areas_are_a_clear_fill_and_a_thick_edge() -> void:
+func test_the_bases_and_rescue_areas_are_a_clear_fill_and_a_thin_edge() -> void:
 	assert_gte(StreetMap.ZONE_FILL_ALPHA, 0.3, "a fill you can see on the cement")
 	assert_lt(StreetMap.ZONE_FILL_ALPHA, 0.5, "that still lets the street show")
-	assert_gte(StreetMap.TAPE_WIDTH, 0.25, "a thick chalk edge")
+	assert_gte(StreetMap.TAPE_WIDTH, 0.1, "an edge that still reads at phone size")
+	assert_lte(StreetMap.TAPE_WIDTH, 0.15, "half the 0.3 m it was (owner: thinner)")
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
 	var tape: Color = map.zone_colors(MapLayout.SIDE_ENEMY)[0]
@@ -198,7 +199,7 @@ func test_while_tagged_you_see_your_teammates_and_the_way_out_alone() -> void:
 	assert_eq(panel.find_children("*", "Button", true, false).size(), 1, "nothing to pick: only Change weapons")
 
 
-func test_a_teammate_running_to_your_box_shows_as_coming_and_a_tagged_one_as_tagged() -> void:
+func test_a_teammate_running_to_your_rescue_area_shows_as_coming_and_a_tagged_one_as_tagged() -> void:
 	var practice: PracticeMatch = _practice()
 	var sim: MatchSim = practice.sim
 	var me: PlayerState = sim.players[practice.local_id]
@@ -208,13 +209,13 @@ func test_a_teammate_running_to_your_box_shows_as_coming_and_a_tagged_one_as_tag
 			mate = sim.players[id]
 			break
 	var pips: TeammatePips = autofree(TeammatePips.new()) as TeammatePips
-	var box: Vector2 = sim.layout.jail_rect(sim.side_for_team(me.team)).get_center()
-	mate.position = box + Vector2(0.0, 10.0)
+	var area: Vector2 = sim.layout.rescue_rect(sim.side_for_team(me.team)).get_center()
+	mate.position = area + Vector2(0.0, 10.0)
 	pips.sync(sim, me)
 	assert_eq(pips.count(TeammatePips.State.FREE), pips.pips.size(), "first look: free")
-	mate.position = box + Vector2(0.0, 9.0)
+	mate.position = area + Vector2(0.0, 9.0)
 	pips.sync(sim, me)
-	assert_eq(pips.count(TeammatePips.State.COMING), 1, "nearer the box: on the way")
+	assert_eq(pips.count(TeammatePips.State.COMING), 1, "nearer the rescue area: on the way")
 	mate.tagged = true
 	pips.sync(sim, me)
 	assert_eq(pips.count(TeammatePips.State.TAGGED), 1)

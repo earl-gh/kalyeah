@@ -108,7 +108,7 @@ var uses_elixir: bool = true
 var elixir: float = 0.0
 var elixir_max: float = 10.0
 var shown_elixir: float = 0.0
-## Gestures are taken (false under a menu, in the box, during the opening show).
+## Gestures are taken (false under a menu, while tagged, during the opening show).
 var active: bool = false
 
 ## The held card: its slot, the pointer holding it, where the finger is (own pixels), and whether it is on its card / over the hand.

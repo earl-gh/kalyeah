@@ -1,8 +1,8 @@
 class_name TeammatePips
 extends Control
-## While you wait in the box: one small face per teammate, so you can see at a glance whether anyone is free to rescue you and
+## While you wait on the sidewalk: one small face per teammate, so you can see at a glance whether anyone is free to rescue you and
 ## who is on the way (visual pass; the tray was words only). A free teammate has a ring in your team's colour; one running toward
-## your box also gets a gold ring and a chevron under the face; a tagged one is greyed with a cross. Shapes say it as well as
+## your rescue area also gets a gold ring and a chevron under the face; a tagged one is greyed with a cross. Shapes say it as well as
 ## colour. It only reads the sim; it never takes a touch and nothing in it can be picked.
 
 enum State { FREE, COMING, TAGGED }
@@ -11,7 +11,7 @@ const FACE_RADIUS: float = 22.0
 const GAP: float = 18.0
 const RING: float = 4.0
 const OUTLINE: float = 3.0
-## A teammate counts as coming when it got at least this much nearer your box (m) since the last look.
+## A teammate counts as coming when it got at least this much nearer your rescue area (m) since the last look.
 const COMING_STEP: float = 0.02
 const CHEVRON: Vector2 = Vector2(12.0, 7.0)
 const COMING_COLOR: Color = RoyaleStyle.GOLD
@@ -25,7 +25,7 @@ const CROSS_REACH: float = 0.55
 
 ## {id, state, face} for each teammate, in id order.
 var pips: Array[Dictionary] = []
-## Each teammate's last distance to your box, to tell who is heading there.
+## Each teammate's last distance to your rescue area, to tell who is heading there.
 var _last_distance: Dictionary[int, float] = {}
 ## A face-sized circle (moved to each face as it is drawn) and the picture coordinates for it, built once.
 var _circle: PackedVector2Array = PackedVector2Array()
@@ -47,7 +47,7 @@ func _init() -> void:
 
 ## Reads where `player`'s teammates are and whether they are tagged.
 func sync(sim: MatchSim, player: PlayerState) -> void:
-	var box: Vector2 = sim.layout.jail_rect(sim.side_for_team(player.team)).get_center()
+	var area: Vector2 = sim.layout.rescue_rect(sim.side_for_team(player.team)).get_center()
 	var next: Array[Dictionary] = []
 	var free: int = 0
 	var coming: int = 0
@@ -55,7 +55,7 @@ func sync(sim: MatchSim, player: PlayerState) -> void:
 		var mate: PlayerState = sim.players[id]
 		if id == player.id or mate.team != player.team:
 			continue
-		var distance: float = mate.position.distance_to(box)
+		var distance: float = mate.position.distance_to(area)
 		var state: State = State.FREE
 		if mate.tagged:
 			state = State.TAGGED

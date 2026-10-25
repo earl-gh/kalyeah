@@ -12,8 +12,8 @@ const LOCAL_TEAM: int = 0
 const ENEMY_STAND_ID: int = 2
 const ENEMY_PATROL_ID: int = 3
 const ALLY_ID: int = 4
-## A free enemy standing in its own tagged box (bottom right), to see its bar hide (owner).
-const ENEMY_BOX_ID: int = 5
+## A free enemy standing in its own rescue area (bottom right), a third target.
+const ENEMY_RESCUE_ID: int = 5
 ## Practice match vs bots: your two allies and the three enemies (real players of the sim, driven by TeamCoach).
 const BOT_ALLY_IDS: Array[int] = [2, 3]
 const BOT_ENEMY_IDS: Array[int] = [4, 5, 6]
@@ -252,7 +252,7 @@ func finish_pick() -> void:
 	_pick_screen.force_finish()
 
 
-## Opens the box swap screen (only while tagged; reopen as often as you like).
+## Opens the swap screen (only while tagged; reopen as often as you like).
 func open_swap() -> void:
 	if not sim.players[local_id].tagged:
 		return
@@ -311,8 +311,7 @@ func _setup_practice() -> void:
 	sim.add_dummy(ENEMY_PATROL_ID, 1, patrol_spot, FightBrain.fighter(patrol_spot) if rules.practice_fighters >= 1 else patrol)
 	var ally_spot: Vector2 = Vector2(rules.dummy_ally_x, rules.dummy_ally_z)
 	sim.add_dummy(ALLY_ID, local_team, ally_spot, DummyBrain.rescuer(ally_spot))
-	var box_spot: Vector2 = layout.jail_slot(sim.side_for_team(1), 0)
-	sim.add_dummy(ENEMY_BOX_ID, 1, box_spot, DummyBrain.standing())
+	sim.add_dummy(ENEMY_RESCUE_ID, 1, layout.rescue_rect(sim.side_for_team(1)).get_center(), DummyBrain.standing())
 	sim.assign_characters()
 	sim.set_character(local_id, StringName(Session.avatar_id))
 	sim.equip(local_id)
