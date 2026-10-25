@@ -2,13 +2,20 @@ extends GutTest
 
 var RULES: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
+
+## The shipped street has no cover any more (owner removed the cardboard walls), so the cover rules are tested on a copy with one wall.
+static func _cover_street() -> MapLayout:
+	var street: MapLayout = LAYOUT.duplicate() as MapLayout
+	street.obstacles = [Rect2(-13.5, 10.5, 3.0, 0.5)] as Array[Rect2]
+	return street
+
 const DT: float = 1.0 / 30.0
 const T := StatusEffects.Type
 const CASTER: int = 1
 
 
 func _sim() -> MatchSim:
-	return MatchSim.new(RULES, LAYOUT, 11)
+	return MatchSim.new(RULES, _cover_street(), 11)
 
 
 ## Team-0 caster at `at` holding `first` (slot 0) and `second` (slot 1).
@@ -388,7 +395,7 @@ func test_trumpo_passes_through_and_launches_once_each() -> void:
 
 
 func test_obstacles_stop_projectiles_for_both_teams() -> void:
-	var cover: Rect2 = LAYOUT.obstacle_rects()[0]
+	var cover: Rect2 = _cover_street().obstacle_rects()[0]
 	var x: float = cover.get_center().x
 	for team: int in [0, 1]:
 		var sim: MatchSim = _sim()

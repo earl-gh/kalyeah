@@ -12,14 +12,17 @@ const BAR_SIZE: Vector2 = Vector2(96.0, 18.0)
 ## The dark outline round the bar: thin (screen px, kept at any bar_scale).
 const BAR_OUTLINE: float = 2.0
 ## The health number at the bar's top left corner (its left edge lines up with the bar's, its middle level with the bar's top outline),
-## and how far it reaches above the bar.
+## and how far it reaches above the bar (a little under its own size: half of it sits on the outline).
 const COUNT_FONT: int = UiMetrics.WORLD_SMALL
-const COUNT_LINE: float = 10.0
+const COUNT_LINE: float = float(COUNT_FONT) * 0.8
 ## The bar sits just above the top of the head (the kid's model is KID_HEIGHT tall).
 const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
+## The dark outline round the health number and the status words (screen px).
+const TEXT_OUTLINE: int = 5
 const POPUP_TIME: float = 0.9
 const POPUP_RISE: float = 56.0
-const STATUS_FONT: int = UiMetrics.CAPTION
+## The status word is the same size as the health number and stacks right above it (owner).
+const STATUS_FONT: int = COUNT_FONT
 ## Your stamina under your health bar (before `bar_scale`): a thin bar, a gap above it; it warns below `STAMINA_LOW` of full. When it runs
 ## out you are overclocked (owner): the bar blinks blank and red for `exhaust_seconds`, then refills in amber while you only walk, until
 ## it is full. Other kids' stamina is never drawn (docs/GDD.md D33), only their *Exhausted*.
@@ -39,7 +42,6 @@ const POPUP_FONT: int = UiMetrics.BODY
 const SAY_FONT: int = UiMetrics.DETAIL
 const SAY_PAD: Vector2 = Vector2(16.0, 8.0)
 const SAY_LIFT: float = 12.0
-const BACK: Color = Color(0.08, 0.06, 0.1, 0.85)
 ## The empty part of a health or stamina bar: a flat, opaque dark gray (just the colour: no sheen, no texture).
 const EMPTY_BAR: Color = Color(0.18, 0.19, 0.21)
 const SELF_COLOR: Color = Color(0.35, 0.95, 0.35)
@@ -244,7 +246,6 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 	var color: Color = bar_color(state)
 	_draw_bar(rect, fill, color)
 	_draw_count(state, rect)
-	_draw_team_mark(state, rect, color)
 	if stamina_visible(state):
 		var stamina: Vector2 = STAMINA_SIZE * bar_scale
 		var under: Rect2 = Rect2(Vector2(head.x - stamina.x / 2.0, stamina_top(rect)), stamina)
@@ -253,19 +254,27 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 	var status: String = _status_text(state)
 	var lift: float = COUNT_LINE
 	if not status.is_empty():
-		_text(KalyeahTheme.BODY_FONT, status, keep_on_screen(head + Vector2(0.0, -8.0 - COUNT_LINE), KalyeahTheme.BODY_FONT, status, STATUS_FONT), STATUS_FONT, STATUS_COLOR, 6)
-		lift += 22.0
+		_draw_status(status, rect)
+		lift += float(STATUS_FONT)
 	if spinner_visible(state):
 		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.capture_elapsed / maxf(_sim.capture_needed, 0.001), SPINNER_COLOR)
 	elif rescue_visible(state):
 		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.rescue_elapsed[state.team] / maxf(_sim.rules.rescue_hold_time, 0.001), RESCUE_COLOR)
 
 
+## The status words right above the health number: left-aligned with the bar like the number, kept inside the screen and under the header.
+func _draw_status(status: String, rect: Rect2) -> void:
+	var font: Font = KalyeahTheme.BODY_FONT
+	var width: float = font.get_string_size(status, HORIZONTAL_ALIGNMENT_LEFT, -1.0, STATUS_FONT).x
+	var centre: Vector2 = keep_on_screen(Vector2(rect.position.x + width / 2.0, status_baseline(rect)), font, status, STATUS_FONT)
+	_text(font, status, centre, STATUS_FONT, STATUS_COLOR, TEXT_OUTLINE)
+
+
 ## The health number at the bar's top left corner: left-aligned with the bar, its middle level with the bar's top outline.
 func _draw_count(state: PlayerState, rect: Rect2) -> void:
 	var text: String = str(maxi(state.hp, 0))
 	var width: float = KalyeahTheme.ACTION_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, COUNT_FONT).x
-	_text(KalyeahTheme.ACTION_FONT, text, Vector2(rect.position.x + width / 2.0, count_baseline(rect)), COUNT_FONT, Color.WHITE, 5)
+	_text(KalyeahTheme.ACTION_FONT, text, Vector2(rect.position.x + width / 2.0, count_baseline(rect)), COUNT_FONT, Color.WHITE, TEXT_OUTLINE)
 
 
 ## Where the stamina bar starts under a health bar at `rect`: no gap, the two bars share the line between them (the stamina bar's top
@@ -277,6 +286,11 @@ static func stamina_top(rect: Rect2) -> float:
 ## The baseline of the health number over a bar at `rect`: its middle level with the middle of the bar's top outline.
 static func count_baseline(rect: Rect2) -> float:
 	return rect.position.y - BAR_OUTLINE / 2.0 + float(COUNT_FONT) * 0.36
+
+
+## The baseline of the status words over a bar at `rect`: one line of text above the health number's baseline.
+static func status_baseline(rect: Rect2) -> float:
+	return count_baseline(rect) - float(STATUS_FONT)
 
 
 ## A rounded bar with a dark outline: the fill in `color`, and a gloss on its upper third.
@@ -310,26 +324,6 @@ func keep_on_screen(centre: Vector2, font: Font, text: String, font_size: int) -
 	var half: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x / 2.0 + 4.0
 	var x: float = clampf(centre.x, half, maxf(size.x - half, half))
 	return Vector2(x, maxf(centre.y, top_limit + float(font_size) + 4.0))
-
-
-## A small shape at the left end of the bar that says whose kid it is without colour: a circle for an ally, a diamond for an enemy
-## (you have none: the bar itself is brighter and the kid wears your ring).
-func _draw_team_mark(state: PlayerState, rect: Rect2, color: Color) -> void:
-	if state.id == _local_id:
-		return
-	var radius: float = maxf(rect.size.y * 0.62, 4.5)
-	var centre: Vector2 = Vector2(rect.position.x - radius - 3.0, rect.position.y + rect.size.y / 2.0)
-	if state.team == _local_team:
-		draw_circle(centre, radius + 1.5, BACK)
-		draw_circle(centre, radius, color)
-		return
-	var outer: PackedVector2Array = _diamond(centre, radius + 2.0)
-	draw_colored_polygon(outer, BACK)
-	draw_colored_polygon(_diamond(centre, radius + 0.5), color)
-
-
-static func _diamond(centre: Vector2, radius: float) -> PackedVector2Array:
-	return PackedVector2Array([centre + Vector2(0.0, -radius), centre + Vector2(radius, 0.0), centre + Vector2(0.0, radius), centre + Vector2(-radius, 0.0)])
 
 
 ## A spinning ring over a hero holding the enemy base: the ring fills as the point

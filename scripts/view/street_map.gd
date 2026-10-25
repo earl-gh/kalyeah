@@ -9,26 +9,23 @@ extends Node3D
 
 const OWN_COLOR: Color = Palette.TEAM_OWN
 const ENEMY_COLOR: Color = Palette.TEAM_ENEMY
+# Light for the 3D models only (docs/ART.md "Light and colour by asset class"). The floor, the zone marks and the post pictures are unshaded and
+# are drawn exactly as made, so none of them reads these numbers; and the Environment has no tonemap curve, saturation or contrast
+# to bend them. Clash Royale's model look: a warm key light and a bright warm ambient so the shaded side stays light and soft, a faint
+# cool fill from behind; the three together put an upward face at about its own colour and a camera-facing side a little under it.
 const SKY_COLOR: Color = Color(0.74, 0.8, 0.9)
-# afternoon with a cool tone (owner): a higher, neutral-cool sun from the front right, a clear blue sky
 const SKY_TOP: Color = Color(0.27, 0.54, 0.95)
 const SKY_HORIZON: Color = Color(0.78, 0.88, 1.0)
 const SUN_ANGLES: Vector3 = Vector3(-46.0, 52.0, 0.0)
-const SUN_COLOR: Color = Color(0.9, 0.95, 1.0)
-const SUN_ENERGY: float = 1.3
+const SUN_COLOR: Color = Color(1.0, 0.96, 0.88)
+const SUN_ENERGY: float = 0.52
 ## How far the (invisible) shadow pass reaches.
 const SHADOW_DISTANCE: float = 400.0
 const FILL_ANGLES: Vector3 = Vector3(-30.0, 258.0, 0.0)
-const FILL_COLOR: Color = Color(0.64, 0.76, 1.0)
-const FILL_ENERGY: float = 0.45
-const AMBIENT_COLOR: Color = Color(0.85, 0.91, 1.0)
-## Raised from 0.82 (visual pass): the shadow side of the street was muddy; the sun and its colour stay the owner's.
-const AMBIENT_ENERGY: float = 0.95
-const EXPOSURE: float = 1.0
-const TONEMAP_WHITE: float = 4.0
-const SATURATION: float = 1.1
-const CONTRAST: float = 1.03
-const BRIGHTNESS: float = 1.0
+const FILL_COLOR: Color = Color(0.75, 0.85, 1.0)
+const FILL_ENERGY: float = 0.1
+const AMBIENT_COLOR: Color = Color(1.0, 0.97, 0.92)
+const AMBIENT_ENERGY: float = 0.63
 const RING_HEIGHT: float = 0.03
 ## Visual pass: the bases and rescue areas were the faintest marks on the street (fill 0.22, tape 0.16 m); a stronger fill
 ## that still lets the cement show and a thick chalk edge make the objective read second, after the kids.
@@ -80,6 +77,8 @@ const CEMENT: Color = Color(0.3, 0.3, 0.31)
 ## file exists it is laid ONCE over the whole play area (stretched, never tiled).
 const CEMENT_ART: String = "res://assets/textures/cement.png"
 const CEMENT_LIFT: float = 0.004
+## The floor picture outside the play area is this much of its own colour (owner: slightly darker, so the play area reads).
+const OUTSIDE_SHADE: Color = Color(0.78, 0.78, 0.78)
 const STREET_SHADER: Shader = preload("res://shaders/street_cement.gdshader")
 ## Paving around the whole map, so the street never ends in sky.
 const OUTER_MARGIN: float = 40.0
@@ -88,10 +87,20 @@ const OUTER_TINT: Color = Color(0.62, 0.58, 0.54)
 const SARI_SIGN_HEIGHT: float = 1.15
 ## Which model each cover piece (MapLayout.obstacle_props) is drawn as.
 const OBSTACLE_MODELS: Dictionary[StringName, String] = {
-	&"bench": "bench", &"cardboard_wall": "cardboard_wall", &"tent": "rooster_tent",
+	&"bench": "bench", &"tent": "rooster_tent",
 }
 const COVER_HEIGHT: float = 1.15
 const POST_HEIGHT: float = 8.5
+## The base posts are the owner's pictures (assets/textures/posts/, unedited): blue for the viewer's own base, red for the other. Each is
+## drawn standing up and always facing the camera. The part rects are the visible art as shares of its file.
+const POST_BLUE: Texture2D = preload("res://assets/textures/posts/post_blue.webp")
+const POST_RED: Texture2D = preload("res://assets/textures/posts/post_red.webp")
+const POST_BLUE_PART: Rect2 = Rect2(0.21191, 0.01074, 0.54883, 0.96484)
+const POST_RED_PART: Rect2 = Rect2(0.28223, 0.00879, 0.55371, 0.96777)
+## Where the pole's foot is across each picture (a share of the visible art's width): the pictures have wires reaching out to the sides, so the
+## pole is not in the middle of them.
+const POST_BLUE_FOOT: float = 0.4075
+const POST_RED_FOOT: float = 0.5388
 ## The barrier rows across both ends: every street thing at its real height (m), in proportion to
 ## the kids (who stand 1.85 m, so a real thing is about 1.4 times its true size), side by side
 ## in this order (the far end starts half way along, so the two rows differ).
@@ -173,15 +182,13 @@ static func make_environment() -> Environment:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = AMBIENT_COLOR
 	env.ambient_light_energy = AMBIENT_ENERGY
+	# the picture goes to the screen as drawn: a linear tonemap at exposure 1 and no colour adjustment (the owner's floor, the zone marks
+	# and the posts must not be graded; the models get their look from their own materials and the lights)
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
-	env.tonemap_exposure = EXPOSURE
-	env.tonemap_white = TONEMAP_WHITE
+	env.tonemap_exposure = 1.0
 	# no bloom: it is a blur laid over the bright parts (owner: nothing blurred during gameplay)
 	env.glow_enabled = false
-	env.adjustment_enabled = true
-	env.adjustment_saturation = SATURATION
-	env.adjustment_contrast = CONTRAST
-	env.adjustment_brightness = BRIGHTNESS
+	env.adjustment_enabled = false
 	# no haze: the camera is far above the whole street, and fog by distance would wash all of it out
 	env.fog_enabled = false
 	return env
@@ -220,14 +227,11 @@ func set_own_side(own_side: int) -> void:
 			material.albedo_color = color
 
 
-## The post's front (the side with the flyers, the model's +Z): the enemy post faces the middle
-## of the play area; your own (blue) post is turned the other way round (owner), so from your
-## end you see its flyers too.
+## Each base's post shows the viewer's colours: the owner's blue picture for your own base, the red one for theirs (they swap when the teams
+## switch ends).
 func _turn_posts(own_side: int) -> void:
 	for side: int in _posts:
-		var center: Vector2 = layout.base_center(side)
-		var inward: float = atan2(-center.x, -center.y)
-		_posts[side].rotation.y = inward + (PI if side == own_side else 0.0)
+		_dress_post(_posts[side] as Sprite3D, side == own_side)
 
 
 ## The team colour of base `side` as the viewer sees it: blue for yours, red for theirs.
@@ -288,8 +292,7 @@ func _build_map() -> void:
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var color: Color = OWN_COLOR if side == MapLayout.SIDE_OWN else ENEMY_COLOR
 		var center: Vector2 = layout.base_center(side)
-		var post: Node3D = _add_prop(PropModel.by_height("electric_pole", post_height()), Vector3(center.x, 0.0, center.y))
-		_posts[side] = post
+		_posts[side] = _add_post(center)
 		var base: Array[StandardMaterial3D] = _add_base_zone(side, color)
 		var rescue: Array[StandardMaterial3D] = _add_rescue_area(side, color)
 		_base_materials[side] = [base[0], base[1], rescue[0], rescue[1]]
@@ -304,7 +307,7 @@ func _build_map() -> void:
 func _add_corner_props() -> void:
 	# only the far half of the street is modelled: the enemy post (top right)
 	var center: Vector2 = layout.base_center(MapLayout.SIDE_ENEMY)
-	_posts[MapLayout.SIDE_ENEMY] = _add_prop(PropModel.by_height("electric_pole", post_height()), Vector3(center.x, 0.0, center.y))
+	_posts[MapLayout.SIDE_ENEMY] = _add_post(center)
 	_turn_posts(MapLayout.SIDE_OWN)
 
 
@@ -346,13 +349,18 @@ func _add_ground_textures() -> void:
 	_geometry.add_child(outer)
 
 
-## Lays the owner's floor image over all the ground the camera sees (owner): one whole picture on the play area, repeated
-## past both ends and under the sides, lined up so the play area holds exactly one copy.
+## Lays the owner's floor image over all the ground the camera sees (owner): one whole picture, untouched, on the play area, and the
+## same picture a little darker past both ends and under the sides, so the play area stands out. The copies line up so the play area
+## holds exactly one.
 func _add_cement_art() -> void:
 	if not ResourceLoader.exists(CEMENT_ART):
 		return
 	var size: Vector2 = Vector2(layout.lane_width, layout.lane_length + _reach() * 2.0) + Vector2.ONE * OUTER_MARGIN * 2.0
-	var art: MeshInstance3D = _floor_patch("CementArt", size, Vector2.ZERO)
+	var outside: MeshInstance3D = _floor_patch("OutsideArt", size, Vector2.ZERO)
+	((outside.mesh as PlaneMesh).material as StandardMaterial3D).albedo_color = OUTSIDE_SHADE
+	outside.position.y = CEMENT_LIFT / 2.0
+	_geometry.add_child(outside)
+	var art: MeshInstance3D = _floor_patch("CementArt", Vector2(layout.lane_width, layout.lane_length), Vector2.ZERO)
 	art.position.y = CEMENT_LIFT
 	_geometry.add_child(art)
 
@@ -363,8 +371,8 @@ func _floor_patch(patch_name: String, size: Vector2, centre: Vector2) -> MeshIns
 	var period: Vector2 = Vector2(layout.lane_width, layout.lane_length)
 	var plane: PlaneMesh = PlaneMesh.new()
 	plane.size = size
-	var material: StandardMaterial3D = StreetArt.material("cement", size / period)
-	material.albedo_color = StreetArt.CEMENT_TINT
+	# unshaded and untinted: the floor is the picture itself (the basis every other colour is judged against)
+	var material: StandardMaterial3D = StreetArt.unlit_material(StreetArt.texture("cement"), size / period)
 	# the picture's edges fall on the play area's edges
 	var start: Vector2 = (centre - size / 2.0 + period / 2.0) / period
 	material.uv1_offset = Vector3(start.x - floorf(start.x), start.y - floorf(start.y), 0.0)
@@ -384,7 +392,7 @@ func _add_obstacle(index: int) -> void:
 	# the long side lies along X; a rect that is longer in Z turns the model a quarter
 	var turned: bool = rect.size.y > rect.size.x
 	var footprint: Vector2 = Vector2(maxf(rect.size.x, rect.size.y), minf(rect.size.x, rect.size.y))
-	var id: String = String(OBSTACLE_MODELS.get(layout.obstacle_prop(index), "cardboard_wall"))
+	var id: String = String(OBSTACLE_MODELS.get(layout.obstacle_prop(index), "bench"))
 	_add_prop(PropModel.fit(id, footprint, cover_height(), not diorama), at, PI / 2.0 if turned else 0.0)
 
 
@@ -454,6 +462,7 @@ static func rounded_outline(rect: Rect2, radius: float) -> Array[Vector2]:
 func _zone_materials(color: Color) -> Array[StandardMaterial3D]:
 	var tape: StandardMaterial3D = StandardMaterial3D.new()
 	tape.albedo_color = color
+	tape.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	tape.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return [tape, _fill_material(color, ZONE_FILL_ALPHA)]
 
@@ -461,6 +470,7 @@ func _zone_materials(color: Color) -> Array[StandardMaterial3D]:
 func _fill_material(color: Color, alpha: float) -> StandardMaterial3D:
 	var fill: StandardMaterial3D = StandardMaterial3D.new()
 	fill.albedo_color = Color(color.r, color.g, color.b, alpha)
+	fill.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	fill.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	fill.cull_mode = BaseMaterial3D.CULL_DISABLED
 	# drawn first, so the kids and everything else stand on top of the tint, never under it
@@ -668,6 +678,39 @@ func _add(mesh: Mesh, at: Vector3, yaw: float = 0.0) -> MeshInstance3D:
 	instance.rotation.y = yaw
 	_geometry.add_child(instance)
 	return instance
+
+
+## The owner's picture of a post, standing on the ground at `center` (x, z), `post_height()` tall and always facing the camera.
+func _add_post(center: Vector2) -> Sprite3D:
+	var sprite: Sprite3D = Sprite3D.new()
+	sprite.name = "Post"
+	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.shaded = false
+	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	sprite.centered = false
+	_dress_post(sprite, true)
+	_add_prop(sprite, Vector3(center.x, 0.0, center.y))
+	return sprite
+
+
+## Shows the blue (`own`) or red picture on a post, `post_height()` tall with its foot on the ground point and the picture standing up from it.
+func _dress_post(sprite: Sprite3D, own: bool) -> void:
+	sprite.texture = post_picture(own)
+	var picture: Vector2 = sprite.texture.get_size()
+	sprite.pixel_size = post_height() / picture.y
+	sprite.offset = Vector2(-picture.x * (POST_BLUE_FOOT if own else POST_RED_FOOT), 0.0)
+
+
+## The post's picture for `own` (blue) or the other team (red).
+static func post_picture(own: bool) -> AtlasTexture:
+	var atlas: AtlasTexture = AtlasTexture.new()
+	atlas.atlas = POST_BLUE if own else POST_RED
+	var part: Rect2 = POST_BLUE_PART if own else POST_RED_PART
+	var size: Vector2 = atlas.atlas.get_size()
+	atlas.region = Rect2(part.position * size, part.size * size)
+	atlas.filter_clip = true
+	return atlas
 
 
 func _add_prop(model: Node3D, at: Vector3, yaw: float = 0.0) -> Node3D:

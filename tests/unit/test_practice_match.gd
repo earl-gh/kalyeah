@@ -506,7 +506,7 @@ func test_a_status_is_shown_as_words_and_clears() -> void:
 func test_the_status_font_is_the_regular_font_not_slanted() -> void:
 	var practice: PracticeMatch = _practice()
 	assert_null(practice.overhead().get("_italic"), "no slanted font any more (owner)")
-	assert_eq(OverheadHud.STATUS_FONT, UiMetrics.CAPTION)
+	assert_eq(OverheadHud.STATUS_FONT, OverheadHud.COUNT_FONT, "the status word is the health number's size (owner)")
 
 
 # ---- the opening show (like the video) --------------------------------------------

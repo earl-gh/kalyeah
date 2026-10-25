@@ -20,7 +20,7 @@ func test_the_model_is_the_far_half_of_the_play_area_and_fits_its_frame() -> voi
 	assert_true(model.map.diorama)
 	assert_eq(layout.lane_length, (load("res://data/rules/map_layout.tres") as MapLayout).lane_length, "the real play area")
 	# the cement and its stone base in the game's exact shape, plus the corner props only
-	assert_eq(model.map._posts.size(), 1, "the far base's electric post")
+	assert_eq(model.map._posts.size(), 1, "the far base's post (a picture)")
 	var found: Array[Node] = model.map.find_children("*", "MeshInstance3D", true, false)
 	var street: AABB = (found[0] as MeshInstance3D).get_aabb()
 	var platform: AABB = (found[1] as MeshInstance3D).get_aabb()
@@ -31,7 +31,8 @@ func test_the_model_is_the_far_half_of_the_play_area_and_fits_its_frame() -> voi
 	assert_almost_eq(platform.size.x / platform.size.z, (layout.lane_width + StreetMap.PLATFORM_MARGIN * 2.0) / (layout.lane_length / 2.0 + StreetMap.PLATFORM_MARGIN * 2.0), 0.001, "and keeps that shape too")
 	assert_gt(StreetMap.PLATFORM_HEIGHT, StreetMap.PLINTH_HEIGHT, "a thick stone base on a thicker platform")
 	var props: Array[Node] = model.map.find_children("*", "MeshInstance3D", true, false)
-	assert_eq(props.size(), 2 + 1, "slab + platform + post and nothing else")
+	assert_eq(props.size(), 2, "slab + platform, and the post is a picture (a sprite, not a mesh): nothing else")
+	assert_eq(model.map.find_children("*", "Sprite3D", true, false).size(), 1, "the far base's post")
 	assert_eq(model.viewport.find_children("*", "KidModel", true, false).size(), 0, "no characters")
 	for cx: float in [-layout.lane_width / 2.0, layout.lane_width / 2.0]:
 		for cz: float in [-layout.lane_length / 2.0, 0.0]:

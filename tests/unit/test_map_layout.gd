@@ -97,20 +97,8 @@ func test_bases_boxes_and_rescue_areas_are_always_blue_for_you_and_red_for_them(
 	Settings.set_colorblind(false)
 
 
-func test_only_two_cardboard_walls_stand_in_the_play_area_one_by_each_base() -> void:
-	var walls: Array[Rect2] = LAYOUT.obstacle_rects()
-	assert_eq(walls.size(), 2, "one each way round (owner: only these two)")
-	var lane: Rect2 = LAYOUT.lane_rect()
-	var own_base: Vector2 = LAYOUT.base_center(MapLayout.SIDE_OWN)
-	var enemy_base: Vector2 = LAYOUT.base_center(MapLayout.SIDE_ENEMY)
-	# the left-most wall: against the left curb, 6 m above (toward the enemy end) the bottom-left base circle
-	var left: Rect2 = walls[0] if walls[0].position.x < 0.0 else walls[1]
-	assert_almost_eq(left.position.x, lane.position.x, 0.001, "against the left curb")
-	assert_almost_eq(left.end.y, own_base.y - LAYOUT.base_radius - 6.0, 0.001, "6 m above the bottom-left base")
-	# the right-most wall: against the right curb, 6 m below the top-right base circle
-	var right: Rect2 = walls[1] if walls[0].position.x < 0.0 else walls[0]
-	assert_almost_eq(right.end.x, lane.end.x, 0.001, "against the right curb")
-	assert_almost_eq(right.position.y, enemy_base.y + LAYOUT.base_radius + 6.0, 0.001, "6 m below the top-right base")
+func test_no_cover_stands_in_the_play_area() -> void:
+	assert_eq(LAYOUT.obstacle_rects().size(), 0, "no walls: the street is open (owner removed the cardboard walls)")
 
 
 func test_jail_slots_stay_inside_the_box() -> void:
@@ -150,26 +138,6 @@ func test_fewer_obstacles_mirrored_for_both_halves() -> void:
 	assert_lte(rects.size(), 6, "only a few cover pieces (owner: reduced twice)")
 	for i: int in count:
 		assert_true(rects[i + count].is_equal_approx(Rect2(-rects[i].end, rects[i].size)), "turned round the center")
-
-
-func test_obstacles_inside_the_street_and_clear_of_bases_boxes_and_each_other() -> void:
-	var rects: Array[Rect2] = LAYOUT.obstacle_rects()
-	var street: Rect2 = LAYOUT.lane_rect()
-	for i: int in rects.size():
-		var rect: Rect2 = rects[i]
-		assert_true(street.encloses(rect), "obstacle %d inside the street" % i)
-		for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
-			assert_false(rect.intersects(LAYOUT.jail_rect(side).grow(1.0)), "obstacle %d clear of a box" % i)
-			var post: Vector2 = LAYOUT.base_center(side)
-			var closest: Vector2 = post.clamp(rect.position, rect.end)
-			assert_gt(closest.distance_to(post), LAYOUT.base_radius, "obstacle %d clear of a base" % i)
-		for j: int in range(i + 1, rects.size()):
-			assert_false(rect.grow(0.8).intersects(rects[j]), "obstacles %d and %d leave room to pass" % [i, j])
-
-
-func test_every_obstacle_is_a_cardboard_wall() -> void:
-	for index: int in LAYOUT.obstacle_rects().size():
-		assert_eq(LAYOUT.obstacle_prop(index), &"cardboard_wall", "inside the play area: cardboard walls only (owner)")
 
 
 func test_boundary_walls_enclose_lane_without_overlapping_it() -> void:
@@ -226,7 +194,7 @@ func test_props_stay_low_poly() -> void:
 
 
 func test_the_model_props_are_light_and_standing_on_the_ground() -> void:
-	var limits: Dictionary = {"electric_pole": 3200, "cardboard_wall": 4200, "bench": 4200, "rooster_tent": 4200,
+	var limits: Dictionary = {"bench": 4200, "rooster_tent": 4200,
 		"basketball_pole": 3700, "truck_wheels": 4200, "crates": 4200,
 		"sacks": 4200, "no_id_no_entry": 4200, "ebike": 4700, "tricycle": 5200,
 		"ice_cream_cart": 5200, "nanay": 6200,
@@ -244,7 +212,7 @@ func test_the_model_props_are_light_and_standing_on_the_ground() -> void:
 
 
 func test_cover_models_fill_their_footprint_and_stay_about_a_metre_high() -> void:
-	for id: String in ["bench", "cardboard_wall", "rooster_tent"]:
+	for id: String in ["bench", "rooster_tent"]:
 		var footprint: Vector2 = Vector2(2.6, 0.6)
 		var model: Node3D = autofree(PropModel.fit(id, footprint, 1.15)) as Node3D
 		var mesh: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
@@ -255,25 +223,22 @@ func test_cover_models_fill_their_footprint_and_stay_about_a_metre_high() -> voi
 		assert_gt(box.size.y * model.scale.y, 0.5, "%s is tall enough to hide behind" % id)
 
 
-func _post_front(map: StreetMap, side: int) -> float:
-	var center: Vector2 = LAYOUT.base_center(side)
-	for child: Node in map.get_node("%Geometry").get_children():
-		var node: Node3D = child as Node3D
-		if node != null and node.scene_file_path.ends_with("electric_pole.glb") and Vector2(node.position.x, node.position.z).is_equal_approx(center):
-			var front: Vector3 = node.global_basis.z.normalized()
-			return front.dot(Vector3(-center.x, 0.0, -center.y).normalized())
-	fail_test("no post at base %d" % side)
-	return 0.0
-
-
-func test_the_enemy_post_faces_the_middle_and_your_own_is_turned_round() -> void:
+func test_the_base_posts_are_the_owners_pictures_blue_for_you_and_red_for_them_standing_up_and_facing_the_camera() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
-	assert_gt(_post_front(map, MapLayout.SIDE_ENEMY), 0.99, "their flyers face the play area")
-	assert_lt(_post_front(map, MapLayout.SIDE_OWN), -0.99, "your (blue) post is turned 180 degrees")
+	var own: Sprite3D = map._posts[MapLayout.SIDE_OWN] as Sprite3D
+	var enemy: Sprite3D = map._posts[MapLayout.SIDE_ENEMY] as Sprite3D
+	assert_eq((own.texture as AtlasTexture).atlas, StreetMap.POST_BLUE, "your post is the blue picture")
+	assert_eq((enemy.texture as AtlasTexture).atlas, StreetMap.POST_RED, "theirs the red one")
+	for post: Sprite3D in [own, enemy]:
+		assert_eq(post.billboard, BaseMaterial3D.BILLBOARD_ENABLED, "it always faces the camera")
+		assert_almost_eq(post.texture.get_size().y * post.pixel_size, map.post_height(), 0.01, "as tall as the post height in the data")
+		assert_almost_eq(post.position.y, 0.0, 0.001, "its foot on the ground")
+	assert_eq(Vector2(own.position.x, own.position.z), LAYOUT.base_center(MapLayout.SIDE_OWN), "at the base's centre")
 	map.set_own_side(MapLayout.SIDE_ENEMY)
-	assert_lt(_post_front(map, MapLayout.SIDE_ENEMY), -0.99, "the other team: their own post is the turned one")
-	assert_gt(_post_front(map, MapLayout.SIDE_OWN), 0.99)
+	assert_eq((enemy.texture as AtlasTexture).atlas, StreetMap.POST_BLUE, "the other team sees their own post blue")
+	assert_eq((own.texture as AtlasTexture).atlas, StreetMap.POST_RED)
+	assert_false(FileAccess.file_exists("res://assets/models/props/electric_pole.glb"), "the electric pole model is replaced (owner)")
 
 
 func test_the_end_rows_mix_every_street_thing_and_stay_out_of_the_play_area() -> void:
@@ -357,6 +322,15 @@ func test_the_posts_and_boxes_sit_where_the_grid_says() -> void:
 	assert_almost_eq(own.x, 2.5 / 1.5, 0.0001, "your post: 1 2/3 tiles from the left curb")
 	assert_almost_eq(own.y, 32.0 - 2.5 / 1.5, 0.0001, "and 1 2/3 tiles from your end")
 	assert_almost_eq(LAYOUT.base_radius / LAYOUT.tile_size, 3.0, 0.0001, "the base circle is 3 tiles")
-	var wall: Rect2 = LAYOUT.obstacle_rects()[0]
-	assert_almost_eq(wall.position.x, -LAYOUT.lane_width / 2.0, 0.0001, "the cover wall is against the left curb")
-	assert_almost_eq(wall.size.x / LAYOUT.tile_size, 2.0, 0.0001, "two tiles long")
+
+
+func test_each_post_picture_stands_with_its_foot_on_the_base_centre() -> void:
+	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
+	add_child(map)
+	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
+		var post: Sprite3D = map._posts[side] as Sprite3D
+		var own: bool = side == MapLayout.SIDE_OWN
+		var foot: float = StreetMap.POST_BLUE_FOOT if own else StreetMap.POST_RED_FOOT
+		assert_almost_eq(-post.offset.x / post.texture.get_size().x, foot, 0.0001, "the sprite is shifted so the pole's foot is at its origin")
+		assert_gt(foot, 0.3, "the pole is inside the picture")
+		assert_lt(foot, 0.7)

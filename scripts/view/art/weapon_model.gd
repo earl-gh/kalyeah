@@ -28,7 +28,6 @@ const METEOR_SIZE: float = 1.8
 const CROSS_WIDTH: float = 0.9
 ## The paper wall's model.
 const SHIELD: String = "paper"
-const GAIN: float = 0.85
 
 static var _scenes: Dictionary[String, PackedScene] = {}
 static var _sizes: Dictionary[String, Vector3] = {}
@@ -145,5 +144,5 @@ static func _scene(id: String) -> PackedScene:
 
 static func _instance(id: String) -> Node3D:
 	var root: Node3D = _scene(id).instantiate() as Node3D
-	ModelLook.apply(root, GAIN)
+	ModelLook.apply(root)
 	return root

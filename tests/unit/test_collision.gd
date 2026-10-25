@@ -2,12 +2,19 @@ extends GutTest
 
 const RULES: GameRules = preload("res://data/rules/game_rules.tres")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
+
+## The shipped street has no cover any more (owner removed the cardboard walls), so the cover rules are tested on a copy with one wall.
+static func _cover_street() -> MapLayout:
+	var street: MapLayout = LAYOUT.duplicate() as MapLayout
+	street.obstacles = [Rect2(-13.5, 10.5, 3.0, 0.5)] as Array[Rect2]
+	return street
+
 const DT: float = 1.0 / 30.0
 const RECT: Rect2 = Rect2(0.0, 0.0, 4.0, 2.0)
 
 
 func _sim() -> MatchSim:
-	return MatchSim.new(RULES, LAYOUT, 1)
+	return MatchSim.new(RULES, _cover_street(), 1)
 
 
 func _run(sim: MatchSim, id: int, move: Vector2, ticks: int) -> void:
@@ -43,7 +50,7 @@ func test_push_out_when_center_is_inside() -> void:
 
 ## The first own-half obstacle (a bench) and a spot just below it.
 func _cover() -> Rect2:
-	return LAYOUT.obstacle_rects()[0]
+	return _cover_street().obstacle_rects()[0]
 
 
 func test_player_stops_at_an_obstacle() -> void:
