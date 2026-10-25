@@ -83,12 +83,22 @@ func test_the_bar_and_its_number_are_one_and_a_half_times_what_they_were_owner()
 	assert_eq(OverheadHud.LABEL_FONT, int(12 * 1.5), "the number was 12 px")
 
 
-func test_the_status_word_is_the_numbers_size_and_sits_right_above_it() -> void:
+func test_the_status_word_takes_the_place_of_you_in_the_same_size() -> void:
 	assert_eq(OverheadHud.STATUS_FONT, OverheadHud.LABEL_FONT)
-	var bar: Rect2 = Rect2(Vector2(300.0, 400.0), Vector2(72.0, 13.5))
-	var rise: float = OverheadHud.label_baseline(bar) - OverheadHud.status_baseline(bar)
-	assert_almost_eq(rise, float(OverheadHud.LABEL_FONT), 0.001, "one line of text above the number")
-	assert_gt(rise, float(OverheadHud.LABEL_FONT) * 0.7 + float(OverheadHud.TEXT_OUTLINE), "clear of the number's own height and outline, so the two never touch")
+	var sim: MatchSim = MatchSim.new(load("res://data/rules/game_rules.tres") as GameRules, load("res://data/rules/map_layout.tres") as MapLayout, 3)
+	sim.add_player(1, 0)
+	sim.add_player(2, 0)
+	sim.add_player(3, 1)
+	var hud: OverheadHud = OverheadHud.new()
+	add_child_autofree(hud)
+	hud.setup(sim, null, 1, 0)
+	assert_eq(hud.label_for(sim.players[1]), "You", "no status: your own kid says You")
+	assert_eq(hud.label_for(sim.players[2]), "", "an ally says nothing")
+	sim.players[1].effects.apply(StatusEffects.Type.STUN, 1.0)
+	sim.players[2].effects.apply(StatusEffects.Type.STUN, 1.0)
+	assert_eq(hud.label_for(sim.players[1]), "Stunned", "the status replaces You, it is not stacked above it")
+	assert_eq(hud.label_for(sim.players[2]), "Stunned", "an ally shows its status in the same place")
+	assert_eq(hud.label_for(sim.players[3]), "", "a healthy enemy still says nothing")
 
 
 func test_the_stamina_bar_touches_the_health_bar_with_no_gap() -> void:

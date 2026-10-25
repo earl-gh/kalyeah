@@ -39,7 +39,6 @@ func setup_hud() -> void:
 
 
 func connect_hud() -> void:
-	Settings.accessibility_changed.connect(recolor_rings)
 	owner.hud.hand.card_pressed.connect(owner.card_pressed)
 	owner.hud.hand.card_moved.connect(owner.card_moved)
 	owner.hud.hand.card_released.connect(owner.card_released)
@@ -102,28 +101,12 @@ func sync(delta: float) -> void:
 	owner._camera.place(owner._flip())
 
 
-## The colour of the ring under `state`'s kid: the same colour as its health bar (you, an ally, an enemy).
-func ring_color(state: PlayerState) -> Color:
-	if state.id == owner.local_id:
-		return TeamColors.bar_self()
-	return TeamColors.bar_ally() if state.team == owner.local_team else TeamColors.bar_enemy()
-
-
-## The colour-blind setting changed: the rings follow the bars.
-func recolor_rings() -> void:
-	for id: int in owner.sim.players:
-		var view: KidModel = owner._views.get(id) as KidModel
-		if view != null:
-			view.set_ring_color(ring_color(owner.sim.players[id]), owner.rules.player_radius, id == owner.local_id)
-
-
 func make_actor_view(state: PlayerState) -> void:
-	var team_color: Color = ring_color(state)
 	var character: CharacterDef = owner._characters.get(state.character_id) as CharacterDef
 	if character == null:
 		character = owner.rules.characters[0]
 	var view: KidModel = KidModel.new()
-	view.setup(character, team_color, owner.rules.player_radius, state.id == owner.local_id)
+	view.setup(character)
 	view.scale = Vector3.ONE * owner._camera.rules.kid_view_scale
 	owner._actors.add_child(view)
 	owner._views[state.id] = view
@@ -144,8 +127,6 @@ func _sync_actor(state: PlayerState, delta: float) -> void:
 	var view: KidModel = owner._views[state.id]
 	var lift: float = AIRBORNE_LIFT if state.effects.has(StatusEffects.Type.AIRBORNE) else 0.0
 	view.position = Vector3(state.position.x, lift, state.position.y)
-	# a tagged kid waits on the sidewalk with no ring: the ring marks a kid in play
-	view.ring.visible = not state.tagged
 	view.face(state.facing)
 	view.animate(delta, minf(view.ground_speed(state.position, delta), 20.0), state)
 

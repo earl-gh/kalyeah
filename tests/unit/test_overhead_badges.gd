@@ -130,21 +130,3 @@ func test_a_kid_against_the_side_wall_keeps_its_badge_on_screen() -> void:
 		var rect: Rect2 = hud._bar_rect(kid) as Rect2
 		assert_gte(rect.position.x + OverheadHud.BADGE_OVERLAP - OverheadHud.BADGE_SIZE, 0.0, "the badge starts inside the screen at x %s" % x)
 		assert_lte(rect.end.x, width, "and the bar ends inside it")
-
-
-# ---- no ring under a tagged kid -----------------------------------------------------------------------------------
-
-func test_a_tagged_kid_on_the_sidewalk_has_no_ring_and_gets_it_back_when_rescued() -> void:
-	var practice: PracticeMatch = _practice()
-	practice.advance(DT)
-	var ally: int = practice.sim.players.keys().filter(func(id: int) -> bool: return id != practice.local_id and practice.sim.players[id].team == practice.local_team)[0]
-	var enemy: int = practice.sim.players.keys().filter(func(id: int) -> bool: return practice.sim.players[id].team != practice.local_team)[0]
-	for id: int in [practice.local_id, ally, enemy]:
-		assert_true((practice._views[id] as KidModel).ring.visible, "kid %d is free, so it has its ring" % id)
-		practice.sim.kill(id)
-	practice.advance(DT)
-	for id: int in [practice.local_id, ally, enemy]:
-		assert_false((practice._views[id] as KidModel).ring.visible, "kid %d is tagged: no ring on the sidewalk" % id)
-	practice.sim.players[ally].tagged = false
-	practice.advance(DT)
-	assert_true((practice._views[ally] as KidModel).ring.visible, "a freed kid has its ring again")
