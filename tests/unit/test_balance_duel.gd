@@ -21,9 +21,11 @@ func test_every_two_different_weapons_make_one_loadout() -> void:
 
 
 func test_the_arena_has_no_cover_and_leaves_the_real_street_alone() -> void:
-	var open: MapLayout = BalanceDuel.arena(LAYOUT)
+	var walled: MapLayout = LAYOUT.duplicate() as MapLayout
+	walled.obstacles = [Rect2(-13.5, 10.5, 3.0, 0.5)] as Array[Rect2]
+	var open: MapLayout = BalanceDuel.arena(walled)
 	assert_true(open.obstacles.is_empty())
-	assert_false(LAYOUT.obstacles.is_empty(), "the shipped street keeps its cover")
+	assert_false(walled.obstacles.is_empty(), "the street it was made from keeps its cover")
 	assert_eq(open.lane_length, LAYOUT.lane_length)
 
 

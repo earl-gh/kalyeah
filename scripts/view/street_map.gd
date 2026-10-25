@@ -77,6 +77,8 @@ const CEMENT: Color = Color(0.3, 0.3, 0.31)
 ## file exists it is laid ONCE over the whole play area (stretched, never tiled).
 const CEMENT_ART: String = "res://assets/textures/cement.png"
 const CEMENT_LIFT: float = 0.004
+## The floor picture outside the play area is this much of its own colour (owner: slightly darker, so the play area reads).
+const OUTSIDE_SHADE: Color = Color(0.78, 0.78, 0.78)
 const STREET_SHADER: Shader = preload("res://shaders/street_cement.gdshader")
 ## Paving around the whole map, so the street never ends in sky.
 const OUTER_MARGIN: float = 40.0
@@ -85,7 +87,7 @@ const OUTER_TINT: Color = Color(0.62, 0.58, 0.54)
 const SARI_SIGN_HEIGHT: float = 1.15
 ## Which model each cover piece (MapLayout.obstacle_props) is drawn as.
 const OBSTACLE_MODELS: Dictionary[StringName, String] = {
-	&"bench": "bench", &"cardboard_wall": "cardboard_wall", &"tent": "rooster_tent",
+	&"bench": "bench", &"tent": "rooster_tent",
 }
 const COVER_HEIGHT: float = 1.15
 const POST_HEIGHT: float = 8.5
@@ -347,13 +349,18 @@ func _add_ground_textures() -> void:
 	_geometry.add_child(outer)
 
 
-## Lays the owner's floor image over all the ground the camera sees (owner): one whole picture on the play area, repeated
-## past both ends and under the sides, lined up so the play area holds exactly one copy.
+## Lays the owner's floor image over all the ground the camera sees (owner): one whole picture, untouched, on the play area, and the
+## same picture a little darker past both ends and under the sides, so the play area stands out. The copies line up so the play area
+## holds exactly one.
 func _add_cement_art() -> void:
 	if not ResourceLoader.exists(CEMENT_ART):
 		return
 	var size: Vector2 = Vector2(layout.lane_width, layout.lane_length + _reach() * 2.0) + Vector2.ONE * OUTER_MARGIN * 2.0
-	var art: MeshInstance3D = _floor_patch("CementArt", size, Vector2.ZERO)
+	var outside: MeshInstance3D = _floor_patch("OutsideArt", size, Vector2.ZERO)
+	((outside.mesh as PlaneMesh).material as StandardMaterial3D).albedo_color = OUTSIDE_SHADE
+	outside.position.y = CEMENT_LIFT / 2.0
+	_geometry.add_child(outside)
+	var art: MeshInstance3D = _floor_patch("CementArt", Vector2(layout.lane_width, layout.lane_length), Vector2.ZERO)
 	art.position.y = CEMENT_LIFT
 	_geometry.add_child(art)
 
@@ -385,7 +392,7 @@ func _add_obstacle(index: int) -> void:
 	# the long side lies along X; a rect that is longer in Z turns the model a quarter
 	var turned: bool = rect.size.y > rect.size.x
 	var footprint: Vector2 = Vector2(maxf(rect.size.x, rect.size.y), minf(rect.size.x, rect.size.y))
-	var id: String = String(OBSTACLE_MODELS.get(layout.obstacle_prop(index), "cardboard_wall"))
+	var id: String = String(OBSTACLE_MODELS.get(layout.obstacle_prop(index), "bench"))
 	_add_prop(PropModel.fit(id, footprint, cover_height(), not diorama), at, PI / 2.0 if turned else 0.0)
 
 

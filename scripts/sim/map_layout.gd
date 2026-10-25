@@ -46,7 +46,7 @@ var lane_length: float:
 ## Cover on the own half of the street (x, z rects); the enemy half gets the same
 ## pieces turned around the center. They block walking and throws for both teams.
 @export var obstacles: Array[Rect2] = []
-## Cosmetic: what each obstacle is drawn as (bench, cardboard_wall, tent).
+## Cosmetic: what each obstacle is drawn as (bench, tent).
 @export var obstacle_props: Array[StringName] = []
 @export var boundary_thickness: float = 0.0
 ## Cosmetic, how big the scenery is drawn next to the kids (the play area, hitboxes and every rule are untouched): the houses, shops,
@@ -149,7 +149,7 @@ func obstacle_rects() -> Array[Rect2]:
 ## The prop an obstacle is drawn as (same order as obstacle_rects()).
 func obstacle_prop(index: int) -> StringName:
 	if obstacle_props.is_empty():
-		return &"cardboard_wall"
+		return &"bench"
 	return obstacle_props[index % obstacles.size() % obstacle_props.size()]
 
 

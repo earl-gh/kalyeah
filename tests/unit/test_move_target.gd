@@ -7,6 +7,13 @@ const DT: float = 1.0 / 30.0
 ## The own-half cover wall in data/rules/map_layout.tres: x -13.5..-10.5, z 10.5..11.0.
 const COVER: Rect2 = Rect2(-13.5, 10.5, 3.0, 0.5)
 
+## The shipped street has no cover any more (owner removed the cardboard walls), so the cover rules are tested on a copy with one wall.
+static func _cover_street() -> MapLayout:
+	var street: MapLayout = LAYOUT.duplicate() as MapLayout
+	street.obstacles = [Rect2(-13.5, 10.5, 3.0, 0.5)] as Array[Rect2]
+	return street
+
+
 var _rules: GameRules
 
 
@@ -16,7 +23,7 @@ func before_each() -> void:
 
 
 func _sim(at: Vector2 = Vector2.ZERO) -> MatchSim:
-	var sim: MatchSim = MatchSim.new(_rules, LAYOUT, 5)
+	var sim: MatchSim = MatchSim.new(_rules, _cover_street(), 5)
 	sim.add_player(1, 0)
 	sim.add_player(2, 1)
 	sim.players[1].position = at

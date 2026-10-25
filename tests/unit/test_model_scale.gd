@@ -112,9 +112,3 @@ func test_thrown_things_are_about_the_size_of_what_they_hit() -> void:
 		assert_between(drawn / (hit * 2.0), THROWN_RANGE.x, THROWN_RANGE.y, "%s is drawn %.2f m for a %.2f m hit circle" % [def.id, drawn, hit * 2.0])
 		checked += 1
 	assert_gt(checked, 4, "the thrown weapons were checked")
-
-
-func test_the_cover_wall_is_drawn_at_the_chosen_height() -> void:
-	var map: StreetMap = _map()
-	var props: Dictionary[String, Vector3] = _props(map)
-	assert_almost_eq(props["cardboard_wall"].y, LAYOUT.cover_height, 0.01, "the cover reads as cover: exactly cover_height tall")

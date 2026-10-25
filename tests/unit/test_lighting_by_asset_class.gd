@@ -4,7 +4,7 @@ extends GutTest
 ## carries no tonemap curve, saturation or contrast that would bend any of them.
 
 const MAP_SCENE: PackedScene = preload("res://scenes/map/street_map.tscn")
-const PROPS: Array[String] = ["bench", "cardboard_wall", "vulcanizing", "tricycle", "nanay", "cat"]
+const PROPS: Array[String] = ["bench", "vulcanizing", "tricycle", "nanay", "cat"]
 
 
 func _map() -> StreetMap:
@@ -94,3 +94,18 @@ func test_the_pole_is_two_to_three_times_a_kid_on_screen() -> void:
 	var ratio: float = layout.post_height / kid_on_screen
 	assert_gt(ratio, 2.0, "taller than a kid, clearly")
 	assert_lt(ratio, 3.0, "but proportionate, not a tower over the street")
+
+
+func test_the_ground_outside_the_play_area_is_slightly_darker_than_the_play_area() -> void:
+	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
+	add_child(map)
+	var inside: MeshInstance3D = map.get_node("%Geometry").find_child("CementArt", true, false) as MeshInstance3D
+	var outside: MeshInstance3D = map.get_node("%Geometry").find_child("OutsideArt", true, false) as MeshInstance3D
+	assert_not_null(outside, "the outside patch is laid")
+	assert_eq(((inside.mesh as PlaneMesh).material as StandardMaterial3D).albedo_color, Color.WHITE, "the play area is the picture itself")
+	var shade: Color = ((outside.mesh as PlaneMesh).material as StandardMaterial3D).albedo_color
+	assert_lt(shade.v, 0.9, "outside is darker")
+	assert_gt(shade.v, 0.6, "but only slightly")
+	var size: Vector2 = (inside.mesh as PlaneMesh).size
+	assert_almost_eq(size.x, map.layout.lane_width, 0.001, "the play area patch is exactly the play area")
+	assert_almost_eq(size.y, map.layout.lane_length, 0.001, "end to end")
