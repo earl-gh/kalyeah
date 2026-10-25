@@ -50,7 +50,7 @@ Players without the app can join the same rooms from a browser.
 ### 3.2 Characters (randomized)
 - At the start of a match every player **picks one of six Filipino kid characters** on the select screen (owner), each wearing a classic Pinoy kid outfit. A team never has the same character twice; the other team may have it once.
 - Characters are **cosmetic only**: same health, speed and hitbox, so the random draw never affects fairness.
-- Each character wears a **team-colored bandana/armband** and has a team ring under their feet so teams stay readable.
+- Each character wears a **team-colored bandana/armband** and the health bar over each kid has a team-coloured number badge so teams stay readable (no ring under the feet).
 
 | Character | Represents | Outfit |
 |---|---|---|
