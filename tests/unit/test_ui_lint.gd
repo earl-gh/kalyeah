@@ -207,9 +207,9 @@ func test_the_text_drawn_on_the_buttons_and_over_the_kids_is_at_the_floor() -> v
 	assert_gte(CardHand.COST_FONT, UiMetrics.MIN_TEXT, "a card's cost and its tag")
 	assert_gte(CardHand.BAR_FONT, UiMetrics.MIN_TEXT, "the elixir number")
 	assert_gte(ClockChip.CAPTION_FONT, UiMetrics.MIN_TEXT, "TIME over the clock")
-	assert_eq(OverheadHud.COUNT_FONT, UiMetrics.WORLD_SMALL, "the health number over a bar is the small street size (owner: smaller)")
+	assert_eq(OverheadHud.COUNT_FONT, UiMetrics.WORLD_SMALL, "the health number over a bar is the small street size")
 	assert_gte(CardHand.NEXT_FONT, UiMetrics.MIN_TEXT, "NEXT over the next card")
-	assert_gte(OverheadHud.STATUS_FONT, UiMetrics.MIN_TEXT, "the status over a kid")
+	assert_eq(OverheadHud.STATUS_FONT, OverheadHud.COUNT_FONT, "the status over a kid is the health number's size (owner)")
 
 
 # ---- words ----------------------------------------------------------------------------------

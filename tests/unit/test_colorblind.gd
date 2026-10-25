@@ -1,6 +1,6 @@
 extends GutTest
-## Team identity without colour alone: a colour-blind palette (blue and orange, a pale bar for you instead of green) and a shape on
-## every other kid's health bar (a circle for an ally, a diamond for an enemy).
+## Team identity without colour alone: a colour-blind palette (blue and orange, a pale bar for you instead of green). The circle and
+## diamond that once sat beside every other kid's bar are gone (owner).
 
 var _saved: bool
 
@@ -57,11 +57,10 @@ func test_the_hud_bar_follows_the_setting() -> void:
 	assert_ne(hud.bar_color(enemy), OverheadHud.ENEMY_COLOR)
 
 
-func test_diamonds_and_circles_are_different_shapes() -> void:
-	var diamond: PackedVector2Array = OverheadHud._diamond(Vector2(10.0, 10.0), 5.0)
-	assert_eq(diamond.size(), 4)
-	assert_eq(diamond[0], Vector2(10.0, 5.0))
-	assert_eq(diamond[1], Vector2(15.0, 10.0))
+func test_the_bars_carry_no_circle_or_diamond_any_more_owner() -> void:
+	var overhead: OverheadHud = autofree(OverheadHud.new()) as OverheadHud
+	assert_false(overhead.has_method("_draw_team_mark"), "no circle or diamond beside the health bar (owner); the bar colour and the ring say whose kid it is")
+	assert_false(overhead.has_method("_diamond"))
 
 
 func test_the_setting_is_saved_and_has_a_switch() -> void:
