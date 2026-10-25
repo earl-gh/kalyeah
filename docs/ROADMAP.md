@@ -73,7 +73,7 @@ Goal: the look of the owner's reference image (League of Legends mid view, Clash
 | P7 | UI pass: painted skill icons, team portraits and timer across the top, framed minimap | HUD matches the reference |
 | P8 | Performance and Android: frame rate, download size, APK | budgets below |
 
-Budgets (M6): 60 fps on a recommended Android phone, 30+ on the minimum; APK under 150 MB (enforced by the `Android APK` workflow).
+Budgets (M6): 60 fps on a recommended Android phone, 30+ on the minimum; APK under 150 MB (enforced by the `Android APK` workflow; a local debug export measures 145 MB, of which the 48 lossless prop and weapon textures are 86 MB: lossy or VRAM import would cut 76 or 42 MB, an owner decision because it changes pixels).
 
 ### HUD spec (owner)
 - No player name above the health bar.

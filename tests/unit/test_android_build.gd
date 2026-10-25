@@ -16,6 +16,38 @@ func _presets() -> Dictionary[String, Dictionary]:
 	return found
 
 
+func _exclude_patterns(preset_name: String) -> PackedStringArray:
+	var cfg: ConfigFile = ConfigFile.new()
+	assert_eq(cfg.load("res://export_presets.cfg"), OK)
+	for section: String in cfg.get_sections():
+		if not section.ends_with(".options") and cfg.get_value(section, "name", "") == preset_name:
+			var patterns: PackedStringArray = []
+			for pattern: String in String(cfg.get_value(section, "exclude_filter", "")).split(","):
+				patterns.append(pattern.strip_edges())
+			return patterns
+	return []
+
+
+func _is_excluded(path: String, patterns: PackedStringArray) -> bool:
+	for pattern: String in patterns:
+		if not pattern.is_empty() and path.trim_prefix("res://").match(pattern):
+			return true
+	return false
+
+
+## Every file the export would pack under res://, as the preset's exclude_filter decides.
+func _packed_files(preset_name: String, dir: String = "res://") -> PackedStringArray:
+	var patterns: PackedStringArray = _exclude_patterns(preset_name)
+	var found: PackedStringArray = []
+	for file: String in DirAccess.get_files_at(dir):
+		if not _is_excluded(dir.path_join(file), patterns):
+			found.append(dir.path_join(file))
+	for sub: String in DirAccess.get_directories_at(dir):
+		if not sub.begins_with(".") and not _is_excluded(dir.path_join(sub) + "/", patterns):
+			found.append_array(_packed_files(preset_name, dir.path_join(sub)))
+	return found
+
+
 func test_the_only_presets_are_the_android_app_and_the_headless_server() -> void:
 	var names: Array = _presets().keys()
 	names.sort()
@@ -121,3 +153,45 @@ func test_back_in_the_lobby_closes_its_dialog_first_and_does_not_leave() -> void
 	await wait_process_frames(2)
 	assert_false(is_instance_valid(settings) and settings.is_open, "the dialog closed")
 	assert_true(lobby.is_inside_tree(), "the lobby is still there")
+
+
+func test_the_export_leaves_out_the_test_framework_the_tools_and_the_docs() -> void:
+	for preset_name: String in ["Android", "Server"]:
+		var patterns: PackedStringArray = _exclude_patterns(preset_name)
+		for left_out: String in ["addons/*", "tests/*", "tools/*", "docs/*"]:
+			assert_true(left_out in patterns, "%s leaves out %s" % [preset_name, left_out])
+		# GUT's stub scene gives a node a script that is no script: the export logged "Cannot set object script" for it.
+		assert_true(_is_excluded("res://addons/gut/gut_loader_the_scene.tscn", patterns), preset_name)
+		assert_true(_is_excluded("res://tools/art/src/skill_art_17.webp", patterns), "%s: 9 MB of source art" % preset_name)
+		assert_false(_is_excluded("res://server/main.tscn", patterns), "the server scene is the Server preset's main")
+		assert_false(_is_excluded("res://scenes/match/practice.tscn", patterns), preset_name)
+
+
+func test_every_scene_and_resource_the_android_export_packs_loads_and_instantiates() -> void:
+	var checked: PackedStringArray = []
+	for path: String in _packed_files("Android"):
+		if path.get_extension() not in ["tscn", "scn", "tres", "res", "glb"]:
+			continue
+		var loaded: Resource = load(path)
+		assert_not_null(loaded, path)
+		if loaded is PackedScene:
+			var instance: Node = (loaded as PackedScene).instantiate()
+			assert_not_null(instance, path)
+			if instance != null:
+				instance.free()
+		checked.append(path)
+	for expected: String in ["res://scenes/match/practice.tscn", "res://data/rules/game_rules.tres", "res://assets/models/props/post_blue.glb"]:
+		assert_true(expected in checked, "%s is among what was checked" % expected)
+
+
+func test_every_asset_a_script_scene_or_data_file_names_exists() -> void:
+	var pattern: RegEx = RegEx.create_from_string("res://assets/[A-Za-z0-9_/.\\-]+\\.[a-z0-9]+")
+	var named: Dictionary[String, String] = {}
+	for path: String in _packed_files("Android"):
+		if path.get_extension() not in ["gd", "tscn", "tres"]:
+			continue
+		for found: RegExMatch in pattern.search_all(FileAccess.get_file_as_string(path)):
+			named[found.get_string()] = path
+	assert_true(named.has("res://assets/ui/main_bg.webp"), "the scan finds the assets the code names")
+	for asset: String in named:
+		assert_true(ResourceLoader.exists(asset), "%s (named in %s) is missing" % [asset, named[asset]])
