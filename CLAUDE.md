@@ -1,5 +1,7 @@
 # CLAUDE.md — rules for Claude Code in this repo
 
+@docs/DOS_AND_DONTS.md
+
 Read first: `docs/ROADMAP.md` (what is done, what is next, how to build), `docs/GDD.md` (rules + numbers), `docs/PROJECT.md` (scope).
 **Android is the primary target** (competition entry); the browser build is optional for players but is the owner's testing channel. The owner works from an **iPhone** in cloud sessions: they can't run the editor. Every change must be checkable on the **GitHub Pages web build (one live link, rebuilt on every merge to `main`)**.
 
