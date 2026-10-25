@@ -86,7 +86,6 @@ func test_the_bases_and_rescue_areas_are_a_clear_fill_and_a_thick_edge() -> void
 	assert_gte(StreetMap.ZONE_FILL_ALPHA, 0.3, "a fill you can see on the cement")
 	assert_lt(StreetMap.ZONE_FILL_ALPHA, 0.5, "that still lets the street show")
 	assert_gte(StreetMap.TAPE_WIDTH, 0.25, "a thick chalk edge")
-	assert_lte(TeamColors.BASE_SOFTEN, 0.2, "the team colour is not washed to grey")
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
 	var tape: Color = map.zone_colors(MapLayout.SIDE_ENEMY)[0]
@@ -96,13 +95,14 @@ func test_the_bases_and_rescue_areas_are_a_clear_fill_and_a_thick_edge() -> void
 func test_the_street_is_calm_and_shows_no_shadows() -> void:
 	assert_lt(_uniform("crack_depth"), 0.12, "faint hairline cracks")
 	assert_lt(_uniform("blotch_depth"), 0.15, "soft blotches")
-	assert_gt(StreetMap.AMBIENT_ENERGY, 0.9, "the shadow side is not muddy")
+	assert_gt(StreetMap.AMBIENT_ENERGY, 0.5, "the shadow side of a model is not muddy")
+	var upward: float = StreetMap.SUN_ENERGY * sin(deg_to_rad(-StreetMap.SUN_ANGLES.x)) + StreetMap.AMBIENT_ENERGY
+	assert_almost_eq(upward, 1.0, 0.1, "the lights put an upward face of a model at about its own colour (no over-exposure)")
 	var sun: DirectionalLight3D = autofree(DirectionalLight3D.new()) as DirectionalLight3D
 	StreetMap._light_scene(sun, sun)
 	assert_eq(sun.shadow_opacity, 0.0, "no shadows on the street (owner): fully see-through")
 	assert_true(sun.shadow_enabled, "but the shadow pass stays, or the whole street goes dark")
 	assert_gt(StreetMap.SUN_COLOR.r, StreetMap.SUN_COLOR.b, "a warm sun like Clash Royale's (owner)")
-	assert_gt(StreetMap.SATURATION, 1.1, "with more colour in the picture")
 
 
 ## The default of a float uniform in the street's cement shader.

@@ -7,8 +7,6 @@ extends RefCounted
 ## modelled at, and the matte look from ModelLook. The map scales them to fit.
 
 const PATH: String = "res://assets/models/props/%s.glb"
-## Props sit in bright daylight beside flat-coloured houses: a little less albedo pull than kids.
-const GAIN: float = 0.8
 
 static var _scenes: Dictionary[String, PackedScene] = {}
 static var _sizes: Dictionary[String, Vector3] = {}
@@ -19,7 +17,7 @@ static func make(id: String, scale: Vector3 = Vector3.ONE) -> Node3D:
 	if not _scenes.has(id):
 		_scenes[id] = load(PATH % id) as PackedScene
 	var root: Node3D = _scenes[id].instantiate() as Node3D
-	ModelLook.apply(root, GAIN)
+	ModelLook.apply(root)
 	root.scale = scale
 	return root
 

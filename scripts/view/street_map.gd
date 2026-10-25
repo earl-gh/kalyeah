@@ -9,27 +9,23 @@ extends Node3D
 
 const OWN_COLOR: Color = Palette.TEAM_OWN
 const ENEMY_COLOR: Color = Palette.TEAM_ENEMY
+# Light for the 3D models only (docs/ART.md "Light and colour by asset class"). The floor, the zone marks and the post pictures are unshaded and
+# are drawn exactly as made, so none of them reads these numbers; and the Environment has no tonemap curve, saturation or contrast
+# to bend them. Clash Royale's model look: a warm key light and a bright warm ambient so the shaded side stays light and soft, a faint
+# cool fill from behind; the three together put an upward face at about its own colour and a camera-facing side a little under it.
 const SKY_COLOR: Color = Color(0.74, 0.8, 0.9)
-# Clash Royale's light (owner: match its colour and shading): a warm, bright sun, a warm ambient so nothing goes muddy, only a faint cool fill
-# and more colour in the picture; a clear blue sky
 const SKY_TOP: Color = Color(0.27, 0.54, 0.95)
 const SKY_HORIZON: Color = Color(0.78, 0.88, 1.0)
 const SUN_ANGLES: Vector3 = Vector3(-46.0, 52.0, 0.0)
-const SUN_COLOR: Color = Color(1.0, 0.98, 0.94)
-const SUN_ENERGY: float = 1.3
+const SUN_COLOR: Color = Color(1.0, 0.96, 0.88)
+const SUN_ENERGY: float = 0.52
 ## How far the (invisible) shadow pass reaches.
 const SHADOW_DISTANCE: float = 400.0
 const FILL_ANGLES: Vector3 = Vector3(-30.0, 258.0, 0.0)
 const FILL_COLOR: Color = Color(0.75, 0.85, 1.0)
-const FILL_ENERGY: float = 0.3
-const AMBIENT_COLOR: Color = Color(0.95, 0.97, 1.0)
-## Raised from 0.82 (visual pass): the shadow side of the street was muddy; the sun and its colour stay the owner's.
-const AMBIENT_ENERGY: float = 0.95
-const EXPOSURE: float = 1.0
-const TONEMAP_WHITE: float = 4.0
-const SATURATION: float = 1.15
-const CONTRAST: float = 1.05
-const BRIGHTNESS: float = 1.0
+const FILL_ENERGY: float = 0.1
+const AMBIENT_COLOR: Color = Color(1.0, 0.97, 0.92)
+const AMBIENT_ENERGY: float = 0.63
 const RING_HEIGHT: float = 0.03
 ## Visual pass: the bases and rescue areas were the faintest marks on the street (fill 0.22, tape 0.16 m); a stronger fill
 ## that still lets the cement show and a thick chalk edge make the objective read second, after the kids.
@@ -184,15 +180,13 @@ static func make_environment() -> Environment:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = AMBIENT_COLOR
 	env.ambient_light_energy = AMBIENT_ENERGY
+	# the picture goes to the screen as drawn: a linear tonemap at exposure 1 and no colour adjustment (the owner's floor, the zone marks
+	# and the posts must not be graded; the models get their look from their own materials and the lights)
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
-	env.tonemap_exposure = EXPOSURE
-	env.tonemap_white = TONEMAP_WHITE
+	env.tonemap_exposure = 1.0
 	# no bloom: it is a blur laid over the bright parts (owner: nothing blurred during gameplay)
 	env.glow_enabled = false
-	env.adjustment_enabled = true
-	env.adjustment_saturation = SATURATION
-	env.adjustment_contrast = CONTRAST
-	env.adjustment_brightness = BRIGHTNESS
+	env.adjustment_enabled = false
 	# no haze: the camera is far above the whole street, and fog by distance would wash all of it out
 	env.fog_enabled = false
 	return env
@@ -370,8 +364,8 @@ func _floor_patch(patch_name: String, size: Vector2, centre: Vector2) -> MeshIns
 	var period: Vector2 = Vector2(layout.lane_width, layout.lane_length)
 	var plane: PlaneMesh = PlaneMesh.new()
 	plane.size = size
-	var material: StandardMaterial3D = StreetArt.material("cement", size / period)
-	material.albedo_color = StreetArt.CEMENT_TINT
+	# unshaded and untinted: the floor is the picture itself (the basis every other colour is judged against)
+	var material: StandardMaterial3D = StreetArt.unlit_material(StreetArt.texture("cement"), size / period)
 	# the picture's edges fall on the play area's edges
 	var start: Vector2 = (centre - size / 2.0 + period / 2.0) / period
 	material.uv1_offset = Vector3(start.x - floorf(start.x), start.y - floorf(start.y), 0.0)
@@ -461,6 +455,7 @@ static func rounded_outline(rect: Rect2, radius: float) -> Array[Vector2]:
 func _zone_materials(color: Color) -> Array[StandardMaterial3D]:
 	var tape: StandardMaterial3D = StandardMaterial3D.new()
 	tape.albedo_color = color
+	tape.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	tape.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return [tape, _fill_material(color, ZONE_FILL_ALPHA)]
 
@@ -468,6 +463,7 @@ func _zone_materials(color: Color) -> Array[StandardMaterial3D]:
 func _fill_material(color: Color, alpha: float) -> StandardMaterial3D:
 	var fill: StandardMaterial3D = StandardMaterial3D.new()
 	fill.albedo_color = Color(color.r, color.g, color.b, alpha)
+	fill.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	fill.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	fill.cull_mode = BaseMaterial3D.CULL_DISABLED
 	# drawn first, so the kids and everything else stand on top of the tint, never under it
