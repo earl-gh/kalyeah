@@ -349,3 +349,24 @@ func test_each_post_model_stands_with_its_foot_on_the_base_centre() -> void:
 		assert_gt(box.end.x, 0.0)
 		assert_lt(box.position.z, 0.0)
 		assert_gt(box.end.z, 0.0)
+
+
+func test_the_posts_use_their_baked_shading_and_other_props_do_not() -> void:
+	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
+	add_child(map)
+	var post: Node3D = map._posts[MapLayout.SIDE_OWN].get_node(StreetMap.POST_BLUE) as Node3D
+	var surfaces: int = 0
+	for node: Node in post.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance: MeshInstance3D = node as MeshInstance3D
+		for surface: int in mesh_instance.mesh.get_surface_count():
+			surfaces += 1
+			var material: StandardMaterial3D = mesh_instance.get_surface_override_material(surface) as StandardMaterial3D
+			assert_true(material.vertex_color_use_as_albedo, "the post's baked shading is on (surface %d)" % surface)
+			assert_eq(material.specular_mode, BaseMaterial3D.SPECULAR_DISABLED, "and it stays matte, no gloss")
+	assert_gt(surfaces, 10, "every surface of the post was checked")
+	var other: Node3D = PropModel.make("bench")
+	add_child_autofree(other)
+	for node: Node in other.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance: MeshInstance3D = node as MeshInstance3D
+		var material: StandardMaterial3D = mesh_instance.get_surface_override_material(0) as StandardMaterial3D
+		assert_false(material.vertex_color_use_as_albedo, "other props keep the plain matte look")

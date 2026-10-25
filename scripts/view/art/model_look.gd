@@ -39,6 +39,18 @@ static func apply(root: Node) -> Array[StandardMaterial3D]:
 	return made
 
 
+## Turns on the model's own baked shading (the vertex colours its maker painted: darker in the creases and under the parts, 0.6 to 1) for
+## every surface under `root` that already has the look. Without it a light model (the posts) is flat and blown out to white; with it the
+## scene's lights shape a form that already has its soft shadows. Base colour, no gloss and the wrap light stay as they are.
+static func use_baked_shading(root: Node) -> void:
+	for node: Node in root.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance: MeshInstance3D = node as MeshInstance3D
+		for surface: int in mesh_instance.mesh.get_surface_count():
+			var material: StandardMaterial3D = mesh_instance.get_surface_override_material(surface) as StandardMaterial3D
+			if material != null:
+				material.vertex_color_use_as_albedo = true
+
+
 ## The colour a tint multiplies the lit albedo by.
 static func tinted(tint: Color) -> Color:
 	return Color(ALBEDO_GAIN * tint.r, ALBEDO_GAIN * tint.g, ALBEDO_GAIN * tint.b)
