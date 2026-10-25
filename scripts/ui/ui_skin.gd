@@ -248,6 +248,15 @@ static func round_radius(height: float) -> int:
 	return int(ceilf(height / 2.0))
 
 
+## A bar's corners are this share of its height: a rounded rectangle, not a pill (the health, stamina and ice water bars).
+const BAR_ROUND_SHARE: float = 0.25
+
+
+## The corner radius of a rounded-rectangle bar `height` tall (never more than a step of the scale, never less than a pixel).
+static func bar_radius(height: float) -> int:
+	return clampi(roundi(height * BAR_ROUND_SHARE), 1, RADIUS_S)
+
+
 ## The outline of a lettered word `size` px tall (Label `outline_size`).
 static func letter_outline(size: int) -> int:
 	return roundi(size * LETTER_OUTLINE_SHARE)

@@ -272,7 +272,7 @@ func test_the_string_table_exists_and_covers_the_words_a_player_reads() -> void:
 	var text: String = FileAccess.get_file_as_string("res://data/i18n/strings.csv")
 	assert_true(text.begins_with("keys,en"), "a header, then one row a string")
 	assert_gt(text.split("\n").size(), 200)
-	for word: String in ["Play", "Create room", "Join room", "Quit game", "First to %d", "Stunned", "FIRST TO"]:
+	for word: String in ["Play", "Create room", "Join room", "Quit game", "First to %d", "Stunned"]:
 		assert_true(text.contains("\n%s," % word) or text.contains("\n\"%s\"," % word), "'%s' is a key" % word)
 	for def: WeaponDef in _rules().weapons:
 		assert_true(text.contains(def.display_name), "%s is a key" % def.display_name)

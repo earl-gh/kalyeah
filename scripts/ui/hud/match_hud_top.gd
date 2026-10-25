@@ -43,7 +43,7 @@ static func layout(hud: MatchHud) -> void:
 		hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(80, -(hud.console_height() + 150.0), -80, -(hud.console_height() + 6.0)))
 	var gear_box: Vector4 = Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE)
 	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear_box)
-	hud._place(hud.clock_chip, Vector4(1, 0, 1, 0), Vector4(-MatchHud.MARGIN - MatchHud.CLOCK_SIZE.x, MatchHud.TOP_ROW_Y, -MatchHud.MARGIN, MatchHud.TOP_ROW_Y + MatchHud.CLOCK_SIZE.y))
+	hud._place(hud.clock_chip, Vector4(1, 0, 1, 0), Vector4(-MatchHud.CLOCK_SIZE.x, 0.0, 0.0, MatchHud.CLOCK_SIZE.y))
 
 
 ## The opening objective appears as a compact floating sheet above the controls.

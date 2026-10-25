@@ -48,22 +48,21 @@ func test_the_intro_follows_the_inset() -> void:
 	assert_almost_eq(practice.hud.intro_bar.offset_bottom, intro_before - 30.0, 0.5)
 
 
-# ---- your health at the end of the elixir bar ---------------------------------------------
+# ---- no health in the tray ---------------------------------------------------------------------
 
-func test_the_hand_shows_your_health_at_the_end_of_the_bar() -> void:
+func test_the_tray_has_no_health_and_hides_with_the_hand_when_you_are_tagged() -> void:
 	var practice: PracticeMatch = await _practice()
 	practice.finish_pick()
 	practice.skip_intro()
 	practice.advance(1.0 / 30.0)
 	var hand: CardHand = practice.hud.hand
 	assert_true(hand.visible)
-	assert_eq(hand.hp, practice.rules.player_max_hp)
-	assert_gt(hand.health_rect.position.x, hand.bar_rect.end.x, "right of the elixir bar, clear of every card")
-	for card: Rect2 in hand.card_rects:
-		assert_false(card.intersects(hand.health_rect))
-	practice.sim.damage(practice.local_id, 40)
-	practice.advance(1.0 / 30.0)
-	assert_eq(hand.hp, practice.rules.player_max_hp - 40)
+	assert_false("health_rect" in hand, "your health is over your kid, not in the tray (owner)")
+	assert_false(practice.hud.chat.visible, "no chat button in offline practice (owner): there is nobody to talk to")
+	assert_gt(practice.hud.console.column_width, 0.0, "the cardboard leaves the column beside it")
 	practice.sim.kill(practice.local_id)
 	practice.advance(1.0 / 30.0)
 	assert_false(hand.visible, "tagged: the tray carries the box's message instead")
+	practice.hud.set_chat_enabled(true)
+	assert_false(practice.hud.chat.visible, "and the chat button waits")
+	assert_eq(practice.hud.console.column_width, 0.0, "the cardboard runs the whole width then")

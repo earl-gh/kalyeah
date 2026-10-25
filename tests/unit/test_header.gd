@@ -60,22 +60,10 @@ func test_the_camera_frames_the_whole_street_below_a_taller_header() -> void:
 	assert_true(rules.fits(taller.x * 1.001, 720.0 / 1280.0, arena, -1.0, 0.2))
 
 
-func test_the_pips_under_the_score_show_who_is_still_free() -> void:
-	var practice: PracticeMatch = await _practice()
-	practice.finish_pick()
-	practice.skip_intro()
-	var board: Scoreboard = practice.hud.scoreboard
-	board.show_roster(practice.sim, practice.local_team)
-	var mine: int = board.roster_mine.size()
-	var theirs: int = board.roster_theirs.size()
-	assert_gt(mine, 0, "a pip for every kid on your team")
-	assert_gt(theirs, 0, "and on theirs")
-	assert_eq(board.roster_mine.count(true), mine, "all free at the start")
-	practice.sim.kill(practice.local_id)
-	board.show_roster(practice.sim, practice.local_team)
-	assert_eq(board.roster_mine.count(true), mine - 1, "a tagged kid's pip goes hollow")
-	assert_eq(board.roster_theirs.count(true), theirs, "theirs are untouched")
-	assert_string_contains(board.accessibility_name, "you %d of %d" % [mine - 1, mine], "and a screen reader says so")
+func test_the_score_card_has_no_dots_under_the_numbers() -> void:
+	var board: Scoreboard = autofree(Scoreboard.new()) as Scoreboard
+	assert_false("roster_mine" in board, "the free / tagged dots are gone: they were confusing next to the score (owner)")
+	assert_false(board.has_method("show_roster"))
 
 
 func test_a_status_word_stays_under_the_header_and_inside_the_screen() -> void:
@@ -98,7 +86,8 @@ func test_the_clock_sits_on_the_header_opposite_the_gear_and_counts_up() -> void
 	var chip: Rect2 = hud.clock_chip.get_global_rect()
 	assert_true(header.encloses(chip), "the clock stands on the header")
 	assert_gt(chip.position.x, hud.scoreboard.get_global_rect().end.x - 1.0, "right of the score")
-	assert_almost_eq(chip.get_center().y, hud.settings_button.get_global_rect().get_center().y, 1.0, "level with the gear")
+	assert_almost_eq(chip.position.y, 0.0, 1.0, "flush with the top of the screen, like Clash Royale's Time left box")
+	assert_almost_eq(chip.end.x, practice.hud.get_global_rect().end.x, 1.0, "and with its right edge")
 	assert_eq(hud.clock_chip.mouse_filter, Control.MOUSE_FILTER_IGNORE)
 	hud.clock_chip.show_time(65.4, false)
 	assert_eq(hud.clock_chip.text(), "1:05")

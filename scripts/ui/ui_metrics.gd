@@ -9,6 +9,11 @@ const BODY: int = 28
 const ACTION: int = 26
 const DETAIL: int = 24
 const CAPTION: int = 22
+## Small numbers and captions drawn IN the street or on the bars (the health number over a kid, "Max: 10"), below the reading floor on
+## purpose (owner: smaller): they are glanced at, never read. Nothing in a menu uses it.
+const WORLD: int = 18
+## The smallest of them: the health number over a kid's bar (owner: smaller still).
+const WORLD_SMALL: int = 12
 const TOUCH: float = 88.0
 ## The floors the lint test (tests/unit/test_ui_lint.gd) holds every screen to: no text smaller than MIN_TEXT px and
 ## no tappable control shorter than MIN_TARGET px (the joystick and the weapon buttons are bigger by design).

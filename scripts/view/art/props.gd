@@ -172,24 +172,6 @@ static func stop_sign() -> ArrayMesh:
 		return kit.commit())
 
 
-## A parked jeepney, long axis along Z.
-static func jeepney() -> ArrayMesh:
-	return cached("jeep", func() -> ArrayMesh:
-		var kit: LowPoly = LowPoly.new()
-		kit.box(Vector3(0.0, 1.1, 0.0), Vector3(2.0, 1.4, 5.5), Palette.WHITE, Palette.JEEP_BLUE)
-		kit.box(Vector3(0.0, 1.1, 0.0), Vector3(2.04, 0.35, 5.54), Palette.JEEP_RED)
-		kit.box(Vector3(0.0, 1.45, 0.4), Vector3(2.05, 0.55, 3.8), Palette.WINDOW)
-		kit.box(Vector3(0.0, 1.0, -3.0), Vector3(1.8, 1.0, 0.8), Palette.JEEP_CHROME)
-		kit.box(Vector3(0.0, 1.9, 0.0), Vector3(2.1, 0.12, 5.7), Palette.JEEP_CHROME)
-		kit.box(Vector3(0.0, 2.1, -2.6), Vector3(0.3, 0.3, 0.3), Palette.SARI_YELLOW)
-		for z: float in [-2.0, 1.9]:
-			for x: float in [-1.0, 1.0]:
-				kit.set_transform(Transform3D(Basis(Vector3.BACK, PI / 2.0), Vector3(x, 0.4, z)))
-				kit.cylinder(Vector3(0.0, -0.15, 0.0), 0.4, 0.4, 0.3, 8, Palette.BLACK)
-		kit.reset_transform()
-		return kit.commit())
-
-
 ## The thrown object for a weapon (by WeaponDef id); sized by its radius.
 static func weapon_object(id: StringName, radius: float) -> ArrayMesh:
 	return cached("weapon_%s_%.2f" % [id, radius], func() -> ArrayMesh:

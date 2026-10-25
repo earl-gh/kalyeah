@@ -206,11 +206,9 @@ func test_the_loadout_and_the_match_meet_the_floors() -> void:
 func test_the_text_drawn_on_the_buttons_and_over_the_kids_is_at_the_floor() -> void:
 	assert_gte(CardHand.COST_FONT, UiMetrics.MIN_TEXT, "a card's cost and its tag")
 	assert_gte(CardHand.BAR_FONT, UiMetrics.MIN_TEXT, "the elixir number")
-	assert_gte(CardHand.HEALTH_FONT, UiMetrics.MIN_TEXT, "your health at the bar's end")
 	assert_gte(ClockChip.CAPTION_FONT, UiMetrics.MIN_TEXT, "TIME over the clock")
-	assert_gte(OverheadHud.COUNT_FONT, UiMetrics.MIN_TEXT, "the health number over a bar")
+	assert_eq(OverheadHud.COUNT_FONT, UiMetrics.WORLD_SMALL, "the health number over a bar is the small street size (owner: smaller)")
 	assert_gte(CardHand.NEXT_FONT, UiMetrics.MIN_TEXT, "NEXT over the next card")
-	assert_gte(CardStyle.NAME_MIN, UiMetrics.MIN_TEXT, "a card's name")
 	assert_gte(OverheadHud.STATUS_FONT, UiMetrics.MIN_TEXT, "the status over a kid")
 
 

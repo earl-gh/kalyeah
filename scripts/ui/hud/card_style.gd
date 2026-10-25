@@ -1,22 +1,31 @@
 class_name CardStyle
 extends RefCounted
-## How a weapon card is drawn in the hand (owner: like a Clash Royale card): an upright card with a frame in the weapon's kind colour,
-## the round painted art on top and the weapon's name on a plate at the bottom. The hand's cards and the NEXT card use the same drawing,
-## at two sizes; the elixir drop (a card's cost, the bar's number) is drawn here too.
+## How a weapon card is drawn in the hand (owner: like a Clash Royale card): an upright card with a frame in the weapon's kind colour and
+## the round painted art filling its width; no name on it (the ice water cost sits on its bottom edge, drawn by the hand). The hand's cards
+## and the NEXT card use the same drawing, at two sizes.
 
+## The card's corners: round enough for the gloss to curve with them (it follows the outline `BORDER + GLOSS / 2` pixels inside).
 const RADIUS: int = UiSkin.RADIUS_M
-const BORDER: int = 5
+## The black outline round a card, and the polished gloss just inside it (Clash Royale's card look): ONE connected band that starts white
+## along the top, turns the top right corner and fades through gray down the right side, and comes back as light gray along the bottom.
+const BORDER: int = 3
+const GLOSS: int = 3
+## The round art sits this far in from the card's edge (it does not change with the gloss).
+const ART_EDGE: float = 9.0
+const GLOSS_TOP: Color = Color(1.0, 1.0, 1.0)
+const GLOSS_RIGHT: Color = Color(0.55, 0.58, 0.64)
+const GLOSS_BOTTOM: Color = Color(0.84, 0.86, 0.9)
+## How strong the band is at the top, in the middle of the right side (where it has faded most) and along the bottom.
+const GLOSS_ALPHA_TOP: float = 0.6
+const GLOSS_ALPHA_RIGHT: float = 0.28
+const GLOSS_ALPHA_BOTTOM: float = 0.5
+const GLOSS_STEPS: int = 18
+## The shine on the top right corner: a thin bright arc over the band where it turns, as wide as this share of the band.
+const SHINE_WIDTH: float = 0.45
+const OUTLINE: Color = Color(0.0, 0.0, 0.0, 1.0)
 ## How far the thin gold inner frame of a cooling card stands inside its edge; its corners are the card's less this, so the
 ## two curves stay parallel.
 const INNER_INSET: int = BORDER + 9
-const NAME_MAX: int = 22
-## Names are never drawn smaller than the caption floor: a card too small for that (the shuffler's window) shows only its art.
-const NAME_MIN: int = UiMetrics.CAPTION
-## The elixir drop (a card's cost, the bar's number): its tip stands this many belly radii above the belly's centre, its outline is
-## this thick, and its belly is drawn with this many points.
-const DROP_TIP: float = 1.55
-const DROP_OUTLINE: float = 3.0
-const DROP_POINTS: int = 20
 
 
 ## Draws the card of `def` in `rect` on `canvas`. `dim` (0 to 1) darkens it (locked, used, waiting); `lift` raises it with a gold edge
@@ -24,38 +33,99 @@ const DROP_POINTS: int = 20
 static func draw(canvas: CanvasItem, rect: Rect2, def: WeaponDef, dim: float = 0.0, lift: bool = false) -> void:
 	var kind: Color = WeaponPickScreen.kind_color(def.kind)
 	var frame: StyleBoxFlat = StyleBoxFlat.new()
-	frame.bg_color = kind.darkened(0.62)
-	frame.border_color = RoyaleStyle.GOLD if lift else kind
+	frame.bg_color = kind.darkened(0.5)
+	frame.border_color = RoyaleStyle.GOLD if lift else OUTLINE
 	frame.set_border_width_all(BORDER)
 	frame.set_corner_radius_all(RADIUS)
 	frame.anti_aliasing = true
-	frame.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
-	frame.shadow_size = 6
-	frame.shadow_offset = Vector2(0.0, 5.0)
 	canvas.draw_style_box(frame, rect)
+	_glosses(canvas, rect)
 	# the round art, as wide as the card allows
-	var inner: float = rect.size.x - 2.0 * (BORDER + 3.0)
+	var edge: float = ART_EDGE
+	var inner: float = rect.size.x - 2.0 * edge
 	var texture: Texture2D = Icons.art(StringName("btn_%s" % String(def.id)))
-	var art_rect: Rect2 = Rect2(rect.position + Vector2(BORDER + 3.0, BORDER + 3.0), Vector2(inner, inner))
+	var art_rect: Rect2 = Rect2(rect.position + Vector2(edge, edge), Vector2(inner, inner))
 	if texture != null:
 		canvas.draw_texture_rect(texture, art_rect, false)
-	# the name on a navy plate along the bottom (no plate on a card too small for a readable name)
-	var plate: Rect2 = Rect2(rect.position + Vector2(BORDER, rect.size.y - BORDER - plate_height(rect)), Vector2(rect.size.x - 2.0 * BORDER, plate_height(rect)))
-	var name_size: int = _name_size(plate, def.short_name)
-	if name_size > 0:
-		var plate_box: StyleBoxFlat = StyleBoxFlat.new()
-		plate_box.bg_color = RoyaleStyle.NAVY
-		plate_box.corner_radius_bottom_left = RADIUS - BORDER
-		plate_box.corner_radius_bottom_right = RADIUS - BORDER
-		plate_box.anti_aliasing = true
-		canvas.draw_style_box(plate_box, plate)
-		_name(canvas, plate, def.short_name, name_size)
 	if dim > 0.0:
 		var shade: StyleBoxFlat = StyleBoxFlat.new()
 		shade.bg_color = Color(0.0, 0.0, 0.0, dim)
 		shade.set_corner_radius_all(RADIUS)
 		shade.anti_aliasing = true
 		canvas.draw_style_box(shade, rect)
+
+
+## The gloss of a card: a band a few pixels inside its black outline that runs from the top left, along the top, round the top right corner,
+## down the right side and round the bottom right corner to the bottom left, as one connected stroke (with a soft wider glow under it):
+## white at the top, fading through gray on the right, light gray along the bottom. Nothing on the left side.
+static func _glosses(canvas: CanvasItem, rect: Rect2) -> void:
+	var inset: float = float(BORDER) + float(GLOSS) / 2.0
+	var box: Rect2 = rect.grow(-inset)
+	var corner: float = maxf(float(RADIUS) - inset, 2.0)
+	var points: PackedVector2Array = PackedVector2Array()
+	var marks: PackedFloat32Array = PackedFloat32Array()  # which part of the path each point is on: 0 top, 1 right, 2 bottom
+	var arc_from_top: Array[int] = []  # the points on the top right curve
+	points.append(Vector2(box.position.x + corner, box.position.y))
+	marks.append(0.0)
+	points.append(Vector2(box.end.x - corner, box.position.y))
+	marks.append(0.0)
+	for step: int in range(1, GLOSS_STEPS + 1):
+		var angle: float = -PI / 2.0 + PI / 2.0 * float(step) / float(GLOSS_STEPS)
+		points.append(Vector2(box.end.x - corner, box.position.y + corner) + Vector2.from_angle(angle) * corner)
+		marks.append(0.5 * float(step) / float(GLOSS_STEPS))  # white to gray right round the curve
+		arc_from_top.append(points.size() - 1)
+	points.append(Vector2(box.end.x, box.end.y - corner))
+	marks.append(1.0)
+	for step: int in range(1, GLOSS_STEPS + 1):
+		var angle: float = PI / 2.0 * float(step) / float(GLOSS_STEPS)
+		points.append(Vector2(box.end.x - corner, box.end.y - corner) + Vector2.from_angle(angle) * corner)
+		marks.append(1.0 + 0.5 * float(step) / float(GLOSS_STEPS))  # gray to light gray right round the curve
+	points.append(Vector2(box.position.x + corner, box.end.y))
+	marks.append(2.0)
+	var lengths: PackedFloat32Array = PackedFloat32Array([0.0])
+	for index: int in range(1, points.size()):
+		lengths.append(lengths[index - 1] + points[index].distance_to(points[index - 1]))
+	var total: float = maxf(lengths[lengths.size() - 1], 1.0)
+	var colors: PackedColorArray = PackedColorArray()
+	var glow: PackedColorArray = PackedColorArray()
+	for index: int in points.size():
+		var color: Color = gloss_color(marks[index], lengths[index] / total)
+		colors.append(color)
+		glow.append(Color(color, color.a * 0.3))
+	canvas.draw_polyline_colors(points, glow, float(GLOSS) * 2.0, true)
+	canvas.draw_polyline_colors(points, colors, float(GLOSS), true)
+	# the shine: a thin bright arc over the top right curve, strongest where it turns and fading to nothing at both ends
+	var arc: PackedVector2Array = PackedVector2Array()
+	for index: int in arc_from_top:
+		arc.append(points[index])
+	if arc.size() > 2:
+		var shine: PackedColorArray = PackedColorArray()
+		for index: int in arc.size():
+			var share: float = float(index) / float(arc.size() - 1)
+			shine.append(Color(1.0, 1.0, 1.0, sin(share * PI) * 0.55))
+		canvas.draw_polyline_colors(arc, shine, float(GLOSS) * SHINE_WIDTH, true)
+
+
+## The gloss colour at a point of its path: `part` 0 on the top, 1 on the right side, 2 on the bottom (halves between are the corners);
+## `along` 0 to 1 is how far along the path it is (the band fades in at its start and out at its end).
+static func gloss_color(part: float, along: float) -> Color:
+	var color: Color
+	var alpha: float
+	if part <= 0.5:
+		color = GLOSS_TOP.lerp(GLOSS_RIGHT, part * 2.0)
+		alpha = lerpf(GLOSS_ALPHA_TOP, GLOSS_ALPHA_RIGHT, part * 2.0)
+	elif part <= 1.0:
+		color = GLOSS_RIGHT
+		alpha = GLOSS_ALPHA_RIGHT
+	elif part <= 1.5:
+		color = GLOSS_RIGHT.lerp(GLOSS_BOTTOM, (part - 1.0) * 2.0)
+		alpha = lerpf(GLOSS_ALPHA_RIGHT, GLOSS_ALPHA_BOTTOM, (part - 1.0) * 2.0)
+	else:
+		color = GLOSS_BOTTOM
+		alpha = GLOSS_ALPHA_BOTTOM
+	# fade in at the top left and out at the bottom left
+	alpha *= clampf(along / 0.06, 0.0, 1.0) * clampf((1.0 - along) / 0.1, 0.0, 1.0)
+	return Color(color, alpha)
 
 
 ## The empty slot of a hand: a faint card-shaped hollow, waiting for the shuffler.
@@ -98,10 +168,6 @@ static func draw_back(canvas: CanvasItem, rect: Rect2, progress: float, seconds:
 		canvas.draw_string(font, centre + Vector2(-width / 2.0, 14.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.HEADLINE, Color(1.0, 1.0, 1.0, 0.9))
 
 
-static func plate_height(rect: Rect2) -> float:
-	return clampf(rect.size.y * 0.2, 22.0, 40.0)
-
-
 ## Draws `def` darkened from the top down: `ready` (0 to 1) of the card, from the bottom up, is bright (a cooldown that fills the card).
 static func draw_filling(canvas: CanvasItem, rect: Rect2, def: WeaponDef, ready: float, dim: float = 0.55) -> void:
 	draw(canvas, rect, def)
@@ -113,43 +179,3 @@ static func draw_filling(canvas: CanvasItem, rect: Rect2, def: WeaponDef, ready:
 	shade.set_corner_radius_all(RADIUS)
 	shade.anti_aliasing = true
 	canvas.draw_style_box(shade, Rect2(rect.position, Vector2(rect.size.x, covered)))
-
-
-## The font size `text` fits its plate at, or 0 when that would be under `NAME_MIN`.
-static func _name_size(plate: Rect2, text: String) -> int:
-	var font: Font = KalyeahTheme.ACTION_FONT
-	var size: int = NAME_MAX
-	while size > NAME_MIN and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x > plate.size.x - 8.0:
-		size -= 1
-	size = mini(size, int(plate.size.y * 0.62))
-	return size if size >= NAME_MIN else 0
-
-
-static func _name(canvas: CanvasItem, plate: Rect2, text: String, size: int) -> void:
-	var font: Font = KalyeahTheme.ACTION_FONT
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size).x
-	canvas.draw_string(font, Vector2(plate.position.x + (plate.size.x - width) / 2.0, plate.position.y + plate.size.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size, Color.WHITE)
-
-
-## A drop of elixir centred on its round belly at `centre` (`radius` wide), tip up, with `text` (the cost or the bar's whole points)
-## lettered in it at `font_size`. `fill` is the drop's colour; a dark outline keeps it readable on any card or on the street.
-static func draw_drop(canvas: CanvasItem, centre: Vector2, radius: float, text: String, fill: Color, font_size: int) -> void:
-	canvas.draw_colored_polygon(drop_points(centre, radius + DROP_OUTLINE), RoyaleStyle.NAVY)
-	canvas.draw_colored_polygon(drop_points(centre, radius), fill)
-	canvas.draw_circle(centre + Vector2(-radius * 0.35, -radius * 0.35), radius * 0.22, Color(1.0, 1.0, 1.0, 0.45))
-	if text.is_empty():
-		return
-	var font: Font = KalyeahTheme.ACTION_FONT
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
-	RoyaleStyle.lettered(canvas, font, text, centre + Vector2(-width / 2.0, font_size * 0.36), font_size)
-
-
-## The outline of a drop: a round belly of `radius` at `centre` and a tip `DROP_TIP` radii above it, joined by the belly's tangents.
-static func drop_points(centre: Vector2, radius: float) -> PackedVector2Array:
-	var tip: Vector2 = centre + Vector2(0.0, -radius * DROP_TIP)
-	var spread: float = acos(1.0 / DROP_TIP)
-	var points: PackedVector2Array = PackedVector2Array([tip])
-	for i: int in DROP_POINTS + 1:
-		var angle: float = -PI / 2.0 + spread + (TAU - 2.0 * spread) * float(i) / float(DROP_POINTS)
-		points.append(centre + Vector2.from_angle(angle) * radius)
-	return points

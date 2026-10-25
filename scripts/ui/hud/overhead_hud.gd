@@ -9,12 +9,12 @@ extends Control
 
 ## The bar before `bar_scale` (visual pass: 92 x 13 read as a hairline at phone size; now a chunky rounded bar).
 const BAR_SIZE: Vector2 = Vector2(96.0, 18.0)
-## The dark outline round the bar (screen px, kept at any bar_scale so the bar always reads on the street).
-const BAR_OUTLINE: float = 3.0
-## The health number over the bar's top left corner (its left edge lines up with the bar's), and the height of that line.
-const COUNT_FONT: int = UiMetrics.CAPTION
-const COUNT_LINE: float = 24.0
-const COUNT_GAP: float = 6.0
+## The dark outline round the bar: thin (screen px, kept at any bar_scale).
+const BAR_OUTLINE: float = 2.0
+## The health number at the bar's top left corner (its left edge lines up with the bar's, its middle level with the bar's top outline),
+## and how far it reaches above the bar.
+const COUNT_FONT: int = UiMetrics.WORLD_SMALL
+const COUNT_LINE: float = 10.0
 ## The bar sits just above the top of the head (the kid's model is KID_HEIGHT tall).
 const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 const POPUP_TIME: float = 0.9
@@ -24,9 +24,9 @@ const STATUS_FONT: int = UiMetrics.CAPTION
 ## out you are overclocked (owner): the bar blinks blank and red for `exhaust_seconds`, then refills in amber while you only walk, until
 ## it is full. Other kids' stamina is never drawn (docs/GDD.md D33), only their *Exhausted*.
 const STAMINA_SIZE: Vector2 = Vector2(96.0, 8.0)
-const STAMINA_GAP: float = 5.0
 const STAMINA_LOW: float = 0.25
-const STAMINA_COLOR: Color = RoyaleStyle.CREAM
+## Stamina is blue (health is green, yours; blue for an ally's bar too, but the stamina bar is only ever under your own).
+const STAMINA_COLOR: Color = Color(0.22, 0.52, 1.0)
 const STAMINA_LOW_COLOR: Color = ConsolePanel.HEALTH_AMBER
 const EXHAUSTED_COLOR: Color = ConsolePanel.HEALTH_RED
 ## How long the overclock's red / blank blink holds each state (seconds); steady red with Reduce motion.
@@ -35,7 +35,13 @@ const BLINK_PERIOD: float = 0.25
 const EXHAUSTED_SELF: String = "EXHAUSTED"
 const EXHAUSTED_OTHER: String = "Exhausted"
 const POPUP_FONT: int = UiMetrics.BODY
+## A quick chat bubble: the words' size, the padding round them and how far over the health number it floats.
+const SAY_FONT: int = UiMetrics.DETAIL
+const SAY_PAD: Vector2 = Vector2(16.0, 8.0)
+const SAY_LIFT: float = 12.0
 const BACK: Color = Color(0.08, 0.06, 0.1, 0.85)
+## The empty part of a health or stamina bar: a flat, opaque dark gray (just the colour: no sheen, no texture).
+const EMPTY_BAR: Color = Color(0.18, 0.19, 0.21)
 const SELF_COLOR: Color = Color(0.35, 0.95, 0.35)
 const ALLY_COLOR: Color = Color(0.35, 0.65, 1.0)
 const ENEMY_COLOR: Color = Color(1.0, 0.3, 0.3)
@@ -69,6 +75,8 @@ var _bar_fill: StyleBoxFlat
 var _bar_gloss: StyleBoxFlat
 ## {id, amount, age, heal, jitter}
 var _popups: Array[Dictionary] = []
+## Quick chat bubbles over kids: {id, text, age}.
+var _says: Array[Dictionary] = []
 
 
 func setup(sim: MatchSim, camera: Camera3D, local_id: int, local_team: int) -> void:
@@ -79,7 +87,7 @@ func setup(sim: MatchSim, camera: Camera3D, local_id: int, local_team: int) -> v
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sim.player_healed.connect(_on_healed)
 	_bar_back = StyleBoxFlat.new()
-	_bar_back.bg_color = BACK
+	_bar_back.bg_color = EMPTY_BAR
 	_bar_back.border_color = Icons.OUTLINE
 	_bar_back.anti_aliasing = true
 	_bar_fill = StyleBoxFlat.new()
@@ -128,7 +136,21 @@ func popup_count() -> int:
 	return _popups.size()
 
 
+## A quick chat bubble over kid `id` saying `text` for QuickChat.SAY_TIME (a new one replaces that kid's old one).
+func say(id: int, text: String) -> void:
+	_says = _says.filter(func(s: Dictionary) -> bool: return (s["id"] as int) != id)
+	_says.append({"id": id, "text": text, "age": 0.0})
+	queue_redraw()
+
+
+func says_count() -> int:
+	return _says.size()
+
+
 func tick(delta: float) -> void:
+	for said: Dictionary in _says:
+		said["age"] = (said["age"] as float) + delta
+	_says = _says.filter(func(s: Dictionary) -> bool: return (s["age"] as float) < QuickChat.SAY_TIME)
 	for popup: Dictionary in _popups:
 		popup["age"] = (popup["age"] as float) + delta
 	_popups = _popups.filter(func(p: Dictionary) -> bool: return (p["age"] as float) < POPUP_TIME)
@@ -165,8 +187,39 @@ func _draw() -> void:
 		var at: Variant = _head(state)
 		if at != null and bar_visible(state):
 			_draw_hero(state, at as Vector2)
+	for said: Dictionary in _says:
+		_draw_say(said)
 	for popup: Dictionary in _popups:
 		_draw_popup(popup)
+
+
+## The quick chat bubble over a kid: a white rounded bubble with a dark outline and a little tail, the words inside.
+func _draw_say(said: Dictionary) -> void:
+	var state: PlayerState = _sim.players.get(said["id"]) as PlayerState
+	if state == null:
+		return
+	var at: Variant = _head(state)
+	if at == null:
+		return
+	var text: String = UiText.t(said["text"] as String)
+	var font: Font = KalyeahTheme.ACTION_FONT
+	var words: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, SAY_FONT)
+	var bubble: Vector2 = words + SAY_PAD * 2.0
+	var rise: float = BAR_SIZE.y * bar_scale + COUNT_LINE + SAY_LIFT
+	var centre: Vector2 = keep_on_screen(at as Vector2 + Vector2(0.0, -rise - bubble.y / 2.0), font, text, SAY_FONT)
+	var rect: Rect2 = Rect2(centre - bubble / 2.0, bubble)
+	var fade: float = clampf((QuickChat.SAY_TIME - (said["age"] as float)) / 0.3, 0.0, 1.0)
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = Color(1.0, 1.0, 1.0, fade)
+	box.border_color = Color(0.0, 0.0, 0.0, fade)
+	box.set_border_width_all(3)
+	box.set_corner_radius_all(UiSkin.RADIUS_M)
+	box.anti_aliasing = true
+	draw_style_box(box, rect)
+	var tail_x: float = clampf((at as Vector2).x, rect.position.x + 14.0, rect.end.x - 14.0)
+	draw_colored_polygon(PackedVector2Array([Vector2(tail_x - 8.0, rect.end.y - 1.0), Vector2(tail_x + 8.0, rect.end.y - 1.0), Vector2(tail_x - 2.0, rect.end.y + 10.0)]), Color(0.0, 0.0, 0.0, fade))
+	draw_colored_polygon(PackedVector2Array([Vector2(tail_x - 5.0, rect.end.y - 2.0), Vector2(tail_x + 5.0, rect.end.y - 2.0), Vector2(tail_x - 2.0, rect.end.y + 5.0)]), Color(1.0, 1.0, 1.0, fade))
+	draw_string(font, Vector2(rect.position.x + SAY_PAD.x, rect.end.y - SAY_PAD.y - 4.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, SAY_FONT, Color(0.0, 0.0, 0.0, fade))
 
 
 ## True while `state`'s team holds the enemy base and this kid stands in it.
@@ -194,7 +247,7 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 	_draw_team_mark(state, rect, color)
 	if stamina_visible(state):
 		var stamina: Vector2 = STAMINA_SIZE * bar_scale
-		var under: Rect2 = Rect2(Vector2(head.x - stamina.x / 2.0, rect.end.y + BAR_OUTLINE + STAMINA_GAP), stamina)
+		var under: Rect2 = Rect2(Vector2(head.x - stamina.x / 2.0, stamina_top(rect)), stamina)
 		var look: Array = stamina_fill(state)
 		_draw_thin(under, look[0] as float, look[1] as Color)
 	var status: String = _status_text(state)
@@ -208,38 +261,47 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.rescue_elapsed[state.team] / maxf(_sim.rules.rescue_hold_time, 0.001), RESCUE_COLOR)
 
 
-## The health number just over the bar's top left corner, left-aligned with the bar.
+## The health number at the bar's top left corner: left-aligned with the bar, its middle level with the bar's top outline.
 func _draw_count(state: PlayerState, rect: Rect2) -> void:
 	var text: String = str(maxi(state.hp, 0))
 	var width: float = KalyeahTheme.ACTION_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, COUNT_FONT).x
-	_text(KalyeahTheme.ACTION_FONT, text, Vector2(rect.position.x + width / 2.0, rect.position.y - BAR_OUTLINE - COUNT_GAP), COUNT_FONT, Color.WHITE, 5)
+	_text(KalyeahTheme.ACTION_FONT, text, Vector2(rect.position.x + width / 2.0, count_baseline(rect)), COUNT_FONT, Color.WHITE, 5)
+
+
+## Where the stamina bar starts under a health bar at `rect`: no gap, the two bars share the line between them (the stamina bar's top
+## outline is the health bar's bottom outline).
+static func stamina_top(rect: Rect2) -> float:
+	return rect.end.y + BAR_OUTLINE
+
+
+## The baseline of the health number over a bar at `rect`: its middle level with the middle of the bar's top outline.
+static func count_baseline(rect: Rect2) -> float:
+	return rect.position.y - BAR_OUTLINE / 2.0 + float(COUNT_FONT) * 0.36
 
 
 ## A rounded bar with a dark outline: the fill in `color`, and a gloss on its upper third.
 func _draw_bar(rect: Rect2, fill: float, color: Color) -> void:
-	var round_px: int = int(ceilf(rect.size.y / 2.0 + BAR_OUTLINE))
 	_bar_back.set_border_width_all(int(BAR_OUTLINE))
-	_bar_back.set_corner_radius_all(round_px)
+	_bar_back.set_corner_radius_all(UiSkin.bar_radius(rect.size.y + BAR_OUTLINE * 2.0))
 	draw_style_box(_bar_back, rect.grow(BAR_OUTLINE))
 	if fill > 0.0:
 		var width: float = maxf(rect.size.x * fill, rect.size.y)
 		_bar_fill.bg_color = color
-		_bar_fill.set_corner_radius_all(int(ceilf(rect.size.y / 2.0)))
+		_bar_fill.set_corner_radius_all(UiSkin.bar_radius(rect.size.y))
 		draw_style_box(_bar_fill, Rect2(rect.position, Vector2(width, rect.size.y)))
-		_bar_gloss.set_corner_radius_all(int(ceilf(rect.size.y / 4.0)))
+		_bar_gloss.set_corner_radius_all(UiSkin.bar_radius(rect.size.y / 3.0))
 		draw_style_box(_bar_gloss, Rect2(rect.position + Vector2(rect.size.y / 3.0, 1.0), Vector2(maxf(width - rect.size.y / 1.5, 1.0), rect.size.y / 3.0)))
 
 
 ## A thin bar with a dark outline, filled to `fill` in `color` (your stamina).
 func _draw_thin(rect: Rect2, fill: float, color: Color) -> void:
-	var round_px: int = UiSkin.round_radius(rect.size.y + BAR_OUTLINE * 2.0)
 	_bar_back.set_border_width_all(int(BAR_OUTLINE))
-	_bar_back.set_corner_radius_all(round_px)
+	_bar_back.set_corner_radius_all(UiSkin.bar_radius(rect.size.y + BAR_OUTLINE * 2.0))
 	draw_style_box(_bar_back, rect.grow(BAR_OUTLINE))
 	if fill <= 0.0:
 		return
 	_bar_fill.bg_color = color
-	_bar_fill.set_corner_radius_all(UiSkin.round_radius(rect.size.y))
+	_bar_fill.set_corner_radius_all(UiSkin.bar_radius(rect.size.y))
 	draw_style_box(_bar_fill, Rect2(rect.position, Vector2(maxf(rect.size.x * fill, rect.size.y), rect.size.y)))
 
 

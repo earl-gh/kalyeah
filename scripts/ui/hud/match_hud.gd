@@ -49,10 +49,10 @@ const HEADER_HEIGHT: float = TOP_ROW_Y * 2.0 + 88.0
 const MARGIN: float = 14.0
 const GEAR_SIZE: float = UiMetrics.TOUCH
 const SCORE_SIZE: Vector2 = Vector2(330.0, 88.0)
-const CLOCK_SIZE: Vector2 = Vector2(152.0, 88.0)
+const CLOCK_SIZE: Vector2 = Vector2(136.0, 84.0)
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## The tray at the bottom of the screen (the hand and the elixir bar): the arena sits above it. The camera reserves the same height.
-const CONSOLE_HEIGHT: float = 260.0
+const CONSOLE_HEIGHT: float = 255.0
 ## The most the bottom inset can add (a tall gesture bar), so the tray never eats the street.
 const MAX_BOTTOM_INSET: float = 80.0
 
@@ -61,6 +61,10 @@ var overhead: OverheadHud
 var pulse: HurtPulse
 ## The tray at the bottom (it only draws).
 var console: ConsolePanel
+## The quick chat button above NEXT, outside the tray; what it says shows over your kid.
+var chat: QuickChat
+## Quick chat is for playing with others: off in offline practice (nobody to talk to).
+var chat_enabled: bool = true
 ## UI pixels of the screen's bottom edge the system keeps (home bar), set by the match screen.
 var bottom_inset: float = 0.0
 ## UI pixels the notch or status bar keeps at the top: the header grows by it.
@@ -137,6 +141,13 @@ func set_bottom_inset(pixels: float) -> void:
 	layout_controls()
 
 
+func set_chat_enabled(on: bool) -> void:
+	chat_enabled = on
+	chat.visible = on and hand.visible
+	if not on:
+		chat.set_open(false)
+
+
 ## The tray's height now: its own plus the bottom inset.
 func console_height() -> float:
 	return CONSOLE_HEIGHT + bottom_inset
@@ -201,6 +212,8 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	# during the opening show the first hand is on the tray, dimmed and locked, instead of an empty tray
 	var shown: bool = playing or (sim.phase == MatchSim.Phase.INTRO and not player.tagged and not pick_open and not connection_blocked)
 	hand.visible = shown
+	chat.visible = shown and chat_enabled
+	console.set_column(CardHand.COLUMN if shown else 0.0, not Settings.left_handed)
 	street.active = playing
 	if not playing:
 		street.release()
@@ -244,7 +257,6 @@ func _block_tag(sim: MatchSim, player: PlayerState) -> String:
 func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1) -> void:
 	scoreboard.show_score(sim.score, local_team, sim.match_time)
 	scoreboard.show_capture(sim, local_team)
-	scoreboard.show_roster(sim, local_team)
 	clock_chip.show_time(sim.match_time, sim.in_overtime())
 	_sync_capture(sim, local_team)
 	again_button.visible = sim.phase == MatchSim.Phase.MATCH_OVER
@@ -295,6 +307,8 @@ func _build() -> void:
 	MatchHudTop.build(self)
 	hand = CardHand.new()
 	add_child(hand)
+	chat = QuickChat.new()
+	add_child(chat)
 	street = StreetTouch.new()
 	add_child(street)
 	banner = Label.new()

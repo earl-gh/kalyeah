@@ -2,25 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dv3sqqjb4uvip"
-path="res://.godot/imported/jeep_prop_base_color.jpg-a05e69944c93473536716a53f7a7d460.ctex"
+uid="uid://rroaaqgnq035"
+path="res://.godot/imported/ice_water.webp-1e0ea3500f8ab345beda2587258c14aa.ctex"
 metadata={
 "vram_texture": false
-}
-generator_parameters={
-"md5": "ba54c9bc3ccd7fedd09fa0d0d8ac602e"
 }
 
 [deps]
 
-source_file="res://assets/models/props/jeep_prop_base_color.jpg"
-dest_files=["res://.godot/imported/jeep_prop_base_color.jpg-a05e69944c93473536716a53f7a7d460.ctex"]
+source_file="res://assets/ui/hand/ice_water.webp"
+dest_files=["res://.godot/imported/ice_water.webp-1e0ea3500f8ab345beda2587258c14aa.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.9
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
@@ -39,5 +36,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=0
+process/size_limit=256
 detect_3d/compress_to=1

@@ -23,32 +23,43 @@ signal card_cancelled(slot: int)
 signal card_denied(slot: int)
 
 const SLOTS: int = 4
-## Layout on the 720 px base (the tray's own height is MatchHud.CONSOLE_HEIGHT): side margin, the NEXT column, the gaps, the
-## row's top, the card's height for its width, the bar's height and the gap above it.
-const SIDE: float = 18.0
-const NEXT_WIDTH: float = 96.0
-const NEXT_GAP: float = 16.0
+## Layout on the 720 px base (the tray's own height is MatchHud.CONSOLE_HEIGHT), like Clash Royale's bottom: a column BESIDE the cardboard
+## (the chat button above NEXT, over the street's edge) and the cardboard with the four cards and the ice water bar. Side margin (the
+## cardboard's rim), the gap between cards, the row's top (under the cardboard's top rim), the card's height for its width, the bar's
+## height, the gap above it and the room under it (the bottom rim).
+const COLUMN: float = 116.0
+const SIDE: float = 40.0
 const CARD_GAP: float = 10.0
-const ROW_TOP: float = 18.0
-const CARD_ASPECT: float = 1.3
-const BAR_HEIGHT: float = 34.0
+const ROW_TOP: float = 28.0
+## The card's height over its width, measured on the Clash Royale reference (about 276 x 219 px).
+const CARD_ASPECT: float = 1.26
+const BAR_HEIGHT: float = 26.0
 const BAR_GAP: float = 14.0
-## The NEXT card is this share of a hand card, under its label.
-const NEXT_SCALE: float = 0.72
+const BOTTOM_PAD: float = 32.0
+## The NEXT card is this share of a hand card, under its label, in the column beside the cardboard; the chat button is above it.
+const NEXT_SCALE: float = 0.66
+const COLUMN_BOTTOM: float = 18.0
+const OUT_GAP: float = 8.0
+const CHAT_HEIGHT: float = 80.0
 const NEXT_FONT: int = UiMetrics.CAPTION
-const NEXT_COLOR: Color = RoyaleStyle.BLUE_LIGHT
-## The cost drop on a card (belly radius) and its number; the bar's drop and its number.
-const COST_RADIUS: float = 19.0
+const NEXT_COLOR: Color = Color.WHITE
+## The ice water bag on a card (its height) and its number; the bar's bag and its number.
+const COST_BAG: float = 60.0
 const COST_FONT: int = UiMetrics.CAPTION
-const BAR_DROP_RADIUS: float = 25.0
+const BAR_BAG: float = 66.0
+## The "Max: 10" caption under the bar's start.
+const MAX_FONT: int = UiMetrics.WORLD
 const BAR_FONT: int = UiMetrics.ACTION
-const HEALTH_FONT: int = UiMetrics.ACTION
-const HEALTH_WIDTH: float = 112.0
 ## The ice water colour: a code-drawn stand-in until the art-director sets a token (docs/ART.md has none yet).
 const ICE_WATER: Color = Color(0.36, 0.8, 1.0)
-const ICE_WATER_FULL_EDGE: Color = RoyaleStyle.GOLD
-const WELL: Color = Color(0.0, 0.02, 0.08, 0.45)
-const WELL_RADIUS: int = UiSkin.RADIUS_L
+## A full bar's edge: a light ice blue (it was gold; ice water stays blue).
+const ICE_WATER_FULL_EDGE: Color = Color(0.72, 0.93, 1.0)
+## The thin outline of the ice water bar.
+const BAR_OUTLINE: int = 2
+## The empty part of the ice water bar: a flat, opaque dark blue (just the colour: no sheen, no texture).
+const ICE_EMPTY: Color = Color(0.08, 0.16, 0.38)
+## The segment that is filling shows this much of its share in see-through white (like Clash Royale's elixir bar).
+const REFILL_WHITE: Color = Color(1.0, 1.0, 1.0, 0.4)
 ## A card you cannot afford: a grey wash over the part the bar has not reached yet, a lighter one over the rest.
 const GREY: Color = Color(0.2, 0.21, 0.25, 0.8)
 const GREY_REACHED: Color = Color(0.2, 0.21, 0.25, 0.5)
@@ -76,8 +87,9 @@ var mirrored: bool = false
 ## Where everything sits, in this control's own pixels (set by `_layout()` from the size).
 var card_rects: Array[Rect2] = []
 var next_rect: Rect2 = Rect2()
+## The quick chat button's rect, above NEXT (outside the tray, like it).
+var chat_rect: Rect2 = Rect2()
 var bar_rect: Rect2 = Rect2()
-var health_rect: Rect2 = Rect2()
 
 ## What the hand shows (from `show_state()`).
 var defs: Array[WeaponDef] = []
@@ -96,9 +108,6 @@ var uses_elixir: bool = true
 var elixir: float = 0.0
 var elixir_max: float = 10.0
 var shown_elixir: float = 0.0
-var hp: int = 0
-var max_hp: int = 1
-var health_shown: bool = true
 ## Gestures are taken (false under a menu, in the box, during the opening show).
 var active: bool = false
 
@@ -142,12 +151,12 @@ func _ready() -> void:
 
 ## The tray's height on the 720 px base for a `width` wide screen: the card row, the bar and their margins.
 static func tray_height(width: float = 720.0) -> float:
-	return ROW_TOP + card_size(width).y + BAR_GAP + BAR_HEIGHT + ROW_TOP
+	return ROW_TOP + card_size(width).y + BAR_GAP + BAR_HEIGHT + BOTTOM_PAD
 
 
-## A hand card's size when the row is `width` wide: four cards and the NEXT column share it.
+## A hand card's size when the row is `width` wide: the four cards share what the column leaves.
 static func card_size(width: float) -> Vector2:
-	var card_width: float = floorf((width - SIDE * 2.0 - NEXT_WIDTH - NEXT_GAP - CARD_GAP * float(SLOTS - 1)) / float(SLOTS))
+	var card_width: float = floorf((width - COLUMN - SIDE * 2.0 - CARD_GAP * float(SLOTS - 1)) / float(SLOTS))
 	return Vector2(card_width, roundf(card_width * CARD_ASPECT))
 
 
@@ -160,26 +169,25 @@ func _layout() -> void:
 	var card: Vector2 = card_size(size.x)
 	var next_size: Vector2 = card * NEXT_SCALE
 	var label_room: float = float(NEXT_FONT) + 8.0
-	var next_x: float = SIDE + (NEXT_WIDTH - next_size.x) / 2.0
-	var row_x: float = SIDE + NEXT_WIDTH + NEXT_GAP
-	if mirrored:
-		next_x = size.x - SIDE - NEXT_WIDTH + (NEXT_WIDTH - next_size.x) / 2.0
-		row_x = SIDE
-	next_rect = Rect2(Vector2(next_x, ROW_TOP + card.y - next_size.y), next_size)
-	next_rect.position.y = maxf(next_rect.position.y, ROW_TOP + label_room)
+	# the column is beside the cardboard: at the left, or at the right for a left-handed player
+	var column_x: float = 0.0 if not mirrored else size.x - COLUMN
+	var cards_x: float = (COLUMN if not mirrored else 0.0) + SIDE
+	next_rect = Rect2(Vector2(column_x + (COLUMN - next_size.x) / 2.0, size.y - COLUMN_BOTTOM - next_size.y), next_size)
+	var chat_size: Vector2 = Vector2(CHAT_HEIGHT * HandArt.CHAT_ASPECT, CHAT_HEIGHT)
+	chat_rect = Rect2(Vector2(column_x + (COLUMN - chat_size.x) / 2.0, next_rect.position.y - label_room - OUT_GAP - chat_size.y), chat_size)
 	card_rects.clear()
 	for slot: int in SLOTS:
-		card_rects.append(Rect2(Vector2(row_x + float(slot) * (card.x + CARD_GAP), ROW_TOP), card))
+		card_rects.append(Rect2(Vector2(cards_x + float(slot) * (card.x + CARD_GAP), ROW_TOP), card))
 	var bar_top: float = ROW_TOP + card.y + BAR_GAP
-	var bar_left: float = SIDE + BAR_DROP_RADIUS
-	health_rect = Rect2(Vector2(size.x - SIDE - HEALTH_WIDTH, bar_top), Vector2(HEALTH_WIDTH, BAR_HEIGHT))
-	bar_rect = Rect2(Vector2(bar_left, bar_top), Vector2(health_rect.position.x - CARD_GAP - bar_left, BAR_HEIGHT))
+	var bar_left: float = cards_x + BAR_BAG * HandArt.ICE_ASPECT / 2.0
+	var bar_right: float = cards_x + 4.0 * card.x + 3.0 * CARD_GAP
+	bar_rect = Rect2(Vector2(bar_left, bar_top), Vector2(bar_right - bar_left, BAR_HEIGHT))
 	queue_redraw()
 
 
-## The whole hand's rect (NEXT and the four cards), in own pixels: the sunken well they sit in.
+## The four cards' rect, in own pixels.
 func row_rect() -> Rect2:
-	var rect: Rect2 = next_rect
+	var rect: Rect2 = card_rects[0] if not card_rects.is_empty() else Rect2()
 	for card: Rect2 in card_rects:
 		rect = rect.merge(card)
 	return rect
@@ -192,8 +200,6 @@ func show_state(sim: MatchSim, player: PlayerState, playing: bool, block: String
 	uses_elixir = sim.pays_elixir(player)
 	elixir = player.elixir
 	elixir_max = sim.rules.elixir_max
-	hp = player.hp
-	max_hp = sim.rules.player_max_hp
 	blocked_text = block
 	var new_next: WeaponDef = sim.weapon_defs.get(player.next_card) as WeaponDef
 	var shuffling: WeaponDef = sim.weapon_defs.get(player.shuffle_card) as WeaponDef
@@ -426,11 +432,6 @@ func held_card_rect() -> Rect2:
 # ---- drawing --------------------------------------------------------------------
 
 func _draw() -> void:
-	var well: StyleBoxFlat = StyleBoxFlat.new()
-	well.bg_color = WELL
-	well.set_corner_radius_all(WELL_RADIUS)
-	well.anti_aliasing = true
-	draw_style_box(well, row_rect().grow(UiMetrics.COMPACT_GAP))
 	_draw_next()
 	for slot: int in card_rects.size():
 		_draw_slot(slot)
@@ -440,7 +441,6 @@ func _draw() -> void:
 			cards = cards.merge(card)
 		_draw_tag(cards.get_center(), UiText.t(blocked_text))
 	_draw_bar()
-	_draw_health()
 	if held_slot >= 0 and defs[held_slot] != null:
 		var rect: Rect2 = held_card_rect()
 		CardStyle.draw(self, rect, defs[held_slot], 0.0, true)
@@ -451,7 +451,9 @@ func _draw_next() -> void:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var label: String = UiText.t("NEXT")
 	var width: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT).x
-	draw_string(font, Vector2(next_rect.get_center().x - width / 2.0, next_rect.position.y - 8.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT, NEXT_COLOR)
+	var at: Vector2 = Vector2(next_rect.get_center().x - width / 2.0, next_rect.position.y - 8.0)
+	draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT, 7, Color.BLACK)
+	draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT, NEXT_COLOR)
 	if next_def == null:
 		CardStyle.draw_empty(self, next_rect)
 	elif next_fill < 1.0:
@@ -507,13 +509,14 @@ func _draw_grey(rect: Rect2, share: float) -> void:
 	draw_style_box(dark, Rect2(rect.position, Vector2(rect.size.x, missing)))
 
 
-## The card's cost in a drop at its top-left corner (elixir only); a cost the bar has not reached is drawn in grey.
+## The card's cost on an ice water bag on its bottom edge, in the middle (elixir only); a cost the bar has not reached is drawn in grey.
 func _draw_cost(rect: Rect2, def: WeaponDef, affordable: bool) -> void:
 	if not uses_elixir:
 		return
-	var radius: float = minf(COST_RADIUS, rect.size.x * 0.16)
-	var centre: Vector2 = rect.position + Vector2(radius + 2.0, radius * CardStyle.DROP_TIP + 2.0)
-	CardStyle.draw_drop(self, centre, radius, str(def.elixir_cost), ICE_WATER if affordable else ICE_WATER.lerp(Color(0.5, 0.5, 0.55), 0.7), COST_FONT)
+	var height: float = minf(COST_BAG, rect.size.x * 0.42)
+	# like Clash Royale: on the card's bottom edge, in the middle, half over the edge
+	var centre: Vector2 = Vector2(rect.get_center().x, rect.end.y - height * 0.2)
+	HandArt.draw_ice(self, centre, height, str(def.elixir_cost), COST_FONT, affordable)
 
 
 ## The pill for `tag` would be wider than one card.
@@ -538,51 +541,74 @@ func _draw_tag(at: Vector2, text: String) -> void:
 
 
 ## The ice water bar: a dark track cut into `elixir_max` segments, filled smoothly to the shown elixir, a gold edge when it is full,
-## and the whole points in a drop at its left end.
+## and the whole points on an ice water bag at its left end.
 func _draw_bar() -> void:
 	if not uses_elixir or bar_rect.size.x <= 0.0:
 		return
 	var segments: int = maxi(roundi(elixir_max), 1)
 	var full: bool = elixir >= elixir_max - 0.001
 	var track: StyleBoxFlat = StyleBoxFlat.new()
-	track.bg_color = Color(0.02, 0.05, 0.14)
+	track.bg_color = ICE_EMPTY
 	track.border_color = ICE_WATER_FULL_EDGE if full else RoyaleStyle.NAVY
-	track.set_border_width_all(RoyaleStyle.OUTLINE)
-	track.set_corner_radius_all(UiSkin.round_radius(bar_rect.size.y))
+	track.set_border_width_all(BAR_OUTLINE)
+	track.set_corner_radius_all(UiSkin.bar_radius(bar_rect.size.y))
 	track.anti_aliasing = true
 	draw_style_box(track, bar_rect)
-	var inner: Rect2 = bar_rect.grow(-float(RoyaleStyle.OUTLINE) - 1.0)
-	var share: float = clampf(shown_elixir / maxf(elixir_max, 0.001), 0.0, 1.0)
-	if share > 0.0:
-		var fill: StyleBoxFlat = StyleBoxFlat.new()
-		fill.bg_color = ICE_WATER.lightened(0.15) if full else ICE_WATER
-		fill.set_corner_radius_all(UiSkin.round_radius(inner.size.y))
-		fill.anti_aliasing = true
-		draw_style_box(fill, Rect2(inner.position, Vector2(maxf(inner.size.x * share, inner.size.y), inner.size.y)))
-		var sheen: StyleBoxFlat = StyleBoxFlat.new()
-		sheen.bg_color = RoyaleStyle.SHEEN
-		sheen.set_corner_radius_all(UiSkin.round_radius(inner.size.y * 0.3))
-		draw_style_box(sheen, Rect2(inner.position + Vector2(inner.size.y * 0.4, 2.0), Vector2(maxf(inner.size.x * share - inner.size.y * 0.8, 1.0), inner.size.y * 0.3)))
+	var inner: Rect2 = bar_rect.grow(-float(BAR_OUTLINE))
+	# the bar fills one whole segment at a time (solid ice water); the segment being filled shows its progress in see-through white
+	var fills: PackedFloat32Array = segment_fills(shown_elixir, segments)
+	var span: float = inner.size.x / float(segments)
+	for segment: int in segments:
+		var cell: Rect2 = Rect2(Vector2(inner.position.x + span * float(segment), inner.position.y), Vector2(span, inner.size.y))
+		if fills[segment] >= 1.0:
+			draw_style_box(_segment_style(ICE_WATER.lightened(0.15) if full else ICE_WATER, segment, segments, inner.size.y), cell)
+		elif fills[segment] > 0.0:
+			draw_style_box(_segment_style(REFILL_WHITE, segment, segments, inner.size.y), Rect2(cell.position, Vector2(cell.size.x * fills[segment], cell.size.y)))
 	for segment: int in range(1, segments):
-		var x: float = inner.position.x + inner.size.x * float(segment) / float(segments)
+		var x: float = inner.position.x + span * float(segment)
 		draw_line(Vector2(x, inner.position.y + 2.0), Vector2(x, inner.end.y - 2.0), Color(0.0, 0.0, 0.0, 0.4), 2.0)
-	var drop_centre: Vector2 = Vector2(bar_rect.position.x, bar_rect.get_center().y + BAR_DROP_RADIUS * 0.15)
-	CardStyle.draw_drop(self, drop_centre, BAR_DROP_RADIUS, str(floori(elixir + 0.001)), ICE_WATER, BAR_FONT)
-
-
-## Your health at the bar's right end: a heart and the number (amber below half, red below a quarter, the number always there).
-func _draw_health() -> void:
-	if not health_shown or health_rect.size.x <= 0.0:
-		return
-	var fraction: float = clampf(float(hp) / maxf(float(max_hp), 1.0), 0.0, 1.0)
-	var color: Color = ConsolePanel.health_color(fraction)
-	RoyaleStyle.chunky(self, health_rect, RoyaleStyle.BLUE_WELL, UiSkin.round_radius(health_rect.size.y), false)
-	var heart: float = health_rect.size.y * 0.32
-	var heart_at: Vector2 = Vector2(health_rect.position.x + heart + 12.0, health_rect.get_center().y)
-	ConsolePanel.draw_heart(self, heart_at, heart, color)
+	# like Clash Royale: the bag overlaps the bar's start, the whole points in big letters just right of it (over the bar's start), and the
+	# most you can hold in small letters under them
+	var bag: Vector2 = Vector2(bar_rect.position.x, bar_rect.get_center().y - BAR_BAG * 0.12)
+	HandArt.draw_ice(self, bag, BAR_BAG, "", BAR_FONT)
 	var font: Font = KalyeahTheme.ACTION_FONT
-	var text: String = str(hp)
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HEALTH_FONT).x
-	var room_left: float = heart_at.x + heart + 6.0
-	var x: float = room_left + (health_rect.end.x - room_left - width) / 2.0
-	RoyaleStyle.lettered(self, font, text, Vector2(x, health_rect.get_center().y + HEALTH_FONT * 0.36), HEALTH_FONT)
+	var number_at: Vector2 = Vector2(bag.x + BAR_BAG * HandArt.ICE_ASPECT / 2.0 + 6.0, bar_rect.get_center().y - BAR_HEIGHT * 0.1)
+	RoyaleStyle.lettered(self, font, str(floori(elixir + 0.001)), number_at, BAR_FONT)
+	var max_text: String = UiText.f("Max: %d", [roundi(elixir_max)])
+	# vertically centred on the bar's bottom outline
+	RoyaleStyle.lettered(self, font, max_text, Vector2(number_at.x, max_caption_baseline(bar_rect)), MAX_FONT)
+
+
+## A filled piece of the ice water bar: flat, its outer corners (the first piece's left ones, the last piece's right ones) rounded like the track's.
+func _segment_style(color: Color, segment: int, segments: int, height: float) -> StyleBoxFlat:
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = color
+	var radius: int = UiSkin.bar_radius(height)
+	if segment == 0:
+		box.corner_radius_top_left = radius
+		box.corner_radius_bottom_left = radius
+	if segment == segments - 1:
+		box.corner_radius_top_right = radius
+		box.corner_radius_bottom_right = radius
+	box.anti_aliasing = true
+	return box
+
+
+## How full each segment of the ice water bar is for `elixir` points: 1 solid, 0 empty, and between 0 and 1 the one being filled (whole
+## segments fill at once; only the next one shows progress).
+static func segment_fills(elixir: float, segments: int) -> PackedFloat32Array:
+	var fills: PackedFloat32Array = PackedFloat32Array()
+	var whole: int = clampi(floori(elixir + 0.0001), 0, segments)
+	for segment: int in segments:
+		if segment < whole:
+			fills.append(1.0)
+		elif segment == whole:
+			fills.append(clampf(elixir - float(whole), 0.0, 1.0))
+		else:
+			fills.append(0.0)
+	return fills
+
+
+## The baseline of the "Max: 10" caption: its middle is level with the middle of the bar's bottom outline.
+static func max_caption_baseline(bar: Rect2) -> float:
+	return bar.end.y - float(BAR_OUTLINE) / 2.0 + float(MAX_FONT) * 0.36

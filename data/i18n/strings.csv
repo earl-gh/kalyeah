@@ -99,7 +99,6 @@ EXHAUSTED,EXHAUSTED
 Extra,Extra
 "Face 3 bots, or just train.","Face 3 bots, or just train."
 Finding the host's room…,Finding the host's room…
-FIRST TO,FIRST TO
 First to,First to
 FIRST TO %d,FIRST TO %d
 First to %d,First to %d
@@ -108,6 +107,7 @@ Four things to know. Then try them.,Four things to know. Then try them.
 Game mode,Game mode
 "Get your whole team into the enemy base and hold it for %s seconds, with no defender left inside it, or tag everyone on the other team. First to %d points wins.","Get your whole team into the enemy base and hold it for %s seconds, with no defender left inside it, or tag everyone on the other team. First to %d points wins."
 GO!,GO!
+Good luck!,Good luck!
 Got it,Got it
 Gunting · Heavy,Gunting · Heavy
 Gunting · Light,Gunting · Light
@@ -115,6 +115,7 @@ Hair,Hair
 Heal,Heal
 Held their base,Held their base
 Held your base,Held your base
+Help me!,Help me!
 Hide practice tools,Hide practice tools
 History,History
 HOLD THE BASE!,HOLD THE BASE!
@@ -151,11 +152,13 @@ Make Kalyeah yours.,Make Kalyeah yours.
 Map: Agawan Base,Map: Agawan Base
 Match settings,Match settings
 Match unavailable,Match unavailable
+Max: %d,Max: %d
 Meet the six kids. Tap one to read about them.,Meet the six kids. Tap one to read about them.
 Migo,Migo
 Needs the Android app.,Needs the Android app.
 NEXT,NEXT
 "NEXT card on the right, your cards to the left","NEXT card on the right, your cards to the left"
+Nice one!,Nice one!
 "No local network. Turn on your hotspot or connect to Wi-Fi, then retry.","No local network. Turn on your hotspot or connect to Wi-Fi, then retry."
 NO TARGET,NO TARGET
 Nobody in range · release keeps it,Nobody in range · release keeps it
@@ -166,6 +169,7 @@ One big delayed snip that hits hard up close.,One big delayed snip that hits har
 "One big slipper flies out and returns, hitting both ways.","One big slipper flies out and returns, hitting both ways."
 Online,Online
 Online isn't available yet.,Online isn't available yet.
+Oops!,Oops!
 Open slot,Open slot
 Open slot in the %s team,Open slot in the %s team
 Opens the name and face editor,Opens the name and face editor
@@ -186,7 +190,6 @@ Play as %s,Play as %s
 Play on one local network.,Play on one local network.
 Play vs bots,Play vs bots
 Playable,Playable
-Player %d,Player %d
 Polymorphed,Polymorphed
 Popoy,Popoy
 Practice,Practice
@@ -195,6 +198,7 @@ Practice with the walkthrough,Practice with the walkthrough
 Preview only,Preview only
 Preview room,Preview room
 Profile saved,Profile saved
+Quick chat,Quick chat
 Quit,Quit
 Quit game,Quit game
 Quit game?,Quit game?
@@ -205,8 +209,6 @@ Reduce motion,Reduce motion
 Rejoin match,Rejoin match
 Rejoining…,Rejoining…
 Release here to cancel,Release here to cancel
-RESCUE,RESCUE
-RESCUED!,RESCUED!
 RESCUING,RESCUING
 Restoring match…,Restoring match…
 Return home,Return home
@@ -240,11 +242,12 @@ Tagged kids wait in their box. A teammate who stays beside it for %d s frees the
 Tagged them all,Tagged them all
 Tagged you all,Tagged you all
 Tagged · Wait for a rescue,Tagged · Wait for a rescue
-TAGGED!,TAGGED!
 Take 30 damage,Take 30 damage
 Tap to choose which slot the next weapon fills,Tap to choose which slot the next weapon fills
 "Tap to heal yourself, or drag toward a teammate to heal them.","Tap to heal yourself, or drag toward a teammate to heal them."
 Team size,Team size
+text,text
+Thanks!,Thanks!
 That match has ended.,That match has ended.
 The game · %s,The game · %s
 The host left. You are the host now.,The host left. You are the host now.
@@ -278,6 +281,7 @@ Weapons,Weapons
 "Wears a PE shirt and jogging pants, with pigtails tied in ponytail bands and rubber shoes ready to run.","Wears a PE shirt and jogging pants, with pigtails tied in ponytail bands and rubber shoes ready to run."
 "Wears a striped polo shirt, jersey shorts and tsinelas, with curly hair and an ice candy close at hand.","Wears a striped polo shirt, jersey shorts and tsinelas, with curly hair and an ice candy close at hand."
 "Wears a white sando and basketball shorts, with a bimpo tucked at the back and tsinelas on the feet. Short, spiky hair.","Wears a white sando and basketball shorts, with a bimpo tucked at the back and tsinelas on the feet. Short, spiky hair."
+Wow!,Wow!
 YOU,YOU
 You,You
 YOU %d - %d THEM   %s,YOU %d - %d THEM   %s
