@@ -13,7 +13,8 @@ Edit only your own paths. Anything else: a one-line request to the orchestrator 
 
 | Owner | Paths |
 |---|---|
-| orchestrator | `.github/`, `project.godot`, `export_presets.cfg` review, `docs/ROADMAP.md`, branches and PRs |
+| orchestrator | `.github/` (except the Android workflow), `project.godot` review, `docs/ROADMAP.md`, branches and PRs |
+| android-engineer | `export_presets.cfg`, `.github/workflows/android.yml`, the Android parts of `project.godot`, `android/`, APK inspection and smoke tests |
 | game-designer | `data/weapons/`, `data/rules/game_rules.tres`, `docs/GDD.md`, balance reports in `docs/audits/` |
 | gameplay-engineer | `scripts/sim/`, `scripts/net/`, `scripts/autoload/`, `server/` and their tests |
 | ux-ui-artist | `scripts/ui/` (not the tokens), `scripts/ui/hud/`, `scenes/ui/`, `scripts/input/`, `data/i18n/` |
