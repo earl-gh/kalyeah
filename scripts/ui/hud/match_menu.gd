@@ -1,6 +1,6 @@
 class_name MatchMenu
 extends Control
-## Reuses the same dialog, type scale and sound controls as the home and room menus.
+## Reuses the same dialog, type scale and setting controls as the home and room menus.
 
 signal closed
 signal exit_pressed

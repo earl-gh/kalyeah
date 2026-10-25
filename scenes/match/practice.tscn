@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/view/practice_match.gd" id="1_practice"]
 [ext_resource type="PackedScene" path="res://scenes/map/street_map.tscn" id="2_map"]
@@ -9,7 +9,6 @@
 [ext_resource type="Script" path="res://scripts/ui/weapon_pick_screen.gd" id="10_pick"]
 [ext_resource type="Script" path="res://scripts/view/weapon_fx_view.gd" id="11_fx"]
 [ext_resource type="Script" path="res://scripts/view/aim_indicator.gd" id="12_aim_indicator"]
-[ext_resource type="Script" path="res://scripts/view/audio/match_audio.gd" id="15_audio"]
 [ext_resource type="Script" path="res://scripts/ui/hud/match_hud.gd" id="16_hud"]
 
 [node name="Practice" type="Node3D"]
@@ -31,10 +30,6 @@ script = ExtResource("11_fx")
 [node name="AimIndicator" type="MeshInstance3D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("12_aim_indicator")
-
-[node name="Audio" type="Node" parent="."]
-unique_name_in_owner = true
-script = ExtResource("15_audio")
 
 [node name="ArenaCamera" type="Camera3D" parent="."]
 unique_name_in_owner = true

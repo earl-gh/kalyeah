@@ -177,7 +177,6 @@ func test_a_switch_and_a_slider_are_read_by_their_rows_title() -> void:
 	SettingsPage.fill(column)
 	var motion: Node = column.find_child("ReducedMotion", true, false)
 	assert_eq((motion as Control).accessibility_name, "Reduce motion")
-	assert_eq((column.find_child("VolumeSlider", true, false) as Control).accessibility_name, "Sound volume")
 	assert_eq((column.find_child("LeftHanded", true, false) as Control).accessibility_name, "Left-handed")
 
 

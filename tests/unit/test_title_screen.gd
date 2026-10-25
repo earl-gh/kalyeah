@@ -5,7 +5,6 @@ const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
 
 var _saved_name: String
 var _saved_avatar: String
-var _saved_volume: float
 var _saved_url: String
 var _saved_vibration: bool
 
@@ -13,7 +12,6 @@ var _saved_vibration: bool
 func before_each() -> void:
 	_saved_name = Session.player_name
 	_saved_avatar = Session.avatar_id
-	_saved_volume = Settings.volume
 	_saved_url = Settings.server_url
 	_saved_vibration = Settings.vibration
 
@@ -22,7 +20,6 @@ func after_each() -> void:
 	Session.player_name = _saved_name
 	Session.avatar_id = _saved_avatar
 	Session.save()
-	Settings.set_volume(_saved_volume)
 	Settings.set_vibration(_saved_vibration)
 	Settings.server_url = _saved_url
 	Session.lobby_hotspot = false
@@ -391,18 +388,6 @@ func _settings_open(screen: TitleScreen) -> SettingsPage:
 	screen.open_page(&"settings")
 	return screen.settings_page
 
-
-func test_settings_change_the_volume() -> void:
-	var screen: TitleScreen = _screen()
-	var page: SettingsPage = _settings_open(screen)
-	var slider: HSlider = _find(page, "VolumeSlider") as HSlider
-	slider.value = 0.4
-	assert_almost_eq(Settings.volume, 0.4, 0.001)
-	assert_almost_eq(AudioServer.get_bus_volume_db(0), linear_to_db(0.4), 0.01, "the master volume follows")
-	assert_null(_find(page, "ServerField"), "no server address to type")
-	assert_eq((_find(page, "QuitButton") as Button).text, "Quit game")
-	slider.value = 0.0
-	assert_true(AudioServer.is_bus_mute(0), "zero is silent")
 
 
 func test_vibration_is_only_offered_on_phones() -> void:

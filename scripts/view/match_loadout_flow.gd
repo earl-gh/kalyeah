@@ -35,7 +35,6 @@ static func _weapon_ids(owner: PracticeMatch) -> Array[StringName]:
 static func confirm(owner: PracticeMatch, picks: Array[StringName]) -> void:
 	if not owner.rules.card_cycle:
 		Session.remember_loadout(picks)
-	owner._audio.start_music()
 	if not owner.rules.card_cycle:
 		owner.sim.set_loadout(owner.local_id, picks[0], picks[1])
 	var kid: StringName = owner._pick_screen.character_id

@@ -1,6 +1,6 @@
 class_name SettingsPage
 extends ScrollContainer
-## The Settings page: who you are (face and name, with a way to rename), sound, vibration (phones)
+## The Settings page: who you are (face and name, with a way to rename), vibration (phones)
 ## and comfort, then quitting. There is no server address here: the online server is built into the
 ## game (the player only needs a room code).
 
@@ -43,7 +43,7 @@ func _ready() -> void:
 	_content.add_child(_profile_card())
 	var preferences: VBoxContainer = VBoxContainer.new()
 	preferences.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
-	preferences.add_child(UiKit.section_label("Sound and feel"))
+	preferences.add_child(UiKit.section_label("Comfort"))
 	var rows: VBoxContainer = VBoxContainer.new()
 	rows.add_theme_constant_override("separation", UiMetrics.GAP)
 	fill(rows)
@@ -144,25 +144,8 @@ func refresh() -> void:
 	face.texture = picture if picture != null else KidModel.portrait(StringName(Session.avatar_id))
 
 
-## Sound, vibration (phones only) and comfort, added to `parent` as setting rows.
+## Vibration (phones only) and comfort, added to `parent` as setting rows.
 static func fill(parent: Control, in_match: bool = false) -> void:
-	var sound: VBoxContainer = VBoxContainer.new()
-	sound.add_theme_constant_override("separation", 0)
-	var percent: Label = UiKit.text("%d%%" % roundi(Settings.volume * 100.0), UiMetrics.BODY, Color("ffd25a"), false)
-	percent.name = "Percent"
-	percent.custom_minimum_size = Vector2(96.0, 0.0)
-	percent.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	sound.add_child(UiKit.setting_row("Sound", "", percent))
-	var slider: HSlider = DialogButtons.slider(Settings.volume)
-	slider.accessibility_name = "Sound volume"
-	slider.name = "VolumeSlider"
-	sound.add_child(slider)
-	slider.value_changed.connect(func(value: float) -> void:
-		Settings.set_volume(value)
-		percent.text = "%d%%" % roundi(value * 100.0))
-	slider.drag_ended.connect(func(_changed: bool) -> void: Settings.play_ui())
-	parent.add_child(sound)
-	parent.add_child(UiKit.divider())
 	if Settings.can_vibrate():
 		var toggle: UiToggle = UiToggle.new()
 		toggle.name = "VibrationToggle"

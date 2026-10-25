@@ -65,7 +65,6 @@ var _hold_ticked: bool = false
 @onready var _aim_indicator: AimIndicator = %AimIndicator
 @onready var _pick_screen: WeaponPickScreen = %PickScreen
 @onready var _map: StreetMap = %Map
-@onready var _audio: MatchAudio = %Audio
 
 
 func _ready() -> void:
@@ -79,8 +78,6 @@ func _ready() -> void:
 	for id: int in sim.players:
 		_presentation.make_actor_view(sim.players[id])
 	_fx.watch(sim)
-	_audio.watch(sim, local_team, local_id)
-	_views[local_id].footstep.connect(func() -> void: _audio.play(&"footstep", 0.15))
 	_map.set_own_side(own_side())
 	_map.show_back_button(false)
 	_presentation.setup_hud()

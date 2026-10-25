@@ -68,7 +68,7 @@ static var _ring_material: StandardMaterial3D
 
 var character: CharacterDef
 var team_color: Color = Color.WHITE
-## A foot hit the ground (run cycle), for footstep sounds.
+## A foot hit the ground (run cycle).
 signal footstep
 
 var _set: StringName = FALLBACK_SET

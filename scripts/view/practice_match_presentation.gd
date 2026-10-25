@@ -137,8 +137,6 @@ func refresh_kids() -> void:
 		if view != null:
 			view.queue_free()
 		make_actor_view(owner.sim.players[id])
-		if id == owner.local_id:
-			(owner._views[owner.local_id] as KidModel).footstep.connect(func() -> void: owner._audio.play(&"footstep", 0.15))
 	sync(0.0)
 
 
