@@ -140,7 +140,7 @@ func test_buttons_have_a_deeper_lip_but_the_same_room_and_sink_when_pressed() ->
 func test_while_tagged_you_see_your_teammates_and_the_way_out_alone() -> void:
 	var practice: PracticeMatch = _practice()
 	practice.advance(DT)
-	practice.hurt_local(100)
+	TouchHelper.hurt(practice, 100)
 	practice.advance(DT)
 	var panel: TaggedPanel = practice.hud.tagged_panel
 	assert_true(panel.visible)
@@ -180,7 +180,7 @@ func test_a_teammate_running_to_your_rescue_area_shows_as_coming_and_a_tagged_on
 func test_no_release_ring_when_the_match_has_no_release_time() -> void:
 	var practice: PracticeMatch = _practice()
 	practice.sim.tag_release_time = 0.0
-	practice.hurt_local(100)
+	TouchHelper.hurt(practice, 100)
 	practice.advance(DT)
 	assert_false(practice.hud.tagged_panel.release_ring.visible)
 

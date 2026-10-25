@@ -54,7 +54,7 @@ func screen_position(world: Vector3) -> Vector2:
 
 
 ## The lens undone for a screen position (pixels): where the flat camera picture is at `screen`
-## (the mouse aim casts its ray through it).
+## (the street point under a finger casts its ray through it).
 func flat_position(screen: Vector2) -> Vector2:
 	var size: Vector2 = get_viewport().get_visible_rect().size
 	return LensCurve.source_px(screen, size, rules.lens_k())

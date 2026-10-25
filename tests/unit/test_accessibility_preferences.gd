@@ -106,7 +106,7 @@ func test_static_intro_preserves_timing_and_reduced_motion_clears_shake_and_grai
 	assert_almost_eq(film.finish.get_shader_parameter("grain") as float, 0.025, 0.00001)
 
 
-func test_modal_tab_cycle_skips_disabled_controls_and_restores_opener() -> void:
+func test_a_dialog_focuses_its_text_field_and_gives_focus_back_to_its_opener() -> void:
 	Settings.set_reduced_motion(true)
 	var opener: Button = autofree(MenuDialog.make_button("OPEN", "grey")) as Button
 	add_child(opener)
@@ -114,44 +114,13 @@ func test_modal_tab_cycle_skips_disabled_controls_and_restores_opener() -> void:
 	var dialog: MenuDialog = MenuDialog.create("NAME")
 	var field: LineEdit = LineEdit.new()
 	dialog.body.add_child(field)
-	var disabled: Button = MenuDialog.make_button("DISABLED", "grey")
-	disabled.disabled = true
-	var cancel: Button = MenuDialog.make_button("CANCEL", "grey")
-	var done: Button = MenuDialog.make_button("DONE", "orange")
-	dialog.add_buttons([disabled, cancel, done])
+	dialog.add_buttons([MenuDialog.make_button("DONE", "orange")])
 	dialog.open(self)
 	await wait_process_frames(2)
 	assert_true(field.has_focus())
-	var event: InputEventKey = InputEventKey.new()
-	event.keycode = KEY_TAB
-	event.pressed = true
-	Input.parse_input_event(event)
-	await wait_process_frames(1)
-	assert_true(cancel.has_focus())
-	done.grab_focus()
-	Input.parse_input_event(event)
-	await wait_process_frames(1)
-	assert_true(field.has_focus(), "Tab wraps within the dialog")
 	dialog.close(false)
 	await wait_process_frames(2)
 	assert_true(opener.has_focus())
-
-
-func test_carousel_supports_keyboard_selection_with_visible_focus() -> void:
-	Settings.set_reduced_motion(true)
-	var carousel: MenuCarousel = autofree(MenuCarousel.new()) as MenuCarousel
-	add_child(carousel)
-	carousel.size = Vector2(720.0, 576.0)
-	carousel.setup("", TitleScreen.MODES, 0)
-	carousel.grab_focus()
-	var event: InputEventAction = InputEventAction.new()
-	event.action = "ui_right"
-	event.pressed = true
-	carousel._gui_input(event)
-	assert_eq(carousel.index, 1)
-	assert_eq(carousel._position, 1.0)
-	assert_true(carousel._focus_frame.visible)
-	assert_eq(carousel.cards[0].focus_mode, Control.FOCUS_NONE)
 
 
 func test_decorative_sway_stops_and_can_resume_when_preference_changes() -> void:

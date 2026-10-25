@@ -1,8 +1,6 @@
 keys,en
 %dv%d · First to %d,%dv%d · First to %d
 %s is coming soon. Agawan Base is the only game to play for now.,%s is coming soon. Agawan Base is the only game to play for now.
-%s panel,%s panel
-%s pressed,%s pressed
 %s × %d,%s × %d
 "%s, %s: read about this weapon","%s, %s: read about this weapon"
 %s: read about this kid,%s: read about this kid
@@ -23,7 +21,6 @@ Airborne,Airborne
 All,All
 ALL OF YOU TAGGED!,ALL OF YOU TAGGED!
 ALL TAGGED!,ALL TAGGED!
-Attack,Attack
 Auto-pick at timeout,Auto-pick at timeout
 Back,Back
 Back in %d,Back in %d
@@ -31,10 +28,7 @@ Back on your hand to cancel,Back on your hand to cancel
 Back online!,Back online!
 Bato · Heavy,Bato · Heavy
 Bato · Light,Bato · Light
-Bato-bato-pik,Bato-bato-pik
-Block,Block
 Blue and orange teams; the street changes next match,Blue and orange teams; the street changes next match
-Body %d: the main reading size,Body %d: the main reading size
 Bola,Bola
 Book,Book
 Bottom,Bottom
@@ -49,7 +43,6 @@ Can't reach the server. Check your connection and try again.,Can't reach the ser
 Can't start the room on this phone.,Can't start the room on this phone.
 Cancel,Cancel
 Cancel ready,Cancel ready
-Caption %d: the smallest text,Caption %d: the smallest text
 CAPTURING,CAPTURING
 "Card %d: %s, %d ice water%s","Card %d: %s, %d ice water%s"
 CHANGE WEAPONS,CHANGE WEAPONS
@@ -59,12 +52,12 @@ Characters,Characters
 Checking local connection…,Checking local connection…
 Choices,Choices
 Choose %s,Choose %s
-Choose with Left and Right arrows,Choose with Left and Right arrows
 Choose your kid,Choose your kid
 Clear,Clear
 Close,Close
 Code pasted,Code pasted
 Colour-blind colours,Colour-blind colours
+Comfort,Comfort
 Coming soon,Coming soon
 Connecting…,Connecting…
 "Connection lost
@@ -72,7 +65,6 @@ Reconnecting…","Connection lost
 Reconnecting…"
 Connection lost. Try again.,Connection lost. Try again.
 CONTESTED!,CONTESTED!
-Control,Control
 Copied,Copied
 Copy,Copy
 Copy room code,Copy room code
@@ -82,23 +74,15 @@ Damage,Damage
 DEFEAT,DEFEAT
 Defeat,Defeat
 DEFEND YOUR BASE!,DEFEND YOUR BASE!
-Detail %d: sentences under a title,Detail %d: sentences under a title
-Developer tools off,Developer tools off
-Developer tools on,Developer tools on
 Done,Done
 Edit profile,Edit profile
 Eight letters and numbers,Eight letters and numbers
 Enter a name.,Enter a name.
 Enter all %d characters.,Enter all %d characters.
-Every control in every state.,Every control in every state.
 Every game is a street. Pick one and see how it plays.,Every game is a street. Pick one and see how it plays.
-Example slider,Example slider
-"Example switch, off","Example switch, off"
-"Example switch, on","Example switch, on"
 EXHAUSTED,EXHAUSTED
 Extra,Extra
 "Face 3 bots, or just train.","Face 3 bots, or just train."
-Finding the host's room…,Finding the host's room…
 First to,First to
 FIRST TO %d,FIRST TO %d
 First to %d,First to %d
@@ -116,11 +100,9 @@ Heal,Heal
 Held their base,Held their base
 Held your base,Held your base
 Help me!,Help me!
-Hide practice tools,Hide practice tools
 History,History
 HOLD THE BASE!,HOLD THE BASE!
 Hotspot,Hotspot
-Hotspot rooms need the Android app.,Hotspot rooms need the Android app.
 How it plays,How it plays
 How the points went,How the points went
 How to play,How to play
@@ -129,7 +111,6 @@ Ice water %d of %d,Ice water %d of %d
 Inday,Inday
 Invite friends with a room code.,Invite friends with a room code.
 Jacks,Jacks
-Join hotspot,Join hotspot
 Join room,Join room
 Join team,Join team
 Junjun,Junjun
@@ -155,7 +136,6 @@ Match unavailable,Match unavailable
 Max: %d,Max: %d
 Meet the six kids. Tap one to read about them.,Meet the six kids. Tap one to read about them.
 Migo,Migo
-Needs the Android app.,Needs the Android app.
 NEXT,NEXT
 "NEXT card on the right, your cards to the left","NEXT card on the right, your cards to the left"
 Nice one!,Nice one!
@@ -163,8 +143,6 @@ Nice one!,Nice one!
 NO TARGET,NO TARGET
 Nobody in range · release keeps it,Nobody in range · release keeps it
 Nothing to paste. Copy the room code first.,Nothing to paste. Copy the room code first.
-Off,Off
-On,On
 One big delayed snip that hits hard up close.,One big delayed snip that hits hard up close.
 "One big slipper flies out and returns, hitting both ways.","One big slipper flies out and returns, hitting both ways."
 Online,Online
@@ -195,8 +173,6 @@ Popoy,Popoy
 Practice,Practice
 Practice again,Practice again
 Practice with the walkthrough,Practice with the walkthrough
-Preview only,Preview only
-Preview room,Preview room
 Profile saved,Profile saved
 Quick chat,Quick chat
 Quit,Quit
@@ -214,20 +190,15 @@ Restoring match…,Restoring match…
 Return home,Return home
 Room,Room
 Room code,Room code
-"Room code boxes: empty, typing, wrong, shown","Room code boxes: empty, typing, wrong, shown"
 Room code copied,Room code copied
 Save,Save
 Scatter jacks on the road: enemies walking over them slow down.,Scatter jacks on the road: enemies walking over them slow down.
 SCORED!  %d-%d,SCORED!  %d-%d
 Selected by a teammate,Selected by a teammate
 Settings,Settings
-Show practice tools,Show practice tools
 Slot %d: %s,Slot %d: %s
 Slowed,Slowed
 Snips in front of you: hold longer for more snips.,Snips in front of you: hold longer for more snips.
-Sound,Sound
-Sound and feel,Sound and feel
-Sound volume,Sound volume
 Start match,Start match
 Starting the room…,Starting the room…
 "Stay in their base to capture it: %d s alone, faster with teammates. Nobody can throw while capturing.","Stay in their base to capture it: %d s alone, faster with teammates. Nobody can throw while capturing."
@@ -242,7 +213,6 @@ Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d
 Tagged them all,Tagged them all
 Tagged you all,Tagged you all
 Tagged · Wait for a rescue,Tagged · Wait for a rescue
-Take 30 damage,Take 30 damage
 Tap to choose which slot the next weapon fills,Tap to choose which slot the next weapon fills
 "Tap to heal yourself, or drag toward a teammate to heal them.","Tap to heal yourself, or drag toward a teammate to heal them."
 Team size,Team size
@@ -253,16 +223,11 @@ The game · %s,The game · %s
 The host left. You are the host now.,The host left. You are the host now.
 The words in the game,The words in the game
 THEM,THEM
-Them,Them
 THEY SCORED  %d-%d,THEY SCORED  %d-%d
-This is a %s message,This is a %s message
-This is a preview: a real room needs the Android app.,This is a preview: a real room needs the Android app.
 "Three slippers fly out and come back, hitting both ways.","Three slippers fly out and come back, hitting both ways."
 Throws a rock that homes in on the nearest enemy.,Throws a rock that homes in on the nearest enemy.
 TIME,TIME
-Toast: %s,Toast: %s
 Toni,Toni
-too low,too low
 Top,Top
 Training,Training
 Trumpo,Trumpo
@@ -270,7 +235,6 @@ Try again,Try again
 Tsinelas · Heavy,Tsinelas · Heavy
 Tsinelas · Light,Tsinelas · Light
 Turn on your hotspot or connect to Wi-Fi first.,Turn on your hotspot or connect to Wi-Fi first.
-UI gallery,UI gallery
 Vibration,Vibration
 Victory,Victory
 VICTORY!,VICTORY!
@@ -283,7 +247,6 @@ Weapons,Weapons
 "Wears a white sando and basketball shorts, with a bimpo tucked at the back and tsinelas on the feet. Short, spiky hair.","Wears a white sando and basketball shorts, with a bimpo tucked at the back and tsinelas on the feet. Short, spiky hair."
 Wow!,Wow!
 YOU,YOU
-You,You
 YOU %d - %d THEM   %s,YOU %d - %d THEM   %s
 Your kids and the weapons,Your kids and the weapons
 Your last battles,Your last battles

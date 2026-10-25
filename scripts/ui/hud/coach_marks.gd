@@ -201,7 +201,7 @@ func _end(completed: bool) -> void:
 	finished.emit(completed)
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if running and event.is_action_pressed("ui_cancel"):
-		get_viewport().set_input_as_handled()
-		skip()
+## The phone's back button skips the walkthrough.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		skip.call_deferred()

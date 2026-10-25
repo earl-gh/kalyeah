@@ -38,7 +38,7 @@ func test_the_opening_words_gear_and_loadout_sockets_have_no_container_of_their_
 
 func test_the_tagged_message_has_no_player_cards_and_no_sheet() -> void:
 	var practice: PracticeMatch = _practice()
-	practice.hurt_local(100)
+	TouchHelper.hurt(practice, 100)
 	practice.advance(1.0 / 30.0)
 	var panel: TaggedPanel = practice.hud.tagged_panel
 	assert_true(panel.visible)

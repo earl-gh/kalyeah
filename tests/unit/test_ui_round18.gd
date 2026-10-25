@@ -1,25 +1,21 @@
 extends GutTest
-## Round 18 of the interface plan: depth. Weapon names that follow one scheme, developer tools a player never meets by
-## accident, names for a screen reader, and the structure for a second language.
+## Round 18 of the interface plan: depth. Weapon names that follow one scheme, names for a screen reader, and the structure
+## for a second language.
 
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
 const DT: float = 1.0 / 30.0
 
-var _dev: bool
 var _language: String
 var _loadout: Array[StringName]
 
 
 func before_each() -> void:
-	_dev = Settings.developer
 	_language = Settings.language
 	_loadout = Session.saved_loadout.duplicate()
-	Settings.set_developer(false)
 
 
 func after_each() -> void:
-	Settings.set_developer(_dev)
 	TranslationServer.set_locale("en")
 	Settings.language = _language
 	Session.saved_loadout = _loadout
@@ -74,56 +70,6 @@ func test_no_two_weapons_share_a_name_or_a_short_name() -> void:
 		assert_false(shorts.has(def.short_name), "the short name %s says which weapon it is" % def.short_name)
 		names[def.display_name] = true
 		shorts[def.short_name] = true
-
-
-# ---- the developer switch ------------------------------------------------------------------
-
-func test_the_gallery_is_hidden_from_players_until_the_developer_switch_is_on() -> void:
-	var screen: TitleScreen = _phone()
-	await wait_process_frames(2)
-	assert_false(screen.settings_page.gallery_button.visible, "a player does not see it")
-	Settings.set_developer(true)
-	assert_true(screen.settings_page.gallery_button.visible)
-	Settings.set_developer(false)
-	assert_false(screen.settings_page.gallery_button.visible)
-
-
-func test_seven_quick_taps_on_the_settings_title_switch_it() -> void:
-	var screen: TitleScreen = _phone()
-	await wait_process_frames(2)
-	var header: Control = screen.settings_page.find_child("Header", true, false) as Control
-	var tap: InputEventMouseButton = InputEventMouseButton.new()
-	tap.pressed = true
-	tap.button_index = MOUSE_BUTTON_LEFT
-	for i: int in 6:
-		header.gui_input.emit(tap)
-	assert_false(Settings.developer, "six is not enough")
-	header.gui_input.emit(tap)
-	assert_true(Settings.developer, "the seventh switches it on")
-	assert_true(screen.settings_page.gallery_button.visible)
-	for i: int in 7:
-		header.gui_input.emit(tap)
-	assert_false(Settings.developer, "seven more switch it off")
-
-
-func test_slow_taps_do_not_count() -> void:
-	var screen: TitleScreen = _phone()
-	await wait_process_frames(2)
-	var header: Control = screen.settings_page.find_child("Header", true, false) as Control
-	var tap: InputEventMouseButton = InputEventMouseButton.new()
-	tap.pressed = true
-	tap.button_index = MOUSE_BUTTON_LEFT
-	for i: int in 10:
-		screen.settings_page._last_header_tap = Time.get_ticks_msec() - 5000
-		header.gui_input.emit(tap)
-	assert_false(Settings.developer)
-
-
-func test_the_developer_switch_is_saved() -> void:
-	Settings.set_developer(true)
-	var file: ConfigFile = ConfigFile.new()
-	file.load(Settings.SAVE_PATH)
-	assert_true(file.get_value("dev", "developer") as bool)
 
 
 # ---- names for a screen reader ---------------------------------------------------------------

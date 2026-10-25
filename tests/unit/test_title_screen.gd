@@ -10,6 +10,11 @@ var _saved_vibration: bool
 
 
 func before_each() -> void:
+	# an earlier test that left a match changed the scene: its title screen would breathe beside ours
+	var left_over: Node = get_tree().current_scene
+	if left_over != null:
+		get_tree().current_scene = null
+		left_over.free()
 	_saved_name = Session.player_name
 	_saved_avatar = Session.avatar_id
 	_saved_url = Settings.server_url
@@ -263,32 +268,21 @@ func test_swiping_and_tapping_the_carousel_changes_the_card() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(3)
 	var strip: MenuCarousel = screen.carousel
-	var wheel: InputEventMouseButton = InputEventMouseButton.new()
-	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
-	wheel.pressed = true
-	strip._gui_input(wheel)
-	assert_eq(strip.index, 1, "the wheel moves to the next card")
+	var from: Vector2 = Vector2(strip.size.x / 2.0 + 200.0, 100.0)
+	strip._gui_input(TouchHelper.click(from, true))
+	var to: Vector2 = Vector2(from.x - MenuCarousel.STEP * 1.1, from.y)
+	strip._gui_input(TouchHelper.motion(to))
+	strip._gui_input(TouchHelper.click(to, false))
+	assert_eq(strip.index, 1, "swiping left scrolls on to the next card")
 	await wait_seconds(0.4)
-	var press: InputEventMouseButton = InputEventMouseButton.new()
-	press.button_index = MOUSE_BUTTON_LEFT
-	press.position = Vector2(strip.size.x / 2.0 + 200.0, 100.0)
-	press.pressed = true
-	strip._gui_input(press)
-	var drag: InputEventMouseMotion = InputEventMouseMotion.new()
-	drag.position = Vector2(strip.size.x / 2.0 + 200.0 - MenuCarousel.STEP * 1.1, 100.0)
-	strip._gui_input(drag)
-	press.pressed = false
-	press.position = drag.position
-	strip._gui_input(press)
-	assert_eq(strip.index, 2, "swiping left scrolls on to the third card")
+	strip._gui_input(TouchHelper.click(from, true))
+	strip._gui_input(TouchHelper.motion(to))
+	strip._gui_input(TouchHelper.click(to, false))
+	assert_eq(strip.index, 2, "swiping left again scrolls on to the third card")
 	await wait_seconds(0.4)
-	var tap: InputEventMouseButton = InputEventMouseButton.new()
-	tap.button_index = MOUSE_BUTTON_LEFT
-	tap.position = Vector2(strip.cards[1].get_global_rect().position.x - strip.get_global_rect().position.x + 12.0, strip.size.y / 2.0)
-	tap.pressed = true
-	strip._gui_input(tap)
-	tap.pressed = false
-	strip._gui_input(tap)
+	var tap: Vector2 = Vector2(strip.cards[1].get_global_rect().position.x - strip.get_global_rect().position.x + 12.0, strip.size.y / 2.0)
+	strip._gui_input(TouchHelper.click(tap, true))
+	strip._gui_input(TouchHelper.click(tap, false))
 	assert_eq(strip.index, 1, "tapping the card on the left brings it to the middle")
 
 
@@ -440,12 +434,14 @@ func test_hotspot_create_opens_the_checking_dialog() -> void:
 	assert_true(screen.dialog.is_open)
 
 
-func test_hotspot_join_never_asks_for_a_code() -> void:
+func test_hotspot_join_goes_straight_to_the_lobby_without_asking_for_a_code() -> void:
 	var screen: TitleScreen = _screen()
-	screen.open_lobby_action = func(_intent: int) -> void: pass
+	var opened: Array = []
+	screen.open_lobby_action = func(intent: int) -> void: opened.append(intent)
 	screen.secondary_button.pressed.emit()
-	assert_eq(screen.dialog.name, "HotspotJoinDialog")
-	assert_eq(screen.dialog.find_children("*", "LineEdit", true, false).size(), 0)
+	assert_eq(opened, [LobbyScreen.Intent.JOIN])
+	assert_true(Session.lobby_hotspot)
+	assert_null(screen.dialog, "no dialog in between")
 
 
 func test_online_opens_the_lobby_on_the_game_server() -> void:
@@ -476,7 +472,7 @@ func test_modals_and_tints_draw_above_every_component_of_the_main_screen() -> vo
 	for card: Button in screen.carousel.cards:
 		highest_card = maxi(highest_card, card.z_index)
 	assert_gt(MenuDialog.MODAL_Z, highest_card + 100, "far above the carousel cards")
-	screen.secondary_button.pressed.emit()
+	screen.open_quit_confirm()
 	assert_eq(screen.dialog.z_index, MenuDialog.MODAL_Z, "a dialog (and its dim) is on top")
 	screen.dialog.close(false)
 	screen._show_loading("GETTING READY")

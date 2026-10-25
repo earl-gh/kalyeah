@@ -5,10 +5,10 @@ extends Control
 ## the whole points in a drop at its left end and your health at its right end. Each card shows its cost in a drop at its top
 ## corner; a card you cannot afford is greyed, filling up from the bottom as the bar gets there.
 ##
-## It reads raw touches (and the real mouse) so a finger on a card never blocks another finger on the street. Press a card that is
+## It reads raw touches so a finger on a card never blocks another finger on the street. Press a card that is
 ## ready and it lifts under the finger; drag it out over the street and it shrinks so the aim guide shows; let go there to cast,
 ## back on the hand to cancel, or quickly on the same card to tap (MatchInput decides which). A card that is not ready cannot be
-## picked up: it shakes (flashes only, with Reduce motion). Right-click or Esc while a card is held drops it. It reads the sim
+## picked up: it shakes (flashes only, with Reduce motion). It reads the sim
 ## through `show_state()` and reports gestures with signals; it never decides a rule.
 
 ## A card was picked up (`slot`).
@@ -17,7 +17,7 @@ signal card_pressed(slot: int)
 signal card_moved(slot: int, at: Vector2, on_card: bool, over_hand: bool)
 ## The held card was let go at `at` (with the same flags as `card_moved`).
 signal card_released(slot: int, at: Vector2, on_card: bool, over_hand: bool)
-## The held card was dropped without a cast (right-click, Esc, a touch the system cancelled, the controls switched off).
+## The held card was dropped without a cast (a touch the system cancelled, the controls switched off).
 signal card_cancelled(slot: int)
 ## A card that is not ready was pressed (it shakes).
 signal card_denied(slot: int)
@@ -80,7 +80,6 @@ const DENY_BUZZ_MS: int = 30
 ## How fast the shown bar catches up with the real elixir (points per second); it snaps with Reduce motion.
 const BAR_CATCH_UP: float = 8.0
 const NO_POINTER: int = -1
-const MOUSE_POINTER: int = -2
 
 ## Mirrored for a left-handed player: NEXT at the right, the hand to its left.
 var mirrored: bool = false
@@ -145,7 +144,6 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	WebTouchCancel.install()
 	_layout()
 
 
@@ -289,7 +287,7 @@ func holding() -> bool:
 	return held_slot >= 0
 
 
-## Drops the held card without a cast (a menu opened, a stun, right-click, Esc).
+## Drops the held card without a cast (a menu opened, a stun, a system-cancelled touch).
 func cancel_hold() -> void:
 	if held_slot < 0:
 		return
@@ -305,8 +303,7 @@ func _input(event: InputEvent) -> void:
 			if _pointer == NO_POINTER:
 				_press(touch.index, touch.position)
 		elif touch.index == _pointer:
-			# on the web a system-cancelled touch arrives as a plain release (see WebTouchCancel)
-			if touch.canceled or WebTouchCancel.take():
+			if touch.canceled:
 				cancel_hold()
 			else:
 				_release(touch.position)
@@ -314,35 +311,13 @@ func _input(event: InputEvent) -> void:
 		var drag: InputEventScreenDrag = event as InputEventScreenDrag
 		if drag.index == _pointer:
 			_move(drag.position)
-	elif event is InputEventMouseButton:
-		var click: InputEventMouseButton = event as InputEventMouseButton
-		if click.device == InputEvent.DEVICE_ID_EMULATION:
-			return
-		if click.button_index == MOUSE_BUTTON_RIGHT and click.pressed and held_slot >= 0:
-			# right-click while a card is held drops it, and does not move the kid
-			cancel_hold()
-			get_viewport().set_input_as_handled()
-		elif click.button_index == MOUSE_BUTTON_LEFT:
-			if click.pressed and _pointer == NO_POINTER:
-				_press(MOUSE_POINTER, click.position)
-			elif not click.pressed and _pointer == MOUSE_POINTER:
-				_release(click.position)
-	elif event is InputEventMouseMotion:
-		var motion: InputEventMouseMotion = event as InputEventMouseMotion
-		if _pointer == MOUSE_POINTER and motion.device != InputEvent.DEVICE_ID_EMULATION:
-			_move(motion.position)
-	elif event is InputEventKey:
-		var key: InputEventKey = event as InputEventKey
-		if key.pressed and key.physical_keycode == KEY_ESCAPE and held_slot >= 0:
-			cancel_hold()
-			get_viewport().set_input_as_handled()
 
 
 func _local(viewport_position: Vector2) -> Vector2:
 	return get_global_transform_with_canvas().affine_inverse() * viewport_position
 
 
-## A finger (or the left button) went down at `viewport_position`: pick up the card under it if it is ready, else shake it.
+## A finger went down at `viewport_position`: pick up the card under it if it is ready, else shake it.
 func press_at(pointer: int, viewport_position: Vector2) -> void:
 	_press(pointer, viewport_position)
 

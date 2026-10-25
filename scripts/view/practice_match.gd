@@ -19,10 +19,6 @@ const BOT_ALLY_IDS: Array[int] = [2, 3]
 const BOT_ENEMY_IDS: Array[int] = [4, 5, 6]
 const MAX_STEPS_PER_FRAME: int = 8
 const RECONNECT_INTERVAL: float = 2.0
-## Practice-only debug button to test getting tagged without an enemy that fights back.
-const DEBUG_DAMAGE: int = 30
-## How long a status from the practice menu lasts (seconds), long enough to watch its animation.
-const STATUS_TEST_TIME: float = 3.0
 const TITLE_SCENE: String = "res://scenes/ui/title_screen.tscn"
 
 @export var rules: GameRules
@@ -108,9 +104,7 @@ func _process(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if online or sim == null or sim.phase != MatchSim.Phase.INTRO or is_picking():
 		return
-	var tapped: bool = (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed) \
-		or (event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).device != InputEvent.DEVICE_ID_EMULATION)
-	if tapped:
+	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
 		skip_intro()
 
 
@@ -126,12 +120,23 @@ func _notification(what: int) -> void:
 			_application_focused = false
 		NOTIFICATION_APPLICATION_PAUSED:
 			_application_paused = true
+		NOTIFICATION_WM_GO_BACK_REQUEST:
+			_back_pressed.call_deferred()
+			return
 		_:
 			return
 	_cancel_local_input()
 	# Android can stop rendering now; send cancellation before the next frame.
 	if is_node_ready() and online and client.is_online():
 		_step_once(0.0)
+
+
+## The phone's back button opens the match settings (Resume, Leave). The pick screen, the walkthrough and the settings take the
+## press themselves; the results card has its own buttons. Deferred, so they still read as open here (see MenuDialog).
+func _back_pressed() -> void:
+	if is_picking() or hud.menu.visible or hud.coach.visible or sim.phase == MatchSim.Phase.MATCH_OVER:
+		return
+	hud.toggle_menu()
 
 
 func _exit_tree() -> void:
@@ -152,7 +157,7 @@ func street_point(screen: Vector2) -> Variant:
 	return Vector2((hit as Vector3).x, (hit as Vector3).z)
 
 
-## A tap (or the right button) on the street at screen point `at`: walk there.
+## A tap on the street at screen point `at`: walk there.
 func move_pressed(at: Vector2) -> void:
 	var point: Variant = street_point(at)
 	if point is Vector2:
@@ -191,21 +196,6 @@ func card_released(slot: int, at: Vector2, on_card: bool, over_hand: bool) -> vo
 
 func card_cancelled(_slot: int) -> void:
 	input.card_cancel()
-
-
-## Practice menu: plays the animation a skill hit causes (stunned, airborne, knocked down) on the
-## local kid by giving it that status for a few seconds, and closes the menu to watch it.
-func play_status_test(type: int) -> void:
-	if online:
-		return
-	sim.players[local_id].effects.apply(type as StatusEffects.Type, STATUS_TEST_TIME)
-	hud.menu.close()
-	_presentation.sync(0.0)
-
-
-func hurt_local(amount: int) -> void:
-	sim.damage(local_id, amount)
-	_presentation.sync(0.0)
 
 
 ## The base side the local team defends this set (+Z = own/bottom at the start).
@@ -363,23 +353,17 @@ func _step_once(dt: float) -> void:
 	sim.step(dt)
 
 
-## Menus consume keyboard intent too; a held aim must cancel rather than cast.
+## A menu, a pause or the pick screen drops what is held: a held aim must cancel rather than cast.
 func _local_input(tick: int) -> PlayerInput:
 	if not _application_focused or _application_paused or not controls_active() or is_picking() or hud.menu.visible:
 		input.clear()
 		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_AIM_CANCEL, tick)
-	return input.build(_flip(), _key_point, tick, Time.get_ticks_msec())
+	return input.build(tick)
 
 
-## The camera and WASD are turned around when the local team defends the -Z base.
+## The camera is turned around when the local team defends the -Z base.
 func _flip() -> bool:
 	return own_side() == MapLayout.SIDE_ENEMY
-
-
-## The street point under the mouse (keys 1-4 aim there), or null off the street.
-func _key_point() -> Variant:
-	var viewport: Viewport = get_viewport()
-	return street_point(viewport.get_mouse_position()) if viewport != null else null
 
 
 # ---- weapon pick and swap ------------------------------------------------------------

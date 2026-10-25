@@ -17,25 +17,12 @@ static func controls(root: Node) -> Array[Control]:
 	return result
 
 
-## Focuses a text field (typing needs one) and, when `buttons_too`, the first control otherwise.
-static func first(root: Control, buttons_too: bool = true) -> void:
-	var choices: Array[Control] = controls(root)
-	for control: Control in choices:
+## Focuses the text field of `root` (typing needs one); a finger needs no focus ring on a button.
+static func first(root: Control) -> void:
+	for control: Control in controls(root):
 		if control is LineEdit:
 			control.grab_focus()
 			return
-	if buttons_too and not choices.is_empty():
-		choices[0].grab_focus()
-
-
-static func advance(root: Control, backwards: bool) -> void:
-	var choices: Array[Control] = controls(root)
-	if choices.is_empty():
-		return
-	var current: Control = root.get_viewport().gui_get_focus_owner()
-	var at: int = choices.find(current)
-	var next: int = wrapi(at + (-1 if backwards else 1), 0, choices.size())
-	choices[next].grab_focus()
 
 
 static func restore(previous: WeakRef) -> void:

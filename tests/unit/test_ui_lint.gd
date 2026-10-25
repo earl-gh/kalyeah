@@ -108,7 +108,7 @@ func test_every_page_and_sheet_meets_the_floors() -> void:
 	await wait_process_frames(4)
 	var all: Array[String] = []
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
-	for id: StringName in [&"codex", &"history", &"settings", &"howto", &"gallery"]:
+	for id: StringName in [&"codex", &"history", &"settings", &"howto"]:
 		screen.open_page(id)
 		await wait_process_frames(3)
 		all.append_array(_problems(screen, "page %s" % id))
@@ -145,7 +145,6 @@ func test_the_join_and_create_forms_meet_the_floors() -> void:
 	var all: Array[String] = []
 	for intent: int in [0, 1]:
 		Session.lobby_hotspot = false
-		Session.lobby_preview = false
 		Session.lobby_intent = intent
 		var lobby: Node = autofree(LOBBY_SCENE.instantiate())
 		add_child(lobby)
@@ -242,36 +241,18 @@ func test_the_boot_tips_are_true() -> void:
 		assert_true(tip.ends_with("."), tip)
 
 
-func test_a_dialog_opened_by_touch_has_no_focus_ring_until_a_key_is_pressed() -> void:
-	var kept: bool = Settings.keyboard_active
-	Settings.keyboard_active = false
+func test_a_dialog_opened_by_touch_has_no_focus_ring() -> void:
 	var dialog: MenuDialog = MenuDialog.create("ASK")
 	var cancel: Button = MenuDialog.make_button("Cancel", "grey")
 	var sure: Button = MenuDialog.make_button("Sure", "orange")
 	dialog.add_buttons([cancel, sure])
 	dialog.open(self)
 	await wait_process_frames(3)
-	assert_false(cancel.has_focus() or sure.has_focus(), "no ring when it was opened by touch")
-	var tab: InputEventKey = InputEventKey.new()
-	tab.keycode = KEY_TAB
-	tab.pressed = true
-	Input.parse_input_event(tab)
-	await wait_process_frames(2)
-	assert_true(cancel.has_focus(), "the first key press brings it")
+	assert_false(cancel.has_focus() or sure.has_focus(), "a finger needs no ring")
 	dialog.close(false)
-	Settings.keyboard_active = true
-	var again: MenuDialog = MenuDialog.create("ASK")
-	var first: Button = MenuDialog.make_button("Cancel", "grey")
-	again.add_buttons([first])
-	again.open(self)
-	await wait_process_frames(3)
-	assert_true(first.has_focus(), "after the keyboard was used it opens with the ring")
-	again.close(false)
-	Settings.keyboard_active = kept
 
 
 func test_a_text_field_always_takes_focus_so_the_keyboard_can_open() -> void:
-	Settings.keyboard_active = false
 	var dialog: MenuDialog = MenuDialog.create("NAME")
 	var field: LineEdit = LineEdit.new()
 	dialog.body.add_child(field)

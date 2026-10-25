@@ -112,7 +112,6 @@ func test_the_strip_tells_waiting_from_a_problem_from_a_note() -> void:
 		assert_eq(UiStatusStrip.kind_of(text), "wait", text)
 	for text: String in ["Connection lost. Try again.", "No room with that code.", "Can't reach that address.", "That match has ended.", "Enter all 8 characters.", "Online isn't available yet.", "Turn on your hotspot or connect to Wi-Fi first."]:
 		assert_eq(UiStatusStrip.kind_of(text), "error", text)
-	assert_eq(UiStatusStrip.kind_of("This is a preview: a real room needs the Android app."), "info")
 	assert_eq(UiStatusStrip.kind_of(""), "info")
 
 
@@ -130,7 +129,6 @@ func test_dressing_a_label_gives_it_a_tinted_strip_and_keeps_its_words() -> void
 
 func test_the_lobby_status_line_is_dressed_when_it_says_something() -> void:
 	Session.lobby_hotspot = false
-	Session.lobby_preview = false
 	Session.lobby_intent = 1
 	var lobby: Node = autofree((load("res://scenes/ui/lobby.tscn") as PackedScene).instantiate()) as Node
 	add_child(lobby)
@@ -235,45 +233,21 @@ func test_copying_the_room_code_is_answered_with_a_toast() -> void:
 	assert_eq(_toasts()[0].text, "Room code copied")
 
 
-# ---- gallery ----------------------------------------------------------------------------
+# ---- chips ------------------------------------------------------------------------------
 
-func test_the_gallery_is_reached_from_settings_and_keeps_the_settings_tab_lit() -> void:
-	var screen: TitleScreen = _screen()
-	Settings.set_developer(true)
-	screen.open_page(&"settings")
-	screen.settings_page.gallery_button.pressed.emit()
-	Settings.set_developer(false)
-	assert_eq(screen.current_page, &"gallery")
-	assert_true(screen.gallery_page.visible)
-	assert_eq(screen.tab_bar.active, &"settings", "it is a part of Settings")
-	screen.corner_buttons[&"settings"].pressed.emit()
-	assert_eq(screen.current_page, &"settings", "the lit tab leads back")
+func test_every_chip_colour_passes_contrast_for_its_small_white_text() -> void:
+	var fills: Dictionary[String, Color] = {
+		"Attack": UiKit.CHIP_RED, "Control": UiKit.CHIP_PURPLE, "Block": UiKit.CHIP_BLUE, "Heal": UiKit.CHIP_GREEN,
+		"Bato-bato-pik": UiKit.CHIP_SLATE, "You": KalyeahTheme.TEAM_BLUE, "Them": KalyeahTheme.TEAM_RED,
+	}
+	for chip: String in fills:
+		assert_gte(UiKit.contrast(fills[chip], Color.WHITE), 4.5, "%s chip" % chip)
 
 
-func test_the_gallery_shows_every_part_of_the_kit_and_every_chip_passes_contrast() -> void:
-	var screen: TitleScreen = _screen()
-	await wait_frames(2)
-	var gallery: UiGallery = screen.gallery_page
-	for title: String in ["Buttons", "Chips", "Controls", "Panels", "Feedback", "Type", "Faces"]:
-		assert_true(gallery.sections.has(title), "%s is shown" % title)
-	var labels: Array[String] = []
-	for button: Node in gallery.find_children("*", "Button", true, false):
-		labels.append((button as Button).text)
-	for variant: String in UiGallery.VARIANTS:
-		assert_true(labels.has(variant.capitalize()), "%s button" % variant)
-		assert_true(labels.has("%s pressed" % variant.capitalize()), "%s pressed look" % variant)
-	assert_true(labels.has("Disabled"), "the disabled look")
-	for kind: String in UiSkin.PLATES:
-		assert_not_null(gallery.find_child("Plate_%s" % kind, true, false), "%s panel" % kind)
-	assert_gt(gallery.chip_ratios.size(), 6)
-	for chip: String in gallery.chip_ratios:
-		assert_gte(gallery.chip_ratios[chip], UiGallery.CONTRAST_BAR, "%s chip" % chip)
-
-
-func test_the_gallery_toast_buttons_fire_each_kind() -> void:
+func test_a_toast_of_each_kind_shows() -> void:
 	var screen: TitleScreen = _screen()
 	await wait_frames(2)
 	for kind: String in UiToast.KINDS:
-		(screen.gallery_page.find_child("Toast_%s" % kind, true, false) as Button).pressed.emit()
+		UiToast.say(screen, "Kind %s" % kind, kind)
 		await wait_process_frames(2)
 		assert_eq(_toasts()[0].kind, kind)

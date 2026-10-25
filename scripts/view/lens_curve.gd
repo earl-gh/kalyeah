@@ -1,7 +1,7 @@
 class_name LensCurve
 extends RefCounted
 ## The wide curve lens (shaders/lens_curve.gdshader) as maths, so things drawn by the HUD over the
-## bent picture (health bars, the mouse aim) line up with what the shader shows.
+## bent picture (health bars, the aim guide) line up with what the shader shows.
 ## A point at screen position `out` (0..1 across the screen) shows what the camera sees at
 ## `source(out)`; the middle keeps its scale and the edges are pulled in (barrel distortion).
 

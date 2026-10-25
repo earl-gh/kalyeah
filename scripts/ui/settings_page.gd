@@ -6,13 +6,11 @@ extends ScrollContainer
 
 signal profile_pressed
 signal quit_pressed
-signal gallery_pressed
 signal howto_pressed
 signal book_pressed
 signal history_pressed
 
 var profile_button: Button
-var gallery_button: Button
 var howto_button: Button
 var book_button: Button
 var history_button: Button
@@ -20,12 +18,6 @@ var quit_button: Button
 var name_label: Label
 var face: TextureRect
 var _content: VBoxContainer
-var _header_taps: int = 0
-var _last_header_tap: int = 0
-
-const DEV_TAPS: int = 7
-## Taps count as quick when each is within this many milliseconds of the one before.
-const TAP_WINDOW_MS: int = 700
 
 
 func _ready() -> void:
@@ -36,10 +28,7 @@ func _ready() -> void:
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	add_child(_content)
-	var header: Control = UiKit.page_header("Settings", "Make Kalyeah yours.")
-	header.mouse_filter = Control.MOUSE_FILTER_STOP
-	header.gui_input.connect(_on_header_input)
-	_content.add_child(header)
+	_content.add_child(UiKit.page_header("Settings", "Make Kalyeah yours."))
 	_content.add_child(_profile_card())
 	var preferences: VBoxContainer = VBoxContainer.new()
 	preferences.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
@@ -63,12 +52,6 @@ func _ready() -> void:
 	howto_button.name = "HowToButton"
 	howto_button.pressed.connect(howto_pressed.emit)
 	_content.add_child(howto_button)
-	gallery_button = MenuDialog.make_button("UI gallery", "grey", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
-	gallery_button.name = "GalleryButton"
-	gallery_button.pressed.connect(gallery_pressed.emit)
-	gallery_button.visible = Settings.developer
-	Settings.developer_changed.connect(func() -> void: gallery_button.visible = Settings.developer)
-	_content.add_child(gallery_button)
 	quit_button = MenuDialog.make_button("Quit game", "red", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
 	quit_button.name = "QuitButton"
 	quit_button.pressed.connect(quit_pressed.emit)
@@ -91,20 +74,6 @@ static func _language_row(languages: Array[String]) -> Control:
 	column.add_child(UiKit.setting_row("Language", "The words in the game", Control.new()))
 	column.add_child(choice)
 	return column
-
-
-## Seven quick taps on the title switch the developer tools on or off (a player never meets them by accident).
-func _on_header_input(event: InputEvent) -> void:
-	var tapped: bool = (event is InputEventMouseButton and (event as InputEventMouseButton).pressed) or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed)
-	if not tapped:
-		return
-	var now: int = Time.get_ticks_msec()
-	_header_taps = _header_taps + 1 if now - _last_header_tap < TAP_WINDOW_MS else 1
-	_last_header_tap = now
-	if _header_taps >= DEV_TAPS:
-		_header_taps = 0
-		Settings.set_developer(not Settings.developer)
-		UiToast.say(self, "Developer tools on" if Settings.developer else "Developer tools off", "info")
 
 
 ## The profile card: your face, your name and the button that changes it.

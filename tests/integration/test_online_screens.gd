@@ -140,7 +140,6 @@ func test_online_match_screen_picks_then_plays_against_the_server() -> void:
 	(views[1].get_node("%PickScreen") as WeaponPickScreen).press_ready()
 	assert_true(_until(func() -> bool: return not views[0].is_picking() and not views[1].is_picking()), "both playing")
 	assert_eq(views[0].hud.again_button.text, "Return home")
-	assert_false(views[0].hud.hurt_button.visible, "no practice buttons online")
 	var server_sim: MatchSim = server.matches.values()[0].sim
 	assert_eq(server_sim.phase, MatchSim.Phase.INTRO, "the opening show plays first online too")
 	server_sim.intro_left = 0.0

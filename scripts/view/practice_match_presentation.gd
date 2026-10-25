@@ -16,7 +16,6 @@ func _init(owner: PracticeMatch) -> void:
 
 
 func setup_hud() -> void:
-	owner.input.camera_yaw = owner._camera.rules.yaw_offset_degrees
 	owner.input.tap_time = owner.sim.rules.card_tap_time
 	owner.input.follow_hold = owner.sim.rules.move_follow_hold
 	owner.hud.console_height_changed.connect(func(height: float) -> void: owner._camera.bottom_reserve_px = height)
@@ -48,10 +47,8 @@ func connect_hud() -> void:
 	owner.hud.street.move_pressed.connect(owner.move_pressed)
 	owner.hud.street.move_dragged.connect(owner.move_dragged)
 	owner.hud.street.move_released.connect(owner.move_released)
-	owner.hud.hurt_button.pressed.connect(owner.hurt_local.bind(PracticeMatch.DEBUG_DAMAGE))
 	owner.hud.menu.set_practice(not owner.online, Net.host != null, Session.practice_kind == &"match")
 	owner.hud.again_button.text = "Return home" if owner.online else "Practice again"
-	owner.hud.status_test_pressed.connect(owner.play_status_test)
 	owner.hud.again_pressed.connect(_on_again_pressed)
 	# online, the card's one button is already "Return home"; in practice Home sits beside Play again
 	owner.hud.results.home_button.visible = not owner.online
@@ -205,11 +202,11 @@ func _on_again_pressed() -> void:
 	owner.get_tree().reload_current_scene()
 
 
-## The part of the screen's bottom edge the system keeps (a home bar), in UI pixels; 0 in a browser and on a phone without one.
+## The part of the screen's bottom edge the system keeps (a home bar), in UI pixels; 0 on a phone without one.
 func _safe_bottom_inset() -> float:
 	var window: Vector2i = DisplayServer.window_get_size()
 	var safe: Rect2i = DisplayServer.get_display_safe_area()
-	if OS.has_feature("web") or window.y <= 0 or safe.size.y <= 0:
+	if window.y <= 0 or safe.size.y <= 0:
 		return 0.0
 	var below: float = maxf(0.0, float(DisplayServer.window_get_position().y + window.y - safe.end.y))
 	return below * owner.get_viewport().get_visible_rect().size.y / float(window.y)
