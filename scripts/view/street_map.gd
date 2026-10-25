@@ -649,6 +649,7 @@ func _add_post(center: Vector2) -> Node3D:
 	for id: String in [POST_BLUE, POST_RED]:
 		var model: Node3D = PropModel.by_height(id, post_height())
 		model.name = id
+		ModelLook.use_baked_shading(model)
 		post.add_child(model)
 	_dress_post(post, true, false)
 	_add_prop(post, Vector3(center.x, 0.0, center.y))
