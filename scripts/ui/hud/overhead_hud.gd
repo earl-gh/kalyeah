@@ -40,6 +40,8 @@ const SAY_FONT: int = UiMetrics.DETAIL
 const SAY_PAD: Vector2 = Vector2(16.0, 8.0)
 const SAY_LIFT: float = 12.0
 const BACK: Color = Color(0.08, 0.06, 0.1, 0.85)
+## The empty part of a health or stamina bar: a flat, opaque dark gray (just the colour: no sheen, no texture).
+const EMPTY_BAR: Color = Color(0.18, 0.19, 0.21)
 const SELF_COLOR: Color = Color(0.35, 0.95, 0.35)
 const ALLY_COLOR: Color = Color(0.35, 0.65, 1.0)
 const ENEMY_COLOR: Color = Color(1.0, 0.3, 0.3)
@@ -85,7 +87,7 @@ func setup(sim: MatchSim, camera: Camera3D, local_id: int, local_team: int) -> v
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sim.player_healed.connect(_on_healed)
 	_bar_back = StyleBoxFlat.new()
-	_bar_back.bg_color = BACK
+	_bar_back.bg_color = EMPTY_BAR
 	_bar_back.border_color = Icons.OUTLINE
 	_bar_back.anti_aliasing = true
 	_bar_fill = StyleBoxFlat.new()
@@ -268,29 +270,27 @@ func _draw_count(state: PlayerState, rect: Rect2) -> void:
 
 ## A rounded bar with a dark outline: the fill in `color`, and a gloss on its upper third.
 func _draw_bar(rect: Rect2, fill: float, color: Color) -> void:
-	var round_px: int = int(ceilf(rect.size.y / 2.0 + BAR_OUTLINE))
 	_bar_back.set_border_width_all(int(BAR_OUTLINE))
-	_bar_back.set_corner_radius_all(round_px)
+	_bar_back.set_corner_radius_all(UiSkin.bar_radius(rect.size.y + BAR_OUTLINE * 2.0))
 	draw_style_box(_bar_back, rect.grow(BAR_OUTLINE))
 	if fill > 0.0:
 		var width: float = maxf(rect.size.x * fill, rect.size.y)
 		_bar_fill.bg_color = color
-		_bar_fill.set_corner_radius_all(int(ceilf(rect.size.y / 2.0)))
+		_bar_fill.set_corner_radius_all(UiSkin.bar_radius(rect.size.y))
 		draw_style_box(_bar_fill, Rect2(rect.position, Vector2(width, rect.size.y)))
-		_bar_gloss.set_corner_radius_all(int(ceilf(rect.size.y / 4.0)))
+		_bar_gloss.set_corner_radius_all(UiSkin.bar_radius(rect.size.y / 3.0))
 		draw_style_box(_bar_gloss, Rect2(rect.position + Vector2(rect.size.y / 3.0, 1.0), Vector2(maxf(width - rect.size.y / 1.5, 1.0), rect.size.y / 3.0)))
 
 
 ## A thin bar with a dark outline, filled to `fill` in `color` (your stamina).
 func _draw_thin(rect: Rect2, fill: float, color: Color) -> void:
-	var round_px: int = UiSkin.round_radius(rect.size.y + BAR_OUTLINE * 2.0)
 	_bar_back.set_border_width_all(int(BAR_OUTLINE))
-	_bar_back.set_corner_radius_all(round_px)
+	_bar_back.set_corner_radius_all(UiSkin.bar_radius(rect.size.y + BAR_OUTLINE * 2.0))
 	draw_style_box(_bar_back, rect.grow(BAR_OUTLINE))
 	if fill <= 0.0:
 		return
 	_bar_fill.bg_color = color
-	_bar_fill.set_corner_radius_all(UiSkin.round_radius(rect.size.y))
+	_bar_fill.set_corner_radius_all(UiSkin.bar_radius(rect.size.y))
 	draw_style_box(_bar_fill, Rect2(rect.position, Vector2(maxf(rect.size.x * fill, rect.size.y), rect.size.y)))
 
 

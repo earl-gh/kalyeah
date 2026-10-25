@@ -53,6 +53,10 @@ const BAR_FONT: int = UiMetrics.ACTION
 ## The ice water colour: a code-drawn stand-in until the art-director sets a token (docs/ART.md has none yet).
 const ICE_WATER: Color = Color(0.36, 0.8, 1.0)
 const ICE_WATER_FULL_EDGE: Color = RoyaleStyle.GOLD
+## The empty part of the ice water bar: a flat, opaque dark blue (just the colour: no sheen, no texture).
+const ICE_EMPTY: Color = Color(0.08, 0.16, 0.38)
+## The segment that is filling shows this much of its share in see-through white (like Clash Royale's elixir bar).
+const REFILL_WHITE: Color = Color(1.0, 1.0, 1.0, 0.4)
 ## A card you cannot afford: a grey wash over the part the bar has not reached yet, a lighter one over the rest.
 const GREY: Color = Color(0.2, 0.21, 0.25, 0.8)
 const GREY_REACHED: Color = Color(0.2, 0.21, 0.25, 0.5)
@@ -541,26 +545,24 @@ func _draw_bar() -> void:
 	var segments: int = maxi(roundi(elixir_max), 1)
 	var full: bool = elixir >= elixir_max - 0.001
 	var track: StyleBoxFlat = StyleBoxFlat.new()
-	track.bg_color = Color(0.02, 0.05, 0.14)
+	track.bg_color = ICE_EMPTY
 	track.border_color = ICE_WATER_FULL_EDGE if full else RoyaleStyle.NAVY
 	track.set_border_width_all(RoyaleStyle.OUTLINE)
-	track.set_corner_radius_all(UiSkin.round_radius(bar_rect.size.y))
+	track.set_corner_radius_all(UiSkin.bar_radius(bar_rect.size.y))
 	track.anti_aliasing = true
 	draw_style_box(track, bar_rect)
-	var inner: Rect2 = bar_rect.grow(-float(RoyaleStyle.OUTLINE) - 1.0)
-	var share: float = clampf(shown_elixir / maxf(elixir_max, 0.001), 0.0, 1.0)
-	if share > 0.0:
-		var fill: StyleBoxFlat = StyleBoxFlat.new()
-		fill.bg_color = ICE_WATER.lightened(0.15) if full else ICE_WATER
-		fill.set_corner_radius_all(UiSkin.round_radius(inner.size.y))
-		fill.anti_aliasing = true
-		draw_style_box(fill, Rect2(inner.position, Vector2(maxf(inner.size.x * share, inner.size.y), inner.size.y)))
-		var sheen: StyleBoxFlat = StyleBoxFlat.new()
-		sheen.bg_color = RoyaleStyle.SHEEN
-		sheen.set_corner_radius_all(UiSkin.round_radius(inner.size.y * 0.3))
-		draw_style_box(sheen, Rect2(inner.position + Vector2(inner.size.y * 0.4, 2.0), Vector2(maxf(inner.size.x * share - inner.size.y * 0.8, 1.0), inner.size.y * 0.3)))
+	var inner: Rect2 = bar_rect.grow(-float(RoyaleStyle.OUTLINE))
+	# the bar fills one whole segment at a time (solid ice water); the segment being filled shows its progress in see-through white
+	var fills: PackedFloat32Array = segment_fills(shown_elixir, segments)
+	var span: float = inner.size.x / float(segments)
+	for segment: int in segments:
+		var cell: Rect2 = Rect2(Vector2(inner.position.x + span * float(segment), inner.position.y), Vector2(span, inner.size.y))
+		if fills[segment] >= 1.0:
+			draw_style_box(_segment_style(ICE_WATER.lightened(0.15) if full else ICE_WATER, segment, segments, inner.size.y), cell)
+		elif fills[segment] > 0.0:
+			draw_style_box(_segment_style(REFILL_WHITE, segment, segments, inner.size.y), Rect2(cell.position, Vector2(cell.size.x * fills[segment], cell.size.y)))
 	for segment: int in range(1, segments):
-		var x: float = inner.position.x + inner.size.x * float(segment) / float(segments)
+		var x: float = inner.position.x + span * float(segment)
 		draw_line(Vector2(x, inner.position.y + 2.0), Vector2(x, inner.end.y - 2.0), Color(0.0, 0.0, 0.0, 0.4), 2.0)
 	# like Clash Royale: the bag overlaps the bar's start, the whole points in big letters just right of it (over the bar's start), and the
 	# most you can hold in small letters under them
@@ -570,4 +572,40 @@ func _draw_bar() -> void:
 	var number_at: Vector2 = Vector2(bag.x + BAR_BAG * HandArt.ICE_ASPECT / 2.0 + 6.0, bar_rect.get_center().y - BAR_HEIGHT * 0.1)
 	RoyaleStyle.lettered(self, font, str(floori(elixir + 0.001)), number_at, BAR_FONT)
 	var max_text: String = UiText.f("Max: %d", [roundi(elixir_max)])
-	RoyaleStyle.lettered(self, font, max_text, Vector2(number_at.x, bar_rect.end.y + float(MAX_FONT) + 4.0), MAX_FONT)
+	# vertically centred on the bar's bottom outline
+	RoyaleStyle.lettered(self, font, max_text, Vector2(number_at.x, max_caption_baseline(bar_rect)), MAX_FONT)
+
+
+## A filled piece of the ice water bar: flat, its outer corners (the first piece's left ones, the last piece's right ones) rounded like the track's.
+func _segment_style(color: Color, segment: int, segments: int, height: float) -> StyleBoxFlat:
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = color
+	var radius: int = UiSkin.bar_radius(height)
+	if segment == 0:
+		box.corner_radius_top_left = radius
+		box.corner_radius_bottom_left = radius
+	if segment == segments - 1:
+		box.corner_radius_top_right = radius
+		box.corner_radius_bottom_right = radius
+	box.anti_aliasing = true
+	return box
+
+
+## How full each segment of the ice water bar is for `elixir` points: 1 solid, 0 empty, and between 0 and 1 the one being filled (whole
+## segments fill at once; only the next one shows progress).
+static func segment_fills(elixir: float, segments: int) -> PackedFloat32Array:
+	var fills: PackedFloat32Array = PackedFloat32Array()
+	var whole: int = clampi(floori(elixir + 0.0001), 0, segments)
+	for segment: int in segments:
+		if segment < whole:
+			fills.append(1.0)
+		elif segment == whole:
+			fills.append(clampf(elixir - float(whole), 0.0, 1.0))
+		else:
+			fills.append(0.0)
+	return fills
+
+
+## The baseline of the "Max: 10" caption: its middle is level with the middle of the bar's bottom outline.
+static func max_caption_baseline(bar: Rect2) -> float:
+	return bar.end.y - float(RoyaleStyle.OUTLINE) / 2.0 + float(MAX_FONT) * 0.36
