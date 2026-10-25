@@ -574,11 +574,12 @@ func _step_tagged(state: PlayerState, input: PlayerInput, dt: float) -> void:
 		objectives.rescue(self, state, RELEASED_ALONE)
 
 
-## The street point a move target of a kid of `radius` really goes to: pulled into the street (`radius` inside its edges) and pushed out
-## of cover by the nearest way that stays in the street. The server's own clamp: a client's point is never used as it is.
+## The street point a move target of a kid of `radius` really goes to: pulled into the street (`radius` inside its edges and its rounded
+## corners) and pushed out of cover by the nearest way that stays in the street. The server's own clamp: a client's point is never used
+## as it is.
 func clamp_move_target(point: Vector2, radius: float) -> Vector2:
 	var street: Rect2 = _street.grow(-radius)
-	var result: Vector2 = point.clamp(street.position, street.end)
+	var result: Vector2 = layout.keep_in_street(point, radius)
 	for rect: Rect2 in obstacles:
 		var grown: Rect2 = rect.grow(radius)
 		if not grown.has_point(result):
@@ -749,7 +750,7 @@ func _move_by(state: PlayerState, delta: Vector2) -> void:
 	var count: int = maxi(1, ceili(length / state.radius))
 	var piece: Vector2 = delta / count
 	for i: int in count:
-		state.position = Collision.resolve(state.position + piece, state.radius, _blocking)
+		state.position = layout.keep_in_street(Collision.resolve(state.position + piece, state.radius, _blocking), state.radius)
 
 
 ## Slot 0 next to the post, then alternating +x / -x by spawn_spacing.

@@ -288,8 +288,7 @@ func _build_map() -> void:
 		_add_obstacle(index)
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var color: Color = OWN_COLOR if side == MapLayout.SIDE_OWN else ENEMY_COLOR
-		var center: Vector2 = layout.base_center(side)
-		_posts[side] = _add_post(center)
+		_posts[side] = _add_post(layout.post_position(side))
 		var base: Array[StandardMaterial3D] = _add_marked_zone(layout.base_rect(side), layout.base_corner, color)
 		var rescue: Array[StandardMaterial3D] = _add_marked_zone(layout.rescue_rect(side), RESCUE_CORNER_RADIUS, color)
 		_base_materials[side] = [base[0], base[1], rescue[0], rescue[1]]
@@ -303,8 +302,7 @@ func _build_map() -> void:
 ## The main-screen model's props: the far base's electric post.
 func _add_corner_props() -> void:
 	# only the far half of the street is modelled: the enemy post (top right)
-	var center: Vector2 = layout.base_center(MapLayout.SIDE_ENEMY)
-	_posts[MapLayout.SIDE_ENEMY] = _add_post(center)
+	_posts[MapLayout.SIDE_ENEMY] = _add_post(layout.post_position(MapLayout.SIDE_ENEMY))
 	_turn_posts(MapLayout.SIDE_OWN)
 
 
@@ -346,37 +344,58 @@ func _add_ground_textures() -> void:
 	_geometry.add_child(outer)
 
 
-## Lays the owner's floor image over all the ground the camera sees (owner): one whole picture, untouched, on the play area, and the
-## same picture a little darker past both ends and under the sides, so the play area stands out. The copies line up so the play area
-## holds exactly one.
+## Lays the owner's floor image over all the ground the camera sees (owner): one whole picture, untouched, on the play area (its four
+## corners rounded like the bases'), and the same picture a little darker past both ends and under the sides, so the play area stands
+## out. The copies line up so the play area holds exactly one.
 func _add_cement_art() -> void:
 	if not ResourceLoader.exists(CEMENT_ART):
 		return
 	var size: Vector2 = Vector2(layout.lane_width, layout.lane_length + _reach() * 2.0) + Vector2.ONE * OUTER_MARGIN * 2.0
-	var outside: MeshInstance3D = _floor_patch("OutsideArt", size, Vector2.ZERO)
-	((outside.mesh as PlaneMesh).material as StandardMaterial3D).albedo_color = OUTSIDE_SHADE
+	var outside: MeshInstance3D = _outside_floor(size)
 	outside.position.y = CEMENT_LIFT / 2.0
 	_geometry.add_child(outside)
-	var art: MeshInstance3D = _floor_patch("CementArt", Vector2(layout.lane_width, layout.lane_length), Vector2.ZERO)
+	var art: MeshInstance3D = _play_floor()
 	art.position.y = CEMENT_LIFT
 	_geometry.add_child(art)
 
 
-## A flat patch of the owner's floor `size` metres (x, z) centred on `centre` (x, z), its picture repeated every play-area
-## size and lined up with the play area.
-func _floor_patch(patch_name: String, size: Vector2, centre: Vector2) -> MeshInstance3D:
+## The darker floor round the play area, `size` metres (x, z) centred on it: the picture repeated every play-area size and lined up with
+## the play area.
+func _outside_floor(size: Vector2) -> MeshInstance3D:
 	var period: Vector2 = Vector2(layout.lane_width, layout.lane_length)
 	var plane: PlaneMesh = PlaneMesh.new()
 	plane.size = size
 	# unshaded and untinted: the floor is the picture itself (the basis every other colour is judged against)
 	var material: StandardMaterial3D = StreetArt.unlit_material(StreetArt.texture("cement"), size / period)
 	# the picture's edges fall on the play area's edges
-	var start: Vector2 = (centre - size / 2.0 + period / 2.0) / period
+	var start: Vector2 = (period - size) / 2.0 / period
 	material.uv1_offset = Vector3(start.x - floorf(start.x), start.y - floorf(start.y), 0.0)
+	material.albedo_color = OUTSIDE_SHADE
 	plane.material = material
 	var patch: MeshInstance3D = MeshInstance3D.new()
-	patch.name = patch_name
+	patch.name = "OutsideArt"
 	patch.mesh = plane
+	patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return patch
+
+
+## The play area's floor: the owner's picture once over the whole area, cut to its rounded corners (a fan out from the middle, each
+## point showing the picture where it stands).
+func _play_floor() -> MeshInstance3D:
+	var lane: Rect2 = layout.lane_rect()
+	var outline: Array[Vector2] = rounded_outline(lane, layout.base_corner)
+	var tool: SurfaceTool = SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_normal(Vector3.UP)
+	for i: int in outline.size():
+		for point: Vector2 in [lane.get_center(), outline[i], outline[(i + 1) % outline.size()]]:
+			tool.set_uv((point - lane.position) / lane.size)
+			tool.add_vertex(Vector3(point.x, 0.0, point.y))
+	var mesh: ArrayMesh = tool.commit()
+	mesh.surface_set_material(0, StreetArt.unlit_material(StreetArt.texture("cement")))
+	var patch: MeshInstance3D = MeshInstance3D.new()
+	patch.name = "CementArt"
+	patch.mesh = mesh
 	patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return patch
 

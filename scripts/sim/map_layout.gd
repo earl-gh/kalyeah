@@ -3,7 +3,7 @@ extends Resource
 ## Geometry of the playground street, in meters. Pure data + math, no nodes.
 ## The street runs along Z: +Z is the "own" end (bottom of the portrait screen),
 ## -Z the enemy end. A side's post stands in its left corner as seen from that
-## end (own: bottom-left, enemy: top-right). Its tagged players wait on the sidewalk outside the street's
+## end (own: bottom-left, enemy: top-right); the street's four corners are rounded like the bases' (`base_corner`). Its tagged players wait on the sidewalk outside the street's
 ## side edge at the far end, on the same left side (own: top-left, enemy: bottom-right), facing in, and the
 ## rescue area that frees them lies against the street's edge beside them. The map is point-symmetric, so
 ## both teams play the same street.
@@ -24,10 +24,10 @@ var lane_width: float:
 var lane_length: float:
 	get:
 		return float(tiles.y) * tile_size
-## The post stands this far in from both edges of its corner.
-@export var post_inset: float = 0.0
-## The base is a rounded rectangle round the post: a square `base_radius` from the post to each side, cut off by the street's
-## edges (so it sits wholly inside the street), with all four corners rounded by `base_corner`.
+## The base is a rounded rectangle: a square `base_radius` from a point `base_inset` in from both edges of its corner, cut off by the
+## street's edges (so it sits wholly inside the street), with all four corners rounded by `base_corner`. The street's own four corners
+## are rounded by the same `base_corner`, so a base fits its corner exactly, and the post stands at the centre of that curve (`post_position`).
+@export var base_inset: float = 0.0
 @export var base_radius: float = 0.0
 @export var base_corner: float = 0.0
 ## Where a side's players start and come back to after a rescue: this far from the
@@ -71,9 +71,14 @@ func to_tiles(position: Vector2) -> Vector2:
 	return Vector2(position.x / tile_size + float(tiles.x) / 2.0, position.y / tile_size + float(tiles.y) / 2.0)
 
 
-## Center of a side's post in the XZ plane (x, z): own bottom-left, enemy top-right.
+## The point the base's square is built round (x, z): own bottom-left, enemy top-right.
 func base_center(side: int) -> Vector2:
-	return Vector2(-side * (lane_width / 2.0 - post_inset), side * (lane_length / 2.0 - post_inset))
+	return Vector2(-side * (lane_width / 2.0 - base_inset), side * (lane_length / 2.0 - base_inset))
+
+
+## Where a side's post stands (x, z): in its corner, at the centre of the street's rounded corner (`base_corner` in from both edges).
+func post_position(side: int) -> Vector2:
+	return Vector2(-side * (lane_width / 2.0 - base_corner), side * (lane_length / 2.0 - base_corner))
 
 
 ## The base of a side as a rectangle (the other team captures there): the square round its post, cut off by the street.
@@ -126,6 +131,22 @@ func tagged_facing(side: int) -> Vector2:
 
 func lane_rect() -> Rect2:
 	return Rect2(-lane_width / 2.0, -lane_length / 2.0, lane_width, lane_length)
+
+
+## `point` pulled to the nearest place where a circle of `radius` fits inside the street, whose four corners are rounded by `base_corner`
+## (a kid pushed into a corner slides along the curve).
+func keep_in_street(point: Vector2, radius: float) -> Vector2:
+	var inner: Rect2 = lane_rect().grow(-radius)
+	var curve: float = maxf(base_corner - radius, 0.0)
+	var inside: Vector2 = point.clamp(inner.position, inner.end)
+	var straight: Vector2 = inner.size / 2.0 - Vector2.ONE * curve
+	var from_centre: Vector2 = inside - inner.get_center()
+	# the curve's centre nearest the point; past `curve` from it the point is outside the rounded corner
+	var arc_centre: Vector2 = from_centre.clamp(-straight, straight)
+	var out: Vector2 = from_centre - arc_centre
+	if out.length() <= curve:
+		return inside
+	return inner.get_center() + arc_centre + out.normalized() * curve
 
 
 ## Every obstacle on the street: the own-half pieces plus the same pieces turned
