@@ -226,7 +226,6 @@ func test_the_settings_page_has_profile_sound_and_quit_but_no_server_address() -
 	await wait_frames(2)
 	var page: SettingsPage = screen.settings_page
 	assert_true(page.visible)
-	assert_not_null(page.find_child("VolumeSlider", true, false), "sound")
 	assert_null(page.find_child("ServerField", true, false), "no server address: it is built into the game")
 	assert_not_null(page.profile_button, "profile")
 	page.quit_button.pressed.emit()

@@ -223,24 +223,29 @@ func test_cover_models_fill_their_footprint_and_stay_about_a_metre_high() -> voi
 		assert_gt(box.size.y * model.scale.y, 0.5, "%s is tall enough to hide behind" % id)
 
 
-func test_the_base_posts_are_the_owners_pictures_blue_for_you_and_red_for_them_standing_up_and_facing_the_camera() -> void:
+func test_the_base_posts_are_the_owners_models_blue_for_you_and_red_for_them_facing_the_camera() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
-	var own: Sprite3D = map._posts[MapLayout.SIDE_OWN] as Sprite3D
-	var enemy: Sprite3D = map._posts[MapLayout.SIDE_ENEMY] as Sprite3D
-	assert_eq((own.texture as AtlasTexture).atlas, StreetMap.POST_BLUE, "your post is the blue picture")
-	assert_eq((enemy.texture as AtlasTexture).atlas, StreetMap.POST_RED, "theirs the red one")
-	for post: Sprite3D in [own, enemy]:
-		assert_eq(post.billboard, BaseMaterial3D.BILLBOARD_ENABLED, "it always faces the camera")
-		assert_almost_eq(post.texture.get_size().y * post.pixel_size, map.post_height(), 0.01, "as tall as the post height in the data")
-		assert_almost_eq(post.position.y, 0.0, 0.001, "its foot on the ground")
+	var own: Node3D = map._posts[MapLayout.SIDE_OWN]
+	var enemy: Node3D = map._posts[MapLayout.SIDE_ENEMY]
+	assert_true((own.get_node(StreetMap.POST_BLUE) as Node3D).visible, "your post is the blue model")
+	assert_false((own.get_node(StreetMap.POST_RED) as Node3D).visible)
+	assert_true((enemy.get_node(StreetMap.POST_RED) as Node3D).visible, "theirs the red one")
+	assert_false((enemy.get_node(StreetMap.POST_BLUE) as Node3D).visible)
+	for post: Node3D in [own, enemy]:
+		for id: String in [StreetMap.POST_BLUE, StreetMap.POST_RED]:
+			var model: Node3D = post.get_node(id) as Node3D
+			assert_almost_eq(PropModel.size_of(id).y * model.scale.y, map.post_height(), 0.01, "%s is as tall as the post height in the data" % id)
+		assert_almost_eq(post.rotation.y, 0.0, 0.001, "its front (the flyers) faces the camera at the +Z end")
 	assert_eq(Vector2(own.position.x, own.position.z), LAYOUT.base_center(MapLayout.SIDE_OWN), "at the base's centre")
 	map.set_own_side(MapLayout.SIDE_ENEMY)
-	assert_eq((enemy.texture as AtlasTexture).atlas, StreetMap.POST_BLUE, "the other team sees their own post blue")
-	assert_eq((own.texture as AtlasTexture).atlas, StreetMap.POST_RED)
-	assert_false(FileAccess.file_exists("res://assets/models/props/electric_pole.glb"), "the electric pole model is replaced (owner)")
-
-
+	assert_true((enemy.get_node(StreetMap.POST_BLUE) as Node3D).visible, "the other team sees their own post blue")
+	assert_true((own.get_node(StreetMap.POST_RED) as Node3D).visible)
+	assert_false((own.get_node(StreetMap.POST_BLUE) as Node3D).visible)
+	for post: Node3D in [own, enemy]:
+		assert_almost_eq(absf(post.rotation.y), PI, 0.001, "the camera is turned half way round for that team, so the posts turn with it")
+	assert_false(FileAccess.file_exists("res://assets/models/props/electric_pole.glb"), "the old electric pole model stays gone (owner)")
+	assert_false(FileAccess.file_exists("res://assets/textures/posts/post_blue.webp"), "the flat post pictures are replaced by the models (owner)")
 func test_the_end_rows_mix_every_street_thing_and_stay_out_of_the_play_area() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
@@ -324,13 +329,23 @@ func test_the_posts_and_boxes_sit_where_the_grid_says() -> void:
 	assert_almost_eq(LAYOUT.base_radius / LAYOUT.tile_size, 3.0, 0.0001, "the base circle is 3 tiles")
 
 
-func test_each_post_picture_stands_with_its_foot_on_the_base_centre() -> void:
+## The box round a prop model's mesh, in the model's own units.
+func _model_box(id: String) -> AABB:
+	var model: Node3D = autofree(PropModel.make(id)) as Node3D
+	return (model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).get_aabb()
+
+
+func test_each_post_model_stands_with_its_foot_on_the_base_centre() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
-		var post: Sprite3D = map._posts[side] as Sprite3D
-		var own: bool = side == MapLayout.SIDE_OWN
-		var foot: float = StreetMap.POST_BLUE_FOOT if own else StreetMap.POST_RED_FOOT
-		assert_almost_eq(-post.offset.x / post.texture.get_size().x, foot, 0.0001, "the sprite is shifted so the pole's foot is at its origin")
-		assert_gt(foot, 0.3, "the pole is inside the picture")
-		assert_lt(foot, 0.7)
+		var post: Node3D = map._posts[side]
+		assert_eq(Vector2(post.position.x, post.position.z), LAYOUT.base_center(side), "the pole stands on the base's centre")
+		assert_almost_eq(post.position.y, 0.0, 0.001, "on the ground")
+	for id: String in [StreetMap.POST_BLUE, StreetMap.POST_RED]:
+		var box: AABB = _model_box(id)
+		assert_almost_eq(box.position.y, 0.0, 0.001, "%s: the model's foot is its origin" % id)
+		assert_lt(box.position.x, 0.0, "%s: the pole is inside the model's width, with its arms either side" % id)
+		assert_gt(box.end.x, 0.0)
+		assert_lt(box.position.z, 0.0)
+		assert_gt(box.end.z, 0.0)

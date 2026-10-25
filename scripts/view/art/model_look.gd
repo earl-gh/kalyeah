@@ -1,7 +1,7 @@
 class_name ModelLook
 extends RefCounted
 ## The soft, matte look every 3D model (props, kids, weapons) gets, and the only part of the picture that the scene's lights shape (the floor, the zone
-## marks and the post pictures are unshaded; docs/ART.md "Light and colour by asset class"): no gloss at all (no specular, no
+## marks are unshaded; docs/ART.md "Light and colour by asset class"): no gloss at all (no specular, no
 ## normal map), light wrapping round the body so the shaded side stays soft, and a faint rim so the outline lifts off the street.
 ## The lights are tuned (StreetMap.SUN_ENERGY and the ambient) so a model's colour comes out at its own colour: the albedo gain is 1.
 

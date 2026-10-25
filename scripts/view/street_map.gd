@@ -9,7 +9,7 @@ extends Node3D
 
 const OWN_COLOR: Color = Palette.TEAM_OWN
 const ENEMY_COLOR: Color = Palette.TEAM_ENEMY
-# Light for the 3D models only (docs/ART.md "Light and colour by asset class"). The floor, the zone marks and the post pictures are unshaded and
+# Light for the 3D models only (docs/ART.md "Light and colour by asset class"). The floor and the zone marks are unshaded and
 # are drawn exactly as made, so none of them reads these numbers; and the Environment has no tonemap curve, saturation or contrast
 # to bend them. Clash Royale's model look: a warm key light and a bright warm ambient so the shaded side stays light and soft, a faint
 # cool fill from behind; the three together put an upward face at about its own colour and a camera-facing side a little under it.
@@ -91,16 +91,11 @@ const OBSTACLE_MODELS: Dictionary[StringName, String] = {
 }
 const COVER_HEIGHT: float = 1.15
 const POST_HEIGHT: float = 8.5
-## The base posts are the owner's pictures (assets/textures/posts/, unedited): blue for the viewer's own base, red for the other. Each is
-## drawn standing up and always facing the camera. The part rects are the visible art as shares of its file.
-const POST_BLUE: Texture2D = preload("res://assets/textures/posts/post_blue.webp")
-const POST_RED: Texture2D = preload("res://assets/textures/posts/post_red.webp")
-const POST_BLUE_PART: Rect2 = Rect2(0.21191, 0.01074, 0.54883, 0.96484)
-const POST_RED_PART: Rect2 = Rect2(0.28223, 0.00879, 0.55371, 0.96777)
-## Where the pole's foot is across each picture (a share of the visible art's width): the pictures have wires reaching out to the sides, so the
-## pole is not in the middle of them.
-const POST_BLUE_FOOT: float = 0.4075
-const POST_RED_FOOT: float = 0.5388
+## The base posts are the owner's 3D models (assets/models/props/post_blue.glb and post_red.glb: a painted concrete pole with flyers, a
+## crossarm, a transformer and a router box): blue for the viewer's own base, red for the other. The pole's foot is the model's origin and
+## its front (the flyers and the router label) looks toward +Z, where the camera stands, so the post turns half way round when the view flips.
+const POST_BLUE: String = "post_blue"
+const POST_RED: String = "post_red"
 ## The barrier rows across both ends: every street thing at its real height (m), in proportion to
 ## the kids (who stand 1.85 m, so a real thing is about 1.4 times its true size), side by side
 ## in this order (the far end starts half way along, so the two rows differ).
@@ -227,11 +222,11 @@ func set_own_side(own_side: int) -> void:
 			material.albedo_color = color
 
 
-## Each base's post shows the viewer's colours: the owner's blue picture for your own base, the red one for theirs (they swap when the teams
-## switch ends).
+## Each base's post shows the viewer's colours: the blue model for your own base, the red one for theirs (they swap when the teams
+## switch ends), and it faces the camera, which is turned half way round for the team that defends the -Z base.
 func _turn_posts(own_side: int) -> void:
 	for side: int in _posts:
-		_dress_post(_posts[side] as Sprite3D, side == own_side)
+		_dress_post(_posts[side], side == own_side, own_side == MapLayout.SIDE_ENEMY)
 
 
 ## The team colour of base `side` as the viewer sees it: blue for yours, red for theirs.
@@ -680,37 +675,24 @@ func _add(mesh: Mesh, at: Vector3, yaw: float = 0.0) -> MeshInstance3D:
 	return instance
 
 
-## The owner's picture of a post, standing on the ground at `center` (x, z), `post_height()` tall and always facing the camera.
-func _add_post(center: Vector2) -> Sprite3D:
-	var sprite: Sprite3D = Sprite3D.new()
-	sprite.name = "Post"
-	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	sprite.shaded = false
-	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
-	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	sprite.centered = false
-	_dress_post(sprite, true)
-	_add_prop(sprite, Vector3(center.x, 0.0, center.y))
-	return sprite
+## The owner's post models, standing on the ground at `center` (x, z), `post_height()` tall. Both colours are built and `_dress_post` shows one.
+func _add_post(center: Vector2) -> Node3D:
+	var post: Node3D = Node3D.new()
+	post.name = "Post"
+	for id: String in [POST_BLUE, POST_RED]:
+		var model: Node3D = PropModel.by_height(id, post_height())
+		model.name = id
+		post.add_child(model)
+	_dress_post(post, true, false)
+	_add_prop(post, Vector3(center.x, 0.0, center.y))
+	return post
 
 
-## Shows the blue (`own`) or red picture on a post, `post_height()` tall with its foot on the ground point and the picture standing up from it.
-func _dress_post(sprite: Sprite3D, own: bool) -> void:
-	sprite.texture = post_picture(own)
-	var picture: Vector2 = sprite.texture.get_size()
-	sprite.pixel_size = post_height() / picture.y
-	sprite.offset = Vector2(-picture.x * (POST_BLUE_FOOT if own else POST_RED_FOOT), 0.0)
-
-
-## The post's picture for `own` (blue) or the other team (red).
-static func post_picture(own: bool) -> AtlasTexture:
-	var atlas: AtlasTexture = AtlasTexture.new()
-	atlas.atlas = POST_BLUE if own else POST_RED
-	var part: Rect2 = POST_BLUE_PART if own else POST_RED_PART
-	var size: Vector2 = atlas.atlas.get_size()
-	atlas.region = Rect2(part.position * size, part.size * size)
-	atlas.filter_clip = true
-	return atlas
+## Shows the blue (`own`) or red model on a post, and turns it half way round when the camera is (`flipped`) so its front faces the screen.
+func _dress_post(post: Node3D, own: bool, flipped: bool) -> void:
+	(post.get_node(POST_BLUE) as Node3D).visible = own
+	(post.get_node(POST_RED) as Node3D).visible = not own
+	post.rotation.y = PI if flipped else 0.0
 
 
 func _add_prop(model: Node3D, at: Vector3, yaw: float = 0.0) -> Node3D:

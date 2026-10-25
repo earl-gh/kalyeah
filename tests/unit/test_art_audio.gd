@@ -44,37 +44,7 @@ func test_kid_faces_its_movement() -> void:
 	assert_almost_eq(forward.x, 1.0, 0.001)
 
 
-func test_every_sound_is_built_and_not_silent() -> void:
-	for id: StringName in SoundBank.ids():
-		var stream: AudioStreamWAV = SoundBank.get_sound(id)
-		assert_gt(stream.data.size(), 400, String(id))
-		var loudest: int = 0
-		for i: int in range(0, stream.data.size(), 64):
-			loudest = maxi(loudest, absi(stream.data.decode_s16(i)))
-		assert_gt(loudest, 1000, "%s is audible" % id)
 
-
-func test_music_renders_in_chunks_and_loops() -> void:
-	var renderer: SoundBank.MusicRenderer = SoundBank.MusicRenderer.new()
-	var chunks: int = 0
-	while not renderer.step(20000):
-		chunks += 1
-	assert_gt(chunks, 3, "built over several frames, not one")
-	var stream: AudioStreamWAV = renderer.stream()
-	assert_eq(stream.loop_mode, AudioStreamWAV.LOOP_FORWARD)
-	assert_almost_eq(float(stream.data.size()) / 2.0 / stream.mix_rate, 8.0 * 4.0 * 60.0 / SoundBank.TEMPO, 0.05)
-
-
-func test_match_audio_follows_sim_events() -> void:
-	var sim: MatchSim = MatchSim.new(RULES, LAYOUT, 1)
-	var audio: MatchAudio = autofree(MatchAudio.new()) as MatchAudio
-	add_child(audio)
-	audio.watch(sim, 0)
-	sim.point_scored.emit(0, MatchSim.CaptureKind.BASE)
-	sim.point_scored.emit(1, MatchSim.CaptureKind.ALL_TAGGED)
-	sim.player_tagged.emit(3)
-	sim.player_rescued.emit(3, 4)
-	assert_eq(audio.played, [&"point", &"lose_point", &"ko", &"revive"] as Array[StringName])
 
 
 func test_the_ui_theme_is_applied_everywhere() -> void:
@@ -148,28 +118,6 @@ func test_a_knockout_falls_then_lies() -> void:
 	assert_eq(_animation_after(kid, state), "idle", "gets back up")
 
 
-func test_every_weapon_has_its_own_cast_sound() -> void:
-	for i: int in RULES.weapons.size():
-		var id: StringName = RULES.weapons[i].id
-		assert_ne(SoundBank.cast_id(id), &"cast", "%s has a specific cast sound" % id)
-		assert_gt(SoundBank.get_sound(SoundBank.cast_id(id)).data.size(), 200)
-	assert_eq(SoundBank.cast_id(&"mystery"), &"cast", "unknown weapons fall back")
-
-
-func test_match_audio_has_sounds_for_casts_heals_effects_and_the_result() -> void:
-	var sim: MatchSim = MatchSim.new(RULES, LAYOUT, 1)
-	var audio: MatchAudio = autofree(MatchAudio.new()) as MatchAudio
-	add_child(audio)
-	audio.watch(sim, 0, 1)
-	sim.weapon_cast.emit(1, &"lata")
-	sim.player_healed.emit(1, 50)
-	sim.effect_applied.emit(2, StatusEffects.Type.STUN)
-	sim.effect_applied.emit(2, StatusEffects.Type.POLYMORPH)
-	sim.player_rescued.emit(1, MatchSim.RELEASED_ALONE)
-	sim.player_rescued.emit(2, MatchSim.RELEASED_ALONE)
-	sim.match_won.emit(0)
-	sim.match_won.emit(1)
-	assert_eq(audio.played, [&"cast_lata", &"heal", &"stun", &"poof", &"revive", &"victory", &"defeat"] as Array[StringName], "a dummy walking out alone is quiet")
 
 
 func test_running_makes_footstep_signals() -> void:

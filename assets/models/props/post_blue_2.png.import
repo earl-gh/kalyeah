@@ -2,22 +2,25 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://tkhnnnhldm0b"
-path="res://.godot/imported/post_blue.webp-0761f76ee51fa1c826f3db25756f2f28.ctex"
+uid="uid://6bimmo27h0ab"
+path="res://.godot/imported/post_blue_2.png-59a96be255e63098987fb0e4e40dee63.ctex"
 metadata={
 "vram_texture": false
+}
+generator_parameters={
+"md5": "c40e5fd7c12f61f0569a27803cbd8d70"
 }
 
 [deps]
 
-source_file="res://assets/textures/posts/post_blue.webp"
-dest_files=["res://.godot/imported/post_blue.webp-0761f76ee51fa1c826f3db25756f2f28.ctex"]
+source_file="res://assets/models/props/post_blue_2.png"
+dest_files=["res://.godot/imported/post_blue_2.png-59a96be255e63098987fb0e4e40dee63.ctex"]
 
 [params]
 
 compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.85
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
@@ -36,5 +39,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=1024
+process/size_limit=0
 detect_3d/compress_to=1
