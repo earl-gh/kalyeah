@@ -9,12 +9,12 @@ extends Control
 
 ## The bar before `bar_scale` (visual pass: 92 x 13 read as a hairline at phone size; now a chunky rounded bar).
 const BAR_SIZE: Vector2 = Vector2(96.0, 18.0)
-## The dark outline round the bar (screen px, kept at any bar_scale so the bar always reads on the street).
-const BAR_OUTLINE: float = 3.0
-## The health number over the bar's top left corner (its left edge lines up with the bar's), and the height of that line.
+## The dark outline round the bar: thin (screen px, kept at any bar_scale).
+const BAR_OUTLINE: float = 2.0
+## The health number at the bar's top left corner (its left edge lines up with the bar's, its bottom resting on the bar's top outline),
+## and how far it reaches above the bar.
 const COUNT_FONT: int = UiMetrics.CAPTION
-const COUNT_LINE: float = 24.0
-const COUNT_GAP: float = 6.0
+const COUNT_LINE: float = 16.0
 ## The bar sits just above the top of the head (the kid's model is KID_HEIGHT tall).
 const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 const POPUP_TIME: float = 0.9
@@ -26,7 +26,8 @@ const STATUS_FONT: int = UiMetrics.CAPTION
 const STAMINA_SIZE: Vector2 = Vector2(96.0, 8.0)
 const STAMINA_GAP: float = 5.0
 const STAMINA_LOW: float = 0.25
-const STAMINA_COLOR: Color = RoyaleStyle.CREAM
+## Stamina is blue (health is green, yours; blue for an ally's bar too, but the stamina bar is only ever under your own).
+const STAMINA_COLOR: Color = Color(0.22, 0.52, 1.0)
 const STAMINA_LOW_COLOR: Color = ConsolePanel.HEALTH_AMBER
 const EXHAUSTED_COLOR: Color = ConsolePanel.HEALTH_RED
 ## How long the overclock's red / blank blink holds each state (seconds); steady red with Reduce motion.
@@ -261,11 +262,16 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.rescue_elapsed[state.team] / maxf(_sim.rules.rescue_hold_time, 0.001), RESCUE_COLOR)
 
 
-## The health number just over the bar's top left corner, left-aligned with the bar.
+## The health number at the bar's top left corner: left-aligned with the bar, resting right on the bar's top outline.
 func _draw_count(state: PlayerState, rect: Rect2) -> void:
 	var text: String = str(maxi(state.hp, 0))
 	var width: float = KalyeahTheme.ACTION_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, COUNT_FONT).x
-	_text(KalyeahTheme.ACTION_FONT, text, Vector2(rect.position.x + width / 2.0, rect.position.y - BAR_OUTLINE - COUNT_GAP), COUNT_FONT, Color.WHITE, 5)
+	_text(KalyeahTheme.ACTION_FONT, text, Vector2(rect.position.x + width / 2.0, count_baseline(rect)), COUNT_FONT, Color.WHITE, 5)
+
+
+## The baseline of the health number over a bar at `rect`: on the outer edge of the bar's top outline, so the number rests on the bar.
+static func count_baseline(rect: Rect2) -> float:
+	return rect.position.y - BAR_OUTLINE
 
 
 ## A rounded bar with a dark outline: the fill in `color`, and a gloss on its upper third.

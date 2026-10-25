@@ -51,4 +51,40 @@ func test_the_ice_water_bar_fills_one_segment_at_a_time() -> void:
 func test_the_max_caption_is_centred_on_the_bars_bottom_outline() -> void:
 	var bar: Rect2 = Rect2(Vector2(100.0, 200.0), Vector2(400.0, 26.0))
 	var middle: float = CardHand.max_caption_baseline(bar) - float(CardHand.MAX_FONT) * 0.36
-	assert_almost_eq(middle, bar.end.y - float(RoyaleStyle.OUTLINE) / 2.0, 0.001, "the caption's middle is the outline's middle")
+	assert_almost_eq(middle, bar.end.y - float(CardHand.BAR_OUTLINE) / 2.0, 0.001, "the caption's middle is the outline's middle")
+
+
+func test_the_outlines_of_all_three_bars_are_thin() -> void:
+	assert_lte(OverheadHud.BAR_OUTLINE, 2.0, "health and stamina")
+	assert_lte(float(CardHand.BAR_OUTLINE), 2.0, "ice water")
+	assert_lt(float(CardHand.BAR_OUTLINE), float(RoyaleStyle.OUTLINE), "thinner than the chrome's outline")
+
+
+func test_the_colours_make_sense_ice_water_and_stamina_are_blue_and_nothing_here_is_yellow_when_full() -> void:
+	var full: Color = CardHand.ICE_WATER_FULL_EDGE
+	assert_gt(full.b, full.r, "a full ice water bar's edge is blue, not gold")
+	assert_gt(full.b, full.g - 0.001, "light ice blue")
+	var stamina: Color = OverheadHud.STAMINA_COLOR
+	assert_gt(stamina.b, stamina.r + 0.4, "stamina is blue")
+	assert_gt(stamina.b, stamina.g, "blue, not cyan or white")
+	assert_gt(OverheadHud.EXHAUSTED_COLOR.r, OverheadHud.EXHAUSTED_COLOR.b + 0.4, "running out is still red")
+	assert_gt(OverheadHud.STAMINA_LOW_COLOR.r, OverheadHud.STAMINA_LOW_COLOR.b + 0.4, "and a warning is still amber")
+
+
+func test_the_health_number_rests_on_the_bars_top_outline_and_does_not_cover_the_fill() -> void:
+	var bar: Rect2 = Rect2(Vector2(300.0, 400.0), Vector2(48.0, 9.0))
+	assert_almost_eq(OverheadHud.count_baseline(bar), bar.position.y - OverheadHud.BAR_OUTLINE, 0.001, "its bottom is on the bar's top outline")
+	assert_lt(OverheadHud.count_baseline(bar), bar.position.y, "so the green fill stays visible under it")
+
+
+func test_a_stamina_bar_in_play_is_blue_and_low_is_amber() -> void:
+	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
+	var sim: MatchSim = MatchSim.new(rules, load("res://data/rules/map_layout.tres") as MapLayout, 3)
+	var me: PlayerState = sim.add_player(1, 0)
+	var overhead: OverheadHud = OverheadHud.new()
+	add_child_autofree(overhead)
+	overhead.setup(sim, null, 1, 0)
+	me.stamina = rules.stamina_max * 0.6
+	assert_eq(overhead.stamina_fill(me)[1], OverheadHud.STAMINA_COLOR, "blue while it is fine")
+	me.stamina = rules.stamina_max * 0.1
+	assert_eq(overhead.stamina_fill(me)[1], OverheadHud.STAMINA_LOW_COLOR, "amber when low")

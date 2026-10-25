@@ -52,7 +52,10 @@ const MAX_FONT: int = UiMetrics.CAPTION
 const BAR_FONT: int = UiMetrics.ACTION
 ## The ice water colour: a code-drawn stand-in until the art-director sets a token (docs/ART.md has none yet).
 const ICE_WATER: Color = Color(0.36, 0.8, 1.0)
-const ICE_WATER_FULL_EDGE: Color = RoyaleStyle.GOLD
+## A full bar's edge: a light ice blue (it was gold; ice water stays blue).
+const ICE_WATER_FULL_EDGE: Color = Color(0.72, 0.93, 1.0)
+## The thin outline of the ice water bar.
+const BAR_OUTLINE: int = 2
 ## The empty part of the ice water bar: a flat, opaque dark blue (just the colour: no sheen, no texture).
 const ICE_EMPTY: Color = Color(0.08, 0.16, 0.38)
 ## The segment that is filling shows this much of its share in see-through white (like Clash Royale's elixir bar).
@@ -547,11 +550,11 @@ func _draw_bar() -> void:
 	var track: StyleBoxFlat = StyleBoxFlat.new()
 	track.bg_color = ICE_EMPTY
 	track.border_color = ICE_WATER_FULL_EDGE if full else RoyaleStyle.NAVY
-	track.set_border_width_all(RoyaleStyle.OUTLINE)
+	track.set_border_width_all(BAR_OUTLINE)
 	track.set_corner_radius_all(UiSkin.bar_radius(bar_rect.size.y))
 	track.anti_aliasing = true
 	draw_style_box(track, bar_rect)
-	var inner: Rect2 = bar_rect.grow(-float(RoyaleStyle.OUTLINE))
+	var inner: Rect2 = bar_rect.grow(-float(BAR_OUTLINE))
 	# the bar fills one whole segment at a time (solid ice water); the segment being filled shows its progress in see-through white
 	var fills: PackedFloat32Array = segment_fills(shown_elixir, segments)
 	var span: float = inner.size.x / float(segments)
@@ -608,4 +611,4 @@ static func segment_fills(elixir: float, segments: int) -> PackedFloat32Array:
 
 ## The baseline of the "Max: 10" caption: its middle is level with the middle of the bar's bottom outline.
 static func max_caption_baseline(bar: Rect2) -> float:
-	return bar.end.y - float(RoyaleStyle.OUTLINE) / 2.0 + float(MAX_FONT) * 0.36
+	return bar.end.y - float(BAR_OUTLINE) / 2.0 + float(MAX_FONT) * 0.36

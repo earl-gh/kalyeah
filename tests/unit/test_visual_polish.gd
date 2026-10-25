@@ -116,7 +116,8 @@ func _uniform(uniform: String) -> float:
 func test_the_health_bars_are_chunky_at_phone_size() -> void:
 	var rules: CameraRules = load("res://data/rules/camera_rules.tres") as CameraRules
 	assert_gte(OverheadHud.BAR_SIZE.y * rules.bar_scale, 9.0, "at least 9 px thick on the 720 px design")
-	assert_gte(OverheadHud.BAR_OUTLINE, 3.0, "with an outline that reads on any street")
+	assert_lte(OverheadHud.BAR_OUTLINE, 2.0, "with a thin outline (owner: the bar outlines were too thick)")
+	assert_gte(OverheadHud.BAR_OUTLINE, 1.0, "that still shows")
 
 
 func test_a_hit_has_a_ground_ring_and_reduce_motion_keeps_it_still() -> void:
