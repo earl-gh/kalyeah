@@ -357,3 +357,15 @@ func test_the_posts_and_boxes_sit_where_the_grid_says() -> void:
 	var wall: Rect2 = LAYOUT.obstacle_rects()[0]
 	assert_almost_eq(wall.position.x, -LAYOUT.lane_width / 2.0, 0.0001, "the cover wall is against the left curb")
 	assert_almost_eq(wall.size.x / LAYOUT.tile_size, 2.0, 0.0001, "two tiles long")
+
+
+func test_each_post_picture_stands_with_its_foot_on_the_base_centre() -> void:
+	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
+	add_child(map)
+	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
+		var post: Sprite3D = map._posts[side] as Sprite3D
+		var own: bool = side == MapLayout.SIDE_OWN
+		var foot: float = StreetMap.POST_BLUE_FOOT if own else StreetMap.POST_RED_FOOT
+		assert_almost_eq(-post.offset.x / post.texture.get_size().x, foot, 0.0001, "the sprite is shifted so the pole's foot is at its origin")
+		assert_gt(foot, 0.3, "the pole is inside the picture")
+		assert_lt(foot, 0.7)

@@ -96,8 +96,12 @@ const POST_HEIGHT: float = 8.5
 ## drawn standing up and always facing the camera. The part rects are the visible art as shares of its file.
 const POST_BLUE: Texture2D = preload("res://assets/textures/posts/post_blue.webp")
 const POST_RED: Texture2D = preload("res://assets/textures/posts/post_red.webp")
-const POST_BLUE_PART: Rect2 = Rect2(0.28376, 0.00964, 0.4673, 0.98071)
-const POST_RED_PART: Rect2 = Rect2(0.2711, 0.00964, 0.45464, 0.96805)
+const POST_BLUE_PART: Rect2 = Rect2(0.21191, 0.01074, 0.54883, 0.96484)
+const POST_RED_PART: Rect2 = Rect2(0.28223, 0.00879, 0.55371, 0.96777)
+## Where the pole's foot is across each picture (a share of the visible art's width): the pictures have wires reaching out to the sides, so the
+## pole is not in the middle of them.
+const POST_BLUE_FOOT: float = 0.4075
+const POST_RED_FOOT: float = 0.5388
 ## The barrier rows across both ends: every street thing at its real height (m), in proportion to
 ## the kids (who stand 1.85 m, so a real thing is about 1.4 times its true size), side by side
 ## in this order (the far end starts half way along, so the two rows differ).
@@ -691,7 +695,7 @@ func _dress_post(sprite: Sprite3D, own: bool) -> void:
 	sprite.texture = post_picture(own)
 	var picture: Vector2 = sprite.texture.get_size()
 	sprite.pixel_size = post_height() / picture.y
-	sprite.offset = Vector2(-picture.x / 2.0, 0.0)
+	sprite.offset = Vector2(-picture.x * (POST_BLUE_FOOT if own else POST_RED_FOOT), 0.0)
 
 
 ## The post's picture for `own` (blue) or the other team (red).
