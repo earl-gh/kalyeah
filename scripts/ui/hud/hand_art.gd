@@ -10,6 +10,8 @@ const CHAT: Texture2D = preload("res://assets/ui/hand/chat.webp")
 ## Only the plate's flat face and its top and left rims: its thick right and bottom sides are cut off, so it runs off the screen's right and
 ## bottom edges looking flat (owner). The visible art is x 8 to 1440 and y 251 to 836 of the file; this is x 8 to 1402 and y 251 to 800.
 const PLATE_PART: Rect2 = Rect2(0.00552, 0.23112, 0.96271, 0.50553)
+## The plate is drawn in this colour (a darker blue than the picture).
+const PLATE_TINT: Color = Color(0.56, 0.66, 0.9)
 const ICE_PART: Rect2 = Rect2(0.23604, 0.10287, 0.52951, 0.86124)
 const CHAT_PART: Rect2 = Rect2(0.11418, 0.14161, 0.77018, 0.73427)
 ## Width over height of the visible art.

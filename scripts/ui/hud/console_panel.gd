@@ -42,4 +42,4 @@ func _draw() -> void:
 	# the owner's blue plate (assets/ui/hand/) under the cards, down to the bottom of the screen and to the screen's edge on the
 	# side away from the column (like Clash Royale's bottom: the column beside it shows the street)
 	var left: float = column_width if column_left else 0.0
-	draw_texture_rect(HandArt.plate(), Rect2(Vector2(left, 0.0), Vector2(maxf(size.x - column_width, 0.0), size.y)), false)
+	draw_texture_rect(HandArt.plate(), Rect2(Vector2(left, 0.0), Vector2(maxf(size.x - column_width, 0.0), size.y)), false, HandArt.PLATE_TINT)
