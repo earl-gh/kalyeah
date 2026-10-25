@@ -18,13 +18,11 @@ func before_each() -> void:
 	_was = _rules.card_cycle
 	_rules.card_cycle = true
 	_left = Settings.left_handed
-	WebTouchCancel.clear()
 
 
 func after_each() -> void:
 	_rules.card_cycle = _was
 	Settings.left_handed = _left
-	WebTouchCancel.clear()
 
 
 func _hud(left_handed: bool = false) -> MatchHud:
@@ -140,29 +138,24 @@ func _ready_hand(hud: MatchHud) -> CardHand:
 	return hand
 
 
-func _touch(hand: CardHand, pressed: bool) -> void:
-	var touch: InputEventScreenTouch = InputEventScreenTouch.new()
-	touch.index = 0
-	touch.pressed = pressed
-	touch.position = hand.get_global_rect().position + hand.card_rects[0].get_center() + Vector2(0.0, -400.0 if not pressed else 0.0)
-	hand._input(touch)
+func _touch(hand: CardHand, pressed: bool, canceled: bool = false) -> void:
+	var at: Vector2 = hand.get_global_rect().position + hand.card_rects[0].get_center() + Vector2(0.0, -400.0 if not pressed else 0.0)
+	hand._input(TouchHelper.touch(0, at, pressed, canceled))
 
 
-func test_a_touch_the_browser_cancels_keeps_the_card() -> void:
+func test_a_touch_the_system_cancels_keeps_the_card() -> void:
 	var hand: CardHand = _ready_hand(_hud())
 	watch_signals(hand)
 	_touch(hand, true)
 	assert_true(hand.holding())
-	WebTouchCancel.note()  # what the window's touchcancel listener does before Godot's release arrives
-	_touch(hand, false)
+	_touch(hand, false, true)
 	assert_signal_emitted(hand, "card_cancelled", "the release is a cancel: nothing is thrown")
 	assert_signal_not_emitted(hand, "card_released")
 
 
-func test_an_old_browser_cancel_does_not_cancel_a_later_throw() -> void:
+func test_a_normal_release_over_the_street_throws() -> void:
 	var hand: CardHand = _ready_hand(_hud())
 	watch_signals(hand)
-	WebTouchCancel._noted_at = Time.get_ticks_msec() - WebTouchCancel.WINDOW_MS - 1
 	_touch(hand, true)
 	_touch(hand, false)
 	assert_signal_emitted(hand, "card_released", "the release throws")

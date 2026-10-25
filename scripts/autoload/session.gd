@@ -1,6 +1,6 @@
 extends Node
 ## Local player / room state that outlives scenes: the name to show, what the
-## lobby should open with, and the reconnect token (saved, so a reloaded page can
+## lobby should open with, and the reconnect token (saved, so a restarted app can
 ## take its slot back within the reconnect window).
 
 const SAVE_PATH: String = "user://session.cfg"
@@ -14,14 +14,8 @@ var room_code: String = ""
 var lobby_intent: int = 0
 ## True when the lobby was opened from the HOTSPOT button (it uses the hotspot address).
 var lobby_hotspot: bool = false
-## Legacy entry value; hotspot joining never reads a room code.
-var lobby_code: String = ""
-## Web builds only: show the hotspot room screen with made-up players (the web cannot host a room).
-var lobby_preview: bool = false
 ## The mode card chosen on the main screen (an index into TitleScreen.MODES); Hotspot by default.
 var menu_mode: int = 0
-## True once the player has picked a mode card (until then a browser opens on Practice, the only mode it can play alone).
-var menu_mode_chosen: bool = false
 ## True once the first-run walkthrough has been finished or skipped (saved).
 var coach_seen: bool = false
 ## Set (not saved) when the next practice match should open with the walkthrough: the first one, or a replay.

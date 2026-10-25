@@ -60,17 +60,6 @@ func test_a_cancelled_touch_drops_the_card_and_frees_the_pointer() -> void:
 	assert_false(hand.holding())
 
 
-func test_the_browser_cancel_counts_too() -> void:
-	var hand: CardHand = _hand()
-	watch_signals(hand)
-	hand._input(_touch(5, _on_card(hand), true))
-	WebTouchCancel.note()
-	hand._input(_touch(5, Vector2(300.0, -400.0), false))
-	assert_signal_emitted(hand, "card_cancelled", "the web turns touchcancel into a plain release")
-	assert_signal_not_emitted(hand, "card_released")
-	WebTouchCancel.clear()
-
-
 func test_another_fingers_cancel_does_not_drop_the_card() -> void:
 	var hand: CardHand = _hand()
 	watch_signals(hand)

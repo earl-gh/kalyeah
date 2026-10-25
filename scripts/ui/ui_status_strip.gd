@@ -18,8 +18,6 @@ static func kind_of(message: String) -> String:
 	var lower: String = message.to_lower()
 	if message.ends_with("...") or message.ends_with("…"):
 		return "wait"
-	if lower.contains("preview"):
-		return "info"
 	for word: String in PROBLEM_WORDS:
 		if lower.contains(word):
 			return "error"

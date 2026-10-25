@@ -313,8 +313,8 @@ func show_room(room: Dictionary, my_id: int) -> void:
 			kid_cards[id].modulate = Color.WHITE
 	# the one button
 	if host:
-		action_button.text = "Preview only" if room.get("preview", false) else "Start match"
-		action_button.disabled = bool(room.get("preview", false)) or not (room.get("can_start_host", false) as bool)
+		action_button.text = "Start match"
+		action_button.disabled = not (room.get("can_start_host", false) as bool)
 		KalyeahTheme.style_button(action_button, "orange")
 	else:
 		var ready: bool = me.get("ready", false) as bool
@@ -372,8 +372,6 @@ func show_retry() -> void:
 
 
 static func _readiness(room: Dictionary) -> String:
-	if room.get("preview", false):
-		return "Layout preview · Android required for real rooms"
 	var members: Array = room.get("members", []) as Array
 	var n: int = room.get("team_size", 1) as int
 	var teams: Array[int] = [0, 0]
