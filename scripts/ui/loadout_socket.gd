@@ -15,7 +15,7 @@ func show_weapon(def: WeaponDef) -> void:
 
 
 func _draw() -> void:
-	draw_style_box(UiSkin.plate("picked" if active else "inset", 0.0, 22), Rect2(Vector2.ZERO, size))
+	draw_style_box(UiSkin.plate("picked" if active else "inset", 0.0, UiSkin.RADIUS_M), Rect2(Vector2.ZERO, size))
 	var font: Font = KalyeahTheme.BODY_FONT
 	var icon: Texture2D = Icons.art(StringName("btn_" + String(weapon.id))) if weapon != null else null
 	if icon != null:

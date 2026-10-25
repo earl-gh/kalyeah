@@ -128,7 +128,7 @@ func _draw_health() -> void:
 	var track: Rect2 = Rect2(plate.position + Vector2(16.0, 76.0), Vector2(plate.size.x - 32.0, 20.0))
 	var well: StyleBoxFlat = StyleBoxFlat.new()
 	well.bg_color = Color(0.02, 0.06, 0.17)
-	well.border_color = RoyaleStyle.NAVY
+	well.border_color = UiSkin.LINE_COLOR
 	well.set_border_width_all(3)
 	well.set_corner_radius_all(10)
 	well.anti_aliasing = true
@@ -151,9 +151,9 @@ func _draw_health() -> void:
 ## A heart centred on `at`, `radius` wide from its middle to a side: two lobes and a point.
 func _draw_heart(at: Vector2, radius: float, color: Color) -> void:
 	var lobe: float = radius * 0.56
-	draw_circle(at + Vector2(-radius * 0.46, -radius * 0.22), lobe, Icons.OUTLINE)
-	draw_circle(at + Vector2(radius * 0.46, -radius * 0.22), lobe, Icons.OUTLINE)
-	draw_colored_polygon(PackedVector2Array([at + Vector2(-radius - 1.0, -radius * 0.12), at + Vector2(radius + 1.0, -radius * 0.12), at + Vector2(0.0, radius + 3.0)]), Icons.OUTLINE)
+	draw_circle(at + Vector2(-radius * 0.46, -radius * 0.22), lobe, UiSkin.LINE_COLOR)
+	draw_circle(at + Vector2(radius * 0.46, -radius * 0.22), lobe, UiSkin.LINE_COLOR)
+	draw_colored_polygon(PackedVector2Array([at + Vector2(-radius - 1.0, -radius * 0.12), at + Vector2(radius + 1.0, -radius * 0.12), at + Vector2(0.0, radius + 3.0)]), UiSkin.LINE_COLOR)
 	draw_circle(at + Vector2(-radius * 0.46, -radius * 0.22), lobe - 1.5, color)
 	draw_circle(at + Vector2(radius * 0.46, -radius * 0.22), lobe - 1.5, color)
 	draw_colored_polygon(PackedVector2Array([at + Vector2(-radius, -radius * 0.12), at + Vector2(radius, -radius * 0.12), at + Vector2(0.0, radius)]), color)
@@ -168,7 +168,7 @@ func _draw_tray() -> void:
 	shell.bg_color = TRAY_TOP
 	shell.corner_radius_top_left = TRAY_CORNER
 	shell.corner_radius_top_right = TRAY_CORNER
-	shell.border_color = RoyaleStyle.NAVY
+	shell.border_color = UiSkin.LINE_COLOR
 	shell.border_width_top = 5
 	shell.anti_aliasing = true
 	shell.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
@@ -213,7 +213,7 @@ func _draw_bar() -> void:
 	var track: Rect2 = Rect2(health_rect.position + Vector2(heart * 2.0 + 14.0, 0.0), Vector2(health_rect.size.x - heart * 2.0 - 14.0, health_rect.size.y))
 	var well: StyleBoxFlat = StyleBoxFlat.new()
 	well.bg_color = Color(0.02, 0.05, 0.14)
-	well.border_color = RoyaleStyle.NAVY
+	well.border_color = UiSkin.LINE_COLOR
 	well.set_border_width_all(4)
 	well.set_corner_radius_all(int(track.size.y / 2.0))
 	well.anti_aliasing = true
@@ -248,15 +248,15 @@ func _draw() -> void:
 	shell.bg_color = BODY_BOTTOM
 	shell.corner_radius_top_left = int(CORNER)
 	shell.corner_radius_top_right = int(CORNER)
-	shell.border_color = RoyaleStyle.NAVY
-	shell.border_width_top = RoyaleStyle.OUTLINE + 2
-	shell.border_width_left = RoyaleStyle.OUTLINE + 2
-	shell.border_width_right = RoyaleStyle.OUTLINE + 2
+	shell.border_color = UiSkin.LINE_COLOR
+	shell.border_width_top = UiSkin.LINE + 2
+	shell.border_width_left = UiSkin.LINE + 2
+	shell.border_width_right = UiSkin.LINE + 2
 	shell.anti_aliasing = true
 	shell.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
 	shell.shadow_size = 18
 	draw_style_box(shell, Rect2(0.0, 0.0, w, h + 30.0))
-	var inset: float = float(RoyaleStyle.OUTLINE + 2)
+	var inset: float = float(UiSkin.LINE + 2)
 	var top_c: Color = BODY_TOP
 	var bottom_c: Color = BODY_BOTTOM
 	draw_polygon(PackedVector2Array([Vector2(inset, CORNER), Vector2(w - inset, CORNER), Vector2(w - inset, h * 0.7), Vector2(inset, h * 0.7)]),

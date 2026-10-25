@@ -143,7 +143,7 @@ static func _palette(character: CharacterDef) -> Control:
 		box.anti_aliasing = true
 		dot.add_theme_stylebox_override("panel", box)
 		column.add_child(dot)
-		var caption: Label = UiKit.text(String(swatch["label"]), UiMetrics.MIN_TEXT, Color("9fb0d6"), false)
+		var caption: Label = UiKit.text(String(swatch["label"]), UiMetrics.MIN_TEXT, KalyeahTheme.TEXT_MUTED, false)
 		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		column.add_child(caption)
 		row.add_child(column)

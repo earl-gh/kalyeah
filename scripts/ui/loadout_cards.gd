@@ -13,11 +13,8 @@ static func label(text: String, size: int, color: Color = KalyeahTheme.TEXT) -> 
 	return result
 
 
-static func box(fill: Color, border: Color, width: int = 2) -> StyleBoxFlat:
-	var result: StyleBoxFlat = KalyeahTheme.surface_box(14, width, 0.0)
-	result.bg_color = fill
-	result.border_color = border
-	return result
+static func box(fill: Color, border: Color) -> StyleBoxFlat:
+	return UiSkin.flat(fill, UiSkin.RADIUS_S, border)
 
 
 static func profile(screen: WeaponPickScreen, character: CharacterDef) -> Button:
@@ -28,9 +25,9 @@ static func profile(screen: WeaponPickScreen, character: CharacterDef) -> Button
 	button.custom_minimum_size = screen.PROFILE_SIZE
 	button.clip_contents = true
 	for state: String in ["normal", "hover"]:
-		button.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, 18))
+		button.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, UiSkin.RADIUS_M))
 	for state: String in ["pressed", "hover_pressed"]:
-		button.add_theme_stylebox_override(state, UiSkin.plate("picked", 0.0, 18))
+		button.add_theme_stylebox_override(state, UiSkin.plate("picked", 0.0, UiSkin.RADIUS_M))
 	var art: TextureRect = TextureRect.new()
 	art.texture = KidModel.card_face(character.id)
 	if art.texture == null:
@@ -76,9 +73,9 @@ static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 	button.custom_minimum_size = Vector2(0.0, screen.TILE_HEIGHT)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for state: String in ["normal", "hover"]:
-		button.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, 22))
+		button.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, UiSkin.RADIUS_M))
 	for state: String in ["pressed", "hover_pressed"]:
-		button.add_theme_stylebox_override(state, UiSkin.plate("picked", 0.0, 22))
+		button.add_theme_stylebox_override(state, UiSkin.plate("picked", 0.0, UiSkin.RADIUS_M))
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right", "top", "bottom"]:
@@ -107,7 +104,7 @@ static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 	title.add_theme_constant_override("line_spacing", -10)
 	title.custom_minimum_size.y = 62.0
 	column.add_child(title)
-	var kind: Label = label(String(WeaponsPage.KIND_NAMES.get(def.kind, "")), UiMetrics.MIN_TEXT, WeaponPickScreen.kind_color(def.kind))
+	var kind: Label = label(String(WeaponsPage.KIND_NAMES.get(def.kind, "")), UiMetrics.MIN_TEXT, TeamColors.kind_color(def.kind))
 	kind.name = "Kind"
 	kind.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(kind)
@@ -141,7 +138,7 @@ static func bar_strip(def: WeaponDef, maxima: Dictionary) -> HBoxContainer:
 		column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		column.add_theme_constant_override("separation", 2)
 		column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		column.add_child(label(caption, UiMetrics.MIN_TEXT, Color("9fb0d6")))
+		column.add_child(label(caption, UiMetrics.MIN_TEXT, KalyeahTheme.TEXT_MUTED))
 		column.add_child(WeaponsPage.meter_bar(caption, WeaponsPage.fraction_of(caption, def, maxima), 14.0))
 		row.add_child(column)
 	return row
@@ -152,7 +149,7 @@ static func bar_strip(def: WeaponDef, maxima: Dictionary) -> HBoxContainer:
 static func info_panel(screen: WeaponPickScreen) -> Control:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.name = "WeaponInfo"
-	panel.add_theme_stylebox_override("panel", UiSkin.plate("night", 0.0, 22))
+	panel.add_theme_stylebox_override("panel", UiSkin.plate("night", 0.0, UiSkin.RADIUS_M))
 	var margin: MarginContainer = MarginContainer.new()
 	for side: String in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 16)

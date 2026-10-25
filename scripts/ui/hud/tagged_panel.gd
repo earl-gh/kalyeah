@@ -7,7 +7,7 @@ extends Control
 
 signal swap_pressed
 
-const INK: Color = RoyaleStyle.NAVY
+const INK: Color = UiSkin.LINE_COLOR
 const TITLE_COLOR: Color = RoyaleStyle.GOLD
 const HINT_COLOR: Color = RoyaleStyle.CREAM
 const WAIT_TEXT: String = "Tagged · Wait for a rescue"

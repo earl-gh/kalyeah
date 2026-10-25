@@ -57,7 +57,7 @@ func _init() -> void:
 	hint_label.name = "Hint"
 	hint_label.text = "Edit profile"
 	hint_label.add_theme_font_size_override("font_size", UiMetrics.MIN_TEXT)
-	hint_label.add_theme_color_override("font_color", Color("9fb0d6"))
+	hint_label.add_theme_color_override("font_color", KalyeahTheme.TEXT_MUTED)
 	hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	text.add_child(hint_label)
 	custom_minimum_size.x = FACE + 14.0 + 190.0 + 40.0

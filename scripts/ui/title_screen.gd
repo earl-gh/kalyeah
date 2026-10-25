@@ -231,7 +231,7 @@ func _build_titles() -> Control:
 	mode_text_label = Label.new()
 	mode_text_label.name = "ModeText"
 	mode_text_label.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
-	mode_text_label.add_theme_color_override("font_color", Color("c9d6f2"))
+	mode_text_label.add_theme_color_override("font_color", KalyeahTheme.TEXT_BODY)
 	mode_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mode_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mode_text_label.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
@@ -425,7 +425,7 @@ func refresh_last_match() -> void:
 	words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(words)
-	var when: Label = UiKit.text(MatchHistory.ago(int(entry.get("at", 0)), int(Time.get_unix_time_from_system())), UiMetrics.CAPTION, Color("9fb0d6"), false)
+	var when: Label = UiKit.text(MatchHistory.ago(int(entry.get("at", 0)), int(Time.get_unix_time_from_system())), UiMetrics.CAPTION, KalyeahTheme.TEXT_MUTED, false)
 	when.name = "When"
 	when.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	when.mouse_filter = Control.MOUSE_FILTER_IGNORE

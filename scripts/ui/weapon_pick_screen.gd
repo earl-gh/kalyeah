@@ -24,12 +24,6 @@ const PICKED_COLOR: Color = Color(1.0, 0.82, 0.25)
 const CARD_COLOR: Color = KalyeahTheme.SURFACE
 const SURFACE_SELECTED: Color = KalyeahTheme.SURFACE_RAISED
 const INK: Color = Color(0.1, 0.06, 0.06)
-const KIND_COLORS: Dictionary[WeaponDef.Kind, Color] = {
-	WeaponDef.Kind.ATTACK: Color(1.0, 0.42, 0.34),
-	WeaponDef.Kind.CROWD_CONTROL: Color(0.74, 0.52, 1.0),
-	WeaponDef.Kind.BLOCK: Color(0.42, 0.72, 1.0),
-	WeaponDef.Kind.HEAL: Color(0.45, 0.85, 0.4),
-}
 
 var pick: WeaponPick
 ## The character picked on this screen (the kid you play as).
@@ -79,10 +73,6 @@ var _sockets: Array[LoadoutSocket] = []
 var _ready_button: Button
 var _rng: RandomNumberGenerator
 var _swap_total: float = 0.0
-
-
-static func kind_color(kind: WeaponDef.Kind) -> Color:
-	return KIND_COLORS[kind]
 
 
 func _ready() -> void:
@@ -190,7 +180,7 @@ func show_info(id: StringName) -> void:
 	var def: WeaponDef = _defs[id]
 	_info_name.text = def.display_name
 	_info_kind.text = String(WeaponsPage.KIND_NAMES.get(def.kind, ""))
-	_info_kind.add_theme_color_override("font_color", kind_color(def.kind))
+	_info_kind.add_theme_color_override("font_color", TeamColors.kind_color(def.kind))
 	_info_text.text = def.description
 	for child: Node in _info_bars.get_children():
 		_info_bars.remove_child(child)

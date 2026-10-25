@@ -310,7 +310,7 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 			button.label_text = def.short_name
 			button.sub_text = def.kind_label()
 			button.icon_id = def.id
-			button.sub_color = WeaponPickScreen.kind_color(def.kind)
+			button.sub_color = TeamColors.kind_color(def.kind)
 			button.queue_redraw()
 			button.accessibility_name = "Weapon %d: %s, %s" % [slot + 1, def.display_name, def.kind_label()]
 		var cooldown_words: String = "Hold and drag to aim, let go to throw" if player.weapon_cooldowns[slot] <= 0.0 else "Ready in %d seconds" % ceili(player.weapon_cooldowns[slot])
@@ -458,7 +458,7 @@ func _build() -> void:
 	banner.visible = false
 	banner.theme_type_variation = &"DisplayLabel"
 	banner.add_theme_color_override("font_color", RoyaleStyle.GOLD)
-	banner.add_theme_color_override("font_outline_color", RoyaleStyle.NAVY)
+	banner.add_theme_color_override("font_outline_color", UiSkin.LINE_COLOR)
 	banner.add_theme_constant_override("outline_size", BANNER_OUTLINE)
 	banner.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.45))
 	banner.add_theme_constant_override("shadow_offset_x", int(BANNER_SHADOW.x))

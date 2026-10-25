@@ -46,7 +46,3 @@ const LAUNDRY: Array[Color] = [
 	Color(1.0, 0.4, 0.4), Color(0.4, 0.7, 1.0), Color(1.0, 0.9, 0.3),
 	Color(0.95, 0.95, 0.95), Color(0.6, 0.9, 0.5), Color(0.9, 0.6, 1.0),
 ]
-## Team colours: own team blue, the other red (bandanas, rings, base posts).
-const TEAM_OWN: Color = Color(0.2, 0.5, 1.0)
-const TEAM_ALLY: Color = Color(0.45, 0.75, 1.0)
-const TEAM_ENEMY: Color = Color(1.0, 0.28, 0.28)

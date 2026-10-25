@@ -79,7 +79,7 @@ func _figure(parent: HBoxContainer, caption: String, color: Color) -> Label:
 	number.add_theme_constant_override("outline_size", 0)
 	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(number)
-	var label: Label = UiKit.text(caption, UiMetrics.CAPTION, Color("9fb0d6"), false)
+	var label: Label = UiKit.text(caption, UiMetrics.CAPTION, KalyeahTheme.TEXT_MUTED, false)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(label)
 	parent.add_child(column)
@@ -120,7 +120,7 @@ func _empty(heading: String = "No battles yet", hint_text: String = "Play a matc
 	var title: Label = UiKit.text(heading, UiMetrics.ACTION)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(title)
-	var hint: Label = UiKit.text(hint_text, UiMetrics.DETAIL, Color("9fb0d6"))
+	var hint: Label = UiKit.text(hint_text, UiMetrics.DETAIL, KalyeahTheme.TEXT_MUTED)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(hint)
 	var play: Button = MenuDialog.make_button("Play a match", "orange", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
@@ -145,7 +145,7 @@ func _row(entry: Dictionary, now: int) -> Control:
 	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	words.add_theme_constant_override("separation", 0)
 	words.add_child(UiKit.text(String(entry.get("mode", "")).capitalize(), UiMetrics.BODY))
-	var when: Label = UiKit.text(MatchHistory.ago(int(entry.get("at", now)), now), UiMetrics.CAPTION, Color("9fb0d6"))
+	var when: Label = UiKit.text(MatchHistory.ago(int(entry.get("at", now)), now), UiMetrics.CAPTION, KalyeahTheme.TEXT_MUTED)
 	when.name = "When"
 	words.add_child(when)
 	row.add_child(words)

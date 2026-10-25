@@ -68,7 +68,7 @@ func _init() -> void:
 	title.add_theme_color_override("font_outline_color", Color("1a0c02"))
 	title.add_theme_constant_override("outline_size", 14)
 	column.add_child(title)
-	subtitle = UiKit.text("", UiMetrics.DETAIL, Color("c9d6f2"), false)
+	subtitle = UiKit.text("", UiMetrics.DETAIL, KalyeahTheme.TEXT_BODY, false)
 	subtitle.name = "Subtitle"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(subtitle)
@@ -115,7 +115,7 @@ func _score_card() -> Control:
 	dash.text = "-"
 	dash.theme_type_variation = &"DisplayLabel"
 	dash.add_theme_font_size_override("font_size", 96)
-	dash.add_theme_color_override("font_color", Color("9fb0d6"))
+	dash.add_theme_color_override("font_color", KalyeahTheme.TEXT_MUTED)
 	dash.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(mine)
 	row.add_child(dash)

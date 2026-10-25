@@ -1,8 +1,22 @@
 class_name TeamColors
 extends RefCounted
-## The one place the match asks "what colour is my team, and theirs". By default blue and red (and a green bar for you); with
-## `Settings.colorblind` blue and orange (the Okabe-Ito pair, apart for every common colour vision) and a near-white bar for you,
-## so green against red can never be the only difference. Shapes on the health bars say the same thing without colour.
+## The one place for team and weapon-kind colours (UI, HUD and street alike). By default blue and red (and a green bar for
+## you); with `Settings.colorblind` blue and orange (the Okabe-Ito pair, apart for every common colour vision) and a
+## near-white bar for you, so green against red can never be the only difference. Shapes on the health bars say the same
+## thing without colour.
+
+## The flat team colours of the menus, the score card, the results card and the room (blue team first).
+const TEAM_BLUE: Color = Color("435bc2")
+const TEAM_RED: Color = Color("b83246")
+const TEAMS: Array[Color] = [TEAM_BLUE, TEAM_RED]
+## The street's team colours: bandanas, rings, base posts and landing marks.
+const WORLD_OWN: Color = Color(0.2, 0.5, 1.0)
+const WORLD_ALLY: Color = Color(0.45, 0.75, 1.0)
+const WORLD_ENEMY: Color = Color(1.0, 0.28, 0.28)
+## The health bars over the kids.
+const BAR_SELF: Color = Color(0.35, 0.95, 0.35)
+const BAR_ALLY: Color = Color(0.35, 0.65, 1.0)
+const BAR_ENEMY: Color = Color(1.0, 0.3, 0.3)
 
 const BLIND_OWN: Color = Color("0072b2")
 const BLIND_ENEMY: Color = Color("e07b00")
@@ -13,14 +27,38 @@ const BLIND_SELF: Color = Color(0.96, 0.96, 0.96)
 const BASE_SOFTEN: float = 0.15
 const BLIND_BASE_SOFTEN: float = 0.08
 
+## Weapon kinds, one hue each: the solid fill of a kind's chip (white words read on it, at least 4.5:1).
+const KIND_ATTACK: Color = Color("c2332e")
+const KIND_CONTROL: Color = Color("8a55e8")
+const KIND_BLOCK: Color = Color("2068d0")
+const KIND_HEAL: Color = Color("1a8340")
+const KINDS: Dictionary[int, Color] = {
+	WeaponDef.Kind.ATTACK: KIND_ATTACK, WeaponDef.Kind.CROWD_CONTROL: KIND_CONTROL,
+	WeaponDef.Kind.BLOCK: KIND_BLOCK, WeaponDef.Kind.HEAL: KIND_HEAL,
+}
+## How far a kind's bright version (card frames, rims, coloured words on navy) is lightened from its fill.
+const KIND_BRIGHT: float = 0.3
+## A kind nobody named: slate.
+const KIND_NONE: Color = Color("3b4c74")
+
+
+## The solid fill of a weapon kind (chips).
+static func kind_fill(kind: int) -> Color:
+	return KINDS.get(kind, KIND_NONE) as Color
+
+
+## The bright version of a weapon kind: a card's frame, a rim, coloured words on the navy panels.
+static func kind_color(kind: int) -> Color:
+	return kind_fill(kind).lightened(KIND_BRIGHT)
+
 
 ## The flat blue and red of the score card, the results card and the feed.
 static func ui_own() -> Color:
-	return BLIND_OWN if Settings.colorblind else KalyeahTheme.TEAM_BLUE
+	return BLIND_OWN if Settings.colorblind else TEAM_BLUE
 
 
 static func ui_enemy() -> Color:
-	return BLIND_ENEMY if Settings.colorblind else KalyeahTheme.TEAM_RED
+	return BLIND_ENEMY if Settings.colorblind else TEAM_RED
 
 
 ## The pills of the TAGGED! and RESCUED! feed.
@@ -43,15 +81,15 @@ static func capture_enemy() -> Color:
 
 ## The street: base tints, rescue areas and the ring under each kid.
 static func world_own() -> Color:
-	return BLIND_OWN if Settings.colorblind else Palette.TEAM_OWN
+	return BLIND_OWN if Settings.colorblind else WORLD_OWN
 
 
 static func world_ally() -> Color:
-	return BLIND_OWN.lightened(0.35) if Settings.colorblind else Palette.TEAM_ALLY
+	return BLIND_OWN.lightened(0.35) if Settings.colorblind else WORLD_ALLY
 
 
 static func world_enemy() -> Color:
-	return BLIND_ENEMY if Settings.colorblind else Palette.TEAM_ENEMY
+	return BLIND_ENEMY if Settings.colorblind else WORLD_ENEMY
 
 
 ## How far the street's team tints are pulled toward grey.
@@ -61,12 +99,12 @@ static func base_soften() -> float:
 
 ## The health bars over the kids.
 static func bar_self() -> Color:
-	return BLIND_SELF if Settings.colorblind else OverheadHud.SELF_COLOR
+	return BLIND_SELF if Settings.colorblind else BAR_SELF
 
 
 static func bar_ally() -> Color:
-	return BLIND_OWN.lightened(0.05) if Settings.colorblind else OverheadHud.ALLY_COLOR
+	return BLIND_OWN.lightened(0.05) if Settings.colorblind else BAR_ALLY
 
 
 static func bar_enemy() -> Color:
-	return BLIND_ENEMY.lightened(0.1) if Settings.colorblind else OverheadHud.ENEMY_COLOR
+	return BLIND_ENEMY.lightened(0.1) if Settings.colorblind else BAR_ENEMY

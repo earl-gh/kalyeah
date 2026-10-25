@@ -8,29 +8,24 @@ extends Control
 
 ## The bar before `bar_scale` (visual pass: 92 x 13 read as a hairline at phone size; now a chunky rounded bar).
 const BAR_SIZE: Vector2 = Vector2(96.0, 18.0)
-## The dark outline round the bar (screen px, kept at any bar_scale so the bar always reads on the street) and the
-## quarter marks across the fill.
-const BAR_OUTLINE: float = 3.0
+## The quarter marks across the fill (the bar is the kit's bar: the one outline, kept at any bar_scale so it always reads
+## on the street).
 const BAR_MARKS: int = 4
-const BAR_MARK: Color = Color(0.0, 0.0, 0.0, 0.35)
 ## The bar sits just above the top of the head (the kid's model is KID_HEIGHT tall).
 const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 const POPUP_TIME: float = 0.9
 const POPUP_RISE: float = 56.0
-const STATUS_FONT: int = 22
+const STATUS_FONT: int = UiMetrics.CAPTION
 ## The RESCUE marker under your team's tagged box: a pill with a pointer up at the box that bobs (held still with Reduce motion). It sits under
 ## the box so it never covers a waiting kid or their bar.
-const RESCUE_FONT: int = 24
+const RESCUE_FONT: int = UiMetrics.DETAIL
 const RESCUE_PAD: Vector2 = Vector2(14.0, 7.0)
 const RESCUE_BOB: float = 7.0
 const RESCUE_POINTER: float = 12.0
-const POPUP_FONT: int = 30
+const POPUP_FONT: int = UiMetrics.BODY
 ## Italic = the regular font slanted (the bundled font has no italic face).
 const ITALIC_SLANT: float = -0.22
 const BACK: Color = Color(0.08, 0.06, 0.1, 0.85)
-const SELF_COLOR: Color = Color(0.35, 0.95, 0.35)
-const ALLY_COLOR: Color = Color(0.35, 0.65, 1.0)
-const ENEMY_COLOR: Color = Color(1.0, 0.3, 0.3)
 const STATUS_COLOR: Color = Color(1.0, 0.86, 0.3)
 const DAMAGE_COLOR: Color = Color(1.0, 0.95, 0.85)
 const HEAL_COLOR: Color = Color(0.55, 1.0, 0.45)
@@ -54,10 +49,6 @@ var _camera: Camera3D
 var _local_id: int = -1
 var _local_team: int = 0
 var _italic: FontVariation
-## The bar's back, fill and gloss, made once and recoloured as each kid is drawn (no allocation per frame).
-var _bar_back: StyleBoxFlat
-var _bar_fill: StyleBoxFlat
-var _bar_gloss: StyleBoxFlat
 ## {id, amount, age, heal, jitter}
 var _popups: Array[Dictionary] = []
 
@@ -72,15 +63,6 @@ func setup(sim: MatchSim, camera: Camera3D, local_id: int, local_team: int) -> v
 	_italic.base_font = KalyeahTheme.BODY_FONT
 	_italic.variation_transform = Transform2D(Vector2(1.0, 0.0), Vector2(ITALIC_SLANT, 1.0), Vector2.ZERO)
 	sim.player_healed.connect(_on_healed)
-	_bar_back = StyleBoxFlat.new()
-	_bar_back.bg_color = BACK
-	_bar_back.border_color = Icons.OUTLINE
-	_bar_back.anti_aliasing = true
-	_bar_fill = StyleBoxFlat.new()
-	_bar_fill.anti_aliasing = true
-	_bar_gloss = StyleBoxFlat.new()
-	_bar_gloss.bg_color = Color(1.0, 1.0, 1.0, 0.35)
-	_bar_gloss.anti_aliasing = true
 
 
 ## The status words shown (in italic) above a hero's bar: "Stunned", "Slowed", ...
@@ -203,13 +185,7 @@ func _draw_rescue_cue() -> void:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var label: String = UiText.t("RESCUE")
 	var color: Color = TeamColors.feed_own()
-	var box_style: StyleBoxFlat = StyleBoxFlat.new()
-	box_style.bg_color = color
-	box_style.border_color = Icons.OUTLINE
-	box_style.set_border_width_all(3)
-	box_style.set_corner_radius_all(14)
-	box_style.anti_aliasing = true
-	draw_style_box(box_style, pill)
+	UiSkin.draw_box(self, pill, color, UiSkin.RADIUS_ROUND, UiSkin.LINE_COLOR)
 	var centre_x: float = clampf(tip_x, pill.position.x + 18.0, pill.end.x - 18.0)
 	var point: PackedVector2Array = PackedVector2Array([Vector2(centre_x - 10.0, pill.position.y + 2.0), Vector2(centre_x + 10.0, pill.position.y + 2.0), Vector2(centre_x, pill.position.y - RESCUE_POINTER)])
 	draw_colored_polygon(point, color)
@@ -236,28 +212,15 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 	var status: String = _status_text(state)
 	var lift: float = 0.0
 	if not status.is_empty():
-		_text(_italic, status, keep_on_screen(head + Vector2(0.0, -8.0), _italic, status, STATUS_FONT), STATUS_FONT, STATUS_COLOR, 6)
+		_text(_italic, status, keep_on_screen(head + Vector2(0.0, -8.0), _italic, status, STATUS_FONT), STATUS_FONT, STATUS_COLOR, UiSkin.TEXT_LINE)
 		lift = 22.0
 	if spinner_visible(state):
 		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.capture_elapsed / maxf(_sim.capture_needed, 0.001))
 
 
-## A rounded bar with a dark outline: the fill in `color`, a gloss on its upper third and a mark every quarter.
+## The kit's bar round `rect` (the fill fills `rect`): the fill in `color` with its light line and a mark every quarter.
 func _draw_bar(rect: Rect2, fill: float, color: Color) -> void:
-	var round_px: int = int(ceilf(rect.size.y / 2.0 + BAR_OUTLINE))
-	_bar_back.set_border_width_all(int(BAR_OUTLINE))
-	_bar_back.set_corner_radius_all(round_px)
-	draw_style_box(_bar_back, rect.grow(BAR_OUTLINE))
-	if fill > 0.0:
-		var width: float = maxf(rect.size.x * fill, rect.size.y)
-		_bar_fill.bg_color = color
-		_bar_fill.set_corner_radius_all(int(ceilf(rect.size.y / 2.0)))
-		draw_style_box(_bar_fill, Rect2(rect.position, Vector2(width, rect.size.y)))
-		_bar_gloss.set_corner_radius_all(int(ceilf(rect.size.y / 4.0)))
-		draw_style_box(_bar_gloss, Rect2(rect.position + Vector2(rect.size.y / 3.0, 1.0), Vector2(maxf(width - rect.size.y / 1.5, 1.0), rect.size.y / 3.0)))
-	for mark: int in range(1, BAR_MARKS):
-		var x: float = rect.position.x + rect.size.x * float(mark) / float(BAR_MARKS)
-		draw_line(Vector2(x, rect.position.y + 1.0), Vector2(x, rect.end.y - 1.0), BAR_MARK, 1.0)
+	UiSkin.draw_bar(self, rect.grow(UiSkin.LINE + 1.0), fill, color, BAR_MARKS)
 
 
 ## Where `text` is drawn: its centre pulled inside the screen's sides and its baseline kept under `top_limit`.
@@ -310,7 +273,7 @@ func _draw_popup(popup: Dictionary) -> void:
 	var color: Color = HEAL_COLOR if healed else (DAMAGE_COLOR if state.team == _local_team else Color(1.0, 0.85, 0.3))
 	color.a = 1.0 - age * age
 	var size: int = int(POPUP_FONT * (1.25 - 0.25 * age) * (1.2 if healed else 1.0))
-	_text(KalyeahTheme.ACTION_FONT, ("+%d" if healed else "-%d") % (popup["amount"] as int), pos, size, color, 6)
+	_text(KalyeahTheme.ACTION_FONT, ("+%d" if healed else "-%d") % (popup["amount"] as int), pos, size, color, UiSkin.TEXT_LINE)
 
 
 func _text(font: Font, text: String, center: Vector2, font_size: int, color: Color, outline: int) -> void:
@@ -318,7 +281,7 @@ func _text(font: Font, text: String, center: Vector2, font_size: int, color: Col
 		return
 	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
 	var origin: Vector2 = center - Vector2(width / 2.0, 0.0)
-	var dark: Color = Icons.OUTLINE
+	var dark: Color = UiSkin.LINE_COLOR
 	dark.a = color.a
 	draw_string_outline(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, outline, dark)
 	draw_string(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, color)

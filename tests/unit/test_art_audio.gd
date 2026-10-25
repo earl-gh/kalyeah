@@ -8,7 +8,7 @@ const PACED: int = 1
 
 func _kid(index: int) -> KidModel:
 	var kid: KidModel = autofree(KidModel.new()) as KidModel
-	kid.setup(RULES.characters[index], Palette.TEAM_OWN, RULES.player_radius)
+	kid.setup(RULES.characters[index], TeamColors.WORLD_OWN, RULES.player_radius)
 	add_child(kid)
 	return kid
 

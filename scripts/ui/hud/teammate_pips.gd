@@ -106,7 +106,7 @@ func _draw_pip(at: Vector2, pip: Dictionary) -> void:
 		ring_color = COMING_COLOR
 	elif state == State.TAGGED:
 		ring_color = TAGGED_TINT
-	draw_circle(at, FACE_RADIUS + RING + OUTLINE, RoyaleStyle.NAVY)
+	draw_circle(at, FACE_RADIUS + RING + OUTLINE, UiSkin.LINE_COLOR)
 	draw_circle(at, FACE_RADIUS + RING, ring_color)
 	draw_circle(at, FACE_RADIUS, FACE_BACK)
 	var face: Texture2D = pip["face"] as Texture2D
@@ -117,10 +117,10 @@ func _draw_pip(at: Vector2, pip: Dictionary) -> void:
 	if state == State.TAGGED:
 		var arm: float = FACE_RADIUS * CROSS_REACH
 		for sign: float in [-1.0, 1.0]:
-			draw_line(at + Vector2(-arm, -arm * sign), at + Vector2(arm, arm * sign), RoyaleStyle.NAVY, CROSS_INK, true)
+			draw_line(at + Vector2(-arm, -arm * sign), at + Vector2(arm, arm * sign), UiSkin.LINE_COLOR, CROSS_INK, true)
 			draw_line(at + Vector2(-arm, -arm * sign), at + Vector2(arm, arm * sign), RoyaleStyle.CREAM, CROSS_STROKE, true)
 	elif state == State.COMING:
 		var tip: Vector2 = at + Vector2(0.0, FACE_RADIUS + RING + OUTLINE + CHEVRON.y + 2.0)
 		var wing: PackedVector2Array = PackedVector2Array([tip, tip + Vector2(-CHEVRON.x, -CHEVRON.y), tip + Vector2(CHEVRON.x, -CHEVRON.y)])
 		draw_colored_polygon(wing, COMING_COLOR)
-		draw_polyline(PackedVector2Array([wing[0], wing[1], wing[2], wing[0]]), RoyaleStyle.NAVY, 2.0, true)
+		draw_polyline(PackedVector2Array([wing[0], wing[1], wing[2], wing[0]]), UiSkin.LINE_COLOR, 2.0, true)

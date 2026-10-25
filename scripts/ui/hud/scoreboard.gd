@@ -151,5 +151,5 @@ func _round_rect(rect: Rect2, color: Color, radius: float) -> void:
 func _center_text(font: Font, text: String, center: Vector2, font_size: int, color: Color) -> void:
 	var text_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size)
 	var origin: Vector2 = center + Vector2(-text_size.x / 2.0, font_size * 0.35)
-	draw_string_outline(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, 6, Icons.OUTLINE)
+	draw_string_outline(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, UiSkin.TEXT_LINE, UiSkin.LINE_COLOR)
 	draw_string(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, color)

@@ -7,8 +7,8 @@ extends Node3D
 ## pieces kids hide behind (cardboard walls); each team's electric post in its corner with a chalk base
 ## circle; and the taped box where each team's tagged kids wait.
 
-const OWN_COLOR: Color = Palette.TEAM_OWN
-const ENEMY_COLOR: Color = Palette.TEAM_ENEMY
+const OWN_COLOR: Color = TeamColors.WORLD_OWN
+const ENEMY_COLOR: Color = TeamColors.WORLD_ENEMY
 const SKY_COLOR: Color = Color(0.74, 0.8, 0.9)
 # afternoon with a cool tone (owner): a higher, neutral-cool sun from the front right, a clear blue sky
 const SKY_TOP: Color = Color(0.27, 0.54, 0.95)

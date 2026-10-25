@@ -15,10 +15,10 @@ func after_each() -> void:
 
 
 func test_the_default_palette_is_unchanged() -> void:
-	assert_eq(TeamColors.ui_own(), KalyeahTheme.TEAM_BLUE)
-	assert_eq(TeamColors.ui_enemy(), KalyeahTheme.TEAM_RED)
-	assert_eq(TeamColors.bar_self(), OverheadHud.SELF_COLOR)
-	assert_eq(TeamColors.world_enemy(), Palette.TEAM_ENEMY)
+	assert_eq(TeamColors.ui_own(), TeamColors.TEAM_BLUE)
+	assert_eq(TeamColors.ui_enemy(), TeamColors.TEAM_RED)
+	assert_eq(TeamColors.bar_self(), TeamColors.BAR_SELF)
+	assert_eq(TeamColors.world_enemy(), TeamColors.WORLD_ENEMY)
 
 
 func test_the_colour_blind_palette_has_no_red_and_no_green_bar() -> void:
@@ -51,10 +51,10 @@ func test_the_hud_bar_follows_the_setting() -> void:
 				hud = node as OverheadHud
 	assert_not_null(hud)
 	var enemy: PlayerState = practice.sim.players[PracticeMatch.ENEMY_STAND_ID]
-	assert_eq(hud.bar_color(enemy), OverheadHud.ENEMY_COLOR)
+	assert_eq(hud.bar_color(enemy), TeamColors.BAR_ENEMY)
 	Settings.set_colorblind(true)
 	assert_eq(hud.bar_color(enemy), TeamColors.bar_enemy())
-	assert_ne(hud.bar_color(enemy), OverheadHud.ENEMY_COLOR)
+	assert_ne(hud.bar_color(enemy), TeamColors.BAR_ENEMY)
 
 
 func test_diamonds_and_circles_are_different_shapes() -> void:

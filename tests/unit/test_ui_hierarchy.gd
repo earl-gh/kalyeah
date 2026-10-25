@@ -22,7 +22,7 @@ func test_active_action_colors_meet_small_text_contrast_in_every_state() -> void
 		var text: Color = KalyeahTheme.semantic_text_color(role)
 		for state: StyleBoxFlat in [KalyeahTheme.painted_button(role), KalyeahTheme.painted_button(role, true), KalyeahTheme.painted_button(role, false, Color(1.06, 1.06, 1.06))]:
 			assert_gte(_contrast(text, state.bg_color), 4.5, "%s active text stays readable" % role)
-	for team: Color in [KalyeahTheme.TEAM_BLUE, KalyeahTheme.TEAM_RED]:
+	for team: Color in [TeamColors.TEAM_BLUE, TeamColors.TEAM_RED]:
 		assert_gte(_contrast(KalyeahTheme.TEXT, team), 4.5)
 	for surface: Color in [KalyeahTheme.INK_DEEP, KalyeahTheme.SURFACE, KalyeahTheme.SURFACE_RAISED]:
 		assert_gte(_contrast(KalyeahTheme.TEXT_MUTED, surface), 4.5)

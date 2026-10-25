@@ -475,9 +475,9 @@ func test_damage_shows_no_numbers() -> void:
 func test_overhead_bars_use_ml_colours() -> void:
 	var practice: PracticeMatch = _practice()
 	var hud: OverheadHud = practice.overhead()
-	assert_eq(hud.bar_color(practice.sim.players[PracticeMatch.LOCAL_ID]), OverheadHud.SELF_COLOR)
-	assert_eq(hud.bar_color(practice.sim.players[PracticeMatch.ALLY_ID]), OverheadHud.ALLY_COLOR)
-	assert_eq(hud.bar_color(practice.sim.players[PracticeMatch.ENEMY_STAND_ID]), OverheadHud.ENEMY_COLOR)
+	assert_eq(hud.bar_color(practice.sim.players[PracticeMatch.LOCAL_ID]), TeamColors.BAR_SELF)
+	assert_eq(hud.bar_color(practice.sim.players[PracticeMatch.ALLY_ID]), TeamColors.BAR_ALLY)
+	assert_eq(hud.bar_color(practice.sim.players[PracticeMatch.ENEMY_STAND_ID]), TeamColors.BAR_ENEMY)
 
 
 func test_an_enemy_in_its_box_has_no_bar_over_it() -> void:

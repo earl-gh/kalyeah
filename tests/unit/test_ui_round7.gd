@@ -154,14 +154,14 @@ func test_the_contrast_ratio_is_the_standard_one() -> void:
 
 func test_every_chip_fill_keeps_white_text_readable() -> void:
 	var fills: Dictionary[String, Color] = {
-		"green": UiKit.CHIP_GREEN, "red": UiKit.CHIP_RED, "blue": UiKit.CHIP_BLUE, "purple": UiKit.CHIP_PURPLE,
-		"slate": UiKit.CHIP_SLATE, "team blue": KalyeahTheme.TEAM_BLUE, "team red": KalyeahTheme.TEAM_RED,
+		"green": UiKit.CHIP_GREEN, "red": UiKit.CHIP_RED, "blue": TeamColors.KIND_BLOCK, "purple": TeamColors.KIND_CONTROL,
+		"slate": UiKit.CHIP_SLATE, "team blue": TeamColors.TEAM_BLUE, "team red": TeamColors.TEAM_RED,
 	}
 	for label: String in fills:
 		assert_gte(UiKit.contrast(fills[label], Color.WHITE), 4.5, "%s chip" % label)
 	# the weapon type is coloured words now (no pill): they must read on the dark card
-	for kind: int in WeaponsPage.KIND_COLORS:
-		assert_gte(UiKit.contrast((WeaponsPage.KIND_COLORS[kind] as Color).lightened(0.35), KalyeahTheme.SURFACE), 4.5, "weapon kind %d" % kind)
+	for kind: int in TeamColors.KINDS:
+		assert_gte(UiKit.contrast(TeamColors.kind_color(kind), KalyeahTheme.SURFACE), 4.5, "weapon kind %d" % kind)
 
 
 # ---- profile sheet ----------------------------------------------------------------------

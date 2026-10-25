@@ -1,12 +1,19 @@
 class_name UiKit
 extends RefCounted
-## Small builders every screen shares, so a title, a card, a chip or a face looks the same wherever
-## it appears. (The look itself is UiSkin; the sizes are UiMetrics.)
+## The kit's components, built once and shared by every screen, so a title, a card, a chip, a bar or a face looks the
+## same wherever it appears. (The look and its tokens are UiSkin; the sizes are UiMetrics; the motion is UiMotion.)
 
 const CROP: Shader = preload("res://shaders/minimap_crop.gdshader")
 
 
-## A page's heading: a big outlined display title, a quiet line under it and a short gold bar.
+## The gold of section labels and a heading's short bar.
+const ACCENT: Color = Color("ffc233")
+## The short bar under a page's heading.
+const HEADER_BAR: Vector2 = Vector2(110.0, 8.0)
+
+
+## A page's heading (the banner/title component): a big outlined title casting the one shadow, a quiet line under it
+## and a short gold bar.
 static func page_header(title_text: String, subtitle: String = "") -> VBoxContainer:
 	var column: VBoxContainer = VBoxContainer.new()
 	column.name = "Header"
@@ -14,10 +21,7 @@ static func page_header(title_text: String, subtitle: String = "") -> VBoxContai
 	var title: Label = Label.new()
 	title.name = "Title"
 	title.text = title_text
-	title.theme_type_variation = &"DisplayLabel"
-	title.add_theme_font_size_override("font_size", 52)
-	title.add_theme_color_override("font_outline_color", Color("060d22"))
-	title.add_theme_constant_override("outline_size", 9)
+	KalyeahTheme.style_title(title, UiMetrics.DISPLAY)
 	column.add_child(title)
 	if not subtitle.is_empty():
 		var line: Label = Label.new()
@@ -26,23 +30,20 @@ static func page_header(title_text: String, subtitle: String = "") -> VBoxContai
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		line.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
 		line.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
-		line.add_theme_color_override("font_color", Color("b4c3e6"))
+		line.add_theme_color_override("font_color", KalyeahTheme.TEXT_MUTED)
 		column.add_child(line)
 	var bar: Panel = Panel.new()
-	bar.custom_minimum_size = Vector2(110.0, 8.0)
+	bar.custom_minimum_size = HEADER_BAR
 	bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	var fill: StyleBoxFlat = StyleBoxFlat.new()
-	fill.bg_color = Color("ffc233")
-	fill.set_corner_radius_all(4)
-	bar.add_theme_stylebox_override("panel", fill)
+	bar.add_theme_stylebox_override("panel", UiSkin.bar_fill(ACCENT))
 	column.add_child(bar)
 	return column
 
 
-## A glass card holding `content` (or empty, to fill later).
+## A card (the panel component) holding `content` (or empty, to fill later): a UiSkin plate of `kind`, MEDIUM corners.
 static func card(content: Control = null, kind: String = "glass", padding: float = UiMetrics.PADDING) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UiSkin.plate(kind, padding))
+	panel.add_theme_stylebox_override("panel", UiSkin.plate(kind, padding, UiSkin.RADIUS_M))
 	# a card never swallows a touch of its own: a drag that starts on it scrolls the page it sits in
 	panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	if content != null:
@@ -50,22 +51,21 @@ static func card(content: Control = null, kind: String = "glass", padding: float
 	return panel
 
 
-## A small label for a group of settings or a list ("AUDIO", "COMFORT").
+## A small label for a group of settings or a list ("Sound and feel"), in sentence case.
 static func section_label(text: String) -> Label:
 	var label: Label = Label.new()
-	label.text = text.to_upper()
-	label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
+	label.text = text
+	label.theme_type_variation = &"SectionLabel"
 	label.add_theme_font_size_override("font_size", UiMetrics.CAPTION)
-	label.add_theme_color_override("font_color", Color("ffc233"))
+	label.add_theme_color_override("font_color", ACCENT)
 	return label
 
 
-## Chip fills that keep white text readable (every one is at least 4.5:1 against white; see `contrast`).
-const CHIP_GREEN: Color = Color("1a8340")
-const CHIP_RED: Color = Color("c2332e")
-const CHIP_BLUE: Color = Color("2068d0")
-const CHIP_PURPLE: Color = Color("8a55e8")
-const CHIP_SLATE: Color = Color("3b4c74")
+## Chip fills that keep white text readable (every one is at least 4.5:1 against white; see `contrast`). A win and a loss
+## wear the heal and attack hues; slate is a neutral tag.
+const CHIP_GREEN: Color = TeamColors.KIND_HEAL
+const CHIP_RED: Color = TeamColors.KIND_ATTACK
+const CHIP_SLATE: Color = TeamColors.KIND_NONE
 
 
 ## The WCAG contrast ratio between two colours (1 to 21; 4.5 is the bar for small text).
@@ -85,17 +85,7 @@ static func _luminance(color: Color) -> float:
 ## A round or pill tag: "Victory", "ATK", "Host" in a solid colour.
 static func chip(text: String, fill: Color, ink: Color = Color.WHITE, size: int = UiMetrics.CAPTION) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
-	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = fill
-	box.set_corner_radius_all(20)
-	box.border_color = fill.darkened(0.35)
-	box.set_border_width_all(2)
-	box.content_margin_left = 16.0
-	box.content_margin_right = 16.0
-	box.content_margin_top = 4.0
-	box.content_margin_bottom = 4.0
-	box.anti_aliasing = true
-	panel.add_theme_stylebox_override("panel", box)
+	panel.add_theme_stylebox_override("panel", UiSkin.chip(fill))
 	var label: Label = Label.new()
 	label.name = "Text"
 	label.text = text
@@ -139,8 +129,8 @@ static func avatar(character_id: String, px: float) -> TextureRect:
 	return face
 
 
-## A label with the page's body face; `size` defaults to the body size.
-static func text(content: String, size: int = UiMetrics.BODY, color: Color = KalyeahTheme.TEXT, wrap: bool = true) -> Label:
+## A label with the page's body face; `size` defaults to the body size and the colour to body copy's.
+static func text(content: String, size: int = UiMetrics.BODY, color: Color = KalyeahTheme.TEXT_BODY, wrap: bool = true) -> Label:
 	var label: Label = Label.new()
 	label.text = content
 	label.add_theme_font_size_override("font_size", size)
@@ -161,7 +151,7 @@ static func setting_row(title_text: String, detail: String, control: Control) ->
 	title.name = "Title"
 	words.add_child(title)
 	if not detail.is_empty():
-		var line: Label = text(detail, UiMetrics.CAPTION, Color("9fb0d6"))
+		var line: Label = text(detail, UiMetrics.CAPTION, KalyeahTheme.TEXT_MUTED)
 		line.name = "Detail"
 		line.theme_type_variation = &"MutedLabel"
 		line.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
@@ -174,6 +164,30 @@ static func setting_row(title_text: String, detail: String, control: Control) ->
 		if not detail.is_empty():
 			control.accessibility_description = detail
 	return row
+
+
+## A bar (the bar component) `fraction` full of `color`, `height` px tall: a dark outlined track and a round-ended fill.
+static func bar(fraction: float, color: Color, height: float) -> Panel:
+	var track: Panel = Panel.new()
+	track.name = "Bar"
+	track.custom_minimum_size = Vector2(0.0, height)
+	track.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	track.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	track.add_theme_stylebox_override("panel", UiSkin.bar_track())
+	var fill: Panel = Panel.new()
+	fill.name = "Fill"
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fill.add_theme_stylebox_override("panel", UiSkin.bar_fill(color))
+	fill.anchor_bottom = 1.0
+	fill.anchor_right = clampf(fraction, 0.0, 1.0)
+	fill.offset_left = UiSkin.LINE
+	fill.offset_top = UiSkin.LINE
+	fill.offset_right = -UiSkin.LINE
+	fill.offset_bottom = -UiSkin.LINE
+	fill.custom_minimum_size = Vector2(height - 2.0 * UiSkin.LINE, 0.0)
+	track.add_child(fill)
+	return track
 
 
 ## A thin line between rows inside a card.

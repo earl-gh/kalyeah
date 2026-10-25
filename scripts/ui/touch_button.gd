@@ -19,12 +19,13 @@ const SHADOW_COLOR: Color = Color(0.0, 0.0, 0.0, 0.35)
 const RIM_COLOR: Color = Color(1.0, 0.9, 0.6, 0.95)
 const RIM_WIDTH: float = 5.0
 const SHADOW_DROP: float = 5.0
-const FONT_SIZE: int = 26
-const SMALL_FONT_SIZE: int = 22
+const FONT_SIZE: int = UiMetrics.ACTION
+const SMALL_FONT_SIZE: int = UiMetrics.CAPTION
 const TAG_FONT_SIZE: int = UiMetrics.CAPTION
 const TAG_HEIGHT: float = 26.0
-const TEXT_OUTLINE: int = 5
-const COOLDOWN_FONT_SIZE: int = 34
+const TAG_FILL: Color = Color(0.1, 0.08, 0.14, 0.92)
+const TEXT_OUTLINE: int = UiSkin.TEXT_LINE
+const COOLDOWN_FONT_SIZE: int = UiMetrics.TITLE
 ## A held card rises this much; its touch area is this much bigger on every side.
 const CARD_LIFT: float = 10.0
 const CARD_SLACK: float = 8.0
@@ -261,12 +262,7 @@ func _draw_card() -> void:
 ## A small coloured pill with the weapon type in it.
 func _tag(font: Font, text: String, at: Vector2, color: Color) -> void:
 	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, TAG_FONT_SIZE).x + 20.0
-	var pill: StyleBoxFlat = StyleBoxFlat.new()
-	pill.bg_color = Color(0.1, 0.08, 0.14, 0.92)
-	pill.border_color = color
-	pill.set_border_width_all(2)
-	pill.set_corner_radius_all(12)
-	draw_style_box(pill, Rect2(at - Vector2(width / 2.0, TAG_HEIGHT / 2.0), Vector2(width, TAG_HEIGHT)))
+	UiSkin.draw_box(self, Rect2(at - Vector2(width / 2.0, TAG_HEIGHT / 2.0), Vector2(width, TAG_HEIGHT)), TAG_FILL, UiSkin.RADIUS_ROUND, color)
 	_text(font, text, at, TAG_FONT_SIZE, color)
 
 
@@ -276,7 +272,7 @@ func _text(font: Font, text: String, at: Vector2, font_size: int, color: Color) 
 		return
 	var text_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size)
 	var origin: Vector2 = at + Vector2(-text_size.x / 2.0, font_size * 0.35)
-	draw_string_outline(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, TEXT_OUTLINE, Icons.OUTLINE)
+	draw_string_outline(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, TEXT_OUTLINE, UiSkin.LINE_COLOR)
 	draw_string(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, color)
 
 

@@ -4,8 +4,12 @@ extends RefCounted
 ## an upright card with a frame in the weapon's kind colour, the round painted art on top and the weapon's name on a plate at the bottom.
 ## The hand's two buttons and the shuffler's window use the same drawing, at two sizes.
 
-const RADIUS: int = 18
-const BORDER: int = 5
+const RADIUS: int = UiSkin.RADIUS_M
+const BORDER: int = UiSkin.FRAME
+## A card's body is its kind colour darkened this far; the hollow and back are the well's dark.
+const BODY_DARKEN: float = 0.62
+const HOLLOW: Color = Color(0.0, 0.0, 0.0, 0.25)
+const BACK: Color = Color(0.07, 0.14, 0.34)
 const NAME_MAX: int = 22
 ## Names are never drawn smaller than the caption floor: a card too small for that (the shuffler's window) shows only its art.
 const NAME_MIN: int = UiMetrics.CAPTION
@@ -14,17 +18,8 @@ const NAME_MIN: int = UiMetrics.CAPTION
 ## Draws the card of `def` in `rect` on `canvas`. `dim` (0 to 1) darkens it (locked, used, waiting); `lift` raises it with a gold edge
 ## (held or highlighted).
 static func draw(canvas: CanvasItem, rect: Rect2, def: WeaponDef, dim: float = 0.0, lift: bool = false) -> void:
-	var kind: Color = WeaponPickScreen.kind_color(def.kind)
-	var frame: StyleBoxFlat = StyleBoxFlat.new()
-	frame.bg_color = kind.darkened(0.62)
-	frame.border_color = RoyaleStyle.GOLD if lift else kind
-	frame.set_border_width_all(BORDER)
-	frame.set_corner_radius_all(RADIUS)
-	frame.anti_aliasing = true
-	frame.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
-	frame.shadow_size = 6
-	frame.shadow_offset = Vector2(0.0, 5.0)
-	canvas.draw_style_box(frame, rect)
+	var kind: Color = TeamColors.kind_color(def.kind)
+	UiSkin.draw_box(canvas, rect, kind.darkened(BODY_DARKEN), RADIUS, RoyaleStyle.GOLD if lift else kind, true, BORDER)
 	# the round art, as wide as the card allows
 	var inner: float = rect.size.x - 2.0 * (BORDER + 3.0)
 	var texture: Texture2D = Icons.art(StringName("btn_%s" % String(def.id)))
@@ -35,50 +30,22 @@ static func draw(canvas: CanvasItem, rect: Rect2, def: WeaponDef, dim: float = 0
 	var plate: Rect2 = Rect2(rect.position + Vector2(BORDER, rect.size.y - BORDER - plate_height(rect)), Vector2(rect.size.x - 2.0 * BORDER, plate_height(rect)))
 	var name_size: int = _name_size(plate, def.short_name)
 	if name_size > 0:
-		var plate_box: StyleBoxFlat = StyleBoxFlat.new()
-		plate_box.bg_color = RoyaleStyle.NAVY
-		plate_box.corner_radius_bottom_left = RADIUS - BORDER
-		plate_box.corner_radius_bottom_right = RADIUS - BORDER
-		plate_box.anti_aliasing = true
-		canvas.draw_style_box(plate_box, plate)
+		UiSkin.draw_box(canvas, plate, UiSkin.LINE_COLOR, UiSkin.RADIUS_S)
 		_name(canvas, plate, def.short_name, name_size)
 	if dim > 0.0:
-		var shade: StyleBoxFlat = StyleBoxFlat.new()
-		shade.bg_color = Color(0.0, 0.0, 0.0, dim)
-		shade.set_corner_radius_all(RADIUS)
-		shade.anti_aliasing = true
-		canvas.draw_style_box(shade, rect)
+		UiSkin.draw_box(canvas, rect, Color(0.0, 0.0, 0.0, dim), RADIUS)
 
 
 ## The empty slot of a hand: a faint card-shaped hollow, waiting for the shuffler.
 static func draw_empty(canvas: CanvasItem, rect: Rect2) -> void:
-	var hollow: StyleBoxFlat = StyleBoxFlat.new()
-	hollow.bg_color = Color(0.0, 0.0, 0.0, 0.25)
-	hollow.border_color = Color(RoyaleStyle.BLUE_LIGHT, 0.35)
-	hollow.set_border_width_all(3)
-	hollow.set_corner_radius_all(RADIUS)
-	hollow.anti_aliasing = true
-	canvas.draw_style_box(hollow, rect)
+	UiSkin.draw_box(canvas, rect, HOLLOW, RADIUS, Color(RoyaleStyle.BLUE_LIGHT, 0.35))
 
 
 ## The slot of a card that is on its way (owner: an empty slot is not a hole, the card is coming): a card back with a ring that fills as the
 ## shuffler works, and the seconds left. `progress` 0 to 1.
 static func draw_back(canvas: CanvasItem, rect: Rect2, progress: float, seconds: int) -> void:
-	var back: StyleBoxFlat = StyleBoxFlat.new()
-	back.bg_color = Color(0.07, 0.14, 0.34)
-	back.border_color = Color(RoyaleStyle.BLUE_LIGHT, 0.5)
-	back.set_border_width_all(BORDER)
-	back.set_corner_radius_all(RADIUS)
-	back.anti_aliasing = true
-	canvas.draw_style_box(back, rect)
-	var inset: Rect2 = rect.grow(-(BORDER + 9.0))
-	var inner: StyleBoxFlat = StyleBoxFlat.new()
-	inner.bg_color = Color(0.0, 0.0, 0.0, 0.0)
-	inner.border_color = Color(RoyaleStyle.GOLD, 0.35)
-	inner.set_border_width_all(2)
-	inner.set_corner_radius_all(RADIUS - 6)
-	inner.anti_aliasing = true
-	canvas.draw_style_box(inner, inset)
+	UiSkin.draw_box(canvas, rect, BACK, RADIUS, Color(RoyaleStyle.BLUE_LIGHT, 0.5), false, BORDER)
+	UiSkin.draw_box(canvas, rect.grow(-(BORDER + 9.0)), Color.TRANSPARENT, UiSkin.RADIUS_S, Color(RoyaleStyle.GOLD, 0.35))
 	var centre: Vector2 = rect.get_center()
 	var radius: float = rect.size.x * 0.26
 	canvas.draw_arc(centre, radius, 0.0, TAU, 40, Color(1.0, 1.0, 1.0, 0.15), 8.0, true)
@@ -86,8 +53,8 @@ static func draw_back(canvas: CanvasItem, rect: Rect2, progress: float, seconds:
 	if seconds > 0:
 		var font: Font = KalyeahTheme.ACTION_FONT
 		var text: String = "%d" % seconds
-		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 40).x
-		canvas.draw_string(font, centre + Vector2(-width / 2.0, 14.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 40, Color(1.0, 1.0, 1.0, 0.9))
+		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.HEADING).x
+		canvas.draw_string(font, centre + Vector2(-width / 2.0, 14.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.HEADING, Color(1.0, 1.0, 1.0, 0.9))
 
 
 static func plate_height(rect: Rect2) -> float:
@@ -100,11 +67,7 @@ static func draw_filling(canvas: CanvasItem, rect: Rect2, def: WeaponDef, ready:
 	var covered: float = rect.size.y * (1.0 - clampf(ready, 0.0, 1.0))
 	if covered <= 1.0:
 		return
-	var shade: StyleBoxFlat = StyleBoxFlat.new()
-	shade.bg_color = Color(0.0, 0.0, 0.0, dim)
-	shade.set_corner_radius_all(RADIUS)
-	shade.anti_aliasing = true
-	canvas.draw_style_box(shade, Rect2(rect.position, Vector2(rect.size.x, covered)))
+	UiSkin.draw_box(canvas, Rect2(rect.position, Vector2(rect.size.x, covered)), Color(0.0, 0.0, 0.0, dim), RADIUS)
 
 
 ## The font size `text` fits its plate at, or 0 when that would be under `NAME_MIN`.

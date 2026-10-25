@@ -16,15 +16,6 @@ const KIND_NAMES: Dictionary[int, String] = {
 	WeaponDef.Kind.ATTACK: "Attack", WeaponDef.Kind.CROWD_CONTROL: "Control",
 	WeaponDef.Kind.BLOCK: "Block", WeaponDef.Kind.HEAL: "Heal",
 }
-const KIND_COLORS: Dictionary[int, Color] = {
-	WeaponDef.Kind.ATTACK: Color("e0463e"), WeaponDef.Kind.CROWD_CONTROL: Color("8a55e8"),
-	WeaponDef.Kind.BLOCK: Color("2a7be6"), WeaponDef.Kind.HEAL: Color("2fbf5a"),
-}
-## The kind's chip fill: the rim colours above are bright for the round holder, these keep white text readable.
-const KIND_CHIPS: Dictionary[int, Color] = {
-	WeaponDef.Kind.ATTACK: UiKit.CHIP_RED, WeaponDef.Kind.CROWD_CONTROL: UiKit.CHIP_PURPLE,
-	WeaponDef.Kind.BLOCK: UiKit.CHIP_BLUE, WeaponDef.Kind.HEAL: UiKit.CHIP_GREEN,
-}
 const COLUMNS: int = 2
 ## The grouping switch sits under the book's own switch, so it is a size smaller (still a thumb).
 const SWITCH_HEIGHT: float = UiMetrics.MIN_TARGET
@@ -33,7 +24,6 @@ const TILE_ICON: float = 128.0
 const DETAIL_ICON: float = 168.0
 ## The colour of each stat bar: power (damage or healing), time (cooldown) and reach (range).
 const BAR_COLORS: Dictionary[String, Color] = {"Damage": Color("ffc233"), "Heal": Color("45dd78"), "Cooldown": Color("4aa0ff"), "Range": Color("b48cff")}
-const PLATE_FOCUS_RADIUS: int = 32
 
 ## One tile per weapon, in the order of the rules (whichever way they are grouped).
 var tiles: Array[Button] = []
@@ -104,7 +94,7 @@ func show_grouping(id: StringName) -> void:
 		if id == BY_GAME:
 			var blurb: String = street_games().blurb_of(String(group["label"]))
 			if not blurb.is_empty():
-				var line: Label = UiKit.text(blurb, UiMetrics.CAPTION, Color("9fb0d6"))
+				var line: Label = UiKit.text(blurb, UiMetrics.CAPTION, KalyeahTheme.TEXT_MUTED)
 				line.name = "Blurb"
 				section.add_child(line)
 		section.add_child(grid)
@@ -143,11 +133,11 @@ func _tile(weapon: WeaponDef) -> Button:
 	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tile.focus_mode = Control.FOCUS_ALL
 	for state: String in ["normal", "hover"]:
-		tile.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0))
+		tile.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, UiSkin.RADIUS_M))
 	for state: String in ["pressed", "hover_pressed"]:
-		tile.add_theme_stylebox_override(state, UiSkin.plate("raised", 0.0))
-	tile.add_theme_stylebox_override("focus", UiSkin.focus_ring(PLATE_FOCUS_RADIUS))
-	MenuDialog.feel_press(tile)
+		tile.add_theme_stylebox_override(state, UiSkin.plate("raised", 0.0, UiSkin.RADIUS_M))
+	tile.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_M))
+	UiMotion.press(tile)
 	var column: VBoxContainer = VBoxContainer.new()
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	column.offset_left = 14.0
@@ -168,11 +158,11 @@ func _tile(weapon: WeaponDef) -> Button:
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
-	name_label.add_theme_constant_override("outline_size", 5)
+	name_label.add_theme_constant_override("outline_size", UiSkin.TEXT_LINE)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(name_label)
 	# the other axis of the grouping as a chip: the kind under a game, the game under a type
-	var kind: PanelContainer = UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, KIND_CHIPS.get(weapon.kind, UiKit.CHIP_SLATE) as Color, Color.WHITE, UiMetrics.MIN_TEXT)
+	var kind: PanelContainer = UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, TeamColors.kind_fill(weapon.kind), Color.WHITE, UiMetrics.MIN_TEXT)
 	var game: PanelContainer = UiKit.chip(weapon.street_game, UiKit.CHIP_SLATE, Color.WHITE, UiMetrics.MIN_TEXT)
 	for chip: PanelContainer in [kind, game]:
 		chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -191,13 +181,7 @@ static func holder(weapon: WeaponDef, diameter: float) -> Control:
 	frame.name = "Holder"
 	frame.custom_minimum_size = Vector2(diameter, diameter)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = Color("0a1433")
-	box.set_corner_radius_all(int(diameter / 2.0))
-	box.set_border_width_all(5)
-	box.border_color = KIND_COLORS.get(weapon.kind, Color("3b4c74")) as Color
-	box.anti_aliasing = true
-	frame.add_theme_stylebox_override("panel", box)
+	frame.add_theme_stylebox_override("panel", UiSkin.framed(UiSkin.WELL, UiSkin.RADIUS_ROUND, TeamColors.kind_color(weapon.kind)))
 	var picture: TextureRect = TextureRect.new()
 	var icon: String = ICON_PATH % String(weapon.id)
 	if ResourceLoader.exists(icon):
@@ -219,10 +203,10 @@ static func detail(weapon: WeaponDef) -> MenuDialog:
 	var tags: HBoxContainer = HBoxContainer.new()
 	tags.alignment = BoxContainer.ALIGNMENT_CENTER
 	tags.add_theme_constant_override("separation", 12)
-	tags.add_child(UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, KIND_CHIPS.get(weapon.kind, UiKit.CHIP_SLATE) as Color, Color.WHITE, 22))
-	tags.add_child(UiKit.text(weapon.street_game, UiMetrics.DETAIL, Color("9fb0d6"), false))
+	tags.add_child(UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, TeamColors.kind_fill(weapon.kind), Color.WHITE, UiMetrics.CAPTION))
+	tags.add_child(UiKit.text(weapon.street_game, UiMetrics.DETAIL, KalyeahTheme.TEXT_MUTED, false))
 	card.body.add_child(tags)
-	var about: Label = card.add_label(weapon.description, UiMetrics.BODY, KalyeahTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	var about: Label = card.add_label(weapon.description, UiMetrics.BODY, KalyeahTheme.TEXT_BODY, HORIZONTAL_ALIGNMENT_CENTER)
 	about.name = "About"
 	var figures: VBoxContainer = VBoxContainer.new()
 	figures.name = "Figures"
@@ -236,7 +220,7 @@ static func detail(weapon: WeaponDef) -> MenuDialog:
 		var column: VBoxContainer = VBoxContainer.new()
 		column.add_theme_constant_override("separation", 4)
 		column.add_child(UiKit.section_label("The game · %s" % weapon.street_game))
-		var story: Label = UiKit.text(blurb, UiMetrics.DETAIL, Color("c9d6f2"))
+		var story: Label = UiKit.text(blurb, UiMetrics.DETAIL, KalyeahTheme.TEXT_BODY)
 		story.name = "GameBlurb"
 		column.add_child(story)
 		card.body.add_child(column)
@@ -300,16 +284,8 @@ static func meter_bar(caption: String, fraction: float, height: float) -> Progre
 	meter.custom_minimum_size = Vector2(0.0, height)
 	meter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	meter.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var track: StyleBoxFlat = StyleBoxFlat.new()
-	track.bg_color = Color("0a1433")
-	track.set_corner_radius_all(13)
-	track.anti_aliasing = true
-	var fill: StyleBoxFlat = StyleBoxFlat.new()
-	fill.bg_color = BAR_COLORS.get(caption, Color("ffc233")) as Color
-	fill.set_corner_radius_all(13)
-	fill.anti_aliasing = true
-	meter.add_theme_stylebox_override("background", track)
-	meter.add_theme_stylebox_override("fill", fill)
+	meter.add_theme_stylebox_override("background", UiSkin.bar_track())
+	meter.add_theme_stylebox_override("fill", UiSkin.bar_fill(BAR_COLORS.get(caption, UiKit.ACCENT) as Color))
 	return meter
 
 
@@ -319,7 +295,7 @@ static func bar_row(caption: String, value: String, fraction: float, compact: bo
 	var row: HBoxContainer = HBoxContainer.new()
 	row.name = "Stat_%s" % caption
 	row.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
-	var name_label: Label = UiKit.text(caption, UiMetrics.CAPTION, Color("9fb0d6"), false)
+	var name_label: Label = UiKit.text(caption, UiMetrics.CAPTION, KalyeahTheme.TEXT_MUTED, false)
 	name_label.custom_minimum_size = Vector2(90.0 if compact else 120.0, 0.0)
 	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(name_label)

@@ -21,6 +21,6 @@ func _draw() -> void:
 	# no deck at the top (like Clash Royale): the pieces float over the street on a soft dark shade that fades out below them
 	var w: float = size.x
 	var h: float = size.y
-	var dark: Color = Color(RoyaleStyle.NAVY, 0.6)
-	var clear: Color = Color(RoyaleStyle.NAVY, 0.0)
+	var dark: Color = Color(UiSkin.LINE_COLOR, 0.6)
+	var clear: Color = Color(UiSkin.LINE_COLOR, 0.0)
 	draw_polygon(PackedVector2Array([Vector2(0.0, 0.0), Vector2(w, 0.0), Vector2(w, h + 16.0), Vector2(0.0, h + 16.0)]), PackedColorArray([dark, dark, clear, clear]))

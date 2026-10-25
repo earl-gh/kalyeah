@@ -10,7 +10,7 @@ signal tab_pressed(id: StringName)
 const HEIGHT: float = 128.0
 const ICON_SIZE: float = 52.0
 const ACTIVE: Color = Color("8fd0ff")
-const IDLE: Color = Color("9fb0d6")
+const IDLE: Color = KalyeahTheme.TEXT_MUTED
 
 var tabs: Dictionary[StringName, Button] = {}
 var active: StringName = &""

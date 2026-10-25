@@ -28,7 +28,7 @@ func _def(id: StringName) -> CharacterDef:
 
 func _kid(id: StringName) -> KidModel:
 	var kid: KidModel = autofree(KidModel.new()) as KidModel
-	kid.setup(_def(id), Palette.TEAM_OWN, 0.4)
+	kid.setup(_def(id), TeamColors.WORLD_OWN, 0.4)
 	add_child(kid)
 	return kid
 
