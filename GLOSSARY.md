@@ -10,11 +10,14 @@ The team game of contesting the opposing base, tagging opponents and rescuing te
 _Avoid_: Langit Lupa
 
 **Tagged**:
-The state in which a player is out of play and waits in the team's tagged box until rescued.
+The state in which a player is out of play and waits on the sidewalk beside the team's rescue area until rescued.
 _Avoid_: Death, elimination, respawn
 
-**Tagged box**:
-The team's holding area for tagged players.
+**Sidewalk (tagged place)**:
+Outside the street's side edge, level with the team's rescue area. Where tagged players stand, facing in.
+
+**Rescue area**:
+The one marked rectangle against the street's side edge where a free teammate stands to free the tagged players on the sidewalk beside it.
 
 **Rescue**:
 A teammate freeing a tagged player so that player can rejoin play.

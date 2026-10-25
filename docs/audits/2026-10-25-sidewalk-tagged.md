@@ -18,5 +18,20 @@ Run: `tools/balance/team_rounds.gd -- --seeds 60 --size 3 --seconds 90 --only ru
 
 If a threshold fails: change the zone size or place in `data/rules/map_layout.tres` once and re-measure; no new rule.
 
-## Results
-See below (filled in after measuring).
+## Change measured
+Rescue area: one 3 x 6 m rectangle (`rescue_size`) against the street's side edge, its outer end level with the other team's base as before (the old area was 4 x 6.8 m, 3 m in from the edge). Tagged kids on the sidewalk, three places, 2 m apart along the area. Bots keep their rule (walk to the area's centre, stay for `rescue_hold_time`).
+
+## Results (60 seeds 1000..1059, 3 v 3, 90 s, `--only rush-defend,mixed-mixed`)
+| Matchup | | main | branch |
+|---|---|---|---|
+| rush vs defend | team 0 / team 1 / none | 31 / 29 / 0 | 31 / 29 / 0 |
+| | seconds to a point | 45.0 | 45.0 |
+| | tags per round | 3.5 | 3.5 |
+| | rescues per round | 0.13 | 0.10 |
+| mixed vs mixed | team 0 / team 1 / none | 0 / 0 / 60 | 0 / 0 / 60 |
+| | tags per round | 0.6 | 0.7 |
+| | rescues per round | 1.42 | 1.33 |
+
+Thresholds: none per matchup unchanged (pass); seconds to a point unchanged (pass); rescues per round 77% and 94% of main, above 0 (pass); rusher's share of decided rounds 31 of 60 on both (pass); mixed vs mixed has no decided rounds on either side, so the side-bias check has nothing to read (it is the same 60 of 60 stall as on main: the bots' mixed plan never settles a round in 90 s, which this change neither causes nor cures).
+
+Verdict: no number moved past noise, so the zone's size and place stay as first set (no second adjustment needed).
