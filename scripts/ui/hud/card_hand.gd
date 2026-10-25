@@ -23,9 +23,9 @@ signal card_cancelled(slot: int)
 signal card_denied(slot: int)
 
 const SLOTS: int = 4
-## Layout on the 720 px base (the tray's own height is MatchHud.CONSOLE_HEIGHT), like Clash Royale's bottom: a column BESIDE the cardboard
-## (the chat button above NEXT, over the street's edge) and the cardboard with the four cards and the ice water bar. Side margin (the
-## cardboard's rim), the gap between cards, the row's top (under the cardboard's top rim), the card's height for its width, the bar's
+## Layout on the 720 px base (the tray's own height is MatchHud.CONSOLE_HEIGHT), like Clash Royale's bottom: a column BESIDE the plate
+## (the chat button above NEXT, over the street's edge) and the plate with the four cards and the ice water bar. Side margin (the
+## plate's rim), the gap between cards, the row's top (under the plate's top rim), the card's height for its width, the bar's
 ## height, the gap above it and the room under it (the bottom rim).
 const COLUMN: float = 116.0
 const SIDE: float = 40.0
@@ -36,7 +36,7 @@ const CARD_ASPECT: float = 1.26
 const BAR_HEIGHT: float = 26.0
 const BAR_GAP: float = 14.0
 const BOTTOM_PAD: float = 32.0
-## The NEXT card is this share of a hand card, under its label, in the column beside the cardboard; the chat button is above it.
+## The NEXT card is this share of a hand card, under its label, in the column beside the plate; the chat button is above it.
 const NEXT_SCALE: float = 0.66
 const COLUMN_BOTTOM: float = 18.0
 const OUT_GAP: float = 8.0
@@ -169,7 +169,7 @@ func _layout() -> void:
 	var card: Vector2 = card_size(size.x)
 	var next_size: Vector2 = card * NEXT_SCALE
 	var label_room: float = float(NEXT_FONT) + 8.0
-	# the column is beside the cardboard: at the left, or at the right for a left-handed player
+	# the column is beside the plate: at the left, or at the right for a left-handed player
 	var column_x: float = 0.0 if not mirrored else size.x - COLUMN
 	var cards_x: float = (COLUMN if not mirrored else 0.0) + SIDE
 	next_rect = Rect2(Vector2(column_x + (COLUMN - next_size.x) / 2.0, size.y - COLUMN_BOTTOM - next_size.y), next_size)
