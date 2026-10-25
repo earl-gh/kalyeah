@@ -50,7 +50,7 @@ func think(state: PlayerState, sim: MatchSim) -> PlayerInput:
 ## stops and fights it (priority 1): killing is what keeps the base open.
 func _no_enemy(state: PlayerState, sim: MatchSim) -> PlayerInput:
 	if _rescue_due(state, sim) and _is_rescuer(state, sim):
-		return _walk_to(state, sim.layout.jail_rect(sim.side_for_team(state.team)).get_center())
+		return _walk_to(state, sim.layout.rescue_rect(sim.side_for_team(state.team)).get_center())
 	return _walk_to(state, target if role == Role.RUSH else home)
 
 

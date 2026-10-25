@@ -13,7 +13,7 @@ signal move_released
 const NO_POINTER: int = -1
 const MOUSE_POINTER: int = -2
 
-## Taps are taken (false under a menu, in the box, during the opening show).
+## Taps are taken (false under a menu, while tagged, during the opening show).
 var active: bool = false
 var _pointer: int = NO_POINTER
 

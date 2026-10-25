@@ -3,9 +3,10 @@ extends Resource
 ## Geometry of the playground street, in meters. Pure data + math, no nodes.
 ## The street runs along Z: +Z is the "own" end (bottom of the portrait screen),
 ## -Z the enemy end. A side's post stands in its left corner as seen from that
-## end (own: bottom-left, enemy: top-right), and the box its tagged players are
-## sent to sits at the far end on the same left side (own: top-left, enemy:
-## bottom-right). The map is point-symmetric, so both teams play the same street.
+## end (own: bottom-left, enemy: top-right). Its tagged players wait on the sidewalk outside the street's
+## side edge at the far end, on the same left side (own: top-left, enemy: bottom-right), facing in, and the
+## rescue area that frees them lies against the street's edge beside them. The map is point-symmetric, so
+## both teams play the same street.
 ## All numbers come from data/rules/map_layout.tres.
 
 const SIDE_OWN: int = 1
@@ -32,17 +33,12 @@ var lane_length: float:
 ## Where a side's players start and come back to after a rescue: this far from the
 ## post toward the middle of the street (along each axis).
 @export var spawn_offset: float = 0.0
-## The tagged box (a rectangle on the road, 1:2) and how far its centre is from the side of the street. It is just big enough for
-## its slots: columns across, rows along the street. Along the street it sits where its rescue area's outer line meets the line of
-## the base beside it (see `jail_rect`).
-@export var jail_size: Vector2 = Vector2.ZERO
-@export var jail_inset: float = 0.0
-@export var jail_columns: int = 1
-@export var jail_rows: int = 1
-## The rescue area round the tagged box: a ring this wide (m) on the sides (x) and along the street (z). The camera looks down at 45
-## degrees, so a metre along the street shows only about 0.7 as tall as a metre across it: the ring is 1 / sin(45) = 1.4 times wider
-## along the street, so the space round the box looks the same on all four sides.
-@export var rescue_ring: Vector2 = Vector2.ZERO
+## The rescue area: one rectangle (x across, z along the street) against the street's side edge. A free teammate standing in it frees
+## the tagged players waiting on the sidewalk beside it. Along the street its outer end is level with the inner line of the other
+## team's base on the same end (see `rescue_rect`).
+@export var rescue_size: Vector2 = Vector2.ZERO
+## How many tagged players stand in a row on the sidewalk, level with the rescue area (more than that share the first places).
+@export var tagged_places: int = 1
 ## Cover on the own half of the street (x, z rects); the enemy half gets the same
 ## pieces turned around the center. They block walking and throws for both teams.
 @export var obstacles: Array[Rect2] = []
@@ -53,7 +49,7 @@ var lane_length: float:
 ## vehicles, props and pets are this many times their real size (a kid is drawn about 1.5x its model's 1.85 m, so a real house of about
 ## 6 m would look no taller than two kids). Cover and the electric posts have their own heights below.
 @export var scenery_scale: float = 1.0
-## How tall the cardboard cover walls and the boxes' walls are drawn (m), and the electric posts.
+## How tall the cardboard cover walls are drawn (m), and the electric posts.
 @export var cover_height: float = 1.15
 @export var post_height: float = 8.5
 @export var overview_height: float = 0.0
@@ -104,31 +100,28 @@ func spawn_center(side: int) -> Vector2:
 	return base_center(side) + Vector2(side, -side) * spawn_offset
 
 
-## The box a side's tagged players are sent to: own top-left, enemy bottom-right. Along the street the outer line of its rescue area
-## is level with the inner line of the other team's base on the same end (the top line of your box with the bottom line of the
-## base at the top right; the bottom line of theirs with the top line of the base at the bottom left).
-func jail_rect(side: int) -> Rect2:
+## The rescue area of a side: against the street's left edge for own, the right for enemy, at the far end. Along the street its outer
+## end is level with the inner line of the other team's base on the same end (the top end of yours with the bottom line of the base
+## at the top right; the bottom end of theirs with the top line of the base at the bottom left).
+func rescue_rect(side: int) -> Rect2:
 	var other_base: Rect2 = base_rect(-side)
 	var edge: float = other_base.end.y if side == SIDE_OWN else other_base.position.y
-	var center: Vector2 = Vector2(-side * (lane_width / 2.0 - jail_inset), edge + side * (rescue_ring.y + jail_size.y / 2.0))
-	return Rect2(center - jail_size / 2.0, jail_size)
+	var top: float = edge if side == SIDE_OWN else edge - rescue_size.y
+	var left: float = -lane_width / 2.0 if side == SIDE_OWN else lane_width / 2.0 - rescue_size.x
+	return Rect2(left, top, rescue_size.x, rescue_size.y)
 
 
-## The rescue area of a side's box: the box and the ring round it (`rescue_ring`), cut off by the street's edge. A free teammate
-## stepping into the ring (or the box) frees the tagged kids.
-func rescue_rect(side: int) -> Rect2:
-	return jail_rect(side).grow_individual(rescue_ring.x, rescue_ring.y, rescue_ring.x, rescue_ring.y).intersection(lane_rect())
+## Where the `index`-th tagged player of a side stands: on the sidewalk just outside the street's side edge (where the invisible wall
+## is), level with the rescue area and spread evenly along it.
+func tagged_place(side: int, index: int) -> Vector2:
+	var area: Rect2 = rescue_rect(side)
+	var row: int = index % tagged_places
+	return Vector2(-side * (lane_width / 2.0 + boundary_thickness), area.position.y + area.size.y * (float(row) + 0.5) / float(tagged_places))
 
 
-## Where the `index`-th tagged player of a side stands in its box (a grid of
-## `jail_columns` x `jail_rows` kids; more than that share the first slots).
-func jail_slot(side: int, index: int) -> Vector2:
-	var box: Rect2 = jail_rect(side)
-	var column: int = index % jail_columns
-	var row: int = (index / jail_columns) % jail_rows
-	return box.position + Vector2(
-		box.size.x * (column + 0.5) / jail_columns, box.size.y * (row + 0.5) / jail_rows
-	)
+## The way a side's tagged players face: in, toward the street.
+func tagged_facing(side: int) -> Vector2:
+	return Vector2(side, 0.0)
 
 
 func lane_rect() -> Rect2:

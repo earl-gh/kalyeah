@@ -104,7 +104,7 @@ func _steer(state: PlayerState, sim: MatchSim, direction: Vector2) -> PlayerInpu
 ## No enemy in reach: stay at the post, and rescue only from there (priorities 2 and 3).
 func _no_enemy(state: PlayerState, sim: MatchSim) -> PlayerInput:
 	if _rescue_due(state, sim):
-		return _walk_to(state, sim.layout.jail_rect(sim.side_for_team(state.team)).get_center())
+		return _walk_to(state, sim.layout.rescue_rect(sim.side_for_team(state.team)).get_center())
 	return _walk_to(state, home)
 
 

@@ -5,7 +5,7 @@ extends Node3D
 ## slab (no markings) with curbs and sidewalks, house fronts, a sari-sari store with an
 ## umbrella around it; the few cover
 ## pieces kids hide behind (cardboard walls); each team's electric post in its corner with a chalk base
-## circle; and the rounded, taped box where each team's tagged kids wait.
+## circle; and the rounded, taped rescue area against the street's side edge, level with the sidewalk where each team's tagged kids wait.
 
 const OWN_COLOR: Color = Palette.TEAM_OWN
 const ENEMY_COLOR: Color = Palette.TEAM_ENEMY
@@ -28,12 +28,12 @@ const AMBIENT_COLOR: Color = Color(1.0, 0.97, 0.92)
 const AMBIENT_ENERGY: float = 0.63
 const RING_HEIGHT: float = 0.03
 ## Visual pass: the bases and rescue areas were the faintest marks on the street (fill 0.22, tape 0.16 m); a stronger fill
-## that still lets the cement show and a thick chalk edge make the objective read second, after the kids.
+## that still lets the cement show makes the objective read second, after the kids. The chalk edge is half of the 0.3 m it was
+## (owner: thinner), the one width of every base and rescue area outline.
 const ZONE_FILL_ALPHA: float = 0.34
-const TAPE_WIDTH: float = 0.3
-## Bases, tagged boxes and rescue areas are rounded rectangles on the street, each with a fixed team colour (blue yours, red
-## theirs: owner) and a full outline. The tagged box (inside) has no tint of its own: only the rescue area round it (outside) is tinted.
-const JAIL_CORNER_RADIUS: float = 0.4
+const TAPE_WIDTH: float = 0.15
+## Bases and rescue areas are rounded rectangles on the street, each with a faint tint and a full outline in a fixed team colour
+## (blue yours, red theirs: owner).
 const RESCUE_CORNER_RADIUS: float = 0.9
 const ZONE_CORNER_STEPS: int = 6
 ## The sidewalks are flat, level with the street (owner: no raised curb).
@@ -290,8 +290,8 @@ func _build_map() -> void:
 		var color: Color = OWN_COLOR if side == MapLayout.SIDE_OWN else ENEMY_COLOR
 		var center: Vector2 = layout.base_center(side)
 		_posts[side] = _add_post(center)
-		var base: Array[StandardMaterial3D] = _add_base_zone(side, color)
-		var rescue: Array[StandardMaterial3D] = _add_rescue_area(side, color)
+		var base: Array[StandardMaterial3D] = _add_marked_zone(layout.base_rect(side), layout.base_corner, color)
+		var rescue: Array[StandardMaterial3D] = _add_marked_zone(layout.rescue_rect(side), RESCUE_CORNER_RADIUS, color)
 		_base_materials[side] = [base[0], base[1], rescue[0], rescue[1]]
 		_side_tint[side] = color
 	_turn_posts(MapLayout.SIDE_OWN)
@@ -393,50 +393,20 @@ func _add_obstacle(index: int) -> void:
 	_add_prop(PropModel.fit(id, footprint, cover_height(), not diorama), at, PI / 2.0 if turned else 0.0)
 
 
-## The base: a faint team-tinted circle round the post, cut off by the street edges,
-## with team tape on its curved rim (the same look as the tagged box).
-## Returns [tape, fill] materials (recoloured per viewer).
-func _add_base_zone(side: int, color: Color) -> Array[StandardMaterial3D]:
+## A base or a rescue area: a faint team-tinted rounded rectangle with a full outline, cut off by the street's edge. Only marks on the
+## ground: nothing is blocked. Returns [tape, fill] materials (recoloured per viewer).
+func _add_marked_zone(rect: Rect2, corner: float, color: Color) -> Array[StandardMaterial3D]:
 	var materials: Array[StandardMaterial3D] = _zone_materials(color)
-	_add_zone(layout.base_rect(side), layout.base_corner, materials[0], materials[1])
+	_add_fill(rect.get_center(), rounded_outline(rect, corner), materials[1])
+	_add_outline(rect, corner, materials[0])
 	return materials
-
-
-## The tagged box and the rescue area round it, in two parts: the box inside (outline only, no colour) and the ring outside it
-## (the rescue area: a faint tint), each with a full outline in the team's fixed colour. They are only marks on the ground:
-## nothing is blocked, so a teammate walks straight in to rescue. Returns [tape, fill].
-func _add_rescue_area(side: int, color: Color) -> Array[StandardMaterial3D]:
-	var materials: Array[StandardMaterial3D] = _zone_materials(color)
-	var area: Rect2 = layout.rescue_rect(side)
-	var box: Rect2 = layout.jail_rect(side)
-	var outer: Array[Vector2] = rounded_outline(area, RESCUE_CORNER_RADIUS)
-	var inner: Array[Vector2] = rounded_outline(box, JAIL_CORNER_RADIUS)
-	var keep: Array[bool] = _all(outer.size())
-	# the tint is the ring between the two outlines (a strip a hair under the outlines), the box inside it stays clear
-	_add_tape(outer, inner, keep, materials[1], -0.006)
-	_add_outline(area, RESCUE_CORNER_RADIUS, materials[0])
-	_add_outline(box, JAIL_CORNER_RADIUS, materials[0])
-	return materials
-
-
-## A zone's mark on the road: a faint team fill inside a team-coloured outline all round (`rect` with its corners rounded).
-func _add_zone(rect: Rect2, corner: float, tape: StandardMaterial3D, fill: StandardMaterial3D) -> void:
-	_add_fill(rect.get_center(), rounded_outline(rect, corner), fill)
-	_add_outline(rect, corner, tape)
 
 
 ## The team-coloured line round `rect` (its corners rounded), `TAPE_WIDTH` wide, drawn inside the rectangle.
 func _add_outline(rect: Rect2, corner: float, tape: StandardMaterial3D) -> void:
 	var rim: Array[Vector2] = rounded_outline(rect, corner)
 	var inner: Array[Vector2] = rounded_outline(rect.grow(-TAPE_WIDTH), maxf(corner - TAPE_WIDTH, 0.0))
-	_add_tape(rim, inner, _all(rim.size()), tape)
-
-
-static func _all(count: int) -> Array[bool]:
-	var kept: Array[bool] = []
-	kept.resize(count)
-	kept.fill(true)
-	return kept
+	_add_tape(rim, inner, tape)
 
 
 ## The outline of `rect` with its corners rounded to `radius`, as a closed list of points (the same count for any rect).
@@ -476,7 +446,7 @@ func _fill_material(color: Color, alpha: float) -> StandardMaterial3D:
 
 
 ## A flat fan from `center` out to the closed `outline`, just above the road.
-func _add_fill(center: Vector2, outline: Array[Vector2], material: StandardMaterial3D, lift: float = 0.0) -> void:
+func _add_fill(center: Vector2, outline: Array[Vector2], material: StandardMaterial3D) -> void:
 	var tool: SurfaceTool = SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_normal(Vector3.UP)
@@ -484,23 +454,20 @@ func _add_fill(center: Vector2, outline: Array[Vector2], material: StandardMater
 		var a: Vector2 = outline[i]
 		var b: Vector2 = outline[(i + 1) % outline.size()]
 		for point: Vector2 in [center, b, a]:
-			tool.add_vertex(Vector3(point.x, RING_HEIGHT + lift, point.y))
+			tool.add_vertex(Vector3(point.x, RING_HEIGHT, point.y))
 	var mesh: ArrayMesh = tool.commit()
 	mesh.surface_set_material(0, material)
 	_add(mesh, Vector3.ZERO).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
-## Tape between the closed `outer` line and the matching `inner` line, on the
-## segments whose both ends are marked in `keep`.
-func _add_tape(outer: Array[Vector2], inner: Array[Vector2], keep: Array[bool], material: StandardMaterial3D, lift: float = 0.0) -> void:
+## Tape between the closed `outer` line and the matching `inner` line.
+func _add_tape(outer: Array[Vector2], inner: Array[Vector2], material: StandardMaterial3D) -> void:
 	var tool: SurfaceTool = SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_normal(Vector3.UP)
-	var height: float = RING_HEIGHT + 0.006 + lift
+	var height: float = RING_HEIGHT + 0.006
 	for i: int in outer.size():
 		var j: int = (i + 1) % outer.size()
-		if not (keep[i] and keep[j]):
-			continue
 		for point: Vector2 in [outer[i], outer[j], inner[j], outer[i], inner[j], inner[i]]:
 			tool.add_vertex(Vector3(point.x, height, point.y))
 	var mesh: ArrayMesh = tool.commit()
@@ -656,7 +623,7 @@ func _add_sidewalk_props(walk_x: float) -> void:
 	var right: float = -PI / 2.0
 	_add_prop(PropModel.by_height("cat", CAT_HEIGHT * scenery()), Vector3(-walk_x - 0.2, CURB_HEIGHT, -3.0), left)
 	_add_prop(PropModel.by_height("dog", DOG_HEIGHT * scenery()), Vector3(walk_x + 0.2, CURB_HEIGHT, -9.0), right)
-	_add_prop(PropModel.by_height("chicken_cage", CHICKEN_CAGE_HEIGHT * scenery()), Vector3(walk_x + 0.3, CURB_HEIGHT, 14.0), right)
+	_add_prop(PropModel.by_height("chicken_cage", CHICKEN_CAGE_HEIGHT * scenery()), Vector3(walk_x + 0.3, CURB_HEIGHT, 6.0), right)
 	for spot: Vector2 in [Vector2(-walk_x, -17.0), Vector2(-walk_x, 7.0), Vector2(walk_x, 0.0), Vector2(walk_x, 19.0)]:
 		_add_prop(PropModel.make("drainage_cover", Vector3.ONE * (DRAINAGE_COVER_WIDTH * scenery() / PropModel.size_of("drainage_cover").x)), Vector3(spot.x, CURB_HEIGHT, spot.y))
 

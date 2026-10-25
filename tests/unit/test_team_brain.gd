@@ -145,14 +145,14 @@ func test_priority_three_from_the_enemy_base_the_lowest_numbered_free_rusher_fet
 	sim.add_player(4, 0)
 	sim.set_loadout(4, &"bato_light", &"papel_shield")
 	sim.kill(4)
-	var box: Vector2 = LAYOUT.jail_rect(sim.side_for_team(0)).get_center()
+	var area: Vector2 = LAYOUT.rescue_rect(sim.side_for_team(0)).get_center()
 	sim.players[1].position = _spot(sim)
 	sim.players[2].position = _spot(sim)
 	var first: TeamBrain = TeamBrain.rusher(sim.players[1].spawn_position, _spot(sim))
 	var second: TeamBrain = TeamBrain.rusher(sim.players[2].spawn_position, _spot(sim))
 	var one: PlayerInput = first.think(sim.players[1], sim)
 	var two: PlayerInput = second.think(sim.players[2], sim)
-	assert_gt(_way(one, sim.players[1]).dot((box - sim.players[1].position).normalized()), 0.99, "number 1 goes to the box")
+	assert_gt(_way(one, sim.players[1]).dot((area - sim.players[1].position).normalized()), 0.99, "number 1 goes to the rescue area")
 	assert_lt(_way(two, sim.players[2]).length(), 0.5, "number 2 stays holding the base")
 
 
@@ -162,13 +162,13 @@ func test_a_rescue_that_has_started_is_not_called_off_by_leaving_the_base() -> v
 	sim.add_player(4, 0)
 	sim.set_loadout(4, &"bato_light", &"papel_shield")
 	sim.kill(4)
-	var box: Vector2 = LAYOUT.jail_rect(sim.side_for_team(0)).get_center()
+	var area: Vector2 = LAYOUT.rescue_rect(sim.side_for_team(0)).get_center()
 	sim.players[1].position = _spot(sim)
 	var brain: TeamBrain = TeamBrain.rusher(sim.players[1].spawn_position, _spot(sim))
 	brain.think(sim.players[1], sim)
-	sim.players[1].position = (_spot(sim) + box) / 2.0
+	sim.players[1].position = (_spot(sim) + area) / 2.0
 	var input: PlayerInput = brain.think(sim.players[1], sim)
-	assert_gt(_way(input, sim.players[1]).dot((box - sim.players[1].position).normalized()), 0.99, "it keeps going to the box")
+	assert_gt(_way(input, sim.players[1]).dot((area - sim.players[1].position).normalized()), 0.99, "it keeps going to the rescue area")
 
 
 func test_a_defender_at_its_post_fetches_a_tagged_teammate_only_from_the_post() -> void:
@@ -177,7 +177,7 @@ func test_a_defender_at_its_post_fetches_a_tagged_teammate_only_from_the_post() 
 	sim.add_player(4, 0)
 	sim.set_loadout(4, &"bato_light", &"papel_shield")
 	sim.kill(4)
-	var box: Vector2 = LAYOUT.jail_rect(sim.side_for_team(0)).get_center()
+	var area: Vector2 = LAYOUT.rescue_rect(sim.side_for_team(0)).get_center()
 	var away: TeamBrain = TeamBrain.defender(sim.players[1].spawn_position)
 	sim.players[1].position = LAYOUT.base_center(MapLayout.SIDE_ENEMY)
 	var wandering: PlayerInput = away.think(sim.players[1], sim)
@@ -185,4 +185,24 @@ func test_a_defender_at_its_post_fetches_a_tagged_teammate_only_from_the_post() 
 	var home: TeamBrain = TeamBrain.defender(sim.players[1].spawn_position)
 	sim.players[1].position = sim.players[1].spawn_position
 	var input: PlayerInput = home.think(sim.players[1], sim)
-	assert_gt(_way(input, sim.players[1]).dot((box - sim.players[1].position).normalized()), 0.99, "from its post it goes for the box")
+	assert_gt(_way(input, sim.players[1]).dot((area - sim.players[1].position).normalized()), 0.99, "from its post it goes for the rescue area")
+
+
+func test_bots_walk_to_the_rescue_area_and_free_a_tagged_teammate() -> void:
+	var sim: MatchSim = _sim()
+	sim.players[3].position = Vector2(100.0, 100.0)
+	sim.add_player(4, 0)
+	sim.set_loadout(4, &"bato_light", &"papel_shield")
+	sim.kill(4)
+	var brains: Dictionary[int, TeamBrain] = {
+		1: TeamBrain.defender(sim.players[1].spawn_position), 2: TeamBrain.defender(sim.players[2].spawn_position),
+	}
+	var freed: bool = false
+	for i: int in 30 * 40:
+		for id: int in brains:
+			sim.set_input(id, brains[id].think(sim.players[id], sim))
+		sim.step(DT)
+		if not sim.players[4].tagged:
+			freed = true
+			break
+	assert_true(freed, "a bot stood in the rescue area for the hold time and freed the kid on the sidewalk")

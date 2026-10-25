@@ -59,7 +59,7 @@ func hit(amount: int, max_health: int) -> void:
 	_flash(lerpf(HIT_LIGHT, HIT_HEAVY, share), HIT_TIME, BUZZ_HIT_MS)
 
 
-## You were tagged and sent to the box.
+## You were tagged and sent to the sidewalk.
 func tagged() -> void:
 	_flash(TAG_PEAK, TAG_TIME, BUZZ_TAG_MS)
 
