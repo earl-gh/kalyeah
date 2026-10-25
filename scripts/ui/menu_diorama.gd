@@ -1,7 +1,7 @@
 class_name MenuDiorama
 extends SubViewportContainer
 ## The main screen's map model: the top half of the play area (the far end, a 1:1 square like the
-## Clash Royale arena on its main screen) on a chunky stone base. Only the corner props (electric posts, the tagged boxes' cardboard walls); no kids,
+## Clash Royale arena on its main screen) on a chunky stone base. Only the corner props (electric posts); no kids,
 ## team colours, sidewalks or movement. It lives
 ## in its own 3D world inside a transparent SubViewport, so it floats over the screen background.
 

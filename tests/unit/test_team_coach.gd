@@ -115,7 +115,7 @@ func test_driven_bots_walk_and_tagged_ones_are_left_alone() -> void:
 	sim.kill(6)
 	var box: Vector2 = sim.players[6].position
 	_run(sim, [coach] as Array[TeamCoach], 1.0)
-	assert_eq(sim.players[6].position, box, "a tagged bot stays in the box")
+	assert_eq(sim.players[6].position, box, "a tagged bot stays where it stands")
 
 
 func test_no_bot_is_driven_outside_play() -> void:
@@ -172,7 +172,7 @@ func test_training_is_still_the_default_practice() -> void:
 	add_child(practice)
 	practice.set_process(false)
 	assert_true(practice.sim.is_fighter(PracticeMatch.ENEMY_PATROL_ID) or practice.rules.practice_fighters == 0)
-	assert_eq(practice.sim.players.size(), 5, "you, an ally dummy, two enemy dummies and the one in the box")
+	assert_eq(practice.sim.players.size(), 5, "you, an ally dummy, two enemy dummies and the one in its rescue area")
 
 
 func test_the_bots_move_when_the_match_runs() -> void:

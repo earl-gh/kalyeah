@@ -105,7 +105,7 @@ func text_for(id: int) -> String:
 	return _status_text(_sim.players[id])
 
 
-## A tagged kid stands in the box, which already says it: no "Tagged" over each one (two of them ran into one word).
+## A tagged kid stands on the sidewalk, which already says it: no "Tagged" over each one (two of them ran into one word).
 func _status_text(state: PlayerState) -> String:
 	var words: PackedStringArray = PackedStringArray()
 	if state.overclocked:
