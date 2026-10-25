@@ -11,10 +11,10 @@ extends Control
 const BAR_SIZE: Vector2 = Vector2(96.0, 18.0)
 ## The dark outline round the bar: thin (screen px, kept at any bar_scale).
 const BAR_OUTLINE: float = 2.0
-## The health number at the bar's top left corner (its left edge lines up with the bar's, its bottom resting on the bar's top outline),
+## The health number at the bar's top left corner (its left edge lines up with the bar's, its middle level with the bar's top outline),
 ## and how far it reaches above the bar.
-const COUNT_FONT: int = UiMetrics.WORLD
-const COUNT_LINE: float = 14.0
+const COUNT_FONT: int = UiMetrics.WORLD_SMALL
+const COUNT_LINE: float = 12.0
 ## The bar sits just above the top of the head (the kid's model is KID_HEIGHT tall).
 const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 const POPUP_TIME: float = 0.9
@@ -24,7 +24,6 @@ const STATUS_FONT: int = UiMetrics.CAPTION
 ## out you are overclocked (owner): the bar blinks blank and red for `exhaust_seconds`, then refills in amber while you only walk, until
 ## it is full. Other kids' stamina is never drawn (docs/GDD.md D33), only their *Exhausted*.
 const STAMINA_SIZE: Vector2 = Vector2(96.0, 8.0)
-const STAMINA_GAP: float = 5.0
 const STAMINA_LOW: float = 0.25
 ## Stamina is blue (health is green, yours; blue for an ally's bar too, but the stamina bar is only ever under your own).
 const STAMINA_COLOR: Color = Color(0.22, 0.52, 1.0)
@@ -248,7 +247,7 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 	_draw_team_mark(state, rect, color)
 	if stamina_visible(state):
 		var stamina: Vector2 = STAMINA_SIZE * bar_scale
-		var under: Rect2 = Rect2(Vector2(head.x - stamina.x / 2.0, rect.end.y + BAR_OUTLINE + STAMINA_GAP), stamina)
+		var under: Rect2 = Rect2(Vector2(head.x - stamina.x / 2.0, stamina_top(rect)), stamina)
 		var look: Array = stamina_fill(state)
 		_draw_thin(under, look[0] as float, look[1] as Color)
 	var status: String = _status_text(state)
@@ -262,16 +261,22 @@ func _draw_hero(state: PlayerState, head: Vector2) -> void:
 		_draw_spinner(head + Vector2(0.0, -SPINNER_LIFT - lift), _sim.rescue_elapsed[state.team] / maxf(_sim.rules.rescue_hold_time, 0.001), RESCUE_COLOR)
 
 
-## The health number at the bar's top left corner: left-aligned with the bar, resting right on the bar's top outline.
+## The health number at the bar's top left corner: left-aligned with the bar, its middle level with the bar's top outline.
 func _draw_count(state: PlayerState, rect: Rect2) -> void:
 	var text: String = str(maxi(state.hp, 0))
 	var width: float = KalyeahTheme.ACTION_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, COUNT_FONT).x
 	_text(KalyeahTheme.ACTION_FONT, text, Vector2(rect.position.x + width / 2.0, count_baseline(rect)), COUNT_FONT, Color.WHITE, 5)
 
 
-## The baseline of the health number over a bar at `rect`: on the outer edge of the bar's top outline, so the number rests on the bar.
+## Where the stamina bar starts under a health bar at `rect`: no gap, the two bars share the line between them (the stamina bar's top
+## outline is the health bar's bottom outline).
+static func stamina_top(rect: Rect2) -> float:
+	return rect.end.y + BAR_OUTLINE
+
+
+## The baseline of the health number over a bar at `rect`: its middle level with the middle of the bar's top outline.
 static func count_baseline(rect: Rect2) -> float:
-	return rect.position.y - BAR_OUTLINE
+	return rect.position.y - BAR_OUTLINE / 2.0 + float(COUNT_FONT) * 0.36
 
 
 ## A rounded bar with a dark outline: the fill in `color`, and a gloss on its upper third.

@@ -71,10 +71,18 @@ func test_the_colours_make_sense_ice_water_and_stamina_are_blue_and_nothing_here
 	assert_gt(OverheadHud.STAMINA_LOW_COLOR.r, OverheadHud.STAMINA_LOW_COLOR.b + 0.4, "and a warning is still amber")
 
 
-func test_the_health_number_rests_on_the_bars_top_outline_and_does_not_cover_the_fill() -> void:
+func test_the_health_number_is_centred_on_the_bars_top_outline() -> void:
 	var bar: Rect2 = Rect2(Vector2(300.0, 400.0), Vector2(48.0, 9.0))
-	assert_almost_eq(OverheadHud.count_baseline(bar), bar.position.y - OverheadHud.BAR_OUTLINE, 0.001, "its bottom is on the bar's top outline")
-	assert_lt(OverheadHud.count_baseline(bar), bar.position.y, "so the green fill stays visible under it")
+	var middle: float = OverheadHud.count_baseline(bar) - float(OverheadHud.COUNT_FONT) * 0.36
+	assert_almost_eq(middle, bar.position.y - OverheadHud.BAR_OUTLINE / 2.0, 0.001, "the number's middle is the middle of the top outline")
+
+
+func test_the_stamina_bar_touches_the_health_bar_with_no_gap() -> void:
+	var bar: Rect2 = Rect2(Vector2(300.0, 400.0), Vector2(48.0, 9.0))
+	var health_outline_bottom: float = bar.end.y + OverheadHud.BAR_OUTLINE
+	var stamina_outline_top: float = OverheadHud.stamina_top(bar) - OverheadHud.BAR_OUTLINE
+	assert_lte(stamina_outline_top, health_outline_bottom, "no gap: the outlines meet (they share the line between the bars)")
+	assert_gte(stamina_outline_top, bar.end.y, "and the stamina bar does not climb into the health bar")
 
 
 func test_a_stamina_bar_in_play_is_blue_and_low_is_amber() -> void:
@@ -93,7 +101,7 @@ func test_a_stamina_bar_in_play_is_blue_and_low_is_amber() -> void:
 func test_the_small_street_numbers_are_smaller_than_the_reading_size_and_max_is_smaller_than_the_counter() -> void:
 	assert_lt(UiMetrics.WORLD, UiMetrics.MIN_TEXT, "below the reading floor on purpose: they are glanced at")
 	assert_gte(UiMetrics.WORLD, 16, "but still legible")
-	assert_lt(OverheadHud.COUNT_FONT, UiMetrics.CAPTION, "the health number is smaller than it was")
+	assert_lt(OverheadHud.COUNT_FONT, UiMetrics.WORLD, "the health number is the smallest street size (owner: smaller)")
 	assert_lt(CardHand.MAX_FONT, CardHand.BAR_FONT, "\"Max: 10\" is smaller than the ice water counter")
 	assert_lt(float(CardHand.MAX_FONT), float(CardHand.BAR_FONT) * 0.8, "clearly smaller, not nearly the same")
 	assert_gt(UiMetrics.WORLD, 0)
