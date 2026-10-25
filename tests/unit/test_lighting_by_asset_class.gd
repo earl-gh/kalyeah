@@ -1,10 +1,10 @@
 extends GutTest
 ## Light and colour by asset class (owner): the floor is the owner's picture with no light, tint or grading on it; the zone marks are the
-## exact team blue and red; the post pictures are unshaded; only the 3D models take the lights, and they are matte. The Environment
+## exact team blue and red; only the 3D models (the posts too) take the lights, and they are matte. The Environment
 ## carries no tonemap curve, saturation or contrast that would bend any of them.
 
 const MAP_SCENE: PackedScene = preload("res://scenes/map/street_map.tscn")
-const PROPS: Array[String] = ["bench", "vulcanizing", "tricycle", "nanay", "cat"]
+const PROPS: Array[String] = ["bench", "vulcanizing", "tricycle", "nanay", "cat", "post_blue", "post_red"]
 
 
 func _map() -> StreetMap:
@@ -50,14 +50,6 @@ func test_the_zone_marks_are_unshaded_in_the_exact_team_colours() -> void:
 		assert_eq(Color(material.albedo_color, 1.0), Palette.TEAM_OWN, "still exact after the teams swap ends")
 
 
-func test_the_post_pictures_are_unshaded_and_not_modulated() -> void:
-	var map: StreetMap = _map()
-	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
-		var post: Sprite3D = map._posts[side] as Sprite3D
-		assert_false(post.shaded, "no light on a picture")
-		assert_eq(post.modulate, Color.WHITE, "drawn as the owner made it")
-
-
 func test_every_3d_model_is_matte() -> void:
 	for id: String in PROPS:
 		var model: Node3D = autofree(PropModel.make(id))
@@ -89,9 +81,9 @@ func test_the_lights_leave_a_models_colour_at_about_its_own() -> void:
 func test_the_pole_is_two_to_three_times_a_kid_on_screen() -> void:
 	var camera: CameraRules = load("res://data/rules/camera_rules.tres") as CameraRules
 	var layout: MapLayout = load("res://data/rules/map_layout.tres") as MapLayout
-	# the post picture faces the camera (its whole height shows); a standing kid shows cos(pitch) of its height
-	var kid_on_screen: float = KidModel.KID_HEIGHT * camera.kid_view_scale * cos(deg_to_rad(camera.pitch_degrees))
-	var ratio: float = layout.post_height / kid_on_screen
+	# the post is a standing model like the kids: the tilt shortens both by the same cos(pitch), so only their drawn heights count
+	var kid_drawn: float = KidModel.KID_HEIGHT * camera.kid_view_scale
+	var ratio: float = layout.post_height / kid_drawn
 	assert_gt(ratio, 2.0, "taller than a kid, clearly")
 	assert_lt(ratio, 3.0, "but proportionate, not a tower over the street")
 

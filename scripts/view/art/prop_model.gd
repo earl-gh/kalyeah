@@ -2,7 +2,7 @@ class_name PropModel
 extends RefCounted
 ## The street props that are real 3D models (assets/models/props/<id>.glb, made by
 ## tools/blender/build_prop_model.py from the owner's Meshy models): the electric post at each
-## base, benches, the cardboard wall, the school-zone sign and the wooden A-frame.
+## base (post_blue and post_red, the owner's own models, one mesh each), benches, the cardboard wall, the school-zone sign and the wooden A-frame.
 ## Every model has its base centre on the origin (x and z centred, y up from 0), the size it was
 ## modelled at, and the matte look from ModelLook. The map scales them to fit.
 
