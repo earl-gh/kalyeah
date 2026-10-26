@@ -11,6 +11,13 @@ const LINE_INSET: float = 3.0
 
 ## True when the card under it is tipped (a card with a picture); a flat card gets a flat rim.
 var tipped: bool = true
+## The card's pose, as on its `CardFace`.
+var pose: Vector2 = CardShape.REST:
+	set(value):
+		if value.distance_to(pose) < 0.0004:
+			return
+		pose = value
+		queue_redraw()
 
 var accent: Color = Color.WHITE:
 	set(value):
@@ -33,10 +40,10 @@ func _draw() -> void:
 	if size.x < 8.0 or size.y < 8.0:
 		return
 	var radius: float = float(KalyeahTheme.CORNER)
-	var outer: PackedVector2Array = CardShape.outline(size, radius) if tipped else CardShape.flat_outline(size, radius)
+	var outer: PackedVector2Array = CardShape.outline(size, radius, 0.0, pose) if tipped else CardShape.flat_outline(size, radius)
 	outer.append(outer[0])
 	for i: int in GLOW_WIDTHS.size():
 		draw_polyline(outer, Color(accent, GLOW_ALPHAS[i]), GLOW_WIDTHS[i], true)
-	var line: PackedVector2Array = CardShape.outline(size, radius, LINE_INSET) if tipped else CardShape.flat_outline(size, radius, LINE_INSET)
+	var line: PackedVector2Array = CardShape.outline(size, radius, LINE_INSET, pose) if tipped else CardShape.flat_outline(size, radius, LINE_INSET)
 	line.append(line[0])
 	draw_polyline(line, accent, LINE_WIDTH, true)

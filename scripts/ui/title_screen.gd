@@ -42,7 +42,7 @@ const HERO_AIR: float = 70.0
 const TITLE_Z: int = 20
 ## How far the name is lifted so its letters (not its line box) are centred on the card's bottom edge.
 const TITLE_LIFT: float = 12.0
-const AMBIENT_BOB: float = 7.0
+const AMBIENT_BOB: float = 12.0
 ## The mode chips need a stage at least this tall to leave the hero a good size; on a shorter screen they step aside.
 const CHIPS_HEIGHT: float = 42.0
 const CHIPS_MIN_STAGE: float = 760.0

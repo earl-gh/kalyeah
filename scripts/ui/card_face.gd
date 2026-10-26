@@ -10,10 +10,25 @@ const FACE_LINE: Color = Color(0.03, 0.05, 0.12, 0.85)
 ## The card's thickness: where the edge shows beyond the face.
 const THICKNESS: Vector2 = Vector2(3.5, 5.0)
 ## The shadow: its layers, how far below the card it falls and how dark the whole of it is.
-const SHADOW_LAYERS: int = 6
-const SHADOW_DROP: Vector2 = Vector2(6.0, 28.0)
-const SHADOW_ALPHA: float = 0.07
+const SHADOW_LAYERS: int = 7
+const SHADOW_DROP: Vector2 = Vector2(10.0, 40.0)
+const SHADOW_ALPHA: float = 0.075
+## How much further the shadow falls (and lighter it gets) as the card floats up.
+const SHADOW_BREATH: float = 10.0
 
+## The card's pose (`CardShape.warp`) and how high it floats (-1 sinking to 1 at the top of its drift): the moving cards set both.
+var pose: Vector2 = CardShape.REST:
+	set(value):
+		if value.distance_to(pose) < 0.0004:
+			return
+		pose = value
+		queue_redraw()
+var lift: float = 0.0:
+	set(value):
+		if absf(value - lift) < 0.01:
+			return
+		lift = value
+		queue_redraw()
 var texture: Texture2D:
 	set(value):
 		texture = value
@@ -35,14 +50,14 @@ func _draw() -> void:
 	if size.x < 8.0 or size.y < 8.0:
 		return
 	var radius: float = float(KalyeahTheme.CORNER)
-	var face: PackedVector2Array = CardShape.outline(size, radius)
+	var face: PackedVector2Array = CardShape.outline(size, radius, 0.0, pose)
 	var centre: Vector2 = size / 2.0
 	for layer: int in SHADOW_LAYERS:
 		var grow: float = 1.0 + 0.012 * float(layer)
 		var shadow: PackedVector2Array = PackedVector2Array()
 		for point: Vector2 in face:
-			shadow.append(centre + (point - centre) * grow + SHADOW_DROP)
-		draw_colored_polygon(shadow, Color(0.0, 0.02, 0.08, SHADOW_ALPHA))
+			shadow.append(centre + (point - centre) * grow + SHADOW_DROP + Vector2(0.0, SHADOW_BREATH * lift))
+		draw_colored_polygon(shadow, Color(0.0, 0.02, 0.08, SHADOW_ALPHA * (1.0 - 0.3 * lift)))
 	var edge: PackedVector2Array = PackedVector2Array()
 	for point: Vector2 in face:
 		edge.append(point + THICKNESS)
