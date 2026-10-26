@@ -7,7 +7,7 @@ extends RefCounted
 const Step := HotspotFlow.Step
 
 
-## Create: `on_ready` runs once, only when this phone's hotspot is on. `open_settings` replaces the button to the phone's
+## Create: `on_ready` runs once, when this phone's hotspot is on, or when it is on a private network and the player chose to host there. `open_settings` replaces the button to the phone's
 ## network settings (tests); with none, the button is there only where Android can open them.
 static func create_check(on_ready: Callable, interfaces: Callable = Callable(), open_settings: Callable = Callable()) -> MenuDialog:
 	var flow: HotspotFlow = HotspotFlow.new(HotspotFlow.Mode.CREATE, interfaces)
@@ -46,15 +46,19 @@ static func _dialog(flow: HotspotFlow, on_done: Callable, open_settings: Callabl
 	detail.name = "Detail"
 	var settings: Button = MenuDialog.make_button("Hotspot settings", "blue", UiMetrics.BODY)
 	settings.name = "Settings"
+	var here: Button = MenuDialog.make_button("Host on this Wi-Fi", "grey", UiMetrics.BODY)
+	here.name = "HostHere"
 	var again: Button = MenuDialog.make_button("Try again", "blue", UiMetrics.BODY)
 	again.name = "TryAgain"
 	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
 	cancel.name = "Cancel"
 	var settings_row: HBoxContainer = card.add_buttons([settings])
+	var here_row: HBoxContainer = card.add_buttons([here])
 	card.add_buttons([again, cancel])
 	var can_open_settings: bool = open_settings.is_valid() or HotspotSettings.available()
 	var opener: Callable = open_settings if open_settings.is_valid() else HotspotSettings.open
 	settings.pressed.connect(opener)
+	here.pressed.connect(flow.host_here)
 	cancel.pressed.connect(card.close)
 	again.pressed.connect(flow.begin)
 	flow.step_changed.connect(func(step: Step) -> void:
@@ -63,7 +67,8 @@ static func _dialog(flow: HotspotFlow, on_done: Callable, open_settings: Callabl
 		detail.text = flow.detail
 		detail.visible = failed
 		again.visible = failed
-		settings_row.visible = step == Step.HOTSPOT_OFF and can_open_settings)
+		settings_row.visible = step == Step.HOTSPOT_OFF and can_open_settings
+		here_row.visible = step == Step.HOTSPOT_OFF and flow.can_host_here)
 	flow.finished.connect(func(url: String) -> void:
 		if card.is_open:
 			card.close(false)

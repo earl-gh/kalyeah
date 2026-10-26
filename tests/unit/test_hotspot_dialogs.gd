@@ -114,6 +114,36 @@ func test_create_says_plainly_when_the_hotspot_is_off_and_never_goes_on() -> voi
 		card.close(false)
 
 
+func test_create_offers_to_host_on_a_private_network_without_going_on_by_itself() -> void:
+	for wifi: Array in [Phones.on_home_wifi(), Phones.guest_on_a_hotspot(), Phones.vpn_over_wifi()]:
+		phone = wifi
+		var went: Array = []
+		var card: MenuDialog = _create(went)
+		await wait_process_frames(3)
+		assert_true(_shown(card, "HostHere"), "a phone on a private network may host there: %s" % HotspotNet.describe(wifi, NET))
+		assert_true(went.is_empty(), "but nothing is created until the player says so")
+		(card.find_child("HostHere", true, false) as Button).pressed.emit()
+		assert_eq(went.size(), 1, "tapping it goes on")
+		assert_false(card.is_open, "and the modal closes")
+		card.close(false)
+
+
+func test_create_does_not_offer_to_host_where_there_is_no_network_to_host_on() -> void:
+	for none: Array in [Phones.on_mobile_data_only(), Phones.offline(), Phones.wifi_without_address(), Phones.wifi_direct_only()]:
+		phone = none
+		var went: Array = []
+		var card: MenuDialog = _create(went)
+		await wait_process_frames(3)
+		assert_false(_shown(card, "HostHere"), "no private network, nothing to host on: %s" % HotspotNet.describe(none, NET))
+		var flow: HotspotFlow = HotspotFlow.new(HotspotFlow.Mode.CREATE, _interfaces)
+		flow.begin()
+		flow.tick(0.0)
+		flow.host_here()
+		assert_eq(flow.step, HotspotFlow.Step.HOTSPOT_OFF, "the flow refuses too")
+		assert_true(went.is_empty())
+		card.close(false)
+
+
 func test_create_failure_shows_the_phones_network_to_read_off_the_screen() -> void:
 	var card: MenuDialog = _create([])
 	await wait_process_frames(3)

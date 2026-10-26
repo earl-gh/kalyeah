@@ -20,6 +20,9 @@ var finder: HotspotFinder = HotspotFinder.new()
 ## Why the room was not found (full, started, other version, or none), and this phone's network, for a failure step.
 var failure: String = ""
 var detail: String = ""
+## Create only: no hotspot was found but this phone is on a private network (a Wi-Fi, or a hotspot that an older phone runs on
+## its Wi-Fi interface), and the beacon works on any such network, so it may host here.
+var can_host_here: bool = false
 
 var _interfaces: Callable
 var _plan_for: Callable
@@ -47,6 +50,14 @@ func begin() -> void:
 func resumed() -> void:
 	if step == Step.HOTSPOT_OFF or step == Step.NO_WIFI:
 		begin()
+
+
+## Create, from the "off" step: host on this network anyway. Only offered when the phone is on a private network.
+func host_here() -> void:
+	if _ended or step != Step.HOTSPOT_OFF or not can_host_here:
+		return
+	_enter(Step.HOTSPOT_ON)
+	_end("")
 
 
 func cancel() -> void:
@@ -79,6 +90,7 @@ func _check() -> void:
 			_enter(Step.HOTSPOT_ON)
 			_end("")
 		else:
+			can_host_here = HotspotNet.wifi_connected(interfaces, RULES)
 			_enter(Step.HOTSPOT_OFF)
 	elif not HotspotNet.wifi_connected(interfaces, RULES):
 		_enter(Step.NO_WIFI)
