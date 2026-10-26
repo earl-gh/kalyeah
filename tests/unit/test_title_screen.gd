@@ -118,9 +118,12 @@ func test_the_cards_show_the_owners_pictures_and_no_text() -> void:
 		assert_not_null(art, "%s has its picture" % ChoiceCard.choice_of(card))
 		assert_gte(art.texture.get_size().x / art.texture.get_size().y, 0.625, "the picture is at least as wide as the card and is cropped to fit")
 		assert_eq(art.stretch_mode, TextureRect.STRETCH_KEEP_ASPECT_COVERED)
+		assert_false(art.visible, "the file is held by the picture node and drawn by the card's face")
+		var face: CardFace = card.find_child("Face", true, false) as CardFace
+		assert_not_null(face, "%s is drawn as a tipped card" % ChoiceCard.choice_of(card))
+		assert_eq(face.texture, art.texture)
 		assert_false((card.get_node("Choice") as Label).visible, "no name on the card")
 		assert_false((card.get_node("Heading") as Label).visible, "no heading on the card")
-		assert_true(art.material is ShaderMaterial, "the picture follows the card's rounded corners")
 	for id: String in ["hotspot", "online", "practice"]:
 		assert_true(ResourceLoader.exists("res://assets/ui/cards/%s.webp" % id), id)
 
