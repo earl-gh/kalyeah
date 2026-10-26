@@ -55,8 +55,8 @@ What a kid is when its stamina runs out: the bar blinks red for two seconds, the
 **Move target**:
 The street point a player tapped (or right-clicked); the kid walks there in a straight line and stops.
 
-**Hotspot**:
-Local multiplayer in which friends discover and join the host's active room without entering a room code.
+**Local** (the multiplayer mode formerly shown as Hotspot; the code still says hotspot):
+Multiplayer on one local network, a phone's hotspot or a shared Wi-Fi, in which friends discover and join the host's active room without entering a room code.
 
 **Beacon**:
 The small UDP answer a hotspot host gives to "is a Kalyeah phone here?", so a friend finds the host's room without knowing its address. It says nothing about the room; the room is checked afterwards over the WebSocket.

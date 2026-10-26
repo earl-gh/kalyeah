@@ -53,7 +53,7 @@ func connect_hud() -> void:
 	# online, the card's one button is already "Return home"; in practice Home sits beside Play again
 	owner.hud.results.home_button.visible = not owner.online
 	owner.hud.results.home_pressed.connect(owner._on_exit_pressed)
-	owner.hud.results_mode = ("Hotspot" if Session.lobby_hotspot else "Online") if owner.online else "Practice"
+	owner.hud.results_mode = ("Local" if Session.lobby_hotspot else "Online") if owner.online else "Practice"
 	owner.hud.swap_pressed.connect(owner.open_swap)
 	owner.hud.exit_pressed.connect(owner._on_exit_pressed)
 

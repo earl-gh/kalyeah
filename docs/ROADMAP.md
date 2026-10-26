@@ -49,9 +49,9 @@ coverage includes pause/focus ordering, quick resume, real touch state, stopped
 client polling and disconnects. The [Android validation record](audits/2026-10-19-android-validation.md)
 separates automated evidence, APK build status and outstanding physical-phone tests.
 
-**Hotspot validation checklist** (full script in the [Hotspot audit](audits/2026-10-26-hotspot.md)): with a stock phone, a phone with a maker
-skin and a third one joining, check: Create says the hotspot is off (also on an ordinary Wi-Fi and on mobile data) and never makes a room;
-Hotspot settings opens; Create works with the hotspot on; Join says to connect when there is no Wi-Fi, says no room before Create and
+**Local (hotspot or Wi-Fi) validation checklist** (full script in the [Hotspot audit](audits/2026-10-26-hotspot.md)): with a stock phone, a phone with a maker
+skin and a third one joining, check: Create with neither a hotspot nor a Wi-Fi (also on mobile data only) says so and never makes a room;
+Network settings opens; Create works with the hotspot on and with only a Wi-Fi; Join says to connect when there is no Wi-Fi, says no room before Create and
 joins within seconds after; full and started messages; Create again after leaving; the host in the background for 10 s; mobile data on
 and off; and report the exact message of any failure with the phone model.
 

@@ -15,7 +15,7 @@ const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
 ## The game modes, first is the default (owner: hotspot first, not online). `accent` tints the
 ## frame of the card and the glow behind it.
 const MODES: Array[Dictionary] = [
-	{"id": "hotspot", "title": "Hotspot", "color": "blue", "accent": "4aa0ff",
+	{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff",
 		"text": "Play on one local network."},
 	{"id": "online", "title": "Online", "color": "orange", "accent": "ffa63a",
 		"text": "Invite friends with a room code."},

@@ -49,7 +49,7 @@ CHANGE WEAPONS,CHANGE WEAPONS
 Change weapons,Change weapons
 Changes apply immediately,Changes apply immediately
 Characters,Characters
-Checking your hotspot…,Checking your hotspot…
+Checking your network…,Checking your network…
 Checking your Wi-Fi…,Checking your Wi-Fi…
 Choices,Choices
 Choose %s,Choose %s
@@ -60,7 +60,7 @@ Code pasted,Code pasted
 Colour-blind colours,Colour-blind colours
 Comfort,Comfort
 Coming soon,Coming soon
-"Connect to your friend's hotspot in Wi-Fi settings, then tap Try again.","Connect to your friend's hotspot in Wi-Fi settings, then tap Try again."
+"Connect to the same Wi-Fi or hotspot as your friend, then tap Try again.","Connect to the same Wi-Fi or hotspot as your friend, then tap Try again."
 Connecting…,Connecting…
 "Connection lost
 Reconnecting…","Connection lost
@@ -104,9 +104,8 @@ Held your base,Held your base
 Help me!,Help me!
 History,History
 HOLD THE BASE!,HOLD THE BASE!
-Hotspot,Hotspot
-Host on this Wi-Fi,Host on this Wi-Fi
-Hotspot settings,Hotspot settings
+Local,Local
+Network settings,Network settings
 How it plays,How it plays
 How the points went,How the points went
 How to play,How to play
@@ -257,8 +256,8 @@ Weapons,Weapons
 Wow!,Wow!
 YOU,YOU
 YOU %d - %d THEM   %s,YOU %d - %d THEM   %s
-"Your hotspot is off. Turn it on, then tap Try again.","Your hotspot is off. Turn it on, then tap Try again."
-Your hotspot is on. Starting the room…,Your hotspot is on. Starting the room…
+"Turn on your hotspot or connect to Wi-Fi, then tap Try again.","Turn on your hotspot or connect to Wi-Fi, then tap Try again."
+Starting the room…,Starting the room…
 Your kids and the weapons,Your kids and the weapons
 Your last battles,Your last battles
 Your last battles on this phone.,Your last battles on this phone.

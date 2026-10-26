@@ -35,7 +35,7 @@ const TIPS: Array[String] = [
 	"Drag a card onto the street, then let go to throw it.",
 	"Block a throw with a paper shield, or play it safe behind cover.",
 	"Practice is the safest place to try every weapon.",
-	"Hotspot rooms need no server: share a hotspot and play.",
+	"Local rooms need no server: share a hotspot or a Wi-Fi and play.",
 	"A quick tap on a card aims at the nearest enemy for you.",
 ]
 ## The bar never fills faster than this, so the screen is seen even when loading is instant.

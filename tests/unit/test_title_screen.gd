@@ -72,7 +72,7 @@ func test_the_screen_has_everything_the_owner_asked_for() -> void:
 	assert_not_null(screen.find_child("Logo", true, false), "the game's logo")
 	assert_not_null(screen.profile_chip, "your profile")
 	assert_not_null(screen.carousel, "the mode carousel")
-	assert_eq(screen.mode_name_label.text, "Hotspot", "hotspot is the default mode")
+	assert_eq(screen.mode_name_label.text, "Local", "hotspot is the default mode")
 	assert_null(screen.find_child("MapButton", true, false), "no map button")
 	assert_eq(screen.primary_button.text, "Create room")
 	assert_eq(screen.secondary_button.text, "Join room")
@@ -242,7 +242,7 @@ func test_the_carousel_is_hotspot_online_practice_with_the_chosen_card_in_front(
 	await wait_frames(3)
 	var strip: MenuCarousel = screen.carousel
 	assert_eq(strip.cards.size(), 3)
-	assert_eq(ChoiceCard.choice_of(strip.cards[0]), "Hotspot", "hotspot first, not online")
+	assert_eq(ChoiceCard.choice_of(strip.cards[0]), "Local", "hotspot first, not online")
 	assert_eq(ChoiceCard.choice_of(strip.cards[1]), "Online")
 	assert_eq(ChoiceCard.choice_of(strip.cards[2]), "Practice")
 	var middle: Button = strip.cards[0]

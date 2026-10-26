@@ -8,7 +8,7 @@ signal play_pressed
 
 const FILTERS: Array[Dictionary] = [
 	{"id": &"", "label": "All"}, {"id": &"practice", "label": "Practice"},
-	{"id": &"hotspot", "label": "Hotspot"}, {"id": &"online", "label": "Online"},
+	{"id": &"hotspot", "label": "Local"}, {"id": &"online", "label": "Online"},
 ]
 
 ## Which battles are shown: every mode (an empty name) or one.

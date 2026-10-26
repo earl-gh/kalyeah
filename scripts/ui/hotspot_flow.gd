@@ -1,6 +1,6 @@
 class_name HotspotFlow
 extends RefCounted
-## What happens behind a hotspot modal, with no widget in it. Create: is this phone's hotspot on? Join: is this phone on a
+## What happens behind a hotspot modal, with no widget in it. Create: is this phone's hotspot on, or is it on a Wi-Fi? Join: is this phone on a
 ## Wi-Fi, and is there a verified room on it? It decides, it never creates or joins anything: `finished` tells the screen
 ## to go on (with the room's address when joining). Drive it with `tick(delta)` every frame; every state can be cancelled
 ## and ends by itself, and after `cancel` or `finished` nothing is emitted again.
@@ -10,7 +10,7 @@ signal step_changed(step: Step)
 signal finished(url: String)
 
 enum Mode { CREATE, JOIN }
-enum Step { CHECKING, HOTSPOT_OFF, HOTSPOT_ON, NO_WIFI, SEARCHING, FOUND, NO_ROOM }
+enum Step { CHECKING, NO_NETWORK, NETWORK_OK, NO_WIFI, SEARCHING, FOUND, NO_ROOM }
 
 const RULES: NetRules = preload("res://data/rules/net_rules.tres")
 
@@ -19,10 +19,6 @@ var step: Step = Step.CHECKING
 var finder: HotspotFinder = HotspotFinder.new()
 ## Why the room was not found (full, started, other version, or none), for a failure step.
 var failure: String = ""
-## Create only: no hotspot was found but this phone is on a private network (a Wi-Fi, or a hotspot that an older phone runs on
-## its Wi-Fi interface), and the beacon works on any such network, so it may host here.
-var can_host_here: bool = false
-
 var _interfaces: Callable
 var _plan_for: Callable
 var _check_next: bool = false
@@ -47,16 +43,8 @@ func begin() -> void:
 
 ## The app came back from the phone's settings: look again if it was waiting for them.
 func resumed() -> void:
-	if step == Step.HOTSPOT_OFF or step == Step.NO_WIFI:
+	if step == Step.NO_NETWORK or step == Step.NO_WIFI:
 		begin()
-
-
-## Create, from the "off" step: host on this network anyway. Only offered when the phone is on a private network.
-func host_here() -> void:
-	if _ended or step != Step.HOTSPOT_OFF or not can_host_here:
-		return
-	_enter(Step.HOTSPOT_ON)
-	_end("")
 
 
 func cancel() -> void:
@@ -83,12 +71,12 @@ func tick(delta: float) -> void:
 func _check() -> void:
 	var interfaces: Array = _interfaces.call() as Array
 	if mode == Mode.CREATE:
-		if HotspotNet.hotspot_on(interfaces, RULES):
-			_enter(Step.HOTSPOT_ON)
+		# the host has two ways to make a room: its own hotspot, or the Wi-Fi it is connected to
+		if HotspotNet.hotspot_on(interfaces, RULES) or HotspotNet.wifi_connected(interfaces, RULES):
+			_enter(Step.NETWORK_OK)
 			_end("")
 		else:
-			can_host_here = HotspotNet.wifi_connected(interfaces, RULES)
-			_enter(Step.HOTSPOT_OFF)
+			_enter(Step.NO_NETWORK)
 	elif not HotspotNet.wifi_connected(interfaces, RULES):
 		_enter(Step.NO_WIFI)
 	else:
