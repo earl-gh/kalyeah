@@ -1,6 +1,6 @@
 class_name CardFace
 extends Control
-## A mode card's picture drawn as a real card floating over the table: the picture on the tipped outline (`CardShape`), a thin
+## A mode card's picture drawn as a real card floating over the table (straight): the picture on its outline (`CardShape`), a thin
 ## paper-white edge along the bottom and the right (the card's thickness, about 4 px, almost paper thin) and a soft shadow
 ## well below it. The card's own button draws nothing behind it.
 
@@ -16,13 +16,7 @@ const SHADOW_ALPHA: float = 0.075
 ## How much further the shadow falls (and lighter it gets) as the card floats up.
 const SHADOW_BREATH: float = 10.0
 
-## The card's pose (`CardShape.warp`) and how high it floats (-1 sinking to 1 at the top of its drift): the moving cards set both.
-var pose: Vector2 = CardShape.REST:
-	set(value):
-		if value.distance_to(pose) < 0.0004:
-			return
-		pose = value
-		queue_redraw()
+## How high the card floats (-1 sinking to 1 at the top of its drift): the middle card sets it as it drifts, and its shadow follows.
 var lift: float = 0.0:
 	set(value):
 		if absf(value - lift) < 0.01:
@@ -50,7 +44,7 @@ func _draw() -> void:
 	if size.x < 8.0 or size.y < 8.0:
 		return
 	var radius: float = float(KalyeahTheme.CORNER)
-	var face: PackedVector2Array = CardShape.outline(size, radius, 0.0, pose)
+	var face: PackedVector2Array = CardShape.outline(size, radius)
 	var centre: Vector2 = size / 2.0
 	for layer: int in SHADOW_LAYERS:
 		var grow: float = 1.0 + 0.012 * float(layer)
@@ -66,7 +60,7 @@ func _draw() -> void:
 	if texture == null:
 		draw_colored_polygon(face, Color("2c4685"))
 	else:
-		var flat: PackedVector2Array = CardShape.flat_outline(size, radius)
+		var flat: PackedVector2Array = CardShape.outline(size, radius)
 		var uvs: PackedVector2Array = PackedVector2Array()
 		var colors: PackedColorArray = PackedColorArray()
 		var cover: Vector2 = _cover_scale()

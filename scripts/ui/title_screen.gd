@@ -38,7 +38,7 @@ const HERO_RATIO: float = 0.625
 const HERO_MIN_HEIGHT: float = 480.0
 const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 70.0
-## The share of the room the hero card takes (owner: smaller, so the tipped card floats with space round it).
+## The share of the room the hero card takes (owner: smaller, so the floating card floats with space round it).
 const HERO_SCALE: float = 0.86
 ## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
 const TITLE_Z: int = 20

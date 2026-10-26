@@ -52,7 +52,7 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		card.pivot_offset = card_size / 2.0
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.focus_mode = Control.FOCUS_NONE
-		card.add_child(_frame(String(option.get("accent", "ffd25a")), card.get_node_or_null("Face") != null))
+		card.add_child(_frame(String(option.get("accent", "ffd25a"))))
 		add_child(card)
 		cards.append(card)
 	if accessibility_name.is_empty():
@@ -64,9 +64,8 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 
 
 ## The bright rim of the card in the middle: a glowing frame in the card's accent colour.
-func _frame(accent: String, tipped: bool) -> CardRim:
+func _frame(accent: String) -> CardRim:
 	var rim: CardRim = CardRim.new()
-	rim.tipped = tipped
 	rim.accent = Color(accent)
 	return rim
 
@@ -123,29 +122,21 @@ func _layout() -> void:
 		var shade: float = 1.0 - SHADE_LOSS * away
 		card.modulate = Color(shade, shade, shade, lerpf(1.0, BACK_ALPHA, clampf(absf(offset), 0.0, 1.0)))
 		card.z_index = 10 - int(roundf(absf(offset) * 5.0))
-		_pose(card, away, drift_phase)
+		_float(card, away, drift_phase)
 		var frame: Control = card.get_node_or_null("Frame") as Control
 		if frame != null:
 			frame.modulate.a = clampf(1.0 - absf(offset) * 1.6, 0.0, 1.0)
 
 
-## Tips a card with a picture: at rest, and, on the middle card while the screen idles, slowly breathing and rocking.
-func _pose(card: Button, away: float, phase: float) -> void:
+## Floats a card with a picture: while the screen idles the middle card's shadow breathes with its drift.
+func _float(card: Button, away: float, phase: float) -> void:
 	var face: CardFace = card.get_node_or_null("Face") as CardFace
 	if face == null:
 		return
-	var pose: Vector2 = CardShape.REST
 	var lift: float = 0.0
 	if bob > 0.0 and not Settings.reduced_motion:
-		var weight: float = clampf(1.0 - away, 0.0, 1.0)
-		var seconds: float = float(Time.get_ticks_msec()) / 1000.0
-		pose = Vector2(CardShape.TILT * (1.0 + 0.3 * sin(seconds * FLOAT_SPEED * 0.55) * weight), CardShape.SWAY * sin(seconds * FLOAT_SPEED * 0.4 + 1.1) * weight)
-		lift = -phase * weight
-	face.pose = pose
+		lift = -phase * clampf(1.0 - away, 0.0, 1.0)
 	face.lift = lift
-	var rim: CardRim = card.get_node_or_null("Frame") as CardRim
-	if rim != null:
-		rim.pose = pose
 
 
 func _on_accessibility_changed() -> void:
