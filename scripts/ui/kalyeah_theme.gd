@@ -41,6 +41,11 @@ const ERROR: Color = Color("ffb4ab")
 const TEAM_BLUE: Color = Color("435bc2")
 const TEAM_RED: Color = Color("b83246")
 const FIELD: Color = Color("0d1729")
+## The modal (owner): a light gray frame that holds the header, and a dark blue-gray body inside it.
+const MODAL_FRAME: Color = Color("c3cbd8")
+const MODAL_FRAME_EDGE: Color = Color("8b97ab")
+const MODAL_BODY: Color = Color("2b3a53")
+const MODAL_TITLE: Color = INK
 
 ## Flat surfaces share the skin's corner scale: CORNER is the button and card radius.
 const CORNER: int = UiSkin.RADIUS_L
@@ -215,6 +220,30 @@ static func surface_box(corner: int = UiSkin.RADIUS_L, border: int = 1, padding:
 ## The standard panel: a lit glass plate with a soft shadow (UiSkin).
 static func painted_panel(padding: float = PANEL_PADDING) -> StyleBox:
 	return UiSkin.plate("glass", padding)
+
+
+## The light gray frame of a modal: it holds the header and the body, `rim` px of gray round the body.
+static func modal_frame(rim: float) -> StyleBoxFlat:
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = MODAL_FRAME
+	box.set_corner_radius_all(UiSkin.RADIUS_XL)
+	box.set_border_width_all(3)
+	box.border_color = MODAL_FRAME_EDGE
+	box.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
+	box.shadow_size = 18
+	box.set_content_margin_all(rim)
+	box.anti_aliasing = true
+	return box
+
+
+## The dark blue-gray body inside a modal's frame.
+static func modal_body(padding: float) -> StyleBoxFlat:
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = MODAL_BODY
+	box.set_corner_radius_all(UiSkin.RADIUS_L)
+	box.set_content_margin_all(padding)
+	box.anti_aliasing = true
+	return box
 
 
 static func painted_pill() -> StyleBoxFlat:
