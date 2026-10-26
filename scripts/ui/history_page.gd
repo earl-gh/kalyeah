@@ -26,7 +26,7 @@ var _list: VBoxContainer
 func _ready() -> void:
 	name = "HistoryPage"
 	add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
-	add_child(UiKit.page_header("History", "Your last battles on this phone."))
+	add_child(UiKit.page_header("History", "Your last battles on this phone!"))
 	_top = VBoxContainer.new()
 	_top.name = "Top"
 	_top.add_theme_constant_override("separation", UiMetrics.GAP)
@@ -109,7 +109,7 @@ func refresh() -> void:
 
 
 ## Nothing yet: a friendly card instead of a blank page.
-func _empty(heading: String = "No battles yet", hint_text: String = "Play a match to start your history.") -> Control:
+func _empty(heading: String = "No battles yet", hint_text: String = "Win your first battle to fill your history!") -> Control:
 	var column: VBoxContainer = VBoxContainer.new()
 	column.name = "Empty"
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -120,7 +120,7 @@ func _empty(heading: String = "No battles yet", hint_text: String = "Play a matc
 	var hint: Label = UiKit.text(hint_text, UiMetrics.DETAIL, Color("9fb0d6"))
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(hint)
-	var play: Button = MenuDialog.make_button("Play a match", "orange", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
+	var play: Button = MenuDialog.make_button("Start a battle!", "orange", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
 	play.name = "PlayButton"
 	play.pressed.connect(play_pressed.emit)
 	column.add_child(play)

@@ -97,10 +97,10 @@ func test_join_with_a_bad_code_shows_why() -> void:
 	var guest: LobbyScreen = _lobby(LobbyScreen.Intent.JOIN)
 	guest.set_fields(URL, "Ben", "ABC")
 	guest.submit()
-	assert_eq(guest.status_text(), "Enter all 8 characters.")
+	assert_eq(guest.status_text(), "Enter all 8 characters!")
 	guest.set_fields(URL, "Ben", "ZZZZZZZZ")
 	guest.submit()
-	assert_true(_until(func() -> bool: return guest.status_text() == "No room with that code."))
+	assert_true(_until(func() -> bool: return guest.status_text() == "No room with that code. Check it and try again!"))
 	var host: LobbyScreen = _lobby(LobbyScreen.Intent.CREATE)
 	host.set_fields(URL, "Ana")
 	host.submit()
@@ -229,7 +229,7 @@ func test_a_hotspot_create_on_a_busy_port_says_so_and_offers_try_again() -> void
 	Session.lobby_hotspot = true
 	var host: LobbyScreen = _lobby(LobbyScreen.Intent.CREATE)
 	await wait_process_frames(2)
-	assert_eq(host.status_text(), "Can't start the room on this phone.")
+	assert_eq(host.status_text(), "Oops! This phone can't start the room.")
 	assert_true(host._room_view.retry_button.visible, "Try again is there")
 	assert_null(Net.host, "no half-started server")
 	blocker.stop()
@@ -257,7 +257,7 @@ func test_the_online_lobby_has_no_server_field_and_says_so_when_none_is_built_in
 	var lobby: LobbyScreen = _lobby(LobbyScreen.Intent.CREATE)
 	lobby.set_fields("", "Ana")
 	lobby.submit()
-	assert_eq(lobby.status_text(), "Online isn't available yet.")
+	assert_eq(lobby.status_text(), "Online is coming soon!")
 	assert_eq(lobby.find_children("*", "LineEdit", true, false).size(), 0, "Create has no form: no name box either (the name is the profile's)")
 	Settings.server_url = saved
 

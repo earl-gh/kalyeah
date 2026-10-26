@@ -7,7 +7,7 @@ extends ScrollContainer
 ## The streets in order: the map id (RoomService.MAP_IDS), its name, the game it is, a colour, and what the street game is.
 const STREETS: Array[Dictionary] = [
 	{"id": &"street", "name": "A. Base Street", "game": "Agawan Base", "color": "blue",
-		"blurb": "Two teams, two bases. Tag the other team, free your own, and hold their base."},
+		"blurb": "Two teams, two bases! Tag the other team, free your own, and hold their base."},
 	{"id": &"tumbang_preso", "name": "T. Preso Street", "game": "Tumbang Preso", "color": "orange",
 		"blurb": "Players throw a tsinelas to knock down a tin can while the guard, the taya, defends it."},
 	{"id": &"patintero", "name": "Patintero Street", "game": "Patintero", "color": "green",
@@ -29,7 +29,7 @@ func _ready() -> void:
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	add_child(_content)
-	_content.add_child(UiKit.page_header("Street", "Every game is a street. Pick one and see how it plays."))
+	_content.add_child(UiKit.page_header("Street", "Every game is a street. Tap one to see how it plays!"))
 	var rules: GameRules = load(RULES_PATH) as GameRules
 	for street: Dictionary in STREETS:
 		var id: StringName = street["id"] as StringName
@@ -52,13 +52,13 @@ static func mechanics_for(id: StringName, rules: GameRules) -> Array[String]:
 		choices.append(str(points))
 	var to_win: String = ", ".join(choices.slice(0, choices.size() - 1)) + " or " + choices[choices.size() - 1] if choices.size() > 1 else choices[0]
 	return [
-		"Two teams. The first to %s points wins; the host picks." % to_win,
-		"Tap the street to walk there. Drag a card onto the street to throw it, drop it back on your hand to cancel.",
-		"You hold four cards. Each costs ice water, which refills over time.",
-		"Run too long and you can only walk until your stamina is full again.",
-		UiText.f("Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d s frees the one tagged first.", [ceili(rules.rescue_hold_time)]),
-		UiText.f("Stay in their base to capture it: %d s alone, faster with teammates. Nobody can throw while capturing.", [ceili(rules.capture_solo_time)]),
-		UiText.f("Or tag all of them and hold it for %d s.", [ceili(rules.capture_time)]),
+		"Two teams! The first to %s points wins, and the host picks." % to_win,
+		"Tap the street to walk there. Drag a card onto the street to throw it, or drop it back on your hand to cancel.",
+		"You hold four cards! Each costs ice water, which refills over time.",
+		"Run too long and you can only walk until your stamina is full!",
+		UiText.f("Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d s frees the first one tagged!", [ceili(rules.rescue_hold_time)]),
+		UiText.f("Stay in their base to capture it: %d s alone, faster with friends! You can't throw while capturing.", [ceili(rules.capture_solo_time)]),
+		UiText.f("Or tag them all and hold it for %d s!", [ceili(rules.capture_time)]),
 	] as Array[String]
 
 

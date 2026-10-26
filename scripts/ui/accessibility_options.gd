@@ -21,7 +21,7 @@ func _ready() -> void:
 	colorblind_toggle.name = "Colorblind"
 	colorblind_toggle.set_state(Settings.colorblind)
 	colorblind_toggle.toggled.connect(Settings.set_colorblind)
-	add_child(UiKit.setting_row("Colour-blind colours", "Blue and orange teams; the street changes next match", colorblind_toggle))
+	add_child(UiKit.setting_row("Colour-blind colours", "Blue and orange teams. The street changes next battle!", colorblind_toggle))
 	Settings.accessibility_changed.connect(_refresh)
 
 

@@ -9,7 +9,7 @@ signal character_opened(character: CharacterDef)
 ## Two columns of large faces: this tab is a gallery to look at, not a row of small buttons.
 const COLUMNS: int = 2
 const CARD: Vector2 = Vector2(325.0, 440.0)
-const NOTE: String = "Only the look is yours to pick. Every kid has the same health, speed and size."
+const NOTE: String = "Pick the look you love! Every kid has the same health, speed and size."
 
 var cards: Dictionary[String, Button] = {}
 
@@ -17,7 +17,7 @@ var cards: Dictionary[String, Button] = {}
 func _ready() -> void:
 	name = "CharactersPage"
 	add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
-	add_child(UiKit.page_header("Characters", "Meet the six kids. Tap one to read about them."))
+	add_child(UiKit.page_header("Characters", "Meet the six kids! Tap one to learn more."))
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.name = "Scroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL

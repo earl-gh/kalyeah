@@ -28,14 +28,14 @@ func _ready() -> void:
 	back_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	back_button.pressed.connect(back_pressed.emit)
 	content.add_child(back_button)
-	content.add_child(UiKit.page_header("How to play", "Four things to know. Then try them."))
+	content.add_child(UiKit.page_header("How to play", "Four quick tips. Then battle!"))
 	var rules: GameRules = load(RULES_PATH) as GameRules
 	var steps: Array[Dictionary] = CoachMarks.steps_for(rules.capture_time, rules.first_to)
 	for i: int in steps.size():
 		var card: Control = _card(i + 1, steps[i])
 		content.add_child(card)
 		cards.append(card)
-	walkthrough_button = MenuDialog.make_button("Practice with the walkthrough", "orange", UiMetrics.ACTION, Vector2(0.0, 100.0))
+	walkthrough_button = MenuDialog.make_button("Try the walkthrough!", "orange", UiMetrics.ACTION, Vector2(0.0, 100.0))
 	walkthrough_button.name = "WalkthroughButton"
 	walkthrough_button.pressed.connect(walkthrough_requested.emit)
 	content.add_child(walkthrough_button)

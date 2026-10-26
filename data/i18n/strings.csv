@@ -1,18 +1,14 @@
 keys,en
 %dv%d · First to %d,%dv%d · First to %d
-%s is coming soon. Agawan Base is the only game to play for now.,%s is coming soon. Agawan Base is the only game to play for now.
+"%s is coming soon! For now, Agawan Base is the only street open.","%s is coming soon! For now, Agawan Base is the only street open."
 %s × %d,%s × %d
 "%s, %s: read about this weapon","%s, %s: read about this weapon"
 %s: read about this kid,%s: read about this kid
-A bouncing ball that knocks enemies off their feet.,A bouncing ball that knocks enemies off their feet.
-A paper trap on the road: enemies who step on it get slowed.,A paper trap on the road: enemies who step on it get slowed.
-A paper wall in front of you that blocks enemy throws.,A paper wall in front of you that blocks enemy throws.
-A rock meteor lands where you aim and stuns everyone it hits.,A rock meteor lands where you aim and stuns everyone it hits.
+A bouncing ball that knocks enemies off their feet!,A bouncing ball that knocks enemies off their feet!
 "A short haircut under a backward cap, an oversized basketball jersey, cargo shorts and rubber shoes.","A short haircut under a backward cap, an oversized basketball jersey, cargo shorts and rubber shoes."
-A spinning top that sends enemies flying.,A spinning top that sends enemies flying.
-A teammate frees you after %d s beside you.,A teammate frees you after %d s beside you.
+A spinning top that sends enemies flying!,A spinning top that sends enemies flying!
+A teammate beside you frees you in %d s!,A teammate beside you frees you in %d s!
 A thin line while you aim,A thin line while you aim
-A tossed can turns whoever it hits into a can for a moment.,A tossed can turns whoever it hits into a can for a moment.
 About %s,About %s
 Accent,Accent
 Aim guide,Aim guide
@@ -28,7 +24,10 @@ Back on your hand to cancel,Back on your hand to cancel
 Back online!,Back online!
 Bato · Heavy,Bato · Heavy
 Bato · Light,Bato · Light
-Blue and orange teams; the street changes next match,Blue and orange teams; the street changes next match
+Battle again!,Battle again!
+Battle unavailable,Battle unavailable
+Battle your friends nearby!,Battle your friends nearby!
+Blue and orange teams. The street changes next battle!,Blue and orange teams. The street changes next battle!
 Bola,Bola
 Book,Book
 Bottom,Bottom
@@ -37,10 +36,10 @@ Bounced,Bounced
 Buzz on buttons and when you are hit,Buzz on buttons and when you are hit
 By game,By game
 By type,By type
+Call a rock meteor! It lands where you aim and stuns everyone it hits.,Call a rock meteor! It lands where you aim and stuns everyone it hits.
 "Calmer menus, no drifting lights","Calmer menus, no drifting lights"
 CAN,CAN
 Can't reach the server. Check your connection and try again.,Can't reach the server. Check your connection and try again.
-Can't start the room on this phone.,Can't start the room on this phone.
 Cancel,Cancel
 Cancel ready,Cancel ready
 CAPTURING,CAPTURING
@@ -56,7 +55,7 @@ Choose %s,Choose %s
 Choose your kid,Choose your kid
 Clear,Clear
 Close,Close
-Code pasted,Code pasted
+Code pasted!,Code pasted!
 Colour-blind colours,Colour-blind colours
 Comfort,Comfort
 Coming soon,Coming soon
@@ -65,9 +64,9 @@ Connecting…,Connecting…
 "Connection lost
 Reconnecting…","Connection lost
 Reconnecting…"
-Connection lost. Try again.,Connection lost. Try again.
+Connection lost. Try again!,Connection lost. Try again!
 CONTESTED!,CONTESTED!
-Copied,Copied
+Copied!,Copied!
 Copy,Copy
 Copy room code,Copy room code
 Create room,Create room
@@ -79,19 +78,18 @@ DEFEND YOUR BASE!,DEFEND YOUR BASE!
 Done,Done
 Edit profile,Edit profile
 Eight letters and numbers,Eight letters and numbers
-Enter a name.,Enter a name.
-Enter all %d characters.,Enter all %d characters.
-Every game is a street. Pick one and see how it plays.,Every game is a street. Pick one and see how it plays.
+Enter all %d characters!,Enter all %d characters!
+Every game is a street. Tap one to see how it plays!,Every game is a street. Tap one to see how it plays!
 EXHAUSTED,EXHAUSTED
 Extra,Extra
-"Face 3 bots, or just train.","Face 3 bots, or just train."
+"Face 3 bots, or train solo!","Face 3 bots, or train solo!"
 First to,First to
 FIRST TO %d,FIRST TO %d
 First to %d,First to %d
 Footwear,Footwear
-Four things to know. Then try them.,Four things to know. Then try them.
+Four quick tips. Then battle!,Four quick tips. Then battle!
 Game mode,Game mode
-"Get your whole team into the enemy base and hold it for %s seconds, with no defender left inside it, or tag everyone on the other team. First to %d points wins.","Get your whole team into the enemy base and hold it for %s seconds, with no defender left inside it, or tag everyone on the other team. First to %d points wins."
+Get your whole team into the enemy base and hold it for %s seconds with no defender inside. Or tag the whole enemy team! First to %d points wins.,Get your whole team into the enemy base and hold it for %s seconds with no defender inside. Or tag the whole enemy team! First to %d points wins.
 GO!,GO!
 Good luck!,Good luck!
 Got it,Got it
@@ -104,15 +102,13 @@ Held your base,Held your base
 Help me!,Help me!
 History,History
 HOLD THE BASE!,HOLD THE BASE!
-Local,Local
-Network settings,Network settings
 How it plays,How it plays
 How the points went,How the points went
 How to play,How to play
 Ice water,Ice water
 Ice water %d of %d,Ice water %d of %d
 Inday,Inday
-Invite friends with a room code.,Invite friends with a room code.
+Invite friends with a room code!,Invite friends with a room code!
 Jacks,Jacks
 Join room,Join room
 Join team,Join team
@@ -123,41 +119,43 @@ Langit · Heal,Langit · Heal
 Language,Language
 "Last match: %s, %s, %d to %d","Last match: %s, %s, %d to %d"
 Lata,Lata
+Lay a paper trap on the road! Enemies who step on it slow down.,Lay a paper trap on the road! Enemies who step on it slow down.
 Leave,Leave
-Leave match,Leave match
-Leave match?,Leave match?
+Leave battle,Leave battle
+Leave the battle?,Leave the battle?
 Left-handed,Left-handed
 Let go to auto-aim · drag out to aim,Let go to auto-aim · drag out to aim
 Ligaya,Ligaya
 Loading…,Loading…
 Loadout,Loadout
+Local,Local
 Looking for a room…,Looking for a room…
 Lupa · Soil Block,Lupa · Soil Block
-Make Kalyeah yours.,Make Kalyeah yours.
+Make Kalyeah yours!,Make Kalyeah yours!
 Map: Agawan Base,Map: Agawan Base
 Match settings,Match settings
-Match unavailable,Match unavailable
 Max: %d,Max: %d
-Meet the six kids. Tap one to read about them.,Meet the six kids. Tap one to read about them.
+Meet the kids. Learn the weapons!,Meet the kids. Learn the weapons!
+Meet the six kids! Tap one to learn more.,Meet the six kids! Tap one to learn more.
 Migo,Migo
+Network settings,Network settings
 NEXT,NEXT
 "NEXT card on the right, your cards to the left","NEXT card on the right, your cards to the left"
 Nice one!,Nice one!
-"No room found. Ask your friend to tap Create room, then tap Try again.","No room found. Ask your friend to tap Create room, then tap Try again."
 No room found. Go back and tap Join room.,No room found. Go back and tap Join room.
 NO TARGET,NO TARGET
 Nobody in range · release keeps it,Nobody in range · release keeps it
-Nothing to paste. Copy the room code first.,Nothing to paste. Copy the room code first.
-One big delayed snip that hits hard up close.,One big delayed snip that hits hard up close.
-"One big slipper flies out and returns, hitting both ways.","One big slipper flies out and returns, hitting both ways."
+Nothing to paste yet. Copy the room code first!,Nothing to paste yet. Copy the room code first!
+"One big slipper flies out and comes back, hitting both ways!","One big slipper flies out and comes back, hitting both ways!"
+"One big snip, a moment late. It hits hard up close!","One big snip, a moment late. It hits hard up close!"
 Online,Online
-Online isn't available yet.,Online isn't available yet.
+Online is coming soon!,Online is coming soon!
 Oops!,Oops!
+Oops! This phone can't start the room.,Oops! This phone can't start the room.
 Open slot,Open slot
 Open slot in the %s team,Open slot in the %s team
-Opens the name and face editor,Opens the name and face editor
 Opens your history,Opens your history
-Or tag all of them and hold it for %d s.,Or tag all of them and hold it for %d s.
+Or tag them all and hold it for %d s!,Or tag them all and hold it for %d s!
 OUT,OUT
 OVERTIME,OVERTIME
 Papel · Shield,Papel · Shield
@@ -165,49 +163,48 @@ Papel · Trap,Papel · Trap
 Paste the code,Paste the code
 Pasted %d of %d characters,Pasted %d of %d characters
 PICK A KID + 2 WEAPONS,PICK A KID + 2 WEAPONS
+Pick a name!,Pick a name!
 Picks it for a slot,Picks it for a slot
 Play,Play
-Play a match,Play a match
-Play again,Play again
 Play as %s,Play as %s
-Play on one local network.,Play on one local network.
 Play vs bots,Play vs bots
 Playable,Playable
 Polymorphed,Polymorphed
 Popoy,Popoy
 Practice,Practice
 Practice again,Practice again
-Practice with the walkthrough,Practice with the walkthrough
-Profile saved,Profile saved
+Profile saved!,Profile saved!
 Quick chat,Quick chat
 Quit,Quit
 Quit game,Quit game
 Quit game?,Quit game?
-"Raises a block of earth that stops enemy throws, then falls.","Raises a block of earth that stops enemy throws, then falls."
+"Raise a block of earth! It stops enemy throws, then crumbles.","Raise a block of earth! It stops enemy throws, then crumbles."
+Raise a paper wall! It blocks enemy throws.,Raise a paper wall! It blocks enemy throws.
 Range,Range
 Ready,Ready
 Reduce motion,Reduce motion
-Rejoin match,Rejoin match
+Rejoin battle,Rejoin battle
 Rejoining…,Rejoining…
 Release here to cancel,Release here to cancel
 RESCUING,RESCUING
-Restoring match…,Restoring match…
+Restoring your battle…,Restoring your battle…
 Return home,Return home
 Room,Room
 Room code,Room code
-Room code copied,Room code copied
+Room code copied!,Room code copied!
 Room found. Joining…,Room found. Joining…
 Save,Save
-Scatter jacks on the road: enemies walking over them slow down.,Scatter jacks on the road: enemies walking over them slow down.
+Scatter jacks on the road! Enemies who walk over them slow down.,Scatter jacks on the road! Enemies who walk over them slow down.
 SCORED!  %d-%d,SCORED!  %d-%d
 Selected by a teammate,Selected by a teammate
 Settings,Settings
 Slot %d: %s,Slot %d: %s
 Slowed,Slowed
-Snips in front of you: hold longer for more snips.,Snips in front of you: hold longer for more snips.
-Start match,Start match
+"Snip, snip! Hold longer for more snips.","Snip, snip! Hold longer for more snips."
+Start a battle!,Start a battle!
+Start battle,Start battle
 Starting the room…,Starting the room…
-"Stay in their base to capture it: %d s alone, faster with teammates. Nobody can throw while capturing.","Stay in their base to capture it: %d s alone, faster with teammates. Nobody can throw while capturing."
+"Stay in their base to capture it: %d s alone, faster with friends! You can't throw while capturing.","Stay in their base to capture it: %d s alone, faster with friends! You can't throw while capturing."
 Step %d of %d,Step %d of %d
 Street,Street
 STUNNED,STUNNED
@@ -215,38 +212,38 @@ Stunned,Stunned
 Suggested: %s,Suggested: %s
 Swipe or use the arrow keys to change,Swipe or use the arrow keys to change
 TAG THEIR BASE!,TAG THEIR BASE!
-Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d s frees the one tagged first.,Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d s frees the one tagged first.
+Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d s frees the first one tagged!,Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d s frees the first one tagged!
 Tagged them all,Tagged them all
 Tagged you all,Tagged you all
-Tagged · Wait for a rescue,Tagged · Wait for a rescue
+Tagged! Wait for a rescue,Tagged! Wait for a rescue
 Tap to choose which slot the next weapon fills,Tap to choose which slot the next weapon fills
-"Tap to heal yourself, or drag toward a teammate to heal them.","Tap to heal yourself, or drag toward a teammate to heal them."
+"Tap to heal yourself, or drag to a teammate to heal them!","Tap to heal yourself, or drag to a teammate to heal them!"
 Team size,Team size
 text,text
 Thanks!,Thanks!
-That match has already started.,That match has already started.
-That match has ended.,That match has ended.
-That room is full.,That room is full.
+That battle is over!,That battle is over!
 The game · %s,The game · %s
-The host left. You are the host now.,The host left. You are the host now.
+The host left. You're the host now!,The host left. You're the host now!
 The words in the game,The words in the game
 THEM,THEM
 THEY SCORED  %d-%d,THEY SCORED  %d-%d
-"Three slippers fly out and come back, hitting both ways.","Three slippers fly out and come back, hitting both ways."
-Throws a rock that homes in on the nearest enemy.,Throws a rock that homes in on the nearest enemy.
+"Three slippers fly out and come back, hitting both ways!","Three slippers fly out and come back, hitting both ways!"
+Throw a rock that chases the nearest enemy!,Throw a rock that chases the nearest enemy!
 TIME,TIME
 Toni,Toni
 Top,Top
+Toss a can! Whoever it hits turns into a can for a moment.,Toss a can! Whoever it hits turns into a can for a moment.
 Training,Training
 Trumpo,Trumpo
 Try again,Try again
+Try the walkthrough!,Try the walkthrough!
 Tsinelas · Heavy,Tsinelas · Heavy
 Tsinelas · Light,Tsinelas · Light
-Update both phones to the same game version.,Update both phones to the same game version.
+"Turn on your hotspot or connect to Wi-Fi, then tap Try again.","Turn on your hotspot or connect to Wi-Fi, then tap Try again."
 Vibration,Vibration
 Victory,Victory
 VICTORY!,VICTORY!
-Waiting for the other players…,Waiting for the other players…
+Waiting for your friends…,Waiting for your friends…
 Weapons,Weapons
 "Wears a floral bestida and tsinelas, with long wavy hair held by a clip.","Wears a floral bestida and tsinelas, with long wavy hair held by a clip."
 "Wears a pastel graphic tee knotted at the side, a belt bag, a colourful headband and printed tsinelas. Curly hair.","Wears a pastel graphic tee knotted at the side, a belt bag, a colourful headband and printed tsinelas. Curly hair."
@@ -256,12 +253,8 @@ Weapons,Weapons
 Wow!,Wow!
 YOU,YOU
 YOU %d - %d THEM   %s,YOU %d - %d THEM   %s
-"Turn on your hotspot or connect to Wi-Fi, then tap Try again.","Turn on your hotspot or connect to Wi-Fi, then tap Try again."
-Starting the room…,Starting the room…
-Your kids and the weapons,Your kids and the weapons
 Your last battles,Your last battles
-Your last battles on this phone.,Your last battles on this phone.
+Your last battles on this phone!,Your last battles on this phone!
 Your profile,Your profile
-Your profile: %s,Your profile: %s
 Your weapons,Your weapons
-Your weapons come as cards,Your weapons come as cards
+Your weapons are cards!,Your weapons are cards!

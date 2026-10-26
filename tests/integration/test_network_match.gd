@@ -100,7 +100,7 @@ func test_wrong_code_is_an_error() -> void:
 	b.error_received.connect(func(text: String) -> void: errors.append(text))
 	b.join_room("ZZZZZZZZ")
 	assert_true(_until(func() -> bool: return not errors.is_empty()))
-	assert_eq(errors[0], "No room with that code.")
+	assert_eq(errors[0], "No room with that code. Check it and try again!")
 
 
 func test_inputs_move_the_player_on_the_server_and_everyone_sees_it() -> void:

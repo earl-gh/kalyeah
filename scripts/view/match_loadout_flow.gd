@@ -48,7 +48,7 @@ static func confirm(owner: PracticeMatch, picks: Array[StringName]) -> void:
 		# the server starts play for everyone once all have picked (or time is up)
 		owner.client.pick_weapons(picks[0], picks[1], kid)
 		if owner.client.stage != "play":
-			owner.show_banner("Waiting for the other players…")
+			owner.show_banner("Waiting for your friends…")
 			return
 	owner._opening_pick = false
 	owner.sim.begin_intro()

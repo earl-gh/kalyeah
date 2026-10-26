@@ -312,19 +312,19 @@ func test_a_reconnect_is_not_reported_restored_until_the_server_confirms_the_slo
 	practice.skip_intro()
 	practice._on_connection_changed(false)
 	practice._on_connection_changed(true)
-	assert_eq(practice.hud.feedback.message.text, "Restoring match…")
+	assert_eq(practice.hud.feedback.message.text, "Restoring your battle…")
 	practice.hud.sync_score(practice.sim, practice.local_team, 10.0)
 	assert_true(practice.hud.feedback.connection.visible)
 	practice.hud.menu.closed.emit()
 	assert_false(practice.controls_active())
 	practice._on_welcomed(false)
-	assert_eq(practice.hud.feedback.message.text, "Match unavailable")
+	assert_eq(practice.hud.feedback.message.text, "Battle unavailable")
 	assert_true(practice.hud.feedback.leave.visible)
 	assert_false(practice.controls_active())
 	assert_true(practice._resume_rejected)
 	practice._on_connection_changed(false)
 	assert_true(practice._resume_rejected, "an expired match never restarts recovery")
-	assert_eq(practice.hud.feedback.message.text, "Match unavailable")
+	assert_eq(practice.hud.feedback.message.text, "Battle unavailable")
 
 
 # ---- visuals -------------------------------------------------------------------

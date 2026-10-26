@@ -1,10 +1,9 @@
 class_name TitleScreen
 extends Control
-## The main screen, built as a game lobby: a living backdrop, a top bar with the game's logo and who
-## you are, the mode carousel as the hero (the chosen card framed in light, floating a little), the
+## The main screen, built as a game lobby: a living backdrop, a top bar with the game's logo, the mode carousel as the hero (the chosen card framed in light, floating a little), the
 ## mode's name, one phrase and the main action under it, and a tab bar at the bottom (Play, Book,
-## History, Settings). The tabs swap the middle of the screen; the pages take the whole height (the logo and
-## profile chip show on Play only, each page has its own title and Settings holds the profile).
+## History, Settings). The tabs swap the middle of the screen; the pages take the whole height (the logo
+## shows on Play only, each page has its own title and Settings holds the profile).
 ## Android Back closes a tab back to Play, and on Play asks to quit.
 
 const SERVER_SCENE: String = "res://server/main.tscn"
@@ -16,11 +15,11 @@ const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
 ## frame of the card and the glow behind it.
 const MODES: Array[Dictionary] = [
 	{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff",
-		"text": "Play on one local network."},
+		"text": "Battle your friends nearby!"},
 	{"id": "online", "title": "Online", "color": "orange", "accent": "ffa63a",
-		"text": "Invite friends with a room code."},
+		"text": "Invite friends with a room code!"},
 	{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78",
-		"text": "Face 3 bots, or just train."},
+		"text": "Face 3 bots, or train solo!"},
 ]
 ## The bottom tabs, left to right: Street (what each game is and how it plays), Play (the home page) and Settings. The Book and
 ## History are reached from Settings (and History from the last match on Play).
@@ -47,6 +46,8 @@ const CHIPS_MIN_STAGE: float = 640.0
 const PAGE_RANK: Dictionary[StringName, int] = {&"street": -1, &"": 0, &"settings": 1, &"codex": 2, &"history": 2, &"howto": 2}
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
 const LOGO_HEIGHT: float = 92.0
+## How far the logo is dropped from the top edge of the screen.
+const LOGO_DROP: float = 28.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
 const CTA_HEIGHT: float = 104.0
@@ -64,7 +65,6 @@ var open_lobby_action: Callable = _change_to_lobby
 
 var backdrop: UiBackdrop
 var carousel: MenuCarousel
-var profile_chip: UiProfileChip
 var tab_bar: UiTabBar
 var mode_name_label: Label
 var mode_text_label: Label
@@ -168,10 +168,12 @@ func _build_layout() -> void:
 	tab_bar.set_active(&"home")
 
 
-## The top bar: the KALYEAH! logo at the left, who you are at the right.
+## The top bar: the KALYEAH! logo, centred and dropped a little from the top edge. Your profile lives in Settings.
 func _build_top_bar() -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.name = "TopBar"
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.custom_minimum_size = Vector2(0.0, LOGO_HEIGHT + LOGO_DROP)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var logo: TextureRect = TextureRect.new()
 	logo.name = "Logo"
@@ -179,17 +181,9 @@ func _build_top_bar() -> Control:
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	logo.custom_minimum_size = Vector2(LOGO_HEIGHT * float(LOGO.get_width()) / float(LOGO.get_height()), LOGO_HEIGHT)
-	logo.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	logo.size_flags_vertical = Control.SIZE_SHRINK_END
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(logo)
-	var spacer: Control = Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(spacer)
-	profile_chip = UiProfileChip.new()
-	profile_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	profile_chip.pressed.connect(open_name_editor)
-	row.add_child(profile_chip)
 	return row
 
 
@@ -713,7 +707,7 @@ func open_weapon_detail(weapon: WeaponDef) -> MenuDialog:
 	return card
 
 
-## Your profile: the name and the face (see `ProfileSheet`). The chip, the Settings card and a toast answer a save.
+## Your profile: the name and the face (see `ProfileSheet`). The Settings card and a toast answer a save.
 func open_name_editor() -> MenuDialog:
 	var card: MenuDialog = ProfileSheet.build(_on_profile_saved)
 	_show_dialog(card)
@@ -721,9 +715,8 @@ func open_name_editor() -> MenuDialog:
 
 
 func _on_profile_saved() -> void:
-	profile_chip.refresh()
 	settings_page.refresh()
-	UiToast.say(self, "Profile saved")
+	UiToast.say(self, "Profile saved!")
 
 
 ## Quit: asks first (a stray tap must not close the game).
@@ -765,7 +758,7 @@ func _back_pressed() -> void:
 		_go_back()
 
 
-## How to play, "Practice with the walkthrough": a practice match that opens with the four steps again.
+## How to play, "Try the walkthrough!": a practice match that opens with the four steps again.
 func start_walkthrough() -> void:
 	Session.coach_pending = true
 	_on_practice_pressed()

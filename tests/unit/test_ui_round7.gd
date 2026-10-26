@@ -51,11 +51,11 @@ func _screen() -> TitleScreen:
 # ---- toast -----------------------------------------------------------------------------
 
 func test_a_toast_shows_its_words_and_mark_over_everything_and_takes_no_touches() -> void:
-	UiToast.say(self, "Room code copied", "ok", 5.0)
+	UiToast.say(self, "Room code copied!", "ok", 5.0)
 	await wait_process_frames(2)
 	var toasts: Array[UiToast] = _toasts()
 	assert_eq(toasts.size(), 1)
-	assert_eq((toasts[0].find_child("Words", true, false) as Label).text, "Room code copied")
+	assert_eq((toasts[0].find_child("Words", true, false) as Label).text, "Room code copied!")
 	assert_eq((toasts[0].find_child("Mark", true, false) as Label).text, "✓")
 	assert_eq(toasts[0].get_parent().layer, UiToast.LAYER, "its own layer, above the screen")
 	assert_gt(UiToast.LAYER, 100)
@@ -110,19 +110,20 @@ func test_with_motion_on_a_toast_eases_in_and_with_reduce_motion_it_is_simply_th
 func test_the_strip_tells_waiting_from_a_problem_from_a_note() -> void:
 	for text: String in ["Connecting...", "Connecting…", "Looking for the room...", "Starting the room...", "Rejoining...", "Loading..."]:
 		assert_eq(UiStatusStrip.kind_of(text), "wait", text)
-	for text: String in ["Connection lost. Try again.", "No room with that code.", "Can't reach that address.", "That match has ended.", "Enter all 8 characters.", "Online isn't available yet.", "Turn on your hotspot or connect to Wi-Fi first."]:
+	for text: String in ["Connection lost. Try again!", "No room with that code. Check it and try again!", "Can't reach that address.", "That battle is over!", "Enter all 8 characters!", "Turn on your hotspot or connect to Wi-Fi first."]:
 		assert_eq(UiStatusStrip.kind_of(text), "error", text)
+	assert_eq(UiStatusStrip.kind_of("Online is coming soon!"), "info", "a promise is a note, not a problem")
 	assert_eq(UiStatusStrip.kind_of(""), "info")
 
 
 func test_dressing_a_label_gives_it_a_tinted_strip_and_keeps_its_words() -> void:
 	var label: Label = autofree(Label.new()) as Label
-	label.text = "Connection lost. Try again."
+	label.text = "Connection lost. Try again!"
 	UiStatusStrip.style(label, "error")
 	var box: StyleBoxFlat = label.get_theme_stylebox("normal") as StyleBoxFlat
 	assert_not_null(box)
 	assert_almost_eq(box.border_color.a, 0.85, 0.001)
-	assert_eq(label.text, "Connection lost. Try again.", "dressing never changes what it says")
+	assert_eq(label.text, "Connection lost. Try again!", "dressing never changes what it says")
 	var other: Label = autofree(UiStatusStrip.strip("x", "wait")) as Label
 	assert_ne(box.border_color, (other.get_theme_stylebox("normal") as StyleBoxFlat).border_color, "each kind has its own colour")
 
@@ -133,7 +134,7 @@ func test_the_lobby_status_line_is_dressed_when_it_says_something() -> void:
 	var lobby: Node = autofree((load("res://scenes/ui/lobby.tscn") as PackedScene).instantiate()) as Node
 	add_child(lobby)
 	await wait_process_frames(2)
-	lobby._set_status("Connection lost. Try again.")
+	lobby._set_status("Connection lost. Try again!")
 	var box: StyleBoxFlat = lobby._status.get_theme_stylebox("normal") as StyleBoxFlat
 	assert_eq(box.border_color, Color(UiStatusStrip.KINDS["error"], 0.85), "a problem is red")
 	lobby._set_status("Connecting...")
@@ -181,11 +182,10 @@ func test_saving_changes_the_name_and_updates_the_chip_and_the_settings_card() -
 	assert_eq(Session.player_name, "Maria")
 	assert_eq(Session.avatar_id, "junjun", "the face is the kid you played last: saving the name leaves it")
 	assert_false(card.is_open)
-	assert_eq(screen.profile_chip.name_label.text, "Maria", "the main screen shows the new name at once")
 	assert_eq(screen.settings_page.name_label.text, "Maria")
 	await wait_process_frames(2)
 	assert_eq(_toasts().size(), 1, "and says so")
-	assert_eq(_toasts()[0].text, "Profile saved")
+	assert_eq(_toasts()[0].text, "Profile saved!")
 
 
 func test_cancel_keeps_the_old_name() -> void:
@@ -206,14 +206,11 @@ func test_an_empty_name_is_refused() -> void:
 	assert_eq(Session.player_name, "Ana", "a refused save changes nothing")
 
 
-func test_the_home_chip_and_the_settings_card_both_open_the_sheet() -> void:
+func test_the_settings_card_opens_the_profile_sheet() -> void:
 	var screen: TitleScreen = _screen()
-	screen.profile_chip.pressed.emit()
-	assert_not_null(screen.dialog.find_child("NameField", true, false), "the profile sheet")
-	screen.dialog.close(false)
 	screen.open_page(&"settings")
 	screen.settings_page.profile_button.pressed.emit()
-	assert_not_null(screen.dialog.find_child("NameField", true, false), "the same sheet from Settings")
+	assert_not_null(screen.dialog.find_child("NameField", true, false), "the profile sheet")
 
 
 # ---- copy code --------------------------------------------------------------------------
@@ -230,7 +227,7 @@ func test_copying_the_room_code_is_answered_with_a_toast() -> void:
 	view.copy_code()
 	await wait_process_frames(2)
 	assert_eq(_toasts().size(), 1)
-	assert_eq(_toasts()[0].text, "Room code copied")
+	assert_eq(_toasts()[0].text, "Room code copied!")
 
 
 # ---- chips ------------------------------------------------------------------------------

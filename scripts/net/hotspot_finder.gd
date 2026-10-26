@@ -10,8 +10,8 @@ extends RefCounted
 const NO_ROOM: String = "No room found. Ask your friend to tap Create room, then tap Try again."
 const MESSAGES: Dictionary[String, String] = {
 	"no_room": NO_ROOM,
-	"full": "That room is full.",
-	"in_progress": "That match has already started.",
+	"full": "That room is full!",
+	"in_progress": "That battle has already started!",
 	"incompatible": NetProtocol.INCOMPATIBLE_TEXT,
 	"not_hotspot": NO_ROOM,
 }

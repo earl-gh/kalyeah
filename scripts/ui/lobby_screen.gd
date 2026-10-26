@@ -132,7 +132,7 @@ func submit() -> void:
 	var url: String = Settings.normalize_url(Settings.server_url)
 	if url.is_empty():
 		# the online server is built into the game; players never type it
-		_set_status("Online isn't available yet.")
+		_set_status("Online is coming soon!")
 		return
 	_connected_url = url
 	if intent == Intent.CREATE:
@@ -140,7 +140,7 @@ func submit() -> void:
 	else:
 		var code: String = _code_boxes.clean(_code_edit.text)
 		if code.length() != NET_RULES.passcode_length:
-			_code_error.text = "Enter all %d characters." % NET_RULES.passcode_length
+			_code_error.text = "Enter all %d characters!" % NET_RULES.passcode_length
 			_code_error.show()
 			UiStatusStrip.style(_code_error, "error")
 			_code_boxes.set_error(true)
@@ -168,7 +168,7 @@ func _connect_or_send(url: String) -> void:
 func _submit_hotspot() -> void:
 	if intent == Intent.CREATE:
 		if Net.start_host() != OK:
-			_set_status("Can't start the room on this phone.")
+			_set_status("Oops! This phone can't start the room.")
 			_room_view.show_retry()
 			return
 		_connected_url = Net.host_url()
@@ -216,7 +216,7 @@ func _on_connection_changed(online: bool) -> void:
 		_set_status("Connecting…")
 	else:
 		_show_room(false)
-		_set_status("Connection lost. Try again.")
+		_set_status("Connection lost. Try again!")
 		if _room_view != null:
 			_room_view.show_retry()
 
@@ -229,7 +229,7 @@ func _on_welcomed(reconnected: bool) -> void:
 		return
 	_rejoining = false
 	if not reconnected:
-		_set_status("That match has ended.")
+		_set_status("That battle is over!")
 		Session.reconnect_token = ""
 		Session.save()
 		client.token = ""
@@ -261,7 +261,7 @@ func _on_room_changed(room: Dictionary) -> void:
 	_set_status("")
 	var host_id: int = room.get("host", -1) as int
 	if _last_host_id >= 0 and host_id == client.player_id and _last_host_id != client.player_id:
-		UiToast.say(self, "The host left. You are the host now.", "info")
+		UiToast.say(self, "The host left. You're the host now!", "info")
 	_last_host_id = host_id
 	_room_view.show_room(room, client.player_id)
 	if not _announced_character:
@@ -414,13 +414,13 @@ func paste_code(clipboard: Variant = null) -> void:
 	var raw: String = clipboard as String if clipboard is String else DisplayServer.clipboard_get()
 	var value: String = _code_boxes.clean(raw)
 	if value.is_empty():
-		UiToast.say(self, "Nothing to paste. Copy the room code first.", "info")
+		UiToast.say(self, "Nothing to paste yet. Copy the room code first!", "info")
 		return
 	_code_boxes.set_text(value)
 	_code_boxes.set_error(false)
 	_code_error.hide()
 	if value.length() == NET_RULES.passcode_length:
-		UiToast.say(self, "Code pasted")
+		UiToast.say(self, "Code pasted!")
 	else:
 		UiToast.say(self, "Pasted %d of %d characters" % [value.length(), NET_RULES.passcode_length], "warn")
 

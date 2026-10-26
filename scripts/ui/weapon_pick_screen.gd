@@ -137,7 +137,7 @@ func _show(defs: Array[WeaponDef], _heading: String) -> void:
 	if _buttons.is_empty():
 		_build(defs)
 	_title.text = "Change weapons" if swap_mode else ("Choose your kid" if cards_mode else "Loadout")
-	_mode_label.text = "Changes apply immediately" if swap_mode else ("Your weapons come as cards" if cards_mode else "Auto-pick at timeout")
+	_mode_label.text = "Changes apply immediately" if swap_mode else ("Your weapons are cards!" if cards_mode else "Auto-pick at timeout")
 	_mode_label.visible = swap_mode or (not untimed and not cards_mode)
 	_ring.visible = not untimed and not cards_mode
 	for part: Control in _weapon_parts:

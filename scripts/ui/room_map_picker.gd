@@ -89,7 +89,7 @@ func _on_map_carousel_selected(index: int) -> void:
 	var id: StringName = RoomService.MAP_IDS[index]
 	if not id in RoomService.PLAYABLE_MAP_IDS:
 		# listed, but not playable yet: say so and keep the room on its map
-		view._map_hint.text = "%s is coming soon. Agawan Base is the only game to play for now." % view.MAP_NAMES.get(id, String(id).to_upper())
+		view._map_hint.text = "%s is coming soon! For now, Agawan Base is the only street open." % view.MAP_NAMES.get(id, String(id).to_upper())
 		return
 	view._map_hint.text = ""
 	view.map_chosen.emit(id)
