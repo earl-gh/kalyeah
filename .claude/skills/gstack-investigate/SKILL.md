@@ -28,4 +28,4 @@ Use the existing tools and specialist, not gstack's host hooks or browser runtim
 
 Do not change balance, protocol, assets, thresholds or release versions as a shortcut.
 Keep the investigation within its authorized scope; leave unrelated cleanup out.
-A browser or headless result cannot establish Android GPU/thermal/input behavior.
+A headless result cannot establish Android GPU/thermal/input behavior.

@@ -11,15 +11,12 @@ const TITLE_SCENE: String = "res://scenes/ui/title_screen.tscn"
 const BACKGROUND: Texture2D = preload("res://assets/ui/main_bg.webp")
 const NET_RULES: NetRules = preload("res://data/rules/net_rules.tres")
 const FONT: int = UiMetrics.BODY
-## The id of the player the preview shows as "you".
-const PREVIEW_ME: int = 1
 const BIG_FONT: int = UiMetrics.DISPLAY
 
 var client: GameClient
 var intent: Intent = Intent.CREATE
 ## Capture transport once; deferred callbacks must not read another screen's selection.
 var hotspot: bool = false
-var _preview_requested: bool = false
 ## Off in tests: stay on this screen when the match starts loading.
 var enter_match_on_start: bool = true
 var _intent_set: bool = false
@@ -49,13 +46,10 @@ var _room_view: HotspotRoomView
 var _announced_character: bool = false
 ## Who hosted the room at the last update (-1 before the first), to tell a player they became the host.
 var _last_host_id: int = -1
-## Preview (web): the made-up room the hotspot screen shows, changed locally by the buttons.
-var _preview_room: Dictionary = {}
 
 
 func _ready() -> void:
 	hotspot = Session.lobby_hotspot
-	_preview_requested = Session.lobby_preview
 	set_process(false)
 	if client == null:
 		client = Net.client
@@ -175,9 +169,6 @@ func _connect_or_send(url: String) -> void:
 ## looks for the room on the hotspot or Wi-Fi this phone is on (only the phone that made the
 ## hotspot can be the host, and everyone else on it can join).
 func _submit_hotspot() -> void:
-	if not Net.can_host():
-		_set_status("Hotspot rooms need the Android app.")
-		return
 	var addresses: PackedStringArray = IP.get_local_addresses()
 	if HotspotNet.local_ip(addresses).is_empty():
 		_set_status("Turn on your hotspot or connect to Wi-Fi first.")
@@ -319,6 +310,18 @@ func _on_leave() -> void:
 	_show_room(false)
 
 
+## The phone's back button leaves the lobby, unless a dialog is open (it closes itself). Deferred: see MenuDialog.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_back_pressed.call_deferred()
+
+
+func _back_pressed() -> void:
+	if find_children("*", "MenuDialog", true, false).any(func(node: Node) -> bool: return (node as MenuDialog).is_open):
+		return
+	_on_back()
+
+
 func _on_back() -> void:
 	if not client.room.is_empty():
 		client.leave_room()
@@ -352,14 +355,7 @@ func _build_room_view() -> void:
 	_room_view.team_chosen.connect(_on_team_chosen)
 	_room_view.action_pressed.connect(_on_action)
 	_room_view.retry_pressed.connect(submit)
-	_room_view.first_to_chosen.connect(func(count: int) -> void:
-		if _preview_room.is_empty():
-			client.set_first_to(count)
-		else:
-			_preview_room["first_to"] = count
-			_room_view.show_room(_preview_room, PREVIEW_ME))
-	var gate: Node = (load("res://scenes/ui/orientation_gate.tscn") as PackedScene).instantiate()
-	add_child(gate)
+	_room_view.first_to_chosen.connect(client.set_first_to)
 
 
 ## Create or Join was pressed on the main screen (its dialog already checked the hotspot): go on.
@@ -372,9 +368,6 @@ func _start_online_create() -> void:
 
 func _start_hotspot() -> void:
 	if not is_inside_tree() or is_queued_for_deletion():
-		return
-	if _preview_requested:
-		LobbyPreview.start(self)
 		return
 	_set_status("Starting the room…" if intent == Intent.CREATE else "Looking for the room…")
 	submit()
@@ -390,46 +383,23 @@ func _open_settings() -> void:
 
 
 func _on_map_chosen(map_id: StringName) -> void:
-	if _preview_room.is_empty():
-		client.set_map(map_id)
-	else:
-		_preview_room["map"] = map_id
-		_room_view.show_room(_preview_room, PREVIEW_ME)
+	client.set_map(map_id)
 
 
 func _on_size_chosen(size: int) -> void:
-	if _preview_room.is_empty():
-		client.set_team_size(size)
-		return
-	_preview_room["team_size"] = size
-	LobbyPreview.fit(self, size)
-	_room_view.show_room(_preview_room, PREVIEW_ME)
+	client.set_team_size(size)
 
 
 func _on_character_chosen(id: String) -> void:
-	if _preview_room.is_empty():
-		client.set_character(StringName(id))
-		return
-	Session.avatar_id = id
-	Session.save()
-	LobbyPreview.member(self, PREVIEW_ME)["char"] = id
-	_room_view.show_room(_preview_room, PREVIEW_ME)
+	client.set_character(StringName(id))
 
 
 func _on_team_chosen(team: int) -> void:
-	if _preview_room.is_empty():
-		client.pick_team(team)
-		return
-	var me: Dictionary = LobbyPreview.member(self, PREVIEW_ME)
-	me["team"] = team
-	_room_view.show_room(_preview_room, PREVIEW_ME)
+	client.pick_team(team)
 
 
 ## The big button: the host starts, everyone else flips Ready.
 func _on_action() -> void:
-	if not _preview_room.is_empty():
-		_set_status("This is a preview: a real room needs the Android app.")
-		return
 	if client.is_host():
 		client.set_ready(true)
 		client.start_match()
@@ -439,12 +409,6 @@ func _on_action() -> void:
 		if member["player_id"] == client.player_id:
 			ready = member["ready"] as bool
 	client.set_ready(not ready)
-
-
-func _current_room() -> Dictionary:
-	return _preview_room if not _preview_room.is_empty() else client.room
-
-
 
 
 func _build() -> void:

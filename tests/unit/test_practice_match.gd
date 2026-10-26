@@ -54,7 +54,7 @@ func test_hurt_button_path_and_no_health_panel_in_the_corner() -> void:
 	var practice: PracticeMatch = _practice()
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 	assert_eq(player.hp, 100)
-	practice.hurt_local(30)
+	TouchHelper.hurt(practice, 30)
 	assert_eq(player.hp, 70)
 	assert_null(practice.get_node_or_null("%HpLabel"), "health lives over the character, not top-left")
 	assert_null(practice.get_node_or_null("%PlayerCard"))
@@ -63,7 +63,7 @@ func test_hurt_button_path_and_no_health_panel_in_the_corner() -> void:
 func test_zero_hp_tags_you_onto_the_sidewalk_with_the_tagged_card() -> void:
 	var practice: PracticeMatch = _practice()
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
-	practice.hurt_local(100)
+	TouchHelper.hurt(practice, 100)
 	assert_true(player.tagged)
 	assert_false(LAYOUT.lane_rect().has_point(player.position), "sent out to the sidewalk")
 	assert_lt(player.position.x, 0.0, "on our side of the street")
@@ -77,7 +77,7 @@ func test_zero_hp_tags_you_onto_the_sidewalk_with_the_tagged_card() -> void:
 func test_skill_presses_do_nothing_while_tagged() -> void:
 	var practice: PracticeMatch = _practice()
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
-	practice.hurt_local(100)
+	TouchHelper.hurt(practice, 100)
 	var at: Vector2 = player.position
 	practice.input.move_press(at + Vector2(3.0, 0.0))
 	_tap(practice, 0)
@@ -94,7 +94,7 @@ func test_the_ally_dummy_runs_over_and_rescues_you() -> void:
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 	var ally: PlayerState = practice.sim.players[PracticeMatch.ALLY_ID]
 	var home: Vector2 = ally.position
-	practice.hurt_local(100)
+	TouchHelper.hurt(practice, 100)
 	for i: int in 30 * 15:
 		practice.advance(DT)
 		if not player.tagged:
@@ -301,7 +301,7 @@ func test_cards_lock_under_stun_and_hide_while_tagged() -> void:
 	for i: int in 40:
 		practice.advance(DT)
 	assert_eq(practice.hud.hand.blocked_text, "")
-	practice.hurt_local(100)
+	TouchHelper.hurt(practice, 100)
 	practice.advance(DT)
 	assert_false(practice.hud.hand.visible)
 
@@ -499,7 +499,7 @@ func test_a_status_is_shown_as_words_and_clears() -> void:
 	assert_eq(hud.text_for(PracticeMatch.ENEMY_STAND_ID), "Stunned")
 	practice.sim.players[PracticeMatch.ENEMY_STAND_ID].effects.clear()
 	assert_eq(hud.text_for(PracticeMatch.ENEMY_STAND_ID), "")
-	practice.hurt_local(100)
+	TouchHelper.hurt(practice, 100)
 	assert_true(practice.sim.players[PracticeMatch.LOCAL_ID].tagged)
 	assert_eq(hud.text_for(PracticeMatch.LOCAL_ID), "", "a tagged kid stands on the sidewalk, which says it: no word over each kid (audit 4)")
 
@@ -543,7 +543,7 @@ func test_the_match_opens_on_the_street_with_the_objective_then_go() -> void:
 
 func test_tagged_shows_a_message_on_the_deck_as_tall_as_the_console_and_no_player_cards() -> void:
 	var practice: PracticeMatch = _practice()
-	practice.hurt_local(100)
+	TouchHelper.hurt(practice, 100)
 	practice.advance(DT)
 	var panel: TaggedPanel = practice.hud.tagged_panel
 	assert_true(panel.visible)
@@ -558,7 +558,7 @@ func test_the_camera_does_not_move_when_you_are_tagged() -> void:
 	var camera: ArenaCamera = practice.get_node("%ArenaCamera") as ArenaCamera
 	practice.advance(DT)
 	var at: Vector3 = camera.position
-	practice.hurt_local(100)
+	TouchHelper.hurt(practice, 100)
 	for i: int in 30:
 		practice.advance(DT)
 	assert_eq(camera.position, at, "the whole street is on screen: there is nobody to follow")

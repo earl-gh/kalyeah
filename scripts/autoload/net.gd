@@ -25,12 +25,6 @@ func _process(delta: float) -> void:
 		host.poll(delta)
 
 
-## A browser can't listen for connections, and a secure (https) page can't open a plain ws://
-## address on a hotspot, so hosting and joining a hotspot room are for the apps.
-func can_host() -> bool:
-	return not OS.has_feature("web")
-
-
 ## Starts a room server on this phone for friends on its hotspot or Wi-Fi: they find it by
 ## themselves and need no code.
 func start_host() -> Error:

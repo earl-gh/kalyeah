@@ -13,7 +13,8 @@ Edit only your own paths. Anything else: a one-line request to the orchestrator 
 
 | Owner | Paths |
 |---|---|
-| orchestrator | `.github/`, `project.godot`, `export_presets.cfg` review, `docs/ROADMAP.md`, branches and PRs |
+| orchestrator | `.github/` (except the Android workflow), `project.godot` review, `docs/ROADMAP.md`, branches and PRs |
+| android-engineer | `export_presets.cfg`, `.github/workflows/android.yml`, `.github/scripts/` (APK inspection, emulator smoke test), the Android parts of `project.godot`, `android/` |
 | game-designer | `data/weapons/`, `data/rules/game_rules.tres`, `docs/GDD.md`, balance reports in `docs/audits/` |
 | gameplay-engineer | `scripts/sim/`, `scripts/net/`, `scripts/autoload/`, `server/` and their tests |
 | ux-ui-artist | `scripts/ui/` (not the tokens), `scripts/ui/hud/`, `scenes/ui/`, `scripts/input/`, `data/i18n/` |
@@ -22,7 +23,8 @@ Edit only your own paths. Anything else: a one-line request to the orchestrator 
 
 ## Commands (Godot 4.6.2, see `.godot-version`)
 - Import (needed after adding or renaming a `class_name`): `godot --headless --import`
-- Full suite: `godot --headless -s addons/gut/gut_cmdln.gd -gexit`. One file: add `-gselect=test_name` (`-gtest` is ignored here). Report Tests, Passing and Pending as printed.
+- Full suite: `godot --headless -s addons/gut/gut_cmdln.gd -gexit`. One file: add `-gselect=test_name` (`-gtest` is ignored here). Report Tests, Passing and Pending as printed. Tests drive the game with touch only (`TouchHelper` in `tests/unit/touch_helper.gd`); a Control receives a touch as an emulated left click.
+- APK: the `Android APK` workflow builds, tests and inspects it (`.github/workflows/android.yml`); nothing here can build one (no Android SDK or templates). `.github/scripts/inspect-apk.sh` and `smoke-test.sh` are its two checks.
 - Screenshot: a throwaway script outside the repo (a `Node` that instantiates `scenes/match/practice.tscn`, calls `finish_pick()` and `skip_intro()`, calls `advance(1.0/30.0)` as needed, saves `get_viewport().get_texture().get_image()`), run with `xvfb-run -s "-screen 0 720x1280x24" godot --rendering-driver opengl3 --resolution 720x1280 <scene>`. Then open the PNG and look at it.
 - Balance: `godot --headless -s tools/balance/team_rounds.gd -- --seeds 80` (whole rounds); `tools/balance/duels.gd` (weapon pairs). Bots are crude: read direction and size, not exact values.
 

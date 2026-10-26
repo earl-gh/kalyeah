@@ -1,7 +1,7 @@
 class_name StreetTouch
 extends Node
-## Taps on the street (docs/GDD.md "Moving: tap a point, the kid walks there"): a finger that lands on no HUD control, or the right
-## mouse button, is a move order at that screen point; while it stays down it drags the target with it. It listens to unhandled input,
+## Taps on the street (docs/GDD.md "Moving: tap a point, the kid walks there"): a finger that lands on no HUD control is a move
+## order at that screen point; while it stays down it drags the target with it. It listens to unhandled input,
 ## so a touch the hand, the header, a menu or a dialog took never reaches it, and it follows one pointer at a time by its index, so a
 ## finger holding a card never blocks a second finger tapping the street. It reports screen points; the match screen turns them into
 ## street points.
@@ -11,7 +11,6 @@ signal move_dragged(at: Vector2)
 signal move_released
 
 const NO_POINTER: int = -1
-const MOUSE_POINTER: int = -2
 
 ## Taps are taken (false under a menu, while tagged, during the opening show).
 var active: bool = false
@@ -51,20 +50,6 @@ func handle(event: InputEvent) -> bool:
 		var drag: InputEventScreenDrag = event as InputEventScreenDrag
 		if drag.index == _pointer:
 			move_dragged.emit(drag.position)
-			return true
-	elif event is InputEventMouseButton:
-		var click: InputEventMouseButton = event as InputEventMouseButton
-		if click.device == InputEvent.DEVICE_ID_EMULATION or click.button_index != MOUSE_BUTTON_RIGHT:
-			return false
-		if click.pressed:
-			return _press(MOUSE_POINTER, click.position)
-		if _pointer == MOUSE_POINTER:
-			release()
-			return true
-	elif event is InputEventMouseMotion:
-		var motion: InputEventMouseMotion = event as InputEventMouseMotion
-		if _pointer == MOUSE_POINTER and motion.device != InputEvent.DEVICE_ID_EMULATION:
-			move_dragged.emit(motion.position)
 			return true
 	return false
 

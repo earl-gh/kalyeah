@@ -1,18 +1,16 @@
 class_name HotspotDialogs
 extends RefCounted
-## Platform/network checks only. Hotspot room discovery never asks for a code.
+## Network checks only. Hotspot room discovery never asks for a code.
 
-enum State { ON, OFF, UNSUPPORTED }
+enum State { ON, OFF }
 const CHECK_SECONDS: float = 0.01
 
 
-static func state(can_host: bool, addresses: PackedStringArray) -> State:
-	if not can_host:
-		return State.UNSUPPORTED
+static func state(addresses: PackedStringArray) -> State:
 	return State.OFF if HotspotNet.local_ip(addresses).is_empty() else State.ON
 
 
-static func create_check(on_ready: Callable, on_preview: Callable, can_host: bool = Net.can_host(), addresses: PackedStringArray = PackedStringArray()) -> MenuDialog:
+static func create_check(on_ready: Callable, addresses: PackedStringArray = PackedStringArray()) -> MenuDialog:
 	var card: MenuDialog = MenuDialog.create("Hotspot")
 	card.name = "HotspotCheckDialog"
 	var message: Label = card.add_label("Checking local connection…", UiMetrics.BODY, KalyeahTheme.CREAM)
@@ -30,7 +28,7 @@ static func create_check(on_ready: Callable, on_preview: Callable, can_host: boo
 		if not card.is_open:
 			return
 		var local: PackedStringArray = addresses if not addresses.is_empty() else IP.get_local_addresses()
-		match state(can_host, local):
+		match state(local):
 			State.ON:
 				card.close(false)
 				on_ready.call()
@@ -41,31 +39,6 @@ static func create_check(on_ready: Callable, on_preview: Callable, can_host: boo
 					again.name = "TryAgain"
 					again.pressed.connect(timer.start)
 					buttons.add_child(again)
-			State.UNSUPPORTED:
-				message.text = "Hotspot rooms need the Android app."
-				if OS.has_feature("web"):
-					var preview: Button = MenuDialog.make_button("Preview room", "blue", UiMetrics.BODY)
-					preview.name = "Preview"
-					preview.pressed.connect(func() -> void:
-						card.close(false)
-						on_preview.call())
-					buttons.add_child(preview)
 	timer.timeout.connect(check)
 	card.opened.connect(timer.start)
-	return card
-
-
-## Android proceeds immediately to the cancellable discovery screen. Web explains why it cannot.
-static func join(on_join: Callable, supported: bool = Net.can_host()) -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create("Join hotspot")
-	card.name = "HotspotJoinDialog"
-	card.add_label("Finding the host's room…" if supported else "Hotspot rooms need the Android app.", UiMetrics.BODY)
-	var cancel: Button = MenuDialog.make_button("Back", "grey", UiMetrics.BODY)
-	cancel.name = "Cancel"
-	cancel.pressed.connect(card.close)
-	card.add_buttons([cancel])
-	if supported:
-		card.opened.connect(func() -> void:
-			card.close(false)
-			on_join.call(""))
 	return card

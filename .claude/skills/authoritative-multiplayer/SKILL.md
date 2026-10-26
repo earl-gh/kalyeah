@@ -38,7 +38,7 @@ Do not change simulation rules, weapon balance, presentation timing, shaders, or
 - Bind reconnects to server-owned session state and revoke stale ownership.
 - Keep room code generation collision-aware and exclude ambiguous behavior from normalization.
 - Maintain compatibility deliberately. Change protocol versions or parsing tests when wire behavior changes.
-- Keep WebSocket support compatible with Android and single-threaded web exports. Do not introduce ENet or UDP.
+- Keep WebSocket support compatible with Android. Do not introduce ENet or UDP.
 
 ## Workflow
 

@@ -360,7 +360,7 @@ func _close_exit_dialog() -> void:
 		_exit_dialog.close(false)
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if is_open() and event.is_action_pressed("ui_cancel"):
-		get_viewport().set_input_as_handled()
-		request_back()
+## The phone's back button asks to leave, or closes the swap.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		request_back.call_deferred()

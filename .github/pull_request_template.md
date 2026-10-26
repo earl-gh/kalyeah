@@ -4,9 +4,11 @@
 ## Decisions for you
 <!-- Any defaults chosen where the docs were silent (also listed in docs/GDD.md "Open decisions") -->
 
-## Check it on your phone (after you merge)
-Live link: https://earl-gh.github.io/kalyeah/ (wait for the `Pages` run on `main` to finish)
+## Install the APK
+Actions → **Android APK** → the run on this branch (or on `main` after you merge; wait for it to finish) → artifact `kalyeah-debug-apk`. If Android refuses to update, uninstall the old app first (builds signed with different debug keys do not install over each other).
 1.
+Device checks (only a phone shows these):
+-
 
 ## Done
 - [ ] Project imports and the full GUT suite passes locally

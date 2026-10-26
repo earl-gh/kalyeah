@@ -12,11 +12,12 @@ description: >
 
 Read `CLAUDE.md` and `.claude/skills/README.md` before this skill. Kalyeah remains on
 Godot 4.6.2, Compatibility rendering, typed GDScript, fixed 30 Hz simulation,
-WebSocket authority and single-threaded Web. Upstream's 4.7 baseline is not an
+WebSocket authority and one Android APK (no web or desktop client). Upstream's 4.7 baseline is not an
 upgrade instruction: verify version-sensitive APIs against 4.6 before use.
 Use this as a technical reference under the existing specialist's ownership.
 Examples do not authorize new autoloads, physics-driven authoritative rules,
 asset generation, new dependencies, pausing multiplayer, or changing exports.
+Only the `Android` and `Server` presets exist here; the Web and desktop sections below are generic upstream text that does not apply.
 Related skills not installed here are optional references, not dependencies.
 
 # Godot Export & Builds (4.x)

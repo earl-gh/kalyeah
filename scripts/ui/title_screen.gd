@@ -30,7 +30,7 @@ const TABS: Array[Dictionary] = [
 	{"id": &"settings", "label": "Settings", "icon": &"settings"},
 ]
 ## The pages that belong to Settings: its tab stays lit while one is open.
-const SETTINGS_PAGES: Array[StringName] = [&"codex", &"history", &"gallery", &"howto"]
+const SETTINGS_PAGES: Array[StringName] = [&"codex", &"history", &"howto"]
 ## The hero cards (2.5:4, like the owner's card pictures) and how high the stage is.
 const HERO_CARD: Vector2 = Vector2(400.0, 640.0)
 ## The hero grows with the stage (phones taller than 16:9 have the room): 2.5:4, between these heights, with
@@ -44,7 +44,7 @@ const AMBIENT_BOB: float = 7.0
 const CHIPS_HEIGHT: float = 42.0
 const CHIPS_MIN_STAGE: float = 640.0
 ## Which way a page slides in: the pages left to right as their tabs are.
-const PAGE_RANK: Dictionary[StringName, int] = {&"street": -1, &"": 0, &"settings": 1, &"codex": 2, &"history": 2, &"gallery": 2, &"howto": 2}
+const PAGE_RANK: Dictionary[StringName, int] = {&"street": -1, &"": 0, &"settings": 1, &"codex": 2, &"history": 2, &"howto": 2}
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
 const LOGO_HEIGHT: float = 92.0
 const SIDE_MARGIN: float = 28.0
@@ -83,7 +83,6 @@ var weapons_page: WeaponsPage:
 	get: return codex_page.weapons_page
 var history_page: HistoryPage
 var settings_page: SettingsPage
-var gallery_page: UiGallery
 var howto_page: HowToPlayPage
 
 var _loading: bool = false
@@ -214,9 +213,6 @@ func _build_home() -> VBoxContainer:
 	carousel.card_size = HERO_CARD
 	carousel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(carousel)
-	if not Session.menu_mode_chosen and not Net.can_host():
-		# a browser cannot host or join a hotspot room: it opens on Practice instead of on a dead end
-		Session.menu_mode = MODES.size() - 1
 	carousel.setup("", MODES, Session.menu_mode)
 	carousel.bob = AMBIENT_BOB
 	stage.resized.connect(_fit_hero)
@@ -293,9 +289,8 @@ func _build_pages() -> void:
 	codex_page = CodexPage.new()
 	history_page = HistoryPage.new()
 	settings_page = SettingsPage.new()
-	gallery_page = UiGallery.new()
 	howto_page = HowToPlayPage.new()
-	pages = {&"street": street_page, &"codex": codex_page, &"history": history_page, &"settings": settings_page, &"gallery": gallery_page, &"howto": howto_page}
+	pages = {&"street": street_page, &"codex": codex_page, &"history": history_page, &"settings": settings_page, &"howto": howto_page}
 	for id: StringName in pages:
 		var page: Control = pages[id]
 		page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -305,7 +300,6 @@ func _build_pages() -> void:
 	codex_page.characters_page.character_opened.connect(open_character_detail)
 	settings_page.profile_pressed.connect(open_name_editor)
 	settings_page.quit_pressed.connect(open_quit_confirm)
-	settings_page.gallery_pressed.connect(open_page.bind(&"gallery"))
 	settings_page.howto_pressed.connect(open_page.bind(&"howto"))
 	settings_page.book_pressed.connect(open_page.bind(&"codex"))
 	settings_page.history_pressed.connect(open_page.bind(&"history"))
@@ -337,7 +331,7 @@ func open_page(id: StringName) -> void:
 		codex_page.show_tab(codex_page.current)
 	_home.visible = false
 	_top_bar.visible = false
-	# the Book, History, the gallery and How to play are reached from Settings: that tab stays lit (History opened from the last match
+	# the Book, History and How to play are reached from Settings: that tab stays lit (History opened from the last match
 	# on Play keeps Play lit) and opens Settings again
 	var lit: StringName = &"settings" if id in SETTINGS_PAGES else id
 	if id == &"history" and was_home:
@@ -473,8 +467,6 @@ func _refresh_mode() -> void:
 	var rooms: bool = String(mode["id"]) != "practice"
 	mode_name_label.text = String(mode["title"])
 	mode_text_label.text = String(mode["text"])
-	if String(mode["id"]) == "hotspot" and not Net.can_host():
-		mode_text_label.text = "Needs the Android app."
 	_fill_chips(String(mode["id"]))
 	primary_button.text = "Create room" if rooms else "Play vs bots"
 	secondary_button.text = "Join room" if rooms else "Training"
@@ -493,7 +485,6 @@ func _refresh_mode() -> void:
 
 func _on_mode_selected(index: int) -> void:
 	Session.menu_mode = index
-	Session.menu_mode_chosen = true
 	_refresh_mode()
 
 
@@ -518,22 +509,14 @@ func _on_secondary_pressed() -> void:
 
 ## Hotspot Create: a dialog checks the hotspot is on, then the room opens.
 func open_hotspot_create() -> MenuDialog:
-	var card: MenuDialog = HotspotDialogs.create_check(
-		func() -> void: _open_lobby(LobbyScreen.Intent.CREATE, true),
-		func() -> void:
-			Session.lobby_preview = true
-			_open_lobby(LobbyScreen.Intent.CREATE, true))
+	var card: MenuDialog = HotspotDialogs.create_check(func() -> void: _open_lobby(LobbyScreen.Intent.CREATE, true))
 	_show_dialog(card)
 	return card
 
 
-## Hotspot Join: a dialog with a box for each character of the room code.
-func open_hotspot_join() -> MenuDialog:
-	var card: MenuDialog = HotspotDialogs.join(func(code: String) -> void:
-		Session.lobby_code = code
-		_open_lobby(LobbyScreen.Intent.JOIN, true))
-	_show_dialog(card)
-	return card
+## Hotspot Join: the lobby looks for the host's room by itself (no code, no address).
+func open_hotspot_join() -> void:
+	_open_lobby(LobbyScreen.Intent.JOIN, true)
 
 
 ## Keeps everything clear of notches, rounded corners and the home bar.
@@ -689,8 +672,6 @@ func _show_loading(message: String) -> void:
 func _open_lobby(intent: LobbyScreen.Intent, hotspot: bool) -> void:
 	Session.lobby_intent = intent
 	Session.lobby_hotspot = hotspot
-	if not (hotspot and Session.lobby_preview):
-		Session.lobby_preview = false
 	open_lobby_action.call(intent)
 
 
@@ -755,18 +736,9 @@ func open_quit_confirm() -> MenuDialog:
 	return card
 
 
-## Close the game: the app quits; a browser tab has no "quit", so it leaves the page instead.
+## Close the game.
 func _quit_game() -> void:
-	if OS.has_feature("web"):
-		JavaScriptBridge.eval("window.close(); setTimeout(function () { window.location.replace('about:blank'); }, 120);")
-	else:
-		get_tree().quit()
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel") and (dialog == null or not is_instance_valid(dialog) or not dialog.is_open):
-		get_viewport().set_input_as_handled()
-		_go_back()
+	get_tree().quit()
 
 
 ## Back closes the open page; on the home page it asks to quit.
@@ -777,13 +749,16 @@ func _go_back() -> void:
 		open_quit_confirm()
 
 
-## The phone's back button: close what is open, or ask to quit.
+## The phone's back button: an open dialog closes itself; otherwise close the page, or ask to quit. It acts after the
+## notification has walked the tree (a dialog cannot be added to a node that is still handing it out).
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
-		if dialog != null and is_instance_valid(dialog) and dialog.is_open:
-			dialog.close()
-		else:
-			_go_back()
+		_back_pressed.call_deferred()
+
+
+func _back_pressed() -> void:
+	if dialog == null or not is_instance_valid(dialog) or not dialog.is_open:
+		_go_back()
 
 
 ## How to play, "Practice with the walkthrough": a practice match that opens with the four steps again.

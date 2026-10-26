@@ -701,7 +701,7 @@ func _move(state: PlayerState, input: PlayerInput, dt: float) -> void:
 		_walk_to_target(state, speed * dt, dt)
 
 
-## WASD (a non-zero stick) clears the move target; a new street point replaces it (pulled into the street and out of cover).
+## A non-zero stick (bots) clears the move target; a new street point replaces it (pulled into the street and out of cover).
 ## The same point again keeps the stuck timer, so a finger held still cannot push into a wall for ever.
 func _take_move_order(state: PlayerState, input: PlayerInput) -> void:
 	if input.move.length_squared() > 0.0:

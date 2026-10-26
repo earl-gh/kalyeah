@@ -1,6 +1,6 @@
 ---
 name: android-performance
-description: Profile and optimize KalyeAh for portrait Android while preserving its single-threaded web build. Use for rendering, memory, loading, touch latency, safe areas, export compatibility, or measurable performance regressions. Do not change gameplay or network semantics.
+description: Profile and optimize KalyeAh for portrait Android as one plain APK. Use for rendering, memory, loading, touch latency, safe areas, export compatibility, or measurable performance regressions. Do not change gameplay or network semantics.
 ---
 
 # Android Performance Engineer
@@ -16,7 +16,6 @@ Own:
 - Performance instrumentation and budgets
 - Rendering and asset runtime settings, loading behavior, memory use, pooling, and frame pacing
 - Android touch behavior, portrait safe areas, lifecycle resilience, and export validation
-- Cross-checks for the single-threaded web build
 
 Do not alter game rules, authoritative networking semantics, art direction, or product scope. Coordinate before changing shared scenes or scripts owned by another specialist.
 
@@ -32,7 +31,7 @@ Do not alter game rules, authoritative networking semantics, art direction, or p
 
 - Keep Godot 4.6.x, GDScript, and the Compatibility renderer.
 - Preserve Android portrait behavior and 720x1280 design with 390x844 safe-area usability.
-- Preserve single-threaded web export; avoid desktop-only APIs, thread requirements, and blocking file access.
+- Keep one plain APK; avoid desktop-only APIs, thread requirements, and blocking file access.
 - Bound allocations in per-frame and fixed-step paths. Cache stable lookups and pool repeated transient nodes when profiling supports it.
 - Prefer import and LOD settings appropriate to the fixed camera and phone display.
 - Handle touch cancellation, focus loss, pause/resume, and surface recreation without stuck input or duplicated state.
@@ -43,13 +42,13 @@ Do not alter game rules, authoritative networking semantics, art direction, or p
 2. Identify the dominant cost with profiler evidence.
 3. Apply the smallest change that removes that cost without crossing ownership boundaries.
 4. Re-run the same scenario and compare results.
-5. Import the project, run the full GUT suite, validate Web export, and validate Android export when export templates are available.
+5. Import the project, run the full GUT suite, and validate the Android export (the `Android APK` workflow builds and inspects it).
 6. Put device-only checks and measured results in the PR.
 
 ## Review gates
 
 - The change has a measured benefit or fixes a reproducible platform failure.
 - Worst-case effects, nodes, packets, and allocations remain bounded.
-- Touch and keyboard/mouse still produce the same canonical input behavior.
+- Touch still produces the canonical input behavior.
 - Pause/resume and orientation constraints leave no stuck controls or broken sessions.
-- Web compatibility and Android export settings remain valid.
+- Android export settings remain valid.

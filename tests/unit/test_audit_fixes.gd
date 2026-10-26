@@ -4,13 +4,11 @@ extends GutTest
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const DT: float = 1.0 / 30.0
 
-var _developer: bool
 var _kind: StringName
 var _history: String
 
 
 func before_each() -> void:
-	_developer = Settings.developer
 	_kind = Session.practice_kind
 	_history = MatchHistory.path
 	MatchHistory.path = "user://audit_history_test.cfg"
@@ -18,7 +16,6 @@ func before_each() -> void:
 
 
 func after_each() -> void:
-	Settings.developer = _developer
 	Session.practice_kind = _kind
 	MatchHistory.clear()
 	MatchHistory.path = _history
@@ -32,13 +29,6 @@ func _practice(kind: StringName = &"training") -> PracticeMatch:
 	practice.finish_pick()
 	practice.skip_intro()
 	return practice
-
-
-func test_the_practice_tools_are_developer_tools_and_not_in_the_player_menu() -> void:
-	Settings.developer = false
-	var menu: MatchMenu = _practice().hud.menu
-	assert_false(menu.hurt_button.visible)
-	assert_false(menu._tools.visible, "no Show practice tools group for a player")
 
 
 func test_the_match_stands_still_while_the_menu_is_open_and_runs_again_after() -> void:
@@ -157,11 +147,6 @@ func test_the_first_to_buttons_fit_a_phone_next_to_their_caption() -> void:
 	assert_eq(view.first_to_buttons[5].accessibility_name, "First to 5")
 
 
-func test_a_browser_opens_on_practice_and_says_why_hotspot_is_not_there() -> void:
-	assert_true(TitleScreen.MODES[TitleScreen.MODES.size() - 1]["id"] == "practice", "the last card is Practice")
-	assert_false(Session.menu_mode_chosen, "nothing chosen yet at startup")
-
-
 func test_cards_pass_touches_on_so_a_drag_that_starts_on_one_scrolls_the_page() -> void:
 	var card: PanelContainer = autofree(UiKit.card(Control.new())) as PanelContainer
 	assert_eq(card.mouse_filter, Control.MOUSE_FILTER_PASS)
@@ -176,7 +161,6 @@ func test_the_room_status_says_how_many_players_each_team_has() -> void:
 
 func test_one_name_for_a_knocked_out_kid() -> void:
 	assert_eq(StatusEffects.new().display_names().size(), 0)
-	assert_eq(MatchMenu.STATUS_TESTS[2][0], "Knocked out")
 	assert_eq(MatchHud.CAST_BLOCK_TAGS[StatusEffects.Type.KNOCKOUT], "OUT")
 
 

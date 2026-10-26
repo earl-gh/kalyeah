@@ -162,12 +162,11 @@ static func make_button(text: String, color: String, font_size: int = UiMetrics.
 	return button
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not is_open or not is_visible_in_tree():
-		return
-	if event.is_action_pressed("ui_cancel"):
-		get_viewport().set_input_as_handled()
-		close()
+## The phone's back button closes the open dialog. Only a dialog that is open when the press arrives closes, and after the
+## notification has walked the whole tree, so the screen under it still sees it open and leaves the press to it.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST and is_open and is_visible_in_tree():
+		close.call_deferred()
 
 
 func _fit() -> void:
@@ -192,22 +191,7 @@ func reopen() -> void:
 
 func _focus_first() -> void:
 	if is_open and is_visible_in_tree():
-		UiFocus.first(self, Settings.keyboard_active)
-
-
-func _input(event: InputEvent) -> void:
-	if not is_open or not is_visible_in_tree():
-		return
-	var current: Control = get_viewport().gui_get_focus_owner()
-	if current == null or not is_ancestor_of(current):
-		# a dialog opened by touch has no focus ring; the first key press brings it
-		if event.is_action_pressed("ui_focus_next") or event.is_action_pressed("ui_focus_prev") or event.is_action_pressed("ui_down") or event.is_action_pressed("ui_up"):
-			UiFocus.first(self, true)
-			get_viewport().set_input_as_handled()
-		return
-	if event.is_action_pressed("ui_focus_next") or event.is_action_pressed("ui_focus_prev"):
-		UiFocus.advance(self, event.is_action_pressed("ui_focus_prev"))
-		get_viewport().set_input_as_handled()
+		UiFocus.first(self)
 
 
 func _on_accessibility_changed() -> void:

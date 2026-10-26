@@ -7,7 +7,7 @@ These project-local agent skills encode the specialist workflows used to change 
 | `gameplay-simulation` | Agawan Base rules, deterministic simulation, weapon behavior, input semantics | Network transport, presentation, export settings |
 | `authoritative-multiplayer` | WebSocket protocol, rooms, server authority, snapshots, reconnects | Game balance, animation, Android rendering |
 | `gameplay-presentation` | Animation, camera, VFX/audio hooks, HUD feedback, sim-to-view mapping | Simulation outcomes, protocol, asset creation |
-| `android-performance` | Profiling, mobile budgets, touch/safe areas, Android and web compatibility | Game rules, networking semantics, art direction |
+| `android-performance` | Profiling, mobile budgets, touch/safe areas, Android compatibility | Game rules, networking semantics, art direction |
 | `game-qa-release` | Risk-based tests, regression coverage, validation, PR and release readiness | Product scope, feature implementation, manual version edits |
 
 The boundaries are deliberate. Multiple agents may use these skills at the same time when their file ownership does not overlap. If a task crosses boundaries, split it into commits and let the owning specialist review each part.
@@ -96,7 +96,7 @@ First use and remaining checks: [skill adoption review](../../docs/audits/2026-1
 
 ## Studio subagents
 
-Six agents in `.claude/agents/` (Claude Code subagents, run by name or with `/agents`), a Supercell-style studio team (inspired by, never copied). Shared rules, ownership of paths, commands and the report format are in [docs/STUDIO.md](../../docs/STUDIO.md); each agent file holds only its own role. All of them audit **and** apply changes, and are judged on proof (tests, screenshots, measured numbers), not on prose.
+Seven agents in `.claude/agents/` (Claude Code subagents, run by name or with `/agents`), a Supercell-style studio team (inspired by, never copied). Shared rules, ownership of paths, commands and the report format are in [docs/STUDIO.md](../../docs/STUDIO.md); each agent file holds only its own role. All of them audit **and** apply changes, and are judged on proof (tests, screenshots, measured numbers), not on prose.
 
 | Agent | Owns |
 | --- | --- |
@@ -105,4 +105,5 @@ Six agents in `.claude/agents/` (Claude Code subagents, run by name or with `/ag
 | `gameplay-engineer` | Sim, multiplayer, snapshots, autoloads, server, with tests |
 | `ux-ui-artist` | Screens, HUD, flows, touch ergonomics, layout tests |
 | `art-director` | Brand tokens, `docs/ART.md`, art briefs (`docs/art-briefs/`), code-drawn stand-ins and effect timing, originality, veto on off-brand; no asset files |
-| `qa-engineer` | Tests, Playwright audits, defect reports, regression |
+| `qa-engineer` | Tests, APK and emulator audits, defect reports, regression |
+| `android-engineer` | Export preset, manifest, Android workflow, APK inspection and emulator smoke test, safe areas and device checks |

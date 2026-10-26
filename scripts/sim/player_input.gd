@@ -1,6 +1,6 @@
 class_name PlayerInput
 extends RefCounted
-## The one input format: touch, keyboard and network all produce this.
+## The one input format: touch and network both produce this.
 ## Only move/aim/buttons/tick and street points, never any gameplay decision.
 ## docs/GDD.md "Controls: tap to move, cards to cast".
 
@@ -14,7 +14,7 @@ const CARD_BITS: Array[int] = [BTN_CARD_1, BTN_CARD_2, BTN_CARD_3, BTN_CARD_4]
 ## Superseded names (two weapon buttons) kept as aliases of the first two card bits while the HUD moves to four cards.
 const BTN_WEAPON_1: int = BTN_CARD_1
 const BTN_WEAPON_2: int = BTN_CARD_2
-## Sent on the tick a card is released over the hand (or right-click / Esc): no cast, nothing spent.
+## Sent on the tick a card is released over the hand (or a touch the system cancelled): no cast, nothing spent.
 const BTN_AIM_CANCEL: int = 1 << 5
 ## `move_target` is a new street point this tick: it replaces the kid's move target.
 const BTN_MOVE_TARGET: int = 1 << 6
@@ -23,7 +23,7 @@ const BTN_AIM_POINT: int = 1 << 7
 ## Every bit a client may send; anything else is dropped by the server.
 const KNOWN_BITS: int = BTN_CARD_1 | BTN_CARD_2 | BTN_CARD_3 | BTN_CARD_4 | BTN_AIM_CANCEL | BTN_MOVE_TARGET | BTN_AIM_POINT
 
-## Keyboard stick (WASD), x = left/right, y = along the lane (screen up = -1). Length <= 1. Non-zero clears the move target.
+## Stick (bots only: the phone never sends one), x = left/right, y = along the lane (screen up = -1). Length <= 1. Non-zero clears the move target.
 var move: Vector2 = Vector2.ZERO
 ## Stick-style aim relative to the kid (length 0..1 of the range; zero = auto-aim). Used when BTN_AIM_POINT is off.
 var aim: Vector2 = Vector2.ZERO

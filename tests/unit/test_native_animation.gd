@@ -1,22 +1,12 @@
 extends GutTest
 ## Junjun plays the animation clips of his own 3D model at their own speed (CharacterDef
-## .native_animation); the other kids keep the game's pacing. And the practice menu has buttons
-## that play the animations a skill hit causes (stunned, airborne, knocked down).
+## .native_animation); the other kids keep the game's pacing. And a kid hit by a skill plays the animation
+## it causes (stunned, airborne, knocked down).
 
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const DT: float = 1.0 / 30.0
-
-
-var _developer: bool
-
-
-func before_each() -> void:
-	_developer = Settings.developer
-	Settings.developer = true  # the practice tools are developer tools
-
-
-func after_each() -> void:
-	Settings.developer = _developer
+## Long enough to watch an animation.
+const STATUS_TIME: float = 3.0
 
 
 func _def(id: StringName) -> CharacterDef:
@@ -93,7 +83,7 @@ func test_his_footsteps_follow_his_run_clip() -> void:
 	assert_between(steps[0], 6, 9, "two steps per cycle of his run clip, four cycles")
 
 
-# ---- the practice menu: play the animations a skill hit causes ---------------------------
+# ---- the animations a skill hit causes ------------------------------------------------------
 
 func _practice() -> PracticeMatch:
 	var practice: PracticeMatch = autofree(PRACTICE_SCENE.instantiate()) as PracticeMatch
@@ -103,33 +93,20 @@ func _practice() -> PracticeMatch:
 	return practice
 
 
-func test_the_practice_menu_has_the_hit_animation_buttons() -> void:
-	var practice: PracticeMatch = _practice()
-	var menu: MatchMenu = practice.hud.menu
-	assert_eq(menu.status_buttons.size(), 3)
-	for type: int in [StatusEffects.Type.STUN, StatusEffects.Type.AIRBORNE, StatusEffects.Type.KNOCKOUT]:
-		assert_true(menu.status_buttons.has(type))
-		assert_true(menu.status_buttons[type].visible, "shown in practice")
-		assert_gte(menu.status_buttons[type].custom_minimum_size.y, 60.0, "easy to tap")
-
-
-func test_each_button_plays_its_animation_on_your_kid_and_closes_the_menu() -> void:
+func test_each_status_plays_its_animation_on_your_kid_until_it_wears_off() -> void:
 	var practice: PracticeMatch = _practice()
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 	var expect: Dictionary = {
 		StatusEffects.Type.STUN: "stunned", StatusEffects.Type.AIRBORNE: "airborne", StatusEffects.Type.KNOCKOUT: "ko",
 	}
 	for type: int in expect:
-		player.effects.clear() if player.effects.has_method("clear") else null
-		practice.hud.menu.open()
-		practice.hud.menu.status_buttons[type].pressed.emit()
-		assert_false(practice.hud.menu.visible, "the menu closes so you can watch")
+		player.effects.apply(type as StatusEffects.Type, STATUS_TIME)
 		assert_true(player.effects.has(type as StatusEffects.Type), "the status is on")
 		for i: int in 3:
 			practice.advance(DT)
 		var view: KidModel = practice._views[PracticeMatch.LOCAL_ID] as KidModel
 		assert_eq(view.pose, expect[type], "the kid plays the %s animation" % expect[type])
-		for i: int in int(PracticeMatch.STATUS_TEST_TIME * 30.0) + 60:
+		for i: int in int(STATUS_TIME * 30.0) + 60:
 			practice.advance(DT)
 		assert_false(player.effects.has(type as StatusEffects.Type), "it wears off")
 

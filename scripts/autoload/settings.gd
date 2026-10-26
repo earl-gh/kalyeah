@@ -1,13 +1,11 @@
 extends Node
 ## User and build settings. The online server address is never typed by players: it is the project
-## setting `kalyeah/network/server_url` (built into the game, empty until a server is deployed, see
-## server/README.md), or the web page's `?server=wss://...` query for testing.
+## setting `kalyeah/network/server_url` (stamped into the APK by the Android workflow, empty until a server
+## is deployed, see server/README.md).
 
 signal accessibility_changed
 ## The on-screen controls moved or changed size (left-handed layout, control size).
 signal controls_changed
-## The developer tools (the UI gallery) were switched on or off.
-signal developer_changed
 ## The language was changed (texts re-translate by themselves; drawn text redraws).
 signal language_changed
 
@@ -31,12 +29,6 @@ var reduced_motion: bool = false
 var colorblind: bool = false
 ## Mirrors the match controls: the stick on the right, the weapons on the left.
 var left_handed: bool = false
-## True once a key or gamepad was used and until the next touch or click: only then do dialogs put a focus ring on a
-## button when they open (a finger does not need one, and it would be a second gold thing beside the real action).
-var keyboard_active: bool = false
-## Developer tools (the UI gallery in Settings). Off for players: seven quick taps on the Settings title toggle it, and on the
-## web `?dev=1` turns it on for that visit.
-var developer: bool = false
 ## The language of the words ("en" until another one is offered and chosen).
 var language: String = "en"
 ## Whether holding a weapon shows its simple aim guide on the street (off = nothing is drawn).
@@ -60,7 +52,6 @@ func _ready() -> void:
 		var hand: Variant = file.get_value("input", "left_handed", false)
 		left_handed = hand if hand is bool else false
 		control_scale = nearest_control_scale(file.get_value("input", "control_scale", 1.0))
-		developer = file.get_value("dev", "developer", false) == true
 		language = String(file.get_value("ui", "language", "en"))
 		var guide: Variant = file.get_value("input", "aim_guide", true)
 		aim_guide = guide if guide is bool else true
@@ -68,23 +59,6 @@ func _ready() -> void:
 	if not available_languages().has(language):
 		language = "en"
 	TranslationServer.set_locale(language)
-	if OS.has_feature("web"):
-		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
-		var from_query: String = url_from_query(search as String if search is String else "")
-		if not from_query.is_empty():
-			server_url = from_query
-		if search is String and (search as String).contains("dev=1"):
-			developer = true
-
-
-## `?server=wss%3A%2F%2Fexample.com&x=1` -> "wss://example.com".
-static func url_from_query(search: String) -> String:
-	var query: String = search.trim_prefix("?")
-	for part: String in query.split("&", false):
-		var pair: PackedStringArray = part.split("=", true, 1)
-		if pair.size() == 2 and pair[0] == "server":
-			return pair[1].uri_decode().strip_edges()
-	return ""
 
 
 ## A bare host becomes wss://host (ws:// for localhost).
@@ -150,14 +124,6 @@ func set_language(code: String) -> void:
 	language_changed.emit()
 
 
-func set_developer(on: bool) -> void:
-	if on == developer:
-		return
-	developer = on
-	_save_value("dev", "developer", on)
-	developer_changed.emit()
-
-
 func set_left_handed(on: bool) -> void:
 	if on == left_handed:
 		return
@@ -188,9 +154,9 @@ func set_vibration(on: bool) -> void:
 	_save_value("input", "vibration", on)
 
 
-## True where the phone can buzz (a native Android or iOS build; not in a browser).
+## True where the phone can buzz (the Android app; headless runs and tests have no motor, so no toggle).
 static func can_vibrate() -> bool:
-	return (OS.has_feature("android") or OS.has_feature("ios")) and not OS.has_feature("web")
+	return OS.has_feature("android")
 
 
 func vibrate(milliseconds: int = 12) -> void:
@@ -203,13 +169,6 @@ func _save_value(section: String, key: String, value: Variant) -> void:
 	file.load(SAVE_PATH)
 	file.set_value(section, key, value)
 	file.save(SAVE_PATH)
-
-
-func _input(event: InputEvent) -> void:
-	if event is InputEventKey or event is InputEventJoypadButton:
-		keyboard_active = true
-	elif event is InputEventScreenTouch or event is InputEventMouseButton:
-		keyboard_active = false
 
 
 func _on_node_added(node: Node) -> void:

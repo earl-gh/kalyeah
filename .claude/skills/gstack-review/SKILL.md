@@ -22,7 +22,7 @@ Read changed code, every relevant caller and existing regression coverage.
 - Trace new fields/statuses/constants through unchanged consumers and allowlists.
 - Inspect test/config changes for deleted checks, relaxed thresholds, swallowed
   errors or mocks that cannot prove the claim. Do not silently weaken a gate.
-- Preserve Godot 4.6.2, Compatibility, GUT and single-threaded Web/Android support.
+- Preserve Godot 4.6.2, Compatibility, GUT and Android support.
 
 ## Quality pass
 
@@ -30,7 +30,7 @@ Read changed code, every relevant caller and existing regression coverage.
 - Extract shared behavior only when callers' contracts agree and it reduces risk
   or net complexity. Keep intentional differences explicit.
 - Verify documentation and claimed checks against actual results. Never call a
-  headless/browser run proof of physical Android accessibility or performance.
+  headless run proof of physical Android accessibility or performance.
 - Retain existing owner-supplied art policy and release-please version ownership.
 
 For each finding, quote a real file:line, concrete trigger, impact and smallest

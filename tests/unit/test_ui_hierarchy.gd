@@ -46,19 +46,16 @@ func test_tall_dialog_scrolls_inside_the_viewport() -> void:
 func test_match_menu_retains_controls_and_requires_confirmation_only_online() -> void:
 	var menu: MatchMenu = autofree(MatchMenu.new()) as MatchMenu
 	add_child(menu)
-	var hurt: Button = menu.hurt_button
+	var leave: Button = menu.leave_button
 	var exits: Array[bool] = []
 	menu.exit_pressed.connect(func() -> void: exits.append(true))
 	for i: int in 3:
 		menu.open()
 		menu.close()
 	await wait_process_frames(2)
-	assert_true(is_instance_valid(hurt))
-	assert_eq(menu.hurt_button, hurt, "signal wiring survives repeated opens")
+	assert_true(is_instance_valid(leave))
+	assert_eq(menu.leave_button, leave, "signal wiring survives repeated opens")
 	menu.open()
-	assert_false(menu._details.visible, "infrequent training controls start collapsed")
-	menu.tools_button.pressed.emit()
-	assert_true(menu._details.visible)
 	menu.set_practice(false, true)
 	menu.leave_button.pressed.emit()
 	assert_eq(exits.size(), 0)

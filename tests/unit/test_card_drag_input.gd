@@ -14,8 +14,8 @@ func _make() -> MatchInput:
 	return input
 
 
-func _tick(input: MatchInput, tick: int = 1, now: int = NOW) -> PlayerInput:
-	return input.build(false, Callable(), tick, now)
+func _tick(input: MatchInput, tick: int = 1) -> PlayerInput:
+	return input.build(tick)
 
 
 # ---- moving ---------------------------------------------------------------------------
@@ -262,21 +262,10 @@ func test_a_system_cancelled_touch_drops_the_card() -> void:
 	assert_signal_not_emitted(hand, "card_released")
 
 
-func test_right_click_while_holding_drops_the_card() -> void:
+func test_the_mouse_events_a_touch_makes_are_ignored_by_the_hand() -> void:
 	var hand: CardHand = _hand()
-	var press: InputEventMouseButton = InputEventMouseButton.new()
-	press.button_index = MOUSE_BUTTON_LEFT
-	press.pressed = true
-	press.position = _card_centre(hand, 2)
-	hand._input(press)
-	assert_eq(hand.held_slot, 2, "left-click picks a card up on desktop")
-	watch_signals(hand)
-	var right: InputEventMouseButton = InputEventMouseButton.new()
-	right.button_index = MOUSE_BUTTON_RIGHT
-	right.pressed = true
-	right.position = Vector2(300.0, 400.0)
-	hand._input(right)
-	assert_signal_emitted_with_parameters(hand, "card_cancelled", [2])
+	hand._input(TouchHelper.click(_card_centre(hand, 2), true))
+	assert_eq(hand.held_slot, -1, "the touch itself picks the card up, once")
 
 
 func test_an_inactive_hand_takes_no_card() -> void:
@@ -309,25 +298,15 @@ func test_the_street_follows_its_own_finger_while_another_holds_a_card() -> void
 	assert_signal_emitted(street, "move_released")
 
 
-func test_right_click_moves_and_touch_emulated_clicks_do_not() -> void:
+func test_the_mouse_events_a_touch_makes_do_not_order_a_second_move() -> void:
 	var street: StreetTouch = StreetTouch.new()
 	add_child_autofree(street)
 	street.active = true
 	watch_signals(street)
-	var emulated: InputEventMouseButton = InputEventMouseButton.new()
-	emulated.button_index = MOUSE_BUTTON_RIGHT
-	emulated.pressed = true
-	emulated.device = InputEvent.DEVICE_ID_EMULATION
-	assert_false(street.handle(emulated))
-	var left: InputEventMouseButton = InputEventMouseButton.new()
-	left.button_index = MOUSE_BUTTON_LEFT
-	left.pressed = true
-	assert_false(street.handle(left), "left-click is for cards")
-	var right: InputEventMouseButton = InputEventMouseButton.new()
-	right.button_index = MOUSE_BUTTON_RIGHT
-	right.pressed = true
-	right.position = Vector2(50.0, 60.0)
-	assert_true(street.handle(right))
+	assert_false(street.handle(TouchHelper.click(Vector2(50.0, 60.0), true)))
+	assert_false(street.handle(TouchHelper.motion(Vector2(55.0, 60.0))))
+	assert_signal_not_emitted(street, "move_pressed")
+	assert_true(street.handle(TouchHelper.touch(0, Vector2(50.0, 60.0), true)))
 	assert_signal_emitted_with_parameters(street, "move_pressed", [Vector2(50.0, 60.0)])
 
 

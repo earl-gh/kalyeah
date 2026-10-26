@@ -4,19 +4,10 @@ extends Control
 
 signal closed
 signal exit_pressed
-signal hurt_pressed
-signal status_pressed(type: int)
 
-const STATUS_TESTS: Array[Array] = [["Stunned", StatusEffects.Type.STUN], ["Airborne", StatusEffects.Type.AIRBORNE], ["Knocked out", StatusEffects.Type.KNOCKOUT]]
-
-var hurt_button: Button
-var status_buttons: Dictionary[int, Button] = {}
 var resume_button: Button
 var leave_button: Button
 var _dialog: MenuDialog
-var tools_button: Button
-var _details: VBoxContainer
-var _tools: VBoxContainer
 var _networked: bool = false
 var _hosting: bool = false
 ## Leaving asks first (a Practice match against bots: it counts as a loss). Training leaves at once.
@@ -30,24 +21,6 @@ func _ready() -> void:
 	_dialog = MenuDialog.create("Match settings")
 	_dialog.persistent = true
 	SettingsPage.fill(_dialog.body, true)
-	_tools = VBoxContainer.new()
-	_tools.add_theme_constant_override("separation", UiMetrics.GAP)
-	_dialog.body.add_child(_tools)
-	tools_button = _button("Show practice tools", "grey", _tools)
-	tools_button.tooltip_text = "Show practice tools"
-	_details = VBoxContainer.new()
-	_details.add_theme_constant_override("separation", UiMetrics.GAP)
-	_details.hide()
-	_tools.add_child(_details)
-	tools_button.pressed.connect(func() -> void:
-		_details.visible = not _details.visible
-		tools_button.text = "Hide practice tools" if _details.visible else "Show practice tools")
-	hurt_button = _button("Take 30 damage", "grey", _details)
-	hurt_button.pressed.connect(hurt_pressed.emit)
-	for test: Array in STATUS_TESTS:
-		var play: Button = _button(test[0] as String, "grey", _details)
-		play.pressed.connect(status_pressed.emit.bind(test[1] as int))
-		status_buttons[test[1] as int] = play
 	resume_button = _button("Resume", "orange", _dialog.body)
 	resume_button.pressed.connect(close)
 	leave_button = _button("Leave match", "red", _dialog.body)
@@ -62,12 +35,6 @@ func set_practice(on: bool, hosting: bool = false, confirm_leave: bool = false) 
 	_networked = not on
 	_hosting = hosting
 	_confirm_practice = on and confirm_leave
-	# the test buttons are developer tools: not in the player menu unless the developer switch is on
-	_tools.visible = on and Settings.developer
-	# Keep these flags truthful for callers, even while the entire group is hidden.
-	hurt_button.visible = on and Settings.developer
-	for button: Button in status_buttons.values():
-		button.visible = on and Settings.developer
 
 
 func open() -> void:

@@ -43,7 +43,6 @@ func _toast_texts() -> Array[String]:
 
 func _lobby_join() -> Node:
 	Session.lobby_hotspot = false
-	Session.lobby_preview = false
 	Session.lobby_intent = 1
 	var lobby: Node = autofree((load("res://scenes/ui/lobby.tscn") as PackedScene).instantiate()) as Node
 	add_child(lobby)
@@ -271,10 +270,8 @@ func test_skip_ends_it_for_good_and_back_on_android_skips() -> void:
 	var ended: Array[bool] = []
 	coach.finished.connect(func(completed: bool) -> void: ended.append(completed))
 	Session.coach_seen = false
-	var cancel: InputEventAction = InputEventAction.new()
-	cancel.action = &"ui_cancel"
-	cancel.pressed = true
-	coach._unhandled_input(cancel)
+	coach.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	await wait_process_frames(1)
 	assert_eq(ended, [false] as Array[bool], "skipped, not completed")
 	assert_true(Session.coach_seen)
 	assert_true(practice.hud.controls_active())

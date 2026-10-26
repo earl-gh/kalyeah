@@ -2,8 +2,7 @@ class_name MenuCarousel
 extends Control
 ## A horizontal carousel of 2.5:4 cards. The chosen card is in the middle at full size; every other
 ## card is stacked behind it, pushed only a little to its left or right, smaller and see-through but
-## always visible. Drag or swipe sideways (or use the mouse wheel) to scroll, tap a card to bring it to
-## the middle.
+## always visible. Drag or swipe sideways to scroll, tap a card to bring it to the middle.
 
 signal selected(index: int)
 
@@ -37,7 +36,6 @@ var _dragging: bool = false
 var _press_x: float = 0.0
 var _press_position: float = 0.0
 var _tween: Tween
-var _focus_frame: Panel
 
 
 ## `options` are {id, title, color}; the card at `current` starts in the middle. `heading` is the
@@ -83,15 +81,6 @@ func _frame(accent: String) -> Panel:
 
 
 func _ready() -> void:
-	focus_mode = Control.FOCUS_ALL
-	tooltip_text = "Choose with Left and Right arrows"
-	_focus_frame = Panel.new()
-	_focus_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_focus_frame.z_index = 20
-	_focus_frame.add_theme_stylebox_override("panel", KalyeahTheme.focus_ring(KalyeahTheme.CORNER))
-	add_child(_focus_frame)
-	focus_entered.connect(_layout)
-	focus_exited.connect(_layout)
 	Settings.accessibility_changed.connect(_on_accessibility_changed)
 	clip_contents = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -146,12 +135,6 @@ func _layout() -> void:
 		if frame != null:
 			frame.modulate.a = clampf(1.0 - absf(offset) * 1.6, 0.0, 1.0)
 
-	if _focus_frame != null:
-		_focus_frame.visible = has_focus() and not cards.is_empty()
-		if not cards.is_empty():
-			_focus_frame.size = card_size * cards[index].scale
-			_focus_frame.position = cards[index].position + (card_size - _focus_frame.size) / 2.0
-
 
 func _on_accessibility_changed() -> void:
 	if Settings.reduced_motion:
@@ -161,19 +144,10 @@ func _on_accessibility_changed() -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_left") or event.is_action_pressed("ui_right"):
-		select(index + (-1 if event.is_action_pressed("ui_left") else 1))
-		accept_event()
-		return
 	if event is InputEventMouseButton:
 		var button: InputEventMouseButton = event as InputEventMouseButton
-		if button.button_index == MOUSE_BUTTON_WHEEL_UP and button.pressed:
-			select(index - 1)
-		elif button.button_index == MOUSE_BUTTON_WHEEL_DOWN and button.pressed:
-			select(index + 1)
-		elif button.button_index == MOUSE_BUTTON_LEFT:
+		if button.button_index == MOUSE_BUTTON_LEFT:
 			if button.pressed:
-				grab_focus()
 				_pressed = true
 				_dragging = false
 				_press_x = button.position.x

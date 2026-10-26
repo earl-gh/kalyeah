@@ -92,12 +92,13 @@ screen. Keep one row per device/build when recording failures.
 | Hotspot | Use actual host and guest phones. Join discovers an active host room without a code; absent/closed room fails clearly. Test host background/return and host leaving. | Not run on hardware |
 | Online | Create and join by the generated eight-character code; populate 1v1, 2v2 and 3v3. Check readiness, character reservation and reconnect state on both sides. | Not run on hardware |
 | Large text and cutouts | At 140% in-game text and enlarged OS display/font settings, open guides, settings, full 3v3 room and loadout. Critical actions remain reachable; controls avoid cutouts/home area. | Not run on hardware |
-| Keyboard and Back | Rename with the virtual keyboard, submit/dismiss it and use Android Back through menu/leave confirmation. Fields/actions remain reachable; backing out does not cast or leave accidentally. | Not run on hardware |
+| Keyboard and Back | Rename with the virtual keyboard, submit/dismiss it and use Android Back: on Home it asks *Quit game?*, on a page it closes the page, on a dialog it closes the dialog, in the lobby it leaves the room, in a match it opens the match settings (Resume, Leave) and never quits by itself. Fields/actions remain reachable; backing out does not cast or leave accidentally. The emulator smoke test only proves Back on Home does not close the app. | Not run on hardware |
+| Vibration and install | Settings shows the Vibration switch; a button press and a hit buzz (`VIBRATE` is the only permission besides `INTERNET`). Install a second APK over the first (same debug key) and check the settings and name survived. | Not run on hardware |
 | Assistive access | Enable TalkBack and check names, roles, reading order, values, actions and modal focus. Check switch access and physical keyboard separately. Visible text/tooltips are not proof of support. | Not run on hardware |
 | Populated 3v3 performance | Profile representative repeated matches with six players and overlapping weapons, reconnect and scene churn. Record CPU/GPU frame time where supported, memory, draw calls, load time, network latency and thermal behavior. | Not measured on hardware |
 
 Use the existing budgets: 60 fps on recommended hardware (16.67 ms/frame), 30+
-fps on minimum hardware (33.33 ms/frame), APK below 150 MB and Web below 50 MB.
+fps on minimum hardware (33.33 ms/frame), APK below 150 MB (the `Android APK` workflow enforces the size).
 Use debug builds for diagnostics; use an appropriate release build on the target
 phone for release performance conclusions. Do not invent subsystem budgets or
 pooling changes before locating a measured bottleneck. Keep the same scene, build

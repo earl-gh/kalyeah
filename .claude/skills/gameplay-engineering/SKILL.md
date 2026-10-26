@@ -65,6 +65,6 @@ implementation owner. Read `CLAUDE.md`, `GLOSSARY.md`, the relevant GDD section,
 Run the relevant focused checks, required full GUT/import and affected exports.
 For visible changes, inspect 720x1280 and narrow-phone layouts and record observed
 results. Report red/green evidence, changed behavior, remaining limits and exact
-build/device/scene for measurements. Distinguish headless, browser, APK compilation
+build/device/scene for measurements. Distinguish headless, APK compilation
 and physical-phone proof. Use the existing release process; never merge or edit
 versions by hand. Do not spawn agents merely because several roles are named.
