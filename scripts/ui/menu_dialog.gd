@@ -83,8 +83,22 @@ static func create(title: String, width: float = 600.0) -> MenuDialog:
 		header.add_theme_constant_override("margin_" + side, HEADER_INSET)
 	header.add_theme_constant_override("margin_top", 2)
 	header.add_theme_constant_override("margin_bottom", 4)
-	header.add_child(dialog.title_label)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "HeaderRow"
+	row.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	dialog.title_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(dialog.title_label)
+	# a red close button at the top right; a tap outside the modal closes it too
+	var close_button: Button = make_button("X", "red", UiMetrics.ACTION, Vector2.ONE * UiMetrics.MIN_TARGET)
+	close_button.name = "CloseButton"
+	close_button.accessibility_name = "Close"
+	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	close_button.pressed.connect(dialog.close)
+	row.add_child(close_button)
+	header.add_child(row)
 	frame_box.add_child(header)
+	dim.gui_input.connect(dialog._on_dim_input)
 	dialog._header = header
 	dialog.inner = PanelContainer.new()
 	dialog.inner.name = "Inner"
@@ -192,6 +206,12 @@ static func make_button(text: String, color: String, font_size: int = UiMetrics.
 	button.add_theme_font_size_override("font_size", font_size)
 	KalyeahTheme.style_button(button, color)
 	return button
+
+
+## A tap on the dimmed screen outside the card closes the dialog (the emulated left click of a touch).
+func _on_dim_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		close()
 
 
 ## The phone's back button closes the open dialog. Only a dialog that is open when the press arrives closes, and after the

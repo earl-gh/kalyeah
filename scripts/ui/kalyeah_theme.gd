@@ -226,7 +226,7 @@ static func painted_panel(padding: float = PANEL_PADDING) -> StyleBox:
 static func modal_frame(rim: float) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = MODAL_FRAME
-	box.set_corner_radius_all(UiSkin.RADIUS_XL)
+	box.set_corner_radius_all(UiSkin.RADIUS_S)
 	box.set_border_width_all(3)
 	box.border_color = MODAL_FRAME_EDGE
 	box.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
@@ -240,7 +240,7 @@ static func modal_frame(rim: float) -> StyleBoxFlat:
 static func modal_body(padding: float) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = MODAL_BODY
-	box.set_corner_radius_all(UiSkin.RADIUS_L)
+	box.set_corner_radius_all(UiSkin.RADIUS_S)
 	box.set_content_margin_all(padding)
 	box.anti_aliasing = true
 	return box

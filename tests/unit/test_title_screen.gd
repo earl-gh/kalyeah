@@ -396,13 +396,18 @@ func test_vibration_is_only_offered_on_phones() -> void:
 	assert_false(Settings.can_vibrate(), "tests do not run on a phone")
 
 
+## The answer buttons of a dialog, left to right (not its red close button).
+func _answers(card: MenuDialog) -> Array[Node]:
+	return card.find_children("*", "Button", true, false).filter(func(node: Node) -> bool: return node.name != "CloseButton")
+
+
 func test_quit_asks_first_and_only_quits_on_yes() -> void:
 	var screen: TitleScreen = _screen()
 	var quit_calls: Array[int] = [0]
 	screen.quit_action = func() -> void: quit_calls[0] += 1
 	var card: MenuDialog = screen.open_quit_confirm()
 	assert_eq(quit_calls[0], 0, "opening the question does not quit")
-	var buttons: Array[Node] = card.find_children("*", "Button", true, false)
+	var buttons: Array[Node] = _answers(card)
 	var stay: Button = buttons[0] as Button
 	var leave: Button = buttons[1] as Button
 	assert_eq(stay.text, "Cancel")
@@ -411,7 +416,7 @@ func test_quit_asks_first_and_only_quits_on_yes() -> void:
 	assert_eq(quit_calls[0], 0, "Cancel keeps playing")
 	assert_false(is_instance_valid(card) and card.is_open)
 	var again: MenuDialog = screen.open_quit_confirm()
-	(again.find_children("*", "Button", true, false)[1] as Button).pressed.emit()
+	(_answers(again)[1] as Button).pressed.emit()
 	assert_eq(quit_calls[0], 1, "QUIT quits")
 
 

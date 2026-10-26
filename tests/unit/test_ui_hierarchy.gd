@@ -131,3 +131,38 @@ func test_a_modal_is_a_light_gray_frame_holding_the_header_around_a_dark_blue_gr
 	assert_false(dialog.body.is_ancestor_of(dialog.title_label), "not inside the dark body")
 	assert_lt(dialog.title_label.get_theme_color("font_color").get_luminance(), 0.1, "dark header text on the light frame")
 	dialog.close(false)
+
+
+func test_a_modal_has_a_red_close_button_top_right_and_closes_on_a_tap_outside() -> void:
+	var phone: Control = autofree(Control.new()) as Control
+	phone.size = Vector2(720.0, 1280.0)
+	add_child(phone)
+	var dialog: MenuDialog = MenuDialog.create("Hotspot")
+	dialog.open(phone)
+	await wait_process_frames(2)
+	var close_button: Button = dialog.find_child("CloseButton", true, false) as Button
+	assert_not_null(close_button, "a close button")
+	var frame: Rect2 = dialog.panel.get_global_rect()
+	var at: Rect2 = close_button.get_global_rect()
+	assert_true(frame.encloses(at), "inside the frame")
+	assert_gt(at.get_center().x, frame.get_center().x, "at the right")
+	assert_lt(at.get_center().y, dialog.inner.get_global_rect().position.y, "in the header, above the body")
+	assert_gte(minf(at.size.x, at.size.y), UiMetrics.MIN_TARGET, "thumb-sized")
+	var red: StyleBox = UiSkin.button(KalyeahTheme.skin_variant("red"))
+	assert_eq((close_button.get_theme_stylebox("normal") as StyleBoxTexture).texture, (red as StyleBoxTexture).texture, "red")
+	assert_false(dialog.body.is_ancestor_of(close_button), "on the frame, not in the dark body")
+	var inside: InputEventMouseButton = InputEventMouseButton.new()
+	inside.button_index = MOUSE_BUTTON_LEFT
+	inside.pressed = true
+	dialog.panel.gui_input.emit(inside)
+	assert_true(dialog.is_open, "a tap on the card does not close it")
+	var outside: InputEventMouseButton = InputEventMouseButton.new()
+	outside.button_index = MOUSE_BUTTON_LEFT
+	outside.pressed = true
+	dialog.get_child(0).gui_input.emit(outside)
+	assert_false(dialog.is_open, "a tap outside closes it")
+	var again: MenuDialog = MenuDialog.create("Hotspot")
+	again.open(phone)
+	await wait_process_frames(2)
+	(again.find_child("CloseButton", true, false) as Button).pressed.emit()
+	assert_false(again.is_open, "the red button closes it")
