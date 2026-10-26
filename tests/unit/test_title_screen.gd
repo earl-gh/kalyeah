@@ -202,11 +202,6 @@ func test_the_book_and_history_open_from_settings_and_keep_its_tab_lit() -> void
 	assert_eq(screen.current_page, &"history")
 	assert_eq(screen.tab_bar.active, &"settings")
 	screen.close_page()
-	MatchHistory.record("practice", true, 2, 0)
-	screen.refresh_last_match()
-	screen.last_match.pressed.emit()
-	assert_eq(screen.current_page, &"history")
-	assert_eq(screen.tab_bar.active, &"home", "History opened from the last match on Play keeps Play lit")
 
 
 

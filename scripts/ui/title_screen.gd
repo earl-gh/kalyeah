@@ -45,9 +45,9 @@ const CHIPS_MIN_STAGE: float = 640.0
 ## Which way a page slides in: the pages left to right as their tabs are.
 const PAGE_RANK: Dictionary[StringName, int] = {&"street": -1, &"": 0, &"settings": 1, &"codex": 2, &"history": 2, &"howto": 2}
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
-const LOGO_HEIGHT: float = 92.0
+const LOGO_HEIGHT: float = 136.0
 ## How far the logo is dropped from the top edge of the screen.
-const LOGO_DROP: float = 28.0
+const LOGO_DROP: float = 16.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
 const CTA_HEIGHT: float = 104.0
@@ -91,7 +91,6 @@ var _margin: MarginContainer
 var _home: VBoxContainer
 var _top_bar: Control
 var mode_chips: HBoxContainer
-var last_match: Button
 var _page_holder: Control
 var _dots: Array[Panel] = []
 var _page_tween: Tween
@@ -117,7 +116,6 @@ func _ready() -> void:
 	_build_layout()
 	_apply_safe_area()
 	_refresh_mode()
-	refresh_last_match()
 	carousel.selected.connect(_on_mode_selected)
 	primary_button.pressed.connect(_on_primary_pressed)
 	# the press and the breath both scale the main action: the breath rests while a thumb is on it
@@ -193,8 +191,6 @@ func _build_home() -> VBoxContainer:
 	home.name = "Home"
 	home.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	home.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	last_match = _build_last_match()
-	home.add_child(last_match)
 	var stage: Control = Control.new()
 	stage.name = "Stage"
 	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -342,7 +338,6 @@ func close_page() -> void:
 		pages[id].visible = false
 	_home.visible = true
 	_top_bar.visible = true
-	refresh_last_match()
 	tab_bar.set_active(&"home")
 	_sync_ambient()
 	_fade_in(_home, way)
@@ -382,60 +377,6 @@ func _fill_chips(id: String) -> void:
 		var chip: PanelContainer = UiKit.chip(fact, UiKit.CHIP_SLATE)
 		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		mode_chips.add_child(chip)
-
-
-## The strip at the top of Play: how the last battle went. Tap it for the whole history.
-func _build_last_match() -> Button:
-	var strip: Button = Button.new()
-	strip.name = "LastMatch"
-	strip.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
-	strip.focus_mode = Control.FOCUS_ALL
-	for state: String in ["normal", "hover"]:
-		strip.add_theme_stylebox_override(state, UiSkin.plate("night", 0.0, UiSkin.RADIUS_XL))
-	strip.add_theme_stylebox_override("pressed", UiSkin.plate("raised", 0.0, UiSkin.RADIUS_XL))
-	strip.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_XL))
-	UiKit.feel_press(strip)
-	strip.pressed.connect(open_page.bind(&"history"))
-	strip.visible = false
-	return strip
-
-
-## Fills the strip from the newest history entry (hidden when nothing has been played).
-func refresh_last_match() -> void:
-	for child: Node in last_match.get_children():
-		last_match.remove_child(child)
-		child.queue_free()
-	var found: Array[Dictionary] = MatchHistory.entries()
-	last_match.visible = not found.is_empty()
-	if found.is_empty():
-		return
-	var entry: Dictionary = found[0]
-	var won: bool = bool(entry.get("won", false))
-	last_match.accessibility_name = "Last match: %s, %s, %d to %d" % ["Victory" if won else "Defeat", String(entry.get("mode", "")).capitalize(), int(entry.get("mine", 0)), int(entry.get("theirs", 0))]
-	last_match.accessibility_description = "Opens your history"
-	var row: HBoxContainer = HBoxContainer.new()
-	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	row.offset_left = 18.0
-	row.offset_right = -22.0
-	row.add_theme_constant_override("separation", 14)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var badge: PanelContainer = UiKit.chip("Victory" if won else "Defeat", UiKit.CHIP_GREEN if won else UiKit.CHIP_RED)
-	badge.name = "Result"
-	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(badge)
-	var words: Label = UiKit.text("%s · %d - %d" % [String(entry.get("mode", "")).capitalize(), int(entry.get("mine", 0)), int(entry.get("theirs", 0))], UiMetrics.DETAIL, KalyeahTheme.TEXT, false)
-	words.name = "Words"
-	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(words)
-	var when: Label = UiKit.text(MatchHistory.ago(int(entry.get("at", 0)), int(Time.get_unix_time_from_system())), UiMetrics.CAPTION, Color("9fb0d6"), false)
-	when.name = "When"
-	when.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	when.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(when)
-	last_match.add_child(row)
 
 
 ## Sizes the hero cards to the stage (taller phones get a bigger card), then rebuilds them.
