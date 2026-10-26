@@ -73,15 +73,24 @@ func test_every_button_has_straight_sides_in_its_stretched_middle_band() -> void
 					assert_eq(bent, [] as Array[int], "%s: column %d is the same on every band row %d-%d" % [what, x, from, to - 1])
 
 
+func test_a_button_has_no_shadow() -> void:
+	# owner: buttons carry no drop shadow; the padding round the outline stays fully see-through
+	for variant: String in UiSkin.BUTTONS:
+		for state: String in ["normal", "hover", "pressed"]:
+			var image: Image = UiSkin.button(variant, state).texture.get_image()
+			for y: int in image.get_height():
+				for x: int in image.get_width():
+					if x < UiSkin.BUTTON_PAD or x >= image.get_width() - UiSkin.BUTTON_PAD or y >= image.get_height() - UiSkin.BUTTON_PAD:
+						assert_eq(image.get_pixel(x, y).a, 0.0, "%s/%s has no shadow at %d,%d" % [variant, state, x, y])
+
+
 func test_the_faster_drawing_gives_the_same_pixels_as_before() -> void:
 	# recorded from the per-pixel drawing before the half-and-mirror change; the face and plate colours re-recorded for the
-	# visual pass (a 12 px lip, a brighter lit edge, a stronger side light), the shadows are unchanged
+	# visual pass (a 12 px lip, a brighter lit edge, a stronger side light)
 	var gold: Image = UiSkin.button("gold", "normal").texture.get_image()
 	assert_almost_eq(gold.get_pixel(39, 40).g, 0.698, 0.002, "the face")
 	assert_almost_eq(gold.get_pixel(39, 40).b, 0.1922, 0.002)
 	assert_eq(gold.get_pixel(39, 40).a, 1.0)
-	assert_almost_eq(gold.get_pixel(60, 68).a, 0.4902, 0.002, "the drop shadow")
-	assert_almost_eq(gold.get_pixel(20, 14).a, 0.0706, 0.002, "the soft edge of the shadow")
 	var glass: Image = UiSkin.plate("glass", 0.0, 30).texture.get_image()
 	assert_almost_eq(glass.get_pixel(55, 56).r, 0.1333, 0.002)
 	assert_almost_eq(glass.get_pixel(55, 56).b, 0.3804, 0.002)
