@@ -46,9 +46,9 @@ const MODAL_FRAME: Color = Color("c3cbd8")
 const MODAL_FRAME_EDGE: Color = Color("8b97ab")
 const MODAL_BODY: Color = Color("2b3a53")
 const MODAL_TITLE: Color = INK
-## Modal corners (owner): rounder than the small skin radius, much less than the big card rounding.
-const MODAL_FRAME_RADIUS: int = 20
-const MODAL_BODY_RADIUS: int = 12
+## Modal corners (owner): rounder than the small skin radius, less than the big card rounding (steps of the UiSkin scale).
+const MODAL_FRAME_RADIUS: int = UiSkin.RADIUS_L
+const MODAL_BODY_RADIUS: int = UiSkin.RADIUS_M
 
 ## Flat surfaces share the skin's corner scale: CORNER is the button and card radius.
 const CORNER: int = UiSkin.RADIUS_L
