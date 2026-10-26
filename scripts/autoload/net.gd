@@ -13,6 +13,8 @@ var client: GameClient = GameClient.new(RULES, LAYOUT, NET_RULES)
 var is_online: bool = false
 ## The server this phone runs for a hotspot room it hosts (Android only), or null.
 var host: GameServer
+## Answers the guests' "who is hosting?" probe while `host` runs (UDP, no room details).
+var beacon: HotspotBeacon = HotspotBeacon.new()
 
 
 func _ready() -> void:
@@ -23,10 +25,12 @@ func _process(delta: float) -> void:
 	client.poll(delta)
 	if host != null:
 		host.poll(delta)
+		beacon.poll()
 
 
 ## Starts a room server on this phone for friends on its hotspot or Wi-Fi: they find it by
-## themselves and need no code.
+## themselves and need no code. A beacon that cannot start (its port is taken) only costs the broadcast:
+## guests can still find the room at the fallback addresses.
 func start_host() -> Error:
 	stop_host()
 	host = GameServer.new(RULES, LAYOUT, NET_RULES, Time.get_ticks_usec())
@@ -34,10 +38,13 @@ func start_host() -> Error:
 	var error: Error = host.listen(NET_RULES.default_port)
 	if error != OK:
 		host = null
-	return error
+		return error
+	beacon.listen(NET_RULES.discovery_port, NET_RULES.discovery_burst)
+	return OK
 
 
 func stop_host() -> void:
+	beacon.stop()
 	if host != null:
 		host.stop()
 		host = null

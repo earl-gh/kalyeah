@@ -2,6 +2,10 @@ extends GutTest
 ## The main screen: logo and profile on top, the hero mode carousel, low main actions and a tab bar.
 
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
+const RULES: GameRules = preload("res://data/rules/game_rules.tres")
+const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
+const NET: NetRules = preload("res://data/rules/net_rules.tres")
+const Phones := preload("res://tests/unit/hotspot_phones.gd")
 
 var _saved_name: String
 var _saved_avatar: String
@@ -28,6 +32,7 @@ func after_each() -> void:
 	Settings.set_vibration(_saved_vibration)
 	Settings.server_url = _saved_url
 	Session.lobby_hotspot = false
+	Session.lobby_url = ""
 	Session.menu_mode = 0
 
 
@@ -67,7 +72,7 @@ func test_the_screen_has_everything_the_owner_asked_for() -> void:
 	assert_not_null(screen.find_child("Logo", true, false), "the game's logo")
 	assert_not_null(screen.profile_chip, "your profile")
 	assert_not_null(screen.carousel, "the mode carousel")
-	assert_eq(screen.mode_name_label.text, "Hotspot", "hotspot is the default mode")
+	assert_eq(screen.mode_name_label.text, "Local", "hotspot is the default mode")
 	assert_null(screen.find_child("MapButton", true, false), "no map button")
 	assert_eq(screen.primary_button.text, "Create room")
 	assert_eq(screen.secondary_button.text, "Join room")
@@ -237,7 +242,7 @@ func test_the_carousel_is_hotspot_online_practice_with_the_chosen_card_in_front(
 	await wait_frames(3)
 	var strip: MenuCarousel = screen.carousel
 	assert_eq(strip.cards.size(), 3)
-	assert_eq(ChoiceCard.choice_of(strip.cards[0]), "Hotspot", "hotspot first, not online")
+	assert_eq(ChoiceCard.choice_of(strip.cards[0]), "Local", "hotspot first, not online")
 	assert_eq(ChoiceCard.choice_of(strip.cards[1]), "Online")
 	assert_eq(ChoiceCard.choice_of(strip.cards[2]), "Practice")
 	var middle: Button = strip.cards[0]
@@ -365,7 +370,7 @@ func test_renaming_saves_a_clean_name_and_refuses_an_empty_one() -> void:
 	field.text = "  Maria  "
 	field.text_submitted.emit(field.text)
 	assert_eq(Session.player_name, "Maria")
-	assert_false(card.is_open)
+	assert_false(is_instance_valid(card) and card.is_open)
 	assert_eq(Session.clean_name("A very long name indeed"), "A very long", "cut to 12 letters, no trailing space")
 
 
@@ -391,22 +396,27 @@ func test_vibration_is_only_offered_on_phones() -> void:
 	assert_false(Settings.can_vibrate(), "tests do not run on a phone")
 
 
+## The answer buttons of a dialog, left to right (not its red close button).
+func _answers(card: MenuDialog) -> Array[Node]:
+	return card.find_children("*", "Button", true, false).filter(func(node: Node) -> bool: return node.name != "CloseButton")
+
+
 func test_quit_asks_first_and_only_quits_on_yes() -> void:
 	var screen: TitleScreen = _screen()
 	var quit_calls: Array[int] = [0]
 	screen.quit_action = func() -> void: quit_calls[0] += 1
 	var card: MenuDialog = screen.open_quit_confirm()
 	assert_eq(quit_calls[0], 0, "opening the question does not quit")
-	var buttons: Array[Node] = card.find_children("*", "Button", true, false)
+	var buttons: Array[Node] = _answers(card)
 	var stay: Button = buttons[0] as Button
 	var leave: Button = buttons[1] as Button
 	assert_eq(stay.text, "Cancel")
 	assert_eq(leave.text, "Quit")
 	stay.pressed.emit()
 	assert_eq(quit_calls[0], 0, "Cancel keeps playing")
-	assert_false(card.is_open)
+	assert_false(is_instance_valid(card) and card.is_open)
 	var again: MenuDialog = screen.open_quit_confirm()
-	(again.find_children("*", "Button", true, false)[1] as Button).pressed.emit()
+	(_answers(again)[1] as Button).pressed.emit()
 	assert_eq(quit_calls[0], 1, "QUIT quits")
 
 
@@ -434,14 +444,38 @@ func test_hotspot_create_opens_the_checking_dialog() -> void:
 	assert_true(screen.dialog.is_open)
 
 
-func test_hotspot_join_goes_straight_to_the_lobby_without_asking_for_a_code() -> void:
+func test_hotspot_join_opens_the_checking_dialog_and_asks_for_no_code() -> void:
+	var screen: TitleScreen = _screen()
+	screen.secondary_button.pressed.emit()
+	assert_not_null(screen.dialog, "a dialog")
+	assert_eq(screen.dialog.name, "HotspotCheckDialog")
+	assert_true(screen.dialog.is_open)
+	assert_eq(screen.dialog.find_children("*", "LineEdit", true, false).size(), 0, "no code, no address, no keyboard")
+
+
+func test_hotspot_join_opens_the_lobby_with_the_room_the_dialog_found() -> void:
+	var server: GameServer = GameServer.new(RULES, LAYOUT, NET, 5)
+	server.auto_join = true
+	assert_eq(server.listen(18983), OK)
+	server.rooms.create_room(700, "Host", 1)
 	var screen: TitleScreen = _screen()
 	var opened: Array = []
 	screen.open_lobby_action = func(intent: int) -> void: opened.append(intent)
-	screen.secondary_button.pressed.emit()
+	var plan: HotspotNet.Plan = HotspotNet.Plan.new()
+	plan.candidates = PackedStringArray(["ws://127.0.0.1:18983"])
+	plan.seconds = 3.0
+	plan.interval = 1.0
+	var card: MenuDialog = screen.open_hotspot_join(func() -> Array: return Phones.on_home_wifi(), func(_seen: Array) -> HotspotNet.Plan: return plan)
+	for i: int in 300:
+		if not opened.is_empty():
+			break
+		server.poll(0.016)
+		await wait_process_frames(1)
+	server.stop()
 	assert_eq(opened, [LobbyScreen.Intent.JOIN])
+	assert_eq(Session.lobby_url, "ws://127.0.0.1:18983")
 	assert_true(Session.lobby_hotspot)
-	assert_null(screen.dialog, "no dialog in between")
+	assert_false(is_instance_valid(card) and card.is_open)
 
 
 func test_online_opens_the_lobby_on_the_game_server() -> void:

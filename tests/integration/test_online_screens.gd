@@ -206,6 +206,50 @@ func test_a_hotspot_lobby_is_the_room_screen_with_no_form() -> void:
 	assert_true(joining.hotspot, "a deferred hotspot connection retains its original transport")
 
 
+func test_a_hotspot_guest_joins_the_room_the_dialog_found_with_no_code() -> void:
+	server.auto_join = true
+	var host: LobbyScreen = _lobby(LobbyScreen.Intent.CREATE)
+	host.set_fields(URL, "Ana")
+	host.submit()
+	assert_true(_until(func() -> bool: return host.in_room()), "the host is in its room")
+	Session.lobby_hotspot = true
+	Session.lobby_url = URL
+	var guest: LobbyScreen = _lobby(LobbyScreen.Intent.JOIN)
+	await wait_process_frames(2)
+	assert_true(_until(func() -> bool: return guest.in_room()), "the guest went to the found room")
+	assert_eq(guest.client.room["code"], host.client.room["code"])
+	assert_eq((guest.client.room["members"] as Array).size(), 2)
+	Session.lobby_hotspot = false
+	Session.lobby_url = ""
+
+
+func test_a_hotspot_create_on_a_busy_port_says_so_and_offers_try_again() -> void:
+	var blocker: TCPServer = TCPServer.new()
+	assert_eq(blocker.listen(NET.default_port), OK)
+	Session.lobby_hotspot = true
+	var host: LobbyScreen = _lobby(LobbyScreen.Intent.CREATE)
+	await wait_process_frames(2)
+	assert_eq(host.status_text(), "Can't start the room on this phone.")
+	assert_true(host._room_view.retry_button.visible, "Try again is there")
+	assert_null(Net.host, "no half-started server")
+	blocker.stop()
+	host._room_view.retry_pressed.emit()
+	await wait_process_frames(2)
+	assert_not_null(Net.host, "after the port is free, Try again starts the room")
+	Net.stop_host()
+	Session.lobby_hotspot = false
+
+
+func test_a_hotspot_join_with_no_room_found_says_so_instead_of_connecting() -> void:
+	Session.lobby_hotspot = true
+	Session.lobby_url = ""
+	var guest: LobbyScreen = _lobby(LobbyScreen.Intent.JOIN)
+	await wait_process_frames(2)
+	assert_eq(guest.status_text(), "No room found. Go back and tap Join room.")
+	assert_false(guest.in_room())
+	Session.lobby_hotspot = false
+
+
 func test_the_online_lobby_has_no_server_field_and_says_so_when_none_is_built_in() -> void:
 	Session.lobby_hotspot = false
 	var saved: String = Settings.server_url

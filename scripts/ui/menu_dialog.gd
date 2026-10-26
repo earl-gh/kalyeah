@@ -14,19 +14,25 @@ signal opened
 
 const POP_SECONDS: float = 0.22
 const DIM: Color = Color(0.01, 0.025, 0.06, 0.76)
-const TITLE_COLOR: Color = KalyeahTheme.CREAM
+const TITLE_COLOR: Color = KalyeahTheme.MODAL_TITLE
+## The light gray frame is this wide round the body, and the header sits in it above the body.
+const FRAME_RIM: float = 14.0
+const HEADER_GAP: float = 6.0
+const HEADER_INSET: int = 10
 const TITLE_SIZE: int = UiMetrics.TITLE
 const TEXT_SIZE: int = UiMetrics.BODY
 const HINT_COLOR: Color = KalyeahTheme.TEXT_MUTED
 
 var panel: PanelContainer
 var body: VBoxContainer
+var inner: PanelContainer
 var title_label: Label
 var is_open: bool = true
 ## HUD menus retain wired controls across repeated opens. Ordinary dialogs free on close.
 var persistent: bool = false
 
 var _width: float = 600.0
+var _header: MarginContainer
 var _safe: MarginContainer
 var _animation: Tween
 var _previous_focus: WeakRef
@@ -55,21 +61,61 @@ static func create(title: String, width: float = 600.0) -> MenuDialog:
 	dialog._safe.add_child(center)
 	dialog.panel = PanelContainer.new()
 	dialog.panel.custom_minimum_size = Vector2(width, 0.0)
-	dialog.panel.add_theme_stylebox_override("panel", KalyeahTheme.painted_panel(UiMetrics.PAGE_MARGIN))
+	dialog.panel.add_theme_stylebox_override("panel", KalyeahTheme.modal_frame(FRAME_RIM))
 	center.add_child(dialog.panel)
+	var frame_box: VBoxContainer = VBoxContainer.new()
+	frame_box.name = "FrameBox"
+	frame_box.add_theme_constant_override("separation", int(HEADER_GAP))
+	dialog.panel.add_child(frame_box)
+	# the header lives on the light gray frame, above the dark body
+	dialog.title_label = Label.new()
+	dialog.title_label.text = title
+	dialog.title_label.name = "Title"
+	dialog.title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dialog.title_label.theme_type_variation = &"DisplayLabel"
+	dialog.title_label.add_theme_font_size_override("font_size", TITLE_SIZE)
+	dialog.title_label.add_theme_color_override("font_color", TITLE_COLOR)
+	dialog.title_label.add_theme_constant_override("outline_size", 0)
+	dialog.title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var header: MarginContainer = MarginContainer.new()
+	header.name = "Header"
+	for side: String in ["left", "right"]:
+		header.add_theme_constant_override("margin_" + side, HEADER_INSET)
+	header.add_theme_constant_override("margin_top", 2)
+	header.add_theme_constant_override("margin_bottom", 4)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "HeaderRow"
+	row.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	dialog.title_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(dialog.title_label)
+	# a red close button at the top right; a tap outside the modal closes it too
+	var close_button: Button = make_button("X", "red", UiMetrics.ACTION, Vector2.ONE * UiMetrics.MIN_TARGET)
+	close_button.name = "CloseButton"
+	close_button.accessibility_name = "Close"
+	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	close_button.pressed.connect(dialog.close)
+	row.add_child(close_button)
+	header.add_child(row)
+	frame_box.add_child(header)
+	dim.gui_input.connect(dialog._on_dim_input)
+	dialog._header = header
+	dialog.inner = PanelContainer.new()
+	dialog.inner.name = "Inner"
+	dialog.inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	dialog.inner.add_theme_stylebox_override("panel", KalyeahTheme.modal_body(UiMetrics.PAGE_MARGIN))
+	frame_box.add_child(dialog.inner)
 	dialog.body = VBoxContainer.new()
 	dialog.body.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.name = "DialogScroll"
 	scroll.follow_focus = true
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	dialog.panel.add_child(scroll)
+	dialog.inner.add_child(scroll)
 	dialog.body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(dialog.body)
 	dialog.body.minimum_size_changed.connect(dialog._fit.call_deferred)
 	dialog.resized.connect(dialog._fit.call_deferred)
-	dialog.title_label = dialog.add_label(title, TITLE_SIZE, TITLE_COLOR, HORIZONTAL_ALIGNMENT_LEFT)
-	dialog.title_label.theme_type_variation = &"DisplayLabel"
 	return dialog
 
 
@@ -162,6 +208,12 @@ static func make_button(text: String, color: String, font_size: int = UiMetrics.
 	return button
 
 
+## A tap on the dimmed screen outside the card closes the dialog (the emulated left click of a touch).
+func _on_dim_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		close()
+
+
 ## The phone's back button closes the open dialog. Only a dialog that is open when the press arrives closes, and after the
 ## notification has walked the whole tree, so the screen under it still sees it open and leaves the press to it.
 func _notification(what: int) -> void:
@@ -176,7 +228,9 @@ func _fit() -> void:
 	var available: Vector2 = size - Vector2(
 		_safe.get_theme_constant("margin_left") + _safe.get_theme_constant("margin_right"),
 		_safe.get_theme_constant("margin_top") + _safe.get_theme_constant("margin_bottom"))
-	panel.custom_minimum_size = Vector2(minf(_width, available.x), minf(body.get_combined_minimum_size().y + UiMetrics.PAGE_MARGIN * 2.0, available.y))
+	var header_height: float = _header.get_combined_minimum_size().y + HEADER_GAP
+	var wanted: float = body.get_combined_minimum_size().y + UiMetrics.PAGE_MARGIN * 2.0 + header_height + FRAME_RIM * 2.0
+	panel.custom_minimum_size = Vector2(minf(_width, available.x), minf(wanted, available.y))
 
 
 func reopen() -> void:

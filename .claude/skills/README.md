@@ -96,7 +96,7 @@ First use and remaining checks: [skill adoption review](../../docs/audits/2026-1
 
 ## Studio subagents
 
-Seven agents in `.claude/agents/` (Claude Code subagents, run by name or with `/agents`), a Supercell-style studio team (inspired by, never copied). Shared rules, ownership of paths, commands and the report format are in [docs/STUDIO.md](../../docs/STUDIO.md); each agent file holds only its own role. All of them audit **and** apply changes, and are judged on proof (tests, screenshots, measured numbers), not on prose.
+Eight agents in `.claude/agents/` (Claude Code subagents, run by name or with `/agents`), a Supercell-style studio team (inspired by, never copied). Shared rules, ownership of paths, commands and the report format are in [docs/STUDIO.md](../../docs/STUDIO.md); each agent file holds only its own role. All of them audit **and** apply changes, and are judged on proof (tests, screenshots, measured numbers), not on prose.
 
 | Agent | Owns |
 | --- | --- |
@@ -106,4 +106,5 @@ Seven agents in `.claude/agents/` (Claude Code subagents, run by name or with `/
 | `ux-ui-artist` | Screens, HUD, flows, touch ergonomics, layout tests |
 | `art-director` | Brand tokens, `docs/ART.md`, art briefs (`docs/art-briefs/`), code-drawn stand-ins and effect timing, originality, veto on off-brand; no asset files |
 | `qa-engineer` | Tests, APK and emulator audits, defect reports, regression |
+| `hotspot-engineer` | Hotspot mode end to end: Create and Join modals, network detection, room discovery and verification, host server, device checks |
 | `android-engineer` | Export preset, manifest, Android workflow, APK inspection and emulator smoke test, safe areas and device checks |

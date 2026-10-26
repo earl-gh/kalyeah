@@ -15,7 +15,7 @@ const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
 ## The game modes, first is the default (owner: hotspot first, not online). `accent` tints the
 ## frame of the card and the glow behind it.
 const MODES: Array[Dictionary] = [
-	{"id": "hotspot", "title": "Hotspot", "color": "blue", "accent": "4aa0ff",
+	{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff",
 		"text": "Play on one local network."},
 	{"id": "online", "title": "Online", "color": "orange", "accent": "ffa63a",
 		"text": "Invite friends with a room code."},
@@ -514,9 +514,13 @@ func open_hotspot_create() -> MenuDialog:
 	return card
 
 
-## Hotspot Join: the lobby looks for the host's room by itself (no code, no address).
-func open_hotspot_join() -> void:
-	_open_lobby(LobbyScreen.Intent.JOIN, true)
+## Hotspot Join: a dialog checks the Wi-Fi and finds the host's room by itself (no code, no address), then the lobby joins it.
+func open_hotspot_join(interfaces: Callable = Callable(), plan_for: Callable = Callable()) -> MenuDialog:
+	var card: MenuDialog = HotspotDialogs.join_check(func(url: String) -> void:
+		Session.lobby_url = url
+		_open_lobby(LobbyScreen.Intent.JOIN, true), interfaces, plan_for)
+	_show_dialog(card)
+	return card
 
 
 ## Keeps everything clear of notches, rounded corners and the home bar.

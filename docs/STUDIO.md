@@ -19,6 +19,7 @@ Edit only your own paths. Anything else: a one-line request to the orchestrator 
 | gameplay-engineer | `scripts/sim/`, `scripts/net/`, `scripts/autoload/`, `server/` and their tests |
 | ux-ui-artist | `scripts/ui/` (not the tokens), `scripts/ui/hud/`, `scenes/ui/`, `scripts/input/`, `data/i18n/` |
 | art-director | tokens: `scripts/ui/hud/royale_style.gd`, `scripts/ui/kalyeah_theme.gd`, `scripts/ui/team_colors.gd`, `scripts/ui/ui_skin.gd`; `docs/ART.md`, `docs/art-briefs/`, `scripts/view/art/`, `scripts/view/weapon_fx_view.gd`, `scripts/view/aim_indicator.gd` |
+| hotspot-engineer | `scripts/net/hotspot_*.gd`, `scripts/ui/hotspot_*.gd`, the Hotspot flows in `scripts/ui/lobby_screen.gd`, the host side of `scripts/autoload/net.gd`, and their tests |
 | qa-engineer | `tests/`, QA tooling, defect reports in `docs/audits/` |
 
 ## Commands (Godot 4.6.2, see `.godot-version`)

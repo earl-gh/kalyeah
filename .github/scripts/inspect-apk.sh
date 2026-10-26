@@ -9,7 +9,7 @@ set -euo pipefail
 
 MAX_MB=150      # MiB; docs/ROADMAP.md "Budgets (M6)". The debug APK measures 145 (a local export of this tree), so a heavy new asset fails the build
 PACKAGE="com.kalyeah.game"
-PERMISSIONS="android.permission.INTERNET android.permission.VIBRATE"
+PERMISSIONS="android.permission.CHANGE_WIFI_MULTICAST_STATE android.permission.INTERNET android.permission.VIBRATE"
 ATTR_MIN_SDK="minSdkVersion\(0x0101020c\)"
 ATTR_TARGET_SDK="targetSdkVersion\(0x01010270\)"
 ATTR_GL_ES="glEsVersion\(0x01010281\)"
@@ -60,7 +60,7 @@ manifest_checks() { # manifest_checks <badging file> <manifest file> <version>
   declared="$(sed -n "s/^uses-permission: name='\([^']*\)'.*/\1/p" "$badging_file" | grep -v '\.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION$' | sort | tr '\n' ' ' || true)"
   expected="$(echo "$PERMISSIONS" | tr ' ' '\n' | sort | tr '\n' ' ')"
   echo "permissions: $declared"
-  check "only the permissions the game uses (INTERNET, VIBRATE)" test "$declared" = "$expected"
+  check "only the permissions the game uses (CHANGE_WIFI_MULTICAST_STATE, INTERNET, VIBRATE)" test "$declared" = "$expected"
 }
 
 show_raw() { # show_raw <badging file> <manifest file>: what aapt2 printed, to read after a failure

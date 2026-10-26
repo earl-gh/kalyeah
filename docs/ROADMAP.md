@@ -15,6 +15,7 @@ What is built, what is next, and the rules for building it. Rules and numbers li
 | Tag street (owner redesign) | The street-game redesign from the reference video: a 24 × 48 m barangay street with your post bottom left and theirs top right, a matching tall minimap, a few cover pieces (crates, benches, a sawhorse, a NO ENTRY board) that block both teams, Tag (always, at 0 HP) with taped boxes and rescues, captures (whole team in the enemy base, or every enemy tagged) held 5 s, first to 3; the guava, the tricycle, the breakable walls and the death delay are gone; a 40° wide-lens camera |
 | Controls (owner) | The movement stick at the bottom left with weapon 1 and 2 at the bottom right (tilt was tried and removed), no dash and no pin; one-tier scoring, first to 3 / 5 / 7 picked by the host in the lobby, every point a new round; score at the top right |
 | Hotspot rooms (owner) | Create starts the room server inside the Android app; Join verifies the host's active room on the hotspot automatically, no address or room code |
+| Hotspot working (owner) | Create checks that the hotspot is on and Join checks the Wi-Fi, each in a modal with Try again and Cancel; Join finds the host by a UDP broadcast the host answers (the host is not the ".1" on stock Android), verified over the WebSocket; the failure shows the phone's network. Audit, assumptions and the phone test script: [Hotspot audit](audits/2026-10-26-hotspot.md). Needs the phones: nothing here proves the access point, the Wi-Fi's broadcast filtering or the settings button |
 | Map 1:2 (owner) | The playing area is 24 × 48 m (1:2, was 30 × 40 m 3:4); the minimap is 90 × 180 px and draws the street at exactly 1:2; posts, boxes, cover and dummies re-placed |
 | Character select (owner) | A fighting-game style select at the start of every match: six 3:4 profile cards, then a tab per street game over weapon cards (art, name, description below); the kid you pick is the kid you play (also your main-screen face); a team never has the same kid twice (the other team may have it once); online, the server settles swaps and greys out kids a teammate locked in |
 | Map 1:2 (owner) | The playing area is 24 × 48 m (1:2, was 3:4 24 × 32 m); the minimap is 100 × 200 px at exactly that shape; the cover wall keeps its distance from the base |
@@ -47,6 +48,12 @@ input to a connected server, even if no further client frame runs. Regression
 coverage includes pause/focus ordering, quick resume, real touch state, stopped
 client polling and disconnects. The [Android validation record](audits/2026-10-19-android-validation.md)
 separates automated evidence, APK build status and outstanding physical-phone tests.
+
+**Local (hotspot or Wi-Fi) validation checklist** (full script in the [Hotspot audit](audits/2026-10-26-hotspot.md)): with a stock phone, a phone with a maker
+skin and a third one joining, check: Create with neither a hotspot nor a Wi-Fi (also on mobile data only) says so and never makes a room;
+Network settings opens; Create works with the hotspot on and with only a Wi-Fi; Join says to connect when there is no Wi-Fi, says no room before Create and
+joins within seconds after; full and started messages; Create again after leaving; the host in the background for 10 s; mobile data on
+and off; and report the exact message of any failure with the phone model.
 
 ## Development workflow
 
@@ -102,4 +109,4 @@ Budgets (M6): 60 fps on a recommended Android phone, 30+ on the minimum; APK und
 
 ## UI room-flow polish
 
-Code-free hotspot discovery now checks Kalyeah protocol and active-room availability before connecting. Lobby choices persist into matches, with team-unique reservations. The hotspot room uses a compact map header, larger team rows and touch targets, best-of controls, scrollable kid cards and a readiness explanation. Character-book portraits reuse owner-provided face art. Online layout and room header/map/player presentation are separated from controller logic. Signed Android delivery, broader gateway discovery and physical phone-to-phone checks remain separate release work.
+Code-free hotspot discovery now checks Kalyeah protocol and active-room availability before connecting. Lobby choices persist into matches, with team-unique reservations. The hotspot room uses a compact map header, larger team rows and touch targets, best-of controls, scrollable kid cards and a readiness explanation. Character-book portraits reuse owner-provided face art. Online layout and room header/map/player presentation are separated from controller logic. Gateway discovery was replaced by a broadcast the host answers ([Hotspot audit](audits/2026-10-26-hotspot.md)). Signed Android delivery and the physical phone-to-phone checks of that audit remain release work.

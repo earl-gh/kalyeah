@@ -128,7 +128,6 @@ static func button(variant: String, state: String = "normal", radius: int = BUTT
 	var bottom: Color = (spec["bottom"] as Color).lightened(lift)
 	var body: Rect2 = Rect2(BUTTON_PAD, BUTTON_PAD + sink, size - BUTTON_PAD * 2, size - BUTTON_PAD * 2)
 	var face: Rect2 = Rect2(body.position, body.size - Vector2(0.0, lip))
-	var shadow_alpha: float = 0.0 if pressed or variant == "disabled" else 0.5
 	# the shape is the same left and right: draw the left half and mirror it
 	for y: int in height:
 		for x: int in (size + 1) / 2:
@@ -148,10 +147,6 @@ static func button(variant: String, state: String = "normal", radius: int = BUTT
 			color = color.lerp(Color.WHITE, (g * g * BUTTON_GLOSS + edge * BUTTON_EDGE_LIGHT) * on_face)
 			var alpha: float = _cover(d_body)
 			var out: Color = Color(color, alpha)
-			if shadow_alpha > 0.0 and alpha < 1.0:
-				var d_shadow: float = _distance(at, Rect2(body.position + Vector2(0.0, 6.0), body.size), radius)
-				var s: float = shadow_alpha * (1.0 - smoothstep(0.0, 10.0, d_shadow)) * (1.0 - alpha)
-				out = _over(Color(0.0, 0.01, 0.06, s), out)
 			image.set_pixel(x, y, out)
 			image.set_pixel(size - 1 - x, y, out)
 	var box: StyleBoxTexture = _nine_slice(image, radius + BUTTON_PAD, BUTTON_PAD)

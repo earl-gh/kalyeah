@@ -7,6 +7,7 @@ Don't:
 - rebuild a material in code without copying all its settings
 - claim a visual you haven't seen; say what was unchecked
 - generate assets (owner makes them)
+- guess a phone network (gateway ".1", "any private IPv4 = hotspot", interface names): read the AOSP or Godot source, or ask the device
 - write an APK or aapt2 parser from memory: capture the tool's real output as a fixture and test against it
 - use `ui_cancel` for Android Back (it is Esc): handle `NOTIFICATION_WM_GO_BACK_REQUEST`, deferred
 Do:
