@@ -33,7 +33,7 @@ func after_each() -> void:
 	Settings.server_url = _saved_url
 	Session.lobby_hotspot = false
 	Session.lobby_url = ""
-	Session.menu_mode = 0
+	Session.menu_mode = 1
 
 
 func _screen() -> TitleScreen:
@@ -164,7 +164,7 @@ func test_the_actions_sit_low_on_the_screen_but_not_at_the_very_bottom() -> void
 	assert_gt(create.size.x + join.size.x, 600.0)
 	var title: Rect2 = screen.mode_name_label.get_global_rect()
 	var phrase: Rect2 = screen.mode_text_label.get_global_rect()
-	var cards_bottom: float = screen.carousel.cards[0].get_global_rect().end.y
+	var cards_bottom: float = screen.carousel.cards[screen.carousel.index].get_global_rect().end.y
 	assert_lte(title.position.y - cards_bottom, 96.0, "mode title belongs with its illustration (a little air for the glow)")
 	assert_gt(title.position.y, cards_bottom, "under the cards")
 	assert_lt(phrase.end.y, create.position.y - 10.0, "and clear of the buttons")
@@ -241,16 +241,17 @@ func test_android_back_closes_a_page_before_asking_to_quit() -> void:
 	assert_not_null(screen.dialog, "from the home page it asks to quit")
 
 
-func test_the_carousel_is_hotspot_online_practice_with_the_chosen_card_in_front() -> void:
+func test_the_carousel_is_online_local_practice_with_local_chosen_in_front() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(3)
 	var strip: MenuCarousel = screen.carousel
 	assert_eq(strip.cards.size(), 3)
-	assert_eq(ChoiceCard.choice_of(strip.cards[0]), "Local", "hotspot first, not online")
-	assert_eq(ChoiceCard.choice_of(strip.cards[1]), "Online")
+	assert_eq(ChoiceCard.choice_of(strip.cards[0]), "Online")
+	assert_eq(ChoiceCard.choice_of(strip.cards[1]), "Local", "Local sits between Online and Practice")
 	assert_eq(ChoiceCard.choice_of(strip.cards[2]), "Practice")
-	var middle: Button = strip.cards[0]
-	var next: Button = strip.cards[1]
+	assert_eq(strip.index, 1, "and is the one chosen to start with")
+	var middle: Button = strip.cards[1]
+	var next: Button = strip.cards[2]
 	assert_almost_eq(middle.size.x / middle.size.y, 2.5 / 4.0, 0.01, "2.5:4 cards")
 	assert_almost_eq(middle.get_global_rect().get_center().x, 360.0, 2.0, "the chosen card is in the middle of the screen")
 	assert_eq(middle.modulate.a, 1.0)
@@ -260,10 +261,10 @@ func test_the_carousel_is_hotspot_online_practice_with_the_chosen_card_in_front(
 	assert_lt(next.scale.x, middle.scale.x, "and smaller")
 	assert_lt(next.z_index, middle.z_index, "and behind")
 	assert_gt(next.get_global_rect().get_center().x, middle.get_global_rect().get_center().x, "and to its right")
-	strip.select(1, false)
-	assert_eq(strip.cards[1].modulate.r, 1.0, "the chosen card comes forward at full brightness")
-	assert_lt(strip.cards[0].modulate.r, 1.0)
-	assert_lt(strip.cards[0].get_global_rect().get_center().x, strip.cards[1].get_global_rect().get_center().x, "the previous card is on the left")
+	assert_lt(strip.cards[0].get_global_rect().get_center().x, middle.get_global_rect().get_center().x, "Online is on the left")
+	strip.select(0, false)
+	assert_eq(strip.cards[0].modulate.r, 1.0, "the chosen card comes forward at full brightness")
+	assert_lt(strip.cards[1].modulate.r, 1.0)
 	assert_eq(screen.mode_name_label.text, "Online", "the details follow the chosen card")
 	assert_eq(screen.primary_button.text, "Create room")
 	strip.select(2, false)
@@ -282,17 +283,18 @@ func test_swiping_and_tapping_the_carousel_changes_the_card() -> void:
 	var to: Vector2 = Vector2(from.x - MenuCarousel.STEP * 1.1, from.y)
 	strip._gui_input(TouchHelper.motion(to))
 	strip._gui_input(TouchHelper.click(to, false))
-	assert_eq(strip.index, 1, "swiping left scrolls on to the next card")
+	assert_eq(strip.index, 2, "swiping left scrolls on to the next card")
 	await wait_seconds(0.4)
-	strip._gui_input(TouchHelper.click(from, true))
-	strip._gui_input(TouchHelper.motion(to))
-	strip._gui_input(TouchHelper.click(to, false))
-	assert_eq(strip.index, 2, "swiping left again scrolls on to the third card")
+	var back_from: Vector2 = Vector2(strip.size.x / 2.0 - 200.0, 100.0)
+	strip._gui_input(TouchHelper.click(back_from, true))
+	strip._gui_input(TouchHelper.motion(Vector2(back_from.x + MenuCarousel.STEP * 1.1, back_from.y)))
+	strip._gui_input(TouchHelper.click(Vector2(back_from.x + MenuCarousel.STEP * 1.1, back_from.y), false))
+	assert_eq(strip.index, 1, "swiping right goes back to the previous card")
 	await wait_seconds(0.4)
-	var tap: Vector2 = Vector2(strip.cards[1].get_global_rect().position.x - strip.get_global_rect().position.x + 12.0, strip.size.y / 2.0)
+	var tap: Vector2 = Vector2(strip.cards[0].get_global_rect().position.x - strip.get_global_rect().position.x + 12.0, strip.size.y / 2.0)
 	strip._gui_input(TouchHelper.click(tap, true))
 	strip._gui_input(TouchHelper.click(tap, false))
-	assert_eq(strip.index, 1, "tapping the card on the left brings it to the middle")
+	assert_eq(strip.index, 0, "tapping the card on the left brings it to the middle")
 
 
 func test_create_and_join_share_one_row_and_the_texts_are_one_line() -> void:
@@ -486,7 +488,7 @@ func test_online_opens_the_lobby_on_the_game_server() -> void:
 	var screen: TitleScreen = _screen()
 	var opened: Array = []
 	screen.open_lobby_action = func(intent: int) -> void: opened.append(intent)
-	screen.carousel.select(1, false)
+	screen.carousel.select(0, false)
 	screen.primary_button.pressed.emit()
 	assert_false(Session.lobby_hotspot)
 	assert_eq(Session.lobby_intent, LobbyScreen.Intent.CREATE)

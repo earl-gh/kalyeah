@@ -11,13 +11,13 @@ const LOBBY_SCENE: String = "res://scenes/ui/lobby.tscn"
 const PRACTICE_SCENE: String = "res://scenes/match/practice.tscn"
 const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
 
-## The game modes, first is the default (owner: hotspot first, not online). `accent` tints the
-## frame of the card and the glow behind it.
+## The game modes in card order: Online, Local in the middle (the default, `Session.menu_mode` 1), Practice (owner).
+## `accent` tints the frame of the card and the glow behind it.
 const MODES: Array[Dictionary] = [
-	{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff",
-		"text": "Battle your friends nearby!"},
 	{"id": "online", "title": "Online", "color": "orange", "accent": "ffa63a",
 		"text": "Invite friends with a room code!"},
+	{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff",
+		"text": "Battle your friends nearby!"},
 	{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78",
 		"text": "Face 3 bots, or train solo!"},
 ]
@@ -45,7 +45,7 @@ const CHIPS_MIN_STAGE: float = 640.0
 ## Which way a page slides in: the pages left to right as their tabs are.
 const PAGE_RANK: Dictionary[StringName, int] = {&"street": -1, &"": 0, &"settings": 1, &"codex": 2, &"history": 2, &"howto": 2}
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
-const LOGO_HEIGHT: float = 136.0
+const LOGO_HEIGHT: float = 116.0
 ## How far the logo is dropped from the top edge of the screen.
 const LOGO_DROP: float = 16.0
 const SIDE_MARGIN: float = 28.0

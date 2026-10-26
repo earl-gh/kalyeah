@@ -16,8 +16,8 @@ var lobby_intent: int = 0
 var lobby_hotspot: bool = false
 ## The room a Hotspot Join found and verified (a `ws://` address), for the lobby to join.
 var lobby_url: String = ""
-## The mode card chosen on the main screen (an index into TitleScreen.MODES); Hotspot by default.
-var menu_mode: int = 0
+## The mode card chosen on the main screen (an index into TitleScreen.MODES); Local, the middle card, by default.
+var menu_mode: int = 1
 ## True once the first-run walkthrough has been finished or skipped (saved).
 var coach_seen: bool = false
 ## Set (not saved) when the next practice match should open with the walkthrough: the first one, or a replay.
