@@ -19,7 +19,7 @@ const MESSAGES: Dictionary[String, String] = {
 var url: String = ""
 var failed: bool = false
 var failure_message: String = NO_ROOM
-## For the failure line: addresses asked over the WebSocket, and phones that answered the UDP probe.
+## What the search did (tests read these): addresses asked over the WebSocket, and phones that answered the UDP probe. Never shown to the player.
 var asked: int = 0
 var heard: int = 0
 

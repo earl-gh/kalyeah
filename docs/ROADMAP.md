@@ -53,7 +53,7 @@ separates automated evidence, APK build status and outstanding physical-phone te
 skin and a third one joining, check: Create says the hotspot is off (also on an ordinary Wi-Fi and on mobile data) and never makes a room;
 Hotspot settings opens; Create works with the hotspot on; Join says to connect when there is no Wi-Fi, says no room before Create and
 joins within seconds after; full and started messages; Create again after leaving; the host in the background for 10 s; mobile data on
-and off; and report the photo of the failure modal (it names the interfaces).
+and off; and report the exact message of any failure with the phone model.
 
 ## Development workflow
 

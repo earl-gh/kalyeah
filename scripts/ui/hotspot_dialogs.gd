@@ -42,8 +42,6 @@ static func _dialog(flow: HotspotFlow, on_done: Callable, open_settings: Callabl
 	card.name = "HotspotCheckDialog"
 	var text: Label = card.add_label("", UiMetrics.BODY, KalyeahTheme.CREAM)
 	text.name = "Message"
-	var detail: Label = card.add_hint("")
-	detail.name = "Detail"
 	var settings: Button = MenuDialog.make_button("Hotspot settings", "blue", UiMetrics.BODY)
 	settings.name = "Settings"
 	var here: Button = MenuDialog.make_button("Host on this Wi-Fi", "grey", UiMetrics.BODY)
@@ -64,8 +62,6 @@ static func _dialog(flow: HotspotFlow, on_done: Callable, open_settings: Callabl
 	flow.step_changed.connect(func(step: Step) -> void:
 		var failed: bool = step == Step.HOTSPOT_OFF or step == Step.NO_WIFI or step == Step.NO_ROOM
 		text.text = message(flow, step)
-		detail.text = flow.detail
-		detail.visible = failed
 		again.visible = failed
 		settings_row.visible = step == Step.HOTSPOT_OFF and can_open_settings
 		here_row.visible = step == Step.HOTSPOT_OFF and flow.can_host_here)

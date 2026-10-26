@@ -13,8 +13,6 @@ extends RefCounted
 
 enum Role { IGNORED, CLIENT, TETHER }
 
-## Interfaces named in the line shown when a check fails: enough to read, short enough to photograph.
-const SHOWN_INTERFACES: int = 4
 const LIMITED_BROADCAST: String = "255.255.255.255"
 ## The last number of a /24 that is the broadcast address, and the one a router (or a stock-Android-9-era hotspot) usually holds.
 const BROADCAST_HOST: int = 255
@@ -84,32 +82,6 @@ static func search_plan(interfaces: Array, rules: NetRules) -> Plan:
 		if not plan.candidates.has(url):
 			plan.candidates.append(url)
 	return plan
-
-
-## This phone's interfaces as one short line to read off a screen: "wlan0 192.168.43.57, rmnet_data0 10.4.1.9". Names and
-## IPv4 addresses only, loopback left out; the Wi-Fi and the tethers come before the ignored ones, which are cut first.
-static func describe(interfaces: Array, rules: NetRules) -> String:
-	var parts: PackedStringArray = PackedStringArray()
-	for role: Role in [Role.CLIENT, Role.TETHER, Role.IGNORED]:
-		for interface: Dictionary in interfaces:
-			var interface_name: String = String(interface.get("name", ""))
-			if interface_name == "lo" or role_of(interface_name, rules) != role:
-				continue
-			var ipv4: PackedStringArray = PackedStringArray()
-			for address: String in interface.get("addresses", []) as Array:
-				if address.split(".").size() == 4:
-					ipv4.append(address)
-			if not ipv4.is_empty():
-				parts.append("%s %s" % [interface_name, " ".join(ipv4)])
-	if parts.is_empty():
-		return "no network address"
-	if parts.size() > SHOWN_INTERFACES:
-		var hidden: int = parts.size() - SHOWN_INTERFACES
-		parts = parts.slice(0, SHOWN_INTERFACES)
-		parts.append("+%d more" % hidden)
-	return ", ".join(parts)
-
-
 ## True for 10.x.x.x, 172.16-31.x.x and 192.168.x.x.
 static func is_private(ip: String) -> bool:
 	var parts: PackedStringArray = ip.split(".")

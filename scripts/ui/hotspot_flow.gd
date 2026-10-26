@@ -17,9 +17,8 @@ const RULES: NetRules = preload("res://data/rules/net_rules.tres")
 var mode: Mode
 var step: Step = Step.CHECKING
 var finder: HotspotFinder = HotspotFinder.new()
-## Why the room was not found (full, started, other version, or none), and this phone's network, for a failure step.
+## Why the room was not found (full, started, other version, or none), for a failure step.
 var failure: String = ""
-var detail: String = ""
 ## Create only: no hotspot was found but this phone is on a private network (a Wi-Fi, or a hotspot that an older phone runs on
 ## its Wi-Fi interface), and the beacon works on any such network, so it may host here.
 var can_host_here: bool = false
@@ -78,13 +77,11 @@ func tick(delta: float) -> void:
 			_end(finder.url)
 		elif finder.failed:
 			failure = finder.failure_message
-			detail = _detail_with_search()
 			_enter(Step.NO_ROOM)
 
 
 func _check() -> void:
 	var interfaces: Array = _interfaces.call() as Array
-	detail = UiText.f("This phone: %s", [HotspotNet.describe(interfaces, RULES)])
 	if mode == Mode.CREATE:
 		if HotspotNet.hotspot_on(interfaces, RULES):
 			_enter(Step.HOTSPOT_ON)
@@ -108,10 +105,6 @@ func _end(url: String) -> void:
 func _enter(next: Step) -> void:
 	step = next
 	step_changed.emit(next)
-
-
-func _detail_with_search() -> String:
-	return detail + "\n" + UiText.f("Asked %d · answered %d", [finder.asked, finder.heard])
 
 
 func _plan(interfaces: Array) -> HotspotNet.Plan:

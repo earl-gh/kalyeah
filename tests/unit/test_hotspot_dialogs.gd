@@ -106,7 +106,7 @@ func test_create_says_plainly_when_the_hotspot_is_off_and_never_goes_on() -> voi
 		var went: Array = []
 		var card: MenuDialog = _create(went)
 		await wait_process_frames(3)
-		assert_eq(_text(card, "Message"), "Your hotspot is off. Turn it on, then tap Try again.", HotspotNet.describe(off, NET))
+		assert_eq(_text(card, "Message"), "Your hotspot is off. Turn it on, then tap Try again.", str(off))
 		assert_true(_shown(card, "TryAgain"))
 		assert_true(_shown(card, "Cancel"))
 		assert_true(went.is_empty(), "no room while the hotspot is off")
@@ -120,7 +120,7 @@ func test_create_offers_to_host_on_a_private_network_without_going_on_by_itself(
 		var went: Array = []
 		var card: MenuDialog = _create(went)
 		await wait_process_frames(3)
-		assert_true(_shown(card, "HostHere"), "a phone on a private network may host there: %s" % HotspotNet.describe(wifi, NET))
+		assert_true(_shown(card, "HostHere"), "a phone on a private network may host there: %s" % str(wifi))
 		assert_true(went.is_empty(), "but nothing is created until the player says so")
 		(card.find_child("HostHere", true, false) as Button).pressed.emit()
 		assert_eq(went.size(), 1, "tapping it goes on")
@@ -134,7 +134,7 @@ func test_create_does_not_offer_to_host_where_there_is_no_network_to_host_on() -
 		var went: Array = []
 		var card: MenuDialog = _create(went)
 		await wait_process_frames(3)
-		assert_false(_shown(card, "HostHere"), "no private network, nothing to host on: %s" % HotspotNet.describe(none, NET))
+		assert_false(_shown(card, "HostHere"), "no private network, nothing to host on: %s" % str(none))
 		var flow: HotspotFlow = HotspotFlow.new(HotspotFlow.Mode.CREATE, _interfaces)
 		flow.begin()
 		flow.tick(0.0)
@@ -144,11 +144,20 @@ func test_create_does_not_offer_to_host_where_there_is_no_network_to_host_on() -
 		card.close(false)
 
 
-func test_create_failure_shows_the_phones_network_to_read_off_the_screen() -> void:
-	var card: MenuDialog = _create([])
-	await wait_process_frames(3)
-	assert_true(_shown(card, "Detail"))
-	assert_eq(_text(card, "Detail"), "This phone: wlan0 192.168.1.37, rmnet_data0 10.58.2.14")
+func test_the_modals_never_show_hardware_or_network_details_to_the_player() -> void:
+	var ip: RegEx = RegEx.create_from_string("\\d+\\.\\d+\\.\\d+\\.\\d+")
+	for phone_now: Array in [Phones.on_home_wifi(), Phones.guest_on_a_hotspot(), Phones.on_mobile_data_only(), Phones.offline()]:
+		phone = phone_now
+		for mode: String in ["create", "join"]:
+			var card: MenuDialog = _create([]) if mode == "create" else _join([])
+			await wait_process_frames(3)
+			assert_not_null(card.find_child("Message", true, false), "%s: the modal is open" % mode)
+			assert_null(card.find_child("Detail", true, false), "%s: no detail line" % mode)
+			for label: Node in card.find_children("*", "Label", true, false):
+				var text: String = (label as Label).text
+				assert_false(text.contains("wlan") or text.contains("rmnet") or text.contains("This phone") or text.contains("Asked"), "%s: no interface names: %s" % [mode, text])
+				assert_null(ip.search(text), "%s: no IP address: %s" % [mode, text])
+			card.close(false)
 
 
 func test_create_goes_on_by_itself_when_a_hotspot_is_on() -> void:
@@ -157,7 +166,7 @@ func test_create_goes_on_by_itself_when_a_hotspot_is_on() -> void:
 		var went: Array = []
 		var card: MenuDialog = _create(went)
 		await wait_process_frames(3)
-		assert_eq(went.size(), 1, HotspotNet.describe(on, NET))
+		assert_eq(went.size(), 1, str(on))
 		assert_false(is_instance_valid(card) and card.is_open, "the dialog is gone")
 
 
@@ -239,7 +248,7 @@ func test_join_without_a_wifi_says_to_connect_and_does_not_search() -> void:
 		var card: MenuDialog = _join(found)
 		assert_eq(_text(card, "Message"), "Checking your Wi-Fi…")
 		await wait_process_frames(3)
-		assert_eq(_text(card, "Message"), "Connect to your friend's hotspot in Wi-Fi settings, then tap Try again.", HotspotNet.describe(lonely, NET))
+		assert_eq(_text(card, "Message"), "Connect to your friend's hotspot in Wi-Fi settings, then tap Try again.", str(lonely))
 		assert_true(_shown(card, "TryAgain"))
 		assert_true(_shown(card, "Cancel"))
 		assert_false(_shown(card, "Settings"), "that button is for Create")
@@ -266,8 +275,6 @@ func test_join_says_when_there_is_no_room_and_try_again_finds_it_once_the_host_c
 	var card: MenuDialog = _join(found)
 	assert_true(await _until(func() -> bool: return _shown(card, "TryAgain")))
 	assert_eq(_text(card, "Message"), HotspotFinder.NO_ROOM)
-	assert_true(_text(card, "Detail").begins_with("This phone: wlan0 192.168.1.37"))
-	assert_string_contains(_text(card, "Detail"), "Asked 1 · answered 1")
 	assert_true(found.is_empty())
 	_server.rooms.create_room(700, "Host", 1)
 	(card.find_child("TryAgain", true, false) as Button).pressed.emit()

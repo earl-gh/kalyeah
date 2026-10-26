@@ -28,7 +28,7 @@ func test_mobile_data_and_wifi_direct_are_neither_a_hotspot_nor_a_wifi() -> void
 func test_every_vendor_access_point_name_counts_as_a_hotspot() -> void:
 	for phone: Array in [Phones.stock_hotspot(), Phones.samsung_hotspot(), Phones.mediatek_hotspot(), Phones.qualcomm_softap_hotspot(),
 			Phones.ten_net_hotspot(), Phones.unknown_vendor_hotspot(), Phones.usb_tether(), Phones.bluetooth_tether()]:
-		assert_eq(_verdict(phone), [true, false], HotspotNet.describe(phone, NET))
+		assert_eq(_verdict(phone), [true, false], str(phone))
 
 
 func test_a_hotspot_while_on_a_wifi_is_both() -> void:
@@ -66,18 +66,6 @@ func test_the_fallback_is_the_dot_one_of_the_wifi_then_the_classic_tether_addres
 	assert_true(plan.candidates.has("ws://172.20.10.1:8080"))
 	assert_eq(HotspotNet.search_plan(Phones.guest_on_a_hotspot(), NET).candidates.size(), 2, "192.168.43.1 once, not twice")
 	assert_false(HotspotNet.search_plan(Phones.on_home_wifi(), NET).candidates.has("ws://10.58.2.1:8080"), "mobile data is not searched")
-
-
-func test_the_failure_line_names_the_interfaces_in_a_short_readable_line() -> void:
-	assert_eq(HotspotNet.describe(Phones.on_home_wifi(), NET), "wlan0 192.168.1.37, rmnet_data0 10.58.2.14", "IPv6 and loopback left out")
-	assert_eq(HotspotNet.describe(Phones.offline(), NET), "no network address")
-	var many: Array = []
-	for i: int in 6:
-		many.append(Phones.iface("rmnet_data%d" % i, ["10.0.0.%d" % i]))
-	many.append(Phones.iface("wlan0", ["192.168.1.9"]))
-	var line: String = HotspotNet.describe(many, NET)
-	assert_true(line.begins_with("wlan0 192.168.1.9, "), "the Wi-Fi is never the one cut: %s" % line)
-	assert_string_ends_with(line, "+3 more")
 
 
 func test_a_hotspot_host_has_one_room_and_a_friend_joins_without_a_code() -> void:
