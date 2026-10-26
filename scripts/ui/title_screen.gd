@@ -38,6 +38,8 @@ const HERO_RATIO: float = 0.625
 const HERO_MIN_HEIGHT: float = 480.0
 const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 70.0
+## The cards sit this far above the bottom of their stage, so the name, its phrase and the buttons stay close under them.
+const HERO_BOTTOM_GAP: float = 34.0
 ## The share of the room the hero card takes (owner: smaller, so the floating card floats with space round it).
 const HERO_SCALE: float = 0.86
 ## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
@@ -210,6 +212,7 @@ func _build_home() -> VBoxContainer:
 	carousel.accessibility_name = "Game mode"
 	carousel.name = "ModeCarousel"
 	carousel.card_size = HERO_CARD
+	carousel.bottom_gap = HERO_BOTTOM_GAP
 	carousel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(carousel)
 	carousel.setup("", MODES, Session.menu_mode)
@@ -420,8 +423,7 @@ func _fit_hero() -> void:
 func _place_title() -> void:
 	if _title_holder == null or carousel == null:
 		return
-	var stage: Control = carousel.get_parent() as Control
-	var air: float = maxf((stage.size.y - carousel.card_size.y) / 2.0, 0.0)
+	var air: float = HERO_BOTTOM_GAP
 	var height: float = mode_name_label.get_combined_minimum_size().y
 	mode_name_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	# the letters sit a little low in their line, so lift the line to put the letters themselves on the edge

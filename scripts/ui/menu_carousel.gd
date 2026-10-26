@@ -28,6 +28,9 @@ var bob: float = 0.0:
 	set(value):
 		bob = value
 		set_process(value > 0.0)
+## When 0 or more, the cards sit this many pixels above the bottom of the carousel instead of in the middle of it (the main
+## screen keeps the mode name, its phrase and the buttons close under the cards).
+var bottom_gap: float = -1.0
 var index: int = 0
 var cards: Array[Button] = []
 
@@ -117,7 +120,7 @@ func _layout() -> void:
 		card.scale = Vector2.ONE * (1.0 - SCALE_LOSS * away)
 		var drift_phase: float = sin(float(Time.get_ticks_msec()) / 1000.0 * FLOAT_SPEED)
 		var drift: float = drift_phase * bob * (1.0 - away / 2.0) if bob > 0.0 and not Settings.reduced_motion else 0.0
-		card.position = Vector2(size.x / 2.0 + offset * STEP - card_size.x / 2.0, (size.y - card_size.y) / 2.0 + drift)
+		card.position = Vector2(size.x / 2.0 + offset * STEP - card_size.x / 2.0, ((size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap) + drift)
 		# every card stays visible: the ones further back are darker and slightly see-through
 		var shade: float = 1.0 - SHADE_LOSS * away
 		card.modulate = Color(shade, shade, shade, lerpf(1.0, BACK_ALPHA, clampf(absf(offset), 0.0, 1.0)))
