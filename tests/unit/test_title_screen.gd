@@ -257,7 +257,7 @@ func test_the_carousel_is_online_local_practice_with_local_chosen_in_front() -> 
 	assert_eq(middle.modulate.a, 1.0)
 	assert_lt(next.modulate.r, middle.modulate.r - 0.2, "the next card is clearly darker: depth")
 	assert_lt(next.modulate.a, middle.modulate.a, "and slightly see-through too")
-	assert_lt(next.position.y, middle.position.y, "and sits higher")
+	assert_almost_eq(next.get_global_rect().get_center().y, middle.get_global_rect().get_center().y, 1.0, "on the same vertical centre")
 	assert_lt(next.scale.x, middle.scale.x, "and smaller")
 	assert_lt(next.z_index, middle.z_index, "and behind")
 	assert_gt(next.get_global_rect().get_center().x, middle.get_global_rect().get_center().x, "and to its right")

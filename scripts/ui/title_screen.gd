@@ -407,7 +407,7 @@ func _refresh_mode() -> void:
 	secondary_button.text = "Join room" if rooms else "Training"
 	secondary_button.visible = true
 	KalyeahTheme.style_button(primary_button, "orange")
-	KalyeahTheme.style_button(secondary_button, "grey")
+	KalyeahTheme.style_button(secondary_button, "blue")
 	backdrop.set_accent(Color(String(mode["accent"])))
 	for i: int in _dots.size():
 		var dot: StyleBoxFlat = StyleBoxFlat.new()
