@@ -18,13 +18,19 @@ func test_the_card_is_straight_and_almost_paper_thin() -> void:
 	assert_gt(CardFace.THICKNESS.length(), 3.0, "but its edge shows")
 
 
-func test_the_mode_cards_have_square_corners_and_a_power_line_up_the_right_edge() -> void:
+func test_the_mode_cards_have_square_corners_and_a_power_line_up_the_bottom_of_the_right_edge() -> void:
 	assert_eq(CardFace.RADIUS, 0.0, "no border radius (owner: like a teks card)")
 	var square: PackedVector2Array = CardShape.outline(SIZE, CardFace.RADIUS)
 	assert_eq(square.size(), 4, "a plain rectangle")
 	assert_eq(square[0], Vector2.ZERO)
 	assert_eq(square[2], SIZE)
-	assert_eq(CardFace.POWER_TEXT, "POWER 9999")
+	assert_eq(UiText.f(CardFace.POWER_FORMAT, [9999]), "POWER 9999")
+	assert_eq(CardFace.POWER_COLOR, Color.WHITE, "white letters")
+	assert_eq(CardFace.POWER_OUTLINE, Color.BLACK, "with a black outline")
+	var powers: Dictionary = {}
+	for mode: Dictionary in TitleScreen.MODES:
+		powers[int(mode["power"])] = true
+	assert_eq(powers.size(), TitleScreen.MODES.size(), "not always 9999: each mode has its own power")
 	var card: Button = autofree(ChoiceCard.make_card("", "Local", "blue", SIZE, "hotspot")) as Button
 	add_child(card)
 	card.size = SIZE

@@ -32,9 +32,11 @@ func test_button_shadows_are_drawn_outside_the_control() -> void:
 func test_label_colours_read_on_their_buttons() -> void:
 	for variant: String in ["gold", "blue", "green", "red", "slate"]:
 		var spec: Dictionary = UiSkin.BUTTONS[variant]
-		var face: Color = (spec["top"] as Color).lerp(spec["bottom"] as Color, 0.5)
+		# white letters with a black outline (owner): the outline is what reads on any face
 		var ink: Color = spec["text"] as Color
-		assert_gt(absf(ink.get_luminance() - face.get_luminance()), 0.35, "%s label is readable on its face" % variant)
+		assert_eq(ink, Color.WHITE, "%s label is white" % variant)
+		assert_eq(spec["outline"] as Color, Color.BLACK, "%s label has a black outline" % variant)
+		assert_gte(spec["outline_size"] as int, 5, "%s outline is heavy enough to read on its face" % variant)
 
 
 func test_panels_wear_their_padding_and_are_not_shared() -> void:

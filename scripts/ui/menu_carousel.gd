@@ -56,6 +56,10 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.focus_mode = Control.FOCUS_NONE
 		card.add_child(_frame(String(option.get("accent", "ffd25a"))))
+		var face: CardFace = card.get_node_or_null("Face") as CardFace
+		if face != null:
+			face.accent = Color(String(option.get("accent", "ffd25a")))
+			face.power = int(option.get("power", 0))
 		add_child(card)
 		cards.append(card)
 	if accessibility_name.is_empty():

@@ -13,15 +13,15 @@ extends RefCounted
 ## the label (colour and outline). `gold` is the one main action on a screen.
 const BUTTONS: Dictionary[String, Dictionary] = {
 	"gold": {"top": Color("fed44f"), "bottom": Color("f5b61c"), "lip": Color("b07100"), "line": Color("5e3a04"),
-		"text": Color("3a1c00"), "outline": Color(1.0, 1.0, 1.0, 0.0), "outline_size": 0},
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
 	"blue": {"top": Color("62baff"), "bottom": Color("379ef0"), "lip": Color("0a66b4"), "line": Color("0a3d73"),
-		"text": Color.WHITE, "outline": Color("0a3d73"), "outline_size": 5},
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
 	"green": {"top": Color("62dc72"), "bottom": Color("1f9a3b"), "lip": Color("126628"), "line": Color("08381a"),
-		"text": Color.WHITE, "outline": Color("08381a"), "outline_size": 5},
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
 	"red": {"top": Color("ff7f72"), "bottom": Color("d6342e"), "lip": Color("8c1d1b"), "line": Color("4f0c0b"),
-		"text": Color.WHITE, "outline": Color("4f0c0b"), "outline_size": 5},
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
 	"slate": {"top": Color("62779f"), "bottom": Color("3b4c74"), "lip": Color("222e4e"), "line": Color("111830"),
-		"text": Color.WHITE, "outline": Color("111830"), "outline_size": 4},
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
 	"disabled": {"top": Color("3a4562"), "bottom": Color("2d374f"), "lip": Color("232b40"), "line": Color("151a2b"),
 		"text": Color(0.72, 0.76, 0.84, 0.7), "outline": Color(0.0, 0.0, 0.0, 0.0), "outline_size": 0},
 }

@@ -11,14 +11,21 @@ const FACE_LINE: Color = Color(0.03, 0.05, 0.12, 0.85)
 const THICKNESS: Vector2 = Vector2(3.5, 5.0)
 ## Square corners, like a teks card (owner).
 const RADIUS: float = 0.0
-## The word along the right edge, turned -90 degrees (reading upwards), like the power line on a teks card.
-const POWER_TEXT: String = "POWER 9999"
+## The power line at the bottom of the right edge, turned -90 degrees (reading upwards), like a teks card's: white letters with a
+## black outline. The number is the card's own (`power`); 0 draws no line.
+const POWER_FORMAT: String = "POWER %d"
 const POWER_SIZE_SHARE: float = 0.075
-const POWER_COLOR: Color = Color("fff1b8")
-const POWER_OUTLINE: Color = Color("14142e")
-## How far the power line is from the right edge of the card (its baseline), as a share of the card's width, and the outline.
+const POWER_COLOR: Color = Color.WHITE
+const POWER_OUTLINE: Color = Color.BLACK
+## Where the line sits: its baseline's distance from the right edge (share of the card's width) and where it starts, up from the
+## bottom (share of the card's height), and the outline's width.
 const POWER_EDGE_SHARE: float = 0.075
+const POWER_BOTTOM_SHARE: float = 0.07
 const POWER_OUTLINE_SIZE: int = 7
+## The coloured shade in front of the picture at the bottom of the card, in the mode's colour, behind the mode's name: how
+## tall it is (share of the card's height) and how strong it is at the bottom.
+const SHADE_SHARE: float = 0.36
+const SHADE_ALPHA: float = 1.0
 ## The shadow: its layers, how far below the card it falls and how dark the whole of it is.
 const SHADOW_LAYERS: int = 7
 const SHADOW_DROP: Vector2 = Vector2(10.0, 40.0)
@@ -32,6 +39,15 @@ var lift: float = 0.0:
 		if absf(value - lift) < 0.01:
 			return
 		lift = value
+		queue_redraw()
+## The mode's colour (the coloured shade at the bottom of the card) and its power number (the line up the right edge).
+var accent: Color = Color("4aa0ff"):
+	set(value):
+		accent = value
+		queue_redraw()
+var power: int = 0:
+	set(value):
+		power = value
 		queue_redraw()
 var texture: Texture2D:
 	set(value):
@@ -78,6 +94,7 @@ func _draw() -> void:
 			uvs.append(Vector2(0.5 + (point.x / size.x - 0.5) * cover.x, 0.5 + (point.y / size.y - 0.5) * cover.y))
 			colors.append(Color.WHITE)
 		draw_polygon(face, colors, uvs, texture)
+	_draw_shade()
 	_outline(face, FACE_LINE, 2.0)
 	_draw_power()
 
@@ -97,15 +114,24 @@ func _outline(points: PackedVector2Array, color: Color, width: float) -> void:
 	draw_polyline(closed, color, width, true)
 
 
-## "POWER 9999" along the right edge, turned -90 degrees so it reads upwards, in heavy outlined letters.
+## The shade in front of the picture: clear at the top, the mode's colour at the bottom (the card is square-cornered, so it is a rectangle).
+func _draw_shade() -> void:
+	var top: float = size.y * (1.0 - SHADE_SHARE)
+	var clear: Color = Color(accent, 0.0)
+	var strong: Color = Color(accent, SHADE_ALPHA)
+	draw_polygon(PackedVector2Array([Vector2(0.0, top), Vector2(size.x, top), Vector2(size.x, size.y), Vector2(0.0, size.y)]), PackedColorArray([clear, clear, strong, strong]))
+
+
+## "POWER 9999" and the like up the bottom of the right edge, turned -90 degrees so it reads upwards, in white letters with a black outline.
 func _draw_power() -> void:
+	if power <= 0:
+		return
 	var font: Font = KalyeahTheme.BUTTON_FONT
 	var font_size: int = int(roundf(size.y * POWER_SIZE_SHARE))
-	var text: String = UiText.t(POWER_TEXT)
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+	var text: String = UiText.f(POWER_FORMAT, [power])
 	var ascent: float = font.get_ascent(font_size)
 	# the origin is the text's bottom left once it is turned: it runs up the card from there
-	var origin: Vector2 = Vector2(size.x - size.x * POWER_EDGE_SHARE - (font.get_height(font_size) - ascent), (size.y + width) / 2.0)
+	var origin: Vector2 = Vector2(size.x - size.x * POWER_EDGE_SHARE - (font.get_height(font_size) - ascent), size.y - size.y * POWER_BOTTOM_SHARE)
 	draw_set_transform(origin, -PI / 2.0, Vector2.ONE)
 	draw_string_outline(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, POWER_OUTLINE_SIZE, POWER_OUTLINE)
 	draw_string(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, POWER_COLOR)
