@@ -62,7 +62,11 @@ func test_open_server_without_a_room_is_not_a_discovery_success() -> void:
 	server.auto_join = true
 	assert_eq(server.listen(18947), OK)
 	var finder: HotspotFinder = HotspotFinder.new()
-	finder.start(PackedStringArray(["ws://127.0.0.1:18947"]))
+	var plan: HotspotNet.Plan = HotspotNet.Plan.new()
+	plan.candidates = PackedStringArray(["ws://127.0.0.1:18947"])
+	plan.seconds = 3.0
+	plan.interval = 1.0
+	finder.start(plan)
 	for i: int in 300:
 		server.poll(1.0 / 60.0)
 		finder.poll(1.0 / 60.0)
@@ -71,7 +75,7 @@ func test_open_server_without_a_room_is_not_a_discovery_success() -> void:
 		OS.delay_usec(2000)
 	assert_true(finder.failed)
 	assert_eq(finder.url, "")
-	assert_string_contains(finder.failure_message, "no room")
+	assert_eq(finder.failure_message, HotspotFinder.NO_ROOM)
 	finder.stop()
 	server.stop()
 

@@ -21,6 +21,7 @@ Airborne,Airborne
 All,All
 ALL OF YOU TAGGED!,ALL OF YOU TAGGED!
 ALL TAGGED!,ALL TAGGED!
+Asked %d · answered %d,Asked %d · answered %d
 Auto-pick at timeout,Auto-pick at timeout
 Back,Back
 Back in %d,Back in %d
@@ -49,7 +50,8 @@ CHANGE WEAPONS,CHANGE WEAPONS
 Change weapons,Change weapons
 Changes apply immediately,Changes apply immediately
 Characters,Characters
-Checking local connection…,Checking local connection…
+Checking your hotspot…,Checking your hotspot…
+Checking your Wi-Fi…,Checking your Wi-Fi…
 Choices,Choices
 Choose %s,Choose %s
 Choose your kid,Choose your kid
@@ -59,6 +61,7 @@ Code pasted,Code pasted
 Colour-blind colours,Colour-blind colours
 Comfort,Comfort
 Coming soon,Coming soon
+"Connect to your friend's hotspot in Wi-Fi settings, then tap Try again.","Connect to your friend's hotspot in Wi-Fi settings, then tap Try again."
 Connecting…,Connecting…
 "Connection lost
 Reconnecting…","Connection lost
@@ -103,6 +106,7 @@ Help me!,Help me!
 History,History
 HOLD THE BASE!,HOLD THE BASE!
 Hotspot,Hotspot
+Hotspot settings,Hotspot settings
 How it plays,How it plays
 How the points went,How the points went
 How to play,How to play
@@ -113,6 +117,7 @@ Invite friends with a room code.,Invite friends with a room code.
 Jacks,Jacks
 Join room,Join room
 Join team,Join team
+Joining the room…,Joining the room…
 Junjun,Junjun
 Knocked out,Knocked out
 Langit · Heal,Langit · Heal
@@ -127,7 +132,7 @@ Let go to auto-aim · drag out to aim,Let go to auto-aim · drag out to aim
 Ligaya,Ligaya
 Loading…,Loading…
 Loadout,Loadout
-Looking for the room…,Looking for the room…
+Looking for a room…,Looking for a room…
 Lupa · Soil Block,Lupa · Soil Block
 Make Kalyeah yours.,Make Kalyeah yours.
 Map: Agawan Base,Map: Agawan Base
@@ -139,7 +144,8 @@ Migo,Migo
 NEXT,NEXT
 "NEXT card on the right, your cards to the left","NEXT card on the right, your cards to the left"
 Nice one!,Nice one!
-"No local network. Turn on your hotspot or connect to Wi-Fi, then retry.","No local network. Turn on your hotspot or connect to Wi-Fi, then retry."
+"No room found. Ask your friend to tap Create room, then tap Try again.","No room found. Ask your friend to tap Create room, then tap Try again."
+No room found. Go back and tap Join room.,No room found. Go back and tap Join room.
 NO TARGET,NO TARGET
 Nobody in range · release keeps it,Nobody in range · release keeps it
 Nothing to paste. Copy the room code first.,Nothing to paste. Copy the room code first.
@@ -191,6 +197,7 @@ Return home,Return home
 Room,Room
 Room code,Room code
 Room code copied,Room code copied
+Room found. Joining…,Room found. Joining…
 Save,Save
 Scatter jacks on the road: enemies walking over them slow down.,Scatter jacks on the road: enemies walking over them slow down.
 SCORED!  %d-%d,SCORED!  %d-%d
@@ -218,12 +225,15 @@ Tap to choose which slot the next weapon fills,Tap to choose which slot the next
 Team size,Team size
 text,text
 Thanks!,Thanks!
+That match has already started.,That match has already started.
 That match has ended.,That match has ended.
+That room is full.,That room is full.
 The game · %s,The game · %s
 The host left. You are the host now.,The host left. You are the host now.
 The words in the game,The words in the game
 THEM,THEM
 THEY SCORED  %d-%d,THEY SCORED  %d-%d
+This phone: %s,This phone: %s
 "Three slippers fly out and come back, hitting both ways.","Three slippers fly out and come back, hitting both ways."
 Throws a rock that homes in on the nearest enemy.,Throws a rock that homes in on the nearest enemy.
 TIME,TIME
@@ -234,7 +244,7 @@ Trumpo,Trumpo
 Try again,Try again
 Tsinelas · Heavy,Tsinelas · Heavy
 Tsinelas · Light,Tsinelas · Light
-Turn on your hotspot or connect to Wi-Fi first.,Turn on your hotspot or connect to Wi-Fi first.
+Update both phones to the same game version.,Update both phones to the same game version.
 Vibration,Vibration
 Victory,Victory
 VICTORY!,VICTORY!
@@ -248,6 +258,8 @@ Weapons,Weapons
 Wow!,Wow!
 YOU,YOU
 YOU %d - %d THEM   %s,YOU %d - %d THEM   %s
+"Your hotspot is off. Turn it on, then tap Try again.","Your hotspot is off. Turn it on, then tap Try again."
+Your hotspot is on. Starting the room…,Your hotspot is on. Starting the room…
 Your kids and the weapons,Your kids and the weapons
 Your last battles,Your last battles
 Your last battles on this phone.,Your last battles on this phone.

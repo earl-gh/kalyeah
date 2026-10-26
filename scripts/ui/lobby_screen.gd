@@ -40,7 +40,6 @@ var _status: Label
 var _team_size: int = 1
 ## The address the lobby connected to (kept so a dropped player can rejoin).
 var _connected_url: String = ""
-var _finder: HotspotFinder = HotspotFinder.new()
 ## One room presentation for both transports.
 var _room_view: HotspotRoomView
 var _announced_character: bool = false
@@ -50,7 +49,6 @@ var _last_host_id: int = -1
 
 func _ready() -> void:
 	hotspot = Session.lobby_hotspot
-	set_process(false)
 	if client == null:
 		client = Net.client
 	_transport_ready = client.is_online()
@@ -165,43 +163,26 @@ func _connect_or_send(url: String) -> void:
 				_room_view.show_retry()
 
 
-## A hotspot room needs no server address and no code. Create starts the room on this phone; Join
-## looks for the room on the hotspot or Wi-Fi this phone is on (only the phone that made the
-## hotspot can be the host, and everyone else on it can join).
+## A hotspot room needs no server address and no code, and the dialog on the main screen has already checked the hotspot
+## or the Wi-Fi. Create starts the room on this phone; Join goes to the room that dialog found and verified.
 func _submit_hotspot() -> void:
-	var addresses: PackedStringArray = IP.get_local_addresses()
-	if HotspotNet.local_ip(addresses).is_empty():
-		_set_status("Turn on your hotspot or connect to Wi-Fi first.")
-		_room_view.show_retry()
-		return
 	if intent == Intent.CREATE:
 		if Net.start_host() != OK:
 			_set_status("Can't start the room on this phone.")
+			_room_view.show_retry()
 			return
 		_connected_url = Net.host_url()
 		_pending = client.create_room.bind(_team_size)
 		_connect_or_send(_connected_url)
 		return
+	if Session.lobby_url.is_empty():
+		_set_status("No room found. Go back and tap Join room.")
+		return
 	client.close()
 	_room_view.clear_room()
+	_connected_url = Session.lobby_url
 	_pending = client.join_room.bind("")
-	_set_status("Looking for the room…")
-	_finder.start(HotspotNet.candidates(addresses, NET_RULES.default_port))
-	set_process(true)
-
-
-func _process(delta: float) -> void:
-	_finder.poll(delta)
-	if not _finder.url.is_empty():
-		_connected_url = _finder.url
-		_finder.url = ""
-		set_process(false)
-		_connect_or_send(_connected_url)
-	elif _finder.failed:
-		_finder.failed = false
-		set_process(false)
-		_set_status(_finder.failure_message)
-		_room_view.show_retry()
+	_connect_or_send(_connected_url)
 
 
 ## Takes our slot in a running match back (after a reload or a long drop).
@@ -325,7 +306,6 @@ func _back_pressed() -> void:
 func _on_back() -> void:
 	if not client.room.is_empty():
 		client.leave_room()
-	_finder.stop()
 	client.close()
 	Net.stop_host()
 	get_tree().change_scene_to_file(TITLE_SCENE)
@@ -369,7 +349,7 @@ func _start_online_create() -> void:
 func _start_hotspot() -> void:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return
-	_set_status("Starting the room…" if intent == Intent.CREATE else "Looking for the room…")
+	_set_status("Starting the room…" if intent == Intent.CREATE else "Joining the room…")
 	submit()
 
 
@@ -450,7 +430,3 @@ func _set_status(text: String) -> void:
 	_status.visible = not text.is_empty()
 	if not text.is_empty():
 		UiStatusStrip.style(_status, UiStatusStrip.kind_of(text))
-
-
-func _exit_tree() -> void:
-	_finder.stop()
