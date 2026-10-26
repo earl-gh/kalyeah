@@ -63,8 +63,9 @@ func test_the_android_preset_is_one_portrait_arm64_app_with_only_the_permissions
 	assert_true(android["screen/immersive_mode"])
 	assert_true(android["permissions/internet"], "Online and Hotspot open sockets")
 	assert_true(android["permissions/vibrate"], "Input.vibrate_handheld does nothing without it")
+	assert_true(android["permissions/change_wifi_multicast_state"], "Godot takes the Wi-Fi multicast lock for a broadcast socket only when the app declares this (GodotNetUtils); the host hears the guests' broadcast with it")
 	for key: String in android:
-		if key.begins_with("permissions/") and not key in ["permissions/internet", "permissions/vibrate"]:
+		if key.begins_with("permissions/") and not key in ["permissions/internet", "permissions/vibrate", "permissions/change_wifi_multicast_state"]:
 			assert_false(android[key], "%s is not needed (the hotspot only opens sockets and lists addresses)" % key)
 	assert_false(android.has("screen/orientation"), "not an option in Godot 4: the project setting below decides")
 	assert_eq(ProjectSettings.get_setting("display/window/handheld/orientation"), DisplayServer.SCREEN_PORTRAIT)

@@ -1,7 +1,9 @@
 extends GutTest
 ## .github/scripts/inspect-apk.sh against output that `aapt2 dump badging` and `dump xmltree` really printed for an exported
 ## APK (tests/fixtures/android/, captured from a local Godot 4.6.2 debug export). The first version of the script looked for
-## lines aapt2 does not print and failed a good APK; these tests keep it reading what is really there.
+## lines aapt2 does not print and failed a good APK; these tests keep it reading what is really there. The two
+## CHANGE_WIFI_MULTICAST_STATE lines were added by hand, in the form of the captured INTERNET and VIBRATE lines, because the
+## capture predates that permission; replace them with a fresh capture (the workflow prints the raw aapt2 output).
 
 const SCRIPT := "res://.github/scripts/inspect-apk.sh"
 const BADGING := "res://tests/fixtures/android/badging.txt"
@@ -81,6 +83,13 @@ func test_a_failure_prints_the_raw_aapt2_output_to_read() -> void:
 	assert_true(text.contains("package: name='com.kalyeah.game'"), "the raw badging lines")
 	assert_true(text.contains("aapt2 dump xmltree"), "the xmltree header")
 	assert_true(text.contains("E: uses-sdk"), "the raw manifest lines")
+
+
+func test_a_missing_multicast_permission_fails() -> void:
+	var badging: String = _read(BADGING).replace("uses-permission: name='android.permission.CHANGE_WIFI_MULTICAST_STATE'\n", "")
+	var result: Dictionary = _inspect(_save("badging_missing.txt", badging), ProjectSettings.globalize_path(MANIFEST))
+	DirAccess.remove_absolute("user://badging_missing.txt")
+	assert_true(String(result["text"]).contains("FAIL  only the permissions the game uses"), "the hotspot's broadcast needs it")
 
 
 func test_an_extra_permission_fails() -> void:
