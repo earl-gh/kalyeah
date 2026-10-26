@@ -106,7 +106,7 @@ func test_the_centre_card_stays_centred_on_the_screen() -> void:
 		strip.select(index, false)
 		assert_almost_eq(strip.cards[index].get_global_rect().get_center().x, 360.0, 2.0, "the chosen card is centred on the screen")
 	strip.select(0, false)
-	assert_gt(strip.cards[0].get_global_rect().size.y, 480.0, "the centre card is large (hero cards are 480 to 780 px tall, and the card bobs a little)")
+	assert_gt(strip.cards[0].get_global_rect().size.y, 400.0, "the centre card is large (86 % of the hero room, and the card bobs a little)")
 
 
 
@@ -134,7 +134,7 @@ func test_the_cards_are_large_and_every_one_is_always_visible_stacked_behind_the
 	var strip: MenuCarousel = screen.carousel
 	var chosen: Rect2 = strip.cards[0].get_global_rect()
 	assert_almost_eq(chosen.size.x / chosen.size.y, 2.5 / 4.0, 0.01, "2.5:4")
-	assert_gt(chosen.size.y, 480.0, "large (the bottom bar is the cardboard plate now, so a little less than before)")
+	assert_gt(chosen.size.y, 400.0, "large (86 % of the room: the owner wanted it smaller so it floats with space round it)")
 	for index: int in 3:
 		strip.select(index, false)
 		for card: Button in strip.cards:
