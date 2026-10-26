@@ -9,6 +9,16 @@ const EDGE_LINE: Color = Color(0.36, 0.33, 0.27, 0.9)
 const FACE_LINE: Color = Color(0.03, 0.05, 0.12, 0.85)
 ## The card's thickness: where the edge shows beyond the face.
 const THICKNESS: Vector2 = Vector2(3.5, 5.0)
+## Square corners, like a teks card (owner).
+const RADIUS: float = 0.0
+## The word along the right edge, turned -90 degrees (reading upwards), like the power line on a teks card.
+const POWER_TEXT: String = "POWER 9999"
+const POWER_SIZE_SHARE: float = 0.075
+const POWER_COLOR: Color = Color("fff1b8")
+const POWER_OUTLINE: Color = Color("14142e")
+## How far the power line is from the right edge of the card (its baseline), as a share of the card's width, and the outline.
+const POWER_EDGE_SHARE: float = 0.075
+const POWER_OUTLINE_SIZE: int = 7
 ## The shadow: its layers, how far below the card it falls and how dark the whole of it is.
 const SHADOW_LAYERS: int = 7
 const SHADOW_DROP: Vector2 = Vector2(10.0, 40.0)
@@ -43,7 +53,7 @@ func _notification(what: int) -> void:
 func _draw() -> void:
 	if size.x < 8.0 or size.y < 8.0:
 		return
-	var radius: float = float(KalyeahTheme.CORNER)
+	var radius: float = RADIUS
 	var face: PackedVector2Array = CardShape.outline(size, radius)
 	var centre: Vector2 = size / 2.0
 	for layer: int in SHADOW_LAYERS:
@@ -69,6 +79,7 @@ func _draw() -> void:
 			colors.append(Color.WHITE)
 		draw_polygon(face, colors, uvs, texture)
 	_outline(face, FACE_LINE, 2.0)
+	_draw_power()
 
 
 ## The share of the picture the card shows across and down (the picture fills the card, the rest is cropped).
@@ -84,3 +95,18 @@ func _outline(points: PackedVector2Array, color: Color, width: float) -> void:
 	var closed: PackedVector2Array = points.duplicate()
 	closed.append(points[0])
 	draw_polyline(closed, color, width, true)
+
+
+## "POWER 9999" along the right edge, turned -90 degrees so it reads upwards, in heavy outlined letters.
+func _draw_power() -> void:
+	var font: Font = KalyeahTheme.BUTTON_FONT
+	var font_size: int = int(roundf(size.y * POWER_SIZE_SHARE))
+	var text: String = UiText.t(POWER_TEXT)
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+	var ascent: float = font.get_ascent(font_size)
+	# the origin is the text's bottom left once it is turned: it runs up the card from there
+	var origin: Vector2 = Vector2(size.x - size.x * POWER_EDGE_SHARE - (font.get_height(font_size) - ascent), (size.y + width) / 2.0)
+	draw_set_transform(origin, -PI / 2.0, Vector2.ONE)
+	draw_string_outline(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, POWER_OUTLINE_SIZE, POWER_OUTLINE)
+	draw_string(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, POWER_COLOR)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

@@ -29,7 +29,7 @@ func _notification(what: int) -> void:
 func _draw() -> void:
 	if size.x < 8.0 or size.y < 8.0:
 		return
-	var radius: float = float(KalyeahTheme.CORNER)
+	var radius: float = CardFace.RADIUS
 	var outer: PackedVector2Array = CardShape.outline(size, radius)
 	outer.append(outer[0])
 	for i: int in GLOW_WIDTHS.size():

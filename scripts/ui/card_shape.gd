@@ -11,7 +11,10 @@ const ARC_STEPS: int = 8
 ## card pixels.
 static func outline(size: Vector2, radius: float, inset: float = 0.0) -> PackedVector2Array:
 	var points: PackedVector2Array = PackedVector2Array()
-	var r: float = maxf(minf(radius, minf(size.x, size.y) / 2.0) - inset, 1.0)
+	var r: float = maxf(minf(radius, minf(size.x, size.y) / 2.0) - inset, 0.0)
+	if r < 0.5:
+		# square corners (the cards are like a Filipino teks card)
+		return PackedVector2Array([Vector2(inset, inset), Vector2(size.x - inset, inset), Vector2(size.x - inset, size.y - inset), Vector2(inset, size.y - inset)])
 	var low: Vector2 = Vector2(inset + r, inset + r)
 	var high: Vector2 = size - Vector2(inset + r, inset + r)
 	var centres: Array[Vector2] = [low, Vector2(high.x, low.y), high, Vector2(low.x, high.y)]

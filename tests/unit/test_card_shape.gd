@@ -18,6 +18,20 @@ func test_the_card_is_straight_and_almost_paper_thin() -> void:
 	assert_gt(CardFace.THICKNESS.length(), 3.0, "but its edge shows")
 
 
+func test_the_mode_cards_have_square_corners_and_a_power_line_up_the_right_edge() -> void:
+	assert_eq(CardFace.RADIUS, 0.0, "no border radius (owner: like a teks card)")
+	var square: PackedVector2Array = CardShape.outline(SIZE, CardFace.RADIUS)
+	assert_eq(square.size(), 4, "a plain rectangle")
+	assert_eq(square[0], Vector2.ZERO)
+	assert_eq(square[2], SIZE)
+	assert_eq(CardFace.POWER_TEXT, "POWER 9999")
+	var card: Button = autofree(ChoiceCard.make_card("", "Local", "blue", SIZE, "hotspot")) as Button
+	add_child(card)
+	card.size = SIZE
+	await wait_frames(2)
+	assert_not_null(card.get_node("Face"), "it draws the power line with the card")
+
+
 func test_an_inset_outline_sits_inside_the_edge() -> void:
 	var inset: PackedVector2Array = CardShape.outline(SIZE, 24.0, 3.0)
 	for point: Vector2 in inset:
