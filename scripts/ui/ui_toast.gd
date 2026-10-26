@@ -1,6 +1,6 @@
 class_name UiToast
 extends Control
-## A short message that answers an action ("Room code copied", "Profile saved") and goes away by itself.
+## A short message that answers an action ("Room code copied!", "Profile saved!") and goes away by itself.
 ## One at a time: a new one replaces the one on screen. It floats above the tab bar and the bottom
 ## controls, over everything (its own canvas layer), and never takes a touch. Reduce motion shows and
 ## hides it without the rise and fade.

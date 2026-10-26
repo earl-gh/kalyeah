@@ -10,9 +10,9 @@ signal swap_pressed
 const INK: Color = RoyaleStyle.NAVY
 const TITLE_COLOR: Color = RoyaleStyle.GOLD
 const HINT_COLOR: Color = RoyaleStyle.CREAM
-const WAIT_TEXT: String = "Tagged · Wait for a rescue"
+const WAIT_TEXT: String = "Tagged! Wait for a rescue"
 ## `%d`: the seconds a teammate has to stay in your rescue area (the rules say).
-const HINT_TEXT: String = "A teammate frees you after %d s beside you."
+const HINT_TEXT: String = "A teammate beside you frees you in %d s!"
 ## The countdown to walking out alone, when the match has one (Practice): a ring beside the faces.
 const RELEASE_RING_SIZE: float = 64.0
 ## The same side margin the controls keep.

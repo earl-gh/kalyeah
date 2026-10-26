@@ -118,7 +118,7 @@ func test_choosing_a_kid_emits_and_the_room_picks_are_marked() -> void:
 
 func test_the_big_button_starts_for_the_host_and_readies_for_everyone_else() -> void:
 	var host: HotspotRoomView = _view(_room(2))
-	assert_eq(host.action_button.text, "Start match")
+	assert_eq(host.action_button.text, "Start battle")
 	assert_false(host.action_button.disabled)
 	var blocked: Dictionary = _room(2)
 	blocked["can_start_host"] = false

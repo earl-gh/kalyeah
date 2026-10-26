@@ -103,18 +103,6 @@ func test_the_tab_bar_lights_only_the_open_tab_and_announces_presses() -> void:
 	Settings.set_reduced_motion(motion)
 
 
-func test_the_profile_chip_shows_the_name_and_a_change_hint() -> void:
-	var saved: String = Session.player_name
-	Session.player_name = "Maria"
-	var chip: UiProfileChip = autofree(UiProfileChip.new()) as UiProfileChip
-	add_child(chip)
-	chip.refresh()
-	assert_eq(chip.name_label.text, "Maria")
-	assert_false(chip.hint_label.text.is_empty(), "it says the name can be changed")
-	assert_gte(chip.custom_minimum_size.y, UiMetrics.TOUCH)
-	Session.player_name = saved
-
-
 func test_page_pieces_name_their_parts() -> void:
 	var header: VBoxContainer = autofree(UiKit.page_header("History", "Your last battles")) as VBoxContainer
 	assert_not_null(header)

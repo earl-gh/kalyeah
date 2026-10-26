@@ -111,7 +111,7 @@ func _handle(from: int, message: Dictionary) -> void:
 		M.CREATE_ROOM:
 			var room: RoomService.Room = rooms.create_room(from, _names.get(from, "") as String, message.get("size", 1) as int)
 			if room == null:
-				_error(from, "Can't create a room right now.")
+				_error(from, "Oops! Can't create a room right now.")
 			else:
 				_send_room(room)
 		M.JOIN_ROOM:
@@ -123,13 +123,13 @@ func _handle(from: int, message: Dictionary) -> void:
 				RoomService.Result.OK:
 					_send_room(rooms.room_of_peer(from))
 				RoomService.Result.NOT_FOUND:
-					_error(from, "No room with that code.")
+					_error(from, "No room with that code. Check it and try again!")
 				RoomService.Result.FULL:
-					_error(from, "That room is full.")
+					_error(from, "That room is full!")
 				RoomService.Result.IN_PROGRESS:
-					_error(from, "That match has already started.")
+					_error(from, "That battle has already started!")
 				_:
-					_error(from, "Leave your room first.")
+					_error(from, "Leave your room first!")
 		M.PICK_TEAM:
 			if rooms.pick_team(from, message.get("team", 0) as int):
 				_send_room(rooms.room_of_peer(from))
@@ -161,7 +161,7 @@ func _handle(from: int, message: Dictionary) -> void:
 				for m: RoomService.Member in room.members:
 					send(m.peer_id, started.info())
 			else:
-				_error(from, "Not everyone is ready yet.")
+				_error(from, "Not everyone is ready yet!")
 		M.LEAVE:
 			var left: RoomService.Room = rooms.disconnected(from)
 			if left != null:

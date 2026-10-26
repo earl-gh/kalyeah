@@ -320,7 +320,7 @@ func _build() -> void:
 	capture_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	capture_label.add_theme_color_override("font_outline_color", Color(0.08, 0.05, 0.1))
 	capture_label.add_theme_constant_override("outline_size", 10)
-	again_button = _button("Play again", UiMetrics.BODY, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-160, -30, 160, 60))
+	again_button = _button("Battle again!", UiMetrics.BODY, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(-160, -30, 160, 60))
 	KalyeahTheme.style_button(again_button, "orange")
 	again_button.pressed.connect(again_pressed.emit)
 	again_button.visible = false

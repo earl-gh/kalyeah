@@ -8,7 +8,7 @@ extends RefCounted
 ## New fields keep a default for older peers.
 const VERSION: int = 3
 ## What a player sees when the two phones run different versions.
-const INCOMPATIBLE_TEXT: String = "Update both phones to the same game version."
+const INCOMPATIBLE_TEXT: String = "Update Kalyeah on both phones, then try again!"
 
 enum Msg {
 	# client -> server

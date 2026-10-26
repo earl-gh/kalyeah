@@ -140,10 +140,10 @@ func test_a_full_room_and_a_started_match_say_so() -> void:
 	server.rooms.join(room.code, 701, "Friend")
 	_search(_plan(18957, 18967, [HotspotNet.LIMITED_BROADCAST]))
 	assert_true(_finder.failed)
-	assert_eq(_finder.failure_message, "That room is full.")
+	assert_eq(_finder.failure_message, "That room is full!")
 	room.state = RoomService.State.PLAYING
 	_search(_plan(18957, 18967, [HotspotNet.LIMITED_BROADCAST]))
-	assert_eq(_finder.failure_message, "That match has already started.")
+	assert_eq(_finder.failure_message, "That battle has already started!")
 
 
 func test_a_host_on_another_version_says_to_update() -> void:

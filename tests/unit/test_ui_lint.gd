@@ -238,7 +238,7 @@ func test_the_boot_tips_are_true() -> void:
 	for tip: String in BootScreen.TIPS:
 		for word: String in BANNED:
 			assert_false(tip.containsn(word), "'%s' says '%s'" % [tip, word])
-		assert_true(tip.ends_with("."), tip)
+		assert_true(tip.ends_with(".") or tip.ends_with("!"), tip)
 
 
 func test_a_dialog_opened_by_touch_has_no_focus_ring() -> void:

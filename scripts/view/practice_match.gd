@@ -417,7 +417,7 @@ func _on_connection_changed(is_up: bool) -> void:
 	if is_up:
 		_reconnect_left = -1.0
 		if _awaiting_reconnect_welcome:
-			hud.set_connection("Restoring match…")
+			hud.set_connection("Restoring your battle…")
 		return
 	if _resume_rejected:
 		return
@@ -439,7 +439,7 @@ func _on_welcomed(reconnected: bool) -> void:
 		return
 	_resume_rejected = true
 	_set_controls_active(false)
-	hud.set_connection("Match unavailable", true)
+	hud.set_connection("Battle unavailable", true)
 
 
 func _try_reconnect(delta: float) -> void:

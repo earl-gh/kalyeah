@@ -274,12 +274,12 @@ func test_join_says_when_the_room_is_full_or_the_match_started() -> void:
 	_server.rooms.join(room.code, 701, "Friend")
 	var card: MenuDialog = _join([])
 	assert_true(await _until(func() -> bool: return _shown(card, "TryAgain")))
-	assert_eq(_text(card, "Message"), "That room is full.")
+	assert_eq(_text(card, "Message"), "That room is full!")
 	card.close(false)
 	room.state = RoomService.State.PLAYING
 	var again: MenuDialog = _join([])
 	assert_true(await _until(func() -> bool: return _shown(again, "TryAgain")))
-	assert_eq(_text(again, "Message"), "That match has already started.")
+	assert_eq(_text(again, "Message"), "That battle has already started!")
 
 
 func test_canceling_join_while_searching_stops_the_search_and_never_calls_back() -> void:

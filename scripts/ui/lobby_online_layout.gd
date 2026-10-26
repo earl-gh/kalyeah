@@ -92,6 +92,6 @@ func _build_setup(parent: Control) -> void:
 	screen._go_button = LobbyWidgets.button("Create room" if screen.intent == screen.Intent.CREATE else "Join room", screen.submit, "orange")
 	screen._go_button.custom_minimum_size = Vector2(0, 96)
 	screen._setup.add_child(screen._go_button)
-	screen._rejoin_button = LobbyWidgets.button("Rejoin match", screen.rejoin, "grey")
+	screen._rejoin_button = LobbyWidgets.button("Rejoin battle", screen.rejoin, "grey")
 	screen._rejoin_button.visible = not Session.reconnect_token.is_empty()
 	screen._setup.add_child(screen._rejoin_button)

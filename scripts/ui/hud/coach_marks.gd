@@ -32,11 +32,11 @@ var _pulse: Tween
 ## The four steps. `target` names what is lit: the hand, or nothing.
 static func steps_for(capture_seconds: float, points_to_win: int) -> Array[Dictionary]:
 	return [
-		{"title": "Move", "target": &"", "text": "Tap the street to run there; hold and drag to steer. Running uses stamina: stand still to get it back."},
-		{"title": "Aim and throw", "target": &"hand", "text": "Drag a card onto the street and let go to throw it. A quick tap aims for you. Drop it back on your hand to cancel. Each card costs the elixir in its drop; the bar fills by itself."},
+		{"title": "Move", "target": &"", "text": "Tap the street to run there, or hold and drag to steer. Running uses stamina! Stand still to get it back."},
+		{"title": "Aim and throw", "target": &"hand", "text": "Drag a card onto the street and let go to throw it. A quick tap aims for you! Drop it back on your hand to cancel. Each card costs the elixir in its drop, and the bar fills by itself."},
 		{"title": "Score a point", "target": &"",
-			"text": "Get your whole team into the enemy base and hold it for %s seconds, with no defender left inside it, or tag everyone on the other team. First to %d points wins." % [String.num(capture_seconds, 0 if is_equal_approx(capture_seconds, roundf(capture_seconds)) else 1), points_to_win]},
-		{"title": "Tagged?", "target": &"", "text": "When your health runs out you wait on the sidewalk. A free teammate who stays in your rescue area for five seconds sets you free."},
+			"text": "Get your whole team into the enemy base and hold it for %s seconds with no defender inside. Or tag the whole enemy team! First to %d points wins." % [String.num(capture_seconds, 0 if is_equal_approx(capture_seconds, roundf(capture_seconds)) else 1), points_to_win]},
+		{"title": "Tagged?", "target": &"", "text": "When your health runs out, you wait on the sidewalk. A free teammate who stays in your rescue area for five seconds sets you free!"},
 	]
 
 

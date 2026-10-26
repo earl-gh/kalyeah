@@ -27,7 +27,7 @@ static func build(on_saved: Callable) -> MenuDialog:
 	var apply: Callable = func() -> void:
 		var clean: String = Session.clean_name(field.text)
 		if clean.is_empty():
-			hint.text = "Enter a name."
+			hint.text = "Pick a name!"
 			hint.add_theme_color_override("font_color", KalyeahTheme.ERROR)
 			return
 		Session.player_name = clean

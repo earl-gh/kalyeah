@@ -313,7 +313,7 @@ func show_room(room: Dictionary, my_id: int) -> void:
 			kid_cards[id].modulate = Color.WHITE
 	# the one button
 	if host:
-		action_button.text = "Start match"
+		action_button.text = "Start battle"
 		action_button.disabled = not (room.get("can_start_host", false) as bool)
 		KalyeahTheme.style_button(action_button, "orange")
 	else:
@@ -410,6 +410,6 @@ func copy_code() -> void:
 	if not online_room or not has_room() or code_label.text.is_empty():
 		return
 	DisplayServer.clipboard_set(code_label.text)
-	UiToast.say(self, "Room code copied")
-	copy_button.text = "Copied"
+	UiToast.say(self, "Room code copied!")
+	copy_button.text = "Copied!"
 	_copy_timer.start()

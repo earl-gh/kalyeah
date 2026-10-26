@@ -23,7 +23,7 @@ func _ready() -> void:
 	SettingsPage.fill(_dialog.body, true)
 	resume_button = _button("Resume", "orange", _dialog.body)
 	resume_button.pressed.connect(close)
-	leave_button = _button("Leave match", "red", _dialog.body)
+	leave_button = _button("Leave battle", "red", _dialog.body)
 	leave_button.pressed.connect(request_exit)
 	_dialog.open(self)
 	_dialog.close(false)

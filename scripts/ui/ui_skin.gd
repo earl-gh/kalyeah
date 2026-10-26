@@ -36,7 +36,7 @@ const PLATES: Dictionary[String, Dictionary] = {
 }
 ## The one corner scale (art direction, docs/ART.md "Shared UI hierarchy"): on the same 8 px rhythm as the spacing in
 ## `UiMetrics`. Small: bars' gloss, dots, small tags; medium: fields, code boxes, rows, strips, small tiles; large: buttons,
-## cards, tiles, chips on panels; extra large: big panels, the toast, the tab bar, the profile chip, the card tray.
+## cards, tiles, chips on panels; extra large: big panels, the toast, the tab bar, the card tray.
 ## A shape that should be fully round takes `round_radius` of its height; a shape nested in another takes the outer
 ## radius minus the gap between them, so the two curves stay parallel (the focus ring is the same rule outward).
 const RADIUS_S: int = 8

@@ -68,9 +68,9 @@ func _phone_screen() -> TitleScreen:
 
 func test_the_screen_has_everything_the_owner_asked_for() -> void:
 	var screen: TitleScreen = _screen()
-	assert_not_null(screen.find_child("TopBar", true, false), "a top bar with the logo and who you are")
+	assert_not_null(screen.find_child("TopBar", true, false), "a top bar with the logo")
 	assert_not_null(screen.find_child("Logo", true, false), "the game's logo")
-	assert_not_null(screen.profile_chip, "your profile")
+	assert_null(screen.find_child("ProfileChip", true, false), "no profile chip: the profile is edited in Settings (owner)")
 	assert_not_null(screen.carousel, "the mode carousel")
 	assert_eq(screen.mode_name_label.text, "Local", "hotspot is the default mode")
 	assert_null(screen.find_child("MapButton", true, false), "no map button")
@@ -93,7 +93,7 @@ func test_the_tab_bar_holds_street_play_and_settings_along_the_bottom() -> void:
 		assert_gte(tab.size.y, 88.0, "%s is tall enough for a thumb" % id)
 		assert_gte(tab.size.x, 120.0, "%s is wide enough for a thumb" % id)
 	assert_eq(screen.tab_bar.active, &"home", "Play is the page you start on")
-	assert_gt(screen.carousel.get_global_rect().position.y, screen.profile_chip.get_global_rect().position.y, "the cards are under the top bar")
+	assert_gt(screen.carousel.get_global_rect().position.y, (screen.find_child("TopBar", true, false) as Control).get_global_rect().position.y, "the cards are under the top bar")
 	assert_null(screen.find_child("BottomNav", true, false), "the old bottom nav is gone")
 
 
@@ -160,7 +160,7 @@ func test_the_actions_sit_low_on_the_screen_but_not_at_the_very_bottom() -> void
 	assert_gt(create.position.y, 1280.0 * 0.7, "in the bottom part")
 	assert_lt(create.end.y, 1280.0 - 60.0, "but with room under them")
 	assert_lt(screen.carousel.get_global_rect().end.y, create.position.y, "below the cards")
-	assert_gt(screen.carousel.get_global_rect().position.y, screen.profile_chip.get_global_rect().position.y, "the cards are under the top bar")
+	assert_gt(screen.carousel.get_global_rect().position.y, (screen.find_child("TopBar", true, false) as Control).get_global_rect().position.y, "the cards are under the top bar")
 	assert_gt(create.size.x + join.size.x, 600.0)
 	var title: Rect2 = screen.mode_name_label.get_global_rect()
 	var phrase: Rect2 = screen.mode_text_label.get_global_rect()
@@ -210,11 +210,20 @@ func test_the_book_and_history_open_from_settings_and_keep_its_tab_lit() -> void
 
 
 
-func test_the_logo_and_profile_show_on_play_only_so_pages_get_the_height() -> void:
+func test_the_logo_is_centred_and_dropped_from_the_top() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(3)
+	var logo: Control = screen.find_child("Logo", true, false) as Control
+	var rect: Rect2 = logo.get_global_rect()
+	assert_almost_eq(rect.get_center().x, screen.get_global_rect().get_center().x, 1.0, "centred")
+	assert_gt(rect.position.y, TitleScreen.TOP_MARGIN + TitleScreen.LOGO_DROP - 1.0, "dropped from the top edge")
+
+
+func test_the_logo_shows_on_play_only_so_pages_get_the_height() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(3)
 	var top: Control = screen.find_child("TopBar", true, false) as Control
-	assert_true(top.is_visible_in_tree(), "Play shows the logo and who you are")
+	assert_true(top.is_visible_in_tree(), "Play shows the logo")
 	var play_height: float = screen.get_node("Safe").get_global_rect().size.y
 	screen.open_page(&"history")
 	await wait_frames(2)

@@ -30,13 +30,13 @@ const BAND_HEIGHT: float = 52.0
 const PERCENT_HEIGHT: float = 64.0
 ## One tip is shown per launch.
 const TIPS: Array[String] = [
-	"Lure the other team away from their post, then rush in and hold it.",
-	"Tagged kids wait on the sidewalk. A teammate in the rescue area frees them.",
-	"Drag a card onto the street, then let go to throw it.",
-	"Block a throw with a paper shield, or play it safe behind cover.",
-	"Practice is the safest place to try every weapon.",
-	"Local rooms need no server: share a hotspot or a Wi-Fi and play.",
-	"A quick tap on a card aims at the nearest enemy for you.",
+	"Lure the other team away from their post, then rush in and hold it!",
+	"Tagged kids wait on the sidewalk. Stand in the rescue area to free them!",
+	"Drag a card onto the street, then let go to throw it!",
+	"Block a throw with a paper shield, or duck behind cover!",
+	"Practice is the best place to try every weapon!",
+	"Local rooms need no server. Share a hotspot or a Wi-Fi and battle!",
+	"A quick tap on a card aims at the nearest enemy for you!",
 ]
 ## The bar never fills faster than this, so the screen is seen even when loading is instant.
 const MAX_FILL_PER_SECOND: float = 0.7

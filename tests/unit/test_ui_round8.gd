@@ -148,7 +148,7 @@ func test_a_short_code_is_refused_next_to_the_boxes_which_turn_red() -> void:
 	lobby._code_edit.text = "ABC"
 	lobby.submit()
 	Settings.server_url = saved_url
-	assert_eq(lobby.status_text(), "Enter all 8 characters.")
+	assert_eq(lobby.status_text(), "Enter all 8 characters!")
 	assert_true(lobby._code_boxes.has_error)
 	assert_true(lobby._code_error.visible, "the message is right under the boxes")
 
@@ -159,7 +159,7 @@ func test_paste_cleans_what_a_friend_sent_and_says_so() -> void:
 	lobby.paste_code("  k7m2 q9xa \n")
 	assert_eq(lobby._code_edit.text, "K7M2Q9XA")
 	await wait_process_frames(2)
-	assert_true(_toast_texts().has("Code pasted"))
+	assert_true(_toast_texts().has("Code pasted!"))
 
 
 func test_paste_of_a_short_or_empty_clipboard_warns_instead_of_guessing() -> void:
@@ -172,15 +172,15 @@ func test_paste_of_a_short_or_empty_clipboard_warns_instead_of_guessing() -> voi
 	lobby.paste_code("---")
 	await wait_process_frames(2)
 	assert_eq(lobby._code_edit.text, "K7M", "nothing usable on the clipboard changes nothing")
-	assert_true(_toast_texts().has("Nothing to paste. Copy the room code first."))
+	assert_true(_toast_texts().has("Nothing to paste yet. Copy the room code first!"))
 
 
 func test_a_refused_join_marks_the_boxes_and_shows_the_reason_under_them() -> void:
 	var lobby: Node = _lobby_join()
 	await wait_process_frames(2)
-	lobby._on_error("No room with that code.")
+	lobby._on_error("No room with that code. Check it and try again!")
 	assert_true(lobby._code_boxes.has_error)
-	assert_eq(lobby.status_text(), "No room with that code.", "the words are what the server said")
+	assert_eq(lobby.status_text(), "No room with that code. Check it and try again!", "the words are what the server said")
 	assert_true(lobby._code_error.visible)
 	lobby._code_edit.text = "K7M2Q9XA"
 	lobby._code_boxes.edit.text_changed.emit("K7M2Q9XA")

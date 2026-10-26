@@ -28,7 +28,7 @@ func _ready() -> void:
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	add_child(_content)
-	_content.add_child(UiKit.page_header("Settings", "Make Kalyeah yours."))
+	_content.add_child(UiKit.page_header("Settings", "Make Kalyeah yours!"))
 	_content.add_child(_profile_card())
 	var preferences: VBoxContainer = VBoxContainer.new()
 	preferences.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
@@ -40,7 +40,7 @@ func _ready() -> void:
 	_content.add_child(preferences)
 	book_button = MenuDialog.make_button("Book", "grey", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
 	book_button.name = "BookButton"
-	book_button.accessibility_description = "Your kids and the weapons"
+	book_button.accessibility_description = "Meet the kids. Learn the weapons!"
 	book_button.pressed.connect(book_pressed.emit)
 	_content.add_child(book_button)
 	history_button = MenuDialog.make_button("History", "grey", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
