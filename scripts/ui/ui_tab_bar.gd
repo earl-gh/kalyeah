@@ -37,7 +37,7 @@ const SLOT_OPEN_BOTTOM: Color = Color("587a9e")
 ## The tabs are centred with this much margin on each side (design pixels), and the open tab is this wide (room for its two arrows):
 ## the idle tabs share what is left. The margins are coloured like an idle tab. The sizes above (pictures, arrows, the open tab's width)
 ## are for a strip `STRIP_DESIGN` wide; with a bigger margin they all scale by what is left over (`_content_fit`).
-const SIDE_MARGIN: float = 90.0
+const SIDE_MARGIN: float = 65.0
 const OPEN_WIDTH: float = 220.0
 const STRIP_DESIGN: float = 640.0
 ## The dark top edge (with a thin light line under it) and the lines between the slots, in design pixels.
