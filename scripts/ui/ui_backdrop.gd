@@ -17,7 +17,11 @@ const NEON_LIFT: float = 0.5
 ## Both lights are drawn between the mode models: above the ones behind the chosen model (`MenuCarousel` z 5) and below the chosen one
 ## (z 10), so they shine from behind the front model but not through the ones behind it (owner).
 const LIGHT_Z: int = 7
+## How far (px) the picture may shift for the tilt parallax, and so how much larger than the screen it is drawn on each side.
+const TILT_ROOM: float = 8.0
 
+## The street picture: a little larger than the screen (`TILT_ROOM` on each side) so the Home parallax can shift it without an edge.
+var picture: TextureRect
 var glow: TextureRect
 ## The neon blue core above the backlight: smaller and stronger, centred on the same place.
 var core: TextureRect
@@ -44,12 +48,13 @@ func _init() -> void:
 	name = "Backdrop"
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var picture: TextureRect = TextureRect.new()
+	picture = TextureRect.new()
 	picture.name = "Picture"
 	picture.texture = PICTURE
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	set_tilt(Vector2.ZERO)
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(picture)
 	glow = TextureRect.new()
@@ -189,3 +194,12 @@ static func _night() -> GradientTexture2D:
 	gradient.colors = PackedColorArray([Color(1, 1, 1, 0.5), Color(1, 1, 1, 0.14), Color(1, 1, 1, 0.12), Color(1, 1, 1, 0.55)])
 	texture.gradient = gradient
 	return texture
+
+
+## The Home parallax (`HomeParallax`): shifts the street picture by `shift` px (each axis within `TILT_ROOM`), keeping it over the screen.
+func set_tilt(shift: Vector2) -> void:
+	var clamped: Vector2 = shift.clamp(-Vector2.ONE * TILT_ROOM, Vector2.ONE * TILT_ROOM)
+	picture.offset_left = -TILT_ROOM + clamped.x
+	picture.offset_right = TILT_ROOM + clamped.x
+	picture.offset_top = -TILT_ROOM + clamped.y
+	picture.offset_bottom = TILT_ROOM + clamped.y
