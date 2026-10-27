@@ -115,6 +115,7 @@ Owner: "make the bottom part exactly like clash royale then characters movement 
 | GameRules | `bot_stamina_rest` | float | 0.2 | share; a bot with no enemy near stops to refill below it |
 | GameRules | `bot_stamina_resume` | float | 0.6 | share; and walks on above it |
 | WeaponDef | `elixir_cost` | int | 3 (every .tres sets its own) | points; 1..`elixir_max`; table in Weapons |
+| WeaponDef | `card_power` | int | 0 (every .tres sets its own, 350 to 2400) | **cosmetic only**: the "POWER 450" printed up the edge of the weapon's teks card in the hand (`HandCard`); no rule, balance or net message reads it; 0 prints no line |
 | WeaponDef | `cooldown` | float | unchanged | used only with `elixir_enabled` off or `card_cycle` off |
 | PlayerState | `elixir`, `stamina`, `exhaust_left`, `still_time` | float | start values | sim state; in the snapshot (others need only "exhausted") |
 | PlayerState | `move_target`, `has_move_target`, `stuck_time` | Vector2, bool, float | none | sim state; own target in the snapshot for prediction |

@@ -20,3 +20,4 @@ delay = 0.6
 effect = 1
 effect_duration = 2.0
 cast_lock = 0.6
+card_power = 1800

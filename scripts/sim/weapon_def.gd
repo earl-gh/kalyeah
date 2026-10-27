@@ -69,6 +69,9 @@ enum Shape {
 @export var look: StringName = &""
 ## Seconds the caster cannot move after the cast (heavy attacks; 0 = can move while casting).
 @export var cast_lock: float = 0.0
+## The "POWER 1800" printed up the right edge of the weapon's card in the hand, like a Filipino teks card's. Cosmetic: no rule, number or
+## balance reads it (0 prints no line).
+@export var card_power: int = 0
 
 
 func deals_damage() -> bool:

@@ -4,6 +4,15 @@ extends Control
 ## with a black outline (the constants are on `CardFace`).
 
 var text: String = ""
+## The letters' height over the card's height and the width of their outline (set by the card: a small card needs bigger letters).
+var size_share: float = CardFace.POWER_SIZE_SHARE:
+	set(value):
+		size_share = value
+		queue_redraw()
+var outline_size: int = CardFace.POWER_OUTLINE_SIZE:
+	set(value):
+		outline_size = value
+		queue_redraw()
 
 
 func _init() -> void:
@@ -21,11 +30,11 @@ func _draw() -> void:
 	if text.is_empty():
 		return
 	var font: Font = KalyeahTheme.BUTTON_FONT
-	var font_size: int = int(roundf(size.y * CardFace.POWER_SIZE_SHARE))
+	var font_size: int = int(roundf(size.y * size_share))
 	var ascent: float = font.get_ascent(font_size)
 	# the origin is the text's bottom left once it is turned: it runs up the card from there
 	var origin: Vector2 = Vector2(size.x - size.x * CardFace.POWER_EDGE_SHARE - (font.get_height(font_size) - ascent), size.y - size.y * CardFace.POWER_BOTTOM_SHARE)
 	draw_set_transform(origin, -PI / 2.0, Vector2.ONE)
-	draw_string_outline(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, CardFace.POWER_OUTLINE_SIZE, CardFace.POWER_OUTLINE)
+	draw_string_outline(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, outline_size, CardFace.POWER_OUTLINE)
 	draw_string(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, CardFace.POWER_COLOR)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

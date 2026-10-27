@@ -19,3 +19,4 @@ speed = 16.0
 count = 3
 interval = 0.15
 projectile_radius = 0.3
+card_power = 350

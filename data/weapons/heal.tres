@@ -16,3 +16,4 @@ elixir_cost = 4
 max_range = 8.0
 angle_degrees = 60.0
 heal = 30
+card_power = 750

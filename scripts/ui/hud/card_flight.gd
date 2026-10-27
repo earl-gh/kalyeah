@@ -1,7 +1,8 @@
 class_name CardFlight
 extends Control
 ## The card you just used flying from the hand into the shuffler (view only, no touches): it shrinks and slides along a short arc in
-## `TIME` seconds, then removes itself. Not played with Reduce motion.
+## `TIME` seconds, then removes itself. Not played with Reduce motion. The card is the same worn teks card the hand shows (`HandCard`, the
+## same wear: it is drawn from the weapon).
 
 const TIME: float = 0.32
 const ARC: float = 30.0
@@ -10,6 +11,7 @@ var def: WeaponDef
 var from_rect: Rect2
 var to_rect: Rect2
 var _age: float = 0.0
+var _card: HandCard
 
 
 ## Starts a flight on `parent` (the HUD) from `from` to `to`, both in the parent's coordinates; returns null without motion.
@@ -25,12 +27,20 @@ static func fly(parent: Control, card: WeaponDef, from: Rect2, to: Rect2) -> Car
 	return flight
 
 
+func _ready() -> void:
+	_card = HandCard.new()
+	_card.name = "FlyingCard"
+	add_child(_card)
+	_card.show_weapon(def)
+	_place()
+
+
 func _process(delta: float) -> void:
 	_age += delta
 	if _age >= TIME:
 		queue_free()
 		return
-	queue_redraw()
+	_place()
 
 
 ## Where the card is `t` (0 to 1) of the way, in the flight's own coordinates (it covers the HUD from its top-left).
@@ -41,5 +51,9 @@ func rect_at(t: float) -> Rect2:
 	return rect
 
 
-func _draw() -> void:
-	CardStyle.draw(self, rect_at(_age / TIME), def, 0.25 * _age / TIME)
+## The card of the weapon at its place now, a little darker as it goes.
+func _place() -> void:
+	var t: float = clampf(_age / TIME, 0.0, 1.0)
+	_card.place(rect_at(t))
+	_card.dim = 0.25 * t
+	_card.visible = true
