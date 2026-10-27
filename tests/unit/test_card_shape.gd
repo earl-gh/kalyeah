@@ -43,19 +43,13 @@ func test_an_inset_outline_sits_inside_the_edge() -> void:
 		assert_true(Rect2(Vector2(3.0, 3.0) - Vector2(0.001, 0.001), SIZE - Vector2(6.0, 6.0) + Vector2(0.002, 0.002)).has_point(point))
 
 
-func test_a_mode_card_is_drawn_by_a_face_with_no_coloured_outline() -> void:
+func test_a_mode_card_is_drawn_by_a_face_of_its_own() -> void:
 	var card: Button = autofree(ChoiceCard.make_card("", "Local", "blue", SIZE, "hotspot")) as Button
 	add_child(card)
 	card.size = SIZE
 	assert_not_null(card.get_node_or_null("Face"), "the picture is drawn as a card of its own")
 	assert_false((card.get_node("Art") as TextureRect).visible, "the file's node only holds the picture")
 	assert_true(card.get_theme_stylebox("normal") is StyleBoxEmpty, "the button draws nothing behind the card")
-	var strip: MenuCarousel = autofree(MenuCarousel.new()) as MenuCarousel
-	strip.show_rim = false
-	strip.size = Vector2(720.0, 700.0)
-	add_child(strip)
-	strip.setup("", [{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff"}] as Array[Dictionary], 0)
-	assert_null(strip.cards[0].get_node_or_null("Frame"), "no coloured rim round the chosen card (owner)")
 
 
 func test_the_middle_card_floats_slowly_and_its_shadow_follows_and_rests_with_reduce_motion() -> void:
@@ -89,20 +83,21 @@ func test_the_middle_card_floats_slowly_and_its_shadow_follows_and_rests_with_re
 	Settings.reduced_motion = motion
 
 
-func test_the_card_group_is_centred_between_the_logo_and_the_bar() -> void:
+func test_the_button_row_is_centred_between_the_phrase_and_the_bar() -> void:
 	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
 	var holder: SubViewport = autofree(SubViewport.new()) as SubViewport
 	holder.size = Vector2i(720, 1280)
 	add_child(holder)
 	holder.add_child(screen)
 	await wait_frames(4)
-	var logo: Rect2 = (screen.find_child("Logo", true, false) as Control).get_global_rect()
-	var card: Rect2 = screen.carousel.cards[screen.carousel.index].get_global_rect()
+	var phrase: Rect2 = screen.mode_text_label.get_global_rect()
 	var buttons: Rect2 = screen.primary_button.get_global_rect()
 	var bar_top: float = screen.tab_bar.get_global_rect().position.y
-	var above: float = card.position.y - logo.end.y
+	var above: float = buttons.position.y - phrase.end.y
 	var below: float = bar_top - buttons.end.y
-	assert_almost_eq(above, below, 24.0, "as much room above the card as under the buttons (%.0f above, %.0f below)" % [above, below])
+	assert_almost_eq(above, below, 24.0, "as much room above the buttons as under them (%.0f above, %.0f below)" % [above, below])
+	assert_almost_eq(buttons.size.y, TitleScreen.CTA_HEIGHT, 1.0, "0.75 x the 156 it was")
+	assert_eq(screen.primary_button.get_theme_font_size("font_size"), UiMetrics.HERO_BUTTON, "lettering 1.25 x BODY")
 
 
 func test_the_mode_cards_are_old_teks_cards_worn_at_the_corners_each_differently() -> void:
@@ -126,7 +121,7 @@ func test_the_mode_cards_are_old_teks_cards_worn_at_the_corners_each_differently
 		assert_eq(picture.texture, face.texture)
 		assert_eq((picture.material as ShaderMaterial).get_shader_parameter("rect_size"), face.size, "the shader knows the card's size")
 		seeds[(picture.material as ShaderMaterial).get_shader_parameter("seed")] = true
-		assert_not_null(face.get_node("Shade"), "the coloured shade stops at the worn corners")
+		assert_null(face.get_node_or_null("Shade"), "no coloured shade over the picture (owner)")
 		assert_eq((face.get_node("PowerLine") as CardPowerLine).text, "POWER %d" % face.power)
 	assert_eq(seeds.size(), 3, "every card wears differently")
 	var radii: Dictionary = {}
@@ -149,10 +144,12 @@ func test_the_mode_cards_are_old_teks_cards_worn_at_the_corners_each_differently
 	var order: Array[String] = []
 	for child: Node in strip.cards[1].get_node("Face").get_children():
 		order.append(child.name)
-	assert_eq(order, ["Picture", "PowerLine", "Shade", "Tint"] as Array[String], "picture, then the power line, then the shade over it, then the yellowish tint over all")
+	assert_eq(order, ["Picture", "PowerLine", "Tint"] as Array[String], "picture, then the power line, then the yellowish tint over all")
 	var tint: ColorRect = strip.cards[1].get_node("Face/Tint") as ColorRect
-	assert_lte(tint.color.a, 0.15, "a subtle tint")
+	assert_lte(tint.color.a, 0.2, "a subtle tint")
 	assert_gt(tint.color.r + tint.color.g, tint.color.b * 2.0, "yellowish")
+	assert_gt(tint.color.g, tint.color.b + 0.2, "brown-yellow: more green than blue")
+	assert_lt(tint.color.g, tint.color.r - 0.15, "and browner than a plain yellow (green well under red)")
 
 
 func test_the_mode_name_and_its_phrase_are_white_with_a_black_outline() -> void:
@@ -174,3 +171,79 @@ func test_the_two_worn_layers_have_the_owners_lightness_grades() -> void:
 		assert_not_null(found, "%s is in the shader" % layer)
 		var luma: float = 0.2126 * float(found.get_string(1)) + 0.7152 * float(found.get_string(2)) + 0.0722 * float(found.get_string(3))
 		assert_almost_eq(luma * 100.0, grades[layer], 0.6, "%s has lightness grade %d" % [layer, int(grades[layer])])
+
+
+func test_only_the_chosen_card_has_a_shadow_and_the_rest_are_dimmed() -> void:
+	var strip: MenuCarousel = autofree(MenuCarousel.new()) as MenuCarousel
+	strip.size = Vector2(720.0, 700.0)
+	add_child(strip)
+	var options: Array[Dictionary] = [
+		{"id": "online", "title": "Online", "color": "orange", "accent": "ffa63a", "power": 7450},
+		{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff", "power": 9999},
+		{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78", "power": 1200},
+	]
+	strip.setup("", options, 1)
+	strip._layout()
+	for index: int in 3:
+		var card: Button = strip.cards[index]
+		var face: CardFace = card.get_node("Face") as CardFace
+		assert_null(card.get_node_or_null("Frame"), "no glow, behind the card or over it (owner)")
+		var picture_material: ShaderMaterial = (face.get_node("Picture") as TextureRect).material as ShaderMaterial
+		var chosen: float = 1.0 if index == 1 else 0.0
+		assert_eq(face.chosen, chosen, "only the chosen card has its shadow")
+		assert_eq(picture_material.get_shader_parameter("dim"), 1.0 - chosen, "a card that is not chosen is only dimmed with a dark tint, the chosen one is not")
+		var age: ColorRect = face.get_node("Tint") as ColorRect
+		assert_almost_eq(((age.material as ShaderMaterial).get_shader_parameter("tint") as Color).a, CardFace.AGE_TINT.a * chosen, 0.001, "and only the chosen card has the yellowish old tint")
+	strip.select(2, false)
+	assert_eq((strip.cards[2].get_node("Face") as CardFace).chosen, 1.0, "the shadow moves to the card that is chosen")
+	assert_eq((strip.cards[1].get_node("Face") as CardFace).chosen, 0.0)
+
+
+func test_the_main_menu_backdrop_is_backlit_behind_the_chosen_card() -> void:
+	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
+	add_child(screen)
+	await wait_frames(12)
+	var glow: TextureRect = screen.backdrop.glow
+	assert_eq((glow.material as CanvasItemMaterial).blend_mode, CanvasItemMaterial.BLEND_MODE_ADD, "the backlight is added light")
+	var card: Rect2 = screen.carousel.cards[screen.carousel.index].get_global_rect()
+	assert_almost_eq(glow.get_global_rect().get_center().x, card.get_center().x, 4.0, "its bright middle is behind the card (across)")
+	assert_almost_eq(glow.get_global_rect().get_center().y, card.get_center().y, 6.0, "and down")
+	assert_gt(glow.size.x, card.size.x, "and it reaches out past the card")
+	var gradient: Gradient = (glow.texture as GradientTexture2D).gradient
+	assert_gt(gradient.colors[0].a, gradient.colors[gradient.colors.size() - 1].a, "a radial gradient: bright in the middle, gone at the edge")
+
+
+func test_the_mode_name_leans_back_in_perspective() -> void:
+	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
+	add_child(screen)
+	await wait_frames(4)
+	var material: ShaderMaterial = screen.mode_name_label.material as ShaderMaterial
+	assert_not_null(material, "the name is drawn through the perspective shader")
+	assert_eq(material.shader.resource_path, "res://shaders/text_perspective.gdshader")
+	assert_lt(float(material.get_shader_parameter("top_scale")), 1.0, "its upper part is pushed back: narrower than its lower part")
+	assert_eq(material.get_shader_parameter("rect_size"), screen.mode_name_label.size, "the shader knows the label's size")
+
+
+func test_the_main_menu_background_keeps_its_blue_and_turns_to_the_chosen_cards_colour() -> void:
+	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
+	add_child(screen)
+	await wait_frames(4)
+	var material: ShaderMaterial = screen.backdrop.get_node("Picture").material as ShaderMaterial
+	assert_eq(material.shader.resource_path, "res://shaders/backdrop_tint.gdshader")
+	var shifts: Dictionary = {}
+	var motion: bool = Settings.reduced_motion
+	Settings.reduced_motion = true
+	for index: int in 3:
+		screen.carousel.select(index, false)
+		var shift: float = material.get_shader_parameter("hue_shift")
+		shifts[snappedf(shift, 0.001)] = true
+		if String(TitleScreen.MODES[index]["id"]) == "hotspot":
+			assert_almost_eq(shift, 0.0, 0.001, "behind the blue card the picture is its own blue, not tinted blue again")
+		else:
+			assert_gt(absf(shift), 0.1, "behind another colour the blue is turned to it")
+		# the picture's hue, turned by the shift, is the card's colour
+		var accent: Color = Color(String(TitleScreen.MODES[index]["accent"]))
+		assert_almost_eq(fposmod(UiBackdrop.PICTURE_BLUE.h + shift, 1.0), accent.h, 0.002, "mode %d" % index)
+	Settings.reduced_motion = motion
+	assert_eq(shifts.size(), 3, "each card turns the background differently")
+	assert_gte(float(material.get_shader_parameter("saturation")) if material.get_shader_parameter("saturation") != null else 1.2, 1.0, "the extra saturation is separate from the tint")

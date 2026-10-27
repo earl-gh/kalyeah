@@ -5,12 +5,13 @@ extends Control
 ## always visible. Drag or swipe sideways to scroll, tap a card to bring it to the middle.
 
 signal selected(index: int)
+## Emitted after every layout (the cards moved a little, or a lot when scrolling): whatever follows the cards can follow now.
+signal laid_out
 
 const CARD: Vector2 = ChoiceCard.CARD_SIZE
 ## Distance between the middles of two neighbouring cards: less than a card's width, so they overlap.
 const STEP: float = 98.0
-## Each step away from the middle shrinks a card by this much (and a card is never smaller than the
-## one two steps away).
+## A card in the back layer is this much smaller than the chosen one (there are two layers only: the chosen card and the rest).
 const SCALE_LOSS: float = 0.17
 ## Cards further back are darker (and smaller), so the stack reads as depth; they all share the middle card's vertical centre.
 const SHADE_LOSS: float = 0.36
@@ -31,7 +32,7 @@ var bob: float = 0.0:
 ## When 0 or more, the cards sit this many pixels above the bottom of the carousel instead of in the middle of it (the main
 ## screen keeps the mode name, its phrase and the buttons close under the cards).
 var bottom_gap: float = -1.0
-## Whether the chosen card gets a glowing coloured rim (the main screen's cards have none).
+## Whether the chosen card gets a thin glowing coloured outline (a `CardRim`).
 var show_rim: bool = true
 var index: int = 0
 var cards: Array[Button] = []
@@ -57,13 +58,14 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		card.pivot_offset = card_size / 2.0
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.focus_mode = Control.FOCUS_NONE
-		if show_rim:
-			card.add_child(_frame(String(option.get("accent", "ffd25a"))))
 		var face: CardFace = card.get_node_or_null("Face") as CardFace
+		# a card with a picture has no glow (owner); a flat card gets a `CardRim` over it
+		if show_rim and face == null:
+			card.add_child(_frame(String(option.get("accent", "ffd25a"))))
 		if face != null:
-			face.accent = Color(String(option.get("accent", "ffd25a")))
 			face.power = int(option.get("power", 0))
 			face.wear_seed = float(cards.size() + 1)
+
 		add_child(card)
 		cards.append(card)
 	if accessibility_name.is_empty():
@@ -123,20 +125,25 @@ func _move_to(value: float) -> void:
 func _layout() -> void:
 	for i: int in cards.size():
 		var offset: float = float(i) - _position
-		var away: float = clampf(absf(offset), 0.0, 2.0)
+		# two layers only (owner): the chosen card in front and every other card in one layer behind it. A third card (when
+		# the chosen one is at an end) slides in behind the chosen card, centred, where it is not seen.
+		var distance: float = absf(offset)
+		var away: float = minf(distance, 1.0)
+		var spread: float = distance if distance <= 1.0 else maxf(2.0 - distance, 0.0)
 		var card: Button = cards[i]
 		card.scale = Vector2.ONE * (1.0 - SCALE_LOSS * away)
 		var drift_phase: float = sin(float(Time.get_ticks_msec()) / 1000.0 * FLOAT_SPEED)
 		var drift: float = drift_phase * bob * (1.0 - away / 2.0) if bob > 0.0 and not Settings.reduced_motion else 0.0
-		card.position = Vector2(size.x / 2.0 + offset * STEP - card_size.x / 2.0, ((size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap) + drift)
+		card.position = Vector2(size.x / 2.0 + signf(offset) * spread * STEP - card_size.x / 2.0, ((size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap) + drift)
 		# every card stays visible: the ones further back are darker and slightly see-through
 		var shade: float = 1.0 - SHADE_LOSS * away
 		card.modulate = Color(shade, shade, shade, lerpf(1.0, BACK_ALPHA, clampf(absf(offset), 0.0, 1.0)))
-		card.z_index = 10 - int(roundf(absf(offset) * 5.0))
+		card.z_index = 10 - int(roundf(away * 5.0)) - int(roundf(clampf(distance - 1.0, 0.0, 1.0) * 3.0))
 		_float(card, away, drift_phase)
 		var frame: Control = card.get_node_or_null("Frame") as Control
 		if frame != null:
 			frame.modulate.a = clampf(1.0 - absf(offset) * 1.6, 0.0, 1.0)
+	laid_out.emit()
 
 
 ## Floats a card with a picture: while the screen idles the middle card's shadow breathes with its drift.
@@ -148,6 +155,8 @@ func _float(card: Button, away: float, phase: float) -> void:
 	if bob > 0.0 and not Settings.reduced_motion:
 		lift = -phase * clampf(1.0 - away, 0.0, 1.0)
 	face.lift = lift
+	# only the chosen card has a shadow (and a glow): every other card has neither
+	face.chosen = clampf(1.0 - away * 1.6, 0.0, 1.0)
 
 
 func _on_accessibility_changed() -> void:

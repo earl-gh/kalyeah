@@ -19,7 +19,7 @@ const MODES: Array[Dictionary] = [
 	{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff", "power": 9999,
 		"text": "Battle your friends nearby!"},
 	{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78", "power": 1200,
-		"text": "Face 3 bots, or train solo!"},
+		"text": "Take on 3 bots, solo!"},
 ]
 ## The bottom tabs, left to right: Street (what each game is and how it plays), Play (the home page) and Settings. The Book and
 ## History are reached from Settings (and History from the last match on Play).
@@ -35,16 +35,25 @@ const HERO_CARD: Vector2 = Vector2(400.0, 571.0)
 ## The hero grows with the stage (phones taller than 16:9 have the room): 1.75:2.5, between these heights, with
 ## this much air round it for the glow and the bob.
 const HERO_RATIO: float = 0.7
-const HERO_MIN_HEIGHT: float = 480.0
+const HERO_MIN_HEIGHT: float = 440.0
 const HERO_MAX_HEIGHT: float = 780.0
-const HERO_AIR: float = 70.0
+const HERO_AIR: float = 36.0
 ## The cards sit this far above the bottom of their stage, so the name, its phrase and the buttons stay close under them.
 const HERO_BOTTOM_GAP: float = 34.0
+## How far the backlight reaches round the chosen card (times the card's height).
+const BACKLIGHT_REACH: float = 1.1
 ## The black outline round the mode's one-line phrase.
 const MODE_TEXT_OUTLINE: int = 6
 ## The share of the room the hero card takes (owner: smaller, so the floating card floats with space round it).
 const HERO_SCALE: float = 0.86
+## The button row's slot takes this share of the free height next to the card's stage (1.0).
+const ACTIONS_SLOT_SHARE: float = 0.35
 ## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
+const NAME_PERSPECTIVE: Shader = preload("res://shaders/text_perspective.gdshader")
+## How wide the very top of the leaning-back mode name is next to its bottom (1 would be flat).
+const NAME_TOP_SCALE: float = 0.93
+## The gap under the mode name (negative so the phrase is pulled nearer to the name).
+const TITLES_SEPARATION: int = -10
 const TITLE_Z: int = 20
 ## How far the name is lifted so its letters (not its line box) are centred on the card's bottom edge.
 const TITLE_LIFT: float = 12.0
@@ -55,14 +64,18 @@ const CHIPS_MIN_STAGE: float = 760.0
 ## Which way a page slides in: the pages left to right as their tabs are.
 const PAGE_RANK: Dictionary[StringName, int] = {&"street": -1, &"": 0, &"settings": 1, &"codex": 2, &"history": 2, &"howto": 2}
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
-const LOGO_HEIGHT: float = 116.0
+const LOGO_HEIGHT: float = 92.0
 ## How far the logo is dropped from the top edge of the screen.
-const LOGO_DROP: float = 34.0
+const LOGO_DROP: float = 62.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
-const CTA_HEIGHT: float = 104.0
-## The two actions are a centred pair of this width each, the same size (the reference's pair, wide enough for "Create room").
-const CTA_WIDTH: float = 270.0
+const CTA_HEIGHT: float = 117.0
+## The actions are a centred pair, the same size: as wide as the longer word needs plus this padding on each side, and no narrower than
+## `CTA_MIN_WIDTH`.
+const CTA_MIN_WIDTH: float = 240.0
+## The buttons' lettering: 1.25 x `UiMetrics.BODY` (owner).
+const CTA_FONT: int = UiMetrics.HERO_BUTTON
+const CTA_PADDING: float = 56.0
 ## The main action's breath: it waits `PULSE_DELAY` seconds, then swells to `PULSE_SCALE` and settles, each way in
 ## `PULSE_HALF` seconds.
 const PULSE_DELAY: float = 1.2
@@ -103,10 +116,9 @@ var _margin: MarginContainer
 var _home: VBoxContainer
 var _top_bar: Control
 var _title_holder: Control
-var _bottom_spacer: Control
+var _name_perspective: ShaderMaterial
 var mode_chips: HBoxContainer
 var _page_holder: Control
-var _dots: Array[Panel] = []
 var _page_tween: Tween
 var _pulse: Tween
 ## Bumped by every start and stop of the breath: a start still waiting out its delay gives up if another came after it.
@@ -131,6 +143,8 @@ func _ready() -> void:
 	_apply_safe_area()
 	_refresh_mode()
 	carousel.selected.connect(_on_mode_selected)
+	carousel.laid_out.connect(_aim_backlight)
+	_aim_backlight.call_deferred()
 	primary_button.pressed.connect(_on_primary_pressed)
 	# the press and the breath both scale the main action: the breath rests while a thumb is on it
 	primary_button.button_down.connect(_stop_pulse)
@@ -199,7 +213,7 @@ func _build_top_bar() -> Control:
 	return row
 
 
-## The Play page: the hero carousel, the mode's name and phrase, the page dots and the actions.
+## The Play page: the hero carousel, the mode's name and phrase and the actions.
 func _build_home() -> VBoxContainer:
 	var home: VBoxContainer = VBoxContainer.new()
 	home.name = "Home"
@@ -216,20 +230,23 @@ func _build_home() -> VBoxContainer:
 	carousel.name = "ModeCarousel"
 	carousel.card_size = HERO_CARD
 	carousel.bottom_gap = HERO_BOTTOM_GAP
-	carousel.show_rim = false
 	carousel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(carousel)
 	carousel.setup("", MODES, Session.menu_mode)
 	carousel.bob = AMBIENT_BOB
 	stage.resized.connect(_fit_hero)
 	stage.resized.connect(_place_title)
+	stage.resized.connect(_aim_backlight)
 	home.add_child(_build_titles())
-	home.add_child(_build_actions())
-	# the spare room is split above the card and below the buttons, so the whole group is centred between the logo and the bar
-	_bottom_spacer = Control.new()
-	_bottom_spacer.name = "BottomSpacer"
-	_bottom_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	home.add_child(_bottom_spacer)
+	# the button row is centred in the room between the phrase and the bar
+	var slot: CenterContainer = CenterContainer.new()
+	slot.name = "ActionsSlot"
+	slot.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	slot.size_flags_stretch_ratio = ACTIONS_SLOT_SHARE
+	slot.custom_minimum_size = Vector2(0.0, CTA_HEIGHT)
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(_build_actions())
+	home.add_child(slot)
 	return home
 
 
@@ -238,7 +255,8 @@ func _build_titles() -> Control:
 	var titles: VBoxContainer = VBoxContainer.new()
 	titles.name = "Titles"
 	titles.alignment = BoxContainer.ALIGNMENT_CENTER
-	titles.add_theme_constant_override("separation", 2)
+	# the phrase sits close under the name (negative: it is pulled up towards it)
+	titles.add_theme_constant_override("separation", TITLES_SEPARATION)
 	titles.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mode_name_label = Label.new()
 	mode_name_label.name = "ModeName"
@@ -247,6 +265,12 @@ func _build_titles() -> Control:
 	# the name straddles the bottom edge of the chosen card: this holder sits where the stage ends and the name hangs
 	# off it upwards by the card's air plus half its own height (`_place_title`)
 	mode_name_label.z_index = TITLE_Z
+	# the name leans back in perspective, so it stands up off the card instead of lying flat (owner)
+	_name_perspective = ShaderMaterial.new()
+	_name_perspective.shader = NAME_PERSPECTIVE
+	_name_perspective.set_shader_parameter("top_scale", NAME_TOP_SCALE)
+	mode_name_label.material = _name_perspective
+	mode_name_label.resized.connect(_fit_name_perspective)
 	_title_holder = Control.new()
 	_title_holder.name = "TitleHolder"
 	_title_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -269,20 +293,6 @@ func _build_titles() -> Control:
 	mode_chips.add_theme_constant_override("separation", 10)
 	mode_chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	titles.add_child(mode_chips)
-	var dots: HBoxContainer = HBoxContainer.new()
-	dots.name = "Dots"
-	dots.alignment = BoxContainer.ALIGNMENT_CENTER
-	dots.add_theme_constant_override("separation", 10)
-	dots.custom_minimum_size = Vector2(0.0, 26.0)
-	dots.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for i: int in MODES.size():
-		var dot: Panel = Panel.new()
-		dot.custom_minimum_size = Vector2(12.0, 12.0)
-		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		dots.add_child(dot)
-		_dots.append(dot)
-	titles.add_child(dots)
 	return titles
 
 
@@ -292,7 +302,6 @@ func _build_actions() -> Control:
 	actions.name = "Actions"
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	actions.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	actions.custom_minimum_size = Vector2(CTA_WIDTH * 2.0 + UiMetrics.COMPACT_GAP, 0.0)
 	actions.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	actions.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	primary_button = _action_button(actions, "PrimaryButton", "")
@@ -301,11 +310,21 @@ func _build_actions() -> Control:
 
 
 func _action_button(parent: Control, button_name: String, text: String) -> Button:
-	var button: Button = MenuDialog.make_button(text, "gold", UiMetrics.BODY, Vector2(CTA_WIDTH, CTA_HEIGHT))
+	var button: Button = MenuDialog.make_button(text, "gold", CTA_FONT, Vector2(CTA_MIN_WIDTH, CTA_HEIGHT))
 	button.name = button_name
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(button)
 	return button
+
+
+## Both buttons are as wide as the longer of their words needs (and no narrower than CTA_MIN_WIDTH), so the pair stays equal.
+func _fit_buttons() -> void:
+	var font: Font = primary_button.get_theme_font("font")
+	var widest: float = CTA_MIN_WIDTH
+	for button: Button in [primary_button, secondary_button]:
+		var words: float = font.get_string_size(button.text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, CTA_FONT).x
+		widest = maxf(widest, words + CTA_PADDING * 2.0)
+	for button: Button in [primary_button, secondary_button]:
+		button.custom_minimum_size.x = widest
 
 
 func _build_pages() -> void:
@@ -418,22 +437,32 @@ func _fit_hero() -> void:
 	var stage: Control = carousel.get_parent() as Control
 	if stage.size.y < 100.0:
 		return
-	# the room for the group: the stage and the spacer under the buttons together (the spacer is what is left over)
-	var total: float = stage.size.y + _bottom_spacer.custom_minimum_size.y
+	var total: float = stage.size.y
 	# the stage as it would be without the chips decides whether they show (so showing them never flips it back)
 	var bare: float = total + (CHIPS_HEIGHT if mode_chips.visible else 0.0)
 	mode_chips.visible = bare - CHIPS_HEIGHT >= CHIPS_MIN_STAGE
 	var height: float = clampf(bare - (CHIPS_HEIGHT if mode_chips.visible else 0.0) - HERO_AIR, HERO_MIN_HEIGHT, HERO_MAX_HEIGHT)
 	var width: float = minf(height * HERO_RATIO, stage.size.x - 120.0) * HERO_SCALE
 	var fitted: Vector2 = Vector2(roundf(width), roundf(width / HERO_RATIO))
-	# half of what the card does not use goes under the buttons (the other half stays above the card)
-	var spare: float = maxf(total - fitted.y - HERO_BOTTOM_GAP - (CHIPS_HEIGHT if mode_chips.visible else 0.0) - float(UiMetrics.COMPACT_GAP), 0.0)
-	_bottom_spacer.custom_minimum_size = Vector2(0.0, roundf(spare / 2.0))
 	if fitted.distance_to(carousel.card_size) < 3.0:
 		return
 	carousel.card_size = fitted
 	carousel.setup("", MODES, carousel.index)
 	_place_title()
+
+
+## Tells the perspective shader how big the mode name's label is.
+func _fit_name_perspective() -> void:
+	_name_perspective.set_shader_parameter("rect_size", mode_name_label.size)
+
+
+## Points the backdrop's backlight at the chosen card: the bright middle sits right behind it.
+func _aim_backlight() -> void:
+	if backdrop == null or carousel == null or carousel.cards.is_empty():
+		return
+	var card: Button = carousel.cards[carousel.index]
+	var centre: Vector2 = backdrop.get_global_transform().affine_inverse() * card.get_global_rect().get_center()
+	backdrop.aim_backlight(centre, card.size.y * BACKLIGHT_REACH)
 
 
 ## Hangs the mode's name on the bottom edge of the chosen card: its centre is on that edge.
@@ -449,26 +478,21 @@ func _place_title() -> void:
 	mode_name_label.offset_bottom = -lift + height / 2.0
 
 
-## The chosen mode's name and phrase, the action buttons, the glow and the dots.
+## The chosen mode's name and phrase, the action buttons and the backdrop's tint.
 func _refresh_mode() -> void:
 	var mode: Dictionary = MODES[Session.menu_mode]
 	var rooms: bool = String(mode["id"]) != "practice"
 	mode_name_label.text = String(mode["title"])
 	mode_text_label.text = String(mode["text"])
 	_fill_chips(String(mode["id"]))
-	primary_button.text = "Create room" if rooms else "Play vs bots"
-	secondary_button.text = "Join room" if rooms else "Training"
-	secondary_button.visible = true
+	primary_button.text = "Create" if rooms else "Play"
+	secondary_button.text = "Join"
+	# Practice has the one button, Play (no Join, no Training)
+	secondary_button.visible = rooms
 	KalyeahTheme.style_button(primary_button, "orange")
 	KalyeahTheme.style_button(secondary_button, "blue")
+	_fit_buttons()
 	backdrop.set_accent(Color(String(mode["accent"])))
-	for i: int in _dots.size():
-		var dot: StyleBoxFlat = StyleBoxFlat.new()
-		dot.set_corner_radius_all(UiSkin.RADIUS_S)
-		dot.bg_color = Color(String(mode["accent"])) if i == Session.menu_mode else Color(1.0, 1.0, 1.0, 0.28)
-		dot.anti_aliasing = true
-		_dots[i].add_theme_stylebox_override("panel", dot)
-		_dots[i].custom_minimum_size = Vector2(26.0 if i == Session.menu_mode else 12.0, 12.0)
 
 
 func _on_mode_selected(index: int) -> void:
@@ -479,7 +503,7 @@ func _on_mode_selected(index: int) -> void:
 func _on_primary_pressed() -> void:
 	match String(MODES[Session.menu_mode]["id"]):
 		"practice":
-			_on_practice_pressed(&"match")
+			open_practice_confirm()
 		"online":
 			_open_lobby(LobbyScreen.Intent.CREATE, false)
 		_:
@@ -487,12 +511,25 @@ func _on_primary_pressed() -> void:
 
 
 func _on_secondary_pressed() -> void:
-	if String(MODES[Session.menu_mode]["id"]) == "practice":
-		_on_practice_pressed(&"training")
-	elif String(MODES[Session.menu_mode]["id"]) == "hotspot":
+	if String(MODES[Session.menu_mode]["id"]) == "hotspot":
 		open_hotspot_join()
 	else:
 		_open_lobby(LobbyScreen.Intent.JOIN, false)
+
+
+## Practice asks first (a stray tap must not start a match); Play then shows the loading screen.
+func open_practice_confirm() -> MenuDialog:
+	var card: MenuDialog = MenuDialog.create("Practice", 560.0)
+	card.add_label("Three of you against three bots. Ready to rumble?", MenuDialog.TEXT_SIZE, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
+	var play: Button = MenuDialog.make_button("Play", "gold", UiMetrics.BODY)
+	card.add_buttons([cancel, play])
+	cancel.pressed.connect(card.close)
+	play.pressed.connect(func() -> void:
+		card.close(false)
+		_on_practice_pressed(&"match"))
+	_show_dialog(card)
+	return card
 
 
 ## Hotspot Create: a dialog checks the hotspot is on, then the room opens.
