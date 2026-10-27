@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cu8xhwbbma7k6"
-path="res://.godot/imported/chicken_cage_prop_base_color.jpg-beb94ab6cd9ad0daa9f5478e6ea1823f.ctex"
+path.s3tc="res://.godot/imported/chicken_cage_prop_base_color.jpg-beb94ab6cd9ad0daa9f5478e6ea1823f.s3tc.ctex"
+path.etc2="res://.godot/imported/chicken_cage_prop_base_color.jpg-beb94ab6cd9ad0daa9f5478e6ea1823f.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "b9fd85a458768b00ab81bec58ba5a6a3"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/props/chicken_cage_prop_base_color.jpg"
-dest_files=["res://.godot/imported/chicken_cage_prop_base_color.jpg-beb94ab6cd9ad0daa9f5478e6ea1823f.ctex"]
+dest_files=["res://.godot/imported/chicken_cage_prop_base_color.jpg-beb94ab6cd9ad0daa9f5478e6ea1823f.s3tc.ctex", "res://.godot/imported/chicken_cage_prop_base_color.jpg-beb94ab6cd9ad0daa9f5478e6ea1823f.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

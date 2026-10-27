@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://lyxjiqvjei7d"
-path="res://.godot/imported/inday_0.png-fee7cfd7edb96da310410ba285d1b316.ctex"
+path.s3tc="res://.godot/imported/inday_0.png-fee7cfd7edb96da310410ba285d1b316.s3tc.ctex"
+path.etc2="res://.godot/imported/inday_0.png-fee7cfd7edb96da310410ba285d1b316.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "adbea5fe11af54989e1208dbac18fd0a"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/characters/inday_0.png"
-dest_files=["res://.godot/imported/inday_0.png-fee7cfd7edb96da310410ba285d1b316.ctex"]
+dest_files=["res://.godot/imported/inday_0.png-fee7cfd7edb96da310410ba285d1b316.s3tc.ctex", "res://.godot/imported/inday_0.png-fee7cfd7edb96da310410ba285d1b316.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

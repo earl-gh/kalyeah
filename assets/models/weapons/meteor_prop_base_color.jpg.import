@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cvkpyrb4642ic"
-path="res://.godot/imported/meteor_prop_base_color.jpg-f79c7c69cb8b577e30d1cca9d8ec53cd.ctex"
+path.s3tc="res://.godot/imported/meteor_prop_base_color.jpg-f79c7c69cb8b577e30d1cca9d8ec53cd.s3tc.ctex"
+path.etc2="res://.godot/imported/meteor_prop_base_color.jpg-f79c7c69cb8b577e30d1cca9d8ec53cd.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "31e55616536230c3327ae45633618aa2"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/weapons/meteor_prop_base_color.jpg"
-dest_files=["res://.godot/imported/meteor_prop_base_color.jpg-f79c7c69cb8b577e30d1cca9d8ec53cd.ctex"]
+dest_files=["res://.godot/imported/meteor_prop_base_color.jpg-f79c7c69cb8b577e30d1cca9d8ec53cd.s3tc.ctex", "res://.godot/imported/meteor_prop_base_color.jpg-f79c7c69cb8b577e30d1cca9d8ec53cd.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

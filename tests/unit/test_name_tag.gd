@@ -2,16 +2,31 @@ extends GutTest
 ## The name tag on the main screen: a white card on a black lanyard between the logo row and the models behind the chosen one.
 
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
+var _saved_photo: String
 var _saved_name: String = ""
 
 
 func before_each() -> void:
 	_saved_name = Session.player_name
 	Session.player_name = Session.DEFAULT_NAME
+	_saved_photo = IdPhoto.path
+	IdPhoto.path = "user://id_photo_name_tag_test.png"
+	IdPhoto.remove()
 
 
 func after_each() -> void:
 	Session.player_name = _saved_name
+	IdPhoto.remove()
+	IdPhoto.path = _saved_photo
+
+
+## The words are centred on a card with no photo square, and start beside the square (left-aligned, like an ID) when there is one.
+func _assert_words_placed(tag: NameTag, label: Label, why: String) -> void:
+	if tag.photo_frame.visible:
+		assert_gt(label.get_global_rect().position.x, tag.photo_frame.get_global_rect().end.x, "%s: beside the photo" % why)
+		assert_almost_eq(label.get_global_rect().position.x, tag.name_label.get_global_rect().position.x, 1.0, "%s: on the name's left edge" % why)
+	else:
+		assert_almost_eq(label.get_global_rect().get_center().x, tag.card.get_global_rect().get_center().x, 2.0, "%s: centred" % why)
 
 
 func _screen() -> TitleScreen:
@@ -43,7 +58,7 @@ func test_the_tag_says_hi_im_and_the_name_in_capitals_and_has_no_edit_button() -
 	assert_lt(tag.greeting_label.get_global_rect().end.y, tag.name_label.get_global_rect().position.y + 4.0, "row 1 above row 2")
 	assert_null(tag.find_child("EditButton", true, false), "no edit button (owner: tap the tag)")
 	assert_null(tag.find_child("Pencil", true, false), "and no pencil")
-	assert_almost_eq(tag.name_label.get_global_rect().get_center().x, tag.card.get_global_rect().get_center().x, 2.0, "the name is centred on the card")
+	_assert_words_placed(tag, tag.name_label, "the name")
 	tag.set_player_name("Ana")
 	assert_eq(tag.name_label.text, "ANA", "a name is shown in capitals")
 	assert_eq(tag.player_name(), "Ana", "and kept as typed")
@@ -128,11 +143,11 @@ func test_a_long_name_takes_smaller_letters_and_never_leaves_the_screen() -> voi
 	var card: Rect2 = tag.card.get_global_rect()
 	assert_gte(card.position.x, 0.0)
 	assert_lte(card.end.x, 720.0, "inside the screen")
-	assert_lte(card.size.x, NameTag.CARD_MAX_WIDTH + 1.0)
+	assert_lte(card.size.x, tag.max_width() + 1.0)
 	assert_lte(tag.name_label.get_global_rect().size.x, card.size.x, "the name fits its card")
 	tag.set_player_name("Ana")
 	await wait_frames(2)
-	assert_almost_eq(tag.card.size.x, NameTag.CARD_MIN_WIDTH, 0.5, "a short name keeps the card at its least width")
+	assert_almost_eq(tag.card.size.x, tag.min_width(), 0.5, "a short name keeps the card at its least width")
 
 
 func test_tapping_the_tag_opens_the_profile_sheet_and_saving_updates_the_tag() -> void:
@@ -233,7 +248,7 @@ func test_a_name_is_at_most_ten_letters_and_the_widest_ten_fit_the_tag_at_full_s
 	tag.set_player_name("M".repeat(Session.MAX_NAME_LENGTH))
 	await wait_frames(2)
 	assert_eq(tag.name_label.get_theme_font_size("font_size"), UiMetrics.HEADLINE, "ten of the widest letters still take the largest size")
-	assert_lte(tag.card.size.x, NameTag.CARD_MAX_WIDTH)
+	assert_lte(tag.card.size.x, tag.max_width())
 
 
 func test_a_name_keeps_only_letters_digits_and_a_few_marks_in_single_spaces() -> void:
@@ -300,7 +315,7 @@ func test_tap_to_change_is_a_small_light_line_under_the_name() -> void:
 	assert_gte(UiKit.contrast(tag.hint_label.get_theme_color("font_color"), Color.WHITE), 3.0, "still readable on the white card")
 	tag.set_player_name("MMMMMMMMMM")
 	await wait_frames(2)
-	assert_almost_eq(tag.hint_label.get_global_rect().get_center().x, tag.card.get_global_rect().get_center().x, 2.0, "centred under any name")
+	_assert_words_placed(tag, tag.hint_label, "under any name")
 
 
 func test_the_two_straps_leave_a_clear_v_gap_at_the_top() -> void:

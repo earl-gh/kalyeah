@@ -20,6 +20,8 @@ const BOT_ENEMY_IDS: Array[int] = [4, 5, 6]
 const MAX_STEPS_PER_FRAME: int = 8
 const RECONNECT_INTERVAL: float = 2.0
 const TITLE_SCENE: String = "res://scenes/ui/title_screen.tscn"
+## Online: the server closed the room (a hotspot host left), so there is no battle to go back to.
+const ROOM_CLOSED_TEXT: String = "The host left.\nThe battle is over."
 
 @export var rules: GameRules
 @export var layout: MapLayout
@@ -47,6 +49,11 @@ var _reconnect_left: float = -1.0
 ## A new socket is not a restored match until WELCOME confirms the old slot.
 var _awaiting_reconnect_welcome: bool = false
 var _resume_rejected: bool = false
+## Online: who in the room was connected at the last room update (player id -> connected), to tell when it changes.
+var _connected: Dictionary[int, bool] = {}
+## Online: when the whole other team is away, the server ends the match for us; this says why ("BEN is gone for a while")
+## in place of VICTORY!. Empty otherwise.
+var gone_note: String = ""
 var _application_focused: bool = true
 var _application_paused: bool = false
 var _presentation: PracticeMatchPresentation
@@ -90,6 +97,9 @@ func _ready() -> void:
 		client.picks_changed.connect(func() -> void: _pick_screen.set_taken(client.taken_kids()))
 		client.connection_changed.connect(_on_connection_changed)
 		client.welcomed.connect(_on_welcomed)
+		client.room_changed.connect(_on_room_changed)
+		client.room_closed.connect(_on_room_closed)
+		_on_room_changed(client.room)
 		client.loaded()
 		if client.stage == "play":
 			_on_stage_changed("play")
@@ -440,6 +450,45 @@ func _on_welcomed(reconnected: bool) -> void:
 	_resume_rejected = true
 	_set_controls_active(false)
 	hud.set_connection("Battle unavailable", true)
+
+
+## Online: someone else dropped out of the match, came back, or has been gone so long they are away (AFK). The server keeps a
+## dropped player's slot for a while and ends the match when a whole team is away.
+func _on_room_changed(room: Dictionary) -> void:
+	var gone: PackedStringArray = PackedStringArray()
+	var others: int = 0
+	for entry: Dictionary in room.get("members", []) as Array:
+		var id: int = entry.get("player_id", -1) as int
+		var connected: bool = entry.get("connected", true) as bool
+		var afk: bool = entry.get("afk", false) as bool
+		var name: String = entry.get("name", "") as String
+		var known: bool = _connected.has(id)
+		var was: bool = _connected.get(id, connected)
+		var was_afk: bool = hud.overhead.away_ids.has(id)
+		_connected[id] = connected
+		if afk:
+			hud.overhead.away_ids[id] = true
+		else:
+			hud.overhead.away_ids.erase(id)
+		if entry.get("team", -1) == 1 - local_team:
+			others += 1
+			if afk:
+				gone.append(name)
+		if id == local_id or not known:
+			continue
+		if afk and not was_afk:
+			show_banner("%s is AFK" % name)
+		elif was != connected:
+			show_banner(("%s is back!" if connected else "%s left the battle") % name)
+	gone_note = "%s is gone for a while" % " and ".join(gone) if others > 0 and gone.size() == others else ""
+
+
+func _on_room_closed() -> void:
+	_resume_rejected = true
+	_awaiting_reconnect_welcome = false
+	_reconnect_left = -1.0
+	_cancel_local_input()
+	hud.set_connection(ROOM_CLOSED_TEXT, true)
 
 
 func _try_reconnect(delta: float) -> void:

@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dhb0w48g3f72c"
-path="res://.godot/imported/crumpled_paper_prop_base_color.jpg-185c29d16dc6c7a9f704b15813c1b603.ctex"
+path.s3tc="res://.godot/imported/crumpled_paper_prop_base_color.jpg-185c29d16dc6c7a9f704b15813c1b603.s3tc.ctex"
+path.etc2="res://.godot/imported/crumpled_paper_prop_base_color.jpg-185c29d16dc6c7a9f704b15813c1b603.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "d636bd6bfbaf7d39c76e19dc5f97df5f"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/weapons/crumpled_paper_prop_base_color.jpg"
-dest_files=["res://.godot/imported/crumpled_paper_prop_base_color.jpg-185c29d16dc6c7a9f704b15813c1b603.ctex"]
+dest_files=["res://.godot/imported/crumpled_paper_prop_base_color.jpg-185c29d16dc6c7a9f704b15813c1b603.s3tc.ctex", "res://.godot/imported/crumpled_paper_prop_base_color.jpg-185c29d16dc6c7a9f704b15813c1b603.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

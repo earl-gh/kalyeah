@@ -9,6 +9,7 @@ application-debuggable
 uses-permission: name='android.permission.INTERNET'
 uses-permission: name='android.permission.VIBRATE'
 uses-permission: name='android.permission.CHANGE_WIFI_MULTICAST_STATE'
+uses-permission: name='android.permission.CAMERA'
 feature-group: label=''
   uses-gl-es: '0x30000'
   uses-feature: name='android.hardware.faketouch'

@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c28e4auc5cq0v"
-path="res://.godot/imported/truck_wheels_prop_base_color.jpg-40d5fae0a629369787c50f54424340cb.ctex"
+path.s3tc="res://.godot/imported/truck_wheels_prop_base_color.jpg-40d5fae0a629369787c50f54424340cb.s3tc.ctex"
+path.etc2="res://.godot/imported/truck_wheels_prop_base_color.jpg-40d5fae0a629369787c50f54424340cb.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "5225b7516f4852661cb226b76b82bedc"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/props/truck_wheels_prop_base_color.jpg"
-dest_files=["res://.godot/imported/truck_wheels_prop_base_color.jpg-40d5fae0a629369787c50f54424340cb.ctex"]
+dest_files=["res://.godot/imported/truck_wheels_prop_base_color.jpg-40d5fae0a629369787c50f54424340cb.s3tc.ctex", "res://.godot/imported/truck_wheels_prop_base_color.jpg-40d5fae0a629369787c50f54424340cb.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

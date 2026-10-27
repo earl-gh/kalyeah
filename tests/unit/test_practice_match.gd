@@ -306,6 +306,88 @@ func test_cards_lock_under_stun_and_hide_while_tagged() -> void:
 	assert_false(practice.hud.hand.visible)
 
 
+## A room update as the server sends it: the local player (id 1) and Ben (id 2), connected or not.
+func _room(ben_connected: bool) -> Dictionary:
+	return {"members": [
+		{"player_id": PracticeMatch.LOCAL_ID, "name": "ANA", "connected": true},
+		{"player_id": 2, "name": "BEN", "connected": ben_connected},
+	]}
+
+
+func test_a_player_who_drops_out_or_comes_back_is_announced_to_the_others() -> void:
+	var practice: PracticeMatch = _practice()
+	practice.hud.banner.hide()
+	practice._on_room_changed(_room(true))
+	assert_eq(practice.banner_text(), "", "the first room update only sets who is here")
+	practice._on_room_changed(_room(false))
+	assert_eq(practice.banner_text(), "BEN left the battle")
+	practice._on_room_changed(_room(false))
+	practice._on_room_changed(_room(true))
+	assert_eq(practice.banner_text(), "BEN is back!")
+
+
+func test_our_own_drop_is_not_announced_to_us() -> void:
+	var practice: PracticeMatch = _practice()
+	practice.hud.banner.hide()
+	var room: Dictionary = _room(true)
+	practice._on_room_changed(room)
+	(room["members"] as Array)[0]["connected"] = false
+	practice._on_room_changed(room)
+	assert_eq(practice.banner_text(), "")
+
+
+func test_a_closed_room_ends_the_battle_instead_of_reconnecting() -> void:
+	var practice: PracticeMatch = _practice()
+	practice._on_room_closed()
+	practice._on_connection_changed(false)
+	assert_eq(practice.hud.feedback.message.text, PracticeMatch.ROOM_CLOSED_TEXT, "not Reconnecting…")
+	assert_true(practice.hud.feedback.leave.visible, "a way out")
+	assert_false(practice.controls_active())
+
+
+## A room update in which `others` (Dictionaries with id, name, team, connected, afk) play with us.
+func _room_with(practice: PracticeMatch, others: Array[Dictionary]) -> Dictionary:
+	var members: Array = [{"player_id": practice.local_id, "name": "ANA", "team": practice.local_team, "connected": true, "afk": false}]
+	for other: Dictionary in others:
+		members.append({"player_id": other["id"], "name": other["name"], "team": other["team"], "connected": not (other["afk"] as bool), "afk": other["afk"]})
+	return {"members": members}
+
+
+func test_an_away_player_in_a_bigger_match_is_marked_afk() -> void:
+	var practice: PracticeMatch = _practice()
+	var them: int = 1 - practice.local_team
+	var cara: Dictionary = {"id": 3, "name": "CARA", "team": them, "afk": false}
+	var ben: Dictionary = {"id": 2, "name": "BEN", "team": them, "afk": false}
+	practice._on_room_changed(_room_with(practice, [ben, cara]))
+	practice.hud.banner.hide()
+	ben["afk"] = true
+	practice._on_room_changed(_room_with(practice, [ben, cara]))
+	assert_eq(practice.banner_text(), "BEN is AFK")
+	assert_true(practice.hud.overhead.away_ids.has(2), "AFK over their kid")
+	practice.sim.match_won.emit(practice.local_team)
+	assert_eq(practice.banner_text(), "VICTORY!", "CARA still plays, so a win is a normal win")
+	ben["afk"] = false
+	practice._on_room_changed(_room_with(practice, [ben, cara]))
+	assert_false(practice.hud.overhead.away_ids.has(2), "back: no longer AFK")
+
+
+func test_a_1v1_won_because_the_opponent_is_gone_says_so() -> void:
+	var practice: PracticeMatch = _practice()
+	var ben: Dictionary = {"id": 2, "name": "BEN", "team": 1 - practice.local_team, "afk": false}
+	practice._on_room_changed(_room_with(practice, [ben]))
+	ben["afk"] = true
+	practice._on_room_changed(_room_with(practice, [ben]))
+	practice.sim.match_won.emit(practice.local_team)
+	assert_eq(practice.banner_text(), "BEN is gone for a while")
+
+
+func test_the_afk_word_shows_over_an_away_kid() -> void:
+	var practice: PracticeMatch = _practice()
+	var state: PlayerState = practice.sim.players[practice.local_id]
+	practice.hud.overhead.away_ids[state.id] = true
+	assert_eq(practice.hud.overhead.label_for(state), "AFK")
+
+
 func test_a_reconnect_is_not_reported_restored_until_the_server_confirms_the_slot() -> void:
 	var practice: PracticeMatch = _practice()
 	practice.finish_pick()

@@ -48,6 +48,8 @@ const BLINK_PERIOD: float = 0.25
 ## The word over your own kid while it is exhausted (owner: "EXHAUSTED shown on your kid"); other kids show the plain status word.
 const EXHAUSTED_SELF: String = "EXHAUSTED"
 const EXHAUSTED_OTHER: String = "Exhausted"
+## The word over a kid whose player has been gone too long (online): their kid stands still until they come back.
+const AWAY: String = "AFK"
 const POPUP_FONT: int = UiMetrics.BODY
 ## A quick chat bubble: the words' size, the padding round them and how far over the health number it floats.
 const SAY_FONT: int = UiMetrics.DETAIL
@@ -92,6 +94,8 @@ var _placed: Array[Rect2] = []
 var _popups: Array[Dictionary] = []
 ## Quick chat bubbles over kids: {id, text, age}.
 var _says: Array[Dictionary] = []
+## Online: the kids whose players are away (AFK), set from the room.
+var away_ids: Dictionary[int, bool] = {}
 
 
 func setup(sim: MatchSim, camera: Camera3D, local_id: int, local_team: int) -> void:
@@ -126,6 +130,8 @@ func text_for(id: int) -> String:
 ## A tagged kid stands on the sidewalk, which already says it: no "Tagged" over each one (two of them ran into one word).
 func _status_text(state: PlayerState) -> String:
 	var words: PackedStringArray = PackedStringArray()
+	if away_ids.has(state.id):
+		words.append(AWAY)
 	if state.overclocked:
 		words.append(UiText.t(EXHAUSTED_SELF if state.id == _local_id else EXHAUSTED_OTHER))
 	for word: String in state.effects.display_names():

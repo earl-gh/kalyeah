@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ybuohc41on25"
-path="res://.godot/imported/marble_prop_base_color.jpg-29c95a9816d2983c2d314a6b81a750e6.ctex"
+path.s3tc="res://.godot/imported/marble_prop_base_color.jpg-29c95a9816d2983c2d314a6b81a750e6.s3tc.ctex"
+path.etc2="res://.godot/imported/marble_prop_base_color.jpg-29c95a9816d2983c2d314a6b81a750e6.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "c8be775949bda0c1cf13650998afc72c"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/weapons/marble_prop_base_color.jpg"
-dest_files=["res://.godot/imported/marble_prop_base_color.jpg-29c95a9816d2983c2d314a6b81a750e6.ctex"]
+dest_files=["res://.godot/imported/marble_prop_base_color.jpg-29c95a9816d2983c2d314a6b81a750e6.s3tc.ctex", "res://.godot/imported/marble_prop_base_color.jpg-29c95a9816d2983c2d314a6b81a750e6.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

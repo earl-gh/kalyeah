@@ -80,7 +80,7 @@ Goal: the look of the owner's reference image (League of Legends mid view, Clash
 | P7 | UI pass: painted skill icons, team portraits and timer across the top, framed minimap | HUD matches the reference |
 | P8 | Performance and Android: frame rate, download size, APK | budgets below |
 
-Budgets (M6): 60 fps on a recommended Android phone, 30+ on the minimum; APK under 150 MB (enforced by the `Android APK` workflow; a local debug export measures 145 MB, of which the 48 lossless prop and weapon textures are 86 MB: lossy or VRAM import would cut 76 or 42 MB, an owner decision because it changes pixels).
+Budgets (M6): 60 fps on a recommended Android phone, 30+ on the minimum; APK under 150 MB (enforced by the `Android APK` workflow). The prop, weapon and authored-kid (Toni, Popoy, Inday) textures are imported **VRAM compressed** (`compress/mode=2`: ETC2 on the phone, a quarter of the memory of a lossless texture on the GPU; the normal maps flagged `compress/normal_map=1`), pinned by `tests/unit/test_texture_budget.gd`. Lossless, the three kids and the 11 houses and carts had put the APK at 205 MB; compressed it measures about 145 MB (the textures are 165 MB of imported files lossless, 105 MB compressed). A new 3D model's textures must be imported the same way.
 
 ### HUD spec (owner)
 - No player name above the health bar.

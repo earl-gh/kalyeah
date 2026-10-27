@@ -188,7 +188,8 @@ func _on_point_scored(team: int, _how: int) -> void:
 
 
 func _on_match_won(team: int) -> void:
-	owner.show_banner("VICTORY!" if team == owner.local_team else "DEFEAT")
+	var won: bool = team == owner.local_team
+	owner.show_banner(owner.gone_note if won and not owner.gone_note.is_empty() else ("VICTORY!" if won else "DEFEAT"))
 	var mode: String = "practice"
 	if owner.online:
 		mode = "hotspot" if Session.lobby_hotspot else "online"

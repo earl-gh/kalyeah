@@ -8,6 +8,9 @@ extends Resource
 @export var passcode_alphabet: String = ""
 ## Seconds a player who dropped out of a running match may reconnect into their slot.
 @export var reconnect_window: float = 0.0
+## Seconds a player can be gone from a running match before they count as away (AFK). A team that is all away forfeits
+## (a 1v1 ends, the opponent winning); one away player in a bigger match is only marked. Shorter than `reconnect_window`.
+@export var afk_after: float = 0.0
 ## Server snapshots per second (inputs go up every sim tick, 30 Hz).
 @export var snapshot_rate: int = 0
 ## Clients draw other players this far in the past, between two snapshots.

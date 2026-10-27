@@ -196,26 +196,14 @@ func test_the_chosen_mode_survives_the_hero_being_resized() -> void:
 
 # ---- mode facts -----------------------------------------------------------------------
 
-func test_the_mode_facts_come_from_the_rules() -> void:
-	var screen: TitleScreen = _phone()
-	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
-	assert_eq(rules.first_to_choices, [3, 5, 7] as Array[int], "the numbers below follow this")
-	assert_eq(screen.mode_facts("hotspot"), ["2 to 6 players", "First to 3, 5 or 7"] as Array[String])
-	assert_eq(screen.mode_facts("online"), ["2 to 6 players", "Join with a code"] as Array[String])
-	assert_eq(screen.mode_facts("practice"), ["Solo", "3 v 3 against bots"] as Array[String], "you and two allies against three")
-	assert_eq(RoomService.MAX_TEAM_SIZE * 2, 6)
-
-
-func test_the_chips_follow_the_mode_and_step_aside_on_a_short_stage() -> void:
-	var tall: TitleScreen = _phone(1558.0)
-	await wait_frames(3)
-	assert_true(tall.mode_chips.visible, "room for them on a tall phone")
-	assert_eq(tall.mode_chips.get_child_count(), 2)
-	tall.carousel.select(2, false)
-	assert_eq((tall.mode_chips.get_child(0).get_node("Text") as Label).text, "Solo")
-	var short: TitleScreen = _phone(1280.0)
-	await wait_frames(3)
-	assert_false(short.mode_chips.visible, "on a 16:9 phone the hero keeps its size")
+func test_no_fact_chips_under_the_phrase_on_any_mode_or_phone() -> void:
+	for height: float in [1280.0, 1558.0]:
+		var screen: TitleScreen = _phone(height)
+		await wait_frames(3)
+		for mode: int in TitleScreen.MODES.size():
+			screen.carousel.select(mode, false)
+			assert_null(screen.find_child("ModeChips", true, false), "owner: the chips covered the phrase on the phone")
+			assert_eq(screen.mode_text_label.text, String(TitleScreen.MODES[mode]["text"]), "the phrase alone says what the mode is")
 
 
 # ---- slides ---------------------------------------------------------------------------
