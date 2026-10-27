@@ -134,5 +134,5 @@ func test_the_mode_cards_are_old_teks_cards_worn_at_the_corners_each_differently
 		order.append(child.name)
 	assert_eq(order, ["Picture", "PowerLine", "Shade", "Tint"] as Array[String], "picture, then the power line, then the shade over it, then the yellowish tint over all")
 	var tint: ColorRect = strip.cards[1].get_node("Face/Tint") as ColorRect
-	assert_lte(tint.color.a, 0.1, "a super subtle tint")
+	assert_lte(tint.color.a, 0.15, "a subtle tint")
 	assert_gt(tint.color.r + tint.color.g, tint.color.b * 2.0, "yellowish")

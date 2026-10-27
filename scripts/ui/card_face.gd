@@ -8,8 +8,8 @@ extends Control
 
 const PICTURE_SHADER: Shader = preload("res://shaders/card_picture.gdshader")
 const SHADE_SHADER: Shader = preload("res://shaders/card_shade.gdshader")
-## The yellowish tint over the whole card (super subtle: owner).
-const AGE_TINT: Color = Color(1.0, 0.86, 0.45, 0.07)
+## The yellowish tint over the whole card (subtle: owner, slightly stronger than first).
+const AGE_TINT: Color = Color(1.0, 0.86, 0.45, 0.11)
 ## Square corners, like a teks card (owner).
 const RADIUS: float = 0.0
 ## The power line at the bottom of the right edge, turned -90 degrees (reading upwards), like a teks card's: white letters with a

@@ -42,3 +42,30 @@ float print_left(vec2 position) {
 	float depth = WEAR_CORNER * corner_weight * corner_weight * (0.35 + 1.3 * fine);
 	return smoothstep(depth - 0.8, depth + 0.8, edge);
 }
+
+
+// One rolled corner: the card's corner at `corner` curls away from the flat card along a slightly curved crease `reach` px in.
+// Returns (how much darker, how much lighter) each spot is. A corner rolled down (`up` false) darkens towards its tip with a
+// highlight along the crease; one rolled up (`up` true) catches the light towards its tip and throws a shadow along its crease.
+vec2 roll_corner(vec2 position, vec2 corner, vec2 inward, float reach, bool up) {
+	vec2 d = position - corner;
+	vec2 tangent = vec2(-inward.y, inward.x);
+	float along = dot(tangent, d);
+	float across = dot(inward, d) - reach + along * along * 0.0016;
+	float band = exp(-across * across / 60.0);
+	float side = smoothstep(2.0, -3.0, across);
+	float tip = clamp(-across / reach, 0.0, 1.0);
+	float fade = smoothstep(reach * 2.7, reach * 1.1, length(d));
+	float inner = step(0.0, across);
+	if (up) {
+		return vec2(fade * (0.12 * band + 0.3 * inner * exp(-(across - 5.0) * (across - 5.0) / 24.0)), fade * side * (0.07 + 0.14 * tip));
+	}
+	return vec2(fade * (0.42 * band + side * (0.16 + 0.34 * tip)), fade * inner * 0.2 * exp(-(across - 7.0) * (across - 7.0) / 26.0));
+}
+
+// The two rolled corners of every card: the top left rolls down and the bottom right rolls up (owner).
+vec2 roll_effect(vec2 position) {
+	vec2 top_left = roll_corner(position, vec2(0.0), normalize(vec2(1.0, 1.1)), 62.0, false);
+	vec2 bottom_right = roll_corner(position, rect_size, normalize(vec2(-1.0, -1.1)), 68.0, true);
+	return min(top_left + bottom_right, vec2(0.65, 0.35));
+}
