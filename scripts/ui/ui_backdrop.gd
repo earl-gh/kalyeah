@@ -1,15 +1,16 @@
 class_name UiBackdrop
 extends Control
-## The living background of the main screens: the owner's diamond picture dimmed under a night
-## gradient, a soft glow in the colour of whatever is in focus, and a few motes of light drifting
-## up. Everything is drawn by the engine from one tiny texture (cheap on phones); with Reduce
-## motion on the motes stay home and the picture holds still.
+## The living background of the main screens: one of the owner's diamond pictures (blue, purple or green, whichever is nearest to the
+## colour in focus; they cross-fade) dimmed under a night gradient, a soft glow in the colour of whatever is in focus, and a few motes
+## of light drifting up. With Reduce motion on the motes stay home and the picture holds still.
 
 const PICTURE: Texture2D = preload("res://assets/ui/main_bg.webp")
+const PICTURE_PURPLE: Texture2D = preload("res://assets/ui/main_bg_purple.webp")
+const PICTURE_GREEN: Texture2D = preload("res://assets/ui/main_bg_green.webp")
 const MOTES: int = 14
-## The blue the picture is in (the blue mode card's colour): the focus colour only turns the picture's hue away from this.
+## The colour each picture is in: the blue, the purple and the green mode cards' colours, in the order of `pictures`.
 const PICTURE_BLUE: Color = Color("4aa0ff")
-const TINT_SHADER: Shader = preload("res://shaders/backdrop_tint.gdshader")
+const PICTURE_COLOURS: Array[Color] = [PICTURE_BLUE, Color("a45cf0"), Color("45dd78")]
 ## How strongly the backlight is added to the picture.
 const BACKLIGHT_STRENGTH: float = 0.4
 
@@ -25,8 +26,8 @@ var ambient: bool = true:
 		if motes != null:
 			_apply_motion()
 var _accent: Color = PICTURE_BLUE
-var _picture_material: ShaderMaterial
-var _hue_shift: float = 0.0
+## The pictures (blue, purple, green): only the one nearest the focus colour is showing.
+var pictures: Array[TextureRect] = []
 var _tween: Tween
 
 
@@ -34,20 +35,19 @@ func _init() -> void:
 	name = "Backdrop"
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var picture: TextureRect = TextureRect.new()
-	picture.name = "Picture"
-	picture.texture = PICTURE
-	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	# the picture takes the colour of what is in focus (the chosen mode card): see `set_accent`
-	_picture_material = ShaderMaterial.new()
-	_picture_material.shader = TINT_SHADER
-	_picture_material.set_shader_parameter("hue_shift", _target_shift(_accent))
-	_hue_shift = _target_shift(_accent)
-	picture.material = _picture_material
-	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(picture)
+	var textures: Array[Texture2D] = [PICTURE, PICTURE_PURPLE, PICTURE_GREEN]
+	var names: Array[String] = ["Picture", "PicturePurple", "PictureGreen"]
+	for i: int in textures.size():
+		var picture: TextureRect = TextureRect.new()
+		picture.name = names[i]
+		picture.texture = textures[i]
+		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		picture.modulate.a = 1.0 if i == picture_for(_accent) else 0.0
+		add_child(picture)
+		pictures.append(picture)
 	glow = TextureRect.new()
 	glow.name = "Glow"
 	glow.texture = _backlight()
@@ -94,33 +94,42 @@ func _init() -> void:
 
 
 ## The background takes the colour of what is in focus (a mode, a map), easing over to it: the backlight takes the colour and the
-## picture's blue turns to it (blue stays as it is behind the blue card).
+## picture nearest to it fades in.
 func set_accent(color: Color) -> void:
 	_accent = color
 	if is_instance_valid(_tween):
 		_tween.kill()
-	var from_shift: float = _hue_shift
-	# the shortest way round the colour wheel from where the picture is now to where it should be
-	var to_shift: float = from_shift + wrapf(_target_shift(color) - from_shift, -0.5, 0.5)
+	var target: int = picture_for(color)
+	var from_alpha: Array[float] = []
+	for picture: TextureRect in pictures:
+		from_alpha.append(picture.modulate.a)
 	var from_light: Color = glow.modulate
 	var from_night: Color = night.modulate
 	if Settings.reduced_motion or not is_inside_tree():
-		_apply(to_shift, _backlight_color(color), _night_color(color))
+		_apply(target, 1.0, from_alpha, _backlight_color(color), _night_color(color))
 		return
 	_tween = create_tween()
-	_tween.tween_method(func(mix: float) -> void: _apply(lerpf(from_shift, to_shift, mix), from_light.lerp(_backlight_color(color), mix), from_night.lerp(_night_color(color), mix)), 0.0, 1.0, 0.45).set_trans(Tween.TRANS_SINE)
+	_tween.tween_method(func(mix: float) -> void: _apply(target, mix, from_alpha, from_light.lerp(_backlight_color(color), mix), from_night.lerp(_night_color(color), mix)), 0.0, 1.0, 0.45).set_trans(Tween.TRANS_SINE)
 
 
-func _apply(shift: float, light: Color, dark: Color) -> void:
-	_hue_shift = shift
+## `mix` of the way from the pictures' alphas at the start (`from_alpha`) to only `target` showing.
+func _apply(target: int, mix: float, from_alpha: Array[float], light: Color, dark: Color) -> void:
+	for i: int in pictures.size():
+		pictures[i].modulate.a = lerpf(from_alpha[i], 1.0 if i == target else 0.0, mix)
 	glow.modulate = light
 	night.modulate = dark
-	_picture_material.set_shader_parameter("hue_shift", shift)
 
 
-## How far the focus colour is round the colour wheel from the picture's own blue (the blue mode card's colour).
-static func _target_shift(accent: Color) -> float:
-	return accent.h - PICTURE_BLUE.h
+## Which picture (0 blue, 1 purple, 2 green) is nearest to a focus colour round the colour wheel.
+static func picture_for(accent: Color) -> int:
+	var best: int = 0
+	var best_distance: float = INF
+	for i: int in PICTURE_COLOURS.size():
+		var distance: float = absf(wrapf(accent.h - PICTURE_COLOURS[i].h, -0.5, 0.5))
+		if distance < best_distance:
+			best = i
+			best_distance = distance
+	return best
 
 
 ## Lights the background from behind a card: the bright middle of the backlight sits at `centre` (this control's own pixels) and

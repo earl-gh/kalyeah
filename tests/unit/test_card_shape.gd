@@ -224,38 +224,37 @@ func test_the_mode_name_leans_back_in_perspective() -> void:
 	assert_eq(material.get_shader_parameter("rect_size"), screen.mode_name_label.size, "the shader knows the label's size")
 
 
-func test_the_main_menu_background_keeps_its_blue_and_turns_to_the_chosen_cards_colour() -> void:
+func test_the_main_menu_background_is_the_owners_picture_in_the_chosen_cards_colour() -> void:
 	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
 	add_child(screen)
 	await wait_frames(4)
-	var material: ShaderMaterial = screen.backdrop.get_node("Picture").material as ShaderMaterial
-	assert_eq(material.shader.resource_path, "res://shaders/backdrop_tint.gdshader")
-	var shifts: Dictionary = {}
+	var backdrop: UiBackdrop = screen.backdrop
+	assert_eq(backdrop.pictures.size(), 3, "a blue, a purple and a green picture")
+	assert_eq(backdrop.pictures[0].texture, UiBackdrop.PICTURE)
+	assert_eq(backdrop.pictures[1].texture, UiBackdrop.PICTURE_PURPLE)
+	assert_eq(backdrop.pictures[2].texture, UiBackdrop.PICTURE_GREEN)
 	var motion: bool = Settings.reduced_motion
 	Settings.reduced_motion = true
+	var shown: Dictionary = {}
 	for index: int in 3:
 		screen.carousel.select(index, false)
-		var shift: float = material.get_shader_parameter("hue_shift")
-		shifts[snappedf(shift, 0.001)] = true
-		if String(TitleScreen.MODES[index]["id"]) == "hotspot":
-			assert_almost_eq(shift, 0.0, 0.001, "behind the blue card the picture is its own blue, not tinted blue again")
-		else:
-			assert_gt(absf(shift), 0.1, "behind another colour the blue is turned to it")
-		# the picture's hue, turned by the shift, is the card's colour
-		var accent: Color = Color(String(TitleScreen.MODES[index]["accent"]))
-		assert_almost_eq(fposmod(UiBackdrop.PICTURE_BLUE.h + shift, 1.0), accent.h, 0.002, "mode %d" % index)
+		var visible_ones: Array[int] = []
+		for i: int in backdrop.pictures.size():
+			if backdrop.pictures[i].modulate.a > 0.99:
+				visible_ones.append(i)
+			else:
+				assert_lt(backdrop.pictures[i].modulate.a, 0.01, "only one picture shows at a time")
+		assert_eq(visible_ones.size(), 1)
+		shown[visible_ones[0]] = true
+		assert_eq(visible_ones[0], [1, 0, 2][index], "Online purple, Local blue, Practice green: %s" % TitleScreen.MODES[index]["id"])
 	Settings.reduced_motion = motion
-	assert_eq(shifts.size(), 3, "each card turns the background differently")
-	assert_gte(float(material.get_shader_parameter("saturation")) if material.get_shader_parameter("saturation") != null else 1.2, 1.0, "the extra saturation is separate from the tint")
+	assert_eq(shown.size(), 3, "each card has its own picture")
+	assert_null(backdrop.get_node("PictureGreen").material, "the pictures are shown as they are, not tinted")
 
 
-func test_the_warm_backgrounds_are_lifted_and_every_vignette_is_dark_in_its_own_colour() -> void:
-	# audit (owner: the yellow background looked ugly and dark): orange at the picture's own darkness is brown, and the old navy
-	# vignette greyed it; so the warm hues are lifted toward gold and the vignette takes the focus colour
-	var material: ShaderMaterial = ShaderMaterial.new()
-	material.shader = load("res://shaders/backdrop_tint.gdshader") as Shader
-	assert_gt(float(material.shader.get_shader_uniform_list().filter(func(u: Dictionary) -> bool: return u["name"] == "warm_lift").size()), 0.0, "the shader lifts warm hues")
-	for accent: Color in [Color("4aa0ff"), Color("ffa63a"), Color("45dd78")]:
+func test_the_vignette_is_dark_in_the_focus_colours_own_hue() -> void:
+	# the old navy vignette turned a warm picture grey: the dark takes the focus colour's hue
+	for accent: Color in [Color("4aa0ff"), Color("a45cf0"), Color("45dd78")]:
 		var dark: Color = UiBackdrop._night_color(accent)
 		assert_almost_eq(dark.h, accent.h, 0.01, "the vignette is the focus colour's hue")
 		assert_lt(dark.v, 0.2, "and very dark")
