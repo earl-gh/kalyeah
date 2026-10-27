@@ -1,68 +1,88 @@
 class_name NameTag
 extends Control
 ## The name tag on the main screen: a white card that hangs from a black lanyard, with a punched slot at the top, "Hi! I'm" in small
-## letters and the player's name big under it, and a round edit button (a pencil) beside the name that opens the profile sheet. The
-## lanyard runs up out of the top of the screen. The card sways a little while the screen idles (it rests with Reduce motion).
+## letters and the player's name big under it. Tapping the card opens the profile sheet to change the name. The lanyard is two straps
+## of one loop, one in front of the card and one behind it, meeting at the slot and running up out of the top of the screen (a V that
+## opens upward, like a lanyard round a neck). The whole tag swings very slowly from side to side, like a soft wind, with the card
+## trailing a little behind its straps (it rests with Reduce motion).
 ##
-## The node's own position is the middle of the slot. The lanyard is two pieces of one black strap: the long upper one, behind the logo,
-## and a short end on the card that follows its swing.
+## The node's own position is the middle of the slot.
 
-signal edit_pressed
+signal tapped
 
 const CARD_HEIGHT: float = 156.0
 const CARD_MIN_WIDTH: float = 300.0
 const CARD_MAX_WIDTH: float = 560.0
-const CARD_SIDE_PAD: float = 28.0
+const CARD_SIDE_PAD: float = 36.0
 ## The slot: its size, and how far its middle is below the top of the card.
 const SLOT_SIZE: Vector2 = Vector2(64.0, 16.0)
 const SLOT_MIDDLE: float = 22.0
 const STRAP_WIDTH: float = 22.0
-const STRAP_COLOR: Color = Color("0b0b10")
+## The two straps lean away from each other going up, this many degrees each, and meet at the slot.
+const STRAP_SPREAD: float = 5.0
+const STRAP_FRONT_COLOR: Color = Color("0d0d12")
+const STRAP_BACK_COLOR: Color = Color("050507")
+## A thin lighter edge on the front strap, so it reads as the layer on top of the other.
+const STRAP_EDGE: Color = Color(1.0, 1.0, 1.0, 0.14)
+const STRAP_EDGE_WIDTH: float = 2.0
 const CARD_COLOR: Color = Color.WHITE
 const CARD_EDGE: Color = Color("cfd6e6")
-const SLOT_COLOR: Color = Color("232838")
+const SLOT_COLOR: Color = Color("07070a")
 const SLOT_RIM: Color = Color("b7c0d4")
 const INK: Color = KalyeahTheme.MODAL_TEXT
 const INK_MUTED: Color = KalyeahTheme.MODAL_TEXT_MUTED
 const GREETING: String = "Hi! I'm"
 ## The name's letters, from the largest down to the smallest that still reads: a longer name takes a smaller size.
 const NAME_SIZES: Array[int] = [UiMetrics.HEADLINE, UiMetrics.TITLE, UiMetrics.BODY]
-## The edit button: how big it is to the thumb, and how big its pencil badge is drawn.
-const EDIT_HIT: float = UiMetrics.TOUCH
-const EDIT_DRAW: float = 56.0
-## Depths: above the backdrop's lights and the mode models' glow, below the chosen model; the upper strap is behind the logo.
-const CARD_Z: int = 9
+## Depths: the back strap and the upper straps are behind the logo (the logo is above `STRAP_Z`); the card is above the backdrop's lights
+## and the mode models' glow, below the chosen model; the front strap is above the card.
 const STRAP_Z: int = 1
-## The sway: how far (degrees), how fast, and the part of the card (its slot) it swings about.
-const SWAY_DEGREES: float = 1.4
-const SWAY_SPEED: float = 0.9
+const CARD_Z: int = 9
+const FRONT_Z: int = 10
+## How long the front strap's end over the card is: the slot is 22 px down, so this reaches about 50 px above the card.
+const CAP_LENGTH: float = 76.0
+## The swing: the whole tag turns about the top of its straps by at most this many degrees, once every `SWAY_SECONDS` (very slow), and
+## the card trails its straps by `LAG` radians of that cycle with `LAG_DEGREES` of its own turn about the slot.
+const SWAY_DEGREES: float = 1.5
+const SWAY_SECONDS: float = 9.0
+const LAG: float = 0.7
+const LAG_DEGREES: float = 0.9
+## The card shrinks a little while it is pressed.
+const PRESS_SCALE: float = 0.97
 
-## The card swings while the screen idles; the screen turns it off under a page or a sheet.
+## The tag swings while the screen idles; the screen turns it off under a page or a sheet.
 var swing: bool = true:
 	set(value):
 		swing = value
-		if not value and card != null:
-			card.rotation = 0.0
+		if not value:
+			_rest()
 var card: Control
 var greeting_label: Label
 var name_label: Label
-var edit_button: Button
-var strap: ColorRect
+## The whole card is the button: a tap on it opens the profile sheet.
+var tap_button: Button
+var strap: Control
+var front_strap: ColorRect
+var back_strap: ColorRect
+## The short end of the front strap that lies over the card (the rest of it is behind the logo).
+var front_cap: ColorRect
 var slot: Panel
-var _strap_end: ColorRect
 var _name: String = ""
+var _base_scale: float = 1.0
+var _press: float = 1.0
+var _press_tween: Tween
 
 
 func _init() -> void:
 	name = "NameTag"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	strap = ColorRect.new()
+	# the straps: the back one behind the card, the front one over it, both ending at the middle of the slot
+	strap = Control.new()
 	strap.name = "Lanyard"
-	strap.color = STRAP_COLOR
 	strap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	strap.z_as_relative = false
-	strap.z_index = STRAP_Z
 	add_child(strap)
+	back_strap = _strap_piece("BackStrap", STRAP_BACK_COLOR, STRAP_Z, false)
+	strap.add_child(back_strap)
 	card = Control.new()
 	card.name = "Card"
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -80,19 +100,14 @@ func _init() -> void:
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_theme_stylebox_override("panel", _slot_style())
 	card.add_child(slot)
-	# the end of the strap goes into the slot: on the card, so it swings with it
-	_strap_end = ColorRect.new()
-	_strap_end.name = "StrapEnd"
-	_strap_end.color = STRAP_COLOR
-	_strap_end.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(_strap_end)
 	var words: VBoxContainer = VBoxContainer.new()
 	words.name = "Words"
 	words.add_theme_constant_override("separation", 0)
+	words.alignment = BoxContainer.ALIGNMENT_CENTER
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	words.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	words.offset_top = SLOT_MIDDLE + SLOT_SIZE.y / 2.0 + 8.0
-	words.offset_bottom = -6.0
+	words.offset_top = SLOT_MIDDLE + SLOT_SIZE.y / 2.0 + 4.0
+	words.offset_bottom = -8.0
 	words.offset_left = CARD_SIDE_PAD
 	words.offset_right = -CARD_SIDE_PAD
 	card.add_child(words)
@@ -106,49 +121,94 @@ func _init() -> void:
 	greeting_label.add_theme_constant_override("outline_size", 0)
 	greeting_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	words.add_child(greeting_label)
-	var row: HBoxContainer = HBoxContainer.new()
-	row.name = "NameRow"
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 6)
-	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_child(row)
 	name_label = Label.new()
 	name_label.name = "PlayerName"
 	name_label.theme_type_variation = &"DisplayLabel"
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_label.add_theme_color_override("font_color", INK)
 	name_label.add_theme_constant_override("outline_size", 0)
-	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(name_label)
-	edit_button = Button.new()
-	edit_button.name = "EditButton"
-	edit_button.accessibility_name = "Edit name"
-	edit_button.flat = true
-	edit_button.focus_mode = Control.FOCUS_ALL
-	edit_button.custom_minimum_size = Vector2.ONE * EDIT_HIT
-	edit_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	name_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	words.add_child(name_label)
+	# the front strap goes over the top edge of the card down into the slot
+	front_strap = _strap_piece("FrontStrap", STRAP_FRONT_COLOR, STRAP_Z, true)
+	strap.add_child(front_strap)
+	front_cap = _strap_piece("FrontCap", STRAP_FRONT_COLOR, FRONT_Z, true)
+	strap.add_child(front_cap)
+	# the whole card is the button (over the words, under the front strap's edge)
+	tap_button = Button.new()
+	tap_button.name = "TapButton"
+	tap_button.flat = true
+	tap_button.focus_mode = Control.FOCUS_ALL
+	tap_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
-		edit_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
-	edit_button.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_L))
-	var pencil: PencilIcon = PencilIcon.new()
-	pencil.name = "Pencil"
-	pencil.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pencil.size = Vector2.ONE * EDIT_DRAW
-	pencil.position = (Vector2.ONE * EDIT_HIT - pencil.size) / 2.0
-	edit_button.add_child(pencil)
-	UiKit.feel_press(edit_button)
-	edit_button.pressed.connect(edit_pressed.emit)
-	row.add_child(edit_button)
+		tap_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	tap_button.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_L))
+	tap_button.button_down.connect(_press_to.bind(PRESS_SCALE, 0.08))
+	tap_button.button_up.connect(_press_to.bind(1.0, 0.16))
+	tap_button.pressed.connect(tapped.emit)
+	card.add_child(tap_button)
 	set_player_name(Session.player_name if not Session.player_name.is_empty() else Session.DEFAULT_NAME)
+
+
+## One strap of the lanyard: a black band with its bottom end at the middle of the slot (this node's origin), leaning `STRAP_SPREAD` degrees
+## to one side. `front` is the one that leans left and carries the lighter edge.
+func _strap_piece(piece_name: String, color: Color, depth: int, front: bool) -> ColorRect:
+	var band: ColorRect = ColorRect.new()
+	band.name = piece_name
+	band.color = color
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.z_as_relative = false
+	band.z_index = depth
+	if front:
+		for side: float in [0.0, 1.0]:
+			var edge: ColorRect = ColorRect.new()
+			edge.name = "Edge"
+			edge.color = STRAP_EDGE
+			edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			edge.anchor_left = 0.0 if side == 0.0 else 1.0
+			edge.anchor_right = edge.anchor_left
+			edge.anchor_top = 0.0
+			edge.anchor_bottom = 1.0
+			edge.offset_left = 0.0 if side == 0.0 else -STRAP_EDGE_WIDTH
+			edge.offset_right = STRAP_EDGE_WIDTH if side == 0.0 else 0.0
+			edge.offset_top = 0.0
+			edge.offset_bottom = 0.0
+			band.add_child(edge)
+	return band
 
 
 func _process(_delta: float) -> void:
 	if not swing or Settings.reduced_motion or not is_visible_in_tree():
-		if card.rotation != 0.0:
-			card.rotation = 0.0
+		_rest()
 		return
-	card.rotation = deg_to_rad(SWAY_DEGREES) * sin(float(Time.get_ticks_msec()) / 1000.0 * SWAY_SPEED * TAU / 2.0)
+	var phase: float = float(Time.get_ticks_msec()) / 1000.0 * TAU / SWAY_SECONDS
+	rotation = deg_to_rad(SWAY_DEGREES) * sin(phase)
+	card.rotation = deg_to_rad(LAG_DEGREES) * sin(phase - LAG)
+
+
+func _rest() -> void:
+	if card != null and (rotation != 0.0 or card.rotation != 0.0):
+		rotation = 0.0
+		card.rotation = 0.0
+
+
+func _press_to(target: float, seconds: float) -> void:
+	if is_instance_valid(_press_tween):
+		_press_tween.kill()
+	if Settings.reduced_motion or not is_inside_tree():
+		_press = target
+		_apply_scale()
+		return
+	_press_tween = create_tween()
+	_press_tween.tween_method(func(value: float) -> void:
+		_press = value
+		_apply_scale(), _press, target, seconds)
+
+
+func _apply_scale() -> void:
+	card.scale = Vector2.ONE * _base_scale * _press
 
 
 ## Shows `text` as the name (in capitals, like a printed tag; empty shows the default name).
@@ -159,8 +219,10 @@ func set_player_name(text: String) -> void:
 	var shown: String = _name.to_upper()
 	name_label.text = shown
 	accessibility_name = "Hi! I'm %s" % _name
+	tap_button.accessibility_name = "Hi! I'm %s" % _name
+	tap_button.accessibility_description = "Tap to change your name"
 	# the biggest letters whose name still fits the widest card
-	var room: float = CARD_MAX_WIDTH - CARD_SIDE_PAD * 2.0 - EDIT_HIT - 6.0
+	var room: float = CARD_MAX_WIDTH - CARD_SIDE_PAD * 2.0
 	var letters: int = UiMetrics.BODY  # the smallest of NAME_SIZES, for a name too long for any
 	var font: Font = name_label.get_theme_font("font")
 	for candidate: int in NAME_SIZES:
@@ -169,8 +231,7 @@ func set_player_name(text: String) -> void:
 			break
 	name_label.add_theme_font_size_override("font_size", letters)
 	var name_width: float = font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1.0, letters).x
-	var width: float = clampf(name_width + EDIT_HIT + 6.0 + CARD_SIDE_PAD * 2.0, CARD_MIN_WIDTH, CARD_MAX_WIDTH)
-	_fit(width)
+	_fit(clampf(name_width + CARD_SIDE_PAD * 2.0, CARD_MIN_WIDTH, CARD_MAX_WIDTH))
 
 
 ## The name shown now (as typed, not in capitals).
@@ -185,19 +246,33 @@ func _fit(width: float) -> void:
 	card.pivot_offset = Vector2(width / 2.0, SLOT_MIDDLE)
 	slot.size = SLOT_SIZE
 	slot.position = Vector2((width - SLOT_SIZE.x) / 2.0, SLOT_MIDDLE - SLOT_SIZE.y / 2.0)
-	# the strap's end enters the slot from the top edge of the card down to the middle of the slot
-	_strap_end.size = Vector2(STRAP_WIDTH, SLOT_MIDDLE)
-	_strap_end.position = Vector2((width - STRAP_WIDTH) / 2.0, 0.0)
 
 
 ## Hangs the card with the middle of its slot at `hole` (this node's parent's pixels), and the lanyard up to `top` (the same pixels,
-## above the screen). `card_scale` shrinks the card on a short phone; the lanyard keeps its width.
+## above the screen). `card_scale` shrinks the card on a short phone; the lanyard keeps its width. The whole tag swings about the top
+## of the straps.
 func hang(hole: Vector2, top: float, card_scale: float = 1.0) -> void:
 	position = hole
-	card.scale = Vector2.ONE * card_scale
-	var length: float = hole.y - top
-	strap.size = Vector2(STRAP_WIDTH, maxf(length, 0.0))
-	strap.position = Vector2(-STRAP_WIDTH / 2.0, -length)
+	_base_scale = card_scale
+	_apply_scale()
+	var length: float = maxf(hole.y - top, 1.0)
+	pivot_offset = Vector2(0.0, -length)
+	# each strap is long enough to leave the screen after leaning
+	var reach: float = length / cos(deg_to_rad(STRAP_SPREAD)) + STRAP_WIDTH
+	for piece: ColorRect in [front_strap, back_strap]:
+		_lay_strap(piece, reach)
+	# the front strap's end, over the card: from the slot to a little above the card's top edge
+	_lay_strap(front_cap, minf(CAP_LENGTH * card_scale, reach))
+	front_strap.rotation = deg_to_rad(-STRAP_SPREAD)
+	front_cap.rotation = front_strap.rotation
+	back_strap.rotation = deg_to_rad(STRAP_SPREAD)
+
+
+## A strap `length` long standing on the middle of the slot (its bottom end), before it leans.
+func _lay_strap(piece: ColorRect, length: float) -> void:
+	piece.size = Vector2(STRAP_WIDTH, length)
+	piece.position = Vector2(-STRAP_WIDTH / 2.0, -length)
+	piece.pivot_offset = Vector2(STRAP_WIDTH / 2.0, length)
 
 
 static func _paper_style() -> StyleBoxFlat:
