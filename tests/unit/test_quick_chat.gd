@@ -49,5 +49,6 @@ func test_a_phrase_shows_in_a_bubble_over_the_kid_and_fades_away() -> void:
 
 func test_the_hand_uses_the_owners_pictures() -> void:
 	assert_almost_eq(HandArt.ice().get_size().x / HandArt.ice().get_size().y, HandArt.ICE_ASPECT, 0.03, "the ice water bag keeps its shape")
+	assert_lt(HandArt.ICE_DRAW_ASPECT, HandArt.ICE_ASPECT, "but is drawn a little narrower, it looked stretched sideways on the cards")
 	assert_almost_eq(HandArt.chat().get_size().x / HandArt.chat().get_size().y, HandArt.CHAT_ASPECT, 0.03)
 	assert_false(FileAccess.get_file_as_string("res://scripts/ui/hud/card_style.gd").contains("draw_drop"), "the drop is gone: the bag stands for ice water")
