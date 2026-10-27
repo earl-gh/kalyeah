@@ -2,8 +2,9 @@ class_name LarongKalye
 extends Resource
 ## The Filipino street game of every month (larong kalye), taught from the calendar icon on the main screen so kids can play the real
 ## thing in the street or the backyard. Text only: it never affects play. The data is `data/rules/larong_kalye.tres`, written by
-## `tools/data/make_larong_kalye.py`. Each game is a Dictionary: month, name, also, players_min, players_max, time, place, items,
-## goal, setup, how, rules, win, safety, twist.
+## `tools/data/make_larong_kalye.py`. Each game is a Dictionary: month, name, also (another name, may be empty), players_min,
+## players_max, time, place, items, goal, setup, how, rules, safety. The words are short on purpose (Clash style: verbs first, about
+## eight words a line).
 
 const MONTH_NAMES: PackedStringArray = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 

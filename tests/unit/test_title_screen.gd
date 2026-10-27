@@ -702,7 +702,8 @@ func test_the_calendar_opens_this_months_game_and_the_envelope_the_donate_sheet(
 	assert_true(screen.dialog.is_open)
 	var month: int = int(Time.get_date_dict_from_system()["month"])
 	var games: LarongKalye = load(GameOfMonthSheet.GAMES_PATH) as LarongKalye
-	assert_eq(screen.dialog.title_label.text, String(games.for_month(month)["name"]), "this month's game")
+	assert_eq(screen.dialog.title_label.text, "Game of the Month")
+	assert_eq((screen.dialog.find_child("GameName", true, false) as Label).text, String(games.for_month(month)["name"]), "this month's game")
 	screen.dialog.close(false)
 	screen.mail_button.pressed.emit()
 	assert_eq(screen.dialog.name, "DonateSheet")

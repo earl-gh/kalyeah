@@ -1,7 +1,6 @@
 keys,en
 %dv%d · First to %d,%dv%d · First to %d
 "%s is coming soon! For now, Agawan Base is the only street open.","%s is coming soon! For now, Agawan Base is the only street open."
-%s · Game of the month,%s · Game of the month
 %s × %d,%s × %d
 "%s, %s: read about this weapon","%s, %s: read about this weapon"
 %s: read about this kid,%s: read about this kid
@@ -60,6 +59,7 @@ Code pasted!,Code pasted!
 Colour-blind colours,Colour-blind colours
 Comfort,Comfort
 Coming soon,Coming soon
+Coming soon!,Coming soon!
 "Connect to the same Wi-Fi or hotspot as your friend, then tap Try again.","Connect to the same Wi-Fi or hotspot as your friend, then tap Try again."
 Connecting…,Connecting…
 "Connection lost
@@ -78,7 +78,6 @@ DEFEAT,DEFEAT
 Defeat,Defeat
 DEFEND YOUR BASE!,DEFEND YOUR BASE!
 Donate,Donate
-Donations open soon. Thank you for the love!,Donations open soon. Thank you for the love!
 Done,Done
 Edit profile,Edit profile
 Eight letters and numbers,Eight letters and numbers
@@ -96,6 +95,7 @@ Get your whole team into the enemy base and hold it for %s seconds with no defen
 GO!,GO!
 Good luck!,Good luck!
 Got it,Got it
+Got it!,Got it!
 Gunting · Heavy,Gunting · Heavy
 Gunting · Light,Gunting · Light
 Hair,Hair
@@ -210,7 +210,6 @@ Street,Street
 STUNNED,STUNNED
 Stunned,Stunned
 Suggested: %s,Suggested: %s
-Support Kalyeah,Support Kalyeah
 Swipe or use the arrow keys to change,Swipe or use the arrow keys to change
 TAG THEIR BASE!,TAG THEIR BASE!
 Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d s frees the first one tagged!,Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d s frees the first one tagged!
