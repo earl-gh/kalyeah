@@ -58,6 +58,8 @@ const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 36.0
 ## The cards sit this far above the bottom of their stage, so the name, its phrase and the buttons stay close under them.
 const HERO_BOTTOM_GAP: float = 14.0
+## How far the mode's phrase is pulled up towards the platform above it (owner: closer to the model).
+const PHRASE_PULL: float = 18.0
 ## The gap between the phrase and the dots under it (negative: they are pulled together).
 const TITLES_SEPARATION: int = -10
 ## How far the backlight reaches round the chosen card (times the card's height).
@@ -380,7 +382,15 @@ func _build_titles() -> Control:
 	mode_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mode_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mode_text_label.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
-	titles.add_child(mode_text_label)
+	# the phrase is pulled up under the platform: its holder is this much shorter than the line, and the line starts above it
+	var phrase_holder: Control = Control.new()
+	phrase_holder.name = "PhraseHolder"
+	phrase_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mode_text_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	phrase_holder.add_child(mode_text_label)
+	mode_text_label.minimum_size_changed.connect(_pull_phrase_up)
+	mode_text_label.resized.connect(_pull_phrase_up)
+	titles.add_child(phrase_holder)
 	mode_chips = HBoxContainer.new()
 	mode_chips.name = "ModeChips"
 	mode_chips.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -576,6 +586,15 @@ func _aim_backlight() -> void:
 	var card: Button = carousel.cards[carousel.index]
 	var centre: Vector2 = backdrop.get_global_transform().affine_inverse() * card.get_global_rect().get_center()
 	backdrop.aim_backlight(centre, card.size.y * BACKLIGHT_REACH)
+
+
+## Keeps the phrase's line `PHRASE_PULL` above its holder, and the holder as tall as what is left, so the dots follow it up.
+func _pull_phrase_up() -> void:
+	var line: float = mode_text_label.get_combined_minimum_size().y
+	var holder: Control = mode_text_label.get_parent() as Control
+	holder.custom_minimum_size.y = maxf(line - PHRASE_PULL, 0.0)
+	mode_text_label.offset_top = -PHRASE_PULL
+	mode_text_label.offset_bottom = line - PHRASE_PULL
 
 
 ## The name written on the platform of the chosen model.
