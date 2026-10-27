@@ -39,8 +39,6 @@ const SLOT_OPEN_BOTTOM: Color = Color("587a9e")
 ## are for a strip `STRIP_DESIGN` wide; with a bigger margin they all scale by what is left over (`_content_fit`).
 const SIDE_MARGIN: float = 90.0
 const OPEN_WIDTH: float = 220.0
-## The padding left and right inside every tab's slot (design pixels): the lit slot stands this far in from its neighbours.
-const TAB_PADDING: float = 8.0
 const STRIP_DESIGN: float = 640.0
 ## The dark top edge (with a thin light line under it) and the lines between the slots, in design pixels.
 const EDGE_COLOR: Color = Color("0c1a36")
@@ -107,17 +105,15 @@ func _draw() -> void:
 		return
 	var scale_to: float = size.x / 720.0
 	var top_y: float = BAR_TOP * scale_to
-	# the whole bar, margins included, is an idle tab's colour; every tab's slot is drawn inside it with a little padding left and
-	# right, so the lit one stands in the bar instead of filling it edge to edge
+	# the whole bar, margins included, is an idle tab's colour; every tab's slot is drawn over it, the lit one across its whole width
 	draw_polygon(PackedVector2Array([Vector2(0.0, top_y), Vector2(size.x, top_y), Vector2(size.x, size.y), Vector2(0.0, size.y)]), PackedColorArray([SLOT_IDLE_TOP, SLOT_IDLE_TOP, SLOT_IDLE_BOTTOM, SLOT_IDLE_BOTTOM]))
-	var pad: float = TAB_PADDING * scale_to
 	for i: int in _order.size():
 		var open: float = _openness[_order[i]]
 		var top: Color = SLOT_IDLE_TOP.lerp(SLOT_OPEN_TOP, open)
 		var bottom: Color = SLOT_IDLE_BOTTOM.lerp(SLOT_OPEN_BOTTOM, open)
 		var x: float = _slot_x[i]
 		var slot: float = _slot_w[i]
-		draw_polygon(PackedVector2Array([Vector2(x + pad, top_y), Vector2(x + slot - pad, top_y), Vector2(x + slot - pad, size.y), Vector2(x + pad, size.y)]), PackedColorArray([top, top, bottom, bottom]))
+		draw_polygon(PackedVector2Array([Vector2(x, top_y), Vector2(x + slot, top_y), Vector2(x + slot, size.y), Vector2(x, size.y)]), PackedColorArray([top, top, bottom, bottom]))
 		draw_rect(Rect2(x - DIVIDER_WIDTH * scale_to / 2.0, top_y, DIVIDER_WIDTH * scale_to, size.y - top_y), DIVIDER_COLOR)
 	if not _order.is_empty():
 		var end: float = _slot_x[_order.size() - 1] + _slot_w[_order.size() - 1]
