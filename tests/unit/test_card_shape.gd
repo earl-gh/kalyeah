@@ -105,7 +105,7 @@ func test_the_card_group_is_centred_between_the_logo_and_the_bar() -> void:
 	assert_almost_eq(above, below, 24.0, "as much room above the card as under the buttons (%.0f above, %.0f below)" % [above, below])
 
 
-func test_the_mode_cards_are_worn_old_teks_cards_each_wearing_differently() -> void:
+func test_the_mode_cards_are_old_teks_cards_worn_at_the_corners_each_differently() -> void:
 	var strip: MenuCarousel = autofree(MenuCarousel.new()) as MenuCarousel
 	strip.show_rim = false
 	strip.size = Vector2(720.0, 700.0)
@@ -121,15 +121,18 @@ func test_the_mode_cards_are_worn_old_teks_cards_each_wearing_differently() -> v
 	for card: Button in strip.cards:
 		var face: CardFace = card.get_node("Face") as CardFace
 		var picture: TextureRect = face.get_node("Picture") as TextureRect
-		assert_true(picture.material is ShaderMaterial, "the picture is worn by a shader (brown paper at the sides, creases, grain)")
+		assert_true(picture.material is ShaderMaterial, "the picture is worn by a shader (brown paper at the corners, grain)")
 		assert_eq((picture.material as ShaderMaterial).shader.resource_path, "res://shaders/card_picture.gdshader")
 		assert_eq(picture.texture, face.texture)
 		assert_eq((picture.material as ShaderMaterial).get_shader_parameter("rect_size"), face.size, "the shader knows the card's size")
 		seeds[(picture.material as ShaderMaterial).get_shader_parameter("seed")] = true
-		assert_not_null(face.get_node("Shade"), "the coloured shade has its own worn edge")
+		assert_not_null(face.get_node("Shade"), "the coloured shade stops at the worn corners")
 		assert_eq((face.get_node("PowerLine") as CardPowerLine).text, "POWER %d" % face.power)
 	assert_eq(seeds.size(), 3, "every card wears differently")
 	var order: Array[String] = []
 	for child: Node in strip.cards[1].get_node("Face").get_children():
 		order.append(child.name)
-	assert_eq(order, ["Picture", "PowerLine", "Shade"] as Array[String], "picture, then the power line, then the shade over it")
+	assert_eq(order, ["Picture", "PowerLine", "Shade", "Tint"] as Array[String], "picture, then the power line, then the shade over it, then the yellowish tint over all")
+	var tint: ColorRect = strip.cards[1].get_node("Face/Tint") as ColorRect
+	assert_lte(tint.color.a, 0.1, "a super subtle tint")
+	assert_gt(tint.color.r + tint.color.g, tint.color.b * 2.0, "yellowish")

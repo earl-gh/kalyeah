@@ -1,12 +1,15 @@
 class_name CardFace
 extends Control
 ## A mode card drawn as an old Filipino teks card floating over the table (straight, flat, no coloured outline: owner): a soft
-## shadow well below it, then the picture worn and creased with the brown paper showing at its sides and corners (shader
-## `card_picture`), then the power line up the right edge, then the mode-coloured shade at the bottom (shader `card_shade`, which
-## wears away at the same edges). The card's own button draws nothing behind it.
+## shadow well below it, then the picture with its print worn away to brown paper at the corners (shader `card_picture`, one
+## layer only), then the power line up the right edge, then the mode-coloured shade at the bottom (shader `card_shade`, which
+## wears away at the same corners), then a super subtle yellowish tint over all of it to make it look old. The card's own
+## button draws nothing behind it.
 
 const PICTURE_SHADER: Shader = preload("res://shaders/card_picture.gdshader")
 const SHADE_SHADER: Shader = preload("res://shaders/card_shade.gdshader")
+## The yellowish tint over the whole card (super subtle: owner).
+const AGE_TINT: Color = Color(1.0, 0.86, 0.45, 0.07)
 ## Square corners, like a teks card (owner).
 const RADIUS: float = 0.0
 ## The power line at the bottom of the right edge, turned -90 degrees (reading upwards), like a teks card's: white letters with a
@@ -94,6 +97,12 @@ func _init() -> void:
 	_shade_material.set_shader_parameter("seed", wear_seed)
 	_shade.material = _shade_material
 	add_child(_shade)
+	var tint: ColorRect = ColorRect.new()
+	tint.name = "Tint"
+	tint.color = AGE_TINT
+	tint.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(tint)
 
 
 func _notification(what: int) -> void:
