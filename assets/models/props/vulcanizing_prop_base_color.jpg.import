@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://daavjsbmatqo8"
-path="res://.godot/imported/vulcanizing_prop_base_color.jpg-b162f6ff48eadac13f27eeddae3e900f.ctex"
+path.s3tc="res://.godot/imported/vulcanizing_prop_base_color.jpg-b162f6ff48eadac13f27eeddae3e900f.s3tc.ctex"
+path.etc2="res://.godot/imported/vulcanizing_prop_base_color.jpg-b162f6ff48eadac13f27eeddae3e900f.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "17e02166765185316e1e3a9515d8ec7e"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/props/vulcanizing_prop_base_color.jpg"
-dest_files=["res://.godot/imported/vulcanizing_prop_base_color.jpg-b162f6ff48eadac13f27eeddae3e900f.ctex"]
+dest_files=["res://.godot/imported/vulcanizing_prop_base_color.jpg-b162f6ff48eadac13f27eeddae3e900f.s3tc.ctex", "res://.godot/imported/vulcanizing_prop_base_color.jpg-b162f6ff48eadac13f27eeddae3e900f.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

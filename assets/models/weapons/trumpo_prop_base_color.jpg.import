@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bvav5xm48feg8"
-path="res://.godot/imported/trumpo_prop_base_color.jpg-c5803556613685cfcdd4d6ee15efc8fc.ctex"
+path.s3tc="res://.godot/imported/trumpo_prop_base_color.jpg-c5803556613685cfcdd4d6ee15efc8fc.s3tc.ctex"
+path.etc2="res://.godot/imported/trumpo_prop_base_color.jpg-c5803556613685cfcdd4d6ee15efc8fc.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "579d41fc5a7c5fbce3b80b5a443e30bf"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/weapons/trumpo_prop_base_color.jpg"
-dest_files=["res://.godot/imported/trumpo_prop_base_color.jpg-c5803556613685cfcdd4d6ee15efc8fc.ctex"]
+dest_files=["res://.godot/imported/trumpo_prop_base_color.jpg-c5803556613685cfcdd4d6ee15efc8fc.s3tc.ctex", "res://.godot/imported/trumpo_prop_base_color.jpg-c5803556613685cfcdd4d6ee15efc8fc.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

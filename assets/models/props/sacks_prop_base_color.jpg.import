@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://du1ld7f3ijj53"
-path="res://.godot/imported/sacks_prop_base_color.jpg-a8fd9a66f897701c8b104633d63fa323.ctex"
+path.s3tc="res://.godot/imported/sacks_prop_base_color.jpg-a8fd9a66f897701c8b104633d63fa323.s3tc.ctex"
+path.etc2="res://.godot/imported/sacks_prop_base_color.jpg-a8fd9a66f897701c8b104633d63fa323.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "f7e373664ea64d82d64b0ae725d2c914"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/props/sacks_prop_base_color.jpg"
-dest_files=["res://.godot/imported/sacks_prop_base_color.jpg-a8fd9a66f897701c8b104633d63fa323.ctex"]
+dest_files=["res://.godot/imported/sacks_prop_base_color.jpg-a8fd9a66f897701c8b104633d63fa323.s3tc.ctex", "res://.godot/imported/sacks_prop_base_color.jpg-a8fd9a66f897701c8b104633d63fa323.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

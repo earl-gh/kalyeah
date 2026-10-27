@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b362c0a1bgy1p"
-path="res://.godot/imported/ebike_prop_base_color.jpg-05683ded1b32103b7a4ac0128283212d.ctex"
+path.s3tc="res://.godot/imported/ebike_prop_base_color.jpg-05683ded1b32103b7a4ac0128283212d.s3tc.ctex"
+path.etc2="res://.godot/imported/ebike_prop_base_color.jpg-05683ded1b32103b7a4ac0128283212d.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "332c1dbf49bfb5e65247b81bb996d911"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/props/ebike_prop_base_color.jpg"
-dest_files=["res://.godot/imported/ebike_prop_base_color.jpg-05683ded1b32103b7a4ac0128283212d.ctex"]
+dest_files=["res://.godot/imported/ebike_prop_base_color.jpg-05683ded1b32103b7a4ac0128283212d.s3tc.ctex", "res://.godot/imported/ebike_prop_base_color.jpg-05683ded1b32103b7a4ac0128283212d.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://boxuag6j0ybhw"
-path="res://.godot/imported/nanay_prop_base_color.jpg-69059b5fc12eb91dd61fe4bdbea1e716.ctex"
+path.s3tc="res://.godot/imported/nanay_prop_base_color.jpg-69059b5fc12eb91dd61fe4bdbea1e716.s3tc.ctex"
+path.etc2="res://.godot/imported/nanay_prop_base_color.jpg-69059b5fc12eb91dd61fe4bdbea1e716.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "98c2de48ee58a8d3ffb7229e644231c2"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/props/nanay_prop_base_color.jpg"
-dest_files=["res://.godot/imported/nanay_prop_base_color.jpg-69059b5fc12eb91dd61fe4bdbea1e716.ctex"]
+dest_files=["res://.godot/imported/nanay_prop_base_color.jpg-69059b5fc12eb91dd61fe4bdbea1e716.s3tc.ctex", "res://.godot/imported/nanay_prop_base_color.jpg-69059b5fc12eb91dd61fe4bdbea1e716.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

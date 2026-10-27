@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dowxu7buu4v1v"
-path="res://.godot/imported/popoy_0.png-e4f10241ac43e3076e282ed12505601c.ctex"
+path.s3tc="res://.godot/imported/popoy_0.png-e4f10241ac43e3076e282ed12505601c.s3tc.ctex"
+path.etc2="res://.godot/imported/popoy_0.png-e4f10241ac43e3076e282ed12505601c.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "c6fcf35d9e08bd0b9f999d9487a5a55c"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/characters/popoy_0.png"
-dest_files=["res://.godot/imported/popoy_0.png-e4f10241ac43e3076e282ed12505601c.ctex"]
+dest_files=["res://.godot/imported/popoy_0.png-e4f10241ac43e3076e282ed12505601c.s3tc.ctex", "res://.godot/imported/popoy_0.png-e4f10241ac43e3076e282ed12505601c.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
