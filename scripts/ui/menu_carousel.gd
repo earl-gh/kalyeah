@@ -63,6 +63,7 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		if face != null:
 			face.accent = Color(String(option.get("accent", "ffd25a")))
 			face.power = int(option.get("power", 0))
+			face.wear_seed = float(cards.size() + 1)
 		add_child(card)
 		cards.append(card)
 	if accessibility_name.is_empty():

@@ -1,9 +1,12 @@
 class_name CardFace
 extends Control
-## A mode card's picture drawn as a flat, straight card floating over the table: the picture on its outline (`CardShape`) and a
-## soft shadow well below it (no thickness and no coloured outline: owner). The card's own button draws nothing behind it.
+## A mode card drawn as an old Filipino teks card floating over the table (straight, flat, no coloured outline: owner): a soft
+## shadow well below it, then the picture worn and creased with the brown paper showing at its sides and corners (shader
+## `card_picture`), then the power line up the right edge, then the mode-coloured shade at the bottom (shader `card_shade`, which
+## wears away at the same edges). The card's own button draws nothing behind it.
 
-const FACE_LINE: Color = Color(0.03, 0.05, 0.12, 0.85)
+const PICTURE_SHADER: Shader = preload("res://shaders/card_picture.gdshader")
+const SHADE_SHADER: Shader = preload("res://shaders/card_shade.gdshader")
 ## Square corners, like a teks card (owner).
 const RADIUS: float = 0.0
 ## The power line at the bottom of the right edge, turned -90 degrees (reading upwards), like a teks card's: white letters with a
@@ -20,7 +23,6 @@ const POWER_OUTLINE_SIZE: int = 7
 ## The coloured shade in front of the picture at the bottom of the card, in the mode's colour, behind the mode's name: how
 ## tall it is (share of the card's height) and how strong it is at the bottom.
 const SHADE_SHARE: float = 0.36
-const SHADE_ALPHA: float = 1.0
 ## The shadow: its layers, how far below the card it falls and how dark the whole of it is.
 const SHADOW_LAYERS: int = 7
 const SHADOW_DROP: Vector2 = Vector2(10.0, 40.0)
@@ -39,25 +41,64 @@ var lift: float = 0.0:
 var accent: Color = Color("4aa0ff"):
 	set(value):
 		accent = value
-		queue_redraw()
+		_shade_material.set_shader_parameter("accent", value)
 var power: int = 0:
 	set(value):
 		power = value
-		queue_redraw()
+		_power_line.text = UiText.f(POWER_FORMAT, [value]) if value > 0 else ""
+		_power_line.queue_redraw()
 var texture: Texture2D:
 	set(value):
 		texture = value
-		queue_redraw()
+		_picture.texture = value
+		_fit()
+## Each card wears differently: this number seeds the noise.
+var wear_seed: float = 1.0:
+	set(value):
+		wear_seed = value
+		_picture_material.set_shader_parameter("seed", value)
+		_shade_material.set_shader_parameter("seed", value)
+
+var _picture: TextureRect
+var _picture_material: ShaderMaterial
+var _power_line: CardPowerLine
+var _shade: ColorRect
+var _shade_material: ShaderMaterial
 
 
 func _init() -> void:
 	name = "Face"
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_picture = TextureRect.new()
+	_picture.name = "Picture"
+	_picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_picture.stretch_mode = TextureRect.STRETCH_SCALE
+	_picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_picture_material = ShaderMaterial.new()
+	_picture_material.shader = PICTURE_SHADER
+	_picture_material.set_shader_parameter("seed", wear_seed)
+	_picture.material = _picture_material
+	add_child(_picture)
+	_power_line = CardPowerLine.new()
+	add_child(_power_line)
+	_shade = ColorRect.new()
+	_shade.name = "Shade"
+	_shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_shade_material = ShaderMaterial.new()
+	_shade_material.shader = SHADE_SHADER
+	_shade_material.set_shader_parameter("share", SHADE_SHARE)
+	_shade_material.set_shader_parameter("accent", accent)
+	_shade_material.set_shader_parameter("seed", wear_seed)
+	_shade.material = _shade_material
+	add_child(_shade)
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
+		_fit()
 		queue_redraw()
 
 
@@ -73,21 +114,6 @@ func _draw() -> void:
 		for point: Vector2 in face:
 			shadow.append(centre + (point - centre) * grow + SHADOW_DROP + Vector2(0.0, SHADOW_BREATH * lift))
 		draw_colored_polygon(shadow, Color(0.0, 0.02, 0.08, SHADOW_ALPHA * (1.0 - 0.3 * lift)))
-	if texture == null:
-		draw_colored_polygon(face, Color("2c4685"))
-	else:
-		var flat: PackedVector2Array = CardShape.outline(size, radius)
-		var uvs: PackedVector2Array = PackedVector2Array()
-		var colors: PackedColorArray = PackedColorArray()
-		var cover: Vector2 = _cover_scale()
-		for point: Vector2 in flat:
-			uvs.append(Vector2(0.5 + (point.x / size.x - 0.5) * cover.x, 0.5 + (point.y / size.y - 0.5) * cover.y))
-			colors.append(Color.WHITE)
-		draw_polygon(face, colors, uvs, texture)
-	# the power line is drawn before the coloured shade, so the shade lies over it (owner)
-	_draw_power()
-	_draw_shade()
-	_outline(face, FACE_LINE, 2.0)
 
 
 ## The share of the picture the card shows across and down (the picture fills the card, the rest is cropped).
@@ -99,31 +125,9 @@ func _cover_scale() -> Vector2:
 	return Vector2(1.0, picture / card)
 
 
-func _outline(points: PackedVector2Array, color: Color, width: float) -> void:
-	var closed: PackedVector2Array = points.duplicate()
-	closed.append(points[0])
-	draw_polyline(closed, color, width, true)
-
-
-## The shade in front of the picture: clear at the top, the mode's colour at the bottom (the card is square-cornered, so it is a rectangle).
-func _draw_shade() -> void:
-	var top: float = size.y * (1.0 - SHADE_SHARE)
-	var clear: Color = Color(accent, 0.0)
-	var strong: Color = Color(accent, SHADE_ALPHA)
-	draw_polygon(PackedVector2Array([Vector2(0.0, top), Vector2(size.x, top), Vector2(size.x, size.y), Vector2(0.0, size.y)]), PackedColorArray([clear, clear, strong, strong]))
-
-
-## "POWER 9999" and the like up the bottom of the right edge, turned -90 degrees so it reads upwards, in white letters with a black outline.
-func _draw_power() -> void:
-	if power <= 0:
-		return
-	var font: Font = KalyeahTheme.BUTTON_FONT
-	var font_size: int = int(roundf(size.y * POWER_SIZE_SHARE))
-	var text: String = UiText.f(POWER_FORMAT, [power])
-	var ascent: float = font.get_ascent(font_size)
-	# the origin is the text's bottom left once it is turned: it runs up the card from there
-	var origin: Vector2 = Vector2(size.x - size.x * POWER_EDGE_SHARE - (font.get_height(font_size) - ascent), size.y - size.y * POWER_BOTTOM_SHARE)
-	draw_set_transform(origin, -PI / 2.0, Vector2.ONE)
-	draw_string_outline(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, POWER_OUTLINE_SIZE, POWER_OUTLINE)
-	draw_string(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, POWER_COLOR)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+## Tells the shaders the card's size and how the picture is cropped to it.
+func _fit() -> void:
+	for material: ShaderMaterial in [_picture_material, _shade_material]:
+		material.set_shader_parameter("rect_size", size)
+	if texture != null and size.y > 0.0:
+		_picture_material.set_shader_parameter("cover", _cover_scale())
