@@ -6,8 +6,8 @@ shader_type canvas_item;
 
 uniform vec2 cover = vec2(1.0); // the share of the picture shown across and down (it is cropped to fit the card)
 
-const vec3 TAN = vec3(0.86, 0.74, 0.55);   // the thin light paper under the ink (the first layer of wear)
-const vec3 CORE = vec3(0.52, 0.37, 0.24);  // the darker brown paperboard core beneath it (nearest the edge, owner: realistic)
+const vec3 TAN = vec3(0.7321, 0.63, 0.4682);   // the thin light paper under the ink (the first layer of wear): lightness grade 64 of 100
+const vec3 CORE = vec3(0.6359, 0.4525, 0.2935);  // the darker brown paperboard core beneath it (nearest the edge): lightness grade 48 of 100
 const vec3 FRINGE = vec3(0.80, 0.70, 0.56); // loose pale fibres on the very edge of a worn core
 
 void fragment() {
@@ -16,7 +16,8 @@ void fragment() {
 	// aged: grainy
 	float grain = 0.5 * value_noise(position * 0.9 + seed) + 0.5 * value_noise(position * 2.7 + seed * 2.0);
 	print *= 0.93 + 0.14 * grain;
-	float fibres = 0.82 + 0.18 * value_noise(vec2(position.x * 0.5, position.y * 0.07) + seed * 9.0) + 0.06 * value_noise(position * 1.3);
+	// (the fibre texture averages 1, so the layers keep their lightness grades)
+	float fibres = (0.82 + 0.18 * value_noise(vec2(position.x * 0.5, position.y * 0.07) + seed * 9.0) + 0.06 * value_noise(position * 1.3)) / 0.94;
 	vec2 layers = wear_layers(position);
 	vec3 brown = mix(CORE * fibres, TAN * (0.94 + 0.06 * fibres), layers.y);
 	// the very edge of the worn core frays: a pale fringe of loose fibres

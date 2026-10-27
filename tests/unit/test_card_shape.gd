@@ -163,3 +163,14 @@ func test_the_mode_name_and_its_phrase_are_white_with_a_black_outline() -> void:
 		assert_eq(label.get_theme_color("font_color"), Color.WHITE, "%s is white" % label.name)
 		assert_eq(label.get_theme_color("font_outline_color"), Color.BLACK, "%s has a black outline" % label.name)
 		assert_gt(label.get_theme_constant("outline_size"), 3, "%s: a real outline" % label.name)
+
+
+func test_the_two_worn_layers_have_the_owners_lightness_grades() -> void:
+	# lightness = perceived brightness of the base colour, 0 black to 100 white: layer 1 (thin paper) 64, layer 2 (core) 48
+	var source: String = FileAccess.get_file_as_string("res://shaders/card_picture.gdshader")
+	var grades: Dictionary = {"TAN": 64.0, "CORE": 48.0}
+	for layer: String in grades:
+		var found: RegExMatch = RegEx.create_from_string("const vec3 %s = vec3\\(([0-9.]+), ([0-9.]+), ([0-9.]+)\\)" % layer).search(source)
+		assert_not_null(found, "%s is in the shader" % layer)
+		var luma: float = 0.2126 * float(found.get_string(1)) + 0.7152 * float(found.get_string(2)) + 0.0722 * float(found.get_string(3))
+		assert_almost_eq(luma * 100.0, grades[layer], 0.6, "%s has lightness grade %d" % [layer, int(grades[layer])])
