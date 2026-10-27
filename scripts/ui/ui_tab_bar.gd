@@ -47,6 +47,22 @@ const EDGE_LIGHT: Color = Color(0.78, 0.86, 0.97, 0.5)
 const EDGE_LIGHT_HEIGHT: float = 2.0
 const DIVIDER_COLOR: Color = Color(0.04, 0.09, 0.2, 0.85)
 const DIVIDER_WIDTH: float = 3.0
+const DIVIDER_LIGHT: Color = Color(0.7, 0.8, 0.95, 0.16)
+const DIVIDER_LIGHT_WIDTH: float = 1.5
+## The depth: a shadow cast up from the bar over the screen, shades inside the bar, and the lit slot's sheen and outline.
+const SHADOW_HEIGHT: float = 36.0
+const SHADOW_COLOR: Color = Color(0.0, 0.02, 0.08, 0.5)
+const TOP_SHADE_HEIGHT: float = 14.0
+const TOP_SHADE_ALPHA: float = 0.32
+const BOTTOM_SHADE_HEIGHT: float = 30.0
+const BOTTOM_SHADE_ALPHA: float = 0.3
+const INNER_SHADE_WIDTH: float = 12.0
+const INNER_SHADE_ALPHA: float = 0.25
+const PICTURE_SHADOW_ALPHA: float = 0.3
+const PICTURE_SHADOW_SQUASH: float = 0.22
+const GLOSS_ALPHA: float = 0.26
+const LIT_OUTLINE: float = 2.0
+const LIT_OUTLINE_ALPHA: float = 0.45
 ## The time a change of tab takes (instant with Reduce motion).
 const GROW_TIME: float = 0.28
 
@@ -99,27 +115,70 @@ func _init(items: Array[Dictionary] = []) -> void:
 	resized.connect(_layout)
 
 
-## The slots, the dividers and the top edge, drawn in code (the open tab's slot lights smoothly as it opens).
+## The bar, drawn in code (the open tab's slot lights smoothly as it opens): a soft shadow cast up over the screen, the slots with
+## their depth (each edge shaded in, the lit one glossy and outlined), bevelled dividers, a dark top rim with a light line, and the
+## bottom fading darker.
 func _draw() -> void:
 	if _order.is_empty() or size.x <= 0.0 or _slot_x.size() != _order.size():
 		return
-	var scale_to: float = size.x / 720.0
-	var top_y: float = BAR_TOP * scale_to
+	var unit: float = size.x / 720.0
+	var top_y: float = BAR_TOP * unit
+	var height: float = size.y - top_y
+	_shade_down(Rect2(0.0, top_y - SHADOW_HEIGHT * unit, size.x, SHADOW_HEIGHT * unit), SHADOW_COLOR, true)
 	# the whole bar, margins included, is an idle tab's colour; every tab's slot is drawn over it, the lit one across its whole width
-	draw_polygon(PackedVector2Array([Vector2(0.0, top_y), Vector2(size.x, top_y), Vector2(size.x, size.y), Vector2(0.0, size.y)]), PackedColorArray([SLOT_IDLE_TOP, SLOT_IDLE_TOP, SLOT_IDLE_BOTTOM, SLOT_IDLE_BOTTOM]))
+	_fill(Rect2(0.0, top_y, size.x, height), SLOT_IDLE_TOP, SLOT_IDLE_BOTTOM)
 	for i: int in _order.size():
 		var open: float = _openness[_order[i]]
-		var top: Color = SLOT_IDLE_TOP.lerp(SLOT_OPEN_TOP, open)
-		var bottom: Color = SLOT_IDLE_BOTTOM.lerp(SLOT_OPEN_BOTTOM, open)
 		var x: float = _slot_x[i]
 		var slot: float = _slot_w[i]
-		draw_polygon(PackedVector2Array([Vector2(x, top_y), Vector2(x + slot, top_y), Vector2(x + slot, size.y), Vector2(x, size.y)]), PackedColorArray([top, top, bottom, bottom]))
-		draw_rect(Rect2(x - DIVIDER_WIDTH * scale_to / 2.0, top_y, DIVIDER_WIDTH * scale_to, size.y - top_y), DIVIDER_COLOR)
-	if not _order.is_empty():
-		var end: float = _slot_x[_order.size() - 1] + _slot_w[_order.size() - 1]
-		draw_rect(Rect2(end - DIVIDER_WIDTH * scale_to / 2.0, top_y, DIVIDER_WIDTH * scale_to, size.y - top_y), DIVIDER_COLOR)
-	draw_rect(Rect2(0.0, top_y, size.x, EDGE_HEIGHT * scale_to), EDGE_COLOR)
-	draw_rect(Rect2(0.0, top_y + EDGE_HEIGHT * scale_to, size.x, EDGE_LIGHT_HEIGHT * scale_to), EDGE_LIGHT)
+		var rect: Rect2 = Rect2(x, top_y, slot, height)
+		_fill(rect, SLOT_IDLE_TOP.lerp(SLOT_OPEN_TOP, open), SLOT_IDLE_BOTTOM.lerp(SLOT_OPEN_BOTTOM, open))
+		# the lit slot is glossy: a light sheen over its upper half, and a light outline down each side
+		_fill(Rect2(x, top_y, slot, height * 0.5), Color(1.0, 1.0, 1.0, GLOSS_ALPHA * open), Color(1.0, 1.0, 1.0, 0.0))
+		draw_rect(Rect2(x, top_y, LIT_OUTLINE * unit, height), Color(1.0, 1.0, 1.0, LIT_OUTLINE_ALPHA * open))
+		draw_rect(Rect2(x + slot - LIT_OUTLINE * unit, top_y, LIT_OUTLINE * unit, height), Color(1.0, 1.0, 1.0, LIT_OUTLINE_ALPHA * open))
+		# every slot's sides are shaded in a little, so the slots read as set into the bar
+		var inner: float = INNER_SHADE_WIDTH * unit
+		var strength: float = 1.0 - 0.6 * open
+		_shade_across(Rect2(x, top_y, inner, height), Color(0.0, 0.03, 0.1, INNER_SHADE_ALPHA * strength), true)
+		_shade_across(Rect2(x + slot - inner, top_y, inner, height), Color(0.0, 0.03, 0.1, INNER_SHADE_ALPHA * strength), false)
+	for i: int in _order.size() + 1:
+		var line: float = _slot_x[0] if i == 0 else _slot_x[i - 1] + _slot_w[i - 1]
+		draw_rect(Rect2(line - DIVIDER_WIDTH * unit / 2.0, top_y, DIVIDER_WIDTH * unit, height), DIVIDER_COLOR)
+		draw_rect(Rect2(line + DIVIDER_WIDTH * unit / 2.0, top_y, DIVIDER_LIGHT_WIDTH * unit, height), DIVIDER_LIGHT)
+	# a soft shadow under every picture (they are drawn after this, over it)
+	for id: StringName in _order:
+		var picture: TextureRect = _pictures[id]
+		var foot: Vector2 = tabs[id].position + picture.position + Vector2(picture.size.x / 2.0, picture.size.y * 0.9)
+		draw_set_transform(foot, 0.0, Vector2(1.0, PICTURE_SHADOW_SQUASH))
+		draw_circle(Vector2.ZERO, picture.size.x * 0.36, Color(0.0, 0.02, 0.08, PICTURE_SHADOW_ALPHA))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# the top: a dark rim, a light line under it, and a soft shade under that
+	draw_rect(Rect2(0.0, top_y, size.x, EDGE_HEIGHT * unit), EDGE_COLOR)
+	draw_rect(Rect2(0.0, top_y + EDGE_HEIGHT * unit, size.x, EDGE_LIGHT_HEIGHT * unit), EDGE_LIGHT)
+	_shade_down(Rect2(0.0, top_y + (EDGE_HEIGHT + EDGE_LIGHT_HEIGHT) * unit, size.x, TOP_SHADE_HEIGHT * unit), Color(0.0, 0.03, 0.1, TOP_SHADE_ALPHA), false)
+	# and the bottom grows darker
+	_shade_down(Rect2(0.0, size.y - BOTTOM_SHADE_HEIGHT * unit, size.x, BOTTOM_SHADE_HEIGHT * unit), Color(0.0, 0.02, 0.08, BOTTOM_SHADE_ALPHA), true)
+
+
+## A rectangle filled with a gradient from `top` to `bottom`.
+func _fill(rect: Rect2, top: Color, bottom: Color) -> void:
+	draw_polygon(PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]), PackedColorArray([top, top, bottom, bottom]))
+
+
+## A shade over a rectangle that is `color` at one end and clear at the other: `clear_at_top` true is clear at the top (it grows toward
+## the bottom), false is clear at the bottom.
+func _shade_down(rect: Rect2, color: Color, clear_at_top: bool) -> void:
+	var clear: Color = Color(color, 0.0)
+	_fill(rect, clear if clear_at_top else color, color if clear_at_top else clear)
+
+
+## The same sideways: `strong_at_left` true is strongest at the left edge and clear at the right.
+func _shade_across(rect: Rect2, color: Color, strong_at_left: bool) -> void:
+	var clear: Color = Color(color, 0.0)
+	var left: Color = color if strong_at_left else clear
+	var right: Color = clear if strong_at_left else color
+	draw_polygon(PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]), PackedColorArray([left, right, right, left]))
 
 
 ## One of the bar's pictures (&"street", &"cards", &"play", &"history", &"settings") as a texture of its own: the same art elsewhere, like the gear in a match.
