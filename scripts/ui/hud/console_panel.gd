@@ -1,6 +1,6 @@
 class_name ConsolePanel
 extends Control
-## The tray at the bottom of the match screen that the hand sits on (and the tagged panel, while you wait on the sidewalk): a bright blue tray drawn in code like Clash Royale's (owner), edge to edge. It only draws; it never takes a touch. The health colours and the heart are shared with the hand, which shows your health at the bar's end.
+## The tray at the bottom of the match screen that the hand sits on (and the tagged panel, while you wait on the sidewalk): a bright blue tray drawn in code like Clash Royale's (owner), edge to edge, as one smooth lit shape with no outline. It only draws; it never takes a touch. The health colours and the heart are shared with the hand, which shows your health at the bar's end.
 
 ## The bar keeps your own colour above this share of your health, turns amber below it and red below the second.
 const HEALTH_LOW: float = 0.5
@@ -26,33 +26,124 @@ static func draw_heart(canvas: CanvasItem, at: Vector2, radius: float, color: Co
 	canvas.draw_colored_polygon(PackedVector2Array([at + Vector2(-radius, -radius * 0.12), at + Vector2(radius, -radius * 0.12), at + Vector2(0.0, radius)]), color)
 
 
-## The tray's colours, from the Clash Royale reference: a dark navy outline, a light blue rim along the top, the bright blue body (lighter at
-## the top, darker toward the bottom of the screen) and its shades.
-const TRAY_OUTLINE: Color = Color(0.02, 0.12, 0.32)
-const TRAY_TOP: Color = Color(0.09, 0.58, 0.93)
+## The tray's colours, from the Clash Royale reference: the body's bright blue lightening a little at the top and darkening toward the bottom
+## of the screen, the light blue rim along the top (and, less, down the side beside the column) with a darker shade just under it. No
+## dark outline anywhere: the edge is the lit rim, anti-aliased by a one pixel fade.
+const TRAY_TOP: Color = Color(0.1, 0.6, 0.95)
 const TRAY_BODY: Color = Color(0.03, 0.5, 0.83)
-const TRAY_BOTTOM: Color = Color(0.02, 0.27, 0.6)
-const TRAY_RIM: Color = Color(0.36, 0.76, 1.0)
-const TRAY_HIGHLIGHT: Color = Color(1.0, 1.0, 1.0, 0.42)
-const OUTLINE: int = 3
-## Both top corners are slightly rounded (owner).
+const TRAY_BOTTOM: Color = Color(0.02, 0.21, 0.52)
+const TRAY_RIM_LIGHT: Color = Color(0.58, 0.85, 1.0)
+const TRAY_RIM: Color = Color(0.2, 0.66, 1.0)
+const TRAY_RIM_SHADE: Color = Color(0.0, 0.3, 0.62, 0.55)
+const TRAY_SIDE_SHADE: Color = Color(0.0, 0.12, 0.38, 0.3)
+## The shade the tray casts up onto the street (like the nav bar's).
+const TRAY_CAST: Color = Color(0.0, 0.02, 0.08, 0.4)
 const CORNER: int = UiSkin.RADIUS_M
-const RIM_HEIGHT: float = 6.0
-const HIGHLIGHT_HEIGHT: float = 2.0
-## Polish copied from the main menu's nav bar (`UiTabBar`): a soft shadow cast up over the street (its height and colour), a shade under the
-## rim, the sides shaded in a little and the bottom growing darker.
-const UNDER_RIM_HEIGHT: float = 12.0
-const UNDER_RIM_ALPHA: float = 0.3
-const SIDE_SHADE_WIDTH: float = 14.0
-const SIDE_SHADE_ALPHA: float = 0.22
-const BOTTOM_SHADE_HEIGHT: float = 40.0
-const BOTTOM_SHADE_ALPHA: float = 0.3
-## The body is TRAY_BODY this share of the way down.
-const BODY_AT: float = 0.4
+## How many segments a rounded top corner is drawn with.
+const ARC_STEPS: int = 10
+## The body's colour stops, as shares of the tray's height from its top: lighter at the top, the body blue, darkening from the middle.
+const BODY_STOPS: PackedFloat32Array = [0.0, 0.2, 0.5, 1.0]
+## The light rim is this wide and rolls over into the shade under it over the next `RIM_ROLL`; the shade fades out by `INSET` (every layer
+## that follows the edge stays inside this distance, so it is smaller than the corner's radius).
+const RIM_WIDTH: float = 5.0
+const RIM_ROLL: float = 1.5
+const INSET: float = CORNER - 2.0
+## The rim and the side shade are this share as strong along the tray's straight side as on its top.
+const RIM_SIDE_SHARE: float = 0.45
+## The edge fades out over this many pixels, which is what anti-aliases it.
+const EDGE_FEATHER: float = 1.25
+## The shade cast onto the street is this tall, and this share as strong along the side as above the tray.
+const CAST_HEIGHT: float = 36.0
+const CAST_SIDE_SHARE: float = 0.4
+## The shade's offsets from the edge (the first is under the tray, where it is hidden).
+const CAST_OFFSETS: PackedFloat32Array = [-2.0, 0.0, 6.0, 14.0, 24.0, 36.0]
+## How far past the bottom of the screen the tray runs, so that its bottom corners and the shade round them are out of sight.
+const BLEED: float = CAST_HEIGHT + CORNER
 
 ## The width of the column beside the plate (NEXT and the chat button stand there, over the street) and whether it is at the left.
 var column_width: float = 0.0
 var column_left: bool = true
+
+var _cast_mesh: ArrayMesh
+var _body_mesh: ArrayMesh
+var _body: Gradient = _gradient(BODY_STOPS, PackedColorArray([TRAY_TOP, TRAY_BODY, TRAY_BODY, TRAY_BOTTOM]))
+var _rim: Gradient = _gradient(PackedFloat32Array([0.0, RIM_WIDTH / INSET, (RIM_WIDTH + RIM_ROLL) / INSET, 1.0]), PackedColorArray([TRAY_RIM_LIGHT, TRAY_RIM, TRAY_RIM_SHADE, Color(TRAY_RIM_SHADE, 0.0)]))
+var _side: Gradient = _gradient(PackedFloat32Array([0.0, 1.0]), PackedColorArray([TRAY_SIDE_SHADE, Color(TRAY_SIDE_SHADE, 0.0)]))
+
+
+## One layer of the tray as a triangle mesh with a colour on every vertex (the colours blend between vertices, so nothing has a seam).
+class Layer:
+	extends RefCounted
+	var points: PackedVector2Array = PackedVector2Array()
+	var colors: PackedColorArray = PackedColorArray()
+	var indices: PackedInt32Array = PackedInt32Array()
+
+	## The mesh to draw, or null while the layer is empty.
+	func to_mesh() -> ArrayMesh:
+		if indices.is_empty():
+			return null
+		var arrays: Array = []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = points
+		arrays[Mesh.ARRAY_COLOR] = colors
+		arrays[Mesh.ARRAY_INDEX] = indices
+		var mesh: ArrayMesh = ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		return mesh
+
+	func add_triangle(a: int, b: int, c: int) -> void:
+		indices.append_array(PackedInt32Array([a, b, c]))
+
+	## Joins ring `from` to the next one (rings are `count` vertices each, in order).
+	func add_strip(from: int, count: int) -> void:
+		for i: int in count - 1:
+			var a: int = from * count + i
+			var d: int = (from + 1) * count + i
+			add_triangle(a, a + 1, d + 1)
+			add_triangle(a, d + 1, d)
+
+
+## The tray's one outline, from its bottom-left corner up, over its two rounded top corners and down to its bottom-right corner: the points,
+## the outward unit normals, and where the top edge runs (between `top_left` and the next point). Every layer is built from it, so they all
+## follow the same curve.
+class Outline:
+	extends RefCounted
+	var points: PackedVector2Array = PackedVector2Array()
+	var normals: PackedVector2Array = PackedVector2Array()
+	var top_left: int = 0
+
+	## `rows`: heights at which the straight sides get a point too, so a colour that changes down the side is exact there.
+	static func build(x0: float, x1: float, top: float, bottom: float, radius: float, rows: Array[float]) -> Outline:
+		var result: Outline = Outline.new()
+		var ys: Array[float] = []
+		for y: float in rows:
+			if y > top + radius and y < bottom:
+				ys.append(y)
+		ys.sort()
+		result._add(Vector2(x0, bottom), Vector2.LEFT)
+		for i: int in range(ys.size() - 1, -1, -1):
+			result._add(Vector2(x0, ys[i]), Vector2.LEFT)
+		result._arc(Vector2(x0 + radius, top + radius), radius, PI)
+		result.top_left = result.points.size() - 1
+		result._arc(Vector2(x1 - radius, top + radius), radius, PI * 1.5)
+		for y: float in ys:
+			result._add(Vector2(x1, y), Vector2.RIGHT)
+		result._add(Vector2(x1, bottom), Vector2.RIGHT)
+		return result
+
+	func _add(at: Vector2, normal: Vector2) -> void:
+		points.append(at)
+		normals.append(normal)
+
+	## A quarter circle round `centre` from the angle `from`, a point on each of its `ARC_STEPS` + 1 steps.
+	func _arc(centre: Vector2, radius: float, from: float) -> void:
+		for step: int in ARC_STEPS + 1:
+			var normal: Vector2 = Vector2.from_angle(from + PI * 0.5 * float(step) / float(ARC_STEPS))
+			_add(centre + normal * radius, normal)
+
+	## The point `i` moved `offset` along its normal (outward when positive).
+	func ring_point(i: int, offset: float) -> Vector2:
+		return points[i] + normals[i] * offset
 
 
 func set_column(width: float, at_left: bool) -> void:
@@ -61,64 +152,94 @@ func set_column(width: float, at_left: bool) -> void:
 	queue_redraw()
 
 
+## The tray's outline for its size and column: the side beside the column starts at the column's edge and the other side ends exactly at the
+## screen's edge (both sides, with no column); both top corners are rounded on the screen, so a little street shows in each. Only the
+## bottom runs past the screen.
+func tray_outline() -> Outline:
+	var at_column: bool = column_width > 0.0
+	var x0: float = column_width if at_column and column_left else 0.0
+	var x1: float = size.x - column_width if at_column and not column_left else size.x
+	var rows: Array[float] = []
+	for share: float in BODY_STOPS:
+		rows.append(size.y * share)
+	return Outline.build(x0, x1, 0.0, size.y + BLEED, float(CORNER), rows)
+
+
 func _draw() -> void:
-	# a bright blue tray drawn in code, copied from the Clash Royale reference (owner) and polished like the main menu's nav bar: a soft shadow
-	# cast up over the street, a navy outline round its two slightly rounded top corners, a light rim with a highlight line along the top, a
-	# shade under the rim, a body that is lighter at the top and darker toward the bottom, the sides shaded in a little and the bottom
-	# growing darker. It runs off the screen's edge on the side away from the column (the column beside it shows the street).
-	var left: float = column_width if column_left else 0.0
-	var tray: Rect2 = Rect2(Vector2(left, 0.0), Vector2(maxf(size.x - column_width, 0.0), size.y))
-	if tray.size.x <= 0.0:
+	# a bright blue tray drawn in code, copied from the Clash Royale reference (owner; replaces the picture of a cardboard plate), as one
+	# smooth lit shape with no outline: a light blue rim that follows its rounded top corners, a shade under the rim, a body that lightens
+	# at the top and darkens toward the bottom of the screen, and a soft shade cast up onto the street. It
+	# ends at the screen's edge on the side away from the column (the column beside it shows the street), both top corners rounded.
+	if size.x - column_width <= 0.0 or size.y <= 0.0:
 		return
-	_shade(Rect2(tray.position.x, tray.position.y - UiTabBar.SHADOW_HEIGHT, tray.size.x, UiTabBar.SHADOW_HEIGHT), UiTabBar.SHADOW_COLOR, true)
-	var outline: StyleBoxFlat = _rounded(TRAY_OUTLINE, CORNER)
-	draw_style_box(outline, tray)
-	var inside: Rect2 = Rect2(tray.position + Vector2(OUTLINE, OUTLINE), tray.size - Vector2(OUTLINE * 2, OUTLINE))
-	# the body with its light rim (a border along the top that follows the rounded corners)
-	var body: StyleBoxFlat = _rounded(TRAY_TOP, CORNER - OUTLINE)
-	body.border_color = TRAY_RIM
-	body.border_width_top = int(RIM_HEIGHT)
-	draw_style_box(body, inside)
-	# below the corners the body goes from its light top to the bright blue and on to a darker blue at the bottom of the screen
-	var straight: float = inside.position.y + float(CORNER - OUTLINE)
-	var body_y: float = straight + (inside.end.y - straight) * BODY_AT
-	_fill(Rect2(inside.position.x, straight, inside.size.x, body_y - straight), TRAY_TOP, TRAY_BODY)
-	_fill(Rect2(inside.position.x, body_y, inside.size.x, inside.end.y - body_y), TRAY_BODY, TRAY_BOTTOM)
-	var between: float = float(CORNER - OUTLINE)
-	var run: Rect2 = Rect2(inside.position.x + between, inside.position.y, inside.size.x - between * 2.0, 0.0)
-	draw_rect(Rect2(run.position + Vector2(0.0, 1.0), Vector2(run.size.x, HIGHLIGHT_HEIGHT)), TRAY_HIGHLIGHT)
-	_shade(Rect2(run.position.x, inside.position.y + RIM_HEIGHT, run.size.x, UNDER_RIM_HEIGHT), Color(0.0, 0.03, 0.1, UNDER_RIM_ALPHA), false)
-	# the sides are shaded in a little, and the bottom grows darker
-	var below: Rect2 = Rect2(inside.position.x, straight, inside.size.x, inside.end.y - straight)
-	_shade_across(Rect2(below.position.x, below.position.y, SIDE_SHADE_WIDTH, below.size.y), Color(0.0, 0.03, 0.1, SIDE_SHADE_ALPHA), true)
-	_shade_across(Rect2(below.end.x - SIDE_SHADE_WIDTH, below.position.y, SIDE_SHADE_WIDTH, below.size.y), Color(0.0, 0.03, 0.1, SIDE_SHADE_ALPHA), false)
-	_shade(Rect2(inside.position.x, inside.end.y - BOTTOM_SHADE_HEIGHT, inside.size.x, BOTTOM_SHADE_HEIGHT), Color(0.0, 0.02, 0.08, BOTTOM_SHADE_ALPHA), true)
+	var outline: Outline = tray_outline()
+	# the draw commands only hold the meshes' ids, so the meshes are kept until the next redraw
+	_cast_mesh = cast_layer(outline).to_mesh()
+	_body_mesh = body_layer(outline).to_mesh()
+	if _cast_mesh != null:
+		draw_mesh(_cast_mesh, null)
+	if _body_mesh != null:
+		draw_mesh(_body_mesh, null)
 
 
-## A tray shape with both top corners rounded to `radius` (the sides run off the screen or into its bottom edge).
-func _rounded(color: Color, radius: int) -> StyleBoxFlat:
-	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = color
-	box.anti_aliasing = true
-	box.corner_radius_top_left = maxi(radius, 0)
-	box.corner_radius_top_right = maxi(radius, 0)
-	return box
+## The tray itself: rings of vertices along the outline from just outside it (clear, the one pixel fade that anti-aliases the edge), over
+## the edge and the rim, to `INSET` inside it, then the middle filled in rows. The colour of every vertex is the body's colour at its height
+## with the side shade, the rim and the shade under it laid over.
+func body_layer(outline: Outline) -> Layer:
+	var layer: Layer = Layer.new()
+	var depths: Array[float] = [-EDGE_FEATHER, 0.0, RIM_WIDTH, RIM_WIDTH + RIM_ROLL, INSET]
+	var count: int = outline.points.size()
+	for depth: float in depths:
+		for i: int in count:
+			var color: Color = _lit(outline.points[i].y, outline.normals[i], maxf(depth, 0.0))
+			layer.points.append(outline.ring_point(i, -depth))
+			layer.colors.append(Color(color, 0.0) if depth < 0.0 else color)
+	for ring: int in depths.size() - 1:
+		layer.add_strip(ring, count)
+	# the middle: a strip of triangles zipped between the inner ring's left chain and its right chain, in order of height
+	var inner: int = (depths.size() - 1) * count
+	var left: int = outline.top_left
+	var right: int = outline.top_left + 1
+	while left > 0 or right < count - 1:
+		var step_left: bool = right >= count - 1 or (left > 0 and layer.points[inner + left - 1].y <= layer.points[inner + right + 1].y)
+		if step_left:
+			layer.add_triangle(inner + left, inner + right, inner + left - 1)
+			left -= 1
+		else:
+			layer.add_triangle(inner + left, inner + right, inner + right + 1)
+			right += 1
+	return layer
 
 
-## A rectangle filled with a gradient from `top` to `bottom`.
-func _fill(rect: Rect2, top: Color, bottom: Color) -> void:
-	draw_polygon(PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]), PackedColorArray([top, top, bottom, bottom]))
+## The colour of the tray at height `y`, `depth` inside its edge, where the edge faces `normal`.
+func _lit(y: float, normal: Vector2, depth: float) -> Color:
+	var unit: float = clampf(depth / INSET, 0.0, 1.0)
+	var color: Color = _body.sample(clampf(y / size.y, 0.0, 1.0))
+	var shade: Color = _side.sample(unit)
+	color = color.lerp(Color(shade, 1.0), shade.a * absf(normal.x))
+	var light: Color = _rim.sample(unit)
+	var up: float = lerpf(RIM_SIDE_SHARE, 1.0, clampf(-normal.y, 0.0, 1.0))
+	return color.lerp(Color(light, 1.0), light.a * up)
 
 
-## A shade that is `color` at one end and clear at the other: `clear_at_top` true grows toward the bottom, false fades out toward it.
-func _shade(rect: Rect2, color: Color, clear_at_top: bool) -> void:
-	var clear: Color = Color(color, 0.0)
-	_fill(rect, clear if clear_at_top else color, color if clear_at_top else clear)
+## The soft shade the tray casts up onto the street: rings outward from under the edge that fade to clear (quickly at first, like a real
+## shade), weaker along the side and nothing below.
+func cast_layer(outline: Outline) -> Layer:
+	var layer: Layer = Layer.new()
+	var count: int = outline.points.size()
+	for offset: float in CAST_OFFSETS:
+		var fade: float = 1.0 - clampf(offset / CAST_HEIGHT, 0.0, 1.0)
+		for i: int in count:
+			var up: float = lerpf(CAST_SIDE_SHARE, 1.0, clampf(-outline.normals[i].y, 0.0, 1.0))
+			layer.points.append(outline.ring_point(i, offset))
+			layer.colors.append(Color(TRAY_CAST, TRAY_CAST.a * fade * fade * up))
+	for ring: int in CAST_OFFSETS.size() - 1:
+		layer.add_strip(ring, count)
+	return layer
 
 
-## The same sideways: `strong_at_left` true is strongest at the left edge and clear at the right.
-func _shade_across(rect: Rect2, color: Color, strong_at_left: bool) -> void:
-	var clear: Color = Color(color, 0.0)
-	var left: Color = color if strong_at_left else clear
-	var right: Color = clear if strong_at_left else color
-	draw_polygon(PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]), PackedColorArray([left, right, right, left]))
+static func _gradient(offsets: PackedFloat32Array, colors: PackedColorArray) -> Gradient:
+	var gradient: Gradient = Gradient.new()
+	gradient.offsets = offsets
+	gradient.colors = colors
+	return gradient
