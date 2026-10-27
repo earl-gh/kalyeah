@@ -3,6 +3,14 @@ extends RefCounted
 ## Shared loadout cards: owner art, readable effects and explicit weapon statistics.
 
 
+## A weapon tile of the grid: the card picture (`CARD_HEIGHT` tall), then the name (two short lines) and the kind. The grid's `WeaponPickScreen.TILE_HEIGHT`
+## is the least a tile may be; the picture makes it this much.
+const CARD_HEIGHT: float = 150.0
+const NAME_HEIGHT: float = 62.0
+const TILE_PAD: float = 12.0
+const TILE_HEIGHT: float = TILE_PAD * 2.0 + CARD_HEIGHT + 2.0 + NAME_HEIGHT + 2.0 + 30.0
+
+
 static func label(text: String, size: int, color: Color = KalyeahTheme.TEXT) -> Label:
 	var result: Label = Label.new()
 	result.text = text
@@ -65,7 +73,7 @@ static func profile(screen: WeaponPickScreen, character: CharacterDef) -> Button
 	return button
 
 
-## One weapon as a tile in the grid: its painted art, its name and its kind, with the slot it fills (1 or 2) in the
+## One weapon as a tile in the grid: its card picture (bare, with a gold edge once picked), its name and its kind, with the slot it fills (1 or 2) in the
 ## corner once picked. Tapping it picks it and shows it in the info panel (`WeaponPickScreen.tap`).
 static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 	var button: Button = Button.new()
@@ -73,7 +81,7 @@ static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 	button.accessibility_name = "%s, %s" % [def.display_name, def.kind_label()]
 	button.accessibility_description = "Picks it for a slot"
 	button.toggle_mode = true
-	button.custom_minimum_size = Vector2(0.0, screen.TILE_HEIGHT)
+	button.custom_minimum_size = Vector2(0.0, maxf(screen.TILE_HEIGHT, TILE_HEIGHT))
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for state: String in ["normal", "hover"]:
 		button.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, UiSkin.RADIUS_L))
@@ -82,7 +90,7 @@ static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 12)
+		margin.add_theme_constant_override("margin_" + side, int(TILE_PAD))
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(margin)
 	var column: VBoxContainer = VBoxContainer.new()
@@ -90,22 +98,19 @@ static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_child(column)
-	var art: TextureRect = TextureRect.new()
+	var art: SkillCardArt = SkillCardArt.new()
 	art.name = "Art"
-	art.texture = Icons.skill(def.id)
-	art.custom_minimum_size = Vector2(0.0, 72.0)
-	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.custom_minimum_size = SkillCardArt.size_for_height(CARD_HEIGHT)
+	art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	art.show_weapon(def.id)
+	art.follow(button)
 	column.add_child(art)
 	var title: Label = label(def.display_name, UiMetrics.MIN_TEXT)
 	title.name = "WeaponName"
 	title.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	# two short lines under the art: the display font leaves a lot between lines, so pull them together
-	title.add_theme_constant_override("line_spacing", -10)
-	title.custom_minimum_size.y = 62.0
+	title.custom_minimum_size.y = NAME_HEIGHT
 	column.add_child(title)
 	var kind: Label = label(String(WeaponsPage.KIND_NAMES.get(def.kind, "")), UiMetrics.MIN_TEXT, WeaponPickScreen.kind_color(def.kind))
 	kind.name = "Kind"

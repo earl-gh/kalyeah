@@ -56,7 +56,7 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	for slot: int in WeaponPick.SLOTS:
 		var socket: LoadoutSocket = LoadoutSocket.new()
 		socket.number = slot + 1
-		socket.custom_minimum_size = Vector2(0.0, 96.0)
+		socket.custom_minimum_size = Vector2(0.0, LoadoutSocket.HEIGHT)
 		socket.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		socket.pressed.connect(screen.select_slot.bind(slot))
 		sockets.add_child(socket)
