@@ -63,7 +63,15 @@ func test_the_card_is_white_with_a_punched_slot_at_the_top_centre() -> void:
 	assert_almost_eq(slot.get_center().x, card.get_center().x, 1.5, "the slot is in the middle across")
 	assert_lt(slot.get_center().y - card.position.y, 40.0, "and near the top")
 	assert_lt(slot.size.y, slot.size.x / 2.0, "a small slot, wider than tall")
-	assert_gt((tag.slot.get_theme_stylebox("panel") as StyleBoxFlat).corner_radius_top_left, 0, "with rounded ends")
+	var paper_node: Panel = tag.card.get_node("Paper") as Panel
+	var material: ShaderMaterial = paper_node.material as ShaderMaterial
+	assert_not_null(material, "the card is cut by a shader")
+	assert_eq(material.shader, NameTag.PAPER_SHADER)
+	assert_eq(material.get_shader_parameter("slot_half"), NameTag.SLOT_SIZE / 2.0, "a hole the size of the slot")
+	assert_eq(material.get_shader_parameter("rect_size"), tag.card.size)
+	assert_eq(material.get_shader_parameter("slot_centre"), Vector2(tag.card.size.x / 2.0, NameTag.SLOT_MIDDLE), "cut at the slot")
+	assert_false(tag.slot is Panel, "nothing is painted in the slot: it is a hole, so the back strap and the background show through")
+	assert_true(NameTag.PAPER_SHADER.code.contains("COLOR = vec4(base.rgb, base.a * hole)"), "the hole is transparent")
 	assert_almost_eq(card.get_center().x, 360.0, 3.0, "the card hangs in the middle of the screen")
 
 
@@ -72,7 +80,7 @@ func test_the_lanyard_is_two_black_straps_one_in_front_and_one_behind_meeting_at
 	await wait_frames(4)
 	var tag: NameTag = screen.name_tag
 	for piece: ColorRect in [tag.front_strap, tag.back_strap]:
-		assert_lt(piece.color.get_luminance(), 0.08, "%s is black" % piece.name)
+		assert_lt(((piece.material as ShaderMaterial).get_shader_parameter("base_colour") as Color).get_luminance(), 0.08, "%s is black webbing" % piece.name)
 		assert_lt((piece.get_global_transform() * Vector2(piece.size.x / 2.0, 0.0)).y, 0.0, "%s starts above the top of the screen" % piece.name)
 		# its bottom end is the middle of the slot
 		var foot: Vector2 = piece.get_global_transform() * Vector2(piece.size.x / 2.0, piece.size.y)
@@ -88,7 +96,7 @@ func test_the_lanyard_is_two_black_straps_one_in_front_and_one_behind_meeting_at
 	var top_back: float = (tag.back_strap.get_global_transform() * Vector2(tag.back_strap.size.x / 2.0, 0.0)).x
 	assert_lt(top_front, top_back, "so the two spread apart going up")
 	assert_gt(tag.front_strap.z_index, 0)
-	assert_lt(tag.front_strap.z_index, (screen.find_child("Logo", true, false) as Control).z_index, "the upper straps hang behind the logo")
+	assert_eq((screen.find_child("Logo", true, false) as Control).z_index, NameTag.LOGO_Z)
 
 
 func test_the_tag_hangs_in_the_middle_between_the_logo_row_and_the_models_behind() -> void:
@@ -178,7 +186,8 @@ func test_the_logo_is_in_front_of_the_lanyard_and_the_card_in_front_of_the_light
 	await wait_frames(4)
 	var tag: NameTag = screen.name_tag
 	var logo: Control = screen.find_child("Logo", true, false) as Control
-	assert_gt(logo.z_index, tag.back_strap.z_index, "the lanyard hangs behind the logo")
+	for piece: ColorRect in [tag.back_strap, tag.front_strap, tag.front_cap]:
+		assert_gt(logo.z_index, piece.z_index, "the logo is over %s (owner)" % piece.name)
 	assert_gt(tag.card.z_index, UiBackdrop.LIGHT_Z, "the card is over the backdrop's lights")
 	assert_lt(tag.card.z_index, screen.mode_models[screen.carousel.index].z_index, "and under the chosen model")
 
@@ -211,3 +220,42 @@ func test_the_tag_fits_between_the_logo_and_the_models_on_tall_and_short_phones(
 		assert_lt(card.end.y, back_top + 1.0, "%d px: above the models behind" % int(height))
 		assert_gte(tag.card.scale.x, TitleScreen.TAG_MIN_SCALE - 0.001, "%d px: not shrunk past its least" % int(height))
 		assert_lt((tag.front_strap.get_global_transform() * Vector2(tag.front_strap.size.x / 2.0, 0.0)).y, 0.0, "%d px: the lanyard still leaves the screen" % int(height))
+
+
+func test_a_name_is_at_most_ten_letters_and_the_widest_ten_fit_the_tag_at_full_size() -> void:
+	assert_eq(Session.MAX_NAME_LENGTH, 10)
+	var screen: TitleScreen = _screen()
+	await wait_frames(4)
+	var tag: NameTag = screen.name_tag
+	tag.set_player_name("M".repeat(Session.MAX_NAME_LENGTH))
+	await wait_frames(2)
+	assert_eq(tag.name_label.get_theme_font_size("font_size"), UiMetrics.HEADLINE, "ten of the widest letters still take the largest size")
+	assert_lte(tag.card.size.x, NameTag.CARD_MAX_WIDTH)
+
+
+func test_a_name_keeps_only_letters_digits_and_a_few_marks_in_single_spaces() -> void:
+	assert_eq(Session.clean_name("  Ma   ria  "), "Ma ria", "one space at a time, trimmed")
+	assert_eq(Session.clean_name("Ñoño_99"), "Ñoño_99", "any language's letters, digits and an underscore")
+	assert_eq(Session.clean_name("Ana-Lei O'Brien"), "Ana-Lei O'", "a hyphen and an apostrophe, cut at ten")
+	assert_eq(Session.clean_name("<b>Ben</b>"), "bBenb", "no brackets or slashes")
+	assert_eq(Session.clean_name("Ben😀\n\tX"), "BenX", "no emoji, new lines or tabs")
+	assert_eq(Session.clean_name("!!!"), "", "nothing left is empty (the profile asks for a name)")
+	assert_eq(Session.filter_name("a  b"), "a b")
+
+
+func test_the_profile_field_filters_as_you_type_and_counts_the_letters() -> void:
+	var screen: TitleScreen = _screen()
+	await wait_frames(2)
+	var card: MenuDialog = screen.open_name_editor()
+	var field: LineEdit = card.find_child("NameField", true, false) as LineEdit
+	assert_eq(field.max_length, 10, "the field takes ten letters at most")
+	field.text = "Ab"
+	field.text_changed.emit("Ab")
+	var counted: bool = false
+	for label: Node in card.find_children("*", "Label", true, false):
+		if (label as Label).text == "2 / 10 letters":
+			counted = true
+	assert_true(counted, "a live count: 2 / 10 letters")
+	field.text = "A<b>c"
+	field.text_changed.emit("A<b>c")
+	assert_eq(field.text, "Abc", "brackets are dropped as they are typed or pasted")

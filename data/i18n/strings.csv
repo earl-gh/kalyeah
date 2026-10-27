@@ -1,4 +1,5 @@
 keys,en
+%d / %d letters,%d / %d letters
 %dv%d · First to %d,%dv%d · First to %d
 "%s is coming soon! For now, Agawan Base is the only street open.","%s is coming soon! For now, Agawan Base is the only street open."
 %s × %d,%s × %d
@@ -79,7 +80,6 @@ Defeat,Defeat
 DEFEND YOUR BASE!,DEFEND YOUR BASE!
 Donate,Donate
 Done,Done
-Edit name,Edit name
 Edit profile,Edit profile
 Eight letters and numbers,Eight letters and numbers
 Enter all %d characters!,Enter all %d characters!
@@ -220,6 +220,7 @@ Tagged them all,Tagged them all
 Tagged you all,Tagged you all
 Tagged! Wait for a rescue,Tagged! Wait for a rescue
 "Take on 3 bots, solo!","Take on 3 bots, solo!"
+Tap to change your name,Tap to change your name
 Tap to choose which slot the next weapon fills,Tap to choose which slot the next weapon fills
 "Tap to heal yourself, or drag to a teammate to heal them!","Tap to heal yourself, or drag to a teammate to heal them!"
 Team size,Team size

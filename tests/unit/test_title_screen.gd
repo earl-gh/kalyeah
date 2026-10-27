@@ -375,7 +375,7 @@ func test_renaming_saves_a_clean_name_and_refuses_an_empty_one() -> void:
 	field.text_submitted.emit(field.text)
 	assert_eq(Session.player_name, "Maria")
 	assert_false(is_instance_valid(card) and card.is_open)
-	assert_eq(Session.clean_name("A very long name indeed"), "A very long", "cut to 12 letters, no trailing space")
+	assert_eq(Session.clean_name("A very long name indeed"), "A very lon", "cut to 10 letters, no trailing space")
 
 
 func test_cancelling_the_rename_keeps_the_old_name() -> void:

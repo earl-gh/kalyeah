@@ -254,9 +254,9 @@ func _build_top_bar() -> Control:
 	logo.custom_minimum_size = Vector2(LOGO_HEIGHT * float(LOGO.get_width()) / float(LOGO.get_height()), LOGO_HEIGHT)
 	logo.size_flags_vertical = Control.SIZE_SHRINK_END
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# the logo is in front of the name tag's lanyard, which hangs from the top of the screen behind it
+	# the logo is in front of every part of the name tag's lanyard, which hangs from the top of the screen behind it
 	logo.z_as_relative = false
-	logo.z_index = NameTag.STRAP_Z + 1
+	logo.z_index = NameTag.LOGO_Z
 	row.add_child(logo)
 	var right: Control = Control.new()
 	right.name = "TopRight"

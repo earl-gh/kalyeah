@@ -20,27 +20,30 @@ const SLOT_MIDDLE: float = 22.0
 const STRAP_WIDTH: float = 22.0
 ## The two straps lean away from each other going up, this many degrees each, and meet at the slot.
 const STRAP_SPREAD: float = 5.0
-const STRAP_FRONT_COLOR: Color = Color("0d0d12")
-const STRAP_BACK_COLOR: Color = Color("050507")
-## A thin lighter edge on the front strap, so it reads as the layer on top of the other.
-const STRAP_EDGE: Color = Color(1.0, 1.0, 1.0, 0.14)
-const STRAP_EDGE_WIDTH: float = 2.0
+## The two straps are plain black webbing (`lanyard.gdshader` gives it a soft round, a fine weave and a stitch); the front one is a touch
+## lighter, so it reads as the layer on top of the other.
+const STRAP_SHADER: Shader = preload("res://shaders/lanyard.gdshader")
+const PAPER_SHADER: Shader = preload("res://shaders/name_tag_paper.gdshader")
+const STRAP_FRONT_COLOR: Color = Color("0f0f14")
+const STRAP_BACK_COLOR: Color = Color("060608")
 const CARD_COLOR: Color = Color.WHITE
 const CARD_EDGE: Color = Color("cfd6e6")
-const SLOT_COLOR: Color = Color("07070a")
 const SLOT_RIM: Color = Color("b7c0d4")
 const INK: Color = KalyeahTheme.MODAL_TEXT
 const INK_MUTED: Color = KalyeahTheme.MODAL_TEXT_MUTED
 const GREETING: String = "Hi! I'm"
 ## The name's letters, from the largest down to the smallest that still reads: a longer name takes a smaller size.
 const NAME_SIZES: Array[int] = [UiMetrics.HEADLINE, UiMetrics.TITLE, UiMetrics.BODY]
-## Depths: the back strap and the upper straps are behind the logo (the logo is above `STRAP_Z`); the card is above the backdrop's lights
-## and the mode models' glow, below the chosen model; the front strap is above the card.
+## Depths: the straps run behind the card and the logo (the logo is above all of them, `LOGO_Z`); the card is above the backdrop's lights and
+## the mode models' glow, below the chosen model; the end of the front strap lies over the card.
 const STRAP_Z: int = 1
 const CARD_Z: int = 9
 const FRONT_Z: int = 10
-## How long the front strap's end over the card is: the slot is 22 px down, so this reaches about 50 px above the card.
-const CAP_LENGTH: float = 76.0
+## The logo is drawn above every part of the lanyard (owner: the lanyard is layered under the logo).
+const LOGO_Z: int = FRONT_Z + 1
+## How long the front strap's end over the card is: the slot is 22 px down, so this reaches just above the card's top edge (the rest of the
+## strap is behind the logo).
+const CAP_LENGTH: float = 46.0
 ## The swing: the whole tag turns about the top of its straps by at most this many degrees, once every `SWAY_SECONDS` (very slow), and
 ## the card trails its straps by `LAG` radians of that cycle with `LAG_DEGREES` of its own turn about the slot.
 const SWAY_DEGREES: float = 1.5
@@ -66,7 +69,9 @@ var front_strap: ColorRect
 var back_strap: ColorRect
 ## The short end of the front strap that lies over the card (the rest of it is behind the logo).
 var front_cap: ColorRect
-var slot: Panel
+## Marks where the slot is (the hole itself is cut by the paper's shader).
+var slot: Control
+var _paper_material: ShaderMaterial
 var _name: String = ""
 var _base_scale: float = 1.0
 var _press: float = 1.0
@@ -94,11 +99,15 @@ func _init() -> void:
 	paper.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	paper.add_theme_stylebox_override("panel", _paper_style())
+	# the slot is a real hole: the shader cuts it out of the card and its shadow, so what is behind shows through it
+	_paper_material = ShaderMaterial.new()
+	_paper_material.shader = PAPER_SHADER
+	_paper_material.set_shader_parameter("rim_colour", SLOT_RIM)
+	paper.material = _paper_material
 	card.add_child(paper)
-	slot = Panel.new()
+	slot = Control.new()
 	slot.name = "Slot"
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	slot.add_theme_stylebox_override("panel", _slot_style())
 	card.add_child(slot)
 	var words: VBoxContainer = VBoxContainer.new()
 	words.name = "Words"
@@ -153,29 +162,21 @@ func _init() -> void:
 
 
 ## One strap of the lanyard: a black band with its bottom end at the middle of the slot (this node's origin), leaning `STRAP_SPREAD` degrees
-## to one side. `front` is the one that leans left and carries the lighter edge.
+## to one side. `front` is the one that leans left and is a little lighter.
 func _strap_piece(piece_name: String, color: Color, depth: int, front: bool) -> ColorRect:
 	var band: ColorRect = ColorRect.new()
 	band.name = piece_name
-	band.color = color
+	band.color = Color.WHITE
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	band.z_as_relative = false
 	band.z_index = depth
-	if front:
-		for side: float in [0.0, 1.0]:
-			var edge: ColorRect = ColorRect.new()
-			edge.name = "Edge"
-			edge.color = STRAP_EDGE
-			edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			edge.anchor_left = 0.0 if side == 0.0 else 1.0
-			edge.anchor_right = edge.anchor_left
-			edge.anchor_top = 0.0
-			edge.anchor_bottom = 1.0
-			edge.offset_left = 0.0 if side == 0.0 else -STRAP_EDGE_WIDTH
-			edge.offset_right = STRAP_EDGE_WIDTH if side == 0.0 else 0.0
-			edge.offset_top = 0.0
-			edge.offset_bottom = 0.0
-			band.add_child(edge)
+	var material: ShaderMaterial = ShaderMaterial.new()
+	material.shader = STRAP_SHADER
+	material.set_shader_parameter("base_colour", color)
+	if not front:
+		material.set_shader_parameter("stitch_alpha", 0.08)
+		material.set_shader_parameter("edge_alpha", 0.06)
+	band.material = material
 	return band
 
 
@@ -246,6 +247,9 @@ func _fit(width: float) -> void:
 	card.pivot_offset = Vector2(width / 2.0, SLOT_MIDDLE)
 	slot.size = SLOT_SIZE
 	slot.position = Vector2((width - SLOT_SIZE.x) / 2.0, SLOT_MIDDLE - SLOT_SIZE.y / 2.0)
+	_paper_material.set_shader_parameter("rect_size", card.size)
+	_paper_material.set_shader_parameter("slot_centre", Vector2(width / 2.0, SLOT_MIDDLE))
+	_paper_material.set_shader_parameter("slot_half", SLOT_SIZE / 2.0)
 
 
 ## Hangs the card with the middle of its slot at `hole` (this node's parent's pixels), and the lanyard up to `top` (the same pixels,
@@ -273,6 +277,7 @@ func _lay_strap(piece: ColorRect, length: float) -> void:
 	piece.size = Vector2(STRAP_WIDTH, length)
 	piece.position = Vector2(-STRAP_WIDTH / 2.0, -length)
 	piece.pivot_offset = Vector2(STRAP_WIDTH / 2.0, length)
+	(piece.material as ShaderMaterial).set_shader_parameter("rect_size", piece.size)
 
 
 static func _paper_style() -> StyleBoxFlat:
@@ -284,15 +289,5 @@ static func _paper_style() -> StyleBoxFlat:
 	box.shadow_color = Color(0.0, 0.02, 0.1, 0.42)
 	box.shadow_size = 16
 	box.shadow_offset = Vector2(0.0, 8.0)
-	box.anti_aliasing = true
-	return box
-
-
-static func _slot_style() -> StyleBoxFlat:
-	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = SLOT_COLOR
-	box.set_corner_radius_all(UiSkin.RADIUS_S)
-	box.set_border_width_all(3)
-	box.border_color = SLOT_RIM
 	box.anti_aliasing = true
 	return box
