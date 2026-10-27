@@ -205,7 +205,7 @@ func test_the_main_menu_backdrop_is_backlit_behind_the_chosen_card() -> void:
 	await wait_frames(12)
 	var glow: TextureRect = screen.backdrop.glow
 	assert_eq((glow.material as CanvasItemMaterial).blend_mode, CanvasItemMaterial.BLEND_MODE_ADD, "the backlight is added light")
-	var card: Rect2 = screen.carousel.cards[screen.carousel.index].get_global_rect()
+	var card: Rect2 = screen.mode_models[screen.carousel.index].get_global_rect()
 	assert_almost_eq(glow.get_global_rect().get_center().x, card.get_center().x, 4.0, "its bright middle is behind the card (across)")
 	assert_almost_eq(glow.get_global_rect().get_center().y, card.get_center().y, 6.0, "and down")
 	assert_gt(glow.size.x, card.size.x, "and it reaches out past the card")

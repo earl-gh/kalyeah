@@ -37,13 +37,17 @@ const HERO_CARD: Vector2 = Vector2(400.0, 571.0)
 ## The hero grows with the stage (phones taller than 16:9 have the room): 1.75:2.5, between these heights, with
 ## this much air round it for the glow and the bob.
 const HERO_RATIO: float = 0.7
-## The owner's dioramas are shown bare, on a card that is only a shell as wide as the picture is (768 x 717 PNG files): the cards of
+## The mode models (owner: the dioramas) are shown bare, in a shell as wide as the picture is (768 x 717 PNG files): the models of
 ## `MODES` with `bare` are this shape instead of the paper card's.
-const DIORAMA_RATIO: float = 768.0 / 717.0
-## How much of the stage's width is left free beside a bare diorama.
-const DIORAMA_SIDE_ROOM: float = 40.0
-## How big a diorama is next to the room the stage gives it (owner: 0.64).
-const DIORAMA_SCALE: float = 0.64
+const MODEL_RATIO: float = 768.0 / 717.0
+## How much of the stage's width is left free beside a mode model.
+const MODEL_SIDE_ROOM: float = 40.0
+## How big a mode model is next to the room the stage gives it (owner: 0.64).
+const MODEL_SCALE: float = 0.64
+## The mode models behind the chosen one stand this share of a model's height higher than it, and sit this many times further out to each
+## side than a card carousel's cards do (owner: 1.5 x and 1.25 x of what they were).
+const MODEL_BACK_RISE: float = 0.105
+const MODEL_SPREAD_SCALE: float = 1.25
 const HERO_MIN_HEIGHT: float = 440.0
 const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 36.0
@@ -96,6 +100,10 @@ var open_lobby_action: Callable = _change_to_lobby
 
 var backdrop: UiBackdrop
 var carousel: MenuCarousel
+## The mode models (the carousel's items): Online, Local and Practice, in order.
+var mode_models: Array[Button]:
+	get:
+		return carousel.cards
 var tab_bar: UiTabBar
 var mode_name_label: Label
 var mode_text_label: Label
@@ -237,6 +245,8 @@ func _build_home() -> VBoxContainer:
 	carousel.bottom_gap = HERO_BOTTOM_GAP
 	carousel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(carousel)
+	carousel.back_rise = MODEL_BACK_RISE
+	carousel.spread_scale = MODEL_SPREAD_SCALE
 	carousel.setup("", MODES, Session.menu_mode)
 	carousel.bob = AMBIENT_BOB
 	stage.resized.connect(_fit_hero)
@@ -425,14 +435,14 @@ func _fill_chips(id: String) -> void:
 		mode_chips.add_child(chip)
 
 
-## Whether the mode cards are bare dioramas (no paper card).
-static func card_is_bare() -> bool:
+## Whether the mode models are bare dioramas (no paper card).
+static func models_are_bare() -> bool:
 	return bool(MODES[0].get("bare", false))
 
 
-## The shape of a mode card: width over height.
-static func card_ratio() -> float:
-	return DIORAMA_RATIO if card_is_bare() else HERO_RATIO
+## The shape of a mode model: width over height.
+static func model_ratio() -> float:
+	return MODEL_RATIO if models_are_bare() else HERO_RATIO
 
 
 ## Sizes the hero cards to the stage (taller phones get a bigger card), then rebuilds them.
@@ -445,9 +455,9 @@ func _fit_hero() -> void:
 	var bare: float = total + (CHIPS_HEIGHT if mode_chips.visible else 0.0)
 	mode_chips.visible = bare - CHIPS_HEIGHT >= CHIPS_MIN_STAGE
 	var height: float = clampf(bare - (CHIPS_HEIGHT if mode_chips.visible else 0.0) - HERO_AIR, HERO_MIN_HEIGHT, HERO_MAX_HEIGHT)
-	var diorama: bool = card_is_bare()
-	var ratio: float = DIORAMA_RATIO if diorama else HERO_RATIO
-	var width: float = minf(height * ratio, stage.size.x - (DIORAMA_SIDE_ROOM if diorama else 120.0)) * (DIORAMA_SCALE if diorama else HERO_SCALE)
+	var diorama: bool = models_are_bare()
+	var ratio: float = MODEL_RATIO if diorama else HERO_RATIO
+	var width: float = minf(height * ratio, stage.size.x - (MODEL_SIDE_ROOM if diorama else 120.0)) * (MODEL_SCALE if diorama else HERO_SCALE)
 	var fitted: Vector2 = Vector2(roundf(width), roundf(width / ratio))
 	if fitted.distance_to(carousel.card_size) < 3.0:
 		return

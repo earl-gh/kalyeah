@@ -114,7 +114,7 @@ func test_the_centre_card_stays_centred_on_the_screen() -> void:
 func test_the_cards_show_the_owners_pictures_and_no_text() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(3)
-	for card: Button in screen.carousel.cards:
+	for card: Button in screen.mode_models:
 		var art: TextureRect = card.find_child("Art", true, false) as TextureRect
 		assert_not_null(art, "%s has its picture" % ChoiceCard.choice_of(card))
 		assert_gte(art.texture.get_size().x / art.texture.get_size().y, 0.7, "the picture is at least as wide as the card and is cropped to fit")
@@ -135,7 +135,7 @@ func test_the_cards_are_large_and_every_one_is_always_visible_stacked_behind_the
 	await wait_frames(3)
 	var strip: MenuCarousel = screen.carousel
 	var chosen: Rect2 = strip.cards[0].get_global_rect()
-	assert_almost_eq(chosen.size.x / chosen.size.y, TitleScreen.card_ratio(), 0.01, "the card is the shape of its picture")
+	assert_almost_eq(chosen.size.x / chosen.size.y, TitleScreen.model_ratio(), 0.01, "the mode model is the shape of its picture")
 	assert_gt(chosen.size.y, 280.0, "large (0.64 of the width the stage gives a diorama)")
 	for index: int in 3:
 		strip.select(index, false)
@@ -179,7 +179,7 @@ func test_the_actions_sit_low_on_the_screen_but_not_at_the_very_bottom() -> void
 	assert_almost_eq(create.size.x, join.size.x, 1.0, "the pair is the same size")
 	var title: Rect2 = screen.mode_name_label.get_global_rect()
 	var phrase: Rect2 = screen.mode_text_label.get_global_rect()
-	var cards_bottom: float = screen.carousel.cards[screen.carousel.index].get_global_rect().end.y
+	var cards_bottom: float = screen.mode_models[screen.carousel.index].get_global_rect().end.y
 	assert_almost_eq(title.get_center().y, cards_bottom, 20.0, "the mode title hangs on the bottom edge of its card")
 	assert_gt(phrase.position.y, cards_bottom, "and the phrase is under the card")
 	assert_lt(phrase.end.y, create.position.y - 10.0, "and clear of the buttons")
@@ -250,14 +250,14 @@ func test_the_carousel_is_online_local_practice_with_local_chosen_in_front() -> 
 	assert_eq(strip.index, 1, "and is the one chosen to start with")
 	var middle: Button = strip.cards[1]
 	var next: Button = strip.cards[2]
-	assert_almost_eq(middle.size.x / middle.size.y, TitleScreen.card_ratio(), 0.01, "cards are the shape of their picture")
+	assert_almost_eq(middle.size.x / middle.size.y, TitleScreen.model_ratio(), 0.01, "mode models are the shape of their picture")
 	assert_almost_eq(middle.get_global_rect().get_center().x, 360.0, 2.0, "the chosen card is in the middle of the screen")
 	assert_eq(middle.modulate.a, 1.0)
 	assert_lt(next.modulate.r, middle.modulate.r - 0.2, "the next card is clearly darker: depth")
 	assert_lt(next.modulate.a, middle.modulate.a, "and slightly see-through too")
-	# the cards behind stand a little higher than the chosen one (owner): by `BACK_RISE` of a card's height, give or take the bob
+	# the mode models behind stand higher than the chosen one (owner): by `MODEL_BACK_RISE` of a model's height, give or take the bob
 	var rise: float = middle.get_global_rect().get_center().y - next.get_global_rect().get_center().y
-	assert_almost_eq(rise, middle.size.y * MenuCarousel.BACK_RISE, 12.0, "the card behind stands a little higher than the chosen one")
+	assert_almost_eq(rise, middle.size.y * TitleScreen.MODEL_BACK_RISE, 12.0, "the model behind stands higher than the chosen one")
 	assert_lt(next.scale.x, middle.scale.x, "and smaller")
 	assert_lt(next.z_index, middle.z_index, "and behind")
 	assert_gt(next.get_global_rect().get_center().x, middle.get_global_rect().get_center().x, "and to its right")
@@ -306,7 +306,7 @@ func test_create_and_join_share_one_row_and_the_texts_are_one_line() -> void:
 	assert_false(screen.primary_button.text.to_lower().contains("room"), "no word room")
 	assert_null(_find(screen, "ModeLabel"))
 	assert_false(_all_text(screen).contains("Game mode"), "no 'Game mode' caption")
-	for card: Button in screen.carousel.cards:
+	for card: Button in screen.mode_models:
 		assert_false((card.get_node("Heading") as Label).visible, "no 'Mode' on the cards")
 	for mode: Dictionary in TitleScreen.MODES:
 		assert_lt(String(mode["text"]).length(), 34, "one short line")
@@ -508,7 +508,7 @@ func test_private_addresses_use_plain_ws_and_public_ones_wss() -> void:
 func test_modals_and_tints_draw_above_every_component_of_the_main_screen() -> void:
 	var screen: TitleScreen = _screen()
 	var highest_card: int = -1000
-	for card: Button in screen.carousel.cards:
+	for card: Button in screen.mode_models:
 		highest_card = maxi(highest_card, card.z_index)
 	assert_gt(MenuDialog.MODAL_Z, highest_card + 100, "far above the carousel cards")
 	screen.open_quit_confirm()
@@ -606,13 +606,13 @@ func test_the_buttons_are_as_wide_as_their_words_and_equal() -> void:
 	assert_gte(screen.primary_button.custom_minimum_size.x, TitleScreen.CTA_MIN_WIDTH)
 
 
-func test_the_mode_cards_show_the_dioramas_bare_with_no_paper_or_power_line() -> void:
+func test_the_mode_models_are_bare_dioramas_with_no_paper_or_power_line() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(3)
-	for card: Button in screen.carousel.cards:
+	for card: Button in screen.mode_models:
 		var face: CardFace = card.get_node("Face") as CardFace
 		assert_true(face.bare, "%s is a bare diorama" % card.accessibility_name)
 		assert_null((face.get_node("Picture") as TextureRect).material, "no wear shader")
 		assert_false((face.get_node("Tint") as Control).visible, "no old tint")
 		assert_false((face.get_node("PowerLine") as Control).visible, "no power line")
-		assert_true(ResourceLoader.exists("res://assets/ui/dioramas/%s.png" % TitleScreen.MODES[screen.carousel.cards.find(card)]["id"]))
+		assert_true(ResourceLoader.exists("res://assets/ui/dioramas/%s.png" % TitleScreen.MODES[screen.mode_models.find(card)]["id"]))

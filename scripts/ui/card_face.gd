@@ -33,7 +33,7 @@ const SHADOW_ALPHA: float = 0.13
 ## How much further the shadow falls (and lighter it gets) as the card floats up.
 const SHADOW_BREATH: float = 4.0
 ## A bare picture: what an unchosen one is multiplied by (a dark, nearly black tint) and how flat its ground shadow is.
-const BARE_DIM: Color = Color(0.24, 0.24, 0.27)
+const BARE_DIM: Color = Color(0.17, 0.17, 0.2)
 const GROUND_SHADOW_SQUASH: float = 0.16
 
 ## How high the card floats (-1 sinking to 1 at the top of its drift): the middle card sets it as it drifts, and its shadow follows.
@@ -53,6 +53,8 @@ var chosen: float = 1.0:
 		# a card that is not chosen is only dimmed (a dark tint, still in colour: owner)
 		_picture_material.set_shader_parameter("dim", 1.0 - value)
 		_tint_material.set_shader_parameter("tint", Color(AGE_TINT, AGE_TINT.a * value))
+		# a bare picture has no shader: it is dimmed with a dark tint of its own (owner: darker)
+		_picture.modulate = Color.WHITE.lerp(BARE_DIM, 1.0 - value) if bare else Color.WHITE
 		queue_redraw()
 ## A bare face shows its picture as it is, a transparent PNG (a diorama) with no card paper, wear, corners, tint or power line: the card
 ## is only the shell that sizes, places and dims it (owner). The worn teks card above stays for another part of the game.
