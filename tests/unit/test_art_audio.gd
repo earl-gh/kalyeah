@@ -77,7 +77,7 @@ func _animation_after(kid: KidModel, state: PlayerState, speed: float = 0.0) -> 
 
 
 func test_each_state_plays_its_own_animation() -> void:
-	var kid: KidModel = _kid(3)  # Toni: his model has every clip, including the landing squash
+	var kid: KidModel = _kid(3)  # Toni
 	var state: PlayerState = PlayerState.new()
 	for i: int in 10:
 		kid.animate(0.05, 5.0, state)
@@ -89,7 +89,7 @@ func test_each_state_plays_its_own_animation() -> void:
 	for i: int in 20:
 		kid.animate(0.05, 0.0, state)
 	kid.play_cast()
-	assert_eq(_animation_after(kid, state), "cast", "standing still: the whole body throws")
+	assert_eq(_animation_after(kid, state), "cast", "standing still: the whole body casts")
 	state = PlayerState.new()
 	state.effects.apply(StatusEffects.Type.STUN, 2.0)
 	assert_eq(_animation_after(kid, state), "stun", "stars")
@@ -100,7 +100,8 @@ func test_each_state_plays_its_own_animation() -> void:
 	assert_eq(_animation_after(kid, state), "airborne", "flailing in the air")
 	assert_true((kid.find_child("Stars", true, false) as Node3D).visible, "dizzy stars in the air too")
 	state.effects.clear()
-	assert_eq(_animation_after(kid, state), "land", "a landing squash when back on the ground")
+	var player: AnimationPlayer = kid.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	assert_eq(_animation_after(kid, state), "land" if player.has_animation("land") else "idle", "a landing squash when the model has one")
 	state = PlayerState.new()
 	state.tagged = true
 	assert_eq(_animation_after(kid, state), "idle", "tagged kids stand on the sidewalk")
@@ -182,12 +183,12 @@ func test_every_kid_is_the_same_3d_model_at_one_height() -> void:
 
 func test_the_model_has_every_animation_and_loops_only_the_continuous_ones() -> void:
 	var player: AnimationPlayer = _kid(0).find_child("AnimationPlayer", true, false) as AnimationPlayer
-	for clip: String in ["idle", "run", "cast", "stun", "ko"]:
+	for clip: String in ["idle", "run", "cast", "stun", "airborne", "cast_run"]:
 		assert_true(player.has_animation(clip), clip)
-	for clip: String in ["idle", "run", "stun"]:
+	for clip: String in ["idle", "run", "stun", "airborne"]:
 		assert_eq(player.get_animation(clip).loop_mode, Animation.LOOP_LINEAR, "%s loops" % clip)
-	for clip: String in ["cast", "ko"]:
-		assert_eq(player.get_animation(clip).loop_mode, Animation.LOOP_NONE, "%s plays once" % clip)
+	assert_eq(player.get_animation("cast").loop_mode, Animation.LOOP_NONE, "the cast plays once")
+	assert_eq(player.get_animation("cast"), player.get_animation("cast_one_hand"), "every skill is the one-hand cast (owner: no throw)")
 
 
 func test_the_model_gets_the_matte_look_and_a_tint() -> void:
@@ -220,53 +221,95 @@ func test_the_run_cycle_follows_the_ground_speed() -> void:
 	assert_gt(player.speed_scale, slow * 1.5, "faster ground speed, faster legs")
 
 
-func test_a_cast_plays_at_the_cast_time_and_restarts() -> void:
+func test_a_cast_reaches_the_hands_release_as_it_blends_in_and_restarts() -> void:
 	var kid: KidModel = _kid(PACED)
 	var player: AnimationPlayer = kid.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	var state: PlayerState = PlayerState.new()
-	kid.play_cast(0.5)
-	kid.animate(0.02, 0.0, state)
+	var release: float = kid.release("cast")
+	kid.play_cast()
+	kid.animate(0.0, 0.0, state)
 	assert_eq(player.current_animation, "cast")
-	assert_almost_eq(player.speed_scale, player.get_animation("cast").length / 0.5, 0.01)
-	kid.animate(0.2, 0.0, state)
+	assert_almost_eq(player.speed_scale, 1.0, 0.0001, "the clip plays at its own speed")
+	assert_almost_eq(player.current_animation_position, release - KidModel.CAST_BLEND, 0.001, "one blend before the release")
+	player.advance(KidModel.CAST_BLEND)
+	assert_almost_eq(player.current_animation_position, release, 0.001, "the hand lets go as the cast has blended in")
 	player.advance(0.2)
 	var before: float = player.current_animation_position
-	assert_gt(before, 0.0)
-	kid.play_cast(0.5)
-	kid.animate(0.02, 0.0, state)
+	kid.play_cast()
+	kid.animate(0.0, 0.0, state)
 	assert_lt(player.current_animation_position, before, "a second cast starts over")
+	for i: int in 30:
+		kid.animate(0.05, 0.0, state)
+	assert_eq(kid.current_animation(), "idle", "back to standing once the cast has followed through")
 
 
-func _hips_height(kid: KidModel) -> float:
-	var skeleton: Skeleton3D = kid.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
-	var bone: int = skeleton.find_bone("hips")
-	return (skeleton.global_transform * skeleton.get_bone_global_pose(bone)).origin.y - kid.global_position.y
+func test_the_release_is_the_hands_fastest_moment_inside_each_cast_clip() -> void:
+	for id: int in [0, 1, 2]:  # Junjun, Ligaya and Migo: the owner's new rigs
+		var kid: KidModel = _kid(id)
+		var player: AnimationPlayer = kid.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		for clip: String in ["cast", "cast_run"]:
+			var release: float = kid.release(clip)
+			var length: float = player.get_animation(clip).length
+			assert_gt(release, KidModel.CAST_BLEND, "%s %s: there is a wind-up before the release" % [RULES.characters[id].id, clip])
+			assert_lt(release, length - KidModel.CAST_FOLLOW, "%s %s: and a follow-through after it" % [RULES.characters[id].id, clip])
 
 
-func test_a_knockout_knocks_the_kid_down_on_their_back_and_back_up() -> void:
+func test_a_knockout_tips_the_kid_over_with_no_knock_down_clip() -> void:
 	var kid: KidModel = _kid(1)
 	var body: Node3D = kid.find_child("Body", true, false) as Node3D
 	var player: AnimationPlayer = kid.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	# This test advances the clip explicitly; idle frames must not advance a second clock.
-	player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
-	player.advance(0.0)
-	await wait_process_frames(2)
-	var standing: float = _hips_height(kid)
+	assert_false(player.has_animation("knockdown"), "the owner took the knock-down clip out")
 	var state: PlayerState = PlayerState.new()
 	state.effects.apply(StatusEffects.Type.KNOCKOUT, 3.0)
 	for i: int in 30:
 		kid.animate(0.02, 0.0, state)
-	assert_eq(player.current_animation, "ko", "the kid's own knock-down clip")
-	player.advance(1.5)
-	# Evaluate the settled blend at the same clip time before sampling the bones.
-	player.advance(0.0)
-	await wait_process_frames(2)  # the skeleton applies the new pose on the next frame
-	assert_lt(_hips_height(kid), standing * 0.35, "lying on the street")
-	assert_almost_eq(body.rotation.x, 0.0, 0.05, "the clip falls, the body is not tipped as well")
+	assert_eq(player.current_animation, "idle", "no clip of its own")
+	assert_almost_eq(body.rotation.x, PI * 0.5, 0.05, "the whole body lies on its back")
 	state.effects.clear()
 	for i: int in 30:
 		kid.animate(0.02, 0.0, state)
-	assert_eq(player.current_animation, "idle", "back on their feet")
+	assert_almost_eq(body.rotation.x, 0.0, 0.05, "back on their feet")
+
+
+func test_a_tagged_kid_shrinks_away_where_it_was_caught_and_grows_back_on_the_sidewalk() -> void:
+	var kid: KidModel = _kid(0)
+	var state: PlayerState = PlayerState.new()
+	var caught: Vector3 = Vector3(2.0, 0.0, -3.0)
+	var sidewalk: Vector3 = Vector3(9.0, 0.0, 12.0)
+	kid.position = caught
+	kid.animate(0.02, 0.0, state)
+	assert_almost_eq(kid.tag_size(), 1.0, 0.001, "full size while playing")
+	# tagged: the sim puts the kid on the sidewalk at once, the view shrinks it where it was
+	state.tagged = true
+	var sizes: Array[float] = []
+	var step: float = 1.0 / 60.0
+	for i: int in int(KidModel.TAG_SHRINK / step):
+		kid.position = sidewalk
+		kid.animate(step, 0.0, state)
+		sizes.append(kid.tag_size())
+		assert_eq(kid.position, caught, "it shrinks where it was caught")
+	for i: int in range(1, sizes.size()):
+		assert_lte(sizes[i], sizes[i - 1] + 0.0001, "smaller every frame")
+	assert_lt(sizes[sizes.size() - 1], 0.1, "almost gone by the end of the shrink")
+	assert_gt(sizes[0], 0.9, "smooth: it starts slowly")
+	kid.position = sidewalk
+	kid.animate(step, 0.0, state)
+	assert_eq(kid.position, sidewalk, "then it is on the sidewalk")
+	assert_lt(kid.tag_size(), 0.1, "still tiny")
+	for i: int in int(KidModel.TAG_GROW / step) + 2:
+		kid.position = sidewalk
+		kid.animate(step, 0.0, state)
+	assert_almost_eq(kid.tag_size(), 1.0, 0.001, "back to its full size, waiting to be rescued")
+	assert_eq(kid.position, sidewalk)
+
+
+func test_a_kid_that_starts_tagged_does_not_shrink() -> void:
+	var kid: KidModel = _kid(0)
+	var state: PlayerState = PlayerState.new()
+	state.tagged = true
+	kid.animate(0.02, 0.0, state)
+	assert_almost_eq(kid.tag_size(), 1.0, 0.001, "joining a match with the kid already waiting: no shrink")
 
 
 func test_a_cast_on_the_move_moves_only_the_upper_body() -> void:
@@ -276,36 +319,20 @@ func test_a_cast_on_the_move_moves_only_the_upper_body() -> void:
 	var state: PlayerState = PlayerState.new()
 	for i: int in 10:
 		kid.animate(0.05, 5.0, state)
-	kid.play_cast(0.5)
-	kid.animate(0.02, 5.0, state)
+	kid.play_cast()
+	kid.animate(0.0, 5.0, state)
 	assert_eq(upper.current_animation, "cast")
-	assert_almost_eq(upper.speed_scale, upper.get_animation("cast").length / 0.5, 0.01, "at the cast time")
-	for clip: String in ["cast", "spell"]:
-		var anim: Animation = upper.get_animation(clip)
-		assert_gt(anim.get_track_count(), 20, "%s moves the arms, spine and head" % clip)
-		for track: int in anim.get_track_count():
-			var part: String = String(anim.track_get_path(track).get_subname(0))
-			for lower: String in ["thigh", "shin", "foot", "toe", "pelvis", "hips", "root", "knee_flex", "hip_flex"]:
-				assert_false(part.begins_with(lower), "%s leaves %s to the run" % [clip, part])
+	assert_almost_eq(upper.speed_scale, 1.0, 0.0001, "the running cast plays at its own speed")
+	assert_almost_eq(upper.current_animation_position, kid.release("cast_run") - KidModel.CAST_BLEND, 0.001, "timed to its own release")
+	var anim: Animation = upper.get_animation("cast")
+	assert_gt(anim.get_track_count(), 20, "the running cast moves the arms, spine and head")
+	for track: int in anim.get_track_count():
+		var part: String = String(anim.track_get_path(track).get_subname(0))
+		for lower: String in ["thigh", "shin", "foot", "toe", "pelvis", "hips", "root", "knee_flex", "hip_flex"]:
+			assert_false(part.begins_with(lower), "the running cast leaves %s to the run" % part)
 	for i: int in 30:
 		kid.animate(0.05, 5.0, state)
 	assert_false(upper.is_playing(), "the layer stops once the cast is over")
-
-
-func test_heals_shields_and_traps_are_cast_with_an_open_hand() -> void:
-	var spells: Array[StringName] = []
-	for def: WeaponDef in RULES.weapons:
-		if KidModel.is_spell(def):
-			spells.append(def.id)
-	spells.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
-	assert_eq(spells, [&"heal", &"langit_lupa", &"papel_shield", &"papel_trap"] as Array[StringName])
-	var kid: KidModel = _kid(3)
-	var state: PlayerState = PlayerState.new()
-	kid.play_cast(0.5, true)
-	assert_eq(_animation_after(kid, state), "spell")
-	var player: AnimationPlayer = kid.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	assert_eq(player.current_animation, "spell")
-	assert_almost_eq(player.current_animation_position, KidModel.SPELL_FROM, 0.05, "starts after the charge-up")
 
 
 func test_stars_circle_the_head_only_while_stunned() -> void:

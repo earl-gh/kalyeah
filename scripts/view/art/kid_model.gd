@@ -3,10 +3,12 @@ extends Node3D
 ## One of the six kids (docs/PROJECT.md 3.2) as a real 3D model: a rigged GLB with its own
 ## clips (tools/blender/build_kid_game_model.py), lit with the shared matte look (ModelLook).
 ## Visual only: the hitbox and every number come from the sim. The run cycle is paced by the
-## ground speed so the feet do not skate, a cast plays at the weapon's cast time (a throw, or
-## a one-hand spell for heals, shields and traps), a cast while running only moves the upper
-## body so the legs keep running, and a knock-out falls over backwards. Origin at the feet,
-## the kid faces -Z (like a camera). Kids with no model of their own yet use FALLBACK_SET.
+## ground speed so the feet do not skate. Every skill is cast with the one-hand cast (owner):
+## standing, the whole body plays `cast_one_hand`; on the move the upper body plays `cast_run`
+## over the run so the legs keep running. A cast is timed so the hand lets go exactly when the
+## skill's effect appears (`release_time`). A tagged kid shrinks away where it was caught and
+## grows back on the sidewalk (no knock-down clip, owner). Origin at the feet, the kid faces -Z
+## (like a camera). Kids with no model of their own yet use FALLBACK_SET.
 
 const MODEL_PATH: String = "res://assets/models/characters/%s.glb"
 const PORTRAIT_PATH: String = "res://assets/portraits/%s.png"
@@ -21,37 +23,48 @@ const GHOST_COLOR: Color = Color(0.55, 0.55, 0.62)
 const HIT_COLOR: Color = Color(1.0, 0.55, 0.55)
 ## Ground covered by one full run cycle (two steps).
 const STRIDE: float = 1.6
-const CAST_TIME: float = 0.38
 ## How long the knockout fall plays before the kid lies down (seconds).
 const KO_FALL_TIME: float = 0.35
 const HIT_TIME: float = 0.28
 const SHADOW_SIZE: float = 1.1
 const BLEND: float = 0.14
+## A cast cuts in quickly so the hand reaches its release on time.
+const CAST_BLEND: float = 0.06
+## How long a cast keeps showing after the hand lets go (the follow-through), before the kid
+## blends back to standing or running.
+const CAST_FOLLOW: float = 0.4
+## The step used to find the release in a cast clip (seconds), and how slow (a share of its top
+## speed) the casting hand is while it holds the cast pose.
+const RELEASE_STEP: float = 1.0 / 60.0
+const HOLD_SHARE: float = 0.25
+## A tagged kid shrinks away where it was caught in this long (fast, eased), then grows back to
+## its full size on the sidewalk in `TAG_GROW` (owner: no knock-down clip).
+const TAG_SHRINK: float = 0.16
+const TAG_GROW: float = 0.22
 ## The sim steps at 30 Hz but the screen draws faster: with no new position for this
 ## long the kid is standing still.
 const STILL_AFTER: float = 0.2
 ## Game state -> the clip that shows it in the rigged kids' GLBs. The game names are added
-## as aliases, so a model that already has a clip under the game name keeps it.
+## as aliases, so a model that already has a clip under the game name keeps it. Every skill
+## is cast with the one-hand cast (owner: no throw).
 const CLIP_FOR: Dictionary[String, String] = {
-	"idle": "idle_alert", "cast": "throw", "spell": "cast_one_hand", "stun": "stunned",
-	"airborne": "airborne_fall", "land": "airborne_fall_land", "ko": "knockdown",
+	"idle": "idle_alert", "cast": "cast_one_hand", "stun": "stunned",
+	"airborne": "airborne_fall", "land": "airborne_fall_land",
 }
-## Upper-body clips played over the run while casting on the move (legs keep running).
-const LAYER_FOR: Dictionary[String, String] = {"cast": "throw_run", "spell": "cast_run"}
+## The upper-body clip played over the run while casting on the move (legs keep running).
+const LAYER_CLIP: String = "cast_run"
 ## Bones a layered upper-body clip may move: the rest belongs to the run underneath.
 const UPPER_BONES: Array[String] = ["spine", "chest", "neck", "head", "shoulder", "upper_arm", "forearm",
 	"hand", "palm", "thumb", "index", "middle", "ring", "pinky", "spring_hair", "spring_pigtail"]
 ## Blend shapes a layered clip leaves to the run (knee and hip correctives).
 const LOWER_SHAPES: Array[String] = ["knee_flex", "hip_flex"]
 const LOOPING: Array[String] = ["idle", "run", "stun", "airborne"]
-## A spell starts where the charge-up of cast_one_hand ends (seconds into the clip).
-const SPELL_FROM: float = 0.6
-## Blend out of a knockout (getting back up) is slower than other changes.
-const GET_UP_BLEND: float = 0.3
 const STAR_COUNT: int = 5
 
 static var _scenes: Dictionary[String, PackedScene] = {}
 static var _layers: Dictionary[String, AnimationLibrary] = {}
+## "set/clip" -> when the hand lets go in that cast clip (seconds), found once per model.
+static var _releases: Dictionary[String, float] = {}
 static var _portraits: Dictionary[String, Texture2D] = {}
 static var _faces: Dictionary[String, Texture2D] = {}
 static var _shadow_texture: GradientTexture2D
@@ -65,8 +78,6 @@ var _body: Node3D  # leans and falls over (pivot at the feet)
 var _model: Node3D
 var _player: AnimationPlayer
 var _upper: AnimationPlayer  # the upper-body layer over the run
-var _own_fall: bool = false  # the model has its own knock-down clip (no whole-body tip)
-var _spell: bool = false
 var _airborne: bool = false
 var _land_left: float = 0.0
 var _layer_played: int = 0
@@ -79,9 +90,14 @@ var _phase: float = 0.0
 var _clock: float = 0.0
 var _ghost: bool = false
 var _cast_left: float = 0.0
-var _cast_total: float = CAST_TIME
-## The model plays its own clips at their own speed (CharacterDef.native_animation).
+## The model plays its own run at its own speed (CharacterDef.native_animation).
 var _native: bool = false
+## The tagged kid's shrink and grow: seconds left of it, and where it was caught (it shrinks there,
+## while the sim has already put it on the sidewalk).
+var _tag_left: float = 0.0
+var _caught_at: Vector3 = Vector3.ZERO
+var _was_tagged: bool = false
+var _last_position: Vector3 = Vector3.INF
 var _cast_serial: int = 0
 var _cast_played: int = 0
 var _hit_left: float = 0.0
@@ -114,22 +130,94 @@ func face(facing: Vector2) -> void:
 		rotation.y = atan2(-facing.x, -facing.y)
 
 
-## Throwing arm swing, or a one-hand spell when `spell` (a weapon was cast).
-func play_cast(duration: float = CAST_TIME, spell: bool = false) -> void:
-	_spell = spell
-	_cast_total = maxf(duration, CAST_TIME)
-	if _native:
-		# the clip decides how long the cast shows: its own length, never squeezed
-		var own: String = "spell" if spell and _player.has_animation("spell") else "cast"
-		_cast_total = maxf(_clip_length(own), 0.01)
-	_cast_left = _cast_total
+## A skill was cast: its effect appears now (the thrown thing, the falling rock, the tossed can,
+## the warning on the ground), so the one-hand cast is played from just before the hand lets go:
+## the hand reaches its release as the cast blends in, then follows through.
+func play_cast() -> void:
+	_cast_left = CAST_BLEND + CAST_FOLLOW
 	_cast_serial += 1
 
 
-## Heals, shields and traps are cast with an open hand; everything else is thrown.
-static func is_spell(weapon: WeaponDef) -> bool:
-	return weapon.kind == WeaponDef.Kind.HEAL or weapon.kind == WeaponDef.Kind.BLOCK \
-		or weapon.shape == WeaponDef.Shape.TRAP
+## When the hand lets go in `clip` of this kid's model (seconds into the clip).
+func release(clip: String) -> float:
+	var key: String = "%s/%s" % [_set, clip]
+	if not _releases.has(key):
+		var skeleton: Skeleton3D = _model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+		_releases[key] = release_time(_player.get_animation(clip), skeleton)
+	return _releases[key]
+
+
+## The moment the hand lets go in a cast clip: the casting hand thrusts out (standing) or up (on
+## the move) and holds the cast pose there, so the release is when it arrives: the start of the
+## longest stretch in which one hand stays almost still (under `HOLD_SHARE` of its top speed),
+## measured in the body's own frame (the hips) so a lean, a step or the run's arm swing does not
+## count. Worked out from the clip's tracks and the skeleton's rest pose, so any kid the owner
+## adds is timed the same way.
+static func release_time(animation: Animation, skeleton: Skeleton3D) -> float:
+	var hips: int = skeleton.find_bone("hips")
+	var tracks: Dictionary[String, Array] = {}
+	for track: int in animation.get_track_count():
+		var path: NodePath = animation.track_get_path(track)
+		if path.get_subname_count() > 0:
+			var bone_name: String = String(path.get_subname(0))
+			if not tracks.has(bone_name):
+				tracks[bone_name] = []
+			tracks[bone_name].append(track)
+	var longest: int = 0
+	var arrival: float = 0.0
+	for hand_name: String in ["hand.L", "hand.R"]:
+		var chain: Array[int] = []
+		var bone: int = skeleton.find_bone(hand_name)
+		while bone >= 0 and bone != hips:
+			chain.push_front(bone)
+			bone = skeleton.get_bone_parent(bone)
+		if bone != hips or chain.is_empty():
+			continue
+		# the hand's speed over the clip, one sample per step
+		var speeds: Array[float] = []
+		var previous: Vector3 = Vector3.INF
+		var time: float = 0.0
+		while time <= animation.length:
+			var hand: Transform3D = Transform3D.IDENTITY
+			for link: int in chain:
+				hand = hand * _bone_pose(animation, skeleton, link, tracks.get(skeleton.get_bone_name(link), []), time)
+			if previous != Vector3.INF:
+				speeds.append(hand.origin.distance_to(previous) / RELEASE_STEP)
+			previous = hand.origin
+			time += RELEASE_STEP
+		# its longest still stretch after it has moved (the stillness before the cast starts is not a hold)
+		var still: float = speeds.max() * HOLD_SHARE if not speeds.is_empty() else 0.0
+		var moved: bool = false
+		var run: int = 0
+		for sample: int in speeds.size():
+			if speeds[sample] >= still:
+				moved = true
+				run = 0
+				continue
+			if not moved:
+				continue
+			run += 1
+			if run > longest:
+				longest = run
+				arrival = float(sample - run + 1) * RELEASE_STEP
+	return clampf(arrival, 0.0, animation.length)
+
+
+## One bone's pose (relative to its parent) at `time` in `animation`, its rest where the clip does not move it.
+static func _bone_pose(animation: Animation, skeleton: Skeleton3D, bone: int, tracks: Array, time: float) -> Transform3D:
+	var rest: Transform3D = skeleton.get_bone_rest(bone)
+	var origin: Vector3 = rest.origin
+	var turn: Quaternion = rest.basis.get_rotation_quaternion()
+	var size: Vector3 = rest.basis.get_scale()
+	for track: int in tracks:
+		match animation.track_get_type(track):
+			Animation.TYPE_POSITION_3D:
+				origin = animation.position_track_interpolate(track, time)
+			Animation.TYPE_ROTATION_3D:
+				turn = animation.rotation_track_interpolate(track, time)
+			Animation.TYPE_SCALE_3D:
+				size = animation.scale_track_interpolate(track, time)
+	return Transform3D(Basis(turn) * Basis.from_scale(size), origin)
 
 
 ## Flinch (took damage).
@@ -175,9 +263,18 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	_clock += delta
 	_cast_left = maxf(0.0, _cast_left - delta)
 	_hit_left = maxf(0.0, _hit_left - delta)
+	# caught: the sim has already put the kid on the sidewalk, so it shrinks away where it was
+	# last drawn, then grows back where it waits
+	if state.tagged and not _was_tagged and _last_position != Vector3.INF:
+		_tag_left = TAG_SHRINK + TAG_GROW
+		_caught_at = _last_position
+	_was_tagged = state.tagged
+	_tag_left = maxf(0.0, _tag_left - delta)
+	_last_position = position
+	_shrink_for_tag()
 	var polymorphed: bool = state.effects.has(StatusEffects.Type.POLYMORPH)
 	_model.visible = not polymorphed
-	_shadow.visible = true
+	_shadow.visible = _body.visible
 	_can.visible = polymorphed
 	set_ghost(state.tagged)
 	if polymorphed:
@@ -202,7 +299,6 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	_airborne = airborne
 	_land_left = maxf(0.0, _land_left - delta)
 	var casting: bool = _cast_left > 0.0
-	var cast_clip: String = "spell" if _spell and _player.has_animation("spell") else "cast"
 	var anim: String = "idle"
 	var layer: String = ""
 	var play_speed: float = 1.0
@@ -220,15 +316,14 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 		pose = "stunned"
 		anim = "stun"
 	elif casting and _move_blend > 0.5 and _upper != null:
-		# casting on the move: the legs keep running, the upper body throws or casts
+		# casting on the move: the legs keep running, the upper body casts
 		pose = "cast"
 		anim = "run"
-		layer = cast_clip
+		layer = "cast"
 		play_speed = _run_speed(speed)
 	elif casting:
 		pose = "cast"
-		anim = cast_clip
-		play_speed = 1.0 if _native else (_clip_length(anim) - _clip_start(anim)) / _cast_total
+		anim = "cast"
 	elif _move_blend > 0.5:
 		pose = "run"
 		anim = "run"
@@ -268,10 +363,11 @@ func _run_speed(speed: float) -> float:
 	return clampf(speed / STRIDE * _clip_length("run"), 0.5, 2.2)
 
 
-## Starts the clip for `anim` (blended from whatever was playing) and sets its speed.
+## Starts the clip for `anim` (blended from whatever was playing) and sets its speed. A knockout
+## has no clip of its own: the kid stands and the whole body tips over (`_pose_body`).
 func _drive(anim: String, play_speed: float) -> void:
-	var clip: String = "ko" if anim.begins_with("ko") else anim
-	var is_cast: bool = clip == "cast" or clip == "spell"
+	var clip: String = "idle" if anim.begins_with("ko") else anim
+	var is_cast: bool = clip == "cast"
 	if clip != _playing or (is_cast and _cast_played != _cast_serial):
 		_cast_played = _cast_serial
 		_play(clip, play_speed)
@@ -279,14 +375,15 @@ func _drive(anim: String, play_speed: float) -> void:
 
 
 func _play(clip: String, play_speed: float) -> void:
-	var blend: float = GET_UP_BLEND if _playing == "ko" else BLEND
 	_playing = clip
-	_player.play(clip, blend, play_speed)
-	if clip in ["cast", "spell", "ko", "land"]:
-		_player.seek(_clip_start(clip), true)
+	_player.play(clip, CAST_BLEND if clip == "cast" else BLEND, play_speed)
+	if clip == "cast":
+		_player.seek(cast_start(clip), true)
+	elif clip == "land":
+		_player.seek(0.0, true)
 
 
-## Plays (or stops) the upper-body clip over the run; one start per cast.
+## Plays (or stops) the upper-body cast over the run; one start per cast, timed like a standing cast.
 func _drive_layer(layer: String) -> void:
 	if _upper == null:
 		return
@@ -297,15 +394,15 @@ func _drive_layer(layer: String) -> void:
 	if _layer_played != _cast_serial:
 		_layer_played = _cast_serial
 		_upper.play(layer)
-		_upper.seek(0.0, true)
-	_upper.speed_scale = 1.0 if _native else _upper.get_animation(layer).length / _cast_total
+		# a cast that began standing goes on from where it is now
+		_upper.seek(cast_start(LAYER_CLIP) + CAST_BLEND + CAST_FOLLOW - _cast_left, true)
+	_upper.speed_scale = 1.0
 
 
-## Where a clip starts when played as a one-off (a spell skips the long charge-up).
-func _clip_start(clip: String) -> float:
-	if _native:
-		return 0.0
-	return SPELL_FROM if clip == "spell" and _clip_length(clip) > SPELL_FROM * 2.0 else 0.0
+## Where a cast clip is started (seconds into it): one blend before the hand lets go, so the hand
+## is at its release as the blend into the clip ends. The clip plays at its own speed.
+func cast_start(clip: String) -> float:
+	return maxf(release(clip) - CAST_BLEND, 0.0)
 
 
 func _clip_length(clip: String) -> float:
@@ -319,10 +416,37 @@ func _pose_body(delta: float, knocked_out: bool) -> void:
 		_lie = move_toward(_lie, 1.0, delta / KO_FALL_TIME)
 	else:
 		_lie = move_toward(_lie, 0.0, delta * 5.0)
-	var fall: float = 0.0 if _own_fall else _lie * _lie * (3.0 - 2.0 * _lie)  # a knock-down clip falls by itself
+	var fall: float = _lie * _lie * (3.0 - 2.0 * _lie)
 	var flinch: float = sin((1.0 - _hit_left / HIT_TIME) * PI) if _hit_left > 0.0 else 0.0
 	_body.rotation.x = fall * PI * 0.5 + flinch * 0.16
 	_body.position = Vector3(0.0, fall * 0.16, flinch * 0.06)
+
+
+## A kid that was just tagged shrinks away fast where it was caught, then grows back to its full
+## size on the sidewalk (eased both ways, so it is quick but smooth).
+func _shrink_for_tag() -> void:
+	var size: float = 1.0
+	if _tag_left > TAG_GROW:
+		position = _caught_at
+		size = 1.0 - _smooth(1.0 - (_tag_left - TAG_GROW) / TAG_SHRINK)
+	elif _tag_left > 0.0:
+		size = _smooth(1.0 - _tag_left / TAG_GROW)
+	var gone: bool = size < 0.01
+	_body.visible = not gone
+	_shadow.visible = not gone
+	var scaled: Vector3 = Vector3.ONE * maxf(size, 0.01)
+	_body.scale = scaled
+	_shadow.scale = scaled
+
+
+## How far the kid has shrunk or grown, for the size it shows now (1 = full size).
+func tag_size() -> float:
+	return _body.scale.x if _body.visible else 0.0
+
+
+static func _smooth(t: float) -> float:
+	var u: float = clampf(t, 0.0, 1.0)
+	return u * u * (3.0 - 2.0 * u)
 
 
 ## A kid's standing portrait for HUD cards (falls back to FALLBACK_SET).
@@ -393,14 +517,13 @@ func _build() -> void:
 	for game_name: String in CLIP_FOR:
 		if not library.has_animation(game_name) and library.has_animation(CLIP_FOR[game_name]):
 			library.add_animation(game_name, library.get_animation(CLIP_FOR[game_name]))
-	_own_fall = library.has_animation(CLIP_FOR["ko"])
-	for clip: String in ["idle", "run", "cast", "spell", "stun", "airborne", "land", "ko"]:
+	for clip: String in ["idle", "run", "cast", "stun", "airborne", "land"]:
 		if library.has_animation(clip):
 			var animation: Animation = library.get_animation(clip)
 			animation.loop_mode = Animation.LOOP_LINEAR if clip in LOOPING else Animation.LOOP_NONE
 			if clip in LOOPING:
 				_close_loop(animation)
-	if library.has_animation(LAYER_FOR["cast"]) and library.has_animation(LAYER_FOR["spell"]):
+	if library.has_animation(LAYER_CLIP):
 		_upper = AnimationPlayer.new()
 		_upper.name = "UpperPlayer"
 		_upper.deterministic = false  # touches only its own (upper body) tracks
@@ -432,18 +555,17 @@ static func _close_loop(animation: Animation) -> void:
 		animation.length += animation.length / float(keys - 1)
 
 
-## The upper-body clips for one kid, with every leg, hip and root track taken out (and the
-## knee / hip correctives) so the run underneath keeps those.
+## The running cast for one kid as an upper-body clip ("cast"), with every leg, hip and root track
+## taken out (and the knee / hip correctives) so the run underneath keeps those.
 static func _layer_library(set_id: String, library: AnimationLibrary) -> AnimationLibrary:
 	if not _layers.has(set_id):
 		var layers: AnimationLibrary = AnimationLibrary.new()
-		for game_name: String in LAYER_FOR:
-			var anim: Animation = library.get_animation(LAYER_FOR[game_name]).duplicate(true) as Animation
-			for track: int in range(anim.get_track_count() - 1, -1, -1):
-				if not _is_upper_track(anim, track):
-					anim.remove_track(track)
-			anim.loop_mode = Animation.LOOP_NONE
-			layers.add_animation(game_name, anim)
+		var anim: Animation = library.get_animation(LAYER_CLIP).duplicate(true) as Animation
+		for track: int in range(anim.get_track_count() - 1, -1, -1):
+			if not _is_upper_track(anim, track):
+				anim.remove_track(track)
+		anim.loop_mode = Animation.LOOP_NONE
+		layers.add_animation("cast", anim)
 		_layers[set_id] = layers
 	return _layers[set_id]
 

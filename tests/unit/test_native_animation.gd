@@ -1,7 +1,7 @@
 extends GutTest
-## Junjun plays the animation clips of his own 3D model at their own speed (CharacterDef
-## .native_animation); the other kids keep the game's pacing. And a kid hit by a skill plays the animation
-## it causes (stunned, airborne, knocked down).
+## A kid marked `CharacterDef.native_animation` runs at its run clip's own speed; the others keep the game's pacing (no kid is
+## marked now: the owner's new rigs are paced to the ground like the rest, so the tests use a marked copy). And a kid hit by a skill
+## plays the animation it causes (stunned, airborne, knocked down).
 
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const DT: float = 1.0 / 30.0
@@ -16,9 +16,13 @@ func _def(id: StringName) -> CharacterDef:
 	return null
 
 
-func _kid(id: StringName) -> KidModel:
+func _kid(id: StringName, native: bool = false) -> KidModel:
 	var kid: KidModel = autofree(KidModel.new()) as KidModel
-	kid.setup(_def(id))
+	var def: CharacterDef = _def(id)
+	if native:
+		def = def.duplicate() as CharacterDef
+		def.native_animation = true
+	kid.setup(def)
 	add_child(kid)
 	return kid
 
@@ -29,51 +33,29 @@ func _run(kid: KidModel, speed: float) -> void:
 		kid.animate(DT, speed, state)
 
 
-func test_only_junjun_is_marked_native() -> void:
-	assert_true(_def(&"junjun").native_animation)
-	for id: StringName in [&"toni", &"ligaya", &"migo", &"popoy", &"inday"]:
+func test_no_kid_is_marked_native_now() -> void:
+	for id: StringName in [&"junjun", &"toni", &"ligaya", &"migo", &"popoy", &"inday"]:
 		assert_false(_def(id).native_animation, "%s keeps the game's pacing" % id)
 
 
-func test_junjun_runs_at_his_own_clip_speed_whatever_the_ground_speed() -> void:
-	var kid: KidModel = _kid(&"junjun")
+func test_a_native_kid_runs_at_its_own_clip_speed_whatever_the_ground_speed() -> void:
+	var kid: KidModel = _kid(&"junjun", true)
 	for speed: float in [2.0, 5.0, 9.0]:
 		_run(kid, speed)
 		assert_eq(kid.current_animation(), "run")
-		assert_almost_eq(kid._player.speed_scale, 1.0, 0.0001, "his run clip plays at its own speed at %.0f m/s" % speed)
+		assert_almost_eq(kid._player.speed_scale, 1.0, 0.0001, "the run clip plays at its own speed at %.0f m/s" % speed)
 
 
-func test_the_other_kids_run_is_still_paced_to_the_ground() -> void:
-	var kid: KidModel = _kid(&"toni")
+func test_the_kids_run_is_paced_to_the_ground() -> void:
+	var kid: KidModel = _kid(&"junjun")
 	_run(kid, 2.0)
 	var slow: float = kid._player.speed_scale
 	_run(kid, 7.0)
 	assert_gt(kid._player.speed_scale, slow, "the faster they go the faster the cycle")
 
 
-func test_a_cast_shows_his_clip_at_its_own_speed_and_for_its_own_length() -> void:
-	var kid: KidModel = _kid(&"junjun")
-	var state: PlayerState = PlayerState.new()
-	kid.play_cast(0.38, false)
-	kid.animate(DT, 0.0, state)
-	assert_eq(kid.pose, "cast")
-	assert_almost_eq(kid._player.speed_scale, 1.0, 0.0001, "not squeezed into the 0.38 s cast time")
-	assert_almost_eq(kid._cast_total, kid._clip_length("cast"), 0.001, "the cast shows for the clip's own length")
-	assert_gt(kid._cast_total, 1.0, "his throw is a real, long clip")
-	var toni: KidModel = _kid(&"toni")
-	toni.play_cast(0.38, false)
-	toni.animate(DT, 0.0, state)
-	assert_gt(toni._player.speed_scale, 1.5, "the others are still squeezed into the cast time")
-
-
-func test_a_spell_starts_at_the_beginning_of_his_clip() -> void:
-	var kid: KidModel = _kid(&"junjun")
-	assert_eq(kid._clip_start("spell"), 0.0)
-	assert_gt(_kid(&"toni")._clip_start("spell"), 0.0, "the others skip their charge-up")
-
-
-func test_his_footsteps_follow_his_run_clip() -> void:
-	var kid: KidModel = _kid(&"junjun")
+func test_a_native_kids_footsteps_follow_its_run_clip() -> void:
+	var kid: KidModel = _kid(&"junjun", true)
 	var steps: Array[int] = [0]
 	kid.footstep.connect(func() -> void: steps[0] += 1)
 	var state: PlayerState = PlayerState.new()

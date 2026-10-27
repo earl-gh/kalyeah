@@ -63,9 +63,7 @@ func connect_sim() -> void:
 		if id == owner.local_id:
 			owner._camera.shake(minf(0.1 + amount * 0.01, 0.4))
 			owner.hud.pulse.hit(amount, owner.sim.rules.player_max_hp))
-	owner.sim.weapon_cast.connect(func(id: int, weapon: StringName) -> void:
-		var def: WeaponDef = owner.sim.weapon_defs[weapon]
-		(owner._views[id] as KidModel).play_cast(def.cast_lock, KidModel.is_spell(def)))
+	owner.sim.weapon_cast.connect(func(id: int, _weapon: StringName) -> void: (owner._views[id] as KidModel).play_cast())
 	owner.sim.player_damaged.connect(func(id: int, _amount: int) -> void: (owner._views[id] as KidModel).play_hit())
 	owner.sim.point_scored.connect(_on_point_scored)
 	owner.sim.match_won.connect(_on_match_won)
