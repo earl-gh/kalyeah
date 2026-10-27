@@ -17,6 +17,10 @@ func test_the_tray_behind_the_cards_is_drawn_in_code_not_a_cardboard_picture() -
 	assert_gt(ConsolePanel.TRAY_BODY.b, ConsolePanel.TRAY_BODY.r * 3.0, "a bright blue body")
 	assert_gt(ConsolePanel.TRAY_RIM.b, ConsolePanel.TRAY_BODY.b - 0.001, "with a lighter rim along its top")
 	assert_gt(ConsolePanel.TRAY_RIM.g, ConsolePanel.TRAY_BODY.g, "lighter, not just bluer")
+	assert_gt(ConsolePanel.TRAY_TOP.g, ConsolePanel.TRAY_BODY.g, "lighter at the top")
+	assert_lt(ConsolePanel.TRAY_BOTTOM.g, ConsolePanel.TRAY_BODY.g, "and darker toward the bottom of the screen")
+	assert_eq(ConsolePanel.CORNER, UiSkin.RADIUS_M, "both top corners are slightly rounded")
+	assert_gt(ConsolePanel.HIGHLIGHT_HEIGHT, 0.0, "with a highlight line along the rim")
 
 
 func test_the_clock_says_time_left_in_a_see_through_box_with_a_black_outline() -> void:

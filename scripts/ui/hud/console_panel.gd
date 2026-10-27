@@ -26,20 +26,29 @@ static func draw_heart(canvas: CanvasItem, at: Vector2, radius: float, color: Co
 	canvas.draw_colored_polygon(PackedVector2Array([at + Vector2(-radius, -radius * 0.12), at + Vector2(radius, -radius * 0.12), at + Vector2(0.0, radius)]), color)
 
 
-## The tray's colours, from the Clash Royale reference: a dark navy outline, the body's bright blue, the light blue rim on top (with a
-## darker line under it) and the dark blue the body darkens to at the bottom of the screen.
-const TRAY_OUTLINE: Color = Color(0.02, 0.17, 0.42)
+## The tray's colours, from the Clash Royale reference: a dark navy outline, a light blue rim along the top, the bright blue body (lighter at
+## the top, darker toward the bottom of the screen) and its shades.
+const TRAY_OUTLINE: Color = Color(0.02, 0.12, 0.32)
+const TRAY_TOP: Color = Color(0.09, 0.58, 0.93)
 const TRAY_BODY: Color = Color(0.03, 0.5, 0.83)
-const TRAY_RIM: Color = Color(0.2, 0.66, 1.0)
-const TRAY_RIM_SHADOW: Color = Color(0.0, 0.3, 0.62, 0.55)
-const TRAY_BOTTOM: Color = Color(0.02, 0.2, 0.5, 0.9)
+const TRAY_BOTTOM: Color = Color(0.02, 0.27, 0.6)
+const TRAY_RIM: Color = Color(0.36, 0.76, 1.0)
+const TRAY_HIGHLIGHT: Color = Color(1.0, 1.0, 1.0, 0.42)
 const OUTLINE: int = 3
+## Both top corners are slightly rounded (owner).
 const CORNER: int = UiSkin.RADIUS_M
-const RIM_HEIGHT: float = 7.0
-## The body starts to darken this share of the way down, and the shade above the tray is this tall and this dark.
-const SHADE_FROM: float = 0.45
-const LIFT_HEIGHT: float = 22.0
-const LIFT_ALPHA: float = 0.3
+const RIM_HEIGHT: float = 6.0
+const HIGHLIGHT_HEIGHT: float = 2.0
+## Polish copied from the main menu's nav bar (`UiTabBar`): a soft shadow cast up over the street (its height and colour), a shade under the
+## rim, the sides shaded in a little and the bottom growing darker.
+const UNDER_RIM_HEIGHT: float = 12.0
+const UNDER_RIM_ALPHA: float = 0.3
+const SIDE_SHADE_WIDTH: float = 14.0
+const SIDE_SHADE_ALPHA: float = 0.22
+const BOTTOM_SHADE_HEIGHT: float = 40.0
+const BOTTOM_SHADE_ALPHA: float = 0.3
+## The body is TRAY_BODY this share of the way down.
+const BODY_AT: float = 0.4
 
 ## The width of the column beside the plate (NEXT and the chat button stand there, over the street) and whether it is at the left.
 var column_width: float = 0.0
@@ -53,44 +62,63 @@ func set_column(width: float, at_left: bool) -> void:
 
 
 func _draw() -> void:
-	# a bright blue tray drawn in code, copied from the Clash Royale reference (owner; replaces the picture of a cardboard plate): a thin
-	# dark outline, a light blue rim along its top edge, a body that darkens toward the bottom of the screen and a soft shade lifting it off
-	# the street. It runs off the screen's edge on the side away from the column (the column beside it shows the street).
+	# a bright blue tray drawn in code, copied from the Clash Royale reference (owner) and polished like the main menu's nav bar: a soft shadow
+	# cast up over the street, a navy outline round its two slightly rounded top corners, a light rim with a highlight line along the top, a
+	# shade under the rim, a body that is lighter at the top and darker toward the bottom, the sides shaded in a little and the bottom
+	# growing darker. It runs off the screen's edge on the side away from the column (the column beside it shows the street).
 	var left: float = column_width if column_left else 0.0
 	var tray: Rect2 = Rect2(Vector2(left, 0.0), Vector2(maxf(size.x - column_width, 0.0), size.y))
 	if tray.size.x <= 0.0:
 		return
-	var corner: int = CORNER
-	_draw_lift(tray)
-	var outline: StyleBoxFlat = _flat(TRAY_OUTLINE, corner, column_left)
+	_shade(Rect2(tray.position.x, tray.position.y - UiTabBar.SHADOW_HEIGHT, tray.size.x, UiTabBar.SHADOW_HEIGHT), UiTabBar.SHADOW_COLOR, true)
+	var outline: StyleBoxFlat = _rounded(TRAY_OUTLINE, CORNER)
 	draw_style_box(outline, tray)
-	var inside: Rect2 = Rect2(tray.position + Vector2(OUTLINE if column_left else 0.0, OUTLINE), tray.size - Vector2(OUTLINE if column_left else 0.0, OUTLINE) - Vector2(0.0 if column_left else OUTLINE, 0.0))
-	var body: StyleBoxFlat = _flat(TRAY_BODY, corner - OUTLINE, column_left)
+	var inside: Rect2 = Rect2(tray.position + Vector2(OUTLINE, OUTLINE), tray.size - Vector2(OUTLINE * 2, OUTLINE))
+	# the body with its light rim (a border along the top that follows the rounded corners)
+	var body: StyleBoxFlat = _rounded(TRAY_TOP, CORNER - OUTLINE)
+	body.border_color = TRAY_RIM
+	body.border_width_top = int(RIM_HEIGHT)
 	draw_style_box(body, inside)
-	# the body darkens down the tray (a vertical gradient from clear to dark blue)
-	var shade_top: float = inside.position.y + inside.size.y * SHADE_FROM
-	var shade: PackedVector2Array = PackedVector2Array([Vector2(inside.position.x, shade_top), Vector2(inside.end.x, shade_top), Vector2(inside.end.x, inside.end.y), Vector2(inside.position.x, inside.end.y)])
-	draw_polygon(shade, PackedColorArray([Color(TRAY_BOTTOM, 0.0), Color(TRAY_BOTTOM, 0.0), TRAY_BOTTOM, TRAY_BOTTOM]))
-	# the light rim along the top and the thin shine just under it
-	var rim: StyleBoxFlat = _flat(TRAY_RIM, corner - OUTLINE, column_left)
-	draw_style_box(rim, Rect2(inside.position, Vector2(inside.size.x, RIM_HEIGHT)))
-	draw_rect(Rect2(inside.position + Vector2(0.0, RIM_HEIGHT), Vector2(inside.size.x, 2.0)), TRAY_RIM_SHADOW)
+	# below the corners the body goes from its light top to the bright blue and on to a darker blue at the bottom of the screen
+	var straight: float = inside.position.y + float(CORNER - OUTLINE)
+	var body_y: float = straight + (inside.end.y - straight) * BODY_AT
+	_fill(Rect2(inside.position.x, straight, inside.size.x, body_y - straight), TRAY_TOP, TRAY_BODY)
+	_fill(Rect2(inside.position.x, body_y, inside.size.x, inside.end.y - body_y), TRAY_BODY, TRAY_BOTTOM)
+	var between: float = float(CORNER - OUTLINE)
+	var run: Rect2 = Rect2(inside.position.x + between, inside.position.y, inside.size.x - between * 2.0, 0.0)
+	draw_rect(Rect2(run.position + Vector2(0.0, 1.0), Vector2(run.size.x, HIGHLIGHT_HEIGHT)), TRAY_HIGHLIGHT)
+	_shade(Rect2(run.position.x, inside.position.y + RIM_HEIGHT, run.size.x, UNDER_RIM_HEIGHT), Color(0.0, 0.03, 0.1, UNDER_RIM_ALPHA), false)
+	# the sides are shaded in a little, and the bottom grows darker
+	var below: Rect2 = Rect2(inside.position.x, straight, inside.size.x, inside.end.y - straight)
+	_shade_across(Rect2(below.position.x, below.position.y, SIDE_SHADE_WIDTH, below.size.y), Color(0.0, 0.03, 0.1, SIDE_SHADE_ALPHA), true)
+	_shade_across(Rect2(below.end.x - SIDE_SHADE_WIDTH, below.position.y, SIDE_SHADE_WIDTH, below.size.y), Color(0.0, 0.03, 0.1, SIDE_SHADE_ALPHA), false)
+	_shade(Rect2(inside.position.x, inside.end.y - BOTTOM_SHADE_HEIGHT, inside.size.x, BOTTOM_SHADE_HEIGHT), Color(0.0, 0.02, 0.08, BOTTOM_SHADE_ALPHA), true)
 
 
-## A tray shape with only the top corner on the column's side rounded (the rest runs off the screen or into the bottom edge).
-func _flat(color: Color, radius: int, column_side_left: bool) -> StyleBoxFlat:
+## A tray shape with both top corners rounded to `radius` (the sides run off the screen or into its bottom edge).
+func _rounded(color: Color, radius: int) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = color
 	box.anti_aliasing = true
-	if column_side_left:
-		box.corner_radius_top_left = maxi(radius, 0)
-	else:
-		box.corner_radius_top_right = maxi(radius, 0)
+	box.corner_radius_top_left = maxi(radius, 0)
+	box.corner_radius_top_right = maxi(radius, 0)
 	return box
 
 
-## A soft dark shade just above the tray, so it stands off the street.
-func _draw_lift(tray: Rect2) -> void:
-	var top: float = tray.position.y - LIFT_HEIGHT
-	var points: PackedVector2Array = PackedVector2Array([Vector2(tray.position.x, top), Vector2(tray.end.x, top), Vector2(tray.end.x, tray.position.y), Vector2(tray.position.x, tray.position.y)])
-	draw_polygon(points, PackedColorArray([Color(0.0, 0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0, 0.0), Color(0.0, 0.02, 0.1, LIFT_ALPHA), Color(0.0, 0.02, 0.1, LIFT_ALPHA)]))
+## A rectangle filled with a gradient from `top` to `bottom`.
+func _fill(rect: Rect2, top: Color, bottom: Color) -> void:
+	draw_polygon(PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]), PackedColorArray([top, top, bottom, bottom]))
+
+
+## A shade that is `color` at one end and clear at the other: `clear_at_top` true grows toward the bottom, false fades out toward it.
+func _shade(rect: Rect2, color: Color, clear_at_top: bool) -> void:
+	var clear: Color = Color(color, 0.0)
+	_fill(rect, clear if clear_at_top else color, color if clear_at_top else clear)
+
+
+## The same sideways: `strong_at_left` true is strongest at the left edge and clear at the right.
+func _shade_across(rect: Rect2, color: Color, strong_at_left: bool) -> void:
+	var clear: Color = Color(color, 0.0)
+	var left: Color = color if strong_at_left else clear
+	var right: Color = clear if strong_at_left else color
+	draw_polygon(PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]), PackedColorArray([left, right, right, left]))
