@@ -31,9 +31,15 @@ static func gravity() -> Vector3:
 	return Input.get_gravity() * GRAVITY_SIGN
 
 
-## Whether this device reports its tilt (the switch for Tilt to run shows only then).
+## Whether this device reports its tilt now (the switch for Tilt to run shows only then). The first reading arrives a moment after the
+## app starts, so ask again when it matters (`possible` says whether it is worth asking).
 static func available() -> bool:
 	return gravity().length() >= MIN_GRAVITY
+
+
+## Whether this kind of device can report its tilt at all (a phone; or a test's reading): the switch is built, and shown once `available`.
+static func possible() -> bool:
+	return test_gravity is Vector3 or OS.has_feature("android")
 
 
 ## The next reading becomes level.

@@ -36,6 +36,12 @@ func _entry(mode: String, won: bool, mine: int = 2, theirs: int = 1) -> Dictiona
 	return {"mode": mode, "won": won, "mine": mine, "theirs": theirs, "at": int(Time.get_unix_time_from_system())}
 
 
+func _hosted(page: Control) -> PageHarness:
+	var harness: PageHarness = autofree(PageHarness.new(page)) as PageHarness
+	add_child(harness)
+	return harness
+
+
 # ---- the game behind the weapon ----------------------------------------------------------
 
 func test_every_street_game_has_one_plain_sentence() -> void:
@@ -53,11 +59,9 @@ func test_every_street_game_has_one_plain_sentence() -> void:
 
 
 func test_by_game_sections_carry_their_games_sentence_and_by_type_sections_do_not() -> void:
-	var screen: TitleScreen = _screen()
-	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	var screen: PageHarness = _hosted(WeaponsPage.new())
 	await wait_frames(2)
-	var page: WeaponsPage = screen.weapons_page
+	var page: WeaponsPage = screen.page as WeaponsPage
 	var games: StreetGames = WeaponsPage.street_games()
 	for section: Control in page.sections:
 		var blurb: Label = section.find_child("Blurb", true, false) as Label
@@ -101,15 +105,13 @@ func test_a_missing_stat_is_an_empty_bar_not_a_crash() -> void:
 
 
 func test_the_sheet_shows_one_bar_per_stat_with_its_exact_number_and_the_game() -> void:
-	var screen: TitleScreen = _screen()
-	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	var screen: PageHarness = _hosted(WeaponsPage.new())
 	await wait_frames(2)
 	var weapons: Array[WeaponDef] = _rules().weapons
 	var maxima: Dictionary = WeaponsPage.stat_maxima(weapons)
 	for i: int in weapons.size():
 		var weapon: WeaponDef = weapons[i]
-		screen.weapons_page.tiles[i].pressed.emit()
+		(screen.page as WeaponsPage).tiles[i].pressed.emit()
 		var figures: Control = screen.dialog.find_child("Figures", true, false)
 		var expected: Array[Dictionary] = WeaponsPage.figures_of(weapon)
 		assert_eq(figures.get_child_count(), expected.size(), weapon.id)
@@ -147,10 +149,9 @@ func test_each_kid_has_a_palette_of_clothes_never_skin() -> void:
 
 
 func test_the_kid_sheet_shows_the_swatches() -> void:
-	var screen: TitleScreen = _screen()
-	screen.open_page(&"codex")
+	var screen: PageHarness = _hosted(CharactersPage.new())
 	await wait_frames(2)
-	screen.characters_page.cards["migo"].pressed.emit()
+	(screen.page as CharactersPage).cards["migo"].pressed.emit()
 	var kid: CharacterDef = load("res://data/characters/migo.tres") as CharacterDef
 	for swatch: Dictionary in CharactersPage.palette_of(kid):
 		var dot: Panel = screen.dialog.find_child("Swatch_%s" % String(swatch["label"]), true, false) as Panel
