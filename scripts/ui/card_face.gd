@@ -10,8 +10,8 @@ const PICTURE_SHADER: Shader = preload("res://shaders/card_picture.gdshader")
 const SHADE_SHADER: Shader = preload("res://shaders/card_shade.gdshader")
 const TINT_SHADER: Shader = preload("res://shaders/card_tint.gdshader")
 ## The slight radius of each corner: between these, a different one on every corner of every card (never sharp, never very round).
-const CORNER_RADIUS_MIN: float = 6.0
-const CORNER_RADIUS_MAX: float = 17.0
+const CORNER_RADIUS_MIN: float = 12.0
+const CORNER_RADIUS_MAX: float = 16.0
 ## The yellowish tint over the whole card (subtle: owner, slightly stronger than first).
 const AGE_TINT: Color = Color(1.0, 0.86, 0.45, 0.11)
 ## Square corners, like a teks card (owner).
