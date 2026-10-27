@@ -40,7 +40,7 @@ func _problems(root: Node, where: String) -> Array[String]:
 		if not label.is_visible_in_tree() or label.text.is_empty():
 			continue
 		var size: int = label.get_theme_font_size("font_size")
-		if size < UiMetrics.MIN_TEXT:
+		if size < UiMetrics.MIN_TEXT and not label.has_meta(UiMetrics.BELOW_FLOOR_BY_OWNER):
 			found.append("%s: text '%s' is %d px (floor %d)" % [where, label.text.substr(0, 28), size, UiMetrics.MIN_TEXT])
 		for word: String in BANNED:
 			if label.text.containsn(word):

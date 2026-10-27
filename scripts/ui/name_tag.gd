@@ -32,7 +32,7 @@ const SLOT_RIM: Color = Color("b7c0d4")
 const INK: Color = KalyeahTheme.MODAL_TEXT
 const INK_MUTED: Color = KalyeahTheme.MODAL_TEXT_MUTED
 ## The small line under the name: light, and smaller than row 1.
-const INK_LIGHT: Color = Color("8a96b0")
+const INK_LIGHT: Color = Color("7f8ba6")
 const GREETING: String = "Hi! I'm"
 const HINT: String = "Tap to change"
 ## Where the rows sit: the name's baseline (down from the top of the card), and the height of a capital as a share of the letter size
@@ -40,7 +40,7 @@ const HINT: String = "Tap to change"
 const NAME_BASELINE: float = 124.0
 const CAP_RATIO: float = 0.72
 ## The hint's letter size (smaller than row 1) and the room between the name's baseline and the top of its capitals.
-const HINT_SIZE: int = UiMetrics.CAPTION
+const HINT_SIZE: int = UiMetrics.TAG_HINT
 const HINT_GAP: float = 14.0
 ## The name's letters, from the largest down to the smallest that still reads: a longer name takes a smaller size.
 const NAME_SIZES: Array[int] = [UiMetrics.HEADLINE, UiMetrics.TITLE, UiMetrics.BODY]
@@ -154,6 +154,7 @@ func _init() -> void:
 	hint_label.add_theme_color_override("font_color", INK_LIGHT)
 	hint_label.add_theme_constant_override("outline_size", 0)
 	hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint_label.set_meta(UiMetrics.BELOW_FLOOR_BY_OWNER, true)
 	words.add_child(hint_label)
 	# the front strap goes over the top edge of the card down into the slot
 	front_strap = _strap_piece("FrontStrap", STRAP_FRONT_COLOR, STRAP_Z, true)

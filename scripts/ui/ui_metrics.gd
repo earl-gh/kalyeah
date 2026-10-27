@@ -13,6 +13,11 @@ const DETAIL: int = 24
 const CAPTION: int = 22
 ## Small numbers and captions drawn IN the street or on the bars (the health number over a kid, "Max: 10"), below the reading floor on
 ## purpose (owner: smaller): they are glanced at, never read. Nothing in a menu uses it.
+## The name tag's "Tap to change" (owner: smaller than row 1 and light), below the reading floor on purpose: it only repeats what the whole
+## card already says, and the card's screen-reader name carries it. The one menu text under `MIN_TEXT`.
+const TAG_HINT: int = 18
+## A label carrying this meta is allowed under `MIN_TEXT` (the lint skips it): the owner asked for it, and it is the only one.
+const BELOW_FLOOR_BY_OWNER: StringName = &"below_floor_by_owner"
 const WORLD: int = 18
 ## The health number over a kid's bar and the status word above it (owner: 1.5x the 12 px it was).
 const WORLD_SMALL: int = 18
