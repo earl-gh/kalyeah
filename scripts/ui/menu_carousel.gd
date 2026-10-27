@@ -257,6 +257,13 @@ func _swipe_target() -> int:
 	return posmod(start + way, maxi(cards.size(), 1))
 
 
+## The top of the models behind the chosen one, in this control's pixels: the highest point of the carousel's back layer (what the name tag
+## above it must stay clear of). Valid once `card_size`, `back_rise`, `scale_loss` and `bottom_gap` are set.
+func back_top() -> float:
+	var base: float = (size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap
+	return base - card_size.y * back_rise + card_size.y * scale_loss / 2.0
+
+
 ## The card under `at` (the front-most one wins), or the current one when it hits none.
 func _card_at(at: Vector2) -> int:
 	var best: int = index

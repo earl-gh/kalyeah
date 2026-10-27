@@ -57,15 +57,17 @@ func save() -> void:
 
 const AVATARS: Array[String] = ["junjun", "ligaya", "migo", "toni", "popoy", "inday"]
 const MAX_NAME_LENGTH: int = 12
+## The name a new player starts with (they can change it on the name tag).
+const DEFAULT_NAME: String = "GABO"
 
 
-## A new player gets a name ("Kalye482") and a random character face; both can be changed.
+## A new player gets the name GABO and a random character face; both can be changed.
 func ensure_profile() -> void:
 	var changed: bool = false
 	var dice: RandomNumberGenerator = RandomNumberGenerator.new()
 	dice.randomize()
 	if player_name.strip_edges().is_empty():
-		player_name = "Kalye%d" % dice.randi_range(100, 999)
+		player_name = DEFAULT_NAME
 		changed = true
 	if not AVATARS.has(avatar_id):
 		avatar_id = AVATARS[dice.randi_range(0, AVATARS.size() - 1)]

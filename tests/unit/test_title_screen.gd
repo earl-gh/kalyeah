@@ -350,7 +350,7 @@ func test_a_new_player_gets_a_name_and_a_face() -> void:
 	Session.player_name = ""
 	Session.avatar_id = ""
 	Session.ensure_profile()
-	assert_false(Session.player_name.is_empty())
+	assert_eq(Session.player_name, "GABO", "a new player is GABO")
 	assert_lte(Session.player_name.length(), Session.MAX_NAME_LENGTH)
 	assert_true(Session.AVATARS.has(Session.avatar_id))
 	var name_now: String = Session.player_name
