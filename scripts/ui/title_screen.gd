@@ -14,11 +14,11 @@ const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
 ## The game modes in card order: Online, Local in the middle (the default, `Session.menu_mode` 1), Practice (owner).
 ## `accent` tints the frame of the card and the glow behind it.
 const MODES: Array[Dictionary] = [
-	{"id": "online", "title": "Online", "color": "orange", "accent": "a45cf0", "power": 7450,
+	{"id": "online", "title": "Online", "color": "orange", "accent": "45dd78", "power": 7450,
 		"text": "Invite friends with a room code!"},
 	{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff", "power": 9999,
 		"text": "Battle your friends nearby!"},
-	{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78", "power": 1200,
+	{"id": "practice", "title": "Practice", "color": "green", "accent": "a45cf0", "power": 1200,
 		"text": "Take on 3 bots, solo!"},
 ]
 ## The bottom tabs, left to right: Street (what each game is and how it plays), Play (the home page) and Settings. The Book and

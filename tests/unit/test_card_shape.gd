@@ -246,7 +246,7 @@ func test_the_main_menu_background_is_the_owners_picture_in_the_chosen_cards_col
 				assert_lt(backdrop.pictures[i].modulate.a, 0.01, "only one picture shows at a time")
 		assert_eq(visible_ones.size(), 1)
 		shown[visible_ones[0]] = true
-		assert_eq(visible_ones[0], [1, 0, 2][index], "Online purple, Local blue, Practice green: %s" % TitleScreen.MODES[index]["id"])
+		assert_eq(visible_ones[0], [2, 0, 1][index], "Online green, Local blue, Practice purple: %s" % TitleScreen.MODES[index]["id"])
 	Settings.reduced_motion = motion
 	assert_eq(shown.size(), 3, "each card has its own picture")
 	assert_null(backdrop.get_node("PictureGreen").material, "the pictures are shown as they are, not tinted")
