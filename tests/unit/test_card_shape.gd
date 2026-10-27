@@ -247,3 +247,15 @@ func test_the_main_menu_background_keeps_its_blue_and_turns_to_the_chosen_cards_
 	Settings.reduced_motion = motion
 	assert_eq(shifts.size(), 3, "each card turns the background differently")
 	assert_gte(float(material.get_shader_parameter("saturation")) if material.get_shader_parameter("saturation") != null else 1.2, 1.0, "the extra saturation is separate from the tint")
+
+
+func test_the_warm_backgrounds_are_lifted_and_every_vignette_is_dark_in_its_own_colour() -> void:
+	# audit (owner: the yellow background looked ugly and dark): orange at the picture's own darkness is brown, and the old navy
+	# vignette greyed it; so the warm hues are lifted toward gold and the vignette takes the focus colour
+	var material: ShaderMaterial = ShaderMaterial.new()
+	material.shader = load("res://shaders/backdrop_tint.gdshader") as Shader
+	assert_gt(float(material.shader.get_shader_uniform_list().filter(func(u: Dictionary) -> bool: return u["name"] == "warm_lift").size()), 0.0, "the shader lifts warm hues")
+	for accent: Color in [Color("4aa0ff"), Color("ffa63a"), Color("45dd78")]:
+		var dark: Color = UiBackdrop._night_color(accent)
+		assert_almost_eq(dark.h, accent.h, 0.01, "the vignette is the focus colour's hue")
+		assert_lt(dark.v, 0.2, "and very dark")

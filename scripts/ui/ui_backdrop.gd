@@ -14,6 +14,9 @@ const TINT_SHADER: Shader = preload("res://shaders/backdrop_tint.gdshader")
 const BACKLIGHT_STRENGTH: float = 0.4
 
 var glow: TextureRect
+## The dark of the vignette: the focus colour, very dark, so the dark that closes in on the picture is never another hue mixed into it
+## (a navy dark turned an orange picture into grey brown).
+var night: TextureRect
 var motes: CPUParticles2D
 ## False while a page or a sheet covers the screen: the motes rest (nothing under a cover needs redrawing).
 var ambient: bool = true:
@@ -57,8 +60,9 @@ func _init() -> void:
 	glow.material = additive
 	glow.modulate = _backlight_color(_accent)
 	add_child(glow)
-	var night: TextureRect = TextureRect.new()
+	night = TextureRect.new()
 	night.name = "Night"
+	night.modulate = _night_color(_accent)
 	night.texture = _night()
 	night.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	night.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -99,16 +103,18 @@ func set_accent(color: Color) -> void:
 	# the shortest way round the colour wheel from where the picture is now to where it should be
 	var to_shift: float = from_shift + wrapf(_target_shift(color) - from_shift, -0.5, 0.5)
 	var from_light: Color = glow.modulate
+	var from_night: Color = night.modulate
 	if Settings.reduced_motion or not is_inside_tree():
-		_apply(to_shift, _backlight_color(color))
+		_apply(to_shift, _backlight_color(color), _night_color(color))
 		return
 	_tween = create_tween()
-	_tween.tween_method(func(mix: float) -> void: _apply(lerpf(from_shift, to_shift, mix), from_light.lerp(_backlight_color(color), mix)), 0.0, 1.0, 0.45).set_trans(Tween.TRANS_SINE)
+	_tween.tween_method(func(mix: float) -> void: _apply(lerpf(from_shift, to_shift, mix), from_light.lerp(_backlight_color(color), mix), from_night.lerp(_night_color(color), mix)), 0.0, 1.0, 0.45).set_trans(Tween.TRANS_SINE)
 
 
-func _apply(shift: float, light: Color) -> void:
+func _apply(shift: float, light: Color, dark: Color) -> void:
 	_hue_shift = shift
 	glow.modulate = light
+	night.modulate = dark
 	_picture_material.set_shader_parameter("hue_shift", shift)
 
 
@@ -130,6 +136,11 @@ static func _backlight_color(accent: Color) -> Color:
 	var color: Color = accent.lightened(0.15)
 	color.s = minf(color.s * 1.05, 1.0)
 	return Color(color, BACKLIGHT_STRENGTH)
+
+
+## The vignette's dark: the focus colour at a very low brightness (the blue of the old navy gradient for the blue card).
+static func _night_color(accent: Color) -> Color:
+	return Color.from_hsv(accent.h, 0.9, 0.12)
 
 
 func _apply_motion() -> void:
@@ -182,6 +193,6 @@ static func _night() -> GradientTexture2D:
 	texture.fill_to = Vector2(0.0, 1.0)
 	var gradient: Gradient = Gradient.new()
 	gradient.offsets = PackedFloat32Array([0.0, 0.28, 0.62, 1.0])
-	gradient.colors = PackedColorArray([Color(0.01, 0.03, 0.12, 0.76), Color(0.02, 0.05, 0.2, 0.24), Color(0.02, 0.05, 0.2, 0.22), Color(0.01, 0.02, 0.1, 0.8)])
+	gradient.colors = PackedColorArray([Color(1, 1, 1, 0.76), Color(1, 1, 1, 0.24), Color(1, 1, 1, 0.22), Color(1, 1, 1, 0.8)])
 	texture.gradient = gradient
 	return texture

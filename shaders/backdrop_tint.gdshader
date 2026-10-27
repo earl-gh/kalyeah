@@ -6,6 +6,10 @@ shader_type canvas_item;
 uniform float hue_shift = 0.0;   // in turns (0.5 is the opposite colour): how far the focus colour is from the picture's blue
 uniform float saturation = 1.2;  // the slight extra saturation
 uniform float brightness = 1.0;  // and brightness
+// Orange and yellow at the picture's own darkness read as brown and mud (blue and green at that darkness are still rich), so the warm hues
+// are lifted and nudged toward gold: `warm_lift` is the brightness they gain, at the middle of the orange-yellow hues.
+uniform float warm_lift = 1.35;
+uniform float gold_nudge = 0.012; // in turns: how far orange is pushed toward yellow
 
 vec3 rgb_to_hsv(vec3 c) {
 	vec4 k = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -26,6 +30,11 @@ void fragment() {
 	vec4 picture = texture(TEXTURE, UV);
 	vec3 hsv = rgb_to_hsv(picture.rgb);
 	hsv.x = fract(hsv.x + hue_shift);
+	// how warm the turned hue is: 1 in the middle of orange to yellow (about 0.05 to 0.15 of the wheel), 0 beyond 0.09 either side
+	float warm = 1.0 - smoothstep(0.0, 0.09, abs(hsv.x - 0.1));
+	hsv.x += gold_nudge * warm;
+	hsv.y *= 1.0 - 0.1 * warm;
+	hsv.z = min(hsv.z * mix(1.0, warm_lift, warm), 1.0);
 	vec3 turned = hsv_to_rgb(hsv);
 	float grey = dot(turned, vec3(0.2126, 0.7152, 0.0722));
 	COLOR = vec4(mix(vec3(grey), turned, saturation) * brightness, picture.a);
