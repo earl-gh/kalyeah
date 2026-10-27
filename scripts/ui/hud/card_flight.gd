@@ -1,8 +1,8 @@
 class_name CardFlight
 extends Control
 ## The card you just used flying from the hand into the shuffler (view only, no touches): it shrinks and slides along a short arc in
-## `TIME` seconds, then removes itself. Not played with Reduce motion. The card is the same worn teks card the hand shows (`HandCard`, the
-## same wear: it is drawn from the weapon).
+## `TIME` seconds, then removes itself. Not played with Reduce motion. The card is the same card the hand shows (`HandCard`: the weapon's picture
+## when the owner made one, else the worn teks card with the same wear: it is drawn from the weapon).
 
 const TIME: float = 0.32
 const ARC: float = 30.0

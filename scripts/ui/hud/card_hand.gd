@@ -12,7 +12,7 @@ extends Control
 ## picked up: it shakes (flashes only, with Reduce motion). It reads the sim
 ## through `show_state()` and reports gestures with signals; it never decides a rule.
 ##
-## The cards are old Filipino teks cards (`HandCard` nodes, the mode card's worn look): the hand draws what is under them (the NEXT word,
+## The cards are `HandCard` nodes: the owner's picture of the weapon when there is one (`CardStyle.picture`), else an old Filipino teks card (the mode card's worn look): the hand draws what is under them (the NEXT word,
 ## the hollow of a slot a card is out of, the bar) in its own `_draw`, the cards are its children, and what lies over them (the ice water
 ## drop, the washes, the words, the flash) is drawn on an overlay child after them, and over the card under the finger on another one.
 
@@ -121,6 +121,7 @@ const DENY_BUZZ_MS: int = 30
 ## How fast the shown bar catches up with the real elixir (points per second); it snaps with Reduce motion.
 const BAR_CATCH_UP: float = 8.0
 const NO_POINTER: int = -1
+const _CLEAR: Color = Color(0.0, 0.0, 0.0, 0.0)
 
 ## Mirrored for a left-handed player: NEXT at the right, the hand to its left.
 var mirrored: bool = false
@@ -246,6 +247,8 @@ func _sync_faces() -> void:
 	if _next_face.visible:
 		_next_face.show_weapon(next_def)
 		_next_face.place(next_rect)
+		var filling: float = _next_face.picture_rect().size.y * (1.0 - next_fill) if next_fill < 1.0 else 0.0
+		_next_face.set_shades(_CLEAR, CardStyle.FILLING_SHADE, filling, _CLEAR)
 	var blocked: bool = not blocked_text.is_empty()
 	for slot: int in SLOTS:
 		var face: HandCard = _faces[slot]
@@ -263,10 +266,26 @@ func _sync_faces() -> void:
 			face.dim = BLOCK_DIM if blocked else 0.0
 		face.place(rect)
 		face.visible = true
+		_shade_picture(slot, face, blocked)
 	_held_face.visible = ready_layout and held_slot >= 0 and defs[held_slot] != null
 	if _held_face.visible:
 		_held_face.show_weapon(defs[held_slot])
 		_held_face.place(held_card_rect())
+
+
+## What lies over the picture card of `slot` (a teks card gets its polygons in `_draw_slot_over` instead): the grey wash of a cost the bar has
+## not reached (lighter over the whole picture, dark over the share still missing, from the top) and the red flash of a denied press, all
+## from the picture's own silhouette. Drawn under the ice water drop.
+func _shade_picture(slot: int, face: HandCard, blocked: bool) -> void:
+	if not face.has_picture() or defs[slot] == null:
+		face.clear_shades()
+		return
+	var flash: Color = Color(DENY_FLASH, DENY_FLASH.a * _deny[slot] / DENY_TIME) if _deny[slot] > 0.0 else _CLEAR
+	if blocked or pickable[slot] or reached[slot] >= 1.0:
+		face.set_shades(_CLEAR, _CLEAR, 0.0, flash)
+		return
+	var missing: float = face.picture_rect().size.y * (1.0 - clampf(reached[slot], 0.0, 1.0))
+	face.set_shades(GREY_REACHED, GREY, missing if missing > 1.0 else 0.0, flash)
 
 
 func _ready() -> void:
@@ -693,7 +712,7 @@ func _draw_next_label() -> void:
 func _draw_over_cards() -> void:
 	if card_rects.size() < SLOTS:
 		return
-	if next_def != null and next_fill < 1.0:
+	if next_def != null and next_fill < 1.0 and not _next_face.has_picture():
 		CardStyle.shade_top(_overlay, _next_face.outline(), next_rect.position, next_rect.size.y * (1.0 - next_fill), CardStyle.FILLING_SHADE)
 	for slot: int in SLOTS:
 		_draw_slot_over(slot)
@@ -710,16 +729,18 @@ func _draw_slot_over(slot: int) -> void:
 	if slot == held_slot or _arrive[slot] > 0.0:
 		return
 	rect.position.x += deny_offset(slot)
-	var outline: PackedVector2Array = _faces[slot].outline()
+	var face: HandCard = _faces[slot]
+	var outline: PackedVector2Array = face.outline()
 	var blocked: bool = not blocked_text.is_empty()
-	if not blocked and not pickable[slot] and reached[slot] < 1.0:
+	# a picture card's wash and flash are its own silhouette, drawn by the card itself (`_shade_picture`): the polygons are for teks cards
+	if not face.has_picture() and not blocked and not pickable[slot] and reached[slot] < 1.0:
 		_draw_grey(outline, rect, reached[slot])
-	_draw_cost(_overlay, rect, def, pickable[slot] or reached[slot] >= 1.0)
+	_draw_cost(_overlay, art_rect(face, rect), def, pickable[slot] or reached[slot] >= 1.0)
 	var tag: String = blocked_text if blocked else notices[slot]
 	# a word wider than a card (CAPTURING) is said once across the hand, not four times over one another
 	if not tag.is_empty() and not _tag_too_wide(tag):
 		_draw_tag(_overlay, rect.get_center(), UiText.t(tag))
-	if _deny[slot] > 0.0:
+	if _deny[slot] > 0.0 and not face.has_picture():
 		CardStyle.shade_all(_overlay, outline, rect.position, Color(DENY_FLASH, DENY_FLASH.a * _deny[slot] / DENY_TIME))
 
 
@@ -728,8 +749,10 @@ func _draw_over_held() -> void:
 	if held_slot < 0 or defs[held_slot] == null or card_rects.size() < SLOTS:
 		return
 	var rect: Rect2 = held_card_rect()
-	CardStyle.draw_lift_edge(_held_overlay, _held_face.outline(), rect.position)
-	_draw_cost(_held_overlay, rect, defs[held_slot], true)
+	# a picture card's lift cue (shadow and gold edge from its silhouette) is behind it, drawn by the card itself
+	if not _held_face.has_picture():
+		CardStyle.draw_lift_edge(_held_overlay, _held_face.outline(), rect.position)
+	_draw_cost(_held_overlay, art_rect(_held_face, rect), defs[held_slot], true)
 
 
 ## Greys a card the bar has not reached (cut to its worn corners): dark over the share still missing (from the top), lighter over the share
@@ -739,6 +762,11 @@ func _draw_grey(outline: PackedVector2Array, rect: Rect2, share: float) -> void:
 	var missing: float = rect.size.y * (1.0 - clampf(share, 0.0, 1.0))
 	if missing > 1.0:
 		CardStyle.shade_top(_overlay, outline, rect.position, missing, GREY)
+
+
+## Where the card drawn in `rect` really is: the rect itself for a teks card, the fitted picture for a picture card (what the drop sits on).
+static func art_rect(face: HandCard, rect: Rect2) -> Rect2:
+	return CardStyle.picture_rect(rect, face.picture) if face.has_picture() else rect
 
 
 ## Where the cost drop sits on the card `rect`: all of it inside the card, in the middle, its bottom edge a little above the card's

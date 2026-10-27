@@ -7,6 +7,10 @@ extends GutTest
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const DT: float = 1.0 / 30.0
 const WEAPON_DIR: String = "res://data/weapons/"
+## A hand of weapons the owner has no card picture for yet (`CardStyle.picture`): these are the teks cards this file is about (the picture
+## cards are in test_skill_card_pictures.gd).
+const TEKS_HAND: Array[StringName] = [&"bato_light", &"lata", &"tsinelas_light", &"tsinelas_heavy"]
+const TEKS_NEXT: StringName = &"bato_light"
 
 var _rules: GameRules
 var _was: bool
@@ -53,6 +57,8 @@ func _sim() -> MatchSim:
 	sim.begin_intro()
 	sim.intro_left = 0.0
 	sim.phase = MatchSim.Phase.PLAYING
+	sim.players[1].weapons.assign(TEKS_HAND)
+	sim.players[1].next_card = TEKS_NEXT
 	return sim
 
 
@@ -101,7 +107,11 @@ func test_the_power_number_is_cosmetic_no_rule_reads_it() -> void:
 # ---- the look -------------------------------------------------------------------
 
 func test_a_hand_card_is_the_mode_cards_worn_face_printed_in_the_kind_colour_with_the_art_on_it() -> void:
+	var checked: int = 0
 	for def: WeaponDef in _weapons():
+		if CardStyle.picture(def.id) != null:
+			continue
+		checked += 1
 		var card: HandCard = autofree(HandCard.new()) as HandCard
 		add_child(card)
 		card.show_weapon(def)
@@ -113,6 +123,7 @@ func test_a_hand_card_is_the_mode_cards_worn_face_printed_in_the_kind_colour_wit
 		assert_eq(material.get_shader_parameter("ground") as Color, WeaponPickScreen.kind_color(def.kind).darkened(CardStyle.GROUND_DARKEN), "%s: printed in its kind colour" % def.id)
 		assert_eq(_picture(card).texture, Icons.skill(def.id), "%s: the painted skill icon on it" % def.id)
 		assert_eq((card.get_node("PowerLine") as CardPowerLine).text, "POWER %d" % def.card_power, "%s: its power up the edge, from data" % def.id)
+	assert_gte(checked, 4, "the weapons without a picture keep the teks card")
 
 
 func test_the_four_kinds_read_apart_by_their_ground_colour() -> void:
@@ -303,7 +314,7 @@ func test_a_card_arriving_from_next_is_the_flight_not_the_slot() -> void:
 
 
 func test_the_flight_card_follows_its_arc_and_darkens() -> void:
-	var weapon: WeaponDef = _weapons()[0]
+	var weapon: WeaponDef = load(WEAPON_DIR + "lata.tres") as WeaponDef
 	var parent: Control = autofree(Control.new()) as Control
 	add_child(parent)
 	var flight: CardFlight = CardFlight.fly(parent, weapon, Rect2(Vector2(100.0, 100.0), Vector2(120.0, 150.0)), Rect2(Vector2(300.0, 100.0), Vector2(60.0, 75.0)))
