@@ -250,9 +250,11 @@ func test_the_carousel_is_online_local_practice_with_local_chosen_in_front() -> 
 	assert_eq(middle.modulate.a, 1.0)
 	assert_lt(next.modulate.r, middle.modulate.r - 0.2, "the next card is clearly darker: depth")
 	assert_lt(next.modulate.a, middle.modulate.a, "and slightly see-through too")
-	# the mode models behind stand higher than the chosen one (owner): by `MODEL_BACK_RISE` of a model's height, give or take the bob
+	# the mode models behind stand higher than the chosen one (owner): by `MODEL_BACK_RISE` of a model's height, give or take the bob (the bob
+	# moves the chosen model one way and the one behind the other way, by up to `AMBIENT_BOB` each, and where in its breath it is depends on
+	# how long the frames took: a slow machine measured 13 px off a tolerance of 12)
 	var rise: float = middle.get_global_rect().get_center().y - next.get_global_rect().get_center().y
-	assert_almost_eq(rise, middle.size.y * TitleScreen.MODEL_BACK_RISE, 12.0, "the model behind stands higher than the chosen one")
+	assert_almost_eq(rise, middle.size.y * TitleScreen.MODEL_BACK_RISE, TitleScreen.AMBIENT_BOB * 2.0, "the model behind stands higher than the chosen one")
 	assert_lt(next.scale.x, middle.scale.x, "and smaller")
 	assert_almost_eq(next.scale.x / middle.scale.x, TitleScreen.MODEL_BACK_SCALE, 0.01, "0.75 of the chosen model (owner)")
 	assert_lt(next.z_index, middle.z_index, "and behind")
