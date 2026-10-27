@@ -167,6 +167,9 @@ func poll(delta: float) -> void:
 
 
 func _play(delta: float) -> void:
+	var away: int = _away_team()
+	if away >= 0 and sim.phase != MatchSim.Phase.MATCH_OVER:
+		sim.forfeit(away)
 	var dt: float = sim.rules.tick_dt()
 	_accumulator += delta
 	while _accumulator >= dt:
@@ -181,6 +184,21 @@ func _play(delta: float) -> void:
 	if _snapshot_accumulator >= 1.0 / _net.snapshot_rate:
 		_snapshot_accumulator = 0.0
 		_send_snapshots(Snapshot.capture(sim, _acks))
+
+
+## The team whose every player is away (AFK), or -1. In a 1v1 that is the one player who left.
+func _away_team() -> int:
+	for team: int in 2:
+		var players: int = 0
+		var away: int = 0
+		for m: RoomService.Member in room.members:
+			if m.team == team:
+				players += 1
+				if m.afk:
+					away += 1
+		if players > 0 and away == players:
+			return team
+	return -1
 
 
 ## The same public snapshot to everyone, each with only its own private part (elixir, stamina, move target).

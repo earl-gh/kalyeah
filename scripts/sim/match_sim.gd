@@ -461,6 +461,17 @@ func begin_intro() -> void:
 	intro_left = rules.intro_time
 
 
+## Everyone on `team` is gone (online, away too long): the match ends now and the other team wins, the score as it stands.
+func forfeit(team: int) -> void:
+	if phase == Phase.MATCH_OVER:
+		return
+	score.winner = 1 - team
+	for id: int in players:
+		end_move(players[id])
+	phase = Phase.MATCH_OVER
+	match_won.emit(score.winner)
+
+
 func step(dt: float) -> void:
 	if phase == Phase.MATCH_OVER:
 		tick += 1

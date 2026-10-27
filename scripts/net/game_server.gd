@@ -69,7 +69,8 @@ func poll(delta: float) -> void:
 		var message: Dictionary = NetProtocol.decode(_peer.get_packet())
 		if not message.is_empty():
 			_handle(from, message)
-	rooms.step(delta)
+	for room: RoomService.Room in rooms.step(delta):
+		_send_room(room)
 	for code: String in matches.keys():
 		if not rooms.rooms.has(code):
 			matches[code].dispose()
