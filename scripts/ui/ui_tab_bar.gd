@@ -12,16 +12,17 @@ signal tab_pressed(id: StringName)
 
 ## How tall the bar is at the design width (the reference's bar is about a fifth as tall as it is wide).
 const HEIGHT: float = 164.0
-## The pictures' sizes (design pixels) for the open and an idle tab, and the one line their centres sit on, from the bar's top.
+## The pictures' sizes (design pixels) for the open and an idle tab, and the line the idle ones are centred on (the middle of the bar:
+## `BAR_TOP` to `HEIGHT`), from the top of this control.
 const ICON_ACTIVE: float = 108.0
 const ICON_IDLE: float = 80.0
-const ICON_Y: float = 90.0
+const ICON_Y: float = 105.0
 ## The open tab's picture rises: it sits on this line instead, which puts its top above the bar (like the reference's).
 const ICON_Y_OPEN: float = 58.0
 ## Where the bar itself starts, from the top of this control: the space above is clear, for the open picture to rise into.
 const BAR_TOP: float = 46.0
 ## The open tab's name sits under its picture (it rises a few pixels into place as it fades in).
-const LABEL_Y: float = 118.0
+const LABEL_Y: float = 126.0
 const LABEL_HEIGHT: float = 32.0
 const LABEL_RISE: float = 8.0
 ## The arrows: how big they are drawn, how big they are to the thumb, and how far from the picture's edge.
@@ -260,7 +261,8 @@ func _place_arrows(centre_sum: float, total: float, left_share: float, right_sha
 		return
 	var centre: float = centre_sum / total
 	var reach: float = (ICON_ACTIVE / 2.0 + ARROW_GAP + ARROW_SIZE / 2.0) * scale_to
-	var y: float = ICON_Y_OPEN * scale_to - ARROW_TOUCH / 2.0
+	# the arrows sit level with the bottom of the open picture
+	var y: float = (ICON_Y_OPEN + ICON_ACTIVE / 2.0) * scale_to - ARROW_TOUCH / 2.0
 	arrow_left.position = Vector2(centre - reach - ARROW_TOUCH / 2.0, y)
 	arrow_right.position = Vector2(centre + reach - ARROW_TOUCH / 2.0, y)
 	var left_alpha: float = left_share / total
