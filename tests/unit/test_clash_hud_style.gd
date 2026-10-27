@@ -17,6 +17,12 @@ func test_the_tray_behind_the_cards_is_drawn_in_code_not_a_cardboard_picture() -
 	assert_gt(ConsolePanel.TRAY_BODY.b, ConsolePanel.TRAY_BODY.r * 3.0, "a bright blue body")
 	assert_gt(ConsolePanel.TRAY_RIM.b, ConsolePanel.TRAY_BODY.b - 0.001, "with a lighter rim along its top")
 	assert_gt(ConsolePanel.TRAY_RIM.g, ConsolePanel.TRAY_BODY.g, "lighter, not just bluer")
+	assert_gt(ConsolePanel.TRAY_TOP.g, ConsolePanel.TRAY_BODY.g, "the body lightens a little toward its top")
+	assert_lt(ConsolePanel.TRAY_BOTTOM.g, ConsolePanel.TRAY_BODY.g, "and darkens toward the bottom of the screen")
+	assert_gt(ConsolePanel.TRAY_BOTTOM.b, ConsolePanel.TRAY_BOTTOM.r * 5.0, "still a blue, not a black")
+	var constants: Dictionary = (ConsolePanel as GDScript).get_script_constant_map()
+	for constant_name: String in constants:
+		assert_false(constant_name.contains("OUTLINE"), "the tray has no outline colour (%s)" % constant_name)
 
 
 func test_the_clock_says_time_left_in_a_see_through_box_with_a_black_outline() -> void:
@@ -73,6 +79,9 @@ func test_the_ice_water_icon_is_the_owners_drop_with_a_snowflake_and_lossless() 
 	assert_almost_eq(drop.get_size().x / drop.get_size().y, HandArt.ICE_ASPECT, 0.002, "the aspect is the picture's own (trimmed to its art)")
 	var atlas: AtlasTexture = HandArt.ice()
 	assert_eq(atlas.region.size, drop.get_size(), "all of the picture is drawn")
+	var drawn: Rect2 = HandArt.ice_rect(Vector2.ZERO, 100.0)
+	assert_almost_eq(drawn.size.x / drawn.size.y, HandArt.ICE_DRAW_ASPECT, 0.0001, "drawn at the narrower ratio, not the picture's own")
+	assert_lt(drawn.size.x / drawn.size.y, drop.get_size().x / drop.get_size().y, "narrower than the picture")
 	var import_text: String = FileAccess.get_file_as_string("res://assets/ui/hand/ice_water.png.import")
 	assert_true(import_text.contains("compress/mode=0"), "lossless")
 	assert_true(import_text.contains("mipmaps/generate=true"), "with mipmaps, so it stays smooth drawn small")

@@ -1,5 +1,6 @@
 extends GutTest
-## The health, stamina and ice water bars: rounded rectangles (not pills), flat empty colours, ice water that fills one segment at a time.
+## The health, stamina and ice water bars: rounded rectangles (not pills), flat empty colours, ice water that fills one segment at a time
+## (the segment being filled in see-through white), blue and glossy, with a pale outline that is never black.
 
 
 func test_a_bar_is_a_rounded_rectangle_not_a_pill() -> void:
@@ -46,6 +47,19 @@ func test_the_ice_water_bar_fills_one_segment_at_a_time() -> void:
 	assert_gt(CardHand.REFILL_WHITE.a, 0.0)
 	assert_lt(CardHand.REFILL_WHITE.a, 0.7, "the filling segment is see-through white")
 	assert_eq(Color(CardHand.REFILL_WHITE, 1.0), Color.WHITE)
+
+
+func test_the_ice_water_fill_is_a_light_band_over_a_deeper_blue_and_its_outline_is_pale_not_black() -> void:
+	var top: Color = CardHand.ICE_FILL_TOP
+	var bottom: Color = CardHand.ICE_FILL_BOTTOM
+	assert_gt(top.get_luminance(), bottom.get_luminance(), "a lighter highlight band over a deeper lower half")
+	for fill: Color in [top, bottom]:
+		assert_gt(fill.b, fill.r + 0.3, "the bar stays in the ice blue family")
+		assert_eq(fill.a, 1.0, "opaque")
+	assert_gt(CardHand.ICE_WATER.b, CardHand.ICE_WATER.r + 0.3)
+	assert_gt(CardHand.BAR_EDGE.get_luminance(), 0.6, "the thin outline is pale")
+	assert_gt(CardHand.BAR_EDGE.b, CardHand.BAR_EDGE.r, "ice blue, not black")
+	assert_gt(CardHand.ICE_WATER_FULL_EDGE.get_luminance(), CardHand.BAR_EDGE.get_luminance() * 0.9)
 
 
 func test_the_max_caption_is_centred_on_the_bars_bottom_outline() -> void:
