@@ -613,4 +613,4 @@ func test_the_mode_cards_show_the_dioramas_bare_with_no_paper_or_power_line() ->
 		assert_null((face.get_node("Picture") as TextureRect).material, "no wear shader")
 		assert_false((face.get_node("Tint") as Control).visible, "no old tint")
 		assert_false((face.get_node("PowerLine") as Control).visible, "no power line")
-		assert_true(ResourceLoader.exists("res://assets/ui/dioramas/%s.webp" % TitleScreen.MODES[screen.carousel.cards.find(card)]["id"]))
+		assert_true(ResourceLoader.exists("res://assets/ui/dioramas/%s.png" % TitleScreen.MODES[screen.carousel.cards.find(card)]["id"]))

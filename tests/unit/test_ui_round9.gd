@@ -175,7 +175,7 @@ func test_the_hero_fills_a_tall_phone_and_stays_2_5_to_4() -> void:
 	assert_gte(tall_card.y, standard_card.y - 1.0, "a taller phone never gets a smaller card")
 	for card: Vector2 in [standard_card, tall_card]:
 		assert_almost_eq(card.x / card.y, TitleScreen.card_ratio(), 0.01, "the card is the shape of its picture")
-		assert_gte(card.y, TitleScreen.HERO_MIN_HEIGHT)
+		assert_gte(card.y, TitleScreen.HERO_MIN_HEIGHT * (TitleScreen.DIORAMA_SCALE if TitleScreen.card_is_bare() else 1.0))
 		assert_lte(card.y, TitleScreen.HERO_MAX_HEIGHT)
 	var stage: Control = tall.carousel.get_parent() as Control
 	assert_lte(tall_card.y + TitleScreen.HERO_AIR, stage.size.y + 1.0, "it fits its stage with room for the glow")

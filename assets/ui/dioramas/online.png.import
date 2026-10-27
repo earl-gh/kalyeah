@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cad18nbclnrak"
-path="res://.godot/imported/practice.webp-486e83a0c27c3415081383ba9491a4fa.ctex"
+uid="uid://0r7k0x1u06fh"
+path="res://.godot/imported/online.png-bd4ed29fa52f9680929af18894f6146c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/dioramas/practice.webp"
-dest_files=["res://.godot/imported/practice.webp-486e83a0c27c3415081383ba9491a4fa.ctex"]
+source_file="res://assets/ui/dioramas/online.png"
+dest_files=["res://.godot/imported/online.png-bd4ed29fa52f9680929af18894f6146c.ctex"]
 
 [params]
 
