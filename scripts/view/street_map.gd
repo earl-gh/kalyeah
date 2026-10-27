@@ -122,6 +122,12 @@ const BOUNDARY_PICTURES: Array[Dictionary] = [
 ]
 ## 90 degrees less the camera's pitch (`data/rules/camera_rules.tres`, 45).
 const BOUNDARY_TILT: float = 45.0
+## The owner's tricycle terminal (a 2D picture like the three above, same folder) stands on the sidewalk at the top left of the screen: its
+## true height (m, times `scenery()`), the middle of its width this far out from the street's middle line (on the sidewalk, its far side at
+## the screen's edge) and its bottom edge this far in from the end line (clear of the settings button and the cart of the top boundary).
+const TERMINAL_PICTURE: Dictionary = {"id": "tricycle_terminal", "height": 1.7}
+const TERMINAL_X: float = 12.9
+const TERMINAL_IN: float = 2.0
 ## Things whose long side is their depth: they are turned a quarter so the long side faces the play area.
 const BARRIER_TURNED: Array[String] = ["tricycle"]
 ## Things laid down on their side across the street (the basketball pole, so its whole length is
@@ -159,6 +165,8 @@ var far_props: Array[String] = []
 ## of the screen shows the pictures, the other its props (`set_own_side`).
 var _row_props: Dictionary[float, Array] = {}
 var _row_pictures: Dictionary[float, Node3D] = {}
+## end -> the tricycle terminal picture on the sidewalk at that end (only the copy at the top left of the viewer's screen shows).
+var _terminal_pictures: Dictionary[float, MeshInstance3D] = {}
 ## side -> [base tape, base fill, rescue tape, rescue fill] materials (recoloured per viewer).
 var _base_materials: Dictionary[int, Array] = {}
 ## side -> that base's team colour as the viewer sees it (blue yours, red theirs).
@@ -317,6 +325,7 @@ func _build_map() -> void:
 	_turn_posts(MapLayout.SIDE_OWN)
 	_add_barricades()
 	_add_boundary_pictures()
+	_add_terminal_pictures()
 	_show_top_boundary(MapLayout.SIDE_OWN)
 	_add_houses()
 	_add_details()
@@ -649,6 +658,23 @@ func _add_boundary_pictures() -> void:
 		_row_pictures[end] = row
 
 
+## The owner's tricycle terminal on the sidewalk at the top left of the screen: one copy at each end (the street is the same turned round), at
+## the left of the screen as the camera sees it, so the -Z end's copy is on the -X sidewalk and the +Z end's on the +X sidewalk. Only the copy
+## at the top end for the viewer shows (`_show_top_boundary`).
+func _add_terminal_pictures() -> void:
+	var width: float = boundary_width(TERMINAL_PICTURE, scenery())
+	for end: float in [-1.0, 1.0]:
+		var picture: MeshInstance3D = _boundary_picture(TERMINAL_PICTURE, width)
+		picture.name = "TricycleTerminalPicture%s" % ("Far" if end < 0.0 else "Near")
+		var holder: Node3D = Node3D.new()
+		holder.name = "Terminal%s" % ("Far" if end < 0.0 else "Near")
+		holder.position = Vector3(end * TERMINAL_X, 0.0, end * (layout.lane_length / 2.0 - TERMINAL_IN))
+		holder.rotation_degrees = Vector3(0.0, 0.0 if end < 0.0 else 180.0, 0.0)
+		holder.add_child(picture)
+		_geometry.add_child(holder)
+		_terminal_pictures[end] = picture
+
+
 ## One picture of the top boundary: an upright quad leaning back by `BOUNDARY_TILT`, its bottom edge on the ground, drawn as the owner made it.
 func _boundary_picture(entry: Dictionary, width: float) -> MeshInstance3D:
 	var height: float = float(entry["height"]) * scenery()
@@ -675,6 +701,7 @@ func _show_top_boundary(own_side: int) -> void:
 	var top: float = top_end(own_side)
 	for end: float in _row_pictures:
 		_row_pictures[end].visible = end == top
+		_terminal_pictures[end].get_parent().visible = end == top
 		for prop: Node3D in _row_props[end]:
 			prop.visible = end != top
 

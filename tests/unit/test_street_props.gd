@@ -248,3 +248,49 @@ func test_the_pictures_are_drawn_as_made_not_shaded_or_tinted_and_lossless() -> 
 		assert_true(import_text.contains("compress/mode=0"), "%s imports lossless" % picture.name)
 		assert_true(import_text.contains("detect_3d/compress_to=0"), "and is never compressed for 3D")
 		assert_true(import_text.contains("mipmaps/generate=true"), "and has mipmaps (it is small on screen)")
+
+
+# ---- the tricycle terminal picture on the top-left sidewalk (owner) ------------------------------------------------------
+
+func _terminal(map: StreetMap, end: float) -> MeshInstance3D:
+	return map.find_child("TricycleTerminalPicture%s" % ("Far" if end < 0.0 else "Near"), true, false) as MeshInstance3D
+
+
+func test_the_tricycle_terminal_stands_on_the_sidewalk_at_the_top_left_for_either_view() -> void:
+	var map: StreetMap = _map()
+	var half_w: float = map.layout.lane_width / 2.0
+	var sidewalk_from: float = half_w + map.layout.boundary_thickness
+	for own_side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
+		map.set_own_side(own_side)
+		var top: float = StreetMap.top_end(own_side)
+		for end: float in [-1.0, 1.0]:
+			var picture: MeshInstance3D = _terminal(map, end)
+			assert_not_null(picture, "a copy at each end")
+			assert_eq(picture.is_visible_in_tree(), end == top, "only the copy at the top of the screen shows (own side %d, end %s)" % [own_side, end])
+		var shown: MeshInstance3D = _terminal(map, top)
+		var at: Vector3 = shown.global_position
+		# the top left of the screen: the camera looks toward -Z (x grows to the right) when your base is at +Z, the other way round when it is turned
+		assert_eq(signf(at.x), -float(own_side), "on the left of the screen")
+		assert_gt(absf(at.x), half_w, "on the sidewalk, outside the play area")
+		assert_lt(absf(at.x), sidewalk_from + StreetMap.SIDEWALK_WIDTH + 1.0, "and not out on the houses")
+		assert_almost_eq(absf(at.z), map.layout.lane_length / 2.0 - StreetMap.TERMINAL_IN, 0.001, "near the top end")
+		assert_almost_eq(at.y, 0.0, 0.001, "standing on the ground")
+
+
+func test_the_tricycle_terminal_is_drawn_as_made_at_its_true_height_in_its_own_shape() -> void:
+	var map: StreetMap = _map()
+	var picture: MeshInstance3D = _terminal(map, -1.0)
+	var quad: QuadMesh = picture.mesh as QuadMesh
+	assert_almost_eq(quad.size.y, float(StreetMap.TERMINAL_PICTURE["height"]) * map.scenery(), 0.001)
+	var texture: Texture2D = load(StreetMap.BOUNDARY_PATH % "tricycle_terminal") as Texture2D
+	assert_almost_eq(quad.size.x / quad.size.y, texture.get_size().x / texture.get_size().y, 0.001, "never stretched")
+	var material: StandardMaterial3D = quad.material as StandardMaterial3D
+	assert_eq(material.shading_mode, BaseMaterial3D.SHADING_MODE_UNSHADED)
+	assert_eq(material.albedo_color, Color.WHITE)
+	var import_text: String = FileAccess.get_file_as_string((StreetMap.BOUNDARY_PATH % "tricycle_terminal") + ".import")
+	assert_true(import_text.contains("compress/mode=0") and import_text.contains("mipmaps/generate=true") and import_text.contains("detect_3d/compress_to=0"), "lossless with mipmaps")
+	# it faces the camera squarely, whichever way the camera looks
+	var pitch: float = deg_to_rad(CAMERA_RULES.pitch_degrees)
+	for end: float in [-1.0, 1.0]:
+		var look: Vector3 = Vector3(0.0, -sin(pitch), cos(pitch) * end)
+		assert_almost_eq(_terminal(map, end).global_transform.basis.z.normalized().dot(-look), 1.0, 0.001, "faces the camera at end %s" % end)
