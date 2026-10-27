@@ -2,7 +2,7 @@ class_name WeaponsPage
 extends VBoxContainer
 ## The Weapons tab of the book, in two groupings the player switches between: **by game** (the street
 ## game each weapon is inspired by: Bato-bato-pik, Tumbang preso ...) and **by type** (Attack, Control,
-## Block, Heal). Each group is a headed section of weapon tiles in two columns (the picture, the name and
+## Block, Heal). Each group is a headed section of weapon tiles in two columns (the weapon's own card picture, bare, the name and
 ## the other axis as a chip). Tapping a tile asks for its detail sheet (`detail`).
 
 signal weapon_opened(weapon: WeaponDef)
@@ -28,9 +28,11 @@ const KIND_CHIPS: Dictionary[int, Color] = {
 const COLUMNS: int = 2
 ## The grouping switch sits under the book's own switch, so it is a size smaller (still a thumb).
 const SWITCH_HEIGHT: float = UiMetrics.MIN_TARGET
-const TILE_HEIGHT: float = 292.0
-const TILE_ICON: float = 128.0
-const DETAIL_ICON: float = 168.0
+## A tile: the card picture (`CARD_HEIGHT` tall, as wide as its proportions say), the name and the chip under it.
+const CARD_HEIGHT: float = 190.0
+const TILE_HEIGHT: float = 312.0
+## The card picture on the detail sheet.
+const DETAIL_CARD_HEIGHT: float = 250.0
 ## The colour of each stat bar: power (damage or healing), price (ice water, the hand's own drop colour) and reach (range).
 const BAR_COLORS: Dictionary[String, Color] = {"Damage": Color("ffc233"), "Heal": Color("45dd78"), "Ice water": CardHand.ICE_WATER, "Range": Color("4aa0ff")}
 const PLATE_FOCUS_RADIUS: int = UiSkin.PLATE_RADIUS
@@ -160,9 +162,7 @@ func _tile(weapon: WeaponDef) -> Button:
 	column.add_theme_constant_override("separation", 8)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tile.add_child(column)
-	var picture: Control = holder(weapon, TILE_ICON)
-	picture.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	column.add_child(picture)
+	column.add_child(card_art(weapon, CARD_HEIGHT))
 	var name_label: Label = Label.new()
 	name_label.name = "Name"
 	name_label.theme_type_variation = &"DisplayLabel"
@@ -187,7 +187,16 @@ func _tile(weapon: WeaponDef) -> Button:
 
 
 
-## The weapon's picture in a dark round holder with a coloured rim (its kind).
+## The weapon's skill as its owner-made card picture, bare, `height` tall (`SkillCardArt`: the painted icon when it has no picture).
+static func card_art(weapon: WeaponDef, height: float) -> SkillCardArt:
+	var art: SkillCardArt = SkillCardArt.new()
+	art.custom_minimum_size = SkillCardArt.size_for_height(height)
+	art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	art.show_weapon(weapon.id)
+	return art
+
+
+## The weapon's painted icon in a dark round holder with a coloured rim (its kind): the match results' small weapon marks.
 static func holder(weapon: WeaponDef, diameter: float) -> Control:
 	var frame: PanelContainer = PanelContainer.new()
 	frame.name = "Holder"
@@ -215,9 +224,7 @@ static func holder(weapon: WeaponDef, diameter: float) -> Control:
 static func detail(weapon: WeaponDef) -> MenuDialog:
 	var card: MenuDialog = MenuDialog.create(weapon.display_name, MenuDialog.WIDTH_SHEET)
 	card.name = "WeaponDetail"
-	var picture: Control = holder(weapon, DETAIL_ICON)
-	picture.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	card.body.add_child(picture)
+	card.body.add_child(card_art(weapon, DETAIL_CARD_HEIGHT))
 	var tags: HBoxContainer = HBoxContainer.new()
 	tags.alignment = BoxContainer.ALIGNMENT_CENTER
 	tags.add_theme_constant_override("separation", 12)

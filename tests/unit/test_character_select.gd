@@ -72,8 +72,8 @@ func test_the_weapons_are_a_grid_of_three_across_and_all_of_them_are_there() -> 
 func test_a_weapon_tile_has_art_a_name_and_its_kind_and_the_info_panel_has_the_words() -> void:
 	var screen: WeaponPickScreen = _screen(_picking())
 	var tile: Button = screen.find_child("Weapon_lata", true, false) as Button
-	var art: TextureRect = tile.find_child("Art", true, false) as TextureRect
-	assert_not_null(art.texture, "painted art")
+	var art: SkillCardArt = tile.find_child("Art", true, false) as SkillCardArt
+	assert_true(art.is_card(), "the weapon's own card picture (test_skill_cards_menus.gd looks at it closely)")
 	var def: WeaponDef = load("res://data/weapons/lata.tres") as WeaponDef
 	assert_eq((tile.find_child("WeaponName", true, false) as Label).text, def.display_name)
 	assert_eq((tile.find_child("Kind", true, false) as Label).text, "Control")
