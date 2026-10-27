@@ -1,6 +1,6 @@
 class_name CardFace
 extends Control
-## A mode card's picture drawn as a real card floating over the table: the picture on the tipped outline (`CardShape`), a thin
+## A mode card's picture drawn as a real card floating over the table (straight): the picture on its outline (`CardShape`), a thin
 ## paper-white edge along the bottom and the right (the card's thickness, about 4 px, almost paper thin) and a soft shadow
 ## well below it. The card's own button draws nothing behind it.
 
@@ -10,10 +10,19 @@ const FACE_LINE: Color = Color(0.03, 0.05, 0.12, 0.85)
 ## The card's thickness: where the edge shows beyond the face.
 const THICKNESS: Vector2 = Vector2(3.5, 5.0)
 ## The shadow: its layers, how far below the card it falls and how dark the whole of it is.
-const SHADOW_LAYERS: int = 6
-const SHADOW_DROP: Vector2 = Vector2(6.0, 28.0)
-const SHADOW_ALPHA: float = 0.07
+const SHADOW_LAYERS: int = 7
+const SHADOW_DROP: Vector2 = Vector2(10.0, 40.0)
+const SHADOW_ALPHA: float = 0.075
+## How much further the shadow falls (and lighter it gets) as the card floats up.
+const SHADOW_BREATH: float = 10.0
 
+## How high the card floats (-1 sinking to 1 at the top of its drift): the middle card sets it as it drifts, and its shadow follows.
+var lift: float = 0.0:
+	set(value):
+		if absf(value - lift) < 0.01:
+			return
+		lift = value
+		queue_redraw()
 var texture: Texture2D:
 	set(value):
 		texture = value
@@ -41,8 +50,8 @@ func _draw() -> void:
 		var grow: float = 1.0 + 0.012 * float(layer)
 		var shadow: PackedVector2Array = PackedVector2Array()
 		for point: Vector2 in face:
-			shadow.append(centre + (point - centre) * grow + SHADOW_DROP)
-		draw_colored_polygon(shadow, Color(0.0, 0.02, 0.08, SHADOW_ALPHA))
+			shadow.append(centre + (point - centre) * grow + SHADOW_DROP + Vector2(0.0, SHADOW_BREATH * lift))
+		draw_colored_polygon(shadow, Color(0.0, 0.02, 0.08, SHADOW_ALPHA * (1.0 - 0.3 * lift)))
 	var edge: PackedVector2Array = PackedVector2Array()
 	for point: Vector2 in face:
 		edge.append(point + THICKNESS)
@@ -51,7 +60,7 @@ func _draw() -> void:
 	if texture == null:
 		draw_colored_polygon(face, Color("2c4685"))
 	else:
-		var flat: PackedVector2Array = CardShape.flat_outline(size, radius)
+		var flat: PackedVector2Array = CardShape.outline(size, radius)
 		var uvs: PackedVector2Array = PackedVector2Array()
 		var colors: PackedColorArray = PackedColorArray()
 		var cover: Vector2 = _cover_scale()

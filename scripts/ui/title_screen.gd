@@ -38,11 +38,13 @@ const HERO_RATIO: float = 0.625
 const HERO_MIN_HEIGHT: float = 480.0
 const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 70.0
+## The share of the room the hero card takes (owner: smaller, so the floating card floats with space round it).
+const HERO_SCALE: float = 0.86
 ## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
 const TITLE_Z: int = 20
 ## How far the name is lifted so its letters (not its line box) are centred on the card's bottom edge.
 const TITLE_LIFT: float = 12.0
-const AMBIENT_BOB: float = 7.0
+const AMBIENT_BOB: float = 12.0
 ## The mode chips need a stage at least this tall to leave the hero a good size; on a shorter screen they step aside.
 const CHIPS_HEIGHT: float = 42.0
 const CHIPS_MIN_STAGE: float = 760.0
@@ -405,7 +407,7 @@ func _fit_hero() -> void:
 	var bare: float = stage.size.y + (CHIPS_HEIGHT if mode_chips.visible else 0.0)
 	mode_chips.visible = bare - CHIPS_HEIGHT >= CHIPS_MIN_STAGE
 	var height: float = clampf(bare - (CHIPS_HEIGHT if mode_chips.visible else 0.0) - HERO_AIR, HERO_MIN_HEIGHT, HERO_MAX_HEIGHT)
-	var width: float = minf(height * HERO_RATIO, stage.size.x - 120.0)
+	var width: float = minf(height * HERO_RATIO, stage.size.x - 120.0) * HERO_SCALE
 	var fitted: Vector2 = Vector2(roundf(width), roundf(width / HERO_RATIO))
 	if fitted.distance_to(carousel.card_size) < 3.0:
 		return

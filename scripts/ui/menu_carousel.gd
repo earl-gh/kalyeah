@@ -16,6 +16,8 @@ const SCALE_LOSS: float = 0.17
 const SHADE_LOSS: float = 0.36
 ## ... and slightly see-through too.
 const BACK_ALPHA: float = 0.86
+## How fast the middle card drifts (radians a second: one slow breath takes about six seconds).
+const FLOAT_SPEED: float = 1.0
 const DRAG_START: float = 12.0
 const SNAP_TIME: float = 0.18
 
@@ -50,7 +52,7 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		card.pivot_offset = card_size / 2.0
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.focus_mode = Control.FOCUS_NONE
-		card.add_child(_frame(String(option.get("accent", "ffd25a")), card.get_node_or_null("Face") != null))
+		card.add_child(_frame(String(option.get("accent", "ffd25a"))))
 		add_child(card)
 		cards.append(card)
 	if accessibility_name.is_empty():
@@ -62,9 +64,8 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 
 
 ## The bright rim of the card in the middle: a glowing frame in the card's accent colour.
-func _frame(accent: String, tipped: bool) -> CardRim:
+func _frame(accent: String) -> CardRim:
 	var rim: CardRim = CardRim.new()
-	rim.tipped = tipped
 	rim.accent = Color(accent)
 	return rim
 
@@ -114,15 +115,28 @@ func _layout() -> void:
 		var away: float = clampf(absf(offset), 0.0, 2.0)
 		var card: Button = cards[i]
 		card.scale = Vector2.ONE * (1.0 - SCALE_LOSS * away)
-		var drift: float = sin(float(Time.get_ticks_msec()) / 1000.0 * 1.7) * bob * (1.0 - away / 2.0) if bob > 0.0 and not Settings.reduced_motion else 0.0
+		var drift_phase: float = sin(float(Time.get_ticks_msec()) / 1000.0 * FLOAT_SPEED)
+		var drift: float = drift_phase * bob * (1.0 - away / 2.0) if bob > 0.0 and not Settings.reduced_motion else 0.0
 		card.position = Vector2(size.x / 2.0 + offset * STEP - card_size.x / 2.0, (size.y - card_size.y) / 2.0 + drift)
 		# every card stays visible: the ones further back are darker and slightly see-through
 		var shade: float = 1.0 - SHADE_LOSS * away
 		card.modulate = Color(shade, shade, shade, lerpf(1.0, BACK_ALPHA, clampf(absf(offset), 0.0, 1.0)))
 		card.z_index = 10 - int(roundf(absf(offset) * 5.0))
+		_float(card, away, drift_phase)
 		var frame: Control = card.get_node_or_null("Frame") as Control
 		if frame != null:
 			frame.modulate.a = clampf(1.0 - absf(offset) * 1.6, 0.0, 1.0)
+
+
+## Floats a card with a picture: while the screen idles the middle card's shadow breathes with its drift.
+func _float(card: Button, away: float, phase: float) -> void:
+	var face: CardFace = card.get_node_or_null("Face") as CardFace
+	if face == null:
+		return
+	var lift: float = 0.0
+	if bob > 0.0 and not Settings.reduced_motion:
+		lift = -phase * clampf(1.0 - away, 0.0, 1.0)
+	face.lift = lift
 
 
 func _on_accessibility_changed() -> void:
