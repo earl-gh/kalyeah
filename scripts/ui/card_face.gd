@@ -34,7 +34,7 @@ const SHADOW_ALPHA: float = 0.13
 ## How much further the shadow falls (and lighter it gets) as the card floats up.
 const SHADOW_BREATH: float = 4.0
 ## A bare picture: what an unchosen one is multiplied by (a dark, nearly black tint) and how flat its ground shadow is.
-const BARE_DIM: Color = Color(0.45, 0.45, 0.5)
+const BARE_DIM: Color = Color(0.36, 0.36, 0.4)
 const GROUND_SHADOW_SQUASH: float = 0.16
 ## How blurred a bare picture is when it stands far behind (the blur radius in texels of the picture, owner: depth of field): 0 when chosen.
 const BLUR_RADIUS: float = 20.0
