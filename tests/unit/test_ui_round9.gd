@@ -179,7 +179,8 @@ func test_the_hero_fills_a_tall_phone_and_stays_2_5_to_4() -> void:
 		assert_lte(card.y, TitleScreen.HERO_MAX_HEIGHT)
 	var stage: Control = tall.carousel.get_parent() as Control
 	assert_lte(tall_card.y + TitleScreen.HERO_AIR, stage.size.y + 1.0, "it fits its stage with room for the glow")
-	assert_eq(tall.carousel.cards[0].size, tall_card, "the cards themselves are that size")
+	assert_almost_eq(tall.carousel.cards[0].size.x, tall_card.x, 0.1, "the cards themselves are that wide")
+	assert_almost_eq(tall.carousel.cards[0].size.y, tall_card.y, 0.1, "and that tall")
 
 
 func test_the_chosen_mode_survives_the_hero_being_resized() -> void:

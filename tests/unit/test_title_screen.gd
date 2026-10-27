@@ -151,14 +151,12 @@ func test_the_cards_are_large_and_every_one_is_always_visible_stacked_behind_the
 			var behind: Rect2 = strip.cards[other].get_global_rect()
 			assert_lt(strip.cards[other].z_index, strip.cards[index].z_index, "behind")
 			assert_lt(absf(behind.get_center().x - middle.get_center().x), 260.0, "pushed only a little to the side, mostly behind")
-			if absi(other - index) == 1:
-				assert_gt(behind.get_center().x - middle.get_center().x if other > index else middle.get_center().x - behind.get_center().x, 0.0, "the next cards are on their own side: later on the right, earlier on the left")
+			# an endless carousel (owner): the one before is behind on the left and the one after behind on the right, always
+			var side: float = behind.get_center().x - middle.get_center().x
+			if posmod(other - index, 3) == 1:
+				assert_gt(side, 0.0, "the next model is behind on the right")
 			else:
-				# two layers only (owner): the third card is horizontally centred behind the chosen one, not seen
-				assert_almost_eq(behind.get_center().x, middle.get_center().x, 2.0, "the third card is centred behind the chosen card")
-				for near: int in 3:
-					if absi(near - index) == 1:
-						assert_lt(strip.cards[other].z_index, strip.cards[near].z_index, "and behind the other card of the back layer")
+				assert_lt(side, 0.0, "the one before is behind on the left")
 			assert_gte(behind.position.x, -5.0, "inside the screen")
 			assert_lte(behind.end.x, 725.0)
 
@@ -617,3 +615,61 @@ func test_the_mode_models_are_bare_dioramas_with_no_paper_or_power_line() -> voi
 		assert_false((face.get_node("Tint") as Control).visible, "no old tint")
 		assert_false((face.get_node("PowerLine") as Control).visible, "no power line")
 		assert_true(ResourceLoader.exists("res://assets/ui/dioramas/%s.png" % TitleScreen.MODES[screen.mode_models.find(card)]["id"]))
+
+
+func test_the_mode_models_are_an_endless_carousel_with_one_behind_on_each_side() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(3)
+	var strip: MenuCarousel = screen.carousel
+	var mode: int = Session.menu_mode
+	for index: int in 3:
+		strip.select(index, false)
+		var middle: Rect2 = screen.mode_models[index].get_global_rect()
+		var left: Rect2 = screen.mode_models[posmod(index - 1, 3)].get_global_rect()
+		var right: Rect2 = screen.mode_models[posmod(index + 1, 3)].get_global_rect()
+		assert_lt(left.get_center().x, middle.get_center().x, "the one before is behind on the left (chosen %d)" % index)
+		assert_gt(right.get_center().x, middle.get_center().x, "the one after is behind on the right (chosen %d)" % index)
+		assert_gt(right.get_center().x - left.get_center().x, left.size.x * 0.75, "a gap between the two behind it (chosen %d)" % index)
+	Session.menu_mode = mode
+
+
+func test_a_swipe_moves_one_step_however_far_or_fast_and_it_wraps_round() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(3)
+	var strip: MenuCarousel = screen.carousel
+	var mode: int = Session.menu_mode
+	strip.select(0, false)
+	# a very long swipe to the right (the way back) moves one step only, and from the first it wraps to the last
+	var from: Vector2 = Vector2(100.0, 100.0)
+	strip._gui_input(TouchHelper.click(from, true))
+	strip._gui_input(TouchHelper.motion(Vector2(from.x + 900.0, from.y)))
+	strip._gui_input(TouchHelper.click(Vector2(from.x + 900.0, from.y), false))
+	assert_eq(strip.index, 2, "one step back from the first is the last (endless)")
+	await wait_seconds(0.6)
+	# and a long swipe to the left moves one step forward only
+	var start: Vector2 = Vector2(500.0, 100.0)
+	strip._gui_input(TouchHelper.click(start, true))
+	strip._gui_input(TouchHelper.motion(Vector2(start.x - 900.0, start.y)))
+	strip._gui_input(TouchHelper.click(Vector2(start.x - 900.0, start.y), false))
+	assert_eq(strip.index, 0, "one step on from the last is the first")
+	await wait_seconds(0.6)
+	assert_eq(strip._position, 0.0, "the position is the plain index again once it settles")
+	Session.menu_mode = mode
+
+
+func test_a_step_takes_a_smooth_moment_not_a_jump() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(3)
+	var strip: MenuCarousel = screen.carousel
+	var before: bool = Settings.reduced_motion
+	var mode: int = Session.menu_mode
+	Settings.reduced_motion = false
+	strip.select(1, false)
+	strip.select(2)
+	await wait_seconds(MenuCarousel.WRAP_TIME * 0.4)
+	assert_gt(strip._position, 1.0, "on its way")
+	assert_lt(strip._position, 2.0, "and not there yet")
+	await wait_seconds(MenuCarousel.WRAP_TIME)
+	assert_eq(strip._position, 2.0)
+	Settings.reduced_motion = before
+	Session.menu_mode = mode

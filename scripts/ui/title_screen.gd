@@ -45,9 +45,9 @@ const MODEL_SIDE_ROOM: float = 40.0
 ## How big a mode model is next to the room the stage gives it (owner: 0.64).
 const MODEL_SCALE: float = 0.64
 ## The mode models behind the chosen one stand this share of a model's height higher than it, and sit this many times further out to each
-## side than a card carousel's cards do (owner: raised again, and 1.25 x the spacing).
+## side than a card carousel's cards do, which leaves a gap between the two behind it (owner).
 const MODEL_BACK_RISE: float = 0.25
-const MODEL_SPREAD_SCALE: float = 1.25
+const MODEL_SPREAD_SCALE: float = 1.73
 ## The mode models behind the chosen one are 0.75 of its size (owner).
 const MODEL_BACK_SCALE: float = 0.75
 const HERO_MIN_HEIGHT: float = 440.0
@@ -249,6 +249,7 @@ func _build_home() -> VBoxContainer:
 	stage.add_child(carousel)
 	carousel.back_rise = MODEL_BACK_RISE
 	carousel.spread_scale = MODEL_SPREAD_SCALE
+	carousel.wrap = true
 	carousel.scale_loss = 1.0 - MODEL_BACK_SCALE
 	carousel.setup("", MODES, Session.menu_mode)
 	carousel.bob = AMBIENT_BOB
