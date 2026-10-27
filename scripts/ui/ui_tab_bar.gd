@@ -15,13 +15,13 @@ const HEIGHT: float = 164.0
 ## The pictures' sizes (design pixels) for the open and an idle tab, and the line the idle ones are centred on (the middle of the bar:
 ## `BAR_TOP` to `HEIGHT`), from the top of this control.
 const ICON_ACTIVE: float = 108.0
-const ICON_IDLE: float = 80.0
-const ICON_Y: float = 105.0
+const ICON_IDLE: float = 66.0
+const ICON_Y: float = 124.0
 ## The open tab's picture rises: its bottom sits on this line instead (the arrows' bottoms too), which puts its top above the bar (like the
 ## reference's).
 const ICON_BOTTOM_OPEN: float = 104.0
 ## Where the bar itself starts, from the top of this control: the space above is clear, for the open picture to rise into.
-const BAR_TOP: float = 46.0
+const BAR_TOP: float = 84.0
 ## The open tab's name sits under its picture (it rises a few pixels into place as it fades in).
 const LABEL_Y: float = 116.0
 const LABEL_HEIGHT: float = 32.0
@@ -41,6 +41,8 @@ const SLOT_OPEN_BOTTOM: Color = Color("587a9e")
 ## are for a strip `STRIP_DESIGN` wide; with a bigger margin they all scale by what is left over (`_content_fit`).
 const SIDE_MARGIN: float = 90.0
 const OPEN_WIDTH: float = 220.0
+## The padding left and right inside every tab's slot (design pixels): the lit slot stands this far in from its neighbours.
+const TAB_PADDING: float = 8.0
 const STRIP_DESIGN: float = 640.0
 ## The dark top edge (with a thin light line under it) and the lines between the slots, in design pixels.
 const EDGE_COLOR: Color = Color("0c1a36")
@@ -107,18 +109,17 @@ func _draw() -> void:
 		return
 	var scale_to: float = size.x / 720.0
 	var top_y: float = BAR_TOP * scale_to
-	# the margins are an idle tab's colour
-	var margin_left: float = _slot_x[0]
-	var margin_right: float = _slot_x[_order.size() - 1] + _slot_w[_order.size() - 1]
-	for margin: Vector2 in [Vector2(0.0, margin_left), Vector2(margin_right, size.x)]:
-		draw_polygon(PackedVector2Array([Vector2(margin.x, top_y), Vector2(margin.y, top_y), Vector2(margin.y, size.y), Vector2(margin.x, size.y)]), PackedColorArray([SLOT_IDLE_TOP, SLOT_IDLE_TOP, SLOT_IDLE_BOTTOM, SLOT_IDLE_BOTTOM]))
+	# the whole bar, margins included, is an idle tab's colour; every tab's slot is drawn inside it with a little padding left and
+	# right, so the lit one stands in the bar instead of filling it edge to edge
+	draw_polygon(PackedVector2Array([Vector2(0.0, top_y), Vector2(size.x, top_y), Vector2(size.x, size.y), Vector2(0.0, size.y)]), PackedColorArray([SLOT_IDLE_TOP, SLOT_IDLE_TOP, SLOT_IDLE_BOTTOM, SLOT_IDLE_BOTTOM]))
+	var pad: float = TAB_PADDING * scale_to
 	for i: int in _order.size():
 		var open: float = _openness[_order[i]]
 		var top: Color = SLOT_IDLE_TOP.lerp(SLOT_OPEN_TOP, open)
 		var bottom: Color = SLOT_IDLE_BOTTOM.lerp(SLOT_OPEN_BOTTOM, open)
 		var x: float = _slot_x[i]
 		var slot: float = _slot_w[i]
-		draw_polygon(PackedVector2Array([Vector2(x, top_y), Vector2(x + slot, top_y), Vector2(x + slot, size.y), Vector2(x, size.y)]), PackedColorArray([top, top, bottom, bottom]))
+		draw_polygon(PackedVector2Array([Vector2(x + pad, top_y), Vector2(x + slot - pad, top_y), Vector2(x + slot - pad, size.y), Vector2(x + pad, size.y)]), PackedColorArray([top, top, bottom, bottom]))
 		draw_rect(Rect2(x - DIVIDER_WIDTH * scale_to / 2.0, top_y, DIVIDER_WIDTH * scale_to, size.y - top_y), DIVIDER_COLOR)
 	if not _order.is_empty():
 		var end: float = _slot_x[_order.size() - 1] + _slot_w[_order.size() - 1]
