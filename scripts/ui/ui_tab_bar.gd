@@ -2,8 +2,8 @@ class_name UiTabBar
 extends Control
 ## The main screen's bottom navigation, in the style of Clash Royale's: a bar of flat, dark slate-blue slots drawn in code along the
 ## bottom, split by thin dark lines under a dark top edge, the open tab's slot lit steel blue, with one picture per destination (Street,
-## Play, Settings). The layout never moves: three equal tabs, every picture centred on the same line.
-## The open tab's picture only grows (round its own centre) and its name fades in under it, and two small arrows float over the
+## Play, Settings). The layout never moves: three equal tabs.
+## The open tab's picture grows and rises above the top of the bar (like the reference's) and its name fades in under it, and two small arrows float over the
 ## bar, a little way out from the picture, to go to the neighbouring tab (the leftmost tab has only a right arrow, the rightmost
 ## only a left one). Changing tab is one smooth move: the picture grows and shrinks, the name fades, the arrows slide to the new tab.
 ## The pictures are the owner's files in `assets/ui/nav/`.
@@ -15,9 +15,13 @@ const HEIGHT: float = 164.0
 ## The pictures' sizes (design pixels) for the open and an idle tab, and the one line their centres sit on, from the bar's top.
 const ICON_ACTIVE: float = 108.0
 const ICON_IDLE: float = 80.0
-const ICON_Y: float = 66.0
+const ICON_Y: float = 90.0
+## The open tab's picture rises: it sits on this line instead, which puts its top above the bar (like the reference's).
+const ICON_Y_OPEN: float = 58.0
+## Where the bar itself starts, from the top of this control: the space above is clear, for the open picture to rise into.
+const BAR_TOP: float = 46.0
 ## The open tab's name sits under its picture (it rises a few pixels into place as it fades in).
-const LABEL_Y: float = 120.0
+const LABEL_Y: float = 118.0
 const LABEL_HEIGHT: float = 32.0
 const LABEL_RISE: float = 8.0
 ## The arrows: how big they are drawn, how big they are to the thumb, and how far from the picture's edge.
@@ -88,16 +92,17 @@ func _draw() -> void:
 		return
 	var scale_to: float = size.x / 720.0
 	var slot: float = slot_width()
+	var top_y: float = BAR_TOP * scale_to
 	for i: int in _order.size():
 		var open: float = _openness[_order[i]]
 		var top: Color = SLOT_IDLE_TOP.lerp(SLOT_OPEN_TOP, open)
 		var bottom: Color = SLOT_IDLE_BOTTOM.lerp(SLOT_OPEN_BOTTOM, open)
 		var x: float = slot * float(i)
-		draw_polygon(PackedVector2Array([Vector2(x, 0.0), Vector2(x + slot, 0.0), Vector2(x + slot, size.y), Vector2(x, size.y)]), PackedColorArray([top, top, bottom, bottom]))
+		draw_polygon(PackedVector2Array([Vector2(x, top_y), Vector2(x + slot, top_y), Vector2(x + slot, size.y), Vector2(x, size.y)]), PackedColorArray([top, top, bottom, bottom]))
 		if i > 0:
-			draw_rect(Rect2(x - DIVIDER_WIDTH * scale_to / 2.0, 0.0, DIVIDER_WIDTH * scale_to, size.y), DIVIDER_COLOR)
-	draw_rect(Rect2(0.0, 0.0, size.x, EDGE_HEIGHT * scale_to), EDGE_COLOR)
-	draw_rect(Rect2(0.0, EDGE_HEIGHT * scale_to, size.x, EDGE_LIGHT_HEIGHT * scale_to), EDGE_LIGHT)
+			draw_rect(Rect2(x - DIVIDER_WIDTH * scale_to / 2.0, top_y, DIVIDER_WIDTH * scale_to, size.y - top_y), DIVIDER_COLOR)
+	draw_rect(Rect2(0.0, top_y, size.x, EDGE_HEIGHT * scale_to), EDGE_COLOR)
+	draw_rect(Rect2(0.0, top_y + EDGE_HEIGHT * scale_to, size.x, EDGE_LIGHT_HEIGHT * scale_to), EDGE_LIGHT)
 
 
 ## One of the bar's pictures (&"street", &"play", &"settings") as a texture of its own: the same art elsewhere, like the gear in a match.
@@ -229,8 +234,8 @@ func _layout() -> void:
 		var edge: float = lerpf(ICON_IDLE, ICON_ACTIVE, open) * scale_to
 		var picture: TextureRect = _pictures[id]
 		picture.size = Vector2.ONE * edge
-		# every picture is centred on the same line, so a growing one never pushes itself up or its neighbours aside
-		picture.position = Vector2(slot / 2.0 - edge / 2.0, ICON_Y * scale_to - edge / 2.0)
+		# the open picture grows and rises above the bar; its slot and its neighbours never move
+		picture.position = Vector2(slot / 2.0 - edge / 2.0, lerpf(ICON_Y, ICON_Y_OPEN, open) * scale_to - edge / 2.0)
 		picture.modulate = IDLE_SHADE.lerp(Color.WHITE, open)
 		var label: Label = _labels[id]
 		label.size = Vector2(slot, LABEL_HEIGHT * scale_to)
@@ -255,7 +260,7 @@ func _place_arrows(centre_sum: float, total: float, left_share: float, right_sha
 		return
 	var centre: float = centre_sum / total
 	var reach: float = (ICON_ACTIVE / 2.0 + ARROW_GAP + ARROW_SIZE / 2.0) * scale_to
-	var y: float = ICON_Y * scale_to - ARROW_TOUCH / 2.0
+	var y: float = ICON_Y_OPEN * scale_to - ARROW_TOUCH / 2.0
 	arrow_left.position = Vector2(centre - reach - ARROW_TOUCH / 2.0, y)
 	arrow_right.position = Vector2(centre + reach - ARROW_TOUCH / 2.0, y)
 	var left_alpha: float = left_share / total
