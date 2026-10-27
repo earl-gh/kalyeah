@@ -11,7 +11,7 @@ const MOTES: int = 14
 const PICTURE_BLUE: Color = Color("4aa0ff")
 const TINT_SHADER: Shader = preload("res://shaders/backdrop_tint.gdshader")
 ## How strongly the backlight is added to the picture.
-const BACKLIGHT_STRENGTH: float = 0.55
+const BACKLIGHT_STRENGTH: float = 0.4
 
 var glow: TextureRect
 var motes: CPUParticles2D
@@ -127,8 +127,8 @@ func aim_backlight(centre: Vector2, radius: float) -> void:
 
 ## The backlight's colour: the focus colour, lighter and richer, at a strength that reads as light behind the card.
 static func _backlight_color(accent: Color) -> Color:
-	var color: Color = accent.lightened(0.3)
-	color.s = minf(color.s * 1.1 + 0.05, 1.0)
+	var color: Color = accent.lightened(0.15)
+	color.s = minf(color.s * 1.05, 1.0)
 	return Color(color, BACKLIGHT_STRENGTH)
 
 
@@ -167,8 +167,8 @@ static func _backlight() -> GradientTexture2D:
 	texture.fill_from = Vector2(0.5, 0.5)
 	texture.fill_to = Vector2(1.0, 0.5)
 	var gradient: Gradient = Gradient.new()
-	gradient.offsets = PackedFloat32Array([0.0, 0.35, 0.7, 1.0])
-	gradient.colors = PackedColorArray([Color(1, 1, 1, 1.0), Color(1, 1, 1, 0.72), Color(1, 1, 1, 0.26), Color(1, 1, 1, 0.0)])
+	gradient.offsets = PackedFloat32Array([0.0, 0.3, 0.6, 0.85, 1.0])
+	gradient.colors = PackedColorArray([Color(1, 1, 1, 1.0), Color(1, 1, 1, 0.6), Color(1, 1, 1, 0.22), Color(1, 1, 1, 0.05), Color(1, 1, 1, 0.0)])
 	texture.gradient = gradient
 	return texture
 

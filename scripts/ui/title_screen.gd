@@ -41,7 +41,7 @@ const HERO_AIR: float = 36.0
 ## The cards sit this far above the bottom of their stage, so the name, its phrase and the buttons stay close under them.
 const HERO_BOTTOM_GAP: float = 34.0
 ## How far the backlight reaches round the chosen card (times the card's height).
-const BACKLIGHT_REACH: float = 1.1
+const BACKLIGHT_REACH: float = 1.5
 ## The black outline round the mode's one-line phrase.
 const MODE_TEXT_OUTLINE: int = 6
 ## The share of the room the hero card takes (owner: smaller, so the floating card floats with space round it).
