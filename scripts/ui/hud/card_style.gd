@@ -5,6 +5,10 @@ extends RefCounted
 ## `CardFace`): no black outline, no gloss band. This holds what the hand draws round those cards in code (the empty slot, the back of a
 ## card on its way, the gold edge of a lifted card, the shades over a card that cannot be used) and the numbers of the print. The ice
 ## water cost sits on the card's bottom edge, drawn by the hand over the card.
+##
+## A weapon the owner has made a full-card picture for (`assets/ui/skill_cards/<weapon_id>.webp`, `picture`) is drawn AS that picture instead:
+## bare, as made, with nothing printed behind it. Its outline is the picture's own torn edge (a transparent gap in each corner), so what
+## lies over it (washes, flash, the gold edge of a lift) is drawn from the picture's own alpha, never as a rectangle.
 
 ## The printed surface is the kind colour (`WeaponPickScreen.kind_color`, so Attack, Control, Block and Heal read at a glance) darkened by
 ## this much, so the painted icon stands out from it.
@@ -16,6 +20,17 @@ const BACK_GROUND: Color = Color(0.42, 0.17, 0.12)
 ## A card lifted by a finger gets this edge round its worn outline (the lift stays clear on a flat card); a card shrunk over the street
 ## keeps the same line.
 const LIFT_EDGE: float = 3.0
+## Where the owner's full-card pictures live: a weapon with a file here is drawn as that picture in the match, one without keeps the teks
+## card (adding a picture is adding the file and its `.import`, nothing else).
+const PICTURE_PATH: String = "res://assets/ui/skill_cards/%s.webp"
+## The soft shadow under a lifted picture card: this many copies of its silhouette, each one a little bigger and this much lower, each
+## this dark (together about a third as dark in the middle).
+const PICTURE_SHADOW_LAYERS: int = 3
+const PICTURE_SHADOW_DROP: float = 7.0
+const PICTURE_SHADOW_GROW: float = 2.0
+const PICTURE_SHADOW_ALPHA: float = 0.13
+## The gold edge of a lifted picture card: its silhouette in gold at this many offsets round it, LIFT_EDGE away.
+const PICTURE_EDGE_STEPS: int = 8
 ## The wear seeds run from 1 up to this far above it (a different one for every weapon, so the four cards of a hand wear differently).
 const SEED_SPAN: float = 977.0
 ## The empty slot of a hand (a card is held out of it, or on its way in): a faint hollow with a tan edge, like the dent a card leaves in
@@ -29,6 +44,27 @@ const RING_SHARE: float = 0.26
 const RING_TRACK: Color = Color(1.0, 1.0, 1.0, 0.15)
 ## What darkens the part of NEXT the shuffler has not finished (it brightens from the bottom up as the card is shuffled in).
 const FILLING_SHADE: Color = Color(0.0, 0.0, 0.0, 0.55)
+
+
+## The pictures looked up so far (null: the weapon has none).
+static var _pictures: Dictionary[StringName, Texture2D] = {}
+
+
+## The owner's full-card picture of the weapon `id` (transparent, trimmed to its frame), or null when there is none yet.
+static func picture(id: StringName) -> Texture2D:
+	if not _pictures.has(id):
+		var path: String = PICTURE_PATH % String(id)
+		_pictures[id] = load(path) as Texture2D if ResourceLoader.exists(path) else null
+	return _pictures[id]
+
+
+## Where a picture card of `texture` is drawn in the slot `rect`: as big as fits with its own proportions (never stretched), centred.
+static func picture_rect(rect: Rect2, texture: Texture2D) -> Rect2:
+	if texture == null or texture.get_height() <= 0:
+		return rect
+	var shown: float = minf(rect.size.x / float(texture.get_width()), rect.size.y / float(texture.get_height()))
+	var size: Vector2 = texture.get_size() * shown
+	return Rect2(rect.get_center() - size / 2.0, size)
 
 
 ## The colour a weapon card of `kind` is printed in.
