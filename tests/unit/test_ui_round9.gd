@@ -264,7 +264,8 @@ func test_the_open_tab_is_bigger_and_shows_its_name_and_its_arrows() -> void:
 	assert_true(bar.arrow_left.visible and bar.arrow_right.visible, "Play has an arrow on each side")
 	var picture_bottom: float = open.global_position.y + open.size.y
 	for arrow: Button in [bar.arrow_left, bar.arrow_right]:
-		assert_almost_eq(arrow.global_position.y + arrow.size.y / 2.0, picture_bottom, 1.0, "the arrows are level with the bottom of the picture (owner)")
+		var drawn: Control = arrow.get_node("Arrow") as Control
+		assert_almost_eq(drawn.global_position.y + drawn.size.y, picture_bottom, 1.0, "the bottom of each arrow is level with the bottom of the picture (owner)")
 	var bar_middle: float = bar.global_position.y + (UiTabBar.BAR_TOP + UiTabBar.HEIGHT) / 2.0
 	assert_almost_eq(idle.global_position.y + idle.size.y / 2.0, bar_middle, 1.0, "an idle picture is centred in the bar (owner)")
 	var left_arrow: Control = bar.arrow_left.get_node("Arrow") as Control

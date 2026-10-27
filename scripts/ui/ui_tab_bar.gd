@@ -261,8 +261,8 @@ func _place_arrows(centre_sum: float, total: float, left_share: float, right_sha
 		return
 	var centre: float = centre_sum / total
 	var reach: float = (ICON_ACTIVE / 2.0 + ARROW_GAP + ARROW_SIZE / 2.0) * scale_to
-	# the arrows sit level with the bottom of the open picture
-	var y: float = (ICON_Y_OPEN + ICON_ACTIVE / 2.0) * scale_to - ARROW_TOUCH / 2.0
+	# the bottom of each arrow (not its middle) is level with the bottom of the open picture
+	var y: float = (ICON_Y_OPEN + ICON_ACTIVE / 2.0 - ARROW_SIZE / 2.0) * scale_to - ARROW_TOUCH / 2.0
 	arrow_left.position = Vector2(centre - reach - ARROW_TOUCH / 2.0, y)
 	arrow_right.position = Vector2(centre + reach - ARROW_TOUCH / 2.0, y)
 	var left_alpha: float = left_share / total
