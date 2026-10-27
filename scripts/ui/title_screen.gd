@@ -826,9 +826,22 @@ func open_weapon_detail(weapon: WeaponDef) -> MenuDialog:
 
 ## Your profile: the name and the face (see `ProfileSheet`). The Settings card and a toast answer a save.
 func open_name_editor() -> MenuDialog:
-	var card: MenuDialog = ProfileSheet.build(_on_profile_saved)
+	var card: MenuDialog = ProfileSheet.build(_on_profile_saved, open_id_camera, _on_photo_changed.bind("Photo removed"))
 	_show_dialog(card)
 	return card
+
+
+## The camera sheet for the ID photo on the name tag (`IdCameraSheet`).
+func open_id_camera() -> MenuDialog:
+	var card: MenuDialog = IdCameraSheet.build(_on_photo_changed.bind("Photo saved!"))
+	_show_dialog(card)
+	return card
+
+
+func _on_photo_changed(toast: String) -> void:
+	name_tag.refresh_photo()
+	_place_name_tag()
+	UiToast.say(self, toast)
 
 
 func _on_profile_saved() -> void:

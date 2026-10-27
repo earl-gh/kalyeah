@@ -62,6 +62,21 @@ const LAG: float = 0.7
 const LAG_DEGREES: float = 0.9
 ## The card shrinks a little while it is pressed.
 const PRESS_SCALE: float = 0.97
+## The ID photo (owner, like a school ID): a square on the left of the card, under the slot's height, the words beside it. Shown when
+## there is a photo or this device can take one (`IdPhoto`); until then it says "Add photo".
+const PHOTO_SIDE: float = 118.0
+const PHOTO_LEFT: float = 22.0
+const PHOTO_TOP: float = 44.0
+const PHOTO_GAP: float = 18.0
+const PHOTO_RADIUS: float = 14.0
+const PHOTO_BACK: Color = Color("dfe8f7")
+const PHOTO_EMPTY_BACK: Color = Color("f2f5fb")
+const PHOTO_EMPTY_EDGE: Color = Color("9fb0d6")
+const ADD_PHOTO: String = "Add photo"
+## With a photo the card is never narrower than this (the photo, the words and the slot between them), and may grow to this so the
+## widest ten letters still take the largest size beside the photo (inside a 720 px screen).
+const PHOTO_MIN_WIDTH: float = 420.0
+const PHOTO_MAX_WIDTH: float = 640.0
 
 ## The tag swings while the screen idles; the screen turns it off under a page or a sheet.
 var swing: bool = true:
@@ -83,6 +98,10 @@ var back_strap: ColorRect
 var front_cap: ColorRect
 ## Marks where the slot is (the hole itself is cut by the paper's shader).
 var slot: Control
+## The ID photo's square, the picture in it, and the "Add photo" mark shown while there is none.
+var photo_frame: Panel
+var photo: TextureRect
+var add_photo: VBoxContainer
 var _paper_material: ShaderMaterial
 var _name: String = ""
 var _base_scale: float = 1.0
@@ -121,6 +140,49 @@ func _init() -> void:
 	slot.name = "Slot"
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(slot)
+	photo_frame = Panel.new()
+	photo_frame.name = "Photo"
+	photo_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	photo_frame.position = Vector2(PHOTO_LEFT, PHOTO_TOP)
+	photo_frame.size = Vector2(PHOTO_SIDE, PHOTO_SIDE)
+	card.add_child(photo_frame)
+	photo = TextureRect.new()
+	photo.name = "Picture"
+	photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	photo.position = Vector2(3.0, 3.0)
+	photo.size = Vector2(PHOTO_SIDE - 6.0, PHOTO_SIDE - 6.0)
+	var crop: ShaderMaterial = ShaderMaterial.new()
+	crop.shader = UiKit.CROP
+	crop.set_shader_parameter("rect_size", photo.size)
+	crop.set_shader_parameter("radius", PHOTO_RADIUS - 3.0)
+	photo.material = crop
+	photo_frame.add_child(photo)
+	add_photo = VBoxContainer.new()
+	add_photo.name = "AddPhoto"
+	add_photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_photo.alignment = BoxContainer.ALIGNMENT_CENTER
+	add_photo.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_photo.add_theme_constant_override("separation", 4)
+	var lens_mark: CameraMark = CameraMark.new()
+	lens_mark.custom_minimum_size = Vector2(40.0, 34.0)
+	lens_mark.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	add_photo.add_child(lens_mark)
+	var add_label: Label = Label.new()
+	add_label.text = ADD_PHOTO
+	add_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# two short lines ("Add" / "photo") keep clear of the square's edges
+	add_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	add_label.custom_minimum_size = Vector2(PHOTO_SIDE - 40.0, 0.0)
+	add_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	add_label.theme_type_variation = &"DisplayLabel"
+	add_label.add_theme_font_size_override("font_size", HINT_SIZE)
+	add_label.add_theme_color_override("font_color", INK_MUTED)
+	add_label.add_theme_constant_override("outline_size", 0)
+	add_label.set_meta(UiMetrics.BELOW_FLOOR_BY_OWNER, true)
+	add_photo.add_child(add_label)
+	photo_frame.add_child(add_photo)
 	# the two rows are placed by hand (see `_place_text`): row 1 sits exactly between the slot and the name
 	var words: Control = Control.new()
 	words.name = "Words"
@@ -174,7 +236,40 @@ func _init() -> void:
 	tap_button.button_up.connect(_press_to.bind(1.0, 0.16))
 	tap_button.pressed.connect(tapped.emit)
 	card.add_child(tap_button)
+	refresh_photo()
 	set_player_name(Session.player_name if not Session.player_name.is_empty() else Session.DEFAULT_NAME)
+
+
+## Shows the saved ID photo, "Add photo" while there is none, or no square at all on a device with no camera and no photo.
+func refresh_photo() -> void:
+	var picture: Texture2D = IdPhoto.texture()
+	photo.texture = picture
+	photo.visible = picture != null
+	add_photo.visible = picture == null
+	photo_frame.visible = picture != null or IdPhoto.camera_possible()
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = PHOTO_BACK if picture != null else PHOTO_EMPTY_BACK
+	box.border_color = CARD_EDGE if picture != null else PHOTO_EMPTY_EDGE
+	box.set_border_width_all(3)
+	box.set_corner_radius_all(int(PHOTO_RADIUS))
+	box.anti_aliasing = true
+	photo_frame.add_theme_stylebox_override("panel", box)
+	if not _name.is_empty():
+		set_player_name(_name)
+
+
+## The narrowest and widest the card may be now (wider with the photo square).
+func min_width() -> float:
+	return PHOTO_MIN_WIDTH if photo_frame.visible else CARD_MIN_WIDTH
+
+
+func max_width() -> float:
+	return PHOTO_MAX_WIDTH if photo_frame.visible else CARD_MAX_WIDTH
+
+
+## Where the words start: beside the photo when there is one, else the card's own margin.
+func _text_left() -> float:
+	return PHOTO_LEFT + PHOTO_SIDE + PHOTO_GAP if photo_frame.visible else CARD_SIDE_PAD
 
 
 ## One strap of the lanyard: a black band with its bottom end at the middle of the slot (this node's origin), leaning `STRAP_SPREAD` degrees
@@ -239,7 +334,7 @@ func set_player_name(text: String) -> void:
 	tap_button.accessibility_name = "Hi! I'm %s" % _name
 	tap_button.accessibility_description = HINT
 	# the biggest letters whose name still fits the widest card
-	var room: float = CARD_MAX_WIDTH - CARD_SIDE_PAD * 2.0
+	var room: float = max_width() - _text_left() - CARD_SIDE_PAD
 	var letters: int = UiMetrics.BODY  # the smallest of NAME_SIZES, for a name too long for any
 	var font: Font = name_label.get_theme_font("font")
 	for candidate: int in NAME_SIZES:
@@ -248,7 +343,7 @@ func set_player_name(text: String) -> void:
 			break
 	name_label.add_theme_font_size_override("font_size", letters)
 	var name_width: float = font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1.0, letters).x
-	_fit(clampf(name_width + CARD_SIDE_PAD * 2.0, CARD_MIN_WIDTH, CARD_MAX_WIDTH))
+	_fit(clampf(name_width + _text_left() + CARD_SIDE_PAD, min_width(), max_width()))
 	_place_text(letters)
 
 
@@ -272,11 +367,15 @@ func _fit(width: float) -> void:
 ## Places the rows: the name on its baseline, "Tap to change" under it, and "Hi! I'm" exactly between the bottom of the slot and the top of the name's capitals
 ## (the same room above it as under it).
 func _place_text(letters: int) -> void:
-	var inner: float = card.size.x - CARD_SIDE_PAD * 2.0
+	var left: float = _text_left()
+	var inner: float = card.size.x - left - CARD_SIDE_PAD
+	var align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT if photo_frame.visible else HORIZONTAL_ALIGNMENT_CENTER
+	for label: Label in [greeting_label, name_label, hint_label]:
+		label.horizontal_alignment = align
 	var name_font: Font = name_label.get_theme_font("font")
 	var name_height: float = name_font.get_height(letters)
 	name_label.size = Vector2(inner, name_height)
-	name_label.position = Vector2(CARD_SIDE_PAD, NAME_BASELINE - name_font.get_ascent(letters))
+	name_label.position = Vector2(left, NAME_BASELINE - name_font.get_ascent(letters))
 	var greeting_size: int = UiMetrics.DETAIL
 	var greeting_font: Font = greeting_label.get_theme_font("font")
 	var hole_bottom: float = SLOT_MIDDLE + SLOT_SIZE.y / 2.0
@@ -284,12 +383,12 @@ func _place_text(letters: int) -> void:
 	var cap: float = CAP_RATIO * float(greeting_size)
 	var greeting_baseline: float = (hole_bottom + name_top) / 2.0 + cap / 2.0
 	greeting_label.size = Vector2(inner, greeting_font.get_height(greeting_size))
-	greeting_label.position = Vector2(CARD_SIDE_PAD, greeting_baseline - greeting_font.get_ascent(greeting_size))
+	greeting_label.position = Vector2(left, greeting_baseline - greeting_font.get_ascent(greeting_size))
 	# "Tap to change" under the name
 	var hint_font: Font = hint_label.get_theme_font("font")
 	var hint_baseline: float = NAME_BASELINE + HINT_GAP + CAP_RATIO * float(HINT_SIZE)
 	hint_label.size = Vector2(inner, hint_font.get_height(HINT_SIZE))
-	hint_label.position = Vector2(CARD_SIDE_PAD, hint_baseline - hint_font.get_ascent(HINT_SIZE))
+	hint_label.position = Vector2(left, hint_baseline - hint_font.get_ascent(HINT_SIZE))
 
 
 ## Hangs the card with the middle of its slot at `hole` (this node's parent's pixels), and the lanyard up to `top` (the same pixels,
@@ -331,3 +430,15 @@ static func _paper_style() -> StyleBoxFlat:
 	box.shadow_offset = Vector2(0.0, 8.0)
 	box.anti_aliasing = true
 	return box
+
+
+## A small camera drawn in code for "Add photo" (a body, a bump on top and a lens).
+class CameraMark extends Control:
+	func _draw() -> void:
+		var ink: Color = INK_MUTED
+		var w: float = size.x
+		var h: float = size.y
+		var body: Rect2 = Rect2(0.0, h * 0.22, w, h * 0.78)
+		draw_rect(body, ink, false, 3.0)
+		draw_rect(Rect2(w * 0.3, 0.0, w * 0.4, h * 0.24), ink, true)
+		draw_arc(body.get_center(), h * 0.24, 0.0, TAU, 24, ink, 3.0, true)
