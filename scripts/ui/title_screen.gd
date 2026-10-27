@@ -101,6 +101,7 @@ var _margin: MarginContainer
 var _home: VBoxContainer
 var _top_bar: Control
 var _title_holder: Control
+var _bottom_spacer: Control
 var mode_chips: HBoxContainer
 var _page_holder: Control
 var _dots: Array[Panel] = []
@@ -221,6 +222,11 @@ func _build_home() -> VBoxContainer:
 	stage.resized.connect(_place_title)
 	home.add_child(_build_titles())
 	home.add_child(_build_actions())
+	# the spare room is split above the card and below the buttons, so the whole group is centred between the logo and the bar
+	_bottom_spacer = Control.new()
+	_bottom_spacer.name = "BottomSpacer"
+	_bottom_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	home.add_child(_bottom_spacer)
 	return home
 
 
@@ -406,12 +412,17 @@ func _fit_hero() -> void:
 	var stage: Control = carousel.get_parent() as Control
 	if stage.size.y < 100.0:
 		return
+	# the room for the group: the stage and the spacer under the buttons together (the spacer is what is left over)
+	var total: float = stage.size.y + _bottom_spacer.custom_minimum_size.y
 	# the stage as it would be without the chips decides whether they show (so showing them never flips it back)
-	var bare: float = stage.size.y + (CHIPS_HEIGHT if mode_chips.visible else 0.0)
+	var bare: float = total + (CHIPS_HEIGHT if mode_chips.visible else 0.0)
 	mode_chips.visible = bare - CHIPS_HEIGHT >= CHIPS_MIN_STAGE
 	var height: float = clampf(bare - (CHIPS_HEIGHT if mode_chips.visible else 0.0) - HERO_AIR, HERO_MIN_HEIGHT, HERO_MAX_HEIGHT)
 	var width: float = minf(height * HERO_RATIO, stage.size.x - 120.0) * HERO_SCALE
 	var fitted: Vector2 = Vector2(roundf(width), roundf(width / HERO_RATIO))
+	# half of what the card does not use goes under the buttons (the other half stays above the card)
+	var spare: float = maxf(total - fitted.y - HERO_BOTTOM_GAP - (CHIPS_HEIGHT if mode_chips.visible else 0.0) - float(UiMetrics.COMPACT_GAP), 0.0)
+	_bottom_spacer.custom_minimum_size = Vector2(0.0, roundf(spare / 2.0))
 	if fitted.distance_to(carousel.card_size) < 3.0:
 		return
 	carousel.card_size = fitted

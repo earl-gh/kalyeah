@@ -82,3 +82,19 @@ func test_the_middle_card_floats_slowly_and_its_shadow_follows_and_rests_with_re
 	strip._layout()
 	assert_eq(middle.lift, 0.0, "with Reduce motion the card rests")
 	Settings.reduced_motion = motion
+
+
+func test_the_card_group_is_centred_between_the_logo_and_the_bar() -> void:
+	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
+	var holder: SubViewport = autofree(SubViewport.new()) as SubViewport
+	holder.size = Vector2i(720, 1280)
+	add_child(holder)
+	holder.add_child(screen)
+	await wait_frames(4)
+	var logo: Rect2 = (screen.find_child("Logo", true, false) as Control).get_global_rect()
+	var card: Rect2 = screen.carousel.cards[screen.carousel.index].get_global_rect()
+	var buttons: Rect2 = screen.primary_button.get_global_rect()
+	var bar_top: float = screen.tab_bar.get_global_rect().position.y
+	var above: float = card.position.y - logo.end.y
+	var below: float = bar_top - buttons.end.y
+	assert_almost_eq(above, below, 24.0, "as much room above the card as under the buttons (%.0f above, %.0f below)" % [above, below])
