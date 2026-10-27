@@ -45,8 +45,8 @@ const MODEL_SIDE_ROOM: float = 40.0
 ## How big a mode model is next to the room the stage gives it (owner: 0.64).
 const MODEL_SCALE: float = 0.64
 ## The mode models behind the chosen one stand this share of a model's height higher than it, and sit this many times further out to each
-## side than a card carousel's cards do (owner: 1.5 x and 1.25 x of what they were).
-const MODEL_BACK_RISE: float = 0.105
+## side than a card carousel's cards do (owner: raised again, and 1.25 x the spacing).
+const MODEL_BACK_RISE: float = 0.25
 const MODEL_SPREAD_SCALE: float = 1.25
 const HERO_MIN_HEIGHT: float = 440.0
 const HERO_MAX_HEIGHT: float = 780.0
