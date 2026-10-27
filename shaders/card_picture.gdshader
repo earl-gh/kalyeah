@@ -5,9 +5,9 @@ shader_type canvas_item;
 #include "res://shaders/card_wear.gdshaderinc"
 
 uniform vec2 cover = vec2(1.0); // the share of the picture shown across and down (it is cropped to fit the card)
-uniform float grey : hint_range(0.0, 1.0) = 0.0; // 1 for a card that is not chosen: black and white with a dark tint
+uniform float dim : hint_range(0.0, 1.0) = 0.0; // 1 for a card that is not chosen: dimmed with a dark tint (still in colour)
 
-const float DARK_TINT = 0.58; // how much of its brightness an unchosen card keeps
+const vec3 DIM_TINT = vec3(0.5, 0.54, 0.68); // what an unchosen card is multiplied by: darker, a little cool
 
 const vec3 TAN = vec3(0.7321, 0.63, 0.4682);   // the thin light paper under the ink (the first layer of wear): lightness grade 64 of 100
 const vec3 CORE = vec3(0.6359, 0.4525, 0.2935);  // the darker brown paperboard core beneath it (nearest the edge): lightness grade 48 of 100
@@ -27,7 +27,7 @@ void fragment() {
 	float edge = min(min(position.x, rect_size.x - position.x), min(position.y, rect_size.y - position.y));
 	brown = mix(brown, FRINGE, (1.0 - layers.y) * (1.0 - smoothstep(0.0, 1.8, edge)) * 0.6);
 	vec3 colour = mix(brown, print, layers.x);
-	// black and white, and a dark tint, when the card is not the chosen one
-	colour = mix(colour, vec3(dot(colour, vec3(0.2126, 0.7152, 0.0722))) * DARK_TINT, grey);
+	// a dark tint (no black and white) when the card is not the chosen one
+	colour *= mix(vec3(1.0), DIM_TINT, dim);
 	COLOR = vec4(colour, card_alpha(position));
 }

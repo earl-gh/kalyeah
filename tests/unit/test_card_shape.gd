@@ -189,11 +189,12 @@ func test_only_the_chosen_card_has_a_thin_glow_from_behind_and_a_shadow_and_the_
 		var picture_material: ShaderMaterial = (face.get_node("Picture") as TextureRect).material as ShaderMaterial
 		var chosen: float = 1.0 if index == 1 else 0.0
 		assert_eq(face.chosen, chosen, "only the chosen card has its glow and shadow")
-		assert_eq(picture_material.get_shader_parameter("grey"), 1.0 - chosen, "a card that is not chosen is black and white with a dark tint, the chosen one in colour")
+		assert_eq(picture_material.get_shader_parameter("dim"), 1.0 - chosen, "a card that is not chosen is only dimmed with a dark tint, the chosen one is not")
 		var age: ColorRect = face.get_node("Tint") as ColorRect
 		assert_almost_eq(((age.material as ShaderMaterial).get_shader_parameter("tint") as Color).a, CardFace.AGE_TINT.a * chosen, 0.001, "and only the chosen card has the yellowish old tint")
-	assert_lte(CardFace.OUTLINE_WIDTH, 6.0, "a thin outline (half of it shows, behind the picture)")
-	assert_lte(CardFace.GLOW_WIDTHS[0], 22.0, "and a compact glow")
+	var sample: CardFace = autofree(CardFace.new()) as CardFace
+	assert_false((sample.get_script() as GDScript).get_script_constant_map().has("OUTLINE_WIDTH"), "a glow only: no solid outline")
+	assert_lte(CardFace.GLOW_WIDTHS[0] / 2.0, 14.0, "with a spread of about 12 px")
 	strip.select(2, false)
 	assert_eq((strip.cards[2].get_node("Face") as CardFace).chosen, 1.0, "the glow moves to the card that is chosen")
 	assert_eq((strip.cards[1].get_node("Face") as CardFace).chosen, 0.0)
@@ -211,3 +212,14 @@ func test_the_main_menu_backdrop_is_backlit_behind_the_chosen_card() -> void:
 	assert_gt(glow.size.x, card.size.x, "and it reaches out past the card")
 	var gradient: Gradient = (glow.texture as GradientTexture2D).gradient
 	assert_gt(gradient.colors[0].a, gradient.colors[gradient.colors.size() - 1].a, "a radial gradient: bright in the middle, gone at the edge")
+
+
+func test_the_mode_name_leans_back_in_perspective() -> void:
+	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
+	add_child(screen)
+	await wait_frames(4)
+	var material: ShaderMaterial = screen.mode_name_label.material as ShaderMaterial
+	assert_not_null(material, "the name is drawn through the perspective shader")
+	assert_eq(material.shader.resource_path, "res://shaders/text_perspective.gdshader")
+	assert_lt(float(material.get_shader_parameter("top_scale")), 1.0, "its upper part is pushed back: narrower than its lower part")
+	assert_eq(material.get_shader_parameter("rect_size"), screen.mode_name_label.size, "the shader knows the label's size")

@@ -25,10 +25,10 @@ const POWER_OUTLINE: Color = Color.BLACK
 const POWER_EDGE_SHARE: float = 0.075
 const POWER_BOTTOM_SHARE: float = 0.07
 const POWER_OUTLINE_SIZE: int = 7
-## The thin coloured outline and its glow (lines centred on the card's edge, so only the outer half shows behind the picture).
-const OUTLINE_WIDTH: float = 5.0
-const GLOW_WIDTHS: Array[float] = [20.0, 13.0, 8.0]
-const GLOW_ALPHAS: Array[float] = [0.1, 0.18, 0.34]
+## The glow behind the chosen card (no outline: owner): lines centred on the card's edge, so only the outer half shows behind the
+## picture, a soft fall-off about 12 px wide: wide faint lines first, narrow stronger ones last.
+const GLOW_WIDTHS: Array[float] = [24.0, 19.0, 15.0, 11.0, 8.0, 5.0]
+const GLOW_ALPHAS: Array[float] = [0.04, 0.06, 0.09, 0.12, 0.16, 0.22]
 ## The shadow: compact, close under the card (its layers, how far it falls and how dark the whole of it is).
 const SHADOW_LAYERS: int = 6
 const SHADOW_DROP: Vector2 = Vector2(3.0, 13.0)
@@ -44,20 +44,20 @@ var lift: float = 0.0:
 			return
 		lift = value
 		queue_redraw()
-## The mode's colour: the thin outline glow that comes from behind the chosen card.
+## The mode's colour: the glow that comes from behind the chosen card.
 var accent: Color = Color("4aa0ff"):
 	set(value):
 		accent = value
 		queue_redraw()
 ## How much the card is the chosen one, 0 to 1: only the chosen card has a shadow and a glow (drawn by its `CardRim`) and is in colour;
-## a card that is not chosen is black and white with a dark tint.
+## a card that is not chosen is dimmed with a dark tint (still in colour).
 var chosen: float = 1.0:
 	set(value):
 		if absf(value - chosen) < 0.01:
 			return
 		chosen = value
-		# a card that is not chosen is black and white with a dark tint (owner)
-		_picture_material.set_shader_parameter("grey", 1.0 - value)
+		# a card that is not chosen is only dimmed (a dark tint, still in colour: owner)
+		_picture_material.set_shader_parameter("dim", 1.0 - value)
 		_tint_material.set_shader_parameter("tint", Color(AGE_TINT, AGE_TINT.a * value))
 		queue_redraw()
 ## The mode's power number (the line up the right edge).
@@ -99,7 +99,7 @@ func _init() -> void:
 	_picture_material = ShaderMaterial.new()
 	_picture_material.shader = PICTURE_SHADER
 	_picture_material.set_shader_parameter("seed", wear_seed)
-	_picture_material.set_shader_parameter("grey", 0.0)
+	_picture_material.set_shader_parameter("dim", 0.0)
 	_picture.material = _picture_material
 	add_child(_picture)
 	_power_line = CardPowerLine.new()
@@ -139,7 +139,6 @@ func _draw() -> void:
 	# the glow comes from behind the card: it is drawn first, so the picture covers its inner half and only the outside shows
 	for i: int in GLOW_WIDTHS.size():
 		_closed(face, Color(accent, GLOW_ALPHAS[i] * chosen), GLOW_WIDTHS[i])
-	_closed(face, Color(accent, chosen), OUTLINE_WIDTH)
 
 
 ## The share of the picture the card shows across and down (the picture fills the card, the rest is cropped).
