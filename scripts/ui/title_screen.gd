@@ -10,6 +10,7 @@ const SERVER_SCENE: String = "res://server/main.tscn"
 const LOBBY_SCENE: String = "res://scenes/ui/lobby.tscn"
 const PRACTICE_SCENE: String = "res://scenes/match/practice.tscn"
 const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
+const TIPS_ICON: Texture2D = preload("res://assets/ui/tips_icon.png")
 
 ## The game modes in card order: Online, Local in the middle (the default, `Session.menu_mode` 1), Practice (owner).
 ## `accent` tints the frame of the card and the glow behind it.
@@ -133,6 +134,8 @@ var _loading_dots: Label
 var _margin: MarginContainer
 var _home: VBoxContainer
 var _top_bar: Control
+var tips_button: Button
+var _howto_from_home: bool = false
 var _title_holder: Control
 var mode_chips: HBoxContainer
 var _page_holder: Control
@@ -218,6 +221,35 @@ func _build_top_bar() -> Control:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.custom_minimum_size = Vector2(0.0, LOGO_HEIGHT + LOGO_DROP)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# the tips icon at the left, level with the logo; an empty cell of the same share at the right keeps the logo in the middle
+	var left: Control = Control.new()
+	left.name = "TopLeft"
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	left.size_flags_vertical = Control.SIZE_SHRINK_END
+	left.custom_minimum_size = Vector2(0.0, LOGO_HEIGHT)
+	row.add_child(left)
+	tips_button = Button.new()
+	tips_button.name = "TipsButton"
+	tips_button.accessibility_name = "Tips"
+	tips_button.flat = true
+	tips_button.focus_mode = Control.FOCUS_ALL
+	tips_button.custom_minimum_size = Vector2.ONE * LOGO_HEIGHT
+	tips_button.size = Vector2.ONE * LOGO_HEIGHT
+	for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
+		tips_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	tips_button.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_L))
+	var picture: TextureRect = TextureRect.new()
+	picture.name = "Picture"
+	picture.texture = TIPS_ICON
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tips_button.add_child(picture)
+	UiKit.feel_press(tips_button)
+	tips_button.pressed.connect(_open_tips)
+	left.add_child(tips_button)
 	var logo: TextureRect = TextureRect.new()
 	logo.name = "Logo"
 	logo.texture = LOGO
@@ -227,7 +259,19 @@ func _build_top_bar() -> Control:
 	logo.size_flags_vertical = Control.SIZE_SHRINK_END
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(logo)
+	var right: Control = Control.new()
+	right.name = "TopRight"
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(right)
 	return row
+
+
+## The tips icon opens How to play over the main page (its Back goes back to where it was opened from).
+func _open_tips() -> void:
+	_howto_from_home = true
+	open_page(&"howto")
+	tab_bar.set_active(&"home")
 
 
 ## The Play page: the hero carousel, the mode's name and phrase and the actions.
@@ -360,10 +404,16 @@ func _build_pages() -> void:
 	codex_page.characters_page.character_opened.connect(open_character_detail)
 	settings_page.profile_pressed.connect(open_name_editor)
 	settings_page.quit_pressed.connect(open_quit_confirm)
-	settings_page.howto_pressed.connect(open_page.bind(&"howto"))
+	settings_page.howto_pressed.connect(func() -> void:
+		_howto_from_home = false
+		open_page(&"howto"))
 	howto_page.walkthrough_requested.connect(start_walkthrough)
 	history_page.play_pressed.connect(close_page)
-	howto_page.back_pressed.connect(open_page.bind(&"settings"))
+	howto_page.back_pressed.connect(func() -> void:
+		if _howto_from_home:
+			close_page()
+		else:
+			open_page(&"settings"))
 
 
 func _on_tab_pressed(id: StringName) -> void:

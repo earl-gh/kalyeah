@@ -674,3 +674,21 @@ func test_a_step_takes_a_smooth_moment_not_a_jump() -> void:
 	assert_eq(strip._position, 2.0)
 	Settings.reduced_motion = before
 	Session.menu_mode = mode
+
+
+func test_the_tips_icon_sits_at_the_top_left_level_with_the_logo_and_opens_how_to_play() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(3)
+	var tips: Button = screen.tips_button
+	var logo: Control = screen.find_child("Logo", true, false) as Control
+	assert_not_null(tips, "a tips button")
+	assert_lt(tips.get_global_rect().end.x, logo.get_global_rect().position.x, "left of the logo")
+	assert_almost_eq(tips.get_global_rect().get_center().y, logo.get_global_rect().get_center().y, 2.0, "level with the logo")
+	assert_almost_eq(logo.get_global_rect().get_center().x, 360.0, 2.0, "the logo stays in the middle")
+	assert_gte(tips.size.x, UiMetrics.MIN_TARGET, "big enough for a thumb")
+	assert_false(tips.accessibility_name.is_empty())
+	tips.pressed.emit()
+	assert_eq(screen.current_page, &"howto", "it opens How to play")
+	assert_eq(screen.tab_bar.active, &"home", "Play stays lit")
+	screen.howto_page.back_pressed.emit()
+	assert_eq(screen.current_page, &"", "Back returns to the main page")
