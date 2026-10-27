@@ -31,7 +31,7 @@ var bob: float = 0.0:
 ## When 0 or more, the cards sit this many pixels above the bottom of the carousel instead of in the middle of it (the main
 ## screen keeps the mode name, its phrase and the buttons close under the cards).
 var bottom_gap: float = -1.0
-## Whether the chosen card gets a glowing coloured rim (the main screen's cards have none).
+## Whether the chosen card gets a thin glowing coloured outline (a `CardRim`).
 var show_rim: bool = true
 var index: int = 0
 var cards: Array[Button] = []
@@ -61,9 +61,11 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 			card.add_child(_frame(String(option.get("accent", "ffd25a"))))
 		var face: CardFace = card.get_node_or_null("Face") as CardFace
 		if face != null:
-			face.accent = Color(String(option.get("accent", "ffd25a")))
 			face.power = int(option.get("power", 0))
 			face.wear_seed = float(cards.size() + 1)
+			var rim: CardRim = card.get_node_or_null("Frame") as CardRim
+			if rim != null:
+				rim.radii = face.corner_radii()
 		add_child(card)
 		cards.append(card)
 	if accessibility_name.is_empty():
@@ -148,6 +150,8 @@ func _float(card: Button, away: float, phase: float) -> void:
 	if bob > 0.0 and not Settings.reduced_motion:
 		lift = -phase * clampf(1.0 - away, 0.0, 1.0)
 	face.lift = lift
+	# only the chosen card has a shadow (and a glow): every other card has neither
+	face.chosen = clampf(1.0 - away * 1.6, 0.0, 1.0)
 
 
 func _on_accessibility_changed() -> void:

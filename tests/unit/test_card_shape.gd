@@ -43,19 +43,13 @@ func test_an_inset_outline_sits_inside_the_edge() -> void:
 		assert_true(Rect2(Vector2(3.0, 3.0) - Vector2(0.001, 0.001), SIZE - Vector2(6.0, 6.0) + Vector2(0.002, 0.002)).has_point(point))
 
 
-func test_a_mode_card_is_drawn_by_a_face_with_no_coloured_outline() -> void:
+func test_a_mode_card_is_drawn_by_a_face_of_its_own() -> void:
 	var card: Button = autofree(ChoiceCard.make_card("", "Local", "blue", SIZE, "hotspot")) as Button
 	add_child(card)
 	card.size = SIZE
 	assert_not_null(card.get_node_or_null("Face"), "the picture is drawn as a card of its own")
 	assert_false((card.get_node("Art") as TextureRect).visible, "the file's node only holds the picture")
 	assert_true(card.get_theme_stylebox("normal") is StyleBoxEmpty, "the button draws nothing behind the card")
-	var strip: MenuCarousel = autofree(MenuCarousel.new()) as MenuCarousel
-	strip.show_rim = false
-	strip.size = Vector2(720.0, 700.0)
-	add_child(strip)
-	strip.setup("", [{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff"}] as Array[Dictionary], 0)
-	assert_null(strip.cards[0].get_node_or_null("Frame"), "no coloured rim round the chosen card (owner)")
 
 
 func test_the_middle_card_floats_slowly_and_its_shadow_follows_and_rests_with_reduce_motion() -> void:
@@ -126,7 +120,7 @@ func test_the_mode_cards_are_old_teks_cards_worn_at_the_corners_each_differently
 		assert_eq(picture.texture, face.texture)
 		assert_eq((picture.material as ShaderMaterial).get_shader_parameter("rect_size"), face.size, "the shader knows the card's size")
 		seeds[(picture.material as ShaderMaterial).get_shader_parameter("seed")] = true
-		assert_not_null(face.get_node("Shade"), "the coloured shade stops at the worn corners")
+		assert_null(face.get_node_or_null("Shade"), "no coloured shade over the picture (owner)")
 		assert_eq((face.get_node("PowerLine") as CardPowerLine).text, "POWER %d" % face.power)
 	assert_eq(seeds.size(), 3, "every card wears differently")
 	var radii: Dictionary = {}
@@ -149,7 +143,7 @@ func test_the_mode_cards_are_old_teks_cards_worn_at_the_corners_each_differently
 	var order: Array[String] = []
 	for child: Node in strip.cards[1].get_node("Face").get_children():
 		order.append(child.name)
-	assert_eq(order, ["Picture", "PowerLine", "Shade", "Tint"] as Array[String], "picture, then the power line, then the shade over it, then the yellowish tint over all")
+	assert_eq(order, ["Picture", "PowerLine", "Tint"] as Array[String], "picture, then the power line, then the yellowish tint over all")
 	var tint: ColorRect = strip.cards[1].get_node("Face/Tint") as ColorRect
 	assert_lte(tint.color.a, 0.15, "a subtle tint")
 	assert_gt(tint.color.r + tint.color.g, tint.color.b * 2.0, "yellowish")
@@ -174,3 +168,34 @@ func test_the_two_worn_layers_have_the_owners_lightness_grades() -> void:
 		assert_not_null(found, "%s is in the shader" % layer)
 		var luma: float = 0.2126 * float(found.get_string(1)) + 0.7152 * float(found.get_string(2)) + 0.0722 * float(found.get_string(3))
 		assert_almost_eq(luma * 100.0, grades[layer], 0.6, "%s has lightness grade %d" % [layer, int(grades[layer])])
+
+
+func test_only_the_chosen_card_has_a_thin_coloured_outline_glow_and_a_shadow() -> void:
+	var strip: MenuCarousel = autofree(MenuCarousel.new()) as MenuCarousel
+	strip.size = Vector2(720.0, 700.0)
+	add_child(strip)
+	var options: Array[Dictionary] = [
+		{"id": "online", "title": "Online", "color": "orange", "accent": "ffa63a", "power": 7450},
+		{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff", "power": 9999},
+		{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78", "power": 1200},
+	]
+	strip.setup("", options, 1)
+	strip._layout()
+	for index: int in 3:
+		var card: Button = strip.cards[index]
+		var rim: CardRim = card.get_node("Frame") as CardRim
+		var face: CardFace = card.get_node("Face") as CardFace
+		if index == 1:
+			assert_eq(rim.modulate.a, 1.0, "the chosen card has its glow")
+			assert_eq(face.chosen, 1.0, "and its shadow")
+		else:
+			assert_eq(rim.modulate.a, 0.0, "a card that is not chosen has no glow")
+			assert_eq(face.chosen, 0.0, "and no shadow")
+		assert_eq(rim.accent, Color(String(options[index]["accent"])), "the glow is in the mode's colour")
+		assert_eq(rim.radii, face.corner_radii(), "and follows the card's own corners")
+	assert_lte(CardRim.LINE_WIDTH, 3.0, "a thin outline")
+	assert_lte(CardRim.GLOW_WIDTHS[0], 16.0, "and a compact glow")
+	strip.select(2, false)
+	assert_eq((strip.cards[2].get_node("Frame") as CardRim).modulate.a, 1.0, "the glow moves to the card that is chosen")
+	assert_eq((strip.cards[1].get_node("Frame") as CardRim).modulate.a, 0.0)
+	assert_eq((strip.cards[1].get_node("Face") as CardFace).chosen, 0.0)

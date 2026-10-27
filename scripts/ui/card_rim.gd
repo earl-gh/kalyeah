@@ -1,17 +1,22 @@
 class_name CardRim
 extends Control
-## The bright rim of the chosen mode card: a glow and a line in the card's accent colour, drawn on the card's outline
-## (`CardShape`) so it hugs the card.
+## The thin coloured outline glow of the chosen mode card: a fine line in the card's accent colour and a compact glow round it, drawn
+## on the card's own outline (`CardShape`, with the card's own corner radii) so it hugs the card. The carousel fades it out on every
+## card that is not chosen.
 
-const GLOW_WIDTHS: Array[float] = [26.0, 18.0, 11.0]
-const GLOW_ALPHAS: Array[float] = [0.08, 0.14, 0.24]
-const LINE_WIDTH: float = 3.5
-## The line runs this far inside the card's edge, so the card's paper edge stays visible outside it.
-const LINE_INSET: float = 3.0
+## The glow: a few lines of falling width and rising strength, so it fades out softly over about 7 px.
+const GLOW_WIDTHS: Array[float] = [14.0, 9.0, 5.0]
+const GLOW_ALPHAS: Array[float] = [0.1, 0.18, 0.32]
+const LINE_WIDTH: float = 2.5
 
 var accent: Color = Color.WHITE:
 	set(value):
 		accent = value
+		queue_redraw()
+## The card's corner radii (top left, top right, bottom right, bottom left), as on its `CardFace`.
+var radii: Vector4 = Vector4.ZERO:
+	set(value):
+		radii = value
 		queue_redraw()
 
 
@@ -29,11 +34,8 @@ func _notification(what: int) -> void:
 func _draw() -> void:
 	if size.x < 8.0 or size.y < 8.0:
 		return
-	var radius: float = CardFace.RADIUS
-	var outer: PackedVector2Array = CardShape.outline(size, radius)
-	outer.append(outer[0])
+	var outline: PackedVector2Array = CardShape.outline_corners(size, radii)
+	outline.append(outline[0])
 	for i: int in GLOW_WIDTHS.size():
-		draw_polyline(outer, Color(accent, GLOW_ALPHAS[i]), GLOW_WIDTHS[i], true)
-	var line: PackedVector2Array = CardShape.outline(size, radius, LINE_INSET)
-	line.append(line[0])
-	draw_polyline(line, accent, LINE_WIDTH, true)
+		draw_polyline(outline, Color(accent, GLOW_ALPHAS[i]), GLOW_WIDTHS[i], true)
+	draw_polyline(outline, accent, LINE_WIDTH, true)

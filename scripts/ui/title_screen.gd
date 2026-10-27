@@ -216,7 +216,6 @@ func _build_home() -> VBoxContainer:
 	carousel.name = "ModeCarousel"
 	carousel.card_size = HERO_CARD
 	carousel.bottom_gap = HERO_BOTTOM_GAP
-	carousel.show_rim = false
 	carousel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(carousel)
 	carousel.setup("", MODES, Session.menu_mode)

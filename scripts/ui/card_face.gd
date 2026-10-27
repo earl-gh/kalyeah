@@ -1,13 +1,11 @@
 class_name CardFace
 extends Control
-## A mode card drawn as an old Filipino teks card floating over the table (straight, flat, no coloured outline: owner): a soft
-## shadow well below it, then the picture with its print worn away to brown paper at the corners (shader `card_picture`, one
-## layer only), then the power line up the right edge, then the mode-coloured shade at the bottom (shader `card_shade`, which
-## wears away at the same corners), then a subtle yellowish tint over all of it to make it look old (shader `card_tint`). The card's own
-## button draws nothing behind it.
+## A mode card drawn as an old Filipino teks card (straight, flat): a soft shadow just under it (only on the chosen card), then the
+## picture with its print worn away to brown paper (shader `card_picture`), then the power line up the right edge, then a subtle
+## yellowish tint over all of it to make it look old (shader `card_tint`). No coloured shade over the picture (owner). The card's own
+## button draws nothing behind it; the chosen card's thin coloured outline glow is a `CardRim` over this.
 
 const PICTURE_SHADER: Shader = preload("res://shaders/card_picture.gdshader")
-const SHADE_SHADER: Shader = preload("res://shaders/card_shade.gdshader")
 const TINT_SHADER: Shader = preload("res://shaders/card_tint.gdshader")
 ## The slight radius of each corner: between these, a different one on every corner of every card (never sharp, never very round).
 const CORNER_RADIUS_MIN: float = 12.0
@@ -27,15 +25,13 @@ const POWER_OUTLINE: Color = Color.BLACK
 const POWER_EDGE_SHARE: float = 0.075
 const POWER_BOTTOM_SHARE: float = 0.07
 const POWER_OUTLINE_SIZE: int = 7
-## The coloured shade in front of the picture at the bottom of the card, in the mode's colour, behind the mode's name: how
-## tall it is (share of the card's height) and how strong it is at the bottom.
-const SHADE_SHARE: float = 0.36
-## The shadow: its layers, how far below the card it falls and how dark the whole of it is.
-const SHADOW_LAYERS: int = 7
-const SHADOW_DROP: Vector2 = Vector2(10.0, 40.0)
-const SHADOW_ALPHA: float = 0.075
+## The shadow: compact, close under the card (its layers, how far it falls and how dark the whole of it is).
+const SHADOW_LAYERS: int = 6
+const SHADOW_DROP: Vector2 = Vector2(3.0, 13.0)
+const SHADOW_GROW: float = 0.009
+const SHADOW_ALPHA: float = 0.13
 ## How much further the shadow falls (and lighter it gets) as the card floats up.
-const SHADOW_BREATH: float = 10.0
+const SHADOW_BREATH: float = 4.0
 
 ## How high the card floats (-1 sinking to 1 at the top of its drift): the middle card sets it as it drifts, and its shadow follows.
 var lift: float = 0.0:
@@ -44,11 +40,14 @@ var lift: float = 0.0:
 			return
 		lift = value
 		queue_redraw()
-## The mode's colour (the coloured shade at the bottom of the card) and its power number (the line up the right edge).
-var accent: Color = Color("4aa0ff"):
+## How much the card is the chosen one, 0 to 1: only the chosen card has a shadow (and a glow, drawn by its `CardRim`).
+var chosen: float = 1.0:
 	set(value):
-		accent = value
-		_shade_material.set_shader_parameter("accent", value)
+		if absf(value - chosen) < 0.01:
+			return
+		chosen = value
+		queue_redraw()
+## The mode's power number (the line up the right edge).
 var power: int = 0:
 	set(value):
 		power = value
@@ -71,8 +70,6 @@ var wear_seed: float = 1.0:
 var _picture: TextureRect
 var _picture_material: ShaderMaterial
 var _power_line: CardPowerLine
-var _shade: ColorRect
-var _shade_material: ShaderMaterial
 var _tint_material: ShaderMaterial
 
 
@@ -93,17 +90,6 @@ func _init() -> void:
 	add_child(_picture)
 	_power_line = CardPowerLine.new()
 	add_child(_power_line)
-	_shade = ColorRect.new()
-	_shade.name = "Shade"
-	_shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_shade_material = ShaderMaterial.new()
-	_shade_material.shader = SHADE_SHADER
-	_shade_material.set_shader_parameter("share", SHADE_SHARE)
-	_shade_material.set_shader_parameter("accent", accent)
-	_shade_material.set_shader_parameter("seed", wear_seed)
-	_shade.material = _shade_material
-	add_child(_shade)
 	var tint: ColorRect = ColorRect.new()
 	tint.name = "Tint"
 	tint.color = AGE_TINT
@@ -126,15 +112,16 @@ func _notification(what: int) -> void:
 func _draw() -> void:
 	if size.x < 8.0 or size.y < 8.0:
 		return
-	var radius: float = RADIUS
+	if chosen < 0.02:
+		return
 	var face: PackedVector2Array = CardShape.outline_corners(size, corner_radii())
 	var centre: Vector2 = size / 2.0
 	for layer: int in SHADOW_LAYERS:
-		var grow: float = 1.0 + 0.012 * float(layer)
+		var grow: float = 1.0 + SHADOW_GROW * float(layer)
 		var shadow: PackedVector2Array = PackedVector2Array()
 		for point: Vector2 in face:
 			shadow.append(centre + (point - centre) * grow + SHADOW_DROP + Vector2(0.0, SHADOW_BREATH * lift))
-		draw_colored_polygon(shadow, Color(0.0, 0.02, 0.08, SHADOW_ALPHA * (1.0 - 0.3 * lift)))
+		draw_colored_polygon(shadow, Color(0.0, 0.02, 0.08, SHADOW_ALPHA * (1.0 - 0.3 * lift) * chosen))
 
 
 ## The share of the picture the card shows across and down (the picture fills the card, the rest is cropped).
@@ -156,7 +143,7 @@ func _fit() -> void:
 
 
 func _materials() -> Array[ShaderMaterial]:
-	return [_picture_material, _shade_material, _tint_material]
+	return [_picture_material, _tint_material]
 
 
 ## The radius of each corner of this card (top left, top right, bottom right, bottom left): slight, and different on every corner
