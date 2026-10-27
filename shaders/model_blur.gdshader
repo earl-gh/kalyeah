@@ -4,7 +4,7 @@ shader_type canvas_item;
 
 uniform float radius : hint_range(0.0, 40.0) = 8.0;
 
-const int TAPS = 24;
+const int TAPS = 32;
 const float GOLDEN_ANGLE = 2.39996323;
 
 void fragment() {
