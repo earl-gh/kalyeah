@@ -256,7 +256,9 @@ func test_the_open_tab_is_bigger_and_shows_its_name_and_its_arrows() -> void:
 	var open: TextureRect = bar.tabs[&"home"].get_node("Picture") as TextureRect
 	var idle: TextureRect = bar.tabs[&"street"].get_node("Picture") as TextureRect
 	assert_gt(open.size.x, idle.size.x * 1.2, "the open tab's picture is bigger")
-	assert_eq(bar.tabs[&"home"].size.x, bar.tabs[&"street"].size.x, "but the tabs stay equal: nothing is pushed aside")
+	assert_gt(bar.tabs[&"home"].size.x, bar.tabs[&"street"].size.x, "the open tab is the wide one (room for its arrows)")
+	assert_almost_eq(bar.tabs[&"street"].position.x, UiTabBar.SIDE_MARGIN, 0.5, "the strip starts a margin in from the left")
+	assert_almost_eq(bar.tabs[&"settings"].position.x + bar.tabs[&"settings"].size.x, 720.0 - UiTabBar.SIDE_MARGIN, 0.5, "and ends a margin in from the right")
 	assert_lt(open.global_position.y, bar.global_position.y + UiTabBar.BAR_TOP, "the open picture rises above the bar (owner: like the reference)")
 	assert_gt(idle.global_position.y, bar.global_position.y + UiTabBar.BAR_TOP, "an idle picture sits inside it")
 	assert_true((bar.tabs[&"home"].get_node("Name") as Label).visible, "it shows its name")

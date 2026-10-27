@@ -50,12 +50,9 @@ const MODE_TEXT_OUTLINE: int = 6
 const HERO_SCALE: float = 0.86
 ## The button row's slot takes this share of the free height next to the card's stage (1.0).
 const ACTIONS_SLOT_SHARE: float = 0.35
-## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
-const NAME_PERSPECTIVE: Shader = preload("res://shaders/text_perspective.gdshader")
-## How wide the very top of the leaning-back mode name is next to its bottom (1 would be flat).
-const NAME_TOP_SCALE: float = 0.93
 ## The gap under the mode name (negative so the phrase is pulled nearer to the name).
 const TITLES_SEPARATION: int = -10
+## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
 const TITLE_Z: int = 20
 ## How far the name is lifted so its letters (not its line box) are centred on the card's bottom edge.
 const TITLE_LIFT: float = 12.0
@@ -118,7 +115,6 @@ var _margin: MarginContainer
 var _home: VBoxContainer
 var _top_bar: Control
 var _title_holder: Control
-var _name_perspective: ShaderMaterial
 var mode_chips: HBoxContainer
 var _page_holder: Control
 var _page_tween: Tween
@@ -267,12 +263,6 @@ func _build_titles() -> Control:
 	# the name straddles the bottom edge of the chosen card: this holder sits where the stage ends and the name hangs
 	# off it upwards by the card's air plus half its own height (`_place_title`)
 	mode_name_label.z_index = TITLE_Z
-	# the name leans back in perspective, so it stands up off the card instead of lying flat (owner)
-	_name_perspective = ShaderMaterial.new()
-	_name_perspective.shader = NAME_PERSPECTIVE
-	_name_perspective.set_shader_parameter("top_scale", NAME_TOP_SCALE)
-	mode_name_label.material = _name_perspective
-	mode_name_label.resized.connect(_fit_name_perspective)
 	_title_holder = Control.new()
 	_title_holder.name = "TitleHolder"
 	_title_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -446,10 +436,6 @@ func _fit_hero() -> void:
 	carousel.setup("", MODES, carousel.index)
 	_place_title()
 
-
-## Tells the perspective shader how big the mode name's label is.
-func _fit_name_perspective() -> void:
-	_name_perspective.set_shader_parameter("rect_size", mode_name_label.size)
 
 
 ## Points the backdrop's backlight at the chosen card: the bright middle sits right behind it.

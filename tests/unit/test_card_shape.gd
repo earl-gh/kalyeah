@@ -213,15 +213,11 @@ func test_the_main_menu_backdrop_is_backlit_behind_the_chosen_card() -> void:
 	assert_gt(gradient.colors[0].a, gradient.colors[gradient.colors.size() - 1].a, "a radial gradient: bright in the middle, gone at the edge")
 
 
-func test_the_mode_name_leans_back_in_perspective() -> void:
+func test_the_mode_name_is_flat_text_with_no_perspective() -> void:
 	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
 	add_child(screen)
 	await wait_frames(4)
-	var material: ShaderMaterial = screen.mode_name_label.material as ShaderMaterial
-	assert_not_null(material, "the name is drawn through the perspective shader")
-	assert_eq(material.shader.resource_path, "res://shaders/text_perspective.gdshader")
-	assert_lt(float(material.get_shader_parameter("top_scale")), 1.0, "its upper part is pushed back: narrower than its lower part")
-	assert_eq(material.get_shader_parameter("rect_size"), screen.mode_name_label.size, "the shader knows the label's size")
+	assert_null(screen.mode_name_label.material, "the name is drawn as plain text (owner: no perspective)")
 
 
 func test_the_main_menu_background_is_the_owners_picture_in_the_chosen_cards_colour() -> void:

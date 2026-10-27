@@ -2,7 +2,7 @@ class_name UiTabBar
 extends Control
 ## The main screen's bottom navigation, in the style of Clash Royale's: a bar of flat, dark slate-blue slots drawn in code along the
 ## bottom, split by thin dark lines under a dark top edge, the open tab's slot lit steel blue, with one picture per destination (Street,
-## Play, Settings). The layout never moves: three equal tabs.
+## Play, Settings). The strip of tabs is centred with a margin each side; the open tab is the wide one (room for its arrows).
 ## The open tab's picture grows and rises above the top of the bar (like the reference's) and its name fades in under it, and two small arrows float over the
 ## bar, a little way out from the picture, to go to the neighbouring tab (the leftmost tab has only a right arrow, the rightmost
 ## only a left one). Changing tab is one smooth move: the picture grows and shrinks, the name fades, the arrows slide to the new tab.
@@ -28,13 +28,18 @@ const LABEL_RISE: float = 8.0
 ## The arrows: how big they are drawn, how big they are to the thumb, and how far from the picture's edge.
 const ARROW_SIZE: float = 26.0
 const ARROW_TOUCH: float = 88.0
-const ARROW_GAP: float = 14.0
+const ARROW_GAP: float = 22.0
 const IDLE_SHADE: Color = Color(0.82, 0.82, 0.86)
 ## The bar's colours (sampled from the reference): a slot is lighter at the top; the open one is steel blue, the others dark slate.
 const SLOT_IDLE_TOP: Color = Color("526480")
 const SLOT_IDLE_BOTTOM: Color = Color("2c3e56")
 const SLOT_OPEN_TOP: Color = Color("96b0d0")
 const SLOT_OPEN_BOTTOM: Color = Color("587a9e")
+## The tabs are centred with this much margin on each side (design pixels), and the open tab is this wide (room for its two arrows):
+## the idle tabs share what is left. The margins are filled with `MARGIN_COLOR`.
+const SIDE_MARGIN: float = 40.0
+const OPEN_WIDTH: float = 220.0
+const MARGIN_COLOR: Color = Color("1f2f47")
 ## The dark top edge (with a thin light line under it) and the lines between the slots, in design pixels.
 const EDGE_COLOR: Color = Color("0c1a36")
 const EDGE_HEIGHT: float = 5.0
@@ -71,6 +76,9 @@ var arrow_left: Button
 var arrow_right: Button
 
 var _order: Array[StringName] = []
+## Each tab's slot (where it starts and how wide it is), set by `_place_slots`.
+var _slot_x: Array[float] = []
+var _slot_w: Array[float] = []
 var _pictures: Dictionary[StringName, TextureRect] = {}
 var _labels: Dictionary[StringName, Label] = {}
 ## How open each tab is now (0 idle, 1 open), tweened.
@@ -93,19 +101,22 @@ func _init(items: Array[Dictionary] = []) -> void:
 
 ## The slots, the dividers and the top edge, drawn in code (the open tab's slot lights smoothly as it opens).
 func _draw() -> void:
-	if _order.is_empty() or size.x <= 0.0:
+	if _order.is_empty() or size.x <= 0.0 or _slot_x.size() != _order.size():
 		return
 	var scale_to: float = size.x / 720.0
-	var slot: float = slot_width()
 	var top_y: float = BAR_TOP * scale_to
+	draw_rect(Rect2(0.0, top_y, size.x, size.y - top_y), MARGIN_COLOR)
 	for i: int in _order.size():
 		var open: float = _openness[_order[i]]
 		var top: Color = SLOT_IDLE_TOP.lerp(SLOT_OPEN_TOP, open)
 		var bottom: Color = SLOT_IDLE_BOTTOM.lerp(SLOT_OPEN_BOTTOM, open)
-		var x: float = slot * float(i)
+		var x: float = _slot_x[i]
+		var slot: float = _slot_w[i]
 		draw_polygon(PackedVector2Array([Vector2(x, top_y), Vector2(x + slot, top_y), Vector2(x + slot, size.y), Vector2(x, size.y)]), PackedColorArray([top, top, bottom, bottom]))
-		if i > 0:
-			draw_rect(Rect2(x - DIVIDER_WIDTH * scale_to / 2.0, top_y, DIVIDER_WIDTH * scale_to, size.y - top_y), DIVIDER_COLOR)
+		draw_rect(Rect2(x - DIVIDER_WIDTH * scale_to / 2.0, top_y, DIVIDER_WIDTH * scale_to, size.y - top_y), DIVIDER_COLOR)
+	if not _order.is_empty():
+		var end: float = _slot_x[_order.size() - 1] + _slot_w[_order.size() - 1]
+		draw_rect(Rect2(end - DIVIDER_WIDTH * scale_to / 2.0, top_y, DIVIDER_WIDTH * scale_to, size.y - top_y), DIVIDER_COLOR)
 	draw_rect(Rect2(0.0, top_y, size.x, EDGE_HEIGHT * scale_to), EDGE_COLOR)
 	draw_rect(Rect2(0.0, top_y + EDGE_HEIGHT * scale_to, size.x, EDGE_LIGHT_HEIGHT * scale_to), EDGE_LIGHT)
 
@@ -214,9 +225,21 @@ func _set_openness(value: float, id: StringName) -> void:
 	_layout()
 
 
-## The width of every tab: equal, whichever tab is open (nothing restructures when the tab changes).
-func slot_width() -> float:
-	return size.x / float(maxi(_order.size(), 1))
+## Where each tab's slot starts and how wide it is, for the current openness: the open tab is `OPEN_WIDTH` wide and the others share the
+## rest of the width between the side margins (the strip always fills the same width, so nothing outside it moves).
+func _place_slots(scale_to: float) -> void:
+	var count: int = maxi(_order.size(), 1)
+	var avail: float = size.x - 2.0 * SIDE_MARGIN * scale_to
+	var open_width: float = minf(OPEN_WIDTH * scale_to, avail)
+	var idle_width: float = (avail - open_width) / float(maxi(count - 1, 1))
+	_slot_x.clear()
+	_slot_w.clear()
+	var x: float = SIDE_MARGIN * scale_to
+	for id: StringName in _order:
+		var width: float = lerpf(idle_width, open_width, _openness[id])
+		_slot_x.append(x)
+		_slot_w.append(width)
+		x += width
 
 
 ## Places every picture, name and arrow for the current openness. The bar scales with its width over the design width.
@@ -225,7 +248,7 @@ func _layout() -> void:
 		return
 	queue_redraw()
 	var scale_to: float = size.x / 720.0
-	var slot: float = slot_width()
+	_place_slots(scale_to)
 	var total: float = 0.0
 	var centre_sum: float = 0.0
 	var right_share: float = 0.0
@@ -234,12 +257,13 @@ func _layout() -> void:
 		var id: StringName = _order[i]
 		var open: float = _openness[id]
 		var button: Button = tabs[id]
-		button.position = Vector2(slot * float(i), 0.0)
+		var slot: float = _slot_w[i]
+		button.position = Vector2(_slot_x[i], 0.0)
 		button.size = Vector2(slot, size.y)
 		var edge: float = lerpf(ICON_IDLE, ICON_ACTIVE, open) * scale_to
 		var picture: TextureRect = _pictures[id]
 		picture.size = Vector2.ONE * edge
-		# the open picture grows and rises above the bar; its slot and its neighbours never move
+		# the open picture grows and rises above the bar, and its slot is the wide one
 		picture.position = Vector2(slot / 2.0 - edge / 2.0, lerpf(ICON_Y, ICON_Y_OPEN, open) * scale_to - edge / 2.0)
 		picture.modulate = IDLE_SHADE.lerp(Color.WHITE, open)
 		var label: Label = _labels[id]
@@ -248,7 +272,7 @@ func _layout() -> void:
 		label.modulate.a = open
 		label.visible = open > 0.01
 		total += open
-		centre_sum += open * slot * (float(i) + 0.5)
+		centre_sum += open * (_slot_x[i] + slot / 2.0)
 		if i > 0:
 			left_share += open
 		if i < _order.size() - 1:
