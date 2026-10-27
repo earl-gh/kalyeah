@@ -9,12 +9,13 @@ const WEAPON_DIR: String = "res://data/weapons/"
 const FOLDER: String = "res://assets/ui/skill_cards/"
 const PICTURE_HAND: Array[StringName] = [&"heal", &"papel_shield", &"papel_trap", &"gunting_heavy"]
 const PICTURE_NEXT: StringName = &"langit_lupa"
-const WITH_PICTURE: Array[StringName] = [&"heal", &"papel_shield", &"papel_trap", &"gunting_heavy", &"langit_lupa", &"jacks", &"trumpo", &"gunting_light", &"bato_heavy", &"bola"]
-## Still the teks card with the painted icon (no picture from the owner yet).
+const WITH_PICTURE: Array[StringName] = [&"heal", &"papel_shield", &"papel_trap", &"gunting_heavy", &"langit_lupa", &"jacks", &"trumpo", &"gunting_light", &"bato_heavy", &"bola", &"bato_light", &"lata", &"tsinelas_heavy", &"tsinelas_light"]
+## Every weapon has its picture now; the teks card with the painted icon stays as the fallback for a weapon without one. These stand in for
+## such weapons in the tests that look at it (`_no_picture`).
 const TEKS_ONLY: Array[StringName] = [&"bato_light", &"lata", &"tsinelas_heavy", &"tsinelas_light"]
-## What the pictures may add to the APK: the imported textures are about 190 KB each, the whole folder stays well under this (the APK is
-## at 147 MB of its 150 MB limit).
-const FOLDER_BUDGET_BYTES: int = 1536 * 1024
+## What the pictures may add to the APK: the imported textures are about 190 KB each, the whole folder stays under this (the APK is close
+## to its 150 MB limit).
+const FOLDER_BUDGET_BYTES: int = 2048 * 1024
 
 var _rules: GameRules
 var _was: bool
@@ -33,10 +34,18 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	for id: StringName in TEKS_ONLY:
+		CardStyle._pictures.erase(id)
 	_rules.card_cycle = _was
 	_rules.elixir_enabled = _was_elixir
 	Settings.reduced_motion = _motion
 	Settings.left_handed = false
+
+
+## Pretends the owner has no picture for `ids`: they are drawn as the fallback teks card (the lookup cache is reset after each test).
+func _no_picture(ids: Array[StringName] = TEKS_ONLY) -> void:
+	for id: StringName in ids:
+		CardStyle._pictures[id] = null
 
 
 func _hud() -> MatchHud:
@@ -100,7 +109,7 @@ func _picture_node(card: HandCard) -> TextureRect:
 func test_every_file_in_the_folder_belongs_to_a_weapon() -> void:
 	var ids: Array[StringName] = _weapon_ids()
 	var files: Array[String] = _picture_files()
-	assert_gte(files.size(), 10, "the owner's first ten pictures")
+	assert_gte(files.size(), 14, "a picture for each of the 14 weapons")
 	for file: String in files:
 		var id: StringName = StringName(file.trim_suffix(".webp"))
 		assert_true(ids.has(id), "%s is the card of a weapon (a file named like a weapon id: %s)" % [file, ids])
@@ -108,12 +117,11 @@ func test_every_file_in_the_folder_belongs_to_a_weapon() -> void:
 		assert_true(FileAccess.file_exists(FOLDER + file + ".import"), "%s has its .import" % file)
 
 
-func test_ten_weapons_have_a_picture_and_the_other_four_keep_the_teks_card() -> void:
+func test_every_weapon_has_a_picture() -> void:
 	for id: StringName in _weapon_ids():
-		assert_eq(CardStyle.picture(id) != null, WITH_PICTURE.has(id), "%s: a picture only for the ten the owner made so far" % id)
-		assert_ne(WITH_PICTURE.has(id), TEKS_ONLY.has(id), "%s is in exactly one of the two lists" % id)
-	assert_eq(WITH_PICTURE.size() + TEKS_ONLY.size(), _weapon_ids().size(), "every weapon is one or the other")
-	assert_null(CardStyle.picture(&"bato_light"), "bato_light keeps its icon: no picture yet")
+		assert_not_null(CardStyle.picture(id), "%s has the owner's card picture" % id)
+		assert_true(WITH_PICTURE.has(id), "%s is in the list" % id)
+	assert_eq(WITH_PICTURE.size(), _weapon_ids().size(), "the list is every weapon")
 	assert_null(CardStyle.picture(&"no_such_weapon"), "an unknown id is no picture, not an error")
 
 
@@ -175,6 +183,7 @@ func test_a_picture_weapon_is_drawn_as_its_picture_bare_with_no_ground_wear_tint
 
 
 func test_a_weapon_without_a_picture_keeps_the_teks_card_with_the_painted_icon() -> void:
+	_no_picture()
 	for id: StringName in TEKS_ONLY:
 		var def: WeaponDef = _weapon(id)
 		var card: HandCard = autofree(HandCard.new()) as HandCard
@@ -192,6 +201,7 @@ func test_a_weapon_without_a_picture_keeps_the_teks_card_with_the_painted_icon()
 
 
 func test_a_card_that_cycles_between_a_picture_and_a_teks_card_is_fully_each_one() -> void:
+	_no_picture()
 	var card: HandCard = autofree(HandCard.new()) as HandCard
 	add_child(card)
 	card.place(Rect2(Vector2.ZERO, CardHand.card_size(720.0)))
@@ -345,6 +355,7 @@ func test_the_held_picture_card_follows_the_finger_lifts_and_leaves_its_slot_emp
 
 
 func test_a_teks_card_under_the_finger_keeps_its_polygon_lift() -> void:
+	_no_picture()
 	var hand: CardHand = (_shown([&"bato_light", &"lata", &"tsinelas_light", &"tsinelas_heavy"], &"bato_light")[1] as MatchHud).hand
 	hand.active = true
 	hand.held_slot = 1
@@ -400,6 +411,7 @@ func test_a_card_that_arrives_from_next_flies_as_its_picture() -> void:
 # ---- the rest of the hand --------------------------------------------------------
 
 func test_a_hand_can_mix_picture_cards_and_teks_cards() -> void:
+	_no_picture()
 	var hand: CardHand = (_shown([&"heal", &"lata", &"jacks", &"tsinelas_light"], &"bola")[1] as MatchHud).hand
 	var expected: Array[bool] = [true, false, true, false]
 	for slot: int in CardHand.SLOTS:

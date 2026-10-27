@@ -7,8 +7,8 @@ extends GutTest
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const DT: float = 1.0 / 30.0
 const WEAPON_DIR: String = "res://data/weapons/"
-## A hand of weapons the owner has no card picture for yet (`CardStyle.picture`): these are the teks cards this file is about (the picture
-## cards are in test_skill_card_pictures.gd).
+## A hand of teks cards, the fallback for a weapon without an owner card picture (`CardStyle.picture`; every weapon has one now, so these
+## pretend not to, see before_each; the picture cards are in test_skill_card_pictures.gd).
 const TEKS_HAND: Array[StringName] = [&"bato_light", &"lata", &"tsinelas_light", &"tsinelas_heavy"]
 const TEKS_NEXT: StringName = &"bato_light"
 
@@ -20,6 +20,8 @@ var _left: bool
 
 
 func before_each() -> void:
+	for id: StringName in TEKS_HAND:
+		CardStyle._pictures[id] = null
 	_rules = load("res://data/rules/game_rules.tres") as GameRules
 	_was = _rules.card_cycle
 	_was_elixir = _rules.elixir_enabled
@@ -31,6 +33,8 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	for id: StringName in TEKS_HAND:
+		CardStyle._pictures.erase(id)
 	_rules.card_cycle = _was
 	_rules.elixir_enabled = _was_elixir
 	Settings.reduced_motion = _motion

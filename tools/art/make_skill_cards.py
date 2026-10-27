@@ -3,7 +3,7 @@
 Each picture is a complete card (its own torn-cardboard frame, art and glow) on a transparent canvas, made by the owner at 1049 x 1499 px.
 The hand draws it AS the card (`CardStyle.picture`, `HandCard`), so this only trims the transparent margins (the picture's own frame then
 fills the card slot) and downsizes with Lanczos. Nothing is repainted. Every picture is cut with the SAME box (CROP: the union of the
-visible parts of the first ten), so the frames of all cards keep the same size and place in the card slot; a picture whose glow reaches
+visible parts of all fourteen), so the frames of all cards keep the same size and place in the card slot; a picture whose glow reaches
 outside the box stops the script (widen CROP, then run it for all of them again).
 
 Run:  python3 -I tools/art/make_skill_cards.py [source_dir]
@@ -40,6 +40,10 @@ SOURCES = {
     "78.webp": "gunting_light",
     "79.webp": "bato_heavy",
     "80.webp": "bola",
+    "81.webp": "tsinelas_heavy",
+    "82.webp": "bato_light",
+    "83.webp": "tsinelas_light",
+    "84.webp": "lata",
 }
 
 
