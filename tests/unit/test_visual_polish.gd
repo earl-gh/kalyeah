@@ -199,7 +199,7 @@ func test_repeated_ways_of_scoring_are_one_chip_with_a_count() -> void:
 	assert_gt(MatchResults.WEAPON_ICON, 64.0)
 
 
-func test_the_kid_screen_names_the_chosen_kid_large_on_a_stage() -> void:
+func test_the_kid_screen_names_the_chosen_kid_large_under_the_carousel() -> void:
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 	var screen: WeaponPickScreen = WeaponPickScreen.new()
 	var phone: Control = autofree(Control.new()) as Control
@@ -221,7 +221,7 @@ func test_the_kid_screen_names_the_chosen_kid_large_on_a_stage() -> void:
 	assert_eq(screen._hero_name.text, toni.display_name)
 	assert_true(screen._hero_name.is_visible_in_tree())
 	assert_gte(screen._hero_name.get_theme_font_size("font_size"), 48, "large")
-	assert_eq(screen._hero.get_parent().name, &"Stage", "the kid stands on the stage")
+	assert_lte(screen._carousel.get_global_rect().end.y, screen._hero_name.get_global_rect().position.y + 1.0, "the name is under the cards")
 	var other: CharacterDef = rules.characters[0] if rules.characters[0].id != &"toni" else rules.characters[1]
 	screen.pick_character(other.id)
 	assert_eq(screen._hero_name.text, other.display_name, "the name follows the pick")

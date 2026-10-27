@@ -5,17 +5,8 @@ extends RefCounted
 
 ## The height kept for the suggested-pair button (it never changes the layout when it hides).
 const SUGGEST_HEIGHT: float = 80.0
-## The kid screen (visual pass): the chosen kid stands on a soft oval stage (a floor shadow under the feet and a lit rim) and
-## its name is set large under it. The stage is `STAGE_SIZE` of the hero's width and height, drawn behind the picture.
+## The kid screen: the chosen kid's name is set large under the carousel of card pictures.
 const HERO_NAME_FONT: int = UiMetrics.DISPLAY
-const STAGE_SIZE: Vector2 = Vector2(0.78, 0.09)
-const STAGE_FILL: Color = Color(0.03, 0.08, 0.24, 0.85)
-const STAGE_RIM: Color = Color(0.45, 0.72, 1.0, 0.55)
-const STAGE_SHADOW: Color = Color(0.0, 0.0, 0.0, 0.45)
-const STAGE_POINTS: int = 48
-## The stage's shadow: this much bigger than the floor and dropped this share of its height.
-const STAGE_SHADOW_GROW: float = 1.08
-const STAGE_SHADOW_DROP: float = 0.35
 
 
 static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
@@ -100,7 +91,7 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	var info: Control = LoadoutCards.info_panel(screen)
 	column.add_child(info)
 	screen._weapon_parts.append(info)
-	# cards mode: the weapons are gone and this space just keeps the kid row at the top and Play at the bottom
+	# cards mode: the weapons are gone and this space holds the kid carousel and the kid's name, with Play at the bottom
 	var filler: Control = Control.new()
 	filler.name = "Filler"
 	filler.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -113,19 +104,12 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	hero_box.add_theme_constant_override("separation", UiMetrics.GAP)
 	hero_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	filler.add_child(hero_box)
-	var stage: Control = Control.new()
-	stage.name = "Stage"
-	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stage.draw.connect(_draw_stage.bind(stage))
-	hero_box.add_child(stage)
-	screen._hero = TextureRect.new()
-	screen._hero.name = "Hero"
-	screen._hero.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	screen._hero.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	screen._hero.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	screen._hero.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stage.add_child(screen._hero)
+	hero_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	screen._carousel = KidCarousel.new()
+	screen._carousel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	screen._carousel.selected.connect(screen._on_kid_swiped)
+	hero_box.add_child(screen._carousel)
+	filler.resized.connect(screen._fit_kids)
 	screen._hero_name = Label.new()
 	screen._hero_name.name = "HeroName"
 	screen._hero_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -135,25 +119,6 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	screen._ready_button = MenuDialog.make_button("Ready", "orange", UiMetrics.BODY, Vector2(0.0, 88.0))
 	screen._ready_button.pressed.connect(screen.press_ready)
 	column.add_child(screen._ready_button)
-
-
-## The oval stage under the kid's feet (the bottom of the picture): a soft shadow, a dark floor and a lit rim.
-static func _draw_stage(stage: Control) -> void:
-	var radius: Vector2 = stage.size * STAGE_SIZE / 2.0
-	var centre: Vector2 = Vector2(stage.size.x / 2.0, stage.size.y - radius.y)
-	stage.draw_colored_polygon(_oval(centre + Vector2(0.0, radius.y * STAGE_SHADOW_DROP), radius * STAGE_SHADOW_GROW), STAGE_SHADOW)
-	var floor_oval: PackedVector2Array = _oval(centre, radius)
-	stage.draw_colored_polygon(floor_oval, STAGE_FILL)
-	floor_oval.append(floor_oval[0])
-	stage.draw_polyline(floor_oval, STAGE_RIM, 3.0, true)
-
-
-static func _oval(centre: Vector2, radius: Vector2) -> PackedVector2Array:
-	var points: PackedVector2Array = PackedVector2Array()
-	for i: int in STAGE_POINTS:
-		var angle: float = TAU * float(i) / float(STAGE_POINTS)
-		points.append(centre + Vector2(cos(angle) * radius.x, sin(angle) * radius.y))
-	return points
 
 
 static func _characters(screen: WeaponPickScreen) -> Control:

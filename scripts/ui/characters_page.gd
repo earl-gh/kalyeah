@@ -66,7 +66,7 @@ func _card(id: String) -> Button:
 	if art != null:
 		_bare_picture(card, art)
 	else:
-		_plate_picture(card, id)
+		plate_picture(card, id)
 	var label: Label = Label.new()
 	label.name = "Name"
 	label.theme_type_variation = &"DisplayLabel"
@@ -101,8 +101,8 @@ func _bare_picture(card: Button, art: Texture2D) -> void:
 
 
 ## A kid with no card picture: the glass plate with the 3:4 face under a dark fade, in the same cell and with the
-## name in the same spot, so the grid reads the same.
-func _plate_picture(card: Button, id: String) -> void:
+## name in the same spot, so the grid reads the same. The kid pick's carousel (`KidCarousel`) uses it too, for a card of `size`.
+static func plate_picture(card: Button, id: String, size: Vector2 = CARD) -> void:
 	for state: String in ["normal", "hover"]:
 		card.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, UiSkin.RADIUS_L))
 	for state: String in ["pressed", "hover_pressed"]:
@@ -118,7 +118,7 @@ func _plate_picture(card: Button, id: String) -> void:
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var crop: ShaderMaterial = ShaderMaterial.new()
 	crop.shader = UiKit.CROP
-	crop.set_shader_parameter("rect_size", CARD)
+	crop.set_shader_parameter("rect_size", size)
 	crop.set_shader_parameter("radius", 22.0)
 	picture.material = crop
 	card.add_child(picture)
