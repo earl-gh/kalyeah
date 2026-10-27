@@ -19,8 +19,8 @@ const TAG_HINT: int = 18
 ## A label carrying this meta is allowed under `MIN_TEXT` (the lint skips it): the owner asked for it, and it is the only one.
 const BELOW_FLOOR_BY_OWNER: StringName = &"below_floor_by_owner"
 const WORLD: int = 18
-## The health number over a kid's bar and the status word above it (owner: 1.5x the 12 px it was).
-const WORLD_SMALL: int = 18
+## The word over a kid's bar: "You" or its status (owner: 16, white with a black outline).
+const WORLD_SMALL: int = 16
 const TOUCH: float = 88.0
 ## The floors the lint test (tests/unit/test_ui_lint.gd) holds every screen to: no text smaller than MIN_TEXT px and
 ## no tappable control shorter than MIN_TARGET px (the joystick and the weapon buttons are bigger by design).
