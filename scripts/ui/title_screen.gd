@@ -14,11 +14,11 @@ const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
 ## The game modes in card order: Online, Local in the middle (the default, `Session.menu_mode` 1), Practice (owner).
 ## `accent` tints the frame of the card and the glow behind it.
 const MODES: Array[Dictionary] = [
-	{"id": "online", "title": "Online", "color": "orange", "accent": "ffa63a", "power": 7450,
+	{"id": "online", "title": "Online", "color": "orange", "accent": "45dd78", "power": 7450,
 		"text": "Invite friends with a room code!"},
 	{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff", "power": 9999,
 		"text": "Battle your friends nearby!"},
-	{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78", "power": 1200,
+	{"id": "practice", "title": "Practice", "color": "green", "accent": "a45cf0", "power": 1200,
 		"text": "Take on 3 bots, solo!"},
 ]
 ## The bottom tabs, left to right: Street (what each game is and how it plays), Play (the home page) and Settings. The Book and
@@ -41,7 +41,7 @@ const HERO_AIR: float = 36.0
 ## The cards sit this far above the bottom of their stage, so the name, its phrase and the buttons stay close under them.
 const HERO_BOTTOM_GAP: float = 34.0
 ## How far the backlight reaches round the chosen card (times the card's height).
-const BACKLIGHT_REACH: float = 1.1
+const BACKLIGHT_REACH: float = 1.5
 ## The black outline round the mode's one-line phrase.
 const MODE_TEXT_OUTLINE: int = 6
 ## The share of the room the hero card takes (owner: smaller, so the floating card floats with space round it).

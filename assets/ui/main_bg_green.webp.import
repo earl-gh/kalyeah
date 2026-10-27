@@ -2,28 +2,28 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://mcbih8ml3epk"
-path="res://.godot/imported/nav_plate.webp-8742cbf477f1c3dda03c3eba87d6f93a.ctex"
+uid="uid://d1sk52s776rgg"
+path="res://.godot/imported/main_bg_green.webp-f2f4a1e528fdbb2bb680628501762640.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/nav/nav_plate.webp"
-dest_files=["res://.godot/imported/nav_plate.webp-8742cbf477f1c3dda03c3eba87d6f93a.ctex"]
+source_file="res://assets/ui/main_bg_green.webp"
+dest_files=["res://.godot/imported/main_bg_green.webp-f2f4a1e528fdbb2bb680628501762640.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.85
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
@@ -36,5 +36,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=1024
+process/size_limit=0
 detect_3d/compress_to=1
