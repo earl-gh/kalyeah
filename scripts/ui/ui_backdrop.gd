@@ -11,7 +11,7 @@ const MOTES: int = 14
 const PICTURE_BLUE: Color = Color("4aa0ff")
 const TINT_SHADER: Shader = preload("res://shaders/backdrop_tint.gdshader")
 ## How strongly the backlight is added to the picture.
-const BACKLIGHT_STRENGTH: float = 1.0
+const BACKLIGHT_STRENGTH: float = 0.55
 
 var glow: TextureRect
 var motes: CPUParticles2D
@@ -182,6 +182,6 @@ static func _night() -> GradientTexture2D:
 	texture.fill_to = Vector2(0.0, 1.0)
 	var gradient: Gradient = Gradient.new()
 	gradient.offsets = PackedFloat32Array([0.0, 0.28, 0.62, 1.0])
-	gradient.colors = PackedColorArray([Color(0.01, 0.03, 0.12, 0.88), Color(0.02, 0.05, 0.2, 0.3), Color(0.02, 0.05, 0.2, 0.28), Color(0.01, 0.02, 0.1, 0.92)])
+	gradient.colors = PackedColorArray([Color(0.01, 0.03, 0.12, 0.76), Color(0.02, 0.05, 0.2, 0.24), Color(0.02, 0.05, 0.2, 0.22), Color(0.01, 0.02, 0.1, 0.8)])
 	texture.gradient = gradient
 	return texture

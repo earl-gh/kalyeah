@@ -69,6 +69,7 @@ CONTESTED!,CONTESTED!
 Copied!,Copied!
 Copy,Copy
 Copy room code,Copy room code
+Create,Create
 Create room,Create room
 Creating the room…,Creating the room…
 Damage,Damage
@@ -82,7 +83,6 @@ Enter all %d characters!,Enter all %d characters!
 Every game is a street. Tap one to see how it plays!,Every game is a street. Tap one to see how it plays!
 EXHAUSTED,EXHAUSTED
 Extra,Extra
-"Face 3 bots, or train solo!","Face 3 bots, or train solo!"
 First to,First to
 FIRST TO %d,FIRST TO %d
 First to %d,First to %d
@@ -110,6 +110,7 @@ Ice water %d of %d,Ice water %d of %d
 Inday,Inday
 Invite friends with a room code!,Invite friends with a room code!
 Jacks,Jacks
+Join,Join
 Join room,Join room
 Join team,Join team
 Joining the room…,Joining the room…
@@ -165,7 +166,6 @@ Pick a name!,Pick a name!
 Picks it for a slot,Picks it for a slot
 Play,Play
 Play as %s,Play as %s
-Play vs bots,Play vs bots
 Playable,Playable
 Polymorphed,Polymorphed
 Popoy,Popoy
@@ -214,6 +214,7 @@ Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d
 Tagged them all,Tagged them all
 Tagged you all,Tagged you all
 Tagged! Wait for a rescue,Tagged! Wait for a rescue
+"Take on 3 bots, solo!","Take on 3 bots, solo!"
 Tap to choose which slot the next weapon fills,Tap to choose which slot the next weapon fills
 "Tap to heal yourself, or drag to a teammate to heal them!","Tap to heal yourself, or drag to a teammate to heal them!"
 Team size,Team size
@@ -225,13 +226,13 @@ The host left. You're the host now!,The host left. You're the host now!
 The words in the game,The words in the game
 THEM,THEM
 THEY SCORED  %d-%d,THEY SCORED  %d-%d
+Three of you against three bots. Ready to rumble?,Three of you against three bots. Ready to rumble?
 "Three slippers fly out and come back, hitting both ways!","Three slippers fly out and come back, hitting both ways!"
 Throw a rock that chases the nearest enemy!,Throw a rock that chases the nearest enemy!
 TIME,TIME
 Toni,Toni
 Top,Top
 Toss a can! Whoever it hits turns into a can for a moment.,Toss a can! Whoever it hits turns into a can for a moment.
-Training,Training
 Trumpo,Trumpo
 Try again,Try again
 Try the walkthrough!,Try the walkthrough!

@@ -19,7 +19,7 @@ const MODES: Array[Dictionary] = [
 	{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff", "power": 9999,
 		"text": "Battle your friends nearby!"},
 	{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78", "power": 1200,
-		"text": "Face 3 bots, or train solo!"},
+		"text": "Take on 3 bots, solo!"},
 ]
 ## The bottom tabs, left to right: Street (what each game is and how it plays), Play (the home page) and Settings. The Book and
 ## History are reached from Settings (and History from the last match on Play).
@@ -62,14 +62,16 @@ const CHIPS_MIN_STAGE: float = 760.0
 ## Which way a page slides in: the pages left to right as their tabs are.
 const PAGE_RANK: Dictionary[StringName, int] = {&"street": -1, &"": 0, &"settings": 1, &"codex": 2, &"history": 2, &"howto": 2}
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
-const LOGO_HEIGHT: float = 116.0
+const LOGO_HEIGHT: float = 92.0
 ## How far the logo is dropped from the top edge of the screen.
-const LOGO_DROP: float = 34.0
+const LOGO_DROP: float = 62.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
-const CTA_HEIGHT: float = 104.0
-## The two actions are a centred pair of this width each, the same size (the reference's pair, wide enough for "Create room").
-const CTA_WIDTH: float = 270.0
+const CTA_HEIGHT: float = 156.0
+## The actions are a centred pair, the same size: as wide as the longer word needs plus this padding on each side, and no narrower than
+## `CTA_MIN_WIDTH`.
+const CTA_MIN_WIDTH: float = 240.0
+const CTA_PADDING: float = 56.0
 ## The main action's breath: it waits `PULSE_DELAY` seconds, then swells to `PULSE_SCALE` and settles, each way in
 ## `PULSE_HALF` seconds.
 const PULSE_DELAY: float = 1.2
@@ -114,7 +116,6 @@ var _bottom_spacer: Control
 var _name_perspective: ShaderMaterial
 var mode_chips: HBoxContainer
 var _page_holder: Control
-var _dots: Array[Panel] = []
 var _page_tween: Tween
 var _pulse: Tween
 ## Bumped by every start and stop of the breath: a start still waiting out its delay gives up if another came after it.
@@ -209,7 +210,7 @@ func _build_top_bar() -> Control:
 	return row
 
 
-## The Play page: the hero carousel, the mode's name and phrase, the page dots and the actions.
+## The Play page: the hero carousel, the mode's name and phrase and the actions.
 func _build_home() -> VBoxContainer:
 	var home: VBoxContainer = VBoxContainer.new()
 	home.name = "Home"
@@ -286,20 +287,6 @@ func _build_titles() -> Control:
 	mode_chips.add_theme_constant_override("separation", 10)
 	mode_chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	titles.add_child(mode_chips)
-	var dots: HBoxContainer = HBoxContainer.new()
-	dots.name = "Dots"
-	dots.alignment = BoxContainer.ALIGNMENT_CENTER
-	dots.add_theme_constant_override("separation", 10)
-	dots.custom_minimum_size = Vector2(0.0, 26.0)
-	dots.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for i: int in MODES.size():
-		var dot: Panel = Panel.new()
-		dot.custom_minimum_size = Vector2(12.0, 12.0)
-		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		dots.add_child(dot)
-		_dots.append(dot)
-	titles.add_child(dots)
 	return titles
 
 
@@ -309,7 +296,6 @@ func _build_actions() -> Control:
 	actions.name = "Actions"
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	actions.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	actions.custom_minimum_size = Vector2(CTA_WIDTH * 2.0 + UiMetrics.COMPACT_GAP, 0.0)
 	actions.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	actions.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	primary_button = _action_button(actions, "PrimaryButton", "")
@@ -318,11 +304,21 @@ func _build_actions() -> Control:
 
 
 func _action_button(parent: Control, button_name: String, text: String) -> Button:
-	var button: Button = MenuDialog.make_button(text, "gold", UiMetrics.BODY, Vector2(CTA_WIDTH, CTA_HEIGHT))
+	var button: Button = MenuDialog.make_button(text, "gold", UiMetrics.BODY, Vector2(CTA_MIN_WIDTH, CTA_HEIGHT))
 	button.name = button_name
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(button)
 	return button
+
+
+## Both buttons are as wide as the longer of their words needs (and no narrower than CTA_MIN_WIDTH), so the pair stays equal.
+func _fit_buttons() -> void:
+	var font: Font = primary_button.get_theme_font("font")
+	var widest: float = CTA_MIN_WIDTH
+	for button: Button in [primary_button, secondary_button]:
+		var words: float = font.get_string_size(button.text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.BODY).x
+		widest = maxf(widest, words + CTA_PADDING * 2.0)
+	for button: Button in [primary_button, secondary_button]:
+		button.custom_minimum_size.x = widest
 
 
 func _build_pages() -> void:
@@ -480,26 +476,21 @@ func _place_title() -> void:
 	mode_name_label.offset_bottom = -lift + height / 2.0
 
 
-## The chosen mode's name and phrase, the action buttons, the glow and the dots.
+## The chosen mode's name and phrase, the action buttons and the backdrop's tint.
 func _refresh_mode() -> void:
 	var mode: Dictionary = MODES[Session.menu_mode]
 	var rooms: bool = String(mode["id"]) != "practice"
 	mode_name_label.text = String(mode["title"])
 	mode_text_label.text = String(mode["text"])
 	_fill_chips(String(mode["id"]))
-	primary_button.text = "Create room" if rooms else "Play vs bots"
-	secondary_button.text = "Join room" if rooms else "Training"
-	secondary_button.visible = true
+	primary_button.text = "Create" if rooms else "Play"
+	secondary_button.text = "Join"
+	# Practice has the one button, Play (no Join, no Training)
+	secondary_button.visible = rooms
 	KalyeahTheme.style_button(primary_button, "orange")
 	KalyeahTheme.style_button(secondary_button, "blue")
+	_fit_buttons()
 	backdrop.set_accent(Color(String(mode["accent"])))
-	for i: int in _dots.size():
-		var dot: StyleBoxFlat = StyleBoxFlat.new()
-		dot.set_corner_radius_all(UiSkin.RADIUS_S)
-		dot.bg_color = Color(String(mode["accent"])) if i == Session.menu_mode else Color(1.0, 1.0, 1.0, 0.28)
-		dot.anti_aliasing = true
-		_dots[i].add_theme_stylebox_override("panel", dot)
-		_dots[i].custom_minimum_size = Vector2(26.0 if i == Session.menu_mode else 12.0, 12.0)
 
 
 func _on_mode_selected(index: int) -> void:
@@ -510,7 +501,7 @@ func _on_mode_selected(index: int) -> void:
 func _on_primary_pressed() -> void:
 	match String(MODES[Session.menu_mode]["id"]):
 		"practice":
-			_on_practice_pressed(&"match")
+			open_practice_confirm()
 		"online":
 			_open_lobby(LobbyScreen.Intent.CREATE, false)
 		_:
@@ -518,12 +509,25 @@ func _on_primary_pressed() -> void:
 
 
 func _on_secondary_pressed() -> void:
-	if String(MODES[Session.menu_mode]["id"]) == "practice":
-		_on_practice_pressed(&"training")
-	elif String(MODES[Session.menu_mode]["id"]) == "hotspot":
+	if String(MODES[Session.menu_mode]["id"]) == "hotspot":
 		open_hotspot_join()
 	else:
 		_open_lobby(LobbyScreen.Intent.JOIN, false)
+
+
+## Practice asks first (a stray tap must not start a match); Play then shows the loading screen.
+func open_practice_confirm() -> MenuDialog:
+	var card: MenuDialog = MenuDialog.create("Practice", 560.0)
+	card.add_label("Three of you against three bots. Ready to rumble?", MenuDialog.TEXT_SIZE, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
+	var play: Button = MenuDialog.make_button("Play", "gold", UiMetrics.BODY)
+	card.add_buttons([cancel, play])
+	cancel.pressed.connect(card.close)
+	play.pressed.connect(func() -> void:
+		card.close(false)
+		_on_practice_pressed(&"match"))
+	_show_dialog(card)
+	return card
 
 
 ## Hotspot Create: a dialog checks the hotspot is on, then the room opens.

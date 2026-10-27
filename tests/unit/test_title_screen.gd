@@ -74,8 +74,9 @@ func test_the_screen_has_everything_the_owner_asked_for() -> void:
 	assert_not_null(screen.carousel, "the mode carousel")
 	assert_eq(screen.mode_name_label.text, "Local", "hotspot is the default mode")
 	assert_null(screen.find_child("MapButton", true, false), "no map button")
-	assert_eq(screen.primary_button.text, "Create room")
-	assert_eq(screen.secondary_button.text, "Join room")
+	assert_eq(screen.primary_button.text, "Create")
+	assert_eq(screen.secondary_button.text, "Join")
+	assert_null(screen.find_child("Dots", true, false), "no dot indicators under the subtitle (owner)")
 	assert_false(screen.primary_button.get_parent().is_ancestor_of(screen.settings_page), "quit stays out of the main action area")
 
 
@@ -167,11 +168,12 @@ func test_the_actions_sit_low_on_the_screen_but_not_at_the_very_bottom() -> void
 	var create: Rect2 = screen.primary_button.get_global_rect()
 	var join: Rect2 = screen.secondary_button.get_global_rect()
 	assert_almost_eq(create.position.y, join.position.y, 1.0, "create and join are in one row")
-	assert_gt(create.position.y, 1280.0 * 0.7, "in the bottom part")
+	assert_gt(create.get_center().y, 1280.0 * 0.7, "in the bottom part")
 	assert_lt(create.end.y, 1280.0 - 60.0, "but with room under them")
 	assert_lt(screen.carousel.get_global_rect().end.y, create.position.y, "below the cards")
 	assert_gt(screen.carousel.get_global_rect().position.y, (screen.find_child("TopBar", true, false) as Control).get_global_rect().position.y, "the cards are under the top bar")
-	assert_almost_eq(create.size.x, TitleScreen.CTA_WIDTH, 1.0, "a centred pair, not a full-width row")
+	assert_lt(create.size.x, 400.0, "a centred pair sized to its words, not a full-width row")
+	assert_almost_eq(create.size.y, TitleScreen.CTA_HEIGHT, 1.0, "one and a half times the old height (104)")
 	assert_almost_eq((create.position.x + join.end.x) / 2.0, 360.0, 2.0, "centred left to right")
 	assert_almost_eq(create.size.x, join.size.x, 1.0, "the pair is the same size")
 	var title: Rect2 = screen.mode_name_label.get_global_rect()
@@ -278,12 +280,11 @@ func test_the_carousel_is_online_local_practice_with_local_chosen_in_front() -> 
 	assert_eq(strip.cards[0].modulate.r, 1.0, "the chosen card comes forward at full brightness")
 	assert_lt(strip.cards[1].modulate.r, 1.0)
 	assert_eq(screen.mode_name_label.text, "Online", "the details follow the chosen card")
-	assert_eq(screen.primary_button.text, "Create room")
+	assert_eq(screen.primary_button.text, "Create")
 	strip.select(2, false)
 	assert_eq(screen.mode_name_label.text, "Practice")
-	assert_eq(screen.primary_button.text, "Play vs bots", "practice is a 3 v 3 match against bots")
-	assert_eq(screen.secondary_button.text, "Training", "or the sandbox")
-	assert_true(screen.secondary_button.visible)
+	assert_eq(screen.primary_button.text, "Play", "practice is one button")
+	assert_false(screen.secondary_button.visible, "no second button in practice")
 
 
 func test_swiping_and_tapping_the_carousel_changes_the_card() -> void:
@@ -316,7 +317,7 @@ func test_create_and_join_share_one_row_and_the_texts_are_one_line() -> void:
 	var join: Rect2 = screen.secondary_button.get_global_rect()
 	assert_almost_eq(create.position.y, join.position.y, 1.0, "one row")
 	assert_lt(create.end.x, join.position.x, "create then join")
-	assert_false(screen.primary_button.text.contains("ROOM"), "no word room")
+	assert_false(screen.primary_button.text.to_lower().contains("room"), "no word room")
 	assert_null(_find(screen, "ModeLabel"))
 	assert_false(_all_text(screen).contains("Game mode"), "no 'Game mode' caption")
 	for card: Button in screen.carousel.cards:
@@ -598,3 +599,22 @@ func test_reduce_motion_toggled_quickly_leaves_the_main_action_one_breath() -> v
 	assert_eq(_breathing_loops(), 1, "one breath on the main action")
 	assert_true(is_instance_valid(screen._pulse) and screen._pulse.is_running(), "and it is the screen's breath")
 	Settings.set_reduced_motion(motion)
+
+
+func test_play_in_practice_asks_first_then_shows_the_loading_screen() -> void:
+	var screen: TitleScreen = _screen()
+	screen.carousel.select(2, false)
+	screen.primary_button.pressed.emit()
+	assert_not_null(screen.dialog, "a confirmation")
+	assert_true(screen.dialog.is_open)
+	assert_null(screen.find_child("Loading", true, false), "nothing loads before the player confirms")
+	screen.dialog.close()
+	assert_null(screen.find_child("Loading", true, false), "cancelling starts nothing")
+	assert_false(screen._loading)
+
+
+func test_the_buttons_are_as_wide_as_their_words_and_equal() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(3)
+	assert_almost_eq(screen.primary_button.custom_minimum_size.x, screen.secondary_button.custom_minimum_size.x, 0.5)
+	assert_gte(screen.primary_button.custom_minimum_size.x, TitleScreen.CTA_MIN_WIDTH)
