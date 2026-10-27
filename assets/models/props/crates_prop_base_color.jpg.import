@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://eu0ekaofm5c"
-path="res://.godot/imported/crates_prop_base_color.jpg-ee57e52704dee9886b44d04704918449.ctex"
+path.s3tc="res://.godot/imported/crates_prop_base_color.jpg-ee57e52704dee9886b44d04704918449.s3tc.ctex"
+path.etc2="res://.godot/imported/crates_prop_base_color.jpg-ee57e52704dee9886b44d04704918449.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "91f3ff3ce13960a704d8a1eaf8e2231b"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/props/crates_prop_base_color.jpg"
-dest_files=["res://.godot/imported/crates_prop_base_color.jpg-ee57e52704dee9886b44d04704918449.ctex"]
+dest_files=["res://.godot/imported/crates_prop_base_color.jpg-ee57e52704dee9886b44d04704918449.s3tc.ctex", "res://.godot/imported/crates_prop_base_color.jpg-ee57e52704dee9886b44d04704918449.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

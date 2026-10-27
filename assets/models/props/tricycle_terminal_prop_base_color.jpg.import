@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dxdlh2c5s3sph"
-path="res://.godot/imported/tricycle_terminal_prop_base_color.jpg-1fc4edbf2103c9243168fdc97abe718a.ctex"
+path.s3tc="res://.godot/imported/tricycle_terminal_prop_base_color.jpg-1fc4edbf2103c9243168fdc97abe718a.s3tc.ctex"
+path.etc2="res://.godot/imported/tricycle_terminal_prop_base_color.jpg-1fc4edbf2103c9243168fdc97abe718a.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "e2842642335bb84fadce152626706ad2"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/props/tricycle_terminal_prop_base_color.jpg"
-dest_files=["res://.godot/imported/tricycle_terminal_prop_base_color.jpg-1fc4edbf2103c9243168fdc97abe718a.ctex"]
+dest_files=["res://.godot/imported/tricycle_terminal_prop_base_color.jpg-1fc4edbf2103c9243168fdc97abe718a.s3tc.ctex", "res://.godot/imported/tricycle_terminal_prop_base_color.jpg-1fc4edbf2103c9243168fdc97abe718a.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

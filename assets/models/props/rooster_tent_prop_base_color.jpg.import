@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bjk6tkci836fy"
-path="res://.godot/imported/rooster_tent_prop_base_color.jpg-448de6aab90608eba39bb6ec4408f421.ctex"
+path.s3tc="res://.godot/imported/rooster_tent_prop_base_color.jpg-448de6aab90608eba39bb6ec4408f421.s3tc.ctex"
+path.etc2="res://.godot/imported/rooster_tent_prop_base_color.jpg-448de6aab90608eba39bb6ec4408f421.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "565d81bfa6ba9e37a3f8f44e25c91a8b"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/props/rooster_tent_prop_base_color.jpg"
-dest_files=["res://.godot/imported/rooster_tent_prop_base_color.jpg-448de6aab90608eba39bb6ec4408f421.ctex"]
+dest_files=["res://.godot/imported/rooster_tent_prop_base_color.jpg-448de6aab90608eba39bb6ec4408f421.s3tc.ctex", "res://.godot/imported/rooster_tent_prop_base_color.jpg-448de6aab90608eba39bb6ec4408f421.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

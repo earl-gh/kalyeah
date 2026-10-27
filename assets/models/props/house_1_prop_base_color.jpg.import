@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://do3wk5aahx3su"
-path="res://.godot/imported/house_1_prop_base_color.jpg-a8065d292a2d4c24144473172f47d1e9.ctex"
+path.s3tc="res://.godot/imported/house_1_prop_base_color.jpg-a8065d292a2d4c24144473172f47d1e9.s3tc.ctex"
+path.etc2="res://.godot/imported/house_1_prop_base_color.jpg-a8065d292a2d4c24144473172f47d1e9.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "83cca25fb4b0857f52682bf2df1e5a9e"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/props/house_1_prop_base_color.jpg"
-dest_files=["res://.godot/imported/house_1_prop_base_color.jpg-a8065d292a2d4c24144473172f47d1e9.ctex"]
+dest_files=["res://.godot/imported/house_1_prop_base_color.jpg-a8065d292a2d4c24144473172f47d1e9.s3tc.ctex", "res://.godot/imported/house_1_prop_base_color.jpg-a8065d292a2d4c24144473172f47d1e9.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
