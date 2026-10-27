@@ -173,7 +173,7 @@ func test_the_actions_sit_low_on_the_screen_but_not_at_the_very_bottom() -> void
 	assert_lt(screen.carousel.get_global_rect().end.y, create.position.y, "below the cards")
 	assert_gt(screen.carousel.get_global_rect().position.y, (screen.find_child("TopBar", true, false) as Control).get_global_rect().position.y, "the cards are under the top bar")
 	assert_lt(create.size.x, 400.0, "a centred pair sized to its words, not a full-width row")
-	assert_almost_eq(create.size.y, TitleScreen.CTA_HEIGHT, 1.0, "one and a half times the old height (104)")
+	assert_almost_eq(create.size.y, TitleScreen.CTA_HEIGHT, 1.0, "0.75 x 156")
 	assert_almost_eq((create.position.x + join.end.x) / 2.0, 360.0, 2.0, "centred left to right")
 	assert_almost_eq(create.size.x, join.size.x, 1.0, "the pair is the same size")
 	var title: Rect2 = screen.mode_name_label.get_global_rect()

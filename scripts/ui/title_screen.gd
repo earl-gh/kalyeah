@@ -69,7 +69,7 @@ const LOGO_HEIGHT: float = 92.0
 const LOGO_DROP: float = 62.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
-const CTA_HEIGHT: float = 273.0
+const CTA_HEIGHT: float = 117.0
 ## The actions are a centred pair, the same size: as wide as the longer word needs plus this padding on each side, and no narrower than
 ## `CTA_MIN_WIDTH`.
 const CTA_MIN_WIDTH: float = 240.0

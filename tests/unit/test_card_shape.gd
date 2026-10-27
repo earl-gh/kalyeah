@@ -96,7 +96,7 @@ func test_the_button_row_is_centred_between_the_phrase_and_the_bar() -> void:
 	var above: float = buttons.position.y - phrase.end.y
 	var below: float = bar_top - buttons.end.y
 	assert_almost_eq(above, below, 24.0, "as much room above the buttons as under them (%.0f above, %.0f below)" % [above, below])
-	assert_almost_eq(buttons.size.y, TitleScreen.CTA_HEIGHT, 1.0, "1.75 x the original 156")
+	assert_almost_eq(buttons.size.y, TitleScreen.CTA_HEIGHT, 1.0, "0.75 x the 156 it was")
 	assert_eq(screen.primary_button.get_theme_font_size("font_size"), UiMetrics.HERO_BUTTON, "lettering 1.25 x BODY")
 
 
