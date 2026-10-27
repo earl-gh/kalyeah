@@ -75,6 +75,9 @@ var dim: float = 0.0:
 		dim = clampf(value, 0.0, 1.0)
 		_picture_material.set_shader_parameter("dim", dim)
 		_tint_material.set_shader_parameter("tint", Color(AGE_TINT, AGE_TINT.a * (1.0 - dim)))
+		# a bare picture has no shader: it is dimmed with a dark tint of its own
+		if bare:
+			_picture.modulate = Color.WHITE.lerp(BARE_DIM, dim)
 ## A face with a ground is printed on that flat colour (alpha 1) with its `texture` as a small art on it, `art_inset` px in from the card's
 ## edges (the hand's weapon cards); with no ground (alpha 0) the picture is the whole print (the mode cards).
 var ground: Color = Color(0.0, 0.0, 0.0, 0.0):
@@ -118,6 +121,7 @@ var bare: bool = false:
 		_picture.material = null if value else _picture_material
 		_blur_for_depth()
 		_picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED if value else TextureRect.STRETCH_SCALE
+		_picture.modulate = Color.WHITE.lerp(BARE_DIM, dim) if value else Color.WHITE
 		_power_line.visible = not value
 		_tint_rect.visible = not value
 		_plate.visible = value and not _plate.text.is_empty()
