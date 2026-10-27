@@ -64,3 +64,24 @@ func test_the_floor_picture_is_cropped_not_stretched_on_the_narrower_play_area()
 	var map: StreetMap = autofree((load("res://scenes/map/street_map.tscn") as PackedScene).instantiate()) as StreetMap
 	add_child(map)
 	assert_almost_eq(map.cement_share(), 16.0 / 18.0, 0.0001, "the middle 16 of the picture's 18 tile columns")
+
+
+func test_the_ice_water_icon_is_the_owners_drop_with_a_snowflake_and_lossless() -> void:
+	assert_true(FileAccess.file_exists("res://assets/ui/hand/ice_water.png"), "the owner's drop")
+	assert_false(FileAccess.file_exists("res://assets/ui/hand/ice_water.webp"), "the old bag is gone")
+	var drop: Texture2D = load("res://assets/ui/hand/ice_water.png") as Texture2D
+	assert_almost_eq(drop.get_size().x / drop.get_size().y, HandArt.ICE_ASPECT, 0.002, "the aspect is the picture's own (trimmed to its art)")
+	var atlas: AtlasTexture = HandArt.ice()
+	assert_eq(atlas.region.size, drop.get_size(), "all of the picture is drawn")
+	var import_text: String = FileAccess.get_file_as_string("res://assets/ui/hand/ice_water.png.import")
+	assert_true(import_text.contains("compress/mode=0"), "lossless")
+	assert_true(import_text.contains("mipmaps/generate=true"), "with mipmaps, so it stays smooth drawn small")
+
+
+func test_the_rescue_area_is_a_square_as_tall_as_it_was() -> void:
+	assert_eq(LAYOUT.rescue_size, Vector2(6.0, 6.0), "6 x 6 m: widened from 3 x 6, the height unchanged")
+	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
+		var rect: Rect2 = LAYOUT.rescue_rect(side)
+		assert_almost_eq(rect.size.x, rect.size.y, 0.0001, "a square")
+		assert_almost_eq(rect.size.y, 6.0, 0.0001)
+		assert_true(LAYOUT.lane_rect().encloses(rect), "inside the street")

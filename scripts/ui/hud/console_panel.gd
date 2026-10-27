@@ -34,7 +34,7 @@ const TRAY_RIM: Color = Color(0.2, 0.66, 1.0)
 const TRAY_RIM_SHADOW: Color = Color(0.0, 0.3, 0.62, 0.55)
 const TRAY_BOTTOM: Color = Color(0.02, 0.2, 0.5, 0.9)
 const OUTLINE: int = 3
-const CORNER: int = 16
+const CORNER: int = UiSkin.RADIUS_M
 const RIM_HEIGHT: float = 7.0
 ## The body starts to darken this share of the way down, and the shade above the tray is this tall and this dark.
 const SHADE_FROM: float = 0.45
@@ -73,8 +73,6 @@ func _draw() -> void:
 	draw_polygon(shade, PackedColorArray([Color(TRAY_BOTTOM, 0.0), Color(TRAY_BOTTOM, 0.0), TRAY_BOTTOM, TRAY_BOTTOM]))
 	# the light rim along the top and the thin shine just under it
 	var rim: StyleBoxFlat = _flat(TRAY_RIM, corner - OUTLINE, column_left)
-	rim.corner_radius_bottom_left = 0
-	rim.corner_radius_bottom_right = 0
 	draw_style_box(rim, Rect2(inside.position, Vector2(inside.size.x, RIM_HEIGHT)))
 	draw_rect(Rect2(inside.position + Vector2(0.0, RIM_HEIGHT), Vector2(inside.size.x, 2.0)), TRAY_RIM_SHADOW)
 

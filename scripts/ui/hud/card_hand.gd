@@ -46,7 +46,7 @@ const NEXT_COLOR: Color = Color.WHITE
 ## The ice water bag on a card (its height) and its number; the bar's bag and its number.
 const COST_BAG: float = 60.0
 const COST_FONT: int = UiMetrics.CAPTION
-const BAR_BAG: float = 66.0
+const BAR_BAG: float = 56.0
 ## The "Max: 10" caption under the bar's start.
 const MAX_FONT: int = UiMetrics.WORLD
 const BAR_FONT: int = UiMetrics.ACTION
@@ -126,6 +126,8 @@ var _released_slot: int = -1
 
 func _init() -> void:
 	name = "CardHand"
+	# the ice water drop is a big picture drawn small: its mipmaps keep it smooth
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	accessibility_name = "Your hand"
 	defs.resize(SLOTS)
