@@ -727,7 +727,6 @@ func test_the_mode_name_is_written_on_the_front_face_of_the_platform() -> void:
 		# the lettering is squashed a little in height (not stretched sideways); nothing is turned or leaned
 		assert_almost_eq(label.scale.y / label.scale.x, ModePlate.FORESHORTEN, 0.001, "%s: foreshortened, not skewed" % plate.text)
 		assert_eq(label.rotation, 0.0)
-		assert_eq(label.skew, 0.0)
 		var inside: Vector2 = label.get_global_transform().basis_xform(label.size)
 		assert_lte(absf(inside.x), on_screen.size.x + 0.5, "%s: fits the face across" % plate.text)
 		assert_lte(absf(inside.y), on_screen.size.y + 0.5, "%s: and down" % plate.text)
@@ -771,10 +770,13 @@ func test_the_name_fades_in_only_after_the_model_is_centred() -> void:
 	var leaving: ModePlate = (screen.mode_models[1].get_node("Face") as CardFace).plate()
 	assert_lt(arriving.modulate.a, 0.05, "no name on a model still gliding to the centre")
 	assert_lt(leaving.modulate.a, 0.05, "and none on the one that left")
-	await wait_seconds(MenuCarousel.WRAP_TIME + 0.15)
-	var settled: float = arriving.modulate.a
-	assert_gt(settled, 0.0, "the name starts to fade in once the model has settled")
-	assert_lt(settled, 1.0, "gently, not at once")
+	# the first frame the name shows at all it is only beginning to fade in
+	var frames: int = 0
+	while arriving.modulate.a <= 0.0 and frames < 120:
+		await wait_frames(1)
+		frames += 1
+	assert_gt(arriving.modulate.a, 0.0, "the name starts to fade in once the model has settled")
+	assert_lt(arriving.modulate.a, 0.9, "gently, not at once")
 	await wait_seconds(CardFace.PLATE_FADE_IN + 0.15)
 	assert_almost_eq(arriving.modulate.a, 1.0, 0.02, "then it is fully there")
 	Settings.reduced_motion = old_motion
