@@ -2,25 +2,25 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://og14wtw2dfsd"
-path="res://.godot/imported/toni_kid_base_color.jpg-45ad13afab1f8695a6164234b58d569a.ctex"
+uid="uid://cwhajmrgk46my"
+path="res://.godot/imported/toni_1.png-21e8eba3dbc0d58c87ebf6ab892c237b.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "f4efab0be8fff6f6ced7be83bb05222f"
+"md5": "4efe613a9b0ef8803f8642a7c3bd588a"
 }
 
 [deps]
 
-source_file="res://assets/models/characters/toni_kid_base_color.jpg"
-dest_files=["res://.godot/imported/toni_kid_base_color.jpg-45ad13afab1f8695a6164234b58d569a.ctex"]
+source_file="res://assets/models/characters/toni_1.png"
+dest_files=["res://.godot/imported/toni_1.png-21e8eba3dbc0d58c87ebf6ab892c237b.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
@@ -40,4 +40,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
