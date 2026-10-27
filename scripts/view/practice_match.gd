@@ -20,6 +20,8 @@ const BOT_ENEMY_IDS: Array[int] = [4, 5, 6]
 const MAX_STEPS_PER_FRAME: int = 8
 const RECONNECT_INTERVAL: float = 2.0
 const TITLE_SCENE: String = "res://scenes/ui/title_screen.tscn"
+## Tilt to run: how far ahead of the kid (screen pixels) the leaning phone puts the move target, like a finger dragged ahead of it.
+const TILT_AHEAD: float = 140.0
 ## Online: the server closed the room (a hotspot host left), so there is no battle to go back to.
 const ROOM_CLOSED_TEXT: String = "The host left.\nThe battle is over."
 
@@ -37,6 +39,10 @@ var client: GameClient
 var local_id: int = LOCAL_ID
 var local_team: int = LOCAL_TEAM
 var input: MatchInput = MatchInput.new()
+## Tilt to run (Settings): the phone's lean, levelled each time the controls come back.
+var tilt: TiltInput = TiltInput.new()
+## The move target is being steered by the tilt (not by a finger).
+var tilt_steering: bool = false
 var _accumulator: float = 0.0
 var _views: Dictionary[int, KidModel] = {}
 var _characters: Dictionary[StringName, CharacterDef] = {}
@@ -367,8 +373,45 @@ func _step_once(dt: float) -> void:
 func _local_input(tick: int) -> PlayerInput:
 	if not _application_focused or _application_paused or not controls_active() or is_picking() or hud.menu.visible:
 		input.clear()
+		_stop_tilt()
 		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_AIM_CANCEL, tick)
+	steer_by_tilt(TiltInput.gravity())
 	return input.build(tick)
+
+
+## Tilt to run, once a tick: a lean past the dead zone puts the move target `TILT_AHEAD` pixels from the kid that way on screen and keeps
+## it there (the follow-the-finger path, so the kid runs at its one speed and every rule of walking applies); back to level, the target
+## comes to where the kid stands, so it stops. A finger already on the street wins until it lets go; a tagged kid waits.
+func steer_by_tilt(reading: Vector3) -> void:
+	if not Settings.tilt_to_run or not sim.players.has(local_id):
+		_stop_tilt()
+		return
+	var state: PlayerState = sim.players[local_id]
+	if state.tagged or (input.move_held and not tilt_steering):
+		tilt.reset()
+		tilt_steering = false
+		return
+	var way: Vector2 = tilt.direction(reading)
+	var here: Vector2 = _camera.screen_position(Vector3(state.position.x, 0.0, state.position.y))
+	if way != Vector2.ZERO:
+		var point: Variant = street_point(here + way * TILT_AHEAD)
+		if not point is Vector2:
+			return
+		# a fresh target every tick (not a drag), so it does not depend on GameRules.move_follow_hold
+		input.move_press(point as Vector2)
+		tilt_steering = true
+	elif tilt_steering:
+		input.move_press(state.position)
+		input.move_release()
+		tilt_steering = false
+
+
+## Tilt lets go of the move target and takes the next reading as level.
+func _stop_tilt() -> void:
+	if tilt_steering:
+		input.move_release()
+	tilt_steering = false
+	tilt.reset()
 
 
 ## The camera is turned around when the local team defends the -Z base.
@@ -400,6 +443,8 @@ func _set_controls_active(active: bool) -> void:
 	hud.set_controls_active(active)
 	if not active:
 		input.clear()
+	# however the phone is held when the controls come back is level
+	_stop_tilt()
 
 
 func _cancel_local_input() -> void:
