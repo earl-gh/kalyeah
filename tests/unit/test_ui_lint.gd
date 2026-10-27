@@ -43,7 +43,7 @@ func _problems(root: Node, where: String) -> Array[String]:
 		if size < UiMetrics.MIN_TEXT and not label.has_meta(UiMetrics.BELOW_FLOOR_BY_OWNER):
 			found.append("%s: text '%s' is %d px (floor %d)" % [where, label.text.substr(0, 28), size, UiMetrics.MIN_TEXT])
 		for word: String in BANNED:
-			if label.text.containsn(word):
+			if label.text.containsn(word) and not label.has_meta(CardsHub.WORD_BY_OWNER):
 				found.append("%s: '%s' says '%s'" % [where, label.text.substr(0, 40), word])
 	for node: Node in root.find_children("*", "BaseButton", true, false):
 		var button: Control = node as Control
@@ -107,27 +107,25 @@ func test_every_page_and_sheet_meets_the_floors() -> void:
 	var screen: TitleScreen = _phone()
 	await wait_process_frames(4)
 	var all: Array[String] = []
-	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 	for id: StringName in [&"codex", &"history", &"settings", &"howto"]:
 		screen.open_page(id)
 		await wait_process_frames(3)
 		all.append_array(_problems(screen, "page %s" % id))
 	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	screen.codex_page.show_view(CodexPage.WEAPONS)
 	await wait_process_frames(2)
-	all.append_array(_problems(screen, "weapons by game"))
-	screen.weapons_page.show_grouping(&"type")
+	all.append_array(_problems(screen, "skills screen"))
+	screen.codex_page.skills_screen.cells[6].pressed.emit()
+	await wait_process_frames(3)
+	all.append_array(_problems(screen, "skill drawer"))
+	screen.card_drawer.close(false)
+	screen.codex_page.show_view(CodexPage.CHARACTERS)
 	await wait_process_frames(2)
-	all.append_array(_problems(screen, "weapons by type"))
-	screen.open_weapon_detail(rules.weapons[6])
+	all.append_array(_problems(screen, "kids screen"))
+	screen.codex_page.kids_screen.cells[4].pressed.emit()
 	await wait_process_frames(3)
-	all.append_array(_problems(screen, "weapon sheet"))
-	screen.dialog.close(false)
-	screen.codex_page.show_tab(&"characters")
-	screen.open_character_detail(load("res://data/characters/migo.tres") as CharacterDef)
-	await wait_process_frames(3)
-	all.append_array(_problems(screen, "kid sheet"))
-	screen.dialog.close(false)
+	all.append_array(_problems(screen, "kid drawer"))
+	screen.card_drawer.close(false)
 	screen.open_name_editor()
 	await wait_process_frames(3)
 	all.append_array(_problems(screen, "profile sheet"))

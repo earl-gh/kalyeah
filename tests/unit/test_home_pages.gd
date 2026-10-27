@@ -36,12 +36,17 @@ func _phone_screen() -> TitleScreen:
 	return screen
 
 
+func _hosted(page: Control) -> PageHarness:
+	var harness: PageHarness = autofree(PageHarness.new(page)) as PageHarness
+	add_child(harness)
+	return harness
+
+
 func test_the_characters_page_only_shows_and_describes_it_never_changes_your_face() -> void:
 	Session.avatar_id = "toni"
-	var screen: TitleScreen = _phone_screen()
-	screen.open_page(&"codex")
+	var screen: PageHarness = _hosted(CharactersPage.new())
 	await wait_frames(2)
-	var page: CharactersPage = screen.characters_page
+	var page: CharactersPage = screen.page as CharactersPage
 	assert_eq(page.cards.size(), Session.AVATARS.size())
 	for id: String in Session.AVATARS:
 		var definition: CharacterDef = load("res://data/characters/%s.tres" % id) as CharacterDef
@@ -67,26 +72,26 @@ func test_the_character_sheet_says_the_look_changes_nothing_about_play() -> void
 	assert_true(text.contains("same stats"), "cosmetic only, as the design says")
 
 
-func test_the_book_has_a_characters_tab_and_a_weapons_tab() -> void:
+func test_the_book_opens_on_a_hub_and_each_card_of_it_opens_its_screen() -> void:
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"codex")
 	await wait_frames(2)
-	assert_true(screen.characters_page.visible)
-	assert_false(screen.weapons_page.visible)
-	screen.codex_page.tab_buttons[&"weapons"].pressed.emit()
-	assert_false(screen.characters_page.visible)
-	assert_true(screen.weapons_page.visible)
-	screen.codex_page.tab_buttons[&"characters"].pressed.emit()
-	assert_true(screen.characters_page.visible)
+	assert_true(screen.codex_page.hub.is_visible_in_tree())
+	assert_false(screen.codex_page.kids_screen.visible)
+	assert_false(screen.codex_page.skills_screen.visible)
+	screen.codex_page.hub.skills_card.pressed.emit()
+	assert_false(screen.codex_page.kids_screen.visible)
+	assert_true(screen.codex_page.skills_screen.visible)
+	screen.codex_page.skills_screen.back_button.pressed.emit()
+	screen.codex_page.hub.kids_card.pressed.emit()
+	assert_true(screen.codex_page.kids_screen.visible)
 
 
 func test_the_weapons_page_is_a_grid_with_a_tile_for_every_weapon() -> void:
-	var screen: TitleScreen = _phone_screen()
-	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	var screen: PageHarness = _hosted(WeaponsPage.new())
 	await wait_frames(2)
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
-	var page: WeaponsPage = screen.weapons_page
+	var page: WeaponsPage = screen.page as WeaponsPage
 	assert_eq(page.tiles.size(), rules.weapons.size())
 	var columns: Dictionary[int, bool] = {}
 	for i: int in rules.weapons.size():
@@ -97,12 +102,10 @@ func test_the_weapons_page_is_a_grid_with_a_tile_for_every_weapon() -> void:
 
 
 func test_weapons_group_by_street_game_or_by_type_and_every_weapon_is_in_exactly_one_group() -> void:
-	var screen: TitleScreen = _phone_screen()
-	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	var screen: PageHarness = _hosted(WeaponsPage.new())
 	await wait_frames(2)
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
-	var page: WeaponsPage = screen.weapons_page
+	var page: WeaponsPage = screen.page as WeaponsPage
 	assert_eq(page.grouping, WeaponsPage.BY_GAME, "inspired-by-game first")
 	var games: Array[String] = []
 	for weapon: WeaponDef in rules.weapons:
@@ -127,23 +130,19 @@ func test_weapons_group_by_street_game_or_by_type_and_every_weapon_is_in_exactly
 
 
 func test_switching_the_grouping_starts_again_at_the_top() -> void:
-	var screen: TitleScreen = _phone_screen()
-	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	var screen: PageHarness = _hosted(WeaponsPage.new())
 	await wait_frames(2)
-	var scroll: ScrollContainer = screen.weapons_page.find_child("Scroll", true, false) as ScrollContainer
+	var scroll: ScrollContainer = screen.page.find_child("Scroll", true, false) as ScrollContainer
 	scroll.scroll_vertical = 600
 	await wait_frames(1)
-	screen.weapons_page.segmented.buttons[WeaponsPage.BY_TYPE].pressed.emit()
+	(screen.page as WeaponsPage).segmented.buttons[WeaponsPage.BY_TYPE].pressed.emit()
 	assert_eq(scroll.scroll_vertical, 0, "a new grouping is read from its first section")
 
 
 func test_a_tile_shows_the_other_axis_as_its_chip() -> void:
-	var screen: TitleScreen = _phone_screen()
-	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	var screen: PageHarness = _hosted(WeaponsPage.new())
 	await wait_frames(2)
-	var page: WeaponsPage = screen.weapons_page
+	var page: WeaponsPage = screen.page as WeaponsPage
 	var weapon: WeaponDef = (load("res://data/rules/game_rules.tres") as GameRules).weapons[0]
 	var texts: Callable = func() -> Array[String]:
 		var found: Array[String] = []
@@ -157,14 +156,12 @@ func test_a_tile_shows_the_other_axis_as_its_chip() -> void:
 
 
 func test_tapping_a_tile_opens_the_detail_sheet_with_the_text_and_figures() -> void:
-	var screen: TitleScreen = _phone_screen()
-	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	var screen: PageHarness = _hosted(WeaponsPage.new())
 	await wait_frames(2)
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 	for i: int in rules.weapons.size():
 		var weapon: WeaponDef = rules.weapons[i]
-		screen.weapons_page.tiles[i].pressed.emit()
+		(screen.page as WeaponsPage).tiles[i].pressed.emit()
 		assert_not_null(screen.dialog, "%s opens a sheet" % weapon.id)
 		assert_not_null(screen.dialog.find_child("Figures", true, false), "the sheet shows its figures")
 		assert_eq((screen.dialog.find_child("About", true, false) as Label).text, weapon.description)
