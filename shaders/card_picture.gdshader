@@ -1,12 +1,13 @@
 shader_type canvas_item;
 // A mode card's picture as an old teks card: aged, grainy print, and at the corners (very slightly along the sides too) the print
-// worn away to the brown paper under it (one layer only); every corner has its own slight radius. See
+// worn away to the brown paper under it and, nearest the edge, to a lighter brown paper beneath that (two layers of wear); every corner has its own slight radius. See
 // card_wear.gdshaderinc.
 #include "res://shaders/card_wear.gdshaderinc"
 
 uniform vec2 cover = vec2(1.0); // the share of the picture shown across and down (it is cropped to fit the card)
 
-const vec3 KRAFT = vec3(0.72, 0.56, 0.38); // the brown paper under the print (slightly darker, owner)
+const vec3 KRAFT = vec3(0.72, 0.56, 0.38); // the brown paper under the print
+const vec3 KRAFT_LIGHT = vec3(0.87, 0.74, 0.55); // the lighter brown paper beneath that (nearest the edge)
 
 void fragment() {
 	vec2 position = UV * rect_size;
@@ -15,5 +16,7 @@ void fragment() {
 	float grain = 0.5 * value_noise(position * 0.9 + seed) + 0.5 * value_noise(position * 2.7 + seed * 2.0);
 	print *= 0.93 + 0.14 * grain;
 	float fibres = 0.82 + 0.18 * value_noise(vec2(position.x * 0.5, position.y * 0.07) + seed * 9.0) + 0.06 * value_noise(position * 1.3);
-	COLOR = vec4(mix(KRAFT * fibres, print, print_left(position)), card_alpha(position));
+	vec2 layers = wear_layers(position);
+	vec3 brown = mix(KRAFT_LIGHT * (0.95 + 0.05 * fibres), KRAFT * fibres, layers.y);
+	COLOR = vec4(mix(brown, print, layers.x), card_alpha(position));
 }

@@ -40,6 +40,8 @@ const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 70.0
 ## The cards sit this far above the bottom of their stage, so the name, its phrase and the buttons stay close under them.
 const HERO_BOTTOM_GAP: float = 34.0
+## The black outline round the mode's one-line phrase.
+const MODE_TEXT_OUTLINE: int = 6
 ## The share of the room the hero card takes (owner: smaller, so the floating card floats with space round it).
 const HERO_SCALE: float = 0.86
 ## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
@@ -240,7 +242,7 @@ func _build_titles() -> Control:
 	titles.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mode_name_label = Label.new()
 	mode_name_label.name = "ModeName"
-	UiKit.letter(mode_name_label, UiMetrics.DISPLAY, CREAM)
+	UiKit.letter(mode_name_label, UiMetrics.DISPLAY, Color.WHITE, Color.BLACK)
 	mode_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	# the name straddles the bottom edge of the chosen card: this holder sits where the stage ends and the name hangs
 	# off it upwards by the card's air plus half its own height (`_place_title`)
@@ -253,7 +255,10 @@ func _build_titles() -> Control:
 	mode_text_label = Label.new()
 	mode_text_label.name = "ModeText"
 	mode_text_label.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
-	mode_text_label.add_theme_color_override("font_color", Color("c9d6f2"))
+	# white letters with a black outline, like the name over it (owner)
+	mode_text_label.add_theme_color_override("font_color", Color.WHITE)
+	mode_text_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	mode_text_label.add_theme_constant_override("outline_size", MODE_TEXT_OUTLINE)
 	mode_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mode_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mode_text_label.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)

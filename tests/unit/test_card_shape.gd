@@ -153,3 +153,13 @@ func test_the_mode_cards_are_old_teks_cards_worn_at_the_corners_each_differently
 	var tint: ColorRect = strip.cards[1].get_node("Face/Tint") as ColorRect
 	assert_lte(tint.color.a, 0.15, "a subtle tint")
 	assert_gt(tint.color.r + tint.color.g, tint.color.b * 2.0, "yellowish")
+
+
+func test_the_mode_name_and_its_phrase_are_white_with_a_black_outline() -> void:
+	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
+	add_child(screen)
+	await wait_frames(2)
+	for label: Label in [screen.mode_name_label, screen.mode_text_label]:
+		assert_eq(label.get_theme_color("font_color"), Color.WHITE, "%s is white" % label.name)
+		assert_eq(label.get_theme_color("font_outline_color"), Color.BLACK, "%s has a black outline" % label.name)
+		assert_gt(label.get_theme_constant("outline_size"), 3, "%s: a real outline" % label.name)

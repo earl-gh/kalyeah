@@ -1,6 +1,6 @@
 // The worn look of an old Filipino teks card, shared by the mode card's picture, its coloured shade and its tint: at the corners,
-// and very slightly along the left and right sides, the printed layer has worn away to the brown paper under it. One layer only
-// (print or brown paper, nothing between), every corner of the card has its own slight radius, and noise
+// and very slightly along the left and right sides, the printed layer has worn away to the brown paper under it, and nearest the
+// edge that has worn away too, to a lighter brown paper beneath (two layers of wear). Every corner of the card has its own slight radius, and noise
 // makes each card (its `seed`) wear differently. Sizes are in the card's pixels (`rect_size`).
 
 uniform vec2 rect_size = vec2(385.0, 550.0);
@@ -34,8 +34,10 @@ float fbm3(vec2 p) {
 	return total;
 }
 
-// How much of the printed layer is left here: 0 where it has worn away to the brown paper, 1 where it is whole.
-float print_left(vec2 position) {
+// The two layers of wear: x is how much of the printed layer is left here (0 where it has worn away to the brown paper, 1 where it is
+// whole) and y how much of the brown paper over the lighter brown paper beneath it is left (0 where that has worn away too, which
+// is nearest the edge, so the lighter brown shows).
+vec2 wear_layers(vec2 position) {
 	float edge = min(min(position.x, rect_size.x - position.x), min(position.y, rect_size.y - position.y));
 	vec2 near = min(position, rect_size - position);
 	float corner = length(near);
@@ -47,7 +49,14 @@ float print_left(vec2 position) {
 	// a different, very slight wear along the left and the right side of every card
 	float side_amount = position.x < rect_size.x * 0.5 ? 0.3 + hash21(vec2(seed, 2.3)) : 0.3 + hash21(vec2(seed, 8.6));
 	float side_depth = WEAR_SIDE * side_amount * fbm3(vec2(position.y * 0.07 + seed * 5.3, position.x * 0.2)) * 1.6;
-	return min(smoothstep(depth - 0.8, depth + 0.8, edge), smoothstep(side_depth - 0.6, side_depth + 0.6, left_right));
+	float print = min(smoothstep(depth - 0.8, depth + 0.8, edge), smoothstep(side_depth - 0.6, side_depth + 0.6, left_right));
+	float brown = min(smoothstep(depth * 0.5 - 0.8, depth * 0.5 + 0.8, edge), smoothstep(side_depth * 0.5 - 0.6, side_depth * 0.5 + 0.6, left_right));
+	return vec2(print, brown);
+}
+
+// How much of the printed layer is left here.
+float print_left(vec2 position) {
+	return wear_layers(position).x;
 }
 
 
