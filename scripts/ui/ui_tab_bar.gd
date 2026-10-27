@@ -1,7 +1,8 @@
 class_name UiTabBar
 extends Control
-## The main screen's bottom navigation, in the style of Clash Royale's: the owner's cardboard plate along the bottom with one
-## picture per destination (Street, Play, Settings). The layout never moves: three equal tabs, every picture centred on the same line.
+## The main screen's bottom navigation, in the style of Clash Royale's: a bar of flat, dark slate-blue slots drawn in code along the
+## bottom, split by thin dark lines under a dark top edge, the open tab's slot lit steel blue, with one picture per destination (Street,
+## Play, Settings). The layout never moves: three equal tabs, every picture centred on the same line.
 ## The open tab's picture only grows (round its own centre) and its name fades in under it, and two small arrows float over the
 ## bar, a little way out from the picture, to go to the neighbouring tab (the leftmost tab has only a right arrow, the rightmost
 ## only a left one). Changing tab is one smooth move: the picture grows and shrinks, the name fades, the arrows slide to the new tab.
@@ -9,14 +10,14 @@ extends Control
 
 signal tab_pressed(id: StringName)
 
-## The plate's picture is 1804 x 493 of its file; the bar is that tall at the design width.
-const HEIGHT: float = 196.0
+## How tall the bar is at the design width (the reference's bar is about a fifth as tall as it is wide).
+const HEIGHT: float = 164.0
 ## The pictures' sizes (design pixels) for the open and an idle tab, and the one line their centres sit on, from the bar's top.
-const ICON_ACTIVE: float = 116.0
-const ICON_IDLE: float = 84.0
-const ICON_Y: float = 86.0
+const ICON_ACTIVE: float = 108.0
+const ICON_IDLE: float = 80.0
+const ICON_Y: float = 66.0
 ## The open tab's name sits under its picture (it rises a few pixels into place as it fades in).
-const LABEL_Y: float = 152.0
+const LABEL_Y: float = 120.0
 const LABEL_HEIGHT: float = 32.0
 const LABEL_RISE: float = 8.0
 ## The arrows: how big they are drawn, how big they are to the thumb, and how far from the picture's edge.
@@ -24,10 +25,21 @@ const ARROW_SIZE: float = 26.0
 const ARROW_TOUCH: float = 88.0
 const ARROW_GAP: float = 30.0
 const IDLE_SHADE: Color = Color(0.82, 0.82, 0.86)
+## The bar's colours (sampled from the reference): a slot is lighter at the top; the open one is steel blue, the others dark slate.
+const SLOT_IDLE_TOP: Color = Color("526480")
+const SLOT_IDLE_BOTTOM: Color = Color("2c3e56")
+const SLOT_OPEN_TOP: Color = Color("96b0d0")
+const SLOT_OPEN_BOTTOM: Color = Color("587a9e")
+## The dark top edge (with a thin light line under it) and the lines between the slots, in design pixels.
+const EDGE_COLOR: Color = Color("0c1a36")
+const EDGE_HEIGHT: float = 5.0
+const EDGE_LIGHT: Color = Color(0.78, 0.86, 0.97, 0.5)
+const EDGE_LIGHT_HEIGHT: float = 2.0
+const DIVIDER_COLOR: Color = Color(0.04, 0.09, 0.2, 0.85)
+const DIVIDER_WIDTH: float = 3.0
 ## The time a change of tab takes (instant with Reduce motion).
 const GROW_TIME: float = 0.28
 
-const PLATE: Texture2D = preload("res://assets/ui/nav/nav_plate.webp")
 const ARROW: Texture2D = preload("res://assets/ui/nav/nav_arrow.png")
 const PICTURES: Dictionary[StringName, Texture2D] = {
 	&"street": preload("res://assets/ui/nav/nav_street.webp"),
@@ -36,7 +48,6 @@ const PICTURES: Dictionary[StringName, Texture2D] = {
 }
 ## The visible part of each picture inside its file, as shares of the file (the files have clear margins and their art is not
 ## centred), so the bar can place the art itself: {x, y, width, height}.
-const PLATE_PART: Rect2 = Rect2(0.04539, 0.25221, 0.90974, 0.62169)
 const ARROW_PART: Rect2 = Rect2(0.29538, 0.18151, 0.52537, 0.63923)
 const PICTURE_PARTS: Dictionary[StringName, Rect2] = {
 	&"street": Rect2(0.08453, 0.06459, 0.84927, 0.86124),
@@ -63,20 +74,30 @@ func _init(items: Array[Dictionary] = []) -> void:
 	name = "TabBar"
 	custom_minimum_size = Vector2(0.0, HEIGHT)
 	mouse_filter = Control.MOUSE_FILTER_PASS
-	var plate: TextureRect = TextureRect.new()
-	plate.name = "Plate"
-	plate.texture = _part(PLATE, PLATE_PART)
-	plate.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	plate.stretch_mode = TextureRect.STRETCH_SCALE
-	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	plate.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(plate)
 	for item: Dictionary in items:
 		_add_tab(item["id"] as StringName, String(item["label"]), item["icon"] as StringName)
 	# added last, so they float over the tabs
 	arrow_left = _arrow("ArrowLeft", false, "Previous tab")
 	arrow_right = _arrow("ArrowRight", true, "Next tab")
 	resized.connect(_layout)
+
+
+## The slots, the dividers and the top edge, drawn in code (the open tab's slot lights smoothly as it opens).
+func _draw() -> void:
+	if _order.is_empty() or size.x <= 0.0:
+		return
+	var scale_to: float = size.x / 720.0
+	var slot: float = slot_width()
+	for i: int in _order.size():
+		var open: float = _openness[_order[i]]
+		var top: Color = SLOT_IDLE_TOP.lerp(SLOT_OPEN_TOP, open)
+		var bottom: Color = SLOT_IDLE_BOTTOM.lerp(SLOT_OPEN_BOTTOM, open)
+		var x: float = slot * float(i)
+		draw_polygon(PackedVector2Array([Vector2(x, 0.0), Vector2(x + slot, 0.0), Vector2(x + slot, size.y), Vector2(x, size.y)]), PackedColorArray([top, top, bottom, bottom]))
+		if i > 0:
+			draw_rect(Rect2(x - DIVIDER_WIDTH * scale_to / 2.0, 0.0, DIVIDER_WIDTH * scale_to, size.y), DIVIDER_COLOR)
+	draw_rect(Rect2(0.0, 0.0, size.x, EDGE_HEIGHT * scale_to), EDGE_COLOR)
+	draw_rect(Rect2(0.0, EDGE_HEIGHT * scale_to, size.x, EDGE_LIGHT_HEIGHT * scale_to), EDGE_LIGHT)
 
 
 ## One of the bar's pictures (&"street", &"play", &"settings") as a texture of its own: the same art elsewhere, like the gear in a match.
@@ -192,6 +213,7 @@ func slot_width() -> float:
 func _layout() -> void:
 	if _order.is_empty() or size.x <= 0.0:
 		return
+	queue_redraw()
 	var scale_to: float = size.x / 720.0
 	var slot: float = slot_width()
 	var total: float = 0.0
