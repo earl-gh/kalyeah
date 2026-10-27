@@ -145,8 +145,10 @@ func test_the_mode_cards_are_old_teks_cards_worn_at_the_corners_each_differently
 		order.append(child.name)
 	assert_eq(order, ["Picture", "PowerLine", "Tint"] as Array[String], "picture, then the power line, then the yellowish tint over all")
 	var tint: ColorRect = strip.cards[1].get_node("Face/Tint") as ColorRect
-	assert_lte(tint.color.a, 0.15, "a subtle tint")
+	assert_lte(tint.color.a, 0.2, "a subtle tint")
 	assert_gt(tint.color.r + tint.color.g, tint.color.b * 2.0, "yellowish")
+	assert_gt(tint.color.g, tint.color.b + 0.2, "brown-yellow: more green than blue")
+	assert_lt(tint.color.g, tint.color.r - 0.15, "and browner than a plain yellow (green well under red)")
 
 
 func test_the_mode_name_and_its_phrase_are_white_with_a_black_outline() -> void:
@@ -221,23 +223,26 @@ func test_the_mode_name_leans_back_in_perspective() -> void:
 	assert_eq(material.get_shader_parameter("rect_size"), screen.mode_name_label.size, "the shader knows the label's size")
 
 
-func test_the_main_menu_background_takes_the_colour_of_the_chosen_card() -> void:
+func test_the_main_menu_background_keeps_its_blue_and_turns_to_the_chosen_cards_colour() -> void:
 	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
 	add_child(screen)
 	await wait_frames(4)
 	var material: ShaderMaterial = screen.backdrop.get_node("Picture").material as ShaderMaterial
 	assert_eq(material.shader.resource_path, "res://shaders/backdrop_tint.gdshader")
-	var tints: Dictionary = {}
+	var shifts: Dictionary = {}
+	var motion: bool = Settings.reduced_motion
+	Settings.reduced_motion = true
 	for index: int in 3:
-		var motion: bool = Settings.reduced_motion
-		Settings.reduced_motion = true
 		screen.carousel.select(index, false)
-		Settings.reduced_motion = motion
-		var tint: Vector3 = material.get_shader_parameter("tint")
-		tints[tint] = true
+		var shift: float = material.get_shader_parameter("hue_shift")
+		shifts[snappedf(shift, 0.001)] = true
+		if String(TitleScreen.MODES[index]["id"]) == "hotspot":
+			assert_almost_eq(shift, 0.0, 0.001, "behind the blue card the picture is its own blue, not tinted blue again")
+		else:
+			assert_gt(absf(shift), 0.1, "behind another colour the blue is turned to it")
+		# the picture's hue, turned by the shift, is the card's colour
 		var accent: Color = Color(String(TitleScreen.MODES[index]["accent"]))
-		# the strongest channel of the background's tint is the strongest channel of the card's colour
-		var strongest_tint: int = [tint.x, tint.y, tint.z].find(maxf(tint.x, maxf(tint.y, tint.z)))
-		var strongest_accent: int = [accent.r, accent.g, accent.b].find(maxf(accent.r, maxf(accent.g, accent.b)))
-		assert_eq(strongest_tint, strongest_accent, "mode %d: the background is in its card's colour" % index)
-	assert_eq(tints.size(), 3, "each card tints the background differently (not only blue)")
+		assert_almost_eq(fposmod(UiBackdrop.PICTURE_BLUE.h + shift, 1.0), accent.h, 0.002, "mode %d" % index)
+	Settings.reduced_motion = motion
+	assert_eq(shifts.size(), 3, "each card turns the background differently")
+	assert_gte(float(material.get_shader_parameter("saturation")) if material.get_shader_parameter("saturation") != null else 1.2, 1.0, "the extra saturation is separate from the tint")

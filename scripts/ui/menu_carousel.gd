@@ -11,8 +11,7 @@ signal laid_out
 const CARD: Vector2 = ChoiceCard.CARD_SIZE
 ## Distance between the middles of two neighbouring cards: less than a card's width, so they overlap.
 const STEP: float = 98.0
-## Each step away from the middle shrinks a card by this much (and a card is never smaller than the
-## one two steps away).
+## A card in the back layer is this much smaller than the chosen one (there are two layers only: the chosen card and the rest).
 const SCALE_LOSS: float = 0.17
 ## Cards further back are darker (and smaller), so the stack reads as depth; they all share the middle card's vertical centre.
 const SHADE_LOSS: float = 0.36
@@ -126,16 +125,20 @@ func _move_to(value: float) -> void:
 func _layout() -> void:
 	for i: int in cards.size():
 		var offset: float = float(i) - _position
-		var away: float = clampf(absf(offset), 0.0, 2.0)
+		# two layers only (owner): the chosen card in front and every other card in one layer behind it. A third card (when
+		# the chosen one is at an end) slides in behind the chosen card, centred, where it is not seen.
+		var distance: float = absf(offset)
+		var away: float = minf(distance, 1.0)
+		var spread: float = distance if distance <= 1.0 else maxf(2.0 - distance, 0.0)
 		var card: Button = cards[i]
 		card.scale = Vector2.ONE * (1.0 - SCALE_LOSS * away)
 		var drift_phase: float = sin(float(Time.get_ticks_msec()) / 1000.0 * FLOAT_SPEED)
 		var drift: float = drift_phase * bob * (1.0 - away / 2.0) if bob > 0.0 and not Settings.reduced_motion else 0.0
-		card.position = Vector2(size.x / 2.0 + offset * STEP - card_size.x / 2.0, ((size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap) + drift)
+		card.position = Vector2(size.x / 2.0 + signf(offset) * spread * STEP - card_size.x / 2.0, ((size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap) + drift)
 		# every card stays visible: the ones further back are darker and slightly see-through
 		var shade: float = 1.0 - SHADE_LOSS * away
 		card.modulate = Color(shade, shade, shade, lerpf(1.0, BACK_ALPHA, clampf(absf(offset), 0.0, 1.0)))
-		card.z_index = 10 - int(roundf(absf(offset) * 5.0))
+		card.z_index = 10 - int(roundf(away * 5.0)) - int(roundf(clampf(distance - 1.0, 0.0, 1.0) * 3.0))
 		_float(card, away, drift_phase)
 		var frame: Control = card.get_node_or_null("Frame") as Control
 		if frame != null:

@@ -149,7 +149,14 @@ func test_the_cards_are_large_and_every_one_is_always_visible_stacked_behind_the
 			var behind: Rect2 = strip.cards[other].get_global_rect()
 			assert_lt(strip.cards[other].z_index, strip.cards[index].z_index, "behind")
 			assert_lt(absf(behind.get_center().x - middle.get_center().x), 260.0, "pushed only a little to the side, mostly behind")
-			assert_gt(behind.get_center().x - middle.get_center().x if other > index else middle.get_center().x - behind.get_center().x, 0.0, "later cards on the right, earlier on the left")
+			if absi(other - index) == 1:
+				assert_gt(behind.get_center().x - middle.get_center().x if other > index else middle.get_center().x - behind.get_center().x, 0.0, "the next cards are on their own side: later on the right, earlier on the left")
+			else:
+				# two layers only (owner): the third card is horizontally centred behind the chosen one, not seen
+				assert_almost_eq(behind.get_center().x, middle.get_center().x, 2.0, "the third card is centred behind the chosen card")
+				for near: int in 3:
+					if absi(near - index) == 1:
+						assert_lt(strip.cards[other].z_index, strip.cards[near].z_index, "and behind the other card of the back layer")
 			assert_gte(behind.position.x, -5.0, "inside the screen")
 			assert_lte(behind.end.x, 725.0)
 

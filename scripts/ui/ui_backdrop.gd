@@ -7,6 +7,8 @@ extends Control
 
 const PICTURE: Texture2D = preload("res://assets/ui/main_bg.webp")
 const MOTES: int = 14
+## The blue the picture is in (the blue mode card's colour): the focus colour only turns the picture's hue away from this.
+const PICTURE_BLUE: Color = Color("4aa0ff")
 const TINT_SHADER: Shader = preload("res://shaders/backdrop_tint.gdshader")
 ## How strongly the backlight is added to the picture.
 const BACKLIGHT_STRENGTH: float = 1.0
@@ -19,8 +21,9 @@ var ambient: bool = true:
 		ambient = value
 		if motes != null:
 			_apply_motion()
-var _accent: Color = Color("3d7bff")
+var _accent: Color = PICTURE_BLUE
 var _picture_material: ShaderMaterial
+var _hue_shift: float = 0.0
 var _tween: Tween
 
 
@@ -37,7 +40,8 @@ func _init() -> void:
 	# the picture takes the colour of what is in focus (the chosen mode card): see `set_accent`
 	_picture_material = ShaderMaterial.new()
 	_picture_material.shader = TINT_SHADER
-	_picture_material.set_shader_parameter("tint", _background_tint(_accent))
+	_picture_material.set_shader_parameter("hue_shift", _target_shift(_accent))
+	_hue_shift = _target_shift(_accent)
 	picture.material = _picture_material
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(picture)
@@ -85,29 +89,32 @@ func _init() -> void:
 	_apply_motion()
 
 
-## The background (the picture and the backlight) takes the colour of what is in focus (a mode, a map), easing over to it.
+## The background takes the colour of what is in focus (a mode, a map), easing over to it: the backlight takes the colour and the
+## picture's blue turns to it (blue stays as it is behind the blue card).
 func set_accent(color: Color) -> void:
-	var from: Color = _accent
 	_accent = color
 	if is_instance_valid(_tween):
 		_tween.kill()
+	var from_shift: float = _hue_shift
+	# the shortest way round the colour wheel from where the picture is now to where it should be
+	var to_shift: float = from_shift + wrapf(_target_shift(color) - from_shift, -0.5, 0.5)
+	var from_light: Color = glow.modulate
 	if Settings.reduced_motion or not is_inside_tree():
-		_apply_accent(color)
+		_apply(to_shift, _backlight_color(color))
 		return
 	_tween = create_tween()
-	_tween.tween_method(func(mix: float) -> void: _apply_accent(from.lerp(color, mix)), 0.0, 1.0, 0.45).set_trans(Tween.TRANS_SINE)
+	_tween.tween_method(func(mix: float) -> void: _apply(lerpf(from_shift, to_shift, mix), from_light.lerp(_backlight_color(color), mix)), 0.0, 1.0, 0.45).set_trans(Tween.TRANS_SINE)
 
 
-func _apply_accent(color: Color) -> void:
-	glow.modulate = _backlight_color(color)
-	_picture_material.set_shader_parameter("tint", _background_tint(color))
+func _apply(shift: float, light: Color) -> void:
+	_hue_shift = shift
+	glow.modulate = light
+	_picture_material.set_shader_parameter("hue_shift", shift)
 
 
-## The background picture's tint for a focus colour: the colour itself, a little lighter, at full strength.
-static func _background_tint(accent: Color) -> Vector3:
-	var light: Color = accent.lerp(Color.WHITE, 0.15)
-	var top: float = maxf(light.r, maxf(light.g, light.b))
-	return Vector3(light.r / top, light.g / top, light.b / top)
+## How far the focus colour is round the colour wheel from the picture's own blue (the blue mode card's colour).
+static func _target_shift(accent: Color) -> float:
+	return accent.h - PICTURE_BLUE.h
 
 
 ## Lights the background from behind a card: the bright middle of the backlight sits at `centre` (this control's own pixels) and

@@ -7,7 +7,7 @@ shader_type canvas_item;
 uniform vec2 cover = vec2(1.0); // the share of the picture shown across and down (it is cropped to fit the card)
 uniform float dim : hint_range(0.0, 1.0) = 0.0; // 1 for a card that is not chosen: dimmed with a dark tint (still in colour)
 
-const vec3 DIM_TINT = vec3(0.5, 0.54, 0.68); // what an unchosen card is multiplied by: darker, a little cool
+const vec3 DIM_TINT = vec3(0.24, 0.24, 0.27); // what an unchosen card is multiplied by: a dark, nearly black tint
 
 const vec3 TAN = vec3(0.7321, 0.63, 0.4682);   // the thin light paper under the ink (the first layer of wear): lightness grade 64 of 100
 const vec3 CORE = vec3(0.6359, 0.4525, 0.2935);  // the darker brown paperboard core beneath it (nearest the edge): lightness grade 48 of 100

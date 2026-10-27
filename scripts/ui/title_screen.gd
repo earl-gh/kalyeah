@@ -49,7 +49,9 @@ const HERO_SCALE: float = 0.86
 ## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
 const NAME_PERSPECTIVE: Shader = preload("res://shaders/text_perspective.gdshader")
 ## How wide the very top of the leaning-back mode name is next to its bottom (1 would be flat).
-const NAME_TOP_SCALE: float = 0.84
+const NAME_TOP_SCALE: float = 0.93
+## The gap under the mode name (negative so the phrase is pulled nearer to the name).
+const TITLES_SEPARATION: int = -10
 const TITLE_Z: int = 20
 ## How far the name is lifted so its letters (not its line box) are centred on the card's bottom edge.
 const TITLE_LIFT: float = 12.0
@@ -246,7 +248,8 @@ func _build_titles() -> Control:
 	var titles: VBoxContainer = VBoxContainer.new()
 	titles.name = "Titles"
 	titles.alignment = BoxContainer.ALIGNMENT_CENTER
-	titles.add_theme_constant_override("separation", 2)
+	# the phrase sits close under the name (negative: it is pulled up towards it)
+	titles.add_theme_constant_override("separation", TITLES_SEPARATION)
 	titles.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mode_name_label = Label.new()
 	mode_name_label.name = "ModeName"
