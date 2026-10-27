@@ -8,7 +8,6 @@ extends GutTest
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
 ## The two phones, as the UI sees them: 720x1280, and 390x844 stretched ("expand") to the 720 base width.
 const PHONES: Array[Vector2] = [Vector2(720.0, 1280.0), Vector2(720.0, 1558.0)]
-const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
 
 var _rules: GameRules
 var _forced_null: Array[StringName] = []
@@ -234,16 +233,16 @@ func test_a_tile_tap_still_asks_for_the_sheet() -> void:
 func test_the_detail_sheet_shows_the_card_bare_above_the_description_and_the_meters() -> void:
 	for size: Vector2 in PHONES:
 		var phone: Control = _phone(size)
-		var screen: TitleScreen = autofree(TITLE_SCENE.instantiate()) as TitleScreen
-		phone.add_child(screen)
-		screen.open_page(&"codex")
-		screen.codex_page.show_tab(&"weapons")
+		# the Cards screens no longer host the Weapons page (`SkillsScreen` replaced it), so the old page and its sheet are hosted alone
+		var page: WeaponsPage = WeaponsPage.new()
+		var harness: PageHarness = autofree(PageHarness.new(page)) as PageHarness
+		phone.add_child(harness)
 		await wait_frames(3)
 		for i: int in _rules.weapons.size():
 			var weapon: WeaponDef = _rules.weapons[i]
-			screen.weapons_page.tiles[i].pressed.emit()
+			page.tiles[i].pressed.emit()
 			await wait_frames(2)
-			var sheet: MenuDialog = screen.dialog
+			var sheet: MenuDialog = harness.dialog
 			var label: String = "%s at %s" % [weapon.id, size]
 			assert_not_null(sheet, "%s: a tap opens the sheet" % label)
 			var art: SkillCardArt = _art_of(sheet)
