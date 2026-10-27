@@ -161,3 +161,90 @@ func test_only_houses_stand_along_the_street_beyond_the_ends() -> void:
 		if StreetMap.FILLER_HOUSES.has(id):
 			beyond += 1
 	assert_gt(beyond, 4, "a run of houses beyond the ends")
+
+
+# ---- the top boundary: the owner's three pictures (fishball cart, tin fence, jeepney) ---------------------------------
+
+const CAMERA_RULES: CameraRules = preload("res://data/rules/camera_rules.tres")
+const PICTURE_IDS: Array[String] = ["fishball_cart", "tin_fence", "jeepney"]
+
+
+func _pictures(map: StreetMap, end: float) -> Array[MeshInstance3D]:
+	var row: Node3D = map.find_child("BoundaryPictures%s" % ("Far" if end < 0.0 else "Near"), true, false) as Node3D
+	var found: Array[MeshInstance3D] = []
+	for child: Node in row.get_children():
+		found.append(child as MeshInstance3D)
+	return found
+
+
+func test_the_three_pictures_stand_across_each_end_in_the_owners_order() -> void:
+	var map: StreetMap = _map()
+	for end: float in [-1.0, 1.0]:
+		var pictures: Array[MeshInstance3D] = _pictures(map, end)
+		var ids: Array[String] = []
+		for picture: MeshInstance3D in pictures:
+			ids.append(String(picture.name))
+		assert_eq(ids, PICTURE_IDS, "the cart, the fence, the jeepney")
+		# left to right on the screen: the camera looks toward -Z at the -Z end (x grows to the right), toward +Z at the +Z end (x shrinks)
+		var xs: Array[float] = []
+		for picture: MeshInstance3D in pictures:
+			xs.append(picture.global_position.x)
+		for k: int in range(1, xs.size()):
+			assert_true(xs[k] > xs[k - 1] if end < 0.0 else xs[k] < xs[k - 1], "in order on the screen at end %s" % end)
+
+
+func test_only_the_end_at_the_top_of_the_screen_shows_the_pictures() -> void:
+	var map: StreetMap = _map()
+	for own_side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
+		map.set_own_side(own_side)
+		var top: float = StreetMap.top_end(own_side)
+		assert_eq(top, -1.0 if own_side == MapLayout.SIDE_OWN else 1.0, "the far end for the viewer")
+		for end: float in [-1.0, 1.0]:
+			var row: Node3D = map.find_child("BoundaryPictures%s" % ("Far" if end < 0.0 else "Near"), true, false) as Node3D
+			assert_eq(row.visible, end == top, "pictures at the top end only (own side %d, end %s)" % [own_side, end])
+			var props: Array = map._row_props[end]
+			assert_gt(props.size(), 3, "the row of props is there")
+			for prop: Node3D in props:
+				assert_eq(prop.visible, end != top, "the props stand at the bottom end only")
+
+
+func test_each_picture_stands_on_the_ground_at_its_true_height_in_its_own_shape() -> void:
+	var map: StreetMap = _map()
+	for end: float in [-1.0, 1.0]:
+		for k: int in 3:
+			var picture: MeshInstance3D = _pictures(map, end)[k]
+			var quad: QuadMesh = picture.mesh as QuadMesh
+			var entry: Dictionary = StreetMap.BOUNDARY_PICTURES[k]
+			assert_almost_eq(quad.size.y, float(entry["height"]) * map.scenery(), 0.001, "%s: true height times the street's scale" % picture.name)
+			var texture: Texture2D = load(StreetMap.BOUNDARY_PATH % picture.name) as Texture2D
+			assert_almost_eq(quad.size.x / quad.size.y, texture.get_size().x / texture.get_size().y, 0.001, "%s: never stretched" % picture.name)
+			assert_almost_eq(quad.center_offset.y, quad.size.y / 2.0, 0.001, "its bottom edge is the ground line")
+			assert_almost_eq(picture.global_position.y, 0.0, 0.001, "on the ground")
+			assert_almost_eq(absf(picture.global_position.z), map.layout.lane_length / 2.0 + StreetMap.BARRIER_SETBACK, 0.001, "at the end line")
+			assert_lte(absf(picture.global_position.x) + quad.size.x / 2.0, map.layout.lane_width / 2.0 + 0.001, "%s: inside the street's width" % picture.name)
+
+
+func test_the_pictures_lean_back_to_face_the_camera_whichever_way_it_looks() -> void:
+	assert_almost_eq(StreetMap.BOUNDARY_TILT, 90.0 - CAMERA_RULES.pitch_degrees, 0.001, "tilted by what the camera is off straight ahead")
+	var map: StreetMap = _map()
+	var pitch: float = deg_to_rad(CAMERA_RULES.pitch_degrees)
+	for end: float in [-1.0, 1.0]:
+		# the camera looks toward -Z over the -Z end and toward +Z over the +Z end, down by its pitch
+		var look: Vector3 = Vector3(0.0, -sin(pitch), cos(pitch) * end)
+		for picture: MeshInstance3D in _pictures(map, end):
+			var normal: Vector3 = picture.global_transform.basis.z.normalized()
+			assert_almost_eq(normal.dot(-look), 1.0, 0.001, "%s squarely faces the camera, so it shows undistorted" % picture.name)
+
+
+func test_the_pictures_are_drawn_as_made_not_shaded_or_tinted_and_lossless() -> void:
+	var map: StreetMap = _map()
+	for picture: MeshInstance3D in _pictures(map, -1.0):
+		var material: StandardMaterial3D = (picture.mesh as QuadMesh).material as StandardMaterial3D
+		assert_eq(material.shading_mode, BaseMaterial3D.SHADING_MODE_UNSHADED, "%s: no light on it" % picture.name)
+		assert_eq(material.albedo_color, Color.WHITE, "no tint")
+		assert_ne(material.transparency, BaseMaterial3D.TRANSPARENCY_DISABLED, "its transparent background shows the street")
+		assert_eq(picture.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+		var import_text: String = FileAccess.get_file_as_string((StreetMap.BOUNDARY_PATH % picture.name) + ".import")
+		assert_true(import_text.contains("compress/mode=0"), "%s imports lossless" % picture.name)
+		assert_true(import_text.contains("detect_3d/compress_to=0"), "and is never compressed for 3D")
+		assert_true(import_text.contains("mipmaps/generate=true"), "and has mipmaps (it is small on screen)")

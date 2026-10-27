@@ -106,6 +106,19 @@ const BARRIER_HEIGHTS: Dictionary[String, float] = {
 	"basketball_pole": 6.0, "ebike": 1.5, "truck_wheels": 1.4,
 	"no_id_no_entry": 1.7, "rooster_tent": 1.4, "plank_fence": 1.8, "roof_wall": 2.9, "roof_wall_2": 2.9,
 }
+## The top boundary (owner): the end of the street at the top of the screen is closed by the owner's three pictures instead of the row of
+## props, left to right on the screen. Each is a 2D picture (a transparent PNG, drawn as made: unshaded, no tint) standing across the end
+## and leaning back to face the camera (the fixed orthographic camera looks `BOUNDARY_TILT` degrees off straight ahead, so a picture
+## tilted that much shows undistorted, like a sprite); its bottom edge is on the ground at the end line. `height` is its true height in
+## metres, drawn `scenery()` times as big like every other street thing; the width follows the picture's shape.
+const BOUNDARY_PATH: String = "res://assets/textures/boundary/%s.png"
+const BOUNDARY_PICTURES: Array[Dictionary] = [
+	{"id": "fishball_cart", "height": 2.4},
+	{"id": "tin_fence", "height": 2.0},
+	{"id": "jeepney", "height": 2.4},
+]
+## 90 degrees less the camera's pitch (`data/rules/camera_rules.tres`, 45).
+const BOUNDARY_TILT: float = 45.0
 ## Things whose long side is their depth: they are turned a quarter so the long side faces the play area.
 const BARRIER_TURNED: Array[String] = ["tricycle"]
 ## Things laid down on their side across the street (the basketball pole, so its whole length is
@@ -139,6 +152,10 @@ const BARRIER_SETBACK: float = 0.15
 var barrier_rows: Array[Array] = []
 ## The things that did not fit in a row and stand on the road beyond the ends instead.
 var far_props: Array[String] = []
+## end (-1 = the -Z end, 1 = the +Z end) -> the props of that end's row, and -> that end's row of the owner's pictures. The end at the top
+## of the screen shows the pictures, the other its props (`set_own_side`).
+var _row_props: Dictionary[float, Array] = {}
+var _row_pictures: Dictionary[float, Node3D] = {}
 ## side -> [base tape, base fill, rescue tape, rescue fill] materials (recoloured per viewer).
 var _base_materials: Dictionary[int, Array] = {}
 ## side -> that base's team colour as the viewer sees it (blue yours, red theirs).
@@ -215,6 +232,7 @@ static func _light_scene(parent: Node, sun: DirectionalLight3D) -> void:
 ## (teams switch ends every set).
 func set_own_side(own_side: int) -> void:
 	_turn_posts(own_side)
+	_show_top_boundary(own_side)
 	for side: int in _base_materials:
 		var tint: Color = OWN_COLOR if side == own_side else ENEMY_COLOR
 		_side_tint[side] = tint
@@ -295,6 +313,8 @@ func _build_map() -> void:
 		_side_tint[side] = color
 	_turn_posts(MapLayout.SIDE_OWN)
 	_add_barricades()
+	_add_boundary_pictures()
+	_show_top_boundary(MapLayout.SIDE_OWN)
 	_add_houses()
 	_add_details()
 
@@ -510,6 +530,7 @@ func _add_barricades() -> void:
 	var ids: Array = BARRIER_HEIGHTS.keys()
 	for end_index: int in 2:
 		var end: float = -1.0 if end_index == 0 else 1.0
+		_row_props[end] = []
 		# the same street every match: a fixed seed per end
 		var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 		rng.seed = BARRIER_SEED + end_index
@@ -549,7 +570,7 @@ func _add_barricades() -> void:
 			var swing: float = widths[k] * sin(deg_to_rad(BARRIER_TURN)) / 2.0
 			var at_z: float = end * (layout.lane_length / 2.0 + setback + depth / 2.0 + swing)
 			var turn: float = deg_to_rad(rng.randf_range(-BARRIER_TURN, BARRIER_TURN))
-			_put_barrier(model, id, Vector3(x + widths[k] / 2.0, 0.0, at_z), end, turn)
+			_row_props[end].append(_put_barrier(model, id, Vector3(x + widths[k] / 2.0, 0.0, at_z), end, turn))
 			x += widths[k] + BARRIER_GAP + spare * shares[k + 1] / total
 		# what did not fit in the row stands about on the road beyond the end instead
 		var z_far: float = layout.lane_length / 2.0 + FAR_PROPS_START * scenery()
@@ -568,7 +589,7 @@ func _add_barricades() -> void:
 
 
 ## Sets one barrier thing down at `at` (the middle of it), facing the play area at `end`.
-func _put_barrier(model: Node3D, id: String, at: Vector3, end: float, turn: float) -> void:
+func _put_barrier(model: Node3D, id: String, at: Vector3, end: float, turn: float) -> Node3D:
 	var yaw: float = (0.0 if end < 0.0 else PI) + (PI / 2.0 if BARRIER_TURNED.has(id) else 0.0)
 	var placed: Node3D = _add_prop(model, at, yaw + turn)
 	if BARRIER_LYING.has(id):
@@ -577,6 +598,74 @@ func _put_barrier(model: Node3D, id: String, at: Vector3, end: float, turn: floa
 		placed.rotation = Vector3(0.0, turn, -PI / 2.0)
 		var along: Vector3 = Vector3(cos(turn), 0.0, -sin(turn))
 		placed.position = Vector3(at.x, natural.x * model.scale.x / 2.0, at.z) - along * (barrier_width(id, scenery()) / 2.0)
+	return placed
+
+
+## How wide (m) a boundary picture stands: its drawn height times the shape of its picture.
+static func boundary_width(entry: Dictionary, scale: float = 1.0) -> float:
+	var size: Vector2 = (load(BOUNDARY_PATH % String(entry["id"])) as Texture2D).get_size()
+	return float(entry["height"]) * scale * size.x / size.y
+
+
+## The end of the street (-1 or 1) at the top of the screen for a viewer whose own base is on `own_side`.
+static func top_end(own_side: int) -> float:
+	return -float(own_side)
+
+
+## The owner's three pictures standing across each end (only the end at the top of the screen shows them, `_show_top_boundary`): spread
+## along the row with the same room between them and at the two sides, in the order they read left to right on the screen. The +Z end's
+## row is turned half way round, where the camera looks the other way.
+func _add_boundary_pictures() -> void:
+	var widths: Array[float] = []
+	var used: float = 0.0
+	for entry: Dictionary in BOUNDARY_PICTURES:
+		widths.append(boundary_width(entry, scenery()))
+		used += widths[widths.size() - 1]
+	var gap: float = maxf(layout.lane_width - used, 0.0) / float(BOUNDARY_PICTURES.size() + 1)
+	for end: float in [-1.0, 1.0]:
+		var row: Node3D = Node3D.new()
+		row.name = "BoundaryPictures%s" % ("Far" if end < 0.0 else "Near")
+		row.position = Vector3(0.0, 0.0, end * (layout.lane_length / 2.0 + BARRIER_SETBACK))
+		row.rotation_degrees = Vector3(0.0, 0.0 if end < 0.0 else 180.0, 0.0)
+		# in the row's own frame x runs to the right of the screen at either end
+		var x: float = -layout.lane_width / 2.0 + gap
+		for k: int in BOUNDARY_PICTURES.size():
+			var picture: MeshInstance3D = _boundary_picture(BOUNDARY_PICTURES[k], widths[k])
+			picture.position = Vector3(x + widths[k] / 2.0, 0.0, 0.0)
+			row.add_child(picture)
+			x += widths[k] + gap
+		_geometry.add_child(row)
+		_row_pictures[end] = row
+
+
+## One picture of the top boundary: an upright quad leaning back by `BOUNDARY_TILT`, its bottom edge on the ground, drawn as the owner made it.
+func _boundary_picture(entry: Dictionary, width: float) -> MeshInstance3D:
+	var height: float = float(entry["height"]) * scenery()
+	var quad: QuadMesh = QuadMesh.new()
+	quad.size = Vector2(width, height)
+	quad.center_offset = Vector3(0.0, height / 2.0, 0.0)
+	var material: StandardMaterial3D = StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+	material.albedo_texture = load(BOUNDARY_PATH % String(entry["id"])) as Texture2D
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	quad.material = material
+	var picture: MeshInstance3D = MeshInstance3D.new()
+	picture.name = String(entry["id"])
+	picture.mesh = quad
+	picture.rotation_degrees = Vector3(-BOUNDARY_TILT, 0.0, 0.0)
+	picture.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return picture
+
+
+## The end at the top of the screen (the -Z end when the viewer's own base is at +Z, the +Z end when the camera is turned around) shows
+## the owner's pictures; the other end keeps its row of street things.
+func _show_top_boundary(own_side: int) -> void:
+	var top: float = top_end(own_side)
+	for end: float in _row_pictures:
+		_row_pictures[end].visible = end == top
+		for prop: Node3D in _row_props[end]:
+			prop.visible = end != top
 
 
 ## The owner's three shopfronts (Nena store, vulcanizing, barber shop) with his two houses between them, along both sides of the street, running on past
