@@ -85,6 +85,8 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		if face != null:
 			face.power = int(option.get("power", 0))
 			face.wear_seed = float(cards.size() + 1)
+			if option.has("plate"):
+				face.set_plate(String(option["title"]), option["plate"] as Rect2)
 
 		add_child(card)
 		cards.append(card)

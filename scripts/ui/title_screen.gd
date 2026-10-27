@@ -14,13 +14,14 @@ const TIPS_ICON: Texture2D = preload("res://assets/ui/tips_icon.png")
 const MAIL_ICON: Texture2D = preload("res://assets/ui/mail_icon.png")
 
 ## The game modes in card order: Online, Local in the middle (the default, `Session.menu_mode` 1), Practice (owner).
-## `accent` tints the frame of the card and the glow behind it.
+## `accent` tints the frame of the card and the glow behind it. `plate` is the front face of the model's platform on its picture (picture
+## pixels, measured on the PNG): the mode's name is written there (`ModePlate`).
 const MODES: Array[Dictionary] = [
-	{"id": "online", "bare": true, "title": "Online", "color": "orange", "accent": "45dd78", "power": 7450,
+	{"id": "online", "bare": true, "plate": Rect2(120.0, 618.0, 528.0, 72.0), "title": "Online", "color": "orange", "accent": "45dd78", "power": 7450,
 		"text": "Invite friends with a room code!"},
-	{"id": "hotspot", "bare": true, "title": "Local", "color": "blue", "accent": "4aa0ff", "power": 9999,
+	{"id": "hotspot", "bare": true, "plate": Rect2(120.0, 618.0, 528.0, 76.0), "title": "Local", "color": "blue", "accent": "4aa0ff", "power": 9999,
 		"text": "Battle your friends nearby!"},
-	{"id": "practice", "bare": true, "title": "Practice", "color": "green", "accent": "a45cf0", "power": 1200,
+	{"id": "practice", "bare": true, "plate": Rect2(120.0, 636.0, 528.0, 58.0), "title": "Practice", "color": "green", "accent": "a45cf0", "power": 1200,
 		"text": "Take on 3 bots, solo!"},
 ]
 ## The bottom tabs, left to right: Street (what each game is and how it plays), Cards (the Book of kids and weapons), Play (the home
@@ -56,7 +57,11 @@ const HERO_MIN_HEIGHT: float = 440.0
 const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 36.0
 ## The cards sit this far above the bottom of their stage, so the name, its phrase and the buttons stay close under them.
-const HERO_BOTTOM_GAP: float = 34.0
+const HERO_BOTTOM_GAP: float = 14.0
+## How far the mode's phrase is pulled up towards the platform above it (owner: closer to the model).
+const PHRASE_PULL: float = 10.0
+## The gap between the phrase and the dots under it (negative: they are pulled together).
+const TITLES_SEPARATION: int = -10
 ## How far the backlight reaches round the chosen card (times the card's height).
 const BACKLIGHT_REACH: float = 1.15
 ## The black outline round the mode's one-line phrase.
@@ -65,10 +70,6 @@ const MODE_TEXT_OUTLINE: int = 6
 const HERO_SCALE: float = 0.86
 ## The button row's slot takes this share of the free height next to the card's stage (1.0).
 const ACTIONS_SLOT_SHARE: float = 0.35
-## The gap under the mode name (negative so the phrase is pulled nearer to the name).
-const TITLES_SEPARATION: int = -10
-## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
-const TITLE_Z: int = 20
 ## The name tag: the air kept above the blurred models behind it (they bob a little and their edges are soft), the smallest it shrinks to
 ## on a short phone, and how far its lanyard runs above the top of the screen.
 const TAG_AIR: float = 10.0
@@ -78,8 +79,6 @@ const TAG_DROP: float = 0.0
 const TAG_OVERSHOOT: float = 60.0
 ## The phrase and the buttons are drawn above the backdrop's lights (`UiBackdrop.LIGHT_Z`) and below the chosen mode model.
 const TEXT_Z: int = 8
-## How far the name is lifted so its letters (not its line box) are centred on the card's bottom edge.
-const TITLE_LIFT: float = 12.0
 const AMBIENT_BOB: float = 12.0
 ## The mode chips need a stage at least this tall to leave the hero a good size; on a shorter screen they step aside.
 const CHIPS_HEIGHT: float = 42.0
@@ -124,7 +123,6 @@ var mode_models: Array[Button]:
 	get:
 		return carousel.cards
 var tab_bar: UiTabBar
-var mode_name_label: Label
 var mode_text_label: Label
 var primary_button: Button
 var secondary_button: Button
@@ -150,7 +148,6 @@ var _home: VBoxContainer
 var _top_bar: Control
 var tips_button: Button
 var mail_button: Button
-var _title_holder: Control
 var mode_chips: HBoxContainer
 var _page_holder: Control
 var _page_tween: Tween
@@ -348,7 +345,6 @@ func _build_home() -> VBoxContainer:
 	carousel.setup("", MODES, Session.menu_mode)
 	carousel.bob = AMBIENT_BOB
 	stage.resized.connect(_fit_hero)
-	stage.resized.connect(_place_title)
 	stage.resized.connect(_aim_backlight)
 	stage.resized.connect(_place_name_tag.call_deferred)
 	name_tag = NameTag.new()
@@ -368,38 +364,33 @@ func _build_home() -> VBoxContainer:
 	return home
 
 
-## The mode's name (big, outlined), its one phrase and a dot for each mode.
+## The mode's one phrase and a dot for each mode (the name is written on the model's platform, `ModePlate`).
 func _build_titles() -> Control:
 	var titles: VBoxContainer = VBoxContainer.new()
 	titles.name = "Titles"
 	titles.z_index = TEXT_Z
 	titles.alignment = BoxContainer.ALIGNMENT_CENTER
-	# the phrase sits close under the name (negative: it is pulled up towards it)
 	titles.add_theme_constant_override("separation", TITLES_SEPARATION)
 	titles.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	mode_name_label = Label.new()
-	mode_name_label.name = "ModeName"
-	UiKit.letter(mode_name_label, UiMetrics.DISPLAY, Color.WHITE, Color.BLACK)
-	mode_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# the name straddles the bottom edge of the chosen card: this holder sits where the stage ends and the name hangs
-	# off it upwards by the card's air plus half its own height (`_place_title`)
-	mode_name_label.z_index = TITLE_Z
-	_title_holder = Control.new()
-	_title_holder.name = "TitleHolder"
-	_title_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_title_holder.add_child(mode_name_label)
-	titles.add_child(_title_holder)
 	mode_text_label = Label.new()
 	mode_text_label.name = "ModeText"
 	mode_text_label.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
-	# white letters with a black outline, like the name over it (owner)
+	# white letters with a black outline, like the name on the platform (owner)
 	mode_text_label.add_theme_color_override("font_color", Color.WHITE)
 	mode_text_label.add_theme_color_override("font_outline_color", Color.BLACK)
 	mode_text_label.add_theme_constant_override("outline_size", MODE_TEXT_OUTLINE)
 	mode_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mode_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mode_text_label.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
-	titles.add_child(mode_text_label)
+	# the phrase is pulled up under the platform: its holder is this much shorter than the line, and the line starts above it
+	var phrase_holder: Control = Control.new()
+	phrase_holder.name = "PhraseHolder"
+	phrase_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mode_text_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	phrase_holder.add_child(mode_text_label)
+	mode_text_label.minimum_size_changed.connect(_pull_phrase_up)
+	mode_text_label.resized.connect(_pull_phrase_up)
+	titles.add_child(phrase_holder)
 	mode_chips = HBoxContainer.new()
 	mode_chips.name = "ModeChips"
 	mode_chips.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -567,7 +558,6 @@ func _fit_hero() -> void:
 		return
 	carousel.card_size = fitted
 	carousel.setup("", MODES, carousel.index)
-	_place_title()
 
 
 
@@ -598,24 +588,25 @@ func _aim_backlight() -> void:
 	backdrop.aim_backlight(centre, card.size.y * BACKLIGHT_REACH)
 
 
-## Hangs the mode's name on the bottom edge of the chosen card: its centre is on that edge.
-func _place_title() -> void:
-	if _title_holder == null or carousel == null:
-		return
-	var air: float = HERO_BOTTOM_GAP
-	var height: float = mode_name_label.get_combined_minimum_size().y
-	mode_name_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	# the letters sit a little low in their line, so lift the line to put the letters themselves on the edge
-	var lift: float = TITLE_LIFT + air
-	mode_name_label.offset_top = -lift - height / 2.0
-	mode_name_label.offset_bottom = -lift + height / 2.0
+## Keeps the phrase's line `PHRASE_PULL` above its holder, and the holder as tall as what is left, so the dots follow it up.
+func _pull_phrase_up() -> void:
+	var line: float = mode_text_label.get_combined_minimum_size().y
+	var holder: Control = mode_text_label.get_parent() as Control
+	holder.custom_minimum_size.y = maxf(line - PHRASE_PULL, 0.0)
+	mode_text_label.offset_top = -PHRASE_PULL
+	mode_text_label.offset_bottom = line - PHRASE_PULL
 
 
-## The chosen mode's name and phrase, the action buttons and the backdrop's tint.
+## The name written on the platform of the chosen model.
+func mode_name() -> String:
+	var face: CardFace = mode_models[carousel.index].get_node("Face") as CardFace
+	return face.plate().text
+
+
+## The chosen mode's phrase, the action buttons and the backdrop's tint.
 func _refresh_mode() -> void:
 	var mode: Dictionary = MODES[Session.menu_mode]
 	var rooms: bool = String(mode["id"]) != "practice"
-	mode_name_label.text = String(mode["title"])
 	mode_text_label.text = String(mode["text"])
 	_fill_chips(String(mode["id"]))
 	primary_button.text = "Create" if rooms else "Play"
