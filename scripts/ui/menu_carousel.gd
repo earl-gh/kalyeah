@@ -59,6 +59,9 @@ var bob: float = 0.0:
 var bottom_gap: float = -1.0
 ## Whether the chosen card gets a thin glowing coloured outline (a `CardRim`).
 var show_rim: bool = true
+## Cards that cannot be settled on (the kid pick: a teammate has that kid). An endless carousel steps over them in the direction of the
+## swipe; a tap on one, or a carousel with only blocked cards, stays where it is.
+var blocked: Array[int] = []
 var index: int = 0
 var cards: Array[Button] = []
 
@@ -106,6 +109,33 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 	_layout()
 
 
+## Takes cards somebody else made (the kid pick: the owner's card pictures, bare) instead of building `ChoiceCard`s. Each is sized to
+## `card_size` and left to the carousel to place; the one at `current` starts in the middle.
+func setup_cards(made: Array[Button], current: int) -> void:
+	for card: Button in cards:
+		card.queue_free()
+	cards.clear()
+	for card: Button in made:
+		card.size = card_size
+		card.pivot_offset = card_size / 2.0
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.focus_mode = Control.FOCUS_NONE
+		add_child(card)
+		cards.append(card)
+	index = clampi(current, 0, maxi(cards.size() - 1, 0))
+	_position = float(index)
+	_layout()
+
+
+## Gives every card a new size (the stage changed shape).
+func resize_cards(new_size: Vector2) -> void:
+	card_size = new_size
+	for card: Button in cards:
+		card.size = new_size
+		card.pivot_offset = new_size / 2.0
+	_layout()
+
+
 ## The bright rim of the card in the middle: a glowing frame in the card's accent colour.
 func _frame(accent: String) -> CardRim:
 	var rim: CardRim = CardRim.new()
@@ -130,15 +160,26 @@ func _notification(what: int) -> void:
 
 
 ## Brings card `at` to the middle. Emits `selected` when it is a different card. An endless carousel takes the shorter way round.
-func select(at: int, animate: bool = true) -> void:
+## `way` (-1 or 1, the direction of a swipe) lets an endless carousel step over `blocked` cards to the next free one that way; with 0
+## (a tap) a blocked card is refused and the carousel settles back where it was.
+func select(at: int, animate: bool = true, way: int = 0) -> void:
 	var count: int = maxi(cards.size(), 1)
 	var target: int = posmod(at, count) if wrap else clampi(at, 0, maxi(cards.size() - 1, 0))
+	var from: int = roundi(_position)
+	var steps: int = 0
+	if blocked.has(target):
+		steps = _free_steps(target, way) if wrap else -1
+		if steps < 0:
+			target = index
+		else:
+			target = posmod(target + way * steps, count)
 	var changed: bool = target != index
 	var goal: float = float(target)
 	if wrap:
-		# the step from where the models are now (nearest whole position) to `target`, the short way
-		var from: int = roundi(_position)
-		goal = float(from + posmod(target - posmod(from, count) + count / 2, count) - count / 2)
+		# the step from where the models are now (nearest whole position) to `target`, the short way; a swipe that stepped over blocked
+		# cards keeps its own way, however many steps that was
+		var short: int = posmod(target - posmod(from, count) + count / 2, count) - count / 2
+		goal = float(from + way * posmod((target - from) * way, count)) if steps > 0 and way != 0 and target != index else float(from + short)
 	index = target
 	if _tween != null:
 		_tween.kill()
@@ -153,6 +194,16 @@ func select(at: int, animate: bool = true) -> void:
 			_settle()
 	if changed:
 		selected.emit(index)
+
+
+## How many more steps from `start` in direction `way` reach a card that is not blocked, or -1 when `way` is 0 or every card is blocked.
+func _free_steps(start: int, way: int) -> int:
+	if way == 0:
+		return -1
+	for steps: int in range(1, cards.size()):
+		if not blocked.has(posmod(start + way * steps, cards.size())):
+			return steps
+	return -1
 
 
 ## After a step of an endless carousel the position is made the plain index again (the layout looks the same, the number stays small).
@@ -232,7 +283,8 @@ func _gui_input(event: InputEvent) -> void:
 			elif _pressed:
 				_pressed = false
 				if _dragging and wrap:
-					select(_swipe_target())
+					var way: int = _swipe_way()
+					select(posmod(roundi(_press_position) + way, maxi(cards.size(), 1)), true, way)
 				elif _dragging:
 					select(roundi(_position))
 				else:
@@ -257,16 +309,14 @@ func _gui_input(event: InputEvent) -> void:
 			_layout()
 
 
-## Where an endless carousel's swipe ends: one step in the direction it went when it went far enough or fast enough, else back where
-## it started (never more than one step).
-func _swipe_target() -> int:
-	var start: int = roundi(_press_position)
-	var moved: float = _position - float(start)
+## Which way an endless carousel's swipe goes: one step in the direction it went when it went far enough or fast enough, else 0 (back where
+## it started; never more than one step).
+func _swipe_way() -> int:
+	var moved: float = _position - float(roundi(_press_position))
 	var fast: bool = absf(_velocity) > FLING_SPEED
 	if absf(moved) < STEP_DRAG and not fast:
-		return posmod(start, maxi(cards.size(), 1))
-	var way: int = signi(roundi(moved * 1000.0)) if absf(moved) >= 0.02 else -signi(roundi(_velocity * 1000.0))
-	return posmod(start + way, maxi(cards.size(), 1))
+		return 0
+	return signi(roundi(moved * 1000.0)) if absf(moved) >= 0.02 else -signi(roundi(_velocity * 1000.0))
 
 
 ## The top of the models behind the chosen one, in this control's pixels: the highest point of the carousel's back layer (what the name tag
