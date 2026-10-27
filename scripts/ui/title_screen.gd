@@ -11,6 +11,7 @@ const LOBBY_SCENE: String = "res://scenes/ui/lobby.tscn"
 const PRACTICE_SCENE: String = "res://scenes/match/practice.tscn"
 const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
 const TIPS_ICON: Texture2D = preload("res://assets/ui/tips_icon.png")
+const MAIL_ICON: Texture2D = preload("res://assets/ui/mail_icon.png")
 
 ## The game modes in card order: Online, Local in the middle (the default, `Session.menu_mode` 1), Practice (owner).
 ## `accent` tints the frame of the card and the glow behind it.
@@ -137,6 +138,7 @@ var _margin: MarginContainer
 var _home: VBoxContainer
 var _top_bar: Control
 var tips_button: Button
+var mail_button: Button
 var _howto_from_home: bool = false
 var _title_holder: Control
 var mode_chips: HBoxContainer
@@ -231,26 +233,7 @@ func _build_top_bar() -> Control:
 	left.size_flags_vertical = Control.SIZE_SHRINK_END
 	left.custom_minimum_size = Vector2(0.0, LOGO_HEIGHT)
 	row.add_child(left)
-	tips_button = Button.new()
-	tips_button.name = "TipsButton"
-	tips_button.accessibility_name = "Tips"
-	tips_button.flat = true
-	tips_button.focus_mode = Control.FOCUS_ALL
-	tips_button.custom_minimum_size = Vector2.ONE * LOGO_HEIGHT
-	tips_button.size = Vector2.ONE * LOGO_HEIGHT
-	for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
-		tips_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
-	tips_button.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_L))
-	var picture: TextureRect = TextureRect.new()
-	picture.name = "Picture"
-	picture.texture = TIPS_ICON
-	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tips_button.add_child(picture)
-	UiKit.feel_press(tips_button)
-	tips_button.pressed.connect(_open_tips)
+	tips_button = _icon_button("TipsButton", "Tips", TIPS_ICON, _open_tips)
 	tips_button.position = Vector2(TIPS_INSET, 0.0)
 	left.add_child(tips_button)
 	var logo: TextureRect = TextureRect.new()
@@ -266,8 +249,47 @@ func _build_top_bar() -> Control:
 	right.name = "TopRight"
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right.size_flags_vertical = Control.SIZE_SHRINK_END
+	right.custom_minimum_size = Vector2(0.0, LOGO_HEIGHT)
+	mail_button = _icon_button("MailButton", "Mail", MAIL_ICON, _open_mail)
+	right.add_child(mail_button)
+	mail_button.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
+	mail_button.offset_left = -(LOGO_HEIGHT + TIPS_INSET)
+	mail_button.offset_right = -TIPS_INSET
+	mail_button.offset_top = -LOGO_HEIGHT / 2.0
+	mail_button.offset_bottom = LOGO_HEIGHT / 2.0
 	row.add_child(right)
 	return row
+
+
+## A round picture button of the top row (the tips icon and the mail icon): `LOGO_HEIGHT` square, no button face.
+func _icon_button(button_name: String, say: String, texture: Texture2D, action: Callable) -> Button:
+	var button: Button = Button.new()
+	button.name = button_name
+	button.accessibility_name = say
+	button.flat = true
+	button.focus_mode = Control.FOCUS_ALL
+	button.custom_minimum_size = Vector2.ONE * LOGO_HEIGHT
+	button.size = Vector2.ONE * LOGO_HEIGHT
+	for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
+		button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	button.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_L))
+	var picture: TextureRect = TextureRect.new()
+	picture.name = "Picture"
+	picture.texture = texture
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(picture)
+	UiKit.feel_press(button)
+	button.pressed.connect(action)
+	return button
+
+
+## Mail has nothing behind it yet: it says so.
+func _open_mail() -> void:
+	UiToast.say(self, "Mail is coming soon!")
 
 
 ## The tips icon opens How to play over the main page (its Back goes back to where it was opened from).

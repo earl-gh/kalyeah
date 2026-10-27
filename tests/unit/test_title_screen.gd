@@ -693,3 +693,26 @@ func test_the_tips_icon_sits_at_the_top_left_level_with_the_logo_and_opens_how_t
 	assert_eq(screen.tab_bar.active, &"home", "Play stays lit")
 	screen.howto_page.back_pressed.emit()
 	assert_eq(screen.current_page, &"", "Back returns to the main page")
+
+
+func test_the_mail_icon_mirrors_the_tips_icon_at_the_top_right_and_says_it_is_coming() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(3)
+	var mail: Button = screen.mail_button
+	var tips: Button = screen.tips_button
+	var logo: Control = screen.find_child("Logo", true, false) as Control
+	assert_not_null(mail, "a mail button")
+	assert_gt(mail.get_global_rect().position.x, logo.get_global_rect().end.x, "right of the logo")
+	assert_almost_eq(mail.get_global_rect().get_center().y, logo.get_global_rect().get_center().y, 2.0, "level with the logo")
+	assert_almost_eq(720.0 - mail.get_global_rect().end.x, tips.get_global_rect().position.x, 1.5, "the same room at the right as the tips icon has at the left")
+	assert_eq(mail.size, tips.size, "the same size")
+	mail.pressed.emit()
+	await wait_frames(2)
+	var layer: Node = get_tree().root.get_node_or_null(UiToast.LAYER_NAME)
+	var said: Array[String] = []
+	if layer != null:
+		for child: Node in layer.get_children():
+			if child is UiToast and not child.is_queued_for_deletion():
+				said.append((child as UiToast).text)
+	assert_has(said, "Mail is coming soon!", "a toast says it is coming")
+	assert_eq(screen.current_page, &"")
