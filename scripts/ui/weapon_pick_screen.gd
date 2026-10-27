@@ -3,15 +3,15 @@ extends Control
 ## Character/loadout interaction. Practice waits for confirmation; multiplayer keeps its timer.
 
 signal confirmed(picks: Array[StringName])
-## A character card was tapped.
+## The kid you play as changed (a swipe or a tap on the carousel, or `pick_character`).
 signal character_changed(id: StringName)
 ## Swap mode: a new pair of weapons was picked (applied at once).
 signal swapped(picks: Array[StringName])
 signal closed
 signal exit_requested
 
-## The character cards are exactly 3:4 (width:height).
-## The kid tiles (3:4): six across the 656 px column, wide enough for the longest name at the caption floor.
+## Weapons mode: the kid tiles (3:4), six across the 656 px column, wide enough for the longest name at the caption floor.
+## Cards mode has the `KidCarousel` instead.
 const PROFILE_SIZE: Vector2 = Vector2(102.0, 136.0)
 const PROFILE_GAP: int = 8
 ## The weapon grid: tiles across, and how tall each tile is.
@@ -46,8 +46,8 @@ var _hint: Label
 var cards_mode: bool = false
 var _weapon_parts: Array[Control] = []
 var _filler: Control
-var _hero: TextureRect
-## The chosen kid's name, large, under the picture (cards mode).
+## The kid pick of cards mode: the card pictures as an endless carousel; the chosen kid's name, large, under it.
+var _carousel: KidCarousel
 var _hero_name: Label
 ## Stat bars on every weapon card are scaled by the biggest number of any weapon.
 var _maxima: Dictionary = {}
@@ -144,29 +144,58 @@ func _show(defs: Array[WeaponDef], _heading: String) -> void:
 		part.visible = not cards_mode
 	_filler.visible = cards_mode
 	LobbyWidgets.apply_safe_area(_safe_margin, UiMetrics.PAGE_MARGIN, UiMetrics.PAGE_MARGIN)
-	_character_row.visible = not swap_mode and not _characters.is_empty()
+	_character_row.visible = not swap_mode and not cards_mode and not _characters.is_empty()
 	(find_child("Characters", true, false) as Control).visible = _character_row.visible
+	_carousel.visible = cards_mode and not _characters.is_empty()
+	if _carousel.visible:
+		_carousel.setup_kids(_characters, character_id)
+		_carousel.set_taken(_taken)
+		_fit_kids()
 	_focus_first()
 	visible = true
 	_refresh()
 
 
-## The kids a teammate already locked in: they are greyed out and cannot be picked (the other
-## team may play the same kid). If yours was taken, the first free one is selected instead.
+## The kids a teammate already locked in: they cannot be picked (the other team may play the same kid). The carousel keeps them in the
+## ring, dark and tagged "Taken", and a swipe steps over them. If yours was taken, the next free kid after it is selected instead.
 func set_taken(ids: Array[StringName]) -> void:
 	_taken = ids.duplicate()
 	if _profiles.is_empty():
 		return
 	if _taken.has(character_id):
-		for character: CharacterDef in _characters:
-			if not _taken.has(character.id):
-				character_id = character.id
+		var at: int = _character_index(character_id)
+		for step: int in range(1, _characters.size()):
+			var next: CharacterDef = _characters[posmod(at + step, _characters.size())]
+			if not _taken.has(next.id):
+				character_id = next.id
 				break
+	_carousel.set_taken(_taken)
 	_refresh()
 
 
 func is_taken(id: StringName) -> bool:
 	return _taken.has(id)
+
+
+func _character_index(id: StringName) -> int:
+	for i: int in _characters.size():
+		if _characters[i].id == id:
+			return i
+	return -1
+
+
+## The carousel settled on a kid (a swipe or a tap): that kid is the pick.
+func _on_kid_swiped(at: int) -> void:
+	if at < _characters.size() and _characters[at].id != character_id:
+		pick_character(_characters[at].id)
+
+
+## The carousel takes the room the kid pick has: the whole space between the heading and Play, less the kid's name.
+func _fit_kids() -> void:
+	if _carousel == null or not _carousel.visible or _filler.size.y <= 0.0:
+		return
+	var room: Vector2 = Vector2(_filler.size.x, _filler.size.y - _hero_name.get_combined_minimum_size().y - UiMetrics.GAP)
+	_carousel.custom_minimum_size.y = _carousel.fit(room)
 
 
 ## Picks the kid you play as.
@@ -263,9 +292,10 @@ func _refresh() -> void:
 		var id: StringName = pick.picks[slot] if slot < pick.picks.size() else &""
 		_sockets[slot].active = slot == replacement_slot
 		_sockets[slot].show_weapon(_defs.get(id) as WeaponDef)
-	if cards_mode and _hero != null:
-		_hero.texture = KidModel.portrait(character_id)
+	if cards_mode:
 		_hero_name.text = hero_name()
+		if _carousel.current_id() != character_id:
+			_carousel.show_kid(character_id)
 	_hint.text = selection_hint()
 	_suggest_button.visible = not swap_mode and not suggestion.is_empty() and pick.picks.size() < WeaponPick.SLOTS
 	var can_go: bool = swap_mode or cards_mode or pick.can_confirm()
