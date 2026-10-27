@@ -33,7 +33,7 @@ const SHADOW_ALPHA: float = 0.13
 ## How much further the shadow falls (and lighter it gets) as the card floats up.
 const SHADOW_BREATH: float = 4.0
 ## A bare picture: what an unchosen one is multiplied by (a dark, nearly black tint) and how flat its ground shadow is.
-const BARE_DIM: Color = Color(0.17, 0.17, 0.2)
+const BARE_DIM: Color = Color(0.45, 0.45, 0.5)
 const GROUND_SHADOW_SQUASH: float = 0.16
 
 ## How high the card floats (-1 sinking to 1 at the top of its drift): the middle card sets it as it drifts, and its shadow follows.
