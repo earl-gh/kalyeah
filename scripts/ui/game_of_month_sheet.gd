@@ -5,8 +5,9 @@ extends RefCounted
 ## need, the goal, set up, how to play, the rules and one safety line. The games are in `data/rules/larong_kalye.tres`.
 
 const TITLE: String = "Game of the Month"
+const ICON: Texture2D = preload("res://assets/ui/tips_icon.png")
 const GAMES_PATH: String = "res://data/rules/larong_kalye.tres"
-const WIDTH: float = 620.0
+const WIDTH: float = MenuDialog.WIDTH_SHEET
 const SECTION_INK: Color = Color("b8641a")
 
 
@@ -16,7 +17,7 @@ static func build(month: int = 0) -> MenuDialog:
 		month = int(Time.get_date_dict_from_system()["month"])
 	var games: LarongKalye = load(GAMES_PATH) as LarongKalye
 	var game: Dictionary = games.for_month(month)
-	var card: MenuDialog = MenuDialog.create(TITLE, WIDTH)
+	var card: MenuDialog = MenuDialog.create(TITLE, WIDTH, ICON)
 	card.name = "GameOfMonthSheet"
 	var kicker: Label = card.add_label(LarongKalye.month_name(month).to_upper(), UiMetrics.CAPTION, SECTION_INK, HORIZONTAL_ALIGNMENT_CENTER)
 	kicker.name = "Month"

@@ -18,7 +18,7 @@ var _confirmation: MenuDialog
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	_dialog = MenuDialog.create("Match settings")
+	_dialog = MenuDialog.create("Match settings", MenuDialog.WIDTH_SHEET, UiTabBar.picture(&"settings"))
 	_dialog.persistent = true
 	SettingsPage.fill(_dialog.body, true)
 	resume_button = _button("Resume", "orange", _dialog.body)
@@ -63,6 +63,6 @@ func request_exit() -> void:
 
 
 func _button(text: String, paint: String, parent: Control) -> Button:
-	var button: Button = MenuDialog.make_button(text, paint, UiMetrics.ACTION)
+	var button: Button = MenuDialog.make_button(text, paint, UiMetrics.BODY)
 	parent.add_child(button)
 	return button

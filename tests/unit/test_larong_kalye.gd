@@ -111,3 +111,33 @@ func test_the_donate_button_opens_the_owners_link_and_only_https() -> void:
 	assert_eq(opened, ["https://example.com/donate"] as Array[String])
 	DonateSheet.open_url = original
 	card.queue_free()
+
+
+func test_no_modal_is_taller_than_three_quarters_of_the_screen() -> void:
+	var holder: SubViewport = autofree(SubViewport.new()) as SubViewport
+	holder.size = Vector2i(720, 1280)
+	add_child(holder)
+	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
+	var sheets: Array[MenuDialog] = [GameOfMonthSheet.build(2), DonateSheet.build(), WeaponsPage.detail(rules.weapons[0]),
+		DialogButtons.leave_match(false, func() -> void: pass, true), ProfileSheet.build(func() -> void: pass)]
+	for card: MenuDialog in sheets:
+		card.open(holder)
+		await wait_process_frames(3)
+		assert_lte(card.panel.size.y, 1280.0 * MenuDialog.MAX_HEIGHT_SHARE + 1.0, "%s fits in 75 %% of the screen (%.0f px)" % [card.name, card.panel.size.y])
+		assert_lte(card.panel.size.x, MenuDialog.WIDTH_SHEET + 1.0, "%s is no wider than a sheet" % card.name)
+		card.close(false)
+	# a long one reaches the cap and scrolls inside
+	var long: MenuDialog = GameOfMonthSheet.build(2)
+	long.open(holder)
+	await wait_process_frames(3)
+	assert_almost_eq(long.panel.size.y, 1280.0 * MenuDialog.MAX_HEIGHT_SHARE, 2.0, "a long sheet stops at 75 % and scrolls")
+	long.close(false)
+
+
+func test_the_two_new_sheets_have_a_picture_before_their_title() -> void:
+	for card: MenuDialog in [GameOfMonthSheet.build(1), DonateSheet.build()]:
+		add_child(card)
+		var icon: TextureRect = card.find_child("Icon", true, false) as TextureRect
+		assert_not_null(icon, "%s has a header icon" % card.name)
+		assert_almost_eq(icon.custom_minimum_size.x, MenuDialog.ICON_SIZE, 0.1)
+		card.queue_free()

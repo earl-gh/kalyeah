@@ -60,7 +60,7 @@ func test_match_menu_retains_controls_and_requires_confirmation_only_online() ->
 	menu.leave_button.pressed.emit()
 	assert_eq(exits.size(), 0)
 	assert_true(menu._confirmation.is_open)
-	assert_string_contains((menu._confirmation.body.get_child(0) as Label).text, "close for everyone")
+	assert_string_contains((menu._confirmation.body.get_child(0) as Label).text, "closes for everyone")
 	menu._confirmation.close(false)
 	assert_true(menu.visible, "Cancel keeps the match menu open")
 	menu.set_practice(true)

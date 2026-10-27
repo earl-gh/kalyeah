@@ -618,8 +618,8 @@ func _on_secondary_pressed() -> void:
 
 ## Practice asks first (a stray tap must not start a match); Play then shows the loading screen.
 func open_practice_confirm() -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create("Practice", 560.0)
-	card.add_label("Three of you against three bots. Ready to rumble?", MenuDialog.TEXT_SIZE, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
+	var card: MenuDialog = MenuDialog.create("Practice", MenuDialog.WIDTH_SMALL)
+	card.add_label("3 v 3 against bots. Ready to rumble?", MenuDialog.TEXT_SIZE, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
 	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
 	var play: Button = MenuDialog.make_button("Play", "gold", UiMetrics.BODY)
 	card.add_buttons([cancel, play])
@@ -852,7 +852,7 @@ func _on_profile_saved() -> void:
 
 ## Quit: asks first (a stray tap must not close the game).
 func open_quit_confirm() -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create("Quit game?", 560.0)
+	var card: MenuDialog = MenuDialog.create("Quit game?", MenuDialog.WIDTH_SMALL)
 	var stay: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
 	var leave: Button = MenuDialog.make_button("Quit", "red", UiMetrics.BODY)
 	card.add_buttons([stay, leave])

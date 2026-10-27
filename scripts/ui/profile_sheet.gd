@@ -7,7 +7,7 @@ extends RefCounted
 
 ## `on_saved` is called after a successful Save, once Session holds the new name.
 static func build(on_saved: Callable) -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create("Your profile", 620.0)
+	var card: MenuDialog = MenuDialog.create("Your profile", MenuDialog.WIDTH_SHEET)
 	card.name = "ProfileSheet"
 	var field: LineEdit = LineEdit.new()
 	field.name = "NameField"
@@ -17,6 +17,22 @@ static func build(on_saved: Callable) -> MenuDialog:
 	field.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	field.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
 	field.add_theme_font_size_override("font_size", UiMetrics.HEADLINE)
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = Color.WHITE
+	box.border_color = KalyeahTheme.MODAL_BODY_EDGE
+	box.set_border_width_all(3)
+	box.set_corner_radius_all(UiSkin.RADIUS_M)
+	box.content_margin_left = 16.0
+	box.content_margin_right = 16.0
+	box.anti_aliasing = true
+	for state: String in ["normal", "read_only"]:
+		field.add_theme_stylebox_override(state, box)
+	var focused: StyleBoxFlat = box.duplicate() as StyleBoxFlat
+	focused.border_color = KalyeahTheme.BLUE
+	field.add_theme_stylebox_override("focus", focused)
+	field.add_theme_color_override("font_color", KalyeahTheme.MODAL_TEXT)
+	field.add_theme_color_override("font_placeholder_color", KalyeahTheme.MODAL_TEXT_MUTED)
+	field.add_theme_color_override("caret_color", KalyeahTheme.MODAL_TEXT)
 	card.body.add_child(field)
 	var hint: Label = card.add_hint("%d characters max." % Session.MAX_NAME_LENGTH)
 	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)

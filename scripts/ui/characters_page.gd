@@ -9,7 +9,9 @@ signal character_opened(character: CharacterDef)
 ## Two columns of large faces: this tab is a gallery to look at, not a row of small buttons.
 const COLUMNS: int = 2
 const CARD: Vector2 = Vector2(325.0, 440.0)
-const NOTE: String = "Pick the look you love! Every kid has the same health, speed and size."
+## The picture on a kid's sheet (3:4).
+const DETAIL_PICTURE: Vector2 = Vector2(192.0, 256.0)
+const NOTE: String = "Looks only! Every kid has the same stats."
 
 var cards: Dictionary[String, Button] = {}
 
@@ -153,7 +155,7 @@ static func _palette(character: CharacterDef) -> Control:
 ## The detail sheet of `character`: the face large, the name, what they wear, and a note that the look
 ## changes nothing about how they play.
 static func detail(character: CharacterDef) -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create(character.display_name, 600.0)
+	var card: MenuDialog = MenuDialog.create(character.display_name, MenuDialog.WIDTH_SHEET)
 	card.name = "CharacterDetail"
 	var picture: TextureRect = TextureRect.new()
 	picture.name = "Picture"
@@ -161,13 +163,13 @@ static func detail(character: CharacterDef) -> MenuDialog:
 	picture.texture = KidModel.card_face(id)
 	if picture.texture == null:
 		picture.texture = KidModel.portrait(id)
-	picture.custom_minimum_size = Vector2(240.0, 320.0)
+	picture.custom_minimum_size = DETAIL_PICTURE
 	picture.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	var crop: ShaderMaterial = ShaderMaterial.new()
 	crop.shader = UiKit.CROP
-	crop.set_shader_parameter("rect_size", Vector2(240.0, 320.0))
+	crop.set_shader_parameter("rect_size", DETAIL_PICTURE)
 	crop.set_shader_parameter("radius", 26.0)
 	picture.material = crop
 	card.body.add_child(picture)
@@ -175,7 +177,7 @@ static func detail(character: CharacterDef) -> MenuDialog:
 	about.name = "About"
 	card.body.add_child(_palette(character))
 	card.add_hint(NOTE).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var close: Button = MenuDialog.make_button("Close", "grey", UiMetrics.ACTION)
+	var close: Button = MenuDialog.make_button("Close", "grey", UiMetrics.BODY)
 	close.name = "Close"
 	close.pressed.connect(card.close)
 	card.add_buttons([close])

@@ -4,8 +4,9 @@ extends RefCounted
 ## page when the owner has set one (`DonateInfo.url`). Donating is optional, gives nothing in the game, and opens the phone's browser.
 
 const TITLE: String = "Donate"
+const ICON: Texture2D = preload("res://assets/ui/mail_icon.png")
 const INFO_PATH: String = "res://data/rules/donate_info.tres"
-const WIDTH: float = 600.0
+const WIDTH: float = MenuDialog.WIDTH_SHEET
 
 ## Called with the address when the Donate button is pressed (the default opens the browser); tests replace it.
 static var open_url: Callable = func(url: String) -> void: OS.shell_open(url)
@@ -14,7 +15,7 @@ static var open_url: Callable = func(url: String) -> void: OS.shell_open(url)
 static func build(info: DonateInfo = null) -> MenuDialog:
 	if info == null:
 		info = load(INFO_PATH) as DonateInfo
-	var card: MenuDialog = MenuDialog.create(TITLE, WIDTH)
+	var card: MenuDialog = MenuDialog.create(TITLE, WIDTH, ICON)
 	card.name = "DonateSheet"
 	var heart: Label = card.add_label("♥", UiMetrics.DISPLAY, Color("d6302c"), HORIZONTAL_ALIGNMENT_CENTER)
 	heart.name = "Heart"

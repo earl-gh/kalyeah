@@ -211,7 +211,7 @@ static func holder(weapon: WeaponDef, diameter: float) -> Control:
 
 ## The detail sheet of `weapon`: picture, kind and street game, what it does, and its figures.
 static func detail(weapon: WeaponDef) -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create(weapon.display_name, 640.0)
+	var card: MenuDialog = MenuDialog.create(weapon.display_name, MenuDialog.WIDTH_SHEET)
 	card.name = "WeaponDetail"
 	var picture: Control = holder(weapon, DETAIL_ICON)
 	picture.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -242,7 +242,7 @@ static func detail(weapon: WeaponDef) -> MenuDialog:
 		story.name = "GameBlurb"
 		column.add_child(story)
 		card.body.add_child(column)
-	var close: Button = MenuDialog.make_button("Close", "grey", UiMetrics.ACTION)
+	var close: Button = MenuDialog.make_button("Close", "grey", UiMetrics.BODY)
 	close.name = "Close"
 	close.pressed.connect(card.close)
 	card.add_buttons([close])
