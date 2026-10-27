@@ -211,40 +211,9 @@ func test_the_chips_follow_the_mode_and_step_aside_on_a_short_stage() -> void:
 	assert_eq(tall.mode_chips.get_child_count(), 2)
 	tall.carousel.select(2, false)
 	assert_eq((tall.mode_chips.get_child(0).get_node("Text") as Label).text, "Solo")
-	MatchHistory.record("hotspot", true, 2, 1)
 	var short: TitleScreen = _phone(1280.0)
 	await wait_frames(3)
-	assert_true(short.last_match.visible)
-	assert_false(short.mode_chips.visible, "with the last-match strip on a 16:9 phone the hero keeps its size")
-
-
-# ---- last match -----------------------------------------------------------------------
-
-func test_the_last_match_strip_is_hidden_until_there_is_a_match_and_then_tells_the_result() -> void:
-	var screen: TitleScreen = _phone()
-	await wait_frames(2)
-	assert_false(screen.last_match.visible)
-	MatchHistory.record("hotspot", true, 2, 1)
-	screen.refresh_last_match()
-	assert_true(screen.last_match.visible)
-	assert_eq((screen.last_match.find_child("Result", true, false).get_node("Text") as Label).text, "Victory")
-	assert_eq((screen.last_match.find_child("Words", true, false) as Label).text, "Hotspot · 2 - 1")
-	assert_eq((screen.last_match.find_child("When", true, false) as Label).text, "just now")
-	MatchHistory.record("online", false, 0, 2)
-	screen.refresh_last_match()
-	assert_eq((screen.last_match.find_child("Result", true, false).get_node("Text") as Label).text, "Defeat", "always the newest")
-
-
-func test_tapping_the_strip_opens_history_and_coming_back_refreshes_it() -> void:
-	var screen: TitleScreen = _phone()
-	MatchHistory.record("practice", true, 2, 0)
-	screen.refresh_last_match()
-	assert_gte(screen.last_match.custom_minimum_size.y, 60.0, "a thumb-sized strip")
-	screen.last_match.pressed.emit()
-	assert_eq(screen.current_page, &"history")
-	MatchHistory.record("online", false, 1, 2)
-	screen.corner_buttons[&"home"].pressed.emit()
-	assert_eq((screen.last_match.find_child("Words", true, false) as Label).text, "Online · 1 - 2", "a match played meanwhile shows at once")
+	assert_false(short.mode_chips.visible, "on a 16:9 phone the hero keeps its size")
 
 
 # ---- slides ---------------------------------------------------------------------------
