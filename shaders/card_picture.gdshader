@@ -1,13 +1,14 @@
 shader_type canvas_item;
 // A mode card's picture as an old teks card: aged, grainy print, and at the corners (very slightly along the sides too) the print
-// worn away to the brown paper under it and, nearest the edge, to a lighter brown paper beneath that (two layers of wear); every corner has its own slight radius. See
+// worn away like real cardstock: first to the thin light tan paper under the ink and, nearest the edge, to the darker brown paperboard core (two layers of wear), with a pale fringe of loose fibres on the very edge; every corner has its own slight radius. See
 // card_wear.gdshaderinc.
 #include "res://shaders/card_wear.gdshaderinc"
 
 uniform vec2 cover = vec2(1.0); // the share of the picture shown across and down (it is cropped to fit the card)
 
-const vec3 KRAFT = vec3(0.72, 0.56, 0.38); // the brown paper under the print
-const vec3 KRAFT_LIGHT = vec3(0.87, 0.74, 0.55); // the lighter brown paper beneath that (nearest the edge)
+const vec3 TAN = vec3(0.86, 0.74, 0.55);   // the thin light paper under the ink (the first layer of wear)
+const vec3 CORE = vec3(0.52, 0.37, 0.24);  // the darker brown paperboard core beneath it (nearest the edge, owner: realistic)
+const vec3 FRINGE = vec3(0.80, 0.70, 0.56); // loose pale fibres on the very edge of a worn core
 
 void fragment() {
 	vec2 position = UV * rect_size;
@@ -17,6 +18,9 @@ void fragment() {
 	print *= 0.93 + 0.14 * grain;
 	float fibres = 0.82 + 0.18 * value_noise(vec2(position.x * 0.5, position.y * 0.07) + seed * 9.0) + 0.06 * value_noise(position * 1.3);
 	vec2 layers = wear_layers(position);
-	vec3 brown = mix(KRAFT_LIGHT * (0.95 + 0.05 * fibres), KRAFT * fibres, layers.y);
+	vec3 brown = mix(CORE * fibres, TAN * (0.94 + 0.06 * fibres), layers.y);
+	// the very edge of the worn core frays: a pale fringe of loose fibres
+	float edge = min(min(position.x, rect_size.x - position.x), min(position.y, rect_size.y - position.y));
+	brown = mix(brown, FRINGE, (1.0 - layers.y) * (1.0 - smoothstep(0.0, 1.8, edge)) * 0.6);
 	COLOR = vec4(mix(brown, print, layers.x), card_alpha(position));
 }

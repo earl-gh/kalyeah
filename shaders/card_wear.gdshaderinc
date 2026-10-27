@@ -1,6 +1,6 @@
 // The worn look of an old Filipino teks card, shared by the mode card's picture, its coloured shade and its tint: at the corners,
 // and very slightly along the left and right sides, the printed layer has worn away to the brown paper under it, and nearest the
-// edge that has worn away too, to a lighter brown paper beneath (two layers of wear). Every corner of the card has its own slight radius, and noise
+// edge that has worn away too, to the darker brown paperboard core beneath (two layers of wear, like real cardstock). Every corner of the card has its own slight radius, and noise
 // makes each card (its `seed`) wear differently. Sizes are in the card's pixels (`rect_size`).
 
 uniform vec2 rect_size = vec2(385.0, 550.0);
@@ -35,8 +35,8 @@ float fbm3(vec2 p) {
 }
 
 // The two layers of wear: x is how much of the printed layer is left here (0 where it has worn away to the brown paper, 1 where it is
-// whole) and y how much of the brown paper over the lighter brown paper beneath it is left (0 where that has worn away too, which
-// is nearest the edge, so the lighter brown shows).
+// whole) and y how much of the thin light paper under the ink is left over the darker paperboard core beneath it (0 where that has
+// worn away too, which is nearest the edge, so the darker core shows).
 vec2 wear_layers(vec2 position) {
 	float edge = min(min(position.x, rect_size.x - position.x), min(position.y, rect_size.y - position.y));
 	vec2 near = min(position, rect_size - position);
