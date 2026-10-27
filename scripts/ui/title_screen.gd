@@ -113,6 +113,8 @@ var open_lobby_action: Callable = _change_to_lobby
 
 var backdrop: UiBackdrop
 var carousel: MenuCarousel
+## Leaning the phone shifts the models and the street picture a little (`HomeParallax`).
+var parallax: HomeParallax
 var name_tag: NameTag
 ## The mode models (the carousel's items): Online, Local and Practice, in order.
 var mode_models: Array[Button]:
@@ -339,6 +341,8 @@ func _build_home() -> VBoxContainer:
 	carousel.scale_loss = 1.0 - MODEL_BACK_SCALE
 	carousel.setup("", MODES, Session.menu_mode)
 	carousel.bob = AMBIENT_BOB
+	parallax = HomeParallax.new(carousel, backdrop)
+	add_child(parallax)
 	stage.resized.connect(_fit_hero)
 	stage.resized.connect(_aim_backlight)
 	stage.resized.connect(_place_name_tag.call_deferred)
@@ -808,6 +812,8 @@ func _sync_ambient() -> void:
 	backdrop.ambient = not covered
 	backdrop.lights_on = current_page == &""
 	carousel.bob = 0.0 if covered else AMBIENT_BOB
+	if parallax != null:
+		parallax.active = not covered
 	name_tag.swing = not covered
 
 ## The detail sheet of a kid from the Book.

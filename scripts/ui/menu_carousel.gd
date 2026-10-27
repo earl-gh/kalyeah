@@ -28,6 +28,8 @@ const SNAP_TIME: float = 0.18
 const WRAP_TIME: float = 0.36
 const FLING_SPEED: float = 0.45
 const STEP_DRAG: float = 0.12
+## The cards behind the chosen one shift this share less for the tilt parallax.
+const TILT_BACK_SHARE: float = 0.6
 
 ## The size of a card (1.75:2.5 on the main screen; the room's map carousel sets 3:4 before `setup`).
 var card_size: Vector2 = CARD
@@ -41,6 +43,12 @@ var scale_loss: float = SCALE_LOSS
 var wrap: bool = false
 ## How far the cards behind sit out to each side, as a multiple of `STEP` (the mode models sit further out).
 var spread_scale: float = 1.0
+## The Home parallax (`HomeParallax`): the chosen card shifts this many px, the ones behind it less (they are further away).
+var tilt: Vector2 = Vector2.ZERO:
+	set(value):
+		tilt = value
+		if not is_processing():
+			_layout()
 ## How far (px) the middle card bobs up and down while the screen idles (0 = holds still).
 var bob: float = 0.0:
 	set(value):
@@ -226,7 +234,7 @@ func _layout() -> void:
 		card.scale = Vector2.ONE * (1.0 - scale_loss * away)
 		var drift_phase: float = sin(float(Time.get_ticks_msec()) / 1000.0 * FLOAT_SPEED)
 		var drift: float = drift_phase * bob * (1.0 - away / 2.0) if bob > 0.0 and not Settings.reduced_motion else 0.0
-		card.position = Vector2(size.x / 2.0 + signf(offset) * spread * STEP * spread_scale - card_size.x / 2.0, ((size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap) + drift - card_size.y * back_rise * away)
+		card.position = Vector2(size.x / 2.0 + signf(offset) * spread * STEP * spread_scale - card_size.x / 2.0, ((size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap) + drift - card_size.y * back_rise * away) + tilt * (1.0 - TILT_BACK_SHARE * away)
 		# every card stays visible: the ones further back are darker and slightly see-through
 		var shade: float = 1.0 - SHADE_LOSS * away
 		card.modulate = Color(shade, shade, shade, lerpf(1.0, BACK_ALPHA, clampf(absf(offset), 0.0, 1.0)))

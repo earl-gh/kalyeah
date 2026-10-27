@@ -33,6 +33,8 @@ var left_handed: bool = false
 var language: String = "en"
 ## Whether holding a weapon shows its simple aim guide on the street (off = nothing is drawn).
 var aim_guide: bool = true
+## Tilt to run (off by default): lean the phone the way to run; the kid runs at its one speed, like a finger dragged ahead of it.
+var tilt_to_run: bool = false
 ## Size of the match controls, one of `CONTROL_SIZES`.
 var control_scale: float = 1.0
 
@@ -55,6 +57,8 @@ func _ready() -> void:
 		language = String(file.get_value("ui", "language", "en"))
 		var guide: Variant = file.get_value("input", "aim_guide", true)
 		aim_guide = guide if guide is bool else true
+		var tilt: Variant = file.get_value("input", "tilt_to_run", false)
+		tilt_to_run = tilt if tilt is bool else false
 	_load_translations()
 	if not available_languages().has(language):
 		language = "en"
@@ -129,6 +133,14 @@ func set_left_handed(on: bool) -> void:
 		return
 	left_handed = on
 	_save_value("input", "left_handed", on)
+	controls_changed.emit()
+
+
+func set_tilt_to_run(on: bool) -> void:
+	if on == tilt_to_run:
+		return
+	tilt_to_run = on
+	_save_value("input", "tilt_to_run", on)
 	controls_changed.emit()
 
 
