@@ -685,6 +685,7 @@ func test_the_tips_icon_sits_at_the_top_left_level_with_the_logo_and_opens_how_t
 	assert_lt(tips.get_global_rect().end.x, logo.get_global_rect().position.x, "left of the logo")
 	assert_almost_eq(tips.get_global_rect().get_center().y, logo.get_global_rect().get_center().y, 2.0, "level with the logo")
 	assert_almost_eq(logo.get_global_rect().get_center().x, 360.0, 2.0, "the logo stays in the middle")
+	assert_gte(tips.get_global_rect().position.x, TitleScreen.SIDE_MARGIN + TitleScreen.TIPS_INSET - 1.0, "with extra room at the left of the margin")
 	assert_gte(tips.size.x, UiMetrics.MIN_TARGET, "big enough for a thumb")
 	assert_false(tips.accessibility_name.is_empty())
 	tips.pressed.emit()

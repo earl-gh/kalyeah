@@ -82,6 +82,8 @@ const RULES_PATH: String = "res://data/rules/game_rules.tres"
 const LOGO_HEIGHT: float = 92.0
 ## How far the logo is dropped from the top edge of the screen.
 const LOGO_DROP: float = 62.0
+## How far the tips icon stands in from the left margin of the screen, on top of it (owner: more room at the left).
+const TIPS_INSET: float = 22.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
 const CTA_HEIGHT: float = 117.0
@@ -249,6 +251,7 @@ func _build_top_bar() -> Control:
 	tips_button.add_child(picture)
 	UiKit.feel_press(tips_button)
 	tips_button.pressed.connect(_open_tips)
+	tips_button.position = Vector2(TIPS_INSET, 0.0)
 	left.add_child(tips_button)
 	var logo: TextureRect = TextureRect.new()
 	logo.name = "Logo"
