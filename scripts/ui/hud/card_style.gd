@@ -1,181 +1,113 @@
 class_name CardStyle
 extends RefCounted
-## How a weapon card is drawn in the hand (owner: like a Clash Royale card): an upright card with a frame in the weapon's kind colour and
-## the round painted art filling its width; no name on it (the ice water cost sits on its bottom edge, drawn by the hand). The hand's cards
-## and the NEXT card use the same drawing, at two sizes.
+## How a weapon card of the hand looks (owner: like the old Filipino teks cards of the mode screen): a flat, straight card printed in the
+## weapon's kind colour with its round painted art on it, worn like old cardstock by the shaders the mode card used (`HandCard`, which is a
+## `CardFace`): no black outline, no gloss band. This holds what the hand draws round those cards in code (the empty slot, the back of a
+## card on its way, the gold edge of a lifted card, the shades over a card that cannot be used) and the numbers of the print. The ice
+## water cost sits on the card's bottom edge, drawn by the hand over the card.
 
-## The card's corners: round enough for the gloss to curve with them (it follows the outline `BORDER + GLOSS / 2` pixels inside).
-const RADIUS: int = UiSkin.RADIUS_M
-## The black outline round a card, and the polished gloss just inside it (Clash Royale's card look): ONE connected band that starts white
-## along the top, turns the top right corner and fades through gray down the right side, and comes back as light gray along the bottom.
-const BORDER: int = 3
-const GLOSS: int = 3
-## The round art sits this far in from the card's edge (it does not change with the gloss).
-const ART_EDGE: float = 9.0
-const GLOSS_TOP: Color = Color(1.0, 1.0, 1.0)
-const GLOSS_RIGHT: Color = Color(0.55, 0.58, 0.64)
-const GLOSS_BOTTOM: Color = Color(0.84, 0.86, 0.9)
-## How strong the band is at the top, in the middle of the right side (where it has faded most) and along the bottom.
-const GLOSS_ALPHA_TOP: float = 0.6
-const GLOSS_ALPHA_RIGHT: float = 0.28
-const GLOSS_ALPHA_BOTTOM: float = 0.5
-const GLOSS_STEPS: int = 18
-## The shine on the top right corner: a thin bright arc over the band where it turns, as wide as this share of the band.
-const SHINE_WIDTH: float = 0.45
-const OUTLINE: Color = Color(0.0, 0.0, 0.0, 1.0)
-## How far the thin gold inner frame of a cooling card stands inside its edge; its corners are the card's less this, so the
-## two curves stay parallel.
-const INNER_INSET: int = BORDER + 9
-
-
-## Draws the card of `def` in `rect` on `canvas`. `dim` (0 to 1) darkens it (locked, used, waiting); `lift` raises it with a gold edge
-## (held or highlighted).
-static func draw(canvas: CanvasItem, rect: Rect2, def: WeaponDef, dim: float = 0.0, lift: bool = false) -> void:
-	var kind: Color = WeaponPickScreen.kind_color(def.kind)
-	var frame: StyleBoxFlat = StyleBoxFlat.new()
-	frame.bg_color = kind.darkened(0.5)
-	frame.border_color = RoyaleStyle.GOLD if lift else OUTLINE
-	frame.set_border_width_all(BORDER)
-	frame.set_corner_radius_all(RADIUS)
-	frame.anti_aliasing = true
-	canvas.draw_style_box(frame, rect)
-	_glosses(canvas, rect)
-	# the round art, as wide as the card allows
-	var edge: float = ART_EDGE
-	var inner: float = rect.size.x - 2.0 * edge
-	var texture: Texture2D = Icons.art(StringName("btn_%s" % String(def.id)))
-	var art_rect: Rect2 = Rect2(rect.position + Vector2(edge, edge), Vector2(inner, inner))
-	if texture != null:
-		canvas.draw_texture_rect(texture, art_rect, false)
-	if dim > 0.0:
-		var shade: StyleBoxFlat = StyleBoxFlat.new()
-		shade.bg_color = Color(0.0, 0.0, 0.0, dim)
-		shade.set_corner_radius_all(RADIUS)
-		shade.anti_aliasing = true
-		canvas.draw_style_box(shade, rect)
+## The printed surface is the kind colour (`WeaponPickScreen.kind_color`, so Attack, Control, Block and Heal read at a glance) darkened by
+## this much, so the round art stands out from it.
+const GROUND_DARKEN: float = 0.3
+## The round art sits this far in from the card's edge, as a share of the card's width (9 px of a 123 px card).
+const ART_EDGE_SHARE: float = 0.073
+## The print of the back of a card on its way: the dark red brown of old cardboard.
+const BACK_GROUND: Color = Color(0.42, 0.17, 0.12)
+## A card lifted by a finger gets this edge round its worn outline (the lift stays clear on a flat card); a card shrunk over the street
+## keeps the same line.
+const LIFT_EDGE: float = 3.0
+## The wear seeds run from 1 up to this far above it (a different one for every weapon, so the four cards of a hand wear differently).
+const SEED_SPAN: float = 977.0
+## The empty slot of a hand (a card is held out of it, or on its way in): a faint hollow with a tan edge, like the dent a card leaves in
+## the tray.
+const HOLLOW: Color = Color(0.0, 0.0, 0.0, 0.25)
+const HOLLOW_EDGE: Color = Color(0.73, 0.63, 0.47, 0.4)
+const HOLLOW_EDGE_WIDTH: float = 3.0
+## The ring of a card on its way: how thick it is and how big against the card's width, and its seconds.
+const RING_WIDTH: float = 8.0
+const RING_SHARE: float = 0.26
+const RING_TRACK: Color = Color(1.0, 1.0, 1.0, 0.15)
+## What darkens the part of NEXT the shuffler has not finished (it brightens from the bottom up as the card is shuffled in).
+const FILLING_SHADE: Color = Color(0.0, 0.0, 0.0, 0.55)
 
 
-## The gloss of a card: a band a few pixels inside its black outline that runs from the top left, along the top, round the top right corner,
-## down the right side and round the bottom right corner to the bottom left, as one connected stroke (with a soft wider glow under it):
-## white at the top, fading through gray on the right, light gray along the bottom. Nothing on the left side.
-static func _glosses(canvas: CanvasItem, rect: Rect2) -> void:
-	var inset: float = float(BORDER) + float(GLOSS) / 2.0
-	var box: Rect2 = rect.grow(-inset)
-	var corner: float = maxf(float(RADIUS) - inset, 2.0)
-	var points: PackedVector2Array = PackedVector2Array()
-	var marks: PackedFloat32Array = PackedFloat32Array()  # which part of the path each point is on: 0 top, 1 right, 2 bottom
-	var arc_from_top: Array[int] = []  # the points on the top right curve
-	points.append(Vector2(box.position.x + corner, box.position.y))
-	marks.append(0.0)
-	points.append(Vector2(box.end.x - corner, box.position.y))
-	marks.append(0.0)
-	for step: int in range(1, GLOSS_STEPS + 1):
-		var angle: float = -PI / 2.0 + PI / 2.0 * float(step) / float(GLOSS_STEPS)
-		points.append(Vector2(box.end.x - corner, box.position.y + corner) + Vector2.from_angle(angle) * corner)
-		marks.append(0.5 * float(step) / float(GLOSS_STEPS))  # white to gray right round the curve
-		arc_from_top.append(points.size() - 1)
-	points.append(Vector2(box.end.x, box.end.y - corner))
-	marks.append(1.0)
-	for step: int in range(1, GLOSS_STEPS + 1):
-		var angle: float = PI / 2.0 * float(step) / float(GLOSS_STEPS)
-		points.append(Vector2(box.end.x - corner, box.end.y - corner) + Vector2.from_angle(angle) * corner)
-		marks.append(1.0 + 0.5 * float(step) / float(GLOSS_STEPS))  # gray to light gray right round the curve
-	points.append(Vector2(box.position.x + corner, box.end.y))
-	marks.append(2.0)
-	var lengths: PackedFloat32Array = PackedFloat32Array([0.0])
-	for index: int in range(1, points.size()):
-		lengths.append(lengths[index - 1] + points[index].distance_to(points[index - 1]))
-	var total: float = maxf(lengths[lengths.size() - 1], 1.0)
-	var colors: PackedColorArray = PackedColorArray()
-	var glow: PackedColorArray = PackedColorArray()
-	for index: int in points.size():
-		var color: Color = gloss_color(marks[index], lengths[index] / total)
-		colors.append(color)
-		glow.append(Color(color, color.a * 0.3))
-	canvas.draw_polyline_colors(points, glow, float(GLOSS) * 2.0, true)
-	canvas.draw_polyline_colors(points, colors, float(GLOSS), true)
-	# the shine: a thin bright arc over the top right curve, strongest where it turns and fading to nothing at both ends
-	var arc: PackedVector2Array = PackedVector2Array()
-	for index: int in arc_from_top:
-		arc.append(points[index])
-	if arc.size() > 2:
-		var shine: PackedColorArray = PackedColorArray()
-		for index: int in arc.size():
-			var share: float = float(index) / float(arc.size() - 1)
-			shine.append(Color(1.0, 1.0, 1.0, sin(share * PI) * 0.55))
-		canvas.draw_polyline_colors(arc, shine, float(GLOSS) * SHINE_WIDTH, true)
+## The colour a weapon card of `kind` is printed in.
+static func ground(kind: WeaponDef.Kind) -> Color:
+	return WeaponPickScreen.kind_color(kind).darkened(GROUND_DARKEN)
 
 
-## The gloss colour at a point of its path: `part` 0 on the top, 1 on the right side, 2 on the bottom (halves between are the corners);
-## `along` 0 to 1 is how far along the path it is (the band fades in at its start and out at its end).
-static func gloss_color(part: float, along: float) -> Color:
-	var color: Color
-	var alpha: float
-	if part <= 0.5:
-		color = GLOSS_TOP.lerp(GLOSS_RIGHT, part * 2.0)
-		alpha = lerpf(GLOSS_ALPHA_TOP, GLOSS_ALPHA_RIGHT, part * 2.0)
-	elif part <= 1.0:
-		color = GLOSS_RIGHT
-		alpha = GLOSS_ALPHA_RIGHT
-	elif part <= 1.5:
-		color = GLOSS_RIGHT.lerp(GLOSS_BOTTOM, (part - 1.0) * 2.0)
-		alpha = lerpf(GLOSS_ALPHA_RIGHT, GLOSS_ALPHA_BOTTOM, (part - 1.0) * 2.0)
-	else:
-		color = GLOSS_BOTTOM
-		alpha = GLOSS_ALPHA_BOTTOM
-	# fade in at the top left and out at the bottom left
-	alpha *= clampf(along / 0.06, 0.0, 1.0) * clampf((1.0 - along) / 0.1, 0.0, 1.0)
-	return Color(color, alpha)
+## The wear seed of a weapon's card: the same wherever that card is (hand, NEXT, held, flying), a different one for every weapon.
+static func wear_seed(id: StringName) -> float:
+	return 1.0 + float(String(id).hash() % int(SEED_SPAN))
 
 
-## The empty slot of a hand: a faint card-shaped hollow, waiting for the shuffler.
+## The shape of a card of `size` with the given corner radii, in the card's own pixels (shared with the shaders' cut).
+static func outline(size: Vector2, radii: Vector4) -> PackedVector2Array:
+	return CardShape.outline_corners(size, radii)
+
+
+## `outline` moved to `at` and closed, for a line round the card.
+static func closed(points: PackedVector2Array, at: Vector2) -> PackedVector2Array:
+	var line: PackedVector2Array = PackedVector2Array()
+	for point: Vector2 in points:
+		line.append(point + at)
+	if not points.is_empty():
+		line.append(points[0] + at)
+	return line
+
+
+## The gold edge of a lifted card, on its own worn outline.
+static func draw_lift_edge(canvas: CanvasItem, points: PackedVector2Array, at: Vector2) -> void:
+	canvas.draw_polyline(closed(points, at), RoyaleStyle.GOLD, LIFT_EDGE, true)
+
+
+## Colours the part of a card (its `points` at `at`) above `covered` px from its top in `color`: the wash over a card the ice water has
+## not reached and the shade of a card that is still being shuffled in. Cut to the card's own corners.
+static func shade_top(canvas: CanvasItem, points: PackedVector2Array, at: Vector2, covered: float, color: Color) -> void:
+	if covered <= 0.0 or points.is_empty():
+		return
+	var box: Rect2 = Rect2(Vector2.ZERO, Vector2.ZERO)
+	for point: Vector2 in points:
+		box = box.expand(point)
+	var band: PackedVector2Array = PackedVector2Array([Vector2(box.position.x - 1.0, box.position.y - 1.0), Vector2(box.end.x + 1.0, box.position.y - 1.0), Vector2(box.end.x + 1.0, box.position.y + covered), Vector2(box.position.x - 1.0, box.position.y + covered)])
+	for piece: PackedVector2Array in Geometry2D.intersect_polygons(points, band):
+		var moved: PackedVector2Array = PackedVector2Array()
+		for point: Vector2 in piece:
+			moved.append(point + at)
+		canvas.draw_colored_polygon(moved, color)
+
+
+## Colours the whole card (its `points` at `at`) in `color`.
+static func shade_all(canvas: CanvasItem, points: PackedVector2Array, at: Vector2, color: Color) -> void:
+	var moved: PackedVector2Array = PackedVector2Array()
+	for point: Vector2 in points:
+		moved.append(point + at)
+	if moved.size() >= 3:
+		canvas.draw_colored_polygon(moved, color)
+
+
+## The empty slot of a hand: a faint card-shaped hollow, waiting for the shuffler (or for the card that was lifted out of it).
 static func draw_empty(canvas: CanvasItem, rect: Rect2) -> void:
-	var hollow: StyleBoxFlat = StyleBoxFlat.new()
-	hollow.bg_color = Color(0.0, 0.0, 0.0, 0.25)
-	hollow.border_color = Color(RoyaleStyle.BLUE_LIGHT, 0.35)
-	hollow.set_border_width_all(3)
-	hollow.set_corner_radius_all(RADIUS)
-	hollow.anti_aliasing = true
-	canvas.draw_style_box(hollow, rect)
+	var points: PackedVector2Array = outline(rect.size, hollow_radii(rect.size.x))
+	shade_all(canvas, points, rect.position, HOLLOW)
+	canvas.draw_polyline(closed(points, rect.position), HOLLOW_EDGE, HOLLOW_EDGE_WIDTH, true)
 
 
-## The slot of a card that is on its way (owner: an empty slot is not a hole, the card is coming): a card back with a ring that fills as the
-## shuffler works, and the seconds left. `progress` 0 to 1.
-static func draw_back(canvas: CanvasItem, rect: Rect2, progress: float, seconds: int) -> void:
-	var back: StyleBoxFlat = StyleBoxFlat.new()
-	back.bg_color = Color(0.07, 0.14, 0.34)
-	back.border_color = Color(RoyaleStyle.BLUE_LIGHT, 0.5)
-	back.set_border_width_all(BORDER)
-	back.set_corner_radius_all(RADIUS)
-	back.anti_aliasing = true
-	canvas.draw_style_box(back, rect)
-	var inset: Rect2 = rect.grow(-float(INNER_INSET))
-	var inner: StyleBoxFlat = StyleBoxFlat.new()
-	inner.bg_color = Color(0.0, 0.0, 0.0, 0.0)
-	inner.border_color = Color(RoyaleStyle.GOLD, 0.35)
-	inner.set_border_width_all(2)
-	inner.set_corner_radius_all(RADIUS - INNER_INSET)
-	inner.anti_aliasing = true
-	canvas.draw_style_box(inner, inset)
+## The corners of a hollow: the middle of the cards' radii.
+static func hollow_radii(width: float) -> Vector4:
+	var radius: float = (CardFace.CORNER_RADIUS_MIN + CardFace.CORNER_RADIUS_MAX) / 2.0 * width / CardFace.REFERENCE_WIDTH * HandCard.WEAR_BOOST
+	return Vector4(radius, radius, radius, radius)
+
+
+## What goes over the back of a card that is on its way (owner: an empty slot is not a hole, the card is coming): a ring that fills as the
+## shuffler works and the seconds left. `progress` 0 to 1.
+static func draw_back_ring(canvas: CanvasItem, rect: Rect2, progress: float, seconds: int) -> void:
 	var centre: Vector2 = rect.get_center()
-	var radius: float = rect.size.x * 0.26
-	canvas.draw_arc(centre, radius, 0.0, TAU, 40, Color(1.0, 1.0, 1.0, 0.15), 8.0, true)
-	canvas.draw_arc(centre, radius, -PI / 2.0, -PI / 2.0 + TAU * clampf(progress, 0.0, 1.0), 40, RoyaleStyle.GOLD, 8.0, true)
+	var radius: float = rect.size.x * RING_SHARE
+	canvas.draw_arc(centre, radius, 0.0, TAU, 40, RING_TRACK, RING_WIDTH, true)
+	canvas.draw_arc(centre, radius, -PI / 2.0, -PI / 2.0 + TAU * clampf(progress, 0.0, 1.0), 40, RoyaleStyle.GOLD, RING_WIDTH, true)
 	if seconds > 0:
 		var font: Font = KalyeahTheme.ACTION_FONT
 		var text: String = "%d" % seconds
 		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.HEADLINE).x
 		canvas.draw_string(font, centre + Vector2(-width / 2.0, 14.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.HEADLINE, Color(1.0, 1.0, 1.0, 0.9))
-
-
-## Draws `def` darkened from the top down: `ready` (0 to 1) of the card, from the bottom up, is bright (a cooldown that fills the card).
-static func draw_filling(canvas: CanvasItem, rect: Rect2, def: WeaponDef, ready: float, dim: float = 0.55) -> void:
-	draw(canvas, rect, def)
-	var covered: float = rect.size.y * (1.0 - clampf(ready, 0.0, 1.0))
-	if covered <= 1.0:
-		return
-	var shade: StyleBoxFlat = StyleBoxFlat.new()
-	shade.bg_color = Color(0.0, 0.0, 0.0, dim)
-	shade.set_corner_radius_all(RADIUS)
-	shade.anti_aliasing = true
-	canvas.draw_style_box(shade, Rect2(rect.position, Vector2(rect.size.x, covered)))

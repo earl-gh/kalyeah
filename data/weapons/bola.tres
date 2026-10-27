@@ -21,3 +21,4 @@ count = 2
 projectile_radius = 0.3
 effect = 5
 effect_duration = 1.0
+card_power = 900

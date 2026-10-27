@@ -6,6 +6,7 @@
 uniform vec2 rect_size = vec2(385.0, 550.0);
 uniform float seed = 1.0;
 uniform vec4 radii = vec4(0.0); // the slight radius of each corner: top left, top right, bottom right, bottom left (set per card by CardFace)
+uniform float unit = 1.0; // how big the wear is: 1 on a full-size mode card; a smaller card (the hand's) wears over proportionally smaller lengths (set by CardFace)
 
 const float WEAR_CORNER = 17.0;  // and at the corners (a little: that is where an old card wears)
 const float WEAR_SIDE = 3.4;     // how far the print can wear away along the left and right sides (very slight)
@@ -41,14 +42,14 @@ vec2 wear_layers(vec2 position) {
 	float edge = min(min(position.x, rect_size.x - position.x), min(position.y, rect_size.y - position.y));
 	vec2 near = min(position, rect_size - position);
 	float corner = length(near);
-	float fine = fbm3(position * 0.19 + seed * 3.7);
-	float corner_weight = smoothstep(90.0, 0.0, corner);
+	float fine = fbm3(position * 0.19 / unit + seed * 3.7);
+	float corner_weight = smoothstep(90.0 * unit, 0.0, corner);
 	// only the corners wear (the sides stay whole)
-	float depth = WEAR_CORNER * corner_weight * corner_weight * (0.35 + 1.3 * fine);
+	float depth = WEAR_CORNER * unit * corner_weight * corner_weight * (0.35 + 1.3 * fine);
 	float left_right = min(position.x, rect_size.x - position.x);
 	// a different, very slight wear along the left and the right side of every card
 	float side_amount = position.x < rect_size.x * 0.5 ? 0.3 + hash21(vec2(seed, 2.3)) : 0.3 + hash21(vec2(seed, 8.6));
-	float side_depth = WEAR_SIDE * side_amount * fbm3(vec2(position.y * 0.07 + seed * 5.3, position.x * 0.2)) * 1.6;
+	float side_depth = WEAR_SIDE * unit * side_amount * fbm3(vec2(position.y * 0.07 / unit + seed * 5.3, position.x * 0.2 / unit)) * 1.6;
 	float print = min(smoothstep(depth - 0.8, depth + 0.8, edge), smoothstep(side_depth - 0.6, side_depth + 0.6, left_right));
 	float brown = min(smoothstep(depth * 0.5 - 0.8, depth * 0.5 + 0.8, edge), smoothstep(side_depth * 0.5 - 0.6, side_depth * 0.5 + 0.6, left_right));
 	return vec2(print, brown);

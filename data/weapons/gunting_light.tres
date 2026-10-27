@@ -19,3 +19,4 @@ angle_degrees = 60.0
 snips_min = 2
 snips_max = 6
 snip_hold_step = 0.25
+card_power = 600

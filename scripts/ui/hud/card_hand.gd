@@ -11,6 +11,10 @@ extends Control
 ## back on the hand to cancel, or quickly on the same card to tap (MatchInput decides which). A card that is not ready cannot be
 ## picked up: it shakes (flashes only, with Reduce motion). It reads the sim
 ## through `show_state()` and reports gestures with signals; it never decides a rule.
+##
+## The cards are old Filipino teks cards (`HandCard` nodes, the mode card's worn look): the hand draws what is under them (the NEXT word,
+## the hollow of a slot a card is out of, the bar) in its own `_draw`, the cards are its children, and what lies over them (the ice water
+## drop, the washes, the words, the flash) is drawn on an overlay child after them, and over the card under the finger on another one.
 
 ## A card was picked up (`slot`).
 signal card_pressed(slot: int)
@@ -168,6 +172,13 @@ var _pops: PackedFloat32Array = PackedFloat32Array()
 var _divider_fade: float = 1.0
 ## What the last `show_state` was told, so an unchanged hand is not redrawn.
 var _last_state: Array = []
+## The cards as nodes (a shader works on one CanvasItem): NEXT, the four slots, the one under the finger, and what is drawn over them (the
+## slots' washes, costs and words; then, over the held card, its gold edge and cost). Children in this order, so the held card is on top.
+var _next_face: HandCard
+var _faces: Array[HandCard] = []
+var _held_face: HandCard
+var _overlay: Control
+var _held_overlay: Control
 
 
 func _init() -> void:
@@ -189,6 +200,73 @@ func _init() -> void:
 		_deny[slot] = 0.0
 		_arrive[slot] = 0.0
 	resized.connect(_layout)
+	_next_face = _new_face("NextCard")
+	for slot: int in SLOTS:
+		_faces.append(_new_face("Card%d" % slot))
+	_overlay = _new_overlay("Over", _draw_over_cards)
+	_held_face = _new_face("HeldCard")
+	_held_face.shadowed = true
+	_held_overlay = _new_overlay("OverHeld", _draw_over_held)
+
+
+func _new_face(label: String) -> HandCard:
+	var face: HandCard = HandCard.new()
+	face.name = label
+	add_child(face)
+	return face
+
+
+## A see-through layer over the hand that draws with `drawing` (so it comes after the cards, which are children too).
+func _new_overlay(label: String, drawing: Callable) -> Control:
+	var layer: Control = Control.new()
+	layer.name = label
+	layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.draw.connect(drawing)
+	add_child(layer)
+	return layer
+
+
+## Redraws the hand and puts its card nodes where the state says (everything that changes a card calls this, never `queue_redraw()`).
+func _refresh() -> void:
+	_sync_faces()
+	queue_redraw()
+	if _overlay != null:
+		_overlay.queue_redraw()
+		_held_overlay.queue_redraw()
+
+
+## The card nodes show what the hand shows: NEXT, each slot (a card, the back of one on its way, nothing while the card is out of it or
+## flying in), and the held card at the finger.
+func _sync_faces() -> void:
+	if _faces.size() < SLOTS:
+		return
+	var ready_layout: bool = card_rects.size() >= SLOTS
+	_next_face.visible = ready_layout and next_def != null
+	if _next_face.visible:
+		_next_face.show_weapon(next_def)
+		_next_face.place(next_rect)
+	var blocked: bool = not blocked_text.is_empty()
+	for slot: int in SLOTS:
+		var face: HandCard = _faces[slot]
+		var def: WeaponDef = defs[slot]
+		if not ready_layout or (def != null and (slot == held_slot or _arrive[slot] > 0.0)):
+			face.visible = false
+			continue
+		var rect: Rect2 = card_rects[slot]
+		if def == null:
+			face.show_back(slot)
+			face.dim = 0.0
+		else:
+			face.show_weapon(def)
+			rect.position.x += deny_offset(slot)
+			face.dim = BLOCK_DIM if blocked else 0.0
+		face.place(rect)
+		face.visible = true
+	_held_face.visible = ready_layout and held_slot >= 0 and defs[held_slot] != null
+	if _held_face.visible:
+		_held_face.show_weapon(defs[held_slot])
+		_held_face.place(held_card_rect())
 
 
 func _ready() -> void:
@@ -228,7 +306,21 @@ func _layout() -> void:
 	var bar_left: float = cards_x + BAR_BAG * HandArt.ICE_DRAW_ASPECT / 2.0
 	var bar_right: float = cards_x + 4.0 * card.x + 3.0 * CARD_GAP
 	bar_rect = Rect2(Vector2(bar_left, bar_top), Vector2(bar_right - bar_left, BAR_HEIGHT))
-	queue_redraw()
+	_refresh()
+
+
+## The card node of `slot` (what is drawn there: a card, a card back, or hidden while the card is out of it), NEXT's, and the one under the
+## finger.
+func card_node(slot: int) -> HandCard:
+	return _faces[slot]
+
+
+func next_node() -> HandCard:
+	return _next_face
+
+
+func held_node() -> HandCard:
+	return _held_face
 
 
 ## The four cards' rect, in own pixels.
@@ -275,7 +367,7 @@ func show_state(sim: MatchSim, player: PlayerState, playing: bool, block: String
 	var state: Array = [active, uses_elixir, elixir, elixir_max, blocked_text, defs.duplicate(), pickable.duplicate(), reached.duplicate(), notices.duplicate(), next_def, next_fill, wait_fraction, wait_seconds]
 	if state != _last_state:
 		_last_state = state
-		queue_redraw()
+		_refresh()
 
 
 ## How close the card in `slot` is to ready: the bar against its cost (elixir), or its cooldown (elixir off, the old two weapons).
@@ -319,7 +411,7 @@ func _describe() -> void:
 
 func _process(delta: float) -> void:
 	if step(delta):
-		queue_redraw()
+		_refresh()
 
 
 ## Advances every timer by `delta` seconds (the shown bar, the pops, the dividers, a shake, a card arriving). Returns whether anything
@@ -502,7 +594,7 @@ func _press(pointer: int, viewport_position: Vector2) -> void:
 	on_card = true
 	over_hand = true
 	card_pressed.emit(slot)
-	queue_redraw()
+	_refresh()
 
 
 func _move(viewport_position: Vector2) -> void:
@@ -512,7 +604,7 @@ func _move(viewport_position: Vector2) -> void:
 	on_card = card_rects[held_slot].grow(CARD_GAP / 2.0).has_point(finger)
 	over_hand = Rect2(Vector2.ZERO, size).has_point(finger)
 	card_moved.emit(held_slot, viewport_position, on_card, over_hand)
-	queue_redraw()
+	_refresh()
 
 
 func _release(viewport_position: Vector2) -> void:
@@ -534,7 +626,7 @@ func _end_hold() -> void:
 	_pointer = NO_POINTER
 	on_card = true
 	over_hand = true
-	queue_redraw()
+	_refresh()
 
 
 ## A card that is not ready was pressed: it shakes and flashes (only flashes with Reduce motion), and the phone buzzes once.
@@ -542,7 +634,7 @@ func deny(slot: int) -> void:
 	_deny[slot] = DENY_TIME
 	Settings.vibrate(DENY_BUZZ_MS)
 	card_denied.emit(slot)
-	queue_redraw()
+	_refresh()
 
 
 ## How far a denied card is pushed sideways now (0 with Reduce motion or when it is not shaking).
@@ -570,20 +662,16 @@ func held_card_rect() -> Rect2:
 
 # ---- drawing --------------------------------------------------------------------
 
+## The hand's own drawing, under its cards: the word over NEXT, the hollow of a slot a card is out of (and of an empty NEXT), and the ice
+## water bar. The cards are nodes drawn after this; what lies over them is `_draw_over_cards()`.
 func _draw() -> void:
-	_draw_next()
+	_draw_next_label()
+	if next_def == null:
+		CardStyle.draw_empty(self, next_rect)
 	for slot: int in card_rects.size():
-		_draw_slot(slot)
-	if not blocked_text.is_empty() and _tag_too_wide(blocked_text) and not card_rects.is_empty():
-		var cards: Rect2 = card_rects[0]
-		for card: Rect2 in card_rects:
-			cards = cards.merge(card)
-		_draw_tag(cards.get_center(), UiText.t(blocked_text))
+		if defs[slot] != null and (slot == held_slot or _arrive[slot] > 0.0):
+			CardStyle.draw_empty(self, card_rects[slot])
 	_draw_bar()
-	if held_slot >= 0 and defs[held_slot] != null:
-		var rect: Rect2 = held_card_rect()
-		CardStyle.draw(self, rect, defs[held_slot], 0.0, true)
-		_draw_cost(rect, defs[held_slot], true)
 
 
 ## The word over the next card.
@@ -591,66 +679,66 @@ func next_label() -> String:
 	return UiText.t("Next:")
 
 
-func _draw_next() -> void:
+func _draw_next_label() -> void:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var label: String = next_label()
 	var width: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT).x
 	var at: Vector2 = Vector2(next_rect.get_center().x - width / 2.0, next_rect.position.y - 8.0)
 	draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT, 7, Color.BLACK)
 	draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT, NEXT_COLOR)
-	if next_def == null:
-		CardStyle.draw_empty(self, next_rect)
-	elif next_fill < 1.0:
-		CardStyle.draw_filling(self, next_rect, next_def, next_fill)
-	else:
-		CardStyle.draw(self, next_rect, next_def)
 
 
-func _draw_slot(slot: int) -> void:
+## Over the cards: the shade of NEXT while it is still being shuffled in, and on every slot the card's wash (a cost the bar has not
+## reached), its ice water drop, its word, its red flash when denied, or the ring of a card on its way; then the word too wide for one card.
+func _draw_over_cards() -> void:
+	if card_rects.size() < SLOTS:
+		return
+	if next_def != null and next_fill < 1.0:
+		CardStyle.shade_top(_overlay, _next_face.outline(), next_rect.position, next_rect.size.y * (1.0 - next_fill), CardStyle.FILLING_SHADE)
+	for slot: int in SLOTS:
+		_draw_slot_over(slot)
+	if not blocked_text.is_empty() and _tag_too_wide(blocked_text):
+		_draw_tag(_overlay, row_rect().get_center(), UiText.t(blocked_text))
+
+
+func _draw_slot_over(slot: int) -> void:
 	var rect: Rect2 = card_rects[slot]
 	var def: WeaponDef = defs[slot]
 	if def == null:
-		CardStyle.draw_back(self, rect, wait_fraction, wait_seconds)
+		CardStyle.draw_back_ring(_overlay, rect, wait_fraction, wait_seconds)
 		return
-	if slot == held_slot:
-		CardStyle.draw_empty(self, rect)
-		return
-	if _arrive[slot] > 0.0:
-		CardStyle.draw_empty(self, rect)
+	if slot == held_slot or _arrive[slot] > 0.0:
 		return
 	rect.position.x += deny_offset(slot)
+	var outline: PackedVector2Array = _faces[slot].outline()
 	var blocked: bool = not blocked_text.is_empty()
-	CardStyle.draw(self, rect, def, BLOCK_DIM if blocked else 0.0)
 	if not blocked and not pickable[slot] and reached[slot] < 1.0:
-		_draw_grey(rect, reached[slot])
-	_draw_cost(rect, def, pickable[slot] or reached[slot] >= 1.0)
+		_draw_grey(outline, rect, reached[slot])
+	_draw_cost(_overlay, rect, def, pickable[slot] or reached[slot] >= 1.0)
 	var tag: String = blocked_text if blocked else notices[slot]
 	# a word wider than a card (CAPTURING) is said once across the hand, not four times over one another
 	if not tag.is_empty() and not _tag_too_wide(tag):
-		_draw_tag(rect.get_center(), UiText.t(tag))
+		_draw_tag(_overlay, rect.get_center(), UiText.t(tag))
 	if _deny[slot] > 0.0:
-		var flash: StyleBoxFlat = StyleBoxFlat.new()
-		flash.bg_color = Color(DENY_FLASH, DENY_FLASH.a * _deny[slot] / DENY_TIME)
-		flash.set_corner_radius_all(CardStyle.RADIUS)
-		draw_style_box(flash, rect)
+		CardStyle.shade_all(_overlay, outline, rect.position, Color(DENY_FLASH, DENY_FLASH.a * _deny[slot] / DENY_TIME))
 
 
-## Greys a card the bar has not reached: dark over the share still missing (from the top), lighter over the share already there.
-func _draw_grey(rect: Rect2, share: float) -> void:
-	var missing: float = rect.size.y * (1.0 - clampf(share, 0.0, 1.0))
-	var wash: StyleBoxFlat = StyleBoxFlat.new()
-	wash.bg_color = GREY_REACHED
-	wash.set_corner_radius_all(CardStyle.RADIUS)
-	wash.anti_aliasing = true
-	draw_style_box(wash, rect)
-	if missing <= 1.0:
+## Over the card under the finger: its gold edge (the lift stays clear on a flat, worn card) and its cost.
+func _draw_over_held() -> void:
+	if held_slot < 0 or defs[held_slot] == null or card_rects.size() < SLOTS:
 		return
-	var dark: StyleBoxFlat = StyleBoxFlat.new()
-	dark.bg_color = GREY
-	dark.corner_radius_top_left = CardStyle.RADIUS
-	dark.corner_radius_top_right = CardStyle.RADIUS
-	dark.anti_aliasing = true
-	draw_style_box(dark, Rect2(rect.position, Vector2(rect.size.x, missing)))
+	var rect: Rect2 = held_card_rect()
+	CardStyle.draw_lift_edge(_held_overlay, _held_face.outline(), rect.position)
+	_draw_cost(_held_overlay, rect, defs[held_slot], true)
+
+
+## Greys a card the bar has not reached (cut to its worn corners): dark over the share still missing (from the top), lighter over the share
+## already there.
+func _draw_grey(outline: PackedVector2Array, rect: Rect2, share: float) -> void:
+	CardStyle.shade_all(_overlay, outline, rect.position, GREY_REACHED)
+	var missing: float = rect.size.y * (1.0 - clampf(share, 0.0, 1.0))
+	if missing > 1.0:
+		CardStyle.shade_top(_overlay, outline, rect.position, missing, GREY)
 
 
 ## Where the cost drop sits on the card `rect`: all of it inside the card, in the middle, its bottom edge a little above the card's
@@ -663,13 +751,13 @@ static func cost_drop_rect(rect: Rect2) -> Rect2:
 
 ## The card's cost on an ice water drop inside its bottom edge, in the middle (elixir only); a cost the bar has not reached is drawn in grey.
 ## A card shrunk over the street shrinks its drop with it (its number a little less, to stay readable).
-func _draw_cost(rect: Rect2, def: WeaponDef, affordable: bool) -> void:
+func _draw_cost(canvas: CanvasItem, rect: Rect2, def: WeaponDef, affordable: bool) -> void:
 	if not uses_elixir:
 		return
 	var drop: Rect2 = cost_drop_rect(rect)
 	var share: float = rect.size.x / card_rects[0].size.x if not card_rects.is_empty() else 1.0
 	var font_size: int = clampi(roundi(float(COST_FONT) * share), COST_FONT_MIN, COST_FONT)
-	HandArt.draw_ice(self, drop.get_center(), drop.size.y, str(def.elixir_cost), font_size, affordable)
+	HandArt.draw_ice(canvas, drop.get_center(), drop.size.y, str(def.elixir_cost), font_size, affordable)
 
 
 ## The pill for `tag` would be wider than one card.
@@ -680,7 +768,7 @@ func _tag_too_wide(tag: String) -> bool:
 	return width > card_rects[0].size.x
 
 
-func _draw_tag(at: Vector2, text: String) -> void:
+func _draw_tag(canvas: CanvasItem, at: Vector2, text: String) -> void:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, COST_FONT).x + 20.0
 	var pill: StyleBoxFlat = StyleBoxFlat.new()
@@ -688,9 +776,9 @@ func _draw_tag(at: Vector2, text: String) -> void:
 	pill.border_color = TAG_COLOR
 	pill.set_border_width_all(2)
 	pill.set_corner_radius_all(UiSkin.round_radius(TAG_HEIGHT))
-	draw_style_box(pill, Rect2(at - Vector2(width / 2.0, TAG_HEIGHT / 2.0), Vector2(width, TAG_HEIGHT)))
-	draw_string_outline(font, at + Vector2(-width / 2.0 + 10.0, COST_FONT * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, COST_FONT, 5, Icons.OUTLINE)
-	draw_string(font, at + Vector2(-width / 2.0 + 10.0, COST_FONT * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, COST_FONT, TAG_COLOR)
+	canvas.draw_style_box(pill, Rect2(at - Vector2(width / 2.0, TAG_HEIGHT / 2.0), Vector2(width, TAG_HEIGHT)))
+	canvas.draw_string_outline(font, at + Vector2(-width / 2.0 + 10.0, COST_FONT * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, COST_FONT, 5, Icons.OUTLINE)
+	canvas.draw_string(font, at + Vector2(-width / 2.0 + 10.0, COST_FONT * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, COST_FONT, TAG_COLOR)
 
 
 ## The ice water bar, bottom to top: the dark track with an inner shadow, the fill (a glossy light band over a deeper lower half, a

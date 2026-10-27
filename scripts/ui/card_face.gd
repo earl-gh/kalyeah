@@ -8,6 +8,9 @@ extends Control
 const PICTURE_SHADER: Shader = preload("res://shaders/card_picture.gdshader")
 const TINT_SHADER: Shader = preload("res://shaders/card_tint.gdshader")
 const BLUR_SHADER: Shader = preload("res://shaders/model_blur.gdshader")
+## The width of a full-size mode card, the size the wear, the radii and the shadow below are made for: a smaller card (the hand's) has a
+## `unit` of its width over this (and the same look in proportion).
+const REFERENCE_WIDTH: float = 385.0
 ## The slight radius of each corner: between these, a different one on every corner of every card (never sharp, never very round).
 const CORNER_RADIUS_MIN: float = 12.0
 const CORNER_RADIUS_MAX: float = 16.0
@@ -58,14 +61,55 @@ var chosen: float = 1.0:
 			return
 		chosen = value
 		# a card that is not chosen is only dimmed (a dark tint, still in colour: owner)
-		_picture_material.set_shader_parameter("dim", 1.0 - value)
-		_tint_material.set_shader_parameter("tint", Color(AGE_TINT, AGE_TINT.a * value))
+		dim = 1.0 - value
 		# a bare picture has no shader: it is dimmed with a dark tint of its own (owner: darker)
 		_picture.modulate = Color.WHITE.lerp(BARE_DIM, 1.0 - value) if bare else Color.WHITE
 		# the name on the platform fades in once the model is the active one and at the centre, and is gone when it leaves
 		_show_plate(value >= PLATE_ACTIVE)
 		_blur_for_depth()
 		queue_redraw()
+## How dark the card is, 0 (as printed) to 1 (the dark tint of a card that is not chosen): the picture is multiplied by it and the yellow
+## tint goes as it darkens. A card of the hand that cannot be used is dimmed with it.
+var dim: float = 0.0:
+	set(value):
+		dim = clampf(value, 0.0, 1.0)
+		_picture_material.set_shader_parameter("dim", dim)
+		_tint_material.set_shader_parameter("tint", Color(AGE_TINT, AGE_TINT.a * (1.0 - dim)))
+## A face with a ground is printed on that flat colour (alpha 1) with its `texture` as a small art on it, `art_inset` px in from the card's
+## edges (the hand's weapon cards); with no ground (alpha 0) the picture is the whole print (the mode cards).
+var ground: Color = Color(0.0, 0.0, 0.0, 0.0):
+	set(value):
+		ground = value
+		_picture_material.set_shader_parameter("ground", value)
+		_fit()
+var art_inset: float = 0.0:
+	set(value):
+		art_inset = value
+		_fit()
+## This card's size in proportion to a full-size mode card (`REFERENCE_WIDTH`): the wear, the radii and the shadow keep their look at a
+## smaller size.
+var unit: float = 1.0:
+	set(value):
+		unit = maxf(value, 0.01)
+		for material: ShaderMaterial in _materials():
+			material.set_shader_parameter("unit", unit)
+		_fit()
+		queue_redraw()
+## The soft shadow under the card (the chosen mode card, a card held in the hand).
+var shadowed: bool = true:
+	set(value):
+		shadowed = value
+		queue_redraw()
+## The power line's letter height over the card's height and the width of its outline (a small card has a bigger share of both).
+var power_size_share: float = POWER_SIZE_SHARE:
+	set(value):
+		power_size_share = value
+		_power_line.size_share = value
+var power_outline: int = POWER_OUTLINE_SIZE:
+	set(value):
+		power_outline = value
+		_power_line.outline_size = value
+
 ## A bare face shows its picture as it is, a transparent PNG (a diorama) with no card paper, wear, corners, tint or power line: the card
 ## is only the shell that sizes, places and dims it (owner). The worn teks card above stays for another part of the game.
 var bare: bool = false:
@@ -182,7 +226,7 @@ func _notification(what: int) -> void:
 func _draw() -> void:
 	if size.x < 8.0 or size.y < 8.0:
 		return
-	if chosen < 0.02:
+	if chosen < 0.02 or not shadowed:
 		return
 	if bare:
 		_draw_ground_shadow()
@@ -193,7 +237,7 @@ func _draw() -> void:
 		var grow: float = 1.0 + SHADOW_GROW * float(layer)
 		var shadow: PackedVector2Array = PackedVector2Array()
 		for point: Vector2 in face:
-			shadow.append(centre + (point - centre) * grow + SHADOW_DROP + Vector2(0.0, SHADOW_BREATH * lift))
+			shadow.append(centre + (point - centre) * grow + (SHADOW_DROP + Vector2(0.0, SHADOW_BREATH * lift)) * unit)
 		draw_colored_polygon(shadow, Color(0.0, 0.02, 0.08, SHADOW_ALPHA * (1.0 - 0.3 * lift) * chosen))
 
 
@@ -244,6 +288,7 @@ func _fit() -> void:
 		material.set_shader_parameter("radii", corner_radii())
 	if texture != null and size.y > 0.0:
 		_picture_material.set_shader_parameter("cover", _cover_scale())
+	_picture_material.set_shader_parameter("art_rect", Vector4(art_inset, art_inset, maxf(size.x - 2.0 * art_inset, 1.0), maxf(size.x - 2.0 * art_inset, 1.0)))
 
 
 func _materials() -> Array[ShaderMaterial]:
@@ -255,7 +300,7 @@ func _materials() -> Array[ShaderMaterial]:
 func corner_radii() -> Vector4:
 	var radii: Array[float] = []
 	for corner: int in 4:
-		var unit: float = fposmod(sin(wear_seed * (12.9898 + 21.7 * float(corner)) + 4.1 + 3.3 * float(corner)) * 43758.5453, 1.0)
-		radii.append(lerpf(CORNER_RADIUS_MIN, CORNER_RADIUS_MAX, unit))
+		var unit_radius: float = fposmod(sin(wear_seed * (12.9898 + 21.7 * float(corner)) + 4.1 + 3.3 * float(corner)) * 43758.5453, 1.0)
+		radii.append(lerpf(CORNER_RADIUS_MIN, CORNER_RADIUS_MAX, unit_radius) * unit)
 	return Vector4(radii[0], radii[1], radii[2], radii[3])
 

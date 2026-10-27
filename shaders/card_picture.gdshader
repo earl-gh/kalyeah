@@ -5,6 +5,8 @@ shader_type canvas_item;
 #include "res://shaders/card_wear.gdshaderinc"
 
 uniform vec2 cover = vec2(1.0); // the share of the picture shown across and down (it is cropped to fit the card)
+uniform vec4 ground = vec4(0.0); // a card printed on a flat colour (rgb; a = 1) with the picture as a small art on it (the hand's cards); a = 0: the picture is the whole print
+uniform vec4 art_rect = vec4(0.0, 0.0, 1.0, 1.0); // where that art sits on the card: x, y, width, height in the card's pixels
 uniform float dim : hint_range(0.0, 1.0) = 0.0; // 1 for a card that is not chosen: dimmed with a dark tint (still in colour)
 
 const vec3 DIM_TINT = vec3(0.24, 0.24, 0.27); // what an unchosen card is multiplied by: a dark, nearly black tint
@@ -15,7 +17,15 @@ const vec3 FRINGE = vec3(0.80, 0.70, 0.56); // loose pale fibres on the very edg
 
 void fragment() {
 	vec2 position = UV * rect_size;
-	vec3 print = texture(TEXTURE, 0.5 + (UV - 0.5) * cover).rgb;
+	vec3 print;
+	if (ground.a > 0.0) {
+		vec2 art_at = (position - art_rect.xy) / art_rect.zw;
+		vec4 art = texture(TEXTURE, clamp(art_at, 0.0, 1.0));
+		float on_art = step(0.0, min(art_at.x, art_at.y)) * step(max(art_at.x, art_at.y), 1.0);
+		print = mix(ground.rgb, art.rgb, art.a * on_art);
+	} else {
+		print = texture(TEXTURE, 0.5 + (UV - 0.5) * cover).rgb;
+	}
 	// aged: grainy
 	float grain = 0.5 * value_noise(position * 0.9 + seed) + 0.5 * value_noise(position * 2.7 + seed * 2.0);
 	print *= 0.93 + 0.14 * grain;

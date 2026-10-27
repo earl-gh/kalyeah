@@ -96,15 +96,3 @@ func test_the_street_camera_keeps_the_tray_clear() -> void:
 func test_a_card_has_the_clash_royale_ratio() -> void:
 	var card: Vector2 = CardHand.card_size(720.0)
 	assert_almost_eq(card.y / card.x, 1.26, 0.01, "276 x 219 on the reference")
-
-
-func test_the_gloss_is_one_band_that_fades_on_the_right_and_comes_back_along_the_bottom() -> void:
-	var top: Color = CardStyle.gloss_color(0.0, 0.2)
-	var right: Color = CardStyle.gloss_color(1.0, 0.55)
-	var bottom: Color = CardStyle.gloss_color(2.0, 0.8)
-	assert_gt(top.a, right.a, "strongest at the top, faded on the right")
-	assert_gt(bottom.a, right.a, "and back along the bottom")
-	assert_gt(top.get_luminance(), right.get_luminance(), "white at the top, gray on the right")
-	assert_gt(bottom.get_luminance(), right.get_luminance(), "light gray along the bottom")
-	assert_lt(CardStyle.gloss_color(0.0, 0.0).a, 0.01, "it fades in from nothing at its start")
-	assert_lt(CardStyle.gloss_color(2.0, 1.0).a, 0.01, "and out to nothing at its end")

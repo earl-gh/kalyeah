@@ -23,3 +23,4 @@ lifetime = 20.0
 effect = 2
 effect_duration = 0.25
 effect_magnitude = 0.4
+card_power = 500
