@@ -2,25 +2,25 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bmm8d1riaeu6t"
-path="res://.godot/imported/popoy_kid_base_color.jpg-6a78f516cc35ed60076a6aa9c6c9d55a.ctex"
+uid="uid://dowxu7buu4v1v"
+path="res://.godot/imported/popoy_0.png-e4f10241ac43e3076e282ed12505601c.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "03e291d954c772f342294634a79d949b"
+"md5": "c6fcf35d9e08bd0b9f999d9487a5a55c"
 }
 
 [deps]
 
-source_file="res://assets/models/characters/popoy_kid_base_color.jpg"
-dest_files=["res://.godot/imported/popoy_kid_base_color.jpg-6a78f516cc35ed60076a6aa9c6c9d55a.ctex"]
+source_file="res://assets/models/characters/popoy_0.png"
+dest_files=["res://.godot/imported/popoy_0.png-e4f10241ac43e3076e282ed12505601c.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

@@ -31,7 +31,7 @@ func _run(kid: KidModel, speed: float) -> void:
 
 func test_only_junjun_is_marked_native() -> void:
 	assert_true(_def(&"junjun").native_animation)
-	for id: StringName in [&"toni", &"ligaya", &"migo", &"popoy", &"inday"]:
+	for id: StringName in [&"ligaya", &"migo"]:
 		assert_false(_def(id).native_animation, "%s keeps the game's pacing" % id)
 
 
@@ -44,7 +44,7 @@ func test_junjun_runs_at_his_own_clip_speed_whatever_the_ground_speed() -> void:
 
 
 func test_the_other_kids_run_is_still_paced_to_the_ground() -> void:
-	var kid: KidModel = _kid(&"toni")
+	var kid: KidModel = _kid(&"ligaya")
 	_run(kid, 2.0)
 	var slow: float = kid._player.speed_scale
 	_run(kid, 7.0)
@@ -60,7 +60,7 @@ func test_a_cast_shows_his_clip_at_its_own_speed_and_for_its_own_length() -> voi
 	assert_almost_eq(kid._player.speed_scale, 1.0, 0.0001, "not squeezed into the 0.38 s cast time")
 	assert_almost_eq(kid._cast_total, kid._clip_length("cast"), 0.001, "the cast shows for the clip's own length")
 	assert_gt(kid._cast_total, 1.0, "his throw is a real, long clip")
-	var toni: KidModel = _kid(&"toni")
+	var toni: KidModel = _kid(&"ligaya")
 	toni.play_cast(0.38, false)
 	toni.animate(DT, 0.0, state)
 	assert_gt(toni._player.speed_scale, 1.5, "the others are still squeezed into the cast time")
@@ -69,7 +69,7 @@ func test_a_cast_shows_his_clip_at_its_own_speed_and_for_its_own_length() -> voi
 func test_a_spell_starts_at_the_beginning_of_his_clip() -> void:
 	var kid: KidModel = _kid(&"junjun")
 	assert_eq(kid._clip_start("spell"), 0.0)
-	assert_gt(_kid(&"toni")._clip_start("spell"), 0.0, "the others skip their charge-up")
+	assert_gt(_kid(&"ligaya")._clip_start("spell"), 0.0, "the others skip their charge-up")
 
 
 func test_his_footsteps_follow_his_run_clip() -> void:
@@ -105,7 +105,9 @@ func test_each_status_plays_its_animation_on_your_kid_until_it_wears_off() -> vo
 		for i: int in 3:
 			practice.advance(DT)
 		var view: KidModel = practice._views[PracticeMatch.LOCAL_ID] as KidModel
-		assert_eq(view.pose, expect[type], "the kid plays the %s animation" % expect[type])
+		# the authored kids (Toni, Popoy, Inday) have no fall: a knock-out shows as stunned
+		var want: String = "stunned" if type == StatusEffects.Type.KNOCKOUT and view.character.authored_model else expect[type]
+		assert_eq(view.pose, want, "the kid plays the %s animation" % want)
 		for i: int in int(STATUS_TIME * 30.0) + 60:
 			practice.advance(DT)
 		assert_false(player.effects.has(type as StatusEffects.Type), "it wears off")

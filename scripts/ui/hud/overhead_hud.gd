@@ -58,7 +58,6 @@ const EMPTY_BAR: Color = Color(0.18, 0.19, 0.21)
 const SELF_COLOR: Color = Color(0.35, 0.95, 0.35)
 const ALLY_COLOR: Color = Color(0.35, 0.65, 1.0)
 const ENEMY_COLOR: Color = Color(1.0, 0.3, 0.3)
-const STATUS_COLOR: Color = Color(1.0, 0.86, 0.3)
 const DAMAGE_COLOR: Color = Color(1.0, 0.95, 0.85)
 const HEAL_COLOR: Color = Color(0.55, 1.0, 0.45)
 ## The spinner above a hero holding the enemy base.
@@ -331,7 +330,7 @@ func _draw_hero(state: PlayerState) -> void:
 	var fill: float = clampf(float(state.hp) / max_hp, 0.0, 1.0)
 	var color: Color = bar_color(state)
 	_draw_bar(rect, fill, color)
-	_draw_label(label_for(state), rect, STATUS_COLOR if not _status_text(state).is_empty() else Color.WHITE)
+	_draw_label(label_for(state), rect)
 	_draw_badge(state, rect)
 	if stamina_visible(state):
 		var stamina: Vector2 = STAMINA_SIZE * bar_scale
@@ -356,14 +355,14 @@ func _draw_progress(state: PlayerState) -> void:
 
 
 ## The word at the bar's top left corner, clear of the badge, its middle level with the bar's top outline; kept inside the screen sides.
-func _draw_label(text: String, rect: Rect2, color: Color) -> void:
+func _draw_label(text: String, rect: Rect2) -> void:
 	if text.is_empty():
 		return
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, LABEL_FONT).x
 	var left: float = rect.position.x + BADGE_OVERLAP + BAR_OUTLINE
 	var centre: Vector2 = keep_on_screen(Vector2(left + width / 2.0, label_baseline(rect)), font, text, LABEL_FONT)
-	_text(font, text, centre, LABEL_FONT, color, TEXT_OUTLINE)
+	_text(font, text, centre, LABEL_FONT, Color.WHITE, TEXT_OUTLINE, Color.BLACK)
 
 
 ## The badge at the bar's left end: the player's number, white, on a rounded square in the team's colour.
@@ -444,12 +443,12 @@ func _draw_popup(popup: Dictionary) -> void:
 	_text(KalyeahTheme.ACTION_FONT, ("+%d" if healed else "-%d") % (popup["amount"] as int), pos, size, color, 6)
 
 
-func _text(font: Font, text: String, center: Vector2, font_size: int, color: Color, outline: int) -> void:
+func _text(font: Font, text: String, center: Vector2, font_size: int, color: Color, outline: int, outline_color: Color = Icons.OUTLINE) -> void:
 	if text.is_empty():
 		return
 	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
 	var origin: Vector2 = center - Vector2(width / 2.0, 0.0)
-	var dark: Color = Icons.OUTLINE
+	var dark: Color = outline_color
 	dark.a = color.a
 	draw_string_outline(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, outline, dark)
 	draw_string(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, color)

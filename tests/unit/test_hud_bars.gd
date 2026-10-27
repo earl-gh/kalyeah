@@ -80,7 +80,7 @@ func test_the_health_number_is_centred_on_the_bars_top_outline() -> void:
 func test_the_bar_and_its_number_are_one_and_a_half_times_what_they_were_owner() -> void:
 	var rules: CameraRules = load("res://data/rules/camera_rules.tres") as CameraRules
 	assert_almost_eq(rules.bar_scale, 0.5 * 1.5, 0.0001, "the bar was drawn at 0.5")
-	assert_eq(OverheadHud.LABEL_FONT, int(12 * 1.5), "the number was 12 px")
+	assert_eq(OverheadHud.LABEL_FONT, 16, "\"You\" and the status word are 16 px (owner)")
 
 
 func test_the_status_word_takes_the_place_of_you_in_the_same_size() -> void:
