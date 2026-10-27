@@ -127,6 +127,7 @@ func test_the_cards_show_the_owners_pictures_and_no_text() -> void:
 		assert_false((card.get_node("Heading") as Label).visible, "no heading on the card")
 	for id: String in ["hotspot", "online", "practice"]:
 		assert_true(ResourceLoader.exists("res://assets/ui/cards/%s.webp" % id), id)
+		assert_true(ResourceLoader.exists("res://assets/ui/mode_pictures/%s.webp" % id), "the earlier picture of %s is kept for another part of the game (owner)" % id)
 
 
 func test_the_cards_are_large_and_every_one_is_always_visible_stacked_behind_the_chosen_one() -> void:
