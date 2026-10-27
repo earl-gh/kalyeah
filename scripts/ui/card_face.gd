@@ -1,14 +1,9 @@
 class_name CardFace
 extends Control
-## A mode card's picture drawn as a real card floating over the table (straight): the picture on its outline (`CardShape`), a thin
-## paper-white edge along the bottom and the right (the card's thickness, about 4 px, almost paper thin) and a soft shadow
-## well below it. The card's own button draws nothing behind it.
+## A mode card's picture drawn as a flat, straight card floating over the table: the picture on its outline (`CardShape`) and a
+## soft shadow well below it (no thickness and no coloured outline: owner). The card's own button draws nothing behind it.
 
-const EDGE_COLOR: Color = Color("e9e2d2")
-const EDGE_LINE: Color = Color(0.36, 0.33, 0.27, 0.9)
 const FACE_LINE: Color = Color(0.03, 0.05, 0.12, 0.85)
-## The card's thickness: where the edge shows beyond the face.
-const THICKNESS: Vector2 = Vector2(3.5, 5.0)
 ## Square corners, like a teks card (owner).
 const RADIUS: float = 0.0
 ## The power line at the bottom of the right edge, turned -90 degrees (reading upwards), like a teks card's: white letters with a
@@ -78,11 +73,6 @@ func _draw() -> void:
 		for point: Vector2 in face:
 			shadow.append(centre + (point - centre) * grow + SHADOW_DROP + Vector2(0.0, SHADOW_BREATH * lift))
 		draw_colored_polygon(shadow, Color(0.0, 0.02, 0.08, SHADOW_ALPHA * (1.0 - 0.3 * lift)))
-	var edge: PackedVector2Array = PackedVector2Array()
-	for point: Vector2 in face:
-		edge.append(point + THICKNESS)
-	draw_colored_polygon(edge, EDGE_COLOR)
-	_outline(edge, EDGE_LINE, 1.5)
 	if texture == null:
 		draw_colored_polygon(face, Color("2c4685"))
 	else:

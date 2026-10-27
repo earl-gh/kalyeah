@@ -4,7 +4,7 @@ extends GutTest
 const SIZE: Vector2 = Vector2(345.0, 552.0)
 
 
-func test_the_card_is_straight_and_almost_paper_thin() -> void:
+func test_the_card_is_straight_and_flat() -> void:
 	for point: Vector2 in CardShape.outline(SIZE, 24.0):
 		assert_true(Rect2(Vector2.ZERO, SIZE).grow(0.001).has_point(point), "%s is on the card, not pushed out or in" % point)
 	var points: PackedVector2Array = CardShape.outline(SIZE, 24.0)
@@ -13,9 +13,8 @@ func test_the_card_is_straight_and_almost_paper_thin() -> void:
 	for point: Vector2 in points:
 		top = minf(top, point.y)
 	assert_almost_eq(top, 0.0, 0.5, "the top edge is at the top of the card")
-	assert_lte(CardFace.THICKNESS.x, 5.0, "the card is thin")
-	assert_lte(CardFace.THICKNESS.y, 6.0)
-	assert_gt(CardFace.THICKNESS.length(), 3.0, "but its edge shows")
+	var face: CardFace = autofree(CardFace.new()) as CardFace
+	assert_false((face.get_script() as GDScript).get_script_constant_map().has("THICKNESS"), "no thickness (owner)")
 
 
 func test_the_mode_cards_have_square_corners_and_a_power_line_up_the_bottom_of_the_right_edge() -> void:
@@ -44,13 +43,19 @@ func test_an_inset_outline_sits_inside_the_edge() -> void:
 		assert_true(Rect2(Vector2(3.0, 3.0) - Vector2(0.001, 0.001), SIZE - Vector2(6.0, 6.0) + Vector2(0.002, 0.002)).has_point(point))
 
 
-func test_a_mode_card_is_drawn_by_a_face_and_a_rim() -> void:
+func test_a_mode_card_is_drawn_by_a_face_with_no_coloured_outline() -> void:
 	var card: Button = autofree(ChoiceCard.make_card("", "Local", "blue", SIZE, "hotspot")) as Button
 	add_child(card)
 	card.size = SIZE
 	assert_not_null(card.get_node_or_null("Face"), "the picture is drawn as a card of its own")
 	assert_false((card.get_node("Art") as TextureRect).visible, "the file's node only holds the picture")
 	assert_true(card.get_theme_stylebox("normal") is StyleBoxEmpty, "the button draws nothing behind the card")
+	var strip: MenuCarousel = autofree(MenuCarousel.new()) as MenuCarousel
+	strip.show_rim = false
+	strip.size = Vector2(720.0, 700.0)
+	add_child(strip)
+	strip.setup("", [{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff"}] as Array[Dictionary], 0)
+	assert_null(strip.cards[0].get_node_or_null("Frame"), "no coloured rim round the chosen card (owner)")
 
 
 func test_the_middle_card_floats_slowly_and_its_shadow_follows_and_rests_with_reduce_motion() -> void:

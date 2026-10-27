@@ -30,11 +30,11 @@ const TABS: Array[Dictionary] = [
 ]
 ## The pages that belong to Settings: its tab stays lit while one is open.
 const SETTINGS_PAGES: Array[StringName] = [&"codex", &"history", &"howto"]
-## The hero cards (2.5:4, like the owner's card pictures) and how high the stage is.
-const HERO_CARD: Vector2 = Vector2(400.0, 640.0)
-## The hero grows with the stage (phones taller than 16:9 have the room): 2.5:4, between these heights, with
+## The hero cards (1.75:2.5, owner) and how high the stage is.
+const HERO_CARD: Vector2 = Vector2(400.0, 571.0)
+## The hero grows with the stage (phones taller than 16:9 have the room): 1.75:2.5, between these heights, with
 ## this much air round it for the glow and the bob.
-const HERO_RATIO: float = 0.625
+const HERO_RATIO: float = 0.7
 const HERO_MIN_HEIGHT: float = 480.0
 const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 70.0
@@ -55,7 +55,7 @@ const PAGE_RANK: Dictionary[StringName, int] = {&"street": -1, &"": 0, &"setting
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
 const LOGO_HEIGHT: float = 116.0
 ## How far the logo is dropped from the top edge of the screen.
-const LOGO_DROP: float = 16.0
+const LOGO_DROP: float = 34.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
 const CTA_HEIGHT: float = 104.0
@@ -214,6 +214,7 @@ func _build_home() -> VBoxContainer:
 	carousel.name = "ModeCarousel"
 	carousel.card_size = HERO_CARD
 	carousel.bottom_gap = HERO_BOTTOM_GAP
+	carousel.show_rim = false
 	carousel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(carousel)
 	carousel.setup("", MODES, Session.menu_mode)

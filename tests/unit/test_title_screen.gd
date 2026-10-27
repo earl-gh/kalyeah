@@ -116,7 +116,7 @@ func test_the_cards_show_the_owners_pictures_and_no_text() -> void:
 	for card: Button in screen.carousel.cards:
 		var art: TextureRect = card.find_child("Art", true, false) as TextureRect
 		assert_not_null(art, "%s has its picture" % ChoiceCard.choice_of(card))
-		assert_gte(art.texture.get_size().x / art.texture.get_size().y, 0.625, "the picture is at least as wide as the card and is cropped to fit")
+		assert_gte(art.texture.get_size().x / art.texture.get_size().y, 0.7, "the picture is at least as wide as the card and is cropped to fit")
 		assert_eq(art.stretch_mode, TextureRect.STRETCH_KEEP_ASPECT_COVERED)
 		assert_false(art.visible, "the file is held by the picture node and drawn by the card's face")
 		var face: CardFace = card.find_child("Face", true, false) as CardFace
@@ -133,7 +133,7 @@ func test_the_cards_are_large_and_every_one_is_always_visible_stacked_behind_the
 	await wait_frames(3)
 	var strip: MenuCarousel = screen.carousel
 	var chosen: Rect2 = strip.cards[0].get_global_rect()
-	assert_almost_eq(chosen.size.x / chosen.size.y, 2.5 / 4.0, 0.01, "2.5:4")
+	assert_almost_eq(chosen.size.x / chosen.size.y, 1.75 / 2.5, 0.01, "1.75:2.5")
 	assert_gt(chosen.size.y, 400.0, "large (86 % of the room: the owner wanted it smaller so it floats with space round it)")
 	for index: int in 3:
 		strip.select(index, false)
@@ -257,7 +257,7 @@ func test_the_carousel_is_online_local_practice_with_local_chosen_in_front() -> 
 	assert_eq(strip.index, 1, "and is the one chosen to start with")
 	var middle: Button = strip.cards[1]
 	var next: Button = strip.cards[2]
-	assert_almost_eq(middle.size.x / middle.size.y, 2.5 / 4.0, 0.01, "2.5:4 cards")
+	assert_almost_eq(middle.size.x / middle.size.y, 1.75 / 2.5, 0.01, "1.75:2.5 cards")
 	assert_almost_eq(middle.get_global_rect().get_center().x, 360.0, 2.0, "the chosen card is in the middle of the screen")
 	assert_eq(middle.modulate.a, 1.0)
 	assert_lt(next.modulate.r, middle.modulate.r - 0.2, "the next card is clearly darker: depth")
