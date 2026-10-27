@@ -9,8 +9,15 @@ const MOTES: int = 14
 const PICTURE_BLUE: Color = Color("4aa0ff")
 ## How strongly the backlight is added to the picture.
 const BACKLIGHT_STRENGTH: float = 0.9
+## The neon blue core: a saturated electric blue, how strongly it is added, and how big it is next to the backlight.
+const NEON_BLUE: Color = Color("1f66ff")
+const NEON_STRENGTH: float = 0.7
+const NEON_SIZE: float = 0.55
+const NEON_LIFT: float = 0.5
 
 var glow: TextureRect
+## The neon blue core above the backlight: smaller and stronger, centred on the same place.
+var core: TextureRect
 ## The dark of the vignette: the picture's blue, very dark, so the dark that closes in on the picture is never another hue mixed into it.
 var night: TextureRect
 var motes: CPUParticles2D
@@ -46,6 +53,16 @@ func _init() -> void:
 	glow.material = additive
 	glow.modulate = _backlight_color(PICTURE_BLUE)
 	add_child(glow)
+	# a smaller, stronger neon blue core on top of the backlight, right behind the chosen model (owner)
+	core = TextureRect.new()
+	core.name = "NeonCore"
+	core.texture = _backlight()
+	core.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	core.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	core.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	core.material = additive
+	core.modulate = Color(NEON_BLUE, NEON_STRENGTH)
+	add_child(core)
 	night = TextureRect.new()
 	night.name = "Night"
 	night.modulate = _night_color(PICTURE_BLUE)
@@ -85,6 +102,11 @@ func aim_backlight(centre: Vector2, radius: float) -> void:
 	glow.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	glow.position = centre - Vector2(radius, radius)
 	glow.size = Vector2(radius, radius) * 2.0
+	var inner: float = radius * NEON_SIZE
+	# the core sits a little above the middle, so it shows over the model's roofs and walls, not only round its edges
+	var up: Vector2 = Vector2(0.0, -inner * NEON_LIFT)
+	core.position = centre + up - Vector2(inner, inner)
+	core.size = Vector2(inner, inner) * 2.0
 
 
 ## The backlight's colour: the focus colour, lighter and richer, at a strength that reads as light behind the card.

@@ -257,3 +257,19 @@ func test_the_mode_models_behind_are_blurred_to_look_far_away_and_the_chosen_one
 		var behind: TextureRect = (screen.mode_models[index].get_node("Face") as CardFace).get_node("Picture") as TextureRect
 		assert_not_null(behind.material, "a model behind is drawn through the blur shader")
 		assert_gt(float((behind.material as ShaderMaterial).get_shader_parameter("radius")), 1.0, "and it is blurred")
+
+
+func test_a_smaller_stronger_neon_blue_core_sits_above_the_backlight() -> void:
+	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
+	add_child(screen)
+	await wait_frames(12)
+	var glow: TextureRect = screen.backdrop.glow
+	var core: TextureRect = screen.backdrop.core
+	assert_lt(core.size.x, glow.size.x, "smaller than the backlight")
+	assert_gt(core.modulate.b, glow.modulate.b * 0.99, "a deeper blue")
+	assert_lt(core.modulate.r, glow.modulate.r, "less red in it than the backlight's pale blue")
+	assert_gt(core.get_index(), glow.get_index(), "drawn above the backlight")
+	assert_eq((core.material as CanvasItemMaterial).blend_mode, CanvasItemMaterial.BLEND_MODE_ADD, "added light, like the backlight")
+	var card: Rect2 = screen.mode_models[screen.carousel.index].get_global_rect()
+	assert_almost_eq(core.get_global_rect().get_center().x, card.get_center().x, 4.0, "behind the chosen model (across)")
+	assert_lt(core.get_global_rect().get_center().y, card.get_center().y, "a little above its middle")
