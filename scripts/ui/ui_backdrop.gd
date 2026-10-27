@@ -14,6 +14,9 @@ const NEON_BLUE: Color = Color("1f66ff")
 const NEON_STRENGTH: float = 0.7
 const NEON_SIZE: float = 0.55
 const NEON_LIFT: float = 0.5
+## Both lights are drawn between the mode models: above the ones behind the chosen model (`MenuCarousel` z 5) and below the chosen one
+## (z 10), so they shine from behind the front model but not through the ones behind it (owner).
+const LIGHT_Z: int = 7
 
 var glow: TextureRect
 ## The neon blue core above the backlight: smaller and stronger, centred on the same place.
@@ -21,6 +24,14 @@ var core: TextureRect
 ## The dark of the vignette: the picture's blue, very dark, so the dark that closes in on the picture is never another hue mixed into it.
 var night: TextureRect
 var motes: CPUParticles2D
+## The two lights are on while the main page shows (above a page they would shine over its content, so they are switched off there).
+var lights_on: bool = true:
+	set(value):
+		lights_on = value
+		if glow != null:
+			glow.visible = value
+		if core != null:
+			core.visible = value
 ## False while a page or a sheet covers the screen: the motes rest (nothing under a cover needs redrawing).
 var ambient: bool = true:
 	set(value):
@@ -52,6 +63,8 @@ func _init() -> void:
 	additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	glow.material = additive
 	glow.modulate = _backlight_color(PICTURE_BLUE)
+	glow.z_as_relative = false
+	glow.z_index = LIGHT_Z
 	add_child(glow)
 	# a smaller, stronger neon blue core on top of the backlight, right behind the chosen model (owner)
 	core = TextureRect.new()
@@ -62,6 +75,8 @@ func _init() -> void:
 	core.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	core.material = additive
 	core.modulate = Color(NEON_BLUE, NEON_STRENGTH)
+	core.z_as_relative = false
+	core.z_index = LIGHT_Z
 	add_child(core)
 	night = TextureRect.new()
 	night.name = "Night"

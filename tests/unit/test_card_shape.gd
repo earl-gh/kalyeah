@@ -273,3 +273,25 @@ func test_a_smaller_stronger_neon_blue_core_sits_above_the_backlight() -> void:
 	var card: Rect2 = screen.mode_models[screen.carousel.index].get_global_rect()
 	assert_almost_eq(core.get_global_rect().get_center().x, card.get_center().x, 4.0, "behind the chosen model (across)")
 	assert_lt(core.get_global_rect().get_center().y, card.get_center().y, "a little above its middle")
+
+
+func test_the_lights_shine_between_the_front_model_and_the_ones_behind_and_go_off_under_a_page() -> void:
+	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
+	add_child(screen)
+	await wait_frames(12)
+	var glow: TextureRect = screen.backdrop.glow
+	var core: TextureRect = screen.backdrop.core
+	var front: Button = screen.mode_models[screen.carousel.index]
+	var behind: Button = screen.mode_models[posmod(screen.carousel.index + 1, 3)]
+	for light: TextureRect in [glow, core]:
+		assert_false(light.z_as_relative, "an absolute depth")
+		assert_gt(light.z_index, behind.z_index, "over the models behind (%s)" % light.name)
+		assert_lt(light.z_index, front.z_index, "under the front model (%s)" % light.name)
+	assert_gt(TitleScreen.TEXT_Z, glow.z_index, "the phrase and the buttons are above the lights")
+	assert_lt(TitleScreen.TEXT_Z, front.z_index, "and below the front model")
+	assert_eq((screen.find_child("Titles", true, false) as Control).z_index, TitleScreen.TEXT_Z)
+	assert_true(glow.visible and core.visible, "on at the main page")
+	screen.open_page(&"settings")
+	assert_false(glow.visible or core.visible, "off under a page, where they would shine over its content")
+	screen.close_page()
+	assert_true(glow.visible and core.visible)

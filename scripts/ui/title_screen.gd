@@ -67,6 +67,8 @@ const ACTIONS_SLOT_SHARE: float = 0.35
 const TITLES_SEPARATION: int = -10
 ## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
 const TITLE_Z: int = 20
+## The phrase and the buttons are drawn above the backdrop's lights (`UiBackdrop.LIGHT_Z`) and below the chosen mode model.
+const TEXT_Z: int = 8
 ## How far the name is lifted so its letters (not its line box) are centred on the card's bottom edge.
 const TITLE_LIFT: float = 12.0
 const AMBIENT_BOB: float = 12.0
@@ -260,6 +262,7 @@ func _build_home() -> VBoxContainer:
 	# the button row is centred in the room between the phrase and the bar
 	var slot: CenterContainer = CenterContainer.new()
 	slot.name = "ActionsSlot"
+	slot.z_index = TEXT_Z
 	slot.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	slot.size_flags_stretch_ratio = ACTIONS_SLOT_SHARE
 	slot.custom_minimum_size = Vector2(0.0, CTA_HEIGHT)
@@ -273,6 +276,7 @@ func _build_home() -> VBoxContainer:
 func _build_titles() -> Control:
 	var titles: VBoxContainer = VBoxContainer.new()
 	titles.name = "Titles"
+	titles.z_index = TEXT_Z
 	titles.alignment = BoxContainer.ALIGNMENT_CENTER
 	# the phrase sits close under the name (negative: it is pulled up towards it)
 	titles.add_theme_constant_override("separation", TITLES_SEPARATION)
@@ -736,6 +740,7 @@ func _show_dialog(new_dialog: MenuDialog) -> void:
 func _sync_ambient() -> void:
 	var covered: bool = current_page != &"" or (dialog != null and is_instance_valid(dialog) and dialog.is_open)
 	backdrop.ambient = not covered
+	backdrop.lights_on = current_page == &""
 	carousel.bob = 0.0 if covered else AMBIENT_BOB
 
 ## The detail sheet of a kid from the Book.
