@@ -28,7 +28,7 @@ const LABEL_RISE: float = 8.0
 ## The arrows: how big they are drawn, how big they are to the thumb, and how far from the picture's edge.
 const ARROW_SIZE: float = 26.0
 const ARROW_TOUCH: float = 88.0
-const ARROW_GAP: float = 30.0
+const ARROW_GAP: float = 14.0
 const IDLE_SHADE: Color = Color(0.82, 0.82, 0.86)
 ## The bar's colours (sampled from the reference): a slot is lighter at the top; the open one is steel blue, the others dark slate.
 const SLOT_IDLE_TOP: Color = Color("526480")
@@ -48,7 +48,9 @@ const GROW_TIME: float = 0.28
 const ARROW: Texture2D = preload("res://assets/ui/nav/nav_arrow.png")
 const PICTURES: Dictionary[StringName, Texture2D] = {
 	&"street": preload("res://assets/ui/nav/nav_street.webp"),
+	&"cards": preload("res://assets/ui/nav/nav_cards.webp"),
 	&"play": preload("res://assets/ui/nav/nav_play.webp"),
+	&"history": preload("res://assets/ui/nav/nav_history.webp"),
 	&"settings": preload("res://assets/ui/nav/nav_settings.png"),
 }
 ## The visible part of each picture inside its file, as shares of the file (the files have clear margins and their art is not
@@ -56,7 +58,9 @@ const PICTURES: Dictionary[StringName, Texture2D] = {
 const ARROW_PART: Rect2 = Rect2(0.29538, 0.18151, 0.52537, 0.63923)
 const PICTURE_PARTS: Dictionary[StringName, Rect2] = {
 	&"street": Rect2(0.08453, 0.06459, 0.84927, 0.86124),
+	&"cards": Rect2(0.05821, 0.12121, 0.89075, 0.82137),
 	&"play": Rect2(0.14317, 0.12514, 0.85683, 0.80158),
+	&"history": Rect2(0.17943, 0.07097, 0.64115, 0.87321),
 	&"settings": Rect2(0.11387, 0.11387, 0.78803, 0.79061),
 }
 
@@ -106,7 +110,7 @@ func _draw() -> void:
 	draw_rect(Rect2(0.0, top_y + EDGE_HEIGHT * scale_to, size.x, EDGE_LIGHT_HEIGHT * scale_to), EDGE_LIGHT)
 
 
-## One of the bar's pictures (&"street", &"play", &"settings") as a texture of its own: the same art elsewhere, like the gear in a match.
+## One of the bar's pictures (&"street", &"cards", &"play", &"history", &"settings") as a texture of its own: the same art elsewhere, like the gear in a match.
 static func picture(kind: StringName) -> Texture2D:
 	return _part(PICTURES[kind], PICTURE_PARTS[kind])
 

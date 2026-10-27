@@ -81,10 +81,10 @@ func test_the_screen_has_everything_the_owner_asked_for() -> void:
 
 
 
-func test_the_tab_bar_holds_street_play_and_settings_along_the_bottom() -> void:
+func test_the_tab_bar_holds_its_five_tabs_along_the_bottom() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(3)
-	var ids: Array[StringName] = [&"street", &"home", &"settings"]
+	var ids: Array[StringName] = [&"street", &"codex", &"home", &"history", &"settings"]
 	var last_x: float = -1.0
 	for id: StringName in ids:
 		var tab: Rect2 = screen.corner_buttons[id].get_global_rect()
@@ -189,7 +189,7 @@ func test_the_actions_sit_low_on_the_screen_but_not_at_the_very_bottom() -> void
 func test_a_tab_opens_its_page_and_play_returns_home() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(2)
-	for id: StringName in [&"street", &"settings"]:
+	for id: StringName in [&"street", &"codex", &"history", &"settings"]:
 		screen.corner_buttons[id].pressed.emit()
 		assert_eq(screen.current_page, id)
 		assert_true(screen.pages[id].visible, "%s page is open" % id)
@@ -200,23 +200,6 @@ func test_a_tab_opens_its_page_and_play_returns_home() -> void:
 		screen.corner_buttons[&"home"].pressed.emit()
 		assert_eq(screen.current_page, &"")
 		assert_true(screen.carousel.is_visible_in_tree(), "back on the home page")
-
-
-## The Book and History have no tab any more: Settings opens them, and its tab stays lit; History from the last match keeps Play lit.
-func test_the_book_and_history_open_from_settings_and_keep_its_tab_lit() -> void:
-	var screen: TitleScreen = _phone_screen()
-	await wait_frames(2)
-	screen.corner_buttons[&"settings"].pressed.emit()
-	screen.settings_page.book_button.pressed.emit()
-	assert_eq(screen.current_page, &"codex")
-	assert_eq(screen.tab_bar.active, &"settings", "Settings stays lit under the Book")
-	screen.corner_buttons[&"settings"].pressed.emit()
-	assert_eq(screen.current_page, &"settings", "its tab takes you back")
-	screen.settings_page.history_button.pressed.emit()
-	assert_eq(screen.current_page, &"history")
-	assert_eq(screen.tab_bar.active, &"settings")
-	screen.close_page()
-
 
 
 func test_the_logo_is_centred_and_dropped_from_the_top() -> void:

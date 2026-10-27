@@ -298,7 +298,7 @@ func test_an_arrow_goes_to_the_neighbouring_tab() -> void:
 	bar.set_active(&"home")
 	bar.arrow_left.pressed.emit()
 	bar.arrow_right.pressed.emit()
-	assert_eq(heard, [&"street", &"settings"] as Array[StringName], "left of Play is Street, right of it Settings")
+	assert_eq(heard, [&"codex", &"history"] as Array[StringName], "left of Play is Cards, right of it History")
 	assert_gte(bar.arrow_left.size.x, UiMetrics.MIN_TARGET, "an arrow is a thumb-sized target")
 	assert_gte(bar.arrow_left.size.y, UiMetrics.MIN_TARGET)
 

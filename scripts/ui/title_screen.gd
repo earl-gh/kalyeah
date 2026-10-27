@@ -21,15 +21,17 @@ const MODES: Array[Dictionary] = [
 	{"id": "practice", "title": "Practice", "color": "green", "accent": "a45cf0", "power": 1200,
 		"text": "Take on 3 bots, solo!"},
 ]
-## The bottom tabs, left to right: Street (what each game is and how it plays), Play (the home page) and Settings. The Book and
-## History are reached from Settings (and History from the last match on Play).
+## The bottom tabs, left to right: Street (what each game is and how it plays), Cards (the Book of kids and weapons), Play (the home
+## page), History (your last battles) and Settings.
 const TABS: Array[Dictionary] = [
 	{"id": &"street", "label": "Street", "icon": &"street"},
+	{"id": &"codex", "label": "Cards", "icon": &"cards"},
 	{"id": &"home", "label": "Play", "icon": &"play"},
+	{"id": &"history", "label": "History", "icon": &"history"},
 	{"id": &"settings", "label": "Settings", "icon": &"settings"},
 ]
 ## The pages that belong to Settings: its tab stays lit while one is open.
-const SETTINGS_PAGES: Array[StringName] = [&"codex", &"history", &"howto"]
+const SETTINGS_PAGES: Array[StringName] = [&"howto"]
 ## The hero cards (1.75:2.5, owner) and how high the stage is.
 const HERO_CARD: Vector2 = Vector2(400.0, 571.0)
 ## The hero grows with the stage (phones taller than 16:9 have the room): 1.75:2.5, between these heights, with
@@ -62,7 +64,7 @@ const AMBIENT_BOB: float = 12.0
 const CHIPS_HEIGHT: float = 42.0
 const CHIPS_MIN_STAGE: float = 760.0
 ## Which way a page slides in: the pages left to right as their tabs are.
-const PAGE_RANK: Dictionary[StringName, int] = {&"street": -1, &"": 0, &"settings": 1, &"codex": 2, &"history": 2, &"howto": 2}
+const PAGE_RANK: Dictionary[StringName, int] = {&"street": -2, &"codex": -1, &"": 0, &"history": 1, &"settings": 2, &"howto": 3}
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
 const LOGO_HEIGHT: float = 92.0
 ## How far the logo is dropped from the top edge of the screen.
@@ -344,8 +346,6 @@ func _build_pages() -> void:
 	settings_page.profile_pressed.connect(open_name_editor)
 	settings_page.quit_pressed.connect(open_quit_confirm)
 	settings_page.howto_pressed.connect(open_page.bind(&"howto"))
-	settings_page.book_pressed.connect(open_page.bind(&"codex"))
-	settings_page.history_pressed.connect(open_page.bind(&"history"))
 	howto_page.walkthrough_requested.connect(start_walkthrough)
 	history_page.play_pressed.connect(close_page)
 	howto_page.back_pressed.connect(open_page.bind(&"settings"))
@@ -364,7 +364,6 @@ func open_page(id: StringName) -> void:
 	if not pages.has(id):
 		return
 	var way: int = signi(int(PAGE_RANK.get(id, 0)) - int(PAGE_RANK.get(current_page, 0)))
-	var was_home: bool = current_page == &""
 	current_page = id
 	for other: StringName in pages:
 		pages[other].visible = other == id
@@ -374,11 +373,8 @@ func open_page(id: StringName) -> void:
 		codex_page.show_tab(codex_page.current)
 	_home.visible = false
 	_top_bar.visible = false
-	# the Book, History and How to play are reached from Settings: that tab stays lit (History opened from the last match
-	# on Play keeps Play lit) and opens Settings again
+	# How to play is reached from Settings: that tab stays lit
 	var lit: StringName = &"settings" if id in SETTINGS_PAGES else id
-	if id == &"history" and was_home:
-		lit = &"home"
 	tab_bar.set_active(lit)
 	_sync_ambient()
 	_fade_in(pages[id], way)

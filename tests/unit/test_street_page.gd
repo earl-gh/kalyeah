@@ -51,20 +51,20 @@ func test_a_street_that_is_not_built_says_so() -> void:
 	assert_eq(StreetPage.mechanics_for(&"patintero", rules), [StreetPage.SOON_LINE] as Array[String])
 
 
-func test_the_book_and_history_open_from_settings_and_keep_its_tab_lit() -> void:
+func test_the_book_and_history_have_tabs_of_their_own_and_settings_has_no_buttons_for_them() -> void:
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"settings")
 	await wait_frames(2)
-	assert_not_null(screen.settings_page.find_child("BookButton", true, false))
-	screen.settings_page.book_pressed.emit()
+	assert_null(screen.settings_page.find_child("BookButton", true, false), "the Cards tab opens the Book")
+	assert_null(screen.settings_page.find_child("HistoryButton", true, false), "the History tab opens History")
+	screen.corner_buttons[&"codex"].pressed.emit()
 	await wait_frames(2)
 	assert_eq(screen.current_page, &"codex")
-	assert_eq(screen.tab_bar.active, &"settings", "the Book sits behind Settings")
-	screen.open_page(&"settings")
-	screen.settings_page.history_pressed.emit()
+	assert_eq(screen.tab_bar.active, &"codex", "the Cards tab is lit under the Book")
+	screen.corner_buttons[&"history"].pressed.emit()
 	await wait_frames(2)
 	assert_eq(screen.current_page, &"history")
-	assert_eq(screen.tab_bar.active, &"settings")
+	assert_eq(screen.tab_bar.active, &"history")
 
 
 func test_the_bottom_bar_runs_edge_to_edge_with_no_margin_around_it() -> void:

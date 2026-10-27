@@ -29,7 +29,6 @@ Battle unavailable,Battle unavailable
 Battle your friends nearby!,Battle your friends nearby!
 Blue and orange teams. The street changes next battle!,Blue and orange teams. The street changes next battle!
 Bola,Bola
-Book,Book
 Bottom,Bottom
 BOUNCED,BOUNCED
 Bounced,Bounced
@@ -44,6 +43,7 @@ Cancel,Cancel
 Cancel ready,Cancel ready
 CAPTURING,CAPTURING
 "Card %d: %s, %d ice water%s","Card %d: %s, %d ice water%s"
+Cards,Cards
 CHANGE WEAPONS,CHANGE WEAPONS
 Change weapons,Change weapons
 Changes apply immediately,Changes apply immediately
@@ -135,7 +135,6 @@ Make Kalyeah yours!,Make Kalyeah yours!
 Map: Agawan Base,Map: Agawan Base
 Match settings,Match settings
 Max: %d,Max: %d
-Meet the kids. Learn the weapons!,Meet the kids. Learn the weapons!
 Meet the six kids! Tap one to learn more.,Meet the six kids! Tap one to learn more.
 Migo,Migo
 Network settings,Network settings
@@ -252,7 +251,6 @@ Weapons,Weapons
 Wow!,Wow!
 YOU,YOU
 YOU %d - %d THEM   %s,YOU %d - %d THEM   %s
-Your last battles,Your last battles
 Your last battles on this phone!,Your last battles on this phone!
 Your profile,Your profile
 Your weapons,Your weapons
