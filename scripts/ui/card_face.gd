@@ -9,10 +9,9 @@ extends Control
 const PICTURE_SHADER: Shader = preload("res://shaders/card_picture.gdshader")
 const SHADE_SHADER: Shader = preload("res://shaders/card_shade.gdshader")
 const TINT_SHADER: Shader = preload("res://shaders/card_tint.gdshader")
-## The slight radius of the top left and bottom right corners (a sign the card was rolled): between these, a different one on each
-## card.
-const ROLL_RADIUS_MIN: float = 9.0
-const ROLL_RADIUS_MAX: float = 26.0
+## The slight radius of each corner: between these, a different one on every corner of every card (never sharp, never very round).
+const CORNER_RADIUS_MIN: float = 6.0
+const CORNER_RADIUS_MAX: float = 17.0
 ## The yellowish tint over the whole card (subtle: owner, slightly stronger than first).
 const AGE_TINT: Color = Color(1.0, 0.86, 0.45, 0.11)
 ## Square corners, like a teks card (owner).
@@ -60,7 +59,7 @@ var texture: Texture2D:
 		texture = value
 		_picture.texture = value
 		_fit()
-## Each card wears differently: this number seeds the noise and decides how round its top left and bottom right corners are.
+## Each card wears differently: this number seeds the noise and decides how round each of its corners is.
 var wear_seed: float = 1.0:
 	set(value):
 		wear_seed = value
@@ -128,8 +127,7 @@ func _draw() -> void:
 	if size.x < 8.0 or size.y < 8.0:
 		return
 	var radius: float = RADIUS
-	var radii: Vector2 = roll_radii()
-	var face: PackedVector2Array = CardShape.outline_corners(size, Vector4(radii.x, radius, radii.y, radius))
+	var face: PackedVector2Array = CardShape.outline_corners(size, corner_radii())
 	var centre: Vector2 = size / 2.0
 	for layer: int in SHADOW_LAYERS:
 		var grow: float = 1.0 + 0.012 * float(layer)
@@ -150,11 +148,9 @@ func _cover_scale() -> Vector2:
 
 ## Tells the shaders the card's size and how the picture is cropped to it.
 func _fit() -> void:
-	var radii: Vector2 = roll_radii()
 	for material: ShaderMaterial in _materials():
 		material.set_shader_parameter("rect_size", size)
-		material.set_shader_parameter("radius_tl", radii.x)
-		material.set_shader_parameter("radius_br", radii.y)
+		material.set_shader_parameter("radii", corner_radii())
 	if texture != null and size.y > 0.0:
 		_picture_material.set_shader_parameter("cover", _cover_scale())
 
@@ -163,8 +159,11 @@ func _materials() -> Array[ShaderMaterial]:
 	return [_picture_material, _shade_material, _tint_material]
 
 
-## The radius of this card's top left and bottom right corners (x and y): a slight one that differs from card to card.
-func roll_radii() -> Vector2:
-	var top_left: float = fposmod(sin(wear_seed * 12.9898 + 4.1) * 43758.5453, 1.0)
-	var bottom_right: float = fposmod(sin(wear_seed * 78.233 + 9.7) * 24634.6345, 1.0)
-	return Vector2(lerpf(ROLL_RADIUS_MIN, ROLL_RADIUS_MAX, top_left), lerpf(ROLL_RADIUS_MIN, ROLL_RADIUS_MAX, bottom_right))
+## The radius of each corner of this card (top left, top right, bottom right, bottom left): slight, and different on every corner
+## and every card.
+func corner_radii() -> Vector4:
+	var radii: Array[float] = []
+	for corner: int in 4:
+		var unit: float = fposmod(sin(wear_seed * (12.9898 + 21.7 * float(corner)) + 4.1 + 3.3 * float(corner)) * 43758.5453, 1.0)
+		radii.append(lerpf(CORNER_RADIUS_MIN, CORNER_RADIUS_MAX, unit))
+	return Vector4(radii[0], radii[1], radii[2], radii[3])

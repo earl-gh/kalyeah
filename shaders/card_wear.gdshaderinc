@@ -1,12 +1,11 @@
 // The worn look of an old Filipino teks card, shared by the mode card's picture, its coloured shade and its tint: at the corners,
 // and very slightly along the left and right sides, the printed layer has worn away to the brown paper under it. One layer only
-// (print or brown paper, nothing between), the card's outline is straight except for a slight radius on two corners, and noise
+// (print or brown paper, nothing between), every corner of the card has its own slight radius, and noise
 // makes each card (its `seed`) wear differently. Sizes are in the card's pixels (`rect_size`).
 
 uniform vec2 rect_size = vec2(385.0, 550.0);
 uniform float seed = 1.0;
-uniform float radius_tl = 0.0; // the slight radius of the top left and bottom right corners (set per card by CardFace)
-uniform float radius_br = 0.0;
+uniform vec4 radii = vec4(0.0); // the slight radius of each corner: top left, top right, bottom right, bottom left (set per card by CardFace)
 
 const float WEAR_CORNER = 17.0;  // and at the corners (a little: that is where an old card wears)
 const float WEAR_SIDE = 3.4;     // how far the print can wear away along the left and right sides (very slight)
@@ -52,16 +51,16 @@ float print_left(vec2 position) {
 }
 
 
-// The card's own outline: square, except for a slight radius on the top left and bottom right corners, a sign the card has been
-// rolled (a different radius on every card). 1 inside the card, 0 outside, smooth at the edge.
+// The card's own outline: every corner has its own slight radius (a different one on each corner of each card), so none is sharp
+// and none is very round. 1 inside the card, 0 outside, smooth at the edge.
+float corner_cut(vec2 offset, float radius) {
+	if (offset.x < radius && offset.y < radius) {
+		return 1.0 - smoothstep(-0.7, 0.7, length(offset - vec2(radius)) - radius);
+	}
+	return 1.0;
+}
+
 float card_alpha(vec2 position) {
-	float alpha = 1.0;
-	if (position.x < radius_tl && position.y < radius_tl) {
-		alpha *= 1.0 - smoothstep(-0.7, 0.7, length(position - vec2(radius_tl)) - radius_tl);
-	}
 	vec2 far = rect_size - position;
-	if (far.x < radius_br && far.y < radius_br) {
-		alpha *= 1.0 - smoothstep(-0.7, 0.7, length(far - vec2(radius_br)) - radius_br);
-	}
-	return alpha;
+	return corner_cut(position, radii.x) * corner_cut(vec2(far.x, position.y), radii.y) * corner_cut(far, radii.z) * corner_cut(vec2(position.x, far.y), radii.w);
 }

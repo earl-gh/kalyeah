@@ -1,6 +1,6 @@
 shader_type canvas_item;
 // A mode card's picture as an old teks card: aged, grainy print, and at the corners (very slightly along the sides too) the print
-// worn away to the brown paper under it (one layer only); the outline is straight but for a slight radius on two corners. See
+// worn away to the brown paper under it (one layer only); every corner has its own slight radius. See
 // card_wear.gdshaderinc.
 #include "res://shaders/card_wear.gdshaderinc"
 

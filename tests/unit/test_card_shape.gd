@@ -130,20 +130,22 @@ func test_the_mode_cards_are_old_teks_cards_worn_at_the_corners_each_differently
 		assert_eq((face.get_node("PowerLine") as CardPowerLine).text, "POWER %d" % face.power)
 	assert_eq(seeds.size(), 3, "every card wears differently")
 	var radii: Dictionary = {}
+	var every: Dictionary = {}
 	for card: Button in strip.cards:
 		var face: CardFace = card.get_node("Face") as CardFace
-		var round: Vector2 = face.roll_radii()
-		assert_between(round.x, CardFace.ROLL_RADIUS_MIN, CardFace.ROLL_RADIUS_MAX, "a slight radius on the top left")
-		assert_between(round.y, CardFace.ROLL_RADIUS_MIN, CardFace.ROLL_RADIUS_MAX, "and on the bottom right")
+		var round: Vector4 = face.corner_radii()
+		for value: float in [round.x, round.y, round.z, round.w]:
+			assert_between(value, CardFace.CORNER_RADIUS_MIN, CardFace.CORNER_RADIUS_MAX, "a slight radius, not sharp and not very round")
+			every[snappedf(value, 0.01)] = true
 		radii[round] = true
 		var material: ShaderMaterial = (face.get_node("Picture") as TextureRect).material as ShaderMaterial
-		assert_eq(material.get_shader_parameter("radius_tl"), round.x, "the shader rounds the same corners")
-		assert_eq(material.get_shader_parameter("radius_br"), round.y)
-	assert_eq(radii.size(), 3, "the rolled corners differ from card to card")
-	var outline: PackedVector2Array = CardShape.outline_corners(Vector2(385.0, 550.0), Vector4(20.0, 0.0, 12.0, 0.0))
-	assert_true(outline.has(Vector2(385.0, 0.0)), "the top right corner stays square")
-	assert_true(outline.has(Vector2(0.0, 550.0)), "and so does the bottom left")
+		assert_eq(material.get_shader_parameter("radii"), round, "the shader rounds the same corners")
+	assert_eq(radii.size(), 3, "the corners differ from card to card")
+	assert_gt(every.size(), 9, "and every corner has its own radius")
+	var outline: PackedVector2Array = CardShape.outline_corners(Vector2(385.0, 550.0), Vector4(20.0, 0.0, 12.0, 8.0))
+	assert_true(outline.has(Vector2(385.0, 0.0)), "a corner with no radius stays square")
 	assert_false(outline.has(Vector2.ZERO), "the top left is rounded")
+	assert_false(outline.has(Vector2(0.0, 550.0)), "and so is the bottom left")
 	var order: Array[String] = []
 	for child: Node in strip.cards[1].get_node("Face").get_children():
 		order.append(child.name)
