@@ -13,6 +13,8 @@ const CARD: Vector2 = ChoiceCard.CARD_SIZE
 const STEP: float = 98.0
 ## A card in the back layer is this much smaller than the chosen one (there are two layers only: the chosen card and the rest).
 const SCALE_LOSS: float = 0.17
+## The cards behind the chosen one stand a little higher than it: this share of a card's height (owner), so the layer behind shows over it.
+const BACK_RISE: float = 0.07
 ## Cards further back are darker (and smaller), so the stack reads as depth; they all share the middle card's vertical centre.
 const SHADE_LOSS: float = 0.36
 ## ... and slightly see-through too.
@@ -134,7 +136,7 @@ func _layout() -> void:
 		card.scale = Vector2.ONE * (1.0 - SCALE_LOSS * away)
 		var drift_phase: float = sin(float(Time.get_ticks_msec()) / 1000.0 * FLOAT_SPEED)
 		var drift: float = drift_phase * bob * (1.0 - away / 2.0) if bob > 0.0 and not Settings.reduced_motion else 0.0
-		card.position = Vector2(size.x / 2.0 + signf(offset) * spread * STEP - card_size.x / 2.0, ((size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap) + drift)
+		card.position = Vector2(size.x / 2.0 + signf(offset) * spread * STEP - card_size.x / 2.0, ((size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap) + drift - card_size.y * BACK_RISE * away)
 		# every card stays visible: the ones further back are darker and slightly see-through
 		var shade: float = 1.0 - SHADE_LOSS * away
 		card.modulate = Color(shade, shade, shade, lerpf(1.0, BACK_ALPHA, clampf(absf(offset), 0.0, 1.0)))

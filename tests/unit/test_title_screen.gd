@@ -107,7 +107,7 @@ func test_the_centre_card_stays_centred_on_the_screen() -> void:
 		strip.select(index, false)
 		assert_almost_eq(strip.cards[index].get_global_rect().get_center().x, 360.0, 2.0, "the chosen card is centred on the screen")
 	strip.select(0, false)
-	assert_gt(strip.cards[0].get_global_rect().size.y, 400.0, "the centre card is large (86 % of the hero room, and the card bobs a little)")
+	assert_gt(strip.cards[0].get_global_rect().size.y, 280.0, "the centre card is large (0.64 of the width the stage gives a diorama)")
 
 
 
@@ -136,7 +136,7 @@ func test_the_cards_are_large_and_every_one_is_always_visible_stacked_behind_the
 	var strip: MenuCarousel = screen.carousel
 	var chosen: Rect2 = strip.cards[0].get_global_rect()
 	assert_almost_eq(chosen.size.x / chosen.size.y, TitleScreen.card_ratio(), 0.01, "the card is the shape of its picture")
-	assert_gt(chosen.size.y, 360.0, "large (86 % of the room that is left beside the tall buttons)")
+	assert_gt(chosen.size.y, 280.0, "large (0.64 of the width the stage gives a diorama)")
 	for index: int in 3:
 		strip.select(index, false)
 		for card: Button in strip.cards:
@@ -255,7 +255,9 @@ func test_the_carousel_is_online_local_practice_with_local_chosen_in_front() -> 
 	assert_eq(middle.modulate.a, 1.0)
 	assert_lt(next.modulate.r, middle.modulate.r - 0.2, "the next card is clearly darker: depth")
 	assert_lt(next.modulate.a, middle.modulate.a, "and slightly see-through too")
-	assert_almost_eq(next.get_global_rect().get_center().y, middle.get_global_rect().get_center().y, 8.0, "on the same vertical centre (the middle card bobs a few px)")
+	# the cards behind stand a little higher than the chosen one (owner): by `BACK_RISE` of a card's height, give or take the bob
+	var rise: float = middle.get_global_rect().get_center().y - next.get_global_rect().get_center().y
+	assert_almost_eq(rise, middle.size.y * MenuCarousel.BACK_RISE, 12.0, "the card behind stands a little higher than the chosen one")
 	assert_lt(next.scale.x, middle.scale.x, "and smaller")
 	assert_lt(next.z_index, middle.z_index, "and behind")
 	assert_gt(next.get_global_rect().get_center().x, middle.get_global_rect().get_center().x, "and to its right")
