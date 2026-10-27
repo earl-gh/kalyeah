@@ -99,21 +99,26 @@ func test_the_lanyard_is_two_black_straps_one_in_front_and_one_behind_meeting_at
 	assert_eq((screen.find_child("Logo", true, false) as Control).z_index, NameTag.LOGO_Z)
 
 
-func test_the_tag_hangs_in_the_middle_between_the_logo_row_and_the_models_behind() -> void:
-	var screen: TitleScreen = _screen()
-	await wait_frames(6)
-	var tag: NameTag = screen.name_tag
-	var logo: Rect2 = (screen.find_child("Logo", true, false) as Control).get_global_rect()
-	var card: Rect2 = tag.card.get_global_rect()
-	var stage_top: float = (screen.carousel.get_parent() as Control).get_global_rect().position.y
-	var back_top: float = stage_top + screen.carousel.back_top()
-	assert_gt(card.position.y, logo.end.y - 1.0, "below the logo row")
-	assert_lt(card.end.y, back_top, "above the models behind")
-	var above: float = card.position.y - logo.end.y
-	var below: float = back_top - card.end.y
-	assert_gt(above, 0.0)
-	assert_almost_eq(above - below, 2.0 * TitleScreen.TAG_DROP - 2.0 * 0.0, 30.0, "a little below the middle (%.0f above, %.0f below)" % [above, below])
-	assert_gt(above, below - 1.0, "lower than the middle of the band (owner)")
+func test_the_card_is_centred_between_the_bottom_of_the_logo_and_the_top_of_the_chosen_model() -> void:
+	for height: float in [1280.0, 1558.0]:
+		var phone: Control = autofree(Control.new()) as Control
+		phone.custom_minimum_size = Vector2(720.0, height)
+		phone.size = Vector2(720.0, height)
+		add_child(phone)
+		var screen: TitleScreen = autofree(TITLE_SCENE.instantiate()) as TitleScreen
+		phone.add_child(screen)
+		screen.name_tag.swing = false
+		await wait_frames(6)
+		var logo: Rect2 = (screen.find_child("Logo", true, false) as Control).get_global_rect()
+		var paper: Rect2 = (screen.name_tag.card.get_node("Paper") as Control).get_global_rect()
+		var stage_top: float = (screen.carousel.get_parent() as Control).get_global_rect().position.y
+		var model_top: float = stage_top + screen.carousel.front_top()
+		var above: float = paper.position.y - logo.end.y
+		var below: float = model_top - paper.end.y
+		assert_almost_eq(above, below, 2.0, "%d px: the same room above and under the card (%.1f above, %.1f below)" % [int(height), above, below])
+		assert_gt(above, 8.0, "%d px: room above" % int(height))
+		var back_top: float = stage_top + screen.carousel.back_top()
+		assert_lt(paper.end.y, back_top, "%d px: and the card stays clear of the models behind" % int(height))
 
 
 func test_a_long_name_takes_smaller_letters_and_never_leaves_the_screen() -> void:

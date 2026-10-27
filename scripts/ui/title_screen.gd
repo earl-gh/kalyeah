@@ -73,8 +73,6 @@ const TITLE_Z: int = 20
 ## on a short phone, and how far its lanyard runs above the top of the screen.
 const TAG_AIR: float = 6.0
 const TAG_MIN_SCALE: float = 0.6
-## The tag hangs this much lower than the middle of its band (owner: slightly lower).
-const TAG_DROP: float = 10.0
 const TAG_OVERSHOOT: float = 60.0
 ## The phrase and the buttons are drawn above the backdrop's lights (`UiBackdrop.LIGHT_Z`) and below the chosen mode model.
 const TEXT_Z: int = 8
@@ -571,17 +569,20 @@ func _fit_hero() -> void:
 
 
 
-## Hangs the name tag a little below the middle of the band between the logo row and the top of the models behind the chosen one (it shrinks on a
-## short phone), with its lanyard running up out of the top of the screen.
+## Hangs the name tag exactly in the middle between the bottom of the logo and the top of the chosen model (owner: visually centred): the
+## same room above the card as under it. It shrinks on a short phone, and never so big that it reaches the models behind.
 func _place_name_tag() -> void:
 	if name_tag == null or carousel == null or _top_bar == null:
 		return
 	var stage: Control = carousel.get_parent() as Control
-	var band_top: float = _top_bar.get_global_rect().end.y - stage.get_global_rect().position.y
-	var band_bottom: float = carousel.back_top() - TAG_AIR
-	var room: float = band_bottom - band_top
-	var fitted: float = clampf(room / NameTag.CARD_HEIGHT, TAG_MIN_SCALE, 1.0)
-	var card_top: float = minf(band_top + (room - NameTag.CARD_HEIGHT * fitted) / 2.0 + TAG_DROP, band_bottom - NameTag.CARD_HEIGHT * fitted)
+	var logo: Control = _top_bar.find_child("Logo", true, false) as Control
+	var band_top: float = logo.get_global_rect().end.y - stage.get_global_rect().position.y
+	var band_bottom: float = carousel.front_top()
+	var middle: float = (band_top + band_bottom) / 2.0
+	# the card must not reach the models behind (they stand higher than the chosen one): it only shrinks when it would
+	var clear: float = (carousel.back_top() - TAG_AIR - middle) / (NameTag.CARD_HEIGHT / 2.0)
+	var fitted: float = clampf(minf((band_bottom - band_top - 2.0 * TAG_AIR) / NameTag.CARD_HEIGHT, clear), TAG_MIN_SCALE, 1.0)
+	var card_top: float = middle - NameTag.CARD_HEIGHT * fitted / 2.0
 	var hole: Vector2 = Vector2(stage.size.x / 2.0, card_top + NameTag.SLOT_MIDDLE * fitted)
 	name_tag.hang(hole, -stage.get_global_rect().position.y - TAG_OVERSHOOT, fitted)
 

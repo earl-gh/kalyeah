@@ -13,6 +13,8 @@ const CARD: Vector2 = ChoiceCard.CARD_SIZE
 const STEP: float = 98.0
 ## A card in the back layer is this much smaller than the chosen one (there are two layers only: the chosen card and the rest).
 const SCALE_LOSS: float = 0.17
+## How far the art starts under the top of a mode model's card, as a share of its height (the PNGs keep a 6 px margin of 717).
+const FRONT_ART_INSET: float = 6.0 / 717.0
 ## Cards further back are darker (and smaller), so the stack reads as depth; they all share the middle card's vertical centre.
 const SHADE_LOSS: float = 0.36
 ## ... and slightly see-through too.
@@ -262,6 +264,13 @@ func _swipe_target() -> int:
 func back_top() -> float:
 	var base: float = (size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap
 	return base - card_size.y * back_rise + card_size.y * scale_loss / 2.0
+
+
+## The top of the chosen model's picture, in this control's pixels (at rest, without its drift): where the picture's art starts, a hair
+## under the top of its card (the pictures keep a 6 px margin of 717). What the name tag above it is centred against.
+func front_top() -> float:
+	var base: float = (size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap
+	return base + card_size.y * FRONT_ART_INSET
 
 
 ## The card under `at` (the front-most one wins), or the current one when it hits none.
