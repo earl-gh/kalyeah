@@ -8,11 +8,22 @@ const BLIND_OWN: Color = Color("0072b2")
 const BLIND_ENEMY: Color = Color("e07b00")
 ## Your own bar: near white, the brightest of the three and no hue of its own, so it is never read as the enemy's orange.
 const BLIND_SELF: Color = Color(0.96, 0.96, 0.96)
+## The score blocks' blue and red (owner: vivid and natural like Clash Royale's, not the muted UI pair above).
+const SCORE_BLUE: Color = Color(0.13, 0.52, 1.0)
+const SCORE_RED: Color = Color(1.0, 0.24, 0.27)
 
 
 ## The flat blue and red of the score card, the results card and the feed.
 static func ui_own() -> Color:
 	return BLIND_OWN if Settings.colorblind else KalyeahTheme.TEAM_BLUE
+
+
+static func score_own() -> Color:
+	return BLIND_OWN if Settings.colorblind else SCORE_BLUE
+
+
+static func score_enemy() -> Color:
+	return BLIND_ENEMY if Settings.colorblind else SCORE_RED
 
 
 static func ui_enemy() -> Color:

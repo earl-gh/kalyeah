@@ -58,7 +58,8 @@ func test_the_tray_has_no_health_and_hides_with_the_hand_when_you_are_tagged() -
 	var hand: CardHand = practice.hud.hand
 	assert_true(hand.visible)
 	assert_false("health_rect" in hand, "your health is over your kid, not in the tray (owner)")
-	assert_false(practice.hud.chat.visible, "no chat button in offline practice (owner): there is nobody to talk to")
+	assert_true(practice.hud.chat.visible, "the chat button is back in practice (owner)")
+	assert_eq(practice.hud.hand.next_label(), "Next:", "the word over the next card is Next: (owner)")
 	assert_gt(practice.hud.console.column_width, 0.0, "the cardboard leaves the column beside it")
 	practice.sim.kill(practice.local_id)
 	practice.advance(1.0 / 30.0)

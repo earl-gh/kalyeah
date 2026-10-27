@@ -1,17 +1,11 @@
 class_name HandArt
 extends RefCounted
-## The owner's pictures for the hand in a match (`assets/ui/hand/`, unedited): the blue plate behind the cards, the ice water bag
-## that stands for ice water everywhere (a card's cost, the bar's number) and the speech bubble of the quick chat button. Each file has clear
+## The owner's pictures for the hand in a match (`assets/ui/hand/`, unedited): the ice water bag that stands for ice water everywhere (a
+## card's cost, the bar's number) and the speech bubble of the quick chat button (the tray behind the cards is drawn in code, `ConsolePanel`). Each file has clear
 ## margins, so a part rect gives the visible art as shares of the file (an atlas, so it holds at any import size).
 
-const PLATE: Texture2D = preload("res://assets/ui/hand/hand_plate.webp")
 const ICE: Texture2D = preload("res://assets/ui/hand/ice_water.webp")
 const CHAT: Texture2D = preload("res://assets/ui/hand/chat.webp")
-## Only the plate's flat face and its top and left rims: its thick right and bottom sides are cut off, so it runs off the screen's right and
-## bottom edges looking flat (owner). The visible art is x 8 to 1440 and y 251 to 836 of the file; this is x 8 to 1402 and y 251 to 800.
-const PLATE_PART: Rect2 = Rect2(0.00552, 0.23112, 0.96271, 0.50553)
-## The plate is drawn in this colour (a darker blue than the picture).
-const PLATE_TINT: Color = Color(0.56, 0.66, 0.9)
 const ICE_PART: Rect2 = Rect2(0.23604, 0.10287, 0.52951, 0.86124)
 const CHAT_PART: Rect2 = Rect2(0.11418, 0.14161, 0.77018, 0.73427)
 ## Width over height of the visible art.
@@ -22,15 +16,8 @@ const ICE_NUMBER_AT: float = 0.54
 ## A bag the bar has not reached is drawn in this colour.
 const ICE_DIM: Color = Color(0.55, 0.57, 0.62)
 
-static var _plate: AtlasTexture
 static var _ice: AtlasTexture
 static var _chat: AtlasTexture
-
-
-static func plate() -> AtlasTexture:
-	if _plate == null:
-		_plate = _part(PLATE, PLATE_PART)
-	return _plate
 
 
 static func ice() -> AtlasTexture:

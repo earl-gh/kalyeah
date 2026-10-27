@@ -4,7 +4,7 @@ extends GutTest
 const CAMERA: CameraRules = preload("res://data/rules/camera_rules.tres")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const PHONE: float = 720.0 / 1280.0
-const ARENA: Vector2 = Vector2(27.0, 48.0)
+const ARENA: Vector2 = Vector2(24.0, 48.0)
 
 
 func _corners(distance: float, aspect: float, shift: float) -> Array[Vector2]:
@@ -21,8 +21,8 @@ func test_a_fixed_orthographic_camera_tilted_about_45_degrees() -> void:
 	assert_eq(CameraRules.DESIGN_ASPECT, 9.0 / 16.0, "portrait 9:16")
 
 
-func test_the_street_is_9_by_16_like_the_arena_it_copies() -> void:
-	assert_almost_eq(LAYOUT.lane_width / LAYOUT.lane_length, 9.0 / 16.0, 0.001, "27 x 48 m")
+func test_the_street_is_24_by_48_with_sidewalks_twice_as_wide_as_they_were() -> void:
+	assert_almost_eq(LAYOUT.lane_width / LAYOUT.lane_length, 1.0 / 2.0, 0.001, "24 x 48 m (it was 27 x 48 before the sidewalks were made twice as wide)")
 
 
 func test_the_whole_arena_fits_on_a_phone_with_its_margins() -> void:

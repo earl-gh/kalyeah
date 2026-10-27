@@ -4,10 +4,11 @@ const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const MAP_SCENE: PackedScene = preload("res://scenes/map/street_map.tscn")
 
 
-func test_the_playing_area_is_nine_by_sixteen_like_a_phone_screen() -> void:
-	assert_eq(LAYOUT.lane_width, 27.0)
+func test_the_playing_area_is_24_by_48_so_the_sidewalks_can_be_twice_as_wide() -> void:
+	assert_eq(LAYOUT.lane_width, 24.0)
 	assert_eq(LAYOUT.lane_length, 48.0)
-	assert_almost_eq(LAYOUT.lane_width / LAYOUT.lane_length, 9.0 / 16.0, 0.001, "9:16 (width:length), so the whole street fits a portrait screen")
+	assert_almost_eq(LAYOUT.lane_width / LAYOUT.lane_length, 1.0 / 2.0, 0.001, "1:2: narrower than the 9:16 it was, so the street and its wider sidewalks fit a portrait screen")
+	assert_almost_eq(StreetMap.SIDEWALK_WIDTH, 2.4, 0.0001, "the sidewalks are 2.4 m (1.2 m before): twice as wide")
 
 
 func test_own_post_bottom_left_enemy_post_top_right() -> void:
@@ -280,22 +281,22 @@ func test_the_street_and_sidewalks_use_the_code_drawn_cement() -> void:
 
 
 
-# ---- the tile grid (Clash Royale's arena: 18 x 32 tiles) -------------------------------
+# ---- the tile grid (Clash Royale's arena was 18 x 32 tiles; ours is 16 x 32) -------------------------------
 
-func test_the_street_is_an_18_by_32_tile_grid_of_1_5_metre_tiles() -> void:
-	assert_eq(LAYOUT.tiles, Vector2i(18, 32), "like Clash Royale's arena")
+func test_the_street_is_a_16_by_32_tile_grid_of_1_5_metre_tiles() -> void:
+	assert_eq(LAYOUT.tiles, Vector2i(16, 32), "two tiles narrower than Clash Royale's arena")
 	assert_almost_eq(LAYOUT.tile_size, 1.5, 0.0001)
-	assert_almost_eq(LAYOUT.lane_width, 27.0, 0.0001, "18 tiles across")
+	assert_almost_eq(LAYOUT.lane_width, 24.0, 0.0001, "16 tiles across")
 	assert_almost_eq(LAYOUT.lane_length, 48.0, 0.0001, "32 tiles long")
 
 
 func test_tiles_and_metres_convert_both_ways() -> void:
-	assert_eq(LAYOUT.tile_center(Vector2i(0, 0)), Vector2(-12.75, -23.25), "the top-left tile")
-	assert_eq(LAYOUT.tile_center(Vector2i(17, 31)), Vector2(12.75, 23.25), "the bottom-right tile")
-	for tile: Vector2i in [Vector2i(0, 0), Vector2i(8, 15), Vector2i(9, 16), Vector2i(17, 31)]:
+	assert_eq(LAYOUT.tile_center(Vector2i(0, 0)), Vector2(-11.25, -23.25), "the top-left tile")
+	assert_eq(LAYOUT.tile_center(Vector2i(15, 31)), Vector2(11.25, 23.25), "the bottom-right tile")
+	for tile: Vector2i in [Vector2i(0, 0), Vector2i(7, 15), Vector2i(8, 16), Vector2i(15, 31)]:
 		assert_eq(LAYOUT.tile_at(LAYOUT.tile_center(tile)), tile, "round trip %s" % tile)
-	assert_eq(LAYOUT.to_tiles(Vector2.ZERO), Vector2(9.0, 16.0), "the middle of the street is the corner of four tiles")
-	assert_eq(LAYOUT.lane_rect().size, Vector2(27.0, 48.0))
+	assert_eq(LAYOUT.to_tiles(Vector2.ZERO), Vector2(8.0, 16.0), "the middle of the street is the corner of four tiles")
+	assert_eq(LAYOUT.lane_rect().size, Vector2(24.0, 48.0))
 
 
 func test_the_posts_and_boxes_sit_where_the_grid_says() -> void:

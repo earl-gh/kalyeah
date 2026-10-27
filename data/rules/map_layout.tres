@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_layout")
-tiles = Vector2i(18, 32)
+tiles = Vector2i(16, 32)
 tile_size = 1.5
 base_inset = 2.5
 base_radius = 4.5
