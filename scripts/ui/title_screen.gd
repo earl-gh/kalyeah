@@ -37,11 +37,15 @@ const HERO_CARD: Vector2 = Vector2(400.0, 640.0)
 const HERO_RATIO: float = 0.625
 const HERO_MIN_HEIGHT: float = 480.0
 const HERO_MAX_HEIGHT: float = 780.0
-const HERO_AIR: float = 56.0
+const HERO_AIR: float = 70.0
+## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
+const TITLE_Z: int = 20
+## How far the name is lifted so its letters (not its line box) are centred on the card's bottom edge.
+const TITLE_LIFT: float = 12.0
 const AMBIENT_BOB: float = 7.0
 ## The mode chips need a stage at least this tall to leave the hero a good size; on a shorter screen they step aside.
 const CHIPS_HEIGHT: float = 42.0
-const CHIPS_MIN_STAGE: float = 640.0
+const CHIPS_MIN_STAGE: float = 760.0
 ## Which way a page slides in: the pages left to right as their tabs are.
 const PAGE_RANK: Dictionary[StringName, int] = {&"street": -1, &"": 0, &"settings": 1, &"codex": 2, &"history": 2, &"howto": 2}
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
@@ -51,6 +55,8 @@ const LOGO_DROP: float = 16.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
 const CTA_HEIGHT: float = 104.0
+## The two actions are a centred pair of this width each, the same size (the reference's pair, wide enough for "Create room").
+const CTA_WIDTH: float = 270.0
 ## The main action's breath: it waits `PULSE_DELAY` seconds, then swells to `PULSE_SCALE` and settles, each way in
 ## `PULSE_HALF` seconds.
 const PULSE_DELAY: float = 1.2
@@ -90,6 +96,7 @@ var _loading_dots: Label
 var _margin: MarginContainer
 var _home: VBoxContainer
 var _top_bar: Control
+var _title_holder: Control
 var mode_chips: HBoxContainer
 var _page_holder: Control
 var _dots: Array[Panel] = []
@@ -206,6 +213,7 @@ func _build_home() -> VBoxContainer:
 	carousel.setup("", MODES, Session.menu_mode)
 	carousel.bob = AMBIENT_BOB
 	stage.resized.connect(_fit_hero)
+	stage.resized.connect(_place_title)
 	home.add_child(_build_titles())
 	home.add_child(_build_actions())
 	return home
@@ -222,7 +230,14 @@ func _build_titles() -> Control:
 	mode_name_label.name = "ModeName"
 	UiKit.letter(mode_name_label, UiMetrics.DISPLAY, CREAM)
 	mode_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	titles.add_child(mode_name_label)
+	# the name straddles the bottom edge of the chosen card: this holder sits where the stage ends and the name hangs
+	# off it upwards by the card's air plus half its own height (`_place_title`)
+	mode_name_label.z_index = TITLE_Z
+	_title_holder = Control.new()
+	_title_holder.name = "TitleHolder"
+	_title_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_title_holder.add_child(mode_name_label)
+	titles.add_child(_title_holder)
 	mode_text_label = Label.new()
 	mode_text_label.name = "ModeText"
 	mode_text_label.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
@@ -258,18 +273,20 @@ func _build_titles() -> Control:
 func _build_actions() -> Control:
 	var actions: HBoxContainer = HBoxContainer.new()
 	actions.name = "Actions"
+	actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	actions.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	actions.custom_minimum_size = Vector2(CTA_WIDTH * 2.0 + UiMetrics.COMPACT_GAP, 0.0)
 	actions.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	actions.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	primary_button = _action_button(actions, "PrimaryButton", "", 2.0)
-	secondary_button = _action_button(actions, "SecondaryButton", "Join room", 1.0)
+	primary_button = _action_button(actions, "PrimaryButton", "")
+	secondary_button = _action_button(actions, "SecondaryButton", "Join room")
 	return actions
 
 
-func _action_button(parent: Control, button_name: String, text: String, weight: float) -> Button:
-	var button: Button = MenuDialog.make_button(text, "gold", UiMetrics.TITLE, Vector2(0.0, CTA_HEIGHT))
+func _action_button(parent: Control, button_name: String, text: String) -> Button:
+	var button: Button = MenuDialog.make_button(text, "gold", UiMetrics.BODY, Vector2(CTA_WIDTH, CTA_HEIGHT))
 	button.name = button_name
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.size_flags_stretch_ratio = weight
 	parent.add_child(button)
 	return button
 
@@ -394,6 +411,21 @@ func _fit_hero() -> void:
 		return
 	carousel.card_size = fitted
 	carousel.setup("", MODES, carousel.index)
+	_place_title()
+
+
+## Hangs the mode's name on the bottom edge of the chosen card: its centre is on that edge.
+func _place_title() -> void:
+	if _title_holder == null or carousel == null:
+		return
+	var stage: Control = carousel.get_parent() as Control
+	var air: float = maxf((stage.size.y - carousel.card_size.y) / 2.0, 0.0)
+	var height: float = mode_name_label.get_combined_minimum_size().y
+	mode_name_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	# the letters sit a little low in their line, so lift the line to put the letters themselves on the edge
+	var lift: float = TITLE_LIFT + air
+	mode_name_label.offset_top = -lift - height / 2.0
+	mode_name_label.offset_bottom = -lift + height / 2.0
 
 
 ## The chosen mode's name and phrase, the action buttons, the glow and the dots.

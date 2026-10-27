@@ -86,11 +86,11 @@ func test_a_button_has_no_shadow() -> void:
 
 func test_the_faster_drawing_gives_the_same_pixels_as_before() -> void:
 	# recorded from the per-pixel drawing before the half-and-mirror change; the face and plate colours re-recorded for the
-	# visual pass (a 12 px lip, a brighter lit edge, a stronger side light)
+	# visual pass (a 12 px lip, a brighter lit edge, a stronger side light; again for the reference gold and the squarer corner)
 	var gold: Image = UiSkin.button("gold", "normal").texture.get_image()
-	assert_almost_eq(gold.get_pixel(39, 40).g, 0.698, 0.002, "the face")
-	assert_almost_eq(gold.get_pixel(39, 40).b, 0.1922, 0.002)
-	assert_eq(gold.get_pixel(39, 40).a, 1.0)
+	assert_almost_eq(gold.get_pixel(32, 30).g, 0.7529, 0.002, "the face")
+	assert_almost_eq(gold.get_pixel(32, 30).b, 0.1765, 0.002)
+	assert_eq(gold.get_pixel(32, 30).a, 1.0)
 	var glass: Image = UiSkin.plate("glass", 0.0, 30).texture.get_image()
 	assert_almost_eq(glass.get_pixel(55, 56).r, 0.1333, 0.002)
 	assert_almost_eq(glass.get_pixel(55, 56).b, 0.3804, 0.002)

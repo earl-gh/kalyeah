@@ -12,10 +12,10 @@ extends RefCounted
 ## Colours of every button variant: the face (top, bottom), the lip under it, the dark outline and
 ## the label (colour and outline). `gold` is the one main action on a screen.
 const BUTTONS: Dictionary[String, Dictionary] = {
-	"gold": {"top": Color("ffd95e"), "bottom": Color("ff9d1a"), "lip": Color("b4600c"), "line": Color("5e2e04"),
+	"gold": {"top": Color("fed44f"), "bottom": Color("f5b61c"), "lip": Color("b07100"), "line": Color("5e3a04"),
 		"text": Color("3a1c00"), "outline": Color(1.0, 1.0, 1.0, 0.0), "outline_size": 0},
-	"blue": {"top": Color("58abff"), "bottom": Color("2368eb"), "lip": Color("123f9e"), "line": Color("091f5c"),
-		"text": Color.WHITE, "outline": Color("091f5c"), "outline_size": 5},
+	"blue": {"top": Color("62baff"), "bottom": Color("379ef0"), "lip": Color("0a66b4"), "line": Color("0a3d73"),
+		"text": Color.WHITE, "outline": Color("0a3d73"), "outline_size": 5},
 	"green": {"top": Color("62dc72"), "bottom": Color("1f9a3b"), "lip": Color("126628"), "line": Color("08381a"),
 		"text": Color.WHITE, "outline": Color("08381a"), "outline_size": 5},
 	"red": {"top": Color("ff7f72"), "bottom": Color("d6342e"), "lip": Color("8c1d1b"), "line": Color("4f0c0b"),
@@ -43,7 +43,7 @@ const RADIUS_S: int = 8
 const RADIUS_M: int = 16
 const RADIUS_L: int = 24
 const RADIUS_XL: int = 32
-const BUTTON_RADIUS: int = RADIUS_L
+const BUTTON_RADIUS: int = RADIUS_M
 ## The lip the face sits on (visual pass: 9 px read flat next to the brand's chunky look) and how far the face sinks into it
 ## when pressed (down to `BUTTON_PRESSED_LIP`).
 const BUTTON_LIP: int = 12
