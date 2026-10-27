@@ -80,12 +80,8 @@ const TAG_OVERSHOOT: float = 60.0
 ## The phrase and the buttons are drawn above the backdrop's lights (`UiBackdrop.LIGHT_Z`) and below the chosen mode model.
 const TEXT_Z: int = 8
 const AMBIENT_BOB: float = 12.0
-## The mode chips need a stage at least this tall to leave the hero a good size; on a shorter screen they step aside.
-const CHIPS_HEIGHT: float = 42.0
-const CHIPS_MIN_STAGE: float = 760.0
 ## Which way a page slides in: the pages left to right as their tabs are.
 const PAGE_RANK: Dictionary[StringName, int] = {&"street": -2, &"codex": -1, &"": 0, &"history": 1, &"settings": 2, &"howto": 3}
-const RULES_PATH: String = "res://data/rules/game_rules.tres"
 const LOGO_HEIGHT: float = 92.0
 ## How far the logo is dropped from the top edge of the screen.
 const LOGO_DROP: float = 62.0
@@ -148,7 +144,6 @@ var _home: VBoxContainer
 var _top_bar: Control
 var tips_button: Button
 var mail_button: Button
-var mode_chips: HBoxContainer
 var _page_holder: Control
 var _page_tween: Tween
 var _pulse: Tween
@@ -391,12 +386,6 @@ func _build_titles() -> Control:
 	mode_text_label.minimum_size_changed.connect(_pull_phrase_up)
 	mode_text_label.resized.connect(_pull_phrase_up)
 	titles.add_child(phrase_holder)
-	mode_chips = HBoxContainer.new()
-	mode_chips.name = "ModeChips"
-	mode_chips.alignment = BoxContainer.ALIGNMENT_CENTER
-	mode_chips.add_theme_constant_override("separation", 10)
-	mode_chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	titles.add_child(mode_chips)
 	return titles
 
 
@@ -507,29 +496,6 @@ func _fade_in(content: Control, way: int = 0) -> void:
 	_page_tween.tween_property(content, "modulate:a", 1.0, 0.2)
 	_page_tween.tween_property(content, "position", Vector2.ZERO, 0.26).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
-## The facts of a mode as small chips, from the rules (players, best-of choices), never typed in here.
-func mode_facts(id: String) -> Array[String]:
-	var rules: GameRules = load(RULES_PATH) as GameRules
-	if id == "practice":
-		return ["Solo", "%d v %d against bots" % [PracticeMatch.BOT_ALLY_IDS.size() + 1, PracticeMatch.BOT_ENEMY_IDS.size()]] as Array[String]
-	var choices: PackedStringArray = []
-	for choice: int in rules.first_to_choices:
-		choices.append(str(choice))
-	var best: String = "First to %s" % (choices[0] if choices.size() == 1 else "%s or %s" % [", ".join(choices.slice(0, choices.size() - 1)), choices[choices.size() - 1]])
-	var players: String = "2 to %d players" % (RoomService.MAX_TEAM_SIZE * 2)
-	return [players, best if id == "hotspot" else "Join with a code"] as Array[String]
-
-
-func _fill_chips(id: String) -> void:
-	for child: Node in mode_chips.get_children():
-		mode_chips.remove_child(child)
-		child.queue_free()
-	for fact: String in mode_facts(id):
-		var chip: PanelContainer = UiKit.chip(fact, UiKit.CHIP_SLATE)
-		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		mode_chips.add_child(chip)
-
-
 ## Whether the mode models are bare dioramas (no paper card).
 static func models_are_bare() -> bool:
 	return bool(MODES[0].get("bare", false))
@@ -545,11 +511,7 @@ func _fit_hero() -> void:
 	var stage: Control = carousel.get_parent() as Control
 	if stage.size.y < 100.0:
 		return
-	var total: float = stage.size.y
-	# the stage as it would be without the chips decides whether they show (so showing them never flips it back)
-	var bare: float = total + (CHIPS_HEIGHT if mode_chips.visible else 0.0)
-	mode_chips.visible = bare - CHIPS_HEIGHT >= CHIPS_MIN_STAGE
-	var height: float = clampf(bare - (CHIPS_HEIGHT if mode_chips.visible else 0.0) - HERO_AIR, HERO_MIN_HEIGHT, HERO_MAX_HEIGHT)
+	var height: float = clampf(stage.size.y - HERO_AIR, HERO_MIN_HEIGHT, HERO_MAX_HEIGHT)
 	var diorama: bool = models_are_bare()
 	var ratio: float = MODEL_RATIO if diorama else HERO_RATIO
 	var width: float = minf(height * ratio, stage.size.x - (MODEL_SIDE_ROOM if diorama else 120.0)) * (MODEL_SCALE if diorama else HERO_SCALE)
@@ -608,7 +570,6 @@ func _refresh_mode() -> void:
 	var mode: Dictionary = MODES[Session.menu_mode]
 	var rooms: bool = String(mode["id"]) != "practice"
 	mode_text_label.text = String(mode["text"])
-	_fill_chips(String(mode["id"]))
 	primary_button.text = "Create" if rooms else "Play"
 	secondary_button.text = "Join"
 	# Practice has the one button, Play (no Join, no Training)
