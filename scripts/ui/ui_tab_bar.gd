@@ -30,8 +30,8 @@ const ARROW_TOUCH: float = 88.0
 const ARROW_GAP: float = 22.0
 const IDLE_SHADE: Color = Color(0.82, 0.82, 0.86)
 ## The bar's colours (sampled from the reference): a slot is lighter at the top; the open one is steel blue, the others dark slate.
-const SLOT_IDLE_TOP: Color = Color("526480")
-const SLOT_IDLE_BOTTOM: Color = Color("2c3e56")
+const SLOT_IDLE_TOP: Color = Color("62759a")
+const SLOT_IDLE_BOTTOM: Color = Color("3b5070")
 const SLOT_OPEN_TOP: Color = Color("96b0d0")
 const SLOT_OPEN_BOTTOM: Color = Color("587a9e")
 ## The tabs are centred with this much margin on each side (design pixels), and the open tab is this wide (room for its two arrows):
