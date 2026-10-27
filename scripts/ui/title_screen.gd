@@ -57,7 +57,7 @@ const HERO_MIN_HEIGHT: float = 440.0
 const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 36.0
 ## The cards sit this far above the bottom of their stage, so the name, its phrase and the buttons stay close under them.
-const HERO_BOTTOM_GAP: float = 34.0
+const HERO_BOTTOM_GAP: float = 14.0
 ## The gap between the phrase and the dots under it (negative: they are pulled together).
 const TITLES_SEPARATION: int = -10
 ## How far the backlight reaches round the chosen card (times the card's height).

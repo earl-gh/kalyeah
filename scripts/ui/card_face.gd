@@ -38,6 +38,10 @@ const BARE_DIM: Color = Color(0.36, 0.36, 0.4)
 const GROUND_SHADOW_SQUASH: float = 0.16
 ## How blurred a bare picture is when it stands far behind (the blur radius in texels of the picture, owner: depth of field): 0 when chosen.
 const BLUR_RADIUS: float = 20.0
+## The model is the active one, at the centre, from this `chosen` on (1 only when its swipe has settled).
+const PLATE_ACTIVE: float = 0.98
+## The name on the platform fades in over this many seconds after the model settles, and goes at once when it leaves.
+const PLATE_FADE_IN: float = 0.3
 
 ## How high the card floats (-1 sinking to 1 at the top of its drift): the middle card sets it as it drifts, and its shadow follows.
 var lift: float = 0.0:
@@ -58,8 +62,8 @@ var chosen: float = 1.0:
 		_tint_material.set_shader_parameter("tint", Color(AGE_TINT, AGE_TINT.a * value))
 		# a bare picture has no shader: it is dimmed with a dark tint of its own (owner: darker)
 		_picture.modulate = Color.WHITE.lerp(BARE_DIM, 1.0 - value) if bare else Color.WHITE
-		# the name on the platform shows on the chosen model only
-		_plate.modulate.a = value
+		# the name on the platform fades in once the model is the active one and at the centre, and is gone when it leaves
+		_show_plate(value >= PLATE_ACTIVE)
 		_blur_for_depth()
 		queue_redraw()
 ## A bare face shows its picture as it is, a transparent PNG (a diorama) with no card paper, wear, corners, tint or power line: the card
@@ -79,8 +83,23 @@ func set_plate(title: String, face: Rect2) -> void:
 	_plate.picture_size = texture.get_size() if texture != null else Vector2.ONE
 	_plate.face = face
 	_plate.text = title
-	_plate.modulate.a = chosen
+	_plate_on = chosen >= PLATE_ACTIVE
+	_plate.modulate.a = 1.0 if _plate_on else 0.0
 	_plate.visible = bare
+
+
+## Fades the name in once the model is the centred one, hides it at once when it is not (instant with reduced motion).
+func _show_plate(on: bool) -> void:
+	if on == _plate_on:
+		return
+	_plate_on = on
+	if _plate_tween != null:
+		_plate_tween.kill()
+	if not on or Settings.reduced_motion or not is_inside_tree():
+		_plate.modulate.a = 1.0 if on else 0.0
+		return
+	_plate_tween = create_tween()
+	_plate_tween.tween_property(_plate, "modulate:a", 1.0, PLATE_FADE_IN)
 
 
 ## The name written on the platform.
@@ -110,6 +129,8 @@ var wear_seed: float = 1.0:
 
 var _picture: TextureRect
 var _plate: ModePlate
+var _plate_on: bool = true
+var _plate_tween: Tween
 var _picture_material: ShaderMaterial
 var _power_line: CardPowerLine
 var _tint_material: ShaderMaterial

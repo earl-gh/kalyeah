@@ -737,6 +737,8 @@ func test_the_mode_name_is_written_on_the_front_face_of_the_platform() -> void:
 func test_only_the_chosen_models_name_shows_on_its_platform() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(4)
+	var before: float = (screen.mode_models[screen.carousel.index].get_node("Face") as CardFace).plate().modulate.a
+	assert_almost_eq(before, 1.0, 0.02, "the first model shows its name at once")
 	for index: int in screen.mode_models.size():
 		var plate: ModePlate = (screen.mode_models[index].get_node("Face") as CardFace).plate()
 		if index == screen.carousel.index:
@@ -755,3 +757,24 @@ func test_each_platform_face_lies_on_the_dark_base_of_its_picture() -> void:
 			var colour: Color = image.get_pixel(int(corner.x), int(minf(corner.y, image.get_height() - 1.0)))
 			assert_gt(colour.a, 0.9, "%s: the corner %s is on the picture" % [mode["id"], corner])
 			assert_lt(maxf(colour.r, maxf(colour.g, colour.b)), 0.45, "%s: and on the dark wall" % mode["id"])
+
+
+func test_the_name_fades_in_only_after_the_model_is_centred() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(4)
+	var old_motion: bool = Settings.reduced_motion
+	Settings.reduced_motion = false
+	var strip: MenuCarousel = screen.carousel
+	strip.select(0, true)
+	await wait_seconds(0.1)
+	var arriving: ModePlate = (screen.mode_models[0].get_node("Face") as CardFace).plate()
+	var leaving: ModePlate = (screen.mode_models[1].get_node("Face") as CardFace).plate()
+	assert_lt(arriving.modulate.a, 0.05, "no name on a model still gliding to the centre")
+	assert_lt(leaving.modulate.a, 0.05, "and none on the one that left")
+	await wait_seconds(MenuCarousel.WRAP_TIME + 0.15)
+	var settled: float = arriving.modulate.a
+	assert_gt(settled, 0.0, "the name starts to fade in once the model has settled")
+	assert_lt(settled, 1.0, "gently, not at once")
+	await wait_seconds(CardFace.PLATE_FADE_IN + 0.15)
+	assert_almost_eq(arriving.modulate.a, 1.0, 0.02, "then it is fully there")
+	Settings.reduced_motion = old_motion
