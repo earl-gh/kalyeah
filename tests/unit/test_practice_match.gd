@@ -306,6 +306,45 @@ func test_cards_lock_under_stun_and_hide_while_tagged() -> void:
 	assert_false(practice.hud.hand.visible)
 
 
+## A room update as the server sends it: the local player (id 1) and Ben (id 2), connected or not.
+func _room(ben_connected: bool) -> Dictionary:
+	return {"members": [
+		{"player_id": PracticeMatch.LOCAL_ID, "name": "ANA", "connected": true},
+		{"player_id": 2, "name": "BEN", "connected": ben_connected},
+	]}
+
+
+func test_a_player_who_drops_out_or_comes_back_is_announced_to_the_others() -> void:
+	var practice: PracticeMatch = _practice()
+	practice.hud.banner.hide()
+	practice._on_room_changed(_room(true))
+	assert_eq(practice.banner_text(), "", "the first room update only sets who is here")
+	practice._on_room_changed(_room(false))
+	assert_eq(practice.banner_text(), "BEN left the battle")
+	practice._on_room_changed(_room(false))
+	practice._on_room_changed(_room(true))
+	assert_eq(practice.banner_text(), "BEN is back!")
+
+
+func test_our_own_drop_is_not_announced_to_us() -> void:
+	var practice: PracticeMatch = _practice()
+	practice.hud.banner.hide()
+	var room: Dictionary = _room(true)
+	practice._on_room_changed(room)
+	(room["members"] as Array)[0]["connected"] = false
+	practice._on_room_changed(room)
+	assert_eq(practice.banner_text(), "")
+
+
+func test_a_closed_room_ends_the_battle_instead_of_reconnecting() -> void:
+	var practice: PracticeMatch = _practice()
+	practice._on_room_closed()
+	practice._on_connection_changed(false)
+	assert_eq(practice.hud.feedback.message.text, PracticeMatch.ROOM_CLOSED_TEXT, "not Reconnecting…")
+	assert_true(practice.hud.feedback.leave.visible, "a way out")
+	assert_false(practice.controls_active())
+
+
 func test_a_reconnect_is_not_reported_restored_until_the_server_confirms_the_slot() -> void:
 	var practice: PracticeMatch = _practice()
 	practice.finish_pick()

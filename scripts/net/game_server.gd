@@ -41,6 +41,16 @@ func listen(port: int) -> Error:
 	return OK
 
 
+## Tells every player in a room that the server is going away (a hotspot host left), so they end the battle
+## instead of trying to reconnect for a minute. Keep polling a moment before `stop`: a client drops the
+## messages that arrive together with the close.
+func close_rooms() -> void:
+	for code: String in rooms.rooms:
+		for m: RoomService.Member in rooms.rooms[code].members:
+			if m.connected:
+				send(m.peer_id, {"t": NetProtocol.Msg.ROOM_CLOSED})
+
+
 func stop() -> void:
 	if _peer != null:
 		_peer.close()

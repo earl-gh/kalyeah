@@ -8,6 +8,7 @@ signal disconnected
 const RULES: GameRules = preload("res://data/rules/game_rules.tres")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const NET_RULES: NetRules = preload("res://data/rules/net_rules.tres")
+const CLOSE_GRACE: float = 0.5
 
 var client: GameClient = GameClient.new(RULES, LAYOUT, NET_RULES)
 var is_online: bool = false
@@ -15,6 +16,9 @@ var is_online: bool = false
 var host: GameServer
 ## Answers the guests' "who is hosting?" probe while `host` runs (UDP, no room details).
 var beacon: HotspotBeacon = HotspotBeacon.new()
+## A host that just stopped keeps running for `CLOSE_GRACE` seconds, so its ROOM_CLOSED reaches the players.
+var _closing: GameServer
+var _closing_left: float = 0.0
 
 
 func _ready() -> void:
@@ -26,6 +30,11 @@ func _process(delta: float) -> void:
 	if host != null:
 		host.poll(delta)
 		beacon.poll()
+	if _closing != null:
+		_closing.poll(delta)
+		_closing_left -= delta
+		if _closing_left <= 0.0:
+			_finish_closing()
 
 
 ## Starts a room server on this phone for friends on its hotspot or Wi-Fi: they find it by
@@ -33,6 +42,8 @@ func _process(delta: float) -> void:
 ## guests can still find the room at the fallback addresses.
 func start_host() -> Error:
 	stop_host()
+	# the port is needed again now
+	_finish_closing()
 	host = GameServer.new(RULES, LAYOUT, NET_RULES, Time.get_ticks_usec())
 	host.auto_join = true
 	var error: Error = host.listen(NET_RULES.default_port)
@@ -46,8 +57,17 @@ func start_host() -> Error:
 func stop_host() -> void:
 	beacon.stop()
 	if host != null:
-		host.stop()
+		_finish_closing()
+		host.close_rooms()
+		_closing = host
+		_closing_left = CLOSE_GRACE
 		host = null
+
+
+func _finish_closing() -> void:
+	if _closing != null:
+		_closing.stop()
+		_closing = null
 
 
 ## Where this phone's own client connects to reach the server it hosts.
