@@ -1,10 +1,10 @@
 class_name ChoiceCard
 extends RefCounted
-## A 2.5:4 card: a small heading at the top left (when there is one), the choice's name big at the
+## A 1.75:2.5 card: a small heading at the top left (when there is one), the choice's name big at the
 ## bottom left, no subtitle. If the owner's card art exists (assets/ui/cards/<id>.webp, 3:4 pictures are cropped to fit) it
 ## fills the card.
 
-const CARD_SIZE: Vector2 = Vector2(345.0, 552.0)
+const CARD_SIZE: Vector2 = Vector2(385.0, 550.0)
 const PAD: float = 14.0
 const CROP_SHADER: Shader = preload("res://shaders/minimap_crop.gdshader")
 const ART_DIR: String = "res://assets/ui/cards/"

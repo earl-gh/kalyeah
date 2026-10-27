@@ -173,7 +173,7 @@ func test_the_hero_fills_a_tall_phone_and_stays_2_5_to_4() -> void:
 	var tall_card: Vector2 = tall.carousel.card_size
 	assert_gt(tall_card.y, standard_card.y + 60.0, "a taller phone gets a bigger card")
 	for card: Vector2 in [standard_card, tall_card]:
-		assert_almost_eq(card.x / card.y, TitleScreen.HERO_RATIO, 0.01, "2.5:4")
+		assert_almost_eq(card.x / card.y, TitleScreen.HERO_RATIO, 0.01, "1.75:2.5")
 		assert_gte(card.y, TitleScreen.HERO_MIN_HEIGHT)
 		assert_lte(card.y, TitleScreen.HERO_MAX_HEIGHT)
 	var stage: Control = tall.carousel.get_parent() as Control

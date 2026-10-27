@@ -14,11 +14,11 @@ const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
 ## The game modes in card order: Online, Local in the middle (the default, `Session.menu_mode` 1), Practice (owner).
 ## `accent` tints the frame of the card and the glow behind it.
 const MODES: Array[Dictionary] = [
-	{"id": "online", "title": "Online", "color": "orange", "accent": "ffa63a",
+	{"id": "online", "title": "Online", "color": "orange", "accent": "ffa63a", "power": 7450,
 		"text": "Invite friends with a room code!"},
-	{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff",
+	{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff", "power": 9999,
 		"text": "Battle your friends nearby!"},
-	{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78",
+	{"id": "practice", "title": "Practice", "color": "green", "accent": "45dd78", "power": 1200,
 		"text": "Face 3 bots, or train solo!"},
 ]
 ## The bottom tabs, left to right: Street (what each game is and how it plays), Play (the home page) and Settings. The Book and
@@ -30,14 +30,18 @@ const TABS: Array[Dictionary] = [
 ]
 ## The pages that belong to Settings: its tab stays lit while one is open.
 const SETTINGS_PAGES: Array[StringName] = [&"codex", &"history", &"howto"]
-## The hero cards (2.5:4, like the owner's card pictures) and how high the stage is.
-const HERO_CARD: Vector2 = Vector2(400.0, 640.0)
-## The hero grows with the stage (phones taller than 16:9 have the room): 2.5:4, between these heights, with
+## The hero cards (1.75:2.5, owner) and how high the stage is.
+const HERO_CARD: Vector2 = Vector2(400.0, 571.0)
+## The hero grows with the stage (phones taller than 16:9 have the room): 1.75:2.5, between these heights, with
 ## this much air round it for the glow and the bob.
-const HERO_RATIO: float = 0.625
+const HERO_RATIO: float = 0.7
 const HERO_MIN_HEIGHT: float = 480.0
 const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 70.0
+## The cards sit this far above the bottom of their stage, so the name, its phrase and the buttons stay close under them.
+const HERO_BOTTOM_GAP: float = 34.0
+## The black outline round the mode's one-line phrase.
+const MODE_TEXT_OUTLINE: int = 6
 ## The share of the room the hero card takes (owner: smaller, so the floating card floats with space round it).
 const HERO_SCALE: float = 0.86
 ## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
@@ -53,7 +57,7 @@ const PAGE_RANK: Dictionary[StringName, int] = {&"street": -1, &"": 0, &"setting
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
 const LOGO_HEIGHT: float = 116.0
 ## How far the logo is dropped from the top edge of the screen.
-const LOGO_DROP: float = 16.0
+const LOGO_DROP: float = 34.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
 const CTA_HEIGHT: float = 104.0
@@ -99,6 +103,7 @@ var _margin: MarginContainer
 var _home: VBoxContainer
 var _top_bar: Control
 var _title_holder: Control
+var _bottom_spacer: Control
 var mode_chips: HBoxContainer
 var _page_holder: Control
 var _dots: Array[Panel] = []
@@ -210,6 +215,8 @@ func _build_home() -> VBoxContainer:
 	carousel.accessibility_name = "Game mode"
 	carousel.name = "ModeCarousel"
 	carousel.card_size = HERO_CARD
+	carousel.bottom_gap = HERO_BOTTOM_GAP
+	carousel.show_rim = false
 	carousel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(carousel)
 	carousel.setup("", MODES, Session.menu_mode)
@@ -218,6 +225,11 @@ func _build_home() -> VBoxContainer:
 	stage.resized.connect(_place_title)
 	home.add_child(_build_titles())
 	home.add_child(_build_actions())
+	# the spare room is split above the card and below the buttons, so the whole group is centred between the logo and the bar
+	_bottom_spacer = Control.new()
+	_bottom_spacer.name = "BottomSpacer"
+	_bottom_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	home.add_child(_bottom_spacer)
 	return home
 
 
@@ -230,7 +242,7 @@ func _build_titles() -> Control:
 	titles.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mode_name_label = Label.new()
 	mode_name_label.name = "ModeName"
-	UiKit.letter(mode_name_label, UiMetrics.DISPLAY, CREAM)
+	UiKit.letter(mode_name_label, UiMetrics.DISPLAY, Color.WHITE, Color.BLACK)
 	mode_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	# the name straddles the bottom edge of the chosen card: this holder sits where the stage ends and the name hangs
 	# off it upwards by the card's air plus half its own height (`_place_title`)
@@ -243,7 +255,10 @@ func _build_titles() -> Control:
 	mode_text_label = Label.new()
 	mode_text_label.name = "ModeText"
 	mode_text_label.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
-	mode_text_label.add_theme_color_override("font_color", Color("c9d6f2"))
+	# white letters with a black outline, like the name over it (owner)
+	mode_text_label.add_theme_color_override("font_color", Color.WHITE)
+	mode_text_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	mode_text_label.add_theme_constant_override("outline_size", MODE_TEXT_OUTLINE)
 	mode_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mode_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mode_text_label.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
@@ -403,12 +418,17 @@ func _fit_hero() -> void:
 	var stage: Control = carousel.get_parent() as Control
 	if stage.size.y < 100.0:
 		return
+	# the room for the group: the stage and the spacer under the buttons together (the spacer is what is left over)
+	var total: float = stage.size.y + _bottom_spacer.custom_minimum_size.y
 	# the stage as it would be without the chips decides whether they show (so showing them never flips it back)
-	var bare: float = stage.size.y + (CHIPS_HEIGHT if mode_chips.visible else 0.0)
+	var bare: float = total + (CHIPS_HEIGHT if mode_chips.visible else 0.0)
 	mode_chips.visible = bare - CHIPS_HEIGHT >= CHIPS_MIN_STAGE
 	var height: float = clampf(bare - (CHIPS_HEIGHT if mode_chips.visible else 0.0) - HERO_AIR, HERO_MIN_HEIGHT, HERO_MAX_HEIGHT)
 	var width: float = minf(height * HERO_RATIO, stage.size.x - 120.0) * HERO_SCALE
 	var fitted: Vector2 = Vector2(roundf(width), roundf(width / HERO_RATIO))
+	# half of what the card does not use goes under the buttons (the other half stays above the card)
+	var spare: float = maxf(total - fitted.y - HERO_BOTTOM_GAP - (CHIPS_HEIGHT if mode_chips.visible else 0.0) - float(UiMetrics.COMPACT_GAP), 0.0)
+	_bottom_spacer.custom_minimum_size = Vector2(0.0, roundf(spare / 2.0))
 	if fitted.distance_to(carousel.card_size) < 3.0:
 		return
 	carousel.card_size = fitted
@@ -420,8 +440,7 @@ func _fit_hero() -> void:
 func _place_title() -> void:
 	if _title_holder == null or carousel == null:
 		return
-	var stage: Control = carousel.get_parent() as Control
-	var air: float = maxf((stage.size.y - carousel.card_size.y) / 2.0, 0.0)
+	var air: float = HERO_BOTTOM_GAP
 	var height: float = mode_name_label.get_combined_minimum_size().y
 	mode_name_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	# the letters sit a little low in their line, so lift the line to put the letters themselves on the edge

@@ -1,6 +1,6 @@
 class_name MenuCarousel
 extends Control
-## A horizontal carousel of 2.5:4 cards. The chosen card is in the middle at full size; every other
+## A horizontal carousel of cards (1.75:2.5 on the main screen). The chosen card is in the middle at full size; every other
 ## card is stacked behind it, pushed only a little to its left or right, smaller and see-through but
 ## always visible. Drag or swipe sideways to scroll, tap a card to bring it to the middle.
 
@@ -21,13 +21,18 @@ const FLOAT_SPEED: float = 1.0
 const DRAG_START: float = 12.0
 const SNAP_TIME: float = 0.18
 
-## The size of a card (2.5:4 on the main screen; the room's map carousel sets 3:4 before `setup`).
+## The size of a card (1.75:2.5 on the main screen; the room's map carousel sets 3:4 before `setup`).
 var card_size: Vector2 = CARD
 ## How far (px) the middle card bobs up and down while the screen idles (0 = holds still).
 var bob: float = 0.0:
 	set(value):
 		bob = value
 		set_process(value > 0.0)
+## When 0 or more, the cards sit this many pixels above the bottom of the carousel instead of in the middle of it (the main
+## screen keeps the mode name, its phrase and the buttons close under the cards).
+var bottom_gap: float = -1.0
+## Whether the chosen card gets a glowing coloured rim (the main screen's cards have none).
+var show_rim: bool = true
 var index: int = 0
 var cards: Array[Button] = []
 
@@ -52,7 +57,13 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		card.pivot_offset = card_size / 2.0
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.focus_mode = Control.FOCUS_NONE
-		card.add_child(_frame(String(option.get("accent", "ffd25a"))))
+		if show_rim:
+			card.add_child(_frame(String(option.get("accent", "ffd25a"))))
+		var face: CardFace = card.get_node_or_null("Face") as CardFace
+		if face != null:
+			face.accent = Color(String(option.get("accent", "ffd25a")))
+			face.power = int(option.get("power", 0))
+			face.wear_seed = float(cards.size() + 1)
 		add_child(card)
 		cards.append(card)
 	if accessibility_name.is_empty():
@@ -117,7 +128,7 @@ func _layout() -> void:
 		card.scale = Vector2.ONE * (1.0 - SCALE_LOSS * away)
 		var drift_phase: float = sin(float(Time.get_ticks_msec()) / 1000.0 * FLOAT_SPEED)
 		var drift: float = drift_phase * bob * (1.0 - away / 2.0) if bob > 0.0 and not Settings.reduced_motion else 0.0
-		card.position = Vector2(size.x / 2.0 + offset * STEP - card_size.x / 2.0, (size.y - card_size.y) / 2.0 + drift)
+		card.position = Vector2(size.x / 2.0 + offset * STEP - card_size.x / 2.0, ((size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap) + drift)
 		# every card stays visible: the ones further back are darker and slightly see-through
 		var shade: float = 1.0 - SHADE_LOSS * away
 		card.modulate = Color(shade, shade, shade, lerpf(1.0, BACK_ALPHA, clampf(absf(offset), 0.0, 1.0)))
