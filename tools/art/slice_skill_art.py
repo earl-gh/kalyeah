@@ -1,9 +1,8 @@
 """Cuts the painted skill icons out of the generated sheets in tools/art/src.
 
 Run: python3 tools/art/slice_skill_art.py
-Output: assets/icons/art/<id>.png (512 px square, transparent) and
-assets/ui/skill_disc.png (the cardboard button base). make_buttons.py composes
-them into assets/icons/btn_<id>.png.
+Output: assets/icons/art/<id>.png (512 px square, transparent): the skill icon alone, no
+cardboard disc under it (owner: the round cardboard is gone from every skill).
 """
 import os
 
@@ -55,9 +54,6 @@ def main():
     img = sheet(23)
     save_cell(img, (0, 0, 940, img.height), "dash")
     save_cell(img, (940, 0, img.width, img.height), "pin_return")
-    disc = sheet(17)
-    disc = disc.crop(disc.getbbox())
-    disc.resize((256, int(256 * disc.height / disc.width)), Image.LANCZOS).save(os.path.join(ROOT, "assets", "ui", "skill_disc.png"), optimize=True)
 
 
 if __name__ == "__main__":

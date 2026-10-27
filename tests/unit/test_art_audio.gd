@@ -146,7 +146,7 @@ func test_camera_shake_kicks_then_settles() -> void:
 func test_every_skill_has_painted_art() -> void:
 	for i: int in RULES.weapons.size():
 		var def: WeaponDef = RULES.weapons[i]
-		assert_not_null(Icons.art(StringName("btn_" + String(def.id))), String(def.id))
+		assert_not_null(Icons.skill(def.id), String(def.id))
 	for id: StringName in [&"gear"]:
 		assert_not_null(Icons.art(id), String(id))
 

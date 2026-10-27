@@ -92,7 +92,7 @@ static func weapon(screen: WeaponPickScreen, def: WeaponDef) -> Button:
 	margin.add_child(column)
 	var art: TextureRect = TextureRect.new()
 	art.name = "Art"
-	art.texture = Icons.art(StringName("btn_" + String(def.id)))
+	art.texture = Icons.skill(def.id)
 	art.custom_minimum_size = Vector2(0.0, 72.0)
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED

@@ -17,7 +17,7 @@ func show_weapon(def: WeaponDef) -> void:
 func _draw() -> void:
 	draw_style_box(UiSkin.plate("picked" if active else "inset", 0.0, UiSkin.RADIUS_L), Rect2(Vector2.ZERO, size))
 	var font: Font = KalyeahTheme.BODY_FONT
-	var icon: Texture2D = Icons.art(StringName("btn_" + String(weapon.id))) if weapon != null else null
+	var icon: Texture2D = Icons.skill(weapon.id) if weapon != null else null
 	if icon != null:
 		draw_texture_rect(icon, Rect2(10.0, 10.0, 76.0, 76.0), false)
 	# the same name as on the tile; the size steps down (never below the text floor) until it fits
