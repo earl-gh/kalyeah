@@ -99,7 +99,7 @@ func test_the_lanyard_is_two_black_straps_one_in_front_and_one_behind_meeting_at
 	assert_eq((screen.find_child("Logo", true, false) as Control).z_index, NameTag.LOGO_Z)
 
 
-func test_the_card_is_centred_between_the_bottom_of_the_logo_and_the_top_of_the_chosen_model() -> void:
+func test_the_card_hangs_a_little_below_the_middle_between_the_logo_and_the_chosen_model() -> void:
 	for height: float in [1280.0, 1558.0]:
 		var phone: Control = autofree(Control.new()) as Control
 		phone.custom_minimum_size = Vector2(720.0, height)
@@ -115,10 +115,10 @@ func test_the_card_is_centred_between_the_bottom_of_the_logo_and_the_top_of_the_
 		var model_top: float = stage_top + screen.carousel.front_top()
 		var above: float = paper.position.y - logo.end.y
 		var below: float = model_top - paper.end.y
-		assert_almost_eq(above, below, 2.0, "%d px: the same room above and under the card (%.1f above, %.1f below)" % [int(height), above, below])
-		assert_gt(above, 8.0, "%d px: room above" % int(height))
-		var back_top: float = stage_top + screen.carousel.back_top()
-		assert_lt(paper.end.y, back_top, "%d px: and the card stays clear of the models behind" % int(height))
+		assert_gt(above, below, "%d px: lower than the middle (%.1f above, %.1f below)" % [int(height), above, below])
+		assert_almost_eq(above - below, 2.0 * TitleScreen.TAG_DROP, 3.0, "%d px: by the drop (twice, as the gaps differ)" % int(height))
+		assert_gt(above, 8.0, "%d px: clear of the logo" % int(height))
+		assert_gt(below, 8.0, "%d px: and clear of the chosen model" % int(height))
 
 
 func test_a_long_name_takes_smaller_letters_and_never_leaves_the_screen() -> void:
@@ -220,9 +220,9 @@ func test_the_tag_fits_between_the_logo_and_the_models_on_tall_and_short_phones(
 		var tag: NameTag = screen.name_tag
 		var logo: Rect2 = (screen.find_child("Logo", true, false) as Control).get_global_rect()
 		var card: Rect2 = tag.card.get_global_rect()
-		var back_top: float = (screen.carousel.get_parent() as Control).get_global_rect().position.y + screen.carousel.back_top()
+		var front_top: float = (screen.carousel.get_parent() as Control).get_global_rect().position.y + screen.carousel.front_top()
 		assert_gt(card.position.y, logo.end.y - 1.0, "%d px: below the logo row" % int(height))
-		assert_lt(card.end.y, back_top + 1.0, "%d px: above the models behind" % int(height))
+		assert_lt(card.end.y, front_top + 1.0, "%d px: above the chosen model" % int(height))
 		assert_gte(tag.card.scale.x, TitleScreen.TAG_MIN_SCALE - 0.001, "%d px: not shrunk past its least" % int(height))
 		assert_lt((tag.front_strap.get_global_transform() * Vector2(tag.front_strap.size.x / 2.0, 0.0)).y, 0.0, "%d px: the lanyard still leaves the screen" % int(height))
 
@@ -264,3 +264,49 @@ func test_the_profile_field_filters_as_you_type_and_counts_the_letters() -> void
 	field.text = "A<b>c"
 	field.text_changed.emit("A<b>c")
 	assert_eq(field.text, "Abc", "brackets are dropped as they are typed or pasted")
+
+
+func test_row_one_sits_exactly_between_the_slot_and_the_name() -> void:
+	var screen: TitleScreen = _screen()
+	await wait_frames(4)
+	var tag: NameTag = screen.name_tag
+	for text: String in ["GABO", "Ana", "MMMMMMMMMM"]:
+		tag.set_player_name(text)
+		await wait_frames(2)
+		var letters: int = tag.name_label.get_theme_font_size("font_size")
+		var greeting_font: Font = tag.greeting_label.get_theme_font("font")
+		var name_font: Font = tag.name_label.get_theme_font("font")
+		var hole_bottom: float = NameTag.SLOT_MIDDLE + NameTag.SLOT_SIZE.y / 2.0
+		var greeting_baseline: float = tag.greeting_label.position.y + greeting_font.get_ascent(UiMetrics.DETAIL)
+		var greeting_top: float = greeting_baseline - NameTag.CAP_RATIO * float(UiMetrics.DETAIL)
+		var name_baseline: float = tag.name_label.position.y + name_font.get_ascent(letters)
+		var name_top: float = name_baseline - NameTag.CAP_RATIO * float(letters)
+		assert_almost_eq(greeting_top - hole_bottom, name_top - greeting_baseline, 1.0, "%s: the same room above row 1 and under it" % text)
+		assert_gt(greeting_top - hole_bottom, 8.0, "%s: row 1 does not touch the slot" % text)
+		assert_gt(name_top - greeting_baseline, 8.0, "%s: nor the name" % text)
+		assert_almost_eq(name_baseline, NameTag.NAME_BASELINE, 0.6, "%s: the name stays on its line" % text)
+
+
+func test_tap_to_change_is_a_small_light_line_under_the_name() -> void:
+	var screen: TitleScreen = _screen()
+	await wait_frames(4)
+	var tag: NameTag = screen.name_tag
+	assert_eq(tag.hint_label.text, "Tap to change")
+	assert_lt(tag.hint_label.get_theme_font_size("font_size"), tag.greeting_label.get_theme_font_size("font_size"), "smaller than row 1")
+	assert_gte(tag.hint_label.get_theme_font_size("font_size"), UiMetrics.MIN_TEXT, "but not under the reading floor")
+	assert_gt(tag.hint_label.get_theme_color("font_color").get_luminance(), tag.greeting_label.get_theme_color("font_color").get_luminance(), "lighter than row 1")
+	assert_gt(tag.hint_label.get_global_rect().position.y, tag.name_label.get_global_rect().position.y + tag.name_label.get_global_rect().size.y * 0.5, "under the name")
+	assert_lt(tag.hint_label.get_global_rect().end.y, tag.card.get_global_rect().end.y, "inside the card")
+	assert_gte(UiKit.contrast(tag.hint_label.get_theme_color("font_color"), Color.WHITE), 2.8, "still readable on the white card")
+	tag.set_player_name("MMMMMMMMMM")
+	await wait_frames(2)
+	assert_almost_eq(tag.hint_label.get_global_rect().get_center().x, tag.card.get_global_rect().get_center().x, 2.0, "centred under any name")
+
+
+func test_the_two_straps_leave_a_clear_v_gap_at_the_top() -> void:
+	var screen: TitleScreen = _screen()
+	await wait_frames(4)
+	var tag: NameTag = screen.name_tag
+	var front: float = (tag.front_strap.get_global_transform() * Vector2(tag.front_strap.size.x / 2.0, 0.0)).x
+	var back: float = (tag.back_strap.get_global_transform() * Vector2(tag.back_strap.size.x / 2.0, 0.0)).x
+	assert_gt(back - front, NameTag.STRAP_WIDTH * 2.0, "the straps are well apart where they leave the screen (%.0f px)" % (back - front))

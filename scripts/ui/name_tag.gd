@@ -10,7 +10,7 @@ extends Control
 
 signal tapped
 
-const CARD_HEIGHT: float = 156.0
+const CARD_HEIGHT: float = 178.0
 const CARD_MIN_WIDTH: float = 300.0
 const CARD_MAX_WIDTH: float = 560.0
 const CARD_SIDE_PAD: float = 36.0
@@ -19,7 +19,7 @@ const SLOT_SIZE: Vector2 = Vector2(64.0, 16.0)
 const SLOT_MIDDLE: float = 22.0
 const STRAP_WIDTH: float = 22.0
 ## The two straps lean away from each other going up, this many degrees each, and meet at the slot.
-const STRAP_SPREAD: float = 5.0
+const STRAP_SPREAD: float = 7.0
 ## The two straps are plain black webbing (`lanyard.gdshader` gives it a soft round, a fine weave and a stitch); the front one is a touch
 ## lighter, so it reads as the layer on top of the other.
 const STRAP_SHADER: Shader = preload("res://shaders/lanyard.gdshader")
@@ -31,7 +31,17 @@ const CARD_EDGE: Color = Color("cfd6e6")
 const SLOT_RIM: Color = Color("b7c0d4")
 const INK: Color = KalyeahTheme.MODAL_TEXT
 const INK_MUTED: Color = KalyeahTheme.MODAL_TEXT_MUTED
+## The small line under the name: light, and smaller than row 1.
+const INK_LIGHT: Color = Color("8a96b0")
 const GREETING: String = "Hi! I'm"
+const HINT: String = "Tap to change"
+## Where the rows sit: the name's baseline (down from the top of the card), and the height of a capital as a share of the letter size
+## (the rows are all capitals, so their visible top is a capital's height above their baseline).
+const NAME_BASELINE: float = 124.0
+const CAP_RATIO: float = 0.72
+## The hint's letter size (smaller than row 1) and the room between the name's baseline and the top of its capitals.
+const HINT_SIZE: int = UiMetrics.CAPTION
+const HINT_GAP: float = 14.0
 ## The name's letters, from the largest down to the smallest that still reads: a longer name takes a smaller size.
 const NAME_SIZES: Array[int] = [UiMetrics.HEADLINE, UiMetrics.TITLE, UiMetrics.BODY]
 ## Depths: the straps run behind the card and the logo (the logo is above all of them, `LOGO_Z`); the card is above the backdrop's lights and
@@ -62,6 +72,8 @@ var swing: bool = true:
 var card: Control
 var greeting_label: Label
 var name_label: Label
+## "Tap to change": the small light line under the name.
+var hint_label: Label
 ## The whole card is the button: a tap on it opens the profile sheet.
 var tap_button: Button
 var strap: Control
@@ -109,16 +121,11 @@ func _init() -> void:
 	slot.name = "Slot"
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(slot)
-	var words: VBoxContainer = VBoxContainer.new()
+	# the two rows are placed by hand (see `_place_text`): row 1 sits exactly between the slot and the name
+	var words: Control = Control.new()
 	words.name = "Words"
-	words.add_theme_constant_override("separation", 0)
-	words.alignment = BoxContainer.ALIGNMENT_CENTER
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	words.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	words.offset_top = SLOT_MIDDLE + SLOT_SIZE.y / 2.0 + 4.0
-	words.offset_bottom = -8.0
-	words.offset_left = CARD_SIDE_PAD
-	words.offset_right = -CARD_SIDE_PAD
 	card.add_child(words)
 	greeting_label = Label.new()
 	greeting_label.name = "Greeting"
@@ -134,12 +141,20 @@ func _init() -> void:
 	name_label.name = "PlayerName"
 	name_label.theme_type_variation = &"DisplayLabel"
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_label.add_theme_color_override("font_color", INK)
 	name_label.add_theme_constant_override("outline_size", 0)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	name_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	words.add_child(name_label)
+	hint_label = Label.new()
+	hint_label.name = "Hint"
+	hint_label.text = HINT
+	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint_label.theme_type_variation = &"DisplayLabel"
+	hint_label.add_theme_font_size_override("font_size", HINT_SIZE)
+	hint_label.add_theme_color_override("font_color", INK_LIGHT)
+	hint_label.add_theme_constant_override("outline_size", 0)
+	hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	words.add_child(hint_label)
 	# the front strap goes over the top edge of the card down into the slot
 	front_strap = _strap_piece("FrontStrap", STRAP_FRONT_COLOR, STRAP_Z, true)
 	strap.add_child(front_strap)
@@ -221,7 +236,7 @@ func set_player_name(text: String) -> void:
 	name_label.text = shown
 	accessibility_name = "Hi! I'm %s" % _name
 	tap_button.accessibility_name = "Hi! I'm %s" % _name
-	tap_button.accessibility_description = "Tap to change your name"
+	tap_button.accessibility_description = HINT
 	# the biggest letters whose name still fits the widest card
 	var room: float = CARD_MAX_WIDTH - CARD_SIDE_PAD * 2.0
 	var letters: int = UiMetrics.BODY  # the smallest of NAME_SIZES, for a name too long for any
@@ -233,6 +248,7 @@ func set_player_name(text: String) -> void:
 	name_label.add_theme_font_size_override("font_size", letters)
 	var name_width: float = font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1.0, letters).x
 	_fit(clampf(name_width + CARD_SIDE_PAD * 2.0, CARD_MIN_WIDTH, CARD_MAX_WIDTH))
+	_place_text(letters)
 
 
 ## The name shown now (as typed, not in capitals).
@@ -250,6 +266,29 @@ func _fit(width: float) -> void:
 	_paper_material.set_shader_parameter("rect_size", card.size)
 	_paper_material.set_shader_parameter("slot_centre", Vector2(width / 2.0, SLOT_MIDDLE))
 	_paper_material.set_shader_parameter("slot_half", SLOT_SIZE / 2.0)
+
+
+## Places the rows: the name on its baseline, "Tap to change" under it, and "Hi! I'm" exactly between the bottom of the slot and the top of the name's capitals
+## (the same room above it as under it).
+func _place_text(letters: int) -> void:
+	var inner: float = card.size.x - CARD_SIDE_PAD * 2.0
+	var name_font: Font = name_label.get_theme_font("font")
+	var name_height: float = name_font.get_height(letters)
+	name_label.size = Vector2(inner, name_height)
+	name_label.position = Vector2(CARD_SIDE_PAD, NAME_BASELINE - name_font.get_ascent(letters))
+	var greeting_size: int = UiMetrics.DETAIL
+	var greeting_font: Font = greeting_label.get_theme_font("font")
+	var hole_bottom: float = SLOT_MIDDLE + SLOT_SIZE.y / 2.0
+	var name_top: float = NAME_BASELINE - CAP_RATIO * float(letters)
+	var cap: float = CAP_RATIO * float(greeting_size)
+	var greeting_baseline: float = (hole_bottom + name_top) / 2.0 + cap / 2.0
+	greeting_label.size = Vector2(inner, greeting_font.get_height(greeting_size))
+	greeting_label.position = Vector2(CARD_SIDE_PAD, greeting_baseline - greeting_font.get_ascent(greeting_size))
+	# "Tap to change" under the name
+	var hint_font: Font = hint_label.get_theme_font("font")
+	var hint_baseline: float = NAME_BASELINE + HINT_GAP + CAP_RATIO * float(HINT_SIZE)
+	hint_label.size = Vector2(inner, hint_font.get_height(HINT_SIZE))
+	hint_label.position = Vector2(CARD_SIDE_PAD, hint_baseline - hint_font.get_ascent(HINT_SIZE))
 
 
 ## Hangs the card with the middle of its slot at `hole` (this node's parent's pixels), and the lanyard up to `top` (the same pixels,
