@@ -19,6 +19,8 @@ enum Msg {
 	# client -> server, added later (appended so the numbers above stay the same)
 	SET_TEAM_SIZE, SET_MAP, SET_CHARACTER,
 	DISCOVER_ROOM, ROOM_DISCOVERED,
+	# server -> client: the server is going away (a hotspot host left), so there is nothing to reconnect to
+	ROOM_CLOSED,
 }
 
 

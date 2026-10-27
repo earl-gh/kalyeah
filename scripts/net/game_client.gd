@@ -11,6 +11,8 @@ signal connection_changed(online: bool)
 signal welcomed(reconnected: bool)
 signal error_received(text: String)
 signal room_changed(room: Dictionary)
+## The server closed the room for good (a hotspot host left); a reconnect would find nothing.
+signal room_closed
 ## The host started: build the match scene from `info`, then call loaded().
 signal match_loading(info: Dictionary)
 ## "pick" (10 s weapon pick) or "play" (loadouts are final).
@@ -255,6 +257,8 @@ func _handle(message: Dictionary) -> void:
 			player_id = message.get("you", -1) as int
 			token = message.get("token", "") as String
 			room_changed.emit(room)
+		M.ROOM_CLOSED:
+			room_closed.emit()
 		M.MATCH_LOADING:
 			_build_mirror(message)
 			match_loading.emit(message)

@@ -176,3 +176,39 @@ func test_dropping_while_aiming_cancels_instead_of_casting() -> void:
 	var stopped: Vector2 = player.position
 	_pump(0.3)
 	assert_eq(player.position, stopped)
+
+
+func test_the_others_hear_when_a_player_drops_out_of_the_match() -> void:
+	_start_1v1()
+	var id: int = b.player_id
+	b.close()
+	assert_true(_until(func() -> bool: return _connected(a.room, id) == false), "a's room says Ben is gone")
+
+
+func test_a_host_that_stops_tells_the_players_the_room_is_closed() -> void:
+	_start_1v1()
+	watch_signals(b)
+	server.close_rooms()
+	_pump(Net.CLOSE_GRACE)
+	server.stop()
+	_pump(0.2)
+	assert_signal_emitted(b, "room_closed", "told before the socket closed, so b does not wait to reconnect")
+
+
+## Whether the member `id` of `room` is connected (null if not in the room).
+func _connected(room: Dictionary, id: int) -> Variant:
+	for entry: Dictionary in room.get("members", []) as Array:
+		if entry.get("player_id", -1) == id:
+			return entry.get("connected", true)
+	return null
+
+
+func test_a_stopped_hotspot_host_runs_only_long_enough_to_say_so() -> void:
+	assert_eq(Net.start_host(), OK)
+	Net.stop_host()
+	assert_null(Net.host, "no longer hosting")
+	Net._process(Net.CLOSE_GRACE + 0.01)
+	assert_null(Net._closing, "then it really stops")
+	assert_eq(Net.start_host(), OK, "and the port is free for the next room")
+	Net.stop_host()
+	Net._finish_closing()

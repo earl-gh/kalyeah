@@ -20,6 +20,8 @@ const BOT_ENEMY_IDS: Array[int] = [4, 5, 6]
 const MAX_STEPS_PER_FRAME: int = 8
 const RECONNECT_INTERVAL: float = 2.0
 const TITLE_SCENE: String = "res://scenes/ui/title_screen.tscn"
+## Online: the server closed the room (a hotspot host left), so there is no battle to go back to.
+const ROOM_CLOSED_TEXT: String = "The host left.\nThe battle is over."
 
 @export var rules: GameRules
 @export var layout: MapLayout
@@ -47,6 +49,8 @@ var _reconnect_left: float = -1.0
 ## A new socket is not a restored match until WELCOME confirms the old slot.
 var _awaiting_reconnect_welcome: bool = false
 var _resume_rejected: bool = false
+## Online: who in the room was connected at the last room update (player id -> connected), to tell when it changes.
+var _connected: Dictionary[int, bool] = {}
 var _application_focused: bool = true
 var _application_paused: bool = false
 var _presentation: PracticeMatchPresentation
@@ -90,6 +94,9 @@ func _ready() -> void:
 		client.picks_changed.connect(func() -> void: _pick_screen.set_taken(client.taken_kids()))
 		client.connection_changed.connect(_on_connection_changed)
 		client.welcomed.connect(_on_welcomed)
+		client.room_changed.connect(_on_room_changed)
+		client.room_closed.connect(_on_room_closed)
+		_on_room_changed(client.room)
 		client.loaded()
 		if client.stage == "play":
 			_on_stage_changed("play")
@@ -440,6 +447,28 @@ func _on_welcomed(reconnected: bool) -> void:
 	_resume_rejected = true
 	_set_controls_active(false)
 	hud.set_connection("Battle unavailable", true)
+
+
+## Online: someone else dropped out of the match or came back (the server keeps a dropped player's slot for a while).
+func _on_room_changed(room: Dictionary) -> void:
+	for entry: Dictionary in room.get("members", []) as Array:
+		var id: int = entry.get("player_id", -1) as int
+		var connected: bool = entry.get("connected", true) as bool
+		var known: bool = _connected.has(id)
+		var was: bool = _connected.get(id, connected)
+		_connected[id] = connected
+		if id == local_id or not known or was == connected:
+			continue
+		var name: String = entry.get("name", "") as String
+		show_banner(("%s is back!" if connected else "%s left the battle") % name)
+
+
+func _on_room_closed() -> void:
+	_resume_rejected = true
+	_awaiting_reconnect_welcome = false
+	_reconnect_left = -1.0
+	_cancel_local_input()
+	hud.set_connection(ROOM_CLOSED_TEXT, true)
 
 
 func _try_reconnect(delta: float) -> void:
