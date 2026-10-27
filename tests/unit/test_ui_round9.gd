@@ -191,7 +191,7 @@ func test_the_chosen_mode_survives_the_hero_being_resized() -> void:
 	wide.size = Vector2(wide.size.x, wide.size.y - 140.0)
 	await wait_frames(3)
 	assert_eq(screen.carousel.index, 2, "still on Practice")
-	assert_eq(screen.mode_name_label.text, "Practice")
+	assert_eq(screen.mode_name(), "Practice")
 
 
 # ---- mode facts -----------------------------------------------------------------------

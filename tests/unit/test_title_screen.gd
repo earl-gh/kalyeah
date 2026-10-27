@@ -72,7 +72,7 @@ func test_the_screen_has_everything_the_owner_asked_for() -> void:
 	assert_not_null(screen.find_child("Logo", true, false), "the game's logo")
 	assert_null(screen.find_child("ProfileChip", true, false), "no profile chip: the profile is edited in Settings (owner)")
 	assert_not_null(screen.carousel, "the mode carousel")
-	assert_eq(screen.mode_name_label.text, "Local", "hotspot is the default mode")
+	assert_eq(screen.mode_name(), "Local", "hotspot is the default mode")
 	assert_null(screen.find_child("MapButton", true, false), "no map button")
 	assert_eq(screen.primary_button.text, "Create")
 	assert_eq(screen.secondary_button.text, "Join")
@@ -175,13 +175,10 @@ func test_the_actions_sit_low_on_the_screen_but_not_at_the_very_bottom() -> void
 	assert_almost_eq(create.size.y, TitleScreen.CTA_HEIGHT, 1.0, "0.75 x 156")
 	assert_almost_eq((create.position.x + join.end.x) / 2.0, 360.0, 2.0, "centred left to right")
 	assert_almost_eq(create.size.x, join.size.x, 1.0, "the pair is the same size")
-	var title: Rect2 = screen.mode_name_label.get_global_rect()
 	var phrase: Rect2 = screen.mode_text_label.get_global_rect()
 	var cards_bottom: float = screen.mode_models[screen.carousel.index].get_global_rect().end.y
-	assert_almost_eq(title.get_center().y, cards_bottom, 20.0, "the mode title hangs on the bottom edge of its card")
-	assert_gt(phrase.position.y, cards_bottom, "and the phrase is under the card")
+	assert_gt(phrase.position.y, cards_bottom, "the phrase is under the model")
 	assert_lt(phrase.end.y, create.position.y - 10.0, "and clear of the buttons")
-	assert_almost_eq(title.get_center().x, 360.0, 2.0, "centred left to right")
 	assert_almost_eq(phrase.get_center().x, 360.0, 2.0)
 
 
@@ -264,10 +261,10 @@ func test_the_carousel_is_online_local_practice_with_local_chosen_in_front() -> 
 	strip.select(0, false)
 	assert_eq(strip.cards[0].modulate.r, 1.0, "the chosen card comes forward at full brightness")
 	assert_lt(strip.cards[1].modulate.r, 1.0)
-	assert_eq(screen.mode_name_label.text, "Online", "the details follow the chosen card")
+	assert_eq(screen.mode_name(), "Online", "the details follow the chosen card")
 	assert_eq(screen.primary_button.text, "Create")
 	strip.select(2, false)
-	assert_eq(screen.mode_name_label.text, "Practice")
+	assert_eq(screen.mode_name(), "Practice")
 	assert_eq(screen.primary_button.text, "Play", "practice is one button")
 	assert_false(screen.secondary_button.visible, "no second button in practice")
 
@@ -709,3 +706,52 @@ func test_the_calendar_opens_this_months_game_and_the_envelope_the_donate_sheet(
 	assert_eq(screen.dialog.name, "DonateSheet")
 	assert_true(screen.dialog.is_open)
 	assert_eq(screen.current_page, &"", "no page opens")
+
+
+func test_the_mode_name_is_written_on_the_front_face_of_the_platform() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(4)
+	for index: int in TitleScreen.MODES.size():
+		var face: CardFace = screen.mode_models[index].get_node("Face") as CardFace
+		var plate: ModePlate = face.plate()
+		var wall: Rect2 = TitleScreen.MODES[index]["plate"] as Rect2
+		assert_eq(plate.text, String(TitleScreen.MODES[index]["title"]))
+		assert_true(plate.visible, "the plate shows on a bare model")
+		var label: Label = plate.get_child(0) as Label
+		# the lettering's middle is the middle of the platform's face, whatever the model's size
+		var middle: Vector2 = label.get_global_transform() * (label.size / 2.0)
+		var on_screen: Rect2 = plate.face_rect()
+		var expected: Vector2 = plate.get_global_transform() * on_screen.get_center()
+		assert_almost_eq(middle.x, expected.x, 1.0, "%s: centred on the face across" % plate.text)
+		assert_almost_eq(middle.y, expected.y, 1.0, "%s: and down" % plate.text)
+		# a vertical face under the 45 degree camera shows its heights shrunk by cos 45; nothing is turned or leaned
+		assert_almost_eq(label.scale.y / label.scale.x, ModePlate.FORESHORTEN, 0.001, "%s: foreshortened, not skewed" % plate.text)
+		assert_eq(label.rotation, 0.0)
+		assert_eq(label.skew, 0.0)
+		var inside: Vector2 = label.get_global_transform().basis_xform(label.size)
+		assert_lte(absf(inside.x), on_screen.size.x + 0.5, "%s: fits the face across" % plate.text)
+		assert_lte(absf(inside.y), on_screen.size.y + 0.5, "%s: and down" % plate.text)
+		assert_gt(wall.size.x, 0.0)
+
+
+func test_only_the_chosen_models_name_shows_on_its_platform() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(4)
+	for index: int in screen.mode_models.size():
+		var plate: ModePlate = (screen.mode_models[index].get_node("Face") as CardFace).plate()
+		if index == screen.carousel.index:
+			assert_almost_eq(plate.modulate.a, 1.0, 0.02, "the chosen model's name shows")
+		else:
+			assert_lt(plate.modulate.a, 0.02, "the models behind it have no name")
+
+
+func test_each_platform_face_lies_on_the_dark_base_of_its_picture() -> void:
+	# measured on the PNGs: the face is the dark wall under the rim, so the name must not reach up onto the lit rim or the ground
+	for index: int in TitleScreen.MODES.size():
+		var mode: Dictionary = TitleScreen.MODES[index]
+		var image: Image = (load("res://assets/ui/dioramas/%s.png" % mode["id"]) as Texture2D).get_image()
+		var wall: Rect2 = mode["plate"] as Rect2
+		for corner: Vector2 in [wall.position, Vector2(wall.end.x, wall.position.y), Vector2(wall.position.x, wall.end.y), wall.end]:
+			var colour: Color = image.get_pixel(int(corner.x), int(minf(corner.y, image.get_height() - 1.0)))
+			assert_gt(colour.a, 0.9, "%s: the corner %s is on the picture" % [mode["id"], corner])
+			assert_lt(maxf(colour.r, maxf(colour.g, colour.b)), 0.45, "%s: and on the dark wall" % mode["id"])

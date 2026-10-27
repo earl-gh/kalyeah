@@ -144,7 +144,7 @@ func test_the_mode_cards_are_old_teks_cards_worn_at_the_corners_each_differently
 	var order: Array[String] = []
 	for child: Node in strip.cards[1].get_node("Face").get_children():
 		order.append(child.name)
-	assert_eq(order, ["Picture", "PowerLine", "Tint"] as Array[String], "picture, then the power line, then the yellowish tint over all")
+	assert_eq(order, ["Picture", "PowerLine", "Tint", "Plate"] as Array[String], "picture, then the power line, then the yellowish tint over all, then the name on the platform (bare models only)")
 	var tint: ColorRect = strip.cards[1].get_node("Face/Tint") as ColorRect
 	assert_lte(tint.color.a, 0.2, "a subtle tint")
 	assert_gt(tint.color.r + tint.color.g, tint.color.b * 2.0, "yellowish")
@@ -156,7 +156,8 @@ func test_the_mode_name_and_its_phrase_are_white_with_a_black_outline() -> void:
 	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
 	add_child(screen)
 	await wait_frames(2)
-	for label: Label in [screen.mode_name_label, screen.mode_text_label]:
+	var name_label: Label = (screen.mode_models[screen.carousel.index].get_node("Face") as CardFace).plate().get_child(0) as Label
+	for label: Label in [name_label, screen.mode_text_label]:
 		assert_eq(label.get_theme_color("font_color"), Color.WHITE, "%s is white" % label.name)
 		assert_eq(label.get_theme_color("font_outline_color"), Color.BLACK, "%s has a black outline" % label.name)
 		assert_gt(label.get_theme_constant("outline_size"), 3, "%s: a real outline" % label.name)
@@ -211,13 +212,6 @@ func test_the_main_menu_backdrop_is_backlit_behind_the_chosen_card() -> void:
 	assert_gt(glow.size.x, card.size.x, "and it reaches out past the card")
 	var gradient: Gradient = (glow.texture as GradientTexture2D).gradient
 	assert_gt(gradient.colors[0].a, gradient.colors[gradient.colors.size() - 1].a, "a radial gradient: bright in the middle, gone at the edge")
-
-
-func test_the_mode_name_is_flat_text_with_no_perspective() -> void:
-	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
-	add_child(screen)
-	await wait_frames(4)
-	assert_null(screen.mode_name_label.material, "the name is drawn as plain text (owner: no perspective)")
 
 
 func test_the_main_menu_background_is_the_blue_picture_for_every_mode() -> void:

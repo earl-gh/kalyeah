@@ -58,6 +58,8 @@ var chosen: float = 1.0:
 		_tint_material.set_shader_parameter("tint", Color(AGE_TINT, AGE_TINT.a * value))
 		# a bare picture has no shader: it is dimmed with a dark tint of its own (owner: darker)
 		_picture.modulate = Color.WHITE.lerp(BARE_DIM, 1.0 - value) if bare else Color.WHITE
+		# the name on the platform shows on the chosen model only
+		_plate.modulate.a = value
 		_blur_for_depth()
 		queue_redraw()
 ## A bare face shows its picture as it is, a transparent PNG (a diorama) with no card paper, wear, corners, tint or power line: the card
@@ -70,7 +72,22 @@ var bare: bool = false:
 		_picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED if value else TextureRect.STRETCH_SCALE
 		_power_line.visible = not value
 		_tint_rect.visible = not value
+		_plate.visible = value and not _plate.text.is_empty()
 		queue_redraw()
+## Writes the mode's name on the front face of the platform (`face`: that wall on the picture, in the picture's pixels).
+func set_plate(title: String, face: Rect2) -> void:
+	_plate.picture_size = texture.get_size() if texture != null else Vector2.ONE
+	_plate.face = face
+	_plate.text = title
+	_plate.modulate.a = chosen
+	_plate.visible = bare
+
+
+## The name written on the platform.
+func plate() -> ModePlate:
+	return _plate
+
+
 ## The mode's power number (the line up the right edge).
 var power: int = 0:
 	set(value):
@@ -92,6 +109,7 @@ var wear_seed: float = 1.0:
 		queue_redraw()
 
 var _picture: TextureRect
+var _plate: ModePlate
 var _picture_material: ShaderMaterial
 var _power_line: CardPowerLine
 var _tint_material: ShaderMaterial
@@ -129,6 +147,9 @@ func _init() -> void:
 	tint.material = _tint_material
 	add_child(tint)
 	_tint_rect = tint
+	_plate = ModePlate.new()
+	_plate.visible = false
+	add_child(_plate)
 
 
 func _notification(what: int) -> void:
