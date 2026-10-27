@@ -7,6 +7,10 @@ extends Node3D
 ## a one-hand spell for heals, shields and traps), a cast while running only moves the upper
 ## body so the legs keep running, and a knock-out falls over backwards. Origin at the feet,
 ## the kid faces -Z (like a camera). Kids with no model of their own yet use FALLBACK_SET.
+## The owner's authored kids (CharacterDef.authored_model: Toni, Popoy, Inday) are different: their GLB keeps its own
+## material (no ModelLook) and plays its own clips (AUTHORED_CLIP_FOR) at their own speed, with no layering and no
+## fall; every cast is Cast_OneHand (standing) or Cast_Run (moving), started at the hand's release moment so it
+## lines up with the sim's cast tick; a tagged kid shrinks away, then grows back in the tagged box.
 
 const MODEL_PATH: String = "res://assets/models/characters/%s.glb"
 const PORTRAIT_PATH: String = "res://assets/portraits/%s.png"
@@ -34,7 +38,7 @@ const STILL_AFTER: float = 0.2
 ## as aliases, so a model that already has a clip under the game name keeps it.
 const CLIP_FOR: Dictionary[String, String] = {
 	"idle": "idle_alert", "cast": "throw", "spell": "cast_one_hand", "stun": "stunned",
-	"airborne": "airborne_fall", "land": "airborne_fall_land", "ko": "knockdown",
+	"airborne": "airborne_fall", "ko": "knockdown",
 }
 ## Upper-body clips played over the run while casting on the move (legs keep running).
 const LAYER_FOR: Dictionary[String, String] = {"cast": "throw_run", "spell": "cast_run"}
@@ -44,6 +48,17 @@ const UPPER_BONES: Array[String] = ["spine", "chest", "neck", "head", "shoulder"
 ## Blend shapes a layered clip leaves to the run (knee and hip correctives).
 const LOWER_SHAPES: Array[String] = ["knee_flex", "hip_flex"]
 const LOOPING: Array[String] = ["idle", "run", "stun", "airborne"]
+## The authored kids' clips (their own names in the GLB) under the game's state names.
+const AUTHORED_CLIP_FOR: Dictionary[String, String] = {
+	"idle": "Idle", "run": "Run", "tired": "Exhausted_Run", "stun": "Stunned", "airborne": "Airborne",
+	"cast": "Cast_OneHand", "cast_run": "Cast_Run",
+}
+const AUTHORED_LOOPING: Array[String] = ["idle", "run", "tired", "stun", "airborne"]
+## A tagged authored kid shrinks to nothing where it was tagged, then grows back in the tagged box (seconds each).
+const SHRINK_TIME: float = 0.17
+const GROW_TIME: float = 0.17
+## The scale at the bottom of the shrink (a true zero breaks the skinned mesh's transform).
+const GONE_SCALE: float = 0.001
 ## A spell starts where the charge-up of cast_one_hand ends (seconds into the clip).
 const SPELL_FROM: float = 0.6
 ## Blend out of a knockout (getting back up) is slower than other changes.
@@ -67,8 +82,6 @@ var _player: AnimationPlayer
 var _upper: AnimationPlayer  # the upper-body layer over the run
 var _own_fall: bool = false  # the model has its own knock-down clip (no whole-body tip)
 var _spell: bool = false
-var _airborne: bool = false
-var _land_left: float = 0.0
 var _layer_played: int = 0
 var _materials: Array[StandardMaterial3D] = []
 var _shadow: MeshInstance3D
@@ -82,6 +95,16 @@ var _cast_left: float = 0.0
 var _cast_total: float = CAST_TIME
 ## The model plays its own clips at their own speed (CharacterDef.native_animation).
 var _native: bool = false
+## The owner's authored model (CharacterDef.authored_model): own material, own clips, shrink when tagged.
+var _authored: bool = false
+var _cast_clip: String = "cast"  # authored: Cast_OneHand (standing) or Cast_Run (moving), chosen when the cast starts
+var _tired: bool = false
+enum Vanish { NONE, SHRINK, GROW }
+var _vanish: Vanish = Vanish.NONE
+var _vanish_time: float = 0.0
+var _vanish_at: Vector3 = Vector3.ZERO  # where the kid was tagged (it shrinks there)
+var _last_position: Vector3 = Vector3.INF
+var _was_tagged: bool = false
 var _cast_serial: int = 0
 var _cast_played: int = 0
 var _hit_left: float = 0.0
@@ -101,7 +124,8 @@ var pose: String = "idle"
 ## Builds the kid from its character. The kid wears no team colour and has no ring: the bar over its head says whose it is.
 func setup(def: CharacterDef) -> void:
 	character = def
-	_native = def.native_animation
+	_authored = def.authored_model
+	_native = def.native_animation or _authored
 	_set = def.id if ResourceLoader.exists(MODEL_PATH % def.id) else FALLBACK_SET
 	_build()
 	_play("idle", 1.0)
@@ -118,12 +142,22 @@ func face(facing: Vector2) -> void:
 func play_cast(duration: float = CAST_TIME, spell: bool = false) -> void:
 	_spell = spell
 	_cast_total = maxf(duration, CAST_TIME)
-	if _native:
+	if _authored:
+		# standing: Cast_OneHand, moving: Cast_Run, either way from the hand's release to the end of the clip
+		_cast_clip = "cast_run" if _move_blend > 0.5 else "cast"
+		_cast_total = maxf(_clip_length(_cast_clip) - cast_release(_cast_clip), 0.01)
+	elif _native:
 		# the clip decides how long the cast shows: its own length, never squeezed
 		var own: String = "spell" if spell and _player.has_animation("spell") else "cast"
 		_cast_total = maxf(_clip_length(own), 0.01)
 	_cast_left = _cast_total
 	_cast_serial += 1
+
+
+## Seconds into an authored kid's cast clip ("cast" or "cast_run") where the hand releases: the cast starts there, so the
+## release lands on the sim's cast tick. Measured on the GLB (CharacterDef.cast_release_standing / _moving).
+func cast_release(clip: String) -> float:
+	return character.cast_release_moving if clip == "cast_run" else character.cast_release_standing
 
 
 ## Heals, shields and traps are cast with an open hand; everything else is thrown.
@@ -187,20 +221,22 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 		_can.position.y = absf(sin(_clock * 10.0)) * 0.08 * clampf(speed, 0.0, 1.0)
 		return
 	_move_blend = move_toward(_move_blend, 1.0 if speed > 0.3 else 0.0, delta * 6.0)
+	_tired = _authored and state.overclocked
+	if _authored:
+		_step_vanish(delta, state.tagged)
+		# a cast belongs to the clip it began with: when the kid starts or stops moving it is over
+		if _cast_left > 0.0 and (_move_blend > 0.5) != (_cast_clip == "cast_run"):
+			_cast_left = 0.0
 	if speed > 0.3:
 		# a native run steps with its own cycle, the others one cycle per STRIDE metres
-		_phase += delta / maxf(_clip_length("run"), 0.01) if _native else delta * speed / STRIDE
+		_phase += delta / maxf(_clip_length("tired" if _tired else "run"), 0.01) if _native else delta * speed / STRIDE
 		var step_index: int = int(floor(_phase * 2.0))
 		if step_index != _last_step:
 			_last_step = step_index
 			footstep.emit()
-	var knocked_out: bool = state.effects.has(StatusEffects.Type.KNOCKOUT)
+	var knocked_out: bool = state.effects.has(StatusEffects.Type.KNOCKOUT) and not _authored  # authored kids have no fall
 	_ko_time = _ko_time + delta if knocked_out else 0.0
 	var airborne: bool = state.effects.has(StatusEffects.Type.AIRBORNE) or state.effects.has(StatusEffects.Type.BOUNCE)
-	if _airborne and not airborne and _player.has_animation("land"):
-		_land_left = _clip_length("land")  # touched down: the landing squash
-	_airborne = airborne
-	_land_left = maxf(0.0, _land_left - delta)
 	var casting: bool = _cast_left > 0.0
 	var cast_clip: String = "spell" if _spell and _player.has_animation("spell") else "cast"
 	var anim: String = "idle"
@@ -216,9 +252,12 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 		pose = "airborne"
 		anim = "airborne" if _player.has_animation("airborne") else "stun"
 		play_speed = 1.0 if anim == "airborne" else 1.6
-	elif state.effects.has(StatusEffects.Type.STUN):
+	elif state.effects.has(StatusEffects.Type.STUN) or (_authored and state.effects.has(StatusEffects.Type.KNOCKOUT)):
 		pose = "stunned"
 		anim = "stun"
+	elif casting and _authored:
+		pose = "cast"
+		anim = _cast_clip
 	elif casting and _move_blend > 0.5 and _upper != null:
 		# casting on the move: the legs keep running, the upper body throws or casts
 		pose = "cast"
@@ -231,11 +270,8 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 		play_speed = 1.0 if _native else (_clip_length(anim) - _clip_start(anim)) / _cast_total
 	elif _move_blend > 0.5:
 		pose = "run"
-		anim = "run"
+		anim = "tired" if _tired else "run"
 		play_speed = _run_speed(speed)
-	elif _land_left > 0.0:
-		pose = "land"
-		anim = "land"
 	else:
 		pose = "idle"
 	_anim = anim
@@ -245,6 +281,48 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	_stars.visible = anim == "stun" or pose == "airborne"
 	_stars.rotation.y = _clock * 2.6
 	_set_tint(_tint())
+
+
+## An authored kid that is tagged shrinks away (super fast, smooth) where it stood, then grows back to full size in
+## the tagged box, where the sim has already put it. View only: the sim never sees the scale. A kid that is
+## rescued (or created) while tagged just stands there at full size.
+func _step_vanish(delta: float, tagged: bool) -> void:
+	if tagged and not _was_tagged and _last_position != Vector3.INF:
+		_vanish = Vanish.SHRINK
+		_vanish_time = 0.0
+		_vanish_at = _last_position
+		_cast_left = 0.0
+	elif not tagged:
+		_vanish = Vanish.NONE
+	_was_tagged = tagged
+	var size: float = 1.0
+	if _vanish == Vanish.SHRINK:
+		_vanish_time += delta / SHRINK_TIME
+		position = _vanish_at
+		size = 1.0 - _smooth(_vanish_time)
+		if _vanish_time >= 1.0:
+			_vanish = Vanish.GROW
+			_vanish_time = 0.0
+			size = 0.0
+	elif _vanish == Vanish.GROW:
+		_vanish_time += delta / GROW_TIME
+		size = _smooth(_vanish_time)
+		if _vanish_time >= 1.0:
+			_vanish = Vanish.NONE
+			size = 1.0
+	_body.scale = Vector3.ONE if size >= 1.0 else Vector3.ONE * maxf(size, GONE_SCALE)
+	_shadow.scale = _body.scale
+	_last_position = position
+
+
+## True while the tagged shrink or grow is playing.
+func is_vanishing() -> bool:
+	return _vanish != Vanish.NONE
+
+
+static func _smooth(t: float) -> float:
+	var x: float = clampf(t, 0.0, 1.0)
+	return x * x * (3.0 - 2.0 * x)
 
 
 func _tint() -> Color:
@@ -271,7 +349,7 @@ func _run_speed(speed: float) -> float:
 ## Starts the clip for `anim` (blended from whatever was playing) and sets its speed.
 func _drive(anim: String, play_speed: float) -> void:
 	var clip: String = "ko" if anim.begins_with("ko") else anim
-	var is_cast: bool = clip == "cast" or clip == "spell"
+	var is_cast: bool = clip == "cast" or clip == "spell" or clip == "cast_run"
 	if clip != _playing or (is_cast and _cast_played != _cast_serial):
 		_cast_played = _cast_serial
 		_play(clip, play_speed)
@@ -280,9 +358,11 @@ func _drive(anim: String, play_speed: float) -> void:
 
 func _play(clip: String, play_speed: float) -> void:
 	var blend: float = GET_UP_BLEND if _playing == "ko" else BLEND
+	if _authored and clip in ["cast", "cast_run"]:
+		blend = 0.0  # a cut: the hand must be at its release on the very tick the effect appears
 	_playing = clip
 	_player.play(clip, blend, play_speed)
-	if clip in ["cast", "spell", "ko", "land"]:
+	if clip in ["cast", "spell", "ko", "cast_run"]:
 		_player.seek(_clip_start(clip), true)
 
 
@@ -303,6 +383,8 @@ func _drive_layer(layer: String) -> void:
 
 ## Where a clip starts when played as a one-off (a spell skips the long charge-up).
 func _clip_start(clip: String) -> float:
+	if _authored:
+		return cast_release(clip) if clip == "cast" or clip == "cast_run" else 0.0
 	if _native:
 		return 0.0
 	return SPELL_FROM if clip == "spell" and _clip_length(clip) > SPELL_FROM * 2.0 else 0.0
@@ -387,26 +469,34 @@ func _build() -> void:
 	_body.add_child(_model)
 	var mesh: MeshInstance3D = _model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
 	_model.scale = Vector3.ONE * (KID_HEIGHT / mesh.get_aabb().size.y)
-	_materials = ModelLook.apply(_model)
+	if not _authored:
+		_materials = ModelLook.apply(_model)  # an authored model keeps its material exactly as authored
 	_player = _model.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	var library: AnimationLibrary = _player.get_animation_library("")
-	for game_name: String in CLIP_FOR:
-		if not library.has_animation(game_name) and library.has_animation(CLIP_FOR[game_name]):
-			library.add_animation(game_name, library.get_animation(CLIP_FOR[game_name]))
-	_own_fall = library.has_animation(CLIP_FOR["ko"])
-	for clip: String in ["idle", "run", "cast", "spell", "stun", "airborne", "land", "ko"]:
-		if library.has_animation(clip):
-			var animation: Animation = library.get_animation(clip)
-			animation.loop_mode = Animation.LOOP_LINEAR if clip in LOOPING else Animation.LOOP_NONE
-			if clip in LOOPING:
-				_close_loop(animation)
-	if library.has_animation(LAYER_FOR["cast"]) and library.has_animation(LAYER_FOR["spell"]):
-		_upper = AnimationPlayer.new()
-		_upper.name = "UpperPlayer"
-		_upper.deterministic = false  # touches only its own (upper body) tracks
-		add_child(_upper)  # after Body: it plays after the model's own player each frame
-		_upper.root_node = _upper.get_path_to(_player.get_node(_player.root_node))
-		_upper.add_animation_library("", _layer_library(String(_set), library))
+	if _authored:
+		for game_name: String in AUTHORED_CLIP_FOR:
+			var animation: Animation = library.get_animation(AUTHORED_CLIP_FOR[game_name])
+			if not library.has_animation(game_name):  # the library is shared by every instance of the kid
+				library.add_animation(game_name, animation)
+			animation.loop_mode = Animation.LOOP_LINEAR if game_name in AUTHORED_LOOPING else Animation.LOOP_NONE
+	else:
+		for game_name: String in CLIP_FOR:
+			if not library.has_animation(game_name) and library.has_animation(CLIP_FOR[game_name]):
+				library.add_animation(game_name, library.get_animation(CLIP_FOR[game_name]))
+		_own_fall = library.has_animation(CLIP_FOR["ko"])
+		for clip: String in ["idle", "run", "cast", "spell", "stun", "airborne", "ko"]:
+			if library.has_animation(clip):
+				var animation: Animation = library.get_animation(clip)
+				animation.loop_mode = Animation.LOOP_LINEAR if clip in LOOPING else Animation.LOOP_NONE
+				if clip in LOOPING:
+					_close_loop(animation)
+		if library.has_animation(LAYER_FOR["cast"]) and library.has_animation(LAYER_FOR["spell"]):
+			_upper = AnimationPlayer.new()
+			_upper.name = "UpperPlayer"
+			_upper.deterministic = false  # touches only its own (upper body) tracks
+			add_child(_upper)  # after Body: it plays after the model's own player each frame
+			_upper.root_node = _upper.get_path_to(_player.get_node(_player.root_node))
+			_upper.add_animation_library("", _layer_library(String(_set), library))
 	_stars = _build_stars()
 	add_child(_stars)
 	_can = MeshInstance3D.new()

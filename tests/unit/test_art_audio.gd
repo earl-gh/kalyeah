@@ -77,7 +77,7 @@ func _animation_after(kid: KidModel, state: PlayerState, speed: float = 0.0) -> 
 
 
 func test_each_state_plays_its_own_animation() -> void:
-	var kid: KidModel = _kid(3)  # Toni: his model has every clip, including the landing squash
+	var kid: KidModel = _kid(PACED)
 	var state: PlayerState = PlayerState.new()
 	for i: int in 10:
 		kid.animate(0.05, 5.0, state)
@@ -100,7 +100,7 @@ func test_each_state_plays_its_own_animation() -> void:
 	assert_eq(_animation_after(kid, state), "airborne", "flailing in the air")
 	assert_true((kid.find_child("Stars", true, false) as Node3D).visible, "dizzy stars in the air too")
 	state.effects.clear()
-	assert_eq(_animation_after(kid, state), "land", "a landing squash when back on the ground")
+	assert_ne(_animation_after(kid, state), "airborne", "back on the ground")
 	state = PlayerState.new()
 	state.tagged = true
 	assert_eq(_animation_after(kid, state), "idle", "tagged kids stand on the sidewalk")
@@ -299,7 +299,7 @@ func test_heals_shields_and_traps_are_cast_with_an_open_hand() -> void:
 			spells.append(def.id)
 	spells.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
 	assert_eq(spells, [&"heal", &"langit_lupa", &"papel_shield", &"papel_trap"] as Array[StringName])
-	var kid: KidModel = _kid(3)
+	var kid: KidModel = _kid(PACED)
 	var state: PlayerState = PlayerState.new()
 	kid.play_cast(0.5, true)
 	assert_eq(_animation_after(kid, state), "spell")
