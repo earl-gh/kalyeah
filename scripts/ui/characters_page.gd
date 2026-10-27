@@ -43,6 +43,8 @@ func _card(id: String) -> Button:
 	card.name = id.capitalize()
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.custom_minimum_size = Vector2(0.0, CARD.y)
+	# a drag that starts on it scrolls the list it sits in: the scrollbar is not the only grip
+	card.mouse_filter = Control.MOUSE_FILTER_PASS
 	card.tooltip_text = "About %s" % id.capitalize()
 	card.accessibility_name = "%s: read about this kid" % definition.display_name
 	for state: String in ["normal", "hover"]:

@@ -142,6 +142,8 @@ func _tile(weapon: WeaponDef) -> Button:
 	tile.custom_minimum_size = Vector2(0.0, TILE_HEIGHT)
 	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tile.focus_mode = Control.FOCUS_ALL
+	# a drag that starts on it scrolls the list it sits in: the scrollbar is not the only grip
+	tile.mouse_filter = Control.MOUSE_FILTER_PASS
 	for state: String in ["normal", "hover"]:
 		tile.add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0))
 	for state: String in ["pressed", "hover_pressed"]:
