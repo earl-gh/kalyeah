@@ -99,7 +99,7 @@ func test_the_lanyard_is_two_black_straps_one_in_front_and_one_behind_meeting_at
 	assert_eq((screen.find_child("Logo", true, false) as Control).z_index, NameTag.LOGO_Z)
 
 
-func test_the_card_hangs_a_little_below_the_middle_between_the_logo_and_the_chosen_model() -> void:
+func test_the_card_is_centred_between_the_bottom_of_the_logo_and_the_top_of_the_chosen_model() -> void:
 	for height: float in [1280.0, 1558.0]:
 		var phone: Control = autofree(Control.new()) as Control
 		phone.custom_minimum_size = Vector2(720.0, height)
@@ -115,10 +115,8 @@ func test_the_card_hangs_a_little_below_the_middle_between_the_logo_and_the_chos
 		var model_top: float = stage_top + screen.carousel.front_top()
 		var above: float = paper.position.y - logo.end.y
 		var below: float = model_top - paper.end.y
-		assert_gt(above, below, "%d px: lower than the middle (%.1f above, %.1f below)" % [int(height), above, below])
-		assert_almost_eq(above - below, 2.0 * TitleScreen.TAG_DROP, 3.0, "%d px: by the drop (twice, as the gaps differ)" % int(height))
+		assert_almost_eq(above, below, 2.0, "%d px: the same room above and under the card (%.1f above, %.1f below)" % [int(height), above, below])
 		assert_gt(above, 8.0, "%d px: clear of the logo" % int(height))
-		assert_gt(below, 8.0, "%d px: and clear of the chosen model" % int(height))
 
 
 func test_a_long_name_takes_smaller_letters_and_never_leaves_the_screen() -> void:
