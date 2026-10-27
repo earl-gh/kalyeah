@@ -724,7 +724,7 @@ func test_the_mode_name_is_written_on_the_front_face_of_the_platform() -> void:
 		var expected: Vector2 = plate.get_global_transform() * on_screen.get_center()
 		assert_almost_eq(middle.x, expected.x, 1.0, "%s: centred on the face across" % plate.text)
 		assert_almost_eq(middle.y, expected.y, 1.0, "%s: and down" % plate.text)
-		# a vertical face under the 45 degree camera shows its heights shrunk by cos 45; nothing is turned or leaned
+		# the lettering is squashed a little in height (not stretched sideways); nothing is turned or leaned
 		assert_almost_eq(label.scale.y / label.scale.x, ModePlate.FORESHORTEN, 0.001, "%s: foreshortened, not skewed" % plate.text)
 		assert_eq(label.rotation, 0.0)
 		assert_eq(label.skew, 0.0)

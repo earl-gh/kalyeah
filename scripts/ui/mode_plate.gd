@@ -1,12 +1,13 @@
 class_name ModePlate
 extends Control
 ## The mode's name written on the front face of the diorama's platform (owner). The face is a flat wall of the platform standing upright,
-## seen by the fixed orthographic camera tilted 45 degrees: lines stay parallel (no keystone), a vertical size shrinks by cos 45 degrees,
-## and the lettering stays level, so the name is plain text squashed to that share of its height. It is placed by the face's rectangle on
+## seen by the fixed orthographic camera tilted 45 degrees: lines stay parallel (no keystone) and heights shrink, so the lettering stays
+## level and is plain text squashed a little in height (`FORESHORTEN`). It is placed by the face's rectangle on
 ## the picture (picture pixels) and so follows the picture everywhere: swiping, bobbing and scaling.
 
-## How much a height on the upright face shows: cos of the camera's 45 degree tilt.
-const FORESHORTEN: float = 0.7071
+## How much a height on the lettering shows: a true cos 45 degrees (0.7071) stretched the letters sideways, so the owner asked for less
+## (the squash is milder than the camera's tilt, which also keeps the name readable).
+const FORESHORTEN: float = 0.86
 ## The lettering's share of the face's height and width it may take at most.
 const HEIGHT_SHARE: float = 0.95
 const WIDTH_SHARE: float = 0.86
