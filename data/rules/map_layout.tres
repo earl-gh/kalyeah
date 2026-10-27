@@ -4,13 +4,13 @@
 
 [resource]
 script = ExtResource("1_layout")
-tiles = Vector2i(18, 32)
+tiles = Vector2i(16, 32)
 tile_size = 1.5
 base_inset = 2.5
 base_radius = 4.5
 base_corner = 1.0
 spawn_offset = 2.0
-rescue_size = Vector2(3.0, 6.0)
+rescue_size = Vector2(4.25, 6.0)
 tagged_places = 3
 obstacles = Array[Rect2]([])
 obstacle_props = Array[StringName]([])

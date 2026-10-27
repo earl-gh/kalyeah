@@ -38,7 +38,7 @@ const RESCUE_CORNER_RADIUS: float = 0.9
 const ZONE_CORNER_STEPS: int = 6
 ## The sidewalks are flat, level with the street (owner: no raised curb).
 const CURB_HEIGHT: float = 0.0
-const SIDEWALK_WIDTH: float = 1.2
+const SIDEWALK_WIDTH: float = 2.4
 ## The street goes on past both ends of the play area (behind a barricade).
 ## The road, the sidewalks and the ground go on this far past each end of the play area (m); the
 ## buildings only part of the way (HOUSE_REACH), then the empty road carries on into the haze.
@@ -77,6 +77,9 @@ const CEMENT: Color = Color(0.3, 0.3, 0.31)
 ## file exists it is laid ONCE over the whole play area (stretched, never tiled).
 const CEMENT_ART: String = "res://assets/textures/cement.png"
 const CEMENT_LIFT: float = 0.004
+## The owner's floor picture holds 18 tiles across; the play area is narrower now (16 tiles), so it shows the middle of the picture
+## (no stretch): the share of the picture's width the play area uses, and where it starts.
+const CEMENT_PICTURE_TILES: float = 18.0
 ## The floor picture outside the play area is this much of its own colour (owner: slightly darker, so the play area reads).
 const OUTSIDE_SHADE: Color = Color(0.78, 0.78, 0.78)
 const STREET_SHADER: Shader = preload("res://shaders/street_cement.gdshader")
@@ -386,10 +389,12 @@ func _outside_floor(size: Vector2) -> MeshInstance3D:
 	var plane: PlaneMesh = PlaneMesh.new()
 	plane.size = size
 	# unshaded and untinted: the floor is the picture itself (the basis every other colour is judged against)
-	var material: StandardMaterial3D = StreetArt.unlit_material(StreetArt.texture("cement"), size / period)
-	# the picture's edges fall on the play area's edges
+	var share: float = cement_share()
+	var material: StandardMaterial3D = StreetArt.unlit_material(StreetArt.texture("cement"), Vector2(size.x / period.x * share, size.y / period.y))
+	# the picture's (cropped) edges fall on the play area's edges
 	var start: Vector2 = (period - size) / 2.0 / period
-	material.uv1_offset = Vector3(start.x - floorf(start.x), start.y - floorf(start.y), 0.0)
+	var from_x: float = (1.0 - share) / 2.0 + start.x * share
+	material.uv1_offset = Vector3(from_x - floorf(from_x), start.y - floorf(start.y), 0.0)
 	material.albedo_color = OUTSIDE_SHADE
 	plane.material = material
 	var patch: MeshInstance3D = MeshInstance3D.new()
@@ -397,6 +402,11 @@ func _outside_floor(size: Vector2) -> MeshInstance3D:
 	patch.mesh = plane
 	patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return patch
+
+
+## The share of the floor picture's width the play area shows (1 when the play area is as wide as the picture).
+func cement_share() -> float:
+	return minf(float(layout.tiles.x) / CEMENT_PICTURE_TILES, 1.0)
 
 
 ## The play area's floor: the owner's picture once over the whole area, cut to its rounded corners (a fan out from the middle, each
@@ -409,7 +419,8 @@ func _play_floor() -> MeshInstance3D:
 	tool.set_normal(Vector3.UP)
 	for i: int in outline.size():
 		for point: Vector2 in [lane.get_center(), outline[i], outline[(i + 1) % outline.size()]]:
-			tool.set_uv((point - lane.position) / lane.size)
+			var across: float = (point.x - lane.position.x) / lane.size.x
+			tool.set_uv(Vector2((1.0 - cement_share()) / 2.0 + across * cement_share(), (point.y - lane.position.y) / lane.size.y))
 			tool.add_vertex(Vector3(point.x, 0.0, point.y))
 	var mesh: ArrayMesh = tool.commit()
 	mesh.surface_set_material(0, StreetArt.unlit_material(StreetArt.texture("cement")))

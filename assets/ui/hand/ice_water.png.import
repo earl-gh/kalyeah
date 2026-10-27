@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://rroaaqgnq035"
-path="res://.godot/imported/ice_water.webp-1e0ea3500f8ab345beda2587258c14aa.ctex"
+uid="uid://cxx58le3go8uc"
+path="res://.godot/imported/ice_water.png-303a6fd9db1484b19acd3d8a8044a5fb.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/hand/ice_water.webp"
-dest_files=["res://.godot/imported/ice_water.webp-1e0ea3500f8ab345beda2587258c14aa.ctex"]
+source_file="res://assets/ui/hand/ice_water.png"
+dest_files=["res://.godot/imported/ice_water.png-303a6fd9db1484b19acd3d8a8044a5fb.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.9
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
@@ -36,5 +36,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=256
+process/size_limit=0
 detect_3d/compress_to=1
