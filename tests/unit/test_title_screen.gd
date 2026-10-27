@@ -134,7 +134,7 @@ func test_the_cards_are_large_and_every_one_is_always_visible_stacked_behind_the
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(3)
 	var strip: MenuCarousel = screen.carousel
-	var chosen: Rect2 = strip.cards[0].get_global_rect()
+	var chosen: Rect2 = strip.cards[strip.index].get_global_rect()
 	assert_almost_eq(chosen.size.x / chosen.size.y, TitleScreen.model_ratio(), 0.01, "the mode model is the shape of its picture")
 	assert_gt(chosen.size.y, 280.0, "large (0.64 of the width the stage gives a diorama)")
 	for index: int in 3:
@@ -259,6 +259,7 @@ func test_the_carousel_is_online_local_practice_with_local_chosen_in_front() -> 
 	var rise: float = middle.get_global_rect().get_center().y - next.get_global_rect().get_center().y
 	assert_almost_eq(rise, middle.size.y * TitleScreen.MODEL_BACK_RISE, 12.0, "the model behind stands higher than the chosen one")
 	assert_lt(next.scale.x, middle.scale.x, "and smaller")
+	assert_almost_eq(next.scale.x / middle.scale.x, TitleScreen.MODEL_BACK_SCALE, 0.01, "0.75 of the chosen model (owner)")
 	assert_lt(next.z_index, middle.z_index, "and behind")
 	assert_gt(next.get_global_rect().get_center().x, middle.get_global_rect().get_center().x, "and to its right")
 	assert_lt(strip.cards[0].get_global_rect().get_center().x, middle.get_global_rect().get_center().x, "Online is on the left")

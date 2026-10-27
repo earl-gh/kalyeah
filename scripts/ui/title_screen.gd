@@ -48,6 +48,8 @@ const MODEL_SCALE: float = 0.64
 ## side than a card carousel's cards do (owner: raised again, and 1.25 x the spacing).
 const MODEL_BACK_RISE: float = 0.25
 const MODEL_SPREAD_SCALE: float = 1.25
+## The mode models behind the chosen one are 0.75 of its size (owner).
+const MODEL_BACK_SCALE: float = 0.75
 const HERO_MIN_HEIGHT: float = 440.0
 const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 36.0
@@ -247,6 +249,7 @@ func _build_home() -> VBoxContainer:
 	stage.add_child(carousel)
 	carousel.back_rise = MODEL_BACK_RISE
 	carousel.spread_scale = MODEL_SPREAD_SCALE
+	carousel.scale_loss = 1.0 - MODEL_BACK_SCALE
 	carousel.setup("", MODES, Session.menu_mode)
 	carousel.bob = AMBIENT_BOB
 	stage.resized.connect(_fit_hero)

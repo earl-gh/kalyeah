@@ -27,6 +27,8 @@ var card_size: Vector2 = CARD
 ## The cards behind the chosen one stand higher than it by this share of a card's height (the mode models on the main screen do, so the
 ## layer behind shows over the chosen one); 0 leaves them on one line.
 var back_rise: float = 0.0
+## How much smaller the cards behind are than the chosen one (0.17 = 83 % of its size; the mode models are 75 %).
+var scale_loss: float = SCALE_LOSS
 ## How far the cards behind sit out to each side, as a multiple of `STEP` (the mode models sit further out).
 var spread_scale: float = 1.0
 ## How far (px) the middle card bobs up and down while the screen idles (0 = holds still).
@@ -136,7 +138,7 @@ func _layout() -> void:
 		var away: float = minf(distance, 1.0)
 		var spread: float = distance if distance <= 1.0 else maxf(2.0 - distance, 0.0)
 		var card: Button = cards[i]
-		card.scale = Vector2.ONE * (1.0 - SCALE_LOSS * away)
+		card.scale = Vector2.ONE * (1.0 - scale_loss * away)
 		var drift_phase: float = sin(float(Time.get_ticks_msec()) / 1000.0 * FLOAT_SPEED)
 		var drift: float = drift_phase * bob * (1.0 - away / 2.0) if bob > 0.0 and not Settings.reduced_motion else 0.0
 		card.position = Vector2(size.x / 2.0 + signf(offset) * spread * STEP * spread_scale - card_size.x / 2.0, ((size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap) + drift - card_size.y * back_rise * away)
