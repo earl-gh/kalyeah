@@ -28,7 +28,7 @@ static func build(on_saved: Callable) -> MenuDialog:
 		var clean: String = Session.clean_name(field.text)
 		if clean.is_empty():
 			hint.text = "Pick a name!"
-			hint.add_theme_color_override("font_color", KalyeahTheme.ERROR)
+			hint.add_theme_color_override("font_color", Color("b3261e"))  # a dark red that reads on the light body
 			return
 		Session.player_name = clean
 		Session.save()

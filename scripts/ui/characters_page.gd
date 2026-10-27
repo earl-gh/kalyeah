@@ -143,7 +143,7 @@ static func _palette(character: CharacterDef) -> Control:
 		box.anti_aliasing = true
 		dot.add_theme_stylebox_override("panel", box)
 		column.add_child(dot)
-		var caption: Label = UiKit.text(String(swatch["label"]), UiMetrics.MIN_TEXT, Color("9fb0d6"), false)
+		var caption: Label = UiKit.text(String(swatch["label"]), UiMetrics.MIN_TEXT, KalyeahTheme.MODAL_TEXT_MUTED, false)
 		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		column.add_child(caption)
 		row.add_child(column)
@@ -171,7 +171,7 @@ static func detail(character: CharacterDef) -> MenuDialog:
 	crop.set_shader_parameter("radius", 26.0)
 	picture.material = crop
 	card.body.add_child(picture)
-	var about: Label = card.add_label(character.description, UiMetrics.BODY, KalyeahTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	var about: Label = card.add_label(character.description, UiMetrics.BODY, KalyeahTheme.MODAL_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	about.name = "About"
 	card.body.add_child(_palette(character))
 	card.add_hint(NOTE).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

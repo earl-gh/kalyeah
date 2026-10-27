@@ -40,7 +40,7 @@ static func message(flow: HotspotFlow, step: Step) -> String:
 static func _dialog(flow: HotspotFlow, on_done: Callable, open_settings: Callable) -> MenuDialog:
 	var card: MenuDialog = MenuDialog.create("Local")
 	card.name = "HotspotCheckDialog"
-	var text: Label = card.add_label("", UiMetrics.BODY, KalyeahTheme.CREAM)
+	var text: Label = card.add_label("", UiMetrics.BODY, KalyeahTheme.MODAL_TEXT)
 	text.name = "Message"
 	var settings: Button = MenuDialog.make_button("Network settings", "blue", UiMetrics.BODY)
 	settings.name = "Settings"

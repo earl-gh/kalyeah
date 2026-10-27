@@ -41,11 +41,16 @@ const ERROR: Color = Color("ffb4ab")
 const TEAM_BLUE: Color = Color("435bc2")
 const TEAM_RED: Color = Color("b83246")
 const FIELD: Color = Color("0d1729")
-## The modal (owner): a light gray frame that holds the header, and a dark blue-gray body inside it.
-const MODAL_FRAME: Color = Color("c3cbd8")
-const MODAL_FRAME_EDGE: Color = Color("8b97ab")
-const MODAL_BODY: Color = Color("2b3a53")
-const MODAL_TITLE: Color = INK
+## The modal (owner, copied from the Clash Royale settings sheet): a slate blue-gray frame that holds the header (white letters with a dark
+## outline), and a light blue-white body inside it with dark text.
+const MODAL_FRAME: Color = Color("646b83")
+const MODAL_FRAME_EDGE: Color = Color("2e3447")
+const MODAL_BODY: Color = Color("e1ebf5")
+const MODAL_BODY_EDGE: Color = Color("a9bbd2")
+const MODAL_TITLE: Color = Color.WHITE
+const MODAL_TITLE_OUTLINE: Color = Color("1a1d2b")
+const MODAL_TEXT: Color = Color("2b3350")
+const MODAL_TEXT_MUTED: Color = Color("5d6b86")
 ## Modal corners (owner): rounder than the small skin radius, less than the big card rounding (steps of the UiSkin scale).
 const MODAL_FRAME_RADIUS: int = UiSkin.RADIUS_L
 const MODAL_BODY_RADIUS: int = UiSkin.RADIUS_M
@@ -225,7 +230,7 @@ static func painted_panel(padding: float = PANEL_PADDING) -> StyleBox:
 	return UiSkin.plate("glass", padding)
 
 
-## The light gray frame of a modal: it holds the header and the body, `rim` px of gray round the body.
+## The slate frame of a modal: it holds the header and the body, `rim` px of gray round the body.
 static func modal_frame(rim: float) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = MODAL_FRAME
@@ -239,14 +244,24 @@ static func modal_frame(rim: float) -> StyleBoxFlat:
 	return box
 
 
-## The dark blue-gray body inside a modal's frame.
+## The light blue-white body inside a modal's frame.
 static func modal_body(padding: float) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = MODAL_BODY
+	box.set_border_width_all(2)
+	box.border_color = MODAL_BODY_EDGE
 	box.set_corner_radius_all(MODAL_BODY_RADIUS)
 	box.set_content_margin_all(padding)
 	box.anti_aliasing = true
 	return box
+
+
+## What text inside a modal's light body looks like: dark, so every label put in a dialog reads without its own colour.
+static func modal_body_theme() -> Theme:
+	var theme: Theme = Theme.new()
+	theme.set_color("font_color", "Label", MODAL_TEXT)
+	theme.set_color("font_color", "MutedLabel", MODAL_TEXT_MUTED)
+	return theme
 
 
 static func painted_pill() -> StyleBoxFlat:

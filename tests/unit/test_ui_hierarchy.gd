@@ -113,7 +113,7 @@ func test_back_can_leave_practice_but_online_confirmation_does_not_pause_the_pic
 	assert_eq(screen.pick.picks.size(), 2)
 
 
-func test_a_modal_is_a_light_gray_frame_holding_the_header_around_a_dark_blue_gray_body() -> void:
+func test_a_modal_is_a_slate_frame_holding_the_header_around_a_light_blue_white_body() -> void:
 	var phone: Control = autofree(Control.new()) as Control
 	phone.size = Vector2(720.0, 1280.0)
 	add_child(phone)
@@ -122,14 +122,15 @@ func test_a_modal_is_a_light_gray_frame_holding_the_header_around_a_dark_blue_gr
 	await wait_process_frames(2)
 	var frame: StyleBoxFlat = dialog.panel.get_theme_stylebox("panel") as StyleBoxFlat
 	var body: StyleBoxFlat = dialog.inner.get_theme_stylebox("panel") as StyleBoxFlat
-	assert_eq(frame.bg_color, KalyeahTheme.MODAL_FRAME, "the frame is light gray")
-	assert_eq(body.bg_color, KalyeahTheme.MODAL_BODY, "the body is dark blue-gray")
-	assert_gt(frame.bg_color.get_luminance(), 0.5, "light")
-	assert_lt(body.bg_color.get_luminance(), 0.3, "dark")
+	assert_eq(frame.bg_color, KalyeahTheme.MODAL_FRAME, "the frame is slate blue-gray")
+	assert_eq(body.bg_color, KalyeahTheme.MODAL_BODY, "the body is light blue-white")
+	assert_lt(frame.bg_color.get_luminance(), 0.5, "a darker slate")
+	assert_gt(body.bg_color.get_luminance(), 0.7, "light")
 	assert_true(dialog.panel.get_global_rect().encloses(dialog.title_label.get_global_rect()), "the header is inside the frame")
 	assert_lte(dialog.title_label.get_global_rect().end.y, dialog.inner.get_global_rect().position.y + 1.0, "above the body, on the frame")
-	assert_false(dialog.body.is_ancestor_of(dialog.title_label), "not inside the dark body")
-	assert_lt(dialog.title_label.get_theme_color("font_color").get_luminance(), 0.1, "dark header text on the light frame")
+	assert_false(dialog.body.is_ancestor_of(dialog.title_label), "not inside the light body")
+	assert_gt(dialog.title_label.get_theme_color("font_color").get_luminance(), 0.9, "white header text on the slate frame (owner)")
+	assert_lt(dialog.title_label.get_theme_color("font_outline_color").get_luminance(), 0.2, "with a dark outline")
 	dialog.close(false)
 
 

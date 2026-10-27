@@ -521,7 +521,7 @@ func _on_secondary_pressed() -> void:
 ## Practice asks first (a stray tap must not start a match); Play then shows the loading screen.
 func open_practice_confirm() -> MenuDialog:
 	var card: MenuDialog = MenuDialog.create("Practice", 560.0)
-	card.add_label("Three of you against three bots. Ready to rumble?", MenuDialog.TEXT_SIZE, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	card.add_label("Three of you against three bots. Ready to rumble?", MenuDialog.TEXT_SIZE, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
 	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
 	var play: Button = MenuDialog.make_button("Play", "gold", UiMetrics.BODY)
 	card.add_buttons([cancel, play])

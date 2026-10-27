@@ -205,11 +205,14 @@ static func setting_row(title_text: String, detail: String, control: Control) ->
 	words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	words.add_theme_constant_override("separation", 0)
 	var title: Label = text(title_text, UiMetrics.BODY, KalyeahTheme.TEXT, false)
+	# the colours come from the theme (light on a dark page, dark inside a dialog's light body: `KalyeahTheme.modal_body_theme`)
+	title.remove_theme_color_override("font_color")
 	title.name = "Title"
 	words.add_child(title)
 	if not detail.is_empty():
 		var line: Label = text(detail, UiMetrics.CAPTION, Color("9fb0d6"))
 		line.name = "Detail"
+		line.remove_theme_color_override("font_color")
 		line.theme_type_variation = &"MutedLabel"
 		line.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
 		words.add_child(line)

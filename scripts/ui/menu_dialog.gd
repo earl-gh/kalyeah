@@ -15,13 +15,15 @@ signal opened
 const POP_SECONDS: float = 0.22
 const DIM: Color = Color(0.01, 0.025, 0.06, 0.76)
 const TITLE_COLOR: Color = KalyeahTheme.MODAL_TITLE
-## The light gray frame is this wide round the body, and the header sits in it above the body.
+## The slate frame is this wide round the body, and the header sits in it above the body.
 const FRAME_RIM: float = 14.0
 const HEADER_GAP: float = 6.0
 const HEADER_INSET: int = 10
+const TITLE_OUTLINE: int = 8
 const TITLE_SIZE: int = UiMetrics.TITLE
 const TEXT_SIZE: int = UiMetrics.BODY
-const HINT_COLOR: Color = KalyeahTheme.TEXT_MUTED
+const HINT_COLOR: Color = KalyeahTheme.MODAL_TEXT_MUTED
+const TEXT_COLOR: Color = KalyeahTheme.MODAL_TEXT
 
 var panel: PanelContainer
 var body: VBoxContainer
@@ -75,7 +77,8 @@ static func create(title: String, width: float = 600.0) -> MenuDialog:
 	dialog.title_label.theme_type_variation = &"DisplayLabel"
 	dialog.title_label.add_theme_font_size_override("font_size", TITLE_SIZE)
 	dialog.title_label.add_theme_color_override("font_color", TITLE_COLOR)
-	dialog.title_label.add_theme_constant_override("outline_size", 0)
+	dialog.title_label.add_theme_color_override("font_outline_color", KalyeahTheme.MODAL_TITLE_OUTLINE)
+	dialog.title_label.add_theme_constant_override("outline_size", TITLE_OUTLINE)
 	dialog.title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var header: MarginContainer = MarginContainer.new()
 	header.name = "Header"
@@ -104,6 +107,7 @@ static func create(title: String, width: float = 600.0) -> MenuDialog:
 	dialog.inner.name = "Inner"
 	dialog.inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	dialog.inner.add_theme_stylebox_override("panel", KalyeahTheme.modal_body(UiMetrics.PAGE_MARGIN))
+	dialog.inner.theme = KalyeahTheme.modal_body_theme()
 	frame_box.add_child(dialog.inner)
 	dialog.body = VBoxContainer.new()
 	dialog.body.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
@@ -167,7 +171,7 @@ func close(animate: bool = true) -> void:
 		queue_free()
 
 
-func add_label(text: String, size: int = TEXT_SIZE, color: Color = Color.WHITE, align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT) -> Label:
+func add_label(text: String, size: int = TEXT_SIZE, color: Color = TEXT_COLOR, align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT) -> Label:
 	var label: Label = Label.new()
 	label.text = text
 	label.horizontal_alignment = align
