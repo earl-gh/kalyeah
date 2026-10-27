@@ -676,43 +676,35 @@ func test_a_step_takes_a_smooth_moment_not_a_jump() -> void:
 	Session.menu_mode = mode
 
 
-func test_the_tips_icon_sits_at_the_top_left_level_with_the_logo_and_opens_how_to_play() -> void:
+func test_the_calendar_and_the_envelope_sit_either_side_of_the_logo_the_same_size_and_centred_on_it() -> void:
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(3)
 	var tips: Button = screen.tips_button
-	var logo: Control = screen.find_child("Logo", true, false) as Control
-	assert_not_null(tips, "a tips button")
-	assert_lt(tips.get_global_rect().end.x, logo.get_global_rect().position.x, "left of the logo")
-	assert_almost_eq(tips.get_global_rect().get_center().y, logo.get_global_rect().get_center().y, 2.0, "level with the logo")
-	assert_almost_eq(logo.get_global_rect().get_center().x, 360.0, 2.0, "the logo stays in the middle")
-	assert_gte(tips.get_global_rect().position.x, TitleScreen.SIDE_MARGIN + TitleScreen.TIPS_INSET - 1.0, "with extra room at the left of the margin")
-	assert_gte(tips.size.x, UiMetrics.MIN_TARGET, "big enough for a thumb")
-	assert_false(tips.accessibility_name.is_empty())
-	tips.pressed.emit()
-	assert_eq(screen.current_page, &"howto", "it opens How to play")
-	assert_eq(screen.tab_bar.active, &"home", "Play stays lit")
-	screen.howto_page.back_pressed.emit()
-	assert_eq(screen.current_page, &"", "Back returns to the main page")
-
-
-func test_the_mail_icon_mirrors_the_tips_icon_at_the_top_right_and_says_it_is_coming() -> void:
-	var screen: TitleScreen = _phone_screen()
-	await wait_frames(3)
 	var mail: Button = screen.mail_button
-	var tips: Button = screen.tips_button
 	var logo: Control = screen.find_child("Logo", true, false) as Control
-	assert_not_null(mail, "a mail button")
-	assert_gt(mail.get_global_rect().position.x, logo.get_global_rect().end.x, "right of the logo")
-	assert_almost_eq(mail.get_global_rect().get_center().y, logo.get_global_rect().get_center().y, 2.0, "level with the logo")
-	assert_almost_eq(720.0 - mail.get_global_rect().end.x, tips.get_global_rect().position.x, 1.5, "the same room at the right as the tips icon has at the left")
-	assert_eq(mail.size, tips.size, "the same size")
-	mail.pressed.emit()
-	await wait_frames(2)
-	var layer: Node = get_tree().root.get_node_or_null(UiToast.LAYER_NAME)
-	var said: Array[String] = []
-	if layer != null:
-		for child: Node in layer.get_children():
-			if child is UiToast and not child.is_queued_for_deletion():
-				said.append((child as UiToast).text)
-	assert_has(said, "Mail is coming soon!", "a toast says it is coming")
-	assert_eq(screen.current_page, &"")
+	assert_lt(tips.get_global_rect().end.x, logo.get_global_rect().position.x, "the calendar is left of the logo")
+	assert_gt(mail.get_global_rect().position.x, logo.get_global_rect().end.x, "the envelope is right of it")
+	assert_almost_eq(logo.get_global_rect().get_center().x, 360.0, 2.0, "the logo stays in the middle")
+	for button: Button in [tips, mail]:
+		assert_almost_eq(button.get_global_rect().get_center().y, logo.get_global_rect().get_center().y, 1.5, "%s is centred on the logo" % button.name)
+		assert_gte(button.size.x, UiMetrics.MIN_TARGET)
+		assert_false(button.accessibility_name.is_empty())
+	assert_eq(mail.size, tips.size, "the same size (their gold rings are baked to the same size)")
+	assert_almost_eq(720.0 - mail.get_global_rect().end.x, tips.get_global_rect().position.x, 1.5, "the same room at the sides")
+	assert_gte(tips.get_global_rect().position.x, TitleScreen.SIDE_MARGIN + TitleScreen.TIPS_INSET - 1.0)
+
+
+func test_the_calendar_opens_this_months_game_and_the_envelope_the_donate_sheet() -> void:
+	var screen: TitleScreen = _screen()
+	screen.tips_button.pressed.emit()
+	assert_not_null(screen.dialog)
+	assert_eq(screen.dialog.name, "GameOfMonthSheet")
+	assert_true(screen.dialog.is_open)
+	var month: int = int(Time.get_date_dict_from_system()["month"])
+	var games: LarongKalye = load(GameOfMonthSheet.GAMES_PATH) as LarongKalye
+	assert_eq(screen.dialog.title_label.text, String(games.for_month(month)["name"]), "this month's game")
+	screen.dialog.close(false)
+	screen.mail_button.pressed.emit()
+	assert_eq(screen.dialog.name, "DonateSheet")
+	assert_true(screen.dialog.is_open)
+	assert_eq(screen.current_page, &"", "no page opens")

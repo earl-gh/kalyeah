@@ -85,6 +85,9 @@ const LOGO_HEIGHT: float = 92.0
 const LOGO_DROP: float = 62.0
 ## How far the tips icon stands in from the left margin of the screen, on top of it (owner: more room at the left).
 const TIPS_INSET: float = 22.0
+## The two top icons (the calendar and the envelope) are baked so their gold rings are the same size and centred on their picture, so
+## they match each other and centre on the logo: this is the picture's size on screen (the ring is 0.886 of it).
+const TOP_ICON_SIZE: float = 96.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
 const CTA_HEIGHT: float = 117.0
@@ -139,7 +142,6 @@ var _home: VBoxContainer
 var _top_bar: Control
 var tips_button: Button
 var mail_button: Button
-var _howto_from_home: bool = false
 var _title_holder: Control
 var mode_chips: HBoxContainer
 var _page_holder: Control
@@ -233,8 +235,8 @@ func _build_top_bar() -> Control:
 	left.size_flags_vertical = Control.SIZE_SHRINK_END
 	left.custom_minimum_size = Vector2(0.0, LOGO_HEIGHT)
 	row.add_child(left)
-	tips_button = _icon_button("TipsButton", "Tips", TIPS_ICON, _open_tips)
-	tips_button.position = Vector2(TIPS_INSET, 0.0)
+	tips_button = _icon_button("TipsButton", "Game of the month", TIPS_ICON, _open_tips)
+	tips_button.position = Vector2(TIPS_INSET, (LOGO_HEIGHT - TOP_ICON_SIZE) / 2.0)
 	left.add_child(tips_button)
 	var logo: TextureRect = TextureRect.new()
 	logo.name = "Logo"
@@ -251,26 +253,26 @@ func _build_top_bar() -> Control:
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	right.size_flags_vertical = Control.SIZE_SHRINK_END
 	right.custom_minimum_size = Vector2(0.0, LOGO_HEIGHT)
-	mail_button = _icon_button("MailButton", "Mail", MAIL_ICON, _open_mail)
+	mail_button = _icon_button("MailButton", "Donate", MAIL_ICON, _open_mail)
 	right.add_child(mail_button)
 	mail_button.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
-	mail_button.offset_left = -(LOGO_HEIGHT + TIPS_INSET)
+	mail_button.offset_left = -(TOP_ICON_SIZE + TIPS_INSET)
 	mail_button.offset_right = -TIPS_INSET
-	mail_button.offset_top = -LOGO_HEIGHT / 2.0
-	mail_button.offset_bottom = LOGO_HEIGHT / 2.0
+	mail_button.offset_top = -TOP_ICON_SIZE / 2.0
+	mail_button.offset_bottom = TOP_ICON_SIZE / 2.0
 	row.add_child(right)
 	return row
 
 
-## A round picture button of the top row (the tips icon and the mail icon): `LOGO_HEIGHT` square, no button face.
+## A round picture button of the top row (the tips icon and the mail icon): `TOP_ICON_SIZE` square, no button face.
 func _icon_button(button_name: String, say: String, texture: Texture2D, action: Callable) -> Button:
 	var button: Button = Button.new()
 	button.name = button_name
 	button.accessibility_name = say
 	button.flat = true
 	button.focus_mode = Control.FOCUS_ALL
-	button.custom_minimum_size = Vector2.ONE * LOGO_HEIGHT
-	button.size = Vector2.ONE * LOGO_HEIGHT
+	button.custom_minimum_size = Vector2.ONE * TOP_ICON_SIZE
+	button.size = Vector2.ONE * TOP_ICON_SIZE
 	for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
 		button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
 	button.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_L))
@@ -287,16 +289,26 @@ func _icon_button(button_name: String, say: String, texture: Texture2D, action: 
 	return button
 
 
-## Mail has nothing behind it yet: it says so.
 func _open_mail() -> void:
-	UiToast.say(self, "Mail is coming soon!")
+	open_donate()
 
 
-## The tips icon opens How to play over the main page (its Back goes back to where it was opened from).
+## The calendar icon opens the Game of the month: one Filipino street game a month, taught in full.
 func _open_tips() -> void:
-	_howto_from_home = true
-	open_page(&"howto")
-	tab_bar.set_active(&"home")
+	open_game_of_the_month()
+
+
+func open_game_of_the_month(month: int = 0) -> MenuDialog:
+	var card: MenuDialog = GameOfMonthSheet.build(month)
+	_show_dialog(card)
+	return card
+
+
+## The envelope opens the Donate sheet.
+func open_donate() -> MenuDialog:
+	var card: MenuDialog = DonateSheet.build()
+	_show_dialog(card)
+	return card
 
 
 ## The Play page: the hero carousel, the mode's name and phrase and the actions.
@@ -429,16 +441,10 @@ func _build_pages() -> void:
 	codex_page.characters_page.character_opened.connect(open_character_detail)
 	settings_page.profile_pressed.connect(open_name_editor)
 	settings_page.quit_pressed.connect(open_quit_confirm)
-	settings_page.howto_pressed.connect(func() -> void:
-		_howto_from_home = false
-		open_page(&"howto"))
+	settings_page.howto_pressed.connect(open_page.bind(&"howto"))
 	howto_page.walkthrough_requested.connect(start_walkthrough)
 	history_page.play_pressed.connect(close_page)
-	howto_page.back_pressed.connect(func() -> void:
-		if _howto_from_home:
-			close_page()
-		else:
-			open_page(&"settings"))
+	howto_page.back_pressed.connect(open_page.bind(&"settings"))
 
 
 func _on_tab_pressed(id: StringName) -> void:

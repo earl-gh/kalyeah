@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DonateInfo" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/donate_info.gd" id="1_donate"]
+
+[resource]
+script = ExtResource("1_donate")
+thanks = "Kalyeah is made so kids can play, run and have fun together! If you love it, you can chip in to help keep it growing."
+grown_ups = "Donations are optional and never give you anything in the game. Please ask a grown-up before you donate."
+url = ""

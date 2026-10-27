@@ -1,6 +1,7 @@
 keys,en
 %dv%d · First to %d,%dv%d · First to %d
 "%s is coming soon! For now, Agawan Base is the only street open.","%s is coming soon! For now, Agawan Base is the only street open."
+%s · Game of the month,%s · Game of the month
 %s × %d,%s × %d
 "%s, %s: read about this weapon","%s, %s: read about this weapon"
 %s: read about this kid,%s: read about this kid
@@ -76,6 +77,8 @@ Damage,Damage
 DEFEAT,DEFEAT
 Defeat,Defeat
 DEFEND YOUR BASE!,DEFEND YOUR BASE!
+Donate,Donate
+Donations open soon. Thank you for the love!,Donations open soon. Thank you for the love!
 Done,Done
 Edit profile,Edit profile
 Eight letters and numbers,Eight letters and numbers
@@ -131,7 +134,6 @@ Loadout,Loadout
 Local,Local
 Looking for a room…,Looking for a room…
 Lupa · Soil Block,Lupa · Soil Block
-Mail is coming soon!,Mail is coming soon!
 Make Kalyeah yours!,Make Kalyeah yours!
 Map: Agawan Base,Map: Agawan Base
 Match settings,Match settings
@@ -208,6 +210,7 @@ Street,Street
 STUNNED,STUNNED
 Stunned,Stunned
 Suggested: %s,Suggested: %s
+Support Kalyeah,Support Kalyeah
 Swipe or use the arrow keys to change,Swipe or use the arrow keys to change
 TAG THEIR BASE!,TAG THEIR BASE!
 Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d s frees the first one tagged!,Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d s frees the first one tagged!
