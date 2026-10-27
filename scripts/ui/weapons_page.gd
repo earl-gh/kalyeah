@@ -211,7 +211,7 @@ static func holder(weapon: WeaponDef, diameter: float) -> Control:
 
 ## The detail sheet of `weapon`: picture, kind and street game, what it does, and its figures.
 static func detail(weapon: WeaponDef) -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create(weapon.display_name, 640.0)
+	var card: MenuDialog = MenuDialog.create(weapon.display_name, MenuDialog.WIDTH_SHEET)
 	card.name = "WeaponDetail"
 	var picture: Control = holder(weapon, DETAIL_ICON)
 	picture.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -220,9 +220,9 @@ static func detail(weapon: WeaponDef) -> MenuDialog:
 	tags.alignment = BoxContainer.ALIGNMENT_CENTER
 	tags.add_theme_constant_override("separation", 12)
 	tags.add_child(UiKit.chip(KIND_NAMES.get(weapon.kind, "") as String, KIND_CHIPS.get(weapon.kind, UiKit.CHIP_SLATE) as Color))
-	tags.add_child(UiKit.text(weapon.street_game, UiMetrics.DETAIL, Color("9fb0d6"), false))
+	tags.add_child(UiKit.text(weapon.street_game, UiMetrics.DETAIL, KalyeahTheme.MODAL_TEXT_MUTED, false))
 	card.body.add_child(tags)
-	var about: Label = card.add_label(weapon.description, UiMetrics.BODY, KalyeahTheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	var about: Label = card.add_label(weapon.description, UiMetrics.BODY, KalyeahTheme.MODAL_TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	about.name = "About"
 	var figures: VBoxContainer = VBoxContainer.new()
 	figures.name = "Figures"
@@ -235,12 +235,14 @@ static func detail(weapon: WeaponDef) -> MenuDialog:
 	if not blurb.is_empty():
 		var column: VBoxContainer = VBoxContainer.new()
 		column.add_theme_constant_override("separation", 4)
-		column.add_child(UiKit.section_label("The game · %s" % weapon.street_game))
-		var story: Label = UiKit.text(blurb, UiMetrics.DETAIL, Color("c9d6f2"))
+		var heading: Label = UiKit.section_label("The game · %s" % weapon.street_game)
+		heading.add_theme_color_override("font_color", Color("b8641a"))  # a dark amber that reads on the light body
+		column.add_child(heading)
+		var story: Label = UiKit.text(blurb, UiMetrics.DETAIL, KalyeahTheme.MODAL_TEXT)
 		story.name = "GameBlurb"
 		column.add_child(story)
 		card.body.add_child(column)
-	var close: Button = MenuDialog.make_button("Close", "grey", UiMetrics.ACTION)
+	var close: Button = MenuDialog.make_button("Close", "grey", UiMetrics.BODY)
 	close.name = "Close"
 	close.pressed.connect(card.close)
 	card.add_buttons([close])

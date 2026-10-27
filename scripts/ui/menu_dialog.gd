@@ -12,16 +12,27 @@ signal closed
 ## Emitted once the dialog is in the tree and showing.
 signal opened
 
+## The widths every modal uses (design pixels): a short question, or a sheet with some content. Nothing in between.
+const WIDTH_SMALL: float = 560.0
+const WIDTH_SHEET: float = 620.0
+## A modal is never taller than this share of the screen (owner); what does not fit scrolls.
+const MAX_HEIGHT_SHARE: float = 0.75
+## The header icon's size (a picture left of the title), and the gap between the body's rows.
+const ICON_SIZE: float = 64.0
+const BODY_GAP: int = 14
+
 const POP_SECONDS: float = 0.22
 const DIM: Color = Color(0.01, 0.025, 0.06, 0.76)
 const TITLE_COLOR: Color = KalyeahTheme.MODAL_TITLE
-## The light gray frame is this wide round the body, and the header sits in it above the body.
+## The slate frame is this wide round the body, and the header sits in it above the body.
 const FRAME_RIM: float = 14.0
 const HEADER_GAP: float = 6.0
 const HEADER_INSET: int = 10
+const TITLE_OUTLINE: int = 8
 const TITLE_SIZE: int = UiMetrics.TITLE
 const TEXT_SIZE: int = UiMetrics.BODY
-const HINT_COLOR: Color = KalyeahTheme.TEXT_MUTED
+const HINT_COLOR: Color = KalyeahTheme.MODAL_TEXT_MUTED
+const TEXT_COLOR: Color = KalyeahTheme.MODAL_TEXT
 
 var panel: PanelContainer
 var body: VBoxContainer
@@ -31,15 +42,15 @@ var is_open: bool = true
 ## HUD menus retain wired controls across repeated opens. Ordinary dialogs free on close.
 var persistent: bool = false
 
-var _width: float = 600.0
+var _width: float = WIDTH_SMALL
 var _header: MarginContainer
 var _safe: MarginContainer
 var _animation: Tween
 var _previous_focus: WeakRef
 
 
-## A dialog with `title`, `width` px wide (in the 720 px design width).
-static func create(title: String, width: float = 600.0) -> MenuDialog:
+## A dialog with `title`, `width` px wide (in the 720 px design width: `WIDTH_SMALL` or `WIDTH_SHEET`) and an optional `icon` before the title.
+static func create(title: String, width: float = WIDTH_SMALL, icon: Texture2D = null) -> MenuDialog:
 	var dialog: MenuDialog = MenuDialog.new()
 	dialog._width = width
 	dialog.name = "MenuDialog"
@@ -75,7 +86,8 @@ static func create(title: String, width: float = 600.0) -> MenuDialog:
 	dialog.title_label.theme_type_variation = &"DisplayLabel"
 	dialog.title_label.add_theme_font_size_override("font_size", TITLE_SIZE)
 	dialog.title_label.add_theme_color_override("font_color", TITLE_COLOR)
-	dialog.title_label.add_theme_constant_override("outline_size", 0)
+	dialog.title_label.add_theme_color_override("font_outline_color", KalyeahTheme.MODAL_TITLE_OUTLINE)
+	dialog.title_label.add_theme_constant_override("outline_size", TITLE_OUTLINE)
 	dialog.title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var header: MarginContainer = MarginContainer.new()
 	header.name = "Header"
@@ -87,6 +99,16 @@ static func create(title: String, width: float = 600.0) -> MenuDialog:
 	row.name = "HeaderRow"
 	row.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	dialog.title_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if icon != null:
+		var picture: TextureRect = TextureRect.new()
+		picture.name = "Icon"
+		picture.texture = icon
+		picture.custom_minimum_size = Vector2.ONE * ICON_SIZE
+		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		picture.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(picture)
 	row.add_child(dialog.title_label)
 	# a red close button at the top right; a tap outside the modal closes it too
 	var close_button: Button = make_button("X", "red", UiMetrics.ACTION, Vector2.ONE * UiMetrics.MIN_TARGET)
@@ -103,10 +125,11 @@ static func create(title: String, width: float = 600.0) -> MenuDialog:
 	dialog.inner = PanelContainer.new()
 	dialog.inner.name = "Inner"
 	dialog.inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	dialog.inner.add_theme_stylebox_override("panel", KalyeahTheme.modal_body(UiMetrics.PAGE_MARGIN))
+	dialog.inner.add_theme_stylebox_override("panel", KalyeahTheme.modal_body(UiMetrics.PADDING))
+	dialog.inner.theme = KalyeahTheme.modal_body_theme()
 	frame_box.add_child(dialog.inner)
 	dialog.body = VBoxContainer.new()
-	dialog.body.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
+	dialog.body.add_theme_constant_override("separation", BODY_GAP)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.name = "DialogScroll"
 	scroll.follow_focus = true
@@ -167,7 +190,7 @@ func close(animate: bool = true) -> void:
 		queue_free()
 
 
-func add_label(text: String, size: int = TEXT_SIZE, color: Color = Color.WHITE, align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT) -> Label:
+func add_label(text: String, size: int = TEXT_SIZE, color: Color = TEXT_COLOR, align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT) -> Label:
 	var label: Label = Label.new()
 	label.text = text
 	label.horizontal_alignment = align
@@ -229,8 +252,10 @@ func _fit() -> void:
 		_safe.get_theme_constant("margin_left") + _safe.get_theme_constant("margin_right"),
 		_safe.get_theme_constant("margin_top") + _safe.get_theme_constant("margin_bottom"))
 	var header_height: float = _header.get_combined_minimum_size().y + HEADER_GAP
-	var wanted: float = body.get_combined_minimum_size().y + UiMetrics.PAGE_MARGIN * 2.0 + header_height + FRAME_RIM * 2.0
-	panel.custom_minimum_size = Vector2(minf(_width, available.x), minf(wanted, available.y))
+	var wanted: float = body.get_combined_minimum_size().y + UiMetrics.PADDING * 2.0 + header_height + FRAME_RIM * 2.0
+	# never taller than 75 % of the screen (owner): what does not fit scrolls inside the body
+	var tallest: float = minf(available.y, size.y * MAX_HEIGHT_SHARE)
+	panel.custom_minimum_size = Vector2(minf(_width, available.x), minf(wanted, tallest))
 
 
 func reopen() -> void:

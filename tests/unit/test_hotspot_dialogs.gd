@@ -106,7 +106,7 @@ func test_create_says_plainly_when_there_is_no_hotspot_and_no_wifi_and_never_goe
 		var went: Array = []
 		var card: MenuDialog = _create(went)
 		await wait_process_frames(3)
-		assert_eq(_text(card, "Message"), "Turn on your hotspot or connect to Wi-Fi, then tap Try again.", str(off))
+		assert_eq(_text(card, "Message"), "Turn on your hotspot or Wi-Fi. Then tap Try again.", str(off))
 		assert_true(_shown(card, "TryAgain"))
 		assert_true(_shown(card, "Cancel"))
 		assert_true(went.is_empty(), "no room without a hotspot or a Wi-Fi")
@@ -173,7 +173,7 @@ func test_resuming_while_there_is_still_no_network_keeps_the_dialog_open() -> vo
 	card.propagate_notification(NOTIFICATION_APPLICATION_RESUMED)
 	await wait_process_frames(3)
 	assert_true(went.is_empty())
-	assert_eq(_text(card, "Message"), "Turn on your hotspot or connect to Wi-Fi, then tap Try again.")
+	assert_eq(_text(card, "Message"), "Turn on your hotspot or Wi-Fi. Then tap Try again.")
 
 
 func test_the_settings_button_is_offered_only_when_off_and_where_android_can_open_them() -> void:
@@ -225,7 +225,7 @@ func test_join_without_a_wifi_says_to_connect_and_does_not_search() -> void:
 		var card: MenuDialog = _join(found)
 		assert_eq(_text(card, "Message"), "Checking your Wi-Fi…")
 		await wait_process_frames(3)
-		assert_eq(_text(card, "Message"), "Connect to the same Wi-Fi or hotspot as your friend, then tap Try again.", str(lonely))
+		assert_eq(_text(card, "Message"), "Join your friend's Wi-Fi or hotspot. Then tap Try again.", str(lonely))
 		assert_true(_shown(card, "TryAgain"))
 		assert_true(_shown(card, "Cancel"))
 		assert_false(_shown(card, "Settings"), "that button is for Create")

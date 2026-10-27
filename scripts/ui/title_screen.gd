@@ -10,51 +10,67 @@ const SERVER_SCENE: String = "res://server/main.tscn"
 const LOBBY_SCENE: String = "res://scenes/ui/lobby.tscn"
 const PRACTICE_SCENE: String = "res://scenes/match/practice.tscn"
 const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
+const TIPS_ICON: Texture2D = preload("res://assets/ui/tips_icon.png")
+const MAIL_ICON: Texture2D = preload("res://assets/ui/mail_icon.png")
 
 ## The game modes in card order: Online, Local in the middle (the default, `Session.menu_mode` 1), Practice (owner).
 ## `accent` tints the frame of the card and the glow behind it.
 const MODES: Array[Dictionary] = [
-	{"id": "online", "title": "Online", "color": "orange", "accent": "45dd78", "power": 7450,
+	{"id": "online", "bare": true, "title": "Online", "color": "orange", "accent": "45dd78", "power": 7450,
 		"text": "Invite friends with a room code!"},
-	{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff", "power": 9999,
+	{"id": "hotspot", "bare": true, "title": "Local", "color": "blue", "accent": "4aa0ff", "power": 9999,
 		"text": "Battle your friends nearby!"},
-	{"id": "practice", "title": "Practice", "color": "green", "accent": "a45cf0", "power": 1200,
+	{"id": "practice", "bare": true, "title": "Practice", "color": "green", "accent": "a45cf0", "power": 1200,
 		"text": "Take on 3 bots, solo!"},
 ]
-## The bottom tabs, left to right: Street (what each game is and how it plays), Play (the home page) and Settings. The Book and
-## History are reached from Settings (and History from the last match on Play).
+## The bottom tabs, left to right: Street (what each game is and how it plays), Cards (the Book of kids and weapons), Play (the home
+## page), History (your last battles) and Settings.
 const TABS: Array[Dictionary] = [
 	{"id": &"street", "label": "Street", "icon": &"street"},
+	{"id": &"codex", "label": "Cards", "icon": &"cards"},
 	{"id": &"home", "label": "Play", "icon": &"play"},
+	{"id": &"history", "label": "History", "icon": &"history"},
 	{"id": &"settings", "label": "Settings", "icon": &"settings"},
 ]
 ## The pages that belong to Settings: its tab stays lit while one is open.
-const SETTINGS_PAGES: Array[StringName] = [&"codex", &"history", &"howto"]
+const SETTINGS_PAGES: Array[StringName] = [&"howto"]
 ## The hero cards (1.75:2.5, owner) and how high the stage is.
 const HERO_CARD: Vector2 = Vector2(400.0, 571.0)
 ## The hero grows with the stage (phones taller than 16:9 have the room): 1.75:2.5, between these heights, with
 ## this much air round it for the glow and the bob.
 const HERO_RATIO: float = 0.7
+## The mode models (owner: the dioramas) are shown bare, in a shell as wide as the picture is (768 x 717 PNG files): the models of
+## `MODES` with `bare` are this shape instead of the paper card's.
+const MODEL_RATIO: float = 768.0 / 717.0
+## How much of the stage's width is left free beside a mode model.
+const MODEL_SIDE_ROOM: float = 40.0
+## How big a mode model is next to the room the stage gives it (owner: 0.64).
+const MODEL_SCALE: float = 0.64
+## The mode models behind the chosen one stand this share of a model's height higher than it, and sit this many times further out to each
+## side than a card carousel's cards do, which leaves a gap between the two behind it (owner).
+const MODEL_BACK_RISE: float = 0.25
+const MODEL_SPREAD_SCALE: float = 1.73
+## The mode models behind the chosen one are 0.75 of its size (owner).
+const MODEL_BACK_SCALE: float = 0.75
 const HERO_MIN_HEIGHT: float = 440.0
 const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 36.0
 ## The cards sit this far above the bottom of their stage, so the name, its phrase and the buttons stay close under them.
 const HERO_BOTTOM_GAP: float = 34.0
 ## How far the backlight reaches round the chosen card (times the card's height).
-const BACKLIGHT_REACH: float = 1.5
+const BACKLIGHT_REACH: float = 1.15
 ## The black outline round the mode's one-line phrase.
 const MODE_TEXT_OUTLINE: int = 6
 ## The share of the room the hero card takes (owner: smaller, so the floating card floats with space round it).
 const HERO_SCALE: float = 0.86
 ## The button row's slot takes this share of the free height next to the card's stage (1.0).
 const ACTIONS_SLOT_SHARE: float = 0.35
-## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
-const NAME_PERSPECTIVE: Shader = preload("res://shaders/text_perspective.gdshader")
-## How wide the very top of the leaning-back mode name is next to its bottom (1 would be flat).
-const NAME_TOP_SCALE: float = 0.93
 ## The gap under the mode name (negative so the phrase is pulled nearer to the name).
 const TITLES_SEPARATION: int = -10
+## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
 const TITLE_Z: int = 20
+## The phrase and the buttons are drawn above the backdrop's lights (`UiBackdrop.LIGHT_Z`) and below the chosen mode model.
+const TEXT_Z: int = 8
 ## How far the name is lifted so its letters (not its line box) are centred on the card's bottom edge.
 const TITLE_LIFT: float = 12.0
 const AMBIENT_BOB: float = 12.0
@@ -62,11 +78,16 @@ const AMBIENT_BOB: float = 12.0
 const CHIPS_HEIGHT: float = 42.0
 const CHIPS_MIN_STAGE: float = 760.0
 ## Which way a page slides in: the pages left to right as their tabs are.
-const PAGE_RANK: Dictionary[StringName, int] = {&"street": -1, &"": 0, &"settings": 1, &"codex": 2, &"history": 2, &"howto": 2}
+const PAGE_RANK: Dictionary[StringName, int] = {&"street": -2, &"codex": -1, &"": 0, &"history": 1, &"settings": 2, &"howto": 3}
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
 const LOGO_HEIGHT: float = 92.0
 ## How far the logo is dropped from the top edge of the screen.
 const LOGO_DROP: float = 62.0
+## How far the tips icon stands in from the left margin of the screen, on top of it (owner: more room at the left).
+const TIPS_INSET: float = 22.0
+## The two top icons (the calendar and the envelope) are baked so their gold rings are the same size and centred on their picture, so
+## they match each other and centre on the logo: this is the picture's size on screen (the ring is 0.886 of it).
+const TOP_ICON_SIZE: float = 96.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
 const CTA_HEIGHT: float = 117.0
@@ -90,6 +111,10 @@ var open_lobby_action: Callable = _change_to_lobby
 
 var backdrop: UiBackdrop
 var carousel: MenuCarousel
+## The mode models (the carousel's items): Online, Local and Practice, in order.
+var mode_models: Array[Button]:
+	get:
+		return carousel.cards
 var tab_bar: UiTabBar
 var mode_name_label: Label
 var mode_text_label: Label
@@ -115,8 +140,9 @@ var _loading_dots: Label
 var _margin: MarginContainer
 var _home: VBoxContainer
 var _top_bar: Control
+var tips_button: Button
+var mail_button: Button
 var _title_holder: Control
-var _name_perspective: ShaderMaterial
 var mode_chips: HBoxContainer
 var _page_holder: Control
 var _page_tween: Tween
@@ -201,6 +227,17 @@ func _build_top_bar() -> Control:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.custom_minimum_size = Vector2(0.0, LOGO_HEIGHT + LOGO_DROP)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# the tips icon at the left, level with the logo; an empty cell of the same share at the right keeps the logo in the middle
+	var left: Control = Control.new()
+	left.name = "TopLeft"
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	left.size_flags_vertical = Control.SIZE_SHRINK_END
+	left.custom_minimum_size = Vector2(0.0, LOGO_HEIGHT)
+	row.add_child(left)
+	tips_button = _icon_button("TipsButton", "Game of the month", TIPS_ICON, _open_tips)
+	tips_button.position = Vector2(TIPS_INSET, (LOGO_HEIGHT - TOP_ICON_SIZE) / 2.0)
+	left.add_child(tips_button)
 	var logo: TextureRect = TextureRect.new()
 	logo.name = "Logo"
 	logo.texture = LOGO
@@ -210,7 +247,68 @@ func _build_top_bar() -> Control:
 	logo.size_flags_vertical = Control.SIZE_SHRINK_END
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(logo)
+	var right: Control = Control.new()
+	right.name = "TopRight"
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right.size_flags_vertical = Control.SIZE_SHRINK_END
+	right.custom_minimum_size = Vector2(0.0, LOGO_HEIGHT)
+	mail_button = _icon_button("MailButton", "Donate", MAIL_ICON, _open_mail)
+	right.add_child(mail_button)
+	mail_button.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
+	mail_button.offset_left = -(TOP_ICON_SIZE + TIPS_INSET)
+	mail_button.offset_right = -TIPS_INSET
+	mail_button.offset_top = -TOP_ICON_SIZE / 2.0
+	mail_button.offset_bottom = TOP_ICON_SIZE / 2.0
+	row.add_child(right)
 	return row
+
+
+## A round picture button of the top row (the tips icon and the mail icon): `TOP_ICON_SIZE` square, no button face.
+func _icon_button(button_name: String, say: String, texture: Texture2D, action: Callable) -> Button:
+	var button: Button = Button.new()
+	button.name = button_name
+	button.accessibility_name = say
+	button.flat = true
+	button.focus_mode = Control.FOCUS_ALL
+	button.custom_minimum_size = Vector2.ONE * TOP_ICON_SIZE
+	button.size = Vector2.ONE * TOP_ICON_SIZE
+	for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
+		button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	button.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_L))
+	var picture: TextureRect = TextureRect.new()
+	picture.name = "Picture"
+	picture.texture = texture
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(picture)
+	UiKit.feel_press(button)
+	button.pressed.connect(action)
+	return button
+
+
+func _open_mail() -> void:
+	open_donate()
+
+
+## The calendar icon opens the Game of the month: one Filipino street game a month, taught in full.
+func _open_tips() -> void:
+	open_game_of_the_month()
+
+
+func open_game_of_the_month(month: int = 0) -> MenuDialog:
+	var card: MenuDialog = GameOfMonthSheet.build(month)
+	_show_dialog(card)
+	return card
+
+
+## The envelope opens the Donate sheet.
+func open_donate() -> MenuDialog:
+	var card: MenuDialog = DonateSheet.build()
+	_show_dialog(card)
+	return card
 
 
 ## The Play page: the hero carousel, the mode's name and phrase and the actions.
@@ -232,6 +330,10 @@ func _build_home() -> VBoxContainer:
 	carousel.bottom_gap = HERO_BOTTOM_GAP
 	carousel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(carousel)
+	carousel.back_rise = MODEL_BACK_RISE
+	carousel.spread_scale = MODEL_SPREAD_SCALE
+	carousel.wrap = true
+	carousel.scale_loss = 1.0 - MODEL_BACK_SCALE
 	carousel.setup("", MODES, Session.menu_mode)
 	carousel.bob = AMBIENT_BOB
 	stage.resized.connect(_fit_hero)
@@ -241,6 +343,7 @@ func _build_home() -> VBoxContainer:
 	# the button row is centred in the room between the phrase and the bar
 	var slot: CenterContainer = CenterContainer.new()
 	slot.name = "ActionsSlot"
+	slot.z_index = TEXT_Z
 	slot.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	slot.size_flags_stretch_ratio = ACTIONS_SLOT_SHARE
 	slot.custom_minimum_size = Vector2(0.0, CTA_HEIGHT)
@@ -254,6 +357,7 @@ func _build_home() -> VBoxContainer:
 func _build_titles() -> Control:
 	var titles: VBoxContainer = VBoxContainer.new()
 	titles.name = "Titles"
+	titles.z_index = TEXT_Z
 	titles.alignment = BoxContainer.ALIGNMENT_CENTER
 	# the phrase sits close under the name (negative: it is pulled up towards it)
 	titles.add_theme_constant_override("separation", TITLES_SEPARATION)
@@ -265,12 +369,6 @@ func _build_titles() -> Control:
 	# the name straddles the bottom edge of the chosen card: this holder sits where the stage ends and the name hangs
 	# off it upwards by the card's air plus half its own height (`_place_title`)
 	mode_name_label.z_index = TITLE_Z
-	# the name leans back in perspective, so it stands up off the card instead of lying flat (owner)
-	_name_perspective = ShaderMaterial.new()
-	_name_perspective.shader = NAME_PERSPECTIVE
-	_name_perspective.set_shader_parameter("top_scale", NAME_TOP_SCALE)
-	mode_name_label.material = _name_perspective
-	mode_name_label.resized.connect(_fit_name_perspective)
 	_title_holder = Control.new()
 	_title_holder.name = "TitleHolder"
 	_title_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -344,8 +442,6 @@ func _build_pages() -> void:
 	settings_page.profile_pressed.connect(open_name_editor)
 	settings_page.quit_pressed.connect(open_quit_confirm)
 	settings_page.howto_pressed.connect(open_page.bind(&"howto"))
-	settings_page.book_pressed.connect(open_page.bind(&"codex"))
-	settings_page.history_pressed.connect(open_page.bind(&"history"))
 	howto_page.walkthrough_requested.connect(start_walkthrough)
 	history_page.play_pressed.connect(close_page)
 	howto_page.back_pressed.connect(open_page.bind(&"settings"))
@@ -364,7 +460,6 @@ func open_page(id: StringName) -> void:
 	if not pages.has(id):
 		return
 	var way: int = signi(int(PAGE_RANK.get(id, 0)) - int(PAGE_RANK.get(current_page, 0)))
-	var was_home: bool = current_page == &""
 	current_page = id
 	for other: StringName in pages:
 		pages[other].visible = other == id
@@ -374,11 +469,8 @@ func open_page(id: StringName) -> void:
 		codex_page.show_tab(codex_page.current)
 	_home.visible = false
 	_top_bar.visible = false
-	# the Book, History and How to play are reached from Settings: that tab stays lit (History opened from the last match
-	# on Play keeps Play lit) and opens Settings again
+	# How to play is reached from Settings: that tab stays lit
 	var lit: StringName = &"settings" if id in SETTINGS_PAGES else id
-	if id == &"history" and was_home:
-		lit = &"home"
 	tab_bar.set_active(lit)
 	_sync_ambient()
 	_fade_in(pages[id], way)
@@ -432,6 +524,16 @@ func _fill_chips(id: String) -> void:
 		mode_chips.add_child(chip)
 
 
+## Whether the mode models are bare dioramas (no paper card).
+static func models_are_bare() -> bool:
+	return bool(MODES[0].get("bare", false))
+
+
+## The shape of a mode model: width over height.
+static func model_ratio() -> float:
+	return MODEL_RATIO if models_are_bare() else HERO_RATIO
+
+
 ## Sizes the hero cards to the stage (taller phones get a bigger card), then rebuilds them.
 func _fit_hero() -> void:
 	var stage: Control = carousel.get_parent() as Control
@@ -442,18 +544,16 @@ func _fit_hero() -> void:
 	var bare: float = total + (CHIPS_HEIGHT if mode_chips.visible else 0.0)
 	mode_chips.visible = bare - CHIPS_HEIGHT >= CHIPS_MIN_STAGE
 	var height: float = clampf(bare - (CHIPS_HEIGHT if mode_chips.visible else 0.0) - HERO_AIR, HERO_MIN_HEIGHT, HERO_MAX_HEIGHT)
-	var width: float = minf(height * HERO_RATIO, stage.size.x - 120.0) * HERO_SCALE
-	var fitted: Vector2 = Vector2(roundf(width), roundf(width / HERO_RATIO))
+	var diorama: bool = models_are_bare()
+	var ratio: float = MODEL_RATIO if diorama else HERO_RATIO
+	var width: float = minf(height * ratio, stage.size.x - (MODEL_SIDE_ROOM if diorama else 120.0)) * (MODEL_SCALE if diorama else HERO_SCALE)
+	var fitted: Vector2 = Vector2(roundf(width), roundf(width / ratio))
 	if fitted.distance_to(carousel.card_size) < 3.0:
 		return
 	carousel.card_size = fitted
 	carousel.setup("", MODES, carousel.index)
 	_place_title()
 
-
-## Tells the perspective shader how big the mode name's label is.
-func _fit_name_perspective() -> void:
-	_name_perspective.set_shader_parameter("rect_size", mode_name_label.size)
 
 
 ## Points the backdrop's backlight at the chosen card: the bright middle sits right behind it.
@@ -492,7 +592,6 @@ func _refresh_mode() -> void:
 	KalyeahTheme.style_button(primary_button, "orange")
 	KalyeahTheme.style_button(secondary_button, "blue")
 	_fit_buttons()
-	backdrop.set_accent(Color(String(mode["accent"])))
 
 
 func _on_mode_selected(index: int) -> void:
@@ -519,8 +618,8 @@ func _on_secondary_pressed() -> void:
 
 ## Practice asks first (a stray tap must not start a match); Play then shows the loading screen.
 func open_practice_confirm() -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create("Practice", 560.0)
-	card.add_label("Three of you against three bots. Ready to rumble?", MenuDialog.TEXT_SIZE, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	var card: MenuDialog = MenuDialog.create("Practice", MenuDialog.WIDTH_SMALL)
+	card.add_label("3 v 3 against bots. Ready to rumble?", MenuDialog.TEXT_SIZE, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
 	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
 	var play: Button = MenuDialog.make_button("Play", "gold", UiMetrics.BODY)
 	card.add_buttons([cancel, play])
@@ -722,6 +821,7 @@ func _show_dialog(new_dialog: MenuDialog) -> void:
 func _sync_ambient() -> void:
 	var covered: bool = current_page != &"" or (dialog != null and is_instance_valid(dialog) and dialog.is_open)
 	backdrop.ambient = not covered
+	backdrop.lights_on = current_page == &""
 	carousel.bob = 0.0 if covered else AMBIENT_BOB
 
 ## The detail sheet of a kid from the Book.
@@ -752,7 +852,7 @@ func _on_profile_saved() -> void:
 
 ## Quit: asks first (a stray tap must not close the game).
 func open_quit_confirm() -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create("Quit game?", 560.0)
+	var card: MenuDialog = MenuDialog.create("Quit game?", MenuDialog.WIDTH_SMALL)
 	var stay: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
 	var leave: Button = MenuDialog.make_button("Quit", "red", UiMetrics.BODY)
 	card.add_buttons([stay, leave])

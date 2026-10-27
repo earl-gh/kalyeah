@@ -21,9 +21,24 @@ const BACK_ALPHA: float = 0.86
 const FLOAT_SPEED: float = 1.0
 const DRAG_START: float = 12.0
 const SNAP_TIME: float = 0.18
+## A step of an endless carousel is slower and smoother, and a swipe faster than `FLING_SPEED` (px per ms) or longer than
+## `STEP_DRAG` (of a step) makes one.
+const WRAP_TIME: float = 0.36
+const FLING_SPEED: float = 0.45
+const STEP_DRAG: float = 0.12
 
 ## The size of a card (1.75:2.5 on the main screen; the room's map carousel sets 3:4 before `setup`).
 var card_size: Vector2 = CARD
+## The cards behind the chosen one stand higher than it by this share of a card's height (the mode models on the main screen do, so the
+## layer behind shows over the chosen one); 0 leaves them on one line.
+var back_rise: float = 0.0
+## How much smaller the cards behind are than the chosen one (0.17 = 83 % of its size; the mode models are 75 %).
+var scale_loss: float = SCALE_LOSS
+## An endless carousel (the mode models): the last model is left of the first and the first right of the last, so there is always one
+## behind on each side of the chosen one; a swipe, however long or fast, moves exactly one step.
+var wrap: bool = false
+## How far the cards behind sit out to each side, as a multiple of `STEP` (the mode models sit further out).
+var spread_scale: float = 1.0
 ## How far (px) the middle card bobs up and down while the screen idles (0 = holds still).
 var bob: float = 0.0:
 	set(value):
@@ -43,6 +58,9 @@ var _dragging: bool = false
 var _press_x: float = 0.0
 var _press_position: float = 0.0
 var _tween: Tween
+var _last_x: float = 0.0
+var _last_msec: int = 0
+var _velocity: float = 0.0
 
 
 ## `options` are {id, title, color}; the card at `current` starts in the middle. `heading` is the
@@ -52,7 +70,7 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		card.queue_free()
 	cards.clear()
 	for option: Dictionary in options:
-		var card: Button = ChoiceCard.make_card(String(option.get("heading", heading)), String(option["title"]), String(option["color"]), card_size, String(option["id"]))
+		var card: Button = ChoiceCard.make_card(String(option.get("heading", heading)), String(option["title"]), String(option["color"]), card_size, String(option["id"]), bool(option.get("bare", false)))
 		card.accessibility_name = String(option["title"])
 		card.size = card_size
 		card.pivot_offset = card_size / 2.0
@@ -99,20 +117,36 @@ func _notification(what: int) -> void:
 		_layout()
 
 
-## Brings card `at` to the middle. Emits `selected` when it is a different card.
+## Brings card `at` to the middle. Emits `selected` when it is a different card. An endless carousel takes the shorter way round.
 func select(at: int, animate: bool = true) -> void:
-	var target: int = clampi(at, 0, maxi(cards.size() - 1, 0))
+	var count: int = maxi(cards.size(), 1)
+	var target: int = posmod(at, count) if wrap else clampi(at, 0, maxi(cards.size() - 1, 0))
 	var changed: bool = target != index
+	var goal: float = float(target)
+	if wrap:
+		# the step from where the models are now (nearest whole position) to `target`, the short way
+		var from: int = roundi(_position)
+		goal = float(from + posmod(target - posmod(from, count) + count / 2, count) - count / 2)
 	index = target
 	if _tween != null:
 		_tween.kill()
 	if animate and not Settings.reduced_motion:
 		_tween = create_tween()
-		_tween.tween_method(_move_to, _position, float(target), SNAP_TIME).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		_tween.tween_method(_move_to, _position, goal, WRAP_TIME if wrap else SNAP_TIME).set_trans(Tween.TRANS_CUBIC if not wrap else Tween.TRANS_SINE).set_ease(Tween.EASE_OUT if not wrap else Tween.EASE_IN_OUT)
+		if wrap:
+			_tween.tween_callback(_settle)
 	else:
-		_move_to(float(target))
+		_move_to(goal)
+		if wrap:
+			_settle()
 	if changed:
 		selected.emit(index)
+
+
+## After a step of an endless carousel the position is made the plain index again (the layout looks the same, the number stays small).
+func _settle() -> void:
+	_position = float(index)
+	_layout()
 
 
 func _move_to(value: float) -> void:
@@ -125,16 +159,19 @@ func _move_to(value: float) -> void:
 func _layout() -> void:
 	for i: int in cards.size():
 		var offset: float = float(i) - _position
+		if wrap:
+			var half: float = float(cards.size()) / 2.0
+			offset = fposmod(offset + half, float(cards.size())) - half
 		# two layers only (owner): the chosen card in front and every other card in one layer behind it. A third card (when
 		# the chosen one is at an end) slides in behind the chosen card, centred, where it is not seen.
 		var distance: float = absf(offset)
 		var away: float = minf(distance, 1.0)
 		var spread: float = distance if distance <= 1.0 else maxf(2.0 - distance, 0.0)
 		var card: Button = cards[i]
-		card.scale = Vector2.ONE * (1.0 - SCALE_LOSS * away)
+		card.scale = Vector2.ONE * (1.0 - scale_loss * away)
 		var drift_phase: float = sin(float(Time.get_ticks_msec()) / 1000.0 * FLOAT_SPEED)
 		var drift: float = drift_phase * bob * (1.0 - away / 2.0) if bob > 0.0 and not Settings.reduced_motion else 0.0
-		card.position = Vector2(size.x / 2.0 + signf(offset) * spread * STEP - card_size.x / 2.0, ((size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap) + drift)
+		card.position = Vector2(size.x / 2.0 + signf(offset) * spread * STEP * spread_scale - card_size.x / 2.0, ((size.y - card_size.y) / 2.0 if bottom_gap < 0.0 else size.y - card_size.y - bottom_gap) + drift - card_size.y * back_rise * away)
 		# every card stays visible: the ones further back are darker and slightly see-through
 		var shade: float = 1.0 - SHADE_LOSS * away
 		card.modulate = Color(shade, shade, shade, lerpf(1.0, BACK_ALPHA, clampf(absf(offset), 0.0, 1.0)))
@@ -175,11 +212,16 @@ func _gui_input(event: InputEvent) -> void:
 				_dragging = false
 				_press_x = button.position.x
 				_press_position = _position
+				_last_x = button.position.x
+				_last_msec = Time.get_ticks_msec()
+				_velocity = 0.0
 				if _tween != null:
 					_tween.kill()
 			elif _pressed:
 				_pressed = false
-				if _dragging:
+				if _dragging and wrap:
+					select(_swipe_target())
+				elif _dragging:
 					select(roundi(_position))
 				else:
 					select(_card_at(button.position))
@@ -188,9 +230,31 @@ func _gui_input(event: InputEvent) -> void:
 		var travelled: float = motion.position.x - _press_x
 		if absf(travelled) > DRAG_START:
 			_dragging = true
-		if _dragging:
+		var now: int = Time.get_ticks_msec()
+		if now > _last_msec:
+			_velocity = lerpf(_velocity, (motion.position.x - _last_x) / float(now - _last_msec), 0.5)
+		_last_x = motion.position.x
+		_last_msec = now
+		if _dragging and wrap:
+			# the models follow the finger, but never further than one step from where they were
+			var start: float = float(roundi(_press_position))
+			_position = clampf(_press_position - travelled / (STEP * spread_scale), start - 1.0, start + 1.0)
+			_layout()
+		elif _dragging:
 			_position = clampf(_press_position - travelled / STEP, 0.0, float(maxi(cards.size() - 1, 0)))
 			_layout()
+
+
+## Where an endless carousel's swipe ends: one step in the direction it went when it went far enough or fast enough, else back where
+## it started (never more than one step).
+func _swipe_target() -> int:
+	var start: int = roundi(_press_position)
+	var moved: float = _position - float(start)
+	var fast: bool = absf(_velocity) > FLING_SPEED
+	if absf(moved) < STEP_DRAG and not fast:
+		return posmod(start, maxi(cards.size(), 1))
+	var way: int = signi(roundi(moved * 1000.0)) if absf(moved) >= 0.02 else -signi(roundi(_velocity * 1000.0))
+	return posmod(start + way, maxi(cards.size(), 1))
 
 
 ## The card under `at` (the front-most one wins), or the current one when it hits none.

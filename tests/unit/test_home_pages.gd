@@ -64,7 +64,7 @@ func test_the_character_sheet_says_the_look_changes_nothing_about_play() -> void
 	var text: String = ""
 	for label: Node in card.find_children("*", "Label", true, false):
 		text += (label as Label).text + " "
-	assert_true(text.contains("same health, speed and size"), "cosmetic only, as the design says")
+	assert_true(text.contains("same stats"), "cosmetic only, as the design says")
 
 
 func test_the_book_has_a_characters_tab_and_a_weapons_tab() -> void:

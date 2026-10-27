@@ -171,14 +171,16 @@ func test_the_hero_fills_a_tall_phone_and_stays_2_5_to_4() -> void:
 	var tall: TitleScreen = _phone(1558.0)
 	await wait_frames(3)
 	var tall_card: Vector2 = tall.carousel.card_size
-	assert_gt(tall_card.y, standard_card.y + 60.0, "a taller phone gets a bigger card")
+	# a bare diorama is as wide as the stage lets it be, so a taller phone gets the same card (a paper card grows with the height)
+	assert_gte(tall_card.y, standard_card.y - 1.0, "a taller phone never gets a smaller card")
 	for card: Vector2 in [standard_card, tall_card]:
-		assert_almost_eq(card.x / card.y, TitleScreen.HERO_RATIO, 0.01, "1.75:2.5")
-		assert_gte(card.y, TitleScreen.HERO_MIN_HEIGHT)
+		assert_almost_eq(card.x / card.y, TitleScreen.model_ratio(), 0.01, "the card is the shape of its picture")
+		assert_gte(card.y, TitleScreen.HERO_MIN_HEIGHT * (TitleScreen.MODEL_SCALE if TitleScreen.models_are_bare() else 1.0))
 		assert_lte(card.y, TitleScreen.HERO_MAX_HEIGHT)
 	var stage: Control = tall.carousel.get_parent() as Control
 	assert_lte(tall_card.y + TitleScreen.HERO_AIR, stage.size.y + 1.0, "it fits its stage with room for the glow")
-	assert_eq(tall.carousel.cards[0].size, tall_card, "the cards themselves are that size")
+	assert_almost_eq(tall.carousel.cards[0].size.x, tall_card.x, 0.1, "the cards themselves are that wide")
+	assert_almost_eq(tall.carousel.cards[0].size.y, tall_card.y, 0.1, "and that tall")
 
 
 func test_the_chosen_mode_survives_the_hero_being_resized() -> void:
@@ -256,9 +258,12 @@ func test_the_open_tab_is_bigger_and_shows_its_name_and_its_arrows() -> void:
 	var open: TextureRect = bar.tabs[&"home"].get_node("Picture") as TextureRect
 	var idle: TextureRect = bar.tabs[&"street"].get_node("Picture") as TextureRect
 	assert_gt(open.size.x, idle.size.x * 1.2, "the open tab's picture is bigger")
-	assert_eq(bar.tabs[&"home"].size.x, bar.tabs[&"street"].size.x, "but the tabs stay equal: nothing is pushed aside")
+	assert_gt(bar.tabs[&"home"].size.x, bar.tabs[&"street"].size.x, "the open tab is the wide one (room for its arrows)")
+	assert_almost_eq(bar.tabs[&"street"].position.x, UiTabBar.SIDE_MARGIN, 0.5, "the strip starts a margin in from the left")
+	assert_almost_eq(bar.tabs[&"settings"].position.x + bar.tabs[&"settings"].size.x, 720.0 - UiTabBar.SIDE_MARGIN, 0.5, "and ends a margin in from the right")
 	assert_lt(open.global_position.y, bar.global_position.y + UiTabBar.BAR_TOP, "the open picture rises above the bar (owner: like the reference)")
 	assert_gt(idle.global_position.y, bar.global_position.y + UiTabBar.BAR_TOP, "an idle picture sits inside it")
+	assert_almost_eq(open.global_position.y + open.size.y / 2.0, bar.global_position.y + UiTabBar.BAR_TOP, 1.0, "the open picture is centred on the bar's top edge (owner)")
 	assert_true((bar.tabs[&"home"].get_node("Name") as Label).visible, "it shows its name")
 	assert_false((bar.tabs[&"street"].get_node("Name") as Label).visible, "the others do not")
 	assert_true(bar.arrow_left.visible and bar.arrow_right.visible, "Play has an arrow on each side")
@@ -298,7 +303,7 @@ func test_an_arrow_goes_to_the_neighbouring_tab() -> void:
 	bar.set_active(&"home")
 	bar.arrow_left.pressed.emit()
 	bar.arrow_right.pressed.emit()
-	assert_eq(heard, [&"street", &"settings"] as Array[StringName], "left of Play is Street, right of it Settings")
+	assert_eq(heard, [&"codex", &"history"] as Array[StringName], "left of Play is Cards, right of it History")
 	assert_gte(bar.arrow_left.size.x, UiMetrics.MIN_TARGET, "an arrow is a thumb-sized target")
 	assert_gte(bar.arrow_left.size.y, UiMetrics.MIN_TARGET)
 

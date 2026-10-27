@@ -92,7 +92,7 @@ func test_the_tab_bar_lights_only_the_open_tab_and_announces_presses() -> void:
 	var bar: UiTabBar = autofree(UiTabBar.new(TitleScreen.TABS)) as UiTabBar
 	add_child(bar)
 	bar.size = Vector2(720.0, UiTabBar.HEIGHT)
-	assert_eq(bar.tabs.size(), 3, "Street, Play, Settings")
+	assert_eq(bar.tabs.size(), 5, "Street, Cards, Play, History, Settings")
 	var heard: Array[StringName] = []
 	bar.tab_pressed.connect(func(id: StringName) -> void: heard.append(id))
 	bar.set_active(&"street")

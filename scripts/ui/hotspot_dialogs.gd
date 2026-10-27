@@ -25,11 +25,11 @@ static func message(flow: HotspotFlow, step: Step) -> String:
 		Step.CHECKING:
 			return UiText.t("Checking your network…") if flow.mode == HotspotFlow.Mode.CREATE else UiText.t("Checking your Wi-Fi…")
 		Step.NO_NETWORK:
-			return UiText.t("Turn on your hotspot or connect to Wi-Fi, then tap Try again.")
+			return UiText.t("Turn on your hotspot or Wi-Fi. Then tap Try again.")
 		Step.NETWORK_OK:
 			return UiText.t("Starting the room…")
 		Step.NO_WIFI:
-			return UiText.t("Connect to the same Wi-Fi or hotspot as your friend, then tap Try again.")
+			return UiText.t("Join your friend's Wi-Fi or hotspot. Then tap Try again.")
 		Step.SEARCHING:
 			return UiText.t("Looking for a room…")
 		Step.FOUND:
@@ -40,7 +40,7 @@ static func message(flow: HotspotFlow, step: Step) -> String:
 static func _dialog(flow: HotspotFlow, on_done: Callable, open_settings: Callable) -> MenuDialog:
 	var card: MenuDialog = MenuDialog.create("Local")
 	card.name = "HotspotCheckDialog"
-	var text: Label = card.add_label("", UiMetrics.BODY, KalyeahTheme.CREAM)
+	var text: Label = card.add_label("", UiMetrics.BODY, KalyeahTheme.MODAL_TEXT)
 	text.name = "Message"
 	var settings: Button = MenuDialog.make_button("Network settings", "blue", UiMetrics.BODY)
 	settings.name = "Settings"

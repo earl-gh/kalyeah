@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DonateInfo" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/donate_info.gd" id="1_donate"]
+
+[resource]
+script = ExtResource("1_donate")
+thanks = "Love Kalyeah? Chip in and help it grow!"
+grown_ups = "Ask a grown-up first. Gifts give nothing in the game."
+url = ""

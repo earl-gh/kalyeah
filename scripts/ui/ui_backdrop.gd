@@ -1,53 +1,57 @@
 class_name UiBackdrop
 extends Control
-## The living background of the main screens: one of the owner's diamond pictures (blue, purple or green, whichever is nearest to the
-## colour in focus; they cross-fade) dimmed under a night gradient, a soft glow in the colour of whatever is in focus, and a few motes
-## of light drifting up. With Reduce motion on the motes stay home and the picture holds still.
+## The living background of the main screens: the owner's blue diamond picture (the same for every mode: owner) under a night gradient,
+## a soft blue backlight, and a few motes of light drifting up. With Reduce motion on the motes stay home and the picture holds still.
 
 const PICTURE: Texture2D = preload("res://assets/ui/main_bg.webp")
-const PICTURE_PURPLE: Texture2D = preload("res://assets/ui/main_bg_purple.webp")
-const PICTURE_GREEN: Texture2D = preload("res://assets/ui/main_bg_green.webp")
 const MOTES: int = 14
-## The colour each picture is in: the blue, the purple and the green mode cards' colours, in the order of `pictures`.
+## The blue the picture is in, which the backlight and the dark of the vignette follow.
 const PICTURE_BLUE: Color = Color("4aa0ff")
-const PICTURE_COLOURS: Array[Color] = [PICTURE_BLUE, Color("a45cf0"), Color("45dd78")]
 ## How strongly the backlight is added to the picture.
-const BACKLIGHT_STRENGTH: float = 0.4
+const BACKLIGHT_STRENGTH: float = 0.9
+## The neon blue core: a saturated electric blue, how strongly it is added, and how big it is next to the backlight.
+const NEON_BLUE: Color = Color("1f66ff")
+const NEON_STRENGTH: float = 0.7
+const NEON_SIZE: float = 0.55
+const NEON_LIFT: float = 0.5
+## Both lights are drawn between the mode models: above the ones behind the chosen model (`MenuCarousel` z 5) and below the chosen one
+## (z 10), so they shine from behind the front model but not through the ones behind it (owner).
+const LIGHT_Z: int = 7
 
 var glow: TextureRect
-## The dark of the vignette: the focus colour, very dark, so the dark that closes in on the picture is never another hue mixed into it
-## (a navy dark turned an orange picture into grey brown).
+## The neon blue core above the backlight: smaller and stronger, centred on the same place.
+var core: TextureRect
+## The dark of the vignette: the picture's blue, very dark, so the dark that closes in on the picture is never another hue mixed into it.
 var night: TextureRect
 var motes: CPUParticles2D
+## The two lights are on while the main page shows (above a page they would shine over its content, so they are switched off there).
+var lights_on: bool = true:
+	set(value):
+		lights_on = value
+		if glow != null:
+			glow.visible = value
+		if core != null:
+			core.visible = value
 ## False while a page or a sheet covers the screen: the motes rest (nothing under a cover needs redrawing).
 var ambient: bool = true:
 	set(value):
 		ambient = value
 		if motes != null:
 			_apply_motion()
-var _accent: Color = PICTURE_BLUE
-## The pictures (blue, purple, green): only the one nearest the focus colour is showing.
-var pictures: Array[TextureRect] = []
-var _tween: Tween
 
 
 func _init() -> void:
 	name = "Backdrop"
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var textures: Array[Texture2D] = [PICTURE, PICTURE_PURPLE, PICTURE_GREEN]
-	var names: Array[String] = ["Picture", "PicturePurple", "PictureGreen"]
-	for i: int in textures.size():
-		var picture: TextureRect = TextureRect.new()
-		picture.name = names[i]
-		picture.texture = textures[i]
-		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		picture.modulate.a = 1.0 if i == picture_for(_accent) else 0.0
-		add_child(picture)
-		pictures.append(picture)
+	var picture: TextureRect = TextureRect.new()
+	picture.name = "Picture"
+	picture.texture = PICTURE
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(picture)
 	glow = TextureRect.new()
 	glow.name = "Glow"
 	glow.texture = _backlight()
@@ -58,11 +62,25 @@ func _init() -> void:
 	var additive: CanvasItemMaterial = CanvasItemMaterial.new()
 	additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	glow.material = additive
-	glow.modulate = _backlight_color(_accent)
+	glow.modulate = _backlight_color(PICTURE_BLUE)
+	glow.z_as_relative = false
+	glow.z_index = LIGHT_Z
 	add_child(glow)
+	# a smaller, stronger neon blue core on top of the backlight, right behind the chosen model (owner)
+	core = TextureRect.new()
+	core.name = "NeonCore"
+	core.texture = _backlight()
+	core.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	core.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	core.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	core.material = additive
+	core.modulate = Color(NEON_BLUE, NEON_STRENGTH)
+	core.z_as_relative = false
+	core.z_index = LIGHT_Z
+	add_child(core)
 	night = TextureRect.new()
 	night.name = "Night"
-	night.modulate = _night_color(_accent)
+	night.modulate = _night_color(PICTURE_BLUE)
 	night.texture = _night()
 	night.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	night.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -93,51 +111,17 @@ func _init() -> void:
 	_apply_motion()
 
 
-## The background takes the colour of what is in focus (a mode, a map), easing over to it: the backlight takes the colour and the
-## picture nearest to it fades in.
-func set_accent(color: Color) -> void:
-	_accent = color
-	if is_instance_valid(_tween):
-		_tween.kill()
-	var target: int = picture_for(color)
-	var from_alpha: Array[float] = []
-	for picture: TextureRect in pictures:
-		from_alpha.append(picture.modulate.a)
-	var from_light: Color = glow.modulate
-	var from_night: Color = night.modulate
-	if Settings.reduced_motion or not is_inside_tree():
-		_apply(target, 1.0, from_alpha, _backlight_color(color), _night_color(color))
-		return
-	_tween = create_tween()
-	_tween.tween_method(func(mix: float) -> void: _apply(target, mix, from_alpha, from_light.lerp(_backlight_color(color), mix), from_night.lerp(_night_color(color), mix)), 0.0, 1.0, 0.45).set_trans(Tween.TRANS_SINE)
-
-
-## `mix` of the way from the pictures' alphas at the start (`from_alpha`) to only `target` showing.
-func _apply(target: int, mix: float, from_alpha: Array[float], light: Color, dark: Color) -> void:
-	for i: int in pictures.size():
-		pictures[i].modulate.a = lerpf(from_alpha[i], 1.0 if i == target else 0.0, mix)
-	glow.modulate = light
-	night.modulate = dark
-
-
-## Which picture (0 blue, 1 purple, 2 green) is nearest to a focus colour round the colour wheel.
-static func picture_for(accent: Color) -> int:
-	var best: int = 0
-	var best_distance: float = INF
-	for i: int in PICTURE_COLOURS.size():
-		var distance: float = absf(wrapf(accent.h - PICTURE_COLOURS[i].h, -0.5, 0.5))
-		if distance < best_distance:
-			best = i
-			best_distance = distance
-	return best
-
-
 ## Lights the background from behind a card: the bright middle of the backlight sits at `centre` (this control's own pixels) and
 ## fades out over `radius`.
 func aim_backlight(centre: Vector2, radius: float) -> void:
 	glow.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	glow.position = centre - Vector2(radius, radius)
 	glow.size = Vector2(radius, radius) * 2.0
+	var inner: float = radius * NEON_SIZE
+	# the core sits a little above the middle, so it shows over the model's roofs and walls, not only round its edges
+	var up: Vector2 = Vector2(0.0, -inner * NEON_LIFT)
+	core.position = centre + up - Vector2(inner, inner)
+	core.size = Vector2(inner, inner) * 2.0
 
 
 ## The backlight's colour: the focus colour, lighter and richer, at a strength that reads as light behind the card.

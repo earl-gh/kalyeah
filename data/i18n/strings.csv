@@ -4,6 +4,7 @@ keys,en
 %s × %d,%s × %d
 "%s, %s: read about this weapon","%s, %s: read about this weapon"
 %s: read about this kid,%s: read about this kid
+3 v 3 against bots. Ready to rumble?,3 v 3 against bots. Ready to rumble?
 A bouncing ball that knocks enemies off their feet!,A bouncing ball that knocks enemies off their feet!
 "A short haircut under a backward cap, an oversized basketball jersey, cargo shorts and rubber shoes.","A short haircut under a backward cap, an oversized basketball jersey, cargo shorts and rubber shoes."
 A spinning top that sends enemies flying!,A spinning top that sends enemies flying!
@@ -29,7 +30,6 @@ Battle unavailable,Battle unavailable
 Battle your friends nearby!,Battle your friends nearby!
 Blue and orange teams. The street changes next battle!,Blue and orange teams. The street changes next battle!
 Bola,Bola
-Book,Book
 Bottom,Bottom
 BOUNCED,BOUNCED
 Bounced,Bounced
@@ -44,6 +44,7 @@ Cancel,Cancel
 Cancel ready,Cancel ready
 CAPTURING,CAPTURING
 "Card %d: %s, %d ice water%s","Card %d: %s, %d ice water%s"
+Cards,Cards
 CHANGE WEAPONS,CHANGE WEAPONS
 Change weapons,Change weapons
 Changes apply immediately,Changes apply immediately
@@ -59,7 +60,7 @@ Code pasted!,Code pasted!
 Colour-blind colours,Colour-blind colours
 Comfort,Comfort
 Coming soon,Coming soon
-"Connect to the same Wi-Fi or hotspot as your friend, then tap Try again.","Connect to the same Wi-Fi or hotspot as your friend, then tap Try again."
+Coming soon!,Coming soon!
 Connecting…,Connecting…
 "Connection lost
 Reconnecting…","Connection lost
@@ -76,6 +77,7 @@ Damage,Damage
 DEFEAT,DEFEAT
 Defeat,Defeat
 DEFEND YOUR BASE!,DEFEND YOUR BASE!
+Donate,Donate
 Done,Done
 Edit profile,Edit profile
 Eight letters and numbers,Eight letters and numbers
@@ -93,6 +95,7 @@ Get your whole team into the enemy base and hold it for %s seconds with no defen
 GO!,GO!
 Good luck!,Good luck!
 Got it,Got it
+Got it!,Got it!
 Gunting · Heavy,Gunting · Heavy
 Gunting · Light,Gunting · Light
 Hair,Hair
@@ -113,6 +116,7 @@ Jacks,Jacks
 Join,Join
 Join room,Join room
 Join team,Join team
+Join your friend's Wi-Fi or hotspot. Then tap Try again.,Join your friend's Wi-Fi or hotspot. Then tap Try again.
 Joining the room…,Joining the room…
 Junjun,Junjun
 Knocked out,Knocked out
@@ -135,7 +139,6 @@ Make Kalyeah yours!,Make Kalyeah yours!
 Map: Agawan Base,Map: Agawan Base
 Match settings,Match settings
 Max: %d,Max: %d
-Meet the kids. Learn the weapons!,Meet the kids. Learn the weapons!
 Meet the six kids! Tap one to learn more.,Meet the six kids! Tap one to learn more.
 Migo,Migo
 Network settings,Network settings
@@ -226,7 +229,6 @@ The host left. You're the host now!,The host left. You're the host now!
 The words in the game,The words in the game
 THEM,THEM
 THEY SCORED  %d-%d,THEY SCORED  %d-%d
-Three of you against three bots. Ready to rumble?,Three of you against three bots. Ready to rumble?
 "Three slippers fly out and come back, hitting both ways!","Three slippers fly out and come back, hitting both ways!"
 Throw a rock that chases the nearest enemy!,Throw a rock that chases the nearest enemy!
 TIME,TIME
@@ -238,7 +240,7 @@ Try again,Try again
 Try the walkthrough!,Try the walkthrough!
 Tsinelas · Heavy,Tsinelas · Heavy
 Tsinelas · Light,Tsinelas · Light
-"Turn on your hotspot or connect to Wi-Fi, then tap Try again.","Turn on your hotspot or connect to Wi-Fi, then tap Try again."
+Turn on your hotspot or Wi-Fi. Then tap Try again.,Turn on your hotspot or Wi-Fi. Then tap Try again.
 Vibration,Vibration
 Victory,Victory
 VICTORY!,VICTORY!
@@ -252,7 +254,6 @@ Weapons,Weapons
 Wow!,Wow!
 YOU,YOU
 YOU %d - %d THEM   %s,YOU %d - %d THEM   %s
-Your last battles,Your last battles
 Your last battles on this phone!,Your last battles on this phone!
 Your profile,Your profile
 Your weapons,Your weapons

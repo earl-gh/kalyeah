@@ -7,13 +7,9 @@ extends ScrollContainer
 signal profile_pressed
 signal quit_pressed
 signal howto_pressed
-signal book_pressed
-signal history_pressed
 
 var profile_button: Button
 var howto_button: Button
-var book_button: Button
-var history_button: Button
 var quit_button: Button
 var name_label: Label
 var face: TextureRect
@@ -38,16 +34,6 @@ func _ready() -> void:
 	fill(rows)
 	preferences.add_child(UiKit.card(rows))
 	_content.add_child(preferences)
-	book_button = MenuDialog.make_button("Book", "grey", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
-	book_button.name = "BookButton"
-	book_button.accessibility_description = "Meet the kids. Learn the weapons!"
-	book_button.pressed.connect(book_pressed.emit)
-	_content.add_child(book_button)
-	history_button = MenuDialog.make_button("History", "grey", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
-	history_button.name = "HistoryButton"
-	history_button.accessibility_description = "Your last battles"
-	history_button.pressed.connect(history_pressed.emit)
-	_content.add_child(history_button)
 	howto_button = MenuDialog.make_button("How to play", "grey", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
 	howto_button.name = "HowToButton"
 	howto_button.pressed.connect(howto_pressed.emit)
