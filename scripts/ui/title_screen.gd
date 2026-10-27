@@ -59,7 +59,7 @@ const HERO_AIR: float = 36.0
 ## The cards sit this far above the bottom of their stage, so the name, its phrase and the buttons stay close under them.
 const HERO_BOTTOM_GAP: float = 14.0
 ## How far the mode's phrase is pulled up towards the platform above it (owner: closer to the model).
-const PHRASE_PULL: float = 18.0
+const PHRASE_PULL: float = 10.0
 ## The gap between the phrase and the dots under it (negative: they are pulled together).
 const TITLES_SEPARATION: int = -10
 ## How far the backlight reaches round the chosen card (times the card's height).
