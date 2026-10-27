@@ -1,27 +1,35 @@
 class_name CardsHubCard
 extends Button
-## One wide card of the Cards hub: a rounded panel with its title and a detail line at the bottom left, and a `CardFan` on the
-## right that sits mostly inside the panel and sticks out above its top edge. The whole thing is one big button, the part of
-## the fan that sticks out included.
+## One wide card of the Cards hub: a panel in the modals' own slate frame (`KalyeahTheme.modal_frame`, so the two never drift apart) with
+## its title and a detail line at the bottom left, and a `CardFan` at the right that is tucked into the panel like cards in a pocket:
+## the panel's rounded shape cuts the fan at the bottom and the right (`fan_mask.gdshader`), while the fan's upper part sticks out
+## over the top edge, uncut. The whole thing is one big button, the part of the fan that sticks out included.
 
 ## The panel's height: wide and not tall.
-const HEIGHT: float = 210.0
+const HEIGHT: float = 176.0
 ## One card of the fan, tall; its width follows its picture.
-const FAN_CARD_HEIGHT: float = 228.0
-## The fan's bottom stays this far above the panel's bottom edge, and its right edge this far in from the panel's right edge.
-const FAN_FROM_BOTTOM: float = 18.0
+const FAN_CARD_HEIGHT: float = 240.0
+## How far the fan sticks out above the panel's top edge, and how far from the panel's right edge it stops.
+const FAN_PROTRUSION: float = 64.0
 const FAN_FROM_RIGHT: float = 14.0
-## The text stops this far short of the front card's lower left corner (the card's edge leans in to the left above it).
-const TEXT_CLEARANCE: float = 48.0
-## The title is a headline; the detail is the quiet line under it.
+## The text stops this far short of the front card's left edge.
+const TEXT_CLEARANCE: float = 20.0
+## The panel is the modals' frame, with no rim of its own (the text and fan are placed by hand); a press lightens it.
+const PRESS_LIGHTEN: float = 0.12
+const PANEL_RADIUS: int = KalyeahTheme.MODAL_FRAME_RADIUS
+## The title is a headline in the modals' title colours; the detail is the plain line under it, white on the slate.
 const TITLE_SIZE: int = UiMetrics.HEADLINE
 const DETAIL_SIZE: int = UiMetrics.DETAIL
-const DETAIL_COLOR: Color = Color("c3d0ee")
+const TITLE_COLOR: Color = KalyeahTheme.MODAL_TITLE
+const TITLE_INK: Color = KalyeahTheme.MODAL_TITLE_OUTLINE
+const DETAIL_COLOR: Color = KalyeahTheme.MODAL_TITLE
 
 var id: StringName = &""
 var title_label: Label
 var detail_label: Label
 var fan: CardFan
+var words: VBoxContainer
+var panel_box: StyleBoxFlat
 
 
 ## A card for the page `page_id` with its `title` and `detail` and the three `pictures` of its fan (front first).
@@ -38,17 +46,20 @@ func _build(title: String, detail: String, pictures: Array[Texture2D]) -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tooltip_text = title
 	accessibility_name = "%s: %s" % [title, detail]
+	panel_box = KalyeahTheme.modal_frame(0.0)
+	var pressed_box: StyleBoxFlat = KalyeahTheme.modal_frame(0.0)
+	pressed_box.bg_color = pressed_box.bg_color.lightened(PRESS_LIGHTEN)
 	for state: String in ["normal", "hover"]:
-		add_theme_stylebox_override(state, UiSkin.plate("glass", 0.0, UiSkin.RADIUS_XL))
+		add_theme_stylebox_override(state, panel_box)
 	for state: String in ["pressed", "hover_pressed"]:
-		add_theme_stylebox_override(state, UiSkin.plate("raised", 0.0, UiSkin.RADIUS_XL))
-	add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_XL))
+		add_theme_stylebox_override(state, pressed_box)
+	add_theme_stylebox_override("focus", UiSkin.focus_ring(PANEL_RADIUS))
 	UiKit.feel_press(self)
 	fan = CardFan.new()
 	fan.name = "Fan"
 	fan.build(pictures, FAN_CARD_HEIGHT)
 	add_child(fan)
-	var words: VBoxContainer = VBoxContainer.new()
+	words = VBoxContainer.new()
 	words.name = "Words"
 	words.alignment = BoxContainer.ALIGNMENT_END
 	words.add_theme_constant_override("separation", 4)
@@ -57,14 +68,15 @@ func _build(title: String, detail: String, pictures: Array[Texture2D]) -> void:
 	words.offset_left = UiMetrics.PADDING
 	words.offset_bottom = -UiMetrics.PADDING
 	words.offset_top = UiMetrics.PADDING
-	# the text may run in under the fan's empty lower left corner, up to the front card's edge
-	words.offset_right = -(fan.size.x - fan.lower_left().x + FAN_FROM_RIGHT + TEXT_CLEARANCE)
+	# the text may run in under the fan, up to the front card's left edge at the height of its last row
+	var last_row: float = HEIGHT - UiMetrics.PADDING - fan_top()
+	words.offset_right = -(fan.size.x - fan.left_edge_at(last_row) + FAN_FROM_RIGHT + TEXT_CLEARANCE)
 	add_child(words)
 	title_label = Label.new()
 	title_label.name = "Title"
 	title_label.text = title
 	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	UiKit.letter(title_label, TITLE_SIZE)
+	UiKit.letter(title_label, TITLE_SIZE, TITLE_COLOR, TITLE_INK)
 	words.add_child(title_label)
 	detail_label = Label.new()
 	detail_label.name = "Detail"
@@ -74,18 +86,37 @@ func _build(title: String, detail: String, pictures: Array[Texture2D]) -> void:
 	detail_label.add_theme_font_size_override("font_size", DETAIL_SIZE)
 	detail_label.add_theme_color_override("font_color", DETAIL_COLOR)
 	words.add_child(detail_label)
+	# the mask follows the card: when the card or anything over it moves, resizes or is squeezed by a press
+	set_notify_transform(true)
 	resized.connect(_place_fan)
 	_place_fan()
 
 
-## The fan sits at the right with its bottom inside the panel; whatever is taller than the panel sticks out above it.
+## The fan's top, in the card's own coordinates: above the panel by `FAN_PROTRUSION`.
+func fan_top() -> float:
+	return -FAN_PROTRUSION
+
+
 func _place_fan() -> void:
-	fan.position = Vector2(size.x - FAN_FROM_RIGHT - fan.size.x, maxf(size.y, HEIGHT) - FAN_FROM_BOTTOM - fan.size.y)
+	fan.position = Vector2(size.x - FAN_FROM_RIGHT - fan.size.x, fan_top())
+	_update_mask()
+
+
+func _notification(what: int) -> void:
+	if (what == NOTIFICATION_TRANSFORM_CHANGED or what == NOTIFICATION_ENTER_TREE) and fan != null:
+		_update_mask()
+
+
+## Gives the fan's shader this card's place and shape (the panel's own corner radius and border width).
+func _update_mask() -> void:
+	if not is_inside_tree():
+		return
+	fan.set_mask(get_global_transform(), size, float(PANEL_RADIUS), float(panel_box.get_border_width(SIDE_LEFT)))
 
 
 ## How far the fan sticks out above the panel's top edge (a positive number), so a page can leave room for it.
 func protrusion() -> float:
-	return maxf(0.0, fan.size.y + FAN_FROM_BOTTOM - HEIGHT)
+	return FAN_PROTRUSION
 
 
 ## Whether a tap at `point` (in the card's own coordinates) is on this card: the panel, or the fan that sticks out of it.

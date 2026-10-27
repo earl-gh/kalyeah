@@ -131,10 +131,9 @@ var pages: Dictionary[StringName, Control] = {}
 var current_page: StringName = &""
 var street_page: StreetPage
 var codex_page: CodexPage
-var characters_page: CharactersPage:
-	get: return codex_page.characters_page
-var weapons_page: WeaponsPage:
-	get: return codex_page.weapons_page
+## The bottom drawer of the Cards screens (a card's details); it sits over the page and under the bottom bar.
+var card_drawer: CardDrawer
+var _drawer_screen: CardsScreen
 var history_page: HistoryPage
 var settings_page: SettingsPage
 var howto_page: HowToPlayPage
@@ -213,6 +212,10 @@ func _build_layout() -> void:
 	_page_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	middle.add_child(_page_holder)
 	_build_pages()
+	# the drawer is edge to edge and ends where the bottom bar starts, so it is added before the bar
+	card_drawer = CardDrawer.new()
+	card_drawer.closed.connect(_on_drawer_closed)
+	add_child(card_drawer)
 	# the bottom bar is not inside the margins: it runs edge to edge and down to the bottom of the screen
 	tab_bar = UiTabBar.new(TABS)
 	tab_bar.tab_pressed.connect(_on_tab_pressed)
@@ -436,8 +439,7 @@ func _build_pages() -> void:
 		page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		page.visible = false
 		_page_holder.add_child(page)
-	codex_page.weapons_page.weapon_opened.connect(open_weapon_detail)
-	codex_page.characters_page.character_opened.connect(open_character_detail)
+	codex_page.drawer_requested.connect(open_card_drawer)
 	settings_page.profile_pressed.connect(open_name_editor)
 	settings_page.quit_pressed.connect(open_quit_confirm)
 	settings_page.howto_pressed.connect(open_page.bind(&"howto"))
@@ -459,6 +461,7 @@ func open_page(id: StringName) -> void:
 	if not pages.has(id):
 		return
 	var way: int = signi(int(PAGE_RANK.get(id, 0)) - int(PAGE_RANK.get(current_page, 0)))
+	card_drawer.close(false)
 	current_page = id
 	for other: StringName in pages:
 		pages[other].visible = other == id
@@ -478,6 +481,7 @@ func open_page(id: StringName) -> void:
 ## Back to the Play page.
 func close_page() -> void:
 	var way: int = signi(0 - int(PAGE_RANK.get(current_page, 0)))
+	card_drawer.close(false)
 	current_page = &""
 	for id: StringName in pages:
 		pages[id].visible = false
@@ -652,6 +656,8 @@ func _apply_safe_area() -> void:
 	tab_bar.offset_right = 0.0
 	tab_bar.offset_bottom = 0.0
 	tab_bar.offset_top = -(UiTabBar.HEIGHT + inset.w)
+	# the drawer stops where the bar itself starts (the open tab's picture pops over the drawer, which keeps room for it)
+	card_drawer.offset_bottom = tab_bar.offset_top + UiTabBar.BAR_TOP
 
 
 ## The unsafe screen edges (left, top, right, bottom) in UI pixels: the notch, the status bar,
@@ -817,18 +823,27 @@ func _sync_ambient() -> void:
 		parallax.active = not covered
 	name_tag.swing = not covered
 
-## The detail sheet of a kid from the Book.
-func open_character_detail(character: CharacterDef) -> MenuDialog:
-	var card: MenuDialog = CharactersPage.detail(character)
-	_show_dialog(card)
-	return card
+## A card of a Cards screen was tapped: its details slide up from the bottom. The card wears a gold edge while its drawer is open.
+func open_card_drawer(screen: CardsScreen, index: int) -> void:
+	if _drawer_screen != screen:
+		if _drawer_screen != null:
+			_drawer_screen.mark(-1)
+		_drawer_screen = screen
+	if not card_drawer.shown.is_connected(_on_drawer_shown):
+		card_drawer.shown.connect(_on_drawer_shown)
+	card_drawer.open_entries(screen.entries, index)
+	_sync_ambient()
 
 
-## The detail sheet of a weapon from the Book.
-func open_weapon_detail(weapon: WeaponDef) -> MenuDialog:
-	var card: MenuDialog = WeaponsPage.detail(weapon)
-	_show_dialog(card)
-	return card
+func _on_drawer_shown(index: int) -> void:
+	if _drawer_screen != null:
+		_drawer_screen.mark(index)
+
+
+func _on_drawer_closed() -> void:
+	if _drawer_screen != null:
+		_drawer_screen.mark(-1)
+	_drawer_screen = null
 
 
 ## Your profile: the name and the face (see `ProfileSheet`). The Settings card and a toast answer a save.
@@ -877,8 +892,11 @@ func _quit_game() -> void:
 	get_tree().quit()
 
 
-## Back goes one step: a page of the Cards screen to its hub, an open page to home; on the home page it asks to quit.
+## Back goes one step: an open drawer closes, a screen of the Cards tab goes to its hub, an open page to home; on the home page it asks to quit.
 func _go_back() -> void:
+	if card_drawer.is_open:
+		card_drawer.close()
+		return
 	if current_page == &"codex" and codex_page.go_back():
 		return
 	if current_page != &"":

@@ -15,8 +15,12 @@ const PEEKS: Array[float] = [0.0, 0.5, 0.86]
 ## How far each card's centre sits below the front card's centre, in heights of a card (the last one sits lower, as in the icon).
 const DROPS: Array[float] = [0.0, 0.0, 0.07]
 
+const MASK_SHADER: String = "res://shaders/fan_mask.gdshader"
+
 ## The cards, front first.
 var cards: Array[TextureRect] = []
+## The material every card of the fan shares: `fan_mask.gdshader`, which cuts the fan by the card it sits on (see `set_mask`).
+var mask_material: ShaderMaterial
 
 
 ## Builds the fan from `pictures` (front first, at most three), each `card_height` tall and as wide as its own picture is.
@@ -41,6 +45,7 @@ func build(pictures: Array[Texture2D], card_height: float) -> void:
 		card.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		card.stretch_mode = TextureRect.STRETCH_SCALE
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.material = _mask()
 		var card_size: Vector2 = Vector2(_width_of(pictures[i], card_height), card_height)
 		card.size = card_size
 		card.pivot_offset = card_size / 2.0
@@ -80,10 +85,35 @@ static func _turned_rect(centre: Vector2, card_size: Vector2, angle: float) -> R
 	return box
 
 
-## Where the front card's lower left corner is (in this control's own coordinates): the fan's box is empty below and left of it,
-## so text can run in under the fan there.
-func lower_left() -> Vector2:
+## Where the left edge of the front card is (x, in this control's own coordinates) at height `y`: text that runs in under the fan stops
+## short of it.
+func left_edge_at(y: float) -> float:
 	if cards.is_empty():
-		return Vector2.ZERO
+		return 0.0
 	var front: TextureRect = cards[0]
-	return front.position + front.size / 2.0 + Vector2(-front.size.x / 2.0, front.size.y / 2.0).rotated(front.rotation)
+	var centre: Vector2 = front.position + front.size / 2.0
+	var top_left: Vector2 = centre + Vector2(-front.size.x / 2.0, -front.size.y / 2.0).rotated(front.rotation)
+	var bottom_left: Vector2 = centre + Vector2(-front.size.x / 2.0, front.size.y / 2.0).rotated(front.rotation)
+	var along: float = clampf((y - top_left.y) / (bottom_left.y - top_left.y), 0.0, 1.0)
+	return lerpf(top_left.x, bottom_left.x, along)
+
+
+## Tells the shader where the card the fan is tucked into is: its `global` transform, its `card_size` in its own pixels, its corner
+## `radius` and the `inset` (the border width) the fan stops short of. Call it whenever the card moves or is resized.
+func set_mask(global: Transform2D, card_size: Vector2, radius: float, inset: float) -> void:
+	var to_card: Transform2D = global.affine_inverse()
+	var matrix: Projection = Projection(
+		Vector4(to_card.x.x, to_card.x.y, 0.0, 0.0), Vector4(to_card.y.x, to_card.y.y, 0.0, 0.0),
+		Vector4(0.0, 0.0, 1.0, 0.0), Vector4(to_card.origin.x, to_card.origin.y, 0.0, 1.0))
+	var material: ShaderMaterial = _mask()
+	material.set_shader_parameter("to_card", matrix)
+	material.set_shader_parameter("card_size", card_size)
+	material.set_shader_parameter("radius", radius)
+	material.set_shader_parameter("inset", inset)
+
+
+func _mask() -> ShaderMaterial:
+	if mask_material == null:
+		mask_material = ShaderMaterial.new()
+		mask_material.shader = load(MASK_SHADER) as Shader
+	return mask_material

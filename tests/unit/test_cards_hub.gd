@@ -72,8 +72,8 @@ func test_the_hub_is_two_wide_cards_titled_kids_and_skills_each_with_a_detail_li
 	assert_lt(first.end.y, second.position.y, "one above the other")
 	assert_almost_eq(first.size.x, second.size.x, 1.0, "the same width")
 	assert_gt(first.size.x, first.size.y * 2.5, "wide, not tall")
-	assert_false(screen.characters_page.is_visible_in_tree(), "the pages wait behind the cards")
-	assert_false(screen.weapons_page.is_visible_in_tree())
+	assert_false(screen.codex_page.kids_screen.is_visible_in_tree(), "the screens wait behind the cards")
+	assert_false(screen.codex_page.skills_screen.is_visible_in_tree())
 	for node: Node in hub.find_children("*", "", true, false):
 		assert_false(node is UiSegmented, "the tab switcher is gone from the hub")
 
@@ -104,8 +104,8 @@ func test_each_fan_is_three_bare_pictures_of_the_owners_cards() -> void:
 	for fan: CardFan in [kid_fan, skill_fan]:
 		for card: TextureRect in fan.cards:
 			assert_not_null(card.texture)
-			assert_null(card.material, "no crop or shader over a picture")
-			assert_eq(card.get_child_count(), 0, "nothing printed on it")
+			assert_eq(card.material, fan.mask_material, "nothing over a picture but the pocket mask")
+			assert_eq(card.get_child_count(), 0, "no plate or crop behind or over it")
 			assert_eq(card.mouse_filter, Control.MOUSE_FILTER_IGNORE, "a picture never takes the touch from the button")
 		var aspect: float = float(fan.cards[0].texture.get_width()) / float(fan.cards[0].texture.get_height())
 		assert_almost_eq(fan.cards[0].size.x / fan.cards[0].size.y, aspect, 0.01, "a picture keeps its own shape")
@@ -135,7 +135,7 @@ func test_the_fan_is_drawn_like_the_cards_icon_front_card_last_tilted_left_the_o
 		assert_true(fan.get_global_rect().encloses(_fan_box(fan).grow(-0.5)), "the fan's own box is exactly what the cards cover")
 
 
-func test_the_fan_sticks_out_above_the_card_and_its_lower_part_sits_inside() -> void:
+func test_the_fan_sticks_out_above_the_card_and_is_tucked_into_it_below() -> void:
 	for height: float in [SHORT_PHONE, TALL_PHONE]:
 		var screen: TitleScreen = await _hub_screen(height)
 		var hub: CardsHub = screen.codex_page.hub
@@ -144,29 +144,67 @@ func test_the_fan_sticks_out_above_the_card_and_its_lower_part_sits_inside() -> 
 			var card: CardsHubCard = hub.cards[i]
 			var panel: Rect2 = card.get_global_rect()
 			var fan: Rect2 = _fan_box(card.fan)
-			assert_lt(fan.position.y, panel.position.y - 40.0, "the upper part sticks out above the card's top edge (%d, %d)" % [i, int(height)])
-			assert_gt(fan.end.y, panel.position.y + panel.size.y * 0.5, "most of the lower part is over the card's panel")
-			assert_lt(fan.end.y, panel.end.y, "the fan's bottom is inside the card")
-			assert_lte(fan.end.x, panel.end.x, "and inside it on the right")
+			var out: float = panel.position.y - fan.position.y
+			assert_gte(out, 56.0, "the upper part sticks out above the card's top edge (%d, %d)" % [i, int(height)])
+			assert_lte(out, 80.0, "by about 60 to 70 px: the rest is in the card")
+			assert_gt(fan.end.y, panel.end.y + 20.0, "a decent part of the cards is below the card's bottom edge, where the mask hides it")
+			assert_gt(panel.end.y - maxf(fan.position.y, panel.position.y), panel.size.y * 0.9, "so the fan covers the panel's whole height")
+			assert_lte(fan.end.x, panel.end.x, "and stays inside it on the right")
 			assert_gte(fan.position.y, header.get_global_rect().end.y, "the cards that stick out stay under the page header")
 			assert_gte(fan.position.x, panel.position.x, "and on the card's side of the screen")
 		var first: Rect2 = hub.cards[0].get_global_rect()
 		assert_gte(_fan_box(hub.cards[1].fan).position.y, first.end.y, "the second fan sticks out into the gap, never over the first card")
 
 
-func test_the_titles_sit_at_the_bottom_left_and_clear_of_the_fan() -> void:
+func test_the_fan_is_masked_by_the_cards_own_rounded_shape_and_the_mask_follows_the_card() -> void:
 	var screen: TitleScreen = await _hub_screen()
+	var card: CardsHubCard = screen.codex_page.hub.kids_card
+	var material: ShaderMaterial = card.fan.mask_material
+	assert_not_null(material)
+	assert_eq(material.shader.resource_path, CardFan.MASK_SHADER)
+	for picture: TextureRect in card.fan.cards:
+		assert_eq(picture.material, material, "every card of the fan is cut by the same mask")
+	assert_eq(material.get_shader_parameter("card_size"), card.size, "the mask is the card's own size")
+	assert_eq(material.get_shader_parameter("radius"), float(KalyeahTheme.MODAL_FRAME_RADIUS), "and its own corner radius")
+	assert_eq(material.get_shader_parameter("inset"), float(card.panel_box.get_border_width(SIDE_LEFT)), "stopping at the border's inner edge")
+	var to_card: Projection = material.get_shader_parameter("to_card") as Projection
+	var corner: Vector3 = Vector3(card.get_global_rect().position.x, card.get_global_rect().position.y, 0.0)
+	var local: Vector4 = to_card * Vector4(corner.x, corner.y, 0.0, 1.0)
+	assert_almost_eq(local.x, 0.0, 0.01, "the card's top left maps to (0, 0)")
+	assert_almost_eq(local.y, 0.0, 0.01)
+	# the page slides, a press squeezes: the mask is told, with no pop
+	var page: Control = screen.codex_page
+	page.position += Vector2(40.0, 25.0)
+	await wait_frames(2)
+	to_card = material.get_shader_parameter("to_card") as Projection
+	local = to_card * Vector4(corner.x + 40.0, corner.y + 25.0, 0.0, 1.0)
+	assert_almost_eq(local.x, 0.0, 0.01, "moving the page moves the mask with it")
+	assert_almost_eq(local.y, 0.0, 0.01)
+	card.scale = Vector2(0.9, 0.9)
+	await wait_frames(2)
+	to_card = material.get_shader_parameter("to_card") as Projection
+	var inside: Vector4 = to_card * Vector4(card.get_global_rect().get_center().x, card.get_global_rect().get_center().y, 0.0, 1.0)
+	assert_almost_eq(inside.x, card.size.x / 2.0, 1.0, "a squeezed card keeps its mask in its own pixels")
+
+
+func test_the_hub_cards_wear_exactly_the_modals_frame() -> void:
+	var screen: TitleScreen = await _hub_screen()
+	var frame: StyleBoxFlat = KalyeahTheme.modal_frame(0.0)
 	for card: CardsHubCard in screen.codex_page.hub.cards:
-		var panel: Rect2 = card.get_global_rect()
-		var title: Rect2 = card.title_label.get_global_rect()
-		var detail: Rect2 = card.detail_label.get_global_rect()
-		assert_gte(title.position.x, panel.position.x + UiMetrics.PADDING - 1.0, "inset from the left edge")
-		assert_lte(detail.end.y, panel.end.y - UiMetrics.PADDING + 1.0, "the detail is the bottom row")
-		assert_gt(detail.position.y, panel.position.y + panel.size.y * 0.5, "in the lower half")
-		var front_corner: Vector2 = card.fan.get_global_rect().position + card.fan.lower_left()
-		assert_lt(card.detail_label.get_global_rect().position.x + card.detail_label.get_minimum_size().x, front_corner.x, "the words stop before the front card")
-		assert_gte(card.title_label.get_theme_font_size("font_size"), UiMetrics.HEADLINE, "the title is a headline")
-		assert_gte(card.detail_label.get_theme_font_size("font_size"), UiMetrics.DETAIL, "the detail is from the type scale")
+		var box: StyleBoxFlat = card.get_theme_stylebox("normal") as StyleBoxFlat
+		assert_eq(box.bg_color, KalyeahTheme.MODAL_FRAME, "the modals' frame colour, from the one constant")
+		assert_eq(box.bg_color, frame.bg_color)
+		assert_eq(box.border_color, KalyeahTheme.MODAL_FRAME_EDGE)
+		assert_eq(box.corner_radius_top_left, KalyeahTheme.MODAL_FRAME_RADIUS)
+		assert_gt(box.shadow_size, 0, "a shadow, so it reads against the blue backdrop")
+		assert_gte(box.get_border_width(SIDE_LEFT), 2, "and a border")
+		var lit: StyleBoxFlat = card.get_theme_stylebox("pressed") as StyleBoxFlat
+		assert_ne(lit.bg_color, box.bg_color, "a press shows")
+		assert_gte(UiKit.contrast(card.title_label.get_theme_color("font_color"), box.bg_color), 4.5, "the title reads on the frame")
+		assert_gte(UiKit.contrast(card.detail_label.get_theme_color("font_color"), box.bg_color), 4.5, "and the detail line")
+	var dialog: MenuDialog = autofree(MenuDialog.create("x")) as MenuDialog
+	var modal: StyleBoxFlat = dialog.panel.get_theme_stylebox("panel") as StyleBoxFlat
+	assert_eq(modal.bg_color, (screen.codex_page.hub.kids_card.get_theme_stylebox("normal") as StyleBoxFlat).bg_color, "a modal and a hub card are the same slate")
 
 
 func test_the_hub_fits_both_phones_and_never_reaches_the_bottom_bar() -> void:
@@ -216,118 +254,3 @@ func test_a_press_squeezes_the_card_but_not_with_reduce_motion() -> void:
 	await wait_frames(3)
 	assert_eq(card.scale, Vector2.ONE, "Reduce motion: no movement")
 	card.button_up.emit()
-
-
-# ---- going in and coming back ------------------------------------------------------------
-
-func test_tapping_kids_opens_the_characters_page_and_skills_the_weapons_page() -> void:
-	var screen: TitleScreen = await _hub_screen()
-	var codex: CodexPage = screen.codex_page
-	codex.hub.kids_card.pressed.emit()
-	assert_eq(codex.current, CodexPage.CHARACTERS)
-	assert_true(screen.characters_page.is_visible_in_tree())
-	assert_false(screen.weapons_page.is_visible_in_tree())
-	assert_false(codex.hub.is_visible_in_tree())
-	codex.back_button.pressed.emit()
-	assert_eq(codex.current, CodexPage.HUB)
-	codex.hub.skills_card.pressed.emit()
-	assert_eq(codex.current, CodexPage.WEAPONS)
-	assert_true(screen.weapons_page.is_visible_in_tree())
-	assert_false(screen.characters_page.is_visible_in_tree())
-	assert_false(codex.hub.is_visible_in_tree())
-
-
-func test_the_pages_have_a_back_button_that_is_a_big_target_and_the_hub_does_not() -> void:
-	var screen: TitleScreen = await _hub_screen()
-	var codex: CodexPage = screen.codex_page
-	assert_false(codex.back_button.is_visible_in_tree(), "nothing to go back to from the hub")
-	for view: StringName in [CodexPage.CHARACTERS, CodexPage.WEAPONS]:
-		codex.show_view(view)
-		await wait_frames(2)
-		assert_true(codex.back_button.is_visible_in_tree(), "%s has a Back" % view)
-		assert_eq(codex.back_button.text, "Back")
-		var rect: Rect2 = codex.back_button.get_global_rect()
-		assert_gte(rect.size.y, UiMetrics.MIN_TARGET)
-		assert_gte(rect.size.x, UiMetrics.MIN_TARGET)
-		assert_lt(rect.end.y, screen.tab_bar.get_global_rect().position.y, "not under the bar")
-		var page: Control = screen.characters_page if view == CodexPage.CHARACTERS else screen.weapons_page
-		assert_gte(page.get_global_rect().position.y, rect.end.y - 1.0, "the page starts under the Back button")
-		assert_lte(page.get_global_rect().end.y, screen.tab_bar.get_global_rect().position.y + 1.0, "and ends above the bar")
-
-
-func test_the_phones_back_goes_one_step_page_then_hub_then_home_then_asks_to_quit() -> void:
-	var screen: TitleScreen = await _hub_screen()
-	screen.codex_page.hub.kids_card.pressed.emit()
-	get_tree().root.propagate_notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
-	await wait_frames(2)
-	assert_eq(screen.current_page, &"codex", "back from a page stays on the Cards screen")
-	assert_eq(screen.codex_page.current, CodexPage.HUB, "and lands on the hub, never straight out")
-	get_tree().root.propagate_notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
-	await wait_frames(2)
-	assert_eq(screen.current_page, &"", "back from the hub goes home")
-	assert_null(screen.dialog, "no quit question yet")
-	get_tree().root.propagate_notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
-	await wait_frames(2)
-	assert_not_null(screen.dialog, "back at home asks to quit")
-
-
-func test_back_from_the_skills_page_works_the_same() -> void:
-	var screen: TitleScreen = await _hub_screen()
-	screen.codex_page.hub.skills_card.pressed.emit()
-	screen._go_back()
-	assert_eq(screen.current_page, &"codex")
-	assert_eq(screen.codex_page.current, CodexPage.HUB)
-	screen._go_back()
-	assert_eq(screen.current_page, &"")
-
-
-func test_the_cards_tab_inside_a_page_returns_to_the_hub() -> void:
-	var screen: TitleScreen = await _hub_screen()
-	screen.codex_page.hub.skills_card.pressed.emit()
-	assert_eq(screen.codex_page.current, CodexPage.WEAPONS)
-	screen.corner_buttons[&"codex"].pressed.emit()
-	await wait_frames(2)
-	assert_eq(screen.current_page, &"codex")
-	assert_eq(screen.codex_page.current, CodexPage.HUB, "the lit Cards tab is the way back to the hub")
-	assert_true(screen.codex_page.hub.is_visible_in_tree())
-	assert_eq(screen.tab_bar.active, &"codex")
-
-
-func test_coming_to_cards_from_elsewhere_always_starts_on_the_hub() -> void:
-	var screen: TitleScreen = await _hub_screen()
-	screen.codex_page.hub.kids_card.pressed.emit()
-	screen.corner_buttons[&"home"].pressed.emit()
-	await wait_frames(2)
-	screen.corner_buttons[&"codex"].pressed.emit()
-	await wait_frames(2)
-	assert_eq(screen.codex_page.current, CodexPage.HUB, "not left inside the page it was closed on")
-	assert_true(screen.codex_page.hub.is_visible_in_tree())
-
-
-func test_the_detail_sheets_still_open_from_the_pages() -> void:
-	var screen: TitleScreen = await _hub_screen()
-	screen.codex_page.hub.kids_card.pressed.emit()
-	await wait_frames(2)
-	screen.characters_page.cards["toni"].pressed.emit()
-	assert_not_null(screen.dialog)
-	assert_true(screen.dialog.is_open, "a kid's sheet")
-	screen.dialog.close(false)
-	screen.codex_page.show_view(CodexPage.WEAPONS)
-	await wait_frames(2)
-	screen.weapons_page.tiles[0].pressed.emit()
-	var sheet: MenuDialog = screen.dialog
-	assert_true(sheet.is_open, "a skill's sheet")
-	get_tree().root.propagate_notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
-	await wait_frames(2)
-	assert_true(not is_instance_valid(sheet) or not sheet.is_open, "back closes the sheet first")
-	assert_eq(screen.codex_page.current, CodexPage.WEAPONS, "and the page is still there")
-
-
-func test_the_pages_still_scroll_by_dragging_inside_the_hubs_page() -> void:
-	var screen: TitleScreen = await _hub_screen()
-	screen.codex_page.hub.kids_card.pressed.emit()
-	await wait_frames(2)
-	var scroll: ScrollContainer = screen.characters_page.get_node("Scroll") as ScrollContainer
-	assert_gt(scroll.get_v_scroll_bar().max_value, scroll.size.y, "the grid is taller than its window, so it scrolls")
-	for card: Button in screen.characters_page.cards.values():
-		assert_eq(card.mouse_filter, Control.MOUSE_FILTER_PASS, "a drag that starts on a card scrolls the list")
