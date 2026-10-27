@@ -135,7 +135,7 @@ func test_the_cards_are_large_and_every_one_is_always_visible_stacked_behind_the
 	var strip: MenuCarousel = screen.carousel
 	var chosen: Rect2 = strip.cards[0].get_global_rect()
 	assert_almost_eq(chosen.size.x / chosen.size.y, 1.75 / 2.5, 0.01, "1.75:2.5")
-	assert_gt(chosen.size.y, 400.0, "large (86 % of the room: the owner wanted it smaller so it floats with space round it)")
+	assert_gt(chosen.size.y, 360.0, "large (86 % of the room that is left beside the tall buttons)")
 	for index: int in 3:
 		strip.select(index, false)
 		for card: Button in strip.cards:

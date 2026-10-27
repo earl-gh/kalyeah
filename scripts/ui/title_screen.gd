@@ -35,9 +35,9 @@ const HERO_CARD: Vector2 = Vector2(400.0, 571.0)
 ## The hero grows with the stage (phones taller than 16:9 have the room): 1.75:2.5, between these heights, with
 ## this much air round it for the glow and the bob.
 const HERO_RATIO: float = 0.7
-const HERO_MIN_HEIGHT: float = 480.0
+const HERO_MIN_HEIGHT: float = 440.0
 const HERO_MAX_HEIGHT: float = 780.0
-const HERO_AIR: float = 70.0
+const HERO_AIR: float = 36.0
 ## The cards sit this far above the bottom of their stage, so the name, its phrase and the buttons stay close under them.
 const HERO_BOTTOM_GAP: float = 34.0
 ## How far the backlight reaches round the chosen card (times the card's height).
@@ -46,6 +46,8 @@ const BACKLIGHT_REACH: float = 1.1
 const MODE_TEXT_OUTLINE: int = 6
 ## The share of the room the hero card takes (owner: smaller, so the floating card floats with space round it).
 const HERO_SCALE: float = 0.86
+## The button row's slot takes this share of the free height next to the card's stage (1.0).
+const ACTIONS_SLOT_SHARE: float = 0.35
 ## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
 const NAME_PERSPECTIVE: Shader = preload("res://shaders/text_perspective.gdshader")
 ## How wide the very top of the leaning-back mode name is next to its bottom (1 would be flat).
@@ -67,10 +69,12 @@ const LOGO_HEIGHT: float = 92.0
 const LOGO_DROP: float = 62.0
 const SIDE_MARGIN: float = 28.0
 const TOP_MARGIN: float = 20.0
-const CTA_HEIGHT: float = 156.0
+const CTA_HEIGHT: float = 273.0
 ## The actions are a centred pair, the same size: as wide as the longer word needs plus this padding on each side, and no narrower than
 ## `CTA_MIN_WIDTH`.
 const CTA_MIN_WIDTH: float = 240.0
+## The buttons' lettering: 1.25 x `UiMetrics.BODY` (owner).
+const CTA_FONT: int = UiMetrics.HERO_BUTTON
 const CTA_PADDING: float = 56.0
 ## The main action's breath: it waits `PULSE_DELAY` seconds, then swells to `PULSE_SCALE` and settles, each way in
 ## `PULSE_HALF` seconds.
@@ -112,7 +116,6 @@ var _margin: MarginContainer
 var _home: VBoxContainer
 var _top_bar: Control
 var _title_holder: Control
-var _bottom_spacer: Control
 var _name_perspective: ShaderMaterial
 var mode_chips: HBoxContainer
 var _page_holder: Control
@@ -235,12 +238,15 @@ func _build_home() -> VBoxContainer:
 	stage.resized.connect(_place_title)
 	stage.resized.connect(_aim_backlight)
 	home.add_child(_build_titles())
-	home.add_child(_build_actions())
-	# the spare room is split above the card and below the buttons, so the whole group is centred between the logo and the bar
-	_bottom_spacer = Control.new()
-	_bottom_spacer.name = "BottomSpacer"
-	_bottom_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	home.add_child(_bottom_spacer)
+	# the button row is centred in the room between the phrase and the bar
+	var slot: CenterContainer = CenterContainer.new()
+	slot.name = "ActionsSlot"
+	slot.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	slot.size_flags_stretch_ratio = ACTIONS_SLOT_SHARE
+	slot.custom_minimum_size = Vector2(0.0, CTA_HEIGHT)
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(_build_actions())
+	home.add_child(slot)
 	return home
 
 
@@ -304,7 +310,7 @@ func _build_actions() -> Control:
 
 
 func _action_button(parent: Control, button_name: String, text: String) -> Button:
-	var button: Button = MenuDialog.make_button(text, "gold", UiMetrics.BODY, Vector2(CTA_MIN_WIDTH, CTA_HEIGHT))
+	var button: Button = MenuDialog.make_button(text, "gold", CTA_FONT, Vector2(CTA_MIN_WIDTH, CTA_HEIGHT))
 	button.name = button_name
 	parent.add_child(button)
 	return button
@@ -315,7 +321,7 @@ func _fit_buttons() -> void:
 	var font: Font = primary_button.get_theme_font("font")
 	var widest: float = CTA_MIN_WIDTH
 	for button: Button in [primary_button, secondary_button]:
-		var words: float = font.get_string_size(button.text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.BODY).x
+		var words: float = font.get_string_size(button.text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, CTA_FONT).x
 		widest = maxf(widest, words + CTA_PADDING * 2.0)
 	for button: Button in [primary_button, secondary_button]:
 		button.custom_minimum_size.x = widest
@@ -431,17 +437,13 @@ func _fit_hero() -> void:
 	var stage: Control = carousel.get_parent() as Control
 	if stage.size.y < 100.0:
 		return
-	# the room for the group: the stage and the spacer under the buttons together (the spacer is what is left over)
-	var total: float = stage.size.y + _bottom_spacer.custom_minimum_size.y
+	var total: float = stage.size.y
 	# the stage as it would be without the chips decides whether they show (so showing them never flips it back)
 	var bare: float = total + (CHIPS_HEIGHT if mode_chips.visible else 0.0)
 	mode_chips.visible = bare - CHIPS_HEIGHT >= CHIPS_MIN_STAGE
 	var height: float = clampf(bare - (CHIPS_HEIGHT if mode_chips.visible else 0.0) - HERO_AIR, HERO_MIN_HEIGHT, HERO_MAX_HEIGHT)
 	var width: float = minf(height * HERO_RATIO, stage.size.x - 120.0) * HERO_SCALE
 	var fitted: Vector2 = Vector2(roundf(width), roundf(width / HERO_RATIO))
-	# half of what the card does not use goes under the buttons (the other half stays above the card)
-	var spare: float = maxf(total - fitted.y - HERO_BOTTOM_GAP - (CHIPS_HEIGHT if mode_chips.visible else 0.0) - float(UiMetrics.COMPACT_GAP), 0.0)
-	_bottom_spacer.custom_minimum_size = Vector2(0.0, roundf(spare / 2.0))
 	if fitted.distance_to(carousel.card_size) < 3.0:
 		return
 	carousel.card_size = fitted

@@ -6,6 +6,8 @@ extends RefCounted
 ## Sized for Bungee, which is much wider than a text face: the same room as the old scale in a lighter face.
 const TITLE: int = 34
 const BODY: int = 28
+## Home's two hero buttons (owner: 1.25 x BODY).
+const HERO_BUTTON: int = 35
 const ACTION: int = 26
 const DETAIL: int = 24
 const CAPTION: int = 22
