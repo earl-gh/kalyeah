@@ -7,10 +7,10 @@ uniform sampler2D luma : filter_linear;
 uniform sampler2D chroma : filter_linear;
 uniform bool separate = false;
 uniform bool mirror = false;
-// The feed's own transform (CameraFeed.feed_transform): the turn that makes the picture upright on this phone, as its x and y columns and its origin.
+// From the screen square to the camera's picture, about their middles: the inverse of the feed's turn (IdCamera.screen_to_picture,
+// which the tests check). Android gives that turn as a rotation about the picture's corner, so it is applied about the middle here.
 uniform vec2 turn_x = vec2(1.0, 0.0);
 uniform vec2 turn_y = vec2(0.0, -1.0);
-uniform vec2 turn_origin = vec2(0.0, 1.0);
 // The size of the camera's picture, to take the middle square of it.
 uniform vec2 picture_size = vec2(1.0, 1.0);
 
@@ -19,7 +19,7 @@ void fragment() {
 	if (mirror) {
 		uv.x = 1.0 - uv.x;
 	}
-	uv = turn_x * uv.x + turn_y * uv.y + turn_origin;
+	uv = turn_x * (uv.x - 0.5) + turn_y * (uv.y - 0.5) + vec2(0.5);
 	// the middle square of the picture along its longer side
 	if (picture_size.x > picture_size.y) {
 		uv.x = 0.5 + (uv.x - 0.5) * picture_size.y / picture_size.x;

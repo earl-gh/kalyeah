@@ -119,13 +119,28 @@ func _on_frame() -> void:
 	if feed == null or _material == null:
 		return
 	_material.set_shader_parameter("separate", feed.get_datatype() == CameraFeed.FEED_YCBCR_SEP)
-	var turn: Transform2D = feed.feed_transform
-	_material.set_shader_parameter("turn_x", turn.x)
-	_material.set_shader_parameter("turn_y", turn.y)
-	_material.set_shader_parameter("turn_origin", turn.origin)
+	var back: Transform2D = picture_turn(feed.feed_transform)
+	_material.set_shader_parameter("turn_x", back.x)
+	_material.set_shader_parameter("turn_y", back.y)
 	var luma: Texture2D = _material.get_shader_parameter("luma") as Texture2D
 	if luma != null and luma.get_width() > 0:
 		_material.set_shader_parameter("picture_size", Vector2(luma.get_size()))
+
+
+## The turn from the screen square back to the camera's picture: the inverse of the feed's turn, without its origin. Android sets the
+## feed's transform to a bare rotation about the picture's corner (`Transform2D().rotated(...)` in camera_android.cpp), the desktop
+## default is a flip with an origin that keeps it on the square; taking only the turn and applying it about the middle (as the shader
+## does) is right for both. Used as is, Android's turn sent every point but one edge off the picture: a preview of stripes.
+static func picture_turn(feed_turn: Transform2D) -> Transform2D:
+	return Transform2D(feed_turn.x, feed_turn.y, Vector2.ZERO).affine_inverse()
+
+
+## Where the shader reads the camera's picture for a point of the screen square (`uv` 0..1), as `id_camera.gdshader` does before
+## its crop: for the tests, which cannot run the shader.
+static func screen_to_picture(uv: Vector2, feed_turn: Transform2D, mirror: bool) -> Vector2:
+	var point: Vector2 = Vector2(1.0 - uv.x if mirror else uv.x, uv.y)
+	var back: Transform2D = picture_turn(feed_turn)
+	return back.x * (point.x - 0.5) + back.y * (point.y - 0.5) + Vector2(0.5, 0.5)
 
 
 ## Whether a picture has arrived yet (until then Snap waits).
