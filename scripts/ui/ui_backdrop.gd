@@ -202,6 +202,6 @@ static func _night() -> GradientTexture2D:
 	texture.fill_to = Vector2(0.0, 1.0)
 	var gradient: Gradient = Gradient.new()
 	gradient.offsets = PackedFloat32Array([0.0, 0.28, 0.62, 1.0])
-	gradient.colors = PackedColorArray([Color(1, 1, 1, 0.76), Color(1, 1, 1, 0.24), Color(1, 1, 1, 0.22), Color(1, 1, 1, 0.8)])
+	gradient.colors = PackedColorArray([Color(1, 1, 1, 0.5), Color(1, 1, 1, 0.14), Color(1, 1, 1, 0.12), Color(1, 1, 1, 0.55)])
 	texture.gradient = gradient
 	return texture
