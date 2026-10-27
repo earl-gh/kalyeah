@@ -2,8 +2,9 @@ class_name CardHand
 extends Control
 ## The bottom of the match screen (owner: "make the bottom part exactly like clash royale"; docs/GDD.md "Controls: tap to move,
 ## cards to cast"): the NEXT card small at one side, the four cards of the hand in a row, and the ice water bar along the bottom with
-## the whole points in a drop at its left end and your health at its right end. Each card shows its cost in a drop at its top
-## corner; a card you cannot afford is greyed, filling up from the bottom as the bar gets there.
+## the whole points in a drop at its left end and your health at its right end. Each card shows its cost in a drop inside its bottom
+## edge, in the middle; a card you cannot afford is greyed, filling up from the bottom as the bar gets there. The bar marks in white how
+## much the cheapest card in the hand needs, pops each segment as it completes, and lets go of its dividers while it is full.
 ##
 ## It reads raw touches so a finger on a card never blocks another finger on the street. Press a card that is
 ## ready and it lifts under the finger; drag it out over the street and it shrinks so the aim guide shows; let go there to cast,
@@ -43,23 +44,59 @@ const OUT_GAP: float = 8.0
 const CHAT_HEIGHT: float = 80.0
 const NEXT_FONT: int = UiMetrics.CAPTION
 const NEXT_COLOR: Color = Color.WHITE
-## The ice water bag on a card (its height) and its number; the bar's bag and its number.
-const COST_BAG: float = 60.0
+## The ice water drop on a card: this share of the card's width (the drop's own width), standing inside the card's bottom edge with
+## this share of the card's width of room under it (it never hangs over the edge); the bar's drop and its number.
+const COST_SHARE: float = 0.34
+const COST_PAD_SHARE: float = 0.04
 const COST_FONT: int = UiMetrics.CAPTION
+## A card shrunk over the street (held) keeps its number readable down to this size.
+const COST_FONT_MIN: int = UiMetrics.WORLD_SMALL
 const BAR_BAG: float = 56.0
 ## The "Max: 10" caption under the bar's start.
 const MAX_FONT: int = UiMetrics.WORLD
+const MAX_OUTLINE: int = 12
 const BAR_FONT: int = UiMetrics.ACTION
 ## The ice water colour: a code-drawn stand-in until the art-director sets a token (docs/ART.md has none yet).
 const ICE_WATER: Color = Color(0.36, 0.8, 1.0)
 ## A full bar's edge: a light ice blue (it was gold; ice water stays blue).
 const ICE_WATER_FULL_EDGE: Color = Color(0.72, 0.93, 1.0)
-## The thin outline of the ice water bar.
+## The thin outline of the ice water bar: a pale ice blue, never black (the white marker of the cheapest card must stand out from it).
 const BAR_OUTLINE: int = 2
-## The empty part of the ice water bar: a flat, opaque dark blue (just the colour: no sheen, no texture).
+const BAR_EDGE: Color = Color(0.7, 0.88, 1.0, 0.55)
+## The empty part of the ice water bar: a flat, opaque dark blue; the inner shadow under its top edge is drawn over it.
 const ICE_EMPTY: Color = Color(0.03, 0.14, 0.42)
-## The segment that is filling shows this much of its share in see-through white (like Clash Royale's elixir bar).
-const REFILL_WHITE: Color = Color(1.0, 1.0, 1.0, 0.4)
+const TRACK_SHADOW: Color = Color(0.0, 0.04, 0.22, 0.6)
+const TRACK_SHADOW_HEIGHT: float = 7.0
+const TRACK_BEVEL: Color = Color(0.55, 0.78, 1.0, 0.2)
+## The filled part: a light glossy top band over a deeper lower half (Clash Royale's elixir bar), a thin shine line near the top.
+const ICE_FILL_TOP: Color = Color(0.45, 0.85, 1.0)
+const ICE_FILL_BOTTOM: Color = Color(0.1, 0.5, 0.95)
+const FILL_SPLIT: float = 0.45
+const FILL_SHINE: Color = Color(1.0, 1.0, 1.0, 0.4)
+const FILL_SHINE_Y: float = 4.0
+## The fill reaches this far under the outline, so the outline (drawn last) hides the seam between them at the rounded corners.
+const FILL_BLEED: int = 1
+## A piece with rounded corners feathers ALL its edges, which would leave a faint line against its square neighbour: it reaches this far
+## over the neighbour (same colour) to cover it.
+const SEAM_OVERLAP: float = 1.0
+## The segment that is filling shows this much of its share in see-through white (like Clash Royale's elixir bar), with a crisp edge.
+const REFILL_WHITE: Color = Color(1.0, 1.0, 1.0, 0.5)
+const REFILL_EDGE: Color = Color(1.0, 1.0, 1.0, 0.75)
+## The thin pale lines between the segments; they fade out while the bar is full and back in when it is not.
+const DIVIDER: Color = Color(0.85, 0.95, 1.0, 0.38)
+const DIVIDER_WIDTH: float = 2.0
+const DIVIDER_FADE_TIME: float = 0.35
+## The white outline round the part of the bar the cheapest card in the hand needs.
+const MARKER_WIDTH: int = 2
+const MARKER_COLOR: Color = Color.WHITE
+const MARKER_TEXT_GAP: float = 4.0
+const MARKER_MIN_LENGTH: float = 24.0
+## A segment that just completed pops: its solid colour grows from this share of the bar's height back to all of it with an eased
+## overshoot (clipped inside the track), starting this much lighter and fading to its colour, for this long.
+const POP_TIME: float = 0.22
+const POP_FROM: float = 0.6
+const POP_FLASH: float = 0.6
+const POP_BACK: float = 1.70158
 ## A card you cannot afford: a grey wash over the part the bar has not reached yet, a lighter one over the rest.
 const GREY: Color = Color(0.2, 0.21, 0.25, 0.8)
 const GREY_REACHED: Color = Color(0.2, 0.21, 0.25, 0.5)
@@ -106,6 +143,7 @@ var wait_seconds: int = 0
 var uses_elixir: bool = true
 var elixir: float = 0.0
 var elixir_max: float = 10.0
+## What the bar shows now: it catches up with `elixir` (it snaps with Reduce motion and on the first look).
 var shown_elixir: float = 0.0
 ## Gestures are taken (false under a menu, while tagged, during the opening show).
 var active: bool = false
@@ -122,6 +160,14 @@ var _arrive: Array[float] = []
 ## Where the last card was let go (own pixels) and when, so the card that leaves flies out from there.
 var _released_rect: Rect2 = Rect2()
 var _released_slot: int = -1
+## The bar's animation: whether it has looked at the sim yet (the first look snaps), how many segments were whole last time, the pop
+## timers of the segments that just completed (seconds left), and how visible the dividers are (1 = shown, 0 = gone while full).
+var _bar_synced: bool = false
+var _bar_whole: int = 0
+var _pops: PackedFloat32Array = PackedFloat32Array()
+var _divider_fade: float = 1.0
+## What the last `show_state` was told, so an unchanged hand is not redrawn.
+var _last_state: Array = []
 
 
 func _init() -> void:
@@ -179,7 +225,7 @@ func _layout() -> void:
 	for slot: int in SLOTS:
 		card_rects.append(Rect2(Vector2(cards_x + float(slot) * (card.x + CARD_GAP), ROW_TOP), card))
 	var bar_top: float = ROW_TOP + card.y + BAR_GAP
-	var bar_left: float = cards_x + BAR_BAG * HandArt.ICE_ASPECT / 2.0
+	var bar_left: float = cards_x + BAR_BAG * HandArt.ICE_DRAW_ASPECT / 2.0
 	var bar_right: float = cards_x + 4.0 * card.x + 3.0 * CARD_GAP
 	bar_rect = Rect2(Vector2(bar_left, bar_top), Vector2(bar_right - bar_left, BAR_HEIGHT))
 	queue_redraw()
@@ -224,7 +270,12 @@ func show_state(sim: MatchSim, player: PlayerState, playing: bool, block: String
 	if held_slot >= 0 and (not playing or not blocked_text.is_empty() or defs[held_slot] == null):
 		cancel_hold()  # a stun or a tag drops the card (the sim spent nothing)
 	_describe()
-	queue_redraw()
+	_sync_bar()
+	# the sim reports every frame: redraw only when it said something new (a moving bar redraws itself from `step`)
+	var state: Array = [active, uses_elixir, elixir, elixir_max, blocked_text, defs.duplicate(), pickable.duplicate(), reached.duplicate(), notices.duplicate(), next_def, next_fill, wait_fraction, wait_seconds]
+	if state != _last_state:
+		_last_state = state
+		queue_redraw()
 
 
 ## How close the card in `slot` is to ready: the bar against its cost (elixir), or its cooldown (elixir off, the old two weapons).
@@ -267,12 +318,123 @@ func _describe() -> void:
 
 
 func _process(delta: float) -> void:
-	var target: float = elixir if uses_elixir else 0.0
-	shown_elixir = target if Settings.reduced_motion else move_toward(shown_elixir, target, BAR_CATCH_UP * delta)
+	if step(delta):
+		queue_redraw()
+
+
+## Advances every timer by `delta` seconds (the shown bar, the pops, the dividers, a shake, a card arriving). Returns whether anything
+## on screen changed, so the hand is redrawn only while something moves and sleeps when it is still.
+func step(delta: float) -> bool:
+	var moving: bool = _step_bar(delta)
 	for slot: int in SLOTS:
+		if _deny[slot] > 0.0 or _arrive[slot] > 0.0:
+			moving = true
 		_deny[slot] = maxf(0.0, _deny[slot] - delta)
 		_arrive[slot] = maxf(0.0, _arrive[slot] - delta)
-	queue_redraw()
+	return moving
+
+
+# ---- the ice water bar's motion -------------------------------------------------
+
+func bar_target() -> float:
+	return elixir if uses_elixir else 0.0
+
+
+func bar_segments() -> int:
+	return maxi(roundi(elixir_max), 1)
+
+
+## The first look at the sim shows the bar as it is (no fill-up, no pops); later changes animate.
+func _sync_bar() -> void:
+	if _bar_synced:
+		return
+	_bar_synced = true
+	shown_elixir = bar_target()
+	_bar_whole = _whole_segments(shown_elixir)
+	_divider_fade = 0.0 if _bar_full() else 1.0
+
+
+func _whole_segments(value: float) -> int:
+	return clampi(floori(value + 0.0001), 0, bar_segments())
+
+
+## The shown bar is full (the dividers let go of it).
+func _bar_full() -> bool:
+	return uses_elixir and shown_elixir >= elixir_max - 0.001
+
+
+func _step_bar(delta: float) -> bool:
+	_sync_bar()
+	var moving: bool = false
+	var before: float = shown_elixir
+	shown_elixir = bar_target() if Settings.reduced_motion else move_toward(shown_elixir, bar_target(), BAR_CATCH_UP * delta)
+	if shown_elixir != before:
+		moving = true
+	# a segment completing pops; a bar that jumps down (a card was spent) pops nothing and cancels the pops of the segments it lost
+	var whole: int = _whole_segments(shown_elixir)
+	if _pops.size() < bar_segments():
+		_pops.resize(bar_segments())
+	if whole > _bar_whole and uses_elixir and not Settings.reduced_motion:
+		for segment: int in range(_bar_whole, whole):
+			_pops[segment] = POP_TIME
+	for segment: int in range(mini(whole, _pops.size()), _pops.size()):
+		_pops[segment] = 0.0
+	_bar_whole = whole
+	for segment: int in _pops.size():
+		if _pops[segment] > 0.0:
+			moving = true
+			_pops[segment] = maxf(0.0, _pops[segment] - delta)
+	var fade_target: float = 0.0 if _bar_full() else 1.0
+	if _divider_fade != fade_target:
+		moving = true
+		_divider_fade = fade_target if Settings.reduced_motion else move_toward(_divider_fade, fade_target, delta / DIVIDER_FADE_TIME)
+	return moving
+
+
+## How visible the dividers are now (0 = gone, 1 = fully shown), eased.
+func divider_visibility() -> float:
+	return smoothstep(0.0, 1.0, _divider_fade)
+
+
+## How far the pop of `segment` is (0 just completed, 1 done), or -1 when it is not popping.
+func pop_progress(segment: int) -> float:
+	if segment < 0 or segment >= _pops.size() or _pops[segment] <= 0.0:
+		return -1.0
+	return 1.0 - _pops[segment] / POP_TIME
+
+
+## Ease-out-back: runs a little past 1 and settles on it.
+static func ease_out_back(t: float) -> float:
+	var x: float = clampf(t, 0.0, 1.0) - 1.0
+	return 1.0 + (POP_BACK + 1.0) * x * x * x + POP_BACK * x * x
+
+
+## What the cheapest card in the hand costs (0 when the hand is empty); the bar marks it.
+func cheapest_cost() -> int:
+	var cheapest: int = 0
+	var found: bool = false
+	for def: WeaponDef in defs:
+		if def != null and (not found or def.elixir_cost < cheapest):
+			cheapest = def.elixir_cost
+			found = true
+	return cheapest
+
+
+## The x where segment `index` starts on the bar (0 = the first, `bar_segments()` = the end of the last), inside its outline.
+func boundary_x(index: int) -> float:
+	var inner: Rect2 = bar_rect.grow(-float(BAR_OUTLINE))
+	return inner.position.x + inner.size.x * float(index) / float(bar_segments())
+
+
+## The white outline round the part of the bar the cheapest card needs: from the bar's start to the end of its cost in segments (its line
+## is centred on that segment boundary); empty when elixir is off or the hand is.
+func marker_rect() -> Rect2:
+	var cost: int = mini(cheapest_cost(), bar_segments())
+	if not uses_elixir or cost <= 0 or bar_rect.size.x <= 0.0:
+		return Rect2()
+	# a cost of the whole bar is the bar's own outline (its line would sit a pixel inside it otherwise)
+	var right: float = bar_rect.end.x if cost >= bar_segments() else boundary_x(cost) + float(MARKER_WIDTH) / 2.0
+	return Rect2(bar_rect.position, Vector2(right - bar_rect.position.x, bar_rect.size.y))
 
 
 # ---- touches -------------------------------------------------------------------
@@ -491,14 +653,23 @@ func _draw_grey(rect: Rect2, share: float) -> void:
 	draw_style_box(dark, Rect2(rect.position, Vector2(rect.size.x, missing)))
 
 
-## The card's cost on an ice water bag on its bottom edge, in the middle (elixir only); a cost the bar has not reached is drawn in grey.
+## Where the cost drop sits on the card `rect`: all of it inside the card, in the middle, its bottom edge a little above the card's
+## bottom edge (the drop covers the least of the card's art there).
+static func cost_drop_rect(rect: Rect2) -> Rect2:
+	var width: float = rect.size.x * COST_SHARE
+	var size: Vector2 = Vector2(width, width / HandArt.ICE_DRAW_ASPECT)
+	return Rect2(Vector2(rect.get_center().x - size.x / 2.0, rect.end.y - rect.size.x * COST_PAD_SHARE - size.y), size)
+
+
+## The card's cost on an ice water drop inside its bottom edge, in the middle (elixir only); a cost the bar has not reached is drawn in grey.
+## A card shrunk over the street shrinks its drop with it (its number a little less, to stay readable).
 func _draw_cost(rect: Rect2, def: WeaponDef, affordable: bool) -> void:
 	if not uses_elixir:
 		return
-	var height: float = minf(COST_BAG, rect.size.x * 0.42)
-	# like Clash Royale: on the card's bottom edge, in the middle, half over the edge
-	var centre: Vector2 = Vector2(rect.get_center().x, rect.end.y - height * 0.2)
-	HandArt.draw_ice(self, centre, height, str(def.elixir_cost), COST_FONT, affordable)
+	var drop: Rect2 = cost_drop_rect(rect)
+	var share: float = rect.size.x / card_rects[0].size.x if not card_rects.is_empty() else 1.0
+	var font_size: int = clampi(roundi(float(COST_FONT) * share), COST_FONT_MIN, COST_FONT)
+	HandArt.draw_ice(self, drop.get_center(), drop.size.y, str(def.elixir_cost), font_size, affordable)
 
 
 ## The pill for `tag` would be wider than one card.
@@ -522,58 +693,160 @@ func _draw_tag(at: Vector2, text: String) -> void:
 	draw_string(font, at + Vector2(-width / 2.0 + 10.0, COST_FONT * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, COST_FONT, TAG_COLOR)
 
 
-## The ice water bar: a dark track cut into `elixir_max` segments, filled smoothly to the shown elixir, a gold edge when it is full,
-## and the whole points on an ice water bag at its left end.
+## The ice water bar, bottom to top: the dark track with an inner shadow, the fill (a glossy light band over a deeper lower half, a
+## segment that just completed popping), the white progress of the segment being filled, the pale dividers (gone while it is full), the
+## thin outline, the white marker of the cheapest card, and the whole points on an ice water drop at its left end.
 func _draw_bar() -> void:
 	if not uses_elixir or bar_rect.size.x <= 0.0:
 		return
-	var segments: int = maxi(roundi(elixir_max), 1)
-	var full: bool = elixir >= elixir_max - 0.001
+	var radius: int = UiSkin.bar_radius(bar_rect.size.y)
 	var track: StyleBoxFlat = StyleBoxFlat.new()
 	track.bg_color = ICE_EMPTY
-	track.border_color = ICE_WATER_FULL_EDGE if full else RoyaleStyle.NAVY
-	track.set_border_width_all(BAR_OUTLINE)
-	track.set_corner_radius_all(UiSkin.bar_radius(bar_rect.size.y))
+	track.set_corner_radius_all(radius)
 	track.anti_aliasing = true
 	draw_style_box(track, bar_rect)
-	var inner: Rect2 = bar_rect.grow(-float(BAR_OUTLINE))
-	# the bar fills one whole segment at a time (solid ice water); the segment being filled shows its progress in see-through white
-	var fills: PackedFloat32Array = segment_fills(shown_elixir, segments)
-	var span: float = inner.size.x / float(segments)
-	for segment: int in segments:
-		var cell: Rect2 = Rect2(Vector2(inner.position.x + span * float(segment), inner.position.y), Vector2(span, inner.size.y))
-		if fills[segment] >= 1.0:
-			draw_style_box(_segment_style(ICE_WATER.lightened(0.15) if full else ICE_WATER, segment, segments, inner.size.y), cell)
-		elif fills[segment] > 0.0:
-			draw_style_box(_segment_style(REFILL_WHITE, segment, segments, inner.size.y), Rect2(cell.position, Vector2(cell.size.x * fills[segment], cell.size.y)))
-	for segment: int in range(1, segments):
-		var x: float = inner.position.x + span * float(segment)
-		draw_line(Vector2(x, inner.position.y + 2.0), Vector2(x, inner.end.y - 2.0), Color(0.0, 0.0, 0.0, 0.4), 2.0)
-	# like Clash Royale: the bag overlaps the bar's start, the whole points in big letters just right of it (over the bar's start), and the
+	_draw_track_shading(radius)
+	_draw_fill(radius)
+	_draw_dividers()
+	_draw_edge(radius)
+	# like Clash Royale: the drop overlaps the bar's start, the whole points in big letters just right of it (over the bar's start), and the
 	# most you can hold in small letters under them
 	var bag: Vector2 = Vector2(bar_rect.position.x, bar_rect.get_center().y - BAR_BAG * 0.12)
-	HandArt.draw_ice(self, bag, BAR_BAG, "", BAR_FONT)
 	var font: Font = KalyeahTheme.ACTION_FONT
-	var number_at: Vector2 = Vector2(bag.x + BAR_BAG * HandArt.ICE_ASPECT / 2.0 + 6.0, bar_rect.get_center().y - BAR_HEIGHT * 0.1)
-	RoyaleStyle.lettered(self, font, str(floori(elixir + 0.001)), number_at, BAR_FONT)
+	var number_at: Vector2 = Vector2(bag.x + BAR_BAG * HandArt.ICE_DRAW_ASPECT / 2.0 + 6.0, bar_rect.get_center().y - BAR_HEIGHT * 0.1)
+	var points: String = str(floori(elixir + 0.001))
 	var max_text: String = UiText.f("Max: %d", [roundi(elixir_max)])
-	# vertically centred on the bar's bottom outline
-	RoyaleStyle.lettered(self, font, max_text, Vector2(number_at.x, max_caption_baseline(bar_rect)), MAX_FONT)
+	var text_end: float = number_at.x + maxf(font.get_string_size(points, HORIZONTAL_ALIGNMENT_LEFT, -1.0, BAR_FONT).x, font.get_string_size(max_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, MAX_FONT).x)
+	_draw_marker(radius, text_end + MARKER_TEXT_GAP)
+	HandArt.draw_ice(self, bag, BAR_BAG, "", BAR_FONT)
+	RoyaleStyle.lettered(self, font, points, number_at, BAR_FONT)
+	# vertically centred on the bar's bottom outline; its outline is thicker than the chrome's so the bar's edge does not show through the
+	# gap after "Max:" like a minus sign
+	var caption_at: Vector2 = Vector2(number_at.x, max_caption_baseline(bar_rect))
+	draw_string_outline(font, caption_at, max_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, MAX_FONT, MAX_OUTLINE, RoyaleStyle.NAVY)
+	draw_string(font, caption_at, max_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, MAX_FONT, Color.WHITE)
 
 
-## A filled piece of the ice water bar: flat, its outer corners (the first piece's left ones, the last piece's right ones) rounded like the track's.
-func _segment_style(color: Color, segment: int, segments: int, height: float) -> StyleBoxFlat:
+## The white outline of the cheapest card (`marker_rect()`), drawn over the track and fill and under the drop and its letters. Where the
+## letters sit over the bar's start it is left open, so its lines do not show through the gaps of "Max: 10" like minus signs.
+func _draw_marker(radius: int, from_x: float) -> void:
+	var marker: Rect2 = marker_rect()
+	if marker.size.x <= 0.0:
+		return
+	var line: StyleBoxFlat = StyleBoxFlat.new()
+	line.draw_center = false
+	line.border_color = MARKER_COLOR
+	line.set_border_width_all(MARKER_WIDTH)
+	line.anti_aliasing = true
+	line.corner_radius_top_right = radius
+	line.corner_radius_bottom_right = radius
+	# a cheap card's marker would be all under the letters: its end still shows this much
+	var start: float = minf(from_x, marker.end.x - MARKER_MIN_LENGTH)
+	if start > marker.position.x + float(radius):
+		marker = Rect2(Vector2(start, marker.position.y), Vector2(marker.end.x - start, marker.size.y))
+		line.border_width_left = 0
+	else:
+		line.corner_radius_top_left = radius
+		line.corner_radius_bottom_left = radius
+	draw_style_box(line, marker)
+
+
+## The track's depth: a soft shadow under its top edge and a faint light line over its bottom (both stop short of the rounded corners).
+func _draw_track_shading(radius: int) -> void:
+	var left: float = bar_rect.position.x + float(radius)
+	var right: float = bar_rect.end.x - float(radius)
+	var top: float = bar_rect.position.y + float(BAR_OUTLINE)
+	var clear: Color = Color(TRACK_SHADOW, 0.0)
+	draw_polygon(PackedVector2Array([Vector2(left, top), Vector2(right, top), Vector2(right, top + TRACK_SHADOW_HEIGHT), Vector2(left, top + TRACK_SHADOW_HEIGHT)]), PackedColorArray([TRACK_SHADOW, TRACK_SHADOW, clear, clear]))
+	var bevel: float = bar_rect.end.y - float(BAR_OUTLINE) - 0.5
+	draw_line(Vector2(left, bevel), Vector2(right, bevel), TRACK_BEVEL, 1.0, true)
+
+
+func _draw_fill(radius: int) -> void:
+	var segments: int = bar_segments()
+	var fill: Rect2 = bar_rect.grow(-float(BAR_OUTLINE - FILL_BLEED))
+	# concentric with the outline's inner curve, so no corner of the fill pokes out or leaves a gap
+	var fill_radius: int = maxi(radius - (BAR_OUTLINE - FILL_BLEED), 1)
+	var fills: PackedFloat32Array = segment_fills(shown_elixir, segments)
+	for segment: int in segments:
+		var left: float = fill.position.x if segment == 0 else boundary_x(segment)
+		var right: float = fill.end.x if segment == segments - 1 else boundary_x(segment + 1)
+		var first: bool = segment == 0
+		var last: bool = segment == segments - 1
+		var cell: Rect2 = Rect2(Vector2(left, fill.position.y), Vector2(right - left, fill.size.y))
+		if segments > 1 and first:
+			cell.size.x += SEAM_OVERLAP
+		elif segments > 1 and last:
+			cell = Rect2(cell.position - Vector2(SEAM_OVERLAP, 0.0), cell.size + Vector2(SEAM_OVERLAP, 0.0))
+		if fills[segment] >= 1.0:
+			_draw_solid_cell(cell, fill_radius, first, last, pop_progress(segment))
+		elif fills[segment] > 0.0:
+			# the segment being filled: a see-through white that grows smoothly (the shown bar is eased), with a crisp leading edge
+			var width: float = cell.size.x * fills[segment]
+			_draw_piece(Rect2(cell.position, Vector2(width, cell.size.y)), REFILL_WHITE, fill_radius, first, false, true, true)
+			var x: float = cell.position.x + width
+			draw_line(Vector2(x, cell.position.y + 2.0), Vector2(x, cell.end.y - 2.0), REFILL_EDGE, 2.0, true)
+
+
+## One finished segment: a light band over a deeper lower half and a thin shine; while it pops (`pop` 0 to 1) it grows from the middle with
+## an eased overshoot, clipped to the track, and starts lighter.
+func _draw_solid_cell(cell: Rect2, radius: int, first: bool, last: bool, pop: float) -> void:
+	var rect: Rect2 = cell
+	var top: Color = ICE_FILL_TOP
+	var bottom: Color = ICE_FILL_BOTTOM
+	if pop >= 0.0:
+		var height: float = minf(cell.size.y * lerpf(POP_FROM, 1.0, ease_out_back(pop)), cell.size.y)
+		rect = Rect2(Vector2(cell.position.x, cell.get_center().y - height / 2.0), Vector2(cell.size.x, height))
+		var flash: float = POP_FLASH * (1.0 - pop)
+		top = top.lerp(Color.WHITE, flash)
+		bottom = bottom.lerp(Color.WHITE, flash)
+	var split: float = rect.size.y * FILL_SPLIT
+	# the deep colour fills the whole segment and the light band goes over its top: a rounded piece feathers its edges, so nothing
+	# rounded is ever drawn over the dark track
+	_draw_piece(rect, bottom, radius, first, last, true, true)
+	_draw_piece(Rect2(rect.position, Vector2(rect.size.x, split)), top, radius, first, last, true, false)
+	var shine_y: float = rect.position.y + FILL_SHINE_Y * rect.size.y / cell.size.y
+	var from_x: float = rect.position.x + (float(radius) if first else 0.0)
+	var to_x: float = rect.end.x - (float(radius) if last else 0.0)
+	draw_line(Vector2(from_x, shine_y), Vector2(to_x, shine_y), FILL_SHINE, 1.5, true)
+
+
+## A flat piece of the bar; `left`/`right` and `top`/`bottom` pick which of its corners are rounded (the bar's own ends, never the seams).
+func _draw_piece(rect: Rect2, color: Color, radius: int, left: bool, right: bool, top: bool, bottom: bool) -> void:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = color
-	var radius: int = UiSkin.bar_radius(height)
-	if segment == 0:
+	if left and top:
 		box.corner_radius_top_left = radius
-		box.corner_radius_bottom_left = radius
-	if segment == segments - 1:
+	if right and top:
 		box.corner_radius_top_right = radius
+	if left and bottom:
+		box.corner_radius_bottom_left = radius
+	if right and bottom:
 		box.corner_radius_bottom_right = radius
 	box.anti_aliasing = true
-	return box
+	draw_style_box(box, rect)
+
+
+func _draw_dividers() -> void:
+	var visible_share: float = divider_visibility()
+	if visible_share <= 0.0:
+		return
+	var inner: Rect2 = bar_rect.grow(-float(BAR_OUTLINE))
+	var color: Color = Color(DIVIDER, DIVIDER.a * visible_share)
+	for segment: int in range(1, bar_segments()):
+		var x: float = boundary_x(segment)
+		draw_line(Vector2(x, inner.position.y), Vector2(x, inner.end.y), color, DIVIDER_WIDTH, true)
+
+
+## The bar's thin outline, drawn over the fill's edge: pale ice blue, turning the brighter full-bar blue as the dividers go.
+func _draw_edge(radius: int) -> void:
+	var edge: StyleBoxFlat = StyleBoxFlat.new()
+	edge.draw_center = false
+	edge.border_color = BAR_EDGE.lerp(ICE_WATER_FULL_EDGE, 1.0 - divider_visibility())
+	edge.set_border_width_all(BAR_OUTLINE)
+	edge.set_corner_radius_all(radius)
+	edge.anti_aliasing = true
+	draw_style_box(edge, bar_rect)
 
 
 ## How full each segment of the ice water bar is for `elixir` points: 1 solid, 0 empty, and between 0 and 1 the one being filled (whole

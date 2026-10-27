@@ -8,8 +8,11 @@ const ICE: Texture2D = preload("res://assets/ui/hand/ice_water.png")
 const CHAT: Texture2D = preload("res://assets/ui/hand/chat.webp")
 const ICE_PART: Rect2 = Rect2(0.0, 0.0, 1.0, 1.0)
 const CHAT_PART: Rect2 = Rect2(0.11418, 0.14161, 0.77018, 0.73427)
-## Width over height of the visible art.
+## Width over height of the visible art (the picture's own).
 const ICE_ASPECT: float = 0.8734
+## The drop is DRAWN a little narrower than its picture: at its own ratio it reads stretched sideways on the cards (owner), and the
+## snowflake and the tip stay recognisable squeezed by this much. Everything that lays out round the drop uses this, not `ICE_ASPECT`.
+const ICE_DRAW_ASPECT: float = 0.80
 const CHAT_ASPECT: float = 1.2607
 ## The bag's body is its middle: the number sits this far down from its top (a share of its height).
 const ICE_NUMBER_AT: float = 0.6
@@ -51,10 +54,16 @@ static func _part(texture: Texture2D, part: Rect2) -> AtlasTexture:
 	return atlas
 
 
+## Where the drop of `height` is drawn when centred on `centre`.
+static func ice_rect(centre: Vector2, height: float) -> Rect2:
+	var size: Vector2 = Vector2(height * ICE_DRAW_ASPECT, height)
+	return Rect2(centre - size / 2.0, size)
+
+
 ## An ice water bag `height` tall centred on `centre`, with `text` (a cost, or the bar's whole points) lettered on its body at `font_size`.
 ## `affordable` false greys it (a cost the bar has not reached yet).
 static func draw_ice(canvas: CanvasItem, centre: Vector2, height: float, text: String, font_size: int, affordable: bool = true) -> void:
-	var rect: Rect2 = Rect2(centre - Vector2(height * ICE_ASPECT, height) / 2.0, Vector2(height * ICE_ASPECT, height))
+	var rect: Rect2 = ice_rect(centre, height)
 	canvas.draw_texture_rect(ice(), rect, false, Color.WHITE if affordable else ICE_DIM)
 	if text.is_empty():
 		return
