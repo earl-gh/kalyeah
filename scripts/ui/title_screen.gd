@@ -40,6 +40,8 @@ const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 70.0
 ## The cards sit this far above the bottom of their stage, so the name, its phrase and the buttons stay close under them.
 const HERO_BOTTOM_GAP: float = 34.0
+## How far the backlight reaches round the chosen card (times the card's height).
+const BACKLIGHT_REACH: float = 1.1
 ## The black outline round the mode's one-line phrase.
 const MODE_TEXT_OUTLINE: int = 6
 ## The share of the room the hero card takes (owner: smaller, so the floating card floats with space round it).
@@ -131,6 +133,8 @@ func _ready() -> void:
 	_apply_safe_area()
 	_refresh_mode()
 	carousel.selected.connect(_on_mode_selected)
+	carousel.laid_out.connect(_aim_backlight)
+	_aim_backlight.call_deferred()
 	primary_button.pressed.connect(_on_primary_pressed)
 	# the press and the breath both scale the main action: the breath rests while a thumb is on it
 	primary_button.button_down.connect(_stop_pulse)
@@ -222,6 +226,7 @@ func _build_home() -> VBoxContainer:
 	carousel.bob = AMBIENT_BOB
 	stage.resized.connect(_fit_hero)
 	stage.resized.connect(_place_title)
+	stage.resized.connect(_aim_backlight)
 	home.add_child(_build_titles())
 	home.add_child(_build_actions())
 	# the spare room is split above the card and below the buttons, so the whole group is centred between the logo and the bar
@@ -433,6 +438,15 @@ func _fit_hero() -> void:
 	carousel.card_size = fitted
 	carousel.setup("", MODES, carousel.index)
 	_place_title()
+
+
+## Points the backdrop's backlight at the chosen card: the bright middle sits right behind it.
+func _aim_backlight() -> void:
+	if backdrop == null or carousel == null or carousel.cards.is_empty():
+		return
+	var card: Button = carousel.cards[carousel.index]
+	var centre: Vector2 = backdrop.get_global_transform().affine_inverse() * card.get_global_rect().get_center()
+	backdrop.aim_backlight(centre, card.size.y * BACKLIGHT_REACH)
 
 
 ## Hangs the mode's name on the bottom edge of the chosen card: its centre is on that edge.

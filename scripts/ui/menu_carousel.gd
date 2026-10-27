@@ -5,6 +5,8 @@ extends Control
 ## always visible. Drag or swipe sideways to scroll, tap a card to bring it to the middle.
 
 signal selected(index: int)
+## Emitted after every layout (the cards moved a little, or a lot when scrolling): whatever follows the cards can follow now.
+signal laid_out
 
 const CARD: Vector2 = ChoiceCard.CARD_SIZE
 ## Distance between the middles of two neighbouring cards: less than a card's width, so they overlap.
@@ -57,15 +59,15 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		card.pivot_offset = card_size / 2.0
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.focus_mode = Control.FOCUS_NONE
-		if show_rim:
-			card.add_child(_frame(String(option.get("accent", "ffd25a"))))
 		var face: CardFace = card.get_node_or_null("Face") as CardFace
+		# a card with a picture draws its own glow behind itself (`CardFace`); a flat card gets a `CardRim` over it
+		if show_rim and face == null:
+			card.add_child(_frame(String(option.get("accent", "ffd25a"))))
 		if face != null:
+			face.accent = Color(String(option.get("accent", "ffd25a")))
 			face.power = int(option.get("power", 0))
 			face.wear_seed = float(cards.size() + 1)
-			var rim: CardRim = card.get_node_or_null("Frame") as CardRim
-			if rim != null:
-				rim.radii = face.corner_radii()
+
 		add_child(card)
 		cards.append(card)
 	if accessibility_name.is_empty():
@@ -139,6 +141,7 @@ func _layout() -> void:
 		var frame: Control = card.get_node_or_null("Frame") as Control
 		if frame != null:
 			frame.modulate.a = clampf(1.0 - absf(offset) * 1.6, 0.0, 1.0)
+	laid_out.emit()
 
 
 ## Floats a card with a picture: while the screen idles the middle card's shadow breathes with its drift.

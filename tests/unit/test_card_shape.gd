@@ -170,7 +170,7 @@ func test_the_two_worn_layers_have_the_owners_lightness_grades() -> void:
 		assert_almost_eq(luma * 100.0, grades[layer], 0.6, "%s has lightness grade %d" % [layer, int(grades[layer])])
 
 
-func test_only_the_chosen_card_has_a_thin_coloured_outline_glow_and_a_shadow() -> void:
+func test_only_the_chosen_card_has_a_thin_glow_from_behind_and_a_shadow_and_the_rest_are_black_and_white() -> void:
 	var strip: MenuCarousel = autofree(MenuCarousel.new()) as MenuCarousel
 	strip.size = Vector2(720.0, 700.0)
 	add_child(strip)
@@ -183,19 +183,31 @@ func test_only_the_chosen_card_has_a_thin_coloured_outline_glow_and_a_shadow() -
 	strip._layout()
 	for index: int in 3:
 		var card: Button = strip.cards[index]
-		var rim: CardRim = card.get_node("Frame") as CardRim
 		var face: CardFace = card.get_node("Face") as CardFace
-		if index == 1:
-			assert_eq(rim.modulate.a, 1.0, "the chosen card has its glow")
-			assert_eq(face.chosen, 1.0, "and its shadow")
-		else:
-			assert_eq(rim.modulate.a, 0.0, "a card that is not chosen has no glow")
-			assert_eq(face.chosen, 0.0, "and no shadow")
-		assert_eq(rim.accent, Color(String(options[index]["accent"])), "the glow is in the mode's colour")
-		assert_eq(rim.radii, face.corner_radii(), "and follows the card's own corners")
-	assert_lte(CardRim.LINE_WIDTH, 3.0, "a thin outline")
-	assert_lte(CardRim.GLOW_WIDTHS[0], 16.0, "and a compact glow")
+		assert_null(card.get_node_or_null("Frame"), "the glow is drawn by the face behind the picture, not over it")
+		assert_eq(face.accent, Color(String(options[index]["accent"])), "the glow is in the mode's colour")
+		var picture_material: ShaderMaterial = (face.get_node("Picture") as TextureRect).material as ShaderMaterial
+		var chosen: float = 1.0 if index == 1 else 0.0
+		assert_eq(face.chosen, chosen, "only the chosen card has its glow and shadow")
+		assert_eq(picture_material.get_shader_parameter("grey"), 1.0 - chosen, "a card that is not chosen is black and white with a dark tint, the chosen one in colour")
+		var age: ColorRect = face.get_node("Tint") as ColorRect
+		assert_almost_eq(((age.material as ShaderMaterial).get_shader_parameter("tint") as Color).a, CardFace.AGE_TINT.a * chosen, 0.001, "and only the chosen card has the yellowish old tint")
+	assert_lte(CardFace.OUTLINE_WIDTH, 6.0, "a thin outline (half of it shows, behind the picture)")
+	assert_lte(CardFace.GLOW_WIDTHS[0], 22.0, "and a compact glow")
 	strip.select(2, false)
-	assert_eq((strip.cards[2].get_node("Frame") as CardRim).modulate.a, 1.0, "the glow moves to the card that is chosen")
-	assert_eq((strip.cards[1].get_node("Frame") as CardRim).modulate.a, 0.0)
+	assert_eq((strip.cards[2].get_node("Face") as CardFace).chosen, 1.0, "the glow moves to the card that is chosen")
 	assert_eq((strip.cards[1].get_node("Face") as CardFace).chosen, 0.0)
+
+
+func test_the_main_menu_backdrop_is_backlit_behind_the_chosen_card() -> void:
+	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
+	add_child(screen)
+	await wait_frames(12)
+	var glow: TextureRect = screen.backdrop.glow
+	assert_eq((glow.material as CanvasItemMaterial).blend_mode, CanvasItemMaterial.BLEND_MODE_ADD, "the backlight is added light")
+	var card: Rect2 = screen.carousel.cards[screen.carousel.index].get_global_rect()
+	assert_almost_eq(glow.get_global_rect().get_center().x, card.get_center().x, 4.0, "its bright middle is behind the card (across)")
+	assert_almost_eq(glow.get_global_rect().get_center().y, card.get_center().y, 6.0, "and down")
+	assert_gt(glow.size.x, card.size.x, "and it reaches out past the card")
+	var gradient: Gradient = (glow.texture as GradientTexture2D).gradient
+	assert_gt(gradient.colors[0].a, gradient.colors[gradient.colors.size() - 1].a, "a radial gradient: bright in the middle, gone at the edge")

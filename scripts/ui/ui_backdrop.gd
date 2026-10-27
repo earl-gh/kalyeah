@@ -7,6 +7,8 @@ extends Control
 
 const PICTURE: Texture2D = preload("res://assets/ui/main_bg.webp")
 const MOTES: int = 14
+## How strongly the backlight is added to the picture.
+const BACKLIGHT_STRENGTH: float = 1.0
 
 var glow: TextureRect
 var motes: CPUParticles2D
@@ -30,16 +32,21 @@ func _init() -> void:
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	picture.modulate = Color(0.62, 0.68, 0.9)
+	# a little more colour than before (owner: slight saturation)
+	picture.modulate = Color(0.55, 0.67, 1.0)
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(picture)
 	glow = TextureRect.new()
 	glow.name = "Glow"
-	glow.texture = _radial(Color.WHITE, 0.0)
+	glow.texture = _backlight()
 	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	glow.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	glow.modulate = Color(_accent, 0.5)
+	# light added to the picture (not painted over it): the bright middle lights the background from behind the card
+	var additive: CanvasItemMaterial = CanvasItemMaterial.new()
+	additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	glow.material = additive
+	glow.modulate = _backlight_color(_accent)
 	add_child(glow)
 	var night: TextureRect = TextureRect.new()
 	night.name = "Night"
@@ -79,10 +86,25 @@ func set_accent(color: Color) -> void:
 	if is_instance_valid(_tween):
 		_tween.kill()
 	if Settings.reduced_motion or not is_inside_tree():
-		glow.modulate = Color(color, 0.5)
+		glow.modulate = _backlight_color(color)
 		return
 	_tween = create_tween()
-	_tween.tween_property(glow, "modulate", Color(color, 0.5), 0.45).set_trans(Tween.TRANS_SINE)
+	_tween.tween_property(glow, "modulate", _backlight_color(color), 0.45).set_trans(Tween.TRANS_SINE)
+
+
+## Lights the background from behind a card: the bright middle of the backlight sits at `centre` (this control's own pixels) and
+## fades out over `radius`.
+func aim_backlight(centre: Vector2, radius: float) -> void:
+	glow.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	glow.position = centre - Vector2(radius, radius)
+	glow.size = Vector2(radius, radius) * 2.0
+
+
+## The backlight's colour: the focus colour, lighter and richer, at a strength that reads as light behind the card.
+static func _backlight_color(accent: Color) -> Color:
+	var color: Color = accent.lightened(0.3)
+	color.s = minf(color.s * 1.1 + 0.05, 1.0)
+	return Color(color, BACKLIGHT_STRENGTH)
 
 
 func _apply_motion() -> void:
@@ -107,6 +129,21 @@ static func _radial(core: Color, edge_alpha: float, pixels: int = 256) -> Gradie
 	var gradient: Gradient = Gradient.new()
 	gradient.offsets = PackedFloat32Array([0.0, 1.0])
 	gradient.colors = PackedColorArray([core, Color(core, edge_alpha)])
+	texture.gradient = gradient
+	return texture
+
+
+## A soft disc of light: bright in the middle, falling off gently, gone at the edge (a radial gradient, brightness and a little colour).
+static func _backlight() -> GradientTexture2D:
+	var texture: GradientTexture2D = GradientTexture2D.new()
+	texture.width = 256
+	texture.height = 256
+	texture.fill = GradientTexture2D.FILL_RADIAL
+	texture.fill_from = Vector2(0.5, 0.5)
+	texture.fill_to = Vector2(1.0, 0.5)
+	var gradient: Gradient = Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 0.35, 0.7, 1.0])
+	gradient.colors = PackedColorArray([Color(1, 1, 1, 1.0), Color(1, 1, 1, 0.72), Color(1, 1, 1, 0.26), Color(1, 1, 1, 0.0)])
 	texture.gradient = gradient
 	return texture
 
