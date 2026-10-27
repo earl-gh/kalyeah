@@ -87,13 +87,27 @@ func test_tilt_to_run_is_off_until_turned_on_and_its_switch_shows_only_with_a_se
 	TiltInput.test_gravity = Vector3.ZERO
 	var without: ControlOptions = autofree(ControlOptions.new()) as ControlOptions
 	add_child(without)
-	assert_null(without.tilt_toggle, "no sensor, no switch")
+	assert_false(without.tilt_row.visible, "no reading, no switch")
 	TiltInput.test_gravity = _held(30.0)
 	var with: ControlOptions = autofree(ControlOptions.new()) as ControlOptions
 	add_child(with)
-	assert_not_null(with.tilt_toggle)
+	assert_true(with.tilt_row.visible)
 	with.tilt_toggle.toggled.emit(true)
 	assert_true(Settings.tilt_to_run)
+
+
+func test_the_switch_shows_on_a_page_built_before_the_sensor_reported() -> void:
+	# Home builds Settings when the app starts; the first reading comes a moment later (#295 had no switch on a phone)
+	TiltInput.test_gravity = Vector3.ZERO
+	var host: Control = autofree(Control.new()) as Control
+	add_child(host)
+	var early: ControlOptions = ControlOptions.new()
+	host.add_child(early)
+	assert_false(early.tilt_row.visible, "nothing reported yet")
+	host.hide()
+	TiltInput.test_gravity = _held(30.0)
+	host.show()
+	assert_true(early.tilt_row.visible, "shown when the page opens, once the sensor has reported")
 
 
 # ---- in a match -------------------------------------------------------------------------
