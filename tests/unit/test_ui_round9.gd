@@ -126,10 +126,10 @@ func test_after_warming_the_first_screens_draw_nothing_new() -> void:
 	await wait_frames(3)
 	for id: StringName in [&"codex", &"history", &"settings", &"howto"]:
 		screen.open_page(id)
-	screen.codex_page.show_tab(&"weapons")
+	screen.codex_page.show_view(CodexPage.WEAPONS)
 	screen.weapons_page.tiles[0].pressed.emit()
 	screen.dialog.close(false)
-	screen.codex_page.show_tab(&"characters")
+	screen.codex_page.show_view(CodexPage.CHARACTERS)
 	screen.characters_page.cards["toni"].pressed.emit()
 	screen.dialog.close(false)
 	screen.open_name_editor()

@@ -55,7 +55,7 @@ func test_every_street_game_has_one_plain_sentence() -> void:
 func test_by_game_sections_carry_their_games_sentence_and_by_type_sections_do_not() -> void:
 	var screen: TitleScreen = _screen()
 	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	screen.codex_page.show_view(CodexPage.WEAPONS)
 	await wait_frames(2)
 	var page: WeaponsPage = screen.weapons_page
 	var games: StreetGames = WeaponsPage.street_games()
@@ -103,7 +103,7 @@ func test_a_missing_stat_is_an_empty_bar_not_a_crash() -> void:
 func test_the_sheet_shows_one_bar_per_stat_with_its_exact_number_and_the_game() -> void:
 	var screen: TitleScreen = _screen()
 	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	screen.codex_page.show_view(CodexPage.WEAPONS)
 	await wait_frames(2)
 	var weapons: Array[WeaponDef] = _rules().weapons
 	var maxima: Dictionary = WeaponsPage.stat_maxima(weapons)

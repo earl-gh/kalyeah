@@ -40,6 +40,7 @@ func test_the_characters_page_only_shows_and_describes_it_never_changes_your_fac
 	Session.avatar_id = "toni"
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"codex")
+	screen.codex_page.show_view(CodexPage.CHARACTERS)
 	await wait_frames(2)
 	var page: CharactersPage = screen.characters_page
 	assert_eq(page.cards.size(), Session.AVATARS.size())
@@ -67,23 +68,25 @@ func test_the_character_sheet_says_the_look_changes_nothing_about_play() -> void
 	assert_true(text.contains("same stats"), "cosmetic only, as the design says")
 
 
-func test_the_book_has_a_characters_tab_and_a_weapons_tab() -> void:
+func test_the_book_opens_on_a_hub_and_each_card_of_it_opens_its_page() -> void:
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"codex")
 	await wait_frames(2)
-	assert_true(screen.characters_page.visible)
+	assert_true(screen.codex_page.hub.is_visible_in_tree())
+	assert_false(screen.characters_page.visible)
 	assert_false(screen.weapons_page.visible)
-	screen.codex_page.tab_buttons[&"weapons"].pressed.emit()
+	screen.codex_page.hub.skills_card.pressed.emit()
 	assert_false(screen.characters_page.visible)
 	assert_true(screen.weapons_page.visible)
-	screen.codex_page.tab_buttons[&"characters"].pressed.emit()
+	screen.codex_page.back_button.pressed.emit()
+	screen.codex_page.hub.kids_card.pressed.emit()
 	assert_true(screen.characters_page.visible)
 
 
 func test_the_weapons_page_is_a_grid_with_a_tile_for_every_weapon() -> void:
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	screen.codex_page.show_view(CodexPage.WEAPONS)
 	await wait_frames(2)
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 	var page: WeaponsPage = screen.weapons_page
@@ -99,7 +102,7 @@ func test_the_weapons_page_is_a_grid_with_a_tile_for_every_weapon() -> void:
 func test_weapons_group_by_street_game_or_by_type_and_every_weapon_is_in_exactly_one_group() -> void:
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	screen.codex_page.show_view(CodexPage.WEAPONS)
 	await wait_frames(2)
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 	var page: WeaponsPage = screen.weapons_page
@@ -129,7 +132,7 @@ func test_weapons_group_by_street_game_or_by_type_and_every_weapon_is_in_exactly
 func test_switching_the_grouping_starts_again_at_the_top() -> void:
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	screen.codex_page.show_view(CodexPage.WEAPONS)
 	await wait_frames(2)
 	var scroll: ScrollContainer = screen.weapons_page.find_child("Scroll", true, false) as ScrollContainer
 	scroll.scroll_vertical = 600
@@ -141,7 +144,7 @@ func test_switching_the_grouping_starts_again_at_the_top() -> void:
 func test_a_tile_shows_the_other_axis_as_its_chip() -> void:
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	screen.codex_page.show_view(CodexPage.WEAPONS)
 	await wait_frames(2)
 	var page: WeaponsPage = screen.weapons_page
 	var weapon: WeaponDef = (load("res://data/rules/game_rules.tres") as GameRules).weapons[0]
@@ -159,7 +162,7 @@ func test_a_tile_shows_the_other_axis_as_its_chip() -> void:
 func test_tapping_a_tile_opens_the_detail_sheet_with_the_text_and_figures() -> void:
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"codex")
-	screen.codex_page.show_tab(&"weapons")
+	screen.codex_page.show_view(CodexPage.WEAPONS)
 	await wait_frames(2)
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 	for i: int in rules.weapons.size():

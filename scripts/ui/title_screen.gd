@@ -465,7 +465,8 @@ func open_page(id: StringName) -> void:
 	if id == &"history":
 		history_page.refresh()
 	elif id == &"codex":
-		codex_page.show_tab(codex_page.current)
+		# Cards always opens on its hub; tapping the lit Cards tab inside a page comes back to it
+		codex_page.show_view(CodexPage.HUB)
 	_home.visible = false
 	_top_bar.visible = false
 	# How to play is reached from Settings: that tab stays lit
@@ -876,8 +877,10 @@ func _quit_game() -> void:
 	get_tree().quit()
 
 
-## Back closes the open page; on the home page it asks to quit.
+## Back goes one step: a page of the Cards screen to its hub, an open page to home; on the home page it asks to quit.
 func _go_back() -> void:
+	if current_page == &"codex" and codex_page.go_back():
+		return
 	if current_page != &"":
 		close_page()
 	else:
