@@ -8,7 +8,7 @@ const MOTES: int = 14
 ## The blue the picture is in, which the backlight and the dark of the vignette follow.
 const PICTURE_BLUE: Color = Color("4aa0ff")
 ## How strongly the backlight is added to the picture.
-const BACKLIGHT_STRENGTH: float = 0.4
+const BACKLIGHT_STRENGTH: float = 0.9
 
 var glow: TextureRect
 ## The dark of the vignette: the picture's blue, very dark, so the dark that closes in on the picture is never another hue mixed into it.
