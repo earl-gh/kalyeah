@@ -8,12 +8,14 @@ const CARD_SIZE: Vector2 = Vector2(385.0, 550.0)
 const PAD: float = 14.0
 const CROP_SHADER: Shader = preload("res://shaders/minimap_crop.gdshader")
 const ART_DIR: String = "res://assets/ui/cards/"
+## The owner's dioramas: transparent pictures shown bare (no card paper) on a card that is only a shell.
+const BARE_ART_DIR: String = "res://assets/ui/dioramas/"
 
 
 ## A card: `heading` small at the top left, `choice` big at the bottom left, no subtitle.
-static func make_card(heading: String, choice: String, color: String, size: Vector2 = CARD_SIZE, art_id: String = "") -> Button:
+static func make_card(heading: String, choice: String, color: String, size: Vector2 = CARD_SIZE, art_id: String = "", bare: bool = false) -> Button:
 	var card: Button = MenuDialog.make_button("", color, UiMetrics.ACTION, size)
-	var art_path: String = "%s%s.webp" % [ART_DIR, art_id]
+	var art_path: String = "%s%s.webp" % [BARE_ART_DIR if bare else ART_DIR, art_id]
 	var has_art: bool = not art_id.is_empty() and ResourceLoader.exists(art_path)
 	if has_art:
 		var art: TextureRect = TextureRect.new()
@@ -27,6 +29,7 @@ static func make_card(heading: String, choice: String, color: String, size: Vect
 		art.visible = false
 		card.add_child(art)
 		var face: CardFace = CardFace.new()
+		face.bare = bare
 		face.texture = art.texture
 		card.add_child(face)
 		# the button's own face would show round the floating card

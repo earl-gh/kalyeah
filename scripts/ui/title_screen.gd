@@ -14,11 +14,11 @@ const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
 ## The game modes in card order: Online, Local in the middle (the default, `Session.menu_mode` 1), Practice (owner).
 ## `accent` tints the frame of the card and the glow behind it.
 const MODES: Array[Dictionary] = [
-	{"id": "online", "title": "Online", "color": "orange", "accent": "45dd78", "power": 7450,
+	{"id": "online", "bare": true, "title": "Online", "color": "orange", "accent": "45dd78", "power": 7450,
 		"text": "Invite friends with a room code!"},
-	{"id": "hotspot", "title": "Local", "color": "blue", "accent": "4aa0ff", "power": 9999,
+	{"id": "hotspot", "bare": true, "title": "Local", "color": "blue", "accent": "4aa0ff", "power": 9999,
 		"text": "Battle your friends nearby!"},
-	{"id": "practice", "title": "Practice", "color": "green", "accent": "a45cf0", "power": 1200,
+	{"id": "practice", "bare": true, "title": "Practice", "color": "green", "accent": "a45cf0", "power": 1200,
 		"text": "Take on 3 bots, solo!"},
 ]
 ## The bottom tabs, left to right: Street (what each game is and how it plays), Cards (the Book of kids and weapons), Play (the home
@@ -37,6 +37,11 @@ const HERO_CARD: Vector2 = Vector2(400.0, 571.0)
 ## The hero grows with the stage (phones taller than 16:9 have the room): 1.75:2.5, between these heights, with
 ## this much air round it for the glow and the bob.
 const HERO_RATIO: float = 0.7
+## The owner's dioramas are shown bare, on a card that is only a shell as wide as the picture is (1200 x 1120 files): the cards of
+## `MODES` with `bare` are this shape instead of the paper card's.
+const DIORAMA_RATIO: float = 1200.0 / 1120.0
+## How much of the stage's width is left free beside a bare diorama.
+const DIORAMA_SIDE_ROOM: float = 40.0
 const HERO_MIN_HEIGHT: float = 440.0
 const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 36.0
@@ -418,6 +423,16 @@ func _fill_chips(id: String) -> void:
 		mode_chips.add_child(chip)
 
 
+## Whether the mode cards are bare dioramas (no paper card).
+static func card_is_bare() -> bool:
+	return bool(MODES[0].get("bare", false))
+
+
+## The shape of a mode card: width over height.
+static func card_ratio() -> float:
+	return DIORAMA_RATIO if card_is_bare() else HERO_RATIO
+
+
 ## Sizes the hero cards to the stage (taller phones get a bigger card), then rebuilds them.
 func _fit_hero() -> void:
 	var stage: Control = carousel.get_parent() as Control
@@ -428,8 +443,10 @@ func _fit_hero() -> void:
 	var bare: float = total + (CHIPS_HEIGHT if mode_chips.visible else 0.0)
 	mode_chips.visible = bare - CHIPS_HEIGHT >= CHIPS_MIN_STAGE
 	var height: float = clampf(bare - (CHIPS_HEIGHT if mode_chips.visible else 0.0) - HERO_AIR, HERO_MIN_HEIGHT, HERO_MAX_HEIGHT)
-	var width: float = minf(height * HERO_RATIO, stage.size.x - 120.0) * HERO_SCALE
-	var fitted: Vector2 = Vector2(roundf(width), roundf(width / HERO_RATIO))
+	var diorama: bool = card_is_bare()
+	var ratio: float = DIORAMA_RATIO if diorama else HERO_RATIO
+	var width: float = minf(height * ratio, stage.size.x - (DIORAMA_SIDE_ROOM if diorama else 120.0)) * (1.0 if diorama else HERO_SCALE)
+	var fitted: Vector2 = Vector2(roundf(width), roundf(width / ratio))
 	if fitted.distance_to(carousel.card_size) < 3.0:
 		return
 	carousel.card_size = fitted

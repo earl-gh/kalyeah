@@ -135,7 +135,7 @@ func test_the_cards_are_large_and_every_one_is_always_visible_stacked_behind_the
 	await wait_frames(3)
 	var strip: MenuCarousel = screen.carousel
 	var chosen: Rect2 = strip.cards[0].get_global_rect()
-	assert_almost_eq(chosen.size.x / chosen.size.y, 1.75 / 2.5, 0.01, "1.75:2.5")
+	assert_almost_eq(chosen.size.x / chosen.size.y, TitleScreen.card_ratio(), 0.01, "the card is the shape of its picture")
 	assert_gt(chosen.size.y, 360.0, "large (86 % of the room that is left beside the tall buttons)")
 	for index: int in 3:
 		strip.select(index, false)
@@ -250,7 +250,7 @@ func test_the_carousel_is_online_local_practice_with_local_chosen_in_front() -> 
 	assert_eq(strip.index, 1, "and is the one chosen to start with")
 	var middle: Button = strip.cards[1]
 	var next: Button = strip.cards[2]
-	assert_almost_eq(middle.size.x / middle.size.y, 1.75 / 2.5, 0.01, "1.75:2.5 cards")
+	assert_almost_eq(middle.size.x / middle.size.y, TitleScreen.card_ratio(), 0.01, "cards are the shape of their picture")
 	assert_almost_eq(middle.get_global_rect().get_center().x, 360.0, 2.0, "the chosen card is in the middle of the screen")
 	assert_eq(middle.modulate.a, 1.0)
 	assert_lt(next.modulate.r, middle.modulate.r - 0.2, "the next card is clearly darker: depth")
@@ -602,3 +602,15 @@ func test_the_buttons_are_as_wide_as_their_words_and_equal() -> void:
 	await wait_frames(3)
 	assert_almost_eq(screen.primary_button.custom_minimum_size.x, screen.secondary_button.custom_minimum_size.x, 0.5)
 	assert_gte(screen.primary_button.custom_minimum_size.x, TitleScreen.CTA_MIN_WIDTH)
+
+
+func test_the_mode_cards_show_the_dioramas_bare_with_no_paper_or_power_line() -> void:
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(3)
+	for card: Button in screen.carousel.cards:
+		var face: CardFace = card.get_node("Face") as CardFace
+		assert_true(face.bare, "%s is a bare diorama" % card.accessibility_name)
+		assert_null((face.get_node("Picture") as TextureRect).material, "no wear shader")
+		assert_false((face.get_node("Tint") as Control).visible, "no old tint")
+		assert_false((face.get_node("PowerLine") as Control).visible, "no power line")
+		assert_true(ResourceLoader.exists("res://assets/ui/dioramas/%s.webp" % TitleScreen.MODES[screen.carousel.cards.find(card)]["id"]))
