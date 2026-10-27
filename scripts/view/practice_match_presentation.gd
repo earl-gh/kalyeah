@@ -42,7 +42,7 @@ func connect_hud() -> void:
 	owner.hud.hand.card_moved.connect(owner.card_moved)
 	owner.hud.hand.card_released.connect(owner.card_released)
 	owner.hud.hand.card_cancelled.connect(owner.card_cancelled)
-	owner.hud.set_chat_enabled(owner.online)
+	owner.hud.set_chat_enabled(true)
 	owner.hud.chat.said.connect(func(text: String) -> void: owner.hud.overhead.say(owner.local_id, text))
 	owner.hud.street.move_pressed.connect(owner.move_pressed)
 	owner.hud.street.move_dragged.connect(owner.move_dragged)

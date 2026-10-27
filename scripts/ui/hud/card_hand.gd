@@ -46,7 +46,7 @@ const NEXT_COLOR: Color = Color.WHITE
 ## The ice water bag on a card (its height) and its number; the bar's bag and its number.
 const COST_BAG: float = 60.0
 const COST_FONT: int = UiMetrics.CAPTION
-const BAR_BAG: float = 66.0
+const BAR_BAG: float = 56.0
 ## The "Max: 10" caption under the bar's start.
 const MAX_FONT: int = UiMetrics.WORLD
 const BAR_FONT: int = UiMetrics.ACTION
@@ -57,7 +57,7 @@ const ICE_WATER_FULL_EDGE: Color = Color(0.72, 0.93, 1.0)
 ## The thin outline of the ice water bar.
 const BAR_OUTLINE: int = 2
 ## The empty part of the ice water bar: a flat, opaque dark blue (just the colour: no sheen, no texture).
-const ICE_EMPTY: Color = Color(0.08, 0.16, 0.38)
+const ICE_EMPTY: Color = Color(0.03, 0.14, 0.42)
 ## The segment that is filling shows this much of its share in see-through white (like Clash Royale's elixir bar).
 const REFILL_WHITE: Color = Color(1.0, 1.0, 1.0, 0.4)
 ## A card you cannot afford: a grey wash over the part the bar has not reached yet, a lighter one over the rest.
@@ -126,6 +126,8 @@ var _released_slot: int = -1
 
 func _init() -> void:
 	name = "CardHand"
+	# the ice water drop is a big picture drawn small: its mipmaps keep it smooth
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	accessibility_name = "Your hand"
 	defs.resize(SLOTS)
@@ -422,9 +424,14 @@ func _draw() -> void:
 		_draw_cost(rect, defs[held_slot], true)
 
 
+## The word over the next card.
+func next_label() -> String:
+	return UiText.t("Next:")
+
+
 func _draw_next() -> void:
 	var font: Font = KalyeahTheme.ACTION_FONT
-	var label: String = UiText.t("NEXT")
+	var label: String = next_label()
 	var width: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT).x
 	var at: Vector2 = Vector2(next_rect.get_center().x - width / 2.0, next_rect.position.y - 8.0)
 	draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT, 7, Color.BLACK)

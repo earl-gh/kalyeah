@@ -75,8 +75,8 @@ func _draw() -> void:
 	var cell: Vector2 = Vector2(box * CELL_ASPECT, box)
 	var mine_cell: Rect2 = Rect2(Vector2(6.0, 6.0), cell)
 	var theirs_cell: Rect2 = Rect2(Vector2(w - 6.0 - cell.x, 6.0), cell)
-	_draw_cell(mine_cell, TeamColors.ui_own())
-	_draw_cell(theirs_cell, TeamColors.ui_enemy())
+	_draw_cell(mine_cell, TeamColors.score_own())
+	_draw_cell(theirs_cell, TeamColors.score_enemy())
 	var number_y: float = h / 2.0
 	_center_text(KalyeahTheme.ACTION_FONT, str(mine), Vector2(mine_cell.get_center().x, number_y), BIG_FONT, Color.WHITE)
 	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), Vector2(theirs_cell.get_center().x, number_y), BIG_FONT, Color.WHITE)
@@ -89,7 +89,7 @@ func _draw() -> void:
 
 ## A team's cell: its colour in a thick navy outline with a glossy sheen on the upper half, like a Clash Royale panel.
 func _draw_cell(rect: Rect2, color: Color) -> void:
-	RoyaleStyle.chunky(self, rect, color.lightened(0.1), CELL_RADIUS)
+	RoyaleStyle.chunky(self, rect, color, CELL_RADIUS)
 
 
 func _round_rect(rect: Rect2, color: Color, radius: float) -> void:

@@ -137,7 +137,7 @@ func test_the_kid_walks_until_the_bar_is_full_again_then_runs() -> void:
 	assert_eq(state.stamina, _rules.stamina_max, "with a full bar")
 	var seconds: float = float(ticks) * DT
 	assert_almost_eq(seconds, _rules.exhaust_seconds + _rules.stamina_max / _rules.stamina_regen_per_s, 0.3, "two seconds of blink, then 100 at 25 a second")
-	state.position = Vector2(-12.0, 0.0)
+	state.position = Vector2(-10.0, 0.0)  # inside the street, which is 24 m wide
 	assert_almost_eq(_walked(sim, 10), _rules.move_speed * 10.0 * DT, 0.01, "full run speed again")
 
 
