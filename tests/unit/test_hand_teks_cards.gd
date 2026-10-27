@@ -1,7 +1,7 @@
 extends GutTest
 ## The hand's cards look like old Filipino teks cards (owner: "apply last styling of modes ... to the cards at gameplay"): the SAME worn look
 ## as the mode card (`CardFace`: the card_picture shader, the age tint and the power line), printed in the weapon's kind colour with the
-## round art on it, each weapon with its own wear, the power number from data (cosmetic), and everything that worked before still working
+## painted skill icon on it, each weapon with its own wear, the power number from data (cosmetic), and everything that worked before still working
 ## (cost drop inside the card, washes, deny shake, the held card's gold edge, the flight, Reduce motion, left-handed).
 
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
@@ -111,7 +111,7 @@ func test_a_hand_card_is_the_mode_cards_worn_face_printed_in_the_kind_colour_wit
 		assert_eq(material.shader.resource_path, "res://shaders/card_picture.gdshader", "%s: the worn card shader" % def.id)
 		assert_eq(((card.get_node("Tint") as ColorRect).material as ShaderMaterial).shader.resource_path, "res://shaders/card_tint.gdshader", "%s: and the age tint over all" % def.id)
 		assert_eq(material.get_shader_parameter("ground") as Color, WeaponPickScreen.kind_color(def.kind).darkened(CardStyle.GROUND_DARKEN), "%s: printed in its kind colour" % def.id)
-		assert_eq(_picture(card).texture, Icons.art(StringName("btn_%s" % String(def.id))), "%s: the round art on it" % def.id)
+		assert_eq(_picture(card).texture, Icons.skill(def.id), "%s: the painted skill icon on it" % def.id)
 		assert_eq((card.get_node("PowerLine") as CardPowerLine).text, "POWER %d" % def.card_power, "%s: its power up the edge, from data" % def.id)
 
 

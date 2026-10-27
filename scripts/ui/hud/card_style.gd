@@ -1,15 +1,15 @@
 class_name CardStyle
 extends RefCounted
 ## How a weapon card of the hand looks (owner: like the old Filipino teks cards of the mode screen): a flat, straight card printed in the
-## weapon's kind colour with its round painted art on it, worn like old cardstock by the shaders the mode card used (`HandCard`, which is a
+## weapon's kind colour with its painted skill icon on it, worn like old cardstock by the shaders the mode card used (`HandCard`, which is a
 ## `CardFace`): no black outline, no gloss band. This holds what the hand draws round those cards in code (the empty slot, the back of a
 ## card on its way, the gold edge of a lifted card, the shades over a card that cannot be used) and the numbers of the print. The ice
 ## water cost sits on the card's bottom edge, drawn by the hand over the card.
 
 ## The printed surface is the kind colour (`WeaponPickScreen.kind_color`, so Attack, Control, Block and Heal read at a glance) darkened by
-## this much, so the round art stands out from it.
+## this much, so the painted icon stands out from it.
 const GROUND_DARKEN: float = 0.3
-## The round art sits this far in from the card's edge, as a share of the card's width (9 px of a 123 px card).
+## The painted icon sits this far in from the card's edge, as a share of the card's width (9 px of a 123 px card).
 const ART_EDGE_SHARE: float = 0.073
 ## The print of the back of a card on its way: the dark red brown of old cardboard.
 const BACK_GROUND: Color = Color(0.42, 0.17, 0.12)

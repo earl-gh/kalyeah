@@ -1,7 +1,7 @@
 class_name Icons
 extends RefCounted
-## Skill and HUD icons: the painted PNGs in assets/icons/ (the skill buttons are
-## btn_<skill>.png from tools/art/make_buttons.py).
+## Skill and HUD icons: the painted PNGs in assets/icons/ (a skill is its painted icon alone, assets/icons/art/<skill>.png, no cardboard
+## disc under it: `skill`).
 
 const OUTLINE: Color = Color(0.1, 0.08, 0.12, 0.9)
 const ICON_PATH: String = "res://assets/icons/%s.png"
@@ -17,6 +17,11 @@ static func art(id: StringName) -> Texture2D:
 		var path: String = ICON_PATH % String(id)
 		_art[id] = load(path) as Texture2D if ResourceLoader.exists(path) else null
 	return _art[id]
+
+
+## The painted icon of the weapon `id` (transparent, nothing behind it), or null if there is none.
+static func skill(id: StringName) -> Texture2D:
+	return art(StringName("art/%s" % String(id)))
 
 
 ## Draws icon `id` centred at `center`, about `size` px across. A missing image is an

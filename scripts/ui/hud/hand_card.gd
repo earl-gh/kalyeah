@@ -2,7 +2,7 @@ class_name HandCard
 extends CardFace
 ## One card of the hand (a weapon card, the NEXT card, the card under the finger, the card in flight) as an old Filipino teks card, with the
 ## SAME look as the mode cards of the main screen (`CardFace`: `card_picture.gdshader` wear, `card_tint.gdshader` age tint, `CardPowerLine`),
-## just smaller: it is printed in the weapon's kind colour with the round art on it, worn away at the corners (a little along the sides) to
+## just smaller: it is printed in the weapon's kind colour with the painted skill icon on it, worn away at the corners (a little along the sides) to
 ## thin tan paper and, nearest the edge, to brown paperboard, with its own slight radius on each corner, an aged tint over all and the
 ## weapon's power up the right edge (`WeaponDef.card_power`, cosmetic). The wear comes from the weapon (`CardStyle.wear_seed`), so a card
 ## looks the same in the hand, in NEXT, under the finger and in flight.
@@ -42,7 +42,7 @@ func show_weapon(def: WeaponDef) -> void:
 		return
 	weapon = def
 	back = false
-	var art: Texture2D = Icons.art(StringName("btn_%s" % String(def.id)))
+	var art: Texture2D = Icons.skill(def.id)
 	texture = art if art != null else _blank_texture()
 	ground = CardStyle.ground(def.kind)
 	power = def.card_power
