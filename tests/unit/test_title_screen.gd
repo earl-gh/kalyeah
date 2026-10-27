@@ -611,7 +611,8 @@ func test_the_mode_models_are_bare_dioramas_with_no_paper_or_power_line() -> voi
 	for card: Button in screen.mode_models:
 		var face: CardFace = card.get_node("Face") as CardFace
 		assert_true(face.bare, "%s is a bare diorama" % card.accessibility_name)
-		assert_null((face.get_node("Picture") as TextureRect).material, "no wear shader")
+		var material: Material = (face.get_node("Picture") as TextureRect).material
+		assert_true(material == null or (material as ShaderMaterial).shader == CardFace.BLUR_SHADER, "no wear shader: sharp, or blurred when it is behind")
 		assert_false((face.get_node("Tint") as Control).visible, "no old tint")
 		assert_false((face.get_node("PowerLine") as Control).visible, "no power line")
 		assert_true(ResourceLoader.exists("res://assets/ui/dioramas/%s.png" % TitleScreen.MODES[screen.mode_models.find(card)]["id"]))

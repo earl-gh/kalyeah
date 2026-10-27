@@ -220,37 +220,40 @@ func test_the_mode_name_is_flat_text_with_no_perspective() -> void:
 	assert_null(screen.mode_name_label.material, "the name is drawn as plain text (owner: no perspective)")
 
 
-func test_the_main_menu_background_is_the_owners_picture_in_the_chosen_cards_colour() -> void:
+func test_the_main_menu_background_is_the_blue_picture_for_every_mode() -> void:
 	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
 	add_child(screen)
 	await wait_frames(4)
 	var backdrop: UiBackdrop = screen.backdrop
-	assert_eq(backdrop.pictures.size(), 3, "a blue, a purple and a green picture")
-	assert_eq(backdrop.pictures[0].texture, UiBackdrop.PICTURE)
-	assert_eq(backdrop.pictures[1].texture, UiBackdrop.PICTURE_PURPLE)
-	assert_eq(backdrop.pictures[2].texture, UiBackdrop.PICTURE_GREEN)
+	var pictures: Array[Node] = backdrop.find_children("*", "TextureRect", false, false).filter(func(node: Node) -> bool: return (node as TextureRect).texture == UiBackdrop.PICTURE)
+	assert_eq(pictures.size(), 1, "one picture, the blue one (owner: no purple or green)")
+	assert_eq(backdrop.get_node("Picture").modulate.a, 1.0)
+	assert_null(backdrop.get_node("Picture").material, "shown as it is, not tinted")
 	var motion: bool = Settings.reduced_motion
 	Settings.reduced_motion = true
-	var shown: Dictionary = {}
 	for index: int in 3:
 		screen.carousel.select(index, false)
-		var visible_ones: Array[int] = []
-		for i: int in backdrop.pictures.size():
-			if backdrop.pictures[i].modulate.a > 0.99:
-				visible_ones.append(i)
-			else:
-				assert_lt(backdrop.pictures[i].modulate.a, 0.01, "only one picture shows at a time")
-		assert_eq(visible_ones.size(), 1)
-		shown[visible_ones[0]] = true
-		assert_eq(visible_ones[0], [2, 0, 1][index], "Online green, Local blue, Practice purple: %s" % TitleScreen.MODES[index]["id"])
+		assert_eq(backdrop.get_node("Picture").modulate.a, 1.0, "the same picture behind %s" % TitleScreen.MODES[index]["id"])
 	Settings.reduced_motion = motion
-	assert_eq(shown.size(), 3, "each card has its own picture")
-	assert_null(backdrop.get_node("PictureGreen").material, "the pictures are shown as they are, not tinted")
+	assert_false(ResourceLoader.exists("res://assets/ui/main_bg_purple.webp"), "the purple picture is deleted")
+	assert_false(ResourceLoader.exists("res://assets/ui/main_bg_green.webp"), "the green picture is deleted")
 
 
-func test_the_vignette_is_dark_in_the_focus_colours_own_hue() -> void:
-	# the old navy vignette turned a warm picture grey: the dark takes the focus colour's hue
-	for accent: Color in [Color("4aa0ff"), Color("a45cf0"), Color("45dd78")]:
-		var dark: Color = UiBackdrop._night_color(accent)
-		assert_almost_eq(dark.h, accent.h, 0.01, "the vignette is the focus colour's hue")
-		assert_lt(dark.v, 0.2, "and very dark")
+func test_the_vignette_is_a_dark_of_the_pictures_own_blue() -> void:
+	var dark: Color = UiBackdrop._night_color(UiBackdrop.PICTURE_BLUE)
+	assert_almost_eq(dark.h, UiBackdrop.PICTURE_BLUE.h, 0.01, "the vignette is the picture's hue")
+	assert_lt(dark.v, 0.2, "and very dark")
+
+
+func test_the_mode_models_behind_are_blurred_to_look_far_away_and_the_chosen_one_is_sharp() -> void:
+	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
+	add_child(screen)
+	await wait_frames(6)
+	screen.carousel.select(1, false)
+	await wait_frames(3)
+	var picture: TextureRect = (screen.mode_models[1].get_node("Face") as CardFace).get_node("Picture") as TextureRect
+	assert_null(picture.material, "the chosen model is sharp (no blur shader at all)")
+	for index: int in [0, 2]:
+		var behind: TextureRect = (screen.mode_models[index].get_node("Face") as CardFace).get_node("Picture") as TextureRect
+		assert_not_null(behind.material, "a model behind is drawn through the blur shader")
+		assert_gt(float((behind.material as ShaderMaterial).get_shader_parameter("radius")), 1.0, "and it is blurred")

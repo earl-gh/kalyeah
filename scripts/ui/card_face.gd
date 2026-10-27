@@ -7,6 +7,7 @@ extends Control
 
 const PICTURE_SHADER: Shader = preload("res://shaders/card_picture.gdshader")
 const TINT_SHADER: Shader = preload("res://shaders/card_tint.gdshader")
+const BLUR_SHADER: Shader = preload("res://shaders/model_blur.gdshader")
 ## The slight radius of each corner: between these, a different one on every corner of every card (never sharp, never very round).
 const CORNER_RADIUS_MIN: float = 12.0
 const CORNER_RADIUS_MAX: float = 16.0
@@ -35,6 +36,8 @@ const SHADOW_BREATH: float = 4.0
 ## A bare picture: what an unchosen one is multiplied by (a dark, nearly black tint) and how flat its ground shadow is.
 const BARE_DIM: Color = Color(0.45, 0.45, 0.5)
 const GROUND_SHADOW_SQUASH: float = 0.16
+## How blurred a bare picture is when it stands far behind (the blur radius in texels of the picture, owner: depth of field): 0 when chosen.
+const BLUR_RADIUS: float = 9.0
 
 ## How high the card floats (-1 sinking to 1 at the top of its drift): the middle card sets it as it drifts, and its shadow follows.
 var lift: float = 0.0:
@@ -55,6 +58,7 @@ var chosen: float = 1.0:
 		_tint_material.set_shader_parameter("tint", Color(AGE_TINT, AGE_TINT.a * value))
 		# a bare picture has no shader: it is dimmed with a dark tint of its own (owner: darker)
 		_picture.modulate = Color.WHITE.lerp(BARE_DIM, 1.0 - value) if bare else Color.WHITE
+		_blur_for_depth()
 		queue_redraw()
 ## A bare face shows its picture as it is, a transparent PNG (a diorama) with no card paper, wear, corners, tint or power line: the card
 ## is only the shell that sizes, places and dims it (owner). The worn teks card above stays for another part of the game.
@@ -62,6 +66,7 @@ var bare: bool = false:
 	set(value):
 		bare = value
 		_picture.material = null if value else _picture_material
+		_blur_for_depth()
 		_picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED if value else TextureRect.STRETCH_SCALE
 		_power_line.visible = not value
 		_tint_rect.visible = not value
@@ -91,6 +96,7 @@ var _picture_material: ShaderMaterial
 var _power_line: CardPowerLine
 var _tint_material: ShaderMaterial
 var _tint_rect: ColorRect
+var _blur_material: ShaderMaterial
 
 
 func _init() -> void:
@@ -147,6 +153,22 @@ func _draw() -> void:
 		for point: Vector2 in face:
 			shadow.append(centre + (point - centre) * grow + SHADOW_DROP + Vector2(0.0, SHADOW_BREATH * lift))
 		draw_colored_polygon(shadow, Color(0.0, 0.02, 0.08, SHADOW_ALPHA * (1.0 - 0.3 * lift) * chosen))
+
+
+## A bare picture standing behind the chosen one is blurred (it is far away): the blur grows as it goes back, and the chosen one has no
+## blur material at all (so it costs nothing and stays sharp).
+func _blur_for_depth() -> void:
+	if not bare:
+		return
+	var radius: float = BLUR_RADIUS * (1.0 - chosen)
+	if radius < 0.5:
+		_picture.material = null
+		return
+	if _blur_material == null:
+		_blur_material = ShaderMaterial.new()
+		_blur_material.shader = BLUR_SHADER
+	_blur_material.set_shader_parameter("radius", radius)
+	_picture.material = _blur_material
 
 
 ## A bare picture stands on a soft shadow on the ground: a flat ellipse under its base, only for the chosen one.

@@ -507,7 +507,6 @@ func _refresh_mode() -> void:
 	KalyeahTheme.style_button(primary_button, "orange")
 	KalyeahTheme.style_button(secondary_button, "blue")
 	_fit_buttons()
-	backdrop.set_accent(Color(String(mode["accent"])))
 
 
 func _on_mode_selected(index: int) -> void:
