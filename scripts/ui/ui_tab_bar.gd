@@ -16,12 +16,12 @@ const HEIGHT: float = 164.0
 ## `BAR_TOP` to `HEIGHT`), from the top of this control.
 const ICON_ACTIVE: float = 96.0
 const ICON_IDLE: float = 66.0
-const ICON_Y: float = 124.0
+const ICON_Y: float = 118.0
 ## Where the bar itself starts, from the top of this control: the space above is clear, and the open tab's picture is centred on this
 ## edge (half above it, half in it), like the reference's.
-const BAR_TOP: float = 84.0
+const BAR_TOP: float = 72.0
 ## The open tab's name sits under its picture (it rises a few pixels into place as it fades in).
-const LABEL_Y: float = 128.0
+const LABEL_Y: float = 122.0
 const LABEL_HEIGHT: float = 32.0
 const LABEL_RISE: float = 8.0
 ## The arrows: how big they are drawn, how big they are to the thumb, and how far from the picture's edge.
