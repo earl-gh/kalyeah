@@ -23,13 +23,15 @@ static func make_card(heading: String, choice: String, color: String, size: Vect
 		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 		art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		# the picture follows the card's rounded corners
-		var crop: ShaderMaterial = ShaderMaterial.new()
-		crop.shader = CROP_SHADER
-		crop.set_shader_parameter("rect_size", size)
-		crop.set_shader_parameter("radius", float(KalyeahTheme.CORNER))
-		art.material = crop
+		# the picture is not drawn here: it holds the owner's file, and a `CardFace` draws it as a tipped, floating card
+		art.visible = false
 		card.add_child(art)
+		var face: CardFace = CardFace.new()
+		face.texture = art.texture
+		card.add_child(face)
+		# the button's own face would show round the tipped card
+		for state: String in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+			card.add_theme_stylebox_override(state, StyleBoxEmpty.new())
 	var top: Label = Label.new()
 	top.name = "Heading"
 	top.text = heading

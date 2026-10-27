@@ -50,7 +50,7 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		card.pivot_offset = card_size / 2.0
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.focus_mode = Control.FOCUS_NONE
-		card.add_child(_frame(String(option.get("accent", "ffd25a"))))
+		card.add_child(_frame(String(option.get("accent", "ffd25a")), card.get_node_or_null("Face") != null))
 		add_child(card)
 		cards.append(card)
 	if accessibility_name.is_empty():
@@ -62,21 +62,11 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 
 
 ## The bright rim of the card in the middle: a glowing frame in the card's accent colour.
-func _frame(accent: String) -> Panel:
-	var frame: Panel = Panel.new()
-	frame.name = "Frame"
-	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var ring: StyleBoxFlat = StyleBoxFlat.new()
-	ring.draw_center = false
-	ring.set_corner_radius_all(KalyeahTheme.CORNER)
-	ring.set_border_width_all(5)
-	ring.border_color = Color(accent)
-	ring.shadow_color = Color(Color(accent), 0.55)
-	ring.shadow_size = 18
-	ring.anti_aliasing = true
-	frame.add_theme_stylebox_override("panel", ring)
-	return frame
+func _frame(accent: String, tipped: bool) -> CardRim:
+	var rim: CardRim = CardRim.new()
+	rim.tipped = tipped
+	rim.accent = Color(accent)
+	return rim
 
 
 func _ready() -> void:
