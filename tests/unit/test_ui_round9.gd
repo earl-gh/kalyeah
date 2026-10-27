@@ -261,6 +261,7 @@ func test_the_open_tab_is_bigger_and_shows_its_name_and_its_arrows() -> void:
 	assert_almost_eq(bar.tabs[&"settings"].position.x + bar.tabs[&"settings"].size.x, 720.0 - UiTabBar.SIDE_MARGIN, 0.5, "and ends a margin in from the right")
 	assert_lt(open.global_position.y, bar.global_position.y + UiTabBar.BAR_TOP, "the open picture rises above the bar (owner: like the reference)")
 	assert_gt(idle.global_position.y, bar.global_position.y + UiTabBar.BAR_TOP, "an idle picture sits inside it")
+	assert_almost_eq(open.global_position.y + open.size.y / 2.0, bar.global_position.y + UiTabBar.BAR_TOP, 1.0, "the open picture is centred on the bar's top edge (owner)")
 	assert_true((bar.tabs[&"home"].get_node("Name") as Label).visible, "it shows its name")
 	assert_false((bar.tabs[&"street"].get_node("Name") as Label).visible, "the others do not")
 	assert_true(bar.arrow_left.visible and bar.arrow_right.visible, "Play has an arrow on each side")

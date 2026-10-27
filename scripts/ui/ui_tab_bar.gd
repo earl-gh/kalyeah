@@ -14,16 +14,14 @@ signal tab_pressed(id: StringName)
 const HEIGHT: float = 164.0
 ## The pictures' sizes (design pixels) for the open and an idle tab, and the line the idle ones are centred on (the middle of the bar:
 ## `BAR_TOP` to `HEIGHT`), from the top of this control.
-const ICON_ACTIVE: float = 108.0
+const ICON_ACTIVE: float = 96.0
 const ICON_IDLE: float = 66.0
 const ICON_Y: float = 124.0
-## The open tab's picture rises: its bottom sits on this line instead (the arrows' bottoms too), which puts its top above the bar (like the
-## reference's).
-const ICON_BOTTOM_OPEN: float = 104.0
-## Where the bar itself starts, from the top of this control: the space above is clear, for the open picture to rise into.
+## Where the bar itself starts, from the top of this control: the space above is clear, and the open tab's picture is centred on this
+## edge (half above it, half in it), like the reference's.
 const BAR_TOP: float = 84.0
 ## The open tab's name sits under its picture (it rises a few pixels into place as it fades in).
-const LABEL_Y: float = 116.0
+const LABEL_Y: float = 128.0
 const LABEL_HEIGHT: float = 32.0
 const LABEL_RISE: float = 8.0
 ## The arrows: how big they are drawn, how big they are to the thumb, and how far from the picture's edge.
@@ -277,7 +275,7 @@ func _layout() -> void:
 		var picture: TextureRect = _pictures[id]
 		picture.size = Vector2.ONE * edge
 		# the open picture grows and rises above the bar, and its slot is the wide one
-		picture.position = Vector2(slot / 2.0 - edge / 2.0, lerpf(ICON_Y * scale_to, ICON_BOTTOM_OPEN * scale_to - ICON_ACTIVE * unit / 2.0, open) - edge / 2.0)
+		picture.position = Vector2(slot / 2.0 - edge / 2.0, lerpf(ICON_Y * scale_to, BAR_TOP * scale_to, open) - edge / 2.0)
 		picture.modulate = IDLE_SHADE.lerp(Color.WHITE, open)
 		var label: Label = _labels[id]
 		label.size = Vector2(slot, LABEL_HEIGHT * scale_to)
@@ -304,7 +302,7 @@ func _place_arrows(centre_sum: float, total: float, left_share: float, right_sha
 	var unit: float = scale_to * _content_fit()
 	var reach: float = (ICON_ACTIVE / 2.0 + ARROW_GAP + ARROW_SIZE / 2.0) * unit
 	# the bottom of each arrow (not its middle) is level with the bottom of the open picture
-	var y: float = ICON_BOTTOM_OPEN * scale_to - ARROW_SIZE * unit / 2.0 - ARROW_TOUCH / 2.0
+	var y: float = BAR_TOP * scale_to + (ICON_ACTIVE - ARROW_SIZE) * unit / 2.0 - ARROW_TOUCH / 2.0
 	for arrow: Button in [arrow_left, arrow_right]:
 		var drawn: Control = arrow.get_node("Arrow") as Control
 		drawn.size = Vector2.ONE * ARROW_SIZE * unit
