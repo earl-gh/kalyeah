@@ -32,7 +32,7 @@ var reconnect_url: String = ""
 func _ready() -> void:
 	var file: ConfigFile = ConfigFile.new()
 	if file.load(SAVE_PATH) == OK:
-		player_name = file.get_value("player", "name", "") as String
+		player_name = clean_name(file.get_value("player", "name", "") as String)
 		avatar_id = file.get_value("player", "avatar", "") as String
 		coach_seen = file.get_value("player", "coach_seen", false) as bool
 		var stored: Variant = file.get_value("player", "loadout", [])
@@ -56,16 +56,22 @@ func save() -> void:
 
 
 const AVATARS: Array[String] = ["junjun", "ligaya", "migo", "toni", "popoy", "inday"]
-const MAX_NAME_LENGTH: int = 12
+## The most letters a name has (owner: a tight limit): 10 of the widest letters (M) still fit the name tag at its largest size, so every
+## name looks the same on it.
+const MAX_NAME_LENGTH: int = 10
+## What a name is made of: letters (any language, so Ñ and the rest), digits, and a space, apostrophe, dot, underscore or hyphen.
+const NAME_CHARACTERS: String = "[^\\p{L}\\p{N} '._-]"
+## The name a new player starts with (they can change it on the name tag).
+const DEFAULT_NAME: String = "GABO"
 
 
-## A new player gets a name ("Kalye482") and a random character face; both can be changed.
+## A new player gets the name GABO and a random character face; both can be changed.
 func ensure_profile() -> void:
 	var changed: bool = false
 	var dice: RandomNumberGenerator = RandomNumberGenerator.new()
 	dice.randomize()
 	if player_name.strip_edges().is_empty():
-		player_name = "Kalye%d" % dice.randi_range(100, 999)
+		player_name = DEFAULT_NAME
 		changed = true
 	if not AVATARS.has(avatar_id):
 		avatar_id = AVATARS[dice.randi_range(0, AVATARS.size() - 1)]
@@ -74,9 +80,16 @@ func ensure_profile() -> void:
 		save()
 
 
-## The name as the game will use it: trimmed and at most MAX_NAME_LENGTH characters.
+## The name as the game will use it: only the characters of `NAME_CHARACTERS`, single spaces, trimmed and at most MAX_NAME_LENGTH long.
 static func clean_name(raw: String) -> String:
-	return raw.strip_edges().left(MAX_NAME_LENGTH).strip_edges()
+	return filter_name(raw).strip_edges().left(MAX_NAME_LENGTH).strip_edges()
+
+
+## `raw` without the characters a name cannot have, and with one space where there were several (not trimmed or cut: for typing).
+static func filter_name(raw: String) -> String:
+	var kept: RegEx = RegEx.create_from_string(NAME_CHARACTERS)
+	var spaced: RegEx = RegEx.create_from_string(" {2,}")
+	return spaced.sub(kept.sub(raw, "", true), " ", true)
 
 
 func loadout_for(available: Array[StringName]) -> Array[StringName]:

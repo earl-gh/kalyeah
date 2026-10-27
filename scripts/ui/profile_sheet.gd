@@ -34,7 +34,19 @@ static func build(on_saved: Callable) -> MenuDialog:
 	field.add_theme_color_override("font_placeholder_color", KalyeahTheme.MODAL_TEXT_MUTED)
 	field.add_theme_color_override("caret_color", KalyeahTheme.MODAL_TEXT)
 	card.body.add_child(field)
-	var hint: Label = card.add_hint("%d characters max." % Session.MAX_NAME_LENGTH)
+	var hint: Label = card.add_hint("")
+	var count: Callable = func() -> void:
+		hint.text = "%d / %d letters" % [field.text.length(), Session.MAX_NAME_LENGTH]
+		hint.remove_theme_color_override("font_color")
+	count.call()
+	# only the letters a name can have, live: anything else typed or pasted is dropped
+	field.text_changed.connect(func(typed: String) -> void:
+		var clean: String = Session.filter_name(typed)
+		if clean != typed:
+			var caret: int = field.caret_column - (typed.length() - clean.length())
+			field.text = clean
+			field.caret_column = clampi(caret, 0, clean.length())
+		count.call())
 	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
 	cancel.name = "Cancel"
 	var save: Button = MenuDialog.make_button("Save", "orange", UiMetrics.BODY)

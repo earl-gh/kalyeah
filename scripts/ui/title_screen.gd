@@ -69,6 +69,13 @@ const ACTIONS_SLOT_SHARE: float = 0.35
 const TITLES_SEPARATION: int = -10
 ## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
 const TITLE_Z: int = 20
+## The name tag: the air kept above the blurred models behind it (they bob a little and their edges are soft), the smallest it shrinks to
+## on a short phone, and how far its lanyard runs above the top of the screen.
+const TAG_AIR: float = 10.0
+const TAG_MIN_SCALE: float = 0.6
+## How far below the middle of its band the tag hangs (owner: none, it is visually centred; a setting for the next time it is moved).
+const TAG_DROP: float = 0.0
+const TAG_OVERSHOOT: float = 60.0
 ## The phrase and the buttons are drawn above the backdrop's lights (`UiBackdrop.LIGHT_Z`) and below the chosen mode model.
 const TEXT_Z: int = 8
 ## How far the name is lifted so its letters (not its line box) are centred on the card's bottom edge.
@@ -111,6 +118,7 @@ var open_lobby_action: Callable = _change_to_lobby
 
 var backdrop: UiBackdrop
 var carousel: MenuCarousel
+var name_tag: NameTag
 ## The mode models (the carousel's items): Online, Local and Practice, in order.
 var mode_models: Array[Button]:
 	get:
@@ -246,6 +254,9 @@ func _build_top_bar() -> Control:
 	logo.custom_minimum_size = Vector2(LOGO_HEIGHT * float(LOGO.get_width()) / float(LOGO.get_height()), LOGO_HEIGHT)
 	logo.size_flags_vertical = Control.SIZE_SHRINK_END
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# the logo is in front of every part of the name tag's lanyard, which hangs from the top of the screen behind it
+	logo.z_as_relative = false
+	logo.z_index = NameTag.LOGO_Z
 	row.add_child(logo)
 	var right: Control = Control.new()
 	right.name = "TopRight"
@@ -339,6 +350,10 @@ func _build_home() -> VBoxContainer:
 	stage.resized.connect(_fit_hero)
 	stage.resized.connect(_place_title)
 	stage.resized.connect(_aim_backlight)
+	stage.resized.connect(_place_name_tag.call_deferred)
+	name_tag = NameTag.new()
+	name_tag.tapped.connect(open_name_editor)
+	stage.add_child(name_tag)
 	home.add_child(_build_titles())
 	# the button row is centred in the room between the phrase and the bar
 	var slot: CenterContainer = CenterContainer.new()
@@ -554,6 +569,24 @@ func _fit_hero() -> void:
 	carousel.setup("", MODES, carousel.index)
 	_place_title()
 
+
+
+## Hangs the name tag exactly in the middle between the bottom of the logo and the top of the chosen model (owner: visually centred; the
+## same room above the card as under it, `TAG_DROP` moves it), never so low that it touches the chosen model. It shrinks on a short phone.
+## The blurred models behind it pass under the card.
+func _place_name_tag() -> void:
+	if name_tag == null or carousel == null or _top_bar == null:
+		return
+	var stage: Control = carousel.get_parent() as Control
+	var logo: Control = _top_bar.find_child("Logo", true, false) as Control
+	var band_top: float = logo.get_global_rect().end.y - stage.get_global_rect().position.y
+	var band_bottom: float = carousel.front_top()
+	# the middle of the band (plus the drop, none now)
+	var middle: float = (band_top + band_bottom) / 2.0 + TAG_DROP
+	var fitted: float = clampf(minf((band_bottom - band_top - 2.0 * TAG_AIR - TAG_DROP) / NameTag.CARD_HEIGHT, (band_bottom - TAG_AIR - middle) / (NameTag.CARD_HEIGHT / 2.0)), TAG_MIN_SCALE, 1.0)
+	var card_top: float = middle - NameTag.CARD_HEIGHT * fitted / 2.0
+	var hole: Vector2 = Vector2(stage.size.x / 2.0, card_top + NameTag.SLOT_MIDDLE * fitted)
+	name_tag.hang(hole, -stage.get_global_rect().position.y - TAG_OVERSHOOT, fitted)
 
 
 ## Points the backdrop's backlight at the chosen card: the bright middle sits right behind it.
@@ -823,6 +856,7 @@ func _sync_ambient() -> void:
 	backdrop.ambient = not covered
 	backdrop.lights_on = current_page == &""
 	carousel.bob = 0.0 if covered else AMBIENT_BOB
+	name_tag.swing = not covered
 
 ## The detail sheet of a kid from the Book.
 func open_character_detail(character: CharacterDef) -> MenuDialog:
@@ -847,6 +881,8 @@ func open_name_editor() -> MenuDialog:
 
 func _on_profile_saved() -> void:
 	settings_page.refresh()
+	name_tag.set_player_name(Session.player_name)
+	_place_name_tag()
 	UiToast.say(self, "Profile saved!")
 
 
