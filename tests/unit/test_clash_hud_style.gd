@@ -78,10 +78,14 @@ func test_the_ice_water_icon_is_the_owners_drop_with_a_snowflake_and_lossless() 
 	assert_true(import_text.contains("mipmaps/generate=true"), "with mipmaps, so it stays smooth drawn small")
 
 
-func test_the_rescue_area_is_a_square_as_tall_as_it_was() -> void:
-	assert_eq(LAYOUT.rescue_size, Vector2(6.0, 6.0), "6 x 6 m: widened from 3 x 6, the height unchanged")
+func test_the_rescue_area_looks_square_on_screen_and_is_as_tall_as_it_was() -> void:
+	var camera: CameraRules = load("res://data/rules/camera_rules.tres") as CameraRules
+	assert_eq(LAYOUT.rescue_size, Vector2(4.25, 6.0), "widened from 3 m to 4.25 m, the height unchanged")
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var rect: Rect2 = LAYOUT.rescue_rect(side)
-		assert_almost_eq(rect.size.x, rect.size.y, 0.0001, "a square")
 		assert_almost_eq(rect.size.y, 6.0, 0.0001)
+		# the camera looks down at its pitch: a metre along the street shows as sin(pitch) of a metre on screen
+		var across: float = rect.size.x
+		var down: float = rect.size.y * sin(deg_to_rad(camera.pitch_degrees))
+		assert_almost_eq(across / down, 1.0, 0.01, "as wide as it is tall on screen (side %d)" % side)
 		assert_true(LAYOUT.lane_rect().encloses(rect), "inside the street")
