@@ -94,9 +94,10 @@ func _draw() -> void:
 			uvs.append(Vector2(0.5 + (point.x / size.x - 0.5) * cover.x, 0.5 + (point.y / size.y - 0.5) * cover.y))
 			colors.append(Color.WHITE)
 		draw_polygon(face, colors, uvs, texture)
+	# the power line is drawn before the coloured shade, so the shade lies over it (owner)
+	_draw_power()
 	_draw_shade()
 	_outline(face, FACE_LINE, 2.0)
-	_draw_power()
 
 
 ## The share of the picture the card shows across and down (the picture fills the card, the rest is cropped).
