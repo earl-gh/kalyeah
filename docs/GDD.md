@@ -282,6 +282,12 @@ Back leaves untimed Practice setup directly. Multiplayer setup and gameplay ask 
 
 The HUD explains touch aiming/cancel and status effects that prevent casting. Card costs and the elixir bar replace the cooldown numbers. Controls are hidden during selection, intro, tagging, and match results. A persistent connection notice blocks controls from disconnection until the server confirms the restored slot. If restoration fails, Return Home leaves the match. The result action is Practice Again offline and Return Home in multiplayer; no rematch is implied.
 
+### Players who leave (owner, 2026-10-27)
+
+- **Left / back:** when another player drops out of a running match (or exits it), everyone else sees "BEN left the battle"; if they reconnect, "BEN is back!". You are never told about your own drop. Their kid stands still while they are gone; the slot waits `reconnect_window` (60 s) for them.
+- **Away (AFK):** gone for `afk_after` (30 s, `data/rules/net_rules.tres`) a player is away. **A team that is all away forfeits:** in a **1v1** the match ends at once, the one who stayed wins (the banner says "BEN is gone for a while", then the results card) and the score stays as it was. In **2v2 and bigger**, one away player is only flagged: "BEN is AFK" and the word *AFK* over their kid; the match goes on. Coming back within the reconnect window clears AFK and starts a fresh 30 s count at the next drop.
+- **Hotspot host leaves:** the host's phone is the server, so the room ends. The guests see "The host left. The battle is over." with the way out, not "Reconnecting…".
+
 ### Application interruptions
 
 Losing application focus or pausing clears the pad, touch ownership, pending releases and the held card. A connected multiplayer client sends neutral movement plus aim cancellation immediately through the existing input sequence, without waiting for another rendered frame. Input remains blocked until both focus returns and the application resumes. Practice retains a cancel input for its next tick, including a pause/resume between ticks. Fresh input works afterward; opening/closing menus or reconnecting cannot override an outstanding application interruption. This does not pause the authoritative multiplayer match or guarantee delivery after the OS terminates the process or the network disappears.

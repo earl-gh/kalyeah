@@ -20,6 +20,10 @@ class Member extends RefCounted:
 	var connected: bool = true
 	## Seconds left to reconnect after dropping out of a running match.
 	var reconnect_left: float = 0.0
+	## Seconds since the member dropped out of a running match (0 while connected).
+	var gone_for: float = 0.0
+	## Gone for `afk_after` seconds or more: away (AFK) until they come back.
+	var afk: bool = false
 	## Secret handed to the client so it can take its slot back after a drop.
 	var token: String = ""
 	## The kid the member picked in the room (cosmetic, shown to the others); &"" = not picked.
@@ -266,6 +270,7 @@ func disconnected(peer_id: int) -> Room:
 	if m != null:
 		m.connected = false
 		m.reconnect_left = _rules.reconnect_window
+		m.gone_for = 0.0
 	return room
 
 
@@ -279,24 +284,34 @@ func reconnect(token: String, peer_id: int) -> Member:
 				m.connected = true
 				m.peer_id = peer_id
 				m.reconnect_left = 0.0
+				m.gone_for = 0.0
+				m.afk = false
 				_peer_rooms[peer_id] = code
 				return m
 	return null
 
 
 ## Counts reconnect windows down. A slot whose window ran out stays in the match
-## (the player just stands still); its token stops working.
-func step(dt: float) -> void:
+## (the player just stands still); its token stops working. Returns the rooms where someone just turned away (AFK).
+func step(dt: float) -> Array[Room]:
+	var changed: Array[Room] = []
 	for code: String in rooms.keys():
 		var room: Room = rooms[code]
 		var anyone: bool = false
 		for m: Member in room.members:
 			if not m.connected and m.reconnect_left > 0.0:
 				m.reconnect_left = maxf(0.0, m.reconnect_left - dt)
+			if not m.connected and room.state != State.LOBBY:
+				m.gone_for += dt
+				if not m.afk and m.gone_for >= _rules.afk_after:
+					m.afk = true
+					if not changed.has(room):
+						changed.append(room)
 			if m.connected or m.reconnect_left > 0.0:
 				anyone = true
 		if not anyone:
 			rooms.erase(code)
+	return changed
 
 
 ## Plain data for the ROOM message.
@@ -305,7 +320,7 @@ func describe(room: Room) -> Dictionary:
 	for m: Member in room.members:
 		members.append({
 			"player_id": m.player_id, "name": m.name, "team": m.team,
-			"ready": m.ready, "connected": m.connected, "char": m.character,
+			"ready": m.ready, "connected": m.connected, "afk": m.afk, "char": m.character,
 		})
 	return {
 		"code": room.code, "team_size": room.team_size, "host": room.host_player_id, "first_to": room.first_to,

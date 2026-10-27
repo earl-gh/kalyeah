@@ -212,3 +212,16 @@ func test_a_stopped_hotspot_host_runs_only_long_enough_to_say_so() -> void:
 	assert_eq(Net.start_host(), OK, "and the port is free for the next room")
 	Net.stop_host()
 	Net._finish_closing()
+
+
+func test_a_1v1_opponent_gone_too_long_ends_the_match_for_the_one_who_stayed() -> void:
+	_start_1v1()
+	var id: int = b.player_id
+	b.close()
+	assert_true(_until(func() -> bool: return _connected(a.room, id) == false), "dropped")
+	server.rooms.rooms.values()[0].member(id).gone_for = NET.afk_after
+	assert_true(_until(func() -> bool: return a.mirror.phase == MatchSim.Phase.MATCH_OVER, 3.0), "the match ends by itself")
+	assert_eq(a.mirror.score.winner, a.mirror.players[a.player_id].team, "the one who stayed wins")
+	var members: Array = a.room.get("members", []) as Array
+	var gone: Dictionary = members.filter(func(m: Dictionary) -> bool: return m["player_id"] == id)[0]
+	assert_true(gone.get("afk", false) as bool, "a is told b is away")

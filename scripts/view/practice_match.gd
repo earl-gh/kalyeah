@@ -51,6 +51,9 @@ var _awaiting_reconnect_welcome: bool = false
 var _resume_rejected: bool = false
 ## Online: who in the room was connected at the last room update (player id -> connected), to tell when it changes.
 var _connected: Dictionary[int, bool] = {}
+## Online: when the whole other team is away, the server ends the match for us; this says why ("BEN is gone for a while")
+## in place of VICTORY!. Empty otherwise.
+var gone_note: String = ""
 var _application_focused: bool = true
 var _application_paused: bool = false
 var _presentation: PracticeMatchPresentation
@@ -449,18 +452,35 @@ func _on_welcomed(reconnected: bool) -> void:
 	hud.set_connection("Battle unavailable", true)
 
 
-## Online: someone else dropped out of the match or came back (the server keeps a dropped player's slot for a while).
+## Online: someone else dropped out of the match, came back, or has been gone so long they are away (AFK). The server keeps a
+## dropped player's slot for a while and ends the match when a whole team is away.
 func _on_room_changed(room: Dictionary) -> void:
+	var gone: PackedStringArray = PackedStringArray()
+	var others: int = 0
 	for entry: Dictionary in room.get("members", []) as Array:
 		var id: int = entry.get("player_id", -1) as int
 		var connected: bool = entry.get("connected", true) as bool
+		var afk: bool = entry.get("afk", false) as bool
+		var name: String = entry.get("name", "") as String
 		var known: bool = _connected.has(id)
 		var was: bool = _connected.get(id, connected)
+		var was_afk: bool = hud.overhead.away_ids.has(id)
 		_connected[id] = connected
-		if id == local_id or not known or was == connected:
+		if afk:
+			hud.overhead.away_ids[id] = true
+		else:
+			hud.overhead.away_ids.erase(id)
+		if entry.get("team", -1) == 1 - local_team:
+			others += 1
+			if afk:
+				gone.append(name)
+		if id == local_id or not known:
 			continue
-		var name: String = entry.get("name", "") as String
-		show_banner(("%s is back!" if connected else "%s left the battle") % name)
+		if afk and not was_afk:
+			show_banner("%s is AFK" % name)
+		elif was != connected:
+			show_banner(("%s is back!" if connected else "%s left the battle") % name)
+	gone_note = "%s is gone for a while" % " and ".join(gone) if others > 0 and gone.size() == others else ""
 
 
 func _on_room_closed() -> void:
