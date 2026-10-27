@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bmrqgsff46n1"
-path="res://.godot/imported/paper_prop_base_color.jpg-4938d4b0303e3d118c2fd9c4d0ad60bf.ctex"
+path.s3tc="res://.godot/imported/paper_prop_base_color.jpg-4938d4b0303e3d118c2fd9c4d0ad60bf.s3tc.ctex"
+path.etc2="res://.godot/imported/paper_prop_base_color.jpg-4938d4b0303e3d118c2fd9c4d0ad60bf.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "cfe09f8b2cc0baf0228b3e139d63b0bf"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/weapons/paper_prop_base_color.jpg"
-dest_files=["res://.godot/imported/paper_prop_base_color.jpg-4938d4b0303e3d118c2fd9c4d0ad60bf.ctex"]
+dest_files=["res://.godot/imported/paper_prop_base_color.jpg-4938d4b0303e3d118c2fd9c4d0ad60bf.s3tc.ctex", "res://.godot/imported/paper_prop_base_color.jpg-4938d4b0303e3d118c2fd9c4d0ad60bf.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

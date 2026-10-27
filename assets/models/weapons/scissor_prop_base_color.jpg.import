@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cwk5hirewjsnu"
-path="res://.godot/imported/scissor_prop_base_color.jpg-09ab269995a52a861bbc063cdcbed7ab.ctex"
+path.s3tc="res://.godot/imported/scissor_prop_base_color.jpg-09ab269995a52a861bbc063cdcbed7ab.s3tc.ctex"
+path.etc2="res://.godot/imported/scissor_prop_base_color.jpg-09ab269995a52a861bbc063cdcbed7ab.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "174de9c9f35bb10f0d6d733d00bf3dd3"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/weapons/scissor_prop_base_color.jpg"
-dest_files=["res://.godot/imported/scissor_prop_base_color.jpg-09ab269995a52a861bbc063cdcbed7ab.ctex"]
+dest_files=["res://.godot/imported/scissor_prop_base_color.jpg-09ab269995a52a861bbc063cdcbed7ab.s3tc.ctex", "res://.godot/imported/scissor_prop_base_color.jpg-09ab269995a52a861bbc063cdcbed7ab.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

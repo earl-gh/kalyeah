@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://llna4e5iitqi"
-path="res://.godot/imported/green_cross_prop_base_color.jpg-3261980db995bf09344a1280105184d0.ctex"
+path.s3tc="res://.godot/imported/green_cross_prop_base_color.jpg-3261980db995bf09344a1280105184d0.s3tc.ctex"
+path.etc2="res://.godot/imported/green_cross_prop_base_color.jpg-3261980db995bf09344a1280105184d0.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "e7309b14ce16bd550983ed8487de35e4"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/weapons/green_cross_prop_base_color.jpg"
-dest_files=["res://.godot/imported/green_cross_prop_base_color.jpg-3261980db995bf09344a1280105184d0.ctex"]
+dest_files=["res://.godot/imported/green_cross_prop_base_color.jpg-3261980db995bf09344a1280105184d0.s3tc.ctex", "res://.godot/imported/green_cross_prop_base_color.jpg-3261980db995bf09344a1280105184d0.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

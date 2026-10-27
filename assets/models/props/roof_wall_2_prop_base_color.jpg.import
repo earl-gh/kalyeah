@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c6jtlunpavbgm"
-path="res://.godot/imported/roof_wall_2_prop_base_color.jpg-6687d96e3ff4d095fc5092b627cfd476.ctex"
+path.s3tc="res://.godot/imported/roof_wall_2_prop_base_color.jpg-6687d96e3ff4d095fc5092b627cfd476.s3tc.ctex"
+path.etc2="res://.godot/imported/roof_wall_2_prop_base_color.jpg-6687d96e3ff4d095fc5092b627cfd476.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "5805d12ac6aee5f133cb38f43bbeba1d"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/props/roof_wall_2_prop_base_color.jpg"
-dest_files=["res://.godot/imported/roof_wall_2_prop_base_color.jpg-6687d96e3ff4d095fc5092b627cfd476.ctex"]
+dest_files=["res://.godot/imported/roof_wall_2_prop_base_color.jpg-6687d96e3ff4d095fc5092b627cfd476.s3tc.ctex", "res://.godot/imported/roof_wall_2_prop_base_color.jpg-6687d96e3ff4d095fc5092b627cfd476.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

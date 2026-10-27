@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ft1kc77hgrus"
-path="res://.godot/imported/cat_prop_base_color.jpg-1ccc7fea3f8baf42c43a3f73a5c54910.ctex"
+path.s3tc="res://.godot/imported/cat_prop_base_color.jpg-1ccc7fea3f8baf42c43a3f73a5c54910.s3tc.ctex"
+path.etc2="res://.godot/imported/cat_prop_base_color.jpg-1ccc7fea3f8baf42c43a3f73a5c54910.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "f0f20d5d4d11bd2621dd513ebee024c0"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/props/cat_prop_base_color.jpg"
-dest_files=["res://.godot/imported/cat_prop_base_color.jpg-1ccc7fea3f8baf42c43a3f73a5c54910.ctex"]
+dest_files=["res://.godot/imported/cat_prop_base_color.jpg-1ccc7fea3f8baf42c43a3f73a5c54910.s3tc.ctex", "res://.godot/imported/cat_prop_base_color.jpg-1ccc7fea3f8baf42c43a3f73a5c54910.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

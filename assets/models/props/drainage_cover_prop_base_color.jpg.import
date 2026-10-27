@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cgaul340fad7"
-path="res://.godot/imported/drainage_cover_prop_base_color.jpg-c7be985cf126d5372a1fbe9ac9aeb367.ctex"
+path.s3tc="res://.godot/imported/drainage_cover_prop_base_color.jpg-c7be985cf126d5372a1fbe9ac9aeb367.s3tc.ctex"
+path.etc2="res://.godot/imported/drainage_cover_prop_base_color.jpg-c7be985cf126d5372a1fbe9ac9aeb367.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "266068f880f8fc40c15c5e98c937da9f"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/props/drainage_cover_prop_base_color.jpg"
-dest_files=["res://.godot/imported/drainage_cover_prop_base_color.jpg-c7be985cf126d5372a1fbe9ac9aeb367.ctex"]
+dest_files=["res://.godot/imported/drainage_cover_prop_base_color.jpg-c7be985cf126d5372a1fbe9ac9aeb367.s3tc.ctex", "res://.godot/imported/drainage_cover_prop_base_color.jpg-c7be985cf126d5372a1fbe9ac9aeb367.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

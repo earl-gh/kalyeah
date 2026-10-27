@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cbgvxx05eulnm"
-path="res://.godot/imported/no_id_no_entry_prop_base_color.jpg-2229a0128f37f42a104f79553feb9225.ctex"
+path.s3tc="res://.godot/imported/no_id_no_entry_prop_base_color.jpg-2229a0128f37f42a104f79553feb9225.s3tc.ctex"
+path.etc2="res://.godot/imported/no_id_no_entry_prop_base_color.jpg-2229a0128f37f42a104f79553feb9225.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "043b8f8695200e6775d1e03f95dbb8c3"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/props/no_id_no_entry_prop_base_color.jpg"
-dest_files=["res://.godot/imported/no_id_no_entry_prop_base_color.jpg-2229a0128f37f42a104f79553feb9225.ctex"]
+dest_files=["res://.godot/imported/no_id_no_entry_prop_base_color.jpg-2229a0128f37f42a104f79553feb9225.s3tc.ctex", "res://.godot/imported/no_id_no_entry_prop_base_color.jpg-2229a0128f37f42a104f79553feb9225.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
