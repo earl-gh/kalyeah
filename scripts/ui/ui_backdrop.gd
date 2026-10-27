@@ -7,6 +7,7 @@ extends Control
 
 const PICTURE: Texture2D = preload("res://assets/ui/main_bg.webp")
 const MOTES: int = 14
+const TINT_SHADER: Shader = preload("res://shaders/backdrop_tint.gdshader")
 ## How strongly the backlight is added to the picture.
 const BACKLIGHT_STRENGTH: float = 1.0
 
@@ -19,6 +20,7 @@ var ambient: bool = true:
 		if motes != null:
 			_apply_motion()
 var _accent: Color = Color("3d7bff")
+var _picture_material: ShaderMaterial
 var _tween: Tween
 
 
@@ -32,8 +34,11 @@ func _init() -> void:
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	# a little more colour than before (owner: slight saturation)
-	picture.modulate = Color(0.55, 0.67, 1.0)
+	# the picture takes the colour of what is in focus (the chosen mode card): see `set_accent`
+	_picture_material = ShaderMaterial.new()
+	_picture_material.shader = TINT_SHADER
+	_picture_material.set_shader_parameter("tint", _background_tint(_accent))
+	picture.material = _picture_material
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(picture)
 	glow = TextureRect.new()
@@ -80,16 +85,29 @@ func _init() -> void:
 	_apply_motion()
 
 
-## The glow takes the colour of what is in focus (a mode, a map), easing over to it.
+## The background (the picture and the backlight) takes the colour of what is in focus (a mode, a map), easing over to it.
 func set_accent(color: Color) -> void:
+	var from: Color = _accent
 	_accent = color
 	if is_instance_valid(_tween):
 		_tween.kill()
 	if Settings.reduced_motion or not is_inside_tree():
-		glow.modulate = _backlight_color(color)
+		_apply_accent(color)
 		return
 	_tween = create_tween()
-	_tween.tween_property(glow, "modulate", _backlight_color(color), 0.45).set_trans(Tween.TRANS_SINE)
+	_tween.tween_method(func(mix: float) -> void: _apply_accent(from.lerp(color, mix)), 0.0, 1.0, 0.45).set_trans(Tween.TRANS_SINE)
+
+
+func _apply_accent(color: Color) -> void:
+	glow.modulate = _backlight_color(color)
+	_picture_material.set_shader_parameter("tint", _background_tint(color))
+
+
+## The background picture's tint for a focus colour: the colour itself, a little lighter, at full strength.
+static func _background_tint(accent: Color) -> Vector3:
+	var light: Color = accent.lerp(Color.WHITE, 0.15)
+	var top: float = maxf(light.r, maxf(light.g, light.b))
+	return Vector3(light.r / top, light.g / top, light.b / top)
 
 
 ## Lights the background from behind a card: the bright middle of the backlight sits at `centre` (this control's own pixels) and

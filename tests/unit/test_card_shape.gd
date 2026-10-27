@@ -170,7 +170,7 @@ func test_the_two_worn_layers_have_the_owners_lightness_grades() -> void:
 		assert_almost_eq(luma * 100.0, grades[layer], 0.6, "%s has lightness grade %d" % [layer, int(grades[layer])])
 
 
-func test_only_the_chosen_card_has_a_thin_glow_from_behind_and_a_shadow_and_the_rest_are_black_and_white() -> void:
+func test_only_the_chosen_card_has_a_shadow_and_the_rest_are_dimmed() -> void:
 	var strip: MenuCarousel = autofree(MenuCarousel.new()) as MenuCarousel
 	strip.size = Vector2(720.0, 700.0)
 	add_child(strip)
@@ -184,19 +184,15 @@ func test_only_the_chosen_card_has_a_thin_glow_from_behind_and_a_shadow_and_the_
 	for index: int in 3:
 		var card: Button = strip.cards[index]
 		var face: CardFace = card.get_node("Face") as CardFace
-		assert_null(card.get_node_or_null("Frame"), "the glow is drawn by the face behind the picture, not over it")
-		assert_eq(face.accent, Color(String(options[index]["accent"])), "the glow is in the mode's colour")
+		assert_null(card.get_node_or_null("Frame"), "no glow, behind the card or over it (owner)")
 		var picture_material: ShaderMaterial = (face.get_node("Picture") as TextureRect).material as ShaderMaterial
 		var chosen: float = 1.0 if index == 1 else 0.0
-		assert_eq(face.chosen, chosen, "only the chosen card has its glow and shadow")
+		assert_eq(face.chosen, chosen, "only the chosen card has its shadow")
 		assert_eq(picture_material.get_shader_parameter("dim"), 1.0 - chosen, "a card that is not chosen is only dimmed with a dark tint, the chosen one is not")
 		var age: ColorRect = face.get_node("Tint") as ColorRect
 		assert_almost_eq(((age.material as ShaderMaterial).get_shader_parameter("tint") as Color).a, CardFace.AGE_TINT.a * chosen, 0.001, "and only the chosen card has the yellowish old tint")
-	var sample: CardFace = autofree(CardFace.new()) as CardFace
-	assert_false((sample.get_script() as GDScript).get_script_constant_map().has("OUTLINE_WIDTH"), "a glow only: no solid outline")
-	assert_lte(CardFace.GLOW_WIDTHS[0] / 2.0, 14.0, "with a spread of about 12 px")
 	strip.select(2, false)
-	assert_eq((strip.cards[2].get_node("Face") as CardFace).chosen, 1.0, "the glow moves to the card that is chosen")
+	assert_eq((strip.cards[2].get_node("Face") as CardFace).chosen, 1.0, "the shadow moves to the card that is chosen")
 	assert_eq((strip.cards[1].get_node("Face") as CardFace).chosen, 0.0)
 
 
@@ -223,3 +219,25 @@ func test_the_mode_name_leans_back_in_perspective() -> void:
 	assert_eq(material.shader.resource_path, "res://shaders/text_perspective.gdshader")
 	assert_lt(float(material.get_shader_parameter("top_scale")), 1.0, "its upper part is pushed back: narrower than its lower part")
 	assert_eq(material.get_shader_parameter("rect_size"), screen.mode_name_label.size, "the shader knows the label's size")
+
+
+func test_the_main_menu_background_takes_the_colour_of_the_chosen_card() -> void:
+	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
+	add_child(screen)
+	await wait_frames(4)
+	var material: ShaderMaterial = screen.backdrop.get_node("Picture").material as ShaderMaterial
+	assert_eq(material.shader.resource_path, "res://shaders/backdrop_tint.gdshader")
+	var tints: Dictionary = {}
+	for index: int in 3:
+		var motion: bool = Settings.reduced_motion
+		Settings.reduced_motion = true
+		screen.carousel.select(index, false)
+		Settings.reduced_motion = motion
+		var tint: Vector3 = material.get_shader_parameter("tint")
+		tints[tint] = true
+		var accent: Color = Color(String(TitleScreen.MODES[index]["accent"]))
+		# the strongest channel of the background's tint is the strongest channel of the card's colour
+		var strongest_tint: int = [tint.x, tint.y, tint.z].find(maxf(tint.x, maxf(tint.y, tint.z)))
+		var strongest_accent: int = [accent.r, accent.g, accent.b].find(maxf(accent.r, maxf(accent.g, accent.b)))
+		assert_eq(strongest_tint, strongest_accent, "mode %d: the background is in its card's colour" % index)
+	assert_eq(tints.size(), 3, "each card tints the background differently (not only blue)")

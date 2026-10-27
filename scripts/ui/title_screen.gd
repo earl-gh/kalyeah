@@ -49,7 +49,7 @@ const HERO_SCALE: float = 0.86
 ## The mode name is drawn over the cards it hangs on (the carousel stacks its cards by z index).
 const NAME_PERSPECTIVE: Shader = preload("res://shaders/text_perspective.gdshader")
 ## How wide the very top of the leaning-back mode name is next to its bottom (1 would be flat).
-const NAME_TOP_SCALE: float = 0.66
+const NAME_TOP_SCALE: float = 0.84
 const TITLE_Z: int = 20
 ## How far the name is lifted so its letters (not its line box) are centred on the card's bottom edge.
 const TITLE_LIFT: float = 12.0

@@ -3,7 +3,7 @@ extends Control
 ## A mode card drawn as an old Filipino teks card (straight, flat): a soft shadow just under it (only on the chosen card), then the
 ## picture with its print worn away to brown paper (shader `card_picture`), then the power line up the right edge, then a subtle
 ## yellowish tint over all of it to make it look old (shader `card_tint`). No coloured shade over the picture (owner). The card's own
-## button draws nothing behind it; the chosen card's thin coloured outline glow is a `CardRim` over this.
+## button draws nothing behind it. No glow behind the card (owner).
 
 const PICTURE_SHADER: Shader = preload("res://shaders/card_picture.gdshader")
 const TINT_SHADER: Shader = preload("res://shaders/card_tint.gdshader")
@@ -25,10 +25,6 @@ const POWER_OUTLINE: Color = Color.BLACK
 const POWER_EDGE_SHARE: float = 0.075
 const POWER_BOTTOM_SHARE: float = 0.07
 const POWER_OUTLINE_SIZE: int = 7
-## The glow behind the chosen card (no outline: owner): lines centred on the card's edge, so only the outer half shows behind the
-## picture, a soft fall-off about 12 px wide: wide faint lines first, narrow stronger ones last.
-const GLOW_WIDTHS: Array[float] = [24.0, 19.0, 15.0, 11.0, 8.0, 5.0]
-const GLOW_ALPHAS: Array[float] = [0.04, 0.06, 0.09, 0.12, 0.16, 0.22]
 ## The shadow: compact, close under the card (its layers, how far it falls and how dark the whole of it is).
 const SHADOW_LAYERS: int = 6
 const SHADOW_DROP: Vector2 = Vector2(3.0, 13.0)
@@ -44,12 +40,7 @@ var lift: float = 0.0:
 			return
 		lift = value
 		queue_redraw()
-## The mode's colour: the glow that comes from behind the chosen card.
-var accent: Color = Color("4aa0ff"):
-	set(value):
-		accent = value
-		queue_redraw()
-## How much the card is the chosen one, 0 to 1: only the chosen card has a shadow and a glow (drawn by its `CardRim`) and is in colour;
+## How much the card is the chosen one, 0 to 1: only the chosen card has a shadow;
 ## a card that is not chosen is dimmed with a dark tint (still in colour).
 var chosen: float = 1.0:
 	set(value):
@@ -136,9 +127,6 @@ func _draw() -> void:
 		for point: Vector2 in face:
 			shadow.append(centre + (point - centre) * grow + SHADOW_DROP + Vector2(0.0, SHADOW_BREATH * lift))
 		draw_colored_polygon(shadow, Color(0.0, 0.02, 0.08, SHADOW_ALPHA * (1.0 - 0.3 * lift) * chosen))
-	# the glow comes from behind the card: it is drawn first, so the picture covers its inner half and only the outside shows
-	for i: int in GLOW_WIDTHS.size():
-		_closed(face, Color(accent, GLOW_ALPHAS[i] * chosen), GLOW_WIDTHS[i])
 
 
 ## The share of the picture the card shows across and down (the picture fills the card, the rest is cropped).
@@ -172,8 +160,3 @@ func corner_radii() -> Vector4:
 		radii.append(lerpf(CORNER_RADIUS_MIN, CORNER_RADIUS_MAX, unit))
 	return Vector4(radii[0], radii[1], radii[2], radii[3])
 
-
-func _closed(points: PackedVector2Array, color: Color, width: float) -> void:
-	var line: PackedVector2Array = points.duplicate()
-	line.append(points[0])
-	draw_polyline(line, color, width, true)

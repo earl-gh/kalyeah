@@ -60,11 +60,10 @@ func setup(heading: String, options: Array[Dictionary], current: int) -> void:
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.focus_mode = Control.FOCUS_NONE
 		var face: CardFace = card.get_node_or_null("Face") as CardFace
-		# a card with a picture draws its own glow behind itself (`CardFace`); a flat card gets a `CardRim` over it
+		# a card with a picture has no glow (owner); a flat card gets a `CardRim` over it
 		if show_rim and face == null:
 			card.add_child(_frame(String(option.get("accent", "ffd25a"))))
 		if face != null:
-			face.accent = Color(String(option.get("accent", "ffd25a")))
 			face.power = int(option.get("power", 0))
 			face.wear_seed = float(cards.size() + 1)
 
