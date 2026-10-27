@@ -17,6 +17,12 @@ func test_the_tray_behind_the_cards_is_drawn_in_code_not_a_cardboard_picture() -
 	assert_gt(ConsolePanel.TRAY_BODY.b, ConsolePanel.TRAY_BODY.r * 3.0, "a bright blue body")
 	assert_gt(ConsolePanel.TRAY_RIM.b, ConsolePanel.TRAY_BODY.b - 0.001, "with a lighter rim along its top")
 	assert_gt(ConsolePanel.TRAY_RIM.g, ConsolePanel.TRAY_BODY.g, "lighter, not just bluer")
+	assert_gt(ConsolePanel.TRAY_TOP.g, ConsolePanel.TRAY_BODY.g, "the body lightens a little toward its top")
+	assert_lt(ConsolePanel.TRAY_BOTTOM.g, ConsolePanel.TRAY_BODY.g, "and darkens toward the bottom of the screen")
+	assert_gt(ConsolePanel.TRAY_BOTTOM.b, ConsolePanel.TRAY_BOTTOM.r * 5.0, "still a blue, not a black")
+	var constants: Dictionary = (ConsolePanel as GDScript).get_script_constant_map()
+	for constant_name: String in constants:
+		assert_false(constant_name.contains("OUTLINE"), "the tray has no outline colour (%s)" % constant_name)
 
 
 func test_the_clock_says_time_left_in_a_see_through_box_with_a_black_outline() -> void:
