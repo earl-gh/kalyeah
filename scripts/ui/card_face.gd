@@ -3,11 +3,16 @@ extends Control
 ## A mode card drawn as an old Filipino teks card floating over the table (straight, flat, no coloured outline: owner): a soft
 ## shadow well below it, then the picture with its print worn away to brown paper at the corners (shader `card_picture`, one
 ## layer only), then the power line up the right edge, then the mode-coloured shade at the bottom (shader `card_shade`, which
-## wears away at the same corners), then a super subtle yellowish tint over all of it to make it look old. The card's own
+## wears away at the same corners), then a subtle yellowish tint over all of it to make it look old (shader `card_tint`). The card's own
 ## button draws nothing behind it.
 
 const PICTURE_SHADER: Shader = preload("res://shaders/card_picture.gdshader")
 const SHADE_SHADER: Shader = preload("res://shaders/card_shade.gdshader")
+const TINT_SHADER: Shader = preload("res://shaders/card_tint.gdshader")
+## The slight radius of the top left and bottom right corners (a sign the card was rolled): between these, a different one on each
+## card.
+const ROLL_RADIUS_MIN: float = 9.0
+const ROLL_RADIUS_MAX: float = 26.0
 ## The yellowish tint over the whole card (subtle: owner, slightly stronger than first).
 const AGE_TINT: Color = Color(1.0, 0.86, 0.45, 0.11)
 ## Square corners, like a teks card (owner).
@@ -55,18 +60,21 @@ var texture: Texture2D:
 		texture = value
 		_picture.texture = value
 		_fit()
-## Each card wears differently: this number seeds the noise.
+## Each card wears differently: this number seeds the noise and decides how round its top left and bottom right corners are.
 var wear_seed: float = 1.0:
 	set(value):
 		wear_seed = value
-		_picture_material.set_shader_parameter("seed", value)
-		_shade_material.set_shader_parameter("seed", value)
+		for material: ShaderMaterial in _materials():
+			material.set_shader_parameter("seed", value)
+		_fit()
+		queue_redraw()
 
 var _picture: TextureRect
 var _picture_material: ShaderMaterial
 var _power_line: CardPowerLine
 var _shade: ColorRect
 var _shade_material: ShaderMaterial
+var _tint_material: ShaderMaterial
 
 
 func _init() -> void:
@@ -102,6 +110,11 @@ func _init() -> void:
 	tint.color = AGE_TINT
 	tint.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tint_material = ShaderMaterial.new()
+	_tint_material.shader = TINT_SHADER
+	_tint_material.set_shader_parameter("tint", AGE_TINT)
+	_tint_material.set_shader_parameter("seed", wear_seed)
+	tint.material = _tint_material
 	add_child(tint)
 
 
@@ -115,7 +128,8 @@ func _draw() -> void:
 	if size.x < 8.0 or size.y < 8.0:
 		return
 	var radius: float = RADIUS
-	var face: PackedVector2Array = CardShape.outline(size, radius)
+	var radii: Vector2 = roll_radii()
+	var face: PackedVector2Array = CardShape.outline_corners(size, Vector4(radii.x, radius, radii.y, radius))
 	var centre: Vector2 = size / 2.0
 	for layer: int in SHADOW_LAYERS:
 		var grow: float = 1.0 + 0.012 * float(layer)
@@ -136,7 +150,21 @@ func _cover_scale() -> Vector2:
 
 ## Tells the shaders the card's size and how the picture is cropped to it.
 func _fit() -> void:
-	for material: ShaderMaterial in [_picture_material, _shade_material]:
+	var radii: Vector2 = roll_radii()
+	for material: ShaderMaterial in _materials():
 		material.set_shader_parameter("rect_size", size)
+		material.set_shader_parameter("radius_tl", radii.x)
+		material.set_shader_parameter("radius_br", radii.y)
 	if texture != null and size.y > 0.0:
 		_picture_material.set_shader_parameter("cover", _cover_scale())
+
+
+func _materials() -> Array[ShaderMaterial]:
+	return [_picture_material, _shade_material, _tint_material]
+
+
+## The radius of this card's top left and bottom right corners (x and y): a slight one that differs from card to card.
+func roll_radii() -> Vector2:
+	var top_left: float = fposmod(sin(wear_seed * 12.9898 + 4.1) * 43758.5453, 1.0)
+	var bottom_right: float = fposmod(sin(wear_seed * 78.233 + 9.7) * 24634.6345, 1.0)
+	return Vector2(lerpf(ROLL_RADIUS_MIN, ROLL_RADIUS_MAX, top_left), lerpf(ROLL_RADIUS_MIN, ROLL_RADIUS_MAX, bottom_right))

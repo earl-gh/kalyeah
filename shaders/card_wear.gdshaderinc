@@ -1,11 +1,15 @@
-// The worn look of an old Filipino teks card, shared by the mode card's picture and its coloured shade: at the corners the printed
-// layer has worn away to the brown paper under it. One layer only (print or brown paper, nothing between), the card's outline
-// stays straight, and a little noise makes each card (its `seed`) wear differently. Sizes are in the card's pixels (`rect_size`).
+// The worn look of an old Filipino teks card, shared by the mode card's picture, its coloured shade and its tint: at the corners,
+// and very slightly along the left and right sides, the printed layer has worn away to the brown paper under it. One layer only
+// (print or brown paper, nothing between), the card's outline is straight except for a slight radius on two corners, and noise
+// makes each card (its `seed`) wear differently. Sizes are in the card's pixels (`rect_size`).
 
 uniform vec2 rect_size = vec2(385.0, 550.0);
 uniform float seed = 1.0;
+uniform float radius_tl = 0.0; // the slight radius of the top left and bottom right corners (set per card by CardFace)
+uniform float radius_br = 0.0;
 
 const float WEAR_CORNER = 17.0;  // and at the corners (a little: that is where an old card wears)
+const float WEAR_SIDE = 3.4;     // how far the print can wear away along the left and right sides (very slight)
 
 float hash21(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
@@ -40,33 +44,24 @@ float print_left(vec2 position) {
 	float corner_weight = smoothstep(90.0, 0.0, corner);
 	// only the corners wear (the sides stay whole)
 	float depth = WEAR_CORNER * corner_weight * corner_weight * (0.35 + 1.3 * fine);
-	return smoothstep(depth - 0.8, depth + 0.8, edge);
+	float left_right = min(position.x, rect_size.x - position.x);
+	// a different, very slight wear along the left and the right side of every card
+	float side_amount = position.x < rect_size.x * 0.5 ? 0.3 + hash21(vec2(seed, 2.3)) : 0.3 + hash21(vec2(seed, 8.6));
+	float side_depth = WEAR_SIDE * side_amount * fbm3(vec2(position.y * 0.07 + seed * 5.3, position.x * 0.2)) * 1.6;
+	return min(smoothstep(depth - 0.8, depth + 0.8, edge), smoothstep(side_depth - 0.6, side_depth + 0.6, left_right));
 }
 
 
-// One rolled corner: the card's corner at `corner` curls up or down like rolled paper. The curl starts softly at a slightly
-// curved line that meets both edges of the corner (so the effect begins at the edges, not in the middle of the card) and gets
-// steeper towards the tip, like a cylinder: no sharp crease. Returns (how much darker, how much lighter) each spot is. A corner
-// rolled down (`up` false) darkens towards its tip with a pale ridge on the curl; one rolled up (`up` true) catches the light
-// towards its tip and throws a soft shadow on the page beside it.
-vec2 roll_corner(vec2 position, vec2 corner, vec2 inward, float reach, bool up) {
-	vec2 d = position - corner;
-	vec2 tangent = vec2(-inward.y, inward.x);
-	float along = dot(tangent, d);
-	float across = dot(inward, d) - reach + along * along * 0.0016;
-	float curl = clamp(-across / reach, 0.0, 1.0); // 0 where the curl starts, 1 at the tip
-	float steep = curl * curl * (3.0 - 2.0 * curl);
-	float ridge = exp(-(curl - 0.55) * (curl - 0.55) / 0.03) * step(0.0, curl);
-	float beside = step(0.0, across) * exp(-across * across / 260.0); // the page next to the curl
-	if (up) {
-		return vec2(0.22 * beside * (1.0 - steep) * smoothstep(0.0, 6.0, across) + 0.1 * ridge * curl, 0.2 * steep + 0.05 * ridge);
+// The card's own outline: square, except for a slight radius on the top left and bottom right corners, a sign the card has been
+// rolled (a different radius on every card). 1 inside the card, 0 outside, smooth at the edge.
+float card_alpha(vec2 position) {
+	float alpha = 1.0;
+	if (position.x < radius_tl && position.y < radius_tl) {
+		alpha *= 1.0 - smoothstep(-0.7, 0.7, length(position - vec2(radius_tl)) - radius_tl);
 	}
-	return vec2(0.78 * steep + 0.1 * beside * smoothstep(0.0, 4.0, across), 0.24 * ridge);
-}
-
-// The two rolled corners of every card: the top left rolls down and the bottom right rolls up (owner).
-vec2 roll_effect(vec2 position) {
-	vec2 top_left = roll_corner(position, vec2(0.0), normalize(vec2(1.0, 1.1)), 78.0, false);
-	vec2 bottom_right = roll_corner(position, rect_size, normalize(vec2(-1.0, -1.1)), 68.0, true);
-	return min(top_left + bottom_right, vec2(0.8, 0.4));
+	vec2 far = rect_size - position;
+	if (far.x < radius_br && far.y < radius_br) {
+		alpha *= 1.0 - smoothstep(-0.7, 0.7, length(far - vec2(radius_br)) - radius_br);
+	}
+	return alpha;
 }

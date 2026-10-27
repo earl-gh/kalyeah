@@ -8,6 +8,6 @@ uniform float share = 0.36;
 
 void fragment() {
 	float strength = smoothstep(1.0 - share, 1.0, UV.y);
-	vec2 roll = roll_effect(UV * rect_size);
-	COLOR = vec4(accent.rgb * (1.0 - roll.x) + roll.y, accent.a * strength * print_left(UV * rect_size));
+	vec2 position = UV * rect_size;
+	COLOR = vec4(accent.rgb, accent.a * strength * print_left(position) * card_alpha(position));
 }
