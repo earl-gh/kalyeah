@@ -222,3 +222,37 @@ func test_the_profile_takes_and_removes_the_photo() -> void:
 	(again.find_child("RemovePhoto", true, false) as Button).pressed.emit()
 	assert_false(IdPhoto.exists())
 	assert_true(removed[0])
+
+
+# ---- the camera's turn ---------------------------------------------------------------
+
+## The square's corners land on the picture's four corners (not off it): no row stretched into stripes, at every turn a phone gives.
+func test_every_turn_a_phone_gives_maps_the_square_onto_the_whole_picture() -> void:
+	var corners: Array[Vector2] = [Vector2(0, 0), Vector2(1, 0), Vector2(0, 1), Vector2(1, 1)]
+	for degrees: int in [0, 90, 180, 270]:
+		# what camera_android.cpp sets: a bare rotation about the picture's corner
+		var turn: Transform2D = Transform2D().rotated(deg_to_rad(degrees))
+		for mirror: bool in [false, true]:
+			var seen: Array[Vector2] = []
+			for corner: Vector2 in corners:
+				var point: Vector2 = IdCamera.screen_to_picture(corner, turn, mirror)
+				point = Vector2(snappedf(point.x, 0.001), snappedf(point.y, 0.001))
+				assert_true(point in corners, "%d°%s: corner %s lands on a corner of the picture, not %s" % [degrees, " mirrored" if mirror else "", corner, point])
+				seen.append(point)
+			assert_eq(seen.size(), 4)
+			for corner: Vector2 in corners:
+				assert_true(corner in seen, "%d°: the whole picture is used" % degrees)
+
+
+func test_the_desktop_flip_reads_the_picture_as_before() -> void:
+	var flip: Transform2D = Transform2D(Vector2(1, 0), Vector2(0, -1), Vector2(0, 1))  # CameraFeed's default
+	assert_eq(IdCamera.screen_to_picture(Vector2(0.25, 0.1), flip, false), Vector2(0.25, 0.9), "upside down, as the feed's flip asks")
+	assert_eq(IdCamera.screen_to_picture(Vector2(0.5, 0.5), Transform2D().rotated(deg_to_rad(270)), true), Vector2(0.5, 0.5), "the middle stays the middle")
+
+
+func test_a_quarter_turn_reads_a_screen_row_down_a_picture_column() -> void:
+	var turn: Transform2D = Transform2D().rotated(deg_to_rad(90))
+	var left: Vector2 = IdCamera.screen_to_picture(Vector2(0.0, 0.5), turn, false)
+	var right: Vector2 = IdCamera.screen_to_picture(Vector2(1.0, 0.5), turn, false)
+	assert_almost_eq(left.x, right.x, 0.001, "a screen row is one picture column")
+	assert_almost_eq(absf(left.y - right.y), 1.0, 0.001, "and it spans the whole of it")
