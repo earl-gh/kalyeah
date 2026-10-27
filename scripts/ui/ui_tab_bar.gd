@@ -17,12 +17,13 @@ const HEIGHT: float = 164.0
 const ICON_ACTIVE: float = 108.0
 const ICON_IDLE: float = 80.0
 const ICON_Y: float = 105.0
-## The open tab's picture rises: it sits on this line instead, which puts its top above the bar (like the reference's).
-const ICON_Y_OPEN: float = 58.0
+## The open tab's picture rises: its bottom sits on this line instead (the arrows' bottoms too), which puts its top above the bar (like the
+## reference's).
+const ICON_BOTTOM_OPEN: float = 104.0
 ## Where the bar itself starts, from the top of this control: the space above is clear, for the open picture to rise into.
 const BAR_TOP: float = 46.0
 ## The open tab's name sits under its picture (it rises a few pixels into place as it fades in).
-const LABEL_Y: float = 126.0
+const LABEL_Y: float = 116.0
 const LABEL_HEIGHT: float = 32.0
 const LABEL_RISE: float = 8.0
 ## The arrows: how big they are drawn, how big they are to the thumb, and how far from the picture's edge.
@@ -36,10 +37,11 @@ const SLOT_IDLE_BOTTOM: Color = Color("2c3e56")
 const SLOT_OPEN_TOP: Color = Color("96b0d0")
 const SLOT_OPEN_BOTTOM: Color = Color("587a9e")
 ## The tabs are centred with this much margin on each side (design pixels), and the open tab is this wide (room for its two arrows):
-## the idle tabs share what is left. The margins are filled with `MARGIN_COLOR`.
-const SIDE_MARGIN: float = 40.0
+## the idle tabs share what is left. The margins are coloured like an idle tab. The sizes above (pictures, arrows, the open tab's width)
+## are for a strip `STRIP_DESIGN` wide; with a bigger margin they all scale by what is left over (`_content_fit`).
+const SIDE_MARGIN: float = 90.0
 const OPEN_WIDTH: float = 220.0
-const MARGIN_COLOR: Color = Color("1f2f47")
+const STRIP_DESIGN: float = 640.0
 ## The dark top edge (with a thin light line under it) and the lines between the slots, in design pixels.
 const EDGE_COLOR: Color = Color("0c1a36")
 const EDGE_HEIGHT: float = 5.0
@@ -105,7 +107,11 @@ func _draw() -> void:
 		return
 	var scale_to: float = size.x / 720.0
 	var top_y: float = BAR_TOP * scale_to
-	draw_rect(Rect2(0.0, top_y, size.x, size.y - top_y), MARGIN_COLOR)
+	# the margins are an idle tab's colour
+	var margin_left: float = _slot_x[0]
+	var margin_right: float = _slot_x[_order.size() - 1] + _slot_w[_order.size() - 1]
+	for margin: Vector2 in [Vector2(0.0, margin_left), Vector2(margin_right, size.x)]:
+		draw_polygon(PackedVector2Array([Vector2(margin.x, top_y), Vector2(margin.y, top_y), Vector2(margin.y, size.y), Vector2(margin.x, size.y)]), PackedColorArray([SLOT_IDLE_TOP, SLOT_IDLE_TOP, SLOT_IDLE_BOTTOM, SLOT_IDLE_BOTTOM]))
 	for i: int in _order.size():
 		var open: float = _openness[_order[i]]
 		var top: Color = SLOT_IDLE_TOP.lerp(SLOT_OPEN_TOP, open)
@@ -225,12 +231,17 @@ func _set_openness(value: float, id: StringName) -> void:
 	_layout()
 
 
+## How much the sizes of the pictures, arrows and the open tab shrink (or grow) with the side margin.
+static func _content_fit() -> float:
+	return (720.0 - 2.0 * SIDE_MARGIN) / STRIP_DESIGN
+
+
 ## Where each tab's slot starts and how wide it is, for the current openness: the open tab is `OPEN_WIDTH` wide and the others share the
 ## rest of the width between the side margins (the strip always fills the same width, so nothing outside it moves).
 func _place_slots(scale_to: float) -> void:
 	var count: int = maxi(_order.size(), 1)
 	var avail: float = size.x - 2.0 * SIDE_MARGIN * scale_to
-	var open_width: float = minf(OPEN_WIDTH * scale_to, avail)
+	var open_width: float = minf(OPEN_WIDTH * _content_fit() * scale_to, avail)
 	var idle_width: float = (avail - open_width) / float(maxi(count - 1, 1))
 	_slot_x.clear()
 	_slot_w.clear()
@@ -249,6 +260,7 @@ func _layout() -> void:
 	queue_redraw()
 	var scale_to: float = size.x / 720.0
 	_place_slots(scale_to)
+	var unit: float = scale_to * _content_fit()
 	var total: float = 0.0
 	var centre_sum: float = 0.0
 	var right_share: float = 0.0
@@ -260,11 +272,11 @@ func _layout() -> void:
 		var slot: float = _slot_w[i]
 		button.position = Vector2(_slot_x[i], 0.0)
 		button.size = Vector2(slot, size.y)
-		var edge: float = lerpf(ICON_IDLE, ICON_ACTIVE, open) * scale_to
+		var edge: float = lerpf(ICON_IDLE, ICON_ACTIVE, open) * unit
 		var picture: TextureRect = _pictures[id]
 		picture.size = Vector2.ONE * edge
 		# the open picture grows and rises above the bar, and its slot is the wide one
-		picture.position = Vector2(slot / 2.0 - edge / 2.0, lerpf(ICON_Y, ICON_Y_OPEN, open) * scale_to - edge / 2.0)
+		picture.position = Vector2(slot / 2.0 - edge / 2.0, lerpf(ICON_Y * scale_to, ICON_BOTTOM_OPEN * scale_to - ICON_ACTIVE * unit / 2.0, open) - edge / 2.0)
 		picture.modulate = IDLE_SHADE.lerp(Color.WHITE, open)
 		var label: Label = _labels[id]
 		label.size = Vector2(slot, LABEL_HEIGHT * scale_to)
@@ -288,9 +300,14 @@ func _place_arrows(centre_sum: float, total: float, left_share: float, right_sha
 		arrow_right.visible = false
 		return
 	var centre: float = centre_sum / total
-	var reach: float = (ICON_ACTIVE / 2.0 + ARROW_GAP + ARROW_SIZE / 2.0) * scale_to
+	var unit: float = scale_to * _content_fit()
+	var reach: float = (ICON_ACTIVE / 2.0 + ARROW_GAP + ARROW_SIZE / 2.0) * unit
 	# the bottom of each arrow (not its middle) is level with the bottom of the open picture
-	var y: float = (ICON_Y_OPEN + ICON_ACTIVE / 2.0 - ARROW_SIZE / 2.0) * scale_to - ARROW_TOUCH / 2.0
+	var y: float = ICON_BOTTOM_OPEN * scale_to - ARROW_SIZE * unit / 2.0 - ARROW_TOUCH / 2.0
+	for arrow: Button in [arrow_left, arrow_right]:
+		var drawn: Control = arrow.get_node("Arrow") as Control
+		drawn.size = Vector2.ONE * ARROW_SIZE * unit
+		drawn.position = (Vector2.ONE * ARROW_TOUCH - drawn.size) / 2.0
 	arrow_left.position = Vector2(centre - reach - ARROW_TOUCH / 2.0, y)
 	arrow_right.position = Vector2(centre + reach - ARROW_TOUCH / 2.0, y)
 	var left_alpha: float = left_share / total

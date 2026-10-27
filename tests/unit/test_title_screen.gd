@@ -92,7 +92,7 @@ func test_the_tab_bar_holds_its_five_tabs_along_the_bottom() -> void:
 		last_x = tab.position.x
 		assert_gt(tab.position.y, 1280.0 * 0.8, "%s is at the bottom, under the thumb" % id)
 		assert_gte(tab.size.y, 88.0, "%s is tall enough for a thumb" % id)
-		assert_gte(tab.size.x, 100.0, "%s is wide enough for a thumb" % id)
+		assert_gte(tab.size.x, UiMetrics.MIN_TARGET, "%s is wide enough for a thumb" % id)
 	assert_eq(screen.tab_bar.active, &"home", "Play is the page you start on")
 	assert_gt(screen.carousel.get_global_rect().position.y, (screen.find_child("TopBar", true, false) as Control).get_global_rect().position.y, "the cards are under the top bar")
 	assert_null(screen.find_child("BottomNav", true, false), "the old bottom nav is gone")
