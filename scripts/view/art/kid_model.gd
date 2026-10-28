@@ -6,8 +6,8 @@ extends Node3D
 ## camera). Every cast is Cast_OneHand (standing) or Cast_Run (moving), started at the hand's release moment so the
 ## release lands on the sim's cast tick; a knock-out shows as Stunned (no kid has a fall); a tagged kid shrinks away
 ## where it stood, then grows back in the tagged box. A character with no model of its own yet uses FALLBACK_SET.
-## Ligaya and Migo were exported with their armature's 0.8 scale left on the Hips: _fix_scaled_rig stands them on the
-## ground and model_height measures them true (docs/ART.md "Authored kids").
+## Ligaya and Migo were exported with their armature's 0.8 scale left on the armature node and the Hips: _fix_scaled_rig
+## stands them on the ground and model_height measures them true (docs/ART.md "Authored kids").
 
 const MODEL_PATH: String = "res://assets/models/characters/%s.glb"
 const PORTRAIT_PATH: String = "res://assets/portraits/%s.png"
@@ -358,14 +358,27 @@ func _build() -> void:
 
 
 ## How tall a kid's model stands in its rest pose, in the GLB's own units (the game scales it to KID_HEIGHT). It is the
-## mesh's height times the Hips' scale squared: Ligaya and Migo were exported with their armature's 0.8 scale left on the
-## Hips, and the skinned mesh shows that scale twice (through the bones and through the inverse bind matrices), so their
-## vertices are 2.13 tall and they stand 1.36 (tests/unit/test_authored_kids.gd measures it on the skinned vertices). The
-## other four have no scale there (1.0), so it is just the mesh's height (1.7).
+## mesh's height times every scale the rig carries: the Hips' scale squared (once through the bones, once through the
+## inverse bind matrices) and the scale of the armature node above the skeleton. Ligaya and Migo were exported with their
+## armature's 0.8 scale left on both, so their vertices are 2.13 tall and they stand 2.13 x 0.8 x 0.8 x 0.8 = 1.09 m
+## (measured on a rendered silhouette: 1.090 and 1.095 m; tests/unit/test_authored_kids.gd measures the skinned vertices).
+## The other four carry no scale (1.0), so it is just the mesh's height (1.7).
 static func model_height(model: Node3D) -> float:
 	var mesh: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
-	var hips_scale: float = _hips_scale(model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D)
-	return mesh.get_aabb().size.y * hips_scale * hips_scale
+	var skeleton: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+	var hips_scale: float = _hips_scale(skeleton)
+	return mesh.get_aabb().size.y * armature_scale(skeleton, model) * hips_scale * hips_scale
+
+
+## The scale of the nodes between the model's root and its skeleton (Ligaya and Migo: the armature node's 0.8).
+static func armature_scale(skeleton: Skeleton3D, model: Node3D) -> float:
+	var armature: float = 1.0
+	var node: Node = skeleton.get_parent()
+	while node != null and node != model:
+		if node is Node3D:
+			armature *= (node as Node3D).scale.x
+		node = node.get_parent()
+	return armature
 
 
 static func _hips_scale(skeleton: Skeleton3D) -> float:
@@ -374,7 +387,7 @@ static func _hips_scale(skeleton: Skeleton3D) -> float:
 
 
 ## A rig exported with its scale on the Hips (Ligaya, Migo: 0.8) has clips whose Hips moves are in unscaled units, so the kid
-## stands about 0.12 m above the ground, and whose finger tracks fold the hands into long flat sheets in every clip. The Hips
+## stands about 0.1 m above the ground, and whose finger tracks fold the hands into long flat sheets in every clip. The Hips
 ## moves are scaled the same (the feet reach the ground like the other kids') and the finger tracks are left out (the
 ## fingers stay as modelled). A rig with no scale there is not touched, so a re-export with the scale applied just works.
 ## Done once per model: the clips are shared by every instance of the kid.

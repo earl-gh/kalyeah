@@ -2,7 +2,8 @@ extends GutTest
 ## All six kids are the owner's authored models: their GLB keeps its own material and clips,
 ## a cast starts at the hand's release so it lines up with the sim's cast tick, and a tagged kid shrinks away and grows
 ## back in the tagged box (no fall, no throw clip, no layered upper body). Ligaya and Migo come with their armature's 0.8
-## scale on the Hips: they are measured true and stood on the ground (KidModel.model_height, _fix_scaled_rig).
+## scale left on the armature node and the Hips: they are measured true and stood on the ground (KidModel.model_height,
+## _fix_scaled_rig).
 
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 var RULES: GameRules = load("res://data/rules/game_rules.tres") as GameRules
@@ -12,6 +13,8 @@ const AUTHORED: Array[StringName] = [&"junjun", &"ligaya", &"migo", &"toni", &"p
 ## The two whose rig keeps a 0.8 scale on the Hips (the other four have 1.0).
 const SCALED_RIG: Array[StringName] = [&"ligaya", &"migo"]
 ## Height of the Hips at the first key of Idle as the GLB files store it (read from the files).
+## How tall each GLB's rest pose is drawn (m), measured on a rendered silhouette in the sandbox (1/200 of 3 m a pixel).
+const RENDERED_REST_HEIGHT: Dictionary[StringName, float] = {&"junjun": 1.705, &"ligaya": 1.090, &"migo": 1.095, &"toni": 1.7, &"popoy": 1.7, &"inday": 1.7}
 const IDLE_HIPS_Y_IN_THE_FILE: Dictionary[StringName, float] = {&"ligaya": 0.71805, &"migo": 0.740568}
 ## Junjun's roughness/metal map (`junjun_0.png`) is 4096 px; every other texture of the six is 2048 px.
 const ROUGH_METAL_SIZE: Dictionary[StringName, int] = {&"junjun": 4096, &"ligaya": 2048, &"migo": 2048, &"toni": 2048, &"popoy": 2048, &"inday": 2048}
@@ -76,7 +79,8 @@ func test_the_material_stays_exactly_as_authored() -> void:
 
 # ---- height and ground: the skinned model, measured on the CPU ----------------------------------------------------------
 
-## The skinned mesh's bounds in the model's own units, from the skeleton's current pose (every `stride`th vertex).
+## The skinned mesh's bounds in the model's own units (the armature node's scale included), from the skeleton's current pose
+## (every `stride`th vertex).
 func _skinned_bounds(model: Node3D, stride: int = 3) -> AABB:
 	var mesh: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
 	var skeleton: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
@@ -98,7 +102,8 @@ func _skinned_bounds(model: Node3D, stride: int = 3) -> AABB:
 				skinned += (matrices[bones[v * per + k]] * verts[v]) * weight
 		low = low.min(skinned)
 		high = high.max(skinned)
-	return AABB(low, high - low)
+	var armature: float = KidModel.armature_scale(skeleton, model)
+	return AABB(low * armature, (high - low) * armature)
 
 
 func test_model_height_is_what_the_skinned_model_really_stands() -> void:
@@ -107,11 +112,14 @@ func test_model_height_is_what_the_skinned_model_really_stands() -> void:
 		add_child(root)
 		var bounds: AABB = _skinned_bounds(root)
 		assert_almost_eq(bounds.size.y, KidModel.model_height(root), 0.02, "%s: the rest pose stands as high as model_height says" % id)
+		# what a rendered silhouette of the rest pose measured (see RENDERED_REST_HEIGHT)
+		assert_almost_eq(KidModel.model_height(root), RENDERED_REST_HEIGHT[id], 0.02, "%s: and as high as it is drawn" % id)
 		assert_almost_eq(bounds.position.y, 0.0, 0.02, "%s: the soles are at the origin" % id)
 		var hips: float = (root.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D).get_bone_rest(0).basis.get_scale().x
 		if id in SCALED_RIG:
 			assert_almost_eq(hips, 0.8, 0.01, "%s keeps its armature's 0.8 on the Hips" % id)
-			assert_lt(KidModel.model_height(root), 1.4, "%s: its vertices are 2.1 tall but it stands 1.36" % id)
+			assert_lt(KidModel.model_height(root), 1.2, "%s: its vertices are 2.1 tall but it stands 1.09" % id)
+			assert_almost_eq(KidModel.armature_scale(root.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D, root), 0.8, 0.01, "and its armature node carries 0.8 too")
 		else:
 			assert_almost_eq(hips, 1.0, 0.001, id)
 			assert_almost_eq(KidModel.model_height(root), 1.7, 0.01, id)
