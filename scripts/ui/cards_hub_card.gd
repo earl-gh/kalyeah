@@ -9,9 +9,9 @@ extends Button
 const HEIGHT: float = 176.0
 ## One card of the fan, tall; its width follows its picture.
 const FAN_CARD_HEIGHT: float = 240.0
-## How far the fan sticks out above the panel's top edge, and how far from the panel's right edge it stops.
+## The fan protrudes above the panel and overhangs its right edge, where the pocket mask trims it.
 const FAN_PROTRUSION: float = 64.0
-const FAN_FROM_RIGHT: float = 14.0
+const FAN_FROM_RIGHT: float = -24.0
 ## The text stops this far short of the front card's left edge.
 const TEXT_CLEARANCE: float = 20.0
 ## The panel is the modals' frame, with no rim of its own (the text and fan are placed by hand); a press lightens it.
@@ -57,7 +57,10 @@ func _build(title: String, detail: String, pictures: Array[Texture2D]) -> void:
 	UiKit.feel_press(self)
 	fan = CardFan.new()
 	fan.name = "Fan"
-	fan.build(pictures, FAN_CARD_HEIGHT)
+	var reference: Texture2D = CharactersPage.card_picture(&"junjun")
+	var width: float = FAN_CARD_HEIGHT * float(reference.get_width()) / float(reference.get_height())
+	var height: float = width * float(pictures[0].get_height()) / float(pictures[0].get_width()) if not pictures.is_empty() else FAN_CARD_HEIGHT
+	fan.build(pictures, height)
 	add_child(fan)
 	words = VBoxContainer.new()
 	words.name = "Words"

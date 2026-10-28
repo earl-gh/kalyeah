@@ -70,122 +70,124 @@ func _back_key() -> void:
 	await wait_frames(2)
 
 
+func test_dragging_real_and_unknown_cards_scrolls_the_inline_collection_without_opening_a_drawer() -> void:
+	Input.emulate_touch_from_mouse = true
+	Settings.set_reduced_motion(true)
+	var viewport: SubViewport = autofree(SubViewport.new()) as SubViewport
+	viewport.size = Vector2i(720, 1280)
+	add_child(viewport)
+	var screen: TitleScreen = TITLE_SCENE.instantiate() as TitleScreen
+	viewport.add_child(screen)
+	screen.open_page(&"codex")
+	await wait_frames(5)
+	for index: int in [0, 7]:
+		var before: int = screen.codex_page.hub.scroll.scroll_vertical
+		var at: Vector2 = screen.codex_page.kids_screen.cells[index].get_global_rect().get_center()
+		viewport.push_input(TouchHelper.click(at, true))
+		for move: int in 6:
+			at.y -= 25.0
+			var event: InputEventMouseMotion = TouchHelper.motion(at)
+			event.relative = Vector2(0.0, -25.0)
+			viewport.push_input(event)
+		viewport.push_input(TouchHelper.click(at, false))
+		await wait_frames(3)
+		assert_gt(screen.codex_page.hub.scroll.scroll_vertical, before, "a card drag reaches the shared scroll")
+		assert_false(screen.card_drawer.is_open)
+
+
+func test_an_open_drawer_intercepts_touches_over_the_navigation() -> void:
+	Settings.set_reduced_motion(true)
+	var viewport: SubViewport = autofree(SubViewport.new()) as SubViewport
+	viewport.size = Vector2i(720, 1280)
+	add_child(viewport)
+	var screen: TitleScreen = TITLE_SCENE.instantiate() as TitleScreen
+	viewport.add_child(screen)
+	screen.open_page(&"codex")
+	await wait_frames(4)
+	screen.codex_page.kids_screen.cells[0].pressed.emit()
+	await wait_frames(4)
+	var at: Vector2 = screen.corner_buttons[&"settings"].get_global_rect().get_center()
+	viewport.push_input(TouchHelper.click(at, true))
+	viewport.push_input(TouchHelper.click(at, false))
+	await wait_frames(2)
+	assert_true(screen.card_drawer.is_open)
+	assert_eq(screen.current_page, &"codex", "the covered navigation cannot switch tabs")
+	screen.card_drawer.set_bottom_inset(40.0)
+	await wait_frames(3)
+	assert_lte(screen.card_drawer.close_button.get_global_rect().end.y, 1240.0, "Okay stays above the home inset")
+
+
 # ---- the grids ---------------------------------------------------------------------------
 
-func test_kids_are_six_bare_card_pictures_in_two_columns_and_three_rows() -> void:
+func test_kids_have_two_rows_of_five_with_four_unknown_junjun_cards() -> void:
 	var screen: TitleScreen = await _open(CodexPage.CHARACTERS)
 	var kids: KidsScreen = screen.codex_page.kids_screen
-	assert_true(kids.is_visible_in_tree())
-	assert_eq(kids.cells.size(), Session.AVATARS.size(), "one card per kid")
-	assert_eq(kids.cells.size(), 6)
-	assert_eq(kids.grid.columns, 2)
+	assert_eq(kids.cells.size(), 10)
+	assert_eq(kids.grid.columns, 5)
 	var xs: Dictionary[int, bool] = {}
 	var ys: Dictionary[int, bool] = {}
 	for i: int in kids.cells.size():
 		var cell: CardCell = kids.cells[i]
-		var id: String = Session.AVATARS[i]
-		var definition: CharacterDef = load("res://data/characters/%s.tres" % id) as CharacterDef
-		assert_eq(cell.picture.texture, CharactersPage.card_picture(StringName(id)), "%s shows the owner's card" % id)
-		assert_null(cell.picture.material, "bare: no crop or shader over it")
-		assert_eq(cell.get_theme_stylebox("normal").get_class(), "StyleBoxEmpty", "no plate behind it")
-		assert_eq(cell.name_label.text, definition.display_name, "the name is under the card")
-		assert_gt(cell.name_label.get_global_rect().position.y, cell.picture.get_global_rect().end.y - 1.0)
-		assert_false(cell.tag.visible, "kids carry no kind tag")
-		xs[int(cell.get_global_rect().position.x)] = true
-		ys[int(cell.get_global_rect().position.y)] = true
-	assert_eq(xs.size(), 2, "two columns")
-	assert_eq(ys.size(), 3, "three rows")
-	assert_eq(kids.header.find_child("Title", true, false).text, "Kids")
+		xs[int(cell.position.x)] = true
+		ys[int(cell.position.y)] = true
+		assert_false(cell.name_label.visible)
+		assert_false(cell.tag.visible)
+		if i < Session.AVATARS.size():
+			assert_false(cell.disabled)
+			assert_eq(cell.picture.texture, CharactersPage.card_picture(StringName(Session.AVATARS[i])))
+		else:
+			assert_true(cell.disabled)
+			assert_eq(cell.picture.texture, CharactersPage.card_picture(&"junjun"))
+			assert_lt(cell.picture.modulate.v, 0.2)
+			assert_eq((cell.find_child("Unknown", true, false) as Label).text, "?")
+	assert_eq(xs.size(), 5)
+	assert_eq(ys.size(), 2)
 
 
-func test_skills_are_fourteen_cards_in_four_columns_with_the_last_row_from_the_left() -> void:
+func test_skills_have_three_rows_of_five_with_one_unknown_junjun_card() -> void:
 	var screen: TitleScreen = await _open(CodexPage.WEAPONS)
 	var skills: SkillsScreen = screen.codex_page.skills_screen
-	var weapons: Array[WeaponDef] = _rules().weapons
-	assert_eq(skills.cells.size(), weapons.size(), "one card per skill")
-	assert_eq(skills.cells.size(), 14)
-	assert_eq(skills.grid.columns, 4)
-	var rows: Dictionary[int, Array] = {}
+	assert_eq(skills.cells.size(), 15)
+	assert_eq(skills.grid.columns, 5)
+	var ys: Dictionary[int, bool] = {}
 	for i: int in skills.cells.size():
 		var cell: CardCell = skills.cells[i]
-		var weapon: WeaponDef = weapons[i]
-		assert_eq(cell.picture.texture, CardStyle.picture(weapon.id), "%s shows the owner's card" % weapon.id)
-		assert_null(cell.picture.material)
-		assert_eq(cell.get_theme_stylebox("normal").get_class(), "StyleBoxEmpty", "no plate behind it")
-		assert_eq(cell.name_label.text, weapon.display_name)
-		assert_gte(cell.name_label.get_theme_font_size("font_size"), UiMetrics.MIN_TEXT, "the small name still obeys the text floor")
-		assert_lte(cell.name_label.get_line_count(), 2, "at most two rows of name")
-		assert_true(cell.tag.visible, "a kind tag")
-		var look: StyleBoxFlat = cell.tag.get_theme_stylebox("panel") as StyleBoxFlat
-		assert_eq(look.bg_color, WeaponsPage.KIND_COLORS[weapon.kind], "%s: the tag is its kind's colour" % weapon.id)
-		assert_lt(cell.tag.get_global_rect().size.y, 12.0, "thin: a tag, not a plate")
-		assert_gt(cell.tag.get_global_rect().position.y, cell.picture.get_global_rect().end.y - 1.0, "under the picture")
-		var row: int = int(cell.get_global_rect().position.y)
-		if not rows.has(row):
-			rows[row] = []
-		(rows[row] as Array).append(int(cell.get_global_rect().position.x))
-	var sizes: Array[int] = []
-	var ordered: Array = rows.keys()
-	ordered.sort()
-	for row: int in ordered:
-		sizes.append((rows[row] as Array).size())
-	assert_eq(sizes, [4, 4, 4, 2] as Array[int], "4 + 4 + 4 + 2")
-	var first_row: Array = rows[ordered[0]]
-	var last_row: Array = rows[ordered[3]]
-	assert_eq(last_row[0], first_row[0], "the last row starts under the first column")
-	assert_eq(last_row[1], first_row[1], "and the second card under the second")
-	assert_eq(skills.header.find_child("Title", true, false).text, "Skills")
+		ys[int(cell.position.y)] = true
+		assert_false(cell.name_label.visible)
+		assert_false(cell.tag.visible)
+		if i < _rules().weapons.size():
+			assert_eq(cell.picture.texture, CardStyle.picture(_rules().weapons[i].id))
+			assert_false(cell.disabled)
+		else:
+			assert_true(cell.disabled)
+			assert_eq(cell.picture.texture, CharactersPage.card_picture(&"junjun"))
+			assert_not_null(cell.find_child("Unknown", true, false))
+	assert_eq(ys.size(), 3)
+	watch_signals(screen.card_drawer)
+	skills.cells[14].pressed.emit()
+	screen.codex_page.kids_screen.cells[9].pressed.emit()
+	assert_false(screen.card_drawer.is_open, "unknown cards do not open fabricated details")
 
 
-func test_the_names_and_tags_are_whole_and_inside_their_cards_on_both_phones() -> void:
+func test_both_inline_grids_keep_their_pictures_and_touch_targets_inside_the_screen() -> void:
 	for height: float in [SHORT_PHONE, TALL_PHONE]:
-		for view: StringName in [CodexPage.CHARACTERS, CodexPage.WEAPONS]:
-			var screen: TitleScreen = await _open(view, height)
-			var current: CardsScreen = screen.codex_page.screen_shown()
-			var bar_top: float = screen.tab_bar.get_global_rect().position.y
-			assert_lte(current.get_global_rect().end.y, bar_top + 1.0, "the screen ends above the bar (%s %d)" % [view, int(height)])
+		var screen: TitleScreen = await _open(CodexPage.HUB, height)
+		for grid: CardsScreen in [screen.codex_page.kids_screen, screen.codex_page.skills_screen]:
+			assert_eq(grid.scroll, screen.codex_page.hub.scroll, "one scroll for both categories")
+			assert_null(grid.find_child("BackButton", true, false), "no inner-page Back button")
 			var seen: Array[Rect2] = []
-			for cell: CardCell in current.cells:
+			for cell: CardCell in grid.cells:
 				var rect: Rect2 = cell.get_global_rect()
-				assert_gte(rect.size.x, UiMetrics.MIN_TARGET, "a big target")
+				assert_gte(rect.size.x, UiMetrics.MIN_TARGET)
 				assert_gte(rect.size.y, UiMetrics.MIN_TARGET)
 				assert_gte(rect.position.x, 0.0)
-				assert_lte(rect.end.x, 720.0, "inside the screen")
-				assert_true(rect.encloses(cell.name_label.get_global_rect().grow(-0.5)), "%s: the name is inside its cell" % cell.name)
+				assert_lte(rect.end.x, 720.0)
 				assert_true(rect.encloses(cell.picture.get_global_rect().grow(-0.5)))
-				assert_lte(cell.name_label.get_line_count(), int(cell.entry["name_lines"]), "%s: the name fits its rows" % cell.name)
 				for other: Rect2 in seen:
-					assert_false(rect.grow(-1.0).intersects(other.grow(-1.0)), "no two cards overlap")
+					assert_false(rect.grow(-1.0).intersects(other.grow(-1.0)))
 				seen.append(rect)
-			assert_gte(current.back_button.get_global_rect().size.y, UiMetrics.MIN_TARGET, "Back is a big target")
-			var top: Rect2 = current.back_button.get_global_rect()
-			assert_gte(top.position.y, 0.0)
-			assert_lt(top.end.y, current.scroll.get_global_rect().position.y + 1.0, "the header is above the grid")
 
 
-func test_a_grid_scrolls_and_a_drag_that_starts_on_a_card_scrolls_without_opening_it() -> void:
-	Input.emulate_touch_from_mouse = true
-	var viewport: SubViewport = autofree(SubViewport.new()) as SubViewport
-	viewport.size = Vector2i(720, 900)
-	add_child(viewport)
-	var skills: SkillsScreen = SkillsScreen.new()
-	skills.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	viewport.add_child(skills)
-	await wait_process_frames(3)
-	assert_gt(skills.scroll.get_v_scroll_bar().max_value, skills.scroll.size.y, "fourteen cards are taller than the screen, so it scrolls")
-	watch_signals(skills)
-	var from: Vector2 = skills.cells[5].get_global_rect().get_center()
-	viewport.push_input(TouchHelper.click(from, true))
-	var at: Vector2 = from
-	for i: int in 12:
-		at += Vector2(0.0, -25.0)
-		var moved: InputEventMouseMotion = TouchHelper.motion(at)
-		moved.relative = Vector2(0.0, -25.0)
-		viewport.push_input(moved)
-	viewport.push_input(TouchHelper.click(at, false))
-	await wait_process_frames(2)
-	assert_gt(skills.scroll.scroll_vertical, 100, "a drag that starts on a card scrolls the grid")
-	assert_signal_not_emitted(skills, "drawer_requested", "scrolling is not a tap")
 
 
 func test_cards_have_names_focus_rings_and_the_press_feel() -> void:
@@ -197,7 +199,8 @@ func test_cards_have_names_focus_rings_and_the_press_feel() -> void:
 	assert_true(toni.has_meta(&"feels_press"), "the shared squeeze")
 	for cell: CardCell in screen.codex_page.skills_screen.cells:
 		assert_false(cell.accessibility_name.is_empty())
-		assert_string_contains(cell.accessibility_name, cell.name_label.text)
+		if not cell.disabled:
+			assert_string_contains(cell.accessibility_name, cell.name_label.text)
 	toni.button_down.emit()
 	assert_ne(toni.picture.modulate, Color.WHITE, "a press dims the picture, so Reduce motion still shows the touch")
 	toni.button_up.emit()
@@ -206,13 +209,13 @@ func test_cards_have_names_focus_rings_and_the_press_feel() -> void:
 
 # ---- the drawer opens -----------------------------------------------------------------------
 
-func test_tapping_a_kid_opens_a_drawer_with_the_card_the_name_the_words_and_the_palette() -> void:
+func test_tapping_a_kid_opens_its_name_and_description_with_the_card_behind_the_sheet() -> void:
 	var screen: TitleScreen = await _open(CodexPage.CHARACTERS)
 	var kids: KidsScreen = screen.codex_page.kids_screen
 	var drawer: CardDrawer = screen.card_drawer
 	assert_false(drawer.is_open)
 	assert_false(drawer.visible)
-	for i: int in kids.cells.size():
+	for i: int in Session.AVATARS.size():
 		var id: String = Session.AVATARS[i]
 		var definition: CharacterDef = load("res://data/characters/%s.tres" % id) as CharacterDef
 		kids.cells[i].pressed.emit()
@@ -222,59 +225,40 @@ func test_tapping_a_kid_opens_a_drawer_with_the_card_the_name_the_words_and_the_
 		assert_eq(drawer.title_label.text, definition.display_name)
 		assert_eq(drawer.picture.texture, CharactersPage.card_picture(StringName(id)), "the card, bare")
 		assert_eq((drawer.find_child("About", true, false) as Label).text, definition.description)
-		assert_not_null(drawer.find_child("Palette", true, false), "the palette")
-		for swatch: Dictionary in CharactersPage.palette_of(definition):
-			assert_not_null(drawer.find_child("Swatch_%s" % String(swatch["label"]), true, false))
-		assert_null(drawer.find_child("Close", true, false), "the old sheet's Close button is not copied: the drawer has its own X")
+		assert_null(drawer.find_child("Palette", true, false), "only the short description remains")
+		assert_lt(drawer.picture.z_index, drawer.sheet.z_index)
+		assert_eq(drawer.picture.get_parent(), drawer.slider)
+		assert_lt(drawer.picture.get_global_rect().position.y, drawer.sheet.get_global_rect().position.y)
+		assert_gt(drawer.picture.get_global_rect().end.y, drawer.sheet.get_global_rect().position.y)
+		assert_null(drawer.find_child("Close", true, false), "the old sheet's Close button is not copied: the drawer has Okay")
 		assert_eq(drawer.content.get_children().filter(func(node: Node) -> bool: return node.name == "Picture").size(), 0, "no second picture")
 		drawer.close(false)
 
 
-func test_tapping_a_skill_opens_a_drawer_with_its_card_figures_and_game() -> void:
+func test_tapping_a_skill_opens_its_picture_name_and_short_description_only() -> void:
 	var screen: TitleScreen = await _open(CodexPage.WEAPONS)
-	var skills: SkillsScreen = screen.codex_page.skills_screen
 	var drawer: CardDrawer = screen.card_drawer
-	var weapons: Array[WeaponDef] = _rules().weapons
-	var maxima: Dictionary = WeaponsPage.stat_maxima(weapons)
-	for i: int in weapons.size():
-		var weapon: WeaponDef = weapons[i]
-		skills.cells[i].pressed.emit()
-		await wait_frames(2)
-		assert_true(drawer.is_open, "%s opens the drawer" % weapon.id)
+	for i: int in _rules().weapons.size():
+		var weapon: WeaponDef = _rules().weapons[i]
+		screen.codex_page.skills_screen.cells[i].pressed.emit()
+		await wait_frames(3)
+		assert_true(drawer.is_open)
 		assert_eq(drawer.title_label.text, weapon.display_name)
-		assert_eq(drawer.picture.texture, CardStyle.picture(weapon.id), "its card, bare")
+		assert_eq(drawer.picture.texture, CardStyle.picture(weapon.id))
 		assert_eq((drawer.find_child("About", true, false) as Label).text, weapon.description)
-		var figures: Control = drawer.find_child("Figures", true, false)
-		var expected: Array[Dictionary] = WeaponsPage.figures_of(weapon)
-		assert_eq(figures.get_child_count(), expected.size(), "%s: the same figures as the old sheet" % weapon.id)
-		for k: int in expected.size():
-			var row: Control = figures.get_child(k)
-			assert_eq((row.find_child("Value", true, false) as Label).text, expected[k]["value"])
-			assert_almost_eq((row.find_child("Meter", true, false) as ProgressBar).value, WeaponsPage.fraction_of(String(expected[k]["caption"]), weapon, maxima), 0.002)
-		assert_eq((drawer.find_child("GameBlurb", true, false) as Label).text, WeaponsPage.street_games().blurb_of(weapon.street_game))
-		var chips: Array[String] = []
-		for label: Node in drawer.content.find_children("*", "Label", true, false):
-			chips.append((label as Label).text)
-		assert_true(chips.has(weapon.kind_label()), "%s: its kind is written, not only coloured" % weapon.id)
+		assert_null(drawer.find_child("Figures", true, false))
+		assert_null(drawer.find_child("GameBlurb", true, false))
+		assert_eq(drawer.sections.size(), 1)
+		assert_eq(drawer.close_button.text, "Okay")
 		drawer.close(false)
 
 
-func test_the_drawer_content_is_the_old_sheets_own_sections() -> void:
-	var weapon: WeaponDef = _rules().weapons[2]
-	var sheet: MenuDialog = autofree(WeaponsPage.detail(weapon)) as MenuDialog
-	var borrowed: Array[Control] = DrawerContent.of_weapon(weapon)
-	var names: Array[String] = []
-	for part: Control in borrowed:
-		names.append(String(part.name))
-		part.queue_free()
-	for need: String in ["About"]:
-		assert_true(names.has(need), need)
-	assert_gte(sheet.body.get_child_count(), borrowed.size() + 1, "everything but the sheet's picture and its Close row")
-	assert_eq(DrawerContent.of_kid(null).size(), 0, "no kid, no sections")
-	var kid: Array[Control] = DrawerContent.of_kid(load("res://data/characters/toni.tres") as CharacterDef)
-	assert_gte(kid.size(), 3, "about, palette, note")
-	for part: Control in kid:
-		part.queue_free()
+func test_drawer_details_are_one_description_without_stats_or_palette() -> void:
+	for parts: Array[Control] in [DrawerContent.of_weapon(_rules().weapons[2]), DrawerContent.of_kid(load("res://data/characters/toni.tres") as CharacterDef)]:
+		assert_eq(parts.size(), 1)
+		assert_eq(parts[0].name, &"About")
+		parts[0].queue_free()
+	assert_eq(DrawerContent.of_kid(null).size(), 0)
 
 
 func test_an_open_card_wears_the_gold_silhouette_edge_while_its_drawer_is_open() -> void:
@@ -317,7 +301,7 @@ func test_the_drawer_closes_by_scrim_handle_x_and_the_phones_back() -> void:
 	await opened.call()
 	await _back_key()
 	assert_false(drawer.is_open, "the phone's Back")
-	assert_eq(screen.codex_page.current, CodexPage.CHARACTERS, "and the screen under it stays")
+	assert_true(screen.codex_page.hub.is_visible_in_tree(), "the inline collection stays underneath")
 
 
 func test_a_swipe_down_on_the_handle_or_the_title_closes_and_a_short_one_springs_back() -> void:
@@ -379,7 +363,7 @@ func test_the_drawer_steps_to_the_next_and_previous_card_and_wraps() -> void:
 	assert_eq(kids.selected, 1)
 	drawer.previous_button.pressed.emit()
 	drawer.previous_button.pressed.emit()
-	assert_eq(drawer.index, kids.cells.size() - 1, "before the first is the last")
+	assert_eq(drawer.index, Session.AVATARS.size() - 1, "unknown placeholders are excluded from drawer stepping")
 	drawer.next_button.pressed.emit()
 	assert_eq(drawer.index, 0, "after the last is the first")
 	for button: Button in [drawer.previous_button, drawer.next_button]:
@@ -427,69 +411,57 @@ func test_the_drawer_is_the_modals_slate_with_rounded_top_corners_and_a_handle()
 	var pill: Control = drawer.handle.find_child("Pill", true, false) as Control
 	assert_not_null(pill, "a grab handle")
 	assert_gt(pill.get_global_rect().size.x, 60.0)
-	assert_gte(drawer.close_button.get_global_rect().size.x, UiMetrics.MIN_TARGET, "the X is a big target")
+	assert_gte(drawer.close_button.get_global_rect().size.x, UiMetrics.MIN_TARGET, "Okay is a big target")
 	assert_gte(drawer.close_button.get_global_rect().size.y, UiMetrics.MIN_TARGET)
 
 
-func test_the_drawer_never_covers_the_bar_is_at_most_seventy_percent_tall_and_scrolls_when_taller() -> void:
+func test_the_drawer_covers_navigation_and_keeps_okay_reachable_on_both_phones() -> void:
 	for height: float in [SHORT_PHONE, TALL_PHONE]:
-		var screen: TitleScreen = await _open(CodexPage.WEAPONS, height)
+		var screen: TitleScreen = await _open(CodexPage.HUB, height)
 		var drawer: CardDrawer = screen.card_drawer
-		var bar: Rect2 = screen.tab_bar.get_global_rect()
-		var scrolled: int = 0
-		for i: int in screen.codex_page.skills_screen.cells.size():
-			screen.codex_page.skills_screen.cells[i].pressed.emit()
-			await wait_frames(3)
-			var sheet: Rect2 = drawer.sheet.get_global_rect()
-			var room: Rect2 = drawer.get_global_rect()
-			assert_lte(sheet.end.y, bar.position.y + UiTabBar.BAR_TOP + 1.0, "the sheet stops where the bar starts (%d)" % int(height))
-			assert_lte(sheet.size.y, room.size.y * CardDrawer.MAX_HEIGHT_SHARE + 1.0, "at most 70 percent of the room")
-			assert_almost_eq(sheet.size.x, 720.0, 1.0, "edge to edge")
-			assert_gte(sheet.position.y, 0.0)
-			assert_lte(room.end.y, bar.position.y + UiTabBar.BAR_TOP + 1.0, "the drawer itself ends above the bar")
-			var content: float = drawer.content.get_combined_minimum_size().y
-			if content > drawer.scroll.size.y + 1.0:
-				scrolled += 1
-				assert_gt(drawer.scroll.get_v_scroll_bar().max_value, drawer.scroll.size.y, "taller than its room, so it scrolls")
-			else:
-				assert_almost_eq(drawer.scroll.size.y, content, 1.5, "no more room than it needs")
-			for label: Node in drawer.content.find_children("*", "Label", true, false):
-				if (label as Label).is_visible_in_tree():
-					assert_gte((label as Label).get_theme_font_size("font_size"), UiMetrics.MIN_TEXT, "no text under the floor")
-			drawer.close(false)
-		if height == SHORT_PHONE:
-			assert_gt(scrolled, 0, "on the short phone some skill needs the scroll")
+		for grid: CardsScreen in [screen.codex_page.kids_screen, screen.codex_page.skills_screen]:
+			for i: int in (Session.AVATARS.size() if grid is KidsScreen else _rules().weapons.size()):
+				grid.cells[i].pressed.emit()
+				await wait_frames(3)
+				var sheet: Rect2 = drawer.sheet.get_global_rect()
+				assert_almost_eq(sheet.end.y, height, 1.0, "the drawer reaches the phone bottom")
+				assert_almost_eq(sheet.size.x, 720.0, 1.0)
+				assert_lte(sheet.size.y, height * CardDrawer.MAX_HEIGHT_SHARE + 1.0)
+				assert_gt(drawer.z_index, screen.tab_bar.z_index)
+				assert_true(sheet.encloses(drawer.close_button.get_global_rect()))
+				assert_gte(drawer.close_button.size.y, UiMetrics.MIN_TARGET)
+				drawer.close(false)
 
 
-func test_the_drawer_content_scrolls_when_it_is_taller_than_the_room() -> void:
+func test_long_details_scroll_without_pushing_okay_off_the_sheet() -> void:
 	var screen: TitleScreen = await _open(CodexPage.WEAPONS)
 	var drawer: CardDrawer = screen.card_drawer
-	screen.codex_page.skills_screen.cells[3].pressed.emit()
-	await wait_frames(3)
+	var long: Dictionary = screen.codex_page.skills_screen.entries[0].duplicate()
+	long["content"] = func() -> Array[Control]:
+		var label: Label = UiKit.text("A long description. ".repeat(200), UiMetrics.BODY)
+		return [label] as Array[Control]
+	drawer.open_entries([long, screen.codex_page.skills_screen.entries[1]] as Array[Dictionary], 0)
+	await wait_frames(5)
 	drawer.scroll.scroll_vertical = 100000
 	await wait_frames(2)
 	assert_gt(drawer.scroll.scroll_vertical, 0)
+	assert_true(drawer.sheet.get_global_rect().encloses(drawer.close_button.get_global_rect()))
 	drawer.step(1)
-	assert_eq(drawer.scroll.scroll_vertical, 0, "the next card is read from its top")
+	assert_eq(drawer.scroll.scroll_vertical, 0)
 
 
-# ---- the way back and the taps -----------------------------------------------------------------
-
-func test_back_goes_drawer_then_screen_then_hub_then_home_then_the_quit_question() -> void:
+func test_back_closes_the_drawer_then_returns_home_without_an_inner_page() -> void:
 	var screen: TitleScreen = await _open(CodexPage.WEAPONS)
 	screen.codex_page.skills_screen.cells[0].pressed.emit()
 	await wait_frames(2)
 	await _back_key()
-	assert_false(screen.card_drawer.is_open, "first the drawer")
-	assert_eq(screen.codex_page.current, CodexPage.WEAPONS)
+	assert_false(screen.card_drawer.is_open)
+	assert_eq(screen.current_page, &"codex")
 	await _back_key()
-	assert_eq(screen.current_page, &"codex", "then the screen goes back to the hub")
-	assert_eq(screen.codex_page.current, CodexPage.HUB)
-	await _back_key()
-	assert_eq(screen.current_page, &"", "then home")
+	assert_eq(screen.current_page, &"")
 	assert_null(screen.dialog)
 	await _back_key()
-	assert_not_null(screen.dialog, "and then it asks to quit")
+	assert_not_null(screen.dialog)
 
 
 func test_the_back_button_the_cards_tab_and_other_tabs_close_the_drawer_too() -> void:
@@ -506,30 +478,20 @@ func test_the_back_button_the_cards_tab_and_other_tabs_close_the_drawer_too() ->
 	screen.corner_buttons[&"history"].pressed.emit()
 	await wait_frames(2)
 	assert_false(screen.card_drawer.is_open, "another tab closes it as well")
-	screen.corner_buttons[&"codex"].pressed.emit()
-	screen.codex_page.show_view(CodexPage.WEAPONS)
-	screen.codex_page.skills_screen.back_button.pressed.emit()
-	assert_eq(screen.codex_page.current, CodexPage.HUB, "the Back button")
-	screen.codex_page.show_view(CodexPage.CHARACTERS)
-	screen.codex_page.kids_screen.back_button.pressed.emit()
-	assert_eq(screen.codex_page.current, CodexPage.HUB)
 
 
-func test_three_taps_from_the_main_screen_to_a_cards_details_and_one_to_close() -> void:
+func test_two_taps_from_home_open_card_details_and_okay_closes() -> void:
 	var screen: TitleScreen = _phone()
 	await wait_frames(3)
 	var taps: int = 0
 	screen.corner_buttons[&"codex"].pressed.emit()
 	taps += 1
 	await wait_frames(2)
-	screen.codex_page.hub.skills_card.pressed.emit()
-	taps += 1
-	await wait_frames(2)
 	screen.codex_page.skills_screen.cells[0].pressed.emit()
 	taps += 1
 	await wait_frames(2)
 	assert_true(screen.card_drawer.is_open)
-	assert_eq(taps, 3, "Cards, the Skills card, a card")
+	assert_eq(taps, 2, "Cards tab, then a card")
 	screen.card_drawer.close_button.pressed.emit()
 	assert_false(screen.card_drawer.is_open, "one tap to close")
 

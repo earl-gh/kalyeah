@@ -1,12 +1,7 @@
 class_name CardDrawer
 extends Control
-## The bottom drawer of the Cards screens: a sheet in the modals' slate frame that slides up from the bottom over a dimmed scrim, with a
-## grab handle, rounded top corners, the card's picture (with small arrows to step to the card before or after it, and a swipe along the
-## picture does the same), its name, and its details (scrolling if they are taller than `MAX_HEIGHT_SHARE` of the room it has).
-## It closes by a tap on the scrim, on the handle or on the X, by the phone's Back (the title screen asks it to), or by swiping the
-## handle or the title down. With Reduce motion nothing slides: it is there, or it is gone.
-##
-## The title screen hosts it, edge to edge, ending where the bottom bar's bar starts (the bar is never covered).
+## Modal card details cover the navigation. Kids protrude behind the sheet; details are only name and description.
+## Okay, the top grabber, the scrim or Android Back closes the drawer.
 
 signal opened
 signal closed
@@ -26,12 +21,15 @@ const STEP_SWIPE: float = 90.0
 const TAP_SLOP: float = 16.0
 const PICTURE_HEIGHT: float = 240.0
 const ARROW_SIZE: Vector2 = Vector2(UiMetrics.MIN_TARGET, UiMetrics.MIN_TARGET + UiMetrics.PADDING)
-## The bar's open tab pops its picture over the sheet's bottom: the sheet keeps this much clear below its content.
-const BOTTOM_CLEAR: float = UiTabBar.ICON_ACTIVE / 2.0
+## Space under Okay, plus the device's home gesture inset.
+const BOTTOM_CLEAR: float = UiMetrics.PADDING
+const CARD_OVERLAP: float = 44.0
 const TOP_RADIUS: int = UiSkin.RADIUS_XL
-## The bottom corners are square: the sheet sits on the bar.
+## The bottom corners are square at the phone edge.
 const FLAT: int = 0
 
+var bottom_inset: float = 0.0
+var _kid: bool = false
 var is_open: bool = false
 var entries: Array[Dictionary] = []
 var index: int = -1
@@ -77,6 +75,7 @@ func _ready() -> void:
 	add_child(slider)
 	sheet = PanelContainer.new()
 	sheet.name = "Sheet"
+	sheet.z_index = 1
 	sheet.anchor_left = 0.0
 	sheet.anchor_right = 1.0
 	sheet.anchor_top = 1.0
@@ -94,6 +93,7 @@ func _ready() -> void:
 	_build_body()
 	sheet.minimum_size_changed.connect(_fit.call_deferred)
 	resized.connect(_fit.call_deferred)
+	sheet.resized.connect(_place_picture.call_deferred)
 
 
 ## The modals' frame (same colour, border and shadow, from `KalyeahTheme.modal_frame`) with the top corners rounded and the bottom square.
@@ -104,7 +104,7 @@ func _frame_style() -> StyleBoxFlat:
 	box.set_corner_radius(CORNER_TOP_LEFT, TOP_RADIUS)
 	box.set_corner_radius(CORNER_TOP_RIGHT, TOP_RADIUS)
 	box.set_border_width(SIDE_BOTTOM, 0)
-	box.content_margin_bottom = BOTTOM_CLEAR
+	box.content_margin_bottom = BOTTOM_CLEAR + bottom_inset
 	return box
 
 
@@ -148,6 +148,7 @@ func _build_header() -> void:
 	title_label = Label.new()
 	title_label.name = "Title"
 	title_label.theme_type_variation = &"DisplayLabel"
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -157,13 +158,6 @@ func _build_header() -> void:
 	title_label.add_theme_color_override("font_outline_color", KalyeahTheme.MODAL_TITLE_OUTLINE)
 	title_label.add_theme_constant_override("outline_size", MenuDialog.TITLE_OUTLINE)
 	header_row.add_child(title_label)
-	close_button = MenuDialog.make_button("X", "red", UiMetrics.ACTION, Vector2.ONE * UiMetrics.MIN_TARGET)
-	close_button.name = "CloseButton"
-	close_button.accessibility_name = "Close"
-	close_button.focus_mode = Control.FOCUS_NONE
-	close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	close_button.pressed.connect(close)
-	header_row.add_child(close_button)
 	_frame_box.add_child(inset)
 
 
@@ -203,6 +197,13 @@ func _build_body() -> void:
 	next_button.pressed.connect(step.bind(1))
 	picture_row.add_child(next_button)
 	content.add_child(picture_row)
+	var actions: CenterContainer = CenterContainer.new()
+	actions.name = "Actions"
+	close_button = MenuDialog.make_button("Okay", "gold", UiMetrics.BODY, Vector2(240.0, UiMetrics.TOUCH))
+	close_button.name = "OkayButton"
+	close_button.pressed.connect(close)
+	actions.add_child(close_button)
+	_frame_box.add_child(actions)
 
 
 func _arrow(symbol: String, label: String) -> Button:
@@ -252,6 +253,14 @@ func _show(at: int) -> void:
 	index = clampi(at, 0, entries.size() - 1)
 	var card: Dictionary = entries[index]
 	title_label.text = String(card["name"])
+	_kid = card.get("kind", &"") == &"kid"
+	picture_row.visible = not _kid
+	if _kid and picture.get_parent() != slider:
+		picture.reparent(slider)
+		slider.move_child(picture, 0)
+	elif not _kid and picture.get_parent() != picture_row:
+		picture.reparent(picture_row)
+		picture_row.move_child(picture, 1)
 	var art: Texture2D = card["picture"] as Texture2D
 	picture.texture = art
 	var aspect: float = float(art.get_width()) / float(art.get_height()) if art != null and art.get_height() > 0 else 0.7
@@ -264,6 +273,7 @@ func _show(at: int) -> void:
 		content.add_child(part)
 		sections.append(part)
 	scroll.scroll_vertical = 0
+	_place_picture.call_deferred()
 	shown.emit(index)
 
 
@@ -300,6 +310,19 @@ func _fit() -> void:
 	var chrome: float = sheet.get_combined_minimum_size().y
 	var wanted: float = content.get_combined_minimum_size().y
 	scroll.custom_minimum_size.y = clampf(wanted, 0.0, maxf(0.0, size.y * MAX_HEIGHT_SHARE - chrome))
+	_place_picture.call_deferred()
+
+
+func set_bottom_inset(inset: float) -> void:
+	bottom_inset = inset
+	if sheet != null:
+		(sheet.get_theme_stylebox("panel") as StyleBoxFlat).content_margin_bottom = BOTTOM_CLEAR + inset
+
+
+func _place_picture() -> void:
+	if _kid and is_open:
+		picture.size = picture.custom_minimum_size
+		picture.position = Vector2((size.x - picture.size.x) / 2.0, sheet.position.y - picture.size.y + CARD_OVERLAP)
 
 
 # ---- touch -------------------------------------------------------------------------------

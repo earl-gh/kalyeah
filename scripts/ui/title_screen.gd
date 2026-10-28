@@ -126,7 +126,7 @@ var pages: Dictionary[StringName, Control] = {}
 var current_page: StringName = &""
 var street_page: StreetPage
 var codex_page: CodexPage
-## The bottom drawer of the Cards screens (a card's details); it sits over the page and under the bottom bar.
+## Card details cover the page and bottom navigation.
 var card_drawer: CardDrawer
 var _drawer_screen: CardsScreen
 var history_page: HistoryPage
@@ -206,8 +206,9 @@ func _build_layout() -> void:
 	_page_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	middle.add_child(_page_holder)
 	_build_pages()
-	# the drawer is edge to edge and ends where the bottom bar starts, so it is added before the bar
+	# the drawer spans the phone; it is moved above the bar for GUI hit testing below
 	card_drawer = CardDrawer.new()
+	card_drawer.z_index = MenuDialog.MODAL_Z - 2
 	card_drawer.closed.connect(_on_drawer_closed)
 	add_child(card_drawer)
 	# the bottom bar is not inside the margins: it runs edge to edge and down to the bottom of the screen
@@ -217,6 +218,8 @@ func _build_layout() -> void:
 	for id: StringName in tab_bar.tabs:
 		corner_buttons[id] = tab_bar.tabs[id]
 	tab_bar.set_active(&"home")
+	# GUI hit testing follows child order, independently of draw z.
+	move_child(card_drawer, get_child_count() - 1)
 
 
 ## The top bar: the KALYEAH! logo, centred and dropped a little from the top edge. Your profile lives in Settings.
@@ -626,8 +629,9 @@ func _apply_safe_area() -> void:
 	tab_bar.offset_right = 0.0
 	tab_bar.offset_bottom = 0.0
 	tab_bar.offset_top = -(UiTabBar.HEIGHT + inset.w)
-	# the drawer stops where the bar itself starts (the open tab's picture pops over the drawer, which keeps room for it)
-	card_drawer.offset_bottom = tab_bar.offset_top + UiTabBar.BAR_TOP
+	# the drawer covers navigation and keeps only the home gesture inset clear
+	card_drawer.offset_bottom = 0.0
+	card_drawer.set_bottom_inset(inset.w)
 
 
 ## The unsafe screen edges (left, top, right, bottom) in UI pixels: the notch, the status bar,
@@ -751,7 +755,8 @@ func open_card_drawer(screen: CardsScreen, index: int) -> void:
 		_drawer_screen = screen
 	if not card_drawer.shown.is_connected(_on_drawer_shown):
 		card_drawer.shown.connect(_on_drawer_shown)
-	card_drawer.open_entries(screen.entries, index)
+	var available: Array[Dictionary] = screen.entries.filter(func(entry: Dictionary) -> bool: return not bool(entry.get("locked", false)))
+	card_drawer.open_entries(available, index)
 	_sync_ambient()
 
 
@@ -811,12 +816,10 @@ func _quit_game() -> void:
 	get_tree().quit()
 
 
-## Back goes one step: an open drawer closes, a screen of the Cards tab goes to its hub, an open page to home; on the home page it asks to quit.
+## Back closes an open drawer, returns a page to home, then asks to quit.
 func _go_back() -> void:
 	if card_drawer.is_open:
 		card_drawer.close()
-		return
-	if current_page == &"codex" and codex_page.go_back():
 		return
 	if current_page != &"":
 		close_page()

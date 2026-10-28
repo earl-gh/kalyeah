@@ -72,19 +72,16 @@ func test_the_character_sheet_says_the_look_changes_nothing_about_play() -> void
 	assert_true(text.contains("same stats"), "cosmetic only, as the design says")
 
 
-func test_the_book_opens_on_a_hub_and_each_card_of_it_opens_its_screen() -> void:
+func test_cards_opens_both_grids_and_only_grid_cards_open_the_drawer() -> void:
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"codex")
-	await wait_frames(2)
-	assert_true(screen.codex_page.hub.is_visible_in_tree())
-	assert_false(screen.codex_page.kids_screen.visible)
-	assert_false(screen.codex_page.skills_screen.visible)
+	await wait_frames(3)
+	assert_true(screen.codex_page.kids_screen.is_visible_in_tree())
+	assert_true(screen.codex_page.skills_screen.is_visible_in_tree())
 	screen.codex_page.hub.skills_card.pressed.emit()
-	assert_false(screen.codex_page.kids_screen.visible)
-	assert_true(screen.codex_page.skills_screen.visible)
-	screen.codex_page.skills_screen.back_button.pressed.emit()
-	screen.codex_page.hub.kids_card.pressed.emit()
-	assert_true(screen.codex_page.kids_screen.visible)
+	assert_false(screen.card_drawer.is_open)
+	screen.codex_page.kids_screen.cells[0].pressed.emit()
+	assert_true(screen.card_drawer.is_open)
 
 
 func test_the_weapons_page_is_a_grid_with_a_tile_for_every_weapon() -> void:

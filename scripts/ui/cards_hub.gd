@@ -1,10 +1,10 @@
 class_name CardsHub
 extends VBoxContainer
-## The Cards screen of the main menu: two big wide cards one above the other, Kids (the six kids) and Skills (the weapon
-## cards), each with a fan of three real card pictures sticking out of its top edge like the Cards icon of the bottom bar.
-## Tapping one asks for that page (`chosen`); the hub itself decides nothing. The counts come from the data, never from here.
+## Two passive category banners with their five-column grids in one scrollable collection.
 
-signal chosen(page_id: StringName)
+var kids_screen: KidsScreen
+var skills_screen: SkillsScreen
+var scroll: ScrollContainer
 
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
 ## The page ids a card opens (the ones `CodexPage` shows).
@@ -29,33 +29,44 @@ func _ready() -> void:
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_theme_constant_override("separation", 0)
 	add_child(UiKit.page_header("Cards"))
-	add_child(_spacer("Above"))
+	scroll = ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(scroll)
+	var body: VBoxContainer = VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
+	scroll.add_child(body)
 	var weapons: Array[WeaponDef] = (load(RULES_PATH) as GameRules).weapons
 	kids_card = CardsHubCard.create(KIDS, "Kids", kids_detail(Session.AVATARS.size()), _kid_pictures())
 	skills_card = CardsHubCard.create(SKILLS, "Skills", skills_detail(weapons.size()), _skill_pictures())
 	skills_card.title_label.set_meta(WORD_BY_OWNER, true)
 	skills_card.detail_label.set_meta(WORD_BY_OWNER, true)
-	for card: CardsHubCard in [kids_card, skills_card]:
+	kids_screen = KidsScreen.new()
+	skills_screen = SkillsScreen.new()
+	for index: int in 2:
+		var card: CardsHubCard = kids_card if index == 0 else skills_card
+		var grid: CardsScreen = kids_screen if index == 0 else skills_screen
 		cards.append(card)
-		card.pressed.connect(chosen.emit.bind(card.id))
-		# the fan sticks out above its card: this much room above it keeps it clear of what is over it (and a gap between the cards)
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.focus_mode = Control.FOCUS_NONE
 		var slot: MarginContainer = MarginContainer.new()
 		slot.name = "%sSlot" % card.name
 		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var gap: int = UiMetrics.SECTION_GAP if card != kids_card else 0
-		slot.add_theme_constant_override("margin_top", int(ceilf(card.protrusion())) + gap)
+		slot.add_theme_constant_override("margin_top", int(ceilf(card.protrusion())))
 		slot.add_child(card)
-		add_child(slot)
-	add_child(_spacer("Below"))
+		body.add_child(slot)
+		grid.slots = 10 if index == 0 else 15
+		grid.scroll = scroll
+		body.add_child(grid)
 
 
-## An empty stretch that, with its twin, keeps the two cards in the middle of what is left under the header.
-func _spacer(spacer_name: String) -> Control:
-	var spacer: Control = Control.new()
-	spacer.name = spacer_name
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return spacer
+func scroll_to(view: StringName) -> void:
+	if view == KIDS or view == SKILLS:
+		scroll.ensure_control_visible.call_deferred(kids_card if view == KIDS else skills_card)
+	else:
+		scroll.scroll_vertical = 0
 
 
 ## "Meet the six kids": the count in words as far as there is a word for it.

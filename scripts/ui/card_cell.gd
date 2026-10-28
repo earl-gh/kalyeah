@@ -36,13 +36,14 @@ func _build() -> void:
 	name = String(entry["id"]).capitalize()
 	accessibility_name = String(entry["access"])
 	tooltip_text = String(entry["name"])
+	disabled = bool(entry.get("locked", false))
 	_name_lines = int(entry.get("name_lines", 1))
 	_name_size = int(entry.get("name_size", UiMetrics.CAPTION))
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# a drag that starts on it scrolls the list it sits in: the scrollbar is not the only grip
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	focus_mode = Control.FOCUS_ALL
-	for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
+	for state: String in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
 		add_theme_stylebox_override(state, StyleBoxEmpty.new())
 	add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_L))
 	UiKit.feel_press(self)
@@ -100,6 +101,21 @@ func _build() -> void:
 	name_label.add_theme_constant_override("outline_size", NAME_OUTLINE)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_column.add_child(name_label)
+	if bool(entry.get("compact", false)):
+		name_label.visible = false
+		tag.visible = false
+	if disabled:
+		focus_mode = Control.FOCUS_NONE
+		picture.modulate = Color(0.12, 0.12, 0.15, 1.0)
+		var unknown: Label = Label.new()
+		unknown.name = "Unknown"
+		unknown.text = "?"
+		UiKit.letter(unknown, UiMetrics.DISPLAY)
+		unknown.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		unknown.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		unknown.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		unknown.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_holder.add_child(unknown)
 	button_down.connect(func() -> void: picture.modulate = PRESSED_DIM)
 	button_up.connect(func() -> void: picture.modulate = Color.WHITE)
 
@@ -108,6 +124,9 @@ func _build() -> void:
 func fit(width: float) -> void:
 	var picture_height: float = width / _aspect
 	_holder.custom_minimum_size = Vector2(width, picture_height)
+	if bool(entry.get("compact", false)):
+		custom_minimum_size = Vector2(0.0, picture_height)
+		return
 	var row: float = name_label.get_theme_font("font").get_height(_name_size)
 	name_label.custom_minimum_size = Vector2(0.0, row * float(_name_lines))
 	var tag_height: float = (TAG_SIZE.y + TAG_GAP) if tag.visible else 0.0
