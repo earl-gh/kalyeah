@@ -100,6 +100,23 @@ for action in bpy.data.actions:
         if any(finger in curve.data_path for finger in FINGERS):
             action.fcurves.remove(curve)
 
+# The imported mesh already includes the armature scale, but its joint pivots do
+# not. Normalize the bind skeleton too; unit object transforms alone leave the
+# shoulders and knees outside the mesh and rotation tears the limbs apart.
+bpy.context.view_layer.objects.active = armature
+bpy.ops.object.mode_set(mode="EDIT")
+for bone in armature.data.edit_bones:
+    bone.head *= source_scale
+    bone.tail *= source_scale
+bpy.ops.object.mode_set(mode="OBJECT")
+for action in bpy.data.actions:
+    for curve in action.fcurves:
+        if curve.data_path.endswith(".location"):
+            for key in curve.keyframe_points:
+                key.co.y *= source_scale
+                key.handle_left.y *= source_scale
+                key.handle_right.y *= source_scale
+
 bpy.ops.object.select_all(action="DESELECT")
 root.select_set(True)
 for obj in root.children_recursive:

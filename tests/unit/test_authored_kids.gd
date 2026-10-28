@@ -129,6 +129,37 @@ func test_every_kid_is_drawn_at_the_one_kid_height() -> void:
 		assert_almost_eq(_skinned_bounds(model).size.y * model.scale.y, KidModel.KID_HEIGHT, 0.04, "%s stands %.2f m tall" % [id, KidModel.KID_HEIGHT])
 
 
+func test_repaired_limb_pivots_match_the_mesh_they_deform() -> void:
+	for id: StringName in STATIC_FINGERS:
+		var model: Node3D = _kid(id).find_child("Model", true, false) as Node3D
+		var mesh: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+		var skeleton: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+		var arrays: Array = mesh.mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+		var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+		var influences: int = bones.size() / vertices.size()
+		for limb: String in ["LeftArm", "RightArm", "LeftUpLeg", "RightUpLeg", "LeftLeg", "RightLeg"]:
+			var name: String = "mixamorig_%s" % limb
+			var bind: int = -1
+			for index: int in mesh.skin.get_bind_count():
+				if mesh.skin.get_bind_name(index) == name:
+					bind = index
+			assert_gte(bind, 0, "%s has %s" % [id, name])
+			var height_sum: float = 0.0
+			var weight_sum: float = 0.0
+			for vertex: int in vertices.size():
+				for influence: int in influences:
+					var at: int = vertex * influences + influence
+					if bones[at] == bind:
+						height_sum += vertices[vertex].y * weights[at]
+						weight_sum += weights[at]
+			assert_gt(weight_sum, 0.0)
+			var pivot: Vector3 = skeleton.get_bone_global_rest(skeleton.find_bone(name)).origin
+			var tolerance: float = 0.12 if limb.ends_with("Arm") else 0.24
+			assert_almost_eq(pivot.y, height_sum / weight_sum, tolerance, "%s %s pivot must match the limb it deforms" % [id, limb])
+
+
 func test_the_kids_stand_on_the_ground_in_every_clip_not_above_it() -> void:
 	for id: StringName in AUTHORED:
 		var kid: KidModel = _kid(id)
