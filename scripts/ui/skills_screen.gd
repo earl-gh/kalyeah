@@ -1,10 +1,7 @@
 class_name SkillsScreen
 extends CardsScreen
-## The Skills screen: the weapon cards as their own card pictures, four columns (so 4 + 4 + 4 + 2, the last row from the left), the
-## name small under each and the kind (Attack, Control, Block, Heal) as a thin colour tag. A tap opens the skill's drawer with its
-## picture, what it does, its figures as bars and the street game behind it.
+## The inline skill catalog; entries reuse the owner's pictures and authored descriptions.
 
-const COLUMN_COUNT: int = 4
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
 ## The name is small (the caption size, the floor for menu text) and may take two rows ("Gunting" over "Light").
 const NAME_SIZE: int = UiMetrics.CAPTION
@@ -13,20 +10,6 @@ const NAME_ROWS: int = 2
 
 func _screen_name() -> String:
 	return "SkillsScreen"
-
-
-func _title() -> String:
-	return "Skills"
-
-
-func _columns() -> int:
-	return COLUMN_COUNT
-
-
-func _ready() -> void:
-	super._ready()
-	# the owner calls the weapon cards skills; the UI lint bans the word elsewhere (see `CardsHub.WORD_BY_OWNER`)
-	(header.find_child("Title", true, false) as Label).set_meta(CardsHub.WORD_BY_OWNER, true)
 
 
 func _entries() -> Array[Dictionary]:

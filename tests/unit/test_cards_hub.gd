@@ -72,8 +72,8 @@ func test_the_hub_is_two_wide_cards_titled_kids_and_skills_each_with_a_detail_li
 	assert_lt(first.end.y, second.position.y, "one above the other")
 	assert_almost_eq(first.size.x, second.size.x, 1.0, "the same width")
 	assert_gt(first.size.x, first.size.y * 2.5, "wide, not tall")
-	assert_false(screen.codex_page.kids_screen.is_visible_in_tree(), "the screens wait behind the cards")
-	assert_false(screen.codex_page.skills_screen.is_visible_in_tree())
+	assert_true(screen.codex_page.kids_screen.is_visible_in_tree(), "the kid grid is inline")
+	assert_true(screen.codex_page.skills_screen.is_visible_in_tree())
 	for node: Node in hub.find_children("*", "", true, false):
 		assert_false(node is UiSegmented, "the tab switcher is gone from the hub")
 
@@ -147,9 +147,9 @@ func test_the_fan_sticks_out_above_the_card_and_is_tucked_into_it_below() -> voi
 			var out: float = panel.position.y - fan.position.y
 			assert_gte(out, 56.0, "the upper part sticks out above the card's top edge (%d, %d)" % [i, int(height)])
 			assert_lte(out, 80.0, "by about 60 to 70 px: the rest is in the card")
-			assert_gt(fan.end.y, panel.end.y + 20.0, "a decent part of the cards is below the card's bottom edge, where the mask hides it")
+			assert_gt(fan.end.y, panel.position.y + panel.size.y * 0.9, "the fan fills the category height")
 			assert_gt(panel.end.y - maxf(fan.position.y, panel.position.y), panel.size.y * 0.9, "so the fan covers the panel's whole height")
-			assert_lte(fan.end.x, panel.end.x, "and stays inside it on the right")
+			assert_lte(fan.end.x, 720.0, "the shifted fan remains on screen")
 			assert_gte(fan.position.y, header.get_global_rect().end.y, "the cards that stick out stay under the page header")
 			assert_gte(fan.position.x, panel.position.x, "and on the card's side of the screen")
 		var first: Rect2 = hub.cards[0].get_global_rect()
@@ -207,31 +207,19 @@ func test_the_hub_cards_wear_exactly_the_modals_frame() -> void:
 	assert_eq(modal.bg_color, (screen.codex_page.hub.kids_card.get_theme_stylebox("normal") as StyleBoxFlat).bg_color, "a modal and a hub card are the same slate")
 
 
-func test_the_hub_fits_both_phones_and_never_reaches_the_bottom_bar() -> void:
+func test_the_collection_scrolls_inside_the_page_on_both_phones() -> void:
 	for height: float in [SHORT_PHONE, TALL_PHONE]:
 		var screen: TitleScreen = await _hub_screen(height)
 		var hub: CardsHub = screen.codex_page.hub
-		var bar_top: float = screen.tab_bar.get_global_rect().position.y
-		var page: Rect2 = screen.codex_page.get_global_rect()
-		assert_lte(page.end.y, bar_top + 1.0, "the page ends where the bar starts (%d)" % int(height))
-		assert_lte(hub.get_combined_minimum_size().y, page.size.y, "the hub needs no more room than the page has")
-		var width: float = 720.0
+		assert_lte(hub.get_global_rect().end.y, screen.tab_bar.get_global_rect().position.y)
+		assert_gt(hub.scroll.get_v_scroll_bar().max_value, hub.scroll.size.y)
+		hub.scroll.scroll_vertical = 100000
+		await wait_frames(3)
+		assert_gt(hub.scroll.scroll_vertical, 0)
+		assert_lte(screen.codex_page.skills_screen.cells[-1].get_global_rect().end.y, hub.scroll.get_global_rect().end.y + 1.0)
 		for card: CardsHubCard in hub.cards:
-			var panel: Rect2 = card.get_global_rect()
-			assert_gte(panel.position.x, 0.0)
-			assert_lte(panel.end.x, width, "inside the screen")
-			assert_lt(panel.end.y, bar_top, "above the bottom bar")
-			assert_gte(panel.size.y, UiMetrics.MIN_TARGET, "a big target")
-			assert_gte(_fan_box(card.fan).position.y, 0.0, "the fan is on screen")
-			assert_lte(_fan_box(card.fan).end.x, width)
-			var text_box: Rect2 = card.get_node("Words").get_global_rect() as Rect2
-			assert_true(panel.encloses(text_box.grow(-1.0)), "the words are inside the card, nothing clipped")
-		assert_lt(hub.cards[1].get_global_rect().end.y, page.end.y, "the cards end inside the page")
-		# the pair sits in the middle of what the header leaves, not stuck to the header
-		var header_end: float = (hub.find_child("Header", true, false) as Control).get_global_rect().end.y
-		var gap_above: float = _fan_box(hub.cards[0].fan).position.y - header_end
-		var gap_below: float = page.end.y - hub.cards[1].get_global_rect().end.y
-		assert_lt(absf(gap_above - gap_below), 1.5, "centred between the header and the bar")
+			assert_eq(card.mouse_filter, Control.MOUSE_FILTER_IGNORE, "category banners do not open pages")
+		assert_almost_eq(hub.kids_card.fan.cards[0].size.x, hub.skills_card.fan.cards[0].size.x, 1.0, "both fans share the kid card's visual width")
 
 
 func test_a_tap_on_the_part_of_the_fan_above_the_card_still_counts() -> void:
@@ -242,7 +230,7 @@ func test_a_tap_on_the_part_of_the_fan_above_the_card_still_counts() -> void:
 	assert_true(card.taps_at(above))
 	assert_true(card.taps_at(card.size / 2.0))
 	assert_false(card.taps_at(Vector2(4.0, -30.0)), "empty space above the panel is not the card")
-	assert_false(card.taps_at(Vector2(card.size.x + 10.0, 10.0)))
+	assert_false(card.taps_at(Vector2(card.size.x + 64.0, 10.0)))
 
 
 func test_a_press_squeezes_the_card_but_not_with_reduce_motion() -> void:
