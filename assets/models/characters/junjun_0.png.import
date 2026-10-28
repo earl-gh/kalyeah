@@ -2,25 +2,27 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bg238fxrxmskh"
-path="res://.godot/imported/ligaya_kid_base_color.jpg-cb2c4c7429af190d25fdb20482d0d051.ctex"
+uid="uid://ccm3xeci7wf7k"
+path.s3tc="res://.godot/imported/junjun_0.png-e10b44d92b26c4a5424b0fa46ee3eb09.s3tc.ctex"
+path.etc2="res://.godot/imported/junjun_0.png-e10b44d92b26c4a5424b0fa46ee3eb09.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "23cc033a16e16ec1bb0af9e7d68988f9"
+"md5": "1f291ade5fbf565ac945bbb0b64812dc"
 }
 
 [deps]
 
-source_file="res://assets/models/characters/ligaya_kid_base_color.jpg"
-dest_files=["res://.godot/imported/ligaya_kid_base_color.jpg-cb2c4c7429af190d25fdb20482d0d051.ctex"]
+source_file="res://assets/models/characters/junjun_0.png"
+dest_files=["res://.godot/imported/junjun_0.png-e10b44d92b26c4a5424b0fa46ee3eb09.s3tc.ctex", "res://.godot/imported/junjun_0.png-e10b44d92b26c4a5424b0fa46ee3eb09.etc2.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
@@ -40,4 +42,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

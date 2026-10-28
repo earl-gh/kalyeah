@@ -14,7 +14,7 @@ const WITH_PICTURE: Array[StringName] = [&"heal", &"papel_shield", &"papel_trap"
 ## such weapons in the tests that look at it (`_no_picture`).
 const TEKS_ONLY: Array[StringName] = [&"bato_light", &"lata", &"tsinelas_heavy", &"tsinelas_light"]
 ## What the pictures may add to the APK: the imported textures are about 190 KB each, the whole folder stays under this (the APK is close
-## to its 150 MB limit).
+## to its 190 MB limit).
 const FOLDER_BUDGET_BYTES: int = 2048 * 1024
 
 var _rules: GameRules
