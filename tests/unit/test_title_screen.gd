@@ -11,6 +11,10 @@ var _saved_name: String
 var _saved_avatar: String
 var _saved_url: String
 var _saved_vibration: bool
+## Pressing Practice picks its kind and arms the walkthrough for a player who has not seen it: a later test's practice match would
+## otherwise open as a 3 v 3 against bots, or under the walkthrough.
+var _saved_coach_pending: bool
+var _saved_practice_kind: StringName
 
 
 func before_each() -> void:
@@ -23,11 +27,15 @@ func before_each() -> void:
 	_saved_avatar = Session.avatar_id
 	_saved_url = Settings.server_url
 	_saved_vibration = Settings.vibration
+	_saved_coach_pending = Session.coach_pending
+	_saved_practice_kind = Session.practice_kind
 
 
 func after_each() -> void:
 	Session.player_name = _saved_name
 	Session.avatar_id = _saved_avatar
+	Session.coach_pending = _saved_coach_pending
+	Session.practice_kind = _saved_practice_kind
 	Session.save()
 	Settings.set_vibration(_saved_vibration)
 	Settings.server_url = _saved_url

@@ -173,7 +173,7 @@ func test_the_profile_sheet_has_only_your_name_and_no_face_to_pick() -> void:
 	assert_eq((card.find_child("NameField", true, false) as LineEdit).text, "Ana")
 
 
-func test_saving_changes_the_name_and_updates_the_chip_and_the_settings_card() -> void:
+func test_saving_changes_the_name_and_updates_the_name_tag() -> void:
 	var screen: TitleScreen = _screen()
 	await wait_frames(2)
 	var card: MenuDialog = screen.open_name_editor()
@@ -182,7 +182,7 @@ func test_saving_changes_the_name_and_updates_the_chip_and_the_settings_card() -
 	assert_eq(Session.player_name, "Maria")
 	assert_eq(Session.avatar_id, "junjun", "the face is the kid you played last: saving the name leaves it")
 	assert_false(card.is_open)
-	assert_eq(screen.settings_page.name_label.text, "Maria")
+	assert_eq(screen.name_tag.name_label.text, "MARIA")
 	await wait_process_frames(2)
 	assert_eq(_toasts().size(), 1, "and says so")
 	assert_eq(_toasts()[0].text, "Profile saved!")
@@ -206,11 +206,10 @@ func test_an_empty_name_is_refused() -> void:
 	assert_eq(Session.player_name, "Ana", "a refused save changes nothing")
 
 
-func test_the_settings_card_opens_the_profile_sheet() -> void:
+func test_the_name_tag_opens_the_profile_sheet() -> void:
 	var screen: TitleScreen = _screen()
-	screen.open_page(&"settings")
-	screen.settings_page.profile_button.pressed.emit()
-	assert_not_null(screen.dialog.find_child("NameField", true, false), "the profile sheet")
+	screen.name_tag.tap_button.pressed.emit()
+	assert_not_null(screen.dialog.find_child("NameField", true, false), "the profile sheet (the Settings page has no profile card)")
 
 
 # ---- copy code --------------------------------------------------------------------------

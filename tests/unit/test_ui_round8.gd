@@ -304,26 +304,8 @@ func _screen() -> TitleScreen:
 	return screen
 
 
-func test_how_to_play_is_reached_from_settings_and_shows_the_same_four_steps() -> void:
+func test_settings_has_no_how_to_play_page() -> void:
 	var screen: TitleScreen = _screen()
+	assert_false(screen.pages.has(&"howto"), "owner: How to play and its page are gone (the walkthrough opens the first Practice)")
 	screen.open_page(&"settings")
-	screen.settings_page.howto_button.pressed.emit()
-	assert_eq(screen.current_page, &"howto")
-	assert_eq(screen.tab_bar.active, &"settings", "a part of Settings")
-	var page: HowToPlayPage = screen.howto_page
-	assert_eq(page.cards.size(), 4)
-	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
-	var steps: Array[Dictionary] = CoachMarks.steps_for(rules.capture_time, rules.first_to)
-	for i: int in 4:
-		assert_eq((page.cards[i].find_child("Words", true, false) as Label).text, steps[i]["text"], "step %d text" % (i + 1))
-		assert_eq((page.cards[i].find_child("Number", true, false).get_node("Text") as Label).text, str(i + 1))
-
-
-func test_the_walkthrough_button_asks_the_screen_to_start_one() -> void:
-	var screen: TitleScreen = _screen()
-	screen.open_page(&"howto")
-	var asked: Array[bool] = []
-	screen.howto_page.walkthrough_requested.connect(func() -> void: asked.append(true))
-	screen.howto_page.walkthrough_button.pressed.emit()
-	assert_eq(asked.size(), 1)
-	assert_gte(screen.howto_page.walkthrough_button.custom_minimum_size.y, 88.0)
+	assert_null(screen.settings_page.find_child("HowToButton", true, false))
