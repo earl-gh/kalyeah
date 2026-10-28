@@ -1,5 +1,5 @@
 extends GutTest
-## The APK stays under its size budget (.github/scripts/inspect-apk.sh, 190 MB) and the phone's texture memory stays small because the
+## The APK stays under its size budget (.github/scripts/inspect-apk.sh, 200 MB) and the phone's texture memory stays small because the
 ## owner's 3D model textures (props, weapons, kids) are imported VRAM compressed (ETC2 on Android): lossless they were 2 to 10 MB each
 ## on disk and a full uncompressed 2048 px texture each in the phone's memory.
 

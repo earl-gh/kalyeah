@@ -7,7 +7,7 @@
 # the permissions and the native code. Whenever a check fails the raw aapt2 output is printed, so the next failure can be read.
 set -euo pipefail
 
-MAX_MB=190      # MiB; docs/ROADMAP.md "Budgets (M6)". 148 before the owner's Junjun, Ligaya and Migo models (about 40 more by their imported files: an estimate, the first Android APK run measures it), so a heavy new asset fails the build
+MAX_MB=200      # MiB; docs/ROADMAP.md "Budgets (M6)". 148 before the owner's Junjun, Ligaya and Migo models, 192 measured by the Android APK run with all six authored kids at full quality (owner's call), so a heavy new asset fails the build
 PACKAGE="com.kalyeah.game"
 PERMISSIONS="android.permission.CAMERA android.permission.CHANGE_WIFI_MULTICAST_STATE android.permission.INTERNET android.permission.VIBRATE"
 ATTR_MIN_SDK="minSdkVersion\(0x0101020c\)"
