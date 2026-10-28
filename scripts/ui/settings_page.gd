@@ -1,5 +1,5 @@
 class_name SettingsPage
-extends ScrollContainer
+extends VBoxContainer
 ## The Settings page: vibration (phones) and comfort, then quitting. Your name and ID photo are changed on the name tag
 ## on Home (owner: no profile card here), and there is no How to play page (the walkthrough opens the first Practice by
 ## itself). There is no server address here: the online server is built into the game (the player only needs a room code).
@@ -12,13 +12,18 @@ var _content: VBoxContainer
 
 func _ready() -> void:
 	name = "SettingsPage"
-	horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	follow_focus = true
+	add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
+	add_child(UiKit.page_header("Settings"))
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
+	add_child(scroll)
 	_content = VBoxContainer.new()
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
-	add_child(_content)
-	_content.add_child(UiKit.page_header("Settings", "Make Kalyeah yours!"))
+	scroll.add_child(_content)
 	var preferences: VBoxContainer = VBoxContainer.new()
 	preferences.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	preferences.add_child(UiKit.section_label("Comfort"))

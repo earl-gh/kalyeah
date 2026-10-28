@@ -14,8 +14,9 @@ const PRESS_UP: float = 0.16
 ## panel's less that gap, so the two curves run parallel (docs/ART.md "Nested curves are parallel").
 const NEST_GAP: int = UiMetrics.GAP
 const NESTED_RADIUS: int = UiSkin.RADIUS_XL - NEST_GAP
-## The page header's gold bar under the title.
-const HEADER_BAR: Vector2 = Vector2(110.0, 8.0)
+## Main-menu titles share the Play logo's row and top spacing.
+const PAGE_HEADER_ROW_HEIGHT: float = 92.0
+const PAGE_HEADER_DROP: float = 62.0
 
 
 ## Wires `button` for the shared press feel. Safe to call again on the same button: it is wired once.
@@ -56,33 +57,24 @@ static func letter(label: Label, size: int, color: Color = KalyeahTheme.CREAM, i
 	label.add_theme_constant_override("shadow_outline_size", UiSkin.letter_outline(size))
 
 
-## A page's heading: a big outlined display title, a quiet line under it and a short gold bar.
-static func page_header(title_text: String, subtitle: String = "") -> VBoxContainer:
+## A centered page title aligned with the Play logo row, without subtitle or decoration.
+static func page_header(title_text: String) -> VBoxContainer:
 	var column: VBoxContainer = VBoxContainer.new()
 	column.name = "Header"
-	column.add_theme_constant_override("separation", 8)
+	column.add_theme_constant_override("separation", 0)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var air: Control = Control.new()
+	air.custom_minimum_size.y = PAGE_HEADER_DROP
+	air.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(air)
 	var title: Label = Label.new()
 	title.name = "Title"
 	title.text = title_text
+	title.custom_minimum_size.y = PAGE_HEADER_ROW_HEIGHT
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	letter(title, UiMetrics.DISPLAY)
 	column.add_child(title)
-	if not subtitle.is_empty():
-		var line: Label = Label.new()
-		line.name = "Subtitle"
-		line.text = subtitle
-		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		line.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
-		line.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
-		line.add_theme_color_override("font_color", Color("b4c3e6"))
-		column.add_child(line)
-	var bar: Panel = Panel.new()
-	bar.custom_minimum_size = HEADER_BAR
-	bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	var fill: StyleBoxFlat = StyleBoxFlat.new()
-	fill.bg_color = Color("ffc233")
-	fill.set_corner_radius_all(UiSkin.round_radius(HEADER_BAR.y))
-	bar.add_theme_stylebox_override("panel", fill)
-	column.add_child(bar)
 	return column
 
 
