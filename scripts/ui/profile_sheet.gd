@@ -7,9 +7,13 @@ extends RefCounted
 static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_photo_removed: Callable = Callable()) -> MenuDialog:
 	var card: MenuDialog = MenuDialog.create("Your nametag", MenuDialog.WIDTH_SHEET)
 	card.name = "ProfileSheet"
+	# The tag itself is the foreground surface; no second card surrounds it.
+	card.panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	card.inner.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	card.find_child("Header", true, false).hide()
 	var holder: Control = Control.new()
 	holder.name = "TagPreview"
-	holder.custom_minimum_size.y = NameTag.CARD_HEIGHT + UiMetrics.PADDING
+	holder.custom_minimum_size.y = NameTag.CARD_HEIGHT * 1.15 + UiMetrics.PADDING
 	card.body.add_child(holder)
 	var tag: NameTag = NameTag.new()
 	tag.name = "Preview"
@@ -49,8 +53,8 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 	tag.card.add_child(field)
 	var fit_preview: Callable = func() -> void:
 		tag.set_player_name(field.text)
-		var fitted: float = minf(1.0, holder.size.x / tag.card.size.x) if holder.size.x > 0.0 else 1.0
-		tag.hang(Vector2(holder.size.x / 2.0, NameTag.SLOT_MIDDLE + UiMetrics.COMPACT_GAP), 0.0, fitted)
+		var fitted: float = minf(1.15, holder.size.x / tag.card.size.x) if holder.size.x > 0.0 else 1.0
+		tag.hang(Vector2(holder.size.x / 2.0, NameTag.SLOT_MIDDLE * fitted + UiMetrics.COMPACT_GAP), 0.0, fitted)
 		field.position = tag.name_label.position - Vector2(0.0, UiMetrics.GAP)
 		field.size = Vector2(tag.name_label.size.x, UiMetrics.TOUCH)
 		field.alignment = tag.name_label.horizontal_alignment
@@ -73,7 +77,7 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 	var hint: Label = card.add_hint("")
 	var count: Callable = func() -> void:
 		hint.text = "%d / %d letters" % [field.text.length(), Session.MAX_NAME_LENGTH]
-		hint.remove_theme_color_override("font_color")
+		hint.add_theme_color_override("font_color", Color.WHITE)
 	count.call()
 	# only the letters a name can have, live: anything else typed or pasted is dropped
 	field.text_changed.connect(func(typed: String) -> void:
@@ -86,7 +90,10 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 		fit_preview.call())
 	var save: Button = MenuDialog.make_button("Save", "orange", UiMetrics.BODY)
 	save.name = "Save"
-	var actions: Array[Button] = []
+	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
+	cancel.name = "Cancel"
+	cancel.pressed.connect(card.close)
+	var actions: Array[Button] = [cancel]
 	if IdPhoto.exists() and on_photo_removed.is_valid():
 		var remove: Button = MenuDialog.make_button("Remove photo", "grey", UiMetrics.BODY)
 		remove.name = "RemovePhoto"
@@ -101,7 +108,7 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 		var clean: String = Session.clean_name(field.text)
 		if clean.is_empty():
 			hint.text = "Pick a name!"
-			hint.add_theme_color_override("font_color", Color("b3261e"))  # a dark red that reads on the light body
+			hint.add_theme_color_override("font_color", Color("ffb4ab"))  # readable against the dimmed background
 			return
 		Session.player_name = clean
 		Session.save()

@@ -66,7 +66,10 @@ func test_the_name_editor_reuses_the_tag_and_places_the_field_on_its_name_row() 
 	field.text_changed.emit(field.text)
 	assert_eq(preview.player_name(), "LIGAYA")
 	assert_eq(Session.player_name, _player_name, "preview typing does not save")
-	assert_null(card.find_child("Cancel", true, false))
+	assert_true((card.find_child("Cancel", true, false) as Button).is_visible_in_tree())
+	assert_false((card.find_child("Header", true, false) as Control).visible)
+	assert_true(card.panel.get_theme_stylebox("panel") is StyleBoxEmpty)
+	assert_true(card.inner.get_theme_stylebox("panel") is StyleBoxEmpty)
 	card.close(false)
 
 
@@ -97,3 +100,18 @@ func test_populated_history_and_all_filter_controls_fit_the_phone() -> void:
 	assert_almost_eq((screen.history_page.find_child("Title", true, false) as Label).get_global_rect().get_center().x, 360.0, 1.0)
 	assert_lte(screen.history_page.filter_bar.get_global_rect().end.x, 720.0)
 	assert_lte(screen.history_page.streak_label.get_global_rect().end.x, 720.0)
+
+
+func test_editing_lifts_the_tag_out_of_the_menu_and_cancel_restores_it() -> void:
+	var screen: TitleScreen = autofree(preload("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
+	add_child(screen)
+	var original: String = Session.player_name
+	var card: MenuDialog = screen.open_name_editor()
+	await wait_process_frames(3)
+	assert_false(screen.name_tag.visible)
+	assert_true(card.is_visible_in_tree())
+	assert_eq(card.z_index, MenuDialog.MODAL_Z)
+	(card.find_child("NameField", true, false) as LineEdit).text = "LIGAYA"
+	(card.find_child("Cancel", true, false) as Button).pressed.emit()
+	assert_true(screen.name_tag.visible)
+	assert_eq(Session.player_name, original)

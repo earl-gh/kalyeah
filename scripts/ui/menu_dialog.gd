@@ -261,7 +261,7 @@ func _fit() -> void:
 	var available: Vector2 = size - Vector2(
 		_safe.get_theme_constant("margin_left") + _safe.get_theme_constant("margin_right"),
 		_safe.get_theme_constant("margin_top") + _safe.get_theme_constant("margin_bottom"))
-	var header_height: float = _header.get_combined_minimum_size().y + HEADER_GAP
+	var header_height: float = _header.get_combined_minimum_size().y + HEADER_GAP if _header.visible else 0.0
 	var wanted: float = body.get_combined_minimum_size().y + UiMetrics.PADDING * 2.0 + header_height + FRAME_RIM * 2.0
 	# never taller than 75 % of the screen (owner): what does not fit scrolls inside the body
 	var tallest: float = minf(available.y, size.y * MAX_HEIGHT_SHARE)

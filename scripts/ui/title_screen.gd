@@ -783,7 +783,9 @@ func _on_drawer_closed() -> void:
 ## Edit the nametag in place in its preview sheet; a toast answers a save.
 func open_name_editor() -> MenuDialog:
 	var card: MenuDialog = ProfileSheet.build(_on_profile_saved, open_id_camera, _on_photo_changed.bind("Photo removed"))
+	card.closed.connect(name_tag.show)
 	_show_dialog(card)
+	name_tag.hide()
 	return card
 
 
