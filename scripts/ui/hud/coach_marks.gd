@@ -3,7 +3,7 @@ extends Control
 ## The first-run walkthrough over a practice match: the screen dims, a round spotlight shows the control being
 ## explained (the hand of cards), and a card says what to do in one or two sentences. Four
 ## steps: move, aim and throw, how a point is scored, what being tagged means. Next goes on, Skip (or Back on
-## Android) ends it. It runs once, the first time you play practice, and is replayed from Settings, How to play.
+## Android) ends it. It runs once, the first time you play practice.
 ## While it shows the match's own controls are off, so a stray touch cannot throw anything.
 
 signal finished(completed: bool)

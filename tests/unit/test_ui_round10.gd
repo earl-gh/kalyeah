@@ -224,12 +224,12 @@ func test_a_mode_with_no_battles_says_so_and_all_brings_them_back() -> void:
 	assert_eq(page.played_label.text, "1")
 
 
-func test_with_no_history_at_all_the_figures_and_filters_stay_hidden() -> void:
+func test_empty_history_keeps_the_filters_and_zero_kpis_visible() -> void:
 	var screen: TitleScreen = _screen()
 	screen.open_page(&"history")
 	await wait_frames(2)
-	assert_false(screen.history_page.summary_card.is_visible_in_tree())
-	assert_false(screen.history_page.filter_bar.is_visible_in_tree())
+	assert_true(screen.history_page.summary_card.is_visible_in_tree())
+	assert_true(screen.history_page.filter_bar.is_visible_in_tree())
 	assert_not_null(screen.history_page.find_child("Empty", true, false))
 
 

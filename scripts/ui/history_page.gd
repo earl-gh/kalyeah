@@ -32,10 +32,10 @@ func _ready() -> void:
 	_top.add_theme_constant_override("separation", UiMetrics.GAP)
 	add_child(_top)
 	summary_card = _summary()
-	_top.add_child(summary_card)
 	filter_bar = UiSegmented.new(FILTERS, UiMetrics.TOUCH, UiMetrics.CAPTION)
 	filter_bar.chosen.connect(show_filter)
 	_top.add_child(filter_bar)
+	_top.add_child(summary_card)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.name = "Scroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -91,15 +91,14 @@ func refresh() -> void:
 		_list.remove_child(child)
 		child.queue_free()
 	var all: Array[Dictionary] = MatchHistory.entries()
-	_top.visible = not all.is_empty()
-	if all.is_empty():
-		_list.add_child(_empty())
-		return
 	var found: Array[Dictionary] = MatchHistory.of_mode(all, String(filter))
 	var numbers: Dictionary = MatchHistory.summary(found)
 	played_label.text = str(numbers["played"])
 	rate_label.text = "%d%%" % int(numbers["rate"]) if int(numbers["played"]) > 0 else "-"
 	streak_label.text = str(numbers["streak"])
+	if all.is_empty():
+		_list.add_child(_empty())
+		return
 	if found.is_empty():
 		_list.add_child(_empty("No %s battles yet" % String(filter), "Play one and it shows here."))
 		return

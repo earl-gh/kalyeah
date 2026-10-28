@@ -17,7 +17,10 @@ games = Array[Dictionary]([{
 "setup": ["Draw a box with 3 lines across and 1 down the middle.", "Make 2 teams: guards and runners."],
 "how": ["Guards slide along their own line.", "Runners cross every line, then run back.", "Tagged? Swap teams!"],
 "rules": ["Each runner who gets back scores 1.", "Most points after 3 rounds wins!"],
-"safety": "Play away from traffic. Tag softly!"
+"safety": "Play away from traffic. Tag softly!",
+"quick_setup": "Draw a grid; split into guards and runners.",
+"quick_play": "Guards stay on their lines. Cross every line and return; swap teams when tagged.",
+"quick_win": "Each returning runner scores 1. Most points after 3 rounds wins."
 }, {
 "month": 2,
 "name": "Tumbang Preso",
@@ -31,7 +34,10 @@ games = Array[Dictionary]([{
 "setup": ["Draw a circle and stand the can in it.", "Draw a throwing line 8 steps away.", "Pick one guard, the taya."],
 "how": ["Take turns throwing your tsinelas at the can.", "Can down? The taya stands it back up.", "Meanwhile, grab your tsinelas and run!"],
 "rules": ["The taya tags players still out picking up.", "Tagged? You are the new taya!"],
-"safety": "Throw at the can, never at friends."
+"safety": "Throw at the can, never at friends.",
+"quick_setup": "Stand the can in a circle; mark a throwing line 8 steps away. Pick a taya.",
+"quick_play": "Knock down the can with your tsinelas. Retrieve it while the taya resets the can.",
+"quick_win": "The taya tags anyone still retrieving; a tagged player becomes taya."
 }, {
 "month": 3,
 "name": "Piko",
@@ -45,7 +51,10 @@ games = Array[Dictionary]([{
 "setup": ["Draw 8 squares, numbered from 1.", "Toss your pamato into square 1."],
 "how": ["Hop over the pamato square to the end.", "Turn around and hop back.", "Pick up your pamato on the way out."],
 "rules": ["Stepped on a line? Your turn ends.", "Finish all squares first to win!"],
-"safety": "Play on dry ground. Wear shoes."
+"safety": "Play on dry ground. Wear shoes.",
+"quick_setup": "Draw 8 numbered squares. Toss your pamato into square 1.",
+"quick_play": "Hop to the end and back, skipping the pamato square. Pick it up on the return.",
+"quick_win": "Touch a line and your turn ends. Finish every square first."
 }, {
 "month": 4,
 "name": "Luksong Tinik",
@@ -59,7 +68,10 @@ games = Array[Dictionary]([{
 "setup": ["Make 2 teams: tinik and jumpers.", "Two tinik kids sit, feet touching, hands stacked."],
 "how": ["Jumpers take a run and leap over.", "After each round, stack the hands higher.", "Touched it? Swap places!"],
 "rules": ["Most clean jumps wins!", "Keep it low for the smallest jumper."],
-"safety": "Never play on hard pavement."
+"safety": "Never play on hard pavement.",
+"quick_setup": "Make 2 teams. Two seated kids build a low barrier with hands and feet.",
+"quick_play": "Jump without touching the barrier. Raise it after each round; swap on a touch.",
+"quick_win": "Most clean jumps wins. Keep the height suitable for the smallest jumper."
 }, {
 "month": 5,
 "name": "Agawan Base",
@@ -73,7 +85,10 @@ games = Array[Dictionary]([{
 "setup": ["Mark 2 bases 15 steps apart.", "Make 2 teams of 3 to 6."],
 "how": ["Run out and tag the other team.", "Tagged? Go to jail.", "A teammate tags you free!"],
 "rules": ["Hold their base for 12 seconds to score.", "First to 3 points wins!"],
-"safety": "Watch for cars and holes. Tag softly!"
+"safety": "Watch for cars and holes. Tag softly!",
+"quick_setup": "Mark 2 bases 15 steps apart; make 2 teams of 3 to 6.",
+"quick_play": "Tag opponents and send them to jail. A free teammate can tag them out.",
+"quick_win": "Hold the enemy base for 12 seconds or tag everyone to score. First to 3 wins."
 }, {
 "month": 6,
 "name": "Chinese Garter",
@@ -87,7 +102,10 @@ games = Array[Dictionary]([{
 "setup": ["Two kids hold the loop around their ankles.", "Everyone else lines up to jump."],
 "how": ["Jump over it, or through it.", "Clear it? Go up: knees, hips, waist, chest.", "Missed? You hold the garter!"],
 "rules": ["No hands on the garter.", "Highest clean jump wins!"],
-"safety": "Never above the chest. Never at the neck."
+"safety": "Never above the chest. Never at the neck.",
+"quick_setup": "Two kids hold a rubber loop at ankle height; the others line up.",
+"quick_play": "Jump through or over it without hands. Raise it after a clear jump; swap on a miss.",
+"quick_win": "Highest clean jump wins. Stop at chest height."
 }, {
 "month": 7,
 "name": "Langit-Lupa",
@@ -101,7 +119,10 @@ games = Array[Dictionary]([{
 "setup": ["Pick one taya, who is it.", "Low steps or a curb are the langit. The ground is the lupa."],
 "how": ["The taya chants: Langit, lupa, impyerno, 1-2-3, pass!", "Everyone dashes to the langit.", "Tagged on the lupa? You are the new taya!"],
 "rules": ["Kids on the langit are safe.", "Last one never tagged wins!"],
-"safety": "Low places only. No walls or roofs."
+"safety": "Low places only. No walls or roofs.",
+"quick_setup": "Pick a taya. Low steps are langit; the ground is lupa.",
+"quick_play": "Taya chants 'Langit, lupa, impyerno, 1-2-3, pass!' Reach langit; tagged on lupa becomes taya.",
+"quick_win": "The last player never tagged wins."
 }, {
 "month": 8,
 "name": "Sipa",
@@ -115,7 +136,10 @@ games = Array[Dictionary]([{
 "setup": ["Stand in a circle.", "Tie plastic strips to a washer for your sipa."],
 "how": ["Kick it up with your foot.", "Pass it to the next kid.", "Count every kick out loud!"],
 "rules": ["No hands!", "Highest count wins. Beat your record!"],
-"safety": "Keep space between kids. Wear shoes."
+"safety": "Keep space between kids. Wear shoes.",
+"quick_setup": "Stand in a circle with a sipa.",
+"quick_play": "Keep it airborne with your feet and pass it around. Count each kick; no hands.",
+"quick_win": "Beat your group's highest kick count."
 }, {
 "month": 9,
 "name": "Taguan",
@@ -129,7 +153,10 @@ games = Array[Dictionary]([{
 "setup": ["Pick the home base, the taya.", "One seeker covers their eyes and counts to 20."],
 "how": ["Hiders run and hide.", "The seeker shouts: Ready or not, here I come!", "Sneak to the taya and shout: Save!"],
 "rules": ["Found first? You seek next!", "Last one found wins the round!"],
-"safety": "Hide only where grown-ups can see you."
+"safety": "Hide only where grown-ups can see you.",
+"quick_setup": "Choose a home base. One seeker counts to 20 with eyes covered.",
+"quick_play": "Hide, then sneak back to the base and shout 'Save!' before being found.",
+"quick_win": "First found seeks next. Last found wins the round."
 }, {
 "month": 10,
 "name": "Trumpo",
@@ -143,7 +170,10 @@ games = Array[Dictionary]([{
 "setup": ["Draw a circle.", "Wind the string tight around your top."],
 "how": ["Throw it down hard and pull the string.", "The first top to stop is the taya.", "Everyone else tries to hit it!"],
 "rules": ["Out of the circle? Out of the round.", "Last top spinning wins!"],
-"safety": "Throw away from people. Keep faces clear."
+"safety": "Throw away from people. Keep faces clear.",
+"quick_setup": "Draw a circle and wind string around each top.",
+"quick_play": "Throw and pull to spin. The first top to stop is the target for the others.",
+"quick_win": "Leave the circle and you're out. Last top spinning wins."
 }, {
 "month": 11,
 "name": "Kadang-kadang",
@@ -157,7 +187,10 @@ games = Array[Dictionary]([{
 "setup": ["A grown-up ties a rope through each shell.", "Mark start and finish 10 steps apart."],
 "how": ["Stand on the shells. Pull the ropes tight.", "On go, lift one shell at a time.", "Fell off? Hop back on and go!"],
 "rules": ["No pushing.", "First across the line wins!"],
-"safety": "Walk, do not run. Flat ground only."
+"safety": "Walk, do not run. Flat ground only.",
+"quick_setup": "Have a grown-up tie ropes through 2 shells each. Mark a 10-step course.",
+"quick_play": "Stand on the shells, hold the ropes tight and lift one foot at a time. No pushing.",
+"quick_win": "First across wins. Step back on if you fall off."
 }, {
 "month": 12,
 "name": "Syato",
@@ -171,5 +204,8 @@ games = Array[Dictionary]([{
 "setup": ["Make 2 teams: hitters and catchers.", "Lay the syato on the ground."],
 "how": ["Tap its tip to pop it up.", "Swing and bat it as far as you can!", "Caught in the air? You are out."],
 "rules": ["3 tries to pop it up.", "Measure the distance in pamalo lengths!"],
-"safety": "Everyone stands well back from the hitter."
+"safety": "Everyone stands well back from the hitter.",
+"quick_setup": "Make hitter and catcher teams. Lay the short stick on the ground.",
+"quick_play": "Tap it up, then hit it with the long stick. A catch puts the hitter out.",
+"quick_win": "3 tries; longest hit wins. Measure in long-stick lengths."
 }])

@@ -3,7 +3,7 @@ extends Control
 ## The main screen, built as a game lobby: a living backdrop, a top bar with the game's logo, the mode carousel as the hero (the chosen card framed in light, floating a little), the
 ## mode's name, one phrase and the main action under it, and a tab bar at the bottom (Play, Book,
 ## History, Settings). The tabs swap the middle of the screen; the pages take the whole height (the logo
-## shows on Play only, each page has its own title and Settings holds the profile).
+## shows on Play only, each page has its own title).
 ## Android Back closes a tab back to Play, and on Play asks to quit.
 
 const SERVER_SCENE: String = "res://server/main.tscn"
@@ -206,6 +206,7 @@ func _build_layout() -> void:
 	_page_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	middle.add_child(_page_holder)
 	_build_pages()
+	_page_holder.resized.connect(_fit_pages)
 	# the drawer spans the phone; it is moved above the bar for GUI hit testing below
 	card_drawer = CardDrawer.new()
 	card_drawer.z_index = MenuDialog.MODAL_Z - 2
@@ -222,7 +223,7 @@ func _build_layout() -> void:
 	move_child(card_drawer, get_child_count() - 1)
 
 
-## The top bar: the KALYEAH! logo, centred and dropped a little from the top edge. Your profile lives in Settings.
+## The top bar: the KALYEAH! logo, centred and dropped a little from the top edge. Your profile is edited on the nametag.
 func _build_top_bar() -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.name = "TopBar"
@@ -430,6 +431,14 @@ func _build_pages() -> void:
 	codex_page.drawer_requested.connect(open_card_drawer)
 	settings_page.quit_pressed.connect(open_quit_confirm)
 	history_page.play_pressed.connect(close_page)
+
+
+## Container pages may acquire minimum-size offsets before their parent is laid out.
+## Keep their stretch offsets paired so they fit the page while preserving slide positions.
+func _fit_pages() -> void:
+	for page: Control in pages.values():
+		page.offset_right = page.offset_left
+		page.offset_bottom = page.offset_top
 
 
 func _on_tab_pressed(id: StringName) -> void:
@@ -771,7 +780,7 @@ func _on_drawer_closed() -> void:
 	_drawer_screen = null
 
 
-## Your profile: the name and the face (see `ProfileSheet`). The Settings card and a toast answer a save.
+## Edit the nametag in place in its preview sheet; a toast answers a save.
 func open_name_editor() -> MenuDialog:
 	var card: MenuDialog = ProfileSheet.build(_on_profile_saved, open_id_camera, _on_photo_changed.bind("Photo removed"))
 	_show_dialog(card)

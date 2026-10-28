@@ -3,7 +3,7 @@ extends RefCounted
 ## The last battles this phone played (mode, result, score), kept in a small local file so the
 ## History tab can list them. Nothing leaves the phone.
 
-const MAX_ENTRIES: int = 30
+const MAX_ENTRIES: int = 20
 
 ## Where the history is kept (tests point it elsewhere).
 static var path: String = "user://history.cfg"
@@ -29,6 +29,8 @@ static func entries() -> Array[Dictionary]:
 	for item: Variant in file.get_value("history", "entries", []) as Array:
 		if item is Dictionary:
 			found.append(item as Dictionary)
+			if found.size() == MAX_ENTRIES:
+				break
 	return found
 
 

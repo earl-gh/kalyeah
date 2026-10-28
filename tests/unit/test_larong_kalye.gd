@@ -63,9 +63,9 @@ func test_the_sheet_shows_the_games_title_players_items_goal_and_mechanics() -> 
 		assert_true(texts.contains(String(game["name"])), "the game's name is the headline")
 		assert_true(texts.contains("%d to %d players" % [game["players_min"], game["players_max"]]), "the players")
 		assert_true(texts.contains(String((game["items"] as Array)[0])), "what you need")
-		assert_true(texts.contains(String(game["goal"])), "the goal")
-		assert_true(texts.contains(String((game["how"] as Array)[0])), "how to play")
-		for heading: String in ["YOU NEED", "GOAL", "SET UP", "HOW TO PLAY", "RULES", "STAY SAFE"]:
+		assert_true(texts.contains(String(game["quick_win"])), "how to win")
+		assert_true(texts.contains(String(game["quick_play"])), "how to play")
+		for heading: String in ["You need:", "Set up:", "Play:", "Win:", "Stay safe:"]:
 			assert_true(texts.contains(heading), heading)
 		card.queue_free()
 
@@ -127,7 +127,8 @@ func test_no_modal_is_taller_than_three_quarters_of_the_screen() -> void:
 		assert_lte(card.panel.size.x, MenuDialog.WIDTH_SHEET + 1.0, "%s is no wider than a sheet" % card.name)
 		card.close(false)
 	# a long one reaches the cap and scrolls inside
-	var long: MenuDialog = GameOfMonthSheet.build(2)
+	var long: MenuDialog = MenuDialog.create("Long content", MenuDialog.WIDTH_SHEET)
+	long.add_label("Long content that must scroll. ".repeat(100))
 	long.open(holder)
 	await wait_process_frames(3)
 	assert_almost_eq(long.panel.size.y, 1280.0 * MenuDialog.MAX_HEIGHT_SHARE, 2.0, "a long sheet stops at 75 % and scrolls")

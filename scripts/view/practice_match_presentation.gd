@@ -69,7 +69,7 @@ func connect_sim() -> void:
 		owner.hud.street.release())
 	owner.sim.intro_finished.connect(func() -> void:
 		owner.show_banner("GO!")
-		# the first practice match (or a replay from How to play) opens with the walkthrough
+		# the first practice match opens with the walkthrough
 		if Session.coach_pending and not owner.online:
 			Session.coach_pending = false
 			owner.hud.coach.start(owner.sim.rules.capture_solo_time, owner.sim.score.points_to_win()))
