@@ -97,3 +97,59 @@ func test_a_tip_floats_just_above_the_base_and_fits_the_screen() -> void:
 func test_every_scene_it_warms_up_exists() -> void:
 	for path: String in BootScreen.WARM_SCENES:
 		assert_true(ResourceLoader.exists(path), path)
+
+
+# ---- the loading screen into a match ------------------------------------------------------
+
+func _over_a_screen(path: String) -> BootScreen:
+	var root: Control = autofree(Control.new()) as Control
+	root.size = Vector2(720.0, 1280.0)
+	add_child(root)
+	var loading: BootScreen = BootScreen.for_scene(path)
+	root.add_child(loading)
+	return loading
+
+
+func _until_finished(loading: BootScreen) -> bool:
+	watch_signals(loading)
+	for i: int in 600:
+		if get_signal_emit_count(loading, "finished") > 0:
+			return true
+		await wait_process_frames(1)
+	return get_signal_emit_count(loading, "finished") > 0
+
+
+func test_the_loading_screen_covers_the_screen_loads_one_scene_and_leaves_the_change_to_its_caller() -> void:
+	var path: String = "res://scenes/ui/lobby.tscn"
+	var loading: BootScreen = _over_a_screen(path)
+	await wait_process_frames(2)
+	assert_eq(loading.size, Vector2(720.0, 1280.0), "the whole screen")
+	assert_eq(loading.mouse_filter, Control.MOUSE_FILTER_STOP, "it takes every touch: nothing in the room under it can be pressed")
+	assert_eq(loading.z_index, MenuDialog.MODAL_Z, "over the room's own sheets")
+	assert_eq(loading.scenes, [path] as Array[String])
+	assert_false(loading.hands_over)
+	assert_true(await _until_finished(loading), "it finishes")
+	assert_almost_eq(loading.progress, 1.0, 0.001, "with the bar full")
+	var packed: PackedScene = loading.scene()
+	assert_not_null(packed)
+	assert_eq(packed.resource_path, path)
+
+
+func test_the_room_shows_the_loading_screen_when_the_match_starts_and_back_waits() -> void:
+	var lobby: LobbyScreen = autofree(preload("res://scenes/ui/lobby.tscn").instantiate()) as LobbyScreen
+	lobby.client = GameClient.new(preload("res://data/rules/game_rules.tres"), preload("res://data/rules/map_layout.tres"), preload("res://data/rules/net_rules.tres"))
+	lobby.set_intent(LobbyScreen.Intent.CREATE)
+	add_child(lobby)
+	await wait_process_frames(1)
+	lobby._on_match_loading({})
+	assert_not_null(lobby.loading_screen, "the loading screen, not a frozen room")
+	lobby.loading_screen.set_process(false)  # stays here: this test does not open the match
+	assert_eq(lobby.loading_screen.target, LobbyScreen.MATCH_SCENE)
+	assert_true(lobby.loading_screen.is_visible_in_tree())
+	var shown: BootScreen = lobby.loading_screen
+	lobby._on_match_loading({})
+	assert_eq(lobby.loading_screen, shown, "one loading screen, however many times the server says so")
+	watch_signals(lobby)
+	lobby._back_pressed()
+	assert_true(is_instance_valid(lobby) and lobby.is_inside_tree(), "Back waits for the match")
+	assert_eq(lobby.client.room, {}, "and leaves no room")
