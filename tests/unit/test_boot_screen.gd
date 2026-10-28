@@ -33,29 +33,40 @@ func test_a_matte_black_layer_is_underneath_with_a_matte_black_base_and_no_white
 	assert_almost_eq(boot._art.position.y + boot._art.size.y, band_top, 0.5, "the art stops where the base starts")
 	assert_eq(boot._base.color, BootScreen.BASE_COLOR, "the base is matte black")
 	assert_almost_eq(boot._base.get_global_rect().size.x, 720.0, 0.5, "edge to edge")
-	assert_null(boot.get("_track_rect"), "no white bar")
-	for texture: Node in boot.find_children("*", "TextureRect", true, false):
-		assert_ne((texture as TextureRect).texture, load("res://assets/ui/boot/boot_bar_track.png"), "the white track is not drawn")
+	assert_false(FileAccess.file_exists("res://assets/ui/boot/boot_bar_fill.png"), "the cardboard fill is removed")
+	assert_false(FileAccess.file_exists("res://assets/ui/boot/boot_bar_track.png"), "the obsolete image track is removed")
 	boot.queue_free()
 
 
-func test_the_base_is_short_and_the_cardboard_keeps_its_proportions_at_the_bases_scale_and_the_base_crops_it() -> void:
+func test_the_blue_fill_stays_inside_its_frame_at_every_progress_value() -> void:
 	var boot: BootScreen = _boot()
-	boot.progress = 1.0
-	boot._layout()
-	var scale_now: float = boot._fill_rect.size.y / BootScreen.FILL_REGION.size.y
-	assert_almost_eq(boot._fill_rect.size.x / BootScreen.FILL_REGION.size.x, scale_now, 0.001, "no stretching: the same scale both ways")
-	assert_gte(boot._fill_rect.size.y, boot._base.size.y - 0.5, "at least as tall as the base (it covers it)")
-	assert_lt(boot._base.size.y, 80.0, "a short base")
-	assert_gte(boot._fill_rect.size.x, boot._base.size.x, "wider than the base, so the base crops it")
-	assert_eq(boot._fill_clip.size, boot._base.size, "full at 100%")
-	boot.progress = 0.25
-	boot._apply_progress()
-	assert_almost_eq(boot._fill_clip.size.x, 180.0, 0.5)
-	assert_eq(boot._fill_clip.size.y, boot._base.size.y)
-	var picture: Texture2D = load("res://assets/ui/boot/boot_bar_fill.png") as Texture2D
-	assert_gt(BootScreen.FILL_REGION.position.x, 25.0, "the rounded left end is cropped away")
-	assert_lt(BootScreen.FILL_REGION.end.x, float(picture.get_width()) - 25.0, "and the right end")
+	for height: float in [1280.0, 1558.0]:
+		(boot.get_parent() as Control).size.y = height
+		await wait_frames(2)
+		for fraction: float in [-0.1, 0.0, 0.25, 0.5, 1.0, 1.1]:
+			boot.progress = fraction
+			boot._layout()
+			var track: Rect2 = boot._track.get_global_rect()
+			var fill: Rect2 = boot._fill_clip.get_global_rect()
+			assert_gt(fill.position.x, track.position.x, "the left frame is always visible")
+			assert_lt(fill.end.x, track.end.x, "even a full bar keeps its right frame")
+			assert_gt(fill.position.y, track.position.y)
+			assert_lt(fill.end.y, track.end.y)
+			assert_almost_eq(fill.size.x / boot._fill_rect.size.x, clampf(fraction, 0.0, 1.0), 0.001, "fill matches actual progress")
+			assert_eq(boot._percent.text, "%d%%" % roundi(clampf(fraction, 0.0, 1.0) * 100.0))
+	boot.queue_free()
+
+
+func test_the_loading_fill_is_blue_and_has_a_lit_top_and_dark_lower_edge() -> void:
+	var boot: BootScreen = _boot()
+	var texture: GradientTexture2D = boot._fill_rect.texture as GradientTexture2D
+	assert_not_null(texture, "the bar is a code gradient, not an image asset")
+	var top: Color = texture.gradient.sample(0.0)
+	var bottom: Color = texture.gradient.sample(1.0)
+	assert_gt(top.b, top.r, "blue highlight")
+	assert_gt(bottom.b, bottom.r, "blue fill")
+	assert_gt(top.get_luminance(), bottom.get_luminance(), "the top catches the light")
+	assert_gt(bottom.get_luminance(), BootScreen.TRACK_COLOR.get_luminance(), "the remaining track is recessed")
 	boot.queue_free()
 
 
