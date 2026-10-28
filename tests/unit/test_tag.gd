@@ -227,6 +227,7 @@ func test_an_enemy_in_the_rescue_area_rescues_nobody() -> void:
 	var sim: MatchSim = _sim()
 	var me: PlayerState = sim.add_player(1, 0)
 	var them: PlayerState = sim.add_player(2, 1)
+	sim.add_player(3, 0)  # Keep a teammate free: this tests rescue, not a team wipe.
 	sim.kill(1)
 	them.position = _area(sim, 0).get_center()
 	_wait(sim, 6.0)
@@ -278,6 +279,7 @@ func test_players_never_walk_out_on_their_own() -> void:
 	var sim: MatchSim = _sim()
 	var me: PlayerState = sim.add_player(1, 0)
 	sim.add_player(2, 1)
+	sim.add_player(3, 0)  # Keep a teammate free: this tests rescue, not a team wipe.
 	sim.kill(1)
 	_wait(sim, RULES.dummy_release_time + 1.0)
 	assert_true(me.tagged)
