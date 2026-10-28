@@ -1,5 +1,5 @@
 extends GutTest
-## The APK stays under its size budget (.github/scripts/inspect-apk.sh, 150 MB) and the phone's texture memory stays small because the
+## The APK stays under its size budget (.github/scripts/inspect-apk.sh, 200 MB) and the phone's texture memory stays small because the
 ## owner's 3D model textures (props, weapons, kids) are imported VRAM compressed (ETC2 on Android): lossless they were 2 to 10 MB each
 ## on disk and a full uncompressed 2048 px texture each in the phone's memory.
 
@@ -33,12 +33,10 @@ func test_no_model_texture_is_lossless() -> void:
 
 func test_kid_and_prop_textures_are_vram_compressed() -> void:
 	for import_path: String in _texture_imports():
-		if import_path.contains("_kid_base_color"):
-			continue  # the older kids' small textures are lossy WebP, 0.4 to 0.7 MB
 		assert_eq(int(_param(import_path, "compress/mode")), COMPRESS_VRAM, import_path)
 
 
 func test_authored_kid_normal_maps_are_flagged_as_normal_maps() -> void:
-	for kid: String in ["toni", "popoy", "inday"]:
+	for kid: String in ["junjun", "ligaya", "migo", "toni", "popoy", "inday"]:
 		var path: String = "res://assets/models/characters/%s_2.png.import" % kid
 		assert_eq(int(_param(path, "compress/normal_map")), 1, "%s's normal map is compressed as a normal map" % kid)

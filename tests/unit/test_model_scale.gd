@@ -35,14 +35,20 @@ func test_the_world_factor_follows_the_kid() -> void:
 	assert_gt(ScaleReference.world_factor(CAMERA.kid_view_scale), 1.5)
 
 
-func test_the_six_kid_models_are_the_same_height() -> void:
+func test_the_six_kids_are_drawn_at_the_same_height() -> void:
+	# Ligaya and Migo are authored 0.64 as tall as the other four (1.09 against 1.7 m, see KidModel.model_height): each kid
+	# is scaled by its own height so all six stand KID_HEIGHT. tests/unit/test_authored_kids.gd measures the skinned meshes.
 	var heights: Array[float] = []
 	for character: CharacterDef in RULES.characters:
-		var root: Node = (load("res://assets/models/characters/%s.glb" % character.id) as PackedScene).instantiate()
-		var mesh: MeshInstance3D = root.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
-		heights.append(mesh.mesh.get_aabb().size.y)
-		root.free()
-	assert_lt((heights.max() as float) / (heights.min() as float), 1.02, "one KID_HEIGHT scale gives every kid the same height: %s" % str(heights))
+		var kid: KidModel = autofree(KidModel.new()) as KidModel
+		kid.setup(character)
+		add_child(kid)
+		var model: Node3D = kid.find_child("Model", true, false) as Node3D
+		var height: float = KidModel.model_height(model)
+		heights.append(height)
+		assert_almost_eq(height * model.scale.y, KidModel.KID_HEIGHT, 0.001, "%s stands KID_HEIGHT" % character.id)
+	assert_between(heights.min() as float, 1.05, 1.15, "the smallest authored kid (Ligaya, Migo)")
+	assert_between(heights.max() as float, 1.69, 1.71, "the others")
 
 
 func test_every_prop_is_one_mesh_at_the_origin_so_its_measured_size_is_true() -> void:

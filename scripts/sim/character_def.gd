@@ -27,17 +27,9 @@ enum Extra { NONE, BIMPO, HAIR_CLIP, HEADBAND_BELT_BAG, ICE_CANDY, PONY_BANDS }
 @export var shoe_color: Color = Color(0.2, 0.5, 0.9)
 @export var extra: Extra = Extra.NONE
 @export var extra_color: Color = Color.WHITE
-## True when the kid's model plays its own animation clips at their own speed: the run is not
-## paced to the ground speed, a cast is not squeezed into the weapon's cast time and a spell does
-## not skip the start of its clip (Junjun's rebuilt rig). Purely visual.
-@export var native_animation: bool = false
-## The owner's authored model (Toni, Popoy, Inday): its GLB keeps its own material (no ModelLook) and plays its own
-## clips (Idle, Run, Cast_OneHand, Cast_Run, ...) at their own speed. No knock-down: a tagged kid shrinks away and
-## grows back in the tagged box. Purely visual.
-@export var authored_model: bool = false
-## Seconds into Cast_OneHand (standing) and Cast_Run (moving) where the hand releases: the clip starts there so the
-## release lands on the sim's cast tick. Measured on the GLB: the time the right hand moves fastest on the cast's
-## forward swing (Cast_OneHand) or raise (Cast_Run, past the run cycle's own arm swing), at 1/60 s.
+## Seconds into the owner's Cast_OneHand (standing) and Cast_Run (moving) clips where the hand releases: the clip starts
+## there so the release lands on the sim's cast tick. Measured on the GLB (docs/ART.md "Authored kids"): the time the
+## right hand has covered half of its travel over the cast's swing (Cast_OneHand) or raise (Cast_Run), at 1/60 s.
 @export var cast_release_standing: float = 0.0
 @export var cast_release_moving: float = 0.0
 ## Visual body width (Popoy is chubbier). Never the hitbox: that is GameRules.

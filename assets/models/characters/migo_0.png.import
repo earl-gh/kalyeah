@@ -2,25 +2,27 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ci7l3tji3u2vu"
-path="res://.godot/imported/junjun_kid_base_color.jpg-2d5af1ee18796545bba5cd7fa49cd393.ctex"
+uid="uid://cic7nrj2623ex"
+path.s3tc="res://.godot/imported/migo_0.png-7a63d9ddf34678cc75430bba595d8483.s3tc.ctex"
+path.etc2="res://.godot/imported/migo_0.png-7a63d9ddf34678cc75430bba595d8483.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "3211e09c790a066780e0a4c941e4b3e7"
+"md5": "a7caaccfd55d231cbe5bd22fee81c69f"
 }
 
 [deps]
 
-source_file="res://assets/models/characters/junjun_kid_base_color.jpg"
-dest_files=["res://.godot/imported/junjun_kid_base_color.jpg-2d5af1ee18796545bba5cd7fa49cd393.ctex"]
+source_file="res://assets/models/characters/migo_0.png"
+dest_files=["res://.godot/imported/migo_0.png-7a63d9ddf34678cc75430bba595d8483.s3tc.ctex", "res://.godot/imported/migo_0.png-7a63d9ddf34678cc75430bba595d8483.etc2.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=2
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
@@ -40,4 +42,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

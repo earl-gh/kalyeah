@@ -2,7 +2,7 @@ extends GutTest
 
 var RULES: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
-## A kid whose animation is paced by the game (Junjun plays his own clips at their own speed).
+## Any one of the kids (they all play their own clips, see test_authored_kids.gd).
 const PACED: int = 1
 
 
@@ -100,12 +100,12 @@ func test_each_state_plays_its_own_animation() -> void:
 	assert_eq(kid.pose, "run")
 	assert_eq(kid.current_animation(), "run")
 	kid.play_cast()
-	assert_eq(_animation_after(kid, state), "run", "a cast on the move keeps the legs running")
+	assert_eq(_animation_after(kid, state, 5.0), "cast_run", "a cast on the move is the running cast")
 	assert_eq(kid.pose, "cast")
 	for i: int in 20:
 		kid.animate(0.05, 0.0, state)
 	kid.play_cast()
-	assert_eq(_animation_after(kid, state), "cast", "standing still: the whole body throws")
+	assert_eq(_animation_after(kid, state), "cast", "standing still: the standing cast")
 	state = PlayerState.new()
 	state.effects.apply(StatusEffects.Type.STUN, 2.0)
 	assert_eq(_animation_after(kid, state), "stun", "stars")
@@ -118,22 +118,11 @@ func test_each_state_plays_its_own_animation() -> void:
 	state.effects.clear()
 	assert_ne(_animation_after(kid, state), "airborne", "back on the ground")
 	state = PlayerState.new()
+	state.effects.apply(StatusEffects.Type.KNOCKOUT, 2.0)
+	assert_eq(_animation_after(kid, state), "stun", "no kid has a fall: knocked out shows as stunned")
+	state = PlayerState.new()
 	state.tagged = true
 	assert_eq(_animation_after(kid, state), "idle", "tagged kids stand on the sidewalk")
-
-
-func test_a_knockout_falls_then_lies() -> void:
-	var kid: KidModel = _kid(1)
-	var state: PlayerState = PlayerState.new()
-	state.effects.apply(StatusEffects.Type.KNOCKOUT, 3.0)
-	assert_eq(_animation_after(kid, state), "ko_stagger")
-	kid.animate(KidModel.KO_FALL_TIME, 0.0, state)
-	assert_eq(kid.current_animation(), "ko_lying")
-	assert_eq(kid.pose, "ko")
-	state.effects.clear()
-	assert_eq(_animation_after(kid, state), "idle", "gets back up")
-
-
 
 
 func test_running_makes_footstep_signals() -> void:
@@ -142,8 +131,8 @@ func test_running_makes_footstep_signals() -> void:
 	watch_signals(kid)
 	for i: int in 60:
 		kid.animate(0.03, 5.0, state)
-	# 1.8 s at 5 m/s = 9 m; two footfalls per 1.6 m stride
-	assert_between(get_signal_emit_count(kid, "footstep"), 10, 12)
+	# 1.8 s of running: two footfalls per cycle of the run clip (0.57 s), so about six
+	assert_between(get_signal_emit_count(kid, "footstep"), 5, 7)
 
 
 func test_camera_shake_kicks_then_settles() -> void:
@@ -191,137 +180,34 @@ func test_every_kid_is_the_same_3d_model_at_one_height() -> void:
 		var kid: KidModel = _kid(i)
 		var model: Node3D = kid.find_child("Model", true, false) as Node3D
 		assert_not_null(model, RULES.characters[i].display_name)
-		var mesh: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
-		assert_almost_eq(mesh.get_aabb().size.y * model.scale.y, KidModel.KID_HEIGHT, 0.01, "one kid height")
+		assert_almost_eq(KidModel.model_height(model) * model.scale.y, KidModel.KID_HEIGHT, 0.001, "one kid height")
 		assert_null(kid.find_child("Sprite", true, false), "no sprite: a real model")
 
 
 func test_the_model_has_every_animation_and_loops_only_the_continuous_ones() -> void:
 	var player: AnimationPlayer = _kid(0).find_child("AnimationPlayer", true, false) as AnimationPlayer
-	for clip: String in ["idle", "run", "cast", "stun", "ko"]:
+	for clip: String in ["idle", "run", "tired", "cast", "cast_run", "stun", "airborne"]:
 		assert_true(player.has_animation(clip), clip)
-	for clip: String in ["idle", "run", "stun"]:
+	for clip: String in ["idle", "run", "tired", "stun", "airborne"]:
 		assert_eq(player.get_animation(clip).loop_mode, Animation.LOOP_LINEAR, "%s loops" % clip)
-	for clip: String in ["cast", "ko"]:
+	for clip: String in ["cast", "cast_run"]:
 		assert_eq(player.get_animation(clip).loop_mode, Animation.LOOP_NONE, "%s plays once" % clip)
 
 
-func test_the_model_gets_the_matte_look_and_a_tint() -> void:
-	var kid: KidModel = _kid(0)
-	var mesh: MeshInstance3D = kid.find_children("*", "MeshInstance3D", true, false).filter(func(n: Node) -> bool: return n.name == "Mesh0")[0] as MeshInstance3D
-	var material: StandardMaterial3D = mesh.get_surface_override_material(0) as StandardMaterial3D
-	assert_not_null(material)
-	assert_eq(material.roughness, 1.0)
-	assert_eq(material.metallic, 0.0)
-	assert_false(material.normal_enabled)
-	assert_eq(material.diffuse_mode, BaseMaterial3D.DIFFUSE_LAMBERT_WRAP)
-	assert_true(material.rim_enabled)
-	var state: PlayerState = PlayerState.new()
-	kid.animate(0.05, 0.0, state)
-	assert_almost_eq(material.albedo_color.r, ModelLook.ALBEDO_GAIN, 0.001, "untinted")
-	state.tagged = true
-	kid.animate(0.05, 0.0, state)
-	assert_lt(material.albedo_color.r, ModelLook.ALBEDO_GAIN * 0.6, "greyed out on the sidewalk")
-
-
-func test_the_run_cycle_follows_the_ground_speed() -> void:
+func test_a_second_cast_starts_the_clip_over() -> void:
 	var kid: KidModel = _kid(PACED)
 	var player: AnimationPlayer = kid.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	var state: PlayerState = PlayerState.new()
-	for i: int in 10:
-		kid.animate(0.05, 2.5, state)
-	var slow: float = player.speed_scale
-	for i: int in 10:
-		kid.animate(0.05, 5.0, state)
-	assert_gt(player.speed_scale, slow * 1.5, "faster ground speed, faster legs")
-
-
-func test_a_cast_plays_at_the_cast_time_and_restarts() -> void:
-	var kid: KidModel = _kid(PACED)
-	var player: AnimationPlayer = kid.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	var state: PlayerState = PlayerState.new()
-	kid.play_cast(0.5)
+	kid.play_cast()
 	kid.animate(0.02, 0.0, state)
 	assert_eq(player.current_animation, "cast")
-	assert_almost_eq(player.speed_scale, player.get_animation("cast").length / 0.5, 0.01)
-	kid.animate(0.2, 0.0, state)
+	player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	player.advance(0.2)
 	var before: float = player.current_animation_position
-	assert_gt(before, 0.0)
-	kid.play_cast(0.5)
+	assert_gt(before, kid.cast_release("cast") + 0.1)
+	kid.play_cast()
 	kid.animate(0.02, 0.0, state)
 	assert_lt(player.current_animation_position, before, "a second cast starts over")
-
-
-func _hips_height(kid: KidModel) -> float:
-	var skeleton: Skeleton3D = kid.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
-	var bone: int = skeleton.find_bone("hips")
-	return (skeleton.global_transform * skeleton.get_bone_global_pose(bone)).origin.y - kid.global_position.y
-
-
-func test_a_knockout_knocks_the_kid_down_on_their_back_and_back_up() -> void:
-	var kid: KidModel = _kid(1)
-	var body: Node3D = kid.find_child("Body", true, false) as Node3D
-	var player: AnimationPlayer = kid.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	# This test advances the clip explicitly; idle frames must not advance a second clock.
-	player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
-	player.advance(0.0)
-	await wait_process_frames(2)
-	var standing: float = _hips_height(kid)
-	var state: PlayerState = PlayerState.new()
-	state.effects.apply(StatusEffects.Type.KNOCKOUT, 3.0)
-	for i: int in 30:
-		kid.animate(0.02, 0.0, state)
-	assert_eq(player.current_animation, "ko", "the kid's own knock-down clip")
-	player.advance(1.5)
-	# Evaluate the settled blend at the same clip time before sampling the bones.
-	player.advance(0.0)
-	await wait_process_frames(2)  # the skeleton applies the new pose on the next frame
-	assert_lt(_hips_height(kid), standing * 0.35, "lying on the street")
-	assert_almost_eq(body.rotation.x, 0.0, 0.05, "the clip falls, the body is not tipped as well")
-	state.effects.clear()
-	for i: int in 30:
-		kid.animate(0.02, 0.0, state)
-	assert_eq(player.current_animation, "idle", "back on their feet")
-
-
-func test_a_cast_on_the_move_moves_only_the_upper_body() -> void:
-	var kid: KidModel = _kid(PACED)
-	var upper: AnimationPlayer = kid.find_child("UpperPlayer", true, false) as AnimationPlayer
-	assert_not_null(upper)
-	var state: PlayerState = PlayerState.new()
-	for i: int in 10:
-		kid.animate(0.05, 5.0, state)
-	kid.play_cast(0.5)
-	kid.animate(0.02, 5.0, state)
-	assert_eq(upper.current_animation, "cast")
-	assert_almost_eq(upper.speed_scale, upper.get_animation("cast").length / 0.5, 0.01, "at the cast time")
-	for clip: String in ["cast", "spell"]:
-		var anim: Animation = upper.get_animation(clip)
-		assert_gt(anim.get_track_count(), 20, "%s moves the arms, spine and head" % clip)
-		for track: int in anim.get_track_count():
-			var part: String = String(anim.track_get_path(track).get_subname(0))
-			for lower: String in ["thigh", "shin", "foot", "toe", "pelvis", "hips", "root", "knee_flex", "hip_flex"]:
-				assert_false(part.begins_with(lower), "%s leaves %s to the run" % [clip, part])
-	for i: int in 30:
-		kid.animate(0.05, 5.0, state)
-	assert_false(upper.is_playing(), "the layer stops once the cast is over")
-
-
-func test_heals_shields_and_traps_are_cast_with_an_open_hand() -> void:
-	var spells: Array[StringName] = []
-	for def: WeaponDef in RULES.weapons:
-		if KidModel.is_spell(def):
-			spells.append(def.id)
-	spells.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
-	assert_eq(spells, [&"heal", &"langit_lupa", &"papel_shield", &"papel_trap"] as Array[StringName])
-	var kid: KidModel = _kid(PACED)
-	var state: PlayerState = PlayerState.new()
-	kid.play_cast(0.5, true)
-	assert_eq(_animation_after(kid, state), "spell")
-	var player: AnimationPlayer = kid.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	assert_eq(player.current_animation, "spell")
-	assert_almost_eq(player.current_animation_position, KidModel.SPELL_FROM, 0.05, "starts after the charge-up")
 
 
 func test_stars_circle_the_head_only_while_stunned() -> void:
@@ -342,8 +228,8 @@ func test_the_card_portrait_is_a_picture_of_the_kid() -> void:
 	assert_eq(KidModel.portrait(&"nobody"), portrait, "kids with no portrait use Junjun's")
 
 
-func test_the_rebuilt_kids_without_a_landing_clip_still_play_every_other_state() -> void:
-	for index: int in [1, 2]:  # Ligaya and Migo (the owner's rebuilt rigs have no landing clip)
+func test_ligaya_and_migo_play_every_state() -> void:
+	for index: int in [1, 2]:  # Ligaya and Migo
 		var kid: KidModel = _kid(index)
 		var state: PlayerState = PlayerState.new()
 		for i: int in 10:
@@ -352,7 +238,7 @@ func test_the_rebuilt_kids_without_a_landing_clip_still_play_every_other_state()
 		state.effects.apply(StatusEffects.Type.AIRBORNE, 2.0)
 		assert_eq(_animation_after(kid, state), "airborne")
 		state.effects.clear()
-		assert_ne(_animation_after(kid, state), "airborne", "back on the ground, with or without a landing squash")
+		assert_ne(_animation_after(kid, state), "airborne", "back on the ground")
 
 
 func test_a_settings_row_detail_wraps_in_the_muted_tracked_caption_style() -> void:
