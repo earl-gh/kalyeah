@@ -21,6 +21,9 @@ const FALLBACK_SET: StringName = &"junjun"
 ## How tall the kid stands in the world, in metres (a little taller than life so the kids
 ## read through the wide lens).
 const KID_HEIGHT: float = 1.85
+## A polymorphed kid is the owner's can (`assets/models/weapons/can.glb`, the model Lata throws), standing this tall in metres.
+const POLYMORPH_CAN_MODEL: String = "can"
+const POLYMORPH_CAN_HEIGHT: float = 1.3
 const GHOST_COLOR: Color = Color(0.55, 0.55, 0.62)
 const HIT_COLOR: Color = Color(1.0, 0.55, 0.55)
 ## Ground covered by one full run cycle (two steps).
@@ -86,7 +89,7 @@ var _layer_played: int = 0
 var _materials: Array[StandardMaterial3D] = []
 var _shadow: MeshInstance3D
 var _stars: Node3D
-var _can: MeshInstance3D
+var _can: Node3D
 var _facing: Vector2 = Vector2(0.0, 1.0)
 var _phase: float = 0.0
 var _clock: float = 0.0
@@ -499,12 +502,10 @@ func _build() -> void:
 			_upper.add_animation_library("", _layer_library(String(_set), library))
 	_stars = _build_stars()
 	add_child(_stars)
-	_can = MeshInstance3D.new()
-	_can.mesh = Props.can_body()
-	_can.scale = Vector3.ONE * 1.3
+	# the owner's can model (the one Lata throws), not a code-drawn stand-in
+	_can = WeaponModel.standing(POLYMORPH_CAN_MODEL, POLYMORPH_CAN_HEIGHT)
 	_can.visible = false
 	add_child(_can)
-	LowPoly.add_outline(_can, 0.02)
 
 
 ## The imported loops end on their last pose instead of coming back to the first (Junjun's run

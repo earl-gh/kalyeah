@@ -202,9 +202,3 @@ static func weapon_object(id: StringName, radius: float) -> ArrayMesh:
 
 
 ## The polymorphed player: a big can (tumbang preso lata).
-static func can_body() -> ArrayMesh:
-	return cached("can", func() -> ArrayMesh:
-		var kit: LowPoly = LowPoly.new()
-		kit.cylinder(Vector3.ZERO, 0.42, 0.42, 0.95, 10, Palette.JEEP_CHROME, Palette.CONCRETE)
-		kit.cylinder(Vector3(0.0, 0.25, 0.0), 0.44, 0.44, 0.45, 10, Palette.SARI_RED)
-		return kit.commit())

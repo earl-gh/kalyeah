@@ -74,6 +74,16 @@ static func stretched(id: String, width: float, height: float, depth: float) -> 
 	return holder
 
 
+## Model `id` standing on the ground, `height` metres tall with its own proportions (the kid turned into a can when polymorphed).
+static func standing(id: String, height: float) -> Node3D:
+	var natural: Vector3 = size_of(id)
+	var holder: Node3D = Node3D.new()
+	var model: Node3D = _instance(id)
+	model.scale = Vector3.ONE * (height / natural.y)
+	holder.add_child(model)
+	return holder
+
+
 ## A jacks field: spike clusters scattered over a circle of `radius` (the middle one and a ring).
 static func spikes(radius: float) -> Node3D:
 	var holder: Node3D = Node3D.new()
