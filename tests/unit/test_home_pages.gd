@@ -217,14 +217,16 @@ func test_the_history_keeps_the_last_thirty_and_words_the_age() -> void:
 	assert_eq(MatchHistory.ago(0, 200000), "2 days ago")
 
 
-func test_the_settings_page_has_profile_sound_and_quit_but_no_server_address() -> void:
+func test_the_settings_page_has_comfort_and_quit_but_no_profile_how_to_play_or_server_address() -> void:
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"settings")
 	await wait_frames(2)
 	var page: SettingsPage = screen.settings_page
 	assert_true(page.visible)
 	assert_null(page.find_child("ServerField", true, false), "no server address: it is built into the game")
-	assert_not_null(page.profile_button, "profile")
+	assert_null(page.find_child("ProfileButton", true, false), "no profile card (owner): the name tag on Home changes the name and photo")
+	assert_null(page.find_child("HowToButton", true, false), "no How to play (owner)")
+	assert_not_null(page.find_child("ControlOptions", true, false), "the comfort and control switches")
 	page.quit_button.pressed.emit()
 	assert_not_null(screen.dialog, "quit asks first")
 

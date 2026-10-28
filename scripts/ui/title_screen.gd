@@ -33,8 +33,6 @@ const TABS: Array[Dictionary] = [
 	{"id": &"history", "label": "History", "icon": &"history"},
 	{"id": &"settings", "label": "Settings", "icon": &"settings"},
 ]
-## The pages that belong to Settings: its tab stays lit while one is open.
-const SETTINGS_PAGES: Array[StringName] = [&"howto"]
 ## The hero cards (1.75:2.5, owner) and how high the stage is.
 const HERO_CARD: Vector2 = Vector2(400.0, 571.0)
 ## The hero grows with the stage (phones taller than 16:9 have the room): 1.75:2.5, between these heights, with
@@ -81,7 +79,7 @@ const TAG_OVERSHOOT: float = 60.0
 const TEXT_Z: int = 8
 const AMBIENT_BOB: float = 12.0
 ## Which way a page slides in: the pages left to right as their tabs are.
-const PAGE_RANK: Dictionary[StringName, int] = {&"street": -2, &"codex": -1, &"": 0, &"history": 1, &"settings": 2, &"howto": 3}
+const PAGE_RANK: Dictionary[StringName, int] = {&"street": -2, &"codex": -1, &"": 0, &"history": 1, &"settings": 2}
 const LOGO_HEIGHT: float = 92.0
 ## How far the logo is dropped from the top edge of the screen.
 const LOGO_DROP: float = 62.0
@@ -135,7 +133,6 @@ var card_drawer: CardDrawer
 var _drawer_screen: CardsScreen
 var history_page: HistoryPage
 var settings_page: SettingsPage
-var howto_page: HowToPlayPage
 
 ## The loading screen into Practice (the boot screen's look, `BootScreen.for_scene`, the same one the room shows on its way into a match).
 var loading_screen: BootScreen
@@ -431,20 +428,15 @@ func _build_pages() -> void:
 	codex_page = CodexPage.new()
 	history_page = HistoryPage.new()
 	settings_page = SettingsPage.new()
-	howto_page = HowToPlayPage.new()
-	pages = {&"street": street_page, &"codex": codex_page, &"history": history_page, &"settings": settings_page, &"howto": howto_page}
+	pages = {&"street": street_page, &"codex": codex_page, &"history": history_page, &"settings": settings_page}
 	for id: StringName in pages:
 		var page: Control = pages[id]
 		page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		page.visible = false
 		_page_holder.add_child(page)
 	codex_page.drawer_requested.connect(open_card_drawer)
-	settings_page.profile_pressed.connect(open_name_editor)
 	settings_page.quit_pressed.connect(open_quit_confirm)
-	settings_page.howto_pressed.connect(open_page.bind(&"howto"))
-	howto_page.walkthrough_requested.connect(start_walkthrough)
 	history_page.play_pressed.connect(close_page)
-	howto_page.back_pressed.connect(open_page.bind(&"settings"))
 
 
 func _on_tab_pressed(id: StringName) -> void:
@@ -471,9 +463,7 @@ func open_page(id: StringName) -> void:
 		codex_page.show_view(CodexPage.HUB)
 	_home.visible = false
 	_top_bar.visible = false
-	# How to play is reached from Settings: that tab stays lit
-	var lit: StringName = &"settings" if id in SETTINGS_PAGES else id
-	tab_bar.set_active(lit)
+	tab_bar.set_active(id)
 	_sync_ambient()
 	_fade_in(pages[id], way)
 
@@ -816,7 +806,6 @@ func _on_photo_changed(toast: String) -> void:
 
 
 func _on_profile_saved() -> void:
-	settings_page.refresh()
 	name_tag.set_player_name(Session.player_name)
 	_place_name_tag()
 	UiToast.say(self, "Profile saved!")
@@ -867,9 +856,3 @@ func _back_pressed() -> void:
 		return
 	if dialog == null or not is_instance_valid(dialog) or not dialog.is_open:
 		_go_back()
-
-
-## How to play, "Try the walkthrough!": a practice match that opens with the four steps again.
-func start_walkthrough() -> void:
-	Session.coach_pending = true
-	_on_practice_pressed()

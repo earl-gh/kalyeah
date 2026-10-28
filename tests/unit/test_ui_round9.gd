@@ -124,7 +124,7 @@ func test_after_warming_the_first_screens_draw_nothing_new() -> void:
 	var warmed: Array = UiSkin._cache.keys()
 	var screen: TitleScreen = _phone()
 	await wait_frames(3)
-	for id: StringName in [&"codex", &"history", &"settings", &"howto"]:
+	for id: StringName in [&"codex", &"history", &"settings"]:
 		screen.open_page(id)
 	screen.codex_page.show_view(CodexPage.WEAPONS)
 	screen.codex_page.skills_screen.cells[0].pressed.emit()

@@ -107,7 +107,7 @@ func test_every_page_and_sheet_meets_the_floors() -> void:
 	var screen: TitleScreen = _phone()
 	await wait_process_frames(4)
 	var all: Array[String] = []
-	for id: StringName in [&"codex", &"history", &"settings", &"howto"]:
+	for id: StringName in [&"codex", &"history", &"settings"]:
 		screen.open_page(id)
 		await wait_process_frames(3)
 		all.append_array(_problems(screen, "page %s" % id))

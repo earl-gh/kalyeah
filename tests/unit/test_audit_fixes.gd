@@ -164,13 +164,7 @@ func test_one_name_for_a_knocked_out_kid() -> void:
 	assert_eq(MatchHud.CAST_BLOCK_TAGS[StatusEffects.Type.KNOCKOUT], "OUT")
 
 
-func test_how_to_play_has_a_back_button_and_history_a_play_button() -> void:
-	var page: HowToPlayPage = autofree(HowToPlayPage.new()) as HowToPlayPage
-	add_child(page)
-	var backs: Array[bool] = []
-	page.back_pressed.connect(func() -> void: backs.append(true))
-	page.back_button.pressed.emit()
-	assert_eq(backs.size(), 1)
+func test_history_has_a_play_button() -> void:
 	var history: HistoryPage = autofree(HistoryPage.new()) as HistoryPage
 	add_child(history)
 	history.refresh()
