@@ -18,6 +18,9 @@ const FALLBACK_SET: StringName = &"junjun"
 ## How tall the kid stands in the world, in metres (a little taller than life so the kids
 ## read through the wide lens).
 const KID_HEIGHT: float = 1.85
+## A polymorphed kid is the owner's can (`assets/models/weapons/can.glb`, the model Lata throws), standing this tall in metres.
+const POLYMORPH_CAN_MODEL: String = "can"
+const POLYMORPH_CAN_HEIGHT: float = 1.3
 const HIT_TIME: float = 0.28
 const SHADOW_SIZE: float = 1.1
 const BLEND: float = 0.14
@@ -56,7 +59,7 @@ var _model: Node3D
 var _player: AnimationPlayer
 var _shadow: MeshInstance3D
 var _stars: Node3D
-var _can: MeshInstance3D
+var _can: Node3D
 var _facing: Vector2 = Vector2(0.0, 1.0)
 var _phase: float = 0.0
 var _clock: float = 0.0
@@ -349,12 +352,10 @@ func _build() -> void:
 		animation.loop_mode = Animation.LOOP_LINEAR if game_name in LOOPING else Animation.LOOP_NONE
 	_stars = _build_stars()
 	add_child(_stars)
-	_can = MeshInstance3D.new()
-	_can.mesh = Props.can_body()
-	_can.scale = Vector3.ONE * 1.3
+	# the owner's can model (the one Lata throws), not a code-drawn stand-in
+	_can = WeaponModel.standing(POLYMORPH_CAN_MODEL, POLYMORPH_CAN_HEIGHT)
 	_can.visible = false
 	add_child(_can)
-	LowPoly.add_outline(_can, 0.02)
 
 
 ## How tall a kid's model stands in its rest pose, in the GLB's own units (the game scales it to KID_HEIGHT). It is the

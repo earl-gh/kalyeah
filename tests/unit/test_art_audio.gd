@@ -37,6 +37,22 @@ func test_kid_turns_into_a_can_and_greys_out() -> void:
 	assert_true(kid.is_ghost(), "tagged kids wait greyed out on the sidewalk")
 
 
+func test_the_polymorphed_can_is_the_owners_can_model_standing_on_the_ground() -> void:
+	var kid: KidModel = _kid(0)
+	var state: PlayerState = PlayerState.new()
+	state.effects.apply(StatusEffects.Type.POLYMORPH, 1.0)
+	kid.animate(0.1, 0.0, state)
+	assert_true(kid.is_can())
+	var meshes: Array[Node] = kid._can.find_children("*", "MeshInstance3D", true, false)
+	assert_eq(meshes.size(), 1, "the can model's one mesh, not code-drawn cylinders")
+	var mesh: MeshInstance3D = meshes[0] as MeshInstance3D
+	assert_eq(mesh.mesh.resource_path.begins_with("res://assets/models/weapons/can.glb"), true, "the mesh comes from can.glb: %s" % mesh.mesh.resource_path)
+	var box: AABB = mesh.get_aabb()
+	var scale: float = mesh.global_transform.basis.get_scale().y
+	assert_almost_eq(box.size.y * scale, KidModel.POLYMORPH_CAN_HEIGHT, 0.02, "as tall as POLYMORPH_CAN_HEIGHT")
+	assert_almost_eq(box.position.y * scale, 0.0, 0.02, "standing on the ground")
+
+
 func test_kid_faces_its_movement() -> void:
 	var kid: KidModel = _kid(1)
 	kid.face(Vector2(1.0, 0.0))
