@@ -104,7 +104,6 @@ const CTA_PADDING: float = 56.0
 const PULSE_DELAY: float = 1.2
 const PULSE_SCALE: float = 1.025
 const PULSE_HALF: float = 0.9
-const CREAM: Color = KalyeahTheme.CREAM
 
 ## The screen asks for the game to close (replaced in tests).
 var quit_action: Callable = _quit_game
@@ -138,8 +137,9 @@ var history_page: HistoryPage
 var settings_page: SettingsPage
 var howto_page: HowToPlayPage
 
+## The loading screen into Practice (the boot screen's look, `BootScreen.for_scene`, the same one the room shows on its way into a match).
+var loading_screen: BootScreen
 var _loading: bool = false
-var _loading_dots: Label
 var _margin: MarginContainer
 var _home: VBoxContainer
 var _top_bar: Control
@@ -179,7 +179,6 @@ func _ready() -> void:
 	secondary_button.pressed.connect(_on_secondary_pressed)
 	get_viewport().size_changed.connect(_apply_safe_area)
 	Settings.accessibility_changed.connect(_on_accessibility_changed)
-	set_process(false)
 	_pop_in.call_deferred()
 
 
@@ -738,59 +737,9 @@ func _on_practice_pressed(kind: StringName = &"training") -> void:
 	if not Session.coach_seen:
 		Session.coach_pending = true
 	_loading = true
-	_show_loading("Getting the street ready")
-	ResourceLoader.load_threaded_request(PRACTICE_SCENE)
-	set_process(true)
-
-
-## The practice match is a big 3D scene: it loads in the background while the screen shows progress.
-func _process(_delta: float) -> void:
-	if not _loading:
-		set_process(false)
-		return
-	var progress: Array = []
-	var status: ResourceLoader.ThreadLoadStatus = ResourceLoader.load_threaded_get_status(PRACTICE_SCENE, progress)
-	if _loading_dots != null:
-		_loading_dots.text = ".".repeat(1 + int(Time.get_ticks_msec() / 300) % 3)
-	if status == ResourceLoader.THREAD_LOAD_LOADED:
-		_loading = false
-		get_tree().change_scene_to_packed(ResourceLoader.load_threaded_get(PRACTICE_SCENE) as PackedScene)
-	elif status == ResourceLoader.THREAD_LOAD_FAILED:
-		_loading = false
-		get_tree().change_scene_to_file(PRACTICE_SCENE)
-
-
-func _show_loading(message: String) -> void:
-	var cover: ColorRect = ColorRect.new()
-	cover.name = "Loading"
-	cover.z_index = MenuDialog.MODAL_Z  # over the mode cards too
-	cover.color = Color(0.02, 0.05, 0.16, 0.0)
-	cover.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	cover.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(cover)
-	var center: CenterContainer = CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	cover.add_child(center)
-	var stack: VBoxContainer = VBoxContainer.new()
-	stack.add_theme_constant_override("separation", 6)
-	center.add_child(stack)
-	var text: Label = Label.new()
-	text.text = message
-	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UiKit.letter(text, UiMetrics.HEADLINE, CREAM)
-	stack.add_child(text)
-	_loading_dots = Label.new()
-	_loading_dots.text = "."
-	_loading_dots.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_loading_dots.add_theme_font_size_override("font_size", UiMetrics.DISPLAY)
-	_loading_dots.add_theme_color_override("font_color", Color.WHITE)
-	stack.add_child(_loading_dots)
-	if Settings.reduced_motion:
-		cover.color.a = 0.88
-	else:
-		var fade: Tween = create_tween()
-		fade.tween_property(cover, "color:a", 0.88, 0.25)
+	loading_screen = BootScreen.for_scene(PRACTICE_SCENE)
+	add_child(loading_screen)
+	loading_screen.finished.connect(func() -> void: get_tree().change_scene_to_packed(loading_screen.scene()))
 
 
 func _open_lobby(intent: LobbyScreen.Intent, hotspot: bool) -> void:
@@ -913,6 +862,9 @@ func _notification(what: int) -> void:
 
 
 func _back_pressed() -> void:
+	# Practice is loading: Back waits for it (it then opens the match's own menu)
+	if _loading:
+		return
 	if dialog == null or not is_instance_valid(dialog) or not dialog.is_open:
 		_go_back()
 

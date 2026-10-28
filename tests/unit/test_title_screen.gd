@@ -512,8 +512,9 @@ func test_modals_and_tints_draw_above_every_component_of_the_main_screen() -> vo
 	screen.open_quit_confirm()
 	assert_eq(screen.dialog.z_index, MenuDialog.MODAL_Z, "a dialog (and its dim) is on top")
 	screen.dialog.close(false)
-	screen._show_loading("GETTING READY")
-	assert_eq((screen.find_child("Loading", true, false) as Control).z_index, MenuDialog.MODAL_Z, "so is the loading tint")
+	screen._on_practice_pressed()
+	screen.loading_screen.set_process(false)  # stays on Home: this test does not open Practice
+	assert_eq(screen.loading_screen.z_index, MenuDialog.MODAL_Z, "so is the loading screen")
 
 
 ## Every running tween that loops for ever (the main action's breath is the only one Home starts).
@@ -591,10 +592,25 @@ func test_play_in_practice_asks_first_then_shows_the_loading_screen() -> void:
 	screen.primary_button.pressed.emit()
 	assert_not_null(screen.dialog, "a confirmation")
 	assert_true(screen.dialog.is_open)
-	assert_null(screen.find_child("Loading", true, false), "nothing loads before the player confirms")
+	assert_null(screen.loading_screen, "nothing loads before the player confirms")
 	screen.dialog.close()
-	assert_null(screen.find_child("Loading", true, false), "cancelling starts nothing")
+	assert_null(screen.loading_screen, "cancelling starts nothing")
 	assert_false(screen._loading)
+
+
+func test_practice_loads_behind_the_same_loading_screen_as_a_room_and_back_waits() -> void:
+	var screen: TitleScreen = _screen()
+	screen._on_practice_pressed(&"match")
+	assert_not_null(screen.loading_screen, "the boot screen's look, not a tinted cover")
+	screen.loading_screen.set_process(false)  # stays on Home: this test does not open Practice
+	assert_eq(screen.loading_screen.target, TitleScreen.PRACTICE_SCENE)
+	assert_false(screen.loading_screen.hands_over, "Home changes scene when it has loaded")
+	var shown: BootScreen = screen.loading_screen
+	screen._on_practice_pressed(&"match")
+	assert_eq(screen.loading_screen, shown, "a second tap starts nothing more")
+	screen.open_page(&"settings")
+	screen._back_pressed()
+	assert_eq(screen.current_page, &"settings", "Back waits while Practice loads")
 
 
 func test_the_buttons_are_as_wide_as_their_words_and_equal() -> void:

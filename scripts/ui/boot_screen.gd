@@ -5,7 +5,9 @@ extends Control
 ## fills the base from left to right as the game loads. The loaded percentage sits on the base's top
 ## edge (in the owner's Bungee font) and a tip floats just above it over the art. It
 ## loads the scenes the player is about to open, then hands over to the title screen. A dedicated
-## server skips it.
+## server skips it. `for_scene` makes the same screen for one scene, laid over the screen that asks for it
+## (the room, on its way into the match): it loads in the background and says `finished`, and the caller
+## changes scene with `scene()`.
 
 const TITLE_SCENE: String = "res://scenes/ui/title_screen.tscn"
 const WARM_SCENES: Array[String] = [
@@ -46,6 +48,11 @@ const SKIN_SHARE: float = 0.2
 signal finished
 
 var progress: float = 0.0
+## The scenes loaded while the bar fills, and the one handed over to at the end.
+var scenes: Array[String] = WARM_SCENES
+var target: String = TITLE_SCENE
+## The boot screen changes to `target` itself; the one from `for_scene` leaves that to its caller.
+var hands_over: bool = true
 var _loaded: float = 0.0
 var _done: bool = false
 var _fill_clip: Control
@@ -63,15 +70,36 @@ static func fill_width(fraction: float, width: float) -> float:
 	return width * clampf(fraction, 0.0, 1.0)
 
 
+## The loading screen for one scene, to lay over the current screen (it covers it and takes every touch): add it, then on `finished`
+## change scene with `scene()`.
+static func for_scene(path: String) -> BootScreen:
+	var screen: BootScreen = BootScreen.new()
+	screen.name = "LoadingScreen"
+	screen.scenes = [path]
+	screen.target = path
+	screen.hands_over = false
+	screen.z_index = MenuDialog.MODAL_Z
+	screen.mouse_filter = Control.MOUSE_FILTER_STOP
+	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	return screen
+
+
+## The loaded `target`, or (when the background load failed) the scene loaded now.
+func scene() -> PackedScene:
+	if ResourceLoader.load_threaded_get_status(target) == ResourceLoader.THREAD_LOAD_LOADED:
+		return ResourceLoader.load_threaded_get(target) as PackedScene
+	return load(target) as PackedScene
+
+
 func _ready() -> void:
-	if TitleScreen.is_server_run():
+	if hands_over and TitleScreen.is_server_run():
 		get_tree().change_scene_to_file.call_deferred(TitleScreen.SERVER_SCENE)
 		set_process(false)
 		return
 	_build()
 	resized.connect(_layout)
 	_layout()
-	for path: String in WARM_SCENES:
+	for path: String in scenes:
 		ResourceLoader.load_threaded_request(path)
 
 
@@ -197,18 +225,19 @@ func _process(delta: float) -> void:
 	if progress >= 0.9999:
 		_done = true
 		finished.emit()
-		var packed: PackedScene = ResourceLoader.load_threaded_get(TITLE_SCENE) as PackedScene
-		get_tree().change_scene_to_packed(packed)
+		if hands_over:
+			get_tree().change_scene_to_packed(scene())
 
 
 ## Average load progress of the scenes being warmed up (0..1).
 func _loading_fraction() -> float:
 	var total: float = 0.0
-	for path: String in WARM_SCENES:
+	for path: String in scenes:
 		var info: Array = []
 		var status: ResourceLoader.ThreadLoadStatus = ResourceLoader.load_threaded_get_status(path, info)
-		if status == ResourceLoader.THREAD_LOAD_LOADED:
+		# a failed (or refused) background load is not waited for: `scene()` then loads it directly
+		if status == ResourceLoader.THREAD_LOAD_LOADED or status == ResourceLoader.THREAD_LOAD_FAILED or status == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
 			total += 1.0
 		elif status == ResourceLoader.THREAD_LOAD_IN_PROGRESS and not info.is_empty():
 			total += float(info[0])
-	return total / float(WARM_SCENES.size())
+	return total / float(scenes.size())

@@ -19,6 +19,9 @@ var intent: Intent = Intent.CREATE
 var hotspot: bool = false
 ## Off in tests: stay on this screen when the match starts loading.
 var enter_match_on_start: bool = true
+## The loading screen laid over the room once the server starts the match (the boot screen's look, `BootScreen.for_scene`): the match
+## loads in the background, so the screen and the connection keep running, then it opens.
+var loading_screen: BootScreen
 var _intent_set: bool = false
 var _rejoining: bool = false
 var _transport_ready: bool = false
@@ -276,8 +279,10 @@ func _on_room_changed(room: Dictionary) -> void:
 
 func _on_match_loading(_info: Dictionary) -> void:
 	_set_status("Loading…")
-	if enter_match_on_start:
-		get_tree().change_scene_to_file(MATCH_SCENE)
+	if enter_match_on_start and loading_screen == null:
+		loading_screen = BootScreen.for_scene(MATCH_SCENE)
+		add_child(loading_screen)
+		loading_screen.finished.connect(func() -> void: get_tree().change_scene_to_packed(loading_screen.scene()))
 
 
 func _on_leave() -> void:
@@ -298,6 +303,9 @@ func _notification(what: int) -> void:
 
 
 func _back_pressed() -> void:
+	# the match is already starting for everyone: Back waits for it (it then opens the match's own menu)
+	if loading_screen != null:
+		return
 	if find_children("*", "MenuDialog", true, false).any(func(node: Node) -> bool: return (node as MenuDialog).is_open):
 		return
 	_on_back()
