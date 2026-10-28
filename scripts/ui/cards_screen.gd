@@ -34,19 +34,20 @@ func _ready() -> void:
 	_column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_column.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	add_child(_column)
-	var top: HBoxContainer = HBoxContainer.new()
+	var top: Control = Control.new()
 	top.name = "Top"
-	top.add_theme_constant_override("separation", UiMetrics.GAP)
+	top.custom_minimum_size.y = UiKit.PAGE_HEADER_DROP + UiKit.PAGE_HEADER_ROW_HEIGHT
 	_column.add_child(top)
+	header = UiKit.page_header(_title())
+	header.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	top.add_child(header)
 	back_button = MenuDialog.make_button("Back", "grey", UiMetrics.ACTION, BACK_SIZE)
 	back_button.name = "BackButton"
 	back_button.accessibility_name = "Back to Cards"
-	back_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	back_button.position.y = UiKit.PAGE_HEADER_DROP + (UiKit.PAGE_HEADER_ROW_HEIGHT - BACK_SIZE.y) / 2.0
+	back_button.size = BACK_SIZE
 	back_button.pressed.connect(back_pressed.emit)
 	top.add_child(back_button)
-	header = UiKit.page_header(_title(), _subtitle())
-	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(header)
 	scroll = ScrollContainer.new()
 	scroll.name = "Scroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -81,10 +82,6 @@ func _screen_name() -> String:
 
 
 func _title() -> String:
-	return ""
-
-
-func _subtitle() -> String:
 	return ""
 
 

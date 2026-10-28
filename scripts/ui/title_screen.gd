@@ -24,10 +24,10 @@ const MODES: Array[Dictionary] = [
 	{"id": "practice", "bare": true, "plate": Rect2(120.0, 636.0, 528.0, 58.0), "title": "Practice", "color": "green", "accent": "a45cf0", "power": 1200,
 		"text": "Take on 3 bots, solo!"},
 ]
-## The bottom tabs, left to right: Street (what each game is and how it plays), Cards (the Book of kids and weapons), Play (the home
+## The bottom tabs, left to right: Games (what each game is and how it plays), Cards (the Book of kids and weapons), Play (the home
 ## page), History (your last battles) and Settings.
 const TABS: Array[Dictionary] = [
-	{"id": &"street", "label": "Street", "icon": &"street"},
+	{"id": &"street", "label": "Games", "icon": &"street"},
 	{"id": &"codex", "label": "Cards", "icon": &"cards"},
 	{"id": &"home", "label": "Play", "icon": &"play"},
 	{"id": &"history", "label": "History", "icon": &"history"},
@@ -56,8 +56,6 @@ const HERO_MAX_HEIGHT: float = 780.0
 const HERO_AIR: float = 36.0
 ## The cards sit this far above the bottom of their stage, so the name, its phrase and the buttons stay close under them.
 const HERO_BOTTOM_GAP: float = 14.0
-## How far the mode's phrase is pulled up towards the platform above it (owner: closer to the model).
-const PHRASE_PULL: float = 10.0
 ## The gap between the phrase and the dots under it (negative: they are pulled together).
 const TITLES_SEPARATION: int = -10
 ## How far the backlight reaches round the chosen card (times the card's height).
@@ -80,9 +78,9 @@ const TEXT_Z: int = 8
 const AMBIENT_BOB: float = 12.0
 ## Which way a page slides in: the pages left to right as their tabs are.
 const PAGE_RANK: Dictionary[StringName, int] = {&"street": -2, &"codex": -1, &"": 0, &"history": 1, &"settings": 2}
-const LOGO_HEIGHT: float = 92.0
+const LOGO_HEIGHT: float = UiKit.PAGE_HEADER_ROW_HEIGHT
 ## How far the logo is dropped from the top edge of the screen.
-const LOGO_DROP: float = 62.0
+const LOGO_DROP: float = UiKit.PAGE_HEADER_DROP
 ## How far the tips icon stands in from the left margin of the screen, on top of it (owner: more room at the left).
 const TIPS_INSET: float = 22.0
 ## The two top icons (the calendar and the envelope) are baked so their gold rings are the same size and centred on their picture, so
@@ -380,15 +378,7 @@ func _build_titles() -> Control:
 	mode_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mode_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mode_text_label.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
-	# the phrase is pulled up under the platform: its holder is this much shorter than the line, and the line starts above it
-	var phrase_holder: Control = Control.new()
-	phrase_holder.name = "PhraseHolder"
-	phrase_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	mode_text_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	phrase_holder.add_child(mode_text_label)
-	mode_text_label.minimum_size_changed.connect(_pull_phrase_up)
-	mode_text_label.resized.connect(_pull_phrase_up)
-	titles.add_child(phrase_holder)
+	titles.add_child(mode_text_label)
 	return titles
 
 
@@ -546,15 +536,6 @@ func _aim_backlight() -> void:
 	var card: Button = carousel.cards[carousel.index]
 	var centre: Vector2 = backdrop.get_global_transform().affine_inverse() * card.get_global_rect().get_center()
 	backdrop.aim_backlight(centre, card.size.y * BACKLIGHT_REACH)
-
-
-## Keeps the phrase's line `PHRASE_PULL` above its holder, and the holder as tall as what is left, so the dots follow it up.
-func _pull_phrase_up() -> void:
-	var line: float = mode_text_label.get_combined_minimum_size().y
-	var holder: Control = mode_text_label.get_parent() as Control
-	holder.custom_minimum_size.y = maxf(line - PHRASE_PULL, 0.0)
-	mode_text_label.offset_top = -PHRASE_PULL
-	mode_text_label.offset_bottom = line - PHRASE_PULL
 
 
 ## The name written on the platform of the chosen model.

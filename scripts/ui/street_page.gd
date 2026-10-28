@@ -1,6 +1,6 @@
 class_name StreetPage
-extends ScrollContainer
-## The Street page (the left tab of the bottom bar): every game of the barangay is a street, with its name, what the street game
+extends VBoxContainer
+## The Games page (the left tab of the bottom bar): every game of the barangay is a street, with its name, what the street game
 ## is and how it plays here. Agawan Base is the only street open to play for now (the other two say Coming soon, like the lobby's
 ## map list); its numbers come from the game rules, so the words cannot go stale.
 
@@ -23,13 +23,18 @@ var _content: VBoxContainer
 
 func _ready() -> void:
 	name = "StreetPage"
-	horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	follow_focus = true
+	add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
+	add_child(UiKit.page_header("Games"))
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
+	add_child(scroll)
 	_content = VBoxContainer.new()
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
-	add_child(_content)
-	_content.add_child(UiKit.page_header("Street", "Every game is a street. Tap one to see how it plays!"))
+	scroll.add_child(_content)
 	var rules: GameRules = load(RULES_PATH) as GameRules
 	for street: Dictionary in STREETS:
 		var id: StringName = street["id"] as StringName

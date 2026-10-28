@@ -16,10 +16,6 @@ func _title() -> String:
 	return "Kids"
 
 
-func _subtitle() -> String:
-	return "Tap a kid to learn more."
-
-
 func _columns() -> int:
 	return COLUMN_COUNT
 

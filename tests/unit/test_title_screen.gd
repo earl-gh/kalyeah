@@ -74,6 +74,30 @@ func _phone_screen() -> TitleScreen:
 	return screen
 
 
+func test_tab_titles_share_the_play_logo_row_without_subtitles_or_dividers() -> void:
+	var motion: bool = Settings.reduced_motion
+	Settings.set_reduced_motion(true)
+	var screen: TitleScreen = _phone_screen()
+	for height: float in [1280.0, 1558.0]:
+		(screen.get_parent() as Control).size.y = height
+		screen.close_page()
+		await wait_frames(3)
+		var logo_center: Vector2 = (screen.find_child("Logo", true, false) as Control).get_global_rect().get_center()
+		for id: StringName in [&"street", &"codex", &"history", &"settings"]:
+			screen.open_page(id)
+			await wait_frames(3)
+			var header: Control = screen.pages[id].find_child("Header", true, false) as Control
+			var title: Label = header.find_child("Title", true, false) as Label
+			assert_almost_eq(title.get_global_rect().get_center().y, logo_center.y, 1.0, "%s title shares the logo row" % id)
+			assert_almost_eq(title.get_global_rect().get_center().x, logo_center.x, 1.0, "%s title stays centered" % id)
+			assert_null(header.find_child("Subtitle", true, false))
+			assert_eq(header.find_children("*", "Panel", true, false).size(), 0, "no yellow divider")
+			if id == &"street":
+				assert_eq(title.text, "Games")
+	assert_eq((screen.tab_bar.tabs[&"street"].get_node("Name") as Label).text, "Games")
+	Settings.set_reduced_motion(motion)
+
+
 func test_the_screen_has_everything_the_owner_asked_for() -> void:
 	var screen: TitleScreen = _screen()
 	assert_not_null(screen.find_child("TopBar", true, false), "a top bar with the logo")

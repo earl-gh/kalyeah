@@ -52,8 +52,6 @@ const DIVIDER_LIGHT_WIDTH: float = 1.5
 ## The depth: a shadow cast up from the bar over the screen, shades inside the bar, and the lit slot's sheen and outline.
 const SHADOW_HEIGHT: float = 36.0
 const SHADOW_COLOR: Color = Color(0.0, 0.02, 0.08, 0.5)
-const TOP_SHADE_HEIGHT: float = 14.0
-const TOP_SHADE_ALPHA: float = 0.32
 const BOTTOM_SHADE_HEIGHT: float = 30.0
 const BOTTOM_SHADE_ALPHA: float = 0.3
 const INNER_SHADE_WIDTH: float = 12.0
@@ -153,10 +151,9 @@ func _draw() -> void:
 		draw_set_transform(foot, 0.0, Vector2(1.0, PICTURE_SHADOW_SQUASH))
 		draw_circle(Vector2.ZERO, picture.size.x * 0.36, Color(0.0, 0.02, 0.08, PICTURE_SHADOW_ALPHA))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	# the top: a dark rim, a light line under it, and a soft shade under that
+	# the top: a dark rim and its light line
 	draw_rect(Rect2(0.0, top_y, size.x, EDGE_HEIGHT * unit), EDGE_COLOR)
 	draw_rect(Rect2(0.0, top_y + EDGE_HEIGHT * unit, size.x, EDGE_LIGHT_HEIGHT * unit), EDGE_LIGHT)
-	_shade_down(Rect2(0.0, top_y + (EDGE_HEIGHT + EDGE_LIGHT_HEIGHT) * unit, size.x, TOP_SHADE_HEIGHT * unit), Color(0.0, 0.03, 0.1, TOP_SHADE_ALPHA), false)
 	# and the bottom grows darker
 	_shade_down(Rect2(0.0, size.y - BOTTOM_SHADE_HEIGHT * unit, size.x, BOTTOM_SHADE_HEIGHT * unit), Color(0.0, 0.02, 0.08, BOTTOM_SHADE_ALPHA), true)
 

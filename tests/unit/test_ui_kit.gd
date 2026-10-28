@@ -106,7 +106,7 @@ func test_the_tab_bar_lights_only_the_open_tab_and_announces_presses() -> void:
 
 
 func test_page_pieces_name_their_parts() -> void:
-	var header: VBoxContainer = autofree(UiKit.page_header("History", "Your last battles")) as VBoxContainer
+	var header: VBoxContainer = autofree(UiKit.page_header("History")) as VBoxContainer
 	assert_not_null(header)
 	var row: HBoxContainer = autofree(UiKit.setting_row("Sound", "Master volume", Control.new())) as HBoxContainer
 	assert_not_null(row)

@@ -26,7 +26,7 @@ var _list: VBoxContainer
 func _ready() -> void:
 	name = "HistoryPage"
 	add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
-	add_child(UiKit.page_header("History", "Your last battles on this phone!"))
+	add_child(UiKit.page_header("History"))
 	_top = VBoxContainer.new()
 	_top.name = "Top"
 	_top.add_theme_constant_override("separation", UiMetrics.GAP)

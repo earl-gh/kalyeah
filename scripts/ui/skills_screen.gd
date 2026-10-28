@@ -19,10 +19,6 @@ func _title() -> String:
 	return "Skills"
 
 
-func _subtitle() -> String:
-	return "Tap a card to read more."
-
-
 func _columns() -> int:
 	return COLUMN_COUNT
 

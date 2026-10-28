@@ -31,7 +31,7 @@ var cards: Dictionary[String, Button] = {}
 func _ready() -> void:
 	name = "CharactersPage"
 	add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
-	add_child(UiKit.page_header("Characters", "Meet the six kids! Tap one to learn more."))
+	add_child(UiKit.page_header("Characters"))
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.name = "Scroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL

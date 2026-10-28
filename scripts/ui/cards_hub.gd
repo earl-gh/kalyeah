@@ -28,7 +28,7 @@ func _ready() -> void:
 	name = "CardsHub"
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_theme_constant_override("separation", 0)
-	add_child(UiKit.page_header("Cards", "Tap a stack to look inside."))
+	add_child(UiKit.page_header("Cards"))
 	add_child(_spacer("Above"))
 	var weapons: Array[WeaponDef] = (load(RULES_PATH) as GameRules).weapons
 	kids_card = CardsHubCard.create(KIDS, "Kids", kids_detail(Session.AVATARS.size()), _kid_pictures())
