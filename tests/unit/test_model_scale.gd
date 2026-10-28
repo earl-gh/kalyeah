@@ -36,8 +36,7 @@ func test_the_world_factor_follows_the_kid() -> void:
 
 
 func test_the_six_kids_are_drawn_at_the_same_height() -> void:
-	# Ligaya and Migo are authored 0.64 as tall as the other four (1.09 against 1.7 m, see KidModel.model_height): each kid
-	# is scaled by its own height so all six stand KID_HEIGHT. tests/unit/test_authored_kids.gd measures the skinned meshes.
+	# Every source model is normalized to about 1.70 m, then drawn at KID_HEIGHT.
 	var heights: Array[float] = []
 	for character: CharacterDef in RULES.characters:
 		var kid: KidModel = autofree(KidModel.new()) as KidModel
@@ -47,8 +46,8 @@ func test_the_six_kids_are_drawn_at_the_same_height() -> void:
 		var height: float = KidModel.model_height(model)
 		heights.append(height)
 		assert_almost_eq(height * model.scale.y, KidModel.KID_HEIGHT, 0.001, "%s stands KID_HEIGHT" % character.id)
-	assert_between(heights.min() as float, 1.05, 1.15, "the smallest authored kid (Ligaya, Migo)")
-	assert_between(heights.max() as float, 1.69, 1.71, "the others")
+	assert_between(heights.min() as float, 1.69, 1.71, "the shortest normalized source model")
+	assert_between(heights.max() as float, 1.69, 1.71, "the tallest normalized source model")
 
 
 func test_every_prop_is_one_mesh_at_the_origin_so_its_measured_size_is_true() -> void:

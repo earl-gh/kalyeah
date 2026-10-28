@@ -1,21 +1,20 @@
 extends GutTest
 ## All six kids are the owner's authored models: their GLB keeps its own material and clips,
 ## a cast starts at the hand's release so it lines up with the sim's cast tick, and a tagged kid shrinks away and grows
-## back in the tagged box (no fall, no throw clip, no layered upper body). Ligaya and Migo come with their armature's 0.8
-## scale left on the armature node and the Hips: they are measured true and stood on the ground (KidModel.model_height,
-## _fix_scaled_rig).
+## back in the tagged box (no fall, no throw clip, no layered upper body). Every source rig is normalized to the same
+## 1.70 m height with its soles at the origin.
 
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 var RULES: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 const DT: float = 1.0 / 30.0
 const STEP: float = 1.0 / 60.0
 const AUTHORED: Array[StringName] = [&"junjun", &"ligaya", &"migo", &"toni", &"popoy", &"inday"]
-## The two whose rig keeps a 0.8 scale on the Hips (the other four have 1.0).
-const SCALED_RIG: Array[StringName] = [&"ligaya", &"migo"]
-## Height of the Hips at the first key of Idle as the GLB files store it (read from the files).
+## Their source finger tracks target a different rest rig, so their normalized GLBs keep the clean modelled hand pose.
+const STATIC_FINGERS: Array[StringName] = [&"ligaya", &"migo"]
 ## How tall each GLB's rest pose is drawn (m), measured on a rendered silhouette in the sandbox (1/200 of 3 m a pixel).
-const RENDERED_REST_HEIGHT: Dictionary[StringName, float] = {&"junjun": 1.705, &"ligaya": 1.090, &"migo": 1.095, &"toni": 1.7, &"popoy": 1.7, &"inday": 1.7}
-const IDLE_HIPS_Y_IN_THE_FILE: Dictionary[StringName, float] = {&"ligaya": 0.71805, &"migo": 0.740568}
+const RENDERED_REST_HEIGHT: Dictionary[StringName, float] = {&"junjun": 1.705, &"ligaya": 1.700, &"migo": 1.701, &"toni": 1.7, &"popoy": 1.7, &"inday": 1.7}
+const HIPS_BONE: String = "mixamorig_Hips"
+const FINGER_BONES: Array[String] = ["HandThumb", "HandIndex", "HandMiddle", "HandRing", "HandPinky"]
 ## Junjun's roughness/metal map (`junjun_0.png`) is 4096 px; every other texture of the six is 2048 px.
 const ROUGH_METAL_SIZE: Dictionary[StringName, int] = {&"junjun": 4096, &"ligaya": 2048, &"migo": 2048, &"toni": 2048, &"popoy": 2048, &"inday": 2048}
 ## The part of each clip that is the cast gesture (seconds): Cast_OneHand's swing from the wind-up to the hand's arrival, and
@@ -79,7 +78,7 @@ func test_the_material_stays_exactly_as_authored() -> void:
 
 # ---- height and ground: the skinned model, measured on the CPU ----------------------------------------------------------
 
-## The skinned mesh's bounds in the model's own units (the armature node's scale included), from the skeleton's current pose
+## The skinned mesh's bounds in the model's own units, from the skeleton's current pose
 ## (every `stride`th vertex).
 func _skinned_bounds(model: Node3D, stride: int = 3) -> AABB:
 	var mesh: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
@@ -102,8 +101,7 @@ func _skinned_bounds(model: Node3D, stride: int = 3) -> AABB:
 				skinned += (matrices[bones[v * per + k]] * verts[v]) * weight
 		low = low.min(skinned)
 		high = high.max(skinned)
-	var armature: float = KidModel.armature_scale(skeleton, model)
-	return AABB(low * armature, (high - low) * armature)
+	return AABB(low, high - low)
 
 
 func test_model_height_is_what_the_skinned_model_really_stands() -> void:
@@ -115,14 +113,13 @@ func test_model_height_is_what_the_skinned_model_really_stands() -> void:
 		# what a rendered silhouette of the rest pose measured (see RENDERED_REST_HEIGHT)
 		assert_almost_eq(KidModel.model_height(root), RENDERED_REST_HEIGHT[id], 0.02, "%s: and as high as it is drawn" % id)
 		assert_almost_eq(bounds.position.y, 0.0, 0.02, "%s: the soles are at the origin" % id)
-		var hips: float = (root.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D).get_bone_rest(0).basis.get_scale().x
-		if id in SCALED_RIG:
-			assert_almost_eq(hips, 0.8, 0.01, "%s keeps its armature's 0.8 on the Hips" % id)
-			assert_lt(KidModel.model_height(root), 1.2, "%s: its vertices are 2.1 tall but it stands 1.09" % id)
-			assert_almost_eq(KidModel.armature_scale(root.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D, root), 0.8, 0.01, "and its armature node carries 0.8 too")
-		else:
-			assert_almost_eq(hips, 1.0, 0.001, id)
-			assert_almost_eq(KidModel.model_height(root), 1.7, 0.01, id)
+		var skeleton: Skeleton3D = root.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+		assert_almost_eq(skeleton.get_bone_rest(0).basis.get_scale().x, 1.0, 0.001, "%s Hips has unit scale" % id)
+		var node: Node = skeleton.get_parent()
+		while node != null and node != root:
+			if node is Node3D:
+				assert_eq((node as Node3D).scale, Vector3.ONE, "%s armature hierarchy has unit scale" % id)
+			node = node.get_parent()
 
 
 func test_every_kid_is_drawn_at_the_one_kid_height() -> void:
@@ -149,39 +146,22 @@ func test_the_kids_stand_on_the_ground_in_every_clip_not_above_it() -> void:
 			assert_between(sole, -0.15, 0.05, "%s in %s: the lowest foot is at the ground (%.3f m)" % [id, clip, sole])
 
 
-func test_a_scaled_rig_gets_its_hips_moves_scaled_and_no_finger_tracks_only_for_ligaya_and_migo() -> void:
+func test_the_two_incompatible_finger_animations_are_cleaned_in_the_source_glbs() -> void:
 	for id: StringName in AUTHORED:
 		var animation: Animation = _kid(id)._player.get_animation("Idle")
 		var fingers: int = 0
 		var hips_y: float = 0.0
 		for track: int in animation.get_track_count():
 			var bone: String = animation.track_get_path(track).get_concatenated_subnames()
-			if KidModel.FINGER_BONES.any(func(finger: String) -> bool: return bone.contains(finger)):
+			if FINGER_BONES.any(func(finger: String) -> bool: return bone.contains(finger)):
 				fingers += 1
-			if bone == KidModel.HIPS_BONE and animation.track_get_type(track) == Animation.TYPE_POSITION_3D:
+			if bone == HIPS_BONE and animation.track_get_type(track) == Animation.TYPE_POSITION_3D:
 				hips_y = (animation.track_get_key_value(track, 0) as Vector3).y
-		if id in SCALED_RIG:
-			assert_eq(fingers, 0, "%s: its finger tracks (they fold the hands into sheets) are left out" % id)
+		if id in STATIC_FINGERS:
+			assert_eq(fingers, 0, "%s: incompatible finger tracks are absent from the GLB" % id)
 		else:
 			assert_gt(fingers, 10, "%s keeps its finger animation" % id)
 		assert_gt(hips_y, 0.5, "%s has Hips moves" % id)
-		if id in SCALED_RIG:
-			# the file's first Idle key (Ligaya 0.71805 m, Migo 0.740568 m) times the Hips' 0.7994
-			assert_almost_eq(hips_y, IDLE_HIPS_Y_IN_THE_FILE[id] * 0.7994, 0.002, "%s: the Hips move is scaled like the rig" % id)
-
-
-func test_the_fix_is_applied_once_whatever_the_number_of_kids() -> void:
-	var first: KidModel = _kid(&"migo")
-	var animation: Animation = first._player.get_animation("Run")
-	var hips_before: float = 0.0
-	for track: int in animation.get_track_count():
-		if animation.track_get_path(track).get_concatenated_subnames() == KidModel.HIPS_BONE and animation.track_get_type(track) == Animation.TYPE_POSITION_3D:
-			hips_before = (animation.track_get_key_value(track, 0) as Vector3).y
-	var second: KidModel = _kid(&"migo")
-	assert_eq(second._player.get_animation("Run"), animation, "the clips are shared")
-	for track: int in animation.get_track_count():
-		if animation.track_get_path(track).get_concatenated_subnames() == KidModel.HIPS_BONE and animation.track_get_type(track) == Animation.TYPE_POSITION_3D:
-			assert_eq((animation.track_get_key_value(track, 0) as Vector3).y, hips_before, "a second kid does not scale the Hips again")
 
 
 func test_a_character_without_a_model_shows_junjun_without_crashing() -> void:
@@ -263,7 +243,7 @@ func test_a_cast_ends_when_the_kid_starts_or_stops_moving() -> void:
 ## The release measured on the model itself (not read from the data): the time the right hand has covered half of the
 ## distance it travels over the gesture, sampled at 1/60 s from the skeleton's bone poses.
 func _measured_release(id: StringName, clip: String) -> float:
-	var kid: KidModel = _kid(id)  # the kid as the game builds it (the clips of Ligaya and Migo are fixed, see KidModel)
+	var kid: KidModel = _kid(id)
 	await wait_process_frames(1)
 	var player: AnimationPlayer = kid._player
 	player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL

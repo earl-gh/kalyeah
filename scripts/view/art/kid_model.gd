@@ -6,8 +6,6 @@ extends Node3D
 ## camera). Every cast is Cast_OneHand (standing) or Cast_Run (moving), started at the hand's release moment so the
 ## release lands on the sim's cast tick; a knock-out shows as Stunned (no kid has a fall); a tagged kid shrinks away
 ## where it stood, then grows back in the tagged box. A character with no model of its own yet uses FALLBACK_SET.
-## Ligaya and Migo were exported with their armature's 0.8 scale left on the armature node and the Hips: _fix_scaled_rig
-## stands them on the ground and model_height measures them true (docs/ART.md "Authored kids").
 
 const MODEL_PATH: String = "res://assets/models/characters/%s.glb"
 const PORTRAIT_PATH: String = "res://assets/portraits/%s.png"
@@ -34,9 +32,6 @@ const CLIP_FOR: Dictionary[String, String] = {
 	"cast": "Cast_OneHand", "cast_run": "Cast_Run",
 }
 const LOOPING: Array[String] = ["idle", "run", "tired", "stun", "airborne"]
-## The bone the whole skeleton hangs from, and the names of the finger bones (Mixamo skeleton).
-const HIPS_BONE: String = "mixamorig_Hips"
-const FINGER_BONES: Array[String] = ["HandThumb", "HandIndex", "HandMiddle", "HandRing", "HandPinky"]
 ## A tagged kid shrinks to nothing where it was tagged, then grows back in the tagged box (seconds each).
 const SHRINK_TIME: float = 0.17
 const GROW_TIME: float = 0.17
@@ -344,7 +339,6 @@ func _build() -> void:
 	# the material stays exactly as authored: no ModelLook, no override
 	_player = _model.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	var library: AnimationLibrary = _player.get_animation_library("")
-	_fix_scaled_rig(_model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D, library)
 	for game_name: String in CLIP_FOR:
 		var animation: Animation = library.get_animation(CLIP_FOR[game_name])
 		if not library.has_animation(game_name):  # the library is shared by every instance of the kid
@@ -358,56 +352,10 @@ func _build() -> void:
 	add_child(_can)
 
 
-## How tall a kid's model stands in its rest pose, in the GLB's own units (the game scales it to KID_HEIGHT). It is the
-## mesh's height times every scale the rig carries: the Hips' scale squared (once through the bones, once through the
-## inverse bind matrices) and the scale of the armature node above the skeleton. Ligaya and Migo were exported with their
-## armature's 0.8 scale left on both, so their vertices are 2.13 tall and they stand 2.13 x 0.8 x 0.8 x 0.8 = 1.09 m
-## (measured on a rendered silhouette: 1.090 and 1.095 m; tests/unit/test_authored_kids.gd measures the skinned vertices).
-## The other four carry no scale (1.0), so it is just the mesh's height (1.7).
+## How tall a kid's normalized model stands in its rest pose, in the GLB's own units (the game scales it to KID_HEIGHT).
 static func model_height(model: Node3D) -> float:
 	var mesh: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
-	var skeleton: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
-	var hips_scale: float = _hips_scale(skeleton)
-	return mesh.get_aabb().size.y * armature_scale(skeleton, model) * hips_scale * hips_scale
-
-
-## The scale of the nodes between the model's root and its skeleton (Ligaya and Migo: the armature node's 0.8).
-static func armature_scale(skeleton: Skeleton3D, model: Node3D) -> float:
-	var armature: float = 1.0
-	var node: Node = skeleton.get_parent()
-	while node != null and node != model:
-		if node is Node3D:
-			armature *= (node as Node3D).scale.x
-		node = node.get_parent()
-	return armature
-
-
-static func _hips_scale(skeleton: Skeleton3D) -> float:
-	var hips: int = skeleton.find_bone(HIPS_BONE)
-	return skeleton.get_bone_rest(hips).basis.get_scale().x if hips >= 0 else 1.0
-
-
-## A rig exported with its scale on the Hips (Ligaya, Migo: 0.8) has clips whose Hips moves are in unscaled units, so the kid
-## stands about 0.1 m above the ground, and whose finger tracks fold the hands into long flat sheets in every clip. The Hips
-## moves are scaled the same (the feet reach the ground like the other kids') and the finger tracks are left out (the
-## fingers stay as modelled). A rig with no scale there is not touched, so a re-export with the scale applied just works.
-## Done once per model: the clips are shared by every instance of the kid.
-static func _fix_scaled_rig(skeleton: Skeleton3D, library: AnimationLibrary) -> void:
-	var factor: float = _hips_scale(skeleton)
-	if absf(factor - 1.0) < 0.001:
-		return
-	for clip: StringName in library.get_animation_list():
-		var animation: Animation = library.get_animation(clip)
-		if animation.has_meta("rig_fixed"):
-			continue
-		animation.set_meta("rig_fixed", true)
-		for track: int in range(animation.get_track_count() - 1, -1, -1):
-			var bone: String = animation.track_get_path(track).get_concatenated_subnames()
-			if FINGER_BONES.any(func(finger: String) -> bool: return bone.contains(finger)):
-				animation.remove_track(track)
-			elif bone == HIPS_BONE and animation.track_get_type(track) == Animation.TYPE_POSITION_3D:
-				for key: int in animation.track_get_key_count(track):
-					animation.track_set_key_value(track, key, (animation.track_get_key_value(track, key) as Vector3) * factor)
+	return mesh.get_aabb().size.y
 
 
 ## A ring of little yellow stars over the head while stunned.
