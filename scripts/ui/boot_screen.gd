@@ -1,13 +1,8 @@
 class_name BootScreen
 extends Control
-## Boot screen, laid out like the Clash Royale loading screen: the key art fills the screen above a
-## matte black loading base at the bottom (a matte black layer is under everything). The cardboard
-## fills the base from left to right as the game loads. The loaded percentage sits on the base's top
-## edge (in the owner's Bungee font) and a tip floats just above it over the art. It
-## loads the scenes the player is about to open, then hands over to the title screen. A dedicated
-## server skips it. `for_scene` makes the same screen for one scene, laid over the screen that asks for it
-## (the room, on its way into the match): it loads in the background and says `finished`, and the caller
-## changes scene with `scene()`.
+## Shared launch/match loader: owned key art above a recessed navy track with a glossy blue fill.
+## The percentage straddles the track's top edge, with a readable tip over a soft bottom shade.
+## Scene loading and handover are identical for startup, Practice and room-to-match transitions.
 
 const TITLE_SCENE: String = "res://scenes/ui/title_screen.tscn"
 const WARM_SCENES: Array[String] = [
@@ -16,18 +11,18 @@ const WARM_SCENES: Array[String] = [
 	"res://scenes/match/practice.tscn",
 ]
 const BACKGROUND: Texture2D = preload("res://assets/ui/boot/boot_bg.webp")
-const FILL: Texture2D = preload("res://assets/ui/boot/boot_bar_fill.png")
-## The cardboard picture has rounded ends and rough edges: only this straight middle part of it is
-## used, so no curve shows.
-const FILL_REGION: Rect2 = Rect2(70.0, 30.0, 740.0, 54.0)
-## The font of the loaded percentage (owner). It only has capital letters, so the tip, which is
-## sentence case, uses the body font.
+## The same outlined display face as the navigation labels.
 const PERCENT_FONT: Font = KalyeahTheme.DISPLAY_FONT
 ## Matte black (not pure black) for the loading base and the layer under everything.
 const BASE_COLOR: Color = Color(0.085, 0.085, 0.09)
 
 ## The loading base along the bottom edge (the phone's home-bar inset is added to it).
-const BAND_HEIGHT: float = 52.0
+const BAND_HEIGHT: float = 44.0
+const FRAME_WIDTH: float = 4.0
+const TRACK_COLOR: Color = Color("070f1d")
+const FRAME_COLOR: Color = Color("17263e")
+const FILL_COLORS: Array[Color] = [Color("9ae2ff"), Color("4eb8ff"), Color("258fde"), Color("1764ab")]
+const FILL_STOPS: Array[float] = [0.0, 0.28, 0.3, 1.0]
 ## The percentage is this tall; it straddles the base's top edge (half over the art, half over the base).
 const PERCENT_HEIGHT: float = 64.0
 ## One tip is shown per launch.
@@ -58,14 +53,15 @@ var _done: bool = false
 var _fill_clip: Control
 var _fill_rect: TextureRect
 var _base: ColorRect
-var _band: ColorRect
+var _track: Panel
+var _rim: ColorRect
+var _shade: TextureRect
 var _art: TextureRect
 var _percent: Label
 var _tip: Label
 
 
-## Width of the filled part of a base `width` wide at `fraction` (0..1): the cardboard grows from
-## the left edge to the right edge.
+## Width of the filled part of the inset track, clamped to its endpoints.
 static func fill_width(fraction: float, width: float) -> float:
 	return width * clampf(fraction, 0.0, 1.0)
 
@@ -118,20 +114,34 @@ func _build() -> void:
 	_art.clip_contents = true
 	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_art)
+	_shade = _bar_layer(_vertical_gradient(PackedColorArray([Color.TRANSPARENT, Color(0.0, 0.0, 0.02, 0.85)]), PackedFloat32Array([0.0, 1.0])))
+	_shade.name = "TipShade"
 	_base = ColorRect.new()
 	_base.name = "Base"
 	_base.color = BASE_COLOR
 	_base.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_base)
+	_track = Panel.new()
+	_track.name = "Track"
+	_track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var frame: StyleBoxFlat = StyleBoxFlat.new()
+	frame.bg_color = TRACK_COLOR
+	frame.border_color = FRAME_COLOR
+	frame.set_border_width_all(int(FRAME_WIDTH))
+	_track.add_theme_stylebox_override("panel", frame)
+	_base.add_child(_track)
 	_fill_clip = Control.new()
+	_fill_clip.name = "FillClip"
 	_fill_clip.clip_contents = true
 	_fill_clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_fill_clip)
-	var cardboard: AtlasTexture = AtlasTexture.new()
-	cardboard.atlas = FILL
-	cardboard.region = FILL_REGION
-	_fill_rect = _bar_layer(cardboard, _fill_clip)
-	_fill_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	_base.add_child(_fill_clip)
+	_fill_rect = _bar_layer(_vertical_gradient(PackedColorArray(FILL_COLORS), PackedFloat32Array(FILL_STOPS)), _fill_clip)
+	_fill_rect.name = "BlueFill"
+	_rim = ColorRect.new()
+	_rim.name = "TopRim"
+	_rim.color = Color(0.7, 0.82, 1.0, 0.5)
+	_rim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_base.add_child(_rim)
 	_percent = Label.new()
 	_percent.add_theme_font_override("font", PERCENT_FONT)
 	_percent.add_theme_color_override("font_color", Color.WHITE)
@@ -167,6 +177,19 @@ func band_height() -> float:
 	return BAND_HEIGHT + inset
 
 
+## Tiny gradients are built once; progress only changes the clip width.
+func _vertical_gradient(colors: PackedColorArray, stops: PackedFloat32Array) -> GradientTexture2D:
+	var texture: GradientTexture2D = GradientTexture2D.new()
+	texture.width = 1
+	texture.height = 64
+	texture.fill_from = Vector2.ZERO
+	texture.fill_to = Vector2.DOWN
+	texture.gradient = Gradient.new()
+	texture.gradient.offsets = stops
+	texture.gradient.colors = colors
+	return texture
+
+
 func _bar_layer(texture: Texture2D, parent: Control = self) -> TextureRect:
 	var rect: TextureRect = TextureRect.new()
 	rect.texture = texture
@@ -183,21 +206,22 @@ func _layout() -> void:
 	var band: float = band_height()
 	_art.position = Vector2.ZERO
 	_art.size = Vector2(size.x, size.y - band)
-	# the cement-coloured base and the cardboard on it are the same size: the whole band
 	var origin: Vector2 = Vector2(0.0, size.y - band)
-	var base_size: Vector2 = Vector2(size.x, band)
 	_base.position = origin
-	_base.size = base_size
-	_fill_clip.position = origin
-	# the cardboard keeps its own proportions at the base's scale (it covers the base's height) and
-	# is cropped by the base, so the same picture is revealed as the progress grows
-	var scale_to_base: float = maxf(base_size.y / FILL_REGION.size.y, base_size.x / FILL_REGION.size.x)
+	_base.size = Vector2(size.x, band)
+	_track.position = Vector2.ZERO
+	_track.size = Vector2(size.x, BAND_HEIGHT)
+	_fill_clip.position = Vector2.ONE * FRAME_WIDTH
 	_fill_rect.position = Vector2.ZERO
-	_fill_rect.size = FILL_REGION.size * scale_to_base
+	_fill_rect.size = Vector2(maxf(0.0, size.x - FRAME_WIDTH * 2.0), BAND_HEIGHT - FRAME_WIDTH * 2.0)
+	_rim.position = Vector2(1.0, 1.0)
+	_rim.size = Vector2(maxf(0.0, size.x - 2.0), 2.0)
+	_shade.position = Vector2(0.0, maxf(0.0, origin.y - 260.0))
+	_shade.size = Vector2(size.x, origin.y - _shade.position.y)
 	# the percentage is centred vertically on the base's top edge, overlapping it
 	_percent.size = Vector2(size.x, PERCENT_HEIGHT)
 	_percent.position = Vector2(0.0, origin.y - PERCENT_HEIGHT / 2.0)
-	_percent.add_theme_font_size_override("font_size", int(PERCENT_HEIGHT * 0.6))
+	_percent.add_theme_font_size_override("font_size", UiMetrics.HEADLINE)
 	# the tip floats just above the base, over the art
 	var side: float = size.x * 0.08
 	# a wrapping label works out its height from its width, so give it the width first
@@ -210,7 +234,7 @@ func _layout() -> void:
 func _apply_progress() -> void:
 	if _base == null:
 		return
-	_fill_clip.size = Vector2(fill_width(progress, _base.size.x), _base.size.y)
+	_fill_clip.size = Vector2(fill_width(progress, _fill_rect.size.x), _fill_rect.size.y)
 	_percent.text = "%d%%" % roundi(clampf(progress, 0.0, 1.0) * 100.0)
 
 
