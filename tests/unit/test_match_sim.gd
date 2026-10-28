@@ -20,7 +20,7 @@ func test_rules_match_gdd_core_numbers() -> void:
 	assert_almost_eq(RULES.tick_dt(), DT, 0.00001)
 	assert_eq(RULES.player_max_hp, 100)
 	assert_eq(RULES.move_speed, 5.0)
-	assert_eq(RULES.capture_time, 5.0)
+	assert_eq(RULES.capture_solo_time, 12.0)
 
 
 func test_players_spawn_at_their_own_base_with_full_hp() -> void:

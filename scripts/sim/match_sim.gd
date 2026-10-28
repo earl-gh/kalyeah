@@ -102,7 +102,7 @@ func _init(p_rules: GameRules, p_layout: MapLayout, seed_value: int) -> void:
 	for def: WeaponDef in rules.weapons:
 		weapon_defs[def.id] = def
 	score = MatchScore.new(rules.first_to)
-	capture_needed = rules.capture_time
+	capture_needed = rules.capture_solo_time
 	tag_release_time = rules.tag_release_time
 
 
@@ -502,7 +502,7 @@ func step(dt: float) -> void:
 			_step_free(state, input, dt)
 	match_time += dt
 	round_time += dt
-	capture_needed = current_capture_time()
+	capture_needed = current_base_capture_time()
 	weapons.step(self, dt)
 	objectives.check_rescues(self, dt)
 	objectives.check_captures(self, _brains, dt)
@@ -802,14 +802,7 @@ func all_enemies_tagged(team: int) -> bool:
 	return objectives.all_enemies_tagged(self, team, _brains)
 
 
-## How long a capture has to hold right now: the capture time, or the overtime one once the round has dragged on.
-func current_capture_time() -> float:
-	if in_overtime():
-		return minf(rules.capture_time, rules.overtime_capture_time)
-	return rules.capture_time
-
-
-## How long a base capture takes one player alone: the solo time, or the shorter overtime one.
+## Solo base hold time, shortened only by configured overtime.
 func current_base_capture_time() -> float:
 	if in_overtime():
 		return minf(rules.capture_solo_time, rules.overtime_capture_time)
@@ -819,11 +812,6 @@ func current_base_capture_time() -> float:
 ## True once the round has dragged on past `rules.overtime_after` (the header says OVERTIME).
 func in_overtime() -> bool:
 	return rules.overtime_after > 0.0 and round_time >= rules.overtime_after
-
-
-## `team` is all in the enemy base but a defender is still standing in it (the capture waits).
-func base_contested_by(team: int) -> bool:
-	return objectives.base_contested_by(self, team, _brains)
 
 
 ## Seconds left on the running capture countdown (0 when none runs).

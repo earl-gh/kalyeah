@@ -34,8 +34,8 @@ func test_both_are_off_in_the_shipped_rules() -> void:
 func test_without_overtime_the_capture_time_never_changes() -> void:
 	var sim: MatchSim = _sim()
 	_wait(sim, 300.0)
-	assert_eq(sim.capture_needed, _rules.capture_time)
-	assert_eq(sim.current_capture_time(), _rules.capture_time)
+	assert_eq(sim.capture_needed, _rules.capture_solo_time)
+	assert_eq(sim.current_base_capture_time(), _rules.capture_solo_time)
 
 
 func test_overtime_shortens_the_capture_after_the_set_time_and_a_new_round_resets_it() -> void:
@@ -43,12 +43,12 @@ func test_overtime_shortens_the_capture_after_the_set_time_and_a_new_round_reset
 	_rules.overtime_capture_time = 2.0
 	var sim: MatchSim = _sim()
 	_wait(sim, 19.0)
-	assert_eq(sim.capture_needed, _rules.capture_time)
+	assert_eq(sim.capture_needed, _rules.capture_solo_time)
 	_wait(sim, 2.0)
 	assert_eq(sim.capture_needed, 2.0)
 	sim.objectives.end_freeze(sim)
 	assert_eq(sim.round_time, 0.0, "a new round starts a new clock")
-	assert_eq(sim.capture_needed, _rules.capture_time)
+	assert_eq(sim.capture_needed, _rules.capture_solo_time)
 
 
 func test_overtime_never_makes_the_capture_longer() -> void:
@@ -56,7 +56,7 @@ func test_overtime_never_makes_the_capture_longer() -> void:
 	_rules.overtime_capture_time = 99.0
 	var sim: MatchSim = _sim()
 	_wait(sim, 2.0)
-	assert_eq(sim.capture_needed, _rules.capture_time)
+	assert_eq(sim.capture_needed, _rules.capture_solo_time)
 
 
 func test_a_capture_in_overtime_scores_after_the_short_time() -> void:
@@ -66,8 +66,9 @@ func test_a_capture_in_overtime_scores_after_the_short_time() -> void:
 	var scored: Array[int] = []
 	sim.point_scored.connect(func(team: int, _how: int) -> void: scored.append(team))
 	_wait(sim, 6.0)
-	sim.kill(3)
-	sim.kill(4)
+	sim.players[1].position = LAYOUT.base_center(MapLayout.SIDE_ENEMY)
+	sim.players[3].position = Vector2.ZERO
+	sim.players[4].position = Vector2(2.0, 0.0)
 	_wait(sim, 1.5)
 	assert_eq(scored, [] as Array[int])
 	_wait(sim, 1.0)
@@ -114,7 +115,7 @@ func test_practice_uses_its_own_release_time() -> void:
 	assert_gt(practice.rules.practice_tag_release_time, 0.0)
 
 
-func test_the_hud_says_contested_when_a_defender_blocks_your_capture() -> void:
+func test_the_hud_shows_capture_progress_with_a_defender_present() -> void:
 	var practice: PracticeMatch = autofree(preload("res://scenes/match/practice.tscn").instantiate()) as PracticeMatch
 	add_child(practice)
 	practice.set_process(false)
@@ -124,19 +125,17 @@ func test_the_hud_says_contested_when_a_defender_blocks_your_capture() -> void:
 	practice.sim.players[practice.local_id].position = enemy_base
 	practice.sim.players[PracticeMatch.ENEMY_STAND_ID].position = enemy_base + Vector2(1.5, 0.0)
 	practice.advance(DT)
-	assert_true(practice.sim.base_contested_by(practice.local_team))
+	assert_eq(practice.sim.capture_team, practice.local_team)
 	assert_true(practice.hud.capture_label.visible)
-	assert_eq(practice.hud.capture_label.text, "CONTESTED!")
-	practice.sim.kill(PracticeMatch.ENEMY_STAND_ID)
-	practice.advance(DT)
-	assert_ne(practice.hud.capture_label.text, "CONTESTED!", "the defender is tagged: the capture runs")
+	assert_string_contains(practice.hud.capture_label.text, "HOLD THE BASE!")
+	assert_false(practice.hud.capture_label.text.contains("CONTESTED"))
 
 
 func test_the_match_remembers_how_every_point_was_won() -> void:
 	var sim: MatchSim = _sim()
 	sim.kill(3)
 	sim.kill(4)
-	_wait(sim, _rules.capture_time + 0.5)
+	_wait(sim, _rules.capture_solo_time + 0.5)
 	assert_eq(sim.point_log, [Vector2i(0, MatchSim.CaptureKind.ALL_TAGGED)] as Array[Vector2i])
 	sim.objectives.end_freeze(sim)
 	var base: Vector2 = LAYOUT.base_center(MapLayout.SIDE_OWN)

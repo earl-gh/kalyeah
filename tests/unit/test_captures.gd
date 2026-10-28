@@ -1,7 +1,7 @@
 extends GutTest
 ## Who scores when: free players standing in the enemy base (one alone takes `capture_solo_time`, each teammate in it
 ## speeds the count up), both teams in each other's base at once, both fully tagged at once, and a base that an enemy is
-## still standing in (`capture_contested`). From the lead review: team 0 won every tie.
+## still standing in. Defenders never block capture, and a team wipe scores immediately.
 
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const DT: float = 1.0 / 30.0
@@ -70,7 +70,7 @@ func test_one_player_alone_takes_the_solo_time_which_is_long_but_not_too_long() 
 	_away(sim, 0)
 	sim.players[10].position = LAYOUT.base_center(MapLayout.SIDE_ENEMY)
 	assert_eq(_rules.capture_solo_time, 12.0)
-	assert_gt(_rules.capture_solo_time, _rules.capture_time, "longer than with the team")
+	assert_gt(_base_time(1), _base_time(3), "longer than with the team")
 	assert_lt(_rules.capture_solo_time, 15.0, "but not endless")
 	_wait(sim, _rules.capture_solo_time - 0.5)
 	assert_eq(_scored, [] as Array[int])
@@ -82,7 +82,7 @@ func test_every_teammate_in_the_base_makes_the_capture_faster() -> void:
 	var times: Array[float] = [_base_time(1), _base_time(2), _base_time(3)]
 	assert_gt(times[0], times[1])
 	assert_gt(times[1], times[2])
-	assert_almost_eq(times[2], _rules.capture_time, 0.5, "the whole team of three is about the old five seconds")
+	assert_almost_eq(times[2], 4.8, 0.05, "the whole team of three is about the old five seconds")
 	_rules.capture_ally_bonus = 1.0
 	assert_almost_eq(_base_time(2), _rules.capture_solo_time / 2.0, 0.001, "a bonus of 1 is linear")
 	_rules.capture_ally_bonus = 0.0
@@ -129,13 +129,7 @@ func test_both_teams_in_each_others_base_at_once_scores_for_nobody() -> void:
 	assert_eq(sim.capture_team, -1)
 
 
-func test_the_tie_rule_holds_with_the_contest_rule_off_too() -> void:
-	_rules.capture_contested = false
-	var sim: MatchSim = _sim()
-	_rush(sim, 0)
-	_rush(sim, 1)
-	_wait(sim, _rules.capture_solo_time)
-	assert_eq(_scored, [] as Array[int])
+
 
 
 func test_the_tie_ends_when_one_team_leaves_and_the_other_then_scores() -> void:
@@ -152,20 +146,22 @@ func test_both_teams_fully_tagged_at_once_scores_for_nobody() -> void:
 	var sim: MatchSim = _sim()
 	for id: int in sim.players:
 		sim.kill(id)
-	_wait(sim, _rules.capture_time * 2.0)
+	_wait(sim, _rules.capture_solo_time * 2.0)
 	assert_eq(_scored, [] as Array[int])
 
 
-func test_an_enemy_standing_in_the_base_stops_the_capture() -> void:
+func test_a_defender_in_the_base_does_not_block_or_reset_capture() -> void:
 	var sim: MatchSim = _sim()
 	_rush(sim, 0)
 	_away(sim, 1)
+	_wait(sim, 2.0)
+	var progress: float = sim.capture_elapsed
 	sim.players[20].position = LAYOUT.base_center(MapLayout.SIDE_ENEMY) + Vector2(1.5, 0.0)
-	assert_true(_rules.capture_contested, "on by default")
-	_wait(sim, _rules.capture_solo_time)
-	assert_eq(_scored, [] as Array[int], "a defender at home contests it")
-	assert_eq(sim.capture_team, -1)
-	assert_true(sim.base_contested_by(0), "the HUD can say CONTESTED")
+	sim.step(DT)
+	assert_eq(sim.capture_team, 0)
+	assert_gt(sim.capture_elapsed, progress, "a defender cannot reset progress")
+	_wait(sim, _base_time(2))
+	assert_eq(_scored, [0] as Array[int])
 
 
 func test_the_capture_runs_once_the_defender_is_tagged() -> void:
@@ -190,21 +186,14 @@ func test_the_capture_runs_once_the_defender_walks_out() -> void:
 	assert_eq(_scored, [0] as Array[int])
 
 
-func test_with_the_contest_rule_off_a_defender_in_the_base_does_not_matter() -> void:
-	_rules.capture_contested = false
-	var sim: MatchSim = _sim()
-	_rush(sim, 0)
-	_away(sim, 1)
-	sim.players[20].position = LAYOUT.base_center(MapLayout.SIDE_ENEMY) + Vector2(1.5, 0.0)
-	_wait(sim, _base_time(2) + 0.5)
-	assert_eq(_scored, [0] as Array[int])
 
 
-func test_all_enemies_tagged_still_scores_and_is_not_blocked_by_the_contest_rule() -> void:
+
+func test_all_enemies_tagged_scores_immediately() -> void:
 	var sim: MatchSim = _sim()
 	sim.kill(20)
 	sim.kill(21)
-	_wait(sim, _rules.capture_time + 0.5)
+	sim.step(DT)
 	assert_eq(_scored, [0] as Array[int])
 	assert_eq(sim.capture_kind, MatchSim.CaptureKind.NONE, "the point ended the capture")
 

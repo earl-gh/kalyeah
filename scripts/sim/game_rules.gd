@@ -35,16 +35,11 @@ extends Resource
 @export var cc_immunity: float = 0.0
 ## A returning boomerang is caught when this close to its thrower.
 @export var boomerang_catch_distance: float = 0.0
-## Scoring: an "all tagged" capture (every enemy waiting on the sidewalk) has to hold this long to win the point.
-@export var capture_time: float = 0.0
 ## A base capture (free players of one team standing in the enemy base): one player alone needs this long ...
 @export var capture_solo_time: float = 12.0
 ## ... and each further teammate in the base adds this share of one player's speed (1.0 = linear, 0 = no help):
 ## the countdown runs at 1 + (n - 1) * bonus times its solo speed.
 @export var capture_ally_bonus: float = 0.75
-## A base capture does not run while a free player of the defending team stands in that base (the defenders must
-## be tagged or leave first). Off: only the capture time decides.
-@export var capture_contested: bool = true
 ## Overtime: once a round has gone on this long (seconds, 0 = never) the capture time drops to `overtime_capture_time`,
 ## so a round always ends.
 @export var overtime_after: float = 0.0

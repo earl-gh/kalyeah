@@ -58,7 +58,7 @@ static func mechanics_for(id: StringName, rules: GameRules) -> Array[String]:
 		"Run too long and you can only walk until your stamina is full!",
 		UiText.f("Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d s frees the first one tagged!", [ceili(rules.rescue_hold_time)]),
 		UiText.f("Stay in their base to capture it: %d s alone, faster with friends! You can't throw while capturing.", [ceili(rules.capture_solo_time)]),
-		UiText.f("Or tag them all and hold it for %d s!", [ceili(rules.capture_time)]),
+		UiText.t("Tag the whole enemy team to score immediately!"),
 	] as Array[String]
 
 

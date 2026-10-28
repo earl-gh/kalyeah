@@ -1,8 +1,7 @@
 class_name StatusEffects
 extends RefCounted
 ## Status effects on one player (docs/GDD.md "Weapons"). Only ONE status is active
-## at a time: a new status of a different kind overwrites the current one. The same
-## status re-applied keeps the longer remaining time and, for SLOW, the stronger slow.
+## at a time. Each accepted application replaces the old status, timer and magnitude.
 
 enum Type { NONE, STUN, SLOW, AIRBORNE, POLYMORPH, BOUNCE, KNOCKOUT }
 
@@ -35,13 +34,11 @@ func apply(type: Type, duration: float, magnitude: float = 0.0) -> bool:
 		return false
 	if IMMUNITY_TYPES.has(type) and _immune_left > 0.0 and not _time_left.has(type):
 		return false
-	var current: float = _time_left[type] if _time_left.has(type) else 0.0
-	if current <= 0.0:
-		_time_left.clear()
-		_slow = 0.0
-	_time_left[type] = maxf(current, duration)
+	_time_left.clear()
+	_slow = 0.0
+	_time_left[type] = duration
 	if type == Type.SLOW:
-		_slow = maxf(_slow if current > 0.0 else 0.0, magnitude)
+		_slow = magnitude
 	return true
 
 

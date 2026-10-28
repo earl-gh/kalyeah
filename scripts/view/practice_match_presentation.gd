@@ -72,7 +72,7 @@ func connect_sim() -> void:
 		# the first practice match (or a replay from How to play) opens with the walkthrough
 		if Session.coach_pending and not owner.online:
 			Session.coach_pending = false
-			owner.hud.coach.start(owner.sim.rules.capture_time, owner.sim.score.points_to_win()))
+			owner.hud.coach.start(owner.sim.rules.capture_solo_time, owner.sim.score.points_to_win()))
 	owner.sim.player_tagged.connect(_on_player_tagged)
 	owner.sim.player_rescued.connect(_on_player_rescued)
 

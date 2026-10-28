@@ -265,13 +265,8 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 
 ## "CAPTURING 3" for us, "DEFEND! 3" against us, in the middle of the screen.
 func _sync_capture(sim: MatchSim, local_team: int) -> void:
-	var contested: bool = sim.base_contested_by(local_team) or sim.base_contested_by(1 - local_team)
-	capture_label.visible = (sim.capture_team >= 0 or contested) and sim.phase == MatchSim.Phase.PLAYING
+	capture_label.visible = sim.capture_team >= 0 and sim.phase == MatchSim.Phase.PLAYING
 	if not capture_label.visible:
-		return
-	if sim.capture_team < 0:
-		capture_label.text = "CONTESTED!"
-		capture_label.add_theme_color_override("font_color", CAPTURE_COLOR)
 		return
 	var seconds: int = ceili(sim.capture_time_left())
 	var ours: bool = sim.capture_team == local_team

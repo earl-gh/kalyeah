@@ -129,26 +129,15 @@ func all_enemies_tagged(sim: MatchSim, team: int, brains: Dictionary[int, DummyB
 	return true
 
 
-## A free player of the team that owns the base `team` is invading stands in that base.
-func base_defended(sim: MatchSim, team: int) -> bool:
-	var enemy_side: int = -sim.side_for_team(team)
-	for id: int in sim.players:
-		var other: PlayerState = sim.players[id]
-		if other.team != team and not other.tagged and sim.layout.in_base(enemy_side, other.position):
-			return true
-	return false
-
-
-## `team` has players in the enemy base but a defender still stands there, so the capture cannot run.
-func base_contested_by(sim: MatchSim, team: int, brains: Dictionary[int, DummyBrain]) -> bool:
-	return sim.rules.capture_contested and capturers_in_enemy_base(sim, team, brains) > 0 and base_defended(sim, team)
-
-
-## The capture countdown runs while exactly one team keeps a capture going (at least one free player in the enemy base with
-## nobody defending it, or every enemy tagged); it restarts as soon as that breaks. A base capture runs faster with every
-## teammate in the base (`capture_solo_time`, `capture_ally_bonus`). When both teams qualify at once (a mirror rush) nobody's
-## countdown runs: the tie is broken by tagging, not by which team has the lower number.
+## Team wipes score immediately. Otherwise only one team's base countdown may run;
+## defenders inside that base do not block it, and a mirror rush remains a tie.
 func check_captures(sim: MatchSim, brains: Dictionary[int, DummyBrain], dt: float) -> void:
+	# Resolve team wipes before base captures, after all hits in this tick.
+	var wiped_for_zero: bool = all_enemies_tagged(sim, 0, brains)
+	var wiped_for_one: bool = all_enemies_tagged(sim, 1, brains)
+	if wiped_for_zero != wiped_for_one:
+		_score_point(sim, 0 if wiped_for_zero else 1, MatchSim.CaptureKind.ALL_TAGGED)
+		return
 	var team: int = -1
 	var kind: MatchSim.CaptureKind = MatchSim.CaptureKind.NONE
 	var running: int = 0
@@ -156,11 +145,9 @@ func check_captures(sim: MatchSim, brains: Dictionary[int, DummyBrain], dt: floa
 	for candidate: int in [0, 1]:
 		var how: MatchSim.CaptureKind = MatchSim.CaptureKind.NONE
 		var here: int = capturers_in_enemy_base(sim, candidate, brains)
-		if here > 0 and not base_contested_by(sim, candidate, brains):
+		if here > 0:
 			how = MatchSim.CaptureKind.BASE
 			in_base = here
-		elif all_enemies_tagged(sim, candidate, brains):
-			how = MatchSim.CaptureKind.ALL_TAGGED
 		if how != MatchSim.CaptureKind.NONE:
 			running += 1
 			team = candidate
@@ -231,7 +218,7 @@ func _reset_round(sim: MatchSim) -> void:
 	sim.weapons.reset()
 	_clear_capture(sim)
 	sim.round_time = 0.0
-	sim.capture_needed = sim.rules.capture_time
+	sim.capture_needed = sim.rules.capture_solo_time
 	sim.rescue_rescuer = [-1, -1]
 	sim.rescue_elapsed = [0.0, 0.0]
 	for id: int in sim.players:
