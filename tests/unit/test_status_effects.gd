@@ -13,22 +13,22 @@ func test_apply_and_expire() -> void:
 	assert_false(fx.has(T.STUN))
 
 
-func test_effects_do_not_stack_with_themselves_longest_wins() -> void:
+func test_same_effect_restarts_with_the_new_duration() -> void:
 	var fx: StatusEffects = StatusEffects.new()
 	fx.apply(T.STUN, 2.0)
 	fx.apply(T.STUN, 0.5)
-	assert_almost_eq(fx.time_left(T.STUN), 2.0, 0.0001, "a shorter one doesn't cut it")
+	assert_almost_eq(fx.time_left(T.STUN), 0.5, 0.0001, "the new shorter duration replaces the old one")
 	fx.step(1.5)
 	fx.apply(T.STUN, 2.0)
 	assert_almost_eq(fx.time_left(T.STUN), 2.0, 0.0001, "a new hard CC refreshes the duration")
 
 
-func test_slow_keeps_the_strongest_and_resets_when_it_ends() -> void:
+func test_slow_uses_the_new_strength_and_resets_when_it_ends() -> void:
 	var fx: StatusEffects = StatusEffects.new()
 	fx.apply(T.SLOW, 1.0, 0.3)
 	fx.apply(T.SLOW, 1.0, 0.4)
 	fx.apply(T.SLOW, 1.0, 0.2)
-	assert_almost_eq(fx.speed_multiplier(0.5), 0.6, 0.0001)
+	assert_almost_eq(fx.speed_multiplier(0.5), 0.8, 0.0001)
 	fx.step(1.1)
 	assert_eq(fx.speed_multiplier(0.5), 1.0)
 	fx.apply(T.SLOW, 1.0, 0.1)
@@ -80,4 +80,4 @@ func test_a_new_status_overwrites_the_current_one() -> void:
 	assert_false(fx.has(T.STUN))
 	assert_true(fx.can_move(), "the stun is gone")
 	fx.apply(T.SLOW, 3.0, 0.3)
-	assert_almost_eq(fx.time_left(T.SLOW), 3.0, 0.001, "the same status keeps the longer time")
+	assert_almost_eq(fx.time_left(T.SLOW), 3.0, 0.001, "the same status starts its new full time")

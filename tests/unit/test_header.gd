@@ -106,7 +106,7 @@ func test_overtime_is_when_the_round_passes_the_rules_overtime_time() -> void:
 	assert_false(sim.in_overtime())
 	sim.round_time = 30.0
 	assert_true(sim.in_overtime())
-	assert_eq(sim.current_capture_time(), minf(sim.rules.capture_time, sim.rules.overtime_capture_time))
+	assert_eq(sim.current_base_capture_time(), minf(sim.rules.capture_solo_time, sim.rules.overtime_capture_time))
 	sim.rules.overtime_after = 0.0
 	assert_false(sim.in_overtime(), "0 means never")
 

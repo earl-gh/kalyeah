@@ -32,7 +32,7 @@ func _finish_freeze(sim: MatchSim) -> void:
 # ---- MatchScore: one tier, first to 3 / 5 / 7 -------------------------------------
 
 func test_scoring_numbers_come_from_data() -> void:
-	assert_eq(RULES.capture_time, 5.0)
+	assert_eq(RULES.capture_solo_time, 12.0)
 	assert_eq(RULES.point_freeze_time, 3.0)
 	assert_eq(RULES.first_to, 3, "practice and new rooms: first to 3")
 	assert_eq(RULES.first_to_choices, [3, 5, 7] as Array[int], "what the host can pick")
@@ -126,7 +126,7 @@ func test_stepping_out_restarts_the_countdown() -> void:
 func test_own_base_does_not_score() -> void:
 	var sim: MatchSim = _sim()
 	sim.add_player(1, 0)
-	_wait(sim, RULES.capture_time + 1.0)
+	_wait(sim, RULES.capture_solo_time + 1.0)
 	assert_eq(sim.score.points, [0, 0] as Array[int])
 
 
@@ -141,7 +141,7 @@ func test_training_dummies_do_not_count_for_a_capture() -> void:
 
 # ---- capture: every enemy tagged ---------------------------------------------------
 
-func test_tagging_the_whole_other_team_scores_after_the_countdown() -> void:
+func test_tagging_the_whole_other_team_scores_without_a_countdown() -> void:
 	var sim: MatchSim = _sim()
 	sim.add_player(1, 0)
 	sim.add_player(2, 1)
@@ -152,9 +152,7 @@ func test_tagging_the_whole_other_team_scores_after_the_countdown() -> void:
 	assert_eq(sim.capture_team, -1, "one of them is still free")
 	sim.kill(3)
 	sim.step(DT)
-	assert_eq(sim.capture_team, 0)
-	assert_eq(sim.capture_kind, MatchSim.CaptureKind.ALL_TAGGED)
-	_wait(sim, RULES.capture_time)
+	assert_eq(sim.phase, MatchSim.Phase.POINT_FREEZE)
 	assert_eq(sim.score.points[0], 1)
 	assert_signal_emitted_with_parameters(sim, "point_scored", [0, MatchSim.CaptureKind.ALL_TAGGED])
 
@@ -169,7 +167,7 @@ func test_freeze_then_everyone_is_reset_at_full_hp_out_of_the_boxes() -> void:
 	me.weapon_cooldowns = [3.0, 9.0] as Array[float]
 	sim.apply_effect(2, StatusEffects.Type.SLOW, 10.0, 0.4)
 	sim.kill(2)
-	_score(sim, me)
+	sim.step(DT)
 	var frozen_at: Vector2 = me.position
 	_wait(sim, 2.0)
 	assert_eq(me.position, frozen_at, "nobody moves in the freeze")
@@ -212,7 +210,7 @@ func test_a_team_of_training_dummies_never_scores() -> void:
 	sim.add_player(1, 0)
 	sim.add_dummy(2, 1, Vector2(0.0, -10.0), DummyBrain.standing())
 	sim.kill(1)
-	_wait(sim, RULES.capture_time + 0.5)
+	_wait(sim, RULES.capture_solo_time + 0.5)
 	assert_eq(sim.score.points, [0, 0] as Array[int], "practice: being tagged gives the dummies no point")
 
 

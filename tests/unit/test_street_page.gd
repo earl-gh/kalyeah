@@ -43,7 +43,7 @@ func test_the_mechanics_come_from_the_rules_so_they_cannot_go_stale() -> void:
 	var joined: String = "\n".join(StreetPage.mechanics_for(&"street", rules))
 	assert_string_contains(joined, "%d s" % ceili(rules.rescue_hold_time), "the rescue time")
 	assert_string_contains(joined, "%d s" % ceili(rules.capture_solo_time), "the solo capture time")
-	assert_string_contains(joined, "%d s" % ceili(rules.capture_time), "the all-tagged hold time")
+	assert_string_contains(joined, "score immediately", "a team wipe has no hold timer")
 
 
 func test_a_street_that_is_not_built_says_so() -> void:

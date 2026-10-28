@@ -53,7 +53,7 @@ func test_bots_are_real_players_who_count_for_a_capture() -> void:
 		sim.players[id].position = base + Vector2(float(id) - 2.0, 0.0)
 	for id: int in [4, 5, 6]:
 		sim.players[id].position = Vector2(float(id - 5) * 2.0, 0.0)
-	for i: int in ceili((_rules.capture_time + 1.0) / DT):
+	for i: int in ceili((_rules.capture_solo_time + 1.0) / DT):
 		sim.step(DT)
 	assert_eq(scored, [0] as Array[int], "three free players in the enemy base are a capture whether or not a brain drives them")
 

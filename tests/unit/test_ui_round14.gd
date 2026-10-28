@@ -121,7 +121,7 @@ func test_the_score_card_fills_while_a_capture_runs_blue_for_you_red_for_them() 
 	var card: Scoreboard = practice.hud.scoreboard
 	assert_eq(card.capture, -1.0, "nothing is being captured")
 	practice.sim.capture_team = practice.local_team
-	practice.sim.capture_elapsed = practice.sim.rules.capture_time / 2.0
+	practice.sim.capture_elapsed = practice.sim.rules.capture_solo_time / 2.0
 	card.show_capture(practice.sim, practice.local_team)
 	assert_almost_eq(card.capture, 0.5, 0.021)
 	assert_true(card.capture_ours)

@@ -26,7 +26,7 @@ func _init() -> void:
 	var layout: MapLayout = load("res://data/rules/map_layout.tres") as MapLayout
 	var seeds: int = int(options.get("seeds", "80"))
 	var sizes: PackedStringArray = options.get("size", "1,3").split(",")
-	var captures: PackedStringArray = options.get("capture", str(rules.capture_time)).split(",")
+	var captures: PackedStringArray = options.get("capture", str(rules.capture_solo_time)).split(",")
 	var releases: PackedStringArray = options.get("release", str(rules.tag_release_time)).split(",")
 	var seconds: float = float(options.get("seconds", "120"))
 	var skill: float = float(options.get("skill", "0.5"))
@@ -39,10 +39,10 @@ func _init() -> void:
 		rules.stamina_enabled = options["stamina"] != "0"
 	for capture: String in captures:
 		for release: String in releases:
-			rules.capture_time = float(capture)
+			rules.capture_solo_time = float(capture)
 			rules.tag_release_time = float(release)
-			print("== capture_time %s, tag_release_time %s, contested %s, cards %s, elixir %s, hand %d, stamina %s" % [
-				capture, release, str(rules.capture_contested), str(rules.card_cycle), str(rules.elixir_enabled), rules.hand_size,
+			print("== capture_solo_time %s, tag_release_time %s, cards %s, elixir %s, hand %d, stamina %s" % [
+				capture, release, str(rules.card_cycle), str(rules.elixir_enabled), rules.hand_size,
 				str(rules.stamina_enabled),
 			])
 			for size_text: String in sizes:
