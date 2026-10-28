@@ -19,5 +19,6 @@ shoes = false
 shoe_color = Color(0.2, 0.3, 0.8, 1)
 extra = 0
 extra_color = Color(0.6, 0.85, 1, 1)
-native_animation = true
+cast_release_standing = 0.675
+cast_release_moving = 0.975
 body_width = 1.0

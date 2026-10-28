@@ -2,8 +2,6 @@ class_name PracticeMatchPresentation
 extends RefCounted
 ## Owns PracticeMatch's HUD wiring, actor views, camera presentation, and banners.
 
-const AIRBORNE_LIFT: float = 1.0
-
 var owner: PracticeMatch
 
 
@@ -63,9 +61,7 @@ func connect_sim() -> void:
 		if id == owner.local_id:
 			owner._camera.shake(minf(0.1 + amount * 0.01, 0.4))
 			owner.hud.pulse.hit(amount, owner.sim.rules.player_max_hp))
-	owner.sim.weapon_cast.connect(func(id: int, weapon: StringName) -> void:
-		var def: WeaponDef = owner.sim.weapon_defs[weapon]
-		(owner._views[id] as KidModel).play_cast(def.cast_lock, KidModel.is_spell(def)))
+	owner.sim.weapon_cast.connect(func(id: int, _weapon: StringName) -> void: (owner._views[id] as KidModel).play_cast())
 	owner.sim.player_damaged.connect(func(id: int, _amount: int) -> void: (owner._views[id] as KidModel).play_hit())
 	owner.sim.point_scored.connect(_on_point_scored)
 	owner.sim.match_won.connect(_on_match_won)
@@ -122,9 +118,8 @@ func refresh_kids() -> void:
 
 func _sync_actor(state: PlayerState, delta: float) -> void:
 	var view: KidModel = owner._views[state.id]
-	# an authored kid's own Airborne clip already leaves the ground
-	var lift: float = AIRBORNE_LIFT if state.effects.has(StatusEffects.Type.AIRBORNE) and not view.character.authored_model else 0.0
-	view.position = Vector3(state.position.x, lift, state.position.y)
+	# the kid's own Airborne clip already leaves the ground: no extra lift
+	view.position = Vector3(state.position.x, 0.0, state.position.y)
 	view.face(state.facing)
 	view.animate(delta, minf(view.ground_speed(state.position, delta), 20.0), state)
 
