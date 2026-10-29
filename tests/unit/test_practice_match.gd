@@ -616,7 +616,7 @@ func test_the_match_opens_on_the_street_with_the_objective_then_go() -> void:
 	for i: int in ceili(practice.rules.intro_time * 0.5 / DT):
 		practice.advance(DT)
 	assert_eq(practice.sim.phase, MatchSim.Phase.PLAYING)
-	assert_eq(practice.banner_text(), "", "no opening GO banner")
+	assert_eq(practice.banner_text(), "GO!", "the opening signal returns when play starts")
 	assert_false(practice.hud.intro_bar.visible)
 	assert_true(practice.hud.hand.active)
 

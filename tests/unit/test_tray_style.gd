@@ -53,20 +53,21 @@ func test_without_a_column_the_tray_fills_the_screen_width_with_both_top_corners
 		assert_almost_eq(outline.points[outline.top_left + 1].x, SIZE.x - radius, 0.001, "and so is the right one")
 
 
-func test_both_top_corners_are_arcs_of_the_corner_radius() -> void:
+func test_top_corners_have_straight_slants_with_small_rounded_joins() -> void:
 	var outline: ConsolePanel.Outline = _panel(COLUMN, true).tray_outline()
-	var radius: float = float(ConsolePanel.CORNER)
-	assert_eq(radius, float(UiSkin.RADIUS_M), "the corner is the skin's medium radius")
-	var steps: int = ConsolePanel.ARC_STEPS
-	var arcs: Array[Vector2] = [Vector2(COLUMN + radius, radius), Vector2(_bounds(outline.points).end.x - radius, radius)]
-	for corner: int in 2:
-		for step: int in steps + 1:
-			var i: int = outline.top_left - steps + step + corner * (steps + 1)
-			assert_almost_eq(outline.points[i].distance_to(arcs[corner]), radius, 0.001, "corner %d point %d is on the arc" % [corner, step])
-			assert_almost_eq(outline.normals[i].length(), 1.0, 0.001, "its normal is a unit vector")
-			assert_almost_eq(outline.points[i].direction_to(arcs[corner]).dot(-outline.normals[i]), 1.0, 0.001, "pointing straight out of the arc")
-	assert_almost_eq(outline.points[outline.top_left].y, 0.0, 0.001, "the arc ends on the top edge")
-	assert_almost_eq(outline.points[outline.top_left + 1].y, 0.0, 0.001, "and the next one starts on it")
+	var slants: int = 0
+	for i: int in outline.points.size() - 1:
+		assert_almost_eq(outline.normals[i].length(), 1.0, 0.001)
+		var edge: Vector2 = outline.points[i + 1] - outline.points[i]
+		if absf(edge.x) > 5.0 and absf(edge.y) > 5.0:
+			slants += 1
+			assert_almost_eq(absf(edge.x), absf(edge.y), 0.001, "45 degree chamfer")
+			assert_almost_eq(edge.normalized().dot(outline.normals[i]), 0.0, 0.001)
+	assert_eq(slants, 2, "one straight slant per top corner")
+	assert_lt(ConsolePanel.CORNER_RADIUS, float(ConsolePanel.CORNER) / 2.0)
+	assert_gt(ConsolePanel.CORNER_RADIUS, ConsolePanel.INSET, "the inner rim cannot fold over itself")
+	assert_almost_eq(outline.points[outline.top_left].y, 0.0, 0.001)
+	assert_almost_eq(outline.points[outline.top_left + 1].y, 0.0, 0.001)
 
 
 func _signed_area(points: PackedVector2Array) -> float:

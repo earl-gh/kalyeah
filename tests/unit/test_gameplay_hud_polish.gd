@@ -88,3 +88,27 @@ func test_opening_score_positions_follow_a_safe_area_change() -> void:
 	game._presentation.sync(0.0)
 	assert_almost_eq(game.hud.scoreboard.get_global_rect().position.y, MatchHud.TOP_ROW_Y + 60.0, 0.1)
 	assert_eq(game.hud.scoreboard.get_parent(), game.hud.top)
+
+func test_tag_marker_stays_at_the_play_area_position_and_expires_during_point_freeze() -> void:
+	var game: PracticeMatch = autofree(preload("res://scenes/match/practice.tscn").instantiate()) as PracticeMatch
+	add_child(game)
+	game.set_process(false)
+	game.finish_pick()
+	game.skip_intro()
+	var player: PlayerState = game.sim.players[game.local_id]
+	player.position = Vector2(1.0, 0.0)
+	game._presentation.sync(0.0)
+	var world: Vector3 = (game._views[game.local_id] as KidModel).position
+	game.sim.kill(game.local_id)
+	var overhead: OverheadHud = game.hud.overhead
+	assert_eq(overhead.tag_count(), 1)
+	assert_eq(overhead._tags[game.local_id]["world"], world)
+	assert_ne(player.position, Vector2(world.x, world.z), "the kid already moved to the sidewalk")
+	assert_eq(OverheadHud.TAG_FONT, OverheadHud.LABEL_FONT)
+	game.sim.phase = MatchSim.Phase.POINT_FREEZE
+	game._presentation.sync(0.0)
+	assert_true(overhead.visible, "the brief tag feedback survives the score pause")
+	overhead.tick(OverheadHud.TAG_TIME)
+	game.hud.sync_score(game.sim, game.local_team, 0.0, game.local_id)
+	assert_eq(overhead.tag_count(), 0)
+	assert_false(overhead.visible, "no HUD remains over the point pause")

@@ -67,6 +67,7 @@ func connect_sim() -> void:
 	owner.sim.point_reset.connect(func() -> void:
 		owner.hud.street.release())
 	owner.sim.intro_finished.connect(func() -> void:
+		owner.show_banner("GO!")
 		# the first practice match opens with the walkthrough
 		if Session.coach_pending and not owner.online:
 			Session.coach_pending = false
@@ -169,6 +170,10 @@ func _play_intro_shot() -> void:
 
 
 func _on_player_tagged(id: int) -> void:
+	# The sim has already moved the kid to the sidewalk; keep the last visible street position.
+	var view: KidModel = owner._views.get(id) as KidModel
+	if view != null:
+		owner.hud.overhead.show_tag(id, view.position)
 	if id == owner.local_id:
 		owner._camera.shake(0.25)
 		owner.hud.pulse.tagged()

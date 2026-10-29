@@ -29,25 +29,26 @@ static func draw_heart(canvas: CanvasItem, at: Vector2, radius: float, color: Co
 ## The tray's colours, from the Clash Royale reference: the body's bright blue lightening a little at the top and darkening toward the bottom
 ## of the screen, the light blue rim along the top (and, less, down the side beside the column) with a darker shade just under it. No
 ## dark outline anywhere: the edge is the lit rim, anti-aliased by a one pixel fade.
-const TRAY_TOP: Color = Color(0.20, 0.53, 0.78)
-const TRAY_BODY: Color = Color(0.15, 0.44, 0.69)
-const TRAY_BOTTOM: Color = Color(0.11, 0.29, 0.51)
+const TRAY_TOP: Color = Color(0.18, 0.55, 0.84)
+const TRAY_BODY: Color = Color(0.12, 0.45, 0.75)
+const TRAY_BOTTOM: Color = Color(0.08, 0.27, 0.53)
 const TRAY_RIM_LIGHT: Color = Color(0.58, 0.85, 1.0)
 const TRAY_RIM: Color = Color(0.35, 0.62, 0.84)
 const TRAY_RIM_SHADE: Color = Color(0.24, 0.53, 0.76, 0.0)
 const TRAY_SIDE_SHADE: Color = Color(0.62, 0.82, 0.95, 0.18)
 ## The shade the tray casts up onto the street (like the nav bar's).
 const TRAY_CAST: Color = Color(0.0, 0.02, 0.08, 0.4)
-const CORNER: int = UiSkin.RADIUS_M
+const CORNER: int = UiSkin.RADIUS_L
 ## How many segments a rounded top corner is drawn with.
 const ARC_STEPS: int = 10
+const CORNER_RADIUS: float = float(UiSkin.RADIUS_S)
 ## The body's colour stops, as shares of the tray's height from its top: lighter at the top, the body blue, darkening from the middle.
 const BODY_STOPS: PackedFloat32Array = [0.0, 0.2, 0.5, 1.0]
 ## The light rim is this wide and rolls over into the shade under it over the next `RIM_ROLL`; the shade fades out by `INSET` (every layer
 ## that follows the edge stays inside this distance, so it is smaller than the corner's radius).
-const RIM_WIDTH: float = 5.0
-const RIM_ROLL: float = 1.5
-const INSET: float = CORNER - 2.0
+const RIM_WIDTH: float = 4.0
+const RIM_ROLL: float = 1.0
+const INSET: float = 6.0
 ## The rim and the side shade are this share as strong along the tray's straight side as on its top.
 const RIM_SIDE_SHARE: float = 0.45
 ## The edge fades out over this many pixels, which is what anti-aliases it.
@@ -103,7 +104,7 @@ class Layer:
 			add_triangle(a, d + 1, d)
 
 
-## The tray's one outline, from its bottom-left corner up, over its two rounded top corners and down to its bottom-right corner: the points,
+## The tray's one outline, from its bottom-left corner up, over its two slanted top corners with small rounded joins and down to its bottom-right corner: the points,
 ## the outward unit normals, and where the top edge runs (between `top_left` and the next point). Every layer is built from it, so they all
 ## follow the same curve.
 class Outline:
@@ -123,9 +124,11 @@ class Outline:
 		result._add(Vector2(x0, bottom), Vector2.LEFT)
 		for i: int in range(ys.size() - 1, -1, -1):
 			result._add(Vector2(x0, ys[i]), Vector2.LEFT)
-		result._arc(Vector2(x0 + radius, top + radius), radius, PI)
+		result._arc(Vector2(x0 + CORNER_RADIUS, top + radius), CORNER_RADIUS, PI, PI * 0.25)
+		result._arc(Vector2(x0 + radius, top + CORNER_RADIUS), CORNER_RADIUS, PI * 1.25, PI * 0.25)
 		result.top_left = result.points.size() - 1
-		result._arc(Vector2(x1 - radius, top + radius), radius, PI * 1.5)
+		result._arc(Vector2(x1 - radius, top + CORNER_RADIUS), CORNER_RADIUS, PI * 1.5, PI * 0.25)
+		result._arc(Vector2(x1 - CORNER_RADIUS, top + radius), CORNER_RADIUS, PI * 1.75, PI * 0.25)
 		for y: float in ys:
 			result._add(Vector2(x1, y), Vector2.RIGHT)
 		result._add(Vector2(x1, bottom), Vector2.RIGHT)
@@ -135,10 +138,10 @@ class Outline:
 		points.append(at)
 		normals.append(normal)
 
-	## A quarter circle round `centre` from the angle `from`, a point on each of its `ARC_STEPS` + 1 steps.
-	func _arc(centre: Vector2, radius: float, from: float) -> void:
+	## A rounded join through `sweep` radians, with the same samples for each side.
+	func _arc(centre: Vector2, radius: float, from: float, sweep: float) -> void:
 		for step: int in ARC_STEPS + 1:
-			var normal: Vector2 = Vector2.from_angle(from + PI * 0.5 * float(step) / float(ARC_STEPS))
+			var normal: Vector2 = Vector2.from_angle(from + sweep * float(step) / float(ARC_STEPS))
 			_add(centre + normal * radius, normal)
 
 	## The point `i` moved `offset` along its normal (outward when positive).
@@ -153,7 +156,7 @@ func set_column(width: float, at_left: bool) -> void:
 
 
 ## The tray's outline for its size and column: the side beside the column starts at the column's edge and the other side ends exactly at the
-## screen's edge (both sides, with no column); both top corners are rounded on the screen, so a little street shows in each. Only the
+## screen's edge (both sides, with no column); both top corners are chamfered on the screen, so a little street shows in each. Only the
 ## bottom runs past the screen.
 func tray_outline() -> Outline:
 	var at_column: bool = column_width > 0.0
@@ -167,9 +170,9 @@ func tray_outline() -> Outline:
 
 func _draw() -> void:
 	# a bright blue tray drawn in code, copied from the Clash Royale reference (owner; replaces the picture of a cardboard plate), as one
-	# smooth lit shape with no outline: a light blue rim that follows its rounded top corners, a shade under the rim, a body that lightens
+	# smooth lit shape with no outline: a light blue rim that follows its slanted top corners with small rounded joins, a shade under the rim, a body that lightens
 	# at the top and darkens toward the bottom of the screen, and a soft shade cast up onto the street. It
-	# ends at the screen's edge on the side away from the column (the column beside it shows the street), both top corners rounded.
+	# ends at the screen's edge on the side away from the column (the column beside it shows the street), both top corners chamfered.
 	if size.x - column_width <= 0.0 or size.y <= 0.0:
 		return
 	var outline: Outline = tray_outline()
