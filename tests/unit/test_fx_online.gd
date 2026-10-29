@@ -107,3 +107,31 @@ func test_offline_heal_is_one_cross_not_two() -> void:
 	_cast(sim, &"heal", Vector2.ZERO)
 	fx.sync(sim, DT)
 	assert_eq(fx.heals.crosses().size(), 1, "one heal, one cross (weapons.healed and player_healed both fire offline)")
+
+
+func test_online_bola_bounces_from_distance() -> void:
+	var server: MatchSim = _sim()
+	server.players[2].position = Vector2(30.0, 0.0)
+	var mirror: MatchSim = _sim()
+	mirror.players[2].position = Vector2(30.0, 0.0)
+	_relay(server, mirror)
+	var fx: WeaponFxView = _fx(mirror)
+	_cast(server, &"bola", Vector2(0.0, -1.0))
+	var radius: float = fx.projectiles.drawn_width(server.weapon_defs[&"bola"]) / 2.0
+	var lowest: float = INF
+	var highest: float = 0.0
+	for frame: int in 40:
+		server.step(DT)
+		if frame % 2 == 0:
+			_snapshot(server, mirror)
+		fx.sync(mirror, DT)
+		if mirror.weapons.projectiles.is_empty():
+			continue
+		var marble: Node3D = fx.projectiles.node_for(mirror.weapons.projectiles[0].id)
+		var bottom: float = marble.position.y - radius * (marble.get_node("Squash") as Node3D).basis.get_scale().y
+		assert_gte(bottom, -0.001, "never below the street")
+		if frame > 3:
+			lowest = minf(lowest, bottom)
+			highest = maxf(highest, bottom)
+	assert_lt(lowest, 0.05, "it touches down online too (from its distance, no bounce count in the snapshot)")
+	assert_gt(highest, 1.5, "and arcs")

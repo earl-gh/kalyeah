@@ -56,6 +56,8 @@ func test_every_hit_area_mark_is_exact() -> void:
 			&"papel_trap":
 				assert_almost_eq(_edge(FxGround.circle_mark(def.trigger_radius, Color.RED, 0.0, 0.5), 0.45), def.trigger_radius, 0.01, "trap: its trigger range")
 				assert_almost_eq(_edge(FxGround.circle_mark(def.radius, Color.RED, 0.25), 0.9), def.radius, 0.01, "then its slow zone")
+			&"bola":
+				assert_almost_eq(_edge(FxGround.circle_mark(def.radius, Color.RED, 0.0, 0.5), 0.45), def.radius, 0.01, "bola: each bounce ring is its radius")
 			&"gunting_light", &"gunting_heavy":
 				var wedge: PackedVector2Array = FxGround.wedge(def)
 				var widest: float = 0.0

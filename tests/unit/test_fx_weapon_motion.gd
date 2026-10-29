@@ -265,3 +265,73 @@ func test_rm_slipper_no_spin() -> void:
 		assert_eq(_part(_rig(id), "Squash").basis, Basis.IDENTITY, "no stretch")
 		assert_true(_part(_rig(id), "Squash/Tilt/Spin").basis.is_equal_approx(spin), "no spin: a fixed tilt along its flight")
 	assert_eq(_fx.particle_count(), 0)
+
+
+# ---- bola (the marble) ------------------------------------------------------------------------------------------------
+
+func _bottom(id: int) -> float:
+	var marble: Node3D = _rig(id)
+	var radius: float = _fx.projectiles.drawn_width(_sim.weapon_defs[&"bola"]) / 2.0
+	return marble.position.y - radius * _part(marble, "Squash").basis.get_scale().y
+
+
+func test_the_marble_touches_the_ground_at_each_bounce() -> void:
+	_setup(Vector2(30.0, 0.0))
+	_cast(&"bola", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var projectile: WeaponSystem.Projectile = _sim.weapons.projectiles[0]
+	var id: int = projectile.id
+	var bounces: int = 0
+	var highest: float = 0.0
+	var touched: int = 0
+	while not _sim.weapons.projectiles.is_empty():
+		_frame()
+		if _sim.weapons.projectiles.is_empty():
+			break
+		var bottom: float = _bottom(id)
+		assert_gte(bottom, -0.001, "never below the street")
+		highest = maxf(highest, bottom)
+		if projectile.bounces != bounces:
+			bounces = projectile.bounces
+			assert_lt(bottom, 0.05, "on the street on the bounce frame")
+			touched += 1
+	assert_eq(touched, 1, "the first bounce touched down while still in the sim (the last ends it)")
+	assert_gt(highest, 1.5, "it arcs high between bounces")
+	assert_gt(_fx.projectiles.fading_count(), 0, "after the last bounce it runs on")
+
+
+func test_bounce_rings_mark_the_nominal_points_and_go() -> void:
+	_setup(Vector2(30.0, 0.0))
+	_cast(&"bola", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	_frame()
+	assert_eq(_fx.projectiles.bounce_rings(), 2, "both bounce points marked from the start")
+	var def: WeaponDef = _sim.weapon_defs[&"bola"]
+	for ring: Node in _fx.projectiles.find_children("BounceRing", "MeshInstance3D", true, false):
+		var at: Vector2 = Vector2((ring as Node3D).position.x, (ring as Node3D).position.z)
+		var along: float = 8.0 - at.y
+		assert_almost_eq(fmod(along, def.max_range / def.count), 0.0, 0.01, "on a nominal point (the aim preview's)")
+		assert_almost_eq(at.x, 0.0, 0.01)
+	var projectile: WeaponSystem.Projectile = _sim.weapons.projectiles[0]
+	while projectile.bounces < 1:
+		_frame()
+	assert_eq(_fx.projectiles.bounce_rings(), 1, "the first goes on its bounce")
+	while not _sim.weapons.projectiles.is_empty():
+		_frame()
+	assert_eq(_fx.projectiles.bounce_rings(), 0, "and the second on the last")
+	assert_gt(_fx.context().ground.live_flashes(), 0, "each flashes as it goes")
+
+
+func test_rm_marble_flat() -> void:
+	Settings.reduced_motion = true
+	_setup(Vector2(30.0, 0.0))
+	_cast(&"bola", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var id: int = _sim.weapons.projectiles[0].id
+	var radius: float = _fx.projectiles.drawn_width(_sim.weapon_defs[&"bola"]) / 2.0
+	var spin: Basis = _part(_rig(id), "Squash/Spin").basis
+	for i: int in 15:
+		_frame()
+		assert_almost_eq(_rig(id).position.y, radius, 0.001, "rolls flat on the street")
+		assert_eq(_part(_rig(id), "Squash/Spin").basis, spin, "without turning")
+	assert_eq(_fx.particle_count(), 0)
