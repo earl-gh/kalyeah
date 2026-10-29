@@ -32,9 +32,8 @@ static func build(hud: MatchHud) -> void:
 	hud.top.add_child(hud.settings_button)
 	# the middle of the header: the score (points and the match clock)
 	hud.scoreboard = Scoreboard.new()
-	hud.scoreboard.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hud.scoreboard.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hud.add_child(hud.scoreboard)
+	hud.top.add_child(hud.scoreboard)
 	# right: the match clock, the counterpart of the settings button
 	hud.clock_chip = ClockChip.new()
 	hud.top.add_child(hud.clock_chip)
@@ -45,6 +44,7 @@ static func build(hud: MatchHud) -> void:
 static func layout(hud: MatchHud) -> void:
 	if hud.intro_bar != null:
 		hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(80, -(hud.console_height() + 150.0), -80, -(hud.console_height() + 6.0)))
+	hud._place(hud.scoreboard, Vector4(0.5, 0, 0.5, 0), Vector4(-MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y, MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y))
 	var gear_box: Vector4 = Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE)
 	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear_box)
 	hud._place(hud.clock_chip, Vector4(1, 0, 1, 0), Vector4(-MatchHud.CLOCK_SIZE.x, 0.0, 0.0, MatchHud.CLOCK_SIZE.y))

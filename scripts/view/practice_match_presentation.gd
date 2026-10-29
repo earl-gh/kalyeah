@@ -88,14 +88,6 @@ func sync(delta: float) -> void:
 	owner.hud.marker.tick(delta)
 	owner.hud.sync_score(owner.sim, owner.local_team, delta, owner.local_id)
 	owner._camera.place(owner._flip())
-	var bounds: Rect2 = Rect2()
-	var first: bool = true
-	for x: float in [-owner.layout.lane_width / 2.0, owner.layout.lane_width / 2.0]:
-		for z: float in [-owner.layout.lane_length / 2.0, owner.layout.lane_length / 2.0]:
-			var at: Vector2 = owner._camera.screen_position(Vector3(x, 0.0, z))
-			bounds = Rect2(at, Vector2.ZERO) if first else bounds.expand(at)
-			first = false
-	owner.hud.scoreboard.set_play_area(bounds)
 	if owner.sim.phase == MatchSim.Phase.INTRO:
 		_play_intro_shot()
 		return

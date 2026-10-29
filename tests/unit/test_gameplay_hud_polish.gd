@@ -15,20 +15,17 @@ func _sim() -> MatchSim:
 	sim.equip(1)
 	return sim
 
-func test_score_cells_center_on_the_right_sidewalk_in_each_half() -> void:
+func test_score_cells_restore_original_header_spacing() -> void:
 	var hud: MatchHud = _hud()
-	var play: Rect2 = Rect2(80, 150, 520, 850)
-	hud.scoreboard.set_play_area(play)
-	var cells: Array[Rect2] = hud.scoreboard.cell_rects()
-	assert_almost_eq(cells[0].get_center().y, play.position.y + play.size.y * 0.75, 0.1)
-	assert_almost_eq(cells[1].get_center().y, play.position.y + play.size.y * 0.25, 0.1)
-	for cell: Rect2 in cells:
-		assert_gte(cell.get_center().x, play.end.x)
-		assert_true(Rect2(Vector2.ZERO, hud.size).encloses(cell))
-	hud.scoreboard.set_play_area(Rect2(28.8, 150.0, 662.4, 850.0))
-	for cell: Rect2 in hud.scoreboard.cell_rects():
-		assert_gte(cell.get_center().x, hud.scoreboard.play_area.end.x, "the score center remains on the narrow sidewalk")
-		assert_true(Rect2(Vector2.ZERO, hud.size).encloses(cell))
+	var board: Scoreboard = hud.scoreboard
+	assert_eq(board.size, MatchHud.SCORE_SIZE)
+	var cells: Array[Rect2] = board.cell_rects()
+	assert_eq(cells[0], Rect2(6.0, 6.0, 91.2, 76.0))
+	assert_almost_eq(cells[1].end.x, board.size.x - 6.0, 0.1)
+	assert_eq(cells[0].size, cells[1].size)
+	assert_true(hud.header.get_global_rect().encloses(board.get_global_rect()))
+	assert_false(board.get_global_rect().intersects(hud.clock_chip.get_global_rect()))
+	assert_false(board.get_global_rect().intersects(hud.settings_button.get_global_rect()))
 
 func test_point_pause_and_results_hide_the_hud_and_restore_it_after_the_freeze() -> void:
 	var hud: MatchHud = _hud()
@@ -89,7 +86,5 @@ func test_opening_score_positions_follow_a_safe_area_change() -> void:
 	game.sim.phase = MatchSim.Phase.INTRO
 	game.hud.set_top_inset(60.0)
 	game._presentation.sync(0.0)
-	var far: Vector2 = game._camera.screen_position(Vector3(0.0, 0.0, -game.layout.lane_length / 2.0))
-	var near: Vector2 = game._camera.screen_position(Vector3(0.0, 0.0, game.layout.lane_length / 2.0))
-	assert_almost_eq(game.hud.scoreboard.play_area.position.y, minf(far.y, near.y), 0.1)
-	assert_almost_eq(game.hud.scoreboard.play_area.end.y, maxf(far.y, near.y), 0.1)
+	assert_almost_eq(game.hud.scoreboard.get_global_rect().position.y, MatchHud.TOP_ROW_Y + 60.0, 0.1)
+	assert_eq(game.hud.scoreboard.get_parent(), game.hud.top)
