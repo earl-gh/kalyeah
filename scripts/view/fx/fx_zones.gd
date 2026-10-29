@@ -20,9 +20,25 @@ const METEOR_IMPACT_S: float = 0.65
 const IMPACT_DUST: int = 12
 const IMPACT_CRACK: float = 0.8
 const CRACK_TIME: float = 0.5
-## The tossed can: how high its arc goes and how high its middle rests.
-const CAN_ARC: float = 2.2
-const CAN_REST: float = 0.35
+## The tossed can (lata) flies from the thrower's hand (`CAN_HAND_Y` m) to the circle's centre, arcing `CAN_PEAK` m plus
+## `CAN_PEAK_PER_M` per metre thrown over the straight line, turning `CAN_TURNS` times end over end; it lands upright on its
+## base, squashed (`CAN_LAND_S`) then stretched (`CAN_REBOUND_S`) for `CAN_LAND_FRAMES` frames each, with `CAN_DUST` dust.
+## Online its flight is estimated from the cast's position and speed, `ONLINE_LEAD` s early (the zone is seen late).
+const CAN_HAND_Y: float = 2.2
+const CAN_PEAK: float = 2.2
+const CAN_PEAK_PER_M: float = 0.25
+const CAN_TURNS: float = 1.5
+const CAN_LAND_S: float = 0.7
+const CAN_REBOUND_S: float = 1.2
+const CAN_LAND_FRAMES: int = 2
+const CAN_DUST: int = 6
+const ONLINE_LEAD: float = 0.05
+## The can's flight bows `CAN_BOW` m to the side at its middle (back on the line at both ends): thrown up the screen, a
+## straight arc ending at the target's feet would cross the target's face on screen; the bow passes beside the kid and
+## comes in low. Decoration only: the circle (the sim's) never moves.
+const CAN_BOW: float = 1.2
+## A kid turning into a can (or back) disappears in a comic smoke puff of `SMOKE_PUFF` particles.
+const SMOKE_PUFF: int = 8
 ## Every zone says who threw it from its first frame (the thrower's team colour, an opaque rim): the fill of a slow zone,
 ## a jacks field and an armed trap.
 const SLOW_FILL_ALPHA: float = 0.25
@@ -56,6 +72,8 @@ class Rec extends RefCounted:
 	## The falling / tossed object's rig (Holder > Squash > Spin > model), or null.
 	var obj: Node3D
 	var glinted: bool = false
+	## Where a tossed can came from (the thrower at the cast), or INF when the cast was not seen.
+	var origin: Vector2 = Vector2.INF
 
 
 ## A removed zone's object playing its end.
@@ -69,6 +87,8 @@ class Ghost extends RefCounted:
 var _ctx: FxContext
 var _recs: Dictionary[int, Rec] = {}
 var _ghosts: Array[Ghost] = []
+## Kids drawn as a can right now (to puff when they turn back).
+var _cans: Dictionary[int, bool] = {}
 
 
 func setup(ctx: FxContext) -> void:
@@ -91,6 +111,7 @@ func sync(sim: MatchSim) -> void:
 		if not seen.has(id):
 			_land(id)
 	_step_ghosts()
+	_step_cans(sim)
 
 
 func live_count() -> int:
@@ -106,9 +127,30 @@ func node_for(id: int) -> Node3D:
 	return rec.node if rec != null else null
 
 
-## A status effect landed on kid `id` (the polymorph puff).
-func on_effect(_id: int, _type: int) -> void:
-	pass
+## A status effect landed on kid `id`: turned into a can, the kid vanishes in a smoke puff (born whole on this frame, so it
+## hides the swap).
+func on_effect(id: int, type: int) -> void:
+	if type != StatusEffects.Type.POLYMORPH or _ctx.sim == null or not _ctx.sim.players.has(id):
+		return
+	_cans[id] = true
+	_smoke(_ctx.sim.players[id].position)
+
+
+## A kid whose can wore off turns back in the same puff (the snapshot carries the effects, so this works online too).
+func _step_cans(sim: MatchSim) -> void:
+	for id: int in _cans.keys():
+		var kid: PlayerState = sim.players.get(id) as PlayerState
+		if kid == null or not kid.effects.has(StatusEffects.Type.POLYMORPH):
+			_cans.erase(id)
+			if kid != null:
+				_smoke(kid.position)
+	for id: int in sim.players:
+		if sim.players[id].effects.has(StatusEffects.Type.POLYMORPH) and not _cans.has(id):
+			_cans[id] = true
+
+
+func _smoke(at: Vector2) -> void:
+	_ctx.particles.puff(FxParticles.Preset.SMOKE, Vector3(at.x, 0.0, at.y), SMOKE_PUFF)
 
 
 ## A kid was hit this frame at `at` (a jacks tick makes the nearest cluster hop).
@@ -147,7 +189,7 @@ func make_node(zone: WeaponSystem.Zone) -> Node3D:
 		meteor.name = "Meteor"
 		node.add_child(meteor)
 	elif zone.def != null and zone.def.id == &"lata":
-		var can: Node3D = WeaponModel.make(&"lata", true)
+		var can: Node3D = WeaponModel.rig(WeaponModel.make(&"lata", true))
 		can.name = "Can"
 		node.add_child(can)
 	elif zone.def != null and zone.def.id == &"jacks":
@@ -196,6 +238,11 @@ func _create(zone: WeaponSystem.Zone) -> Rec:
 	rec.mark = rec.node.get_node("Mark") as MeshInstance3D
 	rec.progress = rec.node.get_node_or_null("Progress") as MeshInstance3D
 	rec.obj = rec.node.get_node_or_null("Meteor") as Node3D
+	if rec.obj == null:
+		rec.obj = rec.node.get_node_or_null("Can") as Node3D
+	if zone.def != null:
+		var origin: Variant = _ctx.cast_origin(zone.def.id, zone.team)
+		rec.origin = origin as Vector2 if origin != null else Vector2.INF
 	add_child(rec.node)
 	_recs[rec.id] = rec
 	return rec
@@ -211,6 +258,9 @@ func _total(zone: WeaponSystem.Zone) -> float:
 	if zone.def.speed > 0.0:
 		var from: Vector2 = origin as Vector2 if origin != null else zone.center
 		total += from.distance_to(zone.center) / zone.def.speed
+		if zone.time_left <= 0.0:
+			# online: the zone is first seen a little after the cast
+			total -= ONLINE_LEAD
 	return maxf(maxf(total, zone.time_left), MIN_TOTAL)
 
 
@@ -227,12 +277,44 @@ func _update(rec: Rec, zone: WeaponSystem.Zone) -> void:
 			rec.mark.mesh = FxGround.circle_mark(zone.radius, _ctx.team_color(zone.team), TRAP_ARMED_FILL)
 	if zone.def != null and zone.def.id == &"bato_heavy":
 		_meteor(rec, zone)
-	var can: Node3D = rec.node.get_node_or_null("Can") as Node3D
-	if can != null:
-		if _ctx.shadows.attach(rec.id, (WeaponModel.OBJECTS[&"lata"][1] as float) * _ctx.view_scale, rec.team):
-			_ctx.shadows.place(rec.id, zone.center, can.position.y)
-		can.position.y = sin(progress(zone, rec) * PI) * CAN_ARC + CAN_REST
-		can.rotation.x += _ctx.delta * 9.0
+	elif zone.def != null and zone.def.id == &"lata" and rec.obj != null:
+		_can(rec, zone)
+
+
+## The can flies from the thrower's hand to the middle of its circle, tumbling end over end and stretched along its flight,
+## its shadow running along the ground under it; it lands upright on its base as the zone lands.
+func _can(rec: Rec, zone: WeaponSystem.Zone) -> void:
+	var p: float = progress(zone, rec)
+	var rest: float = can_height() / 2.0
+	var to: Vector3 = Vector3(0.0, rest, 0.0)
+	var from: Vector3 = Vector3(0.0, CAN_HAND_Y, 0.0)
+	var peak: float = 0.0
+	var dir: Vector3 = Vector3.ZERO
+	if rec.origin != Vector2.INF and rec.origin.distance_to(zone.center) > 0.01:
+		var offset: Vector2 = rec.origin - zone.center
+		from = Vector3(offset.x, CAN_HAND_Y, offset.y)
+		peak = CAN_PEAK + CAN_PEAK_PER_M * offset.length()
+		dir = Vector3(-offset.x, 0.0, -offset.y).normalized()
+	rec.obj.position = FxMotion.toss(from, to, peak, p)
+	if dir != Vector3.ZERO:
+		rec.obj.position += dir.cross(Vector3.UP).normalized() * CAN_BOW * sin(PI * p)
+	var ground: Vector2 = zone.center + Vector2(rec.obj.position.x, rec.obj.position.z)
+	if _ctx.shadows.attach(rec.id, can_height(), rec.team):
+		_ctx.shadows.place(rec.id, ground, rec.obj.position.y)
+	var squash: Node3D = rec.obj.get_node("Squash") as Node3D
+	if _ctx.reduced or p >= 1.0:
+		squash.basis = Basis.IDENTITY
+		(squash.get_node("Spin") as Node3D).basis = Basis.IDENTITY
+		return
+	var velocity: Vector3 = (to - from) + Vector3(0.0, peak * 4.0 * (1.0 - 2.0 * p), 0.0)
+	squash.basis = FxSquash.stretch_basis(velocity, FxSquash.velocity_stretch(zone.def.speed))
+	var axis: Vector3 = dir.cross(Vector3.UP) if dir != Vector3.ZERO else Vector3.RIGHT
+	(squash.get_node("Spin") as Node3D).basis = Basis(axis.normalized(), CAN_TURNS * TAU * p)
+
+
+## How tall the tossed can is drawn (metres).
+func can_height() -> float:
+	return (WeaponModel.OBJECTS[&"lata"][1] as float) * _ctx.view_scale
 
 
 ## The rock meteor falls from up and behind onto its circle (ease-in, so it speeds up), tumbling, its shadow growing at the
@@ -269,6 +351,16 @@ func _land(id: int) -> void:
 			(meteor.get_node("Squash") as Node3D).scale = FxSquash.along(METEOR_IMPACT_S)
 			_ghost(meteor, &"meteor", FxSquash.IMPACT_FRAMES * FxSquash.FRAME)
 			_ctx.particles.puff(FxParticles.Preset.IMPACT, Vector3(center.x, 0.0, center.y), IMPACT_DUST)
+	elif rec.def != null and rec.def.id == &"lata" and rec.obj != null and not _ctx.reduced:
+		# the can lands upright: squash, stretch, then it is gone (it "became" the kids it hit)
+		var can: Node3D = rec.obj
+		var at: Vector3 = can.global_position
+		rec.node.remove_child(can)
+		add_child(can)
+		can.position = Vector3(at.x, 0.0, at.z)
+		var center: Vector2 = Vector2(at.x, at.z)
+		_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(center.x, 0.0, center.y), CAN_DUST)
+		_ghost(can, &"can", 2.0 * CAN_LAND_FRAMES * FxSquash.FRAME)
 	_remove(id)
 
 
@@ -291,8 +383,16 @@ func _ghost(node: Node3D, kind: StringName, life: float) -> void:
 func _step_ghosts() -> void:
 	var still: Array[Ghost] = []
 	for ghost: Ghost in _ghosts:
-		if _ctx.time - ghost.born >= ghost.life - 0.0001:
+		var age: float = _ctx.time - ghost.born
+		if age >= ghost.life - 0.0001:
 			ghost.node.queue_free()
-		else:
-			still.append(ghost)
+			continue
+		if ghost.kind == &"can":
+			# squashed on its base for two frames, then stretched up for two (its base stays on the street)
+			var s: float = CAN_LAND_S if age < CAN_LAND_FRAMES * FxSquash.FRAME else CAN_REBOUND_S
+			var squash: Node3D = ghost.node.get_node("Squash") as Node3D
+			squash.basis = Basis.from_scale(FxSquash.along(s))
+			(squash.get_node("Spin") as Node3D).basis = Basis.IDENTITY
+			ghost.node.position.y = can_height() / 2.0 * s
+		still.append(ghost)
 	_ghosts = still

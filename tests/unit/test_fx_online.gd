@@ -135,3 +135,31 @@ func test_online_bola_bounces_from_distance() -> void:
 			highest = maxf(highest, bottom)
 	assert_lt(lowest, 0.05, "it touches down online too (from its distance, no bounce count in the snapshot)")
 	assert_gt(highest, 1.5, "and arcs")
+
+
+func test_online_can_flies() -> void:
+	var server: MatchSim = _sim()
+	server.players[2].position = Vector2(0.0, 2.0)
+	var mirror: MatchSim = _sim()
+	mirror.players[2].position = Vector2(0.0, 2.0)
+	_relay(server, mirror)
+	var fx: WeaponFxView = _fx(mirror)
+	_cast(server, &"lata", Vector2(0.0, -6.0 / 7.0))
+	var peak: float = 0.0
+	var start_z: float = -INF
+	var last_z: float = 0.0
+	for frame: int in 30:
+		server.step(DT)
+		if frame % 2 == 0:
+			_snapshot(server, mirror)
+		fx.sync(mirror, DT)
+		if mirror.weapons.zones.is_empty():
+			continue
+		var can: Node3D = fx.zones.node_for(mirror.weapons.zones[0].id).get_node("Can") as Node3D
+		if start_z == -INF:
+			start_z = can.global_position.z
+		peak = maxf(peak, can.global_position.y)
+		last_z = can.global_position.z
+	assert_gt(start_z, 6.0, "online too it starts at the thrower (cast position from the relayed weapon_cast)")
+	assert_gt(peak, 2.2, "and arcs")
+	assert_lt(last_z, start_z - 4.0, "toward the circle")

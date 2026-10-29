@@ -405,3 +405,47 @@ func test_rm_top_upright() -> void:
 		assert_eq(_part(_rig(id), "Squash").basis, Basis.IDENTITY, "upright, no wobble or squash")
 		assert_almost_eq(_rig(id).position.y, 0.0, 0.0001, "on the street")
 	assert_eq(_fx.particle_count(), 0, "no trail")
+
+
+# ---- lata (the can) ---------------------------------------------------------------------------------------------------
+
+func test_the_can_flies_from_the_thrower_to_the_circle() -> void:
+	_setup(Vector2(0.0, 2.0))
+	_cast(&"lata", Vector2(0.0, -6.0 / 7.0))
+	_fx.sync(_sim, DT)
+	var zone: WeaponSystem.Zone = _sim.weapons.zones[0]
+	var can: Node3D = _fx.zones.node_for(zone.id).get_node("Can") as Node3D
+	var first: Vector3 = can.global_position
+	assert_gt(first.z, zone.center.y + 4.0, "it starts at the thrower, not on the circle")
+	var peak: float = 0.0
+	var last: Vector3 = first
+	while not _sim.weapons.zones.is_empty():
+		last = can.global_position
+		peak = maxf(peak, last.y)
+		_frame()
+	assert_gt(peak, 2.2, "it arcs over")
+	assert_almost_eq(Vector2(last.x, last.z).distance_to(zone.center), 0.0, 0.05, "and comes down on the circle's centre")
+	assert_almost_eq(last.y, _fx.zones.can_height() / 2.0, 0.05, "upright on its base when the zone lands")
+	assert_gt(_fx.zones.fading_count(), 0, "the landing plays")
+
+
+func test_polymorph_on_and_off_puff() -> void:
+	_setup(Vector2(0.0, 2.0))
+	_cast(&"lata", Vector2(0.0, -6.0 / 7.0))
+	var smoke: int = 0
+	var turned: bool = false
+	var was: Array[CPUParticles3D] = []
+	for i: int in 120:
+		_frame()
+		var now: Array[CPUParticles3D] = []
+		for emitter: CPUParticles3D in _fx.context().particles.busy():
+			if emitter.mesh == FxKit.puff_quad() and emitter.amount == FxZones.SMOKE_PUFF and emitter.color.is_equal_approx(Palette.WHITE):
+				now.append(emitter)
+				smoke += 0 if was.has(emitter) else 1
+		was = now
+		if _sim.players[2].effects.has(StatusEffects.Type.POLYMORPH):
+			turned = true
+		elif turned:
+			break
+	assert_true(turned, "the kid became a can")
+	assert_eq(smoke, 2, "one smoke puff when it turned into a can, one when it turned back")
