@@ -296,7 +296,7 @@ func test_the_marble_touches_the_ground_at_each_bounce() -> void:
 			assert_lt(bottom, 0.05, "on the street on the bounce frame")
 			touched += 1
 	assert_eq(touched, 1, "the first bounce touched down while still in the sim (the last ends it)")
-	assert_gt(highest, 1.5, "it arcs high between bounces")
+	assert_gt(highest, 1.0, "it arcs between bounces")
 	assert_gt(_fx.projectiles.fading_count(), 0, "after the last bounce it runs on")
 
 
@@ -632,3 +632,21 @@ func test_heal_streak_only_for_someone_else() -> void:
 	var crosses: Array[Node3D] = _fx.heals.crosses()
 	assert_eq(crosses.size(), 1, "and the cross is on the friend")
 	assert_almost_eq(crosses[0].position.x, _sim.players[3].position.x, 0.01)
+
+
+func test_the_marble_never_enters_a_face_band() -> void:
+	# the audit layout: thrown north from (0, 8) at kids 3.5 and 1 m further up the street
+	_setup(Vector2(0.0, 3.5))
+	_cast(&"bola", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var id: int = _sim.weapons.projectiles[0].id
+	var radius: float = _fx.projectiles.drawn_width(_sim.weapon_defs[&"bola"]) / 2.0
+	var frame: int = 0
+	while not _sim.weapons.projectiles.is_empty():
+		_frame()
+		frame += 1
+		if _sim.weapons.projectiles.is_empty() or frame < 2:
+			continue
+		var marble: Node3D = _rig(id)
+		var top: float = marble.position.y + radius * _part(marble, "Squash").basis.get_scale().y
+		assert_lt(top, 2.4, "frame %d: the marble's top (%.2f m) stays under the kids' face band" % [frame, top])

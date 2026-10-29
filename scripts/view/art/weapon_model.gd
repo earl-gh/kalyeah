@@ -17,7 +17,8 @@ const OBJECTS: Dictionary[StringName, Array] = {
 	&"tsinelas_light": ["slipper", 0.6],
 	&"tsinelas_heavy": ["slipper", 1.0],
 	&"lata": ["can", 0.7],
-	&"bola": ["marble", 0.8],
+	# the marble: 0.9 m drawn (owner's call, was 0.8 / 1.6 m drawn: it covered kids' faces at the top of its bounce)
+	&"bola": ["marble", 0.45],
 	&"papel_trap": ["crumpled_paper", 0.7],
 	&"trumpo": ["trumpo", 0.9],
 	# the light rock is the meteor's stone, small (the owner made no separate rock)

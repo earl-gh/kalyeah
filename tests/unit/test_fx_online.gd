@@ -134,7 +134,7 @@ func test_online_bola_bounces_from_distance() -> void:
 			lowest = minf(lowest, bottom)
 			highest = maxf(highest, bottom)
 	assert_lt(lowest, 0.05, "it touches down online too (from its distance, no bounce count in the snapshot)")
-	assert_gt(highest, 1.5, "and arcs")
+	assert_gt(highest, 1.0, "and arcs")
 
 
 func test_online_can_flies() -> void:

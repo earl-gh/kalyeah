@@ -39,7 +39,7 @@ const CATCH_DUST: int = 2
 const DROP_DUST: int = 4
 ## Where a caught slipper goes: the thrower's hand height (metres).
 const HAND_Y: float = 1.4
-## The marble bounces: it leaves the hand at `FxMotion.BOLA_HAND_Y` m and arcs `FxMotion.BOLA_ARC` m over each bounce
+## The marble bounces: it leaves the hand (at most a bounce's height up) and arcs `FxMotion.BOLA_ARC` m over each bounce
 ## segment, its bottom touching the street exactly at each bounce, where it squashes (`BOUNCE_S`, then `BOUNCE_EASE_S` the
 ## next frame); it rolls along the street and stretches in the air (to its speed's stretch at contact, 1 at the top). A
 ## team ring (rim only, `BOLA_RING_ALPHA`) marks each bounce point still to come and flashes when it is reached
@@ -322,7 +322,7 @@ func _marble(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 		height = maxf(height, radius * BOUNCE_EASE_S)
 	else:
 		# stretched along its velocity, most at the street, none at the top of the arc
-		var rise: float = FxMotion.BOLA_ARC * 4.0 * (1.0 - 2.0 * p) - (FxMotion.BOLA_HAND_Y - radius if seg == 0 else 0.0)
+		var rise: float = FxMotion.bola_rise(seg, p, FxMotion.BOLA_HAND_Y, radius)
 		var velocity: Vector3 = dir * rec.def.speed + Vector3.UP * rise * rec.def.speed / segment
 		var stretch: float = lerpf(1.0, FxSquash.velocity_stretch(rec.def.speed), absf(1.0 - 2.0 * p))
 		rec.squash.basis = FxSquash.stretch_basis(velocity, stretch)
