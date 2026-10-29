@@ -7,6 +7,7 @@ extends SceneTree
 ##                                                        [--set bot_rescue_aggro_range=4,bot_rest_time=8] (any GameRules number)
 ## Prints, averaged over the seeds:
 ##   enemy_start      seconds into a round before the first enemy bot leaves its base
+##   ally_start       the same for your ally bots (a round where they never leave counts the whole round)
 ##   ally_wait        seconds an ally bot waits tagged before it is freed (or the round ends)
 ##   you_wait         the same for your stand-in
 ##   rescues          rescues per match by a bot, for your team and the enemy team
@@ -32,7 +33,7 @@ func _init() -> void:
 	for pair: String in (options.get("set", "") as String).split(",", false):
 		rules.set(pair.get_slice("=", 0), float(pair.get_slice("=", 1)))
 	var layout: MapLayout = load("res://data/rules/map_layout.tres") as MapLayout
-	var total: Dictionary = {"enemy_start": 0.0, "starts": 0, "ally_wait": 0.0, "ally_tags": 0, "you_wait": 0.0, "you_tags": 0,
+	var total: Dictionary = {"enemy_start": 0.0, "starts": 0, "ally_start": 0.0, "ally_starts": 0, "ally_wait": 0.0, "ally_tags": 0, "you_wait": 0.0, "you_tags": 0,
 		"idle_rescue": 0.0, "undefended": 0.0, "rescues_ours": 0, "rescues_theirs": 0, "ours": 0, "theirs": 0, "won": 0, "lost": 0}
 	for seed_value: int in seeds:
 		_play(rules, layout, seed_value, seconds, you, total)
@@ -40,6 +41,7 @@ func _init() -> void:
 		you, seeds, int(seconds), str(rules.bot_assault_delay), str(rules.bot_rest_time), str(rules.rescue_cooldown),
 		str(rules.bot_rescue_aggro_range)])
 	print("enemy_start  %.1f s" % (total["enemy_start"] / maxf(float(total["starts"]), 1.0)))
+	print("ally_start   %.1f s" % (total["ally_start"] / maxf(float(total["ally_starts"]), 1.0)))
 	print("ally_wait    %.1f s  (%d tags)" % [total["ally_wait"] / maxf(float(total["ally_tags"]), 1.0), total["ally_tags"]])
 	print("you_wait     %.1f s  (%d tags)" % [total["you_wait"] / maxf(float(total["you_tags"]), 1.0), total["you_tags"]])
 	print("rescues      %.2f ours, %.2f theirs per match" % [float(total["rescues_ours"]) / float(seeds), float(total["rescues_theirs"]) / float(seeds)])
@@ -73,19 +75,31 @@ func _play(rules: GameRules, layout: MapLayout, seed_value: int, seconds: float,
 			total["rescues_ours" if sim.players[id].team == 0 else "rescues_theirs"] += 1)
 	var waiting: Dictionary[int, float] = {}
 	var started: bool = false
+	var allies_out: bool = false
 	var round_seen: float = -1.0
 	for i: int in ceili(seconds / DT):
 		if sim.phase == MatchSim.Phase.MATCH_OVER:
 			break
 		if sim.phase == MatchSim.Phase.PLAYING:
 			if sim.round_time < round_seen:
+				if not allies_out:
+					total["ally_start"] += round_seen
+					total["ally_starts"] += 1
 				started = false
+				allies_out = false
 			round_seen = sim.round_time
 			allies.drive(sim)
 			foes.drive(sim)
 			if not sim.players[YOU].tagged:
 				sim.set_input(YOU, stand_in.think(sim.players[YOU], sim))
 			_measure(sim, waiting, total)
+			if not allies_out:
+				for id: int in ALLIES:
+					if not sim.players[id].tagged and not layout.in_base(sim.side_for_team(0), sim.players[id].position):
+						allies_out = true
+						total["ally_start"] += sim.round_time
+						total["ally_starts"] += 1
+						break
 			if not started:
 				for id: int in ENEMIES:
 					if not layout.in_base(sim.side_for_team(1), sim.players[id].position):

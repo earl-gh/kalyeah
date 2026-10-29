@@ -3,10 +3,10 @@ extends RefCounted
 ## Plays one team of bots in a Practice match. Every bot is a real player of the sim (so it counts for a capture, can be
 ## tagged and rescued), driven by a TeamBrain, and the coach decides each tick whether the team attacks (everyone rushes the
 ## enemy base) or defends (everyone holds its base, fights what comes near and fetches a tagged teammate).
-## A team with a human to follow (the player's allies) attacks while that human is free in the enemy half and defends otherwise,
-## so the allies back up what the player does. A team without one (the enemies) waits `bot_assault_delay` seconds into the round,
-## then attacks in waves (`bot_assault_window` seconds of attack, `bot_rest_time` seconds back home), and only while at least two
-## thirds of it are free: with more tagged it falls back to defending.
+## Both teams wait `bot_assault_delay` seconds into the round, then attack in waves (`bot_assault_window` seconds of attack,
+## `bot_rest_time` seconds back home), and only while at least two thirds of them are free: with more tagged they fall back to
+## defending. A team with a human to follow (the player's allies) also attacks whenever that human is free in the enemy half, so it
+## backs up what the player does (owner, 2026-10-29: it used to wait for the human, and stood still in its own half until then).
 ## Whatever the plan, three bots get a job of their own each tick:
 ## - the rescuer: the free bot nearest the team's rescue area, while a teammate (bot or human) is tagged;
 ## - a guard: while the other team is taking this team's base and the plan is to attack, the free bot nearest home goes back;
@@ -112,7 +112,8 @@ func _nearest_free(sim: MatchSim, point: Vector2, skip: int) -> int:
 func decide(sim: MatchSim) -> Plan:
 	if follow_id >= 0 and sim.players.has(follow_id):
 		var human: PlayerState = sim.players[follow_id]
-		return Plan.ASSAULT if not human.tagged and _in_enemy_half(sim, human) else Plan.DEFEND
+		if not human.tagged and _in_enemy_half(sim, human):
+			return Plan.ASSAULT
 	if sim.round_time < sim.rules.bot_assault_delay:
 		return Plan.DEFEND
 	var window: float = sim.rules.bot_assault_window

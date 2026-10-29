@@ -108,6 +108,17 @@ func test_allies_defend_until_the_human_is_in_the_enemy_half_and_then_back_them_
 	assert_eq(coach.plan, TeamCoach.Plan.DEFEND, "a tagged human: the allies go back to fetch them")
 
 
+func test_allies_come_out_on_the_clock_like_the_enemies_while_you_stay_home() -> void:
+	# owner: they used to stand still in their own half until you crossed into the enemy's
+	var sim: MatchSim = _sim()
+	var coach: TeamCoach = _allies(sim)
+	var start: Vector2 = sim.players[2].position
+	_run(sim, [coach] as Array[TeamCoach], _rules.bot_assault_delay + 3.0)
+	assert_true(LAYOUT.in_base(MapLayout.SIDE_OWN, sim.players[1].position), "you never left your base")
+	assert_eq(coach.plan, TeamCoach.Plan.ASSAULT, "they attack on the same clock as the enemies")
+	assert_gt(sim.players[2].position.distance_to(start), 2.0, "and are on their way")
+
+
 func test_the_enemy_plan_works_from_the_other_side_of_the_street() -> void:
 	var sim: MatchSim = _sim()
 	var coach: TeamCoach = TeamCoach.new(1, 4)
