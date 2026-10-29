@@ -1,7 +1,8 @@
 extends GutTest
-## The kid pick at the start of a match is a carousel of the owner's six character card pictures: the chosen kid's card big in the middle,
-## bare, the neighbours smaller and darker behind it, one step a swipe, endless; a taken kid stays in the ring with a "Taken" tag and is
-## stepped over. Facts about positions, sizes, nodes and signals, not pixels.
+## The kid pick at the start of a match is a carousel of the owner's six character card pictures: five cards in view, the chosen kid's card
+## in the middle, bare, two kids on each side stepping down in size and brightness, one step a swipe, endless; the kid's name and a short
+## description sit under the carousel. A taken kid stays in the ring with a "Taken" tag and is stepped over. Facts about positions, sizes,
+## nodes and signals, not pixels.
 
 const PHONES: Array[Vector2] = [Vector2(720.0, 1280.0), Vector2(720.0, 1558.0), Vector2(390.0, 844.0)]
 
@@ -108,15 +109,78 @@ func test_the_kid_you_last_played_starts_in_the_middle() -> void:
 		assert_eq(screen._hero_name.text, screen.hero_name(), "its name is under it")
 
 
-func test_the_neighbours_are_smaller_and_behind_like_the_main_screen() -> void:
+func test_five_cards_are_in_view_and_step_down_from_the_middle() -> void:
 	var screen: WeaponPickScreen = await _open()
 	var strip: KidCarousel = screen._carousel
+	assert_eq(KidCarousel.VISIBLE, 5)
 	var chosen: Button = strip.cards[strip.index]
+	var shown: int = 0
+	for card: Button in strip.cards:
+		shown += 1 if card.visible else 0
+	assert_eq(shown, 5, "five of the six kids are in view")
 	for offset: int in [-1, 1]:
 		var next: Button = strip.cards[posmod(strip.index + offset, 6)]
-		assert_almost_eq(next.scale.x, TitleScreen.MODEL_BACK_SCALE, 0.01, "the back scale of the mode models")
-		assert_true(_card_rect(strip, next).intersects(_card_rect(strip, chosen)), "partly behind the chosen card")
+		assert_almost_eq(next.scale.x, KidCarousel.LEVEL_SCALE[1], 0.01, "the kids beside the chosen one")
+		assert_true(_card_rect(strip, next).intersects(_card_rect(strip, chosen)), "tucked a little behind the chosen card")
+	for offset: int in [-2, 2]:
+		var outer: Button = strip.cards[posmod(strip.index + offset, 6)]
+		var inner: Button = strip.cards[posmod(strip.index + signi(offset), 6)]
+		assert_true(outer.visible)
+		assert_almost_eq(outer.scale.x, KidCarousel.LEVEL_SCALE[2], 0.01, "the outer two are smaller still")
+		assert_lt(outer.modulate.r, inner.modulate.r, "and darker")
+		assert_lt(outer.z_index, inner.z_index, "and further back")
+		assert_gt(absf(_card_rect(strip, outer).get_center().x - chosen.get_rect().get_center().x), absf(_card_rect(strip, inner).get_center().x - chosen.get_rect().get_center().x), "and further out")
+	var far: Button = strip.cards[posmod(strip.index + 3, 6)]
+	assert_false(far.visible, "the sixth kid waits out of sight")
 	assert_true(strip.wrap, "endless")
+
+
+func test_the_cards_are_small_enough_for_five() -> void:
+	for phone: Vector2 in PHONES:
+		var screen: WeaponPickScreen = await _open(phone)
+		var strip: KidCarousel = screen._carousel
+		var chosen: Rect2 = _card_rect(strip, strip.cards[strip.index])
+		assert_lt(chosen.size.x, 0.32 * phone.x, "%s: the chosen card is a fraction of the width, not the 420 px it was" % phone)
+		assert_gt(chosen.size.x, 0.2 * phone.x, "%s: but still big enough to read" % phone)
+		var left: Rect2 = _card_rect(strip, strip.cards[posmod(strip.index - 2, 6)])
+		var right: Rect2 = _card_rect(strip, strip.cards[posmod(strip.index + 2, 6)])
+		assert_gte(left.position.x, strip.get_global_rect().position.x - 0.5, "%s: the outer left card is inside" % phone)
+		assert_lte(right.end.x, strip.get_global_rect().end.x + 0.5, "%s: and the outer right one" % phone)
+
+
+func test_the_name_and_description_are_under_the_chosen_card_like_the_cards_drawer() -> void:
+	var screen: WeaponPickScreen = await _open(PHONES[0], &"toni")
+	var kid: CharacterDef = null
+	for character: CharacterDef in screen._characters:
+		if character.id == &"toni":
+			kid = character
+	assert_eq(screen._hero_name.text, kid.display_name)
+	assert_eq(screen._hero_about.text, kid.description, "the same short description the drawer shows")
+	assert_false(screen._hero_about.text.is_empty())
+	assert_true(screen._hero_about.is_visible_in_tree())
+	assert_eq(screen._hero_about.get_theme_font_size("font_size"), UiMetrics.BODY, "the drawer's body text")
+	assert_true(screen._hero_about.get_parent() is PanelContainer, "in the drawer's light body panel")
+	var about: Rect2 = screen._hero_about.get_global_rect()
+	assert_lte(screen._carousel.get_global_rect().end.y, screen._hero_name.get_global_rect().position.y + 1.0, "the name is under the cards")
+	assert_lte(screen._hero_name.get_global_rect().end.y, about.position.y + 1.0, "and the description under the name")
+	assert_lte(about.end.y, screen._ready_button.get_global_rect().position.y, "above Play")
+	var other: StringName = &"ligaya"
+	screen.pick_character(other)
+	for character: CharacterDef in screen._characters:
+		if character.id == other:
+			assert_eq(screen._hero_about.text, character.description, "the description follows the pick")
+	assert_eq(screen.hero_about(), screen._hero_about.text)
+
+
+func test_the_cards_do_not_move_when_a_longer_description_comes() -> void:
+	var screen: WeaponPickScreen = await _open(PHONES[0], &"toni")
+	var y: float = screen._carousel.get_global_rect().position.y
+	var panel: float = screen._hero_about.get_parent().size.y
+	for character: CharacterDef in screen._characters:
+		screen.pick_character(character.id) if not screen.is_taken(character.id) else null
+		await wait_process_frames(2)
+		assert_almost_eq(screen._carousel.get_global_rect().position.y, y, 0.5, "%s: the cards stay put" % character.id)
+		assert_almost_eq((screen._hero_about.get_parent() as Control).size.y, panel, 0.5, "%s: and so does the panel" % character.id)
 
 
 func test_a_swipe_moves_one_kid_and_that_kid_is_the_pick() -> void:
@@ -221,7 +285,7 @@ func test_a_taken_kid_is_dimmed_and_tagged_and_the_others_are_not() -> void:
 		assert_eq(screen.is_taken(id), taken)
 
 
-func test_the_taken_tag_sits_on_the_part_of_a_neighbour_that_shows() -> void:
+func test_the_taken_tag_sits_in_the_middle_of_its_card_where_it_shows() -> void:
 	var screen: WeaponPickScreen = await _open(PHONES[0], &"toni", [&"migo", &"popoy"] as Array[StringName])
 	var strip: KidCarousel = screen._carousel
 	var chosen: Rect2 = _card_rect(strip, strip.cards[strip.index])
@@ -396,13 +460,17 @@ func test_the_carousel_fits_every_phone_inside_the_safe_areas_and_clear_of_play(
 		assert_lte(screen._hero_name.get_global_rect().end.y, play.position.y, "%s: nothing over Play" % label)
 		assert_gte(strip.get_global_rect().position.y, screen.back_button.get_global_rect().end.y, "%s: clear of the heading" % label)
 		assert_gte(play.size.y, UiMetrics.MIN_TARGET, "%s: Play is a big target" % label)
+		assert_true(safe.encloses(screen._hero_about.get_global_rect()), "%s: and the description" % label)
+		assert_lte(screen._hero_about.get_global_rect().end.y, play.position.y, "%s: nothing over Play" % label)
 		var bounds: Rect2 = strip.get_global_rect()
 		for card: Button in strip.cards:
+			if not card.visible:
+				continue
 			var rect: Rect2 = _card_rect(strip, card)
 			assert_gte(rect.position.x, bounds.position.x - 0.5, "%s: %s is not cut off on the left" % [label, card.name])
 			assert_lte(rect.end.x, bounds.end.x + 0.5, "%s: %s is not cut off on the right" % [label, card.name])
 		var chosen: Rect2 = _card_rect(strip, strip.cards[strip.index])
-		assert_gt(chosen.size.x, 0.38 * phone.x, "%s: the chosen card is big" % label)
+		assert_gt(chosen.size.x, 0.15 * phone.x, "%s: the chosen card is big enough to read" % label)
 		assert_gte(chosen.position.y, bounds.position.y, "%s: not cut off on top (with its bob)" % label)
 		assert_lte(chosen.end.y, bounds.end.y, "%s: nor below" % label)
 

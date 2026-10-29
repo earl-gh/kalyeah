@@ -49,6 +49,8 @@ var _filler: Control
 ## The kid pick of cards mode: the card pictures as an endless carousel; the chosen kid's name, large, under it.
 var _carousel: KidCarousel
 var _hero_name: Label
+var _hero_about: Label
+var _hero_info: VBoxContainer
 ## Stat bars on every weapon card are scaled by the biggest number of any weapon.
 var _maxima: Dictionary = {}
 ## The pair offered to a player who has not picked yet (see `WeaponPick.suggestion`), and the button that takes it.
@@ -194,7 +196,7 @@ func _on_kid_swiped(at: int) -> void:
 func _fit_kids() -> void:
 	if _carousel == null or not _carousel.visible or _filler.size.y <= 0.0:
 		return
-	var room: Vector2 = Vector2(_filler.size.x, _filler.size.y - _hero_name.get_combined_minimum_size().y - UiMetrics.GAP)
+	var room: Vector2 = Vector2(_filler.size.x, _filler.size.y - _hero_info.get_combined_minimum_size().y - UiMetrics.GAP)
 	_carousel.custom_minimum_size.y = _carousel.fit(room)
 
 
@@ -294,6 +296,7 @@ func _refresh() -> void:
 		_sockets[slot].show_weapon(_defs.get(id) as WeaponDef)
 	if cards_mode:
 		_hero_name.text = hero_name()
+		_hero_about.text = hero_about()
 		if _carousel.current_id() != character_id:
 			_carousel.show_kid(character_id)
 	_hint.text = selection_hint()
@@ -312,6 +315,14 @@ func hero_name() -> String:
 	for character: CharacterDef in _characters:
 		if character.id == character_id:
 			return character.display_name
+	return ""
+
+
+## The short description of the kid you picked ("" when none is offered).
+func hero_about() -> String:
+	for character: CharacterDef in _characters:
+		if character.id == character_id:
+			return character.description
 	return ""
 
 
