@@ -36,23 +36,21 @@ const WINDUP_FILL: float = 0.22
 const FX_RIM: float = 0.22
 const FX_RIM_ALPHA: float = 0.95
 const FX_FILL_ALPHA: float = 0.4
-## The burst on a kid who is hit: a flash and flying sparks, sized by the damage (a bigger hit is
-## bigger, a tick of damage is small), gone in `BURST_TIME`.
+## The burst on a kid who is hit: flying sparks and a ring on the ground, sized by the damage (a bigger hit is
+## bigger, a tick of damage is small), gone in `BURST_TIME`. No flash over the kid (owner, 2026-10-29: the warm sphere covered the
+## kid's body for a moment on every hit, so in a crowded base the kids looked like they were blinking).
 const BURST_TIME: float = 0.35
 const BURST_HEIGHT: float = 1.0
 const BURST_SPARKS: int = 6
 const BURST_SPARK_SPEED: float = 5.0
-## Visual pass: a saturated warm flash with a white core (the pale yellow read weakly on the grey street).
+## A saturated warm colour (the pale yellow read weakly on the grey street).
 const BURST_COLOR: Color = Color(1.0, 0.62, 0.12)
-const BURST_CORE: Color = Color(1.0, 0.97, 0.85)
 ## Every weapon's hit is between these sizes (a tick of damage still reads, the biggest hit is not a screen-filler), times
-## `view_scale` like the kid it lands on; the flash sits at `BURST_HEIGHT` up the drawn kid.
+## `view_scale` like the kid it lands on; the sparks fly from `BURST_HEIGHT` up the drawn kid.
 const BURST_MIN: float = 0.9
 const BURST_MAX: float = 1.3
 ## Damage that grows the burst by one whole size (a 30 damage hit is half a size bigger than a tick).
 const BURST_DAMAGE_STEP: float = 60.0
-const BURST_FLASH_RADIUS: float = 0.6
-const BURST_CORE_SHARE: float = 0.55
 const BURST_SPARK_SIZE: Vector3 = Vector3(0.2, 0.2, 0.8)
 ## The impact ring on the ground round a kid who is hit: it grows from `BURST_RING_FROM` to `BURST_RING_TO` m (held at its
 ## end size with Reduce motion), `BURST_RING_WIDTH` m wide.
@@ -84,7 +82,6 @@ var _windups: Array[Dictionary] = []
 var _bursts: Array[Dictionary] = []
 var _spark_material: StandardMaterial3D
 ## Meshes shared by every burst (built once).
-static var _flash_mesh: SphereMesh
 static var _spark_mesh: BoxMesh
 static var _impact_ring: ArrayMesh
 var _overlay_material: StandardMaterial3D
@@ -366,8 +363,8 @@ func _step_windups(delta: float) -> void:
 	_windups = still
 
 
-## A burst on a kid who is hit: a warm flash with a white core and a ring on the ground, and sparks flying out (the sparks
-## not with Reduce motion, and the ring does not grow then).
+## A burst on a kid who is hit: a ring on the ground and sparks flying out (the sparks not with Reduce motion, and the ring does
+## not grow then). Nothing is drawn over the kid itself.
 func _on_damaged(id: int, amount: int) -> void:
 	if _sim == null or not _sim.players.has(id):
 		return
@@ -377,17 +374,6 @@ func _on_damaged(id: int, amount: int) -> void:
 	var node: Node3D = Node3D.new()
 	node.name = "Burst"
 	node.position = Vector3(at.x, 0.0, at.y)
-	var flash: MeshInstance3D = MeshInstance3D.new()
-	flash.mesh = _flash_mesh
-	flash.position.y = BURST_HEIGHT * view_scale
-	var flash_material: StandardMaterial3D = _unshaded(Color(BURST_COLOR, 0.9))
-	flash.material_override = flash_material
-	node.add_child(flash)
-	var core: MeshInstance3D = MeshInstance3D.new()
-	core.mesh = _flash_mesh
-	core.position.y = flash.position.y
-	core.material_override = _unshaded(Color(BURST_CORE, 0.95))
-	node.add_child(core)
 	var ring: MeshInstance3D = MeshInstance3D.new()
 	ring.name = "ImpactRing"
 	ring.mesh = _impact_ring
@@ -411,18 +397,13 @@ func _on_damaged(id: int, amount: int) -> void:
 			node.add_child(spark)
 			sparks.append(spark)
 	add_child(node)
-	_bursts.append({"node": node, "flash": flash, "material": flash_material, "core": core, "ring": ring,
+	_bursts.append({"node": node, "ring": ring,
 		"ring_material": ring_material, "sparks": sparks, "age": 0.0, "size": size})
 
 
 static func _burst_meshes() -> void:
-	if _flash_mesh != null:
+	if _spark_mesh != null:
 		return
-	_flash_mesh = SphereMesh.new()
-	_flash_mesh.radius = BURST_FLASH_RADIUS
-	_flash_mesh.height = BURST_FLASH_RADIUS * 2.0
-	_flash_mesh.radial_segments = 16
-	_flash_mesh.rings = 8
 	_spark_mesh = BoxMesh.new()
 	_spark_mesh.size = BURST_SPARK_SIZE
 	# a ring of radius 1 (scaled per frame), BURST_RING_WIDTH / BURST_RING_TO of it wide at its end size
@@ -452,13 +433,6 @@ func _step_bursts(delta: float) -> void:
 			(burst["node"] as Node3D).queue_free()
 			continue
 		var size: float = burst["size"] as float
-		var fade: float = (1.0 - progress) * (1.0 - progress)
-		var flash: Node3D = burst["flash"] as Node3D
-		flash.scale = Vector3.ONE * size * lerpf(0.6, 1.5, progress)
-		(burst["material"] as StandardMaterial3D).albedo_color.a = 0.9 * fade
-		var core: MeshInstance3D = burst["core"] as MeshInstance3D
-		core.scale = flash.scale * BURST_CORE_SHARE
-		(core.material_override as StandardMaterial3D).albedo_color.a = 0.95 * fade
 		var grow: float = 1.0 if Settings.reduced_motion else progress
 		(burst["ring"] as Node3D).scale = Vector3.ONE * size * lerpf(BURST_RING_FROM, BURST_RING_TO, grow)
 		(burst["ring_material"] as StandardMaterial3D).albedo_color.a = 0.95 * (1.0 - progress)

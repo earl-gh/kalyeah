@@ -1,14 +1,22 @@
 extends GutTest
 ## Tag (docs/GDD.md "Tag"): at 0 HP a player is tagged and sent to the sidewalk beside their team's rescue area, facing in;
-## a free teammate who stays in the rescue area for five seconds rescues them back to their post.
+## a free teammate who stays in the rescue area for five seconds rescues them back to their post. The rescue area's countdown
+## (`rescue_cooldown`) is off here so the hold itself can be tested; it has its own tests (test_rescue_countdown.gd).
 
 const RULES: GameRules = preload("res://data/rules/game_rules.tres")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const DT: float = 1.0 / 30.0
 
+var _rules: GameRules
+
+
+func before_each() -> void:
+	_rules = RULES.duplicate() as GameRules
+	_rules.rescue_cooldown = 0.0
+
 
 func _sim() -> MatchSim:
-	return MatchSim.new(RULES, LAYOUT, 11)
+	return MatchSim.new(_rules, LAYOUT, 11)
 
 
 func _wait(sim: MatchSim, seconds: float) -> void:
@@ -235,7 +243,7 @@ func test_an_enemy_in_the_rescue_area_rescues_nobody() -> void:
 
 
 func test_with_the_toggle_on_one_rescue_frees_everyone_waiting() -> void:
-	var rules: GameRules = RULES.duplicate() as GameRules
+	var rules: GameRules = _rules.duplicate() as GameRules
 	rules.rescue_frees_all = true
 	var sim: MatchSim = MatchSim.new(rules, LAYOUT, 3)
 	var a: PlayerState = sim.add_player(1, 0)
@@ -250,7 +258,7 @@ func test_with_the_toggle_on_one_rescue_frees_everyone_waiting() -> void:
 
 
 func test_a_hold_time_of_zero_is_the_old_touch_rescue() -> void:
-	var rules: GameRules = RULES.duplicate() as GameRules
+	var rules: GameRules = _rules.duplicate() as GameRules
 	rules.rescue_hold_time = 0.0
 	var sim: MatchSim = MatchSim.new(rules, LAYOUT, 3)
 	var me: PlayerState = sim.add_player(1, 0)

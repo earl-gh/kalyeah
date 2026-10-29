@@ -36,8 +36,14 @@ func in_rescue_area(sim: MatchSim, state: PlayerState) -> bool:
 ## Rescuing (owner): one free teammate at a time stays in the rescue area for `rescue_hold_time` and frees the teammate who was
 ## tagged first (everyone waiting when `rescue_frees_all` is on). The first to arrive holds the rescue; the others can stand there
 ## but cannot start one. Leaving the area, being tagged or a new round starts the count over, and the next in line takes over.
+## The area must be ready first: it counts down `rescue_cooldown` from the round's start and again after every rescue.
 func check_rescues(sim: MatchSim, dt: float) -> void:
 	for team: int in [0, 1]:
+		if sim.rescue_ready_left[team] > 0.0:
+			sim.rescue_ready_left[team] = maxf(0.0, sim.rescue_ready_left[team] - dt)
+			sim.rescue_rescuer[team] = -1
+			sim.rescue_elapsed[team] = 0.0
+			continue
 		var holder: PlayerState = sim.players.get(sim.rescue_rescuer[team]) as PlayerState
 		if holder != null and (holder.tagged or holder.team != team or not in_rescue_area(sim, holder)):
 			holder = null
@@ -56,6 +62,7 @@ func check_rescues(sim: MatchSim, dt: float) -> void:
 		if sim.rescue_elapsed[team] + 1e-6 < sim.rules.rescue_hold_time:
 			continue
 		sim.rescue_elapsed[team] = 0.0
+		sim.rescue_ready_left[team] = sim.rules.rescue_cooldown
 		for waiting: PlayerState in _waiting_in_tag_order(sim, team):
 			rescue(sim, waiting, holder.id)
 			if not sim.rules.rescue_frees_all:
@@ -221,6 +228,7 @@ func _reset_round(sim: MatchSim) -> void:
 	sim.capture_needed = sim.rules.capture_solo_time
 	sim.rescue_rescuer = [-1, -1]
 	sim.rescue_elapsed = [0.0, 0.0]
+	sim.rescue_ready_left = [sim.rules.rescue_cooldown, sim.rules.rescue_cooldown]
 	for id: int in sim.players:
 		var state: PlayerState = sim.players[id]
 		var was_tagged: bool = state.tagged

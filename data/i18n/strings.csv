@@ -183,6 +183,7 @@ Quit game?,Quit game?
 "Raise a block of earth! It stops enemy throws, then crumbles.","Raise a block of earth! It stops enemy throws, then crumbles."
 Raise a paper wall! It blocks enemy throws.,Raise a paper wall! It blocks enemy throws.
 Range,Range
+READY!,READY!
 Ready,Ready
 Reduce motion,Reduce motion
 Rejoin battle,Rejoin battle
@@ -257,5 +258,6 @@ YOU,YOU
 YOU %d - %d THEM   %s,YOU %d - %d THEM   %s
 Your last battles on this phone!,Your last battles on this phone!
 Your nametag,Your nametag
+Your rescue area is ready in %d s!,Your rescue area is ready in %d s!
 Your weapons,Your weapons
 Your weapons are cards!,Your weapons are cards!

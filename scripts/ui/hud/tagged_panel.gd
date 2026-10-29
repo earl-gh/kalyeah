@@ -13,8 +13,10 @@ const HINT_COLOR: Color = RoyaleStyle.CREAM
 const WAIT_TEXT: String = "Tagged! Wait for a rescue"
 ## `%d`: the seconds a teammate has to stay in your rescue area (the rules say).
 const HINT_TEXT: String = "A teammate beside you frees you in %d s!"
-## The countdown to walking out alone, when the match has one (Practice): a ring beside the faces.
-const RELEASE_RING_SIZE: float = 64.0
+## `%d`: the seconds until your team's rescue area is ready again (`GameRules.rescue_cooldown`).
+const READY_TEXT: String = "Your rescue area is ready in %d s!"
+## The rings beside the faces.
+const RING_SIZE: float = 64.0
 ## The same side margin the controls keep.
 const SIDE_MARGIN: float = 34.0
 ## Change weapons (the old two-weapon pick) sits in the teammates' row, so it is this wide.
@@ -27,8 +29,8 @@ var hint_label: Label
 var swap_button: Button
 ## Your teammates: who is free and who is on the way.
 var pips: TeammatePips
-## Seconds until you walk out alone (shown only when the match sets a release time).
-var release_ring: CountdownRing
+## Seconds until your team's rescue area is ready (shown while it counts down; nobody can rescue you until then).
+var ready_ring: CountdownRing
 ## Seconds until the teammate who is rescuing frees you (shown while one stays in the rescue area and you are next in line).
 var rescue_ring: CountdownRing
 ## What the title, the hint and the button sit in.
@@ -61,17 +63,17 @@ func _ready() -> void:
 	column.add_child(row)
 	pips = TeammatePips.new()
 	row.add_child(pips)
-	release_ring = CountdownRing.new()
-	release_ring.name = "ReleaseRing"
-	release_ring.custom_minimum_size = Vector2.ONE * RELEASE_RING_SIZE
-	release_ring.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	release_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	release_ring.accessibility_name = "Out alone in"
-	release_ring.visible = false
-	row.add_child(release_ring)
+	ready_ring = CountdownRing.new()
+	ready_ring.name = "ReadyRing"
+	ready_ring.custom_minimum_size = Vector2.ONE * RING_SIZE
+	ready_ring.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	ready_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ready_ring.accessibility_name = "Rescue ready in"
+	ready_ring.visible = false
+	row.add_child(ready_ring)
 	rescue_ring = CountdownRing.new()
 	rescue_ring.name = "RescueRing"
-	rescue_ring.custom_minimum_size = Vector2.ONE * RELEASE_RING_SIZE
+	rescue_ring.custom_minimum_size = Vector2.ONE * RING_SIZE
 	rescue_ring.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	rescue_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rescue_ring.accessibility_name = "Freed in"
@@ -109,14 +111,15 @@ func sync(_sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	if not visible:
 		return
 	pips.sync(_sim, player)
-	hint_label.text = UiText.f(HINT_TEXT, [ceili(_sim.rules.rescue_hold_time)])
+	var ready_left: float = _sim.rescue_ready_left[player.team]
+	hint_label.text = UiText.f(READY_TEXT, [ceili(ready_left)]) if ready_left > 0.0 else UiText.f(HINT_TEXT, [ceili(_sim.rules.rescue_hold_time)])
+	ready_ring.visible = ready_left > 0.0
+	if ready_ring.visible:
+		ready_ring.show_time(ready_left, _sim.rules.rescue_cooldown)
 	var hold: float = _sim.rules.rescue_hold_time
 	rescue_ring.visible = hold > 0.0 and _sim.rescue_rescuer[player.team] >= 0 and _is_next_in_line(_sim, player)
 	if rescue_ring.visible:
 		rescue_ring.show_time(hold - _sim.rescue_elapsed[player.team], hold)
-	release_ring.visible = _sim.tag_release_time > 0.0
-	if release_ring.visible:
-		release_ring.show_time(_sim.tag_release_time - player.tag_time, _sim.tag_release_time)
 
 
 ## You were tagged first of the teammates waiting: the rescuer is working on you.

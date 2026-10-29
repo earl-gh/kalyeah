@@ -304,7 +304,6 @@ func _held_still() -> bool:
 
 func _setup_practice() -> void:
 	sim = MatchSim.new(rules, layout, Time.get_ticks_usec())
-	sim.tag_release_time = rules.practice_tag_release_time
 	if Session.practice_kind == &"match":
 		_setup_bot_match()
 		return
