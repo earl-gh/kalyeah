@@ -107,7 +107,7 @@ const POST_RED: String = "post_red"
 const BARRIER_HEIGHTS: Dictionary[String, float] = {
 	"tricycle": 2.4, "bench": 1.1, "crates": 1.1, "sacks": 1.0,
 	"basketball_pole": 6.0, "ebike": 1.5, "truck_wheels": 1.4,
-	"no_id_no_entry": 1.7, "rooster_tent": 1.4, "plank_fence": 1.8, "roof_wall": 2.9, "roof_wall_2": 2.9,
+	"no_id_no_entry": 1.7, "rooster_tent": 1.4, "plank_fence": 1.8,
 }
 ## The top boundary (owner): the end of the street at the top of the screen is closed by the owner's three pictures instead of the row of
 ## props, left to right on the screen. Each is a 2D picture (a transparent PNG, drawn as made: unshaded, no tint) standing across the end
@@ -120,6 +120,7 @@ const BOUNDARY_PICTURES: Array[Dictionary] = [
 	{"id": "tin_fence", "height": 2.0},
 	{"id": "jeepney", "height": 2.4},
 ]
+const CORNER_WALL: Dictionary = {"id": "tin_fence", "height": 2.9}
 ## 90 degrees less the camera's pitch (`data/rules/camera_rules.tres`, 45).
 const BOUNDARY_TILT: float = 45.0
 ## Things whose long side is their depth: they are turned a quarter so the long side faces the play area.
@@ -539,8 +540,6 @@ static func barrier_width(id: String, scale: float = 1.0) -> float:
 ## area, with uneven gaps and a little turned or set back, as if put down by hand.
 func _add_barricades() -> void:
 	var ids: Array = BARRIER_HEIGHTS.keys()
-	ids.erase("roof_wall")
-	ids.erase("roof_wall_2")
 	for end_index: int in 2:
 		var end: float = -1.0 if end_index == 0 else 1.0
 		_row_props[end] = []
@@ -648,11 +647,14 @@ func _add_boundary_pictures() -> void:
 			row.add_child(picture)
 			x += widths[k] + gap
 		for side: float in [-1.0, 1.0]:
-			var roof: Node3D = PropModel.by_height("roof_wall", BARRIER_HEIGHTS["roof_wall"] * scenery())
+			var roof: MeshInstance3D = _boundary_picture(CORNER_WALL, boundary_width(CORNER_WALL, scenery()))
 			roof.name = "RoofWallLeft" if side < 0.0 else "RoofWallRight"
-			roof.position = Vector3(side * layout.lane_width / 2.0, 0.0, 0.0)
+			# A slight setback keeps the PNG behind the other boundary pictures without coplanar flicker.
+			roof.position = Vector3(side * layout.lane_width / 2.0, 0.0, -0.05)
 			if side > 0.0:
-				roof.scale.x *= -1.0
+				var material: StandardMaterial3D = (roof.mesh as QuadMesh).material as StandardMaterial3D
+				material.uv1_scale.x = -1.0
+				material.uv1_offset.x = 1.0
 			row.add_child(roof)
 		_geometry.add_child(row)
 		_row_pictures[end] = row

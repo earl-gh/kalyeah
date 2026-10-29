@@ -173,7 +173,7 @@ func test_the_model_props_are_light_and_standing_on_the_ground() -> void:
 		"basketball_pole": 3700, "truck_wheels": 4200, "crates": 4200,
 		"sacks": 4200, "no_id_no_entry": 4200, "ebike": 4700, "tricycle": 5200,
 		"ice_cream_cart": 5200, "nanay": 6200,
-		"nena_store": 6200, "vulcanizing": 6200, "barber_shop": 6200, "house_1": 6200, "house_2": 6200, "house_3": 6200, "karinderya": 6200, "cat": 3200, "dog": 3200, "chicken_cage": 4200, "drainage_cover": 2700, "tricycle_terminal": 6200, "plank_fence": 4200, "roof_wall": 4200, "roof_wall_2": 4200}
+		"nena_store": 6200, "vulcanizing": 6200, "barber_shop": 6200, "house_1": 6200, "house_2": 6200, "house_3": 6200, "karinderya": 6200, "cat": 3200, "dog": 3200, "chicken_cage": 4200, "drainage_cover": 2700, "tricycle_terminal": 6200, "plank_fence": 4200}
 	for id: String in limits:
 		var model: Node3D = autofree(PropModel.make(id)) as Node3D
 		var mesh: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
@@ -241,8 +241,6 @@ func test_the_end_rows_mix_every_street_thing_and_stay_out_of_the_play_area() ->
 		assert_gt(absf(node.position.z) - depth / 2.0, half_l, "%s stays behind the end line" % id)
 		assert_lte(absf(node.position.x), LAYOUT.lane_width / 2.0, "%s across the street" % id)
 	for id: String in StreetMap.BARRIER_HEIGHTS:
-		if id.begins_with("roof_wall"):
-			continue
 		assert_true(seen.has(id), "%s is in an end row" % id)
 	assert_lte(int(seen.get("rooster_tent", 0)), 4, "at most two A-frames per row, not a row of them")
 

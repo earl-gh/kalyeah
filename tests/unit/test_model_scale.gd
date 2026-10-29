@@ -69,7 +69,7 @@ func test_every_prop_is_drawn_at_its_real_size_times_the_world_factor() -> void:
 	var factor: float = ScaleReference.world_factor(CAMERA.kid_view_scale)
 	var map: StreetMap = _map()
 	var props: Dictionary[String, Vector3] = _props(map)
-	assert_gte(props.size(), 25, "the street keeps its props and the duplicated roof uses one source asset")
+	assert_gte(props.size(), 24, "the roof walls are PNGs, outside the 3D prop budget")
 	for id: String in props:
 		var drawn: Vector3 = props[id]
 		if ScaleReference.BUILDINGS.has(id):
