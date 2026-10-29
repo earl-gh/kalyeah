@@ -150,13 +150,13 @@ func _height_for(cross: Cross, share: float) -> float:
 ## The camera's screen-up direction in the world.
 func _camera_up() -> Vector3:
 	var camera: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
-	return camera.global_basis.y if camera != null else FxCones.CAMERA_BACK.cross(Vector3.RIGHT).normalized()
+	return camera.global_basis.y if camera != null else FxKit.CAMERA_BACK.cross(Vector3.RIGHT).normalized()
 
 
 ## The direction from the scene toward the camera.
 func _camera_back() -> Vector3:
 	var camera: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
-	return camera.global_basis.z if camera != null else FxCones.CAMERA_BACK
+	return camera.global_basis.z if camera != null else FxKit.CAMERA_BACK
 
 
 ## The crosses playing right now.

@@ -164,7 +164,7 @@ func _brawl(kids: int) -> WeaponFxView:
 	add_child_autofree(fx)
 	fx.watch(sim)
 	# count from after the view's warm-up frames (it draws one invisible instance of each material first)
-	for i: int in WeaponFxView.WARM_FRAMES + 1:
+	for i: int in FxWarmup.WARM_FRAMES + 1:
 		fx.sync(sim, DT)
 	return fx
 

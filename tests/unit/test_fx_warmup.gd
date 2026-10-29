@@ -27,10 +27,10 @@ func test_the_view_warms_its_materials_then_every_pool_is_idle() -> void:
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
 	var ctx: FxContext = fx.context()
 	var warming: bool = false
-	for i: int in WeaponFxView.WARM_FRAMES:
+	for i: int in FxWarmup.WARM_FRAMES:
 		practice.advance(DT)
 		warming = warming or ctx.particles.busy_emitters() > 0 or ctx.shadows.live() > 0
-	assert_true(fx.warmed(), "the view warmed its materials in its first frames")
+	assert_true(fx.warmup.warmed(), "the view warmed its materials in its first frames")
 	practice.advance(DT)
 	assert_eq(ctx.particles.live_particles(), 0, "then no particle is left")
 	assert_eq(ctx.ground.live_rings(), 0, "no ring")

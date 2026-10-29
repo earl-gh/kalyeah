@@ -6,6 +6,8 @@ extends RefCounted
 ## Also the ground layer ladder: every flat effect sits at its own height and draws in its own order, so marks never
 ## flicker against each other or against the street (the street art is at 0.004, the kid's blob shadow at 0.08).
 
+## Seen from the default camera (looking down 45 degrees toward -Z): its backward direction, used when no camera is found.
+const CAMERA_BACK: Vector3 = Vector3(0.0, 0.70710678, 0.70710678)
 ## Zone fill (a landing circle, a slow zone) and its rim / a shield's team ribbon, in metres above the street.
 const Y_FILL: float = 0.03
 const Y_RIM: float = 0.05

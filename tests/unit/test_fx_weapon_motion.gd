@@ -146,26 +146,26 @@ func test_scissors_keep_clear_of_kids() -> void:
 			# a kid straight ahead: the scissors stand beside the line of kids, clear of its footprint even fully open
 			_setup(Vector2(0.0, 8.0 - distance))
 			var def: WeaponDef = _sim.weapon_defs[weapon]
-			var lunge: float = FxCones.HEAVY_LUNGE if def.delay > 0.0 else FxCones.SNIP_LUNGE_STEP
-			var place: Vector2 = _fx.cones.placement(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
-			var side: Vector3 = _fx.cones.side_of(Vector3(0.0, 0.0, -1.0))
-			var spread: float = FxCones.half_spread(def, place.x)
-			assert_gte(side.length() - spread, FxCones.SNIP_TARGET_CLEAR, "%s: beside the kid %.1f m ahead, clear of its footprint" % [weapon, distance])
-			assert_gte(place.y - place.x / 2.0, FxCones.SNIP_CASTER_CLEAR - 0.001, "%s: handles clear of the caster" % weapon)
+			var lunge: float = FxSnips.HEAVY_LUNGE if def.delay > 0.0 else FxSnips.SNIP_LUNGE_STEP
+			var place: Vector2 = _fx.cones.snips.placement(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
+			var side: Vector3 = _fx.cones.snips.side_of(Vector3(0.0, 0.0, -1.0))
+			var spread: float = FxSnips.half_spread(def, place.x)
+			assert_gte(side.length() - spread, FxSnips.SNIP_TARGET_CLEAR, "%s: beside the kid %.1f m ahead, clear of its footprint" % [weapon, distance])
+			assert_gte(place.y - place.x / 2.0, FxSnips.SNIP_CASTER_CLEAR - 0.001, "%s: handles clear of the caster" % weapon)
 			assert_lte(place.y + place.x / 2.0 + lunge, def.max_range + 0.001, "%s: inside the range at full lunge" % weapon)
 			# a kid standing on the scissors' right-hand line: they take the free left side, full length
 			_setup(Vector2(side.x, 8.0 + side.z - distance))
-			var moved: Vector3 = _fx.cones.side_for(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
+			var moved: Vector3 = _fx.cones.snips.side_for(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
 			assert_almost_eq(moved.x, -side.x, 0.001, "%s: the other side when a kid stands on the first" % weapon)
-			place = _fx.cones.placement(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
-			assert_gt(place.x, FxCones.SNIP_MIN_LEN + 0.5, "%s: and long there" % weapon)
+			place = _fx.cones.snips.placement(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
+			assert_gt(place.x, FxSnips.SNIP_MIN_LEN + 0.5, "%s: and long there" % weapon)
 			# kids on both lines: shortened, the tips stop short of them
 			_setup(Vector2(side.x, 8.0 + side.z - distance))
 			_sim.add_player(5, 1)
 			_sim.players[5].position = Vector2(-side.x, 8.0 + side.z - distance)
-			place = _fx.cones.placement(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
+			place = _fx.cones.snips.placement(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
 			var tips: float = place.y + place.x / 2.0 + lunge
-			assert_true(tips <= distance - FxCones.SNIP_TARGET_CLEAR + 0.001 or is_equal_approx(place.x, FxCones.SNIP_MIN_LEN), "%s: tips %.2f m short of a kid on their line at %.1f m" % [weapon, tips, distance])
+			assert_true(tips <= distance - FxSnips.SNIP_TARGET_CLEAR + 0.001 or is_equal_approx(place.x, FxSnips.SNIP_MIN_LEN), "%s: tips %.2f m short of a kid on their line at %.1f m" % [weapon, tips, distance])
 
 
 func test_heavy_opens_during_the_windup_and_closes_on_the_strike() -> void:
@@ -243,7 +243,7 @@ func test_slap_squashes_the_nearest_slipper() -> void:
 		_frame()
 		if _fx.context().ground.live_smears() > 0:
 			var along: Vector3 = _part(_rig(id), "Squash").basis * Vector3(0.0, 0.0, -1.0)
-			assert_almost_eq(along.length(), FxProjectiles.SLAP_S, 0.05, "stretched on the slap")
+			assert_almost_eq(along.length(), FxSlippers.SLAP_S, 0.05, "stretched on the slap")
 			slapped = true
 			break
 	assert_true(slapped, "the hit kid got a smack streak from the slipper")
@@ -260,7 +260,7 @@ func test_catch_shrinks_into_the_hand() -> void:
 			caught = _fx.projectiles.fading_count() == 1
 			break
 	assert_true(caught, "the slipper came back and is shrinking into the hand")
-	for f: int in FxProjectiles.CATCH_FRAMES + 1:
+	for f: int in FxSlippers.CATCH_FRAMES + 1:
 		_frame()
 	assert_eq(_fx.projectiles.fading_count(), 0, "gone into the hand within four frames")
 
@@ -318,7 +318,7 @@ func test_bounce_rings_mark_the_nominal_points_and_go() -> void:
 	_cast(&"bola", Vector2(0.0, -1.0))
 	_fx.sync(_sim, DT)
 	_frame()
-	assert_eq(_fx.projectiles.bounce_rings(), 2, "both bounce points marked from the start")
+	assert_eq(_fx.projectiles.marble.bounce_rings(), 2, "both bounce points marked from the start")
 	var def: WeaponDef = _sim.weapon_defs[&"bola"]
 	for ring: Node in _fx.projectiles.find_children("BounceRing", "MeshInstance3D", true, false):
 		var at: Vector2 = Vector2((ring as Node3D).position.x, (ring as Node3D).position.z)
@@ -328,10 +328,10 @@ func test_bounce_rings_mark_the_nominal_points_and_go() -> void:
 	var projectile: WeaponSystem.Projectile = _sim.weapons.projectiles[0]
 	while projectile.bounces < 1:
 		_frame()
-	assert_eq(_fx.projectiles.bounce_rings(), 1, "the first goes on its bounce")
+	assert_eq(_fx.projectiles.marble.bounce_rings(), 1, "the first goes on its bounce")
 	while not _sim.weapons.projectiles.is_empty():
 		_frame()
-	assert_eq(_fx.projectiles.bounce_rings(), 0, "and the second on the last")
+	assert_eq(_fx.projectiles.marble.bounce_rings(), 0, "and the second on the last")
 	assert_gt(_fx.context().ground.live_flashes(), 0, "each flashes as it goes")
 
 
@@ -438,7 +438,7 @@ func test_the_can_flies_from_the_thrower_to_the_circle() -> void:
 		_frame()
 	assert_gt(peak, 2.2, "it arcs over")
 	assert_almost_eq(Vector2(last.x, last.z).distance_to(zone.center), 0.0, 0.05, "and comes down on the circle's centre")
-	assert_almost_eq(last.y, _fx.zones.can_height() / 2.0, 0.05, "upright on its base when the zone lands")
+	assert_almost_eq(last.y, _fx.zones.landings.can_height() / 2.0, 0.05, "upright on its base when the zone lands")
 	assert_gt(_fx.zones.fading_count(), 0, "the landing plays")
 
 
@@ -497,14 +497,14 @@ func test_trap_springs_into_a_team_slow_zone() -> void:
 	assert_gt(_fx.context().particles.busy_emitters(), 0, "into paper bits")
 	var fill: Node3D = _fx.zones.node_for(zone.id).get_node("Fill") as Node3D
 	assert_lt(fill.scale.x, 1.0, "the slow zone's fill pops out")
-	for i: int in FxZones.FILL_POP_FRAMES + 1:
+	for i: int in FxFields.FILL_POP_FRAMES + 1:
 		_frame()
 	assert_almost_eq(fill.scale.x, 1.0, 0.001, "to its whole radius")
 	var mark: MeshInstance3D = _fx.zones.node_for(zone.id).get_node("Mark") as MeshInstance3D
 	var color: Color = (mark.mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR] as PackedColorArray)[0]
 	var own: Color = TeamColors.world_own()
 	assert_lt(absf(color.r - own.r) + absf(color.g - own.g) + absf(color.b - own.b), 0.02, "in the thrower's colour")
-	while zone.time_left > FxZones.SLOW_FADE / 2.0:
+	while zone.time_left > FxFields.SLOW_FADE / 2.0:
 		_frame()
 	assert_lt((mark.material_override as StandardMaterial3D).albedo_color.a, 1.0, "it fades in its last moments")
 
