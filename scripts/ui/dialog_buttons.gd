@@ -73,11 +73,9 @@ static func leave_match(hosting: bool, on_leave: Callable, practice: bool = fals
 	if practice:
 		words = "Leaving counts as a loss!"
 	dialog.add_label(words)
-	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
 	var leave: Button = MenuDialog.make_button("Leave", "red", UiMetrics.BODY)
-	cancel.pressed.connect(dialog.close)
 	leave.pressed.connect(func() -> void:
 		dialog.close(false)
 		on_leave.call())
-	dialog.add_buttons([cancel, leave])
+	dialog.add_buttons([leave])
 	return dialog

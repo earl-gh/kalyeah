@@ -115,7 +115,7 @@ func test_kalyeah_says_why_before_android_asks() -> void:
 	var view: IdCameraSheet = _view(_sheet(FakeCamera.new()))
 	assert_eq(view.step, IdCameraSheet.Step.ASK)
 	assert_eq(view.message.text, IdCameraSheet.WHY)
-	assert_eq(_labels(view), ["Cancel", "Allow camera"] as Array[String])
+	assert_eq(_labels(view), ["Allow camera"] as Array[String])
 	assert_false(view.frame.visible, "no camera before the OK")
 
 
@@ -168,7 +168,7 @@ func test_a_phone_with_no_camera_says_so() -> void:
 	camera.cameras = false
 	var view: IdCameraSheet = _view(_sheet(camera))
 	assert_eq(view.step, IdCameraSheet.Step.NO_CAMERA)
-	assert_eq(_labels(view), ["Close"] as Array[String])
+	assert_eq(_labels(view), [] as Array[String])
 
 
 func test_the_camera_is_off_in_the_background_and_when_the_sheet_closes() -> void:
@@ -180,7 +180,7 @@ func test_the_camera_is_off_in_the_background_and_when_the_sheet_closes() -> voi
 	assert_eq(camera.closed, 1)
 	view._notification(Node.NOTIFICATION_APPLICATION_RESUMED)
 	assert_eq(camera.opened, 2, "back on when the app returns")
-	_press(view, "Cancel")
+	card.close_button.pressed.emit()
 	assert_gt(camera.closed, 1)
 	assert_false(card.is_open)
 

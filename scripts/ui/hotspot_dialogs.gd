@@ -46,14 +46,11 @@ static func _dialog(flow: HotspotFlow, on_done: Callable, open_settings: Callabl
 	settings.name = "Settings"
 	var again: Button = MenuDialog.make_button("Try again", "blue", UiMetrics.BODY)
 	again.name = "TryAgain"
-	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
-	cancel.name = "Cancel"
 	var settings_row: HBoxContainer = card.add_buttons([settings])
-	card.add_buttons([again, cancel])
+	card.add_buttons([again])
 	var can_open_settings: bool = open_settings.is_valid() or HotspotSettings.available()
 	var opener: Callable = open_settings if open_settings.is_valid() else HotspotSettings.open
 	settings.pressed.connect(opener)
-	cancel.pressed.connect(card.close)
 	again.pressed.connect(flow.begin)
 	flow.step_changed.connect(func(step: Step) -> void:
 		var failed: bool = step == Step.NO_NETWORK or step == Step.NO_WIFI or step == Step.NO_ROOM

@@ -66,7 +66,9 @@ func test_match_menu_retains_controls_and_requires_confirmation_only_online() ->
 	menu.set_practice(true)
 	menu.leave_button.pressed.emit()
 	assert_eq(exits.size(), 1, "Practice can exit directly")
-	assert_gte(menu.resume_button.custom_minimum_size.y, 88.0)
+	assert_gte(menu._dialog.close_button.custom_minimum_size.y, UiMetrics.MIN_TARGET)
+	menu._dialog.close_button.pressed.emit()
+	assert_false(menu.visible, "X returns to gameplay")
 
 
 func test_room_code_and_read_only_format_are_mode_specific() -> void:

@@ -253,7 +253,7 @@ func test_the_detail_sheet_shows_the_card_bare_above_the_description_and_the_met
 			assert_eq(sheet.find_child("Figures", true, false).get_child_count(), WeaponsPage.figures_of(weapon).size(), "%s: the meters" % label)
 			assert_eq(sheet.title_label.text, weapon.display_name, "%s: the name" % label)
 			assert_lte(art.get_global_rect().end.y, (sheet.find_child("About", true, false) as Label).get_global_rect().position.y, "%s: the card is above the words" % label)
-			var close: Button = sheet.find_child("Close", true, false) as Button
+			var close: Button = sheet.find_child("CloseButton", true, false) as Button
 			assert_true(phone.get_global_rect().encloses(sheet.get_global_rect()), "%s: the sheet fits the screen" % label)
 			assert_true(sheet.get_global_rect().encloses(close.get_global_rect()), "%s: Close is inside the sheet and on screen" % label)
 			assert_gte(close.size.y, UiMetrics.MIN_TARGET, "%s: Close is a target" % label)

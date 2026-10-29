@@ -33,7 +33,6 @@ const TITLE_SIZE: int = UiMetrics.TITLE
 const TEXT_SIZE: int = UiMetrics.BODY
 const HINT_COLOR: Color = KalyeahTheme.MODAL_TEXT_MUTED
 const TEXT_COLOR: Color = KalyeahTheme.MODAL_TEXT
-const DISMISS_ACTIONS: Array[String] = ["Cancel", "Close", "Got it!", "Got it", "Done", "Okay", "Resume"]
 
 var panel: PanelContainer
 var body: VBoxContainer
@@ -66,6 +65,7 @@ static func create(title: String, width: float = WIDTH_SMALL, icon: Texture2D = 
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	dialog.add_child(dim)
 	dialog._safe = MarginContainer.new()
+	dialog._safe.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	dialog._safe.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dialog.add_child(dialog._safe)
 	var center: CenterContainer = CenterContainer.new()
@@ -249,14 +249,6 @@ func _notification(what: int) -> void:
 func _fit() -> void:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return
-	# A footer Cancel/Close already provides the dismiss action.
-	var footer_closes: bool = false
-	for node: Node in body.find_children("*", "Button", true, false):
-		var button: Button = node as Button
-		if button.is_visible_in_tree() and button.text in DISMISS_ACTIONS:
-			footer_closes = true
-			break
-	close_button.visible = not footer_closes
 	LobbyWidgets.apply_safe_area(_safe, UiMetrics.PAGE_MARGIN, UiMetrics.PAGE_MARGIN)
 	var available: Vector2 = size - Vector2(
 		_safe.get_theme_constant("margin_left") + _safe.get_theme_constant("margin_right"),

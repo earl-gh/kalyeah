@@ -242,8 +242,4 @@ static func detail(character: CharacterDef) -> MenuDialog:
 	about.name = "About"
 	card.body.add_child(_palette(character))
 	card.add_hint(NOTE).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var close: Button = MenuDialog.make_button("Close", "grey", UiMetrics.BODY)
-	close.name = "Close"
-	close.pressed.connect(card.close)
-	card.add_buttons([close])
 	return card

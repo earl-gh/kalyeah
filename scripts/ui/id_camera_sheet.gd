@@ -108,15 +108,12 @@ func _show(next: Step) -> void:
 	match next:
 		Step.ASK:
 			message.text = WHY
-			_button("Cancel", "grey", close)
 			_button("Allow camera", "orange", _ask)
 		Step.WAITING:
 			message.text = WAITING_TEXT
-			_button("Cancel", "grey", close)
 		Step.LOOKING:
 			message.text = LOOKING_TEXT
 			preview.texture = lens.get_texture()
-			_button("Cancel", "grey", close)
 			_button("Snap!", "orange", snap)
 		Step.SNAPPED:
 			message.text = SNAPPED_TEXT
@@ -124,12 +121,10 @@ func _show(next: Step) -> void:
 			_button("Use", "orange", use)
 		Step.DENIED:
 			message.text = DENIED_TEXT
-			_button("Close", "grey", close)
 			if camera.can_open_settings():
 				_button("Open settings", "blue", camera.open_settings)
 		Step.NO_CAMERA:
 			message.text = NO_CAMERA_TEXT
-			_button("Close", "grey", close)
 
 
 func _button(text: String, color: String, action: Callable) -> Button:

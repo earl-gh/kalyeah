@@ -596,10 +596,8 @@ func _on_secondary_pressed() -> void:
 func open_practice_confirm() -> MenuDialog:
 	var card: MenuDialog = MenuDialog.create("Practice", MenuDialog.WIDTH_SMALL)
 	card.add_label("3 v 3 against bots. Ready to rumble?", MenuDialog.TEXT_SIZE, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
-	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
 	var play: Button = MenuDialog.make_button("Play", "gold", UiMetrics.BODY)
-	card.add_buttons([cancel, play])
-	cancel.pressed.connect(card.close)
+	card.add_buttons([play])
 	play.pressed.connect(func() -> void:
 		card.close(false)
 		_on_practice_pressed(&"match"))
@@ -811,10 +809,8 @@ func _on_profile_saved() -> void:
 ## Quit: asks first (a stray tap must not close the game).
 func open_quit_confirm() -> MenuDialog:
 	var card: MenuDialog = MenuDialog.create("Quit game?", MenuDialog.WIDTH_SMALL)
-	var stay: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
 	var leave: Button = MenuDialog.make_button("Quit", "red", UiMetrics.BODY)
-	card.add_buttons([stay, leave])
-	stay.pressed.connect(card.close)
+	card.add_buttons([leave])
 	leave.pressed.connect(func() -> void:
 		card.close(false)
 		quit_action.call())

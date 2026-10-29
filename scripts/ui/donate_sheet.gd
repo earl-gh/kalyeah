@@ -22,16 +22,12 @@ static func build(info: DonateInfo = null) -> MenuDialog:
 	var thanks: Label = card.add_label(info.thanks, UiMetrics.BODY, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
 	thanks.name = "Thanks"
 	card.add_hint(info.grown_ups).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var close: Button = MenuDialog.make_button("Close", "grey", UiMetrics.BODY)
-	close.name = "Close"
-	close.pressed.connect(card.close)
 	if info.has_link():
 		var donate: Button = MenuDialog.make_button("Donate", "orange", UiMetrics.BODY)
 		donate.name = "DonateButton"
 		donate.pressed.connect(func() -> void: open_url.call(info.url))
-		card.add_buttons([close, donate])
+		card.add_buttons([donate])
 	else:
 		var soon: Label = card.add_label("Coming soon!", UiMetrics.DETAIL, KalyeahTheme.MODAL_TEXT_MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 		soon.name = "Soon"
-		card.add_buttons([close])
 	return card

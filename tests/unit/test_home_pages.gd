@@ -58,7 +58,7 @@ func test_the_characters_page_only_shows_and_describes_it_never_changes_your_fac
 		assert_eq(Session.avatar_id, "toni", "reading about %s does not choose them" % id)
 	assert_null(page.find_child("Mine", true, false), "no 'You' tag: nothing here is selected")
 	assert_false(page.find_child("Scroll", true, false).get_child(0).get_children().any(func(card: Node) -> bool: return card.find_child("Frame", true, false) != null), "no selection frame")
-	screen.dialog.find_child("Close", true, false).pressed.emit()
+	screen.dialog.find_child("CloseButton", true, false).pressed.emit()
 	assert_false(screen.dialog.is_open)
 
 
@@ -166,7 +166,7 @@ func test_tapping_a_tile_opens_the_detail_sheet_with_the_text_and_figures() -> v
 		var figures: Control = screen.dialog.find_child("Figures", true, false)
 		assert_eq(figures.get_child_count(), WeaponsPage.figures_of(weapon).size())
 		assert_gt(figures.get_child_count(), 0, "every weapon has a figure to show")
-	screen.dialog.find_child("Close", true, false).pressed.emit()
+	screen.dialog.find_child("CloseButton", true, false).pressed.emit()
 	assert_false(screen.dialog.is_open)
 
 

@@ -192,7 +192,7 @@ func test_cancel_keeps_the_old_name() -> void:
 	var screen: TitleScreen = _screen()
 	var card: MenuDialog = screen.open_name_editor()
 	(card.find_child("NameField", true, false) as LineEdit).text = "Changed"
-	(card.find_child("Cancel", true, false) as Button).pressed.emit()
+	card._on_dim_input(TouchHelper.click(Vector2(5.0, 5.0), true))
 	assert_eq(Session.player_name, "Ana")
 	assert_eq(_toasts().size(), 0, "nothing was saved, nothing is announced")
 
