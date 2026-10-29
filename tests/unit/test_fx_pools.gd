@@ -146,3 +146,55 @@ func test_marks_are_the_exact_area() -> void:
 		else:
 			assert_lte(Vector2(vertices[i].x, vertices[i].z).length(), 2.0 + 0.001, "the fill stops at the edge")
 	assert_almost_eq(outer, 2.0 + FxKit.RIM / 2.0, 0.01)
+
+
+# ---- hit bursts -----------------------------------------------------------------------------------------------------
+
+## A sim with `kids` enemies standing apart and a fx view watching it.
+func _brawl(kids: int) -> WeaponFxView:
+	var sim: MatchSim = MatchSim.new(load("res://data/rules/game_rules.tres") as GameRules, load("res://data/rules/map_layout.tres") as MapLayout, 3)
+	for id: int in range(1, kids + 1):
+		sim.add_player(id, 1)
+		sim.players[id].position = Vector2(float(id) * 2.0 - 14.0, 4.0)
+	var fx: WeaponFxView = WeaponFxView.new()
+	add_child_autofree(fx)
+	fx.watch(sim)
+	return fx
+
+
+func _stars(fx: WeaponFxView) -> int:
+	var emitters: int = 0
+	for emitter: CPUParticles3D in fx.context().particles.busy():
+		emitters += 1 if emitter.mesh == FxKit.star_quad() else 0
+	return emitters
+
+
+func test_six_snips_on_one_kid_make_one_ring() -> void:
+	var fx: WeaponFxView = _brawl(2)
+	for i: int in 6:
+		fx.context().sim.damage(1, 6)
+	fx.sync(fx.context().sim, DT)
+	assert_eq(fx.context().ground.live_rings(), 1, "one ring for six snips in one frame")
+	assert_eq(_stars(fx), 1, "and one star burst")
+	assert_eq(fx.burst_count(), 1)
+
+
+func test_a_tick_has_no_ring() -> void:
+	var fx: WeaponFxView = _brawl(2)
+	fx.context().sim.damage(1, 3)
+	fx.sync(fx.context().sim, DT)
+	assert_eq(fx.context().ground.live_rings(), 0, "a 3-damage tick has no ring")
+	assert_eq(_stars(fx), 1, "just two stars")
+	assert_eq((fx.context().particles.busy()[0] as CPUParticles3D).amount, FxBursts.TICK_STARS)
+
+
+func test_burst_cap_is_twelve() -> void:
+	var fx: WeaponFxView = _brawl(14)
+	for id: int in range(1, 15):
+		fx.context().sim.damage(id, 10)
+	fx.sync(fx.context().sim, DT)
+	assert_lte(fx.burst_count(), FxBursts.MAX_LIVE, "at most twelve bursts at once")
+	assert_lte(fx.context().ground.live_rings(), FxBursts.MAX_LIVE)
+	for i: int in 10:
+		fx.sync(fx.context().sim, DT)
+	assert_eq(fx.burst_count(), 0, "and they are over in a third of a second")

@@ -18,6 +18,7 @@ var local_team: int = 0
 var particles: FxParticles
 var ground: FxGround
 var shadows: FxShadows
+var bursts: FxBursts
 var _casts: Array[Dictionary] = []
 
 

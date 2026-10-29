@@ -80,31 +80,31 @@ func test_the_health_bars_are_chunky_at_phone_size() -> void:
 func test_a_hit_has_a_ground_ring_and_reduce_motion_keeps_it_still() -> void:
 	var practice: PracticeMatch = _practice()
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
-	practice.sim.damage(PracticeMatch.ENEMY_STAND_ID, 1)
+	# 3 damage or less is a tick (stars, no ring); a real hit rings
+	practice.sim.damage(PracticeMatch.ENEMY_STAND_ID, 9)
 	practice.advance(DT)
 	assert_eq(fx.burst_count(), 1)
-	var burst: Node3D = fx.get_node("Burst") as Node3D
-	var ring: Node3D = burst.get_node("ImpactRing") as Node3D
-	var size: float = (WeaponFxView.BURST_MIN + 1.0 / WeaponFxView.BURST_DAMAGE_STEP) * fx.view_scale
-	assert_almost_eq(ring.scale.x, size * WeaponFxView.BURST_RING_TO, 0.01, "a tick still reads near the smallest size, held at its end size")
-	for child: Node in burst.get_children():
-		assert_false(child is MeshInstance3D and (child as MeshInstance3D).mesh is BoxMesh, "no sparks with Reduce motion")
+	var rings: Array[MeshInstance3D] = fx.context().ground.active_rings()
+	assert_eq(rings.size(), 1)
+	assert_almost_eq(rings[0].scale.x, WeaponFxView.BURST_RING_TO, 0.01, "held at its end size, a metre at most (not times the view scale)")
+	assert_eq(fx.particle_count(), 0, "no stars with Reduce motion")
 
 
-func test_impacts_grow_with_the_drawn_kid_and_sparks_fly_with_motion() -> void:
+func test_a_hit_rings_at_most_a_metre_and_throws_four_stars() -> void:
 	Settings.set_reduced_motion(false)
 	var practice: PracticeMatch = _practice()
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
 	practice.sim.damage(PracticeMatch.ENEMY_STAND_ID, 9)
 	practice.advance(DT)
-	var burst: Node3D = fx.get_node("Burst") as Node3D
-	var sparks: int = 0
-	for child: Node in burst.get_children():
-		if child is MeshInstance3D and (child as MeshInstance3D).mesh is BoxMesh:
-			sparks += 1
-	assert_eq(sparks, WeaponFxView.BURST_SPARKS)
-	for child: Node in burst.get_children():
-		assert_false(child is MeshInstance3D and (child as MeshInstance3D).mesh is SphereMesh, "no flash over the kid: it hid the kid on every hit")
+	var stars: int = 0
+	for emitter: CPUParticles3D in fx.context().particles.busy():
+		if emitter.mesh == FxKit.star_quad():
+			stars += emitter.amount
+	assert_eq(stars, WeaponFxView.BURST_STARS, "four comic stars")
+	for ring: MeshInstance3D in fx.context().ground.active_rings():
+		assert_lte(ring.scale.x, 1.0, "the ring never outgrows the smallest hit area")
+	for node: Node in fx.find_children("*", "MeshInstance3D", true, false):
+		assert_false((node as MeshInstance3D).mesh is SphereMesh, "no flash over the kid: it hid the kid on every hit")
 
 
 func test_banners_are_big_and_a_long_one_still_fits_a_narrow_phone() -> void:
