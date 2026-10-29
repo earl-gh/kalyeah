@@ -108,6 +108,7 @@ func make_actor_view(state: PlayerState) -> void:
 		character = owner.rules.characters[0]
 	var view: KidModel = KidModel.new()
 	view.setup(character)
+	view.set_team_outline(TeamColors.world_own() if state.team == owner.local_team else TeamColors.world_enemy())
 	view.scale = Vector3.ONE * owner._camera.rules.kid_view_scale
 	owner._actors.add_child(view)
 	owner._views[state.id] = view
