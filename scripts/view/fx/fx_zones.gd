@@ -55,14 +55,15 @@ const FILL_POP_FRAMES: int = 4
 const SLOW_FADE: float = 0.3
 const FADE_RIM: float = 0.42
 ## The jacks are tossed from the thrower's hand in a spray, one cluster a frame (`JACK_STAGGER`), each flying
-## `JACK_FLIGHT_FRAMES` frames `JACK_PEAK` m high and landing squashed (`JACK_LAND_S`) with `JACK_DUST` dust. A tick that
+## `JACK_FLIGHT_FRAMES` frames `JACK_PEAK` m high and landing squashed (`JACK_LAND_S`), the spray throwing `JACK_DUST` dust
+## (one shared puff). A tick that
 ## hurts a kid makes the nearest cluster hop `JACK_HOP` m for a frame. In the last `SLOW_FADE` s they sink `JACK_SINK` m
 ## and shrink to `JACK_SHRINK` while the fill fades.
 const JACK_STAGGER: int = 1
 const JACK_FLIGHT_FRAMES: int = 6
 const JACK_PEAK: float = 1.2
 const JACK_LAND_S: float = 0.75
-const JACK_DUST: int = 2
+const JACK_DUST: int = 6
 const JACK_HOP: float = 0.1
 const JACK_SINK: float = 0.3
 const JACK_SHRINK: float = 0.4
@@ -473,10 +474,10 @@ func _field(rec: Rec, zone: WeaponSystem.Zone) -> void:
 		cluster.visible = true
 		if rec.origin != Vector2.INF and t < 1.0 + float(FxSquash.IMPACT_FRAMES) * FxSquash.FRAME / flight:
 			cluster.scale = FxSquash.along(JACK_LAND_S) * scale
-			if i >= rec.landed:
-				rec.landed = i + 1
-				var at: Vector3 = rec.node.position + home
-				_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(at.x, 0.0, at.z), JACK_DUST)
+			if rec.landed == 0:
+				# one shared puff of dust for the whole spray (one emitter, not one per cluster)
+				rec.landed = 1
+				_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(rec.node.position.x, 0.0, rec.node.position.z), JACK_DUST)
 		if rec.hops[i] >= 0.0 and _ctx.time - rec.hops[i] < FxSquash.FRAME:
 			cluster.position.y += JACK_HOP
 
