@@ -84,6 +84,8 @@ static func particle_material(billboard: bool) -> StandardMaterial3D:
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	if billboard:
 		material.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		# without this a billboard drops each particle's own size (every puff would be its 1 m mesh, never shrinking)
+		material.billboard_keep_scale = true
 	material.render_priority = PRIO_DECAL
 	count_material()
 	return material
