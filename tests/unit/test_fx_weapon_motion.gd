@@ -449,3 +449,86 @@ func test_polymorph_on_and_off_puff() -> void:
 			break
 	assert_true(turned, "the kid became a can")
 	assert_eq(smoke, 2, "one smoke puff when it turned into a can, one when it turned back")
+
+
+# ---- papel trap and jacks ---------------------------------------------------------------------------------------------
+
+func test_trap_arms_over_arm_time() -> void:
+	_setup(Vector2(20.0, 0.0))
+	_cast(&"papel_trap", Vector2(0.0, -4.0 / 6.0))
+	_fx.sync(_sim, DT)
+	var zone: WeaponSystem.Zone = _sim.weapons.zones[0]
+	var node: Node3D = _fx.zones.node_for(zone.id)
+	var disc: Node3D = node.get_node("Progress") as Node3D
+	var frames: int = 0
+	while disc.visible and frames < 60:
+		_frame()
+		frames += 1
+	assert_almost_eq(float(frames) * DT, zone.def.arm_time, 2.0 * DT, "the arming fill fills over the arming time")
+	var rim: float = 0.0
+	for color: Color in ((node.get_node("Mark") as MeshInstance3D).mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR] as PackedColorArray):
+		rim = maxf(rim, color.a)
+	assert_almost_eq(rim, FxKit.RIM_ALPHA, 0.01, "armed: a solid rim")
+
+
+func test_trap_springs_into_a_team_slow_zone() -> void:
+	_setup(Vector2(20.0, 0.0))
+	_cast(&"papel_trap", Vector2(0.0, -4.0 / 6.0))
+	for i: int in 30:
+		_frame()
+	var zone: WeaponSystem.Zone = _sim.weapons.zones[0]
+	_sim.players[2].position = zone.center
+	_frame()
+	assert_eq(zone.kind, WeaponSystem.ZoneKind.SLOW_ZONE, "the trap sprang")
+	assert_gt(_fx.zones.fading_count(), 0, "the ball springs up")
+	assert_gt(_fx.context().particles.busy_emitters(), 0, "into paper bits")
+	var fill: Node3D = _fx.zones.node_for(zone.id).get_node("Fill") as Node3D
+	assert_lt(fill.scale.x, 1.0, "the slow zone's fill pops out")
+	for i: int in FxZones.FILL_POP_FRAMES + 1:
+		_frame()
+	assert_almost_eq(fill.scale.x, 1.0, 0.001, "to its whole radius")
+	var mark: MeshInstance3D = _fx.zones.node_for(zone.id).get_node("Mark") as MeshInstance3D
+	var color: Color = (mark.mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR] as PackedColorArray)[0]
+	var own: Color = TeamColors.world_own()
+	assert_lt(absf(color.r - own.r) + absf(color.g - own.g) + absf(color.b - own.b), 0.02, "in the thrower's colour")
+	while zone.time_left > FxZones.SLOW_FADE / 2.0:
+		_frame()
+	assert_lt((mark.material_override as StandardMaterial3D).albedo_color.a, 1.0, "it fades in its last moments")
+
+
+func test_jacks_scatter_then_rest_on_the_ground() -> void:
+	_setup(Vector2(20.0, 0.0))
+	_cast(&"jacks", Vector2(0.0, -4.0 / 6.0))
+	_fx.sync(_sim, DT)
+	var spikes: Node3D = _fx.zones.node_for(_sim.weapons.zones[0].id).get_node("Spikes") as Node3D
+	var flying: int = 0
+	for i: int in 3:
+		_frame()
+		for child: Node in spikes.get_children():
+			flying += 1 if (child as Node3D).position.y > 0.2 else 0
+	assert_gt(flying, 0, "they are tossed, not placed")
+	for i: int in 10:
+		_frame()
+	for child: Node in spikes.get_children():
+		assert_almost_eq((child as Node3D).position.y, 0.0, 0.001, "every cluster rests on the street")
+		assert_true((child as Node3D).visible)
+
+
+func test_rm_trap_and_jacks_static() -> void:
+	Settings.reduced_motion = true
+	_setup(Vector2(20.0, 0.0))
+	_cast(&"papel_trap", Vector2(0.0, -4.0 / 6.0))
+	_cast(&"jacks", Vector2(0.6, -4.0 / 6.0))
+	_fx.sync(_sim, DT)
+	for i: int in 40:
+		_frame()
+		for zone: WeaponSystem.Zone in _sim.weapons.zones:
+			var node: Node3D = _fx.zones.node_for(zone.id)
+			var ball: Node3D = node.get_node_or_null("Ball") as Node3D
+			if ball != null:
+				assert_eq((ball.get_node("Squash") as Node3D).basis, Basis.IDENTITY, "no toss, squash or breathing")
+			var spikes: Node3D = node.get_node_or_null("Spikes") as Node3D
+			if spikes != null:
+				for child: Node in spikes.get_children():
+					assert_almost_eq((child as Node3D).position.y, 0.0, 0.001, "placed, no toss or hop")
+	assert_eq(_fx.particle_count(), 0)
