@@ -68,6 +68,18 @@ func test_the_enemy_team_defends_until_the_delay_and_then_attacks() -> void:
 	assert_eq(coach.plan, TeamCoach.Plan.ASSAULT)
 
 
+func test_with_the_real_numbers_the_enemies_come_out_right_after_go_and_rest_briefly() -> void:
+	# owner: a round used to open with 25 s of nobody moving; they now come out right after GO
+	assert_lte(_rules.bot_assault_delay, 3.0, "the data's own numbers (before_each loads them)")
+	assert_lte(_rules.bot_rest_time, 8.0)
+	var sim: MatchSim = _sim()
+	var coach: TeamCoach = _enemies(sim)
+	var start: Vector2 = sim.players[4].position
+	_run(sim, [coach] as Array[TeamCoach], _rules.bot_assault_delay + 2.0)
+	assert_eq(coach.plan, TeamCoach.Plan.ASSAULT, "attacking a couple of seconds after GO")
+	assert_gt(sim.players[4].position.distance_to(start), 2.0, "and out of their base")
+
+
 func test_a_team_with_most_of_it_tagged_falls_back_to_defending() -> void:
 	_rules.bot_assault_delay = 0.0
 	var sim: MatchSim = _sim()
