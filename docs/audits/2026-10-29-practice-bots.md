@@ -38,3 +38,18 @@ per match for your team; home 0.15 : 1.65. The old brains with the new timing: r
   street past their defenders) while theirs is in yours, where your defenders hold the base and do not chase. A real player who
   attacks does better than the stand-in, which aims like a bot (`bot_skill` 0.4).
 - Levers if Practice should be easier: `bot_rest_time` (longer rests), `bot_assault_delay`, or a lower `bot_skill` for the enemy team.
+
+## Follow-up: the allies come out too
+
+Your allies only attacked while you were in the enemy half, so with you at home they first left their base after 41.2 s on average
+(`ally_start`). They now follow the same clock as the enemies (out after `bot_assault_delay`, waves), and still attack whenever you
+are in the enemy half.
+
+| | rush before | rush after | home before | home after |
+|---|---|---|---|---|
+| Allies leave their base after | 4.8 s | **3.6 s** | 41.2 s | **3.6 s** |
+| Rescues per match, yours : theirs | 0.78 : 1.73 | **2.20 : 2.05** | 0.05 : 3.02 | 0.40 : 1.62 |
+| Points per match, yours : theirs | 0.80 : 1.50 | **1.35 : 0.62** | 0.20 : 2.65 | 0.25 : 1.70 |
+| Matches won : lost (of 40) | 1 : 1 | 4 : 0 | 0 : 29 | **0 : 3** |
+
+This also takes back most of the extra difficulty above: the enemies no longer face a team that only defends.
