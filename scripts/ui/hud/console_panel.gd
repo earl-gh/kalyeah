@@ -38,7 +38,7 @@ const TRAY_RIM_SHADE: Color = Color(0.24, 0.53, 0.76, 0.0)
 const TRAY_SIDE_SHADE: Color = Color(0.62, 0.82, 0.95, 0.18)
 ## The shade the tray casts up onto the street (like the nav bar's).
 const TRAY_CAST: Color = Color(0.0, 0.02, 0.08, 0.4)
-const CORNER: int = UiSkin.RADIUS_L
+const CORNER: int = UiSkin.RADIUS_XL
 ## How many segments a rounded top corner is drawn with.
 const ARC_STEPS: int = 10
 const CORNER_RADIUS: float = float(UiSkin.RADIUS_S)
