@@ -89,7 +89,8 @@ func test_the_cone_flash_is_whole_from_its_first_frame_and_says_who_threw_it() -
 	var material: BaseMaterial3D = flash.material_override as BaseMaterial3D
 	assert_eq(material.cull_mode, BaseMaterial3D.CULL_DISABLED, "seen from above, not culled away")
 	assert_almost_eq(_rim_alpha(flash), WeaponFxView.FX_RIM_ALPHA, QUANTUM)
-	assert_almost_eq(fx.cones.flash_time(flash), WeaponFxView.CONE_FLASH_TIME, 0.001, "it holds its full look from frame 0")
+	assert_almost_eq(fx.cones.flash_time(flash), FxCones.flash_time_for(snip, snip.snips_min), 0.001, "it holds its full look from frame 0")
+	assert_gt(FxCones.flash_time_for(snip, snip.snips_min), FxMotion.snip_frames(snip.snips_min) / 30.0, "and outlives the scissors' snips")
 
 
 func test_colour_blind_you_are_not_the_enemys_orange() -> void:

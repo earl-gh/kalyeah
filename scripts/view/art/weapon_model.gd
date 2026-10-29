@@ -45,6 +45,11 @@ static func has_model(weapon_id: StringName) -> bool:
 	return OBJECTS.has(weapon_id)
 
 
+## True for the weapons that snip with the scissors (the gunting cards).
+static func has_scissors(weapon_id: StringName) -> bool:
+	return weapon_id == &"gunting_light" or weapon_id == &"gunting_heavy"
+
+
 ## The thrown / placed object of `weapon_id`, its middle on the origin when `centered` (a
 ## projectile in flight) or standing on the ground (a placed trap).
 static func make(weapon_id: StringName, centered: bool) -> Node3D:

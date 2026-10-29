@@ -7,7 +7,7 @@ extends Node3D
 
 ## The meteor of a rock-meteor circle starts this far off its circle, up and behind (it falls in on an ease-in curve, so it
 ## speeds up, and never crosses in front of a face), tumbling `METEOR_TUMBLE` turns on the way down.
-const METEOR_FROM: Vector3 = Vector3(1.5, 12.0, -1.5)
+const METEOR_FROM: Vector3 = FxMotion.METEOR_FROM
 const METEOR_TUMBLE: float = 1.5
 ## The meteor's shadow grows from `METEOR_SHADOW_FROM` of its size to whole as it falls (the "it lands here" cue).
 const METEOR_SHADOW_FROM: float = 0.3
@@ -240,7 +240,7 @@ func _update(rec: Rec, zone: WeaponSystem.Zone) -> void:
 func _meteor(rec: Rec, zone: WeaponSystem.Zone) -> void:
 	var p: float = progress(zone, rec)
 	var radius: float = WeaponModel.METEOR_SIZE / 2.0
-	rec.obj.position = METEOR_FROM * (1.0 - p * p) + Vector3(0.0, radius, 0.0)
+	rec.obj.position = FxMotion.meteor_offset(p) + Vector3(0.0, radius, 0.0)
 	if _ctx.shadows.attach(rec.id, WeaponModel.METEOR_SIZE, rec.team):
 		_ctx.shadows.place(rec.id, zone.center, rec.obj.position.y, lerpf(METEOR_SHADOW_FROM, 1.0, p))
 	if _ctx.reduced:

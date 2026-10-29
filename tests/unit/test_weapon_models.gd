@@ -192,10 +192,14 @@ func test_the_scissors_snip_for_gunting() -> void:
 	var scissors: Node3D = fx.find_child("Scissors", true, false) as Node3D
 	assert_not_null(scissors, "scissors show where it snips")
 	var start: Vector3 = scissors.position
+	var rig: ScissorsRig = fx.cones.scissors()[0]
+	assert_eq(rig.blades().size(), 2, "two blades")
+	var opened: float = rig.angle()
 	practice.advance(DT)
 	practice.advance(DT)
 	if is_instance_valid(scissors):
-		assert_ne(scissors.position, start, "they lunge forward")
+		assert_ne(scissors.position, start, "they move (pull back for the big snip)")
+		assert_ne(rig.angle(), opened, "and the blades open")
 
 
 func test_a_heal_floats_a_green_cross_over_the_kid_and_it_goes_away() -> void:

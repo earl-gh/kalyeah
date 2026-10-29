@@ -95,3 +95,99 @@ func test_rm_rock_is_still() -> void:
 		assert_eq(_part(_rig(id), "Squash/Spin").basis, spin, "no tumble")
 	assert_eq(_fx.particle_count(), 0, "no puffs")
 	assert_not_null(_fx.context().shadows.node_of(id), "the shadow stays: it is information")
+
+
+# ---- gunting (the scissors) -------------------------------------------------------------------------------------------
+
+func test_scissors_split_keeps_every_triangle() -> void:
+	var halves: Array[ArrayMesh] = ScissorsRig.halves()
+	var source: int = ScissorsRig.triangles(WeaponModel.mesh_of(ScissorsRig.MODEL))
+	assert_eq(ScissorsRig.triangles(halves[0]) + ScissorsRig.triangles(halves[1]), source, "no triangle lost or doubled")
+	assert_gt(ScissorsRig.triangles(halves[0]), 400, "blade A is a real blade")
+	assert_gt(ScissorsRig.triangles(halves[1]), 400, "and so is blade B")
+	assert_same(ScissorsRig.halves()[0], halves[0], "split once")
+
+
+func test_snip_period_table() -> void:
+	var expected: Dictionary[int, int] = {2: 5, 3: 5, 4: 4, 6: 2}
+	for n: int in expected:
+		assert_eq(FxMotion.snip_period(n), expected[n], "%d snips" % n)
+		assert_lte(n * FxMotion.snip_period(n), 16, "all %d snips fit in about half a second" % n)
+
+
+func _snips_for(hold: float) -> int:
+	_setup(Vector2(0.0, 5.0))
+	_cast(&"gunting_light", Vector2(0.0, -1.0), hold)
+	_fx.sync(_sim, DT)
+	var rig: ScissorsRig = _fx.cones.scissors()[0]
+	var closes: int = 0
+	var last: float = rig.angle()
+	for i: int in 20:
+		_frame()
+		if not is_instance_valid(rig) or _fx.cones.scissors().is_empty():
+			break
+		if rig.angle() <= ScissorsRig.CLOSED and last > ScissorsRig.CLOSED:
+			closes += 1
+		last = rig.angle()
+	return closes
+
+
+func test_light_snips_n_times() -> void:
+	var def: WeaponDef = _rules.weapons.filter(func(d: WeaponDef) -> bool: return d.id == &"gunting_light")[0] as WeaponDef
+	assert_eq(_snips_for(0.0), def.snip_count(0.0), "a tap snips the least")
+	var long: float = 10.0
+	assert_eq(_snips_for(long), def.snip_count(long), "a long hold snips the most")
+	assert_eq(def.snip_count(long), def.snips_max)
+
+
+func test_scissors_keep_clear_of_kids() -> void:
+	for distance: float in [3.0, 2.5]:
+		_setup(Vector2(0.0, 8.0 - distance))
+		var def: WeaponDef = _sim.weapon_defs[&"gunting_light"]
+		var place: Vector2 = _fx.cones.placement(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
+		var handles: float = place.y - place.x / 2.0
+		var tips: float = place.y + place.x / 2.0 + FxCones.SNIP_LUNGE_STEP
+		assert_gte(handles, FxCones.SNIP_CASTER_CLEAR - 0.001, "handles clear of the caster (%.1f m)" % distance)
+		assert_lte(tips, distance - FxCones.SNIP_TARGET_CLEAR + 0.001, "tips short of the kid at %.1f m, lunge included" % distance)
+	_setup(Vector2(0.0, -20.0))
+	var heavy: WeaponDef = _sim.weapon_defs[&"gunting_heavy"]
+	var free: Vector2 = _fx.cones.placement(1, heavy, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
+	assert_lte(free.y + free.x / 2.0 + FxCones.HEAVY_LUNGE, heavy.max_range, "with nobody there they stay inside the range")
+
+
+func test_heavy_opens_during_the_windup_and_closes_on_the_strike() -> void:
+	_setup(Vector2(0.0, 5.0))
+	_cast(&"gunting_heavy", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var rig: ScissorsRig = _fx.cones.scissors()[0]
+	var start: float = rig.angle()
+	var widest: float = start
+	var struck: bool = false
+	for i: int in 20:
+		_frame()
+		if _fx.cones.windup_count() == 0 and not struck:
+			struck = true
+			assert_eq(rig.angle(), ScissorsRig.CLOSED, "shut in one frame on the strike")
+			break
+		widest = maxf(widest, rig.angle())
+	assert_true(struck, "the strike came")
+	assert_gt(widest, ScissorsRig.WIDE_HEAVY - TREMBLE_SLACK, "they opened wide during the wind-up")
+	assert_lt(start, widest, "opening, not born open")
+
+
+const TREMBLE_SLACK: float = 3.0
+
+
+func test_rm_scissors_static() -> void:
+	Settings.reduced_motion = true
+	_setup(Vector2(0.0, 5.0))
+	_cast(&"gunting_light", Vector2(0.0, -1.0), 10.0)
+	_fx.sync(_sim, DT)
+	var rig: ScissorsRig = _fx.cones.scissors()[0]
+	var place: Vector3 = (rig.get_parent().get_parent() as Node3D).position
+	for i: int in 6:
+		_frame()
+		assert_eq(rig.angle(), ScissorsRig.CLOSED, "closed and still")
+		assert_eq((rig.get_parent().get_parent() as Node3D).position, place, "no lunge")
+	assert_eq(_fx.context().ground.live_smears(), 0, "no smear")
+	assert_eq(_fx.particle_count(), 0, "no sparks")

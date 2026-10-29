@@ -160,6 +160,22 @@ func test_the_warning_shows_while_the_big_snip_winds_up_and_goes_when_it_lands()
 	assert_eq(fx.windup_count(), 0, "it strikes after half a second and the warning is gone")
 
 
+func test_the_big_snip_hand_lands_on_the_strike() -> void:
+	var practice: PracticeMatch = _practice()
+	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
+	practice.sim.set_loadout(PracticeMatch.LOCAL_ID, &"gunting_heavy", &"papel_shield")
+	player.position = Vector2(0.0, 4.0)
+	practice.sim.players[PracticeMatch.ENEMY_STAND_ID].position = Vector2(0.0, 1.0)
+	var kid: KidModel = practice._views[PracticeMatch.LOCAL_ID]
+	practice.card_pressed(0)
+	practice.card_released(0, Vector2.ZERO, true, true)
+	for i: int in 3:
+		practice.advance(DT)
+	var delay: float = practice.sim.weapon_defs[&"gunting_heavy"].delay
+	assert_almost_eq(kid.cast_seek, maxf(kid.cast_release("cast") - delay, 0.0), 0.001, "the clip starts half a second early, so the hand comes down on the strike")
+	assert_eq(PracticeMatchPresentation.cast_lead(practice.sim, &"gunting_light"), 0.0, "an instant snip releases on the cast")
+
+
 # ---- the hit burst ------------------------------------------------------------------
 
 func test_a_kid_who_is_hit_gets_a_short_burst() -> void:

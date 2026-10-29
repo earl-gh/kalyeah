@@ -67,6 +67,9 @@ var _ghost: bool = false
 var _cast_left: float = 0.0
 var _cast_total: float = 0.0
 var _cast_clip: String = "cast"  # Cast_OneHand (standing) or Cast_Run (moving), chosen when the cast starts
+var _cast_lead: float = 0.0
+## Seconds into the cast clip the last cast started at (tests).
+var cast_seek: float = 0.0
 var _tired: bool = false
 enum Vanish { NONE, SHRINK, GROW }
 var _vanish: Vanish = Vanish.NONE
@@ -108,10 +111,12 @@ func face(facing: Vector2) -> void:
 
 
 ## A weapon was cast (the sim's weapon_cast, this tick): standing it is Cast_OneHand, moving Cast_Run, either way from the
-## hand's release to the end of the clip, at native speed.
-func play_cast() -> void:
+## hand's release to the end of the clip, at native speed. A delayed strike (the big snip) passes its delay as `lead`: the
+## clip starts that much before the release (never before its start), so the hand comes down on the strike, not the cast.
+func play_cast(lead: float = 0.0) -> void:
 	_cast_clip = "cast_run" if _move_blend > 0.5 else "cast"
-	_cast_total = maxf(_clip_length(_cast_clip) - cast_release(_cast_clip), 0.01)
+	_cast_lead = maxf(lead, 0.0)
+	_cast_total = maxf(_clip_length(_cast_clip) - _cast_start(_cast_clip), 0.01)
 	_cast_left = _cast_total
 	_cast_serial += 1
 
@@ -290,7 +295,13 @@ func _play(clip: String) -> void:
 	# a cast is a cut: the hand must be at its release on the very tick the effect appears
 	_player.play(clip, 0.0 if is_cast else BLEND)
 	if is_cast:
-		_player.seek(cast_release(clip), true)
+		cast_seek = _cast_start(clip)
+		_player.seek(cast_seek, true)
+
+
+## Where a cast clip starts: the hand's release, less the strike's lead.
+func _cast_start(clip: String) -> float:
+	return maxf(cast_release(clip) - _cast_lead, 0.0)
 
 
 func _clip_length(clip: String) -> float:
