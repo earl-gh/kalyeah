@@ -191,3 +191,77 @@ func test_rm_scissors_static() -> void:
 		assert_eq((rig.get_parent().get_parent() as Node3D).position, place, "no lunge")
 	assert_eq(_fx.context().ground.live_smears(), 0, "no smear")
 	assert_eq(_fx.particle_count(), 0, "no sparks")
+
+
+# ---- tsinelas (the slippers) ------------------------------------------------------------------------------------------
+
+func _spin_of(id: int) -> float:
+	return (_part(_rig(id), "Squash/Tilt/Spin").basis.get_euler()).y
+
+
+func test_slipper_spin_reverses_on_the_way_back() -> void:
+	_setup(Vector2(20.0, 8.0))
+	_cast(&"tsinelas_heavy", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var id: int = _sim.weapons.projectiles[0].id
+	var signs: Array[float] = []
+	var last: float = _spin_of(id)
+	for i: int in 60:
+		_frame()
+		if _sim.weapons.projectiles.is_empty():
+			break
+		var now: float = _spin_of(id)
+		var step: float = wrapf(now - last, -PI, PI)
+		if absf(step) > 0.001:
+			var sign: float = signf(step)
+			if signs.is_empty() or signs.back() != sign:
+				signs.append(sign)
+		last = now
+	assert_eq(signs.size(), 2, "it spins one way out and the other way back %s" % str(signs))
+
+
+func test_slap_squashes_the_nearest_slipper() -> void:
+	_setup(Vector2(0.0, 5.0))
+	_cast(&"tsinelas_heavy", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var id: int = _sim.weapons.projectiles[0].id
+	var slapped: bool = false
+	for i: int in 20:
+		_frame()
+		if _fx.context().ground.live_smears() > 0:
+			var along: Vector3 = _part(_rig(id), "Squash").basis * Vector3(0.0, 0.0, -1.0)
+			assert_almost_eq(along.length(), FxProjectiles.SLAP_S, 0.05, "stretched on the slap")
+			slapped = true
+			break
+	assert_true(slapped, "the hit kid got a smack streak from the slipper")
+
+
+func test_catch_shrinks_into_the_hand() -> void:
+	_setup(Vector2(20.0, 8.0))
+	_cast(&"tsinelas_heavy", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var caught: bool = false
+	for i: int in 120:
+		_frame()
+		if _sim.weapons.projectiles.is_empty():
+			caught = _fx.projectiles.fading_count() == 1
+			break
+	assert_true(caught, "the slipper came back and is shrinking into the hand")
+	for f: int in FxProjectiles.CATCH_FRAMES + 1:
+		_frame()
+	assert_eq(_fx.projectiles.fading_count(), 0, "gone into the hand within four frames")
+
+
+func test_rm_slipper_no_spin() -> void:
+	Settings.reduced_motion = true
+	_setup(Vector2(20.0, 8.0))
+	_cast(&"tsinelas_heavy", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var id: int = _sim.weapons.projectiles[0].id
+	_frame()
+	var spin: Basis = _part(_rig(id), "Squash/Tilt/Spin").basis
+	for i: int in 10:
+		_frame()
+		assert_eq(_part(_rig(id), "Squash").basis, Basis.IDENTITY, "no stretch")
+		assert_true(_part(_rig(id), "Squash/Tilt/Spin").basis.is_equal_approx(spin), "no spin: a fixed tilt along its flight")
+	assert_eq(_fx.particle_count(), 0)

@@ -11,10 +11,11 @@ extends RefCounted
 ## `GROUP` so tests and tools can tell the skill objects apart from the flat effects drawn round them.
 
 const PATH: String = "res://assets/models/weapons/%s.glb"
-## Weapon id -> [model, longest side in metres]. The slippers keep the old boxes' length.
+## Weapon id -> [model, longest side in metres]. The slippers are drawn at most twice their hit circle (0.6 m light, 1.0 m
+## heavy; 1.2 and 2.0 m on screen) so a flying slipper never hides a whole kid (owner's call: they were 0.8 and 1.5).
 const OBJECTS: Dictionary[StringName, Array] = {
-	&"tsinelas_light": ["slipper", 0.8],
-	&"tsinelas_heavy": ["slipper", 1.5],
+	&"tsinelas_light": ["slipper", 0.6],
+	&"tsinelas_heavy": ["slipper", 1.0],
 	&"lata": ["can", 0.7],
 	&"bola": ["marble", 0.8],
 	&"papel_trap": ["crumpled_paper", 0.7],
