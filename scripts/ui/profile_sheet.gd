@@ -17,10 +17,14 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 	card.body.add_child(holder)
 	var tag: NameTag = NameTag.new()
 	tag.name = "Preview"
-	tag.swing = false
-	tag.strap.hide()
+	tag.sway_scale = 0.1
+	for piece: ColorRect in [tag.back_strap, tag.front_strap, tag.front_cap]:
+		piece.z_as_relative = true
+		piece.z_index = 0
+	tag.front_cap.z_index = 2
+	(card.find_child("DialogScroll", true, false) as ScrollContainer).clip_contents = false
 	tag.card.z_as_relative = true
-	tag.card.z_index = 0
+	tag.card.z_index = 1
 	tag.tap_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tag.tap_button.focus_mode = Control.FOCUS_NONE
 	tag.name_label.hide()
@@ -39,8 +43,10 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 	box.border_color = Color.TRANSPARENT
 	box.set_border_width_all(3)
 	box.set_corner_radius_all(UiSkin.RADIUS_M)
-	box.content_margin_left = 0.0
-	box.content_margin_right = 0.0
+	box.content_margin_left = 8.0
+	box.content_margin_right = 8.0
+	box.content_margin_top = 4.0
+	box.content_margin_bottom = 4.0
 	box.anti_aliasing = true
 	for state: String in ["normal", "read_only"]:
 		field.add_theme_stylebox_override(state, box)
@@ -54,9 +60,9 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 	var fit_preview: Callable = func() -> void:
 		tag.set_player_name(field.text)
 		var fitted: float = minf(1.15, holder.size.x / tag.card.size.x) if holder.size.x > 0.0 else 1.0
-		tag.hang(Vector2(holder.size.x / 2.0, NameTag.SLOT_MIDDLE * fitted + UiMetrics.COMPACT_GAP), 0.0, fitted)
-		field.position = tag.name_label.position - Vector2(0.0, UiMetrics.GAP)
-		field.size = Vector2(tag.name_label.size.x, UiMetrics.TOUCH)
+		tag.hang(Vector2(holder.size.x / 2.0, NameTag.SLOT_MIDDLE * fitted + UiMetrics.COMPACT_GAP), -card.size.y, fitted)
+		field.position = tag.name_label.position - Vector2(8.0, UiMetrics.GAP)
+		field.size = Vector2(tag.name_label.size.x + 16.0, UiMetrics.TOUCH)
 		field.alignment = tag.name_label.horizontal_alignment
 		field.add_theme_font_override("font", tag.name_label.get_theme_font("font"))
 		field.add_theme_font_size_override("font_size", tag.name_label.get_theme_font_size("font_size"))

@@ -257,7 +257,7 @@ Reduce motion skips menu/button/banner pops and carousel snapping animation, rem
 - Host leaves in lobby → next player becomes host. Player disconnect in match → slot stays, 60 s to reconnect.
 - Implementation defaults (M4):
   - A new player joins the smaller team; tap **Join** on the other team to switch, which un-readies you.
-  - Names are up to 12 characters on the server ("Player" if empty); the app asks for at most 10 letters (`Session.MAX_NAME_LENGTH`).
+  - Names are up to 12 characters on the server ("Player" if empty); the app uses the same 12-character limit (`Session.MAX_NAME_LENGTH`).
   - Loading waits up to 15 s for every client, then starts anyway.
   - The 10 s weapon pick has 1 s of grace on the server; empty picks are filled at random.
   - A dropped player stands still in the match.

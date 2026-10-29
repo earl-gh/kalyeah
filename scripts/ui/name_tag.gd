@@ -43,7 +43,7 @@ const CAP_RATIO: float = 0.72
 const HINT_SIZE: int = UiMetrics.TAG_HINT
 const HINT_GAP: float = 14.0
 ## The name's letters, from the largest down to the smallest that still reads: a longer name takes a smaller size.
-const NAME_SIZES: Array[int] = [UiMetrics.HEADLINE, UiMetrics.TITLE, UiMetrics.BODY]
+const NAME_SIZES: Array[int] = [UiMetrics.HEADLINE - 4, UiMetrics.TITLE - 2, UiMetrics.BODY]
 ## Depths: the straps run behind the card and the logo (the logo is above all of them, `LOGO_Z`); the card is above the backdrop's lights and
 ## the mode models' glow, below the chosen model; the end of the front strap lies over the card.
 const STRAP_Z: int = 1
@@ -74,7 +74,7 @@ const PHOTO_EMPTY_BACK: Color = Color("f2f5fb")
 const PHOTO_EMPTY_EDGE: Color = Color("9fb0d6")
 const ADD_PHOTO: String = "Add photo"
 ## With a photo the card is never narrower than this (the photo, the words and the slot between them), and may grow to this so the
-## widest ten letters still take the largest size beside the photo (inside a 720 px screen).
+## widest twelve letters fit beside the photo (inside a 720 px screen).
 const PHOTO_MIN_WIDTH: float = 420.0
 const PHOTO_MAX_WIDTH: float = 640.0
 
@@ -84,6 +84,8 @@ var swing: bool = true:
 		swing = value
 		if not value:
 			_rest()
+## Editing uses a smaller amplitude so the caret stays easy to follow.
+var sway_scale: float = 1.0
 var card: Control
 var greeting_label: Label
 var name_label: Label
@@ -296,8 +298,8 @@ func _process(_delta: float) -> void:
 		_rest()
 		return
 	var phase: float = float(Time.get_ticks_msec()) / 1000.0 * TAU / SWAY_SECONDS
-	rotation = deg_to_rad(SWAY_DEGREES) * sin(phase)
-	card.rotation = deg_to_rad(LAG_DEGREES) * sin(phase - LAG)
+	rotation = deg_to_rad(SWAY_DEGREES * sway_scale) * sin(phase)
+	card.rotation = deg_to_rad(LAG_DEGREES * sway_scale) * sin(phase - LAG)
 
 
 func _rest() -> void:

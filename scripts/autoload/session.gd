@@ -56,9 +56,8 @@ func save() -> void:
 
 
 const AVATARS: Array[String] = ["junjun", "ligaya", "migo", "toni", "popoy", "inday"]
-## The most letters a name has (owner: a tight limit): 10 of the widest letters (M) still fit the name tag at its largest size, so every
-## name looks the same on it.
-const MAX_NAME_LENGTH: int = 10
+## Names share the server's twelve-character limit; the tag fits its lettering within the card.
+const MAX_NAME_LENGTH: int = 12
 ## What a name is made of: letters (any language, so Ñ and the rest), digits, and a space, apostrophe, dot, underscore or hyphen.
 const NAME_CHARACTERS: String = "[^\\p{L}\\p{N} '._-]"
 ## The name a new player starts with (they can change it on the name tag).

@@ -240,21 +240,24 @@ func test_the_tag_fits_between_the_logo_and_the_models_on_tall_and_short_phones(
 		assert_lt((tag.front_strap.get_global_transform() * Vector2(tag.front_strap.size.x / 2.0, 0.0)).y, 0.0, "%d px: the lanyard still leaves the screen" % int(height))
 
 
-func test_a_name_is_at_most_ten_letters_and_the_widest_ten_fit_the_tag_at_full_size() -> void:
-	assert_eq(Session.MAX_NAME_LENGTH, 10)
+func test_a_name_is_at_most_twelve_characters_and_the_widest_twelve_fit_the_tag() -> void:
+	assert_eq(Session.MAX_NAME_LENGTH, 12)
 	var screen: TitleScreen = _screen()
 	await wait_frames(4)
 	var tag: NameTag = screen.name_tag
 	tag.set_player_name("M".repeat(Session.MAX_NAME_LENGTH))
 	await wait_frames(2)
-	assert_eq(tag.name_label.get_theme_font_size("font_size"), UiMetrics.HEADLINE, "ten of the widest letters still take the largest size")
+	var font_size: int = tag.name_label.get_theme_font_size("font_size")
+	assert_lt(font_size, UiMetrics.HEADLINE)
+	var text_width: float = tag.name_label.get_theme_font("font").get_string_size(tag.name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+	assert_lte(text_width, tag.name_label.size.x)
 	assert_lte(tag.card.size.x, tag.max_width())
 
 
 func test_a_name_keeps_only_letters_digits_and_a_few_marks_in_single_spaces() -> void:
 	assert_eq(Session.clean_name("  Ma   ria  "), "Ma ria", "one space at a time, trimmed")
 	assert_eq(Session.clean_name("Ñoño_99"), "Ñoño_99", "any language's letters, digits and an underscore")
-	assert_eq(Session.clean_name("Ana-Lei O'Brien"), "Ana-Lei O'", "a hyphen and an apostrophe, cut at ten")
+	assert_eq(Session.clean_name("Ana-Lei O'Brien"), "Ana-Lei O'Br", "a hyphen and an apostrophe, cut at twelve")
 	assert_eq(Session.clean_name("<b>Ben</b>"), "bBenb", "no brackets or slashes")
 	assert_eq(Session.clean_name("Ben😀\n\tX"), "BenX", "no emoji, new lines or tabs")
 	assert_eq(Session.clean_name("!!!"), "", "nothing left is empty (the profile asks for a name)")
@@ -266,14 +269,14 @@ func test_the_profile_field_filters_as_you_type_and_counts_the_letters() -> void
 	await wait_frames(2)
 	var card: MenuDialog = screen.open_name_editor()
 	var field: LineEdit = card.find_child("NameField", true, false) as LineEdit
-	assert_eq(field.max_length, 10, "the field takes ten letters at most")
+	assert_eq(field.max_length, 12, "the field takes twelve characters at most")
 	field.text = "Ab"
 	field.text_changed.emit("Ab")
 	var counted: bool = false
 	for label: Node in card.find_children("*", "Label", true, false):
-		if (label as Label).text == "2 / 10 letters":
+		if (label as Label).text == "2 / 12 letters":
 			counted = true
-	assert_true(counted, "a live count: 2 / 10 letters")
+	assert_true(counted, "a live count: 2 / 12 letters")
 	field.text = "A<b>c"
 	field.text_changed.emit("A<b>c")
 	assert_eq(field.text, "Abc", "brackets are dropped as they are typed or pasted")
@@ -325,3 +328,32 @@ func test_the_two_straps_leave_a_clear_v_gap_at_the_top() -> void:
 	var front: float = (tag.front_strap.get_global_transform() * Vector2(tag.front_strap.size.x / 2.0, 0.0)).x
 	var back: float = (tag.back_strap.get_global_transform() * Vector2(tag.back_strap.size.x / 2.0, 0.0)).x
 	assert_gt(back - front, NameTag.STRAP_WIDTH * 2.0, "the straps are well apart where they leave the screen (%.0f px)" % (back - front))
+
+
+func test_editor_fits_twelve_wide_characters_with_padding_and_reduces_its_sway() -> void:
+	var screen: TitleScreen = _screen()
+	await wait_process_frames(3)
+	var card: MenuDialog = screen.open_name_editor()
+	var tag: NameTag = card.find_child("Preview", true, false) as NameTag
+	var field: LineEdit = card.find_child("NameField", true, false) as LineEdit
+	field.text = "M".repeat(12)
+	field.text_changed.emit(field.text)
+	await wait_process_frames(3)
+	var font_size: int = field.get_theme_font_size("font_size")
+	var width: float = field.get_theme_font("font").get_string_size(field.text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+	var box: StyleBox = field.get_theme_stylebox("normal")
+	assert_eq(field.text.length(), 12)
+	assert_lte(width, field.size.x - box.get_content_margin(SIDE_LEFT) - box.get_content_margin(SIDE_RIGHT))
+	assert_gte(field.position.x, 8.0)
+	assert_lte(field.get_rect().end.x, tag.card.size.x - 8.0)
+	assert_lt((tag.front_strap.get_global_transform() * Vector2(tag.front_strap.size.x / 2.0, 0.0)).y, 0.0)
+	var previous: bool = Settings.reduced_motion
+	Settings.set_reduced_motion(false)
+	tag._process(0.0)
+	assert_lte(absf(tag.rotation), deg_to_rad(0.15) + 0.00001)
+	assert_lte(absf(tag.card.rotation), deg_to_rad(0.09) + 0.00001)
+	Settings.set_reduced_motion(true)
+	tag._process(0.0)
+	assert_eq(tag.rotation, 0.0)
+	assert_eq(tag.card.rotation, 0.0)
+	Settings.set_reduced_motion(previous)
