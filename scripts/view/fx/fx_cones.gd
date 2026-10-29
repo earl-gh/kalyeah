@@ -19,19 +19,22 @@ const WINDUP_RIM: float = 0.08
 const WINDUP_FILL: float = 0.30
 ## The growing fill starts this small (a true zero breaks the transform).
 const WINDUP_START: float = 0.05
-## Where the scissors stand: their middle `SCISSOR_Y` of the drawn kid's height up; their handles at least
-## `SNIP_CASTER_CLEAR` m from the caster, their tips (at full lunge) at least `SNIP_TARGET_CLEAR` m short of the nearest kid
-## in the wedge, between `SNIP_MIN_LEN` m and `SNIP_LEN_OF_RANGE` of the range long (and inside the range at full lunge).
-const SCISSOR_Y: float = 0.45
-## Aimed up the screen the scissors would hide behind the caster's own body (the camera looks down 45 degrees), so they
-## rise until their middle clears the caster's drawn head by `HEAD_CLEAR` m on screen, never above `SCISSOR_MAX_Y` of the
-## drawn kid (under the bars).
-const HEAD_CLEAR: float = 0.3
+## Where the scissors stand so the snip reads on a phone (a kid is about 70 px tall on screen): `SNIP_LEN` m long
+## (`SNIP_LEN_HEAVY` for the big snip; at least 0.4 of a kid on screen), `SNIP_SIDE` m to the caster's side of the aim line
+## (its right, or its left when the right points away from the camera) so they stand beside the column of kids, never on
+## a head, their handles `SNIP_CASTER_CLEAR` m along the aim from the caster. Their middle is seen at `SCISSOR_Y` of the
+## drawn kid's height (raised by however far the side step brings them toward the camera, never above `SCISSOR_MAX_Y`).
+## A kid of the other team standing on their line (closer than `SNIP_TARGET_CLEAR` m plus the open blades' half spread)
+## shortens them so the tips at full lunge stop `SNIP_TARGET_CLEAR` m short of it (never under `SNIP_MIN_LEN` m), and they
+## always end inside the range at full lunge.
+const SNIP_LEN: float = 2.1
+const SNIP_LEN_HEAVY: float = 2.2
+const SNIP_SIDE: float = 1.4
+const SCISSOR_Y: float = 0.3
 const SCISSOR_MAX_Y: float = 0.8
 const SNIP_CASTER_CLEAR: float = 0.7
 const SNIP_TARGET_CLEAR: float = 0.6
 const SNIP_MIN_LEN: float = 1.0
-const SNIP_LEN_OF_RANGE: float = 0.8
 ## The small snip: each close lunges `SNIP_LUNGE_STEP` m along the aim (easing back as it opens); the smear arc sweeps
 ## through the blades' tips (round the caster, at the scissors' height) and lives `SMEAR_FRAMES` frames; later snips throw
 ## `SNIP_STARS` stars on each kid hit.
@@ -268,26 +271,66 @@ func fading_count() -> int:
 	return _flashes.size() + _snips.size()
 
 
-## Where a pair of scissors for `def` stands: [their length, their middle's distance along the aim]. Clear of the caster
-## and short of the nearest kid of the other team inside the wedge (the full lunge included).
+## Where a pair of scissors for `def` stands: [their length, their middle's distance along the aim] (on the line
+## `side_for` beside the aim). Inside the range at full lunge, and short of any kid of the other team standing on their line.
 func placement(owner_id: int, def: WeaponDef, origin: Vector2, direction: Vector2) -> Vector2:
-	var nearest: float = INF
+	var length: float = _fit(owner_id, def, origin, direction, side_for(owner_id, def, origin, direction))
+	return Vector2(length, SNIP_CASTER_CLEAR + length / 2.0)
+
+
+## The step from the caster to the scissors' line: to the caster's right or left (never away from the camera), whichever
+## leaves the scissors longest (a kid standing on one line shortens them there); the right on a tie.
+func side_for(owner_id: int, def: WeaponDef, origin: Vector2, direction: Vector2) -> Vector3:
+	var aim: Vector3 = Vector3(direction.x, 0.0, direction.y).normalized()
+	var right: Vector3 = aim.cross(Vector3.UP).normalized() * SNIP_SIDE
+	var back: Vector3 = _camera_back()
+	var flat: Vector3 = Vector3(back.x, 0.0, back.z)
+	var best: Vector3 = side_of(aim)
+	var longest: float = _fit(owner_id, def, origin, direction, best)
+	for side: Vector3 in [right, -right]:
+		if side.dot(flat) < -0.01 or side.is_equal_approx(best):
+			continue
+		var length: float = _fit(owner_id, def, origin, direction, side)
+		if length > longest + 0.001:
+			best = side
+			longest = length
+	return best
+
+
+## How long `def`'s scissors can be on the line `side` beside the aim (metres).
+func _fit(owner_id: int, def: WeaponDef, origin: Vector2, direction: Vector2, side: Vector3) -> float:
+	var lunge: float = HEAVY_LUNGE if def.delay > 0.0 else SNIP_LUNGE_STEP
+	var length: float = minf(SNIP_LEN_HEAVY if def.delay > 0.0 else SNIP_LEN, def.max_range - SNIP_CASTER_CLEAR - lunge)
+	var aim: Vector2 = direction.normalized()
+	var line: Vector2 = origin + Vector2(side.x, side.z)
 	var team: int = _ctx.team_of(owner_id)
-	var half: float = deg_to_rad(def.angle_degrees / 2.0)
+	var reach: float = SNIP_TARGET_CLEAR + half_spread(def, length)
 	if _ctx.sim != null:
 		for id: int in _ctx.sim.players:
 			var kid: PlayerState = _ctx.sim.players[id]
-			var offset: Vector2 = kid.position - origin
-			if kid.team == team or kid.tagged or offset.length() > def.max_range + kid.radius:
+			if kid.team == team or kid.tagged:
 				continue
-			if offset.length() > 0.001 and absf(direction.angle_to(offset)) > half:
-				continue
-			nearest = minf(nearest, offset.length())
-	var lunge: float = HEAVY_LUNGE if def.delay > 0.0 else SNIP_LUNGE_STEP
-	var longest: float = minf(SNIP_LEN_OF_RANGE * def.max_range, def.max_range - SNIP_CASTER_CLEAR - lunge)
-	var gap: float = nearest - SNIP_TARGET_CLEAR - SNIP_CASTER_CLEAR - lunge
-	var length: float = clampf(gap, SNIP_MIN_LEN, longest)
-	return Vector2(length, SNIP_CASTER_CLEAR + length / 2.0)
+			var offset: Vector2 = kid.position - line
+			var along: float = offset.dot(aim)
+			if along > 0.0 and absf(offset.dot(aim.orthogonal())) < reach:
+				length = minf(length, maxf(along - SNIP_TARGET_CLEAR - SNIP_CASTER_CLEAR - lunge, SNIP_MIN_LEN))
+	return length
+
+
+## Half the distance between the tips of `def`'s scissors `length` m long at their widest (metres).
+static func half_spread(def: WeaponDef, length: float) -> float:
+	var widest: float = ScissorsRig.WIDE_HEAVY if def.delay > 0.0 else ScissorsRig.WIDE
+	return length * ScissorsRig.TIP_ARM * sin(deg_to_rad(ScissorsRig.TIP_ANGLE + widest))
+
+
+## The preferred step from the caster to the scissors' line for an aim `aim` (3D, unit): `SNIP_SIDE` m to the caster's
+## right, or to its left when its right points away from the camera (they would hide behind the kids).
+func side_of(aim: Vector3) -> Vector3:
+	var right: Vector3 = aim.cross(Vector3.UP).normalized()
+	var back: Vector3 = _camera_back()
+	if right.dot(Vector3(back.x, 0.0, back.z)) < -0.01:
+		right = -right
+	return right * SNIP_SIDE
 
 
 func _snip(owner_id: int, def: WeaponDef, origin: Vector2, direction: Vector2) -> Snip:
@@ -297,7 +340,8 @@ func _snip(owner_id: int, def: WeaponDef, origin: Vector2, direction: Vector2) -
 	snip.heavy = def.delay > 0.0
 	snip.n = def.snips_min
 	snip.aim = Vector3(direction.x, 0.0, direction.y).normalized()
-	snip.caster = Vector3(origin.x, scissor_height(snip.aim, place.y), origin.y)
+	var side: Vector3 = side_for(owner_id, def, origin, direction)
+	snip.caster = Vector3(origin.x, scissor_height(side), origin.y) + side
 	snip.rest = snip.caster + snip.aim * place.y
 	snip.tips = place.y + place.x / 2.0
 	snip.holder = Node3D.new()
@@ -307,7 +351,7 @@ func _snip(owner_id: int, def: WeaponDef, origin: Vector2, direction: Vector2) -
 	snip.squash = Node3D.new()
 	snip.squash.name = "Squash"
 	snip.holder.add_child(snip.squash)
-	snip.rig = ScissorsRig.make(place.x)
+	snip.rig = ScissorsRig.make(place.x, _ctx.team_color(_ctx.team_of(owner_id)))
 	snip.squash.add_child(snip.rig)
 	snip.rig.set_open(ScissorsRig.CLOSED if _ctx.reduced and not snip.heavy else (ScissorsRig.WIDE_HEAVY if _ctx.reduced else ScissorsRig.WIDE))
 	if snip.heavy and not _ctx.reduced:
@@ -318,14 +362,13 @@ func _snip(owner_id: int, def: WeaponDef, origin: Vector2, direction: Vector2) -
 	return snip
 
 
-## How high the scissors' middle stands for an aim `aim` with the middle `distance` m along it: chest height, raised
-## when the aim points up the screen until the middle is seen over the caster's head.
-func scissor_height(aim: Vector3, distance: float) -> float:
+## How high the scissors' middle stands after the side step `side`: seen at chest height on screen (a step toward the
+## camera lowers a thing on screen, so it rises by as much), never above `SCISSOR_MAX_Y` of the drawn kid.
+func scissor_height(side: Vector3) -> float:
 	var tall: float = KidModel.KID_HEIGHT * _ctx.view_scale
 	var back: Vector3 = _camera_back()
-	var ground_back: Vector3 = Vector3(back.x, 0.0, back.z).normalized()
-	var up_screen: float = -aim.dot(ground_back) * distance
-	return clampf(tall + HEAD_CLEAR - up_screen, SCISSOR_Y * tall, SCISSOR_MAX_Y * tall)
+	var toward: float = maxf(side.dot(Vector3(back.x, 0.0, back.z).normalized()), 0.0)
+	return clampf(SCISSOR_Y * tall + toward, SCISSOR_Y * tall, SCISSOR_MAX_Y * tall)
 
 
 ## The direction from the scene toward the camera.

@@ -141,18 +141,31 @@ func test_light_snips_n_times() -> void:
 
 
 func test_scissors_keep_clear_of_kids() -> void:
-	for distance: float in [3.0, 2.5]:
-		_setup(Vector2(0.0, 8.0 - distance))
-		var def: WeaponDef = _sim.weapon_defs[&"gunting_light"]
-		var place: Vector2 = _fx.cones.placement(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
-		var handles: float = place.y - place.x / 2.0
-		var tips: float = place.y + place.x / 2.0 + FxCones.SNIP_LUNGE_STEP
-		assert_gte(handles, FxCones.SNIP_CASTER_CLEAR - 0.001, "handles clear of the caster (%.1f m)" % distance)
-		assert_lte(tips, distance - FxCones.SNIP_TARGET_CLEAR + 0.001, "tips short of the kid at %.1f m, lunge included" % distance)
-	_setup(Vector2(0.0, -20.0))
-	var heavy: WeaponDef = _sim.weapon_defs[&"gunting_heavy"]
-	var free: Vector2 = _fx.cones.placement(1, heavy, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
-	assert_lte(free.y + free.x / 2.0 + FxCones.HEAVY_LUNGE, heavy.max_range, "with nobody there they stay inside the range")
+	for weapon: StringName in [&"gunting_light", &"gunting_heavy"]:
+		for distance: float in [3.0, 2.5]:
+			# a kid straight ahead: the scissors stand beside the line of kids, clear of its footprint even fully open
+			_setup(Vector2(0.0, 8.0 - distance))
+			var def: WeaponDef = _sim.weapon_defs[weapon]
+			var lunge: float = FxCones.HEAVY_LUNGE if def.delay > 0.0 else FxCones.SNIP_LUNGE_STEP
+			var place: Vector2 = _fx.cones.placement(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
+			var side: Vector3 = _fx.cones.side_of(Vector3(0.0, 0.0, -1.0))
+			var spread: float = FxCones.half_spread(def, place.x)
+			assert_gte(side.length() - spread, FxCones.SNIP_TARGET_CLEAR, "%s: beside the kid %.1f m ahead, clear of its footprint" % [weapon, distance])
+			assert_gte(place.y - place.x / 2.0, FxCones.SNIP_CASTER_CLEAR - 0.001, "%s: handles clear of the caster" % weapon)
+			assert_lte(place.y + place.x / 2.0 + lunge, def.max_range + 0.001, "%s: inside the range at full lunge" % weapon)
+			# a kid standing on the scissors' right-hand line: they take the free left side, full length
+			_setup(Vector2(side.x, 8.0 + side.z - distance))
+			var moved: Vector3 = _fx.cones.side_for(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
+			assert_almost_eq(moved.x, -side.x, 0.001, "%s: the other side when a kid stands on the first" % weapon)
+			place = _fx.cones.placement(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
+			assert_gt(place.x, FxCones.SNIP_MIN_LEN + 0.5, "%s: and long there" % weapon)
+			# kids on both lines: shortened, the tips stop short of them
+			_setup(Vector2(side.x, 8.0 + side.z - distance))
+			_sim.add_player(5, 1)
+			_sim.players[5].position = Vector2(-side.x, 8.0 + side.z - distance)
+			place = _fx.cones.placement(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
+			var tips: float = place.y + place.x / 2.0 + lunge
+			assert_true(tips <= distance - FxCones.SNIP_TARGET_CLEAR + 0.001 or is_equal_approx(place.x, FxCones.SNIP_MIN_LEN), "%s: tips %.2f m short of a kid on their line at %.1f m" % [weapon, tips, distance])
 
 
 func test_heavy_opens_during_the_windup_and_closes_on_the_strike() -> void:
@@ -650,3 +663,117 @@ func test_the_marble_never_enters_a_face_band() -> void:
 		var marble: Node3D = _rig(id)
 		var top: float = marble.position.y + radius * _part(marble, "Squash").basis.get_scale().y
 		assert_lt(top, 2.4, "frame %d: the marble's top (%.2f m) stays under the kids' face band" % [frame, top])
+
+
+# ---- the snip on screen (the match camera, 720x1280) ------------------------------------------------------------------
+
+const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
+
+
+## A practice match with you at (0, 8), the standing enemy 2 m along `aim`, everyone else parked far off, no brains.
+func _snip_match(aim: Vector2) -> PracticeMatch:
+	var practice: PracticeMatch = autofree(PRACTICE_SCENE.instantiate()) as PracticeMatch
+	add_child(practice)
+	practice.finish_pick()
+	practice.skip_intro()
+	practice.sim._brains.clear()
+	var parked: Array[Vector2] = [Vector2(-10.0, -14.0), Vector2(10.0, -14.0), Vector2(-10.0, 20.0), Vector2(10.0, 20.0)]
+	var k: int = 0
+	for id: int in practice.sim.players:
+		var kid: PlayerState = practice.sim.players[id]
+		if id == PracticeMatch.LOCAL_ID:
+			kid.position = Vector2(0.0, 8.0)
+			kid.facing = aim
+		elif id == PracticeMatch.ENEMY_STAND_ID:
+			kid.position = Vector2(0.0, 8.0) + aim * 2.0
+		else:
+			kid.position = parked[k % parked.size()]
+			k += 1
+	practice.advance(DT)
+	return practice
+
+
+## The blades' far ends on screen: [tip A, tip B, handle A, handle B] (each blade's farthest vertices along the scissors).
+func _ends(rig: ScissorsRig, camera: Camera3D) -> Array[Vector2]:
+	var tips: Array[Vector2] = []
+	var handles: Array[Vector2] = []
+	for blade: MeshInstance3D in rig.blades():
+		var top: Vector3 = Vector3(0.0, -INF, 0.0)
+		var bottom: Vector3 = Vector3(0.0, INF, 0.0)
+		for vertex: Vector3 in blade.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array:
+			if vertex.y > top.y:
+				top = vertex
+			if vertex.y < bottom.y:
+				bottom = vertex
+		tips.append(camera.unproject_position(blade.global_transform * top))
+		handles.append(camera.unproject_position(blade.global_transform * bottom))
+	return [tips[0], tips[1], handles[0], handles[1]]
+
+
+## A kid's head on screen: the top 35% of its drawn height, its drawn width wide.
+func _head(kid: PlayerState, camera: Camera3D) -> Rect2:
+	var feet: Vector2 = camera.unproject_position(Vector3(kid.position.x, 0.0, kid.position.y))
+	var top: Vector2 = camera.unproject_position(Vector3(kid.position.x, KidModel.KID_HEIGHT * 2.0, kid.position.y))
+	var tall: float = feet.distance_to(top)
+	var half: float = camera.unproject_position(Vector3(kid.position.x + 0.6, 0.0, kid.position.y)).distance_to(feet)
+	return Rect2(top.x - half, top.y, half * 2.0, tall * 0.35)
+
+
+func test_the_snip_reads_on_screen() -> void:
+	for aim: Vector2 in [Vector2(0.0, -1.0), Vector2(1.0, 0.0), Vector2(0.0, 1.0)]:
+		var practice: PracticeMatch = _snip_match(aim)
+		var camera: Camera3D = practice.get_viewport().get_camera_3d()
+		var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
+		var caster: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
+		var target: PlayerState = practice.sim.players[PracticeMatch.ENEMY_STAND_ID]
+		var feet: Vector2 = camera.unproject_position(Vector3(target.position.x, 0.0, target.position.y))
+		var kid_tall: float = feet.distance_to(camera.unproject_position(Vector3(target.position.x, KidModel.KID_HEIGHT * 2.0, target.position.y)))
+		assert_true(practice.sim.weapons.fire(practice.sim, caster, practice.sim.weapon_defs[&"gunting_light"], aim, 0.0, -1))
+		practice.sim.weapon_cast.emit(PracticeMatch.LOCAL_ID, &"gunting_light")
+		var opened: int = 0
+		var shut: int = 0
+		for frame: int in 14:
+			practice.advance(DT)
+			if fx.cones.scissors().is_empty():
+				break
+			var rig: ScissorsRig = fx.cones.scissors()[0]
+			if (rig.get_parent().get_parent() as Node3D).scale.x < 0.99:
+				continue
+			var ends: Array[Vector2] = _ends(rig, camera)
+			var length: float = ((ends[0] + ends[1]) / 2.0).distance_to((ends[2] + ends[3]) / 2.0)
+			assert_gte(length, 0.4 * kid_tall, "aim %s frame %d: the scissors are at least 0.4 of a kid long on screen (%.0f px of %.0f)" % [aim, frame, length, kid_tall])
+			var spread: float = ends[0].distance_to(ends[1])
+			if rig.angle() >= ScissorsRig.WIDE - 0.01:
+				opened += 1
+				assert_gte(spread, 0.25 * kid_tall, "aim %s frame %d: open, the tips are a quarter kid apart (%.0f px)" % [aim, frame, spread])
+			elif rig.angle() <= ScissorsRig.CLOSED + 0.01:
+				shut += 1
+				assert_lte(spread, 0.05 * kid_tall, "aim %s frame %d: shut, the tips meet (%.0f px)" % [aim, frame, spread])
+			var box: Rect2 = Rect2(ends[0], Vector2.ZERO)
+			for end: Vector2 in ends:
+				box = box.expand(end)
+			for kid: PlayerState in [caster, target]:
+				assert_false(box.intersects(_head(kid, camera)), "aim %s frame %d: never over a head" % [aim, frame])
+		assert_gt(opened, 0, "aim %s: seen open" % aim)
+		assert_gt(shut, 0, "aim %s: seen shut" % aim)
+		practice.free()
+
+
+func test_a_tap_snip_holds_open() -> void:
+	var n: int = 2
+	var period: int = FxMotion.snip_period(n)
+	assert_eq(period, 5)
+	for k: int in n - 1:
+		var start: int = 1 + k * period
+		assert_almost_eq(FxMotion.snip_angle(start, n), ScissorsRig.CLOSED, 0.001, "a snip shuts in one frame")
+		assert_gt(FxMotion.snip_angle(start + 1, n), ScissorsRig.CLOSED, "and is opening the next")
+		var held: int = 0
+		var best: int = 0
+		for frame: int in range(start + 1, start + period + 1):
+			held = held + 1 if FxMotion.snip_angle(frame, n) >= 0.8 * ScissorsRig.WIDE else 0
+			best = maxi(best, held)
+		assert_gte(best, 2, "a tap's snip holds open for two frames or more (it reads as a V)")
+	assert_gte(FxMotion.snip_angle(0, n), 0.8 * ScissorsRig.WIDE, "it pops in open")
+	for frame: int in range(1, FxMotion.snip_frames(6)):
+		var shut_now: bool = FxMotion.snip_angle(frame, 6) <= ScissorsRig.CLOSED + 0.001
+		assert_eq(shut_now, (frame - 1) % 2 == 0, "six snips alternate shut / open frame by frame (frame %d)" % frame)

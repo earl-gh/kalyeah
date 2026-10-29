@@ -20,6 +20,8 @@ const TOP_SPIKE_FRAMES: int = 6
 const SNIP_FRAMES: int = 16
 const SNIP_MIN_PERIOD: int = 2
 const SNIP_MAX_PERIOD: int = 5
+## The frame after a snip shuts, the blades are this far open (then wide open until the next snip).
+const SNIP_HALF_OPEN: float = 0.6
 ## The paper wall unfolds from `UNFOLD_FROM` tall and `UNFOLD_WIDTH_FROM` wide, overshooting to `UNFOLD_PEAK` tall; it
 ## crumples to `CRUMPLE_TO` tall and `CRUMPLE_WIDTH_TO` wide.
 const UNFOLD_FROM: float = 0.05
@@ -75,8 +77,9 @@ static func snip_period(n: int) -> int:
 	return clampi(floori(float(SNIP_FRAMES) / float(maxi(n, 1))), SNIP_MIN_PERIOD, SNIP_MAX_PERIOD)
 
 
-## The blade angle (degrees) `frame` frames after a cast of `n` snips: open wide on frame 0, then each snip closes in one
-## frame, holds closed a frame (when there is time), and opens over the rest; the last snip stays closed.
+## The blade angle (degrees) `frame` frames after a cast of `n` snips: open wide on frame 0, then each snip shuts in one
+## frame (a snap), half opens the next and holds wide open for the rest of its frames (a V you can read); with two frames
+## a snip it is shut, open, shut, open. The last snip stays shut.
 static func snip_angle(frame: int, n: int) -> float:
 	if frame <= 0:
 		return ScissorsRig.WIDE
@@ -85,10 +88,11 @@ static func snip_angle(frame: int, n: int) -> float:
 	if k >= (n - 1) * period:
 		return ScissorsRig.CLOSED
 	var local: int = k % period
-	var first_open: int = 2 if period > 2 else 1
-	if local < first_open:
+	if local == 0:
 		return ScissorsRig.CLOSED
-	return lerpf(ScissorsRig.CLOSED, ScissorsRig.WIDE, float(local - first_open + 1) / float(period - first_open))
+	if local == 1 and period > 2:
+		return lerpf(ScissorsRig.CLOSED, ScissorsRig.WIDE, SNIP_HALF_OPEN)
+	return ScissorsRig.WIDE
 
 
 ## Frames from the cast to the end of `n` snips (the last close).
