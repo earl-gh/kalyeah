@@ -33,10 +33,12 @@ const TITLE_SIZE: int = UiMetrics.TITLE
 const TEXT_SIZE: int = UiMetrics.BODY
 const HINT_COLOR: Color = KalyeahTheme.MODAL_TEXT_MUTED
 const TEXT_COLOR: Color = KalyeahTheme.MODAL_TEXT
+const DISMISS_ACTIONS: Array[String] = ["Cancel", "Close", "Got it!", "Got it", "Done", "Okay", "Resume"]
 
 var panel: PanelContainer
 var body: VBoxContainer
 var inner: PanelContainer
+var close_button: Button
 var title_label: Label
 var is_open: bool = true
 ## HUD menus retain wired controls across repeated opens. Ordinary dialogs free on close.
@@ -111,13 +113,13 @@ static func create(title: String, width: float = WIDTH_SMALL, icon: Texture2D = 
 		row.add_child(picture)
 	row.add_child(dialog.title_label)
 	# a red close button at the top right; a tap outside the modal closes it too
-	var close_button: Button = make_button("X", "red", UiMetrics.ACTION, Vector2.ONE * UiMetrics.MIN_TARGET)
-	close_button.name = "CloseButton"
-	close_button.accessibility_name = "Close"
-	close_button.focus_mode = Control.FOCUS_NONE
-	close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	close_button.pressed.connect(dialog.close)
-	row.add_child(close_button)
+	dialog.close_button = make_button("X", "red", UiMetrics.ACTION, Vector2.ONE * UiMetrics.MIN_TARGET)
+	dialog.close_button.name = "CloseButton"
+	dialog.close_button.accessibility_name = "Close"
+	dialog.close_button.focus_mode = Control.FOCUS_NONE
+	dialog.close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	dialog.close_button.pressed.connect(dialog.close)
+	row.add_child(dialog.close_button)
 	header.add_child(row)
 	frame_box.add_child(header)
 	dim.gui_input.connect(dialog._on_dim_input)
@@ -247,11 +249,19 @@ func _notification(what: int) -> void:
 func _fit() -> void:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return
+	# A footer Cancel/Close already provides the dismiss action.
+	var footer_closes: bool = false
+	for node: Node in body.find_children("*", "Button", true, false):
+		var button: Button = node as Button
+		if button.is_visible_in_tree() and button.text in DISMISS_ACTIONS:
+			footer_closes = true
+			break
+	close_button.visible = not footer_closes
 	LobbyWidgets.apply_safe_area(_safe, UiMetrics.PAGE_MARGIN, UiMetrics.PAGE_MARGIN)
 	var available: Vector2 = size - Vector2(
 		_safe.get_theme_constant("margin_left") + _safe.get_theme_constant("margin_right"),
 		_safe.get_theme_constant("margin_top") + _safe.get_theme_constant("margin_bottom"))
-	var header_height: float = _header.get_combined_minimum_size().y + HEADER_GAP
+	var header_height: float = _header.get_combined_minimum_size().y + HEADER_GAP if _header.visible else 0.0
 	var wanted: float = body.get_combined_minimum_size().y + UiMetrics.PADDING * 2.0 + header_height + FRAME_RIM * 2.0
 	# never taller than 75 % of the screen (owner): what does not fit scrolls inside the body
 	var tallest: float = minf(available.y, size.y * MAX_HEIGHT_SHARE)

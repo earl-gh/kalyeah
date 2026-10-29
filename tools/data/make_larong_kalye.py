@@ -106,6 +106,25 @@ game(12, "Syato", "Sato", 2, 10, "20 min", "Big open field",
      ["3 tries to pop it up.", "Measure the distance in pamalo lengths!"],
      "Everyone stands well back from the hitter.")
 
+
+# One-screen teaching copy: setup, action and success; the original detailed rules remain source context.
+QUICK = [
+    ("Draw a grid; split into guards and runners.", "Guards stay on their lines. Cross every line and return; swap teams when tagged.", "Each returning runner scores 1. Most points after 3 rounds wins."),
+    ("Stand the can in a circle; mark a throwing line 8 steps away. Pick a taya.", "Knock down the can with your tsinelas. Retrieve it while the taya resets the can.", "The taya tags anyone still retrieving; a tagged player becomes taya."),
+    ("Draw 8 numbered squares. Toss your pamato into square 1.", "Hop to the end and back, skipping the pamato square. Pick it up on the return.", "Touch a line and your turn ends. Finish every square first."),
+    ("Make 2 teams. Two seated kids build a low barrier with hands and feet.", "Jump without touching the barrier. Raise it after each round; swap on a touch.", "Most clean jumps wins. Keep the height suitable for the smallest jumper."),
+    ("Mark 2 bases 15 steps apart; make 2 teams of 3 to 6.", "Tag opponents and send them to jail. A free teammate can tag them out.", "Hold the enemy base for 12 seconds or tag everyone to score. First to 3 wins."),
+    ("Two kids hold a rubber loop at ankle height; the others line up.", "Jump through or over it without hands. Raise it after a clear jump; swap on a miss.", "Highest clean jump wins. Stop at chest height."),
+    ("Pick a taya. Low steps are langit; the ground is lupa.", "Taya chants 'Langit, lupa, impyerno, 1-2-3, pass!' Reach langit; tagged on lupa becomes taya.", "The last player never tagged wins."),
+    ("Stand in a circle with a sipa.", "Keep it airborne with your feet and pass it around. Count each kick; no hands.", "Beat your group's highest kick count."),
+    ("Choose a home base. One seeker counts to 20 with eyes covered.", "Hide, then sneak back to the base and shout 'Save!' before being found.", "First found seeks next. Last found wins the round."),
+    ("Draw a circle and wind string around each top.", "Throw and pull to spin. The first top to stop is the target for the others.", "Leave the circle and you're out. Last top spinning wins."),
+    ("Have a grown-up tie ropes through 2 shells each. Mark a 10-step course.", "Stand on the shells, hold the ropes tight and lift one foot at a time. No pushing.", "First across wins. Step back on if you fall off."),
+    ("Make hitter and catcher teams. Lay the short stick on the ground.", "Tap it up, then hit it with the long stick. A catch puts the hitter out.", "3 tries; longest hit wins. Measure in long-stick lengths."),
+]
+for item, (setup, play, win) in zip(G, QUICK):
+    item.update(quick_setup=setup, quick_play=play, quick_win=win)
+
 def lit(v):
     if isinstance(v, bool):
         return 'true' if v else 'false'

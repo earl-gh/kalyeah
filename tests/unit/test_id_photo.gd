@@ -218,7 +218,7 @@ func test_the_profile_takes_and_removes_the_photo() -> void:
 	IdPhoto.save(face)
 	var again: MenuDialog = ProfileSheet.build(Callable(), func() -> void: pass, func() -> void: removed[0] = true)
 	again.open(_host)
-	assert_eq((again.find_child("TakePhoto", true, false) as Button).text, "New photo")
+	assert_eq((again.find_child("TakePhoto", true, false) as Button).accessibility_name, "New photo")
 	(again.find_child("RemovePhoto", true, false) as Button).pressed.emit()
 	assert_false(IdPhoto.exists())
 	assert_true(removed[0])
