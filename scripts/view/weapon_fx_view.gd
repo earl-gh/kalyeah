@@ -27,6 +27,9 @@ var walls: FxWalls
 var cones: FxCones
 var heals: FxHeals
 var _ctx: FxContext
+## Effect views in the tree: when the last one leaves (the match ends), every static cache of the effects is emptied, so
+## nothing keeps meshes, materials or model scenes alive in the menus or at exit.
+static var _live_views: int = 0
 
 
 func _init() -> void:
@@ -55,6 +58,35 @@ func _init() -> void:
 	cones.setup(_ctx)
 	heals.setup(_ctx)
 	projectiles.gone.connect(_on_projectile_gone)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and _ctx != null:
+		# the context and the hit bursts point at each other (both RefCounted): break the loop so neither, nor the sim
+		# they read, outlives the view
+		_ctx.bursts = null
+		_ctx.sim = null
+
+
+func _enter_tree() -> void:
+	_live_views += 1
+
+
+func _exit_tree() -> void:
+	_live_views = maxi(_live_views - 1, 0)
+	if _live_views == 0:
+		clear_caches()
+
+
+## Empties every static cache of the effects (the kit, the marks, the particle presets, the shadow quad, the weapon models'
+## scenes and looks, the scissors' blades).
+static func clear_caches() -> void:
+	FxKit.clear_cache()
+	FxGround.clear_cache()
+	FxParticles.clear_cache()
+	FxShadows.clear_cache()
+	WeaponModel.clear_cache()
+	ScissorsRig.clear_cache()
 
 
 ## Starts listening to `sim`'s relayed weapon signals (the same offline and online).

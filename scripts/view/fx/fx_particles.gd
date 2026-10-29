@@ -113,6 +113,16 @@ func _emitter(amount: int) -> CPUParticles3D:
 	return emitter
 
 
+## Presets built right now (tests).
+static func spec_count() -> int:
+	return _specs.size()
+
+
+## Empties the preset cache (the last effect view left the tree).
+static func clear_cache() -> void:
+	_specs.clear()
+
+
 ## The look and motion of `preset` (shared by every puff of it).
 static func spec(preset: Preset) -> Spec:
 	if _specs.is_empty():

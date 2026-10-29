@@ -69,6 +69,18 @@ static func make(length: float, team: Color = Color.TRANSPARENT) -> ScissorsRig:
 	return rig
 
 
+## Blade meshes and materials cached right now (tests).
+static func cached_count() -> int:
+	return _halves.size() + _outlines.size() + (1 if _marked_look != null else 0)
+
+
+## Empties the caches (the last effect view left the tree).
+static func clear_cache() -> void:
+	_halves.clear()
+	_outlines.clear()
+	_marked_look = null
+
+
 ## The blades' look, marking the stencil like a kid's (built once).
 static func _marked() -> BaseMaterial3D:
 	if _marked_look == null:

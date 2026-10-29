@@ -101,6 +101,18 @@ static func material_count() -> int:
 	return _materials_made
 
 
+## Shared meshes and overlay materials cached right now (tests).
+static func cached_count() -> int:
+	return _meshes.size() + _overlays.size()
+
+
+## Empties the caches and the material count (the last effect view left the tree).
+static func clear_cache() -> void:
+	_meshes.clear()
+	_overlays.clear()
+	_materials_made = 0
+
+
 ## A ring of radius 1 on the ground plane (y 0), `RING_WIDTH` wide, white (the material tints it).
 static func ring_mesh() -> ArrayMesh:
 	if not _meshes.has(&"ring"):

@@ -109,6 +109,16 @@ func all_nodes() -> Array[MeshInstance3D]:
 	return _nodes
 
 
+## The shared quad, when built (tests).
+static func cached_count() -> int:
+	return 1 if _quad != null else 0
+
+
+## Drops the shared quad (the last effect view left the tree).
+static func clear_cache() -> void:
+	_quad = null
+
+
 ## Size of a shadow (of its ground size) under an object `height` metres up.
 static func size_at(height: float) -> float:
 	return lerpf(1.0, HIGH_SIZE, clampf(height / HIGH, 0.0, 1.0))

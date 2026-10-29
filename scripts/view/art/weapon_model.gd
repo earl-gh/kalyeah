@@ -159,6 +159,18 @@ static func rig(model: Node3D, tilted: bool = false) -> Node3D:
 	return holder
 
 
+## Model scenes and sizes cached right now (tests).
+static func cached_count() -> int:
+	return _scenes.size() + _sizes.size()
+
+
+## Empties the scene, size and look caches (the last effect view left the tree; a kid's can keeps its own copy).
+static func clear_cache() -> void:
+	_scenes.clear()
+	_sizes.clear()
+	_looks.clear()
+
+
 ## How many model looks are shared right now (one per model id; never one per instance).
 static func look_count() -> int:
 	return _looks.size()

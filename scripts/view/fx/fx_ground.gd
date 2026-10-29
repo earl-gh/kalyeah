@@ -344,3 +344,8 @@ static func mark(outline: PackedVector2Array, color: Color, fill_alpha: float, f
 ## The number of cached hit-area marks (each built once per size and colour).
 static func mark_count() -> int:
 	return _marks.size()
+
+
+## Empties the mark cache (the last effect view left the tree).
+static func clear_cache() -> void:
+	_marks.clear()
