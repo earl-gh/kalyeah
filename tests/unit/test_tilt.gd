@@ -110,6 +110,23 @@ func test_the_switch_shows_on_a_page_built_before_the_sensor_reported() -> void:
 	assert_true(early.tilt_row.visible, "shown when the page opens, once the sensor has reported")
 
 
+func test_the_match_settings_menu_has_the_switch_too() -> void:
+	TiltInput.test_gravity = _held(30.0)
+	Settings.set_tilt_to_run(false)
+	var menu: MatchMenu = autofree(MatchMenu.new()) as MatchMenu
+	add_child(menu)
+	menu.open()
+	var toggle: UiToggle = menu.find_child("TiltToRun", true, false) as UiToggle
+	assert_not_null(toggle, "owner: Tilt to run in Match settings")
+	assert_true(toggle.is_visible_in_tree())
+	assert_null(menu.find_child("AimGuide", true, false), "the aim guide stays on the Settings page")
+	await wait_process_frames(2)
+	var screen: Rect2 = menu.get_viewport_rect()
+	assert_true(screen.encloses(menu.leave_button.get_global_rect()), "Leave battle stays in view with the extra row")
+	toggle.toggled.emit(true)
+	assert_true(Settings.tilt_to_run, "turned on mid-match")
+
+
 # ---- in a match -------------------------------------------------------------------------
 
 func _practice() -> PracticeMatch:
