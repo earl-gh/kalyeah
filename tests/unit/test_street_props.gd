@@ -166,7 +166,7 @@ func test_only_houses_stand_along_the_street_beyond_the_ends() -> void:
 # ---- the top boundary: the owner's three pictures (fishball cart, tin fence, jeepney) ---------------------------------
 
 const CAMERA_RULES: CameraRules = preload("res://data/rules/camera_rules.tres")
-const PICTURE_IDS: Array[String] = ["fishball_cart", "tin_fence", "jeepney"]
+const PICTURE_IDS: Array[String] = ["fishball_cart", "jeepney"]
 
 
 func _pictures(map: StreetMap, end: float) -> Array[MeshInstance3D]:
@@ -178,14 +178,14 @@ func _pictures(map: StreetMap, end: float) -> Array[MeshInstance3D]:
 	return found
 
 
-func test_the_three_pictures_stand_across_each_end_in_the_owners_order() -> void:
+func test_cart_and_jeepney_keep_their_left_to_right_order() -> void:
 	var map: StreetMap = _map()
 	for end: float in [-1.0, 1.0]:
 		var pictures: Array[MeshInstance3D] = _pictures(map, end)
 		var ids: Array[String] = []
 		for picture: MeshInstance3D in pictures:
 			ids.append(String(picture.name))
-		assert_eq(ids, PICTURE_IDS, "the cart, the fence, the jeepney")
+		assert_eq(ids, PICTURE_IDS, "the cart and jeepney")
 		# left to right on the screen: the camera looks toward -Z at the -Z end (x grows to the right), toward +Z at the +Z end (x shrinks)
 		var xs: Array[float] = []
 		for picture: MeshInstance3D in pictures:
@@ -212,7 +212,7 @@ func test_only_the_end_at_the_top_of_the_screen_shows_the_pictures() -> void:
 func test_each_picture_stands_on_the_ground_at_its_true_height_in_its_own_shape() -> void:
 	var map: StreetMap = _map()
 	for end: float in [-1.0, 1.0]:
-		for k: int in 3:
+		for k: int in StreetMap.BOUNDARY_PICTURES.size():
 			var picture: MeshInstance3D = _pictures(map, end)[k]
 			var quad: QuadMesh = picture.mesh as QuadMesh
 			var entry: Dictionary = StreetMap.BOUNDARY_PICTURES[k]
@@ -264,6 +264,7 @@ func test_corner_wall_pngs_are_centered_and_the_right_texture_is_mirrored() -> v
 		var left_quad: QuadMesh = left.mesh as QuadMesh
 		var right_quad: QuadMesh = right.mesh as QuadMesh
 		assert_eq(left_quad.size, right_quad.size)
+		assert_almost_eq(left_quad.size.y, 2.0 * map.scenery(), 0.001, "same height as the former middle wall")
 		var original: StandardMaterial3D = left_quad.material as StandardMaterial3D
 		var mirrored: StandardMaterial3D = right_quad.material as StandardMaterial3D
 		assert_eq(original.albedo_texture.resource_path, StreetMap.BOUNDARY_PATH % "tin_fence")
@@ -281,3 +282,20 @@ func test_roof_wall_models_and_their_textures_are_removed() -> void:
 			assert_false(FileAccess.file_exists("res://assets/models/props/%s%s" % [id, extension]))
 		assert_false(StreetMap.BARRIER_HEIGHTS.has(id))
 		assert_false(ScaleReference.REAL_HEIGHT.has(id))
+
+
+func test_cart_replaces_the_middle_wall_and_jeepney_stays_in_place() -> void:
+	var map: StreetMap = _map()
+	var cart_width: float = StreetMap.boundary_width({"id": "fishball_cart", "height": 2.4}, map.scenery())
+	var wall_width: float = StreetMap.boundary_width({"id": "tin_fence", "height": 2.0}, map.scenery())
+	var jeep_width: float = StreetMap.boundary_width({"id": "jeepney", "height": 2.4}, map.scenery())
+	var old_gap: float = maxf(map.layout.lane_width - cart_width - wall_width - jeep_width, 0.0) / 4.0
+	var wall_left: float = -map.layout.lane_width / 2.0 + old_gap * 2.0 + cart_width
+	for suffix: String in ["Far", "Near"]:
+		var row: Node3D = map.find_child("BoundaryPictures%s" % suffix, true, false) as Node3D
+		var cart: MeshInstance3D = row.get_node("fishball_cart") as MeshInstance3D
+		var jeep: MeshInstance3D = row.get_node("jeepney") as MeshInstance3D
+		assert_almost_eq(cart.position.x, wall_left + wall_width / 2.0, 0.001, "the cart takes the old middle wall's center")
+		assert_almost_eq(jeep.position.x, wall_left + wall_width + old_gap + jeep_width / 2.0, 0.001)
+		assert_false(row.has_node("tin_fence"), "no middle wall beneath the cart")
+		assert_eq(row.get_child_count(), 4, "cart, jeepney and two corner walls")
