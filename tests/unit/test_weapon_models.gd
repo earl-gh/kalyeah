@@ -6,6 +6,17 @@ const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const DT: float = 1.0 / 30.0
 const MODELS: Array[String] = ["slipper", "can", "marble", "crumpled_paper", "paper", "trumpo", "spikes", "meteor", "scissor", "soil_block", "green_cross"]
 
+var _motion: bool
+
+
+func before_each() -> void:
+	_motion = Settings.reduced_motion
+	Settings.reduced_motion = false
+
+
+func after_each() -> void:
+	Settings.reduced_motion = _motion
+
 
 func test_every_model_exists_light_and_whole() -> void:
 	for id: String in MODELS:
@@ -76,11 +87,18 @@ func test_the_match_draws_the_models_for_the_casts() -> void:
 	practice.advance(DT)
 	practice.advance(DT)
 	assert_eq(fx.live_count(), 2)
-	var meshes: Array[Node] = fx.find_children("*", "MeshInstance3D", true, false)
+	var meshes: Array[Node] = _models(fx)
 	assert_eq(meshes.size(), 2, "the slipper and the paper sheet, each one mesh")
 	for mesh: Node in meshes:
 		assert_true((mesh as MeshInstance3D).mesh is ArrayMesh and not (mesh as MeshInstance3D).mesh is BoxMesh)
 		assert_gt((mesh as MeshInstance3D).mesh.get_surface_count(), 0)
+
+
+## The weapon model meshes under `root` (not the pooled flat effects round them).
+func _models(root: Node) -> Array[Node]:
+	var found: Array[Node] = []
+	found.assign(root.find_children("*", "MeshInstance3D", true, false).filter(func(n: Node) -> bool: return n.is_in_group(WeaponModel.GROUP) and not n.is_queued_for_deletion()))
+	return found
 
 
 ## A practice match with the local player equipped and one dummy straight ahead.
@@ -114,22 +132,37 @@ func test_the_rock_meteor_falls_onto_its_circle() -> void:
 		practice.advance(DT)
 	assert_lt(meteor.position.y, high, "it falls")
 	assert_gt(high, 3.0, "from the sky")
+	var bottom: float = INF
+	while not practice.sim.weapons.zones.is_empty():
+		bottom = meteor.global_position.y - WeaponModel.METEOR_SIZE / 2.0
+		assert_gte(bottom, -0.001, "never below the street")
+		practice.advance(DT)
+	assert_almost_eq(bottom, 0.0, 0.05, "it touches the street on the last frame before it lands")
+	assert_gt(fx.context().ground.live_cracks(), 0, "the landing cracks the street")
+	for i: int in 18:
+		practice.advance(DT)
+	assert_eq(fx.live_count(), 0)
+	assert_eq(fx.fading_count(), 0, "and the landing is over in 0.6 s")
 
 
 func test_the_jacks_field_is_spikes_on_a_circle() -> void:
 	var practice: PracticeMatch = _casting(&"jacks", &"lata")
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
 	_cast(practice, 0)
-	var meshes: Array[Node] = fx.find_children("*", "MeshInstance3D", true, false).filter(func(n: Node) -> bool: return not n.get_parent().name.begins_with("Burst"))
-	assert_eq(meshes.size(), WeaponModel.SPIKE_CLUSTERS + 1, "the spike clusters and the tinted circle (not the hit bursts)")
+	assert_eq(fx.zones.live_count(), 1)
+	var field: Node3D = fx.zones.node_for(fx.context().sim.weapons.zones[0].id)
+	assert_eq(_models(field).size(), WeaponModel.SPIKE_CLUSTERS, "the spike clusters")
+	var marks: Array[Node] = field.find_children("Mark", "MeshInstance3D", true, false)
+	assert_eq(marks.size(), 1, "on one tinted circle")
 
 
 func test_the_spinning_top_is_its_model_and_spins_fast() -> void:
 	var practice: PracticeMatch = _casting(&"trumpo", &"lata")
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
 	_cast(practice, 0)
-	var meshes: Array[Node] = fx.find_children("*", "MeshInstance3D", true, false)
-	assert_eq(meshes.size(), 1)
+	var top: Node3D = fx.projectiles.node_for(fx.context().sim.weapons.projectiles[0].id)
+	var meshes: Array[Node] = _models(top)
+	assert_eq(meshes.size(), 1, "the top is its one model")
 	assert_true((meshes[0] as MeshInstance3D).mesh is ArrayMesh)
 	assert_gt(WeaponFxView.TOP_SPIN, WeaponFxView.SPIN)
 
@@ -139,7 +172,8 @@ func test_langit_lupa_rises_as_the_soil_block() -> void:
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
 	_cast(practice, 0)
 	assert_eq(fx.live_count(), 1)
-	var mesh: MeshInstance3D = fx.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+	var block: Node3D = fx.walls.node_for(fx.context().sim.weapons.shields[0].id)
+	var mesh: MeshInstance3D = _models(block)[0] as MeshInstance3D
 	assert_false(mesh.mesh is BoxMesh, "the owner's soil block, not a box")
 	for i: int in 30 * 5:
 		practice.advance(DT)
@@ -158,24 +192,35 @@ func test_the_scissors_snip_for_gunting() -> void:
 	var scissors: Node3D = fx.find_child("Scissors", true, false) as Node3D
 	assert_not_null(scissors, "scissors show where it snips")
 	var start: Vector3 = scissors.position
+	var rig: ScissorsRig = fx.cones.scissors()[0]
+	assert_eq(rig.blades().size(), 2, "two blades")
+	var opened: float = rig.angle()
 	practice.advance(DT)
 	practice.advance(DT)
 	if is_instance_valid(scissors):
-		assert_ne(scissors.position, start, "they lunge forward")
+		assert_ne(scissors.position, start, "they move (pull back for the big snip)")
+		assert_ne(rig.angle(), opened, "and the blades open")
 
 
-func test_a_heal_floats_a_green_cross_over_the_kid_and_it_goes_away() -> void:
+func test_a_heal_pops_a_green_cross_at_the_kid_and_it_goes_away() -> void:
 	var practice: PracticeMatch = _casting(&"heal", &"lata")
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
 	practice.sim.damage(PracticeMatch.LOCAL_ID, 40)
 	_cast(practice, 0)
-	var crosses: Array[Node] = fx.find_children("HealCross*", "Node3D", true, false)
+	var crosses: Array[Node3D] = fx.heals.crosses()
 	assert_gt(crosses.size(), 0, "a cross appears")
-	assert_gt((crosses[0] as Node3D).position.y, 2.0, "above the head")
-	for i: int in 40:
+	var cross: Node3D = crosses[0]
+	var half: float = WeaponModel.CROSS_WIDTH * fx.view_scale / 2.0
+	var turn: float = cross.rotation.y
+	for i: int in 24:
+		if not is_instance_valid(cross) or cross.is_queued_for_deletion():
+			break
+		# where it is seen on screen (the chest) is test_fx_weapon_motion's test_the_heal_cross_reads_at_the_chest
+		assert_lt(cross.position.y + half, 3.7, "never up at the bars")
+		assert_almost_eq(cross.rotation.y, turn, 0.0001, "no spin: it faces the camera, never edge-on")
 		practice.advance(DT)
-	var left: Array[Node] = fx.find_children("HealCross*", "Node3D", true, false).filter(func(c: Node) -> bool: return not c.is_queued_for_deletion())
-	assert_eq(left.size(), 0, "and fades away")
+	var left: Array[Node3D] = fx.heals.crosses()
+	assert_eq(left.size(), 0, "and goes away within 24 frames")
 
 
 ## Audit: casting any of the weapons shows the owner's 3D model (a ground disc or a flash may
@@ -190,8 +235,8 @@ func test_every_weapon_shows_its_model_when_cast() -> void:
 		var models: int = 0
 		for step: int in 40:
 			practice.advance(DT)
-			for mesh: Node in fx.find_children("*", "MeshInstance3D", true, false):
-				if not mesh.is_queued_for_deletion() and (mesh as MeshInstance3D).mesh is ArrayMesh:
+			for mesh: Node in _models(fx):
+				if (mesh as MeshInstance3D).mesh is ArrayMesh:
 					models += 1
 			if models > 0:
 				break

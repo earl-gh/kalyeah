@@ -61,7 +61,7 @@ func connect_sim() -> void:
 		if id == owner.local_id:
 			owner._camera.shake(minf(0.1 + amount * 0.01, 0.4))
 			owner.hud.pulse.hit(amount, owner.sim.rules.player_max_hp))
-	owner.sim.weapon_cast.connect(func(id: int, _weapon: StringName) -> void: (owner._views[id] as KidModel).play_cast())
+	owner.sim.weapon_cast.connect(func(id: int, weapon: StringName) -> void: (owner._views[id] as KidModel).play_cast(cast_lead(owner.sim, weapon)))
 	owner.sim.player_damaged.connect(func(id: int, _amount: int) -> void: (owner._views[id] as KidModel).play_hit())
 	owner.sim.match_won.connect(_on_match_won)
 	owner.sim.point_reset.connect(func() -> void:
@@ -74,6 +74,15 @@ func connect_sim() -> void:
 			owner.hud.coach.start(owner.sim.rules.capture_solo_time, owner.sim.score.points_to_win()))
 	owner.sim.player_tagged.connect(_on_player_tagged)
 	owner.sim.player_rescued.connect(_on_player_rescued)
+
+
+## How long before its release a kid's cast clip starts for `weapon`: a delayed cone (the big snip) strikes `delay` seconds
+## after the cast, so the hand comes down on the strike; everything else releases on the cast tick.
+static func cast_lead(sim: MatchSim, weapon: StringName) -> float:
+	var def: WeaponDef = sim.weapon_defs.get(weapon) as WeaponDef
+	if def != null and def.shape == WeaponDef.Shape.CONE and def.delay > 0.0:
+		return def.delay
+	return 0.0
 
 
 func sync(delta: float) -> void:
