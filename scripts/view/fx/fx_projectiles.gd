@@ -54,6 +54,23 @@ const BOUNCE_FLASH_FADE: int = 6
 const BOUNCE_DUST: int = 6
 const BOLA_RUNOUT: float = 0.5
 const RUNOUT_FRAMES: int = 4
+## The spinning top stands on its tip on the street (`TOP_SPIN` turns a second) and wobbles (FxMotion.top_tilt). It drops
+## in from `TOP_DROP` m over `TOP_DROP_FRAMES` frames and lands squashed (`TOP_LAND_S`) with `TOP_LAND_DUST` dust; while it
+## moves it leaves a short dust trail. A kid it hits makes it squash (`TOP_LAND_S`) and its lean kick up; the kid is thrown
+## up off `TOP_LAUNCH_DUST` dust. At the end it leans over (`TOP_END_TILT` degrees, then down to `TOP_FALL_TILT`) slowing
+## its spin, and shrinks away over `TOP_END_FRAMES` frames with `TOP_END_DUST` dust. A top reacts to a kid within its hit
+## radius plus `SLAP_REACH` m.
+const TOP_DROP: float = 0.6
+const TOP_DROP_FRAMES: int = 2
+const TOP_LAND_S: float = 0.8
+const TOP_LAND_DUST: int = 4
+const TOP_LAUNCH_DUST: int = 6
+const TOP_END_TILT: float = 35.0
+const TOP_FALL_TILT: float = 80.0
+const TOP_END_FRAMES: int = 8
+const TOP_END_DUST: int = 4
+## The top's shadow is this much of its drawn height (it is narrower than it is tall).
+const TOP_SHADOW: float = 0.63
 ## Weapon id -> how its object moves.
 const BEHAVIOUR: Dictionary[StringName, StringName] = {
 	&"bato_light": &"rock",
@@ -91,6 +108,10 @@ class Rec extends RefCounted:
 	var touched: float = -1.0
 	var origin: Vector2 = Vector2.INF
 	var rings: Array[MeshInstance3D] = []
+	## The top: its dust trail, its last hit, and whether it has landed.
+	var trail: CPUParticles3D
+	var spiked: float = -1.0
+	var landed: bool = false
 
 
 ## A removed projectile playing its end.
@@ -101,6 +122,7 @@ class Ghost extends RefCounted:
 	var life: float
 	var from: Vector3
 	var to: Vector3
+	var spin: float = 0.0
 
 
 var _ctx: FxContext
@@ -157,6 +179,10 @@ func react_hit(kid_id: int, at: Vector2) -> void:
 		if d <= rec.def.projectile_radius + kid_radius + SLAP_REACH and d < best_d:
 			best = rec
 			best_d = d
+	for rec: Rec in _recs.values():
+		if rec.kind == &"top" and rec.team != team and rec.track.last_pos.distance_to(at) <= rec.def.radius + kid_radius + SLAP_REACH and not _ctx.reduced:
+			# the top bumps into the kid: it squashes and its lean kicks up
+			rec.spiked = _ctx.time
 	if best == null or _ctx.reduced:
 		return
 	# a slap: the slipper stretches on the hit and a white smack streak crosses its path
@@ -186,7 +212,8 @@ func _create(projectile: WeaponSystem.Projectile) -> Rec:
 	rec.born = _ctx.time
 	var model: Node3D
 	if WeaponModel.has_model(projectile.def.id):
-		model = WeaponModel.make(projectile.def.id, true)
+		# a top stands on its tip; everything else flies centred on its height
+		model = WeaponModel.make(projectile.def.id, rec.kind != &"top")
 	else:
 		var mesh: MeshInstance3D = MeshInstance3D.new()
 		var size: float = projectile.def.radius if projectile.def.shape in [WeaponDef.Shape.SPINNER, WeaponDef.Shape.BOUNCER] else projectile.def.projectile_radius
@@ -201,7 +228,7 @@ func _create(projectile: WeaponSystem.Projectile) -> Rec:
 		rec.tilt.basis = _toward_camera(deg_to_rad(SLIPPER_TILT))
 	add_child(rec.holder)
 	_recs[rec.id] = rec
-	_ctx.shadows.attach(rec.id, drawn_width(rec.def), rec.team)
+	_ctx.shadows.attach(rec.id, drawn_width(rec.def) * (TOP_SHADOW if rec.kind == &"top" else 1.0), rec.team)
 	if rec.kind == &"rock" or rec.kind == &"slipper":
 		_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(projectile.position.x, 0.0, projectile.position.y), THROW_DUST)
 	return rec
@@ -217,6 +244,8 @@ func _update(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 			_slipper(rec, projectile)
 		&"marble":
 			_marble(rec, projectile)
+		&"top":
+			_top(rec, projectile)
 		_:
 			rec.spin.rotation.y += _ctx.delta * TAU * (TOP_SPIN if rec.def.id == &"trumpo" else SPIN)
 	_ctx.shadows.place(rec.id, projectile.position, rec.holder.position.y)
@@ -308,6 +337,44 @@ func _marble(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 		rec.spin.basis = Basis(axis.normalized(), rec.spin_angle)
 
 
+## The top drops in on its tip, spins and wobbles as it travels, leaving a little dust, and kicks when it hits a kid.
+func _top(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
+	var age: float = _ctx.time - rec.born
+	rec.holder.position.y = 0.0
+	if _ctx.reduced:
+		rec.squash.basis = Basis.IDENTITY
+		return
+	rec.spin_angle += _ctx.delta * TAU * TOP_SPIN
+	rec.spin.basis = Basis(Vector3.UP, rec.spin_angle)
+	var drop: float = TOP_DROP_FRAMES * FxSquash.FRAME
+	var shape: Vector3 = Vector3.ONE
+	if age < drop:
+		rec.holder.position.y = TOP_DROP * (1.0 - age / drop)
+	elif not rec.landed:
+		rec.landed = true
+		_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(projectile.position.x, 0.0, projectile.position.y), TOP_LAND_DUST)
+		rec.trail = _ctx.particles.trail_take()
+	if age >= drop and age < drop + FxSquash.IMPACT_FRAMES * FxSquash.FRAME:
+		shape = FxSquash.along(TOP_LAND_S)
+	var spike_age: float = _ctx.time - rec.spiked if rec.spiked >= 0.0 else -1.0
+	if spike_age >= 0.0 and spike_age < FxSquash.IMPACT_FRAMES * FxSquash.FRAME:
+		shape = FxSquash.along(TOP_LAND_S)
+	rec.squash.basis = FxMotion.top_tilt(_ctx.time, spike_age) * Basis.from_scale(shape)
+	if rec.trail != null:
+		rec.trail.global_position = Vector3(projectile.position.x, 0.05, projectile.position.y)
+
+
+## A status effect landed on kid `id`: thrown up by a top, the kid leaves a puff of dust.
+func on_effect(id: int, type: int) -> void:
+	if type != StatusEffects.Type.AIRBORNE or _ctx.sim == null or not _ctx.sim.players.has(id):
+		return
+	var at: Vector2 = _ctx.sim.players[id].position
+	for rec: Rec in _recs.values():
+		if rec.kind == &"top" and rec.track.last_pos.distance_to(at) <= rec.def.radius + SLAP_REACH + 1.0:
+			_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(at.x, 0.0, at.y), TOP_LAUNCH_DUST)
+			return
+
+
 ## Where the marble was thrown from: offline exactly (its position less its travel), online the thrower at the cast, else
 ## where it was first seen.
 func _bola_origin(rec: Rec, projectile: WeaponSystem.Projectile) -> Vector2:
@@ -381,6 +448,18 @@ func _remove(id: int) -> void:
 		return
 	if rec.kind == &"marble":
 		_marble_gone(rec)
+		return
+	if rec.kind == &"top":
+		if rec.trail != null:
+			_ctx.particles.trail_give(rec.trail)
+		if _ctx.reduced:
+			rec.holder.queue_free()
+			return
+		# the end of its run: it leans over, slows, tips and is gone
+		_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(rec.holder.position.x, 0.0, rec.holder.position.z), TOP_END_DUST)
+		var ghost: Ghost = _ghost(rec.holder, &"tip_over", TOP_END_FRAMES * FxSquash.FRAME)
+		ghost.spin = rec.spin_angle
+		ghost.to = Vector3(rec.track.dir.x, 0.0, rec.track.dir.y)
 		return
 	if _ctx.reduced or rec.kind != &"rock":
 		rec.holder.queue_free()
@@ -462,6 +541,15 @@ func _step_ghosts() -> void:
 		if ghost.kind == &"catch":
 			ghost.node.position = ghost.from.lerp(ghost.to, t)
 			ghost.node.scale = Vector3.ONE * _ctx.view_scale * maxf(1.0 - t, 0.01)
+		elif ghost.kind == &"tip_over":
+			# lean 8 -> 35 degrees over the first 6 frames, then fall over to 80, spinning slower, shrinking away
+			var lean: float = lerpf(FxMotion.TOP_TILT, TOP_END_TILT, minf(t / 0.75, 1.0)) if t < 0.75 else lerpf(TOP_END_TILT, TOP_FALL_TILT, (t - 0.75) / 0.25)
+			var axis: Vector3 = ghost.to.cross(Vector3.UP) if ghost.to != Vector3.ZERO else Vector3.RIGHT
+			var squash: Node3D = ghost.node.get_node("Squash") as Node3D
+			squash.basis = Basis(-axis.normalized(), deg_to_rad(lean))
+			ghost.spin += _ctx.delta * TAU * TOP_SPIN * (1.0 - t)
+			(squash.get_node("Spin") as Node3D).basis = Basis(Vector3.UP, ghost.spin)
+			ghost.node.scale = Vector3.ONE * _ctx.view_scale * (1.0 if t < 0.5 else maxf(1.0 - (t - 0.5) / 0.5, 0.01))
 		elif ghost.kind == &"runout" and t > 0.25:
 			ghost.node.position = ghost.from.lerp(ghost.to, t)
 			(ghost.node.get_node("Squash") as Node3D).basis = Basis.IDENTITY

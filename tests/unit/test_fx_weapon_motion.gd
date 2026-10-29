@@ -335,3 +335,73 @@ func test_rm_marble_flat() -> void:
 		assert_almost_eq(_rig(id).position.y, radius, 0.001, "rolls flat on the street")
 		assert_eq(_part(_rig(id), "Squash/Spin").basis, spin, "without turning")
 	assert_eq(_fx.particle_count(), 0)
+
+
+# ---- trumpo (the spinning top) ----------------------------------------------------------------------------------------
+
+## The lowest point of the top's model on screen right now (its tip, vertex by vertex).
+func _lowest(holder: Node3D) -> float:
+	var lowest: float = INF
+	for node: Node in holder.find_children("*", "MeshInstance3D", true, false):
+		var mesh: MeshInstance3D = node as MeshInstance3D
+		var xform: Transform3D = mesh.global_transform
+		for vertex: Vector3 in mesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array:
+			lowest = minf(lowest, (xform * vertex).y)
+	return lowest
+
+
+func _lean(holder: Node3D) -> float:
+	return rad_to_deg(_part(holder, "Squash").basis.y.normalized().angle_to(Vector3.UP))
+
+
+func test_the_top_stands_on_its_tip() -> void:
+	_setup(Vector2(30.0, 0.0))
+	_cast(&"trumpo", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var id: int = _sim.weapons.projectiles[0].id
+	for frame: int in 21:
+		_frame()
+		if frame == 5 or frame == 20:
+			var tip: float = _lowest(_rig(id))
+			assert_between(tip, -0.01, 0.05, "the tip is on the street at frame %d (%.3f)" % [frame, tip])
+
+
+func test_the_top_wobbles() -> void:
+	_setup(Vector2(30.0, 0.0))
+	_cast(&"trumpo", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var id: int = _sim.weapons.projectiles[0].id
+	for i: int in 8:
+		_frame()
+	var axes: Array[Vector3] = []
+	for i: int in 5:
+		_frame()
+		assert_between(_lean(_rig(id)), 6.0, 10.0, "it leans about 8 degrees")
+		axes.append(_part(_rig(id), "Squash").basis.y)
+	assert_false(axes[0].is_equal_approx(axes[4]), "and the lean goes round (a wobble, not a fixed tilt)")
+
+
+func test_the_top_tips_over_at_the_end() -> void:
+	_setup(Vector2(30.0, 0.0))
+	_cast(&"trumpo", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	while not _sim.weapons.projectiles.is_empty():
+		_frame()
+	assert_eq(_fx.projectiles.fading_count(), 1, "at the end of its run it tips over")
+	for i: int in 9:
+		_frame()
+	assert_eq(_fx.projectiles.fading_count(), 0, "and is gone within nine frames")
+	assert_eq(_fx.context().particles.trail_take() != null, true, "its dust trail was given back")
+
+
+func test_rm_top_upright() -> void:
+	Settings.reduced_motion = true
+	_setup(Vector2(30.0, 0.0))
+	_cast(&"trumpo", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var id: int = _sim.weapons.projectiles[0].id
+	for i: int in 10:
+		_frame()
+		assert_eq(_part(_rig(id), "Squash").basis, Basis.IDENTITY, "upright, no wobble or squash")
+		assert_almost_eq(_rig(id).position.y, 0.0, 0.0001, "on the street")
+	assert_eq(_fx.particle_count(), 0, "no trail")

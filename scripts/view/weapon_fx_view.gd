@@ -66,6 +66,7 @@ func watch(sim: MatchSim) -> void:
 	sim.player_healed.connect(heals.on_healed)
 	sim.weapon_cast.connect(_on_cast)
 	sim.effect_applied.connect(zones.on_effect)
+	sim.effect_applied.connect(projectiles.on_effect)
 
 
 ## What every controller reads (tests and tools).
