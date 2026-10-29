@@ -7,6 +7,8 @@ extends RefCounted
 ## (gunting), the soil block (langit lupa wall) and the green cross (heal). Each has its base
 ## centre on the origin and the matte look from ModelLook.
 ## Weapons without a model here keep their code-drawn object (Props.weapon_object).
+## Every instance of one model shares one set of look materials (built by the first instance), and every model mesh joins
+## `GROUP` so tests and tools can tell the skill objects apart from the flat effects drawn round them.
 
 const PATH: String = "res://assets/models/weapons/%s.glb"
 ## Weapon id -> [model, longest side in metres]. The slippers keep the old boxes' length.
@@ -24,13 +26,19 @@ const OBJECTS: Dictionary[StringName, Array] = {
 ## this wide in metres.
 const SPIKE_CLUSTERS: int = 5
 const SPIKE_WIDTH: float = 0.9
-const METEOR_SIZE: float = 1.8
-const CROSS_WIDTH: float = 0.9
+## The rock meteor of bato heavy (metres across; a 2 m circle reads "a big rock lands here" without hiding both kids in it).
+const METEOR_SIZE: float = 1.4
+## The heal cross (metres wide before the kids' view scale: 1.0 m drawn, so it sits on the chest under the face).
+const CROSS_WIDTH: float = 0.5
+## The group every weapon model mesh joins.
+const GROUP: StringName = &"weapon_model"
 ## The paper wall's model.
 const SHIELD: String = "paper"
 
 static var _scenes: Dictionary[String, PackedScene] = {}
 static var _sizes: Dictionary[String, Vector3] = {}
+## Model id -> the look materials of its surfaces, in find order (shared by every instance of the model).
+static var _looks: Dictionary[String, Array] = {}
 
 
 static func has_model(weapon_id: StringName) -> bool:
@@ -124,6 +132,46 @@ static func scissors(length: float) -> Node3D:
 	return holder
 
 
+## Wraps `model` for an effect that moves it: Holder (placed at the sim position) > "Squash" (squash and stretch) >
+## ["Tilt" when `tilted`] > "Spin" (turns and tumbles) > the model. Returns the holder.
+static func rig(model: Node3D, tilted: bool = false) -> Node3D:
+	var holder: Node3D = Node3D.new()
+	var squash: Node3D = Node3D.new()
+	squash.name = "Squash"
+	holder.add_child(squash)
+	var parent: Node3D = squash
+	if tilted:
+		var tilt: Node3D = Node3D.new()
+		tilt.name = "Tilt"
+		squash.add_child(tilt)
+		parent = tilt
+	var spin: Node3D = Node3D.new()
+	spin.name = "Spin"
+	parent.add_child(spin)
+	spin.add_child(model)
+	return holder
+
+
+## How many model looks are shared right now (one per model id; never one per instance).
+static func look_count() -> int:
+	return _looks.size()
+
+
+## The first mesh of model `id` as made (for particles that throw little copies of it, like rock chips).
+static func mesh_of(id: String) -> Mesh:
+	var probe: Node3D = _instance(id)
+	var mesh: Mesh = (probe.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
+	probe.free()
+	return mesh
+
+
+## The shared look material of model `id`'s first surface.
+static func look_of(id: String) -> Material:
+	if not _looks.has(id):
+		_instance(id).free()
+	return _looks[id][0] as Material
+
+
 static func _scaled(id: String, longest: float, centered: bool) -> Node3D:
 	var natural: Vector3 = size_of(id)
 	var scale: float = longest / maxf(natural.x, maxf(natural.y, natural.z))
@@ -154,5 +202,19 @@ static func _scene(id: String) -> PackedScene:
 
 static func _instance(id: String) -> Node3D:
 	var root: Node3D = _scene(id).instantiate() as Node3D
-	ModelLook.apply(root)
+	var meshes: Array[Node] = root.find_children("*", "MeshInstance3D", true, false)
+	if not _looks.has(id):
+		_looks[id] = ModelLook.apply(root)
+	else:
+		var looks: Array = _looks[id]
+		var next: int = 0
+		for node: Node in meshes:
+			var mesh_instance: MeshInstance3D = node as MeshInstance3D
+			mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			for surface: int in mesh_instance.mesh.get_surface_count():
+				if next < looks.size():
+					mesh_instance.set_surface_override_material(surface, looks[next] as Material)
+				next += 1
+	for node: Node in meshes:
+		node.add_to_group(GROUP)
 	return root
