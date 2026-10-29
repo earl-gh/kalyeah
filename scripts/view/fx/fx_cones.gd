@@ -12,7 +12,7 @@ const SNIP_LUNGE: float = 0.2
 ## The warning of a delayed cone: its edge `WINDUP_RIM` m wide shows at once, the fill (`WINDUP_FILL` alpha) grows from the
 ## caster until the strike.
 const WINDUP_RIM: float = 0.08
-const WINDUP_FILL: float = 0.22
+const WINDUP_FILL: float = 0.30
 ## The growing fill starts this small (a true zero breaks the transform).
 const WINDUP_START: float = 0.05
 

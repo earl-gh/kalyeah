@@ -86,17 +86,27 @@ func _create(projectile: WeaponSystem.Projectile) -> Rec:
 	rec.spin = rec.squash.get_node("Spin") as Node3D
 	add_child(rec.holder)
 	_recs[rec.id] = rec
+	_ctx.shadows.attach(rec.id, drawn_width(rec.def), rec.team)
 	return rec
+
+
+## How wide `def`'s object is drawn (metres, its longest side times the view scale).
+func drawn_width(def: WeaponDef) -> float:
+	if WeaponModel.has_model(def.id):
+		return (WeaponModel.OBJECTS[def.id][1] as float) * _ctx.view_scale
+	return maxf(def.projectile_radius, 0.25) * 2.0 * _ctx.view_scale
 
 
 func _update(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 	rec.holder.scale = Vector3.ONE * _ctx.view_scale
 	rec.holder.position = Vector3(projectile.position.x, PROJECTILE_HEIGHT * _ctx.view_scale, projectile.position.y)
 	rec.spin.rotation.y += _ctx.delta * TAU * (TOP_SPIN if rec.def.id == &"trumpo" else SPIN)
+	_ctx.shadows.place(rec.id, projectile.position, rec.holder.position.y)
 
 
 func _remove(id: int) -> void:
 	var rec: Rec = _recs[id]
 	_recs.erase(id)
+	_ctx.shadows.detach(id)
 	gone.emit(id, rec.def, rec.team, rec.holder.position)
 	rec.holder.queue_free()
