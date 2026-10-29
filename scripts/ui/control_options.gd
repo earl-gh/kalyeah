@@ -8,13 +8,13 @@ extends VBoxContainer
 var hand_toggle: UiToggle
 ## On = a thin line and rings while you aim; off = nothing is drawn.
 var guide_toggle: UiToggle
-## On = lean the phone to run (only on a phone that reports its tilt; Settings page only).
+## On = lean the phone to run (only on a phone that reports its tilt; Settings page and match menu).
 var tilt_toggle: UiToggle
 ## The Tilt to run row and the line above it: built on a phone and shown once the sensor has reported (`_show_tilt`). Home builds this
 ## page when the app starts, before the first reading arrives, so it is asked again each time the page shows.
 var tilt_row: Control
 var _tilt_divider: Control
-## In the match menu the list must stay short enough that Resume and Leave stay in view, so the aim guide is only on the Settings page.
+## In the match menu the list must stay short enough that Leave battle stays in view, so the aim guide is only on the Settings page.
 var in_match: bool = false
 
 
@@ -26,15 +26,14 @@ func _ready() -> void:
 	hand_toggle.set_state(Settings.left_handed)
 	hand_toggle.toggled.connect(Settings.set_left_handed)
 	add_child(UiKit.setting_row("Left-handed", "NEXT card on the right, your cards to the left", hand_toggle))
-	if in_match:
-		Settings.controls_changed.connect(_refresh)
-		return
-	add_child(UiKit.divider())
-	guide_toggle = UiToggle.new()
-	guide_toggle.name = "AimGuide"
-	guide_toggle.set_state(Settings.aim_guide)
-	guide_toggle.toggled.connect(Settings.set_aim_guide)
-	add_child(UiKit.setting_row("Aim guide", "A thin line while you aim", guide_toggle))
+	if not in_match:
+		add_child(UiKit.divider())
+		guide_toggle = UiToggle.new()
+		guide_toggle.name = "AimGuide"
+		guide_toggle.set_state(Settings.aim_guide)
+		guide_toggle.toggled.connect(Settings.set_aim_guide)
+		add_child(UiKit.setting_row("Aim guide", "A thin line while you aim", guide_toggle))
+	# owner: Tilt to run can be switched mid-match too (the match reads it every tick)
 	if TiltInput.possible():
 		_tilt_divider = UiKit.divider()
 		add_child(_tilt_divider)
