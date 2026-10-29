@@ -109,7 +109,7 @@ const BARRIER_HEIGHTS: Dictionary[String, float] = {
 	"basketball_pole": 6.0, "ebike": 1.5, "truck_wheels": 1.4,
 	"no_id_no_entry": 1.7, "rooster_tent": 1.4, "plank_fence": 1.8,
 }
-## The top boundary (owner): the end of the street at the top of the screen is closed by the owner's three pictures instead of the row of
+## The top boundary (owner): the end of the street at the top of the screen is closed by the owner's PNG pictures instead of the row of
 ## props, left to right on the screen. Each is a 2D picture (a transparent PNG, drawn as made: unshaded, no tint) standing across the end
 ## and leaning back to face the camera (the fixed orthographic camera looks `BOUNDARY_TILT` degrees off straight ahead, so a picture
 ## tilted that much shows undistorted, like a sprite); its bottom edge is on the ground at the end line. `height` is its true height in
@@ -117,10 +117,9 @@ const BARRIER_HEIGHTS: Dictionary[String, float] = {
 const BOUNDARY_PATH: String = "res://assets/textures/boundary/%s.png"
 const BOUNDARY_PICTURES: Array[Dictionary] = [
 	{"id": "fishball_cart", "height": 2.4},
-	{"id": "tin_fence", "height": 2.0},
 	{"id": "jeepney", "height": 2.4},
 ]
-const CORNER_WALL: Dictionary = {"id": "tin_fence", "height": 2.9}
+const CORNER_WALL: Dictionary = {"id": "tin_fence", "height": 2.0}
 ## 90 degrees less the camera's pitch (`data/rules/camera_rules.tres`, 45).
 const BOUNDARY_TILT: float = 45.0
 ## Things whose long side is their depth: they are turned a quarter so the long side faces the play area.
@@ -624,28 +623,29 @@ static func top_end(own_side: int) -> float:
 	return -float(own_side)
 
 
-## The owner's three pictures standing across each end (only the end at the top of the screen shows them, `_show_top_boundary`): spread
-## along the row with the same room between them and at the two sides, in the order they read left to right on the screen. The +Z end's
-## row is turned half way round, where the camera looks the other way.
+## The cart replaces the former middle wall; the jeepney keeps its position, with matching walls at both corners.
+## The +Z row turns half way round so the same arrangement faces either viewer.
 func _add_boundary_pictures() -> void:
 	var widths: Array[float] = []
 	var used: float = 0.0
 	for entry: Dictionary in BOUNDARY_PICTURES:
 		widths.append(boundary_width(entry, scenery()))
 		used += widths[widths.size() - 1]
-	var gap: float = maxf(layout.lane_width - used, 0.0) / float(BOUNDARY_PICTURES.size() + 1)
+	var wall_width: float = boundary_width(CORNER_WALL, scenery())
+	# Keep the old three-slot anchors so moving the cart does not shift the jeepney.
+	var gap: float = maxf(layout.lane_width - used - wall_width, 0.0) / 4.0
+	var middle_wall_left: float = -layout.lane_width / 2.0 + gap * 2.0 + widths[0]
+	var centers: Array[float] = [middle_wall_left + wall_width / 2.0, middle_wall_left + wall_width + gap + widths[1] / 2.0]
 	for end: float in [-1.0, 1.0]:
 		var row: Node3D = Node3D.new()
 		row.name = "BoundaryPictures%s" % ("Far" if end < 0.0 else "Near")
 		row.position = Vector3(0.0, 0.0, end * (layout.lane_length / 2.0 + BARRIER_SETBACK))
 		row.rotation_degrees = Vector3(0.0, 0.0 if end < 0.0 else 180.0, 0.0)
 		# in the row's own frame x runs to the right of the screen at either end
-		var x: float = -layout.lane_width / 2.0 + gap
 		for k: int in BOUNDARY_PICTURES.size():
 			var picture: MeshInstance3D = _boundary_picture(BOUNDARY_PICTURES[k], widths[k])
-			picture.position = Vector3(x + widths[k] / 2.0, 0.0, 0.0)
+			picture.position = Vector3(centers[k], 0.0, 0.0)
 			row.add_child(picture)
-			x += widths[k] + gap
 		for side: float in [-1.0, 1.0]:
 			var roof: MeshInstance3D = _boundary_picture(CORNER_WALL, boundary_width(CORNER_WALL, scenery()))
 			roof.name = "RoofWallLeft" if side < 0.0 else "RoofWallRight"
