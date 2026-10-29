@@ -443,15 +443,16 @@ func test_quit_asks_first_and_only_quits_on_yes() -> void:
 	var card: MenuDialog = screen.open_quit_confirm()
 	assert_eq(quit_calls[0], 0, "opening the question does not quit")
 	var buttons: Array[Node] = _answers(card)
-	var stay: Button = buttons[0] as Button
-	var leave: Button = buttons[1] as Button
-	assert_eq(stay.text, "Cancel")
+	assert_eq(buttons.size(), 1)
+	var stay: Button = card.close_button
+	var leave: Button = buttons[0] as Button
+	assert_eq(stay.text, "X")
 	assert_eq(leave.text, "Quit")
 	stay.pressed.emit()
 	assert_eq(quit_calls[0], 0, "Cancel keeps playing")
 	assert_false(is_instance_valid(card) and card.is_open)
 	var again: MenuDialog = screen.open_quit_confirm()
-	(_answers(again)[1] as Button).pressed.emit()
+	(_answers(again)[0] as Button).pressed.emit()
 	assert_eq(quit_calls[0], 1, "QUIT quits")
 
 

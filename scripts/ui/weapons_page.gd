@@ -251,10 +251,6 @@ static func detail(weapon: WeaponDef) -> MenuDialog:
 		story.name = "GameBlurb"
 		column.add_child(story)
 		card.body.add_child(column)
-	var close: Button = MenuDialog.make_button("Close", "grey", UiMetrics.BODY)
-	close.name = "Close"
-	close.pressed.connect(card.close)
-	card.add_buttons([close])
 	return card
 
 

@@ -114,7 +114,7 @@ func test_an_open_drawer_intercepts_touches_over_the_navigation() -> void:
 	assert_eq(screen.current_page, &"codex", "the covered navigation cannot switch tabs")
 	screen.card_drawer.set_bottom_inset(40.0)
 	await wait_frames(3)
-	assert_lte(screen.card_drawer.close_button.get_global_rect().end.y, 1240.0, "Okay stays above the home inset")
+	assert_lte(screen.card_drawer.close_button.get_global_rect().end.y, 1240.0, "X stays above the home inset")
 
 
 # ---- the grids ---------------------------------------------------------------------------
@@ -230,7 +230,7 @@ func test_tapping_a_kid_opens_its_name_and_description_with_the_card_behind_the_
 		assert_eq(drawer.picture.get_parent(), drawer.slider)
 		assert_lt(drawer.picture.get_global_rect().position.y, drawer.sheet.get_global_rect().position.y)
 		assert_gt(drawer.picture.get_global_rect().end.y, drawer.sheet.get_global_rect().position.y)
-		assert_null(drawer.find_child("Close", true, false), "the old sheet's Close button is not copied: the drawer has Okay")
+		assert_null(drawer.find_child("Close", true, false), "the drawer has no footer Close button")
 		assert_eq(drawer.content.get_children().filter(func(node: Node) -> bool: return node.name == "Picture").size(), 0, "no second picture")
 		drawer.close(false)
 
@@ -249,7 +249,9 @@ func test_tapping_a_skill_opens_its_picture_name_and_short_description_only() ->
 		assert_null(drawer.find_child("Figures", true, false))
 		assert_null(drawer.find_child("GameBlurb", true, false))
 		assert_eq(drawer.sections.size(), 1)
-		assert_eq(drawer.close_button.text, "Okay")
+		assert_eq(drawer.close_button.text, "X")
+		assert_eq(drawer.close_button.get_parent(), drawer.header_row)
+		assert_null(drawer.find_child("OkayButton", true, false))
 		drawer.close(false)
 
 
@@ -411,7 +413,7 @@ func test_the_drawer_is_the_modals_slate_with_rounded_top_corners_and_a_handle()
 	var pill: Control = drawer.handle.find_child("Pill", true, false) as Control
 	assert_not_null(pill, "a grab handle")
 	assert_gt(pill.get_global_rect().size.x, 60.0)
-	assert_gte(drawer.close_button.get_global_rect().size.x, UiMetrics.MIN_TARGET, "Okay is a big target")
+	assert_gte(drawer.close_button.get_global_rect().size.x, UiMetrics.MIN_TARGET, "X is a big target")
 	assert_gte(drawer.close_button.get_global_rect().size.y, UiMetrics.MIN_TARGET)
 
 

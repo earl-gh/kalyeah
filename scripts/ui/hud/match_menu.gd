@@ -5,7 +5,6 @@ extends Control
 signal closed
 signal exit_pressed
 
-var resume_button: Button
 var leave_button: Button
 var _dialog: MenuDialog
 var _networked: bool = false
@@ -21,8 +20,6 @@ func _ready() -> void:
 	_dialog = MenuDialog.create("Match settings", MenuDialog.WIDTH_SHEET, UiTabBar.picture(&"settings"))
 	_dialog.persistent = true
 	SettingsPage.fill(_dialog.body, true)
-	resume_button = _button("Resume", "orange", _dialog.body)
-	resume_button.pressed.connect(close)
 	leave_button = _button("Leave battle", "red", _dialog.body)
 	leave_button.pressed.connect(request_exit)
 	_dialog.open(self)

@@ -10,7 +10,7 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 	# The tag itself is the foreground surface; no second card surrounds it.
 	card.panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	card.inner.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-	card.find_child("Header", true, false).hide()
+	card.title_label.text = ""  # Keep the X above the floating tag without adding a title or frame.
 	var holder: Control = Control.new()
 	holder.name = "TagPreview"
 	holder.custom_minimum_size.y = NameTag.CARD_HEIGHT * 1.15 + UiMetrics.PADDING
@@ -96,10 +96,7 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 		fit_preview.call())
 	var save: Button = MenuDialog.make_button("Save", "orange", UiMetrics.BODY)
 	save.name = "Save"
-	var cancel: Button = MenuDialog.make_button("Cancel", "grey", UiMetrics.BODY)
-	cancel.name = "Cancel"
-	cancel.pressed.connect(card.close)
-	var actions: Array[Button] = [cancel]
+	var actions: Array[Button] = []
 	if IdPhoto.exists() and on_photo_removed.is_valid():
 		var remove: Button = MenuDialog.make_button("Remove photo", "grey", UiMetrics.BODY)
 		remove.name = "RemovePhoto"

@@ -1,7 +1,7 @@
 class_name CardDrawer
 extends Control
 ## Modal card details cover the navigation. Kids protrude behind the sheet; details are only name and description.
-## Okay, the top grabber, the scrim or Android Back closes the drawer.
+## The top-right X, grabber, scrim or Android Back closes the drawer.
 
 signal opened
 signal closed
@@ -21,7 +21,7 @@ const STEP_SWIPE: float = 90.0
 const TAP_SLOP: float = 16.0
 const PICTURE_HEIGHT: float = 240.0
 const ARROW_SIZE: Vector2 = Vector2(UiMetrics.MIN_TARGET, UiMetrics.MIN_TARGET + UiMetrics.PADDING)
-## Space under Okay, plus the device's home gesture inset.
+## Space under the content, plus the device's home gesture inset.
 const BOTTOM_CLEAR: float = UiMetrics.PADDING
 const CARD_OVERLAP: float = 44.0
 const TOP_RADIUS: int = UiSkin.RADIUS_XL
@@ -158,6 +158,12 @@ func _build_header() -> void:
 	title_label.add_theme_color_override("font_outline_color", KalyeahTheme.MODAL_TITLE_OUTLINE)
 	title_label.add_theme_constant_override("outline_size", MenuDialog.TITLE_OUTLINE)
 	header_row.add_child(title_label)
+	close_button = MenuDialog.make_button("X", "red", UiMetrics.ACTION, Vector2.ONE * UiMetrics.MIN_TARGET)
+	close_button.name = "CloseButton"
+	close_button.accessibility_name = "Close"
+	close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	close_button.pressed.connect(close)
+	header_row.add_child(close_button)
 	_frame_box.add_child(inset)
 
 
@@ -197,13 +203,6 @@ func _build_body() -> void:
 	next_button.pressed.connect(step.bind(1))
 	picture_row.add_child(next_button)
 	content.add_child(picture_row)
-	var actions: CenterContainer = CenterContainer.new()
-	actions.name = "Actions"
-	close_button = MenuDialog.make_button("Okay", "gold", UiMetrics.BODY, Vector2(240.0, UiMetrics.TOUCH))
-	close_button.name = "OkayButton"
-	close_button.pressed.connect(close)
-	actions.add_child(close_button)
-	_frame_box.add_child(actions)
 
 
 func _arrow(symbol: String, label: String) -> Button:
