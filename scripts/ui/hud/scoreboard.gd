@@ -4,6 +4,10 @@ extends Control
 
 const BIG_FONT: int = UiMetrics.HEADLINE
 const SMALL_FONT: int = UiMetrics.CAPTION
+const CELL_SIZE: Vector2 = Vector2(56.0, 76.0)
+const PADDING: float = 8.0
+const TEXT_OUTLINE: int = 4
+const CAPTURE_GAP: float = 4.0
 
 var play_area: Rect2 = Rect2(70, 160, 560, 830)
 var mine: int = 0
@@ -74,11 +78,11 @@ func _draw() -> void:
 	var theirs_cell: Rect2 = cells[1]
 	_draw_cell(mine_cell, TeamColors.score_own())
 	_draw_cell(theirs_cell, TeamColors.score_enemy())
-	_center_text(KalyeahTheme.ACTION_FONT, str(mine), mine_cell.get_center(), BIG_FONT, Color.WHITE)
-	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), theirs_cell.get_center(), BIG_FONT, Color.WHITE)
+	_center_text(KalyeahTheme.ACTION_FONT, str(mine), value_rect(mine_cell, capture >= 0.0 and capture_ours).get_center(), BIG_FONT, Color.WHITE)
+	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), value_rect(theirs_cell, capture >= 0.0 and not capture_ours).get_center(), BIG_FONT, Color.WHITE)
 	if capture >= 0.0:
 		var cell: Rect2 = mine_cell if capture_ours else theirs_cell
-		var track: Rect2 = Rect2(cell.position + Vector2(6.0, cell.size.y - 12.0), Vector2(cell.size.x - 12.0, CAPTURE_HEIGHT))
+		var track: Rect2 = capture_rect(cell)
 		_round_rect(track, CAPTURE_TRACK, CAPTURE_HEIGHT / 2.0)
 		if capture > 0.0:
 			_round_rect(Rect2(track.position, Vector2(track.size.x * capture, track.size.y)), TeamColors.capture_own() if capture_ours else TeamColors.capture_enemy(), CAPTURE_HEIGHT / 2.0)
@@ -93,10 +97,21 @@ func set_play_area(rect: Rect2) -> void:
 
 ## Blue is in the lower half; red in the upper half, on the viewer's right sidewalk.
 func cell_rects() -> Array[Rect2]:
-	var cell: Vector2 = Vector2(48.0, 56.0)
+	var cell: Vector2 = CELL_SIZE
 	var x: float = minf(play_area.end.x + cell.x / 2.0, size.x - cell.x / 2.0)
 	return [Rect2(Vector2(x, play_area.position.y + play_area.size.y * 0.75) - cell / 2.0, cell), Rect2(Vector2(x, play_area.position.y + play_area.size.y * 0.25) - cell / 2.0, cell)]
 
+
+## Space for the outlined score, with a separate lane for capture progress when shown.
+func value_rect(cell: Rect2, capturing: bool) -> Rect2:
+	var rect: Rect2 = cell.grow(-PADDING)
+	if capturing:
+		rect.size.y -= CAPTURE_HEIGHT + CAPTURE_GAP
+	return rect
+
+
+func capture_rect(cell: Rect2) -> Rect2:
+	return Rect2(Vector2(cell.position.x + PADDING, cell.end.y - PADDING - CAPTURE_HEIGHT), Vector2(cell.size.x - PADDING * 2.0, CAPTURE_HEIGHT))
 
 
 ## A team's cell: its colour in a thick navy outline with a glossy sheen on the upper half, like a Clash Royale panel.
@@ -113,6 +128,6 @@ func _round_rect(rect: Rect2, color: Color, radius: float) -> void:
 
 func _center_text(font: Font, text: String, center: Vector2, font_size: int, color: Color) -> void:
 	var text_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size)
-	var origin: Vector2 = center + Vector2(-text_size.x / 2.0, font_size * 0.35)
-	draw_string_outline(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, 6, Icons.OUTLINE)
+	var origin: Vector2 = center + Vector2(-text_size.x / 2.0, font.get_ascent(font_size) - font.get_height(font_size) / 2.0)
+	draw_string_outline(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, TEXT_OUTLINE, Icons.OUTLINE)
 	draw_string(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, color)

@@ -9,6 +9,9 @@ const CAPTION_FONT: int = UiMetrics.CAPTION
 ## Semi-transparent (the street shows through) with a black outline on its two open sides (owner: copy Clash Royale's box).
 const BOX_COLOR: Color = Color(0.04, 0.05, 0.08, 0.5)
 const BOX_OUTLINE: int = 3
+const PADDING: Vector2 = Vector2(16.0, 12.0)
+const TEXT_OUTLINE: int = 5
+const LINE_GAP: float = 4.0
 
 var seconds: int = 0
 var overtime: bool = false
@@ -54,14 +57,23 @@ func _draw() -> void:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var caption: String = caption_text()
 	var caption_color: Color = RoyaleStyle.GOLD if overtime else Color.WHITE
-	var caption_size: Vector2 = font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1.0, CAPTION_FONT)
-	_lettered(font, caption, Vector2((size.x - caption_size.x) / 2.0, 28.0), CAPTION_FONT, caption_color)
-	var line: String = text()
-	var line_size: Vector2 = font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, TIME_FONT)
-	_lettered(font, line, Vector2((size.x - line_size.x) / 2.0, size.y - 12.0), TIME_FONT, Color.WHITE)
+	var lines: Array[Rect2] = text_rects()
+	var caption_at: Vector2 = lines[0].position + Vector2(TEXT_OUTLINE, TEXT_OUTLINE + font.get_ascent(CAPTION_FONT))
+	_lettered(font, caption, caption_at, CAPTION_FONT, caption_color)
+	var time_at: Vector2 = lines[1].position + Vector2(TEXT_OUTLINE, TEXT_OUTLINE + font.get_ascent(TIME_FONT))
+	_lettered(font, text(), time_at, TIME_FONT, Color.WHITE)
+
+
+## Full line bounds include the text stroke, so the caption and time keep real space between them.
+func text_rects() -> Array[Rect2]:
+	var font: Font = KalyeahTheme.ACTION_FONT
+	var caption_size: Vector2 = font.get_string_size(caption_text(), HORIZONTAL_ALIGNMENT_LEFT, -1.0, CAPTION_FONT) + Vector2.ONE * TEXT_OUTLINE * 2.0
+	var time_size: Vector2 = font.get_string_size(text(), HORIZONTAL_ALIGNMENT_LEFT, -1.0, TIME_FONT) + Vector2.ONE * TEXT_OUTLINE * 2.0
+	var top: float = (size.y - caption_size.y - time_size.y - LINE_GAP) / 2.0
+	return [Rect2(Vector2((size.x - caption_size.x) / 2.0, top), caption_size), Rect2(Vector2((size.x - time_size.x) / 2.0, top + caption_size.y + LINE_GAP), time_size)]
 
 
 ## White (or `color`) letters with a black outline.
 func _lettered(font: Font, text_line: String, origin: Vector2, font_size: int, color: Color) -> void:
-	draw_string_outline(font, origin, text_line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, 7, Color.BLACK)
+	draw_string_outline(font, origin, text_line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, TEXT_OUTLINE, Color.BLACK)
 	draw_string(font, origin, text_line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, color)
