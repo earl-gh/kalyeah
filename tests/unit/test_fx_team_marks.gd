@@ -59,7 +59,7 @@ func _landing(fx: WeaponFxView, team: int) -> MeshInstance3D:
 	zone.kind = WeaponSystem.ZoneKind.EXPLOSION
 	zone.def = _rules.weapons.filter(func(d: WeaponDef) -> bool: return d.id == &"lata")[0] as WeaponDef
 	zone.radius = 2.0
-	return fx._zone_node(zone) as MeshInstance3D
+	return fx.zones.make_node(zone).get_node("Mark") as MeshInstance3D
 
 
 func _rim_alpha(node: MeshInstance3D) -> float:
@@ -71,8 +71,10 @@ func _rim_alpha(node: MeshInstance3D) -> float:
 
 func test_a_landing_circle_is_in_the_throwers_team_colour() -> void:
 	var fx: WeaponFxView = _fx()
-	var mine: MeshInstance3D = autofree(_landing(fx, 0)) as MeshInstance3D
-	var theirs: MeshInstance3D = autofree(_landing(fx, 1)) as MeshInstance3D
+	var mine: MeshInstance3D = _landing(fx, 0)
+	autofree(mine.get_parent())
+	var theirs: MeshInstance3D = _landing(fx, 1)
+	autofree(theirs.get_parent())
 	assert_true(_all_near(mine, TeamColors.world_own()), "yours: your colour %s" % str(_colors(mine)))
 	assert_true(_all_near(theirs, TeamColors.world_enemy()), "theirs: their colour %s" % str(_colors(theirs)))
 	assert_almost_eq(_rim_alpha(theirs), WeaponFxView.FX_RIM_ALPHA, QUANTUM, "an opaque rim reads on the grey street at once")
@@ -81,13 +83,13 @@ func test_a_landing_circle_is_in_the_throwers_team_colour() -> void:
 func test_the_cone_flash_is_whole_from_its_first_frame_and_says_who_threw_it() -> void:
 	var fx: WeaponFxView = _fx()
 	var snip: WeaponDef = _rules.weapons.filter(func(d: WeaponDef) -> bool: return d.id == &"gunting_light")[0] as WeaponDef
-	fx._on_cone_struck(2, snip, Vector2.ZERO, Vector2.UP)
-	var flash: MeshInstance3D = fx._flashes.back() as MeshInstance3D
+	fx.cones.on_struck(2, snip, Vector2.ZERO, Vector2.UP)
+	var flash: MeshInstance3D = fx.cones.flashes().back() as MeshInstance3D
 	assert_true(_all_near(flash, TeamColors.world_enemy()), "an enemy's snip is in their colour %s" % str(_colors(flash)))
 	var material: BaseMaterial3D = flash.material_override as BaseMaterial3D
 	assert_eq(material.cull_mode, BaseMaterial3D.CULL_DISABLED, "seen from above, not culled away")
 	assert_almost_eq(_rim_alpha(flash), WeaponFxView.FX_RIM_ALPHA, QUANTUM)
-	assert_almost_eq(fx._flash_time[flash], WeaponFxView.CONE_FLASH_TIME, 0.001, "it holds its full look from frame 0")
+	assert_almost_eq(fx.cones.flash_time(flash), WeaponFxView.CONE_FLASH_TIME, 0.001, "it holds its full look from frame 0")
 
 
 func test_colour_blind_you_are_not_the_enemys_orange() -> void:
