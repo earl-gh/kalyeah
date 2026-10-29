@@ -253,7 +253,8 @@ func test_next_walks_the_steps_lights_the_hand_and_ends_with_got_it() -> void:
 	assert_eq(coach._spots.size(), 0, "nothing to light for the rules")
 	coach.next()
 	assert_eq(coach.next_button.text, "Got it")
-	assert_false(coach.skip_button.visible, "no skipping the last card: just finish")
+	assert_true(coach.skip_button.visible, "the home-style X stays available")
+	assert_eq(coach.skip_button.text, "X")
 	Session.coach_seen = false
 	coach.next()
 	assert_eq(ended, [true] as Array[bool])

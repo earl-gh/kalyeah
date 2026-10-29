@@ -539,6 +539,8 @@ static func barrier_width(id: String, scale: float = 1.0) -> float:
 ## area, with uneven gaps and a little turned or set back, as if put down by hand.
 func _add_barricades() -> void:
 	var ids: Array = BARRIER_HEIGHTS.keys()
+	ids.erase("roof_wall")
+	ids.erase("roof_wall_2")
 	for end_index: int in 2:
 		var end: float = -1.0 if end_index == 0 else 1.0
 		_row_props[end] = []
@@ -645,6 +647,13 @@ func _add_boundary_pictures() -> void:
 			picture.position = Vector3(x + widths[k] / 2.0, 0.0, 0.0)
 			row.add_child(picture)
 			x += widths[k] + gap
+		for side: float in [-1.0, 1.0]:
+			var roof: Node3D = PropModel.by_height("roof_wall", BARRIER_HEIGHTS["roof_wall"] * scenery())
+			roof.name = "RoofWallLeft" if side < 0.0 else "RoofWallRight"
+			roof.position = Vector3(side * layout.lane_width / 2.0, 0.0, 0.0)
+			if side > 0.0:
+				roof.scale.x *= -1.0
+			row.add_child(roof)
 		_geometry.add_child(row)
 		_row_pictures[end] = row
 

@@ -22,7 +22,7 @@ func test_the_score_sits_in_the_middle_of_the_header() -> void:
 	screen_root.add_child(hud)
 	var score: Rect2 = hud.scoreboard.get_global_rect()
 	assert_almost_eq(score.get_center().x, 360.0, 1.0, "in the middle")
-	assert_lt(score.end.y, MatchHud.HEADER_HEIGHT, "inside the header")
+	assert_eq(score.size.y, 1280.0, "the score overlay spans the play area")
 	assert_lt(hud.settings_button.get_global_rect().get_center().x, 360.0, "the settings button is on the left")
 
 

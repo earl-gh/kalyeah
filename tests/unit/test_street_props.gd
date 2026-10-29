@@ -30,6 +30,8 @@ func test_the_new_things_are_in_the_barrier_rows_at_both_ends() -> void:
 		for id: Variant in row:
 			seen[id] = true
 	for id: String in NEW_BARRIERS:
+		if id.begins_with("roof_wall"):
+			continue
 		assert_true(StreetMap.BARRIER_HEIGHTS.has(id), "%s has a height" % id)
 		assert_true(seen.has(id) or map.far_props.has(id), "%s stands in a row or on the road beyond the end" % id)
 
@@ -144,6 +146,8 @@ func test_what_does_not_fit_in_a_row_stands_on_the_road_beyond() -> void:
 	for id: String in map.far_props:
 		assert_true(StreetMap.BARRIER_HEIGHTS.has(id))
 	for id: String in StreetMap.BARRIER_HEIGHTS:
+		if id.begins_with("roof_wall"):
+			continue
 		assert_true(rowed.has(id) or map.far_props.has(id), "%s is in a row or on the far road" % id)
 
 
@@ -173,7 +177,8 @@ func _pictures(map: StreetMap, end: float) -> Array[MeshInstance3D]:
 	var row: Node3D = map.find_child("BoundaryPictures%s" % ("Far" if end < 0.0 else "Near"), true, false) as Node3D
 	var found: Array[MeshInstance3D] = []
 	for child: Node in row.get_children():
-		found.append(child as MeshInstance3D)
+		if child is MeshInstance3D:
+			found.append(child as MeshInstance3D)
 	return found
 
 
@@ -248,3 +253,16 @@ func test_the_pictures_are_drawn_as_made_not_shaded_or_tinted_and_lossless() -> 
 		assert_true(import_text.contains("compress/mode=0"), "%s imports lossless" % picture.name)
 		assert_true(import_text.contains("detect_3d/compress_to=0"), "and is never compressed for 3D")
 		assert_true(import_text.contains("mipmaps/generate=true"), "and has mipmaps (it is small on screen)")
+
+
+func test_top_roof_walls_are_centered_on_both_corners_and_mirrored() -> void:
+	var map: StreetMap = _map()
+	for suffix: String in ["Far", "Near"]:
+		var row: Node3D = map.find_child("BoundaryPictures%s" % suffix, true, false) as Node3D
+		var left: Node3D = row.get_node("RoofWallLeft") as Node3D
+		var right: Node3D = row.get_node("RoofWallRight") as Node3D
+		assert_eq(left.position.x, -map.layout.lane_width / 2.0)
+		assert_eq(right.position.x, map.layout.lane_width / 2.0)
+		assert_eq(left.position.z, right.position.z)
+		assert_eq(right.scale.x, -left.scale.x)
+		assert_eq(right.scale.y, left.scale.y)

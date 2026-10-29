@@ -241,6 +241,8 @@ func test_the_end_rows_mix_every_street_thing_and_stay_out_of_the_play_area() ->
 		assert_gt(absf(node.position.z) - depth / 2.0, half_l, "%s stays behind the end line" % id)
 		assert_lte(absf(node.position.x), LAYOUT.lane_width / 2.0, "%s across the street" % id)
 	for id: String in StreetMap.BARRIER_HEIGHTS:
+		if id.begins_with("roof_wall"):
+			continue
 		assert_true(seen.has(id), "%s is in an end row" % id)
 	assert_lte(int(seen.get("rooster_tent", 0)), 4, "at most two A-frames per row, not a row of them")
 

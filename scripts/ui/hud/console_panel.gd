@@ -29,13 +29,13 @@ static func draw_heart(canvas: CanvasItem, at: Vector2, radius: float, color: Co
 ## The tray's colours, from the Clash Royale reference: the body's bright blue lightening a little at the top and darkening toward the bottom
 ## of the screen, the light blue rim along the top (and, less, down the side beside the column) with a darker shade just under it. No
 ## dark outline anywhere: the edge is the lit rim, anti-aliased by a one pixel fade.
-const TRAY_TOP: Color = Color(0.1, 0.6, 0.95)
-const TRAY_BODY: Color = Color(0.03, 0.5, 0.83)
-const TRAY_BOTTOM: Color = Color(0.02, 0.21, 0.52)
+const TRAY_TOP: Color = Color(0.20, 0.53, 0.78)
+const TRAY_BODY: Color = Color(0.15, 0.44, 0.69)
+const TRAY_BOTTOM: Color = Color(0.11, 0.29, 0.51)
 const TRAY_RIM_LIGHT: Color = Color(0.58, 0.85, 1.0)
-const TRAY_RIM: Color = Color(0.2, 0.66, 1.0)
-const TRAY_RIM_SHADE: Color = Color(0.0, 0.3, 0.62, 0.55)
-const TRAY_SIDE_SHADE: Color = Color(0.0, 0.12, 0.38, 0.3)
+const TRAY_RIM: Color = Color(0.35, 0.62, 0.84)
+const TRAY_RIM_SHADE: Color = Color(0.24, 0.53, 0.76, 0.0)
+const TRAY_SIDE_SHADE: Color = Color(0.62, 0.82, 0.95, 0.18)
 ## The shade the tray casts up onto the street (like the nav bar's).
 const TRAY_CAST: Color = Color(0.0, 0.02, 0.08, 0.4)
 const CORNER: int = UiSkin.RADIUS_M

@@ -58,7 +58,8 @@ func _init(hud: MatchHud = null) -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
-	var card: PanelContainer = UiKit.card(null, "raised", 28.0)
+	var card: PanelContainer = PanelContainer.new()
+	card.add_theme_stylebox_override("panel", KalyeahTheme.modal_frame(MenuDialog.FRAME_RIM))
 	card.name = "Card"
 	card.custom_minimum_size = Vector2(580.0, 0.0)
 	center.add_child(card)
@@ -70,11 +71,18 @@ func _init(hud: MatchHud = null) -> void:
 	column.add_child(kicker_label)
 	title_label = Label.new()
 	title_label.name = "Title"
-	UiKit.letter(title_label, UiMetrics.DISPLAY, Color("ffd25a"))
-	column.add_child(title_label)
-	text_label = UiKit.text("", UiMetrics.BODY, KalyeahTheme.TEXT)
+	UiKit.letter(title_label, MenuDialog.TITLE_SIZE, KalyeahTheme.MODAL_TITLE)
+	var header: HBoxContainer = HBoxContainer.new()
+	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title_label)
+	column.add_child(header)
+	text_label = UiKit.text("", UiMetrics.BODY, KalyeahTheme.MODAL_TEXT)
 	text_label.name = "Words"
-	column.add_child(text_label)
+	var body: PanelContainer = PanelContainer.new()
+	body.add_theme_stylebox_override("panel", KalyeahTheme.modal_body(UiMetrics.PADDING))
+	body.theme = KalyeahTheme.modal_body_theme()
+	body.add_child(text_label)
+	column.add_child(body)
 	dots = HBoxContainer.new()
 	dots.name = "Dots"
 	dots.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -83,12 +91,13 @@ func _init(hud: MatchHud = null) -> void:
 	var buttons: HBoxContainer = HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	column.add_child(buttons)
-	skip_button = MenuDialog.make_button("Skip", "grey", UiMetrics.ACTION, Vector2(0.0, 92.0))
-	skip_button.name = "Skip"
-	skip_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	skip_button = MenuDialog.make_button("X", "red", UiMetrics.ACTION, Vector2.ONE * UiMetrics.MIN_TARGET)
+	skip_button.name = "CloseButton"
+	skip_button.accessibility_name = "Close guide"
+	skip_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	skip_button.size_flags_stretch_ratio = 0.8
 	skip_button.pressed.connect(skip)
-	buttons.add_child(skip_button)
+	header.add_child(skip_button)
 	next_button = MenuDialog.make_button("Next", "orange", UiMetrics.ACTION, Vector2(0.0, 92.0))
 	next_button.name = "Next"
 	next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -137,7 +146,7 @@ func _show_step() -> void:
 	title_label.text = (step["title"] as String).to_upper()
 	text_label.text = step["text"] as String
 	next_button.text = "Got it" if index == steps.size() - 1 else "Next"
-	skip_button.visible = index < steps.size() - 1
+	skip_button.visible = true
 	for i: int in dots.get_child_count():
 		var dot: Panel = dots.get_child(i) as Panel
 		var box: StyleBoxFlat = StyleBoxFlat.new()

@@ -32,9 +32,9 @@ static func build(hud: MatchHud) -> void:
 	hud.top.add_child(hud.settings_button)
 	# the middle of the header: the score (points and the match clock)
 	hud.scoreboard = Scoreboard.new()
-	hud._place(hud.scoreboard, Vector4(0.5, 0, 0.5, 0), Vector4(-MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y, MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y))
+	hud.scoreboard.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hud.scoreboard.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hud.top.add_child(hud.scoreboard)
+	hud.add_child(hud.scoreboard)
 	# right: the match clock, the counterpart of the settings button
 	hud.clock_chip = ClockChip.new()
 	hud.top.add_child(hud.clock_chip)

@@ -19,12 +19,14 @@ func _map() -> StreetMap:
 
 func _props(map: StreetMap) -> Dictionary[String, Vector3]:
 	var found: Dictionary[String, Vector3] = {}
-	for child: Node in map.get_node("%Geometry").get_children():
+	for child: Node in map.get_node("%Geometry").find_children("*", "Node3D", true, false):
 		var node: Node3D = child as Node3D
 		if node == null or not node.scene_file_path.begins_with("res://assets/models/props/"):
 			continue
 		var id: String = node.scene_file_path.get_file().get_basename()
-		var drawn: Vector3 = PropModel.size_of(id) * node.scale
+		if id in ["post_blue", "post_red"]:
+			continue  # Authored poles have their own scale checks.
+		var drawn: Vector3 = PropModel.size_of(id) * node.scale.abs()
 		if not found.has(id) or drawn.y > found[id].y:
 			found[id] = drawn
 	return found
@@ -67,7 +69,7 @@ func test_every_prop_is_drawn_at_its_real_size_times_the_world_factor() -> void:
 	var factor: float = ScaleReference.world_factor(CAMERA.kid_view_scale)
 	var map: StreetMap = _map()
 	var props: Dictionary[String, Vector3] = _props(map)
-	assert_gt(props.size(), 25, "the street has its props")
+	assert_gte(props.size(), 25, "the street keeps its props and the duplicated roof uses one source asset")
 	for id: String in props:
 		var drawn: Vector3 = props[id]
 		if ScaleReference.BUILDINGS.has(id):

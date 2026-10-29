@@ -22,3 +22,5 @@ static func apply(hud: MatchHud) -> void:
 		var at: Vector2 = hud.hand.chat_rect.position
 		var top: float = -hud.console_height() + at.y
 		hud._place(hud.chat, Vector4(0, 1, 0, 1), Vector4(at.x, top, at.x + hud.hand.chat_rect.size.x, top + hud.hand.chat_rect.size.y))
+
+		hud.chat.place_over_hand(Rect2(Vector2(hud.hand.card_rects[0].position.x, hud.size.y - hud.console_height() + 12.0), Vector2(hud.size.x - CardHand.COLUMN - CardHand.SIDE, hud.CONSOLE_HEIGHT - 24.0)))

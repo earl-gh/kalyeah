@@ -196,7 +196,8 @@ func test_repeated_ways_of_scoring_are_one_chip_with_a_count() -> void:
 	assert_eq(MatchResults.group_text(true, MatchSim.CaptureKind.ALL_TAGGED, 3), "Tagged them all × 3")
 	assert_eq(MatchResults.group_text(false, MatchSim.CaptureKind.BASE, 1), "Held your base", "once needs no count")
 	assert_gte(MatchResults.CONFETTI_MIN, 14.0, "paper you can see")
-	assert_gt(MatchResults.WEAPON_ICON, 64.0)
+	var result: MatchResults = autofree(MatchResults.new()) as MatchResults
+	assert_null(result.find_child("Weapons", true, false), "the result has no loadout panel")
 
 
 func test_the_kid_screen_names_the_chosen_kid_large_under_the_carousel() -> void:

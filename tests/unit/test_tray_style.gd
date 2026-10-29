@@ -107,11 +107,11 @@ func test_the_edge_is_clear_and_nothing_inside_it_is_a_dark_outline() -> void:
 	var count: int = outline.points.size()
 	for i: int in count:
 		assert_eq(layer.colors[i].a, 0.0, "the ring outside the edge fades to clear: that is the anti-aliasing")
-	var darkest: float = ConsolePanel.TRAY_SIDE_SHADE.b
+	var darkest: float = ConsolePanel.TRAY_BOTTOM.b - 0.001
 	for i: int in range(count, layer.colors.size()):
 		var color: Color = layer.colors[i]
 		assert_eq(color.a, 1.0, "the tray itself is opaque")
-		assert_gt(color.b, darkest, "nothing is as dark as a navy outline (the side shade's own blue)")
+		assert_gt(color.b, darkest, "the chamfer never falls below the tray body's darkest blue")
 		assert_gt(color.b, color.r + 0.3, "every pixel of it is blue (never a black or navy line)")
 	# along the top the edge itself is the light rim, lighter than the body
 	var edge: Color = layer.colors[count + outline.top_left]

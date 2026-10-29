@@ -63,12 +63,10 @@ func connect_sim() -> void:
 			owner.hud.pulse.hit(amount, owner.sim.rules.player_max_hp))
 	owner.sim.weapon_cast.connect(func(id: int, _weapon: StringName) -> void: (owner._views[id] as KidModel).play_cast())
 	owner.sim.player_damaged.connect(func(id: int, _amount: int) -> void: (owner._views[id] as KidModel).play_hit())
-	owner.sim.point_scored.connect(_on_point_scored)
 	owner.sim.match_won.connect(_on_match_won)
 	owner.sim.point_reset.connect(func() -> void:
 		owner.hud.street.release())
 	owner.sim.intro_finished.connect(func() -> void:
-		owner.show_banner("GO!")
 		# the first practice match opens with the walkthrough
 		if Session.coach_pending and not owner.online:
 			Session.coach_pending = false
@@ -80,6 +78,8 @@ func connect_sim() -> void:
 func sync(delta: float) -> void:
 	for id: int in owner.sim.players:
 		_sync_actor(owner.sim.players[id], delta)
+	if owner.sim.phase in [MatchSim.Phase.POINT_FREEZE, MatchSim.Phase.MATCH_OVER] and owner._pick_screen.visible:
+		owner._pick_screen.close()
 	var player: PlayerState = owner.sim.players[owner.local_id]
 	owner.hud.sync_player(owner.sim, player, owner._pick_screen.visible)
 	_sync_aim(player)
@@ -87,11 +87,19 @@ func sync(delta: float) -> void:
 	owner.hud.overhead.tick(delta)
 	owner.hud.marker.tick(delta)
 	owner.hud.sync_score(owner.sim, owner.local_team, delta, owner.local_id)
+	owner._camera.place(owner._flip())
+	var bounds: Rect2 = Rect2()
+	var first: bool = true
+	for x: float in [-owner.layout.lane_width / 2.0, owner.layout.lane_width / 2.0]:
+		for z: float in [-owner.layout.lane_length / 2.0, owner.layout.lane_length / 2.0]:
+			var at: Vector2 = owner._camera.screen_position(Vector3(x, 0.0, z))
+			bounds = Rect2(at, Vector2.ZERO) if first else bounds.expand(at)
+			first = false
+	owner.hud.scoreboard.set_play_area(bounds)
 	if owner.sim.phase == MatchSim.Phase.INTRO:
 		_play_intro_shot()
 		return
 	owner.hud.show_intro("")
-	owner._camera.place(owner._flip())
 
 
 func make_actor_view(state: PlayerState) -> void:
@@ -131,6 +139,10 @@ func _sync_aim(player: PlayerState) -> void:
 	var input: MatchInput = owner.input
 	var slot: int = input.held_slot
 	var playing: bool = owner.hud.street.active
+	if not playing:
+		owner._aim_indicator.clear()
+		owner.hud.sync_hold_hint(player, false, MatchInput.Release.NONE, false)
+		return
 	var release: MatchInput.Release = input.release_kind(Time.get_ticks_msec())
 	var nobody: bool = false
 	if slot < 0 or player.tagged or slot >= player.weapons.size() or (player.aim_hold[slot] < 0.0 and not owner.sim.weapon_ready(player, slot)):
@@ -175,16 +187,7 @@ func _on_player_rescued(id: int, _by_id: int) -> void:
 			owner._pick_screen.force_finish()
 
 
-func _on_point_scored(team: int, _how: int) -> void:
-	var points: Array[int] = owner.sim.score.points
-	var mine: int = points[owner.local_team]
-	var theirs: int = points[1 - owner.local_team]
-	owner.show_banner("SCORED!  %d-%d" % [mine, theirs] if team == owner.local_team else "THEY SCORED  %d-%d" % [mine, theirs])
-
-
 func _on_match_won(team: int) -> void:
-	var won: bool = team == owner.local_team
-	owner.show_banner(owner.gone_note if won and not owner.gone_note.is_empty() else ("VICTORY!" if won else "DEFEAT"))
 	var mode: String = "practice"
 	if owner.online:
 		mode = "hotspot" if Session.lobby_hotspot else "online"
