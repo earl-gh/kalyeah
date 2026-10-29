@@ -207,6 +207,15 @@ func trail_give(trail: CPUParticles3D) -> void:
 		trail.visible = false
 
 
+## Frees at once every busy emitter drawing fully see-through particles (the view's warm-up puffs), leaving real puffs.
+func release_clear() -> void:
+	for i: int in _emitters.size():
+		if _busy_until[i] >= 0.0 and _emitters[i].color.a <= 0.0:
+			_busy_until[i] = -1.0
+			_emitters[i].emitting = false
+			_emitters[i].visible = false
+
+
 ## Hides emitters whose puff is over (they are free again).
 func step() -> void:
 	for i: int in _emitters.size():
