@@ -21,7 +21,8 @@ func test_the_header_spans_the_top_and_holds_the_gear_and_the_score() -> void:
 	assert_almost_eq(header.size.y, hud.header_height(), 0.5)
 	assert_almost_eq(header.size.x, hud.get_global_rect().size.x, 0.5, "the whole width, like the console")
 	assert_true(header.encloses(hud.settings_button.get_global_rect()), "the gear sits on it")
-	assert_eq(hud.scoreboard.get_parent(), hud, "the score belongs to the play area")
+	assert_eq(hud.scoreboard.get_parent(), hud.top, "the score belongs to the top HUD")
+	assert_true(header.encloses(hud.scoreboard.get_global_rect()))
 	assert_eq(hud.header.mouse_filter, Control.MOUSE_FILTER_IGNORE, "it only draws")
 
 
@@ -43,7 +44,7 @@ func test_a_notch_makes_the_header_taller_and_pushes_the_arena_down() -> void:
 	var score_before: float = hud.scoreboard.get_global_rect().position.y
 	hud.set_top_inset(48.0)
 	assert_almost_eq(hud.header.size.y, before + 48.0, 0.5)
-	assert_almost_eq(hud.scoreboard.get_global_rect().position.y, score_before, 0.5, "the score overlay remains full-screen")
+	assert_almost_eq(hud.scoreboard.get_global_rect().position.y, score_before + 48.0, 0.5, "the score follows the header safe area")
 	assert_almost_eq(practice._camera.top_reserve_px, reserve_before + 48.0, 0.5)
 	hud.set_top_inset(0.0)
 	assert_almost_eq(hud.header.size.y, before, 0.5)
