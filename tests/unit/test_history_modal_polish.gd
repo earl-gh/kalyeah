@@ -72,8 +72,8 @@ func test_the_name_editor_reuses_the_tag_and_places_the_field_on_its_name_row() 
 	assert_eq(preview.player_name(), "LIGAYA")
 	assert_eq(Session.player_name, _player_name, "preview typing does not save")
 	assert_null(card.find_child("Cancel", true, false))
-	assert_true(card.close_button.is_visible_in_tree())
-	assert_true((card.find_child("Header", true, false) as Control).visible)
+	assert_false(card.close_button.is_visible_in_tree())
+	assert_false((card.find_child("Header", true, false) as Control).visible)
 	assert_true(card.panel.get_theme_stylebox("panel") is StyleBoxEmpty)
 	assert_true(card.inner.get_theme_stylebox("panel") is StyleBoxEmpty)
 	card.close(false)
@@ -110,7 +110,7 @@ func test_populated_history_and_all_filter_controls_fit_the_phone() -> void:
 	assert_lte(screen.history_page.streak_label.get_global_rect().end.x, 720.0)
 
 
-func test_editing_lifts_the_tag_out_of_the_menu_and_x_restores_it() -> void:
+func test_editing_lifts_the_tag_out_of_the_menu_and_scrim_restores_it() -> void:
 	var screen: TitleScreen = autofree(preload("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
 	add_child(screen)
 	var original: String = Session.player_name
@@ -120,7 +120,7 @@ func test_editing_lifts_the_tag_out_of_the_menu_and_x_restores_it() -> void:
 	assert_true(card.is_visible_in_tree())
 	assert_eq(card.z_index, MenuDialog.MODAL_Z)
 	(card.find_child("NameField", true, false) as LineEdit).text = "LIGAYA"
-	card.close_button.pressed.emit()
+	card._on_dim_input(TouchHelper.click(Vector2(5.0, 5.0), true))
 	assert_true(screen.name_tag.visible)
 	assert_eq(Session.player_name, original)
 
@@ -131,7 +131,7 @@ func test_home_modals_keep_one_header_x_and_no_footer_dismissal() -> void:
 	add_child(phone)
 	var screen: TitleScreen = preload("res://scenes/ui/title_screen.tscn").instantiate() as TitleScreen
 	phone.add_child(screen)
-	for method: StringName in [&"open_practice_confirm", &"open_quit_confirm", &"open_name_editor", &"open_game_of_the_month", &"open_donate"]:
+	for method: StringName in [&"open_practice_confirm", &"open_quit_confirm", &"open_game_of_the_month", &"open_donate"]:
 		var card: MenuDialog = screen.call(method) as MenuDialog
 		await wait_process_frames(3)
 		assert_true(card.close_button.is_visible_in_tree(), String(method))
@@ -141,3 +141,35 @@ func test_home_modals_keep_one_header_x_and_no_footer_dismissal() -> void:
 		for node: Node in card.body.find_children("*", "Button", true, false):
 			assert_false((node as Button).text in ["Cancel", "Close", "Done", "Okay", "Resume"], String(method))
 		card.close(false)
+
+
+func test_nametag_without_a_close_button_dismisses_by_outside_touch_and_back() -> void:
+	var viewport: SubViewport = autofree(SubViewport.new()) as SubViewport
+	viewport.size = Vector2i(720, 1280)
+	add_child(viewport)
+	var screen: TitleScreen = preload("res://scenes/ui/title_screen.tscn").instantiate() as TitleScreen
+	viewport.add_child(screen)
+	var original: String = Session.player_name
+	var card: MenuDialog = screen.open_name_editor()
+	(card.find_child("NameField", true, false) as LineEdit).text = "LIGAYA"
+	await wait_process_frames(4)
+	assert_false(card.close_button.is_visible_in_tree())
+	var field: LineEdit = card.find_child("NameField", true, false) as LineEdit
+	field.release_focus()
+	var inside: Vector2 = field.get_global_rect().get_center()
+	viewport.push_input(TouchHelper.click(inside, true))
+	viewport.push_input(TouchHelper.click(inside, false))
+	assert_true(field.has_focus(), "the editor still receives touches")
+	assert_true(card.is_open, "touching the tag does not dismiss it")
+	viewport.push_input(TouchHelper.click(Vector2(8.0, 500.0), true))
+	viewport.push_input(TouchHelper.click(Vector2(8.0, 500.0), false))
+	await wait_process_frames(3)
+	assert_false(is_instance_valid(card) and card.is_open, "outside touch dismisses the editor")
+	assert_eq(Session.player_name, original)
+	assert_true(screen.name_tag.visible)
+	var again: MenuDialog = screen.open_name_editor()
+	await wait_process_frames(3)
+	viewport.propagate_notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	await wait_process_frames(3)
+	assert_false(is_instance_valid(again) and again.is_open, "Android Back dismisses the editor")
+	assert_true(screen.name_tag.visible)

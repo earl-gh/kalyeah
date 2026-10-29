@@ -1,7 +1,7 @@
 class_name CardDrawer
 extends Control
 ## Modal card details cover the navigation. Kids protrude behind the sheet; details are only name and description.
-## The top-right X, grabber, scrim or Android Back closes the drawer.
+## The grabber, scrim or Android Back closes the drawer; there is no close button.
 
 signal opened
 signal closed
@@ -40,7 +40,6 @@ var slider: Control
 var handle: Control
 var header_row: HBoxContainer
 var title_label: Label
-var close_button: Button
 var previous_button: Button
 var next_button: Button
 var picture: TextureRect
@@ -158,12 +157,6 @@ func _build_header() -> void:
 	title_label.add_theme_color_override("font_outline_color", KalyeahTheme.MODAL_TITLE_OUTLINE)
 	title_label.add_theme_constant_override("outline_size", MenuDialog.TITLE_OUTLINE)
 	header_row.add_child(title_label)
-	close_button = MenuDialog.make_button("X", "red", UiMetrics.ACTION, Vector2.ONE * UiMetrics.MIN_TARGET)
-	close_button.name = "CloseButton"
-	close_button.accessibility_name = "Close"
-	close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	close_button.pressed.connect(close)
-	header_row.add_child(close_button)
 	_frame_box.add_child(inset)
 
 

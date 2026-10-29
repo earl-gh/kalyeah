@@ -10,7 +10,7 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 	# The tag itself is the foreground surface; no second card surrounds it.
 	card.panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	card.inner.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-	card.title_label.text = ""  # Keep the X above the floating tag without adding a title or frame.
+	card.find_child("Header", true, false).hide()  # The tag dismisses through the scrim or Back.
 	var holder: Control = Control.new()
 	holder.name = "TagPreview"
 	holder.custom_minimum_size.y = NameTag.CARD_HEIGHT * 1.15 + UiMetrics.PADDING

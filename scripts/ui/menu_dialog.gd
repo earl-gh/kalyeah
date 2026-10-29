@@ -65,6 +65,7 @@ static func create(title: String, width: float = WIDTH_SMALL, icon: Texture2D = 
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	dialog.add_child(dim)
 	dialog._safe = MarginContainer.new()
+	dialog._safe.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	dialog._safe.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dialog.add_child(dialog._safe)
 	var center: CenterContainer = CenterContainer.new()
