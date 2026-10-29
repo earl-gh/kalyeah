@@ -6,6 +6,17 @@ const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const DT: float = 1.0 / 30.0
 const MODELS: Array[String] = ["slipper", "can", "marble", "crumpled_paper", "paper", "trumpo", "spikes", "meteor", "scissor", "soil_block", "green_cross"]
 
+var _motion: bool
+
+
+func before_each() -> void:
+	_motion = Settings.reduced_motion
+	Settings.reduced_motion = false
+
+
+func after_each() -> void:
+	Settings.reduced_motion = _motion
+
 
 func test_every_model_exists_light_and_whole() -> void:
 	for id: String in MODELS:
@@ -121,6 +132,17 @@ func test_the_rock_meteor_falls_onto_its_circle() -> void:
 		practice.advance(DT)
 	assert_lt(meteor.position.y, high, "it falls")
 	assert_gt(high, 3.0, "from the sky")
+	var bottom: float = INF
+	while not practice.sim.weapons.zones.is_empty():
+		bottom = meteor.global_position.y - WeaponModel.METEOR_SIZE / 2.0
+		assert_gte(bottom, -0.001, "never below the street")
+		practice.advance(DT)
+	assert_almost_eq(bottom, 0.0, 0.05, "it touches the street on the last frame before it lands")
+	assert_gt(fx.context().ground.live_cracks(), 0, "the landing cracks the street")
+	for i: int in 18:
+		practice.advance(DT)
+	assert_eq(fx.live_count(), 0)
+	assert_eq(fx.fading_count(), 0, "and the landing is over in 0.6 s")
 
 
 func test_the_jacks_field_is_spikes_on_a_circle() -> void:

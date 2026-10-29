@@ -22,6 +22,11 @@ const TRAILS: int = 4
 const TRAIL_AMOUNT: int = 5
 const TRAIL_LIFE: float = 0.3
 const TRAIL_SIZE: float = 0.3
+## A dust puff: each particle this big at its fullest (metres), this see-through, born this far apart (so four puffs read as
+## a little cloud, not one grey ball).
+const DUST_SIZE: float = 0.38
+const DUST_ALPHA: float = 0.75
+const DUST_SPREAD: float = 0.3
 
 
 ## One preset's look and motion (built once).
@@ -257,14 +262,16 @@ static func _build_specs() -> void:
 	var dust: Spec = Spec.new()
 	dust.mesh = FxKit.puff_quad()
 	dust.material = puff_material
-	dust.color = Palette.SIDEWALK
-	dust.lifetime = 0.45
+	dust.color = Color(Palette.SIDEWALK, DUST_ALPHA)
+	dust.lifetime = 0.4
 	dust.speed_min = 1.2
 	dust.speed_max = 2.0
 	dust.gravity = 2.0
 	dust.spawn_y = 0.1
 	dust.flatness = 0.8
-	dust.size = 0.55
+	dust.shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	dust.box = Vector3(DUST_SPREAD, 0.0, DUST_SPREAD)
+	dust.size = DUST_SIZE
 	dust.size_curve = grow_fade
 	dust.apex_bound = 1.2
 	_specs[Preset.DUST] = dust
