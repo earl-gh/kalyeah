@@ -30,6 +30,9 @@ const EDGE_PAD: float = 4.0
 const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
 ## The dark outline round the word over a bar and the status words (screen px).
 const TEXT_OUTLINE: int = 5
+const TAG_TIME: float = 0.42
+const TAG_POP_TIME: float = 0.08
+const TAG_FONT: int = LABEL_FONT
 const POPUP_TIME: float = 0.9
 const POPUP_RISE: float = 56.0
 ## The status word takes the place of "You" over the bar (owner): the same size, in the same spot, never stacked above it.
@@ -94,6 +97,8 @@ var _placed: Array[Rect2] = []
 var _popups: Array[Dictionary] = []
 ## Quick chat bubbles over kids: {id, text, age}.
 var _says: Array[Dictionary] = []
+## One brief tag marker per kid, fixed at the last visible street position.
+var _tags: Dictionary[int, Dictionary] = {}
 ## Online: the kids whose players are away (AFK), set from the room.
 var away_ids: Dictionary[int, bool] = {}
 
@@ -173,7 +178,20 @@ func says_count() -> int:
 	return _says.size()
 
 
+func show_tag(id: int, world: Vector3) -> void:
+	_tags[id] = {"world": world, "age": 0.0}
+	queue_redraw()
+
+
+func tag_count() -> int:
+	return _tags.size()
+
+
 func tick(delta: float) -> void:
+	for id: int in _tags.keys():
+		_tags[id]["age"] = (_tags[id]["age"] as float) + delta
+		if (_tags[id]["age"] as float) >= TAG_TIME:
+			_tags.erase(id)
 	for said: Dictionary in _says:
 		said["age"] = (said["age"] as float) + delta
 	_says = _says.filter(func(s: Dictionary) -> bool: return (s["age"] as float) < QuickChat.SAY_TIME)
@@ -240,6 +258,9 @@ func _head(state: PlayerState) -> Variant:
 
 func _draw() -> void:
 	if _sim == null:
+		return
+	_draw_tags()
+	if _sim.phase in [MatchSim.Phase.POINT_FREEZE, MatchSim.Phase.MATCH_OVER]:
 		return
 	for id: int in _sim.players:
 		_draw_progress(_sim.players[id])
@@ -431,6 +452,26 @@ func _draw_spinner(center: Vector2, progress: float, color: Color) -> void:
 	var spin: float = float(Time.get_ticks_msec()) / 1000.0 * SPINNER_SPEED
 	draw_arc(center, SPINNER_RADIUS, spin, spin + TAU * 0.28, 12, Color(1.0, 1.0, 1.0, 0.9), 4.0)
 	draw_arc(center, SPINNER_RADIUS - 6.0, -PI / 2.0, -PI / 2.0 + TAU * clampf(progress, 0.0, 1.0), 24, color, 4.0)
+
+
+func _draw_tags() -> void:
+	if _camera == null:
+		return
+	for tag: Dictionary in _tags.values():
+		var world: Vector3 = tag["world"] as Vector3
+		world.y += HEAD_HEIGHT * view_scale
+		if _camera.is_position_behind(world):
+			continue
+		var at: Vector2 = _camera.screen_position(world) if _camera is ArenaCamera else _camera.unproject_position(world)
+		at = keep_on_screen(at, KalyeahTheme.ACTION_FONT, "TAYA!", TAG_FONT)
+		var age: float = tag["age"] as float
+		var pop: float = clampf(age / TAG_POP_TIME, 0.0, 1.0)
+		var scale: float = 1.0 if Settings.reduced_motion else lerpf(0.8, 1.0, 1.0 - pow(1.0 - pop, 3.0))
+		var color: Color = Color.WHITE
+		color.a = clampf((TAG_TIME - age) / (TAG_TIME - TAG_POP_TIME), 0.0, 1.0)
+		draw_set_transform(at, 0.0, Vector2.ONE * scale)
+		_text(KalyeahTheme.ACTION_FONT, "TAYA!", Vector2.ZERO, TAG_FONT, color, TEXT_OUTLINE)
+		draw_set_transform(Vector2.ZERO)
 
 
 func _draw_popup(popup: Dictionary) -> void:

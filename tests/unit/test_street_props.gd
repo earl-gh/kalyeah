@@ -284,18 +284,22 @@ func test_roof_wall_models_and_their_textures_are_removed() -> void:
 		assert_false(ScaleReference.REAL_HEIGHT.has(id))
 
 
-func test_cart_replaces_the_middle_wall_and_jeepney_stays_in_place() -> void:
+func test_cart_and_jeepney_have_equal_gaps_between_the_corner_walls() -> void:
 	var map: StreetMap = _map()
 	var cart_width: float = StreetMap.boundary_width({"id": "fishball_cart", "height": 2.4}, map.scenery())
 	var wall_width: float = StreetMap.boundary_width({"id": "tin_fence", "height": 2.0}, map.scenery())
 	var jeep_width: float = StreetMap.boundary_width({"id": "jeepney", "height": 2.4}, map.scenery())
-	var old_gap: float = maxf(map.layout.lane_width - cart_width - wall_width - jeep_width, 0.0) / 4.0
-	var wall_left: float = -map.layout.lane_width / 2.0 + old_gap * 2.0 + cart_width
+	var wall_inner_left: float = -map.layout.lane_width / 2.0 + wall_width / 2.0
+	var wall_inner_right: float = map.layout.lane_width / 2.0 - wall_width / 2.0
 	for suffix: String in ["Far", "Near"]:
 		var row: Node3D = map.find_child("BoundaryPictures%s" % suffix, true, false) as Node3D
 		var cart: MeshInstance3D = row.get_node("fishball_cart") as MeshInstance3D
 		var jeep: MeshInstance3D = row.get_node("jeepney") as MeshInstance3D
-		assert_almost_eq(cart.position.x, wall_left + wall_width / 2.0, 0.001, "the cart takes the old middle wall's center")
-		assert_almost_eq(jeep.position.x, wall_left + wall_width + old_gap + jeep_width / 2.0, 0.001)
+		var left_gap: float = cart.position.x - cart_width / 2.0 - wall_inner_left
+		var middle_gap: float = jeep.position.x - jeep_width / 2.0 - (cart.position.x + cart_width / 2.0)
+		var right_gap: float = wall_inner_right - (jeep.position.x + jeep_width / 2.0)
+		assert_gt(left_gap, 0.0)
+		assert_almost_eq(left_gap, middle_gap, 0.001)
+		assert_almost_eq(right_gap, middle_gap, 0.001)
 		assert_false(row.has_node("tin_fence"), "no middle wall beneath the cart")
 		assert_eq(row.get_child_count(), 4, "cart, jeepney and two corner walls")

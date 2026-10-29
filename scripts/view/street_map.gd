@@ -632,10 +632,10 @@ func _add_boundary_pictures() -> void:
 		widths.append(boundary_width(entry, scenery()))
 		used += widths[widths.size() - 1]
 	var wall_width: float = boundary_width(CORNER_WALL, scenery())
-	# Keep the old three-slot anchors so moving the cart does not shift the jeepney.
-	var gap: float = maxf(layout.lane_width - used - wall_width, 0.0) / 4.0
-	var middle_wall_left: float = -layout.lane_width / 2.0 + gap * 2.0 + widths[0]
-	var centers: Array[float] = [middle_wall_left + wall_width / 2.0, middle_wall_left + wall_width + gap + widths[1] / 2.0]
+	# Equal visible gaps between the two fixed corner walls and the two pictures.
+	var gap: float = maxf(layout.lane_width - wall_width - used, 0.0) / 3.0
+	var left_edge: float = -layout.lane_width / 2.0 + wall_width / 2.0
+	var centers: Array[float] = [left_edge + gap + widths[0] / 2.0, left_edge + gap * 2.0 + widths[0] + widths[1] / 2.0]
 	for end: float in [-1.0, 1.0]:
 		var row: Node3D = Node3D.new()
 		row.name = "BoundaryPictures%s" % ("Far" if end < 0.0 else "Near")

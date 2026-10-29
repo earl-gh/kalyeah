@@ -267,8 +267,9 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 		chat.set_open(false)
 		if menu.visible:
 			menu.close()
-	for item: CanvasItem in [header, top, scoreboard, overhead, marker, pulse, console, feedback]:
+	for item: CanvasItem in [header, top, scoreboard, marker, pulse, console, feedback]:
 		item.visible = not covered
+	overhead.visible = not covered or overhead.tag_count() > 0
 	if covered:
 		for item: CanvasItem in [hand, chat, tagged_panel, intro_bar, capture_label, banner, coach]:
 			item.hide()
