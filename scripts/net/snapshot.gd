@@ -35,7 +35,7 @@ static func capture(sim: MatchSim, acks: Dictionary[int, int]) -> Dictionary:
 		"score": {"p": sim.score.points.duplicate(), "ft": sim.score.first_to, "w": sim.score.winner},
 		"log": _log_of(sim),
 		"cap": {"team": sim.capture_team, "k": sim.capture_kind, "e": sim.capture_elapsed, "need": sim.capture_needed, "r": sim.capture_rate},
-		"resc": {"who": sim.rescue_rescuer.duplicate(), "e": sim.rescue_elapsed.duplicate()},
+		"resc": {"who": sim.rescue_rescuer.duplicate(), "e": sim.rescue_elapsed.duplicate(), "ready": sim.rescue_ready_left.duplicate()},
 	}
 
 
@@ -113,6 +113,9 @@ static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 		for team: int in mini(2, mini(who.size(), elapsed.size())):
 			sim.rescue_rescuer[team] = int(_number(who[team]))
 			sim.rescue_elapsed[team] = _number(elapsed[team])
+		var ready: Array = rescue.get("ready", []) as Array
+		for team: int in mini(2, ready.size()):
+			sim.rescue_ready_left[team] = _number(ready[team])
 
 
 ## The recipient's own elixir, stamina and move target (absent from an old server: the mirror keeps its own).

@@ -95,7 +95,8 @@ func test_the_ally_dummy_runs_over_and_rescues_you() -> void:
 	var ally: PlayerState = practice.sim.players[PracticeMatch.ALLY_ID]
 	var home: Vector2 = ally.position
 	TouchHelper.hurt(practice, 100)
-	for i: int in 30 * 15:
+	# the rescue area counts down `rescue_cooldown` from the start, then the ally holds it for `rescue_hold_time`
+	for i: int in 30 * 25:
 		practice.advance(DT)
 		if not player.tagged:
 			break

@@ -104,6 +104,7 @@ func test_tag_clears_the_active_aim_and_held_input_cannot_cast_after_rescue() ->
 	_send_input(sim, PlayerInput.BTN_WEAPON_1)
 	sim.kill(PLAYER_ID)
 	assert_eq(player.aim_hold, [-1.0, -1.0] as Array[float])
+	sim.rescue_ready_left = [0.0, 0.0]  # the rescue area's countdown is over
 	var rescuer: PlayerState = sim.add_player(2, 0)
 	rescuer.position = sim.layout.rescue_rect(sim.side_for_team(0)).get_center()
 	# the rescue takes `rescue_hold_time` in the area; the held press runs through all of it

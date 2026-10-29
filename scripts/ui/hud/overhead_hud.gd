@@ -71,6 +71,11 @@ const SPINNER_LIFT: float = 36.0
 const SPINNER_COLOR: Color = Color(1.0, 0.86, 0.3)
 ## The rescuer's ring (green: it frees a teammate), the capturer's stays gold.
 const RESCUE_COLOR: Color = Color(0.45, 0.9, 0.5)
+## On each rescue area: the seconds until it is ready (`MatchSim.rescue_ready_left`), then READY!
+const AREA_FONT: int = UiMetrics.WORLD
+## The countdown's digits are bigger than READY! (they must read from across the street; READY! must fit the area).
+const AREA_COUNT_FONT: int = UiMetrics.HEADLINE
+const AREA_READY: String = "READY!"
 const SPINNER_BACK: Color = Color(0.08, 0.06, 0.1, 0.7)
 const SPINNER_SPEED: float = 5.0
 
@@ -262,6 +267,7 @@ func _draw() -> void:
 	_draw_tags()
 	if _sim.phase in [MatchSim.Phase.POINT_FREEZE, MatchSim.Phase.MATCH_OVER]:
 		return
+	_draw_rescue_areas()
 	for id: int in _sim.players:
 		_draw_progress(_sim.players[id])
 	# your own bar first: it stays on your head and the others stack above it where they would overlap (`_clear_of_others`)
@@ -452,6 +458,27 @@ func _draw_spinner(center: Vector2, progress: float, color: Color) -> void:
 	var spin: float = float(Time.get_ticks_msec()) / 1000.0 * SPINNER_SPEED
 	draw_arc(center, SPINNER_RADIUS, spin, spin + TAU * 0.28, 12, Color(1.0, 1.0, 1.0, 0.9), 4.0)
 	draw_arc(center, SPINNER_RADIUS - 6.0, -PI / 2.0, -PI / 2.0 + TAU * clampf(progress, 0.0, 1.0), 24, color, 4.0)
+
+
+## What each rescue area says in its middle: its countdown, or READY! once a teammate can rescue there.
+func rescue_area_text(team: int) -> String:
+	var left: float = _sim.rescue_ready_left[team]
+	return str(ceili(left)) if left > 0.0 else UiText.t(AREA_READY)
+
+
+func _draw_rescue_areas() -> void:
+	if _camera == null:
+		return
+	for team: int in [0, 1]:
+		var middle: Vector2 = _sim.layout.rescue_rect(_sim.side_for_team(team)).get_center()
+		var world: Vector3 = Vector3(middle.x, 0.0, middle.y)
+		if _camera.is_position_behind(world):
+			continue
+		var at: Vector2 = _camera.screen_position(world) if _camera is ArenaCamera else _camera.unproject_position(world)
+		var color: Color = TeamColors.world_own() if team == _local_team else TeamColors.world_enemy()
+		var size: int = AREA_COUNT_FONT if _sim.rescue_ready_left[team] > 0.0 else AREA_FONT
+		# the text's middle on the area's middle (`_text` takes the baseline)
+		_text(KalyeahTheme.ACTION_FONT, rescue_area_text(team), at + Vector2(0.0, float(size) * 0.36), size, Color.WHITE.lerp(color, 0.25), TEXT_OUTLINE)
 
 
 func _draw_tags() -> void:

@@ -103,8 +103,8 @@ func test_impacts_grow_with_the_drawn_kid_and_sparks_fly_with_motion() -> void:
 		if child is MeshInstance3D and (child as MeshInstance3D).mesh is BoxMesh:
 			sparks += 1
 	assert_eq(sparks, WeaponFxView.BURST_SPARKS)
-	var flash: Node3D = burst.get_child(0) as Node3D
-	assert_almost_eq(flash.position.y, WeaponFxView.BURST_HEIGHT * fx.view_scale, 0.001, "the flash is on the drawn kid, not at its knees")
+	for child: Node in burst.get_children():
+		assert_false(child is MeshInstance3D and (child as MeshInstance3D).mesh is SphereMesh, "no flash over the kid: it hid the kid on every hit")
 
 
 func test_banners_are_big_and_a_long_one_still_fits_a_narrow_phone() -> void:
@@ -137,7 +137,7 @@ func test_buttons_have_a_deeper_lip_but_the_same_room_and_sink_when_pressed() ->
 
 # ---- the tagged tray ------------------------------------------------------------------------------------------------------
 
-func test_while_tagged_you_see_your_teammates_and_the_way_out_alone() -> void:
+func test_while_tagged_you_see_your_teammates_and_when_the_rescue_area_is_ready() -> void:
 	var practice: PracticeMatch = _practice()
 	practice.advance(DT)
 	TouchHelper.hurt(practice, 100)
@@ -149,8 +149,8 @@ func test_while_tagged_you_see_your_teammates_and_the_way_out_alone() -> void:
 		if id != practice.local_id and practice.sim.players[id].team == practice.local_team:
 			mates += 1
 	assert_eq(panel.pips.pips.size(), mates, "one face per teammate")
-	assert_true(panel.release_ring.visible, "Practice lets you walk out alone: the ring counts it down")
-	assert_almost_eq(panel.release_ring.seconds, practice.sim.tag_release_time - practice.sim.players[practice.local_id].tag_time, 0.001)
+	assert_true(panel.ready_ring.visible, "the rescue area is counting down: the ring shows it")
+	assert_almost_eq(panel.ready_ring.seconds, practice.sim.rescue_ready_left[practice.local_team], 0.001)
 	assert_eq(panel.find_children("*", "Button", true, false).size(), 1, "nothing to pick: only Change weapons")
 
 
@@ -177,12 +177,12 @@ func test_a_teammate_running_to_your_rescue_area_shows_as_coming_and_a_tagged_on
 	assert_false(pips.accessibility_description.is_empty(), "a screen reader hears who is free")
 
 
-func test_no_release_ring_when_the_match_has_no_release_time() -> void:
+func test_no_ready_ring_once_the_rescue_area_is_ready() -> void:
 	var practice: PracticeMatch = _practice()
-	practice.sim.tag_release_time = 0.0
+	practice.sim.rescue_ready_left = [0.0, 0.0]
 	TouchHelper.hurt(practice, 100)
 	practice.advance(DT)
-	assert_false(practice.hud.tagged_panel.release_ring.visible)
+	assert_false(practice.hud.tagged_panel.ready_ring.visible)
 
 
 # ---- results and the kid screen ---------------------------------------------------------------------------------------

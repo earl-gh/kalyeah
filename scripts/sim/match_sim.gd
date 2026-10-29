@@ -66,12 +66,12 @@ var capture_rate: float = 1.0
 ## Per team (0, 1): the teammate rescuing right now (-1: none) and the seconds into the rescue.
 var rescue_rescuer: Array[int] = [-1, -1]
 var rescue_elapsed: Array[float] = [0.0, 0.0]
+## Per team: seconds until the rescue area is ready (`GameRules.rescue_cooldown`; 0 = ready).
+var rescue_ready_left: Array[float] = [0.0, 0.0]
 ## Counts tags, so the first tagged is the first rescued.
 var tag_counter: int = 0
 ## Seconds into this round (counts up in play; back to 0 after a point).
 var round_time: float = 0.0
-## A tagged player walks out alone after this long (0 = waits for a rescue).
-var tag_release_time: float = 0.0
 var phase: Phase = Phase.PLAYING
 ## Seconds left in the freeze after a point.
 var freeze_left: float = 0.0
@@ -103,7 +103,7 @@ func _init(p_rules: GameRules, p_layout: MapLayout, seed_value: int) -> void:
 		weapon_defs[def.id] = def
 	score = MatchScore.new(rules.first_to)
 	capture_needed = rules.capture_solo_time
-	tag_release_time = rules.tag_release_time
+	rescue_ready_left = [rules.rescue_cooldown, rules.rescue_cooldown]
 
 
 ## Team 0 plays from the own (+Z) end, team 1 from the enemy (-Z) end.
@@ -579,9 +579,8 @@ func _step_tagged(state: PlayerState, input: PlayerInput, dt: float) -> void:
 	state.tag_time += dt
 	if input != null:
 		state.previous_buttons = input.buttons
-	var training_dummy: bool = _brains.has(state.id) and state.tag_time >= rules.dummy_release_time
-	var timed_out: bool = tag_release_time > 0.0 and state.tag_time >= tag_release_time
-	if training_dummy or timed_out:
+	# only a teammate frees a player (owner: no walking out by waiting); Training's dummies are not players
+	if _brains.has(state.id) and state.tag_time >= rules.dummy_release_time:
 		objectives.rescue(self, state, RELEASED_ALONE)
 
 

@@ -141,6 +141,9 @@ var _top_bar: Control
 var tips_button: Button
 var mail_button: Button
 var _page_holder: Control
+## Behind everything on the main screen (owner): a swipe anywhere on the Play page, not only on the mode models, steps the carousel.
+## The buttons, the name tag and the bar sit above it and keep their taps; a tap on it picks nothing.
+var swipe_area: Control
 var _page_tween: Tween
 var _pulse: Tween
 ## Bumped by every start and stop of the breath: a start still waiting out its delay gives up if another came after it.
@@ -180,6 +183,12 @@ func _ready() -> void:
 # ---- layout ---------------------------------------------------------------------------
 
 func _build_layout() -> void:
+	swipe_area = Control.new()
+	swipe_area.name = "SwipeArea"
+	swipe_area.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	swipe_area.mouse_filter = Control.MOUSE_FILTER_STOP
+	swipe_area.gui_input.connect(_on_swipe_area_input)
+	add_child(swipe_area)
 	_margin = MarginContainer.new()
 	_margin.name = "Safe"
 	_margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -315,6 +324,11 @@ func open_donate() -> MenuDialog:
 	var card: MenuDialog = DonateSheet.build()
 	_show_dialog(card)
 	return card
+
+
+func _on_swipe_area_input(event: InputEvent) -> void:
+	if _home.is_visible_in_tree():
+		carousel.swipe_input(event)
 
 
 ## The Play page: the hero carousel, the mode's name and phrase and the actions.

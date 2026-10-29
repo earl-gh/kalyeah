@@ -267,6 +267,16 @@ func _on_accessibility_changed() -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
+	_pointer(event, true)
+
+
+## A press, drag or release that began elsewhere on the screen (the Play page's `TitleScreen.swipe_area`, owner: swipe anywhere):
+## it scrolls exactly like one on the carousel, but a tap there picks no card.
+func swipe_input(event: InputEvent) -> void:
+	_pointer(event, false)
+
+
+func _pointer(event: InputEvent, taps: bool) -> void:
 	if event is InputEventMouseButton:
 		var button: InputEventMouseButton = event as InputEventMouseButton
 		if button.button_index == MOUSE_BUTTON_LEFT:
@@ -288,7 +298,7 @@ func _gui_input(event: InputEvent) -> void:
 				elif _dragging:
 					select(roundi(_position))
 				else:
-					select(_card_at(button.position))
+					select(_card_at(button.position) if taps else index)
 	elif event is InputEventMouseMotion and _pressed:
 		var motion: InputEventMouseMotion = event as InputEventMouseMotion
 		var travelled: float = motion.position.x - _press_x

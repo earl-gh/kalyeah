@@ -14,6 +14,9 @@ extends Resource
 ## Seconds a teammate has to stay in the rescue area to free one tagged teammate (0 = a touch frees at once). Only one teammate
 ## rescues at a time (the first to arrive); leaving, being tagged or a new round starts the count over.
 @export var rescue_hold_time: float = 5.0
+## Each team's rescue area counts down this long (seconds) at the start of every round and again after every rescue; no rescue
+## can start until it is ready, whether or not anyone is waiting (owner, 2026-10-29). 0 = always ready.
+@export var rescue_cooldown: float = 10.0
 ## A free player cannot cast while standing in their own team's rescue area with a teammate waiting on the sidewalk.
 @export var no_cast_in_rescue_area: bool = true
 ## A free player cannot cast while standing in the enemy base (capturing it).
@@ -44,10 +47,6 @@ extends Resource
 ## so a round always ends.
 @export var overtime_after: float = 0.0
 @export var overtime_capture_time: float = 0.0
-## A tagged player walks out alone after this many seconds (0 = they wait for a rescue), online and in rooms.
-@export var tag_release_time: float = 0.0
-## The same, for a Practice match.
-@export var practice_tag_release_time: float = 0.0
 ## The opening show before the first round (both teams at their posts, then GO!).
 @export var intro_time: float = 0.0
 ## Freeze after a point before everyone is reset to their posts.

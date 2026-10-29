@@ -2,7 +2,7 @@ extends SceneTree
 ## Plays whole rounds of tag between two teams of bots (TeamBrain) and counts who scores, how fast, and how often nobody does.
 ## Run headless, after an import:
 ##   godot --headless -s tools/balance/team_rounds.gd -- [--seeds 80] [--size 3] [--capture 5,8,12] [--seconds 120] [--skill 0.5]
-##                                                      [--only rush-defend,mixed-mixed] [--release 0,12,20]
+##                                                      [--only rush-defend,mixed-mixed] [--ready 0,10,20]
 ##                                                      [--skill1 0.2]   (team 1's aim, when it should differ from team 0's)
 ##                                                      [--elixir 1|0] [--hand 4] [--stamina 1|0] (default: the rules' own)
 ## Every matchup is rush / defend / mixed (one rusher, the rest defend) for team 0 against team 1, so a team that always wins a mirror
@@ -27,7 +27,7 @@ func _init() -> void:
 	var seeds: int = int(options.get("seeds", "80"))
 	var sizes: PackedStringArray = options.get("size", "1,3").split(",")
 	var captures: PackedStringArray = options.get("capture", str(rules.capture_solo_time)).split(",")
-	var releases: PackedStringArray = options.get("release", str(rules.tag_release_time)).split(",")
+	var readies: PackedStringArray = options.get("ready", str(rules.rescue_cooldown)).split(",")
 	var seconds: float = float(options.get("seconds", "120"))
 	var skill: float = float(options.get("skill", "0.5"))
 	var skill1: float = float(options.get("skill1", str(skill)))
@@ -38,11 +38,11 @@ func _init() -> void:
 	if options.has("stamina"):
 		rules.stamina_enabled = options["stamina"] != "0"
 	for capture: String in captures:
-		for release: String in releases:
+		for ready: String in readies:
 			rules.capture_solo_time = float(capture)
-			rules.tag_release_time = float(release)
-			print("== capture_solo_time %s, tag_release_time %s, cards %s, elixir %s, hand %d, stamina %s" % [
-				capture, release, str(rules.card_cycle), str(rules.elixir_enabled), rules.hand_size,
+			rules.rescue_cooldown = float(ready)
+			print("== capture_solo_time %s, rescue_cooldown %s, cards %s, elixir %s, hand %d, stamina %s" % [
+				capture, ready, str(rules.card_cycle), str(rules.elixir_enabled), rules.hand_size,
 				str(rules.stamina_enabled),
 			])
 			for size_text: String in sizes:
@@ -98,7 +98,7 @@ func _report(rules: GameRules, layout: MapLayout, matchup: Array, size: int, see
 
 ## One round to the first point (or `seconds`). {winner: team or -1, seconds, tagged: kids tagged when it ended, casts: {weapon id: count},
 ## exhaustions, tags (every tag in the round), bursts (tags where every hit since full health landed within BURST_SECONDS), rescues
-## (kids freed by a teammate; a timed release does not count)}.
+## (kids freed by a teammate; a Training dummy walking out does not count)}.
 static func play(rules: GameRules, layout: MapLayout, plan0: String, plan1: String, size: int, seed_value: int, seconds: float, skill: Array) -> Dictionary:
 	var sim: MatchSim = MatchSim.new(rules, layout, seed_value)
 	var scored: Array[int] = []

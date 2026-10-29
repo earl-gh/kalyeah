@@ -1,6 +1,6 @@
 extends GutTest
-## Rules that keep a round moving: overtime (the capture time drops once a round has dragged on) and a timed release from the box.
-## Both are off by default (`overtime_after` 0, `tag_release_time` 0); Practice releases after `practice_tag_release_time`.
+## Rules that keep a round moving: overtime (the capture time drops once a round has dragged on), off by default (`overtime_after`
+## 0). There is no timed release from the box (owner, 2026-10-29): only a teammate frees a tagged player.
 
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const DT: float = 1.0 / 30.0
@@ -26,9 +26,8 @@ func _wait(sim: MatchSim, seconds: float) -> void:
 		sim.step(DT)
 
 
-func test_both_are_off_in_the_shipped_rules() -> void:
+func test_overtime_is_off_in_the_shipped_rules() -> void:
 	assert_eq(_rules.overtime_after, 0.0)
-	assert_eq(_rules.tag_release_time, 0.0)
 
 
 func test_without_overtime_the_capture_time_never_changes() -> void:
@@ -85,34 +84,11 @@ func test_the_needed_time_travels_in_the_snapshot() -> void:
 	assert_eq(mirror.capture_needed, 2.0)
 
 
-func test_a_tagged_player_waits_for_a_rescue_when_the_release_is_off() -> void:
+func test_a_tagged_player_never_walks_out_alone() -> void:
 	var sim: MatchSim = _sim()
 	sim.kill(1)
 	_wait(sim, 120.0)
 	assert_true(sim.players[1].tagged)
-
-
-func test_a_tagged_player_walks_out_alone_after_the_release_time() -> void:
-	_rules.tag_release_time = 8.0
-	var sim: MatchSim = _sim()
-	var freed: Array[int] = []
-	sim.player_rescued.connect(func(id: int, by: int) -> void: freed.append(by * 100 + id))
-	sim.kill(1)
-	_wait(sim, 7.0)
-	assert_true(sim.players[1].tagged)
-	_wait(sim, 1.5)
-	assert_false(sim.players[1].tagged)
-	assert_eq(sim.players[1].hp, _rules.player_max_hp, "back at the post at full health")
-	assert_eq(sim.players[1].position, sim.players[1].spawn_position)
-	assert_eq(freed, [MatchSim.RELEASED_ALONE * 100 + 1])
-
-
-func test_practice_uses_its_own_release_time() -> void:
-	var practice: PracticeMatch = autofree(preload("res://scenes/match/practice.tscn").instantiate()) as PracticeMatch
-	add_child(practice)
-	practice.set_process(false)
-	assert_eq(practice.sim.tag_release_time, practice.rules.practice_tag_release_time)
-	assert_gt(practice.rules.practice_tag_release_time, 0.0)
 
 
 func test_the_hud_shows_capture_progress_with_a_defender_present() -> void:
