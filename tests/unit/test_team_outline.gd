@@ -51,4 +51,8 @@ func test_the_outline_leaves_the_authored_material_alone() -> void:
 	var view: KidModel = practice._views[practice.local_id] as KidModel
 	var mesh: MeshInstance3D = view.get_node("Body").find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
 	assert_null(mesh.material_override, "no override: the kid keeps its own material")
-	assert_true(mesh.get_active_material(0) is BaseMaterial3D, "the GLB's material is still the one drawn")
+	var authored: BaseMaterial3D = mesh.mesh.surface_get_material(0) as BaseMaterial3D
+	var drawn: BaseMaterial3D = mesh.get_active_material(0) as BaseMaterial3D
+	assert_eq(drawn.albedo_texture, authored.albedo_texture, "a copy of the authored material, its picture kept")
+	assert_eq(drawn.stencil_reference, KidModel.STENCIL, "and it marks the kid's pixels for the outline")
+	assert_eq(authored.stencil_mode, BaseMaterial3D.STENCIL_MODE_DISABLED, "the shared GLB material is not changed")

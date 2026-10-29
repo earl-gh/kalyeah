@@ -41,6 +41,8 @@ const STAR_COUNT: int = 5
 ## The team outline (owner, 2026-10-29): blue round your team, red round the other, this many metres wide.
 const OUTLINE_SHADER: Shader = preload("res://shaders/team_outline.gdshader")
 const OUTLINE_WIDTH: float = 0.035
+## The stencil value a kid's pixels are marked with; the outline draws only where it is not (shaders/team_outline.gdshader).
+const STENCIL: int = 1
 
 static var _scenes: Dictionary[String, PackedScene] = {}
 static var _portraits: Dictionary[String, Texture2D] = {}
@@ -82,6 +84,9 @@ var _playing: String = ""
 var _tracked_position: Vector2 = Vector2.INF
 var _since_move: float = 0.0
 var _ground_speed: float = 0.0
+## The stencil-marking copies of the kid's materials (`set_team_outline`), held here too so they outlive the meshes when the
+## match is freed at once (a mesh dropping the last reference while it is being freed leaves the renderer a dead material).
+var _marked: Array[Material] = []
 ## Last pose name, for tests and debugging ("idle", "run", "cast", "stunned", "airborne").
 var pose: String = "idle"
 
@@ -122,14 +127,24 @@ func play_hit() -> void:
 	_hit_left = HIT_TIME
 
 
-## Draws a `color` outline round the kid (an inverted shell over its authored material, which stays untouched).
+## Draws a `color` outline round the kid: its material (a copy of the authored one, every setting kept) also marks the kid's
+## pixels in the stencil, and a shell over it draws only outside them.
 func set_team_outline(color: Color) -> void:
-	var material: ShaderMaterial = ShaderMaterial.new()
-	material.shader = OUTLINE_SHADER
-	material.set_shader_parameter("color", color)
-	material.set_shader_parameter("width", OUTLINE_WIDTH)
-	for mesh: Node in _model.find_children("*", "MeshInstance3D", true, false):
-		(mesh as MeshInstance3D).material_overlay = material
+	var outline: ShaderMaterial = ShaderMaterial.new()
+	outline.shader = OUTLINE_SHADER
+	outline.set_shader_parameter("color", color)
+	outline.set_shader_parameter("width", OUTLINE_WIDTH)
+	for node: Node in _model.find_children("*", "MeshInstance3D", true, false):
+		var mesh: MeshInstance3D = node as MeshInstance3D
+		for surface: int in mesh.mesh.get_surface_count():
+			var marked: BaseMaterial3D = mesh.get_active_material(surface).duplicate() as BaseMaterial3D
+			marked.stencil_mode = BaseMaterial3D.STENCIL_MODE_CUSTOM
+			marked.stencil_flags = BaseMaterial3D.STENCIL_FLAG_WRITE
+			marked.stencil_compare = BaseMaterial3D.STENCIL_COMPARE_ALWAYS
+			marked.stencil_reference = STENCIL
+			_marked.append(marked)
+			mesh.set_surface_override_material(surface, marked)
+		mesh.material_overlay = outline
 
 
 func is_can() -> bool:
