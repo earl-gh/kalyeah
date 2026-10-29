@@ -124,6 +124,9 @@ extends Resource
 ## Then it attacks in waves: this many seconds of attack (0 = it never stops), then `bot_rest_time` seconds back at its base.
 @export var bot_assault_window: float = 0.0
 @export var bot_rest_time: float = 0.0
+## The bot its TeamCoach sends to rescue only stops to fight an enemy this close (metres) on the way; every other bot fights anything
+## within `bot_aggro_range` (equal to it = rescuers turn on every enemy in reach, which in practice meant no bot ever rescued).
+@export var bot_rescue_aggro_range: float = 0.0
 
 
 ## Fixed simulation step in seconds (1 / tick_rate).

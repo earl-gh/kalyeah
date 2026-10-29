@@ -15,8 +15,10 @@ extends DummyBrain
 ## cards it can afford (released at a street point, a heal as a tap), and with no enemy near it stops to refill its stamina below
 ## `bot_stamina_rest` until it is back to `bot_stamina_resume`.
 
-## Below this share of health a bot heals itself.
+## Below this share of health a bot heals itself, and an enemy this hurt is worth going after first (`_pick_enemy`).
 const HEAL_BELOW: float = 0.5
+## A rescuer sets off this many seconds before its rescue area would be ready on its arrival (`MatchSim.rescue_ready_left`).
+const RESCUE_EARLY: float = 1.0
 ## Closest and farthest a bot stands from an enemy, whatever its weapons reach.
 const STANDOFF_MIN: float = 2.5
 const STANDOFF_MAX: float = 7.0
@@ -35,6 +37,9 @@ const STEER_AHEAD: float = 1.0
 
 ## Aim quality 0 to 1; -1 takes `bot_skill` from the rules.
 var skill: float = -1.0
+## Who rescues: -1 the bot decides alone (the lowest-numbered free teammate, from its post: Training's fighters and the balance
+## tools); set by a TeamCoach each tick, 1 = this bot is the team's rescuer, 0 = another is.
+var rescue_duty: int = -1
 
 var _press_slot: int = -1
 ## True once a bot standing at its post has set off to rescue a tagged teammate (it keeps going until it is free or an enemy comes).
@@ -67,13 +72,53 @@ func think(state: PlayerState, sim: MatchSim) -> PlayerInput:
 		_press_slot = -1
 		var release: PlayerInput = PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick)
 		return release if _tap_release else release.with_aim_point(_aim_point)
-	var enemy: PlayerState = sim.nearest_enemy(state, sim.rules.bot_aggro_range)
+	if rescue_duty == 1 and _rescue_due(state, sim) and sim.objectives.in_rescue_area(sim, state):
+		# nothing can be cast here while a teammate waits, so a fight would only walk it out: it holds the rescue
+		return _no_enemy(state, sim)
+	var enemy: PlayerState = _pick_enemy(state, sim, _engage_range(sim))
 	if _rest_due(state, sim, enemy):
 		return _stop(state, sim)
 	if enemy == null:
 		return _no_enemy(state, sim)
-	_rescuing = false
+	if rescue_duty != 1:
+		_rescuing = false  # a bot deciding alone gives a rescue up for a fight; the coach's rescuer goes back to it after
 	return _fight(state, sim, enemy)
+
+
+## How near an enemy must be to be fought: `bot_aggro_range`, or only `bot_rescue_aggro_range` for the coach's rescuer on its way.
+func _engage_range(sim: MatchSim) -> float:
+	if rescue_duty == 1 and _rescuing:
+		return minf(sim.rules.bot_rescue_aggro_range, sim.rules.bot_aggro_range)
+	return sim.rules.bot_aggro_range
+
+
+## The enemy within `reach` to fight (priority 1, owner): the one taking this team's base first, then the one rescuing a teammate of
+## theirs, then one below half health, and the nearest within each of those.
+func _pick_enemy(state: PlayerState, sim: MatchSim, reach: float) -> PlayerState:
+	var best: PlayerState = null
+	var best_rank: int = 4
+	var best_distance: float = INF
+	for enemy: PlayerState in sim.enemies_of(state.team):
+		var distance: float = state.position.distance_to(enemy.position)
+		if distance > reach:
+			continue
+		var rank: int = _threat_rank(state, enemy, sim)
+		if rank < best_rank or (rank == best_rank and distance < best_distance):
+			best = enemy
+			best_rank = rank
+			best_distance = distance
+	return best
+
+
+## 0: in this team's base (taking it), 1: rescuing a teammate of theirs, 2: below `HEAL_BELOW` of its health, 3: anyone else.
+func _threat_rank(state: PlayerState, enemy: PlayerState, sim: MatchSim) -> int:
+	if sim.layout.in_base(sim.side_for_team(state.team), enemy.position):
+		return 0
+	if sim.rescue_rescuer[enemy.team] == enemy.id:
+		return 1
+	if float(enemy.hp) < float(sim.rules.player_max_hp) * HEAL_BELOW:
+		return 2
+	return 3
 
 
 ## A brain choice, not a rule: with no enemy near and stamina below `bot_stamina_rest`, stand until it is back to `bot_stamina_resume`.
@@ -109,13 +154,21 @@ func _no_enemy(state: PlayerState, sim: MatchSim) -> PlayerInput:
 
 
 ## True while this bot should be off rescuing: a teammate is tagged and the bot is either already on its way or standing at its post.
+## The coach's rescuer sets off from wherever it is, timed to reach the rescue area as it becomes ready (`_ready_on_arrival`).
 func _rescue_due(state: PlayerState, sim: MatchSim) -> bool:
-	if not _teammate_tagged(state, sim):
+	if not _teammate_tagged(state, sim) or rescue_duty == 0:
 		_rescuing = false
 		return false
-	if not _rescuing and _at_post(state, sim):
+	if not _rescuing and (_ready_on_arrival(state, sim) if rescue_duty == 1 else _at_post(state, sim)):
 		_rescuing = true
 	return _rescuing
+
+
+## The team's rescue area will be ready (its countdown over) by the time this bot walks there, give or take `RESCUE_EARLY`.
+func _ready_on_arrival(state: PlayerState, sim: MatchSim) -> bool:
+	var area: Vector2 = sim.layout.rescue_rect(sim.side_for_team(state.team)).get_center()
+	var walk: float = state.position.distance_to(area) / maxf(sim.rules.move_speed, 0.001)
+	return sim.rescue_ready_left[state.team] <= walk + RESCUE_EARLY
 
 
 ## Whether the bot stands where it is meant to stay (a fighter: its spot).

@@ -76,8 +76,11 @@ func _guard(state: PlayerState, sim: MatchSim, input: PlayerInput) -> PlayerInpu
 	return input
 
 
-## The free teammate with the lowest id fetches the tagged ones (everyone else keeps going).
+## The team's rescuer fetches the tagged ones (everyone else keeps going): the one its TeamCoach picked, or, deciding alone, the free
+## teammate with the lowest id.
 func _is_rescuer(state: PlayerState, sim: MatchSim) -> bool:
+	if rescue_duty >= 0:
+		return rescue_duty == 1
 	for id: int in sim.players:
 		var other: PlayerState = sim.players[id]
 		if other.team == state.team and not other.tagged and other.id < state.id:

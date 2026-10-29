@@ -7,6 +7,11 @@ extends RefCounted
 ## so the allies back up what the player does. A team without one (the enemies) waits `bot_assault_delay` seconds into the round,
 ## then attacks in waves (`bot_assault_window` seconds of attack, `bot_rest_time` seconds back home), and only while at least two
 ## thirds of it are free: with more tagged it falls back to defending.
+## Whatever the plan, three bots get a job of their own each tick:
+## - the rescuer: the free bot nearest the team's rescue area, while a teammate (bot or human) is tagged;
+## - a guard: while the other team is taking this team's base and the plan is to attack, the free bot nearest home goes back;
+## - a pusher (a team backing up a human, while it defends): the free bot nearest the enemy base attacks it alone once it is safe,
+##   when at most a third of the enemies are free (an empty enemy base is not enough: it is empty because they are attacking).
 
 enum Plan { DEFEND, ASSAULT }
 
@@ -44,13 +49,64 @@ func drive(sim: MatchSim) -> void:
 	if sim.phase != MatchSim.Phase.PLAYING:
 		return
 	plan = decide(sim)
+	var rescuer: int = rescuer_id(sim)
+	var guard: int = guard_id(sim, rescuer)
+	var pusher: int = pusher_id(sim, rescuer)
 	for id: int in _brains:
 		var state: PlayerState = sim.players[id]
 		if state.tagged:
 			continue
 		var brain: TeamBrain = _brains[id]
-		brain.role = TeamBrain.Role.RUSH if plan == Plan.ASSAULT else TeamBrain.Role.DEFEND
+		var attack: bool = (plan == Plan.ASSAULT and id != guard) or id == pusher
+		brain.role = TeamBrain.Role.RUSH if attack else TeamBrain.Role.DEFEND
+		brain.rescue_duty = 1 if id == rescuer else 0
 		sim.set_input(id, brain.think(state, sim))
+
+
+## The bot that fetches a tagged teammate: the free one nearest the team's rescue area (-1: nobody is tagged, or no bot is free).
+func rescuer_id(sim: MatchSim) -> int:
+	if not sim.objectives.teammate_waiting(sim, team):
+		return -1
+	return _nearest_free(sim, sim.layout.rescue_rect(sim.side_for_team(team)).get_center(), -1)
+
+
+## The bot sent home while the other team takes this team's base and the plan is to attack (-1: none needed).
+func guard_id(sim: MatchSim, rescuer: int) -> int:
+	if plan != Plan.ASSAULT or sim.capture_team != 1 - team or sim.capture_kind != MatchSim.CaptureKind.BASE:
+		return -1
+	return _nearest_free(sim, sim.layout.base_center(sim.side_for_team(team)), rescuer)
+
+
+## The bot that attacks alone while a team backing up a human defends, once that is safe (-1: none).
+func pusher_id(sim: MatchSim, rescuer: int) -> int:
+	if follow_id < 0 or plan != Plan.DEFEND:
+		return -1
+	var enemies: int = 0
+	var free: int = 0
+	for id: int in sim.players:
+		var other: PlayerState = sim.players[id]
+		if other.team != team:
+			enemies += 1
+			if not other.tagged:
+				free += 1
+	if enemies == 0 or free * 3 > enemies:
+		return -1
+	return _nearest_free(sim, sim.layout.base_center(-sim.side_for_team(team)), rescuer)
+
+
+## The free bot of this team nearest `point`, other than `skip` (-1: none).
+func _nearest_free(sim: MatchSim, point: Vector2, skip: int) -> int:
+	var best: int = -1
+	var best_distance: float = INF
+	for id: int in _brains:
+		var state: PlayerState = sim.players[id]
+		if state.tagged or id == skip:
+			continue
+		var distance: float = state.position.distance_to(point)
+		if distance < best_distance:
+			best = id
+			best_distance = distance
+	return best
 
 
 func decide(sim: MatchSim) -> Plan:
