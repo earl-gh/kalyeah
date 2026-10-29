@@ -202,18 +202,25 @@ func test_the_scissors_snip_for_gunting() -> void:
 		assert_ne(rig.angle(), opened, "and the blades open")
 
 
-func test_a_heal_floats_a_green_cross_over_the_kid_and_it_goes_away() -> void:
+func test_a_heal_pops_a_green_cross_at_the_kid_and_it_goes_away() -> void:
 	var practice: PracticeMatch = _casting(&"heal", &"lata")
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
 	practice.sim.damage(PracticeMatch.LOCAL_ID, 40)
 	_cast(practice, 0)
-	var crosses: Array[Node] = fx.find_children("HealCross*", "Node3D", true, false)
+	var crosses: Array[Node3D] = fx.heals.crosses()
 	assert_gt(crosses.size(), 0, "a cross appears")
-	assert_gt((crosses[0] as Node3D).position.y, 2.0, "above the head")
-	for i: int in 40:
+	var cross: Node3D = crosses[0]
+	var half: float = WeaponModel.CROSS_WIDTH * fx.view_scale / 2.0
+	var turn: float = cross.rotation.y
+	for i: int in 24:
+		if not is_instance_valid(cross) or cross.is_queued_for_deletion():
+			break
+		assert_between(cross.position.y, 1.3, 2.4 - half, "at the chest, under the face")
+		assert_lt(cross.position.y + half, 3.7, "never up at the bars")
+		assert_almost_eq(cross.rotation.y, turn, 0.0001, "no spin: it faces the camera, never edge-on")
 		practice.advance(DT)
-	var left: Array[Node] = fx.find_children("HealCross*", "Node3D", true, false).filter(func(c: Node) -> bool: return not c.is_queued_for_deletion())
-	assert_eq(left.size(), 0, "and fades away")
+	var left: Array[Node3D] = fx.heals.crosses()
+	assert_eq(left.size(), 0, "and goes away within 24 frames")
 
 
 ## Audit: casting any of the weapons shows the owner's 3D model (a ground disc or a flash may

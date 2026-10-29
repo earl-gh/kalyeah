@@ -609,3 +609,26 @@ func test_rm_walls() -> void:
 			_frame()
 		assert_lt(body.scale.y, 1.0, "%s: the end still shows (it says the wall is going)" % weapon)
 		assert_eq(_fx.particle_count(), 0)
+
+
+# ---- heal ---------------------------------------------------------------------------------------------------------------
+
+func test_heal_streak_only_for_someone_else() -> void:
+	_setup(Vector2(20.0, 0.0))
+	_sim.damage(1, 40)
+	_cast(&"heal", Vector2.ZERO)
+	_fx.sync(_sim, DT)
+	assert_eq(_fx.context().ground.live_smears(), 0, "healing yourself: no streak")
+	assert_eq(_fx.heals.crosses().size(), 1)
+	for i: int in 30:
+		_frame()
+	_sim.players[1].weapon_cooldowns.fill(0.0)
+	_sim.damage(3, 40)
+	var heal: WeaponDef = _sim.weapon_defs[&"heal"]
+	assert_true(_sim.weapons.fire(_sim, _sim.players[1], heal, (_sim.players[3].position - _sim.players[1].position).normalized(), 0.0))
+	_sim.weapon_cast.emit(1, &"heal")
+	_fx.sync(_sim, DT)
+	assert_eq(_fx.context().ground.live_smears(), 1, "healing a friend: a green streak to them")
+	var crosses: Array[Node3D] = _fx.heals.crosses()
+	assert_eq(crosses.size(), 1, "and the cross is on the friend")
+	assert_almost_eq(crosses[0].position.x, _sim.players[3].position.x, 0.01)

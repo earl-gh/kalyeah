@@ -1,18 +1,36 @@
 class_name FxHeals
 extends Node3D
-## The heal: a green cross on the healed kid. Driven by the relayed `player_healed` (and `weapon_cast` for the caster), never
-## by the offline-only `weapons.healed`, so it shows online too and offline only once.
+## The heal: on the healed kid a green ring grows on the ground, a green cross pops up in front of the chest facing the
+## camera (never edge-on, never up at the bars) and rises a little as it shrinks away, with plus sparkles rising beside the
+## kid; healing someone else draws a short green streak from the caster to them. Driven by the relayed `player_healed` (and
+## `weapon_cast` for the caster), never by the offline-only `weapons.healed`, so it shows online too and offline once. A heal
+## cast that healed nobody (all at full HP) still shows on its caster. Reduce motion: the cross pops in still, holds, goes.
 
-## Where the cross starts above the ground, how far it rises and how long it lives (times the view scale).
-const CROSS_START: float = 2.9
-const CROSS_RISE: float = 0.9
-const CROSS_TIME: float = 0.9
+## The ground ring grows from `RING_FROM` to `RING_TO` m over `RING_FRAMES` frames (the aim preview's friend green).
+const RING_FROM: float = 0.5
+const RING_TO: float = 1.0
+const RING_FRAMES: int = 10
+## The cross: its middle rises from `CROSS_Y_FROM` to `CROSS_Y_TO` m over `CROSS_TIME` s, `CROSS_FRONT` m in front of the
+## kid toward the camera, tipped to face it; it pops in over `FxSquash.POP_FRAMES` frames and has shrunk away by `CROSS_END`
+## s (with Reduce motion it holds `CROSS_HOLD_REDUCED` s and goes).
+const CROSS_Y_FROM: float = 1.4
+const CROSS_Y_TO: float = 1.8
+const CROSS_TIME: float = 0.6
+const CROSS_END: float = 0.7
+const CROSS_FRONT: float = 0.7
+const CROSS_HOLD_REDUCED: float = 0.5
+## Plus sparkles rising beside and behind the kid.
+const SPARKLES: int = 4
+## The streak from the caster to the kid they healed: green, at `STREAK_Y` m, for `STREAK_FRAMES` frames.
+const STREAK_Y: float = 1.3
+const STREAK_FRAMES: int = 3
 
 
 ## One cross playing.
 class Cross extends RefCounted:
 	var node: Node3D
-	var left: float
+	var born: float
+	var base: Vector3
 
 
 var _ctx: FxContext
@@ -40,40 +58,88 @@ func on_cast(id: int, weapon_id: StringName) -> void:
 		_casters.append(id)
 
 
-## Draws this frame's heals. A heal cast that healed nobody (everyone at full HP, so no `player_healed`) still shows on its
-## caster, so a cast never looks like nothing happened.
+## Draws this frame's heals.
 func flush() -> void:
-	if _healed.is_empty():
-		_healed.append_array(_casters)
-	_casters.clear()
-	for id: int in _healed:
-		if _ctx.sim == null or not _ctx.sim.players.has(id):
-			continue
-		var cross: Cross = Cross.new()
-		cross.node = WeaponModel.cross()
-		cross.node.name = "HealCross"
-		var at: Vector2 = _ctx.sim.players[id].position
-		cross.node.position = Vector3(at.x, CROSS_START * _ctx.view_scale, at.y)
-		cross.left = CROSS_TIME
-		add_child(cross.node)
-		_crosses.append(cross)
+	if _ctx.sim == null:
+		_healed.clear()
+		_casters.clear()
+		return
+	var patients: Array[int] = _healed.duplicate()
+	if patients.is_empty():
+		patients.append_array(_casters)
+	for id: int in patients:
+		if _ctx.sim.players.has(id):
+			_heal(_ctx.sim.players[id].position)
+	# healing someone else: a green streak from the caster to them
+	for caster: int in _casters:
+		for id: int in _healed:
+			if id != caster and _ctx.sim.players.has(caster) and _ctx.sim.players.has(id) and _ctx.team_of(id) == _ctx.team_of(caster):
+				_streak(_ctx.sim.players[caster].position, _ctx.sim.players[id].position)
+				break
 	_healed.clear()
+	_casters.clear()
+
+
+func _heal(at: Vector2) -> void:
+	_ctx.ground.ring(at, RING_FROM, RING_TO, AimIndicator.REACH_FRIEND, RING_FRAMES * FxSquash.FRAME, _ctx.reduced)
+	_ctx.particles.puff(FxParticles.Preset.PLUS, Vector3(at.x, 0.0, at.y), SPARKLES)
+	var back: Vector3 = _camera_back()
+	var front: Vector3 = Vector3(back.x, 0.0, back.z).normalized() * CROSS_FRONT
+	var cross: Cross = Cross.new()
+	cross.node = WeaponModel.cross()
+	cross.node.name = "HealCross"
+	cross.base = Vector3(at.x, 0.0, at.y) + front
+	cross.born = _ctx.time
+	# its face (model +Z) turned to the camera: upright for the eye, never edge-on
+	cross.node.basis = Basis.looking_at(-back, Vector3.UP)
+	add_child(cross.node)
+	_crosses.append(cross)
+	_pose(cross)
+
+
+func _streak(from: Vector2, to: Vector2) -> void:
+	if _ctx.reduced:
+		return
+	var offset: Vector2 = to - from
+	var middle: Vector2 = (from + to) / 2.0
+	var xform: Transform3D = Transform3D(Basis(Vector3.UP, -offset.angle()), Vector3(middle.x, STREAK_Y, middle.y))
+	_ctx.ground.smear(xform, &"streak", offset.length(), Palette.GUAVA, STREAK_FRAMES * FxSquash.FRAME)
 
 
 func step() -> void:
 	var still: Array[Cross] = []
 	for cross: Cross in _crosses:
-		cross.left -= _ctx.delta
-		var left: float = cross.left / CROSS_TIME
-		if left > 0.0:
-			cross.node.position.y = (CROSS_START + CROSS_RISE * (1.0 - left)) * _ctx.view_scale
-			cross.node.rotation.y += _ctx.delta * TAU
-			# it pops in, then shrinks away
-			cross.node.scale = Vector3.ONE * clampf(minf((1.0 - left) * 8.0, left * 2.5), 0.01, 1.0)
+		if _pose(cross):
 			still.append(cross)
 		else:
 			cross.node.queue_free()
 	_crosses = still
+
+
+## Poses `cross` for now; false once it is over.
+func _pose(cross: Cross) -> bool:
+	var age: float = _ctx.time - cross.born
+	var size: float = _ctx.view_scale
+	var y: float = CROSS_Y_FROM
+	if _ctx.reduced:
+		if age >= CROSS_HOLD_REDUCED:
+			return false
+	else:
+		if age >= CROSS_END:
+			return false
+		y = lerpf(CROSS_Y_FROM, CROSS_Y_TO, clampf(age / CROSS_TIME, 0.0, 1.0))
+		var pop: float = FxSquash.pop(age / (FxSquash.POP_FRAMES * FxSquash.FRAME))
+		var fade: float = clampf((CROSS_END - age) / (CROSS_END - CROSS_TIME + 0.0001), 0.0, 1.0)
+		size *= maxf(minf(pop, fade) if age > CROSS_TIME else pop, 0.01)
+	cross.node.position = cross.base + Vector3(0.0, y, 0.0)
+	cross.node.scale = Vector3.ONE * size
+	return true
+
+
+## The direction from the scene toward the camera.
+func _camera_back() -> Vector3:
+	var camera: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
+	return camera.global_basis.z if camera != null else FxCones.CAMERA_BACK
 
 
 ## The crosses playing right now.
