@@ -15,6 +15,9 @@ var delta: float = 0.0
 var reduced: bool = false
 var view_scale: float = 1.0
 var local_team: int = 0
+var particles: FxParticles
+var ground: FxGround
+var shadows: FxShadows
 var _casts: Array[Dictionary] = []
 
 
