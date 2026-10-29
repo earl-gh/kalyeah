@@ -3,7 +3,7 @@ extends GutTest
 ## (tricycle, e-bike, sacks, NO ID NO ENTRY sign) across both ends.
 
 const MAP_SCENE: PackedScene = preload("res://scenes/map/street_map.tscn")
-const NEW_BARRIERS: Array[String] = ["tricycle", "ebike", "sacks", "no_id_no_entry", "plank_fence", "roof_wall", "roof_wall_2"]
+const NEW_BARRIERS: Array[String] = ["tricycle", "ebike", "sacks", "no_id_no_entry", "plank_fence"]
 
 
 func _map() -> StreetMap:
@@ -173,7 +173,8 @@ func _pictures(map: StreetMap, end: float) -> Array[MeshInstance3D]:
 	var row: Node3D = map.find_child("BoundaryPictures%s" % ("Far" if end < 0.0 else "Near"), true, false) as Node3D
 	var found: Array[MeshInstance3D] = []
 	for child: Node in row.get_children():
-		found.append(child as MeshInstance3D)
+		if child is MeshInstance3D and String(child.name) in PICTURE_IDS:
+			found.append(child as MeshInstance3D)
 	return found
 
 
@@ -248,3 +249,35 @@ func test_the_pictures_are_drawn_as_made_not_shaded_or_tinted_and_lossless() -> 
 		assert_true(import_text.contains("compress/mode=0"), "%s imports lossless" % picture.name)
 		assert_true(import_text.contains("detect_3d/compress_to=0"), "and is never compressed for 3D")
 		assert_true(import_text.contains("mipmaps/generate=true"), "and has mipmaps (it is small on screen)")
+
+
+func test_corner_wall_pngs_are_centered_and_the_right_texture_is_mirrored() -> void:
+	var map: StreetMap = _map()
+	for suffix: String in ["Far", "Near"]:
+		var row: Node3D = map.find_child("BoundaryPictures%s" % suffix, true, false) as Node3D
+		var left: MeshInstance3D = row.get_node("RoofWallLeft") as MeshInstance3D
+		var right: MeshInstance3D = row.get_node("RoofWallRight") as MeshInstance3D
+		assert_eq(left.position.x, -map.layout.lane_width / 2.0)
+		assert_eq(right.position.x, map.layout.lane_width / 2.0)
+		assert_eq(left.position.z, right.position.z)
+		assert_lt(left.position.z, 0.0, "the wall stays behind the other pictures")
+		var left_quad: QuadMesh = left.mesh as QuadMesh
+		var right_quad: QuadMesh = right.mesh as QuadMesh
+		assert_eq(left_quad.size, right_quad.size)
+		var original: StandardMaterial3D = left_quad.material as StandardMaterial3D
+		var mirrored: StandardMaterial3D = right_quad.material as StandardMaterial3D
+		assert_eq(original.albedo_texture.resource_path, StreetMap.BOUNDARY_PATH % "tin_fence")
+		assert_eq(mirrored.albedo_texture, original.albedo_texture)
+		assert_eq(original.uv1_scale.x, 1.0)
+		assert_eq(mirrored.uv1_scale.x, -1.0)
+		assert_eq(mirrored.uv1_offset.x, 1.0)
+		assert_eq(original.shading_mode, BaseMaterial3D.SHADING_MODE_UNSHADED)
+		assert_almost_eq(left_quad.size.x / left_quad.size.y, original.albedo_texture.get_size().aspect(), 0.001)
+
+
+func test_roof_wall_models_and_their_textures_are_removed() -> void:
+	for id: String in ["roof_wall", "roof_wall_2"]:
+		for extension: String in [".glb", ".glb.import", "_prop_base_color.jpg", "_prop_base_color.jpg.import"]:
+			assert_false(FileAccess.file_exists("res://assets/models/props/%s%s" % [id, extension]))
+		assert_false(StreetMap.BARRIER_HEIGHTS.has(id))
+		assert_false(ScaleReference.REAL_HEIGHT.has(id))

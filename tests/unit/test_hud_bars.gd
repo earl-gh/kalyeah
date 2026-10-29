@@ -57,7 +57,8 @@ func test_the_ice_water_fill_is_a_light_band_over_a_deeper_blue_and_its_outline_
 		assert_gt(fill.b, fill.r + 0.3, "the bar stays in the ice blue family")
 		assert_eq(fill.a, 1.0, "opaque")
 	assert_gt(CardHand.ICE_WATER.b, CardHand.ICE_WATER.r + 0.3)
-	assert_gt(CardHand.BAR_EDGE.get_luminance(), 0.6, "the thin outline is pale")
+	assert_lt(CardHand.BAR_EDGE.get_luminance(), 0.3, "the outline is dark blue")
+	assert_gt(CardHand.BAR_EDGE.b, CardHand.BAR_EDGE.r * 2.0)
 	assert_gt(CardHand.BAR_EDGE.b, CardHand.BAR_EDGE.r, "ice blue, not black")
 	assert_gt(CardHand.ICE_WATER_FULL_EDGE.get_luminance(), CardHand.BAR_EDGE.get_luminance() * 0.9)
 

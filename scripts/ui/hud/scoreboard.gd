@@ -1,11 +1,11 @@
 class_name Scoreboard
 extends Control
-## The score in the middle of the header: your team's points (blue) and theirs (red)
-## (the match clock is the chip at the header's right; the points to win are said by the opening objective and the results). It stands on the header deck without a card of its own. Team-relative: you are always on the left.
+## Team-relative scores on the right sidewalk: blue in the lower half, red in the upper half.
 
 const BIG_FONT: int = UiMetrics.HEADLINE
 const SMALL_FONT: int = UiMetrics.CAPTION
 
+var play_area: Rect2 = Rect2(70, 160, 560, 830)
 var mine: int = 0
 var theirs: int = 0
 var first_to: int = 3
@@ -69,22 +69,34 @@ func summary() -> String:
 
 
 func _draw() -> void:
-	var w: float = size.x
-	var h: float = size.y
-	var box: float = h - 12.0
-	var cell: Vector2 = Vector2(box * CELL_ASPECT, box)
-	var mine_cell: Rect2 = Rect2(Vector2(6.0, 6.0), cell)
-	var theirs_cell: Rect2 = Rect2(Vector2(w - 6.0 - cell.x, 6.0), cell)
+	var cells: Array[Rect2] = cell_rects()
+	var mine_cell: Rect2 = cells[0]
+	var theirs_cell: Rect2 = cells[1]
 	_draw_cell(mine_cell, TeamColors.score_own())
 	_draw_cell(theirs_cell, TeamColors.score_enemy())
-	var number_y: float = h / 2.0
-	_center_text(KalyeahTheme.ACTION_FONT, str(mine), Vector2(mine_cell.get_center().x, number_y), BIG_FONT, Color.WHITE)
-	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), Vector2(theirs_cell.get_center().x, number_y), BIG_FONT, Color.WHITE)
+	_center_text(KalyeahTheme.ACTION_FONT, str(mine), mine_cell.get_center(), BIG_FONT, Color.WHITE)
+	_center_text(KalyeahTheme.ACTION_FONT, str(theirs), theirs_cell.get_center(), BIG_FONT, Color.WHITE)
 	if capture >= 0.0:
-		var track: Rect2 = Rect2(CAPTURE_INSET, h - 6.0 - CAPTURE_HEIGHT, w - CAPTURE_INSET * 2.0, CAPTURE_HEIGHT)
+		var cell: Rect2 = mine_cell if capture_ours else theirs_cell
+		var track: Rect2 = Rect2(cell.position + Vector2(6.0, cell.size.y - 12.0), Vector2(cell.size.x - 12.0, CAPTURE_HEIGHT))
 		_round_rect(track, CAPTURE_TRACK, CAPTURE_HEIGHT / 2.0)
 		if capture > 0.0:
 			_round_rect(Rect2(track.position, Vector2(track.size.x * capture, track.size.y)), TeamColors.capture_own() if capture_ours else TeamColors.capture_enemy(), CAPTURE_HEIGHT / 2.0)
+
+
+func set_play_area(rect: Rect2) -> void:
+	if play_area.is_equal_approx(rect):
+		return
+	play_area = rect
+	queue_redraw()
+
+
+## Blue is in the lower half; red in the upper half, on the viewer's right sidewalk.
+func cell_rects() -> Array[Rect2]:
+	var cell: Vector2 = Vector2(48.0, 56.0)
+	var x: float = minf(play_area.end.x + cell.x / 2.0, size.x - cell.x / 2.0)
+	return [Rect2(Vector2(x, play_area.position.y + play_area.size.y * 0.75) - cell / 2.0, cell), Rect2(Vector2(x, play_area.position.y + play_area.size.y * 0.25) - cell / 2.0, cell)]
+
 
 
 ## A team's cell: its colour in a thick navy outline with a glossy sheen on the upper half, like a Clash Royale panel.

@@ -365,7 +365,7 @@ func test_an_away_player_in_a_bigger_match_is_marked_afk() -> void:
 	assert_eq(practice.banner_text(), "BEN is AFK")
 	assert_true(practice.hud.overhead.away_ids.has(2), "AFK over their kid")
 	practice.sim.match_won.emit(practice.local_team)
-	assert_eq(practice.banner_text(), "VICTORY!", "CARA still plays, so a win is a normal win")
+	assert_eq(practice.gone_note, "", "CARA still plays, so this is not a disconnect win")
 	ben["afk"] = false
 	practice._on_room_changed(_room_with(practice, [ben, cara]))
 	assert_false(practice.hud.overhead.away_ids.has(2), "back: no longer AFK")
@@ -378,7 +378,7 @@ func test_a_1v1_won_because_the_opponent_is_gone_says_so() -> void:
 	ben["afk"] = true
 	practice._on_room_changed(_room_with(practice, [ben]))
 	practice.sim.match_won.emit(practice.local_team)
-	assert_eq(practice.banner_text(), "BEN is gone for a while")
+	assert_eq(practice.gone_note, "BEN is gone for a while")
 
 
 func test_the_afk_word_shows_over_an_away_kid() -> void:
@@ -527,7 +527,7 @@ func test_scoring_shows_a_banner_and_updates_the_scoreboard() -> void:
 	assert_string_starts_with(practice.scoreboard().summary(), "YOU 0 - 0 THEM")
 	_score_point(practice)
 	assert_string_starts_with(practice.scoreboard().summary(), "YOU 1 - 0 THEM")
-	assert_eq(practice.banner_text(), "SCORED!  1-0")
+	assert_eq(practice.hud.point_result.score.text, "1 - 0")
 	_finish_freeze(practice)
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 	assert_eq(player.position, player.spawn_position, "back at base")
@@ -542,7 +542,7 @@ func test_match_over_shows_play_again() -> void:
 	assert_eq(practice.sim.phase, MatchSim.Phase.MATCH_OVER, "first to 3: three points win")
 	assert_true(again.visible)
 	assert_eq(again.text, "Practice again")
-	assert_eq(practice.banner_text(), "VICTORY!")
+	assert_eq(practice.hud.results.title.text, "Victory")
 
 
 func test_damage_shows_no_numbers() -> void:
@@ -616,7 +616,7 @@ func test_the_match_opens_on_the_street_with_the_objective_then_go() -> void:
 	for i: int in ceili(practice.rules.intro_time * 0.5 / DT):
 		practice.advance(DT)
 	assert_eq(practice.sim.phase, MatchSim.Phase.PLAYING)
-	assert_eq(practice.banner_text(), "GO!")
+	assert_eq(practice.banner_text(), "", "no opening GO banner")
 	assert_false(practice.hud.intro_bar.visible)
 	assert_true(practice.hud.hand.active)
 

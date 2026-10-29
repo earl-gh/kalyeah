@@ -47,13 +47,13 @@ func test_winning_shows_victory_the_score_your_kid_and_both_weapons() -> void:
 	var results: MatchResults = practice.hud.results
 	assert_eq(practice.sim.phase, MatchSim.Phase.MATCH_OVER)
 	assert_true(results.visible)
-	assert_eq(results.title.text, "VICTORY!")
+	assert_eq(results.title.text, "Victory")
 	assert_eq(results.mine_label.text, str(practice.sim.score.points_to_win()))
 	assert_eq(results.theirs_label.text, "0")
-	assert_eq(results.subtitle.text, "Practice · First to 3")
-	assert_eq(results.kid_holder.get_child_count(), 1, "your kid's face")
-	assert_eq(results.weapons_row.get_child_count(), practice.sim.players[PracticeMatch.LOCAL_ID].weapons.size(), "the weapons you carried")
-	assert_true(results.time_label.text.contains(":"), "the match time as m:ss")
+	assert_eq(results.subtitle.text, "Practice (First to 3) (2v3)")
+	assert_null(results.find_child("Kid", true, false), "no character panel")
+	assert_null(results.find_child("Weapons", true, false), "no loadout filler")
+	assert_true(results._card.get_theme_stylebox("panel") is StyleBoxEmpty, "no blue panel")
 
 
 func test_losing_says_defeat_with_your_score_first() -> void:
@@ -64,7 +64,7 @@ func test_losing_says_defeat_with_your_score_first() -> void:
 	practice.sim.score.winner = 1 - practice.local_team
 	practice.sim.phase = MatchSim.Phase.MATCH_OVER
 	practice.hud.sync_score(practice.sim, practice.local_team, DT, practice.local_id)
-	assert_eq(results.title.text, "DEFEAT")
+	assert_eq(results.title.text, "Defeat")
 	assert_eq(results.mine_label.text, "1", "yours is on the left")
 	assert_eq(results.theirs_label.text, "2")
 
@@ -87,14 +87,14 @@ func test_the_card_blocks_touches_to_the_street_under_it_once_shown() -> void:
 	assert_eq(practice.hud.results.mouse_filter, Control.MOUSE_FILTER_STOP, "no stray drags into the world")
 
 
-func test_with_motion_on_the_card_waits_a_beat_for_the_street_banner_then_takes_touches() -> void:
+func test_with_motion_on_the_result_is_immediate_and_blocks_touches() -> void:
 	Settings.set_reduced_motion(false)
 	var practice: PracticeMatch = _practice()
 	_win_the_match(practice)
 	var results: MatchResults = practice.hud.results
-	assert_eq(results.mouse_filter, Control.MOUSE_FILTER_IGNORE, "the banner is seen first")
-	assert_lt(results.modulate.a, 1.0)
-	await wait_seconds(MatchResults.DELAY + MatchResults.POP + 0.3)
+	assert_eq(results.mouse_filter, Control.MOUSE_FILTER_STOP, "results take touches immediately")
+	assert_eq(results.modulate.a, 1.0)
+	await wait_seconds(0.3)
 	assert_eq(results.modulate.a, 1.0)
 	assert_eq(results.mouse_filter, Control.MOUSE_FILTER_STOP)
 
@@ -127,26 +127,20 @@ func _card_for(sim: MatchSim, local_id: int) -> MatchResults:
 
 
 ## The card looks the local kid up by id: the last id (6 of 6 kids) is a player like any other.
-func test_the_card_shows_the_kid_and_weapons_of_the_highest_player_id() -> void:
+func test_result_counts_teams_for_a_high_player_id() -> void:
 	var sim: MatchSim = _six()
 	var results: MatchResults = _card_for(sim, 6)
-	assert_true(results.kid_holder.visible, "player 6's kid is shown")
-	assert_eq(results.kid_holder.get_child_count(), 1, "player 6's kid's face")
-	assert_eq(results.weapons_row.get_child_count(), 2, "player 6's two weapons")
+	assert_eq(results.subtitle.text, "Practice (First to 3) (3v3)")
+	assert_true(results.visible)
 
-
-func test_the_card_shows_the_kid_and_weapons_of_a_middle_player_id() -> void:
+func test_result_counts_teams_for_a_middle_player_id() -> void:
 	var sim: MatchSim = _six()
 	var results: MatchResults = _card_for(sim, 3)
-	assert_true(results.kid_holder.visible)
-	assert_eq(results.kid_holder.get_child_count(), 1)
-	assert_eq(results.weapons_row.get_child_count(), 2)
+	assert_eq(results.subtitle.text, "Practice (First to 3) (3v3)")
+	assert_null(results.find_child("Kid", true, false))
 
-
-func test_an_id_with_no_player_shows_no_kid_and_does_not_crash() -> void:
+func test_an_id_with_no_player_still_shows_the_team_result() -> void:
 	var sim: MatchSim = _six()
 	var results: MatchResults = _card_for(sim, 99)
-	assert_true(results.visible, "the card still opens")
-	assert_false(results.kid_holder.visible, "no kid for an id nobody has")
-	assert_eq(results.kid_holder.get_child_count(), 0)
-	assert_eq(results.weapons_row.get_child_count(), 0)
+	assert_true(results.visible)
+	assert_eq(results.subtitle.text, "Practice (First to 3) (3v3)")

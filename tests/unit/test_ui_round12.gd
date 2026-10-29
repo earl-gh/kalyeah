@@ -54,20 +54,20 @@ func _finish(practice: PracticeMatch, win: bool) -> void:
 	practice.hud.sync_score(practice.sim, team, DT, practice.local_id)
 
 
-func test_a_win_throws_confetti_after_the_beat_and_a_loss_never_does() -> void:
+func test_a_win_throws_confetti_immediately_and_a_loss_never_does() -> void:
 	Settings.set_reduced_motion(false)
 	var win: PracticeMatch = _practice()
 	_finish(win, true)
-	assert_false(win.hud.results.confetti.emitting, "the street's own banner comes first")
-	await wait_seconds(MatchResults.DELAY + 0.35)
+	assert_true(win.hud.results.confetti.emitting, "the result appears immediately")
+	await wait_seconds(0.35)
 	assert_true(win.hud.results.confetti.emitting, "then the confetti")
 	var loss: PracticeMatch = _practice()
 	_finish(loss, false)
-	await wait_seconds(MatchResults.DELAY + 0.35)
+	await wait_seconds(0.35)
 	assert_false(loss.hud.results.confetti.emitting, "a loss gets no confetti")
 
 
-func test_the_scores_count_up_to_the_final_numbers_and_with_reduce_motion_just_show_them() -> void:
+func test_the_final_scores_are_immediate_with_either_motion_setting() -> void:
 	Settings.set_reduced_motion(true)
 	var calm: PracticeMatch = _practice()
 	_finish(calm, true)
@@ -77,8 +77,8 @@ func test_the_scores_count_up_to_the_final_numbers_and_with_reduce_motion_just_s
 	Settings.set_reduced_motion(false)
 	var lively: PracticeMatch = _practice()
 	_finish(lively, true)
-	assert_eq(lively.hud.results.mine_label.text, "0", "they start at zero")
-	await wait_seconds(MatchResults.DELAY + MatchResults.POP + MatchResults.COUNT_SECONDS + 0.4)
+	assert_eq(lively.hud.results.mine_label.text, "2", "the final score is immediate")
+	await wait_seconds(0.4)
 	assert_eq(lively.hud.results.mine_label.text, "2")
 	assert_eq(lively.hud.results.theirs_label.text, "1")
 
@@ -87,7 +87,7 @@ func test_clearing_the_card_stops_the_confetti() -> void:
 	Settings.set_reduced_motion(false)
 	var practice: PracticeMatch = _practice()
 	_finish(practice, true)
-	await wait_seconds(MatchResults.DELAY + 0.35)
+	await wait_seconds(0.35)
 	practice.sim.phase = MatchSim.Phase.PLAYING
 	practice.hud.sync_score(practice.sim, practice.local_team, DT, practice.local_id)
 	assert_false(practice.hud.results.confetti.emitting)

@@ -84,6 +84,8 @@ var intro_title: Label
 var intro_sub: Label
 var swap_button: Button
 var again_button: Button
+var point_result: PointResult
+var _covered: bool = false
 var results: MatchResults
 var coach: CoachMarks
 ## What the results card says the match was ("Practice", "Hotspot", "Online").
@@ -150,7 +152,7 @@ func console_height() -> float:
 
 
 func set_controls_active(active: bool) -> void:
-	active = active and not connection_blocked
+	active = active and not connection_blocked and not _covered and not (chat != null and chat.is_open())
 	if not active:
 		cancel_controls()
 	hand.set_process_input(active)
@@ -168,6 +170,8 @@ func controls_active() -> bool:
 
 
 func show_banner(text: String) -> void:
+	if _covered:
+		return
 	banner.text = text
 	banner.add_theme_font_size_override("font_size", banner_font_size(text))
 	banner.visible = true
@@ -256,7 +260,21 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 	clock_chip.show_time(sim.match_time, sim.in_overtime())
 	_sync_capture(sim, local_team)
 	again_button.visible = sim.phase == MatchSim.Phase.MATCH_OVER
+	point_result.sync(sim, local_team)
 	results.set_over(sim.phase == MatchSim.Phase.MATCH_OVER, sim, local_id, local_team, results_mode)
+	var covered: bool = sim.phase in [MatchSim.Phase.POINT_FREEZE, MatchSim.Phase.MATCH_OVER]
+	if covered:
+		chat.set_open(false)
+		if menu.visible:
+			menu.close()
+	for item: CanvasItem in [header, top, scoreboard, overhead, marker, pulse, console, feedback]:
+		item.visible = not covered
+	if covered:
+		for item: CanvasItem in [hand, chat, tagged_panel, intro_bar, capture_label, banner, coach]:
+			item.hide()
+	if _covered != covered:
+		_covered = covered
+		set_controls_active(not covered and not menu.visible and not coach.running)
 	if sim.phase != MatchSim.Phase.MATCH_OVER and _banner_left > 0.0:
 		_banner_left -= delta
 		if _banner_left <= 0.0:
@@ -300,6 +318,8 @@ func _build() -> void:
 	add_child(hand)
 	chat = QuickChat.new()
 	add_child(chat)
+	chat.opened_changed.connect(func(opened: bool) -> void:
+		set_controls_active(not opened and not menu.visible))
 	street = StreetTouch.new()
 	add_child(street)
 	banner = Label.new()
@@ -319,6 +339,8 @@ func _build() -> void:
 	KalyeahTheme.style_button(again_button, "orange")
 	again_button.pressed.connect(again_pressed.emit)
 	again_button.visible = false
+	point_result = PointResult.new()
+	add_child(point_result)
 	results = MatchResults.new()
 	add_child(results)
 	results.adopt(again_button, true)

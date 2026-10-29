@@ -165,11 +165,10 @@ func test_the_results_card_says_how_each_point_was_won() -> void:
 	var card: MatchResults = autofree(MatchResults.new()) as MatchResults
 	add_child(card)
 	card.set_over(true, sim, 1, 0, "Practice")
-	assert_eq(card.how_flow.get_child_count(), 3)
-	assert_true(card.how_flow.get_parent().visible)
+	assert_null(card.find_child("How", true, false), "the final result keeps only the summary")
 	assert_eq(MatchResults.how_text(true, MatchSim.CaptureKind.BASE), "Held their base")
 	assert_eq(MatchResults.how_text(false, MatchSim.CaptureKind.ALL_TAGGED), "Tagged you all")
 	card.set_over(false, sim, 1, 0, "Practice")
 	var none: MatchSim = _sim()
 	card.set_over(true, none, 1, 0, "Practice")
-	assert_false(card.how_flow.get_parent().visible, "nothing to say without a point")
+	assert_null(card.find_child("How", true, false))

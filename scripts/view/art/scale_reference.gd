@@ -13,7 +13,7 @@ const CHUNK: float = 1.3
 const REAL_HEIGHT: Dictionary[String, float] = {
 	"ice_cream_cart": 2.1, "tricycle": 1.7, "ebike": 1.15,
 	"truck_wheels": 1.2, "bench": 0.9, "crates": 0.9, "sacks": 0.9, "no_id_no_entry": 1.5,
-	"rooster_tent": 1.3, "plank_fence": 1.5, "roof_wall": 2.4, "roof_wall_2": 2.4,
+	"rooster_tent": 1.3, "plank_fence": 1.5,
 	"basketball_pole": 4.6, "cat": 0.25, "dog": 0.5, "chicken_cage": 0.7, "nanay": 1.6, "drainage_cover": 0.6,
 }
 ## Buildings are sized by the width of their lot (they stand in a row), so they are held to a real lot width and a believable height

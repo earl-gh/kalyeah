@@ -126,43 +126,24 @@ func test_the_marker_follows_the_hand_and_hides_when_there_is_nothing_to_mark() 
 
 # ---- the dividers --------------------------------------------------------------
 
-func test_the_dividers_fade_out_smoothly_when_the_bar_fills_and_back_when_it_drops() -> void:
-	var hand: CardHand = _hand(9.0)
-	assert_eq(hand.divider_visibility(), 1.0, "shown on a bar that is not full")
-	hand.elixir = 10.0
-	_run(hand, 0.3)  # the bar catches up in about 0.12 s, then the dividers fade over CardHand.DIVIDER_FADE_TIME
-	var mid: float = hand.divider_visibility()
-	assert_gt(mid, 0.0, "not gone at once")
-	assert_lt(mid, 1.0, "already fading")
-	var last: float = mid
-	for i: int in 10:
-		hand.step(DT)
-		assert_lte(hand.divider_visibility(), last + 0.0001, "only ever fading while the bar is full")
-		last = hand.divider_visibility()
-	_run(hand, CardHand.DIVIDER_FADE_TIME)
-	assert_eq(hand.divider_visibility(), 0.0, "gone while the bar is full")
-	assert_gt(CardHand.DIVIDER_FADE_TIME, 0.25)
-	assert_lt(CardHand.DIVIDER_FADE_TIME, 0.45, "about a third of a second")
-	hand.elixir = 7.0
-	_run(hand, 0.2)
-	assert_gt(hand.divider_visibility(), 0.0, "fading back in as soon as it drops")
-	_run(hand, 1.0)
-	assert_eq(hand.divider_visibility(), 1.0, "shown again")
-
-
-func test_a_bar_that_is_full_at_the_first_look_has_no_dividers_and_reduce_motion_snaps_them() -> void:
-	assert_eq(_hand(10.0).divider_visibility(), 0.0, "no fade on the first look")
-	Settings.reduced_motion = true
-	var hand: CardHand = _hand(9.0)
-	hand.elixir = 10.0
-	hand.step(DT)
-	assert_eq(hand.divider_visibility(), 0.0, "snaps with Reduce motion")
-	hand.elixir = 3.0
-	hand.step(DT)
+func test_the_full_bar_keeps_its_dark_blue_partitions() -> void:
+	var hand: CardHand = _hand(10.0)
 	assert_eq(hand.divider_visibility(), 1.0)
+	assert_eq(CardHand.DIVIDER, CardHand.BAR_EDGE)
+	assert_lt(CardHand.DIVIDER.v, 0.5)
 
 
-# ---- the segment pop -----------------------------------------------------------
+func test_partition_positions_stop_at_the_refilled_part() -> void:
+	var hand: CardHand = _hand(3.5)
+	var positions: PackedFloat32Array = hand.divider_positions()
+	assert_eq(positions.size(), 3)
+	for x: float in positions:
+		assert_lte(x, hand.boundary_x(3))
+	hand.shown_elixir = 0.0
+	assert_eq(hand.divider_positions().size(), 0)
+	hand.shown_elixir = 10.0
+	assert_eq(hand.divider_positions().size(), 9)
+
 
 func _popping(hand: CardHand) -> Array[int]:
 	var found: Array[int] = []
