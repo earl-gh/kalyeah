@@ -7,6 +7,11 @@ extends RefCounted
 const SUGGEST_HEIGHT: float = 80.0
 ## The kid screen: the chosen kid's name is set large under the carousel of card pictures.
 const HERO_NAME_FONT: int = UiMetrics.DISPLAY
+## The description under the active kid reserves this many lines of body text (each `ABOUT_LINE_HEIGHT` times the font size).
+const ABOUT_LINES: int = 3
+const ABOUT_LINE_HEIGHT: float = 1.45
+## A phone narrower than the design width wraps it to more lines: it shows at most this many (the rest is cut with "..."), so the cards keep their room.
+const ABOUT_LINES_MAX: int = 4
 
 
 static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
@@ -110,12 +115,35 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	screen._carousel.selected.connect(screen._on_kid_swiped)
 	hero_box.add_child(screen._carousel)
 	filler.resized.connect(screen._fit_kids)
+	# under the active card, like the Cards drawer: the kid's name, then a short description in the drawer's light body
+	screen._hero_info = VBoxContainer.new()
+	screen._hero_info.name = "KidInfo"
+	screen._hero_info.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	screen._hero_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hero_box.add_child(screen._hero_info)
+	screen._hero_info.minimum_size_changed.connect(screen._fit_kids.call_deferred)
 	screen._hero_name = Label.new()
 	screen._hero_name.name = "HeroName"
 	screen._hero_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UiKit.letter(screen._hero_name, HERO_NAME_FONT, RoyaleStyle.GOLD)
 	screen._hero_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hero_box.add_child(screen._hero_name)
+	screen._hero_info.add_child(screen._hero_name)
+	var about_panel: PanelContainer = PanelContainer.new()
+	about_panel.name = "KidAboutPanel"
+	about_panel.add_theme_stylebox_override("panel", KalyeahTheme.modal_body(UiMetrics.PADDING))
+	about_panel.theme = KalyeahTheme.modal_body_theme()
+	about_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	screen._hero_info.add_child(about_panel)
+	screen._hero_about = UiKit.text("", UiMetrics.BODY, MenuDialog.TEXT_COLOR)
+	screen._hero_about.name = "KidAbout"
+	screen._hero_about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	screen._hero_about.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	screen._hero_about.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	screen._hero_about.max_lines_visible = ABOUT_LINES_MAX
+	screen._hero_about.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	# room for the longest description, so a swipe never moves the cards
+	screen._hero_about.custom_minimum_size.y = ABOUT_LINES * UiMetrics.BODY * ABOUT_LINE_HEIGHT
+	about_panel.add_child(screen._hero_about)
 	screen._ready_button = MenuDialog.make_button("Ready", "orange", UiMetrics.BODY, Vector2(0.0, 88.0))
 	screen._ready_button.pressed.connect(screen.press_ready)
 	column.add_child(screen._ready_button)
