@@ -532,3 +532,80 @@ func test_rm_trap_and_jacks_static() -> void:
 				for child: Node in spikes.get_children():
 					assert_almost_eq((child as Node3D).position.y, 0.0, 0.001, "placed, no toss or hop")
 	assert_eq(_fx.particle_count(), 0)
+
+
+# ---- papel shield and langit lupa (the walls) -------------------------------------------------------------------------
+
+func test_paper_wall_unfolds_and_crumples_on_time() -> void:
+	_setup(Vector2(20.0, 0.0))
+	_cast(&"papel_shield", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var shield: WeaponSystem.Shield = _sim.weapons.shields[0]
+	var body: Node3D = _fx.walls.node_for(shield.id)
+	var tallest: float = 0.0
+	for i: int in 5:
+		_frame()
+		tallest = maxf(tallest, body.scale.y)
+	assert_gt(tallest, 1.0, "it unfolds up past its height")
+	for i: int in 10:
+		_frame()
+	assert_almost_eq(body.scale.y, 1.0, 0.001, "and settles")
+	while shield.time_left > 0.15:
+		_frame()
+	assert_lt(body.scale.y, 0.6, "it crumples as its time runs out")
+
+
+func test_a_blocked_projectile_flexes_the_wall() -> void:
+	_setup(Vector2(0.0, 2.0))
+	_cast(&"papel_shield", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var shield: WeaponSystem.Shield = _sim.weapons.shields[0]
+	var body: Node3D = _fx.walls.node_for(shield.id)
+	for i: int in 10:
+		_frame()
+	var rock: WeaponDef = _sim.weapon_defs[&"bato_light"]
+	assert_true(_sim.weapons.fire(_sim, _sim.players[2], rock, Vector2.ZERO, 0.0, 1), "the enemy throws at you through the wall")
+	var flexed: float = 0.0
+	for i: int in 30:
+		_frame()
+		flexed = maxf(flexed, absf(rad_to_deg(body.rotation.x)))
+	assert_gt(flexed, FxWalls.FLUTTER_DEG + 1.0, "the paper flexes when the rock hits it (more than its flutter)")
+	assert_eq(_sim.players[1].hp, _sim.rules.player_max_hp, "and the rock never reached you (the sim's block, unchanged)")
+
+
+func test_wall_width_is_exact() -> void:
+	for weapon: StringName in [&"papel_shield", &"langit_lupa"]:
+		_setup(Vector2(20.0, 0.0))
+		_cast(weapon, Vector2(0.0, -1.0))
+		_fx.sync(_sim, DT)
+		var shield: WeaponSystem.Shield = _sim.weapons.shields[0]
+		var ribbon: MeshInstance3D = _fx.walls.ribbon_for(shield.id)
+		var reach: float = 0.0
+		for vertex: Vector3 in ribbon.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array:
+			reach = maxf(reach, absf(vertex.x))
+		assert_almost_eq(reach * 2.0, shield.half_width * 2.0, 0.001, "%s: the ribbon is the wall's exact width" % weapon)
+		for i: int in 12:
+			_frame()
+		var mesh: MeshInstance3D = _fx.walls.node_for(shield.id).find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+		var width: float = mesh.get_aabb().size.x * mesh.get_parent().scale.x * _fx.walls.node_for(shield.id).scale.x
+		assert_almost_eq(width, shield.half_width * 2.0, 0.02, "%s: and so is the wall once up" % weapon)
+
+
+func test_rm_walls() -> void:
+	Settings.reduced_motion = true
+	for weapon: StringName in [&"papel_shield", &"langit_lupa"]:
+		_setup(Vector2(20.0, 0.0))
+		_cast(weapon, Vector2(0.0, -1.0))
+		_fx.sync(_sim, DT)
+		var shield: WeaponSystem.Shield = _sim.weapons.shields[0]
+		var body: Node3D = _fx.walls.node_for(shield.id)
+		for i: int in 12:
+			_frame()
+			assert_lte(body.scale.y, 1.0, "%s: no overshoot" % weapon)
+			assert_eq(body.rotation.x, 0.0, "no flutter")
+			assert_lte(body.scale.x, 1.0, "no slump")
+		assert_almost_eq(body.scale.y, 1.0, 0.001, "%s: up" % weapon)
+		while not _sim.weapons.shields.is_empty() and shield.time_left > 0.1:
+			_frame()
+		assert_lt(body.scale.y, 1.0, "%s: the end still shows (it says the wall is going)" % weapon)
+		assert_eq(_fx.particle_count(), 0)

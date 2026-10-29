@@ -54,6 +54,7 @@ func _init() -> void:
 	walls.setup(_ctx)
 	cones.setup(_ctx)
 	heals.setup(_ctx)
+	projectiles.gone.connect(_on_projectile_gone)
 
 
 ## Starts listening to `sim`'s relayed weapon signals (the same offline and online).
@@ -131,6 +132,11 @@ func _copy_settings() -> void:
 	_ctx.view_scale = view_scale
 	_ctx.local_team = local_team
 	_ctx.reduced = Settings.reduced_motion
+
+
+## A projectile left the sim: a wall of the other team it stopped at reacts.
+func _on_projectile_gone(_id: int, def: WeaponDef, team: int, at: Vector3) -> void:
+	walls.on_projectile_gone(def, team, at)
 
 
 func _on_cast(id: int, weapon_id: StringName) -> void:

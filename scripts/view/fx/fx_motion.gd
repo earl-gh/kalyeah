@@ -94,8 +94,8 @@ static func unfold(t: float) -> Vector2:
 	return Vector2(lerpf(UNFOLD_WIDTH_FROM, 1.0, minf(x * 1.5, 1.0)), lerpf(UNFOLD_FROM, 1.0, rise))
 
 
-## The paper wall's (width, height) scale `t` (0..1) through its crumple (ease-in: slow, then all at once).
+## The paper wall's (width, height) scale `t` (0..1) through its crumple (slow at first, fast in the middle, settling flat).
 static func crumple(t: float) -> Vector2:
 	var x: float = clampf(t, 0.0, 1.0)
-	var e: float = x * x
+	var e: float = x * x * (3.0 - 2.0 * x)
 	return Vector2(lerpf(1.0, CRUMPLE_WIDTH_TO, e), lerpf(1.0, CRUMPLE_TO, e))
