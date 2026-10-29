@@ -215,7 +215,7 @@ func test_a_heal_pops_a_green_cross_at_the_kid_and_it_goes_away() -> void:
 	for i: int in 24:
 		if not is_instance_valid(cross) or cross.is_queued_for_deletion():
 			break
-		assert_between(cross.position.y, 1.3, 2.4 - half, "at the chest, under the face")
+		# where it is seen on screen (the chest) is test_fx_weapon_motion's test_the_heal_cross_reads_at_the_chest
 		assert_lt(cross.position.y + half, 3.7, "never up at the bars")
 		assert_almost_eq(cross.rotation.y, turn, 0.0001, "no spin: it faces the camera, never edge-on")
 		practice.advance(DT)

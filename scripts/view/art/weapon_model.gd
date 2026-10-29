@@ -30,8 +30,8 @@ const SPIKE_CLUSTERS: int = 5
 const SPIKE_WIDTH: float = 0.9
 ## The rock meteor of bato heavy (metres across; a 2 m circle reads "a big rock lands here" without hiding both kids in it).
 const METEOR_SIZE: float = 1.4
-## The heal cross (metres wide before the kids' view scale: 1.0 m drawn, so it sits on the chest under the face).
-const CROSS_WIDTH: float = 0.5
+## The heal cross (metres wide before the kids' view scale: 0.84 m drawn, so on the chest it stays under the face).
+const CROSS_WIDTH: float = 0.42
 ## The group every weapon model mesh joins.
 const GROUP: StringName = &"weapon_model"
 ## The paper wall's model.

@@ -10,11 +10,12 @@ extends Node3D
 const RING_FROM: float = 0.5
 const RING_TO: float = 1.0
 const RING_FRAMES: int = 10
-## The cross: its middle rises from `CROSS_Y_FROM` to `CROSS_Y_TO` m over `CROSS_TIME` s, `CROSS_FRONT` m in front of the
-## kid toward the camera, tipped to face it; it pops in over `FxSquash.POP_FRAMES` frames and has shrunk away by `CROSS_END`
-## s (with Reduce motion it holds `CROSS_HOLD_REDUCED` s and goes).
-const CROSS_Y_FROM: float = 1.4
-const CROSS_Y_TO: float = 1.8
+## The cross: `CROSS_FRONT` m in front of the kid toward the camera, tipped to face it, its middle seen on screen at
+## `CROSS_SCREEN_FROM` of the drawn kid's height rising to `CROSS_SCREEN_TO` over `CROSS_TIME` s (the chest; a thing in front
+## of the kid is seen lower, so its height is solved from the camera); it pops in over `FxSquash.POP_FRAMES` frames and has
+## shrunk away by `CROSS_END` s (with Reduce motion it holds `CROSS_HOLD_REDUCED` s and goes).
+const CROSS_SCREEN_FROM: float = 0.47
+const CROSS_SCREEN_TO: float = 0.5
 const CROSS_TIME: float = 0.6
 const CROSS_END: float = 0.7
 const CROSS_FRONT: float = 0.7
@@ -31,6 +32,7 @@ class Cross extends RefCounted:
 	var node: Node3D
 	var born: float
 	var base: Vector3
+	var front: Vector3
 
 
 var _ctx: FxContext
@@ -86,6 +88,7 @@ func _heal(at: Vector2) -> void:
 	var back: Vector3 = _camera_back()
 	var front: Vector3 = Vector3(back.x, 0.0, back.z).normalized() * CROSS_FRONT
 	var cross: Cross = Cross.new()
+	cross.front = front
 	cross.node = WeaponModel.cross()
 	cross.node.name = "HealCross"
 	cross.base = Vector3(at.x, 0.0, at.y) + front
@@ -120,20 +123,34 @@ func step() -> void:
 func _pose(cross: Cross) -> bool:
 	var age: float = _ctx.time - cross.born
 	var size: float = _ctx.view_scale
-	var y: float = CROSS_Y_FROM
+	var y: float = _height_for(cross, CROSS_SCREEN_FROM)
 	if _ctx.reduced:
 		if age >= CROSS_HOLD_REDUCED:
 			return false
 	else:
 		if age >= CROSS_END:
 			return false
-		y = lerpf(CROSS_Y_FROM, CROSS_Y_TO, clampf(age / CROSS_TIME, 0.0, 1.0))
+		y = _height_for(cross, lerpf(CROSS_SCREEN_FROM, CROSS_SCREEN_TO, clampf(age / CROSS_TIME, 0.0, 1.0)))
 		var pop: float = FxSquash.pop(age / (FxSquash.POP_FRAMES * FxSquash.FRAME))
 		var fade: float = clampf((CROSS_END - age) / (CROSS_END - CROSS_TIME + 0.0001), 0.0, 1.0)
 		size *= maxf(minf(pop, fade) if age > CROSS_TIME else pop, 0.01)
 	cross.node.position = cross.base + Vector3(0.0, y, 0.0)
 	cross.node.scale = Vector3.ONE * size
 	return true
+
+
+## The height above the street at which `cross` (standing `cross.front` in front of its kid) is seen at `share` of the
+## drawn kid's height on screen.
+func _height_for(cross: Cross, share: float) -> float:
+	var up: Vector3 = _camera_up()
+	var tall: float = KidModel.KID_HEIGHT * _ctx.view_scale
+	return (share * tall * up.y - cross.front.dot(up)) / maxf(up.y, 0.01)
+
+
+## The camera's screen-up direction in the world.
+func _camera_up() -> Vector3:
+	var camera: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
+	return camera.global_basis.y if camera != null else FxCones.CAMERA_BACK.cross(Vector3.RIGHT).normalized()
 
 
 ## The direction from the scene toward the camera.

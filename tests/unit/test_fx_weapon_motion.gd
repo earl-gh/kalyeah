@@ -777,3 +777,32 @@ func test_a_tap_snip_holds_open() -> void:
 	for frame: int in range(1, FxMotion.snip_frames(6)):
 		var shut_now: bool = FxMotion.snip_angle(frame, 6) <= ScissorsRig.CLOSED + 0.001
 		assert_eq(shut_now, (frame - 1) % 2 == 0, "six snips alternate shut / open frame by frame (frame %d)" % frame)
+
+
+func test_the_heal_cross_reads_at_the_chest() -> void:
+	var practice: PracticeMatch = _snip_match(Vector2(0.0, -1.0))
+	var camera: Camera3D = practice.get_viewport().get_camera_3d()
+	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
+	var kid: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
+	practice.sim.damage(PracticeMatch.LOCAL_ID, 40)
+	assert_true(practice.sim.weapons.fire(practice.sim, kid, practice.sim.weapon_defs[&"heal"], Vector2.ZERO, 0.0, -1))
+	practice.sim.weapon_cast.emit(PracticeMatch.LOCAL_ID, &"heal")
+	var feet: Vector2 = camera.unproject_position(Vector3(kid.position.x, 0.0, kid.position.y))
+	var tall: float = feet.distance_to(camera.unproject_position(Vector3(kid.position.x, KidModel.KID_HEIGHT * 2.0, kid.position.y)))
+	var seen: int = 0
+	for frame: int in 24:
+		practice.advance(DT)
+		var crosses: Array[Node3D] = fx.heals.crosses()
+		if crosses.is_empty():
+			break
+		var mesh: MeshInstance3D = crosses[0].find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+		var box: AABB = mesh.get_aabb()
+		var centre: Vector2 = camera.unproject_position(mesh.global_transform * box.get_center())
+		var top: float = INF
+		for corner: int in 8:
+			top = minf(top, camera.unproject_position(mesh.global_transform * box.get_endpoint(corner)).y)
+		var at: float = (feet.y - centre.y) / tall
+		assert_between(at, 0.45, 0.6, "frame %d: the cross is at the chest on screen (%.2f of the kid)" % [frame, at])
+		assert_lt((feet.y - top) / tall, 0.65, "frame %d: its top stays under the face" % frame)
+		seen += 1
+	assert_gt(seen, 10, "the cross plays")
