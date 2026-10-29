@@ -38,6 +38,9 @@ const GROW_TIME: float = 0.17
 ## The scale at the bottom of the shrink (a true zero breaks the skinned mesh's transform).
 const GONE_SCALE: float = 0.001
 const STAR_COUNT: int = 5
+## The team outline (owner, 2026-10-29): blue round your team, red round the other, this many metres wide.
+const OUTLINE_SHADER: Shader = preload("res://shaders/team_outline.gdshader")
+const OUTLINE_WIDTH: float = 0.035
 
 static var _scenes: Dictionary[String, PackedScene] = {}
 static var _portraits: Dictionary[String, Texture2D] = {}
@@ -83,7 +86,8 @@ var _ground_speed: float = 0.0
 var pose: String = "idle"
 
 
-## Builds the kid from its character. The kid wears no team colour and has no ring: the bar over its head says whose it is.
+## Builds the kid from its character. Its clothes stay its own and it has no ring: the outline (`set_team_outline`) and the bar
+## over its head say whose it is.
 func setup(def: CharacterDef) -> void:
 	character = def
 	_set = def.id if ResourceLoader.exists(MODEL_PATH % def.id) else FALLBACK_SET
@@ -116,6 +120,16 @@ func cast_release(clip: String) -> float:
 ## Flinch (took damage).
 func play_hit() -> void:
 	_hit_left = HIT_TIME
+
+
+## Draws a `color` outline round the kid (an inverted shell over its authored material, which stays untouched).
+func set_team_outline(color: Color) -> void:
+	var material: ShaderMaterial = ShaderMaterial.new()
+	material.shader = OUTLINE_SHADER
+	material.set_shader_parameter("color", color)
+	material.set_shader_parameter("width", OUTLINE_WIDTH)
+	for mesh: Node in _model.find_children("*", "MeshInstance3D", true, false):
+		(mesh as MeshInstance3D).material_overlay = material
 
 
 func is_can() -> bool:
