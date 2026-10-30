@@ -14,6 +14,7 @@ static func apply(hud: MatchHud) -> void:
 	if hud.tagged_panel != null:
 		hud.tagged_panel.set_console_height(hud.console_panel_height())
 	hud.console_height_changed.emit(hud.console_height())
+	hud.side_reserve_changed.emit(hud.side_reserve(), hud.side_reserve_left())
 	if hud.hand != null:
 		# the hand rides above the home bar: a thumb resting on the bar never lands on a card
 		hud._place(hud.hand, Vector4(0, 1, 1, 1), Vector4(0, -hud.console_height(), 0, -hud.bottom_inset))
@@ -26,8 +27,8 @@ static func apply(hud: MatchHud) -> void:
 		hud._place(hud.chat, Vector4(0, 1, 0, 1), Vector4(at.x, top, at.x + hud.hand.chat_rect.size.x, top + hud.hand.chat_rect.size.y))
 
 		if hud.sides_tray():
-			# between the two stacks of cards, above the strip
-			var gap_left: float = CardHand.SIDES_MARGIN + CardHand.SIDES_CARD_WIDTH + CardHand.SIDES_GAP
-			hud.chat.place_over_hand(Rect2(Vector2(gap_left, hud.size.y - hud.console_height() - 280.0), Vector2(hud.size.x - gap_left * 2.0, 270.0)))
+			# over the street, beside the column of cards, above the strip
+			var from_x: float = CardHand.SIDES_COLUMN + 10.0 if Settings.left_handed else 10.0
+			hud.chat.place_over_hand(Rect2(Vector2(from_x, hud.size.y - hud.console_height() - 280.0), Vector2(hud.size.x - CardHand.SIDES_COLUMN - 20.0, 270.0)))
 		else:
 			hud.chat.place_over_hand(Rect2(Vector2(hud.hand.card_rects[0].position.x, hud.size.y - hud.console_height() + 12.0), Vector2(hud.size.x - CardHand.COLUMN - CardHand.SIDE, hud.CONSOLE_HEIGHT - 24.0)))

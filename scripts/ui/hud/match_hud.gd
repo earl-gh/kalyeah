@@ -13,6 +13,8 @@ signal again_pressed
 signal exit_pressed
 ## The tray's height changed (the bottom inset did): the camera keeps this much of the screen clear.
 signal console_height_changed(height: float)
+## The panel along one side of the screen (the cards of Cards tray = Sides) is this wide (0: none), on the left or not: the camera frames the street in the rest.
+signal side_reserve_changed(width: float, left: bool)
 ## The header's height (with the top inset) changed: the camera keeps this much of the screen clear at the top.
 signal header_height_changed(height: float)
 
@@ -160,6 +162,15 @@ func console_height() -> float:
 ## True with Settings > Cards tray = Sides: the cards stand on the sides of the street and the tray is only the ice water bar's strip.
 func sides_tray() -> bool:
 	return Settings.cards_tray == &"sides"
+
+
+## The width of the side panel the cards stand on in the Sides layout (0 in the bottom tray), and its side: the writing hand's.
+func side_reserve() -> float:
+	return CardHand.SIDES_COLUMN if sides_tray() else 0.0
+
+
+func side_reserve_left() -> bool:
+	return Settings.left_handed
 
 
 ## The height of the blue plate (and of the tagged panel on it): the whole tray, or in the Sides layout only the bar's strip while you

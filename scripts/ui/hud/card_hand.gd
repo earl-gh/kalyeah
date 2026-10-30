@@ -129,14 +129,18 @@ const DENY_FLASH: Color = Color(1.0, 0.25, 0.2, 0.45)
 const DENY_BUZZ_MS: int = 30
 ## How fast the shown bar catches up with the real elixir (points per second); it snaps with Reduce motion.
 const BAR_CATCH_UP: float = 8.0
-## The Sides layout (Settings > Cards tray): two cards stacked on each side of the street and the ice water bar alone in a strip along the
-## the bottom, NEXT small in the middle above the strip with the chat button over it. The hand's own rect is the strip; the cards stand
+## The Sides layout (Settings > Cards tray): all four cards in one column on the side of your writing hand (the right for a right-handed
+## player, the left for a left-handed one), on a panel of `SIDES_COLUMN` pixels that is the street's own sidewalk drawn wider: the street is
+## pushed to the other side of the screen (the camera frames it in what is left, same shape, smaller). NEXT and the chat button stand above
+## the cards; the ice water bar runs alone along the bottom in a strip (`SIDES_TRAY`). The hand's own rect is that strip; the column stands
 ## above it (negative y in its own pixels), which the touch handling does not mind.
 const SIDES_TRAY: float = 96.0
-const SIDES_CARD_WIDTH: float = 108.0
-const SIDES_MARGIN: float = 10.0
+const SIDES_CARD_WIDTH: float = 120.0
+const SIDES_COLUMN: float = 148.0
 const SIDES_GAP: float = 10.0
-const SIDES_LIFT: float = 12.0
+const SIDES_LIFT: float = 10.0
+## The screen's room kept above the column's top (the header with the score and the settings button).
+const SIDES_TOP_ROOM: float = 150.0
 const NO_POINTER: int = -1
 const _CLEAR: Color = Color(0.0, 0.0, 0.0, 0.0)
 
@@ -356,43 +360,48 @@ func _layout() -> void:
 	_refresh()
 
 
-## The Sides layout: slots 0 and 1 stacked on one side (the left, the right for a left-handed player), 2 and 3 on the other, the upper
-## card first; NEXT and the chat button in the middle above the strip; the bar along the strip.
+## The Sides layout: the four cards one under the other, slot 0 at the top, in the column on the side of the writing hand; NEXT small above
+## them with the chat button over it; the bar along the strip. A screen too short for the whole column gets smaller cards.
 func _layout_sides() -> void:
-	var card: Vector2 = Vector2(SIDES_CARD_WIDTH, roundf(SIDES_CARD_WIDTH * CARD_ASPECT))
-	var near_x: float = SIDES_MARGIN
-	var far_x: float = size.x - SIDES_MARGIN - card.x
-	var first_x: float = far_x if mirrored else near_x
-	var second_x: float = near_x if mirrored else far_x
-	var lower_y: float = -SIDES_LIFT - card.y
-	var upper_y: float = lower_y - SIDES_GAP - card.y
-	card_rects.clear()
-	card_rects.append(Rect2(Vector2(first_x, upper_y), card))
-	card_rects.append(Rect2(Vector2(first_x, lower_y), card))
-	card_rects.append(Rect2(Vector2(second_x, upper_y), card))
-	card_rects.append(Rect2(Vector2(second_x, lower_y), card))
-	var next_size: Vector2 = card * NEXT_SCALE
+	var screen_height: float = get_viewport_rect().size.y if is_inside_tree() else 1280.0
 	var label_room: float = float(NEXT_FONT) + 8.0
-	next_rect = Rect2(Vector2((size.x - next_size.x) / 2.0, -SIDES_LIFT - next_size.y), next_size)
 	var chat_size: Vector2 = Vector2(CHAT_HEIGHT * HandArt.CHAT_ASPECT, CHAT_HEIGHT)
-	chat_rect = Rect2(Vector2((size.x - chat_size.x) / 2.0, next_rect.position.y - label_room - OUT_GAP - chat_size.y), chat_size)
-	var bar_left: float = SIDES_MARGIN + BAR_BAG * HandArt.ICE_DRAW_ASPECT / 2.0
-	var bar_right: float = size.x - SIDES_MARGIN
+	var card_width: float = SIDES_CARD_WIDTH
+	var card: Vector2 = Vector2(card_width, roundf(card_width * CARD_ASPECT))
+	var needed: float = SIDES_LIFT + 4.0 * card.y + 3.0 * SIDES_GAP + SIDES_GAP + card.y * NEXT_SCALE + label_room + OUT_GAP + chat_size.y
+	var room: float = screen_height - size.y - SIDES_TOP_ROOM
+	if needed > room and room > 0.0:
+		card_width = floorf(card_width * room / needed)
+		card = Vector2(card_width, roundf(card_width * CARD_ASPECT))
+	var column_x: float = 0.0 if mirrored else size.x - SIDES_COLUMN
+	var card_x: float = column_x + (SIDES_COLUMN - card.x) / 2.0
+	card_rects.clear()
+	for slot: int in SLOTS:
+		var from_bottom: float = float(SLOTS - 1 - slot)
+		card_rects.append(Rect2(Vector2(card_x, -SIDES_LIFT - card.y - from_bottom * (card.y + SIDES_GAP)), card))
+	var next_size: Vector2 = card * NEXT_SCALE
+	next_rect = Rect2(Vector2(column_x + (SIDES_COLUMN - next_size.x) / 2.0, card_rects[0].position.y - SIDES_GAP - next_size.y), next_size)
+	chat_size *= minf(1.0, card.x / SIDES_CARD_WIDTH)
+	chat_rect = Rect2(Vector2(column_x + (SIDES_COLUMN - chat_size.x) / 2.0, next_rect.position.y - label_room - OUT_GAP - chat_size.y), chat_size)
+	var bar_left: float = SIDES_GAP + BAR_BAG * HandArt.ICE_DRAW_ASPECT / 2.0
+	var bar_right: float = size.x - SIDES_GAP
 	bar_rect = Rect2(Vector2(bar_left, (size.y - BAR_HEIGHT) / 2.0 + 6.0), Vector2(bar_right - bar_left, BAR_HEIGHT))
 	_refresh()
 
 
-## True when `local` (own pixels) is over the hand: the tray, or in the Sides layout the strip or one of the stacks of cards (a card let go
-## there is put back, not thrown).
+## The column's own rect in the Sides layout (own pixels): from the chat button down to the strip.
+func column_rect() -> Rect2:
+	var top: float = chat_rect.position.y
+	var left: float = 0.0 if mirrored else size.x - SIDES_COLUMN
+	return Rect2(Vector2(left, top), Vector2(SIDES_COLUMN, -top))
+
+
+## True when `local` (own pixels) is over the hand: the tray, or in the Sides layout the strip or the column of cards (a card let go there
+## is put back, not thrown).
 func _over_hand(local: Vector2) -> bool:
 	if Rect2(Vector2.ZERO, size).has_point(local):
 		return true
-	if not sides:
-		return false
-	for card: Rect2 in card_rects:
-		if card.grow(SIDES_GAP).has_point(local):
-			return true
-	return false
+	return sides and column_rect().has_point(local)
 
 
 ## The card node of `slot` (what is drawn there: a card, a card back, or hidden while the card is out of it), NEXT's, and the one under the
