@@ -7,8 +7,8 @@ extends Node3D
 ## cast that healed nobody (all at full HP) still shows on its caster. Reduce motion: the cross pops in still, holds, goes.
 
 ## The ground ring grows from `RING_FROM` to `RING_TO` m over `RING_FRAMES` frames (the aim preview's friend green).
-const RING_FROM: float = 0.5
-const RING_TO: float = 1.0
+const RING_FROM: float = 0.8
+const RING_TO: float = 1.6
 const RING_FRAMES: int = 10
 ## The cross: `CROSS_FRONT` m in front of the kid toward the camera, tipped to face it, its middle seen on screen at
 ## `CROSS_SCREEN_FROM` of the drawn kid's height rising to `CROSS_SCREEN_TO` over `CROSS_TIME` s (the chest; a thing in front

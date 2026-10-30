@@ -23,11 +23,22 @@ const TRAIL_AMOUNT: int = 5
 const TRAIL_LIFE: float = 0.3
 const TRAIL_SIZE: float = 0.45
 ## Particle sizes are for the kids as drawn (twice life size, CameraRules.kid_view_scale): a 0.35 m star read as a speck
-## beside a 3.7 m kid. A dust puff: each particle this big at its fullest (metres), this see-through, born this far apart (so
-## four puffs read as a little cloud, not one grey ball).
-const DUST_SIZE: float = 0.6
+## beside a 3.7 m kid (about 70 px tall at 720 wide, a metre is 18-26 px). An effect that means something in play is at least a third of
+## a kid (about 1.2 m, 23 px) across at its fullest or it reads as subtle. A dust puff: each particle this big at its fullest
+## (metres), this see-through, born this far apart (so four puffs read as a little cloud, not one grey ball).
+const DUST_SIZE: float = 0.9
 const DUST_ALPHA: float = 0.75
 const DUST_SPREAD: float = 0.3
+## The other presets' particle sizes (metres, at their fullest): the meteor's ring of dust, paper and soil bits, the comic smoke, the
+## hit stars (they live `STARS_LIFE` s and fly 0.9-1.3 m), the heal's plus sparkles, the rock chips (their longest side), paper scraps.
+const IMPACT_SIZE: float = 1.1
+const BITS_SIZE: float = 0.75
+const SMOKE_SIZE: float = 1.5
+const STARS_SIZE: float = 1.1
+const STARS_LIFE: float = 0.4
+const PLUS_SIZE: float = 0.85
+const CHIP_SIZE: float = 0.42
+const SCRAPS_SIZE: float = 0.6
 
 
 ## One preset's look and motion (built once).
@@ -283,7 +294,7 @@ static func _build_specs() -> void:
 	dust.mesh = FxKit.puff_quad()
 	dust.material = puff_material
 	dust.color = Color(Palette.SIDEWALK, DUST_ALPHA)
-	dust.lifetime = 0.4
+	dust.lifetime = 0.5
 	dust.speed_min = 1.2
 	dust.speed_max = 2.0
 	dust.gravity = 2.0
@@ -300,7 +311,7 @@ static func _build_specs() -> void:
 	impact.mesh = FxKit.puff_quad()
 	impact.material = puff_material
 	impact.color = Palette.SIDEWALK
-	impact.lifetime = 0.45
+	impact.lifetime = 0.5
 	impact.speed_min = 2.0
 	impact.speed_max = 3.0
 	impact.gravity = 6.0
@@ -312,7 +323,7 @@ static func _build_specs() -> void:
 		var a: float = TAU * float(i) / 12.0
 		impact.points.append(Vector3(cos(a), 0.0, sin(a)) * 0.6)
 		impact.normals.append(Vector3(cos(a), 0.35, sin(a)).normalized())
-	impact.size = 0.75
+	impact.size = IMPACT_SIZE
 	impact.size_curve = grow_fade
 	impact.apex_bound = 0.85
 	_specs[Preset.IMPACT] = impact
@@ -328,7 +339,7 @@ static func _build_specs() -> void:
 		bits.gravity = 6.0
 		bits.spawn_y = 0.2
 		bits.spread = 70.0
-		bits.size = 0.5
+		bits.size = BITS_SIZE
 		bits.size_curve = grow_fade
 		bits.apex_bound = 0.72
 		_specs[preset] = bits
@@ -345,7 +356,7 @@ static func _build_specs() -> void:
 	smoke.spread = 180.0
 	smoke.shape = CPUParticles3D.EMISSION_SHAPE_BOX
 	smoke.box = Vector3(0.9, 0.15, 0.9)
-	smoke.size = 1.1
+	smoke.size = SMOKE_SIZE
 	smoke.size_curve = grow_fade
 	smoke.apex_bound = 2.0
 	_specs[Preset.SMOKE] = smoke
@@ -353,15 +364,15 @@ static func _build_specs() -> void:
 	var stars: Spec = Spec.new()
 	stars.mesh = FxKit.star_quad()
 	stars.material = puff_material
-	stars.lifetime = 0.3
-	stars.speed_min = 3.0
-	stars.speed_max = 4.3
+	stars.lifetime = STARS_LIFE
+	stars.speed_min = 2.25
+	stars.speed_max = 3.2
 	stars.direction = Vector3(0.0, 0.0, 1.0)
 	stars.spread = 6.0
 	stars.shape = CPUParticles3D.EMISSION_SHAPE_DIRECTED_POINTS
 	stars.points = PackedVector3Array([Vector3(0.5, 1.3, 0.0), Vector3(-0.5, 1.3, 0.0), Vector3(0.35, 1.3, -0.35), Vector3(-0.35, 1.3, -0.35)])
 	stars.normals = PackedVector3Array([Vector3(1.0, 0.0, 0.0), Vector3(-1.0, 0.0, 0.0), Vector3(0.7071, 0.0, -0.7071), Vector3(-0.7071, 0.0, -0.7071)])
-	stars.size = 0.7
+	stars.size = STARS_SIZE
 	stars.size_curve = shrink
 	stars.rises = false
 	stars.apex_bound = 1.3
@@ -377,7 +388,7 @@ static func _build_specs() -> void:
 	plus.spread = 0.0
 	plus.shape = CPUParticles3D.EMISSION_SHAPE_POINTS
 	plus.points = PackedVector3Array([Vector3(0.7, 0.5, 0.0), Vector3(-0.7, 0.5, 0.0), Vector3(0.5, 0.5, -0.5), Vector3(-0.5, 0.5, -0.5)])
-	plus.size = 0.5
+	plus.size = PLUS_SIZE
 	plus.size_curve = hold_shrink
 	plus.apex_bound = 3.2
 	_specs[Preset.PLUS] = plus
@@ -391,7 +402,7 @@ static func _build_specs() -> void:
 	chips.gravity = 9.0
 	chips.spread = 80.0
 	var natural: Vector3 = chips.mesh.get_aabb().size
-	chips.size = 0.25 / maxf(natural.x, maxf(natural.y, natural.z))
+	chips.size = CHIP_SIZE / maxf(natural.x, maxf(natural.y, natural.z))
 	chips.size_curve = hold_shrink
 	chips.random_angle = true
 	chips.apex_bound = 0.1
@@ -407,7 +418,7 @@ static func _build_specs() -> void:
 	scraps.gravity = 9.0
 	scraps.spawn_y = 0.3
 	scraps.flatness = 0.9
-	scraps.size = 0.4
+	scraps.size = SCRAPS_SIZE
 	scraps.size_curve = hold_shrink
 	scraps.random_angle = true
 	scraps.apex_bound = 0.6
