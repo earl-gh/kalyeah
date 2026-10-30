@@ -129,11 +129,21 @@ const DENY_FLASH: Color = Color(1.0, 0.25, 0.2, 0.45)
 const DENY_BUZZ_MS: int = 30
 ## How fast the shown bar catches up with the real elixir (points per second); it snaps with Reduce motion.
 const BAR_CATCH_UP: float = 8.0
+## The Sides layout (Settings > Cards tray): two cards stacked on each side of the street and the ice water bar alone in a strip along the
+## the bottom, NEXT small in the middle above the strip with the chat button over it. The hand's own rect is the strip; the cards stand
+## above it (negative y in its own pixels), which the touch handling does not mind.
+const SIDES_TRAY: float = 96.0
+const SIDES_CARD_WIDTH: float = 108.0
+const SIDES_MARGIN: float = 10.0
+const SIDES_GAP: float = 10.0
+const SIDES_LIFT: float = 12.0
 const NO_POINTER: int = -1
 const _CLEAR: Color = Color(0.0, 0.0, 0.0, 0.0)
 
 ## Mirrored for a left-handed player: NEXT at the right, the hand to its left.
 var mirrored: bool = false
+## The Sides layout (see `SIDES_TRAY`) instead of the tray along the bottom.
+var sides: bool = false
 ## Where everything sits, in this control's own pixels (set by `_layout()` from the size).
 var card_rects: Array[Rect2] = []
 var next_rect: Rect2 = Rect2()
@@ -316,7 +326,17 @@ func set_mirrored(value: bool) -> void:
 	_layout()
 
 
+func set_sides(value: bool) -> void:
+	if value == sides:
+		return
+	sides = value
+	_layout()
+
+
 func _layout() -> void:
+	if sides:
+		_layout_sides()
+		return
 	var card: Vector2 = card_size(size.x)
 	var next_size: Vector2 = card * NEXT_SCALE
 	var label_room: float = float(NEXT_FONT) + 8.0
@@ -334,6 +354,45 @@ func _layout() -> void:
 	var bar_right: float = cards_x + 4.0 * card.x + 3.0 * CARD_GAP
 	bar_rect = Rect2(Vector2(bar_left, bar_top), Vector2(bar_right - bar_left, BAR_HEIGHT))
 	_refresh()
+
+
+## The Sides layout: slots 0 and 1 stacked on one side (the left, the right for a left-handed player), 2 and 3 on the other, the upper
+## card first; NEXT and the chat button in the middle above the strip; the bar along the strip.
+func _layout_sides() -> void:
+	var card: Vector2 = Vector2(SIDES_CARD_WIDTH, roundf(SIDES_CARD_WIDTH * CARD_ASPECT))
+	var near_x: float = SIDES_MARGIN
+	var far_x: float = size.x - SIDES_MARGIN - card.x
+	var first_x: float = far_x if mirrored else near_x
+	var second_x: float = near_x if mirrored else far_x
+	var lower_y: float = -SIDES_LIFT - card.y
+	var upper_y: float = lower_y - SIDES_GAP - card.y
+	card_rects.clear()
+	card_rects.append(Rect2(Vector2(first_x, upper_y), card))
+	card_rects.append(Rect2(Vector2(first_x, lower_y), card))
+	card_rects.append(Rect2(Vector2(second_x, upper_y), card))
+	card_rects.append(Rect2(Vector2(second_x, lower_y), card))
+	var next_size: Vector2 = card * NEXT_SCALE
+	var label_room: float = float(NEXT_FONT) + 8.0
+	next_rect = Rect2(Vector2((size.x - next_size.x) / 2.0, -SIDES_LIFT - next_size.y), next_size)
+	var chat_size: Vector2 = Vector2(CHAT_HEIGHT * HandArt.CHAT_ASPECT, CHAT_HEIGHT)
+	chat_rect = Rect2(Vector2((size.x - chat_size.x) / 2.0, next_rect.position.y - label_room - OUT_GAP - chat_size.y), chat_size)
+	var bar_left: float = SIDES_MARGIN + BAR_BAG * HandArt.ICE_DRAW_ASPECT / 2.0
+	var bar_right: float = size.x - SIDES_MARGIN
+	bar_rect = Rect2(Vector2(bar_left, (size.y - BAR_HEIGHT) / 2.0 + 6.0), Vector2(bar_right - bar_left, BAR_HEIGHT))
+	_refresh()
+
+
+## True when `local` (own pixels) is over the hand: the tray, or in the Sides layout the strip or one of the stacks of cards (a card let go
+## there is put back, not thrown).
+func _over_hand(local: Vector2) -> bool:
+	if Rect2(Vector2.ZERO, size).has_point(local):
+		return true
+	if not sides:
+		return false
+	for card: Rect2 in card_rects:
+		if card.grow(SIDES_GAP).has_point(local):
+			return true
+	return false
 
 
 ## The card node of `slot` (what is drawn there: a card, a card back, or hidden while the card is out of it), NEXT's, and the one under the
@@ -624,7 +683,7 @@ func _move(viewport_position: Vector2) -> void:
 		return
 	finger = _local(viewport_position)
 	on_card = card_rects[held_slot].grow(CARD_GAP / 2.0).has_point(finger)
-	over_hand = Rect2(Vector2.ZERO, size).has_point(finger)
+	over_hand = _over_hand(finger)
 	card_moved.emit(held_slot, viewport_position, on_card, over_hand)
 	_refresh()
 

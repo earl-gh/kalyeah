@@ -18,6 +18,8 @@ const LANGUAGES: Dictionary[String, String] = {"en": "English", "fil": "Filipino
 const TRANSLATION_PATH: String = "res://data/i18n/strings.%s.translation"
 const MIN_TRANSLATED: int = 30
 
+const CARD_TRAYS: Array[StringName] = [&"bottom", &"sides"]
+
 const SAVE_PATH: String = "user://settings.cfg"
 const PROJECT_KEY: String = "kalyeah/network/server_url"
 
@@ -29,6 +31,9 @@ var reduced_motion: bool = false
 var colorblind: bool = false
 ## Mirrors the match controls: the stick on the right, the weapons on the left.
 var left_handed: bool = false
+## Where the weapon cards sit in a match: `&"bottom"` (the tray along the bottom) or `&"sides"` (two cards on each side of the street,
+## the ice water bar alone along the bottom). One of `CARD_TRAYS`.
+var cards_tray: StringName = &"bottom"
 ## The language of the words ("en" until another one is offered and chosen).
 var language: String = "en"
 ## Whether holding a weapon shows its simple aim guide on the street (off = nothing is drawn).
@@ -53,6 +58,8 @@ func _ready() -> void:
 		colorblind = blind if blind is bool else false
 		var hand: Variant = file.get_value("input", "left_handed", false)
 		left_handed = hand if hand is bool else false
+		var tray: StringName = StringName(String(file.get_value("input", "cards_tray", "bottom")))
+		cards_tray = tray if CARD_TRAYS.has(tray) else &"bottom"
 		control_scale = nearest_control_scale(file.get_value("input", "control_scale", 1.0))
 		language = String(file.get_value("ui", "language", "en"))
 		var guide: Variant = file.get_value("input", "aim_guide", true)
@@ -133,6 +140,14 @@ func set_left_handed(on: bool) -> void:
 		return
 	left_handed = on
 	_save_value("input", "left_handed", on)
+	controls_changed.emit()
+
+
+func set_cards_tray(tray: StringName) -> void:
+	if not CARD_TRAYS.has(tray) or tray == cards_tray:
+		return
+	cards_tray = tray
+	_save_value("input", "cards_tray", String(tray))
 	controls_changed.emit()
 
 
