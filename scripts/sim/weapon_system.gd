@@ -54,11 +54,37 @@ class Shield extends RefCounted:
 	var id: int
 	var def: WeaponDef
 	var team: int
+	## Where the wall is NOW (the blocking line's middle) and half its length now: from `origin` and `base_half_width` by
+	## `WallMotion` every tick (a wall with no motion data never changes them).
 	var center: Vector2
 	## Unit vector along the wall.
 	var along: Vector2
 	var half_width: float
 	var time_left: float
+	## Where it was cast (infinite: a wall placed by hand, which then stays as given) and its width then.
+	var origin: Vector2 = Vector2.INF
+	var base_half_width: float = 0.0
+	## The line as of the tick before: what the wall has swept over since is blocked too.
+	var prev_center: Vector2
+	var prev_half_width: float
+
+	## The way it faces (toward where it was aimed): `along` turned a quarter back.
+	func forward() -> Vector2:
+		return Vector2(-along.y, along.x)
+
+	## Seconds since it was cast.
+	func age() -> float:
+		return (def.duration if def != null else 0.0) - time_left
+
+	## Moves and widens it to its age's place (the previous line is kept for the sweep).
+	func place() -> void:
+		prev_center = center
+		prev_half_width = half_width
+		if not origin.is_finite() or def == null:
+			return
+		var now: float = age()
+		center = origin + forward() * WallMotion.push(def, now)
+		half_width = base_half_width * WallMotion.width_scale(def, now)
 
 
 class PendingCone extends RefCounted:
@@ -145,9 +171,13 @@ func fire(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector2, hold
 			shield.def = def
 			shield.team = caster.team
 			shield.center = caster.position + facing * def.offset
+			shield.origin = shield.center
 			shield.along = facing.orthogonal()
 			shield.half_width = def.width / 2.0
+			shield.base_half_width = shield.half_width
 			shield.time_left = def.duration
+			shield.prev_center = shield.center
+			shield.prev_half_width = shield.half_width
 			shields.append(shield)
 		WeaponDef.Shape.BOUNCER, WeaponDef.Shape.SPINNER:
 			_new_projectile(caster, def, aim_direction(caster, aim))
@@ -407,7 +437,8 @@ func _blocked(projectile: Projectile, previous: Vector2, blocking: Array[Rect2])
 	return blocks_segment(projectile.team, previous, projectile.position)
 
 
-## True if an enemy (of `team`) paper shield crosses the segment a-b.
+## True if an enemy (of `team`) wall crosses the segment a-b: its line now, or the line a tick ago, or the ground the moving wall
+## swept over in between (a shot the wall overtook is stopped as if it had hit it). A wall blocks shots only, never kids.
 func blocks_segment(team: int, a: Vector2, b: Vector2) -> bool:
 	for shield: Shield in shields:
 		if shield.team == team:
@@ -415,6 +446,15 @@ func blocks_segment(team: int, a: Vector2, b: Vector2) -> bool:
 		var left: Vector2 = shield.center - shield.along * shield.half_width
 		var right: Vector2 = shield.center + shield.along * shield.half_width
 		if Geometry2D.segment_intersects_segment(a, b, left, right) != null:
+			return true
+		if shield.prev_center == shield.center and shield.prev_half_width == shield.half_width:
+			continue
+		var old_left: Vector2 = shield.prev_center - shield.along * shield.prev_half_width
+		var old_right: Vector2 = shield.prev_center + shield.along * shield.prev_half_width
+		if Geometry2D.segment_intersects_segment(a, b, old_left, old_right) != null:
+			return true
+		var swept: PackedVector2Array = PackedVector2Array([old_left, old_right, right, left])
+		if Geometry2D.is_point_in_polygon(a, swept) or Geometry2D.is_point_in_polygon(b, swept):
 			return true
 	return false
 
@@ -487,6 +527,7 @@ func _step_shields(dt: float) -> void:
 	for shield: Shield in shields:
 		shield.time_left -= dt
 		if shield.time_left > 0.0:
+			shield.place()
 			still.append(shield)
 	shields = still
 
