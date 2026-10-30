@@ -48,9 +48,8 @@ const STAMINA_LOW_COLOR: Color = ConsolePanel.HEALTH_AMBER
 const EXHAUSTED_COLOR: Color = ConsolePanel.HEALTH_RED
 ## How long the overclock's red / blank blink holds each state (seconds); steady red with Reduce motion.
 const BLINK_PERIOD: float = 0.25
-## The word over your own kid while it is exhausted (owner: "EXHAUSTED shown on your kid"); other kids show the plain status word.
-const EXHAUSTED_SELF: String = "EXHAUSTED"
-const EXHAUSTED_OTHER: String = "Exhausted"
+## The word over an exhausted kid, yours or another's, in sentence case like every status word (owner).
+const EXHAUSTED: String = "Exhausted"
 ## The word over a kid whose player has been gone too long (online): their kid stands still until they come back.
 const AWAY: String = "AFK"
 const POPUP_FONT: int = UiMetrics.BODY
@@ -146,7 +145,7 @@ func _status_text(state: PlayerState) -> String:
 		for word: String in effects:
 			words.append(UiText.t(word))
 	elif state.overclocked:
-		words.append(UiText.t(EXHAUSTED_SELF if state.id == _local_id else EXHAUSTED_OTHER))
+		words.append(UiText.t(EXHAUSTED))
 	return " · ".join(words)
 
 

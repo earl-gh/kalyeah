@@ -125,14 +125,14 @@ func test_a_negative_status_replaces_exhausted_and_exhausted_returns_after_it() 
 	hud.setup(sim, null, 1, 0)
 	sim.players[1].overclocked = true
 	sim.players[2].overclocked = true
-	assert_eq(hud.label_for(sim.players[1]), "EXHAUSTED", "exhausted alone")
+	assert_eq(hud.label_for(sim.players[1]), "Exhausted", "exhausted alone, sentence case like the other words")
 	assert_eq(hud.label_for(sim.players[2]), "Exhausted")
 	sim.players[1].effects.apply(StatusEffects.Type.STUN, 1.0)
 	sim.players[2].effects.apply(StatusEffects.Type.SLOW, 1.0)
 	assert_eq(hud.label_for(sim.players[1]), "Stunned", "the status shows instead of Exhausted, not stacked with it")
 	assert_eq(hud.label_for(sim.players[2]), "Slowed")
 	sim.players[1].effects.clear()
-	assert_eq(hud.label_for(sim.players[1]), "EXHAUSTED", "after the status the exhaustion shows again")
+	assert_eq(hud.label_for(sim.players[1]), "Exhausted", "after the status the exhaustion shows again")
 
 
 func test_the_stamina_bar_touches_the_health_bar_with_no_gap() -> void:
