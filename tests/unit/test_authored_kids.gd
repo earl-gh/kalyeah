@@ -344,7 +344,7 @@ func test_a_cast_shows_from_its_release_to_the_end_of_the_clip() -> void:
 
 # ---- tagged: shrink away, grow back in the tagged box -------------------------------------------------------------
 
-func test_a_tagged_kid_shrinks_away_where_it_stood_then_grows_back_in_the_box() -> void:
+func test_a_tagged_kid_pops_out_where_it_stood_then_pops_in_in_the_box() -> void:
 	for id: StringName in AUTHORED:
 		var kid: KidModel = _kid(id)
 		var state: PlayerState = PlayerState.new()
@@ -354,36 +354,103 @@ func test_a_tagged_kid_shrinks_away_where_it_stood_then_grows_back_in_the_box() 
 		for i: int in 3:
 			kid.animate(DT, 0.0, state)
 		assert_eq(kid._body.scale, Vector3.ONE)
-		# the sim tags the kid: it is already in the box, the view shrinks it where it stood
+		# the sim tags the kid: it is already in the box, the view pops it out where it stood
 		state.tagged = true
 		kid.position = box
 		var smallest: float = 1.0
-		var last: float = 1.0
-		var shrink_frames: int = 0
-		while (shrink_frames == 0 or kid._vanish == KidModel.Vanish.SHRINK) and shrink_frames < 60:
+		var biggest: float = 1.0
+		var pop_frames: int = 0
+		while (pop_frames == 0 or kid._vanish == KidModel.Vanish.SHRINK) and pop_frames < 60:
 			kid.animate(1.0 / 60.0, 0.0, state)
-			assert_eq(kid.position, here, "held where it was tagged while it shrinks")
+			assert_eq(kid.position, here, "held where it was tagged while it pops out")
 			kid.position = box  # the presentation puts it in the box every frame
-			shrink_frames += 1
+			pop_frames += 1
 			var size: float = kid._body.scale.x
-			assert_lte(size, last + 0.0001, "only shrinks")
-			last = size
 			smallest = minf(smallest, size)
-		assert_lt(shrink_frames, 14, "super fast: under a quarter of a second")
+			biggest = maxf(biggest, size)
+		assert_lt(pop_frames, 14, "quick: under a quarter of a second")
 		assert_almost_eq(smallest, KidModel.GONE_SCALE, 0.0001, "it disappears")
+		assert_gt(biggest, 1.0, "with a small wind-up first, so it reads as a pop")
+		assert_lt(biggest, 1.2, "a small one")
 		assert_true(kid.is_vanishing())
 		assert_eq(kid.pose, "idle", "no fall animation")
-		# then it is in the box and grows back
-		var grown: float = 0.0
+		# then it is in the box and pops in, a little past full size, then settles
+		var grown_max: float = 0.0
 		for i: int in 40:
 			kid.position = box
 			kid.animate(1.0 / 60.0, 0.0, state)
 			assert_eq(kid.position, box, "in the tagged box")
-			assert_gte(kid._body.scale.x, grown - 0.0001, "only grows")
-			grown = kid._body.scale.x
+			grown_max = maxf(grown_max, kid._body.scale.x)
+		assert_gt(grown_max, 1.0, "it overshoots a little as it pops in")
+		assert_lt(grown_max, 1.2)
 		assert_eq(kid._body.scale, Vector3.ONE, "exactly full size again")
 		assert_false(kid.is_vanishing())
 		assert_eq(kid._player.current_animation, "idle", "standing there with Idle")
+
+
+func test_a_morph_pops_the_kid_out_then_the_can_in_and_back() -> void:
+	var kid: KidModel = _kid(&"toni")
+	var state: PlayerState = PlayerState.new()
+	kid.animate(DT, 0.0, state)
+	assert_true(kid._model.visible)
+	assert_false(kid.is_can())
+	state.effects.apply(StatusEffects.Type.POLYMORPH, 5.0)
+	var both: bool = false
+	var kid_gone_when_can_shows: bool = true
+	for i: int in 60:
+		kid.animate(1.0 / 60.0, 0.0, state)
+		both = both or (kid._model.visible and kid.is_can())
+		if kid.is_can() and kid._model.visible:
+			kid_gone_when_can_shows = false
+	assert_false(both, "never the kid and the can together: one pops out, then the other pops in")
+	assert_true(kid_gone_when_can_shows)
+	assert_false(kid._model.visible, "the kid is gone")
+	assert_true(kid.is_can(), "and the can is there")
+	assert_eq(kid._can.scale, Vector3.ONE, "at full size")
+	state.effects.clear()
+	var sizes: Array[float] = []
+	for i: int in 60:
+		kid.animate(1.0 / 60.0, 0.0, state)
+		sizes.append(kid._body.scale.x)
+		both = both or (kid._model.visible and kid.is_can())
+	assert_false(both, "and back: the can pops out, then the kid pops in")
+	assert_true(kid._model.visible)
+	assert_false(kid.is_can())
+	assert_eq(kid._body.scale, Vector3.ONE)
+
+
+func test_the_stun_stars_pop_in_and_out_instead_of_switching() -> void:
+	var kid: KidModel = _kid(&"toni")
+	var state: PlayerState = PlayerState.new()
+	kid.animate(DT, 0.0, state)
+	assert_false(kid._stars.visible)
+	state.effects.apply(StatusEffects.Type.STUN, 5.0)
+	kid.animate(1.0 / 60.0, 0.0, state)
+	assert_true(kid._stars.visible)
+	assert_lt(kid._stars.scale.x, 0.5, "the first frame is the start of the pop, not full size")
+	var biggest: float = 0.0
+	for i: int in 30:
+		kid.animate(1.0 / 60.0, 0.0, state)
+		biggest = maxf(biggest, kid._stars.scale.x)
+	assert_gt(biggest, 1.0, "a little overshoot")
+	assert_eq(kid._stars.scale, Vector3.ONE, "then whole")
+	state.effects.clear()
+	kid.animate(1.0 / 60.0, 0.0, state)
+	assert_true(kid._stars.visible, "popping out, not gone in one frame")
+	for i: int in 30:
+		kid.animate(1.0 / 60.0, 0.0, state)
+	assert_false(kid._stars.visible, "gone once they have popped out")
+
+
+func test_a_hit_does_not_tilt_or_move_the_kid() -> void:
+	var kid: KidModel = _kid(&"popoy")
+	var state: PlayerState = PlayerState.new()
+	kid.animate(DT, 0.0, state)
+	assert_false(kid.has_method("play_hit"), "no flinch (owner)")
+	for i: int in 10:
+		kid.animate(1.0 / 60.0, 0.0, state)
+		assert_eq(kid._body.rotation, Vector3.ZERO)
+		assert_eq(kid._body.position, Vector3.ZERO)
 
 
 func test_the_shrink_holds_the_old_spot_until_it_is_gone() -> void:
@@ -394,8 +461,8 @@ func test_the_shrink_holds_the_old_spot_until_it_is_gone() -> void:
 	state.tagged = true
 	kid.position = Vector3(-8.0, 0.0, -5.0)  # what the presentation does the moment the sim tags it
 	kid.animate(1.0 / 60.0, 0.0, state)
-	assert_eq(kid.position, Vector3(2.0, 0.0, 3.0), "still shrinking where it was tagged")
-	assert_lt(kid._body.scale.x, 1.0)
+	assert_eq(kid.position, Vector3(2.0, 0.0, 3.0), "still popping out where it was tagged")
+	assert_true(kid.is_vanishing())
 
 
 func test_a_rescue_leaves_no_leftover_scale() -> void:
@@ -405,7 +472,7 @@ func test_a_rescue_leaves_no_leftover_scale() -> void:
 	state.tagged = true
 	kid.animate(1.0 / 60.0, 0.0, state)
 	kid.animate(1.0 / 60.0, 0.0, state)
-	assert_lt(kid._body.scale.x, 1.0, "mid shrink")
+	assert_true(kid.is_vanishing(), "mid pop")
 	state.tagged = false  # rescued at once
 	kid.animate(1.0 / 60.0, 0.0, state)
 	assert_eq(kid._body.scale, Vector3.ONE)
@@ -433,9 +500,9 @@ func test_in_a_match_a_tagged_authored_kid_reappears_at_the_tagged_place() -> vo
 	practice.sim.damage(id, 5000)
 	assert_true(state.tagged)
 	practice.advance(DT)
-	assert_eq(view.position, before, "shrinking where it was tagged (the sim already moved it)")
+	assert_eq(view.position, before, "popping out where it was tagged (the sim already moved it)")
 	var hp_before: int = state.hp
-	for i: int in 12:
+	for i: int in 20:
 		practice.advance(DT)
 	assert_eq(view.position.x, state.position.x, "then in the tagged box")
 	assert_eq(view.position.z, state.position.y)

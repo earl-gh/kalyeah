@@ -62,7 +62,6 @@ func connect_sim() -> void:
 			owner._camera.shake(minf(0.1 + amount * 0.01, 0.4))
 			owner.hud.pulse.hit(amount, owner.sim.rules.player_max_hp))
 	owner.sim.weapon_cast.connect(func(id: int, weapon: StringName) -> void: (owner._views[id] as KidModel).play_cast(cast_lead(owner.sim, weapon)))
-	owner.sim.player_damaged.connect(func(id: int, _amount: int) -> void: (owner._views[id] as KidModel).play_hit())
 	owner.sim.match_won.connect(_on_match_won)
 	owner.sim.point_reset.connect(func() -> void:
 		owner.hud.street.release())

@@ -442,26 +442,22 @@ func test_the_can_flies_from_the_thrower_to_the_circle() -> void:
 	assert_gt(_fx.zones.fading_count(), 0, "the landing plays")
 
 
-func test_polymorph_on_and_off_puff() -> void:
+func test_polymorph_on_and_off_has_no_smoke_the_kid_pops_out_and_the_can_pops_in() -> void:
 	_setup(Vector2(0.0, 2.0))
 	_cast(&"lata", Vector2(0.0, -6.0 / 7.0))
 	var smoke: int = 0
 	var turned: bool = false
-	var was: Array[CPUParticles3D] = []
 	for i: int in 120:
 		_frame()
-		var now: Array[CPUParticles3D] = []
 		for emitter: CPUParticles3D in _fx.context().particles.busy():
-			if emitter.mesh == FxKit.puff_quad() and emitter.amount == FxZones.SMOKE_PUFF and emitter.color.is_equal_approx(Palette.WHITE):
-				now.append(emitter)
-				smoke += 0 if was.has(emitter) else 1
-		was = now
+			if emitter.mesh == FxKit.puff_quad() and emitter.color.is_equal_approx(Palette.WHITE):
+				smoke += 1
 		if _sim.players[2].effects.has(StatusEffects.Type.POLYMORPH):
 			turned = true
 		elif turned:
 			break
 	assert_true(turned, "the kid became a can")
-	assert_eq(smoke, 2, "one smoke puff when it turned into a can, one when it turned back")
+	assert_eq(smoke, 0, "no smoke hides the swap: the kid pops out and the can pops in")
 
 
 # ---- papel trap and jacks ---------------------------------------------------------------------------------------------

@@ -13,8 +13,7 @@ const CONE_FLASH_TIME: float = FxCones.CONE_FLASH_TIME
 ## Turns per second of a thrown object (the spinning top spins fast).
 const SPIN: float = FxProjectiles.SPIN
 const TOP_SPIN: float = FxProjectiles.TOP_SPIN
-## The hit burst on a kid (FxBursts): a yellow ring of at most `BURST_RING_TO` m and `BURST_STARS` stars.
-const BURST_RING_TO: float = FxBursts.RING_TO
+## The hit burst on a kid (FxBursts): `BURST_STARS` comic stars, no ring.
 const BURST_STARS: int = FxBursts.STARS
 
 
@@ -105,7 +104,6 @@ func watch(sim: MatchSim) -> void:
 	sim.player_damaged.connect(_ctx.bursts.hit)
 	sim.player_healed.connect(heals.on_healed)
 	sim.weapon_cast.connect(_on_cast)
-	sim.effect_applied.connect(zones.on_effect)
 	sim.effect_applied.connect(projectiles.on_effect)
 
 

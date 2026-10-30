@@ -5,8 +5,6 @@ extends Node3D
 ## plays the same online, where the snapshot carries no time left: its total comes from the weapon's data and the thrower's
 ## position at the cast; offline the sim's time left makes it exact. The landing is the zone leaving the sim.
 
-## A kid turning into a can (or back) disappears in a comic smoke puff of `SMOKE_PUFF` particles.
-const SMOKE_PUFF: int = 8
 ## Every zone says who threw it from its first frame (the thrower's team colour, an opaque rim): the fill of a slow zone,
 ## a jacks field and an armed trap.
 const SLOW_FILL_ALPHA: float = 0.25
@@ -68,7 +66,6 @@ var _ghosts: Array[Ghost] = []
 var fields: FxFields
 var landings: FxLandings
 ## Kids drawn as a can right now (to puff when they turn back).
-var _cans: Dictionary[int, bool] = {}
 
 
 func setup(ctx: FxContext) -> void:
@@ -109,7 +106,6 @@ func sync(sim: MatchSim) -> void:
 			landings.land(_recs[id])
 			_remove(id)
 	_step_ghosts()
-	_step_cans(sim)
 
 
 func live_count() -> int:
@@ -123,32 +119,6 @@ func fading_count() -> int:
 func node_for(id: int) -> Node3D:
 	var rec: Rec = _recs.get(id) as Rec
 	return rec.node if rec != null else null
-
-
-## A status effect landed on kid `id`: turned into a can, the kid vanishes in a smoke puff (born whole on this frame, so it
-## hides the swap).
-func on_effect(id: int, type: int) -> void:
-	if type != StatusEffects.Type.POLYMORPH or _ctx.sim == null or not _ctx.sim.players.has(id):
-		return
-	_cans[id] = true
-	_smoke(_ctx.sim.players[id].position)
-
-
-## A kid whose can wore off turns back in the same puff (the snapshot carries the effects, so this works online too).
-func _step_cans(sim: MatchSim) -> void:
-	for id: int in _cans.keys():
-		var kid: PlayerState = sim.players.get(id) as PlayerState
-		if kid == null or not kid.effects.has(StatusEffects.Type.POLYMORPH):
-			_cans.erase(id)
-			if kid != null:
-				_smoke(kid.position)
-	for id: int in sim.players:
-		if sim.players[id].effects.has(StatusEffects.Type.POLYMORPH) and not _cans.has(id):
-			_cans[id] = true
-
-
-func _smoke(at: Vector2) -> void:
-	_ctx.particles.puff(FxParticles.Preset.SMOKE, Vector3(at.x, 0.0, at.y), SMOKE_PUFF)
 
 
 ## The node a zone is drawn with: a root at the zone's centre holding its ground mark ("Mark") and its object.
