@@ -109,8 +109,8 @@ func _build() -> void:
 		picture.modulate = Color(0.12, 0.12, 0.15, 1.0)
 		var unknown: Label = Label.new()
 		unknown.name = "Unknown"
-		unknown.text = "?"
-		UiKit.letter(unknown, UiMetrics.DISPLAY)
+		unknown.text = "Coming\nSoon"
+		UiKit.letter(unknown, UiMetrics.CAPTION)
 		unknown.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		unknown.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		unknown.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

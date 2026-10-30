@@ -16,6 +16,13 @@ const FAN_FROM_RIGHT: float = -24.0
 const TEXT_CLEARANCE: float = 20.0
 ## The panel is the modals' frame, with no rim of its own (the text and fan are placed by hand); a press lightens it.
 const PRESS_LIGHTEN: float = 0.12
+## The banner is a bright blue panel (owner: grey was bland), with the modals' frame shape, shadow and a darker blue edge.
+const PANEL_COLOR: Color = Color("2f6fc4")
+const PANEL_EDGE: Color = Color("1a3f7a")
+## A light, tight drop shadow (smaller and fainter than a modal's: less blur to draw, and it does not muddy the backdrop).
+const SHADOW_SIZE: int = 6
+const SHADOW_COLOR: Color = Color(0.0, 0.03, 0.1, 0.3)
+const SHADOW_DROP: Vector2 = Vector2(0.0, 3.0)
 const PANEL_RADIUS: int = KalyeahTheme.MODAL_FRAME_RADIUS
 ## The title is a headline in the modals' title colours; the detail is the plain line under it, white on the slate.
 const TITLE_SIZE: int = UiMetrics.HEADLINE
@@ -30,12 +37,15 @@ var detail_label: Label
 var fan: CardFan
 var words: VBoxContainer
 var panel_box: StyleBoxFlat
+## How far this card's fan sits lower than the default, so less of it sticks out above the panel.
+var fan_drop: float = 0.0
 
 
 ## A card for the page `page_id` with its `title` and `detail` and the three `pictures` of its fan (front first).
-static func create(page_id: StringName, title: String, detail: String, pictures: Array[Texture2D]) -> CardsHubCard:
+static func create(page_id: StringName, title: String, detail: String, pictures: Array[Texture2D], drop: float = 0.0) -> CardsHubCard:
 	var card: CardsHubCard = CardsHubCard.new()
 	card.id = page_id
+	card.fan_drop = drop
 	card._build(title, detail, pictures)
 	return card
 
@@ -46,8 +56,8 @@ func _build(title: String, detail: String, pictures: Array[Texture2D]) -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tooltip_text = title
 	accessibility_name = "%s: %s" % [title, detail]
-	panel_box = KalyeahTheme.modal_frame(0.0)
-	var pressed_box: StyleBoxFlat = KalyeahTheme.modal_frame(0.0)
+	panel_box = _blue_frame()
+	var pressed_box: StyleBoxFlat = _blue_frame()
 	pressed_box.bg_color = pressed_box.bg_color.lightened(PRESS_LIGHTEN)
 	for state: String in ["normal", "hover"]:
 		add_theme_stylebox_override(state, panel_box)
@@ -95,9 +105,19 @@ func _build(title: String, detail: String, pictures: Array[Texture2D]) -> void:
 	_place_fan()
 
 
+func _blue_frame() -> StyleBoxFlat:
+	var box: StyleBoxFlat = KalyeahTheme.modal_frame(0.0)
+	box.bg_color = PANEL_COLOR
+	box.border_color = PANEL_EDGE
+	box.shadow_size = SHADOW_SIZE
+	box.shadow_color = SHADOW_COLOR
+	box.shadow_offset = SHADOW_DROP
+	return box
+
+
 ## The fan's top, in the card's own coordinates: above the panel by `FAN_PROTRUSION`.
 func fan_top() -> float:
-	return -FAN_PROTRUSION
+	return -protrusion()
 
 
 func _place_fan() -> void:
@@ -119,7 +139,7 @@ func _update_mask() -> void:
 
 ## How far the fan sticks out above the panel's top edge (a positive number), so a page can leave room for it.
 func protrusion() -> float:
-	return FAN_PROTRUSION
+	return FAN_PROTRUSION - fan_drop
 
 
 ## Whether a tap at `point` (in the card's own coordinates) is on this card: the panel, or the fan that sticks out of it.

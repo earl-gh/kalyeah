@@ -1,6 +1,6 @@
 class_name BootScreen
 extends Control
-## Shared launch/match loader: owned key art above a recessed navy track with a glossy blue fill.
+## Shared launch/match loader: owned key art above a recessed navy track (no outline) with a glossy blue fill.
 ## The percentage straddles the track's top edge, with a readable tip over a soft bottom shade.
 ## Scene loading and handover are identical for startup, Practice and room-to-match transitions.
 
@@ -18,9 +18,7 @@ const BASE_COLOR: Color = Color(0.085, 0.085, 0.09)
 
 ## The loading base along the bottom edge (the phone's home-bar inset is added to it).
 const BAND_HEIGHT: float = 44.0
-const FRAME_WIDTH: float = 4.0
 const TRACK_COLOR: Color = Color("070f1d")
-const FRAME_COLOR: Color = Color("17263e")
 const FILL_COLORS: Array[Color] = [Color("9ae2ff"), Color("4eb8ff"), Color("258fde"), Color("1764ab")]
 const FILL_STOPS: Array[float] = [0.0, 0.28, 0.3, 1.0]
 ## The percentage is this tall; it straddles the base's top edge (half over the art, half over the base).
@@ -126,8 +124,6 @@ func _build() -> void:
 	_track.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var frame: StyleBoxFlat = StyleBoxFlat.new()
 	frame.bg_color = TRACK_COLOR
-	frame.border_color = FRAME_COLOR
-	frame.set_border_width_all(int(FRAME_WIDTH))
 	_track.add_theme_stylebox_override("panel", frame)
 	_base.add_child(_track)
 	_fill_clip = Control.new()
@@ -211,9 +207,9 @@ func _layout() -> void:
 	_base.size = Vector2(size.x, band)
 	_track.position = Vector2.ZERO
 	_track.size = Vector2(size.x, BAND_HEIGHT)
-	_fill_clip.position = Vector2.ONE * FRAME_WIDTH
+	_fill_clip.position = Vector2.ZERO
 	_fill_rect.position = Vector2.ZERO
-	_fill_rect.size = Vector2(maxf(0.0, size.x - FRAME_WIDTH * 2.0), BAND_HEIGHT - FRAME_WIDTH * 2.0)
+	_fill_rect.size = Vector2(size.x, BAND_HEIGHT)
 	_rim.position = Vector2(1.0, 1.0)
 	_rim.size = Vector2(maxf(0.0, size.x - 2.0), 2.0)
 	_shade.position = Vector2(0.0, maxf(0.0, origin.y - 260.0))

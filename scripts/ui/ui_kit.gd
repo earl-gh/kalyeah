@@ -10,6 +10,64 @@ const CROP: Shader = preload("res://shaders/minimap_crop.gdshader")
 const PRESS_SCALE: float = 0.955
 const PRESS_DOWN: float = 0.07
 const PRESS_UP: float = 0.16
+
+## The scrollbar of every page that scrolls: 12 px wide, inset 10 px from both ends, its grabber at least 72 px tall.
+const BAR_WIDTH: int = 12
+const BAR_INSET: float = 10.0
+const GRABBER_MIN: float = 72.0
+
+
+## A scrolling area for `content` that fills the rest of `page`, with its scrollbar in the middle of the gap between the content and the
+## screen edge: the scroll reaches out into the page margin, and the content keeps its own width and margins. Returns the `Scroll`.
+static func add_gutter_scroll(page: Control, content: Control, follow_focus: bool = false) -> ScrollContainer:
+	var holder: Control = Control.new()
+	holder.name = "ScrollHolder"
+	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.add_child(holder)
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = follow_focus
+	holder.add_child(scroll)
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	style_scrollbar(scroll.get_v_scroll_bar())
+	var bar: float = scroll.get_v_scroll_bar().get_combined_minimum_size().x
+	scroll.offset_right = (TitleScreen.PAGE_SIDE_MARGIN + bar) / 2.0
+	var inner: MarginContainer = MarginContainer.new()
+	inner.name = "Inner"
+	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# the scroll gives the content the bar's width back while the bar is hidden (a short page), so the margin takes it up instead
+	var fit_margin: Callable = func() -> void:
+		var hidden: float = 0.0 if scroll.get_v_scroll_bar().visible else bar
+		inner.add_theme_constant_override("margin_right", int((TitleScreen.PAGE_SIDE_MARGIN - bar) / 2.0 + hidden))
+	scroll.get_v_scroll_bar().visibility_changed.connect(fit_margin)
+	fit_margin.call()
+	scroll.add_child(inner)
+	inner.add_child(content)
+	return scroll
+
+
+## A slim rounded scrollbar: a faint track inset from both ends and a light pill grabber that never shrinks below `GRABBER_MIN`.
+static func style_scrollbar(bar: VScrollBar) -> void:
+	var track: StyleBoxFlat = StyleBoxFlat.new()
+	track.bg_color = Color(0.0, 0.03, 0.1, 0.3)
+	track.set_corner_radius_all(UiSkin.round_radius(BAR_WIDTH))
+	track.content_margin_left = BAR_WIDTH / 2.0
+	track.content_margin_right = BAR_WIDTH / 2.0
+	track.content_margin_top = BAR_INSET
+	track.content_margin_bottom = BAR_INSET
+	track.anti_aliasing = true
+	bar.add_theme_stylebox_override("scroll", track)
+	for state: String in ["grabber", "grabber_highlight", "grabber_pressed"]:
+		var grabber: StyleBoxFlat = StyleBoxFlat.new()
+		grabber.bg_color = Color(0.85, 0.93, 1.0, 0.55 if state == "grabber" else 0.85)
+		grabber.set_corner_radius_all(UiSkin.round_radius(BAR_WIDTH))
+		grabber.content_margin_top = GRABBER_MIN / 2.0
+		grabber.content_margin_bottom = GRABBER_MIN / 2.0
+		grabber.anti_aliasing = true
+		bar.add_theme_stylebox_override(state, grabber)
+
 ## A card nested in a big (`UiSkin.RADIUS_XL`) panel: it sits `NEST_GAP` in from the panel's edge and its corners are the
 ## panel's less that gap, so the two curves run parallel (docs/ART.md "Nested curves are parallel").
 const NEST_GAP: int = UiMetrics.GAP
