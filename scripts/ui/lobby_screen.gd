@@ -12,6 +12,8 @@ const BACKGROUND: Texture2D = preload("res://assets/ui/main_bg.webp")
 const NET_RULES: NetRules = preload("res://data/rules/net_rules.tres")
 const FONT: int = UiMetrics.BODY
 const BIG_FONT: int = UiMetrics.DISPLAY
+## While an Online connection is still opening after `NetRules.wake_hint_after` (a sleeping free server takes about a minute).
+const WAKING_TEXT: String = "Waking up the server. This can take a minute…"
 
 var client: GameClient
 var intent: Intent = Intent.CREATE
@@ -65,6 +67,7 @@ func _ready() -> void:
 		_build()
 	_build_room_view()
 	client.connection_changed.connect(_on_connection_changed)
+	client.connect_failed.connect(_on_connect_failed)
 	client.error_received.connect(_on_error)
 	client.room_changed.connect(_on_room_changed)
 	client.match_loading.connect(_on_match_loading)
@@ -160,7 +163,7 @@ func _connect_or_send(url: String) -> void:
 			_send_pending()
 	else:
 		_set_status("Connecting…")
-		if client.connect_to(url) != OK:
+		if client.connect_to(url, not hotspot) != OK:
 			_set_status("Can't reach the server. Check your connection and try again.")
 			if _room_view != null:
 				_room_view.show_retry()
@@ -196,7 +199,7 @@ func rejoin() -> void:
 	client.player_name = Session.player_name
 	_rejoining = true
 	_set_status("Rejoining…")
-	if client.connect_to(Session.reconnect_url) != OK:
+	if client.connect_to(Session.reconnect_url, not Session.lobby_hotspot) != OK:
 		_set_status("Can't reach the server. Check your connection and try again.")
 
 
@@ -211,6 +214,18 @@ func _send_pending() -> void:
 		_set_status("")
 		_pending.call()
 		_pending = Callable()
+
+
+func _process(_delta: float) -> void:
+	# a free Online server asleep takes about a minute to answer: say so, so the wait does not look stuck
+	if _status != null and not hotspot and client.waking() and _status.text == "Connecting…":
+		_set_status(WAKING_TEXT)
+
+
+func _on_connect_failed() -> void:
+	_set_status("Can't reach the server. Check your connection and try again.")
+	if _room_view != null:
+		_room_view.show_retry()
 
 
 func _on_connection_changed(online: bool) -> void:
@@ -431,6 +446,8 @@ func paste_code(clipboard: Variant = null) -> void:
 
 
 func _set_status(text: String) -> void:
+	if _status == null:
+		return
 	_status.text = text
 	_status.visible = not text.is_empty()
 	if not text.is_empty():

@@ -542,7 +542,7 @@ func _try_reconnect(delta: float) -> void:
 	if _reconnect_left <= 0.0:
 		_reconnect_left = RECONNECT_INTERVAL
 		var url: String = Session.reconnect_url if not Session.reconnect_url.is_empty() else Settings.server_url
-		client.connect_to(url)
+		client.connect_to(url, not Session.lobby_hotspot)
 
 
 ## Leaving a Practice match against bots that has really started counts as a loss, so History does not forget it.
