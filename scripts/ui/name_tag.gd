@@ -72,7 +72,10 @@ const PHOTO_RADIUS: float = 14.0
 const PHOTO_BACK: Color = Color("dfe8f7")
 const PHOTO_EMPTY_BACK: Color = Color("f2f5fb")
 const PHOTO_EMPTY_EDGE: Color = Color("9fb0d6")
-const ADD_PHOTO: String = "Add photo"
+## The picture in the square until there is a photo: the "K!" logomark of the loading screen.
+const LOGOMARK: Texture2D = preload("res://assets/ui/boot/boot_icon.png")
+## How far the logomark stands in from the square's edge.
+const LOGOMARK_INSET: float = 12.0
 ## With a photo the card is never narrower than this (the photo, the words and the slot between them), and may grow to this so the
 ## widest twelve letters fit beside the photo (inside a 720 px screen).
 const PHOTO_MIN_WIDTH: float = 420.0
@@ -100,10 +103,10 @@ var back_strap: ColorRect
 var front_cap: ColorRect
 ## Marks where the slot is (the hole itself is cut by the paper's shader).
 var slot: Control
-## The ID photo's square, the picture in it, and the "Add photo" mark shown while there is none.
+## The ID photo's square, the picture in it, and the "K!" logomark shown while there is none.
 var photo_frame: Panel
 var photo: TextureRect
-var add_photo: VBoxContainer
+var logomark: TextureRect
 var _paper_material: ShaderMaterial
 var _name: String = ""
 var _base_scale: float = 1.0
@@ -161,30 +164,19 @@ func _init() -> void:
 	crop.set_shader_parameter("radius", PHOTO_RADIUS - 3.0)
 	photo.material = crop
 	photo_frame.add_child(photo)
-	add_photo = VBoxContainer.new()
-	add_photo.name = "AddPhoto"
-	add_photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_photo.alignment = BoxContainer.ALIGNMENT_CENTER
-	add_photo.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_photo.add_theme_constant_override("separation", 4)
-	var lens_mark: CameraMark = CameraMark.new()
-	lens_mark.custom_minimum_size = Vector2(40.0, 34.0)
-	lens_mark.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	add_photo.add_child(lens_mark)
-	var add_label: Label = Label.new()
-	add_label.text = ADD_PHOTO
-	add_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# two short lines ("Add" / "photo") keep clear of the square's edges
-	add_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	add_label.custom_minimum_size = Vector2(PHOTO_SIDE - 40.0, 0.0)
-	add_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	add_label.theme_type_variation = &"DisplayLabel"
-	add_label.add_theme_font_size_override("font_size", HINT_SIZE)
-	add_label.add_theme_color_override("font_color", INK_MUTED)
-	add_label.add_theme_constant_override("outline_size", 0)
-	add_label.set_meta(UiMetrics.BELOW_FLOOR_BY_OWNER, true)
-	add_photo.add_child(add_label)
-	photo_frame.add_child(add_photo)
+	logomark = TextureRect.new()
+	logomark.name = "Logomark"
+	logomark.texture = LOGOMARK
+	logomark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	logomark.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logomark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	logomark.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	logomark.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side: Side in [SIDE_LEFT, SIDE_TOP]:
+		logomark.set_offset(side, LOGOMARK_INSET)
+	for side: Side in [SIDE_RIGHT, SIDE_BOTTOM]:
+		logomark.set_offset(side, -LOGOMARK_INSET)
+	photo_frame.add_child(logomark)
 	# the two rows are placed by hand (see `_place_text`): row 1 sits exactly between the slot and the name
 	var words: Control = Control.new()
 	words.name = "Words"
@@ -229,7 +221,8 @@ func _init() -> void:
 	tap_button = Button.new()
 	tap_button.name = "TapButton"
 	tap_button.flat = true
-	tap_button.focus_mode = Control.FOCUS_ALL
+	# a finger needs no focus, and a focus ring left on the card after the editor closes read as a yellow outline
+	tap_button.focus_mode = Control.FOCUS_NONE
 	tap_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
 		tap_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
@@ -242,13 +235,13 @@ func _init() -> void:
 	set_player_name(Session.player_name if not Session.player_name.is_empty() else Session.DEFAULT_NAME)
 
 
-## Shows the saved ID photo, "Add photo" while there is none, or no square at all on a device with no camera and no photo.
+## Shows the saved ID photo, or the "K!" logomark while there is none.
 func refresh_photo() -> void:
 	var picture: Texture2D = IdPhoto.texture()
 	photo.texture = picture
 	photo.visible = picture != null
-	add_photo.visible = picture == null
-	photo_frame.visible = picture != null or IdPhoto.camera_possible()
+	logomark.visible = picture == null
+	photo_frame.visible = true
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = PHOTO_BACK if picture != null else PHOTO_EMPTY_BACK
 	box.border_color = CARD_EDGE if picture != null else PHOTO_EMPTY_EDGE
@@ -432,15 +425,3 @@ static func _paper_style() -> StyleBoxFlat:
 	box.shadow_offset = Vector2(0.0, 8.0)
 	box.anti_aliasing = true
 	return box
-
-
-## A small camera drawn in code for "Add photo" (a body, a bump on top and a lens).
-class CameraMark extends Control:
-	func _draw() -> void:
-		var ink: Color = INK_MUTED
-		var w: float = size.x
-		var h: float = size.y
-		var body: Rect2 = Rect2(0.0, h * 0.22, w, h * 0.78)
-		draw_rect(body, ink, false, 3.0)
-		draw_rect(Rect2(w * 0.3, 0.0, w * 0.4, h * 0.24), ink, true)
-		draw_arc(body.get_center(), h * 0.24, 0.0, TAU, 24, ink, 3.0, true)

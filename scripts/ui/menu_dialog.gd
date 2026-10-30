@@ -42,6 +42,15 @@ var title_label: Label
 var is_open: bool = true
 ## HUD menus retain wired controls across repeated opens. Ordinary dialogs free on close.
 var persistent: bool = false
+## Whether the first text field takes the focus (and so opens the phone's keyboard) when the dialog opens; false for a sheet that
+## waits for a tap on its field.
+var focus_text_on_open: bool = true
+## True for a dialog with a text field: it keeps itself above the phone's on-screen keyboard (`set_keyboard_height`).
+var keyboard_aware: bool = false:
+	set(value):
+		keyboard_aware = value
+		set_process(value)
+var _keyboard: float = 0.0
 
 var _width: float = WIDTH_SMALL
 var _header: MarginContainer
@@ -246,10 +255,33 @@ func _notification(what: int) -> void:
 		close.call_deferred()
 
 
+func _ready() -> void:
+	set_process(keyboard_aware)
+
+
+func _process(_delta: float) -> void:
+	if not keyboard_aware or not is_open:
+		return
+	if not DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		return
+	var pixels: int = DisplayServer.virtual_keyboard_get_height()
+	var window: int = DisplayServer.window_get_size().y
+	set_keyboard_height(float(pixels) * get_viewport().get_visible_rect().size.y / float(maxi(window, 1)) if pixels > 0 else 0.0)
+
+
+## The height (in this screen's pixels) the phone's keyboard covers at the bottom: the dialog fits in what is left above it.
+func set_keyboard_height(height: float) -> void:
+	if is_equal_approx(height, _keyboard):
+		return
+	_keyboard = height
+	_fit()
+
+
 func _fit() -> void:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return
 	LobbyWidgets.apply_safe_area(_safe, UiMetrics.PAGE_MARGIN, UiMetrics.PAGE_MARGIN)
+	_safe.add_theme_constant_override("margin_bottom", _safe.get_theme_constant("margin_bottom") + int(_keyboard))
 	var available: Vector2 = size - Vector2(
 		_safe.get_theme_constant("margin_left") + _safe.get_theme_constant("margin_right"),
 		_safe.get_theme_constant("margin_top") + _safe.get_theme_constant("margin_bottom"))
@@ -271,7 +303,7 @@ func reopen() -> void:
 
 
 func _focus_first() -> void:
-	if is_open and is_visible_in_tree():
+	if focus_text_on_open and is_open and is_visible_in_tree():
 		UiFocus.first(self)
 
 

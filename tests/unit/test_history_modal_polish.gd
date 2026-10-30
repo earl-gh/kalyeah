@@ -58,15 +58,11 @@ func test_the_name_editor_reuses_the_tag_and_places_the_field_on_its_name_row() 
 	var preview: NameTag = card.find_child("Preview", true, false) as NameTag
 	var field: LineEdit = card.find_child("NameField", true, false) as LineEdit
 	assert_eq(field.get_parent(), preview.card)
-	assert_true(preview.strap.visible)
-	assert_true(preview.swing)
-	assert_lt(preview.sway_scale, 0.2)
-	assert_true(preview.front_strap.z_as_relative)
-	assert_lt(preview.back_strap.z_index, preview.card.z_index)
-	assert_gt(preview.front_cap.z_index, preview.card.z_index)
+	assert_false(preview.strap.visible, "no lanyard on the editing tag")
+	assert_false(preview.swing, "and it does not swing")
 	assert_eq(preview.greeting_label.text, NameTag.GREETING)
 	assert_eq(preview.photo_frame.position, Vector2(NameTag.PHOTO_LEFT, NameTag.PHOTO_TOP))
-	assert_almost_eq(field.position.x + 8.0, preview.name_label.position.x, 0.1)
+	assert_almost_eq(field.position.x + ProfileSheet.FIELD_BORDER + ProfileSheet.FIELD_PAD, preview.name_label.position.x, 0.1, "the field's text starts where the name's letters do")
 	field.text = "LIGAYA"
 	field.text_changed.emit(field.text)
 	assert_eq(preview.player_name(), "LIGAYA")

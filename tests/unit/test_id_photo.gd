@@ -190,15 +190,16 @@ func test_the_camera_is_off_in_the_background_and_when_the_sheet_closes() -> voi
 func test_the_tag_shows_the_photo_left_and_the_words_beside_it() -> void:
 	var tag: NameTag = autofree(NameTag.new()) as NameTag
 	_host.add_child(tag)
-	if IdPhoto.camera_possible():
-		assert_true(tag.add_photo.visible, "Add photo until there is one")
+	assert_true(tag.photo_frame.visible, "the square is always there")
+	assert_true(tag.logomark.visible, "the K! logomark until there is a photo")
+	assert_eq(tag.logomark.texture, NameTag.LOGOMARK)
 	var face: Image = Image.create(64, 64, false, Image.FORMAT_RGB8)
 	face.fill(Color.ORANGE)
 	IdPhoto.save(face)
 	tag.refresh_photo()
 	assert_true(tag.photo_frame.visible)
 	assert_true(tag.photo.visible)
-	assert_false(tag.add_photo.visible)
+	assert_false(tag.logomark.visible)
 	assert_gte(tag.card.size.x, NameTag.PHOTO_MIN_WIDTH)
 	assert_gt(tag.name_label.position.x, tag.photo_frame.position.x + tag.photo_frame.size.x, "the name is beside the photo")
 	assert_lte(tag.card.size.y, NameTag.CARD_HEIGHT, "the same height as before: Home keeps its layout")
