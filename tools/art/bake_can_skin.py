@@ -30,11 +30,14 @@ PANO_W, PANO_H = 1536, 512
 # the picture: each view's body centre x, body radius (px), and where its label starts and ends at the sides of the body (the
 # rows grow toward the middle by `lift_top` px at the top and `lift_bottom` px at the bottom, because the camera looks down on the can:
 # the label's top and bottom edges are ellipses). Measured on the picture: the yellow's first row and the meat's last row in columns
-# across the can, fitted as `side + lift * cos(angle)`.
+# across the can, fitted as `side + lift * cos(angle)`. The bottom edge is the meat's curve plus the bronze lip under it (24 px), so the
+# label's last rows are the lip and the rim ring of the model reads as thick as the picture's.
 VIEWS = {
-    "front": {"cx": 199.5, "r": 166.0, "top": 354.0, "bottom": 694.0, "lift_top": 56.0, "lift_bottom": 66.0},
-    "back": {"cx": 911.0, "r": 163.5, "top": 354.0, "bottom": 694.0, "lift_top": 56.0, "lift_bottom": 66.0},
+    "front": {"cx": 199.5, "r": 166.0, "top": 354.0, "bottom": 718.0, "lift_top": 56.0, "lift_bottom": 66.0},
+    "back": {"cx": 911.0, "r": 163.5, "top": 354.0, "bottom": 718.0, "lift_top": 56.0, "lift_bottom": 66.0},
 }
+# the bronze lip under the label: its last picture rows (the lip is about 24 tall, the first few still show the meat's edge); part of every view's strip, see `bottom` above
+LIP_ROWS = 19.0
 # the picture is sampled this share of the way to each side of the body, so the white behind the can never blends in at the edge
 EDGE_SAFE = 0.985
 # the lid: the ellipse of the rim in the front view (centre x, y, half width, half height) for a lid of radius LID_R
@@ -44,7 +47,7 @@ LID_R = 0.416
 # model measurements (metres, the model is 1 high): the label runs between the rims, and the rims have these heights
 BODY_BOTTOM, BODY_TOP = 0.045, 0.93
 RIM_TOP_ROWS = (372.0, 408.0)  # picture rows of the top rim's front wall
-RIM_BOTTOM_ROWS = (780.0, 802.0)  # picture rows of the bottom rim's front wall
+RIM_BOTTOM_ROWS = (786.0, 804.0)  # picture rows of the bottom rim's front wall
 # the label shows ARC degrees of each view; the rest of the way round is plain yellow
 FRONT_ARC, BACK_ARC = 82.0, 50.0
 FEATHER = 8.0
@@ -131,6 +134,12 @@ def build_panorama(img):
     front = even_out(front, target)
     back = even_out(back, target)
     plain = yellow_column([front, back])
+    # the bronze lip under the label runs all the way round: its rows (the picture's lip is LIP_ROWS tall of the label's rows) take the
+    # front's lip colour where the picture shows no label, so the rim ring is even
+    lip_start = PANO_H - int(round(PANO_H * LIP_ROWS / ((VIEWS["front"]["bottom"] + VIEWS["front"]["lift_bottom"]) - (VIEWS["front"]["top"] + VIEWS["front"]["lift_top"]))))
+    middle = slice(front.shape[1] * 4 // 10, front.shape[1] * 6 // 10)
+    lip_profile = front[lip_start:, middle].mean(axis=1)
+    plain[lip_start:] = lip_profile
     pano = np.broadcast_to(plain[:, None, :], (PANO_H, PANO_W, 3)).copy()
     degrees = np.linspace(-180.0, 180.0, PANO_W, endpoint=False)
     for strip, centre, arc in ((front, 0.0, FRONT_ARC), (back, 180.0, BACK_ARC)):
