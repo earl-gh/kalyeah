@@ -19,8 +19,6 @@ const KID_HEIGHT: float = 1.85
 ## A polymorphed kid is the owner's can (`assets/models/weapons/can.glb`, the model Lata throws), standing this tall in metres.
 const POLYMORPH_CAN_MODEL: String = "can"
 const POLYMORPH_CAN_HEIGHT: float = 1.3
-const HIT_TIME: float = 0.28
-const SHADOW_SIZE: float = 1.1
 const BLEND: float = 0.14
 ## The sim steps at 30 Hz but the screen draws faster: with no new position for this
 ## long the kid is standing still.
@@ -32,9 +30,12 @@ const CLIP_FOR: Dictionary[String, String] = {
 	"cast": "Cast_OneHand", "cast_run": "Cast_Run",
 }
 const LOOPING: Array[String] = ["idle", "run", "tired", "stun", "airborne"]
-## A tagged kid shrinks to nothing where it was tagged, then grows back in the tagged box (seconds each).
-const SHRINK_TIME: float = 0.17
-const GROW_TIME: float = 0.17
+## The pop (owner): the kid, the can and the stun stars grow in with a little overshoot and shrink out with a small wind-up, in this many
+## seconds. A tagged kid pops out where it was tagged and pops in again in the tagged box; a morph pops the kid out and then the can in
+## (and back); the stars pop in and out the same way.
+const POP_IN_TIME: float = 0.24
+const POP_OUT_TIME: float = 0.18
+const POP_BACK: float = 1.70158
 ## The scale at the bottom of the shrink (a true zero breaks the skinned mesh's transform).
 const GONE_SCALE: float = 0.001
 const STAR_COUNT: int = 5
@@ -47,17 +48,15 @@ const STENCIL: int = 1
 static var _scenes: Dictionary[String, PackedScene] = {}
 static var _portraits: Dictionary[String, Texture2D] = {}
 static var _faces: Dictionary[String, Texture2D] = {}
-static var _shadow_texture: GradientTexture2D
 
 var character: CharacterDef
 ## A foot hit the ground (run cycle).
 signal footstep
 
 var _set: StringName = FALLBACK_SET
-var _body: Node3D  # flinches (pivot at the feet) and is what shrinks
+var _body: Node3D  # holds the model (pivot at the feet) and is what pops
 var _model: Node3D
 var _player: AnimationPlayer
-var _shadow: MeshInstance3D
 var _stars: Node3D
 var _can: Node3D
 var _facing: Vector2 = Vector2(0.0, 1.0)
@@ -79,7 +78,15 @@ var _last_position: Vector3 = Vector3.INF
 var _was_tagged: bool = false
 var _cast_serial: int = 0
 var _cast_played: int = 0
-var _hit_left: float = 0.0
+## How far each of these has popped in (0 gone, 1 whole) and which way it is going (up: popping in).
+var _kid_p: float = 1.0
+var _kid_up: bool = true
+var _can_p: float = 0.0
+var _can_up: bool = true
+var _stars_p: float = 0.0
+var _stars_up: bool = true
+## The tag pop's own scale (1 when the kid is not being tagged).
+var _tag_size: float = 1.0
 var _move_blend: float = 0.0
 var _last_step: int = 0
 var _anim: String = "idle"
@@ -125,11 +132,6 @@ func play_cast(lead: float = 0.0) -> void:
 ## the sim's cast tick. Measured on the GLB (CharacterDef.cast_release_standing / _moving).
 func cast_release(clip: String) -> float:
 	return character.cast_release_moving if clip == "cast_run" else character.cast_release_standing
-
-
-## Flinch (took damage).
-func play_hit() -> void:
-	_hit_left = HIT_TIME
 
 
 ## Draws a `color` outline round the kid: its material (a copy of the authored one, every setting kept) also marks the kid's
@@ -189,17 +191,15 @@ func ground_speed(world_position: Vector2, delta: float) -> float:
 func animate(delta: float, speed: float, state: PlayerState) -> void:
 	_clock += delta
 	_cast_left = maxf(0.0, _cast_left - delta)
-	_hit_left = maxf(0.0, _hit_left - delta)
 	var polymorphed: bool = state.effects.has(StatusEffects.Type.POLYMORPH)
-	_model.visible = not polymorphed
-	_shadow.visible = true
-	_can.visible = polymorphed
 	set_ghost(state.tagged)
+	_step_morph(delta, polymorphed)
 	if polymorphed:
 		pose = "can"
-		_stars.visible = false
+		_pop_stars(delta, false)
 		_can.rotation.z = sin(_clock * 10.0) * 0.1 * clampf(speed, 0.0, 1.0)
 		_can.position.y = absf(sin(_clock * 10.0)) * 0.08 * clampf(speed, 0.0, 1.0)
+		_apply_pops()
 		return
 	_move_blend = move_toward(_move_blend, 1.0 if speed > 0.3 else 0.0, delta * 6.0)
 	_tired = state.overclocked
@@ -234,14 +234,13 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 		pose = "idle"
 	_anim = anim
 	_drive(anim)
-	_flinch()
-	_stars.visible = anim == "stun" or pose == "airborne"
+	_pop_stars(delta, anim == "stun" or pose == "airborne")
 	_stars.rotation.y = _clock * 2.6
+	_apply_pops()
 
 
-## A tagged kid shrinks away (super fast, smooth) where it stood, then grows back to full size in
-## the tagged box, where the sim has already put it. View only: the sim never sees the scale. A kid that is
-## rescued (or created) while tagged just stands there at full size.
+## A tagged kid pops out where it stood, then pops in at full size in the tagged box, where the sim has already put it. View only: the
+## sim never sees the scale. A kid that is rescued (or created) while tagged just stands there at full size.
 func _step_vanish(delta: float, tagged: bool) -> void:
 	if tagged and not _was_tagged and _last_position != Vector3.INF:
 		_vanish = Vanish.SHRINK
@@ -251,34 +250,75 @@ func _step_vanish(delta: float, tagged: bool) -> void:
 	elif not tagged:
 		_vanish = Vanish.NONE
 	_was_tagged = tagged
-	var size: float = 1.0
+	_tag_size = 1.0
 	if _vanish == Vanish.SHRINK:
-		_vanish_time += delta / SHRINK_TIME
+		_vanish_time += delta / POP_OUT_TIME
 		position = _vanish_at
-		size = 1.0 - _smooth(_vanish_time)
+		_tag_size = pop_scale(1.0 - _vanish_time, false)
 		if _vanish_time >= 1.0:
 			_vanish = Vanish.GROW
 			_vanish_time = 0.0
-			size = 0.0
+			_tag_size = 0.0
 	elif _vanish == Vanish.GROW:
-		_vanish_time += delta / GROW_TIME
-		size = _smooth(_vanish_time)
+		_vanish_time += delta / POP_IN_TIME
+		_tag_size = pop_scale(_vanish_time, true)
 		if _vanish_time >= 1.0:
 			_vanish = Vanish.NONE
-			size = 1.0
-	_body.scale = Vector3.ONE if size >= 1.0 else Vector3.ONE * maxf(size, GONE_SCALE)
-	_shadow.scale = _body.scale
+			_tag_size = 1.0
 	_last_position = position
+
+
+## The morph swap: the kid pops out, and only then the can pops in; when the morph ends the can pops out first, then the kid pops in.
+func _step_morph(delta: float, polymorphed: bool) -> void:
+	var kid_target: float = 1.0 if not polymorphed and _can_p <= 0.0 else 0.0
+	var can_target: float = 1.0 if polymorphed and _kid_p <= 0.0 else 0.0
+	_kid_up = kid_target > _kid_p
+	_kid_p = _move_pop(_kid_p, kid_target, delta)
+	_can_up = can_target > _can_p
+	_can_p = _move_pop(_can_p, can_target, delta)
+
+
+## The stun stars pop in while the kid is stunned or airborne, and out when it stops.
+func _pop_stars(delta: float, show: bool) -> void:
+	var target: float = 1.0 if show else 0.0
+	_stars_up = target > _stars_p
+	_stars_p = _move_pop(_stars_p, target, delta)
+
+
+## Puts the pops on the nodes: the kid's body (the tag pop times the morph pop), the can and the stars. Nothing is drawn at zero.
+func _apply_pops() -> void:
+	var kid: float = _tag_size * pop_scale(_kid_p, _kid_up)
+	_body.scale = Vector3.ONE * maxf(kid, GONE_SCALE)
+	_model.visible = _kid_p > 0.0
+	var can: float = pop_scale(_can_p, _can_up)
+	_can.scale = Vector3.ONE * maxf(can, GONE_SCALE)
+	_can.visible = _can_p > 0.0
+	var stars: float = pop_scale(_stars_p, _stars_up)
+	_stars.scale = Vector3.ONE * maxf(stars, GONE_SCALE)
+	_stars.visible = _stars_p > 0.0
+
+
+## `p` moved toward `target` (0 or 1): up takes `POP_IN_TIME`, down `POP_OUT_TIME`.
+static func _move_pop(p: float, target: float, delta: float) -> float:
+	if target > p:
+		return minf(p + delta / POP_IN_TIME, target)
+	return maxf(p - delta / POP_OUT_TIME, target)
+
+
+## The scale of something `p` (0 to 1) of the way into popping in (`up`: overshoots a little and settles) or out (a small wind-up, then it
+## shrinks away).
+static func pop_scale(p: float, up: bool) -> float:
+	var x: float = clampf(p, 0.0, 1.0)
+	var c3: float = POP_BACK + 1.0
+	if up:
+		return 1.0 + c3 * pow(x - 1.0, 3.0) + POP_BACK * pow(x - 1.0, 2.0)
+	var t: float = 1.0 - x
+	return 1.0 - (c3 * t * t * t - POP_BACK * t * t)
 
 
 ## True while the tagged shrink or grow is playing.
 func is_vanishing() -> bool:
 	return _vanish != Vanish.NONE
-
-
-static func _smooth(t: float) -> float:
-	var x: float = clampf(t, 0.0, 1.0)
-	return x * x * (3.0 - 2.0 * x)
 
 
 ## Starts the clip for `anim` (blended from whatever was playing) when it changes, or again for a new cast.
@@ -306,13 +346,6 @@ func _cast_start(clip: String) -> float:
 
 func _clip_length(clip: String) -> float:
 	return _player.get_animation(clip).length
-
-
-## The body flinches back a little when hit.
-func _flinch() -> void:
-	var flinch: float = sin((1.0 - _hit_left / HIT_TIME) * PI) if _hit_left > 0.0 else 0.0
-	_body.rotation.x = flinch * 0.16
-	_body.position = Vector3(0.0, 0.0, flinch * 0.06)
 
 
 ## A kid's standing portrait for HUD cards (falls back to FALLBACK_SET).
@@ -354,20 +387,6 @@ static func _scene(set_id: StringName) -> PackedScene:
 
 
 func _build() -> void:
-	_shadow = MeshInstance3D.new()
-	_shadow.name = "Shadow"
-	var quad: QuadMesh = QuadMesh.new()
-	quad.size = Vector2.ONE * SHADOW_SIZE
-	quad.orientation = PlaneMesh.FACE_Y
-	var material: StandardMaterial3D = StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.albedo_texture = _blob_texture()
-	quad.material = material
-	_shadow.mesh = quad
-	_shadow.position.y = 0.04
-	_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(_shadow)
 	_body = Node3D.new()
 	_body.name = "Body"
 	add_child(_body)
@@ -421,18 +440,3 @@ func _build_stars() -> Node3D:
 		piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ring.add_child(piece)
 	return ring
-
-
-static func _blob_texture() -> GradientTexture2D:
-	if _shadow_texture == null:
-		var gradient: Gradient = Gradient.new()
-		gradient.colors = PackedColorArray([Color(0.0, 0.0, 0.0, 0.45), Color(0.0, 0.0, 0.0, 0.0)])
-		gradient.offsets = PackedFloat32Array([0.0, 1.0])
-		_shadow_texture = GradientTexture2D.new()
-		_shadow_texture.gradient = gradient
-		_shadow_texture.fill = GradientTexture2D.FILL_RADIAL
-		_shadow_texture.fill_from = Vector2(0.5, 0.5)
-		_shadow_texture.fill_to = Vector2(1.0, 0.5)
-		_shadow_texture.width = 64
-		_shadow_texture.height = 64
-	return _shadow_texture

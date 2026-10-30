@@ -179,6 +179,7 @@ func test_the_big_snip_hand_lands_on_the_strike() -> void:
 # ---- the hit burst ------------------------------------------------------------------
 
 func test_a_kid_who_is_hit_gets_a_short_burst() -> void:
+	Settings.set_reduced_motion(false)  # with Reduce motion nothing flies, so there is no burst to count
 	var practice: PracticeMatch = _practice()
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
 	assert_eq(fx.burst_count(), 0)

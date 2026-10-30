@@ -28,11 +28,13 @@ func test_kid_turns_into_a_can_and_greys_out() -> void:
 	var kid: KidModel = _kid(0)
 	var state: PlayerState = PlayerState.new()
 	state.effects.apply(StatusEffects.Type.POLYMORPH, 1.0)
-	kid.animate(0.1, 0.0, state)
+	for i: int in 30:
+		kid.animate(1.0 / 30.0, 0.0, state)
 	assert_true(kid.is_can())
 	state.effects.clear()
 	state.tagged = true
-	kid.animate(0.1, 0.0, state)
+	for i: int in 30:
+		kid.animate(1.0 / 30.0, 0.0, state)
 	assert_false(kid.is_can())
 	assert_true(kid.is_ghost(), "tagged kids wait greyed out on the sidewalk")
 
@@ -41,7 +43,8 @@ func test_the_polymorphed_can_is_the_owners_can_model_standing_on_the_ground() -
 	var kid: KidModel = _kid(0)
 	var state: PlayerState = PlayerState.new()
 	state.effects.apply(StatusEffects.Type.POLYMORPH, 1.0)
-	kid.animate(0.1, 0.0, state)
+	for i: int in 30:
+		kid.animate(1.0 / 30.0, 0.0, state)
 	assert_true(kid.is_can())
 	var meshes: Array[Node] = kid._can.find_children("*", "MeshInstance3D", true, false)
 	assert_eq(meshes.size(), 1, "the can model's one mesh, not code-drawn cylinders")

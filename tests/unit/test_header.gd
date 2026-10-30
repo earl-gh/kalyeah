@@ -121,7 +121,35 @@ func test_your_health_bar_turns_amber_then_red_as_it_empties() -> void:
 
 # ---- the interaction audit's P0 and P1 (docs/audits/2026-10-22-interaction-audit.md) ----
 
-func test_the_clock_says_time_because_it_counts_up_and_a_match_has_no_limit() -> void:
-	assert_eq(ClockChip.new().text(), "0:00")
+func test_the_clock_counts_down_to_the_rounds_overtime() -> void:
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
-	assert_eq(rules.overtime_after, 0.0, "no overtime: nothing says time is left")
+	assert_gt(rules.overtime_after, 0.0, "the round has a time: Time left counts down to overtime")
+	var chip: ClockChip = autofree(ClockChip.new()) as ClockChip
+	chip.show_time(rules.overtime_after, false, true)
+	assert_eq(chip.text(), "%d:%02d" % [int(rules.overtime_after) / 60, int(rules.overtime_after) % 60], "a full round starts at the whole time")
+	chip.show_time(rules.overtime_after - 1.2, false, true)
+	assert_eq(chip.text(), "%d:%02d" % [int(rules.overtime_after - 1.0) / 60, int(rules.overtime_after - 1.0) % 60], "and goes down (rounding up: 0:00 only when it is out)")
+	chip.show_time(0.0, true, true)
+	assert_eq(chip.text(), "0:00")
+	assert_eq(chip.caption_text(), "OVERTIME")
+	chip.show_time(10.4, false, false)
+	assert_eq(chip.text(), "0:10", "with overtime off the clock counts up, rounding down")
+
+
+func test_the_hud_clock_goes_down_as_the_round_goes_on_and_up_again_for_a_new_round() -> void:
+	var practice: PracticeMatch = await _practice()
+	var hud: MatchHud = practice.hud
+	var sim: MatchSim = practice.sim
+	sim.round_time = 0.0
+	hud.sync_score(sim, practice.local_team, 0.0, practice.local_id)
+	var start: int = hud.clock_chip.seconds
+	sim.round_time = 20.0
+	hud.sync_score(sim, practice.local_team, 0.0, practice.local_id)
+	assert_eq(start - hud.clock_chip.seconds, 20, "twenty seconds of play is twenty seconds off the clock")
+	sim.round_time = 0.0
+	hud.sync_score(sim, practice.local_team, 0.0, practice.local_id)
+	assert_eq(hud.clock_chip.seconds, start, "a new round starts it again")
+	sim.round_time = sim.rules.overtime_after + 5.0
+	hud.sync_score(sim, practice.local_team, 0.0, practice.local_id)
+	assert_eq(hud.clock_chip.seconds, 0)
+	assert_true(hud.clock_chip.overtime)

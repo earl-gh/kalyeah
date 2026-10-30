@@ -176,21 +176,21 @@ func _stars(fx: WeaponFxView) -> int:
 	return emitters
 
 
-func test_six_snips_on_one_kid_make_one_ring() -> void:
+func test_six_snips_on_one_kid_make_one_burst_and_no_ring() -> void:
 	var fx: WeaponFxView = _brawl(2)
 	for i: int in 6:
 		fx.context().sim.damage(1, 6)
 	fx.sync(fx.context().sim, DT)
-	assert_eq(fx.context().ground.live_rings(), 1, "one ring for six snips in one frame")
+	assert_eq(fx.context().ground.live_rings(), 0, "no ring on a hit (owner)")
 	assert_eq(_stars(fx), 1, "and one star burst")
 	assert_eq(fx.burst_count(), 1)
 
 
-func test_a_tick_has_no_ring() -> void:
+func test_a_tick_is_two_stars() -> void:
 	var fx: WeaponFxView = _brawl(2)
 	fx.context().sim.damage(1, 3)
 	fx.sync(fx.context().sim, DT)
-	assert_eq(fx.context().ground.live_rings(), 0, "a 3-damage tick has no ring")
+	assert_eq(fx.context().ground.live_rings(), 0, "no ring")
 	assert_eq(_stars(fx), 1, "just two stars")
 	assert_eq((fx.context().particles.busy()[0] as CPUParticles3D).amount, FxBursts.TICK_STARS)
 
@@ -201,7 +201,7 @@ func test_burst_cap_is_twelve() -> void:
 		fx.context().sim.damage(id, 10)
 	fx.sync(fx.context().sim, DT)
 	assert_lte(fx.burst_count(), FxBursts.MAX_LIVE, "at most twelve bursts at once")
-	assert_lte(fx.context().ground.live_rings(), FxBursts.MAX_LIVE)
+	assert_eq(fx.context().ground.live_rings(), 0, "and no rings")
 	for i: int in 10:
 		fx.sync(fx.context().sim, DT)
 	assert_eq(fx.burst_count(), 0, "and they are over in a third of a second")

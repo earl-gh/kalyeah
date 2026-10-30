@@ -96,4 +96,4 @@ func test_each_rescue_area_shows_its_countdown_then_ready() -> void:
 	_wait(sim, 2.5)
 	assert_eq(hud.rescue_area_text(0), "8")
 	sim.rescue_ready_left[1] = 0.0
-	assert_eq(hud.rescue_area_text(1), UiText.t(OverheadHud.AREA_READY))
+	assert_eq(hud.rescue_area_text(1), "", "no READY! word: a ready area is just the team's colour")

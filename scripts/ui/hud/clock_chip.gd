@@ -1,20 +1,27 @@
 class_name ClockChip
 extends Control
-## The match clock in the top right corner, laid out like Clash Royale's "Time left:" box: "Time left:" over the time (m:ss, counting up: a
-## match has no time limit), in a see-through dark box with a black outline. In overtime the caption turns gold and says OVERTIME. It only
-## draws; it never takes a touch.
+## The match clock in the top right corner, laid out like Clash Royale's "Time left:" box: "Time left:" over the time (m:ss, counting down
+## to the round's overtime; with overtime off in the rules it counts up), in a see-through dark box with a black outline. In overtime the
+## caption turns gold and says OVERTIME. It only draws; it never takes a touch.
 
 const TIME_FONT: int = UiMetrics.HEADLINE
 const CAPTION_FONT: int = UiMetrics.CAPTION
 ## Semi-transparent (the street shows through) with a black outline on its two open sides (owner: copy Clash Royale's box).
 const BOX_COLOR: Color = Color(0.04, 0.05, 0.08, 0.5)
 const BOX_OUTLINE: int = 3
-const PADDING: Vector2 = Vector2(16.0, 12.0)
+## The room the words keep from the box's top, its right side and its bottom (the box is flush with the screen's corner, so more at the
+## top and the right than at the open left side).
+const INNER_TOP: float = 16.0
+const INNER_RIGHT: float = 20.0
+const INNER_LEFT: float = 8.0
+const INNER_BOTTOM: float = 8.0
 const TEXT_OUTLINE: int = 5
 const LINE_GAP: float = 4.0
 
 var seconds: int = 0
 var overtime: bool = false
+## Whether `seconds` is what is left (it rounds up, so 0:00 shows only once the time is really out) or what has passed (it rounds down).
+var counting_down: bool = false
 
 
 func _init() -> void:
@@ -22,13 +29,15 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-## Whole seconds of play and whether the round is in overtime. Redraws only when the shown text changes.
-func show_time(match_time: float, in_overtime: bool) -> void:
-	var now: int = floori(match_time)
-	if now == seconds and in_overtime == overtime:
+## The seconds to show (what is left when `down`, else what has passed) and whether the round is in overtime. Redraws only when the shown
+## text changes.
+func show_time(value: float, in_overtime: bool, down: bool = false) -> void:
+	var now: int = ceili(value - 0.0001) if down else floori(value)
+	if now == seconds and in_overtime == overtime and down == counting_down:
 		return
 	seconds = now
 	overtime = in_overtime
+	counting_down = down
 	accessibility_name = "Time %s%s" % [text(), ", overtime" if overtime else ""]
 	queue_redraw()
 
@@ -69,8 +78,11 @@ func text_rects() -> Array[Rect2]:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var caption_size: Vector2 = font.get_string_size(caption_text(), HORIZONTAL_ALIGNMENT_LEFT, -1.0, CAPTION_FONT) + Vector2.ONE * TEXT_OUTLINE * 2.0
 	var time_size: Vector2 = font.get_string_size(text(), HORIZONTAL_ALIGNMENT_LEFT, -1.0, TIME_FONT) + Vector2.ONE * TEXT_OUTLINE * 2.0
-	var top: float = (size.y - caption_size.y - time_size.y - LINE_GAP) / 2.0
-	return [Rect2(Vector2((size.x - caption_size.x) / 2.0, top), caption_size), Rect2(Vector2((size.x - time_size.x) / 2.0, top + caption_size.y + LINE_GAP), time_size)]
+	# the words are centred in what is left once the inner room is taken off (more at the top and the right)
+	var room: Rect2 = Rect2(INNER_LEFT, INNER_TOP, size.x - INNER_LEFT - INNER_RIGHT, size.y - INNER_TOP - INNER_BOTTOM)
+	var top: float = room.position.y + (room.size.y - caption_size.y - time_size.y - LINE_GAP) / 2.0
+	var middle: float = room.get_center().x
+	return [Rect2(Vector2(middle - caption_size.x / 2.0, top), caption_size), Rect2(Vector2(middle - time_size.x / 2.0, top + caption_size.y + LINE_GAP), time_size)]
 
 
 ## White (or `color`) letters with a black outline.

@@ -146,6 +146,29 @@ func test_street_scene_builds_bases_boxes_cover_and_dressing() -> void:
 		assert_lt(zone[1].a, 0.5, "the fill stays faint")
 
 
+func test_a_rescue_area_is_white_while_it_counts_down_and_the_teams_colour_once_ready() -> void:
+	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
+	add_child(map)
+	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
+	var sim: MatchSim = MatchSim.new(rules, LAYOUT, 5)
+	sim.add_player(1, 0)
+	sim.add_player(2, 1)
+	map.set_own_side(sim.side_for_team(0))
+	var own_side: int = sim.side_for_team(0)
+	var enemy_side: int = sim.side_for_team(1)
+	sim.rescue_ready_left[0] = 5.0
+	sim.rescue_ready_left[1] = 0.0
+	map.sync_rescue(sim)
+	assert_true(Color(map.zone_colors(own_side)[2], 1.0).is_equal_approx(Color.WHITE), "counting down: the area is white")
+	assert_true(Color(map.zone_colors(own_side)[3], 1.0).is_equal_approx(Color.WHITE), "its fill too")
+	assert_true(Color(map.zone_colors(enemy_side)[2], 1.0).is_equal_approx(StreetMap.ENEMY_COLOR), "ready: their red")
+	assert_true(Color(map.zone_colors(own_side)[0], 1.0).is_equal_approx(StreetMap.OWN_COLOR), "the base itself keeps its colour")
+	assert_lt(map.zone_colors(own_side)[3].a, 0.5, "the fill stays faint")
+	sim.rescue_ready_left[0] = 0.0
+	map.sync_rescue(sim)
+	assert_true(Color(map.zone_colors(own_side)[2], 1.0).is_equal_approx(StreetMap.OWN_COLOR), "ready: your blue")
+
+
 func test_each_rescue_area_is_a_gently_rounded_rectangle_against_the_street_edge() -> void:
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var area: Rect2 = LAYOUT.rescue_rect(side)

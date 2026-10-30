@@ -12,9 +12,9 @@ const RATIO: float = CharactersPage.CARD.x / CharactersPage.CARD.y
 ## Cards on each side of the chosen one, so five are in view at once.
 const SIDE: int = 2
 const VISIBLE: int = 1 + 2 * SIDE
-## By how many places from the middle: the size of a card (1 = the chosen one) and how dark it is.
+## By how many places from the middle: the size of a card (1 = the chosen one). Every card behind the chosen one is dimmed the way the
+## mode models on the Play tab are (`MenuCarousel.SHADE_LOSS` darker and `MenuCarousel.BACK_ALPHA` see-through), one dim for all of them.
 const LEVEL_SCALE: Array[float] = [1.0, 0.8, 0.62]
-const LEVEL_SHADE: Array[float] = [1.0, 0.74, 0.52]
 ## The middles of two neighbours sit this share of the way between touching and stacked (below 1 they tuck behind each other a little).
 const OVERLAP: float = 0.82
 ## The room kept above and below the chosen card for its bob.
@@ -162,9 +162,9 @@ func _layout() -> void:
 		var drift: float = drift_phase * bob * (1.0 - away) if bob > 0.0 and not Settings.reduced_motion else 0.0
 		card.scale = Vector2.ONE * level(LEVEL_SCALE, places)
 		card.position = Vector2(size.x / 2.0 + signf(offset) * spread(places) * card_size.x - card_size.x / 2.0, (size.y - card_size.y) / 2.0 + drift)
-		var shade: float = level(LEVEL_SHADE, places)
+		var shade: float = 1.0 - MenuCarousel.SHADE_LOSS * away
 		var fade: float = clampf(float(SIDE + 1) - places, 0.0, 1.0)
-		card.modulate = Color(shade, shade, shade, fade)
+		card.modulate = Color(shade, shade, shade, fade * lerpf(1.0, MenuCarousel.BACK_ALPHA, away))
 		card.visible = fade > 0.0
 		card.z_index = 10 - int(roundf(minf(places, 3.0) * 3.0))
 		_float(card, away, drift_phase)
