@@ -163,7 +163,7 @@ func test_tapping_the_tag_opens_the_profile_sheet_and_saving_updates_the_tag() -
 	var field: LineEdit = screen.dialog.find_child("NameField", true, false) as LineEdit
 	field.text = "Ligaya"
 	(screen.dialog.find_child("Save", true, false) as Button).pressed.emit()
-	assert_eq(Session.player_name, "Ligaya")
+	assert_eq(Session.player_name, "LIGAYA", "a name is saved in capitals")
 	assert_eq(tag.name_label.text, "LIGAYA", "the tag shows the new name")
 
 
@@ -264,22 +264,65 @@ func test_a_name_keeps_only_letters_digits_and_a_few_marks_in_single_spaces() ->
 	assert_eq(Session.filter_name("a  b"), "a b")
 
 
-func test_the_profile_field_filters_as_you_type_and_counts_the_letters() -> void:
+func test_the_profile_field_filters_as_you_type_in_capitals_and_counts_at_the_top_right() -> void:
 	var screen: TitleScreen = _screen()
 	await wait_frames(2)
 	var card: MenuDialog = screen.open_name_editor()
+	await wait_frames(3)
 	var field: LineEdit = card.find_child("NameField", true, false) as LineEdit
 	assert_eq(field.max_length, 12, "the field takes twelve characters at most")
+	var count: Label = card.find_child("LetterCount", true, false) as Label
+	var tag: NameTag = card.find_child("Preview", true, false) as NameTag
 	field.text = "Ab"
 	field.text_changed.emit("Ab")
-	var counted: bool = false
-	for label: Node in card.find_children("*", "Label", true, false):
-		if (label as Label).text == "2 / 12 letters":
-			counted = true
-	assert_true(counted, "a live count: 2 / 12 letters")
+	assert_eq(field.text, "AB", "every typed letter is a capital")
+	assert_eq(count.text, "2/12", "a live count like 2/12, with no word after it")
+	assert_eq(count.get_parent(), tag.card, "on the tag")
+	assert_gt(count.get_global_rect().get_center().x, tag.card.get_global_rect().get_center().x, "at the right")
+	assert_lt(count.get_global_rect().get_center().y, tag.card.get_global_rect().position.y + 40.0, "at the top")
+	assert_lte(count.get_global_rect().end.x, tag.card.get_global_rect().end.x, "inside the tag")
 	field.text = "A<b>c"
 	field.text_changed.emit("A<b>c")
-	assert_eq(field.text, "Abc", "brackets are dropped as they are typed or pasted")
+	assert_eq(field.text, "ABC", "brackets are dropped as they are typed or pasted")
+	field.caret_column = 3
+	field.text = "abc"
+	field.caret_column = 1
+	field.text_changed.emit("abc")
+	assert_eq(field.caret_column, 1, "a capital made out of a typed letter leaves the caret where it was")
+
+
+func test_the_editor_opens_without_the_keyboard_and_a_tap_puts_the_caret_at_the_end() -> void:
+	var screen: TitleScreen = _screen()
+	await wait_frames(2)
+	var card: MenuDialog = screen.open_name_editor()
+	await wait_frames(4)
+	var field: LineEdit = card.find_child("NameField", true, false) as LineEdit
+	assert_false(field.has_focus(), "nothing is typing until the field is tapped")
+	field.grab_focus()
+	await wait_frames(2)
+	assert_eq(field.caret_column, field.text.length(), "the caret is at the end of the name")
+
+
+func test_the_editor_stays_above_the_keyboard() -> void:
+	var screen: TitleScreen = _screen()
+	await wait_frames(2)
+	var card: MenuDialog = screen.open_name_editor()
+	await wait_frames(4)
+	var screen_height: float = card.size.y
+	var save: Button = card.find_child("Save", true, false) as Button
+	card.set_keyboard_height(640.0)
+	await wait_frames(4)
+	assert_lte(card.panel.get_global_rect().end.y, card.get_global_rect().end.y - 640.0 + 1.0, "the sheet ends above the keyboard")
+	assert_lte(save.get_global_rect().end.y, card.get_global_rect().end.y - 640.0 + 1.0, "and so does Save")
+	card.set_keyboard_height(0.0)
+	await wait_frames(3)
+	assert_gt(card.panel.get_global_rect().end.y, screen_height - 640.0, "back in the middle when the keyboard goes")
+
+
+func test_the_tag_keeps_no_focus_ring_so_nothing_outlines_it_after_the_editor_closes() -> void:
+	var tag: NameTag = autofree(NameTag.new()) as NameTag
+	add_child(tag)
+	assert_eq(tag.tap_button.focus_mode, Control.FOCUS_NONE, "a finger needs no focus: nothing outlines the card after the editor closes")
 
 
 func test_row_one_sits_exactly_between_the_slot_and_the_name() -> void:

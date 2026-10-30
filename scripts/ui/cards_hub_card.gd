@@ -14,17 +14,15 @@ const FAN_PROTRUSION: float = 64.0
 const FAN_FROM_RIGHT: float = -24.0
 ## The text stops this far short of the front card's left edge.
 const TEXT_CLEARANCE: float = 20.0
-## The panel is the modals' frame, with no rim of its own (the text and fan are placed by hand); a press lightens it.
-const PRESS_LIGHTEN: float = 0.12
-## The banner is a bright blue panel (owner: grey was bland), with the modals' frame shape, shadow and a darker blue edge.
-const PANEL_COLOR: Color = Color("2f6fc4")
-const PANEL_EDGE: Color = Color("1a3f7a")
-## A light, tight drop shadow (smaller and fainter than a modal's: less blur to draw, and it does not muddy the backdrop).
-const SHADOW_SIZE: int = 6
-const SHADOW_COLOR: Color = Color(0.0, 0.03, 0.1, 0.3)
-const SHADOW_DROP: Vector2 = Vector2(0.0, 3.0)
-const PANEL_RADIUS: int = KalyeahTheme.MODAL_FRAME_RADIUS
-## The title is a headline in the modals' title colours; the detail is the plain line under it, white on the slate.
+## The banner is a polished 3D slab in a deep blue (owner): the game buttons' face with a lit top edge and gloss, sitting on a darker
+## lip (`UiSkin.button("navy")`). The lip is the banner's own depth, so it has no blur shadow to draw.
+const VARIANT: String = "navy"
+const LIP: float = float(UiSkin.BUTTON_LIP)
+## The outline round the slab, which the fan's mask stops inside of.
+const EDGE: float = 2.0
+## The slab uses the game buttons' own corner, so its texture is one the loading screen has already built.
+const PANEL_RADIUS: int = UiSkin.BUTTON_RADIUS
+## The title is a headline in the modals' title colours; the detail is the plain line under it, white on the deep blue.
 const TITLE_SIZE: int = UiMetrics.HEADLINE
 const DETAIL_SIZE: int = UiMetrics.DETAIL
 const TITLE_COLOR: Color = KalyeahTheme.MODAL_TITLE
@@ -36,7 +34,6 @@ var title_label: Label
 var detail_label: Label
 var fan: CardFan
 var words: VBoxContainer
-var panel_box: StyleBoxFlat
 ## How far this card's fan sits lower than the default, so less of it sticks out above the panel.
 var fan_drop: float = 0.0
 
@@ -56,13 +53,10 @@ func _build(title: String, detail: String, pictures: Array[Texture2D]) -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tooltip_text = title
 	accessibility_name = "%s: %s" % [title, detail]
-	panel_box = _blue_frame()
-	var pressed_box: StyleBoxFlat = _blue_frame()
-	pressed_box.bg_color = pressed_box.bg_color.lightened(PRESS_LIGHTEN)
 	for state: String in ["normal", "hover"]:
-		add_theme_stylebox_override(state, panel_box)
+		add_theme_stylebox_override(state, UiSkin.button(VARIANT, "normal", PANEL_RADIUS))
 	for state: String in ["pressed", "hover_pressed"]:
-		add_theme_stylebox_override(state, pressed_box)
+		add_theme_stylebox_override(state, UiSkin.button(VARIANT, "pressed", PANEL_RADIUS))
 	add_theme_stylebox_override("focus", UiSkin.focus_ring(PANEL_RADIUS))
 	UiKit.feel_press(self)
 	fan = CardFan.new()
@@ -79,7 +73,7 @@ func _build(title: String, detail: String, pictures: Array[Texture2D]) -> void:
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	words.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	words.offset_left = UiMetrics.PADDING
-	words.offset_bottom = -UiMetrics.PADDING
+	words.offset_bottom = -(UiMetrics.PADDING + LIP)
 	words.offset_top = UiMetrics.PADDING
 	# the text may run in under the fan, up to the front card's left edge at the height of its last row
 	var last_row: float = HEIGHT - UiMetrics.PADDING - fan_top()
@@ -105,16 +99,6 @@ func _build(title: String, detail: String, pictures: Array[Texture2D]) -> void:
 	_place_fan()
 
 
-func _blue_frame() -> StyleBoxFlat:
-	var box: StyleBoxFlat = KalyeahTheme.modal_frame(0.0)
-	box.bg_color = PANEL_COLOR
-	box.border_color = PANEL_EDGE
-	box.shadow_size = SHADOW_SIZE
-	box.shadow_color = SHADOW_COLOR
-	box.shadow_offset = SHADOW_DROP
-	return box
-
-
 ## The fan's top, in the card's own coordinates: above the panel by `FAN_PROTRUSION`.
 func fan_top() -> float:
 	return -protrusion()
@@ -134,7 +118,8 @@ func _notification(what: int) -> void:
 func _update_mask() -> void:
 	if not is_inside_tree():
 		return
-	fan.set_mask(get_global_transform(), size, float(PANEL_RADIUS), float(panel_box.get_border_width(SIDE_LEFT)))
+	# the fan is tucked into the slab's face: the mask stops where the face ends, above the lip
+	fan.set_mask(get_global_transform(), size - Vector2(0.0, LIP), float(PANEL_RADIUS), EDGE)
 
 
 ## How far the fan sticks out above the panel's top edge (a positive number), so a page can leave room for it.

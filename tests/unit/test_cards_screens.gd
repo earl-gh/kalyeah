@@ -144,7 +144,7 @@ func test_kids_have_two_rows_of_five_with_four_unknown_junjun_cards() -> void:
 	assert_eq(ys.size(), 2)
 
 
-func test_skills_have_three_rows_of_five_with_one_unknown_junjun_card() -> void:
+func test_skills_have_three_rows_of_five_with_one_unknown_bato_light_card() -> void:
 	var screen: TitleScreen = await _open(CodexPage.WEAPONS)
 	var skills: SkillsScreen = screen.codex_page.skills_screen
 	assert_eq(skills.cells.size(), 15)
@@ -160,7 +160,9 @@ func test_skills_have_three_rows_of_five_with_one_unknown_junjun_card() -> void:
 			assert_false(cell.disabled)
 		else:
 			assert_true(cell.disabled)
-			assert_eq(cell.picture.texture, CharactersPage.card_picture(&"junjun"))
+			assert_not_null(CardStyle.picture(&"bato_light"), "the light rock has a card picture")
+			assert_eq(cell.picture.texture, CardStyle.picture(&"bato_light"), "the locked skill card is drawn from the light rock's card")
+			assert_ne(cell.picture.texture, CharactersPage.card_picture(&"junjun"), "not a kid's card")
 			assert_not_null(cell.find_child("Unknown", true, false))
 	assert_eq(ys.size(), 3)
 	watch_signals(screen.card_drawer)

@@ -7,6 +7,8 @@ extends Control
 signal selected(index: int)
 ## Emitted after every layout (the cards moved a little, or a lot when scrolling): whatever follows the cards can follow now.
 signal laid_out
+## The cards started moving (a finger dragging them, or sliding to a card) or settled: whatever follows the cards can rest while they move.
+signal swiping_changed(active: bool)
 
 const CARD: Vector2 = ChoiceCard.CARD_SIZE
 ## Distance between the middles of two neighbouring cards: less than a card's width, so they overlap.
@@ -68,6 +70,8 @@ var cards: Array[Button] = []
 var _position: float = 0.0
 var _pressed: bool = false
 var _dragging: bool = false
+## True from the first drag, or from a slide to another card starting, until the cards have settled.
+var swiping: bool = false
 var _press_x: float = 0.0
 var _press_position: float = 0.0
 var _tween: Tween
@@ -184,14 +188,18 @@ func select(at: int, animate: bool = true, way: int = 0) -> void:
 	if _tween != null:
 		_tween.kill()
 	if animate and not Settings.reduced_motion:
+		if not is_equal_approx(goal, _position):
+			_set_swiping(true)
 		_tween = create_tween()
 		_tween.tween_method(_move_to, _position, goal, WRAP_TIME if wrap else SNAP_TIME).set_trans(Tween.TRANS_CUBIC if not wrap else Tween.TRANS_SINE).set_ease(Tween.EASE_OUT if not wrap else Tween.EASE_IN_OUT)
 		if wrap:
 			_tween.tween_callback(_settle)
+		_tween.tween_callback(_set_swiping.bind(false))
 	else:
 		_move_to(goal)
 		if wrap:
 			_settle()
+		_set_swiping(false)
 	if changed:
 		selected.emit(index)
 
@@ -210,6 +218,13 @@ func _free_steps(start: int, way: int) -> int:
 func _settle() -> void:
 	_position = float(index)
 	_layout()
+
+
+func _set_swiping(active: bool) -> void:
+	if swiping == active:
+		return
+	swiping = active
+	swiping_changed.emit(active)
 
 
 func _move_to(value: float) -> void:
@@ -264,6 +279,7 @@ func _on_accessibility_changed() -> void:
 		_pressed = false
 		_dragging = false
 		select(index, false)
+		_set_swiping(false)
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -304,6 +320,7 @@ func _pointer(event: InputEvent, taps: bool) -> void:
 		var travelled: float = motion.position.x - _press_x
 		if absf(travelled) > DRAG_START:
 			_dragging = true
+			_set_swiping(true)
 		var now: int = Time.get_ticks_msec()
 		if now > _last_msec:
 			_velocity = lerpf(_velocity, (motion.position.x - _last_x) / float(now - _last_msec), 0.5)

@@ -170,7 +170,7 @@ func test_the_profile_sheet_has_only_your_name_and_no_face_to_pick() -> void:
 	var card: MenuDialog = screen.open_name_editor()
 	assert_null(card.find_child("Faces", true, false), "no face selection at the main screen (owner)")
 	assert_eq(card.find_children("Face_*", "Button", true, false).size(), 0)
-	assert_eq((card.find_child("NameField", true, false) as LineEdit).text, "Ana")
+	assert_eq((card.find_child("NameField", true, false) as LineEdit).text, "ANA", "an existing name shows in capitals")
 
 
 func test_saving_changes_the_name_and_updates_the_name_tag() -> void:
@@ -179,7 +179,7 @@ func test_saving_changes_the_name_and_updates_the_name_tag() -> void:
 	var card: MenuDialog = screen.open_name_editor()
 	(card.find_child("NameField", true, false) as LineEdit).text = "Maria"
 	(card.find_child("Save", true, false) as Button).pressed.emit()
-	assert_eq(Session.player_name, "Maria")
+	assert_eq(Session.player_name, "MARIA")
 	assert_eq(Session.avatar_id, "junjun", "the face is the kid you played last: saving the name leaves it")
 	assert_false(card.is_open)
 	assert_eq(screen.name_tag.name_label.text, "MARIA")

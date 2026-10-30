@@ -29,5 +29,5 @@ static func restore(previous: WeakRef) -> void:
 	if previous == null:
 		return
 	var control: Control = previous.get_ref() as Control
-	if control != null and control.is_inside_tree() and control.is_visible_in_tree():
+	if control != null and control.focus_mode != Control.FOCUS_NONE and control.is_inside_tree() and control.is_visible_in_tree():
 		control.grab_focus()

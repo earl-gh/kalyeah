@@ -14,6 +14,8 @@ const NEON_BLUE: Color = Color("1f66ff")
 const NEON_STRENGTH: float = 0.7
 const NEON_SIZE: float = 0.55
 const NEON_LIFT: float = 0.5
+## How long the lights take to come back after a swipe (s).
+const LIGHT_FADE: float = 0.25
 ## Both lights are drawn between the mode models: above the ones behind the chosen model (`MenuCarousel` z 5) and below the chosen one
 ## (z 10), so they shine from behind the front model but not through the ones behind it (owner).
 const LIGHT_Z: int = 7
@@ -32,10 +34,11 @@ var motes: CPUParticles2D
 var lights_on: bool = true:
 	set(value):
 		lights_on = value
-		if glow != null:
-			glow.visible = value
-		if core != null:
-			core.visible = value
+		_sync_lights()
+## True while the main page's models are being swiped or settling: the two lights are off then (nothing to chase the moving
+## model), and fade back in on the chosen model once it has settled (`hold_lights`).
+var _held: bool = false
+var _fade: Tween
 ## False while a page or a sheet covers the screen: the motes rest (nothing under a cover needs redrawing).
 var ambient: bool = true:
 	set(value):
@@ -114,6 +117,38 @@ func _init() -> void:
 	_fit_motes()
 	Settings.accessibility_changed.connect(_apply_motion)
 	_apply_motion()
+
+
+## Holds the two lights off (`held`) while the models are swiped, and fades them back in when they are let go (at once with Reduce motion).
+func hold_lights(held: bool) -> void:
+	if held == _held:
+		return
+	_held = held
+	if _fade != null:
+		_fade.kill()
+	if held:
+		_set_light_alpha(0.0)
+	elif Settings.reduced_motion:
+		_set_light_alpha(1.0)
+	else:
+		_set_light_alpha(0.0)
+		_fade = create_tween()
+		_fade.tween_method(_set_light_alpha, 0.0, 1.0, LIGHT_FADE)
+	_sync_lights()
+
+
+func _set_light_alpha(alpha: float) -> void:
+	for light: TextureRect in [glow, core]:
+		if light != null:
+			light.self_modulate.a = alpha
+
+
+func _sync_lights() -> void:
+	var visible_now: bool = lights_on and not _held
+	if glow != null:
+		glow.visible = visible_now
+	if core != null:
+		core.visible = visible_now
 
 
 ## Lights the background from behind a card: the bright middle of the backlight sits at `centre` (this control's own pixels) and
