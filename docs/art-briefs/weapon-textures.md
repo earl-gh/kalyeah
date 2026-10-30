@@ -26,7 +26,7 @@ Current numbers: `python3 tools/art/check_weapon_texture.py --glbs assets/models
 | **can** | Keep your Marikina label, painted flat: yellow label with a red band, steel top as a blue-grey gradient with one white streak. |
 | **slipper** | A red sole with a white strap, a lighter top and a deeper red underside. Bigger, simpler marks (it is small on screen). |
 | **scissors** | Red handles; steel-blue blades (not black) with one white streak, a darker blue tone at the pivot. |
-| **trumpo** | Keep the red / navy / orange bands, flat, no wood grain; a warm light wood tip. |
+| **trumpo** | Palette-swapped by instruction to a Filipino top (pale orange-tan wood dome, cream rope cone; the old red / navy / orange bands are gone). The owner's full model: `trumpo-model.md`. |
 | **marble** | Sky-blue with a lighter swirl and one white highlight dot. |
 | **crumpled_paper** and **paper** | Cream (about 0.93), creases as a cool lavender tone, ruled lines as 1 colour (blue), a red margin line on the paper wall. |
 | **green_cross** | Grass green with a darker green edge, white wings with a cool grey underside. |
