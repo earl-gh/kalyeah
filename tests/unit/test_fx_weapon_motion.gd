@@ -545,8 +545,8 @@ func test_rm_trap_and_jacks_static() -> void:
 
 # ---- papel shield and langit lupa (the walls) -------------------------------------------------------------------------
 
-func _fade_of(body: Node3D) -> float:
-	return (body.find_children("*", "GeometryInstance3D", true, false)[0] as GeometryInstance3D).transparency
+func _fade_of(id: int) -> float:
+	return _fx.walls.fade_for(id)
 
 
 func test_paper_wall_unfolds_and_fades_on_time() -> void:
@@ -563,19 +563,23 @@ func test_paper_wall_unfolds_and_fades_on_time() -> void:
 	for i: int in 10:
 		_frame()
 	assert_almost_eq(body.scale.y, 1.0, 0.001, "and settles")
-	assert_eq(_fade_of(body), 0.0, "fully there through the middle of its time")
+	assert_eq(_fade_of(shield.id), 0.0, "fully there through the middle of its time")
 	var last: float = 0.0
 	while shield.time_left > FxWalls.PAPER_FADE_TIME:
 		_frame()
 	var fading: float = 0.0
 	while _sim.weapons.shields.size() > 0 and shield.time_left > DT * 1.5:
 		_frame()
-		var now: float = _fade_of(body)
+		var now: float = _fade_of(shield.id)
 		assert_gte(now, last, "the fade only deepens")
 		assert_almost_eq(now, 1.0 - FxWalls.paper_alpha(shield.time_left), 0.001, "an alpha ramp over its last %.1f s" % FxWalls.PAPER_FADE_TIME)
 		last = now
 		fading += 1.0
 	assert_gt(fading, 8.0, "it takes a good half second")
+	var picture: ShaderMaterial = (body.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
+	assert_true(picture.shader.code.contains("ALPHA = fade"), "the picture fades through its own material's alpha")
+	assert_almost_eq(picture.get_shader_parameter(&"fade") as float, 1.0 - last, 0.01, "which follows the ramp")
+	assert_not_null(picture.next_pass, "its contour fades with it")
 	assert_gt(last, 0.9, "and is all but gone as the sim's wall ends")
 	assert_eq(body.scale.y, 1.0, "it does not shrink or crumple: it fades")
 
@@ -678,7 +682,7 @@ func test_rm_walls() -> void:
 		assert_almost_eq(body.scale.y, 1.0, 0.001, "%s: up" % weapon)
 		while not _sim.weapons.shields.is_empty() and shield.time_left > 0.1:
 			_frame()
-		assert_true(body.scale.y < 1.0 or _fade_of(body) > 0.0, "%s: the end still shows (it says the wall is going)" % weapon)
+		assert_true(body.scale.y < 1.0 or _fade_of(shield.id) > 0.0, "%s: the end still shows (it says the wall is going)" % weapon)
 		assert_eq(_fx.particle_count(), 0)
 
 
@@ -874,5 +878,5 @@ func test_the_heal_cross_rises_from_the_head_to_above_it() -> void:
 		seen += 1
 	assert_gt(seen, 20, "the cross plays for about a second")
 	assert_lt(first, 1.0, "it begins at the head")
-	assert_gt(last, 1.15, "and ends above it")
+	assert_gt(last, 1.5, "and ends above it, clear of the name bar")
 	assert_eq(held, 6, "it holds there a moment at full size")

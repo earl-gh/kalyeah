@@ -14,12 +14,13 @@ const RING_TO: float = 1.6
 const RING_FRAMES: int = 10
 ## The cross: `CROSS_FRONT` m in front of the kid toward the camera, tipped to face it. Its middle is seen on screen at
 ## `CROSS_SCREEN_FROM` of the drawn kid's height (the head) at first and rises (cubic ease-out) over `CROSS_RISE_TIME` s to
-## `CROSS_SCREEN_TO` (above the head: the cross is about a quarter of a kid tall, so its foot clears the crown) (a thing in front of
+## `CROSS_SCREEN_TO` (above the head: the kid's name and health bar sit over its crown, from 1.1 to 1.4 of its height on screen, and a
+## cross behind the bar showed only its tips in the film strips, so it rises to clear the bar) (a thing in front of
 ## the kid is seen lower, so its height is solved from the camera). It pops in over `CROSS_POP_IN` s, holds full size until
 ## `CROSS_POP_OUT_AT` s, pops out and is gone, at size exactly 0, at `CROSS_END` s (with Reduce motion it holds `CROSS_HOLD_REDUCED`
 ## s above the head at full size and goes).
 const CROSS_SCREEN_FROM: float = 0.9
-const CROSS_SCREEN_TO: float = 1.2
+const CROSS_SCREEN_TO: float = 1.6
 const CROSS_RISE_TIME: float = 0.4
 const CROSS_POP_IN: float = 0.25
 const CROSS_POP_OUT_AT: float = 0.7

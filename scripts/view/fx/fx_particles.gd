@@ -44,8 +44,9 @@ const SCRAPS_SIZE: float = 0.6
 ## straight up, pulled down by `CRUMB_GRAVITY`), alive `CRUMB_LIFE` s: fully visible for the first `CRUMB_FADE_START` of that, then
 ## fading to nothing. Earth tones (`CRUMB_TONES`, picked per speck), never a team colour. A burst is `CRUMB_COUNT` specks
 ## (`CRUMB_COUNT_SMALL` for a bounce or a trickle).
-const CRUMB_SIZE_MIN: float = 0.08
-const CRUMB_SIZE_MAX: float = 0.14
+## (0.15 to 0.25 m, 3 to 5 px on a phone: at the first asked size, 0.08 to 0.14 m, a speck was under 2 px and could not be seen in the film strips.)
+const CRUMB_SIZE_MIN: float = 0.15
+const CRUMB_SIZE_MAX: float = 0.25
 const CRUMB_SPEED_MIN: float = 1.0
 const CRUMB_SPEED_MAX: float = 1.9
 const CRUMB_SPREAD: float = 45.0
@@ -407,15 +408,15 @@ static func _build_specs() -> void:
 	plus.mesh = FxKit.plus_quad()
 	plus.material = puff_material
 	plus.lifetime = 0.6
-	plus.speed_min = 5.8
-	plus.speed_max = 5.8
+	plus.speed_min = 7.8
+	plus.speed_max = 7.8
 	plus.direction = Vector3.UP
 	plus.spread = 0.0
 	plus.shape = CPUParticles3D.EMISSION_SHAPE_POINTS
 	plus.points = PackedVector3Array([Vector3(0.7, 0.5, 0.0), Vector3(-0.7, 0.5, 0.0), Vector3(0.5, 0.5, -0.5), Vector3(-0.5, 0.5, -0.5)])
 	plus.size = PLUS_SIZE
 	plus.size_curve = hold_shrink
-	plus.apex_bound = 4.1
+	plus.apex_bound = 5.3
 	_specs[Preset.PLUS] = plus
 	# CHIPS: little copies of the rock falling to the street.
 	var chips: Spec = Spec.new()

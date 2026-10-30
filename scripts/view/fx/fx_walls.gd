@@ -86,7 +86,12 @@ class Rec extends RefCounted:
 	var width_scale: float = 1.0
 	var fade: float = 0.0
 	var meshes: Array[GeometryInstance3D] = []
+	## The wall's own copies of its look materials (made when its fade begins).
+	var fade_materials: Array[ShaderMaterial] = []
 
+
+static var _fade_look: Shader
+static var _fade_outline: Shader
 
 var _ctx: FxContext
 var _recs: Dictionary[int, Rec] = {}
@@ -171,7 +176,7 @@ func _create(shield: WeaponSystem.Shield) -> Rec:
 		# a standing sheet of paper (the owner's model); its base sits on the ground
 		rec.body = WeaponModel.shield(width, SHIELD_HEIGHT, PAPER_THICKNESS)
 	rec.node.add_child(rec.body)
-	for node: Node in rec.body.find_children("*", "GeometryInstance3D", true, false):
+	for node: Node in rec.body.find_children("*", "MeshInstance3D", true, false):
 		rec.meshes.append(node as GeometryInstance3D)
 	rec.ribbon = MeshInstance3D.new()
 	rec.ribbon.name = "Ribbon"
@@ -304,13 +309,74 @@ func _crumb_beats(rec: Rec, shield: WeaponSystem.Shield, age: float) -> void:
 		_ctx.particles.puff(FxParticles.Preset.CRUMBS, Vector3(at.x, 0.0, at.y), FxParticles.CRUMB_COUNT, Color.WHITE, Vector2(rec.half_width * 2.0, CRUMB_DEPTH), rec.node.rotation.y)
 
 
-## Makes the wall's meshes `transparency` see-through (0 opaque, 1 gone); only touches them when it changes.
+## Fades the wall's picture: `transparency` 0 is opaque, 1 is gone. The first time it is asked, the wall's own meshes get copies of
+## their painted-look materials with an alpha (the shared looks stay opaque for every other model; the engine's per-instance
+## `transparency` is not drawn by the Compatibility renderer here, so the fade is in the material).
 func _set_fade(rec: Rec, transparency: float) -> void:
 	if is_equal_approx(rec.fade, transparency):
 		return
+	if rec.fade_materials.is_empty():
+		_make_fade_materials(rec)
 	rec.fade = transparency
-	for mesh: GeometryInstance3D in rec.meshes:
-		mesh.transparency = transparency
+	for material: ShaderMaterial in rec.fade_materials:
+		material.set_shader_parameter(&"fade", 1.0 - transparency)
+
+
+func _make_fade_materials(rec: Rec) -> void:
+	for node: GeometryInstance3D in rec.meshes:
+		var mesh: MeshInstance3D = node as MeshInstance3D
+		for surface: int in mesh.mesh.get_surface_count():
+			var look: ShaderMaterial = mesh.get_surface_override_material(surface) as ShaderMaterial
+			if look == null:
+				continue
+			var faded: ShaderMaterial = _faded_copy(look, fade_look_shader())
+			var outline: ShaderMaterial = look.next_pass as ShaderMaterial
+			if outline != null:
+				faded.next_pass = _faded_copy(outline, fade_outline_shader())
+				rec.fade_materials.append(faded.next_pass as ShaderMaterial)
+			rec.fade_materials.append(faded)
+			mesh.set_surface_override_material(surface, faded)
+
+
+## A copy of `source` (a weapon look or its contour) drawn by `shader`, every uniform carried over.
+static func _faded_copy(source: ShaderMaterial, shader: Shader) -> ShaderMaterial:
+	var copy: ShaderMaterial = ShaderMaterial.new()
+	copy.shader = shader
+	for uniform: Dictionary in source.shader.get_shader_uniform_list():
+		var key: StringName = uniform["name"] as StringName
+		var value: Variant = source.get_shader_parameter(key)
+		if value != null:
+			copy.set_shader_parameter(key, value)
+	return copy
+
+
+## The painted weapon look and its contour with a `fade` (1 opaque to 0 gone) written to ALPHA: the same shaders, patched once.
+static func fade_look_shader() -> Shader:
+	if _fade_look == null:
+		_fade_look = _with_alpha(WeaponLook.LOOK, "ALBEDO = mix(dark, lit, smoothstep(turn.x, turn.y, looks_up));")
+	return _fade_look
+
+
+static func fade_outline_shader() -> Shader:
+	if _fade_outline == null:
+		_fade_outline = _with_alpha(WeaponLook.OUTLINE, "ALBEDO = texture(albedo_texture, UV).rgb * ink;")
+	return _fade_outline
+
+
+static func _with_alpha(source: Shader, last_line: String) -> Shader:
+	var shader: Shader = Shader.new()
+	var code: String = source.code
+	assert(code.contains(last_line), "the weapon shader changed: patch the wall fade too")
+	code = code.replace(last_line, last_line + "\n\tALPHA = fade;")
+	code = code.replace("\nuniform sampler2D albedo_texture", "\nuniform float fade : hint_range(0.0, 1.0) = 1.0;\nuniform sampler2D albedo_texture")
+	shader.code = code
+	return shader
+
+
+## How see-through shield `id`'s picture is now (0 opaque, 1 gone), or 0 when there is none.
+func fade_for(id: int) -> float:
+	var rec: Rec = _recs.get(id) as Rec
+	return rec.fade if rec != null else 0.0
 
 
 ## The ribbon fades with its wall (`alpha` of its own look).
