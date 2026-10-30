@@ -226,7 +226,7 @@ func _create(zone: WeaponSystem.Zone) -> Rec:
 	_recs[rec.id] = rec
 	# the thrower's release streak toward the spot the throw lands on (not the meteor: it falls from the sky)
 	if zone.def != null and zone.def.id != &"bato_heavy" and zone.kind != WeaponSystem.ZoneKind.SLOW_ZONE and rec.origin != Vector2.INF:
-		FxRelease.play(_ctx, rec.origin, zone.center - rec.origin, zone.def.speed, FxLandings.CAN_HAND_Y)
+		FxRelease.play(_ctx, rec.origin, zone.center - rec.origin, zone.def.speed, FxLandings.CAN_HAND_Y, FxRelease.tint_for(zone.def.id))
 	return rec
 
 

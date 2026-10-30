@@ -118,27 +118,163 @@ func test_landing_squashes_overshoots_and_settles_on_exactly_one() -> void:
 	assert_eq(FxSquash.landing(1.3, float(FxSquash.landing_frames())), 1.0)
 
 
-func test_the_arc_and_the_trail_are_tapered_and_lighter_toward_the_tail() -> void:
-	for mesh: ArrayMesh in [FxKit.smear_tail(), FxKit.smear_arc()]:
-		var arrays: Array = mesh.surface_get_arrays(0)
-		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
-		var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR] as PackedColorArray
-		assert_eq(vertices.size(), colors.size())
-		# thickness at the ends (the first and last ring of the strip) against the middle: width = distance between a quad's side corners
-		var segments: int = vertices.size() / 6
-		var thick: Array[float] = []
-		for i: int in segments:
-			thick.append(vertices[i * 6 + 0].distance_to(vertices[i * 6 + 5]))
-		assert_almost_eq(thick[0], 0.0, 0.0001, "pointed at the start")
-		assert_lt(thick[segments - 1], thick[segments / 2], "thin at the end, thickest in the middle")
-		var alpha_start: float = colors[0].a
-		var alpha_end: float = colors[vertices.size() - 2].a
-		assert_almost_eq(alpha_start, FxKit.SMEAR_TAIL_ALPHA, 0.0001, "see-through at the tail")
-		assert_gt(alpha_end, 0.85, "nearly whole at the head")
-		for color: Color in colors:
-			assert_eq(color.r, 1.0, "white: no team colour is touched")
-			assert_eq(color.g, 1.0)
-			assert_eq(color.b, 1.0)
+## The quads of `mesh` as [start width, start centre] pairs (a quad is 6 vertices: corners a and d at its start), the main ribbon first.
+func _quads(mesh: ArrayMesh) -> Array[Dictionary]:
+	var arrays: Array = mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR] as PackedColorArray
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV] as PackedVector2Array
+	assert_eq(vertices.size(), colors.size())
+	assert_eq(vertices.size(), uvs.size(), "every vertex has a UV (the shader's along and across)")
+	var quads: Array[Dictionary] = []
+	for i: int in vertices.size() / 6:
+		quads.append({
+			"width": vertices[i * 6 + 0].distance_to(vertices[i * 6 + 5]),
+			"centre": (vertices[i * 6 + 0] + vertices[i * 6 + 5]) / 2.0,
+			"layer": colors[i * 6],
+			"u": uvs[i * 6].x,
+			"v0": uvs[i * 6].y,
+			"v1": uvs[i * 6 + 5].y,
+		})
+	return quads
+
+
+func test_the_trail_is_a_tapered_comet_with_echoes_that_bends_and_fans() -> void:
+	var quads: Array[Dictionary] = _quads(FxKit.smear_tail())
+	var main: Array = quads.filter(func(q: Dictionary) -> bool: return (q["layer"] as Color).r >= 1.0)
+	var echoes: Array = quads.filter(func(q: Dictionary) -> bool: return (q["layer"] as Color).r < 1.0)
+	assert_eq(main.size(), FxKit.SMEAR_POINTS, "the main ribbon has %d segments (it was 12 of a plain lens)" % FxKit.SMEAR_POINTS)
+	assert_eq(echoes.size(), 2 * FxKit.SMEAR_ECHO_POINTS, "two echo ribbons beside it")
+	assert_almost_eq(main[0]["width"] as float, 0.0, 0.0001, "pointed at the tail")
+	var widest: float = 0.0
+	for q: Dictionary in main:
+		widest = maxf(widest, q["width"] as float)
+	assert_almost_eq(widest, FxKit.STREAK_WIDTH, 0.01, "full width STREAK_WIDTH, which FxGround scales to the width asked")
+	assert_lt(main[main.size() - 1]["width"] as float, widest * 0.9, "rounded off at the head")
+	assert_gt(main[main.size() / 2]["width"] as float, main[2]["width"] as float, "it grows from the tail")
+	assert_eq(main[0]["u"], 0.0, "UV x runs from 0 at the tail")
+	assert_almost_eq(main[main.size() - 1]["u"] as float, 1.0 - 1.0 / FxKit.SMEAR_POINTS, 0.0001, "to 1 at the head")
+	assert_eq(main[3]["v0"], -1.0, "UV y runs across, -1 .. 1")
+	assert_eq(main[3]["v1"], 1.0)
+	# bent: the tail is off the line, the head on it
+	assert_gt(absf((main[0]["centre"] as Vector3).z), 0.01, "the tail bends sideways")
+	assert_lt(absf((main[main.size() - 1]["centre"] as Vector3).z), absf((main[0]["centre"] as Vector3).z), "the head is straighter")
+	# the echoes fan out toward their tails and are thinner and fainter than the main ribbon
+	for q: Dictionary in echoes:
+		assert_lt(q["width"] as float, FxKit.STREAK_WIDTH * 0.5, "echoes are thin")
+		assert_lt((q["layer"] as Color).r, 1.0, "and fainter")
+	assert_gt(absf((echoes[0]["centre"] as Vector3).z), absf((echoes[FxKit.SMEAR_ECHO_POINTS - 1]["centre"] as Vector3).z), "an echo is further from the line at its tail than at its head")
+	for q: Dictionary in main:
+		assert_eq((q["layer"] as Color).b, 1.0, "the main ribbon carries the speed lines")
+		assert_eq((q["layer"] as Color).g, 1.0, "and the bright leading edge")
+
+
+func test_the_arc_is_a_crescent_with_two_thinner_echo_arcs() -> void:
+	var quads: Array[Dictionary] = _quads(FxKit.smear_arc())
+	var main: Array = quads.filter(func(q: Dictionary) -> bool: return (q["layer"] as Color).r >= 1.0)
+	var echoes: Array = quads.filter(func(q: Dictionary) -> bool: return (q["layer"] as Color).r < 1.0)
+	assert_eq(main.size(), FxKit.SMEAR_POINTS)
+	assert_eq(echoes.size(), 2 * FxKit.SMEAR_ECHO_POINTS, "an arc just inside and one just outside")
+	assert_almost_eq(main[0]["width"] as float, 0.0, 0.0001, "pointed at the start of the sweep")
+	var widest: float = 0.0
+	var at: int = 0
+	for i: int in main.size():
+		if (main[i]["width"] as float) > widest:
+			widest = main[i]["width"] as float
+			at = i
+	assert_almost_eq(widest, FxKit.SMEAR_ARC_WIDTH, 0.03, "SMEAR_ARC_WIDTH per metre of radius at its thickest")
+	assert_gt(at, main.size() / 2 - 1, "thickest past the middle of the sweep, toward the bright leading edge")
+	assert_lt(main[main.size() - 1]["width"] as float, widest * 0.5, "and pointed again at its end")
+	var radii: Array[float] = []
+	for q: Dictionary in echoes:
+		radii.append((q["centre"] as Vector3).length())
+	assert_lt(radii.min(), 1.0, "one echo runs inside the main arc")
+	assert_gt(radii.max(), 1.0, "one outside")
+	for q: Dictionary in echoes:
+		assert_lt(q["width"] as float, widest * 0.5, "echo arcs are thinner")
+
+
+func test_the_streak_is_a_lens_pointed_at_both_ends() -> void:
+	var quads: Array[Dictionary] = _quads(FxKit.smear_streak())
+	assert_eq(quads.size(), FxKit.SMEAR_POINTS)
+	assert_almost_eq(quads[0]["width"] as float, 0.0, 0.0001)
+	assert_lt(quads[quads.size() - 1]["width"] as float, quads[quads.size() / 2]["width"] as float * 0.5)
+	assert_eq((quads[quads.size() - 1]["layer"] as Color).g, 0.0, "no leading edge: a smack has no front")
+
+
+func test_the_smear_shader_has_its_parameters_and_fetches_no_texture() -> void:
+	var shader: Shader = FxGround.SMEAR_SHADER
+	var names: Array[String] = []
+	for uniform: Dictionary in shader.get_shader_uniform_list():
+		names.append(uniform["name"] as String)
+	for expected: String in ["tint", "strength", "age", "seed"]:
+		assert_has(names, expected, "uniform %s" % expected)
+	assert_eq(names.size(), 4, "four uniforms and no more")
+	assert_false(shader.code.contains("texture("), "no texture fetch: a few ALU ops per fragment")
+	assert_false(shader.code.contains("hint_screen_texture"), "no screen read (GLES3 phones)")
+	assert_true(shader.code.contains("blend_mix") and shader.code.contains("unshaded"))
+	var ground: FxGround = FxGround.new()
+	add_child_autofree(ground)
+	ground.setup(FxContext.new())
+	assert_true(ground.smear(Transform3D.IDENTITY, &"tail", 1.0, Color.WHITE, 0.1))
+	var material: ShaderMaterial = ground.active_smears()[0].material_override as ShaderMaterial
+	assert_not_null(material, "a smear slot wears the shader material")
+	assert_same(material.shader, shader, "one shader for every slot")
+
+
+func test_a_smear_is_whole_for_a_while_then_fades_and_ages_through_its_life() -> void:
+	var ground: FxGround = FxGround.new()
+	var ctx: FxContext = FxContext.new()
+	add_child_autofree(ground)
+	ground.setup(ctx)
+	var life: float = FxSquash.TRAIL_FRAMES * DT
+	assert_true(ground.smear(Transform3D.IDENTITY, &"tail", 1.0, Color.WHITE, life))
+	var material: ShaderMaterial = ground.active_smears()[0].material_override as ShaderMaterial
+	var strengths: Array[float] = []
+	var ages: Array[float] = []
+	for i: int in FxSquash.TRAIL_FRAMES - 1:
+		ctx.time += DT
+		ground.step()
+		strengths.append(material.get_shader_parameter("strength") as float)
+		ages.append(material.get_shader_parameter("age") as float)
+	assert_almost_eq(strengths[0], FxGround.SMEAR_ALPHA, 0.0001, "whole after one frame (it holds for SMEAR_HOLD of its life)")
+	for i: int in range(1, strengths.size()):
+		assert_lte(strengths[i], strengths[i - 1] + 0.0001, "never brighter with age")
+		assert_gt(ages[i], ages[i - 1], "age runs forward (the shader wipes the tail with it)")
+	assert_lt(strengths[strengths.size() - 1], 0.5, "most of the way gone by the last frame")
+	# an echo's colour alpha is its strength: half as strong from the start
+	ground.smear(Transform3D.IDENTITY, &"arc", 1.0, Color(1.0, 1.0, 1.0, 0.5), life)
+	var echo: ShaderMaterial = ground.active_smears()[1].material_override as ShaderMaterial
+	assert_almost_eq(echo.get_shader_parameter("strength") as float, 0.5 * FxGround.SMEAR_ALPHA, 0.0001)
+
+
+func test_every_smearing_skill_has_its_own_band_colour_and_none_is_a_team_colour() -> void:
+	var skills: Array[StringName] = [&"tsinelas_light", &"bato_light", &"bato_heavy", &"lata", &"bola", &"gunting_light", &"trumpo", &"jacks", &"heal"]
+	var seen: Array[Color] = []
+	for weapon: StringName in skills:
+		var tint: Color = FxRelease.tint_for(weapon)
+		assert_ne(tint, FxRelease.TINT, "%s has a colour of its own" % weapon)
+		for other: Color in seen:
+			assert_gt(absf(tint.r - other.r) + absf(tint.g - other.g) + absf(tint.b - other.b), 0.1, "%s is told apart from the others" % weapon)
+		seen.append(tint)
+		# a team colour is a strong red or a strong blue: the band is never that
+		assert_false(tint.r > 0.8 and tint.g < 0.4 and tint.b < 0.4, "%s is not a red team colour" % weapon)
+		assert_false(tint.b > 0.8 and tint.r < 0.4 and tint.g < 0.6, "%s is not a blue team colour" % weapon)
+	assert_eq(FxRelease.tint_for(&"gunting_heavy"), FxRelease.tint_for(&"gunting_light"), "both snips are steel")
+	assert_eq(FxRelease.tint_for(&"unknown_weapon"), FxRelease.TINT, "anything else keeps the warm white")
+	assert_eq(FxRelease.tint_for(&"heal"), Palette.GUAVA, "the heal stays guava green")
+
+
+func test_a_cast_smear_wears_its_skills_band_colour() -> void:
+	for weapon: StringName in [&"tsinelas_light", &"bato_light", &"bola"]:
+		_setup(Vector2(0.0, 3.0))
+		_cast(weapon, Vector2(0.0, -1.0))
+		_fx.sync(_sim, DT)
+		var smears: Array[MeshInstance3D] = _fx.context().ground.active_smears()
+		assert_false(smears.is_empty(), "%s: a release trail" % weapon)
+		var material: ShaderMaterial = smears[0].material_override as ShaderMaterial
+		assert_eq(material.get_shader_parameter("tint") as Color, FxRelease.tint_for(weapon), "%s: its own band colour" % weapon)
+		_fx.queue_free()
 
 
 func test_trail_runs_from_tail_to_head_facing_the_camera() -> void:
@@ -425,11 +561,11 @@ func test_the_snip_arcs_sweep_alternately() -> void:
 		assert_ne(dets[i], dets[i - 1], "each snip sweeps the other way from the last")
 
 
-## The sweep (the sign of the determinant) of the arc just drawn: of the live ones, the most opaque.
+## The sweep (the sign of the determinant) of the arc just drawn: of the live ones, the strongest (youngest: they hold, then fade).
 func _newest_arc_determinant() -> float:
 	var newest: MeshInstance3D = null
 	for node: MeshInstance3D in _fx.context().ground.active_smears():
-		if newest == null or (node.material_override as StandardMaterial3D).albedo_color.a > (newest.material_override as StandardMaterial3D).albedo_color.a:
+		if newest == null or ((node.material_override as ShaderMaterial).get_shader_parameter("strength") as float) > ((newest.material_override as ShaderMaterial).get_shader_parameter("strength") as float):
 			newest = node
 	return newest.basis.determinant()
 

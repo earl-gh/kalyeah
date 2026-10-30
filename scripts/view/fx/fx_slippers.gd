@@ -16,7 +16,7 @@ const SLIPPER_SPIN_HEAVY: float = 2.0
 const HANG_S: float = 0.8
 const HANG_FRAMES: int = 3
 const SLAP_S: float = 1.3
-const SLAP_ARC: float = 0.8
+const SLAP_ARC: float = 1.2
 const SLAP_Y: float = 1.3
 const SLAP_FRAMES: int = 2
 const SLAP_REACH: float = 0.6
@@ -62,7 +62,7 @@ func slap(team: int, kid_radius: float, at: Vector2) -> void:
 	best.squash.basis = FxSquash.stretch_basis(dir, SLAP_S)
 	# the arc's middle crosses the path at the slipper, its centre `SLAP_ARC` m back along the flight
 	var place: Vector3 = Vector3(best.holder.position.x, SLAP_Y, best.holder.position.z) - dir * SLAP_ARC
-	_ctx.ground.smear(Transform3D(Basis(Vector3.UP, atan2(-dir.x, -dir.z)), place), &"arc", SLAP_ARC, Color.WHITE, SLAP_FRAMES * FxSquash.FRAME)
+	_ctx.ground.smear(Transform3D(Basis(Vector3.UP, atan2(-dir.x, -dir.z)), place), &"arc", SLAP_ARC, FxRelease.TINT_SLIPPER, SLAP_FRAMES * FxSquash.FRAME)
 
 
 ## The slipper frisbees out, hangs and turns back spinning the other way, and slaps what it hits.
@@ -97,7 +97,7 @@ func pose(rec: FxProjectiles.Rec, projectile: WeaponSystem.Projectile) -> void:
 		shape = FxSquash.stretch_basis(dir, FxSquash.landing(SLAP_S, since))
 	if rec.tail_due >= 0.0 and _ctx.time >= rec.tail_due:
 		rec.tail_due = -1.0
-		FxRelease.behind(_ctx, rec.holder.position, dir, rec.def.speed)
+		FxRelease.behind(_ctx, rec.holder.position, dir, rec.def.speed, FxSquash.TRAIL_FRAMES, FxRelease.WIDTH, FxRelease.TINT_SLIPPER)
 	rec.squash.basis = shape.scaled(Vector3.ONE * maxf(pop, 0.01))
 
 

@@ -11,6 +11,7 @@ const WARM_FRAMES: int = 2
 const WARM_KEY: int = -1
 var _warm_left: int = WARM_FRAMES
 var _warm_ring: int = -1
+var _warm_smear: int = -1
 var _ctx: FxContext
 var _view: WeaponFxView
 
@@ -35,12 +36,13 @@ func step(sim: MatchSim) -> void:
 	if _warm_left == 0:
 		_ctx.particles.release_clear()
 		_ctx.ground.drop_ring(_warm_ring)
+		_ctx.ground.drop_smear(_warm_smear)
 		_ctx.shadows.detach(WARM_KEY)
 
 
 func _warm(sim: MatchSim) -> void:
 	# building the shared meshes now (each is made on first ask)
-	var meshes: Array[ArrayMesh] = [FxKit.ring_mesh(), FxKit.disc_mesh(), FxKit.star_quad(), FxKit.plus_quad(), FxKit.flat_quad(), FxKit.puff_quad(), FxKit.smear_arc(), FxKit.smear_streak(), FxKit.crack_spokes()]
+	var meshes: Array[ArrayMesh] = [FxKit.ring_mesh(), FxKit.disc_mesh(), FxKit.star_quad(), FxKit.plus_quad(), FxKit.flat_quad(), FxKit.puff_quad(), FxKit.smear_arc(), FxKit.smear_streak(), FxKit.smear_tail(), FxKit.crack_spokes()]
 	meshes.clear()
 	for priority: int in [FxKit.PRIO_FILL, FxKit.PRIO_RIM, FxKit.PRIO_SHADOW, FxKit.PRIO_DECAL]:
 		FxKit.overlay(priority)
@@ -55,5 +57,6 @@ func _warm(sim: MatchSim) -> void:
 		_ctx.particles.puff(preset, at, 2, clear)
 	_warm_ring = _ctx.ground.ring(spot, 0.1, 0.1, clear, WARM_FRAMES * FxSquash.FRAME)
 	_ctx.ground.flash_disc(spot, 0.1, clear, 0.0, 0.0, FxSquash.FRAME)
+	_warm_smear = _ctx.ground.warm_smear(at, WARM_FRAMES * FxSquash.FRAME)
 	if _ctx.shadows.attach(WARM_KEY, 0.1, _view.local_team):
 		_ctx.shadows.place(WARM_KEY, spot, 0.0)

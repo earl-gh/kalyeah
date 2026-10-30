@@ -212,7 +212,7 @@ func _release(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 	var at: Vector2 = projectile.position
 	if rec.kind == &"top":
 		var head: Vector3 = Vector3(at.x, TOP_DROP + drawn_width(rec.def) * TOP_SHADOW, at.y)
-		_ctx.ground.trail(head + Vector3.UP * TOP_DROP_TRAIL, head, FxRelease.WIDTH, FxRelease.TINT, FxSquash.TRAIL_FRAMES * FxSquash.FRAME)
+		_ctx.ground.trail(head + Vector3.UP * TOP_DROP_TRAIL, head, FxRelease.WIDTH, FxRelease.tint_for(rec.def.id), FxSquash.TRAIL_FRAMES * FxSquash.FRAME)
 		return
 	var dir: Vector2 = projectile.direction
 	var thrower: PlayerState = _ctx.sim.players.get(projectile.owner_id) as PlayerState if _ctx.sim != null else null
@@ -220,7 +220,7 @@ func _release(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 		dir = thrower.facing
 	var from: Vector2 = thrower.position if thrower != null else at
 	var height: float = FxMotion.BOLA_HAND_Y if rec.kind == &"marble" else PROJECTILE_HEIGHT * _ctx.view_scale
-	FxRelease.play(_ctx, from, dir, rec.def.speed, height)
+	FxRelease.play(_ctx, from, dir, rec.def.speed, height, FxRelease.tint_for(rec.def.id))
 
 
 func _update(rec: Rec, projectile: WeaponSystem.Projectile) -> void:

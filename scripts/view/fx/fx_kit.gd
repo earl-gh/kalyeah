@@ -30,18 +30,37 @@ const PRIO_DECAL: int = 3
 const RIM: float = 0.22
 const RIM_ALPHA: float = 0.95
 const FILL_ALPHA: float = 0.4
-## The unit ring (radius 1) is this wide: a hit ring of 1 m radius has a 0.08 m line.
-const RING_WIDTH: float = 0.08
+## The unit ring (radius 1) is this wide: a hit ring of 1 m radius has a 0.14 m line (3-4 px at 720 wide: 0.08 was a hairline).
+const RING_WIDTH: float = 0.14
 ## Points round a full circle of the shared ring, disc and puff.
 const CIRCLE_POINTS: int = 32
-## The smear arc spans this many degrees (the snip's whole wedge) and is this wide at its middle, per metre of radius.
+## The smear arc spans this many degrees (the snip's whole wedge) and is this wide at its thickest, per metre of radius.
 const SMEAR_ARC_DEGREES: float = 60.0
-const SMEAR_ARC_WIDTH: float = 0.3
-const SMEAR_POINTS: int = 12
-## A smear is lighter toward its tail: its alpha runs from this share at the tail to whole at the head (the arc's start and
-## end of its sweep, the trail's far end and its head).
-const SMEAR_TAIL_ALPHA: float = 0.4
-## The smack streak: 1 m long, this wide at its middle.
+const SMEAR_ARC_WIDTH: float = 0.7
+## Points along a smear's main ribbon and along each of its thinner echo ribbons.
+const SMEAR_POINTS: int = 16
+const SMEAR_ECHO_POINTS: int = 8
+## A smear ribbon is a comet: it grows from a point at the tail to its full width at `SMEAR_HEAD_AT` of its length and rounds
+## off at the head (the trail, the smack streak); an arc is a crescent, thickest `ARC_PEAK_POWER` of the way along its sweep.
+const SMEAR_HEAD_AT: float = 0.82
+const ARC_PEAK_POWER: float = 1.4
+## The trail's tail bends sideways by this much (of the unit mesh's width, so a wider trail bends more): a swish, not a ruler.
+const SMEAR_BEND: float = 0.06
+## The echo ribbons beside a trail (two thin comets that fan out toward the tail, each starting part way along it) and behind
+## an arc (a thinner arc just inside the first and one just outside, each covering part of the sweep).
+const SMEAR_ECHO_OFFSET: float = 0.07
+const SMEAR_ECHO_FAN: float = 0.8
+const SMEAR_ECHO_HALF: float = 0.022
+const SMEAR_ECHO_FROM: Array[float] = [0.3, 0.5]
+const ARC_ECHO_RADIUS: Array[float] = [0.84, 1.14]
+const ARC_ECHO_SPAN: Array[Vector2] = [Vector2(0.0, 0.7), Vector2(0.25, 0.85)]
+const ARC_ECHO_WIDTH: float = 0.4
+## The vertex colour of a smear ribbon says which layer it is (shaders/fx_smear.gdshader): r = how strong, g = has a bright
+## leading edge, b = carries speed lines.
+const SMEAR_MAIN: Color = Color(1.0, 1.0, 1.0, 1.0)
+const SMEAR_MAIN_FLAT: Color = Color(1.0, 0.0, 1.0, 1.0)
+const SMEAR_ECHO: Color = Color(0.6, 0.0, 0.0, 1.0)
+## The smack streak / trail: 1 m long, this wide at its widest (`FxGround.smear` scales it to the width asked).
 const STREAK_WIDTH: float = 0.16
 ## The 4-point star: its tips at 0.5 (a 1 m star), its waist at this radius; white in the middle, sari yellow at the tips.
 const STAR_WAIST: float = 0.16
@@ -186,52 +205,48 @@ static func puff_quad() -> ArrayMesh:
 	return _meshes[&"puff"]
 
 
-## The snip's smear: a flat arc of radius 1 round the origin across `SMEAR_ARC_DEGREES`, centred on -Z, thickest in the
-## middle and thin at both ends, lighter at its start (-X, the tail of the sweep) than at its end (scaled to the reach; a node
-## turns it to the aim; mirror it in X to sweep the other way).
+## The snip's smear: flat crescents of radius 1 round the origin across `SMEAR_ARC_DEGREES`, centred on -Z (scaled to the
+## reach; a node turns it to the aim; mirror it in X to sweep the other way). The main one is thickest `ARC_PEAK_POWER` of the
+## way round, pointed at both ends, brightest at its end (+X, the head of the sweep); a thinner echo arc runs just inside it and
+## another just outside, each over part of the sweep (UV x: 0 at the start of the sweep .. 1 at its end).
 static func smear_arc() -> ArrayMesh:
 	if not _meshes.has(&"arc"):
 		var mesh: ImmediateMesh = _begin()
-		var half: float = deg_to_rad(SMEAR_ARC_DEGREES / 2.0)
-		for i: int in SMEAR_POINTS:
-			var t0: float = float(i) / float(SMEAR_POINTS)
-			var t1: float = float(i + 1) / float(SMEAR_POINTS)
-			var a0: float = lerpf(-half, half, t0)
-			var a1: float = lerpf(-half, half, t1)
-			var w0: float = SMEAR_ARC_WIDTH * sin(t0 * PI) / 2.0
-			var w1: float = SMEAR_ARC_WIDTH * sin(t1 * PI) / 2.0
-			var d0: Vector3 = Vector3(sin(a0), 0.0, -cos(a0))
-			var d1: Vector3 = Vector3(sin(a1), 0.0, -cos(a1))
-			_strip(mesh, d0 * (1.0 - w0), d1 * (1.0 - w1), d1 * (1.0 + w1), d0 * (1.0 + w0), _tail_color(t0), _tail_color(t1))
+		_arc_layer(mesh, 1.0, Vector2(0.0, 1.0), SMEAR_ARC_WIDTH / 2.0, SMEAR_POINTS, SMEAR_MAIN)
+		for i: int in ARC_ECHO_RADIUS.size():
+			_arc_layer(mesh, ARC_ECHO_RADIUS[i], ARC_ECHO_SPAN[i], ARC_ECHO_WIDTH * SMEAR_ARC_WIDTH / 2.0, SMEAR_ECHO_POINTS, SMEAR_ECHO)
 		_meshes[&"arc"] = bake(mesh)
 	return _meshes[&"arc"]
 
 
-## A smack streak: a flat 1 m lens along X (thick in the middle, pointed ends) on the ground plane.
+## A smack streak: a flat 1 m lens along X on the ground plane, pointed at both ends (UV x 0 at the ends, 1 in the middle).
 static func smear_streak() -> ArrayMesh:
 	if not _meshes.has(&"streak"):
 		var mesh: ImmediateMesh = _begin()
-		for i: int in SMEAR_POINTS:
-			var t0: float = float(i) / float(SMEAR_POINTS)
-			var t1: float = float(i + 1) / float(SMEAR_POINTS)
-			var w0: float = STREAK_WIDTH * sin(t0 * PI) / 2.0
-			var w1: float = STREAK_WIDTH * sin(t1 * PI) / 2.0
-			_quad(mesh, Vector3(t0 - 0.5, 0.0, -w0), Vector3(t1 - 0.5, 0.0, -w1), Vector3(t1 - 0.5, 0.0, w1), Vector3(t0 - 0.5, 0.0, w0), Color.WHITE)
+		var centres: PackedVector3Array = PackedVector3Array()
+		var sides: PackedVector3Array = PackedVector3Array()
+		var halves: PackedFloat32Array = PackedFloat32Array()
+		var us: PackedFloat32Array = PackedFloat32Array()
+		for i: int in SMEAR_POINTS + 1:
+			var t: float = float(i) / float(SMEAR_POINTS)
+			centres.append(Vector3(t - 0.5, 0.0, 0.0))
+			sides.append(Vector3.BACK)
+			halves.append(STREAK_WIDTH * sin(t * PI) / 2.0)
+			us.append(1.0 - absf(2.0 * t - 1.0))
+		_layer(mesh, centres, sides, halves, us, SMEAR_MAIN_FLAT)
 		_meshes[&"streak"] = bake(mesh)
 	return _meshes[&"streak"]
 
 
-## The trail behind a fast thing: the same 1 m lens along X, its tail at -X and its head at +X (the way it moves), lighter
-## toward the tail (`SMEAR_TAIL_ALPHA` to whole).
+## The trail behind a fast thing: a flat 1 m comet along X, its tail at -X (a point, bent sideways by `SMEAR_BEND`) and its
+## head at +X (the way it moves, rounded off), with two thin echo comets fanning out beside it (UV x 0 at the tail .. 1 at the head).
 static func smear_tail() -> ArrayMesh:
 	if not _meshes.has(&"tail"):
 		var mesh: ImmediateMesh = _begin()
-		for i: int in SMEAR_POINTS:
-			var t0: float = float(i) / float(SMEAR_POINTS)
-			var t1: float = float(i + 1) / float(SMEAR_POINTS)
-			var w0: float = STREAK_WIDTH * sin(t0 * PI) / 2.0
-			var w1: float = STREAK_WIDTH * sin(t1 * PI) / 2.0
-			_strip(mesh, Vector3(t0 - 0.5, 0.0, -w0), Vector3(t1 - 0.5, 0.0, -w1), Vector3(t1 - 0.5, 0.0, w1), Vector3(t0 - 0.5, 0.0, w0), _tail_color(t0), _tail_color(t1))
+		_comet(mesh, 0.0, 0.0, STREAK_WIDTH / 2.0, SMEAR_POINTS, SMEAR_MAIN)
+		for i: int in SMEAR_ECHO_FROM.size():
+			var side: float = -1.0 if i == 0 else 1.0
+			_comet(mesh, SMEAR_ECHO_FROM[i], side * SMEAR_ECHO_OFFSET, SMEAR_ECHO_HALF, SMEAR_ECHO_POINTS, SMEAR_ECHO)
 		_meshes[&"tail"] = bake(mesh)
 	return _meshes[&"tail"]
 
@@ -284,19 +299,74 @@ static func _quad(mesh: ImmediateMesh, a: Vector3, b: Vector3, c: Vector3, d: Ve
 		_vertex(mesh, corner, color)
 
 
-## A quad whose corners a and d are `c0` and b and c are `c1` (a colour step along a ribbon).
-static func _strip(mesh: ImmediateMesh, a: Vector3, b: Vector3, c: Vector3, d: Vector3, c0: Color, c1: Color) -> void:
-	_vertex(mesh, a, c0)
-	_vertex(mesh, b, c1)
-	_vertex(mesh, c, c1)
-	_vertex(mesh, a, c0)
-	_vertex(mesh, c, c1)
-	_vertex(mesh, d, c0)
+## One vertex of a smear ribbon: `layer` (vertex colour) and the UV (x along the ribbon, y across: -1 .. 1).
+static func _smear_vertex(mesh: ImmediateMesh, at: Vector3, uv: Vector2, layer: Color) -> void:
+	mesh.surface_set_uv(uv)
+	_vertex(mesh, at, layer)
 
 
-## White at `t` (0 tail .. 1 head) of a smear ribbon, lighter toward the tail.
-static func _tail_color(t: float) -> Color:
-	return Color(1.0, 1.0, 1.0, lerpf(SMEAR_TAIL_ALPHA, 1.0, t))
+## A ribbon along `centres` (`sides` the unit direction across at each, `halves` its half width there, `us` its UV x there).
+static func _layer(mesh: ImmediateMesh, centres: PackedVector3Array, sides: PackedVector3Array, halves: PackedFloat32Array, us: PackedFloat32Array, layer: Color) -> void:
+	for i: int in centres.size() - 1:
+		var a: Vector3 = centres[i] - sides[i] * halves[i]
+		var d: Vector3 = centres[i] + sides[i] * halves[i]
+		var b: Vector3 = centres[i + 1] - sides[i + 1] * halves[i + 1]
+		var c: Vector3 = centres[i + 1] + sides[i + 1] * halves[i + 1]
+		var ua: Vector2 = Vector2(us[i], -1.0)
+		var ud: Vector2 = Vector2(us[i], 1.0)
+		var ub: Vector2 = Vector2(us[i + 1], -1.0)
+		var uc: Vector2 = Vector2(us[i + 1], 1.0)
+		_smear_vertex(mesh, a, ua, layer)
+		_smear_vertex(mesh, b, ub, layer)
+		_smear_vertex(mesh, c, uc, layer)
+		_smear_vertex(mesh, a, ua, layer)
+		_smear_vertex(mesh, c, uc, layer)
+		_smear_vertex(mesh, d, ud, layer)
+
+
+## The comet profile: 0 at the tail, rising to 1 at `SMEAR_HEAD_AT` of the way, then rounded off to 0 at the head.
+static func comet_width(t: float) -> float:
+	if t < SMEAR_HEAD_AT:
+		return pow(t / SMEAR_HEAD_AT, 0.8)
+	var round_off: float = (t - SMEAR_HEAD_AT) / (1.0 - SMEAR_HEAD_AT)
+	return sqrt(maxf(1.0 - round_off * round_off, 0.0))
+
+
+## A comet along X from `from` (0..1 of the unit length) to the head, `offset` to the side at the head (fanning out toward the
+## tail by `SMEAR_ECHO_FAN`, and bent sideways by `SMEAR_BEND` at the tail), `half` wide at its fullest.
+static func _comet(mesh: ImmediateMesh, from: float, offset: float, half: float, points: int, layer: Color) -> void:
+	var centres: PackedVector3Array = PackedVector3Array()
+	var sides: PackedVector3Array = PackedVector3Array()
+	var halves: PackedFloat32Array = PackedFloat32Array()
+	var us: PackedFloat32Array = PackedFloat32Array()
+	for i: int in points + 1:
+		var s: float = float(i) / float(points)
+		var t: float = lerpf(from, 1.0, s)
+		var behind: float = 1.0 - t
+		var z: float = SMEAR_BEND * behind * behind + offset * (1.0 + SMEAR_ECHO_FAN * behind)
+		centres.append(Vector3(t - 0.5, 0.0, z))
+		sides.append(Vector3.BACK)
+		halves.append(half * comet_width(s))
+		us.append(s)
+	_layer(mesh, centres, sides, halves, us, layer)
+
+
+## A crescent round the origin at `radius`, over `span` (of the arc's sweep, 0 start .. 1 end), `half` wide at its fullest.
+static func _arc_layer(mesh: ImmediateMesh, radius: float, span: Vector2, half: float, points: int, layer: Color) -> void:
+	var centres: PackedVector3Array = PackedVector3Array()
+	var sides: PackedVector3Array = PackedVector3Array()
+	var halves: PackedFloat32Array = PackedFloat32Array()
+	var us: PackedFloat32Array = PackedFloat32Array()
+	var reach: float = deg_to_rad(SMEAR_ARC_DEGREES / 2.0)
+	for i: int in points + 1:
+		var s: float = float(i) / float(points)
+		var angle: float = lerpf(-reach, reach, lerpf(span.x, span.y, s))
+		var out: Vector3 = Vector3(sin(angle), 0.0, -cos(angle))
+		centres.append(out * radius)
+		sides.append(out)
+		halves.append(half * sin(PI * pow(s, ARC_PEAK_POWER)))
+		us.append(s)
+	_layer(mesh, centres, sides, halves, us, layer)
 
 
 ## A plus of half-length `half` and arm thickness `arm` in the XY plane at depth `z`.

@@ -45,7 +45,7 @@ const SHUDDER: float = 0.05
 const BLOCK_CHIPS: int = 2
 const REACT_FRAMES: int = 4
 ## The smear star where a projectile hit the paper: this long (metres), this long-lived (frames).
-const BLOCK_STAR: float = 0.8
+const BLOCK_STAR: float = 1.4
 const BLOCK_STAR_FRAMES: int = 3
 
 
@@ -128,7 +128,7 @@ func on_projectile_gone(_def: WeaponDef, team: int, at: Vector3) -> void:
 			_ctx.particles.puff(FxParticles.Preset.CHIPS, bits + Vector3(0.0, SOIL_HEIGHT / 2.0, 0.0), BLOCK_CHIPS)
 		else:
 			var star: Transform3D = Transform3D(Basis(Vector3.UP, -rec.along.angle()), Vector3(nearest.x, at.y, nearest.y))
-			_ctx.ground.smear(star, &"streak", BLOCK_STAR, Color.WHITE, BLOCK_STAR_FRAMES * FxSquash.FRAME)
+			_ctx.ground.smear(star, &"streak", BLOCK_STAR, FxRelease.TINT_PAPER, BLOCK_STAR_FRAMES * FxSquash.FRAME)
 			_ctx.particles.puff(FxParticles.Preset.PAPER, bits, PAPER_BITS)
 
 
