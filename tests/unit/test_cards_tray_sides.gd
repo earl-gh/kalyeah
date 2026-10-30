@@ -87,9 +87,8 @@ func test_in_sides_the_four_cards_stand_in_one_column_on_the_right_hand_side_top
 			assert_false(rects[slot].intersects(rects[slot - 1]), "no two cards overlap")
 	assert_true(hand.bar_rect.size.x > 400.0 and Rect2(Vector2.ZERO, hand.size).encloses(hand.bar_rect), "the bar runs along the strip")
 	assert_lt(hand.next_rect.end.y, rects[0].position.y, "NEXT above the cards")
-	assert_lt(hand.chat_rect.end.y, hand.next_rect.position.y, "the chat button above NEXT")
-	assert_gte(hand.next_rect.position.x, 720.0 - CardHand.SIDES_COLUMN, "both in the column")
-	assert_true(hand.column_rect().encloses(rects[3]) and hand.column_rect().encloses(hand.chat_rect))
+	assert_gte(hand.next_rect.position.x, 720.0 - CardHand.SIDES_COLUMN, "NEXT in the column")
+	assert_true(hand.column_rect().encloses(rects[3]) and hand.column_rect().encloses(hand.next_rect))
 
 
 func test_a_left_handed_player_gets_the_column_on_the_left() -> void:
@@ -104,7 +103,7 @@ func test_a_left_handed_player_gets_the_column_on_the_left() -> void:
 func test_on_a_short_screen_the_cards_get_smaller_to_keep_the_column_under_the_header() -> void:
 	var hand: CardHand = _hand(true)
 	var screen_height: float = hand.get_viewport_rect().size.y
-	var top: float = screen_height - hand.size.y + hand.chat_rect.position.y
+	var top: float = screen_height - hand.size.y + hand.column_rect().position.y
 	assert_gte(top, 0.0, "the column starts on the screen")
 
 
@@ -255,4 +254,74 @@ func test_the_flipped_view_pushes_the_street_the_same_way() -> void:
 	var rect: Rect2 = _street_rect(camera, practice.layout)
 	var width: float = practice.get_viewport().get_visible_rect().size.x
 	assert_lte(rect.end.x, width - CardHand.SIDES_COLUMN + 1.0, "the other team's view too")
+	get_window().size = saved_size
+
+
+## The group the ice water bar draws: the drop (over the bar's start), the bar and the "Max: 10" caption's outline, as one rect.
+func _ice_group(hand: CardHand) -> Rect2:
+	var drop: Rect2 = HandArt.ice_rect(Vector2(hand.bar_rect.position.x, hand.bar_rect.get_center().y - CardHand.BAR_BAG * CardHand.BAG_RISE), CardHand.BAR_BAG)
+	var caption_bottom: float = CardHand.max_caption_baseline(hand.bar_rect) + float(CardHand.MAX_OUTLINE) / 2.0
+	var group: Rect2 = drop.merge(hand.bar_rect)
+	return group.expand(Vector2(group.position.x, caption_bottom))
+
+
+func test_in_sides_the_chat_button_sits_in_the_bottom_strip_beside_the_bar_in_the_cards_column() -> void:
+	for mirrored: bool in [false, true]:
+		var hand: CardHand = _hand(true, mirrored)
+		var strip: Rect2 = Rect2(Vector2.ZERO, hand.size)
+		var chat: Rect2 = hand.chat_rect
+		assert_true(strip.encloses(chat), "the chat button is inside the strip (mirrored %s): %s" % [mirrored, chat])
+		assert_true(hand.column_rect().position.x <= chat.position.x and hand.column_rect().end.x >= chat.end.x, "in the cards' column")
+		assert_almost_eq(chat.get_center().x, hand.next_rect.get_center().x, 0.6, "straight under NEXT and the cards")
+		assert_false(chat.intersects(hand.bar_rect), "no overlap with the bar")
+		assert_false(chat.intersects(_ice_group(hand)), "nor with the drop or the Max caption")
+		assert_gte(minf(chat.size.x, chat.size.y), UiMetrics.MIN_TARGET, "a full touch target")
+		for rect: Rect2 in hand.card_rects:
+			assert_false(chat.intersects(rect), "and not over a card")
+		assert_lt(hand.next_rect.end.y, hand.card_rects[0].position.y, "NEXT stays above the cards")
+
+
+func test_the_ice_water_group_keeps_an_even_padding_inside_the_strip_under_the_chamfer() -> void:
+	for mirrored: bool in [false, true]:
+		var hand: CardHand = _hand(true, mirrored)
+		var group: Rect2 = _ice_group(hand)
+		var inner: Rect2 = hand.sides_inner()
+		assert_almost_eq(inner.position.y, ConsolePanel.BEVEL + CardHand.SIDES_PAD, 0.001, "the padding starts under the tray's chamfer")
+		assert_gte(group.position.y - ConsolePanel.BEVEL, CardHand.SIDES_PAD - 0.01, "top: the padding under the chamfer (mirrored %s)" % mirrored)
+		assert_gte(hand.size.y - group.end.y, CardHand.SIDES_PAD - 0.01, "bottom padding")
+		assert_gte(group.position.x, CardHand.SIDES_PAD - 0.01, "left padding")
+		assert_lte(group.end.x + 0.01, hand.size.x - CardHand.SIDES_PAD + 0.01, "right padding")
+		assert_lte(absf((group.position.y - ConsolePanel.BEVEL) - (hand.size.y - group.end.y)), 1.0, "the top and bottom paddings are even (within a pixel)")
+		assert_gt(hand.bar_rect.size.x, 300.0, "the bar still runs along the strip")
+		assert_almost_eq(hand.bar_rect.size.y, CardHand.BAR_HEIGHT, 0.001, "at full size")
+
+
+func test_the_bottom_tray_layout_is_what_it_was() -> void:
+	var hand: CardHand = _hand(false)
+	hand.size = Vector2(720.0, MatchHud.CONSOLE_HEIGHT)
+	hand._layout()
+	assert_eq(hand.bar_rect, Rect2(Vector2(CardHand.COLUMN + CardHand.SIDE + CardHand.BAR_BAG * HandArt.ICE_DRAW_ASPECT / 2.0, CardHand.ROW_TOP + CardHand.card_size(720.0).y + CardHand.BAR_GAP), Vector2(hand.bar_rect.size.x, CardHand.BAR_HEIGHT)))
+	assert_eq(hand.chat_rect.size, Vector2(CardHand.CHAT_HEIGHT * HandArt.CHAT_ASPECT, CardHand.CHAT_HEIGHT))
+	assert_lt(hand.chat_rect.end.y, hand.next_rect.position.y, "Bottom: the chat button above NEXT, outside the tray")
+
+
+func test_the_chat_button_node_stands_in_the_strip_on_the_screen_at_both_phone_sizes() -> void:
+	var saved_size: Vector2i = get_window().size
+	Settings.set_cards_tray(&"sides")
+	for window_size: Vector2i in [Vector2i(720, 1280), Vector2i(390, 844)]:
+		get_window().size = window_size
+		var practice: PracticeMatch = await _practice()
+		var hud: MatchHud = practice.hud
+		hud.hand.visible = true
+		hud.chat.visible = true
+		for inset: float in [0.0, 40.0]:
+			hud.set_bottom_inset(inset)
+			hud.layout_controls()
+			var strip: Rect2 = hud.hand.get_global_rect()
+			var chat: Rect2 = hud.chat.get_global_rect()
+			assert_true(strip.grow(0.5).encloses(chat), "%s, inset %d: the chat button %s is inside the strip %s" % [window_size, inset, chat, strip])
+			assert_almost_eq(chat.get_center().x, hud.hand.get_global_rect().position.x + hud.hand.next_rect.get_center().x, 0.6)
+			assert_gte(hud.size.y - inset - chat.end.y, 0.0, "above the home bar")
+			assert_true(hud.console.get_global_rect().encloses(chat) or hud.console.get_global_rect().grow(0.5).encloses(chat), "on the blue plate")
+		hud.set_bottom_inset(0.0)
 	get_window().size = saved_size

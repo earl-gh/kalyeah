@@ -21,7 +21,7 @@ static func apply(hud: MatchHud) -> void:
 		hud.hand.set_mirrored(Settings.left_handed)
 		hud.console.set_column(CardHand.COLUMN if hud.hand.visible and not hud.sides_tray() else 0.0, not Settings.left_handed)
 	if hud.chat != null:
-		# the chat button rides above NEXT, outside the tray, on the same side as NEXT
+		# the chat button rides above NEXT, outside the tray, on the same side as NEXT (Sides: in the strip, `chat_rect` says where)
 		var at: Vector2 = hud.hand.chat_rect.position
 		var top: float = -hud.console_height() + at.y
 		hud._place(hud.chat, Vector4(0, 1, 0, 1), Vector4(at.x, top, at.x + hud.hand.chat_rect.size.x, top + hud.hand.chat_rect.size.y))

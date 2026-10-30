@@ -64,7 +64,7 @@ var _capture_alerting: bool = false
 var pulse: HurtPulse
 ## The tray at the bottom (it only draws).
 var console: ConsolePanel
-## The quick chat button above NEXT, outside the tray; what it says shows over your kid.
+## The quick chat button: above NEXT outside the tray, or in the Sides layout's strip beside the ice water bar; what it says shows over your kid.
 var chat: QuickChat
 ## Quick chat is for playing with others: off in offline practice (nobody to talk to).
 var chat_enabled: bool = true
