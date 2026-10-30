@@ -111,7 +111,7 @@ func meteor(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 	var stretch: float = FxSquash.smear_stretch(speed, WeaponModel.METEOR_SIZE, frames)
 	(rec.obj.get_node("Squash") as Node3D).basis = FxSquash.smear_basis(fall, stretch)
 	if stretch > 1.0 and p < 1.0:
-		FxRelease.behind(_ctx, rec.node.position + rec.obj.position, fall, speed, METEOR_TRAIL_FRAMES, WeaponModel.METEOR_SIZE * METEOR_TRAIL_WIDTH)
+		FxRelease.behind(_ctx, rec.node.position + rec.obj.position, fall, speed, METEOR_TRAIL_FRAMES, WeaponModel.METEOR_SIZE * METEOR_TRAIL_WIDTH, FxRelease.TINT_METEOR)
 	if p >= METEOR_GLINT_AT and not rec.glinted:
 		rec.glinted = true
 		var at: Vector3 = rec.node.position + rec.obj.position

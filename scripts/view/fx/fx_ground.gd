@@ -11,8 +11,17 @@ const FLASHES: int = 8
 const SMEARS: int = 12
 const CRACKS: int = 4
 const FADES: int = 8
-## A smear starts this see-through (white, 0.75) and is gone at the end of its life.
-const SMEAR_ALPHA: float = 0.9
+## A smear (shaders/fx_smear.gdshader, one ShaderMaterial per slot) starts at this alpha, holds it for `SMEAR_HOLD` of its life
+## (so it is whole while the eye finds it) and is gone at the end.
+const SMEAR_ALPHA: float = 1.0
+const SMEAR_HOLD: float = 0.3
+const SMEAR_SHADER: Shader = preload("res://shaders/fx_smear.gdshader")
+const P_TINT: StringName = &"tint"
+const P_STRENGTH: StringName = &"strength"
+const P_AGE: StringName = &"age"
+const P_SEED: StringName = &"seed"
+## A smear's noise phase advances by this per smear made (each of the 64 phases of the shader differs from the last).
+const SEED_STEP: float = 7.31
 ## A crack is the street's dark asphalt at this alpha, fading to nothing over its life.
 const CRACK_ALPHA: float = 0.6
 
@@ -21,6 +30,8 @@ const CRACK_ALPHA: float = 0.6
 class Slot extends RefCounted:
 	var node: MeshInstance3D
 	var material: StandardMaterial3D
+	## A smear slot's own shader material (null for every other kind of decal).
+	var shade: ShaderMaterial
 	var active: bool = false
 	var born: float = 0.0
 	var life: float = 1.0
@@ -30,6 +41,8 @@ class Slot extends RefCounted:
 	var peak: float = 1.0
 	var rise: float = 0.0
 	var still: bool = false
+	## The warm-up's invisible smear: it holds a slot for two frames but is no effect (never counted, never listed).
+	var warm: bool = false
 
 
 static var _marks: Dictionary[String, ArrayMesh] = {}
@@ -41,6 +54,9 @@ var _smears: Array[Slot] = []
 var _cracks: Array[Slot] = []
 var _fades: Array[StandardMaterial3D] = []
 var _fade_used: Array[bool] = []
+var _smears_made: int = 0
+## Which way the next trail's tail bends (they alternate, so two trails never swish the same way).
+var _bend_right: bool = false
 
 
 ## Builds every slot (once).
@@ -48,21 +64,28 @@ func setup(ctx: FxContext) -> void:
 	_ctx = ctx
 	_rings = _pool(RINGS, FxKit.ring_mesh())
 	_flashes = _pool(FLASHES, FxKit.disc_mesh())
-	_smears = _pool(SMEARS, FxKit.smear_arc())
+	_smears = _pool(SMEARS, FxKit.smear_arc(), true)
 	_cracks = _pool(CRACKS, FxKit.crack_spokes())
 	for i: int in FADES:
 		_fades.append(FxKit.slot_material(FxKit.PRIO_FILL))
 		_fade_used.append(false)
 
 
-func _pool(count: int, mesh: Mesh) -> Array[Slot]:
+func _pool(count: int, mesh: Mesh, smears: bool = false) -> Array[Slot]:
 	var slots: Array[Slot] = []
 	for i: int in count:
 		var slot: Slot = Slot.new()
 		slot.node = MeshInstance3D.new()
 		slot.node.mesh = mesh
-		slot.material = FxKit.slot_material(FxKit.PRIO_DECAL)
-		slot.node.material_override = slot.material
+		if smears:
+			slot.shade = ShaderMaterial.new()
+			slot.shade.shader = SMEAR_SHADER
+			slot.shade.render_priority = FxKit.PRIO_DECAL
+			FxKit.count_material()
+			slot.node.material_override = slot.shade
+		else:
+			slot.material = FxKit.slot_material(FxKit.PRIO_DECAL)
+			slot.node.material_override = slot.material
 		slot.node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		slot.node.visible = false
 		add_child(slot.node)
@@ -108,14 +131,20 @@ func flash_disc(at: Vector2, radius: float, color: Color, peak_alpha: float, ris
 	return true
 
 
-## A white smear ribbon (`kind` &"arc": the snip's arc round the origin along -Z; &"streak": a 1 m lens along X; &"tail": the
-## same lens lighter toward its tail at -X) placed by `xform` and scaled to `length` metres, fading over `life` seconds. A
-## streak or tail is `width` metres across at its middle (0: the lens's own proportions); an arc's width is its mesh's.
+## A smear ribbon (`kind` &"arc": the snip's crescent round the origin along -Z; &"streak": a 1 m lens along X; &"tail": a
+## comet along X, its head at +X and its tail bent a little to the side) placed by `xform` and scaled to `length` metres, fading
+## over `life` seconds. `color` is the band's colour (its core and speed lines are near white whatever it is) and its alpha the
+## strength. A streak or tail is `width` metres across at its widest (0: the mesh's own proportions); an arc's width is its mesh's.
 ## False when none is free.
 func smear(xform: Transform3D, kind: StringName, length: float, color: Color, life: float, width: float = 0.0) -> bool:
+	return smear_index(xform, kind, length, color, life, width) >= 0
+
+
+## `smear`, returning the pool slot it took (-1 when none is free): the warm-up ends its invisible one with `drop_smear`.
+func smear_index(xform: Transform3D, kind: StringName, length: float, color: Color, life: float, width: float = 0.0) -> int:
 	var index: int = _free(_smears)
 	if index < 0:
-		return false
+		return -1
 	var slot: Slot = _start(_smears[index], life)
 	var across: float = length
 	if kind == &"arc":
@@ -127,11 +156,31 @@ func smear(xform: Transform3D, kind: StringName, length: float, color: Color, li
 	slot.node.transform = Transform3D(xform.basis.scaled_local(Vector3(length, length, across)), xform.origin)
 	slot.color = color
 	slot.peak = SMEAR_ALPHA
-	_draw_fading(slot)
-	return true
+	_smears_made += 1
+	slot.shade.set_shader_parameter(P_TINT, color)
+	slot.shade.set_shader_parameter(P_SEED, fmod(float(_smears_made) * SEED_STEP, 64.0))
+	_draw_smear(slot)
+	return index
 
 
-## A tapered trail from `from` to `to` (world, in the air): its head at `to`, lighter toward `from`, turned to face the camera
+## The warm-up's invisible smear (the view's first frames compile the shader with it): a tail of `life` seconds at `at`, not
+## counted as an effect. Returns its slot for `drop_smear`.
+func warm_smear(at: Vector3, life: float) -> int:
+	var index: int = smear_index(Transform3D(Basis.IDENTITY, at), &"tail", 0.1, Color(1.0, 1.0, 1.0, 0.0), life)
+	if index >= 0:
+		_smears[index].warm = true
+	return index
+
+
+## Ends smear `index` now.
+func drop_smear(index: int) -> void:
+	if index >= 0 and index < _smears.size() and _smears[index].warm:
+		_smears[index].warm = false
+		_smears[index].active = false
+		_smears[index].node.visible = false
+
+
+## A tapered trail from `from` to `to` (world, in the air): its head at `to`, its tail toward `from`, turned to face the camera
 ## so it reads as a streak on screen, `width` metres across, fading over `life` seconds. False when none is free.
 func trail(from: Vector3, to: Vector3, width: float, color: Color, life: float) -> bool:
 	var run: Vector3 = to - from
@@ -141,7 +190,8 @@ func trail(from: Vector3, to: Vector3, width: float, color: Color, life: float) 
 	var back: Vector3 = _camera_back()
 	var y: Vector3 = back - x * back.dot(x)
 	y = y.normalized() if y.length_squared() > 0.0001 else Vector3.UP
-	var basis: Basis = Basis(x, y, x.cross(y).normalized())
+	_bend_right = not _bend_right
+	var basis: Basis = Basis(x, y, x.cross(y).normalized() * (1.0 if _bend_right else -1.0))
 	return smear(Transform3D(basis, (from + to) / 2.0), &"tail", run.length(), color, life, width)
 
 
@@ -194,7 +244,7 @@ func step() -> void:
 			_draw_flash(slot)
 	for slot: Slot in _smears:
 		if _alive(slot):
-			_draw_fading(slot)
+			_draw_smear(slot)
 	for slot: Slot in _cracks:
 		if _alive(slot):
 			_draw_fading(slot)
@@ -209,7 +259,10 @@ func live_flashes() -> int:
 
 
 func live_smears() -> int:
-	return _live(_smears)
+	var live: int = 0
+	for slot: Slot in _smears:
+		live += 1 if slot.active and not slot.warm else 0
+	return live
 
 
 func live_cracks() -> int:
@@ -233,7 +286,7 @@ func active_rings() -> Array[MeshInstance3D]:
 func active_smears() -> Array[MeshInstance3D]:
 	var found: Array[MeshInstance3D] = []
 	for slot: Slot in _smears:
-		if slot.active:
+		if slot.active and not slot.warm:
 			found.append(slot.node)
 	return found
 
@@ -249,6 +302,7 @@ func all_nodes() -> Array[MeshInstance3D]:
 
 func _start(slot: Slot, life: float) -> Slot:
 	slot.active = true
+	slot.warm = false
 	slot.born = _ctx.time
 	slot.life = maxf(life, 0.001)
 	slot.node.visible = true
@@ -282,6 +336,13 @@ func _draw_flash(slot: Slot) -> void:
 	var age: float = _ctx.time - slot.born
 	var alpha: float = slot.peak * (age / slot.rise if slot.rise > 0.0 and age < slot.rise else 1.0 - (age - slot.rise) / maxf(slot.life - slot.rise, 0.001))
 	slot.material.albedo_color = Color(slot.color, clampf(alpha, 0.0, 1.0))
+
+
+## A smear's shader gets how far through its life it is and its strength: whole for `SMEAR_HOLD` of it, then fading out.
+func _draw_smear(slot: Slot) -> void:
+	var t: float = _progress(slot)
+	slot.shade.set_shader_parameter(P_AGE, t)
+	slot.shade.set_shader_parameter(P_STRENGTH, slot.color.a * slot.peak * (1.0 - smoothstep(SMEAR_HOLD, 1.0, t)))
 
 
 func _draw_fading(slot: Slot) -> void:
