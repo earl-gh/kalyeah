@@ -72,9 +72,14 @@ func test_the_android_preset_is_one_portrait_arm64_app_with_only_the_permissions
 	assert_eq(ProjectSettings.get_setting("display/window/handheld/orientation"), DisplayServer.SCREEN_PORTRAIT)
 
 
-func test_the_godot_logo_splash_is_off_and_the_splash_colour_is_the_loading_screens() -> void:
-	assert_false(ProjectSettings.get_setting("application/boot_splash/show_image") as bool, "no Godot logo before the loading screen")
-	assert_eq(ProjectSettings.get_setting("application/boot_splash/bg_color") as Color, BootScreen.BASE_COLOR, "the phone goes from this colour into the loading screen without a flash")
+func test_the_splash_is_the_studio_logo_centred_on_the_picture_s_own_black() -> void:
+	var path: String = ProjectSettings.get_setting("application/boot_splash/image") as String
+	assert_true(FileAccess.file_exists(path), "the splash picture is in the project")
+	assert_true(ProjectSettings.get_setting("application/boot_splash/show_image") as bool)
+	assert_eq(ProjectSettings.get_setting("application/boot_splash/stretch_mode") as int, 1, "Keep: fitted to the screen at its own shape and centred (a landscape picture on a portrait phone), never cropped")
+	var image: Image = (load(path) as Texture2D).get_image()
+	assert_eq(ProjectSettings.get_setting("application/boot_splash/bg_color") as Color, image.get_pixel(2, 2), "the fill is the picture's own background, so no edge shows")
+	assert_eq(image.get_pixel(2, 2), Color.BLACK)
 
 
 func test_every_launcher_icon_the_preset_names_exists() -> void:
