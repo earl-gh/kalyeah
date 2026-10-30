@@ -24,6 +24,10 @@ const METEOR_TRAIL_WIDTH: float = 1.0
 const METEOR_IMPACT_S: float = 0.65
 const IMPACT_DUST: int = 12
 const IMPACT_CRACK: float = 0.8
+## Soil crumbs on the landing: `FxParticles.CRUMB_COUNT` at the impact point and `METEOR_RIM_CRUMBS` in each of `METEOR_RIM_SPOTS`
+## spots round the circle's rim.
+const METEOR_RIM_SPOTS: int = 4
+const METEOR_RIM_CRUMBS: int = 2
 const CRACK_TIME: float = 0.5
 ## The tossed can (lata) flies from the thrower's hand (`CAN_HAND_Y` m) to the circle's centre, arcing `CAN_PEAK` m plus
 ## `CAN_PEAK_PER_M` per metre thrown over the straight line, turning `CAN_TURNS` times end over end; it lands upright on its
@@ -133,6 +137,11 @@ func land(rec: FxZones.Rec) -> void:
 			(meteor.get_node("Squash") as Node3D).basis = Basis.from_scale(FxSquash.along(METEOR_IMPACT_S))
 			_zones.ghost(meteor, &"meteor", (FxSquash.landing_frames() + 1) * FxSquash.FRAME)
 			_ctx.particles.puff(FxParticles.Preset.IMPACT, Vector3(center.x, 0.0, center.y), IMPACT_DUST)
+			_ctx.particles.puff(FxParticles.Preset.CRUMBS, Vector3(center.x, 0.0, center.y), FxParticles.CRUMB_COUNT)
+			for i: int in METEOR_RIM_SPOTS:
+				var angle: float = TAU * (float(i) + 0.5) / float(METEOR_RIM_SPOTS)
+				var rim: Vector2 = center + Vector2(cos(angle), sin(angle)) * rec.def.radius
+				_ctx.particles.puff(FxParticles.Preset.CRUMBS, Vector3(rim.x, 0.0, rim.y), METEOR_RIM_CRUMBS)
 	elif rec.def != null and rec.def.id == &"lata" and rec.obj != null and not _ctx.reduced:
 		# the can lands upright: squash, stretch, then it is gone (it "became" the kids it hit)
 		var can: Node3D = rec.obj

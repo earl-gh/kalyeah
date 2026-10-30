@@ -112,6 +112,7 @@ func _bounce(rec: FxProjectiles.Rec, i: int, _segment: float) -> void:
 	var at: Vector2 = Vector2(ring.position.x, ring.position.z)
 	_ctx.ground.flash_disc(at, rec.def.radius, _ctx.team_color(rec.team), BOUNCE_FLASH_ALPHA, BOUNCE_FLASH_RISE * FxSquash.FRAME, BOUNCE_FLASH_FADE * FxSquash.FRAME)
 	_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(at.x, 0.0, at.y), BOUNCE_DUST)
+	_ctx.particles.puff(FxParticles.Preset.CRUMBS, Vector3(at.x, 0.0, at.y), FxParticles.CRUMB_COUNT_SMALL)
 	ring.queue_free()
 	rec.rings[i] = null
 
