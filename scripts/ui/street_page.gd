@@ -1,18 +1,20 @@
 class_name StreetPage
 extends VBoxContainer
-## The Games page (the left tab of the bottom bar): every game of the barangay is a street, with its name, what the street game
-## is and how it plays here. Agawan Base is the only street open to play for now (the other two say Coming soon, like the lobby's
+## The Games page (the left tab of the bottom bar): every game of the barangay with its name and picture, what the game
+## is and how it plays here. Agawan Base is the only game open to play for now (the other two say Coming soon, like the lobby's
 ## map list); its numbers come from the game rules, so the words cannot go stale.
 
-## The streets in order: the map id (RoomService.MAP_IDS), its name, the game it is, a colour, and what the street game is.
+## The games in order: the map id (RoomService.MAP_IDS), the game's name, its picture, a colour, and what the game is.
 const STREETS: Array[Dictionary] = [
-	{"id": &"street", "name": "A. Base Street", "game": "Agawan Base", "color": "blue",
+	{"id": &"street", "game": "Agawan Base", "picture": preload("res://assets/ui/games/agawan_base.webp"), "color": "blue",
 		"blurb": "Two teams, two bases! Tag the other team, free your own, and hold their base."},
-	{"id": &"tumbang_preso", "name": "T. Preso Street", "game": "Tumbang Preso", "color": "orange",
+	{"id": &"tumbang_preso", "game": "Tumbang Preso", "picture": preload("res://assets/ui/games/tumbang_preso.webp"), "color": "orange",
 		"blurb": "Players throw a tsinelas to knock down a tin can while the guard, the taya, defends it."},
-	{"id": &"patintero", "name": "Patintero Street", "game": "Patintero", "color": "green",
+	{"id": &"patintero", "game": "Patintero", "picture": preload("res://assets/ui/games/patintero.webp"), "color": "green",
 		"blurb": "Runners try to cross the lines drawn on the street while the taggers guard each line and try to touch them."},
 ]
+## How big a game's picture is drawn beside its name (the picture keeps its own shape inside this square).
+const PICTURE_SIZE: float = 168.0
 ## What a street that is not built yet says where its mechanics will be.
 const SOON_LINE: String = "How it plays here is coming soon."
 const RULES_PATH: String = "res://data/rules/game_rules.tres"
@@ -67,27 +69,36 @@ func _card(street: Dictionary, rules: GameRules) -> Control:
 	column.add_theme_constant_override("separation", UiMetrics.GAP)
 	var head: HBoxContainer = HBoxContainer.new()
 	head.add_theme_constant_override("separation", UiMetrics.GAP)
+	var picture: TextureRect = TextureRect.new()
+	picture.name = "Picture"
+	picture.texture = street["picture"] as Texture2D
+	picture.custom_minimum_size = Vector2(PICTURE_SIZE, PICTURE_SIZE)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	picture.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	picture.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_child(picture)
+	var side: VBoxContainer = VBoxContainer.new()
+	side.add_theme_constant_override("separation", UiMetrics.GAP)
+	side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(side)
 	var title: Label = Label.new()
 	title.name = "Name"
-	title.text = String(street["name"])
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.text = String(street["game"])
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	UiKit.letter(title, UiMetrics.HEADLINE, KalyeahTheme.semantic_color(String(street["color"])).lightened(0.55))
-	head.add_child(title)
+	side.add_child(title)
 	var open: bool = playable(id)
 	var chip: PanelContainer = UiKit.chip("Playable" if open else "Coming soon", UiKit.CHIP_GREEN if open else UiKit.CHIP_SLATE)
 	chip.name = "Status"
-	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	head.add_child(chip)
-	column.add_child(head)
-	var game: Label = UiKit.text(String(street["game"]), UiMetrics.DETAIL, KalyeahTheme.AMBER, false)
-	game.name = "Game"
-	game.theme_type_variation = &"SectionLabel"
-	column.add_child(game)
+	chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	side.add_child(chip)
 	var blurb: Label = UiKit.text(String(street["blurb"]), UiMetrics.DETAIL, KalyeahTheme.TEXT)
 	blurb.name = "Blurb"
 	blurb.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
-	column.add_child(blurb)
+	side.add_child(blurb)
+	column.add_child(head)
 	column.add_child(UiKit.divider())
 	column.add_child(UiKit.section_label("How it plays"))
 	var lines: VBoxContainer = VBoxContainer.new()

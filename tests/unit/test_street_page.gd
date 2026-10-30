@@ -27,7 +27,7 @@ func _phone_screen() -> TitleScreen:
 	return screen
 
 
-func test_every_game_is_a_street_and_only_agawan_base_is_open() -> void:
+func test_every_game_has_its_name_and_picture_and_only_agawan_base_is_open() -> void:
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"street")
 	await wait_frames(2)
@@ -36,6 +36,13 @@ func test_every_game_is_a_street_and_only_agawan_base_is_open() -> void:
 	assert_false(StreetPage.playable(&"tumbang_preso"))
 	assert_false(StreetPage.playable(&"patintero"))
 	assert_not_null(screen.street_page.find_child("Street_street", true, false))
+	var names: Array[String] = []
+	for card: Control in screen.street_page.cards.values():
+		var title: Label = card.find_child("Name", true, false) as Label
+		names.append(title.text)
+		assert_not_null((card.find_child("Picture", true, false) as TextureRect).texture, "%s has its picture" % title.text)
+		assert_null(card.find_child("Game", true, false), "no second name line")
+	assert_eq(names, ["Agawan Base", "Tumbang Preso", "Patintero"] as Array[String], "the games are named, not the streets")
 
 
 func test_the_mechanics_come_from_the_rules_so_they_cannot_go_stale() -> void:
