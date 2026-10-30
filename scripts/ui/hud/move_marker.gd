@@ -11,8 +11,10 @@ const START_RADIUS: float = 1.4
 const DOT_RADIUS: float = 0.22
 ## How long the circle takes to shrink into the dot (seconds): a quadratic ease-out, quick to start and settling softly.
 const SHRINK_TIME: float = 0.45
-## The ring's line width (px) and the colours: the circle is only a white line (no tint inside) that thickens shut as it reaches the dot.
+## The ring's line width (px) and the colours: the circle is only a white line (no tint inside) that thins as it shrinks and only closes into the dot at the very end.
 const WIDTH: float = 4.0
+## The line gets thinner with the circle, down to this width (px) just before it shuts into the dot, so a small circle is not a fat ring.
+const THIN_WIDTH: float = 1.5
 const COLOR: Color = Color(1.0, 1.0, 1.0, 0.85)
 const DOT_COLOR: Color = Color(1.0, 1.0, 1.0, 1.0)
 const SHADOW: Color = Color(0.0, 0.02, 0.08, 0.5)
@@ -21,7 +23,7 @@ const SYNC_RADIUS: float = 0.42
 const TAP_HOLD: float = 0.5
 const POINTS: int = 28
 ## The line starts closing up (becoming the solid dot) once the shrink is this far along (0..1).
-const CLOSE_FROM: float = 0.6
+const CLOSE_FROM: float = 0.9
 
 var _sim: MatchSim
 var _camera: Camera3D
@@ -57,6 +59,11 @@ func ping(point: Vector2, fresh: bool = true) -> void:
 func progress() -> float:
 	var left: float = clampf(_pop_left / SHRINK_TIME, 0.0, 1.0)
 	return 1.0 - left * left
+
+
+## The ring's line width now (px): `WIDTH` on the tap, thinning to `THIN_WIDTH` as the circle shrinks (before it shuts).
+func line_width() -> float:
+	return lerpf(WIDTH, THIN_WIDTH, progress())
 
 
 ## How shut the ring's line is (0: a thin line round an empty circle, 1: a solid dot): it only closes at the end of the shrink.
@@ -106,7 +113,7 @@ func _draw() -> void:
 		ring.remove_at(ring.size() - 1)  # a polygon is not closed by repeating its first point
 		draw_colored_polygon(ring, DOT_COLOR)
 		return
-	# Only a line, nothing inside: as the circle gets small the line thickens until it has no hole left (the dot).
+	# Only a line, nothing inside: the line thins as the circle shrinks, then closes up in the last moment (the dot).
 	var centre: Vector2 = Vector2.ZERO
 	for point: Vector2 in ring:
 		centre += point
@@ -114,6 +121,6 @@ func _draw() -> void:
 	var half: float = INF
 	for point: Vector2 in ring:
 		half = minf(half, point.distance_to(centre))
-	var width: float = lerpf(WIDTH, maxf(WIDTH, half * 2.0), shut)
+	var width: float = lerpf(line_width(), maxf(line_width(), half * 2.0), shut)
 	draw_polyline(ring, Color(SHADOW, SHADOW.a * (1.0 - shut)), width + 3.0, true)
 	draw_polyline(ring, Color(COLOR, lerpf(COLOR.a, DOT_COLOR.a, shut)), width, true)

@@ -78,6 +78,18 @@ func test_the_circle_has_no_tint_inside_and_only_closes_shut_at_the_end() -> voi
 	assert_eq(MoveMarker.DOT_COLOR, Color.WHITE, "a white dot")
 
 
+func test_the_line_thins_as_the_circle_shrinks_so_a_small_circle_is_not_a_fat_ring() -> void:
+	_marker.ping(Vector2.ZERO)
+	assert_eq(_marker.line_width(), MoveMarker.WIDTH, "full width on the tap")
+	var last: float = _marker.line_width()
+	for i: int in 14:
+		_marker.tick(DT)
+		assert_lte(_marker.line_width(), last + 0.00001, "never thicker than before")
+		last = _marker.line_width()
+	assert_almost_eq(_marker.line_width(), MoveMarker.THIN_WIDTH, 0.0001, "thin at the end")
+	assert_lt(MoveMarker.THIN_WIDTH, MoveMarker.WIDTH / 2.0, "clearly thinner")
+
+
 func test_reduce_motion_shows_just_the_dot() -> void:
 	Settings.reduced_motion = true
 	_marker.ping(Vector2.ZERO)
