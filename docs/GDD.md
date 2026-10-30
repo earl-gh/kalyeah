@@ -163,7 +163,7 @@ Statuses never stack: every accepted negative-status application replaces the cu
 | gunting_light | ATK | cone 60°, 3 m, 2–6 snips (by hold/tap) | 3 | 6/snip | — | 5 | 2 |
 | gunting_heavy | ATK | cone 60°, 3.5 m, 0.5 s delay | 3.5 | 24 | — | 9 | 3 |
 | papel_trap | CC | placed, 0.75 s arm; triggers r=1.5 → slow zone r=2.5, 3 s | 6 | 0 | SLOW 40% | 12 | 4 |
-| papel_shield | BLOCK | wall 3 m wide in front, 2.5 s, blocks enemy projectiles | — | — | — | 14 | 5 |
+| papel_shield | BLOCK | wall 3 m wide 1.2 m in front, 2.5 s, blocks enemy projectiles; **it glides 1.5 m forward over 0.6 s (ease-out) after it appears and then holds** (owner decision 2026-10-30: the blocking line moves with it) | — | — | — | 14 | 5 |
 | tsinelas_light | ATK | 3 boomerangs, fast, 0.15 s apart, out + back | 7 | 5 each way | — | 8 | 3 |
 | tsinelas_heavy | ATK | 1 large boomerang, slow, out + back | 8 | 18 each way | — | 10 | 4 |
 | lata | CC | thrown to point, r=1.5 | 7 | 5 | POLYMORPH 2 s | 14 | 5 |
@@ -171,7 +171,7 @@ Statuses never stack: every accepted negative-status application replaces the cu
 | bola | CC | skillshot, 2 bounces (at 1/2 and full range), r=1.2 per bounce | 9 | 6 per bounce | BOUNCE 1 s | 12 | 4 |
 | trumpo | CC | linear spinning projectile, stops at max range | 8 | 10 | AIRBORNE 2 s (once per target) | 15 | 5 |
 | heal (Langit Lupa) | HEAL | instant: **tap heals yourself**, **drag toward a teammate** (within 8 m, 60° cone around the drag) heals them; a drag with nobody there does nothing and costs no elixir. Never heals enemies. Aim preview: a ring around the teammate, no line to them | 30 HP (`heal`) | — | — | 12 | 4 |
-| langit_lupa (Langit Lupa) | BLOCK | a **person-wide (1.2 m)** block of earth rises 2.2 m in front of you in the aimed direction, blocks enemy projectiles, then **collapses back to the ground after 3.5 s** | — | — | — | 14 | 5 |
+| langit_lupa (Langit Lupa) | BLOCK | a **person-wide (1.2 m)** block of earth rises 2.2 m in front of you in the aimed direction and blocks enemy projectiles; **0.3 s later, once it has risen, it widens to 3x (3.6 m) over 0.5 s (smooth in and out) and keeps that width**, then **collapses back to the ground after 3.5 s** (owner decision 2026-10-30: the blocking line widens with it) | — | — | — | 14 | 5 |
 
 Two copies of the same weapon cannot be equipped; two weapons of the same *type* can.
 
@@ -183,6 +183,7 @@ Two copies of the same weapon cannot be equipped; two weapons of the same *type*
 - A hard CC (or getting tagged) while aiming drops the aim; press again when it ends.
 - `gunting_light` snips: 2 on a tap, +1 per 0.25 s held, max 6, all on release.
 - Projectiles are stopped by obstacles (for both teams: you can hide behind cover), the street edges and enemy paper shields; they pass through their own team's shields.
+- **Walls move and widen** (owner, 2026-10-30; `WallMotion`, data on the weapon: `push_distance`, `push_time`, `expand_factor`, `expand_delay`, `expand_time`; all other weapons keep the defaults 0 / 1). A wall's blocking line is a pure function of its age: the paper wall's line is `push_distance` (1.5 m) further along the aim after `push_time` (0.6 s, cubic ease-out), the block's line is `expand_factor` (3x) as long after `expand_delay` (0.3 s) plus `expand_time` (0.5 s, smoothstep) and stays so until it ends; the times they last do not change (2.5 s, 3.5 s). The server and a mirror compute it the same way (snapshots carry the cast place and width), and what is drawn is that line every frame. A wall blocks **shots only, never kids**: a kid the wall glides or widens over is not moved, stopped or trapped. A shot is stopped if it crosses the line now, crossed it a tick ago, or is inside the ground the moving wall swept over this tick (a shot the wall overtakes is stopped as if it hit it). Balance effect: the paper wall now covers 1.5 m more of the street over its life, the block 3x the width (a 3.6 m shield for 3 s instead of 1.2 m): flagged for the owner to review. Measured with `tools/balance/duels.gd` (every two-weapon loadout against every other, 8,190 bot duels of 60 s, one seed, no cover) before and after: papel_shield 40.9 to 41.3 percent and langit_lupa 40.8 to 41.2 percent average win rate of the loadouts that carry them (all other weapons moved by 0.3 points or less); the bots do not aim around walls, so a human-play effect is for a device check.
 - Boomerangs (tsinelas) hit each enemy once going out and once coming back, turn back at max range or when they hit an obstacle, and are caught within 0.8 m of the thrower (`boomerang_catch_distance`).
 - An unarmed `papel_trap` waits on the ground for 20 s (`lifetime`) before it disappears.
 - Lata travels at 14 m/s to its point before it lands; bato heavy lands 0.6 s after the cast.

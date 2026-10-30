@@ -628,7 +628,7 @@ func test_the_heal_cross_rises_on_a_green_trail_and_is_crisp_after() -> void:
 	assert_eq(smears.size(), 1, "one rise trail")
 	var cross: Node3D = _fx.heals.crosses()[0]
 	assert_true(smears[0].basis.x.normalized().dot(Vector3.UP) > 0.5, "it runs up to the cross")
-	assert_lt(smears[0].position.y, cross.position.y, "from below it")
+	assert_gt(smears[0].position.y, cross.position.y, "from where it began (the head) up to where it ends (above it)")
 	_frame()
 	_frame()
 	var stretched: float = cross.scale.y / cross.scale.x
@@ -647,11 +647,13 @@ func test_the_soil_wall_is_wide_while_low_then_stretched_thin_then_exact() -> vo
 	var body: Node3D = _fx.walls.node_for(shield.id)
 	var thinnest: float = 10.0
 	var widest: float = 0.0
-	for i: int in 12:
+	for i: int in 9:
 		_frame()
-		thinnest = minf(thinnest, body.scale.x)
-		widest = maxf(widest, body.scale.x)
-		assert_almost_eq(body.scale.x * body.scale.y * body.scale.z, body.scale.y * pow(body.scale.x, 2.0), 0.0001)
-	assert_gt(widest, 1.05, "wide while it is low")
+		thinnest = minf(thinnest, body.scale.z)
+		widest = maxf(widest, body.scale.z)
+		assert_eq(body.scale.x, 1.0, "its width is the sim's line: person-wide while it rises")
+	assert_gt(widest, 1.05, "deep front to back while it is low (the volume kept)")
 	assert_lt(thinnest, 1.0, "thinner at the stretch past its height")
-	assert_almost_eq(body.scale.x, 1.0, 0.0001, "exactly its width once it is up")
+	_frame()
+	_frame()
+	assert_almost_eq(body.scale.z, 1.0, 0.0001, "exactly its depth once it is up")

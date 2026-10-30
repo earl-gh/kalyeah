@@ -30,6 +30,10 @@ const TOP_DROP_STRETCH: float = 1.3
 const TOP_DROP_TRAIL: float = 1.0
 const TOP_LAND_S: float = 0.8
 const TOP_LAND_DUST: int = 4
+## Soil crumbs (FxParticles.CRUMBS): `FxParticles.CRUMB_COUNT_SMALL` where the top lands, then `TOP_CRUMB_TRICKLE` every
+## `TOP_CRUMB_INTERVAL` s while it spins (skipped like any decoration when the particle pool is full).
+const TOP_CRUMB_TRICKLE: int = 2
+const TOP_CRUMB_INTERVAL: float = 0.3
 const TOP_LAUNCH_DUST: int = 6
 const TOP_END_TILT: float = 35.0
 const TOP_FALL_TILT: float = 80.0
@@ -79,6 +83,8 @@ class Rec extends RefCounted:
 	var trail: CPUParticles3D
 	var spiked: float = -1.0
 	var landed: bool = false
+	## View time the top last trickled crumbs.
+	var crumbed: float = -1.0
 	## View time its fast motion began (the throw, a slipper's turn back): the smear fades out over the frames after it.
 	var smear_from: float = 0.0
 	## View time the slipper's return trail is due (-1: none pending), and when its current reaction began.
@@ -272,6 +278,8 @@ func _top(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 	elif not rec.landed:
 		rec.landed = true
 		_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(projectile.position.x, 0.0, projectile.position.y), TOP_LAND_DUST)
+		_ctx.particles.puff(FxParticles.Preset.CRUMBS, Vector3(projectile.position.x, 0.0, projectile.position.y), FxParticles.CRUMB_COUNT_SMALL)
+		rec.crumbed = _ctx.time
 		rec.trail = _ctx.particles.trail_take()
 	var landed_frames: float = (age - drop) / FxSquash.FRAME
 	if age >= drop and landed_frames < FxSquash.landing_frames():
@@ -282,6 +290,9 @@ func _top(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 	rec.squash.basis = FxMotion.top_tilt(_ctx.time, spike_age) * Basis.from_scale(shape)
 	if rec.trail != null:
 		rec.trail.global_position = Vector3(projectile.position.x, 0.05, projectile.position.y)
+	if rec.landed and _ctx.time - rec.crumbed >= TOP_CRUMB_INTERVAL:
+		rec.crumbed = _ctx.time
+		_ctx.particles.puff(FxParticles.Preset.CRUMBS, Vector3(projectile.position.x, 0.0, projectile.position.y), TOP_CRUMB_TRICKLE)
 
 
 ## A status effect landed on kid `id`: thrown up by a top, the kid leaves a puff of dust.

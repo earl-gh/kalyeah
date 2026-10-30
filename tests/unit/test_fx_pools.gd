@@ -43,7 +43,8 @@ func test_particle_presets_respect_height_and_reach_bounds() -> void:
 	for preset: int in FxParticles.Preset.values():
 		var s: FxParticles.Spec = FxParticles.spec(preset)
 		assert_lte(FxParticles.apex(s), s.apex_bound + 0.001, "%s stays under %.2f m" % [FxParticles.Preset.keys()[preset], s.apex_bound])
-		assert_lte(s.lifetime, 0.6, "%s is short" % FxParticles.Preset.keys()[preset])
+		# the soil crumbs live about a second (fully visible first, then they fade): the one exception to "short"
+		assert_lte(s.lifetime, FxParticles.CRUMB_LIFE if preset == FxParticles.Preset.CRUMBS else 0.6, "%s is short" % FxParticles.Preset.keys()[preset])
 	var stars: FxParticles.Spec = FxParticles.spec(FxParticles.Preset.STARS)
 	assert_between(stars.lifetime * stars.speed_min, 0.899, 1.301, "stars fly 0.9-1.3 m out")
 	assert_between(stars.lifetime * stars.speed_max, 0.899, 1.301)
@@ -67,8 +68,8 @@ func test_one_shot_emitters_are_one_shot() -> void:
 	var one_shots: int = 0
 	for emitter: Node in _ctx.particles.get_children():
 		one_shots += 1 if (emitter as CPUParticles3D).one_shot else 0
-	assert_eq(one_shots, 36, "36 pooled one-shot emitters (plus the trails)")
-	assert_eq(_ctx.particles.emitter_count(), 36 + FxParticles.TRAILS)
+	assert_eq(one_shots, 40, "40 pooled one-shot emitters (plus the trails; four more of 8 for the ~1 s soil crumbs)")
+	assert_eq(_ctx.particles.emitter_count(), 40 + FxParticles.TRAILS)
 
 
 func test_particle_cap_skips_decoration() -> void:
@@ -80,7 +81,7 @@ func test_particle_cap_skips_decoration() -> void:
 			skipped += 1
 		assert_lte(_ctx.particles.live_particles(), FxParticles.LIVE_CAP)
 	assert_gt(skipped, 0, "past the cap a puff is skipped")
-	assert_lte(_ctx.particles.busy_emitters(), 36)
+	assert_lte(_ctx.particles.busy_emitters(), 40)
 	_advance(0.6)
 	assert_eq(_ctx.particles.live_particles(), 0, "and every puff is over in 0.6 s")
 

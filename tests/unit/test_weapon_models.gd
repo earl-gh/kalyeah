@@ -249,15 +249,15 @@ func test_a_heal_pops_a_green_cross_at_the_kid_and_it_goes_away() -> void:
 	var cross: Node3D = crosses[0]
 	var half: float = WeaponModel.CROSS_WIDTH * fx.view_scale / 2.0
 	var turn: float = cross.rotation.y
-	for i: int in 24:
+	for i: int in 36:
 		if not is_instance_valid(cross) or cross.is_queued_for_deletion():
 			break
-		# where it is seen on screen (the chest) is test_fx_weapon_motion's test_the_heal_cross_reads_at_the_chest
-		assert_lt(cross.position.y + half, 3.7, "never up at the bars")
+		# where it is seen on screen (head to above the head) is test_fx_weapon_motion's test_the_heal_cross_rises_from_the_head_to_above_it
+		assert_gt(cross.position.y + half, 0.0)
 		assert_almost_eq(cross.rotation.y, turn, 0.0001, "no spin: it faces the camera, never edge-on")
 		practice.advance(DT)
 	var left: Array[Node3D] = fx.heals.crosses()
-	assert_eq(left.size(), 0, "and goes away within 24 frames")
+	assert_eq(left.size(), 0, "and goes away within 36 frames (a second)")
 
 
 ## Audit: casting any of the weapons shows the owner's 3D model (a ground disc or a flash may

@@ -53,6 +53,13 @@ enum Shape {
 ## Shield width and its distance in front of the thrower.
 @export var width: float = 0.0
 @export var offset: float = 0.0
+## Shield motion (`WallMotion`; the defaults: it stays where it was cast, at its width). It glides `push_distance` m forward along
+## the aim over `push_time` s, and after `expand_delay` s widens to `expand_factor` times its width over `expand_time` s.
+@export var push_distance: float = 0.0
+@export var push_time: float = 0.0
+@export var expand_factor: float = 1.0
+@export var expand_delay: float = 0.0
+@export var expand_time: float = 0.0
 ## Projectile hit radius (targeted, boomerang, bouncer).
 @export var projectile_radius: float = 0.0
 @export var effect: StatusEffects.Type = StatusEffects.Type.NONE
