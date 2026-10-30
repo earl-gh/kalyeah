@@ -7,6 +7,8 @@ extends RefCounted
 ## Drive it with poll(delta); the Net autoload does that every frame.
 
 signal connection_changed(online: bool)
+## A connection that never opened (no server there, or it did not wake within `NetRules.connect_timeout`).
+signal connect_failed
 ## The server answered HELLO; `reconnected` = we got our match slot back.
 signal welcomed(reconnected: bool)
 signal error_received(text: String)
@@ -43,6 +45,7 @@ var _peer: WebSocketMultiplayerPeer
 var _was_online: bool = false
 var _pending: Array[PlayerInput] = []
 var _clock: float = 0.0
+var _connect_started: float = 0.0
 ## Snapshots of other players' positions: {"time": float, "pos": {id: Vector2}}.
 var _buffer: Array[Dictionary] = []
 
@@ -53,10 +56,24 @@ func _init(rules: GameRules, layout: MapLayout, net: NetRules) -> void:
 	_net = net
 
 
-func connect_to(url: String) -> Error:
+## `patient`: an Online server, which may first have to wake up, gets `NetRules.connect_timeout` to answer (Hotspot: Godot's 3 s).
+func connect_to(url: String, patient: bool = false) -> Error:
 	close()
 	_peer = WebSocketMultiplayerPeer.new()
+	if patient:
+		_peer.handshake_timeout = _net.connect_timeout
+	_connect_started = _clock
 	return _peer.create_client(url)
+
+
+## Seconds this connection has been trying to open (0 once it is open or when there is none).
+func connecting_for() -> float:
+	return _clock - _connect_started if is_connecting() else 0.0
+
+
+## Still opening after `NetRules.wake_hint_after`: an Online server that was asleep is waking up.
+func waking() -> bool:
+	return connecting_for() >= _net.wake_hint_after
 
 
 func close() -> void:
@@ -96,7 +113,10 @@ func poll(delta: float) -> void:
 	if _peer == null:
 		return
 	if _peer.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED:
+		var never_opened: bool = not _was_online
 		close()
+		if never_opened:
+			connect_failed.emit()
 		return
 	while _peer != null and _peer.get_available_packet_count() > 0:
 		var message: Dictionary = NetProtocol.decode(_peer.get_packet())

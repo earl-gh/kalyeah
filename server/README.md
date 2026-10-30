@@ -35,9 +35,17 @@ friends reach it with a plain `ws://` address on the local network.)
    In the game use `wss://kalyeah-xxxx.onrender.com`.
 
 The free tier sleeps after ~15 minutes without traffic. The first connection
-after that takes about a minute while it wakes up.
+after that takes about a minute while it wakes up. The app waits for it: an Online
+connection gets `connect_timeout` (75 s, `data/rules/net_rules.tres`) instead of
+Godot's 3 s, and after `wake_hint_after` (4 s) the room screen says "Waking up the
+server. This can take a minute…". (Hotspot connections keep the 3 s.)
+
+The live server is `wss://kalyeah.onrender.com` (Render, free tier).
 
 ### Fly.io
+
+Fly.io has no free tier for new accounts; a small always-on machine costs a few
+dollars a month and never sleeps.
 
 ```sh
 fly launch --no-deploy        # accept the Dockerfile, internal port 8080

@@ -23,6 +23,11 @@ extends Resource
 @export var max_queued_inputs: int = 0
 @export var max_name_length: int = 0
 @export var default_port: int = 0
+## Seconds an Online connection may take to open before it counts as failed (Godot's own default is 3 s; a free server that has
+## gone to sleep takes about a minute to wake). A Hotspot connection keeps Godot's default: the host is a phone beside you.
+@export var connect_timeout: float = 0.0
+## After this many seconds still connecting, the lobby says the server is waking up instead of just "Connecting…".
+@export var wake_hint_after: float = 0.0
 
 ## Hotspot discovery (docs/GDD.md "Hotspot rooms"). The guest sends a UDP probe to `discovery_port` for `discovery_seconds`,
 ## again every `discovery_interval`; the host answers it.
