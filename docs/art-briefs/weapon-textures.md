@@ -17,7 +17,7 @@ Why: the weapon pictures are AI-made, noisy and photographic. Clash Royale paint
 - Check the picture before sending: `python3 tools/art/check_weapon_texture.py picture.png` (or `--glbs assets/models/weapons/*.glb`). It checks size, flatness, the number of colours and that no dark area is black.
 
 ## Per weapon (what to paint)
-Current numbers: `python3 tools/art/check_weapon_texture.py --glbs assets/models/weapons/*.glb`. Today the can (114 colours), meteor (noise 0.026), soil block, trumpo (wood grain), slipper and scissors (black blades) fail; paper, marble, cross, jacks and crumpled paper pass.
+Current numbers: `python3 tools/art/check_weapon_texture.py --glbs assets/models/weapons/*.glb`. Today the can (114 colours), meteor (noise 0.026), soil block, slipper and scissors (black blades) fail; paper, marble, cross, jacks and crumpled paper pass.
 
 | Weapon (file) | Paint it as |
 |---|---|
@@ -26,7 +26,7 @@ Current numbers: `python3 tools/art/check_weapon_texture.py --glbs assets/models
 | **can** | Keep your Marikina label, painted flat: yellow label with a red band, steel top as a blue-grey gradient with one white streak. |
 | **slipper** | A red sole with a white strap, a lighter top and a deeper red underside. Bigger, simpler marks (it is small on screen). |
 | **scissors** | Red handles; steel-blue blades (not black) with one white streak, a darker blue tone at the pivot. |
-| **trumpo** | Palette-swapped by instruction to a Filipino top (pale orange-tan wood dome, cream rope cone; the old red / navy / orange bands are gone). The owner's full model: `trumpo-model.md`. |
+| **trumpo** | Pixels rewritten by instruction to the owner's photo of a bare wooden top: plain pale wood (#E0B27A) with a gentle figure and thin growth lines, a steel-grey pin (#6A6F73); no paint, no bands, no rope. Passes the check (27 colours, noise 0.0022). The owner's full model: `trumpo-model.md`. |
 | **marble** | Sky-blue with a lighter swirl and one white highlight dot. |
 | **crumpled_paper** and **paper** | Cream (about 0.93), creases as a cool lavender tone, ruled lines as 1 colour (blue), a red margin line on the paper wall. |
 | **green_cross** | Grass green with a darker green edge, white wings with a cool grey underside. |

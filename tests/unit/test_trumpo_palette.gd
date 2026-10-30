@@ -1,7 +1,7 @@
 extends GutTest
-## The trumpo's picture is the owner's own, palette-swapped (not repainted) to the Filipino top's colours: pale orange-tan wood and cream
-## rope, instead of the red, navy and orange bands. The texture Godot reads is the one next to the .glb, so the picture inside the .glb must
-## be the same file.
+## The trumpo's picture is the owner's own file, its pixels edited to a bare, unpainted pale wood with a gentle grain and a steel-grey pin
+## (the owner's photo: no paint, no bands, no rope, no bottle cap). The texture Godot reads is the one next to the .glb, so the picture
+## inside the .glb must be the same file; and the weapon look must not turn the wood lavender in the shade.
 
 const TEXTURE: String = "res://assets/models/weapons/trumpo_prop_base_color.jpg"
 const MODEL: String = "res://assets/models/weapons/trumpo.glb"
@@ -15,39 +15,98 @@ func _picture() -> Image:
 	return image
 
 
-func test_no_red_or_navy_band_is_left() -> void:
+## The used texels (the padding between islands is the island's own colour), as colours.
+func _texels() -> Array[Color]:
 	var image: Image = _picture()
-	var strong: int = 0
-	var count: int = 0
+	var out: Array[Color] = []
 	for y: int in range(0, image.get_height(), 4):
 		for x: int in range(0, image.get_width(), 4):
 			var c: Color = image.get_pixel(x, y)
-			if c.get_luminance() < 0.05:
-				continue
-			count += 1
-			if (c.r > 0.55 and c.g < 0.3 and c.b < 0.3) or (c.b > c.r + 0.08 and c.b > 0.15):
-				strong += 1
-	assert_gt(count, 1000, "the picture has its islands")
-	assert_lt(float(strong) / float(count), 0.01, "no red or blue is left: %d of %d" % [strong, count])
+			if c.get_luminance() >= 0.05:
+				out.append(c)
+	return out
 
 
-func test_the_picture_is_warm_wood_and_cream_rope() -> void:
-	var image: Image = _picture()
-	var wood: int = 0
+func _is_steel(c: Color) -> bool:
+	return c.s < 0.25
+
+
+func test_no_paint_is_left_no_red_no_navy_no_orange_band_no_cream_rope() -> void:
+	var texels: Array[Color] = _texels()
+	assert_gt(texels.size(), 1000, "the picture has its islands")
+	var paint: int = 0
 	var cream: int = 0
+	for c: Color in texels:
+		if _is_steel(c):
+			continue
+		if (c.r > 0.55 and c.g < 0.3 and c.b < 0.3) or (c.b > c.r + 0.04) or c.s > 0.7:
+			paint += 1
+		if c.r > 0.9 and c.g > 0.84 and c.b > 0.7:
+			cream += 1
+	assert_eq(paint, 0, "no red, blue or saturated orange texel")
+	assert_eq(cream, 0, "no cream rope")
+
+
+func test_the_body_is_pale_natural_wood_and_the_pin_is_grey_steel() -> void:
+	var texels: Array[Color] = _texels()
+	var wood: Color = Color(0, 0, 0)
+	var woods: int = 0
+	var steel: int = 0
+	var odd: int = 0
+	var hues: Array[float] = []
+	for c: Color in texels:
+		if _is_steel(c):
+			steel += 1
+			if c.get_luminance() > 0.62 or c.get_luminance() < 0.2:
+				odd += 1
+		else:
+			wood += c
+			woods += 1
+			hues.append(c.h)
+	assert_lt(float(odd) / float(maxi(steel, 1)), 0.05, "steel is mid-grey, not white and not black (%d of %d texels are not: the island edges)" % [odd, steel])
+	var share: float = float(woods) / float(texels.size())
+	assert_gt(share, 0.88, "wood dominates the picture (%.2f)" % share)
+	assert_gt(float(steel) / float(texels.size()), 0.01, "the pin has its own islands, in steel grey")
+	var mean: Color = wood / float(woods)
+	var beech: Color = Color("E0B27A")
+	assert_almost_eq(mean.r, beech.r, 0.08, "the wood is the pale beech of the brief (#E0B27A): red %.2f" % mean.r)
+	assert_almost_eq(mean.g, beech.g, 0.08, "green %.2f" % mean.g)
+	assert_almost_eq(mean.b, beech.b, 0.09, "blue %.2f" % mean.b)
+	hues.sort()
+	assert_gt(hues[int(hues.size() * 0.02)], 0.06, "every hue is tan, none red (2%% of texels are redder than hue %.3f)" % hues[int(hues.size() * 0.02)])
+	assert_lt(hues[int(hues.size() * 0.98)], 0.13, "and none yellow-green")
+
+
+func test_the_grain_is_gentle_not_bands() -> void:
+	var lights: Array[float] = []
+	var sum: float = 0.0
+	var sum_sq: float = 0.0
 	var count: int = 0
-	for y: int in range(0, image.get_height(), 4):
-		for x: int in range(0, image.get_width(), 4):
-			var c: Color = image.get_pixel(x, y)
-			if c.get_luminance() < 0.05:
-				continue
-			count += 1
-			if c.r > c.g + 0.12 and c.g > c.b + 0.12:
-				wood += 1
-			elif c.r > 0.55 and c.r - c.b < 0.25 and c.r >= c.g:
-				cream += 1
-	assert_gt(float(wood) / float(count), 0.2, "the dome is orange-tan wood")
-	assert_gt(float(cream) / float(count), 0.2, "the rope cone is cream")
+	for c: Color in _texels():
+		if _is_steel(c):
+			continue
+		var l: float = c.get_luminance()
+		lights.append(l)
+		sum += l
+		sum_sq += l * l
+		count += 1
+	var mean: float = sum / float(count)
+	var deviation: float = sqrt(maxf(sum_sq / float(count) - mean * mean, 0.0))
+	assert_gt(deviation, 0.012, "a figure is there (deviation %.3f)" % deviation)
+	assert_lt(deviation, 0.07, "but it is gentle")
+	lights.sort()
+	var spread: float = lights[int(lights.size() * 0.99)] - lights[int(lights.size() * 0.01)]
+	assert_lt(spread, 0.36, "no band is far darker or lighter than the wood round it (1%% to 99%% spread %.2f)" % spread)
+
+
+func test_the_weapon_look_keeps_the_wood_brown_in_the_shade_not_lavender() -> void:
+	var shade: Vector3 = (WeaponModel.look_of("trumpo") as ShaderMaterial).get_shader_parameter(&"shadow_tint") as Vector3
+	assert_lte(shade.z, shade.y * 1.1, "the shade keeps no more blue than green: %s" % shade)
+	assert_gt(shade.x, shade.y, "and more red than green: warm")
+	assert_gt(shade.x, 0.5, "clearly darker but never black")
+	var other: ShaderMaterial = WeaponModel.look_of("slipper") as ShaderMaterial
+	var default_tint: Variant = other.get_shader_parameter(&"shadow_tint")
+	assert_null(default_tint, "the other weapons keep the shader's own violet shade (only the trumpo's is warm)")
 
 
 func test_the_picture_inside_the_glb_is_the_texture_next_to_it() -> void:
