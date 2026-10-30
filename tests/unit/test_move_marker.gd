@@ -64,13 +64,17 @@ func test_the_shrink_is_smooth_and_never_grows_back() -> void:
 	assert_almost_eq(last, MoveMarker.DOT_RADIUS, 0.0001)
 
 
-func test_the_circle_becomes_the_dot_by_fading_into_a_solid_fill() -> void:
+func test_the_circle_has_no_tint_inside_and_only_closes_shut_at_the_end() -> void:
 	_marker.ping(Vector2.ZERO)
-	assert_eq(_marker.progress(), 0.0, "on the tap: all circle, no fill")
-	_marker.tick(MoveMarker.SHRINK_TIME * 0.5)
-	assert_between(_marker.progress(), 0.5, 1.0, "half way: the fill is more than half in")
-	_marker.tick(MoveMarker.SHRINK_TIME)
-	assert_eq(_marker.progress(), 1.0, "at the end: the circle's line is gone and the dot is solid")
+	assert_eq(_marker.closed(), 0.0, "on the tap: an empty circle, just a line")
+	_marker.tick(MoveMarker.SHRINK_TIME * 0.3)
+	assert_eq(_marker.closed(), 0.0, "while it is still a circle nothing fills it")
+	var last: float = 0.0
+	for i: int in 20:
+		_marker.tick(DT)
+		assert_gte(_marker.closed(), last, "the line only ever closes up")
+		last = _marker.closed()
+	assert_eq(_marker.closed(), 1.0, "at the end it is the solid dot")
 	assert_eq(MoveMarker.DOT_COLOR, Color.WHITE, "a white dot")
 
 

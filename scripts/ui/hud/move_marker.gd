@@ -2,7 +2,8 @@ class_name MoveMarker
 extends Control
 ## Where your kid is walking (docs/GDD.md "Moving": only you see it), drawn through the match camera so it lies flat on the street.
 ## A fresh tap shows at once where you tapped (online the server's answer comes a moment later) as a medium sized circle that
-## smoothly shrinks into a small white dot (owner), and the dot stays as the target; with Reduce motion it is just the dot. It goes
+## smoothly shrinks, with nothing tinted inside it, until it is a small white dot (owner), and the dot stays as the target; with
+## Reduce motion it is just the dot. It goes
 ## when the kid arrives or the walk ends. Code-drawn stand-in (no asset); it never takes a touch.
 
 ## A fresh tap's circle starts this big (radius on the ground, metres: about two kids across) and shrinks to the dot's radius.
@@ -10,7 +11,7 @@ const START_RADIUS: float = 1.4
 const DOT_RADIUS: float = 0.22
 ## How long the circle takes to shrink into the dot (seconds): a quadratic ease-out, quick to start and settling softly.
 const SHRINK_TIME: float = 0.45
-## The ring's line width (px) and the colours: the circle fades out as it becomes the dot, which fills in solid white.
+## The ring's line width (px) and the colours: the circle is only a white line (no tint inside) that thickens shut as it reaches the dot.
 const WIDTH: float = 4.0
 const COLOR: Color = Color(1.0, 1.0, 1.0, 0.85)
 const DOT_COLOR: Color = Color(1.0, 1.0, 1.0, 1.0)
@@ -19,6 +20,8 @@ const SHADOW: Color = Color(0.0, 0.02, 0.08, 0.5)
 const SYNC_RADIUS: float = 0.42
 const TAP_HOLD: float = 0.5
 const POINTS: int = 28
+## The line starts closing up (becoming the solid dot) once the shrink is this far along (0..1).
+const CLOSE_FROM: float = 0.6
 
 var _sim: MatchSim
 var _camera: Camera3D
@@ -56,6 +59,11 @@ func progress() -> float:
 	return 1.0 - left * left
 
 
+## How shut the ring's line is (0: a thin line round an empty circle, 1: a solid dot): it only closes at the end of the shrink.
+func closed() -> float:
+	return smoothstep(CLOSE_FROM, 1.0, progress())
+
+
 ## The circle's radius on the ground now (metres): `START_RADIUS` on the tap, `DOT_RADIUS` from then on.
 func radius() -> float:
 	return lerpf(START_RADIUS, DOT_RADIUS, progress())
@@ -86,7 +94,6 @@ func _draw() -> void:
 	var at: Variant = target()
 	if at == null or _camera == null:
 		return
-	var done: float = progress()
 	var ring: PackedVector2Array = PackedVector2Array()
 	for i: int in POINTS + 1:
 		var ground: Vector2 = (at as Vector2) + Vector2.from_angle(TAU * float(i) / float(POINTS)) * radius()
@@ -94,9 +101,19 @@ func _draw() -> void:
 		if _camera.is_position_behind(world):
 			return
 		ring.append(_camera.screen_position(world) if _camera is ArenaCamera else _camera.unproject_position(world))
-	if done < 1.0:
-		var circle_alpha: float = 1.0 - done
-		draw_polyline(ring, Color(SHADOW, SHADOW.a * circle_alpha), WIDTH + 3.0, true)
-		draw_polyline(ring, Color(COLOR, COLOR.a * circle_alpha), WIDTH, true)
-	ring.remove_at(ring.size() - 1)  # a polygon is not closed by repeating its first point
-	draw_colored_polygon(ring, Color(DOT_COLOR, DOT_COLOR.a * done))
+	var shut: float = closed()
+	if shut >= 1.0:
+		ring.remove_at(ring.size() - 1)  # a polygon is not closed by repeating its first point
+		draw_colored_polygon(ring, DOT_COLOR)
+		return
+	# Only a line, nothing inside: as the circle gets small the line thickens until it has no hole left (the dot).
+	var centre: Vector2 = Vector2.ZERO
+	for point: Vector2 in ring:
+		centre += point
+	centre /= float(ring.size())
+	var half: float = INF
+	for point: Vector2 in ring:
+		half = minf(half, point.distance_to(centre))
+	var width: float = lerpf(WIDTH, maxf(WIDTH, half * 2.0), shut)
+	draw_polyline(ring, Color(SHADOW, SHADOW.a * (1.0 - shut)), width + 3.0, true)
+	draw_polyline(ring, Color(COLOR, lerpf(COLOR.a, DOT_COLOR.a, shut)), width, true)
