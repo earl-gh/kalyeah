@@ -3,7 +3,7 @@ extends Control
 ## MOBA-style overhead display drawn in screen space over each hero, like League
 ## of Legends: a solid health bar (green you, blue ally, red enemy) with the player's number on a team-coloured badge at its left end, the word
 ## one word over the bar's left end: a status in plain words ("Stunned", "Slowed", "Exhausted") while there is one, else "You" over your own bar. Under your own bar a thin stamina bar shows
-## while it is not full (your eyes are on your kid while you tap to walk, and stamina only matters while walking); at 0 it reads EXHAUSTED and
+## while it is not full (your eyes are on your kid while you tap to walk, and stamina only matters while walking); at 0 it reads Exhausted and
 ## runs out over the 2 s. No names, no health numbers and no damage numbers (heals still pop a green "+N"). While a
 ## team holds the enemy base, a spinner fills over its kids' heads. Reads the sim
 ## and projects through the match camera.
@@ -48,9 +48,8 @@ const STAMINA_LOW_COLOR: Color = ConsolePanel.HEALTH_AMBER
 const EXHAUSTED_COLOR: Color = ConsolePanel.HEALTH_RED
 ## How long the overclock's red / blank blink holds each state (seconds); steady red with Reduce motion.
 const BLINK_PERIOD: float = 0.25
-## The word over your own kid while it is exhausted (owner: "EXHAUSTED shown on your kid"); other kids show the plain status word.
-const EXHAUSTED_SELF: String = "EXHAUSTED"
-const EXHAUSTED_OTHER: String = "Exhausted"
+## The word over an exhausted kid, yours or another's, in sentence case like every status word (owner).
+const EXHAUSTED: String = "Exhausted"
 ## The word over a kid whose player has been gone too long (online): their kid stands still until they come back.
 const AWAY: String = "AFK"
 const POPUP_FONT: int = UiMetrics.BODY
@@ -136,14 +135,17 @@ func text_for(id: int) -> String:
 
 
 ## A tagged kid stands on the sidewalk, which already says it: no "Tagged" over each one (two of them ran into one word).
+## A negative status shows instead of "Exhausted" (never stacked); the exhaustion keeps counting in the sim meanwhile, so the word returns when the status ends.
 func _status_text(state: PlayerState) -> String:
 	var words: PackedStringArray = PackedStringArray()
 	if away_ids.has(state.id):
 		words.append(AWAY)
-	if state.overclocked:
-		words.append(UiText.t(EXHAUSTED_SELF if state.id == _local_id else EXHAUSTED_OTHER))
-	for word: String in state.effects.display_names():
-		words.append(UiText.t(word))
+	var effects: PackedStringArray = state.effects.display_names()
+	if not effects.is_empty():
+		for word: String in effects:
+			words.append(UiText.t(word))
+	elif state.overclocked:
+		words.append(UiText.t(EXHAUSTED))
 	return " · ".join(words)
 
 
