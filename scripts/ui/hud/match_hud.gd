@@ -64,7 +64,7 @@ var _capture_alerting: bool = false
 var pulse: HurtPulse
 ## The tray at the bottom (it only draws).
 var console: ConsolePanel
-## The quick chat button: above NEXT outside the tray, or in the Sides layout's strip beside the ice water bar; what it says shows over your kid.
+## The quick chat button, outside the plate: above NEXT, or in the Sides layout at the foot of the cards' column; what it says shows over your kid.
 var chat: QuickChat
 ## Quick chat is for playing with others: off in offline practice (nobody to talk to).
 var chat_enabled: bool = true
@@ -185,6 +185,14 @@ func console_panel_height() -> float:
 	return CONSOLE_HEIGHT + bottom_inset
 
 
+## The column beside the blue plate while the hand shows (the plate is full width while you wait on the sidewalk): Bottom's holds NEXT and the
+## chat button, Sides' is the cards' column with the chat button at its foot; both stand outside the plate, over the street.
+func sync_plate_column() -> void:
+	var shown: bool = hand != null and hand.visible
+	var width: float = (CardHand.SIDES_COLUMN if sides_tray() else CardHand.COLUMN) if shown else 0.0
+	console.set_column(width, Settings.left_handed if sides_tray() else not Settings.left_handed)
+
+
 func set_controls_active(active: bool) -> void:
 	active = active and not connection_blocked and not _covered and not (chat != null and chat.is_open())
 	if not active:
@@ -250,7 +258,7 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	chat.visible = shown and chat_enabled
 	if shown != shown_before and sides_tray():
 		layout_controls()  # the plate is the strip while the hand shows, the whole tray while you wait
-	console.set_column(CardHand.COLUMN if shown and not sides_tray() else 0.0, not Settings.left_handed)
+	sync_plate_column()
 	street.active = playing
 	if not playing:
 		street.release()
