@@ -74,8 +74,18 @@ func centring_shift(distance: float, aspect: float, arena: Vector2, bottom: floa
 	return (low + high) / 2.0
 
 
+## The sideways shift of the aim point (metres, for the view that is not flipped; negate it for the flipped one) that centres the arena in the
+## band of the screen left between a `left` and a `right` margin (fractions of the screen's width; -1 = `frame_side`): with a panel on one
+## side the street is pushed to the other, at the size `frame` chose.
+func centring_shift_x(distance: float, aspect: float, left: float = -1.0, right: float = -1.0) -> float:
+	var left_kept: float = frame_side if left < 0.0 else left
+	var right_kept: float = frame_side if right < 0.0 else right
+	var band_centre: float = left_kept - right_kept  # normalised, -1..1 across
+	return -band_centre * (distance / 2.0) * aspect
+
+
 ## True when the whole `arena` (x, z extents) fits inside the margins at `distance`.
-func fits(distance: float, aspect: float, arena: Vector2, bottom: float = -1.0, top_margin: float = -1.0) -> bool:
+func fits(distance: float, aspect: float, arena: Vector2, bottom: float = -1.0, top_margin: float = -1.0, left: float = -1.0, right: float = -1.0) -> bool:
 	var kept: float = frame_bottom if bottom < 0.0 else bottom
 	var kept_top: float = frame_top if top_margin < 0.0 else top_margin
 	var shift: float = centring_shift(distance, aspect, arena, bottom, top_margin)
@@ -86,19 +96,19 @@ func fits(distance: float, aspect: float, arena: Vector2, bottom: float = -1.0, 
 	for sx: float in [-1.0, 1.0]:
 		for sz: float in [-1.0, 1.0]:
 			var corner: Vector2 = screen_point(distance, aspect, Vector2(sx * arena.x / 2.0, sz * arena.y / 2.0), shift)
-			if absf(corner.x) > 1.0 - 2.0 * frame_side:
+			if absf(corner.x) > 1.0 - (frame_side if left < 0.0 else left) - (frame_side if right < 0.0 else right):
 				return false
 	return true
 
 
 ## The camera's distance from the aim point (x) and the aim point's shift along the street (y) that put the whole
 ## `arena` on a screen of `aspect`: the nearest the camera can be and still fit.
-func frame(aspect: float, arena: Vector2, bottom: float = -1.0, top_margin: float = -1.0) -> Vector2:
+func frame(aspect: float, arena: Vector2, bottom: float = -1.0, top_margin: float = -1.0, left: float = -1.0, right: float = -1.0) -> Vector2:
 	var near: float = MIN_DISTANCE
 	var far: float = MAX_DISTANCE
 	for i: int in 50:
 		var middle: float = (near + far) / 2.0
-		if fits(middle, aspect, arena, bottom, top_margin):
+		if fits(middle, aspect, arena, bottom, top_margin, left, right):
 			far = middle
 		else:
 			near = middle
@@ -121,5 +131,5 @@ func yaw_degrees(flip: bool) -> float:
 
 ## Where the camera aims: the middle of the street, shifted `aim_z` toward the own end (the other team's view is
 ## turned half way round, so the shift is the other way). Never moves with anyone.
-func camera_target(aim_z: float, flip: bool) -> Vector2:
-	return Vector2(0.0, -aim_z if flip else aim_z)
+func camera_target(aim_z: float, flip: bool, aim_x: float = 0.0) -> Vector2:
+	return Vector2(-aim_x if flip else aim_x, -aim_z if flip else aim_z)

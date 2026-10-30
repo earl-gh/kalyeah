@@ -26,6 +26,12 @@ func _ready() -> void:
 	fill(rows)
 	preferences.add_child(UiKit.card(rows))
 	_content.add_child(preferences)
+	var graphics: VBoxContainer = VBoxContainer.new()
+	graphics.name = "Graphics"
+	graphics.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
+	graphics.add_child(UiKit.section_label("Graphics"))
+	graphics.add_child(UiKit.card(GraphicsOptions.new()))
+	_content.add_child(graphics)
 	quit_button = MenuDialog.make_button("Quit game", "red", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
 	quit_button.name = "QuitButton"
 	quit_button.pressed.connect(quit_pressed.emit)

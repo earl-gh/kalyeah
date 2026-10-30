@@ -13,6 +13,8 @@ signal again_pressed
 signal exit_pressed
 ## The tray's height changed (the bottom inset did): the camera keeps this much of the screen clear.
 signal console_height_changed(height: float)
+## The panel along one side of the screen (the cards of Cards tray = Sides) is this wide (0: none), on the left or not: the camera frames the street in the rest.
+signal side_reserve_changed(width: float, left: bool)
 ## The header's height (with the top inset) changed: the camera keeps this much of the screen clear at the top.
 signal header_height_changed(height: float)
 
@@ -154,6 +156,28 @@ func set_chat_enabled(on: bool) -> void:
 
 ## The tray's height now: its own plus the bottom inset.
 func console_height() -> float:
+	return (CardHand.SIDES_TRAY if sides_tray() else CONSOLE_HEIGHT) + bottom_inset
+
+
+## True with Settings > Cards tray = Sides: the cards stand on the sides of the street and the tray is only the ice water bar's strip.
+func sides_tray() -> bool:
+	return Settings.cards_tray == &"sides"
+
+
+## The width of the side panel the cards stand on in the Sides layout (0 in the bottom tray), and its side: the writing hand's.
+func side_reserve() -> float:
+	return CardHand.SIDES_COLUMN if sides_tray() else 0.0
+
+
+func side_reserve_left() -> bool:
+	return Settings.left_handed
+
+
+## The height of the blue plate (and of the tagged panel on it): the whole tray, or in the Sides layout only the bar's strip while you
+## play (the plate grows to the full tray while you wait on the sidewalk, so the tagged panel has room; the street stays framed the same).
+func console_panel_height() -> float:
+	if sides_tray() and hand != null and hand.visible:
+		return console_height()
 	return CONSOLE_HEIGHT + bottom_inset
 
 
@@ -217,9 +241,12 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	var playing: bool = not player.tagged and sim.phase == MatchSim.Phase.PLAYING and not pick_open and not connection_blocked
 	# during the opening show the first hand is on the tray, dimmed and locked, instead of an empty tray
 	var shown: bool = playing or (sim.phase == MatchSim.Phase.INTRO and not player.tagged and not pick_open and not connection_blocked)
+	var shown_before: bool = hand.visible
 	hand.visible = shown
 	chat.visible = shown and chat_enabled
-	console.set_column(CardHand.COLUMN if shown else 0.0, not Settings.left_handed)
+	if shown != shown_before and sides_tray():
+		layout_controls()  # the plate is the strip while the hand shows, the whole tray while you wait
+	console.set_column(CardHand.COLUMN if shown and not sides_tray() else 0.0, not Settings.left_handed)
 	street.active = playing
 	if not playing:
 		street.release()

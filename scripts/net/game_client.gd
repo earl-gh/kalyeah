@@ -22,6 +22,8 @@ signal stage_changed(stage: String)
 ## Someone confirmed their pick: the kids a team has locked in changed (during the pick).
 signal picks_changed
 signal snapshot_applied
+## The open Online rooms the server listed (`list_rooms`): each {code, host_name, team_size, players, first_to, map}.
+signal rooms_listed(rooms: Array[Dictionary])
 
 var player_name: String = ""
 ## Stable id in the room and the match (-1 before joining a room).
@@ -139,6 +141,16 @@ func create_room(team_size: int) -> void:
 
 func join_room(code: String) -> void:
 	send({"t": NetProtocol.Msg.JOIN_ROOM, "code": code})
+
+
+## Asks for the open rooms; the answer comes as `rooms_listed`.
+func list_rooms() -> void:
+	send({"t": NetProtocol.Msg.LIST_ROOMS})
+
+
+## Host only: open (listed for everyone) or private (code only).
+func set_open(open: bool) -> void:
+	send({"t": NetProtocol.Msg.SET_OPEN, "open": open})
 
 
 func pick_team(team: int) -> void:
@@ -279,6 +291,14 @@ func _handle(message: Dictionary) -> void:
 			room_changed.emit(room)
 		M.ROOM_CLOSED:
 			room_closed.emit()
+		M.ROOM_LIST:
+			var listed: Array[Dictionary] = []
+			var raw: Variant = message.get("rooms", [])
+			if raw is Array:
+				for entry: Variant in raw as Array:
+					if entry is Dictionary and (entry as Dictionary).get("code") is String:
+						listed.append(entry as Dictionary)
+			rooms_listed.emit(listed)
 		M.MATCH_LOADING:
 			_build_mirror(message)
 			match_loading.emit(message)

@@ -6,6 +6,8 @@ extends VBoxContainer
 
 ## The switch (on = the NEXT card on the right, the hand toward the left thumb).
 var hand_toggle: UiToggle
+## Bottom or Sides (Settings page only: the match menu's list must stay short).
+var tray_choice: UiSegmented
 ## On = a thin line and rings while you aim; off = nothing is drawn.
 var guide_toggle: UiToggle
 ## On = lean the phone to run (only on a phone that reports its tilt; Settings page and match menu).
@@ -27,6 +29,13 @@ func _ready() -> void:
 	hand_toggle.toggled.connect(Settings.set_left_handed)
 	add_child(UiKit.setting_row("Left-handed", "NEXT card on the right, your cards to the left", hand_toggle))
 	if not in_match:
+		add_child(UiKit.divider())
+		tray_choice = UiSegmented.new([{"id": &"bottom", "label": "Bottom"}, {"id": &"sides", "label": "Sides"}] as Array[Dictionary], UiMetrics.TOUCH, UiMetrics.BODY)
+		tray_choice.name = "CardsTray"
+		tray_choice.select(Settings.cards_tray, false)
+		tray_choice.chosen.connect(Settings.set_cards_tray)
+		add_child(UiKit.setting_row("Cards tray", "Your cards along the bottom, or on the sides of the street", Control.new()))
+		add_child(tray_choice)
 		add_child(UiKit.divider())
 		guide_toggle = UiToggle.new()
 		guide_toggle.name = "AimGuide"
@@ -62,6 +71,8 @@ func _show_tilt() -> void:
 func _refresh() -> void:
 	if is_instance_valid(hand_toggle):
 		hand_toggle.set_state(Settings.left_handed)
+	if is_instance_valid(tray_choice):
+		tray_choice.select(Settings.cards_tray, false)
 	if is_instance_valid(guide_toggle):
 		guide_toggle.set_state(Settings.aim_guide)
 	if is_instance_valid(tilt_toggle):

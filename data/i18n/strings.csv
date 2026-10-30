@@ -5,9 +5,11 @@ keys,en
 "%s is coming soon! For now, Agawan Base is the only street open.","%s is coming soon! For now, Agawan Base is the only street open."
 %s left the battle,%s left the battle
 %s × %d,%s × %d
+%s's room,%s's room
 "%s, %s: read about this weapon","%s, %s: read about this weapon"
 %s: read about this kid,%s: read about this kid
 3 v 3 against bots. Ready to rumble?,3 v 3 against bots. Ready to rumble?
+"60 is smoother, 30 saves battery","60 is smoother, 30 saves battery"
 A bouncing ball that knocks enemies off their feet!,A bouncing ball that knocks enemies off their feet!
 "A short haircut under a backward cap, an oversized basketball jersey, cargo shorts and rubber shoes.","A short haircut under a backward cap, an oversized basketball jersey, cargo shorts and rubber shoes."
 A spinning top that sends enemies flying!,A spinning top that sends enemies flying!
@@ -53,6 +55,7 @@ CAPTURED,CAPTURED
 CAPTURING,CAPTURING
 "Card %d: %s, %d ice water%s","Card %d: %s, %d ice water%s"
 Cards,Cards
+Cards tray,Cards tray
 CHANGE WEAPONS,CHANGE WEAPONS
 Change weapons,Change weapons
 Changes apply immediately,Changes apply immediately
@@ -81,6 +84,7 @@ Copied!,Copied!
 Copy,Copy
 Copy room code,Copy room code
 Create,Create
+Create a room,Create a room
 Create room,Create room
 Creating the room…,Creating the room…
 Damage,Damage
@@ -97,20 +101,26 @@ Extra,Extra
 First to,First to
 FIRST TO %d,FIRST TO %d
 First to %d,First to %d
+first_to,first_to
 Footwear,Footwear
+Frame rate,Frame rate
+FrameRate,FrameRate
 Game mode,Game mode
 Games,Games
 GO!,GO!
 Good luck!,Good luck!
 Got it,Got it
+Graphics,Graphics
 Gunting · Heavy,Gunting · Heavy
 Gunting · Light,Gunting · Light
 Hair,Hair
+Have a code?,Have a code?
 Heal,Heal
 Held their base,Held their base
 Held your base,Held your base
 Help me!,Help me!
 Hi! I'm %s,Hi! I'm %s
+Hide the code,Hide the code
 History,History
 HOLD THE BASE!,HOLD THE BASE!
 Hold the enemy base for %s seconds alone; teammates speed it up. Or tag the whole enemy team to score immediately! First to %d points wins.,Hold the enemy base for %s seconds alone; teammates speed it up. Or tag the whole enemy team to score immediately! First to %d points wins.
@@ -164,6 +174,10 @@ Online,Online
 Online is coming soon!,Online is coming soon!
 Oops!,Oops!
 Oops! This phone can't start the room.,Oops! This phone can't start the room.
+Open,Open
+Open room,Open room
+Open room: anyone can join,Open room: anyone can join
+Open rooms,Open rooms
 Open slot,Open slot
 Open slot in the %s team,Open slot in the %s team
 OUT,OUT
@@ -172,6 +186,7 @@ Papel · Shield,Papel · Shield
 Papel · Trap,Papel · Trap
 Paste the code,Paste the code
 Pasted %d of %d characters,Pasted %d of %d characters
+Performance,Performance
 PICK A KID + 2 WEAPONS,PICK A KID + 2 WEAPONS
 Pick a name!,Pick a name!
 Picks it for a slot,Picks it for a slot
@@ -181,8 +196,11 @@ Playable,Playable
 Popoy,Popoy
 Practice,Practice
 Practice again,Practice again
+Private,Private
+Private room: code only,Private room: code only
 Profile saved!,Profile saved!
 Quick chat,Quick chat
+Quick join,Quick join
 Quit,Quit
 Quit game,Quit game
 Quit game?,Quit game?
@@ -204,11 +222,14 @@ Room code copied!,Room code copied!
 Room found. Joining…,Room found. Joining…
 Save,Save
 Scatter jacks on the road! Enemies who walk over them slow down.,Scatter jacks on the road! Enemies who walk over them slow down.
+Screen shake,Screen shake
 Selected by a teammate,Selected by a teammate
 Settings,Settings
+Sides,Sides
 Slot %d: %s,Slot %d: %s
 Slowed,Slowed
 "Snip, snip! Hold longer for more snips.","Snip, snip! Hold longer for more snips."
+Standard,Standard
 Start a battle!,Start a battle!
 Start battle,Start battle
 Starting the room…,Starting the room…
@@ -239,6 +260,7 @@ The game · %s,The game · %s
 The battle is over.","The host left.
 The battle is over."
 The host left. You're the host now!,The host left. You're the host now!
+The street shakes when you are hit,The street shakes when you are hit
 The words in the game,The words in the game
 THEM,THEM
 "Three slippers fly out and come back, hitting both ways!","Three slippers fly out and come back, hitting both ways!"
@@ -252,6 +274,8 @@ Trumpo,Trumpo
 Try again,Try again
 Tsinelas · Heavy,Tsinelas · Heavy
 Tsinelas · Light,Tsinelas · Light
+Turbo,Turbo
+Turbo draws the street a little softer so slower phones keep up,Turbo draws the street a little softer so slower phones keep up
 Turn on your hotspot or Wi-Fi. Then tap Try again.,Turn on your hotspot or Wi-Fi. Then tap Try again.
 Vibration,Vibration
 Victory,Victory
@@ -264,6 +288,7 @@ Waiting for your friends…,Waiting for your friends…
 Wow!,Wow!
 YOU,YOU
 YOU %d - %d THEM   %s,YOU %d - %d THEM   %s
+"Your cards along the bottom, or on the sides of the street","Your cards along the bottom, or on the sides of the street"
 Your ID photo,Your ID photo
 Your nametag,Your nametag
 Your rescue area is ready in %d s!,Your rescue area is ready in %d s!

@@ -17,11 +17,16 @@ func setup_hud() -> void:
 	owner.input.tap_time = owner.sim.rules.card_tap_time
 	owner.input.follow_hold = owner.sim.rules.move_follow_hold
 	owner.hud.console_height_changed.connect(func(height: float) -> void: owner._camera.bottom_reserve_px = height)
+	owner.hud.side_reserve_changed.connect(func(width: float, left: bool) -> void:
+		owner._camera.side_reserve_px = width
+		owner._camera.side_reserve_left = left)
 	owner.hud.header_height_changed.connect(func(height: float) -> void:
 		owner._camera.top_reserve_px = height + HEADER_GAP
 		owner.hud.overhead.top_limit = height)
 	owner.hud.set_bottom_inset(_safe_bottom_inset())
 	owner._camera.bottom_reserve_px = owner.hud.console_height()
+	owner._camera.side_reserve_px = owner.hud.side_reserve()
+	owner._camera.side_reserve_left = owner.hud.side_reserve_left()
 	Cinematic.add_lens(owner, owner._camera.rules.lens_k())
 	Cinematic.add_film_finish(owner)
 	owner.hud.overhead.setup(owner.sim, owner._camera, owner.local_id, owner.local_team)
