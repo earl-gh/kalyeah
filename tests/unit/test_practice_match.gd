@@ -452,7 +452,9 @@ func test_no_team_has_a_character_twice_and_no_name_over_their_head() -> void:
 		assert_false(seen.has(key), "%s twice on team %d" % [state.character_id, state.team])
 		seen[key] = true
 	for id: int in practice.sim.players:
-		assert_eq(practice.overhead().text_for(id), "", "no name text over a healthy hero")
+		assert_eq(practice.overhead().text_for(id), "", "no status word over a healthy hero")
+		assert_ne(practice.overhead().label_for(practice.sim.players[id]), "", "but its name")
+	assert_eq(practice.overhead().label_for(practice.sim.players[practice.local_id]), Session.player_name, "yours is your own name")
 
 
 func test_status_effects_show_over_the_hero_in_words() -> void:

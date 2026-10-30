@@ -23,6 +23,15 @@ const BLEND: float = 0.14
 ## The sim steps at 30 Hz but the screen draws faster: with no new position for this
 ## long the kid is standing still.
 const STILL_AFTER: float = 0.2
+## How fast a kid turns to look along a new facing (radians a second): a flip to the opposite way takes about 0.14 s, so it reads as
+## a quick turn and never as the model popping round in one frame (owner: models blinked on sharp turns), and a facing that is
+## only there for a tick is a small wiggle, not a flip.
+const TURN_RATE: float = 22.0
+## A kid that was running keeps its run for this long (seconds) after the measured speed drops to a slow but not zero speed. The speed
+## is measured from the sim's 30 Hz steps, and a short step (the last one into a move target, a step cut by a wall, the tick a new tap
+## swaps the target) reads as nearly standing: without this the kid flashed into idle for a few frames and back (owner: blinking). A
+## speed of exactly 0 is a kid that has stood still (`STILL_AFTER`): no grace, it goes idle at once.
+const RUN_GRACE: float = 0.15
 ## The game's state names -> the clips of the GLBs (their own names). The state names are added to the model's clip library
 ## as aliases of the same animations.
 const CLIP_FOR: Dictionary[String, String] = {
@@ -60,6 +69,9 @@ var _player: AnimationPlayer
 var _stars: Node3D
 var _can: Node3D
 var _facing: Vector2 = Vector2(0.0, 1.0)
+var _yaw_target: float = 0.0
+var _yaw_known: bool = false
+var _still_for: float = 0.0
 var _phase: float = 0.0
 var _clock: float = 0.0
 var _ghost: bool = false
@@ -110,11 +122,23 @@ func setup(def: CharacterDef) -> void:
 	_play("idle")
 
 
-## Turns the kid to look along `facing` (world x/z).
+## Sets the way the kid looks, along `facing` (world x/z): it is at once the first time (a new kid just stands that way) and turns
+## there at `TURN_RATE` after that (`animate()` does the turning every frame).
 func face(facing: Vector2) -> void:
 	if facing.length_squared() > 0.0001:
 		_facing = facing.normalized()
-		rotation.y = atan2(-facing.x, -facing.y)
+		_yaw_target = atan2(-facing.x, -facing.y)
+		if not _yaw_known:
+			_yaw_known = true
+			rotation.y = _yaw_target
+
+
+## One frame of turning toward the facing. Exactly opposite is always turned the same way (positive), so a flip never hesitates.
+func _turn(delta: float) -> void:
+	var gap: float = angle_difference(rotation.y, _yaw_target)
+	if absf(gap) > PI - 0.0001:
+		gap = PI
+	rotation.y = wrapf(rotation.y + clampf(gap, -TURN_RATE * delta, TURN_RATE * delta), -PI, PI)
 
 
 ## A weapon was cast (the sim's weapon_cast, this tick): standing it is Cast_OneHand, moving Cast_Run, either way from the
@@ -190,6 +214,7 @@ func ground_speed(world_position: Vector2, delta: float) -> float:
 ## Per frame: `speed` is the ground speed in m/s.
 func animate(delta: float, speed: float, state: PlayerState) -> void:
 	_clock += delta
+	_turn(delta)
 	_cast_left = maxf(0.0, _cast_left - delta)
 	var polymorphed: bool = state.effects.has(StatusEffects.Type.POLYMORPH)
 	set_ghost(state.tagged)
@@ -201,7 +226,10 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 		_can.position.y = absf(sin(_clock * 10.0)) * 0.08 * clampf(speed, 0.0, 1.0)
 		_apply_pops()
 		return
-	_move_blend = move_toward(_move_blend, 1.0 if speed > 0.3 else 0.0, delta * 6.0)
+	var moving: bool = speed > 0.3
+	_still_for = 0.0 if moving else (_still_for + delta if speed > 0.0 else RUN_GRACE + delta)
+	var running: bool = moving or (_move_blend > 0.5 and _still_for <= RUN_GRACE)
+	_move_blend = move_toward(_move_blend, 1.0 if running else 0.0, delta * 6.0)
 	_tired = state.overclocked
 	_step_vanish(delta, state.tagged)
 	# a cast belongs to the clip it began with: when the kid starts or stops moving it is over
