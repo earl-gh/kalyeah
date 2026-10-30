@@ -176,15 +176,6 @@ func street_point(screen: Vector2) -> Variant:
 	return Vector2((hit as Vector3).x, (hit as Vector3).z)
 
 
-## The street (the play area) on the screen, in viewport pixels.
-func street_screen_rect() -> Rect2:
-	var lane: Rect2 = layout.lane_rect()
-	var rect: Rect2 = Rect2(_camera.screen_position(Vector3(lane.position.x, 0.0, lane.position.y)), Vector2.ZERO)
-	for corner: Vector2 in [Vector2(lane.end.x, lane.position.y), lane.end, Vector2(lane.position.x, lane.end.y)]:
-		rect = rect.expand(_camera.screen_position(Vector3(corner.x, 0.0, corner.y)))
-	return rect
-
-
 ## A tap on the street at screen point `at`: walk there.
 func move_pressed(at: Vector2) -> void:
 	var point: Variant = street_point(at)

@@ -1,7 +1,7 @@
 extends GutTest
 ## A held card dragged outside the play area (docs/GDD.md "Controls: tap to move, cards to cast"): the aim shape and its drop circle go
-## red, everything outside the street is tinted red, the street's edge is outlined in red, and letting go there throws nothing.
-## Seam: MatchInput.card_drag (the `inside` flag), PracticeMatch.card_moved, PlayAreaGuard, AimIndicator.
+## red and letting go there throws nothing (no tint or outline on the screen).
+## Seam: MatchInput.card_drag (the `inside` flag), PracticeMatch.card_moved, AimIndicator.
 
 const NOW: int = 10000
 const DT: float = 1.0 / 30.0
@@ -63,26 +63,7 @@ func test_the_flag_is_cleared_when_the_card_is_let_go_or_a_new_one_picked_up() -
 	assert_false(input.out_of_bounds)
 
 
-func test_the_guard_shows_a_red_tint_outside_the_street_and_never_takes_a_touch() -> void:
-	var holder: Control = autofree(Control.new()) as Control
-	holder.custom_minimum_size = Vector2(720.0, 1280.0)
-	add_child(holder)
-	var guard: PlayAreaGuard = PlayAreaGuard.new()
-	holder.add_child(guard)
-	assert_false(guard.showing())
-	assert_eq(guard.mouse_filter, Control.MOUSE_FILTER_IGNORE)
-	guard.show_area(Rect2(40.0, 200.0, 640.0, 900.0))
-	assert_true(guard.showing())
-	assert_gt(PlayAreaGuard.TINT.a, 0.0)
-	assert_gt(PlayAreaGuard.OUTLINE.r, PlayAreaGuard.OUTLINE.b + 0.4, "red")
-	assert_gt(PlayAreaGuard.TINT.r, PlayAreaGuard.TINT.b + 0.5, "red")
-	guard.hide_area()
-	assert_false(guard.showing())
-	guard.show_area(Rect2())
-	assert_false(guard.showing(), "an empty street shows nothing")
-
-
-func test_dragging_a_card_off_the_street_in_a_match_shows_the_warning_and_back_on_it_takes_it_away() -> void:
+func test_dragging_a_card_off_the_street_in_a_match_makes_the_aim_red_and_back_on_it_takes_it_away() -> void:
 	var practice: PracticeMatch = autofree(PRACTICE.instantiate()) as PracticeMatch
 	add_child(practice)
 	practice.set_process(false)
@@ -94,23 +75,20 @@ func test_dragging_a_card_off_the_street_in_a_match_shows_the_warning_and_back_o
 	var lane: Rect2 = practice.layout.lane_rect()
 	var outside: Vector2 = camera.screen_position(Vector3(lane.end.x + 1.5, 0.0, 0.0))
 	var inside: Vector2 = camera.screen_position(Vector3(0.0, 0.0, 0.0))
-	assert_false(practice.hud.guard.showing(), "nothing held: nothing red")
 	practice.card_pressed(0)
 	practice.card_moved(0, inside, false, false)
 	practice.advance(DT)
-	assert_false(practice.hud.guard.showing(), "on the street it is a normal aim")
-	assert_false(practice.input.out_of_bounds)
+	assert_false(practice.input.out_of_bounds, "on the street it is a normal aim")
+	assert_true(practice.input.over_street)
 	practice.card_moved(0, outside, false, false)
 	practice.advance(DT)
 	assert_true(practice.input.out_of_bounds, "a point outside the street")
-	assert_true(practice.hud.guard.showing(), "the screen says so")
-	var street: Rect2 = practice.street_screen_rect()
-	assert_eq(practice.hud.guard.area, street, "the outline is the street's edge")
-	assert_gt(street.size.x, 100.0)
+	assert_false(practice.input.over_street)
 	assert_eq(practice.input.release_kind(Time.get_ticks_msec()), MatchInput.Release.CANCEL, "letting go there throws nothing")
+	assert_null(practice.find_child("PlayAreaGuard", true, false), "no tint or outline on the screen")
 	practice.card_moved(0, inside, false, false)
 	practice.advance(DT)
-	assert_false(practice.hud.guard.showing(), "back on the street the red goes")
+	assert_false(practice.input.out_of_bounds, "back on the street the red goes")
 	practice.card_released(0, inside, false, false)
 
 

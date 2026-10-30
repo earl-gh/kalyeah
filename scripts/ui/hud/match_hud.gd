@@ -56,8 +56,6 @@ const CONSOLE_HEIGHT: float = 255.0
 const MAX_BOTTOM_INSET: float = 80.0
 
 var overhead: OverheadHud
-## The red warning over the screen while a card is dragged outside the street.
-var guard: PlayAreaGuard
 var _capture_linger: float = 0.0
 var _capture_alerting: bool = false
 ## The red glow round the screen edge when you are hit (under the controls).
@@ -324,8 +322,6 @@ func _sync_capture(sim: MatchSim, local_team: int, delta: float) -> void:
 # ---- building ------------------------------------------------------------------
 
 func _build() -> void:
-	guard = PlayAreaGuard.new()
-	add_child(guard)
 	overhead = OverheadHud.new()
 	overhead.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_place(overhead, Vector4(0, 0, 1, 1), Vector4.ZERO)

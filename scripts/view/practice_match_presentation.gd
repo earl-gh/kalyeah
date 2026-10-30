@@ -144,10 +144,6 @@ func _sync_aim(player: PlayerState) -> void:
 	var input: MatchInput = owner.input
 	var slot: int = input.held_slot
 	var playing: bool = owner.hud.street.active
-	if playing and slot >= 0 and input.out_of_bounds:
-		owner.hud.guard.show_area(owner.street_screen_rect())
-	else:
-		owner.hud.guard.hide_area()
 	if not playing:
 		owner._aim_indicator.clear()
 		owner.hud.sync_hold_hint(player, false, MatchInput.Release.NONE, false)
