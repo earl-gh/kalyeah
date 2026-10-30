@@ -19,4 +19,4 @@ func _ready() -> void:
 
 
 func _refresh() -> void:
-	finish.set_shader_parameter("grain", 0.0 if Settings.reduced_motion else 0.025)
+	finish.set_shader_parameter("grain", 0.0 if Settings.reduced_motion or Settings.performance == &"turbo" else 0.025)

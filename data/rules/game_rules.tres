@@ -1,6 +1,10 @@
-[gd_resource type="Resource" script_class="GameRules" load_steps=24 format=3]
+[gd_resource type="Resource" script_class="GameRules" load_steps=28 format=3]
 
 [ext_resource type="Script" path="res://scripts/sim/game_rules.gd" id="1_rules"]
+[ext_resource type="Script" path="res://scripts/sim/bot_level.gd" id="bl_script"]
+[ext_resource type="Resource" path="res://data/rules/bot_levels/easy.tres" id="bl_easy"]
+[ext_resource type="Resource" path="res://data/rules/bot_levels/medium.tres" id="bl_medium"]
+[ext_resource type="Resource" path="res://data/rules/bot_levels/hard.tres" id="bl_hard"]
 [ext_resource type="Script" path="res://scripts/sim/weapon_def.gd" id="w_script"]
 [ext_resource type="Script" path="res://scripts/sim/character_def.gd" id="c_script"]
 [ext_resource type="Resource" path="res://data/weapons/bato_light.tres" id="w_bato_light"]
@@ -84,6 +88,8 @@ bot_assault_delay = 3.0
 bot_assault_window = 20.0
 bot_rest_time = 8.0
 bot_rescue_aggro_range = 4.0
+bot_levels = Array[ExtResource("bl_script")]([ExtResource("bl_easy"), ExtResource("bl_medium"), ExtResource("bl_hard")])
+bot_level_default = &"medium"
 weapons = Array[ExtResource("w_script")]([ExtResource("w_bato_light"), ExtResource("w_bato_heavy"), ExtResource("w_gunting_light"), ExtResource("w_gunting_heavy"), ExtResource("w_papel_trap"), ExtResource("w_papel_shield"), ExtResource("w_tsinelas_light"), ExtResource("w_tsinelas_heavy"), ExtResource("w_lata"), ExtResource("w_jacks"), ExtResource("w_bola"), ExtResource("w_trumpo"), ExtResource("w_heal"), ExtResource("w_langit_lupa")])
 characters = Array[ExtResource("c_script")]([ExtResource("c_junjun"), ExtResource("c_ligaya"), ExtResource("c_migo"), ExtResource("c_toni"), ExtResource("c_popoy"), ExtResource("c_inday")])
 weapon_pick_time = 10.0
