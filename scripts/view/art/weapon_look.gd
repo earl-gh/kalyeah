@@ -19,6 +19,8 @@ const STYLES: Dictionary[String, Dictionary] = {
 	"slipper": {"albedo_color": WHITE_GAIN, "top_boost": WHITE_TOP},
 	"paper": {"albedo_color": WHITE_GAIN, "top_boost": WHITE_TOP},
 	"crumpled_paper": {"albedo_color": WHITE_GAIN, "top_boost": WHITE_TOP},
+	# the scissors' black blades are painted silver steel by the shader (scissors_steel.gdshaderinc); the red handles stay
+	"scissor": {"silver": 1.0},
 }
 
 
@@ -49,6 +51,8 @@ static func make(source: Material, style: Dictionary = {}) -> ShaderMaterial:
 		outline.set_shader_parameter(&"albedo_texture", base.albedo_texture)
 	for key: Variant in style:
 		material.set_shader_parameter(key as StringName, style[key])
+	if style.has("silver"):
+		outline.set_shader_parameter(&"silver", style["silver"])
 	material.next_pass = outline
 	return material
 
