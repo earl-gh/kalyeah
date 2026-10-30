@@ -30,6 +30,12 @@ const PRIO_DECAL: int = 3
 const RIM: float = 0.22
 const RIM_ALPHA: float = 0.95
 const FILL_ALPHA: float = 0.4
+## The ground area a player casts (a landing circle, the trap's range and slow zone, a jacks field, a marble's bounce rings): a white
+## tint fill (yours and your team's; the other team's is red, see FxContext.area_color) with a thin opaque outline straddling the exact
+## edge (owner: it was a 0.22 m rim round a 20 to 40% fill in team colours).
+const AREA_FILL_ALPHA: float = 0.45
+const AREA_RIM: float = 0.07
+const AREA_RIM_ALPHA: float = 1.0
 ## The unit ring (radius 1) is this wide: a hit ring of 1 m radius has a 0.14 m line (3-4 px at 720 wide: 0.08 was a hairline).
 const RING_WIDTH: float = 0.14
 ## Points round a full circle of the shared ring, disc and puff.
