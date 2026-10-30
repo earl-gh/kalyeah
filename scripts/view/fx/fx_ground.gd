@@ -378,11 +378,13 @@ static func _live(pool: Array[Slot]) -> int:
 static func circle_mark(radius: float, color: Color, fill_alpha: float, rim_alpha: float = FxKit.RIM_ALPHA, rim_width: float = FxKit.RIM) -> ArrayMesh:
 	var key: String = "circle|%.3f|%s|%.3f|%.3f|%.3f" % [radius, color.to_html(), fill_alpha, rim_alpha, rim_width]
 	if not _marks.has(key):
-		_marks[key] = mark(AimIndicator.circle(Vector2.ZERO, radius), color, fill_alpha, FxKit.Y_FILL, rim_width, rim_alpha, FxKit.Y_RIM)
+		# the see-through tint stops at the outline's inner edge: under it the outline would blend twice (a see-through rim over a tint)
+		var tint: PackedVector2Array = AimIndicator.circle(Vector2.ZERO, radius - rim_width / 2.0)
+		_marks[key] = mark(AimIndicator.circle(Vector2.ZERO, radius), color, fill_alpha, FxKit.Y_FILL, rim_width, rim_alpha, FxKit.Y_RIM, tint)
 	return _marks[key]
 
 
-## The mark of an area a player casts: `circle_mark` with the thin area outline (`FxKit.AREA_RIM`, opaque) and the area fill. The
+## The mark of an area a player casts: `circle_mark` with the thin area outline (`FxKit.AREA_RIM`) and the area fill, both half see-through. The
 ## colour comes from `FxContext.area_color`.
 static func area_mark(radius: float, color: Color, fill_alpha: float = FxKit.AREA_FILL_ALPHA, rim_alpha: float = FxKit.AREA_RIM_ALPHA) -> ArrayMesh:
 	return circle_mark(radius, color, fill_alpha, rim_alpha, FxKit.AREA_RIM)
@@ -435,11 +437,11 @@ static func wedge(def: WeaponDef) -> PackedVector2Array:
 
 ## A fill (`fill_alpha` at height `fill_y`, none at 0) and a rim (`rim_width` wide, `rim_alpha`, at `rim_y`, none at width 0)
 ## along `outline`, in `color`, as one mesh (the rim drawn after the fill).
-static func mark(outline: PackedVector2Array, color: Color, fill_alpha: float, fill_y: float, rim_width: float, rim_alpha: float, rim_y: float) -> ArrayMesh:
+static func mark(outline: PackedVector2Array, color: Color, fill_alpha: float, fill_y: float, rim_width: float, rim_alpha: float, rim_y: float, tint: PackedVector2Array = PackedVector2Array()) -> ArrayMesh:
 	var mesh: ImmediateMesh = ImmediateMesh.new()
 	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 	if fill_alpha > 0.0:
-		AimIndicator.fill(mesh, outline, Color(color, fill_alpha), fill_y)
+		AimIndicator.fill(mesh, outline if tint.is_empty() else tint, Color(color, fill_alpha), fill_y)
 	if rim_width > 0.0:
 		AimIndicator.ribbon(mesh, outline, rim_width, Color(color, rim_alpha), rim_y)
 	return FxKit.bake(mesh)
