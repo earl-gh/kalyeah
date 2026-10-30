@@ -139,7 +139,7 @@ func test_kids_have_two_rows_of_five_with_four_unknown_junjun_cards() -> void:
 			assert_true(cell.disabled)
 			assert_eq(cell.picture.texture, CharactersPage.card_picture(&"junjun"))
 			assert_lt(cell.picture.modulate.v, 0.2)
-			assert_eq((cell.find_child("Unknown", true, false) as Label).text, "?")
+			assert_eq((cell.find_child("Unknown", true, false) as Label).text, "Coming\nSoon")
 	assert_eq(xs.size(), 5)
 	assert_eq(ys.size(), 2)
 
