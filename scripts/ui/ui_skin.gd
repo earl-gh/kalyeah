@@ -16,6 +16,8 @@ const BUTTONS: Dictionary[String, Dictionary] = {
 		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
 	"blue": {"top": Color("62baff"), "bottom": Color("379ef0"), "lip": Color("0a66b4"), "line": Color("0a3d73"),
 		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
+	"navy": {"top": Color("2f66bd"), "bottom": Color("1a4590"), "lip": Color("0d2a62"), "line": Color("061638"),
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
 	"green": {"top": Color("62dc72"), "bottom": Color("1f9a3b"), "lip": Color("126628"), "line": Color("08381a"),
 		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
 	"red": {"top": Color("ff7f72"), "bottom": Color("d6342e"), "lip": Color("8c1d1b"), "line": Color("4f0c0b"),
@@ -108,7 +110,7 @@ static func warm_fraction() -> float:
 	return float(_warmed) / float(warm_total())
 
 
-## A game button of `variant` (gold, blue, green, red, slate, disabled) in `state` (normal, hover,
+## A game button of `variant` (gold, blue, navy, green, red, slate, disabled) in `state` (normal, hover,
 ## pressed). The face sinks into its lip when pressed.
 static func button(variant: String, state: String = "normal", radius: int = BUTTON_RADIUS) -> StyleBoxTexture:
 	var key: String = "b/%s/%s/%d" % [variant, state, radius]

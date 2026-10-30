@@ -15,6 +15,13 @@ const PRESS_UP: float = 0.16
 const BAR_WIDTH: int = 12
 const BAR_INSET: float = 10.0
 const GRABBER_MIN: float = 72.0
+## The sticky page header's shadow on a page that scrolls: this tall (px), faint at rest and full while content is scrolled under the
+## header (over the first `HEADER_SHADOW_SCROLL` px). One cached gradient strip, nothing drawn per frame.
+const HEADER_SHADOW_HEIGHT: float = 22.0
+const HEADER_SHADOW_REST: float = 0.45
+const HEADER_SHADOW_SCROLL: float = 40.0
+const HEADER_SHADOW_COLOR: Color = Color(0.0, 0.02, 0.08, 0.55)
+static var _header_shadow: GradientTexture2D
 
 
 ## A scrolling area for `content` that fills the rest of `page`, with its scrollbar in the middle of the gap between the content and the
@@ -34,6 +41,7 @@ static func add_gutter_scroll(page: Control, content: Control, follow_focus: boo
 	style_scrollbar(scroll.get_v_scroll_bar())
 	var bar: float = scroll.get_v_scroll_bar().get_combined_minimum_size().x
 	scroll.offset_right = (TitleScreen.PAGE_SIDE_MARGIN + bar) / 2.0
+	_add_header_shadow(holder, scroll)
 	var inner: MarginContainer = MarginContainer.new()
 	inner.name = "Inner"
 	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -46,6 +54,42 @@ static func add_gutter_scroll(page: Control, content: Control, follow_focus: boo
 	scroll.add_child(inner)
 	inner.add_child(content)
 	return scroll
+
+
+## The shadow under the sticky header of a page that scrolls: a strip across the whole screen width at the top of the scroll area, shown
+## only while the page really scrolls (a short page keeps its plain header) and deepening as content moves under the header.
+static func _add_header_shadow(holder: Control, scroll: ScrollContainer) -> void:
+	if _header_shadow == null:
+		_header_shadow = GradientTexture2D.new()
+		_header_shadow.width = 1
+		_header_shadow.height = 32
+		_header_shadow.fill_from = Vector2.ZERO
+		_header_shadow.fill_to = Vector2.DOWN
+		_header_shadow.gradient = Gradient.new()
+		_header_shadow.gradient.offsets = PackedFloat32Array([0.0, 0.35, 1.0])
+		_header_shadow.gradient.colors = PackedColorArray([HEADER_SHADOW_COLOR, Color(HEADER_SHADOW_COLOR, HEADER_SHADOW_COLOR.a * 0.35), Color(HEADER_SHADOW_COLOR, 0.0)])
+	var shade: TextureRect = TextureRect.new()
+	shade.name = "HeaderShadow"
+	shade.texture = _header_shadow
+	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shade.stretch_mode = TextureRect.STRETCH_SCALE
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# across the whole screen: out through the page margins on both sides
+	shade.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	shade.offset_left = -TitleScreen.PAGE_SIDE_MARGIN - 80.0
+	shade.offset_right = TitleScreen.PAGE_SIDE_MARGIN + 80.0
+	shade.offset_top = 0.0
+	shade.offset_bottom = HEADER_SHADOW_HEIGHT
+	shade.visible = false
+	holder.add_child(shade)
+	var bar: VScrollBar = scroll.get_v_scroll_bar()
+	var update: Callable = func(_value: Variant = null) -> void:
+		shade.visible = bar.visible
+		shade.modulate.a = lerpf(HEADER_SHADOW_REST, 1.0, clampf(float(scroll.scroll_vertical) / HEADER_SHADOW_SCROLL, 0.0, 1.0))
+	bar.visibility_changed.connect(update)
+	bar.value_changed.connect(update)
+	scroll.resized.connect(update)
+	update.call()
 
 
 ## A slim rounded scrollbar: a faint track inset from both ends and a light pill grabber that never shrinks below `GRABBER_MIN`.

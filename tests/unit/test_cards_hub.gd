@@ -164,9 +164,9 @@ func test_the_fan_is_masked_by_the_cards_own_rounded_shape_and_the_mask_follows_
 	assert_eq(material.shader.resource_path, CardFan.MASK_SHADER)
 	for picture: TextureRect in card.fan.cards:
 		assert_eq(picture.material, material, "every card of the fan is cut by the same mask")
-	assert_eq(material.get_shader_parameter("card_size"), card.size, "the mask is the card's own size")
-	assert_eq(material.get_shader_parameter("radius"), float(KalyeahTheme.MODAL_FRAME_RADIUS), "and its own corner radius")
-	assert_eq(material.get_shader_parameter("inset"), float(card.panel_box.get_border_width(SIDE_LEFT)), "stopping at the border's inner edge")
+	assert_eq(material.get_shader_parameter("card_size"), card.size - Vector2(0.0, CardsHubCard.LIP), "the mask is the slab's face, above its lip")
+	assert_eq(material.get_shader_parameter("radius"), float(CardsHubCard.PANEL_RADIUS), "and its own corner radius")
+	assert_eq(material.get_shader_parameter("inset"), CardsHubCard.EDGE, "stopping at the outline's inner edge")
 	var to_card: Projection = material.get_shader_parameter("to_card") as Projection
 	var corner: Vector3 = Vector3(card.get_global_rect().position.x, card.get_global_rect().position.y, 0.0)
 	var local: Vector4 = to_card * Vector4(corner.x, corner.y, 0.0, 1.0)
@@ -187,20 +187,20 @@ func test_the_fan_is_masked_by_the_cards_own_rounded_shape_and_the_mask_follows_
 	assert_almost_eq(inside.x, card.size.x / 2.0, 1.0, "a squeezed card keeps its mask in its own pixels")
 
 
-func test_the_hub_cards_are_blue_in_the_modals_frame_shape() -> void:
+func test_the_hub_cards_are_deep_blue_3d_slabs_on_a_lip() -> void:
 	var screen: TitleScreen = await _hub_screen()
+	var top: Color = UiSkin.BUTTONS[CardsHubCard.VARIANT]["top"] as Color
+	assert_gt(top.b, top.r + 0.3, "clearly blue")
+	assert_lt(top.get_luminance(), UiSkin.BUTTONS["blue"]["top"].get_luminance(), "darker than the bright blue button")
 	for card: CardsHubCard in screen.codex_page.hub.cards:
-		var box: StyleBoxFlat = card.get_theme_stylebox("normal") as StyleBoxFlat
-		assert_eq(box.bg_color, CardsHubCard.PANEL_COLOR, "bright blue, not grey")
-		assert_gt(box.bg_color.b, box.bg_color.r + 0.3, "clearly blue")
-		assert_eq(box.border_color, CardsHubCard.PANEL_EDGE)
-		assert_eq(box.corner_radius_top_left, KalyeahTheme.MODAL_FRAME_RADIUS)
-		assert_gt(box.shadow_size, 0, "a shadow, so it reads against the blue backdrop")
-		assert_gte(box.get_border_width(SIDE_LEFT), 2, "and a border")
-		var lit: StyleBoxFlat = card.get_theme_stylebox("pressed") as StyleBoxFlat
-		assert_ne(lit.bg_color, box.bg_color, "a press shows")
-		assert_gte(UiKit.contrast(card.title_label.get_theme_color("font_color"), box.bg_color), 4.5, "the title reads on the frame")
-		assert_gte(UiKit.contrast(card.detail_label.get_theme_color("font_color"), box.bg_color), 4.5, "and the detail line")
+		var box: StyleBoxTexture = card.get_theme_stylebox("normal") as StyleBoxTexture
+		assert_not_null(box, "the game buttons' textured slab, with its lit top edge, gloss and lip")
+		assert_eq(box.texture, UiSkin.button(CardsHubCard.VARIANT, "normal", CardsHubCard.PANEL_RADIUS).texture)
+		var lit: StyleBoxTexture = card.get_theme_stylebox("pressed") as StyleBoxTexture
+		assert_ne(lit.texture, box.texture, "a press shows")
+		assert_gte(UiKit.contrast(card.title_label.get_theme_color("font_color"), top), 4.5, "the title reads on the face")
+		assert_gte(UiKit.contrast(card.detail_label.get_theme_color("font_color"), top), 4.5, "and the detail line")
+		assert_lte(card.words.offset_bottom, -(UiMetrics.PADDING + CardsHubCard.LIP), "the words sit on the face, above the lip")
 
 
 func test_the_collection_scrolls_inside_the_page_on_both_phones() -> void:

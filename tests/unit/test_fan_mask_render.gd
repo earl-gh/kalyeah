@@ -77,7 +77,7 @@ func test_the_fan_is_cut_by_the_card_below_its_edge_whole_above_it_and_soft_at_t
 	assert_gt(over, 40)
 	assert_almost_eq(float(under), float(over), float(over) * 0.35, "no cut at the top edge: the fan carries on into the card")
 	# 4. the cut is soft: on the half-pixel grid the row at the cut is a blend, neither the full fan nor none of it
-	var cut_row: int = int(floorf(panel.end.y - float(card.panel_box.get_border_width(SIDE_LEFT))))
+	var cut_row: int = int(floorf(panel.end.y - (CardsHubCard.LIP + CardsHubCard.EDGE)))
 	var blended: int = 0
 	var full: int = 0
 	for x: int in range(left, right):
