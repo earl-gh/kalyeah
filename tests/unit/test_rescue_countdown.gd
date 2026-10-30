@@ -89,16 +89,97 @@ func test_the_countdown_reaches_the_clients() -> void:
 	assert_almost_eq(mirror.rescue_ready_left[1], sim.rescue_ready_left[1], 0.001)
 
 
+const MAP_SCENE: PackedScene = preload("res://scenes/map/street_map.tscn")
+
+
+func _map(own_team_side: int = MapLayout.SIDE_OWN) -> StreetMap:
+	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
+	add_child(map)
+	map.set_own_side(own_team_side)
+	return map
+
+
 func test_each_rescue_area_shows_its_countdown_then_ready() -> void:
 	var sim: MatchSim = _sim()
-	var hud: OverheadHud = autofree(OverheadHud.new()) as OverheadHud
-	hud.setup(sim, autofree(Camera3D.new()) as Camera3D, 1, 0)
+	var map: StreetMap = _map()
 	_wait(sim, 2.5)
-	assert_eq(hud.rescue_area_text(0), "8")
+	map.sync_rescue(sim)
+	assert_eq(map.rescue_count_text(sim.side_for_team(0)), "8")
+	assert_eq(map.rescue_count_text(sim.side_for_team(1)), "8", "both teams' boxes")
 	sim.rescue_ready_left[1] = 0.0
-	assert_eq(hud.rescue_area_text(1), "", "no READY! word: a ready area is just the team's colour")
+	map.sync_rescue(sim)
+	assert_eq(map.rescue_count_text(sim.side_for_team(1)), "", "no READY! word: a ready area is just the team's colour")
+	assert_eq(map.rescue_count_text(sim.side_for_team(0)), "8", "the other box keeps counting")
+	sim.rescue_ready_left[0] = 0.3
+	map.sync_rescue(sim)
+	assert_eq(map.rescue_count_text(sim.side_for_team(0)), "1", "the last fraction of a second still reads 1")
 
 
-func test_the_countdown_number_is_opaque_white_with_an_opaque_outline() -> void:
-	assert_eq(OverheadHud.AREA_COUNT_OUTLINE.a, 1.0, "the outline was 0.9 see-through")
-	assert_eq(Color(OverheadHud.AREA_COUNT_OUTLINE, 1.0), Color(Icons.OUTLINE, 1.0), "the same dark, only solid")
+func test_the_countdown_is_a_flat_mark_on_the_ground_not_a_screen_overlay() -> void:
+	assert_false((autofree(OverheadHud.new()) as OverheadHud).has_method("rescue_area_text"), "the overhead HUD no longer draws the number")
+	var sim: MatchSim = _sim()
+	var map: StreetMap = _map()
+	map.sync_rescue(sim)
+	for team: int in [0, 1]:
+		var side: int = sim.side_for_team(team)
+		var label: Label3D = map.rescue_count(side)
+		var middle: Vector2 = LAYOUT.rescue_rect(side).get_center()
+		assert_true(label.is_inside_tree() and label.visible)
+		assert_almost_eq(label.global_position.x, middle.x, 0.001, "at the area's middle")
+		assert_almost_eq(label.global_position.z, middle.y, 0.001)
+		assert_between(label.global_position.y, StreetMap.RING_HEIGHT, 0.1, "lying just above the tint and the outline")
+		assert_true(label.global_transform.basis.orthonormalized().z.is_equal_approx(Vector3.UP), "flat on the street, facing up")
+		assert_true(label.global_transform.basis.orthonormalized().y.is_equal_approx(Vector3.FORWARD), "its top toward the top of the screen (-Z, the camera's view)")
+		assert_false(label.shaded, "unshaded like the other zone marks")
+		assert_false(label.no_depth_test, "depth tested: a kid standing on it covers it")
+		assert_eq(label.alpha_cut, Label3D.ALPHA_CUT_DISABLED, "blended, not cut")
+
+
+func test_the_countdown_draws_over_the_areas_tint_and_under_every_other_see_through_mark() -> void:
+	# transparent things draw in render_priority order: the tint (-100) and the outline, then the number, then the kids' rings and shadows
+	# (0 and up: FxKit.PRIO_*), so those draw over it; the kids themselves are solid and cover it by depth
+	var map: StreetMap = _map()
+	var label: Label3D = map.rescue_count(MapLayout.SIDE_OWN)
+	var materials: Array = map._base_materials[MapLayout.SIDE_OWN]
+	var tint: int = (materials[3] as StandardMaterial3D).render_priority
+	var line: int = (materials[2] as StandardMaterial3D).render_priority
+	assert_gt(label.render_priority, tint, "over the tint")
+	assert_gt(label.render_priority, line, "and its outline")
+	assert_lt(label.render_priority, FxKit.PRIO_FILL, "under the skill areas")
+	assert_lt(label.render_priority, FxKit.PRIO_SHADOW, "and the kids' shadows")
+	assert_lt(label.render_priority, 0, "and the kids' rings (the default priority)")
+
+
+func test_the_countdown_is_white_at_half_alpha_and_the_box_turns_the_teams_colour_when_ready() -> void:
+	var sim: MatchSim = _sim()
+	var map: StreetMap = _map()
+	map.sync_rescue(sim)
+	var own: int = sim.side_for_team(0)
+	var label: Label3D = map.rescue_count(own)
+	assert_eq(label.modulate, Color(1.0, 1.0, 1.0, 0.5), "white, half see-through (owner, 2026-10-30)")
+	assert_eq(label.outline_size, 0, "no outline: it would blend twice over the half see-through white")
+	assert_true(Color(map.zone_colors(own)[2], 1.0).is_equal_approx(Color.WHITE), "the box is white while it counts")
+	sim.rescue_ready_left[0] = 0.0
+	map.sync_rescue(sim)
+	assert_false(label.visible, "nothing to count once ready")
+	assert_true(Color(map.zone_colors(own)[2], 1.0).is_equal_approx(StreetMap.OWN_COLOR), "the exact blue of yours")
+	assert_true(Color(map.zone_colors(sim.side_for_team(1))[2], 1.0).is_equal_approx(StreetMap.ENEMY_COLOR) or sim.rescue_ready_left[1] > 0.0)
+
+
+func test_the_flipped_view_turns_the_number_so_it_is_still_upright() -> void:
+	var sim: MatchSim = _sim()
+	var map: StreetMap = _map(MapLayout.SIDE_ENEMY)
+	map.sync_rescue(sim)
+	var label: Label3D = map.rescue_count(MapLayout.SIDE_OWN)
+	assert_true(label.global_transform.basis.orthonormalized().z.is_equal_approx(Vector3.UP), "still lying flat")
+	assert_true(label.global_transform.basis.orthonormalized().y.is_equal_approx(Vector3.BACK), "its top toward the top of the screen (+Z when the camera is turned round)")
+
+
+func test_the_number_is_hidden_while_a_point_is_shown() -> void:
+	var sim: MatchSim = _sim()
+	var map: StreetMap = _map()
+	map.sync_rescue(sim)
+	assert_true(map.rescue_count(MapLayout.SIDE_OWN).visible)
+	sim.phase = MatchSim.Phase.POINT_FREEZE
+	map.sync_rescue(sim)
+	assert_false(map.rescue_count(MapLayout.SIDE_OWN).visible)

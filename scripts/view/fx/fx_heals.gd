@@ -1,30 +1,35 @@
 class_name FxHeals
 extends Node3D
-## The heal: on the healed kid a green ring grows on the ground, a green cross pops up in front of the chest facing the
-## camera (never edge-on, never up at the bars) and rises a little as it shrinks away, with plus sparkles rising beside the
-## kid; healing someone else draws a short green streak from the caster to them. Driven by the relayed `player_healed` (and
+## The heal: on the healed kid a green ring grows on the ground and a green cross with white wings (owner: "the green heal wings")
+## appears at the kid's head and rises to above the head, popping in (grows from nothing, a little past full size, to full) as it
+## goes, holds there a moment, then pops out (a small wind-up, then shrinks to nothing); plus sparkles rise beside the kid up to
+## that height. Healing someone else draws a short green streak from the caster to them. Driven by the relayed `player_healed` (and
 ## `weapon_cast` for the caster), never by the offline-only `weapons.healed`, so it shows online too and offline once. A heal
-## cast that healed nobody (all at full HP) still shows on its caster. Reduce motion: the cross pops in still, holds, goes.
+## cast that healed nobody (all at full HP) still shows on its caster. Reduce motion: the cross stands above the head at full size,
+## holds, goes.
 
 ## The ground ring grows from `RING_FROM` to `RING_TO` m over `RING_FRAMES` frames (the aim preview's friend green).
 const RING_FROM: float = 0.8
 const RING_TO: float = 1.6
 const RING_FRAMES: int = 10
-## The cross: `CROSS_FRONT` m in front of the kid toward the camera, tipped to face it, its middle seen on screen at
-## `CROSS_SCREEN_FROM` of the drawn kid's height rising to `CROSS_SCREEN_TO` over `CROSS_TIME` s (the chest; a thing in front
-## of the kid is seen lower, so its height is solved from the camera); it pops in over `FxSquash.POP_FRAMES` frames and has
-## shrunk away by `CROSS_END` s (with Reduce motion it holds `CROSS_HOLD_REDUCED` s and goes).
-const CROSS_SCREEN_FROM: float = 0.47
-const CROSS_SCREEN_TO: float = 0.5
-const CROSS_TIME: float = 0.6
-const CROSS_END: float = 0.7
+## The cross: `CROSS_FRONT` m in front of the kid toward the camera, tipped to face it. Its middle is seen on screen at
+## `CROSS_SCREEN_FROM` of the drawn kid's height (the head) at first and rises (cubic ease-out) over `CROSS_RISE_TIME` s to
+## `CROSS_SCREEN_TO` (above the head: the kid's name and health bar sit over its crown, from 1.1 to 1.4 of its height on screen, and a
+## cross behind the bar showed only its tips in the film strips, so it rises to clear the bar) (a thing in front of
+## the kid is seen lower, so its height is solved from the camera). It pops in over `CROSS_POP_IN` s, holds full size until
+## `CROSS_POP_OUT_AT` s, pops out and is gone, at size exactly 0, at `CROSS_END` s (with Reduce motion it holds `CROSS_HOLD_REDUCED`
+## s above the head at full size and goes).
+const CROSS_SCREEN_FROM: float = 0.9
+const CROSS_SCREEN_TO: float = 1.6
+const CROSS_RISE_TIME: float = 0.4
+const CROSS_POP_IN: float = 0.25
+const CROSS_POP_OUT_AT: float = 0.7
+const CROSS_END: float = 1.0
 const CROSS_FRONT: float = 0.7
 const CROSS_HOLD_REDUCED: float = 0.5
-## The cross rises fast as it pops in: a green trail `RISE_LENGTH` m long runs up to it (just behind it, lighter toward its
-## foot) for `FxSquash.SMEAR_FRAMES` frames and the cross is smeared up along it (FxSquash.smear_stretch at the speed that covers
-## the trail in those frames), crisp after. Reduce motion: none.
-const RISE_LENGTH: float = 1.2
-const RISE_BEHIND: float = 0.1
+## The cross rises fast as it pops in: a green trail runs along its rise (from where it began to where it ends it, lighter toward its
+## foot) for `FxSquash.TRAIL_FRAMES` frames and the cross is smeared up along it (FxSquash.smear_stretch at the speed it starts
+## with), crisp after. Reduce motion: none.
 ## The trail is this share of the cross's width across.
 const CROSS_WIDTH_SHARE: float = 0.9
 ## Plus sparkles rising beside and behind the kid.
@@ -40,6 +45,8 @@ class Cross extends RefCounted:
 	var born: float
 	var base: Vector3
 	var front: Vector3
+	## How far (m) it rises from the head to above it.
+	var rise: float
 
 
 var _ctx: FxContext
@@ -100,14 +107,16 @@ func _heal(at: Vector2) -> void:
 	cross.node.name = "HealCross"
 	cross.base = Vector3(at.x, 0.0, at.y) + front
 	cross.born = _ctx.time
+	cross.rise = (CROSS_SCREEN_TO - CROSS_SCREEN_FROM) * KidModel.KID_HEIGHT * _ctx.view_scale
 	# its face (model +Z) turned to the camera: upright for the eye, never edge-on
 	cross.node.basis = Basis.looking_at(-back, Vector3.UP)
 	add_child(cross.node)
 	_crosses.append(cross)
 	_pose(cross)
 	if not _ctx.reduced:
-		var head: Vector3 = cross.node.position - back * RISE_BEHIND
-		_ctx.ground.trail(head - _camera_up() * RISE_LENGTH, head, CROSS_WIDTH_SHARE * WeaponModel.CROSS_WIDTH * _ctx.view_scale, Palette.GUAVA, FxSquash.TRAIL_FRAMES * FxSquash.FRAME)
+		var from: Vector3 = cross.base + Vector3(0.0, _height_for(cross, CROSS_SCREEN_FROM), 0.0)
+		var to: Vector3 = cross.base + Vector3(0.0, _height_for(cross, CROSS_SCREEN_TO), 0.0)
+		_ctx.ground.trail(from, to, CROSS_WIDTH_SHARE * WeaponModel.CROSS_WIDTH * _ctx.view_scale, Palette.GUAVA, FxSquash.TRAIL_FRAMES * FxSquash.FRAME)
 
 
 func _streak(from: Vector2, to: Vector2) -> void:
@@ -129,25 +138,39 @@ func step() -> void:
 	_crosses = still
 
 
+## The cross's size as a multiple of full, `age` s after it began: it pops in (`KidModel.pop_scale`: past full size once, then full),
+## holds, then pops out (a small wind-up, then shrinks) to exactly 0 at `CROSS_END`.
+static func cross_size(age: float) -> float:
+	if age < CROSS_POP_IN:
+		return KidModel.pop_scale(age / CROSS_POP_IN, true)
+	if age < CROSS_POP_OUT_AT:
+		return 1.0
+	return KidModel.pop_scale(1.0 - (age - CROSS_POP_OUT_AT) / (CROSS_END - CROSS_POP_OUT_AT), false)
+
+
+## Where the cross's middle is seen on screen, as a share of the kid's height, `age` s after it began: head to above the head (ease-out).
+static func cross_share(age: float) -> float:
+	var left: float = 1.0 - clampf(age / CROSS_RISE_TIME, 0.0, 1.0)
+	return lerpf(CROSS_SCREEN_FROM, CROSS_SCREEN_TO, 1.0 - left * left * left)
+
+
 ## Poses `cross` for now; false once it is over.
 func _pose(cross: Cross) -> bool:
 	var age: float = _ctx.time - cross.born
 	var size: float = _ctx.view_scale
-	var y: float = _height_for(cross, CROSS_SCREEN_FROM)
+	var y: float = _height_for(cross, CROSS_SCREEN_TO)
 	if _ctx.reduced:
 		if age >= CROSS_HOLD_REDUCED:
 			return false
 	else:
 		if age >= CROSS_END:
 			return false
-		y = _height_for(cross, lerpf(CROSS_SCREEN_FROM, CROSS_SCREEN_TO, clampf(age / CROSS_TIME, 0.0, 1.0)))
-		var pop: float = FxSquash.pop(age / (FxSquash.POP_FRAMES * FxSquash.FRAME))
-		var fade: float = clampf((CROSS_END - age) / (CROSS_END - CROSS_TIME + 0.0001), 0.0, 1.0)
-		size *= maxf(minf(pop, fade) if age > CROSS_TIME else pop, 0.01)
+		y = _height_for(cross, cross_share(age))
+		size *= maxf(cross_size(age), 0.01)
 	cross.node.position = cross.base + Vector3(0.0, y, 0.0)
 	var smear: float = 1.0
 	if not _ctx.reduced:
-		var speed: float = RISE_LENGTH / (FxSquash.SMEAR_FRAMES * FxSquash.FRAME)
+		var speed: float = 3.0 * cross.rise / CROSS_RISE_TIME
 		smear = FxSquash.smear_stretch(speed, WeaponModel.CROSS_WIDTH * _ctx.view_scale, age / FxSquash.FRAME)
 	cross.node.scale = Vector3.ONE * size * FxSquash.smear_scale(smear)
 	return true

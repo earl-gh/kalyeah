@@ -1,6 +1,6 @@
 extends GutTest
 ## The ground areas a player casts (owner): a landing circle, the paper trap and its slow zone, a jacks field and each bounce ring of the
-## marble are a WHITE tint (45%) inside a thin (0.07 m) opaque WHITE outline when your team threw them (allies cast for your team, so they
+## marble are a WHITE tint (50%) inside a thin (0.07 m) 50% WHITE outline when your team threw them (allies cast for your team, so they
 ## look the same), RED the same way when the other team did (orange when colour-blind). They stay unshaded and exact: the outline
 ## straddles the sim's radius, and the draw order of the ground ladder is kept.
 
@@ -90,11 +90,29 @@ func _all_color(layer: Dictionary, expected: Color) -> bool:
 	return true
 
 
-func test_the_area_recipe_is_a_strong_tint_and_a_thin_opaque_outline() -> void:
-	assert_between(FxKit.AREA_FILL_ALPHA, 0.35, 0.45, "less transparent than the 20 to 40% it was, still showing the street")
+func test_the_area_recipe_is_a_half_see_through_tint_and_a_thin_half_see_through_outline() -> void:
+	# owner, 2026-10-30: the white text, tint and outline of the skill areas have 50% transparency (the tint was 45%, the outline opaque)
+	assert_eq(FxKit.AREA_FILL_ALPHA, 0.5, "the tint: half see-through")
 	assert_between(FxKit.AREA_RIM, 0.06, 0.08, "a thin outline")
 	assert_lt(FxKit.AREA_RIM, FxKit.RIM / 3.0, "a third of the 0.22 m rim it was")
-	assert_eq(FxKit.AREA_RIM_ALPHA, 1.0, "fully opaque")
+	assert_eq(FxKit.AREA_RIM_ALPHA, 0.5, "the outline: half see-through")
+
+
+func test_the_tint_stops_at_the_outline_so_neither_blends_twice() -> void:
+	# a 50% outline over a 50% tint would show 75% on the outline's inner half: the tint is cut at the outline's inner edge
+	var mark: ArrayMesh = FxGround.area_mark(3.0, Color.WHITE)
+	var tint: float = 0.0
+	var rim_inner: float = INF
+	var arrays: Array = mark.surface_get_arrays(0)
+	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+	for point: Vector3 in points:
+		var radius: float = Vector2(point.x, point.z).length()
+		if is_equal_approx(point.y, FxKit.Y_FILL):
+			tint = maxf(tint, radius)
+		else:
+			rim_inner = minf(rim_inner, radius)
+	assert_lte(tint, rim_inner + 0.01, "the tint (%.3f m) ends where the outline (from %.3f m) starts" % [tint, rim_inner])
+	assert_almost_eq(tint, 3.0 - FxKit.AREA_RIM / 2.0, 0.01, "the outline still straddles the exact 3 m edge")
 
 
 func test_your_areas_are_white_and_the_enemys_red() -> void:
@@ -108,7 +126,7 @@ func test_your_areas_are_white_and_the_enemys_red() -> void:
 			var want: Color = Color.WHITE if team == 0 else Palette.TEAM_ENEMY
 			var rim: Dictionary = _layer(mark, FxKit.Y_RIM)
 			assert_true(_all_color(rim, want), "%s %s team %d: outline %s" % [pair[0], pair[1], team, want])
-			assert_true(_all_alpha(rim, FxKit.AREA_RIM_ALPHA), "%s: the outline is opaque" % pair[0])
+			assert_true(_all_alpha(rim, FxKit.AREA_RIM_ALPHA), "%s: the outline is half see-through" % pair[0])
 			if pair[1] != WeaponSystem.ZoneKind.SLOW_ZONE:
 				var fill: Dictionary = _layer(mark, FxKit.Y_FILL)
 				assert_true(_all_color(fill, want), "%s team %d: tint %s" % [pair[0], team, want])
@@ -131,9 +149,9 @@ func test_the_trap_slow_zone_is_a_white_tint_inside_a_thin_white_outline() -> vo
 	assert_gt(colors.size(), 0)
 	for color: Color in colors:
 		assert_true(_near(color, Color.WHITE), "a white tint")
-		assert_almost_eq(color.a, FxKit.AREA_FILL_ALPHA, QUANTUM, "45%, it was 25%")
+		assert_almost_eq(color.a, FxKit.AREA_FILL_ALPHA, QUANTUM, "50%, it was 45%")
 	var mark: MeshInstance3D = node.get_node("Mark") as MeshInstance3D
-	assert_true(_all_alpha(_layer(mark, FxKit.Y_RIM), 1.0), "the outline is opaque")
+	assert_true(_all_alpha(_layer(mark, FxKit.Y_RIM), FxKit.AREA_RIM_ALPHA), "the outline is half see-through")
 	assert_eq(_layer(mark, FxKit.Y_FILL)["alphas"], [] as Array[float], "the outline mesh carries no tint of its own")
 
 

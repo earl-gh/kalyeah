@@ -35,6 +35,22 @@ const TAPE_WIDTH: float = 0.15
 ## A rescue area's fill is stronger than a base's (owner: its white countdown mark was too transparent): 0.34 before, now over half
 ## opaque, so the white box and the number on it read at once while the cement still shows through.
 const RESCUE_FILL_ALPHA: float = 0.55
+## While its countdown runs a rescue area is white and half see-through (owner): the tint, the outline and the number on it all draw at this
+## alpha, so a pixel of each is the white blended half and half with the floor. Once ready it is the team's colour as before (full outline,
+## `RESCUE_FILL_ALPHA` fill).
+const RESCUE_WHITE_ALPHA: float = 0.5
+## The countdown number is a mark on the ground like the area it is in (owner: a kid standing on it covers it): a flat Label3D lying on the
+## street at the area's middle, unshaded, `RESCUE_COUNT_HEIGHT` metres tall (an em), lifted just above the tint and the outline.
+const RESCUE_COUNT_HEIGHT: float = 1.6
+const RESCUE_COUNT_FONT: int = 96
+const RESCUE_COUNT_LIFT: float = RING_HEIGHT + 0.02
+## It draws after the area's tint (priority -100) and outline (-99), and before every other see-through mark of the street (priority 0 and up: the
+## kids' rings and shadows, the skill areas), so those draw over it; the kids themselves are solid and cover it by depth.
+const RESCUE_COUNT_PRIORITY: int = -98
+const RESCUE_OUTLINE_PRIORITY: int = -99
+## The camera looks down at this angle (`CameraRules.pitch_degrees`), which squeezes a flat mark's height by its sine: the number is stretched
+## by the inverse so its digits look as tall as they are wide.
+const COUNT_PITCH_DEGREES: float = 45.0
 ## Bases and rescue areas are rounded rectangles on the street, each with a faint tint and a full outline in a fixed team colour
 ## (blue yours, red theirs: owner).
 const RESCUE_CORNER_RADIUS: float = 0.9
@@ -171,6 +187,8 @@ var _side_tint: Dictionary[int, Color] = {}
 var _rescue_ready: Dictionary[int, bool] = {}
 ## side -> that base's electric post.
 var _posts: Dictionary[int, Node3D] = {}
+## side -> the countdown number lying on that side's rescue area.
+var _counts: Dictionary[int, Label3D] = {}
 
 @onready var _geometry: Node3D = %Geometry
 @onready var _camera: Camera3D = %Camera
@@ -241,6 +259,9 @@ static func _light_scene(parent: Node, sun: DirectionalLight3D) -> void:
 ## (teams switch ends every set).
 func set_own_side(own_side: int) -> void:
 	_turn_posts(own_side)
+	for side: int in _counts:
+		# upright for the viewer: the camera is turned half way round for the team that defends the -Z base
+		_counts[side].rotation = Vector3(-PI / 2.0, PI if own_side == MapLayout.SIDE_ENEMY else 0.0, 0.0)
 	_show_top_boundary(own_side)
 	_rescue_ready.clear()
 	for side: int in _base_materials:
@@ -252,24 +273,43 @@ func set_own_side(own_side: int) -> void:
 			material.albedo_color = color
 
 
-## Each team's rescue area is white while its countdown runs (`MatchSim.rescue_ready_left`) and the team's colour (blue yours, red theirs)
-## once a teammate can rescue there.
+## Each team's rescue area is white and half see-through while its countdown runs (`MatchSim.rescue_ready_left`), with the seconds on it, and
+## the team's colour (blue yours, red theirs) once a teammate can rescue there.
 func sync_rescue(sim: MatchSim) -> void:
+	var covered: bool = sim.phase in [MatchSim.Phase.POINT_FREEZE, MatchSim.Phase.MATCH_OVER]
 	for team: int in [0, 1]:
 		var side: int = sim.side_for_team(team)
 		if not _base_materials.has(side):
 			continue
-		var ready: bool = sim.rescue_ready_left[team] <= 0.0
+		var left: float = sim.rescue_ready_left[team]
+		_show_count(_counts[side], left if not covered else 0.0)
+		var ready: bool = left <= 0.0
 		if _rescue_ready.get(side, not ready) == ready:
 			continue
 		_rescue_ready[side] = ready
 		var tint: Color = _side_tint[side] if ready else Color.WHITE
 		var materials: Array = _base_materials[side]
-		for index: int in [2, 3]:
-			var material: StandardMaterial3D = materials[index] as StandardMaterial3D
-			var color: Color = tint
-			color.a = material.albedo_color.a
-			material.albedo_color = color
+		(materials[2] as StandardMaterial3D).albedo_color = Color(tint, 1.0 if ready else RESCUE_WHITE_ALPHA)
+		(materials[3] as StandardMaterial3D).albedo_color = Color(tint, RESCUE_FILL_ALPHA if ready else RESCUE_WHITE_ALPHA)
+
+
+## The seconds on the rescue area of base `side` right now ("" when the area is ready or hidden).
+func rescue_count_text(side: int) -> String:
+	var label: Label3D = _counts.get(side) as Label3D
+	return label.text if label != null and label.visible else ""
+
+
+## The countdown number of base `side`'s rescue area (a mark on the ground).
+func rescue_count(side: int) -> Label3D:
+	return _counts[side]
+
+
+func _show_count(label: Label3D, left: float) -> void:
+	label.visible = left > 0.0
+	if label.visible:
+		var seconds: String = str(ceili(left))
+		if label.text != seconds:
+			label.text = seconds
 
 
 ## Each base's post shows the viewer's colours: the blue model for your own base, the red one for theirs (they swap when the teams
@@ -338,8 +378,9 @@ func _build_map() -> void:
 		var color: Color = OWN_COLOR if side == MapLayout.SIDE_OWN else ENEMY_COLOR
 		_posts[side] = _add_post(layout.post_position(side))
 		var base: Array[StandardMaterial3D] = _add_marked_zone(layout.base_rect(side), layout.base_corner, color)
-		var rescue: Array[StandardMaterial3D] = _add_marked_zone(layout.rescue_rect(side), RESCUE_CORNER_RADIUS, color, RESCUE_FILL_ALPHA)
+		var rescue: Array[StandardMaterial3D] = _add_marked_zone(layout.rescue_rect(side), RESCUE_CORNER_RADIUS, color, RESCUE_FILL_ALPHA, true)
 		_base_materials[side] = [base[0], base[1], rescue[0], rescue[1]]
+		_counts[side] = _add_count(layout.rescue_rect(side).get_center())
 		_side_tint[side] = color
 	_turn_posts(MapLayout.SIDE_OWN)
 	_add_barricades()
@@ -471,12 +512,41 @@ func _add_obstacle(index: int) -> void:
 
 
 ## A base or a rescue area: a faint team-tinted rounded rectangle with a full outline, cut off by the street's edge. Only marks on the
-## ground: nothing is blocked. Returns [tape, fill] materials (recoloured per viewer).
-func _add_marked_zone(rect: Rect2, corner: float, color: Color, fill_alpha: float = ZONE_FILL_ALPHA) -> Array[StandardMaterial3D]:
+## ground: nothing is blocked. Returns [tape, fill] materials (recoloured per viewer). A `see_through` area (the rescue area) has a tape that
+## can be see-through too, and its tint stops where the tape starts, so the two never blend over each other (each shows its own alpha).
+func _add_marked_zone(rect: Rect2, corner: float, color: Color, fill_alpha: float = ZONE_FILL_ALPHA, see_through: bool = false) -> Array[StandardMaterial3D]:
 	var materials: Array[StandardMaterial3D] = _zone_materials(color, fill_alpha)
-	_add_fill(rect.get_center(), rounded_outline(rect, corner), materials[1])
+	if see_through:
+		materials[0].transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		materials[0].render_priority = RESCUE_OUTLINE_PRIORITY
+		_add_fill(rect.get_center(), rounded_outline(rect.grow(-TAPE_WIDTH), maxf(corner - TAPE_WIDTH, 0.0)), materials[1])
+	else:
+		_add_fill(rect.get_center(), rounded_outline(rect, corner), materials[1])
 	_add_outline(rect, corner, materials[0])
 	return materials
+
+
+## The seconds number of a rescue area: a Label3D lying flat on the ground at `middle` (x, z), white and half see-through, unshaded, drawn
+## in the see-through order described at `RESCUE_COUNT_PRIORITY`. Hidden until the sim says the area is counting.
+func _add_count(middle: Vector2) -> Label3D:
+	var label: Label3D = Label3D.new()
+	label.name = "RescueCount"
+	label.font = KalyeahTheme.ACTION_FONT
+	label.font_size = RESCUE_COUNT_FONT
+	label.pixel_size = RESCUE_COUNT_HEIGHT / float(RESCUE_COUNT_FONT)
+	label.modulate = Color(1.0, 1.0, 1.0, RESCUE_WHITE_ALPHA)
+	label.outline_size = 0
+	label.shaded = false
+	label.double_sided = true
+	label.alpha_cut = Label3D.ALPHA_CUT_DISABLED
+	label.render_priority = RESCUE_COUNT_PRIORITY
+	label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	label.position = Vector3(middle.x, RESCUE_COUNT_LIFT, middle.y)
+	label.rotation = Vector3(-PI / 2.0, 0.0, 0.0)
+	label.scale = Vector3(1.0, 1.0 / sin(deg_to_rad(COUNT_PITCH_DEGREES)), 1.0)
+	label.visible = false
+	_geometry.add_child(label)
+	return label
 
 
 ## The team-coloured line round `rect` (its corners rounded), `TAPE_WIDTH` wide, drawn inside the rectangle.

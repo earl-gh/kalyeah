@@ -134,10 +134,11 @@ const BAR_CATCH_UP: float = 8.0
 ## The Sides layout (Settings > Cards tray): all four cards in one column on the side of your writing hand (the right for a right-handed
 ## player, the left for a left-handed one), on a panel of `SIDES_COLUMN` pixels that is the street's own sidewalk drawn wider: the street is
 ## pushed to the other side of the screen (the camera frames it in what is left, same shape, smaller). NEXT stands above the
-## cards; the ice water bar and the chat button share the bottom strip (`SIDES_TRAY`). The hand's own rect is that strip; the column stands
-## above it (negative y in its own pixels), which the touch handling does not mind. The chat button sits IN the strip, at the column's side
-## of it, and the ice water group fills the rest of the strip's inner area: `SIDES_PAD` of room on every side
-## (under the tray's chamfer at the top), tall enough for the drop, the bar and the "Max: 10" caption at full size.
+## cards; the ice water bar has the bottom strip (`SIDES_TRAY`) and the chat button stands under the cards. The hand's own rect is that strip; the column
+## stands above it (negative y in its own pixels), which the touch handling does not mind. The blue plate is the strip less the column
+## (`SIDES_COLUMN` on the cards' side, like Bottom's column beside its plate): the chat button stands in that column in the bottom
+## corner, OUTSIDE the plate's chamfered edge, and the ice water group fills the plate's inner area: `SIDES_PAD` of room on every side
+## (under the plate's chamfer at the top), tall enough for the drop, the bar and the "Max: 10" caption at full size.
 const SIDES_TRAY: float = 100.0
 const SIDES_PAD: float = 12.0
 const SIDES_CARD_WIDTH: float = 120.0
@@ -156,7 +157,7 @@ var sides: bool = false
 ## Where everything sits, in this control's own pixels (set by `_layout()` from the size).
 var card_rects: Array[Rect2] = []
 var next_rect: Rect2 = Rect2()
-## The quick chat button's rect: above NEXT outside the tray in the Bottom layout, in the tray's strip beside the bar in Sides.
+## The quick chat button's rect, outside the plate: above NEXT in the Bottom layout, in the cards' column in the bottom corner in Sides.
 var chat_rect: Rect2 = Rect2()
 var bar_rect: Rect2 = Rect2()
 
@@ -387,23 +388,22 @@ func _layout_sides() -> void:
 	next_rect = Rect2(Vector2(column_x + (SIDES_COLUMN - next_size.x) / 2.0, card_rects[0].position.y - SIDES_GAP - next_size.y), next_size)
 	var inner: Rect2 = sides_inner()
 	var chat_size: Vector2 = Vector2(CHAT_HEIGHT * HandArt.CHAT_ASPECT, CHAT_HEIGHT)
-	chat_rect = Rect2(Vector2(column_x + (SIDES_COLUMN - chat_size.x) / 2.0, inner.get_center().y - chat_size.y / 2.0), chat_size)
+	# the chat button stands in the cards' column in the bottom corner, beside the plate and outside it (like Bottom's column beside its plate)
+	chat_rect = Rect2(Vector2(column_x + (SIDES_COLUMN - chat_size.x) / 2.0, size.y - SIDES_PAD - chat_size.y), chat_size)
 	var reach: Vector2 = ice_reach()
 	var bar_left: float = inner.position.x + BAR_BAG * HandArt.ICE_DRAW_ASPECT / 2.0
-	var bar_right: float = inner.end.x
-	if mirrored:
-		bar_left = chat_rect.end.x + SIDES_PAD + BAR_BAG * HandArt.ICE_DRAW_ASPECT / 2.0
-	else:
-		bar_right = chat_rect.position.x - SIDES_PAD
 	var bar_middle: float = inner.get_center().y + (reach.x - reach.y) / 2.0
-	bar_rect = Rect2(Vector2(bar_left, bar_middle - BAR_HEIGHT / 2.0), Vector2(bar_right - bar_left, BAR_HEIGHT))
+	bar_rect = Rect2(Vector2(bar_left, bar_middle - BAR_HEIGHT / 2.0), Vector2(inner.end.x - bar_left, BAR_HEIGHT))
 	_refresh()
 
 
-## The strip's inner area in the Sides layout (own pixels): inside the tray's chamfer at the top and `SIDES_PAD` from its other edges.
+## The plate's inner area in the Sides layout (own pixels): the plate is the strip less the cards' column (and the chat button standing in
+## it), so inside its chamfer at the top and `SIDES_PAD` from its other edges.
 func sides_inner() -> Rect2:
 	var top: float = ConsolePanel.BEVEL + SIDES_PAD
-	return Rect2(Vector2(SIDES_PAD, top), Vector2(size.x - SIDES_PAD * 2.0, size.y - SIDES_PAD - top))
+	var left: float = (SIDES_COLUMN if mirrored else 0.0) + SIDES_PAD
+	var plate_width: float = size.x - SIDES_COLUMN
+	return Rect2(Vector2(left, top), Vector2(plate_width - SIDES_PAD * 2.0, size.y - SIDES_PAD - top))
 
 
 ## How far the ice water group (drop, bar and caption) reaches above and below the bar's middle, drawn at full size: the drop's top, and

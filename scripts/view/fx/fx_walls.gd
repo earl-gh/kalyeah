@@ -1,35 +1,49 @@
 class_name FxWalls
 extends Node3D
 ## Draws the sim's shields keyed by id: the paper wall (papel shield) and the block of earth (langit lupa). The wall's
-## width and place are the sim's exact segment (a team ribbon on the ground marks it from the first frame); only its height,
-## rise, flutter and fall are the view's. Its time left comes with the snapshot, so online plays the same. A projectile of
-## the other team that stops at the wall makes it react (the paper flexes, the earth shudders).
+## place, width and facing are the sim's exact segment, every frame: the sim's wall glides forward (the paper wall,
+## `WeaponDef.push_distance`) or widens (the block of earth, `expand_factor` times after it has risen) with its age
+## (`WallMotion`), and what is drawn, the team ribbon on the ground included, takes the sim's current line, so the blocking line and
+## the picture are never apart. Only height, rise, flutter, fade and sinking are the view's (the sim's wall is a line with no height).
+## The paper fades out over its last `PAPER_FADE_TIME` s; the block sinks at its widened width over its last `SOIL_COLLAPSE_TIME` s.
+## Tiny crumbs of earth fall off the block at its base as it rises, widens and sinks. Its time left comes with the snapshot, so online
+## plays the same. A projectile of the other team that stops at the wall makes it react (the paper flexes, the earth shudders).
 
 ## The paper wall's drawn height and depth (metres; owner's call: 2.6 m so its top clears the caster's head when cast up the
 ## screen, it was 1.6).
 const SHIELD_HEIGHT: float = 2.6
 const PAPER_THICKNESS: float = 0.3
-## The soil block's drawn height (metres; owner's call: 2.4, it was 1.7), how long it rises (overshooting to `SOIL_PEAK`,
-## settled `SOIL_SETTLE_FRAMES` frames later) and how long it collapses (slumping `SOIL_SLUMP` wider) at its end.
+## The soil block's drawn height (metres; owner's call: 2.4, it was 1.7); it rises (overshooting to `SOIL_PEAK`, settled exactly
+## at the sim's `expand_delay`, when the sim starts to widen it) and sinks over `SOIL_COLLAPSE_TIME` s at its end.
 const SOIL_HEIGHT: float = 2.4
-const SOIL_RISE_TIME: float = 0.22
 const SOIL_PEAK: float = 1.12
-const SOIL_SETTLE_FRAMES: int = 2
 const SOIL_COLLAPSE_TIME: float = 0.6
-const SOIL_SLUMP: float = 1.15
+## The rise time of a block whose weapon sets no `expand_delay`.
+const SOIL_RISE_DEFAULT: float = 0.3
 ## The flattest a collapsing block gets before it goes (a true zero breaks the transform).
 const SOIL_FLAT: float = 0.04
 ## The team ribbon on the ground along the wall's exact segment, this wide (metres).
 const RIBBON_WIDTH: float = 0.12
 ## The paper unfolds over `UNFOLD_FRAMES` frames (`UNFOLD_FRAMES_REDUCED` with Reduce motion, no overshoot), flutters
-## `FLUTTER_DEG` degrees at `FLUTTER_HZ` and crumples over its last `CRUMPLE_TIME` seconds; `PAPER_BITS` paper bits fly at
-## its base when it unfolds and when it is gone.
+## `FLUTTER_DEG` degrees at `FLUTTER_HZ`; `PAPER_BITS` paper bits fly at its base when it unfolds and when it is gone. Over its last
+## `PAPER_FADE_TIME` s it fades out (a see-through ramp, fully gone as the sim's wall is). The glide itself is the sim's
+## (`data/weapons/papel_shield.tres`: 1.5 m over 0.6 s, cubic ease-out: it reads, about 27 px along the street).
 const UNFOLD_FRAMES: int = 6
 const UNFOLD_FRAMES_REDUCED: int = 3
 const FLUTTER_DEG: float = 2.0
 const FLUTTER_HZ: float = 1.5
-const CRUMPLE_TIME: float = 0.3
+const PAPER_FADE_TIME: float = 0.5
 const PAPER_BITS: int = 4
+## The glide is smeared: a paper-white trail along it at `PAPER_TRAIL_Y` m (mid-wall), `PAPER_TRAIL_WIDTH` m across, for
+## `PAPER_TRAIL_FRAMES` frames. The block's widening shows two earth streaks at its ends, `EXPAND_STREAK_FRAMES` frames long.
+const PAPER_TRAIL_Y: float = 1.3
+const PAPER_TRAIL_WIDTH: float = 1.2
+const PAPER_TRAIL_FRAMES: int = 6
+const EXPAND_STREAK_FRAMES: int = 6
+## Crumbs fall off the block's base (`FxParticles.CRUMB_COUNT` each time, over the block's current width and `CRUMB_DEPTH` m
+## deep, on the side the camera sees) at these beats: as it rises (age 0), as it begins to widen and half way through, as it begins
+## to sink and half way through.
+const CRUMB_DEPTH: float = 0.5
 ## The earth erupts: a crack strip of its exact footprint (`SOIL_CRACK_DEPTH` m deep, fading over `SOIL_CRACK_TIME` s),
 ## `SOIL_BURST` soil clods and `SOIL_CHIPS` chips; `SOIL_FALL` clods as it collapses.
 const SOIL_CRACK_DEPTH: float = 0.4
@@ -65,7 +79,19 @@ class Rec extends RefCounted:
 	var react_at: float = -1.0
 	var react_side: float = 1.0
 	var collapsing: bool = false
+	var expanding: bool = false
+	## Crumb beats already thrown (see `_crumb_beats`), the wall's width as a multiple of the cast width now, and the paper's fade.
+	var beats: int = 0
+	var base_half_width: float
+	var width_scale: float = 1.0
+	var fade: float = 0.0
+	var meshes: Array[GeometryInstance3D] = []
+	## The wall's own copies of its look materials (made when its fade begins).
+	var fade_materials: Array[ShaderMaterial] = []
 
+
+static var _fade_look: Shader
+static var _fade_outline: Shader
 
 var _ctx: FxContext
 var _recs: Dictionary[int, Rec] = {}
@@ -141,14 +167,17 @@ func _create(shield: WeaponSystem.Shield) -> Rec:
 	rec.center = shield.center
 	rec.along = shield.along
 	rec.half_width = shield.half_width
+	rec.base_half_width = shield.base_half_width if shield.base_half_width > 0.0 else shield.half_width
 	rec.node = Node3D.new()
-	var width: float = shield.half_width * 2.0
+	var width: float = rec.base_half_width * 2.0
 	if rec.soil:
 		rec.body = WeaponModel.soil(width, SOIL_HEIGHT, width)
 	else:
 		# a standing sheet of paper (the owner's model); its base sits on the ground
 		rec.body = WeaponModel.shield(width, SHIELD_HEIGHT, PAPER_THICKNESS)
 	rec.node.add_child(rec.body)
+	for node: Node in rec.body.find_children("*", "MeshInstance3D", true, false):
+		rec.meshes.append(node as GeometryInstance3D)
 	rec.ribbon = MeshInstance3D.new()
 	rec.ribbon.name = "Ribbon"
 	rec.ribbon.mesh = FxGround.segment_mark(width, RIBBON_WIDTH, _ctx.team_color(shield.team))
@@ -164,13 +193,23 @@ func _create(shield: WeaponSystem.Shield) -> Rec:
 		_ctx.particles.puff(FxParticles.Preset.CHIPS, base + Vector3(0.0, 0.5, 0.0), SOIL_CHIPS)
 	else:
 		_ctx.particles.puff(FxParticles.Preset.PAPER, base, PAPER_BITS)
+		if not _ctx.reduced and shield.def != null:
+			var forward: Vector2 = shield.forward() * shield.def.push_distance
+			var ahead: Vector3 = Vector3(forward.x, 0.0, forward.y)
+			var mid: Vector3 = Vector3(0.0, PAPER_TRAIL_Y, 0.0)
+			_ctx.ground.trail(base + mid, base + mid + ahead, PAPER_TRAIL_WIDTH, FxRelease.TINT_PAPER, PAPER_TRAIL_FRAMES * FxSquash.FRAME)
 	return rec
 
 
 func _update(rec: Rec, shield: WeaponSystem.Shield) -> void:
+	# the sim's line, as it is now: where it stands and how long it is
+	rec.center = shield.center
+	rec.half_width = shield.half_width
+	rec.width_scale = shield.half_width / rec.base_half_width
 	rec.node.position = Vector3(shield.center.x, 0.0, shield.center.y)
 	rec.node.rotation.y = -shield.along.angle()
-	var age: float = (shield.def.duration if shield.def != null else 0.0) - shield.time_left
+	rec.ribbon.scale.x = rec.width_scale
+	var age: float = shield.age()
 	var react: float = (_ctx.time - rec.react_at) / (REACT_FRAMES * FxSquash.FRAME) if rec.react_at >= 0.0 else 1.0
 	var reacting: bool = react < 1.0 and not _ctx.reduced
 	if rec.soil:
@@ -179,7 +218,28 @@ func _update(rec: Rec, shield: WeaponSystem.Shield) -> void:
 		_paper(rec, shield, age, reacting, react)
 
 
-## The paper unfolds (low and narrow, up past its height, settled), flutters, flexes on a block and crumples at its end.
+## How opaque the paper wall is with `time_left` s of the sim's wall to go: 1 until its last `PAPER_FADE_TIME` s, then a ramp to 0.
+static func paper_alpha(time_left: float) -> float:
+	return clampf(time_left / PAPER_FADE_TIME, 0.0, 1.0)
+
+
+## The seconds the block takes to rise and settle at its full height (the sim starts widening it then).
+static func soil_rise_time(def: WeaponDef) -> float:
+	return def.expand_delay if def != null and def.expand_delay > 0.0 else SOIL_RISE_DEFAULT
+
+
+## The block's height as a multiple of its full height: the eruption (overshooting once, settled exactly at 1 at `rise_time`) `age`
+## seconds in, sunk by an ease-in over the last `SOIL_COLLAPSE_TIME` s of `time_left`, flat as the sim's wall ends.
+static func soil_height(age: float, time_left: float, rise_time: float, reduced: bool) -> float:
+	var rise: float = clampf(age / rise_time, 0.0, 1.0) if reduced else FxSquash.overshoot(age / rise_time, SOIL_PEAK)
+	var fall: float = clampf(time_left / SOIL_COLLAPSE_TIME, 0.0, 1.0)
+	if fall >= 1.0:
+		return rise
+	var down: float = 1.0 - fall
+	return minf(rise, 1.0) * (1.0 - down * down)
+
+
+## The paper unfolds (low and narrow, up past its height), flutters, flexes on a block and fades at its end. Its place and width are the sim's.
 func _paper(rec: Rec, shield: WeaponSystem.Shield, age: float, reacting: bool, react: float) -> void:
 	var shape: Vector2 = Vector2.ONE
 	if _ctx.reduced:
@@ -187,12 +247,12 @@ func _paper(rec: Rec, shield: WeaponSystem.Shield, age: float, reacting: bool, r
 		shape = Vector2(1.0, lerpf(FxMotion.UNFOLD_FROM, 1.0, t))
 	else:
 		shape = FxMotion.unfold(age / (UNFOLD_FRAMES * FxSquash.FRAME))
-	var crumple: float = clampf(1.0 - shield.time_left / CRUMPLE_TIME, 0.0, 1.0)
-	if crumple > 0.0:
-		var fold: Vector2 = FxMotion.crumple(crumple)
-		shape = Vector2(shape.x * fold.x, shape.y * fold.y)
-		_fade_ribbon(rec, 1.0 - crumple)
-	rec.body.scale = Vector3(shape.x, shape.y, 1.0)
+	# its width is exactly the sim's line from the first frame (the unfold is only taller, never narrower)
+	rec.body.scale = Vector3(rec.width_scale, shape.y, 1.0)
+	var alpha: float = paper_alpha(shield.time_left)
+	if alpha < 1.0:
+		_fade_ribbon(rec, alpha)
+	_set_fade(rec, 1.0 - alpha)
 	var lean: float = 0.0
 	if not _ctx.reduced:
 		lean = deg_to_rad(FLUTTER_DEG) * sin(TAU * FLUTTER_HZ * age)
@@ -202,28 +262,121 @@ func _paper(rec: Rec, shield: WeaponSystem.Shield, age: float, reacting: bool, r
 	rec.body.rotation.x = lean
 
 
-## The earth erupts with an overshoot (wide while low, thinner at the stretch: the volume kept), stands still, shudders on a block and collapses wider at its end.
+## The earth erupts with an overshoot (thinner at the stretch: the volume kept), stands as wide as the sim's line (it widens to
+## `expand_factor` times after it has risen), shudders on a block and sinks at that width at its end. Crumbs fall off its base throughout.
 func _soil(rec: Rec, shield: WeaponSystem.Shield, age: float, reacting: bool) -> void:
-	var rise_time: float = SOIL_RISE_TIME + SOIL_SETTLE_FRAMES * FxSquash.FRAME
-	var rise: float = clampf(age / SOIL_RISE_TIME, 0.0, 1.0) if _ctx.reduced else FxSquash.overshoot(age / rise_time, SOIL_PEAK)
+	var rise_time: float = soil_rise_time(rec.def)
+	var height: float = soil_height(age, shield.time_left, rise_time, _ctx.reduced)
 	var fall: float = clampf(shield.time_left / SOIL_COLLAPSE_TIME, 0.0, 1.0)
-	var height: float = rise
-	var spread: float = 1.0
+	var depth: float = 1.0
 	if fall >= 1.0 and not _ctx.reduced:
-		# rising: wide while low, stretched up and thinner at the overshoot (the volume kept), exactly 1 once settled
-		spread = FxSquash.along(rise).x
+		# rising: thinner front to back at the overshoot (the volume kept), exactly 1 once settled; its width is the sim's
+		depth = FxSquash.along(height).x
+	if age >= rise_time and not rec.expanding:
+		rec.expanding = true
+		_expand_streaks(rec)
 	if fall < 1.0:
-		# ease-in: slow at first, then all at once, ending flat exactly as the wall ends
-		var down: float = 1.0 - fall
-		height = minf(rise, 1.0) * (1.0 - down * down)
 		_fade_ribbon(rec, fall)
 		if not rec.collapsing:
 			rec.collapsing = true
 			_ctx.particles.puff(FxParticles.Preset.SOIL, Vector3(shield.center.x, 0.0, shield.center.y), SOIL_FALL)
-		if not _ctx.reduced:
-			spread = lerpf(SOIL_SLUMP, 1.0, fall)
-	rec.body.scale = Vector3(spread, maxf(height, SOIL_FLAT), spread)
+	rec.body.scale = Vector3(rec.width_scale, maxf(height, SOIL_FLAT), depth)
 	rec.body.position.x = SHUDDER * sin(TAU * 15.0 * (_ctx.time - rec.react_at)) if reacting else 0.0
+	_crumb_beats(rec, shield, age)
+
+
+## Two earth streaks at the block's ends, running outward the way it widens (decoration; none with Reduce motion).
+func _expand_streaks(rec: Rec) -> void:
+	if _ctx.reduced or rec.def == null:
+		return
+	var grow: float = rec.base_half_width * (rec.def.expand_factor - 1.0)
+	for side: float in [-1.0, 1.0]:
+		var middle: Vector2 = rec.center + rec.along * side * (rec.half_width + grow / 2.0)
+		var xform: Transform3D = Transform3D(Basis(Vector3.UP, -rec.along.angle()), Vector3(middle.x, SOIL_HEIGHT * 0.2, middle.y))
+		_ctx.ground.smear(xform, &"streak", grow, FxRelease.TINT_ROCK, EXPAND_STREAK_FRAMES * FxSquash.FRAME)
+
+
+## Throws the crumbs due by `age`: as it rises, as it starts widening and half way, as it starts sinking and half way.
+func _crumb_beats(rec: Rec, shield: WeaponSystem.Shield, age: float) -> void:
+	var sink_at: float = shield.def.duration - SOIL_COLLAPSE_TIME if shield.def != null else INF
+	var widen: float = soil_rise_time(rec.def)
+	var half: float = rec.def.expand_time / 2.0 if rec.def != null else 0.0
+	var due: Array[float] = [0.0, widen, widen + half, sink_at, sink_at + SOIL_COLLAPSE_TIME / 2.0]
+	while rec.beats < due.size() and age >= due[rec.beats]:
+		rec.beats += 1
+		# on the side of the block the camera sees (south), over the block's width as it is now
+		var at: Vector2 = rec.center + Vector2(0.0, rec.base_half_width)
+		_ctx.particles.puff(FxParticles.Preset.CRUMBS, Vector3(at.x, 0.0, at.y), FxParticles.CRUMB_COUNT, Color.WHITE, Vector2(rec.half_width * 2.0, CRUMB_DEPTH), rec.node.rotation.y)
+
+
+## Fades the wall's picture: `transparency` 0 is opaque, 1 is gone. The first time it is asked, the wall's own meshes get copies of
+## their painted-look materials with an alpha (the shared looks stay opaque for every other model; the engine's per-instance
+## `transparency` is not drawn by the Compatibility renderer here, so the fade is in the material).
+func _set_fade(rec: Rec, transparency: float) -> void:
+	if is_equal_approx(rec.fade, transparency):
+		return
+	if rec.fade_materials.is_empty():
+		_make_fade_materials(rec)
+	rec.fade = transparency
+	for material: ShaderMaterial in rec.fade_materials:
+		material.set_shader_parameter(&"fade", 1.0 - transparency)
+
+
+func _make_fade_materials(rec: Rec) -> void:
+	for node: GeometryInstance3D in rec.meshes:
+		var mesh: MeshInstance3D = node as MeshInstance3D
+		for surface: int in mesh.mesh.get_surface_count():
+			var look: ShaderMaterial = mesh.get_surface_override_material(surface) as ShaderMaterial
+			if look == null:
+				continue
+			var faded: ShaderMaterial = _faded_copy(look, fade_look_shader())
+			var outline: ShaderMaterial = look.next_pass as ShaderMaterial
+			if outline != null:
+				faded.next_pass = _faded_copy(outline, fade_outline_shader())
+				rec.fade_materials.append(faded.next_pass as ShaderMaterial)
+			rec.fade_materials.append(faded)
+			mesh.set_surface_override_material(surface, faded)
+
+
+## A copy of `source` (a weapon look or its contour) drawn by `shader`, every uniform carried over.
+static func _faded_copy(source: ShaderMaterial, shader: Shader) -> ShaderMaterial:
+	var copy: ShaderMaterial = ShaderMaterial.new()
+	copy.shader = shader
+	for uniform: Dictionary in source.shader.get_shader_uniform_list():
+		var key: StringName = uniform["name"] as StringName
+		var value: Variant = source.get_shader_parameter(key)
+		if value != null:
+			copy.set_shader_parameter(key, value)
+	return copy
+
+
+## The painted weapon look and its contour with a `fade` (1 opaque to 0 gone) written to ALPHA: the same shaders, patched once.
+static func fade_look_shader() -> Shader:
+	if _fade_look == null:
+		_fade_look = _with_alpha(WeaponLook.LOOK, "ALBEDO = mix(dark, lit, smoothstep(turn.x, turn.y, looks_up));")
+	return _fade_look
+
+
+static func fade_outline_shader() -> Shader:
+	if _fade_outline == null:
+		_fade_outline = _with_alpha(WeaponLook.OUTLINE, "ALBEDO = colour * ink;")
+	return _fade_outline
+
+
+static func _with_alpha(source: Shader, last_line: String) -> Shader:
+	var shader: Shader = Shader.new()
+	var code: String = source.code
+	assert(code.contains(last_line), "the weapon shader changed: patch the wall fade too")
+	code = code.replace(last_line, last_line + "\n\tALPHA = fade;")
+	code = code.replace("\nuniform sampler2D albedo_texture", "\nuniform float fade : hint_range(0.0, 1.0) = 1.0;\nuniform sampler2D albedo_texture")
+	shader.code = code
+	return shader
+
+
+## How see-through shield `id`'s picture is now (0 opaque, 1 gone), or 0 when there is none.
+func fade_for(id: int) -> float:
+	var rec: Rec = _recs.get(id) as Rec
+	return rec.fade if rec != null else 0.0
 
 
 ## The ribbon fades with its wall (`alpha` of its own look).

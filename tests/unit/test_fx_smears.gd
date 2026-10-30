@@ -512,53 +512,60 @@ func _max_over(values: Array[float]) -> float:
 
 # ---- the scissors -------------------------------------------------------------------------------------------------------
 
-func test_the_small_snip_leaves_an_arc_on_the_closing_frames_only() -> void:
+## How many of the live scissors have arrived shut at the strike point (each arrival draws its arc).
+func _arrived() -> int:
+	var arrived: int = 0
+	for part: FxSnips.Part in _fx.cones.snips.parts():
+		arrived += 1 if part.arrived else 0
+	return arrived
+
+
+func test_the_small_snip_leaves_an_arc_on_each_arrival_only() -> void:
 	_setup(Vector2(0.0, 5.0))
 	_cast(&"gunting_light", Vector2(0.0, -1.0), 10.0)
 	_fx.sync(_sim, DT)
-	var rig: ScissorsRig = _fx.cones.scissors()[0]
-	var last: float = rig.angle()
+	var last: int = _arrived()
 	var closed_frames: Array[int] = []
 	var smeared_frames: Array[int] = []
-	for i: int in 24:
+	for i: int in 30:
 		_frame()
-		if not is_instance_valid(rig) or _fx.cones.scissors().is_empty():
+		if _fx.cones.scissors().is_empty():
 			break
-		if rig.angle() <= ScissorsRig.CLOSED and last > ScissorsRig.CLOSED:
+		var now: int = _arrived()
+		if now > last:
 			closed_frames.append(i)
-		last = rig.angle()
-		var smears: Array[MeshInstance3D] = _fx.context().ground.active_smears()
-		if not smears.is_empty():
+		last = now
+		if not _fx.context().ground.active_smears().is_empty():
 			smeared_frames.append(i)
-	assert_gt(closed_frames.size(), 1, "several snips")
+	assert_gt(closed_frames.size(), 1, "several scissors")
 	for frame: int in closed_frames:
-		assert_true(smeared_frames.has(frame), "an arc on the closing frame %d" % frame)
+		assert_true(smeared_frames.has(frame), "an arc on the arrival frame %d" % frame)
 	for frame: int in smeared_frames:
 		var since_close: bool = false
 		for back: int in FxSquash.TRAIL_FRAMES:
 			since_close = since_close or closed_frames.has(frame - back)
-		assert_true(since_close, "no arc except in the frames after a close, while its ribbon fades (%d)" % frame)
+		assert_true(since_close, "no arc except in the frames after an arrival, while its ribbon fades (%d)" % frame)
 	assert_eq(FxSnips.SMEAR_FRAMES, 2)
 
 
-func test_the_snip_arcs_sweep_alternately() -> void:
+func test_the_snip_arcs_sweep_alternately_the_right_start_cutting_toward_the_left() -> void:
 	_setup(Vector2(0.0, 5.0))
 	_cast(&"gunting_light", Vector2(0.0, -1.0), 10.0)
 	_fx.sync(_sim, DT)
-	var rig: ScissorsRig = _fx.cones.scissors()[0]
-	var last: float = rig.angle()
+	var last: int = _arrived()
 	var dets: Array[float] = []
 	for i: int in 30:
 		_frame()
 		if _fx.cones.scissors().is_empty():
 			break
-		var closed: bool = rig.angle() <= ScissorsRig.CLOSED and last > ScissorsRig.CLOSED
-		last = rig.angle()
-		if closed:
+		var now: int = _arrived()
+		if now > last:
 			dets.append(signf(_newest_arc_determinant()))
+		last = now
 	assert_gt(dets.size(), 2)
+	assert_lt(dets[0], 0.0, "the first (from the right shoulder) sweeps toward the left: the mirrored arc")
 	for i: int in range(1, dets.size()):
-		assert_ne(dets[i], dets[i - 1], "each snip sweeps the other way from the last")
+		assert_ne(dets[i], dets[i - 1], "each cut sweeps the other way from the last")
 
 
 ## The sweep (the sign of the determinant) of the arc just drawn: of the live ones, the strongest (youngest: they hold, then fade).
@@ -597,7 +604,8 @@ func test_the_big_snip_winds_up_without_a_smear_then_smears_longer_and_springs_b
 			scales.append(snip_squash.scale.y)
 	assert_gt(pulled, 0.3, "the wind-up pulled back first")
 	assert_true(struck, "and then it struck")
-	assert_gt(scales[0], 1.4, "the strike frame is stretched along the blades")
+	assert_gt(scales[0], 1.05, "the strike frame is stretched along the blades")
+	assert_lt(scales[0], 1.2, "a little: the big blades' tips stay near the sim's range")
 	assert_lt(scales[1], 0.8, "then squashed")
 	var peak: float = 0.0
 	for scale: float in scales.slice(2, 5):
@@ -620,7 +628,7 @@ func test_the_heal_cross_rises_on_a_green_trail_and_is_crisp_after() -> void:
 	assert_eq(smears.size(), 1, "one rise trail")
 	var cross: Node3D = _fx.heals.crosses()[0]
 	assert_true(smears[0].basis.x.normalized().dot(Vector3.UP) > 0.5, "it runs up to the cross")
-	assert_lt(smears[0].position.y, cross.position.y, "from below it")
+	assert_gt(smears[0].position.y, cross.position.y, "from where it began (the head) up to where it ends (above it)")
 	_frame()
 	_frame()
 	var stretched: float = cross.scale.y / cross.scale.x
@@ -639,11 +647,13 @@ func test_the_soil_wall_is_wide_while_low_then_stretched_thin_then_exact() -> vo
 	var body: Node3D = _fx.walls.node_for(shield.id)
 	var thinnest: float = 10.0
 	var widest: float = 0.0
-	for i: int in 12:
+	for i: int in 9:
 		_frame()
-		thinnest = minf(thinnest, body.scale.x)
-		widest = maxf(widest, body.scale.x)
-		assert_almost_eq(body.scale.x * body.scale.y * body.scale.z, body.scale.y * pow(body.scale.x, 2.0), 0.0001)
-	assert_gt(widest, 1.05, "wide while it is low")
+		thinnest = minf(thinnest, body.scale.z)
+		widest = maxf(widest, body.scale.z)
+		assert_eq(body.scale.x, 1.0, "its width is the sim's line: person-wide while it rises")
+	assert_gt(widest, 1.05, "deep front to back while it is low (the volume kept)")
 	assert_lt(thinnest, 1.0, "thinner at the stretch past its height")
-	assert_almost_eq(body.scale.x, 1.0, 0.0001, "exactly its width once it is up")
+	_frame()
+	_frame()
+	assert_almost_eq(body.scale.z, 1.0, 0.0001, "exactly its depth once it is up")

@@ -27,6 +27,7 @@ static func capture(sim: MatchSim, acks: Dictionary[int, int]) -> Dictionary:
 		shields.append({
 			"id": shield.id, "w": shield.def.id, "c": shield.center, "al": shield.along,
 			"hw": shield.half_width, "team": shield.team, "tl": shield.time_left,
+			"o": shield.origin, "bhw": shield.base_half_width,
 		})
 	return {
 		"t": NetProtocol.Msg.SNAPSHOT, "tick": sim.tick, "acks": acks.duplicate(),
@@ -174,4 +175,10 @@ static func _apply_weapons(sim: MatchSim, data: Dictionary) -> void:
 		shield.half_width = entry["hw"] as float
 		shield.team = entry["team"] as int
 		shield.time_left = entry.get("tl", shield.def.duration if shield.def != null else 0.0) as float
+		# its cast place and width let the mirror move and widen it exactly as the server does (`WallMotion`); an older server
+		# sends neither, and the wall then stays as sent
+		shield.origin = entry.get("o", Vector2.INF) as Vector2
+		shield.base_half_width = entry.get("bhw", shield.half_width) as float
+		shield.prev_center = shield.center
+		shield.prev_half_width = shield.half_width
 		system.shields.append(shield)

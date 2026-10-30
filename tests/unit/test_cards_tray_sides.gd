@@ -174,9 +174,11 @@ func test_while_tagged_the_plate_grows_to_the_whole_tray_so_the_tagged_panel_has
 	hud.hand.visible = true
 	hud.layout_controls()
 	assert_almost_eq(hud.console.get_rect().size.y, CardHand.SIDES_TRAY, 0.5)
+	assert_eq(hud.console.column_width, CardHand.SIDES_COLUMN, "while you play, the plate leaves the cards' column (and the chat button) outside it")
 	hud.hand.visible = false
 	hud.layout_controls()
 	assert_almost_eq(hud.console.get_rect().size.y, MatchHud.CONSOLE_HEIGHT, 0.5, "the full plate while you wait")
+	assert_eq(hud.console.column_width, 0.0, "edge to edge: no column while the hand is away")
 	assert_almost_eq(hud.tagged_panel.get_rect().size.y, MatchHud.CONSOLE_HEIGHT, 0.5)
 	assert_eq(hud.console_height(), CardHand.SIDES_TRAY, "but the street stays framed the same")
 
@@ -265,34 +267,52 @@ func _ice_group(hand: CardHand) -> Rect2:
 	return group.expand(Vector2(group.position.x, caption_bottom))
 
 
-func test_in_sides_the_chat_button_sits_in_the_bottom_strip_beside_the_bar_in_the_cards_column() -> void:
+## The blue plate in the Sides layout (hand pixels): the strip less the cards' column, which is on the right for a right-handed player.
+func _plate(hand: CardHand) -> Rect2:
+	var left: float = CardHand.SIDES_COLUMN if hand.mirrored else 0.0
+	return Rect2(Vector2(left, 0.0), Vector2(hand.size.x - CardHand.SIDES_COLUMN, hand.size.y))
+
+
+func test_in_sides_the_chat_button_stands_outside_the_plate_at_the_foot_of_the_cards_column() -> void:
+	# owner, 2026-10-30: the chat button stays OUTSIDE the chamfered plate, as in Bottom where it stands in the column beside the plate
 	for mirrored: bool in [false, true]:
 		var hand: CardHand = _hand(true, mirrored)
 		var strip: Rect2 = Rect2(Vector2.ZERO, hand.size)
+		var plate: Rect2 = _plate(hand)
 		var chat: Rect2 = hand.chat_rect
-		assert_true(strip.encloses(chat), "the chat button is inside the strip (mirrored %s): %s" % [mirrored, chat])
+		assert_true(strip.encloses(chat), "the chat button is on the screen, in the bottom strip's height (mirrored %s): %s" % [mirrored, chat])
+		assert_false(chat.intersects(plate), "outside the plate (%s), mirrored %s" % [plate, mirrored])
 		assert_true(hand.column_rect().position.x <= chat.position.x and hand.column_rect().end.x >= chat.end.x, "in the cards' column")
 		assert_almost_eq(chat.get_center().x, hand.next_rect.get_center().x, 0.6, "straight under NEXT and the cards")
+		assert_almost_eq(strip.end.y - chat.end.y, CardHand.SIDES_PAD, 0.001, "in the bottom corner, SIDES_PAD from the screen's bottom")
 		assert_false(chat.intersects(hand.bar_rect), "no overlap with the bar")
 		assert_false(chat.intersects(_ice_group(hand)), "nor with the drop or the Max caption")
+		assert_eq(chat.size, Vector2(CardHand.CHAT_HEIGHT * HandArt.CHAT_ASPECT, CardHand.CHAT_HEIGHT), "the 80 px touch target")
 		assert_gte(minf(chat.size.x, chat.size.y), UiMetrics.MIN_TARGET, "a full touch target")
 		for rect: Rect2 in hand.card_rects:
 			assert_false(chat.intersects(rect), "and not over a card")
+		assert_false(chat.intersects(hand.next_rect))
 		assert_lt(hand.next_rect.end.y, hand.card_rects[0].position.y, "NEXT stays above the cards")
+		assert_lt(hand.card_rects[3].end.y, chat.position.y, "the chat button is under the bottom card")
 
 
-func test_the_ice_water_group_keeps_an_even_padding_inside_the_strip_under_the_chamfer() -> void:
+func test_the_ice_water_group_keeps_an_even_padding_inside_the_narrower_plate() -> void:
 	for mirrored: bool in [false, true]:
 		var hand: CardHand = _hand(true, mirrored)
+		var plate: Rect2 = _plate(hand)
 		var group: Rect2 = _ice_group(hand)
 		var inner: Rect2 = hand.sides_inner()
-		assert_almost_eq(inner.position.y, ConsolePanel.BEVEL + CardHand.SIDES_PAD, 0.001, "the padding starts under the tray's chamfer")
+		assert_almost_eq(inner.position.y, ConsolePanel.BEVEL + CardHand.SIDES_PAD, 0.001, "the padding starts under the plate's chamfer")
+		assert_almost_eq(inner.position.x - plate.position.x, CardHand.SIDES_PAD, 0.001, "12 px from the plate's left edge")
+		assert_almost_eq(plate.end.x - inner.end.x, CardHand.SIDES_PAD, 0.001, "12 px from its right edge")
 		assert_gte(group.position.y - ConsolePanel.BEVEL, CardHand.SIDES_PAD - 0.01, "top: the padding under the chamfer (mirrored %s)" % mirrored)
 		assert_gte(hand.size.y - group.end.y, CardHand.SIDES_PAD - 0.01, "bottom padding")
-		assert_gte(group.position.x, CardHand.SIDES_PAD - 0.01, "left padding")
-		assert_lte(group.end.x + 0.01, hand.size.x - CardHand.SIDES_PAD + 0.01, "right padding")
+		assert_gte(group.position.x - plate.position.x, CardHand.SIDES_PAD - 0.01, "left padding")
+		assert_lte(group.end.x + 0.01, plate.end.x - CardHand.SIDES_PAD + 0.01, "right padding")
 		assert_lte(absf((group.position.y - ConsolePanel.BEVEL) - (hand.size.y - group.end.y)), 1.0, "the top and bottom paddings are even (within a pixel)")
-		assert_gt(hand.bar_rect.size.x, 300.0, "the bar still runs along the strip")
+		assert_almost_eq(hand.bar_rect.end.x, inner.end.x, 0.001, "the bar is re-fitted: it runs to the padding of the narrower plate")
+		assert_true(plate.encloses(hand.bar_rect), "inside the plate")
+		assert_gt(hand.bar_rect.size.x, 300.0, "the bar still runs along the plate")
 		assert_almost_eq(hand.bar_rect.size.y, CardHand.BAR_HEIGHT, 0.001, "at full size")
 
 
@@ -305,23 +325,39 @@ func test_the_bottom_tray_layout_is_what_it_was() -> void:
 	assert_lt(hand.chat_rect.end.y, hand.next_rect.position.y, "Bottom: the chat button above NEXT, outside the tray")
 
 
-func test_the_chat_button_node_stands_in_the_strip_on_the_screen_at_both_phone_sizes() -> void:
+func test_the_chat_button_node_stands_beside_the_plate_at_the_bottom_at_both_phone_sizes_and_both_hands() -> void:
 	var saved_size: Vector2i = get_window().size
 	Settings.set_cards_tray(&"sides")
 	for window_size: Vector2i in [Vector2i(720, 1280), Vector2i(390, 844)]:
 		get_window().size = window_size
-		var practice: PracticeMatch = await _practice()
-		var hud: MatchHud = practice.hud
-		hud.hand.visible = true
-		hud.chat.visible = true
-		for inset: float in [0.0, 40.0]:
-			hud.set_bottom_inset(inset)
-			hud.layout_controls()
-			var strip: Rect2 = hud.hand.get_global_rect()
-			var chat: Rect2 = hud.chat.get_global_rect()
-			assert_true(strip.grow(0.5).encloses(chat), "%s, inset %d: the chat button %s is inside the strip %s" % [window_size, inset, chat, strip])
-			assert_almost_eq(chat.get_center().x, hud.hand.get_global_rect().position.x + hud.hand.next_rect.get_center().x, 0.6)
-			assert_gte(hud.size.y - inset - chat.end.y, 0.0, "above the home bar")
-			assert_true(hud.console.get_global_rect().encloses(chat) or hud.console.get_global_rect().grow(0.5).encloses(chat), "on the blue plate")
-		hud.set_bottom_inset(0.0)
+		for left_handed: bool in [false, true]:
+			Settings.set_left_handed(left_handed)
+			var practice: PracticeMatch = await _practice()
+			var hud: MatchHud = practice.hud
+			hud.hand.visible = true
+			hud.chat.visible = true
+			for inset: float in [0.0, 40.0]:
+				hud.set_bottom_inset(inset)
+				hud.layout_controls()
+				var chat: Rect2 = hud.chat.get_global_rect()
+				var console: Rect2 = hud.console.get_global_rect()
+				var plate_left: float = console.position.x + (hud.console.column_width if hud.console.column_left else 0.0)
+				var plate_right: float = console.end.x - (0.0 if hud.console.column_left else hud.console.column_width)
+				var plate: Rect2 = Rect2(Vector2(plate_left, console.position.y), Vector2(plate_right - plate_left, console.size.y))
+				var label: String = "%s, left-handed %s, inset %d" % [window_size, left_handed, inset]
+				assert_eq(hud.console.column_width, CardHand.SIDES_COLUMN, "%s: the plate leaves the cards' column free" % label)
+				assert_eq(hud.console.column_left, left_handed, "%s: on the writing hand's side" % label)
+				assert_false(chat.intersects(plate), "%s: the chat button %s is outside the plate %s" % [label, chat, plate])
+				assert_false(chat.intersects(hud.hand.get_global_rect().intersection(plate)), "%s: and clear of the plate's strip" % label)
+				assert_false(chat.intersects(Rect2(hud.hand.get_global_rect().position + hud.hand.bar_rect.position, hud.hand.bar_rect.size)), "%s: the bar" % label)
+				for rect: Rect2 in hud.hand.card_rects:
+					assert_false(chat.intersects(Rect2(hud.hand.get_global_rect().position + rect.position, rect.size)), "%s: the cards" % label)
+				assert_false(chat.intersects(Rect2(hud.hand.get_global_rect().position + hud.hand.next_rect.position, hud.hand.next_rect.size)), "%s: NEXT" % label)
+				assert_almost_eq(chat.size.y, CardHand.CHAT_HEIGHT, 0.5, "%s: 80 px" % label)
+				assert_almost_eq(chat.get_center().x, hud.hand.get_global_rect().position.x + hud.hand.next_rect.get_center().x, 0.6, "%s: under NEXT's column" % label)
+				assert_almost_eq(hud.size.y - inset - chat.end.y, CardHand.SIDES_PAD, 0.5, "%s: at the bottom, just above the home bar" % label)
+				assert_gte(chat.position.x, 0.0)
+				assert_lte(chat.end.x, hud.size.x, "%s: on the screen" % label)
+			hud.set_bottom_inset(0.0)
+	Settings.set_left_handed(false)
 	get_window().size = saved_size

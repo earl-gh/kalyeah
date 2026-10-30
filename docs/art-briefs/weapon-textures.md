@@ -23,7 +23,7 @@ Current numbers: `python3 tools/art/check_weapon_texture.py --glbs assets/models
 |---|---|
 | **meteor** (rock and meteor) | 3 flat tones of charcoal-plum rock (light top, dark underside), cracks as flat orange to yellow shapes with a pale core. No texture grain. **First priority.** |
 | **soil_block** | 3 warm browns, a clearly lighter top face, a darker underside, a few chunky darker pebbles. **First priority.** |
-| **can** | Keep your Marikina label, painted flat: yellow label with a red band, steel top as a blue-grey gradient with one white streak. |
+| **can** | Keep your Urdaneta label, painted flat: yellow label with a red band, steel top as a blue-grey gradient with one white streak. |
 | **slipper** | A red sole with a white strap, a lighter top and a deeper red underside. Bigger, simpler marks (it is small on screen). |
 | **scissors** | Red handles; steel-blue blades (not black) with one white streak, a darker blue tone at the pivot. |
 | **trumpo** | Pixels rewritten by instruction to the owner's photo of a bare wooden top: plain pale wood (#E0B27A) with a gentle figure and thin growth lines, a steel-grey pin (#6A6F73); no paint, no bands, no rope. Passes the check (27 colours, noise 0.0022). The owner's full model: `trumpo-model.md`. |

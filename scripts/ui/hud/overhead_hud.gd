@@ -17,10 +17,13 @@ const BAR_OUTLINE: float = 2.0
 const LABEL_FONT: int = UiMetrics.WORLD_SMALL
 const LABEL_LINE: float = float(LABEL_FONT) * 0.8
 ## The word is `LABEL_FONT` (its largest) while it fits the bar's FULL width (never the filled part: it does not move with the health), and
-## shrinks one pixel at a time down to `LABEL_FONT_MIN` until it does; a word still wider at the smallest size (a very wide name) is cut and
-## ends in `LABEL_CUT`, so it never reaches past the bar's right end. It starts `LABEL_INSET` in from the bar's left end, clear of the badge.
+## shrinks one pixel at a time until it does (owner: it is never cut, never wrapped, never ends in dots). `LABEL_FONT_MIN` is only the safety
+## floor: at the game's bar (96 x 0.75 = 72 px, 64 px of room after `LABEL_INSET`) a 12 letter name of the widest letter (the name limit) and every
+## status word, alone or with AFK, fit at 5 px or more. It starts `LABEL_INSET` in from the bar's left end, clear of the badge.
 const LABEL_FONT_MIN: int = UiMetrics.WORLD_MIN
-const LABEL_CUT: String = "..."
+## The word's black outline is this share of its size (5 px at 16, so the look at the largest size is what it was), at least 1 px, so a small word is
+## not drowned in a thick outline.
+const LABEL_OUTLINE_SHARE: float = 0.3
 ## The badge at the bar's left end (owner): the player's number, as the room shows it, in white on the team's colour. A rounded square a
 ## little taller than the bar, covering the first `BADGE_OVERLAP` px of it, its number the world text size with the bars' dark outline.
 const BADGE_FONT: int = UiMetrics.WORLD
@@ -75,11 +78,6 @@ const SPINNER_LIFT: float = 36.0
 const SPINNER_COLOR: Color = Color(1.0, 0.86, 0.3)
 ## The rescuer's ring (green: it frees a teammate), the capturer's stays gold.
 const RESCUE_COLOR: Color = Color(0.45, 0.9, 0.5)
-## On each rescue area: the seconds until it is ready (`MatchSim.rescue_ready_left`) in white, then nothing: the area just turns the team's
-## colour (`StreetMap.sync_rescue`).
-const AREA_COUNT_FONT: int = UiMetrics.HEADLINE
-## The number's outline is fully opaque (the kid-label outline `Icons.OUTLINE` is 0.9), so the white number reads on its box.
-const AREA_COUNT_OUTLINE: Color = Color(Icons.OUTLINE, 1.0)
 const SPINNER_BACK: Color = Color(0.08, 0.06, 0.1, 0.7)
 const SPINNER_SPEED: float = 5.0
 
@@ -291,7 +289,6 @@ func _draw() -> void:
 	_draw_tags()
 	if _sim.phase in [MatchSim.Phase.POINT_FREEZE, MatchSim.Phase.MATCH_OVER]:
 		return
-	_draw_rescue_areas()
 	for id: int in _sim.players:
 		_draw_progress(_sim.players[id])
 	# your own bar first: it stays on your head and the others stack above it where they would overlap (`_clear_of_others`)
@@ -418,10 +415,9 @@ func _draw_label(text: String, rect: Rect2) -> void:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var room: float = label_room(rect.size.x)
 	var font_size: int = label_font_size(text, room)
-	var shown: String = label_fitted(text, room)
-	var width: float = font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
-	var centre: Vector2 = keep_on_screen(Vector2(rect.position.x + LABEL_INSET + width / 2.0, label_baseline(rect, font_size)), font, shown, font_size)
-	_text(font, shown, centre, font_size, Color.WHITE, TEXT_OUTLINE, Color.BLACK)
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+	var centre: Vector2 = keep_on_screen(Vector2(rect.position.x + LABEL_INSET + width / 2.0, label_baseline(rect, font_size)), font, text, font_size)
+	_text(font, text, centre, font_size, Color.WHITE, label_outline(font_size), Color.BLACK)
 
 
 ## The width the word over a bar may fill: the bar's full width (`bar_width`, at the current `bar_scale`) less the badge side's inset.
@@ -429,7 +425,8 @@ static func label_room(bar_width: float) -> float:
 	return maxf(bar_width - LABEL_INSET, 0.0)
 
 
-## The font size of `text` over a bar with `room` to spare: `LABEL_FONT`, or smaller (never under `LABEL_FONT_MIN`) until it fits.
+## The font size of `text` over a bar with `room` to spare: `LABEL_FONT`, or smaller (never under `LABEL_FONT_MIN`) until it fits. It depends
+## on the word and the room only, never on the health.
 static func label_font_size(text: String, room: float) -> int:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var font_size: int = LABEL_FONT
@@ -438,16 +435,9 @@ static func label_font_size(text: String, room: float) -> int:
 	return font_size
 
 
-## `text` as drawn at `label_font_size`: whole when it fits in `room`, else cut from the end and closed with `LABEL_CUT`.
-static func label_fitted(text: String, room: float) -> String:
-	var font: Font = KalyeahTheme.ACTION_FONT
-	var font_size: int = label_font_size(text, room)
-	var shown: String = text
-	var kept: int = text.length()
-	while kept > 0 and font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x > room:
-		kept -= 1
-		shown = text.left(kept).strip_edges(false, true) + LABEL_CUT
-	return shown
+## The black outline round a word drawn at `font_size`: it shrinks with the word.
+static func label_outline(font_size: int) -> int:
+	return maxi(roundi(float(font_size) * LABEL_OUTLINE_SHARE), 1)
 
 
 ## The badge at the bar's left end: the player's number, white, on a rounded square in the team's colour.
@@ -510,28 +500,6 @@ func _draw_spinner(center: Vector2, progress: float, color: Color) -> void:
 	var spin: float = float(Time.get_ticks_msec()) / 1000.0 * SPINNER_SPEED
 	draw_arc(center, SPINNER_RADIUS, spin, spin + TAU * 0.28, 12, Color(1.0, 1.0, 1.0, 0.9), 4.0)
 	draw_arc(center, SPINNER_RADIUS - 6.0, -PI / 2.0, -PI / 2.0 + TAU * clampf(progress, 0.0, 1.0), 24, color, 4.0)
-
-
-## What each rescue area says in its middle: its countdown, and nothing once a teammate can rescue there.
-func rescue_area_text(team: int) -> String:
-	var left: float = _sim.rescue_ready_left[team]
-	return str(ceili(left)) if left > 0.0 else ""
-
-
-func _draw_rescue_areas() -> void:
-	if _camera == null:
-		return
-	for team: int in [0, 1]:
-		var middle: Vector2 = _sim.layout.rescue_rect(_sim.side_for_team(team)).get_center()
-		var world: Vector3 = Vector3(middle.x, 0.0, middle.y)
-		if _camera.is_position_behind(world):
-			continue
-		var at: Vector2 = _camera.screen_position(world) if _camera is ArenaCamera else _camera.unproject_position(world)
-		var text: String = rescue_area_text(team)
-		if text.is_empty():
-			continue
-		# the text's middle on the area's middle (`_text` takes the baseline); white, like the area while it counts down
-		_text(KalyeahTheme.ACTION_FONT, text, at + Vector2(0.0, float(AREA_COUNT_FONT) * 0.36), AREA_COUNT_FONT, Color.WHITE, TEXT_OUTLINE, AREA_COUNT_OUTLINE)
 
 
 func _draw_tags() -> void:

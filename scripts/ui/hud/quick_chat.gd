@@ -1,6 +1,6 @@
 class_name QuickChat
 extends Control
-## The quick chat button (the owner's speech bubble picture, like Clash Royale's): it sits outside the tray, above the NEXT card (in the Sides layout, in the tray's strip beside the ice water bar). A tap opens
+## The quick chat button (the owner's speech bubble picture, like Clash Royale's): it sits outside the plate, above the NEXT card (in the Sides layout, at the foot of the cards' column). A tap opens
 ## two rows of four phrases over the skills and ice water bar; picking one says it, and the match shows it in a bubble over your kid for a moment. Nothing is typed.
 
 ## What you can say (kept short so each fits a bubble and a button).

@@ -1,15 +1,15 @@
 class_name FxParticles
 extends Node3D
 ## The pooled particle puffs of the skill effects: dust, a landing ring of dust, paper confetti, soil, comic smoke, hit
-## stars, heal sparkles, rock chips and paper scraps. Every emitter is a one-shot `CPUParticles3D` built once (a fixed
+## stars, heal sparkles, rock chips, paper scraps and tiny soil crumbs. Every emitter is a one-shot `CPUParticles3D` built once (a fixed
 ## amount, so a reuse only assigns properties; one draw each; safe on the Compatibility renderer, unlike GPU particles on
 ## many GLES3 phones). Decoration only: when the live cap is reached or no emitter is free, a puff is skipped (ground marks
 ## never use this pool). Nothing at all with Reduce motion. Busy time is the view's own clock, never `emitting`.
 
-enum Preset { DUST, IMPACT, PAPER, SOIL, SMOKE, STARS, PLUS, CHIPS, SCRAPS }
+enum Preset { DUST, IMPACT, PAPER, SOIL, SMOKE, STARS, PLUS, CHIPS, SCRAPS, CRUMBS }
 
-## Particles per emitter -> how many emitters of that size (36 in all).
-const BUCKETS: Dictionary[int, int] = {2: 8, 4: 12, 6: 8, 8: 6, 12: 2}
+## Particles per emitter -> how many emitters of that size (40 in all; four more of 8 than before for the soil crumbs, which live ~1 s).
+const BUCKETS: Dictionary[int, int] = {2: 8, 4: 12, 6: 8, 8: 10, 12: 2}
 ## The most particles alive at once across every puff.
 const LIVE_CAP: int = 120
 ## An emitter stays busy for its lifetime plus this (seconds), so the last particle is gone before it is reused.
@@ -39,6 +39,23 @@ const STARS_LIFE: float = 0.4
 const PLUS_SIZE: float = 0.85
 const CHIP_SIZE: float = 0.42
 const SCRAPS_SIZE: float = 0.6
+## The soil crumbs (owner: "tiny soil crumbs that fade out a delay after they appeared"): each speck is between `CRUMB_SIZE_MIN` and
+## `CRUMB_SIZE_MAX` metres, tossed out and up a little (speed `CRUMB_SPEED_MIN`..`CRUMB_SPEED_MAX`, `CRUMB_SPREAD` degrees off
+## straight up, pulled down by `CRUMB_GRAVITY`), alive `CRUMB_LIFE` s: fully visible for the first `CRUMB_FADE_START` of that, then
+## fading to nothing. Earth tones (`CRUMB_TONES`, picked per speck), never a team colour. A burst is `CRUMB_COUNT` specks
+## (`CRUMB_COUNT_SMALL` for a bounce or a trickle).
+## (0.15 to 0.25 m, 3 to 5 px on a phone: at the first asked size, 0.08 to 0.14 m, a speck was under 2 px and could not be seen in the film strips.)
+const CRUMB_SIZE_MIN: float = 0.15
+const CRUMB_SIZE_MAX: float = 0.25
+const CRUMB_SPEED_MIN: float = 1.0
+const CRUMB_SPEED_MAX: float = 1.9
+const CRUMB_SPREAD: float = 45.0
+const CRUMB_GRAVITY: float = 3.0
+const CRUMB_LIFE: float = 0.9
+const CRUMB_FADE_START: float = 0.4
+const CRUMB_COUNT: int = 8
+const CRUMB_COUNT_SMALL: int = 6
+const CRUMB_TONES: Array[Color] = [Color(0.36, 0.24, 0.14), Color(0.45, 0.31, 0.18), Color(0.29, 0.2, 0.12), Color(0.52, 0.38, 0.23), Color(0.4, 0.28, 0.2)]
 
 
 ## One preset's look and motion (built once).
@@ -61,7 +78,12 @@ class Spec extends RefCounted:
 	var points: PackedVector3Array = PackedVector3Array()
 	var normals: PackedVector3Array = PackedVector3Array()
 	var size: float = 0.5
+	## The largest size a particle may be (below 0: every particle is `size`).
+	var size_max: float = -1.0
 	var size_curve: Curve
+	## A tone picked at random per particle at birth, and a fade over each particle's life (null: none).
+	var color_initial_ramp: Gradient
+	var color_ramp: Gradient
 	var random_angle: bool = false
 	## True when a particle can fly up (the apex check uses the full speed upward); false for sideways-only stars.
 	var rises: bool = true
@@ -156,9 +178,10 @@ static func apex(s: Spec) -> float:
 	return top + s.speed_max * s.lifetime
 
 
-## Throws a `preset` puff of `amount` particles at `at` (world), tinted by `tint`. False when it was skipped (Reduce motion,
+## Throws a `preset` puff of `amount` particles at `at` (world), tinted by `tint`. A preset born in a box spreads over `area`
+## (x, z metres, turned by `yaw` radians) when it is given, else over its own. False when it was skipped (Reduce motion,
 ## the live cap, or no free emitter of that size): decoration only.
-func puff(preset: Preset, at: Vector3, amount: int, tint: Color = Color.WHITE) -> bool:
+func puff(preset: Preset, at: Vector3, amount: int, tint: Color = Color.WHITE, area: Vector2 = Vector2.ZERO, yaw: float = 0.0) -> bool:
 	if _ctx.reduced:
 		return false
 	var size: int = _bucket(amount)
@@ -180,12 +203,15 @@ func puff(preset: Preset, at: Vector3, amount: int, tint: Color = Color.WHITE) -
 	emitter.spread = s.spread
 	emitter.flatness = s.flatness
 	emitter.emission_shape = s.shape
-	emitter.emission_box_extents = s.box
+	emitter.emission_box_extents = s.box if area == Vector2.ZERO else Vector3(area.x / 2.0, s.box.y, area.y / 2.0)
+	emitter.rotation.y = yaw
 	emitter.emission_points = s.points
 	emitter.emission_normals = s.normals
 	emitter.scale_amount_min = s.size
-	emitter.scale_amount_max = s.size
+	emitter.scale_amount_max = s.size if s.size_max < 0.0 else s.size_max
 	emitter.scale_amount_curve = s.size_curve
+	emitter.color_initial_ramp = s.color_initial_ramp
+	emitter.color_ramp = s.color_ramp
 	emitter.angle_min = 0.0
 	emitter.angle_max = 360.0 if s.random_angle else 0.0
 	emitter.particle_flag_rotate_y = s.random_angle
@@ -377,20 +403,20 @@ static func _build_specs() -> void:
 	stars.rises = false
 	stars.apex_bound = 1.3
 	_specs[Preset.STARS] = stars
-	# PLUS: heal sparkles rising beside and behind the kid (never in front of the face).
+	# PLUS: heal sparkles rising beside and behind the kid (never in front of the face) up to the height of the heal cross above the head.
 	var plus: Spec = Spec.new()
 	plus.mesh = FxKit.plus_quad()
 	plus.material = puff_material
 	plus.lifetime = 0.6
-	plus.speed_min = 4.5
-	plus.speed_max = 4.5
+	plus.speed_min = 7.8
+	plus.speed_max = 7.8
 	plus.direction = Vector3.UP
 	plus.spread = 0.0
 	plus.shape = CPUParticles3D.EMISSION_SHAPE_POINTS
 	plus.points = PackedVector3Array([Vector3(0.7, 0.5, 0.0), Vector3(-0.7, 0.5, 0.0), Vector3(0.5, 0.5, -0.5), Vector3(-0.5, 0.5, -0.5)])
 	plus.size = PLUS_SIZE
 	plus.size_curve = hold_shrink
-	plus.apex_bound = 3.2
+	plus.apex_bound = 5.3
 	_specs[Preset.PLUS] = plus
 	# CHIPS: little copies of the rock falling to the street.
 	var chips: Spec = Spec.new()
@@ -423,6 +449,47 @@ static func _build_specs() -> void:
 	scraps.random_angle = true
 	scraps.apex_bound = 0.6
 	_specs[Preset.SCRAPS] = scraps
+	# CRUMBS: tiny specks of earth tossed up and out that stay whole for a while and then fade away.
+	var crumbs: Spec = Spec.new()
+	crumbs.mesh = FxKit.puff_quad()
+	crumbs.material = puff_material
+	crumbs.lifetime = CRUMB_LIFE
+	crumbs.speed_min = CRUMB_SPEED_MIN
+	crumbs.speed_max = CRUMB_SPEED_MAX
+	crumbs.gravity = CRUMB_GRAVITY
+	crumbs.spawn_y = 0.15
+	crumbs.spread = CRUMB_SPREAD
+	crumbs.shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	crumbs.box = Vector3(0.3, 0.0, 0.3)
+	crumbs.size = CRUMB_SIZE_MIN
+	crumbs.size_max = CRUMB_SIZE_MAX
+	crumbs.random_angle = true
+	crumbs.color_initial_ramp = crumb_tones()
+	crumbs.color_ramp = crumb_fade()
+	crumbs.apex_bound = 0.8
+	_specs[Preset.CRUMBS] = crumbs
+
+
+## The earth tones a crumb is born with (one picked at random per crumb): hard steps, not a blend.
+static func crumb_tones() -> Gradient:
+	var gradient: Gradient = Gradient.new()
+	gradient.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT
+	var offsets: PackedFloat32Array = PackedFloat32Array()
+	var colors: PackedColorArray = PackedColorArray()
+	for i: int in CRUMB_TONES.size():
+		offsets.append(float(i) / float(CRUMB_TONES.size()))
+		colors.append(CRUMB_TONES[i])
+	gradient.offsets = offsets
+	gradient.colors = colors
+	return gradient
+
+
+## A crumb's fade over its life: opaque until `CRUMB_FADE_START`, then to nothing at the end.
+static func crumb_fade() -> Gradient:
+	var gradient: Gradient = Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, CRUMB_FADE_START, 1.0])
+	gradient.colors = PackedColorArray([Color.WHITE, Color.WHITE, Color(1.0, 1.0, 1.0, 0.0)])
+	return gradient
 
 
 static func _curve(points: Array[Vector2]) -> Curve:
