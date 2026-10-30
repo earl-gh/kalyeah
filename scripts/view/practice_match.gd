@@ -307,6 +307,8 @@ func _held_still() -> bool:
 # ---- setup ---------------------------------------------------------------------------
 
 func _setup_practice() -> void:
+	if Session.practice_kind == &"match":
+		rules = rules.with_bot_level(Settings.bot_level)  # a copy with the chosen difficulty's bot numbers; the shared rules stay as they are
 	sim = MatchSim.new(rules, layout, Time.get_ticks_usec())
 	if Session.practice_kind == &"match":
 		_setup_bot_match()

@@ -121,7 +121,7 @@ func _use_gameplay_lens(size_metres: float) -> void:
 
 ## Kick the camera (a hit on you, a wall breaking). `strength` ~0.1 small, 0.4 big.
 func shake(strength: float) -> void:
-	if not Settings.reduced_motion:
+	if Settings.screen_shake and not Settings.reduced_motion:
 		_shake = maxf(_shake, strength)
 
 
