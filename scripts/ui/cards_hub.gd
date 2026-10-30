@@ -31,15 +31,27 @@ func _ready() -> void:
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_theme_constant_override("separation", 0)
 	add_child(UiKit.page_header("Cards"))
+	# the scroll area reaches out into the page margin so the scrollbar sits in the middle of the gap between the content and the screen edge
+	var holder: Control = Control.new()
+	holder.name = "ScrollHolder"
+	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(holder)
 	scroll = ScrollContainer.new()
 	scroll.name = "Scroll"
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(scroll)
+	holder.add_child(scroll)
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var bar: float = scroll.get_v_scroll_bar().get_combined_minimum_size().x
+	scroll.offset_right = (TitleScreen.SIDE_MARGIN + bar) / 2.0
+	var inner: MarginContainer = MarginContainer.new()
+	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inner.add_theme_constant_override("margin_right", int((TitleScreen.SIDE_MARGIN - bar) / 2.0))
+	scroll.add_child(inner)
 	var body: VBoxContainer = VBoxContainer.new()
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
-	scroll.add_child(body)
+	inner.add_child(body)
 	var weapons: Array[WeaponDef] = (load(RULES_PATH) as GameRules).weapons
 	kids_card = CardsHubCard.create(KIDS, "Kids", kids_detail(Session.AVATARS.size()), _kid_pictures())
 	skills_card = CardsHubCard.create(SKILLS, "Skills", skills_detail(weapons.size()), _skill_pictures(), SKILLS_FAN_DROP)
