@@ -9,7 +9,7 @@ const DISPLAY_NAMES: Dictionary[int, String] = {
 	Type.STUN: "Stunned",
 	Type.SLOW: "Slowed",
 	Type.AIRBORNE: "Airborne",
-	Type.POLYMORPH: "Polymorphed",
+	Type.POLYMORPH: "Morphed",
 	Type.BOUNCE: "Bounced",
 	Type.KNOCKOUT: "Knocked out",
 }
