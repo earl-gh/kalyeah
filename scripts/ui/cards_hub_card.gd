@@ -16,6 +16,9 @@ const FAN_FROM_RIGHT: float = -24.0
 const TEXT_CLEARANCE: float = 20.0
 ## The panel is the modals' frame, with no rim of its own (the text and fan are placed by hand); a press lightens it.
 const PRESS_LIGHTEN: float = 0.12
+## The banner is a bright blue panel (owner: grey was bland), with the modals' frame shape, shadow and a darker blue edge.
+const PANEL_COLOR: Color = Color("2f6fc4")
+const PANEL_EDGE: Color = Color("1a3f7a")
 const PANEL_RADIUS: int = KalyeahTheme.MODAL_FRAME_RADIUS
 ## The title is a headline in the modals' title colours; the detail is the plain line under it, white on the slate.
 const TITLE_SIZE: int = UiMetrics.HEADLINE
@@ -49,8 +52,8 @@ func _build(title: String, detail: String, pictures: Array[Texture2D]) -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tooltip_text = title
 	accessibility_name = "%s: %s" % [title, detail]
-	panel_box = KalyeahTheme.modal_frame(0.0)
-	var pressed_box: StyleBoxFlat = KalyeahTheme.modal_frame(0.0)
+	panel_box = _blue_frame()
+	var pressed_box: StyleBoxFlat = _blue_frame()
 	pressed_box.bg_color = pressed_box.bg_color.lightened(PRESS_LIGHTEN)
 	for state: String in ["normal", "hover"]:
 		add_theme_stylebox_override(state, panel_box)
@@ -96,6 +99,13 @@ func _build(title: String, detail: String, pictures: Array[Texture2D]) -> void:
 	set_notify_transform(true)
 	resized.connect(_place_fan)
 	_place_fan()
+
+
+func _blue_frame() -> StyleBoxFlat:
+	var box: StyleBoxFlat = KalyeahTheme.modal_frame(0.0)
+	box.bg_color = PANEL_COLOR
+	box.border_color = PANEL_EDGE
+	return box
 
 
 ## The fan's top, in the card's own coordinates: above the panel by `FAN_PROTRUSION`.

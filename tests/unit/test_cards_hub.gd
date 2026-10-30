@@ -187,14 +187,13 @@ func test_the_fan_is_masked_by_the_cards_own_rounded_shape_and_the_mask_follows_
 	assert_almost_eq(inside.x, card.size.x / 2.0, 1.0, "a squeezed card keeps its mask in its own pixels")
 
 
-func test_the_hub_cards_wear_exactly_the_modals_frame() -> void:
+func test_the_hub_cards_are_blue_in_the_modals_frame_shape() -> void:
 	var screen: TitleScreen = await _hub_screen()
-	var frame: StyleBoxFlat = KalyeahTheme.modal_frame(0.0)
 	for card: CardsHubCard in screen.codex_page.hub.cards:
 		var box: StyleBoxFlat = card.get_theme_stylebox("normal") as StyleBoxFlat
-		assert_eq(box.bg_color, KalyeahTheme.MODAL_FRAME, "the modals' frame colour, from the one constant")
-		assert_eq(box.bg_color, frame.bg_color)
-		assert_eq(box.border_color, KalyeahTheme.MODAL_FRAME_EDGE)
+		assert_eq(box.bg_color, CardsHubCard.PANEL_COLOR, "bright blue, not grey")
+		assert_gt(box.bg_color.b, box.bg_color.r + 0.3, "clearly blue")
+		assert_eq(box.border_color, CardsHubCard.PANEL_EDGE)
 		assert_eq(box.corner_radius_top_left, KalyeahTheme.MODAL_FRAME_RADIUS)
 		assert_gt(box.shadow_size, 0, "a shadow, so it reads against the blue backdrop")
 		assert_gte(box.get_border_width(SIDE_LEFT), 2, "and a border")
@@ -202,9 +201,6 @@ func test_the_hub_cards_wear_exactly_the_modals_frame() -> void:
 		assert_ne(lit.bg_color, box.bg_color, "a press shows")
 		assert_gte(UiKit.contrast(card.title_label.get_theme_color("font_color"), box.bg_color), 4.5, "the title reads on the frame")
 		assert_gte(UiKit.contrast(card.detail_label.get_theme_color("font_color"), box.bg_color), 4.5, "and the detail line")
-	var dialog: MenuDialog = autofree(MenuDialog.create("x")) as MenuDialog
-	var modal: StyleBoxFlat = dialog.panel.get_theme_stylebox("panel") as StyleBoxFlat
-	assert_eq(modal.bg_color, (screen.codex_page.hub.kids_card.get_theme_stylebox("normal") as StyleBoxFlat).bg_color, "a modal and a hub card are the same slate")
 
 
 func test_the_collection_scrolls_inside_the_page_on_both_phones() -> void:
