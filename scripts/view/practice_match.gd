@@ -274,6 +274,7 @@ func open_swap() -> void:
 ## Runs as many fixed sim ticks as `delta` allows, then updates the visuals.
 func advance(delta: float) -> void:
 	_pick_screen.tick(delta)
+	hud.sim_held = _held_still()
 	if online:
 		client.interpolate()
 		_try_reconnect(delta)

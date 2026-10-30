@@ -28,8 +28,12 @@ func test_the_tray_behind_the_cards_is_drawn_in_code_not_a_cardboard_picture() -
 func test_the_clock_says_time_left_in_a_see_through_box_with_a_black_outline() -> void:
 	var chip: ClockChip = autofree(ClockChip.new()) as ClockChip
 	assert_eq(chip.caption_text(), "Time left:")
-	chip.show_time(75.0, true)
-	assert_eq(chip.caption_text(), "OVERTIME", "overtime keeps its word")
+	chip.show_time(75.0, MatchSim.ClockStage.EXTENDED, true)
+	assert_eq(chip.caption_text(), "Extended")
+	assert_eq(chip.caption_color(), Color.WHITE)
+	chip.show_time(75.0, MatchSim.ClockStage.OVERTIME, true)
+	assert_eq(chip.caption_text(), "Overtime", "overtime keeps its word")
+	assert_eq(chip.caption_color(), RoyaleStyle.GOLD, "and its gold")
 	assert_between(ClockChip.BOX_COLOR.a, 0.3, 0.7, "semi-transparent: the street shows through")
 	assert_gt(ClockChip.BOX_OUTLINE, 1, "a black outline you can see")
 

@@ -77,6 +77,10 @@ var top: Control
 var scoreboard: Scoreboard
 ## The match clock at the right of the header.
 var clock_chip: ClockChip
+## The stage word that flashes in the middle and flies to the clock's caption.
+var clock_flash: ClockStageFlash
+## True while the match stands still (offline, behind the menu): the clock's stage word waits too.
+var sim_held: bool = false
 ## The hand: NEXT, four cards, the elixir bar and your health (it takes the touches on the tray).
 var hand: CardHand
 ## Taps on the street (move orders).
@@ -290,8 +294,7 @@ func _block_tag(sim: MatchSim, player: PlayerState) -> String:
 func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1) -> void:
 	scoreboard.show_score(sim.score, local_team, sim.match_time)
 	scoreboard.show_capture(sim, local_team)
-	var counting: bool = sim.rules.overtime_after > 0.0
-	clock_chip.show_time(maxf(sim.rules.overtime_after - sim.round_time, 0.0) if counting else sim.match_time, sim.in_overtime(), counting)
+	_sync_clock(sim, delta)
 	_sync_capture(sim, local_team, delta)
 	again_button.visible = sim.phase == MatchSim.Phase.MATCH_OVER
 	point_result.sync(sim, local_team)
@@ -307,6 +310,7 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 	if covered:
 		for item: CanvasItem in [hand, chat, tagged_panel, intro_bar, capture_label, capture_alert, banner, coach]:
 			item.hide()
+		clock_flash.cancel()
 	if _covered != covered:
 		_covered = covered
 		set_controls_active(not covered and not menu.visible and not coach.running)
@@ -314,6 +318,21 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 		_banner_left -= delta
 		if _banner_left <= 0.0:
 			banner.visible = false
+
+
+## The clock: what is left of this stage (it restarts at Extended and again at Overtime), or the match time with the stages off. A new
+## stage flashes its name in the middle and flies it to the caption (`ClockStageFlash`).
+func _sync_clock(sim: MatchSim, delta: float) -> void:
+	var counting: bool = sim.rules.overtime_after > 0.0
+	var stage: MatchSim.ClockStage = sim.clock_stage()
+	clock_chip.show_time(sim.clock_left() if counting else sim.match_time, stage, counting)
+	if not counting:
+		clock_flash.cancel()
+		return
+	var caption_at: Vector2 = clock_flash.get_global_transform().affine_inverse() * (clock_chip.get_global_transform() * clock_chip.caption_center())
+	var into: float = sim.round_time - sim.clock_stage_start(stage)
+	clock_flash.sync(stage, into, 0.0 if sim_held else delta, caption_at, clock_chip.caption_color())
+	clock_chip.hide_caption(clock_flash.flying())
 
 
 ## "HOLD THE BASE! 3" for us, in the middle of the screen; against us it is the warning triangle and its two lines at the top (`capture_alert`).
@@ -381,6 +400,8 @@ func _build() -> void:
 	banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(banner)
+	clock_flash = ClockStageFlash.new()
+	add_child(clock_flash)
 	capture_label = _pill_label("", UiMetrics.TITLE, Vector4(0, 0.4, 1, 0.4), Vector4(120, -56, -120, 56))
 	capture_label.theme_type_variation = &"DisplayLabel"
 	capture_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
