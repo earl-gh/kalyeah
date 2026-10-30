@@ -461,7 +461,7 @@ func test_trap_arms_over_arm_time() -> void:
 	var rim: float = 0.0
 	for color: Color in ((node.get_node("Mark") as MeshInstance3D).mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR] as PackedColorArray):
 		rim = maxf(rim, color.a)
-	assert_almost_eq(rim, FxKit.RIM_ALPHA, 0.01, "armed: a solid rim")
+	assert_almost_eq(rim, FxKit.AREA_RIM_ALPHA, 0.01, "armed: a solid outline")
 
 
 func test_trap_springs_into_a_team_slow_zone() -> void:
@@ -482,8 +482,7 @@ func test_trap_springs_into_a_team_slow_zone() -> void:
 	assert_almost_eq(fill.scale.x, 1.0, 0.001, "to its whole radius")
 	var mark: MeshInstance3D = _fx.zones.node_for(zone.id).get_node("Mark") as MeshInstance3D
 	var color: Color = (mark.mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR] as PackedColorArray)[0]
-	var own: Color = TeamColors.world_own()
-	assert_lt(absf(color.r - own.r) + absf(color.g - own.g) + absf(color.b - own.b), 0.02, "in the thrower's colour")
+	assert_lt(absf(color.r - 1.0) + absf(color.g - 1.0) + absf(color.b - 1.0), 0.02, "your team's area is white")
 	while zone.time_left > FxFields.SLOW_FADE / 2.0:
 		_frame()
 	assert_lt((mark.material_override as StandardMaterial3D).albedo_color.a, 1.0, "it fades in its last moments")

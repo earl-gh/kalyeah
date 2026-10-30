@@ -1,5 +1,5 @@
 extends GutTest
-## The can model wears the Marikina corned-beef skin (tools/art/bake_can_skin.py): a yellow, red and blue picture, not the black
+## The can model wears the Urdaneta corned-beef skin (tools/art/bake_can_skin.py): a yellow, red and blue picture, not the black
 ## it had. The texture Godot reads is the one next to the .glb, so the picture inside the .glb must be the same file.
 
 const TEXTURE: String = "res://assets/models/weapons/can_prop_base_color.jpg"

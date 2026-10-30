@@ -375,11 +375,17 @@ static func _live(pool: Array[Slot]) -> int:
 
 ## A circle of exactly `radius` metres round the origin in `color`: a see-through fill (`fill_alpha`, none at 0) and an
 ## opaque rim straddling the edge, on the zone layers of the ladder. Built once per (radius, colour, alphas).
-static func circle_mark(radius: float, color: Color, fill_alpha: float, rim_alpha: float = FxKit.RIM_ALPHA) -> ArrayMesh:
-	var key: String = "circle|%.3f|%s|%.3f|%.3f" % [radius, color.to_html(), fill_alpha, rim_alpha]
+static func circle_mark(radius: float, color: Color, fill_alpha: float, rim_alpha: float = FxKit.RIM_ALPHA, rim_width: float = FxKit.RIM) -> ArrayMesh:
+	var key: String = "circle|%.3f|%s|%.3f|%.3f|%.3f" % [radius, color.to_html(), fill_alpha, rim_alpha, rim_width]
 	if not _marks.has(key):
-		_marks[key] = mark(AimIndicator.circle(Vector2.ZERO, radius), color, fill_alpha, FxKit.Y_FILL, FxKit.RIM, rim_alpha, FxKit.Y_RIM)
+		_marks[key] = mark(AimIndicator.circle(Vector2.ZERO, radius), color, fill_alpha, FxKit.Y_FILL, rim_width, rim_alpha, FxKit.Y_RIM)
 	return _marks[key]
+
+
+## The mark of an area a player casts: `circle_mark` with the thin area outline (`FxKit.AREA_RIM`, opaque) and the area fill. The
+## colour comes from `FxContext.area_color`.
+static func area_mark(radius: float, color: Color, fill_alpha: float = FxKit.AREA_FILL_ALPHA, rim_alpha: float = FxKit.AREA_RIM_ALPHA) -> ArrayMesh:
+	return circle_mark(radius, color, fill_alpha, rim_alpha, FxKit.AREA_RIM)
 
 
 ## Only the fill of a circle of `radius` (the growing progress disc), no rim.

@@ -17,17 +17,21 @@ const OBJECTS: Dictionary[StringName, Array] = {
 	&"tsinelas_light": ["slipper", 0.6],
 	&"tsinelas_heavy": ["slipper", 1.0],
 	&"lata": ["can", 0.7],
-	# the marble: 0.9 m drawn (owner's call, was 0.8 / 1.6 m drawn: it covered kids' faces at the top of its bounce)
-	&"bola": ["marble", 0.45],
+	# the marble: 1.12 m drawn (owner's call: 0.8 / 1.6 m covered kids' faces, 0.9 m was too small, so +25%; it bounces low)
+	&"bola": ["marble", 0.56],
 	&"papel_trap": ["crumpled_paper", 0.7],
-	&"trumpo": ["trumpo", 0.9],
+	# the top: 0.9 m was a little small (owner), +25%
+	&"trumpo": ["trumpo", 1.12],
 	# the light rock is the meteor's stone, small (the owner made no separate rock)
 	&"bato_light": ["meteor", 0.55],
 }
-## The spikes of a jacks field: this many clusters (one in the middle, the rest in a ring), each
-## this wide in metres.
-const SPIKE_CLUSTERS: int = 5
-const SPIKE_WIDTH: float = 0.9
+## The spikes of a jacks field: this many clusters (owner: fewer and smaller than the five 0.9 m ones), spread evenly on a ring
+## `SPIKE_RING` of the field's radius round its middle, each this wide in metres.
+const SPIKE_CLUSTERS: int = 3
+const SPIKE_WIDTH: float = 0.63
+const SPIKE_RING: float = 0.55
+## The ring is turned by this much (radians) so no cluster sits straight up or down the screen.
+const SPIKE_TURN: float = 0.4
 ## The rock meteor of bato heavy (metres across; a 2 m circle reads "a big rock lands here" without hiding both kids in it).
 const METEOR_SIZE: float = 1.4
 ## The heal cross (metres wide before the kids' view scale: 0.84 m drawn, so on the chest it stays under the face).
@@ -99,7 +103,7 @@ static func standing(id: String, height: float) -> Node3D:
 	return holder
 
 
-## A jacks field: spike clusters scattered over a circle of `radius` (the middle one and a ring).
+## A jacks field: spike clusters spread evenly on a ring over a circle of `radius`.
 static func spikes(radius: float) -> Node3D:
 	var holder: Node3D = Node3D.new()
 	var natural: Vector3 = size_of("spikes")
@@ -107,9 +111,8 @@ static func spikes(radius: float) -> Node3D:
 	for i: int in SPIKE_CLUSTERS:
 		var model: Node3D = _instance("spikes")
 		model.scale = Vector3.ONE * scale
-		if i > 0:
-			var angle: float = TAU * float(i - 1) / float(SPIKE_CLUSTERS - 1) + 0.4
-			model.position = Vector3(cos(angle), 0.0, sin(angle)) * radius * 0.6
+		var angle: float = TAU * float(i) / float(SPIKE_CLUSTERS) + SPIKE_TURN
+		model.position = Vector3(cos(angle), 0.0, sin(angle)) * radius * SPIKE_RING
 		model.rotation.y = float(i) * 1.7
 		holder.add_child(model)
 	return holder
