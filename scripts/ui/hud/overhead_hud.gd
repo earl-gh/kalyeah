@@ -136,14 +136,17 @@ func text_for(id: int) -> String:
 
 
 ## A tagged kid stands on the sidewalk, which already says it: no "Tagged" over each one (two of them ran into one word).
+## A negative status shows instead of "Exhausted" (never stacked); the exhaustion keeps counting in the sim meanwhile, so the word returns when the status ends.
 func _status_text(state: PlayerState) -> String:
 	var words: PackedStringArray = PackedStringArray()
 	if away_ids.has(state.id):
 		words.append(AWAY)
-	if state.overclocked:
+	var effects: PackedStringArray = state.effects.display_names()
+	if not effects.is_empty():
+		for word: String in effects:
+			words.append(UiText.t(word))
+	elif state.overclocked:
 		words.append(UiText.t(EXHAUSTED_SELF if state.id == _local_id else EXHAUSTED_OTHER))
-	for word: String in state.effects.display_names():
-		words.append(UiText.t(word))
 	return " · ".join(words)
 
 

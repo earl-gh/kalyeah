@@ -125,6 +125,20 @@ func test_the_bar_stays_empty_and_blinks_for_two_seconds_before_it_refills() -> 
 	assert_true(state.overclocked, "and the kid still only walks")
 
 
+func test_a_negative_status_does_not_pause_the_exhaustion_or_its_refill() -> void:
+	var sim: MatchSim = _sim()
+	_exhaust(sim)
+	var state: PlayerState = sim.players[1]
+	var blink: float = state.exhaust_left
+	state.effects.apply(StatusEffects.Type.STUN, 5.0)
+	_stand(sim, 15)
+	assert_almost_eq(state.exhaust_left, blink - 15.0 * DT, 0.001, "the blink counts down under the status")
+	_stand(sim, 45)
+	assert_eq(state.exhaust_left, 0.0)
+	assert_gt(state.stamina, 0.0, "and the refill runs too")
+	assert_true(state.overclocked, "still exhausted, refilling, when the status ends")
+
+
 func test_the_kid_walks_until_the_bar_is_full_again_then_runs() -> void:
 	var sim: MatchSim = _sim()
 	_exhaust(sim)

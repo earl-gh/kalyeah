@@ -116,6 +116,25 @@ func test_the_status_word_takes_the_place_of_you_in_the_same_size() -> void:
 	assert_eq(hud.label_for(sim.players[3]), "", "a healthy enemy still says nothing")
 
 
+func test_a_negative_status_replaces_exhausted_and_exhausted_returns_after_it() -> void:
+	var sim: MatchSim = MatchSim.new(load("res://data/rules/game_rules.tres") as GameRules, load("res://data/rules/map_layout.tres") as MapLayout, 3)
+	sim.add_player(1, 0)
+	sim.add_player(2, 0)
+	var hud: OverheadHud = OverheadHud.new()
+	add_child_autofree(hud)
+	hud.setup(sim, null, 1, 0)
+	sim.players[1].overclocked = true
+	sim.players[2].overclocked = true
+	assert_eq(hud.label_for(sim.players[1]), "EXHAUSTED", "exhausted alone")
+	assert_eq(hud.label_for(sim.players[2]), "Exhausted")
+	sim.players[1].effects.apply(StatusEffects.Type.STUN, 1.0)
+	sim.players[2].effects.apply(StatusEffects.Type.SLOW, 1.0)
+	assert_eq(hud.label_for(sim.players[1]), "Stunned", "the status shows instead of Exhausted, not stacked with it")
+	assert_eq(hud.label_for(sim.players[2]), "Slowed")
+	sim.players[1].effects.clear()
+	assert_eq(hud.label_for(sim.players[1]), "EXHAUSTED", "after the status the exhaustion shows again")
+
+
 func test_the_stamina_bar_touches_the_health_bar_with_no_gap() -> void:
 	var bar: Rect2 = Rect2(Vector2(300.0, 400.0), Vector2(48.0, 9.0))
 	var health_outline_bottom: float = bar.end.y + OverheadHud.BAR_OUTLINE
