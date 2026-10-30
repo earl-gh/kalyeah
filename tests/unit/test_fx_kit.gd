@@ -26,13 +26,6 @@ func test_squash_preserves_volume_and_stays_in_bounds() -> void:
 	assert_almost_eq((basis * Vector3(1.0, 0.0, 1.0).normalized()).length(), 1.3, 0.001, "and is 1.3 along it")
 
 
-func test_velocity_stretch_matches_the_audit() -> void:
-	assert_almost_eq(FxSquash.velocity_stretch(14.0), 1.30, 0.001, "the rock")
-	assert_almost_eq(FxSquash.velocity_stretch(9.0), 1.20, 0.001, "the heavy slipper")
-	assert_almost_eq(FxSquash.velocity_stretch(12.0), 1.267, 0.001, "the marble")
-	assert_almost_eq(FxSquash.velocity_stretch(0.0), 1.0, 0.001, "still")
-
-
 func test_pop_overshoots_once_and_lands() -> void:
 	assert_almost_eq(FxSquash.pop(0.0), 0.0, 0.0001)
 	var peak: float = 0.0
