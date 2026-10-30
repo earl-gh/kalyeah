@@ -169,6 +169,117 @@ func test_a_snips_wedge_tip_stays_thin() -> void:
 			assert_lt(at.distance_to(tip), AimIndicator.LINE_WIDTH * AimIndicator.MITER_LIMIT, "the 60 degree tip sticks out at most the miter limit")
 
 
+# ---- a wall that changes form shows both forms ---------------------------------------------------------------------
+
+## The (lowest, highest) position of `line`'s points measured along `direction`.
+func _extent(line: PackedVector2Array, direction: Vector2) -> Vector2:
+	var low: float = INF
+	var high: float = -INF
+	for point: Vector2 in line:
+		low = minf(low, point.dot(direction))
+		high = maxf(high, point.dot(direction))
+	return Vector2(low, high)
+
+
+## The sim's own wall for `id` cast north from the caster, run to the end of its motion.
+func _finished_wall(id: StringName) -> WeaponSystem.Shield:
+	assert_true(_sim.weapons.fire(_sim, _sim.players[CASTER], _def(id), Vector2(0.0, -1.0), 0.0, 2))
+	var shield: WeaponSystem.Shield = _sim.weapons.shields[_sim.weapons.shields.size() - 1]
+	var def: WeaponDef = _def(id)
+	var ticks: int = ceili((maxf(def.push_time, def.expand_delay + def.expand_time) + 0.1) * 30.0)
+	for i: int in ticks:
+		_sim.step(1.0 / 30.0)
+	return shield
+
+
+func test_only_a_weapon_with_a_second_form_has_one() -> void:
+	var with_form: Array[StringName] = []
+	for id: StringName in _sim.weapon_defs:
+		var def: WeaponDef = _def(id)
+		var second: PackedVector2Array = AimIndicator.second_form(_sim, _sim.players[CASTER], def, Vector2(0.0, -1.0))
+		if def.push_distance != 0.0 or def.expand_factor != 1.0:
+			with_form.append(id)
+			assert_false(second.is_empty(), "%s changes form, so the preview shows where it ends" % id)
+		else:
+			assert_true(second.is_empty(), "%s keeps one form: no second outline" % id)
+	with_form.sort()
+	assert_eq(with_form, [&"langit_lupa", &"papel_shield"] as Array[StringName], "the paper wall and the soil block")
+
+
+func test_the_soil_blocks_second_form_is_as_wide_as_the_sim_makes_it() -> void:
+	var soil: WeaponDef = _def(&"langit_lupa")
+	var facing: Vector2 = Vector2(0.0, -1.0)
+	var first: PackedVector2Array = AimIndicator.outline(_sim, _sim.players[CASTER], soil, facing)[0]
+	var second: PackedVector2Array = AimIndicator.second_form(_sim, _sim.players[CASTER], soil, facing)
+	var shield: WeaponSystem.Shield = _finished_wall(&"langit_lupa")
+	var across: Vector2 = facing.orthogonal()
+	var narrow: Vector2 = _extent(first, across)
+	var wide: Vector2 = _extent(second, across)
+	assert_almost_eq(narrow.y - narrow.x, soil.width, 0.001, "the first form is the width it is cast with")
+	assert_almost_eq(wide.y - wide.x, shield.half_width * 2.0, 0.001, "the second is exactly the width the sim's block ends with")
+	assert_almost_eq((wide.y - wide.x) / (narrow.y - narrow.x), soil.expand_factor, 0.001, "three times as wide")
+	assert_almost_eq((wide.x + wide.y) / 2.0, (narrow.x + narrow.y) / 2.0, 0.001, "it grows round the same middle")
+	assert_eq(_extent(second, facing), _extent(first, facing), "and stays where it rose")
+
+
+func test_the_paper_walls_second_form_is_where_the_sim_pushes_it() -> void:
+	var paper: WeaponDef = _def(&"papel_shield")
+	var facing: Vector2 = Vector2(0.0, -1.0)
+	var first: PackedVector2Array = AimIndicator.outline(_sim, _sim.players[CASTER], paper, facing)[0]
+	var second: PackedVector2Array = AimIndicator.second_form(_sim, _sim.players[CASTER], paper, facing)
+	var cast_at: Vector2 = _sim.players[CASTER].position + facing * paper.offset
+	var shield: WeaponSystem.Shield = _finished_wall(&"papel_shield")
+	var ahead: Vector2 = _extent(second, facing)
+	var home: Vector2 = _extent(first, facing)
+	assert_almost_eq((ahead.x + ahead.y) / 2.0, shield.center.dot(facing), 0.001, "its middle is where the sim's wall stops")
+	assert_almost_eq(shield.center.distance_to(cast_at), paper.push_distance, 0.001, "pushed forward by push_distance")
+	assert_almost_eq(ahead.x - home.x, paper.push_distance, 0.001, "the outline moved on by the same metres")
+	var across: Vector2 = facing.orthogonal()
+	assert_eq(_extent(second, across), _extent(first, across), "same width: the paper does not widen")
+
+
+func test_only_the_first_form_has_the_tint() -> void:
+	for id: StringName in [&"langit_lupa", &"papel_shield"]:
+		var facing: Vector2 = Vector2(0.0, -1.0)
+		var def: WeaponDef = _def(id)
+		var first: PackedVector2Array = AimIndicator.outline(_sim, _sim.players[CASTER], def, facing)[0]
+		_show(id, facing)
+		var tint: Color = AimIndicator.tint_of(AimIndicator.LINE_COLOR)
+		var colors: PackedColorArray = _colors()
+		var vertices: PackedVector3Array = _vertices()
+		var along: Vector2 = _extent(first, facing)
+		var across: Vector2 = _extent(first, facing.orthogonal())
+		var pad: float = AimIndicator.LINE_WIDTH * AimIndicator.MITER_LIMIT
+		var tinted: int = 0
+		var outline_beyond: int = 0
+		for i: int in vertices.size():
+			var at: Vector2 = Vector2(vertices[i].x, vertices[i].z)
+			var in_first: bool = at.dot(facing) >= along.x - 0.001 and at.dot(facing) <= along.y + 0.001 \
+					and at.dot(facing.orthogonal()) >= across.x - 0.001 and at.dot(facing.orthogonal()) <= across.y + 0.001
+			if _has([colors[i]], tint):
+				tinted += 1
+				assert_true(in_first, "%s: a tinted vertex at %s lies inside the first form only" % [id, at])
+			elif at.dot(facing) < along.x - pad or at.dot(facing) > along.y + pad \
+					or at.dot(facing.orthogonal()) < across.x - pad or at.dot(facing.orthogonal()) > across.y + pad:
+				outline_beyond += 1
+		assert_gt(tinted, 0, "%s: the first form is tinted" % id)
+		assert_gt(outline_beyond, 0, "%s: the second form is drawn outside it as an outline" % id)
+		assert_true(_has(_palette(), AimIndicator.LINE_COLOR), "%s: the same white outline" % id)
+		assert_eq(_palette().size(), 2, "%s: nothing but the tint and the line" % id)
+
+
+func test_a_tap_that_auto_aims_shows_no_second_form() -> void:
+	_show(&"langit_lupa", Vector2(0.0, -1.0), false, false)
+	assert_eq(_indicator.mesh.get_surface_count(), 0, "the shape is only drawn while the finger drags the aim")
+
+
+func test_the_second_form_follows_cancel_red() -> void:
+	_show(&"langit_lupa", Vector2(0.0, -1.0), true)
+	var palette: Array[Color] = _palette()
+	assert_eq(palette.size(), 2, "red tint and red line, no white")
+	assert_true(_has(palette, AimIndicator.CANCEL_COLOR))
+
+
 # ---- the states stay ------------------------------------------------------------------------------------------------
 
 func test_over_cancel_the_whole_guide_goes_red() -> void:

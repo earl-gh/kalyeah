@@ -7,6 +7,10 @@ extends MeshInstance3D
 ## kid the cast would reach right now (a tap that auto-aims shows only these rings), pale grey when releasing would cast nothing (no
 ## cooldown spent), red over Cancel. No range circle, no pulse. Uses the sim's own aim helpers so the preview matches the real cast.
 ##
+## A wall that changes form (the paper wall glides forward, the block of earth widens: `WallMotion`) shows BOTH forms (owner): where it
+## is cast keeps the tint inside its outline, where it ends up (`second_form`, from the same functions and data as the sim) is the
+## same thin outline with no tint.
+##
 ## Cheap by construction: the whole guide is ONE triangle-strip surface (fills and outlines joined by degenerate triangles, so one
 ## draw call), a circle is 32 points shared by its two edges instead of six vertices a segment, and the circle points come from one
 ## table built once.
@@ -83,9 +87,27 @@ static func outline(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vec
 				lines.append(circle(patient.position, patient.radius + 0.35))
 		WeaponDef.Shape.SHIELD:
 			var facing: Vector2 = sim.weapons.aim_direction(caster, aim)
-			var center: Vector2 = origin + facing * def.offset
-			lines.append(lane(center - facing * SHIELD_THICKNESS / 2.0, facing, SHIELD_THICKNESS, def.width / 2.0))
+			lines.append(wall(origin + facing * def.offset, facing, def.width / 2.0))
 	return lines
+
+
+## The wall of a shield's line: `SHIELD_THICKNESS` deep along `facing`, `half_width` either side of `center`.
+static func wall(center: Vector2, facing: Vector2, half_width: float) -> PackedVector2Array:
+	return lane(center - facing * SHIELD_THICKNESS / 2.0, facing, SHIELD_THICKNESS, half_width)
+
+
+## The second form of a wall that changes while it stands (empty for every other weapon): where the line is, and how wide, once
+## its motion is over (`WallMotion` at the weapon's `duration`, the same functions the sim places the blocking line with). The
+## paper wall's is `push_distance` ahead of where it is cast; the block of earth's is `expand_factor` times as wide.
+static func second_form(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector2) -> PackedVector2Array:
+	if def.shape != WeaponDef.Shape.SHIELD:
+		return PackedVector2Array()
+	var pushed: float = WallMotion.push(def, def.duration)
+	var widen: float = WallMotion.width_scale(def, def.duration)
+	if pushed == 0.0 and widen == 1.0:
+		return PackedVector2Array()
+	var facing: Vector2 = sim.weapons.aim_direction(caster, aim)
+	return wall(caster.position + facing * (def.offset + pushed), facing, def.width / 2.0 * widen)
 
 
 ## Whether the shape of `def` is an AREA (drawn with a white tint inside its outline) rather than a lane, a wedge or a ring round a
@@ -191,22 +213,28 @@ func show_aim(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector2, 
 		rings.append(circle(target.position, target.radius + REACH_PAD))
 		ring_colors.append(REACH_FRIEND if target.team == caster.team else REACH_ENEMY)
 	var shape: Array[PackedVector2Array] = []
+	var after: Array[PackedVector2Array] = []
 	if manual:
 		shape = outline(sim, caster, def, aim, target_id)
 		if def.max_range > 0.0 and not shape.is_empty():
 			shape.remove_at(0)  # the range circle: the shape already shows how far it goes
 		if def.shape == WeaponDef.Shape.TARGETED:
 			shape.clear()  # the ring under the target says it all
+		var second: PackedVector2Array = second_form(sim, caster, def, aim)
+		if not second.is_empty():
+			after.append(second)
 	var pips: Array[PackedVector2Array] = snip_pips(caster.position, sim.weapons.aim_direction(caster, aim), def)
-	show_lines(shape, color_for(castable, cancelled), rings, ring_colors, pips, def.snip_count(hold_seconds), is_area(def))
+	show_lines(shape, color_for(castable, cancelled), rings, ring_colors, pips, def.snip_count(hold_seconds), is_area(def), after)
 
 
-## Draws the shape lines (each an area with its tint when `areas`), the rings under the kids reached and the snip pips (the first
-## `pips_lit` are bright), all in one strip surface. Tints go first so no outline is ever covered.
+## Draws the shape lines (each an area with its tint when `areas`), the second forms of a wall (`after`: the outline alone, never a
+## tint), the rings under the kids reached and the snip pips (the first `pips_lit` are bright), all in one strip surface. Tints go
+## first so no outline is ever covered.
 func show_lines(lines: Array[PackedVector2Array], color: Color, rings: Array[PackedVector2Array] = [],
-		ring_colors: Array[Color] = [], pips: Array[PackedVector2Array] = [], pips_lit: int = 0, areas: bool = false) -> void:
+		ring_colors: Array[Color] = [], pips: Array[PackedVector2Array] = [], pips_lit: int = 0, areas: bool = false,
+		after: Array[PackedVector2Array] = []) -> void:
 	_mesh.clear_surfaces()
-	if lines.is_empty() and rings.is_empty() and pips.is_empty():
+	if lines.is_empty() and rings.is_empty() and pips.is_empty() and after.is_empty():
 		return
 	_has_tail = false
 	_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
@@ -215,6 +243,8 @@ func show_lines(lines: Array[PackedVector2Array], color: Color, rings: Array[Pac
 		for line: PackedVector2Array in lines:
 			_strip_fill(line, tint)
 	for line: PackedVector2Array in lines:
+		_strip_outline(line, LINE_WIDTH, color)
+	for line: PackedVector2Array in after:
 		_strip_outline(line, LINE_WIDTH, color)
 	for index: int in pips.size():
 		_strip_outline(pips[index], LINE_WIDTH, color if index < pips_lit else Color(color, color.a * 0.35))
