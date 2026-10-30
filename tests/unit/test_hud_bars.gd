@@ -95,10 +95,10 @@ func test_the_health_number_is_centred_on_the_bars_top_outline() -> void:
 func test_the_bar_and_its_number_are_one_and_a_half_times_what_they_were_owner() -> void:
 	var rules: CameraRules = load("res://data/rules/camera_rules.tres") as CameraRules
 	assert_almost_eq(rules.bar_scale, 0.5 * 1.5, 0.0001, "the bar was drawn at 0.5")
-	assert_eq(OverheadHud.LABEL_FONT, 16, "\"You\" and the status word are 16 px (owner)")
+	assert_eq(OverheadHud.LABEL_FONT, 16, "the name and the status word are 16 px (owner)")
 
 
-func test_the_status_word_takes_the_place_of_you_in_the_same_size() -> void:
+func test_the_status_word_takes_the_place_of_the_name_in_the_same_size() -> void:
 	assert_eq(OverheadHud.STATUS_FONT, OverheadHud.LABEL_FONT)
 	var sim: MatchSim = MatchSim.new(load("res://data/rules/game_rules.tres") as GameRules, load("res://data/rules/map_layout.tres") as MapLayout, 3)
 	sim.add_player(1, 0)
@@ -107,13 +107,16 @@ func test_the_status_word_takes_the_place_of_you_in_the_same_size() -> void:
 	var hud: OverheadHud = OverheadHud.new()
 	add_child_autofree(hud)
 	hud.setup(sim, null, 1, 0)
-	assert_eq(hud.label_for(sim.players[1]), "You", "no status: your own kid says You")
-	assert_eq(hud.label_for(sim.players[2]), "", "an ally says nothing")
+	hud.names[1] = "Gabo"
+	hud.names[2] = "Mika"
+	hud.names[3] = "Rey"
+	assert_eq(hud.label_for(sim.players[1]), "Gabo", "no status: your own kid says your name")
+	assert_eq(hud.label_for(sim.players[2]), "Mika", "an ally says its name")
 	sim.players[1].effects.apply(StatusEffects.Type.STUN, 1.0)
 	sim.players[2].effects.apply(StatusEffects.Type.STUN, 1.0)
-	assert_eq(hud.label_for(sim.players[1]), "Stunned", "the status replaces You, it is not stacked above it")
+	assert_eq(hud.label_for(sim.players[1]), "Stunned", "the status replaces the name, it is not stacked above it")
 	assert_eq(hud.label_for(sim.players[2]), "Stunned", "an ally shows its status in the same place")
-	assert_eq(hud.label_for(sim.players[3]), "", "a healthy enemy still says nothing")
+	assert_eq(hud.label_for(sim.players[3]), "Rey", "a healthy enemy still says its name")
 
 
 func test_a_negative_status_replaces_exhausted_and_exhausted_returns_after_it() -> void:
