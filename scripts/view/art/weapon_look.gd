@@ -7,23 +7,37 @@ extends RefCounted
 
 const LOOK: Shader = preload("res://scripts/view/art/weapon_look.gdshader")
 const OUTLINE: Shader = preload("res://scripts/view/art/weapon_outline.gdshader")
+## The near-white models keep a little under white (the paper walls, the crumpled paper, the slipper), so their lit top is cream and
+## never clips to flat white; their top is not lifted.
+const WHITE_GAIN: Color = Color(0.93, 0.93, 0.95)
+const WHITE_TOP: float = 1.0
+## Per-model looks: models whose picture is noisy and photographic (the AI-made rock and soil) are drawn flat: blurred this many mip levels, in this
+## many value steps, with this much colour. The picture itself is not touched.
+const STYLES: Dictionary[String, Dictionary] = {
+	"meteor": {"flatten": 2.0, "steps": 5.0, "colour_gain": 1.15},
+	"soil_block": {"flatten": 2.5, "steps": 4.0, "colour_gain": 1.1},
+	"slipper": {"albedo_color": WHITE_GAIN, "top_boost": WHITE_TOP},
+	"paper": {"albedo_color": WHITE_GAIN, "top_boost": WHITE_TOP},
+	"crumpled_paper": {"albedo_color": WHITE_GAIN, "top_boost": WHITE_TOP},
+}
 
 
-## Gives every surface of every mesh under `root` the weapon look (its picture kept) and returns the materials, one per surface.
-static func apply(root: Node) -> Array[Material]:
+## Gives every surface of every mesh under `root` the weapon look of model `id` (its picture kept) and returns the materials, one per surface.
+static func apply(root: Node, id: String = "") -> Array[Material]:
 	var made: Array[Material] = []
 	for node: Node in root.find_children("*", "MeshInstance3D", true, false):
 		var mesh_instance: MeshInstance3D = node as MeshInstance3D
 		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		for surface: int in mesh_instance.mesh.get_surface_count():
-			var material: ShaderMaterial = make(mesh_instance.get_active_material(surface))
+			var material: ShaderMaterial = make(mesh_instance.get_active_material(surface), STYLES.get(id, {}) as Dictionary)
 			mesh_instance.set_surface_override_material(surface, material)
 			made.append(material)
 	return made
 
 
 ## The look for a surface whose own material is `source`: its picture and colour carried over, with the contour as the second pass.
-static func make(source: Material) -> ShaderMaterial:
+## `style` sets any of the shader's uniforms (see `STYLES`).
+static func make(source: Material, style: Dictionary = {}) -> ShaderMaterial:
 	var material: ShaderMaterial = ShaderMaterial.new()
 	material.shader = LOOK
 	var outline: ShaderMaterial = ShaderMaterial.new()
@@ -33,6 +47,8 @@ static func make(source: Material) -> ShaderMaterial:
 		material.set_shader_parameter(&"albedo_texture", base.albedo_texture)
 		material.set_shader_parameter(&"albedo_color", base.albedo_color)
 		outline.set_shader_parameter(&"albedo_texture", base.albedo_texture)
+	for key: Variant in style:
+		material.set_shader_parameter(key as StringName, style[key])
 	material.next_pass = outline
 	return material
 

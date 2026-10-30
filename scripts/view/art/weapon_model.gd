@@ -223,7 +223,7 @@ static func _instance(id: String) -> Node3D:
 	var root: Node3D = _scene(id).instantiate() as Node3D
 	var meshes: Array[Node] = root.find_children("*", "MeshInstance3D", true, false)
 	if not _looks.has(id):
-		_looks[id] = WeaponLook.apply(root)
+		_looks[id] = WeaponLook.apply(root, id)
 	else:
 		var looks: Array = _looks[id]
 		var next: int = 0

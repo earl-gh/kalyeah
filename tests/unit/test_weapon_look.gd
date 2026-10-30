@@ -66,3 +66,17 @@ func _default(shader: Shader, uniform: String) -> Variant:
 		var parts: PackedStringArray = text.trim_prefix("vec3(").trim_suffix(")").split(",")
 		return Vector3(parts[0].to_float(), parts[1].to_float(), parts[2].to_float())
 	return text.to_float()
+
+
+func test_the_noisy_photo_models_are_drawn_flat_and_the_whites_keep_under_white() -> void:
+	for id: String in ["meteor", "soil_block"]:
+		var model: Node3D = autofree(WeaponModel.meteor() if id == "meteor" else WeaponModel.soil(1.0, 1.0, 1.0)) as Node3D
+		var look: ShaderMaterial = _surfaces(model)[0] as ShaderMaterial
+		assert_gt(look.get_shader_parameter(&"flatten") as float, 1.0, "%s is blurred a few levels" % id)
+		assert_gt(look.get_shader_parameter(&"steps") as float, 2.0, "%s is drawn in a few value steps" % id)
+	var paper: ShaderMaterial = _surfaces(autofree(WeaponModel.shield(1.0, 1.0, 0.2)) as Node3D)[0] as ShaderMaterial
+	var gain: Color = paper.get_shader_parameter(&"albedo_color") as Color
+	assert_lt(gain.r, 1.0, "the paper keeps a little under white")
+	assert_lte(paper.get_shader_parameter(&"top_boost") as float, 1.0, "and its top is not lifted past it")
+	var scissors: ShaderMaterial = _surfaces(autofree(WeaponModel.scissors(1.0)) as Node3D)[0] as ShaderMaterial
+	assert_eq(scissors.get_shader_parameter(&"flatten"), null, "a model with no style is drawn as made")
