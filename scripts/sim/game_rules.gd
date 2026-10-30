@@ -43,9 +43,13 @@ extends Resource
 ## ... and each further teammate in the base adds this share of one player's speed (1.0 = linear, 0 = no help):
 ## the countdown runs at 1 + (n - 1) * bonus times its solo speed.
 @export var capture_ally_bonus: float = 0.75
-## Overtime: once a round has gone on this long (seconds, 0 = never) the capture time drops to `overtime_capture_time`,
-## so a round always ends.
+## The round clock has three stages (owner): Regular counts down from `overtime_after` seconds (0 = no stages: the clock counts
+## up), Extended is a plain extra `extended_seconds` (0 = skipped), then Overtime counts down `overtime_seconds` more (0 = no minute,
+## it just stays open). Each stage restarts the countdown; every round starts at Regular again.
 @export var overtime_after: float = 0.0
+@export var extended_seconds: float = 0.0
+@export var overtime_seconds: float = 0.0
+## Overtime only: the capture time drops to this (never longer than `capture_solo_time`), so a round always ends.
 @export var overtime_capture_time: float = 0.0
 ## The opening show before the first round (both teams at their posts, then GO!).
 @export var intro_time: float = 0.0

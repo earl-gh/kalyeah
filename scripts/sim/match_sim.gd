@@ -37,6 +37,8 @@ const EPSILON: float = 0.00001
 enum Phase { PLAYING, POINT_FREEZE, MATCH_OVER, INTRO }
 ## How a team is scoring: everyone in the enemy base, or every enemy tagged.
 enum CaptureKind { NONE = -1, BASE = 0, ALL_TAGGED = 1 }
+## The round clock's stages: Regular, then Extended (a plain extra minute), then Overtime (a shorter capture).
+enum ClockStage { REGULAR, EXTENDED, OVERTIME }
 
 var rules: GameRules
 var layout: MapLayout
@@ -812,9 +814,40 @@ func current_base_capture_time() -> float:
 	return rules.capture_solo_time
 
 
-## True once the round has dragged on past `rules.overtime_after` (the header says OVERTIME).
+## The stage of the round clock (`GameRules.overtime_after`, `extended_seconds`, `overtime_seconds`), from the round's time only, so a
+## client reads the same stage from a snapshot. With the clock off (`overtime_after` 0) it stays Regular.
+func clock_stage() -> ClockStage:
+	if rules.overtime_after <= 0.0 or round_time < rules.overtime_after:
+		return ClockStage.REGULAR
+	if round_time < rules.overtime_after + rules.extended_seconds:
+		return ClockStage.EXTENDED
+	return ClockStage.OVERTIME
+
+
+## The round time at which `stage` begins.
+func clock_stage_start(stage: ClockStage) -> float:
+	match stage:
+		ClockStage.EXTENDED:
+			return rules.overtime_after
+		ClockStage.OVERTIME:
+			return rules.overtime_after + rules.extended_seconds
+	return 0.0
+
+
+## Seconds left in the current stage (the clock the header shows; it restarts at each stage and stays 0 after Overtime's minute).
+func clock_left() -> float:
+	var end: float = rules.overtime_after
+	match clock_stage():
+		ClockStage.EXTENDED:
+			end += rules.extended_seconds
+		ClockStage.OVERTIME:
+			end += rules.extended_seconds + rules.overtime_seconds
+	return maxf(end - round_time, 0.0)
+
+
+## True in the Overtime stage (the capture is shorter; the header says Overtime).
 func in_overtime() -> bool:
-	return rules.overtime_after > 0.0 and round_time >= rules.overtime_after
+	return clock_stage() == ClockStage.OVERTIME
 
 
 ## Seconds left on the running capture countdown (0 when none runs).
