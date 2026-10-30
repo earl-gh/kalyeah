@@ -1,6 +1,7 @@
 class_name LobbyScreen
 extends Control
-## Shared multiplayer lobby. Online joins by code; Hotspot discovers the host room.
+## Shared multiplayer lobby. Online Join lists the open rooms (tap one, or Quick join) and still takes a private room's code;
+## Hotspot discovers the host room.
 ## Both use one room view; GameClient and the server own room state.
 ## Built in code; all networking goes through the GameClient in `Net`.
 
@@ -14,6 +15,8 @@ const FONT: int = UiMetrics.BODY
 const BIG_FONT: int = UiMetrics.DISPLAY
 ## While an Online connection is still opening after `NetRules.wake_hint_after` (a sleeping free server takes about a minute).
 const WAKING_TEXT: String = "Waking up the server. This can take a minute…"
+## Seconds before an Online Join screen that lost its connection tries again by itself.
+const BROWSE_RETRY: float = 3.0
 
 var client: GameClient
 var intent: Intent = Intent.CREATE
@@ -50,6 +53,12 @@ var _room_view: HotspotRoomView
 var _announced_character: bool = false
 ## Who hosted the room at the last update (-1 before the first), to tell a player they became the host.
 var _last_host_id: int = -1
+## Online Join: the open rooms, the button that unfolds the code form, and that form (LobbyOnlineLayout).
+var open_rooms: OpenRoomsList
+var code_toggle: Button
+var code_section: VBoxContainer
+## Seconds to the next ask for the room list (or, offline, to the next try to connect).
+var _list_left: float = 0.0
 
 
 func _ready() -> void:
@@ -72,6 +81,7 @@ func _ready() -> void:
 	client.room_changed.connect(_on_room_changed)
 	client.match_loading.connect(_on_match_loading)
 	client.welcomed.connect(_on_welcomed)
+	client.rooms_listed.connect(_on_rooms_listed)
 	_show_room(not client.room.is_empty())
 	if not client.room.is_empty():
 		_on_room_changed(client.room)
@@ -79,6 +89,8 @@ func _ready() -> void:
 		_start_hotspot.call_deferred()
 	elif intent == Intent.CREATE:
 		_start_online_create.call_deferred()
+	else:
+		_start_browsing.call_deferred()
 
 
 ## Tests / callers: choose Create or Join before the screen enters the tree.
@@ -216,13 +228,70 @@ func _send_pending() -> void:
 		_pending = Callable()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	# a free Online server asleep takes about a minute to answer: say so, so the wait does not look stuck
 	if _status != null and not hotspot and client.waking() and _status.text == "Connecting…":
 		_set_status(WAKING_TEXT)
+	if not browsing():
+		return
+	_list_left -= delta
+	if _list_left > 0.0:
+		return
+	if _transport_ready:
+		client.list_rooms()
+		_list_left = NET_RULES.room_list_refresh
+	elif not client.is_online() and not client.is_connecting():
+		_start_browsing()
+
+
+## The Online Join screen is up, listing rooms (not yet in one).
+func browsing() -> bool:
+	return open_rooms != null and client.room.is_empty() and _setup_layer != null and _setup_layer.visible
+
+
+## Online Join: connect without sending anything; the list is asked for once the server says hello, then every `room_list_refresh`.
+func _start_browsing() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	_list_left = BROWSE_RETRY
+	client.player_name = Session.player_name
+	var url: String = Settings.normalize_url(Settings.server_url)
+	if url.is_empty():
+		_set_status("Online is coming soon!")
+		return
+	_connected_url = url
+	_connect_or_send(url)
+
+
+## A room card or Quick join: join that open room (its code is sent for you).
+func join_listed(code: String) -> void:
+	_set_status("Joining the room…")
+	_pending = client.join_room.bind(code)
+	_connect_or_send(_connected_url if not _connected_url.is_empty() else Settings.normalize_url(Settings.server_url))
+
+
+## No open room to join: make one instead, on the same connection.
+func create_instead() -> void:
+	intent = Intent.CREATE
+	_show_room(false)
+	_start_online_create()
+
+
+## Shows or folds the form for a private room's code.
+func toggle_code() -> void:
+	code_section.visible = not code_section.visible
+	code_toggle.text = "Hide the code" if code_section.visible else "Have a code?"
+	if code_section.visible:
+		_code_edit.grab_focus()
+
+
+func _on_rooms_listed(rooms: Array[Dictionary]) -> void:
+	if open_rooms != null:
+		open_rooms.show_rooms(rooms)
 
 
 func _on_connect_failed() -> void:
+	_list_left = BROWSE_RETRY
 	_set_status("Can't reach the server. Check your connection and try again.")
 	if _room_view != null:
 		_room_view.show_retry()
@@ -233,6 +302,7 @@ func _on_connection_changed(online: bool) -> void:
 	if online:
 		_set_status("Connecting…")
 	else:
+		_list_left = BROWSE_RETRY
 		_show_room(false)
 		_set_status("Connection lost. Try again!")
 		if _room_view != null:
@@ -242,6 +312,9 @@ func _on_connection_changed(online: bool) -> void:
 func _on_welcomed(reconnected: bool) -> void:
 	_transport_ready = true
 	_identified_name = client.player_name
+	if browsing() and not _pending.is_valid():
+		_set_status("")
+		_list_left = 0.0
 	_send_pending()
 	if not _rejoining:
 		return
@@ -257,8 +330,10 @@ func _on_welcomed(reconnected: bool) -> void:
 
 func _on_error(text: String) -> void:
 	_set_status(text)
+	if browsing():
+		_list_left = NET_RULES.room_list_min_gap  # a room filled or started under a tap: show the list as it is now
 	# a refused join marks the code itself: the boxes turn red until it is edited
-	if _code_boxes != null and client.room.is_empty():
+	if _code_boxes != null and client.room.is_empty() and _code_boxes.is_visible_in_tree():
 		_code_boxes.set_error(true)
 		_code_error.text = text
 		_code_error.show()
@@ -359,6 +434,7 @@ func _build_room_view() -> void:
 	_room_view.action_pressed.connect(_on_action)
 	_room_view.retry_pressed.connect(submit)
 	_room_view.first_to_chosen.connect(client.set_first_to)
+	_room_view.open_chosen.connect(client.set_open)
 
 
 ## Create or Join was pressed on the main screen (its dialog already checked the hotspot): go on.

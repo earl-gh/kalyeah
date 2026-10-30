@@ -10,6 +10,8 @@ signal settings_pressed
 ## The host picked a map in the carousel.
 signal map_chosen(map_id: StringName)
 signal size_chosen(size: int)
+## Online, host only: open (listed for everyone to join with a tap) or private (code only).
+signal open_chosen(open: bool)
 signal character_chosen(character_id: String)
 signal team_chosen(team: int)
 ## The big button: START for the host, READY (on or off) for everyone else.
@@ -51,6 +53,8 @@ var _map_overlay: Control
 var _map_hint: Label
 var _map_picker: RoomMapPicker
 var size_buttons: Dictionary[int, Button] = {}
+## Online, host only: Open and Private (owner: open by default).
+var open_buttons: Dictionary[bool, Button] = {}
 var player_grid: GridContainer
 var player_cards: Array[Control] = []
 var kid_cards: Dictionary[String, Button] = {}
@@ -175,6 +179,20 @@ func _build_map_section() -> Control:
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		sizes.add_child(button)
 		size_buttons[size] = button
+	var listing: HBoxContainer = HBoxContainer.new()
+	listing.name = "Listing"
+	listing.add_theme_constant_override("separation", int(GAP) + 2)
+	listing.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(listing)
+	for open: bool in [true, false]:
+		var choice: Button = LobbyWidgets.button("Open" if open else "Private", open_chosen.emit.bind(open), "grey", UiMetrics.ACTION)
+		LobbyWidgets.make_toggle(choice)
+		choice.name = "Open" if open else "Private"
+		choice.accessibility_name = "Open room: anyone can join" if open else "Private room: code only"
+		choice.custom_minimum_size = Vector2(0.0, 88.0)
+		choice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		listing.add_child(choice)
+		open_buttons[open] = choice
 	var formats: HBoxContainer = HBoxContainer.new()
 	formats.name = "FirstTo"
 	formats.add_theme_constant_override("separation", int(GAP) + 2)
@@ -293,7 +311,13 @@ func show_room(room: Dictionary, my_id: int) -> void:
 		size_buttons[choice].disabled = not host
 	(size_buttons[1].get_parent() as Control).visible = host
 	(first_to_buttons[3].get_parent() as Control).visible = host
+	var open: bool = room.get("open", true) as bool
+	for choice: bool in open_buttons:
+		open_buttons[choice].set_pressed_no_signal(choice == open)
+	(open_buttons[true].get_parent() as Control).visible = host and online_room
 	format_summary.text = "%dv%d · First to %d" % [size, size, count]
+	if online_room:
+		format_summary.text += " · " + ("Open" if open else "Private")
 	format_summary.visible = not host
 	_fill_players(members, size)
 	var picked: String = String(me.get("char", ""))
