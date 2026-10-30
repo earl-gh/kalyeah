@@ -8,7 +8,7 @@ extends Node3D
 
 const RINGS: int = 16
 const FLASHES: int = 8
-const SMEARS: int = 8
+const SMEARS: int = 12
 const CRACKS: int = 4
 const FADES: int = 8
 ## A smear starts this see-through (white, 0.75) and is gone at the end of its life.
@@ -108,19 +108,47 @@ func flash_disc(at: Vector2, radius: float, color: Color, peak_alpha: float, ris
 	return true
 
 
-## A white smear ribbon (`kind` &"arc": the snip's arc round the origin along -Z; &"streak": a 1 m lens along X) placed by
-## `xform` and scaled to `length` metres, fading over `life` seconds. False when none is free.
-func smear(xform: Transform3D, kind: StringName, length: float, color: Color, life: float) -> bool:
+## A white smear ribbon (`kind` &"arc": the snip's arc round the origin along -Z; &"streak": a 1 m lens along X; &"tail": the
+## same lens lighter toward its tail at -X) placed by `xform` and scaled to `length` metres, fading over `life` seconds. A
+## streak or tail is `width` metres across at its middle (0: the lens's own proportions); an arc's width is its mesh's.
+## False when none is free.
+func smear(xform: Transform3D, kind: StringName, length: float, color: Color, life: float, width: float = 0.0) -> bool:
 	var index: int = _free(_smears)
 	if index < 0:
 		return false
 	var slot: Slot = _start(_smears[index], life)
-	slot.node.mesh = FxKit.smear_arc() if kind == &"arc" else FxKit.smear_streak()
-	slot.node.transform = Transform3D(xform.basis.scaled_local(Vector3.ONE * length), xform.origin)
+	var across: float = length
+	if kind == &"arc":
+		slot.node.mesh = FxKit.smear_arc()
+	else:
+		slot.node.mesh = FxKit.smear_tail() if kind == &"tail" else FxKit.smear_streak()
+		if width > 0.0:
+			across = width / FxKit.STREAK_WIDTH
+	slot.node.transform = Transform3D(xform.basis.scaled_local(Vector3(length, length, across)), xform.origin)
 	slot.color = color
 	slot.peak = SMEAR_ALPHA
 	_draw_fading(slot)
 	return true
+
+
+## A tapered trail from `from` to `to` (world, in the air): its head at `to`, lighter toward `from`, turned to face the camera
+## so it reads as a streak on screen, `width` metres across, fading over `life` seconds. False when none is free.
+func trail(from: Vector3, to: Vector3, width: float, color: Color, life: float) -> bool:
+	var run: Vector3 = to - from
+	if run.length() < 0.001:
+		return false
+	var x: Vector3 = run.normalized()
+	var back: Vector3 = _camera_back()
+	var y: Vector3 = back - x * back.dot(x)
+	y = y.normalized() if y.length_squared() > 0.0001 else Vector3.UP
+	var basis: Basis = Basis(x, y, x.cross(y).normalized())
+	return smear(Transform3D(basis, (from + to) / 2.0), &"tail", run.length(), color, life, width)
+
+
+## The direction from the scene toward the camera.
+func _camera_back() -> Vector3:
+	var camera: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
+	return camera.global_basis.z if camera != null else FxKit.CAMERA_BACK
 
 
 ## Dark cracks on the street at `at` turned by `rotation_y` (`kind` &"spokes": a ring and spokes of radius `size.x`;
@@ -201,6 +229,15 @@ func active_rings() -> Array[MeshInstance3D]:
 	return found
 
 
+## The smears drawn right now (tests read their place and size).
+func active_smears() -> Array[MeshInstance3D]:
+	var found: Array[MeshInstance3D] = []
+	for slot: Slot in _smears:
+		if slot.active:
+			found.append(slot.node)
+	return found
+
+
 ## Every decal node of the pools (tests check heights and draw order).
 func all_nodes() -> Array[MeshInstance3D]:
 	var found: Array[MeshInstance3D] = []
@@ -226,7 +263,7 @@ func _progress(slot: Slot) -> float:
 func _alive(slot: Slot) -> bool:
 	if not slot.active:
 		return false
-	if _ctx.time - slot.born >= slot.life:
+	if _ctx.time - slot.born >= slot.life - 0.0001:
 		slot.active = false
 		slot.node.visible = false
 		return false
@@ -248,7 +285,7 @@ func _draw_flash(slot: Slot) -> void:
 
 
 func _draw_fading(slot: Slot) -> void:
-	slot.material.albedo_color = Color(slot.color, slot.peak * (1.0 - _progress(slot)))
+	slot.material.albedo_color = Color(slot.color, slot.color.a * slot.peak * (1.0 - _progress(slot)))
 
 
 static func _free(pool: Array[Slot]) -> int:

@@ -36,8 +36,11 @@ const RING_WIDTH: float = 0.08
 const CIRCLE_POINTS: int = 32
 ## The smear arc spans this many degrees (the snip's whole wedge) and is this wide at its middle, per metre of radius.
 const SMEAR_ARC_DEGREES: float = 60.0
-const SMEAR_ARC_WIDTH: float = 0.12
+const SMEAR_ARC_WIDTH: float = 0.16
 const SMEAR_POINTS: int = 12
+## A smear is lighter toward its tail: its alpha runs from this share at the tail to whole at the head (the arc's start and
+## end of its sweep, the trail's far end and its head).
+const SMEAR_TAIL_ALPHA: float = 0.2
 ## The smack streak: 1 m long, this wide at its middle.
 const STREAK_WIDTH: float = 0.16
 ## The 4-point star: its tips at 0.5 (a 1 m star), its waist at this radius; white in the middle, sari yellow at the tips.
@@ -184,7 +187,8 @@ static func puff_quad() -> ArrayMesh:
 
 
 ## The snip's smear: a flat arc of radius 1 round the origin across `SMEAR_ARC_DEGREES`, centred on -Z, thickest in the
-## middle and thin at both ends (scaled to the reach; a node turns it to the aim).
+## middle and thin at both ends, lighter at its start (-X, the tail of the sweep) than at its end (scaled to the reach; a node
+## turns it to the aim; mirror it in X to sweep the other way).
 static func smear_arc() -> ArrayMesh:
 	if not _meshes.has(&"arc"):
 		var mesh: ImmediateMesh = _begin()
@@ -198,7 +202,7 @@ static func smear_arc() -> ArrayMesh:
 			var w1: float = SMEAR_ARC_WIDTH * sin(t1 * PI) / 2.0
 			var d0: Vector3 = Vector3(sin(a0), 0.0, -cos(a0))
 			var d1: Vector3 = Vector3(sin(a1), 0.0, -cos(a1))
-			_quad(mesh, d0 * (1.0 - w0), d1 * (1.0 - w1), d1 * (1.0 + w1), d0 * (1.0 + w0), Color.WHITE)
+			_strip(mesh, d0 * (1.0 - w0), d1 * (1.0 - w1), d1 * (1.0 + w1), d0 * (1.0 + w0), _tail_color(t0), _tail_color(t1))
 		_meshes[&"arc"] = bake(mesh)
 	return _meshes[&"arc"]
 
@@ -215,6 +219,21 @@ static func smear_streak() -> ArrayMesh:
 			_quad(mesh, Vector3(t0 - 0.5, 0.0, -w0), Vector3(t1 - 0.5, 0.0, -w1), Vector3(t1 - 0.5, 0.0, w1), Vector3(t0 - 0.5, 0.0, w0), Color.WHITE)
 		_meshes[&"streak"] = bake(mesh)
 	return _meshes[&"streak"]
+
+
+## The trail behind a fast thing: the same 1 m lens along X, its tail at -X and its head at +X (the way it moves), lighter
+## toward the tail (`SMEAR_TAIL_ALPHA` to whole).
+static func smear_tail() -> ArrayMesh:
+	if not _meshes.has(&"tail"):
+		var mesh: ImmediateMesh = _begin()
+		for i: int in SMEAR_POINTS:
+			var t0: float = float(i) / float(SMEAR_POINTS)
+			var t1: float = float(i + 1) / float(SMEAR_POINTS)
+			var w0: float = STREAK_WIDTH * sin(t0 * PI) / 2.0
+			var w1: float = STREAK_WIDTH * sin(t1 * PI) / 2.0
+			_strip(mesh, Vector3(t0 - 0.5, 0.0, -w0), Vector3(t1 - 0.5, 0.0, -w1), Vector3(t1 - 0.5, 0.0, w1), Vector3(t0 - 0.5, 0.0, w0), _tail_color(t0), _tail_color(t1))
+		_meshes[&"tail"] = bake(mesh)
+	return _meshes[&"tail"]
 
 
 ## The impact cracks on the ground (unit size: a ring at `CRACK_RING` and four spokes out to 1), white (tinted dark).
@@ -263,6 +282,21 @@ static func _vertex(mesh: ImmediateMesh, at: Vector3, color: Color) -> void:
 static func _quad(mesh: ImmediateMesh, a: Vector3, b: Vector3, c: Vector3, d: Vector3, color: Color) -> void:
 	for corner: Vector3 in [a, b, c, a, c, d]:
 		_vertex(mesh, corner, color)
+
+
+## A quad whose corners a and d are `c0` and b and c are `c1` (a colour step along a ribbon).
+static func _strip(mesh: ImmediateMesh, a: Vector3, b: Vector3, c: Vector3, d: Vector3, c0: Color, c1: Color) -> void:
+	_vertex(mesh, a, c0)
+	_vertex(mesh, b, c1)
+	_vertex(mesh, c, c1)
+	_vertex(mesh, a, c0)
+	_vertex(mesh, c, c1)
+	_vertex(mesh, d, c0)
+
+
+## White at `t` (0 tail .. 1 head) of a smear ribbon, lighter toward the tail.
+static func _tail_color(t: float) -> Color:
+	return Color(1.0, 1.0, 1.0, lerpf(SMEAR_TAIL_ALPHA, 1.0, t))
 
 
 ## A plus of half-length `half` and arm thickness `arm` in the XY plane at depth `z`.
