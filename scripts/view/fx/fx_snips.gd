@@ -311,7 +311,7 @@ func _smear(snip: Snip, mirror: bool = false) -> void:
 	if _ctx.reduced:
 		return
 	var turn: Basis = Basis(Vector3.UP, atan2(-snip.aim.x, -snip.aim.z))
-	var life: float = SMEAR_FRAMES * FxSquash.FRAME
+	var life: float = FxSquash.TRAIL_FRAMES * FxSquash.FRAME
 	if snip.heavy:
 		_ctx.ground.smear(Transform3D(turn, snip.caster), &"arc", snip.tips + HEAVY_LUNGE, Color.WHITE, life)
 		_ctx.ground.smear(Transform3D(turn, snip.caster), &"arc", snip.tips, Color(1.0, 1.0, 1.0, ECHO_ALPHA), life)

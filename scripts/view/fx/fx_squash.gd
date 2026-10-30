@@ -18,7 +18,10 @@ const IMPACT_FRAMES: int = 2
 ## then fading out), by about the distance it travels in a frame (its speed over 30, relative to its own length), at most
 ## `SMEAR_MAX` times as long (thin across, volume kept); every other frame it is crisp (scale exactly 1).
 const SMEAR_FRAMES: int = 3
-const SMEAR_MAX: float = 2.2
+const SMEAR_MAX: float = 3.0
+## How many frames a trail or arc ribbon stays on screen, fading (owner: the first smears were too subtle): the object itself is
+## stretched for `SMEAR_FRAMES` only, its ribbon lingers behind it.
+const TRAIL_FRAMES: int = 6
 ## After a contact squash (held `IMPACT_FRAMES` frames) the scale springs back through a small overshoot to exactly 1 over
 ## `SETTLE_FRAMES` frames: squash, overshoot, settle.
 const SETTLE_FRAMES: int = 3
