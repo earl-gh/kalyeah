@@ -108,7 +108,7 @@ func test_the_steel_palette_is_pale_blue_grey_with_a_deeper_rim() -> void:
 	for steel: Color in [light, dark, rim]:
 		assert_gt(_luma(steel), 0.3, "never black")
 		assert_gt(steel.b, steel.r, "blue-grey, not neutral")
-	assert_gt(_luma(light), 0.8, "the edge is pale silver")
+	assert_gt(_luma(light), 0.7, "the edge is pale silver")
 	assert_gt(_luma(light), _luma(dark), "darker toward the screw")
 	assert_gt(_luma(dark), _luma(rim), "and a deeper rim")
 	assert_eq(_include_colour("STEEL_SHINE"), Color.WHITE, "one white highlight streak")

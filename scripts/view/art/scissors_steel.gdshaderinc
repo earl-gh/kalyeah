@@ -5,9 +5,9 @@
 // the model (the mesh's own units: length 1 along Y, the screw at STEEL_PIVOT): a pale blue-grey that darkens toward the screw, one soft
 // white streak along each blade near its cutting edge, a thin deeper blue-grey rim and a bright screw head with a ring. No gloss.
 const vec2 STEEL_PIVOT = vec2(-0.005, 0.515);
-const vec3 STEEL_LIGHT = vec3(0.86, 0.91, 0.97);
-const vec3 STEEL_DARK = vec3(0.56, 0.65, 0.78);
-const vec3 STEEL_RIM = vec3(0.34, 0.44, 0.60);
+const vec3 STEEL_LIGHT = vec3(0.70, 0.79, 0.90);
+const vec3 STEEL_DARK = vec3(0.45, 0.55, 0.70);
+const vec3 STEEL_RIM = vec3(0.24, 0.34, 0.52);
 const vec3 STEEL_SHINE = vec3(1.0);
 
 vec3 steel_blade(vec3 picture, vec2 at) {
