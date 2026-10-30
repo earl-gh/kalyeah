@@ -28,6 +28,11 @@ extends Resource
 @export var connect_timeout: float = 0.0
 ## After this many seconds still connecting, the lobby says the server is waking up instead of just "Connecting…".
 @export var wake_hint_after: float = 0.0
+## Online open rooms (docs/GDD.md "Lobby rules"): the server lists at most `room_list_max` rooms, answers one peer at most once every
+## `room_list_min_gap` seconds, and the Join screen asks again every `room_list_refresh` seconds while it shows the list.
+@export var room_list_max: int = 0
+@export var room_list_min_gap: float = 0.0
+@export var room_list_refresh: float = 0.0
 
 ## Hotspot discovery (docs/GDD.md "Hotspot rooms"). The guest sends a UDP probe to `discovery_port` for `discovery_seconds`,
 ## again every `discovery_interval`; the host answers it.

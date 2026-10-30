@@ -142,9 +142,11 @@ func test_the_join_form_uses_the_boxes_and_a_paste_button() -> void:
 
 func test_a_short_code_is_refused_next_to_the_boxes_which_turn_red() -> void:
 	var saved_url: String = Settings.server_url
-	Settings.server_url = "ws://127.0.0.1:1"
 	var lobby: Node = _lobby_join()
 	await wait_process_frames(2)
+	# set only now: the Join screen connects as it opens to list the open rooms, and nothing listens here
+	Settings.server_url = "ws://127.0.0.1:1"
+	lobby.toggle_code()  # the code form is folded under "Have a code?"
 	lobby._code_edit.text = "ABC"
 	lobby.submit()
 	Settings.server_url = saved_url
@@ -178,6 +180,7 @@ func test_paste_of_a_short_or_empty_clipboard_warns_instead_of_guessing() -> voi
 func test_a_refused_join_marks_the_boxes_and_shows_the_reason_under_them() -> void:
 	var lobby: Node = _lobby_join()
 	await wait_process_frames(2)
+	lobby.toggle_code()  # the code form is folded under "Have a code?"
 	lobby._on_error("No room with that code. Check it and try again!")
 	assert_true(lobby._code_boxes.has_error)
 	assert_eq(lobby.status_text(), "No room with that code. Check it and try again!", "the words are what the server said")

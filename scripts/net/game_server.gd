@@ -17,6 +17,9 @@ var _layout: MapLayout
 var _net: NetRules
 var _peer: WebSocketMultiplayerPeer
 var _names: Dictionary[int, String] = {}
+## When each peer last got the open room list (server seconds), so one phone cannot flood the server (`room_list_min_gap`).
+var _listed_at: Dictionary[int, float] = {}
+var _clock: float = 0.0
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
@@ -63,6 +66,7 @@ func stop() -> void:
 func poll(delta: float) -> void:
 	if _peer == null:
 		return
+	_clock += delta
 	_peer.poll()
 	while _peer != null and _peer.get_available_packet_count() > 0:
 		var from: int = _peer.get_packet_peer()
@@ -141,6 +145,15 @@ func _handle(from: int, message: Dictionary) -> void:
 					_error(from, "That battle has already started!")
 				_:
 					_error(from, "Leave your room first!")
+		M.LIST_ROOMS:
+			if _clock - (_listed_at.get(from, -INF) as float) < _net.room_list_min_gap:
+				return
+			_listed_at[from] = _clock
+			send(from, {"t": M.ROOM_LIST, "rooms": rooms.open_rooms(_net.room_list_max)})
+		M.SET_OPEN:
+			var open: Variant = message.get("open")
+			if open is bool and rooms.set_open(from, open as bool):
+				_send_room(rooms.room_of_peer(from))
 		M.PICK_TEAM:
 			if rooms.pick_team(from, message.get("team", 0) as int):
 				_send_room(rooms.room_of_peer(from))
@@ -238,6 +251,7 @@ func _on_peer_connected(id: int) -> void:
 func _on_peer_disconnected(id: int) -> void:
 	log_message.emit("peer %d disconnected" % id)
 	_names.erase(id)
+	_listed_at.erase(id)
 	var room: RoomService.Room = rooms.disconnected(id)
 	if room != null:
 		_send_room(room)

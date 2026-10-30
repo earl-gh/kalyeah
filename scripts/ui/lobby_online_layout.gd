@@ -66,13 +66,28 @@ func _build_setup(parent: Control) -> void:
 			screen._size_buttons.append(button)
 		screen.choose_size(1)
 	elif not screen.hotspot:
-		screen._setup.add_child(LobbyWidgets.field_label("Room code"))
+		# owner: the open rooms first (tap one, or Quick join: no code), a private room's code folded away under them
+		screen.open_rooms = OpenRoomsList.new()
+		screen.open_rooms.room_picked.connect(screen.join_listed)
+		screen.open_rooms.create_pressed.connect(screen.create_instead)
+		screen._setup.add_child(screen.open_rooms)
+		screen.code_toggle = LobbyWidgets.button("Have a code?", screen.toggle_code, "grey", UiMetrics.DETAIL)
+		screen.code_toggle.name = "HaveACode"
+		screen.code_toggle.custom_minimum_size = Vector2(0.0, UiMetrics.MIN_TARGET)
+		screen._setup.add_child(screen.code_toggle)
+		screen.code_section = VBoxContainer.new()
+		screen.code_section.name = "CodeSection"
+		screen.code_section.add_theme_constant_override("separation", UiMetrics.GAP)
+		screen.code_section.visible = false
+		screen._setup.add_child(screen.code_section)
+		var code_parent: VBoxContainer = screen.code_section
+		code_parent.add_child(LobbyWidgets.field_label("Room code"))
 		screen._code_boxes = UiCodeBoxes.new(screen.NET_RULES.passcode_length, screen.NET_RULES.passcode_alphabet)
 		screen._code_edit = screen._code_boxes.edit
-		screen._setup.add_child(screen._code_boxes)
+		code_parent.add_child(screen._code_boxes)
 		var paste_row: HBoxContainer = HBoxContainer.new()
 		paste_row.add_theme_constant_override("separation", UiMetrics.GAP)
-		screen._setup.add_child(paste_row)
+		code_parent.add_child(paste_row)
 		var paste: Button = LobbyWidgets.button("Paste the code", screen.paste_code, "grey", UiMetrics.DETAIL)
 		paste.name = "PasteButton"
 		paste.custom_minimum_size = Vector2(0.0, UiMetrics.MIN_TARGET)
@@ -86,12 +101,12 @@ func _build_setup(parent: Control) -> void:
 		screen._code_error.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		screen._code_error.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		screen._code_error.hide()
-		screen._setup.add_child(screen._code_error)
+		code_parent.add_child(screen._code_error)
 		screen._code_boxes.changed.connect(func(_text: String) -> void: screen._code_error.hide())
 		screen._code_boxes.completed.connect(func(_text: String) -> void: screen._go_button.grab_focus())
 	screen._go_button = LobbyWidgets.button("Create room" if screen.intent == screen.Intent.CREATE else "Join room", screen.submit, "orange")
 	screen._go_button.custom_minimum_size = Vector2(0, 96)
-	screen._setup.add_child(screen._go_button)
+	(screen.code_section if screen.code_section != null else screen._setup).add_child(screen._go_button)
 	screen._rejoin_button = LobbyWidgets.button("Rejoin battle", screen.rejoin, "grey")
 	screen._rejoin_button.visible = not Session.reconnect_token.is_empty()
 	screen._setup.add_child(screen._rejoin_button)
