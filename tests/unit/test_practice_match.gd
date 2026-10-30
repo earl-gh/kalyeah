@@ -461,6 +461,8 @@ func test_status_effects_show_over_the_hero_in_words() -> void:
 	practice.advance(DT)
 	var enemy_view: Node3D = practice.get_node("%Actors").get_child(1) as Node3D
 	assert_eq(practice.overhead().text_for(PracticeMatch.ENEMY_STAND_ID), "Morphed")
+	for i: int in 12:
+		practice.advance(DT)  # the kid pops out, then the can pops in
 	assert_true((enemy_view as KidModel).is_can(), "turned into a can")
 
 
