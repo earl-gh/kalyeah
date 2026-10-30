@@ -1,22 +1,24 @@
 class_name FxSlippers
 extends RefCounted
 ## The slippers of tsinelas, owned by FxProjectiles: they frisbee out tipped toward the camera, hang and turn back spinning
-## the other way, slap the kids they hit (a stretch and a smack streak), and shrink into the thrower's hand on the catch.
+## the other way, slap the kids they hit (a stretch, a smack arc and a spring back), and shrink into the thrower's hand on the catch.
+## The fast frames are smeared (FxSquash.smear_stretch): the throw and the snap back out of the hang; the flight between is crisp.
 
 ## The slipper flies like a frisbee: its spin plane tipped `SLIPPER_TILT` degrees toward the camera so the sole reads, light
 ## `SLIPPER_SPIN_LIGHT` and heavy `SLIPPER_SPIN_HEAVY` turns a second. On its way back it hangs squashed (`HANG_S`) for
 ## `HANG_FRAMES` frames and spins the other way. A slap (a kid it hits) stretches it to `SLAP_S` along its flight for
-## `FxSquash.IMPACT_FRAMES` frames with a white `SLAP_STREAK` m smack streak across its path at `SLAP_Y` m for
-## `SLAP_FRAMES` frames; a slipper reacts to a hit on a kid within its hit reach plus `SLAP_REACH` m.
+## `FxSquash.IMPACT_FRAMES` frames then springs back through a squash to 1 (`FxSquash.landing`), with a white `SLAP_ARC` m
+## smack arc swung across its path at `SLAP_Y` m for `SLAP_FRAMES` frames; a slipper reacts to a hit on a kid within its hit
+## reach plus `SLAP_REACH` m.
 const SLIPPER_TILT: float = 25.0
 const SLIPPER_SPIN_LIGHT: float = 3.0
 const SLIPPER_SPIN_HEAVY: float = 2.0
 const HANG_S: float = 0.8
 const HANG_FRAMES: int = 3
 const SLAP_S: float = 1.3
-const SLAP_STREAK: float = 0.8
+const SLAP_ARC: float = 0.8
 const SLAP_Y: float = 1.3
-const SLAP_FRAMES: int = 3
+const SLAP_FRAMES: int = 2
 const SLAP_REACH: float = 0.6
 ## Caught (gone within the catch distance plus `CATCH_SLACK` m of its thrower): it shrinks into the hand over `CATCH_FRAMES`
 ## frames with `CATCH_DUST` dust; gone anywhere else (a wall, its thrower tagged): `DROP_DUST` dust where it fell.
@@ -52,14 +54,16 @@ func slap(team: int, kid_radius: float, at: Vector2) -> void:
 			best_d = d
 	if best == null or _ctx.reduced:
 		return
-	# a slap: the slipper stretches on the hit and a white smack streak crosses its path
+	# a slap: the slipper stretches on the hit and a white smack arc swings across its path
 	best.react = &"slap"
+	best.react_from = _ctx.time
 	best.react_until = _ctx.time + FxSquash.IMPACT_FRAMES * FxSquash.FRAME
 	var dir: Vector3 = Vector3(best.track.dir.x, 0.0, best.track.dir.y)
 	best.squash.basis = FxSquash.stretch_basis(dir, SLAP_S)
-	var across: Vector3 = Vector3(-dir.z, 0.0, dir.x)
-	var place: Vector3 = Vector3(best.holder.position.x, SLAP_Y, best.holder.position.z)
-	_ctx.ground.smear(Transform3D(Basis(Vector3.UP, atan2(-across.z, across.x)), place), &"streak", SLAP_STREAK, Color.WHITE, SLAP_FRAMES * FxSquash.FRAME)
+	# the arc's middle crosses the path at the slipper, its centre `SLAP_ARC` m back along the flight
+	var place: Vector3 = Vector3(best.holder.position.x, SLAP_Y, best.holder.position.z) - dir * SLAP_ARC
+	_ctx.ground.smear(Transform3D(Basis(Vector3.UP, atan2(-dir.x, -dir.z)), place), &"arc", SLAP_ARC, Color.WHITE, SLAP_FRAMES * FxSquash.FRAME)
+
 
 ## The slipper frisbees out, hangs and turns back spinning the other way, and slaps what it hits.
 func pose(rec: FxProjectiles.Rec, projectile: WeaponSystem.Projectile) -> void:
@@ -75,15 +79,25 @@ func pose(rec: FxProjectiles.Rec, projectile: WeaponSystem.Projectile) -> void:
 		rec.returning = true
 		rec.spin_sign = -rec.spin_sign
 		rec.react = &"hang"
+		rec.react_from = _ctx.time
 		rec.react_until = _ctx.time + HANG_FRAMES * FxSquash.FRAME
+		# the snap back out of the hang is the next fast moment: smeared, with a trail behind it
+		rec.smear_from = rec.react_until
+		rec.tail_due = rec.react_until
 	var rate: float = SLIPPER_SPIN_LIGHT if rec.def.id == &"tsinelas_light" else SLIPPER_SPIN_HEAVY
 	rec.spin_angle += rec.spin_sign * _ctx.delta * TAU * rate
 	rec.spin.basis = Basis(Vector3.UP, rec.spin_angle)
 	var dir: Vector3 = _projectiles.dir3(rec, projectile)
 	var pop: float = FxSquash.pop((_ctx.time - rec.born) / (FxSquash.POP_FRAMES * FxSquash.FRAME))
-	var shape: Basis = FxSquash.stretch_basis(dir, FxSquash.velocity_stretch(rec.def.speed))
-	if _ctx.time < rec.react_until:
-		shape = Basis.from_scale(FxSquash.along(HANG_S)) if rec.react == &"hang" else FxSquash.stretch_basis(dir, SLAP_S)
+	var shape: Basis = _projectiles.smear_basis(rec, dir)
+	var since: float = (_ctx.time - rec.react_from) / FxSquash.FRAME
+	if rec.react == &"hang" and _ctx.time < rec.react_until:
+		shape = Basis.from_scale(FxSquash.along(HANG_S))
+	elif rec.react == &"slap" and since < FxSquash.landing_frames():
+		shape = FxSquash.stretch_basis(dir, FxSquash.landing(SLAP_S, since))
+	if rec.tail_due >= 0.0 and _ctx.time >= rec.tail_due:
+		rec.tail_due = -1.0
+		FxRelease.behind(_ctx, rec.holder.position, dir, rec.def.speed)
 	rec.squash.basis = shape.scaled(Vector3.ONE * maxf(pop, 0.01))
 
 

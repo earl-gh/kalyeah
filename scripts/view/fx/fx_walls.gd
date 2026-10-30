@@ -202,13 +202,16 @@ func _paper(rec: Rec, shield: WeaponSystem.Shield, age: float, reacting: bool, r
 	rec.body.rotation.x = lean
 
 
-## The earth erupts with an overshoot, stands still, shudders on a block and collapses wider at its end.
+## The earth erupts with an overshoot (wide while low, thinner at the stretch: the volume kept), stands still, shudders on a block and collapses wider at its end.
 func _soil(rec: Rec, shield: WeaponSystem.Shield, age: float, reacting: bool) -> void:
 	var rise_time: float = SOIL_RISE_TIME + SOIL_SETTLE_FRAMES * FxSquash.FRAME
 	var rise: float = clampf(age / SOIL_RISE_TIME, 0.0, 1.0) if _ctx.reduced else FxSquash.overshoot(age / rise_time, SOIL_PEAK)
 	var fall: float = clampf(shield.time_left / SOIL_COLLAPSE_TIME, 0.0, 1.0)
 	var height: float = rise
 	var spread: float = 1.0
+	if fall >= 1.0 and not _ctx.reduced:
+		# rising: wide while low, stretched up and thinner at the overshoot (the volume kept), exactly 1 once settled
+		spread = FxSquash.along(rise).x
 	if fall < 1.0:
 		# ease-in: slow at first, then all at once, ending flat exactly as the wall ends
 		var down: float = 1.0 - fall

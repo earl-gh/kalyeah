@@ -20,6 +20,13 @@ const CROSS_TIME: float = 0.6
 const CROSS_END: float = 0.7
 const CROSS_FRONT: float = 0.7
 const CROSS_HOLD_REDUCED: float = 0.5
+## The cross rises fast as it pops in: a green trail `RISE_LENGTH` m long runs up to it (just behind it, lighter toward its
+## foot) for `FxSquash.SMEAR_FRAMES` frames and the cross is smeared up along it (FxSquash.smear_stretch at the speed that covers
+## the trail in those frames), crisp after. Reduce motion: none.
+const RISE_LENGTH: float = 1.2
+const RISE_BEHIND: float = 0.1
+## The trail is this share of the cross's width across.
+const CROSS_WIDTH_SHARE: float = 0.9
 ## Plus sparkles rising beside and behind the kid.
 const SPARKLES: int = 4
 ## The streak from the caster to the kid they healed: green, at `STREAK_Y` m, for `STREAK_FRAMES` frames.
@@ -98,6 +105,9 @@ func _heal(at: Vector2) -> void:
 	add_child(cross.node)
 	_crosses.append(cross)
 	_pose(cross)
+	if not _ctx.reduced:
+		var head: Vector3 = cross.node.position - back * RISE_BEHIND
+		_ctx.ground.trail(head - _camera_up() * RISE_LENGTH, head, CROSS_WIDTH_SHARE * WeaponModel.CROSS_WIDTH * _ctx.view_scale, Palette.GUAVA, FxSquash.SMEAR_FRAMES * FxSquash.FRAME)
 
 
 func _streak(from: Vector2, to: Vector2) -> void:
@@ -135,7 +145,11 @@ func _pose(cross: Cross) -> bool:
 		var fade: float = clampf((CROSS_END - age) / (CROSS_END - CROSS_TIME + 0.0001), 0.0, 1.0)
 		size *= maxf(minf(pop, fade) if age > CROSS_TIME else pop, 0.01)
 	cross.node.position = cross.base + Vector3(0.0, y, 0.0)
-	cross.node.scale = Vector3.ONE * size
+	var smear: float = 1.0
+	if not _ctx.reduced:
+		var speed: float = RISE_LENGTH / (FxSquash.SMEAR_FRAMES * FxSquash.FRAME)
+		smear = FxSquash.smear_stretch(speed, WeaponModel.CROSS_WIDTH * _ctx.view_scale, age / FxSquash.FRAME)
+	cross.node.scale = Vector3.ONE * size * FxSquash.smear_scale(smear)
 	return true
 
 

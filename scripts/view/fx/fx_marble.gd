@@ -60,11 +60,11 @@ func pose(rec: FxProjectiles.Rec, projectile: WeaponSystem.Projectile) -> void:
 		rec.squash.basis = Basis.from_scale(FxSquash.along(BOUNCE_EASE_S))
 		height = maxf(height, radius * BOUNCE_EASE_S)
 	else:
-		# stretched along its velocity, most at the street, none at the top of the arc
+		# smeared along its velocity on the frames next to the street (fastest), crisp over the top of the arc
 		var rise: float = FxMotion.bola_rise(seg, p, FxMotion.BOLA_HAND_Y, radius)
 		var velocity: Vector3 = dir * rec.def.speed + Vector3.UP * rise * rec.def.speed / segment
-		var stretch: float = lerpf(1.0, FxSquash.velocity_stretch(rec.def.speed), absf(1.0 - 2.0 * p))
-		rec.squash.basis = FxSquash.stretch_basis(velocity, stretch)
+		var frames: float = minf(p, 1.0 - p) * segment / rec.def.speed / FxSquash.FRAME
+		rec.squash.basis = FxSquash.smear_basis(velocity, FxSquash.smear_stretch(velocity.length(), radius * 2.0, frames))
 	# it pops out of the hand (not a full-size ball over the thrower)
 	var pop: float = FxSquash.pop((_ctx.time - rec.born) / (FxSquash.POP_FRAMES * FxSquash.FRAME))
 	if pop < 1.0 or _ctx.time - rec.born < FxSquash.POP_FRAMES * FxSquash.FRAME:
