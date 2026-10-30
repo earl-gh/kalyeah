@@ -156,6 +156,43 @@ func test_the_jacks_field_is_spikes_on_a_circle() -> void:
 	assert_eq(marks.size(), 1, "on one tinted circle")
 
 
+func test_the_marble_and_top_are_a_quarter_bigger_and_the_jacks_fewer_and_smaller() -> void:
+	# owner: the marble (0.45 m) and the top (0.9 m) were a little small, the jacks too many and too big (5 clusters, 0.9 m)
+	assert_almost_eq(WeaponModel.OBJECTS[&"bola"][1] as float, 0.45 * 1.25, 0.01, "the marble: 0.56 m, 1.12 m drawn at the kids' scale")
+	assert_almost_eq(WeaponModel.OBJECTS[&"trumpo"][1] as float, 0.9 * 1.25, 0.01, "the top: 1.12 m")
+	assert_eq(WeaponModel.SPIKE_CLUSTERS, 3, "three clusters instead of five")
+	assert_almost_eq(WeaponModel.SPIKE_WIDTH, 0.9 * 0.7, 0.001, "each 30% narrower")
+	var jacks: Node3D = autofree(WeaponModel.spikes(2.0)) as Node3D
+	assert_eq(jacks.get_child_count(), 3)
+	var cluster_width: float = WeaponModel.size_of("spikes").x * (jacks.get_child(0) as Node3D).scale.x
+	assert_almost_eq(cluster_width, WeaponModel.SPIKE_WIDTH, 0.001)
+	for i: int in 3:
+		var at: Vector3 = (jacks.get_child(i) as Node3D).position
+		assert_almost_eq(Vector2(at.x, at.z).length(), 2.0 * WeaponModel.SPIKE_RING, 0.001, "on the ring, inside the field's circle")
+		assert_lt(Vector2(at.x, at.z).length() + cluster_width / 2.0, 2.0, "the sim's radius is never overstepped")
+		for j: int in range(i + 1, 3):
+			var other: Vector3 = (jacks.get_child(j) as Node3D).position
+			assert_gt(at.distance_to(other), cluster_width * 1.5, "clusters spread out: no two overlap")
+
+
+func test_the_smears_and_trails_follow_the_new_sizes() -> void:
+	# the smear stretch, the top's drop trail and the marble's shadow are all read from the drawn size, so they grew with it
+	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
+	var sim: MatchSim = MatchSim.new(rules, preload("res://data/rules/map_layout.tres"), 3)
+	sim.add_player(1, 0)
+	var fx: WeaponFxView = WeaponFxView.new()
+	add_child_autofree(fx)
+	fx.view_scale = 2.0
+	fx.watch(sim)
+	var marble: WeaponDef = rules.weapons.filter(func(d: WeaponDef) -> bool: return d.id == &"bola")[0] as WeaponDef
+	var top: WeaponDef = rules.weapons.filter(func(d: WeaponDef) -> bool: return d.id == &"trumpo")[0] as WeaponDef
+	assert_almost_eq(fx.projectiles.drawn_width(marble), 0.56 * 2.0, 0.001)
+	assert_almost_eq(fx.projectiles.drawn_width(top), 1.12 * 2.0, 0.001)
+	# a smear is as long as the object travels in a frame whatever its size: the stretch is that length over the drawn size
+	var stretch: float = FxSquash.smear_stretch(marble.speed, fx.projectiles.drawn_width(marble), 0.0)
+	assert_almost_eq((stretch - 1.0) * fx.projectiles.drawn_width(marble), marble.speed * FxSquash.FRAME, 0.01, "the marble's smear is its real frame travel")
+
+
 func test_the_spinning_top_is_its_model_and_spins_fast() -> void:
 	var practice: PracticeMatch = _casting(&"trumpo", &"lata")
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
