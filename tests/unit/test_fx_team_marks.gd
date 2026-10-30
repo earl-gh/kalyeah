@@ -1,6 +1,7 @@
 extends GutTest
-## An effect says who threw it from its first frame (docs/ART.md): landing circles and the cone flash are drawn in the thrower's team
-## colour with an opaque rim, both sides visible. Colour-blind colours keep you, your team and theirs apart.
+## An effect says who threw it from its first frame (docs/ART.md): the cone flash is drawn in the thrower's team colour with an opaque rim,
+## both sides visible; the ground areas a player casts (landing circles, the trap and its slow zone, the jacks field) are white for your team
+## and the enemy colour for theirs (tests/unit/test_area_marks.gd has their recipe). Colour-blind colours keep you, your team and theirs apart.
 
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 ## Vertex colours are stored with 8 bits a channel.
@@ -69,15 +70,15 @@ func _rim_alpha(node: MeshInstance3D) -> float:
 	return alpha
 
 
-func test_a_landing_circle_is_in_the_throwers_team_colour() -> void:
+func test_a_landing_circle_is_white_for_your_team_and_the_enemy_colour_for_theirs() -> void:
 	var fx: WeaponFxView = _fx()
 	var mine: MeshInstance3D = _landing(fx, 0)
 	autofree(mine.get_parent())
 	var theirs: MeshInstance3D = _landing(fx, 1)
 	autofree(theirs.get_parent())
-	assert_true(_all_near(mine, TeamColors.world_own()), "yours: your colour %s" % str(_colors(mine)))
+	assert_true(_all_near(mine, Color.WHITE), "yours: white %s" % str(_colors(mine)))
 	assert_true(_all_near(theirs, TeamColors.world_enemy()), "theirs: their colour %s" % str(_colors(theirs)))
-	assert_almost_eq(_rim_alpha(theirs), WeaponFxView.FX_RIM_ALPHA, QUANTUM, "an opaque rim reads on the grey street at once")
+	assert_almost_eq(_rim_alpha(theirs), FxKit.AREA_RIM_ALPHA, QUANTUM, "an opaque outline reads on the grey street at once")
 
 
 func test_the_cone_flash_is_whole_from_its_first_frame_and_says_who_threw_it() -> void:
@@ -114,13 +115,13 @@ func _zone_mark(fx: WeaponFxView, weapon: StringName, kind: WeaponSystem.ZoneKin
 	return node.get_node("Mark") as MeshInstance3D
 
 
-func test_slow_zone_field_and_trap_are_in_the_throwers_colour() -> void:
+func test_slow_zone_field_and_trap_are_white_for_your_team_and_red_for_theirs() -> void:
 	var fx: WeaponFxView = _fx()
 	var kinds: Array = [[&"papel_trap", WeaponSystem.ZoneKind.SLOW_ZONE], [&"jacks", WeaponSystem.ZoneKind.FIELD], [&"papel_trap", WeaponSystem.ZoneKind.TRAP]]
 	for pair: Array in kinds:
 		var mine: MeshInstance3D = _zone_mark(fx, pair[0] as StringName, pair[1] as WeaponSystem.ZoneKind, 0)
 		var theirs: MeshInstance3D = _zone_mark(fx, pair[0] as StringName, pair[1] as WeaponSystem.ZoneKind, 1)
-		assert_true(_all_near(mine, TeamColors.world_own()), "%s %s: yours in your colour" % [pair[0], pair[1]])
+		assert_true(_all_near(mine, Color.WHITE), "%s %s: yours in white" % [pair[0], pair[1]])
 		assert_true(_all_near(theirs, TeamColors.world_enemy()), "%s %s: theirs in theirs (not a fixed blue or yellow)" % [pair[0], pair[1]])
 
 
@@ -143,4 +144,4 @@ func test_colour_blind_marks_follow_the_setting() -> void:
 	var theirs: MeshInstance3D = _zone_mark(fx, &"jacks", WeaponSystem.ZoneKind.FIELD, 1)
 	assert_true(_all_near(theirs, TeamColors.BLIND_ENEMY), "colour-blind: their orange %s" % str(_colors(theirs)))
 	var mine: MeshInstance3D = _zone_mark(fx, &"bato_heavy", WeaponSystem.ZoneKind.EXPLOSION, 0)
-	assert_true(_all_near(mine, TeamColors.BLIND_OWN), "and your blue")
+	assert_true(_all_near(mine, Color.WHITE), "and yours stays white (safe for every eye)")

@@ -7,12 +7,11 @@ extends RefCounted
 ## It leaves the hand (at most a bounce's height up) and arcs `FxMotion.BOLA_ARC` m over each bounce
 ## segment, its bottom touching the street exactly at each bounce, where it squashes (`BOUNCE_S`, then `BOUNCE_EASE_S` the
 ## next frame); it rolls along the street and stretches in the air (to its speed's stretch at contact, 1 at the top). A
-## team ring (rim only, `BOLA_RING_ALPHA`) marks each bounce point still to come and flashes when it is reached
+## area mark (white tint and thin outline, red for the other team: FxGround.area_mark) marks each bounce point still to come and flashes when it is reached
 ## (`BOUNCE_FLASH_ALPHA`, rising `BOUNCE_FLASH_RISE` frames, fading `BOUNCE_FLASH_FADE`), with `BOUNCE_DUST` dust. After
 ## the last bounce it runs on `BOLA_RUNOUT` m and shrinks away over `RUNOUT_FRAMES` frames.
 const BOUNCE_S: float = 0.7
 const BOUNCE_EASE_S: float = 0.85
-const BOLA_RING_ALPHA: float = 0.5
 const BOUNCE_FLASH_ALPHA: float = 0.3
 const BOUNCE_FLASH_RISE: int = 2
 const BOUNCE_FLASH_FADE: int = 6
@@ -96,7 +95,7 @@ func _bola_rings(rec: FxProjectiles.Rec, segment: float) -> void:
 		var at: Vector2 = rec.origin + dir * segment * float(i + 1)
 		var ring: MeshInstance3D = MeshInstance3D.new()
 		ring.name = "BounceRing"
-		ring.mesh = FxGround.circle_mark(rec.def.radius, _ctx.team_color(rec.team), 0.0, BOLA_RING_ALPHA)
+		ring.mesh = FxGround.area_mark(rec.def.radius, _ctx.area_color(rec.team))
 		ring.material_override = FxKit.overlay(FxKit.PRIO_FILL)
 		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ring.position = Vector3(at.x, 0.0, at.y)
@@ -110,7 +109,7 @@ func _bounce(rec: FxProjectiles.Rec, i: int, _segment: float) -> void:
 		return
 	var ring: MeshInstance3D = rec.rings[i]
 	var at: Vector2 = Vector2(ring.position.x, ring.position.z)
-	_ctx.ground.flash_disc(at, rec.def.radius, _ctx.team_color(rec.team), BOUNCE_FLASH_ALPHA, BOUNCE_FLASH_RISE * FxSquash.FRAME, BOUNCE_FLASH_FADE * FxSquash.FRAME)
+	_ctx.ground.flash_disc(at, rec.def.radius, _ctx.area_color(rec.team), BOUNCE_FLASH_ALPHA, BOUNCE_FLASH_RISE * FxSquash.FRAME, BOUNCE_FLASH_FADE * FxSquash.FRAME)
 	_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(at.x, 0.0, at.y), BOUNCE_DUST)
 	ring.queue_free()
 	rec.rings[i] = null
