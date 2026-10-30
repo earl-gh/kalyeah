@@ -115,21 +115,19 @@ func test_snip_period_table() -> void:
 		assert_lte(n * FxMotion.snip_period(n), 16, "all %d snips fit in about half a second" % n)
 
 
+## Scissors that arrived shut in a volley cast from a hold of `hold` seconds (one per snip).
 func _snips_for(hold: float) -> int:
 	_setup(Vector2(0.0, 5.0))
 	_cast(&"gunting_light", Vector2(0.0, -1.0), hold)
 	_fx.sync(_sim, DT)
-	var rig: ScissorsRig = _fx.cones.scissors()[0]
-	var closes: int = 0
-	var last: float = rig.angle()
-	for i: int in 20:
+	var most: int = 0
+	for i: int in 24:
 		_frame()
-		if not is_instance_valid(rig) or _fx.cones.scissors().is_empty():
-			break
-		if rig.angle() <= ScissorsRig.CLOSED and last > ScissorsRig.CLOSED:
-			closes += 1
-		last = rig.angle()
-	return closes
+		var arrived: int = 0
+		for part: FxSnips.Part in _fx.cones.snips.parts():
+			arrived += 1 if part.arrived else 0
+		most = maxi(most, arrived)
+	return most
 
 
 func test_light_snips_n_times() -> void:
@@ -140,32 +138,18 @@ func test_light_snips_n_times() -> void:
 	assert_eq(def.snip_count(long), def.snips_max)
 
 
-func test_scissors_keep_clear_of_kids() -> void:
-	for weapon: StringName in [&"gunting_light", &"gunting_heavy"]:
-		for distance: float in [3.0, 2.5]:
-			# a kid straight ahead: the scissors stand beside the line of kids, clear of its footprint even fully open
-			_setup(Vector2(0.0, 8.0 - distance))
-			var def: WeaponDef = _sim.weapon_defs[weapon]
-			var lunge: float = FxSnips.HEAVY_LUNGE if def.delay > 0.0 else FxSnips.SNIP_LUNGE_STEP
-			var place: Vector2 = _fx.cones.snips.placement(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
-			var side: Vector3 = _fx.cones.snips.side_of(Vector3(0.0, 0.0, -1.0))
-			var spread: float = FxSnips.half_spread(def, place.x)
-			assert_gte(side.length() - spread, FxSnips.SNIP_TARGET_CLEAR, "%s: beside the kid %.1f m ahead, clear of its footprint" % [weapon, distance])
-			assert_gte(place.y - place.x / 2.0, FxSnips.SNIP_CASTER_CLEAR - 0.001, "%s: handles clear of the caster" % weapon)
-			assert_lte(place.y + place.x / 2.0 + lunge, def.max_range + 0.001, "%s: inside the range at full lunge" % weapon)
-			# a kid standing on the scissors' right-hand line: they take the free left side, full length
-			_setup(Vector2(side.x, 8.0 + side.z - distance))
-			var moved: Vector3 = _fx.cones.snips.side_for(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
-			assert_almost_eq(moved.x, -side.x, 0.001, "%s: the other side when a kid stands on the first" % weapon)
-			place = _fx.cones.snips.placement(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
-			assert_gt(place.x, FxSnips.SNIP_MIN_LEN + 0.5, "%s: and long there" % weapon)
-			# kids on both lines: shortened, the tips stop short of them
-			_setup(Vector2(side.x, 8.0 + side.z - distance))
-			_sim.add_player(5, 1)
-			_sim.players[5].position = Vector2(-side.x, 8.0 + side.z - distance)
-			place = _fx.cones.snips.placement(1, def, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
-			var tips: float = place.y + place.x / 2.0 + lunge
-			assert_true(tips <= distance - FxSnips.SNIP_TARGET_CLEAR + 0.001 or is_equal_approx(place.x, FxSnips.SNIP_MIN_LEN), "%s: tips %.2f m short of a kid on their line at %.1f m" % [weapon, tips, distance])
+func test_scissors_geometry_stays_inside_the_sim_range_and_clear_of_the_caster() -> void:
+	_setup()
+	var light: WeaponDef = _sim.weapon_defs[&"gunting_light"]
+	var heavy: WeaponDef = _sim.weapon_defs[&"gunting_heavy"]
+	assert_almost_eq(FxSnips.length_of(heavy), 3.0 * FxSnips.SNIP_LEN_HEAVY, 0.001, "the big pair is three times the old size")
+	var arrival: Vector3 = _fx.cones.snips.arrival_point(Vector2(0.0, 8.0), Vector3(0.0, 0.0, -1.0), light)
+	assert_almost_eq(8.0 - arrival.z + FxSnips.SNIP_LEN / 2.0, FxSnips.strike_distance(light), 0.001, "the small scissors' tips arrive at the strike point")
+	assert_lte(FxSnips.strike_distance(light), light.max_range, "inside the wedge's range")
+	assert_gte(8.0 - arrival.z - FxSnips.SNIP_LEN / 2.0, 0.0, "handles clear of the caster")
+	var reach: float = ScissorsRig.tip_reach(FxSnips.length_of(heavy))
+	assert_lte(reach + FxSnips.lunge_of(heavy), heavy.max_range + 0.001, "the big blades' tips end inside the sim's range at full lunge")
+	assert_gt(reach, 0.85 * heavy.max_range, "and fill most of it")
 
 
 func test_heavy_opens_during_the_windup_and_closes_on_the_strike() -> void:
@@ -544,7 +528,11 @@ func test_rm_trap_and_jacks_static() -> void:
 
 # ---- papel shield and langit lupa (the walls) -------------------------------------------------------------------------
 
-func test_paper_wall_unfolds_and_crumples_on_time() -> void:
+func _fade_of(id: int) -> float:
+	return _fx.walls.fade_for(id)
+
+
+func test_paper_wall_unfolds_and_fades_on_time() -> void:
 	_setup(Vector2(20.0, 0.0))
 	_cast(&"papel_shield", Vector2(0.0, -1.0))
 	_fx.sync(_sim, DT)
@@ -558,9 +546,25 @@ func test_paper_wall_unfolds_and_crumples_on_time() -> void:
 	for i: int in 10:
 		_frame()
 	assert_almost_eq(body.scale.y, 1.0, 0.001, "and settles")
-	while shield.time_left > 0.15:
+	assert_eq(_fade_of(shield.id), 0.0, "fully there through the middle of its time")
+	var last: float = 0.0
+	while shield.time_left > FxWalls.PAPER_FADE_TIME:
 		_frame()
-	assert_lt(body.scale.y, 0.6, "it crumples as its time runs out")
+	var fading: float = 0.0
+	while _sim.weapons.shields.size() > 0 and shield.time_left > DT * 1.5:
+		_frame()
+		var now: float = _fade_of(shield.id)
+		assert_gte(now, last, "the fade only deepens")
+		assert_almost_eq(now, 1.0 - FxWalls.paper_alpha(shield.time_left), 0.001, "an alpha ramp over its last %.1f s" % FxWalls.PAPER_FADE_TIME)
+		last = now
+		fading += 1.0
+	assert_gt(fading, 8.0, "it takes a good half second")
+	var picture: ShaderMaterial = (body.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
+	assert_true(picture.shader.code.contains("ALPHA = fade"), "the picture fades through its own material's alpha")
+	assert_almost_eq(picture.get_shader_parameter(&"fade") as float, 1.0 - last, 0.01, "which follows the ramp")
+	assert_not_null(picture.next_pass, "its contour fades with it")
+	assert_gt(last, 0.9, "and is all but gone as the sim's wall ends")
+	assert_eq(body.scale.y, 1.0, "it does not shrink or crumple: it fades")
 
 
 func test_a_blocked_projectile_flexes_the_wall() -> void:
@@ -592,11 +596,57 @@ func test_wall_width_is_exact() -> void:
 		for vertex: Vector3 in ribbon.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array:
 			reach = maxf(reach, absf(vertex.x))
 		assert_almost_eq(reach * 2.0, shield.half_width * 2.0, 0.001, "%s: the ribbon is the wall's exact width" % weapon)
-		for i: int in 12:
-			_frame()
 		var mesh: MeshInstance3D = _fx.walls.node_for(shield.id).find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
-		var width: float = mesh.get_aabb().size.x * mesh.get_parent().scale.x * _fx.walls.node_for(shield.id).scale.x
-		assert_almost_eq(width, shield.half_width * 2.0, 0.02, "%s: and so is the wall once up" % weapon)
+		for i: int in 40:
+			_frame()
+			if _sim.weapons.shields.is_empty():
+				break
+			# every frame, the drawn wall and its ribbon are the sim's line as it is now: no delay, no curve of the view's own
+			var body: Node3D = _fx.walls.node_for(shield.id)
+			var width: float = mesh.get_aabb().size.x * mesh.get_parent().scale.x * body.scale.x
+			assert_almost_eq(width, shield.half_width * 2.0, 0.02, "%s frame %d: the wall is as wide as the sim's line" % [weapon, i])
+			assert_almost_eq(reach * 2.0 * ribbon.scale.x, shield.half_width * 2.0, 0.001, "%s frame %d: so is the ribbon" % [weapon, i])
+			var at: Vector3 = (body.get_parent() as Node3D).position
+			assert_almost_eq(at.x, shield.center.x, 0.0001, "%s frame %d: it stands where the sim's line is" % [weapon, i])
+			assert_almost_eq(at.z, shield.center.y, 0.0001)
+
+
+func test_the_drawn_paper_wall_glides_with_the_sim() -> void:
+	_setup(Vector2(20.0, 0.0))
+	_cast(&"papel_shield", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var shield: WeaponSystem.Shield = _sim.weapons.shields[0]
+	var start: Vector3 = (_fx.walls.node_for(shield.id).get_parent() as Node3D).position
+	for i: int in 24:
+		_frame()
+	var end: Vector3 = (_fx.walls.node_for(shield.id).get_parent() as Node3D).position
+	assert_almost_eq(start.z - end.z, shield.def.push_distance, 0.001, "drawn %.1f m further up the street than it appeared" % shield.def.push_distance)
+
+
+func test_the_drawn_block_triples_in_width_then_sinks_wide() -> void:
+	_setup(Vector2(20.0, 0.0))
+	_cast(&"langit_lupa", Vector2(0.0, -1.0))
+	_fx.sync(_sim, DT)
+	var shield: WeaponSystem.Shield = _sim.weapons.shields[0]
+	var body: Node3D = _fx.walls.node_for(shield.id)
+	var tall: float = 0.0
+	while shield.def.duration - shield.time_left < shield.def.expand_delay + shield.def.expand_time + 0.05:
+		_frame()
+		assert_lte(body.scale.x, 3.001)
+	assert_almost_eq(body.scale.x, 3.0, 0.001, "three times the width once it has risen and widened")
+	assert_almost_eq(body.scale.y, 1.0, 0.01, "at its full height")
+	while shield.time_left > FxWalls.SOIL_COLLAPSE_TIME * 0.5:
+		_frame()
+	var sinking: float = body.scale.y
+	assert_lt(sinking, 1.0, "it sinks")
+	assert_almost_eq(body.scale.x, 3.0, 0.001, "keeping the widened width")
+	var last: float = sinking
+	while _sim.weapons.shields.size() > 0 and shield.time_left > DT * 1.5:
+		_frame()
+		assert_almost_eq(body.scale.x, 3.0, 0.001, "wide all the way down")
+		assert_lte(body.scale.y, last + 0.0001, "only down")
+		last = body.scale.y
+	assert_lt(last, 0.2, "all but flat as the sim's wall ends")
 
 
 func test_rm_walls() -> void:
@@ -611,11 +661,11 @@ func test_rm_walls() -> void:
 			_frame()
 			assert_lte(body.scale.y, 1.0, "%s: no overshoot" % weapon)
 			assert_eq(body.rotation.x, 0.0, "no flutter")
-			assert_lte(body.scale.x, 1.0, "no slump")
+			assert_lte(body.scale.x, shield.def.expand_factor + 0.001, "the width is the sim's, nothing more")
 		assert_almost_eq(body.scale.y, 1.0, 0.001, "%s: up" % weapon)
 		while not _sim.weapons.shields.is_empty() and shield.time_left > 0.1:
 			_frame()
-		assert_lt(body.scale.y, 1.0, "%s: the end still shows (it says the wall is going)" % weapon)
+		assert_true(body.scale.y < 1.0 or _fade_of(shield.id) > 0.0, "%s: the end still shows (it says the wall is going)" % weapon)
 		assert_eq(_fx.particle_count(), 0)
 
 
@@ -729,52 +779,39 @@ func test_the_snip_reads_on_screen() -> void:
 		var shut: int = 0
 		for frame: int in 14:
 			practice.advance(DT)
-			if fx.cones.scissors().is_empty():
-				break
-			var rig: ScissorsRig = fx.cones.scissors()[0]
-			if (rig.get_parent().get_parent() as Node3D).scale.x < 0.99:
-				continue
-			var ends: Array[Vector2] = _ends(rig, camera)
-			var length: float = ((ends[0] + ends[1]) / 2.0).distance_to((ends[2] + ends[3]) / 2.0)
-			assert_gte(length, 0.4 * kid_tall, "aim %s frame %d: the scissors are at least 0.4 of a kid long on screen (%.0f px of %.0f)" % [aim, frame, length, kid_tall])
-			var spread: float = ends[0].distance_to(ends[1])
-			if rig.angle() >= ScissorsRig.WIDE - 0.01:
-				opened += 1
-				assert_gte(spread, 0.25 * kid_tall, "aim %s frame %d: open, the tips are a quarter kid apart (%.0f px)" % [aim, frame, spread])
-			elif rig.angle() <= ScissorsRig.CLOSED + 0.01:
-				shut += 1
-				assert_lte(spread, 0.05 * kid_tall, "aim %s frame %d: shut, the tips meet (%.0f px)" % [aim, frame, spread])
-			var box: Rect2 = Rect2(ends[0], Vector2.ZERO)
-			for end: Vector2 in ends:
-				box = box.expand(end)
-			for kid: PlayerState in [caster, target]:
-				assert_false(box.intersects(_head(kid, camera)), "aim %s frame %d: never over a head" % [aim, frame])
+			for rig: ScissorsRig in fx.cones.scissors():
+				var holder: Node3D = rig.get_parent().get_parent() as Node3D
+				if not holder.visible:
+					continue
+				# a scissors popping in is smaller by its scale
+				var grown: float = holder.scale.x
+				var ends: Array[Vector2] = _ends(rig, camera)
+				var length: float = ((ends[0] + ends[1]) / 2.0).distance_to((ends[2] + ends[3]) / 2.0)
+				assert_gte(length, 0.4 * kid_tall * grown, "aim %s frame %d: the scissors are at least 0.4 of a kid long on screen (%.0f px of %.0f)" % [aim, frame, length, kid_tall])
+				var spread: float = ends[0].distance_to(ends[1])
+				if rig.angle() >= ScissorsRig.WIDE - 0.01:
+					opened += 1
+					assert_gte(spread, 0.25 * kid_tall * grown, "aim %s frame %d: open, the tips are a quarter kid apart (%.0f px)" % [aim, frame, spread])
+				elif rig.angle() <= ScissorsRig.CLOSED + 0.01:
+					shut += 1
+					assert_lte(spread, 0.05 * kid_tall * maxf(grown, 0.5), "aim %s frame %d: shut, the tips meet (%.0f px)" % [aim, frame, spread])
 		assert_gt(opened, 0, "aim %s: seen open" % aim)
 		assert_gt(shut, 0, "aim %s: seen shut" % aim)
 		practice.free()
 
 
-func test_a_tap_snip_holds_open() -> void:
-	var n: int = 2
-	var period: int = FxMotion.snip_period(n)
-	assert_eq(period, 5)
-	for k: int in n - 1:
-		var start: int = 1 + k * period
-		assert_almost_eq(FxMotion.snip_angle(start, n), ScissorsRig.CLOSED, 0.001, "a snip shuts in one frame")
-		assert_gt(FxMotion.snip_angle(start + 1, n), ScissorsRig.CLOSED, "and is opening the next")
-		var held: int = 0
-		var best: int = 0
-		for frame: int in range(start + 1, start + period + 1):
-			held = held + 1 if FxMotion.snip_angle(frame, n) >= 0.8 * ScissorsRig.WIDE else 0
-			best = maxi(best, held)
-		assert_gte(best, 2, "a tap's snip holds open for two frames or more (it reads as a V)")
-	assert_gte(FxMotion.snip_angle(0, n), 0.8 * ScissorsRig.WIDE, "it pops in open")
-	for frame: int in range(1, FxMotion.snip_frames(6)):
-		var shut_now: bool = FxMotion.snip_angle(frame, 6) <= ScissorsRig.CLOSED + 0.001
-		assert_eq(shut_now, (frame - 1) % 2 == 0, "six snips alternate shut / open frame by frame (frame %d)" % frame)
+func test_a_small_scissors_closes_as_it_flies() -> void:
+	assert_almost_eq(FxMotion.cut_angle(0.0), ScissorsRig.WIDE, 0.001, "it launches open")
+	assert_almost_eq(FxMotion.cut_angle(1.0), ScissorsRig.CLOSED, 0.001, "and arrives shut")
+	var last: float = INF
+	for step: int in FxMotion.SNIP_FLIGHT_FRAMES + 1:
+		var angle: float = FxMotion.cut_angle(float(step) / float(FxMotion.SNIP_FLIGHT_FRAMES))
+		assert_lte(angle, last, "it only ever closes (step %d)" % step)
+		last = angle
+	assert_lte(FxMotion.snip_frames(6), 19, "six scissors still fit in well under a second")
 
 
-func test_the_heal_cross_reads_at_the_chest() -> void:
+func test_the_heal_cross_rises_from_the_head_to_above_it() -> void:
 	var practice: PracticeMatch = _snip_match(Vector2(0.0, -1.0))
 	var camera: Camera3D = practice.get_viewport().get_camera_3d()
 	var fx: WeaponFxView = practice.get_node("%WeaponFx") as WeaponFxView
@@ -785,7 +822,10 @@ func test_the_heal_cross_reads_at_the_chest() -> void:
 	var feet: Vector2 = camera.unproject_position(Vector3(kid.position.x, 0.0, kid.position.y))
 	var tall: float = feet.distance_to(camera.unproject_position(Vector3(kid.position.x, KidModel.KID_HEIGHT * 2.0, kid.position.y)))
 	var seen: int = 0
-	for frame: int in 24:
+	var first: float = -1.0
+	var last: float = -1.0
+	var held: int = 0
+	for frame: int in 36:
 		practice.advance(DT)
 		var crosses: Array[Node3D] = fx.heals.crosses()
 		if crosses.is_empty():
@@ -793,11 +833,20 @@ func test_the_heal_cross_reads_at_the_chest() -> void:
 		var mesh: MeshInstance3D = crosses[0].find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
 		var box: AABB = mesh.get_aabb()
 		var centre: Vector2 = camera.unproject_position(mesh.global_transform * box.get_center())
-		var top: float = INF
+		var bottom: float = -INF
 		for corner: int in 8:
-			top = minf(top, camera.unproject_position(mesh.global_transform * box.get_endpoint(corner)).y)
+			bottom = maxf(bottom, camera.unproject_position(mesh.global_transform * box.get_endpoint(corner)).y)
 		var at: float = (feet.y - centre.y) / tall
-		assert_between(at, 0.45, 0.6, "frame %d: the cross is at the chest on screen (%.2f of the kid)" % [frame, at])
-		assert_lt((feet.y - top) / tall, 0.65, "frame %d: its top stays under the face" % frame)
+		assert_between(at, FxHeals.CROSS_SCREEN_FROM - 0.05, FxHeals.CROSS_SCREEN_TO + 0.05, "frame %d: between the head and above it (%.2f of the kid)" % [frame, at])
+		if first < 0.0:
+			first = at
+		assert_gte(at, last - 0.001, "frame %d: it only rises" % frame)
+		last = at
+		if frame >= 14 and frame <= 19:
+			assert_gte((feet.y - bottom) / tall, 1.0, "frame %d: held at full size, its foot is clear of the crown" % frame)
+			held += 1
 		seen += 1
-	assert_gt(seen, 10, "the cross plays")
+	assert_gt(seen, 20, "the cross plays for about a second")
+	assert_lt(first, 1.0, "it begins at the head")
+	assert_gt(last, 1.5, "and ends above it, clear of the name bar")
+	assert_eq(held, 6, "it holds there a moment at full size")

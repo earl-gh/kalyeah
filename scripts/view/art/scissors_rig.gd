@@ -18,10 +18,12 @@ const WIDE_HEAVY: float = 30.0
 ## As made, each blade's tip stands this many degrees off the scissors' axis, this far (of the length) from the screw.
 const TIP_ANGLE: float = 13.2
 const TIP_ARM: float = 0.5
-## A thin outline in the thrower's team colour round both blades (shaders/team_outline.gdshader, like the kids'), so dark
+## A thin outline in the thrower's team colour round both blades (shaders/team_outline.gdshader, like the kids'), so the
 ## blades read over hair and say who snipped; this many metres wide.
 const OUTLINE_SHADER: Shader = preload("res://shaders/team_outline.gdshader")
 const OUTLINE_WIDTH: float = 0.03
+## The blades are silver steel, the handles red (scissors_steel.gdshader).
+const STEEL_SHADER: Shader = preload("res://scripts/view/art/scissors_steel.gdshader")
 ## The screw in model units (the blades turn about it), triangles this close to it stay on blade A (the screw on top), and
 ## the two blades sit this far apart along the face normal so closed blades never z-fight.
 const PIVOT: Vector2 = Vector2(-0.005, 0.515)
@@ -30,7 +32,7 @@ const BLADE_GAP: float = 0.008
 
 static var _halves: Array[ArrayMesh] = []
 ## The blades' look marking the stencil (so the outline draws only round them), and one outline material per team colour.
-static var _marked_look: BaseMaterial3D
+static var _marked_look: ShaderMaterial
 static var _outlines: Dictionary[String, ShaderMaterial] = {}
 
 var _pivot_a: Node3D
@@ -81,18 +83,25 @@ static func clear_cache() -> void:
 	_marked_look = null
 
 
-## The blades' look, marking the stencil like a kid's (built once).
-static func _marked() -> BaseMaterial3D:
+## The blades' look: the model look of the kids and props with the black blades painted silver steel and the handles' red kept
+## (scissors_steel.gdshader), marking the stencil like a kid's so the team outline draws only round the scissors (built once).
+static func _marked() -> ShaderMaterial:
 	if _marked_look == null:
-		# the rig keeps the matte model look (its team outline is its contour), carrying the scissors' own picture
-		var picture: StandardMaterial3D = StandardMaterial3D.new()
-		picture.albedo_texture = WeaponLook.picture_of(WeaponModel.look_of(MODEL))
-		_marked_look = ModelLook.make(picture)
-		_marked_look.stencil_mode = BaseMaterial3D.STENCIL_MODE_CUSTOM
-		_marked_look.stencil_flags = BaseMaterial3D.STENCIL_FLAG_WRITE
-		_marked_look.stencil_compare = BaseMaterial3D.STENCIL_COMPARE_ALWAYS
-		_marked_look.stencil_reference = KidModel.STENCIL
+		_marked_look = ShaderMaterial.new()
+		_marked_look.shader = STEEL_SHADER
+		_marked_look.set_shader_parameter(&"albedo_texture", WeaponLook.picture_of(WeaponModel.look_of(MODEL)))
 	return _marked_look
+
+
+## Where the screw stands in the rig's frame (origin: the middle of the scissors) for scissors `length` metres long.
+static func screw_offset(length: float) -> Vector3:
+	var scale: float = length / WeaponModel.size_of(MODEL).y
+	return Vector3(PIVOT.x * scale, PIVOT.y * scale - length / 2.0, 0.0)
+
+
+## How far the blades' tips reach from the screw, for scissors `length` metres long.
+static func tip_reach(length: float) -> float:
+	return (1.0 - PIVOT.y) * length
 
 
 ## The outline material for `team` (one per colour, built once).
