@@ -14,6 +14,8 @@ const SKILLS: StringName = &"weapons"
 ## `assets/ui/skill_cards`.
 const KIDS_FAN: Array[StringName] = [&"toni", &"ligaya", &"popoy"]
 const SKILLS_FAN: Array[StringName] = [&"gunting_light", &"heal", &"bola"]
+## The Skills fan sits this much lower than the Kids fan (its cards are taller), so less of it sticks out above its banner.
+const SKILLS_FAN_DROP: float = 28.0
 ## A label carrying this meta may say "skill" (the UI lint bans the word everywhere else: round 15 chose "weapons"): the owner calls the
 ## weapon cards skills and asked for them under that name on this screen, and only these two labels use it.
 const WORD_BY_OWNER: StringName = &"word_by_owner"
@@ -40,7 +42,7 @@ func _ready() -> void:
 	scroll.add_child(body)
 	var weapons: Array[WeaponDef] = (load(RULES_PATH) as GameRules).weapons
 	kids_card = CardsHubCard.create(KIDS, "Kids", kids_detail(Session.AVATARS.size()), _kid_pictures())
-	skills_card = CardsHubCard.create(SKILLS, "Skills", skills_detail(weapons.size()), _skill_pictures())
+	skills_card = CardsHubCard.create(SKILLS, "Skills", skills_detail(weapons.size()), _skill_pictures(), SKILLS_FAN_DROP)
 	skills_card.title_label.set_meta(WORD_BY_OWNER, true)
 	skills_card.detail_label.set_meta(WORD_BY_OWNER, true)
 	kids_screen = KidsScreen.new()

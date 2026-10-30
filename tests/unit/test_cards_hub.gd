@@ -145,8 +145,8 @@ func test_the_fan_sticks_out_above_the_card_and_is_tucked_into_it_below() -> voi
 			var panel: Rect2 = card.get_global_rect()
 			var fan: Rect2 = _fan_box(card.fan)
 			var out: float = panel.position.y - fan.position.y
-			assert_gte(out, 56.0, "the upper part sticks out above the card's top edge (%d, %d)" % [i, int(height)])
-			assert_lte(out, 80.0, "by about 60 to 70 px: the rest is in the card")
+			assert_gte(out, 56.0 - card.fan_drop, "the upper part sticks out above the card's top edge (%d, %d)" % [i, int(height)])
+			assert_lte(out, 80.0 - card.fan_drop, "by about 60 to 70 px: the rest is in the card")
 			assert_gt(fan.end.y, panel.position.y + panel.size.y * 0.9, "the fan fills the category height")
 			assert_gt(panel.end.y - maxf(fan.position.y, panel.position.y), panel.size.y * 0.9, "so the fan covers the panel's whole height")
 			assert_lte(fan.end.x, 720.0, "the shifted fan remains on screen")

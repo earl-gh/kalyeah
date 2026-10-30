@@ -30,12 +30,15 @@ var detail_label: Label
 var fan: CardFan
 var words: VBoxContainer
 var panel_box: StyleBoxFlat
+## How far this card's fan sits lower than the default, so less of it sticks out above the panel.
+var fan_drop: float = 0.0
 
 
 ## A card for the page `page_id` with its `title` and `detail` and the three `pictures` of its fan (front first).
-static func create(page_id: StringName, title: String, detail: String, pictures: Array[Texture2D]) -> CardsHubCard:
+static func create(page_id: StringName, title: String, detail: String, pictures: Array[Texture2D], drop: float = 0.0) -> CardsHubCard:
 	var card: CardsHubCard = CardsHubCard.new()
 	card.id = page_id
+	card.fan_drop = drop
 	card._build(title, detail, pictures)
 	return card
 
@@ -97,7 +100,7 @@ func _build(title: String, detail: String, pictures: Array[Texture2D]) -> void:
 
 ## The fan's top, in the card's own coordinates: above the panel by `FAN_PROTRUSION`.
 func fan_top() -> float:
-	return -FAN_PROTRUSION
+	return -protrusion()
 
 
 func _place_fan() -> void:
@@ -119,7 +122,7 @@ func _update_mask() -> void:
 
 ## How far the fan sticks out above the panel's top edge (a positive number), so a page can leave room for it.
 func protrusion() -> float:
-	return FAN_PROTRUSION
+	return FAN_PROTRUSION - fan_drop
 
 
 ## Whether a tap at `point` (in the card's own coordinates) is on this card: the panel, or the fan that sticks out of it.
