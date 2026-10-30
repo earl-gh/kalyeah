@@ -5,7 +5,7 @@ extends RefCounted
 ## the can (lata), the marble (bola), the crumpled paper (papel trap), the paper sheet (papel
 ## shield), the spinning top (trumpo), the spikes (jacks), the meteor (bato heavy), the scissors
 ## (gunting), the soil block (langit lupa wall) and the green cross (heal). Each has its base
-## centre on the origin and the matte look from ModelLook.
+## centre on the origin and the painted look from WeaponLook.
 ## Weapons without a model here keep their code-drawn object (Props.weapon_object).
 ## Every instance of one model shares one set of look materials (built by the first instance), and every model mesh joins
 ## `GROUP` so tests and tools can tell the skill objects apart from the flat effects drawn round them.
@@ -223,7 +223,7 @@ static func _instance(id: String) -> Node3D:
 	var root: Node3D = _scene(id).instantiate() as Node3D
 	var meshes: Array[Node] = root.find_children("*", "MeshInstance3D", true, false)
 	if not _looks.has(id):
-		_looks[id] = ModelLook.apply(root)
+		_looks[id] = WeaponLook.apply(root)
 	else:
 		var looks: Array = _looks[id]
 		var next: int = 0

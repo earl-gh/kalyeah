@@ -59,7 +59,7 @@ func test_particle_presets_respect_height_and_reach_bounds() -> void:
 		assert_false(particles.local_coords, "world space: a moving thrower does not drag its dust")
 	for preset: int in FxParticles.Preset.values():
 		var material: BaseMaterial3D = FxParticles.spec(preset).material as BaseMaterial3D
-		if material.billboard_mode == BaseMaterial3D.BILLBOARD_PARTICLES:
+		if material != null and material.billboard_mode == BaseMaterial3D.BILLBOARD_PARTICLES:  # the rock chips wear the weapon look, a shader
 			assert_true(material.billboard_keep_scale, "%s keeps each particle's size (else every puff is drawn 1 m)" % FxParticles.Preset.keys()[preset])
 
 

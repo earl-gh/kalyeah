@@ -17,7 +17,7 @@ func _average(image: Image) -> Color:
 
 
 func test_the_can_texture_is_the_bright_label_not_the_old_black_one() -> void:
-	var texture: Texture2D = WeaponModel.look_of("can").get("albedo_texture") as Texture2D
+	var texture: Texture2D = WeaponLook.picture_of(WeaponModel.look_of("can"))
 	assert_not_null(texture, "the can's look carries its picture")
 	var image: Image = texture.get_image()
 	if image.is_compressed():

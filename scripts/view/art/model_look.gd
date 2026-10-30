@@ -18,25 +18,30 @@ static func apply(root: Node) -> Array[StandardMaterial3D]:
 		var mesh_instance: MeshInstance3D = node as MeshInstance3D
 		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		for surface: int in mesh_instance.mesh.get_surface_count():
-			var source: Material = mesh_instance.get_active_material(surface)
-			var material: StandardMaterial3D = StandardMaterial3D.new()
-			if source is BaseMaterial3D:
-				var base: BaseMaterial3D = source as BaseMaterial3D
-				material.albedo_texture = base.albedo_texture
-				material.albedo_color = base.albedo_color
-			material.metallic = 0.0
-			material.roughness = 1.0
-			material.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-			material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-			material.normal_enabled = false
-			material.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
-			material.rim_enabled = true
-			material.rim = RIM
-			material.rim_tint = RIM_TINT
-			material.albedo_color = Color(ALBEDO_GAIN, ALBEDO_GAIN, ALBEDO_GAIN) * material.albedo_color
+			var material: StandardMaterial3D = make(mesh_instance.get_active_material(surface))
 			mesh_instance.set_surface_override_material(surface, material)
 			made.append(material)
 	return made
+
+
+## The look for one surface whose own material is `source`: its picture and colour kept, everything else the model look.
+static func make(source: Material) -> StandardMaterial3D:
+	var material: StandardMaterial3D = StandardMaterial3D.new()
+	if source is BaseMaterial3D:
+		var base: BaseMaterial3D = source as BaseMaterial3D
+		material.albedo_texture = base.albedo_texture
+		material.albedo_color = base.albedo_color
+	material.metallic = 0.0
+	material.roughness = 1.0
+	material.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	material.normal_enabled = false
+	material.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
+	material.rim_enabled = true
+	material.rim = RIM
+	material.rim_tint = RIM_TINT
+	material.albedo_color = Color(ALBEDO_GAIN, ALBEDO_GAIN, ALBEDO_GAIN) * material.albedo_color
+	return material
 
 
 ## Turns on the model's own baked shading (the vertex colours its maker painted: darker in the creases and under the parts, 0.6 to 1) for
