@@ -38,7 +38,7 @@ func test_a_matte_black_layer_is_underneath_with_a_matte_black_base_and_no_white
 	boot.queue_free()
 
 
-func test_the_blue_fill_stays_inside_its_frame_at_every_progress_value() -> void:
+func test_the_blue_fill_stays_inside_its_track_at_every_progress_value() -> void:
 	var boot: BootScreen = _boot()
 	for height: float in [1280.0, 1558.0]:
 		(boot.get_parent() as Control).size.y = height
@@ -48,8 +48,8 @@ func test_the_blue_fill_stays_inside_its_frame_at_every_progress_value() -> void
 			boot._layout()
 			var track: Rect2 = boot._track.get_global_rect()
 			var fill: Rect2 = boot._fill_clip.get_global_rect()
-			assert_gt(fill.position.x, track.position.x, "the left frame is always visible")
-			assert_lt(fill.end.x, track.end.x, "even a full bar keeps its right frame")
+			assert_gte(fill.position.x, track.position.x, "the fill starts at the track's left end (no outline)")
+			assert_lte(fill.end.x, track.end.x, "a full bar ends at the track's right end")
 			assert_gt(fill.position.y, track.position.y)
 			assert_lt(fill.end.y, track.end.y)
 			assert_almost_eq(fill.size.x / boot._fill_rect.size.x, clampf(fraction, 0.0, 1.0), 0.001, "fill matches actual progress")
