@@ -25,6 +25,7 @@ func setup_hud() -> void:
 	Cinematic.add_lens(owner, owner._camera.rules.lens_k())
 	Cinematic.add_film_finish(owner)
 	owner.hud.overhead.setup(owner.sim, owner._camera, owner.local_id, owner.local_team)
+	owner.hud.overhead.blend = owner.blend
 	owner.hud.overhead.view_scale = owner._camera.rules.kid_view_scale
 	owner.hud.overhead.bar_scale = owner._camera.rules.bar_scale
 	owner.hud.marker.setup(owner.sim, owner._camera, owner.local_id)
@@ -130,7 +131,8 @@ func refresh_kids() -> void:
 func _sync_actor(state: PlayerState, delta: float) -> void:
 	var view: KidModel = owner._views[state.id]
 	# the kid's own Airborne clip already leaves the ground: no extra lift
-	view.position = Vector3(state.position.x, 0.0, state.position.y)
+	var at: Vector2 = owner.blend.kid(state)
+	view.position = Vector3(at.x, 0.0, at.y)
 	view.face(state.facing)
 	view.animate(delta, minf(view.ground_speed(state.position, delta), 20.0), state)
 

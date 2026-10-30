@@ -225,7 +225,8 @@ func _release(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 
 func _update(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 	rec.holder.scale = Vector3.ONE * _ctx.view_scale
-	rec.holder.position = Vector3(projectile.position.x, PROJECTILE_HEIGHT * _ctx.view_scale, projectile.position.y)
+	var drawn: Vector2 = _ctx.shot_position(projectile)
+	rec.holder.position = Vector3(drawn.x, PROJECTILE_HEIGHT * _ctx.view_scale, drawn.y)
 	match rec.kind:
 		&"rock":
 			_rock(rec, projectile)
@@ -237,7 +238,7 @@ func _update(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 			_top(rec, projectile)
 		_:
 			rec.spin.rotation.y += _ctx.delta * TAU * (TOP_SPIN if rec.def.id == &"trumpo" else SPIN)
-	_ctx.shadows.place(rec.id, projectile.position, rec.holder.position.y)
+	_ctx.shadows.place(rec.id, drawn, rec.holder.position.y)
 
 
 ## The rock pops out of the hand, tumbles end over end and is smeared along its flight on its first frames (it homes on its target).

@@ -44,6 +44,8 @@ var tilt: TiltInput = TiltInput.new()
 ## The move target is being steered by the tilt (not by a finger).
 var tilt_steering: bool = false
 var _accumulator: float = 0.0
+## What the screen draws between two sim ticks (kids and flying things glide instead of stepping at 30 Hz).
+var blend: TickBlend = TickBlend.new()
 var _views: Dictionary[int, KidModel] = {}
 var _characters: Dictionary[StringName, CharacterDef] = {}
 ## The opening pick pauses the match; the box swap does not.
@@ -87,6 +89,7 @@ func _ready() -> void:
 	for id: int in sim.players:
 		_presentation.make_actor_view(sim.players[id])
 	_fx.watch(sim)
+	_fx.use_blend(blend)
 	_map.set_own_side(own_side())
 	_map.show_back_button(false)
 	_presentation.setup_hud()
@@ -291,6 +294,7 @@ func advance(delta: float) -> void:
 		steps += 1
 	if steps == MAX_STEPS_PER_FRAME:
 		_accumulator = 0.0
+	blend.set_progress(_accumulator, dt)
 	_presentation.sync(delta)
 
 
@@ -366,6 +370,7 @@ func _step_once(dt: float) -> void:
 		coach.drive(sim)
 	sim.set_input(local_id, _local_input(sim.tick))
 	sim.step(dt)
+	blend.record(sim)
 
 
 ## A menu, a pause or the pick screen drops what is held: a held aim must cancel rather than cast.
