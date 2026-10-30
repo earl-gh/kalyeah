@@ -2,9 +2,9 @@ class_name OverheadHud
 extends Control
 ## MOBA-style overhead display drawn in screen space over each hero, like League
 ## of Legends: a solid health bar (green you, blue ally, red enemy) with the player's number on a team-coloured badge at its left end, the word
-## one word over the bar's left end: a status in plain words ("Stunned", "Slowed", "Exhausted") while there is one, else "You" over your own bar. Under your own bar a thin stamina bar shows
+## one word over the bar's left end: a status in plain words ("Stunned", "Slowed", "Exhausted") while there is one, else the player's name (yours, your allies' and your enemies'). Under your own bar a thin stamina bar shows
 ## while it is not full (your eyes are on your kid while you tap to walk, and stamina only matters while walking); at 0 it reads Exhausted and
-## runs out over the 2 s. No names, no health numbers and no damage numbers (heals still pop a green "+N"). While a
+## runs out over the 2 s. No health numbers and no damage numbers (heals still pop a green "+N"). While a
 ## team holds the enemy base, a spinner fills over its kids' heads. Reads the sim
 ## and projects through the match camera.
 
@@ -16,7 +16,6 @@ const BAR_OUTLINE: float = 2.0
 ## little under its own size: half of it sits on the outline).
 const LABEL_FONT: int = UiMetrics.WORLD_SMALL
 const LABEL_LINE: float = float(LABEL_FONT) * 0.8
-const YOU: String = "You"
 ## The badge at the bar's left end (owner): the player's number, as the room shows it, in white on the team's colour. A rounded square a
 ## little taller than the bar, covering the first `BADGE_OVERLAP` px of it, its number the world text size with the bars' dark outline.
 const BADGE_FONT: int = UiMetrics.WORLD
@@ -35,7 +34,7 @@ const TAG_POP_TIME: float = 0.08
 const TAG_FONT: int = LABEL_FONT
 const POPUP_TIME: float = 0.9
 const POPUP_RISE: float = 56.0
-## The status word takes the place of "You" over the bar (owner): the same size, in the same spot, never stacked above it.
+## The status word takes the place of the name over the bar (owner): the same size, in the same spot, never stacked above it.
 const STATUS_FONT: int = LABEL_FONT
 ## Your stamina under your health bar (before `bar_scale`): a thin bar, a gap above it; it warns below `STAMINA_LOW` of full. When it runs
 ## out you are overclocked (owner): the bar blinks blank and red for `exhaust_seconds`, then refills in amber while you only walk, until
@@ -105,6 +104,8 @@ var _says: Array[Dictionary] = []
 var _tags: Dictionary[int, Dictionary] = {}
 ## Online: the kids whose players are away (AFK), set from the room.
 var away_ids: Dictionary[int, bool] = {}
+## Each player's name by kid id (you: your name; online: the room's names). A kid with none is named after its character.
+var names: Dictionary[int, String] = {}
 
 
 func setup(sim: MatchSim, camera: Camera3D, local_id: int, local_team: int) -> void:
@@ -219,12 +220,24 @@ func bar_color(state: PlayerState) -> Color:
 	return TeamColors.bar_ally() if state.team == _local_team else TeamColors.bar_enemy()
 
 
-## The one word over a kid's bar (owner): its status while it has one ("Stunned", "Slowed", ...), else "You" over your own kid, else nothing.
+## The one word over a kid's bar (owner): its status while it has one ("Stunned", "Slowed", ...), else the player's name, for you, your
+## allies and your enemies alike.
 func label_for(state: PlayerState) -> String:
 	var status: String = _status_text(state)
 	if not status.is_empty():
 		return status
-	return UiText.t(YOU) if state.id == _local_id else ""
+	return name_of(state)
+
+
+## The player's name over a kid: the one it was given, else its character's name (the bots').
+func name_of(state: PlayerState) -> String:
+	var given: String = names.get(state.id, "") as String
+	if not given.is_empty():
+		return given
+	for character: CharacterDef in _sim.rules.characters:
+		if character.id == state.character_id:
+			return character.display_name
+	return ""
 
 
 ## The number on a kid's badge, the same one the room shows: blue's places first, then red's (`RoomPlayerCards.slot_number`), each team's

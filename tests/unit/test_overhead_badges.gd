@@ -1,5 +1,5 @@
 extends GutTest
-## The kids' overhead marks (owner): your own bar says "You" and nobody else's has text, every bar has a team badge with the player's
+## The kids' overhead marks (owner): every bar says its player's name, every bar has a team badge with the player's
 ## number (the room's numbering), bars that would overlap stack so every number shows, and a tagged kid on the sidewalk has no ring.
 
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
@@ -39,12 +39,23 @@ func _three_a_side() -> MatchSim:
 	return sim
 
 
-func test_only_your_own_bar_says_you_and_nobody_else_has_a_word() -> void:
+func test_every_bar_says_its_players_name_yours_allies_and_enemies() -> void:
 	var sim: MatchSim = _three_a_side()
+	sim.assign_characters()
 	var hud: OverheadHud = _hud(sim)
-	assert_eq(hud.label_for(sim.players[1]), "You")
-	for id: int in [2, 3, 4, 5, 6]:
-		assert_eq(hud.label_for(sim.players[id]), "", "kid %d has no text over its bar" % id)
+	hud.names[1] = "Gabo"
+	hud.names[5] = "Mika"
+	assert_eq(hud.label_for(sim.players[1]), "Gabo", "yours: your name, not You")
+	assert_eq(hud.label_for(sim.players[5]), "Mika", "an enemy with a name shows it")
+	for id: int in [2, 3, 4, 6]:
+		var character: CharacterDef = null
+		for candidate: Variant in RULES.characters:
+			if (candidate as CharacterDef).id == sim.players[id].character_id:
+				character = candidate as CharacterDef
+		assert_not_null(character, "kid %d has a character" % id)
+		assert_eq(hud.label_for(sim.players[id]), character.display_name, "a bot is named after its kid")
+	hud.names[2] = ""
+	assert_ne(hud.label_for(sim.players[2]), "", "an empty name falls back to the kid's")
 	assert_false(hud.has_method("_draw_count"), "the health number is gone")
 
 

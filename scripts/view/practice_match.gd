@@ -93,6 +93,8 @@ func _ready() -> void:
 	_map.set_own_side(own_side())
 	_map.show_back_button(false)
 	_presentation.setup_hud()
+	if not online:
+		hud.overhead.names[local_id] = Session.player_name  # the others are named after their kid (OverheadHud.name_of)
 	_presentation.connect_hud()
 	_presentation.connect_sim()
 	_pick_screen.exit_requested.connect(_on_exit_pressed)
@@ -308,6 +310,8 @@ func _held_still() -> bool:
 # ---- setup ---------------------------------------------------------------------------
 
 func _setup_practice() -> void:
+	if Session.practice_kind == &"match":
+		rules = rules.with_bot_level(Settings.bot_level)  # a copy with the chosen difficulty's bot numbers; the shared rules stay as they are
 	sim = MatchSim.new(rules, layout, Time.get_ticks_usec())
 	if Session.practice_kind == &"match":
 		_setup_bot_match()
@@ -512,6 +516,8 @@ func _on_room_changed(room: Dictionary) -> void:
 		var connected: bool = entry.get("connected", true) as bool
 		var afk: bool = entry.get("afk", false) as bool
 		var name: String = entry.get("name", "") as String
+		if not name.is_empty():
+			hud.overhead.names[id] = name
 		var known: bool = _connected.has(id)
 		var was: bool = _connected.get(id, connected)
 		var was_afk: bool = hud.overhead.away_ids.has(id)
