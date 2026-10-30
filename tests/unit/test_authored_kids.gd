@@ -371,7 +371,6 @@ func test_a_tagged_kid_shrinks_away_where_it_stood_then_grows_back_in_the_box() 
 			smallest = minf(smallest, size)
 		assert_lt(shrink_frames, 14, "super fast: under a quarter of a second")
 		assert_almost_eq(smallest, KidModel.GONE_SCALE, 0.0001, "it disappears")
-		assert_eq(kid._shadow.scale.x, kid._body.scale.x, "the shadow goes with it")
 		assert_true(kid.is_vanishing())
 		assert_eq(kid.pose, "idle", "no fall animation")
 		# then it is in the box and grows back
@@ -383,7 +382,6 @@ func test_a_tagged_kid_shrinks_away_where_it_stood_then_grows_back_in_the_box() 
 			assert_gte(kid._body.scale.x, grown - 0.0001, "only grows")
 			grown = kid._body.scale.x
 		assert_eq(kid._body.scale, Vector3.ONE, "exactly full size again")
-		assert_eq(kid._shadow.scale, Vector3.ONE)
 		assert_false(kid.is_vanishing())
 		assert_eq(kid._player.current_animation, "idle", "standing there with Idle")
 
@@ -411,7 +409,6 @@ func test_a_rescue_leaves_no_leftover_scale() -> void:
 	state.tagged = false  # rescued at once
 	kid.animate(1.0 / 60.0, 0.0, state)
 	assert_eq(kid._body.scale, Vector3.ONE)
-	assert_eq(kid._shadow.scale, Vector3.ONE)
 	assert_false(kid.is_vanishing())
 	# a full tag, wait in the box, then the rescue
 	state.tagged = true

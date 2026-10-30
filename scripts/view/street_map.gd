@@ -163,6 +163,9 @@ var _row_pictures: Dictionary[float, Node3D] = {}
 var _base_materials: Dictionary[int, Array] = {}
 ## side -> that base's team colour as the viewer sees it (blue yours, red theirs).
 var _side_tint: Dictionary[int, Color] = {}
+## Per side: whether its rescue area was last drawn in the team's colour (ready) or white (counting down), so a material is touched only
+## when that changes.
+var _rescue_ready: Dictionary[int, bool] = {}
 ## side -> that base's electric post.
 var _posts: Dictionary[int, Node3D] = {}
 
@@ -236,10 +239,31 @@ static func _light_scene(parent: Node, sun: DirectionalLight3D) -> void:
 func set_own_side(own_side: int) -> void:
 	_turn_posts(own_side)
 	_show_top_boundary(own_side)
+	_rescue_ready.clear()
 	for side: int in _base_materials:
 		var tint: Color = OWN_COLOR if side == own_side else ENEMY_COLOR
 		_side_tint[side] = tint
 		for material: StandardMaterial3D in _base_materials[side]:
+			var color: Color = tint
+			color.a = material.albedo_color.a
+			material.albedo_color = color
+
+
+## Each team's rescue area is white while its countdown runs (`MatchSim.rescue_ready_left`) and the team's colour (blue yours, red theirs)
+## once a teammate can rescue there.
+func sync_rescue(sim: MatchSim) -> void:
+	for team: int in [0, 1]:
+		var side: int = sim.side_for_team(team)
+		if not _base_materials.has(side):
+			continue
+		var ready: bool = sim.rescue_ready_left[team] <= 0.0
+		if _rescue_ready.get(side, not ready) == ready:
+			continue
+		_rescue_ready[side] = ready
+		var tint: Color = _side_tint[side] if ready else Color.WHITE
+		var materials: Array = _base_materials[side]
+		for index: int in [2, 3]:
+			var material: StandardMaterial3D = materials[index] as StandardMaterial3D
 			var color: Color = tint
 			color.a = material.albedo_color.a
 			material.albedo_color = color

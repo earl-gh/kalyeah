@@ -75,9 +75,21 @@ const TRACK_BEVEL: Color = Color(0.55, 0.78, 1.0, 0.2)
 ## The filled part: a light glossy top band over a deeper lower half (Clash Royale's elixir bar), a thin shine line near the top.
 const ICE_FILL_TOP: Color = Color(0.45, 0.85, 1.0)
 const ICE_FILL_BOTTOM: Color = Color(0.1, 0.5, 0.95)
-const FILL_SPLIT: float = 0.45
 const FILL_SHINE: Color = Color(1.0, 1.0, 1.0, 0.4)
 const FILL_SHINE_Y: float = 4.0
+## The polish (owner: the bar was just lines of colour): a glossy see-through band over the top third of every whole segment, a pale
+## line along its lower edge, a lit edge beside each divider, and a soft glow trailing the filling segment's leading edge.
+const GLOSS_BAND: Color = Color(1.0, 1.0, 1.0, 0.3)
+const GLOSS_TOP: float = 2.5
+const GLOSS_SHARE: float = 0.36
+const GLOSS_SIDE: float = 3.0
+const FILL_LOWER_LIGHT: Color = Color(0.7, 0.92, 1.0, 0.28)
+const DIVIDER_LIGHT: Color = Color(0.65, 0.88, 1.0, 0.28)
+const LEAD_GLOW: Color = Color(1.0, 1.0, 1.0, 0.5)
+const LEAD_GLOW_WIDTH: float = 16.0
+## The track is a glass tube: its dark blue is a touch lighter toward the bottom, under the shadow of its top edge.
+const TRACK_BOTTOM: Color = Color(0.07, 0.26, 0.62)
+const ROUND_STEPS: int = 6
 ## The fill reaches this far under the outline, so the outline (drawn last) hides the seam between them at the rounded corners.
 const FILL_BLEED: int = 1
 ## A piece with rounded corners feathers ALL its edges, which would leave a faint line against its square neighbour: it reaches this far
@@ -812,6 +824,7 @@ func _draw_bar() -> void:
 	track.set_corner_radius_all(radius)
 	track.anti_aliasing = true
 	draw_style_box(track, bar_rect)
+	_draw_track_glass(radius)
 	_draw_track_shading(radius)
 	_draw_fill(radius)
 	_draw_dividers()
@@ -851,6 +864,16 @@ func _draw_marker(radius: int) -> void:
 	draw_style_box(line, marker)
 
 
+## The empty track as a glass tube: its dark blue turns lighter toward the bottom (inside the rounded ends).
+func _draw_track_glass(radius: int) -> void:
+	var inner: Rect2 = bar_rect.grow(-float(BAR_OUTLINE))
+	var points: PackedVector2Array = rounded_points(inner, float(maxi(radius - BAR_OUTLINE, 1)), true, true)
+	var colors: PackedColorArray = PackedColorArray()
+	for point: Vector2 in points:
+		colors.append(ICE_EMPTY.lerp(TRACK_BOTTOM, clampf((point.y - inner.position.y) / inner.size.y, 0.0, 1.0)))
+	draw_polygon(points, colors)
+
+
 ## The track's depth: a soft shadow under its top edge and a faint light line over its bottom (both stop short of the rounded corners).
 func _draw_track_shading(radius: int) -> void:
 	var left: float = bar_rect.position.x + float(radius)
@@ -886,10 +909,14 @@ func _draw_fill(radius: int) -> void:
 			_draw_piece(Rect2(cell.position, Vector2(width, cell.size.y)), REFILL_WHITE, fill_radius, first, false, true, true)
 			var x: float = cell.position.x + width
 			draw_line(Vector2(x, cell.position.y + 2.0), Vector2(x, cell.end.y - 2.0), REFILL_EDGE, 2.0, true)
+			# a soft glow trailing the leading edge
+			var glow_from: float = maxf(x - LEAD_GLOW_WIDTH, cell.position.x + (float(fill_radius) if first else 0.0))
+			var clear: Color = Color(LEAD_GLOW, 0.0)
+			draw_polygon(PackedVector2Array([Vector2(glow_from, cell.position.y + 3.0), Vector2(x, cell.position.y + 3.0), Vector2(x, cell.end.y - 3.0), Vector2(glow_from, cell.end.y - 3.0)]), PackedColorArray([clear, LEAD_GLOW, LEAD_GLOW, clear]))
 
 
-## One finished segment: a light band over a deeper lower half and a thin shine; while it pops (`pop` 0 to 1) it grows from the middle with
-## an eased overshoot, clipped to the track, and starts lighter.
+## One finished segment: a smooth light-to-deep gradient with a glossy band over its top third and a pale line along its lower edge; while it
+## pops (`pop` 0 to 1) it grows from the middle with an eased overshoot, clipped to the track, and starts lighter.
 func _draw_solid_cell(cell: Rect2, radius: int, first: bool, last: bool, pop: float) -> void:
 	var rect: Rect2 = cell
 	var top: Color = ICE_FILL_TOP
@@ -900,15 +927,52 @@ func _draw_solid_cell(cell: Rect2, radius: int, first: bool, last: bool, pop: fl
 		var flash: float = POP_FLASH * (1.0 - pop)
 		top = top.lerp(Color.WHITE, flash)
 		bottom = bottom.lerp(Color.WHITE, flash)
-	var split: float = rect.size.y * FILL_SPLIT
-	# the deep colour fills the whole segment and the light band goes over its top: a rounded piece feathers its edges, so nothing
-	# rounded is ever drawn over the dark track
-	_draw_piece(rect, bottom, radius, first, last, true, true)
-	_draw_piece(Rect2(rect.position, Vector2(rect.size.x, split)), top, radius, first, last, true, false)
+	var points: PackedVector2Array = rounded_points(rect, float(radius), first, last)
+	var colors: PackedColorArray = PackedColorArray()
+	for point: Vector2 in points:
+		colors.append(top.lerp(bottom, clampf((point.y - rect.position.y) / rect.size.y, 0.0, 1.0)))
+	draw_polygon(points, colors)
+	# the glossy band: see-through white, a little in from the sides (more at a rounded end of the bar), rounded itself
+	var left_in: float = float(radius) * 0.7 if first else GLOSS_SIDE
+	var right_in: float = float(radius) * 0.7 if last else GLOSS_SIDE
+	var band: Rect2 = Rect2(rect.position + Vector2(left_in, GLOSS_TOP * rect.size.y / cell.size.y), Vector2(rect.size.x - left_in - right_in, rect.size.y * GLOSS_SHARE))
+	var gloss: StyleBoxFlat = StyleBoxFlat.new()
+	gloss.bg_color = GLOSS_BAND
+	gloss.set_corner_radius_all(UiSkin.round_radius(band.size.y))
+	gloss.anti_aliasing = true
+	draw_style_box(gloss, band)
 	var shine_y: float = rect.position.y + FILL_SHINE_Y * rect.size.y / cell.size.y
 	var from_x: float = rect.position.x + (float(radius) if first else 0.0)
 	var to_x: float = rect.end.x - (float(radius) if last else 0.0)
 	draw_line(Vector2(from_x, shine_y), Vector2(to_x, shine_y), FILL_SHINE, 1.5, true)
+	# a pale line along the lower edge, like light through the water
+	var low_y: float = rect.end.y - 3.0
+	draw_line(Vector2(from_x, low_y), Vector2(to_x, low_y), FILL_LOWER_LIGHT, 1.5, true)
+
+
+## The outline of `rect` as a polygon: square corners, except the two at the left when `left` and the two at the right when `right`, which are
+## rounded to `radius` (the bar's own ends, never the seams between segments).
+static func rounded_points(rect: Rect2, radius: float, left: bool, right: bool) -> PackedVector2Array:
+	var points: PackedVector2Array = PackedVector2Array()
+	var r: float = minf(radius, minf(rect.size.x, rect.size.y) / 2.0)
+	# clockwise from the top left: top left, top right, bottom right, bottom left
+	var corners: Array[Dictionary] = [
+		{"at": rect.position, "round": left, "from": PI, "dir": Vector2(1.0, 1.0)},
+		{"at": Vector2(rect.end.x, rect.position.y), "round": right, "from": -PI / 2.0, "dir": Vector2(-1.0, 1.0)},
+		{"at": rect.end, "round": right, "from": 0.0, "dir": Vector2(-1.0, -1.0)},
+		{"at": Vector2(rect.position.x, rect.end.y), "round": left, "from": PI / 2.0, "dir": Vector2(1.0, -1.0)},
+	]
+	for corner: Dictionary in corners:
+		var at: Vector2 = corner["at"] as Vector2
+		if not (corner["round"] as bool):
+			points.append(at)
+			continue
+		var direction: Vector2 = corner["dir"] as Vector2
+		var centre: Vector2 = at + direction * r
+		for step: int in ROUND_STEPS + 1:
+			var angle: float = (corner["from"] as float) + (PI / 2.0) * float(step) / float(ROUND_STEPS)
+			points.append(centre + Vector2(cos(angle), sin(angle)) * r)
+	return points
 
 
 ## A flat piece of the bar; `left`/`right` and `top`/`bottom` pick which of its corners are rounded (the bar's own ends, never the seams).
@@ -935,6 +999,7 @@ func _draw_dividers() -> void:
 	var color: Color = Color(DIVIDER, DIVIDER.a * visible_share)
 	for x: float in divider_positions():
 		draw_line(Vector2(x, inner.position.y), Vector2(x, inner.end.y), color, DIVIDER_WIDTH, true)
+		draw_line(Vector2(x + DIVIDER_WIDTH, inner.position.y + 2.0), Vector2(x + DIVIDER_WIDTH, inner.end.y - 2.0), Color(DIVIDER_LIGHT, DIVIDER_LIGHT.a * visible_share), 1.0, true)
 
 
 func divider_positions() -> PackedFloat32Array:

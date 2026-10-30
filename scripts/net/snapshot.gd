@@ -31,7 +31,7 @@ static func capture(sim: MatchSim, acks: Dictionary[int, int]) -> Dictionary:
 	return {
 		"t": NetProtocol.Msg.SNAPSHOT, "tick": sim.tick, "acks": acks.duplicate(),
 		"players": players, "projectiles": projectiles, "zones": zones, "shields": shields,
-		"phase": sim.phase, "freeze": sim.freeze_left, "intro": sim.intro_left, "clock": sim.match_time,
+		"phase": sim.phase, "freeze": sim.freeze_left, "intro": sim.intro_left, "clock": sim.match_time, "round": sim.round_time,
 		"score": {"p": sim.score.points.duplicate(), "ft": sim.score.first_to, "w": sim.score.winner},
 		"log": _log_of(sim),
 		"cap": {"team": sim.capture_team, "k": sim.capture_kind, "e": sim.capture_elapsed, "need": sim.capture_needed, "r": sim.capture_rate},
@@ -87,6 +87,7 @@ static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 	sim.phase = data.get("phase", sim.phase) as MatchSim.Phase
 	sim.intro_left = data.get("intro", 0.0) as float
 	sim.match_time = data.get("clock", sim.match_time) as float
+	sim.round_time = data.get("round", sim.round_time) as float
 	if was_intro and sim.phase == MatchSim.Phase.PLAYING:
 		sim.intro_finished.emit()
 	sim.freeze_left = data.get("freeze", 0.0) as float

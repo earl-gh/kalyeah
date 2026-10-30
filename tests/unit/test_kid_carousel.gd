@@ -127,7 +127,9 @@ func test_five_cards_are_in_view_and_step_down_from_the_middle() -> void:
 		var inner: Button = strip.cards[posmod(strip.index + signi(offset), 6)]
 		assert_true(outer.visible)
 		assert_almost_eq(outer.scale.x, KidCarousel.LEVEL_SCALE[2], 0.01, "the outer two are smaller still")
-		assert_lt(outer.modulate.r, inner.modulate.r, "and darker")
+		assert_almost_eq(outer.modulate.r, 1.0 - MenuCarousel.SHADE_LOSS, 0.01, "dimmed like the mode models on the Play tab")
+		assert_almost_eq(inner.modulate.r, outer.modulate.r, 0.01, "one dim for every card behind the chosen one")
+		assert_almost_eq(inner.modulate.a, MenuCarousel.BACK_ALPHA, 0.01, "and a little see-through, the same")
 		assert_lt(outer.z_index, inner.z_index, "and further back")
 		assert_gt(absf(_card_rect(strip, outer).get_center().x - chosen.get_rect().get_center().x), absf(_card_rect(strip, inner).get_center().x - chosen.get_rect().get_center().x), "and further out")
 	var far: Button = strip.cards[posmod(strip.index + 3, 6)]

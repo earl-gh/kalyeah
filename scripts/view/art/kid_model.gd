@@ -20,7 +20,6 @@ const KID_HEIGHT: float = 1.85
 const POLYMORPH_CAN_MODEL: String = "can"
 const POLYMORPH_CAN_HEIGHT: float = 1.3
 const HIT_TIME: float = 0.28
-const SHADOW_SIZE: float = 1.1
 const BLEND: float = 0.14
 ## The sim steps at 30 Hz but the screen draws faster: with no new position for this
 ## long the kid is standing still.
@@ -47,7 +46,6 @@ const STENCIL: int = 1
 static var _scenes: Dictionary[String, PackedScene] = {}
 static var _portraits: Dictionary[String, Texture2D] = {}
 static var _faces: Dictionary[String, Texture2D] = {}
-static var _shadow_texture: GradientTexture2D
 
 var character: CharacterDef
 ## A foot hit the ground (run cycle).
@@ -57,7 +55,6 @@ var _set: StringName = FALLBACK_SET
 var _body: Node3D  # flinches (pivot at the feet) and is what shrinks
 var _model: Node3D
 var _player: AnimationPlayer
-var _shadow: MeshInstance3D
 var _stars: Node3D
 var _can: Node3D
 var _facing: Vector2 = Vector2(0.0, 1.0)
@@ -192,7 +189,6 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	_hit_left = maxf(0.0, _hit_left - delta)
 	var polymorphed: bool = state.effects.has(StatusEffects.Type.POLYMORPH)
 	_model.visible = not polymorphed
-	_shadow.visible = true
 	_can.visible = polymorphed
 	set_ghost(state.tagged)
 	if polymorphed:
@@ -267,7 +263,6 @@ func _step_vanish(delta: float, tagged: bool) -> void:
 			_vanish = Vanish.NONE
 			size = 1.0
 	_body.scale = Vector3.ONE if size >= 1.0 else Vector3.ONE * maxf(size, GONE_SCALE)
-	_shadow.scale = _body.scale
 	_last_position = position
 
 
@@ -354,20 +349,6 @@ static func _scene(set_id: StringName) -> PackedScene:
 
 
 func _build() -> void:
-	_shadow = MeshInstance3D.new()
-	_shadow.name = "Shadow"
-	var quad: QuadMesh = QuadMesh.new()
-	quad.size = Vector2.ONE * SHADOW_SIZE
-	quad.orientation = PlaneMesh.FACE_Y
-	var material: StandardMaterial3D = StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.albedo_texture = _blob_texture()
-	quad.material = material
-	_shadow.mesh = quad
-	_shadow.position.y = 0.04
-	_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(_shadow)
 	_body = Node3D.new()
 	_body.name = "Body"
 	add_child(_body)
@@ -421,18 +402,3 @@ func _build_stars() -> Node3D:
 		piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ring.add_child(piece)
 	return ring
-
-
-static func _blob_texture() -> GradientTexture2D:
-	if _shadow_texture == null:
-		var gradient: Gradient = Gradient.new()
-		gradient.colors = PackedColorArray([Color(0.0, 0.0, 0.0, 0.45), Color(0.0, 0.0, 0.0, 0.0)])
-		gradient.offsets = PackedFloat32Array([0.0, 1.0])
-		_shadow_texture = GradientTexture2D.new()
-		_shadow_texture.gradient = gradient
-		_shadow_texture.fill = GradientTexture2D.FILL_RADIAL
-		_shadow_texture.fill_from = Vector2(0.5, 0.5)
-		_shadow_texture.fill_to = Vector2(1.0, 0.5)
-		_shadow_texture.width = 64
-		_shadow_texture.height = 64
-	return _shadow_texture

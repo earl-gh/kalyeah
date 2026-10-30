@@ -4,7 +4,7 @@ func test_clock_caption_and_time_fit_with_padding_even_in_overtime() -> void:
 	var chip: ClockChip = autofree(ClockChip.new()) as ClockChip
 	chip.size = MatchHud.CLOCK_SIZE
 	add_child(chip)
-	var content: Rect2 = Rect2(ClockChip.PADDING, chip.size - ClockChip.PADDING * 2.0)
+	var content: Rect2 = Rect2(ClockChip.INNER_LEFT, ClockChip.INNER_TOP, chip.size.x - ClockChip.INNER_LEFT - ClockChip.INNER_RIGHT, chip.size.y - ClockChip.INNER_TOP - ClockChip.INNER_BOTTOM)
 	for seconds: float in [0.0, 65.0, 5999.0]:
 		for overtime: bool in [false, true]:
 			chip.show_time(seconds, overtime)
@@ -12,3 +12,10 @@ func test_clock_caption_and_time_fit_with_padding_even_in_overtime() -> void:
 			for line: Rect2 in lines:
 				assert_true(content.encloses(line), "%s / %s includes its outline inside the padding" % [chip.caption_text(), chip.text()])
 			assert_gte(lines[1].position.y - lines[0].end.y, ClockChip.LINE_GAP)
+
+
+func test_the_clock_keeps_more_room_at_its_top_and_right_than_at_its_open_side() -> void:
+	assert_gt(ClockChip.INNER_TOP, ClockChip.INNER_BOTTOM, "more room at the top, where the box meets the screen's edge")
+	assert_gt(ClockChip.INNER_RIGHT, ClockChip.INNER_LEFT, "and at the right")
+	assert_gte(ClockChip.INNER_TOP, 16.0)
+	assert_gte(ClockChip.INNER_RIGHT, 20.0)

@@ -26,11 +26,13 @@ func _wait(sim: MatchSim, seconds: float) -> void:
 		sim.step(DT)
 
 
-func test_overtime_is_off_in_the_shipped_rules() -> void:
-	assert_eq(_rules.overtime_after, 0.0)
+func test_the_shipped_rules_give_a_round_a_time_so_the_clock_can_count_down() -> void:
+	assert_eq(_rules.overtime_after, 180.0, "three minutes, then overtime (owner: Time left counts down)")
+	assert_lt(_rules.overtime_capture_time, _rules.capture_solo_time, "overtime makes a capture shorter")
 
 
 func test_without_overtime_the_capture_time_never_changes() -> void:
+	_rules.overtime_after = 0.0
 	var sim: MatchSim = _sim()
 	_wait(sim, 300.0)
 	assert_eq(sim.capture_needed, _rules.capture_solo_time)

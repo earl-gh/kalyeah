@@ -94,6 +94,7 @@ func sync(delta: float) -> void:
 	owner.hud.sync_player(owner.sim, player, owner._pick_screen.visible)
 	_sync_aim(player)
 	owner._fx.sync(owner.sim, delta)
+	owner._map.sync_rescue(owner.sim)
 	owner.hud.overhead.tick(delta)
 	owner.hud.marker.tick(delta)
 	owner.hud.sync_score(owner.sim, owner.local_team, delta, owner.local_id)

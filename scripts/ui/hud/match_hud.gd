@@ -90,8 +90,10 @@ var results: MatchResults
 var coach: CoachMarks
 ## What the results card says the match was ("Practice", "Hotspot", "Online").
 var results_mode: String = "Practice"
-## Big countdown in the middle while a capture is running.
+## Big countdown in the middle while a capture is running (not an enemy taking your base: that is `capture_alert`).
 var capture_label: Label
+## The warning for an enemy taking your base: a triangle in the middle of the scoreboard and two lines under its row.
+var capture_alert: CaptureAlert
 var settings_button: TextureButton
 var menu: MatchMenu
 var banner: Label
@@ -257,7 +259,8 @@ func _block_tag(sim: MatchSim, player: PlayerState) -> String:
 func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1) -> void:
 	scoreboard.show_score(sim.score, local_team, sim.match_time)
 	scoreboard.show_capture(sim, local_team)
-	clock_chip.show_time(sim.match_time, sim.in_overtime())
+	var counting: bool = sim.rules.overtime_after > 0.0
+	clock_chip.show_time(maxf(sim.rules.overtime_after - sim.round_time, 0.0) if counting else sim.match_time, sim.in_overtime(), counting)
 	_sync_capture(sim, local_team)
 	again_button.visible = sim.phase == MatchSim.Phase.MATCH_OVER
 	point_result.sync(sim, local_team)
@@ -271,7 +274,7 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 		item.visible = not covered
 	overhead.visible = not covered or overhead.tag_count() > 0
 	if covered:
-		for item: CanvasItem in [hand, chat, tagged_panel, intro_bar, capture_label, banner, coach]:
+		for item: CanvasItem in [hand, chat, tagged_panel, intro_bar, capture_label, capture_alert, banner, coach]:
 			item.hide()
 	if _covered != covered:
 		_covered = covered
@@ -282,18 +285,21 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 			banner.visible = false
 
 
-## "CAPTURING 3" for us, "DEFEND! 3" against us, in the middle of the screen.
+## "HOLD THE BASE! 3" for us, in the middle of the screen; against us it is the warning triangle and its two lines at the top (`capture_alert`).
 func _sync_capture(sim: MatchSim, local_team: int) -> void:
-	capture_label.visible = sim.capture_team >= 0 and sim.phase == MatchSim.Phase.PLAYING
+	var running: bool = sim.capture_team >= 0 and sim.phase == MatchSim.Phase.PLAYING
+	var ours: bool = sim.capture_team == local_team
+	var alert: bool = running and not ours and sim.capture_kind == MatchSim.CaptureKind.BASE
+	capture_alert.show_alert(alert)
+	capture_label.visible = running and not alert
 	if not capture_label.visible:
 		return
 	var seconds: int = ceili(sim.capture_time_left())
-	var ours: bool = sim.capture_team == local_team
 	var how: String
 	if sim.capture_kind == MatchSim.CaptureKind.ALL_TAGGED:
 		how = "ALL TAGGED!" if ours else "ALL OF YOU TAGGED!"
 	else:
-		how = "HOLD THE BASE!" if ours else "DEFEND YOUR BASE!"
+		how = "HOLD THE BASE!"
 	capture_label.text = "%s\n%d" % [how, seconds]
 	capture_label.add_theme_color_override("font_color", CAPTURE_COLOR.lerp(TeamColors.feed_own() if ours else TeamColors.feed_enemy(), 0.35))
 
@@ -315,6 +321,8 @@ func _build() -> void:
 	console.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(console)
 	MatchHudTop.build(self)
+	capture_alert = CaptureAlert.new()
+	add_child(capture_alert)
 	hand = CardHand.new()
 	add_child(hand)
 	chat = QuickChat.new()
