@@ -47,6 +47,8 @@ class Rec extends RefCounted:
 	var clusters: Array[Node3D] = []
 	var homes: Array[Vector3] = []
 	var hops: PackedFloat32Array = PackedFloat32Array()
+	## Each cluster's own turn about the vertical (radians), kept so a smear can lie along the flight in world axes.
+	var turns: PackedFloat32Array = PackedFloat32Array()
 	var landed: int = 0
 	var cluster_scale: float = 1.0
 
@@ -215,12 +217,16 @@ func _create(zone: WeaponSystem.Zone) -> Rec:
 			rec.clusters.append(cluster)
 			rec.homes.append(cluster.position)
 			rec.hops.append(-1.0)
+			rec.turns.append(cluster.rotation.y)
 		rec.cluster_scale = rec.clusters[0].scale.x if not rec.clusters.is_empty() else 1.0
 	if zone.def != null:
 		var origin: Variant = _ctx.cast_origin(zone.def.id, zone.team)
 		rec.origin = origin as Vector2 if origin != null else Vector2.INF
 	add_child(rec.node)
 	_recs[rec.id] = rec
+	# the thrower's release streak toward the spot the throw lands on (not the meteor: it falls from the sky)
+	if zone.def != null and zone.def.id != &"bato_heavy" and zone.kind != WeaponSystem.ZoneKind.SLOW_ZONE and rec.origin != Vector2.INF:
+		FxRelease.play(_ctx, rec.origin, zone.center - rec.origin, zone.def.speed, FxLandings.CAN_HAND_Y)
 	return rec
 
 
@@ -291,11 +297,21 @@ func _step_ghosts() -> void:
 			ghost.node.queue_free()
 			continue
 		if ghost.kind == &"can":
-			# squashed on its base for two frames, then stretched up for two (its base stays on the street)
-			var s: float = FxLandings.CAN_LAND_S if age < FxLandings.CAN_LAND_FRAMES * FxSquash.FRAME else FxLandings.CAN_REBOUND_S
+			# squashed on its base for two frames, then springing back through an overshoot to its size (its base stays on the street)
+			var s: float = FxSquash.landing(FxLandings.CAN_LAND_S, age / FxSquash.FRAME, FxLandings.CAN_LAND_FRAMES)
 			var squash: Node3D = ghost.node.get_node("Squash") as Node3D
 			squash.basis = Basis.from_scale(FxSquash.along(s))
 			(squash.get_node("Spin") as Node3D).basis = Basis.IDENTITY
 			ghost.node.position.y = landings.can_height() / 2.0 * s
+		elif ghost.kind == &"spring":
+			# the sprung trap ball: stretched up for two frames, then back through a squash to its size (its bottom stays down)
+			var s: float = FxSquash.landing(FxFields.SPRING_S, age / FxSquash.FRAME)
+			(ghost.node.get_node("Squash") as Node3D).basis = Basis.from_scale(FxSquash.along(s))
+			ghost.node.position.y = fields.ball_height() / 2.0 * s
+		elif ghost.kind == &"meteor":
+			# squashed flat on the street for two frames, springing back through an overshoot (its bottom stays on the street)
+			var s: float = FxSquash.landing(FxLandings.METEOR_IMPACT_S, age / FxSquash.FRAME)
+			(ghost.node.get_node("Squash") as Node3D).basis = Basis.from_scale(FxSquash.along(s))
+			ghost.node.position.y = WeaponModel.METEOR_SIZE / 2.0 * s
 		still.append(ghost)
 	_ghosts = still

@@ -12,8 +12,9 @@ const SPIN: float = 2.0
 const TOP_SPIN: float = 6.0
 ## Dust kicked up at the thrower's feet when something is thrown (at the feet, never over the kid's body).
 const THROW_DUST: int = 4
-## The rock: tumbles end over end this many turns a second; on a hit it squashes flat for `FxSquash.IMPACT_FRAMES` frames
-## and breaks into `ROCK_CHIPS` chips.
+## The rock: tumbles end over end this many turns a second; it is smeared along its flight for its first `FxSquash.SMEAR_FRAMES`
+## frames (crisp after); on a hit it squashes flat for `FxSquash.IMPACT_FRAMES` frames, springs back through an overshoot to
+## its own size (`FxSquash.landing`) and breaks into `ROCK_CHIPS` chips.
 const ROCK_TUMBLE: float = 2.5
 const ROCK_CHIPS: int = 4
 ## The spinning top stands on its tip on the street (`TOP_SPIN` turns a second) and wobbles (FxMotion.top_tilt). It drops
@@ -24,6 +25,9 @@ const ROCK_CHIPS: int = 4
 ## radius plus `FxSlippers.SLAP_REACH` m.
 const TOP_DROP: float = 0.6
 const TOP_DROP_FRAMES: int = 2
+## The drop is smeared (stretched `TOP_DROP_STRETCH` along its fall, with a white trail `TOP_DROP_TRAIL` m long above it).
+const TOP_DROP_STRETCH: float = 1.3
+const TOP_DROP_TRAIL: float = 1.0
 const TOP_LAND_S: float = 0.8
 const TOP_LAND_DUST: int = 4
 const TOP_LAUNCH_DUST: int = 6
@@ -75,6 +79,11 @@ class Rec extends RefCounted:
 	var trail: CPUParticles3D
 	var spiked: float = -1.0
 	var landed: bool = false
+	## View time its fast motion began (the throw, a slipper's turn back): the smear fades out over the frames after it.
+	var smear_from: float = 0.0
+	## View time the slipper's return trail is due (-1: none pending), and when its current reaction began.
+	var tail_due: float = -1.0
+	var react_from: float = -1.0
 
 
 ## A removed projectile playing its end.
@@ -188,9 +197,30 @@ func _create(projectile: WeaponSystem.Projectile) -> Rec:
 	add_child(rec.holder)
 	_recs[rec.id] = rec
 	_ctx.shadows.attach(rec.id, drawn_width(rec.def) * (TOP_SHADOW if rec.kind == &"top" else 1.0), rec.team)
+	rec.smear_from = _ctx.time
 	if rec.kind == &"rock" or rec.kind == &"slipper":
 		_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(projectile.position.x, 0.0, projectile.position.y), THROW_DUST)
+	_release(rec, projectile)
 	return rec
+
+
+## The streaks of a throw on the frame its object is first seen: the thrower's release trail along the aim (a rock, a slipper,
+## the marble), or the white trail above a spinning top as it drops in.
+func _release(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
+	if _ctx.reduced:
+		return
+	var at: Vector2 = projectile.position
+	if rec.kind == &"top":
+		var head: Vector3 = Vector3(at.x, TOP_DROP + drawn_width(rec.def) * TOP_SHADOW, at.y)
+		_ctx.ground.trail(head + Vector3.UP * TOP_DROP_TRAIL, head, FxRelease.WIDTH, Color.WHITE, FxSquash.SMEAR_FRAMES * FxSquash.FRAME)
+		return
+	var dir: Vector2 = projectile.direction
+	var thrower: PlayerState = _ctx.sim.players.get(projectile.owner_id) as PlayerState if _ctx.sim != null else null
+	if dir == Vector2.ZERO and thrower != null:
+		dir = thrower.facing
+	var from: Vector2 = thrower.position if thrower != null else at
+	var height: float = FxMotion.BOLA_HAND_Y if rec.kind == &"marble" else PROJECTILE_HEIGHT * _ctx.view_scale
+	FxRelease.play(_ctx, from, dir, rec.def.speed, height)
 
 
 func _update(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
@@ -210,14 +240,14 @@ func _update(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 	_ctx.shadows.place(rec.id, projectile.position, rec.holder.position.y)
 
 
-## The rock pops out of the hand, tumbles end over end and stretches along its flight (it homes on its target).
+## The rock pops out of the hand, tumbles end over end and is smeared along its flight on its first frames (it homes on its target).
 func _rock(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 	if _ctx.reduced:
 		rec.squash.basis = Basis.IDENTITY
 		return
 	var dir: Vector3 = dir3(rec, projectile)
 	var pop: float = FxSquash.pop((_ctx.time - rec.born) / (FxSquash.POP_FRAMES * FxSquash.FRAME))
-	rec.squash.basis = FxSquash.stretch_basis(dir, FxSquash.velocity_stretch(rec.def.speed)).scaled(Vector3.ONE * maxf(pop, 0.01))
+	rec.squash.basis = smear_basis(rec, dir).scaled(Vector3.ONE * maxf(pop, 0.01))
 	var axis: Vector3 = dir.cross(Vector3.UP)
 	if axis.length_squared() > 0.0001:
 		rec.spin_angle += _ctx.delta * TAU * ROCK_TUMBLE
@@ -237,15 +267,17 @@ func _top(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 	var shape: Vector3 = Vector3.ONE
 	if age < drop:
 		rec.holder.position.y = TOP_DROP * (1.0 - age / drop)
+		shape = FxSquash.smear_scale(TOP_DROP_STRETCH)
 	elif not rec.landed:
 		rec.landed = true
 		_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(projectile.position.x, 0.0, projectile.position.y), TOP_LAND_DUST)
 		rec.trail = _ctx.particles.trail_take()
-	if age >= drop and age < drop + FxSquash.IMPACT_FRAMES * FxSquash.FRAME:
-		shape = FxSquash.along(TOP_LAND_S)
+	var landed_frames: float = (age - drop) / FxSquash.FRAME
+	if age >= drop and landed_frames < FxSquash.landing_frames():
+		shape = FxSquash.along(FxSquash.landing(TOP_LAND_S, landed_frames))
 	var spike_age: float = _ctx.time - rec.spiked if rec.spiked >= 0.0 else -1.0
-	if spike_age >= 0.0 and spike_age < FxSquash.IMPACT_FRAMES * FxSquash.FRAME:
-		shape = FxSquash.along(TOP_LAND_S)
+	if spike_age >= 0.0 and spike_age / FxSquash.FRAME < FxSquash.landing_frames():
+		shape = FxSquash.along(FxSquash.landing(TOP_LAND_S, spike_age / FxSquash.FRAME))
 	rec.squash.basis = FxMotion.top_tilt(_ctx.time, spike_age) * Basis.from_scale(shape)
 	if rec.trail != null:
 		rec.trail.global_position = Vector3(projectile.position.x, 0.05, projectile.position.y)
@@ -268,6 +300,13 @@ func toward_camera(angle: float) -> Basis:
 	var back: Vector3 = camera.global_basis.z if camera != null else FxKit.CAMERA_BACK
 	var axis: Vector3 = Vector3.UP.cross(Vector3(back.x, 0.0, back.z).normalized())
 	return Basis(axis.normalized(), angle) if axis.length_squared() > 0.0001 else Basis.IDENTITY
+
+
+## The smear of `rec`'s object along `dir` right now: stretched along its flight over its first frames after
+## `rec.smear_from`, a plain basis (crisp) after.
+func smear_basis(rec: Rec, dir: Vector3) -> Basis:
+	var frames: float = (_ctx.time - rec.smear_from) / FxSquash.FRAME
+	return FxSquash.smear_basis(dir, FxSquash.smear_stretch(rec.def.speed, drawn_width(rec.def), frames))
 
 
 ## The direction of travel in the world (offline the sim's, online from the moves seen).
@@ -302,10 +341,11 @@ func _remove(id: int) -> void:
 	if _ctx.reduced or rec.kind != &"rock":
 		rec.holder.queue_free()
 		return
-	# the rock smacks into its target: a flat squash for two frames, then it breaks into chips
+	# the rock smacks into its target: a flat squash for two frames, a spring back through an overshoot to its size (one
+	# crisp frame), and it breaks into chips
 	rec.squash.basis = Basis.from_scale(FxSquash.along(FxSquash.IMPACT_S))
 	_ctx.particles.puff(FxParticles.Preset.CHIPS, rec.holder.position, ROCK_CHIPS)
-	ghost(rec.holder, &"rock", FxSquash.IMPACT_FRAMES * FxSquash.FRAME)
+	ghost(rec.holder, &"rock", (FxSquash.landing_frames() + 1) * FxSquash.FRAME)
 
 
 func ghost(node: Node3D, kind: StringName, life: float) -> Ghost:
@@ -328,6 +368,9 @@ func _step_ghosts() -> void:
 		if ghost.kind == &"catch":
 			ghost.node.position = ghost.from.lerp(ghost.to, t)
 			ghost.node.scale = Vector3.ONE * _ctx.view_scale * maxf(1.0 - t, 0.01)
+		elif ghost.kind == &"rock":
+			var frames: float = (_ctx.time - ghost.born) / FxSquash.FRAME
+			(ghost.node.get_node("Squash") as Node3D).basis = Basis.from_scale(FxSquash.along(FxSquash.landing(FxSquash.IMPACT_S, frames)))
 		elif ghost.kind == &"tip_over":
 			# lean 8 -> 35 degrees over the first 6 frames, then fall over to 80, spinning slower, shrinking away
 			var lean: float = lerpf(FxMotion.TOP_TILT, TOP_END_TILT, minf(t / 0.75, 1.0)) if t < 0.75 else lerpf(TOP_END_TILT, TOP_FALL_TILT, (t - 0.75) / 0.25)

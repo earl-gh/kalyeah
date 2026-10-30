@@ -5,8 +5,9 @@ extends RefCounted
 ## sinking away). FxZones owns the zones and their nodes; this only poses them.
 
 ## The paper trap is tossed from the thrower's hand (`FxLandings.CAN_HAND_Y` m) over `TOSS_TIME` s, arcing `TOSS_PEAK` m and turning
-## once, lands squashed (`FxSquash.IMPACT_S`) and, armed, breathes (`BREATHE_S` to 1 at `BREATHE_HZ`). When a kid trips it
-## it springs (`SPRING_S` for `FxSquash.IMPACT_FRAMES` frames) into `PAPER_BURST` paper bits and `SCRAPS` scraps, and the slow
+## once, is smeared along its toss on the fast frames (FxSquash.smear_stretch), lands squashed (`FxSquash.IMPACT_S`, springing
+## back through an overshoot to 1: FxSquash.landing) and, armed, breathes (`BREATHE_S` to 1 at `BREATHE_HZ`). When a kid trips it
+## it springs (`SPRING_S` for `FxSquash.IMPACT_FRAMES` frames, then back through a squash to 1) into `PAPER_BURST` paper bits and `SCRAPS` scraps, and the slow
 ## zone's fill pops out over `FILL_POP_FRAMES` frames. In the last `SLOW_FADE` s of the slow zone its rim fades to
 ## `FADE_RIM` of itself and its fill to nothing.
 const TOSS_TIME: float = 0.2
@@ -20,7 +21,8 @@ const FILL_POP_FRAMES: int = 4
 const SLOW_FADE: float = 0.3
 const FADE_RIM: float = 0.42
 ## The jacks are tossed from the thrower's hand in a spray, one cluster a frame (`JACK_STAGGER`), each flying
-## `JACK_FLIGHT_FRAMES` frames `JACK_PEAK` m high and landing squashed (`JACK_LAND_S`), the spray throwing `JACK_DUST` dust
+## `JACK_FLIGHT_FRAMES` frames `JACK_PEAK` m high, smeared along their flight on its first and last frames, and landing squashed
+## (`JACK_LAND_S`, springing back to 1), the spray throwing `JACK_DUST` dust
 ## (one shared puff). A tick that hurts a kid makes the nearest cluster hop `JACK_HOP` m for a frame. In the last `SLOW_FADE` s they sink `JACK_SINK` m
 ## and shrink to `JACK_SHRINK` while the fill fades.
 const JACK_STAGGER: int = 1
@@ -98,13 +100,16 @@ func trap(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 		var dir: Vector3 = Vector3(-offset.x, 0.0, -offset.y)
 		var axis: Vector3 = dir.cross(Vector3.UP) if dir.length_squared() > 0.0001 else Vector3.RIGHT
 		spin.basis = Basis(axis.normalized(), TAU * p)
-		squash.basis = Basis.IDENTITY
+		var velocity: Vector3 = (Vector3(0.0, half, 0.0) - Vector3(offset.x, FxLandings.CAN_HAND_Y, offset.y)) + Vector3(0.0, TOSS_PEAK * 4.0 * (1.0 - 2.0 * p), 0.0)
+		var frames: float = minf(age, TOSS_TIME - age) / FxSquash.FRAME
+		squash.basis = FxSquash.smear_basis(velocity, FxSquash.smear_stretch(velocity.length() / TOSS_TIME, ball_height(), frames))
 		return
 	spin.basis = Basis.IDENTITY
 	var landed: float = age - (TOSS_TIME if rec.origin != Vector2.INF else 0.0)
 	var s: float = 1.0
-	if landed < FxSquash.IMPACT_FRAMES * FxSquash.FRAME:
-		s = FxSquash.IMPACT_S
+	var settling: float = landed / FxSquash.FRAME
+	if settling < FxSquash.landing_frames():
+		s = FxSquash.landing(FxSquash.IMPACT_S, settling)
 	elif rec.armed:
 		s = lerpf(1.0, BREATHE_S, 0.5 - 0.5 * cos(TAU * BREATHE_HZ * age))
 	squash.basis = Basis.from_scale(FxSquash.along(s))
@@ -126,7 +131,7 @@ func spring(rec: FxZones.Rec) -> void:
 	_zones.add_child(ball)
 	(ball.get_node("Squash") as Node3D).basis = Basis.from_scale(FxSquash.along(SPRING_S))
 	ball.position = Vector3(at.x, ball_height() / 2.0 * SPRING_S, at.z)
-	_zones.ghost(ball, &"spring", FxSquash.IMPACT_FRAMES * FxSquash.FRAME)
+	_zones.ghost(ball, &"spring", (FxSquash.landing_frames() + 1) * FxSquash.FRAME)
 
 
 ## The slow zone's fill pops out, and in its last moments the zone fades (its rim stays faintly until it is gone).
@@ -168,7 +173,8 @@ func field(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 		var cluster: Node3D = rec.clusters[i]
 		var home: Vector3 = rec.homes[i]
 		var scale: float = rec.cluster_scale * lerpf(1.0, JACK_SHRINK, sink)
-		cluster.scale = Vector3.ONE * scale
+		var turn: Basis = Basis(Vector3.UP, rec.turns[i])
+		cluster.basis = turn * Basis.from_scale(Vector3.ONE * scale)
 		cluster.position = home - Vector3(0.0, JACK_SINK * sink, 0.0)
 		if _ctx.reduced:
 			continue
@@ -177,12 +183,18 @@ func field(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 		var t: float = (age - start) / flight
 		if rec.origin != Vector2.INF and t < 1.0:
 			var offset: Vector2 = rec.origin - zone.center
-			cluster.position = FxMotion.toss(Vector3(offset.x, FxLandings.CAN_HAND_Y, offset.y), home, JACK_PEAK, maxf(t, 0.0))
+			var from: Vector3 = Vector3(offset.x, FxLandings.CAN_HAND_Y, offset.y)
+			cluster.position = FxMotion.toss(from, home, JACK_PEAK, maxf(t, 0.0))
 			cluster.visible = t >= 0.0
+			# smeared along its flight over its first and last frames (the fast ones), crisp over the top
+			var velocity: Vector3 = (home - from) + Vector3(0.0, JACK_PEAK * 4.0 * (1.0 - 2.0 * clampf(t, 0.0, 1.0)), 0.0)
+			var frames: float = minf(maxf(t, 0.0), 1.0 - t) * JACK_FLIGHT_FRAMES
+			cluster.basis = FxSquash.smear_basis(velocity, FxSquash.smear_stretch(velocity.length() / flight, WeaponModel.SPIKE_WIDTH, frames)) * cluster.basis
 			continue
 		cluster.visible = true
-		if rec.origin != Vector2.INF and t < 1.0 + float(FxSquash.IMPACT_FRAMES) * FxSquash.FRAME / flight:
-			cluster.scale = FxSquash.along(JACK_LAND_S) * scale
+		var settling: float = (t - 1.0) * float(JACK_FLIGHT_FRAMES)
+		if rec.origin != Vector2.INF and settling < float(FxSquash.landing_frames()):
+			cluster.basis = turn * Basis.from_scale(FxSquash.along(FxSquash.landing(JACK_LAND_S, settling)) * scale)
 			if rec.landed == 0:
 				# one shared puff of dust for the whole spray (one emitter, not one per cluster)
 				rec.landed = 1

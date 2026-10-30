@@ -72,14 +72,14 @@ func test_the_rock_tumbles_and_stretches() -> void:
 	var rock: Node3D = _rig(id)
 	assert_ne(_part(rock, "Squash/Spin").basis, Basis.IDENTITY, "it tumbles")
 	var along: Vector3 = _part(rock, "Squash").basis * Vector3(0.0, 0.0, -1.0)
-	assert_almost_eq(along.length(), 1.30, 0.01, "stretched 1.30 along its flight at 14 m/s")
+	assert_almost_eq(along.length(), 1.0, 0.001, "crisp in the slow part of its flight (the smear is on its first frames: test_fx_smears.gd)")
 	while not _sim.weapons.projectiles.is_empty():
 		_frame()
 	assert_gt(_fx.projectiles.fading_count(), 0, "the hit plays a short squash")
 	assert_gt(_fx.context().particles.busy_emitters(), 0, "and throws chips")
-	for i: int in 3:
+	for i: int in FxSquash.landing_frames() + 2:
 		_frame()
-	assert_eq(_fx.projectiles.fading_count(), 0, "gone two frames later")
+	assert_eq(_fx.projectiles.fading_count(), 0, "gone once it has sprung back to its size")
 
 
 func test_rm_rock_is_still() -> void:
@@ -241,12 +241,12 @@ func test_slap_squashes_the_nearest_slipper() -> void:
 	var slapped: bool = false
 	for i: int in 20:
 		_frame()
-		if _fx.context().ground.live_smears() > 0:
-			var along: Vector3 = _part(_rig(id), "Squash").basis * Vector3(0.0, 0.0, -1.0)
-			assert_almost_eq(along.length(), FxSlippers.SLAP_S, 0.05, "stretched on the slap")
+		var along: Vector3 = _part(_rig(id), "Squash").basis * Vector3(0.0, 0.0, -1.0)
+		if i > 6 and absf(along.length() - FxSlippers.SLAP_S) < 0.05:
+			assert_gt(_fx.context().ground.live_smears(), 0, "with a smack arc swung across its path")
 			slapped = true
 			break
-	assert_true(slapped, "the hit kid got a smack streak from the slipper")
+	assert_true(slapped, "the hit kid got a stretch and a smack arc from the slipper")
 
 
 func test_catch_shrinks_into_the_hand() -> void:
@@ -627,7 +627,7 @@ func test_heal_streak_only_for_someone_else() -> void:
 	_sim.damage(1, 40)
 	_cast(&"heal", Vector2.ZERO)
 	_fx.sync(_sim, DT)
-	assert_eq(_fx.context().ground.live_smears(), 0, "healing yourself: no streak")
+	assert_eq(_fx.context().ground.live_smears(), 1, "healing yourself: only the cross's rise trail, no streak to anyone")
 	assert_eq(_fx.heals.crosses().size(), 1)
 	for i: int in 30:
 		_frame()
@@ -637,7 +637,7 @@ func test_heal_streak_only_for_someone_else() -> void:
 	assert_true(_sim.weapons.fire(_sim, _sim.players[1], heal, (_sim.players[3].position - _sim.players[1].position).normalized(), 0.0))
 	_sim.weapon_cast.emit(1, &"heal")
 	_fx.sync(_sim, DT)
-	assert_eq(_fx.context().ground.live_smears(), 1, "healing a friend: a green streak to them")
+	assert_eq(_fx.context().ground.live_smears(), 2, "healing a friend: the rise trail and a green streak to them")
 	var crosses: Array[Node3D] = _fx.heals.crosses()
 	assert_eq(crosses.size(), 1, "and the cross is on the friend")
 	assert_almost_eq(crosses[0].position.x, _sim.players[3].position.x, 0.01)

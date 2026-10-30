@@ -13,22 +13,28 @@ const METEOR_SHADOW_FROM: float = 0.3
 ## From this far through the fall it glints once (two little stars).
 const METEOR_GLINT_AT: float = 12.0 / 18.0
 const GLINT_STARS: int = 2
-## The landing: the meteor squashes flat (`METEOR_IMPACT_S`) for `FxSquash.IMPACT_FRAMES` frames, a ring of dust is thrown
-## out (`IMPACT_DUST` particles) and dark cracks reach `IMPACT_CRACK` of the circle's radius, fading over `CRACK_TIME` s.
+## On its last `FxSquash.SMEAR_FRAMES` frames, its fastest, the meteor is smeared along its fall (FxSquash.smear_stretch) with a
+## white trail up its path (each frame's, `METEOR_TRAIL_FRAMES` frames long); before that it is crisp.
+const METEOR_TRAIL_FRAMES: int = 2
+## The trail is this share of the meteor's width across.
+const METEOR_TRAIL_WIDTH: float = 0.7
+## The landing: the meteor squashes flat (`METEOR_IMPACT_S`) for `FxSquash.IMPACT_FRAMES` frames, springs back through an
+## overshoot to its size (`FxSquash.landing`), a ring of dust is thrown out (`IMPACT_DUST` particles) and dark cracks reach
+## `IMPACT_CRACK` of the circle's radius, fading over `CRACK_TIME` s.
 const METEOR_IMPACT_S: float = 0.65
 const IMPACT_DUST: int = 12
 const IMPACT_CRACK: float = 0.8
 const CRACK_TIME: float = 0.5
 ## The tossed can (lata) flies from the thrower's hand (`CAN_HAND_Y` m) to the circle's centre, arcing `CAN_PEAK` m plus
 ## `CAN_PEAK_PER_M` per metre thrown over the straight line, turning `CAN_TURNS` times end over end; it lands upright on its
-## base, squashed (`CAN_LAND_S`) then stretched (`CAN_REBOUND_S`) for `CAN_LAND_FRAMES` frames each, with `CAN_DUST` dust.
+## base, squashed (`CAN_LAND_S`) for `CAN_LAND_FRAMES` frames then springing back through an overshoot to its size, with `CAN_DUST`
+## dust. It is smeared along its velocity on its first and last `FxSquash.SMEAR_FRAMES` frames and crisp over the top of the arc.
 ## Online its flight is estimated from the cast's position and speed, `ONLINE_LEAD` s early (the zone is seen late).
 const CAN_HAND_Y: float = 2.2
 const CAN_PEAK: float = 2.2
 const CAN_PEAK_PER_M: float = 0.25
 const CAN_TURNS: float = 1.5
 const CAN_LAND_S: float = 0.7
-const CAN_REBOUND_S: float = 1.2
 const CAN_LAND_FRAMES: int = 2
 const CAN_DUST: int = 6
 const ONLINE_LEAD: float = 0.05
@@ -73,7 +79,9 @@ func can(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 		(squash.get_node("Spin") as Node3D).basis = Basis.IDENTITY
 		return
 	var velocity: Vector3 = (to - from) + Vector3(0.0, peak * 4.0 * (1.0 - 2.0 * p), 0.0)
-	squash.basis = FxSquash.stretch_basis(velocity, FxSquash.velocity_stretch(zone.def.speed))
+	var flight: float = maxf(rec.total - FxSquash.FRAME, FxZones.MIN_TOTAL)
+	var frames: float = minf(p, 1.0 - p) * flight / FxSquash.FRAME
+	squash.basis = FxSquash.smear_basis(velocity, FxSquash.smear_stretch(velocity.length() / flight, can_height(), frames))
 	var axis: Vector3 = dir.cross(Vector3.UP) if dir != Vector3.ZERO else Vector3.RIGHT
 	(squash.get_node("Spin") as Node3D).basis = Basis(axis.normalized(), CAN_TURNS * TAU * p)
 
@@ -93,8 +101,17 @@ func meteor(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 		_ctx.shadows.place(rec.id, zone.center, rec.obj.position.y, lerpf(METEOR_SHADOW_FROM, 1.0, p))
 	if _ctx.reduced:
 		return
-	var axis: Vector3 = (-METEOR_FROM).normalized().cross(Vector3.UP).normalized()
+	var fall: Vector3 = (-METEOR_FROM).normalized()
+	var axis: Vector3 = fall.cross(Vector3.UP).normalized()
 	(rec.obj.get_node("Squash/Spin") as Node3D).basis = Basis(axis, METEOR_TUMBLE * TAU * p)
+	# its fastest frames, the last ones: smeared along the fall with a trail up its path; crisp before
+	var flight: float = maxf(rec.total - FxSquash.FRAME, FxZones.MIN_TOTAL)
+	var frames: float = (1.0 - p) * flight / FxSquash.FRAME
+	var speed: float = METEOR_FROM.length() * 2.0 * p / flight
+	var stretch: float = FxSquash.smear_stretch(speed, WeaponModel.METEOR_SIZE, frames)
+	(rec.obj.get_node("Squash") as Node3D).basis = FxSquash.smear_basis(fall, stretch)
+	if stretch > 1.0 and p < 1.0:
+		FxRelease.behind(_ctx, rec.node.position + rec.obj.position, fall, speed, METEOR_TRAIL_FRAMES, WeaponModel.METEOR_SIZE * METEOR_TRAIL_WIDTH)
 	if p >= METEOR_GLINT_AT and not rec.glinted:
 		rec.glinted = true
 		var at: Vector3 = rec.node.position + rec.obj.position
@@ -113,8 +130,8 @@ func land(rec: FxZones.Rec) -> void:
 			rec.node.remove_child(meteor)
 			_zones.add_child(meteor)
 			meteor.position = Vector3(at.x, WeaponModel.METEOR_SIZE / 2.0 * METEOR_IMPACT_S, at.z)
-			(meteor.get_node("Squash") as Node3D).scale = FxSquash.along(METEOR_IMPACT_S)
-			_zones.ghost(meteor, &"meteor", FxSquash.IMPACT_FRAMES * FxSquash.FRAME)
+			(meteor.get_node("Squash") as Node3D).basis = Basis.from_scale(FxSquash.along(METEOR_IMPACT_S))
+			_zones.ghost(meteor, &"meteor", (FxSquash.landing_frames() + 1) * FxSquash.FRAME)
 			_ctx.particles.puff(FxParticles.Preset.IMPACT, Vector3(center.x, 0.0, center.y), IMPACT_DUST)
 	elif rec.def != null and rec.def.id == &"lata" and rec.obj != null and not _ctx.reduced:
 		# the can lands upright: squash, stretch, then it is gone (it "became" the kids it hit)
@@ -125,4 +142,4 @@ func land(rec: FxZones.Rec) -> void:
 		can.position = Vector3(at.x, 0.0, at.z)
 		var center: Vector2 = Vector2(at.x, at.z)
 		_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(center.x, 0.0, center.y), CAN_DUST)
-		_zones.ghost(can, &"can", 2.0 * CAN_LAND_FRAMES * FxSquash.FRAME)
+		_zones.ghost(can, &"can", (FxSquash.landing_frames(CAN_LAND_FRAMES) + 1) * FxSquash.FRAME)

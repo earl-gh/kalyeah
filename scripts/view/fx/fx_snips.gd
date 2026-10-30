@@ -22,10 +22,11 @@ const SNIP_CASTER_CLEAR: float = 0.7
 const SNIP_TARGET_CLEAR: float = 0.6
 const SNIP_MIN_LEN: float = 1.0
 ## The small snip: each close lunges `SNIP_LUNGE_STEP` m along the aim (easing back as it opens); the smear arc sweeps
-## through the blades' tips (round the caster, at the scissors' height) and lives `SMEAR_FRAMES` frames; later snips throw
+## through the blades' tips (round the caster, at the scissors' height), drawn on the closing frame and the one after
+## (`SMEAR_FRAMES`), lighter at the start of its sweep and sweeping the other way on every other snip; later snips throw
 ## `SNIP_STARS` stars on each kid hit.
 const SNIP_LUNGE_STEP: float = 0.15
-const SMEAR_FRAMES: int = 3
+const SMEAR_FRAMES: int = 2
 const SNIP_STARS: int = 2
 ## The scissors pop in over `POP_FRAMES` frames, hold closed `HOLD_FRAMES` after the last snip, then shrink away over
 ## `EXIT_FRAMES` frames lifting `EXIT_LIFT` m.
@@ -35,15 +36,19 @@ const EXIT_FRAMES: int = 3
 const EXIT_LIFT: float = 0.3
 ## The big snip: during the wind-up the scissors pull back `WINDUP_PULL` m and open to `ScissorsRig.WIDE_HEAVY` (ease-in);
 ## the last `TREMBLE_FRAMES` frames they tremble `TREMBLE_DEG` degrees at `TREMBLE_HZ`. On the strike they shut in one
-## frame lunging `HEAVY_LUNGE` m, squash to `HEAVY_SQUASH` along their length for `FxSquash.IMPACT_FRAMES` frames, smear the
-## whole wedge through their tips, hold closed `HEAVY_HOLD_FRAMES` frames and shrink away over
-## `HEAVY_EXIT_FRAMES` frames.
+## frame lunging `HEAVY_LUNGE` m, stretched `HEAVY_STRETCH` along their length on that frame (a smear), squash to `HEAVY_SQUASH`
+## along it for `FxSquash.IMPACT_FRAMES` frames and spring back through an overshoot (`FxSquash.landing`), smear the whole
+## wedge through their tips lunged out and, lighter, where they rested (an echo, `SMEAR_FRAMES` frames), hold closed until
+## `HEAVY_HOLD_FRAMES` frames past the squash and shrink away over `HEAVY_EXIT_FRAMES` frames.
 const WINDUP_PULL: float = 0.4
 const TREMBLE_FRAMES: int = 3
 const TREMBLE_DEG: float = 2.0
 const TREMBLE_HZ: float = 15.0
 const HEAVY_LUNGE: float = 0.5
 const HEAVY_SQUASH: float = 0.75
+const HEAVY_STRETCH: float = 1.5
+## The echo arc of the big snip is this share of the strike arc's alpha.
+const ECHO_ALPHA: float = 0.5
 const HEAVY_HOLD_FRAMES: int = 3
 const HEAVY_EXIT_FRAMES: int = 4
 
@@ -240,7 +245,10 @@ func _pose(snip: Snip) -> bool:
 			var since: int = int((_ctx.time - snip.struck) / FxSquash.FRAME + 0.001)
 			angle = ScissorsRig.CLOSED
 			offset = 0.0 if _ctx.reduced else HEAVY_LUNGE
-			snip.squash.scale = FxSquash.along(HEAVY_SQUASH) if since < FxSquash.IMPACT_FRAMES and not _ctx.reduced else Vector3.ONE
+			snip.squash.scale = Vector3.ONE
+			if not _ctx.reduced:
+				# the lunge frame is a smear along the blades; then the squash and its spring back
+				snip.squash.scale = FxSquash.smear_scale(HEAVY_STRETCH) if since < 1 else FxSquash.along(FxSquash.landing(HEAVY_SQUASH, float(since - 1)))
 			var exit_at: int = FxSquash.IMPACT_FRAMES + HEAVY_HOLD_FRAMES
 			if since >= exit_at:
 				exit = float(since - exit_at) / float(exit_frames)
@@ -287,7 +295,7 @@ func _pose(snip: Snip) -> bool:
 ## A small snip closed: a smear across the wedge and, from the second snip on, stars on each kid it hit.
 func _on_close(snip: Snip) -> void:
 	snip.closes += 1
-	_smear(snip)
+	_smear(snip, snip.closes % 2 == 0)
 	if snip.closes < 2 or _ctx.sim == null:
 		return
 	for id: int in snip.hit_kids:
@@ -296,9 +304,17 @@ func _on_close(snip: Snip) -> void:
 			_ctx.particles.puff(FxParticles.Preset.STARS, Vector3(kid.position.x, 0.0, kid.position.y), SNIP_STARS)
 
 
-## The white smear arc across the wedge for a snip: round the caster at the scissors' height, through the blades' tips.
-func _smear(snip: Snip) -> void:
+## The white smear arc across the wedge for a snip: round the caster at the scissors' height, through the blades' tips. A
+## small snip's sweeps one way and the next snip's the other; the big snip's reaches `HEAVY_LUNGE` m further (where the
+## lunge ends) with a lighter echo at the tips' rest.
+func _smear(snip: Snip, mirror: bool = false) -> void:
 	if _ctx.reduced:
 		return
-	var xform: Transform3D = Transform3D(Basis(Vector3.UP, atan2(-snip.aim.x, -snip.aim.z)), snip.caster)
-	_ctx.ground.smear(xform, &"arc", snip.tips, Color.WHITE, SMEAR_FRAMES * FxSquash.FRAME)
+	var turn: Basis = Basis(Vector3.UP, atan2(-snip.aim.x, -snip.aim.z))
+	var life: float = SMEAR_FRAMES * FxSquash.FRAME
+	if snip.heavy:
+		_ctx.ground.smear(Transform3D(turn, snip.caster), &"arc", snip.tips + HEAVY_LUNGE, Color.WHITE, life)
+		_ctx.ground.smear(Transform3D(turn, snip.caster), &"arc", snip.tips, Color(1.0, 1.0, 1.0, ECHO_ALPHA), life)
+		return
+	var sweep: Basis = turn * Basis.from_scale(Vector3(-1.0 if mirror else 1.0, 1.0, 1.0))
+	_ctx.ground.smear(Transform3D(sweep, snip.caster), &"arc", snip.tips, Color.WHITE, life)
