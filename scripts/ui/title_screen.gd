@@ -87,6 +87,9 @@ const TIPS_INSET: float = 22.0
 ## they match each other and centre on the logo: this is the picture's size on screen (the ring is 0.886 of it).
 const TOP_ICON_SIZE: float = 96.0
 const SIDE_MARGIN: float = 28.0
+## The Games, Cards, History and Settings pages stand in a little more at both sides than the Play page (12 px: enough to breathe, and the
+## five-card grids still keep their cards big enough to tap).
+const PAGE_SIDE_MARGIN: float = 40.0
 const TOP_MARGIN: float = 20.0
 const CTA_HEIGHT: float = 117.0
 ## The actions are a centred pair, the same size: as wide as the longer word needs plus this padding on each side, and no narrower than
@@ -470,6 +473,7 @@ func open_page(id: StringName) -> void:
 	var way: int = signi(int(PAGE_RANK.get(id, 0)) - int(PAGE_RANK.get(current_page, 0)))
 	card_drawer.close(false)
 	current_page = id
+	_apply_safe_area()
 	for other: StringName in pages:
 		pages[other].visible = other == id
 	if id == &"history":
@@ -488,6 +492,7 @@ func close_page() -> void:
 	var way: int = signi(0 - int(PAGE_RANK.get(current_page, 0)))
 	card_drawer.close(false)
 	current_page = &""
+	_apply_safe_area()
 	for id: StringName in pages:
 		pages[id].visible = false
 	_home.visible = true
@@ -640,9 +645,10 @@ func _apply_safe_area() -> void:
 	if _margin == null:
 		return
 	var inset: Vector4 = safe_insets()
-	_margin.add_theme_constant_override("margin_left", int(SIDE_MARGIN + inset.x))
+	var side: float = SIDE_MARGIN if current_page == &"" else PAGE_SIDE_MARGIN
+	_margin.add_theme_constant_override("margin_left", int(side + inset.x))
 	_margin.add_theme_constant_override("margin_top", int(TOP_MARGIN + inset.y))
-	_margin.add_theme_constant_override("margin_right", int(SIDE_MARGIN + inset.z))
+	_margin.add_theme_constant_override("margin_right", int(side + inset.z))
 	# the page and the home stop above the bar, which is flush with the bottom edge (and reaches under the home bar)
 	_margin.add_theme_constant_override("margin_bottom", int(UiTabBar.HEIGHT + inset.w + UiMetrics.COMPACT_GAP))
 	tab_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)

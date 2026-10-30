@@ -49,10 +49,10 @@ func _ready() -> void:
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	style_scrollbar(scroll.get_v_scroll_bar())
 	var bar: float = scroll.get_v_scroll_bar().get_combined_minimum_size().x
-	scroll.offset_right = (TitleScreen.SIDE_MARGIN + bar) / 2.0
+	scroll.offset_right = (TitleScreen.PAGE_SIDE_MARGIN + bar) / 2.0
 	var inner: MarginContainer = MarginContainer.new()
 	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inner.add_theme_constant_override("margin_right", int((TitleScreen.SIDE_MARGIN - bar) / 2.0))
+	inner.add_theme_constant_override("margin_right", int((TitleScreen.PAGE_SIDE_MARGIN - bar) / 2.0))
 	scroll.add_child(inner)
 	var body: VBoxContainer = VBoxContainer.new()
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -86,7 +86,7 @@ func _ready() -> void:
 static func style_scrollbar(bar: VScrollBar) -> void:
 	var track: StyleBoxFlat = StyleBoxFlat.new()
 	track.bg_color = Color(0.0, 0.03, 0.1, 0.3)
-	track.set_corner_radius_all(BAR_WIDTH / 2)
+	track.set_corner_radius_all(UiSkin.round_radius(BAR_WIDTH))
 	track.content_margin_left = BAR_WIDTH / 2.0
 	track.content_margin_right = BAR_WIDTH / 2.0
 	track.content_margin_top = BAR_INSET
@@ -96,7 +96,7 @@ static func style_scrollbar(bar: VScrollBar) -> void:
 	for state: String in ["grabber", "grabber_highlight", "grabber_pressed"]:
 		var grabber: StyleBoxFlat = StyleBoxFlat.new()
 		grabber.bg_color = Color(0.85, 0.93, 1.0, 0.55 if state == "grabber" else 0.85)
-		grabber.set_corner_radius_all(BAR_WIDTH / 2)
+		grabber.set_corner_radius_all(UiSkin.round_radius(BAR_WIDTH))
 		grabber.content_margin_top = GRABBER_MIN / 2.0
 		grabber.content_margin_bottom = GRABBER_MIN / 2.0
 		grabber.anti_aliasing = true
