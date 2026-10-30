@@ -1,7 +1,7 @@
 class_name UiTabBar
 extends Control
 ## The main screen's bottom navigation, in the style of Clash Royale's: a bar of flat, dark slate-blue slots drawn in code along the
-## bottom, split by thin dark lines under a dark top edge, the open tab's slot lit steel blue, with one picture per destination (Street,
+## bottom, split by thin dark lines under a dark top edge, the open tab's slot lit steel blue, with one picture per destination (Games,
 ## Play, Settings). The strip of tabs is centred with a margin each side; the open tab is the wide one (room for its arrows).
 ## The open tab's picture grows and rises above the top of the bar (like the reference's) and its name fades in under it, and two small arrows float over the
 ## bar, a little way out from the picture, to go to the neighbouring tab (the leftmost tab has only a right arrow, the rightmost
@@ -76,7 +76,7 @@ const PICTURES: Dictionary[StringName, Texture2D] = {
 ## centred), so the bar can place the art itself: {x, y, width, height}.
 const ARROW_PART: Rect2 = Rect2(0.29538, 0.18151, 0.52537, 0.63923)
 const PICTURE_PARTS: Dictionary[StringName, Rect2] = {
-	&"street": Rect2(0.08453, 0.06459, 0.84927, 0.86124),
+	&"street": Rect2(0.0, 0.02472, 0.98246, 0.96253),
 	&"cards": Rect2(0.05821, 0.12121, 0.89075, 0.82137),
 	&"play": Rect2(0.14317, 0.12514, 0.85683, 0.80158),
 	&"history": Rect2(0.17943, 0.07097, 0.64115, 0.87321),
