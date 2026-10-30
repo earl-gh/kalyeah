@@ -25,16 +25,10 @@ func _ready() -> void:
 	name = "StreetPage"
 	add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	add_child(UiKit.page_header("Games"))
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.name = "Scroll"
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.follow_focus = true
-	add_child(scroll)
 	_content = VBoxContainer.new()
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
-	scroll.add_child(_content)
+	UiKit.add_gutter_scroll(self, _content, true)
 	var rules: GameRules = load(RULES_PATH) as GameRules
 	for street: Dictionary in STREETS:
 		var id: StringName = street["id"] as StringName

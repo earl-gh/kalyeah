@@ -36,16 +36,11 @@ func _ready() -> void:
 	filter_bar.chosen.connect(show_filter)
 	_top.add_child(filter_bar)
 	_top.add_child(summary_card)
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.name = "Scroll"
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(scroll)
 	_list = VBoxContainer.new()
 	_list.name = "List"
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override("separation", UiMetrics.GAP)
-	scroll.add_child(_list)
+	UiKit.add_gutter_scroll(self, _list)
 	refresh()
 
 
