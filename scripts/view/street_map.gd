@@ -32,6 +32,9 @@ const RING_HEIGHT: float = 0.03
 ## (owner: thinner), the one width of every base and rescue area outline.
 const ZONE_FILL_ALPHA: float = 0.34
 const TAPE_WIDTH: float = 0.15
+## A rescue area's fill is stronger than a base's (owner: its white countdown mark was too transparent): 0.34 before, now over half
+## opaque, so the white box and the number on it read at once while the cement still shows through.
+const RESCUE_FILL_ALPHA: float = 0.55
 ## Bases and rescue areas are rounded rectangles on the street, each with a faint tint and a full outline in a fixed team colour
 ## (blue yours, red theirs: owner).
 const RESCUE_CORNER_RADIUS: float = 0.9
@@ -335,7 +338,7 @@ func _build_map() -> void:
 		var color: Color = OWN_COLOR if side == MapLayout.SIDE_OWN else ENEMY_COLOR
 		_posts[side] = _add_post(layout.post_position(side))
 		var base: Array[StandardMaterial3D] = _add_marked_zone(layout.base_rect(side), layout.base_corner, color)
-		var rescue: Array[StandardMaterial3D] = _add_marked_zone(layout.rescue_rect(side), RESCUE_CORNER_RADIUS, color)
+		var rescue: Array[StandardMaterial3D] = _add_marked_zone(layout.rescue_rect(side), RESCUE_CORNER_RADIUS, color, RESCUE_FILL_ALPHA)
 		_base_materials[side] = [base[0], base[1], rescue[0], rescue[1]]
 		_side_tint[side] = color
 	_turn_posts(MapLayout.SIDE_OWN)
@@ -469,8 +472,8 @@ func _add_obstacle(index: int) -> void:
 
 ## A base or a rescue area: a faint team-tinted rounded rectangle with a full outline, cut off by the street's edge. Only marks on the
 ## ground: nothing is blocked. Returns [tape, fill] materials (recoloured per viewer).
-func _add_marked_zone(rect: Rect2, corner: float, color: Color) -> Array[StandardMaterial3D]:
-	var materials: Array[StandardMaterial3D] = _zone_materials(color)
+func _add_marked_zone(rect: Rect2, corner: float, color: Color, fill_alpha: float = ZONE_FILL_ALPHA) -> Array[StandardMaterial3D]:
+	var materials: Array[StandardMaterial3D] = _zone_materials(color, fill_alpha)
 	_add_fill(rect.get_center(), rounded_outline(rect, corner), materials[1])
 	_add_outline(rect, corner, materials[0])
 	return materials
@@ -500,12 +503,12 @@ static func rounded_outline(rect: Rect2, radius: float) -> Array[Vector2]:
 
 
 ## [tape, fill] for a zone: the team's colour in full for the outline, faint for the fill.
-func _zone_materials(color: Color) -> Array[StandardMaterial3D]:
+func _zone_materials(color: Color, fill_alpha: float) -> Array[StandardMaterial3D]:
 	var tape: StandardMaterial3D = StandardMaterial3D.new()
 	tape.albedo_color = color
 	tape.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	tape.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return [tape, _fill_material(color, ZONE_FILL_ALPHA)]
+	return [tape, _fill_material(color, fill_alpha)]
 
 
 func _fill_material(color: Color, alpha: float) -> StandardMaterial3D:

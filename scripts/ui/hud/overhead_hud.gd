@@ -16,6 +16,11 @@ const BAR_OUTLINE: float = 2.0
 ## little under its own size: half of it sits on the outline).
 const LABEL_FONT: int = UiMetrics.WORLD_SMALL
 const LABEL_LINE: float = float(LABEL_FONT) * 0.8
+## The word is `LABEL_FONT` (its largest) while it fits the bar's FULL width (never the filled part: it does not move with the health), and
+## shrinks one pixel at a time down to `LABEL_FONT_MIN` until it does; a word still wider at the smallest size (a very wide name) is cut and
+## ends in `LABEL_CUT`, so it never reaches past the bar's right end. It starts `LABEL_INSET` in from the bar's left end, clear of the badge.
+const LABEL_FONT_MIN: int = UiMetrics.WORLD_MIN
+const LABEL_CUT: String = "..."
 ## The badge at the bar's left end (owner): the player's number, as the room shows it, in white on the team's colour. A rounded square a
 ## little taller than the bar, covering the first `BADGE_OVERLAP` px of it, its number the world text size with the bars' dark outline.
 const BADGE_FONT: int = UiMetrics.WORLD
@@ -23,6 +28,7 @@ const BADGE_PAD: float = 4.0
 const BADGE_SIZE: float = float(BADGE_FONT) + BADGE_PAD * 2.0
 const BADGE_OVERLAP: float = 6.0
 const BADGE_TEXT_OUTLINE: int = 3
+const LABEL_INSET: float = BADGE_OVERLAP + BAR_OUTLINE
 ## A bar keeps this far from the screen's sides (its badge included), so a kid against a wall never loses its number.
 const EDGE_PAD: float = 4.0
 ## The bar sits just above the top of the head (the kid's model is KID_HEIGHT tall).
@@ -72,6 +78,8 @@ const RESCUE_COLOR: Color = Color(0.45, 0.9, 0.5)
 ## On each rescue area: the seconds until it is ready (`MatchSim.rescue_ready_left`) in white, then nothing: the area just turns the team's
 ## colour (`StreetMap.sync_rescue`).
 const AREA_COUNT_FONT: int = UiMetrics.HEADLINE
+## The number's outline is fully opaque (the kid-label outline `Icons.OUTLINE` is 0.9), so the white number reads on its box.
+const AREA_COUNT_OUTLINE: Color = Color(Icons.OUTLINE, 1.0)
 const SPINNER_BACK: Color = Color(0.08, 0.06, 0.1, 0.7)
 const SPINNER_SPEED: float = 5.0
 
@@ -408,10 +416,38 @@ func _draw_label(text: String, rect: Rect2) -> void:
 	if text.is_empty():
 		return
 	var font: Font = KalyeahTheme.ACTION_FONT
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, LABEL_FONT).x
-	var left: float = rect.position.x + BADGE_OVERLAP + BAR_OUTLINE
-	var centre: Vector2 = keep_on_screen(Vector2(left + width / 2.0, label_baseline(rect)), font, text, LABEL_FONT)
-	_text(font, text, centre, LABEL_FONT, Color.WHITE, TEXT_OUTLINE, Color.BLACK)
+	var room: float = label_room(rect.size.x)
+	var font_size: int = label_font_size(text, room)
+	var shown: String = label_fitted(text, room)
+	var width: float = font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+	var centre: Vector2 = keep_on_screen(Vector2(rect.position.x + LABEL_INSET + width / 2.0, label_baseline(rect, font_size)), font, shown, font_size)
+	_text(font, shown, centre, font_size, Color.WHITE, TEXT_OUTLINE, Color.BLACK)
+
+
+## The width the word over a bar may fill: the bar's full width (`bar_width`, at the current `bar_scale`) less the badge side's inset.
+static func label_room(bar_width: float) -> float:
+	return maxf(bar_width - LABEL_INSET, 0.0)
+
+
+## The font size of `text` over a bar with `room` to spare: `LABEL_FONT`, or smaller (never under `LABEL_FONT_MIN`) until it fits.
+static func label_font_size(text: String, room: float) -> int:
+	var font: Font = KalyeahTheme.ACTION_FONT
+	var font_size: int = LABEL_FONT
+	while font_size > LABEL_FONT_MIN and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x > room:
+		font_size -= 1
+	return font_size
+
+
+## `text` as drawn at `label_font_size`: whole when it fits in `room`, else cut from the end and closed with `LABEL_CUT`.
+static func label_fitted(text: String, room: float) -> String:
+	var font: Font = KalyeahTheme.ACTION_FONT
+	var font_size: int = label_font_size(text, room)
+	var shown: String = text
+	var kept: int = text.length()
+	while kept > 0 and font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x > room:
+		kept -= 1
+		shown = text.left(kept).strip_edges(false, true) + LABEL_CUT
+	return shown
 
 
 ## The badge at the bar's left end: the player's number, white, on a rounded square in the team's colour.
@@ -429,8 +465,8 @@ static func stamina_top(rect: Rect2) -> float:
 
 
 ## The baseline of the word over a bar at `rect`: its middle level with the middle of the bar's top outline.
-static func label_baseline(rect: Rect2) -> float:
-	return rect.position.y - BAR_OUTLINE / 2.0 + float(LABEL_FONT) * 0.36
+static func label_baseline(rect: Rect2, font_size: int = LABEL_FONT) -> float:
+	return rect.position.y - BAR_OUTLINE / 2.0 + float(font_size) * 0.36
 
 
 ## A rounded bar with a dark outline: the fill in `color`, and a gloss on its upper third.
@@ -495,7 +531,7 @@ func _draw_rescue_areas() -> void:
 		if text.is_empty():
 			continue
 		# the text's middle on the area's middle (`_text` takes the baseline); white, like the area while it counts down
-		_text(KalyeahTheme.ACTION_FONT, text, at + Vector2(0.0, float(AREA_COUNT_FONT) * 0.36), AREA_COUNT_FONT, Color.WHITE, TEXT_OUTLINE)
+		_text(KalyeahTheme.ACTION_FONT, text, at + Vector2(0.0, float(AREA_COUNT_FONT) * 0.36), AREA_COUNT_FONT, Color.WHITE, TEXT_OUTLINE, AREA_COUNT_OUTLINE)
 
 
 func _draw_tags() -> void:

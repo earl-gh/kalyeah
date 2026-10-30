@@ -21,6 +21,8 @@ const BELOW_FLOOR_BY_OWNER: StringName = &"below_floor_by_owner"
 const WORLD: int = 18
 ## The word over a kid's bar: its name or its status (owner: 16, white with a black outline).
 const WORLD_SMALL: int = 16
+## The smallest the word over a kid's bar shrinks to when its name or status is wider than the bar (`OverheadHud.label_font_size`).
+const WORLD_MIN: int = 10
 const TOUCH: float = 88.0
 ## The floors the lint test (tests/unit/test_ui_lint.gd) holds every screen to: no text smaller than MIN_TEXT px and
 ## no tappable control shorter than MIN_TARGET px (the joystick and the weapon buttons are bigger by design).

@@ -70,6 +70,14 @@ func test_the_loading_fill_is_blue_and_has_a_lit_top_and_dark_lower_edge() -> vo
 	boot.queue_free()
 
 
+func test_no_outline_line_runs_over_the_top_of_the_filled_and_unfilled_track() -> void:
+	var boot: BootScreen = _boot()
+	assert_null(boot.find_child("TopRim", true, false), "the light blue line over the top of the bar is gone")
+	for child: Node in boot._base.get_children():
+		assert_false(child is ColorRect, "the base holds only the track and the fill (%s)" % child.name)
+	boot.queue_free()
+
+
 func test_the_percentage_is_clash_text_in_the_middle_of_the_base_instead_of_the_k() -> void:
 	var boot: BootScreen = _boot()
 	boot.progress = 0.5

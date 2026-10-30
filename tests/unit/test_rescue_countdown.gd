@@ -97,3 +97,8 @@ func test_each_rescue_area_shows_its_countdown_then_ready() -> void:
 	assert_eq(hud.rescue_area_text(0), "8")
 	sim.rescue_ready_left[1] = 0.0
 	assert_eq(hud.rescue_area_text(1), "", "no READY! word: a ready area is just the team's colour")
+
+
+func test_the_countdown_number_is_opaque_white_with_an_opaque_outline() -> void:
+	assert_eq(OverheadHud.AREA_COUNT_OUTLINE.a, 1.0, "the outline was 0.9 see-through")
+	assert_eq(Color(OverheadHud.AREA_COUNT_OUTLINE, 1.0), Color(Icons.OUTLINE, 1.0), "the same dark, only solid")

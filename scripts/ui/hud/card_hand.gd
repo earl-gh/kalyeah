@@ -56,6 +56,8 @@ const COST_FONT: int = UiMetrics.ACTION
 ## A card shrunk over the street (held) keeps its number readable down to this size.
 const COST_FONT_MIN: int = UiMetrics.WORLD_SMALL
 const BAR_BAG: float = 56.0
+## The drop's middle stands this share of its height above the bar's middle.
+const BAG_RISE: float = 0.12
 ## The "Max: 10" caption under the bar's start.
 const MAX_FONT: int = UiMetrics.WORLD
 const MAX_OUTLINE: int = 12
@@ -131,10 +133,13 @@ const DENY_BUZZ_MS: int = 30
 const BAR_CATCH_UP: float = 8.0
 ## The Sides layout (Settings > Cards tray): all four cards in one column on the side of your writing hand (the right for a right-handed
 ## player, the left for a left-handed one), on a panel of `SIDES_COLUMN` pixels that is the street's own sidewalk drawn wider: the street is
-## pushed to the other side of the screen (the camera frames it in what is left, same shape, smaller). NEXT and the chat button stand above
-## the cards; the ice water bar runs alone along the bottom in a strip (`SIDES_TRAY`). The hand's own rect is that strip; the column stands
-## above it (negative y in its own pixels), which the touch handling does not mind.
-const SIDES_TRAY: float = 96.0
+## pushed to the other side of the screen (the camera frames it in what is left, same shape, smaller). NEXT stands above the
+## cards; the ice water bar and the chat button share the bottom strip (`SIDES_TRAY`). The hand's own rect is that strip; the column stands
+## above it (negative y in its own pixels), which the touch handling does not mind. The chat button sits IN the strip, at the column's side
+## of it, and the ice water group fills the rest of the strip's inner area: `SIDES_PAD` of room on every side
+## (under the tray's chamfer at the top), tall enough for the drop, the bar and the "Max: 10" caption at full size.
+const SIDES_TRAY: float = 100.0
+const SIDES_PAD: float = 12.0
 const SIDES_CARD_WIDTH: float = 120.0
 const SIDES_COLUMN: float = 148.0
 const SIDES_GAP: float = 10.0
@@ -151,7 +156,7 @@ var sides: bool = false
 ## Where everything sits, in this control's own pixels (set by `_layout()` from the size).
 var card_rects: Array[Rect2] = []
 var next_rect: Rect2 = Rect2()
-## The quick chat button's rect, above NEXT (outside the tray, like it).
+## The quick chat button's rect: above NEXT outside the tray in the Bottom layout, in the tray's strip beside the bar in Sides.
 var chat_rect: Rect2 = Rect2()
 var bar_rect: Rect2 = Rect2()
 
@@ -361,14 +366,13 @@ func _layout() -> void:
 
 
 ## The Sides layout: the four cards one under the other, slot 0 at the top, in the column on the side of the writing hand; NEXT small above
-## them with the chat button over it; the bar along the strip. A screen too short for the whole column gets smaller cards.
+## them; the chat button and the bar along the strip. A screen too short for the whole column gets smaller cards.
 func _layout_sides() -> void:
 	var screen_height: float = get_viewport_rect().size.y if is_inside_tree() else 1280.0
 	var label_room: float = float(NEXT_FONT) + 8.0
-	var chat_size: Vector2 = Vector2(CHAT_HEIGHT * HandArt.CHAT_ASPECT, CHAT_HEIGHT)
 	var card_width: float = SIDES_CARD_WIDTH
 	var card: Vector2 = Vector2(card_width, roundf(card_width * CARD_ASPECT))
-	var needed: float = SIDES_LIFT + 4.0 * card.y + 3.0 * SIDES_GAP + SIDES_GAP + card.y * NEXT_SCALE + label_room + OUT_GAP + chat_size.y
+	var needed: float = SIDES_LIFT + 4.0 * card.y + 3.0 * SIDES_GAP + SIDES_GAP + card.y * NEXT_SCALE + label_room
 	var room: float = screen_height - size.y - SIDES_TOP_ROOM
 	if needed > room and room > 0.0:
 		card_width = floorf(card_width * room / needed)
@@ -381,17 +385,39 @@ func _layout_sides() -> void:
 		card_rects.append(Rect2(Vector2(card_x, -SIDES_LIFT - card.y - from_bottom * (card.y + SIDES_GAP)), card))
 	var next_size: Vector2 = card * NEXT_SCALE
 	next_rect = Rect2(Vector2(column_x + (SIDES_COLUMN - next_size.x) / 2.0, card_rects[0].position.y - SIDES_GAP - next_size.y), next_size)
-	chat_size *= minf(1.0, card.x / SIDES_CARD_WIDTH)
-	chat_rect = Rect2(Vector2(column_x + (SIDES_COLUMN - chat_size.x) / 2.0, next_rect.position.y - label_room - OUT_GAP - chat_size.y), chat_size)
-	var bar_left: float = SIDES_GAP + BAR_BAG * HandArt.ICE_DRAW_ASPECT / 2.0
-	var bar_right: float = size.x - SIDES_GAP
-	bar_rect = Rect2(Vector2(bar_left, (size.y - BAR_HEIGHT) / 2.0 + 6.0), Vector2(bar_right - bar_left, BAR_HEIGHT))
+	var inner: Rect2 = sides_inner()
+	var chat_size: Vector2 = Vector2(CHAT_HEIGHT * HandArt.CHAT_ASPECT, CHAT_HEIGHT)
+	chat_rect = Rect2(Vector2(column_x + (SIDES_COLUMN - chat_size.x) / 2.0, inner.get_center().y - chat_size.y / 2.0), chat_size)
+	var reach: Vector2 = ice_reach()
+	var bar_left: float = inner.position.x + BAR_BAG * HandArt.ICE_DRAW_ASPECT / 2.0
+	var bar_right: float = inner.end.x
+	if mirrored:
+		bar_left = chat_rect.end.x + SIDES_PAD + BAR_BAG * HandArt.ICE_DRAW_ASPECT / 2.0
+	else:
+		bar_right = chat_rect.position.x - SIDES_PAD
+	var bar_middle: float = inner.get_center().y + (reach.x - reach.y) / 2.0
+	bar_rect = Rect2(Vector2(bar_left, bar_middle - BAR_HEIGHT / 2.0), Vector2(bar_right - bar_left, BAR_HEIGHT))
 	_refresh()
 
 
-## The column's own rect in the Sides layout (own pixels): from the chat button down to the strip.
+## The strip's inner area in the Sides layout (own pixels): inside the tray's chamfer at the top and `SIDES_PAD` from its other edges.
+func sides_inner() -> Rect2:
+	var top: float = ConsolePanel.BEVEL + SIDES_PAD
+	return Rect2(Vector2(SIDES_PAD, top), Vector2(size.x - SIDES_PAD * 2.0, size.y - SIDES_PAD - top))
+
+
+## How far the ice water group (drop, bar and caption) reaches above and below the bar's middle, drawn at full size: the drop's top, and
+## the lower edge of the "Max: 10" caption's outline (or the drop's bottom, if that is lower).
+static func ice_reach() -> Vector2:
+	var bar: Rect2 = Rect2(Vector2(0.0, -BAR_HEIGHT / 2.0), Vector2(0.0, BAR_HEIGHT))
+	var above: float = BAR_BAG * (0.5 + BAG_RISE)
+	var below: float = maxf(BAR_BAG * (0.5 - BAG_RISE), max_caption_baseline(bar) + float(MAX_OUTLINE) / 2.0)
+	return Vector2(above, below)
+
+
+## The column's own rect in the Sides layout (own pixels): from the word over NEXT down to the strip.
 func column_rect() -> Rect2:
-	var top: float = chat_rect.position.y
+	var top: float = next_rect.position.y - float(NEXT_FONT) - 8.0
 	var left: float = 0.0 if mirrored else size.x - SIDES_COLUMN
 	return Rect2(Vector2(left, top), Vector2(SIDES_COLUMN, -top))
 
@@ -899,7 +925,7 @@ func _draw_bar() -> void:
 	_draw_edge(radius)
 	# like Clash Royale: the drop overlaps the bar's start, the whole points in big letters just right of it (over the bar's start), and the
 	# most you can hold in small letters under them
-	var bag: Vector2 = Vector2(bar_rect.position.x, bar_rect.get_center().y - BAR_BAG * 0.12)
+	var bag: Vector2 = Vector2(bar_rect.position.x, bar_rect.get_center().y - BAR_BAG * BAG_RISE)
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var number_at: Vector2 = Vector2(bag.x + BAR_BAG * HandArt.ICE_DRAW_ASPECT / 2.0 + 6.0, bar_rect.get_center().y - BAR_HEIGHT * 0.1)
 	var points: String = str(floori(elixir + 0.001))
