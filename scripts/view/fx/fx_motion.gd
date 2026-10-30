@@ -1,7 +1,7 @@
 class_name FxMotion
 extends RefCounted
 ## The pose curves of the skill objects, as plain maths (no nodes): the meteor's fall, a toss arc, the marble's bounces, the
-## spinning top's wobble, the scissors' snips, the paper wall's unfold and crumple. Each is a function of progress or frames
+## spinning top's wobble, the scissors' snips, the paper wall's unfold. Each is a function of progress or frames
 ## so the same curve plays offline and online (docs/ART.md "Skill effects").
 
 ## The meteor starts this far off its circle, up and behind (it never crosses in front of a face).
@@ -22,13 +22,10 @@ const SNIP_MIN_PERIOD: int = 2
 const SNIP_MAX_PERIOD: int = 5
 ## The frame after a snip shuts, the blades are this far open (then wide open until the next snip).
 const SNIP_HALF_OPEN: float = 0.6
-## The paper wall unfolds from `UNFOLD_FROM` tall and `UNFOLD_WIDTH_FROM` wide, overshooting to `UNFOLD_PEAK` tall; it
-## crumples to `CRUMPLE_TO` tall and `CRUMPLE_WIDTH_TO` wide.
+## The paper wall unfolds from `UNFOLD_FROM` tall and `UNFOLD_WIDTH_FROM` wide, overshooting to `UNFOLD_PEAK` tall.
 const UNFOLD_FROM: float = 0.05
 const UNFOLD_WIDTH_FROM: float = 0.85
 const UNFOLD_PEAK: float = 1.12
-const CRUMPLE_TO: float = 0.05
-const CRUMPLE_WIDTH_TO: float = 0.6
 const FRAME: float = 1.0 / 30.0
 
 
@@ -105,10 +102,3 @@ static func unfold(t: float) -> Vector2:
 	var x: float = clampf(t, 0.0, 1.0)
 	var rise: float = FxSquash.overshoot(x, UNFOLD_PEAK)
 	return Vector2(lerpf(UNFOLD_WIDTH_FROM, 1.0, minf(x * 1.5, 1.0)), lerpf(UNFOLD_FROM, 1.0, rise))
-
-
-## The paper wall's (width, height) scale `t` (0..1) through its crumple (slow at first, fast in the middle, settling flat).
-static func crumple(t: float) -> Vector2:
-	var x: float = clampf(t, 0.0, 1.0)
-	var e: float = x * x * (3.0 - 2.0 * x)
-	return Vector2(lerpf(1.0, CRUMPLE_WIDTH_TO, e), lerpf(1.0, CRUMPLE_TO, e))
