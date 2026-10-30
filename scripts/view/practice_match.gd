@@ -191,7 +191,7 @@ func move_dragged(at: Vector2) -> void:
 	var point: Variant = street_point(at)
 	if point is Vector2 and input.move_held and input.follow_hold:
 		input.move_drag(point as Vector2)
-		hud.marker.ping(point as Vector2)
+		hud.marker.ping(point as Vector2, false)
 
 
 func move_released() -> void:
