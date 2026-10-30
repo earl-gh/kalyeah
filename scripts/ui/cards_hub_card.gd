@@ -19,6 +19,10 @@ const PRESS_LIGHTEN: float = 0.12
 ## The banner is a bright blue panel (owner: grey was bland), with the modals' frame shape, shadow and a darker blue edge.
 const PANEL_COLOR: Color = Color("2f6fc4")
 const PANEL_EDGE: Color = Color("1a3f7a")
+## A light, tight drop shadow (smaller and fainter than a modal's: less blur to draw, and it does not muddy the backdrop).
+const SHADOW_SIZE: int = 6
+const SHADOW_COLOR: Color = Color(0.0, 0.03, 0.1, 0.3)
+const SHADOW_DROP: Vector2 = Vector2(0.0, 3.0)
 const PANEL_RADIUS: int = KalyeahTheme.MODAL_FRAME_RADIUS
 ## The title is a headline in the modals' title colours; the detail is the plain line under it, white on the slate.
 const TITLE_SIZE: int = UiMetrics.HEADLINE
@@ -105,6 +109,9 @@ func _blue_frame() -> StyleBoxFlat:
 	var box: StyleBoxFlat = KalyeahTheme.modal_frame(0.0)
 	box.bg_color = PANEL_COLOR
 	box.border_color = PANEL_EDGE
+	box.shadow_size = SHADOW_SIZE
+	box.shadow_color = SHADOW_COLOR
+	box.shadow_offset = SHADOW_DROP
 	return box
 
 
