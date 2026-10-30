@@ -643,7 +643,7 @@ func _add_difficulty_choice(card: MenuDialog) -> void:
 		options.append({"id": level.id, "label": level.label})
 	if options.is_empty():
 		return
-	var choice: UiSegmented = UiSegmented.new(options, 72.0, UiMetrics.BODY)
+	var choice: UiSegmented = UiSegmented.new(options, UiMetrics.TOUCH, UiMetrics.BODY)
 	choice.name = "DifficultyChoice"
 	var blurb: Label = card.add_hint("")
 	blurb.name = "DifficultyBlurb"
