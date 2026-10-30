@@ -1,8 +1,9 @@
 class_name ClockChip
 extends Control
-## The match clock in the top right corner, laid out like Clash Royale's "Time left:" box: "Time left:" over the time (m:ss, counting down
-## to the round's overtime; with overtime off in the rules it counts up), in a see-through dark box with a black outline. In overtime the
-## caption turns gold and says OVERTIME. It only draws; it never takes a touch.
+## The match clock in the top right corner, laid out like Clash Royale's "Time left:" box: "Time left:" over the time (m:ss, counting down;
+## with the stages off in the rules it counts up), in a see-through dark box with a black outline. The caption is the round's stage:
+## "Time left:" (Regular), "Extended", then a gold "Overtime"; each stage restarts the time. While the stage word flies in from the
+## middle of the screen (`ClockStageFlash`) the caption is left empty for it to land on. It only draws; it never takes a touch.
 
 const TIME_FONT: int = UiMetrics.HEADLINE
 const CAPTION_FONT: int = UiMetrics.CAPTION
@@ -19,7 +20,9 @@ const TEXT_OUTLINE: int = 5
 const LINE_GAP: float = 4.0
 
 var seconds: int = 0
-var overtime: bool = false
+var stage: MatchSim.ClockStage = MatchSim.ClockStage.REGULAR
+## True while the stage word is flying in: the caption is not drawn yet.
+var caption_hidden: bool = false
 ## Whether `seconds` is what is left (it rounds up, so 0:00 shows only once the time is really out) or what has passed (it rounds down).
 var counting_down: bool = false
 
@@ -29,22 +32,44 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-## The seconds to show (what is left when `down`, else what has passed) and whether the round is in overtime. Redraws only when the shown
+## The seconds to show (what is left when `down`, else what has passed) and the round's clock stage. Redraws only when the shown
 ## text changes.
-func show_time(value: float, in_overtime: bool, down: bool = false) -> void:
+func show_time(value: float, in_stage: MatchSim.ClockStage, down: bool = false) -> void:
 	var now: int = ceili(value - 0.0001) if down else floori(value)
-	if now == seconds and in_overtime == overtime and down == counting_down:
+	if now == seconds and in_stage == stage and down == counting_down:
 		return
 	seconds = now
-	overtime = in_overtime
+	stage = in_stage
 	counting_down = down
-	accessibility_name = "Time %s%s" % [text(), ", overtime" if overtime else ""]
+	accessibility_name = "%s %s" % [caption_text(), text()]
 	queue_redraw()
+
+
+## Hides (or shows) the caption while the stage word flies in.
+func hide_caption(hidden: bool) -> void:
+	if hidden != caption_hidden:
+		caption_hidden = hidden
+		queue_redraw()
 
 
 ## The small word over the time.
 func caption_text() -> String:
-	return UiText.t("OVERTIME") if overtime else UiText.t("Time left:")
+	match stage:
+		MatchSim.ClockStage.EXTENDED:
+			return UiText.t("Extended")
+		MatchSim.ClockStage.OVERTIME:
+			return UiText.t("Overtime")
+	return UiText.t("Time left:")
+
+
+## Where the caption's middle is, in the chip's own coordinates (where the stage word lands).
+func caption_center() -> Vector2:
+	return text_rects()[0].get_center()
+
+
+## The caption's colour: gold in Overtime, white otherwise.
+func caption_color() -> Color:
+	return RoyaleStyle.GOLD if stage == MatchSim.ClockStage.OVERTIME else Color.WHITE
 
 
 ## The clock as m:ss.
@@ -65,10 +90,10 @@ func _draw() -> void:
 	draw_style_box(box, Rect2(Vector2.ZERO, size))
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var caption: String = caption_text()
-	var caption_color: Color = RoyaleStyle.GOLD if overtime else Color.WHITE
 	var lines: Array[Rect2] = text_rects()
 	var caption_at: Vector2 = lines[0].position + Vector2(TEXT_OUTLINE, TEXT_OUTLINE + font.get_ascent(CAPTION_FONT))
-	_lettered(font, caption, caption_at, CAPTION_FONT, caption_color)
+	if not caption_hidden:
+		_lettered(font, caption, caption_at, CAPTION_FONT, caption_color())
 	var time_at: Vector2 = lines[1].position + Vector2(TEXT_OUTLINE, TEXT_OUTLINE + font.get_ascent(TIME_FONT))
 	_lettered(font, text(), time_at, TIME_FONT, Color.WHITE)
 

@@ -90,22 +90,23 @@ func test_the_clock_sits_on_the_header_opposite_the_gear_and_counts_up() -> void
 	assert_almost_eq(chip.position.y, 0.0, 1.0, "flush with the top of the screen, like Clash Royale's Time left box")
 	assert_almost_eq(chip.end.x, practice.hud.get_global_rect().end.x, 1.0, "and with its right edge")
 	assert_eq(hud.clock_chip.mouse_filter, Control.MOUSE_FILTER_IGNORE)
-	hud.clock_chip.show_time(65.4, false)
+	hud.clock_chip.show_time(65.4, MatchSim.ClockStage.REGULAR)
 	assert_eq(hud.clock_chip.text(), "1:05")
-	assert_false(hud.clock_chip.overtime)
-	hud.clock_chip.show_time(65.4, true)
-	assert_true(hud.clock_chip.overtime)
-	assert_string_contains(hud.clock_chip.accessibility_name, "overtime")
+	assert_eq(hud.clock_chip.stage, MatchSim.ClockStage.REGULAR)
+	hud.clock_chip.show_time(65.4, MatchSim.ClockStage.OVERTIME)
+	assert_eq(hud.clock_chip.stage, MatchSim.ClockStage.OVERTIME)
+	assert_string_contains(hud.clock_chip.accessibility_name, "Overtime")
 
 
-func test_overtime_is_when_the_round_passes_the_rules_overtime_time() -> void:
+func test_overtime_is_when_the_extended_minute_is_over() -> void:
 	var practice: PracticeMatch = await _practice()
 	var sim: MatchSim = practice.sim
 	sim.rules = sim.rules.duplicate() as GameRules
 	sim.rules.overtime_after = 30.0
-	sim.round_time = 29.0
+	sim.rules.extended_seconds = 10.0
+	sim.round_time = 39.0
 	assert_false(sim.in_overtime())
-	sim.round_time = 30.0
+	sim.round_time = 40.0
 	assert_true(sim.in_overtime())
 	assert_eq(sim.current_base_capture_time(), minf(sim.rules.capture_solo_time, sim.rules.overtime_capture_time))
 	sim.rules.overtime_after = 0.0
@@ -125,14 +126,14 @@ func test_the_clock_counts_down_to_the_rounds_overtime() -> void:
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 	assert_gt(rules.overtime_after, 0.0, "the round has a time: Time left counts down to overtime")
 	var chip: ClockChip = autofree(ClockChip.new()) as ClockChip
-	chip.show_time(rules.overtime_after, false, true)
+	chip.show_time(rules.overtime_after, MatchSim.ClockStage.REGULAR, true)
 	assert_eq(chip.text(), "%d:%02d" % [int(rules.overtime_after) / 60, int(rules.overtime_after) % 60], "a full round starts at the whole time")
-	chip.show_time(rules.overtime_after - 1.2, false, true)
+	chip.show_time(rules.overtime_after - 1.2, MatchSim.ClockStage.REGULAR, true)
 	assert_eq(chip.text(), "%d:%02d" % [int(rules.overtime_after - 1.0) / 60, int(rules.overtime_after - 1.0) % 60], "and goes down (rounding up: 0:00 only when it is out)")
-	chip.show_time(0.0, true, true)
+	chip.show_time(0.0, MatchSim.ClockStage.OVERTIME, true)
 	assert_eq(chip.text(), "0:00")
-	assert_eq(chip.caption_text(), "OVERTIME")
-	chip.show_time(10.4, false, false)
+	assert_eq(chip.caption_text(), "Overtime")
+	chip.show_time(10.4, MatchSim.ClockStage.REGULAR, false)
 	assert_eq(chip.text(), "0:10", "with overtime off the clock counts up, rounding down")
 
 
@@ -149,7 +150,7 @@ func test_the_hud_clock_goes_down_as_the_round_goes_on_and_up_again_for_a_new_ro
 	sim.round_time = 0.0
 	hud.sync_score(sim, practice.local_team, 0.0, practice.local_id)
 	assert_eq(hud.clock_chip.seconds, start, "a new round starts it again")
-	sim.round_time = sim.rules.overtime_after + 5.0
+	sim.round_time = sim.rules.overtime_after + sim.rules.extended_seconds + sim.rules.overtime_seconds + 5.0
 	hud.sync_score(sim, practice.local_team, 0.0, practice.local_id)
-	assert_eq(hud.clock_chip.seconds, 0)
-	assert_true(hud.clock_chip.overtime)
+	assert_eq(hud.clock_chip.seconds, 0, "after Overtime's minute the clock stays at 0:00")
+	assert_eq(hud.clock_chip.stage, MatchSim.ClockStage.OVERTIME)
