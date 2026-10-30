@@ -192,9 +192,10 @@ func test_the_release_trail_appears_on_the_cast_tick_along_the_aim() -> void:
 		var speed: float = _sim.weapon_defs[weapon].speed
 		assert_almost_eq(trail.basis.x.length(), FxRelease.length_for(speed), 0.01, "%s: as long as it travels in the smear frames" % weapon)
 		assert_between(FxRelease.length_for(speed), FxRelease.MIN_LENGTH, FxRelease.MAX_LENGTH)
-		for i: int in FxSquash.SMEAR_FRAMES + 1:
+		# the light slipper throws three, each with its own trail, so it is only quiet once the last has faded
+		for i: int in FxSquash.TRAIL_FRAMES + 1 + (40 if weapon == &"tsinelas_light" else 0):
 			_frame()
-		assert_eq(_fx.context().ground.live_smears(), 0, "%s: gone after %d frames" % [weapon, FxSquash.SMEAR_FRAMES])
+		assert_eq(_fx.context().ground.live_smears(), 0, "%s: gone after its trail's %d frames" % [weapon, FxSquash.TRAIL_FRAMES])
 		_fx.queue_free()
 
 
@@ -397,7 +398,10 @@ func test_the_small_snip_leaves_an_arc_on_the_closing_frames_only() -> void:
 	for frame: int in closed_frames:
 		assert_true(smeared_frames.has(frame), "an arc on the closing frame %d" % frame)
 	for frame: int in smeared_frames:
-		assert_true(closed_frames.has(frame) or closed_frames.has(frame - 1), "no arc on a frame that is not a close or the one after (%d)" % frame)
+		var since_close: bool = false
+		for back: int in FxSquash.TRAIL_FRAMES:
+			since_close = since_close or closed_frames.has(frame - back)
+		assert_true(since_close, "no arc except in the frames after a close, while its ribbon fades (%d)" % frame)
 	assert_eq(FxSnips.SMEAR_FRAMES, 2)
 
 

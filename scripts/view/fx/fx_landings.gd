@@ -15,9 +15,9 @@ const METEOR_GLINT_AT: float = 12.0 / 18.0
 const GLINT_STARS: int = 2
 ## On its last `FxSquash.SMEAR_FRAMES` frames, its fastest, the meteor is smeared along its fall (FxSquash.smear_stretch) with a
 ## white trail up its path (each frame's, `METEOR_TRAIL_FRAMES` frames long); before that it is crisp.
-const METEOR_TRAIL_FRAMES: int = 2
+const METEOR_TRAIL_FRAMES: int = 5
 ## The trail is this share of the meteor's width across.
-const METEOR_TRAIL_WIDTH: float = 0.7
+const METEOR_TRAIL_WIDTH: float = 1.0
 ## The landing: the meteor squashes flat (`METEOR_IMPACT_S`) for `FxSquash.IMPACT_FRAMES` frames, springs back through an
 ## overshoot to its size (`FxSquash.landing`), a ring of dust is thrown out (`IMPACT_DUST` particles) and dark cracks reach
 ## `IMPACT_CRACK` of the circle's radius, fading over `CRACK_TIME` s.

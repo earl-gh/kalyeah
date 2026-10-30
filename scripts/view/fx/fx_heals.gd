@@ -107,7 +107,7 @@ func _heal(at: Vector2) -> void:
 	_pose(cross)
 	if not _ctx.reduced:
 		var head: Vector3 = cross.node.position - back * RISE_BEHIND
-		_ctx.ground.trail(head - _camera_up() * RISE_LENGTH, head, CROSS_WIDTH_SHARE * WeaponModel.CROSS_WIDTH * _ctx.view_scale, Palette.GUAVA, FxSquash.SMEAR_FRAMES * FxSquash.FRAME)
+		_ctx.ground.trail(head - _camera_up() * RISE_LENGTH, head, CROSS_WIDTH_SHARE * WeaponModel.CROSS_WIDTH * _ctx.view_scale, Palette.GUAVA, FxSquash.TRAIL_FRAMES * FxSquash.FRAME)
 
 
 func _streak(from: Vector2, to: Vector2) -> void:

@@ -36,11 +36,11 @@ const RING_WIDTH: float = 0.08
 const CIRCLE_POINTS: int = 32
 ## The smear arc spans this many degrees (the snip's whole wedge) and is this wide at its middle, per metre of radius.
 const SMEAR_ARC_DEGREES: float = 60.0
-const SMEAR_ARC_WIDTH: float = 0.16
+const SMEAR_ARC_WIDTH: float = 0.3
 const SMEAR_POINTS: int = 12
 ## A smear is lighter toward its tail: its alpha runs from this share at the tail to whole at the head (the arc's start and
 ## end of its sweep, the trail's far end and its head).
-const SMEAR_TAIL_ALPHA: float = 0.2
+const SMEAR_TAIL_ALPHA: float = 0.4
 ## The smack streak: 1 m long, this wide at its middle.
 const STREAK_WIDTH: float = 0.16
 ## The 4-point star: its tips at 0.5 (a 1 m star), its waist at this radius; white in the middle, sari yellow at the tips.

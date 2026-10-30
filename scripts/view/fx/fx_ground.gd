@@ -12,7 +12,7 @@ const SMEARS: int = 12
 const CRACKS: int = 4
 const FADES: int = 8
 ## A smear starts this see-through (white, 0.75) and is gone at the end of its life.
-const SMEAR_ALPHA: float = 0.75
+const SMEAR_ALPHA: float = 0.9
 ## A crack is the street's dark asphalt at this alpha, fading to nothing over its life.
 const CRACK_ALPHA: float = 0.6
 
