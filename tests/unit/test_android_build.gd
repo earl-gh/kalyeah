@@ -72,6 +72,11 @@ func test_the_android_preset_is_one_portrait_arm64_app_with_only_the_permissions
 	assert_eq(ProjectSettings.get_setting("display/window/handheld/orientation"), DisplayServer.SCREEN_PORTRAIT)
 
 
+func test_the_godot_logo_splash_is_off_and_the_splash_colour_is_the_loading_screens() -> void:
+	assert_false(ProjectSettings.get_setting("application/boot_splash/show_image") as bool, "no Godot logo before the loading screen")
+	assert_eq(ProjectSettings.get_setting("application/boot_splash/bg_color") as Color, BootScreen.BASE_COLOR, "the phone goes from this colour into the loading screen without a flash")
+
+
 func test_every_launcher_icon_the_preset_names_exists() -> void:
 	var android: Dictionary = _presets()["Android"]
 	for key: String in android:

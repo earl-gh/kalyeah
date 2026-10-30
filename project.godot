@@ -15,6 +15,8 @@ config/icon="res://assets/app_icon/icon.png"
 config/quit_on_go_back=false
 config/version="0.0.0"
 run/main_scene="res://scenes/ui/boot_screen.tscn"
+boot_splash/show_image=false
+boot_splash/bg_color=Color(0.085, 0.085, 0.09, 1)
 config/features=PackedStringArray("4.6", "GL Compatibility")
 
 [autoload]
