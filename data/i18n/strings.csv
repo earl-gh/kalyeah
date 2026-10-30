@@ -55,6 +55,7 @@ CAPTURED,CAPTURED
 CAPTURING,CAPTURING
 "Card %d: %s, %d ice water%s","Card %d: %s, %d ice water%s"
 Cards,Cards
+Cards tray,Cards tray
 CHANGE WEAPONS,CHANGE WEAPONS
 Change weapons,Change weapons
 Changes apply immediately,Changes apply immediately
@@ -224,6 +225,7 @@ Scatter jacks on the road! Enemies who walk over them slow down.,Scatter jacks o
 Screen shake,Screen shake
 Selected by a teammate,Selected by a teammate
 Settings,Settings
+Sides,Sides
 Slot %d: %s,Slot %d: %s
 Slowed,Slowed
 "Snip, snip! Hold longer for more snips.","Snip, snip! Hold longer for more snips."
@@ -286,6 +288,7 @@ Waiting for your friends…,Waiting for your friends…
 Wow!,Wow!
 YOU,YOU
 YOU %d - %d THEM   %s,YOU %d - %d THEM   %s
+"Your cards along the bottom, or on the sides of the street","Your cards along the bottom, or on the sides of the street"
 Your ID photo,Your ID photo
 Your nametag,Your nametag
 Your rescue area is ready in %d s!,Your rescue area is ready in %d s!
