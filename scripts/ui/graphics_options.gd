@@ -33,6 +33,6 @@ func _ready() -> void:
 func _choice(choice_name: String, options: Array) -> UiSegmented:
 	var typed: Array[Dictionary] = []
 	typed.assign(options)
-	var choice: UiSegmented = UiSegmented.new(typed, 72.0, UiMetrics.BODY)
+	var choice: UiSegmented = UiSegmented.new(typed, UiMetrics.TOUCH, UiMetrics.BODY)
 	choice.name = choice_name
 	return choice
