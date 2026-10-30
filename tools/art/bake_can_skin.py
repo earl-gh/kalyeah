@@ -1,4 +1,4 @@
-"""Bakes the Marikina corned-beef skin onto the can model (assets/models/weapons/can.glb).
+"""Bakes the Urdaneta corned-beef skin onto the can model (assets/models/weapons/can.glb).
 
 Run: python3 tools/art/bake_can_skin.py
 Input: tools/art/src/can_label_views.webp (the owner's picture of the can seen from four sides, transparent background)
@@ -28,22 +28,23 @@ SIZE = 1024
 PANO_W, PANO_H = 1536, 512
 
 # the picture: each view's body centre x, body radius (px), and where its label starts and ends at the sides of the body (the
-# rows grow by `LIFT` px toward the middle, because the camera looks down on the can a little)
+# rows grow toward the middle by `lift_top` px at the top and `lift_bottom` px at the bottom, because the camera looks down on the can:
+# the label's top and bottom edges are ellipses). Measured on the picture: the yellow's first row and the meat's last row in columns
+# across the can, fitted as `side + lift * cos(angle)`.
 VIEWS = {
-    "front": {"cx": 200.5, "r": 168.5, "top": 368.0, "bottom": 714.0},
-    "back": {"cx": 905.5, "r": 164.0, "top": 372.0, "bottom": 716.0},
+    "front": {"cx": 199.5, "r": 166.0, "top": 354.0, "bottom": 694.0, "lift_top": 56.0, "lift_bottom": 66.0},
+    "back": {"cx": 911.0, "r": 163.5, "top": 354.0, "bottom": 694.0, "lift_top": 56.0, "lift_bottom": 66.0},
 }
-LIFT = 30.0
 # the picture is sampled this share of the way to each side of the body, so the white behind the can never blends in at the edge
 EDGE_SAFE = 0.985
 # the lid: the ellipse of the rim in the front view (centre x, y, half width, half height) for a lid of radius LID_R
-LID_CENTRE = (202.0, 330.0)
-LID_AXES = (173.0, 31.0)
+LID_CENTRE = (200.0, 319.0)
+LID_AXES = (171.0, 51.0)
 LID_R = 0.416
 # model measurements (metres, the model is 1 high): the label runs between the rims, and the rims have these heights
 BODY_BOTTOM, BODY_TOP = 0.045, 0.93
-RIM_TOP_ROWS = (362.0, 398.0)  # picture rows of the top rim's front wall
-RIM_BOTTOM_ROWS = (758.0, 782.0)  # picture rows of the bottom rim's front wall
+RIM_TOP_ROWS = (372.0, 408.0)  # picture rows of the top rim's front wall
+RIM_BOTTOM_ROWS = (780.0, 802.0)  # picture rows of the bottom rim's front wall
 # the label shows ARC degrees of each view; the rest of the way round is plain yellow
 FRONT_ARC, BACK_ARC = 82.0, 50.0
 FEATHER = 8.0
@@ -75,8 +76,8 @@ def unwrap(img, view, arc):
     theta = np.radians(np.linspace(-arc, arc, width))
     v = np.linspace(0.0, 1.0, PANO_H)[:, None]
     x = view["cx"] + view["r"] * EDGE_SAFE * np.sin(theta)[None, :]
-    lift = LIFT * np.cos(theta)[None, :]
-    y = (view["top"] + lift) * (1.0 - v) + (view["bottom"] + lift) * v
+    cosine = np.cos(theta)[None, :]
+    y = (view["top"] + view["lift_top"] * cosine) * (1.0 - v) + (view["bottom"] + view["lift_bottom"] * cosine) * v
     return bilinear(img, np.broadcast_to(x, (PANO_H, width)), y)
 
 
