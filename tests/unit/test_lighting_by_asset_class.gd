@@ -45,6 +45,8 @@ func test_the_zone_marks_are_unshaded_in_the_exact_team_colours() -> void:
 			assert_eq(Color(material.albedo_color, 1.0), want, "zone material %d is exactly the palette colour, not softened" % index)
 		assert_eq((materials[0] as StandardMaterial3D).albedo_color.a, 1.0, "the line is solid")
 		assert_almost_eq((materials[1] as StandardMaterial3D).albedo_color.a, StreetMap.ZONE_FILL_ALPHA, 0.0001, "the fill is the palette colour at its alpha only")
+		assert_almost_eq((materials[3] as StandardMaterial3D).albedo_color.a, StreetMap.RESCUE_FILL_ALPHA, 0.0001, "the rescue fill likewise")
+		assert_eq((materials[2] as StandardMaterial3D).albedo_color.a, 1.0, "the rescue line is solid")
 	map.set_own_side(MapLayout.SIDE_ENEMY)
 	for material: StandardMaterial3D in map._base_materials[MapLayout.SIDE_ENEMY]:
 		assert_eq(Color(material.albedo_color, 1.0), Palette.TEAM_OWN, "still exact after the teams swap ends")

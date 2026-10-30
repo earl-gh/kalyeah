@@ -142,8 +142,9 @@ func test_street_scene_builds_bases_boxes_cover_and_dressing() -> void:
 		var zone: Array[Color] = map.zone_colors(side)
 		assert_eq(zone.size(), 4, "base and rescue area are tinted: there is no box inside it any more")
 		assert_eq(zone[0], zone[2], "the rescue area has the same tape as the base")
-		assert_eq(zone[1], zone[3], "and the same faint fill")
-		assert_lt(zone[1].a, 0.5, "the fill stays faint")
+		assert_eq(Color(zone[1], 1.0), Color(zone[3], 1.0), "and the same fill colour")
+		assert_lt(zone[1].a, 0.5, "a base's fill stays faint")
+		assert_almost_eq(zone[3].a, StreetMap.RESCUE_FILL_ALPHA, 0.0001, "a rescue area's fill is stronger")
 
 
 func test_a_rescue_area_is_white_while_it_counts_down_and_the_teams_colour_once_ready() -> void:
@@ -163,7 +164,8 @@ func test_a_rescue_area_is_white_while_it_counts_down_and_the_teams_colour_once_
 	assert_true(Color(map.zone_colors(own_side)[3], 1.0).is_equal_approx(Color.WHITE), "its fill too")
 	assert_true(Color(map.zone_colors(enemy_side)[2], 1.0).is_equal_approx(StreetMap.ENEMY_COLOR), "ready: their red")
 	assert_true(Color(map.zone_colors(own_side)[0], 1.0).is_equal_approx(StreetMap.OWN_COLOR), "the base itself keeps its colour")
-	assert_lt(map.zone_colors(own_side)[3].a, 0.5, "the fill stays faint")
+	assert_almost_eq(map.zone_colors(own_side)[3].a, 0.55, 0.0001, "the countdown box's fill is 0.55 (was 0.34)")
+	assert_eq(map.zone_colors(own_side)[2].a, 1.0, "its outline is fully opaque")
 	sim.rescue_ready_left[0] = 0.0
 	map.sync_rescue(sim)
 	assert_true(Color(map.zone_colors(own_side)[2], 1.0).is_equal_approx(StreetMap.OWN_COLOR), "ready: your blue")
