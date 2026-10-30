@@ -64,7 +64,7 @@ func setup(ctx: FxContext) -> void:
 static func flash_time_for(def: WeaponDef, n: int) -> float:
 	if def.delay > 0.0:
 		return CONE_FLASH_TIME
-	var snips: float = float(n * FxMotion.snip_period(n)) / 30.0
+	var snips: float = float(FxMotion.snip_frames(n)) / 30.0
 	return clampf(maxf(FLASH_MIN, snips + FLASH_TAIL), FLASH_MIN, FLASH_MAX)
 
 
