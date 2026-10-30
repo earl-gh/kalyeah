@@ -74,3 +74,29 @@ func test_the_warning_goes_when_the_enemy_leaves_and_your_own_capture_keeps_its_
 	assert_eq(practice.sim.capture_team, practice.local_team)
 	assert_true(practice.hud.capture_label.visible, "your own capture keeps its words in the middle")
 	assert_string_contains(practice.hud.capture_label.text, "HOLD THE BASE!")
+
+
+func test_a_capture_that_stops_for_a_moment_keeps_its_words_and_warning_so_they_do_not_blink() -> void:
+	var practice: PracticeMatch = _practice()
+	_enemy_in_our_base(practice)
+	practice.advance(DT)
+	practice.advance(DT)
+	assert_true(practice.hud.capture_alert.visible)
+	var base_spot: Vector2 = practice.layout.base_center(practice.own_side())
+	var capturers: Array[int] = []
+	for id: int in practice.sim.players:
+		if practice.sim.players[id].team != practice.local_team and practice.layout.in_base(practice.own_side(), practice.sim.players[id].position):
+			capturers.append(id)
+			practice.sim.players[id].position = Vector2.ZERO  # steps out for a moment
+	practice.advance(DT)
+	assert_eq(practice.sim.capture_team, -1, "the capture really stopped")
+	assert_true(practice.hud.capture_alert.visible, "the warning stays up through a short gap")
+	for id: int in capturers:
+		practice.sim.players[id].position = base_spot  # and back in
+	practice.advance(DT)
+	assert_true(practice.hud.capture_alert.visible, "and never went out")
+	for id: int in capturers:
+		practice.sim.players[id].position = Vector2.ZERO
+	for i: int in 30:  # a long gap: nobody is taking the base
+		practice.advance(DT)
+	assert_false(practice.hud.capture_alert.visible, "after the gap the warning goes")

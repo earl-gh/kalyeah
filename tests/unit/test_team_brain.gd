@@ -47,12 +47,14 @@ func test_a_rusher_walks_toward_the_enemy_base() -> void:
 	assert_gt(_way(input, sim.players[1]).dot(way), 0.99)
 
 
-func test_a_rusher_that_has_arrived_stands_still() -> void:
+func test_a_rusher_that_has_arrived_walks_about_in_the_enemy_base_instead_of_standing() -> void:
 	var sim: MatchSim = _sim()
 	sim.players[3].position = Vector2(100.0, 100.0)
 	sim.players[1].position = _spot(sim)
 	var brain: TeamBrain = TeamBrain.rusher(sim.players[1].spawn_position, _spot(sim))
-	assert_eq(_way(brain.think(sim.players[1], sim), sim.players[1]), Vector2.ZERO)
+	var input: PlayerInput = brain.think(sim.players[1], sim)
+	assert_true(input.is_pressed(PlayerInput.BTN_MOVE_TARGET))
+	assert_true(LAYOUT.in_base(-sim.side_for_team(0), input.move_target), "its next spot is in the enemy base too")
 
 
 func test_a_defender_holds_its_post_until_an_enemy_comes() -> void:
@@ -111,7 +113,7 @@ func test_in_the_enemy_base_nothing_can_be_cast_so_a_rusher_steps_out_to_fight()
 	assert_gt(_way(input, sim.players[1]).dot(out), 0.9, "it walks out of the base toward the fight")
 
 
-func test_a_tired_bot_in_a_fight_stands_still_instead_of_strafing_its_bar_empty() -> void:
+func test_a_tired_bot_in_a_fight_keeps_moving_it_never_stands_to_refill() -> void:
 	var sim: MatchSim = _sim()
 	var brain: TeamBrain = TeamBrain.defender(sim.players[1].spawn_position)
 	sim.players[1].position = Vector2(0.0, 6.0)
@@ -119,13 +121,10 @@ func test_a_tired_bot_in_a_fight_stands_still_instead_of_strafing_its_bar_empty(
 	sim.players[1].weapon_cooldowns.fill(99.0)  # nothing to cast: it holds its distance
 	var standoff: float = brain._standoff(sim.players[1], sim)
 	sim.players[3].position = Vector2(0.0, 6.0 - standoff)
-	var fresh: PlayerInput = brain.think(sim.players[1], sim)
-	assert_true(fresh.is_pressed(PlayerInput.BTN_MOVE_TARGET))
-	assert_gt(fresh.move_target.distance_to(sim.players[1].position), 0.5, "a rested bot strafes")
-	sim.players[1].stamina = sim.rules.stamina_max * sim.rules.bot_stamina_rest * 0.5
+	sim.players[1].stamina = 1.0
 	var tired: PlayerInput = brain.think(sim.players[1], sim)
 	assert_true(tired.is_pressed(PlayerInput.BTN_MOVE_TARGET))
-	assert_lt(tired.move_target.distance_to(sim.players[1].position), 0.2, "a tired one stays where it is")
+	assert_gt(tired.move_target.distance_to(sim.players[1].position), 0.5, "low on stamina it still strafes (running out only slows it to a walk)")
 
 
 func test_priority_two_the_base_comes_before_a_rescue_so_a_rusher_not_there_yet_keeps_going() -> void:
@@ -153,7 +152,7 @@ func test_priority_three_from_the_enemy_base_the_lowest_numbered_free_rusher_fet
 	var one: PlayerInput = first.think(sim.players[1], sim)
 	var two: PlayerInput = second.think(sim.players[2], sim)
 	assert_gt(_way(one, sim.players[1]).dot((area - sim.players[1].position).normalized()), 0.99, "number 1 goes to the rescue area")
-	assert_lt(_way(two, sim.players[2]).length(), 0.5, "number 2 stays holding the base")
+	assert_true(LAYOUT.in_base(-sim.side_for_team(0), two.move_target), "number 2 stays in the base, walking about in it")
 
 
 func test_a_rescue_that_has_started_is_not_called_off_by_leaving_the_base() -> void:
@@ -206,3 +205,75 @@ func test_bots_walk_to_the_rescue_area_and_free_a_tagged_teammate() -> void:
 			freed = true
 			break
 	assert_true(freed, "a bot stood in the rescue area for the hold time and freed the kid on the sidewalk")
+
+
+func test_a_bot_waiting_at_its_post_walks_about_in_its_base_and_never_stands() -> void:
+	var sim: MatchSim = _sim()
+	sim.players[3].position = Vector2(100.0, 100.0)
+	var home: int = sim.side_for_team(0)
+	var brain: TeamBrain = TeamBrain.defender(sim.players[1].spawn_position)
+	var state: PlayerState = sim.players[1]
+	state.position = LAYOUT.base_center(home)
+	var spots: Dictionary[Vector2, bool] = {}
+	for i: int in 240:
+		var input: PlayerInput = brain.think(state, sim)
+		assert_true(input.is_pressed(PlayerInput.BTN_MOVE_TARGET))
+		assert_gt(input.move_target.distance_to(state.position), 0.05, "tick %d: it has somewhere to go" % i)
+		assert_true(LAYOUT.in_base(home, input.move_target), "and stays in its own base")
+		spots[input.move_target] = true
+		state.position = state.position.move_toward(input.move_target, 5.0 * DT)
+	assert_gt(spots.size(), 2, "over eight seconds it walks to several places")
+
+
+func test_a_base_holder_stays_in_the_enemy_base_even_with_an_enemy_next_to_it() -> void:
+	var sim: MatchSim = _sim()
+	var enemy_side: int = -sim.side_for_team(0)
+	var centre: Vector2 = LAYOUT.base_center(enemy_side)
+	var out: Vector2 = (Vector2.ZERO - centre).normalized()
+	sim.players[1].position = centre
+	sim.players[3].position = centre + out * 5.0
+	var brain: TeamBrain = TeamBrain.rusher(sim.players[1].spawn_position, _spot(sim))
+	brain.hold = true
+	for i: int in 90:
+		var input: PlayerInput = brain.think(sim.players[1], sim)
+		assert_true(LAYOUT.in_base(enemy_side, input.move_target), "tick %d: it never sets off out of the base" % i)
+		sim.players[1].position = sim.players[1].position.move_toward(input.move_target, 5.0 * DT)
+		assert_true(LAYOUT.in_base(enemy_side, sim.players[1].position))
+
+
+func test_a_fight_does_not_walk_into_the_enemy_base_it_goes_along_its_edge() -> void:
+	var sim: MatchSim = _sim()
+	var enemy_side: int = -sim.side_for_team(0)
+	var centre: Vector2 = LAYOUT.base_center(enemy_side)
+	var out: Vector2 = (Vector2.ZERO - centre).normalized()
+	# the enemy stands inside the base, 3 m in; the rusher stands at the edge with nothing to cast
+	var edge: Vector2 = centre + out * (LAYOUT.base_radius + 0.3)
+	sim.players[1].position = edge
+	sim.players[1].elixir = 0.0
+	sim.players[1].weapon_cooldowns.fill(99.0)
+	sim.players[3].position = centre
+	var brain: TeamBrain = TeamBrain.rusher(sim.players[1].spawn_position, _spot(sim))
+	for i: int in 60:
+		var input: PlayerInput = brain.think(sim.players[1], sim)
+		var step: Vector2 = input.move_target - sim.players[1].position
+		sim.players[1].position += step.limit_length(5.0 * DT)
+		assert_false(sim.casting_blocked(sim.players[1]), "tick %d: it stays out of the place it cannot cast in" % i)
+
+
+func test_after_stepping_out_to_fight_a_rusher_waits_outside_before_going_back_in() -> void:
+	var sim: MatchSim = _sim()
+	var enemy_side: int = -sim.side_for_team(0)
+	var centre: Vector2 = LAYOUT.base_center(enemy_side)
+	var out: Vector2 = (Vector2.ZERO - centre).normalized()
+	sim.players[1].position = centre + out * 1.0
+	sim.players[3].position = centre + out * 9.0
+	var brain: TeamBrain = TeamBrain.rusher(sim.players[1].spawn_position, _spot(sim))
+	brain.think(sim.players[1], sim)  # steps out
+	sim.players[1].position = centre + out * (LAYOUT.base_radius + 1.0)
+	sim.players[3].position = Vector2(100.0, 100.0)  # the enemy is gone
+	for i: int in 20:  # well under REENTER_DELAY
+		var input: PlayerInput = brain.think(sim.players[1], sim)
+		assert_false(LAYOUT.in_base(enemy_side, input.move_target), "tick %d: it does not walk straight back into the base" % i)
+	for i: int in 90:
+		brain.think(sim.players[1], sim)
+	assert_true(LAYOUT.in_base(enemy_side, brain.think(sim.players[1], sim).move_target), "later it goes back in")

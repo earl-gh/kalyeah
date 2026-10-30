@@ -48,12 +48,16 @@ const GEAR_SIZE: float = UiMetrics.TOUCH
 const SCORE_SIZE: Vector2 = Vector2(330.0, 88.0)
 const CLOCK_SIZE: Vector2 = Vector2(176.0, 112.0)
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
+## How long the capture words and the warning stay up when the capture stops for a moment (seconds).
+const CAPTURE_LINGER: float = 0.4
 ## The tray at the bottom of the screen (the hand and the elixir bar): the arena sits above it. The camera reserves the same height.
 const CONSOLE_HEIGHT: float = 255.0
 ## The most the bottom inset can add (a tall gesture bar), so the tray never eats the street.
 const MAX_BOTTOM_INSET: float = 80.0
 
 var overhead: OverheadHud
+var _capture_linger: float = 0.0
+var _capture_alerting: bool = false
 ## The red glow round the screen edge when you are hit (under the controls).
 var pulse: HurtPulse
 ## The tray at the bottom (it only draws).
@@ -261,7 +265,7 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 	scoreboard.show_capture(sim, local_team)
 	var counting: bool = sim.rules.overtime_after > 0.0
 	clock_chip.show_time(maxf(sim.rules.overtime_after - sim.round_time, 0.0) if counting else sim.match_time, sim.in_overtime(), counting)
-	_sync_capture(sim, local_team)
+	_sync_capture(sim, local_team, delta)
 	again_button.visible = sim.phase == MatchSim.Phase.MATCH_OVER
 	point_result.sync(sim, local_team)
 	results.set_over(sim.phase == MatchSim.Phase.MATCH_OVER, sim, local_id, local_team, results_mode)
@@ -286,13 +290,24 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 
 
 ## "HOLD THE BASE! 3" for us, in the middle of the screen; against us it is the warning triangle and its two lines at the top (`capture_alert`).
-func _sync_capture(sim: MatchSim, local_team: int) -> void:
+## A capture that stops for a moment (a kid steps out and back, two teams meet in a base) keeps its words and warning for
+## `CAPTURE_LINGER` seconds, so a short gap does not make them blink; a change of who captures, or the end of the point, is shown at once.
+func _sync_capture(sim: MatchSim, local_team: int, delta: float) -> void:
 	var running: bool = sim.capture_team >= 0 and sim.phase == MatchSim.Phase.PLAYING
 	var ours: bool = sim.capture_team == local_team
 	var alert: bool = running and not ours and sim.capture_kind == MatchSim.CaptureKind.BASE
+	if running:
+		_capture_linger = CAPTURE_LINGER
+		_capture_alerting = alert
+	elif sim.phase == MatchSim.Phase.PLAYING and _capture_linger > 0.0:
+		_capture_linger -= delta
+		running = _capture_linger > 0.0
+		alert = running and _capture_alerting
+	else:
+		_capture_linger = 0.0
 	capture_alert.show_alert(alert)
 	capture_label.visible = running and not alert
-	if not capture_label.visible:
+	if not capture_label.visible or sim.capture_team < 0:
 		return
 	var seconds: int = ceili(sim.capture_time_left())
 	var how: String

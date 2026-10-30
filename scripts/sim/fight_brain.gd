@@ -12,8 +12,8 @@ extends DummyBrain
 ## is, at 1 where the enemy will be, and its aim error shrinks. At any skill it throws ground circles at the
 ## enemy's distance (not at full range) and never throws a projectile into cover, stepping aside until it can.
 ## It plays by the players' rules (docs/GDD.md "Bots and the coach play by the same rules"): it walks by move targets, casts only the
-## cards it can afford (released at a street point, a heal as a tap), and with no enemy near it stops to refill its stamina below
-## `bot_stamina_rest` until it is back to `bot_stamina_resume`.
+## cards it can afford (released at a street point, a heal as a tap). A bot that is free to act never stands still on purpose (owner,
+## 2026-10-30): it fights, walks on, or patrols its post; running out of stamina only slows it to a walk (the player's own rule).
 
 ## Below this share of health a bot heals itself, and an enemy this hurt is worth going after first (`_pick_enemy`).
 const HEAL_BELOW: float = 0.5
@@ -34,6 +34,14 @@ const SIDESTEPS: Array[float] = [2.0, 4.0, 6.0, 8.0]
 const COVER_MARGIN: float = 0.3
 ## While fighting it steers by putting its move target this far ahead in the way it wants to go (re-sent every tick).
 const STEER_AHEAD: float = 1.0
+## A bot that waits at its post walks between spots of the post's area, new spot once it is this close to the last (metres).
+const PATROL_REACH: float = 0.6
+## Where a fight does not enter a place nothing can be cast in (the enemy base, a rescue area): it looks this far ahead (metres).
+const ENTRY_LOOKAHEAD: float = 0.8
+## A fight move that has not moved the bot for this many ticks (a wall or a body in the way) is turned a quarter to the side.
+const PINNED_TICKS: int = 4
+## After stepping out of a place nothing can be cast in to fight, a bot stays out this many seconds after its last enemy left.
+const REENTER_DELAY: float = 2.0
 
 ## Aim quality 0 to 1; -1 takes `bot_skill` from the rules.
 var skill: float = -1.0
@@ -48,8 +56,14 @@ var _aim: Vector2 = Vector2.ZERO
 ## The street point the held card is released at; `_tap_release` = released as a tap (a heal on itself).
 var _aim_point: Vector2 = Vector2.ZERO
 var _tap_release: bool = false
-## True while it stands to refill its stamina.
-var _resting: bool = false
+## The spot it is patrolling to (INF: none yet).
+var _patrol_spot: Vector2 = Vector2.INF
+## Where it stood at the last think and for how many ticks in a row it has not moved, and which way a pinned move turns.
+var _last_position: Vector2 = Vector2.INF
+var _pinned: int = 0
+var _turn: float = 1.0
+## Seconds left in which it does not walk back into a place nothing can be cast in (it stepped out of one to fight).
+var _stay_out_left: float = 0.0
 var _cooldown: float = 0.0
 ## Where each enemy was at the last think, and how fast it is going (metres a second), for leading shots.
 var _seen: Dictionary[int, Vector2] = {}
@@ -66,6 +80,9 @@ static func fighter(spot: Vector2) -> FightBrain:
 
 func think(state: PlayerState, sim: MatchSim) -> PlayerInput:
 	_cooldown = maxf(0.0, _cooldown - sim.rules.tick_dt())
+	_stay_out_left = maxf(0.0, _stay_out_left - sim.rules.tick_dt())
+	_pinned = _pinned + 1 if state.position.distance_squared_to(_last_position) < 0.0001 else 0
+	_last_position = state.position
 	_track(state, sim)
 	if _press_slot >= 0:
 		# the second half of a tap: let go, at the aimed point (or as a tap)
@@ -76,8 +93,6 @@ func think(state: PlayerState, sim: MatchSim) -> PlayerInput:
 		# nothing can be cast here while a teammate waits, so a fight would only walk it out: it holds the rescue
 		return _no_enemy(state, sim)
 	var enemy: PlayerState = _pick_enemy(state, sim, _engage_range(sim))
-	if _rest_due(state, sim, enemy):
-		return _stop(state, sim)
 	if enemy == null:
 		return _no_enemy(state, sim)
 	if rescue_duty != 1:
@@ -119,19 +134,6 @@ func _threat_rank(state: PlayerState, enemy: PlayerState, sim: MatchSim) -> int:
 	if float(enemy.hp) < float(sim.rules.player_max_hp) * HEAL_BELOW:
 		return 2
 	return 3
-
-
-## A brain choice, not a rule: with no enemy near and stamina below `bot_stamina_rest`, stand until it is back to `bot_stamina_resume`.
-func _rest_due(state: PlayerState, sim: MatchSim, enemy: PlayerState) -> bool:
-	if not sim.rules.stamina_enabled or not state.has_stamina or enemy != null:
-		_resting = false
-		return false
-	var share: float = state.stamina / maxf(sim.rules.stamina_max, 0.001)
-	if share < sim.rules.bot_stamina_rest:
-		_resting = true
-	elif share >= sim.rules.bot_stamina_resume:
-		_resting = false
-	return _resting
 
 
 ## Stands where it is (a move target on itself ends any walk).
@@ -178,7 +180,10 @@ func _at_post(state: PlayerState, _sim: MatchSim) -> bool:
 
 func _fight(state: PlayerState, sim: MatchSim, enemy: PlayerState) -> PlayerInput:
 	if sim.casting_blocked(state):
-		# in the enemy base or the rescue area nothing can be cast: step out and fight from outside
+		if _holds_zone(state, sim):
+			return _no_enemy(state, sim)  # holds the place it is in (the capture), walking about in it
+		# in the enemy base or the rescue area nothing can be cast: step out and fight from outside, and stay out a while
+		_stay_out_left = REENTER_DELAY
 		return _steer(state, sim, _out_of_zone(state, sim))
 	var offset: Vector2 = enemy.position - state.position
 	var distance: float = offset.length()
@@ -204,19 +209,49 @@ func _fight(state: PlayerState, sim: MatchSim, enemy: PlayerState) -> PlayerInpu
 		move = toward
 	elif distance < standoff - TOO_CLOSE_SLACK:
 		move = -toward
-	elif _tired(state, sim):
-		move = Vector2.ZERO  # stand and refill instead of strafing the bar empty
 	else:
 		var side: float = 1.0 if (int(float(sim.tick) * sim.rules.tick_dt() / STRAFE_SWITCH) + state.id) % 2 == 0 else -1.0
 		move = toward.rotated(side * PI / 2.0)
-	return _steer(state, sim, move)
+	return _steer(state, sim, _unpin(_avoid_entering(state, sim, move)))
 
 
-## Low on stamina (and not yet overclocked): a bot in a fight stands still to refill rather than strafe.
-func _tired(state: PlayerState, sim: MatchSim) -> bool:
-	if not sim.rules.stamina_enabled or not state.has_stamina or state.overclocked:
-		return false
-	return state.stamina / maxf(sim.rules.stamina_max, 0.001) < sim.rules.bot_stamina_rest
+## True when this bot stays in the place it is in even though nothing can be cast there (a TeamBrain's base holder).
+func _holds_zone(_state: PlayerState, _sim: MatchSim) -> bool:
+	return false
+
+
+## A fight never walks into a place nothing can be cast in (stepping in and out of the enemy base kept the capture flickering): it
+## goes along the edge instead, or backs off.
+func _avoid_entering(state: PlayerState, sim: MatchSim, move: Vector2) -> Vector2:
+	if move == Vector2.ZERO or sim.casting_blocked(state):
+		return move
+	if not sim.casting_blocked_at(state, state.position + move.normalized() * ENTRY_LOOKAHEAD):
+		return move
+	for turn: float in [PI / 2.0, -PI / 2.0]:
+		var along: Vector2 = move.rotated(turn)
+		if not sim.casting_blocked_at(state, state.position + along.normalized() * ENTRY_LOOKAHEAD):
+			return along
+	return -move
+
+
+## A move that has not got the bot anywhere for `PINNED_TICKS` ticks (against a wall or another kid) turns a quarter to one side, and
+## the other side the next time, so a bot is never held against the same wall.
+func _unpin(move: Vector2) -> Vector2:
+	if move == Vector2.ZERO or _pinned < PINNED_TICKS:
+		return move
+	_pinned = 0
+	_turn = -_turn
+	return move.rotated(_turn * PI / 2.0)
+
+
+## Walks between random spots of `area` (shrunk by `margin`), so a bot that waits keeps moving. Seeded by the match.
+func _patrol(state: PlayerState, sim: MatchSim, area: Rect2, margin: float) -> PlayerInput:
+	var inner: Rect2 = area.grow(-margin)
+	if inner.size.x <= 0.0 or inner.size.y <= 0.0:
+		inner = Rect2(area.get_center(), Vector2.ZERO)
+	if _patrol_spot == Vector2.INF or not inner.has_point(_patrol_spot) or state.position.distance_to(_patrol_spot) <= PATROL_REACH:
+		_patrol_spot = Vector2(sim.rng.randf_range(inner.position.x, inner.end.x), sim.rng.randf_range(inner.position.y, inner.end.y))
+	return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 0).with_move_target(_patrol_spot)
 
 
 ## The way out of the place where nothing can be cast: away from the enemy base's centre, or from the rescue area's.

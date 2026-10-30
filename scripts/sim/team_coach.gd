@@ -7,6 +7,9 @@ extends RefCounted
 ## `bot_rest_time` seconds back home), and only while at least two thirds of them are free: with more tagged they fall back to
 ## defending. A team with a human to follow (the player's allies) also attacks whenever that human is free in the enemy half, so it
 ## backs up what the player does (owner, 2026-10-29: it used to wait for the human, and stood still in its own half until then).
+## While attacking, `bot_base_holders` free attackers hold the enemy base for good: they walk about inside it and never step out to fight
+## (stepping in and out kept the capture clock resetting and the capture notice blinking); the other attackers fight from outside and
+## only walk back in once their enemies are gone. Nobody stands still on purpose: a bot with nothing to fight walks about its post.
 ## Whatever the plan, three bots get a job of their own each tick:
 ## - the rescuer: the free bot nearest the team's rescue area, while a teammate (bot or human) is tagged;
 ## - a guard: while the other team is taking this team's base and the plan is to attack, the free bot nearest home goes back;
@@ -21,6 +24,8 @@ var plan: Plan = Plan.DEFEND
 var follow_id: int = -1
 
 var _brains: Dictionary[int, TeamBrain] = {}
+## The attackers that hold the enemy base, kept while they stay free and attacking (so the job does not pass back and forth).
+var _holders: Array[int] = []
 
 
 func _init(p_team: int, p_follow_id: int = -1) -> void:
@@ -52,6 +57,7 @@ func drive(sim: MatchSim) -> void:
 	var rescuer: int = rescuer_id(sim)
 	var guard: int = guard_id(sim, rescuer)
 	var pusher: int = pusher_id(sim, rescuer)
+	_pick_holders(sim, rescuer, guard, pusher)
 	for id: int in _brains:
 		var state: PlayerState = sim.players[id]
 		if state.tagged:
@@ -60,7 +66,30 @@ func drive(sim: MatchSim) -> void:
 		var attack: bool = (plan == Plan.ASSAULT and id != guard) or id == pusher
 		brain.role = TeamBrain.Role.RUSH if attack else TeamBrain.Role.DEFEND
 		brain.rescue_duty = 1 if id == rescuer else 0
+		brain.hold = attack and _holders.has(id)
 		sim.set_input(id, brain.think(state, sim))
+
+
+## Chooses which attackers hold the enemy base this tick: the ones already holding stay, then the free attackers nearest that base.
+func _pick_holders(sim: MatchSim, rescuer: int, guard: int, pusher: int) -> void:
+	var wanted: int = sim.rules.bot_base_holders
+	var attackers: Array[int] = []
+	for id: int in _brains:
+		if sim.players[id].tagged or id == rescuer or id == guard:
+			continue
+		if (plan == Plan.ASSAULT) or id == pusher:
+			attackers.append(id)
+	_holders = _holders.filter(func(id: int) -> bool: return attackers.has(id))
+	var spot: Vector2 = sim.layout.base_center(-sim.side_for_team(team))
+	attackers.sort_custom(func(a: int, b: int) -> bool:
+		return sim.players[a].position.distance_squared_to(spot) < sim.players[b].position.distance_squared_to(spot))
+	for id: int in attackers:
+		if _holders.size() >= wanted:
+			break
+		if not _holders.has(id):
+			_holders.append(id)
+	while _holders.size() > wanted:
+		_holders.pop_back()
 
 
 ## The bot that fetches a tagged teammate: the free one nearest the team's rescue area (-1: nobody is tagged, or no bot is free).
