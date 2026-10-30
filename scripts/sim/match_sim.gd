@@ -662,11 +662,15 @@ func weapon_ready(state: PlayerState, slot: int) -> bool:
 ## Where a free player cannot cast (owner): standing in the enemy base (capturing it), or in their own team's rescue area while a
 ## teammate waits on the sidewalk (rescuing). Both are data toggles.
 func casting_blocked(state: PlayerState) -> bool:
-	if state.tagged:
-		return false
-	if rules.no_cast_in_enemy_base and layout.in_base(-side_for_team(state.team), state.position):
+	return not state.tagged and casting_blocked_at(state, state.position)
+
+
+## The same for `state` standing at `position` (a bot looking one step ahead).
+func casting_blocked_at(state: PlayerState, position: Vector2) -> bool:
+	if rules.no_cast_in_enemy_base and layout.in_base(-side_for_team(state.team), position):
 		return true
-	return rules.no_cast_in_rescue_area and objectives.teammate_waiting(self, state.team) and objectives.in_rescue_area(self, state)
+	return rules.no_cast_in_rescue_area and objectives.teammate_waiting(self, state.team) \
+		and layout.rescue_rect(side_for_team(state.team)).grow(state.radius).has_point(position)
 
 
 ## The aim a release would use: the stick if it is past the deadzone, otherwise the

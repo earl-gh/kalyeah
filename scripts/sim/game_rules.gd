@@ -94,9 +94,9 @@ extends Resource
 @export var self_cast_radius: float = 1.0
 ## Metres; a card dropped this close to your kid has no direction, so the kid's facing is used.
 @export var aim_no_direction_radius: float = 0.1
-## Bots: with no enemy near, a bot below this share of stamina stops to refill, until it is back to `bot_stamina_resume`.
-@export var bot_stamina_rest: float = 0.2
-@export var bot_stamina_resume: float = 0.6
+## Bots: how many free attackers of a team stay in the enemy base while it attacks (they never step out to fight, so the capture keeps
+## running; the others fight from outside). 0 = every attacker may step out (the old behaviour).
+@export var bot_base_holders: int = 1
 ## The match is won by the first team to this many points (practice, and the lobby's default).
 @export var first_to: int = 0
 ## What the host can pick in the lobby.

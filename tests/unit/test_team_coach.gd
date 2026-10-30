@@ -203,12 +203,14 @@ func test_the_bots_move_when_the_match_runs() -> void:
 	practice.finish_pick()
 	practice.skip_intro()
 	var start: Vector2 = practice.sim.players[PracticeMatch.BOT_ALLY_IDS[0]].position
+	var delay: float = practice.rules.bot_assault_delay  # the scene's rules are the shared resource: put the number back afterwards
 	practice.rules.bot_assault_delay = 0.0
 	practice.input.move_press(practice.sim.players[practice.local_id].position + Vector2(0.0, -3.0))
 	for i: int in 90:
 		practice.advance(DT)
 	assert_ne(practice.sim.players[PracticeMatch.BOT_ENEMY_IDS[0]].position, practice.sim.players[PracticeMatch.BOT_ENEMY_IDS[0]].spawn_position, "an enemy has set off")
 	assert_ne(start, Vector2.INF)
+	practice.rules.bot_assault_delay = delay
 
 
 func test_the_enemy_attacks_in_waves_and_rests_between_them() -> void:
@@ -236,3 +238,84 @@ func test_a_window_of_zero_means_the_enemy_never_stops_attacking() -> void:
 	var coach: TeamCoach = _enemies(sim)
 	_run(sim, [coach] as Array[TeamCoach], 60.0)
 	assert_eq(coach.plan, TeamCoach.Plan.ASSAULT)
+
+
+func test_while_attacking_the_set_number_of_attackers_hold_the_enemy_base_and_keep_the_job() -> void:
+	var sim: MatchSim = _sim()
+	var coach: TeamCoach = _enemies(sim)
+	sim.round_time = _rules.bot_assault_delay + 1.0
+	for holders: int in [0, 1, 2]:
+		_rules.bot_base_holders = holders
+		coach._holders.clear()
+		coach.drive(sim)
+		assert_eq(coach.plan, TeamCoach.Plan.ASSAULT)
+		var held: Array[int] = []
+		for id: int in coach.members():
+			if coach._brains[id].hold:
+				held.append(id)
+		assert_eq(held.size(), holders, "%d base holders asked for" % holders)
+		for i: int in 60:
+			coach.drive(sim)
+			sim.step(DT)
+			sim.round_time = _rules.bot_assault_delay + 1.0
+		var after: Array[int] = []
+		for id: int in coach.members():
+			if coach._brains[id].hold:
+				after.append(id)
+		assert_eq(after, held, "the job stays with the same bots")
+
+
+func test_defenders_hold_nothing() -> void:
+	var sim: MatchSim = _sim()
+	var coach: TeamCoach = _enemies(sim)
+	sim.round_time = 0.5  # before the assault delay
+	coach.drive(sim)
+	for id: int in coach.members():
+		assert_false(coach._brains[id].hold)
+
+
+## Both teams of bots play ninety seconds: a bot that holds the enemy base never steps out of it while it is free, and no bot that is
+## free to act stands still for a whole second (casting, a status or the capture itself aside).
+func test_bots_never_stand_around_and_holders_never_blink_the_capture() -> void:
+	var sim: MatchSim = MatchSim.new(_rules, LAYOUT, 31)
+	var ours: TeamCoach = TeamCoach.new(0)
+	var theirs: TeamCoach = TeamCoach.new(1)
+	for id: int in [1, 2, 3]:
+		sim.add_player(id, 0)
+		ours.add(sim, id, 0.4)
+	for id: int in [4, 5, 6]:
+		sim.add_player(id, 1)
+		theirs.add(sim, id, 0.4)
+	sim.assign_characters()
+	for id: int in sim.players:
+		sim.equip(id, true)
+	var still: Dictionary[int, int] = {}
+	var longest: int = 0
+	var stepped_out: int = 0
+	for tick: int in 2700:
+		if sim.phase == MatchSim.Phase.MATCH_OVER:
+			break
+		for coach: TeamCoach in [ours, theirs]:
+			coach.drive(sim)
+		var before: Dictionary[int, Vector2] = {}
+		var held_in: Dictionary[int, bool] = {}
+		for id: int in sim.players:
+			var state: PlayerState = sim.players[id]
+			before[id] = state.position
+			var brain: TeamBrain = (ours if state.team == 0 else theirs)._brains[id]
+			held_in[id] = brain.hold and not state.tagged and LAYOUT.in_base(-sim.side_for_team(state.team), state.position)
+		sim.step(DT)
+		if sim.phase != MatchSim.Phase.PLAYING:
+			still.clear()
+			continue
+		for id: int in sim.players:
+			var state: PlayerState = sim.players[id]
+			var walked: bool = state.position.distance_to(before[id]) < 1.0  # a rescue or a new round puts a kid back at its spawn
+			if held_in[id] and walked and not state.tagged and not LAYOUT.in_base(-sim.side_for_team(state.team), state.position):
+				stepped_out += 1
+			var idle: bool = not state.tagged and state.can_act() and state.cast_lock_left <= 0.0 \
+				and state.position.distance_squared_to(before[id]) < 0.000001
+			still[id] = (still.get(id, 0) + 1) if idle else 0
+			longest = maxi(longest, still[id])
+	assert_eq(stepped_out, 0, "a holder stays in the base it holds")
+	assert_lt(longest, 45, "no free bot stands still for a second and a half (the longest was %d ticks)" % longest)

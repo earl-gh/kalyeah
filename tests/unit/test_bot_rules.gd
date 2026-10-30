@@ -1,6 +1,6 @@
 extends GutTest
 ## Bots play by the players' rules (docs/GDD.md "Controls: tap to move, cards to cast" > Bots and the coach play by the same rules):
-## move targets, only affordable cards from a dealt hand of 4, released at a street point, and a stamina rest when no enemy is near.
+## move targets, only affordable cards from a dealt hand of 4, released at a street point,; a bot never stands to refill (running dry only slows it).
 ## Seam: TeamBrain.think / MatchSim.step.
 
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
@@ -38,18 +38,13 @@ func test_a_bot_walks_by_move_targets_not_a_stick() -> void:
 	assert_eq(input.move, Vector2.ZERO)
 
 
-func test_a_tired_bot_with_no_enemy_near_stands_to_refill_then_walks_on() -> void:
+func test_a_bot_low_on_stamina_with_no_enemy_near_keeps_walking_on() -> void:
 	var sim: MatchSim = _sim()
 	var brain: TeamBrain = _rusher(sim)
 	var state: PlayerState = sim.players[1]
 	state.position = Vector2(0.0, 5.0)
-	state.stamina = _rules.stamina_max * (_rules.bot_stamina_rest - 0.05)
-	var resting: PlayerInput = brain.think(state, sim)
-	assert_eq(resting.move_target, state.position, "below the rest share it stands")
-	state.stamina = _rules.stamina_max * (_rules.bot_stamina_resume - 0.05)
-	assert_eq(brain.think(state, sim).move_target, state.position, "and keeps standing until the resume share")
-	state.stamina = _rules.stamina_max * _rules.bot_stamina_resume
-	assert_ne(brain.think(state, sim).move_target, state.position, "then walks on")
+	state.stamina = 1.0
+	assert_ne(brain.think(state, sim).move_target, state.position, "it does not stop to refill: running dry only slows it to a walk")
 
 
 func test_a_tired_bot_still_fights_an_enemy_in_reach() -> void:
