@@ -6,10 +6,10 @@ extends Node3D
 ## position at the cast; offline the sim's time left makes it exact. The landing is the zone leaving the sim.
 
 ## Every zone says who threw it from its first frame: white for your team's, red for the other team's (`FxContext.area_color`), a
-## white tint fill (`FxKit.AREA_FILL_ALPHA`) inside a thin opaque outline (`FxKit.AREA_RIM`): a landing circle, an armed trap, its slow
+## white tint fill (`FxKit.AREA_FILL_ALPHA`) inside a thin outline (`FxKit.AREA_RIM`, `FxKit.AREA_RIM_ALPHA`), both half see-through: a landing circle, an armed trap, its slow
 ## zone and a jacks field alike.
 ## A trap still arming has only a lighter outline (its arming fill grows inside it).
-const TRAP_ARMING_RIM: float = 0.85
+const TRAP_ARMING_RIM: float = FxKit.AREA_RIM_ALPHA * 0.85
 ## The progress fill of a delayed area (a landing, a trap arming): an inner disc in the area's colour that grows from nothing
 ## to the whole circle exactly over the delay. Full = it lands (or the trap is armed).
 const PROGRESS_ALPHA: float = 0.35
@@ -149,7 +149,7 @@ func make_node(zone: WeaponSystem.Zone) -> Node3D:
 			mark.mesh = FxGround.area_mark(zone.radius, color, 0.0)
 			var fill: MeshInstance3D = MeshInstance3D.new()
 			fill.name = "Fill"
-			fill.mesh = FxGround.circle_fill(zone.radius, color, FxKit.AREA_FILL_ALPHA)
+			fill.mesh = FxGround.circle_fill(zone.radius - FxKit.AREA_RIM / 2.0, color, FxKit.AREA_FILL_ALPHA)
 			fill.material_override = FxKit.overlay(FxKit.PRIO_FILL)
 			fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			node.add_child(fill)
