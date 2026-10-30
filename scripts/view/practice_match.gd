@@ -176,6 +176,15 @@ func street_point(screen: Vector2) -> Variant:
 	return Vector2((hit as Vector3).x, (hit as Vector3).z)
 
 
+## The street (the play area) on the screen, in viewport pixels.
+func street_screen_rect() -> Rect2:
+	var lane: Rect2 = layout.lane_rect()
+	var rect: Rect2 = Rect2(_camera.screen_position(Vector3(lane.position.x, 0.0, lane.position.y)), Vector2.ZERO)
+	for corner: Vector2 in [Vector2(lane.end.x, lane.position.y), lane.end, Vector2(lane.position.x, lane.end.y)]:
+		rect = rect.expand(_camera.screen_position(Vector3(corner.x, 0.0, corner.y)))
+	return rect
+
+
 ## A tap on the street at screen point `at`: walk there.
 func move_pressed(at: Vector2) -> void:
 	var point: Variant = street_point(at)
@@ -203,7 +212,8 @@ func card_pressed(slot: int) -> void:
 
 ## The held card's finger is at screen point `at` (on its own card, over the hand).
 func card_moved(_slot: int, at: Vector2, on_card: bool, over_hand: bool) -> void:
-	input.card_drag(on_card, null if over_hand else street_point(at))
+	var point: Variant = null if over_hand else street_point(at)
+	input.card_drag(on_card, point, point is Vector2 and layout.lane_rect().has_point(point as Vector2))
 
 
 ## The held card was let go at screen point `at`: a cast there, a tap, or a drop back on the hand (MatchInput decides).

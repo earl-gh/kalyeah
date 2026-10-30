@@ -31,6 +31,8 @@ var over_street: bool = false
 var aim_point: Vector2 = Vector2.ZERO
 ## The held card has been over the street at least once (`aim_point` means something).
 var aimed: bool = false
+## The finger is over the ground but outside the street (the sidewalk, the walls): the aim follows it, in red, and letting go cancels.
+var out_of_bounds: bool = false
 var _pressed_ms: int = 0
 var _sent_held: bool = false
 var _release: Release = Release.NONE
@@ -66,19 +68,23 @@ func card_press(slot: int, now_ms: int) -> bool:
 	_pressed_ms = now_ms
 	left_card = false
 	over_street = false
+	out_of_bounds = false
 	aimed = false
 	_sent_held = false
 	return true
 
 
-## The held card's finger moved: still on the card it pressed (`on_card`), and over the street at `street_point` (null: over the hand).
-func card_drag(on_card: bool, street_point: Variant) -> void:
+## The held card's finger moved: still on the card it pressed (`on_card`), and over the ground at `street_point` (null: over the hand),
+## inside the street or not (`inside`).
+func card_drag(on_card: bool, street_point: Variant, inside: bool = true) -> void:
 	if held_slot < 0:
 		return
 	if not on_card:
 		left_card = true
-	over_street = street_point is Vector2
-	if over_street:
+	var on_ground: bool = street_point is Vector2
+	over_street = on_ground and inside
+	out_of_bounds = on_ground and not inside
+	if on_ground:
 		left_card = true
 		aimed = true
 		aim_point = street_point as Vector2
@@ -120,6 +126,7 @@ func _finish(kind: Release) -> void:
 	held_slot = -1
 	left_card = false
 	over_street = false
+	out_of_bounds = false
 	aimed = false
 
 
@@ -131,6 +138,7 @@ func clear() -> void:
 	held_slot = -1
 	left_card = false
 	over_street = false
+	out_of_bounds = false
 	aimed = false
 	_release = Release.NONE
 	_release_slot = -1
