@@ -34,7 +34,7 @@ func _ready() -> void:
 	air.add_child(grid)
 	entries = _entries()
 	for slot: int in range(entries.size(), slots):
-		entries.append({"id": StringName("unknown_%d" % slot), "name": "?", "picture": CharactersPage.card_picture(&"junjun"), "tag": null, "access": "Unknown card: coming soon", "locked": true})
+		entries.append({"id": StringName("unknown_%d" % slot), "name": "?", "picture": _unknown_picture(), "tag": null, "access": "Unknown card: coming soon", "locked": true})
 	for i: int in entries.size():
 		entries[i]["compact"] = true
 		var cell: CardCell = CardCell.create(entries[i])
@@ -47,6 +47,11 @@ func _ready() -> void:
 
 func _screen_name() -> String:
 	return "CardsScreen"
+
+
+## The picture a locked "Coming Soon" card is drawn from (dimmed): a kid's card for the Kids grid.
+func _unknown_picture() -> Texture2D:
+	return CharactersPage.card_picture(&"junjun")
 
 
 func _entries() -> Array[Dictionary]:

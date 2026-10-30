@@ -172,6 +172,7 @@ func _ready() -> void:
 	_refresh_mode()
 	carousel.selected.connect(_on_mode_selected)
 	carousel.laid_out.connect(_aim_backlight)
+	carousel.swiping_changed.connect(_on_swiping_changed)
 	_aim_backlight.call_deferred()
 	primary_button.pressed.connect(_on_primary_pressed)
 	# the press and the breath both scale the main action: the breath rests while a thumb is on it
@@ -560,9 +561,18 @@ func _place_name_tag() -> void:
 	name_tag.hang(hole, -stage.get_global_rect().position.y - TAG_OVERSHOOT, fitted)
 
 
+## The backlight rests while the models are swiped and slide (it would only lag behind them), then comes back on the chosen model.
+func _on_swiping_changed(active: bool) -> void:
+	if backdrop == null:
+		return
+	if not active:
+		_aim_backlight()
+	backdrop.hold_lights(active)
+
+
 ## Points the backdrop's backlight at the chosen card: the bright middle sits right behind it.
 func _aim_backlight() -> void:
-	if backdrop == null or carousel == null or carousel.cards.is_empty():
+	if backdrop == null or carousel == null or carousel.cards.is_empty() or carousel.swiping:
 		return
 	var card: Button = carousel.cards[carousel.index]
 	var centre: Vector2 = backdrop.get_global_transform().affine_inverse() * card.get_global_rect().get_center()
