@@ -716,3 +716,16 @@ func test_control_hint_explains_stun_and_the_held_card() -> void:
 	practice.advance(DT)
 	assert_eq(practice.hud.feedback.hint.text, "Release here to cancel")
 	practice.input.card_cancel()
+
+
+func test_a_kid_is_drawn_moving_on_every_60_fps_frame_not_every_second_one() -> void:
+	var practice: PracticeMatch = _practice()
+	var view: KidModel = practice._views[PracticeMatch.ENEMY_PATROL_ID] as KidModel
+	var last: float = view.position.x
+	var still: int = 0
+	for frame: int in 40:
+		practice.advance(1.0 / 60.0)
+		if frame > 6 and is_equal_approx(view.position.x, last):
+			still += 1
+		last = view.position.x
+	assert_eq(still, 0, "the patrolling dummy glides between the 30 Hz ticks, it does not stand every other frame")

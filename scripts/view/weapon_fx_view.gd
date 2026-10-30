@@ -107,6 +107,11 @@ func watch(sim: MatchSim) -> void:
 	sim.effect_applied.connect(projectiles.on_effect)
 
 
+## The screen draws flying things between two sim ticks with `blend` (offline only).
+func use_blend(blend: TickBlend) -> void:
+	_ctx.blend = blend
+
+
 ## What every controller reads (tests and tools).
 func context() -> FxContext:
 	return _ctx

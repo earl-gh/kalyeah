@@ -19,7 +19,14 @@ var particles: FxParticles
 var ground: FxGround
 var shadows: FxShadows
 var bursts: FxBursts
+## Where the screen draws flying things between two sim ticks (null: where the sim has them).
+var blend: TickBlend
 var _casts: Array[Dictionary] = []
+
+
+## Where a flying thing is drawn this frame.
+func shot_position(projectile: WeaponSystem.Projectile) -> Vector2:
+	return blend.shot(projectile) if blend != null else projectile.position
 
 
 ## Your team's colour for an effect thrown by `team`, else the other team's (colour-blind safe, read now).

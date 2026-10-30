@@ -76,6 +76,8 @@ const AREA_COUNT_FONT: int = UiMetrics.HEADLINE
 const SPINNER_BACK: Color = Color(0.08, 0.06, 0.1, 0.7)
 const SPINNER_SPEED: float = 5.0
 
+## Where the screen draws each kid between two sim ticks (null: where the sim has it): the bar rides on the drawn kid.
+var blend: TickBlend
 ## How much bigger than real the kids are drawn (CameraRules.kid_view_scale): the bar rides on their heads.
 var view_scale: float = 1.0
 ## How much smaller the health bar is drawn (CameraRules.bar_scale): the kids are small on a screen that shows the whole street.
@@ -255,7 +257,8 @@ func _on_healed(id: int, amount: int) -> void:
 
 
 func _head(state: PlayerState) -> Variant:
-	var world: Vector3 = Vector3(state.position.x, HEAD_HEIGHT * view_scale, state.position.y)
+	var at: Vector2 = blend.kid(state) if blend != null else state.position
+	var world: Vector3 = Vector3(at.x, HEAD_HEIGHT * view_scale, at.y)
 	if _camera == null or _camera.is_position_behind(world):
 		return null
 	return _camera.screen_position(world) if _camera is ArenaCamera else _camera.unproject_position(world)
