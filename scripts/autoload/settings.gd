@@ -59,6 +59,9 @@ func _ready() -> void:
 		aim_guide = guide if guide is bool else true
 		var tilt: Variant = file.get_value("input", "tilt_to_run", false)
 		tilt_to_run = tilt if tilt is bool else false
+	lock_portrait()
+	get_window().size_changed.connect(fit_portrait)
+	fit_portrait()
 	_load_translations()
 	if not available_languages().has(language):
 		language = "en"
@@ -208,3 +211,25 @@ func set_reduced_motion(enabled: bool) -> void:
 	_save_value("accessibility", "reduced_motion", reduced_motion)
 	UiAccessibility.apply_tree(get_tree().root)
 	accessibility_changed.emit()
+
+
+## The game is vertical on every phone and tablet (docs/GDD.md "Vertical layout"): asked of the phone at start, even when the device's
+## auto-rotate is on. Android 16 may ignore the request on a large screen (a tablet or a folded-out phone); `fit_portrait` covers that.
+func lock_portrait() -> void:
+	if OS.has_feature("android"):
+		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_PORTRAIT)
+
+
+## How the street fills a window of `size`: a tall window fills it (more street above and below on a long phone), but a window that is
+## wider than tall (a tablet that did not stay vertical) keeps the vertical shape, centred, with bars at its sides, so the game
+## never lays itself out sideways.
+static func aspect_for(size: Vector2i) -> Window.ContentScaleAspect:
+	return Window.CONTENT_SCALE_ASPECT_KEEP if size.x > size.y else Window.CONTENT_SCALE_ASPECT_EXPAND
+
+
+## Applies `aspect_for` to the game window (on a phone or tablet; a desktop window is left as it is unless `force`).
+func fit_portrait(force: bool = false) -> void:
+	if not force and not OS.has_feature("android"):
+		return
+	var window: Window = get_window()
+	window.content_scale_aspect = aspect_for(window.size)
