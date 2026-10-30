@@ -52,7 +52,6 @@ var _fill_clip: Control
 var _fill_rect: TextureRect
 var _base: ColorRect
 var _track: Panel
-var _rim: ColorRect
 var _shade: TextureRect
 var _art: TextureRect
 var _percent: Label
@@ -133,11 +132,6 @@ func _build() -> void:
 	_base.add_child(_fill_clip)
 	_fill_rect = _bar_layer(_vertical_gradient(PackedColorArray(FILL_COLORS), PackedFloat32Array(FILL_STOPS)), _fill_clip)
 	_fill_rect.name = "BlueFill"
-	_rim = ColorRect.new()
-	_rim.name = "TopRim"
-	_rim.color = Color(0.7, 0.82, 1.0, 0.5)
-	_rim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_base.add_child(_rim)
 	_percent = Label.new()
 	_percent.add_theme_font_override("font", PERCENT_FONT)
 	_percent.add_theme_color_override("font_color", Color.WHITE)
@@ -210,8 +204,6 @@ func _layout() -> void:
 	_fill_clip.position = Vector2.ZERO
 	_fill_rect.position = Vector2.ZERO
 	_fill_rect.size = Vector2(size.x, BAND_HEIGHT)
-	_rim.position = Vector2(1.0, 1.0)
-	_rim.size = Vector2(maxf(0.0, size.x - 2.0), 2.0)
 	_shade.position = Vector2(0.0, maxf(0.0, origin.y - 260.0))
 	_shade.size = Vector2(size.x, origin.y - _shade.position.y)
 	# the percentage is centred vertically on the base's top edge, overlapping it
