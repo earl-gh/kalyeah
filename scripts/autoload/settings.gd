@@ -49,6 +49,8 @@ var aim_guide: bool = true
 var tilt_to_run: bool = false
 ## Size of the match controls, one of `CONTROL_SIZES`.
 var control_scale: float = 1.0
+## The Practice difficulty chosen last (`GameRules.bot_levels`); "" until one is chosen, then the rules' default is used.
+var bot_level: StringName = &""
 
 
 func _ready() -> void:
@@ -76,6 +78,7 @@ func _ready() -> void:
 		aim_guide = guide if guide is bool else true
 		var tilt: Variant = file.get_value("input", "tilt_to_run", false)
 		tilt_to_run = tilt if tilt is bool else false
+		bot_level = StringName(String(file.get_value("practice", "bot_level", "")))
 	apply_graphics()
 	_load_translations()
 	if not available_languages().has(language):
@@ -177,6 +180,13 @@ func set_control_scale(value: float) -> void:
 	control_scale = chosen
 	_save_value("input", "control_scale", chosen)
 	controls_changed.emit()
+
+
+func set_bot_level(id: StringName) -> void:
+	if id == bot_level:
+		return
+	bot_level = id
+	_save_value("practice", "bot_level", String(id))
 
 
 func set_vibration(on: bool) -> void:

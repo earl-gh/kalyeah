@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="BotLevel" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/bot_level.gd" id="1_level"]
+
+[resource]
+script = ExtResource("1_level")
+id = &"easy"
+label = "Easy"
+blurb = "Slow, forgiving bots that wait before they attack."
+skill = 0.1
+aim_error_degrees = 20.0
+cast_gap = 2.6
+aggro_range = 10.0
+assault_delay = 8.0
+assault_window = 10.0
+rest_time = 14.0

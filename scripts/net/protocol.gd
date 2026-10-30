@@ -21,6 +21,8 @@ enum Msg {
 	DISCOVER_ROOM, ROOM_DISCOVERED,
 	# server -> client: the server is going away (a hotspot host left), so there is nothing to reconnect to
 	ROOM_CLOSED,
+	# Online open rooms: client -> server LIST_ROOMS and SET_OPEN (host), server -> client ROOM_LIST
+	LIST_ROOMS, ROOM_LIST, SET_OPEN,
 }
 
 

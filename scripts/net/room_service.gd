@@ -1,6 +1,6 @@
 class_name RoomService
 extends RefCounted
-## Private passcode rooms (docs/GDD.md "Lobby rules"). Pure logic, no sockets:
+## Online rooms (docs/GDD.md "Lobby rules"): open (listed, joined with a tap) or private (passcode only). Pure logic, no sockets:
 ## the GameServer feeds it peer ids and sends out whatever changed.
 ##
 ## A member keeps one stable `player_id` for the whole match (it is their id in
@@ -38,6 +38,8 @@ class Room extends RefCounted:
 	var first_to: int = 0
 	## The street the match is played on (the host picks it; one so far).
 	var map_id: StringName = &"street"
+	## Listed for anyone browsing Online (owner: the default); private rooms are joined only with their code.
+	var open: bool = true
 	var state: State = State.LOBBY
 	var members: Array[Member] = []
 
@@ -216,6 +218,34 @@ func set_map(peer_id: int, map_id: StringName) -> bool:
 	return true
 
 
+## Host only, in the lobby: open (listed) or private (code only).
+func set_open(peer_id: int, open: bool) -> bool:
+	var room: Room = room_of_peer(peer_id)
+	var m: Member = member_of_peer(peer_id)
+	if m == null or m.player_id != room.host_player_id or room.state != State.LOBBY:
+		return false
+	room.open = open
+	return true
+
+
+## The rooms anyone can join with a tap: open, still in the lobby, not full; the fullest first (then the oldest), at most `limit`.
+func open_rooms(limit: int) -> Array[Dictionary]:
+	var found: Array[Room] = []
+	for room: Room in rooms.values():
+		if room.open and room.state == State.LOBBY and room.members.size() < room.team_size * 2:
+			found.append(room)
+	# rooms keep their creation order, so a stable sort by size puts the oldest first among equals
+	found.sort_custom(func(a: Room, b: Room) -> bool: return a.members.size() > b.members.size())
+	var listed: Array[Dictionary] = []
+	for room: Room in found.slice(0, maxi(limit, 0)):
+		var host: Member = room.member(room.host_player_id)
+		listed.append({
+			"code": room.code, "host_name": host.name if host != null else "", "team_size": room.team_size,
+			"players": room.members.size(), "first_to": room.first_to, "map": room.map_id,
+		})
+	return listed
+
+
 ## Any member, in the lobby: the kid they will play (one of Session.AVATARS), shown to the others.
 func set_character(peer_id: int, character: StringName) -> bool:
 	var room: Room = room_of_peer(peer_id)
@@ -325,7 +355,7 @@ func describe(room: Room) -> Dictionary:
 	return {
 		"code": room.code, "team_size": room.team_size, "host": room.host_player_id, "first_to": room.first_to,
 		"state": room.state, "members": members, "can_start": can_start(room),
-		"can_start_host": can_start(room, true), "map": room.map_id,
+		"can_start_host": can_start(room, true), "map": room.map_id, "open": room.open,
 	}
 
 
