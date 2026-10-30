@@ -5,14 +5,12 @@ extends Node3D
 ## plays the same online, where the snapshot carries no time left: its total comes from the weapon's data and the thrower's
 ## position at the cast; offline the sim's time left makes it exact. The landing is the zone leaving the sim.
 
-## Every zone says who threw it from its first frame (the thrower's team colour, an opaque rim): the fill of a slow zone,
-## a jacks field and an armed trap.
-const SLOW_FILL_ALPHA: float = 0.25
-const FIELD_FILL_ALPHA: float = 0.2
-const TRAP_ARMED_FILL: float = 0.12
-## A trap still arming has only a lighter rim (its arming fill grows inside it).
-const TRAP_ARMING_RIM: float = 0.5
-## The progress fill of a delayed area (a landing, a trap arming): an inner disc in the team colour that grows from nothing
+## Every zone says who threw it from its first frame: white for your team's, red for the other team's (`FxContext.area_color`), a
+## white tint fill (`FxKit.AREA_FILL_ALPHA`) inside a thin opaque outline (`FxKit.AREA_RIM`): a landing circle, an armed trap, its slow
+## zone and a jacks field alike.
+## A trap still arming has only a lighter outline (its arming fill grows inside it).
+const TRAP_ARMING_RIM: float = 0.85
+## The progress fill of a delayed area (a landing, a trap arming): an inner disc in the area's colour that grows from nothing
 ## to the whole circle exactly over the delay. Full = it lands (or the trap is armed).
 const PROGRESS_ALPHA: float = 0.35
 ## A progress disc starts this small (a true zero breaks the transform).
@@ -131,15 +129,15 @@ func make_node(zone: WeaponSystem.Zone) -> Node3D:
 	mark.material_override = FxKit.overlay(FxKit.PRIO_FILL)
 	mark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.add_child(mark)
-	var color: Color = _ctx.team_color(zone.team)
+	var color: Color = _ctx.area_color(zone.team)
 	match zone.kind:
 		WeaponSystem.ZoneKind.EXPLOSION:
-			# where it lands and who threw it: the thrower's team colour
-			mark.mesh = FxGround.circle_mark(zone.radius, color, FxKit.FILL_ALPHA)
+			# where it lands and who threw it: white (yours) or red (theirs)
+			mark.mesh = FxGround.area_mark(zone.radius, color)
 			node.add_child(_progress_disc(zone.radius, color))
 		WeaponSystem.ZoneKind.TRAP:
-			# the trigger range (exact), a light rim while it arms
-			mark.mesh = FxGround.circle_mark(zone.radius, color, 0.0, TRAP_ARMING_RIM)
+			# the trigger range (exact), a lighter outline while it arms
+			mark.mesh = FxGround.area_mark(zone.radius, color, 0.0, TRAP_ARMING_RIM)
 			node.add_child(_progress_disc(zone.radius, color))
 			var ball: Node3D = WeaponModel.rig(WeaponModel.make(&"papel_trap", true))
 			ball.name = "Ball"
@@ -148,15 +146,15 @@ func make_node(zone: WeaponSystem.Zone) -> Node3D:
 			node.add_child(ball)
 		WeaponSystem.ZoneKind.SLOW_ZONE:
 			# the exact slowing area: its rim at once, its fill popping out of the sprung trap
-			mark.mesh = FxGround.circle_mark(zone.radius, color, 0.0)
+			mark.mesh = FxGround.area_mark(zone.radius, color, 0.0)
 			var fill: MeshInstance3D = MeshInstance3D.new()
 			fill.name = "Fill"
-			fill.mesh = FxGround.circle_fill(zone.radius, color, SLOW_FILL_ALPHA)
+			fill.mesh = FxGround.circle_fill(zone.radius, color, FxKit.AREA_FILL_ALPHA)
 			fill.material_override = FxKit.overlay(FxKit.PRIO_FILL)
 			fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			node.add_child(fill)
 		WeaponSystem.ZoneKind.FIELD:
-			mark.mesh = FxGround.circle_mark(zone.radius, color, FIELD_FILL_ALPHA)
+			mark.mesh = FxGround.area_mark(zone.radius, color)
 	if zone.def != null and zone.def.id == &"bato_heavy":
 		var meteor: Node3D = WeaponModel.rig(WeaponModel.meteor())
 		meteor.name = "Meteor"
@@ -253,10 +251,10 @@ func _update(rec: Rec, zone: WeaponSystem.Zone) -> void:
 		var size: float = maxf(p, PROGRESS_START)
 		rec.progress.scale = Vector3(size, 1.0, size)
 		if zone.kind == WeaponSystem.ZoneKind.TRAP and p >= 1.0 and not rec.armed:
-			# armed: the fill gives way to a solid rim and a light fill (it is live now)
+			# armed: the fill gives way to a solid outline and the area fill (it is live now)
 			rec.armed = true
 			rec.progress.visible = false
-			rec.mark.mesh = FxGround.circle_mark(zone.radius, _ctx.team_color(zone.team), TRAP_ARMED_FILL)
+			rec.mark.mesh = FxGround.area_mark(zone.radius, _ctx.area_color(zone.team))
 	if zone.def != null and zone.def.id == &"bato_heavy":
 		landings.meteor(rec, zone)
 	elif zone.def != null and zone.def.id == &"lata" and rec.obj != null:

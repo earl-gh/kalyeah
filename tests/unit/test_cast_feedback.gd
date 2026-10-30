@@ -198,8 +198,8 @@ func test_the_preview_is_one_quiet_colour_that_goes_pale_or_red_when_it_should()
 	assert_eq(AimIndicator.color_for(false, false), AimIndicator.NO_CAST_COLOR, "nothing to hit: pale")
 	assert_eq(AimIndicator.color_for(true, true), AimIndicator.CANCEL_COLOR, "over cancel: red")
 	assert_eq(AimIndicator.color_for(false, true), AimIndicator.CANCEL_COLOR, "cancel wins")
-	assert_lt(AimIndicator.LINE_WIDTH, 0.25, "a thin line (a street tile is 1.5 m): it must not hide the street")
-	assert_gt(AimIndicator.LINE_WIDTH, 0.15, "and wide enough to see on a phone at the Classic camera's distance")
+	assert_lt(AimIndicator.LINE_WIDTH, 0.09, "a thin outline (owner: it was a 0.18 m ribbon; a street tile is 1.5 m)")
+	assert_gt(AimIndicator.LINE_WIDTH, 0.05, "still drawn at the area marks' width (FxKit.AREA_RIM), or MSAA loses it on a phone")
 
 
 func test_a_ribbon_is_two_triangles_per_segment_and_a_fill_one_per_fan_step() -> void:

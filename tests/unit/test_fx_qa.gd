@@ -357,7 +357,9 @@ func test_the_enemy_viewpoint_draws_enemy_effects_in_the_enemy_colour() -> void:
 				sim.players[1].elixir = 10.0
 				_cast(sim, 1, weapon)
 			_run(sim, fx, 4)
-			var want: Color = TeamColors.world_own() if viewer == 0 else TeamColors.world_enemy()
+			# the areas a team casts: white for the viewer's own team, the enemy colour for the other
+			var want: Color = Color.WHITE if viewer == 0 else TeamColors.world_enemy()
+			var rim_want: Color = TeamColors.world_own() if viewer == 0 else TeamColors.world_enemy()
 			var marks: int = 0
 			for mark: Node in fx.zones.find_children("Mark", "MeshInstance3D", true, false):
 				var mesh: ArrayMesh = (mark as MeshInstance3D).mesh as ArrayMesh
@@ -370,7 +372,7 @@ func test_the_enemy_viewpoint_draws_enemy_effects_in_the_enemy_colour() -> void:
 			for shadow: MeshInstance3D in fx.context().shadows.all_nodes():
 				if shadow.visible:
 					var rim: Color = (shadow.material_override as ShaderMaterial).get_shader_parameter(&"rim_color") as Color
-					assert_true(absf(rim.r - want.r) < 0.01 and absf(rim.g - want.g) < 0.01 and absf(rim.b - want.b) < 0.01, "viewer %d blind %s: shadow rim %s wanted %s" % [viewer, blind, rim, want])
+					assert_true(absf(rim.r - rim_want.r) < 0.01 and absf(rim.g - rim_want.g) < 0.01 and absf(rim.b - rim_want.b) < 0.01, "viewer %d blind %s: shadow rim %s wanted %s" % [viewer, blind, rim, rim_want])
 
 
 # ---- 4. ground marks equal the sim's hit areas ------------------------------------------------------

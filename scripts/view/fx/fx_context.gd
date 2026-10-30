@@ -34,6 +34,13 @@ func team_color(team: int) -> Color:
 	return TeamColors.world_own() if team == local_team else TeamColors.world_enemy()
 
 
+## The colour of a ground area thrown by `team` (a landing circle, a slow zone, a jacks field, a marble's bounce rings): white for the
+## viewer's own team (every ally casts for the same team, so allies' areas read the same as yours), the enemy colour (red, orange when
+## colour-blind) for the other team. A white area is colour-blind safe as it is.
+func area_color(team: int) -> Color:
+	return Color.WHITE if team == local_team else TeamColors.world_enemy()
+
+
 ## The team of player `id` (the viewer's team when unknown).
 func team_of(id: int) -> int:
 	var state: PlayerState = sim.players.get(id) as PlayerState if sim != null else null
