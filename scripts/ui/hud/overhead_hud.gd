@@ -3,7 +3,7 @@ extends Control
 ## MOBA-style overhead display drawn in screen space over each hero, like League
 ## of Legends: a solid health bar (green you, blue ally, red enemy) with the player's number on a team-coloured badge at its left end, the word
 ## one word over the bar's left end: a status in plain words ("Stunned", "Slowed", "Exhausted") while there is one, else "You" over your own bar. Under your own bar a thin stamina bar shows
-## while it is not full (your eyes are on your kid while you tap to walk, and stamina only matters while walking); at 0 it reads EXHAUSTED and
+## while it is not full (your eyes are on your kid while you tap to walk, and stamina only matters while walking); at 0 it reads Exhausted and
 ## runs out over the 2 s. No names, no health numbers and no damage numbers (heals still pop a green "+N"). While a
 ## team holds the enemy base, a spinner fills over its kids' heads. Reads the sim
 ## and projects through the match camera.
