@@ -319,7 +319,7 @@ func test_the_editor_stays_above_the_keyboard() -> void:
 	assert_gt(card.panel.get_global_rect().end.y, screen_height - 640.0, "back in the middle when the keyboard goes")
 
 
-func test_the_tag_shows_the_logomark_until_there_is_a_photo_and_keeps_no_focus_ring() -> void:
+func test_the_tag_keeps_no_focus_ring_so_nothing_outlines_it_after_the_editor_closes() -> void:
 	var tag: NameTag = autofree(NameTag.new()) as NameTag
 	add_child(tag)
 	assert_eq(tag.tap_button.focus_mode, Control.FOCUS_NONE, "a finger needs no focus: nothing outlines the card after the editor closes")

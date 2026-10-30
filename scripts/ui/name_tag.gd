@@ -63,7 +63,7 @@ const LAG_DEGREES: float = 0.9
 ## The card shrinks a little while it is pressed.
 const PRESS_SCALE: float = 0.97
 ## The ID photo (owner, like a school ID): a square on the left of the card, under the slot's height, the words beside it. Shown when
-## there is a photo or this device can take one (`IdPhoto`); until then it says "Add photo".
+## there is a photo or this device can take one (`IdPhoto`); until then it holds the avatar placeholder (a head and shoulders, no words).
 const PHOTO_SIDE: float = 118.0
 const PHOTO_LEFT: float = 22.0
 const PHOTO_TOP: float = 44.0
@@ -72,10 +72,6 @@ const PHOTO_RADIUS: float = 14.0
 const PHOTO_BACK: Color = Color("dfe8f7")
 const PHOTO_EMPTY_BACK: Color = Color("f2f5fb")
 const PHOTO_EMPTY_EDGE: Color = Color("9fb0d6")
-## The picture in the square until there is a photo: the "K!" logomark of the loading screen.
-const LOGOMARK: Texture2D = preload("res://assets/ui/boot/boot_icon.png")
-## How far the logomark stands in from the square's edge.
-const LOGOMARK_INSET: float = 12.0
 ## With a photo the card is never narrower than this (the photo, the words and the slot between them), and may grow to this so the
 ## widest twelve letters fit beside the photo (inside a 720 px screen).
 const PHOTO_MIN_WIDTH: float = 420.0
@@ -103,10 +99,10 @@ var back_strap: ColorRect
 var front_cap: ColorRect
 ## Marks where the slot is (the hole itself is cut by the paper's shader).
 var slot: Control
-## The ID photo's square, the picture in it, and the "K!" logomark shown while there is none.
+## The ID photo's square, the picture in it, and the avatar placeholder shown while there is none.
 var photo_frame: Panel
 var photo: TextureRect
-var logomark: TextureRect
+var add_photo: Control
 var _paper_material: ShaderMaterial
 var _name: String = ""
 var _base_scale: float = 1.0
@@ -164,19 +160,11 @@ func _init() -> void:
 	crop.set_shader_parameter("radius", PHOTO_RADIUS - 3.0)
 	photo.material = crop
 	photo_frame.add_child(photo)
-	logomark = TextureRect.new()
-	logomark.name = "Logomark"
-	logomark.texture = LOGOMARK
-	logomark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	logomark.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	logomark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	logomark.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	logomark.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side: Side in [SIDE_LEFT, SIDE_TOP]:
-		logomark.set_offset(side, LOGOMARK_INSET)
-	for side: Side in [SIDE_RIGHT, SIDE_BOTTOM]:
-		logomark.set_offset(side, -LOGOMARK_INSET)
-	photo_frame.add_child(logomark)
+	add_photo = AvatarMark.new()
+	add_photo.name = "AvatarPlaceholder"
+	add_photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_photo.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	photo_frame.add_child(add_photo)
 	# the two rows are placed by hand (see `_place_text`): row 1 sits exactly between the slot and the name
 	var words: Control = Control.new()
 	words.name = "Words"
@@ -235,13 +223,13 @@ func _init() -> void:
 	set_player_name(Session.player_name if not Session.player_name.is_empty() else Session.DEFAULT_NAME)
 
 
-## Shows the saved ID photo, or the "K!" logomark while there is none.
+## Shows the saved ID photo, the avatar placeholder while there is none, or no square at all on a device with no camera and no photo.
 func refresh_photo() -> void:
 	var picture: Texture2D = IdPhoto.texture()
 	photo.texture = picture
 	photo.visible = picture != null
-	logomark.visible = picture == null
-	photo_frame.visible = true
+	add_photo.visible = picture == null
+	photo_frame.visible = picture != null or IdPhoto.camera_possible()
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = PHOTO_BACK if picture != null else PHOTO_EMPTY_BACK
 	box.border_color = CARD_EDGE if picture != null else PHOTO_EMPTY_EDGE
@@ -425,3 +413,19 @@ static func _paper_style() -> StyleBoxFlat:
 	box.shadow_offset = Vector2(0.0, 8.0)
 	box.anti_aliasing = true
 	return box
+
+
+## The avatar placeholder drawn in code: a round head over a pair of shoulders, in the light blue of the square's edge.
+class AvatarMark extends Control:
+	const COLOR: Color = Color("b9c6e4")
+
+	func _draw() -> void:
+		var w: float = size.x
+		var h: float = size.y
+		draw_circle(Vector2(w * 0.5, h * 0.37), h * 0.175, COLOR)
+		# the shoulders: the top half of a wide ellipse, cut flat at the bottom
+		var points: PackedVector2Array = PackedVector2Array()
+		for i: int in 25:
+			var angle: float = PI + PI * float(i) / 24.0
+			points.append(Vector2(w * 0.5 + cos(angle) * w * 0.33, h * 0.9 + sin(angle) * h * 0.3))
+		draw_colored_polygon(points, COLOR)
