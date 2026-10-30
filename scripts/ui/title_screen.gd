@@ -625,6 +625,7 @@ func _on_secondary_pressed() -> void:
 func open_practice_confirm() -> MenuDialog:
 	var card: MenuDialog = MenuDialog.create("Practice", MenuDialog.WIDTH_SMALL)
 	card.add_label("3 v 3 against bots. Ready to rumble?", MenuDialog.TEXT_SIZE, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
+	_add_difficulty_choice(card)
 	var play: Button = MenuDialog.make_button("Play", "gold", UiMetrics.BODY)
 	card.add_buttons([play])
 	play.pressed.connect(func() -> void:
@@ -632,6 +633,31 @@ func open_practice_confirm() -> MenuDialog:
 		_on_practice_pressed(&"match"))
 	_show_dialog(card)
 	return card
+
+
+## Easy, Medium or Hard for the bots (`GameRules.bot_levels`), remembered for the next match; one line says what the chosen one means.
+func _add_difficulty_choice(card: MenuDialog) -> void:
+	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
+	var options: Array[Dictionary] = []
+	for level: BotLevel in rules.bot_levels:
+		options.append({"id": level.id, "label": level.label})
+	if options.is_empty():
+		return
+	var choice: UiSegmented = UiSegmented.new(options, 72.0, UiMetrics.BODY)
+	choice.name = "DifficultyChoice"
+	var blurb: Label = card.add_hint("")
+	blurb.name = "DifficultyBlurb"
+	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var show: Callable = func(id: StringName) -> void:
+		blurb.text = UiText.t(rules.bot_level(id).blurb)
+	var current: BotLevel = rules.bot_level(Settings.bot_level)
+	choice.select(current.id, false)
+	show.call(current.id)
+	choice.chosen.connect(func(id: StringName) -> void:
+		Settings.set_bot_level(id)
+		show.call(id))
+	card.body.add_child(choice)
+	card.body.move_child(choice, blurb.get_index())
 
 
 ## Hotspot Create: a dialog checks the hotspot is on, then the room opens.

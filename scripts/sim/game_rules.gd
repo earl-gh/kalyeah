@@ -127,6 +127,36 @@ extends Resource
 ## The bot its TeamCoach sends to rescue only stops to fight an enemy this close (metres) on the way; every other bot fights anything
 ## within `bot_aggro_range` (equal to it = rescuers turn on every enemy in reach, which in practice meant no bot ever rescued).
 @export var bot_rescue_aggro_range: float = 0.0
+## The Practice difficulties offered before a match against bots, and the one chosen until the player picks another.
+@export var bot_levels: Array[BotLevel] = []
+@export var bot_level_default: StringName = &"medium"
+
+
+## The difficulty `id` (the default one when it is unknown), or null when the rules have none.
+func bot_level(id: StringName) -> BotLevel:
+	var fallback: BotLevel = null
+	for level: BotLevel in bot_levels:
+		if level.id == id:
+			return level
+		if level.id == bot_level_default:
+			fallback = level
+	return fallback
+
+
+## These rules with the bot numbers of difficulty `id` (a copy: the shared rules are never changed).
+func with_bot_level(id: StringName) -> GameRules:
+	var level: BotLevel = bot_level(id)
+	var copy: GameRules = duplicate() as GameRules
+	if level == null:
+		return copy
+	copy.bot_skill = level.skill
+	copy.bot_aim_error_degrees = level.aim_error_degrees
+	copy.bot_cast_gap = level.cast_gap
+	copy.bot_aggro_range = level.aggro_range
+	copy.bot_assault_delay = level.assault_delay
+	copy.bot_assault_window = level.assault_window
+	copy.bot_rest_time = level.rest_time
+	return copy
 
 
 ## Fixed simulation step in seconds (1 / tick_rate).
