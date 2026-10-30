@@ -84,7 +84,10 @@ static func clear_cache() -> void:
 ## The blades' look, marking the stencil like a kid's (built once).
 static func _marked() -> BaseMaterial3D:
 	if _marked_look == null:
-		_marked_look = WeaponModel.look_of(MODEL).duplicate() as BaseMaterial3D
+		# the rig keeps the matte model look (its team outline is its contour), carrying the scissors' own picture
+		var picture: StandardMaterial3D = StandardMaterial3D.new()
+		picture.albedo_texture = WeaponLook.picture_of(WeaponModel.look_of(MODEL))
+		_marked_look = ModelLook.make(picture)
 		_marked_look.stencil_mode = BaseMaterial3D.STENCIL_MODE_CUSTOM
 		_marked_look.stencil_flags = BaseMaterial3D.STENCIL_FLAG_WRITE
 		_marked_look.stencil_compare = BaseMaterial3D.STENCIL_COMPARE_ALWAYS
