@@ -121,12 +121,14 @@ func test_a_tumbang_preso_practice_is_every_kid_for_itself_with_one_taya() -> vo
 	assert_ne(game.taya_id, practice.local_id, "a bot is the taya to begin with")
 	assert_false(practice._map.bases_shown(), "no posts or bases in Tumbang Preso")
 	assert_not_null(practice.mode_view.can_node(), "the can is drawn")
-	for i: int in 90:
+	# the match's seed is the clock's: a thrower bot waits up to two seconds, aims and throws, so watch for any bot doing anything for a while
+	var acted: bool = false
+	for i: int in 240:
 		practice.advance(DT)
-	var moved: bool = false
-	for id: int in PracticeMatch.BOT_ALLY_IDS + PracticeMatch.BOT_ENEMY_IDS:
-		moved = moved or practice.sim.players[id].position != practice.sim.players[id].spawn_position
-	assert_true(moved, "the bots play")
+		for id: int in PracticeMatch.BOT_ALLY_IDS + PracticeMatch.BOT_ENEMY_IDS:
+			acted = acted or practice.sim.players[id].position != practice.sim.players[id].spawn_position
+		acted = acted or not game.hold.is_empty() or not game.flights.is_empty() or not game.slippers.is_empty()
+	assert_true(acted, "the bots play")
 	assert_lt(practice.sim.clock_left(), 300.0, "the five-minute clock runs")
 
 
