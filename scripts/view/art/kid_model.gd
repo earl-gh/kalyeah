@@ -121,6 +121,8 @@ var _dive_left: float = 0.0
 var _dive_total: float = 0.0
 var _trip_left: float = 0.0
 var _trip_total: float = 0.0
+## The kid fell because it tripped while running (a status in the sim, `StatusEffects.Type.TRIPPED`): the fall was started for it.
+var _fell_running: bool = false
 ## The clip a scripted pose last set (a change of clip is a cut).
 var _scripted_clip: String = ""
 var _cast_serial: int = 0
@@ -407,6 +409,10 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 		_cast_keep = false
 	_dive_left = maxf(0.0, _dive_left - delta)
 	_trip_left = maxf(0.0, _trip_left - delta)
+	var down: bool = state.effects.has(StatusEffects.Type.TRIPPED)
+	if down and not _fell_running:
+		play_tripped(state.effects.time_left(StatusEffects.Type.TRIPPED))  # the stumble lasts as long as the fall does
+	_fell_running = down
 	_step_act(delta)
 	var polymorphed: bool = state.effects.has(StatusEffects.Type.POLYMORPH)
 	set_ghost(state.tagged)

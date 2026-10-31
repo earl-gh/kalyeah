@@ -84,6 +84,11 @@ extends Resource
 ## For the first `exhaust_seconds` the bar blinks red and does not refill; then it refills at `stamina_regen_per_s`, walking or not.
 @export var exhaust_seconds: float = 2.0
 @export var overclock_speed_share: float = 0.5
+## Tripping (owner, for realism; every game, every kid but the training dummies): each `trip_interval` s of running without stopping is one roll
+## at `trip_chance` (0 = never); a kid that trips falls for `trip_seconds` and cannot move or cast, then gets up.
+@export_range(0.0, 1.0) var trip_chance: float = 0.2
+@export var trip_interval: float = 5.0
+@export var trip_seconds: float = 1.2
 ## Metres; within it the move target is reached.
 @export var move_arrival_radius: float = 0.1
 ## A tick that makes less than this share of its intended progress toward the target counts as stuck.

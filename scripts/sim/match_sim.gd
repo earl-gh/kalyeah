@@ -32,6 +32,8 @@ signal exhausted(id: int)
 const RELEASED_ALONE: int = -1
 ## Float slack for timers and the elixir bar (sums of 1/30 s ticks), not a gameplay number.
 const EPSILON: float = 0.00001
+## Mixed into the match seed for the trip rolls' own generator.
+const TRIP_SEED_MIX: int = 0x7121B
 
 ## INTRO: the opening show of both teams at their posts; nothing moves.
 enum Phase { PLAYING, POINT_FREEZE, MATCH_OVER, INTRO }
@@ -43,6 +45,7 @@ enum ClockStage { REGULAR, EXTENDED, OVERTIME }
 var rules: GameRules
 var layout: MapLayout
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+var _trip_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var tick: int = 0
 ## id -> state, in insertion order (stepping order is deterministic).
 var players: Dictionary[int, PlayerState] = {}
@@ -99,6 +102,7 @@ func _init(p_rules: GameRules, p_layout: MapLayout, seed_value: int) -> void:
 	rules = p_rules
 	layout = p_layout
 	rng.seed = seed_value
+	_trip_rng.seed = seed_value ^ TRIP_SEED_MIX  # its own numbers: trips never shift what the match's rng gives the other rules
 	obstacles = layout.obstacle_rects()
 	_street = layout.lane_rect()
 	_blocking.append_array(layout.boundary_rects())
@@ -424,6 +428,7 @@ func add_dummy(id: int, team: int, position: Vector2, brain: DummyBrain) -> Play
 	state.position = position
 	state.spawn_position = position
 	state.has_stamina = false
+	state.trips = false
 	_brains[id] = brain
 	return state
 
@@ -543,7 +548,25 @@ func _step_free(state: PlayerState, input: PlayerInput, dt: float) -> void:
 	_move(state, input, dt)
 	if mode != null:
 		mode.constrain(self, state)
-	_tick_stamina(state, state.position.distance_squared_to(before) > EPSILON * EPSILON, dt)
+	var moved: bool = state.position.distance_squared_to(before) > EPSILON * EPSILON
+	_tick_stamina(state, moved, dt)
+	_tick_trip(state, moved, dt)
+
+
+## Running for `trip_interval` s without stopping is one roll at `trip_chance`: a kid that trips falls for `trip_seconds`. Stopping, or any
+## fall or hit, starts the count again.
+func _tick_trip(state: PlayerState, moved: bool, dt: float) -> void:
+	if not state.trips or rules.trip_chance <= 0.0 or rules.trip_interval <= 0.0:
+		return
+	if not moved or state.overclocked or not state.effects.can_move():  # a worn-out kid only walks: walking does not trip
+		state.run_time = 0.0
+		return
+	state.run_time += dt
+	if state.run_time < rules.trip_interval - EPSILON:
+		return
+	state.run_time = 0.0
+	if _trip_rng.randf() < rules.trip_chance:
+		apply_effect(state.id, StatusEffects.Type.TRIPPED, rules.trip_seconds, 0.0)
 
 
 ## Elixir fills while the match runs (also while tagged), up to the bar; the extra is lost.
