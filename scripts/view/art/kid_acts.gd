@@ -16,11 +16,14 @@ const KICK_CONTACT: float = 0.26
 const KICK_SLOW_FROM: float = 0.235
 const KICK_SLOW_TO: float = 0.34
 const KICK_SLOW: float = 0.3
-## Where the can is held, in the kid's space (its middle), and how far each hand is from the middle sideways (the can is about 0.6 wide).
+## Where the can is held, in the kid's space (its middle), and how far each hand is from the middle sideways (the can is about 0.45 wide: Tumbang
+## Preso draws it at 0.75 of the lata weapon's size, `StreetModeView.CAN_SCALE`).
 const CARRY_CENTRE: Vector3 = Vector3(0.0, 0.95, -0.42)
-const CARRY_HALF: float = 0.27
+const CARRY_HALF: float = 0.2
+## The hands reach round a can lying or standing on the street this far from its middle.
+const GRAB_HALF: float = 0.21
 ## The can's radius in the kid's space; the foot meets the near side of it.
-const CAN_RADIUS: float = 0.3
+const CAN_RADIUS: float = 0.225
 ## The carried can bobs this far (m) and squashes this much with every step.
 const CARRY_BOB: float = 0.035
 const CARRY_SQUASH: float = 0.03
@@ -60,10 +63,10 @@ static func carry_step(phase: float, moving: float) -> Dictionary:
 ## of strain, then a hoist that stretches the kid up on its toes with the can in its hands, buckling under the weight, and a wobble into the carry.
 static func pickup_step(p: float, can: Vector3) -> Dictionary:
 	var low: float = maxf(can.y, 0.12) + 0.08
-	var left: Array = [[0.0, CARRY_CENTRE + Vector3(-CARRY_HALF, 0.0, 0.0)], [0.2, Vector3(can.x - 0.28, low, can.z)], [0.4, Vector3(can.x - 0.28, low, can.z)],
+	var left: Array = [[0.0, CARRY_CENTRE + Vector3(-CARRY_HALF, 0.0, 0.0)], [0.2, Vector3(can.x - GRAB_HALF, low, can.z)], [0.4, Vector3(can.x - GRAB_HALF, low, can.z)],
 		[0.6, CARRY_CENTRE + Vector3(-CARRY_HALF, 0.05, 0.0)], [0.72, CARRY_CENTRE + Vector3(-CARRY_HALF - 0.04, -0.06, 0.0)],
 		[0.86, CARRY_CENTRE + Vector3(-CARRY_HALF, 0.02, 0.0)], [1.0, CARRY_CENTRE + Vector3(-CARRY_HALF, 0.0, 0.0)]]
-	var right: Array = [[0.0, CARRY_CENTRE + Vector3(CARRY_HALF, 0.0, 0.0)], [0.2, Vector3(can.x + 0.28, low, can.z)], [0.4, Vector3(can.x + 0.28, low, can.z)],
+	var right: Array = [[0.0, CARRY_CENTRE + Vector3(CARRY_HALF, 0.0, 0.0)], [0.2, Vector3(can.x + GRAB_HALF, low, can.z)], [0.4, Vector3(can.x + GRAB_HALF, low, can.z)],
 		[0.6, CARRY_CENTRE + Vector3(CARRY_HALF, 0.05, 0.0)], [0.72, CARRY_CENTRE + Vector3(CARRY_HALF + 0.04, -0.06, 0.0)],
 		[0.86, CARRY_CENTRE + Vector3(CARRY_HALF, 0.02, 0.0)], [1.0, CARRY_CENTRE + Vector3(CARRY_HALF, 0.0, 0.0)]]
 	var step: Dictionary = _hands(left, right, [[0.0, 0.0], [0.12, 1.0], [1.0, 1.0]], p)
@@ -83,9 +86,9 @@ static func pickup_step(p: float, can: Vector3) -> Dictionary:
 ## arms thrown up (ta-da), then settles.
 static func place_step(p: float, spot: Vector3) -> Dictionary:
 	var low: float = spot.y + 0.1
-	var left: Array = [[0.0, CARRY_CENTRE + Vector3(-CARRY_HALF, 0.0, 0.0)], [0.38, Vector3(spot.x - 0.28, low, spot.z)], [0.5, Vector3(spot.x - 0.3, low, spot.z)],
+	var left: Array = [[0.0, CARRY_CENTRE + Vector3(-CARRY_HALF, 0.0, 0.0)], [0.38, Vector3(spot.x - GRAB_HALF, low, spot.z)], [0.5, Vector3(spot.x - GRAB_HALF - 0.02, low, spot.z)],
 		[0.64, Vector3(-0.42, 1.65, -0.05)], [0.9, Vector3(-0.3, 0.95, 0.0)], [1.0, Vector3(-0.3, 0.9, 0.0)]]
-	var right: Array = [[0.0, CARRY_CENTRE + Vector3(CARRY_HALF, 0.0, 0.0)], [0.38, Vector3(spot.x + 0.28, low, spot.z)], [0.5, Vector3(spot.x + 0.3, low, spot.z)],
+	var right: Array = [[0.0, CARRY_CENTRE + Vector3(CARRY_HALF, 0.0, 0.0)], [0.38, Vector3(spot.x + GRAB_HALF, low, spot.z)], [0.5, Vector3(spot.x + GRAB_HALF + 0.02, low, spot.z)],
 		[0.64, Vector3(0.42, 1.65, -0.05)], [0.9, Vector3(0.3, 0.95, 0.0)], [1.0, Vector3(0.3, 0.9, 0.0)]]
 	var step: Dictionary = _hands(left, right, [[0.0, 1.0], [0.88, 1.0], [1.0, 0.0]], p)
 	step["lean"] = at([[0.0, CARRY_LEAN], [0.26, -0.42], [0.44, -0.46], [0.6, -0.08], [0.76, 0.12], [1.0, 0.0]], p)

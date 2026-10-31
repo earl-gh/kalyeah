@@ -22,6 +22,8 @@ const LYING_SHARE: float = 0.4
 const SLIPPER_SPIN: float = 3.0
 ## A carried can is held at this height (m, before the kids' view scale).
 const CARRY_HEIGHT: float = 1.1
+## Tumbang Preso draws its can this part of the lata weapon's size (owner: it was too big; the lata card in Agawan Base is unchanged).
+const CAN_SCALE: float = 0.75
 ## Ground marks sit this high (m) so they lie on the street without fighting its texture.
 const GROUND_LIFT: float = 0.06
 ## The aim line: how wide (m) and the ring at its end; it is white while short and turns gold, and pulses, at full length.
@@ -185,7 +187,7 @@ func _scale() -> float:
 
 
 func _can_height() -> float:
-	return (WeaponModel.OBJECTS[&"lata"][1] as float) * _scale()
+	return (WeaponModel.OBJECTS[&"lata"][1] as float) * _scale() * CAN_SCALE
 
 
 func _drawn(state: PlayerState) -> Vector2:
@@ -268,7 +270,7 @@ func _sync_can() -> void:
 
 func _place_can(position_at: Vector3, basis_at: Basis, squash: Vector3 = Vector3.ONE) -> void:
 	_can.position = position_at
-	_can.basis = basis_at.scaled(Vector3.ONE * _scale())
+	_can.basis = basis_at.scaled(Vector3.ONE * _scale() * CAN_SCALE)
 	var node: Node3D = _can.get_node_or_null("Squash") as Node3D
 	if node != null:
 		node.basis = Basis.from_scale(squash)

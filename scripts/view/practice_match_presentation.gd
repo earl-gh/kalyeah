@@ -335,7 +335,7 @@ func refresh_kids() -> void:
 
 ## The drawn can's height (m): the lata's, at the kids' view scale.
 func _can_drawn_height() -> float:
-	return (WeaponModel.OBJECTS[&"lata"][1] as float) * owner._camera.rules.kid_view_scale
+	return (WeaponModel.OBJECTS[&"lata"][1] as float) * owner._camera.rules.kid_view_scale * StreetModeView.CAN_SCALE
 
 
 ## A kid that picks the can up scoops it with both hands (`KidModel.play_pickup`); one that loses it any other way than setting it down

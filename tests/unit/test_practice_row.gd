@@ -410,6 +410,14 @@ func test_only_your_own_slipper_has_the_white_pickup_ring_and_the_taya_is_marked
 			assert_eq(hud.badge_color(practice.sim.players[id]), TeamColors.world_own(), "everyone else keeps the blue badge")
 
 
+func test_the_tumbang_can_is_three_quarters_of_the_lata_weapons_size() -> void:
+	var practice: PracticeMatch = _practice(&"tumbang_preso")
+	practice.advance(DT)
+	var drawn: float = practice._camera.rules.kid_view_scale
+	assert_almost_eq(practice.mode_view.can_node().scale.x, drawn * 0.75, 0.001, "0.75 of its size (owner)")
+	assert_eq(WeaponModel.OBJECTS[&"lata"][1], 0.7, "the lata card's can in Agawan Base is as it was")
+
+
 func test_a_semi_transparent_white_ring_marks_where_the_can_belongs_and_brightens_while_it_is_down() -> void:
 	var practice: PracticeMatch = _practice(&"tumbang_preso")
 	var game: TumbangPreso = practice.sim.mode as TumbangPreso
