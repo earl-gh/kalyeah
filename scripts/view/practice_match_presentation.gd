@@ -122,7 +122,7 @@ func _connect_street_game(mode: StreetMode) -> void:
 		lines.roles_swapped.connect(func(team: int) -> void: owner.show_banner("YOU RUN!" if team == owner.local_team else "YOU GUARD!"))
 		lines.runner_crossed.connect(func(id: int) -> void:
 			if id == owner.local_id:
-				owner.show_banner("NOW RUN BACK HOME!"))
+				owner.show_banner("PAST THE LAST GUARD! RUN BACK!"))
 		lines.tagged.connect(func(guard: int, runner: int) -> void:
 			if runner == owner.local_id:
 				owner.show_banner("TAGGED!")
@@ -210,7 +210,7 @@ static func street_status(sim: MatchSim, player: PlayerState) -> Array[String]:
 		return ["FETCH YOUR SLIPPER!", "Kick the can to keep the taya busy."] as Array[String]
 	var lines: Patintero = mode as Patintero
 	if lines.is_attacker(player):
-		return ["YOU RUN!", "Cross both lines. Dive to get past!"] as Array[String]
+		return ["YOU RUN!", "Past the last guard, then back!"] as Array[String]
 	return ["YOU GUARD!", "Move into a runner's circle to tag!"] as Array[String]
 
 

@@ -10,11 +10,10 @@ const CHALK_SHADER: Shader = preload("res://shaders/chalk_line.gdshader")
 ## Chalk lines: how wide (m) and how high above the ground.
 const LINE_WIDTH: float = 0.32
 const LINE_LIFT: float = 0.03
-const HOME_CHALK: Color = Color(1.0, 1.0, 1.0, 0.95)
-const GUARD_CHALK: Color = Color(1.0, 0.86, 0.35, 0.95)
-## How much of a line is bare: the long white lines (the boundaries), the guards' lines.
+## Every line is white chalk. How much of a line is bare: the boundary lines of Tumbang Preso, the lines of Patintero's court.
+const CHALK: Color = Color(1.0, 1.0, 1.0, 0.95)
 const HOME_BREAKS: float = 0.2
-const GUARD_BREAKS: float = 0.3
+const COURT_BREAKS: float = 0.3
 ## A flung can or slipper arcs this high (m) over a fling; the can turns `FLING_TURNS` times end over end on each fling and ends on its side,
 ## resting `LYING_SHARE` of its height above the street. A slipper turns this many times a second in the air.
 const FLING_PEAK: float = 1.6
@@ -84,8 +83,10 @@ func setup(sim: MatchSim, ctx: FxContext, local_id: int) -> void:
 	if _mode == null:
 		return
 	_lane_width = sim.layout.lane_width
-	_add_chalk(Vector2(0.0, _mode.rules.home_z), _lane_width, 0.0, HOME_CHALK, HOME_BREAKS, 1.0)
-	_add_chalk(Vector2(0.0, _mode.rules.goal_z), _lane_width, 0.0, HOME_CHALK, HOME_BREAKS, 2.0)
+	if _mode is TumbangPreso:
+		# the throw line and the far line; Patintero has no lines of its own at the ends: its first and last guard lines are its edges
+		_add_chalk(Vector2(0.0, _mode.rules.home_z), _lane_width, 0.0, CHALK, HOME_BREAKS, 1.0)
+		_add_chalk(Vector2(0.0, _mode.rules.goal_z), _lane_width, 0.0, CHALK, HOME_BREAKS, 2.0)
 	_guard_lines = Node3D.new()
 	_guard_lines.name = "GuardLines"
 	add_child(_guard_lines)
@@ -103,8 +104,8 @@ func setup(sim: MatchSim, ctx: FxContext, local_id: int) -> void:
 	if _mode is Patintero:
 		var span: float = _mode.rules.line_span
 		for index: int in 2:
-			_add_chalk(Vector2(0.0, span if index == 0 else -span), _lane_width, 0.0, GUARD_CHALK, GUARD_BREAKS, 3.0 + float(index), _guard_lines)
-		_add_chalk(Vector2.ZERO, span * 2.0, PI / 2.0, GUARD_CHALK, GUARD_BREAKS, 5.0, _guard_lines)
+			_add_chalk(Vector2(0.0, span if index == 0 else -span), _lane_width, 0.0, CHALK, COURT_BREAKS, 3.0 + float(index), _guard_lines)
+		_add_chalk(Vector2.ZERO, span * 2.0, PI / 2.0, CHALK, COURT_BREAKS, 5.0, _guard_lines)
 
 
 ## One frame of the picture (PracticeMatch calls it from its presentation, like every other view): the can, the slippers, the marks.

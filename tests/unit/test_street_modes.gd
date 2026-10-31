@@ -493,18 +493,40 @@ func test_a_patintero_guard_can_only_move_along_its_own_line() -> void:
 	assert_eq((sim.mode as Patintero).move_point(sim.players[6], Vector2(3.0, 50.0)), Vector2(0.0, PATINTERO.line_span))
 
 
-func test_patintero_a_point_for_the_other_end_and_back() -> void:
+func test_patintero_a_runner_scores_only_after_getting_past_the_last_guard_and_back_to_the_base() -> void:
 	var sim: MatchSim = _sim(PATINTERO, 3)
 	var lines: Patintero = sim.mode as Patintero
 	for id: int in [4, 5, 6]:
-		sim.players[id].position.x = 11.0 if id != 6 else 0.0
-	sim.players[1].position = Vector2(-10.0, PATINTERO.goal_z - 0.5)
+		sim.players[id].position = Vector2(11.0, 0.0) if id != 6 else Vector2.ZERO
+	# past the first guard only, then back to the base: no point
+	sim.players[1].position = Vector2(-9.0, PATINTERO.line_span - 2.0)
 	sim.step(DT)
-	assert_true(lines.crossed.has(1))
+	sim.players[1].position = Vector2(-9.0, PATINTERO.home_z + 0.5)
+	sim.step(DT)
+	assert_eq(sim.score.points, [0, 0] as Array[int], "back to the base after only the first guard: not counted")
+	assert_false(lines.crossed.has(1))
+	# past the last guard
+	sim.players[1].position = Vector2(-9.0, PATINTERO.goal_z - 0.2)
+	sim.step(DT)
+	assert_true(lines.crossed.has(1), "past the third guard")
 	assert_eq(sim.score.points, [0, 0] as Array[int], "half way is no point")
-	sim.players[1].position = Vector2(-10.0, PATINTERO.home_z + 0.5)
+	# going back to a guard it has passed is allowed (escaping a tag) and does not lose it
+	sim.players[1].position = Vector2(-9.0, -PATINTERO.line_span + 3.0)
 	sim.step(DT)
-	assert_eq(sim.score.points, [1, 0] as Array[int])
+	sim.players[1].position = Vector2(-9.0, PATINTERO.goal_z - 0.2)
+	sim.step(DT)
+	assert_true(lines.crossed.has(1), "it still has passed the last guard")
+	sim.players[1].position = Vector2(-9.0, PATINTERO.home_z + 0.5)
+	sim.step(DT)
+	assert_eq(sim.score.points, [1, 0] as Array[int], "past the last guard and back at the base: the team point")
+	assert_false(lines.crossed.has(1))
+
+
+func test_patintero_the_court_has_no_lines_of_its_own_beyond_the_first_and_last_guard() -> void:
+	# the base and the far end sit just past the first and last guard lines and their tag circles; nothing else marks them
+	assert_gt(PATINTERO.home_z, PATINTERO.line_span + PATINTERO.tag_circle_radius - 0.01, "the base is clear of the first guard's circle")
+	assert_lt(PATINTERO.goal_z, -PATINTERO.line_span - PATINTERO.tag_circle_radius + 0.01, "the far end is past the last guard's circle")
+	assert_lt(PATINTERO.home_z, PATINTERO.line_span + PATINTERO.tag_circle_radius + 1.0, "and close to it")
 
 
 func test_patintero_a_guard_moving_into_a_runners_circle_tags_it_for_a_point_and_the_round_resets() -> void:
@@ -533,7 +555,7 @@ func test_patintero_a_guard_moving_into_a_runners_circle_tags_it_for_a_point_and
 	assert_eq(sim.mode.attack_team, 0, "the roles stay")
 
 
-func test_patintero_a_runner_dives_and_it_cools_down() -> void:
+func test_patintero_a_runner_dives_and_the_cooldown_starts_when_it_is_standing_again() -> void:
 	var sim: MatchSim = _sim(PATINTERO, 3)
 	var lines: Patintero = sim.mode as Patintero
 	_stand_all(sim)
@@ -545,47 +567,88 @@ func test_patintero_a_runner_dives_and_it_cools_down() -> void:
 	sim.step(DT)
 	assert_eq(dives, [[1, Vector2(0.0, -1.0), PATINTERO.dive_time, PATINTERO.dive_recover]])
 	assert_true(lines.is_diving(1))
-	assert_false(lines.can_dive(sim.players[1]), "cooling down")
-	sim.set_input(1, PlayerInput.create(Vector2(0.0, -1.0), Vector2.ZERO, 0, 0))
+	assert_false(lines.can_dive(sim.players[1]))
+	sim.set_input(1, PlayerInput.create(Vector2(1.0, 0.0), Vector2.ZERO, 0, 0))
 	_wait(sim, PATINTERO.dive_time)
 	var distance: float = from.distance_to(sim.players[1].position)
 	assert_almost_eq(distance, PATINTERO.dive_speed_share * _rules.move_speed * PATINTERO.dive_time, 0.8, "a dive covers its short burst")
 	assert_gt(distance, _rules.move_speed * PATINTERO.dive_time * 1.8, "much faster than a run")
-	assert_false(lines.is_diving(1))
-	assert_almost_eq(lines.dive_ready_share(1), 1.0 - (PATINTERO.dive_cooldown - PATINTERO.dive_time - DT * 2.0) / PATINTERO.dive_cooldown, 0.1, "the cooldown ring has begun to fill")
-	# pressing again while it cools down does nothing; after the cooldown it dives again
+	assert_false(lines.is_diving(1), "the burst is over ...")
+	assert_true(lines.is_busy(1), "... but it is still lying and getting up")
+	assert_eq(lines.dive_ready_share(1), 0.0, "no cooldown yet")
+	var lying_at: Vector2 = sim.players[1].position
+	_wait(sim, PATINTERO.dive_recover * 0.6)
+	assert_eq(sim.players[1].position, lying_at, "the stick does not steer the get-up")
+	assert_eq(lines.dive_ready_share(1), 0.0)
+	_wait(sim, PATINTERO.dive_recover * 0.4 + DT * 2.0)
+	assert_false(lines.is_busy(1), "standing again")
+	assert_true(lines.dive_cool.has(1), "now the cooldown starts")
+	assert_almost_eq(lines.dive_cool[1], PATINTERO.dive_cooldown, DT * 4.0)
+	# pressing again while it cools down does nothing; after the cooldown (5 s) it dives again
 	sim.set_input(1, PlayerInput.create(Vector2(0.0, -1.0), Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
 	sim.step(DT)
 	assert_eq(dives.size(), 1)
 	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 0))
-	_wait(sim, PATINTERO.dive_cooldown)
+	_wait(sim, PATINTERO.dive_cooldown * 0.5)
+	assert_between(lines.dive_ready_share(1), 0.35, 0.65, "the ring fills while it cools")
+	assert_false(lines.can_dive(sim.players[1]))
+	_wait(sim, PATINTERO.dive_cooldown * 0.5 + DT * 4.0)
 	assert_true(lines.can_dive(sim.players[1]))
 	assert_eq(lines.dive_ready_share(1), 1.0)
-	sim.set_input(1, PlayerInput.create(Vector2(1.0, 0.0), Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
-	sim.step(DT)
-	assert_eq(dives.size(), 2)
+	assert_eq(PATINTERO.dive_cooldown, 5.0, "five seconds")
 
 
-func test_patintero_a_guard_dives_only_along_its_own_line() -> void:
+func test_patintero_a_guard_dives_off_its_line_then_runs_back_and_cannot_move_or_dive_until_it_is_there() -> void:
 	var sim: MatchSim = _sim(PATINTERO, 3)
 	var lines: Patintero = sim.mode as Patintero
 	_stand_all(sim)
-	var ways: Dictionary = {}
-	lines.dived.connect(func(id: int, way: Vector2, _time: float, _recover: float) -> void: ways[id] = way)
-	# the horizontal guard: the stick points up and right, it dives sideways
-	sim.set_input(4, PlayerInput.create(Vector2(0.6, -0.8), Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
-	# the vertical guard: the stick points left and up, it dives up the line
-	sim.set_input(6, PlayerInput.create(Vector2(-0.8, -0.6), Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
+	# running keeps the guard on its line ...
+	sim.set_input(4, PlayerInput.create(Vector2(0.6, -0.8), Vector2.ZERO, 0, 0))
+	_wait(sim, 0.4)
+	assert_almost_eq(sim.players[4].position.y, PATINTERO.line_span, 0.001, "running only along the line")
+	sim.players[4].position = Vector2(0.0, PATINTERO.line_span)
+	# ... a dive is the one thing that takes it off it, whichever way the stick points
+	sim.set_input(4, PlayerInput.create(Vector2(0.0, -1.0), Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
 	sim.step(DT)
-	assert_eq(ways[4], Vector2(1.0, 0.0))
-	assert_eq(ways[6], Vector2(0.0, -1.0))
-	_stand_all(sim)
-	_wait(sim, PATINTERO.dive_time + 0.1)
+	sim.set_input(4, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 0))
+	_wait(sim, PATINTERO.dive_time)
+	var off: float = absf(sim.players[4].position.y - PATINTERO.line_span)
+	assert_gt(off, 3.0, "the dive took it well off its line (%.1f m)" % off)
+	assert_true(lines.is_busy(4))
+	assert_false(lines.is_returning(4), "it is getting up first")
+	_wait(sim, PATINTERO.dive_recover + DT)
+	assert_true(lines.is_returning(4), "then it runs back")
+	assert_eq(lines.dive_ready_share(4), 0.0)
+	assert_false(lines.can_dive(sim.players[4]))
+	# the stick and the button do nothing on the way back
+	var here: Vector2 = sim.players[4].position
+	sim.set_input(4, PlayerInput.create(Vector2(1.0, 0.0), Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
+	sim.step(DT)
+	var after: Vector2 = sim.players[4].position
+	var line_point: Vector2 = lines.nearest_on_line(4, here)
+	assert_lt(after.distance_to(line_point), here.distance_to(line_point), "it runs toward the nearest point of its line")
+	assert_almost_eq(here.distance_to(after), PATINTERO.dive_return_speed_share * _rules.move_speed * DT, 0.02, "at its own speed")
+	assert_eq(lines.dive_cool.get(4, 0.0), 0.0, "the cooldown has not started: it is not back yet")
+	for i: int in 120:
+		if not lines.is_returning(4):
+			break
+		sim.step(DT)
+	assert_false(lines.is_busy(4), "back on its line")
 	assert_almost_eq(sim.players[4].position.y, PATINTERO.line_span, 0.001)
-	assert_gt(sim.players[4].position.x, 3.0, "it dived along the line")
-	assert_almost_eq(sim.players[6].position.x, 0.0, 0.001)
-	assert_lt(sim.players[6].position.y, -3.0, "up the line")
-	assert_gte(sim.players[6].position.y, -PATINTERO.line_span, "but not past the horizontal line")
+	assert_almost_eq(lines.dive_cool[4], PATINTERO.dive_cooldown, DT * 2.0, "the cooldown starts now")
+	assert_false(lines.can_dive(sim.players[4]))
+	# the vertical guard goes back to the nearest point of the vertical line
+	sim.players[6].position = Vector2(0.0, 0.0)
+	sim.set_input(6, PlayerInput.create(Vector2(1.0, 0.0), Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
+	sim.step(DT)
+	sim.set_input(6, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 0))
+	_wait(sim, PATINTERO.dive_time + PATINTERO.dive_recover + 0.3)
+	assert_gt(sim.players[6].position.x, 1.0, "diving sideways took it off the vertical line")
+	for i: int in 120:
+		if not lines.is_busy(6):
+			break
+		sim.step(DT)
+	assert_almost_eq(sim.players[6].position.x, 0.0, 0.001, "and it is back on it")
 
 
 func test_patintero_the_roles_swap_when_the_turn_runs_out() -> void:

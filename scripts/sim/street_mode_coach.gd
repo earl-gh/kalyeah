@@ -9,8 +9,8 @@ extends RefCounted
 ## - Patintero runner: runs for the other end and back, sidestepping the guard of the next horizontal line (keeping to the side it chose,
 ##   toward the open street) until it has room to pass, and keeping away from the middle where the vertical guard is.
 ## - Patintero guard: follows the nearest runner along its own line.
-## Patintero bots also dive (runners when the next line is near and the way past is clear, guards when a runner is a little way off along
-## their line), whenever the dive is ready.
+## Patintero bots also dive (runners when the next line is near and the way past is clear, guards straight at a runner a little way off,
+## which takes them off their line for a moment), whenever the dive is ready.
 
 ## A runner this close (m, along the street) to the next line sidesteps its guard instead of running on.
 const LINE_CAUTION: float = 4.0
@@ -179,8 +179,12 @@ func _line_guard(sim: MatchSim, lines: Patintero, state: PlayerState) -> PlayerI
 	if absf(offset) < ARRIVED:
 		return _stick(Vector2.ZERO)
 	var move: float = signf(offset) * minf(1.0, absf(offset)) * lines.rules.bot_guard_speed
-	var dive: bool = absf(offset) > lines.rules.tag_circle_radius and absf(offset) < lines.rules.bot_dive_range * 2.0 and lines.can_dive(state)
-	return _stick(Vector2(0.0, move) if vertical else Vector2(move, 0.0), dive)
+	var to_runner: Vector2 = best.position - state.position
+	var dive: bool = to_runner.length() > lines.rules.tag_circle_radius and to_runner.length() < lines.rules.bot_dive_range * 2.0 \
+		and not lines.at_home(best.position) and not lines.at_goal(best.position) and lines.can_dive(state)
+	if dive:
+		return _stick(to_runner.normalized(), true)  # a dive is the one thing that takes a guard off its line
+	return _stick(Vector2(0.0, move) if vertical else Vector2(move, 0.0))
 
 
 # ---- helpers -------------------------------------------------------------------------------

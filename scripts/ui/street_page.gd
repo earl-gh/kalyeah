@@ -86,9 +86,10 @@ static func street_game_lines(game: StreetModeRules) -> Array[String]:
 	return [
 		UiText.f("%d minutes! The team with more points wins. Play it in Practice.", [minutes]),
 		"Get past the enemy guards, run to the other end and back to earn a team point.",
-		"The court has two lines across the street and one down the middle. Each guard keeps to one line.",
+		"The court has two lines across the street and one down the middle. Guards stay on their line; runners run free.",
+		"Get past the last guard, then back to the base. Going back after only the first guard doesn't count.",
 		"Runners have a tag circle: a guard tags a runner by moving into it. The guards earn a point and the round resets.",
-		UiText.f("Runners and guards can dive, then wait %d s to dive again. The teams swap every %d s.", [ceili(game.dive_cooldown), ceili(game.turn_seconds)]),
+		UiText.f("Dive to get past, or (a guard) to catch beyond your line: you run back to your line after. The cooldown of %d s starts when you are on your feet or back on your line.", [ceili(game.dive_cooldown)]),
 	] as Array[String]
 
 
