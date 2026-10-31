@@ -7,7 +7,6 @@ script = ExtResource("1_rules")
 id = &"tumbang_preso"
 title = "Tumbang Preso"
 match_seconds = 300.0
-turn_seconds = 60.0
 swap_grace = 1.5
 tag_circle_radius = 1.3
 reset_seconds = 1.3

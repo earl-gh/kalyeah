@@ -121,27 +121,54 @@ func test_a_tumbang_preso_practice_is_every_kid_for_itself_with_one_taya() -> vo
 	assert_ne(game.taya_id, practice.local_id, "a bot is the taya to begin with")
 	assert_false(practice._map.bases_shown(), "no posts or bases in Tumbang Preso")
 	assert_not_null(practice.mode_view.can_node(), "the can is drawn")
-	for i: int in 90:
+	# the match's seed is the clock's: a thrower bot waits up to two seconds, aims and throws, so watch for any bot doing anything for a while
+	var acted: bool = false
+	for i: int in 240:
 		practice.advance(DT)
-	var moved: bool = false
-	for id: int in PracticeMatch.BOT_ALLY_IDS + PracticeMatch.BOT_ENEMY_IDS:
-		moved = moved or practice.sim.players[id].position != practice.sim.players[id].spawn_position
-	assert_true(moved, "the bots play")
+		for id: int in PracticeMatch.BOT_ALLY_IDS + PracticeMatch.BOT_ENEMY_IDS:
+			acted = acted or practice.sim.players[id].position != practice.sim.players[id].spawn_position
+		acted = acted or not game.hold.is_empty() or not game.flights.is_empty() or not game.slippers.is_empty()
+	assert_true(acted, "the bots play")
 	assert_lt(practice.sim.clock_left(), 300.0, "the five-minute clock runs")
 
 
-func test_a_patintero_practice_draws_the_court_two_horizontal_lines_and_a_vertical_one() -> void:
+func test_a_patintero_practice_draws_the_court_two_horizontal_lines_the_middle_line_and_the_corridor_lines() -> void:
 	var practice: PracticeMatch = _practice(&"patintero")
 	assert_true(practice.sim.mode is Patintero)
-	assert_eq(practice.mode_view.guard_line_count(), 3, "two horizontal lines and the vertical one")
+	assert_eq(practice.mode_view.guard_line_count(), 5, "two horizontal lines, the middle line and the two corridor lines")
 	assert_null(practice.mode_view.can_node())
-	var lines: Array[Node] = practice.mode_view.find_children("*", "MeshInstance3D", true, false).filter(func(n: Node) -> bool: return (n as MeshInstance3D).mesh is PlaneMesh)
-	assert_eq(lines.size(), 5, "the start line, the far line and the three of the court")
+	var planes: Array[Node] = practice.mode_view.find_children("*", "MeshInstance3D", true, false).filter(func(n: Node) -> bool: return (n as MeshInstance3D).mesh is PlaneMesh)
+	var lines: Array[Node] = planes.filter(func(n: Node) -> bool: return ((n as MeshInstance3D).mesh as PlaneMesh).material is ShaderMaterial)
+	assert_eq(lines.size(), 5, "only the court: its first and last line are the edges, with no start or far line besides")
+	assert_eq(planes.size() - lines.size(), 2, "and a tint on each pen")
+	for line: Node in lines:
+		var chalk: Color = (((line as MeshInstance3D).mesh as PlaneMesh).material as ShaderMaterial).get_shader_parameter("chalk") as Color
+		assert_eq(Color(chalk, 1.0), Color.WHITE, "white chalk, every line")
 	var turned: int = 0
 	for line: Node in lines:
 		if is_equal_approx(absf((line as MeshInstance3D).rotation.y), PI / 2.0):
 			turned += 1
-	assert_eq(turned, 1, "one of them runs along the street: the vertical line")
+	assert_eq(turned, 3, "three of them run along the street: the middle line and the corridor lines")
+
+
+func test_a_patintero_runner_in_a_pen_has_a_centred_knob_and_no_dive_and_the_camera_turns_when_the_roles_swap() -> void:
+	var practice: PracticeMatch = _practice(&"patintero")
+	var lines: Patintero = practice.sim.mode as Patintero
+	var local: int = practice.local_id
+	assert_true(lines.is_attacker(practice.sim.players[local]), "you run first")
+	var own: int = practice.own_side()
+	lines.jailed[local] = 1
+	practice.sim.players[local].position = Vector2(7.0, 0.0)
+	practice.advance(DT)
+	assert_true(practice.hud.street_pad.knob_centered, "a tagged runner steers with a centred knob")
+	assert_eq(practice.hud.street_pad.action, StreetGamePad.Action.NONE, "and has no dive button")
+	lines.jailed.erase(local)
+	practice.sim.players[local].position = Vector2(0.0, lines.rules.home_z + 1.0)
+	practice.advance(DT)
+	assert_false(practice.hud.street_pad.knob_centered)
+	# the guards' view is the other way round, like Agawan Base
+	lines.attack_team = 1 - lines.attack_team
+	assert_ne(practice.own_side(), own, "the camera turns when your team guards")
 
 
 func test_the_street_games_have_no_hand_no_tray_and_no_cards() -> void:
@@ -438,41 +465,58 @@ func test_patintero_has_the_same_hud_with_a_dive_button_whose_ring_fills_while_i
 	var lines: Patintero = practice.sim.mode as Patintero
 	var pad: StreetGamePad = practice.hud.street_pad
 	practice.advance(DT)
+	practice._mode_coach.ids.clear()  # the bots do not act: the dive stays the one thing in the test
+	for id: int in practice.sim.players:
+		if id != practice.local_id:
+			practice.sim.set_input(id, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 0))
+	lines.dive_phase.clear()
 	assert_false(practice.hud.hand.visible)
 	assert_false(practice.hud.console.visible, "no tray")
-	assert_false(practice.hud.scoreboard.visible, "the points are on the left sidewalk, like Tumbang Preso's")
-	assert_not_null(practice.hud.score_column)
-	assert_eq(practice.hud.score_column.order().size(), 2, "one badge for each team")
+	assert_null(practice.hud.score_column, "no kids' column: Patintero is a team game")
+	assert_true(practice.hud.scoreboard.visible, "the team score is at the top centre, like Agawan Base")
 	assert_eq(pad.action, StreetGamePad.Action.DIVE, "the button at the right is Dive")
 	assert_true(pad.act_ready)
 	assert_eq(pad.charge, 1.0, "ready: the ring is full")
 	assert_gt(pad.knob_rect().size.x, 100.0, "and the knob at the left")
 	assert_true(practice.hud.chat.visible, "chat under the timer")
-	pad.knob_moved.emit(Vector2(0.0, -1.0))
+	pad.knob_moved.emit(Vector2(1.0, 0.0))  # along the base, away from the guards
 	pad.action_pressed.emit()
 	for i: int in 4:
 		practice.advance(DT)
 	pad.knob_moved.emit(Vector2.ZERO)  # the knob is let go: the kid does not run into the guards afterwards
 	assert_true(lines.is_diving(practice.local_id), "pressing Dive dives")
-	assert_false(pad.act_ready, "cooling down")
-	assert_lt(pad.charge, 0.3, "the ring has just started to fill")
+	assert_false(pad.act_ready, "busy")
+	assert_eq(pad.charge, 0.0, "the ring is empty while the kid dives and gets up: the cooldown has not started")
+	for i: int in ceili((lines.rules.dive_time + lines.rules.dive_recover) / DT) + 3:
+		practice.advance(DT)
+	assert_false(lines.is_busy(practice.local_id), "standing again: now it cools down")
 	for i: int in ceili(lines.rules.dive_cooldown / 2.0 / DT):
 		practice.advance(DT)
-	assert_between(pad.charge, 0.35, 0.75, "and fills as it cools down")
-	for i: int in ceili(lines.rules.dive_cooldown / DT):
+	assert_between(pad.charge, 0.35, 0.7, "and the ring fills as it cools down")
+	for i: int in ceili(lines.rules.dive_cooldown / 2.0 / DT) + 4:
 		practice.advance(DT)
 	assert_true(pad.act_ready)
+	assert_eq(pad.charge, 1.0)
 
 
-func test_patintero_points_stand_in_a_column_by_team_most_first() -> void:
-	var practice: PracticeMatch = _practice(&"patintero")
-	var column: ScoreColumn = practice.hud.score_column
-	practice.advance(DT)
-	assert_eq(column.order(), [ScoreColumn.TEAM_KEY, ScoreColumn.TEAM_KEY + 1] as Array[int], "your team first when level")
-	practice.sim.score.points[1] = 2
-	practice.advance(DT)
-	assert_eq(column.order(), [ScoreColumn.TEAM_KEY + 1, ScoreColumn.TEAM_KEY] as Array[int], "the leading team goes up")
-	assert_eq(column.points_text(ScoreColumn.TEAM_KEY + 1), "2")
+func test_patintero_shows_the_team_score_at_the_top_centre_like_agawan_base() -> void:
+	var patintero: PracticeMatch = _practice(&"patintero")
+	patintero.advance(DT)
+	var board: Scoreboard = patintero.hud.scoreboard
+	var middle: float = patintero.hud.get_global_rect().get_center().x
+	assert_almost_eq(board.get_global_rect().get_center().x, middle, 2.0, "centred on the screen")
+	assert_lt(board.get_global_rect().end.y, patintero.hud.header_height() + 20.0, "in the header")
+	patintero.sim.score.points[0] = 2
+	patintero.sim.score.points[1] = 1
+	patintero.advance(DT)
+	assert_eq([board.mine, board.theirs], [2, 1], "your team's points on the left, theirs on the right")
+	assert_eq(patintero.sim.score.first_to, 0, "no first-to: a street game is played against the clock")
+	assert_false(board.accessibility_name.contains("first to"), "and it does not say so")
+	# the same place and the same card as Agawan Base's
+	var base: PracticeMatch = _practice(&"street")
+	base.advance(DT)
+	assert_eq(board.get_global_rect().position, base.hud.scoreboard.get_global_rect().position, "exactly where Agawan Base has it")
+	assert_eq(board.get_global_rect().size, base.hud.scoreboard.get_global_rect().size)
 
 
 func test_a_dive_crouches_leaps_slides_on_its_belly_and_gets_up() -> void:
@@ -534,7 +578,7 @@ func test_a_kid_that_is_caught_stumbles_and_falls_and_one_that_dives_keeps_its_d
 	practice._mode_coach.ids.clear()  # the bots stand still: a dive of the guard's would take it out of the circle
 	for id: int in practice.sim.players:
 		practice.sim.set_input(id, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 0))
-	lines.dive_left.clear()  # (a bot guard may have dived on the first tick)
+	lines.dive_phase.clear()  # (a bot guard may have dived on the first tick)
 	practice.sim.players[4].position = Vector2(0.0, lines.rules.line_span)
 	lines.grace_left = 0.0
 	var runner: KidModel = practice._views[practice.local_id] as KidModel

@@ -10,11 +10,10 @@ const CHALK_SHADER: Shader = preload("res://shaders/chalk_line.gdshader")
 ## Chalk lines: how wide (m) and how high above the ground.
 const LINE_WIDTH: float = 0.32
 const LINE_LIFT: float = 0.03
-const HOME_CHALK: Color = Color(1.0, 1.0, 1.0, 0.95)
-const GUARD_CHALK: Color = Color(1.0, 0.86, 0.35, 0.95)
-## How much of a line is bare: the long white lines (the boundaries), the guards' lines.
+## Every line is white chalk. How much of a line is bare: the boundary lines of Tumbang Preso, the lines of Patintero's court.
+const CHALK: Color = Color(1.0, 1.0, 1.0, 0.95)
 const HOME_BREAKS: float = 0.2
-const GUARD_BREAKS: float = 0.3
+const COURT_BREAKS: float = 0.3
 ## A flung can or slipper arcs this high (m) over a fling; the can turns `FLING_TURNS` times end over end on each fling and ends on its side,
 ## resting `LYING_SHARE` of its height above the street. A slipper turns this many times a second in the air.
 const FLING_PEAK: float = 1.6
@@ -41,6 +40,8 @@ const PICKUP_TINT: Color = Color(1.0, 1.0, 1.0, 0.3)
 const PICKUP_OUTLINE: Color = Color(1.0, 1.0, 1.0, 0.95)
 const PICKUP_OUTLINE_WIDTH: float = 0.14
 const PICKUP_BREATH: float = 4.0
+## The pens (where tagged runners wait) are tinted a little, like a chalked-in patch of the street.
+const PEN_TINT: Color = Color(1.0, 1.0, 1.0, 0.22)
 ## The tag circle round everyone the local taya or guard could tag (medium size, `StreetModeRules.tag_circle_radius`): red while a touch
 ## tags, grey while it cannot (the can is down, the round is resetting).
 const TAG_CIRCLE_TINT: Color = Color(1.0, 0.25, 0.22, 0.25)
@@ -84,8 +85,10 @@ func setup(sim: MatchSim, ctx: FxContext, local_id: int) -> void:
 	if _mode == null:
 		return
 	_lane_width = sim.layout.lane_width
-	_add_chalk(Vector2(0.0, _mode.rules.home_z), _lane_width, 0.0, HOME_CHALK, HOME_BREAKS, 1.0)
-	_add_chalk(Vector2(0.0, _mode.rules.goal_z), _lane_width, 0.0, HOME_CHALK, HOME_BREAKS, 2.0)
+	if _mode is TumbangPreso:
+		# the throw line and the far line; Patintero has no lines of its own at the ends: its first and last guard lines are its edges
+		_add_chalk(Vector2(0.0, _mode.rules.home_z), _lane_width, 0.0, CHALK, HOME_BREAKS, 1.0)
+		_add_chalk(Vector2(0.0, _mode.rules.goal_z), _lane_width, 0.0, CHALK, HOME_BREAKS, 2.0)
 	_guard_lines = Node3D.new()
 	_guard_lines.name = "GuardLines"
 	add_child(_guard_lines)
@@ -103,8 +106,13 @@ func setup(sim: MatchSim, ctx: FxContext, local_id: int) -> void:
 	if _mode is Patintero:
 		var span: float = _mode.rules.line_span
 		for index: int in 2:
-			_add_chalk(Vector2(0.0, span if index == 0 else -span), _lane_width, 0.0, GUARD_CHALK, GUARD_BREAKS, 3.0 + float(index), _guard_lines)
-		_add_chalk(Vector2.ZERO, span * 2.0, PI / 2.0, GUARD_CHALK, GUARD_BREAKS, 5.0, _guard_lines)
+			_add_chalk(Vector2(0.0, span if index == 0 else -span), _lane_width, 0.0, CHALK, COURT_BREAKS, 3.0 + float(index), _guard_lines)
+		_add_chalk(Vector2.ZERO, span * 2.0, PI / 2.0, CHALK, COURT_BREAKS, 5.0, _guard_lines)
+		# the left and right vertical lines narrow the middle part; outside them are the pens, tinted a little
+		var half: float = _mode.rules.corridor_half_width
+		for side: int in [-1, 1]:
+			_add_chalk(Vector2(float(side) * half, 0.0), span * 2.0, PI / 2.0, CHALK, COURT_BREAKS, 6.0 + float(side), _guard_lines)
+			_add_pen(float(side) * (half + (_lane_width / 2.0 - half) / 2.0), _lane_width / 2.0 - half, span * 2.0)
 
 
 ## One frame of the picture (PracticeMatch calls it from its presentation, like every other view): the can, the slippers, the marks.
@@ -372,7 +380,7 @@ func _sync_tag_circles() -> void:
 		open = open and (_mode as TumbangPreso).can_up
 	for id: int in _sim.players:
 		var kid: PlayerState = _sim.players[id]
-		var shown: bool = tagger and _mode.is_attacker(kid) and not kid.tagged and not _mode.at_home(kid.position) and not _mode.at_goal(kid.position)
+		var shown: bool = tagger and _mode.is_taggable(kid)
 		var circle: Node3D = _tag_circles.get(id) as Node3D
 		if circle == null:
 			if not shown:
@@ -388,6 +396,16 @@ func _sync_tag_circles() -> void:
 		tint.set_meta("on", open)
 		((tint.mesh as CylinderMesh).material as StandardMaterial3D).albedo_color = TAG_CIRCLE_TINT if open else TAG_CIRCLE_OFF_TINT
 		(((circle.get_node("Rim") as MeshInstance3D).mesh as TorusMesh).material as StandardMaterial3D).albedo_color = TAG_CIRCLE_RIM if open else TAG_CIRCLE_OFF_RIM
+
+
+## A tinted rectangle on the street (a pen) centred on (`x`, 0), `width` wide across the street and `length` long.
+func _add_pen(x: float, width: float, length: float) -> void:
+	var plane: PlaneMesh = PlaneMesh.new()
+	plane.size = Vector2(width, length)
+	plane.material = _ground_material(PEN_TINT)
+	var pen: MeshInstance3D = _ground_mesh(plane, "Pen", true)
+	pen.position = Vector3(x, LINE_LIFT * 0.8, 0.0)
+	add_child(pen)
 
 
 func _build_tag_circle() -> Node3D:

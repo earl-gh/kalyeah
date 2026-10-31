@@ -36,7 +36,7 @@ const EPSILON: float = 0.00001
 ## INTRO: the opening show of both teams at their posts; nothing moves.
 enum Phase { PLAYING, POINT_FREEZE, MATCH_OVER, INTRO }
 ## How a team is scoring: everyone in the enemy base, or every enemy tagged.
-enum CaptureKind { NONE = -1, BASE = 0, ALL_TAGGED = 1, TOUCHED = 2 }
+enum CaptureKind { NONE = -1, BASE = 0, ALL_TAGGED = 1, TOUCHED = 2, TOO_SLOW = 3 }
 ## The round clock's stages: Regular, then Extended (a plain extra minute), then Overtime (a shorter capture).
 enum ClockStage { REGULAR, EXTENDED, OVERTIME }
 
@@ -125,6 +125,7 @@ func set_first_to(count: int) -> void:
 ## Plays `p_mode` (Tumbang Preso or Patintero) instead of Agawan Base and puts everyone in their places. Call once all players are in.
 func start_mode(p_mode: StreetMode) -> void:
 	mode = p_mode
+	score.first_to = 0  # no points to win: a street game is played against the clock
 	mode.setup(self)
 
 

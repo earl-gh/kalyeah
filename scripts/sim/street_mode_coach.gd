@@ -9,8 +9,8 @@ extends RefCounted
 ## - Patintero runner: runs for the other end and back, sidestepping the guard of the next horizontal line (keeping to the side it chose,
 ##   toward the open street) until it has room to pass, and keeping away from the middle where the vertical guard is.
 ## - Patintero guard: follows the nearest runner along its own line.
-## Patintero bots also dive (runners when the next line is near and the way past is clear, guards when a runner is a little way off along
-## their line), whenever the dive is ready.
+## Patintero bots also dive (runners when the next line is near and the way past is clear, guards straight at a runner a little way off,
+## which takes them off their line for a moment), whenever the dive is ready.
 
 ## A runner this close (m, along the street) to the next line sidesteps its guard instead of running on.
 const LINE_CAUTION: float = 4.0
@@ -20,8 +20,9 @@ const SIDESTEP_ROOM: float = 3.0
 const ARRIVED: float = 0.2
 ## The taya chases throwers this close to the can (m).
 const CHASE_RANGE: float = 12.0
-## A runner keeps this far from the middle (m) where the vertical guard stands.
+## A runner keeps this far from the middle (m) where the vertical guard stands, and this far (m) in from a vertical line of the corridor.
 const MIDDLE_ROOM: float = 2.5
+const LANE_MARGIN: float = 0.9
 
 var ids: Array[int] = []
 ## Seconds a Tumbang Preso thrower still waits before it aims (absent: not waiting yet).
@@ -127,6 +128,9 @@ func _it(sim: MatchSim, game: TumbangPreso, state: PlayerState) -> PlayerInput:
 # ---- Patintero -----------------------------------------------------------------------------
 
 func _runner(sim: MatchSim, lines: Patintero, state: PlayerState) -> PlayerInput:
+	if lines.is_tagged_out(state.id):
+		return _stick(Vector2.ZERO)  # a tagged runner waits in its pen
+	var lane_limit: float = lines.rules.corridor_half_width - LANE_MARGIN
 	var going_home: bool = lines.crossed.has(state.id)
 	var target_z: float = lines.rules.home_z + 1.5 if going_home else lines.rules.goal_z - 1.5
 	var way: float = signf(target_z - state.position.y)
@@ -142,15 +146,21 @@ func _runner(sim: MatchSim, lines: Patintero, state: PlayerState) -> PlayerInput
 			ahead = sim.players[id]
 	if ahead == null or gap >= LINE_CAUTION:
 		_side.erase(state.id)
-		return _stick(_keep_off_the_middle(lines, state, Vector2(0.0, way)))
+		# near the court, line up with the corridor first (the pens are shut), then run
+		var move: Vector2 = Vector2(0.0, way)
+		if absf(state.position.y) < lines.rules.line_span + LINE_CAUTION + 1.0 and absf(state.position.x) > lane_limit:
+			move.x = clampf(signf(-state.position.x) * (absf(state.position.x) - lane_limit), -1.0, 1.0)
+		return _stick(_keep_off_the_middle(lines, state, move.normalized()))
 	var dx: float = state.position.x - ahead.position.x
 	if not _side.has(state.id):
-		# toward the open street: the side of the guard with more room
+		# toward the open side of the corridor: the side of the guard with more room
 		_side[state.id] = -signf(ahead.position.x) if absf(ahead.position.x) > 1.0 else (signf(dx) if dx != 0.0 else 1.0)
 	var side: float = _side[state.id]
+	var lane: float = side * lane_limit
+	var across: float = clampf(lane - state.position.x, -1.0, 1.0)
 	if absf(dx) < SIDESTEP_ROOM or signf(dx) != side:
-		return _stick(Vector2(side, -way * 0.2).normalized())
-	return _stick(Vector2(side, way).normalized(), gap < lines.rules.bot_dive_range and lines.can_dive(state))
+		return _stick(Vector2(across, -way * 0.2).normalized())
+	return _stick(Vector2(across * 0.5, way).normalized(), gap < lines.rules.bot_dive_range and lines.can_dive(state))
 
 
 ## A runner between the horizontal lines leans away from the middle, where the vertical guard stands.
@@ -167,7 +177,7 @@ func _line_guard(sim: MatchSim, lines: Patintero, state: PlayerState) -> PlayerI
 	var best: PlayerState = null
 	var best_distance: float = INF
 	for other: PlayerState in sim.players.values():
-		if not lines.is_attacker(other) or other.tagged:
+		if not lines.is_attacker(other) or other.tagged or lines.is_tagged_out(other.id):
 			continue
 		var distance: float = absf(other.position.x - line) if vertical else absf(other.position.y - line)
 		if distance < best_distance:
@@ -179,8 +189,12 @@ func _line_guard(sim: MatchSim, lines: Patintero, state: PlayerState) -> PlayerI
 	if absf(offset) < ARRIVED:
 		return _stick(Vector2.ZERO)
 	var move: float = signf(offset) * minf(1.0, absf(offset)) * lines.rules.bot_guard_speed
-	var dive: bool = absf(offset) > lines.rules.tag_circle_radius and absf(offset) < lines.rules.bot_dive_range * 2.0 and lines.can_dive(state)
-	return _stick(Vector2(0.0, move) if vertical else Vector2(move, 0.0), dive)
+	var to_runner: Vector2 = best.position - state.position
+	var dive: bool = to_runner.length() > lines.rules.tag_circle_radius and to_runner.length() < lines.rules.bot_dive_range * 2.0 \
+		and lines.is_taggable(best) and lines.can_dive(state)
+	if dive:
+		return _stick(to_runner.normalized(), true)  # a dive is the one thing that takes a guard off its line
+	return _stick(Vector2(0.0, move) if vertical else Vector2(move, 0.0))
 
 
 # ---- helpers -------------------------------------------------------------------------------
