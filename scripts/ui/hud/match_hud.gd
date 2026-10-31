@@ -34,6 +34,7 @@ const CAST_BLOCK_TAGS: Dictionary[int, String] = {
 	StatusEffects.Type.AIRBORNE: "AIRBORNE",
 	StatusEffects.Type.BOUNCE: "BOUNCED",
 	StatusEffects.Type.KNOCKOUT: "OUT",
+	StatusEffects.Type.TRIPPED: "TRIPPED",
 	StatusEffects.Type.POLYMORPH: "CAN",
 }
 ## What the cards say while you stand where nothing can be cast: in the enemy base, or in the rescue area with a teammate waiting.
