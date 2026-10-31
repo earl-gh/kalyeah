@@ -122,7 +122,7 @@ func _it(sim: MatchSim, game: TumbangPreso, state: PlayerState) -> PlayerInput:
 				and other.position.distance_to(game.can_position) <= CHASE_RANGE \
 				and (best == null or other.position.distance_to(state.position) < best.position.distance_to(state.position)):
 			best = other
-	var target: Vector2 = best.position if best != null else game.rules.can_spot + Vector2(0.0, game.rules.guard_offset)
+	var target: Vector2 = best.position if best != null else game.rules.can_spot - Vector2(0.0, game.rules.guard_offset)
 	return _stick(_toward(state.position, target) * speed)
 
 

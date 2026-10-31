@@ -85,7 +85,7 @@ func test_tumbang_has_one_taya_and_everyone_else_throws_from_the_throwing_area()
 	assert_eq(game.taya_id, 4, "the last kid in is the first taya")
 	for state: PlayerState in sim.players.values():
 		if state.id == game.taya_id:
-			assert_almost_eq(state.position.y, TUMBANG.can_spot.y + TUMBANG.guard_offset, 0.001, "the taya waits by the can")
+			assert_almost_eq(state.position.y, TUMBANG.can_spot.y - TUMBANG.guard_offset, 0.001, "the taya starts just behind the can, away from the throwers")
 		else:
 			assert_true(game.at_home(state.position), "throwers start in the throwing area")
 			assert_true(game.has_slipper(state.id))
@@ -371,7 +371,7 @@ func test_moving_into_a_throwers_tag_circle_tags_it_and_the_round_resets_with_ev
 	assert_false(game.is_resetting())
 	assert_true(game.at_home(sim.players[4].position), "the old taya is a thrower in the throwing area")
 	assert_true(game.has_slipper(4))
-	assert_almost_eq(sim.players[1].position.y, TUMBANG.can_spot.y + TUMBANG.guard_offset, 0.01, "the new taya is by the can")
+	assert_almost_eq(sim.players[1].position.y, TUMBANG.can_spot.y - TUMBANG.guard_offset, 0.01, "the new taya starts just behind the can")
 	assert_true(game.slippers.is_empty(), "every slipper is back in a hand")
 	assert_true(game.can_up, "and the can stands")
 	assert_eq(game.points[2], 3, "the points stay")

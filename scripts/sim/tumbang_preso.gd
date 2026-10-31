@@ -502,10 +502,15 @@ func _reset_game(sim: MatchSim) -> void:
 	_flight_from.clear()
 
 
-## The taya waits just in front of the can; the throwers stand in a row in the throwing area, in the order of their ids.
+## The taya starts just behind the can (the side away from the throwers); the throwers stand in a row in the throwing area, in the order of their ids.
+## How far behind the can's spot (away from the throwers) `state` stands, m (negative in front of it).
+func can_spot_distance_behind(state: PlayerState) -> float:
+	return rules.can_spot.y - state.position.y
+
+
 func _spot(sim: MatchSim, state: PlayerState) -> Vector2:
 	if state.id == taya_id:
-		return rules.can_spot + Vector2(0.0, rules.guard_offset)
+		return rules.can_spot - Vector2(0.0, rules.guard_offset)
 	var throwers: Array[int] = []
 	for id: int in sim.players:
 		if id != taya_id:

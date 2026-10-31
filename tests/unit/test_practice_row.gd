@@ -437,6 +437,28 @@ func test_a_semi_transparent_white_ring_marks_where_the_can_belongs_and_brighten
 	assert_gt(material.albedo_color.a, standing, "brighter while the can has to be carried back")
 
 
+func test_the_ring_never_moves_while_the_can_is_kicked_carried_and_put_back_and_the_taya_starts_behind_the_can() -> void:
+	var practice: PracticeMatch = _practice(&"tumbang_preso")
+	var game: TumbangPreso = practice.sim.mode as TumbangPreso
+	practice.advance(DT)
+	var ring: MeshInstance3D = practice.mode_view.find_child("CanSpotRing", true, false) as MeshInstance3D
+	var home: Vector3 = ring.position
+	var taya: PlayerState = practice.sim.players[game.taya_id]
+	assert_gt(game.can_spot_distance_behind(taya), 1.0, "the taya starts behind the can")
+	assert_lt(game.can_spot_distance_behind(taya), 2.5, "a slight distance")
+	for id: int in practice.sim.players:
+		if id != practice.local_id:
+			practice.sim.players[id].position = Vector2(-10.0 + float(id) * 3.0, -20.0)
+	game.taya_id = practice.local_id
+	game.slippers[practice.local_id] = Vector2(5.0, 8.0)
+	practice.sim.players[practice.local_id].position = game.rules.can_spot + Vector2(0.0, -1.0)
+	game.kick(practice.sim, practice.sim.players[practice.local_id])
+	for i: int in 70:
+		practice.advance(DT)
+		assert_eq(ring.position, home, "the ring stays where the can first stood")
+	assert_eq(ring.get_parent(), practice.mode_view, "and it is not part of the can")
+
+
 func test_a_taya_that_picks_the_can_up_scoops_it_with_both_hands_and_sets_it_down_on_the_ring() -> void:
 	var practice: PracticeMatch = _practice(&"tumbang_preso")
 	var game: TumbangPreso = practice.sim.mode as TumbangPreso

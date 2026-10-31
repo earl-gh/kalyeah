@@ -48,8 +48,8 @@ extends Resource
 @export var pickup_radius: float = 0.7
 ## The can carried this close to its spot stands again (m).
 @export var place_radius: float = 0.8
-## The taya waits this far in front of the can (toward the throwers, m).
-@export var guard_offset: float = 3.0
+## Each round the taya starts, and waits, this far behind the can (away from the throwers, m): a slight, small distance.
+@export var guard_offset: float = 1.6
 ## The taya (the "it") runs this many times as fast as a thrower.
 @export var taya_speed_share: float = 1.5
 ## A slipper that lands in the fetch area gives its thrower this long (s) to step into the fetch area, or the thrower becomes the taya
