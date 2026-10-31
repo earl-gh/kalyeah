@@ -662,4 +662,4 @@ func test_the_street_games_have_no_difficulty_and_no_tilt_and_the_column_follows
 	var other: StringName = &"popoy" if practice.sim.players[2].character_id != &"popoy" else &"inday"
 	practice.sim.players[2].character_id = other
 	practice.advance(DT)
-	assert_eq(column._pictures[2].texture, KidModel.portrait(other))
+	assert_eq(column._pictures[2].texture, CharactersPage.card_picture(other), "the kid's character card, not a round face")

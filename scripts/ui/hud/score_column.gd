@@ -1,18 +1,18 @@
 class_name ScoreColumn
 extends Control
-## Tumbang Preso's points (every kid plays for itself): a column on the left sidewalk, a face for each kid with its points under it, the kid
-## with the most at the top. When the points change the rows slide to their new places (and the number pops); with Reduce motion they jump.
-## The taya's face has a red rim and yours a gold one. Display only; it never takes a touch. (Patintero has two teams and uses the score cards
+## Tumbang Preso's points (every kid plays for itself): a column on the left sidewalk, the kid's character card with its points under it, the
+## kid with the most at the top. When the points change the rows slide to their new places (and the number pops); with Reduce motion they jump.
+## The taya's card has a red rim and yours a gold one. Display only; it never takes a touch. (Patintero has two teams and uses the score cards
 ## at the top centre, like Agawan Base.)
 
-## One row: the face and the number under it.
-const FACE: float = 48.0
-const ROW_HEIGHT: float = 90.0
+## One row: the character card (the 1.75:2.5 picture of the Book's Kids) and the number under it.
+const CARD: Vector2 = Vector2(46.0, 66.0)
+const ROW_HEIGHT: float = 96.0
 const WIDTH: float = 64.0
 const SLIDE_TIME: float = 0.35
 const POP_TIME: float = 0.25
 const POP_SCALE: float = 1.5
-const RIM: float = 4.0
+const RIM: float = 3.0
 const RIM_YOU: Color = Color(1.0, 0.8, 0.2)
 const RIM_TAYA: Color = Color(1.0, 0.3, 0.26)
 const RIM_OTHER: Color = Color(1.0, 1.0, 1.0)
@@ -66,7 +66,7 @@ func sync(sim: MatchSim, instant: bool = false) -> void:
 				_pop(_numbers[id])
 		_rims[id].border_color = RIM_TAYA if id == game.taya_id else (RIM_YOU if id == _local_id else RIM_OTHER)
 		# the kids can swap faces at the start (a team never has the same kid twice): the column follows
-		var face: Texture2D = KidModel.portrait(sim.players[id].character_id)
+		var face: Texture2D = _card(sim.players[id].character_id)
 		if _pictures[id].texture != face:
 			_pictures[id].texture = face
 
@@ -112,42 +112,55 @@ func _pop(label: Label) -> void:
 
 
 func _make_row(state: PlayerState) -> void:
-	var row: Control = _row(state.id, "Row%d" % state.id, Color(0.1, 0.18, 0.35))
+	var row: Control = _row(state.id, "Row%d" % state.id)
 	var picture: TextureRect = TextureRect.new()
 	_pictures[state.id] = picture
-	picture.texture = KidModel.portrait(state.character_id)
+	picture.name = "Card"
+	picture.texture = _card(state.character_id)
 	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	(row.get_node("Face") as Control).add_child(picture)
+	var face: Control = row.get_node("Face") as Control
+	face.add_child(picture)
+	face.move_child(picture, 0)  # under the rim
 
 
-## One row: a round face (filled with `fill`) with the points under it, kept under `key`.
-func _row(key: int, row_name: String, fill: Color) -> Control:
+## The kid's character card picture (the Book's), or its portrait when a card has no picture.
+static func _card(character_id: StringName) -> Texture2D:
+	var art: Texture2D = CharactersPage.card_picture(character_id)
+	return art if art != null else KidModel.portrait(character_id)
+
+
+## One row: a character card with a rim round it (the rim shows who is the taya and who is you) and the points under it, kept under `key`.
+func _row(key: int, row_name: String) -> Control:
 	var row: Control = Control.new()
 	row.name = row_name
 	row.custom_minimum_size = Vector2(WIDTH, ROW_HEIGHT)
 	row.size = Vector2(WIDTH, ROW_HEIGHT)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var face: Panel = Panel.new()
+	var face: Control = Control.new()
 	face.name = "Face"
-	face.position = Vector2((WIDTH - FACE) / 2.0, 0.0)
-	face.size = Vector2.ONE * FACE
+	face.position = Vector2((WIDTH - CARD.x) / 2.0, 0.0)
+	face.size = CARD
 	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	face.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
 	var rim: StyleBoxFlat = StyleBoxFlat.new()
-	rim.bg_color = fill
-	rim.set_corner_radius_all(int(FACE / 2.0))
+	rim.bg_color = Color(0.0, 0.0, 0.0, 0.0)
+	rim.set_corner_radius_all(UiSkin.RADIUS_S)
 	rim.set_border_width_all(int(RIM))
 	rim.border_color = RIM_OTHER
-	face.add_theme_stylebox_override("panel", rim)
+	var frame: Panel = Panel.new()
+	frame.name = "Rim"
+	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_theme_stylebox_override("panel", rim)
+	face.add_child(frame)
 	row.add_child(face)
 	var number: Label = Label.new()
 	number.name = "Points"
 	number.text = "0"
-	number.position = Vector2(0.0, FACE + 2.0)
-	number.size = Vector2(WIDTH, ROW_HEIGHT - FACE - 2.0)
+	number.position = Vector2(0.0, CARD.y + 2.0)
+	number.size = Vector2(WIDTH, ROW_HEIGHT - CARD.y - 2.0)
 	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	number.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	UiKit.letter(number, UiMetrics.DETAIL, Color.WHITE)
