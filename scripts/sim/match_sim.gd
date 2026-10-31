@@ -125,6 +125,7 @@ func set_first_to(count: int) -> void:
 ## Plays `p_mode` (Tumbang Preso or Patintero) instead of Agawan Base and puts everyone in their places. Call once all players are in.
 func start_mode(p_mode: StreetMode) -> void:
 	mode = p_mode
+	score.first_to = 0  # no points to win: a street game is played against the clock
 	mode.setup(self)
 
 

@@ -45,7 +45,7 @@ func setup_hud() -> void:
 	owner.hud.marker.setup(owner.sim, owner._camera, owner.local_id)
 	owner._fx.view_scale = owner._camera.rules.kid_view_scale
 	owner._fx.local_team = owner.local_team
-	if owner.sim.mode != null:
+	if owner.sim.mode != null and owner.sim.mode.is_free_for_all():
 		owner.hud.setup_street_scores(owner.sim, owner.local_id)
 	owner.hud.set_top_inset(_safe_top_inset())
 	owner._camera.top_reserve_px = owner.hud.header_height() + HEADER_GAP

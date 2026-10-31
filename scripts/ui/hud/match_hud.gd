@@ -92,7 +92,7 @@ var sim_held: bool = false
 var hand: CardHand
 ## Tumbang Preso and Patintero: no skills, so no hand; this stands on the tray instead (the role line and the Throw button).
 var street_pad: StreetGamePad
-## Tumbang Preso's kids' points, or Patintero's two teams', on the left sidewalk (null elsewhere).
+## Tumbang Preso's kids' points, on the left sidewalk (null elsewhere: Patintero's team score is the card at the top centre).
 var score_column: ScoreColumn
 ## True in those two games (set by the match screen before the first frame).
 var street_game: bool = false
@@ -303,7 +303,7 @@ func set_street_game(on: bool) -> void:
 	layout_controls()
 
 
-## The points stand on the left sidewalk: every kid's (Tumbang Preso) or each team's (Patintero).
+## Tumbang Preso: every kid's points stand on the left sidewalk.
 func setup_street_scores(sim: MatchSim, local_id: int) -> void:
 	score_column = ScoreColumn.new()
 	add_child(score_column)
@@ -391,7 +391,8 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 		score_column.visible = not covered
 	if street_game:
 		console.visible = false
-		scoreboard.visible = false  # the street games' points are in the column on the left sidewalk
+		# Patintero has a team score at the top centre like Agawan Base; Tumbang Preso's points are every kid's, in the column on the left sidewalk
+		scoreboard.visible = not covered and not sim.mode.is_free_for_all()
 	overhead.visible = not covered or overhead.tag_count() > 0
 	if covered:
 		for item: CanvasItem in [hand, street_pad, chat, tagged_panel, intro_bar, capture_label, capture_alert, banner, coach]:

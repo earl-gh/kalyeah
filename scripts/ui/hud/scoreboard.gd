@@ -41,7 +41,8 @@ func _ready() -> void:
 
 
 func _describe() -> void:
-	accessibility_name = "Score: you %d, them %d, first to %d, time %s" % [mine, theirs, first_to, clock_text()]
+	var target: String = ", first to %d" % first_to if first_to > 0 else ""  # (the street games are played against the clock)
+	accessibility_name = "Score: you %d, them %d%s, time %s" % [mine, theirs, target, clock_text()]
 
 
 ## The strip along the card's lower edge that fills while a team holds the other base (or the other team is all
