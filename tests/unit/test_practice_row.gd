@@ -182,6 +182,17 @@ func test_the_street_games_have_no_hand_no_tray_and_no_cards() -> void:
 			assert_eq(practice.sim.players[id].weapons.size(), 0, "%s: nobody holds a card" % game)
 
 
+func test_the_street_games_frame_the_street_exactly_like_agawan_base() -> void:
+	var agawan: PracticeMatch = _practice(&"agawan_base")
+	agawan.advance(DT)
+	var reference: float = agawan._camera.size
+	for game: StringName in [&"tumbang_preso", &"patintero"]:
+		var practice: PracticeMatch = _practice(game)
+		practice.advance(DT)
+		assert_eq(practice._camera.bottom_reserve_px, agawan._camera.bottom_reserve_px, "%s: the same room kept for the controls" % game)
+		assert_almost_eq(practice._camera.size, reference, 0.001, "%s: the same zoom as Agawan Base" % game)
+
+
 func test_the_quick_chat_is_under_the_timer_and_lists_its_phrases_vertically() -> void:
 	for game: StringName in [&"tumbang_preso", &"patintero"]:
 		var practice: PracticeMatch = _practice(game)

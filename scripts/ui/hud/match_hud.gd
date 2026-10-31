@@ -54,8 +54,9 @@ const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 const CAPTURE_LINGER: float = 0.4
 ## The tray at the bottom of the screen (the hand and the elixir bar): the arena sits above it. The camera reserves the same height.
 const CONSOLE_HEIGHT: float = 255.0
-## The tray of Tumbang Preso and Patintero (no hand: the role line and the Throw button) is this tall, plus the bottom inset.
-const STREET_TRAY: float = 210.0
+## The tray of Tumbang Preso and Patintero (no hand: the role line and the Throw button) is as tall as Agawan Base's, plus the bottom inset,
+## so the camera frames the street exactly the same size in all three games (owner).
+const STREET_TRAY: float = CONSOLE_HEIGHT
 ## Tumbang Preso's score column stands on the left sidewalk this far under the header, and the quick chat button under the clock is this big.
 const SCORE_COLUMN_GAP: float = 14.0
 const STREET_CHAT_SIZE: float = 84.0
