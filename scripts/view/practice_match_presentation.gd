@@ -220,10 +220,14 @@ static func street_status(sim: MatchSim, player: PlayerState) -> Array[String]:
 		return ["FETCH YOUR SLIPPER!", "Kick the can to keep the taya busy."] as Array[String]
 	var lines: Patintero = mode as Patintero
 	if lines.is_jailed(player.id):
-		return ["TAGGED!", "Stay in the pen and cheer your team on. A teammate who scores frees you!"] as Array[String]
+		return ["TAGGED!", "Walk the sidewalk and cheer your team on in quick chat. A teammate who scores frees you!"] as Array[String]
 	if lines.is_attacker(player):
 		if not lines.first_guard_passed:
 			return ["YOU RUN!", UiText.f("Get past the first guard in %d s!", [ceili(maxf(lines.stall_left, 0.0))])] as Array[String]
+		if lines.crossed.has(player.id):
+			return ["YOU RUN!", "Back to the base!"] as Array[String]
+		if not lines.middle_crossed.has(player.id):
+			return ["YOU RUN!", "Cross the middle line, then get past the last guard!"] as Array[String]
 		return ["YOU RUN!", "Past the last guard, then back to the base!"] as Array[String]
 	return ["YOU GUARD!", "Tag all the runners. Move into a runner's circle!"] as Array[String]
 

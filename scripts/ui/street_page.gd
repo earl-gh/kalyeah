@@ -86,10 +86,10 @@ static func street_game_lines(game: StreetModeRules) -> Array[String]:
 	return [
 		UiText.f("%d minutes! The team with more points wins. Play it in Practice.", [minutes]),
 		"Get past the enemy guards, run to the other end and back to earn a team point.",
-		"The court has two lines across the street and one down the middle, and two more lines that make a narrow corridor in the middle. Guards stay on their line; runners run free, but only in the corridor.",
-		"Get past the last guard, then back to the base. ONE runner doing it is the team point, and every tagged runner is free again.",
-		"Runners have a tag circle: a guard tags a runner by moving into it. A tagged runner waits in the pen at the side and can only cheer in quick chat.",
-		UiText.f("Tag all three runners to earn the guards' point, and the teams swap roles. Runners who don't get past the first guard in %d s give the guards the point.", [ceili(game.stall_seconds)]),
+		"The court has two lines across the street and one down the middle. Guards stay on their line; runners run free.",
+		"Cross the middle line once, get past the last guard, then back to the base. ONE runner doing it is the team point, and every tagged runner is free again.",
+		"Runners have a tag circle: a guard tags a runner by moving into it. A tagged runner waits on a sidewalk and can only walk there and cheer in quick chat.",
+		UiText.f("Tag all three runners to earn the guards' point, and the teams swap roles. No runner past the first guard in %d s? The guards get the point.", [ceili(game.stall_seconds)]),
 		UiText.f("Dive to get past, or (a guard) to catch beyond your line: you run back to your line after. The cooldown of %d s starts when you are on your feet or back on your line.", [ceili(game.dive_cooldown)]),
 	] as Array[String]
 

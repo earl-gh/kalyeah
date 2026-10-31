@@ -334,11 +334,11 @@ func _sync_street_pad(sim: MatchSim, player: PlayerState, shown: bool, playing: 
 		button = StreetGamePad.Action.DIVE
 		fill = lines.dive_ready_share(player.id)
 		can_act = lines.can_dive(player)
-	var in_pen: bool = lines != null and lines.is_jailed(player.id)
+	var on_sidewalk: bool = lines != null and lines.is_jailed(player.id)
 	var status: Array[String] = PracticeMatchPresentation.street_status(sim, player)
 	chat.visible = shown and chat_enabled
 	street_pad.visible = shown and not player.tagged
-	street_pad.show_state(status[0], status[1], button, fill, can_act, in_pen)  # (a tagged runner's knob is in the middle of the bottom)
+	street_pad.show_state(status[0], status[1], button, fill, can_act, on_sidewalk)  # (a tagged runner's knob is in the middle of the bottom)
 	if score_column != null:
 		score_column.sync(sim)
 	sync_plate_column()

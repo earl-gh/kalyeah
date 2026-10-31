@@ -6,8 +6,9 @@ extends RefCounted
 ##   and lets go; then fetches its slipper when the can is down or the taya is far from it (or its scared timer is nearly out), kicks the
 ##   can when it stands beside it, and runs for the other end, away from the taya.
 ## - Tumbang Preso taya: fetches the fallen can and carries it back; otherwise chases a thrower out in the fetch area, else waits by the can.
-## - Patintero runner: runs for the other end and back, sidestepping the guard of the next horizontal line (keeping to the side it chose,
-##   toward the open street) until it has room to pass, and keeping away from the middle where the vertical guard is.
+## - Patintero runner: runs for the other end and back, crossing the middle line once on the way (the far end counts only after that),
+##   sidestepping the guard of the next horizontal line (keeping to the side it chose, toward the open street) until it has room to
+##   pass, and keeping away from the middle where the vertical guard is once it has crossed.
 ## - Patintero guard: follows the nearest runner along its own line.
 ## Patintero bots also dive (runners when the next line is near and the way past is clear, guards straight at a runner a little way off,
 ## which takes them off their line for a moment), whenever the dive is ready.
@@ -20,9 +21,9 @@ const SIDESTEP_ROOM: float = 3.0
 const ARRIVED: float = 0.2
 ## The taya chases throwers this close to the can (m).
 const CHASE_RANGE: float = 12.0
-## A runner keeps this far from the middle (m) where the vertical guard stands, and this far (m) in from a vertical line of the corridor.
+## A runner keeps this far from the middle (m) where the vertical guard stands, and the sidestep lane of a runner is this far (m) in from the street's edge.
 const MIDDLE_ROOM: float = 2.5
-const LANE_MARGIN: float = 0.9
+const LANE_MARGIN: float = 9.0
 
 var ids: Array[int] = []
 ## Seconds a Tumbang Preso thrower still waits before it aims (absent: not waiting yet).
@@ -129,11 +130,15 @@ func _it(sim: MatchSim, game: TumbangPreso, state: PlayerState) -> PlayerInput:
 
 func _runner(sim: MatchSim, lines: Patintero, state: PlayerState) -> PlayerInput:
 	if lines.is_tagged_out(state.id):
-		return _stick(Vector2.ZERO)  # a tagged runner waits in its pen
-	var lane_limit: float = lines.rules.corridor_half_width - LANE_MARGIN
+		return _stick(Vector2.ZERO)  # a tagged runner waits on its sidewalk
+	var lane_limit: float = sim.layout.lane_width / 2.0 - LANE_MARGIN
 	var going_home: bool = lines.crossed.has(state.id)
 	var target_z: float = lines.rules.home_z + 1.5 if going_home else lines.rules.goal_z - 1.5
 	var way: float = signf(target_z - state.position.y)
+	# between the horizontal lines the vertical line is crossed once before the far end counts
+	if not going_home and not lines.middle_crossed.has(state.id) and absf(state.position.y) < lines.rules.line_span:
+		var over: float = -signf(state.position.x) if absf(state.position.x) > 0.05 else 1.0
+		return _stick(Vector2(over, way * 0.5).normalized())
 	# the guard of the next horizontal line ahead
 	var ahead: PlayerState = null
 	var gap: float = INF
@@ -146,14 +151,10 @@ func _runner(sim: MatchSim, lines: Patintero, state: PlayerState) -> PlayerInput
 			ahead = sim.players[id]
 	if ahead == null or gap >= LINE_CAUTION:
 		_side.erase(state.id)
-		# near the court, line up with the corridor first (the pens are shut), then run
-		var move: Vector2 = Vector2(0.0, way)
-		if absf(state.position.y) < lines.rules.line_span + LINE_CAUTION + 1.0 and absf(state.position.x) > lane_limit:
-			move.x = clampf(signf(-state.position.x) * (absf(state.position.x) - lane_limit), -1.0, 1.0)
-		return _stick(_keep_off_the_middle(lines, state, move.normalized()))
+		return _stick(_keep_off_the_middle(lines, state, Vector2(0.0, way)))
 	var dx: float = state.position.x - ahead.position.x
 	if not _side.has(state.id):
-		# toward the open side of the corridor: the side of the guard with more room
+		# toward the open side of the street: the side of the guard with more room
 		_side[state.id] = -signf(ahead.position.x) if absf(ahead.position.x) > 1.0 else (signf(dx) if dx != 0.0 else 1.0)
 	var side: float = _side[state.id]
 	var lane: float = side * lane_limit

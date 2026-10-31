@@ -69,6 +69,14 @@ func _clear_street(sim: MatchSim, keep: Array[int]) -> void:
 			x += 2.0
 
 
+## Sends runner `id` over the vertical line (between the two horizontal lines) so the far end counts for it.
+func _cross_middle(sim: MatchSim, id: int) -> void:
+	sim.players[id].position = Vector2(-1.5, 0.0)
+	sim.step(DT)
+	sim.players[id].position = Vector2(1.5, 0.0)
+	sim.step(DT)
+
+
 # ---- Tumbang Preso -------------------------------------------------------------------------
 
 func test_tumbang_has_one_taya_and_everyone_else_throws_from_the_throwing_area() -> void:
@@ -505,6 +513,12 @@ func test_patintero_a_runner_scores_only_after_getting_past_the_last_guard_and_b
 	sim.step(DT)
 	assert_eq(sim.score.points, [0, 0] as Array[int], "back to the base after only the first guard: not counted")
 	assert_false(lines.crossed.has(1))
+	# past the last guard without having crossed the vertical line: not counted
+	sim.players[1].position = Vector2(-9.0, PATINTERO.goal_z - 0.2)
+	sim.step(DT)
+	assert_false(lines.crossed.has(1), "the vertical guard has not been crossed yet")
+	_cross_middle(sim, 1)
+	assert_true(lines.middle_crossed.has(1))
 	# past the last guard
 	sim.players[1].position = Vector2(-9.0, PATINTERO.goal_z - 0.2)
 	sim.step(DT)
@@ -520,6 +534,33 @@ func test_patintero_a_runner_scores_only_after_getting_past_the_last_guard_and_b
 	sim.step(DT)
 	assert_eq(sim.score.points, [1, 0] as Array[int], "past the last guard and back at the base: the team point")
 	assert_false(lines.crossed.has(1))
+	assert_false(lines.middle_crossed.has(1), "the next run crosses the middle again")
+
+
+func test_patintero_the_vertical_line_is_crossed_by_changing_sides_between_the_horizontal_lines() -> void:
+	var sim: MatchSim = _sim(PATINTERO, 3)
+	var lines: Patintero = sim.mode as Patintero
+	_stand_all(sim)
+	# changing sides outside the court (past a horizontal line) is not crossing it
+	sim.players[1].position = Vector2(-2.0, PATINTERO.line_span + 3.0)
+	sim.step(DT)
+	sim.players[1].position = Vector2(2.0, PATINTERO.line_span + 3.0)
+	sim.step(DT)
+	assert_false(lines.middle_crossed.has(1))
+	# staying on one side between the lines is not either
+	sim.players[1].position = Vector2(3.0, 5.0)
+	sim.step(DT)
+	sim.players[1].position = Vector2(8.0, -5.0)
+	sim.step(DT)
+	assert_false(lines.middle_crossed.has(1))
+	sim.players[1].position = Vector2(-0.5, -5.0)
+	sim.step(DT)
+	assert_true(lines.middle_crossed.has(1), "from one side to the other between the lines")
+	# a tag takes it away
+	sim.players[1].position = sim.players[4].position + Vector2(PATINTERO.tag_circle_radius - 0.2, 0.0)
+	lines.grace_left = 0.0
+	sim.step(DT)
+	assert_false(lines.middle_crossed.has(1), "a tagged runner starts over")
 
 
 func test_patintero_the_court_has_no_lines_of_its_own_beyond_the_first_and_last_guard() -> void:
@@ -529,28 +570,6 @@ func test_patintero_the_court_has_no_lines_of_its_own_beyond_the_first_and_last_
 	assert_lt(PATINTERO.home_z, PATINTERO.line_span + PATINTERO.tag_circle_radius + 1.0, "and close to it")
 
 
-func test_patintero_the_corridor_lines_leave_a_pen_on_each_side_of_the_middle() -> void:
-	var sim: MatchSim = _sim(PATINTERO, 3)
-	var lines: Patintero = sim.mode as Patintero
-	assert_gt(PATINTERO.corridor_half_width, 0.0)
-	assert_lt(PATINTERO.corridor_half_width, sim.layout.lane_width / 2.0 - 2.0, "the pens are wide enough to stand in")
-	assert_true(lines.in_pen(Vector2(PATINTERO.corridor_half_width + 1.0, 0.0), 1))
-	assert_true(lines.in_pen(Vector2(-PATINTERO.corridor_half_width - 1.0, 3.0), -1))
-	assert_false(lines.in_pen(Vector2(PATINTERO.corridor_half_width - 1.0, 0.0), 1), "the corridor is not a pen")
-	assert_false(lines.in_pen(Vector2(PATINTERO.corridor_half_width + 1.0, PATINTERO.line_span + 1.0), 1), "past the guard lines is the street")
-
-
-func test_patintero_free_kids_cannot_enter_the_pens() -> void:
-	var sim: MatchSim = _sim(PATINTERO, 3)
-	var lines: Patintero = sim.mode as Patintero
-	_stand_all(sim)
-	sim.players[1].position = Vector2(PATINTERO.corridor_half_width - 0.5, 0.0)
-	sim.set_input(1, PlayerInput.create(Vector2(1.0, 0.0), Vector2.ZERO, 0, 0))
-	_wait(sim, 1.5)
-	assert_lte(sim.players[1].position.x, PATINTERO.corridor_half_width + 0.001, "the vertical line is a wall for a free runner")
-	assert_false(lines.in_pen(sim.players[1].position, 1))
-
-
 func _tag_runner(sim: MatchSim, runner: int, guard: int = 4) -> void:
 	var lines: Patintero = sim.mode as Patintero
 	lines.grace_left = 0.0
@@ -558,7 +577,7 @@ func _tag_runner(sim: MatchSim, runner: int, guard: int = 4) -> void:
 	sim.step(DT)
 
 
-func test_patintero_a_tagged_runner_stumbles_then_waits_in_a_pen_and_the_round_goes_on() -> void:
+func test_patintero_a_tagged_runner_stumbles_then_waits_on_a_sidewalk_and_the_round_goes_on() -> void:
 	var sim: MatchSim = _sim(PATINTERO, 3)
 	var lines: Patintero = sim.mode as Patintero
 	var casts: Array = []
@@ -578,18 +597,45 @@ func test_patintero_a_tagged_runner_stumbles_then_waits_in_a_pen_and_the_round_g
 	assert_false(lines.is_resetting(), "one tag does not end the round")
 	assert_eq(sim.score.points, [0, 0] as Array[int], "and is no point: the guards need all three")
 	_wait(sim, PATINTERO.catch_seconds + 0.2)
-	assert_true(lines.is_jailed(1), "then it waits in a pen")
-	assert_true(lines.in_pen(sim.players[1].position, lines.jailed[1]), "on the side it was caught")
-	assert_false(lines.is_taggable(sim.players[1]), "it cannot be tagged again")
-	# a pen keeps it in: the stick moves it there but never out, and it cannot dive
+	assert_true(lines.is_jailed(1), "then it waits on a sidewalk")
 	var side: int = lines.jailed[1]
+	var room: Vector2 = lines.sidewalk_range(sim, sim.players[1].radius)
+	assert_between(float(side) * sim.players[1].position.x, room.x, room.y, "outside the street's edge")
+	assert_almost_eq(sim.players[1].position.y, 0.0, 0.001, "in the middle of the sidewalk")
+	assert_false(lines.is_taggable(sim.players[1]), "it cannot be tagged again")
+	# it can walk there with the stick but never off the sidewalk or into the street, and it cannot dive
+	var from: Vector2 = sim.players[1].position
+	sim.set_input(1, PlayerInput.create(Vector2(0.0, 1.0), Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
+	_wait(sim, 0.5)
+	assert_gt(sim.players[1].position.y, from.y + 1.0, "it walks along the sidewalk")
 	sim.set_input(1, PlayerInput.create(Vector2(-float(side), 1.0).normalized(), Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
-	_wait(sim, 2.0)
-	assert_true(lines.in_pen(sim.players[1].position, side), "it stays in its pen")
-	assert_false(lines.is_busy(1), "no dive from a pen")
+	_wait(sim, 3.0)
+	assert_between(float(side) * sim.players[1].position.x, room.x - 0.001, room.y + 0.001, "the street is shut to it")
+	assert_lte(sim.players[1].position.y, PATINTERO.line_span + 0.001)
+	assert_false(lines.is_busy(1), "no dive from a sidewalk")
 	assert_false(lines.can_dive(sim.players[1]))
 	# it does not tag-trigger anything else and does not count as past the first guard
 	assert_false(lines.first_guard_passed)
+
+
+func test_patintero_tagged_runners_wait_on_the_left_or_the_right_sidewalk_at_random_and_spread_along_it() -> void:
+	var sides: Dictionary = {}
+	for seed_value: int in 12:
+		var sim: MatchSim = MatchSim.new(_rules, LAYOUT, seed_value)
+		for i: int in 3:
+			sim.add_player(1 + i, 0)
+			sim.add_player(4 + i, 1)
+		sim.start_mode(StreetMode.create(PATINTERO))
+		var lines: Patintero = sim.mode as Patintero
+		_stand_all(sim)
+		_tag_runner(sim, 1)
+		_wait(sim, PATINTERO.catch_seconds + 0.2)
+		sides[lines.jailed[1]] = true
+		_tag_runner(sim, 2)
+		_wait(sim, PATINTERO.catch_seconds + 0.2)
+		if lines.jailed[1] == lines.jailed[2]:
+			assert_gt(absf(sim.players[1].position.y - sim.players[2].position.y), 1.0, "two on one sidewalk do not stand on each other")
+	assert_eq(sides.size(), 2, "both sidewalks are used")
 
 
 func test_patintero_one_free_runner_scoring_frees_the_tagged_and_the_runners_stay_runners() -> void:
@@ -600,6 +646,7 @@ func test_patintero_one_free_runner_scoring_frees_the_tagged_and_the_runners_sta
 	_wait(sim, PATINTERO.catch_seconds + 0.2)
 	assert_true(lines.is_jailed(1))
 	# a free teammate goes to the far end and back to the base
+	_cross_middle(sim, 2)
 	sim.players[2].position = Vector2(-2.0, PATINTERO.goal_z - 0.2)
 	sim.step(DT)
 	sim.players[2].position = Vector2(-2.0, PATINTERO.home_z + 0.5)
@@ -632,12 +679,13 @@ func test_patintero_tagging_all_three_runners_is_the_guards_point_and_the_roles_
 	_wait(sim, PATINTERO.reset_seconds + 0.2)
 	assert_eq(sim.mode.attack_team, 1, "the roles switch")
 	assert_eq(swaps, [1] as Array[int])
-	assert_eq(lines.runners_out(), 0, "the pens are empty")
+	assert_eq(lines.runners_out(), 0, "the sidewalks are empty")
 	assert_true(lines.at_home(sim.players[4].position), "team 1 now starts at the base")
 	assert_eq(sim.players[1].position.y, PATINTERO.line_span, "and team 0 stands on the lines")
 	# the score stays with the team: the new runners' point is the second of team 1
 	_stand_all(sim)
 	lines.grace_left = 0.0
+	_cross_middle(sim, 4)
 	sim.players[4].position = Vector2(2.0, PATINTERO.goal_z - 0.2)
 	sim.step(DT)
 	sim.players[4].position = Vector2(2.0, PATINTERO.home_z + 0.5)
@@ -781,6 +829,7 @@ func test_patintero_after_five_minutes_the_leader_wins_and_a_tie_plays_on() -> v
 	assert_eq(sim.clock_left(), 0.0)
 	for id: int in [4, 5, 6]:
 		sim.players[id].position = Vector2(11.0, 0.0)
+	_cross_middle(sim, 1)
 	sim.players[1].position = Vector2(-10.0, PATINTERO.goal_z - 0.5)
 	sim.step(DT)
 	sim.players[1].position = Vector2(-10.0, PATINTERO.home_z + 0.5)
