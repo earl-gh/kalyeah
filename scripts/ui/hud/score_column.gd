@@ -7,7 +7,7 @@ extends Control
 
 ## One row: the character card (the 1.75:2.5 picture of the Book's Kids) and the number under it.
 const CARD: Vector2 = Vector2(46.0, 66.0)
-const ROW_HEIGHT: float = 96.0
+const ROW_HEIGHT: float = 114.0
 const WIDTH: float = 64.0
 const SLIDE_TIME: float = 0.35
 const POP_TIME: float = 0.25
@@ -162,6 +162,7 @@ func _row(key: int, row_name: String) -> Control:
 	number.position = Vector2(0.0, CARD.y + 2.0)
 	number.size = Vector2(WIDTH, ROW_HEIGHT - CARD.y - 2.0)
 	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	number.vertical_alignment = VERTICAL_ALIGNMENT_TOP  # the points hug their card; the room under them is the gap to the next row
 	number.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	UiKit.letter(number, UiMetrics.DETAIL, Color.WHITE)
 	row.add_child(number)
