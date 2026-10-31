@@ -125,6 +125,8 @@ var secondary_button: Button
 ## Practice only: the game and kid pickers above Play (`PracticeRow`).
 var practice_row: PracticeRow
 var dialog: MenuDialog
+## The Practice kid pick while it is open (`PracticeRow.open_kid_picker`).
+var kid_pick: WeaponPickScreen
 ## The tab buttons by page id (street, home, settings).
 var corner_buttons: Dictionary[StringName, Button] = {}
 var pages: Dictionary[StringName, Control] = {}
@@ -416,6 +418,7 @@ func _build_actions() -> Control:
 	practice_row = PracticeRow.new()
 	practice_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	practice_row.picker_opened.connect(_show_dialog)
+	practice_row.kid_screen_opened.connect(_show_kid_pick)
 	column.add_child(practice_row)
 	var actions: HBoxContainer = HBoxContainer.new()
 	actions.name = "Actions"
@@ -818,10 +821,20 @@ func _show_dialog(new_dialog: MenuDialog) -> void:
 	_sync_ambient()
 
 
+## The Practice kid pick covers the whole screen; it handles Back itself and frees itself when done.
+func _show_kid_pick(screen: WeaponPickScreen) -> void:
+	kid_pick = screen
+	add_child(screen)
+	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	screen.tree_exited.connect(_sync_ambient)
+	_sync_ambient()
+
+
 ## The idle motion of Home (the card's bob, the drifting lights) runs only while Home is what you see: not under a
 ## page and not under a sheet, where nothing needs redrawing.
 func _sync_ambient() -> void:
-	var covered: bool = current_page != &"" or (dialog != null and is_instance_valid(dialog) and dialog.is_open)
+	var covered: bool = current_page != &"" or (dialog != null and is_instance_valid(dialog) and dialog.is_open) \
+			or (is_instance_valid(kid_pick) and kid_pick.is_inside_tree())
 	backdrop.ambient = not covered
 	backdrop.lights_on = current_page == &""
 	carousel.bob = 0.0 if covered else AMBIENT_BOB
@@ -920,5 +933,7 @@ func _back_pressed() -> void:
 	# Practice is loading: Back waits for it (it then opens the match's own menu)
 	if _loading:
 		return
+	if is_instance_valid(kid_pick) and kid_pick.is_inside_tree():
+		return  # the kid pick closes itself on Back
 	if dialog == null or not is_instance_valid(dialog) or not dialog.is_open:
 		_go_back()

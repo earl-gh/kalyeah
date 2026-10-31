@@ -246,7 +246,7 @@ func test_a_pick_made_in_code_moves_the_carousel_too() -> void:
 	assert_eq(_changed, [&"ligaya"] as Array[StringName], "once, not twice")
 
 
-func test_a_practice_match_opens_on_the_carousel_with_the_kid_you_played_last() -> void:
+func test_a_practice_match_skips_the_kid_pick_and_plays_your_main_screen_kid() -> void:
 	var was: bool = _rules.card_cycle
 	var avatar: String = Session.avatar_id
 	_rules.card_cycle = true
@@ -256,15 +256,9 @@ func test_a_practice_match_opens_on_the_carousel_with_the_kid_you_played_last() 
 	var screen: WeaponPickScreen = practice.get_node("%PickScreen") as WeaponPickScreen
 	_rules.card_cycle = was
 	Session.avatar_id = avatar
-	assert_true(screen.cards_mode)
-	assert_true(screen._carousel.visible)
-	assert_eq(screen._carousel.cards.size(), 6)
-	assert_eq(screen._carousel.current_id(), &"popoy")
-	_swipe(screen, -_step(screen))
-	assert_ne(screen.character_id, &"popoy")
-	screen.press_ready()
-	assert_eq(practice.sim.players[PracticeMatch.LOCAL_ID].character_id, screen.character_id, "the swiped kid is the kid you play")
-	Session.avatar_id = avatar  # Play saves the kid as your face on the main screen: put it back
+	assert_false(screen.visible, "the kid is picked on the main screen (Practice row): no pick after loading")
+	assert_eq(practice.sim.players[PracticeMatch.LOCAL_ID].character_id, &"popoy", "you play the kid from the main screen")
+	Session.avatar_id = avatar
 	Session.save()
 
 
