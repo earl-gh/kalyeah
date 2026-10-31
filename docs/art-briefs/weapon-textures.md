@@ -30,7 +30,7 @@ Current numbers: `python3 tools/art/check_weapon_texture.py --glbs assets/models
 | **marble** | Sky-blue with a lighter swirl and one white highlight dot. |
 | **crumpled_paper** and **paper** | Cream (about 0.93), creases as a cool lavender tone, ruled lines as 1 colour (blue), a red margin line on the paper wall. |
 | **green_cross** | Grass green with a darker green edge, white wings with a cool grey underside. |
-| **spikes** | Hot pink, a lighter top and a deeper magenta underside; remove the grey specks. |
+| **spikes** | Pixels rewritten by instruction to a plain light plastic (#F4F4F6, 1 colour); the game paints each cluster yellow, pink, green or orange from the owner's photo of plastic jacks. The model is reshaped onto that photo too: `jacks-model.md`. |
 
 ## What you get back
 After you send a GLB, I add it unedited, run the checker and the full tests, and render a before and after lineup.

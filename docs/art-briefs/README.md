@@ -18,3 +18,4 @@ By priority (how often the player sees it):
 12. [RESCUE pointer](rescue-pointer.md) (P3)
 13. [Softer body font (recommendation, not an asset to make)](body-font.md) (P3)
 14. [Trumpo, the bare wooden spinning top on a steel nail (full Blender model)](trumpo-model.md) (P2)
+15. [Jacks, plastic jacks in four colours (full Blender model)](jacks-model.md) (P3)

@@ -27,8 +27,12 @@ const OBJECTS: Dictionary[StringName, Array] = {
 }
 ## The spikes of a jacks field: this many clusters (owner: fewer and smaller than the five 0.9 m ones), spread evenly on a ring
 ## `SPIKE_RING` of the field's radius round its middle, each this wide in metres.
-const SPIKE_CLUSTERS: int = 3
+const SPIKE_CLUSTERS: int = 4
 const SPIKE_WIDTH: float = 0.63
+## The four plastic colours of the owner's photo of jacks (yellow, pink, green, orange), a little cleaner and brighter in the painted way; each
+## cluster of a field takes the next one, so a field of four has all of them. The model's picture is plain light plastic and the colour
+## rides in the cluster's vertex colours (see `_instance`), so there is still one look for the model.
+const SPIKE_COLOURS: Array[Color] = [Color("F4E43A"), Color("FF4F9A"), Color("45E06C"), Color("FF6A1F")]
 const SPIKE_RING: float = 0.55
 ## The ring is turned by this much (radians) so no cluster sits straight up or down the screen.
 const SPIKE_TURN: float = 0.4
@@ -45,6 +49,8 @@ static var _scenes: Dictionary[String, PackedScene] = {}
 static var _sizes: Dictionary[String, Vector3] = {}
 ## Model id -> the look materials of its surfaces, in find order (shared by every instance of the model).
 static var _looks: Dictionary[String, Array] = {}
+## "model:colour" -> the model's mesh with that colour in its vertex colours (one mesh per colour, shared by every copy).
+static var _painted: Dictionary[String, ArrayMesh] = {}
 
 
 static func has_model(weapon_id: StringName) -> bool:
@@ -109,13 +115,30 @@ static func spikes(radius: float) -> Node3D:
 	var natural: Vector3 = size_of("spikes")
 	var scale: float = SPIKE_WIDTH / natural.x
 	for i: int in SPIKE_CLUSTERS:
-		var model: Node3D = _instance("spikes")
+		var model: Node3D = _instance("spikes", SPIKE_COLOURS[i % SPIKE_COLOURS.size()])
 		model.scale = Vector3.ONE * scale
 		var angle: float = TAU * float(i) / float(SPIKE_CLUSTERS) + SPIKE_TURN
 		model.position = Vector3(cos(angle), 0.0, sin(angle)) * radius * SPIKE_RING
 		model.rotation.y = float(i) * 1.7
 		holder.add_child(model)
 	return holder
+
+
+## `mesh` of model `id` with every vertex coloured `colour` (made once per colour).
+static func _painted_mesh(id: String, mesh: Mesh, colour: Color) -> ArrayMesh:
+	var key: String = "%s:%s" % [id, colour.to_html(false)]
+	if not _painted.has(key):
+		var arrays: Array = mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+		var colours: PackedColorArray = PackedColorArray()
+		colours.resize(vertices.size())
+		colours.fill(colour)
+		arrays[Mesh.ARRAY_COLOR] = colours
+		var painted: ArrayMesh = ArrayMesh.new()
+		painted.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		painted.surface_set_material(0, mesh.surface_get_material(0))
+		_painted[key] = painted
+	return _painted[key]
 
 
 ## The meteor that falls on a rock-meteor landing circle (middle on the origin).
@@ -164,7 +187,7 @@ static func rig(model: Node3D, tilted: bool = false) -> Node3D:
 
 ## Model scenes and sizes cached right now (tests).
 static func cached_count() -> int:
-	return _scenes.size() + _sizes.size()
+	return _scenes.size() + _sizes.size() + _painted.size()
 
 
 ## Empties the scene, size and look caches (the last effect view left the tree; a kid's can keeps its own copy).
@@ -172,6 +195,7 @@ static func clear_cache() -> void:
 	_scenes.clear()
 	_sizes.clear()
 	_looks.clear()
+	_painted.clear()
 
 
 ## How many model looks are shared right now (one per model id; never one per instance).
@@ -222,9 +246,14 @@ static func _scene(id: String) -> PackedScene:
 	return _scenes[id]
 
 
-static func _instance(id: String) -> Node3D:
+## A copy of model `id`, painted in `colour` when one is given (the model's picture is plain, the colour is in its vertex colours).
+static func _instance(id: String, colour: Variant = null) -> Node3D:
 	var root: Node3D = _scene(id).instantiate() as Node3D
 	var meshes: Array[Node] = root.find_children("*", "MeshInstance3D", true, false)
+	if colour != null:
+		for node: Node in meshes:
+			var mesh_instance: MeshInstance3D = node as MeshInstance3D
+			mesh_instance.mesh = _painted_mesh(id, mesh_instance.mesh, colour as Color)
 	if not _looks.has(id):
 		_looks[id] = WeaponLook.apply(root, id)
 	else:
