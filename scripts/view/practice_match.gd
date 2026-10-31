@@ -235,6 +235,11 @@ func card_cancelled(_slot: int) -> void:
 
 ## The base side the local team defends this set (+Z = own/bottom at the start).
 func own_side() -> int:
+	if sim.mode is Patintero:
+		# like Agawan Base the camera turns round so that your side is at the bottom: the runners run up from the base at the bottom; the
+		# guards (whose runners come from the other end) see it from the far end
+		var me: PlayerState = sim.players.get(local_id) as PlayerState
+		return MapLayout.SIDE_OWN if me == null or sim.mode.is_attacker(me) else MapLayout.SIDE_ENEMY
 	return sim.side_for_team(local_team)
 
 

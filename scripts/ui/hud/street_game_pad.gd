@@ -53,6 +53,8 @@ var hint_label: Label
 var action: Action = Action.NONE
 var charge: float = 0.0
 var act_ready: bool = false
+## A tagged runner (in a pen) has no action button, and its movement knob stands in the middle of the bottom instead of at the left.
+var knob_centered: bool = false
 ## The finger holds the Throw button.
 var aiming: bool = false
 ## The way the knob points now, and whether a finger holds it.
@@ -93,7 +95,10 @@ func _ready() -> void:
 
 ## What the pad shows now: the line and its hint, the action button (`fill`: how full its ring is; `can_act`: the Kick reaches the can, or
 ## the dive is ready).
-func show_state(title: String, hint: String, button: Action, fill: float, can_act: bool) -> void:
+func show_state(title: String, hint: String, button: Action, fill: float, can_act: bool, centered_knob: bool = false) -> void:
+	if knob_centered != centered_knob:
+		knob_centered = centered_knob
+		_place()
 	title_label.text = title
 	hint_label.text = hint
 	hint_label.visible = not hint.is_empty()
@@ -108,6 +113,8 @@ func show_state(title: String, hint: String, button: Action, fill: float, can_ac
 
 ## The knob's middle and the action button's middle, in this control's own pixels.
 func knob_center() -> Vector2:
+	if knob_centered:
+		return Vector2(size.x / 2.0, size.y * 0.5)
 	return Vector2(SIDE_MARGIN + KNOB_RADIUS, size.y * 0.5)
 
 
@@ -149,9 +156,14 @@ func _place() -> void:
 	var left: float = SIDE_MARGIN * 2.0 + KNOB_RADIUS * 2.0
 	var width: float = maxf(size.x - left * 2.0 + 20.0, 120.0)
 	var middle: float = size.x / 2.0
-	title_label.position = Vector2(middle - width / 2.0, size.y * 0.5 - 62.0)
+	var top: float = size.y * 0.5 - 62.0
+	if knob_centered:
+		# the knob is in the way in the middle: the words stand above it
+		width = maxf(size.x - SIDE_MARGIN * 4.0, 120.0)
+		top = size.y * 0.5 - KNOB_RADIUS - 200.0
+	title_label.position = Vector2(middle - width / 2.0, top)
 	title_label.size = Vector2(width, 70.0)
-	hint_label.position = Vector2(middle - width / 2.0, size.y * 0.5 + 10.0)
+	hint_label.position = Vector2(middle - width / 2.0, top + 72.0)
 	hint_label.size = Vector2(width, 80.0)
 	queue_redraw()
 

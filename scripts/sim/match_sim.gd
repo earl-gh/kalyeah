@@ -36,7 +36,7 @@ const EPSILON: float = 0.00001
 ## INTRO: the opening show of both teams at their posts; nothing moves.
 enum Phase { PLAYING, POINT_FREEZE, MATCH_OVER, INTRO }
 ## How a team is scoring: everyone in the enemy base, or every enemy tagged.
-enum CaptureKind { NONE = -1, BASE = 0, ALL_TAGGED = 1, TOUCHED = 2 }
+enum CaptureKind { NONE = -1, BASE = 0, ALL_TAGGED = 1, TOUCHED = 2, TOO_SLOW = 3 }
 ## The round clock's stages: Regular, then Extended (a plain extra minute), then Overtime (a shorter capture).
 enum ClockStage { REGULAR, EXTENDED, OVERTIME }
 

@@ -15,10 +15,6 @@ const WAIT_TEXT: String = "Tagged! Wait for a rescue"
 const HINT_TEXT: String = "A teammate beside you frees you in %d s!"
 ## `%d`: the seconds until your team's rescue area is ready again (`GameRules.rescue_cooldown`).
 const READY_TEXT: String = "Your rescue area is ready in %d s!"
-## Tumbang Preso and Patintero have no rescues: a tagged runner waits for the turn to end.
-const STREET_GAME_WAIT_TEXT: String = "Tagged! Out until the swap"
-## `%d`: the seconds left in the turn (`StreetMode.turn_left`).
-const STREET_GAME_HINT_TEXT: String = "The teams swap in %d s, or when every runner is tagged."
 ## The rings beside the faces.
 const RING_SIZE: float = 64.0
 ## The same side margin the controls keep.
@@ -115,12 +111,6 @@ func sync(_sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	if not visible:
 		return
 	pips.sync(_sim, player)
-	if _sim.mode != null:
-		wait_label.text = STREET_GAME_WAIT_TEXT
-		hint_label.text = UiText.f(STREET_GAME_HINT_TEXT, [ceili(maxf(_sim.mode.turn_left, 0.0))])
-		ready_ring.visible = false
-		rescue_ring.visible = false
-		return
 	wait_label.text = WAIT_TEXT
 	var ready_left: float = _sim.rescue_ready_left[player.team]
 	hint_label.text = UiText.f(READY_TEXT, [ceili(ready_left)]) if ready_left > 0.0 else UiText.f(HINT_TEXT, [ceili(_sim.rules.rescue_hold_time)])
