@@ -53,9 +53,22 @@ func test_the_mechanics_come_from_the_rules_so_they_cannot_go_stale() -> void:
 	assert_string_contains(joined, "score immediately", "a team wipe has no hold timer")
 
 
-func test_a_street_that_is_not_built_says_so() -> void:
+func test_tumbang_preso_and_patintero_are_practice_games_with_their_rules() -> void:
 	var rules: GameRules = load(StreetPage.RULES_PATH) as GameRules
-	assert_eq(StreetPage.mechanics_for(&"patintero", rules), [StreetPage.SOON_LINE] as Array[String])
+	for id: StringName in [&"tumbang_preso", &"patintero"]:
+		assert_true(StreetPage.practice_only(id))
+		var lines: Array[String] = StreetPage.mechanics_for(id, rules)
+		assert_false(StreetPage.SOON_LINE in lines)
+		assert_string_contains(lines[0], "5 minutes")
+	assert_false(StreetPage.practice_only(&"street"), "Agawan Base is open everywhere")
+	var screen: TitleScreen = _phone_screen()
+	screen.open_page(&"street")
+	await wait_frames(2)
+	var chip: Control = screen.street_page.cards[&"patintero"].find_child("Status", true, false) as Control
+	var words: Array[String] = []
+	for label: Node in chip.find_children("*", "Label", true, false):
+		words.append((label as Label).text)
+	assert_has(words, "Practice", "the chip says where it can be played")
 
 
 func test_the_book_and_history_have_tabs_of_their_own_and_settings_has_no_buttons_for_them() -> void:

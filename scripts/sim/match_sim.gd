@@ -36,7 +36,7 @@ const EPSILON: float = 0.00001
 ## INTRO: the opening show of both teams at their posts; nothing moves.
 enum Phase { PLAYING, POINT_FREEZE, MATCH_OVER, INTRO }
 ## How a team is scoring: everyone in the enemy base, or every enemy tagged.
-enum CaptureKind { NONE = -1, BASE = 0, ALL_TAGGED = 1 }
+enum CaptureKind { NONE = -1, BASE = 0, ALL_TAGGED = 1, TOUCHED = 2 }
 ## The round clock's stages: Regular, then Extended (a plain extra minute), then Overtime (a shorter capture).
 enum ClockStage { REGULAR, EXTENDED, OVERTIME }
 
@@ -83,6 +83,8 @@ var intro_left: float = 0.0
 var match_time: float = 0.0
 ## How every point of the match was won, in order: (team that scored, CaptureKind).
 var point_log: Array[Vector2i] = []
+## A timed street game (Tumbang Preso, Patintero) in place of Agawan Base's rescues and captures; null for Agawan Base.
+var mode: StreetMode = null
 
 var _inputs: Dictionary[int, PlayerInput] = {}
 var _brains: Dictionary[int, DummyBrain] = {}
@@ -120,12 +122,18 @@ func set_first_to(count: int) -> void:
 		score = MatchScore.new(count)
 
 
+## Plays `p_mode` (Tumbang Preso or Patintero) instead of Agawan Base and puts everyone in their places. Call once all players are in.
+func start_mode(p_mode: StreetMode) -> void:
+	mode = p_mode
+	mode.setup(self)
+
+
 ## Client-side prediction: runs only the movement part of a tick for one player
 ## (walking; obstacles and speed modifiers included). Skills,
 ## weapons and everything else stay server-side.
 func predict_move(id: int, input: PlayerInput, dt: float) -> void:
 	var state: PlayerState = players.get(id) as PlayerState
-	if state == null or state.tagged or phase != Phase.PLAYING:
+	if state == null or state.tagged or phase != Phase.PLAYING or (mode != null and mode.is_resetting()):
 		return
 	_move(state, input, dt)
 
@@ -428,8 +436,8 @@ func damage(id: int, amount: int) -> void:
 	if not players.has(id) or amount <= 0:
 		return
 	var state: PlayerState = players[id]
-	if state.tagged:
-		return
+	if state.tagged or mode != null:
+		return  # in Tumbang Preso and Patintero only a touch tags
 	state.hp = maxi(0, state.hp - amount)
 	player_damaged.emit(id, amount)
 	if state.hp <= 0:
@@ -506,8 +514,11 @@ func step(dt: float) -> void:
 	round_time += dt
 	capture_needed = current_base_capture_time()
 	weapons.step(self, dt)
-	objectives.check_rescues(self, dt)
-	objectives.check_captures(self, _brains, dt)
+	if mode != null:
+		mode.step(self, dt)
+	else:
+		objectives.check_rescues(self, dt)
+		objectives.check_captures(self, _brains, dt)
 	tick += 1
 
 
@@ -519,12 +530,18 @@ func _tick_cooldowns(state: PlayerState, dt: float) -> void:
 
 func _step_free(state: PlayerState, input: PlayerInput, dt: float) -> void:
 	state.effects.step(dt)
+	if mode != null and mode.is_resetting():
+		return  # the pause after a tag: everyone stands still
 	_tick_cooldowns(state, dt)
 	_tick_elixir(state, dt)
-	if input != null:
+	if mode != null:
+		mode.handle_input(self, state, input, dt)  # no skills in the street games: only the game's own actions
+	elif input != null:
 		casting.handle(self, state, input, dt)
 	var before: Vector2 = state.position
 	_move(state, input, dt)
+	if mode != null:
+		mode.constrain(self, state)
 	_tick_stamina(state, state.position.distance_squared_to(before) > EPSILON * EPSILON, dt)
 
 
@@ -658,6 +675,8 @@ func target_near_point(state: PlayerState, def: WeaponDef, point: Vector2) -> in
 
 
 func weapon_ready(state: PlayerState, slot: int) -> bool:
+	if mode != null:
+		return false
 	return casting.weapon_ready(state, slot) and can_afford(state, slot) and not casting_blocked(state)
 
 
@@ -669,6 +688,8 @@ func casting_blocked(state: PlayerState) -> bool:
 
 ## The same for `state` standing at `position` (a bot looking one step ahead).
 func casting_blocked_at(state: PlayerState, position: Vector2) -> bool:
+	if mode != null:
+		return false  # no bases or rescue areas in the street games
 	if rules.no_cast_in_enemy_base and layout.in_base(-side_for_team(state.team), position):
 		return true
 	return rules.no_cast_in_rescue_area and objectives.teammate_waiting(self, state.team) \
@@ -706,6 +727,8 @@ func _move(state: PlayerState, input: PlayerInput, dt: float) -> void:
 	if not state.effects.can_move():
 		return  # a move target set meanwhile is kept and walked once the kid can move
 	var speed: float = rules.move_speed
+	if mode != null:
+		speed *= mode.speed_scale(state)
 	if state.overclocked:
 		speed *= rules.overclock_speed_share
 	speed *= state.effects.speed_multiplier(rules.polymorph_speed_scale)
@@ -725,7 +748,7 @@ func _take_move_order(state: PlayerState, input: PlayerInput) -> void:
 		return
 	if not input.is_pressed(PlayerInput.BTN_MOVE_TARGET) or not input.move_target.is_finite():
 		return
-	var point: Vector2 = clamp_move_target(input.move_target, state.radius)
+	var point: Vector2 = clamp_move_target(input.move_target if mode == null else mode.move_point(state, input.move_target), state.radius)
 	if state.has_move_target and point == state.move_target:
 		return
 	state.move_target = point
@@ -817,6 +840,8 @@ func current_base_capture_time() -> float:
 ## The stage of the round clock (`GameRules.overtime_after`, `extended_seconds`, `overtime_seconds`), from the round's time only, so a
 ## client reads the same stage from a snapshot. With the clock off (`overtime_after` 0) it stays Regular.
 func clock_stage() -> ClockStage:
+	if mode != null:
+		return ClockStage.REGULAR
 	if rules.overtime_after <= 0.0 or round_time < rules.overtime_after:
 		return ClockStage.REGULAR
 	if round_time < rules.overtime_after + rules.extended_seconds:
@@ -836,6 +861,8 @@ func clock_stage_start(stage: ClockStage) -> float:
 
 ## Seconds left in the current stage (the clock the header shows; it restarts at each stage and stays 0 after Overtime's minute).
 func clock_left() -> float:
+	if mode != null:
+		return mode.time_left
 	var end: float = rules.overtime_after
 	match clock_stage():
 		ClockStage.EXTENDED:
@@ -843,6 +870,11 @@ func clock_left() -> float:
 		ClockStage.OVERTIME:
 			end += rules.extended_seconds + rules.overtime_seconds
 	return maxf(end - round_time, 0.0)
+
+
+## True when the header's clock counts down (the round's stages, or a street game's match time); false = it counts the match time up.
+func counts_down() -> bool:
+	return mode != null or rules.overtime_after > 0.0
 
 
 ## True in the Overtime stage (the capture is shorter; the header says Overtime).

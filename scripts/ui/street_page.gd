@@ -1,17 +1,17 @@
 class_name StreetPage
 extends VBoxContainer
 ## The Games page (the left tab of the bottom bar): every game of the barangay with its name and picture, what the game
-## is and how it plays here. Agawan Base is the only game open to play for now (the other two say Coming soon, like the lobby's
-## map list); its numbers come from the game rules, so the words cannot go stale.
+## is and how it plays here. Agawan Base is open everywhere; Tumbang Preso and Patintero are played in Practice for now (the lobby's map
+## list still says Coming soon). The numbers come from the rules, so the words cannot go stale.
 
 ## The games in order: the map id (RoomService.MAP_IDS), the game's name, its picture, a colour, and what the game is.
 const STREETS: Array[Dictionary] = [
 	{"id": &"street", "game": "Agawan Base", "picture": preload("res://assets/ui/games/agawan_base.webp"), "color": "blue",
 		"blurb": "Two teams, two bases! Tag the other team, free your own, and hold their base."},
 	{"id": &"tumbang_preso", "game": "Tumbang Preso", "picture": preload("res://assets/ui/games/tumbang_preso.webp"), "color": "orange",
-		"blurb": "Players throw a tsinelas to knock down a tin can while the guard, the taya, defends it."},
+		"blurb": "5 minutes: Knock the can over, fetch your slipper, and run to the other end to earn a score. The 'it' fetches the can and places it back to position. It can't tag players when the can is knocked over and not in position."},
 	{"id": &"patintero", "game": "Patintero", "picture": preload("res://assets/ui/games/patintero.webp"), "color": "green",
-		"blurb": "Runners try to cross the lines drawn on the street while the taggers guard each line and try to touch them."},
+		"blurb": "5 minutes: Get past the enemy guards, run to the other end and back to earn a team point. Enemy players that act as guards tag you or your ally to reduce the chances of your team making it to the other end and back."},
 ]
 ## How big a game's picture is drawn beside its name (the picture keeps its own shape inside this square).
 const PICTURE_SIZE: float = 168.0
@@ -39,13 +39,20 @@ func _ready() -> void:
 		_content.add_child(card)
 
 
-## Whether the street can be played now.
+## Whether the street can be played now in a room (Online or Local).
 static func playable(id: StringName) -> bool:
 	return id in RoomService.PLAYABLE_MAP_IDS
 
 
+## Whether the street can be played in Practice only (Tumbang Preso, Patintero).
+static func practice_only(id: StringName) -> bool:
+	return not playable(id) and StreetMode.RULES_PATHS.has(id)
+
+
 ## The lines of how the street plays, with the numbers from `rules` (a street that is not built yet has one line saying so).
 static func mechanics_for(id: StringName, rules: GameRules) -> Array[String]:
+	if practice_only(id):
+		return street_game_lines(StreetMode.rules_for(id))
 	if not playable(id):
 		return [SOON_LINE] as Array[String]
 	var choices: PackedStringArray = PackedStringArray()
@@ -60,6 +67,28 @@ static func mechanics_for(id: StringName, rules: GameRules) -> Array[String]:
 		UiText.f("Tagged kids wait on the sidewalk. A teammate who stays in the rescue area for %d s frees the first one tagged!", [ceili(rules.rescue_hold_time)]),
 		UiText.f("Stay in their base to capture it: %d s alone, faster with friends! You can't throw while capturing.", [ceili(rules.capture_solo_time)]),
 		UiText.t("Tag the whole enemy team to score immediately!"),
+	] as Array[String]
+
+
+## How Tumbang Preso or Patintero plays, with its numbers.
+static func street_game_lines(game: StreetModeRules) -> Array[String]:
+	var minutes: int = roundi(game.match_seconds / 60.0)
+	if game.id == &"tumbang_preso":
+		return [
+			UiText.f("%d minutes! Every kid plays for itself and the most points wins. Play it in Practice.", [minutes]),
+			"Only one kid is the taya, the 'it'. Everyone else throws.",
+			"Hold Throw to aim: the line grows the longer you hold. Let go to throw your slipper at the can.",
+			"Knock over the can, fetch your slipper, and run to the other end to earn a score.",
+			"The 'it' fetches the can and places it back. It can't tag you while the can is knocked over!",
+			"Out in the fetch area you wear a tag circle: the 'it' tags you by moving into it, and you become the 'it'. Then everyone goes back to their places.",
+			UiText.f("Stay behind the throw line while you hold your slipper. Too scared to fetch it for %d s? You're the taya!", [ceili(game.scared_seconds)]),
+		] as Array[String]
+	return [
+		UiText.f("%d minutes! The team with more points wins. Play it in Practice.", [minutes]),
+		"Get past the enemy guards, run to the other end and back to earn a team point.",
+		"The court has two lines across the street and one down the middle. Each guard keeps to one line.",
+		"Runners have a tag circle: a guard tags a runner by moving into it. The guards earn a point and the round resets.",
+		UiText.f("Runners and guards can dive, then wait %d s to dive again. The teams swap every %d s.", [ceili(game.dive_cooldown), ceili(game.turn_seconds)]),
 	] as Array[String]
 
 
@@ -89,8 +118,8 @@ func _card(street: Dictionary, rules: GameRules) -> Control:
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	UiKit.letter(title, UiMetrics.HEADLINE, KalyeahTheme.semantic_color(String(street["color"])).lightened(0.55))
 	side.add_child(title)
-	var open: bool = playable(id)
-	var chip: PanelContainer = UiKit.chip("Playable" if open else "Coming soon", UiKit.CHIP_GREEN if open else UiKit.CHIP_SLATE)
+	var open: bool = playable(id) or practice_only(id)
+	var chip: PanelContainer = UiKit.chip("Playable" if playable(id) else ("Practice" if open else "Coming soon"), UiKit.CHIP_GREEN if open else UiKit.CHIP_SLATE)
 	chip.name = "Status"
 	chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	side.add_child(chip)

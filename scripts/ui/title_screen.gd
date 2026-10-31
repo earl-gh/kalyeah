@@ -122,6 +122,8 @@ var tab_bar: UiTabBar
 var mode_text_label: Label
 var primary_button: Button
 var secondary_button: Button
+## Practice only: the game and kid pickers above Play (`PracticeRow`).
+var practice_row: PracticeRow
 var dialog: MenuDialog
 ## The tab buttons by page id (street, home, settings).
 var corner_buttons: Dictionary[StringName, Button] = {}
@@ -404,8 +406,17 @@ func _build_titles() -> Control:
 	return titles
 
 
-## The main action in one row: Create room and Join room, or Play vs bots and Training.
+## The main action in one row: Create room and Join room, or Play; in Practice the game and kid pickers stand above Play.
 func _build_actions() -> Control:
+	var column: VBoxContainer = VBoxContainer.new()
+	column.name = "ActionsColumn"
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	practice_row = PracticeRow.new()
+	practice_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	practice_row.picker_opened.connect(_show_dialog)
+	column.add_child(practice_row)
 	var actions: HBoxContainer = HBoxContainer.new()
 	actions.name = "Actions"
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -414,7 +425,8 @@ func _build_actions() -> Control:
 	actions.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	primary_button = _action_button(actions, "PrimaryButton", "")
 	secondary_button = _action_button(actions, "SecondaryButton", "Join room")
-	return actions
+	column.add_child(actions)
+	return column
 
 
 func _action_button(parent: Control, button_name: String, text: String) -> Button:
@@ -592,8 +604,9 @@ func _refresh_mode() -> void:
 	mode_text_label.text = String(mode["text"])
 	primary_button.text = "Create" if rooms else "Play"
 	secondary_button.text = "Join"
-	# Practice has the one button, Play (no Join, no Training)
+	# Practice has the one button, Play (no Join, no Training), and the game and kid pickers above it
 	secondary_button.visible = rooms
+	practice_row.visible = not rooms
 	KalyeahTheme.style_button(primary_button, "orange")
 	KalyeahTheme.style_button(secondary_button, "blue")
 	_fit_buttons()
@@ -623,9 +636,15 @@ func _on_secondary_pressed() -> void:
 
 ## Practice asks first (a stray tap must not start a match); Play then shows the loading screen.
 func open_practice_confirm() -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create("Practice", MenuDialog.WIDTH_SMALL)
-	card.add_label("3 v 3 against bots. Ready to rumble?", MenuDialog.TEXT_SIZE, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
-	_add_difficulty_choice(card)
+	var game: StreetModeRules = StreetMode.rules_for(Session.practice_game)
+	var card: MenuDialog = MenuDialog.create(game.title if game != null else "Practice", MenuDialog.WIDTH_SMALL)
+	var words: String = "3 v 3 against bots. Ready to rumble?"
+	if game != null:
+		var who: String = "You against 5 bots." if game.id == &"tumbang_preso" else "3 v 3 against bots."
+		words = "%s %d minutes, most points win!" % [who, roundi(game.match_seconds / 60.0)]
+	card.add_label(words, MenuDialog.TEXT_SIZE, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
+	if game == null:
+		_add_difficulty_choice(card)  # the bots of the street games do not have levels
 	var play: Button = MenuDialog.make_button("Play", "gold", UiMetrics.BODY)
 	card.add_buttons([play])
 	play.pressed.connect(func() -> void:

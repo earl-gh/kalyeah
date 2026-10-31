@@ -2,6 +2,15 @@ class_name PracticeMatchPresentation
 extends RefCounted
 ## Owns PracticeMatch's HUD wiring, actor views, camera presentation, and banners.
 
+## A dive's dust (particles) at both ends, and the streak it leaves on the street: how wide, how high above it and its colour.
+const DIVE_DUST: int = 6
+const DIVE_STREAK_WIDTH: float = 0.7
+const DIVE_STREAK_LIFT: float = 0.1
+## The stars of a catch hang this high (m) over the one caught, and the screen shakes a little for the kid that caught or was caught.
+const CATCH_STARS_HEIGHT: float = 1.4
+const CATCH_SHAKE: float = 0.3
+const DIVE_STREAK_COLOR: Color = Color(1.0, 1.0, 1.0, 0.55)
+
 var owner: PracticeMatch
 
 
@@ -36,6 +45,8 @@ func setup_hud() -> void:
 	owner.hud.marker.setup(owner.sim, owner._camera, owner.local_id)
 	owner._fx.view_scale = owner._camera.rules.kid_view_scale
 	owner._fx.local_team = owner.local_team
+	if owner.sim.mode != null:
+		owner.hud.setup_street_scores(owner.sim, owner.local_id)
 	owner.hud.set_top_inset(_safe_top_inset())
 	owner._camera.top_reserve_px = owner.hud.header_height() + HEADER_GAP
 	owner.hud.overhead.top_limit = owner.hud.header_height()
@@ -48,6 +59,11 @@ func connect_hud() -> void:
 	owner.hud.hand.card_cancelled.connect(owner.card_cancelled)
 	owner.hud.set_chat_enabled(true)
 	owner.hud.chat.said.connect(func(text: String) -> void: owner.hud.overhead.say(owner.local_id, text))
+	owner.hud.street_pad.knob_moved.connect(owner.knob_moved)
+	owner.hud.street_pad.action_pressed.connect(owner.action_pressed)
+	owner.hud.street_pad.aim_started.connect(owner.throw_pressed)
+	owner.hud.street_pad.aim_dragged.connect(owner.throw_dragged)
+	owner.hud.street_pad.aim_released.connect(owner.throw_released)
 	owner.hud.street.move_pressed.connect(owner.move_pressed)
 	owner.hud.street.move_dragged.connect(owner.move_dragged)
 	owner.hud.street.move_released.connect(owner.move_released)
@@ -67,18 +83,135 @@ func connect_sim() -> void:
 		if id == owner.local_id:
 			owner._camera.shake(minf(0.1 + amount * 0.01, 0.4))
 			owner.hud.pulse.hit(amount, owner.sim.rules.player_max_hp))
-	owner.sim.weapon_cast.connect(func(id: int, weapon: StringName) -> void: (owner._views[id] as KidModel).play_cast(cast_lead(owner.sim, weapon)))
+	owner.sim.weapon_cast.connect(func(id: int, weapon: StringName) -> void:
+		var view: KidModel = owner._views[id] as KidModel
+		if weapon == StreetMode.TAG_CAST:
+			view.play_touch()  # a tag: the kid reaches out and touches
+		else:
+			view.play_cast(cast_lead(owner.sim, weapon)))
 	owner.sim.match_won.connect(_on_match_won)
 	owner.sim.point_reset.connect(func() -> void:
 		owner.hud.street.release())
 	owner.sim.intro_finished.connect(func() -> void:
 		owner.show_banner("GO!")
-		# the first practice match opens with the walkthrough
-		if Session.coach_pending and not owner.online:
+		# the first practice match opens with the walkthrough (it teaches Agawan Base)
+		if Session.coach_pending and not owner.online and owner.sim.mode == null:
 			Session.coach_pending = false
 			owner.hud.coach.start(owner.sim.rules.capture_solo_time, owner.sim.score.points_to_win()))
 	owner.sim.player_tagged.connect(_on_player_tagged)
 	owner.sim.player_rescued.connect(_on_player_rescued)
+	if owner.sim.mode != null:
+		_connect_street_game(owner.sim.mode)
+
+
+## Tumbang Preso and Patintero say what happens in a banner: who is it or whose turn it is, a point, and (for you) what to do next.
+func _connect_street_game(mode: StreetMode) -> void:
+	mode.tagged.connect(_on_caught)
+	mode.scored.connect(func(team: int, id: int) -> void:
+		var by_touch: bool = not owner.sim.point_log.is_empty() and owner.sim.point_log[-1].y == MatchSim.CaptureKind.TOUCHED
+		if by_touch:
+			return  # the tag has its own banner
+		if id == owner.local_id:
+			owner.show_banner("+1 YOU SCORED!")
+		elif not mode.is_free_for_all():
+			owner.show_banner("+1 POINT!" if team == owner.local_team else "+1 THEM"))
+	if mode is TumbangPreso:
+		_connect_tumbang(mode as TumbangPreso)
+	if mode is Patintero:
+		var lines: Patintero = mode as Patintero
+		lines.roles_swapped.connect(func(team: int) -> void: owner.show_banner("YOU RUN!" if team == owner.local_team else "YOU GUARD!"))
+		lines.runner_crossed.connect(func(id: int) -> void:
+			if id == owner.local_id:
+				owner.show_banner("NOW RUN BACK HOME!"))
+		lines.tagged.connect(func(guard: int, runner: int) -> void:
+			if runner == owner.local_id:
+				owner.show_banner("TAGGED!")
+			elif guard == owner.local_id:
+				owner.show_banner("YOU TAGGED A RUNNER! +1")
+			else:
+				owner.show_banner("RUNNER TAGGED!" if owner.sim.players[guard].team != owner.local_team else "RUNNER TAGGED! +1"))
+		lines.dived.connect(_on_dived)
+
+
+## A kid was caught (a tag): it stumbles and falls while everyone stands still, with stars and dust where it was touched. The one that
+## touched it has played its touch (or is finishing its dive: the catch is the dive's end).
+func _on_caught(tagger: int, target: int) -> void:
+	var view: KidModel = owner._views.get(target) as KidModel
+	var pause: float = owner.sim.mode.rules.reset_seconds
+	if view != null:
+		view.play_tripped(pause)
+	var at: Vector2 = owner.sim.players[target].position
+	var context: FxContext = owner._fx.context()
+	context.particles.puff(FxParticles.Preset.STARS, Vector3(at.x, CATCH_STARS_HEIGHT, at.y), FxBursts.STARS)
+	context.particles.puff(FxParticles.Preset.DUST, Vector3(at.x, 0.0, at.y), DIVE_DUST)
+	if tagger == owner.local_id or target == owner.local_id:
+		owner._camera.shake(CATCH_SHAKE)
+
+
+## A kid dives (Patintero): it crouches, leaps, slides on its belly and gets up (`KidModel.play_dive`, `time` s of burst and `recover` s of
+## lying and rising), with dust where it leaves the ground and where the burst ends and a streak on the street between them.
+func _on_dived(id: int, way: Vector2, time: float, recover: float) -> void:
+	var view: KidModel = owner._views.get(id) as KidModel
+	if view != null:
+		view.play_dive(time + recover)
+	var state: PlayerState = owner.sim.players[id]
+	var context: FxContext = owner._fx.context()
+	var lines: Patintero = owner.sim.mode as Patintero
+	var distance: float = lines.rules.dive_speed_share * owner.sim.rules.move_speed * time
+	var from: Vector2 = state.position
+	context.particles.puff(FxParticles.Preset.DUST, Vector3(from.x, 0.0, from.y), DIVE_DUST)
+	var to: Vector2 = from + way * distance
+	context.ground.trail(Vector3(from.x, DIVE_STREAK_LIFT, from.y), Vector3(to.x, DIVE_STREAK_LIFT, to.y), DIVE_STREAK_WIDTH, DIVE_STREAK_COLOR, time)
+	owner.get_tree().create_timer(time).timeout.connect(func() -> void:
+		if is_instance_valid(owner) and owner.sim != null and owner.sim.players.has(id):
+			var landed: Vector2 = owner.sim.players[id].position
+			context.particles.puff(FxParticles.Preset.DUST, Vector3(landed.x, 0.0, landed.y), DIVE_DUST))
+
+
+func _connect_tumbang(game: TumbangPreso) -> void:
+	game.taya_changed.connect(func(_old: int, new_taya: int, why: StringName) -> void:
+		var scared: String = "TOO SCARED! " if why == &"scared" else ""
+		owner.show_banner(scared + ("YOU'RE IT!" if new_taya == owner.local_id else "%s IS IT!" % owner.hud.overhead.name_of(owner.sim.players[new_taya]).to_upper())))
+	game.slipper_landed.connect(func(id: int, _at: Vector2, _hit: bool) -> void:
+		if id == owner.local_id:
+			owner.show_banner("MISSED! FETCH YOUR SLIPPER!"))
+	game.slipper_flung.connect(func(id: int, _from: Vector2, path: Array[Vector2]) -> void:
+		if id == owner.local_id:
+			owner.show_banner("CAN DOWN! FETCH YOUR SLIPPER!" if path.size() == 1 else "BOUNCED! FETCH YOUR SLIPPER!")
+		elif game.taya_id == owner.local_id:
+			owner.show_banner("CAN DOWN! PUT IT BACK!"))
+	game.can_kicked.connect(func(id: int) -> void:
+		if id == owner.local_id:
+			owner.show_banner("KICKED!")
+		elif game.taya_id == owner.local_id:
+			owner.show_banner("THEY KICKED THE CAN!"))
+	game.slipper_fetched.connect(func(id: int) -> void:
+		if id == owner.local_id:
+			owner.show_banner("RUN TO THE OTHER END!"))
+	game.can_placed.connect(func(_id: int) -> void: owner.show_banner("THE CAN IS UP!"))
+
+
+## What your kid is to do now, for the line on the pad and the opening show: [what, how].
+static func street_status(sim: MatchSim, player: PlayerState) -> Array[String]:
+	var mode: StreetMode = sim.mode
+	if mode is TumbangPreso:
+		var game: TumbangPreso = mode as TumbangPreso
+		var id: int = player.id
+		if id == game.taya_id:
+			return ["YOU'RE IT!", "Move into a thrower's circle to tag it!" if game.can_up else "Fetch the can and put it back!"] as Array[String]
+		if game.flights.has(id):
+			return ["", ""] as Array[String]
+		if game.fetched.has(id):
+			return ["RUN TO THE OTHER END!", ""] as Array[String]
+		if game.has_slipper(id):
+			return ["YOUR THROW!", "Hold THROW to aim, let go to throw."] as Array[String]
+		if game.scared_left.has(id) and player.position.y >= game.rules.home_z:
+			return ["FETCH IT OR YOU'RE IT!", UiText.f("Step into the fetch area: %d", [ceili(game.scared_left[id])])] as Array[String]
+		return ["FETCH YOUR SLIPPER!", "Kick the can to keep the taya busy."] as Array[String]
+	var lines: Patintero = mode as Patintero
+	if lines.is_attacker(player):
+		return ["YOU RUN!", "Cross both lines. Dive to get past!"] as Array[String]
+	return ["YOU GUARD!", "Move into a runner's circle to tag!"] as Array[String]
 
 
 ## How long before its release a kid's cast clip starts for `weapon`: a delayed cone (the big snip) strikes `delay` seconds
@@ -100,6 +233,7 @@ func sync(delta: float) -> void:
 	_sync_aim(player)
 	owner._fx.sync(owner.sim, delta)
 	owner._map.sync_rescue(owner.sim)
+	owner.mode_view.sync(delta)
 	owner.hud.overhead.tick(delta)
 	owner.hud.marker.tick(delta)
 	owner.hud.sync_score(owner.sim, owner.local_team, delta, owner.local_id)
@@ -176,6 +310,12 @@ func _sync_aim(player: PlayerState) -> void:
 
 
 func _play_intro_shot() -> void:
+	var mode: StreetMode = owner.sim.mode
+	if mode != null:
+		var skip: String = "" if owner.online else " · TAP TO SKIP"
+		owner.hud.show_intro(street_status(owner.sim, owner.sim.players[owner.local_id])[0], "%d MIN · MOST POINTS WIN%s" % [roundi(mode.rules.match_seconds / 60.0), skip])
+		owner._camera.place(owner._flip())
+		return
 	var first_to: int = owner.sim.score.first_to
 	var sub: String = "FIRST TO %d" % first_to
 	if not owner.online:
@@ -206,6 +346,10 @@ func _on_match_won(team: int) -> void:
 	if owner.online:
 		mode = "hotspot" if Session.lobby_hotspot else "online"
 	var points: Array[int] = owner.sim.score.points
+	if owner.sim.mode != null:
+		var result: Dictionary = owner.sim.mode.local_result(owner.sim, owner.local_id)
+		MatchHistory.record(mode, result["won"] as bool, result["mine"] as int, result["theirs"] as int)
+		return
 	MatchHistory.record(mode, team == owner.local_team, points[owner.local_team], points[1 - owner.local_team])
 
 

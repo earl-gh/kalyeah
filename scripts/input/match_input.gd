@@ -33,6 +33,16 @@ var aim_point: Vector2 = Vector2.ZERO
 var aimed: bool = false
 ## The finger is over the ground but outside the street (the sidewalk, the walls): the aim follows it, in red, and letting go cancels.
 var out_of_bounds: bool = false
+## The movement knob of the street games (bottom left): the way it points on screen, each axis -1 to 1, up the screen being -1 (the
+## sim's stick, `PlayerInput.move`). Zero when it is let go.
+var stick: Vector2 = Vector2.ZERO
+## Tumbang Preso's Throw button (no cards in that game): held while the finger is on it, the way it aims (a unit vector in sim XZ), and
+## what letting go means. It rides the first card's bit, so the sim sees one held button and its release.
+var throw_held: bool = false
+var throw_aim: Vector2 = Vector2(0.0, -1.0)
+var _throw_release: bool = false
+var _throw_cancel: bool = false
+var _throw_sent: bool = false
 var _pressed_ms: int = 0
 var _sent_held: bool = false
 var _release: Release = Release.NONE
@@ -58,6 +68,35 @@ func move_drag(point: Vector2) -> void:
 ## The finger left the street: the kid finishes the walk to the last point.
 func move_release() -> void:
 	move_held = false
+
+
+## The Kick button was pressed: the next tick carries the second card's bit once (the sim kicks on the press, not while it is held).
+func kick_press() -> void:
+	pending_buttons |= PlayerInput.BTN_CARD_2
+
+
+## The Throw button was pressed, aimed along `way`.
+func throw_press(way: Vector2) -> void:
+	if throw_held or _throw_release:
+		return
+	throw_held = true
+	throw_aim = way
+	_throw_sent = false
+
+
+## The aim turned to `way` while the button is held.
+func throw_turn(way: Vector2) -> void:
+	if throw_held:
+		throw_aim = way
+
+
+## The finger let go of the Throw button: a throw, or (`cancel`) nothing.
+func throw_release(cancel: bool) -> void:
+	if not throw_held:
+		return
+	throw_held = false
+	_throw_release = true
+	_throw_cancel = cancel
 
 
 ## A card in `slot` was picked up at `now_ms`. False (ignored) while another card is held or a release is still to be sent.
@@ -143,15 +182,35 @@ func clear() -> void:
 	_release = Release.NONE
 	_release_slot = -1
 	_sent_held = false
+	throw_held = false
+	_throw_release = false
+	_throw_cancel = false
+	_throw_sent = false
+	stick = Vector2.ZERO
 
 
 ## This tick's input.
 func build(tick: int) -> PlayerInput:
-	var input: PlayerInput = PlayerInput.create(Vector2.ZERO, Vector2.ZERO, pending_buttons, tick)
+	var input: PlayerInput = PlayerInput.create(stick.limit_length(1.0), Vector2.ZERO, pending_buttons, tick)
 	pending_buttons = 0
 	if _move_fresh or (move_held and follow_hold):
 		input.with_move_target(move_point)
 		_move_fresh = false
+	if throw_held:
+		input.buttons |= PlayerInput.BTN_CARD_1
+		input.aim = throw_aim
+		_throw_sent = true
+	elif _throw_release:
+		if not _throw_sent:
+			# a press and release inside one tick: the sim must see the button held once before the release
+			input.buttons |= PlayerInput.BTN_CARD_1
+			input.aim = throw_aim
+			_throw_sent = true
+		else:
+			if _throw_cancel:
+				input.buttons |= PlayerInput.BTN_AIM_CANCEL
+			_throw_release = false
+			_throw_sent = false
 	if held_slot >= 0:
 		input.buttons |= PlayerInput.CARD_BITS[held_slot]
 		_sent_held = true

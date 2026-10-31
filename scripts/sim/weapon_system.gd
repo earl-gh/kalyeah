@@ -558,6 +558,12 @@ func _hit(sim: MatchSim, target: PlayerState, def: WeaponDef) -> void:
 		sim.damage(target.id, def.damage)
 
 
+## A projectile of `def` leaves `caster` along `direction` outside the card rules (Tumbang Preso's thrown slipper): the same flying
+## object the weapons use, so it is drawn and animated the same.
+func launch(caster: PlayerState, def: WeaponDef, direction: Vector2) -> Projectile:
+	return _new_projectile(caster, def, direction)
+
+
 func _new_projectile(caster: PlayerState, def: WeaponDef, direction: Vector2) -> Projectile:
 	var projectile: Projectile = Projectile.new()
 	projectile.id = _take_id()

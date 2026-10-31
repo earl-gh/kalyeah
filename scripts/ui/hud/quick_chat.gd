@@ -106,6 +106,11 @@ func _input(event: InputEvent) -> void:
 		set_open(false)
 
 
+## The street games list the phrases one under another (the button stands under the clock), not in two rows of four.
+func set_vertical(on: bool) -> void:
+	menu.columns = 1 if on else COLUMNS
+
+
 ## The chat grid covers the four skills and ice water strip, while the icon stays above NEXT.
 func place_over_hand(rect: Rect2) -> void:
 	menu.position = rect.position - position

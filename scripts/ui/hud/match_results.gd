@@ -110,6 +110,10 @@ func _score_card() -> Control:
 static func how_text(ours: bool, how: int) -> String:
 	if how == MatchSim.CaptureKind.ALL_TAGGED:
 		return "Tagged them all" if ours else "Tagged you all"
+	if how == MatchSim.CaptureKind.TOUCHED:
+		return "Tagged a runner" if ours else "Tagged by a guard"
+	if how == MatchSim.CaptureKind.NONE:
+		return "Ran it home" if ours else "They ran it home"  # Tumbang Preso, Patintero
 	return "Held their base" if ours else "Held your base"
 
 
@@ -188,8 +192,15 @@ func _make_confetti() -> CPUParticles2D:
 	return burst
 
 
-func _fill(sim: MatchSim, _local_id: int, local_team: int, mode_text: String) -> void:
+func _fill(sim: MatchSim, local_id: int, local_team: int, mode_text: String) -> void:
 	var won: bool = sim.score.winner == local_team
+	var mine: int = sim.score.points[local_team]
+	var theirs: int = sim.score.points[1 - local_team]
+	if sim.mode != null:
+		var result: Dictionary = sim.mode.local_result(sim, local_id)  # a street game knows its own winner and points
+		won = result["won"] as bool
+		mine = result["mine"] as int
+		theirs = result["theirs"] as int
 	title.text = "Victory" if won else "Defeat"
 	title.add_theme_color_override("font_color", WIN_COLOR if won else LOSS_COLOR)
 	var allies: int = 0
@@ -199,9 +210,14 @@ func _fill(sim: MatchSim, _local_id: int, local_team: int, mode_text: String) ->
 			allies += 1
 		else:
 			enemies += 1
-	subtitle.text = "%s (First to %d) (%dv%d)" % [mode_text, sim.score.first_to, allies, enemies]
-	_final_mine = sim.score.points[local_team]
-	_final_theirs = sim.score.points[1 - local_team]
+	if sim.mode != null and sim.mode.is_free_for_all():
+		subtitle.text = "%s (%s · %d min) (%d kids)" % [mode_text, sim.mode.rules.title, roundi(sim.mode.rules.match_seconds / 60.0), allies]
+	elif sim.mode != null:
+		subtitle.text = "%s (%s · %d min) (%dv%d)" % [mode_text, sim.mode.rules.title, roundi(sim.mode.rules.match_seconds / 60.0), allies, enemies]
+	else:
+		subtitle.text = "%s (First to %d) (%dv%d)" % [mode_text, sim.score.first_to, allies, enemies]
+	_final_mine = mine
+	_final_theirs = theirs
 	_show_scores(1.0)
 
 
