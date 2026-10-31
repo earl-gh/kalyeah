@@ -2,7 +2,8 @@ class_name ArenaCamera
 extends Camera3D
 ## The fixed orthographic gameplay camera (see CameraRules): it never moves, so the whole arena is on screen. Own base is
 ## always at the bottom of the screen; the other team's view is rotated 180 degrees. It only re-frames when the
-## screen's shape changes (a window resize, a rotation) or the view flips.
+## screen's shape changes (a window resize, a rotation) or the view flips. A smooth flip (`place(flip, true)`) swings the whole camera
+## half way round the arena's centre over `CameraRules.turn_seconds`, eased in and out.
 
 const SHAKE_DECAY: float = 1.4
 ## The depth range is cut tight around the arena (the camera stands CameraRules.STANDOFF away), for depth precision and for the shadows.
@@ -19,7 +20,10 @@ const CINEMATIC_FAR: float = 400.0
 ## Screen-shake strength left (decays quickly); view only.
 var _shake: float = 0.0
 var _placed: bool = false
-var _flip: bool = false
+## The view the camera is placed for or turning to.
+var _goal_flip: bool = false
+## How far round the camera is: 0 = the own view, 1 = the flipped view (between them while it turns).
+var _turn: float = 0.0
 var _aspect: float = -1.0
 var _bottom: float = -1.0
 var _top: float = -1.0
@@ -84,21 +88,56 @@ func desired_position(flip: bool) -> Vector3:
 	return Vector3(target.x, 0.0, target.y) + rules.camera_offset(CameraRules.STANDOFF, flip)
 
 
-## Puts the camera where it frames the whole arena (a no-op when nothing changed).
-func place(flip: bool) -> void:
+## Puts the camera where it frames the whole arena (a no-op when nothing changed). With `smooth` a change of `flip` swings the
+## camera round over `CameraRules.turn_seconds` (see `_process`) instead of cutting; the first placing and Reduce motion always cut.
+func place(flip: bool, smooth: bool = false) -> void:
 	var aspect: float = screen_aspect()
 	var sides: Vector2 = _current_sides()
-	if _placed and flip == _flip and is_equal_approx(aspect, _aspect) and is_equal_approx(_bottom, _current_bottom()) and is_equal_approx(_top, _current_top()) \
-			and is_equal_approx(_left, sides.x) and is_equal_approx(_right, sides.y):
-		return
+	var reframe: bool = not _placed or not is_equal_approx(aspect, _aspect) or not is_equal_approx(_bottom, _current_bottom()) \
+			or not is_equal_approx(_top, _current_top()) or not is_equal_approx(_left, sides.x) or not is_equal_approx(_right, sides.y)
+	if flip != _goal_flip or not _placed:
+		_goal_flip = flip
+		if not smooth or not _placed or Settings.reduced_motion:
+			_turn = 1.0 if flip else 0.0
+		reframe = true
+	if reframe:
+		_apply_pose()
+
+
+## The view the screen shows now: the flipped one once a turn toward it is half done (the controls follow this).
+func shown_flip() -> bool:
+	return _turn >= 0.5
+
+
+## True while the camera swings from one view to the other.
+func is_turning() -> bool:
+	return _turn != (1.0 if _goal_flip else 0.0)
+
+
+## How far round (degrees) the camera is shown: 0 for the own view, 180 for the flipped one, eased between them.
+func turn_degrees() -> float:
+	return 180.0 * smoothstep(0.0, 1.0, _turn)
+
+
+## The own view's pose turned `turn_degrees()` round the arena's centre (at 180 it is exactly the flipped pose).
+func _apply_pose() -> void:
 	var framed: Vector2 = _framed()
-	position = desired_position(flip)
-	rotation_degrees = Vector3(-rules.pitch_degrees, rules.yaw_degrees(flip), 0.0)
+	var angle: float = turn_degrees()
+	position = desired_position(false).rotated(Vector3.UP, deg_to_rad(angle))
+	rotation_degrees = Vector3(-rules.pitch_degrees, rules.yaw_degrees(false) + angle, 0.0)
 	_use_gameplay_lens(framed.x)
 	near = maxf(1.0, CameraRules.STANDOFF - NEAR_MARGIN)
 	far = CameraRules.STANDOFF + FAR_MARGIN
 	_placed = true
-	_flip = flip
+
+
+## Advances a smooth turn (`place(flip, true)`); Reduce motion switched on mid-turn finishes it at once.
+func advance_turn(delta: float) -> void:
+	if not _placed or not is_turning():
+		return
+	var goal: float = 1.0 if _goal_flip else 0.0
+	_turn = goal if Settings.reduced_motion else move_toward(_turn, goal, delta / maxf(rules.turn_seconds, 0.001))
+	_apply_pose()
 
 
 ## A fixed cinematic shot (the opening show): stand at `eye` looking at `target`. The next place() snaps back to
@@ -126,6 +165,7 @@ func shake(strength: float) -> void:
 
 
 func _process(delta: float) -> void:
+	advance_turn(delta)
 	if Settings.reduced_motion or _shake <= 0.001:
 		_shake = 0.0
 		h_offset = 0.0
