@@ -26,8 +26,6 @@ var rules: StreetModeRules
 var attack_team: int = 0
 ## Seconds left in the match (0 = time is up; a tie plays on).
 var time_left: float = 0.0
-## Patintero: seconds left in this turn.
-var turn_left: float = 0.0
 ## Seconds left in which nobody can be tagged (after a change of roles).
 var grace_left: float = 0.0
 ## Seconds left of the pause after a tag (everyone stands still, then the round resets); 0 = playing.
@@ -37,7 +35,6 @@ var reset_left: float = 0.0
 func _init(p_rules: StreetModeRules) -> void:
 	rules = p_rules
 	time_left = rules.match_seconds
-	turn_left = rules.turn_seconds
 
 
 ## The game for `p_rules.id` (Tumbang Preso or Patintero), or null for another id.
@@ -60,6 +57,16 @@ func setup(sim: MatchSim) -> void:
 	for state: PlayerState in sim.players.values():
 		state.has_stamina = false  # speed is the game's own: the taya is faster, nobody tires
 	place_teams(sim)
+
+
+## True when `state` is a runner (Patintero) or a thrower (Tumbang Preso) that a guard or the taya could tag right now. Overridden.
+func is_taggable(state: PlayerState) -> bool:
+	return is_attacker(state) and not state.tagged and not at_home(state.position) and not at_goal(state.position)
+
+
+## How long (s) a tag's touch plays before the game goes on or resets. Overridden.
+func catch_seconds() -> float:
+	return rules.reset_seconds
 
 
 ## A runner (Patintero) or a thrower (Tumbang Preso); the other side guards.
@@ -128,7 +135,7 @@ func _step_game(_sim: MatchSim, _dt: float) -> void:
 	pass
 
 
-## The turns of the game (Patintero's swap of roles). Overridden.
+## What the game does after its own rules each tick (Patintero's stall timer). Overridden.
 func _step_turn(_sim: MatchSim, _dt: float) -> void:
 	pass
 
@@ -150,8 +157,7 @@ func constrain(_sim: MatchSim, _state: PlayerState) -> void:
 
 ## True when `guard` may tag `runner` now. Overridden for each game's own limits.
 func can_tag(_sim: MatchSim, guard: PlayerState, runner: PlayerState) -> bool:
-	return grace_left <= 0.0 and not guard.tagged and not runner.tagged and guard.effects.can_move() \
-		and not at_home(runner.position) and not at_goal(runner.position)
+	return grace_left <= 0.0 and not guard.tagged and guard.effects.can_move() and is_taggable(runner)
 
 
 ## Every guard tags every runner it touches (the first touch of the tick: it may change who guards).
@@ -179,13 +185,18 @@ func _tag(sim: MatchSim, guard: PlayerState, runner: PlayerState) -> void:
 ## A point for `state` (and its team); with `send_home` it goes back to its place to run again. Once the time is up the point wins the
 ## match. Overridden by the game that keeps the points its own way.
 func award(sim: MatchSim, state: PlayerState, send_home: bool = true, how: int = MatchSim.CaptureKind.NONE) -> void:
-	sim.score.points[state.team] += 1
-	sim.point_log.append(Vector2i(state.team, how))
-	scored.emit(state.team, state.id)
+	_add_team_point(sim, state.team, state.id, how)
 	if send_home:
 		state.position = _spot(sim, state)
 		sim.end_move(state)
-	if time_left <= 0.0:
+
+
+## A point for `team` (it stays with the team whatever role it plays), earned by `id`. Once the time is up the point wins the match.
+func _add_team_point(sim: MatchSim, team: int, id: int, how: int = MatchSim.CaptureKind.NONE) -> void:
+	sim.score.points[team] += 1
+	sim.point_log.append(Vector2i(team, how))
+	scored.emit(team, id)
+	if time_left <= 0.0 and sim.phase == MatchSim.Phase.PLAYING:
 		_end(sim)
 
 

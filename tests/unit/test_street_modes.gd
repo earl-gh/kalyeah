@@ -529,30 +529,148 @@ func test_patintero_the_court_has_no_lines_of_its_own_beyond_the_first_and_last_
 	assert_lt(PATINTERO.home_z, PATINTERO.line_span + PATINTERO.tag_circle_radius + 1.0, "and close to it")
 
 
-func test_patintero_a_guard_moving_into_a_runners_circle_tags_it_for_a_point_and_the_round_resets() -> void:
+func test_patintero_the_corridor_lines_leave_a_pen_on_each_side_of_the_middle() -> void:
 	var sim: MatchSim = _sim(PATINTERO, 3)
 	var lines: Patintero = sim.mode as Patintero
+	assert_gt(PATINTERO.corridor_half_width, 0.0)
+	assert_lt(PATINTERO.corridor_half_width, sim.layout.lane_width / 2.0 - 2.0, "the pens are wide enough to stand in")
+	assert_true(lines.in_pen(Vector2(PATINTERO.corridor_half_width + 1.0, 0.0), 1))
+	assert_true(lines.in_pen(Vector2(-PATINTERO.corridor_half_width - 1.0, 3.0), -1))
+	assert_false(lines.in_pen(Vector2(PATINTERO.corridor_half_width - 1.0, 0.0), 1), "the corridor is not a pen")
+	assert_false(lines.in_pen(Vector2(PATINTERO.corridor_half_width + 1.0, PATINTERO.line_span + 1.0), 1), "past the guard lines is the street")
+
+
+func test_patintero_free_kids_cannot_enter_the_pens() -> void:
+	var sim: MatchSim = _sim(PATINTERO, 3)
+	var lines: Patintero = sim.mode as Patintero
+	_stand_all(sim)
+	sim.players[1].position = Vector2(PATINTERO.corridor_half_width - 0.5, 0.0)
+	sim.set_input(1, PlayerInput.create(Vector2(1.0, 0.0), Vector2.ZERO, 0, 0))
+	_wait(sim, 1.5)
+	assert_lte(sim.players[1].position.x, PATINTERO.corridor_half_width + 0.001, "the vertical line is a wall for a free runner")
+	assert_false(lines.in_pen(sim.players[1].position, 1))
+
+
+func _tag_runner(sim: MatchSim, runner: int, guard: int = 4) -> void:
+	var lines: Patintero = sim.mode as Patintero
 	lines.grace_left = 0.0
+	sim.players[runner].position = sim.players[guard].position + Vector2(PATINTERO.tag_circle_radius - 0.2, 0.0)
+	sim.step(DT)
+
+
+func test_patintero_a_tagged_runner_stumbles_then_waits_in_a_pen_and_the_round_goes_on() -> void:
+	var sim: MatchSim = _sim(PATINTERO, 3)
+	var lines: Patintero = sim.mode as Patintero
 	var casts: Array = []
 	sim.weapon_cast.connect(func(id: int, weapon: StringName) -> void: casts.append([id, weapon]))
 	var tags: Array = []
 	lines.tagged.connect(func(guard: int, runner: int) -> void: tags.append([guard, runner]))
+	_stand_all(sim)
+	lines.grace_left = 0.0
 	# just outside the circle of the guard on the near line
 	sim.players[1].position = Vector2(PATINTERO.tag_circle_radius + 0.3, PATINTERO.line_span)
 	sim.step(DT)
 	assert_true(tags.is_empty(), "outside the circle")
-	sim.players[1].position = Vector2(PATINTERO.tag_circle_radius - 0.2, PATINTERO.line_span)
-	sim.step(DT)
+	_tag_runner(sim, 1)
 	assert_eq(tags, [[4, 1]])
 	assert_eq(casts, [[4, StreetMode.TAG_CAST]], "the guard plays its touch")
-	assert_eq(sim.score.points, [0, 1] as Array[int], "the guards' team earns the point")
-	assert_eq(sim.point_log[-1], Vector2i(1, MatchSim.CaptureKind.TOUCHED))
-	assert_false(sim.players[1].tagged, "nobody waits on a sidewalk")
+	assert_true(lines.caught.has(1), "it stumbles first")
+	assert_false(lines.is_resetting(), "one tag does not end the round")
+	assert_eq(sim.score.points, [0, 0] as Array[int], "and is no point: the guards need all three")
+	_wait(sim, PATINTERO.catch_seconds + 0.2)
+	assert_true(lines.is_jailed(1), "then it waits in a pen")
+	assert_true(lines.in_pen(sim.players[1].position, lines.jailed[1]), "on the side it was caught")
+	assert_false(lines.is_taggable(sim.players[1]), "it cannot be tagged again")
+	# a pen keeps it in: the stick moves it there but never out, and it cannot dive
+	var side: int = lines.jailed[1]
+	sim.set_input(1, PlayerInput.create(Vector2(-float(side), 1.0).normalized(), Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
+	_wait(sim, 2.0)
+	assert_true(lines.in_pen(sim.players[1].position, side), "it stays in its pen")
+	assert_false(lines.is_busy(1), "no dive from a pen")
+	assert_false(lines.can_dive(sim.players[1]))
+	# it does not tag-trigger anything else and does not count as past the first guard
+	assert_false(lines.first_guard_passed)
+
+
+func test_patintero_one_free_runner_scoring_frees_the_tagged_and_the_runners_stay_runners() -> void:
+	var sim: MatchSim = _sim(PATINTERO, 3)
+	var lines: Patintero = sim.mode as Patintero
+	_stand_all(sim)
+	_tag_runner(sim, 1)
+	_wait(sim, PATINTERO.catch_seconds + 0.2)
+	assert_true(lines.is_jailed(1))
+	# a free teammate goes to the far end and back to the base
+	sim.players[2].position = Vector2(-2.0, PATINTERO.goal_z - 0.2)
+	sim.step(DT)
+	sim.players[2].position = Vector2(-2.0, PATINTERO.home_z + 0.5)
+	sim.step(DT)
+	assert_eq(sim.score.points, [1, 0] as Array[int], "one runner is enough for the team point")
+	assert_eq(sim.point_log[-1], Vector2i(0, MatchSim.CaptureKind.NONE))
 	assert_true(lines.is_resetting())
 	_wait(sim, PATINTERO.reset_seconds + 0.2)
-	assert_true(lines.at_home(sim.players[1].position), "the runner is back at the start")
-	assert_eq(sim.players[4].position, Vector2(0.0, PATINTERO.line_span), "and the guard on its line")
-	assert_eq(sim.mode.attack_team, 0, "the roles stay")
+	assert_false(lines.is_jailed(1), "the tagged runner is free again")
+	assert_true(lines.at_home(sim.players[1].position), "back at the base with the others")
+	assert_eq(sim.mode.attack_team, 0, "runners that score stay runners")
+
+
+func test_patintero_tagging_all_three_runners_is_the_guards_point_and_the_roles_switch() -> void:
+	var sim: MatchSim = _sim(PATINTERO, 3)
+	var lines: Patintero = sim.mode as Patintero
+	var swaps: Array[int] = []
+	lines.roles_swapped.connect(func(who: int) -> void: swaps.append(who))
+	_stand_all(sim)
+	_tag_runner(sim, 1)
+	_wait(sim, PATINTERO.catch_seconds + 0.2)
+	_tag_runner(sim, 2)
+	_wait(sim, PATINTERO.catch_seconds + 0.2)
+	assert_eq(sim.score.points, [0, 0] as Array[int], "two of three is no point")
+	assert_true(lines.runners_out() == 2 and not lines.is_resetting())
+	_tag_runner(sim, 3)
+	assert_eq(sim.score.points, [0, 1] as Array[int], "all three tagged: the guards' team earns the point")
+	assert_eq(sim.point_log[-1], Vector2i(1, MatchSim.CaptureKind.TOUCHED))
+	assert_true(lines.is_resetting())
+	_wait(sim, PATINTERO.reset_seconds + 0.2)
+	assert_eq(sim.mode.attack_team, 1, "the roles switch")
+	assert_eq(swaps, [1] as Array[int])
+	assert_eq(lines.runners_out(), 0, "the pens are empty")
+	assert_true(lines.at_home(sim.players[4].position), "team 1 now starts at the base")
+	assert_eq(sim.players[1].position.y, PATINTERO.line_span, "and team 0 stands on the lines")
+	# the score stays with the team: the new runners' point is the second of team 1
+	_stand_all(sim)
+	lines.grace_left = 0.0
+	sim.players[4].position = Vector2(2.0, PATINTERO.goal_z - 0.2)
+	sim.step(DT)
+	sim.players[4].position = Vector2(2.0, PATINTERO.home_z + 0.5)
+	sim.step(DT)
+	assert_eq(sim.score.points, [0, 2] as Array[int], "points belong to the team, not the role")
+	_wait(sim, PATINTERO.reset_seconds + 0.2)
+	assert_eq(sim.mode.attack_team, 1, "and they stay the runners")
+
+
+func test_patintero_runners_that_never_leave_the_base_give_the_guards_a_point_after_the_stall_time() -> void:
+	var sim: MatchSim = _sim(PATINTERO, 3)
+	var lines: Patintero = sim.mode as Patintero
+	_stand_all(sim)
+	assert_eq(PATINTERO.stall_seconds, 20.0)
+	_wait(sim, PATINTERO.stall_seconds - 1.0)
+	assert_eq(sim.score.points, [0, 0] as Array[int], "not yet")
+	_wait(sim, 1.2)
+	assert_eq(sim.score.points, [0, 1] as Array[int], "20 s and nobody past the first guard: the guards' point")
+	assert_eq(sim.point_log[-1].y, MatchSim.CaptureKind.TOO_SLOW)
+	_wait(sim, PATINTERO.reset_seconds + 0.2)
+	assert_eq(sim.mode.attack_team, 1, "the guards become the runners")
+	assert_almost_eq(lines.stall_left, PATINTERO.stall_seconds, 1.0, "with a fresh clock")
+
+
+func test_patintero_a_runner_past_the_first_guard_stops_the_stall_clock() -> void:
+	var sim: MatchSim = _sim(PATINTERO, 3)
+	_stand_all(sim)
+	_wait(sim, PATINTERO.stall_seconds - 3.0)
+	sim.players[1].position = Vector2(2.0, PATINTERO.line_span - 1.0)
+	sim.step(DT)
+	_wait(sim, PATINTERO.stall_seconds)
+	assert_eq(sim.score.points, [0, 0] as Array[int], "somebody is playing: no stall point")
+	assert_eq(sim.mode.attack_team, 0)
 
 
 func test_patintero_a_runner_dives_and_the_cooldown_starts_when_it_is_standing_again() -> void:
@@ -561,7 +679,7 @@ func test_patintero_a_runner_dives_and_the_cooldown_starts_when_it_is_standing_a
 	_stand_all(sim)
 	var dives: Array = []
 	lines.dived.connect(func(id: int, way: Vector2, time: float, recover: float) -> void: dives.append([id, way, time, recover]))
-	sim.players[1].position = Vector2(8.0, 14.0)
+	sim.players[1].position = Vector2(2.0, 14.0)
 	var from: Vector2 = sim.players[1].position
 	sim.set_input(1, PlayerInput.create(Vector2(0.0, -1.0), Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
 	sim.step(DT)
@@ -649,14 +767,6 @@ func test_patintero_a_guard_dives_off_its_line_then_runs_back_and_cannot_move_or
 			break
 		sim.step(DT)
 	assert_almost_eq(sim.players[6].position.x, 0.0, 0.001, "and it is back on it")
-
-
-func test_patintero_the_roles_swap_when_the_turn_runs_out() -> void:
-	var sim: MatchSim = _sim(PATINTERO, 3)
-	_stand_all(sim)
-	for i: int in ceili(PATINTERO.turn_seconds / DT) + 1:
-		sim.step(DT)
-	assert_eq(sim.mode.attack_team, 1)
 
 
 func test_patintero_after_five_minutes_the_leader_wins_and_a_tie_plays_on() -> void:

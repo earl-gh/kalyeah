@@ -12,6 +12,8 @@ const CATCH_SHAKE: float = 0.3
 const DIVE_STREAK_COLOR: Color = Color(1.0, 1.0, 1.0, 0.55)
 
 var owner: PracticeMatch
+## The side of the street the picture has at the bottom (Patintero turns it round when the local team changes roles).
+var _viewed_side: int = MapLayout.SIDE_OWN
 
 
 ## The arena starts this far (UI pixels) below the header, so its shadow falls on the street's end and not on the play.
@@ -108,9 +110,8 @@ func connect_sim() -> void:
 func _connect_street_game(mode: StreetMode) -> void:
 	mode.tagged.connect(_on_caught)
 	mode.scored.connect(func(team: int, id: int) -> void:
-		var by_touch: bool = not owner.sim.point_log.is_empty() and owner.sim.point_log[-1].y == MatchSim.CaptureKind.TOUCHED
-		if by_touch:
-			return  # the tag has its own banner
+		if mode is Patintero:
+			return  # Patintero says its points in its own banners (the one that scored, all tagged, too slow)
 		if id == owner.local_id:
 			owner.show_banner("+1 YOU SCORED!")
 		elif not mode.is_free_for_all():
@@ -127,9 +128,18 @@ func _connect_street_game(mode: StreetMode) -> void:
 			if runner == owner.local_id:
 				owner.show_banner("TAGGED!")
 			elif guard == owner.local_id:
-				owner.show_banner("YOU TAGGED A RUNNER! +1")
+				owner.show_banner("YOU TAGGED A RUNNER!")
+			elif lines.runners_out() < lines.runner_count(owner.sim):
+				owner.show_banner("RUNNER TAGGED!"))
+		lines.scored.connect(func(team: int, _id: int) -> void:
+			var how: int = owner.sim.point_log[-1].y if not owner.sim.point_log.is_empty() else -1
+			var ours: bool = team == owner.local_team
+			if how == MatchSim.CaptureKind.TOO_SLOW:
+				owner.show_banner("TOO SLOW! +1 FOR THE GUARDS" if not ours else "TOO SLOW! +1 FOR YOU")
+			elif how == MatchSim.CaptureKind.TOUCHED:
+				owner.show_banner("ALL TAGGED! +1 FOR YOU" if ours else "ALL TAGGED! +1 FOR THEM")
 			else:
-				owner.show_banner("RUNNER TAGGED!" if owner.sim.players[guard].team != owner.local_team else "RUNNER TAGGED! +1"))
+				owner.show_banner("+1 FOR YOU!" if ours else "+1 FOR THEM"))
 		lines.dived.connect(_on_dived)
 
 
@@ -137,7 +147,7 @@ func _connect_street_game(mode: StreetMode) -> void:
 ## touched it has played its touch (or is finishing its dive: the catch is the dive's end).
 func _on_caught(tagger: int, target: int) -> void:
 	var view: KidModel = owner._views.get(target) as KidModel
-	var pause: float = owner.sim.mode.rules.reset_seconds
+	var pause: float = owner.sim.mode.catch_seconds()
 	if view != null:
 		view.play_tripped(pause)
 	var at: Vector2 = owner.sim.players[target].position
@@ -209,9 +219,13 @@ static func street_status(sim: MatchSim, player: PlayerState) -> Array[String]:
 			return ["FETCH IT OR YOU'RE IT!", UiText.f("Step into the fetch area: %d", [ceili(game.scared_left[id])])] as Array[String]
 		return ["FETCH YOUR SLIPPER!", "Kick the can to keep the taya busy."] as Array[String]
 	var lines: Patintero = mode as Patintero
+	if lines.is_jailed(player.id):
+		return ["TAGGED!", "Stay in the pen and cheer your team on. A teammate who scores frees you!"] as Array[String]
 	if lines.is_attacker(player):
-		return ["YOU RUN!", "Past the last guard, then back!"] as Array[String]
-	return ["YOU GUARD!", "Move into a runner's circle to tag!"] as Array[String]
+		if not lines.first_guard_passed:
+			return ["YOU RUN!", UiText.f("Get past the first guard in %d s!", [ceili(maxf(lines.stall_left, 0.0))])] as Array[String]
+		return ["YOU RUN!", "Past the last guard, then back to the base!"] as Array[String]
+	return ["YOU GUARD!", "Tag all the runners. Move into a runner's circle!"] as Array[String]
 
 
 ## How long before its release a kid's cast clip starts for `weapon`: a delayed cone (the big snip) strikes `delay` seconds
@@ -233,6 +247,9 @@ func sync(delta: float) -> void:
 	_sync_aim(player)
 	owner._fx.sync(owner.sim, delta)
 	owner._map.sync_rescue(owner.sim)
+	if owner.sim.mode is Patintero and owner.own_side() != _viewed_side:
+		_viewed_side = owner.own_side()  # the roles changed: the street is seen from the other end now
+		owner._map.set_own_side(_viewed_side)
 	owner.mode_view.sync(delta)
 	owner.hud.overhead.tick(delta)
 	owner.hud.marker.tick(delta)

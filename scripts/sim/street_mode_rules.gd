@@ -10,8 +10,6 @@ extends Resource
 @export var title: String = ""
 ## Length of the match (seconds). The leader then wins; a tie plays on until the next point.
 @export var match_seconds: float = 300.0
-## Patintero: a turn ends when every runner is tagged, or after this long; then the teams swap roles.
-@export var turn_seconds: float = 60.0
 ## Nobody can be tagged for this long after a swap of roles (everyone is walking to their places).
 @export var swap_grace: float = 1.5
 ## Every runner (and every Tumbang Preso thrower in the fetch area) has a tag circle round it, this big (m, radius): the taya or guard
@@ -84,9 +82,15 @@ extends Resource
 @export var kick_cooldown: float = 4.0
 
 @export_group("Patintero")
-## The court: two horizontal lines across the street at z = +line_span and -line_span, and one vertical line down the middle (x = 0)
-## between them. A guard keeps to the one line it is given.
+## The court: two horizontal lines across the street at z = +line_span and -line_span, and between them a middle part narrowed by a left
+## and a right vertical line at x = -corridor_half_width and +corridor_half_width, with one more vertical line down the middle (x = 0). A
+## guard keeps to the one line it is given. Between each of the two outer vertical lines and the sidewalk is the pen where tagged runners wait.
 @export var line_span: float = 10.0
+@export var corridor_half_width: float = 4.5
+## A tagged runner stands still this long (s, it stumbles) and then is in the pen.
+@export var catch_seconds: float = 0.7
+## A round in which no runner has passed the first guard after this long (s) is a point for the guards, and the teams swap roles.
+@export var stall_seconds: float = 20.0
 ## The Dive button (runners and guards): a quick burst of `dive_speed_share` times the run speed, `dive_time` s long, along the way the
 ## knob points (a guard too: a dive is the one thing that takes it off its line). Then the kid lies flat and gets up (`dive_recover`). A
 ## guard then runs back to the nearest point of its line, `dive_return_speed_share` times the run speed, and cannot move or dive meanwhile.
