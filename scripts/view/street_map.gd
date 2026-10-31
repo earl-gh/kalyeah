@@ -82,6 +82,9 @@ const FILLER_HOUSES: Array[String] = ["house_1", "house_2", "house_3", "karinder
 const BUILDING_WIDTH: float = 6.0
 ## The tricycle terminal stands in the left row of buildings at the top end of the play area.
 const TERMINAL: String = "tricycle_terminal"
+## The karinderya's stools reach out to this far from the play area's boundary (m): the whole sidewalk.
+const KARINDERYA: String = "karinderya"
+const KARINDERYA_MARGIN: float = 0.2
 ## Sidewalk pets and things (heights in metres, in proportion to the kids): the cat and the dog lie
 ## about, the chicken cage stands by a building, the drainage cover (a metre wide) is set in the walk.
 const CAT_HEIGHT: float = 0.3
@@ -844,6 +847,10 @@ func _add_houses() -> void:
 			elif side < 0.0 and absf(z - terminal_z) < spacing / 2.0:
 				id = TERMINAL
 				z = terminal_z
+			# the karinderya takes the right side's middle slot, pushed out so its stools fill the sidewalk
+			var karinderya: bool = side > 0.0 and absf(z) < spacing / 2.0
+			if karinderya:
+				id = KARINDERYA
 			if BUILDINGS.has(id):
 				shops += 1
 			var natural: Vector3 = PropModel.size_of(id)
@@ -851,7 +858,16 @@ func _add_houses() -> void:
 			var depth: float = natural.z * scale_to
 			# the front faces the street: +X on the left side, -X on the right
 			var yaw: float = PI / 2.0 if side < 0.0 else -PI / 2.0
-			_add_prop(PropModel.make(id, Vector3.ONE * scale_to), Vector3(side * (front + depth / 2.0 + 0.2), 0.0, z), yaw)
+			# the lot's middle is where the model's own middle stands, whatever side of its origin that is (a model made of many parts, the
+			# karinderya, has its origin a little off its middle)
+			var middle: Vector3 = PropModel.bounds_of(id).get_center() * scale_to
+			var origin_shift: Vector3 = Basis(Vector3.UP, yaw) * Vector3(middle.x, 0.0, middle.z)
+			var out: float = front + depth / 2.0 + 0.2
+			if karinderya:
+				# its front-most part (the stools) stands at the street edge of the sidewalk, the stall behind them
+				var box: AABB = PropModel.bounds_of(id)
+				out = half_w + layout.boundary_thickness + KARINDERYA_MARGIN + (box.position.z + box.size.z) * scale_to
+			_add_prop(PropModel.make(id, Vector3.ONE * scale_to), Vector3(side * out, 0.0, z) - origin_shift, yaw)
 			variant += 1
 			z += spacing
 
