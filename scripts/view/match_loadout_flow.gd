@@ -33,9 +33,9 @@ static func _weapon_ids(owner: PracticeMatch) -> Array[StringName]:
 
 
 static func confirm(owner: PracticeMatch, picks: Array[StringName]) -> void:
-	if not owner.rules.card_cycle:
+	var weapons: bool = not owner.rules.card_cycle and owner.sim.mode == null  # no skills in Tumbang Preso and Patintero
+	if weapons:
 		Session.remember_loadout(picks)
-	if not owner.rules.card_cycle:
 		owner.sim.set_loadout(owner.local_id, picks[0], picks[1])
 	var kid: StringName = owner._pick_screen.character_id
 	if kid != &"":

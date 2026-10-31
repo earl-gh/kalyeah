@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="StreetModeRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/street_mode_rules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+id = &"tumbang_preso"
+title = "Tumbang Preso"
+match_seconds = 300.0
+turn_seconds = 60.0
+swap_grace = 1.5
+tag_reach = 0.3
+home_z = 12.0
+goal_z = -18.0
+spawn_spacing = 3.0
+can_spot = Vector2(0, 2)
+can_hit_radius = 0.45
+throw_min_range = 6.0
+throw_max_range = 18.0
+throw_charge_time = 1.4
+throw_speed = 18.0
+aim_arc_degrees = 80.0
+aim_sensitivity_low = 0.0015
+aim_sensitivity_high = 0.006
+pickup_radius = 0.7
+place_radius = 0.8
+guard_offset = 3.0
+taya_speed_share = 1.5
+scared_seconds = 5.0
+can_fling_distance = 6.0
+slipper_fling_distance = 5.0
+fling_error_degrees = 18.0
+fling_distance_error = 0.2
+can_deflect_degrees = 35.0
+slipper_back_degrees = 150.0
+slipper_side_degrees = 80.0
+bounce_chance = 0.3
+bounce_share = 0.5
+bounce_error_degrees = 25.0
+fling_time = 0.55
+guide_length = 2.5
+kick_reach = 1.6
+kick_min_distance = 4.0
+kick_max_distance = 8.0
+kick_cooldown = 4.0
+line_span = 10.0
+bot_throw_error = 0.8
+bot_throw_margin = 0.5
+bot_throw_wait = 2.0
+bot_guard_speed = 0.8
+bot_safe_distance = 7.0
+bot_rush_seconds = 2.0

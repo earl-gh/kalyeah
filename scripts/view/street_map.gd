@@ -189,6 +189,8 @@ var _rescue_ready: Dictionary[int, bool] = {}
 var _posts: Dictionary[int, Node3D] = {}
 ## side -> the countdown number lying on that side's rescue area.
 var _counts: Dictionary[int, Label3D] = {}
+## Agawan Base's marks: the two posts, the bases and the rescue areas with their countdowns (hidden in the other street games).
+var _base_marks: Array[Node3D] = []
 
 @onready var _geometry: Node3D = %Geometry
 @onready var _camera: Camera3D = %Camera
@@ -273,9 +275,22 @@ func set_own_side(own_side: int) -> void:
 			material.albedo_color = color
 
 
+## Shows or hides Agawan Base's posts, bases and rescue areas (Tumbang Preso and Patintero have none).
+func show_bases(on: bool) -> void:
+	for mark: Node3D in _base_marks:
+		mark.visible = on
+
+
+## True when Agawan Base's posts and areas are shown.
+func bases_shown() -> bool:
+	return _base_marks.is_empty() or _base_marks[0].visible
+
+
 ## Each team's rescue area is white and half see-through while its countdown runs (`MatchSim.rescue_ready_left`), with the seconds on it, and
 ## the team's colour (blue yours, red theirs) once a teammate can rescue there.
 func sync_rescue(sim: MatchSim) -> void:
+	if sim.mode != null:
+		return
 	var covered: bool = sim.phase in [MatchSim.Phase.POINT_FREEZE, MatchSim.Phase.MATCH_OVER]
 	for team: int in [0, 1]:
 		var side: int = sim.side_for_team(team)
@@ -374,6 +389,7 @@ func _build_map() -> void:
 	_add_ground_textures()
 	for index: int in layout.obstacle_rects().size():
 		_add_obstacle(index)
+	var first_mark: int = _geometry.get_child_count()
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var color: Color = OWN_COLOR if side == MapLayout.SIDE_OWN else ENEMY_COLOR
 		_posts[side] = _add_post(layout.post_position(side))
@@ -382,6 +398,8 @@ func _build_map() -> void:
 		_base_materials[side] = [base[0], base[1], rescue[0], rescue[1]]
 		_counts[side] = _add_count(layout.rescue_rect(side).get_center())
 		_side_tint[side] = color
+	for index: int in range(first_mark, _geometry.get_child_count()):
+		_base_marks.append(_geometry.get_child(index) as Node3D)
 	_turn_posts(MapLayout.SIDE_OWN)
 	_add_barricades()
 	_add_boundary_pictures()

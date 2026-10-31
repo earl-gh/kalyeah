@@ -67,7 +67,13 @@ var _application_paused: bool = false
 var _presentation: PracticeMatchPresentation
 ## The bot teams of a Practice match vs bots (empty in training and online).
 var _coaches: Array[TeamCoach] = []
+## The bots of a street game (Tumbang Preso, Patintero), both teams; null in Agawan Base.
+var _mode_coach: StreetModeCoach
+## The street game's lines, can and slippers (empty in Agawan Base).
+var mode_view: StreetModeView
 var _hold_ticked: bool = false
+## Tumbang Preso: where the held Throw button aims (radians, see `_angle_of`).
+var _throw_angle: float = 0.0
 
 @onready var hud: MatchHud = %Hud
 @onready var _camera: ArenaCamera = %ArenaCamera
@@ -83,14 +89,21 @@ func _ready() -> void:
 		_setup_online()
 	else:
 		_setup_practice()
+	hud.set_street_game(sim.mode != null)
 	_presentation = PracticeMatchPresentation.new(self)
 	for character: CharacterDef in rules.characters:
 		_characters[character.id] = character
 	for id: int in sim.players:
 		_presentation.make_actor_view(sim.players[id])
 	_fx.watch(sim)
+	mode_view = StreetModeView.new()
+	mode_view.name = "StreetModeView"
+	add_child(mode_view)
+	mode_view.setup(sim, _fx.context(), local_id)
+
 	_fx.use_blend(blend)
 	_map.set_own_side(own_side())
+	_map.show_bases(sim.mode == null)
 	_map.show_back_button(false)
 	_presentation.setup_hud()
 	if not online:
@@ -315,7 +328,11 @@ func _setup_practice() -> void:
 		rules = rules.with_bot_level(Settings.bot_level)  # a copy with the chosen difficulty's bot numbers; the shared rules stay as they are
 	sim = MatchSim.new(rules, layout, Time.get_ticks_usec())
 	if Session.practice_kind == &"match":
-		_setup_bot_match()
+		var game: StreetModeRules = StreetMode.rules_for(Session.practice_game)
+		if game != null:
+			_setup_street_game(game)
+		else:
+			_setup_bot_match()
 		return
 	sim.add_player(local_id, local_team)
 	var stand_spot: Vector2 = Vector2(rules.dummy_stand_x, rules.dummy_z)
@@ -355,6 +372,23 @@ func _setup_bot_match() -> void:
 		sim.equip(id, true)
 
 
+## A street game in Practice. Patintero: you and two bot allies against three bots; your team runs first. Tumbang Preso: every kid plays
+## for itself (all on one team): you and five bots, one of them the taya to begin with.
+func _setup_street_game(game: StreetModeRules) -> void:
+	var for_all: bool = game.id == &"tumbang_preso"
+	sim.add_player(local_id, local_team)
+	_mode_coach = StreetModeCoach.new()
+	for id: int in BOT_ALLY_IDS:
+		sim.add_player(id, local_team)
+		_mode_coach.add(id)
+	for id: int in BOT_ENEMY_IDS:
+		sim.add_player(id, local_team if for_all else 1 - local_team)
+		_mode_coach.add(id)
+	sim.assign_characters()
+	sim.set_character(local_id, StringName(Session.avatar_id))
+	sim.start_mode(StreetMode.create(game))  # no skills in these games: nobody is dealt a hand
+
+
 func _setup_online() -> void:
 	if client == null:
 		client = Net.client
@@ -374,6 +408,8 @@ func _step_once(dt: float) -> void:
 		return
 	for coach: TeamCoach in _coaches:
 		coach.drive(sim)
+	if _mode_coach != null:
+		_mode_coach.drive(sim)
 	sim.set_input(local_id, _local_input(sim.tick))
 	sim.step(dt)
 	blend.record(sim)
@@ -427,6 +463,51 @@ func _stop_tilt() -> void:
 ## The camera is turned around when the local team defends the -Z base.
 func _flip() -> bool:
 	return own_side() == MapLayout.SIDE_ENEMY
+
+
+# ---- Tumbang Preso's throw -----------------------------------------------------------------
+
+## The Throw button was pressed: aim at the can, and the hold starts the line.
+func throw_pressed() -> void:
+	var game: TumbangPreso = sim.mode as TumbangPreso
+	if game == null or not sim.players.has(local_id):
+		return
+	_throw_angle = _angle_of(game.aim_at_can(sim.players[local_id].position))
+	input.throw_press(_way_of(_throw_angle))
+
+
+## The finger dragged `dx` pixels sideways: the aim turns by that much times the sensitivity of the line's length now (fine while it is
+## short, fast when it is full), within the arc the rules allow.
+func throw_dragged(dx: float) -> void:
+	var game: TumbangPreso = sim.mode as TumbangPreso
+	if game == null or not input.throw_held:
+		return
+	var turn: float = dx * game.sensitivity_at(game.charge(local_id)) * (-1.0 if _flip() else 1.0)
+	var arc: float = deg_to_rad(game.rules.aim_arc_degrees)
+	_throw_angle = clampf(_throw_angle + turn, -arc, arc)
+	input.throw_turn(_way_of(_throw_angle))
+
+
+func throw_released(cancel: bool) -> void:
+	input.throw_release(cancel)
+
+
+## The movement knob points `way` on screen (up the screen is -1); the camera of a team that defends the far end is turned round.
+func knob_moved(way: Vector2) -> void:
+	input.stick = -way if _flip() else way
+
+
+func kick_pressed() -> void:
+	input.kick_press()
+
+
+## The angle (radians, 0 = straight up the street toward the far end, positive = toward +X) of a way in sim XZ, and back.
+static func _angle_of(way: Vector2) -> float:
+	return atan2(way.x, -way.y)
+
+
+static func _way_of(angle: float) -> Vector2:
+	return Vector2(sin(angle), -cos(angle))
 
 
 # ---- weapon pick and swap ------------------------------------------------------------

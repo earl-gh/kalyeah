@@ -54,6 +54,13 @@ const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 const CAPTURE_LINGER: float = 0.4
 ## The tray at the bottom of the screen (the hand and the elixir bar): the arena sits above it. The camera reserves the same height.
 const CONSOLE_HEIGHT: float = 255.0
+## The tray of Tumbang Preso and Patintero (no hand: the role line and the Throw button) is this tall, plus the bottom inset.
+const STREET_TRAY: float = 210.0
+## Tumbang Preso's score column stands on the left sidewalk this far under the header, and the quick chat button under the clock is this big.
+const SCORE_COLUMN_GAP: float = 14.0
+const STREET_CHAT_SIZE: float = 84.0
+## The street games' quick chat opens a vertical list this wide.
+const STREET_CHAT_WIDTH: float = 250.0
 ## The most the bottom inset can add (a tall gesture bar), so the tray never eats the street.
 const MAX_BOTTOM_INSET: float = 80.0
 
@@ -83,6 +90,12 @@ var clock_flash: ClockStageFlash
 var sim_held: bool = false
 ## The hand: NEXT, four cards, the elixir bar and your health (it takes the touches on the tray).
 var hand: CardHand
+## Tumbang Preso and Patintero: no skills, so no hand; this stands on the tray instead (the role line and the Throw button).
+var street_pad: StreetGamePad
+## Tumbang Preso: every kid's points, on the left sidewalk (null elsewhere).
+var score_column: ScoreColumn
+## True in those two games (set by the match screen before the first frame).
+var street_game: bool = false
 ## Taps on the street (move orders).
 var street: StreetTouch
 ## The ring where your kid is walking to.
@@ -160,12 +173,14 @@ func set_chat_enabled(on: bool) -> void:
 
 ## The tray's height now: its own plus the bottom inset.
 func console_height() -> float:
+	if street_game:
+		return STREET_TRAY + bottom_inset
 	return (CardHand.SIDES_TRAY if sides_tray() else CONSOLE_HEIGHT) + bottom_inset
 
 
 ## True with Settings > Cards tray = Sides: the cards stand on the sides of the street and the tray is only the ice water bar's strip.
 func sides_tray() -> bool:
-	return Settings.cards_tray == &"sides"
+	return Settings.cards_tray == &"sides" and not street_game
 
 
 ## The width of the side panel the cards stand on in the Sides layout (0 in the bottom tray), and its side: the writing hand's.
@@ -180,6 +195,8 @@ func side_reserve_left() -> bool:
 ## The height of the blue plate (and of the tagged panel on it): the whole tray, or in the Sides layout only the bar's strip while you
 ## play (the plate grows to the full tray while you wait on the sidewalk, so the tagged panel has room; the street stays framed the same).
 func console_panel_height() -> float:
+	if street_game:
+		return console_height()
 	if sides_tray() and hand != null and hand.visible:
 		return console_height()
 	return CONSOLE_HEIGHT + bottom_inset
@@ -198,12 +215,14 @@ func set_controls_active(active: bool) -> void:
 	if not active:
 		cancel_controls()
 	hand.set_process_input(active)
+	street_pad.set_process_input(active)
 	street.set_process_unhandled_input(active)
 
 
 ## Clears every live gesture (a held card is dropped, a finger on the street lets go) while leaving input processing as it is.
 func cancel_controls() -> void:
 	hand.cancel_hold()
+	street_pad.cancel()
 	street.release()
 
 
@@ -253,6 +272,9 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	var playing: bool = not player.tagged and sim.phase == MatchSim.Phase.PLAYING and not pick_open and not connection_blocked
 	# during the opening show the first hand is on the tray, dimmed and locked, instead of an empty tray
 	var shown: bool = playing or (sim.phase == MatchSim.Phase.INTRO and not player.tagged and not pick_open and not connection_blocked)
+	if street_game:
+		_sync_street_pad(sim, player, shown, playing)
+		return
 	var shown_before: bool = hand.visible
 	hand.visible = shown
 	chat.visible = shown and chat_enabled
@@ -268,6 +290,48 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	for slot: int in _no_target.size():
 		notices.append(_notice(slot) if playing else "")
 	hand.show_state(sim, player, playing, _block_tag(sim, player) if playing else "", notices)
+	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
+
+
+## Tumbang Preso and Patintero take the tray over (no hand): the tray is its own height and the pad stands on it. Call before the first frame.
+func set_street_game(on: bool) -> void:
+	street_game = on
+	hand.visible = not on
+	street_pad.visible = on
+	console.visible = not on  # no tray: the knob and the buttons float over the street
+	chat.set_vertical(on)
+	layout_controls()
+
+
+## Tumbang Preso: the points of every kid stand on the left sidewalk.
+func setup_street_scores(sim: MatchSim, local_id: int) -> void:
+	score_column = ScoreColumn.new()
+	add_child(score_column)
+	score_column.setup(sim, local_id)
+	layout_controls()
+
+
+## Tumbang Preso and Patintero: the role line on the tray and, for a thrower with its slipper behind the line, the Throw button. There is no
+## hand, no chat and no cards.
+func _sync_street_pad(sim: MatchSim, player: PlayerState, shown: bool, playing: bool) -> void:
+	hand.visible = false
+	street.active = false  # the knob moves the kid, not a tap on the street
+	if not playing:
+		street.release()
+	var game: TumbangPreso = sim.mode as TumbangPreso
+	var button: StreetGamePad.Action = StreetGamePad.Action.NONE
+	if playing and game != null and game.is_attacker(player):
+		if game.can_throw(player):
+			button = StreetGamePad.Action.THROW
+		elif not game.has_slipper(player.id):
+			button = StreetGamePad.Action.KICK
+	var status: Array[String] = PracticeMatchPresentation.street_status(sim, player)
+	chat.visible = shown and chat_enabled
+	street_pad.visible = shown and not player.tagged
+	street_pad.show_state(status[0], status[1], button, game.charge(player.id) if game != null else 0.0, game != null and game.can_kick(player))
+	if score_column != null:
+		score_column.sync(game)
+	sync_plate_column()
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 
 
@@ -314,9 +378,12 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 			menu.close()
 	for item: CanvasItem in [header, top, scoreboard, marker, pulse, console, feedback]:
 		item.visible = not covered
+	if street_game:
+		console.visible = false
+		scoreboard.visible = not covered and not sim.mode.is_free_for_all()  # Tumbang Preso has no team score: the column has the points
 	overhead.visible = not covered or overhead.tag_count() > 0
 	if covered:
-		for item: CanvasItem in [hand, chat, tagged_panel, intro_bar, capture_label, capture_alert, banner, coach]:
+		for item: CanvasItem in [hand, street_pad, score_column, chat, tagged_panel, intro_bar, capture_label, capture_alert, banner, coach]:
 			item.hide()
 		clock_flash.cancel()
 	if _covered != covered:
@@ -331,7 +398,7 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 ## The clock: what is left of this stage (it restarts at Extended and again at Overtime), or the match time with the stages off. A new
 ## stage flashes its name in the middle and flies it to the caption (`ClockStageFlash`).
 func _sync_clock(sim: MatchSim, delta: float) -> void:
-	var counting: bool = sim.rules.overtime_after > 0.0
+	var counting: bool = sim.counts_down()
 	var stage: MatchSim.ClockStage = sim.clock_stage()
 	clock_chip.show_time(sim.clock_left() if counting else sim.match_time, stage, counting)
 	if not counting:
@@ -394,6 +461,8 @@ func _build() -> void:
 	add_child(capture_alert)
 	hand = CardHand.new()
 	add_child(hand)
+	street_pad = StreetGamePad.new()
+	add_child(street_pad)
 	chat = QuickChat.new()
 	add_child(chat)
 	chat.opened_changed.connect(func(opened: bool) -> void:
