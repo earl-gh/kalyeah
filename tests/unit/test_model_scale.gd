@@ -52,16 +52,26 @@ func test_the_six_kids_are_drawn_at_the_same_height() -> void:
 	assert_between(heights.max() as float, 1.69, 1.71, "the tallest normalized source model")
 
 
-func test_every_prop_is_one_mesh_at_the_origin_so_its_measured_size_is_true() -> void:
+## The props made of many parts (the owner's karinderya): measured as a whole (`PropModel.bounds_of`), so each must stand on the ground and be centred.
+const MANY_PARTS: Array[String] = ["karinderya.glb"]
+
+
+func test_every_prop_is_one_mesh_at_the_origin_or_a_model_of_parts_standing_on_the_ground_so_its_measured_size_is_true() -> void:
 	var dir: DirAccess = DirAccess.open("res://assets/models/props")
 	for file: String in dir.get_files():
 		if not file.ends_with(".glb"):
 			continue
 		var root: Node = (load("res://assets/models/props/" + file) as PackedScene).instantiate()
 		var meshes: Array[Node] = root.find_children("*", "MeshInstance3D", true, false)
-		assert_eq(meshes.size(), 1, "%s is one mesh (PropModel.size_of reads the first)" % file)
-		if not meshes.is_empty():
-			assert_true((meshes[0] as Node3D).transform.is_equal_approx(Transform3D.IDENTITY), "%s: its mesh has no offset" % file)
+		if MANY_PARTS.has(file):
+			assert_gt(meshes.size(), 1, "%s is a model of many parts" % file)
+			var box: AABB = PropModel.bounds_of(file.get_basename())
+			assert_almost_eq(box.position.y, 0.0, 0.01, "%s stands on the ground" % file)
+			assert_almost_eq(box.position.x + box.size.x / 2.0, 0.0, 0.05, "%s is centred sideways" % file)
+		else:
+			assert_eq(meshes.size(), 1, "%s is one mesh (PropModel.size_of reads the first)" % file)
+			if not meshes.is_empty():
+				assert_true((meshes[0] as Node3D).transform.is_equal_approx(Transform3D.IDENTITY), "%s: its mesh has no offset" % file)
 		root.free()
 
 

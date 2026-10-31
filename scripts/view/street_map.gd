@@ -851,7 +851,11 @@ func _add_houses() -> void:
 			var depth: float = natural.z * scale_to
 			# the front faces the street: +X on the left side, -X on the right
 			var yaw: float = PI / 2.0 if side < 0.0 else -PI / 2.0
-			_add_prop(PropModel.make(id, Vector3.ONE * scale_to), Vector3(side * (front + depth / 2.0 + 0.2), 0.0, z), yaw)
+			# the lot's middle is where the model's own middle stands, whatever side of its origin that is (a model made of many parts, the
+			# karinderya, has its origin a little off its middle)
+			var middle: Vector3 = PropModel.bounds_of(id).get_center() * scale_to
+			var origin_shift: Vector3 = Basis(Vector3.UP, yaw) * Vector3(middle.x, 0.0, middle.z)
+			_add_prop(PropModel.make(id, Vector3.ONE * scale_to), Vector3(side * (front + depth / 2.0 + 0.2), 0.0, z) - origin_shift, yaw)
 			variant += 1
 			z += spacing
 

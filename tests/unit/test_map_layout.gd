@@ -209,9 +209,11 @@ func test_the_model_props_are_light_and_standing_on_the_ground() -> void:
 		var mesh: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
 		var vertices: int = mesh.mesh.surface_get_array_len(0)
 		assert_lt(vertices, limits[id] * 3, "%s has %d vertices" % [id, vertices])
-		var box: AABB = mesh.mesh.get_aabb()
+		var box: AABB = PropModel.bounds_of(id)  # a model of many parts (the karinderya) is measured as a whole
 		assert_almost_eq(box.position.y, 0.0, 0.01, "%s stands on the ground" % id)
 		assert_almost_eq(box.position.x + box.size.x / 2.0, 0.0, 0.01, "%s is centred" % id)
+		if PropModel.AS_MADE.has(id):
+			continue  # the owner's model keeps its own materials (glass, glow, metal)
 		var material: StandardMaterial3D = mesh.get_surface_override_material(0) as StandardMaterial3D
 		assert_eq(material.roughness, 1.0, "%s is matte" % id)
 
