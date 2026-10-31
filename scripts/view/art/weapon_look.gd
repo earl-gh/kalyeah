@@ -11,6 +11,9 @@ const OUTLINE: Shader = preload("res://scripts/view/art/weapon_outline.gdshader"
 ## never clips to flat white; their top is not lifted.
 const WHITE_GAIN: Color = Color(0.93, 0.93, 0.95)
 const WHITE_TOP: float = 1.0
+## The bare wood of the trumpo keeps most of its red in the shade and the same blue as its green, so its shadow is deep warm brown and not
+## lavender (the default tint is violet, right for paint and tin, wrong for pale wood).
+const WOOD_SHADOW: Vector3 = Vector3(0.74, 0.62, 0.62)
 ## Per-model looks: models whose picture is noisy and photographic (the AI-made rock and soil) are drawn flat: blurred this many mip levels, in this
 ## many value steps, with this much colour. The picture itself is not touched.
 const STYLES: Dictionary[String, Dictionary] = {
@@ -18,6 +21,7 @@ const STYLES: Dictionary[String, Dictionary] = {
 	"soil_block": {"flatten": 2.5, "steps": 4.0, "colour_gain": 1.1},
 	"slipper": {"albedo_color": WHITE_GAIN, "top_boost": WHITE_TOP},
 	"paper": {"albedo_color": WHITE_GAIN, "top_boost": WHITE_TOP},
+	"trumpo": {"shadow_tint": WOOD_SHADOW},
 	"crumpled_paper": {"albedo_color": WHITE_GAIN, "top_boost": WHITE_TOP},
 	# the scissors' black blades are painted silver steel by the shader (scissors_steel.gdshaderinc); the red handles stay
 	"scissor": {"silver": 1.0},
