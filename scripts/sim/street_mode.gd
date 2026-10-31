@@ -47,6 +47,36 @@ static func create(p_rules: StreetModeRules) -> StreetMode:
 	return null
 
 
+## The fields a client's copy needs to show the game as the server plays it (Snapshot). Each game adds its own. Plain values and
+## Dictionaries of plain values only.
+func synced_fields() -> Array[StringName]:
+	return [&"attack_team", &"time_left", &"grace_left", &"reset_left"]
+
+
+## This game's state as plain data (for the SNAPSHOT message).
+func snapshot() -> Dictionary:
+	var data: Dictionary = {}
+	for field: StringName in synced_fields():
+		var value: Variant = get(field)
+		data[field] = (value as Dictionary).duplicate() if value is Dictionary else value
+	return data
+
+
+## Writes a `snapshot()` into this game (a client's copy). A missing field, or one of another type (an untrusted message), is skipped.
+func restore(data: Dictionary) -> void:
+	for field: StringName in synced_fields():
+		if not data.has(field):
+			continue
+		var value: Variant = data[field]
+		var current: Variant = get(field)
+		if current is Dictionary:
+			if value is Dictionary:
+				(current as Dictionary).clear()
+				(current as Dictionary).assign(value as Dictionary)
+		elif typeof(value) == typeof(current):
+			set(field, value)
+
+
 ## The rules of game `id`, or null for Agawan Base (or an unknown id).
 static func rules_for(id: StringName) -> StreetModeRules:
 	return load(RULES_PATHS[id]) as StreetModeRules if RULES_PATHS.has(id) else null

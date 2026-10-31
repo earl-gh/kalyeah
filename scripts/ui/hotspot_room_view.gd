@@ -309,13 +309,16 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	for choice: int in size_buttons:
 		size_buttons[choice].set_pressed_no_signal(choice == size)
 		size_buttons[choice].disabled = not host
+	# a street game is timed (most points win), so it has no "first to"
+	var game: StreetModeRules = StreetMode.rules_for(map_id)
 	(size_buttons[1].get_parent() as Control).visible = host
-	(first_to_buttons[3].get_parent() as Control).visible = host
+	(first_to_buttons[3].get_parent() as Control).visible = host and game == null
 	var open: bool = room.get("open", true) as bool
 	for choice: bool in open_buttons:
 		open_buttons[choice].set_pressed_no_signal(choice == open)
 	(open_buttons[true].get_parent() as Control).visible = host and online_room
-	format_summary.text = "%dv%d · First to %d" % [size, size, count]
+	format_summary.text = "%dv%d · First to %d" % [size, size, count] if game == null else \
+		"%dv%d · %d min" % [size, size, roundi(game.match_seconds / 60.0)]
 	if online_room:
 		format_summary.text += " · " + ("Open" if open else "Private")
 	format_summary.visible = not host

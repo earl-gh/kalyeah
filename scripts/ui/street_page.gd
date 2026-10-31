@@ -1,7 +1,7 @@
 class_name StreetPage
 extends VBoxContainer
 ## The Games page (the left tab of the bottom bar): every game of the barangay with its name and picture, what the game
-## is and how it plays here. Agawan Base is open everywhere; Tumbang Preso and Patintero are played in Practice for now (the lobby's map
+## is and how it plays here. Agawan Base and Patintero are open everywhere; Tumbang Preso is played in Practice for now (the lobby's map
 ## list still says Coming soon). The numbers come from the rules, so the words cannot go stale.
 
 ## The games in order: the map id (RoomService.MAP_IDS), the game's name, its picture, a colour, and what the game is.
@@ -51,7 +51,7 @@ static func practice_only(id: StringName) -> bool:
 
 ## The lines of how the street plays, with the numbers from `rules` (a street that is not built yet has one line saying so).
 static func mechanics_for(id: StringName, rules: GameRules) -> Array[String]:
-	if practice_only(id):
+	if StreetMode.RULES_PATHS.has(id):
 		return street_game_lines(StreetMode.rules_for(id))
 	if not playable(id):
 		return [SOON_LINE] as Array[String]
@@ -84,7 +84,8 @@ static func street_game_lines(game: StreetModeRules) -> Array[String]:
 			UiText.f("Stay behind the throw line while you hold your slipper. Too scared to fetch it for %d s? You're the taya!", [ceili(game.scared_seconds)]),
 		] as Array[String]
 	return [
-		UiText.f("%d minutes! The team with more points wins. Play it in Practice.", [minutes]),
+		UiText.f("%d minutes! The team with more points wins. Play it in Practice.", [minutes]) if practice_only(game.id) else
+			UiText.f("%d minutes! The team with more points wins. Play it in Practice, Local or Online.", [minutes]),
 		"Get past the enemy guards, run to the other end and back to earn a team point.",
 		"The court has two lines across the street and one down the middle. Guards stay on their line; runners run free.",
 		"Cross the middle line once, get past the last guard, then back to the base. ONE runner doing it is the team point, and every tagged runner is free again.",
