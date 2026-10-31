@@ -1,8 +1,8 @@
 class_name StreetPage
 extends VBoxContainer
 ## The Games page (the left tab of the bottom bar): every game of the barangay with its name and picture, what the game
-## is and how it plays here. Agawan Base and Patintero are open everywhere; Tumbang Preso is played in Practice for now (the lobby's map
-## list still says Coming soon). The numbers come from the rules, so the words cannot go stale.
+## is and how it plays here. All three are open everywhere (Practice, Local and Online). The numbers come from the rules, so the words
+## cannot go stale.
 
 ## The games in order: the map id (RoomService.MAP_IDS), the game's name, its picture, a colour, and what the game is.
 const STREETS: Array[Dictionary] = [
@@ -75,7 +75,8 @@ static func street_game_lines(game: StreetModeRules) -> Array[String]:
 	var minutes: int = roundi(game.match_seconds / 60.0)
 	if game.id == &"tumbang_preso":
 		return [
-			UiText.f("%d minutes! Every kid plays for itself and the most points wins. Play it in Practice.", [minutes]),
+			UiText.f("%d minutes! Every kid plays for itself and the most points wins. Play it in Practice.", [minutes]) if practice_only(game.id) else
+				UiText.f("%d minutes! Every kid plays for itself and the most points wins. Play it in Practice, Local or Online.", [minutes]),
 			"Only one kid is the taya, the 'it'. Everyone else throws.",
 			"Hold Throw to aim: the line grows the longer you hold. Let go to throw your slipper at the can.",
 			"Knock over the can, fetch your slipper, and run to the other end to earn a score.",

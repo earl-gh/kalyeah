@@ -72,6 +72,8 @@ static func card_text(room: Dictionary) -> String:
 	# Agawan Base says how many points win; a street game says its name (it is timed)
 	var goal: String = UiText.f("First to %d", [int(room.get("first_to", 3))]) if map_id == &"street" else \
 		HotspotRoomView.MAP_NAMES.get(map_id, String(map_id).capitalize()) as String
+	if RoomService.free_for_all(map_id):
+		return "%s\n%d/%d · %s" % [title, int(room.get("players", 0)), size * 2, goal]  # every kid for itself: no NvN
 	return "%s\n%dv%d · %d/%d · %s" % [title, size, size, int(room.get("players", 0)), size * 2, goal]
 
 

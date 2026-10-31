@@ -33,7 +33,7 @@ func test_every_game_has_its_name_and_picture_and_only_agawan_base_is_open() -> 
 	await wait_frames(2)
 	assert_eq(screen.street_page.cards.size(), 3, "Agawan Base, Tumbang Preso, Patintero")
 	assert_true(StreetPage.playable(&"street"))
-	assert_false(StreetPage.playable(&"tumbang_preso"))
+	assert_true(StreetPage.playable(&"tumbang_preso"), "Tumbang Preso plays in rooms too")
 	assert_true(StreetPage.playable(&"patintero"), "Patintero plays in rooms too")
 	assert_not_null(screen.street_page.find_child("Street_street", true, false))
 	var names: Array[String] = []
@@ -53,15 +53,14 @@ func test_the_mechanics_come_from_the_rules_so_they_cannot_go_stale() -> void:
 	assert_string_contains(joined, "score immediately", "a team wipe has no hold timer")
 
 
-func test_tumbang_preso_is_a_practice_game_and_patintero_plays_everywhere_both_with_their_rules() -> void:
+func test_both_street_games_play_everywhere_with_their_own_rules() -> void:
 	var rules: GameRules = load(StreetPage.RULES_PATH) as GameRules
-	assert_true(StreetPage.practice_only(&"tumbang_preso"))
-	assert_false(StreetPage.practice_only(&"patintero"), "Patintero plays in Local and Online rooms too")
 	for id: StringName in [&"tumbang_preso", &"patintero"]:
+		assert_false(StreetPage.practice_only(id), "%s plays in Local and Online rooms too" % id)
 		var lines: Array[String] = StreetPage.mechanics_for(id, rules)
 		assert_false(StreetPage.SOON_LINE in lines)
 		assert_string_contains(lines[0], "5 minutes", "%s keeps its own rules" % id)
-	assert_string_contains(StreetPage.mechanics_for(&"patintero", rules)[0], "Online")
+		assert_string_contains(lines[0], "Online")
 	assert_false(StreetPage.practice_only(&"street"), "Agawan Base is open everywhere")
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"street")
@@ -70,7 +69,7 @@ func test_tumbang_preso_is_a_practice_game_and_patintero_plays_everywhere_both_w
 	var words: Array[String] = []
 	for label: Node in chip.find_children("*", "Label", true, false):
 		words.append((label as Label).text)
-	assert_has(words, "Practice", "the chip says where it can be played")
+	assert_has(words, "Playable", "the chip says it plays everywhere")
 
 
 func test_the_book_and_history_have_tabs_of_their_own_and_settings_has_no_buttons_for_them() -> void:

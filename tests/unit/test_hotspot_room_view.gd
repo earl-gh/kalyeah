@@ -237,7 +237,7 @@ func test_the_kid_cards_are_rounded_with_a_shadow() -> void:
 	assert_not_null(picture.material, "the picture is cropped to the same corners")
 
 
-func test_the_map_carousel_lists_tumbang_preso_and_patintero_as_coming_soon() -> void:
+func test_the_map_carousel_lists_all_three_street_games_ready_to_pick() -> void:
 	var view: HotspotRoomView = _view(_room(2))
 	var picked: Array[StringName] = []
 	view.map_chosen.connect(func(id: StringName) -> void: picked.append(id))
@@ -246,11 +246,10 @@ func test_the_map_carousel_lists_tumbang_preso_and_patintero_as_coming_soon() ->
 	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[0]), "Agawan Base")
 	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[1]), "Tumbang Preso")
 	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[2]), "Patintero")
-	assert_false((view.map_carousel.cards[0].get_node("Heading") as Label).visible)
-	assert_eq((view.map_carousel.cards[1].get_node("Heading") as Label).text, "Coming soon")
+	for card: Button in view.map_carousel.cards:
+		assert_eq((card.get_node("Heading") as Label).text, "", "none says Coming soon: all three play in rooms (owner, 2026-10-31)")
 	view.map_carousel.select(1, false)
-	assert_true(picked.is_empty(), "a game that is not playable yet is not picked")
-	assert_string_contains((view.find_child("MapHint", true, false) as Label).text, "coming soon")
+	assert_eq(picked, [&"tumbang_preso"] as Array[StringName], "Tumbang Preso is picked")
 	view.close_map_carousel()
 
 

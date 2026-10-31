@@ -56,6 +56,8 @@ var size_buttons: Dictionary[int, Button] = {}
 ## Online, host only: Open and Private (owner: open by default).
 var open_buttons: Dictionary[bool, Button] = {}
 var player_grid: GridContainer
+## "Blue team" / "Red team" over the two columns (hidden in a game where every kid plays for itself: the columns are just places).
+var team_headers: HBoxContainer
 var player_cards: Array[Control] = []
 var kid_cards: Dictionary[String, Button] = {}
 var first_to_buttons: Dictionary[int, Button] = {}
@@ -244,6 +246,7 @@ func _build_player_section() -> Control:
 	column.add_theme_constant_override("separation", UiMetrics.GAP)
 	var headers: HBoxContainer = HBoxContainer.new()
 	headers.add_theme_constant_override("separation", int(GAP))
+	team_headers = headers
 	column.add_child(headers)
 	for team_name: String in ["Blue team", "Red team"]:
 		var label: Label = LobbyWidgets.label(team_name, UiMetrics.DETAIL, KalyeahTheme.TEXT_MUTED)
@@ -311,7 +314,9 @@ func show_room(room: Dictionary, my_id: int) -> void:
 		size_buttons[choice].disabled = not host
 	# a street game is timed (most points win), so it has no "first to"
 	var game: StreetModeRules = StreetMode.rules_for(map_id)
-	(size_buttons[1].get_parent() as Control).visible = host
+	var every_kid: bool = RoomService.free_for_all(map_id)
+	team_headers.visible = not every_kid
+	(size_buttons[1].get_parent() as Control).visible = host and not every_kid  # a free-for-all room always has six places
 	(first_to_buttons[3].get_parent() as Control).visible = host and game == null
 	var open: bool = room.get("open", true) as bool
 	for choice: bool in open_buttons:
@@ -319,9 +324,12 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	(open_buttons[true].get_parent() as Control).visible = host and online_room
 	format_summary.text = "%dv%d · First to %d" % [size, size, count] if game == null else \
 		"%dv%d · %d min" % [size, size, roundi(game.match_seconds / 60.0)]
+	if every_kid:
+		format_summary.text = UiText.f("%d to %d players", [game.room_min_players, size * 2]) + " · %d min" % roundi(game.match_seconds / 60.0)
 	if online_room:
 		format_summary.text += " · " + ("Open" if open else "Private")
-	format_summary.visible = not host
+	# a guest reads the format here; in a free-for-all the host has no size to pick, so it reads it too
+	format_summary.visible = not host or every_kid
 	_fill_players(members, size)
 	var picked: String = String(me.get("char", ""))
 	if picked.is_empty():

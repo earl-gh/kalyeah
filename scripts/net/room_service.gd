@@ -62,7 +62,7 @@ class Room extends RefCounted:
 ## The biggest team: 3v3 (a room is 2 to 6 players).
 const MAX_TEAM_SIZE: int = 3
 const MAP_IDS: Array[StringName] = [&"street", &"tumbang_preso", &"patintero"]
-const PLAYABLE_MAP_IDS: Array[StringName] = [&"street", &"patintero"]
+const PLAYABLE_MAP_IDS: Array[StringName] = [&"street", &"patintero", &"tumbang_preso"]
 
 var rooms: Dictionary[String, Room] = {}
 ## What a host may pick, and what a new room starts with (GameRules.first_to*).
@@ -160,6 +160,12 @@ func set_ready(peer_id: int, ready: bool) -> bool:
 func can_start(room: Room, host_ready: bool = false) -> bool:
 	if room.state != State.LOBBY:
 		return false
+	if free_for_all(room.map_id):
+		# every kid for itself: no teams to fill, just enough kids and everyone ready (owner: Tumbang Preso 3 to 6)
+		for m: Member in room.members:
+			if not (m.ready or (host_ready and m.player_id == room.host_player_id)):
+				return false
+		return room.members.size() >= StreetMode.rules_for(room.map_id).room_min_players
 	for m: Member in room.members:
 		var is_ready: bool = m.ready or (host_ready and m.player_id == room.host_player_id)
 		if not is_ready or m.team < 0:
@@ -191,8 +197,8 @@ func set_team_size(peer_id: int, size: int) -> bool:
 	var m: Member = member_of_peer(peer_id)
 	if m == null or m.player_id != room.host_player_id or room.state != State.LOBBY:
 		return false
-	if size < 1 or size > 3 or size == room.team_size:
-		return false
+	if size < 1 or size > 3 or size == room.team_size or free_for_all(room.map_id):
+		return false  # a free-for-all room always has its six places
 	if room.team_count(0) > size or room.team_count(1) > size or room.members.size() > size * 2:
 		return false
 	room.team_size = size
@@ -215,7 +221,19 @@ func set_map(peer_id: int, map_id: StringName) -> bool:
 	if not map_id in PLAYABLE_MAP_IDS:
 		return false
 	room.map_id = map_id
+	if free_for_all(map_id):
+		# six places, whatever the team size was; everyone gets one (the two columns are only places, not teams)
+		room.team_size = MAX_TEAM_SIZE
+		for other: Member in room.members:
+			if other.team < 0:
+				other.team = 0 if room.team_count(0) <= room.team_count(1) else 1
 	return true
+
+
+## True for a street game where every kid plays for itself (Tumbang Preso): no teams in the match, a room of up to six.
+static func free_for_all(map_id: StringName) -> bool:
+	var game: StreetModeRules = StreetMode.rules_for(map_id)
+	return game != null and StreetMode.create(game).is_free_for_all()
 
 
 ## Host only, in the lobby: open (listed) or private (code only).

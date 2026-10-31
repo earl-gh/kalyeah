@@ -75,6 +75,36 @@ func is_free_for_all() -> bool:
 	return true
 
 
+func synced_fields() -> Array[StringName]:
+	var fields: Array[StringName] = super()
+	fields.append_array([&"taya_id", &"points", &"winner_id", &"can_position", &"can_up", &"can_carrier", &"can_busy_left", &"slippers",
+		&"slipper_busy", &"fetched", &"scared_left", &"hold", &"aim_dir", &"kick_left"])
+	return fields
+
+
+## Also which slipper in the air is whose: the thrower's id -> the projectile's id (the projectiles themselves are the sim's).
+func snapshot() -> Dictionary:
+	var data: Dictionary = super()
+	var in_air: Dictionary = {}
+	for id: int in flights:
+		in_air[id] = flights[id].id
+	data["flights"] = in_air
+	return data
+
+
+## The slippers in the air point at the copy's own projectiles (written just before), found by their id.
+func restore(data: Dictionary, sim: MatchSim = null) -> void:
+	super(data, sim)
+	var in_air: Variant = data.get("flights")
+	if sim == null or not in_air is Dictionary:
+		return
+	flights.clear()
+	for id: Variant in in_air as Dictionary:
+		for projectile: WeaponSystem.Projectile in sim.weapons.projectiles:
+			if id is int and projectile.id == (in_air as Dictionary)[id]:
+				flights[id as int] = projectile
+
+
 func is_attacker(state: PlayerState) -> bool:
 	return state.id != taya_id
 
