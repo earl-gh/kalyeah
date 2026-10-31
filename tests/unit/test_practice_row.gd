@@ -119,7 +119,7 @@ func test_a_tumbang_preso_practice_is_every_kid_for_itself_with_one_taya() -> vo
 	for state: PlayerState in practice.sim.players.values():
 		assert_eq(state.team, 0, "nobody is on a team")
 	assert_ne(game.taya_id, practice.local_id, "a bot is the taya to begin with")
-	assert_false(practice._map.bases_shown(), "no posts or bases in Tumbang Preso")
+	assert_false(practice._map.bases_shown(), "no bases or rescue areas in Tumbang Preso")
 	assert_not_null(practice.mode_view.can_node(), "the can is drawn")
 	# the match's seed is the clock's: a thrower bot waits up to two seconds, aims and throws, so watch for any bot doing anything for a while
 	var acted: bool = false
@@ -180,6 +180,19 @@ func test_the_street_games_have_no_hand_no_tray_and_no_cards() -> void:
 		assert_eq(practice.hud.console_height(), MatchHud.STREET_TRAY + practice.hud.bottom_inset, "%s: only room for the knob" % game)
 		for id: int in practice.sim.players:
 			assert_eq(practice.sim.players[id].weapons.size(), 0, "%s: nobody holds a card" % game)
+
+
+func test_the_electric_posts_stand_in_the_same_corners_in_every_game() -> void:
+	var layout: MapLayout = load("res://data/rules/map_layout.tres") as MapLayout
+	for game: StringName in [&"street", &"tumbang_preso", &"patintero"]:
+		var practice: PracticeMatch = _practice(game)
+		practice.advance(DT)
+		assert_eq(practice._map.visible_posts(), 2, "%s: both electric posts" % game)
+		for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
+			var post: Node3D = practice._map._posts[side]
+			var corner: Vector2 = layout.post_position(side)
+			assert_almost_eq(post.global_position.x, corner.x, 0.01, "%s: the post of side %d" % [game, side])
+			assert_almost_eq(post.global_position.z, corner.y, 0.01)
 
 
 func test_the_street_games_frame_the_street_exactly_like_agawan_base() -> void:
