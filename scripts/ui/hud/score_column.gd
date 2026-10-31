@@ -26,6 +26,7 @@ var _rims: Dictionary[int, StyleBoxFlat] = {}
 var _shown: Dictionary[int, int] = {}
 var _slides: Dictionary[int, Tween] = {}
 var _targets: Dictionary[int, float] = {}
+var _pictures: Dictionary[int, TextureRect] = {}
 var _local_id: int = -1
 var _local_team: int = 0
 
@@ -85,6 +86,10 @@ func sync(sim: MatchSim, instant: bool = false) -> void:
 				_pop(_numbers[id])
 		if game != null:
 			_rims[id].border_color = RIM_TAYA if id == game.taya_id else (RIM_YOU if id == _local_id else RIM_OTHER)
+			# the kids can swap faces at the start (a team never has the same kid twice): the column follows
+			var face: Texture2D = KidModel.portrait(sim.players[id].character_id)
+			if _pictures[id].texture != face:
+				_pictures[id].texture = face
 		else:
 			_rims[id].border_color = RIM_YOU if id - TEAM_KEY == _local_team else RIM_OTHER
 
@@ -146,6 +151,7 @@ func _make_team_row(team: int) -> void:
 func _make_row(state: PlayerState) -> void:
 	var row: Control = _row(state.id, "Row%d" % state.id, Color(0.1, 0.18, 0.35))
 	var picture: TextureRect = TextureRect.new()
+	_pictures[state.id] = picture
 	picture.texture = KidModel.portrait(state.character_id)
 	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

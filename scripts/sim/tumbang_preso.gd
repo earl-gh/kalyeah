@@ -396,6 +396,7 @@ func can_tag(sim: MatchSim, guard: PlayerState, runner: PlayerState) -> bool:
 ## The taya moved into the tag circle of a thrower in the fetch area: it plays its touch, and the thrower is the taya now.
 func _tag(sim: MatchSim, guard: PlayerState, runner: PlayerState) -> void:
 	sim.weapon_cast.emit(guard.id, TAG_CAST)
+	tagged.emit(guard.id, runner.id)
 	become_taya(sim, runner.id, &"tagged")
 
 

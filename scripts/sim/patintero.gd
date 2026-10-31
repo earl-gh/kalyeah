@@ -8,10 +8,8 @@ extends StreetMode
 
 ## `id` reached the other end and now has to come back.
 signal runner_crossed(id: int)
-## `guard` tagged `runner` (the round resets).
-signal runner_tagged(guard: int, runner: int)
-## `id` dived along `way` (a unit vector) for `time` s.
-signal dived(id: int, way: Vector2, time: float)
+## `id` dived along `way` (a unit vector): the burst takes `time` s, then it lies flat and gets up for `recover` s more.
+signal dived(id: int, way: Vector2, time: float, recover: float)
 
 ## A guard's line: across the street (it moves along X) or down the middle (it moves along Z, between the two horizontal lines).
 enum Axis { HORIZONTAL, VERTICAL }
@@ -104,9 +102,9 @@ func _dive(sim: MatchSim, state: PlayerState, way: Vector2) -> void:
 	dive_way[state.id] = way
 	dive_cool[state.id] = rules.dive_cooldown
 	state.facing = way
-	state.cast_lock_left = rules.dive_time  # the stick does not steer a dive
+	state.cast_lock_left = rules.dive_time + rules.dive_recover  # the stick does not steer a dive, nor the get-up after it
 	sim.end_move(state)
-	dived.emit(state.id, way, rules.dive_time)
+	dived.emit(state.id, way, rules.dive_time, rules.dive_recover)
 
 
 # ---- one tick ------------------------------------------------------------------------------
@@ -131,7 +129,7 @@ func _step_game(sim: MatchSim, dt: float) -> void:
 ## A guard moved into the tag circle of a runner: the guard plays its touch, the guards' team earns a point and the round resets.
 func _tag(sim: MatchSim, guard: PlayerState, runner: PlayerState) -> void:
 	sim.weapon_cast.emit(guard.id, TAG_CAST)
-	runner_tagged.emit(guard.id, runner.id)
+	tagged.emit(guard.id, runner.id)
 	award(sim, guard, false, MatchSim.CaptureKind.TOUCHED)
 	if sim.phase == MatchSim.Phase.PLAYING:
 		begin_reset(sim)

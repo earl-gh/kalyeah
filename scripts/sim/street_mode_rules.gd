@@ -91,6 +91,8 @@ extends Resource
 ## knob points (a guard only along its own line); it can be used again `dive_cooldown` s after it started.
 @export var dive_speed_share: float = 2.6
 @export var dive_time: float = 0.4
+## After the burst the kid lies flat on the street and gets up: it cannot steer for this long more (s).
+@export var dive_recover: float = 0.5
 @export var dive_cooldown: float = 4.0
 
 @export_group("Bots")

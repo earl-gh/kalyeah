@@ -640,9 +640,11 @@ func open_practice_confirm() -> MenuDialog:
 	var card: MenuDialog = MenuDialog.create(game.title if game != null else "Practice", MenuDialog.WIDTH_SMALL)
 	var words: String = "3 v 3 against bots. Ready to rumble?"
 	if game != null:
-		words = "3 v 3 against bots. %d minutes, most points win!" % roundi(game.match_seconds / 60.0)
+		var who: String = "You against 5 bots." if game.id == &"tumbang_preso" else "3 v 3 against bots."
+		words = "%s %d minutes, most points win!" % [who, roundi(game.match_seconds / 60.0)]
 	card.add_label(words, MenuDialog.TEXT_SIZE, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
-	_add_difficulty_choice(card)
+	if game == null:
+		_add_difficulty_choice(card)  # the bots of the street games do not have levels
 	var play: Button = MenuDialog.make_button("Play", "gold", UiMetrics.BODY)
 	card.add_buttons([play])
 	play.pressed.connect(func() -> void:

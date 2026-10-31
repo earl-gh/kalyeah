@@ -475,31 +475,125 @@ func test_patintero_points_stand_in_a_column_by_team_most_first() -> void:
 	assert_eq(column.points_text(ScoreColumn.TEAM_KEY + 1), "2")
 
 
-func test_a_dive_leans_the_kid_into_the_air_slides_and_gets_up() -> void:
-	# the pose by itself
-	assert_lt(KidModel.dive_pose(0.05)["squash"] as float, 1.0, "a crouch first")
-	var leap: Dictionary = KidModel.dive_pose(0.3)
-	assert_lt(leap["lean"] as float, -0.3, "then it leans forward")
-	assert_gt(leap["lift"] as float, 0.1, "and leaves the ground")
-	var slide: Dictionary = KidModel.dive_pose(0.6)
-	assert_almost_eq(slide["lean"] as float, -KidModel.DIVE_LEAN, 0.001, "flat along the street")
-	assert_lt(slide["lift"] as float, leap["lift"] as float, "skimming it")
-	assert_almost_eq(KidModel.dive_pose(1.0)["lean"] as float, 0.0, 0.001, "and upright again at the end")
-	assert_almost_eq(KidModel.dive_pose(1.0)["lift"] as float, 0.0, 0.001)
-	# on a kid in a match
+func test_a_dive_crouches_leaps_slides_on_its_belly_and_gets_up() -> void:
+	# the script by itself
+	var crouch: Dictionary = KidModel.dive_step(0.05)
+	assert_eq(crouch["clip"], "Airborne")
+	assert_lt(crouch["squash"] as float, 1.0, "a crouch first")
+	var leap: Dictionary = KidModel.dive_step(0.25)
+	assert_eq(leap["clip"], "Airborne", "the leap, arms out")
+	assert_lt(leap["lean"] as float, -0.5, "leaning forward")
+	assert_gt(leap["lift"] as float, 0.2, "off the street")
+	var slide: Dictionary = KidModel.dive_step(0.45)
+	assert_eq(slide["clip"], "Tripped", "then flat on its belly")
+	assert_eq(slide["lean"], 0.0, "the clip is already flat: no lean on top of it")
+	assert_eq(slide["lift"], 0.0, "on the street")
+	assert_between(slide["time"] as float, KidModel.DIVE_SLIDE_FROM, KidModel.DIVE_SLIDE_TO)
+	var rise: Dictionary = KidModel.dive_step(0.8)
+	assert_gt(rise["time"] as float, KidModel.DIVE_SLIDE_TO, "the get-up is the rest of the clip")
+	assert_almost_eq(KidModel.dive_step(1.0)["time"] as float, KidModel.DIVE_GETUP_TO, 0.001)
+	var last: float = -1.0
+	for step: int in 21:
+		var at: Dictionary = KidModel.dive_step(float(step) / 20.0)
+		if (at["clip"] as String) == "Tripped":
+			assert_gte(at["time"] as float, last, "the fall clip only moves forward")
+			last = at["time"] as float
+	# on a kid in a match: the burst and the get-up are one animation
 	var practice: PracticeMatch = _practice(&"patintero")
+	var lines: Patintero = practice.sim.mode as Patintero
 	practice.advance(DT)
 	var view: KidModel = practice._views[practice.local_id] as KidModel
+	var total: float = lines.rules.dive_time + lines.rules.dive_recover
 	practice.hud.street_pad.knob_moved.emit(Vector2(0.0, -1.0))
 	practice.hud.street_pad.action_pressed.emit()
+	practice.advance(DT)
+	practice.hud.street_pad.knob_moved.emit(Vector2.ZERO)
 	var poses: Array[String] = []
 	var leaned: float = 0.0
-	for i: int in 24:
+	for i: int in ceili(total / DT) - 2:
 		practice.advance(DT)
 		poses.append(view.pose)
 		leaned = minf(leaned, (view.get_node("Body") as Node3D).rotation.x)
-	assert_has(poses, "dive", "the kid is in its dive pose")
-	assert_lt(leaned, -0.8, "and really leans into it")
-	assert_ne(view.pose, "dive", "it is over after the dive's time")
-	assert_eq((view.get_node("Body") as Node3D).rotation.x, 0.0, "the body is upright again")
+	assert_eq(poses[0], "dive")
+	assert_eq(poses[-1], "dive", "still getting up at the end of the burst and after it")
+	assert_lt(leaned, -0.5, "it leaned into the leap")
+	for i: int in 6:
+		practice.advance(DT)
+	assert_ne(view.pose, "dive", "over")
+	assert_eq((view.get_node("Body") as Node3D).rotation.x, 0.0, "upright again")
 	assert_eq((view.get_node("Body") as Node3D).position.y, 0.0)
+	assert_eq(view._player.speed_scale, 1.0, "its clips play on their own again")
+	# the kid could not steer the get-up
+	assert_gt(practice.sim.players[practice.local_id].cast_lock_left, -0.001)
+
+
+func test_a_kid_that_is_caught_stumbles_and_falls_and_one_that_dives_keeps_its_dive() -> void:
+	var practice: PracticeMatch = _practice(&"patintero")
+	var lines: Patintero = practice.sim.mode as Patintero
+	practice.advance(DT)
+	practice._mode_coach.ids.clear()  # the bots stand still: a dive of the guard's would take it out of the circle
+	for id: int in practice.sim.players:
+		practice.sim.set_input(id, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 0))
+	lines.dive_left.clear()  # (a bot guard may have dived on the first tick)
+	practice.sim.players[4].position = Vector2(0.0, lines.rules.line_span)
+	lines.grace_left = 0.0
+	var runner: KidModel = practice._views[practice.local_id] as KidModel
+	practice.sim.players[practice.local_id].position = Vector2(0.4, lines.rules.line_span + 0.6)  # in the circle of the guard on the near line
+	practice.sim.step(DT)
+	practice.advance(DT)
+	assert_true(runner.is_tripping(), "caught: it stumbles")
+	assert_eq(runner.pose, "tripped")
+	for i: int in ceili(lines.rules.reset_seconds / DT) + 4:
+		practice.advance(DT)
+	assert_false(runner.is_tripping(), "and is back on its feet at the new round")
+	# a dive in progress is not cut by a stumble
+	var kid: KidModel = KidModel.new()
+	kid.play_dive(0.9)
+	kid.play_tripped(1.3)
+	assert_false(kid.is_tripping())
+	assert_gt(kid.dive_left(), 0.0)
+	kid.free()
+
+
+func test_the_results_card_names_the_winner_of_a_street_game() -> void:
+	for game: StringName in [&"tumbang_preso", &"patintero"]:
+		var practice: PracticeMatch = _practice(game)
+		practice.advance(DT)
+		if practice.sim.mode is TumbangPreso:
+			(practice.sim.mode as TumbangPreso).points[practice.local_id] = 4
+		else:
+			practice.sim.score.points[0] = 4
+		practice.sim.mode.time_left = DT / 2.0
+		for i: int in 6:
+			practice.advance(DT)
+		assert_eq(practice.sim.phase, MatchSim.Phase.MATCH_OVER, "%s: time is up" % game)
+		assert_true(practice.hud.results.visible, "%s: the card shows" % game)
+		assert_eq(practice.hud.results.title.text, "Victory", "%s: you led" % game)
+		assert_string_contains(practice.hud.results.subtitle.text, practice.sim.mode.rules.title)
+		assert_eq(practice.hud.results.mine_label.text, "4", "%s: your points" % game)
+
+
+func test_the_street_games_have_no_difficulty_and_no_tilt_and_the_column_follows_the_faces() -> void:
+	Session.menu_mode = PRACTICE_MODE
+	for game: StringName in [&"tumbang_preso", &"patintero", &"street"]:
+		Session.practice_game = game
+		var screen: TitleScreen = _phone_screen()
+		await wait_frames(2)
+		var card: MenuDialog = screen.open_practice_confirm()
+		await wait_frames(1)
+		assert_eq(card.find_child("DifficultyChoice", true, false) != null, game == &"street", "%s: bots have levels only in Agawan Base" % game)
+		card.close(false)
+	# tilt to run never steers a street game
+	var practice: PracticeMatch = _practice(&"tumbang_preso")
+	var saved: bool = Settings.tilt_to_run
+	Settings.tilt_to_run = true
+	practice.steer_by_tilt(Vector3(6.0, 6.0, 2.0))
+	assert_false(practice.tilt_steering)
+	Settings.tilt_to_run = saved
+	# a face swap at the start shows in the points column
+	practice.advance(DT)
+	var column: ScoreColumn = practice.hud.score_column
+	var other: StringName = &"popoy" if practice.sim.players[2].character_id != &"popoy" else &"inday"
+	practice.sim.players[2].character_id = other
+	practice.advance(DT)
+	assert_eq(column._pictures[2].texture, KidModel.portrait(other))

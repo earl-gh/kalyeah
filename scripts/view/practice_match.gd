@@ -114,7 +114,7 @@ func _ready() -> void:
 	_pick_screen.confirmed.connect(_on_pick_confirmed)
 	_pick_screen.swapped.connect(_on_swapped)
 	_pick_screen.closed.connect(_set_controls_active.bind(true))
-	_open_pick("PICK A KID + 2 WEAPONS", [])
+	_open_pick("PICK A KID" if sim.mode != null else "PICK A KID + 2 WEAPONS", [])  # no skills in the street games
 	_opening_pick = true
 	if online:
 		client.stage_changed.connect(_on_stage_changed)
@@ -429,8 +429,8 @@ func _local_input(tick: int) -> PlayerInput:
 ## it there (the follow-the-finger path, so the kid runs at its one speed and every rule of walking applies); back to level, the target
 ## comes to where the kid stands, so it stops. A finger already on the street wins until it lets go; a tagged kid waits.
 func steer_by_tilt(reading: Vector3) -> void:
-	if not Settings.tilt_to_run or not sim.players.has(local_id):
-		_stop_tilt()
+	if not Settings.tilt_to_run or not sim.players.has(local_id) or sim.mode != null:
+		_stop_tilt()  # (the street games are steered with the knob)
 		return
 	var state: PlayerState = sim.players[local_id]
 	if state.tagged or (input.move_held and not tilt_steering):

@@ -514,7 +514,7 @@ func test_patintero_a_guard_moving_into_a_runners_circle_tags_it_for_a_point_and
 	var casts: Array = []
 	sim.weapon_cast.connect(func(id: int, weapon: StringName) -> void: casts.append([id, weapon]))
 	var tags: Array = []
-	lines.runner_tagged.connect(func(guard: int, runner: int) -> void: tags.append([guard, runner]))
+	lines.tagged.connect(func(guard: int, runner: int) -> void: tags.append([guard, runner]))
 	# just outside the circle of the guard on the near line
 	sim.players[1].position = Vector2(PATINTERO.tag_circle_radius + 0.3, PATINTERO.line_span)
 	sim.step(DT)
@@ -538,12 +538,12 @@ func test_patintero_a_runner_dives_and_it_cools_down() -> void:
 	var lines: Patintero = sim.mode as Patintero
 	_stand_all(sim)
 	var dives: Array = []
-	lines.dived.connect(func(id: int, way: Vector2, time: float) -> void: dives.append([id, way, time]))
+	lines.dived.connect(func(id: int, way: Vector2, time: float, recover: float) -> void: dives.append([id, way, time, recover]))
 	sim.players[1].position = Vector2(8.0, 14.0)
 	var from: Vector2 = sim.players[1].position
 	sim.set_input(1, PlayerInput.create(Vector2(0.0, -1.0), Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
 	sim.step(DT)
-	assert_eq(dives, [[1, Vector2(0.0, -1.0), PATINTERO.dive_time]])
+	assert_eq(dives, [[1, Vector2(0.0, -1.0), PATINTERO.dive_time, PATINTERO.dive_recover]])
 	assert_true(lines.is_diving(1))
 	assert_false(lines.can_dive(sim.players[1]), "cooling down")
 	sim.set_input(1, PlayerInput.create(Vector2(0.0, -1.0), Vector2.ZERO, 0, 0))
@@ -571,7 +571,7 @@ func test_patintero_a_guard_dives_only_along_its_own_line() -> void:
 	var lines: Patintero = sim.mode as Patintero
 	_stand_all(sim)
 	var ways: Dictionary = {}
-	lines.dived.connect(func(id: int, way: Vector2, _time: float) -> void: ways[id] = way)
+	lines.dived.connect(func(id: int, way: Vector2, _time: float, _recover: float) -> void: ways[id] = way)
 	# the horizontal guard: the stick points up and right, it dives sideways
 	sim.set_input(4, PlayerInput.create(Vector2(0.6, -0.8), Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
 	# the vertical guard: the stick points left and up, it dives up the line

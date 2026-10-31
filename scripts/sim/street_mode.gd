@@ -14,6 +14,8 @@ const RULES_PATHS: Dictionary[StringName, String] = {
 ## The id the tagger's touch is sent to the views as (`MatchSim.weapon_cast`): the kid plays its run-cast clip, as if it touched the other.
 const TAG_CAST: StringName = &"tag"
 
+## `tagger` caught `target` (the touch is made: the target stumbles, and the round resets).
+signal tagged(tagger: int, target: int)
 ## `id` (of `team`) earned a point.
 signal scored(team: int, id: int)
 ## The roles changed hands: Patintero's `who` is the team that runs now; Tumbang Preso's is the new taya's id.
@@ -168,8 +170,9 @@ func check_tags(sim: MatchSim) -> void:
 
 
 ## `guard` moved into the tag circle of `runner`: it plays its touch and the round resets. Overridden.
-func _tag(sim: MatchSim, guard: PlayerState, _runner: PlayerState) -> void:
+func _tag(sim: MatchSim, guard: PlayerState, runner: PlayerState) -> void:
 	sim.weapon_cast.emit(guard.id, TAG_CAST)
+	tagged.emit(guard.id, runner.id)
 	begin_reset(sim)
 
 

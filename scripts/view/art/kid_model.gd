@@ -20,10 +20,29 @@ const KID_HEIGHT: float = 1.85
 const POLYMORPH_CAN_MODEL: String = "can"
 const POLYMORPH_CAN_HEIGHT: float = 1.3
 const BLEND: float = 0.14
-## The dive: how far the body leans forward at its flattest (radians), how high the leap lifts it and how high it skims after (m).
-const DIVE_LEAN: float = 1.35
-const DIVE_LIFT: float = 0.45
-const DIVE_SKIM: float = 0.18
+## The dive (Patintero) is scripted from the kid's own clips, over the dive's whole length (the burst and the get-up): a crouch (the Airborne
+## clip's first frame, squashed), a leap with the arms out (Airborne, the body leaning forward and lifted), then it lies on its belly and slides
+## (the flat frames of the Tripped clip), and gets up (the rest of the Tripped clip, played faster). Each phase ends at these shares (0 to 1)
+## of the dive; the clip times are the ones measured on the GLBs (docs/ART.md).
+const DIVE_CROUCH_END: float = 0.11
+const DIVE_LEAP_END: float = 0.33
+const DIVE_SLIDE_END: float = 0.6
+const DIVE_LEAN: float = 1.2
+const DIVE_LIFT: float = 0.5
+const DIVE_SKIM: float = 0.1
+const DIVE_CROUCH_SQUASH: float = 0.82
+const DIVE_CLIP_AIR: String = "Airborne"
+const DIVE_CLIP_FALL: String = "Tripped"
+const DIVE_AIR_FROM: float = 0.1
+const DIVE_AIR_TO: float = 0.6
+const DIVE_SLIDE_FROM: float = 1.35
+const DIVE_SLIDE_TO: float = 1.85
+const DIVE_GETUP_TO: float = 3.5
+## A kid that is caught stumbles and falls (the Tripped clip from `TRIP_FROM` to `TRIP_TO` s into it) over the length of the pause that follows.
+const TRIP_FROM: float = 0.15
+const TRIP_TO: float = 1.75
+## The pose of a scripted clip (a dive, a stumble): the clip is set frame by frame, never played.
+const SCRIPTED: String = "scripted"
 ## The sim steps at 30 Hz but the screen draws faster: with no new position for this
 ## long the kid is standing still.
 const STILL_AFTER: float = 0.2
@@ -94,9 +113,13 @@ var _last_position: Vector3 = Vector3.INF
 var _was_tagged: bool = false
 ## A touch (the taya or a guard tagging) keeps its run-cast clip to the end even though the kid stops at once.
 var _cast_keep: bool = false
-## The dive (Patintero): seconds left, its length, and the dive's progress (0 to 1) now.
+## The dive (Patintero): seconds left, its length. The stumble of a kid that was caught: seconds left, its length.
 var _dive_left: float = 0.0
 var _dive_total: float = 0.0
+var _trip_left: float = 0.0
+var _trip_total: float = 0.0
+## The clip a scripted pose last set (a change of clip is a cut).
+var _scripted_clip: String = ""
 var _cast_serial: int = 0
 var _cast_played: int = 0
 ## How far each of these has popped in (0 gone, 1 whole) and which way it is going (up: popping in).
@@ -170,11 +193,22 @@ func play_touch() -> void:
 	_cast_keep = true
 
 
-## The kid dives along its facing for `time` s (Patintero): it crouches, throws itself forward to a flat dive with the arms out, slides and
-## gets back up with a little squash. View only: the sim moves the kid.
-func play_dive(time: float) -> void:
-	_dive_total = maxf(time, 0.01)
+## The kid dives along its facing, `total` s from the crouch to standing again (Patintero): it crouches, leaps forward with its arms out,
+## lands on its belly and slides, and gets up. View only: the sim moves the kid.
+func play_dive(total: float) -> void:
+	_dive_total = maxf(total, 0.01)
 	_dive_left = _dive_total
+	_trip_left = 0.0
+
+
+## The kid was caught (a tag): it stumbles and falls over `total` s. A dive in progress carries on instead (the catch is the dive's end).
+func play_tripped(total: float) -> void:
+	if _dive_left > 0.0:
+		return
+	_trip_total = maxf(total, 0.01)
+	_trip_left = _trip_total
+	_cast_left = 0.0
+	_cast_keep = false
 
 
 ## Seconds left of the dive (0 when it is not diving).
@@ -187,28 +221,38 @@ func dive_progress() -> float:
 	return 1.0 - _dive_left / _dive_total if _dive_left > 0.0 else 0.0
 
 
-## The dive's pose at `progress` (0 to 1): how far the body leans forward (radians, negative is forward), how high it is lifted (m) and its
-## squash (the height's share). A crouch (0 to 0.15), the leap to a flat dive (to 0.45), the slide (to 0.8) and the stand-up.
-static func dive_pose(progress: float) -> Dictionary:
-	var lean: float = 0.0
-	var lift: float = 0.0
-	var squash: float = 1.0
-	if progress < 0.15:
-		squash = lerpf(1.0, 0.82, progress / 0.15)
-	elif progress < 0.45:
-		var t: float = (progress - 0.15) / 0.3
-		lean = -DIVE_LEAN * sin(t * PI / 2.0)
-		lift = DIVE_LIFT * sin(t * PI)
-		squash = lerpf(0.82, 1.0, t)
-	elif progress < 0.8:
-		lean = -DIVE_LEAN
-		lift = DIVE_SKIM
-	else:
-		var t: float = (progress - 0.8) / 0.2
-		lean = -DIVE_LEAN * (1.0 - t * t)
-		lift = DIVE_SKIM * (1.0 - t)
-		squash = 1.0 - 0.12 * sin(t * PI)
-	return {"lean": lean, "lift": lift, "squash": squash}
+## True while the kid stumbles after being caught.
+func is_tripping() -> bool:
+	return _trip_left > 0.0
+
+
+## The dive at `progress` (0 to 1): which clip is set at which second of it, how far the body leans forward (radians, negative is forward),
+## how high it is lifted (m) and its squash (the height's share). The crouch, the leap, the belly-slide and the get-up.
+static func dive_step(progress: float) -> Dictionary:
+	if progress < DIVE_CROUCH_END:
+		var t: float = progress / DIVE_CROUCH_END
+		return {"clip": DIVE_CLIP_AIR, "time": 0.0, "lean": 0.0, "lift": 0.0, "squash": lerpf(1.0, DIVE_CROUCH_SQUASH, t)}
+	if progress < DIVE_LEAP_END:
+		var t: float = (progress - DIVE_CROUCH_END) / (DIVE_LEAP_END - DIVE_CROUCH_END)
+		return {"clip": DIVE_CLIP_AIR, "time": lerpf(DIVE_AIR_FROM, DIVE_AIR_TO, t), "lean": -DIVE_LEAN * sin(t * PI / 2.0),
+			"lift": DIVE_LIFT * sin(t * PI) + DIVE_SKIM * t, "squash": lerpf(DIVE_CROUCH_SQUASH, 1.0, t)}
+	if progress < DIVE_SLIDE_END:
+		var t: float = (progress - DIVE_LEAP_END) / (DIVE_SLIDE_END - DIVE_LEAP_END)
+		return {"clip": DIVE_CLIP_FALL, "time": lerpf(DIVE_SLIDE_FROM, DIVE_SLIDE_TO, t), "lean": 0.0, "lift": 0.0, "squash": 1.0}
+	var t: float = (progress - DIVE_SLIDE_END) / (1.0 - DIVE_SLIDE_END)
+	return {"clip": DIVE_CLIP_FALL, "time": lerpf(DIVE_SLIDE_TO, DIVE_GETUP_TO, t), "lean": 0.0, "lift": 0.0, "squash": 1.0}
+
+
+## The stumble at `progress` (0 to 1): the Tripped clip from the first lurch to lying flat.
+static func trip_step(progress: float) -> Dictionary:
+	return {"clip": DIVE_CLIP_FALL, "time": lerpf(TRIP_FROM, TRIP_TO, clampf(progress, 0.0, 1.0)), "lean": 0.0, "lift": 0.0, "squash": 1.0}
+
+
+## What a scripted pose (the dive, or the stumble) is at this moment.
+func _scripted_step() -> Dictionary:
+	if _dive_left > 0.0:
+		return dive_step(dive_progress())
+	return trip_step(1.0 - _trip_left / _trip_total)
 
 
 ## Seconds into a cast clip ("cast" or "cast_run") where the hand releases: the cast starts there, so the release lands on
@@ -278,6 +322,7 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	if _cast_left <= 0.0:
 		_cast_keep = false
 	_dive_left = maxf(0.0, _dive_left - delta)
+	_trip_left = maxf(0.0, _trip_left - delta)
 	var polymorphed: bool = state.effects.has(StatusEffects.Type.POLYMORPH)
 	set_ghost(state.tagged)
 	_step_morph(delta, polymorphed)
@@ -314,9 +359,9 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	elif state.effects.has(StatusEffects.Type.STUN) or state.effects.has(StatusEffects.Type.KNOCKOUT):
 		pose = "stunned"  # no fall: a knock-out shows as stunned too
 		anim = "stun"
-	elif _dive_left > 0.0:
-		pose = "dive"
-		anim = "airborne"  # the arms out; the body's lean and lift are drawn in `_apply_dive`
+	elif _dive_left > 0.0 or _trip_left > 0.0:
+		pose = "dive" if _dive_left > 0.0 else "tripped"
+		anim = SCRIPTED  # a clip set frame by frame (`_scrub`); the body's lean and lift are drawn in `_apply_dive`
 	elif _cast_left > 0.0:
 		pose = "cast"
 		anim = _cast_clip
@@ -333,14 +378,15 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	_apply_dive()
 
 
-## The body leans, lifts and squashes along the dive (and is upright and level again when it is over).
+## The body leans, lifts and squashes along a scripted pose (and is upright and level again when it is over).
 func _apply_dive() -> void:
-	if _dive_left <= 0.0 and _body.rotation.x == 0.0 and _body.position.y == 0.0:
+	var scripted: bool = _dive_left > 0.0 or _trip_left > 0.0
+	if not scripted and _body.rotation.x == 0.0 and _body.position.y == 0.0:
 		return
-	var pose_now: Dictionary = dive_pose(dive_progress())
-	_body.rotation.x = pose_now["lean"] as float
-	_body.position.y = pose_now["lift"] as float
-	_body.scale.y *= pose_now["squash"] as float
+	var step: Dictionary = _scripted_step() if scripted else {"lean": 0.0, "lift": 0.0, "squash": 1.0}
+	_body.rotation.x = step["lean"] as float
+	_body.position.y = step["lift"] as float
+	_body.scale.y *= step["squash"] as float
 
 
 ## A tagged kid pops out where it stood, then pops in at full size in the tagged box, where the sim has already put it. View only: the
@@ -427,10 +473,28 @@ func is_vanishing() -> bool:
 
 ## Starts the clip for `anim` (blended from whatever was playing) when it changes, or again for a new cast.
 func _drive(anim: String) -> void:
+	if anim == SCRIPTED:
+		_scrub(_scripted_step())
+		return
+	if _playing == SCRIPTED:
+		_player.speed_scale = 1.0
+		_playing = ""
+		_scripted_clip = ""
 	var is_cast: bool = anim == "cast" or anim == "cast_run"
 	if anim != _playing or (is_cast and _cast_played != _cast_serial):
 		_cast_played = _cast_serial
 		_play(anim)
+
+
+## Sets the clip of a scripted pose at the second it asks for (a change of clip is a cut: the poses either side are both flat or crouched).
+func _scrub(step: Dictionary) -> void:
+	var clip: String = step["clip"] as String
+	_playing = SCRIPTED
+	if clip != _scripted_clip:
+		_scripted_clip = clip
+		_player.play(clip, 0.0)
+	_player.speed_scale = 0.0
+	_player.seek(step["time"] as float, true)
 
 
 func _play(clip: String) -> void:

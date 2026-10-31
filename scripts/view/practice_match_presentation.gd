@@ -6,6 +6,9 @@ extends RefCounted
 const DIVE_DUST: int = 6
 const DIVE_STREAK_WIDTH: float = 0.7
 const DIVE_STREAK_LIFT: float = 0.1
+## The stars of a catch hang this high (m) over the one caught, and the screen shakes a little for the kid that caught or was caught.
+const CATCH_STARS_HEIGHT: float = 1.4
+const CATCH_SHAKE: float = 0.3
 const DIVE_STREAK_COLOR: Color = Color(1.0, 1.0, 1.0, 0.55)
 
 var owner: PracticeMatch
@@ -103,6 +106,7 @@ func connect_sim() -> void:
 
 ## Tumbang Preso and Patintero say what happens in a banner: who is it or whose turn it is, a point, and (for you) what to do next.
 func _connect_street_game(mode: StreetMode) -> void:
+	mode.tagged.connect(_on_caught)
 	mode.scored.connect(func(team: int, id: int) -> void:
 		var by_touch: bool = not owner.sim.point_log.is_empty() and owner.sim.point_log[-1].y == MatchSim.CaptureKind.TOUCHED
 		if by_touch:
@@ -119,7 +123,7 @@ func _connect_street_game(mode: StreetMode) -> void:
 		lines.runner_crossed.connect(func(id: int) -> void:
 			if id == owner.local_id:
 				owner.show_banner("NOW RUN BACK HOME!"))
-		lines.runner_tagged.connect(func(guard: int, runner: int) -> void:
+		lines.tagged.connect(func(guard: int, runner: int) -> void:
 			if runner == owner.local_id:
 				owner.show_banner("TAGGED!")
 			elif guard == owner.local_id:
@@ -129,12 +133,27 @@ func _connect_street_game(mode: StreetMode) -> void:
 		lines.dived.connect(_on_dived)
 
 
-## A kid dives (Patintero): it leans into the dive for `time` s, with dust where it leaves the ground and where it gets up and a streak on
-## the street between them.
-func _on_dived(id: int, way: Vector2, time: float) -> void:
+## A kid was caught (a tag): it stumbles and falls while everyone stands still, with stars and dust where it was touched. The one that
+## touched it has played its touch (or is finishing its dive: the catch is the dive's end).
+func _on_caught(tagger: int, target: int) -> void:
+	var view: KidModel = owner._views.get(target) as KidModel
+	var pause: float = owner.sim.mode.rules.reset_seconds
+	if view != null:
+		view.play_tripped(pause)
+	var at: Vector2 = owner.sim.players[target].position
+	var context: FxContext = owner._fx.context()
+	context.particles.puff(FxParticles.Preset.STARS, Vector3(at.x, CATCH_STARS_HEIGHT, at.y), FxBursts.STARS)
+	context.particles.puff(FxParticles.Preset.DUST, Vector3(at.x, 0.0, at.y), DIVE_DUST)
+	if tagger == owner.local_id or target == owner.local_id:
+		owner._camera.shake(CATCH_SHAKE)
+
+
+## A kid dives (Patintero): it crouches, leaps, slides on its belly and gets up (`KidModel.play_dive`, `time` s of burst and `recover` s of
+## lying and rising), with dust where it leaves the ground and where the burst ends and a streak on the street between them.
+func _on_dived(id: int, way: Vector2, time: float, recover: float) -> void:
 	var view: KidModel = owner._views.get(id) as KidModel
 	if view != null:
-		view.play_dive(time)
+		view.play_dive(time + recover)
 	var state: PlayerState = owner.sim.players[id]
 	var context: FxContext = owner._fx.context()
 	var lines: Patintero = owner.sim.mode as Patintero
