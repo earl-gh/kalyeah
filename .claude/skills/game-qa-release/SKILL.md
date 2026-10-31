@@ -51,5 +51,5 @@ Do not invent product requirements, change game balance, implement unrelated ref
 - New behavior has meaningful coverage at the lowest useful layer.
 - Known pending tests are explained and unchanged unless the PR addresses them.
 - Android-impacting changes include an APK/device check or a clearly stated owner check.
-- Features use Conventional Commits; release-please alone changes versions and the changelog.
+- Features use Conventional Commits; versions and the changelog change only when the owner asks.
 - The PR describes observed behavior, verification, residual risk, and one live-link test path.

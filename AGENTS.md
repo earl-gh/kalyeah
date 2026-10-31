@@ -21,5 +21,5 @@ boundaries; clarify genuinely new interfaces or unresolved game rules.
 Do not spawn agents merely because a skill describes a studio role.
 
 Work on a task branch, validate locally and open a reviewable PR; the owner merges.
-Release-please owns versions and CHANGELOG.md. Do not run the upstream automation
+Versions (`version.txt`) and CHANGELOG.md change only when the owner asks (release-please was removed). Do not run the upstream automation
 installers or add unrelated dependencies as part of skill activation.

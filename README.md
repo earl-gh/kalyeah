@@ -16,16 +16,14 @@
 Create and Join Room need the game server running somewhere. See [server/README.md](server/README.md): free deploy on Render or Fly.io, then set the repo variable `KALYEAH_SERVER_URL` so the next APK uses it. Hotspot rooms need no server: the host's phone is the server.
 
 ## One-time GitHub setup
-1. **Settings → Actions → General →** Workflow permissions: *Read and write*, and tick *Allow GitHub Actions to create and approve pull requests* (needed by release-please).
-2. **Settings → Branches →** protect `main`: require a PR (no required status checks; there is no CI on PRs).
-3. Optional: **Settings → Secrets and variables → Actions →** secret `KALYEAH_DEBUG_KEYSTORE_B64` (a base64 debug keystore, alias `androiddebugkey`, password `android`) so every APK is signed alike and installs over the last one.
+1. **Settings → Branches →** protect `main`: require a PR (no required status checks; there is no CI on PRs).
+2. Optional: **Settings → Secrets and variables → Actions →** secret `KALYEAH_DEBUG_KEYSTORE_B64` (a base64 debug keystore, alias `androiddebugkey`, password `android`) so every APK is signed alike and installs over the last one.
 
 ## Workflows
 - **Android APK** (every push to `main`, and Actions tab → Run workflow on any branch): imports the project, runs the full test suite (a failure stops the build), exports the debug APK, inspects it (package, SDK, permissions, arm64 only, 16 KB alignment, size) and uploads it as `kalyeah-debug-apk`. A manual run also installs it on an emulator for 30 s (`kalyeah-smoke`: screenshots and log).
-- **release-please** (on `main`): keeps the release PR up to date.
 
 ## Versioning
-Conventional Commits → release-please opens a release PR → merging it tags `vX.Y.Z` and updates `CHANGELOG.md`.
+Conventional Commits. There is no release automation (release-please was removed): the version is `version.txt`, changed by hand when the owner decides, and `CHANGELOG.md` is kept as history.
 
 ## Run the tests
 ```sh
