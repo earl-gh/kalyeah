@@ -37,6 +37,9 @@ const STANDOFF: float = 150.0
 @export var kid_view_scale: float = 1.0
 ## How much smaller the health bars over the kids are drawn (1 = the full size).
 @export var bar_scale: float = 1.0
+## How long (s) the street takes to swing half way round when your view changes ends during a match (Tumbang Preso: becoming or no longer
+## being the taya). It eases in and out; Reduce motion cuts instead.
+@export var turn_seconds: float = 0.8
 
 
 ## Barrel strength of the lens for `lens_curve` (a curve of 1 would be k = 0.5).
