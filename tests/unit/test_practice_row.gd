@@ -77,18 +77,43 @@ func test_the_game_picker_lists_the_three_games_and_remembers_the_pick() -> void
 	assert_eq(screen.practice_row.game_button.text, "Patintero")
 
 
-func test_the_kid_picker_changes_your_kid() -> void:
+func test_the_kid_picker_is_the_practice_kid_pick_over_a_dim() -> void:
 	Session.menu_mode = PRACTICE_MODE
 	Session.avatar_id = "junjun"
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(2)
-	var card: MenuDialog = screen.practice_row.open_kid_picker()
+	var pick: WeaponPickScreen = screen.practice_row.open_kid_picker()
 	await wait_frames(2)
-	var grid: GridContainer = card.find_child("Kids", true, false) as GridContainer
-	assert_eq(grid.get_child_count(), 6, "the six kids")
-	(card.find_child("Kid_inday", true, false) as Button).pressed.emit()
+	assert_true(pick.is_visible_in_tree(), "the kid pick is shown")
+	assert_eq(pick.get_global_rect(), screen.get_global_rect(), "covers the whole screen")
+	assert_true(pick.cards_mode, "the carousel of the Practice kid pick")
+	assert_eq(pick.character_id, &"junjun", "opens on your kid")
+	assert_not_null(pick.find_child("Dim", false, false), "a dim over the main screen")
+	assert_eq(pick.find_children("*", "UiBackdrop", false, false).size(), 0, "no backdrop picture")
+	assert_eq(pick._ready_button.text, PracticeRow.KID_READY)
+	assert_false(pick.back_button.is_visible_in_tree(), "no Back button (the phone's Back closes it)")
+	assert_true(pick._title.is_visible_in_tree(), "the heading is shown")
+	assert_lt(pick._title.get_global_rect().end.y, pick._carousel.get_global_rect().position.y + 1.0, "the heading is on top of the carousel")
+	pick.pick_character(&"inday")
+	pick.press_ready()
+	await wait_frames(2)
 	assert_eq(Session.avatar_id, "inday")
 	assert_eq(screen.practice_row.kid_button.icon, KidModel.portrait(&"inday"), "the button shows the new face")
+	assert_false(is_instance_valid(pick), "Choose closes it")
+
+
+func test_back_closes_the_kid_pick_and_keeps_your_kid() -> void:
+	Session.menu_mode = PRACTICE_MODE
+	Session.avatar_id = "junjun"
+	var screen: TitleScreen = _phone_screen()
+	await wait_frames(2)
+	var pick: WeaponPickScreen = screen.practice_row.open_kid_picker()
+	await wait_frames(2)
+	pick.pick_character(&"inday")
+	pick.request_back()
+	await wait_frames(2)
+	assert_false(is_instance_valid(pick), "Back closes it")
+	assert_eq(Session.avatar_id, "junjun", "your kid is kept")
 
 
 func test_practice_confirm_names_the_game() -> void:

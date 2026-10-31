@@ -44,6 +44,11 @@ var hosting: bool = false
 var _hint: Label
 ## Cards mode (GameRules.card_cycle): there is nothing to pick but the kid. The weapon parts of the screen are hidden, Ready says Play.
 var cards_mode: bool = false
+## Set before the first `open`: a dimmed screen instead of the backdrop picture, so the screen behind shows through (the main
+## screen's kid pick, owner).
+var dimmed: bool = false
+## The confirm button's text in cards mode ("Play" when empty).
+var ready_label: String = ""
 var _weapon_parts: Array[Control] = []
 var _filler: Control
 ## The kid pick of cards mode: the card pictures as an endless carousel; the chosen kid's name, large, under it.
@@ -196,7 +201,10 @@ func _on_kid_swiped(at: int) -> void:
 func _fit_kids() -> void:
 	if _carousel == null or not _carousel.visible or _filler.size.y <= 0.0:
 		return
-	var room: Vector2 = Vector2(_filler.size.x, _filler.size.y - _hero_info.get_combined_minimum_size().y - UiMetrics.GAP)
+	var used: float = _hero_info.get_combined_minimum_size().y + UiMetrics.GAP
+	if dimmed:
+		used += _title.get_combined_minimum_size().y + UiMetrics.GAP  # the heading on top of the carousel (`dimmed`)
+	var room: Vector2 = Vector2(_filler.size.x, _filler.size.y - used)
 	_carousel.custom_minimum_size.y = _carousel.fit(room)
 
 
@@ -307,7 +315,7 @@ func _refresh() -> void:
 	if swap_mode:
 		_ready_button.text = "Done"
 	else:
-		_ready_button.text = "Play" if cards_mode else "Ready"
+		_ready_button.text = (ready_label if ready_label != "" else "Play") if cards_mode else "Ready"
 
 
 ## The display name of the kid you picked ("" when none is offered).
