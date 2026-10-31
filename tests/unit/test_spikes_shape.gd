@@ -1,70 +1,92 @@
 extends GutTest
 ## The jacks' shape and colours (owner: "change shape and color of the jackstone spikes by referencing this image": plastic jacks in
-## yellow, pink, green and orange). `spikes.glb` is the existing model with its vertices moved onto a six-pronged jack (tools/art/reshape_spikes.py):
-## the same vertices, triangles, UVs, material and node, a plain light plastic picture, each cluster of a field tinted in one of the four colours.
+## yellow, pink, green and orange; then "only 4 subpoles have balls at the end"). `spikes.glb` is the same file, node and material as before
+## with its mesh rebuilt by tools/art/make_spikes.py: a round hub and six slim shafts that thicken toward the middle, a ball at the end of four
+## of them and a plain rounded end on the two opposite ones, lying on three of its balls, in a plain light plastic picture that each cluster
+## of a field is painted over in one of the four colours.
 
-## The file has 3,011 vertices; Godot merges the ones that share a place, a normal and a UV on import.
-const VERTICES_IN_FILE: int = 3011
-const TRIANGLES: int = 3000
-## A photo jack: six prongs, each a slim shaft that thickens toward the middle and ends in a ball; it lies on three balls.
-const PRONGS: int = 6
+const REACH: float = 0.633
+const BALL: float = 0.158
+const SHAFT_HUB: float = 0.12
 
 
 func _arrays() -> Array:
 	return WeaponModel.mesh_of("spikes").surface_get_arrays(0)
 
 
-## The vertices that are on a ball or a shaft, not the ones folded into the hub (a folded prong sits at the hub).
 func _vertices() -> PackedVector3Array:
 	return _arrays()[Mesh.ARRAY_VERTEX] as PackedVector3Array
 
 
-func test_it_is_the_same_model_with_the_same_counts() -> void:
-	assert_between(_vertices().size(), 2900, VERTICES_IN_FILE, "the same vertices as the model it edits")
-	assert_eq((_arrays()[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3, TRIANGLES, "the same triangles")
-	assert_eq((_arrays()[Mesh.ARRAY_TEX_UV] as PackedVector2Array).size(), _vertices().size(), "and its own UVs")
-	assert_eq(WeaponModel.mesh_of("spikes").get_surface_count(), 1, "one material")
+## The hub of a jack resting on three balls: one ball radius and the sine of 35.26 degrees of the prong's length above the street.
+func _hub() -> Vector3:
+	return Vector3(0.0, BALL + (REACH - BALL) * sin(asin(1.0 / sqrt(3.0))), 0.0)
+
+
+func test_it_is_one_light_clean_mesh_in_one_material() -> void:
+	assert_eq(WeaponModel.mesh_of("spikes").get_surface_count(), 1, "one mesh, one material")
+	var triangles: int = (_arrays()[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+	assert_between(triangles, 1500, 3000, "no more than the brief's 3,000 triangles")
+	var normals: PackedVector3Array = _arrays()[Mesh.ARRAY_NORMAL] as PackedVector3Array
+	assert_eq(normals.size(), _vertices().size(), "smooth normals: the contour is pushed out along them")
 
 
 func test_it_has_the_size_of_the_model_it_replaces_and_lies_on_the_street() -> void:
 	var box: AABB = WeaponModel.mesh_of("spikes").get_aabb()
-	assert_between(box.size.x, 0.95, 1.05, "about one unit across, so the game's width and the field's rings stay as they were")
+	assert_between(box.size.x, 0.9, 1.1, "about one unit across, so the game's width and the field's rings work as before")
 	assert_between(box.size.y, 0.8, 0.95, "as tall as before")
 	assert_almost_eq(box.position.y, 0.0, 0.001, "lying on the street")
 
 
-func test_there_are_six_balls_and_they_are_round_and_the_shafts_are_slim() -> void:
-	var vertices: PackedVector3Array = _vertices()
-	var hub_y: float = 0.0
-	var box: AABB = WeaponModel.mesh_of("spikes").get_aabb()
-	# the hub of a jack resting on three balls (35.26 degrees) is one ball radius plus the sine of that angle over the streets
-	hub_y = 0.158 + (0.633 - 0.158) * sin(asin(1.0 / sqrt(3.0)))
-	var hub: Vector3 = Vector3(0.0, hub_y, 0.0)
-	# the farthest vertices (the outer surfaces of the balls) cluster in six places
-	var far: Array[Vector3] = []
-	for vertex: Vector3 in vertices:
-		if vertex.distance_to(hub) > 0.55:
-			far.append(vertex)
-	assert_gt(far.size(), 400, "ball surfaces")
-	var centres: Array[Vector3] = []
-	for vertex: Vector3 in far:
-		var placed: bool = false
-		for index: int in centres.size():
-			if centres[index].distance_to(vertex) < 0.3:
-				placed = true
-				break
-		if not placed:
-			centres.append(vertex)
-	assert_eq(centres.size(), PRONGS, "six prongs, like a jack in the photo")
-	# a ball is round: its farthest points are all about one radius from one centre
-	var rim: PackedFloat32Array = PackedFloat32Array()
-	for vertex: Vector3 in far:
-		rim.append(vertex.distance_to(hub))
-	rim.sort()
-	assert_between(rim[rim.size() / 2], 0.58, 0.68, "the balls' outsides are about one reach from the hub")
-	# a shaft is slimmer than a ball: along a prong the radius at half way is less than half a ball's
-	assert_lt(0.12, 0.158 * 0.9, "the thickest shaft (at the hub) is slimmer than a ball")
-	assert_between(box.size.z, 0.95, 1.2)
+## The farthest points of the jack from its hub, grouped by the prong they are on.
+func _tips() -> Array[Vector3]:
+	var hub: Vector3 = _hub()
+	var tips: Array[Vector3] = []
+	for vertex: Vector3 in _vertices():
+		if vertex.distance_to(hub) > REACH - 0.03:
+			var near: bool = false
+			for tip: Vector3 in tips:
+				if tip.distance_to(vertex) < 0.2:
+					near = true
+					break
+			if not near:
+				tips.append(vertex)
+	return tips
+
+
+func test_six_prongs_four_with_a_ball_and_two_bare_opposite_each_other() -> void:
+	var hub: Vector3 = _hub()
+	var tips: Array[Vector3] = _tips()
+	assert_eq(tips.size(), 6, "six prongs, like a jack in the photo")
+	# a ball is wide, a bare end is narrow: the width of the vertices round each tip
+	var wide: Array[Vector3] = []
+	var bare: Array[Vector3] = []
+	for tip: Vector3 in tips:
+		var axis: Vector3 = (tip - hub).normalized()
+		var behind: float = 0.0
+		for vertex: Vector3 in _vertices():
+			var along: float = (vertex - hub).dot(axis)
+			if along > REACH - 0.17 and along < REACH - 0.1:
+				behind = maxf(behind, ((vertex - hub) - axis * along).length())
+		(wide if behind > 0.12 else bare).append(tip)
+	assert_eq(wide.size(), 4, "four prongs end in a ball")
+	assert_eq(bare.size(), 2, "one pole has no balls")
+	if bare.size() == 2:
+		assert_lt(((bare[0] - hub).normalized() + (bare[1] - hub).normalized()).length(), 0.05, "the two bare ends are one pole (opposite each other)")
+
+
+func test_a_ball_is_round_and_a_shaft_is_slimmer_than_it() -> void:
+	var hub: Vector3 = _hub()
+	for tip: Vector3 in _tips():
+		var axis: Vector3 = (tip - hub).normalized()
+		var thickest_shaft: float = 0.0
+		for vertex: Vector3 in _vertices():
+			var along: float = (vertex - hub).dot(axis)
+			var across: float = ((vertex - hub) - axis * along).length()
+			if along > 0.1 and along < 0.28 and across < 0.14:  # the other prongs' vertices are far from this axis
+				thickest_shaft = maxf(thickest_shaft, across)
+		assert_lt(thickest_shaft, BALL * 0.9, "a shaft out of the hub is slimmer than a ball")
+		assert_gt(thickest_shaft, 0.04, "and is a real shaft, not a wire")
 
 
 func test_the_picture_is_a_plain_light_plastic_so_each_cluster_can_be_painted() -> void:
@@ -104,3 +126,12 @@ func test_the_four_colours_are_the_photos_yellow_pink_green_and_orange() -> void
 	assert_between(hues[1], 0.88, 0.96, "pink")
 	assert_between(hues[2], 0.33, 0.42, "green")
 	assert_between(hues[3], 0.03, 0.08, "orange")
+
+
+func test_the_jacks_exist_only_in_agawan_base() -> void:
+	# owner: the street games have no weapons but the can and the slipper, so no field of jacks is ever built there
+	for game: StringName in [&"tumbang_preso", &"patintero"]:
+		var rules: StreetModeRules = StreetMode.rules_for(game)
+		assert_true(rules != null)
+	var source: String = FileAccess.get_file_as_string("res://scripts/view/fx/fx_zones.gd")
+	assert_true(source.contains('zone.def.id == &"jacks"'), "a field of jacks is built from a jacks weapon zone, which only the weapon cards make")

@@ -256,6 +256,7 @@ func _keep_vignette_behind_the_top_boundary() -> void:
 
 func sync(delta: float) -> void:
 	_keep_vignette_behind_the_top_boundary()
+	owner.hud.overhead.taya_id = (owner.sim.mode as TumbangPreso).taya_id if owner.sim.mode is TumbangPreso else -1
 	for id: int in owner.sim.players:
 		_sync_actor(owner.sim.players[id], delta)
 	if owner.sim.phase in [MatchSim.Phase.POINT_FREEZE, MatchSim.Phase.MATCH_OVER] and owner._pick_screen.visible:

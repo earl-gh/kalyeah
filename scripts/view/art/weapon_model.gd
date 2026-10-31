@@ -28,7 +28,7 @@ const OBJECTS: Dictionary[StringName, Array] = {
 ## The spikes of a jacks field: this many clusters (owner: fewer and smaller than the five 0.9 m ones), spread evenly on a ring
 ## `SPIKE_RING` of the field's radius round its middle, each this wide in metres.
 const SPIKE_CLUSTERS: int = 4
-const SPIKE_WIDTH: float = 0.63
+const SPIKE_WIDTH: float = 0.315
 ## The four plastic colours of the owner's photo of jacks (yellow, pink, green, orange), a little cleaner and brighter in the painted way; each
 ## cluster of a field takes the next one, so a field of four has all of them. The model's picture is plain light plastic and the colour
 ## rides in the cluster's vertex colours (see `_instance`), so there is still one look for the model.

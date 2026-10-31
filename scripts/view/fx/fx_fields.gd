@@ -20,19 +20,42 @@ const SCRAPS: int = 6
 const FILL_POP_FRAMES: int = 4
 const SLOW_FADE: float = 0.3
 const FADE_RIM: float = 0.42
-## The jacks are tossed from the thrower's hand in a spray, one cluster a frame (`JACK_STAGGER`), each flying
-## `JACK_FLIGHT_FRAMES` frames `JACK_PEAK` m high, smeared along their flight on its first and last frames, and landing squashed
-## (`JACK_LAND_S`, springing back to 1), the spray throwing `JACK_DUST` dust
-## (one shared puff). A tick that hurts a kid makes the nearest cluster hop `JACK_HOP` m for a frame. In the last `SLOW_FADE` s they sink `JACK_SINK` m
-## and shrink to `JACK_SHRINK` while the fill fades.
-const JACK_STAGGER: int = 1
+## The jacks are dropped from the thrower's hand onto the middle of their field (`JACK_FLIGHT_FRAMES` frames, `JACK_PEAK` m high, one shared
+## puff of `JACK_DUST` dust), landing squashed (`JACK_LAND_S`), and then scatter by ROLLING outward over the street: three of the four
+## roll once to their spots, one (picked at random for each field) rolls twice, to a stop on the way and then on to its spot. A roll takes
+## `JACK_ROLL_FRAMES` frames (the first of the double roller's two `JACK_ROLL_AGAIN` of that) after a random wait of up to `JACK_ROLL_WAIT`
+## frames, and turns the jack over whole times (so it ends lying as it began), a little off the street (`JACK_ROLL_LIFT` of its size). It is
+## smeared along the roll on its fast first frames, leaves a streak on the street (`JACK_STREAK` m wide) and a small puff of dust
+## (`JACK_ROLL_DUST`) where it stops, squashing there. Every spot, and the stop on the way, is inside the field's circle (the slow and
+## damage area). A tick that hurts a kid makes the nearest cluster hop `JACK_HOP` m for a frame. In the last `SLOW_FADE` s they sink
+## `JACK_SINK` m and shrink to `JACK_SHRINK` while the fill fades.
 const JACK_FLIGHT_FRAMES: int = 6
 const JACK_PEAK: float = 1.2
 const JACK_LAND_S: float = 0.75
 const JACK_DUST: int = 6
+const JACK_ROLL_FRAMES: int = 12
+const JACK_ROLL_AGAIN: float = 0.8
+const JACK_ROLL_WAIT: int = 4
+const JACK_ROLL_PAUSE: int = 3
+const JACK_ROLL_LIFT: float = 0.3
+const JACK_ROLL_DUST: int = 2
+const JACK_STREAK: float = 0.1
+const JACK_STREAK_LIFE: int = 6
+## A jack rolls one turn over per this many of its own widths (at least one turn).
+const JACK_TURN_WIDTHS: float = 2.4
+## The height of the middle of a jack of one unit lying on the street (about the hub of the model), which it rolls about.
+const JACK_CENTRE: float = 0.43
+## The pile on the middle: each jack lies this far (of its width) out from the very middle toward its spot, so they do not hide one another.
+const JACK_PILE: float = 0.2
+## The second roller's stop on the way is this part (min, max) of the way out to its spot, turned off the straight line by up to `JACK_MID_TURN` rad.
+const JACK_MID_OUT: Vector2 = Vector2(0.3, 0.55)
+const JACK_MID_TURN: float = 0.9
 const JACK_HOP: float = 0.1
 const JACK_SINK: float = 0.3
 const JACK_SHRINK: float = 0.4
+const JACK_STREAK_TINT: Color = Color(1.0, 0.97, 0.9, 0.8)
+## The dust where a roll stops is a fainter puff than the drop's: the jacks are small.
+const JACK_STOP_TINT: Color = Color(1.0, 1.0, 1.0, 0.5)
 
 
 
@@ -161,7 +184,7 @@ func _fade(rec: FxZones.Rec, left: float, nodes: Array[MeshInstance3D], ends: Ar
 		rec.fades[i].albedo_color = Color(1.0, 1.0, 1.0, lerpf(1.0, ends[i], t))
 
 
-## The jacks are sprayed from the thrower's hand onto their spots, hop on a tick and sink away at the end.
+## The jacks drop onto the middle of the field, then roll outward to their spots (one of them rolls twice), hop on a tick and sink away at the end.
 func field(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 	var age: float = rec.track.age(_ctx.time)
 	var left: float = _left(zone, rec, zone.def.duration if zone.def != null else 0.0)
@@ -169,35 +192,115 @@ func field(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 	var ends: Array[float] = [FADE_RIM]
 	_fade(rec, left, nodes, ends)
 	var sink: float = 0.0 if _ctx.reduced else clampf(1.0 - left / SLOW_FADE, 0.0, 1.0)
+	var centre: Vector3 = Vector3(rec.node.position.x, 0.0, rec.node.position.z)
+	var frame: float = FxSquash.FRAME
+	var flight: float = JACK_FLIGHT_FRAMES * frame if rec.origin != Vector2.INF else 0.0
 	for i: int in rec.clusters.size():
 		var cluster: Node3D = rec.clusters[i]
-		var home: Vector3 = rec.homes[i]
 		var scale: float = rec.cluster_scale * lerpf(1.0, JACK_SHRINK, sink)
 		var turn: Basis = Basis(Vector3.UP, rec.turns[i])
+		var lower: Vector3 = Vector3(0.0, JACK_SINK * sink, 0.0)
 		cluster.basis = turn * Basis.from_scale(Vector3.ONE * scale)
-		cluster.position = home - Vector3(0.0, JACK_SINK * sink, 0.0)
+		cluster.position = rec.homes[i] - lower
 		if _ctx.reduced:
 			continue
-		var start: float = float(i * JACK_STAGGER) * FxSquash.FRAME
-		var flight: float = JACK_FLIGHT_FRAMES * FxSquash.FRAME
-		var t: float = (age - start) / flight
-		if rec.origin != Vector2.INF and t < 1.0:
+		cluster.visible = true
+		var pile: Vector3 = rec.piles[i]
+		if age < flight:
+			# the drop: the whole handful from the thrower's hand onto the middle
+			var t: float = age / flight
 			var offset: Vector2 = rec.origin - zone.center
 			var from: Vector3 = Vector3(offset.x, FxLandings.CAN_HAND_Y, offset.y)
-			cluster.position = FxMotion.toss(from, home, JACK_PEAK, maxf(t, 0.0))
-			cluster.visible = t >= 0.0
-			# smeared along its flight over its first and last frames (the fast ones), crisp over the top
-			var velocity: Vector3 = (home - from) + Vector3(0.0, JACK_PEAK * 4.0 * (1.0 - 2.0 * clampf(t, 0.0, 1.0)), 0.0)
-			var frames: float = minf(maxf(t, 0.0), 1.0 - t) * JACK_FLIGHT_FRAMES
-			cluster.basis = FxSquash.smear_basis(velocity, FxSquash.smear_stretch(velocity.length() / flight, WeaponModel.SPIKE_WIDTH, frames)) * cluster.basis
+			cluster.position = FxMotion.toss(from, pile, JACK_PEAK, t)
+			var velocity: Vector3 = (pile - from) + Vector3(0.0, JACK_PEAK * 4.0 * (1.0 - 2.0 * t), 0.0)
+			var fast: float = minf(t, 1.0 - t) * JACK_FLIGHT_FRAMES
+			cluster.basis = FxSquash.smear_basis(velocity, FxSquash.smear_stretch(velocity.length() / flight, WeaponModel.SPIKE_WIDTH, fast)) * cluster.basis
 			continue
-		cluster.visible = true
-		var settling: float = (t - 1.0) * float(JACK_FLIGHT_FRAMES)
-		if rec.origin != Vector2.INF and settling < float(FxSquash.landing_frames()):
-			cluster.basis = turn * Basis.from_scale(FxSquash.along(FxSquash.landing(JACK_LAND_S, settling)) * scale)
+		var clock: float = age - flight
+		var wait: float = (float(FxSquash.landing_frames()) + rec.delays[i]) * frame
+		if clock < wait:
+			# lying in the pile on the middle (landing squashed), until its own turn to roll
+			cluster.position = pile - lower
 			if rec.landed == 0:
-				# one shared puff of dust for the whole spray (one emitter, not one per cluster)
 				rec.landed = 1
-				_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(rec.node.position.x, 0.0, rec.node.position.z), JACK_DUST)
-		if rec.hops[i] >= 0.0 and _ctx.time - rec.hops[i] < FxSquash.FRAME:
+				_ctx.particles.puff(FxParticles.Preset.DUST, centre, JACK_DUST)
+			if rec.origin != Vector2.INF and clock / frame < float(FxSquash.landing_frames()):
+				cluster.basis = turn * Basis.from_scale(FxSquash.along(FxSquash.landing(JACK_LAND_S, clock / frame)) * scale)
+			continue
+		var pose: Array = _roll_pose(rec, i, clock - wait, centre, scale, turn)
+		cluster.position = (pose[0] as Vector3) - lower
+		cluster.basis = pose[1] as Basis
+		if rec.hops[i] >= 0.0 and _ctx.time - rec.hops[i] < frame:
 			cluster.position.y += JACK_HOP
+
+
+## Where jack `i` is, and how it is turned, `seconds` after its first roll began: [position, basis]. Starts the roll's streak and puffs the
+## dust where a roll stops, once each.
+func _roll_pose(rec: FxZones.Rec, i: int, seconds: float, centre: Vector3, scale: float, turn: Basis) -> Array:
+	var frame: float = FxSquash.FRAME
+	var rolls: Array[Vector3] = [rec.piles[i]]
+	if i == rec.twice:
+		rolls.append(rec.mids[i])
+	rolls.append(rec.homes[i])
+	var segments: int = rolls.size() - 1
+	var span: float = float(JACK_ROLL_FRAMES) * (JACK_ROLL_AGAIN if segments > 1 else 1.0) * frame
+	var cursor: float = 0.0
+	for k: int in segments:
+		var from_spot: Vector3 = rolls[k]
+		var to_spot: Vector3 = rolls[k + 1]
+		var run: Vector3 = to_spot - from_spot
+		if seconds < cursor + span:
+			# rolling: out fast and slowing, turning over whole times about its middle, a little off the street
+			if rec.starts[i] <= k:
+				rec.starts[i] = k + 1
+				_roll_streak(centre + from_spot, centre + to_spot)
+			var p: float = clampf((seconds - cursor) / span, 0.0, 1.0)
+			var eased: float = 1.0 - (1.0 - p) * (1.0 - p)
+			var turns: float = maxf(1.0, roundf(run.length() / (JACK_TURN_WIDTHS * WeaponModel.SPIKE_WIDTH)))
+			var around: Basis = Basis(run.normalized().cross(Vector3.UP).normalized(), TAU * turns * eased)
+			var middle: Vector3 = Vector3(0.0, JACK_CENTRE * scale, 0.0)
+			var at: Vector3 = from_spot.lerp(to_spot, eased) + middle - around * middle + Vector3(0.0, JACK_ROLL_LIFT * scale * sin(PI * p), 0.0)
+			var speed: float = run.length() / span * 2.0 * (1.0 - p)
+			var smear: Basis = FxSquash.smear_basis(run, FxSquash.smear_stretch(speed, WeaponModel.SPIKE_WIDTH, p * span / frame))
+			return [at, smear * (around * turn * Basis.from_scale(Vector3.ONE * scale))]
+		# the roll is over: dust where it stops (once), a squash, a short pause, then the next roll
+		if rec.stops[i] <= k:
+			rec.stops[i] = k + 1
+			_ctx.particles.puff(FxParticles.Preset.DUST, centre + to_spot, JACK_ROLL_DUST, JACK_STOP_TINT)
+		var since: float = (seconds - cursor - span) / frame
+		var last: bool = k == segments - 1
+		if last or seconds < cursor + span + float(JACK_ROLL_PAUSE) * frame:
+			var squash: Vector3 = FxSquash.along(FxSquash.landing(JACK_LAND_S, since)) if since < float(FxSquash.landing_frames()) else Vector3.ONE
+			return [to_spot, turn * Basis.from_scale(squash * scale)]
+		cursor += span + float(JACK_ROLL_PAUSE) * frame
+	return [rolls[segments], turn * Basis.from_scale(Vector3.ONE * scale)]
+
+
+## The streak a rolling jack leaves on the street from `from` to `to` (world): a thin warm-white band that fades in a few frames.
+func _roll_streak(from: Vector3, to: Vector3) -> void:
+	_ctx.ground.trail(from + Vector3(0.0, 0.04, 0.0), to + Vector3(0.0, 0.04, 0.0), JACK_STREAK, JACK_STREAK_TINT, float(JACK_STREAK_LIFE) * FxSquash.FRAME)
+
+
+## How the jacks of field `id` scatter, the same on every screen (it only reads the zone's id): the piles they start on the middle, the one that
+## rolls twice (random among the `homes`) and its stop on the way, and each jack's wait (frames) before it rolls. Every point is inside the
+## circle through the farthest home, so inside the slow and damage area.
+static func scatter_plan(id: int, homes: Array[Vector3]) -> Dictionary:
+	var piles: Array[Vector3] = []
+	var mids: Array[Vector3] = []
+	var delays: PackedFloat32Array = PackedFloat32Array()
+	var twice: int = int(_unit(id, 0) * float(homes.size())) % maxi(homes.size(), 1)
+	for index: int in homes.size():
+		var home: Vector3 = homes[index]
+		var way: Vector2 = Vector2(home.x, home.z)
+		var dir: Vector2 = way.normalized() if way.length() > 0.001 else Vector2.RIGHT
+		piles.append(Vector3(dir.x, 0.0, dir.y) * JACK_PILE * WeaponModel.SPIKE_WIDTH)
+		var turn: float = lerpf(0.3, JACK_MID_TURN, _unit(id, 10 + index)) * (1.0 if _unit(id, 20 + index) < 0.5 else -1.0)
+		var bent: Vector2 = dir.rotated(turn) * way.length() * lerpf(JACK_MID_OUT.x, JACK_MID_OUT.y, _unit(id, 30 + index))
+		mids.append(Vector3(bent.x, 0.0, bent.y))
+		delays.append(floorf(_unit(id, 40 + index) * float(JACK_ROLL_WAIT + 1)))
+	return {"twice": twice, "piles": piles, "mids": mids, "delays": delays}
+
+
+## A number from 0 up to (not including) 1 that depends only on the field `id` and the `salt` (a hash, not a dice roll: every screen gets the same).
+static func _unit(id: int, salt: int) -> float:
+	return float(hash(Vector2i(id, salt)) & 0xFFFFF) / 1048576.0

@@ -162,7 +162,7 @@ func test_the_marble_and_top_are_a_quarter_bigger_and_the_jacks_fewer_and_smalle
 	assert_almost_eq(WeaponModel.OBJECTS[&"trumpo"][1] as float, 0.9 * 1.25, 0.01, "the top: 1.12 m")
 	assert_eq(WeaponModel.SPIKE_CLUSTERS, 4, "one cluster in each colour of the owner's photo instead of five of one")
 	assert_eq(WeaponModel.SPIKE_COLOURS.size(), 4)
-	assert_almost_eq(WeaponModel.SPIKE_WIDTH, 0.9 * 0.7, 0.001, "each 30% narrower")
+	assert_almost_eq(WeaponModel.SPIKE_WIDTH, 0.9 * 0.7 / 2.0, 0.001, "each 30% narrower, and then half the size again (owner)")
 	var jacks: Node3D = autofree(WeaponModel.spikes(2.0)) as Node3D
 	assert_eq(jacks.get_child_count(), 4)
 	var cluster_width: float = WeaponModel.size_of("spikes").x * (jacks.get_child(0) as Node3D).scale.x
