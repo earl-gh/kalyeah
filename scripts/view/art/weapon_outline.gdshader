@@ -24,5 +24,6 @@ void fragment() {
 	if (silver > 0.5) {
 		colour = steel_blade(colour, at);
 	}
+	colour *= COLOR.rgb;  // a copy painted in one colour (the jacks) gets a contour in a deep tone of it
 	ALBEDO = colour * ink;
 }

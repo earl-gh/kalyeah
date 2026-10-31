@@ -25,13 +25,20 @@ const OBJECTS: Dictionary[StringName, Array] = {
 	# the light rock is the meteor's stone, small (the owner made no separate rock)
 	&"bato_light": ["meteor", 0.55],
 }
-## The spikes of a jacks field: this many clusters (owner: fewer and smaller than the five 0.9 m ones), spread evenly on a ring
-## `SPIKE_RING` of the field's radius round its middle, each this wide in metres.
-const SPIKE_CLUSTERS: int = 3
-const SPIKE_WIDTH: float = 0.63
-const SPIKE_RING: float = 0.55
-## The ring is turned by this much (radians) so no cluster sits straight up or down the screen.
-const SPIKE_TURN: float = 0.4
+## The spikes of a jacks field: this many clusters (owner: fewer and smaller than the five 0.9 m ones), each this wide in metres. They end
+## wherever they roll to: a different, random spread in every field (owner: no fixed formation), see `spikes`.
+const SPIKE_CLUSTERS: int = 6
+const SPIKE_WIDTH: float = 0.315 * 1.75
+## The plastic colours of the jacks: the owner's photo's yellow, pink, green and orange (a little cleaner and brighter in the painted way), then
+## blue and purple (owner); each cluster of a field takes the next one, so a field of six has all of them. The model's picture is plain light plastic and the colour
+## rides in the cluster's vertex colours (see `_instance`), so there is still one look for the model.
+const SPIKE_COLOURS: Array[Color] = [Color("F4E43A"), Color("FF4F9A"), Color("45E06C"), Color("FF6A1F"), Color("3D8BFF"), Color("A855F7")]
+## A jack lies at most this far (of its width) in from the field's rim, so it never overhangs the slow and damage area, and no two lie closer
+## than `SPIKE_APART` of their width (when there is room for that).
+const SPIKE_RIM: float = 0.6
+const SPIKE_APART: float = 1.25
+## Tries for a jack's spot before it takes the roomiest one it saw.
+const SPIKE_TRIES: int = 40
 ## The rock meteor of bato heavy (metres across; a 2 m circle reads "a big rock lands here" without hiding both kids in it).
 const METEOR_SIZE: float = 1.4
 ## The heal cross (metres wide before the kids' view scale: 0.84 m drawn, so on the chest it stays under the face).
@@ -45,6 +52,8 @@ static var _scenes: Dictionary[String, PackedScene] = {}
 static var _sizes: Dictionary[String, Vector3] = {}
 ## Model id -> the look materials of its surfaces, in find order (shared by every instance of the model).
 static var _looks: Dictionary[String, Array] = {}
+## "model:colour" -> the model's mesh with that colour in its vertex colours (one mesh per colour, shared by every copy).
+static var _painted: Dictionary[String, ArrayMesh] = {}
 
 
 static func has_model(weapon_id: StringName) -> bool:
@@ -103,19 +112,65 @@ static func standing(id: String, height: float) -> Node3D:
 	return holder
 
 
-## A jacks field: spike clusters spread evenly on a ring over a circle of `radius`.
-static func spikes(radius: float) -> Node3D:
+## A jacks field: spike clusters lying anywhere inside a circle of `radius`, each turned any way. The spread is random for every field
+## (no ring, no pattern: it comes from `seed`, the field's id, so every screen shows the same field the same way, and each field differs).
+static func spikes(radius: float, seed: int = 0) -> Node3D:
 	var holder: Node3D = Node3D.new()
 	var natural: Vector3 = size_of("spikes")
 	var scale: float = SPIKE_WIDTH / natural.x
+	var spots: Array[Vector2] = spike_spots(radius, seed)
 	for i: int in SPIKE_CLUSTERS:
-		var model: Node3D = _instance("spikes")
+		var model: Node3D = _instance("spikes", SPIKE_COLOURS[i % SPIKE_COLOURS.size()])
 		model.scale = Vector3.ONE * scale
-		var angle: float = TAU * float(i) / float(SPIKE_CLUSTERS) + SPIKE_TURN
-		model.position = Vector3(cos(angle), 0.0, sin(angle)) * radius * SPIKE_RING
-		model.rotation.y = float(i) * 1.7
+		model.position = Vector3(spots[i].x, 0.0, spots[i].y)
+		model.rotation.y = _unit(seed, i, 1000) * TAU
 		holder.add_child(model)
 	return holder
+
+
+## Where the jacks of field `seed` lie, in a circle of `radius` round (0, 0): a random place for each (uniform over the circle's room), none
+## overhanging the rim and none on top of another where there is room, tried `SPIKE_TRIES` times each and then the roomiest seen.
+static func spike_spots(radius: float, seed: int) -> Array[Vector2]:
+	var room: float = maxf(radius - SPIKE_WIDTH * SPIKE_RIM, 0.0)
+	var apart: float = SPIKE_WIDTH * SPIKE_APART
+	var spots: Array[Vector2] = []
+	for i: int in SPIKE_CLUSTERS:
+		var best: Vector2 = Vector2.ZERO
+		var best_gap: float = -1.0
+		for attempt: int in SPIKE_TRIES:
+			var spot: Vector2 = Vector2.from_angle(_unit(seed, i, attempt * 2) * TAU) * (sqrt(_unit(seed, i, attempt * 2 + 1)) * room)
+			var gap: float = INF
+			for other: Vector2 in spots:
+				gap = minf(gap, spot.distance_to(other))
+			if gap > best_gap:
+				best_gap = gap
+				best = spot
+			if gap >= apart:
+				break
+		spots.append(best)
+	return spots
+
+
+## A number from 0 up to (not including) 1 that depends only on the field's `seed` and the two salts (a hash, not a dice roll).
+static func _unit(seed: int, a: int, b: int) -> float:
+	return float(hash(Vector3i(seed, a, b)) & 0xFFFFF) / 1048576.0
+
+
+## `mesh` of model `id` with every vertex coloured `colour` (made once per colour).
+static func _painted_mesh(id: String, mesh: Mesh, colour: Color) -> ArrayMesh:
+	var key: String = "%s:%s" % [id, colour.to_html(false)]
+	if not _painted.has(key):
+		var arrays: Array = mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+		var colours: PackedColorArray = PackedColorArray()
+		colours.resize(vertices.size())
+		colours.fill(colour)
+		arrays[Mesh.ARRAY_COLOR] = colours
+		var painted: ArrayMesh = ArrayMesh.new()
+		painted.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		painted.surface_set_material(0, mesh.surface_get_material(0))
+		_painted[key] = painted
+	return _painted[key]
 
 
 ## The meteor that falls on a rock-meteor landing circle (middle on the origin).
@@ -164,7 +219,7 @@ static func rig(model: Node3D, tilted: bool = false) -> Node3D:
 
 ## Model scenes and sizes cached right now (tests).
 static func cached_count() -> int:
-	return _scenes.size() + _sizes.size()
+	return _scenes.size() + _sizes.size() + _painted.size()
 
 
 ## Empties the scene, size and look caches (the last effect view left the tree; a kid's can keeps its own copy).
@@ -172,6 +227,7 @@ static func clear_cache() -> void:
 	_scenes.clear()
 	_sizes.clear()
 	_looks.clear()
+	_painted.clear()
 
 
 ## How many model looks are shared right now (one per model id; never one per instance).
@@ -222,9 +278,14 @@ static func _scene(id: String) -> PackedScene:
 	return _scenes[id]
 
 
-static func _instance(id: String) -> Node3D:
+## A copy of model `id`, painted in `colour` when one is given (the model's picture is plain, the colour is in its vertex colours).
+static func _instance(id: String, colour: Variant = null) -> Node3D:
 	var root: Node3D = _scene(id).instantiate() as Node3D
 	var meshes: Array[Node] = root.find_children("*", "MeshInstance3D", true, false)
+	if colour != null:
+		for node: Node in meshes:
+			var mesh_instance: MeshInstance3D = node as MeshInstance3D
+			mesh_instance.mesh = _painted_mesh(id, mesh_instance.mesh, colour as Color)
 	if not _looks.has(id):
 		_looks[id] = WeaponLook.apply(root, id)
 	else:

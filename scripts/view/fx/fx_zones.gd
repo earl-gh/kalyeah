@@ -45,6 +45,14 @@ class Rec extends RefCounted:
 	var clusters: Array[Node3D] = []
 	var homes: Array[Vector3] = []
 	var hops: PackedFloat32Array = PackedFloat32Array()
+	## How they scatter (FxFields.scatter_plan): where each lies in the pile on the middle, the stops on the way of the ones that roll twice (and
+	## which they are), each one's wait in frames, and how many of each one's rolls have started and stopped.
+	var piles: Array[Vector3] = []
+	var mids: Array[Vector3] = []
+	var delays: PackedFloat32Array = PackedFloat32Array()
+	var twice: Array[int] = []
+	var starts: PackedInt32Array = PackedInt32Array()
+	var stops: PackedInt32Array = PackedInt32Array()
 	## Each cluster's own turn about the vertical (radians), kept so a smear can lie along the flight in world axes.
 	var turns: PackedFloat32Array = PackedFloat32Array()
 	var landed: int = 0
@@ -164,7 +172,7 @@ func make_node(zone: WeaponSystem.Zone) -> Node3D:
 		can.name = "Can"
 		node.add_child(can)
 	elif zone.def != null and zone.def.id == &"jacks" and zone.kind == WeaponSystem.ZoneKind.FIELD:
-		var spikes: Node3D = WeaponModel.spikes(zone.radius)
+		var spikes: Node3D = WeaponModel.spikes(zone.radius, zone.id)
 		spikes.name = "Spikes"
 		node.add_child(spikes)
 	return node
@@ -217,6 +225,13 @@ func _create(zone: WeaponSystem.Zone) -> Rec:
 			rec.hops.append(-1.0)
 			rec.turns.append(cluster.rotation.y)
 		rec.cluster_scale = rec.clusters[0].scale.x if not rec.clusters.is_empty() else 1.0
+		var plan: Dictionary = FxFields.scatter_plan(rec.id, rec.homes)
+		rec.twice.assign(plan["twice"] as Array)
+		rec.piles.assign(plan["piles"] as Array)
+		rec.mids.assign(plan["mids"] as Array)
+		rec.delays = plan["delays"] as PackedFloat32Array
+		rec.starts.resize(rec.clusters.size())
+		rec.stops.resize(rec.clusters.size())
 	if zone.def != null:
 		var origin: Variant = _ctx.cast_origin(zone.def.id, zone.team)
 		rec.origin = origin as Vector2 if origin != null else Vector2.INF

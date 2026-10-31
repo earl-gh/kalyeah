@@ -95,6 +95,8 @@ var _sim: MatchSim
 var _camera: Camera3D
 var _local_id: int = -1
 var _local_team: int = 0
+## Tumbang Preso's taya (owner: the only red kid, instead of an "IT" over its head): its bar and badge are the enemy's red whoever it is. -1 in other games.
+var taya_id: int = -1
 ## The bar's back, fill and gloss, made once and recoloured as each kid is drawn (no allocation per frame).
 var _bar_back: StyleBoxFlat
 var _bar_fill: StyleBoxFlat
@@ -223,6 +225,8 @@ func bar_visible(state: PlayerState) -> bool:
 func bar_color(state: PlayerState) -> Color:
 	if state.id == _local_id:
 		return TeamColors.bar_self()
+	if state.id == taya_id:
+		return TeamColors.bar_enemy()
 	return TeamColors.bar_ally() if state.team == _local_team else TeamColors.bar_enemy()
 
 
@@ -268,6 +272,8 @@ func player_number(state: PlayerState) -> int:
 
 ## The badge's colour: your team's blue or the other team's red (orange and blue with the colour-blind setting), as the bases show them.
 func badge_color(state: PlayerState) -> Color:
+	if state.id == taya_id:
+		return TeamColors.world_enemy()
 	return TeamColors.world_own() if state.team == _local_team else TeamColors.world_enemy()
 
 

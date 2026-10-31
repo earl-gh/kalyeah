@@ -499,7 +499,7 @@ func test_jacks_scatter_then_rest_on_the_ground() -> void:
 		for child: Node in spikes.get_children():
 			flying += 1 if (child as Node3D).position.y > 0.2 else 0
 	assert_gt(flying, 0, "they are tossed, not placed")
-	for i: int in 10:
+	for i: int in 70:  # the drop, then the rolls (up to 40 frames more), then they lie still
 		_frame()
 	for child: Node in spikes.get_children():
 		assert_almost_eq((child as Node3D).position.y, 0.0, 0.001, "every cluster rests on the street")
@@ -850,3 +850,104 @@ func test_the_heal_cross_rises_from_the_head_to_above_it() -> void:
 	assert_lt(first, 1.0, "it begins at the head")
 	assert_gt(last, 1.5, "and ends above it, clear of the name bar")
 	assert_eq(held, 6, "it holds there a moment at full size")
+
+
+# ---- the jacks scatter (owner: dropped on the middle, then rolled outward: three once, one twice) -------------------------
+
+## The cast field's recorder and its clusters.
+func _field_rec() -> FxZones.Rec:
+	return _fx.zones._recs[_sim.weapons.zones[0].id] as FxZones.Rec
+
+
+func test_the_jacks_drop_on_the_middle_then_roll_out_three_once_and_three_twice_and_all_end_in_the_circle() -> void:
+	_setup(Vector2(20.0, 0.0))
+	_cast(&"jacks", Vector2(0.0, -4.0 / 6.0))
+	_fx.sync(_sim, DT)
+	var zone: WeaponSystem.Zone = _sim.weapons.zones[0]
+	var rec: FxZones.Rec = _field_rec()
+	assert_eq(rec.clusters.size(), WeaponModel.SPIKE_CLUSTERS)
+	assert_eq(rec.clusters.size(), 6, "six jacks")
+	assert_eq(rec.twice.size(), 3, "three of them are picked to roll twice")
+	# the pile on the middle: every jack within a hand's width of the very middle, after the drop
+	for i: int in FxFields.JACK_FLIGHT_FRAMES + 1:
+		_frame()
+	for cluster: Node3D in rec.clusters:
+		assert_lt(Vector2(cluster.position.x, cluster.position.z).length(), 0.5, "they land on the middle spot")
+	# watch the whole scatter: nobody ever leaves the field's circle
+	var farthest: float = 0.0
+	for i: int in 90:
+		_frame()
+		for cluster: Node3D in rec.clusters:
+			farthest = maxf(farthest, Vector2(cluster.position.x, cluster.position.z).length())
+	assert_lt(farthest, zone.radius, "the rolls stay inside the slow and damage area (%.2f of %.2f m)" % [farthest, zone.radius])
+	var once: int = 0
+	var twice: int = 0
+	for i: int in rec.clusters.size():
+		assert_eq(rec.starts[i], rec.stops[i], "every roll that starts also stops")
+		if rec.starts[i] == 1:
+			once += 1
+		elif rec.starts[i] == 2:
+			twice += 1
+			assert_true(rec.twice.has(i), "and it is one of the three picked")
+		var spot: Vector3 = rec.clusters[i].position
+		assert_almost_eq(Vector2(spot.x, spot.z).distance_to(Vector2(rec.homes[i].x, rec.homes[i].z)), 0.0, 0.001, "each ends on its own spot")
+		assert_almost_eq(spot.y, 0.0, 0.001, "lying on the street")
+	assert_eq(once, 3, "three roll once")
+	assert_eq(twice, 3, "and three roll twice")
+
+
+func test_the_jacks_that_roll_twice_are_picked_at_random_for_each_field_and_their_stops_are_on_the_way_out() -> void:
+	var homes: Array[Vector3] = []
+	for k: int in 6:
+		var a: float = TAU * float(k) / 6.0 + 0.4
+		homes.append(Vector3(cos(a), 0.0, sin(a)) * 1.1)
+	var picked: Dictionary = {}
+	var subsets: Dictionary = {}
+	for id: int in range(1, 201):
+		var plan: Dictionary = FxFields.scatter_plan(id, homes)
+		var twice: Array[int] = plan["twice"] as Array[int]
+		assert_eq(twice.size(), 3, "three of the six")
+		var sorted: Array[int] = twice.duplicate()
+		sorted.sort()
+		assert_eq(sorted.size(), 3)
+		assert_ne(sorted[0], sorted[1], "three different jacks")
+		assert_ne(sorted[1], sorted[2])
+		subsets[str(sorted)] = true
+		for index: int in twice:
+			picked[index] = true
+		var again: Dictionary = FxFields.scatter_plan(id, homes)
+		assert_eq(again["twice"], plan["twice"], "the same field scatters the same way on every screen")
+		var mids: Array[Vector3] = plan["mids"] as Array[Vector3]
+		for k: int in 6:
+			var home_length: float = Vector2(homes[k].x, homes[k].z).length()
+			var mid_length: float = Vector2(mids[k].x, mids[k].z).length()
+			assert_lt(mid_length, home_length * FxFields.JACK_MID_OUT.y + 0.001, "the stop on the way is inside its spot's circle")
+			assert_gt(mid_length, home_length * FxFields.JACK_MID_OUT.x - 0.001, "and out from the middle")
+	assert_eq(picked.size(), 6, "any of the six can be one that rolls twice")
+	assert_gt(subsets.size(), 6, "and the three differ from field to field")
+
+
+func test_a_roll_turns_the_jack_over_whole_times_smears_it_and_leaves_a_streak_but_no_dust() -> void:
+	_setup(Vector2(20.0, 0.0))
+	_cast(&"jacks", Vector2(0.0, -4.0 / 6.0))
+	_fx.sync(_sim, DT)
+	var rec: FxZones.Rec = _field_rec()
+	var smeared: bool = false
+	var streaks: int = 0
+	var dust: int = 0
+	for i: int in 60:
+		_frame()
+		streaks = maxi(streaks, _fx.context().ground.live_smears())
+		dust = maxi(dust, _fx.particle_count())  # nothing but the sim's own effects: no dust or smoke from the jacks
+		for cluster: Node3D in rec.clusters:
+			# a smear is a basis that is not a plain turn: its scale is not (s, s, s)
+			var scale: Vector3 = cluster.basis.get_scale()
+			if absf(scale.y - scale.x) > 0.02 * scale.x or absf(scale.z - scale.x) > 0.02 * scale.x:
+				smeared = true
+	assert_true(smeared, "the first frames of a roll are smeared along it")
+	assert_gt(streaks, 0, "a streak on the street behind a rolling jack")
+	assert_eq(dust, 0, "no dust or smoke where the jacks land and stop (owner: only the smears)")
+	# at rest every cluster is back to a plain, upright, unsquashed jack (a whole number of turns)
+	for cluster: Node3D in rec.clusters:
+		var up: Vector3 = cluster.basis.y.normalized()
+		assert_almost_eq(up.y, 1.0, 0.001, "lying as it began: its up is up")

@@ -40,7 +40,8 @@ void fragment() {
 		colour = mix(colour, colour * (floor(top * steps + 0.5) / steps / top), 0.75);
 	}
 	colour = mix(vec3(dot(colour, vec3(0.299, 0.587, 0.114))), colour, colour_gain);
-	colour = clamp(colour, 0.0, 1.0) * albedo_color.rgb;
+	// a model painted in one colour per copy (the jacks) carries it in its vertex colours; the others have none, which is white
+	colour = clamp(colour, 0.0, 1.0) * albedo_color.rgb * COLOR.rgb;
 	vec3 lit = min(colour * top_boost, vec3(1.0));
 	vec3 dark = colour * shadow_tint;
 	ALBEDO = mix(dark, lit, smoothstep(turn.x, turn.y, looks_up));

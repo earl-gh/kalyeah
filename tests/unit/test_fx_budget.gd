@@ -9,9 +9,9 @@ const ALL: Array[StringName] = [&"bato_light", &"bato_heavy", &"gunting_light", 
 ## Visible effect nodes (every mesh and particle emitter under the view, the weapon models included) at most in a deliberately
 ## overloaded brawl: six kids casting a card every half second with no cooldown or elixir (about ten times what elixir
 ## allows). A headless proxy for draw calls; the phone target of 40 effect draws in a normal brawl is checked on a device.
-## 96, was 92 (4 more soil-crumb emitters, each a visible node while its crumbs live ~1 s); 92, was 90: dust, impact puffs and hit stars now live 0.5 / 0.5 / 0.4 s (were 0.4 / 0.45 / 0.3) so the bigger puffs are seen long
+## 100, was 96 (a jacks field is six clusters now, three more weapon-model nodes at the overloaded peak; the 64 non-model nodes are unchanged); 96, was 92 (4 more soil-crumb emitters, each a visible node while its crumbs live ~1 s); 92, was 90: dust, impact puffs and hit stars now live 0.5 / 0.5 / 0.4 s (were 0.4 / 0.45 / 0.3) so the bigger puffs are seen long
 ## enough to read, which keeps one or two more emitters visible at the overloaded peak (the 60 non-model nodes are unchanged in kind).
-const VISIBLE_CAP: int = 96
+const VISIBLE_CAP: int = 100
 ## The audit's budget per live effect (a sim object, an effect playing its end, a hit burst): at most this many effect
 ## draws on average (its ground mark, its decal or shadow, its particles; the object itself is the weapon model).
 const PER_EFFECT: float = 3.0

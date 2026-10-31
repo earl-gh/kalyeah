@@ -400,7 +400,14 @@ func test_only_your_own_slipper_has_the_white_pickup_ring_and_the_taya_is_marked
 	practice.advance(DT)
 	assert_false(practice.mode_view.pickup_visible(), "not while it is still flying")
 	var taya: PlayerState = practice.sim.players[game.taya_id]
-	assert_almost_eq(practice.mode_view.taya_marker_at().x, taya.position.x, 0.5, "the taya wears the ring and the word IT")
+	assert_eq(practice.find_children("It", "Label3D", true, false).size(), 0, "no word IT over the taya's head (owner)")
+	practice.advance(DT)
+	var hud: OverheadHud = practice.hud.overhead
+	assert_eq(hud.badge_color(taya), TeamColors.world_enemy(), "the taya is the one red kid")
+	assert_eq(hud.bar_color(taya), TeamColors.bar_enemy())
+	for id: int in practice.sim.players:
+		if id != game.taya_id:
+			assert_eq(hud.badge_color(practice.sim.players[id]), TeamColors.world_own(), "everyone else keeps the blue badge")
 
 
 func test_a_flung_can_and_slipper_hop_to_where_they_lie() -> void:

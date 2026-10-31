@@ -2,7 +2,7 @@ class_name StreetModeView
 extends Node3D
 ## What a street game adds to the street (docs/GDD.md "Tumbang Preso and Patintero"): the chalk lines (the throw line and the far line, and
 ## Patintero's court), the can (the lata's model) and every slipper lying on the ground (the tsinelas' model), the ring on your own
-## slipper, the taya's marker, and the local thrower's aim line with the short guide of where the can and the slipper would go. The flying
+## slipper, and the local thrower's aim line with the short guide of where the can and the slipper would go. The flying
 ## slipper is the weapons' own, drawn by WeaponFxView like Agawan Base's; the can borrows the lata's tumble, landing squash and dust.
 ## Everything lies on the ground (nothing is drawn over a kid). Reads the sim only. The chalk is code-drawn until the owner's decal.
 
@@ -47,11 +47,6 @@ const TAG_CIRCLE_RIM: Color = Color(1.0, 0.3, 0.25, 0.9)
 const TAG_CIRCLE_OFF_TINT: Color = Color(0.7, 0.7, 0.75, 0.14)
 const TAG_CIRCLE_OFF_RIM: Color = Color(0.8, 0.8, 0.85, 0.5)
 const TAG_CIRCLE_RIM_WIDTH: float = 0.1
-## The taya's marker: a red ring on the ground round the kid and the word IT over its head.
-const TAYA_COLOR: Color = Color(1.0, 0.25, 0.22, 0.9)
-const TAYA_RING: float = 1.0
-const TAYA_WORD_HEIGHT: float = 5.0
-const TAYA_WORD_SIZE: float = 0.014
 
 var _sim: MatchSim
 var _mode: StreetMode
@@ -70,7 +65,6 @@ var _aim_material: StandardMaterial3D
 var _can_guide: MeshInstance3D
 var _slipper_guide: Array[MeshInstance3D] = []
 var _pickup: Node3D
-var _taya_marker: Node3D
 var _tag_circles: Dictionary[int, Node3D] = {}
 
 
@@ -100,7 +94,6 @@ func setup(sim: MatchSim, ctx: FxContext, local_id: int) -> void:
 		game.slipper_landed.connect(_on_slipper_landed)
 		_build_aim()
 		_build_pickup()
-		_build_taya_marker()
 	if _mode is Patintero:
 		var span: float = _mode.rules.line_span
 		for index: int in 2:
@@ -118,7 +111,6 @@ func sync(delta: float) -> void:
 		_sync_slippers(delta)
 		_sync_aim()
 		_sync_pickup()
-		_sync_taya()
 
 
 ## The kids that have a tag circle on the ground right now (the ones the local taya or guard could tag).
@@ -171,11 +163,6 @@ func can_flying() -> bool:
 ## The ring on your own slipper is drawn.
 func pickup_visible() -> bool:
 	return _pickup != null and _pickup.visible
-
-
-## The marker of the taya is drawn at `id`.
-func taya_marker_at() -> Vector3:
-	return _taya_marker.position
 
 
 func _scale() -> float:
@@ -414,45 +401,6 @@ func _build_tag_circle() -> Node3D:
 	rim.scale = Vector3(1.0, 0.04, 1.0)
 	circle.add_child(rim)
 	return circle
-
-
-# ---- the taya ----------------------------------------------------------------------------
-
-func _build_taya_marker() -> void:
-	_taya_marker = Node3D.new()
-	_taya_marker.name = "TayaMarker"
-	add_child(_taya_marker)
-	var ring: TorusMesh = TorusMesh.new()
-	ring.inner_radius = TAYA_RING * 0.82
-	ring.outer_radius = TAYA_RING
-	ring.rings = 32
-	ring.ring_segments = 4
-	ring.material = _ground_material(TAYA_COLOR)
-	var disc: MeshInstance3D = _ground_mesh(ring, "Ring", true)
-	disc.scale = Vector3(1.0, 0.04, 1.0)
-	_taya_marker.add_child(disc)
-	var word: Label3D = Label3D.new()
-	word.name = "It"
-	word.text = "IT"
-	word.font = KalyeahTheme.ACTION_FONT
-	word.font_size = 96
-	word.pixel_size = TAYA_WORD_SIZE
-	word.modulate = Color(1.0, 0.85, 0.3)
-	word.outline_modulate = Color(0.45, 0.05, 0.05)
-	word.outline_size = 24
-	word.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	word.no_depth_test = true
-	word.position = Vector3(0.0, TAYA_WORD_HEIGHT, 0.0)
-	_taya_marker.add_child(word)
-
-
-func _sync_taya() -> void:
-	var taya: PlayerState = _sim.players.get((_mode as TumbangPreso).taya_id) as PlayerState
-	_taya_marker.visible = taya != null
-	if taya == null:
-		return
-	var at: Vector2 = _drawn(taya)
-	_taya_marker.position = Vector3(at.x, GROUND_LIFT, at.y)
 
 
 # ---- the aim line and the guides ---------------------------------------------------------
