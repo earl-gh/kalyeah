@@ -448,9 +448,8 @@ func test_patintero_has_the_same_hud_with_a_dive_button_whose_ring_fills_while_i
 	lines.dive_phase.clear()
 	assert_false(practice.hud.hand.visible)
 	assert_false(practice.hud.console.visible, "no tray")
-	assert_false(practice.hud.scoreboard.visible, "the points are on the left sidewalk, like Tumbang Preso's")
-	assert_not_null(practice.hud.score_column)
-	assert_eq(practice.hud.score_column.order().size(), 2, "one badge for each team")
+	assert_null(practice.hud.score_column, "no kids' column: Patintero is a team game")
+	assert_true(practice.hud.scoreboard.visible, "the team score is at the top centre, like Agawan Base")
 	assert_eq(pad.action, StreetGamePad.Action.DIVE, "the button at the right is Dive")
 	assert_true(pad.act_ready)
 	assert_eq(pad.charge, 1.0, "ready: the ring is full")
@@ -476,15 +475,24 @@ func test_patintero_has_the_same_hud_with_a_dive_button_whose_ring_fills_while_i
 	assert_eq(pad.charge, 1.0)
 
 
-func test_patintero_points_stand_in_a_column_by_team_most_first() -> void:
-	var practice: PracticeMatch = _practice(&"patintero")
-	var column: ScoreColumn = practice.hud.score_column
-	practice.advance(DT)
-	assert_eq(column.order(), [ScoreColumn.TEAM_KEY, ScoreColumn.TEAM_KEY + 1] as Array[int], "your team first when level")
-	practice.sim.score.points[1] = 2
-	practice.advance(DT)
-	assert_eq(column.order(), [ScoreColumn.TEAM_KEY + 1, ScoreColumn.TEAM_KEY] as Array[int], "the leading team goes up")
-	assert_eq(column.points_text(ScoreColumn.TEAM_KEY + 1), "2")
+func test_patintero_shows_the_team_score_at_the_top_centre_like_agawan_base() -> void:
+	var patintero: PracticeMatch = _practice(&"patintero")
+	patintero.advance(DT)
+	var board: Scoreboard = patintero.hud.scoreboard
+	var middle: float = patintero.hud.get_global_rect().get_center().x
+	assert_almost_eq(board.get_global_rect().get_center().x, middle, 2.0, "centred on the screen")
+	assert_lt(board.get_global_rect().end.y, patintero.hud.header_height() + 20.0, "in the header")
+	patintero.sim.score.points[0] = 2
+	patintero.sim.score.points[1] = 1
+	patintero.advance(DT)
+	assert_eq([board.mine, board.theirs], [2, 1], "your team's points on the left, theirs on the right")
+	assert_eq(patintero.sim.score.first_to, 0, "no first-to: a street game is played against the clock")
+	assert_false(board.accessibility_name.contains("first to"), "and it does not say so")
+	# the same place and the same card as Agawan Base's
+	var base: PracticeMatch = _practice(&"street")
+	base.advance(DT)
+	assert_eq(board.get_global_rect().position, base.hud.scoreboard.get_global_rect().position, "exactly where Agawan Base has it")
+	assert_eq(board.get_global_rect().size, base.hud.scoreboard.get_global_rect().size)
 
 
 func test_a_dive_crouches_leaps_slides_on_its_belly_and_gets_up() -> void:

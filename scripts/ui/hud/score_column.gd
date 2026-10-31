@@ -1,14 +1,12 @@
 class_name ScoreColumn
 extends Control
-## The points of the street games: a column on the left sidewalk. Tumbang Preso (every kid plays for itself) has a face for each kid with its
-## points under it, the kid with the most at the top; Patintero has one round badge for each team (YOU and FOE). When the points change the
-## rows slide to their new places (and the number pops); with Reduce motion they jump. The taya's face has a red rim and yours a gold one.
-## Display only; it never takes a touch.
+## Tumbang Preso's points (every kid plays for itself): a column on the left sidewalk, a face for each kid with its points under it, the kid
+## with the most at the top. When the points change the rows slide to their new places (and the number pops); with Reduce motion they jump.
+## The taya's face has a red rim and yours a gold one. Display only; it never takes a touch. (Patintero has two teams and uses the score cards
+## at the top centre, like Agawan Base.)
 
 ## One row: the face and the number under it.
 const FACE: float = 48.0
-## A team's badge is a little bigger, so YOU and FOE fit inside it.
-const TEAM_FACE: float = 60.0
 const ROW_HEIGHT: float = 90.0
 const WIDTH: float = 64.0
 const SLIDE_TIME: float = 0.35
@@ -28,7 +26,6 @@ var _slides: Dictionary[int, Tween] = {}
 var _targets: Dictionary[int, float] = {}
 var _pictures: Dictionary[int, TextureRect] = {}
 var _local_id: int = -1
-var _local_team: int = 0
 
 
 func _init() -> void:
@@ -37,19 +34,10 @@ func _init() -> void:
 	custom_minimum_size = Vector2(WIDTH, 0.0)
 
 
-## The key of the row of `team` (a team's row, not a kid's: Patintero).
-const TEAM_KEY: int = 1000
-
-## One row for each kid of `sim` (Tumbang Preso), or for each team (Patintero).
+## One row for each kid of `sim`.
 func setup(sim: MatchSim, local_id: int) -> void:
 	_local_id = local_id
 	var game: TumbangPreso = sim.mode as TumbangPreso
-	if game == null:
-		_local_team = sim.players[local_id].team
-		for team: int in [0, 1]:
-			_make_team_row(team)
-		sync(sim, true)
-		return
 	for id: int in game.points:
 		_make_row(sim.players[id])
 	sync(sim, true)
@@ -58,15 +46,7 @@ func setup(sim: MatchSim, local_id: int) -> void:
 ## The rows in the order of the points and what each says; `instant`: no sliding.
 func sync(sim: MatchSim, instant: bool = false) -> void:
 	var game: TumbangPreso = sim.mode as TumbangPreso
-	var order: Array[int] = []
-	if game != null:
-		order = game.ranking()
-	else:
-		# the team with more points first; your team first when they are level
-		var points: Array[int] = sim.score.points
-		order = [TEAM_KEY + _local_team, TEAM_KEY + 1 - _local_team] as Array[int]
-		if points[1 - _local_team] > points[_local_team]:
-			order.reverse()
+	var order: Array[int] = game.ranking()
 	for index: int in order.size():
 		var id: int = order[index]
 		var row: Control = _rows.get(id) as Control
@@ -77,21 +57,18 @@ func sync(sim: MatchSim, instant: bool = false) -> void:
 			_targets[id] = row.position.y
 		if not is_equal_approx(_targets[id], target):
 			_slide(id, row, target, instant)
-		var points: int = game.points[id] if game != null else sim.score.points[id - TEAM_KEY]
+		var points: int = game.points[id]
 		if _shown.get(id, -1) != points:
 			var first: bool = not _shown.has(id)
 			_shown[id] = points
 			_numbers[id].text = str(points)
 			if not first and not instant:
 				_pop(_numbers[id])
-		if game != null:
-			_rims[id].border_color = RIM_TAYA if id == game.taya_id else (RIM_YOU if id == _local_id else RIM_OTHER)
-			# the kids can swap faces at the start (a team never has the same kid twice): the column follows
-			var face: Texture2D = KidModel.portrait(sim.players[id].character_id)
-			if _pictures[id].texture != face:
-				_pictures[id].texture = face
-		else:
-			_rims[id].border_color = RIM_YOU if id - TEAM_KEY == _local_team else RIM_OTHER
+		_rims[id].border_color = RIM_TAYA if id == game.taya_id else (RIM_YOU if id == _local_id else RIM_OTHER)
+		# the kids can swap faces at the start (a team never has the same kid twice): the column follows
+		var face: Texture2D = KidModel.portrait(sim.players[id].character_id)
+		if _pictures[id].texture != face:
+			_pictures[id].texture = face
 
 
 ## The kids in the order the rows stand (top first, where they are going), for tests.
@@ -134,20 +111,6 @@ func _pop(label: Label) -> void:
 	tween.tween_property(label, "scale", Vector2.ONE, POP_TIME).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-## A team's round badge, in its colour, with the word on it.
-func _make_team_row(team: int) -> void:
-	var mine: bool = team == _local_team
-	var row: Control = _row(TEAM_KEY + team, "Team%d" % team, TeamColors.world_own() if mine else TeamColors.world_enemy(), TEAM_FACE)
-	var word: Label = Label.new()
-	word.text = "YOU" if mine else "FOE"
-	word.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	word.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	UiKit.letter(word, UiMetrics.DETAIL, Color.WHITE)
-	(row.get_node("Face") as Control).add_child(word)
-
-
 func _make_row(state: PlayerState) -> void:
 	var row: Control = _row(state.id, "Row%d" % state.id, Color(0.1, 0.18, 0.35))
 	var picture: TextureRect = TextureRect.new()
@@ -161,7 +124,7 @@ func _make_row(state: PlayerState) -> void:
 
 
 ## One row: a round face (filled with `fill`) with the points under it, kept under `key`.
-func _row(key: int, row_name: String, fill: Color, face_size: float = FACE) -> Control:
+func _row(key: int, row_name: String, fill: Color) -> Control:
 	var row: Control = Control.new()
 	row.name = row_name
 	row.custom_minimum_size = Vector2(WIDTH, ROW_HEIGHT)
@@ -169,13 +132,13 @@ func _row(key: int, row_name: String, fill: Color, face_size: float = FACE) -> C
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var face: Panel = Panel.new()
 	face.name = "Face"
-	face.position = Vector2((WIDTH - face_size) / 2.0, 0.0)
-	face.size = Vector2.ONE * face_size
+	face.position = Vector2((WIDTH - FACE) / 2.0, 0.0)
+	face.size = Vector2.ONE * FACE
 	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	face.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
 	var rim: StyleBoxFlat = StyleBoxFlat.new()
 	rim.bg_color = fill
-	rim.set_corner_radius_all(int(face_size / 2.0))
+	rim.set_corner_radius_all(int(FACE / 2.0))
 	rim.set_border_width_all(int(RIM))
 	rim.border_color = RIM_OTHER
 	face.add_theme_stylebox_override("panel", rim)
@@ -183,8 +146,8 @@ func _row(key: int, row_name: String, fill: Color, face_size: float = FACE) -> C
 	var number: Label = Label.new()
 	number.name = "Points"
 	number.text = "0"
-	number.position = Vector2(0.0, face_size + 2.0)
-	number.size = Vector2(WIDTH, ROW_HEIGHT - face_size - 2.0)
+	number.position = Vector2(0.0, FACE + 2.0)
+	number.size = Vector2(WIDTH, ROW_HEIGHT - FACE - 2.0)
 	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	number.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	UiKit.letter(number, UiMetrics.DETAIL, Color.WHITE)
