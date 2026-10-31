@@ -121,7 +121,7 @@ static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 			sim.rescue_ready_left[team] = _number(ready[team])
 	var mode: Variant = data.get("mode", {})
 	if sim.mode != null and mode is Dictionary:
-		sim.mode.restore(mode as Dictionary)
+		sim.mode.restore(mode as Dictionary, sim)
 
 
 ## The recipient's own elixir, stamina and move target (absent from an old server: the mirror keeps its own).

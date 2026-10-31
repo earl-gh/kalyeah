@@ -62,8 +62,9 @@ func snapshot() -> Dictionary:
 	return data
 
 
-## Writes a `snapshot()` into this game (a client's copy). A missing field, or one of another type (an untrusted message), is skipped.
-func restore(data: Dictionary) -> void:
+## Writes a `snapshot()` into this game (a client's copy), after `sim`'s own state (its projectiles) was written. A missing field, or one
+## of another type (an untrusted message), is skipped.
+func restore(data: Dictionary, _sim: MatchSim = null) -> void:
 	for field: StringName in synced_fields():
 		if not data.has(field):
 			continue

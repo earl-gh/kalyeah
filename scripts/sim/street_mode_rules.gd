@@ -10,6 +10,8 @@ extends Resource
 @export var title: String = ""
 ## Length of the match (seconds). The leader then wins; a tie plays on until the next point.
 @export var match_seconds: float = 300.0
+## In a Local or Online room, the game starts with at least this many players (owner: Tumbang Preso 3 to 6; Patintero is 1v1 to 3v3).
+@export var room_min_players: int = 2
 ## Nobody can be tagged for this long after a swap of roles (everyone is walking to their places).
 @export var swap_grace: float = 1.5
 ## Every runner (and every Tumbang Preso thrower in the fetch area) has a tag circle round it, this big (m, radius): the taya or guard

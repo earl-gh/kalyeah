@@ -52,11 +52,12 @@ func _until(condition: Callable, limit: float = 6.0) -> bool:
 	return condition.call()
 
 
-## A 2v2 room on `game`, everyone ready and started; returns the server's match once it plays.
-func _start(game: StringName) -> ServerMatch:
+## A room of `count` players on `game` (a 2v2 for a team game), everyone ready and started; returns the server's match once it plays.
+func _start(game: StringName, count: int = 4) -> ServerMatch:
+	clients = clients.slice(0, count)
 	for client: GameClient in clients:
 		assert_eq(client.connect_to("ws://127.0.0.1:%d" % PORT), OK)
-	assert_true(_until(func() -> bool: return clients.all(func(c: GameClient) -> bool: return c.is_online())), "all four online")
+	assert_true(_until(func() -> bool: return clients.all(func(c: GameClient) -> bool: return c.is_online())), "all online")
 	var host: GameClient = clients[0]
 	host.create_room(2)
 	assert_true(_until(func() -> bool: return not host.room.is_empty()), "room")
@@ -64,7 +65,7 @@ func _start(game: StringName) -> ServerMatch:
 	assert_true(_until(func() -> bool: return host.room.get("map", "") == String(game)), "the host picked %s" % game)
 	for client: GameClient in clients.slice(1):
 		client.join_room(host.room["code"] as String)
-	assert_true(_until(func() -> bool: return (host.room.get("members", []) as Array).size() == 4), "four in the room")
+	assert_true(_until(func() -> bool: return (host.room.get("members", []) as Array).size() == count), "all in the room")
 	for client: GameClient in clients:
 		client.set_ready(true)
 	assert_true(_until(func() -> bool: return host.room.get("can_start", false) as bool), "can start")
@@ -118,11 +119,10 @@ func test_a_tag_on_the_server_reaches_every_phone() -> void:
 	assert_true(seen.all(func(target: int) -> bool: return target == runner.id), "of that runner")
 
 
-func test_the_room_shows_a_street_game_as_timed_and_tumbang_preso_is_not_open_yet() -> void:
+func test_the_room_shows_a_street_game_as_timed() -> void:
 	var rooms: RoomService = RoomService.new(NET, 3)
 	var room: RoomService.Room = rooms.create_room(7, "Ana", 2)
 	assert_true(rooms.set_map(7, &"patintero"))
-	assert_false(rooms.set_map(7, &"tumbang_preso"), "Tumbang Preso comes to rooms next")
 	var listed: Dictionary = rooms.open_rooms(10)[0]
 	assert_string_ends_with(OpenRoomsList.card_text(listed), "· Patintero", "the list names the game, not first to")
 	var view: HotspotRoomView = autofree(HotspotRoomView.new()) as HotspotRoomView
@@ -155,3 +155,71 @@ func test_the_match_screen_plays_patintero_online_with_the_street_pad_and_moves_
 		_pump(dt)
 	_pump(0.3)
 	assert_gt(running.sim.players[me.player_id].position.distance_to(start), 0.5, "the kid moved on the server")
+
+
+# ---- Tumbang Preso ---------------------------------------------------------------------
+
+func test_a_tumbang_preso_room_has_six_places_and_needs_three_ready_kids() -> void:
+	var rooms: RoomService = RoomService.new(NET, 3)
+	var room: RoomService.Room = rooms.create_room(7, "Ana", 1)
+	assert_true(rooms.set_map(7, &"tumbang_preso"), "open in rooms (owner, 2026-10-31)")
+	assert_eq(room.team_size, 3, "six places, whatever the size was")
+	assert_false(rooms.set_team_size(7, 1), "and no size to pick")
+	rooms.join(room.code, 8, "Ben")
+	for m: RoomService.Member in room.members:
+		m.ready = true
+	assert_false(rooms.can_start(room), "two kids are not enough")
+	rooms.join(room.code, 9, "Cy")
+	room.members[2].ready = true
+	assert_true(rooms.can_start(room), "three ready kids can start, whatever their columns")
+	var card: String = OpenRoomsList.card_text(rooms.describe(room).merged({"host_name": "Ana", "players": 3}))
+	assert_string_ends_with(card, "3/6 · Tumbang Preso", "no NvN: every kid for itself")
+
+
+func test_a_room_plays_tumbang_preso_and_a_throw_flies_and_lands_on_every_phone() -> void:
+	var running: ServerMatch = _start(&"tumbang_preso", 3)
+	assert_true(running.sim.mode is TumbangPreso)
+	var game: TumbangPreso = running.sim.mode as TumbangPreso
+	for id: int in running.sim.players:
+		assert_eq(running.sim.players[id].team, 0, "every kid for itself: one team in the sim")
+	_pump(0.4)
+	for client: GameClient in clients:
+		var copy: TumbangPreso = client.mirror.mode as TumbangPreso
+		assert_not_null(copy, "%s plays Tumbang Preso" % client.player_name)
+		assert_eq(copy.taya_id, game.taya_id, "the same taya")
+		assert_eq(client.mirror.players[client.player_id].team, 0)
+	var thrower: GameClient = null
+	for client: GameClient in clients:
+		if client.player_id != game.taya_id:
+			thrower = client
+			break
+	var landed: Array[int] = []
+	for client: GameClient in clients:
+		(client.mirror.mode as TumbangPreso).slipper_landed.connect(func(id: int, _at: Vector2, _hit: bool) -> void: landed.append(id))
+	game.grace_left = 0.0
+	var dt: float = RULES.tick_dt()
+	# hold Throw for half a second aiming up the street, then let go: the real input, over the network
+	for i: int in 15:
+		thrower.send_input(PlayerInput.create(Vector2.ZERO, Vector2(0.0, -1.0), PlayerInput.BTN_CARD_1, 2000 + i), dt)
+		_pump(dt)
+	thrower.send_input(PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 2015), dt)
+	assert_true(_until(func() -> bool: return game.flights.has(thrower.player_id) or game.slippers.has(thrower.player_id), 2.0), "the server threw it")
+	if game.flights.has(thrower.player_id):
+		assert_true(_until(func() -> bool: return clients.any(func(c: GameClient) -> bool: return (c.mirror.mode as TumbangPreso).flights.has(thrower.player_id)), 1.0)
+			or game.slippers.has(thrower.player_id), "a phone sees it in the air, linked to its own projectile")
+	assert_true(_until(func() -> bool: return landed.size() == clients.size(), 4.0), "every phone saw it land")
+	for client: GameClient in clients:
+		assert_false((client.mirror.mode as TumbangPreso).has_slipper(thrower.player_id), "no slipper in hand on any phone")
+
+
+func test_a_point_in_tumbang_preso_reaches_every_phone() -> void:
+	var running: ServerMatch = _start(&"tumbang_preso", 3)
+	var game: TumbangPreso = running.sim.mode as TumbangPreso
+	var scorer: int = -1
+	for id: int in running.sim.players:
+		if id != game.taya_id:
+			scorer = id
+			break
+	game.award(running.sim, running.sim.players[scorer])
+	assert_true(_until(func() -> bool: return clients.all(func(c: GameClient) -> bool: return (c.mirror.mode as TumbangPreso).points.get(scorer, 0) == 1), 2.0),
+		"every phone counts the point")

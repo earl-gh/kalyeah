@@ -3,7 +3,7 @@ extends RefCounted
 ## One running match on the server: loading sync, the 10 s weapon pick, then the
 ## authoritative MatchSim stepped at 30 Hz from queued client inputs, with
 ## snapshots at `snapshot_rate` and the sim's signals relayed as EVENTS.
-## A room on a street game (Patintero; `RoomService.PLAYABLE_MAP_IDS`) plays that game instead: no cards and no weapon pick (the kid
+## A room on a street game (Patintero, Tumbang Preso; `RoomService.PLAYABLE_MAP_IDS`) plays that game instead: no cards and no weapon pick (the kid
 ## was chosen in the room), a random team runs first, and every signal of the game is relayed too ("mode").
 
 enum Stage { LOADING, PICKING, PLAYING }
@@ -44,8 +44,11 @@ func _init(server: GameServer, p_room: RoomService.Room, rules: GameRules, layou
 	seed_value = p_seed
 	sim = MatchSim.new(rules, layout, p_seed)
 	sim.set_first_to(room.first_to)
+	var game: StreetModeRules = StreetMode.rules_for(room.map_id)
+	var mode: StreetMode = StreetMode.create(game) if game != null else null
 	for m: RoomService.Member in room.members:
-		sim.add_player(m.player_id, m.team)
+		# Tumbang Preso: every kid for itself, all on one team in the sim (as in Practice)
+		sim.add_player(m.player_id, 0 if mode != null and mode.is_free_for_all() else m.team)
 		_queues[m.player_id] = []
 		_acks[m.player_id] = -1
 	sim.assign_characters()
@@ -54,10 +57,8 @@ func _init(server: GameServer, p_room: RoomService.Room, rules: GameRules, layou
 	for m: RoomService.Member in room.members:
 		if m.character != &"":
 			sim.set_character(m.player_id, m.character)
-	var game: StreetModeRules = StreetMode.rules_for(room.map_id)
-	if game != null:
-		var mode: StreetMode = StreetMode.create(game)
-		mode.attack_team = sim.rng.randi_range(0, 1)  # owner: in a room, a random team runs first
+	if mode != null:
+		mode.attack_team = sim.rng.randi_range(0, 1)  # owner: in a room, a random team runs first (Patintero)
 		sim.start_mode(mode)  # no skills in these games: nobody is dealt a hand
 	else:
 		for id: int in sim.players:
@@ -86,7 +87,7 @@ func info() -> Dictionary:
 	var players: Array[Dictionary] = []
 	for m: RoomService.Member in room.members:
 		players.append({
-			"id": m.player_id, "team": m.team, "name": m.name,
+			"id": m.player_id, "team": sim.players[m.player_id].team, "name": m.name,
 			"char": sim.players[m.player_id].character_id,
 		})
 	return {"t": NetProtocol.Msg.MATCH_LOADING, "seed": seed_value, "team_size": room.team_size, "players": players, "game": String(room.map_id),
