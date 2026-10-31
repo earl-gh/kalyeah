@@ -41,10 +41,11 @@ static func apply(hud: MatchHud) -> void:
 			hud.chat.place_over_hand(Rect2(Vector2(hud.hand.card_rects[0].position.x, hud.size.y - hud.console_height() + 12.0), Vector2(hud.size.x - CardHand.COLUMN - CardHand.SIDE, hud.CONSOLE_HEIGHT - 24.0)))
 
 
-## In the street games the quick chat button stands under the clock (top right) and opens a vertical list of phrases under itself.
+## In the street games the quick chat button stands under the clock (top right) and opens a vertical list of phrases under itself. The
+## clock sits in `hud.top`, which the notch's inset moves down, so the button goes down with it.
 static func _place_street_chat(hud: MatchHud) -> void:
 	var right: float = -MatchHud.MARGIN
-	var top: float = MatchHud.CLOCK_SIZE.y + 8.0
+	var top: float = hud.top_inset + MatchHud.CLOCK_SIZE.y + 8.0
 	hud._place(hud.chat, Vector4(1, 0, 1, 0), Vector4(right - MatchHud.STREET_CHAT_SIZE, top, right, top + MatchHud.STREET_CHAT_SIZE))
 	var list: Rect2 = Rect2(Vector2(hud.size.x - MatchHud.MARGIN - MatchHud.STREET_CHAT_WIDTH, top + MatchHud.STREET_CHAT_SIZE + 8.0),
 		Vector2(MatchHud.STREET_CHAT_WIDTH, float(QuickChat.PHRASES.size()) * (UiMetrics.TOUCH + UiMetrics.COMPACT_GAP)))

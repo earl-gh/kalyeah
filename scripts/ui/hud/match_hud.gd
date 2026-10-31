@@ -149,6 +149,9 @@ func set_top_inset(pixels: float) -> void:
 	top_inset = pixels
 	header.set_header_height(header_height())
 	header_height_changed.emit(header_height())
+	# what is placed under the header from outside `top` (the street games' points column and chat button) moves down with it; laid out
+	# before the inset was known they stayed up, over the gear and the clock on a phone with a notch
+	layout_controls()
 
 
 ## The header's height now: its own plus the notch's inset.
