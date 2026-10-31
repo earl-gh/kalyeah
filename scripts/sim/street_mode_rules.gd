@@ -86,7 +86,7 @@ extends Resource
 ## and a right vertical line at x = -corridor_half_width and +corridor_half_width, with one more vertical line down the middle (x = 0). A
 ## guard keeps to the one line it is given. Between each of the two outer vertical lines and the sidewalk is the pen where tagged runners wait.
 @export var line_span: float = 10.0
-@export var corridor_half_width: float = 4.5
+@export var corridor_half_width: float = 7.0
 ## A tagged runner stands still this long (s, it stumbles) and then is in the pen.
 @export var catch_seconds: float = 0.7
 ## A round in which no runner has passed the first guard after this long (s) is a point for the guards, and the teams swap roles.
