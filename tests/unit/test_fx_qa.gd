@@ -292,7 +292,7 @@ func test_online_snip_count_and_cone_from_relayed_events_only() -> void:
 	var snip: WeaponDef = mirror.weapon_defs[&"gunting_light"]
 	mirror.weapons.cone_struck.emit(1, snip, Vector2(0.0, 8.0), Vector2(0.0, -1.0))
 	fx.sync(mirror, DT)
-	assert_eq(fx.cones.scissors().size(), 1, "one pair of scissors")
+	assert_eq(fx.cones.scissors().size(), snip.snips_min, "one pair of scissors per snip")
 	assert_eq(fx.cones.flashes().size(), 1, "one wedge")
 	# a duplicate strike packet in the same frame is two strikes (the sim never does that); a later frame must not add more
 	_run(mirror, fx, 90)

@@ -164,11 +164,16 @@ func test_a_rescue_area_is_white_while_it_counts_down_and_the_teams_colour_once_
 	assert_true(Color(map.zone_colors(own_side)[3], 1.0).is_equal_approx(Color.WHITE), "its fill too")
 	assert_true(Color(map.zone_colors(enemy_side)[2], 1.0).is_equal_approx(StreetMap.ENEMY_COLOR), "ready: their red")
 	assert_true(Color(map.zone_colors(own_side)[0], 1.0).is_equal_approx(StreetMap.OWN_COLOR), "the base itself keeps its colour")
-	assert_almost_eq(map.zone_colors(own_side)[3].a, 0.55, 0.0001, "the countdown box's fill is 0.55 (was 0.34)")
-	assert_eq(map.zone_colors(own_side)[2].a, 1.0, "its outline is fully opaque")
+	# owner, 2026-10-30: while it counts down the white tint and the white outline are 50% see-through (the tint was 0.55, the outline opaque)
+	assert_almost_eq(map.zone_colors(own_side)[3].a, StreetMap.RESCUE_WHITE_ALPHA, 0.0001, "the countdown box's tint is half see-through")
+	assert_almost_eq(map.zone_colors(own_side)[2].a, StreetMap.RESCUE_WHITE_ALPHA, 0.0001, "and so is its outline")
+	assert_eq(StreetMap.RESCUE_WHITE_ALPHA, 0.5)
+	assert_eq(map.zone_colors(enemy_side)[2].a, 1.0, "ready: the outline is the exact team colour, solid, as before")
+	assert_almost_eq(map.zone_colors(enemy_side)[3].a, StreetMap.RESCUE_FILL_ALPHA, 0.0001, "and the tint is as it was")
 	sim.rescue_ready_left[0] = 0.0
 	map.sync_rescue(sim)
 	assert_true(Color(map.zone_colors(own_side)[2], 1.0).is_equal_approx(StreetMap.OWN_COLOR), "ready: your blue")
+	assert_eq(map.zone_colors(own_side)[2].a, 1.0, "solid again once ready")
 
 
 func test_each_rescue_area_is_a_gently_rounded_rectangle_against_the_street_edge() -> void:

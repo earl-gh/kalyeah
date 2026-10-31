@@ -17,3 +17,4 @@ By priority (how often the player sees it):
 11. [Stun stars](stun-stars.md) (P3)
 12. [RESCUE pointer](rescue-pointer.md) (P3)
 13. [Softer body font (recommendation, not an asset to make)](body-font.md) (P3)
+14. [Trumpo, the bare wooden spinning top on a steel nail (full Blender model)](trumpo-model.md) (P2)

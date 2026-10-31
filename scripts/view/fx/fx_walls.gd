@@ -359,7 +359,7 @@ static func fade_look_shader() -> Shader:
 
 static func fade_outline_shader() -> Shader:
 	if _fade_outline == null:
-		_fade_outline = _with_alpha(WeaponLook.OUTLINE, "ALBEDO = texture(albedo_texture, UV).rgb * ink;")
+		_fade_outline = _with_alpha(WeaponLook.OUTLINE, "ALBEDO = colour * ink;")
 	return _fade_outline
 
 

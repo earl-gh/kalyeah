@@ -4,6 +4,8 @@ shader_type spatial;
 // the world (not from the scene's lights), so every weapon, flying or tumbling, is lit by the one rule.
 render_mode unshaded, cull_back;
 
+#include "res://scripts/view/art/scissors_steel.gdshaderinc"
+
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap_anisotropic;
 uniform vec4 albedo_color : source_color = vec4(1.0);
 // What the underside keeps of its colour per channel: less red, most blue, so a shadow goes violet.
@@ -17,15 +19,22 @@ uniform vec2 turn = vec2(-0.55, 0.65);
 uniform float flatten = 0.0;
 uniform float steps = 0.0;
 uniform float colour_gain = 1.0;
+// 1: paint the black blades of the scissors picture as silver steel (scissors_steel.gdshaderinc); 0: the picture as made.
+uniform float silver = 0.0;
 
 varying float looks_up;
+varying vec2 at;
 
 void vertex() {
 	looks_up = normalize(mat3(MODEL_MATRIX) * NORMAL).y;
+	at = VERTEX.xy;
 }
 
 void fragment() {
 	vec3 colour = texture(albedo_texture, UV, flatten).rgb;
+	if (silver > 0.5) {
+		colour = steel_blade(colour, at);
+	}
 	if (steps > 0.0) {
 		float top = max(max(colour.r, colour.g), max(colour.b, 0.001));
 		colour = mix(colour, colour * (floor(top * steps + 0.5) / steps / top), 0.75);
