@@ -80,6 +80,9 @@ extends Resource
 @export var kick_min_distance: float = 4.0
 @export var kick_max_distance: float = 8.0
 @export var kick_cooldown: float = 4.0
+## The kick sends the can away from the kicker in a random direction within this many degrees either side of straight away (a forward cone, so it
+## flies the way the foot swings); a kicker standing right on the can sends it anywhere.
+@export var kick_cone_degrees: float = 75.0
 
 @export_group("Patintero")
 ## The court: two horizontal lines across the street at z = +line_span and -line_span, with one vertical line down the middle (x = 0). A

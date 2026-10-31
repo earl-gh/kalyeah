@@ -423,11 +423,45 @@ func test_a_thrower_without_its_slipper_can_kick_the_can_once_in_a_random_mid_ra
 	var distance: float = game.can_position.distance_to(from)
 	assert_gte(distance, TUMBANG.kick_min_distance - 0.5)
 	assert_lte(distance, TUMBANG.kick_max_distance + 0.5, "mid range")
+	# away from the kicker, in a cone (the kick animation swings the foot that way)
+	var away: Vector2 = from - sim.players[1].position
+	assert_lte(absf(away.angle_to(game.can_position - from)), deg_to_rad(TUMBANG.kick_cone_degrees) + 0.05, "within the forward cone")
 	# holding the button does not kick again, and it has to cool down
 	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
 	_wait(sim, 1.0)
 	assert_eq(kicks.size(), 1)
 	assert_gt(game.kick_left[1], 0.0)
+
+
+func test_kicks_go_away_from_the_kicker_in_a_random_direction_within_the_cone() -> void:
+	var angles: Array[float] = []
+	for seed_value: int in 60:
+		var sim: MatchSim = MatchSim.new(_rules, LAYOUT, seed_value)
+		for i: int in 4:
+			sim.add_player(1 + i, 0)
+		sim.start_mode(StreetMode.create(TUMBANG))
+		var game: TumbangPreso = sim.mode as TumbangPreso
+		_clear_street(sim, [1])
+		game.slippers[1] = Vector2(5.0, 8.0)
+		sim.players[1].position = TUMBANG.can_spot + Vector2(0.0, 1.0)
+		var from: Vector2 = game.can_position
+		game.kick(sim, sim.players[1])
+		var away: Vector2 = from - sim.players[1].position
+		var turn: float = away.angle_to(game.can_position - from)
+		assert_lte(absf(turn), deg_to_rad(TUMBANG.kick_cone_degrees) + 0.05, "never back at the kicker")
+		angles.append(turn)
+	assert_lt(angles.min(), -deg_to_rad(TUMBANG.kick_cone_degrees) * 0.6, "it can go to either side ...")
+	assert_gt(angles.max(), deg_to_rad(TUMBANG.kick_cone_degrees) * 0.6)
+	# ... and a kicker standing on the can sends it anywhere
+	var sim2: MatchSim = _tumbang()
+	var game2: TumbangPreso = sim2.mode as TumbangPreso
+	sim2.players[1].position = game2.can_position
+	game2.kick(sim2, sim2.players[1])
+	assert_false(game2.can_up)
+
+
+func test_the_can_stands_in_the_middle_of_the_street() -> void:
+	assert_eq(TUMBANG.can_spot, Vector2.ZERO, "owner: the can was not centred")
 
 
 func test_a_thrower_with_its_slipper_cannot_kick_and_a_far_one_cannot_reach() -> void:

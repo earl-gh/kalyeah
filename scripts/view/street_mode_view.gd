@@ -40,6 +40,13 @@ const PICKUP_TINT: Color = Color(1.0, 1.0, 1.0, 0.3)
 const PICKUP_OUTLINE: Color = Color(1.0, 1.0, 1.0, 0.95)
 const PICKUP_OUTLINE_WIDTH: float = 0.14
 const PICKUP_BREATH: float = 4.0
+## The ring where the can belongs (owner: a semi-transparent white outline, so the taya knows where to put it back): as wide as the place the
+## sim takes as "put back" (`place_radius`), brighter while the can is down and has to be carried there.
+const SPOT_RING_WIDTH: float = 0.09
+const SPOT_RING_STANDING: float = 0.5
+const SPOT_RING_WAITING: float = 0.85
+## A kicked can waits at most this long (s) for the foot before it flies anyway.
+const KICK_WAIT: float = 1.0
 ## The tag circle round everyone the local taya or guard could tag (medium size, `StreetModeRules.tag_circle_radius`): red while a touch
 ## tags, grey while it cannot (the can is down, the round is resetting).
 const TAG_CIRCLE_TINT: Color = Color(1.0, 0.25, 0.22, 0.25)
@@ -65,6 +72,12 @@ var _aim_material: StandardMaterial3D
 var _can_guide: MeshInstance3D
 var _slipper_guide: Array[MeshInstance3D] = []
 var _pickup: Node3D
+var _spot_ring: MeshInstance3D
+var _spot_ring_material: StandardMaterial3D
+## Asks the kids where the can is when one holds it (set by the match's presentation): returns {position, upright, squash, hold} or {}.
+var held_can: Callable = Callable()
+## A kick holds the can's flight until the foot meets it (`release_fling`).
+var _hold_fling: bool = false
 var _tag_circles: Dictionary[int, Node3D] = {}
 
 
@@ -94,6 +107,7 @@ func setup(sim: MatchSim, ctx: FxContext, local_id: int) -> void:
 		game.slipper_landed.connect(_on_slipper_landed)
 		_build_aim()
 		_build_pickup()
+		_build_spot_ring()
 	if _mode is Patintero:
 		var span: float = _mode.rules.line_span
 		for index: int in 2:
@@ -108,6 +122,7 @@ func sync(delta: float) -> void:
 		_sync_tag_circles()
 	if _mode is TumbangPreso:
 		_sync_can()
+		_sync_spot_ring()
 		_sync_slippers(delta)
 		_sync_aim()
 		_sync_pickup()
@@ -191,7 +206,19 @@ func _hop(from: Vector2, path: Array[Vector2], age: float) -> Dictionary:
 
 
 func _on_can_flung(from: Vector2, path: Array[Vector2]) -> void:
-	_can_fling = {"from": from, "path": path, "start": _time, "hop": 0}
+	_can_fling = {"from": from, "path": path, "start": INF if _hold_fling else _time, "hop": 0, "asked": _time}
+	_hold_fling = false
+
+
+## The next fling of the can waits for `release_fling` (a kick: the can leaves when the foot meets it).
+func hold_next_fling() -> void:
+	_hold_fling = true
+
+
+## The foot met the can: the held fling starts now.
+func release_fling() -> void:
+	if not _can_fling.is_empty() and (_can_fling["start"] as float) == INF:
+		_can_fling["start"] = _time
 
 
 func _on_slipper_flung(id: int, from: Vector2, path: Array[Vector2]) -> void:
@@ -222,8 +249,14 @@ func _sync_can() -> void:
 	var game: TumbangPreso = _mode as TumbangPreso
 	var height: float = _can_height()
 	var carrier: PlayerState = _sim.players.get(game.can_carrier) as PlayerState
+	var held: Variant = held_can.call() if held_can.is_valid() else null
 	if not _can_fling.is_empty():
 		_fly_can(height)
+	elif held is Dictionary and not (held as Dictionary).is_empty():
+		# in the kid's hands (or being picked up or set down): where its hands put it, upright by how far it was lifted
+		var hold: Dictionary = held as Dictionary
+		var axis: Vector3 = Vector3(0.0, 0.0, -1.0).cross(Vector3.UP).normalized()
+		_place_can(hold["position"] as Vector3, Basis(axis, PI / 2.0 * (1.0 - (hold["upright"] as float))), hold["squash"] as Vector3)
 	elif carrier != null:
 		var at: Vector2 = _drawn(carrier)
 		_place_can(Vector3(at.x, CARRY_HEIGHT * _scale() + height / 2.0, at.y), Basis.IDENTITY)
@@ -245,6 +278,13 @@ func _place_can(position_at: Vector3, basis_at: Basis, squash: Vector3 = Vector3
 func _fly_can(height: float) -> void:
 	var from: Vector2 = _can_fling["from"] as Vector2
 	var path: Array[Vector2] = _can_fling["path"] as Array[Vector2]
+	if (_can_fling["start"] as float) == INF:
+		# a kick: the can stands where it was until the foot meets it (never longer than `KICK_WAIT`)
+		if _time - (_can_fling["asked"] as float) > KICK_WAIT:
+			_can_fling["start"] = _time
+		else:
+			_place_can(Vector3(from.x, height / 2.0, from.y), Basis.IDENTITY)
+			return
 	var age: float = _time - (_can_fling["start"] as float)
 	var step: Dictionary = _hop(from, path, age)
 	var at: Vector2 = step["at"] as Vector2
@@ -321,6 +361,33 @@ func _sync_pickup() -> void:
 	_pickup.position = Vector3(at.x, GROUND_LIFT, at.y)
 	var breath: float = 1.0 if Settings.reduced_motion else 1.0 + 0.04 * sin(_time * PICKUP_BREATH)
 	_pickup.scale = Vector3(breath, 1.0, breath)
+
+
+## The white ring round the spot where the can stands (flat on the street, an outline only).
+func _build_spot_ring() -> void:
+	var radius: float = (_mode as TumbangPreso).rules.place_radius
+	var ring: TorusMesh = TorusMesh.new()
+	ring.inner_radius = radius - SPOT_RING_WIDTH
+	ring.outer_radius = radius
+	ring.rings = 48
+	ring.ring_segments = 4
+	_spot_ring_material = _ground_material(Color(1.0, 1.0, 1.0, SPOT_RING_STANDING))
+	ring.material = _spot_ring_material
+	_spot_ring = _ground_mesh(ring, "CanSpotRing", true)
+	_spot_ring.scale = Vector3(1.0, 0.04, 1.0)
+	var spot: Vector2 = (_mode as TumbangPreso).rules.can_spot
+	_spot_ring.position = Vector3(spot.x, GROUND_LIFT, spot.y)
+	add_child(_spot_ring)
+
+
+func _sync_spot_ring() -> void:
+	var game: TumbangPreso = _mode as TumbangPreso
+	_spot_ring_material.albedo_color.a = SPOT_RING_STANDING if game.can_up else SPOT_RING_WAITING
+
+
+## The ring where the can belongs is drawn (tests).
+func spot_ring_position() -> Vector3:
+	return _spot_ring.position
 
 
 func _build_pickup() -> void:

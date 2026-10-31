@@ -10,12 +10,27 @@ const DIVE_STREAK_LIFT: float = 0.1
 const CATCH_STARS_HEIGHT: float = 1.4
 const CATCH_SHAKE: float = 0.3
 const DIVE_STREAK_COLOR: Color = Color(1.0, 1.0, 1.0, 0.55)
+## The kick's smears: the foot's swing, the can's take-off, the burst where they meet, and a little shake.
+const KICK_ARC_WIDTH: float = 0.5
+const KICK_ARC_LIFE: float = 0.18
+const KICK_STREAK_COLOR: Color = Color(1.0, 1.0, 1.0, 0.75)
+const KICK_TRAIL_LIFT: float = 0.35
+const KICK_LAUNCH_LENGTH: float = 4.0
+const KICK_LAUNCH_WIDTH: float = 0.8
+const KICK_LAUNCH_LIFE: float = 0.25
+const KICK_STARS: int = 6
+const KICK_DUST: int = 4
+const KICK_SHAKE: float = 0.15
 
 var owner: PracticeMatch
 ## The side of the street the picture has at the bottom (Patintero turns it round when the local team changes roles).
 var _viewed_side: int = MapLayout.SIDE_OWN
 ## The film finish over the street (its vignette stays behind the top boundary pictures).
 var _film: FilmFinish
+## The kid that holds the can (-1: nobody), the one that is kicking it, and where the can lay before this frame (for a pick-up).
+var _carrier: int = -1
+var _kicker: int = -1
+var _can_before: Vector2 = Vector2.ZERO
 
 
 ## The arena starts this far (UI pixels) below the header, so its shadow falls on the street's end and not on the play.
@@ -193,10 +208,22 @@ func _connect_tumbang(game: TumbangPreso) -> void:
 		elif game.taya_id == owner.local_id:
 			owner.show_banner("CAN DOWN! PUT IT BACK!"))
 	game.can_kicked.connect(func(id: int) -> void:
+		_kicker = id
+		owner.mode_view.hold_next_fling()  # the can leaves when the foot meets it
 		if id == owner.local_id:
 			owner.show_banner("KICKED!")
 		elif game.taya_id == owner.local_id:
 			owner.show_banner("THEY KICKED THE CAN!"))
+	game.can_flung.connect(func(from: Vector2, _path: Array[Vector2]) -> void:
+		var view: KidModel = owner._views.get(_kicker) as KidModel
+		if view != null:
+			view.play_kick(Vector3(from.x, _can_drawn_height() / 2.0, from.y))
+		_kicker = -1)
+	game.can_placed.connect(func(id: int) -> void:
+		var view: KidModel = owner._views.get(id) as KidModel
+		if view != null:
+			view.play_place(Vector3(game.rules.can_spot.x, _can_drawn_height() / 2.0, game.rules.can_spot.y)))
+	owner.mode_view.held_can = _held_can
 	game.slipper_fetched.connect(func(id: int) -> void:
 		if id == owner.local_id:
 			owner.show_banner("RUN TO THE OTHER END!"))
@@ -259,6 +286,8 @@ func sync(delta: float) -> void:
 	owner.hud.overhead.taya_id = (owner.sim.mode as TumbangPreso).taya_id if owner.sim.mode is TumbangPreso else -1
 	for id: int in owner.sim.players:
 		_sync_actor(owner.sim.players[id], delta)
+	if owner.sim.mode is TumbangPreso:
+		_sync_can_acts(owner.sim.mode as TumbangPreso)
 	if owner.sim.phase in [MatchSim.Phase.POINT_FREEZE, MatchSim.Phase.MATCH_OVER] and owner._pick_screen.visible:
 		owner._pick_screen.close()
 	var player: PlayerState = owner.sim.players[owner.local_id]
@@ -288,6 +317,7 @@ func make_actor_view(state: PlayerState) -> void:
 	view.setup(character)
 	view.set_team_outline(TeamColors.world_own() if state.team == owner.local_team else TeamColors.world_enemy())
 	view.scale = Vector3.ONE * owner._camera.rules.kid_view_scale
+	view.kick_struck.connect(_on_kick_struck.bind(state.id))
 	owner._actors.add_child(view)
 	owner._views[state.id] = view
 
@@ -301,6 +331,48 @@ func refresh_kids() -> void:
 			view.queue_free()
 		make_actor_view(owner.sim.players[id])
 	sync(0.0)
+
+
+## The drawn can's height (m): the lata's, at the kids' view scale.
+func _can_drawn_height() -> float:
+	return (WeaponModel.OBJECTS[&"lata"][1] as float) * owner._camera.rules.kid_view_scale
+
+
+## A kid that picks the can up scoops it with both hands (`KidModel.play_pickup`); one that loses it any other way than setting it down
+## lets go at once.
+func _sync_can_acts(game: TumbangPreso) -> void:
+	if game.can_carrier != _carrier:
+		var now: KidModel = owner._views.get(game.can_carrier) as KidModel
+		var before: KidModel = owner._views.get(_carrier) as KidModel
+		if now != null:
+			now.play_pickup(Vector3(_can_before.x, _can_drawn_height() * StreetModeView.LYING_SHARE, _can_before.y))
+		elif before != null and not before.is_acting():
+			before.drop_can()
+		_carrier = game.can_carrier
+	if game.can_carrier < 0:
+		_can_before = game.can_position
+
+
+## The can as the kid that holds it has it (what `StreetModeView` draws), or null.
+func _held_can() -> Variant:
+	for view: Variant in owner._views.values():
+		var held: Dictionary = (view as KidModel).can_hold()
+		if not held.is_empty():
+			return held
+	return null
+
+
+func _on_kick_struck(from: Vector3, foot: Vector3, way: Vector3, id: int) -> void:
+	owner.mode_view.release_fling()
+	var context: FxContext = owner._fx.context()
+	# the foot's swing as a streak (smear into the action), the can's take-off as a longer one, and a burst of stars where they meet
+	context.ground.trail(from, foot, KICK_ARC_WIDTH, KICK_STREAK_COLOR, KICK_ARC_LIFE)
+	var lift: Vector3 = Vector3(0.0, KICK_TRAIL_LIFT, 0.0)
+	context.ground.trail(foot + lift, foot + lift + way * KICK_LAUNCH_LENGTH, KICK_LAUNCH_WIDTH, KICK_STREAK_COLOR, KICK_LAUNCH_LIFE)
+	context.particles.puff(FxParticles.Preset.STARS, Vector3(foot.x, 0.0, foot.z), KICK_STARS)
+	context.particles.puff(FxParticles.Preset.DUST, Vector3(foot.x, 0.0, foot.z), KICK_DUST)
+	if id == owner.local_id or (owner.sim.mode is TumbangPreso and (owner.sim.mode as TumbangPreso).taya_id == owner.local_id):
+		owner._camera.shake(KICK_SHAKE)
 
 
 func _sync_actor(state: PlayerState, delta: float) -> void:
