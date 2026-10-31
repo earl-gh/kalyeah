@@ -361,7 +361,7 @@ func _all_text(root: Node) -> String:
 	return text
 
 
-func test_the_background_is_the_owners_diamond_picture_covering_the_screen() -> void:
+func test_the_background_is_the_owners_woven_picture_covering_the_screen() -> void:
 	var screen: TitleScreen = _screen()
 	var picture: TextureRect = _find(screen.backdrop, "Picture") as TextureRect
 	assert_eq(picture.texture, UiBackdrop.PICTURE)

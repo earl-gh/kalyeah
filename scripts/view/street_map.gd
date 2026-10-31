@@ -189,7 +189,7 @@ var _rescue_ready: Dictionary[int, bool] = {}
 var _posts: Dictionary[int, Node3D] = {}
 ## side -> the countdown number lying on that side's rescue area.
 var _counts: Dictionary[int, Label3D] = {}
-## Agawan Base's marks: the two posts, the bases and the rescue areas with their countdowns (hidden in the other street games).
+## Agawan Base's marks: the bases and the rescue areas with their countdowns (hidden in the other street games; the electric posts stay).
 var _base_marks: Array[Node3D] = []
 
 @onready var _geometry: Node3D = %Geometry
@@ -275,15 +275,24 @@ func set_own_side(own_side: int) -> void:
 			material.albedo_color = color
 
 
-## Shows or hides Agawan Base's posts, bases and rescue areas (Tumbang Preso and Patintero have none).
+## Shows or hides Agawan Base's bases and rescue areas (Tumbang Preso and Patintero have none; the electric posts stay in their corners).
 func show_bases(on: bool) -> void:
 	for mark: Node3D in _base_marks:
 		mark.visible = on
 
 
-## True when Agawan Base's posts and areas are shown.
+## True when Agawan Base's bases and rescue areas are shown.
 func bases_shown() -> bool:
 	return _base_marks.is_empty() or _base_marks[0].visible
+
+
+## The electric posts standing now (two in the full street, wherever the game).
+func visible_posts() -> int:
+	var count: int = 0
+	for post: Node3D in _posts.values():
+		if post.is_visible_in_tree():
+			count += 1
+	return count
 
 
 ## Each team's rescue area is white and half see-through while its countdown runs (`MatchSim.rescue_ready_left`), with the seconds on it, and
@@ -399,7 +408,9 @@ func _build_map() -> void:
 		_counts[side] = _add_count(layout.rescue_rect(side).get_center())
 		_side_tint[side] = color
 	for index: int in range(first_mark, _geometry.get_child_count()):
-		_base_marks.append(_geometry.get_child(index) as Node3D)
+		var mark: Node3D = _geometry.get_child(index) as Node3D
+		if not _posts.values().has(mark):  # the electric posts stand in every street game, in the same two corners
+			_base_marks.append(mark)
 	_turn_posts(MapLayout.SIDE_OWN)
 	_add_barricades()
 	_add_boundary_pictures()

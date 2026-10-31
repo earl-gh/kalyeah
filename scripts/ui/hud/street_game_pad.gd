@@ -53,7 +53,7 @@ var hint_label: Label
 var action: Action = Action.NONE
 var charge: float = 0.0
 var act_ready: bool = false
-## A tagged runner (in a pen) has no action button, and its movement knob stands in the middle of the bottom instead of at the left.
+## A tagged runner (on the sidewalk) has no action button, and its movement knob stands in the middle of the bottom instead of at the left.
 var knob_centered: bool = false
 ## The finger holds the Throw button.
 var aiming: bool = false

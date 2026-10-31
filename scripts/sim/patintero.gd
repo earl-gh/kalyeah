@@ -1,15 +1,17 @@
 class_name Patintero
 extends StreetMode
-## Patintero (docs/GDD.md "Patintero"): two horizontal lines across the street are the edges of the court. Between them a left and a right
-## vertical line narrow the middle part to a corridor with one more vertical line down its middle; between each outer vertical line and the
-## sidewalk is a pen. The three guards guard the lines, one each (two take a horizontal, one the vertical): running keeps a guard on its
-## line, a dive is the one thing that takes it off it. The runners run free in the corridor.
-## - A guard that moves into the tag circle of a runner tags it: the runner stumbles, then waits in a pen (it can move there with the knob,
-##   never dives and cannot interrupt the game; its team can still chat) until its team earns a point.
+## Patintero (docs/GDD.md "Patintero"): two horizontal lines across the street are the edges of the court, with one vertical line down the
+## middle. The three guards guard the lines, one each (two take a horizontal, one the vertical): running keeps a guard on its line, a dive is
+## the one thing that takes it off it. The runners run free over the whole court.
+## - A runner has to cross the vertical line once before the far end counts (so the vertical guard has its say).
+## - A guard that moves into the tag circle of a runner tags it: the runner stumbles, then waits on the sidewalk, in the middle of the left
+##   or the right one at random (it can move there with the knob, never dives and cannot interrupt the game; its team can still chat)
+##   until its team earns a point.
 ## - ONE free runner that gets past the last guard and back to the base earns the runners' team a point and resets the round: everyone is
 ##   free again; the runners stay runners.
 ## - The guards earn a point only when all the runners are tagged (one or two are not enough), and the round resets with the roles switched.
-## - A round in which no runner passes the first guard in `stall_seconds` is a point for the guards and the roles switch after the reset.
+## - A round in which no runner passes the first guard in `stall_seconds` is a point for the guards and the roles switch after the reset;
+##   the clock stops for good once a runner is past the first guard.
 ## Points belong to the team, not to its role. Runners and guards can Dive (a quick burst, then lying and getting up; a guard runs back to
 ## its line), with a cooldown that starts when the dive is over.
 
@@ -17,7 +19,7 @@ extends StreetMode
 signal runner_crossed(id: int)
 ## `id` dived along `way` (a unit vector): the burst takes `time` s, then it lies flat and gets up for `recover` s more.
 signal dived(id: int, way: Vector2, time: float, recover: float)
-## A tagged runner reached the pen on `side` (-1 left, 1 right).
+## A tagged runner reached the sidewalk on `side` (-1 left, 1 right).
 signal jailed_runner(id: int, side: int)
 
 ## A guard's line: across the street (it moves along X) or down the middle (it moves along Z, between the two horizontal lines).
@@ -26,11 +28,14 @@ enum Axis { HORIZONTAL, VERTICAL }
 enum DivePhase { NONE, BURST, RECOVER, RETURN }
 ## The stick is locked this long (s) on every tick of a dive, so it never steers it.
 const DIVE_LOCK: float = 0.1
-## Tagged runners stand this far apart (m) along the pen.
-const PEN_SPACING: float = 3.0
+## Tagged runners on one sidewalk stand this far apart (m).
+const WAIT_SPACING: float = 3.0
 
 ## The runners who got past the last guard on this run (they score when they are back at the base).
 var crossed: Dictionary[int, bool] = {}
+## The runners that have crossed the vertical line on this run (between the two horizontal lines), and the side (-1, 1) of it each was last on.
+var middle_crossed: Dictionary[int, bool] = {}
+var middle_side: Dictionary[int, int] = {}
 ## Guard id -> its line's axis, and the line's fixed coordinate (z of a horizontal line, x of the vertical one).
 var guard_axis: Dictionary[int, int] = {}
 var guard_line: Dictionary[int, float] = {}
@@ -41,7 +46,7 @@ var dive_left: Dictionary[int, float] = {}
 var recover_left: Dictionary[int, float] = {}
 var dive_way: Dictionary[int, Vector2] = {}
 var dive_cool: Dictionary[int, float] = {}
-## id -> seconds left of the stumble of a runner that was just tagged; id -> the side (-1 or 1) of the pen a tagged runner waits in.
+## id -> seconds left of the stumble of a runner that was just tagged; id -> the side (-1 or 1) of the sidewalk a tagged runner waits on.
 var caught: Dictionary[int, float] = {}
 var jailed: Dictionary[int, int] = {}
 ## Seconds left for a runner to pass the first guard this round, and whether one has.
@@ -71,17 +76,11 @@ func line_for(slot: int) -> Vector2:
 	return Vector2(float(Axis.VERTICAL), 0.0)
 
 
-## True when `position` is inside the pen of `side` (-1 left, 1 right): between its vertical line and the sidewalk, between the two
-## horizontal lines (the lines themselves are not inside).
-func in_pen(position: Vector2, side: int) -> bool:
-	return float(side) * position.x > rules.corridor_half_width and absf(position.y) < rules.line_span
-
-
 func is_jailed(id: int) -> bool:
 	return jailed.has(id)
 
 
-## A tagged runner: stumbling, or waiting in a pen.
+## A tagged runner: stumbling, or waiting on a sidewalk.
 func is_tagged_out(id: int) -> bool:
 	return jailed.has(id) or caught.has(id)
 
@@ -94,7 +93,7 @@ func catch_seconds() -> float:
 	return rules.catch_seconds
 
 
-## How many runners are tagged (stumbling or in a pen), and how many runners there are.
+## How many runners are tagged (stumbling or on a sidewalk), and how many runners there are.
 func runners_out() -> int:
 	return jailed.size() + caught.size()
 
@@ -117,11 +116,9 @@ func constrain(sim: MatchSim, state: PlayerState) -> void:
 	if is_resetting():
 		return
 	if jailed.has(state.id):
-		_keep_in_pen(sim, state)
+		_keep_on_sidewalk(sim, state)
 	elif guard_line.has(state.id) and not is_attacker(state) and not is_busy(state.id):
 		state.position = _on_line(state.id, state.position)  # running keeps it on its line; a dive and the way back do not
-	if not jailed.has(state.id):
-		_keep_out_of_pens(state)
 
 
 ## `point` held to the line of guard `id`.
@@ -131,29 +128,19 @@ func _on_line(id: int, point: Vector2) -> Vector2:
 	return Vector2(guard_line[id], clampf(point.y, -rules.line_span, rules.line_span))
 
 
-## The pens are shut to everyone who is not tagged: a kid that gets into one is pushed out by the nearest way.
-func _keep_out_of_pens(state: PlayerState) -> void:
-	for side: int in [-1, 1]:
-		if not in_pen(state.position, side):
-			continue
-		var to_corridor: float = float(side) * state.position.x - rules.corridor_half_width
-		var to_near: float = rules.line_span - state.position.y
-		var to_far: float = state.position.y + rules.line_span
-		if to_corridor <= to_near and to_corridor <= to_far:
-			state.position.x = float(side) * rules.corridor_half_width
-		elif to_near <= to_far:
-			state.position.y = rules.line_span
-		else:
-			state.position.y = -rules.line_span
+## The x range (m, measured away from the middle) of the sidewalk a kid of `radius` can stand on: outside the street's edge, up to the
+## sidewalk's far edge.
+func sidewalk_range(sim: MatchSim, radius: float) -> Vector2:
+	var edge: float = sim.layout.lane_width / 2.0
+	return Vector2(edge + radius, edge + sim.layout.boundary_thickness + rules.sidewalk_width - radius)
 
 
-## A tagged runner is held inside its pen (a little off the lines and the sidewalk).
-func _keep_in_pen(sim: MatchSim, state: PlayerState) -> void:
+## A tagged runner is held on its sidewalk, within the length of the court.
+func _keep_on_sidewalk(sim: MatchSim, state: PlayerState) -> void:
 	var side: int = jailed[state.id]
-	var wall: float = sim.layout.lane_width / 2.0 - state.radius
-	var inner: float = rules.corridor_half_width + state.radius
-	state.position.x = float(side) * clampf(float(side) * state.position.x, inner, wall)
-	state.position.y = clampf(state.position.y, -rules.line_span + state.radius, rules.line_span - state.radius)
+	var room: Vector2 = sidewalk_range(sim, state.radius)
+	state.position.x = float(side) * clampf(float(side) * state.position.x, room.x, room.y)
+	state.position.y = clampf(state.position.y, -rules.line_span, rules.line_span)
 
 
 # ---- diving --------------------------------------------------------------------------------
@@ -200,13 +187,18 @@ func nearest_on_line(id: int, point: Vector2) -> Vector2:
 func handle_input(sim: MatchSim, state: PlayerState, input: PlayerInput, dt: float) -> void:
 	var id: int = state.id
 	if jailed.has(id):
-		_dive_down[id] = false  # a tagged runner never dives: it only moves in its pen
+		_dive_down[id] = false  # a tagged runner never dives: it only walks on its sidewalk, by the stick (the street is shut to it)
+		state.cast_lock_left = DIVE_LOCK
+		if input != null and input.move != Vector2.ZERO:
+			var stick: Vector2 = input.move.limit_length(1.0)
+			state.facing = stick.normalized()
+			state.position += stick * sim.rules.move_speed * dt
 		return
 	if caught.has(id):
 		state.cast_lock_left = DIVE_LOCK  # it stumbles where it was caught
 		caught[id] -= dt
 		if caught[id] <= 0.0:
-			_send_to_pen(sim, state)
+			_send_to_sidewalk(sim, state)
 		return
 	var pressed: bool = input != null and input.is_pressed(PlayerInput.BTN_CARD_2)
 	if pressed and not _dive_down.get(id, false) and can_dive(state):
@@ -283,12 +275,14 @@ func _step_game(sim: MatchSim, dt: float) -> void:
 			continue
 		if state.position.y < rules.line_span:
 			first_guard_passed = true  # a runner is past the first guard: the stall clock is off for this round
-		if not crossed.has(state.id) and at_goal(state.position):
+		_watch_middle(state)
+		if not crossed.has(state.id) and at_goal(state.position) and middle_crossed.has(state.id):
 			crossed[state.id] = true
 			runner_crossed.emit(state.id)
 		elif crossed.has(state.id) and at_home(state.position):
 			# ONE free runner past the last guard and back at the base is the runners' point; the round resets, and everyone is free
 			crossed.erase(state.id)
+			middle_crossed.erase(state.id)
 			_add_team_point(sim, state.team, state.id)
 			if sim.phase == MatchSim.Phase.PLAYING:
 				begin_reset(sim)
@@ -296,13 +290,25 @@ func _step_game(sim: MatchSim, dt: float) -> void:
 	check_tags(sim)
 
 
-## A guard moved into the tag circle of a runner: the guard plays its touch and the runner stumbles, then goes to the pen. When that was
+## Between the two horizontal lines a runner that changes sides of the vertical line has crossed it.
+func _watch_middle(state: PlayerState) -> void:
+	if absf(state.position.y) >= rules.line_span or is_zero_approx(state.position.x):
+		return
+	var side: int = 1 if state.position.x > 0.0 else -1
+	if middle_side.has(state.id) and middle_side[state.id] != side:
+		middle_crossed[state.id] = true
+	middle_side[state.id] = side
+
+
+## A guard moved into the tag circle of a runner: the guard plays its touch and the runner stumbles, then goes to a sidewalk. When that was
 ## the last runner, the guards' team earns a point and the round resets with the roles switched.
 func _tag(sim: MatchSim, guard: PlayerState, runner: PlayerState) -> void:
 	sim.weapon_cast.emit(guard.id, TAG_CAST)
 	tagged.emit(guard.id, runner.id)
 	caught[runner.id] = rules.catch_seconds
 	crossed.erase(runner.id)
+	middle_crossed.erase(runner.id)
+	middle_side.erase(runner.id)
 	_clear_dive(runner.id)
 	runner.cast_lock_left = DIVE_LOCK
 	sim.end_move(runner)
@@ -332,17 +338,20 @@ func _step_turn(sim: MatchSim, dt: float) -> void:
 		_guards_take_the_round(sim, 1 - attack_team, guard, MatchSim.CaptureKind.TOO_SLOW)
 
 
-## The tagged runner's stumble is over: it goes to the pen on the side it was caught on, where it waits.
-func _send_to_pen(sim: MatchSim, state: PlayerState) -> void:
+## The tagged runner's stumble is over: it goes to the middle of the left or the right sidewalk (at random) and waits there.
+func _send_to_sidewalk(sim: MatchSim, state: PlayerState) -> void:
 	var id: int = state.id
 	caught.erase(id)
-	var side: int = 1 if state.position.x >= 0.0 else -1
+	var side: int = 1 if sim.rng.randf() < 0.5 else -1
 	var waiting: int = 0
 	for other: int in jailed:
 		if jailed[other] == side:
 			waiting += 1
-	var middle: float = (rules.corridor_half_width + sim.layout.lane_width / 2.0) / 2.0
-	state.position = Vector2(float(side) * middle, clampf(-rules.line_span + PEN_SPACING + float(waiting) * PEN_SPACING, -rules.line_span + 1.0, rules.line_span - 1.0))
+	var room: Vector2 = sidewalk_range(sim, state.radius)
+	# the first stands at the middle of the sidewalk, the next ones a little to either side of it
+	var step: int = (waiting + 1) / 2
+	var along: float = float(step) * WAIT_SPACING * (1.0 if waiting % 2 == 1 else -1.0)
+	state.position = Vector2(float(side) * (room.x + room.y) / 2.0, clampf(along, -rules.line_span, rules.line_span))
 	state.facing = Vector2(-float(side), 0.0)
 	state.cast_lock_left = 0.0
 	jailed[id] = side
@@ -350,7 +359,7 @@ func _send_to_pen(sim: MatchSim, state: PlayerState) -> void:
 	jailed_runner.emit(id, side)
 
 
-## After a reset the roles may switch (every runner tagged, or the stall rule); everyone goes back to their places and the pens are empty.
+## After a reset the roles may switch (every runner tagged, or the stall rule); everyone goes back to their places and the sidewalks are empty.
 func _new_round(sim: MatchSim) -> void:
 	var switched: bool = _swap_after_reset
 	if switched:
@@ -363,6 +372,8 @@ func _new_round(sim: MatchSim) -> void:
 
 func _reset_game(_sim: MatchSim) -> void:
 	crossed.clear()
+	middle_crossed.clear()
+	middle_side.clear()
 	guard_axis.clear()
 	guard_line.clear()
 	dive_phase.clear()

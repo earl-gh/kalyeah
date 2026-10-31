@@ -40,8 +40,6 @@ const PICKUP_TINT: Color = Color(1.0, 1.0, 1.0, 0.3)
 const PICKUP_OUTLINE: Color = Color(1.0, 1.0, 1.0, 0.95)
 const PICKUP_OUTLINE_WIDTH: float = 0.14
 const PICKUP_BREATH: float = 4.0
-## The pens (where tagged runners wait) are tinted a little, like a chalked-in patch of the street.
-const PEN_TINT: Color = Color(1.0, 1.0, 1.0, 0.22)
 ## The tag circle round everyone the local taya or guard could tag (medium size, `StreetModeRules.tag_circle_radius`): red while a touch
 ## tags, grey while it cannot (the can is down, the round is resetting).
 const TAG_CIRCLE_TINT: Color = Color(1.0, 0.25, 0.22, 0.25)
@@ -108,11 +106,6 @@ func setup(sim: MatchSim, ctx: FxContext, local_id: int) -> void:
 		for index: int in 2:
 			_add_chalk(Vector2(0.0, span if index == 0 else -span), _lane_width, 0.0, CHALK, COURT_BREAKS, 3.0 + float(index), _guard_lines)
 		_add_chalk(Vector2.ZERO, span * 2.0, PI / 2.0, CHALK, COURT_BREAKS, 5.0, _guard_lines)
-		# the left and right vertical lines narrow the middle part; outside them are the pens, tinted a little
-		var half: float = _mode.rules.corridor_half_width
-		for side: int in [-1, 1]:
-			_add_chalk(Vector2(float(side) * half, 0.0), span * 2.0, PI / 2.0, CHALK, COURT_BREAKS, 6.0 + float(side), _guard_lines)
-			_add_pen(float(side) * (half + (_lane_width / 2.0 - half) / 2.0), _lane_width / 2.0 - half, span * 2.0)
 
 
 ## One frame of the picture (PracticeMatch calls it from its presentation, like every other view): the can, the slippers, the marks.
@@ -396,16 +389,6 @@ func _sync_tag_circles() -> void:
 		tint.set_meta("on", open)
 		((tint.mesh as CylinderMesh).material as StandardMaterial3D).albedo_color = TAG_CIRCLE_TINT if open else TAG_CIRCLE_OFF_TINT
 		(((circle.get_node("Rim") as MeshInstance3D).mesh as TorusMesh).material as StandardMaterial3D).albedo_color = TAG_CIRCLE_RIM if open else TAG_CIRCLE_OFF_RIM
-
-
-## A tinted rectangle on the street (a pen) centred on (`x`, 0), `width` wide across the street and `length` long.
-func _add_pen(x: float, width: float, length: float) -> void:
-	var plane: PlaneMesh = PlaneMesh.new()
-	plane.size = Vector2(width, length)
-	plane.material = _ground_material(PEN_TINT)
-	var pen: MeshInstance3D = _ground_mesh(plane, "Pen", true)
-	pen.position = Vector3(x, LINE_LIFT * 0.8, 0.0)
-	add_child(pen)
 
 
 func _build_tag_circle() -> Node3D:

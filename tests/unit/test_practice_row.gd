@@ -119,7 +119,7 @@ func test_a_tumbang_preso_practice_is_every_kid_for_itself_with_one_taya() -> vo
 	for state: PlayerState in practice.sim.players.values():
 		assert_eq(state.team, 0, "nobody is on a team")
 	assert_ne(game.taya_id, practice.local_id, "a bot is the taya to begin with")
-	assert_false(practice._map.bases_shown(), "no posts or bases in Tumbang Preso")
+	assert_false(practice._map.bases_shown(), "no bases or rescue areas in Tumbang Preso")
 	assert_not_null(practice.mode_view.can_node(), "the can is drawn")
 	# the match's seed is the clock's: a thrower bot waits up to two seconds, aims and throws, so watch for any bot doing anything for a while
 	var acted: bool = false
@@ -132,15 +132,13 @@ func test_a_tumbang_preso_practice_is_every_kid_for_itself_with_one_taya() -> vo
 	assert_lt(practice.sim.clock_left(), 300.0, "the five-minute clock runs")
 
 
-func test_a_patintero_practice_draws_the_court_two_horizontal_lines_the_middle_line_and_the_corridor_lines() -> void:
+func test_a_patintero_practice_draws_the_court_two_horizontal_lines_and_a_vertical_one() -> void:
 	var practice: PracticeMatch = _practice(&"patintero")
 	assert_true(practice.sim.mode is Patintero)
-	assert_eq(practice.mode_view.guard_line_count(), 5, "two horizontal lines, the middle line and the two corridor lines")
+	assert_eq(practice.mode_view.guard_line_count(), 3, "two horizontal lines and the vertical one")
 	assert_null(practice.mode_view.can_node())
-	var planes: Array[Node] = practice.mode_view.find_children("*", "MeshInstance3D", true, false).filter(func(n: Node) -> bool: return (n as MeshInstance3D).mesh is PlaneMesh)
-	var lines: Array[Node] = planes.filter(func(n: Node) -> bool: return ((n as MeshInstance3D).mesh as PlaneMesh).material is ShaderMaterial)
-	assert_eq(lines.size(), 5, "only the court: its first and last line are the edges, with no start or far line besides")
-	assert_eq(planes.size() - lines.size(), 2, "and a tint on each pen")
+	var lines: Array[Node] = practice.mode_view.find_children("*", "MeshInstance3D", true, false).filter(func(n: Node) -> bool: return (n as MeshInstance3D).mesh is PlaneMesh)
+	assert_eq(lines.size(), 3, "only the court: its first and last line are the edges, with no narrowing lines or tinted patches")
 	for line: Node in lines:
 		var chalk: Color = (((line as MeshInstance3D).mesh as PlaneMesh).material as ShaderMaterial).get_shader_parameter("chalk") as Color
 		assert_eq(Color(chalk, 1.0), Color.WHITE, "white chalk, every line")
@@ -148,17 +146,17 @@ func test_a_patintero_practice_draws_the_court_two_horizontal_lines_the_middle_l
 	for line: Node in lines:
 		if is_equal_approx(absf((line as MeshInstance3D).rotation.y), PI / 2.0):
 			turned += 1
-	assert_eq(turned, 3, "three of them run along the street: the middle line and the corridor lines")
+	assert_eq(turned, 1, "one of them runs along the street: the vertical line")
 
 
-func test_a_patintero_runner_in_a_pen_has_a_centred_knob_and_no_dive_and_the_camera_turns_when_the_roles_swap() -> void:
+func test_a_patintero_runner_on_a_sidewalk_has_a_centred_knob_and_no_dive_and_the_camera_turns_when_the_roles_swap() -> void:
 	var practice: PracticeMatch = _practice(&"patintero")
 	var lines: Patintero = practice.sim.mode as Patintero
 	var local: int = practice.local_id
 	assert_true(lines.is_attacker(practice.sim.players[local]), "you run first")
 	var own: int = practice.own_side()
 	lines.jailed[local] = 1
-	practice.sim.players[local].position = Vector2(7.0, 0.0)
+	practice.sim.players[local].position = Vector2(18.0, 0.0)
 	practice.advance(DT)
 	assert_true(practice.hud.street_pad.knob_centered, "a tagged runner steers with a centred knob")
 	assert_eq(practice.hud.street_pad.action, StreetGamePad.Action.NONE, "and has no dive button")
@@ -182,6 +180,42 @@ func test_the_street_games_have_no_hand_no_tray_and_no_cards() -> void:
 		assert_eq(practice.hud.console_height(), MatchHud.STREET_TRAY + practice.hud.bottom_inset, "%s: only room for the knob" % game)
 		for id: int in practice.sim.players:
 			assert_eq(practice.sim.players[id].weapons.size(), 0, "%s: nobody holds a card" % game)
+
+
+func test_the_electric_posts_stand_in_the_same_corners_in_every_game() -> void:
+	var layout: MapLayout = load("res://data/rules/map_layout.tres") as MapLayout
+	for game: StringName in [&"street", &"tumbang_preso", &"patintero"]:
+		var practice: PracticeMatch = _practice(game)
+		practice.advance(DT)
+		assert_eq(practice._map.visible_posts(), 2, "%s: both electric posts" % game)
+		for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
+			var post: Node3D = practice._map._posts[side]
+			var corner: Vector2 = layout.post_position(side)
+			assert_almost_eq(post.global_position.x, corner.x, 0.01, "%s: the post of side %d" % [game, side])
+			assert_almost_eq(post.global_position.z, corner.y, 0.01)
+
+
+func test_the_vignette_stays_behind_the_top_boundary_pictures_in_every_game() -> void:
+	for game: StringName in [&"street", &"tumbang_preso", &"patintero"]:
+		var practice: PracticeMatch = _practice(game)
+		practice.advance(DT)
+		var film: FilmFinish = practice.find_children("*", "FilmFinish", true, false)[0] as FilmFinish
+		var clear: float = film.finish.get_shader_parameter("clear_above") as float
+		var row: float = practice._camera.screen_position(Vector3(0.0, 0.0, StreetMap.top_end(practice.own_side()) * (practice.layout.lane_length / 2.0 + StreetMap.BARRIER_SETBACK))).y / practice.get_viewport().get_visible_rect().size.y
+		assert_gt(clear, 0.03, "%s: no vignette over the top pictures" % game)
+		assert_lt(clear, 0.35, "%s: only over them, not the street" % game)
+		assert_almost_eq(clear, row, 0.001, "%s: from the line they stand on" % game)
+
+
+func test_the_street_games_frame_the_street_exactly_like_agawan_base() -> void:
+	var agawan: PracticeMatch = _practice(&"agawan_base")
+	agawan.advance(DT)
+	var reference: float = agawan._camera.size
+	for game: StringName in [&"tumbang_preso", &"patintero"]:
+		var practice: PracticeMatch = _practice(game)
+		practice.advance(DT)
+		assert_eq(practice._camera.bottom_reserve_px, agawan._camera.bottom_reserve_px, "%s: the same room kept for the controls" % game)
+		assert_almost_eq(practice._camera.size, reference, 0.001, "%s: the same zoom as Agawan Base" % game)
 
 
 func test_the_quick_chat_is_under_the_timer_and_lists_its_phrases_vertically() -> void:
@@ -640,4 +674,4 @@ func test_the_street_games_have_no_difficulty_and_no_tilt_and_the_column_follows
 	var other: StringName = &"popoy" if practice.sim.players[2].character_id != &"popoy" else &"inday"
 	practice.sim.players[2].character_id = other
 	practice.advance(DT)
-	assert_eq(column._pictures[2].texture, KidModel.portrait(other))
+	assert_eq(column._pictures[2].texture, CharactersPage.card_picture(other), "the kid's character card, not a round face")

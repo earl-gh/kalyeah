@@ -54,8 +54,9 @@ const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 const CAPTURE_LINGER: float = 0.4
 ## The tray at the bottom of the screen (the hand and the elixir bar): the arena sits above it. The camera reserves the same height.
 const CONSOLE_HEIGHT: float = 255.0
-## The tray of Tumbang Preso and Patintero (no hand: the role line and the Throw button) is this tall, plus the bottom inset.
-const STREET_TRAY: float = 210.0
+## The tray of Tumbang Preso and Patintero (no hand: the role line and the Throw button) is as tall as Agawan Base's, plus the bottom inset,
+## so the camera frames the street exactly the same size in all three games (owner).
+const STREET_TRAY: float = CONSOLE_HEIGHT
 ## Tumbang Preso's score column stands on the left sidewalk this far under the header, and the quick chat button under the clock is this big.
 const SCORE_COLUMN_GAP: float = 14.0
 const STREET_CHAT_SIZE: float = 84.0
@@ -334,11 +335,11 @@ func _sync_street_pad(sim: MatchSim, player: PlayerState, shown: bool, playing: 
 		button = StreetGamePad.Action.DIVE
 		fill = lines.dive_ready_share(player.id)
 		can_act = lines.can_dive(player)
-	var in_pen: bool = lines != null and lines.is_jailed(player.id)
+	var on_sidewalk: bool = lines != null and lines.is_jailed(player.id)
 	var status: Array[String] = PracticeMatchPresentation.street_status(sim, player)
 	chat.visible = shown and chat_enabled
 	street_pad.visible = shown and not player.tagged
-	street_pad.show_state(status[0], status[1], button, fill, can_act, in_pen)  # (a tagged runner's knob is in the middle of the bottom)
+	street_pad.show_state(status[0], status[1], button, fill, can_act, on_sidewalk)  # (a tagged runner's knob is in the middle of the bottom)
 	if score_column != null:
 		score_column.sync(sim)
 	sync_plate_column()

@@ -1,6 +1,6 @@
 class_name UiBackdrop
 extends Control
-## The living background of the main screens: the owner's blue diamond picture (the same for every mode: owner) under a night gradient,
+## The living background of the main screens: the owner's blue woven-pattern picture (the same for every mode: owner) under a night gradient,
 ## a soft blue backlight, and a few motes of light drifting up. With Reduce motion on the motes stay home and the picture holds still.
 
 const PICTURE: Texture2D = preload("res://assets/ui/main_bg.webp")

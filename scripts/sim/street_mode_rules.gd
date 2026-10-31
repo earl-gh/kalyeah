@@ -82,12 +82,12 @@ extends Resource
 @export var kick_cooldown: float = 4.0
 
 @export_group("Patintero")
-## The court: two horizontal lines across the street at z = +line_span and -line_span, and between them a middle part narrowed by a left
-## and a right vertical line at x = -corridor_half_width and +corridor_half_width, with one more vertical line down the middle (x = 0). A
-## guard keeps to the one line it is given. Between each of the two outer vertical lines and the sidewalk is the pen where tagged runners wait.
+## The court: two horizontal lines across the street at z = +line_span and -line_span, with one vertical line down the middle (x = 0). A
+## guard keeps to the one line it is given. A runner has to cross the vertical line once before the far end counts.
 @export var line_span: float = 10.0
-@export var corridor_half_width: float = 7.0
-## A tagged runner stands still this long (s, it stumbles) and then is in the pen.
+## How wide the sidewalk is (m, past the street's wall) where a tagged runner waits and moves; it matches the one the street draws.
+@export var sidewalk_width: float = 2.4
+## A tagged runner stands still this long (s, it stumbles) and then is on the sidewalk.
 @export var catch_seconds: float = 0.7
 ## A round in which no runner has passed the first guard after this long (s) is a point for the guards, and the teams swap roles.
 @export var stall_seconds: float = 20.0
