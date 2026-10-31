@@ -19,7 +19,14 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 		screen._defs[def.id] = def
 	screen._maxima = WeaponsPage.stat_maxima(defs)
 	screen.suggestion = WeaponPick.suggestion(defs)
-	screen.add_child(UiBackdrop.new())
+	if screen.dimmed:
+		var dim: ColorRect = ColorRect.new()
+		dim.name = "Dim"
+		dim.color = MenuDialog.DIM
+		dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		screen.add_child(dim)
+	else:
+		screen.add_child(UiBackdrop.new())
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	screen.add_child(margin)
@@ -110,6 +117,12 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	hero_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	filler.add_child(hero_box)
 	hero_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	if screen.dimmed:
+		# the main screen's kid pick: no header and no Back (the phone's Back closes it); the heading sits on top of the carousel
+		header.visible = false
+		heading.remove_child(screen._title)
+		screen._title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hero_box.add_child(screen._title)
 	screen._carousel = KidCarousel.new()
 	screen._carousel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	screen._carousel.selected.connect(screen._on_kid_swiped)

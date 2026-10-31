@@ -240,7 +240,18 @@ func own_side() -> int:
 		# guards (whose runners come from the other end) see it from the far end
 		var me: PlayerState = sim.players.get(local_id) as PlayerState
 		return MapLayout.SIDE_OWN if me == null or sim.mode.is_attacker(me) else MapLayout.SIDE_ENEMY
+	if sim.mode is TumbangPreso:
+		# the taya sees the street from the far end, the throwers coming at it from the top; a thrower throws up the street
+		return MapLayout.SIDE_ENEMY if (sim.mode as TumbangPreso).taya_id == local_id else MapLayout.SIDE_OWN
 	return sim.side_for_team(local_team)
+
+
+## The end the street is seen from on screen now: `own_side()`, except while the camera swings round (Tumbang Preso's taya turn),
+## when it is the end the turn has passed halfway to. The controls and the map's dressing follow this.
+func shown_side() -> int:
+	if not _camera.is_turning():
+		return own_side()
+	return MapLayout.SIDE_ENEMY if _camera.shown_flip() else MapLayout.SIDE_OWN
 
 
 func show_banner(text: String) -> void:
@@ -465,9 +476,9 @@ func _stop_tilt() -> void:
 	tilt.reset()
 
 
-## The camera is turned around when the local team defends the -Z base.
+## The camera is turned around when the local team defends the -Z base (as shown: the controls swap halfway through a turn).
 func _flip() -> bool:
-	return own_side() == MapLayout.SIDE_ENEMY
+	return shown_side() == MapLayout.SIDE_ENEMY
 
 
 # ---- Tumbang Preso's throw -----------------------------------------------------------------

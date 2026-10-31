@@ -12,3 +12,4 @@ frame_bottom = 0.04
 frame_side = 0.04
 kid_view_scale = 2.0
 bar_scale = 0.75
+turn_seconds = 0.8

@@ -58,6 +58,9 @@ var overclocked: bool = false
 var exhaust_left: float = 0.0
 ## Order in which the kid was tagged (rescues free the lowest first); 0 while free.
 var tag_order: int = 0
+## Seconds the kid has been running without stopping (the next trip roll comes at `GameRules.trip_interval`); false `trips` for training dummies.
+var run_time: float = 0.0
+var trips: bool = true
 ## Seconds the kid has stood still (any movement restarts it).
 var still_time: float = 0.0
 ## False for training dummies: no drain, no exhaustion.

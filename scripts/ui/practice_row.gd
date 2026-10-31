@@ -6,6 +6,8 @@ extends HBoxContainer
 
 ## A picker dialog was made: the owner opens it (one dialog at a time).
 signal picker_opened(dialog: MenuDialog)
+## The kid pick screen was made: the owner adds it on top of everything.
+signal kid_screen_opened(screen: WeaponPickScreen)
 signal changed
 
 ## Game button : kid button (owner: 80 : 20).
@@ -13,9 +15,8 @@ const GAME_SHARE: float = 4.0
 const KID_SHARE: float = 1.0
 ## The row's size in the 720 px design width: thumb-sized, a little narrower than the page.
 const ROW_SIZE: Vector2 = Vector2(560.0, 96.0)
-## The kid picker: faces in a grid of three columns, each this big.
-const KID_COLUMNS: int = 3
-const KID_FACE: float = 132.0
+## The kid pick's confirm button.
+const KID_READY: String = "Choose"
 
 var game_button: Button
 var kid_button: Button
@@ -88,31 +89,26 @@ func open_game_picker() -> MenuDialog:
 	return card
 
 
-## A dialog with the six kids' faces; yours is gold.
-func open_kid_picker() -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create("Pick a kid")
-	var grid: GridContainer = GridContainer.new()
-	grid.name = "Kids"
-	grid.columns = KID_COLUMNS
-	grid.add_theme_constant_override("h_separation", UiMetrics.COMPACT_GAP)
-	grid.add_theme_constant_override("v_separation", UiMetrics.COMPACT_GAP)
+## The kid pick of a Practice match (the card carousel, the kid's name and about), over the dimmed main screen (owner). The owner adds
+## it to the tree (`kid_screen_opened`); Choose saves the kid, Back keeps yours.
+func open_kid_picker() -> WeaponPickScreen:
 	var rules: GameRules = load(StreetPage.RULES_PATH) as GameRules
-	for character: CharacterDef in rules.characters:
-		var id: StringName = character.id
-		var button: Button = MenuDialog.make_button("", "gold" if String(id) == Session.avatar_id else "blue", UiMetrics.BODY, Vector2.ONE * KID_FACE)
-		button.name = "Kid_%s" % String(id)
-		button.icon = KidModel.portrait(id)
-		button.expand_icon = true
-		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		button.tooltip_text = character.display_name
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		grid.add_child(button)
-		button.pressed.connect(func() -> void:
-			choose_kid(id)
-			card.close())
-	card.body.add_child(grid)
-	picker_opened.emit(card)
-	return card
+	var ids: Array[StringName] = []
+	for def: WeaponDef in rules.weapons:
+		ids.append(def.id)
+	var screen: WeaponPickScreen = WeaponPickScreen.new()
+	screen.name = "KidPick"
+	screen.dimmed = true
+	screen.cards_mode = true
+	screen.ready_label = KID_READY
+	screen.z_index = MenuDialog.MODAL_Z
+	kid_screen_opened.emit(screen)
+	screen.open(WeaponPick.new(ids, 0.0), rules.weapons, "", RandomNumberGenerator.new(), rules.characters, StringName(Session.avatar_id), true)
+	screen.confirmed.connect(func(_picks: Array[StringName]) -> void:
+		choose_kid(screen.character_id)
+		screen.queue_free())
+	screen.exit_requested.connect(screen.queue_free)
+	return screen
 
 
 func choose_game(id: StringName) -> void:

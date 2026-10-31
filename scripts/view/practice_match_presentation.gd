@@ -276,7 +276,7 @@ func _keep_vignette_behind_the_top_boundary() -> void:
 	if _film == null:
 		return
 	var layout: MapLayout = owner.layout
-	var z: float = StreetMap.top_end(owner.own_side()) * (layout.lane_length / 2.0 + StreetMap.BARRIER_SETBACK)
+	var z: float = StreetMap.top_end(owner.shown_side()) * (layout.lane_length / 2.0 + StreetMap.BARRIER_SETBACK)
 	var height: float = maxf(owner.get_viewport().get_visible_rect().size.y, 1.0)
 	_film.clear_above(owner._camera.screen_position(Vector3(0.0, 0.0, z)).y / height)
 
@@ -295,14 +295,15 @@ func sync(delta: float) -> void:
 	_sync_aim(player)
 	owner._fx.sync(owner.sim, delta)
 	owner._map.sync_rescue(owner.sim)
-	if owner.sim.mode is Patintero and owner.own_side() != _viewed_side:
-		_viewed_side = owner.own_side()  # the roles changed: the street is seen from the other end now
+	if (owner.sim.mode is Patintero or owner.sim.mode is TumbangPreso) and owner.shown_side() != _viewed_side:
+		_viewed_side = owner.shown_side()  # the roles changed: the street is seen from the other end now (halfway through a turn)
 		owner._map.set_own_side(_viewed_side)
 	owner.mode_view.sync(delta)
 	owner.hud.overhead.tick(delta)
 	owner.hud.marker.tick(delta)
 	owner.hud.sync_score(owner.sim, owner.local_team, delta, owner.local_id)
-	owner._camera.place(owner._flip())
+	# Tumbang Preso's taya turn swings the street round; Patintero's role switch cuts
+	owner._camera.place(owner.own_side() == MapLayout.SIDE_ENEMY, owner.sim.mode is TumbangPreso)
 	if owner.sim.phase == MatchSim.Phase.INTRO:
 		_play_intro_shot()
 		return
@@ -422,7 +423,7 @@ func _play_intro_shot() -> void:
 	if mode != null:
 		var skip: String = "" if owner.online else " · TAP TO SKIP"
 		owner.hud.show_intro(street_status(owner.sim, owner.sim.players[owner.local_id])[0], "%d MIN · MOST POINTS WIN%s" % [roundi(mode.rules.match_seconds / 60.0), skip])
-		owner._camera.place(owner._flip())
+		owner._camera.place(owner.own_side() == MapLayout.SIDE_ENEMY)
 		return
 	var first_to: int = owner.sim.score.first_to
 	var sub: String = "FIRST TO %d" % first_to
@@ -430,7 +431,7 @@ func _play_intro_shot() -> void:
 		sub += " · TAP TO SKIP"
 	owner.hud.show_intro("TAG THEIR BASE!", sub)
 	# no fly-through of the two teams (owner): the fixed street, with the objective on it
-	owner._camera.place(owner._flip())
+	owner._camera.place(owner.own_side() == MapLayout.SIDE_ENEMY)
 
 
 func _on_player_tagged(id: int) -> void:

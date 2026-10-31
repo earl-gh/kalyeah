@@ -3,7 +3,7 @@ extends RefCounted
 ## Status effects on one player (docs/GDD.md "Weapons"). Only ONE status is active
 ## at a time. Each accepted application replaces the old status, timer and magnitude.
 
-enum Type { NONE, STUN, SLOW, AIRBORNE, POLYMORPH, BOUNCE, KNOCKOUT }
+enum Type { NONE, STUN, SLOW, AIRBORNE, POLYMORPH, BOUNCE, KNOCKOUT, TRIPPED }
 
 const DISPLAY_NAMES: Dictionary[int, String] = {
 	Type.STUN: "Stunned",
@@ -12,10 +12,12 @@ const DISPLAY_NAMES: Dictionary[int, String] = {
 	Type.POLYMORPH: "Morphed",
 	Type.BOUNCE: "Bounced",
 	Type.KNOCKOUT: "Knocked out",
+	Type.TRIPPED: "Tripped",
 }
 
 ## Effects that stop movement and casting.
-const HARD_CC: Array[Type] = [Type.STUN, Type.AIRBORNE, Type.BOUNCE, Type.KNOCKOUT]
+## (Tripped, a fall while running, is one too, but it never gives the immunity below: it is not a weapon's hit.)
+const HARD_CC: Array[Type] = [Type.STUN, Type.AIRBORNE, Type.BOUNCE, Type.KNOCKOUT, Type.TRIPPED]
 
 ## What `cc_immunity` guards against: everything that stops moving or casting, polymorph included.
 const IMMUNITY_TYPES: Array[Type] = [Type.STUN, Type.AIRBORNE, Type.BOUNCE, Type.KNOCKOUT, Type.POLYMORPH]
