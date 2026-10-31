@@ -62,7 +62,7 @@ class Room extends RefCounted:
 ## The biggest team: 3v3 (a room is 2 to 6 players).
 const MAX_TEAM_SIZE: int = 3
 const MAP_IDS: Array[StringName] = [&"street", &"tumbang_preso", &"patintero"]
-const PLAYABLE_MAP_IDS: Array[StringName] = [&"street"]
+const PLAYABLE_MAP_IDS: Array[StringName] = [&"street", &"patintero"]
 
 var rooms: Dictionary[String, Room] = {}
 ## What a host may pick, and what a new room starts with (GameRules.first_to*).

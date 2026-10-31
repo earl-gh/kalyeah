@@ -3,6 +3,8 @@ extends RefCounted
 ## One running match on the server: loading sync, the 10 s weapon pick, then the
 ## authoritative MatchSim stepped at 30 Hz from queued client inputs, with
 ## snapshots at `snapshot_rate` and the sim's signals relayed as EVENTS.
+## A room on a street game (Patintero; `RoomService.PLAYABLE_MAP_IDS`) plays that game instead: no cards and no weapon pick (the kid
+## was chosen in the room), a random team runs first, and every signal of the game is relayed too ("mode").
 
 enum Stage { LOADING, PICKING, PLAYING }
 
@@ -52,8 +54,14 @@ func _init(server: GameServer, p_room: RoomService.Room, rules: GameRules, layou
 	for m: RoomService.Member in room.members:
 		if m.character != &"":
 			sim.set_character(m.player_id, m.character)
-	for id: int in sim.players:
-		sim.equip(id)
+	var game: StreetModeRules = StreetMode.rules_for(room.map_id)
+	if game != null:
+		var mode: StreetMode = StreetMode.create(game)
+		mode.attack_team = sim.rng.randi_range(0, 1)  # owner: in a room, a random team runs first
+		sim.start_mode(mode)  # no skills in these games: nobody is dealt a hand
+	else:
+		for id: int in sim.players:
+			sim.equip(id)
 	stage_left = net.load_timeout
 	_relay_signals()
 
@@ -62,6 +70,8 @@ func _init(server: GameServer, p_room: RoomService.Room, rules: GameRules, layou
 ## match can be freed (RefCounted cycles would leak).
 func dispose() -> void:
 	var sources: Array[Object] = [sim, sim.weapons]
+	if sim.mode != null:
+		sources.append(sim.mode)
 	for source: Object in sources:
 		for info: Dictionary in source.get_signal_list():
 			for connection: Dictionary in source.get_signal_connection_list(info["name"] as StringName):
@@ -79,7 +89,8 @@ func info() -> Dictionary:
 			"id": m.player_id, "team": m.team, "name": m.name,
 			"char": sim.players[m.player_id].character_id,
 		})
-	return {"t": NetProtocol.Msg.MATCH_LOADING, "seed": seed_value, "team_size": room.team_size, "players": players}
+	return {"t": NetProtocol.Msg.MATCH_LOADING, "seed": seed_value, "team_size": room.team_size, "players": players, "game": String(room.map_id),
+		"runs": sim.mode.attack_team if sim.mode != null else 0}
 
 
 ## MATCH_PLAY: the current stage (pick or play) for a client joining or catching up.
@@ -152,18 +163,25 @@ func poll(delta: float) -> void:
 		Stage.LOADING:
 			stage_left -= delta
 			if stage_left <= 0.0 or _everyone_in(_loaded):
+				if sim.mode != null:
+					_start_play()  # a street game has no weapon pick
+					return
 				stage = Stage.PICKING
 				stage_left = sim.rules.weapon_pick_time + _net.pick_grace
 				_broadcast(stage_message())
 		Stage.PICKING:
 			stage_left -= delta
 			if stage_left <= 0.0 or _everyone_in(_picked):
-				stage = Stage.PLAYING
-				room.state = RoomService.State.PLAYING
-				sim.begin_intro()
-				_broadcast(stage_message())
+				_start_play()
 		Stage.PLAYING:
 			_play(delta)
+
+
+func _start_play() -> void:
+	stage = Stage.PLAYING
+	room.state = RoomService.State.PLAYING
+	sim.begin_intro()
+	_broadcast(stage_message())
 
 
 func _play(delta: float) -> void:
@@ -249,9 +267,18 @@ func _broadcast(message: Dictionary) -> void:
 
 func _relay_signals() -> void:
 	var sources: Dictionary[String, Object] = {"sim": sim, "weapons": sim.weapons}
-	for target: String in RELAYED:
+	var relayed: Dictionary[String, Array] = RELAYED.duplicate()
+	if sim.mode != null:
+		# every signal the street game declares (tags, points, role swaps, dives...): the views of each phone play them
+		sources["mode"] = sim.mode
+		var names: Array[String] = []
+		for info: Dictionary in (sim.mode.get_script() as Script).get_script_signal_list():
+			if not names.has(info["name"] as String):
+				names.append(info["name"] as String)
+		relayed["mode"] = names
+	for target: String in relayed:
 		var source: Object = sources[target]
-		for signal_name: String in RELAYED[target]:
+		for signal_name: String in relayed[target]:
 			var arity: int = 0
 			for info: Dictionary in source.get_signal_list():
 				if info["name"] == signal_name:

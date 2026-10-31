@@ -321,6 +321,12 @@ func _build_mirror(info: Dictionary) -> void:
 	for entry: Dictionary in info.get("players", []) as Array:
 		var state: PlayerState = mirror.add_player(entry["id"] as int, entry["team"] as int)
 		state.character_id = entry.get("char", &"") as StringName
+	# a street game: the same game on the copy, so the views show it and the local kid's walk is predicted by its rules
+	var game: StreetModeRules = StreetMode.rules_for(StringName(String(info.get("game", ""))))
+	if game != null:
+		var mode: StreetMode = StreetMode.create(game)
+		mode.attack_team = clampi(int(info.get("runs", 0)) if info.get("runs", 0) is int else 0, 0, 1)
+		mirror.start_mode(mode)
 	_pending.clear()
 	_buffer.clear()
 	stage = "loading"
@@ -400,6 +406,8 @@ func _on_events(list: Array) -> void:
 	var targets: Dictionary[String, Object] = {
 		"sim": mirror, "weapons": mirror.weapons,
 	}
+	if mirror.mode != null:
+		targets["mode"] = mirror.mode
 	for event: Array in list:
 		if event.size() != 3 or not targets.has(event[0] as String):
 			continue

@@ -68,8 +68,11 @@ static func card_text(room: Dictionary) -> String:
 	var size: int = int(room.get("team_size", 1))
 	var host: String = String(room.get("host_name", ""))
 	var title: String = UiText.f("%s's room", [host]) if not host.is_empty() else UiText.t("Open room")
-	return "%s\n%dv%d · %d/%d · %s" % [title, size, size, int(room.get("players", 0)), size * 2,
-		UiText.f("First to %d", [int(room.get("first_to", 3))])]
+	var map_id: StringName = StringName(String(room.get("map", "street")))
+	# Agawan Base says how many points win; a street game says its name (it is timed)
+	var goal: String = UiText.f("First to %d", [int(room.get("first_to", 3))]) if map_id == &"street" else \
+		HotspotRoomView.MAP_NAMES.get(map_id, String(map_id).capitalize()) as String
+	return "%s\n%dv%d · %d/%d · %s" % [title, size, size, int(room.get("players", 0)), size * 2, goal]
 
 
 ## Joins the best listed room: the fullest (the server sends them fullest first), so a match fills and starts sooner.

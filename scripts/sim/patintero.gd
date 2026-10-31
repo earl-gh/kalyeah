@@ -62,6 +62,13 @@ func _init(p_rules: StreetModeRules) -> void:
 	stall_left = rules.stall_seconds
 
 
+func synced_fields() -> Array[StringName]:
+	var fields: Array[StringName] = super()
+	fields.append_array([&"crossed", &"middle_crossed", &"middle_side", &"guard_axis", &"guard_line", &"dive_phase", &"dive_left",
+		&"recover_left", &"dive_way", &"dive_cool", &"caught", &"jailed", &"stall_left", &"first_guard_passed"])
+	return fields
+
+
 # ---- the court -----------------------------------------------------------------------------
 
 ## The z of horizontal line `index` (0: the one nearest the base, 1: the far one).
