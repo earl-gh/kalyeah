@@ -2,6 +2,12 @@ class_name PracticeMatchPresentation
 extends RefCounted
 ## Owns PracticeMatch's HUD wiring, actor views, camera presentation, and banners.
 
+## A dive's dust (particles) at both ends, and the streak it leaves on the street: how wide, how high above it and its colour.
+const DIVE_DUST: int = 6
+const DIVE_STREAK_WIDTH: float = 0.7
+const DIVE_STREAK_LIFT: float = 0.1
+const DIVE_STREAK_COLOR: Color = Color(1.0, 1.0, 1.0, 0.55)
+
 var owner: PracticeMatch
 
 
@@ -36,7 +42,7 @@ func setup_hud() -> void:
 	owner.hud.marker.setup(owner.sim, owner._camera, owner.local_id)
 	owner._fx.view_scale = owner._camera.rules.kid_view_scale
 	owner._fx.local_team = owner.local_team
-	if owner.sim.mode != null and owner.sim.mode.is_free_for_all():
+	if owner.sim.mode != null:
 		owner.hud.setup_street_scores(owner.sim, owner.local_id)
 	owner.hud.set_top_inset(_safe_top_inset())
 	owner._camera.top_reserve_px = owner.hud.header_height() + HEADER_GAP
@@ -51,7 +57,7 @@ func connect_hud() -> void:
 	owner.hud.set_chat_enabled(true)
 	owner.hud.chat.said.connect(func(text: String) -> void: owner.hud.overhead.say(owner.local_id, text))
 	owner.hud.street_pad.knob_moved.connect(owner.knob_moved)
-	owner.hud.street_pad.kick_pressed.connect(owner.kick_pressed)
+	owner.hud.street_pad.action_pressed.connect(owner.action_pressed)
 	owner.hud.street_pad.aim_started.connect(owner.throw_pressed)
 	owner.hud.street_pad.aim_dragged.connect(owner.throw_dragged)
 	owner.hud.street_pad.aim_released.connect(owner.throw_released)
@@ -74,7 +80,12 @@ func connect_sim() -> void:
 		if id == owner.local_id:
 			owner._camera.shake(minf(0.1 + amount * 0.01, 0.4))
 			owner.hud.pulse.hit(amount, owner.sim.rules.player_max_hp))
-	owner.sim.weapon_cast.connect(func(id: int, weapon: StringName) -> void: (owner._views[id] as KidModel).play_cast(cast_lead(owner.sim, weapon)))
+	owner.sim.weapon_cast.connect(func(id: int, weapon: StringName) -> void:
+		var view: KidModel = owner._views[id] as KidModel
+		if weapon == StreetMode.TAG_CAST:
+			view.play_touch()  # a tag: the kid reaches out and touches
+		else:
+			view.play_cast(cast_lead(owner.sim, weapon)))
 	owner.sim.match_won.connect(_on_match_won)
 	owner.sim.point_reset.connect(func() -> void:
 		owner.hud.street.release())
@@ -93,6 +104,9 @@ func connect_sim() -> void:
 ## Tumbang Preso and Patintero say what happens in a banner: who is it or whose turn it is, a point, and (for you) what to do next.
 func _connect_street_game(mode: StreetMode) -> void:
 	mode.scored.connect(func(team: int, id: int) -> void:
+		var by_touch: bool = not owner.sim.point_log.is_empty() and owner.sim.point_log[-1].y == MatchSim.CaptureKind.TOUCHED
+		if by_touch:
+			return  # the tag has its own banner
 		if id == owner.local_id:
 			owner.show_banner("+1 YOU SCORED!")
 		elif not mode.is_free_for_all():
@@ -105,6 +119,34 @@ func _connect_street_game(mode: StreetMode) -> void:
 		lines.runner_crossed.connect(func(id: int) -> void:
 			if id == owner.local_id:
 				owner.show_banner("NOW RUN BACK HOME!"))
+		lines.runner_tagged.connect(func(guard: int, runner: int) -> void:
+			if runner == owner.local_id:
+				owner.show_banner("TAGGED!")
+			elif guard == owner.local_id:
+				owner.show_banner("YOU TAGGED A RUNNER! +1")
+			else:
+				owner.show_banner("RUNNER TAGGED!" if owner.sim.players[guard].team != owner.local_team else "RUNNER TAGGED! +1"))
+		lines.dived.connect(_on_dived)
+
+
+## A kid dives (Patintero): it leans into the dive for `time` s, with dust where it leaves the ground and where it gets up and a streak on
+## the street between them.
+func _on_dived(id: int, way: Vector2, time: float) -> void:
+	var view: KidModel = owner._views.get(id) as KidModel
+	if view != null:
+		view.play_dive(time)
+	var state: PlayerState = owner.sim.players[id]
+	var context: FxContext = owner._fx.context()
+	var lines: Patintero = owner.sim.mode as Patintero
+	var distance: float = lines.rules.dive_speed_share * owner.sim.rules.move_speed * time
+	var from: Vector2 = state.position
+	context.particles.puff(FxParticles.Preset.DUST, Vector3(from.x, 0.0, from.y), DIVE_DUST)
+	var to: Vector2 = from + way * distance
+	context.ground.trail(Vector3(from.x, DIVE_STREAK_LIFT, from.y), Vector3(to.x, DIVE_STREAK_LIFT, to.y), DIVE_STREAK_WIDTH, DIVE_STREAK_COLOR, time)
+	owner.get_tree().create_timer(time).timeout.connect(func() -> void:
+		if is_instance_valid(owner) and owner.sim != null and owner.sim.players.has(id):
+			var landed: Vector2 = owner.sim.players[id].position
+			context.particles.puff(FxParticles.Preset.DUST, Vector3(landed.x, 0.0, landed.y), DIVE_DUST))
 
 
 func _connect_tumbang(game: TumbangPreso) -> void:
@@ -137,7 +179,7 @@ static func street_status(sim: MatchSim, player: PlayerState) -> Array[String]:
 		var game: TumbangPreso = mode as TumbangPreso
 		var id: int = player.id
 		if id == game.taya_id:
-			return ["YOU'RE IT!", "Touch throwers in the fetch area!" if game.can_up else "Fetch the can and put it back!"] as Array[String]
+			return ["YOU'RE IT!", "Move into a thrower's circle to tag it!" if game.can_up else "Fetch the can and put it back!"] as Array[String]
 		if game.flights.has(id):
 			return ["", ""] as Array[String]
 		if game.fetched.has(id):
@@ -149,8 +191,8 @@ static func street_status(sim: MatchSim, player: PlayerState) -> Array[String]:
 		return ["FETCH YOUR SLIPPER!", "Kick the can to keep the taya busy."] as Array[String]
 	var lines: Patintero = mode as Patintero
 	if lines.is_attacker(player):
-		return ["YOU RUN!", "Cross both lines and come back!"] as Array[String]
-	return ["YOU GUARD!", "Stay on your line and touch the runners!"] as Array[String]
+		return ["YOU RUN!", "Cross both lines. Dive to get past!"] as Array[String]
+	return ["YOU GUARD!", "Move into a runner's circle to tag!"] as Array[String]
 
 
 ## How long before its release a kid's cast clip starts for `weapon`: a delayed cone (the big snip) strikes `delay` seconds

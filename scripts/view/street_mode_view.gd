@@ -41,6 +41,13 @@ const PICKUP_TINT: Color = Color(1.0, 1.0, 1.0, 0.3)
 const PICKUP_OUTLINE: Color = Color(1.0, 1.0, 1.0, 0.95)
 const PICKUP_OUTLINE_WIDTH: float = 0.14
 const PICKUP_BREATH: float = 4.0
+## The tag circle round everyone the local taya or guard could tag (medium size, `StreetModeRules.tag_circle_radius`): red while a touch
+## tags, grey while it cannot (the can is down, the round is resetting).
+const TAG_CIRCLE_TINT: Color = Color(1.0, 0.25, 0.22, 0.25)
+const TAG_CIRCLE_RIM: Color = Color(1.0, 0.3, 0.25, 0.9)
+const TAG_CIRCLE_OFF_TINT: Color = Color(0.7, 0.7, 0.75, 0.14)
+const TAG_CIRCLE_OFF_RIM: Color = Color(0.8, 0.8, 0.85, 0.5)
+const TAG_CIRCLE_RIM_WIDTH: float = 0.1
 ## The taya's marker: a red ring on the ground round the kid and the word IT over its head.
 const TAYA_COLOR: Color = Color(1.0, 0.25, 0.22, 0.9)
 const TAYA_RING: float = 1.0
@@ -65,6 +72,7 @@ var _can_guide: MeshInstance3D
 var _slipper_guide: Array[MeshInstance3D] = []
 var _pickup: Node3D
 var _taya_marker: Node3D
+var _tag_circles: Dictionary[int, Node3D] = {}
 
 
 ## Draws the lines of `sim`'s game (nothing for Agawan Base). `ctx` is WeaponFxView's (its dust and the kids' view scale).
@@ -102,12 +110,28 @@ func setup(sim: MatchSim, ctx: FxContext, local_id: int) -> void:
 ## One frame of the picture (PracticeMatch calls it from its presentation, like every other view): the can, the slippers, the marks.
 func sync(delta: float) -> void:
 	_time += delta
+	if _mode != null:
+		_sync_tag_circles()
 	if _mode is TumbangPreso:
 		_sync_can()
 		_sync_slippers(delta)
 		_sync_aim()
 		_sync_pickup()
 		_sync_taya()
+
+
+## The kids that have a tag circle on the ground right now (the ones the local taya or guard could tag).
+func tag_circle_ids() -> Array[int]:
+	var ids: Array[int] = []
+	for id: int in _tag_circles:
+		if _tag_circles[id].visible:
+			ids.append(id)
+	return ids
+
+
+## Whether the tag circle of `id` is the red one (a touch tags now) and not the grey one.
+func tag_circle_active(id: int) -> bool:
+	return (_tag_circles[id].get_node("Tint") as MeshInstance3D).get_meta("on", false) as bool
 
 
 ## The can (null outside Tumbang Preso), for tests.
@@ -334,6 +358,61 @@ func _build_pickup() -> void:
 	var outline: MeshInstance3D = _ground_mesh(ring, "Outline", true)
 	outline.scale = Vector3(1.0, 0.04, 1.0)
 	_pickup.add_child(outline)
+
+
+# ---- the tag circles ---------------------------------------------------------------------
+
+## The one who tags (the taya, or a guard) sees a circle round every kid it could tag: the medium-size area it only has to move into.
+## Nobody else sees them.
+func _sync_tag_circles() -> void:
+	var me: PlayerState = _sim.players.get(_local_id) as PlayerState
+	var tagger: bool = me != null and not _mode.is_attacker(me)
+	var open: bool = _mode.grace_left <= 0.0 and not _mode.is_resetting()
+	if _mode is TumbangPreso:
+		open = open and (_mode as TumbangPreso).can_up
+	for id: int in _sim.players:
+		var kid: PlayerState = _sim.players[id]
+		var shown: bool = tagger and _mode.is_attacker(kid) and not kid.tagged and not _mode.at_home(kid.position) and not _mode.at_goal(kid.position)
+		var circle: Node3D = _tag_circles.get(id) as Node3D
+		if circle == null:
+			if not shown:
+				continue
+			circle = _build_tag_circle()
+			_tag_circles[id] = circle
+		circle.visible = shown
+		if not shown:
+			continue
+		var at: Vector2 = _drawn(kid)
+		circle.position = Vector3(at.x, GROUND_LIFT, at.y)
+		var tint: MeshInstance3D = circle.get_node("Tint") as MeshInstance3D
+		tint.set_meta("on", open)
+		((tint.mesh as CylinderMesh).material as StandardMaterial3D).albedo_color = TAG_CIRCLE_TINT if open else TAG_CIRCLE_OFF_TINT
+		(((circle.get_node("Rim") as MeshInstance3D).mesh as TorusMesh).material as StandardMaterial3D).albedo_color = TAG_CIRCLE_RIM if open else TAG_CIRCLE_OFF_RIM
+
+
+func _build_tag_circle() -> Node3D:
+	var radius: float = _mode.rules.tag_circle_radius
+	var circle: Node3D = Node3D.new()
+	circle.name = "TagCircle"
+	add_child(circle)
+	var fill: CylinderMesh = CylinderMesh.new()
+	fill.top_radius = radius
+	fill.bottom_radius = radius
+	fill.height = 0.01
+	fill.radial_segments = 32
+	fill.rings = 1
+	fill.material = _ground_material(TAG_CIRCLE_TINT)
+	circle.add_child(_ground_mesh(fill, "Tint", true))
+	var ring: TorusMesh = TorusMesh.new()
+	ring.inner_radius = radius - TAG_CIRCLE_RIM_WIDTH
+	ring.outer_radius = radius
+	ring.rings = 32
+	ring.ring_segments = 4
+	ring.material = _ground_material(TAG_CIRCLE_RIM)
+	var rim: MeshInstance3D = _ground_mesh(ring, "Rim", true)
+	rim.scale = Vector3(1.0, 0.04, 1.0)
+	circle.add_child(rim)
+	return circle
 
 
 # ---- the taya ----------------------------------------------------------------------------

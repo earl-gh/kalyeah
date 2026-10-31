@@ -239,7 +239,7 @@ func test_the_kick_button_kicks_the_can() -> void:
 	game.slipper_busy[1] = 0.0
 	practice.sim.players[1].position = game.rules.can_spot + Vector2(1.0, 0.0)
 	practice.advance(DT)
-	practice.hud.street_pad.kick_pressed.emit()
+	practice.hud.street_pad.action_pressed.emit()
 	for i: int in 3:
 		practice.advance(DT)
 	assert_false(game.can_up, "kicked")
@@ -284,6 +284,7 @@ func test_holding_the_throw_button_aims_on_the_ground_with_a_line_that_grows_and
 func test_aiming_at_the_can_shows_a_short_solid_line_for_the_can_and_a_dashed_one_for_the_slipper() -> void:
 	var practice: PracticeMatch = _practice(&"tumbang_preso")
 	var game: TumbangPreso = practice.sim.mode as TumbangPreso
+	practice._mode_coach.ids.clear()  # the bots do not throw meanwhile: the can stands
 	practice.advance(DT)
 	practice.sim.players[1].position = Vector2(game.rules.can_spot.x, 14.0)
 	practice.hud.street_pad.aim_started.emit()
@@ -378,3 +379,127 @@ func test_the_lines_are_chalk_that_breaks_up_in_short_gaps() -> void:
 		assert_gt(material.get_shader_parameter("breaks") as float, 0.0, "gaps in the chalk")
 		assert_lte(material.get_shader_parameter("breaks") as float, 0.35, "but narrow ones: it is a boundary")
 	assert_ne(((lines[0] as MeshInstance3D).mesh as PlaneMesh).material.get_shader_parameter("seed"), ((lines[1] as MeshInstance3D).mesh as PlaneMesh).material.get_shader_parameter("seed"), "each line breaks in its own places")
+
+
+func test_throwers_in_the_fetch_area_have_a_tag_circle_only_the_taya_sees() -> void:
+	var practice: PracticeMatch = _practice(&"tumbang_preso")
+	var game: TumbangPreso = practice.sim.mode as TumbangPreso
+	practice.advance(DT)
+	assert_true(practice.mode_view.tag_circle_ids().is_empty(), "you are a thrower: you see no circles")
+	# the taya's point of view: you are it, and two throwers are out in the fetch area
+	game.taya_id = 1
+	game.hold.clear()
+	for id: int in [2, 3]:
+		game.slippers[id] = Vector2(float(id), 5.0)  # they have thrown: free to be out in the fetch area
+		game.slipper_busy[id] = 0.0
+	practice._mode_coach.ids.clear()
+	practice.sim.players[2].position = Vector2(-4.0, 6.0)
+	practice.sim.players[3].position = Vector2(3.0, 8.0)
+	practice.sim.players[4].position = Vector2(0.0, 15.0)  # still in the throwing area
+	game.grace_left = 0.0
+	practice.advance(DT)
+	var ids: Array[int] = practice.mode_view.tag_circle_ids()
+	ids.sort()
+	assert_eq(ids, [2, 3] as Array[int], "a circle on each thrower in the fetch area, none in the throwing area")
+	assert_true(practice.mode_view.tag_circle_active(2), "red: a touch tags")
+	var circle: Node3D = practice.mode_view.find_child("TagCircle", true, false) as Node3D
+	var tint: MeshInstance3D = circle.get_node("Tint") as MeshInstance3D
+	assert_almost_eq((tint.mesh as CylinderMesh).top_radius, game.rules.tag_circle_radius, 0.001, "a medium-size circle")
+	assert_gt(game.rules.tag_circle_radius, 0.8)
+	game.can_up = false
+	practice.advance(DT)
+	assert_false(practice.mode_view.tag_circle_active(2), "grey while the can is down: it cannot tag")
+
+
+func test_a_tag_plays_the_touch_for_the_tagger_and_then_the_round_resets() -> void:
+	var practice: PracticeMatch = _practice(&"tumbang_preso")
+	var game: TumbangPreso = practice.sim.mode as TumbangPreso
+	var taya: int = game.taya_id
+	practice.advance(DT)
+	game.grace_left = 0.0
+	practice.sim.players[1].position = Vector2(0.0, 6.0)
+	game.slippers[1] = Vector2(0.0, 5.0)
+	practice.sim.players[taya].position = Vector2(0.0, 6.5)
+	practice.sim.step(DT)
+	assert_eq(game.taya_id, 1)
+	for i: int in 12:
+		practice.advance(DT)  # the pause: the tagger stands still, its touch keeps playing
+	var view: KidModel = practice._views[taya] as KidModel
+	assert_eq(view.pose, "cast", "the taya still reaches out and touches while everyone stands still")
+	assert_string_contains(practice.banner_text(), "IT")
+	for i: int in ceili(game.rules.reset_seconds / DT):
+		practice.advance(DT)
+	assert_false(game.is_resetting())
+	assert_true(game.at_home(practice.sim.players[taya].position), "the old taya is back among the throwers")
+
+
+func test_patintero_has_the_same_hud_with_a_dive_button_whose_ring_fills_while_it_cools_down() -> void:
+	var practice: PracticeMatch = _practice(&"patintero")
+	var lines: Patintero = practice.sim.mode as Patintero
+	var pad: StreetGamePad = practice.hud.street_pad
+	practice.advance(DT)
+	assert_false(practice.hud.hand.visible)
+	assert_false(practice.hud.console.visible, "no tray")
+	assert_false(practice.hud.scoreboard.visible, "the points are on the left sidewalk, like Tumbang Preso's")
+	assert_not_null(practice.hud.score_column)
+	assert_eq(practice.hud.score_column.order().size(), 2, "one badge for each team")
+	assert_eq(pad.action, StreetGamePad.Action.DIVE, "the button at the right is Dive")
+	assert_true(pad.act_ready)
+	assert_eq(pad.charge, 1.0, "ready: the ring is full")
+	assert_gt(pad.knob_rect().size.x, 100.0, "and the knob at the left")
+	assert_true(practice.hud.chat.visible, "chat under the timer")
+	pad.knob_moved.emit(Vector2(0.0, -1.0))
+	pad.action_pressed.emit()
+	for i: int in 4:
+		practice.advance(DT)
+	pad.knob_moved.emit(Vector2.ZERO)  # the knob is let go: the kid does not run into the guards afterwards
+	assert_true(lines.is_diving(practice.local_id), "pressing Dive dives")
+	assert_false(pad.act_ready, "cooling down")
+	assert_lt(pad.charge, 0.3, "the ring has just started to fill")
+	for i: int in ceili(lines.rules.dive_cooldown / 2.0 / DT):
+		practice.advance(DT)
+	assert_between(pad.charge, 0.35, 0.75, "and fills as it cools down")
+	for i: int in ceili(lines.rules.dive_cooldown / DT):
+		practice.advance(DT)
+	assert_true(pad.act_ready)
+
+
+func test_patintero_points_stand_in_a_column_by_team_most_first() -> void:
+	var practice: PracticeMatch = _practice(&"patintero")
+	var column: ScoreColumn = practice.hud.score_column
+	practice.advance(DT)
+	assert_eq(column.order(), [ScoreColumn.TEAM_KEY, ScoreColumn.TEAM_KEY + 1] as Array[int], "your team first when level")
+	practice.sim.score.points[1] = 2
+	practice.advance(DT)
+	assert_eq(column.order(), [ScoreColumn.TEAM_KEY + 1, ScoreColumn.TEAM_KEY] as Array[int], "the leading team goes up")
+	assert_eq(column.points_text(ScoreColumn.TEAM_KEY + 1), "2")
+
+
+func test_a_dive_leans_the_kid_into_the_air_slides_and_gets_up() -> void:
+	# the pose by itself
+	assert_lt(KidModel.dive_pose(0.05)["squash"] as float, 1.0, "a crouch first")
+	var leap: Dictionary = KidModel.dive_pose(0.3)
+	assert_lt(leap["lean"] as float, -0.3, "then it leans forward")
+	assert_gt(leap["lift"] as float, 0.1, "and leaves the ground")
+	var slide: Dictionary = KidModel.dive_pose(0.6)
+	assert_almost_eq(slide["lean"] as float, -KidModel.DIVE_LEAN, 0.001, "flat along the street")
+	assert_lt(slide["lift"] as float, leap["lift"] as float, "skimming it")
+	assert_almost_eq(KidModel.dive_pose(1.0)["lean"] as float, 0.0, 0.001, "and upright again at the end")
+	assert_almost_eq(KidModel.dive_pose(1.0)["lift"] as float, 0.0, 0.001)
+	# on a kid in a match
+	var practice: PracticeMatch = _practice(&"patintero")
+	practice.advance(DT)
+	var view: KidModel = practice._views[practice.local_id] as KidModel
+	practice.hud.street_pad.knob_moved.emit(Vector2(0.0, -1.0))
+	practice.hud.street_pad.action_pressed.emit()
+	var poses: Array[String] = []
+	var leaned: float = 0.0
+	for i: int in 24:
+		practice.advance(DT)
+		poses.append(view.pose)
+		leaned = minf(leaned, (view.get_node("Body") as Node3D).rotation.x)
+	assert_has(poses, "dive", "the kid is in its dive pose")
+	assert_lt(leaned, -0.8, "and really leans into it")
+	assert_ne(view.pose, "dive", "it is over after the dive's time")
+	assert_eq((view.get_node("Body") as Node3D).rotation.x, 0.0, "the body is upright again")
+	assert_eq((view.get_node("Body") as Node3D).position.y, 0.0)

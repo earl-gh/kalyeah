@@ -393,13 +393,14 @@ func can_tag(sim: MatchSim, guard: PlayerState, runner: PlayerState) -> bool:
 	return can_up and super.can_tag(sim, guard, runner)
 
 
-## The taya touched a thrower in the fetch area: the thrower is the taya now.
-func _tag(sim: MatchSim, _guard: PlayerState, runner: PlayerState) -> void:
+## The taya moved into the tag circle of a thrower in the fetch area: it plays its touch, and the thrower is the taya now.
+func _tag(sim: MatchSim, guard: PlayerState, runner: PlayerState) -> void:
+	sim.weapon_cast.emit(guard.id, TAG_CAST)
 	become_taya(sim, runner.id, &"tagged")
 
 
-## `id` becomes the taya (tagged, or too scared to fetch its slipper); the old taya is a thrower again, back in the throwing area with
-## its slipper. Nobody can be tagged for a moment.
+## `id` becomes the taya (tagged, or too scared to fetch its slipper). The round resets by itself: after a short pause (the tagger's touch
+## plays) every kid is back in its place, the old taya a thrower again, every slipper in its hand, the can standing; the points stay.
 func become_taya(sim: MatchSim, id: int, why: StringName) -> void:
 	var old: int = taya_id
 	if old == id or not sim.players.has(id):
@@ -412,21 +413,19 @@ func become_taya(sim: MatchSim, id: int, why: StringName) -> void:
 	taya_id = id
 	if can_carrier == old:
 		can_carrier = -1
-	grace_left = rules.swap_grace
-	for kid: int in [id, old]:
-		var state: PlayerState = sim.players[kid]
-		state.position = _spot(sim, state)
-		state.spawn_position = state.position
-		state.facing = Vector2(0.0, -1.0) if is_attacker(state) else Vector2(0.0, 1.0)
-		sim.end_move(state)
+	hold.clear()
+	aim_dir.clear()
 	taya_changed.emit(old, id, why)
 	roles_swapped.emit(id)
+	begin_reset(sim)  # everyone stands still a moment, then all are back in their places (see `_new_round`)
 
 
 # ---- limits and points ---------------------------------------------------------------------
 
 ## The taya stays in the fetch area; a thrower with its slipper in hand stays in the throwing area.
 func constrain(_sim: MatchSim, state: PlayerState) -> void:
+	if is_resetting():
+		return  # the pause after a tag: nobody is moved until the round resets
 	if state.id == taya_id:
 		state.position.y = minf(state.position.y, rules.home_z - state.radius)
 	elif is_held_back(state):
@@ -434,7 +433,7 @@ func constrain(_sim: MatchSim, state: PlayerState) -> void:
 
 
 ## A point for `state`; with `send_home` it is back in the throwing area, its slipper in hand. Once the time is up the point wins the match.
-func award(sim: MatchSim, state: PlayerState, send_home: bool = true) -> void:
+func award(sim: MatchSim, state: PlayerState, send_home: bool = true, _how: int = MatchSim.CaptureKind.NONE) -> void:
 	points[state.id] = points.get(state.id, 0) + 1
 	fetched.erase(state.id)
 	scared_left.erase(state.id)

@@ -4,8 +4,9 @@ extends Control
 ## games): the movement knob at the left, the action button at the right, and in between what your kid is to do. The action button is the
 ## round Throw button for a thrower with its slipper (press and hold to aim: the line on the street grows with the hold and a finger dragged
 ## anywhere turns it, fine while the line is short and fast when it is full; let go to throw; let go back on the button after dragging away
-## to cancel), the Kick button for a thrower without it, and nothing in Patintero or for the taya.
-## It reports fingers only: `knob_moved` (the way the knob points, -1 to 1 each way), `aim_dragged` in pixels, `kick_pressed`; the match
+## to cancel), the Kick button for a thrower without it, the Dive button in Patintero (a ring round it fills while it cools down), and
+## nothing for the taya.
+## It reports fingers only: `knob_moved` (the way the knob points, -1 to 1 each way), `aim_dragged` in pixels, `action_pressed`; the match
 ## screen turns them into a PlayerInput. Built in code; MatchHud feeds it with `show_state()`.
 
 signal knob_moved(way: Vector2)
@@ -14,10 +15,11 @@ signal aim_started
 signal aim_dragged(dx: float)
 ## The finger let go of the Throw button; `cancel` when it came back onto the button after leaving it.
 signal aim_released(cancel: bool)
-signal kick_pressed
+## The Kick or Dive button was pressed (both are one tap).
+signal action_pressed
 
 ## What the button at the right is.
-enum Action { NONE, THROW, KICK }
+enum Action { NONE, THROW, KICK, DIVE }
 
 const INK: Color = RoyaleStyle.NAVY
 const TITLE_COLOR: Color = RoyaleStyle.GOLD
@@ -33,6 +35,7 @@ const RING_WIDTH: float = 10.0
 const BUTTON_FACE: Color = Color(1.0, 0.76, 0.2)
 const BUTTON_PRESSED: Color = Color(1.0, 0.6, 0.12)
 const KICK_FACE: Color = Color(0.35, 0.82, 0.95)
+const DIVE_FACE: Color = Color(0.4, 0.9, 0.55)
 const BUTTON_OFF: Color = Color(0.45, 0.52, 0.64, 0.75)
 const RING_TRACK: Color = Color(0.05, 0.2, 0.46, 0.8)
 const RING_FILL: Color = Color(1.0, 1.0, 1.0)
@@ -45,10 +48,11 @@ const NO_POINTER: int = -1
 ## What your kid is to do now, and one line on how.
 var title_label: Label
 var hint_label: Label
-## The action button now, how full the aim is (0 to 1), and whether a Kick would reach the can.
+## The action button now, how full its ring is (0 to 1: the aim of a throw, or how far a dive has cooled down), and whether a Kick would
+## reach the can or the dive is ready.
 var action: Action = Action.NONE
 var charge: float = 0.0
-var kick_ready: bool = false
+var act_ready: bool = false
 ## The finger holds the Throw button.
 var aiming: bool = false
 ## The way the knob points now, and whether a finger holds it.
@@ -87,13 +91,14 @@ func _ready() -> void:
 	_place()
 
 
-## What the pad shows now: the line and its hint, the action button (`throw_fill`: how full the aim is; `can_kick`: the Kick reaches the can).
-func show_state(title: String, hint: String, button: Action, throw_fill: float, can_kick: bool) -> void:
+## What the pad shows now: the line and its hint, the action button (`fill`: how full its ring is; `can_act`: the Kick reaches the can, or
+## the dive is ready).
+func show_state(title: String, hint: String, button: Action, fill: float, can_act: bool) -> void:
 	title_label.text = title
 	hint_label.text = hint
 	hint_label.visible = not hint.is_empty()
-	charge = throw_fill
-	kick_ready = can_kick
+	charge = fill
+	act_ready = can_act
 	if action != button:
 		if action == Action.THROW:
 			_cancel_aim()
@@ -188,7 +193,7 @@ func _press(index: int, at: Vector2) -> void:
 			aiming = true
 			aim_started.emit()
 		else:
-			kick_pressed.emit()
+			action_pressed.emit()
 		get_viewport().set_input_as_handled()
 		queue_redraw()
 
@@ -230,7 +235,9 @@ func _draw() -> void:
 		Action.THROW:
 			_draw_button("AIM" if aiming else "THROW", BUTTON_PRESSED if aiming else BUTTON_FACE, true)
 		Action.KICK:
-			_draw_button("KICK", KICK_FACE if kick_ready else BUTTON_OFF, false)
+			_draw_button("KICK", KICK_FACE if act_ready else BUTTON_OFF, false)
+		Action.DIVE:
+			_draw_button("DIVE", DIVE_FACE if act_ready else BUTTON_OFF, true)
 
 
 func _draw_button(words: String, face: Color, with_ring: bool) -> void:

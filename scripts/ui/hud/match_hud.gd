@@ -92,7 +92,7 @@ var sim_held: bool = false
 var hand: CardHand
 ## Tumbang Preso and Patintero: no skills, so no hand; this stands on the tray instead (the role line and the Throw button).
 var street_pad: StreetGamePad
-## Tumbang Preso: every kid's points, on the left sidewalk (null elsewhere).
+## Tumbang Preso's kids' points, or Patintero's two teams', on the left sidewalk (null elsewhere).
 var score_column: ScoreColumn
 ## True in those two games (set by the match screen before the first frame).
 var street_game: bool = false
@@ -303,7 +303,7 @@ func set_street_game(on: bool) -> void:
 	layout_controls()
 
 
-## Tumbang Preso: the points of every kid stand on the left sidewalk.
+## The points stand on the left sidewalk: every kid's (Tumbang Preso) or each team's (Patintero).
 func setup_street_scores(sim: MatchSim, local_id: int) -> void:
 	score_column = ScoreColumn.new()
 	add_child(score_column)
@@ -319,18 +319,27 @@ func _sync_street_pad(sim: MatchSim, player: PlayerState, shown: bool, playing: 
 	if not playing:
 		street.release()
 	var game: TumbangPreso = sim.mode as TumbangPreso
+	var lines: Patintero = sim.mode as Patintero
 	var button: StreetGamePad.Action = StreetGamePad.Action.NONE
+	var fill: float = 0.0
+	var can_act: bool = false
 	if playing and game != null and game.is_attacker(player):
+		fill = game.charge(player.id)
 		if game.can_throw(player):
 			button = StreetGamePad.Action.THROW
 		elif not game.has_slipper(player.id):
 			button = StreetGamePad.Action.KICK
+			can_act = game.can_kick(player)
+	elif playing and lines != null:
+		button = StreetGamePad.Action.DIVE
+		fill = lines.dive_ready_share(player.id)
+		can_act = lines.can_dive(player)
 	var status: Array[String] = PracticeMatchPresentation.street_status(sim, player)
 	chat.visible = shown and chat_enabled
 	street_pad.visible = shown and not player.tagged
-	street_pad.show_state(status[0], status[1], button, game.charge(player.id) if game != null else 0.0, game != null and game.can_kick(player))
+	street_pad.show_state(status[0], status[1], button, fill, can_act)
 	if score_column != null:
-		score_column.sync(game)
+		score_column.sync(sim)
 	sync_plate_column()
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 
@@ -378,12 +387,14 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 			menu.close()
 	for item: CanvasItem in [header, top, scoreboard, marker, pulse, console, feedback]:
 		item.visible = not covered
+	if score_column != null:
+		score_column.visible = not covered
 	if street_game:
 		console.visible = false
-		scoreboard.visible = not covered and not sim.mode.is_free_for_all()  # Tumbang Preso has no team score: the column has the points
+		scoreboard.visible = false  # the street games' points are in the column on the left sidewalk
 	overhead.visible = not covered or overhead.tag_count() > 0
 	if covered:
-		for item: CanvasItem in [hand, street_pad, score_column, chat, tagged_panel, intro_bar, capture_label, capture_alert, banner, coach]:
+		for item: CanvasItem in [hand, street_pad, chat, tagged_panel, intro_bar, capture_label, capture_alert, banner, coach]:
 			item.hide()
 		clock_flash.cancel()
 	if _covered != covered:

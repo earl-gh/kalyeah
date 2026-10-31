@@ -20,6 +20,10 @@ const KID_HEIGHT: float = 1.85
 const POLYMORPH_CAN_MODEL: String = "can"
 const POLYMORPH_CAN_HEIGHT: float = 1.3
 const BLEND: float = 0.14
+## The dive: how far the body leans forward at its flattest (radians), how high the leap lifts it and how high it skims after (m).
+const DIVE_LEAN: float = 1.35
+const DIVE_LIFT: float = 0.45
+const DIVE_SKIM: float = 0.18
 ## The sim steps at 30 Hz but the screen draws faster: with no new position for this
 ## long the kid is standing still.
 const STILL_AFTER: float = 0.2
@@ -88,6 +92,11 @@ var _vanish_time: float = 0.0
 var _vanish_at: Vector3 = Vector3.ZERO  # where the kid was tagged (it shrinks there)
 var _last_position: Vector3 = Vector3.INF
 var _was_tagged: bool = false
+## A touch (the taya or a guard tagging) keeps its run-cast clip to the end even though the kid stops at once.
+var _cast_keep: bool = false
+## The dive (Patintero): seconds left, its length, and the dive's progress (0 to 1) now.
+var _dive_left: float = 0.0
+var _dive_total: float = 0.0
 var _cast_serial: int = 0
 var _cast_played: int = 0
 ## How far each of these has popped in (0 gone, 1 whole) and which way it is going (up: popping in).
@@ -150,6 +159,56 @@ func play_cast(lead: float = 0.0) -> void:
 	_cast_total = maxf(_clip_length(_cast_clip) - _cast_start(_cast_clip), 0.01)
 	_cast_left = _cast_total
 	_cast_serial += 1
+
+
+## The kid touched somebody (a tag): the run-cast clip plays out to its end, standing still or not, as if it reached out and touched.
+func play_touch() -> void:
+	play_cast()
+	_cast_clip = "cast_run"
+	_cast_total = maxf(_clip_length(_cast_clip) - _cast_start(_cast_clip), 0.01)
+	_cast_left = _cast_total
+	_cast_keep = true
+
+
+## The kid dives along its facing for `time` s (Patintero): it crouches, throws itself forward to a flat dive with the arms out, slides and
+## gets back up with a little squash. View only: the sim moves the kid.
+func play_dive(time: float) -> void:
+	_dive_total = maxf(time, 0.01)
+	_dive_left = _dive_total
+
+
+## Seconds left of the dive (0 when it is not diving).
+func dive_left() -> float:
+	return _dive_left
+
+
+## How far into the dive the kid is, 0 to 1 (0 when it is not diving).
+func dive_progress() -> float:
+	return 1.0 - _dive_left / _dive_total if _dive_left > 0.0 else 0.0
+
+
+## The dive's pose at `progress` (0 to 1): how far the body leans forward (radians, negative is forward), how high it is lifted (m) and its
+## squash (the height's share). A crouch (0 to 0.15), the leap to a flat dive (to 0.45), the slide (to 0.8) and the stand-up.
+static func dive_pose(progress: float) -> Dictionary:
+	var lean: float = 0.0
+	var lift: float = 0.0
+	var squash: float = 1.0
+	if progress < 0.15:
+		squash = lerpf(1.0, 0.82, progress / 0.15)
+	elif progress < 0.45:
+		var t: float = (progress - 0.15) / 0.3
+		lean = -DIVE_LEAN * sin(t * PI / 2.0)
+		lift = DIVE_LIFT * sin(t * PI)
+		squash = lerpf(0.82, 1.0, t)
+	elif progress < 0.8:
+		lean = -DIVE_LEAN
+		lift = DIVE_SKIM
+	else:
+		var t: float = (progress - 0.8) / 0.2
+		lean = -DIVE_LEAN * (1.0 - t * t)
+		lift = DIVE_SKIM * (1.0 - t)
+		squash = 1.0 - 0.12 * sin(t * PI)
+	return {"lean": lean, "lift": lift, "squash": squash}
 
 
 ## Seconds into a cast clip ("cast" or "cast_run") where the hand releases: the cast starts there, so the release lands on
@@ -216,6 +275,9 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	_clock += delta
 	_turn(delta)
 	_cast_left = maxf(0.0, _cast_left - delta)
+	if _cast_left <= 0.0:
+		_cast_keep = false
+	_dive_left = maxf(0.0, _dive_left - delta)
 	var polymorphed: bool = state.effects.has(StatusEffects.Type.POLYMORPH)
 	set_ghost(state.tagged)
 	_step_morph(delta, polymorphed)
@@ -233,7 +295,7 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	_tired = state.overclocked
 	_step_vanish(delta, state.tagged)
 	# a cast belongs to the clip it began with: when the kid starts or stops moving it is over
-	if _cast_left > 0.0 and (_move_blend > 0.5) != (_cast_clip == "cast_run"):
+	if _cast_left > 0.0 and not _cast_keep and (_move_blend > 0.5) != (_cast_clip == "cast_run"):
 		_cast_left = 0.0
 	if speed > 0.3:
 		# the feet step with the run clip's own cycle, two steps a cycle
@@ -252,6 +314,9 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	elif state.effects.has(StatusEffects.Type.STUN) or state.effects.has(StatusEffects.Type.KNOCKOUT):
 		pose = "stunned"  # no fall: a knock-out shows as stunned too
 		anim = "stun"
+	elif _dive_left > 0.0:
+		pose = "dive"
+		anim = "airborne"  # the arms out; the body's lean and lift are drawn in `_apply_dive`
 	elif _cast_left > 0.0:
 		pose = "cast"
 		anim = _cast_clip
@@ -265,6 +330,17 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	_pop_stars(delta, anim == "stun" or pose == "airborne")
 	_stars.rotation.y = _clock * 2.6
 	_apply_pops()
+	_apply_dive()
+
+
+## The body leans, lifts and squashes along the dive (and is upright and level again when it is over).
+func _apply_dive() -> void:
+	if _dive_left <= 0.0 and _body.rotation.x == 0.0 and _body.position.y == 0.0:
+		return
+	var pose_now: Dictionary = dive_pose(dive_progress())
+	_body.rotation.x = pose_now["lean"] as float
+	_body.position.y = pose_now["lift"] as float
+	_body.scale.y *= pose_now["squash"] as float
 
 
 ## A tagged kid pops out where it stood, then pops in at full size in the tagged box, where the sim has already put it. View only: the

@@ -80,13 +80,15 @@ static func street_game_lines(game: StreetModeRules) -> Array[String]:
 			"Hold Throw to aim: the line grows the longer you hold. Let go to throw your slipper at the can.",
 			"Knock over the can, fetch your slipper, and run to the other end to earn a score.",
 			"The 'it' fetches the can and places it back. It can't tag you while the can is knocked over!",
+			"Out in the fetch area you wear a tag circle: the 'it' tags you by moving into it, and you become the 'it'. Then everyone goes back to their places.",
 			UiText.f("Stay behind the throw line while you hold your slipper. Too scared to fetch it for %d s? You're the taya!", [ceili(game.scared_seconds)]),
 		] as Array[String]
 	return [
 		UiText.f("%d minutes! The team with more points wins. Play it in Practice.", [minutes]),
 		"Get past the enemy guards, run to the other end and back to earn a team point.",
 		"The court has two lines across the street and one down the middle. Each guard keeps to one line.",
-		UiText.f("Guards tag you or your ally by touch. The teams swap when every runner is tagged, or after %d s.", [ceili(game.turn_seconds)]),
+		"Runners have a tag circle: a guard tags a runner by moving into it. The guards earn a point and the round resets.",
+		UiText.f("Runners and guards can dive, then wait %d s to dive again. The teams swap every %d s.", [ceili(game.dive_cooldown), ceili(game.turn_seconds)]),
 	] as Array[String]
 
 

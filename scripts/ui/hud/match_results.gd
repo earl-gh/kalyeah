@@ -110,6 +110,8 @@ func _score_card() -> Control:
 static func how_text(ours: bool, how: int) -> String:
 	if how == MatchSim.CaptureKind.ALL_TAGGED:
 		return "Tagged them all" if ours else "Tagged you all"
+	if how == MatchSim.CaptureKind.TOUCHED:
+		return "Tagged a runner" if ours else "Tagged by a guard"
 	if how == MatchSim.CaptureKind.NONE:
 		return "Ran it home" if ours else "They ran it home"  # Tumbang Preso, Patintero
 	return "Held their base" if ours else "Held your base"

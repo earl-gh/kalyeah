@@ -11,6 +11,9 @@ const RULES_PATHS: Dictionary[StringName, String] = {
 	&"patintero": "res://data/rules/patintero.tres",
 }
 
+## The id the tagger's touch is sent to the views as (`MatchSim.weapon_cast`): the kid plays its run-cast clip, as if it touched the other.
+const TAG_CAST: StringName = &"tag"
+
 ## `id` (of `team`) earned a point.
 signal scored(team: int, id: int)
 ## The roles changed hands: Patintero's `who` is the team that runs now; Tumbang Preso's is the new taya's id.
@@ -25,6 +28,8 @@ var time_left: float = 0.0
 var turn_left: float = 0.0
 ## Seconds left in which nobody can be tagged (after a change of roles).
 var grace_left: float = 0.0
+## Seconds left of the pause after a tag (everyone stands still, then the round resets); 0 = playing.
+var reset_left: float = 0.0
 
 
 func _init(p_rules: StreetModeRules) -> void:
@@ -84,12 +89,36 @@ func speed_scale(_state: PlayerState) -> float:
 func step(sim: MatchSim, dt: float) -> void:
 	time_left = maxf(0.0, time_left - dt)
 	grace_left = maxf(0.0, grace_left - dt)
+	if reset_left > 0.0:
+		reset_left -= dt
+		if reset_left <= 0.0:
+			reset_left = 0.0
+			_new_round(sim)
+		return
 	_step_game(sim, dt)
 	if sim.phase != MatchSim.Phase.PLAYING:
 		return
 	_step_turn(sim, dt)
 	if sim.phase == MatchSim.Phase.PLAYING and time_left <= 0.0 and _leader(sim) != -1:
 		_end(sim)
+
+
+## True during the pause after a tag: everyone stands still.
+func is_resetting() -> bool:
+	return reset_left > 0.0
+
+
+## After a tag the round resets by itself: a short pause (the tagger's touch plays), then `_new_round`.
+func begin_reset(sim: MatchSim) -> void:
+	reset_left = rules.reset_seconds
+	for state: PlayerState in sim.players.values():
+		sim.end_move(state)
+
+
+## Everyone back to their places for the next round (the points stay). Overridden by the game that has more to put back.
+func _new_round(sim: MatchSim) -> void:
+	place_teams(sim)
+	grace_left = rules.swap_grace
 
 
 ## The rules of the game itself (fetching, scoring, tagging). Overridden.
@@ -133,27 +162,22 @@ func check_tags(sim: MatchSim) -> void:
 			var runner: PlayerState = sim.players[runner_id]
 			if not is_attacker(runner) or not can_tag(sim, guard, runner):
 				continue
-			if guard.position.distance_to(runner.position) <= guard.radius + runner.radius + rules.tag_reach:
+			if guard.position.distance_to(runner.position) <= rules.tag_circle_radius:
 				_tag(sim, guard, runner)
 				return
 
 
-## `guard` touched `runner`. Patintero: the runner waits on the sidewalk. Overridden.
-func _tag(sim: MatchSim, _guard: PlayerState, runner: PlayerState) -> void:
-	sim.objectives.tag(sim, runner)
-	_on_tagged(runner)
-
-
-## `runner` was just tagged. Overridden.
-func _on_tagged(_runner: PlayerState) -> void:
-	pass
+## `guard` moved into the tag circle of `runner`: it plays its touch and the round resets. Overridden.
+func _tag(sim: MatchSim, guard: PlayerState, _runner: PlayerState) -> void:
+	sim.weapon_cast.emit(guard.id, TAG_CAST)
+	begin_reset(sim)
 
 
 ## A point for `state` (and its team); with `send_home` it goes back to its place to run again. Once the time is up the point wins the
 ## match. Overridden by the game that keeps the points its own way.
-func award(sim: MatchSim, state: PlayerState, send_home: bool = true) -> void:
+func award(sim: MatchSim, state: PlayerState, send_home: bool = true, how: int = MatchSim.CaptureKind.NONE) -> void:
 	sim.score.points[state.team] += 1
-	sim.point_log.append(Vector2i(state.team, MatchSim.CaptureKind.NONE))
+	sim.point_log.append(Vector2i(state.team, how))
 	scored.emit(state.team, state.id)
 	if send_home:
 		state.position = _spot(sim, state)

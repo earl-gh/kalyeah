@@ -36,7 +36,7 @@ const EPSILON: float = 0.00001
 ## INTRO: the opening show of both teams at their posts; nothing moves.
 enum Phase { PLAYING, POINT_FREEZE, MATCH_OVER, INTRO }
 ## How a team is scoring: everyone in the enemy base, or every enemy tagged.
-enum CaptureKind { NONE = -1, BASE = 0, ALL_TAGGED = 1 }
+enum CaptureKind { NONE = -1, BASE = 0, ALL_TAGGED = 1, TOUCHED = 2 }
 ## The round clock's stages: Regular, then Extended (a plain extra minute), then Overtime (a shorter capture).
 enum ClockStage { REGULAR, EXTENDED, OVERTIME }
 
@@ -133,7 +133,7 @@ func start_mode(p_mode: StreetMode) -> void:
 ## weapons and everything else stay server-side.
 func predict_move(id: int, input: PlayerInput, dt: float) -> void:
 	var state: PlayerState = players.get(id) as PlayerState
-	if state == null or state.tagged or phase != Phase.PLAYING:
+	if state == null or state.tagged or phase != Phase.PLAYING or (mode != null and mode.is_resetting()):
 		return
 	_move(state, input, dt)
 
@@ -530,6 +530,8 @@ func _tick_cooldowns(state: PlayerState, dt: float) -> void:
 
 func _step_free(state: PlayerState, input: PlayerInput, dt: float) -> void:
 	state.effects.step(dt)
+	if mode != null and mode.is_resetting():
+		return  # the pause after a tag: everyone stands still
 	_tick_cooldowns(state, dt)
 	_tick_elixir(state, dt)
 	if mode != null:

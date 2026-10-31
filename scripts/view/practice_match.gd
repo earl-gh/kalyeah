@@ -497,7 +497,8 @@ func knob_moved(way: Vector2) -> void:
 	input.stick = -way if _flip() else way
 
 
-func kick_pressed() -> void:
+## The Kick or Dive button: one tap.
+func action_pressed() -> void:
 	input.kick_press()
 
 

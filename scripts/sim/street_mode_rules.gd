@@ -14,8 +14,12 @@ extends Resource
 @export var turn_seconds: float = 60.0
 ## Nobody can be tagged for this long after a swap of roles (everyone is walking to their places).
 @export var swap_grace: float = 1.5
-## A guard tags a runner it touches: the two bodies plus this much (m).
-@export var tag_reach: float = 0.3
+## Every runner (and every Tumbang Preso thrower in the fetch area) has a tag circle round it, this big (m, radius): the taya or guard
+## that moves into it tags. The circle is drawn on the ground for the one who tags.
+@export var tag_circle_radius: float = 1.3
+## After a tag the round resets by itself: everyone stands still this long (s, the tagger plays its touch animation), then all go back
+## to their places.
+@export var reset_seconds: float = 1.3
 ## The safe home (Tumbang Preso: the throwing area, behind the throw line; Patintero: behind the start line): z at least this.
 ## Everything in front of it up to the far end is the fetch area.
 @export var home_z: float = 16.0
@@ -83,6 +87,11 @@ extends Resource
 ## The court: two horizontal lines across the street at z = +line_span and -line_span, and one vertical line down the middle (x = 0)
 ## between them. A guard keeps to the one line it is given.
 @export var line_span: float = 10.0
+## The Dive button (runners and guards): a quick burst of `dive_speed_share` times the run speed, `dive_time` s long, along the way the
+## knob points (a guard only along its own line); it can be used again `dive_cooldown` s after it started.
+@export var dive_speed_share: float = 2.6
+@export var dive_time: float = 0.4
+@export var dive_cooldown: float = 4.0
 
 @export_group("Bots")
 ## Bots aim at the can within this much (m, either way, seeded) and hold the aim line until it reaches it.
@@ -95,5 +104,7 @@ extends Resource
 @export var bot_guard_speed: float = 0.8
 ## A bot fetches its slipper or crosses a line when no guard is closer than this (m).
 @export var bot_safe_distance: float = 5.0
+## A Patintero bot dives when its line or its next line is this near (m, along its way).
+@export var bot_dive_range: float = 3.0
 ## A bot thrower fetches its slipper whatever the taya does once its scared timer is down to this many seconds.
 @export var bot_rush_seconds: float = 2.0
