@@ -2,21 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bekl1r87iixkj"
-path.s3tc="res://.godot/imported/karinderya_prop_base_color.jpg-ce30a03110a81a6865586a9b4dfb628b.s3tc.ctex"
-path.etc2="res://.godot/imported/karinderya_prop_base_color.jpg-ce30a03110a81a6865586a9b4dfb628b.etc2.ctex"
+uid="uid://ddqgbtmue0m8w"
+path.s3tc="res://.godot/imported/karinderya_7.png-102cc2cfdc6bcdc510639298fbcd29c5.s3tc.ctex"
+path.etc2="res://.godot/imported/karinderya_7.png-102cc2cfdc6bcdc510639298fbcd29c5.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "18582d1b61dfd6ee1c5924d0a43bb685"
+"md5": "ae3ab4aa27a2284ffae9b7c2afec6680"
 }
 
 [deps]
 
-source_file="res://assets/models/props/karinderya_prop_base_color.jpg"
-dest_files=["res://.godot/imported/karinderya_prop_base_color.jpg-ce30a03110a81a6865586a9b4dfb628b.s3tc.ctex", "res://.godot/imported/karinderya_prop_base_color.jpg-ce30a03110a81a6865586a9b4dfb628b.etc2.ctex"]
+source_file="res://assets/models/props/karinderya_7.png"
+dest_files=["res://.godot/imported/karinderya_7.png-102cc2cfdc6bcdc510639298fbcd29c5.s3tc.ctex", "res://.godot/imported/karinderya_7.png-102cc2cfdc6bcdc510639298fbcd29c5.etc2.ctex"]
 
 [params]
 

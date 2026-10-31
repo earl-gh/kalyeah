@@ -57,6 +57,8 @@ func test_every_prop_is_one_mesh_at_the_origin_so_its_measured_size_is_true() ->
 	for file: String in dir.get_files():
 		if not file.ends_with(".glb"):
 			continue
+		if file == "karinderya.glb":
+			continue  # the owner's detailed model, kept exactly as made: 638 parts, measured round all of them (PropModel._parts_box)
 		var root: Node = (load("res://assets/models/props/" + file) as PackedScene).instantiate()
 		var meshes: Array[Node] = root.find_children("*", "MeshInstance3D", true, false)
 		assert_eq(meshes.size(), 1, "%s is one mesh (PropModel.size_of reads the first)" % file)

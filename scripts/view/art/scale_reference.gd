@@ -20,9 +20,9 @@ const REAL_HEIGHT: Dictionary[String, float] = {
 ## (one to two storeys) instead of one real height each.
 const BUILDINGS: Array[String] = ["house_1", "house_2", "house_3", "karinderya", "nena_store", "vulcanizing", "barber_shop", "tricycle_terminal"]
 const REAL_BUILDING_WIDTH: float = 5.0
-## How far a building's drawn width may be from the real lot width times the world factor (a fraction), and its real height range.
+## How far a building's drawn width may be from the real lot width times the world factor (a fraction), and its real height range (from a low one-storey eatery, the owner's karinderya, to two storeys).
 const BUILDING_WIDTH_TOLERANCE: float = 0.2
-const REAL_BUILDING_HEIGHT: Vector2 = Vector2(3.5, 7.0)
+const REAL_BUILDING_HEIGHT: Vector2 = Vector2(2.5, 7.0)
 ## Things drawn on purpose off the true proportion, and why (the audit and the test accept the listed range instead of the general one).
 const EXCEPTIONS: Dictionary[String, Vector2] = {
 }
