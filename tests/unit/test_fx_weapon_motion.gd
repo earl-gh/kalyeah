@@ -919,7 +919,7 @@ func test_the_jack_that_rolls_twice_is_picked_at_random_for_each_field_and_its_s
 	assert_eq(picked.size(), 4, "any of the four can be the one that rolls twice")
 
 
-func test_a_roll_turns_the_jack_over_whole_times_smears_it_and_leaves_a_streak_and_dust() -> void:
+func test_a_roll_turns_the_jack_over_whole_times_smears_it_and_leaves_a_streak_but_no_dust() -> void:
 	_setup(Vector2(20.0, 0.0))
 	_cast(&"jacks", Vector2(0.0, -4.0 / 6.0))
 	_fx.sync(_sim, DT)
@@ -930,7 +930,7 @@ func test_a_roll_turns_the_jack_over_whole_times_smears_it_and_leaves_a_streak_a
 	for i: int in 60:
 		_frame()
 		streaks = maxi(streaks, _fx.context().ground.live_smears())
-		dust = maxi(dust, _fx.particle_count())
+		dust = maxi(dust, _fx.particle_count())  # nothing but the sim's own effects: no dust or smoke from the jacks
 		for cluster: Node3D in rec.clusters:
 			# a smear is a basis that is not a plain turn: its scale is not (s, s, s)
 			var scale: Vector3 = cluster.basis.get_scale()
@@ -938,7 +938,7 @@ func test_a_roll_turns_the_jack_over_whole_times_smears_it_and_leaves_a_streak_a
 				smeared = true
 	assert_true(smeared, "the first frames of a roll are smeared along it")
 	assert_gt(streaks, 0, "a streak on the street behind a rolling jack")
-	assert_gt(dust, 0, "dust where the jacks land and stop")
+	assert_eq(dust, 0, "no dust or smoke where the jacks land and stop (owner: only the smears)")
 	# at rest every cluster is back to a plain, upright, unsquashed jack (a whole number of turns)
 	for cluster: Node3D in rec.clusters:
 		var up: Vector3 = cluster.basis.y.normalized()

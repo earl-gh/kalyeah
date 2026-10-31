@@ -20,25 +20,21 @@ const SCRAPS: int = 6
 const FILL_POP_FRAMES: int = 4
 const SLOW_FADE: float = 0.3
 const FADE_RIM: float = 0.42
-## The jacks are dropped from the thrower's hand onto the middle of their field (`JACK_FLIGHT_FRAMES` frames, `JACK_PEAK` m high, one shared
-## puff of `JACK_DUST` dust), landing squashed (`JACK_LAND_S`), and then scatter by ROLLING outward over the street: three of the four
+## The jacks are dropped from the thrower's hand onto the middle of their field (`JACK_FLIGHT_FRAMES` frames, `JACK_PEAK` m high), landing squashed (`JACK_LAND_S`), and then scatter by ROLLING outward over the street: three of the four
 ## roll once to their spots, one (picked at random for each field) rolls twice, to a stop on the way and then on to its spot. A roll takes
 ## `JACK_ROLL_FRAMES` frames (the first of the double roller's two `JACK_ROLL_AGAIN` of that) after a random wait of up to `JACK_ROLL_WAIT`
 ## frames, and turns the jack over whole times (so it ends lying as it began), a little off the street (`JACK_ROLL_LIFT` of its size). It is
-## smeared along the roll on its fast first frames, leaves a streak on the street (`JACK_STREAK` m wide) and a small puff of dust
-## (`JACK_ROLL_DUST`) where it stops, squashing there. Every spot, and the stop on the way, is inside the field's circle (the slow and
+## smeared along the roll on its fast first frames, leaves a streak on the street (`JACK_STREAK` m wide) and squashes where it stops (owner: no dust or smoke, only the smears). Every spot, and the stop on the way, is inside the field's circle (the slow and
 ## damage area). A tick that hurts a kid makes the nearest cluster hop `JACK_HOP` m for a frame. In the last `SLOW_FADE` s they sink
 ## `JACK_SINK` m and shrink to `JACK_SHRINK` while the fill fades.
 const JACK_FLIGHT_FRAMES: int = 6
 const JACK_PEAK: float = 1.2
 const JACK_LAND_S: float = 0.75
-const JACK_DUST: int = 6
 const JACK_ROLL_FRAMES: int = 12
 const JACK_ROLL_AGAIN: float = 0.8
 const JACK_ROLL_WAIT: int = 4
 const JACK_ROLL_PAUSE: int = 3
 const JACK_ROLL_LIFT: float = 0.3
-const JACK_ROLL_DUST: int = 2
 const JACK_STREAK: float = 0.1
 const JACK_STREAK_LIFE: int = 6
 ## A jack rolls one turn over per this many of its own widths (at least one turn).
@@ -54,8 +50,6 @@ const JACK_HOP: float = 0.1
 const JACK_SINK: float = 0.3
 const JACK_SHRINK: float = 0.4
 const JACK_STREAK_TINT: Color = Color(1.0, 0.97, 0.9, 0.8)
-## The dust where a roll stops is a fainter puff than the drop's: the jacks are small.
-const JACK_STOP_TINT: Color = Color(1.0, 1.0, 1.0, 0.5)
 
 
 
@@ -221,9 +215,6 @@ func field(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 		if clock < wait:
 			# lying in the pile on the middle (landing squashed), until its own turn to roll
 			cluster.position = pile - lower
-			if rec.landed == 0:
-				rec.landed = 1
-				_ctx.particles.puff(FxParticles.Preset.DUST, centre, JACK_DUST)
 			if rec.origin != Vector2.INF and clock / frame < float(FxSquash.landing_frames()):
 				cluster.basis = turn * Basis.from_scale(FxSquash.along(FxSquash.landing(JACK_LAND_S, clock / frame)) * scale)
 			continue
@@ -234,8 +225,8 @@ func field(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 			cluster.position.y += JACK_HOP
 
 
-## Where jack `i` is, and how it is turned, `seconds` after its first roll began: [position, basis]. Starts the roll's streak and puffs the
-## dust where a roll stops, once each.
+## Where jack `i` is, and how it is turned, `seconds` after its first roll began: [position, basis]. Starts the roll's streak and counts the
+## stops, once each.
 func _roll_pose(rec: FxZones.Rec, i: int, seconds: float, centre: Vector3, scale: float, turn: Basis) -> Array:
 	var frame: float = FxSquash.FRAME
 	var rolls: Array[Vector3] = [rec.piles[i]]
@@ -263,10 +254,9 @@ func _roll_pose(rec: FxZones.Rec, i: int, seconds: float, centre: Vector3, scale
 			var speed: float = run.length() / span * 2.0 * (1.0 - p)
 			var smear: Basis = FxSquash.smear_basis(run, FxSquash.smear_stretch(speed, WeaponModel.SPIKE_WIDTH, p * span / frame))
 			return [at, smear * (around * turn * Basis.from_scale(Vector3.ONE * scale))]
-		# the roll is over: dust where it stops (once), a squash, a short pause, then the next roll
+		# the roll is over: a squash where it stops, a short pause, then the next roll
 		if rec.stops[i] <= k:
 			rec.stops[i] = k + 1
-			_ctx.particles.puff(FxParticles.Preset.DUST, centre + to_spot, JACK_ROLL_DUST, JACK_STOP_TINT)
 		var since: float = (seconds - cursor - span) / frame
 		var last: bool = k == segments - 1
 		if last or seconds < cursor + span + float(JACK_ROLL_PAUSE) * frame:
