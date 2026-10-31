@@ -114,8 +114,10 @@ func _ready() -> void:
 	_pick_screen.confirmed.connect(_on_pick_confirmed)
 	_pick_screen.swapped.connect(_on_swapped)
 	_pick_screen.closed.connect(_set_controls_active.bind(true))
-	_open_pick("PICK A KID" if sim.mode != null else "PICK A KID + 2 WEAPONS", [])  # no skills in the street games
+	# set before opening: with cards the pick finishes at once (Practice's kid is the main screen's) and that clears it again; set after,
+	# it stayed set and the match waited for a pick that was already over (nothing moved, nothing could be tapped)
 	_opening_pick = true
+	_open_pick("PICK A KID" if sim.mode != null else "PICK A KID + 2 WEAPONS", [])  # no skills in the street games
 	if online:
 		client.stage_changed.connect(_on_stage_changed)
 		client.picks_changed.connect(func() -> void: _pick_screen.set_taken(client.taken_kids()))
