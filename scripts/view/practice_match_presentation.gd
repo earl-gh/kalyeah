@@ -14,6 +14,8 @@ const DIVE_STREAK_COLOR: Color = Color(1.0, 1.0, 1.0, 0.55)
 var owner: PracticeMatch
 ## The side of the street the picture has at the bottom (Patintero turns it round when the local team changes roles).
 var _viewed_side: int = MapLayout.SIDE_OWN
+## The film finish over the street (its vignette stays behind the top boundary pictures).
+var _film: FilmFinish
 
 
 ## The arena starts this far (UI pixels) below the header, so its shadow falls on the street's end and not on the play.
@@ -39,7 +41,7 @@ func setup_hud() -> void:
 	owner._camera.side_reserve_px = owner.hud.side_reserve()
 	owner._camera.side_reserve_left = owner.hud.side_reserve_left()
 	Cinematic.add_lens(owner, owner._camera.rules.lens_k())
-	Cinematic.add_film_finish(owner)
+	_film = Cinematic.add_film_finish(owner).get_child(0) as FilmFinish
 	owner.hud.overhead.setup(owner.sim, owner._camera, owner.local_id, owner.local_team)
 	owner.hud.overhead.blend = owner.blend
 	owner.hud.overhead.view_scale = owner._camera.rules.kid_view_scale
@@ -241,7 +243,19 @@ static func cast_lead(sim: MatchSim, weapon: StringName) -> float:
 	return 0.0
 
 
+## The vignette is a layer over the 3D view, so it is cleared from the line where the top boundary's pictures stand on the street up to the top
+## of the screen: they are drawn as they are, never darkened by it. Follows the camera's framing and its turn.
+func _keep_vignette_behind_the_top_boundary() -> void:
+	if _film == null:
+		return
+	var layout: MapLayout = owner.layout
+	var z: float = StreetMap.top_end(owner.own_side()) * (layout.lane_length / 2.0 + StreetMap.BARRIER_SETBACK)
+	var height: float = maxf(owner.get_viewport().get_visible_rect().size.y, 1.0)
+	_film.clear_above(owner._camera.screen_position(Vector3(0.0, 0.0, z)).y / height)
+
+
 func sync(delta: float) -> void:
+	_keep_vignette_behind_the_top_boundary()
 	for id: int in owner.sim.players:
 		_sync_actor(owner.sim.players[id], delta)
 	if owner.sim.phase in [MatchSim.Phase.POINT_FREEZE, MatchSim.Phase.MATCH_OVER] and owner._pick_screen.visible:

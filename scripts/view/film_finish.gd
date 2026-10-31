@@ -18,5 +18,11 @@ func _ready() -> void:
 	_refresh()
 
 
+## The vignette stays out of the part of the screen above `fraction` of its height (where the top boundary pictures stand), so it lies
+## behind them instead of darkening them.
+func clear_above(fraction: float) -> void:
+	finish.set_shader_parameter("clear_above", clampf(fraction, 0.0, 1.0))
+
+
 func _refresh() -> void:
 	finish.set_shader_parameter("grain", 0.0 if Settings.reduced_motion or Settings.performance == &"turbo" else 0.025)

@@ -195,6 +195,18 @@ func test_the_electric_posts_stand_in_the_same_corners_in_every_game() -> void:
 			assert_almost_eq(post.global_position.z, corner.y, 0.01)
 
 
+func test_the_vignette_stays_behind_the_top_boundary_pictures_in_every_game() -> void:
+	for game: StringName in [&"street", &"tumbang_preso", &"patintero"]:
+		var practice: PracticeMatch = _practice(game)
+		practice.advance(DT)
+		var film: FilmFinish = practice.find_children("*", "FilmFinish", true, false)[0] as FilmFinish
+		var clear: float = film.finish.get_shader_parameter("clear_above") as float
+		var row: float = practice._camera.screen_position(Vector3(0.0, 0.0, StreetMap.top_end(practice.own_side()) * (practice.layout.lane_length / 2.0 + StreetMap.BARRIER_SETBACK))).y / practice.get_viewport().get_visible_rect().size.y
+		assert_gt(clear, 0.03, "%s: no vignette over the top pictures" % game)
+		assert_lt(clear, 0.35, "%s: only over them, not the street" % game)
+		assert_almost_eq(clear, row, 0.001, "%s: from the line they stand on" % game)
+
+
 func test_the_street_games_frame_the_street_exactly_like_agawan_base() -> void:
 	var agawan: PracticeMatch = _practice(&"agawan_base")
 	agawan.advance(DT)
