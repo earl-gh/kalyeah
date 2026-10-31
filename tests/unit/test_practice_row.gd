@@ -136,7 +136,10 @@ func test_a_patintero_practice_draws_the_court_two_horizontal_lines_and_a_vertic
 	assert_eq(practice.mode_view.guard_line_count(), 3, "two horizontal lines and the vertical one")
 	assert_null(practice.mode_view.can_node())
 	var lines: Array[Node] = practice.mode_view.find_children("*", "MeshInstance3D", true, false).filter(func(n: Node) -> bool: return (n as MeshInstance3D).mesh is PlaneMesh)
-	assert_eq(lines.size(), 5, "the start line, the far line and the three of the court")
+	assert_eq(lines.size(), 3, "only the court: its first and last line are the edges, with no start or far line besides")
+	for line: Node in lines:
+		var chalk: Color = (((line as MeshInstance3D).mesh as PlaneMesh).material as ShaderMaterial).get_shader_parameter("chalk") as Color
+		assert_eq(Color(chalk, 1.0), Color.WHITE, "white chalk, every line")
 	var turned: int = 0
 	for line: Node in lines:
 		if is_equal_approx(absf((line as MeshInstance3D).rotation.y), PI / 2.0):
@@ -438,6 +441,11 @@ func test_patintero_has_the_same_hud_with_a_dive_button_whose_ring_fills_while_i
 	var lines: Patintero = practice.sim.mode as Patintero
 	var pad: StreetGamePad = practice.hud.street_pad
 	practice.advance(DT)
+	practice._mode_coach.ids.clear()  # the bots do not act: the dive stays the one thing in the test
+	for id: int in practice.sim.players:
+		if id != practice.local_id:
+			practice.sim.set_input(id, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 0))
+	lines.dive_phase.clear()
 	assert_false(practice.hud.hand.visible)
 	assert_false(practice.hud.console.visible, "no tray")
 	assert_false(practice.hud.scoreboard.visible, "the points are on the left sidewalk, like Tumbang Preso's")
@@ -448,20 +456,24 @@ func test_patintero_has_the_same_hud_with_a_dive_button_whose_ring_fills_while_i
 	assert_eq(pad.charge, 1.0, "ready: the ring is full")
 	assert_gt(pad.knob_rect().size.x, 100.0, "and the knob at the left")
 	assert_true(practice.hud.chat.visible, "chat under the timer")
-	pad.knob_moved.emit(Vector2(0.0, -1.0))
+	pad.knob_moved.emit(Vector2(1.0, 0.0))  # along the base, away from the guards
 	pad.action_pressed.emit()
 	for i: int in 4:
 		practice.advance(DT)
 	pad.knob_moved.emit(Vector2.ZERO)  # the knob is let go: the kid does not run into the guards afterwards
 	assert_true(lines.is_diving(practice.local_id), "pressing Dive dives")
-	assert_false(pad.act_ready, "cooling down")
-	assert_lt(pad.charge, 0.3, "the ring has just started to fill")
+	assert_false(pad.act_ready, "busy")
+	assert_eq(pad.charge, 0.0, "the ring is empty while the kid dives and gets up: the cooldown has not started")
+	for i: int in ceili((lines.rules.dive_time + lines.rules.dive_recover) / DT) + 3:
+		practice.advance(DT)
+	assert_false(lines.is_busy(practice.local_id), "standing again: now it cools down")
 	for i: int in ceili(lines.rules.dive_cooldown / 2.0 / DT):
 		practice.advance(DT)
-	assert_between(pad.charge, 0.35, 0.75, "and fills as it cools down")
-	for i: int in ceili(lines.rules.dive_cooldown / DT):
+	assert_between(pad.charge, 0.35, 0.7, "and the ring fills as it cools down")
+	for i: int in ceili(lines.rules.dive_cooldown / 2.0 / DT) + 4:
 		practice.advance(DT)
 	assert_true(pad.act_ready)
+	assert_eq(pad.charge, 1.0)
 
 
 func test_patintero_points_stand_in_a_column_by_team_most_first() -> void:
@@ -534,7 +546,7 @@ func test_a_kid_that_is_caught_stumbles_and_falls_and_one_that_dives_keeps_its_d
 	practice._mode_coach.ids.clear()  # the bots stand still: a dive of the guard's would take it out of the circle
 	for id: int in practice.sim.players:
 		practice.sim.set_input(id, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 0))
-	lines.dive_left.clear()  # (a bot guard may have dived on the first tick)
+	lines.dive_phase.clear()  # (a bot guard may have dived on the first tick)
 	practice.sim.players[4].position = Vector2(0.0, lines.rules.line_span)
 	lines.grace_left = 0.0
 	var runner: KidModel = practice._views[practice.local_id] as KidModel

@@ -20,10 +20,10 @@ extends Resource
 ## After a tag the round resets by itself: everyone stands still this long (s, the tagger plays its touch animation), then all go back
 ## to their places.
 @export var reset_seconds: float = 1.3
-## The safe home (Tumbang Preso: the throwing area, behind the throw line; Patintero: behind the start line): z at least this.
-## Everything in front of it up to the far end is the fetch area.
+## The safe home (Tumbang Preso: the throwing area, behind the throw line; Patintero: past the first guard line, clear of its tag circle):
+## z at least this. Everything in front of it up to the far end is the fetch area (Tumbang Preso) or the court (Patintero).
 @export var home_z: float = 16.0
-## The other end: z at most this.
+## The other end: z at most this (Patintero: past the last guard line, clear of its tag circle: the runner has passed the last guard).
 @export var goal_z: float = -18.0
 ## Kids start this far apart across the street (m).
 @export var spawn_spacing: float = 3.0
@@ -88,12 +88,15 @@ extends Resource
 ## between them. A guard keeps to the one line it is given.
 @export var line_span: float = 10.0
 ## The Dive button (runners and guards): a quick burst of `dive_speed_share` times the run speed, `dive_time` s long, along the way the
-## knob points (a guard only along its own line); it can be used again `dive_cooldown` s after it started.
+## knob points (a guard too: a dive is the one thing that takes it off its line). Then the kid lies flat and gets up (`dive_recover`). A
+## guard then runs back to the nearest point of its line, `dive_return_speed_share` times the run speed, and cannot move or dive meanwhile.
+## The cooldown (`dive_cooldown` s) starts when the guard is back on its line, or when a runner is on its feet again.
 @export var dive_speed_share: float = 2.6
 @export var dive_time: float = 0.4
 ## After the burst the kid lies flat on the street and gets up: it cannot steer for this long more (s).
 @export var dive_recover: float = 0.5
-@export var dive_cooldown: float = 4.0
+@export var dive_cooldown: float = 5.0
+@export var dive_return_speed_share: float = 1.5
 
 @export_group("Bots")
 ## Bots aim at the can within this much (m, either way, seeded) and hold the aim line until it reaches it.

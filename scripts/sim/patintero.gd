@@ -1,26 +1,36 @@
 class_name Patintero
 extends StreetMode
-## Patintero (docs/GDD.md "Patintero"): the court is two horizontal lines across the street divided by one vertical line down the middle.
-## The guards guard them, one line each (two take a horizontal, one the vertical) and can only move along their own line. A runner who
-## gets past the guards to the other end and back home earns a point for the team. A guard that moves into the tag circle of a runner tags
+## Patintero (docs/GDD.md "Patintero"): the court is two horizontal lines across the street divided by one vertical line down the middle; the
+## first and last horizontal line are the edges of the court (nothing else is drawn). The guards guard them, one line each (two take a
+## horizontal, one the vertical); running keeps a guard on its line, a dive is the one thing that takes it off it. The runners run free. A
+## runner who gets past the last guard and back to the base earns a point for the team (going back after only the first guard is no
+## point, and a runner may go back past a guard it has passed, to escape a tag). A guard that moves into the tag circle of a runner tags
 ## it: the guards' team earns a point and the round resets by itself (everyone back in their places). Every `turn_seconds` the teams swap
-## roles. Runners and guards can both Dive (a quick burst, with a cooldown).
+## roles. Runners and guards can both Dive (a quick burst, then lying and getting up; a guard runs back to its line), with a cooldown.
 
-## `id` reached the other end and now has to come back.
+## `id` got past the last guard and now has to come back to the base.
 signal runner_crossed(id: int)
 ## `id` dived along `way` (a unit vector): the burst takes `time` s, then it lies flat and gets up for `recover` s more.
 signal dived(id: int, way: Vector2, time: float, recover: float)
 
+## The parts of a dive: the burst, lying and getting up, and (a guard only) running back to the nearest point of its line.
+enum DivePhase { NONE, BURST, RECOVER, RETURN }
+## The stick is locked this long (s) on every tick of a dive, so it never steers it.
+const DIVE_LOCK: float = 0.1
+
 ## A guard's line: across the street (it moves along X) or down the middle (it moves along Z, between the two horizontal lines).
 enum Axis { HORIZONTAL, VERTICAL }
 
-## The runners who reached the other end on this run.
+## The runners who got past the last guard on this run (they score when they are back at the base).
 var crossed: Dictionary[int, bool] = {}
 ## Guard id -> its line's axis, and the line's fixed coordinate (z of a horizontal line, x of the vertical one).
 var guard_axis: Dictionary[int, int] = {}
 var guard_line: Dictionary[int, float] = {}
-## id -> seconds left of the dive it is in (absent: not diving), the way it dives, and seconds until it can dive again.
+## id -> the part of its dive it is in (absent: not in a dive), the seconds left of the burst and of the get-up, the way it dives, and the
+## seconds until it can dive again (it runs only once the dive is over).
+var dive_phase: Dictionary[int, int] = {}
 var dive_left: Dictionary[int, float] = {}
+var recover_left: Dictionary[int, float] = {}
 var dive_way: Dictionary[int, Vector2] = {}
 var dive_cool: Dictionary[int, float] = {}
 
@@ -46,8 +56,8 @@ func move_point(state: PlayerState, point: Vector2) -> Vector2:
 
 
 func constrain(_sim: MatchSim, state: PlayerState) -> void:
-	if guard_line.has(state.id) and not is_attacker(state) and not is_resetting():
-		state.position = _on_line(state.id, state.position)
+	if guard_line.has(state.id) and not is_attacker(state) and not is_resetting() and not is_busy(state.id):
+		state.position = _on_line(state.id, state.position)  # running keeps it on its line; a dive and the way back do not
 
 
 ## `point` held to the line of guard `id`.
@@ -59,28 +69,42 @@ func _on_line(id: int, point: Vector2) -> Vector2:
 
 # ---- diving --------------------------------------------------------------------------------
 
-## True when `state` could dive now: it is free, not diving and its cooldown is over.
+## True when `state` could dive now: it is free, not in a dive (the burst, the get-up, a guard's way back) and its cooldown is over.
 func can_dive(state: PlayerState) -> bool:
-	return not state.tagged and not is_resetting() and dive_left.get(state.id, 0.0) <= 0.0 and dive_cool.get(state.id, 0.0) <= 0.0
+	return not state.tagged and not is_resetting() and not is_busy(state.id) and dive_cool.get(state.id, 0.0) <= 0.0
 
 
-## How ready the dive of `id` is, from 0 (just used) to 1 (ready).
+## How ready the dive of `id` is, from 0 (in a dive, or just over) to 1 (ready): the cooldown only runs once the dive is over.
 func dive_ready_share(id: int) -> float:
+	if is_busy(id):
+		return 0.0
 	return 1.0 - clampf(dive_cool.get(id, 0.0) / maxf(rules.dive_cooldown, 0.001), 0.0, 1.0)
 
 
+## In the burst of a dive.
 func is_diving(id: int) -> bool:
-	return dive_left.get(id, 0.0) > 0.0
+	return dive_phase.get(id, DivePhase.NONE) == DivePhase.BURST
 
 
-## The way `state` dives with the stick at `stick` (the way it faces without one): a guard only along its own line.
+## In any part of a dive: the burst, lying and getting up, or (a guard) running back to its line. Nothing steers it and it cannot dive.
+func is_busy(id: int) -> bool:
+	return dive_phase.has(id)
+
+
+## A guard running back to the nearest point of its line.
+func is_returning(id: int) -> bool:
+	return dive_phase.get(id, DivePhase.NONE) == DivePhase.RETURN
+
+
+## The way `state` dives with the stick at `stick` (the way it faces without one). Any way: a guard's dive takes it off its line.
 func dive_way_for(state: PlayerState, stick: Vector2) -> Vector2:
 	var way: Vector2 = stick if stick.length() > 0.1 else state.facing
-	if guard_line.has(state.id) and not is_attacker(state):
-		if guard_axis[state.id] == Axis.HORIZONTAL:
-			return Vector2(signf(way.x) if way.x != 0.0 else 1.0, 0.0)
-		return Vector2(0.0, signf(way.y) if way.y != 0.0 else 1.0)
 	return way.normalized() if way.length() > 0.0 else Vector2(0.0, -1.0)
+
+
+## The nearest point of guard `id`'s line to `point`.
+func nearest_on_line(id: int, point: Vector2) -> Vector2:
+	return _on_line(id, point)
 
 
 func handle_input(sim: MatchSim, state: PlayerState, input: PlayerInput, dt: float) -> void:
@@ -89,20 +113,57 @@ func handle_input(sim: MatchSim, state: PlayerState, input: PlayerInput, dt: flo
 	if pressed and not _dive_down.get(id, false) and can_dive(state):
 		_dive(sim, state, dive_way_for(state, input.move))
 	_dive_down[id] = pressed
-	if dive_left.get(id, 0.0) > 0.0:
-		sim._move_by(state, dive_way[id] * rules.dive_speed_share * sim.rules.move_speed * dt)
-		dive_left[id] -= dt
-		if dive_left[id] <= 0.0:
-			dive_left.erase(id)
-			dive_way.erase(id)
+	if not is_busy(id):
+		return
+	state.cast_lock_left = DIVE_LOCK  # the stick does not steer any part of a dive
+	match dive_phase[id]:
+		DivePhase.BURST:
+			sim._move_by(state, dive_way[id] * rules.dive_speed_share * sim.rules.move_speed * dt)
+			dive_left[id] -= dt
+			if dive_left[id] <= 0.0:
+				dive_left.erase(id)
+				dive_phase[id] = DivePhase.RECOVER
+				recover_left[id] = rules.dive_recover
+		DivePhase.RECOVER:
+			recover_left[id] -= dt
+			if recover_left[id] <= 0.0:
+				recover_left.erase(id)
+				if guard_line.has(id) and not is_attacker(state):
+					dive_phase[id] = DivePhase.RETURN
+				else:
+					_finish_dive(state)
+		DivePhase.RETURN:
+			_run_back(sim, state, dt)
+
+
+## A guard runs back to the nearest point of its line, and the dive is over when it is there.
+func _run_back(sim: MatchSim, state: PlayerState, dt: float) -> void:
+	var goal: Vector2 = _on_line(state.id, state.position)
+	var reach: float = rules.dive_return_speed_share * sim.rules.move_speed * dt
+	var gap: float = state.position.distance_to(goal)
+	if gap <= reach:
+		state.position = goal
+		_finish_dive(state)
+		return
+	var way: Vector2 = (goal - state.position) / gap
+	state.facing = way
+	sim._move_by(state, way * reach)
+
+
+## The dive is over (a runner stands, a guard is back on its line): it can steer again and the cooldown starts now.
+func _finish_dive(state: PlayerState) -> void:
+	dive_phase.erase(state.id)
+	dive_way.erase(state.id)
+	dive_cool[state.id] = rules.dive_cooldown
+	state.cast_lock_left = 0.0
 
 
 func _dive(sim: MatchSim, state: PlayerState, way: Vector2) -> void:
+	dive_phase[state.id] = DivePhase.BURST
 	dive_left[state.id] = rules.dive_time
 	dive_way[state.id] = way
-	dive_cool[state.id] = rules.dive_cooldown
 	state.facing = way
-	state.cast_lock_left = rules.dive_time + rules.dive_recover  # the stick does not steer a dive, nor the get-up after it
+	state.cast_lock_left = DIVE_LOCK
 	sim.end_move(state)
 	dived.emit(state.id, way, rules.dive_time, rules.dive_recover)
 
@@ -156,7 +217,9 @@ func _reset_game(_sim: MatchSim) -> void:
 	crossed.clear()
 	guard_axis.clear()
 	guard_line.clear()
+	dive_phase.clear()
 	dive_left.clear()
+	recover_left.clear()
 	dive_way.clear()
 	dive_cool.clear()
 
