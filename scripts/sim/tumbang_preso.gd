@@ -31,6 +31,8 @@ const SLIPPER_WEAPON: StringName = &"tsinelas_light"
 const AIM_DEADZONE: float = 0.1
 ## The slipper's aim is only judged this close to a straight line to be a hit on the can (a dead-on throw has no lateral offset).
 const DEAD_ON: float = 0.05
+## A kicker closer to the can than this (m) sends it anywhere.
+const KICK_FROM_FEET: float = 0.2
 ## Walls are this far from a flung thing's centre.
 const FLING_MARGIN: float = 0.4
 
@@ -211,10 +213,14 @@ func _def_for(sim: MatchSim, distance: float) -> WeaponDef:
 	return def
 
 
-## The Kick button: the can flies once, `kick_min_distance` to `kick_max_distance` m, in a random direction.
+## The Kick button: the can flies once, `kick_min_distance` to `kick_max_distance` m, in a random direction within `kick_cone_degrees` either
+## side of straight away from the kicker (anywhere when the kicker stands on it).
 func kick(sim: MatchSim, state: PlayerState) -> void:
 	var from: Vector2 = can_position
+	var away: Vector2 = from - state.position
 	var angle: float = sim.rng.randf() * TAU
+	if away.length() > KICK_FROM_FEET:
+		angle = away.angle() + deg_to_rad(rules.kick_cone_degrees) * (angle / TAU * 2.0 - 1.0)
 	var distance: float = sim.rng.randf_range(rules.kick_min_distance, rules.kick_max_distance)
 	var landing: Vector2 = sim.layout.keep_in_street(from + Vector2.from_angle(angle) * distance, FLING_MARGIN)
 	can_up = false
@@ -496,10 +502,15 @@ func _reset_game(sim: MatchSim) -> void:
 	_flight_from.clear()
 
 
-## The taya waits just in front of the can; the throwers stand in a row in the throwing area, in the order of their ids.
+## The taya starts just behind the can (the side away from the throwers); the throwers stand in a row in the throwing area, in the order of their ids.
+## How far behind the can's spot (away from the throwers) `state` stands, m (negative in front of it).
+func can_spot_distance_behind(state: PlayerState) -> float:
+	return rules.can_spot.y - state.position.y
+
+
 func _spot(sim: MatchSim, state: PlayerState) -> Vector2:
 	if state.id == taya_id:
-		return rules.can_spot + Vector2(0.0, rules.guard_offset)
+		return rules.can_spot - Vector2(0.0, rules.guard_offset)
 	var throwers: Array[int] = []
 	for id: int in sim.players:
 		if id != taya_id:

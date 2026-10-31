@@ -410,6 +410,120 @@ func test_only_your_own_slipper_has_the_white_pickup_ring_and_the_taya_is_marked
 			assert_eq(hud.badge_color(practice.sim.players[id]), TeamColors.world_own(), "everyone else keeps the blue badge")
 
 
+func test_the_tumbang_can_is_three_quarters_of_the_lata_weapons_size() -> void:
+	var practice: PracticeMatch = _practice(&"tumbang_preso")
+	practice.advance(DT)
+	var drawn: float = practice._camera.rules.kid_view_scale
+	assert_almost_eq(practice.mode_view.can_node().scale.x, drawn * 0.75, 0.001, "0.75 of its size (owner)")
+	assert_eq(WeaponModel.OBJECTS[&"lata"][1], 0.7, "the lata card's can in Agawan Base is as it was")
+
+
+func test_a_semi_transparent_white_ring_marks_where_the_can_belongs_and_brightens_while_it_is_down() -> void:
+	var practice: PracticeMatch = _practice(&"tumbang_preso")
+	var game: TumbangPreso = practice.sim.mode as TumbangPreso
+	practice.advance(DT)
+	var ring: MeshInstance3D = practice.mode_view.find_child("CanSpotRing", true, false) as MeshInstance3D
+	assert_not_null(ring, "the ring is there")
+	assert_almost_eq(ring.position.x, game.rules.can_spot.x, 0.001)
+	assert_almost_eq(ring.position.z, game.rules.can_spot.y, 0.001, "on the can's spot")
+	assert_eq(game.rules.can_spot, Vector2.ZERO, "in the middle of the street")
+	var material: StandardMaterial3D = (ring.mesh as TorusMesh).material as StandardMaterial3D
+	assert_eq(Color(material.albedo_color, 1.0), Color.WHITE, "white")
+	var standing: float = material.albedo_color.a
+	assert_between(standing, 0.2, 0.7, "semi-transparent")
+	assert_almost_eq((ring.mesh as TorusMesh).outer_radius, game.rules.place_radius, 0.001, "as wide as the place the can is put back to")
+	game.can_up = false
+	practice.advance(DT)
+	assert_gt(material.albedo_color.a, standing, "brighter while the can has to be carried back")
+
+
+func test_the_ring_never_moves_while_the_can_is_kicked_carried_and_put_back_and_the_taya_starts_behind_the_can() -> void:
+	var practice: PracticeMatch = _practice(&"tumbang_preso")
+	var game: TumbangPreso = practice.sim.mode as TumbangPreso
+	practice.advance(DT)
+	var ring: MeshInstance3D = practice.mode_view.find_child("CanSpotRing", true, false) as MeshInstance3D
+	var home: Vector3 = ring.position
+	var taya: PlayerState = practice.sim.players[game.taya_id]
+	assert_gt(game.can_spot_distance_behind(taya), 1.0, "the taya starts behind the can")
+	assert_lt(game.can_spot_distance_behind(taya), 2.5, "a slight distance")
+	for id: int in practice.sim.players:
+		if id != practice.local_id:
+			practice.sim.players[id].position = Vector2(-10.0 + float(id) * 3.0, -20.0)
+	game.taya_id = practice.local_id
+	game.slippers[practice.local_id] = Vector2(5.0, 8.0)
+	practice.sim.players[practice.local_id].position = game.rules.can_spot + Vector2(0.0, -1.0)
+	game.kick(practice.sim, practice.sim.players[practice.local_id])
+	for i: int in 70:
+		practice.advance(DT)
+		assert_eq(ring.position, home, "the ring stays where the can first stood")
+	assert_eq(ring.get_parent(), practice.mode_view, "and it is not part of the can")
+
+
+func test_a_taya_that_picks_the_can_up_scoops_it_with_both_hands_and_sets_it_down_on_the_ring() -> void:
+	var practice: PracticeMatch = _practice(&"tumbang_preso")
+	var game: TumbangPreso = practice.sim.mode as TumbangPreso
+	practice.advance(DT)
+	game.taya_id = practice.local_id  # you stand still when nobody touches the knob
+	for id: int in practice.sim.players:
+		if id != practice.local_id:
+			practice.sim.players[id].position = Vector2(-10.0 + float(id) * 3.0, -20.0)  # the bots are far away: nobody throws at the can
+	var taya: int = game.taya_id
+	var view: KidModel = practice._views[taya] as KidModel
+	var spot: Vector2 = game.rules.can_spot
+	game.can_up = false
+	game.can_position = Vector2(-4.0, 5.0)
+	game.can_busy_left = 0.0
+	practice.sim.players[taya].position = Vector2(-4.0, 5.3)
+	practice.advance(DT)
+	practice.advance(DT)
+	assert_eq(game.can_carrier, taya)
+	assert_true(view.is_acting(), "the pick-up plays")
+	assert_true(view.has_can())
+	for i: int in 40:
+		practice.advance(DT)
+	assert_false(view.is_acting())
+	assert_true(view.has_can(), "carrying")
+	assert_false(practice.mode_view.can_node() == null)
+	var held: Dictionary = view.can_hold()
+	assert_almost_eq(practice.mode_view.can_node().position.x, (held["position"] as Vector3).x, 0.01, "the can is drawn where the hands hold it")
+	# set it down on its spot
+	practice.sim.players[taya].position = spot + Vector2(0.0, 0.3)
+	practice.advance(DT)
+	practice.advance(DT)
+	assert_true(game.can_up, "the sim put it back")
+	assert_true(view.has_can(), "the kid is still setting it down")
+	for i: int in 30:
+		practice.advance(DT)
+	assert_false(view.has_can())
+	assert_almost_eq(practice.mode_view.can_node().position.x, spot.x, 0.01, "and it stands on the ring")
+
+
+func test_a_kick_plays_the_kick_and_the_can_flies_when_the_foot_meets_it() -> void:
+	var practice: PracticeMatch = _practice(&"tumbang_preso")
+	var game: TumbangPreso = practice.sim.mode as TumbangPreso
+	practice.advance(DT)
+	var kicker: int = practice.local_id
+	if game.taya_id == kicker:
+		game.taya_id = 3
+	for id: int in practice.sim.players:
+		if id != kicker:
+			practice.sim.players[id].position = Vector2(-10.0 + float(id) * 3.0, -20.0)
+	var view: KidModel = practice._views[kicker] as KidModel
+	var from: Vector2 = game.can_position
+	practice.sim.players[kicker].position = from + Vector2(0.0, -1.0)
+	game.slippers[kicker] = Vector2(5.0, 8.0)
+	game.kick(practice.sim, practice.sim.players[kicker])
+	practice.advance(DT)
+	assert_true(view.is_kicking(), "the kicker kicks")
+	assert_false(practice.mode_view.can_flying() and practice.mode_view.can_node().position.distance_to(Vector3(from.x, 0.7, from.y)) > 0.5, "the can has not left yet: it waits for the foot")
+	var struck: bool = false
+	for i: int in 40:
+		practice.advance(DT)
+		struck = struck or not view.is_kicking() or practice.mode_view.can_flying()
+	assert_true(struck)
+	assert_true(practice.mode_view.can_flying() or game.can_busy_left <= 0.0, "it flew after the strike")
+
+
 func test_a_flung_can_and_slipper_hop_to_where_they_lie() -> void:
 	var practice: PracticeMatch = _practice(&"tumbang_preso")
 	var game: TumbangPreso = practice.sim.mode as TumbangPreso

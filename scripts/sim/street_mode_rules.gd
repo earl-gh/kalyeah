@@ -48,8 +48,8 @@ extends Resource
 @export var pickup_radius: float = 0.7
 ## The can carried this close to its spot stands again (m).
 @export var place_radius: float = 0.8
-## The taya waits this far in front of the can (toward the throwers, m).
-@export var guard_offset: float = 3.0
+## Each round the taya starts, and waits, this far behind the can (away from the throwers, m): a slight, small distance.
+@export var guard_offset: float = 1.6
 ## The taya (the "it") runs this many times as fast as a thrower.
 @export var taya_speed_share: float = 1.5
 ## A slipper that lands in the fetch area gives its thrower this long (s) to step into the fetch area, or the thrower becomes the taya
@@ -80,6 +80,9 @@ extends Resource
 @export var kick_min_distance: float = 4.0
 @export var kick_max_distance: float = 8.0
 @export var kick_cooldown: float = 4.0
+## The kick sends the can away from the kicker in a random direction within this many degrees either side of straight away (a forward cone, so it
+## flies the way the foot swings); a kicker standing right on the can sends it anywhere.
+@export var kick_cone_degrees: float = 75.0
 
 @export_group("Patintero")
 ## The court: two horizontal lines across the street at z = +line_span and -line_span, with one vertical line down the middle (x = 0). A

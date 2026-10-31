@@ -84,6 +84,9 @@ static var _faces: Dictionary[String, Texture2D] = {}
 var character: CharacterDef
 ## A foot hit the ground (run cycle).
 signal footstep
+## The kick's foot meets the can (`foot` and `from` are world points: where the foot is and where it swung from; `way` the unit direction of
+## the kick on the street): the can leaves now, the street shows the smear and the burst.
+signal kick_struck(from: Vector3, foot: Vector3, way: Vector3)
 
 var _set: StringName = FALLBACK_SET
 var _body: Node3D  # holds the model (pivot at the feet) and is what pops
@@ -141,6 +144,20 @@ var _ground_speed: float = 0.0
 ## The stencil-marking copies of the kid's materials (`set_team_outline`), held here too so they outlive the meshes when the
 ## match is freed at once (a mesh dropping the last reference while it is being freed leaves the renderer a dead material).
 var _marked: Array[Material] = []
+## The acts with the can (`KidActs`): none, picking it up, setting it down, kicking it. A kid that has picked the can up keeps carrying it.
+enum Act { NONE, PICKUP, PLACE, KICK }
+var _act: Act = Act.NONE
+var _act_elapsed: float = 0.0
+var _act_total: float = 0.0
+var _carrying: bool = false
+var _can_local: Vector3 = Vector3.ZERO  # where the can lay when it was picked up, in the kid's space
+var _spot_world: Vector3 = Vector3.ZERO  # where the can is set down
+var _kick_reach: float = 0.5
+var _struck: bool = false
+var _hold: Dictionary = {}  # the can's state this frame: position (world), upright (0 lying, 1 standing), squash; empty when it is not held
+var _pose: KidPose
+var _skeleton: Skeleton3D
+var _manual: bool = false
 ## Last pose name, for tests and debugging ("idle", "run", "cast", "stunned", "airborne").
 var pose: String = "idle"
 
@@ -157,6 +174,8 @@ func setup(def: CharacterDef) -> void:
 ## Sets the way the kid looks, along `facing` (world x/z): it is at once the first time (a new kid just stands that way) and turns
 ## there at `TURN_RATE` after that (`animate()` does the turning every frame).
 func face(facing: Vector2) -> void:
+	if _act == Act.KICK:
+		return  # the kick looks at the can
 	if facing.length_squared() > 0.0001:
 		_facing = facing.normalized()
 		_yaw_target = atan2(-facing.x, -facing.y)
@@ -209,6 +228,71 @@ func play_tripped(total: float) -> void:
 	_trip_left = _trip_total
 	_cast_left = 0.0
 	_cast_keep = false
+
+
+## The kid picks the can up (it lies at `can`, a world point): a crouch, both hands round it, a hoist onto the toes, and a wobble into the carry.
+func play_pickup(can: Vector3) -> void:
+	_start_act(Act.PICKUP, KidActs.PICKUP_TOTAL)
+	_can_local = to_local(can)
+	_carrying = true
+
+
+## The kid sets the can down on `spot` (a world point), arms up when it stands.
+func play_place(spot: Vector3) -> void:
+	_start_act(Act.PLACE, KidActs.PLACE_TOTAL)
+	_spot_world = spot
+	_carrying = true
+
+
+## The kid kicks the can at `can` (a world point): it turns to it, winds up, and the foot meets it `KidActs.KICK_CONTACT` s in (more, with the
+## slow motion round the hit): `kick_struck` says when.
+func play_kick(can: Vector3) -> void:
+	var way: Vector3 = can - global_position
+	var flat: Vector2 = Vector2(way.x, way.z)
+	if flat.length_squared() > 0.0001:
+		_facing = flat.normalized()
+		_yaw_target = atan2(-flat.x, -flat.y)
+		_yaw_known = true
+	_kick_reach = clampf(flat.length() / maxf(scale.x, 0.001) - KidActs.CAN_RADIUS, 0.3, 0.85)
+	_start_act(Act.KICK, KidActs.KICK_TOTAL)
+	_carrying = false
+	_struck = false
+
+
+## The can is gone from the hands at once (the kid was tagged, the round reset).
+func drop_can() -> void:
+	_carrying = false
+	if _act == Act.PICKUP or _act == Act.PLACE:
+		_act = Act.NONE
+	_hold = {}
+
+
+func _start_act(act: Act, total: float) -> void:
+	_act = act
+	_act_total = total
+	_act_elapsed = 0.0
+	_cast_left = 0.0
+	_cast_keep = false
+
+
+## True while the kid does one of the can acts (a kick, a pick-up, a set-down).
+func is_acting() -> bool:
+	return _act != Act.NONE
+
+
+func is_kicking() -> bool:
+	return _act == Act.KICK
+
+
+## True while the kid has the can (picking it up, carrying it, setting it down).
+func has_can() -> bool:
+	return _carrying or _act == Act.PICKUP or _act == Act.PLACE
+
+
+## The can as the hands hold it this frame: {position (the world point of its middle), upright (0 lying on its side, 1 standing), squash
+## (a scale), hold (0 where it lay or will stand, 1 in the hands)}, or {} when the kid does not have it.
+func can_hold() -> Dictionary:
+	return _hold
 
 
 ## Seconds left of the dive (0 when it is not diving).
@@ -323,6 +407,7 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 		_cast_keep = false
 	_dive_left = maxf(0.0, _dive_left - delta)
 	_trip_left = maxf(0.0, _trip_left - delta)
+	_step_act(delta)
 	var polymorphed: bool = state.effects.has(StatusEffects.Type.POLYMORPH)
 	set_ghost(state.tagged)
 	_step_morph(delta, polymorphed)
@@ -362,6 +447,8 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	elif _dive_left > 0.0 or _trip_left > 0.0:
 		pose = "dive" if _dive_left > 0.0 else "tripped"
 		anim = SCRIPTED  # a clip set frame by frame (`_scrub`); the body's lean and lift are drawn in `_apply_dive`
+	elif _act == Act.KICK:
+		pose = "kick"  # the clip is the kid standing; the foot, the arms and the body are the act's (`_apply_act`)
 	elif _cast_left > 0.0:
 		pose = "cast"
 		anim = _cast_clip
@@ -376,12 +463,118 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	_stars.rotation.y = _clock * 2.6
 	_apply_pops()
 	_apply_dive()
+	_apply_act(delta, speed)
+	_advance_by_hand(delta)
+
+
+## The act's clock: a kick runs slow round the hit (`KidActs.kick_rate`), the foot's strike is announced once, and an act that is over
+## leaves the kid carrying the can (picked up), without it (set down), or standing (kicked).
+func _step_act(delta: float) -> void:
+	if _act == Act.NONE:
+		return
+	var p: float = _act_elapsed / _act_total
+	var rate: float = 1.0
+	if _act == Act.KICK and not Settings.reduced_motion:
+		rate = KidActs.kick_rate(p)
+	_act_elapsed += delta * rate
+	p = _act_elapsed / _act_total
+	if _act == Act.KICK and not _struck and p >= KidActs.KICK_CONTACT / KidActs.KICK_TOTAL:
+		_struck = true
+		var step: Dictionary = KidActs.kick_step(KidActs.KICK_CONTACT / KidActs.KICK_TOTAL, _kick_reach)
+		var before: Dictionary = KidActs.kick_step(0.22, _kick_reach)
+		var way: Vector3 = (global_transform.basis * Vector3(0.0, 0.0, -1.0)).normalized()
+		kick_struck.emit(global_transform * (before["foot"] as Vector3), global_transform * (step["foot"] as Vector3), way)
+	if _act_elapsed >= _act_total:
+		if _act == Act.PLACE:
+			_carrying = false
+			_hold = {}
+		_act = Act.NONE
+
+
+## Puts the can acts on the body (leans, rises, squashes and stretches it, smeared along a kick), on the arms and the kicking foot, and
+## works out where the can is. Nothing is touched when the kid does none of it.
+func _apply_act(delta: float, speed: float) -> void:
+	var step: Dictionary = {}
+	if _act == Act.PICKUP:
+		step = KidActs.pickup_step(_act_elapsed / _act_total, _can_local)
+	elif _act == Act.PLACE:
+		step = KidActs.place_step(_act_elapsed / _act_total, to_local(_spot_world))
+	elif _act == Act.KICK:
+		step = KidActs.kick_step(_act_elapsed / _act_total, _kick_reach)
+	elif _carrying and _dive_left <= 0.0 and _trip_left <= 0.0:
+		step = KidActs.carry_step(_phase, clampf(speed / 3.0, 0.0, 1.0))
+	if step.is_empty():
+		if _pose != null:
+			_pose.arm_weight = 0.0
+			_pose.foot_weight = 0.0
+			_pose.active = false
+			_set_manual(false)
+		_hold = {}
+		if _dive_left <= 0.0 and _trip_left <= 0.0 and (_body.rotation.z != 0.0 or _body.position.z != 0.0):
+			_body.rotation.z = 0.0
+			_body.position.z = 0.0
+		return
+	var calm: bool = Settings.reduced_motion
+	var squash: float = 1.0 if calm else step["squash"] as float
+	var stretch: float = 1.0 if calm else step["stretch"] as float
+	_body.rotation.x = (step["lean"] as float) * (0.4 if calm else 1.0)
+	_body.rotation.z = 0.0 if calm else step["roll"] as float
+	_body.position = Vector3(0.0, 0.0 if calm else step["lift"] as float, step["lunge"] as float * (0.4 if calm else 1.0))
+	var across: float = 1.0 / sqrt(maxf(squash * stretch, 0.05))
+	_body.scale *= Vector3(across, squash, stretch * across)  # volume kept: squashed wide, stretched long and thin
+	if _pose == null:
+		_make_pose()
+	_pose.active = true
+	_set_manual(true)
+	_pose.arm_weight = step["arm_w"] as float
+	_pose.hand_left = step["hand_l"] as Vector3
+	_pose.hand_right = step["hand_r"] as Vector3
+	_pose.foot_weight = step["foot_w"] as float
+	if step.has("foot"):
+		_pose.foot = step["foot"] as Vector3
+	# where the can is: in the hands (or where it lay / will stand, by how much it is held)
+	var hands: Vector3 = ((step["hand_l"] as Vector3) + (step["hand_r"] as Vector3)) / 2.0
+	var hold_amount: float = step["hold"] as float
+	if _act == Act.KICK or hold_amount <= 0.0 and _act != Act.PICKUP:
+		_hold = {}
+		return
+	var in_hands: Vector3 = global_transform * (step["centre"] as Vector3 if step.has("centre") else hands + Vector3(0.0, 0.0, 0.0))
+	var elsewhere: Vector3 = _spot_world if _act == Act.PLACE else global_transform * _can_local
+	_hold = {"position": elsewhere.lerp(in_hands, hold_amount), "upright": step["upright"], "hold": hold_amount,
+		"squash": Vector3(across, squash, across) if not calm else Vector3.ONE}
+
+
+## While a can act plays the clips and the skeleton are advanced by hand, in this order: the clip, then the arms and the foot on top of it
+## (the automatic order would lay the clip over them again). Back to the automatic order when it is over.
+func _set_manual(on: bool) -> void:
+	if _manual == on or _skeleton == null:
+		return
+	_manual = on
+	_player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL if on else AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_IDLE
+	_skeleton.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_MANUAL if on else Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_IDLE
+
+
+## Advances the clip and the skeleton by hand (only while `_manual`).
+func _advance_by_hand(delta: float) -> void:
+	if _manual and _skeleton != null:
+		_player.advance(delta)
+		_skeleton.advance(delta)
+
+
+func _make_pose() -> void:
+	_skeleton = _model.find_child("Skeleton3D", true, false) as Skeleton3D
+	_pose = KidPose.new()
+	_pose.name = "KidPose"
+	_pose.frame = self
+	_pose.active = false
+	if _skeleton != null:
+		_skeleton.add_child(_pose)
 
 
 ## The body leans, lifts and squashes along a scripted pose (and is upright and level again when it is over).
 func _apply_dive() -> void:
 	var scripted: bool = _dive_left > 0.0 or _trip_left > 0.0
-	if not scripted and _body.rotation.x == 0.0 and _body.position.y == 0.0:
+	if not scripted and _body.rotation.x == 0.0 and _body.position.y == 0.0 and _act == Act.NONE and not _carrying:
 		return
 	var step: Dictionary = _scripted_step() if scripted else {"lean": 0.0, "lift": 0.0, "squash": 1.0}
 	_body.rotation.x = step["lean"] as float

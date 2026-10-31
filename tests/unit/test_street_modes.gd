@@ -85,7 +85,7 @@ func test_tumbang_has_one_taya_and_everyone_else_throws_from_the_throwing_area()
 	assert_eq(game.taya_id, 4, "the last kid in is the first taya")
 	for state: PlayerState in sim.players.values():
 		if state.id == game.taya_id:
-			assert_almost_eq(state.position.y, TUMBANG.can_spot.y + TUMBANG.guard_offset, 0.001, "the taya waits by the can")
+			assert_almost_eq(state.position.y, TUMBANG.can_spot.y - TUMBANG.guard_offset, 0.001, "the taya starts just behind the can, away from the throwers")
 		else:
 			assert_true(game.at_home(state.position), "throwers start in the throwing area")
 			assert_true(game.has_slipper(state.id))
@@ -371,7 +371,7 @@ func test_moving_into_a_throwers_tag_circle_tags_it_and_the_round_resets_with_ev
 	assert_false(game.is_resetting())
 	assert_true(game.at_home(sim.players[4].position), "the old taya is a thrower in the throwing area")
 	assert_true(game.has_slipper(4))
-	assert_almost_eq(sim.players[1].position.y, TUMBANG.can_spot.y + TUMBANG.guard_offset, 0.01, "the new taya is by the can")
+	assert_almost_eq(sim.players[1].position.y, TUMBANG.can_spot.y - TUMBANG.guard_offset, 0.01, "the new taya starts just behind the can")
 	assert_true(game.slippers.is_empty(), "every slipper is back in a hand")
 	assert_true(game.can_up, "and the can stands")
 	assert_eq(game.points[2], 3, "the points stay")
@@ -423,11 +423,45 @@ func test_a_thrower_without_its_slipper_can_kick_the_can_once_in_a_random_mid_ra
 	var distance: float = game.can_position.distance_to(from)
 	assert_gte(distance, TUMBANG.kick_min_distance - 0.5)
 	assert_lte(distance, TUMBANG.kick_max_distance + 0.5, "mid range")
+	# away from the kicker, in a cone (the kick animation swings the foot that way)
+	var away: Vector2 = from - sim.players[1].position
+	assert_lte(absf(away.angle_to(game.can_position - from)), deg_to_rad(TUMBANG.kick_cone_degrees) + 0.05, "within the forward cone")
 	# holding the button does not kick again, and it has to cool down
 	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_CARD_2, 0))
 	_wait(sim, 1.0)
 	assert_eq(kicks.size(), 1)
 	assert_gt(game.kick_left[1], 0.0)
+
+
+func test_kicks_go_away_from_the_kicker_in_a_random_direction_within_the_cone() -> void:
+	var angles: Array[float] = []
+	for seed_value: int in 60:
+		var sim: MatchSim = MatchSim.new(_rules, LAYOUT, seed_value)
+		for i: int in 4:
+			sim.add_player(1 + i, 0)
+		sim.start_mode(StreetMode.create(TUMBANG))
+		var game: TumbangPreso = sim.mode as TumbangPreso
+		_clear_street(sim, [1])
+		game.slippers[1] = Vector2(5.0, 8.0)
+		sim.players[1].position = TUMBANG.can_spot + Vector2(0.0, 1.0)
+		var from: Vector2 = game.can_position
+		game.kick(sim, sim.players[1])
+		var away: Vector2 = from - sim.players[1].position
+		var turn: float = away.angle_to(game.can_position - from)
+		assert_lte(absf(turn), deg_to_rad(TUMBANG.kick_cone_degrees) + 0.05, "never back at the kicker")
+		angles.append(turn)
+	assert_lt(angles.min(), -deg_to_rad(TUMBANG.kick_cone_degrees) * 0.6, "it can go to either side ...")
+	assert_gt(angles.max(), deg_to_rad(TUMBANG.kick_cone_degrees) * 0.6)
+	# ... and a kicker standing on the can sends it anywhere
+	var sim2: MatchSim = _tumbang()
+	var game2: TumbangPreso = sim2.mode as TumbangPreso
+	sim2.players[1].position = game2.can_position
+	game2.kick(sim2, sim2.players[1])
+	assert_false(game2.can_up)
+
+
+func test_the_can_stands_in_the_middle_of_the_street() -> void:
+	assert_eq(TUMBANG.can_spot, Vector2.ZERO, "owner: the can was not centred")
 
 
 func test_a_thrower_with_its_slipper_cannot_kick_and_a_far_one_cannot_reach() -> void:
