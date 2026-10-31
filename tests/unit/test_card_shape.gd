@@ -289,3 +289,13 @@ func test_the_lights_shine_between_the_front_model_and_the_ones_behind_and_go_of
 	assert_false(glow.visible or core.visible, "off under a page, where they would shine over its content")
 	screen.close_page()
 	assert_true(glow.visible and core.visible)
+
+
+func test_a_card_resting_at_zero_lift_is_exactly_zero_even_after_a_tiny_drift() -> void:
+	var face: CardFace = autofree(CardFace.new()) as CardFace
+	face.lift = 0.5
+	face.lift = 0.505  # a change under 0.01 is not applied
+	assert_almost_eq(face.lift, 0.5, 0.0001)
+	face.lift = 0.005
+	face.lift = 0.0
+	assert_eq(face.lift, 0.0, "resting is always exact")

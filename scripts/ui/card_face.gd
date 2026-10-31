@@ -49,8 +49,8 @@ const PLATE_FADE_IN: float = 0.3
 ## How high the card floats (-1 sinking to 1 at the top of its drift): the middle card sets it as it drifts, and its shadow follows.
 var lift: float = 0.0:
 	set(value):
-		if absf(value - lift) < 0.01:
-			return
+		if absf(value - lift) < 0.01 and not (value == 0.0 and lift != 0.0):
+			return  # a tiny change is not redrawn, but resting (0) is always exact
 		lift = value
 		queue_redraw()
 ## How much the card is the chosen one, 0 to 1: only the chosen card has a shadow;
