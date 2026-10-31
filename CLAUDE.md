@@ -27,15 +27,15 @@ assets/{models,textures,audio,icons,fonts}   server/   tests/{unit,integration}
 
 ## Workflow — versioning and PRs (mandatory)
 - **Never commit to `main`.** One branch per task: `feat/<scope>-<short>`, `fix/...`, `chore/...`, `docs/...`, `test/...`.
-- **Conventional Commits** (`feat(weapons): add trumpo airborne`). Breaking: `feat!:`. This drives release-please.
+- **Conventional Commits** (`feat(weapons): add trumpo airborne`). Breaking: `feat!:`.
 - **Continuous development, meaningful PRs:** one PR per solid chunk of progress (several roadmap tasks or a whole phase), not one PR per tiny task. Use `.github/pull_request_template.md`. In the PR body say what changed and how to check it on a phone: which `Android APK` run to install (the owner's own run on the branch, or the run on `main` after the merge) and what to tap.
 - **No CI on PRs.** The owner reads the PR and merges. Before opening it, Claude runs the full GUT suite locally and it must pass. The only workflow that tests is `Android APK` (on `main` and on demand); it is the gate and builds the APK.
-- Releases: release-please opens a release PR on `main`; merging it tags `vX.Y.Z` and updates `CHANGELOG.md`. Don't edit versions or the changelog by hand. Pre-1.0: `feat` = minor, `fix` = patch.
+- Releases: no automation (release-please was removed). Don't edit `version.txt` or `CHANGELOG.md` unless the owner asks.
 - **Ship loop (owner merges, Claude never does):**
   1. Develop a meaningful chunk on a feature branch with tests.
   2. Run the full GUT suite locally (and import the project) until everything passes; re-read the diff and fix anything found.
   3. Open the PR with a clear summary, any design choices that need the owner's call, and exactly what to check in the APK. Then hand over and keep going on the next chunk on a new branch.
-  4. The owner reads, merges, and installs the APK from the `Android APK` run on `main` once it finishes. Never merge the release-please PR.
+  4. The owner reads, merges, and installs the APK from the `Android APK` run on `main` once it finishes.
 
 ## Platforms and how the owner tests
 - **Test channel = the debug APK** from Actions → **Android APK** (every push to `main`, or Run workflow on a branch; artifact `kalyeah-debug-apk`). The run imports the project, runs the full suite, exports, inspects the APK (package, SDK, permissions, arm64 only, 16 KB alignment, size) and, on a manual run, plays it for 30 s on an emulator. Always hand over with which run to install and what to tap.

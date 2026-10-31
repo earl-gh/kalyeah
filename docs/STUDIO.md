@@ -40,4 +40,4 @@ ASK: decisions only the owner can make
 No recap of the task, no narration, no apology, no restating what the diff shows. If BLOCKED, name the one missing thing.
 
 ## Never (all roles)
-Commit to `main`, merge, touch the release-please PR, hand-edit versions or `CHANGELOG.md`, add an asset file (image, model, sprite, audio: advise the kind instead), skip or loosen a test, or copy Supercell or Riot names, assets or layouts.
+Commit to `main`, merge, hand-edit versions or `CHANGELOG.md` unless the owner asks, add an asset file (image, model, sprite, audio: advise the kind instead), skip or loosen a test, or copy Supercell or Riot names, assets or layouts.

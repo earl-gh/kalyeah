@@ -31,7 +31,7 @@ Read changed code, every relevant caller and existing regression coverage.
   or net complexity. Keep intentional differences explicit.
 - Verify documentation and claimed checks against actual results. Never call a
   headless run proof of physical Android accessibility or performance.
-- Retain existing owner-supplied art policy and release-please version ownership.
+- Retain existing owner-supplied art policy and owner-only version changes.
 
 For each finding, quote a real file:line, concrete trigger, impact and smallest
 fix. Verify the motivating lines and search sibling paths before reporting.
