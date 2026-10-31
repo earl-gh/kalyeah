@@ -20,13 +20,16 @@ const SCRAPS: int = 6
 const FILL_POP_FRAMES: int = 4
 const SLOW_FADE: float = 0.3
 const FADE_RIM: float = 0.42
-## The jacks are dropped from the thrower's hand onto the middle of their field (`JACK_FLIGHT_FRAMES` frames, `JACK_PEAK` m high), landing squashed (`JACK_LAND_S`), and then scatter by ROLLING outward over the street: three of the four
-## roll once to their spots, one (picked at random for each field) rolls twice, to a stop on the way and then on to its spot. A roll takes
-## `JACK_ROLL_FRAMES` frames (the first of the double roller's two `JACK_ROLL_AGAIN` of that) after a random wait of up to `JACK_ROLL_WAIT`
-## frames, and turns the jack over whole times (so it ends lying as it began), a little off the street (`JACK_ROLL_LIFT` of its size). It is
-## smeared along the roll on its fast first frames, leaves a streak on the street (`JACK_STREAK` m wide) and squashes where it stops (owner: no dust or smoke, only the smears). Every spot, and the stop on the way, is inside the field's circle (the slow and
-## damage area). A tick that hurts a kid makes the nearest cluster hop `JACK_HOP` m for a frame. In the last `SLOW_FADE` s they sink
-## `JACK_SINK` m and shrink to `JACK_SHRINK` while the fill fades.
+## The jacks are dropped from the thrower's hand onto the middle of their field (`JACK_FLIGHT_FRAMES` frames, `JACK_PEAK` m high), landing
+## squashed (`JACK_LAND_S`), and then scatter by ROLLING outward over the street: each of the six rolls once to its spot, except `JACK_TWICE`
+## of them (picked at random for each field) that roll twice, to a stop on the way and then on to their spots. A roll takes `JACK_ROLL_FRAMES`
+## frames (each of a double roller's two `JACK_ROLL_AGAIN` of that) after a random wait of up to `JACK_ROLL_WAIT` frames, and turns the jack
+## over whole times (so it ends lying as it began), a little off the street (`JACK_ROLL_LIFT` of its size). It is smeared along the roll on
+## its fast first frames, leaves a streak on the street (`JACK_STREAK` m wide) and squashes where it stops (owner: no dust or smoke, only the
+## smears). Every spot, and every stop on the way, is inside the field's circle (the slow and damage area). A tick that hurts a kid makes the
+## nearest cluster hop `JACK_HOP` m for a frame. In the last `SLOW_FADE` s they sink `JACK_SINK` m and shrink to `JACK_SHRINK` while the fill fades.
+## How many of the jacks of a field roll twice (the rest roll once).
+const JACK_TWICE: int = 3
 const JACK_FLIGHT_FRAMES: int = 6
 const JACK_PEAK: float = 1.2
 const JACK_LAND_S: float = 0.75
@@ -178,7 +181,7 @@ func _fade(rec: FxZones.Rec, left: float, nodes: Array[MeshInstance3D], ends: Ar
 		rec.fades[i].albedo_color = Color(1.0, 1.0, 1.0, lerpf(1.0, ends[i], t))
 
 
-## The jacks drop onto the middle of the field, then roll outward to their spots (one of them rolls twice), hop on a tick and sink away at the end.
+## The jacks drop onto the middle of the field, then roll outward to their spots (some of them roll twice), hop on a tick and sink away at the end.
 func field(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 	var age: float = rec.track.age(_ctx.time)
 	var left: float = _left(zone, rec, zone.def.duration if zone.def != null else 0.0)
@@ -230,7 +233,7 @@ func field(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 func _roll_pose(rec: FxZones.Rec, i: int, seconds: float, centre: Vector3, scale: float, turn: Basis) -> Array:
 	var frame: float = FxSquash.FRAME
 	var rolls: Array[Vector3] = [rec.piles[i]]
-	if i == rec.twice:
+	if rec.twice.has(i):
 		rolls.append(rec.mids[i])
 	rolls.append(rec.homes[i])
 	var segments: int = rolls.size() - 1
@@ -272,13 +275,20 @@ func _roll_streak(from: Vector3, to: Vector3) -> void:
 
 
 ## How the jacks of field `id` scatter, the same on every screen (it only reads the zone's id): the piles they start on the middle, the one that
-## rolls twice (random among the `homes`) and its stop on the way, and each jack's wait (frames) before it rolls. Every point is inside the
+## roll twice (`JACK_TWICE` random ones among the `homes`) and their stops on the way, and each jack's wait (frames) before it rolls. Every point is inside the
 ## circle through the farthest home, so inside the slow and damage area.
 static func scatter_plan(id: int, homes: Array[Vector3]) -> Dictionary:
 	var piles: Array[Vector3] = []
 	var mids: Array[Vector3] = []
 	var delays: PackedFloat32Array = PackedFloat32Array()
-	var twice: int = int(_unit(id, 0) * float(homes.size())) % maxi(homes.size(), 1)
+	# three of the jacks (picked at random for each field) roll twice: the three with the lowest hash
+	var order: Array[int] = []
+	for index: int in homes.size():
+		order.append(index)
+	order.sort_custom(func(a: int, b: int) -> bool: return _unit(id, 100 + a) < _unit(id, 100 + b))
+	var twice: Array[int] = []
+	for pick: int in mini(JACK_TWICE, order.size()):
+		twice.append(order[pick])
 	for index: int in homes.size():
 		var home: Vector3 = homes[index]
 		var way: Vector2 = Vector2(home.x, home.z)

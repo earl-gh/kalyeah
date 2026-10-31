@@ -859,25 +859,23 @@ func _field_rec() -> FxZones.Rec:
 	return _fx.zones._recs[_sim.weapons.zones[0].id] as FxZones.Rec
 
 
-func test_the_jacks_drop_on_the_middle_then_roll_out_three_once_and_one_twice_and_all_end_in_the_circle() -> void:
+func test_the_jacks_drop_on_the_middle_then_roll_out_three_once_and_three_twice_and_all_end_in_the_circle() -> void:
 	_setup(Vector2(20.0, 0.0))
 	_cast(&"jacks", Vector2(0.0, -4.0 / 6.0))
 	_fx.sync(_sim, DT)
 	var zone: WeaponSystem.Zone = _sim.weapons.zones[0]
 	var rec: FxZones.Rec = _field_rec()
-	var centre: Vector3 = Vector3(zone.center.x, 0.0, zone.center.y)
 	assert_eq(rec.clusters.size(), WeaponModel.SPIKE_CLUSTERS)
-	assert_between(rec.twice, 0, rec.clusters.size() - 1, "one of them is picked to roll twice")
+	assert_eq(rec.clusters.size(), 6, "six jacks")
+	assert_eq(rec.twice.size(), 3, "three of them are picked to roll twice")
 	# the pile on the middle: every jack within a hand's width of the very middle, after the drop
-	var pile_frame: int = FxFields.JACK_FLIGHT_FRAMES + 1
-	for i: int in pile_frame:
+	for i: int in FxFields.JACK_FLIGHT_FRAMES + 1:
 		_frame()
-	var rolling_started: int = 0
 	for cluster: Node3D in rec.clusters:
-		assert_lt(Vector2(cluster.position.x, cluster.position.z).length(), 0.4, "they land on the middle spot")
-	# watch the whole scatter: nobody ever leaves the field's circle, and every roll turns over whole times
+		assert_lt(Vector2(cluster.position.x, cluster.position.z).length(), 0.5, "they land on the middle spot")
+	# watch the whole scatter: nobody ever leaves the field's circle
 	var farthest: float = 0.0
-	for i: int in 80:
+	for i: int in 90:
 		_frame()
 		for cluster: Node3D in rec.clusters:
 			farthest = maxf(farthest, Vector2(cluster.position.x, cluster.position.z).length())
@@ -890,33 +888,43 @@ func test_the_jacks_drop_on_the_middle_then_roll_out_three_once_and_one_twice_an
 			once += 1
 		elif rec.starts[i] == 2:
 			twice += 1
+			assert_true(rec.twice.has(i), "and it is one of the three picked")
 		var spot: Vector3 = rec.clusters[i].position
-		assert_almost_eq(Vector2(spot.x, spot.z).distance_to(Vector2(rec.homes[i].x, rec.homes[i].z)), 0.0, 0.001, "and each ends on its own spot")
+		assert_almost_eq(Vector2(spot.x, spot.z).distance_to(Vector2(rec.homes[i].x, rec.homes[i].z)), 0.0, 0.001, "each ends on its own spot")
 		assert_almost_eq(spot.y, 0.0, 0.001, "lying on the street")
-	assert_eq(once, rec.clusters.size() - 1, "three roll once")
-	assert_eq(twice, 1, "and one rolls twice")
-	assert_eq(rec.starts[rec.twice], 2, "it is the one picked")
-	assert_not_null(centre)
+	assert_eq(once, 3, "three roll once")
+	assert_eq(twice, 3, "and three roll twice")
 
 
-func test_the_jack_that_rolls_twice_is_picked_at_random_for_each_field_and_its_stop_is_on_the_way_out() -> void:
+func test_the_jacks_that_roll_twice_are_picked_at_random_for_each_field_and_their_stops_are_on_the_way_out() -> void:
 	var homes: Array[Vector3] = []
-	for k: int in 4:
-		var a: float = TAU * float(k) / 4.0 + 0.4
+	for k: int in 6:
+		var a: float = TAU * float(k) / 6.0 + 0.4
 		homes.append(Vector3(cos(a), 0.0, sin(a)) * 1.1)
 	var picked: Dictionary = {}
+	var subsets: Dictionary = {}
 	for id: int in range(1, 201):
 		var plan: Dictionary = FxFields.scatter_plan(id, homes)
-		picked[plan["twice"] as int] = true
+		var twice: Array[int] = plan["twice"] as Array[int]
+		assert_eq(twice.size(), 3, "three of the six")
+		var sorted: Array[int] = twice.duplicate()
+		sorted.sort()
+		assert_eq(sorted.size(), 3)
+		assert_ne(sorted[0], sorted[1], "three different jacks")
+		assert_ne(sorted[1], sorted[2])
+		subsets[str(sorted)] = true
+		for index: int in twice:
+			picked[index] = true
 		var again: Dictionary = FxFields.scatter_plan(id, homes)
 		assert_eq(again["twice"], plan["twice"], "the same field scatters the same way on every screen")
 		var mids: Array[Vector3] = plan["mids"] as Array[Vector3]
-		for k: int in 4:
+		for k: int in 6:
 			var home_length: float = Vector2(homes[k].x, homes[k].z).length()
 			var mid_length: float = Vector2(mids[k].x, mids[k].z).length()
 			assert_lt(mid_length, home_length * FxFields.JACK_MID_OUT.y + 0.001, "the stop on the way is inside its spot's circle")
 			assert_gt(mid_length, home_length * FxFields.JACK_MID_OUT.x - 0.001, "and out from the middle")
-	assert_eq(picked.size(), 4, "any of the four can be the one that rolls twice")
+	assert_eq(picked.size(), 6, "any of the six can be one that rolls twice")
+	assert_gt(subsets.size(), 6, "and the three differ from field to field")
 
 
 func test_a_roll_turns_the_jack_over_whole_times_smears_it_and_leaves_a_streak_but_no_dust() -> void:

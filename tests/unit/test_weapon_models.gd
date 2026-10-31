@@ -156,24 +156,54 @@ func test_the_jacks_field_is_spikes_on_a_circle() -> void:
 	assert_eq(marks.size(), 1, "on one tinted circle")
 
 
-func test_the_marble_and_top_are_a_quarter_bigger_and_the_jacks_fewer_and_smaller_and_in_four_colours() -> void:
+func test_the_marble_and_top_are_a_quarter_bigger_and_the_jacks_fewer_and_smaller_and_in_six_colours() -> void:
 	# owner: the marble (0.45 m) and the top (0.9 m) were a little small, the jacks too many and too big (5 clusters, 0.9 m)
 	assert_almost_eq(WeaponModel.OBJECTS[&"bola"][1] as float, 0.45 * 1.25, 0.01, "the marble: 0.56 m, 1.12 m drawn at the kids' scale")
 	assert_almost_eq(WeaponModel.OBJECTS[&"trumpo"][1] as float, 0.9 * 1.25, 0.01, "the top: 1.12 m")
-	assert_eq(WeaponModel.SPIKE_CLUSTERS, 4, "one cluster in each colour of the owner's photo instead of five of one")
-	assert_eq(WeaponModel.SPIKE_COLOURS.size(), 4)
-	assert_almost_eq(WeaponModel.SPIKE_WIDTH, 0.9 * 0.7 / 2.0, 0.001, "each 30% narrower, and then half the size again (owner)")
-	var jacks: Node3D = autofree(WeaponModel.spikes(2.0)) as Node3D
-	assert_eq(jacks.get_child_count(), 4)
+	assert_eq(WeaponModel.SPIKE_CLUSTERS, 6, "one cluster in each of the six colours (the photo's four, then blue and purple) instead of five of one")
+	assert_eq(WeaponModel.SPIKE_COLOURS.size(), 6)
+	assert_almost_eq(WeaponModel.SPIKE_WIDTH, 0.9 * 0.7 / 2.0 * 1.75, 0.001, "each 30% narrower, then half the size, then 1.75 times that again (owner)")
+	var jacks: Node3D = autofree(WeaponModel.spikes(2.0, 7)) as Node3D
+	assert_eq(jacks.get_child_count(), 6)
 	var cluster_width: float = WeaponModel.size_of("spikes").x * (jacks.get_child(0) as Node3D).scale.x
 	assert_almost_eq(cluster_width, WeaponModel.SPIKE_WIDTH, 0.001)
-	for i: int in 4:
+	for i: int in 6:
 		var at: Vector3 = (jacks.get_child(i) as Node3D).position
-		assert_almost_eq(Vector2(at.x, at.z).length(), 2.0 * WeaponModel.SPIKE_RING, 0.001, "on the ring, inside the field's circle")
 		assert_lt(Vector2(at.x, at.z).length() + cluster_width / 2.0, 2.0, "the sim's radius is never overstepped")
-		for j: int in range(i + 1, 4):
+		for j: int in range(i + 1, 6):
 			var other: Vector3 = (jacks.get_child(j) as Node3D).position
-			assert_gt(at.distance_to(other), cluster_width * 1.5, "clusters spread out: no two overlap")
+			assert_gt(at.distance_to(other), cluster_width, "clusters do not lie on top of each other")
+
+
+func test_the_jacks_lie_in_a_different_random_spread_in_every_field_with_no_ring_or_pattern() -> void:
+	# owner: "there must be no fixed formation or pattern of the jacks after the scatter, it must always be random"
+	var layouts: Dictionary = {}
+	var spreads: Array[float] = []
+	var yaws: Dictionary = {}
+	for seed_value: int in range(1, 41):
+		var spots: Array[Vector2] = WeaponModel.spike_spots(2.0, seed_value)
+		assert_eq(spots.size(), WeaponModel.SPIKE_CLUSTERS)
+		assert_eq(WeaponModel.spike_spots(2.0, seed_value), spots, "the same field is the same on every screen")
+		var key: String = ""
+		var lengths: Array[float] = []
+		for spot: Vector2 in spots:
+			key += "%.2f,%.2f;" % [spot.x, spot.y]
+			lengths.append(spot.length())
+			assert_lte(spot.length() + WeaponModel.SPIKE_WIDTH / 2.0, 2.0, "inside the slow and damage circle")
+		layouts[key] = true
+		# a ring puts every jack the same distance from the middle: random spreads do not
+		var low: float = lengths.min()
+		var high: float = lengths.max()
+		spreads.append(high - low)
+		var model: Node3D = autofree(WeaponModel.spikes(2.0, seed_value)) as Node3D
+		yaws[snappedf((model.get_child(0) as Node3D).rotation.y, 0.05)] = true
+	assert_eq(layouts.size(), 40, "every field lies differently")
+	var ringlike: int = 0
+	for spread: float in spreads:
+		if spread < 0.15:
+			ringlike += 1
+	assert_eq(ringlike, 0, "none of them is a ring (every jack the same distance from the middle)")
+	assert_gt(yaws.size(), 20, "and the jacks are turned any way")
 
 
 func test_the_smears_and_trails_follow_the_new_sizes() -> void:

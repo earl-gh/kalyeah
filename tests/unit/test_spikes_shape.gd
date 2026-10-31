@@ -100,7 +100,7 @@ func test_the_picture_is_a_plain_light_plastic_so_each_cluster_can_be_painted() 
 	assert_lt(absf(colour.r - colour.g), 0.06)
 
 
-func test_a_field_has_one_cluster_in_each_of_the_four_colours_and_one_shared_look() -> void:
+func test_a_field_has_one_cluster_in_each_of_the_six_colours_and_one_shared_look() -> void:
 	var field: Node3D = autofree(WeaponModel.spikes(2.0)) as Node3D
 	var seen: Dictionary = {}
 	var looks: Dictionary = {}
@@ -112,11 +112,11 @@ func test_a_field_has_one_cluster_in_each_of_the_four_colours_and_one_shared_loo
 			assert_eq(colours[0], colours[colours.size() - 1], "one colour all over a cluster")
 			seen[colours[0].to_html(false)] = true
 			looks[mesh_instance.get_surface_override_material(0)] = true
-	assert_eq(seen.size(), 4, "yellow, pink, green and orange")
+	assert_eq(seen.size(), 6, "yellow, pink, green, orange, blue and purple")
 	assert_eq(looks.size(), 1, "one look for the model, never one per colour")
 
 
-func test_the_four_colours_are_the_photos_yellow_pink_green_and_orange() -> void:
+func test_the_six_colours_are_the_photos_yellow_pink_green_orange_then_blue_and_purple() -> void:
 	var hues: Array[float] = []
 	for colour: Color in WeaponModel.SPIKE_COLOURS:
 		assert_gt(colour.s, 0.6, "saturated, painted plastic")
@@ -126,6 +126,8 @@ func test_the_four_colours_are_the_photos_yellow_pink_green_and_orange() -> void
 	assert_between(hues[1], 0.88, 0.96, "pink")
 	assert_between(hues[2], 0.33, 0.42, "green")
 	assert_between(hues[3], 0.03, 0.08, "orange")
+	assert_between(hues[4], 0.56, 0.64, "blue")
+	assert_between(hues[5], 0.72, 0.80, "purple")
 
 
 func test_the_jacks_exist_only_in_agawan_base() -> void:
