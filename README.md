@@ -2,7 +2,8 @@
 
 *Mga larong Pinoy sa kalye.* A stylised 3D multiplayer MOBA (1v1, 2v2, 3v3) built on Filipino street games: bato-bato-pik, tumbang preso, jackstones and trumpo. Portrait, one thumb, quick matches. Built with Godot 4.6 as an Android app.
 
-- **Play:** install the debug APK from the latest successful **Android APK** run on `main` (repository → Actions → Android APK → the run → artifact `kalyeah-debug-apk`).
+- **Website:** [kalyeah-promo.vercel.app](https://kalyeah-promo.vercel.app/), the game's page, with the latest APK to download.
+- **Play:** get the APK from [the website](https://kalyeah-promo.vercel.app/), or install the debug APK from the latest successful **Android APK** run on `main` (repository → Actions → Android APK → the run → artifact `kalyeah-debug-apk`).
 
 ## Docs
 - [Roadmap](docs/ROADMAP.md): what is done, what is next, and how we build
