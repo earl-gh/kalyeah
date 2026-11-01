@@ -40,6 +40,14 @@ func _ready() -> void:
 
 
 ## Whether the street can be played now in a room (Online or Local).
+## The game's picture (the same one this page shows), or null for an unknown id. The room's game picker uses it too.
+static func picture_for(id: StringName) -> Texture2D:
+	for street: Dictionary in STREETS:
+		if street["id"] == id:
+			return street["picture"] as Texture2D
+	return null
+
+
 static func playable(id: StringName) -> bool:
 	return id in RoomService.PLAYABLE_MAP_IDS
 

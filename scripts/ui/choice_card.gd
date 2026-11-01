@@ -68,6 +68,25 @@ static func make_card(heading: String, choice: String, color: String, size: Vect
 	return card
 
 
+## A card with `picture` (a game's picture from the Games page, owner 2026-11-01) filling its upper part, the whole picture shown in its
+## own shape, and `choice` big at the bottom left, as on any card.
+static func make_picture_card(choice: String, color: String, size: Vector2, picture: Texture2D) -> Button:
+	var card: Button = make_card("", choice, color, size)
+	var art: TextureRect = TextureRect.new()
+	art.name = "Picture"
+	art.texture = picture
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	art.offset_left = PAD * 2.0
+	art.offset_top = PAD * 2.0
+	art.offset_right = -PAD * 2.0
+	art.offset_bottom = -(PAD + float(UiMetrics.TITLE) * 1.6)  # the name's line stays clear
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(art)
+	return card
+
+
 ## Changes what a card made by `make_card` shows.
 static func set_card(card: Button, heading: String, choice: String, color: String) -> void:
 	(card.get_node("Heading") as Label).text = heading

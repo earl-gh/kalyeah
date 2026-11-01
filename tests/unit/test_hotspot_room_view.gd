@@ -248,6 +248,9 @@ func test_the_map_carousel_lists_all_three_street_games_ready_to_pick() -> void:
 	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[2]), "Patintero")
 	for card: Button in view.map_carousel.cards:
 		assert_eq((card.get_node("Heading") as Label).text, "", "none says Coming soon: all three play in rooms (owner, 2026-10-31)")
+	for i: int in RoomService.MAP_IDS.size():
+		var picture: TextureRect = view.map_carousel.cards[i].get_node("Picture") as TextureRect
+		assert_eq(picture.texture, StreetPage.picture_for(RoomService.MAP_IDS[i]), "the Games page's picture on each card (owner, 2026-11-01)")
 	view.map_carousel.select(1, false)
 	assert_eq(picked, [&"tumbang_preso"] as Array[StringName], "Tumbang Preso is picked")
 	view.close_map_carousel()
@@ -258,3 +261,12 @@ func test_the_map_carousel_overlay_is_above_everything() -> void:
 	view.map_card.pressed.emit()
 	assert_eq((view.find_child("MapOverlay", true, false) as Control).z_index, MenuDialog.MODAL_Z)
 	view.close_map_carousel()
+
+
+func test_the_map_card_shows_the_chosen_games_picture() -> void:
+	var view: HotspotRoomView = _view(_room(2))
+	assert_eq(view.map_picture.texture, StreetPage.picture_for(&"street"), "Agawan Base's picture to begin with")
+	var room: Dictionary = _room(2)
+	room["map"] = "tumbang_preso"
+	view.show_room(room, 1)
+	assert_eq(view.map_picture.texture, StreetPage.picture_for(&"tumbang_preso"), "the game the host picked")

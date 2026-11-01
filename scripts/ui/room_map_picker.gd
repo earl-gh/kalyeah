@@ -66,7 +66,17 @@ func open_map_carousel() -> void:
 	view._map_hint.offset_bottom = view.MAP_PICK_CARD.y / 2.0 + 110.0
 	view._map_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	view._map_overlay.add_child(view._map_hint)
-	view.map_carousel.setup("", maps, current)
+	# each game's own picture from the Games page, its name under it (owner, 2026-11-01)
+	var made: Array[Button] = []
+	for option: Dictionary in maps:
+		var id: StringName = StringName(option["id"] as String)
+		var card: Button = ChoiceCard.make_picture_card(option["title"] as String, option["color"] as String, view.MAP_PICK_CARD, StreetPage.picture_for(id))
+		card.name = "Map_%s" % option["id"]
+		card.accessibility_name = option["title"] as String
+		(card.get_node("Heading") as Label).text = option["heading"] as String
+		(card.get_node("Heading") as Label).visible = not (option["heading"] as String).is_empty()
+		made.append(card)
+	view.map_carousel.setup_cards(made, current)
 	view.map_carousel.selected.connect(_on_map_carousel_selected)
 
 
