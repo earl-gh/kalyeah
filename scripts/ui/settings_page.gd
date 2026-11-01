@@ -1,6 +1,6 @@
 class_name SettingsPage
 extends VBoxContainer
-## The Settings page: vibration (phones) and comfort, then quitting. Your name and ID photo are changed on the name tag
+## The Settings page: Accessibility, Controls, Language (when there is a second one) and Graphics, then quitting. Your name and ID photo are changed on the name tag
 ## on Home (owner: no profile card here), and there is no How to play page (the walkthrough opens the first Practice by
 ## itself). There is no server address here: the online server is built into the game (the player only needs a room code).
 
@@ -18,24 +18,45 @@ func _ready() -> void:
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	UiKit.add_gutter_scroll(self, _content, true)
-	var preferences: VBoxContainer = VBoxContainer.new()
-	preferences.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
-	preferences.add_child(UiKit.section_label("Comfort"))
-	var rows: VBoxContainer = VBoxContainer.new()
-	rows.add_theme_constant_override("separation", UiMetrics.GAP)
-	fill(rows)
-	preferences.add_child(UiKit.card(rows))
-	_content.add_child(preferences)
-	var graphics: VBoxContainer = VBoxContainer.new()
-	graphics.name = "Graphics"
-	graphics.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
-	graphics.add_child(UiKit.section_label("Graphics"))
-	graphics.add_child(UiKit.card(GraphicsOptions.new()))
-	_content.add_child(graphics)
+	_content.add_child(_group("Accessibility", AccessibilitySection.new()))
+	var controls: VBoxContainer = VBoxContainer.new()
+	controls.add_theme_constant_override("separation", UiMetrics.GAP)
+	if Settings.can_vibrate():
+		controls.add_child(_vibration_row())
+		controls.add_child(UiKit.divider())
+	var layout: ControlOptions = ControlOptions.new()
+	layout.part = ControlOptions.Part.LAYOUT
+	controls.add_child(layout)
+	_content.add_child(_group("Controls", controls))
+	var languages: Array[String] = Settings.available_languages()
+	if languages.size() > 1:
+		_content.add_child(_group("Language", _language_row(languages)))
+	var graphics: GraphicsOptions = GraphicsOptions.new()
+	graphics.with_shake = false
+	_content.add_child(_group("Graphics", graphics))
 	quit_button = MenuDialog.make_button("Quit game", "red", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
 	quit_button.name = "QuitButton"
 	quit_button.pressed.connect(quit_pressed.emit)
 	_content.add_child(quit_button)
+
+
+## A titled section: its heading and its card. The Graphics one keeps its name for the tests and the tour.
+static func _group(title: String, body: Control) -> VBoxContainer:
+	var group: VBoxContainer = VBoxContainer.new()
+	group.name = title
+	group.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
+	group.add_child(UiKit.section_label(title))
+	group.add_child(UiKit.card(body))
+	return group
+
+
+## The Vibration switch's row (phones that can vibrate).
+static func _vibration_row() -> Control:
+	var toggle: UiToggle = UiToggle.new()
+	toggle.name = "VibrationToggle"
+	toggle.set_state(Settings.vibration)
+	toggle.pressed.connect(func() -> void: Settings.set_vibration(toggle.button_pressed))
+	return UiKit.setting_row("Vibration", "Buzz on buttons and when you are hit", toggle)
 
 
 ## The language choice: shown only when a second language is ready (see Settings.available_languages).
