@@ -247,7 +247,7 @@ func test_the_map_carousel_lists_all_three_street_games_ready_to_pick() -> void:
 	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[1]), "Tumbang Preso")
 	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[2]), "Patintero")
 	for card: Button in view.map_carousel.cards:
-		assert_eq((card.get_node("Heading") as Label).text, "", "none says Coming soon: all three play in rooms (owner, 2026-10-31)")
+		assert_ne((card.get_node("Heading") as Label).text, "Coming soon", "none says Coming soon: all three play in rooms (owner, 2026-10-31)")
 	for i: int in RoomService.MAP_IDS.size():
 		var picture: TextureRect = view.map_carousel.cards[i].get_node("Picture") as TextureRect
 		assert_eq(picture.texture, StreetPage.picture_for(RoomService.MAP_IDS[i]), "the Games page's picture on each card (owner, 2026-11-01)")
@@ -262,7 +262,69 @@ func test_the_map_carousel_lists_all_three_street_games_ready_to_pick() -> void:
 		click.pressed = pressed
 		click.position = at
 		view.map_carousel._gui_input(click)
-	assert_eq(picked, [&"tumbang_preso"] as Array[StringName], "a tap on the middle card picks Tumbang Preso")
+	var picker: RoomMapPicker = view.map_picker()
+	assert_true(picked.is_empty(), "Tumbang Preso turns this 2v2 of two kids into six places: it asks first")
+	assert_true(is_instance_valid(picker.confirm) and picker.confirm.is_open)
+	(picker.confirm.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).text == "Pick it")[0] as Button).pressed.emit()
+	assert_eq(picked, [&"tumbang_preso"] as Array[StringName], "a tap on the middle card, then Pick it, picks Tumbang Preso")
+	view.close_map_carousel()
+
+
+func test_the_picker_says_how_each_game_plays_and_picks_with_its_button() -> void:
+	var view: HotspotRoomView = _view(_room(2))
+	var picked: Array[StringName] = []
+	view.map_chosen.connect(func(id: StringName) -> void: picked.append(id))
+	view.open_map_carousel()
+	var picker: RoomMapPicker = view.map_picker()
+	assert_eq((view.find_child("Tint", true, false) as ColorRect).color, RoomMapPicker.TINT, "a see-through blue (owner)")
+	assert_gt(RoomMapPicker.TINT.b, RoomMapPicker.TINT.r, "blue")
+	assert_lt(RoomMapPicker.TINT.a, 1.0, "see-through")
+	var name_label: Label = view.map_carousel.cards[0].get_node("Choice") as Label
+	assert_eq(name_label.get_theme_color("font_color"), RoomMapPicker.NAME_COLOR, "the name in yellow (owner)")
+	# 3. the room's game is tagged; 2. the line says how it plays; 4. a dot for each game; 1. the button
+	var tag: Label = view.map_carousel.cards[0].get_node("Heading") as Label
+	assert_true(tag.visible and tag.text == RoomMapPicker.PLAYING_NOW, "Agawan Base is playing now")
+	assert_false((view.map_carousel.cards[2].get_node("Heading") as Label).visible)
+	assert_eq(picker.info_label.text, "2v2 · Teams · First to 3")
+	assert_eq(picker.dots_label.text, "●  ○  ○")
+	assert_eq(picker.pick_button.text, "Keep Agawan Base")
+	view.map_carousel.select(2, false)
+	assert_eq(picker.info_label.text, "2v2 · Teams · 5 min", "Patintero is timed")
+	assert_eq(picker.dots_label.text, "○  ○  ●")
+	assert_eq(picker.pick_button.text, "Pick Patintero")
+	view.map_carousel.select(1, false)
+	assert_eq(picker.info_label.text, "3 to 6 kids · Every kid for itself · 5 min")
+	view.map_carousel.select(2, false)
+	picker.pick_button.pressed.emit()
+	assert_eq(picked, [&"patintero"] as Array[StringName], "the Pick button picks the game in the middle, no question for a team game")
+	view.close_map_carousel()
+
+
+func test_the_picker_closes_with_its_x_and_keeping_the_game_picks_nothing() -> void:
+	var view: HotspotRoomView = _view(_room(2))
+	var picked: Array[StringName] = []
+	view.map_chosen.connect(func(id: StringName) -> void: picked.append(id))
+	view.open_map_carousel()
+	assert_true(view.map_open())
+	view.map_picker().pick_button.pressed.emit()  # "Keep Agawan Base"
+	assert_true(picked.is_empty(), "the room's own game is not sent again")
+	assert_false(view.map_open(), "it just closes")
+	view.open_map_carousel()
+	view.map_picker().close_button.pressed.emit()
+	assert_false(view.map_open(), "the red X closes it")
+
+
+func test_tumbang_preso_asks_only_when_it_changes_the_room() -> void:
+	var view: HotspotRoomView = _view(_room(3))
+	view.open_map_carousel()
+	assert_false(view.map_picker().needs_confirm(&"tumbang_preso"), "a room of six places already: nothing changes")
+	view.close_map_carousel()
+	var alone: Dictionary = _room(1)
+	alone["members"] = [(alone["members"] as Array)[0]]
+	view.show_room(alone, 1)
+	view.open_map_carousel()
+	assert_false(view.map_picker().needs_confirm(&"tumbang_preso"), "nobody else is in the room")
+	assert_false(view.map_picker().needs_confirm(&"patintero"), "a team game keeps the room as it is")
 	view.close_map_carousel()
 
 

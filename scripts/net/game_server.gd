@@ -171,6 +171,9 @@ func _handle(from: int, message: Dictionary) -> void:
 		M.SET_MAP:
 			if rooms.set_map(from, StringName(message.get("map", "") as String)):
 				_send_room(rooms.room_of_peer(from))
+			else:
+				# never silent: an older server, a guest or a started room refuses, and the host must see why the room did not change
+				_error(from, "Can't change the game right now.")
 		M.SET_CHARACTER:
 			if rooms.set_character(from, StringName(message.get("c", "") as String)):
 				_send_room(rooms.room_of_peer(from))

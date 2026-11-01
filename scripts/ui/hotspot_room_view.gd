@@ -235,8 +235,8 @@ func _build_map_section() -> Control:
 	return column
 
 
-## The host's map carousel: the same horizontal carousel as the main screen, over a tinted
-## background. Tap a map to pick it; tap the tint to close.
+## The host's game picker (`RoomMapPicker`): the games' cards over a see-through blue; swipe to look, Pick (or tap the middle card) to
+## choose; the X, a tap on the blue or Android Back closes it.
 func open_map_carousel() -> void:
 	if _map_picker == null:
 		_map_picker = RoomMapPicker.new(self)
@@ -246,6 +246,20 @@ func open_map_carousel() -> void:
 func close_map_carousel() -> void:
 	if _map_picker != null:
 		_map_picker.close_map_carousel()
+
+
+## True while the game picker is open (Android Back closes it before it leaves the room).
+func map_open() -> bool:
+	return _map_picker != null and _map_picker.is_open()
+
+
+func map_picker() -> RoomMapPicker:
+	return _map_picker
+
+
+## The top of the room's content under the notch (the safe area's top margin).
+func safe_top() -> float:
+	return float(_safe_margin.get_theme_constant("margin_top")) if _safe_margin != null else MARGIN
 
 
 func _is_host() -> bool:
