@@ -1,13 +1,24 @@
 class_name RoomMapPicker
 extends RefCounted
 ## Owns the room's game picker (the host's map overlay) and its lifetime, separate from team selection (owner, 2026-11-01):
-## over a see-through blue, a swipe carousel of the games (each with its picture from the Games page and its name in yellow), the
+## over the dark backdrop, a swipe carousel of the games (each card a see-through blue with its picture from the Games page and its name
+## in yellow), the
 ## room's current game tagged "Playing now"; under it one line on how the game plays, a dot for each game and a big Pick button; a red
 ## X at the top right. A swipe only looks; the Pick button or a tap on the middle card picks. A pick that would turn the room into six
 ## places (Tumbang Preso from a smaller room) asks first.
 
-## The see-through blue the games float on (owner: "transparent blue").
-const TINT: Color = Color(0.09, 0.3, 0.72, 0.88)
+## The dark backdrop the cards float on (as every modal's).
+const TINT: Color = Color(0.01, 0.025, 0.06, 0.82)
+## Every card's face: the see-through blue (owner: "the background of the actual picker cards") as it shows over the dark backdrop, with
+## a lighter blue rim. It is drawn solid: really see-through, the cards stacked behind the middle one showed through it (their pictures
+## and names over its own).
+const CARD_GLASS: Color = Color(0.16, 0.45, 0.95, 0.42)
+const CARD_FILL: Color = Color(
+	CARD_GLASS.r * CARD_GLASS.a + TINT.r * TINT.a * (1.0 - CARD_GLASS.a),
+	CARD_GLASS.g * CARD_GLASS.a + TINT.g * TINT.a * (1.0 - CARD_GLASS.a),
+	CARD_GLASS.b * CARD_GLASS.a + TINT.b * TINT.a * (1.0 - CARD_GLASS.a))
+const CARD_RIM: Color = Color(0.55, 0.78, 1.0, 0.9)
+const CARD_RIM_WIDTH: int = 3
 ## The game's name on its card (owner: yellow), with a dark outline so it reads on every card colour.
 const NAME_COLOR: Color = Color(1.0, 0.85, 0.2)
 const NAME_OUTLINE: int = 8
@@ -154,6 +165,7 @@ func _card(id: StringName) -> Button:
 	var card: Button = ChoiceCard.make_picture_card(title, view.MAP_COLORS.get(id, "blue") as String, view.MAP_PICK_CARD, StreetPage.picture_for(id))
 	card.name = "Map_%s" % id
 	card.accessibility_name = title
+	_glass(card)
 	var name_label: Label = card.get_node("Choice") as Label
 	name_label.add_theme_color_override("font_color", NAME_COLOR)
 	name_label.add_theme_color_override("font_outline_color", RoyaleStyle.NAVY)
@@ -166,6 +178,18 @@ func _card(id: StringName) -> Button:
 	heading.add_theme_color_override("font_outline_color", RoyaleStyle.NAVY)
 	heading.add_theme_constant_override("outline_size", 6)
 	return card
+
+
+## A card's face made a see-through blue for every state (it replaces the painted blue, orange or green button face).
+static func _glass(card: Button) -> void:
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = CARD_FILL
+	box.border_color = CARD_RIM
+	box.set_border_width_all(CARD_RIM_WIDTH)
+	box.set_corner_radius_all(UiSkin.RADIUS_M)
+	box.anti_aliasing = true
+	for state: String in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+		card.add_theme_stylebox_override(state, box)
 
 
 ## Under the cards: the line on how the game plays, the dots, and the Pick button.

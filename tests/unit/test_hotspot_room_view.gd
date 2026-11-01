@@ -276,9 +276,10 @@ func test_the_picker_says_how_each_game_plays_and_picks_with_its_button() -> voi
 	view.map_chosen.connect(func(id: StringName) -> void: picked.append(id))
 	view.open_map_carousel()
 	var picker: RoomMapPicker = view.map_picker()
-	assert_eq((view.find_child("Tint", true, false) as ColorRect).color, RoomMapPicker.TINT, "a see-through blue (owner)")
-	assert_gt(RoomMapPicker.TINT.b, RoomMapPicker.TINT.r, "blue")
-	assert_lt(RoomMapPicker.TINT.a, 1.0, "see-through")
+	var face: StyleBoxFlat = view.map_carousel.cards[1].get_theme_stylebox("normal") as StyleBoxFlat
+	assert_eq(face.bg_color, RoomMapPicker.CARD_FILL, "every card wears the see-through blue (owner), the Tumbang Preso card too")
+	assert_gt(face.bg_color.b, face.bg_color.r, "blue")
+	assert_eq(face.bg_color.a, 1.0, "drawn solid, so the cards behind the middle one do not show through it")
 	var name_label: Label = view.map_carousel.cards[0].get_node("Choice") as Label
 	assert_eq(name_label.get_theme_color("font_color"), RoomMapPicker.NAME_COLOR, "the name in yellow (owner)")
 	# 3. the room's game is tagged; 2. the line says how it plays; 4. a dot for each game; 1. the button
