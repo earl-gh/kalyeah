@@ -187,7 +187,9 @@ func _create(projectile: WeaponSystem.Projectile) -> Rec:
 	var model: Node3D
 	if WeaponModel.has_model(projectile.def.id):
 		# a top stands on its tip; everything else flies centred on its height
-		model = WeaponModel.make(projectile.def.id, rec.kind != &"top")
+		# a Tumbang Preso slipper in the air keeps its kid's colour (StreetModeView.slipper_colour); every other weapon looks as it is
+		var thrower: int = StreetModeView.slipper_owner(_ctx.sim, projectile)
+		model = WeaponModel.make(projectile.def.id, rec.kind != &"top", StreetModeView.slipper_colour(_ctx.sim, thrower) if thrower >= 0 else null)
 	else:
 		var mesh: MeshInstance3D = MeshInstance3D.new()
 		var size: float = projectile.def.radius if projectile.def.shape in [WeaponDef.Shape.SPINNER, WeaponDef.Shape.BOUNCER] else projectile.def.projectile_radius
