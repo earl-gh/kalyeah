@@ -77,7 +77,8 @@ func open_map_carousel() -> void:
 		(card.get_node("Heading") as Label).visible = not (option["heading"] as String).is_empty()
 		made.append(card)
 	view.map_carousel.setup_cards(made, current)
-	view.map_carousel.selected.connect(_on_map_carousel_selected)
+	# owner: a swipe only looks through the games; a tap on the middle card picks it (a swipe used to pick and close the picker)
+	view.map_carousel.tapped.connect(_on_map_carousel_selected)
 
 
 func close_map_carousel() -> void:

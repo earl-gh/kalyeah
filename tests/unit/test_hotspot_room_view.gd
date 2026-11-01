@@ -251,8 +251,18 @@ func test_the_map_carousel_lists_all_three_street_games_ready_to_pick() -> void:
 	for i: int in RoomService.MAP_IDS.size():
 		var picture: TextureRect = view.map_carousel.cards[i].get_node("Picture") as TextureRect
 		assert_eq(picture.texture, StreetPage.picture_for(RoomService.MAP_IDS[i]), "the Games page's picture on each card (owner, 2026-11-01)")
-	view.map_carousel.select(1, false)
-	assert_eq(picked, [&"tumbang_preso"] as Array[StringName], "Tumbang Preso is picked")
+	view.map_carousel.select(1, false)  # what a swipe does: the next card comes to the middle
+	assert_true(picked.is_empty(), "a swipe only looks: nothing is picked (owner: swiping closed the picker)")
+	assert_not_null(view.map_carousel, "and the picker stays open")
+	var middle: Button = view.map_carousel.cards[1]
+	var at: Vector2 = middle.position + view.map_carousel.card_size / 2.0
+	for pressed: bool in [true, false]:
+		var click: InputEventMouseButton = InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = pressed
+		click.position = at
+		view.map_carousel._gui_input(click)
+	assert_eq(picked, [&"tumbang_preso"] as Array[StringName], "a tap on the middle card picks Tumbang Preso")
 	view.close_map_carousel()
 
 

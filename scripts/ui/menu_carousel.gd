@@ -5,6 +5,8 @@ extends Control
 ## always visible. Drag or swipe sideways to scroll, tap a card to bring it to the middle.
 
 signal selected(index: int)
+## The card already in the middle was tapped (no drag): a picker takes this as the choice, while a swipe only browses (`selected`).
+signal tapped(index: int)
 ## Emitted after every layout (the cards moved a little, or a lot when scrolling): whatever follows the cards can follow now.
 signal laid_out
 ## The cards started moving (a finger dragging them, or sliding to a card) or settled: whatever follows the cards can rest while they move.
@@ -314,7 +316,10 @@ func _pointer(event: InputEvent, taps: bool) -> void:
 				elif _dragging:
 					select(roundi(_position))
 				else:
-					select(_card_at(button.position) if taps else index)
+					var at: int = _card_at(button.position) if taps else index
+					if taps and at == index:
+						tapped.emit(index)
+					select(at)
 	elif event is InputEventMouseMotion and _pressed:
 		var motion: InputEventMouseMotion = event as InputEventMouseMotion
 		var travelled: float = motion.position.x - _press_x
