@@ -67,13 +67,14 @@ static func has_scissors(weapon_id: StringName) -> bool:
 
 ## The thrown / placed object of `weapon_id`, its middle on the origin when `centered` (a
 ## projectile in flight) or standing on the ground (a placed trap).
-static func make(weapon_id: StringName, centered: bool) -> Node3D:
+## `colour`: painted over the model's picture (a Tumbang Preso kid's own slipper colour, as the jacks' spikes are painted); null keeps it.
+static func make(weapon_id: StringName, centered: bool, colour: Variant = null) -> Node3D:
 	var spec: Array = OBJECTS[weapon_id]
 	var id: String = spec[0] as String
 	var natural: Vector3 = size_of(id)
 	var scale: float = (spec[1] as float) / maxf(natural.x, maxf(natural.y, natural.z))
 	var holder: Node3D = Node3D.new()
-	var model: Node3D = _instance(id)
+	var model: Node3D = _instance(id, colour)
 	model.scale = Vector3.ONE * scale
 	if centered:
 		model.position.y = -natural.y * scale / 2.0

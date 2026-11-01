@@ -149,6 +149,31 @@ func can_node() -> Node3D:
 	return _can
 
 
+## Tumbang Preso: every kid's slipper has its own colour (owner, 2026-11-01), so a kid tells its slipper from the others' at a glance. Six
+## kids, six colours, given by the kid's place among the players (the same order on every phone).
+const SLIPPER_COLOURS: Array[Color] = [
+	Color("e53935"), Color("1e88e5"), Color("fdd835"), Color("43a047"), Color("fb8c00"), Color("8e24aa"),
+]
+
+
+## The colour of `id`'s slipper in `sim` (white for someone who is not a player).
+static func slipper_colour(sim: MatchSim, id: int) -> Color:
+	var order: int = sim.players.keys().find(id)
+	return SLIPPER_COLOURS[order % SLIPPER_COLOURS.size()] if order >= 0 else Color.WHITE
+
+
+## The kid whose slipper `projectile` is (Tumbang Preso), or -1. Online the projectile does not say who threw it, but the game's own
+## list of slippers in the air does (relinked on every phone).
+static func slipper_owner(sim: MatchSim, projectile: WeaponSystem.Projectile) -> int:
+	var game: TumbangPreso = sim.mode as TumbangPreso if sim != null else null
+	if game == null:
+		return -1
+	for id: int in game.flights:
+		if game.flights[id] == projectile or game.flights[id].id == projectile.id:
+			return id
+	return -1
+
+
 func slipper_node(id: int) -> Node3D:
 	return _slippers.get(id) as Node3D
 
@@ -238,7 +263,7 @@ func _on_slipper_landed(id: int, at: Vector2, _hit: bool) -> void:
 func _slipper_node_for(id: int) -> Node3D:
 	var node: Node3D = _slippers.get(id) as Node3D
 	if node == null:
-		node = WeaponModel.make(&"tsinelas_light", false)
+		node = WeaponModel.make(&"tsinelas_light", false, slipper_colour(_sim, id))
 		node.name = "Slipper%d" % id
 		add_child(node)
 		_slippers[id] = node
@@ -328,6 +353,9 @@ func _dust(at: Vector2) -> void:
 
 func _sync_slippers(delta: float) -> void:
 	var game: TumbangPreso = _mode as TumbangPreso
+	# every slipper the game says is lying gets drawn, even one that landed before this view saw it land (a phone that rejoins mid-match)
+	for id: int in game.slippers:
+		_slipper_node_for(id)
 	for id: int in _slippers:
 		var node: Node3D = _slippers[id]
 		node.scale = Vector3.ONE * _scale()
