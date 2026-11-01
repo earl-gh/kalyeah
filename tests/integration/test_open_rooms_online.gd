@@ -175,3 +175,37 @@ func test_the_server_answers_one_phone_at_most_once_a_gap() -> void:
 		OS.delay_usec(1000)
 	assert_eq(answers.size(), 1, "five asks in a burst, one answer")
 	client.close()
+
+
+func test_a_game_picked_in_the_picker_shows_on_the_room_screen() -> void:
+	# owner: "when i pick a game its not reflecting on the room screen" (that phone's server ran older code and refused it in silence)
+	var host: LobbyScreen = await _host("Ana")
+	var guest: LobbyScreen = _lobby(LobbyScreen.Intent.JOIN, "Ben")
+	await wait_process_frames(1)
+	assert_true(_until(func() -> bool: return guest.open_rooms.cards.size() == 1))
+	guest.open_rooms.cards[0].pressed.emit()
+	assert_true(_until(func() -> bool: return guest.in_room()))
+	host._room_view.open_map_carousel()
+	host._room_view.map_carousel.select(2, false)
+	host._room_view.map_picker().pick_button.pressed.emit()  # "Pick Patintero"
+	assert_true(_until(func() -> bool: return host.client.room.get("map", "") == "patintero"), "the server took it")
+	for lobby: LobbyScreen in [host, guest]:
+		assert_true(_until(func() -> bool: return ChoiceCard.choice_of(lobby._room_view.map_card) == "Patintero"), "%s's room screen says Patintero" % lobby.client.player_name)
+		assert_eq(lobby._room_view.map_picture.texture, StreetPage.picture_for(&"patintero"), "with its picture")
+
+
+func test_back_closes_the_picker_and_keeps_the_room() -> void:
+	var host: LobbyScreen = await _host("Ana")
+	host._room_view.open_map_carousel()
+	assert_true(host._room_view.map_open())
+	host._back_pressed()
+	assert_false(host._room_view.map_open(), "Back closed the picker")
+	assert_true(host.in_room(), "and the host is still in the room")
+
+
+func test_a_refused_game_change_says_so() -> void:
+	var host: LobbyScreen = await _host("Ana")
+	var room: RoomService.Room = server.rooms.rooms[host.client.room["code"] as String]
+	room.state = RoomService.State.LOADING  # the match is starting: the game can no longer change
+	host.client.set_map(&"patintero")
+	assert_true(_until(func() -> bool: return host.status_text().contains("Can't change the game")), "never a silent refusal")

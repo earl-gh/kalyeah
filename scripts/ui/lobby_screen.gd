@@ -53,6 +53,8 @@ var _room_view: HotspotRoomView
 var _announced_character: bool = false
 ## Who hosted the room at the last update (-1 before the first), to tell a player they became the host.
 var _last_host_id: int = -1
+## The game the room was on at the last update ("" before the first), to tell everyone when the host changes it.
+var _last_map: String = ""
 ## Online Join: the open rooms, the button that unfolds the code form, and that form (LobbyOnlineLayout).
 var open_rooms: OpenRoomsList
 var code_toggle: Button
@@ -356,6 +358,16 @@ func _on_room_changed(room: Dictionary) -> void:
 	if _last_host_id >= 0 and host_id == client.player_id and _last_host_id != client.player_id:
 		UiToast.say(self, "The host left. You're the host now!", "info")
 	_last_host_id = host_id
+	# everyone hears when the host changes the game (the room may become six places with no teams)
+	var map_id: String = String(room.get("map", "street"))
+	if not _last_map.is_empty() and map_id != _last_map:
+		var host_name: String = ""
+		for member: Dictionary in room.get("members", []) as Array:
+			if member.get("player_id", -1) == host_id:
+				host_name = String(member.get("name", ""))
+		var game: String = HotspotRoomView.MAP_NAMES.get(StringName(map_id), map_id) as String
+		UiToast.say(self, UiText.f("You picked %s!", [game]) if host_id == client.player_id else UiText.f("%s picked %s!", [host_name, game]), "info")
+	_last_map = map_id
 	_room_view.show_room(room, client.player_id)
 	if not _announced_character:
 		_announced_character = true
@@ -377,6 +389,7 @@ func _on_match_loading(_info: Dictionary) -> void:
 
 func _on_leave() -> void:
 	_last_host_id = -1
+	_last_map = ""
 	_announced_character = false
 	client.leave_room()
 	if _rejoin_button != null:
@@ -397,6 +410,9 @@ func _back_pressed() -> void:
 	if loading_screen != null:
 		return
 	if find_children("*", "MenuDialog", true, false).any(func(node: Node) -> bool: return (node as MenuDialog).is_open):
+		return
+	if _room_view != null and _room_view.map_open():
+		_room_view.close_map_carousel()  # Back closes the game picker first, never the room behind it
 		return
 	_on_back()
 

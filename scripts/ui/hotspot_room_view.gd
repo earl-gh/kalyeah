@@ -48,6 +48,8 @@ var _copy_timer: Timer
 var back_button: Button
 var settings_button: Button
 var map_card: Button
+## The chosen game's picture at the right end of the map card (the Games page's picture).
+var map_picture: TextureRect
 var map_carousel: MenuCarousel
 var _map_overlay: Control
 var _map_hint: Label
@@ -167,6 +169,21 @@ func _build_map_section() -> Control:
 	map_card.pressed.connect(open_map_carousel)
 	(map_card.get_node("Choice") as Label).vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	(map_card.get_node("Choice") as Label).offset_top = 12.0
+	map_picture = TextureRect.new()
+	map_picture.name = "MapPicture"
+	map_picture.texture = StreetPage.picture_for(&"street")
+	map_picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	map_picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	map_picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	map_picture.anchor_left = 1.0
+	map_picture.anchor_right = 1.0
+	map_picture.anchor_top = 0.0
+	map_picture.anchor_bottom = 1.0
+	map_picture.offset_left = -(MAP_CARD.y - 16.0) - 12.0
+	map_picture.offset_right = -12.0
+	map_picture.offset_top = 8.0
+	map_picture.offset_bottom = -8.0
+	map_card.add_child(map_picture)
 	column.add_child(map_card)
 	var sizes: HBoxContainer = HBoxContainer.new()
 	sizes.name = "Sizes"
@@ -218,8 +235,8 @@ func _build_map_section() -> Control:
 	return column
 
 
-## The host's map carousel: the same horizontal carousel as the main screen, over a tinted
-## background. Tap a map to pick it; tap the tint to close.
+## The host's game picker (`RoomMapPicker`): the games' cards over a see-through blue; swipe to look, Pick (or tap the middle card) to
+## choose; the X, a tap on the blue or Android Back closes it.
 func open_map_carousel() -> void:
 	if _map_picker == null:
 		_map_picker = RoomMapPicker.new(self)
@@ -229,6 +246,20 @@ func open_map_carousel() -> void:
 func close_map_carousel() -> void:
 	if _map_picker != null:
 		_map_picker.close_map_carousel()
+
+
+## True while the game picker is open (Android Back closes it before it leaves the room).
+func map_open() -> bool:
+	return _map_picker != null and _map_picker.is_open()
+
+
+func map_picker() -> RoomMapPicker:
+	return _map_picker
+
+
+## The top of the room's content under the notch (the safe area's top margin).
+func safe_top() -> float:
+	return float(_safe_margin.get_theme_constant("margin_top")) if _safe_margin != null else MARGIN
 
 
 func _is_host() -> bool:
@@ -306,6 +337,7 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	# section 1: the map and the team size (the host changes them, everyone sees them)
 	var map_id: StringName = StringName(room.get("map", "street") as String)
 	ChoiceCard.set_card(map_card, "", MAP_NAMES.get(map_id, String(map_id).to_upper()) as String, "blue")
+	map_picture.texture = StreetPage.picture_for(map_id)
 	# only the host opens the map carousel
 	map_card.disabled = not host
 	var size: int = room.get("team_size", 1) as int
