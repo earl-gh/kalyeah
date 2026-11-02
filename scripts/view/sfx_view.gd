@@ -79,6 +79,7 @@ func _ready() -> void:
 	_random.randomize()
 	for i: int in VOICES:
 		var player: AudioStreamPlayer = AudioStreamPlayer.new()
+		player.bus = Settings.SFX_BUS  # the Sounds switch mutes this bus
 		add_child(player)
 		_players.append(player)
 

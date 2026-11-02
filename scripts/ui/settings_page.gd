@@ -1,6 +1,6 @@
 class_name SettingsPage
 extends VBoxContainer
-## The Settings page: Accessibility, Controls, Language (when there is a second one) and Graphics, then quitting. Your name and ID photo are changed on the name tag
+## The Settings page: Accessibility, Controls, Audio, Language (when there is a second one) and Graphics, then quitting. Your name and ID photo are changed on the name tag
 ## on Home (owner: no profile card here), and there is no How to play page (the walkthrough opens the first Practice by
 ## itself). There is no server address here: the online server is built into the game (the player only needs a room code).
 
@@ -28,6 +28,7 @@ func _ready() -> void:
 	layout.part = ControlOptions.Part.LAYOUT
 	controls.add_child(layout)
 	_content.add_child(_group("Controls", controls))
+	_content.add_child(_group("Audio", AudioOptions.new()))
 	var languages: Array[String] = Settings.available_languages()
 	if languages.size() > 1:
 		_content.add_child(_group("Language", _language_row(languages)))
@@ -85,6 +86,8 @@ static func fill(parent: Control, in_match: bool = false) -> void:
 		toggle.pressed.connect(func() -> void: Settings.set_vibration(toggle.button_pressed))
 		parent.add_child(UiKit.setting_row("Vibration", "Buzz on buttons and when you are hit", toggle))
 		parent.add_child(UiKit.divider())
+	parent.add_child(AudioOptions.new())
+	parent.add_child(UiKit.divider())
 	parent.add_child(AccessibilityOptions.new())
 	parent.add_child(UiKit.divider())
 	var controls: ControlOptions = ControlOptions.new()
