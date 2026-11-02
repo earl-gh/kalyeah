@@ -35,12 +35,19 @@ const HIT: Dictionary[StringName, String] = {
 	&"tsinelas_heavy": "tsinelas_hit_heavy",
 }
 
-## StatusEffects.Type -> sounds played when it lands.
+## StatusEffects.Type -> sounds played when it lands. The laugh is only for a kid that tripped while running (TRIPPED, drawn at random by the
+## sim): nothing else plays it (a test holds that).
 const EFFECT: Dictionary[int, Array] = {
 	StatusEffects.Type.STUN: ["stunned"],
 	StatusEffects.Type.SLOW: ["slowed_sting"],
 	StatusEffects.Type.TRIPPED: ["fall_thud", "laugh_at_fall_thud"],
+	StatusEffects.Type.POLYMORPH: ["lata_hit"],  # the kid turns into a can: the can's tink (the pitched one below)
 }
+
+## How fast a sound plays (1 = as recorded; faster is higher and shorter). The can's hit is played higher so it reads as a small empty can,
+## both when the slipper or foot meets it in Tumbang Preso and when a kid is turned into one in Agawan Base.
+const EMPTY_CAN_PITCH: float = 1.5
+const PITCH: Dictionary[String, float] = {"lata_hit": EMPTY_CAN_PITCH}
 
 var _sim: MatchSim
 var _local_id: int = -1
@@ -78,6 +85,7 @@ func play(sound: String) -> void:
 	var player: AudioStreamPlayer = _players[_next]
 	_next = (_next + 1) % _players.size()
 	player.stream = stream
+	player.pitch_scale = PITCH.get(sound, 1.0) as float
 	player.play()
 
 
