@@ -552,6 +552,7 @@ func _any_enemy_within(sim: MatchSim, team: int, center: Vector2, radius: float)
 
 
 func _hit(sim: MatchSim, target: PlayerState, def: WeaponDef) -> void:
+	sim.weapon_hit.emit(target.id, def.id)
 	if def.effect != StatusEffects.Type.NONE:
 		sim.apply_effect(target.id, def.effect, def.effect_duration, def.effect_magnitude)
 	if def.damage > 0:

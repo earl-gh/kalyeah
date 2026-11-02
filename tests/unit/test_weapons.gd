@@ -205,6 +205,20 @@ func test_tagged_players_are_not_hit() -> void:
 	assert_signal_not_emitted(sim, "player_damaged")
 
 
+func test_a_hit_tells_which_weapon_landed() -> void:
+	var sim: MatchSim = _sim()
+	_caster(sim, &"bato_light")
+	_target(sim, 2, Vector2(0.0, -4.0))
+	watch_signals(sim)
+	_cast(sim, 0)
+	_wait(sim, 2.0)
+	assert_signal_emitted_with_parameters(sim, "weapon_hit", [2, &"bato_light"])
+
+
+func test_weapon_hits_are_relayed_to_online_clients() -> void:
+	assert_true((ServerMatch.RELAYED["sim"] as Array).has("weapon_hit"))
+
+
 # ---- shapes --------------------------------------------------------------------
 
 func test_targeted_bato_hits_the_nearest_enemy_only_in_range() -> void:

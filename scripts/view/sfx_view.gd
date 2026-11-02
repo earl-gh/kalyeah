@@ -8,8 +8,6 @@ extends Node
 const DIR: String = "res://assets/audio/sfx/"
 ## Simultaneous sounds; the oldest voice is reused when all are busy.
 const VOICES: int = 12
-## A hit of this much damage or more plays the heavy hit.
-const HEAVY_HIT: int = 20
 
 ## Weapon id -> sound played when it is cast ("" = silent here; its sound plays elsewhere).
 const CAST: Dictionary[StringName, String] = {
@@ -29,11 +27,18 @@ const CAST: Dictionary[StringName, String] = {
 	&"tsinelas_heavy": "tsinelas_throw_heavy",
 }
 
+## Weapon id -> sound of its hit landing on a kid. The others play their own sound where the picture shows the impact
+## (a landing, a snip, a bounce, a wall) or on the cast.
+const HIT: Dictionary[StringName, String] = {
+	&"bato_light": "tsinelas_hit",  # no sound of its own in the folder
+	&"tsinelas_light": "tsinelas_hit",
+	&"tsinelas_heavy": "tsinelas_hit_heavy",
+}
+
 ## StatusEffects.Type -> sounds played when it lands.
 const EFFECT: Dictionary[int, Array] = {
 	StatusEffects.Type.STUN: ["stunned"],
 	StatusEffects.Type.SLOW: ["slowed_sting"],
-	StatusEffects.Type.BOUNCE: ["bola_bounce"],
 	StatusEffects.Type.TRIPPED: ["fall_thud", "laugh_at_fall_thud"],
 }
 
@@ -56,7 +61,7 @@ func watch(sim: MatchSim, local_id: int) -> void:
 	_sim = sim
 	_local_id = local_id
 	sim.weapon_cast.connect(_on_cast)
-	sim.player_damaged.connect(_on_damaged)
+	sim.weapon_hit.connect(_on_hit)
 	sim.player_healed.connect(func(_id: int, _amount: int) -> void: play("heal"))
 	sim.effect_applied.connect(_on_effect)
 	sim.card_drawn.connect(_on_card_drawn)
@@ -87,8 +92,8 @@ func _on_cast(_id: int, weapon_id: StringName) -> void:
 	play(CAST.get(weapon_id, ""))
 
 
-func _on_damaged(_id: int, amount: int) -> void:
-	play("tsinelas_hit_heavy" if amount >= HEAVY_HIT else "tsinelas_hit")
+func _on_hit(_id: int, weapon_id: StringName) -> void:
+	play(HIT.get(weapon_id, ""))
 
 
 func _on_effect(_id: int, type: int) -> void:
