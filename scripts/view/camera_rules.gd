@@ -32,10 +32,6 @@ const STANDOFF: float = 150.0
 @export var frame_top: float = 0.0
 @export var frame_bottom: float = 0.0
 @export var frame_side: float = 0.0
-## How many metres past each side of the street are always in view (owner: the sidewalks and the house and shop fronts
-## show on every phone, not only on wide screens). On a tall phone this, not the street's length, sets the size of the
-## view: the street is drawn a little smaller and more of the ends shows. 0 = the street fills the width.
-@export var side_scenery: float = 0.0
 ## How much bigger than real the kids (and what they throw) are drawn, so they stay readable while the whole
 ## street is on screen. The hit area (the ring under a kid, the weapon shapes) is the real size and the same for every kid.
 @export var kid_view_scale: float = 1.0
@@ -109,20 +105,8 @@ func fits(distance: float, aspect: float, arena: Vector2, bottom: float = -1.0, 
 
 
 ## The camera's distance from the aim point (x) and the aim point's shift along the street (y) that put the whole
-## `arena` on a screen of `aspect`: the nearest the camera can be and still fit, and never so near that less than
-## `side_scenery` metres past each side of the street shows (the view is `distance * aspect` metres across) in the part of
-## the screen a side panel (a margin wider than `frame_side`) leaves free.
+## `arena` on a screen of `aspect`: the nearest the camera can be and still fit.
 func frame(aspect: float, arena: Vector2, bottom: float = -1.0, top_margin: float = -1.0, left: float = -1.0, right: float = -1.0) -> Vector2:
-	var distance: float = _nearest_fit(aspect, arena, bottom, top_margin, left, right)
-	var panels: float = maxf(0.0, (frame_side if left < 0.0 else left) - frame_side) + maxf(0.0, (frame_side if right < 0.0 else right) - frame_side)
-	var free: float = aspect * (1.0 - panels)
-	if free > 0.0:
-		distance = maxf(distance, (arena.x + 2.0 * side_scenery) / free)
-	return Vector2(distance, centring_shift(distance, aspect, arena, bottom, top_margin))
-
-
-## The nearest the camera can be with the whole `arena` inside the margins on a screen of `aspect`.
-func _nearest_fit(aspect: float, arena: Vector2, bottom: float, top_margin: float, left: float, right: float) -> float:
 	var near: float = MIN_DISTANCE
 	var far: float = MAX_DISTANCE
 	for i: int in 50:
@@ -131,7 +115,7 @@ func _nearest_fit(aspect: float, arena: Vector2, bottom: float, top_margin: floa
 			far = middle
 		else:
 			near = middle
-	return far
+	return Vector2(far, centring_shift(far, aspect, arena, bottom, top_margin))
 
 
 ## Camera position relative to the aim point. Own side (+Z, no flip) looks toward -Z, so the camera sits on the

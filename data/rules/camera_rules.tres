@@ -10,7 +10,6 @@ lens_curve = 0.0
 frame_top = 0.12
 frame_bottom = 0.04
 frame_side = 0.04
-side_scenery = 7.0
 kid_view_scale = 2.0
 bar_scale = 0.75
 turn_seconds = 0.8
