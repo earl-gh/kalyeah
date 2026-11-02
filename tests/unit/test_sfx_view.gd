@@ -82,3 +82,45 @@ func test_unknown_sound_is_silent() -> void:
 	sfx.play("nope")
 	sfx.play("")
 	pass_test("no crash")
+
+
+func _voice_used(sfx: SfxView) -> AudioStreamPlayer:
+	return sfx._players[(sfx._next - 1 + sfx._players.size()) % sfx._players.size()]
+
+
+func test_the_can_is_played_higher_like_a_small_empty_can_and_everything_else_as_recorded() -> void:
+	var sfx: SfxView = add_child_autofree(SfxView.new())
+	sfx.play("lata_hit")
+	assert_almost_eq(_voice_used(sfx).pitch_scale, SfxView.EMPTY_CAN_PITCH, 0.0001)
+	assert_gt(SfxView.EMPTY_CAN_PITCH, 1.0, "higher")
+	for sound: String in ["heal", "tsinelas_hit", "lata_poof"]:
+		sfx.play(sound)
+		assert_eq(_voice_used(sfx).pitch_scale, 1.0, "%s as recorded" % sound)
+	for i: int in SfxView.VOICES:
+		sfx.play("card_pick")
+	sfx.play("lata_hit")
+	assert_almost_eq(_voice_used(sfx).pitch_scale, SfxView.EMPTY_CAN_PITCH, 0.0001, "and a voice that was reused takes the new pitch")
+
+
+func test_a_kid_turned_into_a_can_makes_the_cans_sound() -> void:
+	assert_eq(SfxView.EFFECT[StatusEffects.Type.POLYMORPH], ["lata_hit"] as Array)
+	var sim: MatchSim = MatchSim.new(load("res://data/rules/game_rules.tres") as GameRules, load("res://data/rules/map_layout.tres") as MapLayout, 3)
+	sim.add_player(1, 0)
+	sim.add_player(2, 1)
+	var sfx: SfxView = add_child_autofree(SfxView.new())
+	sfx.watch(sim, 1)
+	sim.apply_effect(2, StatusEffects.Type.POLYMORPH, 2.0, 0.0)
+	var voice: AudioStreamPlayer = _voice_used(sfx)
+	assert_eq(voice.stream.resource_path, SfxView.DIR + "lata_hit.mp3")
+	assert_almost_eq(voice.pitch_scale, SfxView.EMPTY_CAN_PITCH, 0.0001, "the same pitched sound as Tumbang Preso's")
+
+
+func test_the_laugh_plays_only_for_a_kid_that_tripped() -> void:
+	var tables: Array[Dictionary] = [SfxView.CAST, SfxView.HIT]
+	for table: Dictionary in tables:
+		assert_false(table.values().has("laugh_at_fall_thud"), "no weapon plays the laugh")
+	for type: int in SfxView.EFFECT:
+		var plays: bool = (SfxView.EFFECT[type] as Array).has("laugh_at_fall_thud")
+		assert_eq(plays, type == StatusEffects.Type.TRIPPED, "only TRIPPED (the random fall while running) laughs")
+	for path: String in ["res://scripts/view/practice_match_presentation.gd", "res://scripts/view/street_mode_view.gd", "res://scripts/view/practice_match.gd"]:
+		assert_false(FileAccess.get_file_as_string(path).contains("laugh_at_fall_thud"), "%s never plays the laugh itself" % path)
