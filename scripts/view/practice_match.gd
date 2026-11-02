@@ -79,6 +79,7 @@ var _throw_angle: float = 0.0
 @onready var _camera: ArenaCamera = %ArenaCamera
 @onready var _actors: Node3D = %Actors
 @onready var _fx: WeaponFxView = %WeaponFx
+var _sfx: SfxView
 @onready var _aim_indicator: AimIndicator = %AimIndicator
 @onready var _pick_screen: WeaponPickScreen = %PickScreen
 @onready var _map: StreetMap = %Map
@@ -96,6 +97,11 @@ func _ready() -> void:
 	for id: int in sim.players:
 		_presentation.make_actor_view(sim.players[id])
 	_fx.watch(sim)
+	_sfx = SfxView.new()
+	_sfx.name = "Sfx"
+	add_child(_sfx)
+	_sfx.watch(sim, local_id)
+	_fx.context().sound = _sfx.play
 	mode_view = StreetModeView.new()
 	mode_view.name = "StreetModeView"
 	add_child(mode_view)
@@ -216,6 +222,7 @@ func move_released() -> void:
 ## A card in `slot` was picked up from the hand.
 func card_pressed(slot: int) -> void:
 	input.card_press(slot, Time.get_ticks_msec())
+	_sfx.play("card_pick")
 
 
 ## The held card's finger is at screen point `at` (on its own card, over the hand).
@@ -229,10 +236,13 @@ func card_released(slot: int, at: Vector2, on_card: bool, over_hand: bool) -> vo
 	card_moved(slot, at, on_card, over_hand)
 	var kind: MatchInput.Release = input.card_release(Time.get_ticks_msec())
 	hud.note_released(slot, kind == MatchInput.Release.CANCEL)
+	if kind == MatchInput.Release.CANCEL:
+		_sfx.play("card_cancel")  # dropped back on the hand
 
 
 func card_cancelled(_slot: int) -> void:
 	input.card_cancel()
+	_sfx.play("card_cancel")
 
 
 ## The base side the local team defends this set (+Z = own/bottom at the start).

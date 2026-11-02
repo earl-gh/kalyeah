@@ -19,9 +19,17 @@ var particles: FxParticles
 var ground: FxGround
 var shadows: FxShadows
 var bursts: FxBursts
+## Plays a sound by name (SfxView.play); effects call it on the very frame their picture shows the moment, so ear and eye agree.
+var sound: Callable = Callable()
 ## Where the screen draws flying things between two sim ticks (null: where the sim has them).
 var blend: TickBlend
 var _casts: Array[Dictionary] = []
+
+
+## Plays `sound_name` now (nothing while no SfxView listens).
+func play_sound(sound_name: String) -> void:
+	if sound.is_valid():
+		sound.call(sound_name)
 
 
 ## Where a flying thing is drawn this frame.

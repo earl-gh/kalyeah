@@ -140,6 +140,7 @@ func trap(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 func spring(rec: FxZones.Rec) -> void:
 	if rec.kind != WeaponSystem.ZoneKind.TRAP or rec.obj == null:
 		return
+	_ctx.play_sound("trap_spring")
 	var center: Vector3 = Vector3(rec.node.position.x, 0.0, rec.node.position.z)
 	_ctx.particles.puff(FxParticles.Preset.PAPER, center, PAPER_BURST)
 	_ctx.particles.puff(FxParticles.Preset.SCRAPS, center, SCRAPS)

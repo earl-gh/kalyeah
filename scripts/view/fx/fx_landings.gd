@@ -124,6 +124,8 @@ func meteor(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 
 ## A zone left the sim: a landing plays its impact (the meteor) or its touch-down (the can); the rest just go.
 func land(rec: FxZones.Rec) -> void:
+	if rec.def != null and rec.kind == WeaponSystem.ZoneKind.EXPLOSION:
+		_ctx.play_sound("bato_heavy_boom" if rec.def.id == &"bato_heavy" else "lata_poof" if rec.def.id == &"lata" else "")
 	if rec.def != null and rec.def.id == &"bato_heavy" and rec.kind == WeaponSystem.ZoneKind.EXPLOSION:
 		var center: Vector2 = Vector2(rec.node.position.x, rec.node.position.z)
 		_ctx.ground.crack(center, 0.0, &"spokes", Vector2.ONE * rec.def.radius * IMPACT_CRACK, CRACK_TIME)

@@ -107,6 +107,7 @@ func _bola_rings(rec: FxProjectiles.Rec, segment: float) -> void:
 func _bounce(rec: FxProjectiles.Rec, i: int, _segment: float) -> void:
 	if i >= rec.rings.size() or rec.rings[i] == null:
 		return
+	_ctx.play_sound("bola_bounce")  # once per bounce, on the touch-down the picture shows
 	var ring: MeshInstance3D = rec.rings[i]
 	var at: Vector2 = Vector2(ring.position.x, ring.position.z)
 	_ctx.ground.flash_disc(at, rec.def.radius, _ctx.area_color(rec.team), BOUNCE_FLASH_ALPHA, BOUNCE_FLASH_RISE * FxSquash.FRAME, BOUNCE_FLASH_FADE * FxSquash.FRAME)

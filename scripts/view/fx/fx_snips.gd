@@ -263,6 +263,9 @@ func _pose(snip: Snip) -> bool:
 		snip.struck = _ctx.time
 		if snip.heavy:
 			_smear(snip, snip.parts[0])
+			_ctx.play_sound("gunting_big_snip")
+		elif _ctx.reduced:
+			_ctx.play_sound("gunting_light")  # no flying scissors: one snip at the strike
 	var frame: int = int((_ctx.time - snip.born) / FxSquash.FRAME + 0.001)
 	if snip.heavy:
 		return _pose_heavy(snip, snip.parts[0], frame)
@@ -356,6 +359,7 @@ func _pose_heavy(snip: Snip, part: Part, frame: int) -> bool:
 
 ## A small scissors arrived shut: its smear across the wedge and, from the second snip on, stars on each kid it hit.
 func _on_close(snip: Snip, part: Part) -> void:
+	_ctx.play_sound("gunting_light")  # one snip per pair, as each closes
 	_smear(snip, part)
 	if snip.parts.find(part) < 1 or _ctx.sim == null:
 		return

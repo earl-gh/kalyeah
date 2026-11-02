@@ -22,6 +22,8 @@ signal effect_applied(id: int, type: int)
 signal player_healed(id: int, amount: int)
 ## A weapon was cast (for sounds and effects).
 signal weapon_cast(id: int, weapon_id: StringName)
+## A weapon's hit landed on a player (before its damage or effect): for sounds, the weapon is told apart here.
+signal weapon_hit(id: int, weapon_id: StringName)
 ## A new card took a slot of a hand (cards mode).
 signal card_drawn(id: int, slot: int)
 ## A player lost HP.

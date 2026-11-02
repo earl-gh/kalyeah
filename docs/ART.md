@@ -62,7 +62,7 @@ The current art is a first pass built **in code**: procedural meshes and vector 
 - Wall damage (`walls_view.gd`, `OverheadHud`): flash, wobble, flying cardboard chips, a damage number, a health bar over damaged columns, and rips / holes / tape (`assets/textures/cardboard_tears.png`) fading in as a column weakens.
 
 ## Audio
-The game has no sound (owner): no audio code, bus or file is shipped.
+The owner's sound effects are in `assets/audio/sfx/` (mp3, no music). `scripts/view/sfx_view.gd` (`SfxView`) plays them, view only (no rule changes). Sounds for what the sim does at once play from its signals (cast, hit, heal, status, card drawn, match won). Sounds for what the picture shows later or in steps play from the effect that draws it (`FxContext.play_sound`), on the same frame as the picture, so ear and eye agree and online plays the same: `bato_heavy_boom` (meteor lands), `lata_poof` (Agawan Base can lands), `lata_hit` (Tumbang Preso: the slipper or foot meets the can, the frame it starts to fly), `paper_block` / `soil_block` (a wall stops a shot), `soil_expand` (the earth wall widens), `trap_spring`, `gunting_light` (each snip as it closes) and `gunting_big_snip` (the big pair shuts), `card_pick` / `card_cancel` (the hand).
 
 ## Asset pipeline (planned, P4 onward)
 - Environment models (the kids are the owner's rigged models, see above) are authored with the Blender Python module (`bpy`, pip-installable in the cloud session) and exported as `.glb` into `assets/models/`. Generator scripts will live in `tools/blender/` so every asset can be regenerated.
