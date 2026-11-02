@@ -203,6 +203,8 @@ func select(at: int, animate: bool = true, way: int = 0) -> void:
 			_settle()
 		_set_swiping(false)
 	if changed:
+		if animate:
+			UiSound.play(&"swipe")  # (a choice put in place without the move, as the screen opens, is silent)
 		selected.emit(index)
 
 
