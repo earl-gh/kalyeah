@@ -3,6 +3,7 @@ extends GutTest
 
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
+const PRACTICE_TAYA: GDScript = preload("res://tests/fixtures/practice_taya.gd")
 const PRACTICE_MODE: int = 2
 const DT: float = 1.0 / 30.0
 const TUMBANG_HOME: float = 12.0
@@ -129,11 +130,7 @@ func _practice(game: StringName) -> PracticeMatch:
 	Session.practice_kind = &"match"
 	Session.practice_game = game
 	Session.coach_pending = false
-	var practice: PracticeMatch = autofree(PRACTICE_SCENE.instantiate()) as PracticeMatch
-	add_child(practice)
-	practice.set_process(false)
-	practice.finish_pick()
-	practice.skip_intro()
+	var practice: PracticeMatch = autofree(PRACTICE_TAYA.make(self, PRACTICE_SCENE)) as PracticeMatch
 	if practice.sim.mode is TumbangPreso:
 		# the match draws the first taya at random (tests/unit/test_tumbang_roll.gd); these tests want the last kid (a bot) to be it, as it was before the draw
 		(practice.sim.mode as TumbangPreso).taya_id = 6

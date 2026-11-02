@@ -3,6 +3,7 @@ extends GutTest
 ## (given by the kid's place among the players). Agawan Base's tsinelas skill keeps its own look.
 
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
+const PRACTICE_TAYA: GDScript = preload("res://tests/fixtures/practice_taya.gd")
 const DT: float = 1.0 / 30.0
 
 var _kind: StringName
@@ -22,12 +23,7 @@ func after_each() -> void:
 func _practice(game: StringName) -> PracticeMatch:
 	Session.practice_kind = &"match"
 	Session.practice_game = game
-	var practice: PracticeMatch = autofree(PRACTICE_SCENE.instantiate()) as PracticeMatch
-	add_child(practice)
-	practice.set_process(false)
-	practice.finish_pick()
-	practice.skip_intro()
-	return practice
+	return autofree(PRACTICE_TAYA.make(self, PRACTICE_SCENE)) as PracticeMatch
 
 
 ## The colour painted on `node`'s slipper mesh (its vertex colours), or null when it is not painted.
