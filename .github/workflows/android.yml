@@ -43,6 +43,17 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
             "platform-tools" "build-tools;${ANDROID_BUILD_TOOLS}" "platforms;${ANDROID_PLATFORM}"
+      # Kalyeah's Android plugin (android/kalyeah_local: Local play's game hotspot, joining it, NFC). Gradle as in Godot 4.6.2's
+      # build template; the AARs go where addons/kalyeah_local's export plugin hands them to the Gradle export.
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+      - name: Build the Local plugin (AAR)
+        run: |
+          gradle --no-daemon -p android/kalyeah_local assembleDebug assembleRelease
+          mkdir -p addons/kalyeah_local/bin
+          cp android/kalyeah_local/build/outputs/aar/kalyeah_local-debug.aar android/kalyeah_local/build/outputs/aar/kalyeah_local-release.aar addons/kalyeah_local/bin/
+          ls -l addons/kalyeah_local/bin
       - name: Debug keystore
         env:
           # Optional repository secret: a base64 debug keystore (alias androiddebugkey, password android) so every build is signed
@@ -93,7 +104,8 @@ jobs:
           GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p build/android
-          godot --headless --export-debug "Android" build/android/kalyeah-debug.apk
+          # a Gradle build (the Local plugin needs one): Godot's own Android project is installed into android/build first
+          godot --headless --install-android-build-template --export-debug "Android" build/android/kalyeah-debug.apk
           test -f build/android/kalyeah-debug.apk
       # Uploaded before the inspection: a failed check turns the build red but never hides an APK that can be installed.
       - uses: actions/upload-artifact@v4
@@ -110,7 +122,7 @@ jobs:
           GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           sed -i "s|^architectures/arm64-v8a=.*|architectures/arm64-v8a=false|; s|^architectures/x86_64=.*|architectures/x86_64=true|" export_presets.cfg
-          godot --headless --export-debug "Android" build/android/kalyeah-emulator.apk
+          godot --headless --install-android-build-template --export-debug "Android" build/android/kalyeah-emulator.apk
           test -f build/android/kalyeah-emulator.apk
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'workflow_dispatch'
@@ -124,7 +136,14 @@ jobs:
         run: echo "ready=true" >> "$GITHUB_OUTPUT"
       # Last, so that a failing check never stops the artifacts above or the smoke test from being produced.
       - name: Inspect the APK
-        run: bash .github/scripts/inspect-apk.sh build/android/kalyeah-debug.apk "${{ steps.gv.outputs.app }}"
+        run: bash .github/scripts/inspect-apk.sh build/android/kalyeah-debug.apk "${{ steps.gv.outputs.app }}" build/android/dumps
+      # What aapt2 really printed, to refresh tests/fixtures/android/ from (never write those by hand).
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kalyeah-apk-dumps
+          path: build/android/dumps
+          if-no-files-found: ignore
 
   # Manual runs only: a hosted emulator draws with software GL and can be slow, so this does not hold up main until it has proved
   # steady. It installs the build, starts it, lets it run 30 s, sends Back and Home, and fails on a dead process, a SCRIPT ERROR or a

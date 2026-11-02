@@ -1,0 +1,16 @@
+// Kalyeah's Android plugin (Local play: the game hotspot, joining it, and sharing it by NFC). Built by the Android APK workflow
+// into addons/kalyeah_local/bin/; versions match Godot 4.6.2's Android build template (platform/android/java/app/config.gradle).
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "kalyeah_local"
