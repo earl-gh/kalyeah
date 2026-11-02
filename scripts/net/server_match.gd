@@ -90,7 +90,7 @@ func info() -> Dictionary:
 			"id": m.player_id, "team": sim.players[m.player_id].team, "name": m.name,
 			"char": sim.players[m.player_id].character_id,
 		})
-	return {"t": NetProtocol.Msg.MATCH_LOADING, "seed": seed_value, "team_size": room.team_size, "players": players, "game": String(room.map_id),
+	return {"t": NetProtocol.Msg.MATCH_LOADING, "seed": seed_value, "team_size": RoomService.MAX_TEAM_SIZE, "players": players, "game": String(room.map_id),
 		"runs": sim.mode.attack_team if sim.mode != null else 0}
 
 

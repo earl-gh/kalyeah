@@ -135,8 +135,8 @@ func send(message: Dictionary) -> void:
 
 # ---- lobby -----------------------------------------------------------------------
 
-func create_room(team_size: int) -> void:
-	send({"t": NetProtocol.Msg.CREATE_ROOM, "size": team_size})
+func create_room() -> void:
+	send({"t": NetProtocol.Msg.CREATE_ROOM})
 
 
 func join_room(code: String) -> void:
@@ -160,11 +160,6 @@ func pick_team(team: int) -> void:
 ## Host only: the match is won by the first team to `count` points (3, 5 or 7).
 func set_first_to(count: int) -> void:
 	send({"t": NetProtocol.Msg.SET_FIRST_TO, "n": count})
-
-
-## Host only: 1v1, 2v2 or 3v3.
-func set_team_size(size: int) -> void:
-	send({"t": NetProtocol.Msg.SET_TEAM_SIZE, "n": size})
 
 
 ## Host only: the map to play on.

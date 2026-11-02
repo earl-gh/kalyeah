@@ -493,7 +493,7 @@ func test_hotspot_join_opens_the_lobby_with_the_room_the_dialog_found() -> void:
 	var server: GameServer = GameServer.new(RULES, LAYOUT, NET, 5)
 	server.auto_join = true
 	assert_eq(server.listen(18983), OK)
-	server.rooms.create_room(700, "Host", 1)
+	server.rooms.create_room(700, "Host")
 	var screen: TitleScreen = _screen()
 	var opened: Array = []
 	screen.open_lobby_action = func(intent: int) -> void: opened.append(intent)

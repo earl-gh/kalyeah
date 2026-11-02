@@ -79,8 +79,56 @@ func _two_lobbies_ready() -> Array[LobbyScreen]:
 	assert_true(_until(func() -> bool: return guest.in_room()), "guest joined")
 	host.press_ready()
 	guest.press_ready()
-	assert_true(_until(func() -> bool: return host.start_enabled()), "host can start")
+	assert_true(_until(func() -> bool: return host.client.room.get("can_start_host", false) as bool), "the room is ready to start")
 	return [host, guest]
+
+
+func _toast_text(node: Node) -> String:
+	var layer: Node = node.get_tree().root.get_node_or_null(UiToast.LAYER_NAME)
+	if layer == null:
+		return ""
+	for toast: Node in layer.get_children():
+		if toast is UiToast and not toast.is_queued_for_deletion():
+			return (toast as UiToast).text
+	return ""
+
+
+func test_a_host_who_cannot_start_yet_taps_start_and_is_told_why() -> void:
+	var host: LobbyScreen = _lobby(LobbyScreen.Intent.CREATE)
+	host.set_fields(URL, "Ana")
+	host.submit()
+	assert_true(_until(func() -> bool: return host.in_room()), "host is in a room")
+	assert_true(host.start_enabled(), "Start is always pressable for the host: pressing it says why not")
+	assert_false(host.client.room.get("can_start_host", true) as bool, "alone, Agawan Base has an empty team")
+	host.press_start()
+	await wait_process_frames(3)
+	assert_eq(_toast_text(host), "Agawan Base needs at least 1 player on each team.", "the host reads it in a toast")
+	assert_eq(server.rooms.rooms.values()[0].state, RoomService.State.LOBBY, "and nothing started")
+
+
+func test_the_server_says_why_a_start_is_refused() -> void:
+	var host: LobbyScreen = _lobby(LobbyScreen.Intent.CREATE)
+	host.set_fields(URL, "Ana")
+	host.submit()
+	assert_true(_until(func() -> bool: return host.in_room()))
+	var code: String = host.client.room["code"] as String
+	var guest: LobbyScreen = _lobby(LobbyScreen.Intent.JOIN)
+	guest.set_fields(URL, "Ben", code)
+	guest.submit()
+	assert_true(_until(func() -> bool: return guest.in_room()))
+	host.client.set_map(&"patintero")
+	assert_true(_until(func() -> bool: return host.client.room.get("map", "") == "patintero"))
+	var said: Array[String] = []
+	host.client.error_received.connect(func(text: String) -> void: said.append(text))
+	host.client.set_ready(true)
+	host.client.start_match()
+	assert_true(_until(func() -> bool: return not said.is_empty()))
+	assert_eq(said[0], "Patintero needs at least 2 players on each team.", "1 v 1 is not enough for Patintero")
+	var guest_said: Array[String] = []
+	guest.client.error_received.connect(func(text: String) -> void: guest_said.append(text))
+	guest.client.start_match()
+	assert_true(_until(func() -> bool: return not guest_said.is_empty()))
+	assert_eq(guest_said[0], "Only the host can start the game.")
 
 
 func test_lobby_create_join_ready_start() -> void:
@@ -274,9 +322,7 @@ func test_online_uses_shared_room_controls_and_server_confirmed_choices() -> voi
 	assert_eq(guest._room_view.action_button.text, "Cancel ready")
 	host._room_view.first_to_chosen.emit(5)
 	assert_true(_until(func() -> bool: return guest._room_view.format_summary.text.contains("First to 5")))
-	host._room_view.size_chosen.emit(2)
-	assert_true(_until(func() -> bool: return guest._room_view.format_summary.text.begins_with("2v2")))
-	assert_true(guest._room_view.size_buttons[3].disabled)
+	assert_true(guest._room_view.format_summary.text.begins_with("3v3"), "every room is 3v3: no size to pick")
 	guest._room_view.character_chosen.emit("toni")
 	assert_true(_until(func() -> bool: return (guest._room_view.kid_cards["toni"].get_node("Chosen") as Control).visible))
 	assert_eq(guest._room_view.action_button.text, "Ready", "changing a character requires confirmation again")

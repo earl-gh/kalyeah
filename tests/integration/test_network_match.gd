@@ -58,7 +58,7 @@ func _connect_both() -> void:
 ## Lobby -> loading -> pick -> play for a 1v1.
 func _start_1v1() -> void:
 	_connect_both()
-	a.create_room(1)
+	a.create_room()
 	assert_true(_until(func() -> bool: return not a.room.is_empty()), "room created")
 	b.join_room(a.room["code"] as String)
 	assert_true(_until(func() -> bool: return (b.room.get("members", []) as Array).size() == 2), "joined")

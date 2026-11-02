@@ -74,7 +74,7 @@ func _host(room: bool) -> void:
 	_beacon = HotspotBeacon.new()
 	assert_eq(_beacon.listen(UDP_PORT, NET.discovery_burst), OK)
 	if room:
-		_server.rooms.create_room(700, "Host", 1)
+		_server.rooms.create_room(700, "Host")
 
 
 ## Frames until `done` (the host is polled in between), at most `seconds`.
@@ -253,7 +253,7 @@ func test_join_says_when_there_is_no_room_and_try_again_finds_it_once_the_host_c
 	assert_true(await _until(func() -> bool: return _shown(card, "TryAgain")))
 	assert_eq(_text(card, "Message"), HotspotFinder.NO_ROOM)
 	assert_true(found.is_empty())
-	_server.rooms.create_room(700, "Host", 1)
+	_server.rooms.create_room(700, "Host")
 	(card.find_child("TryAgain", true, false) as Button).pressed.emit()
 	assert_true(await _until(func() -> bool: return not found.is_empty()))
 	assert_eq(found.size(), 1)
@@ -271,7 +271,8 @@ func test_join_with_no_host_at_all_ends_with_no_room_instead_of_hanging() -> voi
 func test_join_says_when_the_room_is_full_or_the_match_started() -> void:
 	_host(true)
 	var room: RoomService.Room = _server.rooms.rooms.values()[0] as RoomService.Room
-	_server.rooms.join(room.code, 701, "Friend")
+	for peer: int in range(701, 706):
+		_server.rooms.join(room.code, peer, "Friend")  # six places in all
 	var card: MenuDialog = _join([])
 	assert_true(await _until(func() -> bool: return _shown(card, "TryAgain")))
 	assert_eq(_text(card, "Message"), "That room is full!")

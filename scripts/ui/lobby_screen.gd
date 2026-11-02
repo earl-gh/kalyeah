@@ -42,10 +42,8 @@ var _code_error: Label
 var _name_edit: LineEdit
 var _code_edit: LineEdit
 var _code_boxes: UiCodeBoxes
-var _size_buttons: Array[Button] = []
 var _go_button: Button
 var _status: Label
-var _team_size: int = 1
 ## The address the lobby connected to (kept so a dropped player can rejoin).
 var _connected_url: String = ""
 ## One room presentation for both transports.
@@ -135,7 +133,7 @@ func press_start() -> void:
 
 
 func start_enabled() -> bool:
-	return client.is_host() and in_room() and not _room_view.action_button.disabled
+	return client.is_host() and in_room()
 
 
 func status_text() -> String:
@@ -160,7 +158,7 @@ func submit() -> void:
 		return
 	_connected_url = url
 	if intent == Intent.CREATE:
-		_pending = client.create_room.bind(_team_size)
+		_pending = client.create_room
 	else:
 		var code: String = _code_boxes.clean(_code_edit.text)
 		if code.length() != NET_RULES.passcode_length:
@@ -196,7 +194,7 @@ func _submit_hotspot() -> void:
 			_room_view.show_retry()
 			return
 		_connected_url = Net.host_url()
-		_pending = client.create_room.bind(_team_size)
+		_pending = client.create_room
 		_connect_or_send(_connected_url)
 		return
 	if Session.lobby_url.is_empty():
@@ -219,12 +217,6 @@ func rejoin() -> void:
 	_set_status("Rejoining…")
 	if client.connect_to(Session.reconnect_url, not Session.lobby_hotspot) != OK:
 		_set_status("Can't reach the server. Check your connection and try again.")
-
-
-func choose_size(size: int) -> void:
-	_team_size = size
-	for i: int in _size_buttons.size():
-		_size_buttons[i].button_pressed = i + 1 == size
 
 
 func _send_pending() -> void:
@@ -489,7 +481,6 @@ func _build_room_view() -> void:
 	_room_view.back_pressed.connect(_on_back)
 	_room_view.settings_pressed.connect(_open_settings)
 	_room_view.map_chosen.connect(_on_map_chosen)
-	_room_view.size_chosen.connect(_on_size_chosen)
 	_room_view.character_chosen.connect(_on_character_chosen)
 	_room_view.team_chosen.connect(_on_team_chosen)
 	_room_view.action_pressed.connect(_on_action)
@@ -523,10 +514,6 @@ func _on_map_chosen(map_id: StringName) -> void:
 	client.set_map(map_id)
 
 
-func _on_size_chosen(size: int) -> void:
-	client.set_team_size(size)
-
-
 func _on_character_chosen(id: String) -> void:
 	client.set_character(StringName(id))
 
@@ -538,6 +525,11 @@ func _on_team_chosen(team: int) -> void:
 ## The big button: the host starts, everyone else flips Ready.
 func _on_action() -> void:
 	if client.is_host():
+		var note: String = client.room.get("start_note", "") as String
+		if not note.is_empty():
+			# the game's minimum is not met yet (or someone is not ready): say why and wait, nothing is sent
+			UiToast.say(self, note, "warn")
+			return
 		client.set_ready(true)
 		client.start_match()
 		return

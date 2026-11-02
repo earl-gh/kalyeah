@@ -14,7 +14,7 @@ func _service() -> RoomService:
 
 ## A started room of `team_size` a side, with peers 1, 2, ... in it.
 func _running_room(service: RoomService, team_size: int) -> RoomService.Room:
-	var room: RoomService.Room = service.create_room(1, "P1", team_size)
+	var room: RoomService.Room = service.create_room(1, "P1")
 	for peer: int in range(2, team_size * 2 + 1):
 		service.join(room.code, peer, "P%d" % peer)
 	room.state = RoomService.State.PLAYING
