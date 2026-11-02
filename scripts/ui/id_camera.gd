@@ -16,6 +16,8 @@ const FIND_SECONDS: float = 3.0
 const MIN_SIDE: int = 480
 
 var feed: CameraFeed
+## The back camera when there is one, shown unmirrored: for reading a QR code (`QrScanSheet`), not a selfie.
+var prefer_back: bool = false
 var _material: ShaderMaterial
 var _tree: SceneTree
 
@@ -65,14 +67,16 @@ func find(tree: SceneTree) -> void:
 	tree.create_timer(FIND_SECONDS).timeout.connect(func() -> void: answer.call(CameraServer.get_feed_count() > 0))
 
 
-## Starts the front camera (else the first one) and draws it into `lens` (the `SHADER` on a rect). False when it would not start.
+## Starts the front camera (the back one when `prefer_back`; else the first one) and draws it into `lens` (the `SHADER` on a rect).
+## False when it would not start.
 func open(lens: CanvasItem) -> bool:
 	feed = null
+	var wanted: CameraFeed.FeedPosition = CameraFeed.FEED_BACK if prefer_back else CameraFeed.FEED_FRONT
 	for index: int in CameraServer.get_feed_count():
 		var candidate: CameraFeed = CameraServer.get_feed(index)
-		if feed == null or candidate.get_position() == CameraFeed.FEED_FRONT:
+		if feed == null or candidate.get_position() == wanted:
 			feed = candidate
-		if candidate.get_position() == CameraFeed.FEED_FRONT:
+		if candidate.get_position() == wanted:
 			break
 	if feed == null:
 		return false
@@ -86,7 +90,7 @@ func open(lens: CanvasItem) -> bool:
 		texture.camera_feed_id = feed.get_id()
 		texture.which_feed = which as CameraServer.FeedImage
 		_material.set_shader_parameter("luma" if which == 0 else "chroma", texture)
-	_material.set_shader_parameter("mirror", feed.get_position() == CameraFeed.FEED_FRONT)
+	_material.set_shader_parameter("mirror", feed.get_position() == CameraFeed.FEED_FRONT and not prefer_back)
 	lens.material = _material
 	if not feed.frame_changed.is_connected(_on_frame):
 		feed.frame_changed.connect(_on_frame)

@@ -10,6 +10,7 @@ const LOBBY: PackedScene = preload("res://scenes/ui/lobby.tscn")
 const ONLINE: PackedScene = preload("res://scenes/match/online.tscn")
 const PORT: int = 18932
 const URL: String = "ws://127.0.0.1:18932"
+const QR_PICTURE: GDScript = preload("res://tests/fixtures/qr_picture.gd")
 const FRAME: float = 1.0 / 60.0
 
 var server: GameServer
@@ -325,3 +326,47 @@ func test_backgrounding_stops_server_input_without_another_view_frame() -> void:
 	view.input.move_press(stopped + Vector2(2.0, 0.0))
 	_pump(0.3)
 	assert_ne(player.position, stopped, "fresh input works without rebuilding the connection")
+
+
+func test_a_friend_joins_by_scanning_the_host_room_qr() -> void:
+	var host: LobbyScreen = _lobby(LobbyScreen.Intent.CREATE)
+	host.set_fields(URL, "Ana")
+	host.submit()
+	assert_true(_until(func() -> bool: return host.in_room()))
+	var card: MenuDialog = host._room_view.show_qr()
+	var shown: QrCode = (card.body.get_node("QrView") as QrView).code
+	card.close(false)
+	var guest: LobbyScreen = _lobby(LobbyScreen.Intent.JOIN)
+	guest.set_fields(URL, "Ben")
+	var camera: QrCamera = QrCamera.new()
+	camera.picture = QR_PICTURE.draw(shown, QrScanSheet.LENS_SIDE, 0.6, -15.0, 0.05, 0.4)
+	guest.scan_camera = camera
+	var scanner: MenuDialog = guest.open_scanner()
+	assert_true((scanner.body.get_node("QrScan") as QrScanSheet).read_now(), "the host's QR is read")
+	assert_true(_until(func() -> bool: return guest.in_room()), "and the friend is in the room, no typing")
+	assert_eq(guest.client.room["code"], host.client.room["code"])
+
+
+## A camera that sees `picture`, always allowed.
+class QrCamera extends IdCamera:
+	var picture: Image
+	var on: bool = false
+
+	func has_permission() -> bool:
+		return true
+
+	func find(_tree: SceneTree) -> void:
+		feeds_found.emit(true)
+
+	func open(_lens: CanvasItem) -> bool:
+		on = true
+		return true
+
+	func has_picture() -> bool:
+		return on
+
+	func close() -> void:
+		on = false
+
+	func capture(_lens: SubViewport) -> Image:
+		return picture
