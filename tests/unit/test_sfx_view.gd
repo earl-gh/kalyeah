@@ -91,15 +91,16 @@ func _voice_used(sfx: SfxView) -> AudioStreamPlayer:
 func test_the_can_is_played_higher_like_a_small_empty_can_and_everything_else_as_recorded() -> void:
 	var sfx: SfxView = add_child_autofree(SfxView.new())
 	sfx.play("lata_hit")
-	assert_almost_eq(_voice_used(sfx).pitch_scale, SfxView.EMPTY_CAN_PITCH, 0.0001)
+	var vary: float = SfxView.VARIETY["lata_hit"]
+	assert_between(_voice_used(sfx).pitch_scale, SfxView.EMPTY_CAN_PITCH * (1.0 - vary), SfxView.EMPTY_CAN_PITCH * (1.0 + vary))
 	assert_gt(SfxView.EMPTY_CAN_PITCH, 1.0, "higher")
-	for sound: String in ["heal", "tsinelas_hit", "lata_poof"]:
+	for sound: String in ["heal", "tsinelas_hit_heavy", "lata_poof"]:
 		sfx.play(sound)
 		assert_eq(_voice_used(sfx).pitch_scale, 1.0, "%s as recorded" % sound)
 	for i: int in SfxView.VOICES:
-		sfx.play("card_pick")
+		sfx.play("card_cancel")
 	sfx.play("lata_hit")
-	assert_almost_eq(_voice_used(sfx).pitch_scale, SfxView.EMPTY_CAN_PITCH, 0.0001, "and a voice that was reused takes the new pitch")
+	assert_gt(_voice_used(sfx).pitch_scale, 1.3, "and a voice that was reused takes the new pitch")
 
 
 func test_a_kid_turned_into_a_can_makes_the_cans_sound() -> void:
@@ -112,7 +113,7 @@ func test_a_kid_turned_into_a_can_makes_the_cans_sound() -> void:
 	sim.apply_effect(2, StatusEffects.Type.POLYMORPH, 2.0, 0.0)
 	var voice: AudioStreamPlayer = _voice_used(sfx)
 	assert_eq(voice.stream.resource_path, SfxView.DIR + "lata_hit.mp3")
-	assert_almost_eq(voice.pitch_scale, SfxView.EMPTY_CAN_PITCH, 0.0001, "the same pitched sound as Tumbang Preso's")
+	assert_gt(voice.pitch_scale, 1.3, "the same pitched sound as Tumbang Preso's")
 
 
 func test_the_laugh_plays_only_for_a_kid_that_tripped() -> void:
@@ -124,3 +125,34 @@ func test_the_laugh_plays_only_for_a_kid_that_tripped() -> void:
 		assert_eq(plays, type == StatusEffects.Type.TRIPPED, "only TRIPPED (the random fall while running) laughs")
 	for path: String in ["res://scripts/view/practice_match_presentation.gd", "res://scripts/view/street_mode_view.gd", "res://scripts/view/practice_match.gd"]:
 		assert_false(FileAccess.get_file_as_string(path).contains("laugh_at_fall_thud"), "%s never plays the laugh itself" % path)
+
+
+func test_the_audit_pitches_are_slight_and_each_sound_has_its_reason() -> void:
+	for sound: String in SfxView.PITCH:
+		assert_between(SfxView.PITCH[sound], 0.7, 1.6, "%s: a slight change, not a different sound" % sound)
+		assert_true(ResourceLoader.exists(SfxView.DIR + sound + ".mp3"), sound)
+	for sound: String in SfxView.VARIETY:
+		assert_between(SfxView.VARIETY[sound], 0.0, 0.08, "%s: a little each time" % sound)
+		assert_true(ResourceLoader.exists(SfxView.DIR + sound + ".mp3"), sound)
+	assert_lt(SfxView.PITCH["gunting_big_snip"], 1.0, "the big pair is deeper")
+	assert_gt(SfxView.PITCH["gunting_light"], 1.0, "the small pair is higher")
+	assert_lt(SfxView.PITCH["gunting_big_snip"], SfxView.PITCH["gunting_light"])
+	for weapon: StringName in SfxView.CAST_SPEED:
+		assert_true(SfxView.CAST.has(weapon), String(weapon))
+	for weapon: StringName in SfxView.HIT_SPEED:
+		assert_true(SfxView.HIT.has(weapon), String(weapon))
+
+
+func test_the_small_rock_borrows_the_slippers_sounds_quicker_for_the_throw_and_deeper_for_the_hit() -> void:
+	assert_gt(SfxView.CAST_SPEED[&"bato_light"], 1.0, "a small hard rock cuts the air quicker than a slipper")
+	assert_lt(SfxView.HIT_SPEED[&"bato_light"], 1.0, "and lands with a thud, not a slap")
+	var sim: MatchSim = MatchSim.new(load("res://data/rules/game_rules.tres") as GameRules, load("res://data/rules/map_layout.tres") as MapLayout, 3)
+	sim.add_player(1, 0)
+	var sfx: SfxView = add_child_autofree(SfxView.new())
+	sfx.watch(sim, 1)
+	sfx._on_cast(1, &"bato_light")
+	assert_almost_eq(_voice_used(sfx).pitch_scale, SfxView.CAST_SPEED[&"bato_light"], 0.0001, "the throw plays at the rock's speed")
+	sfx._on_cast(1, &"tsinelas_light")
+	assert_almost_eq(_voice_used(sfx).pitch_scale, 1.0, 0.0001, "the same recording as recorded for the slippers")
+	sfx._on_hit(1, &"bato_light")
+	assert_lt(_voice_used(sfx).pitch_scale, 0.85, "the rock's hit is deeper")
