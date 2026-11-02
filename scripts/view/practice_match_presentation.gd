@@ -30,6 +30,8 @@ var _film: FilmFinish
 ## The kid that holds the can (-1: nobody), the one that is kicking it, and where the can lay before this frame (for a pick-up).
 var _carrier: int = -1
 var _kicker: int = -1
+## Tumbang Preso's roll for the first taya, while the opening show plays.
+var _roll: TumbangRoll
 var _can_before: Vector2 = Vector2.ZERO
 
 
@@ -141,13 +143,6 @@ func _connect_street_game(mode: StreetMode) -> void:
 		lines.runner_crossed.connect(func(id: int) -> void:
 			if id == owner.local_id:
 				owner.show_banner("PAST THE LAST GUARD! RUN BACK!"))
-		lines.tagged.connect(func(guard: int, runner: int) -> void:
-			if runner == owner.local_id:
-				owner.show_banner("TAGGED!")
-			elif guard == owner.local_id:
-				owner.show_banner("YOU TAGGED A RUNNER!")
-			elif lines.runners_out() < lines.runner_count(owner.sim):
-				owner.show_banner("RUNNER TAGGED!"))
 		lines.scored.connect(func(team: int, _id: int) -> void:
 			var how: int = owner.sim.point_log[-1].y if not owner.sim.point_log.is_empty() else -1
 			var ours: bool = team == owner.local_team
@@ -160,13 +155,15 @@ func _connect_street_game(mode: StreetMode) -> void:
 		lines.dived.connect(_on_dived)
 
 
-## A kid was caught (a tag): it stumbles and falls while everyone stands still, with stars and dust where it was touched. The one that
+## A kid was caught (a tag): it stumbles and falls while everyone stands still, with stars and dust where it was touched, and "TAYA!" over
+## it where it stands (the same word and place as a tag in Agawan Base, `OverheadHud.show_tag`: no banner across the screen). The one that
 ## touched it has played its touch (or is finishing its dive: the catch is the dive's end).
 func _on_caught(tagger: int, target: int) -> void:
 	var view: KidModel = owner._views.get(target) as KidModel
 	var pause: float = owner.sim.mode.catch_seconds()
 	if view != null:
 		view.play_tripped(pause)
+		owner.hud.overhead.show_tag(target, view.position)
 	var at: Vector2 = owner.sim.players[target].position
 	var context: FxContext = owner._fx.context()
 	context.particles.puff(FxParticles.Preset.STARS, Vector3(at.x, CATCH_STARS_HEIGHT, at.y), FxBursts.STARS)
@@ -197,6 +194,8 @@ func _on_dived(id: int, way: Vector2, time: float, recover: float) -> void:
 
 func _connect_tumbang(game: TumbangPreso) -> void:
 	game.taya_changed.connect(func(_old: int, new_taya: int, why: StringName) -> void:
+		if why == &"tagged":
+			return  # "TAYA!" shows over the tagged kid (`_on_caught`)
 		var scared: String = "TOO SCARED! " if why == &"scared" else ""
 		owner.show_banner(scared + ("YOU'RE IT!" if new_taya == owner.local_id else "%s IS IT!" % owner.hud.overhead.name_of(owner.sim.players[new_taya]).to_upper())))
 	game.slipper_landed.connect(func(id: int, _at: Vector2, _hit: bool) -> void:
@@ -308,6 +307,24 @@ func sync(delta: float) -> void:
 		_play_intro_shot()
 		return
 	owner.hud.show_intro("")
+	_hide_roll()
+
+
+## Tumbang Preso's opening show: the kid carousel spins and stops on the first taya (`TumbangRoll`), on the show's own clock.
+func _show_roll(game: TumbangPreso) -> void:
+	if _roll == null:
+		_roll = TumbangRoll.new()
+		owner.hud.add_child(_roll)
+		_roll.setup(owner.sim, game.taya_id, owner.local_id, game.rules.roll_seconds, owner.hud.overhead.name_of)
+		_roll.stepped.connect(func() -> void: owner._sfx.play(TumbangRoll.STEP_SOUND))  # the sounds of the match, reused (docs/ART.md "Audio")
+		_roll.landed.connect(func() -> void: owner._sfx.play(TumbangRoll.LANDED_SOUND))
+	_roll.show_at(maxf(owner.sim.intro_total() - owner.sim.intro_left, 0.0))
+
+
+func _hide_roll() -> void:
+	if _roll != null:
+		_roll.queue_free()
+		_roll = null
 
 
 func make_actor_view(state: PlayerState) -> void:
@@ -420,6 +437,11 @@ func _sync_aim(player: PlayerState) -> void:
 
 func _play_intro_shot() -> void:
 	var mode: StreetMode = owner.sim.mode
+	if mode is TumbangPreso and mode.rules.roll_seconds > 0.0:
+		_show_roll(mode as TumbangPreso)
+		owner.hud.show_intro("")  # the roll says who is it
+		owner._camera.place(owner.own_side() == MapLayout.SIDE_ENEMY)
+		return
 	if mode != null:
 		var skip: String = "" if owner.online else " · TAP TO SKIP"
 		owner.hud.show_intro(street_status(owner.sim, owner.sim.players[owner.local_id])[0], "%d MIN · MOST POINTS WIN%s" % [roundi(mode.rules.match_seconds / 60.0), skip])

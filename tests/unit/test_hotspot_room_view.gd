@@ -289,7 +289,7 @@ func test_the_picker_says_how_each_game_plays_and_picks_with_its_button() -> voi
 	assert_eq(picker.dots_label.text, "○  ○  ●")
 	assert_eq(picker.pick_button.text, "Pick Patintero")
 	view.map_carousel.select(1, false)
-	assert_eq(picker.info_label.text, "2 to 6 kids · Every kid for itself · 5 min")
+	assert_eq(picker.info_label.text, "3 to 6 kids · Every kid for itself · 5 min")
 	view.map_carousel.select(2, false)
 	picker.pick_button.pressed.emit()
 	assert_eq(picked, [&"patintero"] as Array[StringName], "the Pick button picks the game in the middle, no question for a team game")

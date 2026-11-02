@@ -10,8 +10,11 @@ extends Resource
 @export var title: String = ""
 ## Length of the match (seconds). The leader then wins; a tie plays on until the next point.
 @export var match_seconds: float = 300.0
-## In a Local or Online room a game without teams (Tumbang Preso) starts with at least this many players (owner: 2 to 6).
+## In a Local or Online room a game without teams (Tumbang Preso) starts with at least this many players, the taya among them (owner: 3 to 6).
 @export var room_min_players: int = 2
+## The roll that picks the first taya (Tumbang Preso) plays in the opening show, which is this much longer (s; 0 = no roll). Who it picks is
+## drawn by the match's seeded generator when the game starts, so every phone plays the same roll to the same kid.
+@export var roll_seconds: float = 0.0
 ## In a room a game with teams (Patintero) starts with at least this many players on each team (owner: 2). Rooms always have 3 places a
 ## team (`RoomService.MAX_TEAM_SIZE`); Agawan Base has no rules file here: its minimum is `NetRules.base_room_min_team`.
 @export var room_min_team: int = 1
