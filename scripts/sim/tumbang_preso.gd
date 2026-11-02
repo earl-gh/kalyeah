@@ -113,11 +113,15 @@ func speed_scale(state: PlayerState) -> float:
 	return rules.taya_speed_share if state.id == taya_id else 1.0
 
 
-## The last kid to join is the first taya (a bot, in Practice), then everyone to their place.
+## The first taya is drawn at random from everyone in the match (the match's seeded generator: nobody picks it in the lobby or the room;
+## the opening show plays the roll, `StreetModeRules.roll_seconds`), then everyone goes to their place.
 func setup(sim: MatchSim) -> void:
+	var kids: Array[int] = []
 	for id: int in sim.players:
-		taya_id = id
 		points[id] = 0
+		kids.append(id)
+	if not kids.is_empty():
+		taya_id = kids[sim.rng.randi_range(0, kids.size() - 1)]
 	super.setup(sim)
 
 

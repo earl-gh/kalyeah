@@ -9,6 +9,7 @@ static func build(view: HotspotRoomView) -> Control:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	view.back_button = MenuDialog.make_button("Back", "grey", UiMetrics.ACTION, Vector2(120.0, 88.0))
 	view.back_button.name = "BackButton"
+	UiSound.set_role(view.back_button, &"cancel")
 	view.back_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	view.back_button.pressed.connect(view.back_pressed.emit)
 	row.add_child(view.back_button)

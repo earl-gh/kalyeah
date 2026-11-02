@@ -101,7 +101,9 @@ func test_the_settings_page_has_a_graphics_card_that_changes_the_settings() -> v
 	assert_eq(options.performance_choice.current, &"standard")
 	options.performance_choice.buttons[&"turbo"].pressed.emit()
 	assert_eq(Settings.performance, &"turbo")
-	assert_true(options.shake_toggle.button_pressed)
-	options.shake_toggle.button_pressed = false
-	options.shake_toggle.toggled.emit(false)
+	assert_null(options.shake_toggle, "Screen shake is an accessibility setting: it sits in that section, not here")
+	var accessibility: AccessibilitySection = page.find_child("AccessibilitySection", true, false) as AccessibilitySection
+	assert_true(accessibility.shake_toggle.button_pressed)
+	accessibility.shake_toggle.button_pressed = false
+	accessibility.shake_toggle.toggled.emit(false)
 	assert_false(Settings.screen_shake)

@@ -62,7 +62,7 @@ func _card(id: String) -> Button:
 	card.tooltip_text = "About %s" % id.capitalize()
 	card.accessibility_name = "%s: read about this kid" % shown_name
 	card.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_L))
-	UiKit.feel_press(card)
+	UiKit.feel_press(card, &"select")
 	if art != null:
 		_bare_picture(card, art)
 	else:

@@ -34,8 +34,6 @@ var info_label: Label
 var dots_label: Label
 var pick_button: Button
 var close_button: Button
-## The "this changes the room" question, while it is open.
-var confirm: MenuDialog
 
 
 func _init(p_view: HotspotRoomView) -> void:
@@ -90,8 +88,6 @@ func open_map_carousel() -> void:
 func close_map_carousel() -> void:
 	if not is_instance_valid(view):
 		return
-	if is_instance_valid(confirm):
-		confirm.close(false)
 	if view._map_overlay != null and is_instance_valid(view._map_overlay):
 		view._map_overlay.queue_free()
 	view._map_overlay = null
@@ -102,34 +98,26 @@ func is_open() -> bool:
 	return is_instance_valid(view) and view._map_overlay != null and is_instance_valid(view._map_overlay)
 
 
-## Picks the game at `index` (the Pick button, or a tap on the middle card): the room's game already closes the picker; a pick that turns
-## the room into six places asks first.
+## Picks the game at `index` (the Pick button, or a tap on the middle card): the room's game already closes the picker.
 func pick(index: int) -> void:
 	var id: StringName = RoomService.MAP_IDS[index]
 	if id == _room_map():
 		close_map_carousel()
 		return
-	if needs_confirm(id):
-		_ask(id)
-		return
 	_choose(id)
 
 
-## True when picking `id` changes the room's places: a free-for-all game (Tumbang Preso: six places) from a smaller room with others in it.
-func needs_confirm(id: StringName) -> bool:
-	var members: int = (view._room.get("members", []) as Array).size()
-	return RoomService.free_for_all(id) and int(view._room.get("team_size", 1)) < RoomService.MAX_TEAM_SIZE and members > 1
-
-
-## How the game `id` plays in this room, in one line ("2v2 · Teams · First to 3", "3 to 6 kids · Every kid for itself · 5 min").
+## How the game `id` plays in this room, in one line ("3v3 · Teams · First to 3", "3 to 6 kids · Every kid for itself · 5 min").
 func info_for(id: StringName) -> String:
-	var size: int = int(view._room.get("team_size", 1))
+	var size: int = int(view._room.get("team_size", RoomService.MAX_TEAM_SIZE))
 	var game: StreetModeRules = StreetMode.rules_for(id)
 	if game == null:
 		return UiText.f("%dv%d · Teams · First to %d", [size, size, int(view._room.get("first_to", 3))])
 	var minutes: int = roundi(game.match_seconds / 60.0)
 	if RoomService.free_for_all(id):
 		return UiText.f("%d to %d kids · Every kid for itself · %d min", [game.room_min_players, RoomService.MAX_TEAM_SIZE * 2, minutes])
+	if game.room_min_team > 1:
+		return UiText.f("%dv%d · Teams · %d or more a team · %d min", [size, size, game.room_min_team, minutes])
 	return UiText.f("%dv%d · Teams · %d min", [size, size, minutes])
 
 
@@ -137,17 +125,6 @@ func _choose(id: StringName) -> void:
 	view.map_chosen.emit(id)
 	# a moment to see the card come forward, then back to the room
 	view.get_tree().create_timer(0.35).timeout.connect(close_map_carousel)
-
-
-func _ask(id: StringName) -> void:
-	confirm = MenuDialog.create("Change the game?")
-	confirm.add_label(UiText.f("%s gives the room 6 places, and every kid plays for itself.", [view.MAP_NAMES.get(id, String(id)) as String]))
-	var go: Button = MenuDialog.make_button("Pick it", "gold", UiMetrics.BODY)
-	go.pressed.connect(func() -> void:
-		confirm.close(false)
-		_choose(id))
-	confirm.add_buttons([go])
-	confirm.open(view._map_overlay)
 
 
 func _room_map() -> StringName:

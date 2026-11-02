@@ -45,22 +45,17 @@ func test_map_header_is_compact_and_only_the_host_can_change_it() -> void:
 	assert_lte(host.map_card.custom_minimum_size.y, 120.0, "a compact map header")
 	var section: Node = host.find_child("MapSection", true, false)
 	assert_eq(section.get_child(0), host.map_card, "the map card is the first row")
-	assert_eq(section.get_child(1).name, "Sizes", "the size choice is the one row under it")
+	assert_null(host.find_child("Sizes", true, false), "no team size to choose: every room is 3v3 (owner)")
 	assert_null(host.find_child("MapPrevious", true, false), "no arrows")
 	assert_false(host.map_card.disabled, "the host can open it")
 	assert_true(_view(_room(2), 2).map_card.disabled, "a guest cannot")
 
 
-func test_the_size_choice_is_one_row_of_three_and_only_the_host_changes_it() -> void:
-	var host: HotspotRoomView = _view(_room(2))
-	var guest: HotspotRoomView = _view(_room(2), 2)
-	var row: Node = host.find_child("Sizes", true, false)
-	assert_true(row is HBoxContainer, "one row")
-	assert_eq(row.get_child_count(), 3)
-	for choice: int in [1, 2, 3]:
-		assert_false(host.size_buttons[choice].disabled)
-		assert_true(guest.size_buttons[choice].disabled, "a guest cannot change the size")
-	assert_true(host.size_buttons[2].button_pressed, "2v2 is the chosen size")
+func test_there_is_no_team_size_to_choose_a_room_is_always_3v3() -> void:
+	var host: HotspotRoomView = _view(_room(3))
+	assert_null(host.find_child("Sizes", true, false))
+	assert_false(host.has_signal("size_chosen"))
+	assert_eq(host.player_cards.size(), 6, "three places a team")
 
 
 func test_tapping_the_map_card_opens_the_carousel_over_a_tint_and_picking_a_map_emits() -> void:
@@ -122,8 +117,12 @@ func test_the_big_button_starts_for_the_host_and_readies_for_everyone_else() -> 
 	assert_false(host.action_button.disabled)
 	var blocked: Dictionary = _room(2)
 	blocked["can_start_host"] = false
+	blocked["start_note"] = "Patintero needs at least 2 players on each team."
 	host.show_room(blocked, 1)
-	assert_true(host.action_button.disabled, "not until the others are ready")
+	assert_false(host.action_button.disabled, "still pressable: pressing it tells the host why (a toast)")
+	assert_eq(host.readiness_label.text, "Patintero needs at least 2 players on each team.", "the room line says the same")
+	host.show_room(_room(2), 1)
+	assert_eq(host.readiness_label.text, "Ready to play")
 	var guest: HotspotRoomView = _view(_room(2), 2)
 	assert_eq(guest.action_button.text, "Cancel ready", "the action explains how to undo readiness")
 	var guest_two: HotspotRoomView = _view(_room(2), 1)
@@ -262,16 +261,12 @@ func test_the_map_carousel_lists_all_three_street_games_ready_to_pick() -> void:
 		click.pressed = pressed
 		click.position = at
 		view.map_carousel._gui_input(click)
-	var picker: RoomMapPicker = view.map_picker()
-	assert_true(picked.is_empty(), "Tumbang Preso turns this 2v2 of two kids into six places: it asks first")
-	assert_true(is_instance_valid(picker.confirm) and picker.confirm.is_open)
-	(picker.confirm.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return (b as Button).text == "Pick it")[0] as Button).pressed.emit()
-	assert_eq(picked, [&"tumbang_preso"] as Array[StringName], "a tap on the middle card, then Pick it, picks Tumbang Preso")
+	assert_eq(picked, [&"tumbang_preso"] as Array[StringName], "a tap on the middle card picks Tumbang Preso, no question: every room has six places")
 	view.close_map_carousel()
 
 
 func test_the_picker_says_how_each_game_plays_and_picks_with_its_button() -> void:
-	var view: HotspotRoomView = _view(_room(2))
+	var view: HotspotRoomView = _view(_room(3))
 	var picked: Array[StringName] = []
 	view.map_chosen.connect(func(id: StringName) -> void: picked.append(id))
 	view.open_map_carousel()
@@ -286,11 +281,11 @@ func test_the_picker_says_how_each_game_plays_and_picks_with_its_button() -> voi
 	var tag: Label = view.map_carousel.cards[0].get_node("Heading") as Label
 	assert_true(tag.visible and tag.text == RoomMapPicker.PLAYING_NOW, "Agawan Base is playing now")
 	assert_false((view.map_carousel.cards[2].get_node("Heading") as Label).visible)
-	assert_eq(picker.info_label.text, "2v2 · Teams · First to 3")
+	assert_eq(picker.info_label.text, "3v3 · Teams · First to 3")
 	assert_eq(picker.dots_label.text, "●  ○  ○")
 	assert_eq(picker.pick_button.text, "Keep Agawan Base")
 	view.map_carousel.select(2, false)
-	assert_eq(picker.info_label.text, "2v2 · Teams · 5 min", "Patintero is timed")
+	assert_eq(picker.info_label.text, "3v3 · Teams · 2 or more a team · 5 min", "Patintero is timed, and needs two a team")
 	assert_eq(picker.dots_label.text, "○  ○  ●")
 	assert_eq(picker.pick_button.text, "Pick Patintero")
 	view.map_carousel.select(1, false)
@@ -313,20 +308,6 @@ func test_the_picker_closes_with_its_x_and_keeping_the_game_picks_nothing() -> v
 	view.open_map_carousel()
 	view.map_picker().close_button.pressed.emit()
 	assert_false(view.map_open(), "the red X closes it")
-
-
-func test_tumbang_preso_asks_only_when_it_changes_the_room() -> void:
-	var view: HotspotRoomView = _view(_room(3))
-	view.open_map_carousel()
-	assert_false(view.map_picker().needs_confirm(&"tumbang_preso"), "a room of six places already: nothing changes")
-	view.close_map_carousel()
-	var alone: Dictionary = _room(1)
-	alone["members"] = [(alone["members"] as Array)[0]]
-	view.show_room(alone, 1)
-	view.open_map_carousel()
-	assert_false(view.map_picker().needs_confirm(&"tumbang_preso"), "nobody else is in the room")
-	assert_false(view.map_picker().needs_confirm(&"patintero"), "a team game keeps the room as it is")
-	view.close_map_carousel()
 
 
 func test_the_map_carousel_overlay_is_above_everything() -> void:

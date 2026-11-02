@@ -16,7 +16,8 @@ enum Msg {
 	PICK_WEAPONS, SWAP_WEAPONS, INPUT, SET_FIRST_TO,
 	# server -> client
 	WELCOME, ERROR, ROOM, MATCH_LOADING, MATCH_PLAY, SNAPSHOT, EVENTS,
-	# client -> server, added later (appended so the numbers above stay the same)
+	# client -> server, added later (appended so the numbers above stay the same). SET_TEAM_SIZE is retired (every room is 3v3): nobody sends
+	# it and the server does nothing with it, but it keeps its number so the ones after it do not move.
 	SET_TEAM_SIZE, SET_MAP, SET_CHARACTER,
 	DISCOVER_ROOM, ROOM_DISCOVERED,
 	# server -> client: the server is going away (a hotspot host left), so there is nothing to reconnect to

@@ -151,7 +151,7 @@ func _tile(weapon: WeaponDef) -> Button:
 	for state: String in ["pressed", "hover_pressed"]:
 		tile.add_theme_stylebox_override(state, UiSkin.plate("raised", 0.0))
 	tile.add_theme_stylebox_override("focus", UiSkin.focus_ring(PLATE_FOCUS_RADIUS))
-	UiKit.feel_press(tile)
+	UiKit.feel_press(tile, &"select")
 	var column: VBoxContainer = VBoxContainer.new()
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	column.offset_left = 14.0

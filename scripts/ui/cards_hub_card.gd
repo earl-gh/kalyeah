@@ -58,7 +58,7 @@ func _build(title: String, detail: String, pictures: Array[Texture2D]) -> void:
 	for state: String in ["pressed", "hover_pressed"]:
 		add_theme_stylebox_override(state, UiSkin.button(VARIANT, "pressed", PANEL_RADIUS))
 	add_theme_stylebox_override("focus", UiSkin.focus_ring(PANEL_RADIUS))
-	UiKit.feel_press(self)
+	UiKit.feel_press(self, &"select")
 	fan = CardFan.new()
 	fan.name = "Fan"
 	var reference: Texture2D = CharactersPage.card_picture(&"junjun")

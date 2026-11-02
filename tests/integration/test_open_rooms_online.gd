@@ -98,7 +98,6 @@ func test_a_guest_sees_the_open_room_and_joins_it_with_one_tap_no_code() -> void
 func test_quick_join_takes_the_fullest_open_room() -> void:
 	var small: LobbyScreen = await _host("Ana")
 	var busy: LobbyScreen = await _host("Cy")
-	busy.client.set_team_size(3)
 	var friend: LobbyScreen = _lobby(LobbyScreen.Intent.JOIN, "Dee")
 	await wait_process_frames(1)
 	assert_true(_until(func() -> bool: return friend.open_rooms.cards.size() == 2))

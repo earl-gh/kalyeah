@@ -124,7 +124,7 @@ func _handle(from: int, message: Dictionary) -> void:
 					send(from, running.info())
 					send(from, running.stage_message())
 		M.CREATE_ROOM:
-			var room: RoomService.Room = rooms.create_room(from, _names.get(from, "") as String, message.get("size", 1) as int)
+			var room: RoomService.Room = rooms.create_room(from, _names.get(from, "") as String)
 			if room == null:
 				_error(from, "Oops! Can't create a room right now.")
 			else:
@@ -165,9 +165,6 @@ func _handle(from: int, message: Dictionary) -> void:
 		M.SET_FIRST_TO:
 			if rooms.set_first_to(from, message.get("n", 0) as int):
 				_send_room(rooms.room_of_peer(from))
-		M.SET_TEAM_SIZE:
-			if rooms.set_team_size(from, message.get("n", 0) as int):
-				_send_room(rooms.room_of_peer(from))
 		M.SET_MAP:
 			if rooms.set_map(from, StringName(message.get("map", "") as String)):
 				_send_room(rooms.room_of_peer(from))
@@ -188,7 +185,10 @@ func _handle(from: int, message: Dictionary) -> void:
 				for m: RoomService.Member in room.members:
 					send(m.peer_id, started.info())
 			else:
-				_error(from, "Not everyone is ready yet!")
+				# never silent: the host reads why the game cannot start yet (each game has its own minimum)
+				var held: RoomService.Room = rooms.room_of_peer(from)
+				var why: String = rooms.start_blocker(held, true) if held != null and rooms.member_of_peer(from) != null and held.host_player_id == rooms.member_of_peer(from).player_id else ""
+				_error(from, why if not why.is_empty() else "Only the host can start the game.")
 		M.LEAVE:
 			var left: RoomService.Room = rooms.disconnected(from)
 			if left != null:
@@ -206,7 +206,7 @@ func _discovery_status() -> String:
 	var room: RoomService.Room = rooms.rooms.values()[0] as RoomService.Room
 	if room.state != RoomService.State.LOBBY:
 		return "in_progress"
-	if room.members.size() >= room.team_size * 2:
+	if room.members.size() >= RoomService.MAX_TEAM_SIZE * 2:
 		return "full"
 	return "ready"
 

@@ -203,7 +203,7 @@ func _add_tab(id: StringName, text: String, icon_kind: StringName) -> void:
 	for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
 		button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
 	button.pressed.connect(tab_pressed.emit.bind(id))
-	UiKit.feel_press(button)
+	UiKit.feel_press(button, &"select")
 	var picture: TextureRect = TextureRect.new()
 	picture.name = "Picture"
 	picture.texture = _part(PICTURES[icon_kind], PICTURE_PARTS[icon_kind])
@@ -249,7 +249,7 @@ func _arrow(node_name: String, flip: bool, say: String) -> Button:
 	button.add_child(arrow)
 	button.custom_minimum_size = Vector2.ONE * ARROW_TOUCH
 	button.size = Vector2.ONE * ARROW_TOUCH
-	UiKit.feel_press(button)
+	UiKit.feel_press(button, &"select")
 	button.pressed.connect(_step.bind(1 if flip else -1))
 	add_child(button)
 	return button

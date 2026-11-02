@@ -25,6 +25,10 @@ func _sim(mode_rules: StreetModeRules, size: int = 4) -> MatchSim:
 		for i: int in size:
 			sim.add_player(4 + i, 1)
 	sim.start_mode(StreetMode.create(mode_rules))
+	if sim.mode is TumbangPreso:
+		# the match draws the first taya at random (tests/unit/test_tumbang_roll.gd); these tests want the last kid in
+		(sim.mode as TumbangPreso).taya_id = size
+		sim.mode.place_teams(sim)
 	return sim
 
 
@@ -82,7 +86,7 @@ func _cross_middle(sim: MatchSim, id: int) -> void:
 func test_tumbang_has_one_taya_and_everyone_else_throws_from_the_throwing_area() -> void:
 	var sim: MatchSim = _tumbang()
 	var game: TumbangPreso = sim.mode as TumbangPreso
-	assert_eq(game.taya_id, 4, "the last kid in is the first taya")
+	assert_eq(game.taya_id, 4, "(these tests make the last kid in the first taya: the draw is tested in test_tumbang_roll)")
 	for state: PlayerState in sim.players.values():
 		if state.id == game.taya_id:
 			assert_almost_eq(state.position.y, TUMBANG.can_spot.y - TUMBANG.guard_offset, 0.001, "the taya starts just behind the can, away from the throwers")
@@ -232,6 +236,8 @@ func test_the_real_fling_is_a_little_off_the_guide_so_it_cannot_be_aimed_to_the_
 			sim.add_player(1 + i, 0)
 		sim.start_mode(StreetMode.create(TUMBANG))
 		var game: TumbangPreso = sim.mode as TumbangPreso
+		game.taya_id = 4  # the first taya is drawn at random: this test wants the last kid in
+		game.place_teams(sim)
 		_clear_street(sim, [1, 4])
 		sim.players[4].position = Vector2(-9.0, 0.0)
 		sim.players[1].position = Vector2(TUMBANG.can_spot.x, 14.0)

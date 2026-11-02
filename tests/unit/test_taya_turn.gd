@@ -36,6 +36,10 @@ func _practice(game: StringName) -> PracticeMatch:
 	practice._camera.set_process(false)  # the test moves the turn on by hand
 	practice.finish_pick()
 	practice.skip_intro()
+	if practice.sim.mode is TumbangPreso:
+		# the match draws the first taya at random (tests/unit/test_tumbang_roll.gd); these tests want the last kid (a bot) to be it
+		(practice.sim.mode as TumbangPreso).taya_id = 6
+		practice.sim.mode.place_teams(practice.sim)
 	practice._presentation.sync(DT)
 	return practice
 

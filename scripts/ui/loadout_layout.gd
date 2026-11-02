@@ -39,6 +39,7 @@ static func build(screen: WeaponPickScreen, defs: Array[WeaponDef]) -> void:
 	header.add_theme_constant_override("separation", UiMetrics.GAP)
 	column.add_child(header)
 	screen.back_button = MenuDialog.make_button("Back", "grey", UiMetrics.ACTION, Vector2(120.0, UiMetrics.TOUCH))
+	UiSound.set_role(screen.back_button, &"cancel")
 	screen.back_button.pressed.connect(screen.request_back)
 	screen.back_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	header.add_child(screen.back_button)

@@ -59,7 +59,7 @@ func _start(game: StringName, count: int = 4) -> ServerMatch:
 		assert_eq(client.connect_to("ws://127.0.0.1:%d" % PORT), OK)
 	assert_true(_until(func() -> bool: return clients.all(func(c: GameClient) -> bool: return c.is_online())), "all online")
 	var host: GameClient = clients[0]
-	host.create_room(2)
+	host.create_room()
 	assert_true(_until(func() -> bool: return not host.room.is_empty()), "room")
 	host.set_map(game)
 	assert_true(_until(func() -> bool: return host.room.get("map", "") == String(game)), "the host picked %s" % game)
@@ -121,7 +121,7 @@ func test_a_tag_on_the_server_reaches_every_phone() -> void:
 
 func test_the_room_shows_a_street_game_as_timed() -> void:
 	var rooms: RoomService = RoomService.new(NET, 3)
-	var room: RoomService.Room = rooms.create_room(7, "Ana", 2)
+	var room: RoomService.Room = rooms.create_room(7, "Ana")
 	assert_true(rooms.set_map(7, &"patintero"))
 	var listed: Dictionary = rooms.open_rooms(10)[0]
 	assert_string_ends_with(OpenRoomsList.card_text(listed), "· Patintero", "the list names the game, not first to")
@@ -130,7 +130,7 @@ func test_the_room_shows_a_street_game_as_timed() -> void:
 	view.set_online(true)
 	var info: Dictionary = rooms.describe(room)
 	view.show_room(info, 99)  # a guest
-	assert_eq(view.format_summary.text, "2v2 · 5 min · Open", "timed, so no first to")
+	assert_eq(view.format_summary.text, "3v3 · 5 min · Open", "timed, so no first to")
 	view.show_room(info, room.host_player_id)
 	assert_false((view.first_to_buttons[3].get_parent() as Control).visible, "the host has no first to to pick")
 
@@ -161,15 +161,16 @@ func test_the_match_screen_plays_patintero_online_with_the_street_pad_and_moves_
 
 func test_a_tumbang_preso_room_has_six_places_and_needs_three_ready_kids() -> void:
 	var rooms: RoomService = RoomService.new(NET, 3)
-	var room: RoomService.Room = rooms.create_room(7, "Ana", 1)
+	var room: RoomService.Room = rooms.create_room(7, "Ana")
 	assert_true(rooms.set_map(7, &"tumbang_preso"), "open in rooms (owner, 2026-10-31)")
-	assert_eq(room.team_size, 3, "six places, whatever the size was")
-	assert_false(rooms.set_team_size(7, 1), "and no size to pick")
+	assert_eq(rooms.describe(room)["team_size"], 3, "six places, like every room")
+	room.members[0].ready = true
+	assert_false(rooms.can_start(room), "one kid alone cannot start")
 	rooms.join(room.code, 8, "Ben")
-	for m: RoomService.Member in room.members:
-		m.ready = true
-	assert_false(rooms.can_start(room), "two kids are not enough")
+	room.members[1].ready = true
+	assert_false(rooms.can_start(room), "two ready kids are not enough: one is the taya")
 	rooms.join(room.code, 9, "Cy")
+	assert_false(rooms.can_start(room), "Cy is not ready")
 	room.members[2].ready = true
 	assert_true(rooms.can_start(room), "three ready kids can start, whatever their columns")
 	var card: String = OpenRoomsList.card_text(rooms.describe(room).merged({"host_name": "Ana", "players": 3}))

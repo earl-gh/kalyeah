@@ -158,6 +158,7 @@ func open(parent: Node) -> void:
 	parent.add_child(self)
 	_fit()
 	is_open = true
+	UiSound.play(&"window")
 	_previous_focus = weakref(get_viewport().gui_get_focus_owner()) if get_viewport().gui_get_focus_owner() != null else null
 	Settings.accessibility_changed.connect(_on_accessibility_changed)
 	if Settings.reduced_motion:
@@ -238,6 +239,8 @@ static func make_button(text: String, color: String, font_size: int = UiMetrics.
 	button.text = text
 	button.custom_minimum_size = min_size
 	button.add_theme_font_size_override("font_size", font_size)
+	if color != "grey":
+		UiSound.set_role(button, &"press")  # the coloured ones are the main buttons; the grey ones tap
 	KalyeahTheme.style_button(button, color)
 	return button
 

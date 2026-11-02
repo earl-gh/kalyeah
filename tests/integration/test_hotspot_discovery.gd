@@ -37,7 +37,7 @@ func _host(ws_port: int, udp_port: int, room: bool = true) -> GameServer:
 	var beacon: HotspotBeacon = HotspotBeacon.new()
 	assert_eq(beacon.listen(udp_port, NET.discovery_burst), OK)
 	if room:
-		server.rooms.create_room(700, "Host", 1)
+		server.rooms.create_room(700, "Host")
 	_servers.append(server)
 	_beacons.append(beacon)
 	return server
@@ -89,7 +89,7 @@ func test_the_fallback_addresses_still_find_a_host_that_does_not_answer_the_broa
 	var server: GameServer = GameServer.new(RULES, LAYOUT, NET, 4)
 	server.auto_join = true
 	assert_eq(server.listen(18953), OK)
-	server.rooms.create_room(700, "Host", 1)
+	server.rooms.create_room(700, "Host")
 	_servers.append(server)
 	_search(_plan(18953, 18963, [HotspotNet.LIMITED_BROADCAST], ["ws://127.0.0.1:18999", "ws://127.0.0.1:18953"]))
 	assert_eq(_finder.url, "ws://127.0.0.1:18953", "no beacon: the second candidate answered")
@@ -102,7 +102,7 @@ func test_the_guest_then_joins_the_found_room_with_no_code() -> void:
 	var guest: GameClient = GameClient.new(RULES, LAYOUT, NET)
 	assert_eq(host_client.connect_to("ws://127.0.0.1:18954"), OK)
 	_pump(server, [host_client, guest], func() -> bool: return host_client.is_online())
-	host_client.create_room(1)
+	host_client.create_room()
 	_pump(server, [host_client, guest], func() -> bool: return not host_client.room.is_empty())
 	_search(_plan(18954, 18964, [HotspotNet.LIMITED_BROADCAST]))
 	assert_eq(_finder.url, "ws://127.0.0.1:18954")
@@ -137,7 +137,8 @@ func test_a_host_without_a_room_is_not_a_success_and_ends_early() -> void:
 func test_a_full_room_and_a_started_match_say_so() -> void:
 	var server: GameServer = _host(18957, 18967)
 	var room: RoomService.Room = server.rooms.rooms.values()[0] as RoomService.Room
-	server.rooms.join(room.code, 701, "Friend")
+	for peer: int in range(701, 706):
+		server.rooms.join(room.code, peer, "Friend")  # six places in all
 	_search(_plan(18957, 18967, [HotspotNet.LIMITED_BROADCAST]))
 	assert_true(_finder.failed)
 	assert_eq(_finder.failure_message, "That room is full!")

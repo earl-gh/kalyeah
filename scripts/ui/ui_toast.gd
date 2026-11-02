@@ -16,6 +16,9 @@ const KINDS: Dictionary[String, Dictionary] = {
 	"error": {"color": Color("ff7a70"), "mark": "×"},
 }
 
+## A toast says its tone aloud: done, heads-up, no (`UiSound`).
+const TONE_ROLE_OF: Dictionary[String, StringName] = UiSound.TONE_ROLE
+
 var text: String = ""
 var kind: String = "ok"
 var lifetime: float = SECONDS
@@ -27,6 +30,7 @@ var _tween: Tween
 ## Shows `message` above everything on the screen `host` belongs to. `kind` is ok, info, warn or error.
 ## Returns the toast (it joins the tree on the next frame).
 static func say(host: Node, message: String, tone: String = "ok", seconds: float = SECONDS) -> UiToast:
+	UiSound.play(TONE_ROLE_OF.get(tone, &"alert"))
 	var root: Window = host.get_tree().root
 	var layer: CanvasLayer = root.get_node_or_null(LAYER_NAME) as CanvasLayer
 	if layer == null:
