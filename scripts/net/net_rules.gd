@@ -48,3 +48,7 @@ extends Resource
 @export var client_interface_names: PackedStringArray = PackedStringArray()
 ## Where a room server may be on a hotspot when nothing answers the probe: Android's classic tether address and iPhone's.
 @export var fallback_hosts: PackedStringArray = PackedStringArray()
+## Local join by QR or NFC (LocalLink): after Android says the friend's Wi-Fi is joined, the phone may take a moment to show its
+## address; the Join check waits up to `join_wifi_grace` seconds for it, looking again every `join_wifi_recheck`.
+@export var join_wifi_grace: float = 0.0
+@export var join_wifi_recheck: float = 0.0

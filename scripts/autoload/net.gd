@@ -16,6 +16,8 @@ var is_online: bool = false
 var host: GameServer
 ## Answers the guests' "who is hosting?" probe while `host` runs (UDP, no room details).
 var beacon: HotspotBeacon = HotspotBeacon.new()
+## Local play's Android side: the game hotspot, joining a friend's, NFC (does nothing off a phone).
+var local: LocalLink = LocalLink.new()
 ## A host that just stopped keeps running for `CLOSE_GRACE` seconds, so its ROOM_CLOSED reaches the players.
 var _closing: GameServer
 var _closing_left: float = 0.0

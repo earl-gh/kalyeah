@@ -27,3 +27,5 @@ discovery_burst = 8
 ignored_interface_prefixes = PackedStringArray("lo", "rmnet", "ccmni", "pdp", "wwan", "seth", "v4-", "ppp", "tun", "tap", "wg", "ipsec", "dummy", "p2p")
 client_interface_names = PackedStringArray("wlan0", "eth0")
 fallback_hosts = PackedStringArray("192.168.43.1", "172.20.10.1")
+join_wifi_grace = 5.0
+join_wifi_recheck = 0.5

@@ -168,6 +168,8 @@ func _ready() -> void:
 		return
 	Session.ensure_profile()
 	Net.stop_host()
+	# home again: the game hotspot, a friend's Wi-Fi and NFC listening end with the Local session
+	Net.local.leave()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	backdrop = UiBackdrop.new()
 	add_child(backdrop)

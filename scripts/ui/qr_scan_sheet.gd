@@ -1,8 +1,9 @@
 class_name QrScanSheet
 extends VBoxContainer
-## Join an Online room by scanning the host's QR code (`RoomQr`) instead of typing it. Says why before Android asks for the camera,
-## shows the back camera in a square and reads it a few times a second (`QrReader`); a Kalyeah room's code closes the sheet and
-## joins. Saying no, a phone with no camera and the app going to the background end somewhere clear; the camera is off whenever
+## Join a room by scanning the host's QR code instead of typing anything: an Online room's code (`RoomQr`, `build`) or a Local
+## friend's game hotspot (`WifiQr`, `build_wifi`). Says why before Android asks for the camera,
+## shows the back camera in a square and reads it a few times a second (`QrReader`); a code it accepts closes the sheet and is
+## handed on. Saying no, a phone with no camera and the app going to the background end somewhere clear; the camera is off whenever
 ## this sheet is not showing it. Nothing the camera sees is kept.
 
 enum Step { ASK, WAITING, LOOKING, DENIED, NO_CAMERA }
@@ -11,6 +12,8 @@ const WHY: String = "Point the camera at the room's QR code on your friend's pho
 const WAITING_TEXT: String = "Waiting for your OK…"
 const LOOKING_TEXT: String = "Fit the QR code in the square."
 const NOT_A_ROOM_TEXT: String = "That QR code isn't a Kalyeah room. Scan the one on the host's room screen."
+## Local Join: the friend's game hotspot (or any phone hotspot's Wi-Fi QR).
+const NOT_A_WIFI_TEXT: String = "That QR code isn't a hotspot. Scan the one on your friend's room screen."
 const DENIED_TEXT: String = "Kalyeah can't use the camera. You can allow it in the app's settings, or type the code."
 const NO_CAMERA_TEXT: String = "No camera found on this phone. Type the room code instead."
 const FRAME_SIDE: float = 440.0
@@ -32,19 +35,34 @@ var found_code: String = ""
 
 var _dialog: MenuDialog
 var _on_code: Callable
+## What a scanned text means here ("" when it is not ours): a room code by default (`RoomQr`).
+var _read_as: Callable = RoomQr.code_from
+var _not_ours: String = NOT_A_ROOM_TEXT
 var _wait: float = 0.0
 
 
 ## The sheet in a dialog. `on_code` gets the room code once it is read (the sheet has closed by then). `with_camera` replaces the
 ## real camera (tests).
 static func build(on_code: Callable, with_camera: IdCamera = null) -> MenuDialog:
-	var card: MenuDialog = MenuDialog.create("Scan the room QR", MenuDialog.WIDTH_SHEET)
+	return _build("Scan the room QR", on_code, with_camera, RoomQr.code_from, NOT_A_ROOM_TEXT)
+
+
+## Local Join: `on_network` gets the {ssid, password, security} of a Wi-Fi QR (WifiQr) once one is read.
+static func build_wifi(on_network: Callable, with_camera: IdCamera = null) -> MenuDialog:
+	var accept: Callable = func(text: String) -> String: return text if not WifiQr.parse(text).is_empty() else ""
+	return _build("Scan your friend's QR", func(text: String) -> void: on_network.call(WifiQr.parse(text)), with_camera, accept, NOT_A_WIFI_TEXT)
+
+
+static func _build(title: String, on_code: Callable, with_camera: IdCamera, read_as: Callable, not_ours: String) -> MenuDialog:
+	var card: MenuDialog = MenuDialog.create(title, MenuDialog.WIDTH_SHEET)
 	card.name = "QrScanSheet"
 	var sheet: QrScanSheet = QrScanSheet.new()
 	sheet.camera = with_camera if with_camera != null else IdCamera.new()
 	sheet.camera.prefer_back = true
 	sheet._dialog = card
 	sheet._on_code = on_code
+	sheet._read_as = read_as
+	sheet._not_ours = not_ours
 	card.body.add_child(sheet)
 	card.closed.connect(sheet.stop)
 	return card
@@ -188,9 +206,9 @@ func read_now() -> bool:
 	var text: String = QrReader.read(camera.capture(lens))
 	if text.is_empty():
 		return false
-	var code: String = RoomQr.code_from(text)
+	var code: String = String(_read_as.call(text))
 	if code.is_empty():
-		message.text = NOT_A_ROOM_TEXT
+		message.text = _not_ours
 		return false
 	found_code = code
 	close()
