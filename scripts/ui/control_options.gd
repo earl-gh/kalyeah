@@ -4,6 +4,11 @@ extends VBoxContainer
 ## the in-match menu; changes apply to the controls at once. (The control size went with the D-pad: the hand of cards
 ## spans the whole width, so there is nothing left to grow.)
 
+## Which rows this block builds: all of them (the match menu and the room's settings), or one of the Settings page's two groups: the
+## accessibility ones (Left-handed, Aim guide) and the layout ones (Cards tray, Tilt to run).
+enum Part { ALL, ACCESSIBLE, LAYOUT }
+
+var part: Part = Part.ALL
 ## The switch (on = the NEXT card on the right, the hand toward the left thumb).
 var hand_toggle: UiToggle
 ## Bottom or Sides (Settings page only: the match menu's list must stay short).
@@ -21,29 +26,33 @@ var in_match: bool = false
 
 
 func _ready() -> void:
-	name = "ControlOptions"
+	name = "AccessibilityControls" if part == Part.ACCESSIBLE else "ControlOptions"
 	add_theme_constant_override("separation", UiMetrics.GAP)
-	hand_toggle = UiToggle.new()
-	hand_toggle.name = "LeftHanded"
-	hand_toggle.set_state(Settings.left_handed)
-	hand_toggle.toggled.connect(Settings.set_left_handed)
-	add_child(UiKit.setting_row("Left-handed", "NEXT card on the right, your cards to the left", hand_toggle))
+	if part != Part.LAYOUT:
+		hand_toggle = UiToggle.new()
+		hand_toggle.name = "LeftHanded"
+		hand_toggle.set_state(Settings.left_handed)
+		hand_toggle.toggled.connect(Settings.set_left_handed)
+		add_child(UiKit.setting_row("Left-handed", "NEXT card on the right, your cards to the left", hand_toggle))
 	if not in_match:
-		add_child(UiKit.divider())
-		tray_choice = UiSegmented.new([{"id": &"bottom", "label": "Bottom"}, {"id": &"sides", "label": "Sides"}] as Array[Dictionary], UiMetrics.TOUCH, UiMetrics.BODY)
-		tray_choice.name = "CardsTray"
-		tray_choice.select(Settings.cards_tray, false)
-		tray_choice.chosen.connect(Settings.set_cards_tray)
-		add_child(UiKit.setting_row("Cards tray", "Your cards along the bottom, or on the sides of the street", Control.new()))
-		add_child(tray_choice)
-		add_child(UiKit.divider())
-		guide_toggle = UiToggle.new()
-		guide_toggle.name = "AimGuide"
-		guide_toggle.set_state(Settings.aim_guide)
-		guide_toggle.toggled.connect(Settings.set_aim_guide)
-		add_child(UiKit.setting_row("Aim guide", "A thin line while you aim", guide_toggle))
+		if part != Part.ACCESSIBLE:
+			if get_child_count() > 0:
+				add_child(UiKit.divider())
+			tray_choice = UiSegmented.new([{"id": &"bottom", "label": "Bottom"}, {"id": &"sides", "label": "Sides"}] as Array[Dictionary], UiMetrics.TOUCH, UiMetrics.BODY)
+			tray_choice.name = "CardsTray"
+			tray_choice.select(Settings.cards_tray, false)
+			tray_choice.chosen.connect(Settings.set_cards_tray)
+			add_child(UiKit.setting_row("Cards tray", "Your cards along the bottom, or on the sides of the street", Control.new()))
+			add_child(tray_choice)
+		if part != Part.LAYOUT:
+			add_child(UiKit.divider())
+			guide_toggle = UiToggle.new()
+			guide_toggle.name = "AimGuide"
+			guide_toggle.set_state(Settings.aim_guide)
+			guide_toggle.toggled.connect(Settings.set_aim_guide)
+			add_child(UiKit.setting_row("Aim guide", "A thin line while you aim", guide_toggle))
 	# owner: Tilt to run can be switched mid-match too (the match reads it every tick)
-	if TiltInput.possible():
+	if part != Part.ACCESSIBLE and TiltInput.possible():
 		_tilt_divider = UiKit.divider()
 		add_child(_tilt_divider)
 		tilt_toggle = UiToggle.new()

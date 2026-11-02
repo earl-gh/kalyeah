@@ -1,10 +1,13 @@
 class_name GraphicsOptions
 extends VBoxContainer
-## The Graphics settings (Settings page): Frame rate (30 or 60), Performance (Standard or Turbo) and Screen shake. Each applies at once
+## The Graphics settings (Settings page): Frame rate (30 or 60) and Performance (Standard or Turbo) (and Screen shake when `with_shake`). Each applies at once
 ## (`Settings`); the engine side is `Settings.apply_graphics`.
 
 var frame_choice: UiSegmented
 var performance_choice: UiSegmented
+## Screen shake is an accessibility setting (motion sensitivity): the Settings page shows it with the others (`AccessibilitySection`), so
+## it is left out here; the room's own graphics list, if one ever shows this block alone, keeps it.
+var with_shake: bool = true
 var shake_toggle: UiToggle
 
 
@@ -22,12 +25,23 @@ func _ready() -> void:
 	performance_choice.chosen.connect(Settings.set_performance)
 	add_child(UiKit.setting_row("Performance", "Turbo draws the street a little softer so slower phones keep up", Control.new()))
 	add_child(performance_choice)
-	add_child(UiKit.divider())
-	shake_toggle = UiToggle.new()
-	shake_toggle.name = "ScreenShake"
-	shake_toggle.set_state(Settings.screen_shake)
-	shake_toggle.toggled.connect(Settings.set_screen_shake)
-	add_child(UiKit.setting_row("Screen shake", "The street shakes when you are hit", shake_toggle))
+	if with_shake:
+		add_child(UiKit.divider())
+		shake_toggle = shake_toggle_new()
+		add_child(shake_row(shake_toggle))
+
+
+## The Screen shake switch (on = the street shakes when you are hit).
+static func shake_toggle_new() -> UiToggle:
+	var toggle: UiToggle = UiToggle.new()
+	toggle.name = "ScreenShake"
+	toggle.set_state(Settings.screen_shake)
+	toggle.toggled.connect(Settings.set_screen_shake)
+	return toggle
+
+
+static func shake_row(toggle: UiToggle) -> Control:
+	return UiKit.setting_row("Screen shake", "The street shakes when you are hit", toggle)
 
 
 func _choice(choice_name: String, options: Array) -> UiSegmented:
