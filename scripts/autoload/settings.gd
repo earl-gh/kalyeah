@@ -8,6 +8,8 @@ signal accessibility_changed
 signal controls_changed
 ## The language was changed (texts re-translate by themselves; drawn text redraws).
 signal language_changed
+## Sounds or Music was switched (the switches in the other settings lists follow).
+signal audio_changed
 
 ## The three control sizes the player can pick: the weapon buttons and the stick are scaled by this.
 const CONTROL_SIZES: Dictionary[StringName, float] = {&"small": 0.85, &"normal": 1.0, &"large": 1.2}
@@ -23,6 +25,11 @@ const CARD_TRAYS: Array[StringName] = [&"bottom", &"sides"]
 const FRAME_RATES: Array[int] = [30, 60]
 const PERFORMANCES: Array[StringName] = [&"standard", &"turbo"]
 const TURBO_SCALE: float = 0.75
+
+## The two audio buses the Sounds and Music switches mute: every sound effect (the match's and the menus') plays on `SFX_BUS`, and any music
+## will play on `MUSIC_BUS` (there is no music in the game yet). Both send to Master; they are made when the game starts (`apply_audio`).
+const SFX_BUS: StringName = &"Sfx"
+const MUSIC_BUS: StringName = &"Music"
 
 const SAVE_PATH: String = "user://settings.cfg"
 const PROJECT_KEY: String = "kalyeah/network/server_url"
@@ -51,6 +58,10 @@ var language: String = "en"
 var aim_guide: bool = true
 ## Tilt to run (off by default): lean the phone the way to run; the kid runs at its one speed, like a finger dragged ahead of it.
 var tilt_to_run: bool = false
+## Whether the sound effects play (off = the Sfx bus is muted): the match's, the menus' and the buttons'.
+var sounds: bool = true
+## Whether music plays (off = the Music bus is muted). There is no music in the game yet: the switch is ready for when there is.
+var music: bool = true
 ## Size of the match controls, one of `CONTROL_SIZES`.
 var control_scale: float = 1.0
 ## The Practice difficulty chosen last (`GameRules.bot_levels`); "" until one is chosen, then the rules' default is used.
@@ -84,8 +95,13 @@ func _ready() -> void:
 		aim_guide = guide if guide is bool else true
 		var tilt: Variant = file.get_value("input", "tilt_to_run", false)
 		tilt_to_run = tilt if tilt is bool else false
+		var loud: Variant = file.get_value("audio", "sounds", true)
+		sounds = loud if loud is bool else true
+		var tune: Variant = file.get_value("audio", "music", true)
+		music = tune if tune is bool else true
 		bot_level = StringName(String(file.get_value("practice", "bot_level", "")))
 	apply_graphics()
+	apply_audio()
 	lock_portrait()
 	get_window().size_changed.connect(fit_portrait)
 	fit_portrait()
@@ -307,6 +323,37 @@ func set_performance(mode: StringName) -> void:
 	_save_value("graphics", "performance", String(mode))
 	apply_graphics()
 	accessibility_changed.emit()  # the film grain follows it
+
+
+func set_sounds(on: bool) -> void:
+	if on == sounds:
+		return
+	sounds = on
+	_save_value("audio", "sounds", on)
+	apply_audio()
+	audio_changed.emit()
+
+
+func set_music(on: bool) -> void:
+	if on == music:
+		return
+	music = on
+	_save_value("audio", "music", on)
+	apply_audio()
+	audio_changed.emit()
+
+
+## Makes the Sfx and Music buses (once, sending to Master) and mutes each one that is switched off.
+func apply_audio() -> void:
+	for pair: Array in [[SFX_BUS, sounds], [MUSIC_BUS, music]]:
+		var bus: StringName = pair[0] as StringName
+		var index: int = AudioServer.get_bus_index(bus)
+		if index == -1:
+			AudioServer.add_bus()
+			index = AudioServer.bus_count - 1
+			AudioServer.set_bus_name(index, bus)
+			AudioServer.set_bus_send(index, &"Master")
+		AudioServer.set_bus_mute(index, not (pair[1] as bool))
 
 
 func set_screen_shake(on: bool) -> void:
