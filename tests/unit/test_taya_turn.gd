@@ -3,6 +3,7 @@ extends GutTest
 ## over `CameraRules.turn_seconds`; the controls swap halfway through; no longer the taya, it swings back. Reduce motion cuts.
 
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
+const PRACTICE_TAYA: GDScript = preload("res://tests/fixtures/practice_taya.gd")
 const DT: float = 1.0 / 30.0
 
 var _game: StringName
@@ -30,12 +31,7 @@ func _practice(game: StringName) -> PracticeMatch:
 	Session.practice_kind = &"match"
 	Session.practice_game = game
 	Session.coach_pending = false
-	var practice: PracticeMatch = autofree(PRACTICE_SCENE.instantiate()) as PracticeMatch
-	add_child(practice)
-	practice.set_process(false)
-	practice._camera.set_process(false)  # the test moves the turn on by hand
-	practice.finish_pick()
-	practice.skip_intro()
+	var practice: PracticeMatch = autofree(PRACTICE_TAYA.make(self, PRACTICE_SCENE, func(match_: PracticeMatch) -> void: match_._camera.set_process(false))) as PracticeMatch  # the test moves the turn on by hand
 	if practice.sim.mode is TumbangPreso:
 		# the match draws the first taya at random (tests/unit/test_tumbang_roll.gd); these tests want the last kid (a bot) to be it
 		(practice.sim.mode as TumbangPreso).taya_id = 6
