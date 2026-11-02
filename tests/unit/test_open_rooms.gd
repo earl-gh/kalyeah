@@ -13,9 +13,9 @@ func before_each() -> void:
 	_peer = 100
 
 
-func _create(size: int, host_name: String = "Ana") -> RoomService.Room:
+func _create(host_name: String = "Ana") -> RoomService.Room:
 	_peer += 1
-	return _rooms.create_room(_peer, host_name, size)
+	return _rooms.create_room(_peer, host_name)
 
 
 func _join(room: RoomService.Room) -> int:
@@ -32,24 +32,26 @@ func _codes() -> Array[String]:
 
 
 func test_a_new_room_is_open_and_listed_with_what_a_card_shows() -> void:
-	var room: RoomService.Room = _create(2, "Ana")
+	var room: RoomService.Room = _create("Ana")
 	assert_true(room.open, "owner: open by default")
 	var listed: Array[Dictionary] = _rooms.open_rooms(NET.room_list_max)
 	assert_eq(listed.size(), 1)
-	assert_eq(listed[0], {"code": room.code, "host_name": "Ana", "team_size": 2, "players": 1, "first_to": room.first_to, "map": room.map_id})
+	assert_eq(listed[0], {"code": room.code, "host_name": "Ana", "team_size": 3, "players": 1, "first_to": room.first_to, "map": room.map_id})
 	assert_true(_rooms.describe(room)["open"], "the room screen knows too")
 
 
 func test_private_started_and_full_rooms_are_not_listed() -> void:
-	var private_room: RoomService.Room = _create(1)
+	var private_room: RoomService.Room = _create()
 	assert_true(_rooms.set_open(_peer, false))
-	var started: RoomService.Room = _create(1)
+	var started: RoomService.Room = _create()
 	var started_host: int = _peer
 	_join(started)
 	started.state = RoomService.State.LOADING
-	var full: RoomService.Room = _create(1)
-	var guest: int = _join(full)
-	var waiting: RoomService.Room = _create(1)
+	var full: RoomService.Room = _create()
+	var guest: int = 0
+	for i: int in 5:
+		guest = _join(full)
+	var waiting: RoomService.Room = _create()
 	assert_eq(_codes(), [waiting.code] as Array[String], "only the open one in the lobby with a free place")
 	assert_false(_codes().has(private_room.code))
 	assert_ne(started_host, 0)
@@ -58,9 +60,9 @@ func test_private_started_and_full_rooms_are_not_listed() -> void:
 
 
 func test_the_fullest_room_comes_first_then_the_oldest_and_the_list_is_capped() -> void:
-	var older: RoomService.Room = _create(3)
-	var newer: RoomService.Room = _create(3)
-	var fuller: RoomService.Room = _create(3)
+	var older: RoomService.Room = _create()
+	var newer: RoomService.Room = _create()
+	var fuller: RoomService.Room = _create()
 	_join(fuller)
 	_join(fuller)
 	assert_eq(_codes(), [fuller.code, older.code, newer.code] as Array[String])
@@ -68,7 +70,7 @@ func test_the_fullest_room_comes_first_then_the_oldest_and_the_list_is_capped() 
 
 
 func test_only_the_host_in_the_lobby_switches_open_or_private() -> void:
-	var room: RoomService.Room = _create(2)
+	var room: RoomService.Room = _create()
 	var host: int = _peer
 	var guest: int = _join(room)
 	assert_false(_rooms.set_open(guest, false), "a guest cannot")
@@ -81,7 +83,7 @@ func test_only_the_host_in_the_lobby_switches_open_or_private() -> void:
 
 
 func test_a_private_room_still_joins_with_its_code() -> void:
-	var room: RoomService.Room = _create(1)
+	var room: RoomService.Room = _create()
 	_rooms.set_open(_peer, false)
 	_peer += 1
 	assert_eq(_rooms.join(room.code, _peer, "Ben"), RoomService.Result.OK)

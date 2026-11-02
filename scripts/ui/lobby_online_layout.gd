@@ -52,20 +52,8 @@ func _build_setup(parent: Control) -> void:
 	screen._setup.add_theme_constant_override("separation", UiMetrics.GAP)
 	parent.add_child(screen._setup)
 	# no Name field: your name is the profile's (Edit profile), one place to set it
-	if screen.intent == screen.Intent.CREATE:
-		screen._setup.add_child(LobbyWidgets.field_label("Team size"))
-		var sizes: HBoxContainer = HBoxContainer.new()
-		sizes.add_theme_constant_override("separation", 8)
-		screen._setup.add_child(sizes)
-		for size: int in [1, 2, 3]:
-			var button: Button = LobbyWidgets.button("%dv%d" % [size, size], screen.choose_size.bind(size), "grey")
-			LobbyWidgets.make_toggle(button)
-			button.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
-			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			sizes.add_child(button)
-			screen._size_buttons.append(button)
-		screen.choose_size(1)
-	elif not screen.hotspot:
+	# creating needs nothing set here: every room is 3v3, and the game is picked in the room
+	if screen.intent != screen.Intent.CREATE and not screen.hotspot:
 		# owner: the open rooms first (tap one, or Quick join: no code), a private room's code folded away under them
 		screen.open_rooms = OpenRoomsList.new()
 		screen.open_rooms.room_picked.connect(screen.join_listed)

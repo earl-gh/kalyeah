@@ -9,7 +9,6 @@ signal back_pressed
 signal settings_pressed
 ## The host picked a map in the carousel.
 signal map_chosen(map_id: StringName)
-signal size_chosen(size: int)
 ## Online, host only: open (listed for everyone to join with a tap) or private (code only).
 signal open_chosen(open: bool)
 signal character_chosen(character_id: String)
@@ -61,7 +60,6 @@ var map_carousel: MenuCarousel
 var _map_overlay: Control
 var _map_hint: Label
 var _map_picker: RoomMapPicker
-var size_buttons: Dictionary[int, Button] = {}
 ## Online, host only: Open and Private (owner: open by default).
 var open_buttons: Dictionary[bool, Button] = {}
 var player_grid: GridContainer
@@ -192,19 +190,6 @@ func _build_map_section() -> Control:
 	map_picture.offset_bottom = -8.0
 	map_card.add_child(map_picture)
 	column.add_child(map_card)
-	var sizes: HBoxContainer = HBoxContainer.new()
-	sizes.name = "Sizes"
-	sizes.add_theme_constant_override("separation", int(GAP) + 2)
-	sizes.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_child(sizes)
-	for size: int in [1, 2, 3]:
-		var button: Button = LobbyWidgets.button("%dv%d" % [size, size], size_chosen.emit.bind(size), "grey", UiMetrics.ACTION)
-		LobbyWidgets.make_toggle(button)
-		button.name = "Size%d" % size
-		button.custom_minimum_size = Vector2(0.0, 88.0)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		sizes.add_child(button)
-		size_buttons[size] = button
 	var listing: HBoxContainer = HBoxContainer.new()
 	listing.name = "Listing"
 	listing.add_theme_constant_override("separation", int(GAP) + 2)
@@ -342,21 +327,17 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	for choice: int in first_to_buttons:
 		first_to_buttons[choice].set_pressed_no_signal(choice == count)
 		first_to_buttons[choice].disabled = not host
-	# section 1: the map and the team size (the host changes them, everyone sees them)
+	# section 1: the map (the host changes it, everyone sees it); every room is 3v3
 	var map_id: StringName = StringName(room.get("map", "street") as String)
 	ChoiceCard.set_card(map_card, "", MAP_NAMES.get(map_id, String(map_id).to_upper()) as String, "blue")
 	map_picture.texture = StreetPage.picture_for(map_id)
 	# only the host opens the map carousel
 	map_card.disabled = not host
-	var size: int = room.get("team_size", 1) as int
-	for choice: int in size_buttons:
-		size_buttons[choice].set_pressed_no_signal(choice == size)
-		size_buttons[choice].disabled = not host
+	var size: int = room.get("team_size", RoomService.MAX_TEAM_SIZE) as int
 	# a street game is timed (most points win), so it has no "first to"
 	var game: StreetModeRules = StreetMode.rules_for(map_id)
 	var every_kid: bool = RoomService.free_for_all(map_id)
 	team_headers.visible = not every_kid
-	(size_buttons[1].get_parent() as Control).visible = host and not every_kid  # a free-for-all room always has six places
 	(first_to_buttons[3].get_parent() as Control).visible = host and game == null
 	var open: bool = room.get("open", true) as bool
 	for choice: bool in open_buttons:
@@ -388,9 +369,10 @@ func show_room(room: Dictionary, my_id: int) -> void:
 			kid_cards[id].modulate = Color.WHITE
 	# the one button
 	if host:
+		# always pressable: when the game cannot start yet, pressing it says why (a toast, `start_note`)
 		action_button.text = "Start battle"
-		action_button.disabled = not (room.get("can_start_host", false) as bool)
-		KalyeahTheme.style_button(action_button, "orange")
+		action_button.disabled = false
+		KalyeahTheme.style_button(action_button, "orange" if room.get("can_start_host", false) else "grey")
 	else:
 		var ready: bool = me.get("ready", false) as bool
 		action_button.text = "Cancel ready" if ready else "Ready"
@@ -448,23 +430,8 @@ func show_retry() -> void:
 
 
 static func _readiness(room: Dictionary) -> String:
-	var members: Array = room.get("members", []) as Array
-	var n: int = room.get("team_size", 1) as int
-	var teams: Array[int] = [0, 0]
-	var unready: int = 0
-	for member: Dictionary in members:
-		var team: int = member.get("team", -1) as int
-		if team in [0, 1]:
-			teams[team] += 1
-		if member.get("player_id", -1) != room.get("host", -2) and not member.get("ready", false):
-			unready += 1
-	if room.get("can_start_host", false):
-		return "Ready to play"
-	if maxi(teams[0], teams[1]) < n or mini(teams[0], teams[1]) < maxi(1, n - 1):
-		return "Waiting for players · Blue %d of %d · Red %d of %d" % [teams[0], n, teams[1], n]
-	if unready > 0:
-		return "Waiting for %d player%s to ready up" % [unready, "" if unready == 1 else "s"]
-	return "Choose a team to continue"
+	var note: String = room.get("start_note", "") as String
+	return note if not note.is_empty() else "Ready to play"
 
 
 func set_status(text: String) -> void:

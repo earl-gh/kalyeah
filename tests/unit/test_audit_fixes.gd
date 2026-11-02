@@ -154,9 +154,11 @@ func test_cards_pass_touches_on_so_a_drag_that_starts_on_one_scrolls_the_page() 
 
 # ---- P2 ----
 
-func test_the_room_status_says_how_many_players_each_team_has() -> void:
-	var room: Dictionary = {"host": 1, "team_size": 3, "members": [{"player_id": 1, "team": 0, "ready": true}]}
-	assert_eq(HotspotRoomView._readiness(room), "Waiting for players · Blue 1 of 3 · Red 0 of 3")
+func test_the_room_status_says_what_the_game_is_waiting_for() -> void:
+	var room: Dictionary = {"host": 1, "team_size": 3, "start_note": "Patintero needs at least 2 players on each team.", "members": []}
+	assert_eq(HotspotRoomView._readiness(room), "Patintero needs at least 2 players on each team.")
+	room["start_note"] = ""
+	assert_eq(HotspotRoomView._readiness(room), "Ready to play")
 
 
 func test_one_name_for_a_knocked_out_kid() -> void:

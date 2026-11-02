@@ -52,7 +52,7 @@ func _start_1v1(a: GameClient, b: GameClient) -> ServerMatch:
 	assert_eq(a.connect_to("ws://127.0.0.1:%d" % PORT), OK)
 	assert_eq(b.connect_to("ws://127.0.0.1:%d" % PORT), OK)
 	assert_true(_until(func() -> bool: return a.is_online() and b.is_online()), "connected")
-	a.create_room(1)
+	a.create_room()
 	assert_true(_until(func() -> bool: return not a.room.is_empty()), "room created")
 	b.join_room(a.room["code"] as String)
 	assert_true(_until(func() -> bool: return (b.room.get("members", []) as Array).size() == 2), "joined")

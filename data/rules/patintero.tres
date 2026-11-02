@@ -6,6 +6,7 @@
 script = ExtResource("1_rules")
 id = &"patintero"
 title = "Patintero"
+room_min_team = 2
 match_seconds = 300.0
 swap_grace = 1.5
 tag_circle_radius = 1.3

@@ -9,7 +9,7 @@ func test_lobby_kids_survive_match_initialization_for_every_team_size() -> void:
 	for size: int in [1, 2, 3]:
 		for seed_value: int in [1, 2, 3]:
 			var server: GameServer = GameServer.new(RULES, LAYOUT, NET, seed_value)
-			var room: RoomService.Room = server.rooms.create_room(1, "Host", size)
+			var room: RoomService.Room = server.rooms.create_room(1, "Host")
 			for peer: int in range(2, size * 2 + 1):
 				server.rooms.join(room.code, peer, "Friend")
 			for member: RoomService.Member in room.members:
@@ -24,7 +24,7 @@ func test_lobby_kids_survive_match_initialization_for_every_team_size() -> void:
 
 func test_teammate_choice_cannot_be_stolen_or_duplicated_by_switching_teams() -> void:
 	var service: RoomService = RoomService.new(NET, 1)
-	var room: RoomService.Room = service.create_room(1, "A", 2)
+	var room: RoomService.Room = service.create_room(1, "A")
 	service.join(room.code, 2, "B")
 	service.join(room.code, 3, "C")
 	assert_true(service.set_character(1, &"toni"))
@@ -37,7 +37,7 @@ func test_teammate_choice_cannot_be_stolen_or_duplicated_by_switching_teams() ->
 
 func test_changing_a_character_requires_ready_confirmation_again() -> void:
 	var service: RoomService = RoomService.new(NET, 1)
-	var room: RoomService.Room = service.create_room(1, "A", 1)
+	var room: RoomService.Room = service.create_room(1, "A")
 	service.set_ready(1, true)
 	service.set_character(1, &"toni")
 	assert_false(room.member(1).ready)
@@ -48,10 +48,11 @@ func test_discovery_rejects_online_empty_full_and_started_rooms() -> void:
 	assert_eq(server._discovery_status(), "not_hotspot")
 	server.auto_join = true
 	assert_eq(server._discovery_status(), "no_room")
-	var room: RoomService.Room = server.rooms.create_room(1, "Host", 1)
+	var room: RoomService.Room = server.rooms.create_room(1, "Host")
 	assert_eq(server._discovery_status(), "ready")
-	server.rooms.join(room.code, 2, "Friend")
-	assert_eq(server._discovery_status(), "full")
+	for peer: int in range(2, 7):
+		server.rooms.join(room.code, peer, "Friend")
+	assert_eq(server._discovery_status(), "full", "three a team, six in all")
 	room.state = RoomService.State.PLAYING
 	assert_eq(server._discovery_status(), "in_progress")
 	server.stop()
@@ -81,14 +82,13 @@ func test_open_server_without_a_room_is_not_a_discovery_success() -> void:
 
 
 func test_room_controls_stay_accessible_and_readiness_explains_blocked_start() -> void:
-	var room: Dictionary = {"team_size": 3, "host": 1, "members": [], "first_to": 5}
+	var room: Dictionary = {"team_size": 3, "host": 1, "members": [], "first_to": 5, "start_note": "Agawan Base needs at least 1 player on each team."}
 	var view: HotspotRoomView = autofree(HotspotRoomView.new()) as HotspotRoomView
 	add_child(view)
 	view.show_room(room, 1)
-	assert_string_contains(view.readiness_label.text, "Waiting for players")
+	assert_string_contains(view.readiness_label.text, "needs at least 1 player on each team")
 	assert_gte(view.back_button.custom_minimum_size.y, 88.0)
 	assert_gte(view.settings_button.custom_minimum_size.y, 88.0)
-	assert_gte(view.size_buttons[1].custom_minimum_size.y, 88.0)
 	var scroll: ScrollContainer = view.find_child("RoomScroll", true, false) as ScrollContainer
 	assert_not_null(scroll, "room content can scroll without moving Start off-screen")
 	assert_false(scroll.is_ancestor_of(view.action_button))

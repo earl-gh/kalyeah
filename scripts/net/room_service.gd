@@ -1,7 +1,8 @@
 class_name RoomService
 extends RefCounted
-## Online rooms (docs/GDD.md "Lobby rules"): open (listed, joined with a tap) or private (passcode only). Pure logic, no sockets:
-## the GameServer feeds it peer ids and sends out whatever changed.
+## Online rooms (docs/GDD.md "Lobby rules"): open (listed, joined with a tap) or private (passcode only). Every room has six places,
+## three a team, like a Crossfire room (owner: no 1v1 or 2v2 to pick); each game says how many it needs to start (`start_blocker`).
+## Pure logic, no sockets: the GameServer feeds it peer ids and sends out whatever changed.
 ##
 ## A member keeps one stable `player_id` for the whole match (it is their id in
 ## the MatchSim); `peer_id` is their current connection and changes on reconnect.
@@ -32,7 +33,6 @@ class Member extends RefCounted:
 
 class Room extends RefCounted:
 	var code: String
-	var team_size: int
 	var host_player_id: int
 	## The first team to this many points wins the match (the host picks 3, 5 or 7 in the lobby).
 	var first_to: int = 0
@@ -59,8 +59,10 @@ class Room extends RefCounted:
 
 ## The street games a host sees in the map list, and the ones that can be played so far (the other
 ## two are listed as coming soon).
-## The biggest team: 3v3 (a room is 2 to 6 players).
+## Every room is 3v3: three places a team, six in all.
 const MAX_TEAM_SIZE: int = 3
+## The name of the base game (the other two say theirs in their rules: `StreetModeRules.title`).
+const BASE_TITLE: String = "Agawan Base"
 const MAP_IDS: Array[StringName] = [&"street", &"tumbang_preso", &"patintero"]
 const PLAYABLE_MAP_IDS: Array[StringName] = [&"street", &"patintero", &"tumbang_preso"]
 
@@ -101,13 +103,12 @@ func member_of_peer(peer_id: int) -> Member:
 	return null
 
 
-## Creates a room for 1v1 (team_size 1), 2v2 or 3v3; the creator joins as host.
-func create_room(peer_id: int, player_name: String, team_size: int) -> Room:
-	if room_of_peer(peer_id) != null or team_size < 1 or team_size > MAX_TEAM_SIZE:
+## Creates a room (three places a team); the creator joins as host.
+func create_room(peer_id: int, player_name: String) -> Room:
+	if room_of_peer(peer_id) != null:
 		return null
 	var room: Room = Room.new()
 	room.code = _new_code()
-	room.team_size = team_size
 	room.first_to = default_first_to
 	rooms[room.code] = room
 	var host: Member = _add_member(room, peer_id, player_name)
@@ -121,7 +122,7 @@ func join(code: String, peer_id: int, player_name: String) -> Result:
 		return Result.NOT_FOUND
 	if room.state != State.LOBBY:
 		return Result.IN_PROGRESS
-	if room.members.size() >= room.team_size * 2:
+	if room.members.size() >= MAX_TEAM_SIZE * 2:
 		return Result.FULL
 	if room_of_peer(peer_id) != null:
 		return Result.NOT_ALLOWED
@@ -135,7 +136,7 @@ func pick_team(peer_id: int, team: int) -> bool:
 	var m: Member = member_of_peer(peer_id)
 	if m == null or room.state != State.LOBBY or team < 0 or team > 1 or m.team == team:
 		return false
-	if room.team_count(team) >= room.team_size:
+	if room.team_count(team) >= MAX_TEAM_SIZE:
 		return false
 	for other: Member in room.members:
 		if other.team == team and m.character != &"" and other.character == m.character:
@@ -154,28 +155,43 @@ func set_ready(peer_id: int, ready: bool) -> bool:
 	return true
 
 
-## GDD: every present player is Ready and has a team; one team has N players and
-## the other at least N-1 (1v1 needs both players).
+## Why the host cannot start this room yet, in words for the host ("" = nothing in the way). Each game has its own minimum (owner):
+## Agawan Base needs players on both teams (`NetRules.base_room_min_team`), Tumbang Preso (no teams) `room_min_players` kids, Patintero
+## `room_min_team` on each team; then everyone has a team and is Ready.
 ## `host_ready`: count the host as ready (the room screen's one button readies and starts at once).
-func can_start(room: Room, host_ready: bool = false) -> bool:
+func start_blocker(room: Room, host_ready: bool = false) -> String:
 	if room.state != State.LOBBY:
-		return false
-	if free_for_all(room.map_id):
-		# every kid for itself: no teams to fill, just enough kids and everyone ready (owner: Tumbang Preso 3 to 6)
-		for m: Member in room.members:
-			if not (m.ready or (host_ready and m.player_id == room.host_player_id)):
-				return false
-		return room.members.size() >= StreetMode.rules_for(room.map_id).room_min_players
+		return "The game has already started."
+	var game: StreetModeRules = StreetMode.rules_for(room.map_id)
+	if game == null:
+		if _short_of_team(room, _rules.base_room_min_team):
+			return _team_words(BASE_TITLE, _rules.base_room_min_team)
+	elif free_for_all(room.map_id):
+		if room.members.size() < game.room_min_players:
+			return "%s needs at least %d players." % [game.title, game.room_min_players]
+	elif _short_of_team(room, game.room_min_team):
+		return _team_words(game.title, game.room_min_team)
+	var waiting: int = 0
 	for m: Member in room.members:
-		var is_ready: bool = m.ready or (host_ready and m.player_id == room.host_player_id)
-		if not is_ready or m.team < 0:
-			return false
-	var a: int = room.team_count(0)
-	var b: int = room.team_count(1)
-	var n: int = room.team_size
-	if n == 1:
-		return a == 1 and b == 1
-	return (a == n and b >= n - 1) or (b == n and a >= n - 1)
+		if m.team < 0 and not free_for_all(room.map_id):
+			return "Everyone needs a team first."
+		if not (m.ready or (host_ready and m.player_id == room.host_player_id)):
+			waiting += 1
+	if waiting > 0:
+		return "Waiting for %d player%s to ready up." % [waiting, "" if waiting == 1 else "s"]
+	return ""
+
+
+func can_start(room: Room, host_ready: bool = false) -> bool:
+	return start_blocker(room, host_ready).is_empty()
+
+
+func _short_of_team(room: Room, least: int) -> bool:
+	return room.team_count(0) < least or room.team_count(1) < least
+
+
+static func _team_words(title: String, least: int) -> String:
+	return "%s needs at least %d player%s on each team." % [title, least, "" if least == 1 else "s"]
 
 
 ## Host only, in the lobby: first to 3, 5 or 7 (one of `first_to_choices`).
@@ -190,28 +206,6 @@ func set_first_to(peer_id: int, count: int) -> bool:
 	return true
 
 
-## Host only, in the lobby: 1v1, 2v2 or 3v3, if everyone already in the room still fits. Un-readies
-## everyone (the match they agreed to changed).
-func set_team_size(peer_id: int, size: int) -> bool:
-	var room: Room = room_of_peer(peer_id)
-	var m: Member = member_of_peer(peer_id)
-	if m == null or m.player_id != room.host_player_id or room.state != State.LOBBY:
-		return false
-	if size < 1 or size > 3 or size == room.team_size or free_for_all(room.map_id):
-		return false  # a free-for-all room always has its six places
-	if room.team_count(0) > size or room.team_count(1) > size or room.members.size() > size * 2:
-		return false
-	room.team_size = size
-	for other: Member in room.members:
-		other.ready = false
-		# a member with no team slot yet takes a free one if there is room
-		if other.team < 0:
-			var team: int = 0 if room.team_count(0) <= room.team_count(1) else 1
-			if room.team_count(team) < size:
-				other.team = team
-	return true
-
-
 ## Host only, in the lobby: the map the match is played on (one of `PLAYABLE_MAP_IDS`).
 func set_map(peer_id: int, map_id: StringName) -> bool:
 	var room: Room = room_of_peer(peer_id)
@@ -222,8 +216,7 @@ func set_map(peer_id: int, map_id: StringName) -> bool:
 		return false
 	room.map_id = map_id
 	if free_for_all(map_id):
-		# six places, whatever the team size was; everyone gets one (the two columns are only places, not teams)
-		room.team_size = MAX_TEAM_SIZE
+		# everyone gets a place (the two columns are only places, not teams)
 		for other: Member in room.members:
 			if other.team < 0:
 				other.team = 0 if room.team_count(0) <= room.team_count(1) else 1
@@ -250,7 +243,7 @@ func set_open(peer_id: int, open: bool) -> bool:
 func open_rooms(limit: int) -> Array[Dictionary]:
 	var found: Array[Room] = []
 	for room: Room in rooms.values():
-		if room.open and room.state == State.LOBBY and room.members.size() < room.team_size * 2:
+		if room.open and room.state == State.LOBBY and room.members.size() < MAX_TEAM_SIZE * 2:
 			found.append(room)
 	# rooms keep their creation order, so a stable sort by size puts the oldest first among equals
 	found.sort_custom(func(a: Room, b: Room) -> bool: return a.members.size() > b.members.size())
@@ -258,7 +251,7 @@ func open_rooms(limit: int) -> Array[Dictionary]:
 	for room: Room in found.slice(0, maxi(limit, 0)):
 		var host: Member = room.member(room.host_player_id)
 		listed.append({
-			"code": room.code, "host_name": host.name if host != null else "", "team_size": room.team_size,
+			"code": room.code, "host_name": host.name if host != null else "", "team_size": MAX_TEAM_SIZE,
 			"players": room.members.size(), "first_to": room.first_to, "map": room.map_id,
 		})
 	return listed
@@ -371,9 +364,9 @@ func describe(room: Room) -> Dictionary:
 			"ready": m.ready, "connected": m.connected, "afk": m.afk, "char": m.character,
 		})
 	return {
-		"code": room.code, "team_size": room.team_size, "host": room.host_player_id, "first_to": room.first_to,
+		"code": room.code, "team_size": MAX_TEAM_SIZE, "host": room.host_player_id, "first_to": room.first_to,
 		"state": room.state, "members": members, "can_start": can_start(room),
-		"can_start_host": can_start(room, true), "map": room.map_id, "open": room.open,
+		"can_start_host": can_start(room, true), "start_note": start_blocker(room, true), "map": room.map_id, "open": room.open,
 	}
 
 
@@ -386,7 +379,7 @@ func _add_member(room: Room, peer_id: int, player_name: String) -> Member:
 	m.token = "%08x%08x" % [_rng.randi(), _rng.randi()]
 	# drop into the smaller team (ties go to team 0)
 	var team: int = 0 if room.team_count(0) <= room.team_count(1) else 1
-	if room.team_count(team) < room.team_size:
+	if room.team_count(team) < MAX_TEAM_SIZE:
 		m.team = team
 	for avatar: String in Session.AVATARS:
 		if not room.members.any(func(other: Member) -> bool: return other.team == m.team and other.character == StringName(avatar)):
