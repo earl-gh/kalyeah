@@ -30,6 +30,8 @@ const SECTION_GAP: int = UiMetrics.SECTION_GAP
 const MAP_CARD: Vector2 = Vector2(0.0, 108.0)
 const KID_CARD: Vector2 = Vector2(96.0, 128.0)
 const KID_RADIUS: int = UiSkin.RADIUS_M
+## The room QR dialog's code, a side (29 modules with its margin: 15 px each in the 720 px design width).
+const QR_SIDE: float = 435.0
 const BAR_HEIGHT: float = 96.0
 const NUMBER_WIDTH: float = 56.0
 ## The solid number blocks and tags of the mock-up, and the navy of the names on the white bars.
@@ -44,6 +46,7 @@ var code_label: Label
 var code_boxes: UiCodeBoxes
 var code_row: HBoxContainer
 var copy_button: Button
+var qr_button: Button
 var _copy_timer: Timer
 var back_button: Button
 var settings_button: Button
@@ -325,6 +328,7 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	code_label.text = String(room.get("code", "")) if online_room else ""
 	code_boxes.set_text(code_label.text)
 	code_row.visible = online_room
+	qr_button.visible = code_row.visible
 	copy_button.text = "Copy"
 	_copy_timer.stop()
 	readiness_label.text = _readiness(room)
@@ -431,6 +435,7 @@ func clear_room() -> void:
 	code_label.text = ""
 	code_boxes.set_text("")
 	code_row.hide()
+	qr_button.hide()
 	_copy_timer.stop()
 
 
@@ -471,6 +476,7 @@ func has_room() -> bool:
 func set_online(enabled: bool) -> void:
 	online_room = enabled
 	code_row.visible = enabled and has_room()
+	qr_button.visible = code_row.visible
 
 
 func copy_code() -> void:
@@ -480,3 +486,22 @@ func copy_code() -> void:
 	UiToast.say(self, "Room code copied!")
 	copy_button.text = "Copied!"
 	_copy_timer.start()
+
+
+## The room code as a big QR code (`RoomQr`): a friend taps Join room, then Scan QR, and points their camera at it.
+func show_qr() -> MenuDialog:
+	if not online_room or not has_room() or code_label.text.is_empty():
+		return null
+	var card: MenuDialog = MenuDialog.create("Room QR", MenuDialog.WIDTH_SHEET)
+	card.name = "RoomQrDialog"
+	var qr: QrView = QrView.new(RoomQr.payload(code_label.text))
+	qr.custom_minimum_size = Vector2(QR_SIDE, QR_SIDE)
+	qr.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	card.body.add_child(qr)
+	card.add_label("Friends: tap Join room, then Scan QR, and point the camera here.", UiMetrics.BODY, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
+	var done: Button = MenuDialog.make_button("Done", "orange", UiMetrics.BODY)
+	done.name = "Done"
+	done.pressed.connect(card.close.bind(true))
+	card.add_buttons([done])
+	card.open(self)
+	return card

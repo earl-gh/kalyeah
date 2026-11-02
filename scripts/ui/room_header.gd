@@ -1,6 +1,6 @@
 class_name RoomHeader
 extends RefCounted
-## Shared room navigation and Online-only code sharing.
+## Shared room navigation and Online-only code sharing (the code's boxes with Copy, and QR in the top row).
 
 static func build(view: HotspotRoomView) -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
@@ -21,6 +21,15 @@ static func build(view: HotspotRoomView) -> Control:
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(title)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Online only, with the code: the code as a QR for a friend in the same room to scan from Join (no typing)
+	view.qr_button = MenuDialog.make_button("QR", "blue", UiMetrics.ACTION, Vector2(104.0, 88.0))
+	view.qr_button.name = "QrButton"
+	view.qr_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	view.qr_button.tooltip_text = "Show the room's QR code"
+	view.qr_button.accessibility_name = "Show the room's QR code"
+	view.qr_button.pressed.connect(view.show_qr)
+	view.qr_button.visible = false
+	row.add_child(view.qr_button)
 	# settings: the icon alone, no button container
 	view.settings_button = Button.new()
 	view.settings_button.name = "SettingsButton"

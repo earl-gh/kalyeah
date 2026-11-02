@@ -71,10 +71,21 @@ func _build_setup(parent: Control) -> void:
 		screen.open_rooms.room_picked.connect(screen.join_listed)
 		screen.open_rooms.create_pressed.connect(screen.create_instead)
 		screen._setup.add_child(screen.open_rooms)
+		# a private room's code: typed (folded away) or scanned from the host's room QR
+		var code_row: HBoxContainer = HBoxContainer.new()
+		code_row.name = "CodeChoices"
+		code_row.add_theme_constant_override("separation", UiMetrics.GAP)
+		screen._setup.add_child(code_row)
 		screen.code_toggle = LobbyWidgets.button("Have a code?", screen.toggle_code, "grey", UiMetrics.DETAIL)
 		screen.code_toggle.name = "HaveACode"
 		screen.code_toggle.custom_minimum_size = Vector2(0.0, UiMetrics.MIN_TARGET)
-		screen._setup.add_child(screen.code_toggle)
+		screen.code_toggle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		code_row.add_child(screen.code_toggle)
+		screen.scan_button = LobbyWidgets.button("Scan QR", screen.open_scanner, "blue", UiMetrics.DETAIL)
+		screen.scan_button.name = "ScanQr"
+		screen.scan_button.custom_minimum_size = Vector2(0.0, UiMetrics.MIN_TARGET)
+		screen.scan_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		code_row.add_child(screen.scan_button)
 		screen.code_section = VBoxContainer.new()
 		screen.code_section.name = "CodeSection"
 		screen.code_section.add_theme_constant_override("separation", UiMetrics.GAP)

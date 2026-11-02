@@ -59,6 +59,10 @@ var _last_map: String = ""
 var open_rooms: OpenRoomsList
 var code_toggle: Button
 var code_section: VBoxContainer
+## Online Join: opens the camera to read the host's room QR (`QrScanSheet`).
+var scan_button: Button
+## Tests: the camera the scanner uses instead of the real one.
+var scan_camera: IdCamera
 ## Seconds to the next ask for the room list (or, offline, to the next try to connect).
 var _list_left: float = 0.0
 
@@ -277,6 +281,25 @@ func create_instead() -> void:
 	intent = Intent.CREATE
 	_show_room(false)
 	_start_online_create()
+
+
+## Scan QR: the camera reads the host's room QR, then the room is joined as if its code had been typed.
+func open_scanner() -> MenuDialog:
+	var card: MenuDialog = QrScanSheet.build(join_scanned, scan_camera)
+	card.open(self)
+	return card
+
+
+## A scanned room code: shown in the code boxes (so a refused join marks them) and sent.
+func join_scanned(code: String) -> void:
+	if _code_boxes == null:
+		return
+	# unfolded without focusing the boxes: no keyboard popping up over the join
+	code_section.visible = true
+	code_toggle.text = "Hide the code"
+	_code_boxes.set_text(code)
+	_code_boxes.set_error(false)
+	submit()
 
 
 ## Shows or folds the form for a private room's code.
