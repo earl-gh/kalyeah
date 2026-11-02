@@ -30,7 +30,7 @@ Settings="*res://scripts/autoload/settings.gd"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gut/plugin.cfg")
+enabled=PackedStringArray("res://addons/gut/plugin.cfg", "res://addons/kalyeah_local/plugin.cfg")
 
 [debug]
 

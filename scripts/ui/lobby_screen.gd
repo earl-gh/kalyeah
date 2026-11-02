@@ -283,6 +283,24 @@ func create_instead() -> void:
 	_start_online_create()
 
 
+func _on_local_started(_network: Dictionary) -> void:
+	_share_local()
+
+
+## The shared link outlives this screen: let go of it.
+func _exit_tree() -> void:
+	if Net.local.hotspot_started.is_connected(_on_local_started):
+		Net.local.hotspot_started.disconnect(_on_local_started)
+	if Net.local.hotspot_stopped.is_connected(_share_local):
+		Net.local.hotspot_stopped.disconnect(_share_local)
+
+
+## Local host on its game hotspot: the room's QR shows it (friends scan it, or tap phones by NFC); gone when the hotspot stops.
+func _share_local() -> void:
+	if _room_view != null and is_instance_valid(_room_view):
+		_room_view.set_local_share(Net.local.share_text(), Net.local.nfc_state() == "on")
+
+
 ## Scan QR: the camera reads the host's room QR, then the room is joined as if its code had been typed.
 func open_scanner() -> MenuDialog:
 	var card: MenuDialog = QrScanSheet.build(join_scanned, scan_camera)
@@ -463,6 +481,10 @@ func _build_room_view() -> void:
 	_room_view = HotspotRoomView.new()
 	add_child(_room_view)
 	_room_view.set_online(not hotspot)
+	if hotspot and intent == Intent.CREATE:
+		_share_local()
+		Net.local.hotspot_started.connect(_on_local_started)
+		Net.local.hotspot_stopped.connect(_share_local)
 	_status = _room_view.status_label
 	_room_view.back_pressed.connect(_on_back)
 	_room_view.settings_pressed.connect(_open_settings)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fails the build when the APK is not the app we mean to ship.
-#   inspect-apk.sh <apk> <version from version.txt>
+#   inspect-apk.sh <apk> <version from version.txt> [folder to keep the aapt2 dumps in]
 #   inspect-apk.sh --dumps <badging.txt> <manifest.txt> <version>    only the manifest checks, on saved aapt2 output (the unit test)
 # Needs the Android build-tools (aapt2, zipalign) and binutils (readelf); all are on the hosted runner.
 # The manifest facts come from `aapt2 dump xmltree` (what the APK really contains); `dump badging` only supplies the package,
@@ -9,7 +9,10 @@ set -euo pipefail
 
 MAX_MB=200      # MiB; docs/ROADMAP.md "Budgets (M6)". 148 before the owner's Junjun, Ligaya and Migo models, 192 measured by the Android APK run with all six authored kids at full quality (owner's call), so a heavy new asset fails the build
 PACKAGE="com.kalyeah.game"
-PERMISSIONS="android.permission.CAMERA android.permission.CHANGE_WIFI_MULTICAST_STATE android.permission.INTERNET android.permission.VIBRATE"
+# CAMERA: the ID photo and the QR scanner. The rest is Local play (android/kalyeah_local/src/main/AndroidManifest.xml): Wi-Fi and network
+# state for the game hotspot and joining it, NEARBY_WIFI_DEVICES (Android 13+) or location (Android 8 to 12) that Android asks for
+# them, NFC to tap phones together. CHANGE_WIFI_MULTICAST_STATE, INTERNET, VIBRATE: discovery, sockets, haptics.
+PERMISSIONS="android.permission.ACCESS_COARSE_LOCATION android.permission.ACCESS_FINE_LOCATION android.permission.ACCESS_NETWORK_STATE android.permission.ACCESS_WIFI_STATE android.permission.CAMERA android.permission.CHANGE_NETWORK_STATE android.permission.CHANGE_WIFI_MULTICAST_STATE android.permission.CHANGE_WIFI_STATE android.permission.INTERNET android.permission.NEARBY_WIFI_DEVICES android.permission.NFC android.permission.VIBRATE"
 ATTR_MIN_SDK="minSdkVersion\(0x0101020c\)"
 ATTR_TARGET_SDK="targetSdkVersion\(0x01010270\)"
 ATTR_GL_ES="glEsVersion\(0x01010281\)"
@@ -60,7 +63,7 @@ manifest_checks() { # manifest_checks <badging file> <manifest file> <version>
   declared="$(sed -n "s/^uses-permission: name='\([^']*\)'.*/\1/p" "$badging_file" | grep -v '\.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION$' | sort | tr '\n' ' ' || true)"
   expected="$(echo "$PERMISSIONS" | tr ' ' '\n' | sort | tr '\n' ' ')"
   echo "permissions: $declared"
-  check "only the permissions the game uses (CAMERA for the ID photo, CHANGE_WIFI_MULTICAST_STATE, INTERNET, VIBRATE)" test "$declared" = "$expected"
+  check "only the permissions the game uses (see PERMISSIONS)" test "$declared" = "$expected"
 }
 
 show_raw() { # show_raw <badging file> <manifest file>: what aapt2 printed, to read after a failure
@@ -78,6 +81,7 @@ fi
 
 APK="$1"
 VERSION="$2"
+DUMPS="${3:-}"
 TOOLS="$ANDROID_HOME/build-tools/${ANDROID_BUILD_TOOLS:-35.0.1}"
 scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
@@ -85,6 +89,8 @@ trap 'rm -rf "$scratch"' EXIT
 # aapt2 warns "mipmap/themed_icon ... no such path exists": harmless, Godot drops that file when no monochrome launcher icon is set.
 "$TOOLS/aapt2" dump badging "$APK" > "$scratch/badging.txt"
 "$TOOLS/aapt2" dump xmltree --file AndroidManifest.xml "$APK" > "$scratch/manifest.txt"
+# kept (when a folder is given) so tests/fixtures/android/ can be refreshed from real output
+if [ -n "$DUMPS" ]; then mkdir -p "$DUMPS" && cp "$scratch/badging.txt" "$scratch/manifest.txt" "$DUMPS/"; fi
 manifest_checks "$scratch/badging.txt" "$scratch/manifest.txt" "$VERSION"
 if [ "$failed" -ne 0 ]; then show_raw "$scratch/badging.txt" "$scratch/manifest.txt"; fi
 

@@ -47,6 +47,10 @@ var code_boxes: UiCodeBoxes
 var code_row: HBoxContainer
 var copy_button: Button
 var qr_button: Button
+## Local, host on its game hotspot: the hotspot as a Wi-Fi QR text (LocalLink.share_text), shown by QR; "" otherwise.
+var local_share: String = ""
+## Whether this phone can hand the hotspot over by NFC too (said under the QR).
+var local_nfc: bool = false
 var _copy_timer: Timer
 var back_button: Button
 var settings_button: Button
@@ -328,7 +332,7 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	code_label.text = String(room.get("code", "")) if online_room else ""
 	code_boxes.set_text(code_label.text)
 	code_row.visible = online_room
-	qr_button.visible = code_row.visible
+	_refresh_qr()
 	copy_button.text = "Copy"
 	_copy_timer.stop()
 	readiness_label.text = _readiness(room)
@@ -435,7 +439,7 @@ func clear_room() -> void:
 	code_label.text = ""
 	code_boxes.set_text("")
 	code_row.hide()
-	qr_button.hide()
+	_refresh_qr()
 	_copy_timer.stop()
 
 
@@ -476,7 +480,7 @@ func has_room() -> bool:
 func set_online(enabled: bool) -> void:
 	online_room = enabled
 	code_row.visible = enabled and has_room()
-	qr_button.visible = code_row.visible
+	_refresh_qr()
 
 
 func copy_code() -> void:
@@ -490,18 +494,39 @@ func copy_code() -> void:
 
 ## The room code as a big QR code (`RoomQr`): a friend taps Join room, then Scan QR, and points their camera at it.
 func show_qr() -> MenuDialog:
-	if not online_room or not has_room() or code_label.text.is_empty():
+	var text: String = ""
+	var caption: String = ""
+	if online_room and has_room() and not code_label.text.is_empty():
+		text = RoomQr.payload(code_label.text)
+		caption = "Friends: tap Join room, then Scan QR, and point the camera here."
+	elif has_room() and not local_share.is_empty():
+		# the game hotspot's Wi-Fi QR: Kalyeah joins it and finds the room; a phone's own camera can join the Wi-Fi with it too
+		text = local_share
+		caption = "Friends: tap Local, Join room, then Scan QR%s." % (", or hold your phones back to back" if local_nfc else "")
+	if text.is_empty():
 		return null
 	var card: MenuDialog = MenuDialog.create("Room QR", MenuDialog.WIDTH_SHEET)
 	card.name = "RoomQrDialog"
-	var qr: QrView = QrView.new(RoomQr.payload(code_label.text))
+	var qr: QrView = QrView.new(text)
 	qr.custom_minimum_size = Vector2(QR_SIDE, QR_SIDE)
 	qr.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	card.body.add_child(qr)
-	card.add_label("Friends: tap Join room, then Scan QR, and point the camera here.", UiMetrics.BODY, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
+	card.add_label(caption, UiMetrics.BODY, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
 	var done: Button = MenuDialog.make_button("Done", "orange", UiMetrics.BODY)
 	done.name = "Done"
 	done.pressed.connect(card.close.bind(true))
 	card.add_buttons([done])
 	card.open(self)
 	return card
+
+
+## Local host: the game hotspot to share ("" when it stopped or this phone is on an ordinary hotspot or Wi-Fi).
+func set_local_share(text: String, nfc: bool = false) -> void:
+	local_share = text
+	local_nfc = nfc
+	_refresh_qr()
+
+
+## QR is there when there is something to scan: an Online room's code, or the Local host's game hotspot.
+func _refresh_qr() -> void:
+	qr_button.visible = has_room() and ((online_room and not code_label.text.is_empty()) or not local_share.is_empty())

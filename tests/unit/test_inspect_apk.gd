@@ -1,14 +1,13 @@
 extends GutTest
 ## .github/scripts/inspect-apk.sh against output that `aapt2 dump badging` and `dump xmltree` really printed for an exported
-## APK (tests/fixtures/android/, captured from a local Godot 4.6.2 debug export). The first version of the script looked for
-## lines aapt2 does not print and failed a good APK; these tests keep it reading what is really there. The
-## CHANGE_WIFI_MULTICAST_STATE and CAMERA lines were added by hand, in the form of the captured INTERNET and VIBRATE lines, because the
-## capture predates those permissions; replace them with a fresh capture (the workflow prints the raw aapt2 output).
+## APK (tests/fixtures/android/: the `kalyeah-apk-dumps` artifact of Android APK run 41468724309, the first Gradle export with the
+## Local plugin, version 0.7.0). The first version of the script looked for lines aapt2 does not print and failed a good APK; these
+## tests keep it reading what is really there. Refresh the fixtures from that artifact of a newer run, never by hand.
 
 const SCRIPT := "res://.github/scripts/inspect-apk.sh"
 const BADGING := "res://tests/fixtures/android/badging.txt"
 const MANIFEST := "res://tests/fixtures/android/manifest.txt"
-const VERSION := "0.0.0"
+const VERSION := "0.7.0"
 
 
 func _read(path: String) -> String:

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The game's own NFC address (AID F0 + "KALYEA"): only another Kalyeah asks for it. -->
+<host-apdu-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/kalyeah_nfc_share"
+    android:requireDeviceUnlock="false">
+    <aid-group android:description="@string/kalyeah_nfc_share" android:category="other">
+        <aid-filter android:name="F04B414C594541" />
+    </aid-group>
+</host-apdu-service>
