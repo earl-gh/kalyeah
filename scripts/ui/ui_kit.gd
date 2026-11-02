@@ -121,11 +121,15 @@ const PAGE_HEADER_ROW_HEIGHT: float = 92.0
 const PAGE_HEADER_DROP: float = 62.0
 
 
-## Wires `button` for the shared press feel. Safe to call again on the same button: it is wired once.
-static func feel_press(button: BaseButton) -> void:
+## Wires `button` for the shared press feel and its sound (`UiSound`; `role` picks the sound, else it taps). Safe to call again on the
+## same button: it is wired once.
+static func feel_press(button: BaseButton, role: StringName = &"") -> void:
+	if role != &"":
+		UiSound.set_role(button, role)
 	if button.has_meta(&"feels_press"):
 		return
 	button.set_meta(&"feels_press", true)
+	UiSound.hook(button)
 	button.button_down.connect(_press_to.bind(button, PRESS_SCALE, PRESS_DOWN, Tween.TRANS_QUAD))
 	button.button_up.connect(_press_to.bind(button, 1.0, PRESS_UP, Tween.TRANS_BACK))
 

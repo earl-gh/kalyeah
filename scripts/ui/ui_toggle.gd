@@ -19,6 +19,7 @@ func _init() -> void:
 		add_theme_stylebox_override(state, StyleBoxEmpty.new())
 	add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.round_radius(UiMetrics.TOUCH)))
 	toggled.connect(_on_toggled)
+	UiSound.hook(self)
 
 
 func _ready() -> void:

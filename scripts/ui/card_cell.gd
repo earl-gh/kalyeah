@@ -46,7 +46,7 @@ func _build() -> void:
 	for state: String in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
 		add_theme_stylebox_override(state, StyleBoxEmpty.new())
 	add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_L))
-	UiKit.feel_press(self)
+	UiKit.feel_press(self, &"select")
 	_column = VBoxContainer.new()
 	_column.name = "Column"
 	_column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
