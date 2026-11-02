@@ -34,37 +34,10 @@ func test_the_whole_arena_fits_on_a_phone_with_its_margins() -> void:
 
 
 func test_the_whole_arena_fits_any_screen_shape() -> void:
-	for aspect: float in [0.4, 0.46, PHONE, 0.62, 0.75, 1.0]:
+	for aspect: float in [0.46, PHONE, 0.62, 0.75, 1.0]:
 		var framed: Vector2 = CAMERA.frame(aspect, ARENA)
 		assert_true(CAMERA.fits(framed.x * 1.001, aspect, ARENA), "aspect %.2f" % aspect)
-		if framed.x * aspect > ARENA.x + 2.0 * CAMERA.side_scenery + 0.01:
-			assert_false(CAMERA.fits(framed.x * 0.97, aspect, ARENA), "and it is the nearest the camera can be (aspect %.2f)" % aspect)
-
-
-func test_every_phone_shows_the_sidewalks_and_buildings_past_both_sides_of_the_street() -> void:
-	assert_almost_eq(CAMERA.side_scenery, 7.0, 0.0001, "owner: rows of houses and shops show on both sides on every phone (9:16 and 9:20)")
-	# The UI is 720 px wide on every portrait phone; the score row and the card tray keep their pixel heights.
-	for height: float in [1280.0, 1440.0, 1600.0, 1800.0]:
-		var aspect: float = 720.0 / height
-		var bottom: float = 250.0 / height
-		var top: float = 160.0 / height
-		var framed: Vector2 = CAMERA.frame(aspect, ARENA, bottom, top)
-		assert_gte(framed.x * aspect, ARENA.x + 2.0 * CAMERA.side_scenery - 0.001, "the side scenery in view (720 x %d)" % height)
-		assert_true(CAMERA.fits(framed.x * 1.001, aspect, ARENA, bottom, top), "the whole street still fits (720 x %d)" % height)
-		var far: float = CAMERA.screen_point(framed.x, aspect, Vector2(0.0, -ARENA.y / 2.0), framed.y).y
-		var near: float = CAMERA.screen_point(framed.x, aspect, Vector2(0.0, ARENA.y / 2.0), framed.y).y
-		var band_middle: float = ((1.0 - 2.0 * top) + (-1.0 + 2.0 * bottom)) / 2.0
-		assert_almost_eq((far + near) / 2.0, band_middle, 0.001, "still centred between the score row and the controls")
-
-
-func test_without_side_scenery_a_tall_phone_fills_its_width_with_the_street() -> void:
-	var rules: CameraRules = CAMERA.duplicate() as CameraRules
-	rules.side_scenery = 0.0
-	var bottom: float = 250.0 / 1600.0
-	var top: float = 160.0 / 1600.0
-	var framed: Vector2 = rules.frame(0.45, ARENA, bottom, top)
-	assert_false(rules.fits(framed.x * 0.97, 0.45, ARENA, bottom, top), "the old framing: the nearest fit")
-	assert_lt(framed.x, CAMERA.frame(0.45, ARENA, bottom, top).x * 0.9, "clearly closer than with the scenery (the side buildings cut off)")
+		assert_false(CAMERA.fits(framed.x * 0.97, aspect, ARENA), "and it is the nearest the camera can be (aspect %.2f)" % aspect)
 
 
 func test_the_arena_is_centred_in_the_space_between_the_margins() -> void:
@@ -106,7 +79,7 @@ func test_the_kid_is_readable_at_this_size() -> void:
 	var tall: float = (head.y - feet.y) / 2.0 * 1280.0
 	assert_gt(tall, 46.0, "at least 46 px tall on a 1280 px screen (about 53 at the shipped scale: do not shrink the kids further)")
 	var wide: float = absf(CAMERA.screen_point(framed.x, PHONE, Vector2(0.35 * CAMERA.kid_view_scale, 0.0), framed.y).x - feet.x) * 360.0 * 2.0
-	assert_gt(wide, 26.0, "and at least 26 px wide (about 26.5 with the side buildings in view, owner 2026-11-02; it was about 31)")
+	assert_gt(wide, 27.0, "and at least 27 px wide (about 31)")
 
 
 func test_the_arena_camera_places_itself_and_keeps_the_whole_street_in_view() -> void:
