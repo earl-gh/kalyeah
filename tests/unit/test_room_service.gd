@@ -105,17 +105,20 @@ func test_agawan_base_with_everyone_on_one_team_cannot_start() -> void:
 	assert_true(service.can_start(room), "2 v 1 is fine: the teams do not have to match")
 
 
-func test_tumbang_preso_has_no_teams_and_needs_two_players() -> void:
+func test_tumbang_preso_has_no_teams_and_needs_three_players_the_taya_among_them() -> void:
 	var service: RoomService = _service()
 	var room: RoomService.Room = service.create_room(1, "A")
 	service.set_map(1, &"tumbang_preso")
 	service.set_ready(1, true)
 	assert_false(service.can_start(room), "one player alone")
-	assert_eq(service.start_blocker(room), "Tumbang Preso needs at least 2 players.")
+	assert_eq(service.start_blocker(room), "Tumbang Preso needs at least 3 players.")
 	service.join(room.code, 2, "B")
-	assert_eq(service.start_blocker(room), "Waiting for 1 player to ready up.")
 	service.set_ready(2, true)
-	assert_true(service.can_start(room), "two kids, whatever their places")
+	assert_eq(service.start_blocker(room), "Tumbang Preso needs at least 3 players.", "two are not enough: one is the taya, two throw")
+	service.join(room.code, 3, "C")
+	assert_eq(service.start_blocker(room), "Waiting for 1 player to ready up.")
+	service.set_ready(3, true)
+	assert_true(service.can_start(room), "three kids, whatever their places")
 	_fill(service, room, 6)
 	_everyone_ready(service, 6)
 	assert_true(service.can_start(room), "up to six")

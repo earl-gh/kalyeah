@@ -472,11 +472,16 @@ func kill(id: int) -> void:
 		objectives.tag(self, players[id])
 
 
+## How long the opening show lasts: `rules.intro_time`, and a street game with a roll for its first taya adds the roll's time.
+func intro_total() -> float:
+	return rules.intro_time + (mode.rules.roll_seconds if mode != null else 0.0)
+
+
 ## Starts the opening show: both teams stand at their posts for
-## `rules.intro_time`, then play starts. Call once, before the first step.
+## `intro_total()`, then play starts. Call once, before the first step.
 func begin_intro() -> void:
 	phase = Phase.INTRO
-	intro_left = rules.intro_time
+	intro_left = intro_total()
 
 
 ## Everyone on `team` is gone (online, away too long): the match ends now and the other team wins, the score as it stands.

@@ -134,6 +134,10 @@ func _practice(game: StringName) -> PracticeMatch:
 	practice.set_process(false)
 	practice.finish_pick()
 	practice.skip_intro()
+	if practice.sim.mode is TumbangPreso:
+		# the match draws the first taya at random (tests/unit/test_tumbang_roll.gd); these tests want the last kid (a bot) to be it, as it was before the draw
+		(practice.sim.mode as TumbangPreso).taya_id = 6
+		practice.sim.mode.place_teams(practice.sim)
 	return practice
 
 
@@ -143,7 +147,7 @@ func test_a_tumbang_preso_practice_is_every_kid_for_itself_with_one_taya() -> vo
 	assert_eq(practice.sim.players.size(), 6, "you and five bots")
 	for state: PlayerState in practice.sim.players.values():
 		assert_eq(state.team, 0, "nobody is on a team")
-	assert_ne(game.taya_id, practice.local_id, "a bot is the taya to begin with")
+	assert_true(practice.sim.players.has(game.taya_id), "one of the six is the taya (drawn at random: tests/unit/test_tumbang_roll.gd)")
 	assert_false(practice._map.bases_shown(), "no bases or rescue areas in Tumbang Preso")
 	assert_not_null(practice.mode_view.can_node(), "the can is drawn")
 	# the match's seed is the clock's: a thrower bot waits up to two seconds, aims and throws, so watch for any bot doing anything for a while
@@ -629,11 +633,12 @@ func test_a_tag_plays_the_touch_for_the_tagger_and_then_the_round_resets() -> vo
 	practice.sim.players[taya].position = Vector2(0.0, 6.5)
 	practice.sim.step(DT)
 	assert_eq(game.taya_id, 1)
+	assert_eq(practice.hud.overhead.tag_count(), 1, "TAYA! pops over the tagged kid, where it stands")
 	for i: int in 12:
 		practice.advance(DT)  # the pause: the tagger stands still, its touch keeps playing
 	var view: KidModel = practice._views[taya] as KidModel
 	assert_eq(view.pose, "cast", "the taya still reaches out and touches while everyone stands still")
-	assert_string_contains(practice.banner_text(), "IT")
+	assert_false(practice.banner_text().contains("IT!"), "no banner across the screen for a tag")
 	for i: int in ceili(game.rules.reset_seconds / DT):
 		practice.advance(DT)
 	assert_false(game.is_resetting())

@@ -37,6 +37,9 @@ const TILT_BACK_SHARE: float = 0.6
 
 ## The size of a card (1.75:2.5 on the main screen; the room's map carousel sets 3:4 before `setup`).
 var card_size: Vector2 = CARD
+## How long one step takes (s); 0 = the usual (`WRAP_TIME` for an endless carousel, else `SNAP_TIME`). The kid roll (`TumbangRoll`) sets it
+## to the time before its next step, so the cards run on without stopping between steps.
+var step_seconds: float = 0.0
 ## The cards behind the chosen one stand higher than it by this share of a card's height (the mode models on the main screen do, so the
 ## layer behind shows over the chosen one); 0 leaves them on one line.
 var back_rise: float = 0.0
@@ -165,6 +168,12 @@ func _notification(what: int) -> void:
 		_layout()
 
 
+func _step_time() -> float:
+	if step_seconds > 0.0:
+		return step_seconds
+	return WRAP_TIME if wrap else SNAP_TIME
+
+
 ## Brings card `at` to the middle. Emits `selected` when it is a different card. An endless carousel takes the shorter way round.
 ## `way` (-1 or 1, the direction of a swipe) lets an endless carousel step over `blocked` cards to the next free one that way; with 0
 ## (a tap) a blocked card is refused and the carousel settles back where it was.
@@ -193,7 +202,7 @@ func select(at: int, animate: bool = true, way: int = 0) -> void:
 		if not is_equal_approx(goal, _position):
 			_set_swiping(true)
 		_tween = create_tween()
-		_tween.tween_method(_move_to, _position, goal, WRAP_TIME if wrap else SNAP_TIME).set_trans(Tween.TRANS_CUBIC if not wrap else Tween.TRANS_SINE).set_ease(Tween.EASE_OUT if not wrap else Tween.EASE_IN_OUT)
+		_tween.tween_method(_move_to, _position, goal, _step_time()).set_trans(Tween.TRANS_CUBIC if not wrap else Tween.TRANS_SINE).set_ease(Tween.EASE_OUT if not wrap else Tween.EASE_IN_OUT)
 		if wrap:
 			_tween.tween_callback(_settle)
 		_tween.tween_callback(_set_swiping.bind(false))

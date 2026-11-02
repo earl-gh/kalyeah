@@ -107,7 +107,7 @@ func pick(index: int) -> void:
 	_choose(id)
 
 
-## How the game `id` plays in this room, in one line ("3v3 · Teams · First to 3", "2 to 6 kids · Every kid for itself · 5 min").
+## How the game `id` plays in this room, in one line ("3v3 · Teams · First to 3", "3 to 6 kids · Every kid for itself · 5 min").
 func info_for(id: StringName) -> String:
 	var size: int = int(view._room.get("team_size", RoomService.MAX_TEAM_SIZE))
 	var game: StreetModeRules = StreetMode.rules_for(id)

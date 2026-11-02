@@ -37,7 +37,7 @@ func _open(kind: StringName, game: StringName) -> PracticeMatch:
 
 func _assert_plays(practice: PracticeMatch, what: String) -> void:
 	assert_false(practice.is_picking(), "%s: no pick to wait for" % what)
-	for i: int in ceili((practice.rules.intro_time + 1.0) / DT):
+	for i: int in ceili((practice.sim.intro_total() + 1.0) / DT):
 		practice.advance(DT)
 	assert_eq(practice.sim.phase, MatchSim.Phase.PLAYING, "%s: the opening show ends and play starts" % what)
 	assert_gt(practice.sim.match_time, 0.0, "%s: the clock runs" % what)

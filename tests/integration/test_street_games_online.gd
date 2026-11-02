@@ -159,7 +159,7 @@ func test_the_match_screen_plays_patintero_online_with_the_street_pad_and_moves_
 
 # ---- Tumbang Preso ---------------------------------------------------------------------
 
-func test_a_tumbang_preso_room_has_six_places_and_needs_two_ready_kids() -> void:
+func test_a_tumbang_preso_room_has_six_places_and_needs_three_ready_kids() -> void:
 	var rooms: RoomService = RoomService.new(NET, 3)
 	var room: RoomService.Room = rooms.create_room(7, "Ana")
 	assert_true(rooms.set_map(7, &"tumbang_preso"), "open in rooms (owner, 2026-10-31)")
@@ -168,10 +168,11 @@ func test_a_tumbang_preso_room_has_six_places_and_needs_two_ready_kids() -> void
 	assert_false(rooms.can_start(room), "one kid alone cannot start")
 	rooms.join(room.code, 8, "Ben")
 	room.members[1].ready = true
-	assert_true(rooms.can_start(room), "two ready kids can start, whatever their columns")
+	assert_false(rooms.can_start(room), "two ready kids are not enough: one is the taya")
 	rooms.join(room.code, 9, "Cy")
 	assert_false(rooms.can_start(room), "Cy is not ready")
 	room.members[2].ready = true
+	assert_true(rooms.can_start(room), "three ready kids can start, whatever their columns")
 	var card: String = OpenRoomsList.card_text(rooms.describe(room).merged({"host_name": "Ana", "players": 3}))
 	assert_string_ends_with(card, "3/6 · Tumbang Preso", "no NvN: every kid for itself")
 
