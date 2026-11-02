@@ -147,6 +147,7 @@ func on_projectile_gone(_def: WeaponDef, team: int, at: Vector3) -> void:
 			continue
 		rec.react_at = _ctx.time
 		rec.react_side = signf((ground - rec.center).dot(rec.along.orthogonal()))
+		_ctx.play_sound("soil_block" if rec.soil else "paper_block")
 		if _ctx.reduced:
 			continue
 		var bits: Vector3 = Vector3(nearest.x, 0.0, nearest.y)
@@ -274,6 +275,8 @@ func _soil(rec: Rec, shield: WeaponSystem.Shield, age: float, reacting: bool) ->
 		depth = FxSquash.along(height).x
 	if age >= rise_time and not rec.expanding:
 		rec.expanding = true
+		if rec.def != null and rec.def.expand_factor > 1.0:
+			_ctx.play_sound("soil_expand")
 		_expand_streaks(rec)
 	if fall < 1.0:
 		_fade_ribbon(rec, fall)

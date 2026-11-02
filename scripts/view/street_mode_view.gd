@@ -312,6 +312,9 @@ func _fly_can(height: float) -> void:
 		else:
 			_place_can(Vector3(from.x, height / 2.0, from.y), Basis.IDENTITY)
 			return
+	if not _can_fling.has("struck"):
+		_can_fling["struck"] = true
+		_ctx.play_sound("lata_hit")  # the slipper or the foot meets the can: the frame it starts to fly
 	var age: float = _time - (_can_fling["start"] as float)
 	var step: Dictionary = _hop(from, path, age)
 	var at: Vector2 = step["at"] as Vector2
