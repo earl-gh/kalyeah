@@ -7,6 +7,9 @@ extends RefCounted
 ## A member keeps one stable `player_id` for the whole match (it is their id in
 ## the MatchSim); `peer_id` is their current connection and changes on reconnect.
 
+## The id of the first bot of a match; ids count up from here (a player never gets one: `_next_player_id` starts at 1).
+const BOT_ID_BASE: int = 1000
+
 enum Result { OK, NOT_FOUND, FULL, IN_PROGRESS, NOT_ALLOWED }
 enum State { LOBBY, LOADING, PLAYING, ENDED }
 
@@ -40,6 +43,8 @@ class Room extends RefCounted:
 	var map_id: StringName = &"street"
 	## Listed for anyone browsing Online (owner: the default); private rooms are joined only with their code.
 	var open: bool = true
+	## Host's choice (hotspot rooms only): the places nobody took are played by bots, so a game does not wait for six friends.
+	var fill_bots: bool = false
 	var state: State = State.LOBBY
 	var members: Array[Member] = []
 
@@ -70,6 +75,8 @@ var rooms: Dictionary[String, Room] = {}
 ## What a host may pick, and what a new room starts with (GameRules.first_to*).
 var first_to_choices: Array[int] = [3]
 var default_first_to: int = 3
+## True on a hotspot host's own server only (the owner sets it, never a client message): rooms there may fill their places with bots.
+var bots_allowed: bool = false
 
 var _rules: NetRules
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -163,7 +170,9 @@ func start_blocker(room: Room, host_ready: bool = false) -> String:
 	if room.state != State.LOBBY:
 		return "The game has already started."
 	var game: StreetModeRules = StreetMode.rules_for(room.map_id)
-	if game == null:
+	if room.fill_bots:
+		pass  # the bots fill the places, so no game is short of players (everyone present still needs a team and a ready)
+	elif game == null:
 		if _short_of_team(room, _rules.base_room_min_team):
 			return _team_words(BASE_TITLE, _rules.base_room_min_team)
 	elif free_for_all(room.map_id):
@@ -227,6 +236,32 @@ func set_map(peer_id: int, map_id: StringName) -> bool:
 static func free_for_all(map_id: StringName) -> bool:
 	var game: StreetModeRules = StreetMode.rules_for(map_id)
 	return game != null and StreetMode.create(game).is_free_for_all()
+
+
+## Host only, in the lobby, and only where `bots_allowed` (a hotspot host's own server): the empty places are played by bots.
+func set_fill_bots(peer_id: int, on: bool) -> bool:
+	var room: Room = room_of_peer(peer_id)
+	var m: Member = member_of_peer(peer_id)
+	if not bots_allowed or m == null or m.player_id != room.host_player_id or room.state != State.LOBBY:
+		return false
+	room.fill_bots = on
+	return true
+
+
+## The team of each bot that fills the places left in `room` (none unless the host switched `fill_bots` on): every team up to
+## `MAX_TEAM_SIZE`, and in a game where every kid plays for itself the room up to six kids (all on team 0, as the sim plays them).
+static func bot_teams(room: Room) -> Array[int]:
+	var teams: Array[int] = []
+	if not room.fill_bots:
+		return teams
+	if free_for_all(room.map_id):
+		for i: int in maxi(MAX_TEAM_SIZE * 2 - room.members.size(), 0):
+			teams.append(0)
+		return teams
+	for team: int in 2:
+		for i: int in maxi(MAX_TEAM_SIZE - room.team_count(team), 0):
+			teams.append(team)
+	return teams
 
 
 ## Host only, in the lobby: open (listed) or private (code only).
@@ -367,6 +402,7 @@ func describe(room: Room) -> Dictionary:
 		"code": room.code, "team_size": MAX_TEAM_SIZE, "host": room.host_player_id, "first_to": room.first_to,
 		"state": room.state, "members": members, "can_start": can_start(room),
 		"can_start_host": can_start(room, true), "start_note": start_blocker(room, true), "map": room.map_id, "open": room.open,
+		"fill_bots": room.fill_bots, "bots_allowed": bots_allowed,
 	}
 
 

@@ -487,6 +487,7 @@ func _build_room_view() -> void:
 	_room_view.retry_pressed.connect(submit)
 	_room_view.first_to_chosen.connect(client.set_first_to)
 	_room_view.open_chosen.connect(client.set_open)
+	_room_view.fill_bots_chosen.connect(client.set_fill_bots)
 
 
 ## Create or Join was pressed on the main screen (its dialog already checked the hotspot): go on.
