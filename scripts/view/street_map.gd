@@ -131,7 +131,7 @@ const POST_RED: String = "post_red"
 ## in this order (the far end starts half way along, so the two rows differ).
 const BARRIER_HEIGHTS: Dictionary[String, float] = {
 	"tricycle": 2.4, "bench": 1.1, "crates": 1.1, "sacks": 1.0,
-	"basketball_pole": 6.0, "ebike": 1.5, "truck_wheels": 1.4,
+	"basketball_pole": 6.0,
 	"no_id_no_entry": 1.7, "rooster_tent": 1.4, "plank_fence": 1.8,
 }
 ## The top boundary (owner): the end of the street at the top of the screen is closed by the owner's PNG pictures instead of the row of
@@ -143,6 +143,19 @@ const BOUNDARY_PATH: String = "res://assets/textures/boundary/%s.png"
 const BOUNDARY_PICTURES: Array[Dictionary] = [
 	{"id": "fishball_cart", "height": 2.4},
 	{"id": "jeepney", "height": 2.4},
+]
+## The bottom boundary (owner): the end of the street at the bottom of the screen has the same corner roof walls and three pictures in the
+## middle, the e-trike, the stack of crates and the stacked truck tyres (they replace the 3D e-bike, crates and truck wheels). A picture faces the
+## camera, so it shows UP the screen from its foot: at the bottom that is over the play area. They therefore stand beyond the end line, not on it
+## (owner: beyond the boundary line, not in line with it), but not so far that they sink into the fog and the tray (owner: "too far now"):
+## `BOTTOM_PICTURE_SHARE` (the corner walls: `BOTTOM_WALL_SHARE`) of the distance at which the top of each would be level with the end line on the screen (`bottom_foot`).
+## The pictures stand out a little farther than the corner walls (owner: the e-trike, crates and tyres pulled slightly backwards, 0.55 to 0.7).
+const BOTTOM_PICTURE_SHARE: float = 0.7
+const BOTTOM_WALL_SHARE: float = 0.55
+const BOTTOM_PICTURES: Array[Dictionary] = [
+	{"id": "tricycle", "height": 1.8},
+	{"id": "crates", "height": 1.5},
+	{"id": "tires", "height": 1.2},
 ]
 const CORNER_WALL: Dictionary = {"id": "tin_fence", "height": 2.0}
 ## 90 degrees less the camera's pitch (`data/rules/camera_rules.tres`, 45).
@@ -158,17 +171,14 @@ const ICE_CREAM_CART_HEIGHT: float = 2.5
 const NANAY_HEIGHT: float = 2.2
 const NANAY_SWAY_DEGREES: float = 4.0
 const NANAY_SWAY_SECONDS: float = 3.5
-## The smallest gap between two things in a row; the rest of the room is shared out unevenly.
-## Things that do not fit in a row stand on the road beyond the end: how far out the first is (m past
+## The street things stand about on the road beyond the ends (behind the fog): how far out the first is (m past
 ## the end line) and how far apart they are.
 const FAR_PROPS_START: float = 10.0
 const FAR_PROPS_SPACING: float = 6.0
-const BARRIER_GAP: float = 0.7
-## How far a thing may sit back from the line (m) and turn (degrees), so the row looks set down by hand.
-const BARRIER_JITTER: float = 0.5
+## How far a thing may turn (degrees), so they look set down by hand.
 const BARRIER_TURN: float = 12.0
 const BARRIER_SEED: int = 7
-## The front of each row sits this far behind the end line of the play area.
+## The boundary pictures stand this far behind the end line of the play area.
 const BARRIER_SETBACK: float = 0.15
 
 @export var layout: MapLayout
@@ -176,14 +186,12 @@ const BARRIER_SETBACK: float = 0.15
 @export var diorama: bool = false
 ## Off when a match scene supplies its own (follow) camera.
 @export var show_overview_camera: bool = true
-## What stands in each end's barrier row (index 0 = the far end), for tests and the minimap.
-var barrier_rows: Array[Array] = []
-## The things that did not fit in a row and stand on the road beyond the ends instead.
+## The street things that stand on the road beyond the ends (behind the fog), for tests.
 var far_props: Array[String] = []
-## end (-1 = the -Z end, 1 = the +Z end) -> the props of that end's row, and -> that end's row of the owner's pictures. The end at the top
-## of the screen shows the pictures, the other its props (`set_own_side`).
-var _row_props: Dictionary[float, Array] = {}
+## end (-1 = the -Z end, 1 = the +Z end) -> that end's row of the owner's top pictures, and -> its row of bottom pictures. The end at the top
+## of the screen shows the top row, the other the bottom row (`set_own_side`).
 var _row_pictures: Dictionary[float, Node3D] = {}
+var _row_bottom: Dictionary[float, Node3D] = {}
 ## side -> [base chalk, rescue chalk] materials (recoloured per viewer).
 var _base_materials: Dictionary[int, Array] = {}
 ## side -> that base's team colour as the viewer sees it (blue yours, red theirs).
@@ -504,23 +512,40 @@ func _outside_floor(size: Vector2) -> MeshInstance3D:
 	return patch
 
 
-## How far past the end line the fog wall stands (m): past the end line's setback and as far as the tallest boundary picture leans back at its
-## top, plus `FOG_MARGIN`, so no picture pokes through it.
-func fog_distance() -> float:
-	var tallest: float = 0.0
+## The true height of the tallest picture of the top boundary row (m).
+static func tallest_boundary() -> float:
+	var tallest: float = CORNER_WALL["height"] as float
 	for entry: Dictionary in BOUNDARY_PICTURES:
 		tallest = maxf(tallest, entry["height"] as float)
-	return BARRIER_SETBACK + tallest * scenery() * sin(deg_to_rad(BOUNDARY_TILT)) + FOG_MARGIN
+	return tallest
+
+
+## How far past the end line (m) a picture of the bottom row stands: `share` of the distance that puts its top level with the end
+## line on the screen (it faces the camera, so it shows up the screen by its drawn height, and each metre it stands further out moves it down the
+## screen by `sin(BOUNDARY_TILT)`); the rest of its height shows above the line.
+func bottom_foot(entry: Dictionary, share: float = BOTTOM_PICTURE_SHARE) -> float:
+	return share * float(entry["height"]) * scenery() / sin(deg_to_rad(BOUNDARY_TILT))
+
+
+## How far past the end line the farthest bottom picture (or corner wall) stands.
+func bottom_reach() -> float:
+	var reach: float = bottom_foot(CORNER_WALL, BOTTOM_WALL_SHARE)
+	for entry: Dictionary in BOTTOM_PICTURES:
+		reach = maxf(reach, bottom_foot(entry))
+	return reach
+
+
+## How far past the end line the fog wall stands (m): past the end line's setback and past the farthest thing of either row (the top row's
+## tallest picture leans back to its top; the bottom row's pictures stand out to their feet), plus `FOG_MARGIN`, so none pokes through it.
+func fog_distance() -> float:
+	return BARRIER_SETBACK + maxf(tallest_boundary() * scenery() * sin(deg_to_rad(BOUNDARY_TILT)), bottom_reach()) + FOG_MARGIN
 
 
 ## How far past the end line (on the screen, m) the top of the tallest boundary picture reaches at the far end: its foot's setback plus its height
 ## times (sin + cos of the lean) for a picture leaning back as it does, plus `FOG_MARGIN`: where the far end's fog starts, just above the pictures.
 func fog_far_start() -> float:
-	var tallest: float = 0.0
-	for entry: Dictionary in BOUNDARY_PICTURES:
-		tallest = maxf(tallest, entry["height"] as float)
 	var lean: float = deg_to_rad(BOUNDARY_TILT)
-	return BARRIER_SETBACK + tallest * scenery() * (sin(lean) + cos(lean)) + FOG_MARGIN
+	return BARRIER_SETBACK + tallest_boundary() * scenery() * (sin(lean) + cos(lean)) + FOG_MARGIN
 
 
 ## The share of the floor picture's width the play area shows (1 when the play area is as wide as the picture).
@@ -667,61 +692,18 @@ static func barrier_width(id: String, scale: float = 1.0) -> float:
 	return side * BARRIER_HEIGHTS[id] * scale / natural.y
 
 
-## The ends of the play area are walled off by a row of street things (a bench, crates, a basketball hoop, stacked truck
-## tyres and the wooden A-frame), each at its true size (never stretched to fill a gap), facing the play
-## area, with uneven gaps and a little turned or set back, as if put down by hand.
+## The street things (a bench, crates, a basketball hoop, the wooden A-frame, ...) stand about on the road beyond each end, behind the fog, each at
+## its true size (never stretched), facing the play area and a little turned, as if put down by hand. The boundary itself is the owner's pictures.
 func _add_barricades() -> void:
 	var ids: Array = BARRIER_HEIGHTS.keys()
 	for end_index: int in 2:
 		var end: float = -1.0 if end_index == 0 else 1.0
-		_row_props[end] = []
 		# the same street every match: a fixed seed per end
 		var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 		rng.seed = BARRIER_SEED + end_index
-		var picked: Array[String] = []
-		var widths: Array[float] = []
-		var used: float = 0.0
-		var i: int = end_index * (ids.size() / 2)
-		while true:
-			var id: String = ids[i % ids.size()]
-			var natural: Vector3 = PropModel.size_of(id)
-			var width: float = barrier_width(id, scenery())  # its drawn size, never stretched
-			var need: float = width + (BARRIER_GAP if not picked.is_empty() else 0.0)
-			if used + need > layout.lane_width:
-				break
-			used += need
-			picked.append(id)
-			widths.append(width)
-			i += 1
-		# the room left over goes into uneven gaps (not into the things themselves)
-		barrier_rows.append(picked.duplicate())
-		var spare: float = layout.lane_width - used
-		var shares: Array[float] = []
-		var total: float = 0.0
-		for k: int in picked.size() + 1:
-			shares.append(rng.randf_range(0.4, 1.6))
-			total += shares[k]
-		var x: float = -layout.lane_width / 2.0 + spare * shares[0] / total
-		for k: int in picked.size():
-			var id: String = picked[k]
-			var model: Node3D = PropModel.by_height(id, BARRIER_HEIGHTS[id] * scenery())
-			var turned: bool = BARRIER_TURNED.has(id)
-			var natural: Vector3 = PropModel.size_of(id)
-			var depth: float = (natural.x if turned else natural.z) * model.scale.z
-			# set down by hand: a little in or out of line and a little turned
-			var setback: float = BARRIER_SETBACK + rng.randf_range(0.0, BARRIER_JITTER)
-			# turning a long thing swings its corners toward the play area: leave room for that
-			var swing: float = widths[k] * sin(deg_to_rad(BARRIER_TURN)) / 2.0
-			var at_z: float = end * (layout.lane_length / 2.0 + setback + depth / 2.0 + swing)
-			var turn: float = deg_to_rad(rng.randf_range(-BARRIER_TURN, BARRIER_TURN))
-			_row_props[end].append(_put_barrier(model, id, Vector3(x + widths[k] / 2.0, 0.0, at_z), end, turn))
-			x += widths[k] + BARRIER_GAP + spare * shares[k + 1] / total
-		# what did not fit in the row stands about on the road beyond the end instead
 		var z_far: float = layout.lane_length / 2.0 + FAR_PROPS_START * scenery()
 		var side: float = 1.0 if rng.randf() < 0.5 else -1.0
 		for id: String in ids:
-			if picked.has(id):
-				continue
 			var width: float = barrier_width(id, scenery())
 			var room: float = layout.lane_width / 2.0 - width / 2.0 - 0.5
 			var far_x: float = clampf(side * rng.randf_range(0.2, 1.0) * room, -room, room)
@@ -756,41 +738,50 @@ static func top_end(own_side: int) -> float:
 	return -float(own_side)
 
 
-## The cart replaces the former middle wall; the jeepney keeps its position, with matching walls at both corners.
-## The +Z row turns half way round so the same arrangement faces either viewer.
+## Both ends have both rows (the top one: the cart and the jeepney; the bottom one: the e-trike and the tyres), each between two corner roof
+## walls with equal visible gaps; `set_own_side` shows the one the viewer's screen needs at each end. A row faces the camera of the viewer
+## who sees it: the viewer whose own base is at +Z sees the top row at the -Z end and the bottom row at the +Z end, both facing +Z; the turned
+## camera sees the +Z end at the top and the -Z end at the bottom, both facing -Z.
 func _add_boundary_pictures() -> void:
+	for end: float in [-1.0, 1.0]:
+		_row_pictures[end] = _boundary_row(end, BOUNDARY_PICTURES, "BoundaryPictures%s" % ("Far" if end < 0.0 else "Near"), end > 0.0, false)
+		_row_bottom[end] = _boundary_row(end, BOTTOM_PICTURES, "BoundaryBottom%s" % ("Far" if end < 0.0 else "Near"), end < 0.0, true)
+
+
+## `beyond`: the bottom row, whose pictures stand out past the end line to their `bottom_foot` (local +z points away from the play area).
+func _boundary_row(end: float, pictures: Array[Dictionary], row_name: String, turned: bool, beyond: bool) -> Node3D:
 	var widths: Array[float] = []
 	var used: float = 0.0
-	for entry: Dictionary in BOUNDARY_PICTURES:
+	for entry: Dictionary in pictures:
 		widths.append(boundary_width(entry, scenery()))
 		used += widths[widths.size() - 1]
 	var wall_width: float = boundary_width(CORNER_WALL, scenery())
 	# Equal visible gaps between the two fixed corner walls and the two pictures.
-	var gap: float = maxf(layout.lane_width - wall_width - used, 0.0) / 3.0
+	var gap: float = maxf(layout.lane_width - wall_width - used, 0.0) / float(pictures.size() + 1)
 	var left_edge: float = -layout.lane_width / 2.0 + wall_width / 2.0
-	var centers: Array[float] = [left_edge + gap + widths[0] / 2.0, left_edge + gap * 2.0 + widths[0] + widths[1] / 2.0]
-	for end: float in [-1.0, 1.0]:
-		var row: Node3D = Node3D.new()
-		row.name = "BoundaryPictures%s" % ("Far" if end < 0.0 else "Near")
-		row.position = Vector3(0.0, 0.0, end * (layout.lane_length / 2.0 + BARRIER_SETBACK))
-		row.rotation_degrees = Vector3(0.0, 0.0 if end < 0.0 else 180.0, 0.0)
-		# in the row's own frame x runs to the right of the screen at either end
-		for k: int in BOUNDARY_PICTURES.size():
-			var picture: MeshInstance3D = _boundary_picture(BOUNDARY_PICTURES[k], widths[k])
-			picture.position = Vector3(centers[k], 0.0, 0.0)
-			row.add_child(picture)
-		for side: float in [-1.0, 1.0]:
-			var roof: MeshInstance3D = _boundary_picture(CORNER_WALL, boundary_width(CORNER_WALL, scenery()))
-			roof.name = "RoofWallLeft" if side < 0.0 else "RoofWallRight"
-			# A slight setback keeps the PNG behind the other boundary pictures without coplanar flicker.
-			roof.position = Vector3(side * layout.lane_width / 2.0, 0.0, -0.05)
-			if side > 0.0:
-				var material: StandardMaterial3D = (roof.mesh as QuadMesh).material as StandardMaterial3D
-				material.uv1_scale.x = -1.0
-				material.uv1_offset.x = 1.0
-			row.add_child(roof)
-		_geometry.add_child(row)
-		_row_pictures[end] = row
+	var row: Node3D = Node3D.new()
+	row.name = row_name
+	row.position = Vector3(0.0, 0.0, end * (layout.lane_length / 2.0 + BARRIER_SETBACK))
+	row.rotation_degrees = Vector3(0.0, 180.0 if turned else 0.0, 0.0)
+	# in the row's own frame x runs to the right of the screen at either end
+	var x: float = left_edge
+	for k: int in pictures.size():
+		var picture: MeshInstance3D = _boundary_picture(pictures[k], widths[k])
+		picture.position = Vector3(x + gap + widths[k] / 2.0, 0.0, bottom_foot(pictures[k]) if beyond else 0.0)
+		x += gap + widths[k]
+		row.add_child(picture)
+	for side: float in [-1.0, 1.0]:
+		var roof: MeshInstance3D = _boundary_picture(CORNER_WALL, wall_width)
+		roof.name = "RoofWallLeft" if side < 0.0 else "RoofWallRight"
+		# A slight setback keeps the PNG behind the other boundary pictures without coplanar flicker.
+		roof.position = Vector3(side * layout.lane_width / 2.0, 0.0, (bottom_foot(CORNER_WALL, BOTTOM_WALL_SHARE) if beyond else 0.0) - 0.05)
+		if side > 0.0:
+			var material: StandardMaterial3D = (roof.mesh as QuadMesh).material as StandardMaterial3D
+			material.uv1_scale.x = -1.0
+			material.uv1_offset.x = 1.0
+		row.add_child(roof)
+	_geometry.add_child(row)
+	return row
 
 
 ## One picture of the top boundary: an upright quad leaning back by `BOUNDARY_TILT`, its bottom edge on the ground, drawn as the owner made it.
@@ -814,13 +805,12 @@ func _boundary_picture(entry: Dictionary, width: float) -> MeshInstance3D:
 
 
 ## The end at the top of the screen (the -Z end when the viewer's own base is at +Z, the +Z end when the camera is turned around) shows
-## the owner's pictures; the other end keeps its row of street things.
+## the top row of the owner's pictures; the other end shows the bottom row.
 func _show_top_boundary(own_side: int) -> void:
 	var top: float = top_end(own_side)
 	for end: float in _row_pictures:
 		_row_pictures[end].visible = end == top
-		for prop: Node3D in _row_props[end]:
-			prop.visible = end != top
+		_row_bottom[end].visible = end != top
 
 
 ## The owner's three shopfronts (Nena store, vulcanizing, barber shop) with his two houses between them, along both sides of the street, running on past

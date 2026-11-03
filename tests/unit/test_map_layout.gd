@@ -188,8 +188,8 @@ func test_props_stay_low_poly() -> void:
 
 func test_the_model_props_are_light_and_standing_on_the_ground() -> void:
 	var limits: Dictionary = {"bench": 4200, "rooster_tent": 4200,
-		"basketball_pole": 3700, "truck_wheels": 4200, "crates": 4200,
-		"sacks": 4200, "no_id_no_entry": 4200, "ebike": 4700, "tricycle": 5200,
+		"basketball_pole": 3700, "crates": 4200,
+		"sacks": 4200, "no_id_no_entry": 4200, "tricycle": 5200,
 		"ice_cream_cart": 5200, "nanay": 6200,
 		"nena_store": 6200, "vulcanizing": 6200, "barber_shop": 6200, "house_1": 6200, "house_2": 6200, "house_3": 6200, "karinderya": 6200, "cat": 3200, "dog": 3200, "chicken_cage": 4200, "drainage_cover": 2700, "tricycle_terminal": 6200, "plank_fence": 4200}
 	for id: String in limits:
@@ -243,7 +243,7 @@ func test_the_base_posts_are_the_owners_models_blue_for_you_and_red_for_them_fac
 		assert_almost_eq(absf(post.rotation.y), PI, 0.001, "the camera is turned half way round for that team, so the posts turn with it")
 	assert_false(FileAccess.file_exists("res://assets/models/props/electric_pole.glb"), "the old electric pole model stays gone (owner)")
 	assert_false(FileAccess.file_exists("res://assets/textures/posts/post_blue.webp"), "the flat post pictures are replaced by the models (owner)")
-func test_the_end_rows_mix_every_street_thing_and_stay_out_of_the_play_area() -> void:
+func test_the_street_things_stand_beyond_both_ends_and_stay_out_of_the_play_area() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
 	var seen: Dictionary = {}
@@ -261,8 +261,8 @@ func test_the_end_rows_mix_every_street_thing_and_stay_out_of_the_play_area() ->
 		assert_gt(absf(node.position.z) - depth / 2.0, half_l, "%s stays behind the end line" % id)
 		assert_lte(absf(node.position.x), LAYOUT.lane_width / 2.0, "%s across the street" % id)
 	for id: String in StreetMap.BARRIER_HEIGHTS:
-		assert_true(seen.has(id), "%s is in an end row" % id)
-	assert_lte(int(seen.get("rooster_tent", 0)), 4, "at most two A-frames per row, not a row of them")
+		assert_true(seen.has(id), "%s stands beyond an end" % id)
+	assert_lte(int(seen.get("rooster_tent", 0)), 4, "at most one A-frame beyond each end, not a row of them")
 
 
 func test_the_street_slabs_are_plain_boxes_without_a_light_edge_line() -> void:

@@ -45,7 +45,8 @@ func test_every_match_has_a_fog_wall_past_each_end_just_beyond_the_boundary_row(
 		var z: float = absf(wall.position.z)
 		assert_gt(z, half + StreetMap.BARRIER_SETBACK, "past the boundary row's line")
 		assert_almost_eq(z, half + practice._map.fog_distance(), 0.001, "just past the boundary pictures, leaned back as they are")
-		assert_lte(practice._map.fog_distance(), 5.0, "near the boundary")
+		assert_lte(practice._map.fog_distance(), maxf(practice._map.bottom_reach(), StreetMap.tallest_boundary() * practice._map.scenery() * sin(deg_to_rad(StreetMap.BOUNDARY_TILT))) + StreetMap.BARRIER_SETBACK + StreetMap.FOG_MARGIN + 0.001, "just past the farthest boundary picture, no further")
+		assert_gt(practice._map.fog_distance(), practice._map.bottom_reach(), "past the bottom row's feet, so the fog covers it")
 		assert_almost_eq(wall.position.y, MatchFog.HEIGHT / 2.0, 0.001, "standing on the ground")
 	assert_ne(signf(fog.walls[0].position.z), signf(fog.walls[1].position.z), "one at each end")
 
@@ -119,8 +120,5 @@ func test_each_end_has_a_wall_and_a_strip_of_ground() -> void:
 func test_no_boundary_picture_pokes_through_the_fog_wall() -> void:
 	var practice: PracticeMatch = _match()
 	var map: StreetMap = practice._map
-	var tallest: float = 0.0
-	for entry: Dictionary in StreetMap.BOUNDARY_PICTURES:
-		tallest = maxf(tallest, entry["height"] as float)
-	var top_reach: float = StreetMap.BARRIER_SETBACK + tallest * map.scenery() * sin(deg_to_rad(StreetMap.BOUNDARY_TILT))
+	var top_reach: float = StreetMap.BARRIER_SETBACK + StreetMap.tallest_boundary() * map.scenery() * sin(deg_to_rad(StreetMap.BOUNDARY_TILT))
 	assert_gt(map.fog_distance(), top_reach, "the wall is past where the tallest picture's top leans to")
