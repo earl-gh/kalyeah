@@ -141,7 +141,8 @@ func test_events_are_replayed_as_signals_on_the_mirror() -> void:
 	watch_signals(b.mirror)
 	server_match.sim.kill(b.player_id)
 	_pump(0.3)
-	assert_signal_emitted_with_parameters(b.mirror, "player_tagged", [b.player_id])
+	assert_signal_emitted(b.mirror, "player_tagged")
+	assert_eq(get_signal_parameters(b.mirror, "player_tagged"), [b.player_id, -1])
 	assert_true(b.mirror.players[b.player_id].tagged)
 
 

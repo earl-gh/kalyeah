@@ -630,7 +630,7 @@ func test_a_tag_plays_the_touch_for_the_tagger_and_then_the_round_resets() -> vo
 	practice.sim.players[taya].position = Vector2(0.0, 6.5)
 	practice.sim.step(DT)
 	assert_eq(game.taya_id, 1)
-	assert_eq(practice.hud.overhead.tag_count(), 1, "TAYA! pops over the tagged kid, where it stands")
+	assert_eq(practice.hud.tag_toast.waiting(), 1, "the tag toast is waiting for its turn on the bar")
 	for i: int in 12:
 		practice.advance(DT)  # the pause: the tagger stands still, its touch keeps playing
 	var view: KidModel = practice._views[taya] as KidModel

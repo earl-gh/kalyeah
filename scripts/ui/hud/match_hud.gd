@@ -96,6 +96,8 @@ var hand: CardHand
 var street_pad: StreetGamePad
 ## Tumbang Preso's kids' points, on the left sidewalk (null elsewhere: Patintero's team score is the card at the top centre).
 var score_column: ScoreColumn
+## The bar above the card tray that pops in for a tag (`TagToast`).
+var tag_toast: TagToast
 ## True in those two games (set by the match screen before the first frame).
 var street_game: bool = false
 ## Taps on the street (move orders).
@@ -399,7 +401,7 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 		console.visible = false
 		# Patintero has a team score at the top centre like Agawan Base; Tumbang Preso's points are every kid's, in the column on the left sidewalk
 		scoreboard.visible = not covered and not sim.mode.is_free_for_all()
-	overhead.visible = not covered or overhead.tag_count() > 0
+	overhead.visible = not covered
 	if covered:
 		for item: CanvasItem in [hand, street_pad, chat, tagged_panel, intro_bar, capture_label, capture_alert, banner, coach]:
 			item.hide()
@@ -495,6 +497,8 @@ func _build() -> void:
 	banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(banner)
+	tag_toast = TagToast.new()
+	add_child(tag_toast)
 	clock_flash = ClockStageFlash.new()
 	add_child(clock_flash)
 	capture_label = _pill_label("", UiMetrics.TITLE, Vector4(0, 0.4, 1, 0.4), Vector4(120, -56, -120, 56))

@@ -4,7 +4,7 @@ extends RefCounted
 
 
 ## Off to the sidewalk beside the player's team's rescue area (own: top-left, enemy: bottom-right).
-func tag(sim: MatchSim, state: PlayerState) -> void:
+func tag(sim: MatchSim, state: PlayerState, by_id: int = -1) -> void:
 	var waiting: int = 0
 	for id: int in sim.players:
 		if sim.players[id].team == state.team and sim.players[id].tagged:
@@ -17,7 +17,7 @@ func tag(sim: MatchSim, state: PlayerState) -> void:
 	clear_actions(state)
 	state.position = sim.layout.tagged_place(sim.side_for_team(state.team), waiting)
 	state.facing = sim.layout.tagged_facing(sim.side_for_team(state.team))
-	sim.player_tagged.emit(state.id)
+	sim.player_tagged.emit(state.id, by_id)
 
 
 ## A tagged teammate waits on the sidewalk (the rescue area is only a rescue area while someone needs rescuing).

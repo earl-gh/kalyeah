@@ -42,7 +42,8 @@ func test_zero_hp_tags_and_sends_you_to_the_sidewalk_beside_your_teams_rescue_ar
 	assert_eq(me.facing, Vector2.RIGHT, "facing in, toward the street")
 	var area: Rect2 = _area(sim, 0)
 	assert_between(me.position.y, area.position.y, area.end.y, "level with the rescue area")
-	assert_signal_emitted_with_parameters(sim, "player_tagged", [1])
+	assert_signal_emitted(sim, "player_tagged")
+	assert_eq(get_signal_parameters(sim, "player_tagged"), [1, -1], "tagged by nobody in particular")
 
 
 func test_tagged_opponents_go_to_the_right_sidewalk_at_the_bottom_facing_in() -> void:

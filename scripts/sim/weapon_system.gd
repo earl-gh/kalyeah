@@ -314,7 +314,7 @@ func _hit_cone(sim: MatchSim, caster: PlayerState, def: WeaponDef, direction: Ve
 	cone_struck.emit(caster.id, def, caster.position, direction)
 	for target: PlayerState in _cone_targets(sim, caster, def, direction):
 		for i: int in hits:
-			_hit(sim, target, def)
+			_hit(sim, target, def, caster.id)
 
 
 ## The enemies a cone from `caster` along `direction` reaches.
@@ -414,7 +414,7 @@ func _move_projectile(sim: MatchSim, projectile: Projectile, move: float) -> boo
 			var next_bounce: float = def.max_range * float(projectile.bounces + 1) / float(maxi(def.count, 1))
 			if projectile.travelled >= next_bounce:
 				projectile.bounces += 1
-				_area_hit(sim, projectile.team, def, projectile.position, def.radius)
+				_area_hit(sim, projectile.team, def, projectile.position, def.radius, projectile.owner_id)
 				if projectile.bounces >= def.count:
 					return false
 		WeaponDef.Shape.SPINNER:
@@ -466,7 +466,7 @@ func _check_hits(sim: MatchSim, projectile: Projectile) -> bool:
 		WeaponDef.Shape.TARGETED:
 			var target: PlayerState = sim.players.get(projectile.target_id) as PlayerState
 			if target != null and projectile.position.distance_to(target.position) <= def.projectile_radius + target.radius:
-				_hit(sim, target, def)
+				_hit(sim, target, def, projectile.owner_id)
 				return false
 		WeaponDef.Shape.BOOMERANG:
 			for target: PlayerState in sim.enemies_of(projectile.team):
@@ -474,14 +474,14 @@ func _check_hits(sim: MatchSim, projectile: Projectile) -> bool:
 					continue
 				if projectile.position.distance_to(target.position) <= def.projectile_radius + target.radius:
 					projectile.hit_ids[target.id] = true
-					_hit(sim, target, def)
+					_hit(sim, target, def, projectile.owner_id)
 		WeaponDef.Shape.SPINNER:
 			for target: PlayerState in sim.enemies_of(projectile.team):
 				if projectile.hit_ids.has(target.id):
 					continue
 				if projectile.position.distance_to(target.position) <= def.radius + target.radius:
 					projectile.hit_ids[target.id] = true
-					_hit(sim, target, def)
+					_hit(sim, target, def, projectile.owner_id)
 	return true
 
 
@@ -499,7 +499,7 @@ func _step_zone(sim: MatchSim, zone: Zone, dt: float) -> bool:
 	match zone.kind:
 		ZoneKind.EXPLOSION:
 			if zone.time_left <= 0.0:
-				_area_hit(sim, zone.team, zone.def, zone.center, zone.radius)
+				_area_hit(sim, zone.team, zone.def, zone.center, zone.radius, zone.owner_id)
 				return false
 		ZoneKind.TRAP:
 			zone.timer -= dt
@@ -517,7 +517,7 @@ func _step_zone(sim: MatchSim, zone: Zone, dt: float) -> bool:
 			zone.timer -= dt
 			if zone.timer <= 0.0:
 				zone.timer += zone.def.interval
-				_area_hit(sim, zone.team, zone.def, zone.center, zone.radius)
+				_area_hit(sim, zone.team, zone.def, zone.center, zone.radius, zone.owner_id)
 			return zone.time_left > 0.0
 	return true
 
@@ -534,9 +534,9 @@ func _step_shields(dt: float) -> void:
 
 # ---- helpers ----------------------------------------------------------------
 
-func _area_hit(sim: MatchSim, team: int, def: WeaponDef, center: Vector2, radius: float) -> void:
+func _area_hit(sim: MatchSim, team: int, def: WeaponDef, center: Vector2, radius: float, by: int) -> void:
 	for target: PlayerState in _enemies_within(sim, team, center, radius):
-		_hit(sim, target, def)
+		_hit(sim, target, def, by)
 
 
 func _enemies_within(sim: MatchSim, team: int, center: Vector2, radius: float) -> Array[PlayerState]:
@@ -551,12 +551,12 @@ func _any_enemy_within(sim: MatchSim, team: int, center: Vector2, radius: float)
 	return not _enemies_within(sim, team, center, radius).is_empty()
 
 
-func _hit(sim: MatchSim, target: PlayerState, def: WeaponDef) -> void:
+func _hit(sim: MatchSim, target: PlayerState, def: WeaponDef, by: int) -> void:
 	sim.weapon_hit.emit(target.id, def.id)
 	if def.effect != StatusEffects.Type.NONE:
 		sim.apply_effect(target.id, def.effect, def.effect_duration, def.effect_magnitude)
 	if def.damage > 0:
-		sim.damage(target.id, def.damage)
+		sim.damage(target.id, def.damage, by)
 
 
 ## A projectile of `def` leaves `caster` along `direction` outside the card rules (Tumbang Preso's thrown slipper): the same flying
