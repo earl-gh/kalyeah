@@ -102,20 +102,13 @@ const CEMENT_LIFT: float = 0.004
 ## The owner's floor picture holds 18 tiles across; the play area is narrower now (16 tiles), so it shows the middle of the picture
 ## (no stretch): the share of the picture's width the play area uses, and where it starts.
 const CEMENT_PICTURE_TILES: float = 18.0
-## The floor picture past the top and the bottom of the play area gets this dark, far from it (owner: slightly darker than the play area),
-## over `END_FADE` metres, so the bright play area melts into it (owner, 2026-11-03: no hard line). Past the two sides the floor is plain
-## pavement, `SIDE_PAVEMENT` (the colour of the picture's own pavement strip, no dark part).
-const OUTSIDE_SHADE: Color = Color(0.74, 0.74, 0.74)
-const END_FADE: float = 9.0
 ## The fog wall at each end (`MatchFog`) stands this many metres past the end line's boundary row: just past its pictures and props.
 const FOG_DEPTH: float = 1.6
-const SIDE_PAVEMENT: Color = Color(0.58, 0.5, 0.44)
 const STREET_SHADER: Shader = preload("res://shaders/street_cement.gdshader")
 const OUTSIDE_SHADER: Shader = preload("res://shaders/floor_outside.gdshader")
 ## Paving around the whole map, so the street never ends in sky.
 const OUTER_MARGIN: float = 40.0
 const OUTER_DROP: float = -0.12
-const OUTER_TINT: Color = Color(0.62, 0.58, 0.54)
 const SARI_SIGN_HEIGHT: float = 1.15
 ## Which model each cover piece (MapLayout.obstacle_props) is drawn as.
 const OBSTACLE_MODELS: Dictionary[StringName, String] = {
@@ -470,7 +463,7 @@ func _street() -> ArrayMesh:
 func _add_ground_textures() -> void:
 	var length: float = layout.lane_length + _reach() * 2.0
 	_add_cement_art()
-	var outer: MeshInstance3D = StreetArt.ground("pavers", Vector2(layout.lane_width + OUTER_MARGIN * 2.0, length + OUTER_MARGIN * 2.0), PAVER_TILE, OUTER_TINT)
+	var outer: MeshInstance3D = StreetArt.ground("pavers", Vector2(layout.lane_width + OUTER_MARGIN * 2.0, length + OUTER_MARGIN * 2.0), PAVER_TILE)
 	outer.position = Vector3(0.0, OUTER_DROP, 0.0)
 	_geometry.add_child(outer)
 
@@ -490,26 +483,17 @@ func _add_cement_art() -> void:
 	_geometry.add_child(art)
 
 
-## The floor round the play area, `size` metres (x, z) centred on it: the picture repeated every play-area size and lined up with the play
-## area. Past the two sides it is plain pavement and past the top and bottom it shades smoothly darker with the distance from the edge
-## (`shaders/floor_outside.gdshader`), so there is no dark part at the sides and no hard line at the ends.
+## The floor round the play area, `size` metres (x, z) centred on it, with no dark tint (owner, 2026-11-03): the picture's own sidewalk strip is
+## copied outward past the two sides and the whole picture is copied past the top and the bottom, each copy colour-corrected where it meets the
+## play area or another copy (`shaders/floor_outside.gdshader`).
 func _outside_floor(size: Vector2) -> MeshInstance3D:
-	var period: Vector2 = Vector2(layout.lane_width, layout.lane_length)
 	var plane: PlaneMesh = PlaneMesh.new()
 	plane.size = size
-	var share: float = cement_share()
 	var material: ShaderMaterial = ShaderMaterial.new()
 	material.shader = OUTSIDE_SHADER
 	material.set_shader_parameter("floor_picture", StreetArt.texture("cement"))
-	material.set_shader_parameter("picture_scale", Vector2(size.x / period.x * share, size.y / period.y))
-	# the picture's (cropped) edges fall on the play area's edges
-	var start: Vector2 = (period - size) / 2.0 / period
-	var from_x: float = (1.0 - share) / 2.0 + start.x * share
-	material.set_shader_parameter("picture_offset", Vector2(from_x - floorf(from_x), start.y - floorf(start.y)))
-	material.set_shader_parameter("lane_half", period / 2.0)
-	material.set_shader_parameter("side_color", SIDE_PAVEMENT)
-	material.set_shader_parameter("fade_length", END_FADE)
-	material.set_shader_parameter("far_shade", OUTSIDE_SHADE.v)
+	material.set_shader_parameter("lane_half", Vector2(layout.lane_width, layout.lane_length) / 2.0)
+	material.set_shader_parameter("edge_u", (1.0 - cement_share()) / 2.0)
 	plane.material = material
 	var patch: MeshInstance3D = MeshInstance3D.new()
 	patch.name = "OutsideArt"

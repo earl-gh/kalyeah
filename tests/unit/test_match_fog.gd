@@ -59,13 +59,14 @@ func test_the_walls_layer_by_the_camera_behind_the_far_boundary_and_in_front_of_
 	assert_true(code.contains("smoothstep"), "a smooth fade")
 
 
-func test_the_fog_is_slightly_darker_than_the_first_haze() -> void:
-	var first_haze: Color = Color(0.74, 0.77, 0.82)
-	var found: RegExMatch = RegEx.create_from_string("uniform vec4 fog_color[^=]*=\\s*vec4\\(([^)]*)\\)").search(MatchFog.SHADER.code)
+func test_the_fog_is_white_and_nearly_opaque_where_thickest() -> void:
+	var code: String = MatchFog.SHADER.code
+	var found: RegExMatch = RegEx.create_from_string("uniform vec4 fog_color[^=]*=\\s*vec4\\(([^)]*)\\)").search(code)
 	var parts: PackedStringArray = found.get_string(1).split(",")
-	var now: Color = Color(parts[0].to_float(), parts[1].to_float(), parts[2].to_float())
-	assert_lt(now.get_luminance(), first_haze.get_luminance(), "darker")
-	assert_gt(now.get_luminance(), 0.45, "but still a pale mist")
+	var colour: Color = Color(parts[0].to_float(), parts[1].to_float(), parts[2].to_float())
+	assert_gt(colour.get_luminance(), 0.95, "white")
+	var strength: RegExMatch = RegEx.create_from_string("uniform float strength[^=]*=\\s*([0-9.]+)").search(code)
+	assert_gte(strength.get_string(1).to_float(), 0.95, "much less transparent than before (it was 0.85)")
 
 
 func test_the_fog_never_takes_a_touch_and_casts_no_shadow() -> void:

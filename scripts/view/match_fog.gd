@@ -4,8 +4,8 @@ extends Node3D
 ## street (`shaders/match_fog_wall.gdshader`). Because it stands in the street it layers by where it stands: at the end far from the camera
 ## (the top of the screen) it is BEHIND the boundary pictures and props, which stay clear in front of it, with the fog thickening upward above
 ## them; at the end near the camera (the bottom of the screen) it is IN FRONT of them and covers them, thickest a little above the ground. The shader works
-## out which end each wall is at from the camera every frame, so it follows the view when the street swings half way round. It is a little
-## darker than the first haze. View only.
+## out which end each wall is at from the camera every frame, so it follows the view when the street swings half way round. It is white and
+## nearly opaque where it is thickest (owner). View only.
 
 const SHADER: Shader = preload("res://shaders/match_fog_wall.gdshader")
 ## How wide and tall a wall is (metres): wider than anything the camera sees, tall enough to reach the top of the screen.

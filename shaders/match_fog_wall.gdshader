@@ -5,10 +5,10 @@ render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, fog_disabled;
 // the wall is behind the boundary pictures and props, which stand clear of it, and the fog thickens upward above them; at the end that is
 // near the camera (the bottom of the screen) the wall is in front of them and covers them, thickest a little above the ground and thinning upward.
 // Which end it is is read from the camera each frame (the street swings half way round in Tumbang Preso), so the layering follows the
-// view. Flat colour, a smooth fade.
+// view. White (owner), nearly opaque at its thickest, a smooth fade.
 
-uniform vec4 fog_color : source_color = vec4(0.60, 0.64, 0.72, 1.0);
-uniform float strength = 0.85;
+uniform vec4 fog_color : source_color = vec4(0.97, 0.98, 1.0, 1.0);
+uniform float strength = 0.96;
 // The far wall: clear up to `far_start` metres above the ground, full from `far_full`.
 uniform float far_start = 1.0;
 uniform float far_full = 8.0;

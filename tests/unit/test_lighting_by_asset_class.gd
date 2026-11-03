@@ -91,7 +91,7 @@ func test_the_pole_is_two_to_three_times_a_kid_on_screen() -> void:
 	assert_lt(ratio, 3.0, "but proportionate, not a tower over the street")
 
 
-func test_the_ground_past_the_ends_shades_smoothly_darker_and_the_sides_have_no_dark_part() -> void:
+func test_the_ground_outside_the_play_area_is_the_floor_picture_with_no_dark_tint() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
 	var inside: MeshInstance3D = map.get_node("%Geometry").find_child("CementArt", true, false) as MeshInstance3D
@@ -99,12 +99,13 @@ func test_the_ground_past_the_ends_shades_smoothly_darker_and_the_sides_have_no_
 	assert_not_null(outside, "the outside patch is laid")
 	assert_eq((inside.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color, Color.WHITE, "the play area is the picture itself")
 	var material: ShaderMaterial = (outside.mesh as PlaneMesh).material as ShaderMaterial
-	var far: float = material.get_shader_parameter("far_shade") as float
-	assert_lt(far, 0.9, "far past the ends it is darker")
-	assert_gt(far, 0.6, "but only slightly")
-	assert_gte(material.get_shader_parameter("fade_length") as float, 6.0, "over metres, not at a line")
-	assert_gt((material.get_shader_parameter("side_color") as Color).v, 0.4, "the sides are plain pavement, not a dark shade")
-	assert_true(material.shader.code.contains("abs(ground.x)"), "the sides are told apart from the ends")
+	assert_eq(material.get_shader_parameter("floor_picture"), StreetArt.texture("cement"), "the same picture")
+	var code: String = material.shader.code
+	assert_false(code.contains("far_shade") or code.contains("side_color"), "no shade or flat colour made up for the outside")
+	assert_true(code.contains("mirrored"), "the sidewalk strip is copied outward past the sides")
+	assert_true(code.contains("copy"), "the whole picture is copied past the top and the bottom")
+	assert_true(code.contains("seam"), "each copy is colour-corrected where it meets its neighbour")
+	assert_almost_eq(material.get_shader_parameter("edge_u") as float, (1.0 - map.cement_share()) / 2.0, 0.0001, "the sidewalk strip is what the play area crops off")
 	var size: Vector3 = inside.mesh.get_aabb().size
 	assert_almost_eq(size.x, map.layout.lane_width, 0.001, "the play area patch is exactly the play area")
 	assert_almost_eq(size.z, map.layout.lane_length, 0.001, "end to end")
