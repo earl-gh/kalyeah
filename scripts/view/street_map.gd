@@ -40,7 +40,7 @@ const RESCUE_WHITE_ALPHA: float = 0.75
 ## The countdown number is a mark on the ground like the area it is in (owner: a kid standing on it covers it): a flat Label3D lying on the
 ## street at the area's middle, unshaded, `RESCUE_COUNT_HEIGHT` metres tall (an em), lifted just above the chalk. It stays (owner, 2026-11-03).
 ## It is white and half see-through.
-const RESCUE_COUNT_HEIGHT: float = 1.6
+const RESCUE_COUNT_HEIGHT: float = 1.25
 const RESCUE_COUNT_FONT: int = 96
 const RESCUE_COUNT_LIFT: float = RING_HEIGHT + 0.02
 ## The number is white and half see-through.
