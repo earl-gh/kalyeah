@@ -27,32 +27,32 @@ const FILL_ENERGY: float = 0.1
 const AMBIENT_COLOR: Color = Color(1.0, 0.97, 0.92)
 const AMBIENT_ENERGY: float = 0.63
 const RING_HEIGHT: float = 0.03
-## Visual pass: the bases and rescue areas were the faintest marks on the street (fill 0.22, tape 0.16 m); a stronger fill
-## that still lets the cement show makes the objective read second, after the kids. The chalk edge is half of the 0.3 m it was
-## (owner: thinner), the one width of every base and rescue area outline.
-const ZONE_FILL_ALPHA: float = 0.34
-const TAPE_WIDTH: float = 0.15
-## A rescue area's fill is stronger than a base's (owner: its white countdown mark was too transparent): 0.34 before, now over half
-## opaque, so the white box and the number on it read at once while the cement still shows through.
-const RESCUE_FILL_ALPHA: float = 0.55
-## While its countdown runs a rescue area is white and half see-through (owner): the tint, the outline and the number on it all draw at this
-## alpha, so a pixel of each is the white blended half and half with the floor. Once ready it is the team's colour as before (full outline,
-## `RESCUE_FILL_ALPHA` fill).
-const RESCUE_WHITE_ALPHA: float = 0.5
+## The bases and rescue areas are chalk outlines only (owner, 2026-11-03: like Patintero's lines, no tinted fill): a rounded rectangle drawn with
+## the same chalk as the street games' lines (`shaders/chalk_line.gdshader`: a wandering stroke, a ragged edge, breaks where the chalk lifted,
+## grain), but in the team's colour (blue yours, red theirs: owner). The stroke is as wide as Patintero's lines and breaks as much as its court.
+const CHALK_SHADER: Shader = preload("res://shaders/chalk_line.gdshader")
+const ZONE_CHALK_WIDTH: float = 0.32
+const ZONE_CHALK_BREAKS: float = 0.3
+## The chalk's strength in the team's colour.
+const CHALK_ALPHA: float = 0.95
+## While its countdown runs a rescue area's chalk is white and a little fainter (owner): back to the team's colour once a teammate can rescue there.
+const RESCUE_WHITE_ALPHA: float = 0.75
 ## The countdown number is a mark on the ground like the area it is in (owner: a kid standing on it covers it): a flat Label3D lying on the
-## street at the area's middle, unshaded, `RESCUE_COUNT_HEIGHT` metres tall (an em), lifted just above the tint and the outline.
+## street at the area's middle, unshaded, `RESCUE_COUNT_HEIGHT` metres tall (an em), lifted just above the chalk. It stays (owner, 2026-11-03).
+## It is white and half see-through.
 const RESCUE_COUNT_HEIGHT: float = 1.6
 const RESCUE_COUNT_FONT: int = 96
 const RESCUE_COUNT_LIFT: float = RING_HEIGHT + 0.02
-## It draws after the area's tint (priority -100) and outline (-99), and before every other see-through mark of the street (priority 0 and up: the
+## The number is white and half see-through.
+const COUNT_ALPHA: float = 0.5
+## It draws after the area's chalk (priority -99), and before every other see-through mark of the street (priority 0 and up: the
 ## kids' rings and shadows, the skill areas), so those draw over it; the kids themselves are solid and cover it by depth.
 const RESCUE_COUNT_PRIORITY: int = -98
 const RESCUE_OUTLINE_PRIORITY: int = -99
 ## The camera looks down at this angle (`CameraRules.pitch_degrees`), which squeezes a flat mark's height by its sine: the number is stretched
 ## by the inverse so its digits look as tall as they are wide.
 const COUNT_PITCH_DEGREES: float = 45.0
-## Bases and rescue areas are rounded rectangles on the street, each with a faint tint and a full outline in a fixed team colour
-## (blue yours, red theirs: owner).
+## Bases and rescue areas are rounded rectangles on the street, each a chalk outline in a fixed team colour (blue yours, red theirs: owner).
 const RESCUE_CORNER_RADIUS: float = 0.9
 const ZONE_CORNER_STEPS: int = 6
 ## The sidewalks are flat, level with the street (owner: no raised curb).
@@ -182,7 +182,7 @@ var far_props: Array[String] = []
 ## of the screen shows the pictures, the other its props (`set_own_side`).
 var _row_props: Dictionary[float, Array] = {}
 var _row_pictures: Dictionary[float, Node3D] = {}
-## side -> [base tape, base fill, rescue tape, rescue fill] materials (recoloured per viewer).
+## side -> [base chalk, rescue chalk] materials (recoloured per viewer).
 var _base_materials: Dictionary[int, Array] = {}
 ## side -> that base's team colour as the viewer sees it (blue yours, red theirs).
 var _side_tint: Dictionary[int, Color] = {}
@@ -273,10 +273,10 @@ func set_own_side(own_side: int) -> void:
 	for side: int in _base_materials:
 		var tint: Color = OWN_COLOR if side == own_side else ENEMY_COLOR
 		_side_tint[side] = tint
-		for material: StandardMaterial3D in _base_materials[side]:
+		for material: ShaderMaterial in _base_materials[side]:
 			var color: Color = tint
-			color.a = material.albedo_color.a
-			material.albedo_color = color
+			color.a = (material.get_shader_parameter("chalk") as Color).a
+			material.set_shader_parameter("chalk", color)
 
 
 ## Shows or hides Agawang Base's bases and rescue areas (Tumbang Preso and Patintero have none; the electric posts stay in their corners).
@@ -299,7 +299,7 @@ func visible_posts() -> int:
 	return count
 
 
-## Each team's rescue area is white and half see-through while its countdown runs (`MatchSim.rescue_ready_left`), with the seconds on it, and
+## Each team's rescue area's chalk is white while its countdown runs (`MatchSim.rescue_ready_left`), with the seconds on it, and
 ## the team's colour (blue yours, red theirs) once a teammate can rescue there.
 ## `hide_counts`: the briefing is up, so the numbers on the areas are not drawn (the areas themselves stay).
 func sync_rescue(sim: MatchSim, hide_counts: bool = false) -> void:
@@ -318,8 +318,7 @@ func sync_rescue(sim: MatchSim, hide_counts: bool = false) -> void:
 		_rescue_ready[side] = ready
 		var tint: Color = _side_tint[side] if ready else Color.WHITE
 		var materials: Array = _base_materials[side]
-		(materials[2] as StandardMaterial3D).albedo_color = Color(tint, 1.0 if ready else RESCUE_WHITE_ALPHA)
-		(materials[3] as StandardMaterial3D).albedo_color = Color(tint, RESCUE_FILL_ALPHA if ready else RESCUE_WHITE_ALPHA)
+		(materials[1] as ShaderMaterial).set_shader_parameter("chalk", Color(tint, CHALK_ALPHA if ready else RESCUE_WHITE_ALPHA))
 
 
 ## The seconds on the rescue area of base `side` right now ("" when the area is ready or hidden).
@@ -353,11 +352,11 @@ func base_color(side: int) -> Color:
 	return _side_tint[side]
 
 
-## [base tape, base fill, rescue tape, rescue fill] colours for `side`.
+## [base chalk, rescue chalk] colours for `side`.
 func zone_colors(side: int) -> Array[Color]:
 	var colors: Array[Color] = []
-	for material: StandardMaterial3D in _base_materials[side]:
-		colors.append(material.albedo_color)
+	for material: ShaderMaterial in _base_materials[side]:
+		colors.append(material.get_shader_parameter("chalk") as Color)
 	return colors
 
 
@@ -407,9 +406,9 @@ func _build_map() -> void:
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var color: Color = OWN_COLOR if side == MapLayout.SIDE_OWN else ENEMY_COLOR
 		_posts[side] = _add_post(layout.post_position(side))
-		var base: Array[StandardMaterial3D] = _add_marked_zone(layout.base_rect(side), layout.base_corner, color)
-		var rescue: Array[StandardMaterial3D] = _add_marked_zone(layout.rescue_rect(side), RESCUE_CORNER_RADIUS, color, RESCUE_FILL_ALPHA, true)
-		_base_materials[side] = [base[0], base[1], rescue[0], rescue[1]]
+		var base: ShaderMaterial = _add_marked_zone(layout.base_rect(side), layout.base_corner, color, 1.0 + float(side))
+		var rescue: ShaderMaterial = _add_marked_zone(layout.rescue_rect(side), RESCUE_CORNER_RADIUS, color, 3.0 + float(side), true)
+		_base_materials[side] = [base, rescue]
 		_counts[side] = _add_count(layout.rescue_rect(side).get_center())
 		_side_tint[side] = color
 	for index: int in range(first_mark, _geometry.get_child_count()):
@@ -561,19 +560,19 @@ func _add_obstacle(index: int) -> void:
 	_add_prop(PropModel.fit(id, footprint, cover_height(), not diorama), at, PI / 2.0 if turned else 0.0)
 
 
-## A base or a rescue area: a faint team-tinted rounded rectangle with a full outline, cut off by the street's edge. Only marks on the
-## ground: nothing is blocked. Returns [tape, fill] materials (recoloured per viewer). A `see_through` area (the rescue area) has a tape that
-## can be see-through too, and its tint stops where the tape starts, so the two never blend over each other (each shows its own alpha).
-func _add_marked_zone(rect: Rect2, corner: float, color: Color, fill_alpha: float = ZONE_FILL_ALPHA, see_through: bool = false) -> Array[StandardMaterial3D]:
-	var materials: Array[StandardMaterial3D] = _zone_materials(color, fill_alpha)
-	if see_through:
-		materials[0].transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		materials[0].render_priority = RESCUE_OUTLINE_PRIORITY
-		_add_fill(rect.get_center(), rounded_outline(rect.grow(-TAPE_WIDTH), maxf(corner - TAPE_WIDTH, 0.0)), materials[1])
-	else:
-		_add_fill(rect.get_center(), rounded_outline(rect, corner), materials[1])
-	_add_outline(rect, corner, materials[0])
-	return materials
+## A base or a rescue area: a rounded rectangle drawn in chalk in the team's colour, no fill (owner, 2026-11-03). Only a mark on the ground:
+## nothing is blocked. Returns its chalk material (recoloured per viewer). The rescue area's chalk is see-through ordered so its countdown number
+## draws over it. `seed` makes each area's chalk break in its own places.
+func _add_marked_zone(rect: Rect2, corner: float, color: Color, seed: float, rescue: bool = false) -> ShaderMaterial:
+	var material: ShaderMaterial = ShaderMaterial.new()
+	material.shader = CHALK_SHADER
+	material.set_shader_parameter("chalk", Color(color, CHALK_ALPHA))
+	material.set_shader_parameter("width_m", ZONE_CHALK_WIDTH)
+	material.set_shader_parameter("seed", seed * 7.31)
+	material.set_shader_parameter("breaks", ZONE_CHALK_BREAKS)
+	material.render_priority = RESCUE_OUTLINE_PRIORITY if rescue else -100
+	_add_chalk_loop(rect, corner, material)
+	return material
 
 
 ## The seconds number of a rescue area: a Label3D lying flat on the ground at `middle` (x, z), white and half see-through, unshaded, drawn
@@ -584,7 +583,7 @@ func _add_count(middle: Vector2) -> Label3D:
 	label.font = KalyeahTheme.ACTION_FONT
 	label.font_size = RESCUE_COUNT_FONT
 	label.pixel_size = RESCUE_COUNT_HEIGHT / float(RESCUE_COUNT_FONT)
-	label.modulate = Color(1.0, 1.0, 1.0, RESCUE_WHITE_ALPHA)
+	label.modulate = Color(1.0, 1.0, 1.0, COUNT_ALPHA)
 	label.outline_size = 0
 	label.shaded = false
 	label.double_sided = true
@@ -597,13 +596,6 @@ func _add_count(middle: Vector2) -> Label3D:
 	label.visible = false
 	_geometry.add_child(label)
 	return label
-
-
-## The team-coloured line round `rect` (its corners rounded), `TAPE_WIDTH` wide, drawn inside the rectangle.
-func _add_outline(rect: Rect2, corner: float, tape: StandardMaterial3D) -> void:
-	var rim: Array[Vector2] = rounded_outline(rect, corner)
-	var inner: Array[Vector2] = rounded_outline(rect.grow(-TAPE_WIDTH), maxf(corner - TAPE_WIDTH, 0.0))
-	_add_tape(rim, inner, tape)
 
 
 ## The outline of `rect` with its corners rounded to `radius`, as a closed list of points (the same count for any rect).
@@ -622,51 +614,35 @@ static func rounded_outline(rect: Rect2, radius: float) -> Array[Vector2]:
 	return points
 
 
-## [tape, fill] for a zone: the team's colour in full for the outline, faint for the fill.
-func _zone_materials(color: Color, fill_alpha: float) -> Array[StandardMaterial3D]:
-	var tape: StandardMaterial3D = StandardMaterial3D.new()
-	tape.albedo_color = color
-	tape.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	tape.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return [tape, _fill_material(color, fill_alpha)]
-
-
-func _fill_material(color: Color, alpha: float) -> StandardMaterial3D:
-	var fill: StandardMaterial3D = StandardMaterial3D.new()
-	fill.albedo_color = Color(color.r, color.g, color.b, alpha)
-	fill.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	fill.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	fill.cull_mode = BaseMaterial3D.CULL_DISABLED
-	# drawn first, so the kids and everything else stand on top of the tint, never under it
-	fill.render_priority = -100
-	return fill
-
-
-## A flat fan from `center` out to the closed `outline`, just above the road.
-func _add_fill(center: Vector2, outline: Array[Vector2], material: StandardMaterial3D) -> void:
-	var tool: SurfaceTool = SurfaceTool.new()
-	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	tool.set_normal(Vector3.UP)
-	for i: int in outline.size():
-		var a: Vector2 = outline[i]
-		var b: Vector2 = outline[(i + 1) % outline.size()]
-		for point: Vector2 in [center, b, a]:
-			tool.add_vertex(Vector3(point.x, RING_HEIGHT, point.y))
-	var mesh: ArrayMesh = tool.commit()
-	mesh.surface_set_material(0, material)
-	_add(mesh, Vector3.ZERO).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-
-
-## Tape between the closed `outer` line and the matching `inner` line.
-func _add_tape(outer: Array[Vector2], inner: Array[Vector2], material: StandardMaterial3D) -> void:
+## A ribbon `ZONE_CHALK_WIDTH` wide round `rect` (its corners rounded), inside the rectangle, for the chalk shader: UV.x runs along it (the whole
+## way round is `length_m`), UV.y across it.
+func _add_chalk_loop(rect: Rect2, corner: float, material: ShaderMaterial) -> void:
+	var half: float = ZONE_CHALK_WIDTH / 2.0
+	var path: Array[Vector2] = rounded_outline(rect.grow(-half), maxf(corner - half, 0.0))
+	var count: int = path.size()
+	var along: Array[float] = [0.0]
+	for i: int in count:
+		along.append(along[i] + path[i].distance_to(path[(i + 1) % count]))
+	material.set_shader_parameter("length_m", along[count])
 	var tool: SurfaceTool = SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	tool.set_normal(Vector3.UP)
 	var height: float = RING_HEIGHT + 0.006
-	for i: int in outer.size():
-		var j: int = (i + 1) % outer.size()
-		for point: Vector2 in [outer[i], outer[j], inner[j], outer[i], inner[j], inner[i]]:
-			tool.add_vertex(Vector3(point.x, height, point.y))
+	for i: int in count:
+		var j: int = (i + 1) % count
+		var edge: Array[Vector3] = []
+		for k: Array in [[i, along[i]], [j, along[i + 1]]]:
+			var at: int = k[0] as int
+			var direction: Vector2 = (path[(at + 1) % count] - path[(at - 1 + count) % count]).normalized()
+			var side: Vector2 = Vector2(direction.y, -direction.x) * half
+			var u: float = (k[1] as float) / along[count]
+			edge.append(Vector3(path[at].x + side.x, u, path[at].y + side.y))
+			edge.append(Vector3(path[at].x - side.x, u, path[at].y - side.y))
+		# edge = [outer_i, inner_i, outer_j, inner_j] as (x, u, z)
+		for corner_index: int in [0, 2, 3, 0, 3, 1]:
+			var vertex: Vector3 = edge[corner_index]
+			tool.set_uv(Vector2(vertex.y, 0.0 if corner_index % 2 == 0 else 1.0))
+			tool.add_vertex(Vector3(vertex.x, height, vertex.z))
 	var mesh: ArrayMesh = tool.commit()
 	mesh.surface_set_material(0, material)
 	_add(mesh, Vector3.ZERO).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

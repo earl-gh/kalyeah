@@ -135,16 +135,14 @@ func test_the_countdown_is_a_flat_mark_on_the_ground_not_a_screen_overlay() -> v
 		assert_eq(label.alpha_cut, Label3D.ALPHA_CUT_DISABLED, "blended, not cut")
 
 
-func test_the_countdown_draws_over_the_areas_tint_and_under_every_other_see_through_mark() -> void:
-	# transparent things draw in render_priority order: the tint (-100) and the outline, then the number, then the kids' rings and shadows
-	# (0 and up: FxKit.PRIO_*), so those draw over it; the kids themselves are solid and cover it by depth
+func test_the_countdown_draws_over_the_areas_chalk_and_under_every_other_see_through_mark() -> void:
+	# transparent things draw in render_priority order: the chalk, then the number, then the kids' rings and shadows (0 and up: FxKit.PRIO_*), so
+	# those draw over it; the kids themselves are solid and cover it by depth
 	var map: StreetMap = _map()
 	var label: Label3D = map.rescue_count(MapLayout.SIDE_OWN)
 	var materials: Array = map._base_materials[MapLayout.SIDE_OWN]
-	var tint: int = (materials[3] as StandardMaterial3D).render_priority
-	var line: int = (materials[2] as StandardMaterial3D).render_priority
-	assert_gt(label.render_priority, tint, "over the tint")
-	assert_gt(label.render_priority, line, "and its outline")
+	var chalk: int = (materials[1] as ShaderMaterial).render_priority
+	assert_gt(label.render_priority, chalk, "over the area's chalk")
 	assert_lt(label.render_priority, FxKit.PRIO_FILL, "under the skill areas")
 	assert_lt(label.render_priority, FxKit.PRIO_SHADOW, "and the kids' shadows")
 	assert_lt(label.render_priority, 0, "and the kids' rings (the default priority)")
@@ -158,12 +156,12 @@ func test_the_countdown_is_white_at_half_alpha_and_the_box_turns_the_teams_colou
 	var label: Label3D = map.rescue_count(own)
 	assert_eq(label.modulate, Color(1.0, 1.0, 1.0, 0.5), "white, half see-through (owner, 2026-10-30)")
 	assert_eq(label.outline_size, 0, "no outline: it would blend twice over the half see-through white")
-	assert_true(Color(map.zone_colors(own)[2], 1.0).is_equal_approx(Color.WHITE), "the box is white while it counts")
+	assert_true(Color(map.zone_colors(own)[1], 1.0).is_equal_approx(Color.WHITE), "the chalk is white while it counts")
 	sim.rescue_ready_left[0] = 0.0
 	map.sync_rescue(sim)
 	assert_false(label.visible, "nothing to count once ready")
-	assert_true(Color(map.zone_colors(own)[2], 1.0).is_equal_approx(StreetMap.OWN_COLOR), "the exact blue of yours")
-	assert_true(Color(map.zone_colors(sim.side_for_team(1))[2], 1.0).is_equal_approx(StreetMap.ENEMY_COLOR) or sim.rescue_ready_left[1] > 0.0)
+	assert_true(Color(map.zone_colors(own)[1], 1.0).is_equal_approx(StreetMap.OWN_COLOR), "the exact blue of yours")
+	assert_true(Color(map.zone_colors(sim.side_for_team(1))[1], 1.0).is_equal_approx(StreetMap.ENEMY_COLOR) or sim.rescue_ready_left[1] > 0.0)
 
 
 func test_the_flipped_view_turns_the_number_so_it_is_still_upright() -> void:
