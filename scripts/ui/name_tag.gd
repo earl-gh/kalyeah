@@ -223,9 +223,12 @@ func _init() -> void:
 	set_player_name(Session.player_name if not Session.player_name.is_empty() else Session.DEFAULT_NAME)
 
 
-## Shows the saved ID photo, the avatar placeholder while there is none, or no square at all on a device with no camera and no photo.
+## Shows the saved ID photo, or the default avatar while there is none (owner: Remove photo goes back to it). Only if that picture is
+## missing does it fall back to the avatar placeholder, or to no square at all on a device with no camera.
 func refresh_photo() -> void:
 	var picture: Texture2D = IdPhoto.texture()
+	if picture == null:
+		picture = AvatarPhotos.default_texture()
 	photo.texture = picture
 	photo.visible = picture != null
 	add_photo.visible = picture == null

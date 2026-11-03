@@ -1,6 +1,8 @@
 class_name ProfileSheet
 extends RefCounted
-## Who you are, in one sheet: your ID photo (taken with the camera, kept only on this phone: `IdPhoto`) and your name (kept only on Save). There is no face to pick here (owner): the kid you play is chosen in the room and before every match.
+## Who you are, in one sheet: your ID photo (kept only on this phone: `IdPhoto`) and your name (kept only on Save). The photo is picked from a grid
+## of two rows of four tiles (owner, 2026-11-03): 1 takes a photo, 2 picks one from the gallery, 3 to 8 are the six avatars (3 is the default).
+## There is no kid to play to pick here: that is chosen in the room and before every match.
 
 ## The field's inner room on every side (the left and right are the same as the top and bottom), and its border's width.
 const FIELD_PAD: float = 4.0
@@ -9,13 +11,21 @@ const FIELD_BORDER: float = 3.0
 const COUNT_WIDTH: float = 140.0
 const COUNT_RIGHT: float = 24.0
 const COUNT_TOP: float = 14.0
+## The name field shows it can be tapped before it is: a grey outline and a light grey tint (the focus ring turns blue and the tint goes).
+const FIELD_EDGE: Color = Color(KalyeahTheme.MODAL_TEXT_MUTED, 0.6)
+const FIELD_TINT: Color = Color(KalyeahTheme.MODAL_TEXT_MUTED, 0.14)
+## The photo grid: four tiles a row, each a square this wide.
+const PHOTO_COLUMNS: int = 4
+const PHOTO_TILE: float = 116.0
+## The camera and gallery tiles' side padding, small so their words fit.
+const TILE_PAD: float = 4.0
 
 
-## `on_saved` is called after a successful Save, once Session holds the new name. The photo has three ways in (owner, 2026-11-03), a row of
-## buttons under the tag: `on_pick_gallery` opens the phone's gallery (only where it has a picker), `on_take_photo` opens the camera (only on a
-## device that can have one) and `on_pick_avatar` opens the six avatars; `on_photo_removed` follows Remove photo. Each button closes the
-## sheet and hands over. Without any of them the preview photo is read-only.
-static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_photo_removed: Callable = Callable(), on_pick_gallery: Callable = Callable(), on_pick_avatar: Callable = Callable()) -> MenuDialog:
+## `on_saved` is called after a successful Save, once Session holds the new name. The photo grid sits under the tag: `on_take_photo` (tile 1,
+## the camera, only on a device that can have one) and `on_pick_gallery` (tile 2, only where the phone has a picker) close the sheet and hand
+## over; a tap on an avatar keeps it at once, the sheet stays, and `on_avatar_picked` is called; `on_photo_removed` follows Remove photo (back
+## to the default avatar). Without any of the three the sheet has no grid and the photo is read-only.
+static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_photo_removed: Callable = Callable(), on_pick_gallery: Callable = Callable(), on_avatar_picked: Callable = Callable()) -> MenuDialog:
 	var card: MenuDialog = MenuDialog.create("Your nametag", MenuDialog.WIDTH_SHEET)
 	card.name = "ProfileSheet"
 	# The tag itself is the foreground surface; no second card surrounds it.
@@ -48,9 +58,9 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 	field.custom_minimum_size = Vector2(0.0, UiMetrics.TOUCH)
 	field.add_theme_font_size_override("font_size", UiMetrics.HEADLINE)
 	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = Color.TRANSPARENT
-	box.border_color = Color.TRANSPARENT
-	box.set_border_width_all(3)
+	box.bg_color = FIELD_TINT
+	box.border_color = FIELD_EDGE
+	box.set_border_width_all(int(FIELD_BORDER))
 	box.set_corner_radius_all(UiSkin.RADIUS_M)
 	box.content_margin_left = FIELD_PAD
 	box.content_margin_right = FIELD_PAD
@@ -61,6 +71,7 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 		field.add_theme_stylebox_override(state, box)
 	var focused: StyleBoxFlat = box.duplicate() as StyleBoxFlat
 	focused.border_color = KalyeahTheme.BLUE
+	focused.bg_color = Color.TRANSPARENT
 	field.add_theme_stylebox_override("focus", focused)
 	field.add_theme_color_override("font_color", KalyeahTheme.MODAL_TEXT)
 	field.add_theme_color_override("font_placeholder_color", KalyeahTheme.MODAL_TEXT_MUTED)
@@ -91,29 +102,60 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 		field.add_theme_font_size_override("font_size", tag.name_label.get_theme_font_size("font_size"))
 	holder.resized.connect(fit_preview)
 	card.opened.connect(fit_preview)
-	# the three ways to give the tag a photo, in a row under it
-	var ways: Array[Dictionary] = []
-	if on_pick_gallery.is_valid() and IdPhotoPicker.available():
-		ways.append({"name": "Gallery", "text": "Gallery", "say": "Pick a photo from the gallery", "act": on_pick_gallery})
-	if on_take_photo.is_valid() and IdPhoto.camera_possible():
-		ways.append({"name": "Camera", "text": "Camera", "say": "Take a photo with the camera", "act": on_take_photo})
-	if on_pick_avatar.is_valid():
-		ways.append({"name": "Avatar", "text": "Avatar", "say": "Pick an avatar", "act": on_pick_avatar})
-	if not ways.is_empty():
-		var row: HBoxContainer = HBoxContainer.new()
-		row.name = "PhotoOptions"
-		row.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	# the photo grid: 1 camera, 2 gallery, 3 to 8 the avatars, two rows of four, under the tag
+	var avatar_tiles: Dictionary[String, Button] = {}
+	var show_selection: Callable = func() -> void:
+		var chosen: String = AvatarPhotos.current()
+		for id: String in avatar_tiles:
+			avatar_tiles[id].get_node("Ring").visible = id == chosen
+	var show_photo: Callable = func() -> void:
+		tag.refresh_photo()
+		fit_preview.call()
+		show_selection.call()
+	if on_take_photo.is_valid() or on_pick_gallery.is_valid() or on_avatar_picked.is_valid():
+		var grid: GridContainer = GridContainer.new()
+		grid.name = "PhotoOptions"
+		grid.columns = PHOTO_COLUMNS
+		grid.add_theme_constant_override("h_separation", UiMetrics.COMPACT_GAP)
+		grid.add_theme_constant_override("v_separation", UiMetrics.COMPACT_GAP)
+		grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		var ways: Array[Dictionary] = [
+			{"name": "Camera", "text": "Camera", "say": "Take a photo with the camera", "act": on_take_photo, "can": IdPhoto.camera_possible()},
+			{"name": "Gallery", "text": "Gallery", "say": "Pick a photo from the gallery", "act": on_pick_gallery, "can": IdPhotoPicker.available()},
+		]
 		for way: Dictionary in ways:
-			var option: Button = MenuDialog.make_button(way["text"] as String, "blue", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
+			var option: Button = MenuDialog.make_button(way["text"] as String, "blue", UiMetrics.CAPTION, Vector2.ONE * PHOTO_TILE)
 			option.name = way["name"] as String
 			option.accessibility_name = way["say"] as String
-			option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			option.clip_text = true  # the tile stays as wide as the avatars...
+			for state: String in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+				var look: StyleBoxTexture = option.get_theme_stylebox(state).duplicate() as StyleBoxTexture  # a copy: the skin shares its own
+				look.content_margin_left = TILE_PAD  # ...and the words get the room the button's wide padding took
+				look.content_margin_right = TILE_PAD
+				option.add_theme_stylebox_override(state, look)
 			var act: Callable = way["act"] as Callable
+			# a way this phone lacks stays in its place, greyed out, so the avatars keep theirs
+			option.disabled = not (act.is_valid() and bool(way["can"]))
 			option.pressed.connect(func() -> void:
 				card.close(false)
 				act.call())
-			row.add_child(option)
-		card.body.add_child(row)
+			grid.add_child(option)
+		for id: String in Session.AVATARS:
+			var pick: Button = AvatarPhotos.tile(id, PHOTO_TILE)
+			if pick == null:
+				continue
+			UiKit.feel_press(pick, &"select")
+			avatar_tiles[id] = pick
+			pick.pressed.connect(func() -> void:
+				var picture: Image = AvatarPhotos.photo_of(id)
+				if IdPhoto.save(picture) != OK:
+					return
+				show_photo.call()
+				if on_avatar_picked.is_valid():
+					on_avatar_picked.call())
+			grid.add_child(pick)
+		card.body.add_child(grid)
+		show_selection.call()
 	# the hint line is only for the "Pick a name!" answer
 	var hint: Label = card.add_hint("")
 	hint.hide()
@@ -136,13 +178,19 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 	var save: Button = MenuDialog.make_button("Save", "orange", UiMetrics.BODY)
 	save.name = "Save"
 	var actions: Array[Button] = []
-	if IdPhoto.exists() and on_photo_removed.is_valid():
+	if on_photo_removed.is_valid():
 		var remove: Button = MenuDialog.make_button("Remove photo", "grey", UiMetrics.BODY)
 		remove.name = "RemovePhoto"
+		remove.visible = IdPhoto.exists()
 		remove.pressed.connect(func() -> void:
 			IdPhoto.remove()
-			card.close()
+			remove.hide()
+			show_photo.call()  # back to the default avatar (tile 3)
 			on_photo_removed.call())
+		# a photo kept from a tile shows the button too
+		var show_remove: Callable = func() -> void: remove.visible = IdPhoto.exists()
+		for tile: Button in avatar_tiles.values():
+			tile.pressed.connect(show_remove)
 		actions.append(remove)
 	actions.append(save)
 	card.add_buttons(actions)
