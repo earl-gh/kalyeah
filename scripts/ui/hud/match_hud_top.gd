@@ -34,11 +34,6 @@ static func build(hud: MatchHud) -> void:
 	hud.scoreboard = Scoreboard.new()
 	hud.scoreboard.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.top.add_child(hud.scoreboard)
-	# what is left of the briefing's countdown when the player tapped past it: a small circle between the two scores
-	hud.skip_timer = CountdownCircle.new(MatchHud.SKIP_TIMER_SIZE, 3.0, UiMetrics.ACTION)
-	hud.skip_timer.name = "SkipTimer"
-	hud.skip_timer.visible = false
-	hud.top.add_child(hud.skip_timer)
 	# right: the match clock, the counterpart of the settings button
 	hud.clock_chip = ClockChip.new()
 	hud.top.add_child(hud.clock_chip)
@@ -53,8 +48,6 @@ static func layout(hud: MatchHud) -> void:
 		# the tag toast sits just above the tray (the cards, or the street pad's strip)
 		hud._place(hud.tag_toast, Vector4(0, 1, 1, 1), Vector4(0, -(hud.console_height() + TagToast.HEIGHT + TagToast.GAP), 0, -(hud.console_height() + TagToast.GAP)))
 	hud._place(hud.scoreboard, Vector4(0.5, 0, 0.5, 0), Vector4(-MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y, MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y))
-	var timer_size: float = MatchHud.SKIP_TIMER_SIZE
-	hud._place(hud.skip_timer, Vector4(0.5, 0, 0.5, 0), Vector4(-timer_size / 2.0, MatchHud.TOP_ROW_Y + (MatchHud.SCORE_SIZE.y - timer_size) / 2.0, timer_size / 2.0, MatchHud.TOP_ROW_Y + (MatchHud.SCORE_SIZE.y + timer_size) / 2.0))
 	var gear_box: Vector4 = Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE)
 	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear_box)
 	hud._place(hud.clock_chip, Vector4(1, 0, 1, 0), Vector4(-MatchHud.CLOCK_SIZE.x, 0.0, 0.0, MatchHud.CLOCK_SIZE.y))

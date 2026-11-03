@@ -1,15 +1,12 @@
 class_name CountdownCircle
 extends Control
-## A countdown in a circle: a thin white ring that empties and the whole seconds left in the middle. The match briefing has a big one; when a
-## player taps past the briefing a small one carries on between the two scores at the top of the match (`MatchHud.skip_timer`).
+## A countdown in a circle: a thin white ring that empties and the whole seconds left in the middle (the match briefing's).
 
 ## Whole seconds are shown, counting down to 1.
 var total: float = 10.0
 var left: float = 10.0
 var ring: float = 4.0
 var font_size: int = UiMetrics.HEADLINE
-## True while it counts down by itself (the one in the header); the briefing's is set by its owner.
-var running: bool = false
 
 
 func _init(p_size: float = 104.0, p_ring: float = 4.0, p_font_size: int = UiMetrics.HEADLINE) -> void:
@@ -19,31 +16,12 @@ func _init(p_size: float = 104.0, p_ring: float = 4.0, p_font_size: int = UiMetr
 	custom_minimum_size = Vector2.ONE * p_size
 	size = custom_minimum_size
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_process(false)
 
 
 func set_left(value: float, p_total: float) -> void:
 	total = maxf(p_total, 0.1)
 	left = clampf(value, 0.0, total)
 	queue_redraw()
-
-
-## Counts `value` seconds down by itself and hides at zero.
-func run(value: float, p_total: float) -> void:
-	set_left(value, p_total)
-	running = left > 0.0
-	visible = running
-	set_process(running)
-
-
-func _process(delta: float) -> void:
-	if not running:
-		return
-	set_left(left - delta, total)
-	if left <= 0.0:
-		running = false
-		visible = false
-		set_process(false)
 
 
 func shown_seconds() -> int:

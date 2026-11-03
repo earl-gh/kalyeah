@@ -123,34 +123,18 @@ func test_it_counts_ten_seconds_down_in_whole_numbers_and_ends_by_itself() -> vo
 	assert_true(practice.hud.controls_active())
 
 
-func test_a_tap_ends_it_at_once_and_does_not_also_skip_the_opening_show() -> void:
+
+
+
+
+func test_it_is_text_only_with_a_dimmed_unblurred_backdrop_and_a_smaller_block() -> void:
 	var practice: PracticeMatch = _match(&"street")
 	var briefing: MatchBriefing = practice.hud.briefing
-	practice._input(_touch())
-	assert_eq(practice.sim.phase, MatchSim.Phase.INTRO, "the tap that ends the briefing does not skip the show")
-	briefing._gui_input(_touch())
-	assert_false(briefing.running)
-	assert_eq(practice.sim.phase, MatchSim.Phase.INTRO, "the show still plays after it")
-
-
-func test_android_back_starts_the_match_instead_of_opening_the_menu() -> void:
-	var practice: PracticeMatch = _match(&"street")
-	practice._back_pressed()
-	assert_false(practice.hud.menu.visible, "back does not open the menu over the briefing")
-	practice.hud.briefing.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
-	await wait_process_frames(1)
-	assert_false(practice.hud.briefing.running)
-
-
-func test_it_is_text_only_with_a_dimmed_unblurred_backdrop_a_smaller_block_and_a_tap_line() -> void:
-	var practice: PracticeMatch = _match(&"street")
-	var briefing: MatchBriefing = practice.hud.briefing
-	assert_eq(briefing.find_children("*", "BaseButton", true, false).size(), 0, "no buttons: a tap anywhere continues")
+	assert_eq(briefing.find_children("*", "BaseButton", true, false).size(), 0, "no buttons")
 	var backdrop: ColorRect = briefing.find_child("Backdrop", true, false) as ColorRect
 	assert_null(backdrop.material, "the match behind is not blurred")
 	assert_gt(backdrop.color.a, 0.5, "only dimmed")
 	assert_eq((briefing.find_child("Column", true, false) as Control).scale, Vector2.ONE * 0.8, "the block is drawn at 0.8 of its size")
-	assert_eq(briefing.continue_label.text, "Tap to continue")
 	assert_eq(briefing.mouse_filter, Control.MOUSE_FILTER_STOP)
 	var texts: Array[String] = _texts(briefing)
 	assert_true(texts.has("MOVE") and texts.has("ATTACK"))
@@ -187,13 +171,15 @@ func test_the_briefing_draws_over_tumbang_presos_points_column() -> void:
 	assert_gt(hud.briefing.get_index(), hud.score_column.get_index(), "the column is blurred with the rest")
 
 
-func test_the_countdown_is_above_the_title_the_block_is_centred_and_the_text_is_left_aligned() -> void:
+func test_the_countdown_shares_the_title_row_the_block_is_centred_and_the_text_is_left_aligned() -> void:
 	var practice: PracticeMatch = _match(&"street")
 	var briefing: MatchBriefing = practice.hud.briefing
 	var column: Control = briefing.find_child("Column", true, false) as Control
 	var countdown: Control = briefing.find_child("Countdown", true, false) as Control
-	assert_lt(countdown.get_index(), briefing.head.get_index(), "the countdown comes first, above the title")
-	assert_eq(column.get_child(0), countdown)
+	assert_eq(countdown.get_parent(), briefing.title_row, "the countdown and the title share a row")
+	assert_eq(briefing.title_label.get_parent(), briefing.title_row)
+	assert_lt(countdown.get_index(), briefing.title_label.get_index(), "with the countdown first")
+	assert_eq(column.get_child(0), briefing.head)
 	assert_eq(column.grow_horizontal, Control.GROW_DIRECTION_BOTH, "the block stays centred")
 	assert_almost_eq(column.anchor_left, 0.5, 0.001)
 	assert_almost_eq(column.anchor_top, 0.5, 0.001)
@@ -206,7 +192,6 @@ func test_the_countdown_circle_is_small_and_thin() -> void:
 	var circle: CountdownCircle = practice.hud.briefing.find_child("Countdown", true, false) as CountdownCircle
 	assert_lte(circle.custom_minimum_size.x, 110.0, "a small circle")
 	assert_lte(circle.ring, 4.0, "a thin outline")
-	assert_true(practice.hud.skip_timer.custom_minimum_size.x < circle.custom_minimum_size.x, "and the header's is smaller still")
 
 
 func test_the_headings_are_between_the_title_and_the_plain_text_in_size() -> void:
@@ -229,38 +214,37 @@ func test_the_title_and_its_description_stand_close_together() -> void:
 	var briefing: MatchBriefing = practice.hud.briefing
 	var column: Control = briefing.find_child("Column", true, false) as Control
 	assert_lt(briefing.head.get_theme_constant("separation"), column.get_theme_constant("separation") / 4, "much closer than the blocks are")
-	assert_eq(briefing.title_label.get_parent(), briefing.head)
+	assert_eq(briefing.title_row.get_parent(), briefing.head)
 	assert_eq(briefing.goal.get_parent(), briefing.head)
 
 
-func test_a_tap_hands_what_is_left_of_the_countdown_to_the_header_between_the_scores() -> void:
-	var practice: PracticeMatch = _match(&"street")
-	var briefing: MatchBriefing = practice.hud.briefing
-	var timer: CountdownCircle = practice.hud.skip_timer
-	assert_false(timer.visible, "nothing in the header while the briefing shows")
-	briefing._process(3.0)
-	briefing._gui_input(_touch())
-	assert_true(timer.visible, "the timer carries on in the header")
-	assert_eq(timer.shown_seconds(), 7)
-	timer._process(2.5)
-	assert_eq(timer.shown_seconds(), 5, "it keeps counting down")
-	timer._process(10.0)
-	assert_false(timer.visible, "and goes at zero")
-	# placed on the middle of the score, between its two cells
-	var board: Control = practice.hud.scoreboard
-	var timer_middle: float = timer.global_position.x + timer.size.x / 2.0
-	var board_middle: float = board.global_position.x + board.size.x / 2.0
-	assert_almost_eq(timer_middle, board_middle, 2.0)
 
 
 func test_letting_the_countdown_run_out_leaves_nothing_in_the_header() -> void:
 	var practice: PracticeMatch = _match(&"street")
 	practice.hud.briefing._process(11.0)
 	assert_false(practice.hud.briefing.running)
-	assert_false(practice.hud.skip_timer.visible)
 
 
 func test_agawang_base_is_spelled_with_the_g_everywhere_a_player_reads_it() -> void:
 	assert_eq(RoomService.BASE_TITLE, "Agawang Base")
 	assert_eq(HotspotRoomView.MAP_NAMES[&"street"], "Agawang Base")
 	assert_eq(MatchBriefing.words_for(null)["title"], "Agawang Base")
+
+
+func test_there_is_no_tap_to_continue_and_nothing_stays_in_the_header() -> void:
+	var practice: PracticeMatch = _match(&"street")
+	var briefing: MatchBriefing = practice.hud.briefing
+	var texts: Array[String] = _texts(briefing)
+	assert_false(texts.has("Tap to continue"), "no tap to continue line")
+	assert_false(briefing.has_signal("skipped"), "no carried-on countdown")
+	assert_null(practice.hud.get("skip_timer"), "and nothing between the scores")
+	assert_eq(briefing.mouse_filter, Control.MOUSE_FILTER_STOP, "it only keeps touches off the match")
+	practice._input(_touch())
+	assert_eq(practice.sim.phase, MatchSim.Phase.INTRO, "and does not skip the opening show behind it")
+	practice._back_pressed()
+	assert_false(practice.hud.menu.visible, "Back does not open the menu over it either")
+	assert_true(briefing.running)
+	briefing._process(10.5)
+	assert_false(briefing.running, "only the countdown ends it")
+	assert_true(practice.hud.controls_active())

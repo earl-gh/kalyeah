@@ -1,13 +1,12 @@
 class_name MatchBriefing
 extends Control
-## What a Practice match opens with (owner, 2026-11-03): the match behind it dimmed, and over it only text: the
-## a ten second countdown in a white circle, the game's name, one line on how to score, then what to do to move and to act, and "Tap to continue". The block is centred on the screen and its text is left-aligned.
-## The match stands still while it shows; the countdown ends it by itself and a tap ends it sooner. It replaces the first-run walkthrough:
-## it opens before every Practice match against bots, in every game. Online matches never open it (the server does not wait).
+## What a Practice match opens with (owner, 2026-11-03): the match behind it dimmed, and over it only text: a ten second countdown in a small
+## white circle with the game's name beside it, how to score, then what to do to move and to act. The block is centred on the screen and its
+## text is left-aligned. The match stands still while it shows and starts when the countdown ends: there is nothing to tap, no skip (the
+## overlay only keeps touches off the match). It replaces the first-run walkthrough: it opens before every Practice match against bots,
+## in every game. Online matches never open it (the server does not wait).
 
 signal finished
-## The player tapped (or pressed Back) with seconds still to count: the countdown carries on in the match header.
-signal skipped(seconds_left: float, total: float)
 
 ## The match behind it is only dimmed (no blur), and the words are drawn at this share of their size.
 const DIM: Color = Color(0.01, 0.03, 0.08, 0.7)
@@ -32,12 +31,11 @@ var title_label: Label
 var goal: VBoxContainer
 var rows: VBoxContainer
 var head: VBoxContainer
-var continue_label: Label
+var title_row: HBoxContainer
 
 var _hud: MatchHud
 var _total: float = 10.0
 var _clock: CountdownCircle
-var _pulse: Tween
 
 
 ## The words for a game (null = Agawang Base): its name, how to score as (heading, line) blocks (no heading: one plain line), and
@@ -88,21 +86,28 @@ func _init(hud: MatchHud = null) -> void:
 	column.grow_vertical = Control.GROW_DIRECTION_BOTH
 	column.scale = Vector2.ONE * CONTENT_SCALE
 	column.resized.connect(func() -> void: column.pivot_offset = column.size / 2.0)
-	_clock = CountdownCircle.new(CLOCK_SIZE, CLOCK_RING, UiMetrics.HEADLINE)
-	_clock.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	column.add_child(_clock)
-	# the title and what to do to score stand close together
+	# the countdown and the game's name share a row; what to do to score stands close under it
 	head = VBoxContainer.new()
 	head.name = "Head"
 	head.add_theme_constant_override("separation", HEAD_GAP)
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(head)
+	title_row = HBoxContainer.new()
+	title_row.name = "TitleRow"
+	title_row.add_theme_constant_override("separation", UiMetrics.GAP)
+	title_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_child(title_row)
+	_clock = CountdownCircle.new(CLOCK_SIZE, CLOCK_RING, UiMetrics.HEADLINE)
+	_clock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	title_row.add_child(_clock)
 	title_label = Label.new()
 	title_label.name = "Title"
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	UiKit.letter(title_label, TITLE_SIZE, GOLD)
-	head.add_child(title_label)
+	title_row.add_child(title_label)
 	goal = VBoxContainer.new()
 	goal.name = "Goal"
 	goal.add_theme_constant_override("separation", 14)
@@ -113,14 +118,6 @@ func _init(hud: MatchHud = null) -> void:
 	rows.add_theme_constant_override("separation", 30)
 	rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(rows)
-	continue_label = Label.new()
-	continue_label.name = "Continue"
-	continue_label.text = "Tap to continue"
-	continue_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	continue_label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
-	continue_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
-	continue_label.add_theme_color_override("font_color", KalyeahTheme.TEXT)
-	column.add_child(continue_label)
 
 
 ## Opens the briefing for `game` (null = Agawang Base) and stills the match's controls until it ends.
@@ -141,7 +138,6 @@ func start(game: StreetModeRules, seconds: float) -> void:
 	if _hud != null:
 		_hud.set_controls_active(false)
 	_clock.set_left(seconds_left, _total)
-	_start_pulse()
 
 
 ## A label in small capitals over the line it explains, both left-aligned.
@@ -172,48 +168,16 @@ func _process(delta: float) -> void:
 		finish()
 
 
-## Any touch starts the match.
-func _gui_input(event: InputEvent) -> void:
+func finish() -> void:
 	if not running:
 		return
-	if (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed) or (event is InputEventMouseButton and (event as InputEventMouseButton).pressed):
-		accept_event()
-		finish(true)
-
-
-## `by_player`: a tap or Back before the countdown ran out; what is left of it carries on in the match header (`skipped`).
-func finish(by_player: bool = false) -> void:
-	if not running:
-		return
-	var left: float = seconds_left
 	running = false
 	visible = false
-	if is_instance_valid(_pulse):
-		_pulse.kill()
 	if _hud != null:
 		_hud.set_controls_active(true)
 	finished.emit()
-	if by_player and left > 0.0:
-		skipped.emit(left, _total)
 
 
 ## The countdown's number: whole seconds, counting down to 1.
 func shown_seconds() -> int:
 	return _clock.shown_seconds()
-
-
-func _start_pulse() -> void:
-	if is_instance_valid(_pulse):
-		_pulse.kill()
-	continue_label.modulate.a = 1.0
-	if Settings.reduced_motion or not is_inside_tree():
-		return
-	_pulse = create_tween().set_loops()
-	_pulse.tween_property(continue_label, "modulate:a", 0.45, 0.8).set_trans(Tween.TRANS_SINE)
-	_pulse.tween_property(continue_label, "modulate:a", 1.0, 0.8).set_trans(Tween.TRANS_SINE)
-
-
-## The phone's back button starts the match too (nothing to cancel: the briefing only says how to play).
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
-		finish.call_deferred(true)

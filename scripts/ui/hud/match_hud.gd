@@ -49,8 +49,6 @@ const HEADER_HEIGHT: float = TOP_ROW_Y * 2.0 + 88.0
 const MARGIN: float = 14.0
 const GEAR_SIZE: float = UiMetrics.TOUCH
 const SCORE_SIZE: Vector2 = Vector2(330.0, 88.0)
-## The small countdown that carries on between the two scores after a tap past the briefing.
-const SKIP_TIMER_SIZE: float = 64.0
 const CLOCK_SIZE: Vector2 = Vector2(176.0, 112.0)
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## How long the capture words and the warning stay up when the capture stops for a moment (seconds).
@@ -117,7 +115,6 @@ var point_result: PointResult
 var _covered: bool = false
 var results: MatchResults
 var briefing: MatchBriefing
-var skip_timer: CountdownCircle
 ## What the results card says the match was ("Practice", "Hotspot", "Online").
 var results_mode: String = "Practice"
 ## Big countdown in the middle while a capture is running (not an enemy taking your base: that is `capture_alert`).
@@ -526,7 +523,6 @@ func _build() -> void:
 	MatchHudTop.build_intro(self)
 	briefing = MatchBriefing.new(self)
 	add_child(briefing)
-	briefing.skipped.connect(skip_timer.run)
 	# last, so it draws over the hand
 	menu = MatchMenu.new()
 	add_child(menu)
