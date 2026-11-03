@@ -59,12 +59,29 @@ func test_the_panel_is_a_white_rounded_rectangle_at_the_top_right_with_six_stick
 		assert_gte(minf(pick.size.x, pick.size.y), UiMetrics.MIN_TARGET, "a sticker is thumb-sized")
 
 
-func test_every_sticker_has_a_face_and_its_words_and_the_owners_picture_would_replace_the_face() -> void:
+func test_every_sticker_is_the_owners_picture_with_its_words_under_it() -> void:
 	var hud: MatchHud = _hud()
-	for pick: Button in hud.chat.phrase_buttons:
-		assert_not_null(pick.find_child("Face", true, false), "%s: a code-drawn face" % pick.name)
+	var seen: Dictionary = {}
+	for k: int in hud.chat.phrase_buttons.size():
+		var pick: Button = hud.chat.phrase_buttons[k]
+		var picture: TextureRect = pick.find_child("Picture", true, false) as TextureRect
+		assert_not_null(picture, "%s: the owner's picture" % pick.name)
+		assert_eq(picture.texture.resource_path, QuickChat.STICKER_PATH % QuickChat.slug(QuickChat.PHRASES[k]), "%s: its own file" % pick.name)
+		assert_gt(picture.texture.get_size().x, 0.0)
+		seen[picture.texture.resource_path] = true
 		assert_false((pick.find_child("Words", true, false) as Label).text.is_empty())
-	assert_eq(QuickChat.slug("Good luck!"), "good_luck", "assets/ui/stickers/good_luck.png would replace its face")
+	assert_eq(seen.size(), QuickChat.PHRASES.size(), "six different pictures")
+	assert_eq(QuickChat.slug("Good luck!"), "good_luck", "assets/ui/stickers/good_luck.webp")
+	assert_eq(QuickChat.slug("Help me!"), "help_me")
+
+
+func test_the_sticker_pictures_import_lossless_with_mipmaps_and_stay_small() -> void:
+	for phrase: String in QuickChat.PHRASES:
+		var path: String = QuickChat.STICKER_PATH % QuickChat.slug(phrase)
+		var import_text: String = FileAccess.get_file_as_string(path + ".import")
+		assert_true(import_text.contains("compress/mode=0"), "%s imports lossless" % phrase)
+		assert_true(import_text.contains("mipmaps/generate=true"), "%s has mipmaps (it is drawn smaller than it is)" % phrase)
+		assert_lt(FileAccess.open(path, FileAccess.READ).get_length(), 60000, "%s stays small for the APK" % phrase)
 
 
 func test_a_tap_opens_the_phrases_and_picking_one_says_it_and_closes() -> void:
