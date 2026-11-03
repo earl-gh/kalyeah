@@ -281,3 +281,15 @@ func test_the_headings_are_the_titles_colour_not_blue() -> void:
 			found += 1
 			assert_eq((label as Label).get_theme_color("font_color"), title_colour, (label as Label).text)
 	assert_eq(found, 2)
+
+
+func test_runners_and_guards_are_spaced_like_move_and_dive() -> void:
+	var practice: PracticeMatch = _match(&"patintero")
+	var briefing: MatchBriefing = practice.hud.briefing
+	assert_eq(briefing.goal.get_theme_constant("separation"), briefing.rows.get_theme_constant("separation"))
+	await wait_process_frames(2)
+	var goal_blocks: Array[Node] = briefing.goal.get_children()
+	var row_blocks: Array[Node] = briefing.rows.get_children()
+	var goal_gap: float = (goal_blocks[1] as Control).position.y - ((goal_blocks[0] as Control).position.y + (goal_blocks[0] as Control).size.y)
+	var row_gap: float = (row_blocks[1] as Control).position.y - ((row_blocks[0] as Control).position.y + (row_blocks[0] as Control).size.y)
+	assert_almost_eq(goal_gap, row_gap, 0.5, "the same space between the two blocks in each pair")

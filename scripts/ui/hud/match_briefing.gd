@@ -20,6 +20,8 @@ const LABEL_SIZE: int = UiMetrics.HEADLINE
 const LINE_SIZE: int = UiMetrics.TITLE
 ## The title and its description stand close together.
 const HEAD_GAP: int = 10
+## The space between two blocks of the same kind: Runners and Guards, Move and Dive.
+const BLOCK_GAP: int = 30
 ## More room under the hairline than over it, so the details do not crowd it.
 const BAR_GAP: int = 22
 
@@ -121,12 +123,12 @@ func _init(hud: MatchHud = null) -> void:
 	head.add_child(under_bar)
 	goal = VBoxContainer.new()
 	goal.name = "Goal"
-	goal.add_theme_constant_override("separation", 14)
+	goal.add_theme_constant_override("separation", BLOCK_GAP)
 	goal.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.add_child(goal)
 	rows = VBoxContainer.new()
 	rows.name = "Rows"
-	rows.add_theme_constant_override("separation", 30)
+	rows.add_theme_constant_override("separation", BLOCK_GAP)
 	rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(rows)
 
