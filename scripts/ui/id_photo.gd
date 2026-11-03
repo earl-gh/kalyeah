@@ -25,16 +25,32 @@ static func exists() -> bool:
 	return FileAccess.file_exists(path)
 
 
-## Keeps the middle square of `image`, `SIZE` pixels a side, as the photo.
-static func save(image: Image) -> Error:
+## The middle square of `image`, `SIZE` pixels a side, as it is kept (or null for no picture).
+static func fit(image: Image) -> Image:
 	if image == null or image.is_empty():
-		return ERR_INVALID_PARAMETER
+		return null
 	var picture: Image = image.duplicate() as Image
 	picture.convert(Image.FORMAT_RGB8)
 	var side: int = mini(picture.get_width(), picture.get_height())
 	picture = picture.get_region(Rect2i((picture.get_width() - side) / 2, (picture.get_height() - side) / 2, side, side))
 	picture.resize(SIZE, SIZE, Image.INTERPOLATE_BILINEAR)
+	return picture
+
+
+## Keeps the middle square of `image`, `SIZE` pixels a side, as the photo.
+static func save(image: Image) -> Error:
+	var picture: Image = fit(image)
+	if picture == null:
+		return ERR_INVALID_PARAMETER
 	return picture.save_png(path)
+
+
+## The saved photo as an image, or null when there is none.
+static func saved_image() -> Image:
+	if not FileAccess.file_exists(path):
+		return null
+	var loaded: Image = Image.load_from_file(path)
+	return null if loaded == null or loaded.is_empty() else loaded
 
 
 static func remove() -> void:
