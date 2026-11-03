@@ -244,24 +244,18 @@ func test_the_street_games_frame_the_street_exactly_like_agawan_base() -> void:
 		assert_almost_eq(practice._camera.size, reference, 0.001, "%s: the same zoom as Agawang Base" % game)
 
 
-func test_the_quick_chat_is_under_the_timer_and_lists_its_phrases_vertically() -> void:
+func test_the_quick_chat_is_at_the_top_right_and_opens_a_two_by_three_sticker_panel_in_the_street_games() -> void:
 	for game: StringName in [&"tumbang_preso", &"patintero"]:
 		var practice: PracticeMatch = _practice(game)
 		practice.advance(DT)
 		var hud: MatchHud = practice.hud
 		assert_true(hud.chat.visible, "%s: chat is there" % game)
-		assert_gte(hud.chat.get_global_rect().position.y, hud.clock_chip.get_global_rect().end.y - 1.0, "%s: under the timer panel" % game)
-		assert_almost_eq(hud.chat.get_global_rect().end.x, hud.clock_chip.get_global_rect().end.x - 0.0, MatchHud.MARGIN + 2.0, "%s: at the right edge" % game)
+		assert_almost_eq(hud.chat.get_global_rect().end.x, hud.size.x - MatchHud.MARGIN, 1.0, "%s: at the right edge" % game)
+		assert_almost_eq(hud.chat.get_global_rect().position.y, hud.top_inset + MatchHud.TOP_ROW_Y, 1.0, "%s: at the top" % game)
 		hud.chat.set_open(true)
 		await wait_frames(2)
-		assert_eq(hud.chat.menu.columns, 1, "%s: one phrase under the other" % game)
-		var rows: Array[float] = []
-		for pick: Button in hud.chat.phrase_buttons:
-			rows.append(pick.get_global_rect().position.y)
-		var sorted: Array[float] = rows.duplicate()
-		sorted.sort()
-		assert_eq(rows, sorted, "%s: top to bottom" % game)
-		assert_gt(rows[-1], rows[0] + UiMetrics.TOUCH * 6.0, "%s: a column" % game)
+		assert_eq(hud.chat.grid.columns, 2, "%s: two columns" % game)
+		assert_eq(hud.chat.phrase_buttons.size(), 6, "%s: six stickers" % game)
 		hud.chat.set_open(false)
 
 

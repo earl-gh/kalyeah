@@ -1,23 +1,25 @@
 class_name ClockChip
 extends Control
-## The match clock in the top right corner, laid out like Clash Royale's "Time left:" box: "Time left:" over the time (m:ss, counting down;
-## with the stages off in the rules it counts up), in a see-through dark box with a black outline. The caption is the round's stage:
+## The match clock, in the middle of the score at the top centre between the two team cells (owner, 2026-11-03; it used to be Clash Royale's
+## "Time left:" box in the top right corner): "Time left:" over the time (m:ss, counting down;
+## with the stages off in the rules it counts up), in a small see-through dark box with a black outline, as tall as the team cells. The caption is the round's stage:
 ## "Time left:" (Regular), "Extended", then a gold "Overtime"; each stage restarts the time. While the stage word flies in from the
 ## middle of the screen (`ClockStageFlash`) the caption is left empty for it to land on. It only draws; it never takes a touch.
 
+## The time alone in the regular stage (the box is only as tall as a team cell); in Extended and Overtime the stage word stands over a smaller time.
 const TIME_FONT: int = UiMetrics.HEADLINE
+const STAGE_TIME_FONT: int = UiMetrics.ACTION
 const CAPTION_FONT: int = UiMetrics.CAPTION
 ## Semi-transparent (the street shows through) with a black outline on its two open sides (owner: copy Clash Royale's box).
 const BOX_COLOR: Color = Color(0.04, 0.05, 0.08, 0.5)
 const BOX_OUTLINE: int = 3
-## The room the words keep from the box's top, its right side and its bottom (the box is flush with the screen's corner, so more at the
-## top and the right than at the open left side).
-const INNER_TOP: float = 16.0
-const INNER_RIGHT: float = 20.0
-const INNER_LEFT: float = 8.0
-const INNER_BOTTOM: float = 8.0
-const TEXT_OUTLINE: int = 5
-const LINE_GAP: float = 4.0
+## The room the words keep from the box's edges.
+const INNER_TOP: float = 3.0
+const INNER_RIGHT: float = 4.0
+const INNER_LEFT: float = 4.0
+const INNER_BOTTOM: float = 3.0
+const TEXT_OUTLINE: int = 3
+const LINE_GAP: float = 0.0
 
 var seconds: int = 0
 var stage: MatchSim.ClockStage = MatchSim.ClockStage.REGULAR
@@ -52,6 +54,11 @@ func hide_caption(hidden: bool) -> void:
 		queue_redraw()
 
 
+## True when the stage word stands over the time (Extended, Overtime); in the regular stage the box holds the time alone.
+func has_caption() -> bool:
+	return stage != MatchSim.ClockStage.REGULAR
+
+
 ## The small word over the time.
 func caption_text() -> String:
 	match stage:
@@ -78,36 +85,39 @@ func text() -> String:
 
 
 func _draw() -> void:
-	# like Clash Royale's "Time left" box: a dark see-through box in the screen's top right corner (flush with the top and the side, only
-	# its inner corner rounded), a small caption over a big clock, both white with a black outline
+	# a dark see-through box with a black outline between the two team cells, a small caption over a big clock, both white with a black outline
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = BOX_COLOR
 	box.border_color = Color.BLACK
-	box.border_width_left = BOX_OUTLINE
-	box.border_width_bottom = BOX_OUTLINE
-	box.corner_radius_bottom_left = UiSkin.RADIUS_M
+	box.set_border_width_all(BOX_OUTLINE)
+	box.set_corner_radius_all(UiSkin.RADIUS_M)
 	box.anti_aliasing = true
 	draw_style_box(box, Rect2(Vector2.ZERO, size))
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var caption: String = caption_text()
 	var lines: Array[Rect2] = text_rects()
-	var caption_at: Vector2 = lines[0].position + Vector2(TEXT_OUTLINE, TEXT_OUTLINE + font.get_ascent(CAPTION_FONT))
-	if not caption_hidden:
+	if has_caption() and not caption_hidden:
+		var caption_at: Vector2 = lines[0].position + Vector2(TEXT_OUTLINE, TEXT_OUTLINE + font.get_ascent(CAPTION_FONT))
 		_lettered(font, caption, caption_at, CAPTION_FONT, caption_color())
-	var time_at: Vector2 = lines[1].position + Vector2(TEXT_OUTLINE, TEXT_OUTLINE + font.get_ascent(TIME_FONT))
-	_lettered(font, text(), time_at, TIME_FONT, Color.WHITE)
+	var time_font: int = STAGE_TIME_FONT if has_caption() else TIME_FONT
+	var time_at: Vector2 = lines[1].position + Vector2(TEXT_OUTLINE, TEXT_OUTLINE + font.get_ascent(time_font))
+	_lettered(font, text(), time_at, time_font, Color.WHITE)
 
 
-## Full line bounds include the text stroke, so the caption and time keep real space between them.
+## Full line bounds include the text stroke. [caption, time]: in the regular stage the caption has no height (the time stands alone, in the middle).
 func text_rects() -> Array[Rect2]:
 	var font: Font = KalyeahTheme.ACTION_FONT
-	var caption_size: Vector2 = font.get_string_size(caption_text(), HORIZONTAL_ALIGNMENT_LEFT, -1.0, CAPTION_FONT) + Vector2.ONE * TEXT_OUTLINE * 2.0
-	var time_size: Vector2 = font.get_string_size(text(), HORIZONTAL_ALIGNMENT_LEFT, -1.0, TIME_FONT) + Vector2.ONE * TEXT_OUTLINE * 2.0
-	# the words are centred in what is left once the inner room is taken off (more at the top and the right)
+	var time_font: int = STAGE_TIME_FONT if has_caption() else TIME_FONT
+	var caption_size: Vector2 = Vector2.ZERO
+	if has_caption():
+		caption_size = font.get_string_size(caption_text(), HORIZONTAL_ALIGNMENT_LEFT, -1.0, CAPTION_FONT) + Vector2.ONE * TEXT_OUTLINE * 2.0
+	var time_size: Vector2 = font.get_string_size(text(), HORIZONTAL_ALIGNMENT_LEFT, -1.0, time_font) + Vector2.ONE * TEXT_OUTLINE * 2.0
+	# the words are centred in what is left once the inner room is taken off
 	var room: Rect2 = Rect2(INNER_LEFT, INNER_TOP, size.x - INNER_LEFT - INNER_RIGHT, size.y - INNER_TOP - INNER_BOTTOM)
-	var top: float = room.position.y + (room.size.y - caption_size.y - time_size.y - LINE_GAP) / 2.0
+	var gap: float = LINE_GAP if has_caption() else 0.0
+	var top: float = room.position.y + (room.size.y - caption_size.y - time_size.y - gap) / 2.0
 	var middle: float = room.get_center().x
-	return [Rect2(Vector2(middle - caption_size.x / 2.0, top), caption_size), Rect2(Vector2(middle - time_size.x / 2.0, top + caption_size.y + LINE_GAP), time_size)]
+	return [Rect2(Vector2(middle - caption_size.x / 2.0, top), caption_size), Rect2(Vector2(middle - time_size.x / 2.0, top + caption_size.y + gap), time_size)]
 
 
 ## White (or `color`) letters with a black outline.

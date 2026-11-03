@@ -40,17 +40,24 @@ static func build(hud: MatchHud) -> void:
 	layout(hud)
 
 
-## Places the settings button at the top left, the clock at the top right and the opening objective sheet.
+## Places the settings button at the top left, the clock between the two scores, the tag toast under them, the capture warning above the tray and the opening objective sheet.
 static func layout(hud: MatchHud) -> void:
 	if hud.intro_bar != null:
 		hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(80, -(hud.console_height() + 150.0), -80, -(hud.console_height() + 6.0)))
 	if hud.tag_toast != null:
-		# the tag toast sits just above the tray (the cards, or the street pad's strip)
-		hud._place(hud.tag_toast, Vector4(0, 1, 1, 1), Vector4(0, -(hud.console_height() + TagToast.HEIGHT + TagToast.GAP), 0, -(hud.console_height() + TagToast.GAP)))
+		# the tag toast sits at the top centre, just under the scoreboard row (owner, 2026-11-03)
+		var under: float = hud.header_height() + TagToast.GAP
+		hud._place(hud.tag_toast, Vector4(0, 0, 1, 0), Vector4(0, under, 0, under + TagToast.HEIGHT))
+	if hud.capture_alert != null:
+		# the capture warning is a toast just above the tray (the cards, or the street pad's strip): where the tag toast used to be
+		hud._place(hud.capture_alert, Vector4(0, 1, 1, 1), Vector4(0, -(hud.console_height() + TagToast.HEIGHT + TagToast.GAP), 0, -(hud.console_height() + TagToast.GAP)))
 	hud._place(hud.scoreboard, Vector4(0.5, 0, 0.5, 0), Vector4(-MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y, MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y))
 	var gear_box: Vector4 = Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE)
 	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear_box)
-	hud._place(hud.clock_chip, Vector4(1, 0, 1, 0), Vector4(-MatchHud.CLOCK_SIZE.x, 0.0, 0.0, MatchHud.CLOCK_SIZE.y))
+	# the clock stands in the middle of the score, between the two team cells
+	var middle: Rect2 = Scoreboard.middle_rect(MatchHud.SCORE_SIZE, MatchHud.CLOCK_GAP)
+	var left: float = middle.position.x - MatchHud.SCORE_SIZE.x / 2.0
+	hud._place(hud.clock_chip, Vector4(0.5, 0, 0.5, 0), Vector4(left, MatchHud.TOP_ROW_Y + middle.position.y, left + middle.size.x, MatchHud.TOP_ROW_Y + middle.position.y + middle.size.y))
 
 
 ## The opening objective appears as a compact floating sheet above the controls.

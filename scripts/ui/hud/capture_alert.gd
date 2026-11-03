@@ -1,13 +1,13 @@
 class_name CaptureAlert
 extends Control
-## "An enemy is capturing your base" (owner): a yellow warning triangle with a black exclamation mark in the middle of the scoreboard,
-## and two lines under the scoreboard's row: a small "Enemy capturing base" over a large "DEFEND THE BASE!". It replaces the big words
-## that used to stand in the middle of the screen. It only draws; it never takes a touch. The triangle pulses a little (it rests with
-## Reduce motion).
+## "An enemy is capturing your base" (owner): a toast above the card tray (where the tag toast used to stand) with the yellow warning triangle
+## with a black exclamation mark at its left and two lines beside it: a small "Enemy capturing base" over a large "DEFEND THE BASE!", on the
+## enemy's red plate. It stays up while the enemy holds the base (it does not pop out on a timer like the tag toast). It only draws; it never
+## takes a touch. The triangle pulses a little (it rests with Reduce motion).
 
 const SMALL_TEXT: String = "Enemy capturing base"
 const BIG_TEXT: String = "DEFEND THE BASE!"
-## The triangle's box (its middle is the middle of the scoreboard) and how round its corners are.
+## The triangle's box and how round its corners are.
 const ICON_SIZE: Vector2 = Vector2(68.0, 60.0)
 const CORNER: float = 6.0
 const OUTLINE: float = 5.0
@@ -19,10 +19,10 @@ const PULSE_HZ: float = 1.6
 const SMALL_FONT: int = UiMetrics.CAPTION
 const BIG_FONT: int = UiMetrics.HEADLINE
 const BIG_COLOR: Color = Color(1.0, 0.86, 0.25)
-## The gaps under the scoreboard's row: its bottom to the small line, and the small line to the big one.
-const SMALL_GAP: float = 8.0
-const BIG_GAP: float = 30.0
+## The plate is the enemy's red, as deep as the tag toast's.
+const DEEPEN: float = 0.5
 
+var panel: PanelContainer
 var icon: Control
 var small_label: Label
 var big_label: Label
@@ -32,18 +32,53 @@ func _init() -> void:
 	name = "CaptureAlert"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
-	set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	offset_bottom = MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y + SMALL_GAP + BIG_GAP + 60.0
+	var center: CenterContainer = CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(center)
+	panel = PanelContainer.new()
+	panel.name = "Bar"
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_stylebox_override("panel", _plate())
+	center.add_child(panel)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", UiMetrics.GAP * 2)
+	panel.add_child(row)
+	var holder: Control = Control.new()
+	holder.custom_minimum_size = ICON_SIZE
+	holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(holder)
 	icon = Mark.new()
 	icon.name = "Icon"
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon.size = ICON_SIZE
 	icon.pivot_offset = ICON_SIZE / 2.0
-	add_child(icon)
+	holder.add_child(icon)
+	var words: VBoxContainer = VBoxContainer.new()
+	words.add_theme_constant_override("separation", 0)
+	words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(words)
 	small_label = _line("Small", SMALL_TEXT, SMALL_FONT, Color.WHITE)
+	words.add_child(small_label)
 	big_label = _line("Big", BIG_TEXT, BIG_FONT, BIG_COLOR)
-	resized.connect(_place)
-	_place()
+	words.add_child(big_label)
+
+
+func _plate() -> StyleBox:
+	var base: Color = TeamColors.ui_enemy()
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = base.darkened(DEEPEN)
+	box.border_color = base.lightened(0.15)
+	box.set_border_width_all(4)
+	box.set_corner_radius_all(UiSkin.RADIUS_XL)
+	box.set_content_margin_all(14.0)
+	box.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
+	box.shadow_size = 8
+	box.anti_aliasing = true
+	return box
 
 
 func _line(label_name: String, text: String, font_size: int, color: Color) -> Label:
@@ -51,21 +86,10 @@ func _line(label_name: String, text: String, font_size: int, color: Color) -> La
 	label.name = label_name
 	label.text = UiText.t(text)
 	label.theme_type_variation = &"DisplayLabel"
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	UiKit.letter(label, font_size, color, BLACK)
-	add_child(label)
 	return label
-
-
-func _place() -> void:
-	var row_middle: float = MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y / 2.0
-	var small_top: float = MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y + SMALL_GAP
-	icon.position = Vector2((size.x - ICON_SIZE.x) / 2.0, row_middle - ICON_SIZE.y / 2.0)
-	small_label.position = Vector2(0.0, small_top)
-	small_label.size = Vector2(size.x, 34.0)
-	big_label.position = Vector2(0.0, small_top + BIG_GAP)
-	big_label.size = Vector2(size.x, 56.0)
 
 
 ## Shows or hides the alert (the lines and the triangle come and go together).

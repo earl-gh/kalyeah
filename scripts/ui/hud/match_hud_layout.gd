@@ -25,28 +25,16 @@ static func apply(hud: MatchHud) -> void:
 	if hud.score_column != null:
 		# Tumbang Preso's points: a column on the left sidewalk under the header
 		hud._place(hud.score_column, Vector4(0, 0, 0, 0), Vector4(4.0, hud.header_height() + MatchHud.SCORE_COLUMN_GAP, 4.0 + ScoreColumn.WIDTH, hud.header_height() + MatchHud.SCORE_COLUMN_GAP + ScoreColumn.ROW_HEIGHT * 8.0))
-	if hud.street_game and hud.chat != null:
-		_place_street_chat(hud)
-	elif hud.chat != null:
-		# the chat button rides above NEXT, outside the tray, on the same side as NEXT (Sides: in the strip, `chat_rect` says where)
-		var at: Vector2 = hud.hand.chat_rect.position
-		var top: float = -hud.console_height() + at.y
-		hud._place(hud.chat, Vector4(0, 1, 0, 1), Vector4(at.x, top, at.x + hud.hand.chat_rect.size.x, top + hud.hand.chat_rect.size.y))
-
-		if hud.sides_tray():
-			# over the street, beside the column of cards, above the strip
-			var from_x: float = CardHand.SIDES_COLUMN + 10.0 if Settings.left_handed else 10.0
-			hud.chat.place_over_hand(Rect2(Vector2(from_x, hud.size.y - hud.console_height() - 280.0), Vector2(hud.size.x - CardHand.SIDES_COLUMN - 20.0, 270.0)))
-		else:
-			hud.chat.place_over_hand(Rect2(Vector2(hud.hand.card_rects[0].position.x, hud.size.y - hud.console_height() + 12.0), Vector2(hud.size.x - CardHand.COLUMN - CardHand.SIDE, hud.CONSOLE_HEIGHT - 24.0)))
+	if hud.chat != null:
+		_place_chat(hud)
 
 
-## In the street games the quick chat button stands under the clock (top right) and opens a vertical list of phrases under itself. The
-## clock sits in `hud.top`, which the notch's inset moves down, so the button goes down with it.
-static func _place_street_chat(hud: MatchHud) -> void:
+## The quick chat button stands at the top right of every match, whatever the tray does (cards at the bottom or at the sides, left- or
+## right-handed, or the street games' knob and button): on the header's row, its right edge on the screen's margin, under the notch. The white
+## sticker panel opens under it, also at the top right. `hud.top` is moved down by the notch's inset, so the button goes down with it.
+static func _place_chat(hud: MatchHud) -> void:
 	var right: float = -MatchHud.MARGIN
-	var top: float = hud.top_inset + MatchHud.CLOCK_SIZE.y + 8.0
+	var top: float = hud.top_inset + MatchHud.TOP_ROW_Y
 	hud._place(hud.chat, Vector4(1, 0, 1, 0), Vector4(right - MatchHud.STREET_CHAT_SIZE, top, right, top + MatchHud.STREET_CHAT_SIZE))
-	var list: Rect2 = Rect2(Vector2(hud.size.x - MatchHud.MARGIN - MatchHud.STREET_CHAT_WIDTH, top + MatchHud.STREET_CHAT_SIZE + 8.0),
-		Vector2(MatchHud.STREET_CHAT_WIDTH, float(QuickChat.PHRASES.size()) * (UiMetrics.TOUCH + UiMetrics.COMPACT_GAP)))
-	hud.chat.place_over_hand(list)
+	var panel: Vector2 = QuickChat.panel_size()
+	hud.chat.place_panel(Rect2(Vector2(hud.size.x - MatchHud.MARGIN - panel.x, top + MatchHud.STREET_CHAT_SIZE + 8.0), panel))

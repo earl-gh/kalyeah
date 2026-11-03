@@ -24,7 +24,11 @@ func test_score_cells_restore_original_header_spacing() -> void:
 	assert_almost_eq(cells[1].end.x, board.size.x - 6.0, 0.1)
 	assert_eq(cells[0].size, cells[1].size)
 	assert_true(hud.header.get_global_rect().encloses(board.get_global_rect()))
-	assert_false(board.get_global_rect().intersects(hud.clock_chip.get_global_rect()))
+	var clock: Rect2 = hud.clock_chip.get_global_rect()
+	assert_true(board.get_global_rect().encloses(clock), "the clock is part of the score, in its middle")
+	assert_false(clock.intersects(Rect2(board.get_global_rect().position + cells[0].position, cells[0].size)), "clear of the blue cell")
+	assert_false(clock.intersects(Rect2(board.get_global_rect().position + cells[1].position, cells[1].size)), "and of the red one")
+	assert_almost_eq(clock.get_center().x, board.get_global_rect().get_center().x, 1.0, "centred")
 	assert_false(board.get_global_rect().intersects(hud.settings_button.get_global_rect()))
 
 func test_point_pause_and_results_hide_the_hud_and_restore_it_after_the_freeze() -> void:
@@ -60,22 +64,17 @@ func test_point_copy_identifies_the_base_or_team_that_was_captured_or_tagged() -
 	assert_eq(hud.point_result.subject.text, "All enemies")
 	assert_eq(hud.point_result.outcome.text, "TAGGED")
 
-func test_chat_has_two_rows_of_four_over_the_skills_and_blocks_card_input() -> void:
+func test_the_open_sticker_panel_blocks_card_input_and_stays_on_screen() -> void:
 	var hud: MatchHud = _hud()
 	var sim: MatchSim = _sim()
 	hud.sync_player(sim, sim.players[1], false)
 	hud.chat.set_open(true)
 	await wait_process_frames(3)
-	assert_eq(hud.chat.menu.columns, 4)
-	assert_eq(hud.chat.phrase_buttons.size(), 8)
+	assert_eq(hud.chat.grid.columns, 2)
+	assert_eq(hud.chat.phrase_buttons.size(), 6)
 	assert_false(hud.controls_active())
-	assert_true(hud.chat.menu.get_global_rect().encloses(Rect2(hud.hand.global_position + hud.hand.bar_rect.position, hud.hand.bar_rect.size)))
 	for button: Button in hud.chat.phrase_buttons:
-		var style: StyleBoxFlat = button.get_theme_stylebox("normal") as StyleBoxFlat
-		assert_eq(style.bg_color, Color.WHITE)
-		assert_eq(style.border_color, Color.BLACK)
-		assert_almost_eq(button.size.y, (hud.chat.menu.size.y - UiMetrics.COMPACT_GAP) / 2.0, 1.0)
-		assert_true(hud.get_global_rect().encloses(button.get_global_rect()))
+		assert_true(hud.get_global_rect().encloses(button.get_global_rect()), "%s is on screen" % button.name)
 	hud.chat.set_open(false)
 	assert_true(hud.controls_active())
 

@@ -230,7 +230,7 @@ func test_clear_drops_everything() -> void:
 	assert_false(toast.visible)
 
 
-func test_the_toast_sits_just_above_the_tray_in_every_layout() -> void:
+func test_the_toast_sits_at_the_top_centre_just_under_the_scoreboard_in_every_layout() -> void:
 	var phone: Control = autofree(Control.new()) as Control
 	phone.size = Vector2(720.0, 1600.0)
 	add_child(phone)
@@ -240,13 +240,13 @@ func test_the_toast_sits_just_above_the_tray_in_every_layout() -> void:
 	for sides: bool in [false, true]:
 		Settings.cards_tray = &"sides" if sides else &"bottom"
 		hud.layout_controls()
-		var bottom: float = hud.size.y - hud.console_height() - TagToast.GAP
-		assert_almost_eq(hud.tag_toast.position.y + hud.tag_toast.size.y, bottom, 1.0, "sides=%s: its foot is a gap above the tray" % sides)
+		var under: float = hud.header_height() + TagToast.GAP
+		assert_almost_eq(hud.tag_toast.position.y, under, 1.0, "sides=%s: just under the scoreboard row" % sides)
+		assert_gte(hud.tag_toast.position.y, hud.scoreboard.get_global_rect().end.y, "under the scoreboard")
 		assert_almost_eq(hud.tag_toast.size.y, TagToast.HEIGHT, 1.0)
 		assert_almost_eq(hud.tag_toast.size.x, 720.0, 1.0, "the bar is centred in the full width")
 	Settings.cards_tray = &"bottom"
 	assert_eq(hud.tag_toast.mouse_filter, Control.MOUSE_FILTER_IGNORE, "never takes a touch")
-
 
 ## The (id, by_id) of every tag the sim announces while `act` runs.
 func _tags(sim: MatchSim, act: Callable) -> Array[Vector2i]:

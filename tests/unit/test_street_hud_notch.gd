@@ -35,7 +35,8 @@ func _assert_clear(hud: MatchHud, what: String) -> void:
 	var clock: Rect2 = hud.clock_chip.get_global_rect()
 	var chat: Rect2 = hud.chat.get_global_rect()
 	assert_false(chat.intersects(clock), "%s: the chat button is not on the clock" % what)
-	assert_gte(chat.position.y, clock.end.y, "%s: it stands under the clock" % what)
+	assert_gte(chat.position.y, hud.top_inset + MatchHud.TOP_ROW_Y - 1.0, "%s: it stands on the header's row, under the notch" % what)
+	assert_gt(chat.position.x, clock.end.x, "%s: at the right of the clock" % what)
 	if hud.score_column != null and hud.score_column.visible:
 		var gear: Rect2 = hud.settings_button.get_global_rect()
 		var column: Rect2 = hud.score_column.get_global_rect()
