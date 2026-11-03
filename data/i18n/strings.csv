@@ -1,5 +1,5 @@
 keys,en
-%dv%d · First to %d,%dv%d · First to %d
+%dv%d · Race to %d,%dv%d · Race to %d
 %s is AFK,%s is AFK
 %s is back!,%s is back!
 "%s is coming soon! For now, Agawan Base is the only street open.","%s is coming soon! For now, Agawan Base is the only street open."
@@ -99,9 +99,9 @@ Enemy capturing base,Enemy capturing base
 Enter all %d characters!,Enter all %d characters!
 Extended,Extended
 Extra,Extra
-First to,First to
+Race to,Race to
 FIRST TO %d,FIRST TO %d
-First to %d,First to %d
+Race to %d,Race to %d
 first_to,first_to
 Footwear,Footwear
 Frame rate,Frame rate

@@ -181,16 +181,18 @@ func test_the_room_screen_shows_the_switch_to_the_host_of_a_hotspot_room_only() 
 	add_child(view)
 	view.show_room(room, 1)
 	assert_true(view.bots_row.visible)
-	assert_eq(view.bots_button.text, "Off")
+	assert_false(view.bots_button.button_pressed)
 	room["fill_bots"] = true
 	view.show_room(room, 1)
-	assert_eq(view.bots_button.text, "On")
 	assert_true(view.bots_button.button_pressed)
 	view.show_room(room, 2)
-	assert_false(view.bots_row.visible, "a guest does not see it")
+	assert_true(view.bots_row.visible, "a guest reads it as text")
+	assert_false(view.bots_row.get_child(1).visible, "but gets no switch")
 	room["bots_allowed"] = false
 	view.show_room(room, 1)
 	assert_false(view.bots_row.visible, "an online room has no bots")
+	view.show_room(room, 2)
+	assert_false(view.bots_row.visible, "and its guests are not told about them")
 
 
 func test_pressing_the_switch_tells_the_screen() -> void:
@@ -199,3 +201,102 @@ func test_pressing_the_switch_tells_the_screen() -> void:
 	watch_signals(view)
 	view.bots_button.button_pressed = true
 	assert_signal_emitted(view, "fill_bots_chosen")
+
+
+func _host_view(map_id: StringName, bots_allowed: bool) -> HotspotRoomView:
+	var room: Dictionary = {"code": "", "team_size": 3, "host": 1, "first_to": 3, "state": 0, "can_start": false, "can_start_host": true,
+		"map": map_id, "fill_bots": false, "bots_allowed": bots_allowed,
+		"members": [{"player_id": 1, "name": "Ana", "team": 0, "ready": false, "connected": true, "char": "junjun"}]}
+	var view: HotspotRoomView = autofree(HotspotRoomView.new()) as HotspotRoomView
+	add_child(view)
+	view.show_room(room, 1)
+	return view
+
+
+func test_race_to_and_fill_with_bots_share_one_row_each_with_a_small_caption_over_its_buttons() -> void:
+	var view: HotspotRoomView = _host_view(&"street", true)
+	assert_eq(view.race_group.get_parent(), view.settings_row)
+	assert_eq(view.bots_row.get_parent(), view.settings_row, "one row for both")
+	for pair: Array in [[view.race_group, "Race to"], [view.bots_row, "Fill with bots"]]:
+		var group: Control = pair[0] as Control
+		var caption: Label = group.get_child(0) as Label
+		assert_eq(caption.text, pair[1])
+		assert_eq(caption.get_theme_font_size("font_size"), UiMetrics.MIN_TEXT, "the smallest text size")
+		assert_eq(caption.horizontal_alignment, HORIZONTAL_ALIGNMENT_LEFT, "at the top left")
+		assert_true(group.get_child(1) is HBoxContainer, "the buttons come under the caption")
+	assert_eq(view.first_to_buttons[3].accessibility_name, "Race to 3")
+
+
+func test_a_street_game_has_no_race_and_a_room_without_bots_has_no_switch() -> void:
+	var street: HotspotRoomView = _host_view(&"patintero", true)
+	assert_false(street.race_group.visible)
+	assert_true(street.bots_row.visible)
+	assert_true(street.settings_row.visible)
+	var online: HotspotRoomView = _host_view(&"street", false)
+	assert_true(online.race_group.visible)
+	assert_false(online.bots_row.visible)
+	var neither: HotspotRoomView = _host_view(&"patintero", false)
+	assert_false(neither.settings_row.visible, "nothing to set, no row")
+
+
+func test_fill_with_bots_is_a_switch_not_a_button() -> void:
+	var view: HotspotRoomView = _host_view(&"street", true)
+	assert_true(view.bots_button is UiToggle)
+	assert_eq(view.bots_button.button_pressed, false)
+
+
+func test_the_game_card_has_a_caption_over_it_and_tap_to_change_under_its_title_for_the_host() -> void:
+	var host: HotspotRoomView = _host_view(&"street", false)
+	var game: Control = host.map_card.get_parent() as Control
+	assert_eq((game.get_child(0) as Label).text, "Game")
+	assert_eq((game.get_child(0) as Label).get_theme_font_size("font_size"), UiMetrics.MIN_TEXT)
+	assert_eq(host.map_hint.text, "Tap to change")
+	assert_true(host.map_hint.visible)
+	assert_eq(host.map_hint.get_parent(), host.map_card)
+	var room: Dictionary = {"code": "", "team_size": 3, "host": 1, "first_to": 3, "state": 0, "can_start": false, "can_start_host": true,
+		"map": &"street", "members": [{"player_id": 1, "name": "Ana", "team": 0, "ready": false, "connected": true, "char": "junjun"}]}
+	host.show_room(room, 2)
+	assert_false(host.map_hint.visible, "a guest cannot change the game")
+
+
+func test_a_guest_reads_the_game_and_the_settings_as_text_in_two_rows() -> void:
+	var room: Dictionary = {"code": "", "team_size": 3, "host": 1, "first_to": 5, "state": 0, "can_start": false, "can_start_host": false,
+		"map": &"street", "fill_bots": true, "bots_allowed": true,
+		"members": [{"player_id": 1, "name": "Ana", "team": 0, "ready": true, "connected": true, "char": "junjun"},
+			{"player_id": 2, "name": "Ben", "team": 1, "ready": false, "connected": true, "char": "migo"}]}
+	var view: HotspotRoomView = autofree(HotspotRoomView.new()) as HotspotRoomView
+	add_child(view)
+	view.show_room(room, 2)
+	# row 1: Game, then the title
+	assert_eq(((view.map_title.get_parent() as Control).get_child(0) as Label).text, "Game")
+	assert_true(view.map_title.visible)
+	assert_eq(view.map_title.text, "Agawan Base")
+	assert_false(view.map_card.visible, "no card to tap")
+	assert_false(view.map_hint.visible)
+	# row 2: Race to and Fill with bots, each its choice as text
+	assert_true(view.race_group.visible)
+	assert_false(view.race_group.get_child(1).visible, "no buttons")
+	assert_eq((view.race_group.get_child(2) as Label).text, "5")
+	assert_true(view.bots_row.visible)
+	assert_false(view.bots_row.get_child(1).visible, "no switch")
+	assert_eq((view.bots_row.get_child(2) as Label).text, "On")
+	room["fill_bots"] = false
+	view.show_room(room, 2)
+	assert_eq((view.bots_row.get_child(2) as Label).text, "Off")
+	room["map"] = &"patintero"
+	view.show_room(room, 2)
+	assert_false(view.race_group.visible, "a timed game has no race")
+	assert_eq(view.map_title.text, "Patintero")
+
+
+func test_a_street_game_shows_no_players_and_minutes_line_in_the_room() -> void:
+	var room: Dictionary = {"code": "", "team_size": 3, "host": 1, "first_to": 3, "state": 0, "can_start": false, "can_start_host": false,
+		"map": &"tumbang_preso", "members": [{"player_id": 1, "name": "Ana", "team": 0, "ready": true, "connected": true, "char": "junjun"},
+			{"player_id": 2, "name": "Ben", "team": 0, "ready": false, "connected": true, "char": "migo"}]}
+	var view: HotspotRoomView = autofree(HotspotRoomView.new()) as HotspotRoomView
+	add_child(view)
+	for map_id: StringName in [&"tumbang_preso", &"patintero", &"street"]:
+		room["map"] = map_id
+		for me: int in [1, 2]:
+			view.show_room(room, me)
+			assert_false(view.format_summary.visible, "no players-and-minutes line for %s, player %d" % [map_id, me])

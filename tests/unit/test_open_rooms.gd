@@ -91,5 +91,5 @@ func test_a_private_room_still_joins_with_its_code() -> void:
 
 func test_a_card_says_whose_room_the_format_and_the_places() -> void:
 	var text: String = OpenRoomsList.card_text({"code": "ABCDEFGH", "host_name": "Ana", "team_size": 2, "players": 3, "first_to": 5})
-	assert_eq(text, "Ana's room\n2v2 · 3/4 · First to 5")
+	assert_eq(text, "Ana's room\n2v2 · 3/4 · Race to 5")
 	assert_string_starts_with(OpenRoomsList.card_text({"code": "X", "host_name": "", "team_size": 1, "players": 1}), "Open room")
