@@ -1,7 +1,7 @@
 class_name UiSound
 extends Node
 ## The sounds of the interface (docs/ART.md "Audio"): the menus' own sounds, made in code (`UiTones`), not the match's weapon effects. They
-## are short and soft: taps, selections, windows, toasts and screen swipes. A button that has the shared press feel (`UiKit.feel_press`) and
+## are short, soft and playful: bubbly taps, music-box picks, a bell chime for good news, a goofy bonk for no. A button that has the shared press feel (`UiKit.feel_press`) and
 ## the switch (`UiToggle`) play their role when pressed; `MenuDialog.open`, `UiToast.say` and the mode carousel play theirs. View only. One
 ## node under the root, made on first use.
 
@@ -15,27 +15,29 @@ const HOOKED: StringName = &"sfx_hooked"
 const NODE_NAME: String = "UiSound"
 ## Simultaneous sounds; the oldest voice is reused when all are busy.
 const VOICES: int = 6
-## Role -> {tone: a sound of `UiTones.TONES`, db: its volume, pitch: [low, high] picked at random for each play (the same sound never
-## repeats exactly)}.
+## Role -> {tone: a sound of `UiTones.TONES`, db: its volume, pitch: [low, high] picked at random for each play (a few percent, so the same
+## sound never repeats exactly yet stays in tune with its key)}. Every tone is already levelled to the same loudness (`UiTones.TARGET_RMS`, about
+## -18 dBFS), so `db` is the role's place in the pecking order: the big coloured buttons and the good news are loudest, a tap and a tick
+## sit under them, the carousel's swipe is the quietest. The tick is a few dB up because a very short sound reads quieter than a longer one.
 const ROLES: Dictionary[StringName, Dictionary] = {
 	# the small taps: buttons, switches
-	&"tap": {"tone": "pop", "db": -9.0, "pitch": [0.95, 1.08]},
+	&"tap": {"tone": "pop", "db": -8.0, "pitch": [0.98, 1.03]},
 	# choosing among options: segments, the carousel's neighbours
-	&"tick": {"tone": "click", "db": -10.0, "pitch": [0.95, 1.1]},
+	&"tick": {"tone": "click", "db": -7.0, "pitch": [0.98, 1.03]},
 	# picking a card, a kid, a tab
-	&"select": {"tone": "pick", "db": -9.0, "pitch": [0.97, 1.05]},
+	&"select": {"tone": "pick", "db": -7.0, "pitch": [0.99, 1.02]},
 	# the big coloured buttons (Create, Join, Play, Home)
-	&"press": {"tone": "thump", "db": -7.0, "pitch": [0.95, 1.05]},
+	&"press": {"tone": "thump", "db": -5.0, "pitch": [0.98, 1.03]},
 	# going back
-	&"cancel": {"tone": "back", "db": -10.0, "pitch": [0.97, 1.03]},
+	&"cancel": {"tone": "back", "db": -8.0, "pitch": [0.99, 1.02]},
 	# a window opens
-	&"window": {"tone": "open", "db": -11.0, "pitch": [0.97, 1.05]},
+	&"window": {"tone": "open", "db": -9.0, "pitch": [0.99, 1.02]},
 	# a toast: done, heads-up, no
-	&"success": {"tone": "chime", "db": -10.0, "pitch": [1.0, 1.0]},
-	&"alert": {"tone": "ping", "db": -11.0, "pitch": [1.0, 1.0]},
-	&"deny": {"tone": "buzz", "db": -12.0, "pitch": [0.97, 1.03]},
+	&"success": {"tone": "chime", "db": -6.0, "pitch": [1.0, 1.0]},
+	&"alert": {"tone": "ping", "db": -7.0, "pitch": [1.0, 1.0]},
+	&"deny": {"tone": "buzz", "db": -6.0, "pitch": [0.99, 1.01]},
 	# the mode carousel moves
-	&"swipe": {"tone": "whoosh", "db": -14.0, "pitch": [0.95, 1.1]},
+	&"swipe": {"tone": "whoosh", "db": -11.0, "pitch": [0.95, 1.1]},
 }
 ## A toast's tone -> the role it plays.
 const TONE_ROLE: Dictionary[String, StringName] = {
@@ -52,12 +54,23 @@ var _random: RandomNumberGenerator = RandomNumberGenerator.new()
 
 func _init() -> void:
 	name = NODE_NAME
+	set_process(true)  # `_process` makes the tones, one a frame
 	_random.randomize()
 	for i: int in VOICES:
 		var voice: AudioStreamPlayer = AudioStreamPlayer.new()
 		voice.bus = Settings.SFX_BUS  # the Sounds switch mutes this bus
 		add_child(voice)
 		_voices.append(voice)
+
+
+## The tones are made ahead, one a frame, so no first tap has to wait for its sound (making the longest takes a few tens of milliseconds).
+## A role asked for before its turn is made on the spot.
+func _process(_delta: float) -> void:
+	for tone: String in UiTones.TONES:
+		if not _cache.has(tone):
+			_stream(tone)
+			return
+	set_process(false)
 
 
 ## Plays `role` (a name in `ROLES`); nothing happens before the player is in the tree or for an unknown role or a missing file.
