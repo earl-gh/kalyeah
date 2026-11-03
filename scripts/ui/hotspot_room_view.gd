@@ -430,15 +430,12 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	settings_gap.visible = race_group.visible and bots_row.visible
 	settings_row.visible = race_group.visible or bots_row.visible
 	bots_button.set_state(bots_on)
-	# (the race is in the settings row)
-	format_summary.text = "%dv%d" % [size, size] if game == null else \
-		"%dv%d · %d min" % [size, size, roundi(game.match_seconds / 60.0)]
-	if every_kid:
-		format_summary.text = ""  # (owner: Tumbang Preso's "3 to 6 players · 5 min" is not shown in the room)
+	# the summary line says only whether an Online room is listed: the race and the game are in the rows above, every room is 3v3, and the
+	# minutes of a street game are not shown in the room (owner)
+	format_summary.text = ""
 	if online_room:
-		format_summary.text += ("" if format_summary.text.is_empty() else " · ") + ("Open" if open else "Private")
-	# a guest reads the format here (a bare "3v3" says nothing the room does not: every room is 3v3)
-	format_summary.visible = not host and not format_summary.text.is_empty() and format_summary.text != "%dv%d" % [size, size]
+		format_summary.text = "Open" if open else "Private"
+	format_summary.visible = not host and not format_summary.text.is_empty()
 	_fill_players(members, size)
 	var picked: String = String(me.get("char", ""))
 	if picked.is_empty():

@@ -289,12 +289,14 @@ func test_a_guest_reads_the_game_and_the_settings_as_text_in_two_rows() -> void:
 	assert_eq(view.map_title.text, "Patintero")
 
 
-func test_tumbang_preso_shows_no_players_and_minutes_line_in_the_room() -> void:
+func test_a_street_game_shows_no_players_and_minutes_line_in_the_room() -> void:
 	var room: Dictionary = {"code": "", "team_size": 3, "host": 1, "first_to": 3, "state": 0, "can_start": false, "can_start_host": false,
 		"map": &"tumbang_preso", "members": [{"player_id": 1, "name": "Ana", "team": 0, "ready": true, "connected": true, "char": "junjun"},
 			{"player_id": 2, "name": "Ben", "team": 0, "ready": false, "connected": true, "char": "migo"}]}
 	var view: HotspotRoomView = autofree(HotspotRoomView.new()) as HotspotRoomView
 	add_child(view)
-	for me: int in [1, 2]:
-		view.show_room(room, me)
-		assert_false(view.format_summary.visible, "no '3 to 6 players · 5 min' for player %d" % me)
+	for map_id: StringName in [&"tumbang_preso", &"patintero", &"street"]:
+		room["map"] = map_id
+		for me: int in [1, 2]:
+			view.show_room(room, me)
+			assert_false(view.format_summary.visible, "no players-and-minutes line for %s, player %d" % [map_id, me])

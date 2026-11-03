@@ -83,7 +83,7 @@ func test_room_code_and_read_only_format_are_mode_specific() -> void:
 	assert_true(view.code_row.visible)
 	assert_eq(view.code_label.text, "ABC234XY")
 	assert_true(view.format_summary.visible)
-	assert_eq(view.format_summary.text, "2v2 · Open", "Online also says whether it is listed")
+	assert_eq(view.format_summary.text, "Open", "Online also says whether it is listed")
 	assert_eq((view.race_group.get_child(2) as Label).text, "5", "and the race is in the settings row, as text for a guest")
 	view.show_room(room, 1)
 	assert_false(view.format_summary.visible, "the host has the Open / Private choice instead of the summary")
