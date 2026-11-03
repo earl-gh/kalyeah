@@ -129,22 +129,22 @@ func test_the_countdown_is_a_flat_mark_on_the_ground_not_a_screen_overlay() -> v
 		assert_almost_eq(label.global_position.z, middle.y, 0.001)
 		assert_between(label.global_position.y, StreetMap.RING_HEIGHT, 0.1, "lying just above the tint and the outline")
 		assert_true(label.global_transform.basis.orthonormalized().z.is_equal_approx(Vector3.UP), "flat on the street, facing up")
-		assert_true(label.global_transform.basis.orthonormalized().y.is_equal_approx(Vector3.FORWARD), "its top toward the top of the screen (-Z, the camera's view)")
+		# owner, 2026-11-03: the left area's number is turned +90 degrees (top toward the screen's left, -X), the right one's -90 (top toward +X)
+		var top: Vector3 = Vector3.LEFT if side == MapLayout.SIDE_OWN else Vector3.RIGHT
+		assert_true(label.global_transform.basis.orthonormalized().y.is_equal_approx(top), "side %d: quarter turn as the screen shows it" % side)
 		assert_false(label.shaded, "unshaded like the other zone marks")
 		assert_false(label.no_depth_test, "depth tested: a kid standing on it covers it")
 		assert_eq(label.alpha_cut, Label3D.ALPHA_CUT_DISABLED, "blended, not cut")
 
 
-func test_the_countdown_draws_over_the_areas_tint_and_under_every_other_see_through_mark() -> void:
-	# transparent things draw in render_priority order: the tint (-100) and the outline, then the number, then the kids' rings and shadows
-	# (0 and up: FxKit.PRIO_*), so those draw over it; the kids themselves are solid and cover it by depth
+func test_the_countdown_draws_over_the_areas_chalk_and_under_every_other_see_through_mark() -> void:
+	# transparent things draw in render_priority order: the chalk, then the number, then the kids' rings and shadows (0 and up: FxKit.PRIO_*), so
+	# those draw over it; the kids themselves are solid and cover it by depth
 	var map: StreetMap = _map()
 	var label: Label3D = map.rescue_count(MapLayout.SIDE_OWN)
 	var materials: Array = map._base_materials[MapLayout.SIDE_OWN]
-	var tint: int = (materials[3] as StandardMaterial3D).render_priority
-	var line: int = (materials[2] as StandardMaterial3D).render_priority
-	assert_gt(label.render_priority, tint, "over the tint")
-	assert_gt(label.render_priority, line, "and its outline")
+	var chalk: int = (materials[1] as ShaderMaterial).render_priority
+	assert_gt(label.render_priority, chalk, "over the area's chalk")
 	assert_lt(label.render_priority, FxKit.PRIO_FILL, "under the skill areas")
 	assert_lt(label.render_priority, FxKit.PRIO_SHADOW, "and the kids' shadows")
 	assert_lt(label.render_priority, 0, "and the kids' rings (the default priority)")
@@ -158,21 +158,24 @@ func test_the_countdown_is_white_at_half_alpha_and_the_box_turns_the_teams_colou
 	var label: Label3D = map.rescue_count(own)
 	assert_eq(label.modulate, Color(1.0, 1.0, 1.0, 0.5), "white, half see-through (owner, 2026-10-30)")
 	assert_eq(label.outline_size, 0, "no outline: it would blend twice over the half see-through white")
-	assert_true(Color(map.zone_colors(own)[2], 1.0).is_equal_approx(Color.WHITE), "the box is white while it counts")
+	assert_true(Color(map.zone_colors(own)[1], 1.0).is_equal_approx(Color.WHITE), "the chalk is white while it counts")
 	sim.rescue_ready_left[0] = 0.0
 	map.sync_rescue(sim)
 	assert_false(label.visible, "nothing to count once ready")
-	assert_true(Color(map.zone_colors(own)[2], 1.0).is_equal_approx(StreetMap.OWN_COLOR), "the exact blue of yours")
-	assert_true(Color(map.zone_colors(sim.side_for_team(1))[2], 1.0).is_equal_approx(StreetMap.ENEMY_COLOR) or sim.rescue_ready_left[1] > 0.0)
+	assert_true(Color(map.zone_colors(own)[1], 1.0).is_equal_approx(StreetMap.OWN_COLOR), "the exact blue of yours")
+	assert_true(Color(map.zone_colors(sim.side_for_team(1))[1], 1.0).is_equal_approx(StreetMap.ENEMY_COLOR) or sim.rescue_ready_left[1] > 0.0)
 
 
 func test_the_flipped_view_turns_the_number_so_it_is_still_upright() -> void:
 	var sim: MatchSim = _sim()
 	var map: StreetMap = _map(MapLayout.SIDE_ENEMY)
 	map.sync_rescue(sim)
-	var label: Label3D = map.rescue_count(MapLayout.SIDE_OWN)
+	var label: Label3D = map.rescue_count(MapLayout.SIDE_ENEMY)
 	assert_true(label.global_transform.basis.orthonormalized().z.is_equal_approx(Vector3.UP), "still lying flat")
-	assert_true(label.global_transform.basis.orthonormalized().y.is_equal_approx(Vector3.BACK), "its top toward the top of the screen (+Z when the camera is turned round)")
+	# the camera is turned round: world +X is the screen's left, and this view's own side (the enemy end) is the screen's left (+90 degrees: top toward the screen's left)
+	assert_true(label.global_transform.basis.orthonormalized().y.is_equal_approx(Vector3.RIGHT), "its top toward the screen's left (+X when the camera is turned round)")
+	var other: Label3D = map.rescue_count(MapLayout.SIDE_OWN)
+	assert_true(other.global_transform.basis.orthonormalized().y.is_equal_approx(Vector3.LEFT), "the screen's right area turns the other way")
 
 
 func test_the_number_is_hidden_while_a_point_is_shown() -> void:

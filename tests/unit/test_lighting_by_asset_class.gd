@@ -33,23 +33,20 @@ func test_the_floor_is_the_owners_picture_unshaded_and_untinted() -> void:
 	assert_eq(material.vertex_color_use_as_albedo, false)
 
 
-func test_the_zone_marks_are_unshaded_in_the_exact_team_colours() -> void:
+func test_the_zone_marks_are_unshaded_chalk_in_the_exact_team_colours() -> void:
 	var map: StreetMap = _map()
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var want: Color = Palette.TEAM_OWN if side == MapLayout.SIDE_OWN else Palette.TEAM_ENEMY
 		var materials: Array = map._base_materials[side]
-		assert_eq(materials.size(), 4)
+		assert_eq(materials.size(), 2, "a base and a rescue area: chalk only, no fill")
 		for index: int in materials.size():
-			var material: StandardMaterial3D = materials[index] as StandardMaterial3D
-			assert_eq(material.shading_mode, BaseMaterial3D.SHADING_MODE_UNSHADED, "zone material %d is not lit" % index)
-			assert_eq(Color(material.albedo_color, 1.0), want, "zone material %d is exactly the palette colour, not softened" % index)
-		assert_eq((materials[0] as StandardMaterial3D).albedo_color.a, 1.0, "the line is solid")
-		assert_almost_eq((materials[1] as StandardMaterial3D).albedo_color.a, StreetMap.ZONE_FILL_ALPHA, 0.0001, "the fill is the palette colour at its alpha only")
-		assert_almost_eq((materials[3] as StandardMaterial3D).albedo_color.a, StreetMap.RESCUE_FILL_ALPHA, 0.0001, "the rescue fill likewise")
-		assert_eq((materials[2] as StandardMaterial3D).albedo_color.a, 1.0, "the rescue line is solid")
+			var material: ShaderMaterial = materials[index] as ShaderMaterial
+			assert_true(material.shader.code.contains("unshaded"), "zone chalk %d is not lit" % index)
+			assert_eq(Color(material.get_shader_parameter("chalk") as Color, 1.0), want, "zone chalk %d is exactly the palette colour, not softened" % index)
+		assert_almost_eq((materials[0].get_shader_parameter("chalk") as Color).a, StreetMap.CHALK_ALPHA, 0.0001, "the chalk is the palette colour at its strength only")
 	map.set_own_side(MapLayout.SIDE_ENEMY)
-	for material: StandardMaterial3D in map._base_materials[MapLayout.SIDE_ENEMY]:
-		assert_eq(Color(material.albedo_color, 1.0), Palette.TEAM_OWN, "still exact after the teams swap ends")
+	for material: ShaderMaterial in map._base_materials[MapLayout.SIDE_ENEMY]:
+		assert_eq(Color(material.get_shader_parameter("chalk") as Color, 1.0), Palette.TEAM_OWN, "still exact after the teams swap ends")
 
 
 func test_every_3d_model_is_matte() -> void:
