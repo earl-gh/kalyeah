@@ -300,7 +300,8 @@ func visible_posts() -> int:
 
 ## Each team's rescue area is white and half see-through while its countdown runs (`MatchSim.rescue_ready_left`), with the seconds on it, and
 ## the team's colour (blue yours, red theirs) once a teammate can rescue there.
-func sync_rescue(sim: MatchSim) -> void:
+## `hide_counts`: the briefing is up, so the numbers on the areas are not drawn (the areas themselves stay).
+func sync_rescue(sim: MatchSim, hide_counts: bool = false) -> void:
 	if sim.mode != null:
 		return
 	var covered: bool = sim.phase in [MatchSim.Phase.POINT_FREEZE, MatchSim.Phase.MATCH_OVER]
@@ -309,7 +310,7 @@ func sync_rescue(sim: MatchSim) -> void:
 		if not _base_materials.has(side):
 			continue
 		var left: float = sim.rescue_ready_left[team]
-		_show_count(_counts[side], left if not covered else 0.0)
+		_show_count(_counts[side], left if not (covered or hide_counts) else 0.0)
 		var ready: bool = left <= 0.0
 		if _rescue_ready.get(side, not ready) == ready:
 			continue

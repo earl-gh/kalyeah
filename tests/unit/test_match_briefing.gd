@@ -334,3 +334,19 @@ func test_the_briefing_hides_the_match_hud_and_the_kids_and_they_come_back_after
 			assert_true(hud.hand.visible, "the hand is back in Agawang Base")
 		else:
 			assert_true(hud.street_pad.visible, "the knob and the button are back in %s" % game)
+
+
+func test_the_rescue_areas_show_no_countdown_number_under_the_briefing() -> void:
+	var practice: PracticeMatch = _match(&"street")
+	practice.advance(DT)
+	var map: StreetMap = practice._map
+	for side: int in [-1, 1]:
+		assert_false(map.rescue_count(side).visible, "side %d: no number on the rescue area under the briefing" % side)
+		assert_eq(map.rescue_count_text(side), "")
+	practice.hud.briefing.finish()
+	practice.advance(DT)
+	var shown: int = 0
+	for side: int in [-1, 1]:
+		if map.rescue_count(side).visible:
+			shown += 1
+	assert_gt(shown, 0, "the numbers are back once the match runs (the rescue countdown is still counting)")
