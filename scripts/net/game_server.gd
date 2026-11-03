@@ -10,7 +10,10 @@ var rooms: RoomService
 var matches: Dictionary[String, ServerMatch] = {}
 ## A hotspot host's server has one room and nobody types a code: a JOIN with no code joins it.
 ## (Only the server's owner can set this, never a client message.)
-var auto_join: bool = false
+var auto_join: bool = false:
+	set(value):
+		auto_join = value
+		rooms.bots_allowed = value  # bots are for a friends' room on a hotspot, not for the online server
 
 var _rules: GameRules
 var _layout: MapLayout
@@ -162,6 +165,12 @@ func _handle(from: int, message: Dictionary) -> void:
 		M.SET_READY:
 			if rooms.set_ready(from, message.get("ready", false) as bool):
 				_send_room(rooms.room_of_peer(from))
+		M.SET_FILL_BOTS:
+			var fill: Variant = message.get("on")
+			if fill is bool and rooms.set_fill_bots(from, fill as bool):
+				_send_room(rooms.room_of_peer(from))
+			else:
+				_error(from, "Only the host of a Local room can fill places with bots.")
 		M.SET_FIRST_TO:
 			if rooms.set_first_to(from, message.get("n", 0) as int):
 				_send_room(rooms.room_of_peer(from))

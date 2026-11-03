@@ -153,6 +153,11 @@ func set_open(open: bool) -> void:
 	send({"t": NetProtocol.Msg.SET_OPEN, "open": open})
 
 
+## Host only, Local rooms: the places nobody took are played by bots.
+func set_fill_bots(on: bool) -> void:
+	send({"t": NetProtocol.Msg.SET_FILL_BOTS, "on": on})
+
+
 func pick_team(team: int) -> void:
 	send({"t": NetProtocol.Msg.PICK_TEAM, "team": team})
 

@@ -29,6 +29,10 @@ var _server: GameServer
 var _net: NetRules
 var _loaded: Dictionary[int, bool] = {}
 var _picked: Dictionary[int, bool] = {}
+## The bots of a room whose host chose "fill with bots" (id -> name): real players of the sim, driven here, never members of the room.
+var bots: Dictionary[int, String] = {}
+var _coaches: Array[TeamCoach] = []
+var _mode_coach: StreetModeCoach
 var _queues: Dictionary[int, Array] = {}
 var _last_input: Dictionary[int, PlayerInput] = {}
 var _acks: Dictionary[int, int] = {}
@@ -51,6 +55,7 @@ func _init(server: GameServer, p_room: RoomService.Room, rules: GameRules, layou
 		sim.add_player(m.player_id, 0 if mode != null and mode.is_free_for_all() else m.team)
 		_queues[m.player_id] = []
 		_acks[m.player_id] = -1
+	_add_bots(mode)
 	sim.assign_characters()
 	# Apply explicit lobby choices after seeded defaults. set_character swaps a teammate's
 	# random default away, so a later unpicked member cannot displace the chosen kid.
@@ -62,9 +67,28 @@ func _init(server: GameServer, p_room: RoomService.Room, rules: GameRules, layou
 		sim.start_mode(mode)  # no skills in these games: nobody is dealt a hand
 	else:
 		for id: int in sim.players:
-			sim.equip(id)
+			sim.equip(id, bots.has(id))
 	stage_left = net.load_timeout
 	_relay_signals()
+
+
+## Fills the places the host left empty with bots (`RoomService.bot_teams`), added after the people so each team's order is theirs first.
+## They play as in Practice: a TeamCoach for each team of Agawan Base, one StreetModeCoach for a street game (no cards there).
+func _add_bots(mode: StreetMode) -> void:
+	var coaches: Dictionary[int, TeamCoach] = {}
+	if mode != null:
+		_mode_coach = StreetModeCoach.new()
+	for team: int in RoomService.bot_teams(room):
+		var id: int = RoomService.BOT_ID_BASE + bots.size()
+		sim.add_player(id, team)
+		bots[id] = "Bot %d" % (bots.size() + 1)
+		if mode != null:
+			_mode_coach.add(id)
+			continue
+		if not coaches.has(team):
+			coaches[team] = TeamCoach.new(team)
+		coaches[team].add(sim, id, sim.rules.bot_skill)
+	_coaches.assign(coaches.values())
 
 
 ## Breaks the sim -> match signal links and the server back-reference so the
@@ -90,6 +114,8 @@ func info() -> Dictionary:
 			"id": m.player_id, "team": sim.players[m.player_id].team, "name": m.name,
 			"char": sim.players[m.player_id].character_id,
 		})
+	for id: int in bots:
+		players.append({"id": id, "team": sim.players[id].team, "name": bots[id], "char": sim.players[id].character_id})
 	return {"t": NetProtocol.Msg.MATCH_LOADING, "seed": seed_value, "team_size": RoomService.MAX_TEAM_SIZE, "players": players, "game": String(room.map_id),
 		"runs": sim.mode.attack_team if sim.mode != null else 0}
 
@@ -193,6 +219,10 @@ func _play(delta: float) -> void:
 	_accumulator += delta
 	while _accumulator >= dt:
 		_accumulator -= dt
+		for coach: TeamCoach in _coaches:
+			coach.drive(sim)
+		if _mode_coach != null:
+			_mode_coach.drive(sim)
 		for m: RoomService.Member in room.members:
 			sim.set_input(m.player_id, _next_input(m))
 		sim.step(dt)

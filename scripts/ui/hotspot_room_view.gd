@@ -11,6 +11,8 @@ signal settings_pressed
 signal map_chosen(map_id: StringName)
 ## Online, host only: open (listed for everyone to join with a tap) or private (code only).
 signal open_chosen(open: bool)
+## Local, host only: the places nobody took are played by bots (on) or left empty (off).
+signal fill_bots_chosen(on: bool)
 signal character_chosen(character_id: String)
 signal team_chosen(team: int)
 ## The big button: START for the host, READY (on or off) for everyone else.
@@ -68,6 +70,9 @@ var team_headers: HBoxContainer
 var player_cards: Array[Control] = []
 var kid_cards: Dictionary[String, Button] = {}
 var first_to_buttons: Dictionary[int, Button] = {}
+## Local, host only: "Fill with bots" and its On/Off button.
+var bots_row: HBoxContainer
+var bots_button: Button
 var retry_button: Button
 var readiness_label: Label
 var format_summary: Label
@@ -221,6 +226,20 @@ func _build_map_section() -> Control:
 		button.pressed.connect(first_to_chosen.emit.bind(count))
 		formats.add_child(button)
 		first_to_buttons[count] = button
+	bots_row = HBoxContainer.new()
+	bots_row.name = "FillBots"
+	bots_row.add_theme_constant_override("separation", int(GAP) + 2)
+	column.add_child(bots_row)
+	var bots_caption: Label = LobbyWidgets.label("Fill with bots", UiMetrics.ACTION, KalyeahTheme.TEXT_MUTED)
+	bots_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	bots_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bots_caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bots_row.add_child(bots_caption)
+	bots_button = MenuDialog.make_button("Off", "grey", UiMetrics.TITLE, Vector2(FIRST_TO_WIDTH, 88.0))
+	bots_button.accessibility_name = "Fill the empty places with bots"
+	LobbyWidgets.make_toggle(bots_button)
+	bots_button.toggled.connect(fill_bots_chosen.emit)
+	bots_row.add_child(bots_button)
 	format_summary = LobbyWidgets.label("", UiMetrics.BODY, KalyeahTheme.TEXT)
 	format_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	column.add_child(format_summary)
@@ -343,6 +362,10 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	for choice: bool in open_buttons:
 		open_buttons[choice].set_pressed_no_signal(choice == open)
 	(open_buttons[true].get_parent() as Control).visible = host and online_room
+	var bots_on: bool = room.get("fill_bots", false) as bool
+	bots_row.visible = host and room.get("bots_allowed", false) as bool
+	bots_button.set_pressed_no_signal(bots_on)
+	bots_button.text = "On" if bots_on else "Off"
 	format_summary.text = "%dv%d · First to %d" % [size, size, count] if game == null else \
 		"%dv%d · %d min" % [size, size, roundi(game.match_seconds / 60.0)]
 	if every_kid:

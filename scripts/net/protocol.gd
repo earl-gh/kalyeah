@@ -24,6 +24,8 @@ enum Msg {
 	ROOM_CLOSED,
 	# Online open rooms: client -> server LIST_ROOMS and SET_OPEN (host), server -> client ROOM_LIST
 	LIST_ROOMS, ROOM_LIST, SET_OPEN,
+	# Local rooms: client -> server, the host fills the empty places with bots (or not)
+	SET_FILL_BOTS,
 }
 
 
