@@ -107,12 +107,12 @@ func pick(index: int) -> void:
 	_choose(id)
 
 
-## How the game `id` plays in this room, in one line ("3v3 · Teams · First to 3", "3 to 6 kids · Every kid for itself · 5 min").
+## How the game `id` plays in this room, in one line ("3v3 · Teams · Race to 3", "3 to 6 kids · Every kid for itself · 5 min").
 func info_for(id: StringName) -> String:
 	var size: int = int(view._room.get("team_size", RoomService.MAX_TEAM_SIZE))
 	var game: StreetModeRules = StreetMode.rules_for(id)
 	if game == null:
-		return UiText.f("%dv%d · Teams · First to %d", [size, size, int(view._room.get("first_to", 3))])
+		return UiText.f("%dv%d · Teams · Race to %d", [size, size, int(view._room.get("first_to", 3))])
 	var minutes: int = roundi(game.match_seconds / 60.0)
 	if RoomService.free_for_all(id):
 		return UiText.f("%d to %d kids · Every kid for itself · %d min", [game.room_min_players, RoomService.MAX_TEAM_SIZE * 2, minutes])

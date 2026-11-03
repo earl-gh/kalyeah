@@ -144,7 +144,7 @@ func test_the_first_to_buttons_fit_a_phone_next_to_their_caption() -> void:
 	var row: Control = view.first_to_buttons[3].get_parent() as Control
 	assert_lte(row.get_combined_minimum_size().x, 640.0, "three numbers and a caption in one row")
 	assert_eq(view.first_to_buttons[5].text, "5")
-	assert_eq(view.first_to_buttons[5].accessibility_name, "First to 5")
+	assert_eq(view.first_to_buttons[5].accessibility_name, "Race to 5")
 
 
 func test_cards_pass_touches_on_so_a_drag_that_starts_on_one_scrolls_the_page() -> void:

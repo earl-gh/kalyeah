@@ -44,7 +44,7 @@ func test_map_header_is_compact_and_only_the_host_can_change_it() -> void:
 	var host: HotspotRoomView = _view(_room(2))
 	assert_lte(host.map_card.custom_minimum_size.y, 120.0, "a compact map header")
 	var section: Node = host.find_child("MapSection", true, false)
-	assert_eq(section.get_child(0), host.map_card, "the map card is the first row")
+	assert_eq(section.get_child(0), host.map_card.get_parent(), "the map card is the first row, under its Game caption")
 	assert_null(host.find_child("Sizes", true, false), "no team size to choose: every room is 3v3 (owner)")
 	assert_null(host.find_child("MapPrevious", true, false), "no arrows")
 	assert_false(host.map_card.disabled, "the host can open it")
@@ -281,7 +281,7 @@ func test_the_picker_says_how_each_game_plays_and_picks_with_its_button() -> voi
 	var tag: Label = view.map_carousel.cards[0].get_node("Heading") as Label
 	assert_true(tag.visible and tag.text == RoomMapPicker.PLAYING_NOW, "Agawan Base is playing now")
 	assert_false((view.map_carousel.cards[2].get_node("Heading") as Label).visible)
-	assert_eq(picker.info_label.text, "3v3 · Teams · First to 3")
+	assert_eq(picker.info_label.text, "3v3 · Teams · Race to 3")
 	assert_eq(picker.dots_label.text, "●  ○  ○")
 	assert_eq(picker.pick_button.text, "Keep Agawan Base")
 	view.map_carousel.select(2, false)

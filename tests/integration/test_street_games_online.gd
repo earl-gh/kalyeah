@@ -132,7 +132,7 @@ func test_the_room_shows_a_street_game_as_timed() -> void:
 	view.show_room(info, 99)  # a guest
 	assert_eq(view.format_summary.text, "3v3 · 5 min · Open", "timed, so no first to")
 	view.show_room(info, room.host_player_id)
-	assert_false((view.first_to_buttons[3].get_parent() as Control).visible, "the host has no first to to pick")
+	assert_false(view.race_group.visible, "the host has no race to to pick")
 
 
 func test_the_match_screen_plays_patintero_online_with_the_street_pad_and_moves_on_the_server() -> void:

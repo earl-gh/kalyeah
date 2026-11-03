@@ -56,6 +56,8 @@ var _copy_timer: Timer
 var back_button: Button
 var settings_button: Button
 var map_card: Button
+## "Tap to change" under the game's name (the host only).
+var map_hint: Label
 ## The chosen game's picture at the right end of the map card (the Games page's picture).
 var map_picture: TextureRect
 var map_carousel: MenuCarousel
@@ -70,9 +72,12 @@ var team_headers: HBoxContainer
 var player_cards: Array[Control] = []
 var kid_cards: Dictionary[String, Button] = {}
 var first_to_buttons: Dictionary[int, Button] = {}
-## Local, host only: "Fill with bots" and its On/Off button.
-var bots_row: HBoxContainer
-var bots_button: Button
+## The host's two settings in one row: "Race to" (3 5 7) and, in a Local room, "Fill with bots" (On / Off), each a caption over its buttons.
+var settings_row: HBoxContainer
+var race_group: VBoxContainer
+var bots_row: VBoxContainer
+var settings_gap: Control
+var bots_button: UiToggle
 var retry_button: Button
 var readiness_label: Label
 var format_summary: Label
@@ -194,7 +199,31 @@ func _build_map_section() -> Control:
 	map_picture.offset_top = 8.0
 	map_picture.offset_bottom = -8.0
 	map_card.add_child(map_picture)
-	column.add_child(map_card)
+	# the title at the top, "Tap to change" under it (the host only: a guest cannot change the game)
+	var title: Label = map_card.get_node("Choice") as Label
+	title.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	title.offset_top = 10.0
+	map_hint = LobbyWidgets.label("Tap to change", UiMetrics.MIN_TEXT, KalyeahTheme.semantic_text_color("blue"))
+	map_hint.name = "Hint"
+	map_hint.modulate.a = 0.75
+	map_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	map_hint.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	map_hint.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	map_hint.offset_left = ChoiceCard.PAD
+	map_hint.offset_bottom = -12.0
+	map_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	map_card.add_child(map_hint)
+	# a small caption at the top left of the card, like the ones over the settings below it
+	var game: VBoxContainer = VBoxContainer.new()
+	game.name = "Game"
+	game.add_theme_constant_override("separation", 4)
+	game.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var caption: Label = LobbyWidgets.label("Game", UiMetrics.MIN_TEXT, KalyeahTheme.TEXT_MUTED)
+	caption.name = "Caption"
+	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	game.add_child(caption)
+	game.add_child(map_card)
+	column.add_child(game)
 	var listing: HBoxContainer = HBoxContainer.new()
 	listing.name = "Listing"
 	listing.add_theme_constant_override("separation", int(GAP) + 2)
@@ -209,41 +238,52 @@ func _build_map_section() -> Control:
 		choice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		listing.add_child(choice)
 		open_buttons[open] = choice
-	var formats: HBoxContainer = HBoxContainer.new()
-	formats.name = "FirstTo"
-	formats.add_theme_constant_override("separation", int(GAP) + 2)
-	column.add_child(formats)
-	# "FIRST TO" once, then the three numbers: three buttons that each said "First to 5" were wider than a phone
-	var first_caption: Label = LobbyWidgets.label("First to", UiMetrics.ACTION, KalyeahTheme.TEXT_MUTED)
-	first_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	first_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	first_caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	formats.add_child(first_caption)
+	# one row for the host's two settings, each a small caption at the top left of its buttons: "Race to" 3 5 7, and "Fill with bots"
+	settings_row = HBoxContainer.new()
+	settings_row.name = "RoomOptions"
+	settings_row.add_theme_constant_override("separation", int(GAP) + 2)
+	column.add_child(settings_row)
+	race_group = _setting("Race to", "RaceTo")
+	var race_buttons: HBoxContainer = race_group.get_child(1) as HBoxContainer
 	for count: int in [3, 5, 7]:
 		var button: Button = MenuDialog.make_button("%d" % count, "grey", UiMetrics.TITLE, Vector2(FIRST_TO_WIDTH, 88.0))
-		button.accessibility_name = "First to %d" % count
+		button.accessibility_name = "Race to %d" % count
 		LobbyWidgets.make_toggle(button)
 		button.pressed.connect(first_to_chosen.emit.bind(count))
-		formats.add_child(button)
+		race_buttons.add_child(button)
 		first_to_buttons[count] = button
-	bots_row = HBoxContainer.new()
-	bots_row.name = "FillBots"
-	bots_row.add_theme_constant_override("separation", int(GAP) + 2)
-	column.add_child(bots_row)
-	var bots_caption: Label = LobbyWidgets.label("Fill with bots", UiMetrics.ACTION, KalyeahTheme.TEXT_MUTED)
-	bots_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	bots_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bots_caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	bots_row.add_child(bots_caption)
-	bots_button = MenuDialog.make_button("Off", "grey", UiMetrics.TITLE, Vector2(FIRST_TO_WIDTH, 88.0))
+	settings_gap = Control.new()
+	settings_gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	settings_gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	settings_row.add_child(settings_gap)
+	bots_row = _setting("Fill with bots", "FillBots")
+	bots_button = UiToggle.new()
 	bots_button.accessibility_name = "Fill the empty places with bots"
-	LobbyWidgets.make_toggle(bots_button)
+	bots_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	bots_button.toggled.connect(fill_bots_chosen.emit)
-	bots_row.add_child(bots_button)
+	(bots_row.get_child(1) as HBoxContainer).add_child(bots_button)
 	format_summary = LobbyWidgets.label("", UiMetrics.BODY, KalyeahTheme.TEXT)
 	format_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	column.add_child(format_summary)
 	return column
+
+
+## One setting of the host's row: a small caption at the top left, the buttons under it (`get_child(1)`).
+func _setting(caption: String, group_name: String) -> VBoxContainer:
+	var group: VBoxContainer = VBoxContainer.new()
+	group.name = group_name
+	group.add_theme_constant_override("separation", 4)
+	group.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var label: Label = LobbyWidgets.label(caption, UiMetrics.MIN_TEXT, KalyeahTheme.TEXT_MUTED)
+	label.name = "Caption"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	group.add_child(label)
+	var buttons: HBoxContainer = HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", int(GAP) + 2)
+	buttons.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	group.add_child(buttons)
+	settings_row.add_child(group)
+	return group
 
 
 ## The host's game picker (`RoomMapPicker`): the games' cards over a see-through blue; swipe to look, Pick (or tap the middle card) to
@@ -352,21 +392,23 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	map_picture.texture = StreetPage.picture_for(map_id)
 	# only the host opens the map carousel
 	map_card.disabled = not host
+	map_hint.visible = host
 	var size: int = room.get("team_size", RoomService.MAX_TEAM_SIZE) as int
-	# a street game is timed (most points win), so it has no "first to"
+	# a street game is timed (most points win), so it has no "race to"
 	var game: StreetModeRules = StreetMode.rules_for(map_id)
 	var every_kid: bool = RoomService.free_for_all(map_id)
 	team_headers.visible = not every_kid
-	(first_to_buttons[3].get_parent() as Control).visible = host and game == null
+	race_group.visible = host and game == null
 	var open: bool = room.get("open", true) as bool
 	for choice: bool in open_buttons:
 		open_buttons[choice].set_pressed_no_signal(choice == open)
 	(open_buttons[true].get_parent() as Control).visible = host and online_room
 	var bots_on: bool = room.get("fill_bots", false) as bool
 	bots_row.visible = host and room.get("bots_allowed", false) as bool
-	bots_button.set_pressed_no_signal(bots_on)
-	bots_button.text = "On" if bots_on else "Off"
-	format_summary.text = "%dv%d · First to %d" % [size, size, count] if game == null else \
+	settings_gap.visible = race_group.visible and bots_row.visible
+	settings_row.visible = race_group.visible or bots_row.visible
+	bots_button.set_state(bots_on)
+	format_summary.text = "%dv%d · Race to %d" % [size, size, count] if game == null else \
 		"%dv%d · %d min" % [size, size, roundi(game.match_seconds / 60.0)]
 	if every_kid:
 		format_summary.text = UiText.f("%d to %d players", [game.room_min_players, size * 2]) + " · %d min" % roundi(game.match_seconds / 60.0)

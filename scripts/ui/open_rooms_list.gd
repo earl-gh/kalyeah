@@ -63,14 +63,14 @@ func show_rooms(rooms: Array[Dictionary]) -> void:
 	create_button.visible = rooms.is_empty()
 
 
-## "Ana's room", then "2v2 · 3/4 · First to 3" on a second line (a 12-letter name and the details do not fit one line on a phone).
+## "Ana's room", then "2v2 · 3/4 · Race to 3" on a second line (a 12-letter name and the details do not fit one line on a phone).
 static func card_text(room: Dictionary) -> String:
 	var size: int = int(room.get("team_size", 1))
 	var host: String = String(room.get("host_name", ""))
 	var title: String = UiText.f("%s's room", [host]) if not host.is_empty() else UiText.t("Open room")
 	var map_id: StringName = StringName(String(room.get("map", "street")))
 	# Agawan Base says how many points win; a street game says its name (it is timed)
-	var goal: String = UiText.f("First to %d", [int(room.get("first_to", 3))]) if map_id == &"street" else \
+	var goal: String = UiText.f("Race to %d", [int(room.get("first_to", 3))]) if map_id == &"street" else \
 		HotspotRoomView.MAP_NAMES.get(map_id, String(map_id).capitalize()) as String
 	if RoomService.free_for_all(map_id):
 		return "%s\n%d/%d · %s" % [title, int(room.get("players", 0)), size * 2, goal]  # every kid for itself: no NvN
