@@ -79,10 +79,10 @@ func test_the_fog_is_built_by_how_far_it_looks_past_the_end_line_on_the_screen()
 	var code: String = MatchFog.SHADER.code
 	assert_true(code.contains("beyond"), "one measure for both ends")
 	assert_true(code.contains("is_ground"), "a strip of ground at the near end")
-	assert_true(code.contains("smoothstep(0.0, near_ramp, beyond)"), "the near end's fog starts at the end line and never rises into the play area")
+	assert_true(code.contains("smoothstep(near_start, near_full, beyond)"), "the near end's fog starts past the end line and never rises into the play area")
 
 
-func test_the_near_ends_fog_is_full_before_the_tray_and_the_far_ends_starts_above_the_pictures() -> void:
+func test_the_bottom_fog_is_lighter_than_the_tops_and_the_far_ends_starts_above_the_pictures() -> void:
 	var saved: Vector2i = get_window().size
 	get_window().size = Vector2i(720, 1600)
 	await wait_process_frames(2)
@@ -96,14 +96,37 @@ func test_the_near_ends_fog_is_full_before_the_tray_and_the_far_ends_starts_abov
 	var metres_per_pixel: float = 1.0 / (camera.unproject_position(Vector3(0.0, 0.0, half + 1.0)).y - line_y)
 	var to_tray: float = (tray_y - line_y) * metres_per_pixel
 	assert_gt(to_tray, 3.0, "there is ground to see between the end line and the tray")
-	var ramp: RegExMatch = RegEx.create_from_string("uniform float near_ramp[^=]*=\\s*([0-9.]+)").search(MatchFog.SHADER.code)
-	assert_lt(ramp.get_string(1).to_float(), to_tray, "the fog is already full where the tray starts: it fills the space between the boundary and the tray")
+	var code: String = MatchFog.SHADER.code
+	var start: float = RegEx.create_from_string("uniform float near_start[^=]*=\\s*([0-9.]+)").search(code).get_string(1).to_float()
+	var full: float = RegEx.create_from_string("uniform float near_full[^=]*=\\s*([0-9.]+)").search(code).get_string(1).to_float()
+	var near_strength: float = RegEx.create_from_string("uniform float near_strength[^=]*=\\s*([0-9.]+)").search(code).get_string(1).to_float()
+	var far_strength: float = RegEx.create_from_string("uniform float strength[^=]*=\\s*([0-9.]+)").search(code).get_string(1).to_float()
+	assert_gte(start, 0.0, "never inside the play area")
+	assert_lt(near_strength, far_strength, "the bottom fog is lighter than the top's (owner: it was too much)")
+	assert_gt(near_strength, 0.5, "but still fog")
+	# how much fog the visible strip between the end line and the tray holds, against the top's visible strip above the pictures (both in
+	# metre-alphas on the screen: the fog's opacity summed over the ground it covers)
+	assert_gt(to_tray, start, "the tray starts past where the fog begins")
+	var bottom_total: float = near_strength * _smooth_area(start, full, 0.0, to_tray)
+	var top_visible: float = line_y * metres_per_pixel - practice._map.fog_far_start()
+	var top_total: float = far_strength * _smooth_area(practice._map.fog_far_start(), practice._map.fog_far_start() + MatchFog.FAR_RAMP, practice._map.fog_far_start(), practice._map.fog_far_start() + top_visible)
+	assert_lt(bottom_total, top_total, "the bottom strip holds less fog than the top's: balanced, not heavier")
 	var far_start: float = practice._map.fog_far_start()
 	var far_y: float = camera.unproject_position(Vector3(0.0, 0.0, -half - far_start)).y
 	var top_picture_y: float = camera.unproject_position(Vector3(0.0, 0.0, -half - 0.15)).y
 	assert_lt(far_y, top_picture_y, "the far end's fog starts above the boundary pictures' foot")
 	assert_gt(far_y, 0.0, "and on the screen")
 	get_window().size = saved
+
+
+## The area under a smoothstep fade (from `from` to `to` metres) summed over the metres from `lo` to `hi`.
+func _smooth_area(from: float, to: float, lo: float, hi: float) -> float:
+	var total: float = 0.0
+	var steps: int = 200
+	for i: int in steps:
+		var at: float = lo + (hi - lo) * (float(i) + 0.5) / float(steps)
+		total += smoothstep(from, to, at) * (hi - lo) / float(steps)
+	return total
 
 
 func test_each_end_has_a_wall_and_a_strip_of_ground() -> void:
