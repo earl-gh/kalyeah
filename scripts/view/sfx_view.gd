@@ -88,6 +88,9 @@ func _ready() -> void:
 func watch(sim: MatchSim, local_id: int) -> void:
 	_sim = sim
 	_local_id = local_id
+	# the effects play at the rules' share of the recordings' volume (owner: 0.8)
+	for player: AudioStreamPlayer in _players:
+		player.volume_db = linear_to_db(clampf(sim.rules.sfx_level, 0.0001, 1.0))
 	sim.weapon_cast.connect(_on_cast)
 	sim.weapon_hit.connect(_on_hit)
 	sim.player_healed.connect(func(_id: int, _amount: int) -> void: play("heal"))

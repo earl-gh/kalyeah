@@ -27,7 +27,7 @@ const PERFORMANCES: Array[StringName] = [&"standard", &"turbo"]
 const TURBO_SCALE: float = 0.75
 
 ## The two audio buses the Sounds and Music switches mute: every sound effect (the match's and the menus') plays on `SFX_BUS`, and any music
-## will play on `MUSIC_BUS` (there is no music in the game yet). Both send to Master; they are made when the game starts (`apply_audio`).
+## plays on `MUSIC_BUS` (the match's background music, `MatchMusic`). Both send to Master; they are made when the game starts (`apply_audio`).
 const SFX_BUS: StringName = &"Sfx"
 const MUSIC_BUS: StringName = &"Music"
 
@@ -60,7 +60,7 @@ var aim_guide: bool = true
 var tilt_to_run: bool = false
 ## Whether the sound effects play (off = the Sfx bus is muted): the match's, the menus' and the buttons'.
 var sounds: bool = true
-## Whether music plays (off = the Music bus is muted). There is no music in the game yet: the switch is ready for when there is.
+## Whether music plays (off = the Music bus is muted). The match's background music (`MatchMusic`) plays on that bus.
 var music: bool = true
 ## Size of the match controls, one of `CONTROL_SIZES`.
 var control_scale: float = 1.0

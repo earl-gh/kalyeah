@@ -56,6 +56,10 @@ extends Resource
 ## Practice: the briefing over a match before it starts (what the game is, how to move and act) counts down this many seconds, then the
 ## match begins by itself; a tap starts it sooner.
 @export var briefing_seconds: float = 10.0
+## The match's sound effects (`SfxView`: weapons, hits, statuses, cards) play at this share of the recordings' volume (owner: 0.8).
+@export var sfx_level: float = 1.0
+## The background music of a match (`MatchMusic`, assets/audio/bgm.mp3) plays at this share of full volume (owner: 40%).
+@export var bgm_volume: float = 0.4
 ## Freeze after a point before everyone is reset to their posts.
 @export var point_freeze_time: float = 0.0
 ## Weapon cards (owner): nobody picks weapons. Every player has a shuffled deck of all the weapons and a hand of two cards (the two
