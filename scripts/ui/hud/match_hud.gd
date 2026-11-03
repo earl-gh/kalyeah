@@ -394,19 +394,23 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 		chat.set_open(false)
 		if menu.visible:
 			menu.close()
+	# the briefing hides the whole match HUD, as a freeze does (the street is all that shows behind its words)
+	var hidden: bool = covered or briefing.running
 	for item: CanvasItem in [header, top, scoreboard, marker, pulse, console, feedback]:
-		item.visible = not covered
+		item.visible = not hidden
 	if score_column != null:
-		score_column.visible = not covered
+		score_column.visible = not hidden
 	if street_game:
 		console.visible = false
 		# Patintero has a team score at the top centre like Agawang Base; Tumbang Preso's points are every kid's, in the column on the left sidewalk
-		scoreboard.visible = not covered and not sim.mode.is_free_for_all()
-	overhead.visible = not covered
-	if covered:
-		for item: CanvasItem in [hand, street_pad, chat, tagged_panel, intro_bar, capture_label, capture_alert, banner, briefing]:
+		scoreboard.visible = not hidden and not sim.mode.is_free_for_all()
+	overhead.visible = not hidden
+	if hidden:
+		for item: CanvasItem in [hand, street_pad, chat, tagged_panel, intro_bar, capture_label, capture_alert, banner]:
 			item.hide()
 		clock_flash.cancel()
+	if covered:
+		briefing.hide()
 	if _covered != covered:
 		_covered = covered
 		set_controls_active(not covered and not menu.visible and not briefing.running)

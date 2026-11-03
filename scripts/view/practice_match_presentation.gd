@@ -279,6 +279,7 @@ func _keep_vignette_behind_the_top_boundary() -> void:
 
 func sync(delta: float) -> void:
 	_keep_vignette_behind_the_top_boundary()
+	owner._actors.visible = not owner.hud.briefing.visible  # the briefing shows the empty street: no kids behind its words
 	owner.hud.overhead.taya_id = (owner.sim.mode as TumbangPreso).taya_id if owner.sim.mode is TumbangPreso else -1
 	for id: int in owner.sim.players:
 		_sync_actor(owner.sim.players[id], delta)
