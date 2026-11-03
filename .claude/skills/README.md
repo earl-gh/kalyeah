@@ -25,9 +25,10 @@ Start with [router](router/SKILL.md) when the task crosses concerns.
 | Ponytail | `ponytail`, `ponytail-audit` (standalone upstream skills) | Smallest complete implementation; evidence-based codebase audits |
 | gstack | `gstack-plan-eng-review`, `gstack-review`, `gstack-investigate` (compact Kalyeah workflow ports) | Architecture/code/tests/performance review, trust-boundary and test-gate review, root-cause debugging |
 | Matt Pocock — Skills for Real Engineers | `tdd`, `domain-modeling` (vendored with project overrides) | Behavior-first tests, stable public test boundaries, precise game terminology and proportionate architecture records |
+| Kalyeah-authored | `competition-pitch-deck` | Pitch story, judging-criteria fit, slide craft, honest claims, notes, Q&A and a review rubric for the competition .pptx (mechanics stay in the `pptx` skill) |
 | Kalyeah companion adapted from Matt's methods | `gameplay-engineering` | Connect player intent, fixed-tick simulation, authority, readable feedback and device evidence through the existing specialists |
 
-There are **21 installed skills**: the five original specialists plus 16 supporting
+There are **22 installed skills**: the five original specialists plus 17 supporting
 skills/workflow ports. The game-specific companion is project-authored; it is not
 an official Matt Pocock game-development package.
 
