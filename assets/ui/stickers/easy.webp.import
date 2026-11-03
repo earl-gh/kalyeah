@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ctfc3mgtbx1uo"
-path="res://.godot/imported/help_me.webp-249a0811e9a849c61ada067b4e541783.ctex"
+uid="uid://creas8wqb5brg"
+path="res://.godot/imported/easy.webp-d788718f008b1c2d2036b352e0a50e17.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/stickers/help_me.webp"
-dest_files=["res://.godot/imported/help_me.webp-249a0811e9a849c61ada067b4e541783.ctex"]
+source_file="res://assets/ui/stickers/easy.webp"
+dest_files=["res://.godot/imported/easy.webp-d788718f008b1c2d2036b352e0a50e17.ctex"]
 
 [params]
 

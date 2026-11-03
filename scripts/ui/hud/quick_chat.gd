@@ -6,10 +6,10 @@ extends Control
 ## (`assets/ui/stickers/<phrase id>.webp`, a kid's face with a white sticker border) with its words under it.
 
 ## What you can say, one sticker each (kept short so each fits a bubble and a sticker's caption).
-const PHRASES: Array[String] = ["Good luck!", "Nice one!", "Oops!", "Thanks!", "Help me!", "Wow!"]
+const PHRASES: Array[String] = ["Haha!", "Easy!", "Grrr!", "Love it!", "Huhu!", "Yum!"]
 const COLUMNS: int = 2
 ## A bubble over a kid lasts this long (seconds).
-const SAY_TIME: float = 2.6
+const SAY_TIME: float = 2.0
 ## The bubble is drawn this much smaller than its button (empty space round the art, a share of its size on each side); the touch area stays full size.
 const ART_PAD: float = 0.12
 const STICKER_PATH: String = "res://assets/ui/stickers/%s.webp"
@@ -120,7 +120,7 @@ func _art(phrase: String) -> Control:
 	return picture
 
 
-## "Good luck!" -> "good_luck": the sticker's name and its picture's file name.
+## "Love it!" -> "love_it": the sticker's name and its picture's file name.
 static func slug(phrase: String) -> String:
 	return phrase.to_lower().replace(" ", "_").replace("!", "")
 

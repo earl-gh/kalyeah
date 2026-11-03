@@ -71,8 +71,12 @@ func test_every_sticker_is_the_owners_picture_with_its_words_under_it() -> void:
 		seen[picture.texture.resource_path] = true
 		assert_false((pick.find_child("Words", true, false) as Label).text.is_empty())
 	assert_eq(seen.size(), QuickChat.PHRASES.size(), "six different pictures")
-	assert_eq(QuickChat.slug("Good luck!"), "good_luck", "assets/ui/stickers/good_luck.webp")
-	assert_eq(QuickChat.slug("Help me!"), "help_me")
+	assert_eq(QuickChat.slug("Haha!"), "haha", "assets/ui/stickers/haha.webp")
+	assert_eq(QuickChat.slug("Love it!"), "love_it")
+	assert_eq(QuickChat.PHRASES, ["Haha!", "Easy!", "Grrr!", "Love it!", "Huhu!", "Yum!"] as Array[String], "each label says what its picture shows (owner)")
+	var table: String = FileAccess.get_file_as_string("res://data/i18n/strings.csv")
+	for phrase: String in QuickChat.PHRASES:
+		assert_true(table.contains("\n%s,%s\n" % [phrase, phrase]), "%s is in the string table" % phrase)
 
 
 func test_the_sticker_pictures_import_lossless_with_mipmaps_and_stay_small() -> void:
@@ -97,14 +101,31 @@ func test_a_tap_opens_the_phrases_and_picking_one_says_it_and_closes() -> void:
 	assert_false(hud.chat.is_open(), "the list closes after a pick")
 
 
-func test_a_phrase_shows_in_a_bubble_over_the_kid_and_fades_away() -> void:
+func test_a_sticker_shows_over_the_kid_and_fades_away() -> void:
 	var hud: MatchHud = _hud()
-	hud.overhead.say(1, "Wow!")
+	hud.overhead.say(1, "Yum!")
 	assert_eq(hud.overhead.says_count(), 1)
-	hud.overhead.say(1, "Oops!")
+	hud.overhead.say(1, "Grrr!")
 	assert_eq(hud.overhead.says_count(), 1, "a new one replaces that kid's old bubble")
 	hud.overhead.tick(QuickChat.SAY_TIME + 0.1)
 	assert_eq(hud.overhead.says_count(), 0, "it goes after its time")
+
+
+func test_a_sent_sticker_is_the_owners_picture_that_pops_in_and_settles() -> void:
+	for phrase: String in QuickChat.PHRASES:
+		assert_not_null(load(QuickChat.STICKER_PATH % QuickChat.slug(phrase)) as Texture2D, "%s has its picture over the kid" % phrase)
+	assert_almost_eq(OverheadHud.say_pop_scale(0.0), OverheadHud.SAY_FROM, 0.001, "it starts a little smaller")
+	for k: int in 21:
+		assert_lte(OverheadHud.say_pop_scale(OverheadHud.SAY_POP * float(k) / 20.0), 1.0, "never bigger than full: no overshoot over the play")
+	assert_almost_eq(OverheadHud.say_pop_scale(OverheadHud.SAY_POP), 1.0, 0.001, "and settles at full size")
+	assert_almost_eq(OverheadHud.say_pop_scale(2.0), 1.0, 0.001)
+
+
+func test_a_sent_sticker_is_small_and_see_through_so_the_play_shows_under_it() -> void:
+	assert_lte(OverheadHud.SAY_ART, 64.0, "no bigger than a kid's head and shoulders")
+	assert_lt(OverheadHud.SAY_ART, QuickChat.FACE, "smaller than in the picker")
+	assert_lt(OverheadHud.SAY_ALPHA, 1.0, "a little see-through")
+	assert_lte(QuickChat.SAY_TIME, 2.0, "and brief")
 
 
 func test_the_hand_uses_the_owners_pictures() -> void:

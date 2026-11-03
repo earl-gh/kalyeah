@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bk5ay4xea5pfe"
-path="res://.godot/imported/good_luck.webp-68cdd1907e3936135d7d292a568fcdd9.ctex"
+uid="uid://bb6g2q71grksl"
+path="res://.godot/imported/haha.webp-08a14e64632d45656b22ccb4c6c1de2a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/stickers/good_luck.webp"
-dest_files=["res://.godot/imported/good_luck.webp-68cdd1907e3936135d7d292a568fcdd9.ctex"]
+source_file="res://assets/ui/stickers/haha.webp"
+dest_files=["res://.godot/imported/haha.webp-08a14e64632d45656b22ccb4c6c1de2a.ctex"]
 
 [params]
 

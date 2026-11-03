@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c1uwcs7j4nbfi"
-path="res://.godot/imported/nice_one.webp-e6ce5718ac7c9d38f6b091f8d1d8505c.ctex"
+uid="uid://bg2nepsoc4mha"
+path="res://.godot/imported/love_it.webp-d1b5ebf2a8920160bf2fffd9ca7c0f57.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/stickers/nice_one.webp"
-dest_files=["res://.godot/imported/nice_one.webp-e6ce5718ac7c9d38f6b091f8d1d8505c.ctex"]
+source_file="res://assets/ui/stickers/love_it.webp"
+dest_files=["res://.godot/imported/love_it.webp-d1b5ebf2a8920160bf2fffd9ca7c0f57.ctex"]
 
 [params]
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c2rgicicru2oa"
-path="res://.godot/imported/wow.webp-52850eea470aa89e4f1bc714e5b84e35.ctex"
+uid="uid://ndiw7c4jcktw"
+path="res://.godot/imported/huhu.webp-2483975a5bc19859a0049d8a3ad64377.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/stickers/wow.webp"
-dest_files=["res://.godot/imported/wow.webp-52850eea470aa89e4f1bc714e5b84e35.ctex"]
+source_file="res://assets/ui/stickers/huhu.webp"
+dest_files=["res://.godot/imported/huhu.webp-2483975a5bc19859a0049d8a3ad64377.ctex"]
 
 [params]
 
