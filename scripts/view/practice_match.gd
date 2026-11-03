@@ -101,6 +101,9 @@ func _ready() -> void:
 	_sfx.name = "Sfx"
 	add_child(_sfx)
 	_sfx.watch(sim, local_id)
+	var fog: MatchFog = MatchFog.new()
+	add_child(fog)
+	fog.build(layout.lane_length, StreetMap.BARRIER_SETBACK + StreetMap.FOG_DEPTH)  # the fog walls past the two ends of the street
 	var music: MatchMusic = MatchMusic.new()
 	add_child(music)
 	music.start(rules.bgm_volume)  # the match's background music (silent until assets/audio/bgm.mp3 is added)

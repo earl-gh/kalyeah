@@ -91,16 +91,20 @@ func test_the_pole_is_two_to_three_times_a_kid_on_screen() -> void:
 	assert_lt(ratio, 3.0, "but proportionate, not a tower over the street")
 
 
-func test_the_ground_outside_the_play_area_is_slightly_darker_than_the_play_area() -> void:
+func test_the_ground_past_the_ends_shades_smoothly_darker_and_the_sides_have_no_dark_part() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
 	var inside: MeshInstance3D = map.get_node("%Geometry").find_child("CementArt", true, false) as MeshInstance3D
 	var outside: MeshInstance3D = map.get_node("%Geometry").find_child("OutsideArt", true, false) as MeshInstance3D
 	assert_not_null(outside, "the outside patch is laid")
 	assert_eq((inside.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color, Color.WHITE, "the play area is the picture itself")
-	var shade: Color = ((outside.mesh as PlaneMesh).material as StandardMaterial3D).albedo_color
-	assert_lt(shade.v, 0.9, "outside is darker")
-	assert_gt(shade.v, 0.6, "but only slightly")
+	var material: ShaderMaterial = (outside.mesh as PlaneMesh).material as ShaderMaterial
+	var far: float = material.get_shader_parameter("far_shade") as float
+	assert_lt(far, 0.9, "far past the ends it is darker")
+	assert_gt(far, 0.6, "but only slightly")
+	assert_gte(material.get_shader_parameter("fade_length") as float, 6.0, "over metres, not at a line")
+	assert_gt((material.get_shader_parameter("side_color") as Color).v, 0.4, "the sides are plain pavement, not a dark shade")
+	assert_true(material.shader.code.contains("abs(ground.x)"), "the sides are told apart from the ends")
 	var size: Vector3 = inside.mesh.get_aabb().size
 	assert_almost_eq(size.x, map.layout.lane_width, 0.001, "the play area patch is exactly the play area")
 	assert_almost_eq(size.z, map.layout.lane_length, 0.001, "end to end")
