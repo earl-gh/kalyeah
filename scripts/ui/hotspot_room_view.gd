@@ -434,12 +434,11 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	format_summary.text = "%dv%d" % [size, size] if game == null else \
 		"%dv%d · %d min" % [size, size, roundi(game.match_seconds / 60.0)]
 	if every_kid:
-		format_summary.text = UiText.f("%d to %d players", [game.room_min_players, size * 2]) + " · %d min" % roundi(game.match_seconds / 60.0)
+		format_summary.text = ""  # (owner: Tumbang Preso's "3 to 6 players · 5 min" is not shown in the room)
 	if online_room:
-		format_summary.text += " · " + ("Open" if open else "Private")
-	# a guest reads the format here; in a free-for-all the host has no size to pick, so it reads it too
-	# (a bare "3v3" says nothing the room does not: every room is 3v3)
-	format_summary.visible = (not host or every_kid) and format_summary.text != "%dv%d" % [size, size]
+		format_summary.text += ("" if format_summary.text.is_empty() else " · ") + ("Open" if open else "Private")
+	# a guest reads the format here (a bare "3v3" says nothing the room does not: every room is 3v3)
+	format_summary.visible = not host and not format_summary.text.is_empty() and format_summary.text != "%dv%d" % [size, size]
 	_fill_players(members, size)
 	var picked: String = String(me.get("char", ""))
 	if picked.is_empty():
