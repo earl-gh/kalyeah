@@ -1,7 +1,7 @@
 class_name MatchBriefing
 extends Control
-## What a Practice match opens with (owner, 2026-11-03): the match behind it dimmed, and over it only text, centred: the
-## game's name, one line on how to score, then what to do to move and to act, a ten second countdown in a circle and "Tap to continue".
+## What a Practice match opens with (owner, 2026-11-03): the match behind it dimmed, and over it only text: the
+## a ten second countdown in a white circle, the game's name, one line on how to score, then what to do to move and to act, and "Tap to continue". The block is centred on the screen and its text is left-aligned.
 ## The match stands still while it shows; the countdown ends it by itself and a tap ends it sooner. It replaces the first-run walkthrough:
 ## it opens before every Practice match against bots, in every game. Online matches never open it (the server does not wait).
 
@@ -81,32 +81,32 @@ func _init(hud: MatchHud = null) -> void:
 	column.grow_vertical = Control.GROW_DIRECTION_BOTH
 	column.scale = Vector2.ONE * CONTENT_SCALE
 	column.resized.connect(func() -> void: column.pivot_offset = column.size / 2.0)
+	_clock = Control.new()
+	_clock.name = "Countdown"
+	_clock.custom_minimum_size = Vector2(CLOCK_SIZE, CLOCK_SIZE)
+	_clock.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_clock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_clock.draw.connect(_draw_clock)
+	column.add_child(_clock)
 	title_label = Label.new()
 	title_label.name = "Title"
-	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	UiKit.letter(title_label, TITLE_SIZE, GOLD)
 	column.add_child(title_label)
 	goal_label = UiKit.text("", GOAL_SIZE, KalyeahTheme.TEXT)
 	goal_label.name = "Goal"
-	goal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	goal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	column.add_child(goal_label)
 	rows = VBoxContainer.new()
 	rows.name = "Rows"
 	rows.add_theme_constant_override("separation", 30)
 	rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(rows)
-	_clock = Control.new()
-	_clock.name = "Countdown"
-	_clock.custom_minimum_size = Vector2(CLOCK_SIZE, CLOCK_SIZE)
-	_clock.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_clock.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_clock.draw.connect(_draw_clock)
-	column.add_child(_clock)
 	continue_label = Label.new()
 	continue_label.name = "Continue"
 	continue_label.text = "Tap to continue"
-	continue_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	continue_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	continue_label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
 	continue_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
 	continue_label.add_theme_color_override("font_color", KalyeahTheme.TEXT)
@@ -133,20 +133,20 @@ func start(game: StreetModeRules, seconds: float) -> void:
 	_start_pulse()
 
 
-## A label in small capitals over the line it explains, both centred.
+## A label in small capitals over the line it explains, both left-aligned.
 func _row(label_text: String, line_text: String) -> VBoxContainer:
 	var row: VBoxContainer = VBoxContainer.new()
 	row.add_theme_constant_override("separation", 4)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var label: Label = Label.new()
 	label.text = label_text.to_upper()
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
 	label.add_theme_font_size_override("font_size", LABEL_SIZE)
 	label.add_theme_color_override("font_color", LABEL_BLUE)
 	row.add_child(label)
 	var line: Label = UiKit.text(line_text, LINE_SIZE, KalyeahTheme.TEXT)
-	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	row.add_child(line)
 	return row
 
@@ -190,10 +190,10 @@ func _draw_clock() -> void:
 	var middle: Vector2 = _clock.size / 2.0
 	var radius: float = CLOCK_SIZE / 2.0 - CLOCK_RING
 	_clock.draw_circle(middle, radius + CLOCK_RING / 2.0, Color(0.03, 0.06, 0.14, 0.55))
-	_clock.draw_arc(middle, radius, 0.0, TAU, 64, Color(1.0, 1.0, 1.0, 0.22), CLOCK_RING, true)
+	_clock.draw_arc(middle, radius, 0.0, TAU, 64, Color(1.0, 1.0, 1.0, 0.25), CLOCK_RING, true)
 	var left: float = clampf(seconds_left / _total, 0.0, 1.0)
 	if left > 0.0:
-		_clock.draw_arc(middle, radius, -PI / 2.0, -PI / 2.0 + TAU * left, 64, GOLD, CLOCK_RING, true)
+		_clock.draw_arc(middle, radius, -PI / 2.0, -PI / 2.0 + TAU * left, 64, Color.WHITE, CLOCK_RING, true)
 	var font: Font = KalyeahTheme.DISPLAY_FONT
 	var text: String = str(shown_seconds())
 	var size: int = UiMetrics.DISPLAY

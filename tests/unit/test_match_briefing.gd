@@ -185,3 +185,17 @@ func test_the_briefing_draws_over_tumbang_presos_points_column() -> void:
 	var practice: PracticeMatch = _match(&"tumbang_preso")
 	var hud: MatchHud = practice.hud
 	assert_gt(hud.briefing.get_index(), hud.score_column.get_index(), "the column is blurred with the rest")
+
+
+func test_the_countdown_is_above_the_title_the_block_is_centred_and_the_text_is_left_aligned() -> void:
+	var practice: PracticeMatch = _match(&"street")
+	var briefing: MatchBriefing = practice.hud.briefing
+	var column: Control = briefing.find_child("Column", true, false) as Control
+	var countdown: Control = briefing.find_child("Countdown", true, false) as Control
+	assert_lt(countdown.get_index(), briefing.title_label.get_index(), "the countdown comes first, above the title")
+	assert_eq(column.get_child(0), countdown)
+	assert_eq(column.grow_horizontal, Control.GROW_DIRECTION_BOTH, "the block stays centred")
+	assert_almost_eq(column.anchor_left, 0.5, 0.001)
+	assert_almost_eq(column.anchor_top, 0.5, 0.001)
+	for label: Node in briefing.find_children("*", "Label", true, false):
+		assert_eq((label as Label).horizontal_alignment, HORIZONTAL_ALIGNMENT_LEFT, (label as Label).text)
