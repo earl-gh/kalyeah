@@ -67,7 +67,7 @@ class Room extends RefCounted:
 ## Every room is 3v3: three places a team, six in all.
 const MAX_TEAM_SIZE: int = 3
 ## The name of the base game (the other two say theirs in their rules: `StreetModeRules.title`).
-const BASE_TITLE: String = "Agawan Base"
+const BASE_TITLE: String = "Agawang Base"
 const MAP_IDS: Array[StringName] = [&"street", &"tumbang_preso", &"patintero"]
 const PLAYABLE_MAP_IDS: Array[StringName] = [&"street", &"patintero", &"tumbang_preso"]
 
@@ -163,7 +163,7 @@ func set_ready(peer_id: int, ready: bool) -> bool:
 
 
 ## Why the host cannot start this room yet, in words for the host ("" = nothing in the way). Each game has its own minimum (owner):
-## Agawan Base needs players on both teams (`NetRules.base_room_min_team`), Tumbang Preso (no teams) `room_min_players` kids, Patintero
+## Agawang Base needs players on both teams (`NetRules.base_room_min_team`), Tumbang Preso (no teams) `room_min_players` kids, Patintero
 ## `room_min_team` on each team; then everyone has a team and is Ready.
 ## `host_ready`: count the host as ready (the room screen's one button readies and starts at once).
 func start_blocker(room: Room, host_ready: bool = false) -> String:

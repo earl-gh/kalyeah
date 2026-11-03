@@ -67,7 +67,7 @@ func test_the_game_picker_lists_the_three_games_and_remembers_the_pick() -> void
 	Session.practice_game = &"street"
 	var screen: TitleScreen = _phone_screen()
 	await wait_frames(2)
-	assert_eq(screen.practice_row.game_button.text, "Agawan Base")
+	assert_eq(screen.practice_row.game_button.text, "Agawang Base")
 	var card: MenuDialog = screen.practice_row.open_game_picker()
 	await wait_frames(2)
 	assert_true(card.is_open, "the picker is shown")
@@ -190,7 +190,7 @@ func test_a_patintero_runner_on_a_sidewalk_has_a_centred_knob_and_no_dive_and_th
 	practice.sim.players[local].position = Vector2(0.0, lines.rules.home_z + 1.0)
 	practice.advance(DT)
 	assert_false(practice.hud.street_pad.knob_centered)
-	# the guards' view is the other way round, like Agawan Base
+	# the guards' view is the other way round, like Agawang Base
 	lines.attack_team = 1 - lines.attack_team
 	assert_ne(practice.own_side(), own, "the camera turns when your team guards")
 
@@ -241,7 +241,7 @@ func test_the_street_games_frame_the_street_exactly_like_agawan_base() -> void:
 		var practice: PracticeMatch = _practice(game)
 		practice.advance(DT)
 		assert_eq(practice._camera.bottom_reserve_px, agawan._camera.bottom_reserve_px, "%s: the same room kept for the controls" % game)
-		assert_almost_eq(practice._camera.size, reference, 0.001, "%s: the same zoom as Agawan Base" % game)
+		assert_almost_eq(practice._camera.size, reference, 0.001, "%s: the same zoom as Agawang Base" % game)
 
 
 func test_the_quick_chat_is_under_the_timer_and_lists_its_phrases_vertically() -> void:
@@ -441,7 +441,7 @@ func test_the_tumbang_can_is_three_quarters_of_the_lata_weapons_size() -> void:
 	practice.advance(DT)
 	var drawn: float = practice._camera.rules.kid_view_scale
 	assert_almost_eq(practice.mode_view.can_node().scale.x, drawn * 0.75, 0.001, "0.75 of its size (owner)")
-	assert_eq(WeaponModel.OBJECTS[&"lata"][1], 0.7, "the lata card's can in Agawan Base is as it was")
+	assert_eq(WeaponModel.OBJECTS[&"lata"][1], 0.7, "the lata card's can in Agawang Base is as it was")
 
 
 func test_a_semi_transparent_white_ring_marks_where_the_can_belongs_and_brightens_while_it_is_down() -> void:
@@ -655,7 +655,7 @@ func test_patintero_has_the_same_hud_with_a_dive_button_whose_ring_fills_while_i
 	assert_false(practice.hud.hand.visible)
 	assert_false(practice.hud.console.visible, "no tray")
 	assert_null(practice.hud.score_column, "no kids' column: Patintero is a team game")
-	assert_true(practice.hud.scoreboard.visible, "the team score is at the top centre, like Agawan Base")
+	assert_true(practice.hud.scoreboard.visible, "the team score is at the top centre, like Agawang Base")
 	assert_eq(pad.action, StreetGamePad.Action.DIVE, "the button at the right is Dive")
 	assert_true(pad.act_ready)
 	assert_eq(pad.charge, 1.0, "ready: the ring is full")
@@ -694,10 +694,10 @@ func test_patintero_shows_the_team_score_at_the_top_centre_like_agawan_base() ->
 	assert_eq([board.mine, board.theirs], [2, 1], "your team's points on the left, theirs on the right")
 	assert_eq(patintero.sim.score.first_to, 0, "no first-to: a street game is played against the clock")
 	assert_false(board.accessibility_name.contains("first to"), "and it does not say so")
-	# the same place and the same card as Agawan Base's
+	# the same place and the same card as Agawang Base's
 	var base: PracticeMatch = _practice(&"street")
 	base.advance(DT)
-	assert_eq(board.get_global_rect().position, base.hud.scoreboard.get_global_rect().position, "exactly where Agawan Base has it")
+	assert_eq(board.get_global_rect().position, base.hud.scoreboard.get_global_rect().position, "exactly where Agawang Base has it")
 	assert_eq(board.get_global_rect().size, base.hud.scoreboard.get_global_rect().size)
 
 
@@ -807,7 +807,7 @@ func test_the_street_games_have_no_difficulty_and_no_tilt_and_the_column_follows
 		await wait_frames(2)
 		var card: MenuDialog = screen.open_practice_confirm()
 		await wait_frames(1)
-		assert_eq(card.find_child("DifficultyChoice", true, false) != null, game == &"street", "%s: bots have levels only in Agawan Base" % game)
+		assert_eq(card.find_child("DifficultyChoice", true, false) != null, game == &"street", "%s: bots have levels only in Agawang Base" % game)
 		card.close(false)
 	# tilt to run never steers a street game
 	var practice: PracticeMatch = _practice(&"tumbang_preso")

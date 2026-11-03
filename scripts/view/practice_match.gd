@@ -67,9 +67,9 @@ var _application_paused: bool = false
 var _presentation: PracticeMatchPresentation
 ## The bot teams of a Practice match vs bots (empty in training and online).
 var _coaches: Array[TeamCoach] = []
-## The bots of a street game (Tumbang Preso, Patintero), both teams; null in Agawan Base.
+## The bots of a street game (Tumbang Preso, Patintero), both teams; null in Agawang Base.
 var _mode_coach: StreetModeCoach
-## The street game's lines, can and slippers (empty in Agawan Base).
+## The street game's lines, can and slippers (empty in Agawang Base).
 var mode_view: StreetModeView
 var _hold_ticked: bool = false
 ## Tumbang Preso: where the held Throw button aims (radians, see `_angle_of`).
@@ -248,7 +248,7 @@ func card_cancelled(_slot: int) -> void:
 ## The base side the local team defends this set (+Z = own/bottom at the start).
 func own_side() -> int:
 	if sim.mode is Patintero:
-		# like Agawan Base the camera turns round so that your side is at the bottom: the runners run up from the base at the bottom; the
+		# like Agawang Base the camera turns round so that your side is at the bottom: the runners run up from the base at the bottom; the
 		# guards (whose runners come from the other end) see it from the far end
 		var me: PlayerState = sim.players.get(local_id) as PlayerState
 		return MapLayout.SIDE_OWN if me == null or sim.mode.is_attacker(me) else MapLayout.SIDE_ENEMY

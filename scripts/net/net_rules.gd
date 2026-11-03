@@ -31,7 +31,7 @@ extends Resource
 ## Online open rooms (docs/GDD.md "Lobby rules"): the server lists at most `room_list_max` rooms, answers one peer at most once every
 ## `room_list_min_gap` seconds, and the Join screen asks again every `room_list_refresh` seconds while it shows the list.
 @export var room_list_max: int = 0
-## Agawan Base in a room starts with at least this many players on each team (owner: no empty team). Patintero's and Tumbang Preso's are
+## Agawang Base in a room starts with at least this many players on each team (owner: no empty team). Patintero's and Tumbang Preso's are
 ## in their own rules (`StreetModeRules.room_min_team`, `room_min_players`).
 @export var base_room_min_team: int = 1
 @export var room_list_min_gap: float = 0.0

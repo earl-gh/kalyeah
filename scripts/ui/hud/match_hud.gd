@@ -49,13 +49,15 @@ const HEADER_HEIGHT: float = TOP_ROW_Y * 2.0 + 88.0
 const MARGIN: float = 14.0
 const GEAR_SIZE: float = UiMetrics.TOUCH
 const SCORE_SIZE: Vector2 = Vector2(330.0, 88.0)
+## The small countdown that carries on between the two scores after a tap past the briefing.
+const SKIP_TIMER_SIZE: float = 64.0
 const CLOCK_SIZE: Vector2 = Vector2(176.0, 112.0)
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## How long the capture words and the warning stay up when the capture stops for a moment (seconds).
 const CAPTURE_LINGER: float = 0.4
 ## The tray at the bottom of the screen (the hand and the elixir bar): the arena sits above it. The camera reserves the same height.
 const CONSOLE_HEIGHT: float = 255.0
-## The tray of Tumbang Preso and Patintero (no hand: the role line and the Throw button) is as tall as Agawan Base's, plus the bottom inset,
+## The tray of Tumbang Preso and Patintero (no hand: the role line and the Throw button) is as tall as Agawang Base's, plus the bottom inset,
 ## so the camera frames the street exactly the same size in all three games (owner).
 const STREET_TRAY: float = CONSOLE_HEIGHT
 ## Tumbang Preso's score column stands on the left sidewalk this far under the header, and the quick chat button under the clock is this big.
@@ -115,6 +117,7 @@ var point_result: PointResult
 var _covered: bool = false
 var results: MatchResults
 var briefing: MatchBriefing
+var skip_timer: CountdownCircle
 ## What the results card says the match was ("Practice", "Hotspot", "Online").
 var results_mode: String = "Practice"
 ## Big countdown in the middle while a capture is running (not an enemy taking your base: that is `capture_alert`).
@@ -400,7 +403,7 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 		score_column.visible = not covered
 	if street_game:
 		console.visible = false
-		# Patintero has a team score at the top centre like Agawan Base; Tumbang Preso's points are every kid's, in the column on the left sidewalk
+		# Patintero has a team score at the top centre like Agawang Base; Tumbang Preso's points are every kid's, in the column on the left sidewalk
 		scoreboard.visible = not covered and not sim.mode.is_free_for_all()
 	overhead.visible = not covered
 	if covered:
@@ -523,6 +526,7 @@ func _build() -> void:
 	MatchHudTop.build_intro(self)
 	briefing = MatchBriefing.new(self)
 	add_child(briefing)
+	briefing.skipped.connect(skip_timer.run)
 	# last, so it draws over the hand
 	menu = MatchMenu.new()
 	add_child(menu)

@@ -270,7 +270,7 @@ func test_a_guest_reads_the_game_and_the_settings_as_text_in_two_rows() -> void:
 	# row 1: Game, then the title
 	assert_eq(((view.map_title.get_parent() as Control).get_child(0) as Label).text, "Game")
 	assert_true(view.map_title.visible)
-	assert_eq(view.map_title.text, "Agawan Base")
+	assert_eq(view.map_title.text, "Agawang Base")
 	assert_false(view.map_card.visible, "no card to tap")
 	assert_false(view.map_hint.visible)
 	# row 2: Race to and Fill with bots, each its choice as text

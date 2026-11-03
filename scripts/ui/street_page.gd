@@ -6,7 +6,7 @@ extends VBoxContainer
 
 ## The games in order: the map id (RoomService.MAP_IDS), the game's name, its picture, a colour, and what the game is.
 const STREETS: Array[Dictionary] = [
-	{"id": &"street", "game": "Agawan Base", "picture": preload("res://assets/ui/games/agawan_base.webp"), "color": "blue",
+	{"id": &"street", "game": "Agawang Base", "picture": preload("res://assets/ui/games/agawan_base.webp"), "color": "blue",
 		"blurb": "Two teams, two bases! Tag the other team, free your own, and hold their base."},
 	{"id": &"tumbang_preso", "game": "Tumbang Preso", "picture": preload("res://assets/ui/games/tumbang_preso.webp"), "color": "orange",
 		"blurb": "5 minutes: Knock the can over, fetch your slipper, and run to the other end to earn a score. The 'it' fetches the can and places it back to position. It can't tag players when the can is knocked over and not in position."},

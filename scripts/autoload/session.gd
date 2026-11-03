@@ -23,7 +23,7 @@ var briefing_pending: bool = false
 ## Which Practice the next match is: `training` (a sandbox with dummies and one sparring partner) or `match` (a full 3v3 against
 ## bots). Not saved; the Practice card sets it just before the match loads.
 var practice_kind: StringName = &"training"
-## The street game Practice plays (a RoomService.MAP_IDS id): Agawan Base (`street`), Tumbang Preso or Patintero. Picked on the main
+## The street game Practice plays (a RoomService.MAP_IDS id): Agawang Base (`street`), Tumbang Preso or Patintero. Picked on the main
 ## screen's Practice row; saved.
 var practice_game: StringName = &"street"
 var reconnect_token: String = ""

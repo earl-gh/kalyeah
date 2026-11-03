@@ -4,7 +4,7 @@ These project-local agent skills encode the specialist workflows used to change 
 
 | Skill | Owns | Does not own |
 | --- | --- | --- |
-| `gameplay-simulation` | Agawan Base rules, deterministic simulation, weapon behavior, input semantics | Network transport, presentation, export settings |
+| `gameplay-simulation` | Agawang Base rules, deterministic simulation, weapon behavior, input semantics | Network transport, presentation, export settings |
 | `authoritative-multiplayer` | WebSocket protocol, rooms, server authority, snapshots, reconnects | Game balance, animation, Android rendering |
 | `gameplay-presentation` | Animation, camera, VFX/audio hooks, HUD feedback, sim-to-view mapping | Simulation outcomes, protocol, asset creation |
 | `android-performance` | Profiling, mobile budgets, touch/safe areas, Android compatibility | Game rules, networking semantics, art direction |

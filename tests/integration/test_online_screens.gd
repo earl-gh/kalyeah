@@ -99,10 +99,10 @@ func test_a_host_who_cannot_start_yet_taps_start_and_is_told_why() -> void:
 	host.submit()
 	assert_true(_until(func() -> bool: return host.in_room()), "host is in a room")
 	assert_true(host.start_enabled(), "Start is always pressable for the host: pressing it says why not")
-	assert_false(host.client.room.get("can_start_host", true) as bool, "alone, Agawan Base has an empty team")
+	assert_false(host.client.room.get("can_start_host", true) as bool, "alone, Agawang Base has an empty team")
 	host.press_start()
 	await wait_process_frames(3)
-	assert_eq(_toast_text(host), "Agawan Base needs at least 1 player on each team.", "the host reads it in a toast")
+	assert_eq(_toast_text(host), "Agawang Base needs at least 1 player on each team.", "the host reads it in a toast")
 	assert_eq(server.rooms.rooms.values()[0].state, RoomService.State.LOBBY, "and nothing started")
 
 

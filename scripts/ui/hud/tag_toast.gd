@@ -3,7 +3,7 @@ extends Control
 ## The tag toast (owner): a horizontal bar above the card tray that pops in and out when somebody is tagged, instead of text over the street:
 ## the tagger's face in a circle on the left, "TAYA!" in the middle, the tagged kid's face in a circle on the right (the kid's profile picture
 ## only, no names), each with the player's number on a rounded square in their team's colour at the circle's bottom corner (the tagger's at the
-## bottom left, the tagged one's at the bottom right). The bar is blue when the tagger is an ally, red when an enemy. The same in Agawan Base, Patintero and Tumbang Preso. Tags can come close together, so every toast is on screen for exactly
+## bottom left, the tagged one's at the bottom right). The bar is blue when the tagger is an ally, red when an enemy. The same in Agawang Base, Patintero and Tumbang Preso. Tags can come close together, so every toast is on screen for exactly
 ## `SECONDS` and the next waits its turn (`MAX_WAITING` at most: the oldest waiting one is dropped past that). A sound plays as it pops in and
 ## as it pops out (the owner's own files, reused). `tick` moves it on (the match's frame, or a test's); View only.
 

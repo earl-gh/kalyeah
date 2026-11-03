@@ -82,7 +82,7 @@ func test_open_server_without_a_room_is_not_a_discovery_success() -> void:
 
 
 func test_room_controls_stay_accessible_and_readiness_explains_blocked_start() -> void:
-	var room: Dictionary = {"team_size": 3, "host": 1, "members": [], "first_to": 5, "start_note": "Agawan Base needs at least 1 player on each team."}
+	var room: Dictionary = {"team_size": 3, "host": 1, "members": [], "first_to": 5, "start_note": "Agawang Base needs at least 1 player on each team."}
 	var view: HotspotRoomView = autofree(HotspotRoomView.new()) as HotspotRoomView
 	add_child(view)
 	view.show_room(room, 1)

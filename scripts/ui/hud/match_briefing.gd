@@ -6,6 +6,8 @@ extends Control
 ## it opens before every Practice match against bots, in every game. Online matches never open it (the server does not wait).
 
 signal finished
+## The player tapped (or pressed Back) with seconds still to count: the countdown carries on in the match header.
+signal skipped(seconds_left: float, total: float)
 
 ## The match behind it is only dimmed (no blur), and the words are drawn at this share of their size.
 const DIM: Color = Color(0.01, 0.03, 0.08, 0.7)
@@ -15,43 +17,48 @@ const LABEL_BLUE: Color = Color("8cc4ff")
 const WIDTH: float = 640.0
 const TITLE_SIZE: int = UiMetrics.DISPLAY
 const GOAL_SIZE: int = UiMetrics.TITLE
-const LABEL_SIZE: int = UiMetrics.CAPTION
+## The small headings (Move, Attack, Runners...): between the title and the plain text.
+const LABEL_SIZE: int = UiMetrics.HEADLINE
 const LINE_SIZE: int = UiMetrics.TITLE
-const CLOCK_SIZE: float = 150.0
-const CLOCK_RING: float = 10.0
+const CLOCK_SIZE: float = 104.0
+const CLOCK_RING: float = 4.0
+## The title and its description stand close together.
+const HEAD_GAP: int = 6
 
 var running: bool = false
 var seconds_left: float = 0.0
 
 var title_label: Label
-var goal_label: Label
+var goal: VBoxContainer
 var rows: VBoxContainer
+var head: VBoxContainer
 var continue_label: Label
 
 var _hud: MatchHud
 var _total: float = 10.0
-var _clock: Control
+var _clock: CountdownCircle
 var _pulse: Tween
 
 
-## The words for a game (null = Agawan Base): its name, how to score in one line, and (label, line) for each thing the player does.
-## Text only; the controls of the street games are the knob and the action button, Agawan Base's are taps and drags.
+## The words for a game (null = Agawang Base): its name, how to score as (heading, line) blocks (no heading: one plain line), and
+## (heading, line) for each thing the player does. Text only; the controls of the street games are the knob and the action button,
+## Agawang Base's are taps and drags.
 static func words_for(game: StreetModeRules) -> Dictionary:
 	if game == null:
 		return {
-			"title": "Agawan Base",
-			"goal": "Earn a point by capturing the enemy base: stay inside it, or tag all the enemies.",
+			"title": "Agawang Base",
+			"goal": [["", "Capture the enemy base or tag all enemies to score. Don't forget to rescue your teammates."]],
 			"rows": [["Move", "Tap to move, or use gyroscope"], ["Attack", "Tap to cast skills, drag to aim"]],
 		}
 	if game.id == &"tumbang_preso":
 		return {
 			"title": game.title,
-			"goal": "Knock the can over, fetch your slipper and run to the other end to score. Don't get tagged by the taya!",
+			"goal": [["", "Knock the can over, fetch your slipper and run to the other end to score. Don't get caught."]],
 			"rows": [["Move", "Push the knob to run"], ["Throw", "Hold to aim, drag to turn, release"]],
 		}
 	return {
 		"title": game.title,
-		"goal": "Runners: get past every guard and back to base to score. Guards: tag all three runners.",
+		"goal": [["Runners", "Get past every guard and back to base to score. Don't get caught."], ["Guards", "Tag all three runners to score."]],
 		"rows": [["Move", "Push the knob to run"], ["Dive", "Tap to dash past a guard"]],
 	}
 
@@ -81,23 +88,26 @@ func _init(hud: MatchHud = null) -> void:
 	column.grow_vertical = Control.GROW_DIRECTION_BOTH
 	column.scale = Vector2.ONE * CONTENT_SCALE
 	column.resized.connect(func() -> void: column.pivot_offset = column.size / 2.0)
-	_clock = Control.new()
-	_clock.name = "Countdown"
-	_clock.custom_minimum_size = Vector2(CLOCK_SIZE, CLOCK_SIZE)
+	_clock = CountdownCircle.new(CLOCK_SIZE, CLOCK_RING, UiMetrics.HEADLINE)
 	_clock.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_clock.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_clock.draw.connect(_draw_clock)
 	column.add_child(_clock)
+	# the title and what to do to score stand close together
+	head = VBoxContainer.new()
+	head.name = "Head"
+	head.add_theme_constant_override("separation", HEAD_GAP)
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(head)
 	title_label = Label.new()
 	title_label.name = "Title"
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	UiKit.letter(title_label, TITLE_SIZE, GOLD)
-	column.add_child(title_label)
-	goal_label = UiKit.text("", GOAL_SIZE, KalyeahTheme.TEXT)
-	goal_label.name = "Goal"
-	goal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	column.add_child(goal_label)
+	head.add_child(title_label)
+	goal = VBoxContainer.new()
+	goal.name = "Goal"
+	goal.add_theme_constant_override("separation", 14)
+	goal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_child(goal)
 	rows = VBoxContainer.new()
 	rows.name = "Rows"
 	rows.add_theme_constant_override("separation", 30)
@@ -113,14 +123,15 @@ func _init(hud: MatchHud = null) -> void:
 	column.add_child(continue_label)
 
 
-## Opens the briefing for `game` (null = Agawan Base) and stills the match's controls until it ends.
+## Opens the briefing for `game` (null = Agawang Base) and stills the match's controls until it ends.
 func start(game: StreetModeRules, seconds: float) -> void:
 	var words: Dictionary = words_for(game)
 	title_label.text = words["title"] as String
-	goal_label.text = words["goal"] as String
-	for child: Node in rows.get_children():
-		rows.remove_child(child)
+	for child: Node in goal.get_children() + rows.get_children():
+		child.get_parent().remove_child(child)
 		child.queue_free()
+	for block: Array in words["goal"] as Array:
+		goal.add_child(_row(block[0] as String, block[1] as String))
 	for line: Array in words["rows"] as Array:
 		rows.add_child(_row(line[0] as String, line[1] as String))
 	_total = maxf(seconds, 0.1)
@@ -129,7 +140,7 @@ func start(game: StreetModeRules, seconds: float) -> void:
 	visible = true
 	if _hud != null:
 		_hud.set_controls_active(false)
-	_clock.queue_redraw()
+	_clock.set_left(seconds_left, _total)
 	_start_pulse()
 
 
@@ -139,13 +150,14 @@ func _row(label_text: String, line_text: String) -> VBoxContainer:
 	row.add_theme_constant_override("separation", 4)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var label: Label = Label.new()
+	label.visible = not label_text.is_empty()
 	label.text = label_text.to_upper()
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
 	label.add_theme_font_size_override("font_size", LABEL_SIZE)
 	label.add_theme_color_override("font_color", LABEL_BLUE)
 	row.add_child(label)
-	var line: Label = UiKit.text(line_text, LINE_SIZE, KalyeahTheme.TEXT)
+	var line: Label = UiKit.text(line_text, GOAL_SIZE if label_text.is_empty() else LINE_SIZE, KalyeahTheme.TEXT)
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	row.add_child(line)
 	return row
@@ -155,7 +167,7 @@ func _process(delta: float) -> void:
 	if not running:
 		return
 	seconds_left = maxf(seconds_left - delta, 0.0)
-	_clock.queue_redraw()
+	_clock.set_left(seconds_left, _total)
 	if seconds_left <= 0.0:
 		finish()
 
@@ -166,12 +178,14 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	if (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed) or (event is InputEventMouseButton and (event as InputEventMouseButton).pressed):
 		accept_event()
-		finish()
+		finish(true)
 
 
-func finish() -> void:
+## `by_player`: a tap or Back before the countdown ran out; what is left of it carries on in the match header (`skipped`).
+func finish(by_player: bool = false) -> void:
 	if not running:
 		return
+	var left: float = seconds_left
 	running = false
 	visible = false
 	if is_instance_valid(_pulse):
@@ -179,27 +193,13 @@ func finish() -> void:
 	if _hud != null:
 		_hud.set_controls_active(true)
 	finished.emit()
+	if by_player and left > 0.0:
+		skipped.emit(left, _total)
 
 
 ## The countdown's number: whole seconds, counting down to 1.
 func shown_seconds() -> int:
-	return ceili(seconds_left)
-
-
-func _draw_clock() -> void:
-	var middle: Vector2 = _clock.size / 2.0
-	var radius: float = CLOCK_SIZE / 2.0 - CLOCK_RING
-	_clock.draw_circle(middle, radius + CLOCK_RING / 2.0, Color(0.03, 0.06, 0.14, 0.55))
-	_clock.draw_arc(middle, radius, 0.0, TAU, 64, Color(1.0, 1.0, 1.0, 0.25), CLOCK_RING, true)
-	var left: float = clampf(seconds_left / _total, 0.0, 1.0)
-	if left > 0.0:
-		_clock.draw_arc(middle, radius, -PI / 2.0, -PI / 2.0 + TAU * left, 64, Color.WHITE, CLOCK_RING, true)
-	var font: Font = KalyeahTheme.DISPLAY_FONT
-	var text: String = str(shown_seconds())
-	var size: int = UiMetrics.DISPLAY
-	var extent: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size)
-	_clock.draw_string_outline(font, middle + Vector2(-extent.x / 2.0, extent.y * 0.3), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size, 8, UiSkin.LETTER_INK)
-	_clock.draw_string(font, middle + Vector2(-extent.x / 2.0, extent.y * 0.3), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size, Color.WHITE)
+	return _clock.shown_seconds()
 
 
 func _start_pulse() -> void:
@@ -216,4 +216,4 @@ func _start_pulse() -> void:
 ## The phone's back button starts the match too (nothing to cancel: the briefing only says how to play).
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
-		finish.call_deferred()
+		finish.call_deferred(true)

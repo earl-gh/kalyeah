@@ -74,7 +74,7 @@ games = Array[Dictionary]([{
 "quick_win": "Most clean jumps wins. Keep the height suitable for the smallest jumper."
 }, {
 "month": 5,
-"name": "Agawan Base",
+"name": "Agawang Base",
 "also": "The game in Kalyeah!",
 "players_min": 6,
 "players_max": 12,

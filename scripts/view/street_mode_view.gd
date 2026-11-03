@@ -3,7 +3,7 @@ extends Node3D
 ## What a street game adds to the street (docs/GDD.md "Tumbang Preso and Patintero"): the chalk lines (the throw line and the far line, and
 ## Patintero's court), the can (the lata's model) and every slipper lying on the ground (the tsinelas' model), the ring on your own
 ## slipper, and the local thrower's aim line with the short guide of where the can and the slipper would go. The flying
-## slipper is the weapons' own, drawn by WeaponFxView like Agawan Base's; the can borrows the lata's tumble, landing squash and dust.
+## slipper is the weapons' own, drawn by WeaponFxView like Agawang Base's; the can borrows the lata's tumble, landing squash and dust.
 ## Everything lies on the ground (nothing is drawn over a kid). Reads the sim only. The chalk is code-drawn until the owner's decal.
 
 const CHALK_SHADER: Shader = preload("res://shaders/chalk_line.gdshader")
@@ -22,7 +22,7 @@ const LYING_SHARE: float = 0.4
 const SLIPPER_SPIN: float = 3.0
 ## A carried can is held at this height (m, before the kids' view scale).
 const CARRY_HEIGHT: float = 1.1
-## Tumbang Preso draws its can this part of the lata weapon's size (owner: it was too big; the lata card in Agawan Base is unchanged).
+## Tumbang Preso draws its can this part of the lata weapon's size (owner: it was too big; the lata card in Agawang Base is unchanged).
 const CAN_SCALE: float = 0.75
 ## Ground marks sit this high (m) so they lie on the street without fighting its texture.
 const GROUND_LIFT: float = 0.06
@@ -83,7 +83,7 @@ var _hold_fling: bool = false
 var _tag_circles: Dictionary[int, Node3D] = {}
 
 
-## Draws the lines of `sim`'s game (nothing for Agawan Base). `ctx` is WeaponFxView's (its dust and the kids' view scale).
+## Draws the lines of `sim`'s game (nothing for Agawang Base). `ctx` is WeaponFxView's (its dust and the kids' view scale).
 func setup(sim: MatchSim, ctx: FxContext, local_id: int) -> void:
 	_sim = sim
 	_mode = sim.mode

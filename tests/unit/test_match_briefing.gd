@@ -53,8 +53,8 @@ func _texts(node: Node) -> Array[String]:
 
 func test_agawan_base_says_its_name_how_to_score_and_the_two_controls() -> void:
 	var words: Dictionary = MatchBriefing.words_for(null)
-	assert_eq(words["title"], "Agawan Base")
-	assert_eq(words["goal"], "Earn a point by capturing the enemy base: stay inside it, or tag all the enemies.")
+	assert_eq(words["title"], "Agawang Base")
+	assert_eq(words["goal"], [["", "Capture the enemy base or tag all enemies to score. Don't forget to rescue your teammates."]])
 	assert_eq(words["rows"], [["Move", "Tap to move, or use gyroscope"], ["Attack", "Tap to cast skills, drag to aim"]])
 
 
@@ -62,11 +62,11 @@ func test_the_street_games_say_their_own_controls() -> void:
 	var tumbang: Dictionary = MatchBriefing.words_for(StreetMode.rules_for(&"tumbang_preso"))
 	assert_eq(tumbang["title"], "Tumbang Preso")
 	assert_eq((tumbang["rows"] as Array)[1][0], "Throw")
-	assert_string_contains(tumbang["goal"] as String, "can")
+	assert_eq(tumbang["goal"], [["", "Knock the can over, fetch your slipper and run to the other end to score. Don't get caught."]])
 	var patintero: Dictionary = MatchBriefing.words_for(StreetMode.rules_for(&"patintero"))
 	assert_eq(patintero["title"], "Patintero")
 	assert_eq((patintero["rows"] as Array)[1][0], "Dive")
-	assert_string_contains(patintero["goal"] as String, "guard")
+	assert_eq(patintero["goal"], [["Runners", "Get past every guard and back to base to score. Don't get caught."], ["Guards", "Tag all three runners to score."]])
 	for words: Dictionary in [tumbang, patintero]:
 		assert_eq((words["rows"] as Array)[0][1], "Push the knob to run", "the street games are run with the knob, not by tapping the street")
 
@@ -192,10 +192,75 @@ func test_the_countdown_is_above_the_title_the_block_is_centred_and_the_text_is_
 	var briefing: MatchBriefing = practice.hud.briefing
 	var column: Control = briefing.find_child("Column", true, false) as Control
 	var countdown: Control = briefing.find_child("Countdown", true, false) as Control
-	assert_lt(countdown.get_index(), briefing.title_label.get_index(), "the countdown comes first, above the title")
+	assert_lt(countdown.get_index(), briefing.head.get_index(), "the countdown comes first, above the title")
 	assert_eq(column.get_child(0), countdown)
 	assert_eq(column.grow_horizontal, Control.GROW_DIRECTION_BOTH, "the block stays centred")
 	assert_almost_eq(column.anchor_left, 0.5, 0.001)
 	assert_almost_eq(column.anchor_top, 0.5, 0.001)
 	for label: Node in briefing.find_children("*", "Label", true, false):
 		assert_eq((label as Label).horizontal_alignment, HORIZONTAL_ALIGNMENT_LEFT, (label as Label).text)
+
+
+func test_the_countdown_circle_is_small_and_thin() -> void:
+	var practice: PracticeMatch = _match(&"street")
+	var circle: CountdownCircle = practice.hud.briefing.find_child("Countdown", true, false) as CountdownCircle
+	assert_lte(circle.custom_minimum_size.x, 110.0, "a small circle")
+	assert_lte(circle.ring, 4.0, "a thin outline")
+	assert_true(practice.hud.skip_timer.custom_minimum_size.x < circle.custom_minimum_size.x, "and the header's is smaller still")
+
+
+func test_the_headings_are_between_the_title_and_the_plain_text_in_size() -> void:
+	var practice: PracticeMatch = _match(&"patintero")
+	var briefing: MatchBriefing = practice.hud.briefing
+	var title_size: int = briefing.title_label.get_theme_font_size("font_size")
+	var found: Array[String] = []
+	for label: Node in briefing.find_children("*", "Label", true, false):
+		var text: String = (label as Label).text
+		if text in ["MOVE", "DIVE", "RUNNERS", "GUARDS"]:
+			found.append(text)
+			var size: int = (label as Label).get_theme_font_size("font_size")
+			assert_lt(size, title_size, "%s is smaller than the title" % text)
+			assert_gt(size, UiMetrics.TITLE, "%s is bigger than the plain text" % text)
+	assert_eq(found.size(), 4, "Patintero has two descriptions with headings, Runners and Guards, and two controls")
+
+
+func test_the_title_and_its_description_stand_close_together() -> void:
+	var practice: PracticeMatch = _match(&"street")
+	var briefing: MatchBriefing = practice.hud.briefing
+	var column: Control = briefing.find_child("Column", true, false) as Control
+	assert_lt(briefing.head.get_theme_constant("separation"), column.get_theme_constant("separation") / 4, "much closer than the blocks are")
+	assert_eq(briefing.title_label.get_parent(), briefing.head)
+	assert_eq(briefing.goal.get_parent(), briefing.head)
+
+
+func test_a_tap_hands_what_is_left_of_the_countdown_to_the_header_between_the_scores() -> void:
+	var practice: PracticeMatch = _match(&"street")
+	var briefing: MatchBriefing = practice.hud.briefing
+	var timer: CountdownCircle = practice.hud.skip_timer
+	assert_false(timer.visible, "nothing in the header while the briefing shows")
+	briefing._process(3.0)
+	briefing._gui_input(_touch())
+	assert_true(timer.visible, "the timer carries on in the header")
+	assert_eq(timer.shown_seconds(), 7)
+	timer._process(2.5)
+	assert_eq(timer.shown_seconds(), 5, "it keeps counting down")
+	timer._process(10.0)
+	assert_false(timer.visible, "and goes at zero")
+	# placed on the middle of the score, between its two cells
+	var board: Control = practice.hud.scoreboard
+	var timer_middle: float = timer.global_position.x + timer.size.x / 2.0
+	var board_middle: float = board.global_position.x + board.size.x / 2.0
+	assert_almost_eq(timer_middle, board_middle, 2.0)
+
+
+func test_letting_the_countdown_run_out_leaves_nothing_in_the_header() -> void:
+	var practice: PracticeMatch = _match(&"street")
+	practice.hud.briefing._process(11.0)
+	assert_false(practice.hud.briefing.running)
+	assert_false(practice.hud.skip_timer.visible)
+
+
+func test_agawang_base_is_spelled_with_the_g_everywhere_a_player_reads_it() -> void:
+	assert_eq(RoomService.BASE_TITLE, "Agawang Base")
+	assert_eq(HotspotRoomView.MAP_NAMES[&"street"], "Agawang Base")
+	assert_eq(MatchBriefing.words_for(null)["title"], "Agawang Base")

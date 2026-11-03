@@ -126,7 +126,7 @@ func test_reduce_motion_cuts_instead_of_turning() -> void:
 
 
 func test_a_flip_without_smooth_still_cuts() -> void:
-	# Agawan Base and Patintero keep the instant cut
+	# Agawang Base and Patintero keep the instant cut
 	var practice: PracticeMatch = _practice(&"street")
 	var camera: ArenaCamera = practice._camera
 	camera.place(true)

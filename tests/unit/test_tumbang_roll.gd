@@ -39,7 +39,7 @@ func test_the_opening_show_is_longer_by_the_roll_in_tumbang_preso_only() -> void
 	assert_almost_eq(sim.intro_left, sim.intro_total(), 0.0001)
 	assert_eq(StreetMode.rules_for(&"patintero").roll_seconds, 0.0, "Patintero has no roll")
 	var base: MatchSim = MatchSim.new(RULES, LAYOUT, 1)
-	assert_eq(base.intro_total(), RULES.intro_time, "nor Agawan Base")
+	assert_eq(base.intro_total(), RULES.intro_time, "nor Agawang Base")
 
 
 func test_the_plan_goes_round_the_ring_slowing_down_and_ends_on_the_taya() -> void:
