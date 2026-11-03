@@ -2,8 +2,8 @@ class_name MatchBriefing
 extends Control
 ## What a Practice match opens with (owner, 2026-11-03): the match behind it dimmed, and over it only text: the game's name with a ten second
 ## countdown (the number alone) at the right of the same row, a thin white line that empties with it, how to score, then what to do to move and to act. The block is centred on the screen and its
-## text is left-aligned. The match stands still while it shows and starts when the countdown ends: there is nothing to tap, no skip (the
-## overlay only keeps touches off the match). It replaces the first-run walkthrough: it opens before every Practice match against bots,
+## text is left-aligned, with "Tap to continue" under it. The match stands still while it shows and starts when the countdown ends, or at
+## once on a tap anywhere (or Android Back); nothing of the countdown is kept after a tap. It replaces the first-run walkthrough: it opens before every Practice match against bots,
 ## in every game. Online matches never open it (the server does not wait).
 
 signal finished
@@ -31,11 +31,13 @@ var seconds_left: float = 0.0
 var title_label: Label
 var goal: VBoxContainer
 var rows: VBoxContainer
+var continue_label: Label
 var head: VBoxContainer
 var title_row: HBoxContainer
 
 var _hud: MatchHud
 var _total: float = 10.0
+var _pulse: Tween
 var countdown: Label
 var bar: CountdownBar
 
@@ -131,6 +133,14 @@ func _init(hud: MatchHud = null) -> void:
 	rows.add_theme_constant_override("separation", BLOCK_GAP)
 	rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(rows)
+	continue_label = Label.new()
+	continue_label.name = "Continue"
+	continue_label.text = "Tap to continue"
+	continue_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	continue_label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
+	continue_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
+	continue_label.add_theme_color_override("font_color", KalyeahTheme.TEXT)
+	column.add_child(continue_label)
 
 
 ## Opens the briefing for `game` (null = Agawang Base) and stills the match's controls until it ends.
@@ -151,6 +161,7 @@ func start(game: StreetModeRules, seconds: float) -> void:
 	if _hud != null:
 		_hud.set_controls_active(false)
 	_show_left()
+	_start_pulse()
 
 
 ## A label in small capitals over the line it explains, both left-aligned.
@@ -181,11 +192,22 @@ func _process(delta: float) -> void:
 		finish()
 
 
+## Any touch starts the match.
+func _gui_input(event: InputEvent) -> void:
+	if not running:
+		return
+	if (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed) or (event is InputEventMouseButton and (event as InputEventMouseButton).pressed):
+		accept_event()
+		finish()
+
+
 func finish() -> void:
 	if not running:
 		return
 	running = false
 	visible = false
+	if is_instance_valid(_pulse):
+		_pulse.kill()
 	if _hud != null:
 		_hud.set_controls_active(true)
 	finished.emit()
@@ -199,3 +221,20 @@ func shown_seconds() -> int:
 func _show_left() -> void:
 	countdown.text = str(shown_seconds())
 	bar.set_left(seconds_left, _total)
+
+
+func _start_pulse() -> void:
+	if is_instance_valid(_pulse):
+		_pulse.kill()
+	continue_label.modulate.a = 1.0
+	if Settings.reduced_motion or not is_inside_tree():
+		return
+	_pulse = create_tween().set_loops()
+	_pulse.tween_property(continue_label, "modulate:a", 0.45, 0.8).set_trans(Tween.TRANS_SINE)
+	_pulse.tween_property(continue_label, "modulate:a", 1.0, 0.8).set_trans(Tween.TRANS_SINE)
+
+
+## The phone's back button starts the match too (nothing to cancel: the briefing only says how to play).
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		finish.call_deferred()
