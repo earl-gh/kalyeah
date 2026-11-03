@@ -465,11 +465,29 @@ func _on_player_tagged(id: int, by_id: int) -> void:
 		owner.hud.pulse.tagged()
 
 
-## The tag toast for `tagger` (-1: nobody) tagging `target`: their kids' faces (`TagToast.say`).
+## The tag toast for `tagger` (-1: nobody) tagging `target`: their kids' faces and numbers, on a blue bar when the tagger is an ally and a red one
+## when an enemy (`TagToast.say`).
 func _toast_tag(tagger: int, target: int) -> void:
 	var by: PlayerState = owner.sim.players.get(tagger) as PlayerState
 	var tagged: PlayerState = owner.sim.players.get(target) as PlayerState
-	owner.hud.tag_toast.say(by.character_id if by != null else &"", tagged.character_id if tagged != null else &"")
+	var tone: StringName = &""
+	if by != null:
+		tone = TagToast.ALLY if _is_ally(by) else TagToast.ENEMY
+	owner.hud.tag_toast.say(_toast_side(by), _toast_side(tagged), tone)
+
+
+## What the toast shows of a player: their kid, their number and their team's colour (the same as over their head), {} for nobody.
+func _toast_side(state: PlayerState) -> Dictionary:
+	if state == null:
+		return {}
+	return {"character": state.character_id, "number": owner.hud.overhead.player_number(state), "color": owner.hud.overhead.badge_color(state)}
+
+
+## An ally of yours: you, or on your team. In Tumbang Preso, where every kid plays for itself, only you.
+func _is_ally(state: PlayerState) -> bool:
+	if state.id == owner.local_id:
+		return true
+	return state.team == owner.local_team and not (owner.sim.mode != null and owner.sim.mode.is_free_for_all())
 
 
 ## The toast pops in and out with a sound each (the owner's own files, reused).

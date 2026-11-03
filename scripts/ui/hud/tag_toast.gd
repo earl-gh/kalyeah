@@ -2,7 +2,8 @@ class_name TagToast
 extends Control
 ## The tag toast (owner): a horizontal bar above the card tray that pops in and out when somebody is tagged, instead of text over the street:
 ## the tagger's face in a circle on the left, "TAYA!" in the middle, the tagged kid's face in a circle on the right (the kid's profile picture
-## only, no names). The same in Agawan Base, Patintero and Tumbang Preso. Tags can come close together, so every toast is on screen for exactly
+## only, no names), each with the player's number on a rounded square in their team's colour at the circle's bottom corner (the tagger's at the
+## bottom left, the tagged one's at the bottom right). The bar is blue when the tagger is an ally, red when an enemy. The same in Agawan Base, Patintero and Tumbang Preso. Tags can come close together, so every toast is on screen for exactly
 ## `SECONDS` and the next waits its turn (`MAX_WAITING` at most: the oldest waiting one is dropped past that). A sound plays as it pops in and
 ## as it pops out (the owner's own files, reused). `tick` moves it on (the match's frame, or a test's); View only.
 
@@ -31,6 +32,14 @@ const SOUND_OUT: String = "card_cancel"
 const SPEED_IN: float = 1.25
 const SPEED_OUT: float = 1.1
 const RING: Color = Color(1.0, 1.0, 1.0, 0.9)
+## The number badge on a circle: its side, and how far it sticks out past the circle's corner.
+const BADGE: float = 36.0
+const BADGE_OUT: float = 8.0
+const BADGE_FONT: int = UiMetrics.MIN_TEXT  # a control's text is held to the reading floor (the lint test)
+## The bar's colour by who tagged: the ally's blue, the enemy's red (the colour-blind pair with that setting), as deep as the night plate.
+const ALLY: StringName = &"ally"
+const ENEMY: StringName = &"enemy"
+const DEEPEN: float = 0.5
 const WORD_COLOR: Color = Color(1.0, 0.82, 0.25)
 
 var panel: PanelContainer
@@ -74,10 +83,10 @@ func _ready() -> void:
 	_row.add_child(tagged_slot)
 
 
-## Somebody was tagged: `tagger` is the character (kid id) of whoever tagged them, `tagged` of who was tagged. A tagger that is not known
-## (&"") leaves an empty circle.
-func say(tagger: StringName, tagged: StringName) -> void:
-	_queue.append({"tagger": tagger, "tagged": tagged})
+## Somebody was tagged: `tagger` and `tagged` say who, each {character: the kid's id, number: the player's number, color: the team's colour};
+## an empty one (nobody tagged it) leaves an empty circle. `tone` is `ALLY` or `ENEMY` for the bar's colour (anything else: the night plate).
+func say(tagger: Dictionary, tagged: Dictionary, tone: StringName = &"") -> void:
+	_queue.append({"tagger": tagger, "tagged": tagged, "tone": tone})
 	while _queue.size() > MAX_WAITING:
 		_queue.pop_front()
 
@@ -118,8 +127,9 @@ func clear() -> void:
 
 
 func _start(item: Dictionary) -> void:
-	_fill(tagger_slot, item["tagger"] as StringName)
-	_fill(tagged_slot, item["tagged"] as StringName)
+	_fill(tagger_slot, item["tagger"] as Dictionary, true)
+	_fill(tagged_slot, item["tagged"] as Dictionary, false)
+	panel.add_theme_stylebox_override("panel", _plate(item["tone"] as StringName))
 	_showing = true
 	_age = 0.0
 	_out_started = false
@@ -171,8 +181,26 @@ func _slot(slot_name: String) -> Control:
 	return slot
 
 
-## The circle of a kid's face in `slot` (a dark empty circle when there is no kid).
-func _fill(slot: Control, character: StringName) -> void:
+## The bar's plate: blue for an ally's tag, red for an enemy's, the night plate when there is no tagger.
+func _plate(tone: StringName) -> StyleBox:
+	if tone != ALLY and tone != ENEMY:
+		return UiSkin.plate("night", 14.0, UiSkin.RADIUS_XL)
+	var base: Color = TeamColors.ui_own() if tone == ALLY else TeamColors.ui_enemy()
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = base.darkened(DEEPEN)
+	box.border_color = base.lightened(0.15)
+	box.set_border_width_all(4)
+	box.set_corner_radius_all(UiSkin.RADIUS_XL)
+	box.set_content_margin_all(14.0)
+	box.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
+	box.shadow_size = 8
+	box.anti_aliasing = true
+	return box
+
+
+## The circle of a kid's face in `slot` (a dark empty circle when there is no kid) and the player's number on a team-coloured rounded square at
+## its bottom left (`badge_left`: the tagger's) or bottom right (the tagged one's).
+func _fill(slot: Control, side: Dictionary, badge_left: bool) -> void:
 	for old: Node in slot.get_children():
 		old.queue_free()
 		slot.remove_child(old)
@@ -188,9 +216,36 @@ func _fill(slot: Control, character: StringName) -> void:
 	box.anti_aliasing = true
 	ring.add_theme_stylebox_override("panel", box)
 	slot.add_child(ring)
-	if character == &"":
+	if side.is_empty():
 		return
-	var face: TextureRect = UiKit.avatar(String(character), AVATAR - 8.0)
+	var face: TextureRect = UiKit.avatar(String(side["character"]), AVATAR - 8.0)
 	face.name = "Face"
 	face.position = Vector2.ONE * 4.0
 	slot.add_child(face)
+	slot.add_child(_badge(side["number"] as int, side["color"] as Color, badge_left))
+
+
+## The number badge: white on a rounded square in the team's colour, outlined, over the circle's bottom corner.
+func _badge(number: int, color: Color, at_left: bool) -> Control:
+	var badge: Panel = Panel.new()
+	badge.name = "Badge"
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.size = Vector2.ONE * BADGE
+	badge.position = Vector2((-BADGE_OUT) if at_left else (AVATAR - BADGE + BADGE_OUT), AVATAR - BADGE + BADGE_OUT)
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = color
+	box.border_color = Icons.OUTLINE
+	box.set_border_width_all(3)
+	box.set_corner_radius_all(UiSkin.RADIUS_S)
+	box.anti_aliasing = true
+	badge.add_theme_stylebox_override("panel", box)
+	var label: Label = Label.new()
+	label.name = "Number"
+	label.text = str(number)
+	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	UiKit.letter(label, BADGE_FONT, Color.WHITE)
+	badge.add_child(label)
+	return badge
