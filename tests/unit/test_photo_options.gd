@@ -1,5 +1,6 @@
 extends GutTest
-## The nametag's three ways to a photo (owner, 2026-11-03): pick from the gallery, take one with the camera, pick one of the six avatars.
+## The nametag's photo grid (owner, 2026-11-03): two rows of four tiles; 1 takes a photo with the camera, 2 picks one from the gallery, 3 to 8
+## are the six avatars (3 is the default, and Remove photo goes back to it).
 
 const DIR: String = "res://tests/fixtures/photos/"
 ## orientation -> [width, height, then the colour at the top left, top right, bottom left and bottom right of the picture a viewer shows]
@@ -95,12 +96,14 @@ func test_damaged_exif_never_breaks_a_picture() -> void:
 	assert_eq(IdPhotoPicker.exif_orientation(PackedByteArray([0xFF, 0xD8])), 1)
 
 
-func test_the_gallery_is_offered_only_where_the_phone_has_a_picker() -> void:
+func test_the_gallery_tile_is_greyed_out_where_the_phone_has_no_picker() -> void:
 	for has: bool in [true, false]:
 		IdPhotoPicker.available_override = has
 		var card: MenuDialog = ProfileSheet.build(Callable(), Callable(), Callable(), func() -> void: pass, func() -> void: pass)
 		card.open(_host)
-		assert_eq(card.find_child("Gallery", true, false) != null, has, "gallery button when the picker is there: %s" % has)
+		var gallery: Button = card.find_child("Gallery", true, false) as Button
+		assert_not_null(gallery, "tile 2 is always there so the avatars keep their places")
+		assert_eq(gallery.disabled, not has, "gallery works when the picker is there: %s" % has)
 	assert_eq(IdPhotoPicker.FILTERS, PackedStringArray(["image/*"]), "pictures only")
 
 
@@ -109,59 +112,129 @@ func test_the_gallery_is_offered_only_where_the_phone_has_a_picker() -> void:
 func test_the_six_kids_have_their_avatar_picture_and_it_is_cut_from_inside_the_white_mat() -> void:
 	assert_eq(Session.AVATARS.size(), 6)
 	for id: String in Session.AVATARS:
-		var photo: Image = AvatarPickerSheet.photo_of(id)
+		var photo: Image = AvatarPhotos.photo_of(id)
 		assert_not_null(photo, "%s has a picture" % id)
-		assert_eq(photo.get_width(), 512 - AvatarPickerSheet.INSET * 2)
+		assert_eq(photo.get_width(), 512 - AvatarPhotos.INSET * 2)
 		assert_eq(photo.get_width(), photo.get_height(), "a square")
 		for corner: Vector2i in [Vector2i(0, 0), Vector2i(photo.get_width() - 1, 0), Vector2i(0, photo.get_height() - 1), Vector2i(photo.get_width() - 1, photo.get_height() - 1)]:
 			var c: Color = photo.get_pixel(corner.x, corner.y)
 			assert_lt(minf(c.r, minf(c.g, c.b)), 0.9, "%s: no white mat left at %s" % [id, corner])
 
 
-func test_the_avatar_picker_shows_six_pictures_in_three_columns_and_a_tap_keeps_one() -> void:
-	var saved: Array[bool] = [false]
-	var card: MenuDialog = AvatarPickerSheet.build(func() -> void: saved[0] = true)
+# ---- the grid: two rows of four -------------------------------------------------------------
+
+func _open_sheet(calls: Array[String] = []) -> MenuDialog:
+	IdPhotoPicker.available_override = true
+	var card: MenuDialog = ProfileSheet.build(Callable(), func() -> void: calls.append("camera"), func() -> void: calls.append("removed"), func() -> void: calls.append("gallery"), func() -> void: calls.append("avatar"))
 	card.open(_host)
-	var grid: GridContainer = card.find_child("Avatars", true, false) as GridContainer
-	assert_eq(grid.columns, 3)
-	assert_eq(grid.get_child_count(), 6)
+	return card
+
+
+func test_the_grid_is_two_rows_of_four_camera_gallery_then_the_six_avatars() -> void:
+	var card: MenuDialog = _open_sheet()
+	var grid: GridContainer = card.find_child("PhotoOptions", true, false) as GridContainer
+	assert_not_null(grid)
+	assert_eq(grid.columns, 4)
+	assert_eq(grid.get_child_count(), 8, "two rows of four")
+	var names: Array[String] = []
+	for tile: Node in grid.get_children():
+		names.append(tile.name)
+		assert_gte(minf((tile as Button).custom_minimum_size.x, (tile as Button).custom_minimum_size.y), UiMetrics.MIN_TARGET, "thumb-sized")
+	var want: Array[String] = ["Camera", "Gallery"]
+	for id: String in Session.AVATARS:
+		want.append(id.capitalize())
+	assert_eq(names, want)
+
+
+func test_the_default_avatar_is_tile_3_and_the_tag_wears_it_with_no_photo() -> void:
+	var card: MenuDialog = _open_sheet()
+	var grid: GridContainer = card.find_child("PhotoOptions", true, false) as GridContainer
+	assert_eq(grid.get_child(2).name, Session.AVATARS[0].capitalize(), "tile 3 is the first avatar")
 	assert_false(IdPhoto.exists())
-	(grid.get_child(2) as Button).pressed.emit()
-	assert_true(saved[0], "the sheet says it saved")
+	assert_eq(AvatarPhotos.current(), Session.AVATARS[0])
+	for i: int in grid.get_child_count():
+		if i >= 2:
+			assert_eq(grid.get_child(i).get_node("Ring").visible, i == 2, "only tile 3 is ringed")
+	var tag: NameTag = card.find_child("Preview", true, false) as NameTag
+	assert_true(tag.photo.visible, "the tag shows a picture, not the empty placeholder")
+	assert_false(tag.add_photo.visible)
+	assert_eq(card.find_child("RemovePhoto", true, false).visible, false, "nothing to remove")
+
+
+func test_tapping_an_avatar_keeps_it_rings_it_and_leaves_the_sheet_open() -> void:
+	var calls: Array[String] = []
+	var card: MenuDialog = _open_sheet(calls)
+	var grid: GridContainer = card.find_child("PhotoOptions", true, false) as GridContainer
+	(grid.get_child(4) as Button).pressed.emit()  # tile 5
 	assert_true(IdPhoto.exists(), "the avatar is now the ID photo")
 	var kept: Image = IdPhoto.texture().get_image()
 	assert_eq([kept.get_width(), kept.get_height()], [IdPhoto.SIZE, IdPhoto.SIZE])
-	for pick: Node in grid.get_children():
-		assert_gte(minf((pick as Button).custom_minimum_size.x, (pick as Button).custom_minimum_size.y), UiMetrics.MIN_TARGET, "thumb-sized")
+	assert_eq(AvatarPhotos.current(), Session.AVATARS[2])
+	for i: int in range(2, 8):
+		assert_eq(grid.get_child(i).get_node("Ring").visible, i == 4, "tile %d" % (i + 1))
+	assert_true(card.is_open, "the sheet stays so the name can still be typed")
+	assert_eq(calls, ["avatar"] as Array[String])
+	assert_true(card.find_child("RemovePhoto", true, false).visible, "a kept photo can be removed")
 
 
-# ---- the nametag's row of three -----------------------------------------------------------
-
-func test_the_nametag_has_a_row_of_options_and_each_hands_over() -> void:
+func test_remove_photo_goes_back_to_tile_3() -> void:
 	var calls: Array[String] = []
-	IdPhotoPicker.available_override = true
-	var card: MenuDialog = ProfileSheet.build(Callable(), func() -> void: calls.append("camera"), Callable(), func() -> void: calls.append("gallery"), func() -> void: calls.append("avatar"))
-	card.open(_host)
-	var row: HBoxContainer = card.find_child("PhotoOptions", true, false) as HBoxContainer
-	assert_not_null(row, "the three ways sit in a row under the tag")
-	var names: Array[String] = []
-	for option: Node in row.get_children():
-		names.append(option.name)
-		assert_gte((option as Button).custom_minimum_size.y, UiMetrics.MIN_TARGET)
-	var want: Array[String] = []
-	if IdPhotoPicker.available():
-		want.append("Gallery")
-	if IdPhoto.camera_possible():
-		want.append("Camera")
-	want.append("Avatar")
-	assert_eq(names, want, "gallery, camera, avatar (a way this phone lacks is not there)")
-	for option: Node in row.get_children():
-		(option as Button).pressed.emit()
-	for way: String in want:
-		assert_true(calls.has(way.to_lower()), "%s hands over" % way)
+	var card: MenuDialog = _open_sheet(calls)
+	var grid: GridContainer = card.find_child("PhotoOptions", true, false) as GridContainer
+	(grid.get_child(6) as Button).pressed.emit()  # tile 7
+	assert_eq(AvatarPhotos.current(), Session.AVATARS[4])
+	(card.find_child("RemovePhoto", true, false) as Button).pressed.emit()
+	assert_false(IdPhoto.exists())
+	assert_eq(AvatarPhotos.current(), Session.AVATARS[0])
+	assert_true(grid.get_child(2).get_node("Ring").visible, "tile 3 is ringed again")
+	assert_false(grid.get_child(6).get_node("Ring").visible)
+	assert_eq(calls, ["avatar", "removed"] as Array[String])
 
 
-func test_without_callbacks_the_sheet_has_no_row() -> void:
+func test_a_photo_of_your_own_rings_no_tile() -> void:
+	var face: Image = Image.create(64, 64, false, Image.FORMAT_RGB8)
+	face.fill(Color.ORANGE)
+	IdPhoto.save(face)
+	assert_eq(AvatarPhotos.current(), "")
+	var card: MenuDialog = _open_sheet()
+	var grid: GridContainer = card.find_child("PhotoOptions", true, false) as GridContainer
+	for i: int in range(2, 8):
+		assert_false(grid.get_child(i).get_node("Ring").visible)
+
+
+func test_camera_and_gallery_tiles_close_the_sheet_and_hand_over() -> void:
+	var calls: Array[String] = []
+	var card: MenuDialog = _open_sheet(calls)
+	var grid: GridContainer = card.find_child("PhotoOptions", true, false) as GridContainer
+	var camera: Button = grid.get_child(0) as Button
+	var gallery: Button = grid.get_child(1) as Button
+	assert_eq(camera.name, "Camera")
+	assert_eq(gallery.name, "Gallery")
+	if not camera.disabled:
+		camera.pressed.emit()
+	gallery.pressed.emit()
+	assert_true(calls.has("gallery"))
+	assert_eq(calls.has("camera"), IdPhoto.camera_possible())
+
+
+func test_without_callbacks_the_sheet_has_no_grid() -> void:
 	var card: MenuDialog = ProfileSheet.build(Callable())
 	card.open(_host)
 	assert_null(card.find_child("PhotoOptions", true, false))
+
+
+# ---- the name field says it can be tapped -----------------------------------------------------
+
+func test_the_idle_name_field_has_a_grey_outline_and_a_light_tint_and_focus_turns_blue() -> void:
+	var card: MenuDialog = ProfileSheet.build(Callable())
+	card.open(_host)
+	var field: LineEdit = card.find_child("NameField", true, false) as LineEdit
+	var idle: StyleBoxFlat = field.get_theme_stylebox("normal") as StyleBoxFlat
+	assert_gt(idle.border_color.a, 0.0, "a visible outline")
+	assert_almost_eq(idle.border_color.r, idle.border_color.g, 0.25, "grey, not a colour")
+	assert_gt(idle.bg_color.a, 0.0, "a tint")
+	assert_lt(idle.bg_color.a, 0.3, "a light one")
+	assert_gt(idle.border_width_left, 0)
+	var focused: StyleBoxFlat = field.get_theme_stylebox("focus") as StyleBoxFlat
+	assert_eq(focused.border_color, KalyeahTheme.BLUE, "active: blue")
+	assert_eq(focused.bg_color.a, 0.0, "active: no tint")
