@@ -142,13 +142,14 @@ func test_android_back_starts_the_match_instead_of_opening_the_menu() -> void:
 	assert_false(practice.hud.briefing.running)
 
 
-func test_it_is_text_only_with_a_blurred_dimmed_backdrop_and_a_tap_line() -> void:
+func test_it_is_text_only_with_a_dimmed_unblurred_backdrop_a_smaller_block_and_a_tap_line() -> void:
 	var practice: PracticeMatch = _match(&"street")
 	var briefing: MatchBriefing = practice.hud.briefing
 	assert_eq(briefing.find_children("*", "BaseButton", true, false).size(), 0, "no buttons: a tap anywhere continues")
 	var backdrop: ColorRect = briefing.find_child("Backdrop", true, false) as ColorRect
-	assert_true((backdrop.material as ShaderMaterial).shader.code.contains("textureLod"), "the match behind is blurred")
-	assert_true((backdrop.material as ShaderMaterial).shader.code.contains("dim"), "and dimmed")
+	assert_null(backdrop.material, "the match behind is not blurred")
+	assert_gt(backdrop.color.a, 0.5, "only dimmed")
+	assert_eq((briefing.find_child("Column", true, false) as Control).scale, Vector2.ONE * 0.8, "the block is drawn at 0.8 of its size")
 	assert_eq(briefing.continue_label.text, "Tap to continue")
 	assert_eq(briefing.mouse_filter, Control.MOUSE_FILTER_STOP)
 	var texts: Array[String] = _texts(briefing)
@@ -167,6 +168,7 @@ func test_online_matches_never_open_it() -> void:
 func test_the_first_run_walkthrough_is_gone() -> void:
 	assert_false(ResourceLoader.exists("res://scripts/ui/hud/coach_marks.gd"))
 	assert_false(ResourceLoader.exists("res://shaders/coach_spot.gdshader"))
+	assert_false(ResourceLoader.exists("res://shaders/briefing_blur.gdshader"), "and no blur shader either")
 	assert_false("coach_seen" in Session)
 
 

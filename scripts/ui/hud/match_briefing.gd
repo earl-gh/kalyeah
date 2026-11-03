@@ -1,13 +1,15 @@
 class_name MatchBriefing
 extends Control
-## What a Practice match opens with (owner, 2026-11-03): the match behind it dimmed and blurred, and over it only text, centred: the
+## What a Practice match opens with (owner, 2026-11-03): the match behind it dimmed, and over it only text, centred: the
 ## game's name, one line on how to score, then what to do to move and to act, a ten second countdown in a circle and "Tap to continue".
 ## The match stands still while it shows; the countdown ends it by itself and a tap ends it sooner. It replaces the first-run walkthrough:
 ## it opens before every Practice match against bots, in every game. Online matches never open it (the server does not wait).
 
 signal finished
 
-const BLUR: Shader = preload("res://shaders/briefing_blur.gdshader")
+## The match behind it is only dimmed (no blur), and the words are drawn at this share of their size.
+const DIM: Color = Color(0.01, 0.03, 0.08, 0.7)
+const CONTENT_SCALE: float = 0.8
 const GOLD: Color = Color("ffc233")
 const LABEL_BLUE: Color = Color("8cc4ff")
 const WIDTH: float = 640.0
@@ -64,20 +66,21 @@ func _init(hud: MatchHud = null) -> void:
 	backdrop.name = "Backdrop"
 	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var material: ShaderMaterial = ShaderMaterial.new()
-	material.shader = BLUR
-	backdrop.material = material
+	backdrop.color = DIM
 	add_child(backdrop)
-	var center: CenterContainer = CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(center)
 	var column: VBoxContainer = VBoxContainer.new()
 	column.name = "Column"
 	column.custom_minimum_size = Vector2(WIDTH, 0.0)
 	column.add_theme_constant_override("separation", 44)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	center.add_child(column)
+	# centred by anchors, not by a container (a container resets its child's scale), and drawn smaller about its middle: the layout, and so
+	# the type scale the lint holds, stay as they are
+	add_child(column)
+	column.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
+	column.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	column.grow_vertical = Control.GROW_DIRECTION_BOTH
+	column.scale = Vector2.ONE * CONTENT_SCALE
+	column.resized.connect(func() -> void: column.pivot_offset = column.size / 2.0)
 	title_label = Label.new()
 	title_label.name = "Title"
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
