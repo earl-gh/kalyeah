@@ -512,6 +512,16 @@ func fog_distance() -> float:
 	return BARRIER_SETBACK + tallest * scenery() * sin(deg_to_rad(BOUNDARY_TILT)) + FOG_MARGIN
 
 
+## How far past the end line (on the screen, m) the top of the tallest boundary picture reaches at the far end: its foot's setback plus its height
+## times (sin + cos of the lean) for a picture leaning back as it does, plus `FOG_MARGIN`: where the far end's fog starts, just above the pictures.
+func fog_far_start() -> float:
+	var tallest: float = 0.0
+	for entry: Dictionary in BOUNDARY_PICTURES:
+		tallest = maxf(tallest, entry["height"] as float)
+	var lean: float = deg_to_rad(BOUNDARY_TILT)
+	return BARRIER_SETBACK + tallest * scenery() * (sin(lean) + cos(lean)) + FOG_MARGIN
+
+
 ## The share of the floor picture's width the play area shows (1 when the play area is as wide as the picture).
 func cement_share() -> float:
 	return minf(float(layout.tiles.x) / CEMENT_PICTURE_TILES, 1.0)

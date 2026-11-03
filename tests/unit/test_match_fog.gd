@@ -75,17 +75,45 @@ func test_the_fog_never_takes_a_touch_and_casts_no_shadow() -> void:
 		assert_eq(wall.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 
 
-func test_the_near_walls_fog_ends_at_the_play_areas_end_line_and_the_far_walls_starts_above_the_pictures() -> void:
+func test_the_fog_is_built_by_how_far_it_looks_past_the_end_line_on_the_screen() -> void:
+	var code: String = MatchFog.SHADER.code
+	assert_true(code.contains("beyond"), "one measure for both ends")
+	assert_true(code.contains("is_ground"), "a strip of ground at the near end")
+	assert_true(code.contains("smoothstep(0.0, near_ramp, beyond)"), "the near end's fog starts at the end line and never rises into the play area")
+
+
+func test_the_near_ends_fog_is_full_before_the_tray_and_the_far_ends_starts_above_the_pictures() -> void:
+	var saved: Vector2i = get_window().size
+	get_window().size = Vector2i(720, 1600)
+	await wait_process_frames(2)
+	var practice: PracticeMatch = _match()
+	await wait_process_frames(2)
+	var camera: Camera3D = practice._camera
+	var half: float = practice.layout.lane_length / 2.0
+	var line_y: float = camera.unproject_position(Vector3(0.0, 0.0, half)).y
+	var tray_y: float = practice.hud.size.y - practice.hud.console_height()
+	# how far past the end line (metres of ground) the tray's top edge is on the screen
+	var metres_per_pixel: float = 1.0 / (camera.unproject_position(Vector3(0.0, 0.0, half + 1.0)).y - line_y)
+	var to_tray: float = (tray_y - line_y) * metres_per_pixel
+	assert_gt(to_tray, 3.0, "there is ground to see between the end line and the tray")
+	var ramp: RegExMatch = RegEx.create_from_string("uniform float near_ramp[^=]*=\\s*([0-9.]+)").search(MatchFog.SHADER.code)
+	assert_lt(ramp.get_string(1).to_float(), to_tray, "the fog is already full where the tray starts: it fills the space between the boundary and the tray")
+	var far_start: float = practice._map.fog_far_start()
+	var far_y: float = camera.unproject_position(Vector3(0.0, 0.0, -half - far_start)).y
+	var top_picture_y: float = camera.unproject_position(Vector3(0.0, 0.0, -half - 0.15)).y
+	assert_lt(far_y, top_picture_y, "the far end's fog starts above the boundary pictures' foot")
+	assert_gt(far_y, 0.0, "and on the screen")
+	get_window().size = saved
+
+
+func test_each_end_has_a_wall_and_a_strip_of_ground() -> void:
 	var practice: PracticeMatch = _match()
 	var fog: MatchFog = practice.get_node("Fog") as MatchFog
-	var past: float = practice._map.fog_distance()
-	for wall: MeshInstance3D in fog.walls:
-		var material: ShaderMaterial = (wall.mesh as QuadMesh).material as ShaderMaterial
-		assert_almost_eq(material.get_shader_parameter("near_reach") as float, past, 0.001, "as high as the wall is far from the end line: the fog stops at the end line on the screen, outside the play area")
-		assert_lt(material.get_shader_parameter("near_peak") as float, past, "thickest before it ends")
-	var code: String = MatchFog.SHADER.code
-	var start: RegExMatch = RegEx.create_from_string("uniform float far_start[^=]*=\\s*([0-9.]+)").search(code)
-	assert_gte(start.get_string(1).to_float(), 2.0, "clear up to about the boundary pictures' height")
+	assert_eq(fog.grounds.size(), 2)
+	var distance: float = practice._map.fog_distance()
+	for strip: MeshInstance3D in fog.grounds:
+		assert_gt(absf(strip.position.z), practice.layout.lane_length / 2.0 + distance, "the ground strip is beyond the wall")
+		assert_lt(strip.position.y, 0.1, "on the ground")
 
 
 func test_no_boundary_picture_pokes_through_the_fog_wall() -> void:
