@@ -129,7 +129,9 @@ func test_the_countdown_is_a_flat_mark_on_the_ground_not_a_screen_overlay() -> v
 		assert_almost_eq(label.global_position.z, middle.y, 0.001)
 		assert_between(label.global_position.y, StreetMap.RING_HEIGHT, 0.1, "lying just above the tint and the outline")
 		assert_true(label.global_transform.basis.orthonormalized().z.is_equal_approx(Vector3.UP), "flat on the street, facing up")
-		assert_true(label.global_transform.basis.orthonormalized().y.is_equal_approx(Vector3.FORWARD), "its top toward the top of the screen (-Z, the camera's view)")
+		# owner, 2026-11-03: the left area's number is turned +90 degrees (top toward the screen's left, -X), the right one's -90 (top toward +X)
+		var top: Vector3 = Vector3.LEFT if side == MapLayout.SIDE_OWN else Vector3.RIGHT
+		assert_true(label.global_transform.basis.orthonormalized().y.is_equal_approx(top), "side %d: quarter turn as the screen shows it" % side)
 		assert_false(label.shaded, "unshaded like the other zone marks")
 		assert_false(label.no_depth_test, "depth tested: a kid standing on it covers it")
 		assert_eq(label.alpha_cut, Label3D.ALPHA_CUT_DISABLED, "blended, not cut")
@@ -168,9 +170,12 @@ func test_the_flipped_view_turns_the_number_so_it_is_still_upright() -> void:
 	var sim: MatchSim = _sim()
 	var map: StreetMap = _map(MapLayout.SIDE_ENEMY)
 	map.sync_rescue(sim)
-	var label: Label3D = map.rescue_count(MapLayout.SIDE_OWN)
+	var label: Label3D = map.rescue_count(MapLayout.SIDE_ENEMY)
 	assert_true(label.global_transform.basis.orthonormalized().z.is_equal_approx(Vector3.UP), "still lying flat")
-	assert_true(label.global_transform.basis.orthonormalized().y.is_equal_approx(Vector3.BACK), "its top toward the top of the screen (+Z when the camera is turned round)")
+	# the camera is turned round: world +X is the screen's left, and this view's own side (the enemy end) is the screen's left (+90 degrees: top toward the screen's left)
+	assert_true(label.global_transform.basis.orthonormalized().y.is_equal_approx(Vector3.RIGHT), "its top toward the screen's left (+X when the camera is turned round)")
+	var other: Label3D = map.rescue_count(MapLayout.SIDE_OWN)
+	assert_true(other.global_transform.basis.orthonormalized().y.is_equal_approx(Vector3.LEFT), "the screen's right area turns the other way")
 
 
 func test_the_number_is_hidden_while_a_point_is_shown() -> void:

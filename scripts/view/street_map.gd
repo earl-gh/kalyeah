@@ -52,6 +52,8 @@ const RESCUE_OUTLINE_PRIORITY: int = -99
 ## The camera looks down at this angle (`CameraRules.pitch_degrees`), which squeezes a flat mark's height by its sine: the number is stretched
 ## by the inverse so its digits look as tall as they are wide.
 const COUNT_PITCH_DEGREES: float = 45.0
+## A rescue number's quarter turn (see `_turn_count`).
+const COUNT_SPIN: float = PI / 2.0
 ## Bases and rescue areas are rounded rectangles on the street, each a chalk outline in a fixed team colour (blue yours, red theirs: owner).
 const RESCUE_CORNER_RADIUS: float = 0.9
 const ZONE_CORNER_STEPS: int = 6
@@ -266,8 +268,7 @@ static func _light_scene(parent: Node, sun: DirectionalLight3D) -> void:
 func set_own_side(own_side: int) -> void:
 	_turn_posts(own_side)
 	for side: int in _counts:
-		# upright for the viewer: the camera is turned half way round for the team that defends the -Z base
-		_counts[side].rotation = Vector3(-PI / 2.0, PI if own_side == MapLayout.SIDE_ENEMY else 0.0, 0.0)
+		_turn_count(_counts[side], side, own_side)
 	_show_top_boundary(own_side)
 	_rescue_ready.clear()
 	for side: int in _base_materials:
@@ -410,6 +411,7 @@ func _build_map() -> void:
 		var rescue: ShaderMaterial = _add_marked_zone(layout.rescue_rect(side), RESCUE_CORNER_RADIUS, color, 3.0 + float(side), true)
 		_base_materials[side] = [base, rescue]
 		_counts[side] = _add_count(layout.rescue_rect(side).get_center())
+		_turn_count(_counts[side], side, MapLayout.SIDE_OWN)
 		_side_tint[side] = color
 	for index: int in range(first_mark, _geometry.get_child_count()):
 		var mark: Node3D = _geometry.get_child(index) as Node3D
@@ -575,6 +577,16 @@ func _add_marked_zone(rect: Rect2, corner: float, color: Color, seed: float, res
 	return material
 
 
+## Lays a rescue area's number on its side for the viewer (owner, 2026-11-03): the area on the screen's left (the viewer's own side) reads
+## turned a quarter turn counter-clockwise (+90 degrees, bottom to top), the one on the right a quarter turn clockwise (-90 degrees, top to
+## bottom). The yaw half-turns the label for the team whose camera is turned round, so the spin is always as the screen shows it. The
+## pitch squeeze lands on the label's width now (its width runs up the screen), so the stretch is on x instead of y.
+func _turn_count(label: Label3D, side: int, own_side: int) -> void:
+	var spin: float = COUNT_SPIN if side == own_side else -COUNT_SPIN
+	label.rotation = Vector3(-PI / 2.0, PI if own_side == MapLayout.SIDE_ENEMY else 0.0, spin)
+	label.scale = Vector3(1.0 / sin(deg_to_rad(COUNT_PITCH_DEGREES)), 1.0, 1.0)
+
+
 ## The seconds number of a rescue area: a Label3D lying flat on the ground at `middle` (x, z), white and half see-through, unshaded, drawn
 ## in the see-through order described at `RESCUE_COUNT_PRIORITY`. Hidden until the sim says the area is counting.
 func _add_count(middle: Vector2) -> Label3D:
@@ -591,8 +603,6 @@ func _add_count(middle: Vector2) -> Label3D:
 	label.render_priority = RESCUE_COUNT_PRIORITY
 	label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	label.position = Vector3(middle.x, RESCUE_COUNT_LIFT, middle.y)
-	label.rotation = Vector3(-PI / 2.0, 0.0, 0.0)
-	label.scale = Vector3(1.0, 1.0 / sin(deg_to_rad(COUNT_PITCH_DEGREES)), 1.0)
 	label.visible = false
 	_geometry.add_child(label)
 	return label
