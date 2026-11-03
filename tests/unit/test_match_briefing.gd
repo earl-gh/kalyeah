@@ -171,27 +171,6 @@ func test_the_briefing_draws_over_tumbang_presos_points_column() -> void:
 	assert_gt(hud.briefing.get_index(), hud.score_column.get_index(), "the column is blurred with the rest")
 
 
-func test_the_countdown_shares_the_title_row_the_block_is_centred_and_the_text_is_left_aligned() -> void:
-	var practice: PracticeMatch = _match(&"street")
-	var briefing: MatchBriefing = practice.hud.briefing
-	var column: Control = briefing.find_child("Column", true, false) as Control
-	var countdown: Control = briefing.find_child("Countdown", true, false) as Control
-	assert_eq(countdown.get_parent(), briefing.title_row, "the countdown and the title share a row")
-	assert_eq(briefing.title_label.get_parent(), briefing.title_row)
-	assert_lt(countdown.get_index(), briefing.title_label.get_index(), "with the countdown first")
-	assert_eq(column.get_child(0), briefing.head)
-	assert_eq(column.grow_horizontal, Control.GROW_DIRECTION_BOTH, "the block stays centred")
-	assert_almost_eq(column.anchor_left, 0.5, 0.001)
-	assert_almost_eq(column.anchor_top, 0.5, 0.001)
-	for label: Node in briefing.find_children("*", "Label", true, false):
-		assert_eq((label as Label).horizontal_alignment, HORIZONTAL_ALIGNMENT_LEFT, (label as Label).text)
-
-
-func test_the_countdown_circle_is_small_and_thin() -> void:
-	var practice: PracticeMatch = _match(&"street")
-	var circle: CountdownCircle = practice.hud.briefing.find_child("Countdown", true, false) as CountdownCircle
-	assert_lte(circle.custom_minimum_size.x, 110.0, "a small circle")
-	assert_lte(circle.ring, 4.0, "a thin outline")
 
 
 func test_the_headings_are_between_the_title_and_the_plain_text_in_size() -> void:
@@ -248,3 +227,57 @@ func test_there_is_no_tap_to_continue_and_nothing_stays_in_the_header() -> void:
 	briefing._process(10.5)
 	assert_false(briefing.running, "only the countdown ends it")
 	assert_true(practice.hud.controls_active())
+
+
+func test_the_title_is_left_and_the_countdown_is_a_plain_number_at_the_right_of_the_same_row() -> void:
+	var practice: PracticeMatch = _match(&"street")
+	var briefing: MatchBriefing = practice.hud.briefing
+	assert_eq(briefing.title_label.get_parent(), briefing.title_row)
+	assert_eq(briefing.countdown.get_parent(), briefing.title_row, "one row")
+	assert_lt(briefing.title_label.get_index(), briefing.countdown.get_index(), "the title first, the countdown last")
+	assert_eq(briefing.title_label.horizontal_alignment, HORIZONTAL_ALIGNMENT_LEFT)
+	assert_eq(briefing.countdown.horizontal_alignment, HORIZONTAL_ALIGNMENT_RIGHT, "at the right-most end")
+	assert_true((briefing.title_label.size_flags_horizontal & Control.SIZE_EXPAND) != 0, "the title takes the room, so the number is pushed right")
+	assert_eq(briefing.countdown.text, "10")
+	assert_eq(briefing.find_children("*", "CountdownCircle", true, false).size(), 0, "no circle")
+	briefing._process(2.2)
+	assert_eq(briefing.countdown.text, "8", "whole seconds counting down")
+
+
+func test_a_thin_white_line_between_the_title_row_and_the_details_empties_with_the_countdown() -> void:
+	var practice: PracticeMatch = _match(&"patintero")
+	var briefing: MatchBriefing = practice.hud.briefing
+	assert_eq(briefing.bar.get_parent(), briefing.head)
+	assert_eq(briefing.bar.get_index(), briefing.title_row.get_index() + 1, "right under row 1")
+	assert_lt(briefing.bar.get_index(), briefing.goal.get_index(), "and over the details")
+	var spacer: Control = briefing.head.get_child(briefing.bar.get_index() + 1) as Control
+	assert_gt(spacer.custom_minimum_size.y + briefing.head.get_theme_constant("separation"), 16.0, "room between the hairline and the description")
+	assert_eq(briefing.head.get_child(briefing.bar.get_index() + 2), briefing.goal)
+	assert_lte(briefing.bar.custom_minimum_size.y, 8.0, "thin")
+	assert_almost_eq(briefing.bar.share(), 1.0, 0.001)
+	briefing._process(5.0)
+	assert_almost_eq(briefing.bar.share(), 0.5, 0.001)
+
+
+func test_the_block_is_centred_and_every_text_is_left_aligned_except_the_countdown() -> void:
+	var practice: PracticeMatch = _match(&"street")
+	var briefing: MatchBriefing = practice.hud.briefing
+	var column: Control = briefing.find_child("Column", true, false) as Control
+	assert_eq(column.grow_horizontal, Control.GROW_DIRECTION_BOTH, "the block stays centred")
+	assert_almost_eq(column.anchor_left, 0.5, 0.001)
+	assert_almost_eq(column.anchor_top, 0.5, 0.001)
+	for label: Node in briefing.find_children("*", "Label", true, false):
+		if label != briefing.countdown:
+			assert_eq((label as Label).horizontal_alignment, HORIZONTAL_ALIGNMENT_LEFT, (label as Label).text)
+
+
+func test_the_headings_are_the_titles_colour_not_blue() -> void:
+	var practice: PracticeMatch = _match(&"street")
+	var briefing: MatchBriefing = practice.hud.briefing
+	var title_colour: Color = briefing.title_label.get_theme_color("font_color")
+	var found: int = 0
+	for label: Node in briefing.find_children("*", "Label", true, false):
+		if (label as Label).text in ["MOVE", "ATTACK"]:
+			found += 1
+			assert_eq((label as Label).get_theme_color("font_color"), title_colour, (label as Label).text)
+	assert_eq(found, 2)

@@ -1,7 +1,7 @@
 class_name MatchBriefing
 extends Control
-## What a Practice match opens with (owner, 2026-11-03): the match behind it dimmed, and over it only text: a ten second countdown in a small
-## white circle with the game's name beside it, how to score, then what to do to move and to act. The block is centred on the screen and its
+## What a Practice match opens with (owner, 2026-11-03): the match behind it dimmed, and over it only text: the game's name with a ten second
+## countdown (the number alone) at the right of the same row, a thin white line that empties with it, how to score, then what to do to move and to act. The block is centred on the screen and its
 ## text is left-aligned. The match stands still while it shows and starts when the countdown ends: there is nothing to tap, no skip (the
 ## overlay only keeps touches off the match). It replaces the first-run walkthrough: it opens before every Practice match against bots,
 ## in every game. Online matches never open it (the server does not wait).
@@ -12,17 +12,16 @@ signal finished
 const DIM: Color = Color(0.01, 0.03, 0.08, 0.7)
 const CONTENT_SCALE: float = 0.8
 const GOLD: Color = Color("ffc233")
-const LABEL_BLUE: Color = Color("8cc4ff")
 const WIDTH: float = 640.0
 const TITLE_SIZE: int = UiMetrics.DISPLAY
 const GOAL_SIZE: int = UiMetrics.TITLE
 ## The small headings (Move, Attack, Runners...): between the title and the plain text.
 const LABEL_SIZE: int = UiMetrics.HEADLINE
 const LINE_SIZE: int = UiMetrics.TITLE
-const CLOCK_SIZE: float = 104.0
-const CLOCK_RING: float = 4.0
 ## The title and its description stand close together.
-const HEAD_GAP: int = 6
+const HEAD_GAP: int = 10
+## More room under the hairline than over it, so the details do not crowd it.
+const BAR_GAP: int = 22
 
 var running: bool = false
 var seconds_left: float = 0.0
@@ -35,7 +34,8 @@ var title_row: HBoxContainer
 
 var _hud: MatchHud
 var _total: float = 10.0
-var _clock: CountdownCircle
+var countdown: Label
+var bar: CountdownBar
 
 
 ## The words for a game (null = Agawang Base): its name, how to score as (heading, line) blocks (no heading: one plain line), and
@@ -97,9 +97,6 @@ func _init(hud: MatchHud = null) -> void:
 	title_row.add_theme_constant_override("separation", UiMetrics.GAP)
 	title_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.add_child(title_row)
-	_clock = CountdownCircle.new(CLOCK_SIZE, CLOCK_RING, UiMetrics.HEADLINE)
-	_clock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	title_row.add_child(_clock)
 	title_label = Label.new()
 	title_label.name = "Title"
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -108,6 +105,20 @@ func _init(hud: MatchHud = null) -> void:
 	title_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	UiKit.letter(title_label, TITLE_SIZE, GOLD)
 	title_row.add_child(title_label)
+	countdown = Label.new()
+	countdown.name = "Countdown"
+	countdown.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	countdown.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	UiKit.letter(countdown, UiMetrics.DISPLAY, Color.WHITE)
+	title_row.add_child(countdown)
+	# the thin line between the title row and the details
+	bar = CountdownBar.new()
+	head.add_child(bar)
+	var under_bar: Control = Control.new()
+	under_bar.name = "UnderBar"
+	under_bar.custom_minimum_size = Vector2(0.0, BAR_GAP - HEAD_GAP)
+	under_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_child(under_bar)
 	goal = VBoxContainer.new()
 	goal.name = "Goal"
 	goal.add_theme_constant_override("separation", 14)
@@ -137,7 +148,7 @@ func start(game: StreetModeRules, seconds: float) -> void:
 	visible = true
 	if _hud != null:
 		_hud.set_controls_active(false)
-	_clock.set_left(seconds_left, _total)
+	_show_left()
 
 
 ## A label in small capitals over the line it explains, both left-aligned.
@@ -151,7 +162,7 @@ func _row(label_text: String, line_text: String) -> VBoxContainer:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
 	label.add_theme_font_size_override("font_size", LABEL_SIZE)
-	label.add_theme_color_override("font_color", LABEL_BLUE)
+	label.add_theme_color_override("font_color", GOLD)
 	row.add_child(label)
 	var line: Label = UiKit.text(line_text, GOAL_SIZE if label_text.is_empty() else LINE_SIZE, KalyeahTheme.TEXT)
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -163,7 +174,7 @@ func _process(delta: float) -> void:
 	if not running:
 		return
 	seconds_left = maxf(seconds_left - delta, 0.0)
-	_clock.set_left(seconds_left, _total)
+	_show_left()
 	if seconds_left <= 0.0:
 		finish()
 
@@ -180,4 +191,9 @@ func finish() -> void:
 
 ## The countdown's number: whole seconds, counting down to 1.
 func shown_seconds() -> int:
-	return _clock.shown_seconds()
+	return ceili(seconds_left)
+
+
+func _show_left() -> void:
+	countdown.text = str(shown_seconds())
+	bar.set_left(seconds_left, _total)
