@@ -8,7 +8,7 @@ description: Route Kalyeah tasks to one responsible specialist and the smallest 
 Project-scoped adaptation of awesome-gamedev-agent-skills' router; provenance is in `../sources.lock.json`.
 
 Read `CLAUDE.md`, `docs/PROJECT.md`, `docs/GDD.md` and `docs/ROADMAP.md` first.
-This is Agawan Base in Godot 4.6.2: Android portrait, code-free Hotspot discovery,
+This is Agawang Base in Godot 4.6.2: Android portrait, code-free Hotspot discovery,
 Online rooms with eight-character codes, and Practice. Existing manifests win over
 upstream new-project engine baselines.
 

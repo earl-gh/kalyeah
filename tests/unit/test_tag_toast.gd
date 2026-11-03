@@ -18,14 +18,14 @@ func before_each() -> void:
 	Settings.reduced_motion = false
 	_kind = Session.practice_kind
 	_game = Session.practice_game
-	_coach = Session.coach_pending
+	_coach = Session.briefing_pending
 
 
 func after_each() -> void:
 	Settings.reduced_motion = _reduced
 	Session.practice_kind = _kind  # (a test that starts a match leaves nothing behind for the next test file)
 	Session.practice_game = _game
-	Session.coach_pending = _coach
+	Session.briefing_pending = _coach
 
 
 ## What the toast is told about a player.

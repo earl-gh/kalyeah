@@ -73,7 +73,7 @@ func _init(server: GameServer, p_room: RoomService.Room, rules: GameRules, layou
 
 
 ## Fills the places the host left empty with bots (`RoomService.bot_teams`), added after the people so each team's order is theirs first.
-## They play as in Practice: a TeamCoach for each team of Agawan Base, one StreetModeCoach for a street game (no cards there).
+## They play as in Practice: a TeamCoach for each team of Agawang Base, one StreetModeCoach for a street game (no cards there).
 func _add_bots(mode: StreetMode) -> void:
 	var coaches: Dictionary[int, TeamCoach] = {}
 	if mode != null:

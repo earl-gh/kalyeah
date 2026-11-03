@@ -1,6 +1,6 @@
 extends GutTest
 ## Tumbang Preso (owner, 2026-11-01): every kid's slipper has its own colour, lying on the street and in the air, the same on every phone
-## (given by the kid's place among the players). Agawan Base's tsinelas skill keeps its own look.
+## (given by the kid's place among the players). Agawang Base's tsinelas skill keeps its own look.
 
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const PRACTICE_TAYA: GDScript = preload("res://tests/fixtures/practice_taya.gd")

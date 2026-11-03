@@ -27,14 +27,14 @@ func before_each() -> void:
 	_saved_avatar = Session.avatar_id
 	_saved_url = Settings.server_url
 	_saved_vibration = Settings.vibration
-	_saved_coach_pending = Session.coach_pending
+	_saved_coach_pending = Session.briefing_pending
 	_saved_practice_kind = Session.practice_kind
 
 
 func after_each() -> void:
 	Session.player_name = _saved_name
 	Session.avatar_id = _saved_avatar
-	Session.coach_pending = _saved_coach_pending
+	Session.briefing_pending = _saved_coach_pending
 	Session.practice_kind = _saved_practice_kind
 	Session.save()
 	Settings.set_vibration(_saved_vibration)

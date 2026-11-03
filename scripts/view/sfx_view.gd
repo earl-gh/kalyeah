@@ -45,7 +45,7 @@ const EFFECT: Dictionary[int, Array] = {
 }
 
 ## How fast a sound plays (1 = as recorded; faster is higher and shorter). The can's hit is played higher so it reads as a small empty can,
-## both when the slipper or foot meets it in Tumbang Preso and when a kid is turned into one in Agawan Base.
+## both when the slipper or foot meets it in Tumbang Preso and when a kid is turned into one in Agawang Base.
 const EMPTY_CAN_PITCH: float = 1.5
 ## The sound audit (owner: "pitch them slightly to match the weapon or the action"). Each sound's own speed, for what its recording is not
 ## quite: the light scissors' snip is a touch higher and the big pair's (the same recording) lower, the marble's throw is light and quick, the

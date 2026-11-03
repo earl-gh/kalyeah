@@ -67,9 +67,9 @@ var _application_paused: bool = false
 var _presentation: PracticeMatchPresentation
 ## The bot teams of a Practice match vs bots (empty in training and online).
 var _coaches: Array[TeamCoach] = []
-## The bots of a street game (Tumbang Preso, Patintero), both teams; null in Agawan Base.
+## The bots of a street game (Tumbang Preso, Patintero), both teams; null in Agawang Base.
 var _mode_coach: StreetModeCoach
-## The street game's lines, can and slippers (empty in Agawan Base).
+## The street game's lines, can and slippers (empty in Agawang Base).
 var mode_view: StreetModeView
 var _hold_ticked: bool = false
 ## Tumbang Preso: where the held Throw button aims (radians, see `_angle_of`).
@@ -144,7 +144,7 @@ func _process(delta: float) -> void:
 
 ## A tap anywhere skips the opening show (offline: online the server runs it for everyone).
 func _input(event: InputEvent) -> void:
-	if online or sim == null or sim.phase != MatchSim.Phase.INTRO or is_picking():
+	if online or sim == null or sim.phase != MatchSim.Phase.INTRO or is_picking() or hud.briefing.visible:
 		return
 	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
 		skip_intro()
@@ -173,10 +173,10 @@ func _notification(what: int) -> void:
 		_step_once(0.0)
 
 
-## The phone's back button opens the match settings (Resume, Leave). The pick screen, the walkthrough and the settings take the
+## The phone's back button opens the match settings (Resume, Leave). The pick screen, the briefing and the settings take the
 ## press themselves; the results card has its own buttons. Deferred, so they still read as open here (see MenuDialog).
 func _back_pressed() -> void:
-	if is_picking() or hud.menu.visible or hud.coach.visible or sim.phase == MatchSim.Phase.MATCH_OVER:
+	if is_picking() or hud.menu.visible or hud.briefing.visible or sim.phase == MatchSim.Phase.MATCH_OVER:
 		return
 	hud.toggle_menu()
 
@@ -248,7 +248,7 @@ func card_cancelled(_slot: int) -> void:
 ## The base side the local team defends this set (+Z = own/bottom at the start).
 func own_side() -> int:
 	if sim.mode is Patintero:
-		# like Agawan Base the camera turns round so that your side is at the bottom: the runners run up from the base at the bottom; the
+		# like Agawang Base the camera turns round so that your side is at the bottom: the runners run up from the base at the bottom; the
 		# guards (whose runners come from the other end) see it from the far end
 		var me: PlayerState = sim.players.get(local_id) as PlayerState
 		return MapLayout.SIDE_OWN if me == null or sim.mode.is_attacker(me) else MapLayout.SIDE_ENEMY
@@ -343,10 +343,10 @@ func advance(delta: float) -> void:
 	_presentation.sync(delta)
 
 
-## Offline, the match stands still while the match menu or the first-run walkthrough is open (a match against the clock of bots
+## Offline, the match stands still while the match menu or the briefing is open (a match against the clock of bots
 ## does not wait for nobody online, so online play keeps running).
 func _held_still() -> bool:
-	return not online and (hud.menu.visible or hud.coach.visible)
+	return not online and (hud.menu.visible or hud.briefing.visible)
 
 
 # ---- setup ---------------------------------------------------------------------------

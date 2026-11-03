@@ -89,7 +89,7 @@ var intro_left: float = 0.0
 var match_time: float = 0.0
 ## How every point of the match was won, in order: (team that scored, CaptureKind).
 var point_log: Array[Vector2i] = []
-## A timed street game (Tumbang Preso, Patintero) in place of Agawan Base's rescues and captures; null for Agawan Base.
+## A timed street game (Tumbang Preso, Patintero) in place of Agawang Base's rescues and captures; null for Agawang Base.
 var mode: StreetMode = null
 
 var _inputs: Dictionary[int, PlayerInput] = {}
@@ -129,7 +129,7 @@ func set_first_to(count: int) -> void:
 		score = MatchScore.new(count)
 
 
-## Plays `p_mode` (Tumbang Preso or Patintero) instead of Agawan Base and puts everyone in their places. Call once all players are in.
+## Plays `p_mode` (Tumbang Preso or Patintero) instead of Agawang Base and puts everyone in their places. Call once all players are in.
 func start_mode(p_mode: StreetMode) -> void:
 	mode = p_mode
 	score.first_to = 0  # no points to win: a street game is played against the clock

@@ -1,7 +1,7 @@
 class_name SettingsPage
 extends VBoxContainer
 ## The Settings page: Accessibility, Controls, Audio, Language (when there is a second one) and Graphics, then quitting. Your name and ID photo are changed on the name tag
-## on Home (owner: no profile card here), and there is no How to play page (the walkthrough opens the first Practice by
+## on Home (owner: no profile card here), and there is no How to play page (the briefing opens every Practice by
 ## itself). There is no server address here: the online server is built into the game (the player only needs a room code).
 
 signal quit_pressed

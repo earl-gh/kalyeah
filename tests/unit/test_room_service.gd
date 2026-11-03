@@ -82,7 +82,7 @@ func test_agawan_base_starts_with_one_a_side_or_any_mix_but_never_with_an_empty_
 	var room: RoomService.Room = service.create_room(1, "A")
 	service.set_ready(1, true)
 	assert_false(service.can_start(room), "alone: the other team is empty")
-	assert_eq(service.start_blocker(room), "Agawan Base needs at least 1 player on each team.")
+	assert_eq(service.start_blocker(room), "Agawang Base needs at least 1 player on each team.")
 	service.join(room.code, 2, "B")
 	service.set_ready(2, true)
 	assert_true(service.can_start(room), "1 v 1")
@@ -227,7 +227,7 @@ func test_the_host_picks_the_map_from_the_list() -> void:
 	assert_false(service.set_map(1, &"nowhere"), "only a listed map")
 	assert_true(service.set_map(1, &"patintero"), "the street games play in rooms (owner, 2026-10-31)")
 	assert_true(service.set_map(1, &"tumbang_preso"))
-	assert_eq(RoomService.MAP_IDS.size(), 3, "Agawan Base, Tumbang Preso and Patintero")
+	assert_eq(RoomService.MAP_IDS.size(), 3, "Agawang Base, Tumbang Preso and Patintero")
 	assert_true(service.set_map(1, &"street"))
 	assert_eq(service.describe(room)["map"], &"street")
 

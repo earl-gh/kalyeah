@@ -1,5 +1,5 @@
 extends GutTest
-## Tumbang Preso and Patintero (docs/GDD.md "Tumbang Preso and Patintero"): timed street games on the Agawan Base street.
+## Tumbang Preso and Patintero (docs/GDD.md "Tumbang Preso and Patintero"): timed street games on the Agawang Base street.
 
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const TUMBANG: StreetModeRules = preload("res://data/rules/tumbang_preso.tres")
@@ -133,7 +133,7 @@ func test_holding_the_throw_button_grows_the_aim_line_and_letting_go_throws() ->
 	assert_eq(thrown, [1] as Array[int])
 	assert_false(game.is_aiming(1))
 	assert_false(game.has_slipper(1), "the slipper is in the air")
-	assert_eq(sim.weapons.projectiles[0].def.id, &"tsinelas_light", "tsinelas, drawn and animated like Agawan Base's")
+	assert_eq(sim.weapons.projectiles[0].def.id, &"tsinelas_light", "tsinelas, drawn and animated like Agawang Base's")
 
 
 func test_the_aim_sensitivity_is_low_when_the_line_is_short_and_high_at_full_length() -> void:

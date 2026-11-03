@@ -42,7 +42,7 @@ game(4, "Luksong Tinik", "Jump the thorns", 5, 12, "20 min", "Grass or soft grou
      ["Most clean jumps wins!", "Keep it low for the smallest jumper."],
      "Never play on hard pavement.")
 
-game(5, "Agawan Base", "The game in Kalyeah!", 6, 12, "30 min", "Street or yard",
+game(5, "Agawang Base", "The game in Kalyeah!", 6, 12, "30 min", "Street or yard",
      ["Chalk", "2 bases", "A small jail"],
      "Capture the other base, or tag everyone!",
      ["Mark 2 bases 15 steps apart.", "Make 2 teams of 3 to 6."],

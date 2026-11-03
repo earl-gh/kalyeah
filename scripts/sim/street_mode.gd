@@ -1,11 +1,11 @@
 class_name StreetMode
 extends RefCounted
-## A timed street game played on the Agawan Base street (docs/GDD.md "Tumbang Preso and Patintero"): Patintero (two teams, runners against
+## A timed street game played on the Agawang Base street (docs/GDD.md "Tumbang Preso and Patintero"): Patintero (two teams, runners against
 ## guards on their lines) and Tumbang Preso (every kid is a thrower except the one taya). After `match_seconds` the leader wins (a tie plays
 ## on to the next point). Plain sim class: MatchSim calls it each tick instead of the rescue and capture rules; it never touches nodes.
 ## There are no skills in these games: casting is off and nothing deals damage. The subclasses fill in the hooks.
 
-## The data of each street game, by RoomService.MAP_IDS id (Agawan Base, `street`, has none: it is the base game).
+## The data of each street game, by RoomService.MAP_IDS id (Agawang Base, `street`, has none: it is the base game).
 const RULES_PATHS: Dictionary[StringName, String] = {
 	&"tumbang_preso": "res://data/rules/tumbang_preso.tres",
 	&"patintero": "res://data/rules/patintero.tres",
@@ -78,7 +78,7 @@ func restore(data: Dictionary, _sim: MatchSim = null) -> void:
 			set(field, value)
 
 
-## The rules of game `id`, or null for Agawan Base (or an unknown id).
+## The rules of game `id`, or null for Agawang Base (or an unknown id).
 static func rules_for(id: StringName) -> StreetModeRules:
 	return load(RULES_PATHS[id]) as StreetModeRules if RULES_PATHS.has(id) else null
 

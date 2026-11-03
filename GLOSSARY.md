@@ -1,11 +1,11 @@
 # Kalyeah
 
-Agawan Base played with Filipino street-game weapons. These terms describe the
+Agawang Base played with Filipino street-game weapons. These terms describe the
 player's game; rules and values remain in the game design document.
 
 ## Language
 
-**Agawan Base**:
+**Agawang Base**:
 The team game of contesting the opposing base, tagging opponents and rescuing teammates.
 _Avoid_: Langit Lupa
 

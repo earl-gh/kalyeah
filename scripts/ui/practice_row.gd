@@ -1,6 +1,6 @@
 class_name PracticeRow
 extends HBoxContainer
-## The main screen's Practice row, above Play (owner): the game button (80 %) picks the street game Practice plays (Agawan Base,
+## The main screen's Practice row, above Play (owner): the game button (80 %) picks the street game Practice plays (Agawang Base,
 ## Tumbang Preso, Patintero) and the kid button (20 %) picks the kid you play. Each opens a small picker; the choice is saved
 ## (`Session.practice_game`, `Session.avatar_id`). The title screen shows the pickers (`picker_opened`).
 
@@ -56,7 +56,7 @@ func refresh() -> void:
 	kid_button.accessibility_name = kid_button.tooltip_text
 
 
-## The Games page's entry for `id` (Agawan Base for an unknown id).
+## The Games page's entry for `id` (Agawang Base for an unknown id).
 static func game_entry(id: StringName) -> Dictionary:
 	for street: Dictionary in StreetPage.STREETS:
 		if street["id"] == id:

@@ -3,7 +3,7 @@ extends Control
 ## Tumbang Preso's points (every kid plays for itself): a column on the left sidewalk, the kid's character card with its points under it, the
 ## kid with the most at the top. When the points change the rows slide to their new places (and the number pops); with Reduce motion they jump.
 ## The taya's card has a red rim and yours a gold one. Display only; it never takes a touch. (Patintero has two teams and uses the score cards
-## at the top centre, like Agawan Base.)
+## at the top centre, like Agawang Base.)
 
 ## One row: the character card (the 1.75:2.5 picture of the Book's Kids) and the number under it.
 const CARD: Vector2 = Vector2(46.0, 66.0)

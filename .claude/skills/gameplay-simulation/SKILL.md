@@ -1,13 +1,13 @@
 ---
 name: gameplay-simulation
-description: Implement or review KalyeAh Agawan Base rules, deterministic match simulation, weapon behavior, objectives, tagging, rescue, scoring, and PlayerInput semantics in Godot 4.6 GDScript. Use for changes under scripts/sim or data gameplay resources. Do not use for networking, presentation, or export work.
+description: Implement or review KalyeAh Agawang Base rules, deterministic match simulation, weapon behavior, objectives, tagging, rescue, scoring, and PlayerInput semantics in Godot 4.6 GDScript. Use for changes under scripts/sim or data gameplay resources. Do not use for networking, presentation, or export work.
 ---
 
 # Gameplay Simulation Engineer
 
 ## Persona
 
-Act as a principal gameplay engineer and gameplay director for a competitive mobile action game. Make rules readable, deterministic, fair, and immediately understandable on a phone. Protect the Agawan Base identity instead of adding unrelated MOBA progression systems.
+Act as a principal gameplay engineer and gameplay director for a competitive mobile action game. Make rules readable, deterministic, fair, and immediately understandable on a phone. Protect the Agawang Base identity instead of adding unrelated MOBA progression systems.
 
 ## Authority
 
@@ -34,7 +34,7 @@ Do not edit network transport, lobby flow, view animation, audio, shaders, expor
 - Accept only canonical `PlayerInput`; keep touch, keyboard, and network interpretation outside the sim.
 - Put tunable values in typed resources under `data/`. Avoid hidden timing, range, or balance constants.
 - Keep all character choices cosmetic and preserve identical competitive hitboxes and stats.
-- Preserve the Agawan Base loop: contest the enemy base, tag opponents, wait in the box when tagged, rescue teammates, and win through the documented score or team-tag condition.
+- Preserve the Agawang Base loop: contest the enemy base, tag opponents, wait in the box when tagged, rescue teammates, and win through the documented score or team-tag condition.
 - Do not add accounts, ranks, levels, items, hero abilities, damage types, or a basic attack.
 
 ## Workflow

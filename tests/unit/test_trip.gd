@@ -1,7 +1,7 @@
 extends GutTest
 ## Tripping while running (owner: "20% of tripping while the players are running, to add realism"): every `trip_interval` seconds of
 ## continuous running is one roll at `trip_chance`; a kid that trips falls for `trip_seconds` (cannot move or cast), then gets up.
-## Same in Agawan Base, Tumbang Preso and Patintero (one MatchSim rule, the match's own seeded RNG). Seam: MatchSim in, PlayerState out.
+## Same in Agawang Base, Tumbang Preso and Patintero (one MatchSim rule, the match's own seeded RNG). Seam: MatchSim in, PlayerState out.
 
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const DT: float = 1.0 / 30.0

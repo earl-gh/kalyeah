@@ -4,7 +4,7 @@
 
 ## 1. Abstract
 
-Kalyeah is a stylised 3D multiplayer action game built in Godot 4 for Android, themed around classic Filipino street games. Instead of heroes and levels, every player shares the same fixed health and equips two weapons from an arsenal of street-game items: bato-bato-pik, tumbang preso tsinelas and lata, jackstones, and trumpo, each reimagined as an attack, crowd-control or block skill. Each player chooses one of six Filipino kids in everyday Pinoy outfits. The core match is **Agawan Base**, played 1v1, 2v2 or 3v3 on a Filipino barangay street. A player brought to 0 HP is tagged and waits in a taped box until a teammate rescues them; a team scores by holding the enemy's electric-post base together or by tagging the whole other team. With no accounts, ranks or leveling, every match is quick to join and decided by skill.
+Kalyeah is a stylised 3D multiplayer action game built in Godot 4 for Android, themed around classic Filipino street games. Instead of heroes and levels, every player shares the same fixed health and equips two weapons from an arsenal of street-game items: bato-bato-pik, tumbang preso tsinelas and lata, jackstones, and trumpo, each reimagined as an attack, crowd-control or block skill. Each player chooses one of six Filipino kids in everyday Pinoy outfits. The core match is **Agawang Base**, played 1v1, 2v2 or 3v3 on a Filipino barangay street. A player brought to 0 HP is tagged and waits in a taped box until a teammate rescues them; a team scores by holding the enemy's electric-post base together or by tagging the whole other team. With no accounts, ranks or leveling, every match is quick to join and decided by skill.
 
 ## 2. Hardware and Software Requirements (for playing)
 
@@ -31,7 +31,7 @@ Practice mode works offline; online rooms need an internet connection.
 - Multiplayer has two connection paths: **Hotspot** for players on the same local network, and **Online** through the game server. Hotspot Join detects the host's active room automatically, without a room code; room codes belong to Online only.
 - For Online play, the host creates a room: every room is **3v3** (three places a team), open to anyone by default or private with its code. The server generates an **8-character alphanumeric room code**.
 - Others join with the passcode, pick a team slot and toggle **Ready**.
-- Host can start when every present player is ready and the game's minimum is met: Agawan Base a player on both teams, Tumbang Preso at least 2 players, Patintero at least 2 on each team. When it is not, the host gets a message saying why.
+- Host can start when every present player is ready and the game's minimum is met: Agawang Base a player on both teams, Tumbang Preso at least 2 players, Patintero at least 2 on each team. When it is not, the host gets a message saying why.
 - **Loading screen** before the match.
 
 ### 3.2 Characters (randomized)

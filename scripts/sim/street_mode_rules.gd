@@ -16,7 +16,7 @@ extends Resource
 ## drawn by the match's seeded generator when the game starts, so every phone plays the same roll to the same kid.
 @export var roll_seconds: float = 0.0
 ## In a room a game with teams (Patintero) starts with at least this many players on each team (owner: 2). Rooms always have 3 places a
-## team (`RoomService.MAX_TEAM_SIZE`); Agawan Base has no rules file here: its minimum is `NetRules.base_room_min_team`.
+## team (`RoomService.MAX_TEAM_SIZE`); Agawang Base has no rules file here: its minimum is `NetRules.base_room_min_team`.
 @export var room_min_team: int = 1
 ## Nobody can be tagged for this long after a swap of roles (everyone is walking to their places).
 @export var swap_grace: float = 1.5

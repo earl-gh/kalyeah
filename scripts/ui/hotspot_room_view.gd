@@ -18,7 +18,7 @@ signal team_chosen(team: int)
 ## The big button: START for the host, READY (on or off) for everyone else.
 signal action_pressed
 
-const MAP_NAMES: Dictionary[StringName, String] = {&"street": "Agawan Base", &"tumbang_preso": "Tumbang Preso", &"patintero": "Patintero"}
+const MAP_NAMES: Dictionary[StringName, String] = {&"street": "Agawang Base", &"tumbang_preso": "Tumbang Preso", &"patintero": "Patintero"}
 const MAP_COLORS: Dictionary[StringName, String] = {&"street": "blue", &"tumbang_preso": "orange", &"patintero": "green"}
 ## The cards in the map carousel are 3:4.
 const MAP_PICK_CARD: Vector2 = Vector2(414.0, 552.0)
@@ -178,9 +178,9 @@ func _build_map_section() -> Control:
 	column.name = "MapSection"
 	column.add_theme_constant_override("separation", int(GAP) + 4)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	map_card = ChoiceCard.make_card("", "Agawan Base", "blue", MAP_CARD)
+	map_card = ChoiceCard.make_card("", "Agawang Base", "blue", MAP_CARD)
 	map_card.name = "MapCard"
-	map_card.accessibility_name = "Map: Agawan Base"
+	map_card.accessibility_name = "Map: Agawang Base"
 	map_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map_card.focus_mode = Control.FOCUS_NONE
 	map_card.pressed.connect(open_map_carousel)

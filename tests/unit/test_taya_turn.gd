@@ -15,7 +15,7 @@ var _reduced: bool
 func before_each() -> void:
 	_game = Session.practice_game
 	_kind = Session.practice_kind
-	_coach = Session.coach_pending
+	_coach = Session.briefing_pending
 	_reduced = Settings.reduced_motion
 	Settings.reduced_motion = false
 
@@ -23,14 +23,14 @@ func before_each() -> void:
 func after_each() -> void:
 	Session.practice_game = _game
 	Session.practice_kind = _kind
-	Session.coach_pending = _coach
+	Session.briefing_pending = _coach
 	Settings.reduced_motion = _reduced
 
 
 func _practice(game: StringName) -> PracticeMatch:
 	Session.practice_kind = &"match"
 	Session.practice_game = game
-	Session.coach_pending = false
+	Session.briefing_pending = false
 	var practice: PracticeMatch = autofree(PRACTICE_TAYA.make(self, PRACTICE_SCENE, func(match_: PracticeMatch) -> void: match_._camera.set_process(false))) as PracticeMatch  # the test moves the turn on by hand
 	if practice.sim.mode is TumbangPreso:
 		# the match draws the first taya at random (tests/unit/test_tumbang_roll.gd); these tests want the last kid (a bot) to be it
@@ -126,7 +126,7 @@ func test_reduce_motion_cuts_instead_of_turning() -> void:
 
 
 func test_a_flip_without_smooth_still_cuts() -> void:
-	# Agawan Base and Patintero keep the instant cut
+	# Agawang Base and Patintero keep the instant cut
 	var practice: PracticeMatch = _practice(&"street")
 	var camera: ArenaCamera = practice._camera
 	camera.place(true)

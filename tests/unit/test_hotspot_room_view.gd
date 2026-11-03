@@ -220,7 +220,7 @@ func test_an_empty_slot_is_a_frosted_card_with_its_number_and_a_hint() -> void:
 func test_the_map_card_has_no_map_word_and_is_agawan_base_and_the_carousel_cards_are_three_to_four() -> void:
 	var view: HotspotRoomView = _view(_room(2))
 	assert_false((view.map_card.get_node("Heading") as Label).visible, "no \"Map\" word on the card")
-	assert_eq(ChoiceCard.choice_of(view.map_card), "Agawan Base")
+	assert_eq(ChoiceCard.choice_of(view.map_card), "Agawang Base")
 	view.map_card.pressed.emit()
 	var card: Button = view.map_carousel.cards[0]
 	assert_almost_eq(card.size.x / card.size.y, 0.75, 0.01, "3:4")
@@ -242,7 +242,7 @@ func test_the_map_carousel_lists_all_three_street_games_ready_to_pick() -> void:
 	view.map_chosen.connect(func(id: StringName) -> void: picked.append(id))
 	view.map_card.pressed.emit()
 	assert_eq(view.map_carousel.cards.size(), 3, "three street games")
-	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[0]), "Agawan Base")
+	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[0]), "Agawang Base")
 	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[1]), "Tumbang Preso")
 	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[2]), "Patintero")
 	for card: Button in view.map_carousel.cards:
@@ -279,11 +279,11 @@ func test_the_picker_says_how_each_game_plays_and_picks_with_its_button() -> voi
 	assert_eq(name_label.get_theme_color("font_color"), RoomMapPicker.NAME_COLOR, "the name in yellow (owner)")
 	# 3. the room's game is tagged; 2. the line says how it plays; 4. a dot for each game; 1. the button
 	var tag: Label = view.map_carousel.cards[0].get_node("Heading") as Label
-	assert_true(tag.visible and tag.text == RoomMapPicker.PLAYING_NOW, "Agawan Base is playing now")
+	assert_true(tag.visible and tag.text == RoomMapPicker.PLAYING_NOW, "Agawang Base is playing now")
 	assert_false((view.map_carousel.cards[2].get_node("Heading") as Label).visible)
 	assert_eq(picker.info_label.text, "3v3 · Teams · Race to 3")
 	assert_eq(picker.dots_label.text, "●  ○  ○")
-	assert_eq(picker.pick_button.text, "Keep Agawan Base")
+	assert_eq(picker.pick_button.text, "Keep Agawang Base")
 	view.map_carousel.select(2, false)
 	assert_eq(picker.info_label.text, "3v3 · Teams · 2 or more a team · 5 min", "Patintero is timed, and needs two a team")
 	assert_eq(picker.dots_label.text, "○  ○  ●")
@@ -302,7 +302,7 @@ func test_the_picker_closes_with_its_x_and_keeping_the_game_picks_nothing() -> v
 	view.map_chosen.connect(func(id: StringName) -> void: picked.append(id))
 	view.open_map_carousel()
 	assert_true(view.map_open())
-	view.map_picker().pick_button.pressed.emit()  # "Keep Agawan Base"
+	view.map_picker().pick_button.pressed.emit()  # "Keep Agawang Base"
 	assert_true(picked.is_empty(), "the room's own game is not sent again")
 	assert_false(view.map_open(), "it just closes")
 	view.open_map_carousel()
@@ -319,7 +319,7 @@ func test_the_map_carousel_overlay_is_above_everything() -> void:
 
 func test_the_map_card_shows_the_chosen_games_picture() -> void:
 	var view: HotspotRoomView = _view(_room(2))
-	assert_eq(view.map_picture.texture, StreetPage.picture_for(&"street"), "Agawan Base's picture to begin with")
+	assert_eq(view.map_picture.texture, StreetPage.picture_for(&"street"), "Agawang Base's picture to begin with")
 	var room: Dictionary = _room(2)
 	room["map"] = "tumbang_preso"
 	view.show_room(room, 1)

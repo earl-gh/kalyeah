@@ -6,7 +6,7 @@ extends StreetMode
 ## the slipper away; the taya has to fetch the can and put it back, and cannot tag until it stands again. A thrower whose slipper lies in
 ## the fetch area must go and fetch it and run to the other end for a point (and is brought back to the throwing area at once); it has
 ## `scared_seconds` to step into the fetch area, or it is too scared and becomes the taya. A tagged thrower becomes the taya. There are no
-## skills in this game. The slipper is the weapons' own flying object (a `WeaponSystem.Projectile` of tsinelas, drawn like Agawan Base's).
+## skills in this game. The slipper is the weapons' own flying object (a `WeaponSystem.Projectile` of tsinelas, drawn like Agawang Base's).
 
 ## `id` threw its slipper (it is in the air now).
 signal slipper_thrown(id: int)

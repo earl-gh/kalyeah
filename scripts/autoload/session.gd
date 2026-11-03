@@ -18,14 +18,12 @@ var lobby_hotspot: bool = false
 var lobby_url: String = ""
 ## The mode card chosen on the main screen (an index into TitleScreen.MODES); Local, the middle card, by default.
 var menu_mode: int = 1
-## True once the first-run walkthrough has been finished or skipped (saved).
-var coach_seen: bool = false
-## Set (not saved) when the next practice match should open with the walkthrough: the first one, or a replay.
-var coach_pending: bool = false
+## Set (not saved) when the next Practice match against bots should open with the briefing (the Practice card sets it, and Practice again).
+var briefing_pending: bool = false
 ## Which Practice the next match is: `training` (a sandbox with dummies and one sparring partner) or `match` (a full 3v3 against
 ## bots). Not saved; the Practice card sets it just before the match loads.
 var practice_kind: StringName = &"training"
-## The street game Practice plays (a RoomService.MAP_IDS id): Agawan Base (`street`), Tumbang Preso or Patintero. Picked on the main
+## The street game Practice plays (a RoomService.MAP_IDS id): Agawang Base (`street`), Tumbang Preso or Patintero. Picked on the main
 ## screen's Practice row; saved.
 var practice_game: StringName = &"street"
 var reconnect_token: String = ""
@@ -37,7 +35,6 @@ func _ready() -> void:
 	if file.load(SAVE_PATH) == OK:
 		player_name = clean_name(file.get_value("player", "name", "") as String)
 		avatar_id = file.get_value("player", "avatar", "") as String
-		coach_seen = file.get_value("player", "coach_seen", false) as bool
 		var game: StringName = StringName(file.get_value("player", "practice_game", "street") as String)
 		practice_game = game if game in RoomService.MAP_IDS else &"street"
 		var stored: Variant = file.get_value("player", "loadout", [])
@@ -53,7 +50,6 @@ func save() -> void:
 	var file: ConfigFile = ConfigFile.new()
 	file.set_value("player", "name", player_name)
 	file.set_value("player", "avatar", avatar_id)
-	file.set_value("player", "coach_seen", coach_seen)
 	file.set_value("player", "practice_game", String(practice_game))
 	file.set_value("player", "loadout", saved_loadout)
 	file.set_value("match", "token", reconnect_token)

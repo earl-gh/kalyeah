@@ -192,7 +192,7 @@ var _rescue_ready: Dictionary[int, bool] = {}
 var _posts: Dictionary[int, Node3D] = {}
 ## side -> the countdown number lying on that side's rescue area.
 var _counts: Dictionary[int, Label3D] = {}
-## Agawan Base's marks: the bases and the rescue areas with their countdowns (hidden in the other street games; the electric posts stay).
+## Agawang Base's marks: the bases and the rescue areas with their countdowns (hidden in the other street games; the electric posts stay).
 var _base_marks: Array[Node3D] = []
 
 @onready var _geometry: Node3D = %Geometry
@@ -278,13 +278,13 @@ func set_own_side(own_side: int) -> void:
 			material.albedo_color = color
 
 
-## Shows or hides Agawan Base's bases and rescue areas (Tumbang Preso and Patintero have none; the electric posts stay in their corners).
+## Shows or hides Agawang Base's bases and rescue areas (Tumbang Preso and Patintero have none; the electric posts stay in their corners).
 func show_bases(on: bool) -> void:
 	for mark: Node3D in _base_marks:
 		mark.visible = on
 
 
-## True when Agawan Base's bases and rescue areas are shown.
+## True when Agawang Base's bases and rescue areas are shown.
 func bases_shown() -> bool:
 	return _base_marks.is_empty() or _base_marks[0].visible
 
