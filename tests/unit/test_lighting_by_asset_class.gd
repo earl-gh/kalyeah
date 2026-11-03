@@ -91,16 +91,21 @@ func test_the_pole_is_two_to_three_times_a_kid_on_screen() -> void:
 	assert_lt(ratio, 3.0, "but proportionate, not a tower over the street")
 
 
-func test_the_ground_outside_the_play_area_is_slightly_darker_than_the_play_area() -> void:
+func test_the_ground_outside_the_play_area_is_the_floor_picture_with_no_dark_tint() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
 	var inside: MeshInstance3D = map.get_node("%Geometry").find_child("CementArt", true, false) as MeshInstance3D
 	var outside: MeshInstance3D = map.get_node("%Geometry").find_child("OutsideArt", true, false) as MeshInstance3D
 	assert_not_null(outside, "the outside patch is laid")
 	assert_eq((inside.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color, Color.WHITE, "the play area is the picture itself")
-	var shade: Color = ((outside.mesh as PlaneMesh).material as StandardMaterial3D).albedo_color
-	assert_lt(shade.v, 0.9, "outside is darker")
-	assert_gt(shade.v, 0.6, "but only slightly")
+	var material: ShaderMaterial = (outside.mesh as PlaneMesh).material as ShaderMaterial
+	assert_eq(material.get_shader_parameter("floor_picture"), StreetArt.texture("cement"), "the same picture")
+	var code: String = material.shader.code
+	assert_false(code.contains("far_shade") or code.contains("side_color"), "no shade or flat colour made up for the outside")
+	assert_true(code.contains("mirrored"), "the sidewalk strip is copied outward past the sides")
+	assert_true(code.contains("copy"), "the whole picture is copied past the top and the bottom")
+	assert_true(code.contains("seam"), "each copy is colour-corrected where it meets its neighbour")
+	assert_almost_eq(material.get_shader_parameter("edge_u") as float, (1.0 - map.cement_share()) / 2.0, 0.0001, "the sidewalk strip is what the play area crops off")
 	var size: Vector3 = inside.mesh.get_aabb().size
 	assert_almost_eq(size.x, map.layout.lane_width, 0.001, "the play area patch is exactly the play area")
 	assert_almost_eq(size.z, map.layout.lane_length, 0.001, "end to end")

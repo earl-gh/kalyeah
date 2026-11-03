@@ -102,13 +102,14 @@ const CEMENT_LIFT: float = 0.004
 ## The owner's floor picture holds 18 tiles across; the play area is narrower now (16 tiles), so it shows the middle of the picture
 ## (no stretch): the share of the picture's width the play area uses, and where it starts.
 const CEMENT_PICTURE_TILES: float = 18.0
-## The floor picture outside the play area is this much of its own colour (owner: slightly darker, so the play area reads).
-const OUTSIDE_SHADE: Color = Color(0.78, 0.78, 0.78)
+## The fog wall at each end (`MatchFog`) stands this many metres past the top of the boundary pictures' lean (they lean back toward the street's
+## far side, so their tops reach past their feet): the pictures never poke through it.
+const FOG_MARGIN: float = 0.35
 const STREET_SHADER: Shader = preload("res://shaders/street_cement.gdshader")
+const OUTSIDE_SHADER: Shader = preload("res://shaders/floor_outside.gdshader")
 ## Paving around the whole map, so the street never ends in sky.
 const OUTER_MARGIN: float = 40.0
 const OUTER_DROP: float = -0.12
-const OUTER_TINT: Color = Color(0.62, 0.58, 0.54)
 const SARI_SIGN_HEIGHT: float = 1.15
 ## Which model each cover piece (MapLayout.obstacle_props) is drawn as.
 const OBSTACLE_MODELS: Dictionary[StringName, String] = {
@@ -463,7 +464,7 @@ func _street() -> ArrayMesh:
 func _add_ground_textures() -> void:
 	var length: float = layout.lane_length + _reach() * 2.0
 	_add_cement_art()
-	var outer: MeshInstance3D = StreetArt.ground("pavers", Vector2(layout.lane_width + OUTER_MARGIN * 2.0, length + OUTER_MARGIN * 2.0), PAVER_TILE, OUTER_TINT)
+	var outer: MeshInstance3D = StreetArt.ground("pavers", Vector2(layout.lane_width + OUTER_MARGIN * 2.0, length + OUTER_MARGIN * 2.0), PAVER_TILE)
 	outer.position = Vector3(0.0, OUTER_DROP, 0.0)
 	_geometry.add_child(outer)
 
@@ -483,26 +484,42 @@ func _add_cement_art() -> void:
 	_geometry.add_child(art)
 
 
-## The darker floor round the play area, `size` metres (x, z) centred on it: the picture repeated every play-area size and lined up with
-## the play area.
+## The floor round the play area, `size` metres (x, z) centred on it, with no dark tint (owner, 2026-11-03): the picture's own sidewalk strip is
+## copied outward past the two sides and the whole picture is copied past the top and the bottom, each copy colour-corrected where it meets the
+## play area or another copy (`shaders/floor_outside.gdshader`).
 func _outside_floor(size: Vector2) -> MeshInstance3D:
-	var period: Vector2 = Vector2(layout.lane_width, layout.lane_length)
 	var plane: PlaneMesh = PlaneMesh.new()
 	plane.size = size
-	# unshaded and untinted: the floor is the picture itself (the basis every other colour is judged against)
-	var share: float = cement_share()
-	var material: StandardMaterial3D = StreetArt.unlit_material(StreetArt.texture("cement"), Vector2(size.x / period.x * share, size.y / period.y))
-	# the picture's (cropped) edges fall on the play area's edges
-	var start: Vector2 = (period - size) / 2.0 / period
-	var from_x: float = (1.0 - share) / 2.0 + start.x * share
-	material.uv1_offset = Vector3(from_x - floorf(from_x), start.y - floorf(start.y), 0.0)
-	material.albedo_color = OUTSIDE_SHADE
+	var material: ShaderMaterial = ShaderMaterial.new()
+	material.shader = OUTSIDE_SHADER
+	material.set_shader_parameter("floor_picture", StreetArt.texture("cement"))
+	material.set_shader_parameter("lane_half", Vector2(layout.lane_width, layout.lane_length) / 2.0)
+	material.set_shader_parameter("edge_u", (1.0 - cement_share()) / 2.0)
 	plane.material = material
 	var patch: MeshInstance3D = MeshInstance3D.new()
 	patch.name = "OutsideArt"
 	patch.mesh = plane
 	patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return patch
+
+
+## How far past the end line the fog wall stands (m): past the end line's setback and as far as the tallest boundary picture leans back at its
+## top, plus `FOG_MARGIN`, so no picture pokes through it.
+func fog_distance() -> float:
+	var tallest: float = 0.0
+	for entry: Dictionary in BOUNDARY_PICTURES:
+		tallest = maxf(tallest, entry["height"] as float)
+	return BARRIER_SETBACK + tallest * scenery() * sin(deg_to_rad(BOUNDARY_TILT)) + FOG_MARGIN
+
+
+## How far past the end line (on the screen, m) the top of the tallest boundary picture reaches at the far end: its foot's setback plus its height
+## times (sin + cos of the lean) for a picture leaning back as it does, plus `FOG_MARGIN`: where the far end's fog starts, just above the pictures.
+func fog_far_start() -> float:
+	var tallest: float = 0.0
+	for entry: Dictionary in BOUNDARY_PICTURES:
+		tallest = maxf(tallest, entry["height"] as float)
+	var lean: float = deg_to_rad(BOUNDARY_TILT)
+	return BARRIER_SETBACK + tallest * scenery() * (sin(lean) + cos(lean)) + FOG_MARGIN
 
 
 ## The share of the floor picture's width the play area shows (1 when the play area is as wide as the picture).
