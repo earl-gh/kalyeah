@@ -154,11 +154,11 @@ func test_only_houses_stand_along_the_street_beyond_the_ends() -> void:
 	assert_gt(beyond, 4, "a run of houses beyond the ends")
 
 
-# ---- the boundary: the owner's pictures (top: fishball cart, jeepney; bottom: e-trike, tyres; corner walls of tin fence) ----
+# ---- the boundary: the owner's pictures (top: fishball cart, jeepney; bottom: e-trike, crates, tyres; corner walls of tin fence) ----
 
 const CAMERA_RULES: CameraRules = preload("res://data/rules/camera_rules.tres")
 const PICTURE_IDS: Array[String] = ["fishball_cart", "jeepney"]
-const BOTTOM_IDS: Array[String] = ["tricycle", "tires"]
+const BOTTOM_IDS: Array[String] = ["tricycle", "crates", "tires"]
 
 
 func _row(map: StreetMap, end: float, bottom: bool = false) -> Node3D:
@@ -200,18 +200,18 @@ func test_the_top_end_shows_the_top_pictures_and_the_bottom_end_the_bottom_ones(
 			assert_eq(_row(map, end, true).visible, end != top, "the e-trike and tyres at the bottom end only (own side %d, end %s)" % [own_side, end])
 
 
-func test_the_bottom_row_is_the_e_trike_then_the_tyres_between_two_corner_walls() -> void:
+func test_the_bottom_row_is_the_e_trike_the_crates_then_the_tyres_between_two_corner_walls() -> void:
 	var map: StreetMap = _map()
 	for end: float in [-1.0, 1.0]:
 		var pictures: Array[MeshInstance3D] = _pictures(map, end, true)
 		var ids: Array[String] = []
 		for picture: MeshInstance3D in pictures:
 			ids.append(String(picture.name))
-		assert_eq(ids, BOTTOM_IDS, "the e-trike, then the tyres")
+		assert_eq(ids, BOTTOM_IDS, "the e-trike, the crates, then the tyres")
 		var row: Node3D = _row(map, end, true)
 		assert_not_null(row.get_node("RoofWallLeft"))
 		assert_not_null(row.get_node("RoofWallRight"))
-		assert_eq(row.get_child_count(), 4, "two pictures and two corner walls")
+		assert_eq(row.get_child_count(), 5, "three pictures and two corner walls")
 		var xs: Array[float] = []
 		for picture: MeshInstance3D in pictures:
 			xs.append(picture.global_position.x)
@@ -219,10 +219,29 @@ func test_the_bottom_row_is_the_e_trike_then_the_tyres_between_two_corner_walls(
 			var texture: Texture2D = load(StreetMap.BOUNDARY_PATH % picture.name) as Texture2D
 			assert_almost_eq(quad.size.x / quad.size.y, texture.get_size().x / texture.get_size().y, 0.001, "%s: never stretched" % picture.name)
 			assert_almost_eq(picture.global_position.y, 0.0, 0.001, "on the ground")
-			assert_almost_eq(absf(picture.global_position.z), map.layout.lane_length / 2.0 + StreetMap.BARRIER_SETBACK, 0.001, "at the end line")
 			assert_lte(absf(picture.global_position.x) + quad.size.x / 2.0, map.layout.lane_width / 2.0 + 0.001, "%s: inside the street's width" % picture.name)
 		# the bottom row faces the viewer who sees that end at the bottom: +Z end for the own side, -Z end for the turned camera
-		assert_true(xs[1] > xs[0] if end > 0.0 else xs[1] < xs[0], "in order on the screen at end %s" % end)
+		for k: int in range(1, xs.size()):
+			assert_true(xs[k] > xs[k - 1] if end > 0.0 else xs[k] < xs[k - 1], "in order on the screen at end %s" % end)
+
+
+func test_the_bottom_pictures_stand_beyond_the_end_line_not_on_it_and_not_too_far_out() -> void:
+	var map: StreetMap = _map()
+	var half_l: float = map.layout.lane_length / 2.0
+	for end: float in [-1.0, 1.0]:
+		var row: Node3D = _row(map, end, true)
+		var things: Array[MeshInstance3D] = _pictures(map, end, true)
+		things.append(row.get_node("RoofWallLeft") as MeshInstance3D)
+		things.append(row.get_node("RoofWallRight") as MeshInstance3D)
+		for picture: MeshInstance3D in things:
+			var quad: QuadMesh = picture.mesh as QuadMesh
+			var out: float = absf(picture.global_position.z) - half_l - StreetMap.BARRIER_SETBACK
+			# each metre out moves the picture down the screen by sin(tilt); its drawn height shows up the screen: the share of it that stands
+			# beyond the line (the rest shows above it)
+			var share: float = StreetMap.BOTTOM_WALL_SHARE if picture.name.begins_with("RoofWall") else StreetMap.BOTTOM_PICTURE_SHARE
+			assert_almost_eq(out * sin(deg_to_rad(StreetMap.BOUNDARY_TILT)), quad.size.y * share, 0.06, "%s: out by the set share of its height" % picture.name)
+			assert_gt(out, 0.0, "%s stands beyond the line, not on it" % picture.name)
+			assert_lte(out, map.bottom_reach() + 0.001)
 
 
 func test_the_bottom_pictures_lean_back_to_face_the_camera_that_sees_them() -> void:
@@ -300,7 +319,10 @@ func test_corner_wall_pngs_are_centered_and_the_right_texture_is_mirrored() -> v
 		assert_eq(left.position.x, -map.layout.lane_width / 2.0)
 		assert_eq(right.position.x, map.layout.lane_width / 2.0)
 		assert_eq(left.position.z, right.position.z)
-		assert_lt(left.position.z, 0.0, "the wall stays behind the other pictures")
+		if suffix.begins_with("Pictures"):
+			assert_lt(left.position.z, 0.0, "the wall stays behind the other pictures")
+		else:
+			assert_almost_eq(left.position.z, map.bottom_foot(StreetMap.CORNER_WALL, StreetMap.BOTTOM_WALL_SHARE) - 0.05, 0.001, "the bottom row's wall stands out beyond the line like its pictures")
 		var left_quad: QuadMesh = left.mesh as QuadMesh
 		var right_quad: QuadMesh = right.mesh as QuadMesh
 		assert_eq(left_quad.size, right_quad.size)

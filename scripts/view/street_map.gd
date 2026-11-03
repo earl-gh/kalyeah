@@ -144,11 +144,18 @@ const BOUNDARY_PICTURES: Array[Dictionary] = [
 	{"id": "fishball_cart", "height": 2.4},
 	{"id": "jeepney", "height": 2.4},
 ]
-## The bottom boundary (owner): the end of the street at the bottom of the screen is the same, with the corner roof walls and two more pictures in
-## the middle, the e-trike and the stacked truck tyres (they replace the 3D e-bike and truck wheels).
+## The bottom boundary (owner): the end of the street at the bottom of the screen has the same corner roof walls and three pictures in the
+## middle, the e-trike, the stack of crates and the stacked truck tyres (they replace the 3D e-bike, crates and truck wheels). A picture faces the
+## camera, so it shows UP the screen from its foot: at the bottom that is over the play area. They therefore stand beyond the end line, not on it
+## (owner: beyond the boundary line, not in line with it), but not so far that they sink into the fog and the tray (owner: "too far now"):
+## `BOTTOM_PICTURE_SHARE` (the corner walls: `BOTTOM_WALL_SHARE`) of the distance at which the top of each would be level with the end line on the screen (`bottom_foot`).
+## The pictures stand out a little farther than the corner walls (owner: the e-trike, crates and tyres pulled slightly backwards, 0.55 to 0.7).
+const BOTTOM_PICTURE_SHARE: float = 0.7
+const BOTTOM_WALL_SHARE: float = 0.55
 const BOTTOM_PICTURES: Array[Dictionary] = [
-	{"id": "tricycle", "height": 2.4},
-	{"id": "tires", "height": 1.4},
+	{"id": "tricycle", "height": 1.8},
+	{"id": "crates", "height": 1.5},
+	{"id": "tires", "height": 1.2},
 ]
 const CORNER_WALL: Dictionary = {"id": "tin_fence", "height": 2.0}
 ## 90 degrees less the camera's pitch (`data/rules/camera_rules.tres`, 45).
@@ -505,18 +512,33 @@ func _outside_floor(size: Vector2) -> MeshInstance3D:
 	return patch
 
 
-## The true height of the tallest picture of either boundary row (m).
+## The true height of the tallest picture of the top boundary row (m).
 static func tallest_boundary() -> float:
 	var tallest: float = CORNER_WALL["height"] as float
-	for entry: Dictionary in BOUNDARY_PICTURES + BOTTOM_PICTURES:
+	for entry: Dictionary in BOUNDARY_PICTURES:
 		tallest = maxf(tallest, entry["height"] as float)
 	return tallest
 
 
-## How far past the end line the fog wall stands (m): past the end line's setback and as far as the tallest boundary picture leans back at its
-## top, plus `FOG_MARGIN`, so no picture pokes through it.
+## How far past the end line (m) a picture of the bottom row stands: `share` of the distance that puts its top level with the end
+## line on the screen (it faces the camera, so it shows up the screen by its drawn height, and each metre it stands further out moves it down the
+## screen by `sin(BOUNDARY_TILT)`); the rest of its height shows above the line.
+func bottom_foot(entry: Dictionary, share: float = BOTTOM_PICTURE_SHARE) -> float:
+	return share * float(entry["height"]) * scenery() / sin(deg_to_rad(BOUNDARY_TILT))
+
+
+## How far past the end line the farthest bottom picture (or corner wall) stands.
+func bottom_reach() -> float:
+	var reach: float = bottom_foot(CORNER_WALL, BOTTOM_WALL_SHARE)
+	for entry: Dictionary in BOTTOM_PICTURES:
+		reach = maxf(reach, bottom_foot(entry))
+	return reach
+
+
+## How far past the end line the fog wall stands (m): past the end line's setback and past the farthest thing of either row (the top row's
+## tallest picture leans back to its top; the bottom row's pictures stand out to their feet), plus `FOG_MARGIN`, so none pokes through it.
 func fog_distance() -> float:
-	return BARRIER_SETBACK + tallest_boundary() * scenery() * sin(deg_to_rad(BOUNDARY_TILT)) + FOG_MARGIN
+	return BARRIER_SETBACK + maxf(tallest_boundary() * scenery() * sin(deg_to_rad(BOUNDARY_TILT)), bottom_reach()) + FOG_MARGIN
 
 
 ## How far past the end line (on the screen, m) the top of the tallest boundary picture reaches at the far end: its foot's setback plus its height
@@ -722,11 +744,12 @@ static func top_end(own_side: int) -> float:
 ## camera sees the +Z end at the top and the -Z end at the bottom, both facing -Z.
 func _add_boundary_pictures() -> void:
 	for end: float in [-1.0, 1.0]:
-		_row_pictures[end] = _boundary_row(end, BOUNDARY_PICTURES, "BoundaryPictures%s" % ("Far" if end < 0.0 else "Near"), end > 0.0)
-		_row_bottom[end] = _boundary_row(end, BOTTOM_PICTURES, "BoundaryBottom%s" % ("Far" if end < 0.0 else "Near"), end < 0.0)
+		_row_pictures[end] = _boundary_row(end, BOUNDARY_PICTURES, "BoundaryPictures%s" % ("Far" if end < 0.0 else "Near"), end > 0.0, false)
+		_row_bottom[end] = _boundary_row(end, BOTTOM_PICTURES, "BoundaryBottom%s" % ("Far" if end < 0.0 else "Near"), end < 0.0, true)
 
 
-func _boundary_row(end: float, pictures: Array[Dictionary], row_name: String, turned: bool) -> Node3D:
+## `beyond`: the bottom row, whose pictures stand out past the end line to their `bottom_foot` (local +z points away from the play area).
+func _boundary_row(end: float, pictures: Array[Dictionary], row_name: String, turned: bool, beyond: bool) -> Node3D:
 	var widths: Array[float] = []
 	var used: float = 0.0
 	for entry: Dictionary in pictures:
@@ -744,14 +767,14 @@ func _boundary_row(end: float, pictures: Array[Dictionary], row_name: String, tu
 	var x: float = left_edge
 	for k: int in pictures.size():
 		var picture: MeshInstance3D = _boundary_picture(pictures[k], widths[k])
-		picture.position = Vector3(x + gap + widths[k] / 2.0, 0.0, 0.0)
+		picture.position = Vector3(x + gap + widths[k] / 2.0, 0.0, bottom_foot(pictures[k]) if beyond else 0.0)
 		x += gap + widths[k]
 		row.add_child(picture)
 	for side: float in [-1.0, 1.0]:
 		var roof: MeshInstance3D = _boundary_picture(CORNER_WALL, wall_width)
 		roof.name = "RoofWallLeft" if side < 0.0 else "RoofWallRight"
 		# A slight setback keeps the PNG behind the other boundary pictures without coplanar flicker.
-		roof.position = Vector3(side * layout.lane_width / 2.0, 0.0, -0.05)
+		roof.position = Vector3(side * layout.lane_width / 2.0, 0.0, (bottom_foot(CORNER_WALL, BOTTOM_WALL_SHARE) if beyond else 0.0) - 0.05)
 		if side > 0.0:
 			var material: StandardMaterial3D = (roof.mesh as QuadMesh).material as StandardMaterial3D
 			material.uv1_scale.x = -1.0
