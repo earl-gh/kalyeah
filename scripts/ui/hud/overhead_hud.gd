@@ -59,9 +59,14 @@ const EXHAUSTED: String = "Exhausted"
 const AWAY: String = "AFK"
 const POPUP_FONT: int = UiMetrics.BODY
 ## A quick chat bubble: the words' size, the padding round them and how far over the health number it floats.
-const SAY_FONT: int = UiMetrics.DETAIL
-const SAY_PAD: Vector2 = Vector2(16.0, 8.0)
-const SAY_LIFT: float = 12.0
+## A sent sticker: the owner's picture over the kid's head, small and a little see-through so it never hides the play under it (owner: pop in and out
+## must not disturb the game), just over the health bar, easing in from a bit smaller over `SAY_POP` seconds (no overshoot) and fading in the last
+## 0.3 s of `QuickChat.SAY_TIME`.
+const SAY_ART: float = 60.0
+const SAY_LIFT: float = 2.0
+const SAY_POP: float = 0.18
+const SAY_FROM: float = 0.7
+const SAY_ALPHA: float = 0.9
 ## The empty part of a health or stamina bar: a flat, opaque dark gray (just the colour: no sheen, no texture).
 const EMPTY_BAR: Color = Color(0.18, 0.19, 0.21)
 const SELF_COLOR: Color = Color(0.35, 0.95, 0.35)
@@ -292,7 +297,7 @@ func _draw() -> void:
 		_draw_popup(popup)
 
 
-## The quick chat bubble over a kid: a white rounded bubble with a dark outline and a little tail, the words inside.
+## The quick chat sticker over a kid: the owner's picture of what was said (`QuickChat.STICKER_PATH`), easing in and fading out.
 func _draw_say(said: Dictionary) -> void:
 	var state: PlayerState = _sim.players.get(said["id"]) as PlayerState
 	if state == null:
@@ -300,25 +305,23 @@ func _draw_say(said: Dictionary) -> void:
 	var at: Variant = _head(state)
 	if at == null:
 		return
-	var text: String = UiText.t(said["text"] as String)
-	var font: Font = KalyeahTheme.ACTION_FONT
-	var words: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, SAY_FONT)
-	var bubble: Vector2 = words + SAY_PAD * 2.0
-	var rise: float = BAR_SIZE.y * bar_scale + LABEL_LINE + SAY_LIFT
-	var centre: Vector2 = keep_on_screen(at as Vector2 + Vector2(0.0, -rise - bubble.y / 2.0), font, text, SAY_FONT)
-	var rect: Rect2 = Rect2(centre - bubble / 2.0, bubble)
-	var fade: float = clampf((QuickChat.SAY_TIME - (said["age"] as float)) / 0.3, 0.0, 1.0)
-	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = Color(1.0, 1.0, 1.0, fade)
-	box.border_color = Color(0.0, 0.0, 0.0, fade)
-	box.set_border_width_all(3)
-	box.set_corner_radius_all(UiSkin.RADIUS_M)
-	box.anti_aliasing = true
-	draw_style_box(box, rect)
-	var tail_x: float = clampf((at as Vector2).x, rect.position.x + 14.0, rect.end.x - 14.0)
-	draw_colored_polygon(PackedVector2Array([Vector2(tail_x - 8.0, rect.end.y - 1.0), Vector2(tail_x + 8.0, rect.end.y - 1.0), Vector2(tail_x - 2.0, rect.end.y + 10.0)]), Color(0.0, 0.0, 0.0, fade))
-	draw_colored_polygon(PackedVector2Array([Vector2(tail_x - 5.0, rect.end.y - 2.0), Vector2(tail_x + 5.0, rect.end.y - 2.0), Vector2(tail_x - 2.0, rect.end.y + 5.0)]), Color(1.0, 1.0, 1.0, fade))
-	draw_string(font, Vector2(rect.position.x + SAY_PAD.x, rect.end.y - SAY_PAD.y - 4.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, SAY_FONT, Color(0.0, 0.0, 0.0, fade))
+	var texture: Texture2D = load(QuickChat.STICKER_PATH % QuickChat.slug(said["text"] as String)) as Texture2D
+	if texture == null:
+		return
+	var age: float = said["age"] as float
+	var pop: float = 1.0 if Settings.reduced_motion else say_pop_scale(age)
+	var fade: float = clampf((QuickChat.SAY_TIME - age) / 0.3, 0.0, 1.0)
+	var rise: float = BAR_SIZE.y * bar_scale + LABEL_LINE + SAY_LIFT + SAY_ART / 2.0
+	var half: float = SAY_ART / 2.0
+	var centre: Vector2 = Vector2(clampf((at as Vector2).x, half, maxf(size.x - half, half)), maxf((at as Vector2).y - rise, top_limit + half))
+	var rect: Rect2 = Rect2(centre - Vector2.ONE * half * pop, Vector2.ONE * SAY_ART * pop)
+	draw_texture_rect(texture, rect, false, Color(1.0, 1.0, 1.0, SAY_ALPHA * fade))
+
+
+## The sticker's size over its first moments, as a share of its full size: it eases out from `SAY_FROM` to full and stays (never bigger than full).
+static func say_pop_scale(age: float) -> float:
+	var t: float = clampf(age / SAY_POP, 0.0, 1.0)
+	return lerpf(SAY_FROM, 1.0, 1.0 - (1.0 - t) * (1.0 - t))
 
 
 ## True while `state`'s team holds the enemy base and this kid stands in it.

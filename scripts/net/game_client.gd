@@ -22,6 +22,8 @@ signal stage_changed(stage: String)
 ## Someone confirmed their pick: the kids a team has locked in changed (during the pick).
 signal picks_changed
 signal snapshot_applied
+## Someone in the match (you too) sent a quick chat sticker: their player id and the sticker's number.
+signal said(player_id: int, sticker: int)
 ## The open Online rooms the server listed (`list_rooms`): each {code, host_name, team_size, players, first_to, map}.
 signal rooms_listed(rooms: Array[Dictionary])
 
@@ -228,6 +230,12 @@ func swap_weapons(first: StringName, second: StringName) -> void:
 	send({"t": NetProtocol.Msg.SWAP_WEAPONS, "a": first, "b": second})
 
 
+## Sends a quick chat sticker (its number in `QuickChat.PHRASES`) to everyone in the match: it comes back as `said`, for you too.
+func say(sticker: int) -> void:
+	if stage == "play":
+		send({"t": NetProtocol.Msg.SAY, "s": sticker})
+
+
 ## Sends this tick's input and moves the local player right away (prediction).
 func send_input(input: PlayerInput, dt: float) -> void:
 	if mirror == null or not is_online():
@@ -308,6 +316,11 @@ func _handle(message: Dictionary) -> void:
 			_on_snapshot(message)
 		M.EVENTS:
 			_on_events(message.get("list", []) as Array)
+		M.SAID:
+			var sender: Variant = message.get("p")
+			var sticker: Variant = message.get("s")
+			if sender is int and sticker is int and (sticker as int) >= 0 and (sticker as int) < _net.chat_stickers:
+				said.emit(sender as int, sticker as int)
 
 
 func _build_mirror(info: Dictionary) -> void:

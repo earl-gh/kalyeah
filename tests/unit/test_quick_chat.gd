@@ -59,12 +59,33 @@ func test_the_panel_is_a_white_rounded_rectangle_at_the_top_right_with_six_stick
 		assert_gte(minf(pick.size.x, pick.size.y), UiMetrics.MIN_TARGET, "a sticker is thumb-sized")
 
 
-func test_every_sticker_has_a_face_and_its_words_and_the_owners_picture_would_replace_the_face() -> void:
+func test_every_sticker_is_the_owners_picture_with_its_words_under_it() -> void:
 	var hud: MatchHud = _hud()
-	for pick: Button in hud.chat.phrase_buttons:
-		assert_not_null(pick.find_child("Face", true, false), "%s: a code-drawn face" % pick.name)
+	var seen: Dictionary = {}
+	for k: int in hud.chat.phrase_buttons.size():
+		var pick: Button = hud.chat.phrase_buttons[k]
+		var picture: TextureRect = pick.find_child("Picture", true, false) as TextureRect
+		assert_not_null(picture, "%s: the owner's picture" % pick.name)
+		assert_eq(picture.texture.resource_path, QuickChat.STICKER_PATH % QuickChat.slug(QuickChat.PHRASES[k]), "%s: its own file" % pick.name)
+		assert_gt(picture.texture.get_size().x, 0.0)
+		seen[picture.texture.resource_path] = true
 		assert_false((pick.find_child("Words", true, false) as Label).text.is_empty())
-	assert_eq(QuickChat.slug("Good luck!"), "good_luck", "assets/ui/stickers/good_luck.png would replace its face")
+	assert_eq(seen.size(), QuickChat.PHRASES.size(), "six different pictures")
+	assert_eq(QuickChat.slug("Haha!"), "haha", "assets/ui/stickers/haha.webp")
+	assert_eq(QuickChat.slug("Love it!"), "love_it")
+	assert_eq(QuickChat.PHRASES, ["Haha!", "Easy!", "Grrr!", "Love it!", "Huhu!", "Yum!"] as Array[String], "each label says what its picture shows (owner)")
+	var table: String = FileAccess.get_file_as_string("res://data/i18n/strings.csv")
+	for phrase: String in QuickChat.PHRASES:
+		assert_true(table.contains("\n%s,%s\n" % [phrase, phrase]), "%s is in the string table" % phrase)
+
+
+func test_the_sticker_pictures_import_lossless_with_mipmaps_and_stay_small() -> void:
+	for phrase: String in QuickChat.PHRASES:
+		var path: String = QuickChat.STICKER_PATH % QuickChat.slug(phrase)
+		var import_text: String = FileAccess.get_file_as_string(path + ".import")
+		assert_true(import_text.contains("compress/mode=0"), "%s imports lossless" % phrase)
+		assert_true(import_text.contains("mipmaps/generate=true"), "%s has mipmaps (it is drawn smaller than it is)" % phrase)
+		assert_lt(FileAccess.open(path, FileAccess.READ).get_length(), 60000, "%s stays small for the APK" % phrase)
 
 
 func test_a_tap_opens_the_phrases_and_picking_one_says_it_and_closes() -> void:
@@ -80,14 +101,31 @@ func test_a_tap_opens_the_phrases_and_picking_one_says_it_and_closes() -> void:
 	assert_false(hud.chat.is_open(), "the list closes after a pick")
 
 
-func test_a_phrase_shows_in_a_bubble_over_the_kid_and_fades_away() -> void:
+func test_a_sticker_shows_over_the_kid_and_fades_away() -> void:
 	var hud: MatchHud = _hud()
-	hud.overhead.say(1, "Wow!")
+	hud.overhead.say(1, "Yum!")
 	assert_eq(hud.overhead.says_count(), 1)
-	hud.overhead.say(1, "Oops!")
+	hud.overhead.say(1, "Grrr!")
 	assert_eq(hud.overhead.says_count(), 1, "a new one replaces that kid's old bubble")
 	hud.overhead.tick(QuickChat.SAY_TIME + 0.1)
 	assert_eq(hud.overhead.says_count(), 0, "it goes after its time")
+
+
+func test_a_sent_sticker_is_the_owners_picture_that_pops_in_and_settles() -> void:
+	for phrase: String in QuickChat.PHRASES:
+		assert_not_null(load(QuickChat.STICKER_PATH % QuickChat.slug(phrase)) as Texture2D, "%s has its picture over the kid" % phrase)
+	assert_almost_eq(OverheadHud.say_pop_scale(0.0), OverheadHud.SAY_FROM, 0.001, "it starts a little smaller")
+	for k: int in 21:
+		assert_lte(OverheadHud.say_pop_scale(OverheadHud.SAY_POP * float(k) / 20.0), 1.0, "never bigger than full: no overshoot over the play")
+	assert_almost_eq(OverheadHud.say_pop_scale(OverheadHud.SAY_POP), 1.0, 0.001, "and settles at full size")
+	assert_almost_eq(OverheadHud.say_pop_scale(2.0), 1.0, 0.001)
+
+
+func test_a_sent_sticker_is_small_and_see_through_so_the_play_shows_under_it() -> void:
+	assert_lte(OverheadHud.SAY_ART, 64.0, "no bigger than a kid's head and shoulders")
+	assert_lt(OverheadHud.SAY_ART, QuickChat.FACE, "smaller than in the picker")
+	assert_lt(OverheadHud.SAY_ALPHA, 1.0, "a little see-through")
+	assert_lte(QuickChat.SAY_TIME, 2.0, "and brief")
 
 
 func test_the_hand_uses_the_owners_pictures() -> void:
@@ -101,3 +139,22 @@ func test_the_sticker_panel_draws_over_the_toasts() -> void:
 	var hud: MatchHud = _hud()
 	assert_gt(hud.chat.get_index(), hud.tag_toast.get_index(), "over the tag toast, which stands under the scoreboard beside it")
 	assert_gt(hud.chat.get_index(), hud.capture_alert.get_index())
+
+
+func test_online_a_sticker_goes_to_the_server_and_shows_when_it_comes_back() -> void:
+	var practice: PracticeMatch = autofree((load("res://scenes/match/practice.tscn") as PackedScene).instantiate()) as PracticeMatch
+	Session.practice_kind = &"match"
+	Session.briefing_pending = false
+	add_child(practice)
+	practice.set_process(false)
+	# offline a pick shows the sticker over your kid at once
+	practice.hud.chat.said.emit("Yum!")
+	assert_eq(practice.hud.overhead.says_count(), 1, "offline: shown at once")
+	practice.hud.overhead.tick(QuickChat.SAY_TIME + 0.1)
+	# a sticker that comes from the network shows over whoever sent it
+	practice._on_said(practice.local_id, 2)
+	assert_eq(practice.hud.overhead.says_count(), 1)
+	practice.hud.overhead.tick(QuickChat.SAY_TIME + 0.1)
+	practice._on_said(practice.local_id, 99)
+	practice._on_said(practice.local_id, -1)
+	assert_eq(practice.hud.overhead.says_count(), 0, "a number outside the set is ignored")

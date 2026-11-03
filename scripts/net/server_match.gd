@@ -288,6 +288,11 @@ func _everyone_in(flags: Dictionary[int, bool]) -> bool:
 	return true
 
 
+## A player's quick chat sticker goes to every connected player of the room, the sender too (the sender's phone shows it when it comes back).
+func say(player_id: int, sticker: int) -> void:
+	_broadcast({"t": NetProtocol.Msg.SAID, "p": player_id, "s": sticker})
+
+
 func _broadcast(message: Dictionary) -> void:
 	if _server == null:
 		return
