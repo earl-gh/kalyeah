@@ -11,9 +11,11 @@ const COUNT_RIGHT: float = 24.0
 const COUNT_TOP: float = 14.0
 
 
-## `on_saved` is called after a successful Save, once Session holds the new name. `on_take_photo` opens the camera and `on_photo_removed`
-## follows Remove photo; without `on_take_photo` the preview photo is read-only.
-static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_photo_removed: Callable = Callable()) -> MenuDialog:
+## `on_saved` is called after a successful Save, once Session holds the new name. The photo has three ways in (owner, 2026-11-03), a row of
+## buttons under the tag: `on_pick_gallery` opens the phone's gallery (only where it has a picker), `on_take_photo` opens the camera (only on a
+## device that can have one) and `on_pick_avatar` opens the six avatars; `on_photo_removed` follows Remove photo. Each button closes the
+## sheet and hands over. Without any of them the preview photo is read-only.
+static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_photo_removed: Callable = Callable(), on_pick_gallery: Callable = Callable(), on_pick_avatar: Callable = Callable()) -> MenuDialog:
 	var card: MenuDialog = MenuDialog.create("Your nametag", MenuDialog.WIDTH_SHEET)
 	card.name = "ProfileSheet"
 	# The tag itself is the foreground surface; no second card surrounds it.
@@ -89,18 +91,29 @@ static func build(on_saved: Callable, on_take_photo: Callable = Callable(), on_p
 		field.add_theme_font_size_override("font_size", tag.name_label.get_theme_font_size("font_size"))
 	holder.resized.connect(fit_preview)
 	card.opened.connect(fit_preview)
-	if on_take_photo.is_valid() and (IdPhoto.exists() or IdPhoto.camera_possible()):
-		var take: Button = Button.new()
-		take.name = "TakePhoto"
-		take.accessibility_name = "New photo" if IdPhoto.exists() else "Take photo"
-		take.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		for state: String in ["normal", "hover", "pressed", "hover_pressed"]:
-			take.add_theme_stylebox_override(state, StyleBoxEmpty.new())
-		take.add_theme_stylebox_override("focus", UiSkin.focus_ring(UiSkin.RADIUS_M))
-		tag.photo_frame.add_child(take)
-		take.pressed.connect(func() -> void:
-			card.close(false)
-			on_take_photo.call())
+	# the three ways to give the tag a photo, in a row under it
+	var ways: Array[Dictionary] = []
+	if on_pick_gallery.is_valid() and IdPhotoPicker.available():
+		ways.append({"name": "Gallery", "text": "Gallery", "say": "Pick a photo from the gallery", "act": on_pick_gallery})
+	if on_take_photo.is_valid() and IdPhoto.camera_possible():
+		ways.append({"name": "Camera", "text": "Camera", "say": "Take a photo with the camera", "act": on_take_photo})
+	if on_pick_avatar.is_valid():
+		ways.append({"name": "Avatar", "text": "Avatar", "say": "Pick an avatar", "act": on_pick_avatar})
+	if not ways.is_empty():
+		var row: HBoxContainer = HBoxContainer.new()
+		row.name = "PhotoOptions"
+		row.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+		for way: Dictionary in ways:
+			var option: Button = MenuDialog.make_button(way["text"] as String, "blue", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
+			option.name = way["name"] as String
+			option.accessibility_name = way["say"] as String
+			option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var act: Callable = way["act"] as Callable
+			option.pressed.connect(func() -> void:
+				card.close(false)
+				act.call())
+			row.add_child(option)
+		card.body.add_child(row)
 	# the hint line is only for the "Pick a name!" answer
 	var hint: Label = card.add_hint("")
 	hint.hide()

@@ -212,13 +212,13 @@ func test_the_profile_takes_and_removes_the_photo() -> void:
 	if not IdPhoto.camera_possible():
 		pass_test("no camera on this machine: no photo row")
 		return
-	(card.find_child("TakePhoto", true, false) as Button).pressed.emit()
+	(card.find_child("Camera", true, false) as Button).pressed.emit()
 	assert_true(asked[0])
 	var face: Image = Image.create(64, 64, false, Image.FORMAT_RGB8)
 	IdPhoto.save(face)
 	var again: MenuDialog = ProfileSheet.build(Callable(), func() -> void: pass, func() -> void: removed[0] = true)
 	again.open(_host)
-	assert_eq((again.find_child("TakePhoto", true, false) as Button).accessibility_name, "New photo")
+	assert_eq((again.find_child("Camera", true, false) as Button).accessibility_name, "Take a photo with the camera")
 	(again.find_child("RemovePhoto", true, false) as Button).pressed.emit()
 	assert_false(IdPhoto.exists())
 	assert_true(removed[0])
