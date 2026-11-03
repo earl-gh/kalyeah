@@ -212,22 +212,41 @@ func test_agawang_base_is_spelled_with_the_g_everywhere_a_player_reads_it() -> v
 	assert_eq(MatchBriefing.words_for(null)["title"], "Agawang Base")
 
 
-func test_there_is_no_tap_to_continue_and_nothing_stays_in_the_header() -> void:
+func test_tap_to_continue_starts_the_match_at_once_and_leaves_nothing_in_the_header() -> void:
 	var practice: PracticeMatch = _match(&"street")
 	var briefing: MatchBriefing = practice.hud.briefing
-	var texts: Array[String] = _texts(briefing)
-	assert_false(texts.has("Tap to continue"), "no tap to continue line")
-	assert_false(briefing.has_signal("skipped"), "no carried-on countdown")
-	assert_null(practice.hud.get("skip_timer"), "and nothing between the scores")
-	assert_eq(briefing.mouse_filter, Control.MOUSE_FILTER_STOP, "it only keeps touches off the match")
+	assert_eq(briefing.continue_label.text, "Tap to continue")
+	assert_true(briefing.continue_label.is_visible_in_tree())
+	assert_eq(briefing.mouse_filter, Control.MOUSE_FILTER_STOP)
 	practice._input(_touch())
-	assert_eq(practice.sim.phase, MatchSim.Phase.INTRO, "and does not skip the opening show behind it")
+	assert_eq(practice.sim.phase, MatchSim.Phase.INTRO, "the tap that ends the briefing does not also skip the opening show")
+	briefing._process(3.0)
+	var ended: Array[bool] = []
+	briefing.finished.connect(func() -> void: ended.append(true))
+	briefing._gui_input(_touch())
+	assert_eq(ended.size(), 1, "a tap ends it at once, with seconds left")
+	assert_false(briefing.running)
+	assert_false(briefing.visible)
+	assert_true(practice.hud.controls_active(), "the controls are back")
+	assert_null(practice.hud.get("skip_timer"), "and no countdown carries on between the scores")
+	assert_eq(practice.sim.phase, MatchSim.Phase.INTRO, "the opening show still plays after it")
+
+
+func test_android_back_starts_the_match_instead_of_opening_the_menu() -> void:
+	var practice: PracticeMatch = _match(&"street")
 	practice._back_pressed()
-	assert_false(practice.hud.menu.visible, "Back does not open the menu over it either")
-	assert_true(briefing.running)
-	briefing._process(10.5)
-	assert_false(briefing.running, "only the countdown ends it")
+	assert_false(practice.hud.menu.visible, "back does not open the menu over the briefing")
+	practice.hud.briefing.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	await wait_process_frames(1)
+	assert_false(practice.hud.briefing.running)
+
+
+func test_the_countdown_still_ends_it_by_itself() -> void:
+	var practice: PracticeMatch = _match(&"street")
+	practice.hud.briefing._process(10.5)
+	assert_false(practice.hud.briefing.running)
 	assert_true(practice.hud.controls_active())
+
 
 
 func test_the_title_is_left_and_the_countdown_is_a_plain_number_at_the_right_of_the_same_row() -> void:
