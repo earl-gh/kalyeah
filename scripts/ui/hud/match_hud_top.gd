@@ -44,6 +44,9 @@ static func build(hud: MatchHud) -> void:
 static func layout(hud: MatchHud) -> void:
 	if hud.intro_bar != null:
 		hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(80, -(hud.console_height() + 150.0), -80, -(hud.console_height() + 6.0)))
+	if hud.tag_toast != null:
+		# the tag toast sits just above the tray (the cards, or the street pad's strip)
+		hud._place(hud.tag_toast, Vector4(0, 1, 1, 1), Vector4(0, -(hud.console_height() + TagToast.HEIGHT + TagToast.GAP), 0, -(hud.console_height() + TagToast.GAP)))
 	hud._place(hud.scoreboard, Vector4(0.5, 0, 0.5, 0), Vector4(-MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y, MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y))
 	var gear_box: Vector4 = Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE)
 	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear_box)

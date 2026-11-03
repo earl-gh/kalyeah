@@ -5,7 +5,8 @@ extends RefCounted
 ## Advances only through step(dt) and uses its own seeded RNG (no randf()).
 
 ## At 0 HP a player is tagged: sent to the sidewalk until a teammate rescues them.
-signal player_tagged(id: int)
+## `id` was tagged; `by_id` is who dealt the blow that did it (-1 when nobody did: a scripted tag).
+signal player_tagged(id: int, by_id: int)
 ## `by_id` is the rescuing teammate, or -1 when a training dummy walked out on its own.
 signal player_rescued(id: int, by_id: int)
 
@@ -439,8 +440,8 @@ func set_input(id: int, input: PlayerInput) -> void:
 	_inputs[id] = input
 
 
-## Applies damage. At 0 HP the player is tagged.
-func damage(id: int, amount: int) -> void:
+## Applies damage (`by` is who dealt it, -1 for nobody). At 0 HP the player is tagged.
+func damage(id: int, amount: int, by: int = -1) -> void:
 	if not players.has(id) or amount <= 0:
 		return
 	var state: PlayerState = players[id]
@@ -449,7 +450,7 @@ func damage(id: int, amount: int) -> void:
 	state.hp = maxi(0, state.hp - amount)
 	player_damaged.emit(id, amount)
 	if state.hp <= 0:
-		objectives.tag(self, state)
+		objectives.tag(self, state, by)
 
 
 ## Heals up to max HP; returns the HP actually gained. Nothing while tagged.

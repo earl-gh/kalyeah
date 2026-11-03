@@ -100,6 +100,7 @@ func connect_hud() -> void:
 
 
 func connect_sim() -> void:
+	_connect_tag_toast()
 	owner.sim.player_damaged.connect(func(id: int, amount: int) -> void:
 		if id == owner.local_id:
 			owner._camera.shake(minf(0.1 + amount * 0.01, 0.4))
@@ -155,15 +156,15 @@ func _connect_street_game(mode: StreetMode) -> void:
 		lines.dived.connect(_on_dived)
 
 
-## A kid was caught (a tag): it stumbles and falls while everyone stands still, with stars and dust where it was touched, and "TAYA!" over
-## it where it stands (the same word and place as a tag in Agawan Base, `OverheadHud.show_tag`: no banner across the screen). The one that
-## touched it has played its touch (or is finishing its dive: the catch is the dive's end).
+## A kid was caught (a tag): it stumbles and falls while everyone stands still, with stars and dust where it was touched, and the tag toast
+## pops in above the tray (`TagToast`: no banner across the screen). The one that touched it has played its touch (or is finishing its
+## dive: the catch is the dive's end).
 func _on_caught(tagger: int, target: int) -> void:
 	var view: KidModel = owner._views.get(target) as KidModel
 	var pause: float = owner.sim.mode.catch_seconds()
 	if view != null:
 		view.play_tripped(pause)
-		owner.hud.overhead.show_tag(target, view.position)
+	_toast_tag(tagger, target)
 	var at: Vector2 = owner.sim.players[target].position
 	var context: FxContext = owner._fx.context()
 	context.particles.puff(FxParticles.Preset.STARS, Vector3(at.x, CATCH_STARS_HEIGHT, at.y), FxBursts.STARS)
@@ -299,6 +300,7 @@ func sync(delta: float) -> void:
 		owner._map.set_own_side(_viewed_side)
 	owner.mode_view.sync(delta)
 	owner.hud.overhead.tick(delta)
+	owner.hud.tag_toast.tick(delta)
 	owner.hud.marker.tick(delta)
 	owner.hud.sync_score(owner.sim, owner.local_team, delta, owner.local_id)
 	# Tumbang Preso's taya turn swings the street round; Patintero's role switch cuts
@@ -456,14 +458,25 @@ func _play_intro_shot() -> void:
 	owner._camera.place(owner.own_side() == MapLayout.SIDE_ENEMY)
 
 
-func _on_player_tagged(id: int) -> void:
-	# The sim has already moved the kid to the sidewalk; keep the last visible street position.
-	var view: KidModel = owner._views.get(id) as KidModel
-	if view != null:
-		owner.hud.overhead.show_tag(id, view.position)
+func _on_player_tagged(id: int, by_id: int) -> void:
+	_toast_tag(by_id, id)
 	if id == owner.local_id:
 		owner._camera.shake(0.25)
 		owner.hud.pulse.tagged()
+
+
+## The tag toast for `tagger` (-1: nobody) tagging `target`: their kids' faces (`TagToast.say`).
+func _toast_tag(tagger: int, target: int) -> void:
+	var by: PlayerState = owner.sim.players.get(tagger) as PlayerState
+	var tagged: PlayerState = owner.sim.players.get(target) as PlayerState
+	owner.hud.tag_toast.say(by.character_id if by != null else &"", tagged.character_id if tagged != null else &"")
+
+
+## The toast pops in and out with a sound each (the owner's own files, reused).
+func _connect_tag_toast() -> void:
+	var toast: TagToast = owner.hud.tag_toast
+	toast.popped_in.connect(func() -> void: owner._sfx.play(TagToast.SOUND_IN, TagToast.SPEED_IN))
+	toast.popped_out.connect(func() -> void: owner._sfx.play(TagToast.SOUND_OUT, TagToast.SPEED_OUT))
 
 
 func _on_player_rescued(id: int, _by_id: int) -> void:
@@ -473,6 +486,7 @@ func _on_player_rescued(id: int, _by_id: int) -> void:
 
 
 func _on_match_won(team: int) -> void:
+	owner.hud.tag_toast.clear()
 	var mode: String = "practice"
 	if owner.online:
 		mode = "hotspot" if Session.lobby_hotspot else "online"
