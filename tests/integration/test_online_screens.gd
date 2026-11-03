@@ -321,7 +321,7 @@ func test_online_uses_shared_room_controls_and_server_confirmed_choices() -> voi
 	assert_eq(guest.code_text(), host.code_text())
 	assert_eq(guest._room_view.action_button.text, "Cancel ready")
 	host._room_view.first_to_chosen.emit(5)
-	assert_true(_until(func() -> bool: return guest._room_view.format_summary.text.contains("Race to 5")))
+	assert_true(_until(func() -> bool: return (guest._room_view.race_group.get_child(2) as Label).text == "5"))
 	assert_true(guest._room_view.format_summary.text.begins_with("3v3"), "every room is 3v3: no size to pick")
 	guest._room_view.character_chosen.emit("toni")
 	assert_true(_until(func() -> bool: return (guest._room_view.kid_cards["toni"].get_node("Chosen") as Control).visible))

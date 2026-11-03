@@ -58,6 +58,8 @@ var settings_button: Button
 var map_card: Button
 ## "Tap to change" under the game's name (the host only).
 var map_hint: Label
+## A guest's game: the name as text (the host has the card).
+var map_title: Label
 ## The chosen game's picture at the right end of the map card (the Games page's picture).
 var map_picture: TextureRect
 var map_carousel: MenuCarousel
@@ -223,6 +225,11 @@ func _build_map_section() -> Control:
 	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	game.add_child(caption)
 	game.add_child(map_card)
+	# a guest cannot change the game: it reads the name as text, no card
+	map_title = LobbyWidgets.label("", UiMetrics.TITLE, KalyeahTheme.TEXT)
+	map_title.name = "GameTitle"
+	map_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	game.add_child(map_title)
 	column.add_child(game)
 	var listing: HBoxContainer = HBoxContainer.new()
 	listing.name = "Listing"
@@ -268,7 +275,8 @@ func _build_map_section() -> Control:
 	return column
 
 
-## One setting of the host's row: a small caption at the top left, the buttons under it (`get_child(1)`).
+## One setting of the host's row: a small caption at the top left, the buttons under it (`get_child(1)`; a guest sees the choice as the text
+## `get_child(2)` instead).
 func _setting(caption: String, group_name: String) -> VBoxContainer:
 	var group: VBoxContainer = VBoxContainer.new()
 	group.name = group_name
@@ -282,6 +290,11 @@ func _setting(caption: String, group_name: String) -> VBoxContainer:
 	buttons.add_theme_constant_override("separation", int(GAP) + 2)
 	buttons.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	group.add_child(buttons)
+	# a guest reads the host's choice as text instead of buttons
+	var value: Label = LobbyWidgets.label("", UiMetrics.TITLE, KalyeahTheme.TEXT)
+	value.name = "Value"
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	group.add_child(value)
 	settings_row.add_child(group)
 	return group
 
@@ -393,29 +406,40 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	# only the host opens the map carousel
 	map_card.disabled = not host
 	map_hint.visible = host
+	map_card.visible = host
+	map_title.visible = not host
+	map_title.text = MAP_NAMES.get(map_id, String(map_id).to_upper()) as String
 	var size: int = room.get("team_size", RoomService.MAX_TEAM_SIZE) as int
 	# a street game is timed (most points win), so it has no "race to"
 	var game: StreetModeRules = StreetMode.rules_for(map_id)
 	var every_kid: bool = RoomService.free_for_all(map_id)
 	team_headers.visible = not every_kid
-	race_group.visible = host and game == null
+	race_group.visible = game == null
+	race_group.get_child(1).visible = host
+	(race_group.get_child(2) as Label).visible = not host
+	(race_group.get_child(2) as Label).text = "%d" % count
 	var open: bool = room.get("open", true) as bool
 	for choice: bool in open_buttons:
 		open_buttons[choice].set_pressed_no_signal(choice == open)
 	(open_buttons[true].get_parent() as Control).visible = host and online_room
 	var bots_on: bool = room.get("fill_bots", false) as bool
-	bots_row.visible = host and room.get("bots_allowed", false) as bool
+	bots_row.visible = room.get("bots_allowed", false) as bool
+	bots_row.get_child(1).visible = host
+	(bots_row.get_child(2) as Label).visible = not host
+	(bots_row.get_child(2) as Label).text = "On" if bots_on else "Off"
 	settings_gap.visible = race_group.visible and bots_row.visible
 	settings_row.visible = race_group.visible or bots_row.visible
 	bots_button.set_state(bots_on)
-	format_summary.text = "%dv%d · Race to %d" % [size, size, count] if game == null else \
+	# (the race is in the settings row)
+	format_summary.text = "%dv%d" % [size, size] if game == null else \
 		"%dv%d · %d min" % [size, size, roundi(game.match_seconds / 60.0)]
 	if every_kid:
 		format_summary.text = UiText.f("%d to %d players", [game.room_min_players, size * 2]) + " · %d min" % roundi(game.match_seconds / 60.0)
 	if online_room:
 		format_summary.text += " · " + ("Open" if open else "Private")
 	# a guest reads the format here; in a free-for-all the host has no size to pick, so it reads it too
-	format_summary.visible = not host or every_kid
+	# (a bare "3v3" says nothing the room does not: every room is 3v3)
+	format_summary.visible = (not host or every_kid) and format_summary.text != "%dv%d" % [size, size]
 	_fill_players(members, size)
 	var picked: String = String(me.get("char", ""))
 	if picked.is_empty():

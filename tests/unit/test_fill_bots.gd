@@ -186,10 +186,13 @@ func test_the_room_screen_shows_the_switch_to_the_host_of_a_hotspot_room_only() 
 	view.show_room(room, 1)
 	assert_true(view.bots_button.button_pressed)
 	view.show_room(room, 2)
-	assert_false(view.bots_row.visible, "a guest does not see it")
+	assert_true(view.bots_row.visible, "a guest reads it as text")
+	assert_false(view.bots_row.get_child(1).visible, "but gets no switch")
 	room["bots_allowed"] = false
 	view.show_room(room, 1)
 	assert_false(view.bots_row.visible, "an online room has no bots")
+	view.show_room(room, 2)
+	assert_false(view.bots_row.visible, "and its guests are not told about them")
 
 
 func test_pressing_the_switch_tells_the_screen() -> void:
@@ -254,3 +257,33 @@ func test_the_game_card_has_a_caption_over_it_and_tap_to_change_under_its_title_
 		"map": &"street", "members": [{"player_id": 1, "name": "Ana", "team": 0, "ready": false, "connected": true, "char": "junjun"}]}
 	host.show_room(room, 2)
 	assert_false(host.map_hint.visible, "a guest cannot change the game")
+
+
+func test_a_guest_reads_the_game_and_the_settings_as_text_in_two_rows() -> void:
+	var room: Dictionary = {"code": "", "team_size": 3, "host": 1, "first_to": 5, "state": 0, "can_start": false, "can_start_host": false,
+		"map": &"street", "fill_bots": true, "bots_allowed": true,
+		"members": [{"player_id": 1, "name": "Ana", "team": 0, "ready": true, "connected": true, "char": "junjun"},
+			{"player_id": 2, "name": "Ben", "team": 1, "ready": false, "connected": true, "char": "migo"}]}
+	var view: HotspotRoomView = autofree(HotspotRoomView.new()) as HotspotRoomView
+	add_child(view)
+	view.show_room(room, 2)
+	# row 1: Game, then the title
+	assert_eq(((view.map_title.get_parent() as Control).get_child(0) as Label).text, "Game")
+	assert_true(view.map_title.visible)
+	assert_eq(view.map_title.text, "Agawan Base")
+	assert_false(view.map_card.visible, "no card to tap")
+	assert_false(view.map_hint.visible)
+	# row 2: Race to and Fill with bots, each its choice as text
+	assert_true(view.race_group.visible)
+	assert_false(view.race_group.get_child(1).visible, "no buttons")
+	assert_eq((view.race_group.get_child(2) as Label).text, "5")
+	assert_true(view.bots_row.visible)
+	assert_false(view.bots_row.get_child(1).visible, "no switch")
+	assert_eq((view.bots_row.get_child(2) as Label).text, "On")
+	room["fill_bots"] = false
+	view.show_room(room, 2)
+	assert_eq((view.bots_row.get_child(2) as Label).text, "Off")
+	room["map"] = &"patintero"
+	view.show_room(room, 2)
+	assert_false(view.race_group.visible, "a timed game has no race")
+	assert_eq(view.map_title.text, "Patintero")
