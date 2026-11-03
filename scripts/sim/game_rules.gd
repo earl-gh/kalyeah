@@ -53,6 +53,9 @@ extends Resource
 @export var overtime_capture_time: float = 0.0
 ## The opening show before the first round (both teams at their posts, then GO!).
 @export var intro_time: float = 0.0
+## Practice: the briefing over a match before it starts (what the game is, how to move and act) counts down this many seconds, then the
+## match begins by itself; a tap starts it sooner.
+@export var briefing_seconds: float = 10.0
 ## Freeze after a point before everyone is reset to their posts.
 @export var point_freeze_time: float = 0.0
 ## Weapon cards (owner): nobody picks weapons. Every player has a shuffled deck of all the weapons and a hand of two cards (the two

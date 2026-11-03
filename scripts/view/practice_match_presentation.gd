@@ -115,11 +115,7 @@ func connect_sim() -> void:
 	owner.sim.point_reset.connect(func() -> void:
 		owner.hud.street.release())
 	owner.sim.intro_finished.connect(func() -> void:
-		owner.show_banner("GO!")
-		# the first practice match opens with the walkthrough (it teaches Agawan Base)
-		if Session.coach_pending and not owner.online and owner.sim.mode == null:
-			Session.coach_pending = false
-			owner.hud.coach.start(owner.sim.rules.capture_solo_time, owner.sim.score.points_to_win()))
+		owner.show_banner("GO!"))
 	owner.sim.player_tagged.connect(_on_player_tagged)
 	owner.sim.player_rescued.connect(_on_player_rescued)
 	if owner.sim.mode != null:
@@ -439,6 +435,9 @@ func _sync_aim(player: PlayerState) -> void:
 
 func _play_intro_shot() -> void:
 	var mode: StreetMode = owner.sim.mode
+	if owner.hud.briefing.visible:
+		_hide_roll()  # the briefing is on screen: the roll starts when it ends
+		return
 	if mode is TumbangPreso and mode.rules.roll_seconds > 0.0:
 		_show_roll(mode as TumbangPreso)
 		owner.hud.show_intro("")  # the roll says who is it
@@ -520,6 +519,7 @@ func _on_again_pressed() -> void:
 	if owner.online:
 		owner._on_exit_pressed()
 		return
+	Session.briefing_pending = Session.practice_kind == &"match"  # the next match opens with the briefing too
 	owner.get_tree().reload_current_scene()
 
 

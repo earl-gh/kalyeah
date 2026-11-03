@@ -53,6 +53,10 @@ static func confirm(owner: PracticeMatch, picks: Array[StringName]) -> void:
 	owner._opening_pick = false
 	owner.sim.begin_intro()
 	owner._set_controls_active(true)
+	# a Practice match against bots opens with the briefing; the match stands still behind it (offline only: a server does not wait)
+	if Session.briefing_pending and not owner.online:
+		Session.briefing_pending = false
+		owner.hud.briefing.start(StreetMode.rules_for(Session.practice_game), owner.rules.briefing_seconds)
 	owner._presentation.sync(0.0)
 
 

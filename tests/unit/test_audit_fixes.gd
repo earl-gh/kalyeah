@@ -49,9 +49,9 @@ func test_the_match_stands_still_while_the_menu_is_open_and_runs_again_after() -
 	assert_gt(practice.sim.tick, tick, "and it runs again after Resume")
 
 
-func test_the_first_run_walkthrough_holds_the_match() -> void:
+func test_the_briefing_holds_the_match() -> void:
 	var practice: PracticeMatch = _practice(&"match")
-	practice.hud.coach.start(5.0, 3)
+	practice.hud.briefing.start(null, 10.0)
 	practice.advance(DT)
 	var tick: int = practice.sim.tick
 	for i: int in 30:

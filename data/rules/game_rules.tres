@@ -48,6 +48,7 @@ extended_seconds = 60.0
 overtime_seconds = 60.0
 overtime_capture_time = 3.0
 intro_time = 2.0
+briefing_seconds = 10.0
 point_freeze_time = 3.0
 first_to = 3
 card_cycle = true

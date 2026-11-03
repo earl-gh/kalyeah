@@ -20,7 +20,7 @@ func before_each() -> void:
 	_avatar = Session.avatar_id
 	_mode = Session.menu_mode
 	_kind = Session.practice_kind
-	_coach = Session.coach_pending
+	_coach = Session.briefing_pending
 	Session.practice_game = &"street"
 
 
@@ -29,7 +29,7 @@ func after_each() -> void:
 	Session.avatar_id = _avatar
 	Session.menu_mode = _mode
 	Session.practice_kind = _kind
-	Session.coach_pending = _coach
+	Session.briefing_pending = _coach
 	Session.save()
 
 
@@ -129,7 +129,7 @@ func test_practice_confirm_names_the_game() -> void:
 func _practice(game: StringName) -> PracticeMatch:
 	Session.practice_kind = &"match"
 	Session.practice_game = game
-	Session.coach_pending = false
+	Session.briefing_pending = false
 	var practice: PracticeMatch = autofree(PRACTICE_TAYA.make(self, PRACTICE_SCENE)) as PracticeMatch
 	if practice.sim.mode is TumbangPreso:
 		# the match draws the first taya at random (tests/unit/test_tumbang_roll.gd); these tests want the last kid (a bot) to be it, as it was before the draw

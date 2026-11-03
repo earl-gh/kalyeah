@@ -144,7 +144,7 @@ func _process(delta: float) -> void:
 
 ## A tap anywhere skips the opening show (offline: online the server runs it for everyone).
 func _input(event: InputEvent) -> void:
-	if online or sim == null or sim.phase != MatchSim.Phase.INTRO or is_picking():
+	if online or sim == null or sim.phase != MatchSim.Phase.INTRO or is_picking() or hud.briefing.visible:
 		return
 	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
 		skip_intro()
@@ -173,10 +173,10 @@ func _notification(what: int) -> void:
 		_step_once(0.0)
 
 
-## The phone's back button opens the match settings (Resume, Leave). The pick screen, the walkthrough and the settings take the
+## The phone's back button opens the match settings (Resume, Leave). The pick screen, the briefing and the settings take the
 ## press themselves; the results card has its own buttons. Deferred, so they still read as open here (see MenuDialog).
 func _back_pressed() -> void:
-	if is_picking() or hud.menu.visible or hud.coach.visible or sim.phase == MatchSim.Phase.MATCH_OVER:
+	if is_picking() or hud.menu.visible or hud.briefing.visible or sim.phase == MatchSim.Phase.MATCH_OVER:
 		return
 	hud.toggle_menu()
 
@@ -343,10 +343,10 @@ func advance(delta: float) -> void:
 	_presentation.sync(delta)
 
 
-## Offline, the match stands still while the match menu or the first-run walkthrough is open (a match against the clock of bots
+## Offline, the match stands still while the match menu or the briefing is open (a match against the clock of bots
 ## does not wait for nobody online, so online play keeps running).
 func _held_still() -> bool:
-	return not online and (hud.menu.visible or hud.coach.visible)
+	return not online and (hud.menu.visible or hud.briefing.visible)
 
 
 # ---- setup ---------------------------------------------------------------------------

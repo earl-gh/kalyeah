@@ -6,24 +6,19 @@ const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
 const ALPHABET: String = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
-var _seen: bool
 var _pending: bool
 var _motion: bool
 
 
 func before_each() -> void:
-	_seen = Session.coach_seen
-	_pending = Session.coach_pending
+	_pending = Session.briefing_pending
 	_motion = Settings.reduced_motion
-	Session.coach_seen = true
-	Session.coach_pending = false
+	Session.briefing_pending = false
 	Settings.set_reduced_motion(true)
 
 
 func after_each() -> void:
-	Session.coach_seen = _seen
-	Session.coach_pending = _pending
-	Session.save()
+	Session.briefing_pending = _pending
 	Settings.set_reduced_motion(_motion)
 	var layer: Node = get_tree().root.get_node_or_null(UiToast.LAYER_NAME)
 	if layer != null:
@@ -205,95 +200,6 @@ func test_the_online_room_header_shows_the_code_as_boxes_and_a_hidden_label_keep
 	assert_eq(view.code_boxes.get_text(), "K7M2Q9XA")
 	view.clear_room()
 	assert_eq(view.code_boxes.get_text(), "", "leaving removes a stale code from the boxes too")
-
-
-# ---- walkthrough ------------------------------------------------------------------------
-
-func _practice() -> PracticeMatch:
-	var practice: PracticeMatch = autofree(PRACTICE_SCENE.instantiate()) as PracticeMatch
-	add_child(practice)
-	practice.finish_pick()
-	return practice
-
-
-func test_the_four_steps_use_the_rules_numbers() -> void:
-	var steps: Array[Dictionary] = CoachMarks.steps_for(5.0, 2)
-	assert_eq(steps.size(), 4)
-	assert_eq(steps[0]["target"], &"", "moving is a tap anywhere on the street: nothing to light")
-	assert_true((steps[0]["text"] as String).contains("Tap the street"))
-	assert_eq(steps[1]["target"], &"hand")
-	assert_true((steps[1]["text"] as String).contains("Drag a card"))
-	assert_true((steps[2]["text"] as String).contains("5 seconds"))
-	assert_true((steps[2]["text"] as String).contains("First to 2 points"))
-	assert_true((CoachMarks.steps_for(4.5, 3)[2]["text"] as String).contains("4.5 seconds"))
-
-
-func test_the_first_practice_match_opens_with_the_walkthrough_and_quiets_the_controls() -> void:
-	Session.coach_pending = true
-	var practice: PracticeMatch = _practice()
-	practice.skip_intro()
-	var coach: CoachMarks = practice.hud.coach
-	assert_true(coach.running)
-	assert_true(coach.visible)
-	assert_false(Session.coach_pending, "it opens once")
-	assert_false(practice.hud.controls_active(), "no stray throw while it is up")
-	assert_eq(coach.kicker_label.text, "Step 1 of 4")
-	assert_eq(coach.title_label.text, "MOVE")
-	assert_eq(coach._spots.size(), 0, "the street is the control: nothing to light")
-
-
-func test_next_walks_the_steps_lights_the_hand_and_ends_with_got_it() -> void:
-	Session.coach_pending = true
-	var practice: PracticeMatch = _practice()
-	practice.skip_intro()
-	var coach: CoachMarks = practice.hud.coach
-	var ended: Array[bool] = []
-	coach.finished.connect(func(completed: bool) -> void: ended.append(completed))
-	coach.next()
-	assert_eq(coach.title_label.text, "AIM AND THROW")
-	assert_eq(coach._spots.size(), 2, "the hand is lit, two cards to a spot")
-	coach.next()
-	assert_eq(coach._spots.size(), 0, "nothing to light for the rules")
-	coach.next()
-	assert_eq(coach.next_button.text, "Got it")
-	assert_true(coach.skip_button.visible, "the home-style X stays available")
-	assert_eq(coach.skip_button.text, "X")
-	Session.coach_seen = false
-	coach.next()
-	assert_eq(ended, [true] as Array[bool])
-	assert_false(coach.visible)
-	assert_true(Session.coach_seen, "seen: it will not open by itself again")
-	assert_true(practice.hud.controls_active(), "the controls are back")
-
-
-func test_skip_ends_it_for_good_and_back_on_android_skips() -> void:
-	Session.coach_pending = true
-	var practice: PracticeMatch = _practice()
-	practice.skip_intro()
-	var coach: CoachMarks = practice.hud.coach
-	var ended: Array[bool] = []
-	coach.finished.connect(func(completed: bool) -> void: ended.append(completed))
-	Session.coach_seen = false
-	coach.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
-	await wait_process_frames(1)
-	assert_eq(ended, [false] as Array[bool], "skipped, not completed")
-	assert_true(Session.coach_seen)
-	assert_true(practice.hud.controls_active())
-
-
-func test_without_a_pending_walkthrough_a_match_starts_clean() -> void:
-	var practice: PracticeMatch = _practice()
-	practice.skip_intro()
-	assert_false(practice.hud.coach.running)
-	assert_true(practice.hud.controls_active())
-
-
-func test_seen_is_saved_with_the_player() -> void:
-	Session.coach_seen = true
-	Session.save()
-	var loaded: Node = autofree((load("res://scripts/autoload/session.gd") as GDScript).new()) as Node
-	add_child(loaded)
-	assert_true(loaded.get("coach_seen") as bool, "a reloaded page remembers it was shown")
 
 
 # ---- how to play ------------------------------------------------------------------------

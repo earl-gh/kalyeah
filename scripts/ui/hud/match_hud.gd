@@ -114,7 +114,7 @@ var again_button: Button
 var point_result: PointResult
 var _covered: bool = false
 var results: MatchResults
-var coach: CoachMarks
+var briefing: MatchBriefing
 ## What the results card says the match was ("Practice", "Hotspot", "Online").
 var results_mode: String = "Practice"
 ## Big countdown in the middle while a capture is running (not an enemy taking your base: that is `capture_alert`).
@@ -314,6 +314,7 @@ func set_street_game(on: bool) -> void:
 func setup_street_scores(sim: MatchSim, local_id: int) -> void:
 	score_column = ScoreColumn.new()
 	add_child(score_column)
+	move_child(briefing, -1)  # the briefing stays over everything that is added after it
 	score_column.setup(sim, local_id)
 	layout_controls()
 
@@ -403,12 +404,12 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 		scoreboard.visible = not covered and not sim.mode.is_free_for_all()
 	overhead.visible = not covered
 	if covered:
-		for item: CanvasItem in [hand, street_pad, chat, tagged_panel, intro_bar, capture_label, capture_alert, banner, coach]:
+		for item: CanvasItem in [hand, street_pad, chat, tagged_panel, intro_bar, capture_label, capture_alert, banner, briefing]:
 			item.hide()
 		clock_flash.cancel()
 	if _covered != covered:
 		_covered = covered
-		set_controls_active(not covered and not menu.visible and not coach.running)
+		set_controls_active(not covered and not menu.visible and not briefing.running)
 	if sim.phase != MatchSim.Phase.MATCH_OVER and _banner_left > 0.0:
 		_banner_left -= delta
 		if _banner_left <= 0.0:
@@ -520,8 +521,8 @@ func _build() -> void:
 	swap_button = tagged_panel.swap_button
 	tagged_panel.swap_pressed.connect(swap_pressed.emit)
 	MatchHudTop.build_intro(self)
-	coach = CoachMarks.new(self)
-	add_child(coach)
+	briefing = MatchBriefing.new(self)
+	add_child(briefing)
 	# last, so it draws over the hand
 	menu = MatchMenu.new()
 	add_child(menu)

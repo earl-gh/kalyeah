@@ -795,9 +795,8 @@ func _on_practice_pressed(kind: StringName = &"training") -> void:
 	if _loading:
 		return
 	Session.practice_kind = kind
-	# the first practice match opens with the walkthrough
-	if not Session.coach_seen:
-		Session.coach_pending = true
+	# every Practice match against bots opens with the briefing (the game's name, how to score, how to move and act)
+	Session.briefing_pending = kind == &"match"
 	_loading = true
 	loading_screen = BootScreen.for_scene(PRACTICE_SCENE)
 	add_child(loading_screen)
