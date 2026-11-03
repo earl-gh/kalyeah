@@ -48,8 +48,10 @@ const TOP_ROW_Y: float = 12.0
 const HEADER_HEIGHT: float = TOP_ROW_Y * 2.0 + 88.0
 const MARGIN: float = 14.0
 const GEAR_SIZE: float = UiMetrics.TOUCH
-const SCORE_SIZE: Vector2 = Vector2(330.0, 88.0)
-const CLOCK_SIZE: Vector2 = Vector2(176.0, 112.0)
+## (Wide enough for the clock between the two team cells: "Extended" fits over the time.)
+const SCORE_SIZE: Vector2 = Vector2(380.0, 88.0)
+## The clock stands between the two team cells, this far clear of each.
+const CLOCK_GAP: float = 4.0
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
 ## How long the capture words and the warning stay up when the capture stops for a moment (seconds).
 const CAPTURE_LINGER: float = 0.4
@@ -58,11 +60,9 @@ const CONSOLE_HEIGHT: float = 255.0
 ## The tray of Tumbang Preso and Patintero (no hand: the role line and the Throw button) is as tall as Agawang Base's, plus the bottom inset,
 ## so the camera frames the street exactly the same size in all three games (owner).
 const STREET_TRAY: float = CONSOLE_HEIGHT
-## Tumbang Preso's score column stands on the left sidewalk this far under the header, and the quick chat button under the clock is this big.
+## Tumbang Preso's score column stands on the left sidewalk this far under the header, and the quick chat button (top right) is this big.
 const SCORE_COLUMN_GAP: float = 14.0
 const STREET_CHAT_SIZE: float = 84.0
-## The street games' quick chat opens a vertical list this wide.
-const STREET_CHAT_WIDTH: float = 250.0
 ## The most the bottom inset can add (a tall gesture bar), so the tray never eats the street.
 const MAX_BOTTOM_INSET: float = 80.0
 
@@ -73,7 +73,7 @@ var _capture_alerting: bool = false
 var pulse: HurtPulse
 ## The tray at the bottom (it only draws).
 var console: ConsolePanel
-## The quick chat button, outside the plate: above NEXT, or in the Sides layout at the foot of the cards' column; what it says shows over your kid.
+## The quick chat button, fixed at the top right of the match (owner, 2026-11-03: whatever the tray does); it opens a white panel of six stickers under it, and what it says shows over your kid.
 var chat: QuickChat
 ## Quick chat is for playing with others: off in offline practice (nobody to talk to).
 var chat_enabled: bool = true
@@ -306,7 +306,6 @@ func set_street_game(on: bool) -> void:
 	hand.visible = not on
 	street_pad.visible = on
 	console.visible = not on  # no tray: the knob and the buttons float over the street
-	chat.set_vertical(on)
 	layout_controls()
 
 
@@ -527,6 +526,7 @@ func _build() -> void:
 	MatchHudTop.build_intro(self)
 	briefing = MatchBriefing.new(self)
 	add_child(briefing)
+	move_child(chat, briefing.get_index())  # the sticker panel draws over the toasts (the tag toast is under the scoreboard, next to it)
 	# last, so it draws over the hand
 	menu = MatchMenu.new()
 	add_child(menu)

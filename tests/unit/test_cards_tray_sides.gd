@@ -325,7 +325,7 @@ func test_the_bottom_tray_layout_is_what_it_was() -> void:
 	assert_lt(hand.chat_rect.end.y, hand.next_rect.position.y, "Bottom: the chat button above NEXT, outside the tray")
 
 
-func test_the_chat_button_node_stands_beside_the_plate_at_the_bottom_at_both_phone_sizes_and_both_hands() -> void:
+func test_the_chat_button_node_is_fixed_at_the_top_right_at_both_phone_sizes_and_both_hands() -> void:
 	var saved_size: Vector2i = get_window().size
 	Settings.set_cards_tray(&"sides")
 	for window_size: Vector2i in [Vector2i(720, 1280), Vector2i(390, 844)]:
@@ -353,9 +353,9 @@ func test_the_chat_button_node_stands_beside_the_plate_at_the_bottom_at_both_pho
 				for rect: Rect2 in hud.hand.card_rects:
 					assert_false(chat.intersects(Rect2(hud.hand.get_global_rect().position + rect.position, rect.size)), "%s: the cards" % label)
 				assert_false(chat.intersects(Rect2(hud.hand.get_global_rect().position + hud.hand.next_rect.position, hud.hand.next_rect.size)), "%s: NEXT" % label)
-				assert_almost_eq(chat.size.y, CardHand.CHAT_HEIGHT, 0.5, "%s: 80 px" % label)
-				assert_almost_eq(chat.get_center().x, hud.hand.get_global_rect().position.x + hud.hand.next_rect.get_center().x, 0.6, "%s: under NEXT's column" % label)
-				assert_almost_eq(hud.size.y - inset - chat.end.y, CardHand.SIDES_PAD, 0.5, "%s: at the bottom, just above the home bar" % label)
+				assert_almost_eq(chat.size.y, MatchHud.STREET_CHAT_SIZE, 0.5, "%s: one size wherever the tray is" % label)
+				assert_almost_eq(chat.end.x, hud.size.x - MatchHud.MARGIN, 0.6, "%s: fixed at the right edge of the top" % label)
+				assert_almost_eq(chat.position.y, hud.top_inset + MatchHud.TOP_ROW_Y, 0.5, "%s: on the header's row, whatever the tray" % label)
 				assert_gte(chat.position.x, 0.0)
 				assert_lte(chat.end.x, hud.size.x, "%s: on the screen" % label)
 			hud.set_bottom_inset(0.0)

@@ -35,7 +35,7 @@ func _enemy_in_our_base(practice: PracticeMatch) -> void:
 			return
 
 
-func test_an_enemy_in_your_base_shows_the_triangle_and_the_two_lines_not_the_middle_words() -> void:
+func test_an_enemy_in_your_base_shows_the_warning_toast_above_the_tray_not_the_middle_words() -> void:
 	var practice: PracticeMatch = _practice()
 	_enemy_in_our_base(practice)
 	practice.advance(DT)
@@ -48,11 +48,12 @@ func test_an_enemy_in_your_base_shows_the_triangle_and_the_two_lines_not_the_mid
 	assert_eq(alert.big_label.text, "DEFEND THE BASE!")
 	assert_gt(alert.big_label.get_theme_font_size("font_size"), alert.small_label.get_theme_font_size("font_size"), "line 2 is the large one")
 	await wait_process_frames(2)
-	var score: Rect2 = practice.hud.scoreboard.get_global_rect()
+	var tray_top: float = practice.hud.size.y - practice.hud.console_height()
+	var bar: Rect2 = alert.get_global_rect()
+	assert_almost_eq(bar.end.y, tray_top - TagToast.GAP, 1.5, "a toast just above the cards tray")
+	assert_almost_eq(bar.size.y, TagToast.HEIGHT, 1.5)
 	var icon: Rect2 = alert.icon.get_global_rect()
-	assert_almost_eq(icon.get_center().x, score.get_center().x, 1.5, "the triangle is in the middle of the scoreboard")
-	assert_almost_eq(icon.get_center().y, score.get_center().y, 1.5, "on its row")
-	assert_gte(alert.small_label.get_global_rect().position.y, score.end.y, "the words are below the scoreboard row")
+	assert_lt(icon.end.x, alert.small_label.get_global_rect().position.x + 1.0, "the triangle is at the left of the words")
 	assert_gt(alert.big_label.get_global_rect().position.y, alert.small_label.get_global_rect().position.y, "line 1 over line 2")
 	assert_eq(alert.mouse_filter, Control.MOUSE_FILTER_IGNORE)
 

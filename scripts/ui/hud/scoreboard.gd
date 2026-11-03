@@ -87,6 +87,12 @@ func _draw() -> void:
 			_round_rect(Rect2(track.position, Vector2(track.size.x * capture, track.size.y)), TeamColors.capture_own() if capture_ours else TeamColors.capture_enemy(), CAPTURE_HEIGHT / 2.0)
 
 
+## The room between the two team cells of a scoreboard `box` big (its own coordinates), `gap` clear of each cell: where the clock stands.
+static func middle_rect(box: Vector2, gap: float) -> Rect2:
+	var cell_width: float = (box.y - 12.0) * CELL_ASPECT
+	return Rect2(Vector2(6.0 + cell_width + gap, 6.0), Vector2(box.x - 12.0 - 2.0 * (cell_width + gap), box.y - 12.0))
+
+
 ## Original header spacing: 6 px outer inset, blue left and red right.
 func cell_rects() -> Array[Rect2]:
 	var box: float = size.y - 12.0

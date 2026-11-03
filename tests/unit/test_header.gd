@@ -80,15 +80,14 @@ func test_a_status_word_stays_under_the_header_and_inside_the_screen() -> void:
 	assert_eq(overhead.keep_on_screen(Vector2(360.0, 600.0), font, "Slowed", OverheadHud.STATUS_FONT), Vector2(360.0, 600.0), "and a kid in the middle is untouched")
 
 
-func test_the_clock_sits_on_the_header_opposite_the_gear_and_counts_up() -> void:
+func test_the_clock_sits_in_the_middle_of_the_score_and_counts_up() -> void:
 	var practice: PracticeMatch = await _practice()
 	var hud: MatchHud = practice.hud
 	var header: Rect2 = hud.header.get_global_rect()
 	var chip: Rect2 = hud.clock_chip.get_global_rect()
 	assert_true(header.encloses(chip), "the clock stands on the header")
-	assert_gt(chip.position.x, hud.size.x / 2.0, "at the right edge of the header")
-	assert_almost_eq(chip.position.y, 0.0, 1.0, "flush with the top of the screen, like Clash Royale's Time left box")
-	assert_almost_eq(chip.end.x, practice.hud.get_global_rect().end.x, 1.0, "and with its right edge")
+	assert_almost_eq(chip.get_center().x, hud.size.x / 2.0, 1.0, "at the top centre")
+	assert_true(hud.scoreboard.get_global_rect().encloses(chip), "between the two team cells of the score")
 	assert_eq(hud.clock_chip.mouse_filter, Control.MOUSE_FILTER_IGNORE)
 	hud.clock_chip.show_time(65.4, MatchSim.ClockStage.REGULAR)
 	assert_eq(hud.clock_chip.text(), "1:05")
