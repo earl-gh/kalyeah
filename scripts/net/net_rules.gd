@@ -34,6 +34,10 @@ extends Resource
 ## Agawang Base in a room starts with at least this many players on each team (owner: no empty team). Patintero's and Tumbang Preso's are
 ## in their own rules (`StreetModeRules.room_min_team`, `room_min_players`).
 @export var base_room_min_team: int = 1
+## Quick chat stickers (docs/GDD.md "Quick chat"): how many there are (the server refuses any other number), and the least seconds between two of
+## one player's stickers (it lasts about 2 s over the kid: a player cannot flood the others' screens).
+@export var chat_stickers: int = 0
+@export var chat_min_gap: float = 0.0
 @export var room_list_min_gap: float = 0.0
 @export var room_list_refresh: float = 0.0
 

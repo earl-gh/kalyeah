@@ -137,6 +137,7 @@ func _ready() -> void:
 		client.welcomed.connect(_on_welcomed)
 		client.room_changed.connect(_on_room_changed)
 		client.room_closed.connect(_on_room_closed)
+		client.said.connect(_on_said)
 		_on_room_changed(client.room)
 		client.loaded()
 		if client.stage == "play":
@@ -681,6 +682,12 @@ func record_if_abandoned() -> bool:
 	var points: Array[int] = sim.score.points
 	MatchHistory.record("practice", false, points[local_team], points[1 - local_team])
 	return true
+
+
+## Online: a player (you too) sent a quick chat sticker: it shows over their kid.
+func _on_said(player: int, sticker: int) -> void:
+	if sticker >= 0 and sticker < QuickChat.PHRASES.size():
+		hud.overhead.say(player, QuickChat.PHRASES[sticker])
 
 
 ## Settings menu > Exit match: online, give the room slot back first.

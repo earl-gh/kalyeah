@@ -22,6 +22,8 @@ var _peer: WebSocketMultiplayerPeer
 var _names: Dictionary[int, String] = {}
 ## When each peer last got the open room list (server seconds), so one phone cannot flood the server (`room_list_min_gap`).
 var _listed_at: Dictionary[int, float] = {}
+## When each peer last sent a quick chat sticker (server seconds), for `chat_min_gap`.
+var _said_at: Dictionary[int, float] = {}
 var _clock: float = 0.0
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
@@ -210,7 +212,7 @@ func _handle(from: int, message: Dictionary) -> void:
 			var left: RoomService.Room = rooms.disconnected(from)
 			if left != null:
 				_send_room(left)
-		M.LOADED, M.PICK_WEAPONS, M.SWAP_WEAPONS, M.INPUT:
+		M.LOADED, M.PICK_WEAPONS, M.SWAP_WEAPONS, M.INPUT, M.SAY:
 			_handle_match(from, message)
 
 
@@ -244,6 +246,15 @@ func _handle_match(from: int, message: Dictionary) -> void:
 			running.swap(member.player_id, message.get("a", &"") as StringName, message.get("b", &"") as StringName)
 		M.INPUT:
 			running.queue_input(member.player_id, NetProtocol.input_from_dict(message))
+		M.SAY:
+			# untrusted: a sticker is a whole number inside the set, only while the match is being played, and at most one every `chat_min_gap`
+			var sticker: Variant = message.get("s")
+			if not (sticker is int) or (sticker as int) < 0 or (sticker as int) >= _net.chat_stickers or running.stage != ServerMatch.Stage.PLAYING:
+				return
+			if _clock - (_said_at.get(from, -INF) as float) < _net.chat_min_gap:
+				return
+			_said_at[from] = _clock
+			running.say(member.player_id, sticker as int)
 
 
 ## ROOM goes to every connected member, each with their own id and reconnect token.
@@ -272,6 +283,7 @@ func _on_peer_disconnected(id: int) -> void:
 	log_message.emit("peer %d disconnected" % id)
 	_names.erase(id)
 	_listed_at.erase(id)
+	_said_at.erase(id)
 	var room: RoomService.Room = rooms.disconnected(id)
 	if room != null:
 		_send_room(room)

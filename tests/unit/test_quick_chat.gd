@@ -139,3 +139,22 @@ func test_the_sticker_panel_draws_over_the_toasts() -> void:
 	var hud: MatchHud = _hud()
 	assert_gt(hud.chat.get_index(), hud.tag_toast.get_index(), "over the tag toast, which stands under the scoreboard beside it")
 	assert_gt(hud.chat.get_index(), hud.capture_alert.get_index())
+
+
+func test_online_a_sticker_goes_to_the_server_and_shows_when_it_comes_back() -> void:
+	var practice: PracticeMatch = autofree((load("res://scenes/match/practice.tscn") as PackedScene).instantiate()) as PracticeMatch
+	Session.practice_kind = &"match"
+	Session.briefing_pending = false
+	add_child(practice)
+	practice.set_process(false)
+	# offline a pick shows the sticker over your kid at once
+	practice.hud.chat.said.emit("Yum!")
+	assert_eq(practice.hud.overhead.says_count(), 1, "offline: shown at once")
+	practice.hud.overhead.tick(QuickChat.SAY_TIME + 0.1)
+	# a sticker that comes from the network shows over whoever sent it
+	practice._on_said(practice.local_id, 2)
+	assert_eq(practice.hud.overhead.says_count(), 1)
+	practice.hud.overhead.tick(QuickChat.SAY_TIME + 0.1)
+	practice._on_said(practice.local_id, 99)
+	practice._on_said(practice.local_id, -1)
+	assert_eq(practice.hud.overhead.says_count(), 0, "a number outside the set is ignored")

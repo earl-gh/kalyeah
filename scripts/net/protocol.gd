@@ -26,6 +26,9 @@ enum Msg {
 	LIST_ROOMS, ROOM_LIST, SET_OPEN,
 	# Local rooms: client -> server, the host fills the empty places with bots (or not)
 	SET_FILL_BOTS,
+	# Quick chat stickers during a match: client -> server SAY {"s": sticker index}; server -> every connected player of the room SAID
+	# {"p": the sender's player id, "s": sticker index}. Appended, so no older number moves (a peer that does not know them ignores them).
+	SAY, SAID,
 }
 
 

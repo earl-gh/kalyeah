@@ -73,13 +73,22 @@ func setup_hud() -> void:
 	owner.hud.overhead.top_limit = owner.hud.header_height()
 
 
+## A sticker picked from the quick chat: online it goes to the server, which sends it to everyone in the match (you too: it shows when it comes
+## back, so what you see is what the others see); offline it shows over your kid at once.
+func _send_sticker(text: String) -> void:
+	if owner.online:
+		owner.client.say(QuickChat.PHRASES.find(text))
+	else:
+		owner.hud.overhead.say(owner.local_id, text)
+
+
 func connect_hud() -> void:
 	owner.hud.hand.card_pressed.connect(owner.card_pressed)
 	owner.hud.hand.card_moved.connect(owner.card_moved)
 	owner.hud.hand.card_released.connect(owner.card_released)
 	owner.hud.hand.card_cancelled.connect(owner.card_cancelled)
 	owner.hud.set_chat_enabled(true)
-	owner.hud.chat.said.connect(func(text: String) -> void: owner.hud.overhead.say(owner.local_id, text))
+	owner.hud.chat.said.connect(_send_sticker)
 	owner.hud.street_pad.knob_moved.connect(owner.knob_moved)
 	owner.hud.street_pad.action_pressed.connect(owner.action_pressed)
 	owner.hud.street_pad.aim_started.connect(owner.throw_pressed)
