@@ -1,7 +1,7 @@
 class_name AudioOptions
 extends VBoxContainer
 ## The Sounds and Music switches (owner), shared by the Settings page, the room's settings and the match menu: each mutes its audio bus at once
-## (`Settings.set_sounds`, `set_music`) and is saved. There is no music in the game yet: the Music switch is ready for when there is.
+## (`Settings.set_sounds`, `set_music`) and is saved. The Music switch mutes the match's background music (`MatchMusic`).
 
 var sounds_toggle: UiToggle
 var music_toggle: UiToggle
