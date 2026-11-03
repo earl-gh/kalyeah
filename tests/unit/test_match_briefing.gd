@@ -313,3 +313,40 @@ func test_runners_and_guards_are_spaced_like_move_and_dive() -> void:
 	var goal_gap: float = (goal_blocks[1] as Control).position.y - ((goal_blocks[0] as Control).position.y + (goal_blocks[0] as Control).size.y)
 	var row_gap: float = (row_blocks[1] as Control).position.y - ((row_blocks[0] as Control).position.y + (row_blocks[0] as Control).size.y)
 	assert_almost_eq(goal_gap, row_gap, 0.5, "the same space between the two blocks in each pair")
+
+
+func test_the_briefing_hides_the_match_hud_and_the_kids_and_they_come_back_after_it() -> void:
+	for game: StringName in [&"street", &"tumbang_preso", &"patintero"]:
+		var practice: PracticeMatch = _match(game)
+		var hud: MatchHud = practice.hud
+		practice.advance(DT)
+		assert_true(hud.briefing.visible)
+		assert_false(practice._actors.visible, "%s: no kids over the empty street" % game)
+		for item: CanvasItem in [hud.header, hud.top, hud.scoreboard, hud.overhead, hud.hand, hud.street_pad, hud.chat, hud.intro_bar, hud.capture_label, hud.banner]:
+			assert_false(item.visible, "%s: %s is hidden under the briefing" % [game, item.name])
+		if hud.score_column != null:
+			assert_false(hud.score_column.visible, "%s: nor the points column" % game)
+		hud.briefing.finish()
+		practice.advance(DT)
+		assert_true(practice._actors.visible, "%s: the kids are back" % game)
+		assert_true(hud.header.visible and hud.top.visible and hud.overhead.visible, "%s: and the header and the names" % game)
+		if game == &"street":
+			assert_true(hud.hand.visible, "the hand is back in Agawang Base")
+		else:
+			assert_true(hud.street_pad.visible, "the knob and the button are back in %s" % game)
+
+
+func test_the_rescue_areas_show_no_countdown_number_under_the_briefing() -> void:
+	var practice: PracticeMatch = _match(&"street")
+	practice.advance(DT)
+	var map: StreetMap = practice._map
+	for side: int in [-1, 1]:
+		assert_false(map.rescue_count(side).visible, "side %d: no number on the rescue area under the briefing" % side)
+		assert_eq(map.rescue_count_text(side), "")
+	practice.hud.briefing.finish()
+	practice.advance(DT)
+	var shown: int = 0
+	for side: int in [-1, 1]:
+		if map.rescue_count(side).visible:
+			shown += 1
+	assert_gt(shown, 0, "the numbers are back once the match runs (the rescue countdown is still counting)")

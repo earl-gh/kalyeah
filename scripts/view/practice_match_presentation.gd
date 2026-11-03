@@ -279,6 +279,7 @@ func _keep_vignette_behind_the_top_boundary() -> void:
 
 func sync(delta: float) -> void:
 	_keep_vignette_behind_the_top_boundary()
+	owner._actors.visible = not owner.hud.briefing.visible  # the briefing shows the empty street: no kids behind its words
 	owner.hud.overhead.taya_id = (owner.sim.mode as TumbangPreso).taya_id if owner.sim.mode is TumbangPreso else -1
 	for id: int in owner.sim.players:
 		_sync_actor(owner.sim.players[id], delta)
@@ -290,7 +291,7 @@ func sync(delta: float) -> void:
 	owner.hud.sync_player(owner.sim, player, owner._pick_screen.visible)
 	_sync_aim(player)
 	owner._fx.sync(owner.sim, delta)
-	owner._map.sync_rescue(owner.sim)
+	owner._map.sync_rescue(owner.sim, owner.hud.briefing.visible)
 	if (owner.sim.mode is Patintero or owner.sim.mode is TumbangPreso) and owner.shown_side() != _viewed_side:
 		_viewed_side = owner.shown_side()  # the roles changed: the street is seen from the other end now (halfway through a turn)
 		owner._map.set_own_side(_viewed_side)
