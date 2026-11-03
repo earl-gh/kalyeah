@@ -1,4 +1,6 @@
 keys,en
+%s's room,%s's room
+A room,A room
 %dv%d · Race to %d,%dv%d · Race to %d
 %s is AFK,%s is AFK
 %s is back!,%s is back!
@@ -153,7 +155,7 @@ Ligaya,Ligaya
 Loading…,Loading…
 Loadout,Loadout
 Local,Local
-Looking for a room…,Looking for a room…
+Looking for rooms…,Looking for rooms…
 Lupa · Soil Block,Lupa · Soil Block
 Map: Agawang Base,Map: Agawang Base
 Match settings,Match settings
@@ -220,7 +222,8 @@ Return home,Return home
 Room,Room
 Room code,Room code
 Room code copied!,Room code copied!
-Room found. Joining…,Room found. Joining…
+Tap a room to join.,Tap a room to join.
+Tap a room to join. Still looking…,Tap a room to join. Still looking…
 Save,Save
 Scatter jacks on the road! Enemies who walk over them slow down.,Scatter jacks on the road! Enemies who walk over them slow down.
 Screen shake,Screen shake

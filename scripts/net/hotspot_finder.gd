@@ -1,13 +1,16 @@
 class_name HotspotFinder
 extends RefCounted
-## Finds a phone that hosts a Kalyeah room on the Wi-Fi this phone is on, and verifies the room before it says so.
+## Finds every phone that hosts a Kalyeah room on the Wi-Fi this phone is on, and verifies each room before it lists it.
 ##
 ## Two things run side by side for `plan.seconds`: a UDP probe sent out of each Wi-Fi address to the broadcast addresses
 ## (a host answers from whatever address it has), and a WebSocket probe to the plan's fallback addresses. Every phone that
-## answers the UDP probe is then asked for its room over the WebSocket (DISCOVER_ROOM): only a host whose room is `ready`
-## becomes `url`. Poll it every frame; it never blocks and always ends (`url` set, or `failed`).
+## answers the UDP probe is then asked for its room over the WebSocket (DISCOVER_ROOM): every host whose room is `ready`
+## goes into `rooms` (it never picks one: the player does). Once a room is found it keeps looking until `plan.seconds`, so a
+## second host nearby shows up too. Poll it every frame; it never blocks and always ends (`rooms` filled, or `failed`).
 
 const NO_ROOM: String = "No room found. Ask your friend to tap Create room, then tap Try again."
+## A host's name in the list is at most this long (the server's own limit is shorter).
+const NAME_LIMIT: int = 16
 const MESSAGES: Dictionary[String, String] = {
 	"no_room": NO_ROOM,
 	"full": "That room is full!",
@@ -16,6 +19,9 @@ const MESSAGES: Dictionary[String, String] = {
 	"not_hotspot": NO_ROOM,
 }
 
+## The verified rooms, in the order they answered: {"url", "host" (the host's name), "players", "size"}.
+var rooms: Array[Dictionary] = []
+## The first room found ("" while none): `rooms[0]`'s address.
 var url: String = ""
 var failed: bool = false
 var failure_message: String = NO_ROOM
@@ -39,6 +45,7 @@ func start(plan: HotspotNet.Plan) -> void:
 	stop()
 	_plan = plan
 	url = ""
+	rooms.clear()
 	failed = false
 	failure_message = NO_ROOM
 	asked = 0
@@ -70,9 +77,8 @@ func poll(delta: float) -> void:
 		_send_probes()
 	_read_scouts()
 	_read_probes()
-	if not url.is_empty():
-		stop()
-	elif _left <= 0.0 or (_answered and _probes.is_empty()):
+	# with a room found, wait out the window: another host may still answer
+	if _left <= 0.0 or (rooms.is_empty() and _answered and _probes.is_empty()):
 		_finish()
 
 
@@ -89,7 +95,7 @@ func stop() -> void:
 
 func _finish() -> void:
 	stop()
-	failed = url.is_empty()
+	failed = rooms.is_empty()
 
 
 ## One socket for each Wi-Fi address, bound to it so the broadcast leaves by that interface.
@@ -155,10 +161,31 @@ func _read_probes() -> void:
 					continue
 				var status: String = "incompatible" if answer.get("v", -1) != NetProtocol.VERSION else String(answer.get("status", "incompatible"))
 				if status == "ready":
-					url = candidate
-					return
+					_add_room(candidate, answer)
+					probe.close()
+					break
 				_answered = true
 				failure_message = MESSAGES.get(status, MESSAGES["incompatible"]) as String
 				probe.close()
 		if probe.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED:
 			_probes.erase(candidate)
+
+
+func _add_room(candidate: String, answer: Dictionary) -> void:
+	for room: Dictionary in rooms:
+		if room["url"] == candidate:
+			return
+	# what a phone on the network says is checked for type and cut short: a list row, never a crash
+	var host: Variant = answer.get("host", "")
+	rooms.append({
+		"url": candidate,
+		"host": (host as String).left(NAME_LIMIT) if host is String else "",
+		"players": _count(answer.get("players", 0)),
+		"size": _count(answer.get("size", 0)),
+	})
+	if url.is_empty():
+		url = candidate
+
+
+func _count(value: Variant) -> int:
+	return clampi(int(value), 0, 99) if value is int or value is float else 0
