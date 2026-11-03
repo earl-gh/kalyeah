@@ -193,6 +193,27 @@ func test_with_two_hosts_the_guest_picks_the_one_with_a_ready_room_whichever_ans
 		assert_eq(_finder.url, ready, "the empty host is skipped: %s" % [order])
 
 
+func test_with_two_ready_hosts_both_are_listed_with_their_names_and_none_is_picked() -> void:
+	var first: GameServer = _host(18977, 18978)
+	var second: GameServer = GameServer.new(RULES, LAYOUT, NET, 4)
+	second.auto_join = true
+	assert_eq(second.listen(18979), OK)
+	second.rooms.create_room(800, "Bea")
+	_servers.append(second)
+	var room: RoomService.Room = first.rooms.rooms.values()[0] as RoomService.Room
+	assert_eq(room.members.size(), 1)
+	var frames: int = _search(_plan(18977, 18978, [], ["ws://127.0.0.1:18977", "ws://127.0.0.1:18979"]))
+	assert_false(_finder.failed)
+	assert_eq(_finder.rooms.size(), 2, "both rooms are listed")
+	var by_host: Dictionary = {}
+	for found: Dictionary in _finder.rooms:
+		by_host[found["host"]] = found
+	assert_true(by_host.has("Host") and by_host.has("Bea"))
+	assert_eq(by_host.get("Host"), {"url": "ws://127.0.0.1:18977", "host": "Host", "players": 1, "size": 6})
+	assert_eq(by_host.get("Bea"), {"url": "ws://127.0.0.1:18979", "host": "Bea", "players": 1, "size": 6})
+	assert_gt(frames, int(SEARCH_SECONDS / FRAME) - 5, "with a room found it still waits out the window for another host")
+
+
 func test_a_host_that_leaves_and_creates_again_is_found_again() -> void:
 	for round_number: int in 2:
 		var server: GameServer = _host(18974, 18975)

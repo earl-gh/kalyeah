@@ -3,15 +3,20 @@ extends RefCounted
 ## What happens behind a hotspot modal, with no widget in it. Create: is this phone's hotspot on, or is it on a Wi-Fi? If not,
 ## it can start a game hotspot (`start_game_hotspot`, through `LocalLink`). Join: is this phone on a Wi-Fi, and is there a
 ## verified room on it? If not, the friend's game hotspot can be joined from its QR or an NFC tap (`join_network`).
-## It decides, it never creates or joins a room: `finished` tells the screen to go on (with the room's address when joining).
+## It never creates or joins a room by itself: Join lists every verified room it finds (`rooms_changed`) and the player picks
+## one (`choose`), since several friends may host at once; `finished` tells the screen to go on (with the picked room's address
+## when joining).
 ## Drive it with `tick(delta)` every frame; every state can be cancelled and ends by itself, and after `cancel` or `finished`
 ## nothing is emitted again.
 
 signal step_changed(step: Step)
 ## The check passed. `url` is the room to join ("" when creating).
 signal finished(url: String)
+## Join: the list of verified rooms grew (HotspotFinder.rooms' entries).
+signal rooms_changed(rooms: Array[Dictionary])
 
 enum Mode { CREATE, JOIN }
+## SEARCHING may already list rooms; FOUND = the search is over and rooms are listed (pick one or Try again).
 enum Step { CHECKING, NO_NETWORK, NETWORK_OK, NO_WIFI, SEARCHING, FOUND, NO_ROOM, STARTING_HOTSPOT, HOTSPOT_FAILED, JOINING_WIFI }
 
 const RULES: NetRules = preload("res://data/rules/net_rules.tres")
@@ -27,6 +32,7 @@ var link_failure: String = ""
 var _interfaces: Callable
 var _plan_for: Callable
 var _check_next: bool = false
+var _listed: int = 0
 var _ended: bool = false
 ## Seconds left to wait for the address of a Wi-Fi just joined, and to the next look.
 var _wifi_grace: float = 0.0
@@ -57,6 +63,7 @@ func begin() -> void:
 		return
 	finder.stop()
 	link_failure = ""
+	_listed = 0
 	_check_next = true
 	_enter(Step.CHECKING)
 
@@ -65,6 +72,16 @@ func begin() -> void:
 func resumed() -> void:
 	if step == Step.NO_NETWORK or step == Step.NO_WIFI or step == Step.HOTSPOT_FAILED:
 		begin()
+
+
+## Join: the player tapped the room at `url` in the list.
+func choose(url: String) -> void:
+	if _ended or mode != Mode.JOIN:
+		return
+	for room: Dictionary in finder.rooms:
+		if room["url"] == url:
+			_end(url)
+			return
 
 
 func cancel() -> void:
@@ -121,9 +138,13 @@ func tick(delta: float) -> void:
 			_check()
 	elif step == Step.SEARCHING:
 		finder.poll(delta)
-		if not finder.url.is_empty():
+		if finder.rooms.size() != _listed:
+			_listed = finder.rooms.size()
+			rooms_changed.emit(finder.rooms.duplicate())
+		if finder.is_searching():
+			return
+		if not finder.rooms.is_empty():
 			_enter(Step.FOUND)
-			_end(finder.url)
 		elif finder.failed:
 			failure = finder.failure_message
 			_enter(Step.NO_ROOM)

@@ -3,7 +3,8 @@ extends RefCounted
 ## The two modals in front of a hotspot room (the decisions are HotspotFlow's). Create checks the hotspot is on, and can start a
 ## game hotspot when there is none; Join checks the Wi-Fi and looks for a room, and can join a friend's game hotspot from their
 ## QR or by holding the phones together (NFC). Each shows what it is doing, what to do when it cannot go on, Try again and
-## Cancel, and carries its flow as a child, so nothing runs or calls back once the dialog is gone.
+## Cancel, and carries its flow as a child, so nothing runs or calls back once the dialog is gone. Join lists every room it
+## finds and the player taps the one to join (several friends may host at once).
 
 const Step := HotspotFlow.Step
 
@@ -15,7 +16,7 @@ static func create_check(on_ready: Callable, interfaces: Callable = Callable(), 
 	return _dialog(flow, func(_url: String) -> void: on_ready.call(), open_settings, null)
 
 
-## Join: `on_found` runs once with the `ws://` address of a verified room. `plan_for` replaces how to search, `local` the Android
+## Join: `on_found` runs once with the `ws://` address of the verified room the player tapped. `plan_for` replaces how to search, `local` the Android
 ## side and `camera` the scanner's camera (tests).
 static func join_check(on_found: Callable, interfaces: Callable = Callable(), plan_for: Callable = Callable(), local: LocalLink = null,
 		camera: IdCamera = null) -> MenuDialog:
@@ -46,9 +47,9 @@ static func message(flow: HotspotFlow, step: Step) -> String:
 		Step.JOINING_WIFI:
 			return UiText.t("Joining your friend's game…")
 		Step.SEARCHING:
-			return UiText.t("Looking for a room…")
+			return UiText.t("Looking for rooms…") if flow.finder.rooms.is_empty() else UiText.t("Tap a room to join. Still looking…")
 		Step.FOUND:
-			return UiText.t("Room found. Joining…")
+			return UiText.t("Tap a room to join.")
 	var reason: String = UiText.t(flow.failure)
 	if flow.can_join_by_code():
 		reason += " " + UiText.t(nfc_or_scan(flow, "Or scan your friend's room QR%s."))
@@ -91,6 +92,11 @@ static func _dialog(flow: HotspotFlow, on_done: Callable, open_settings: Callabl
 	card.name = "HotspotCheckDialog"
 	var text: Label = card.add_label("", UiMetrics.BODY, KalyeahTheme.MODAL_TEXT)
 	text.name = "Message"
+	# Join's rooms, one button each: the host's name and how full the room is
+	var list: VBoxContainer = VBoxContainer.new()
+	list.name = "Rooms"
+	list.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	card.body.add_child(list)
 	var start: Button = MenuDialog.make_button("Start game hotspot", "orange", UiMetrics.BODY)
 	start.name = "StartHotspot"
 	var scan: Button = MenuDialog.make_button("Scan QR", "orange", UiMetrics.BODY)
@@ -114,11 +120,16 @@ static func _dialog(flow: HotspotFlow, on_done: Callable, open_settings: Callabl
 	var show: Callable = func(step: Step) -> void:
 		var failed: bool = step == Step.NO_NETWORK or step == Step.NO_WIFI or step == Step.NO_ROOM or step == Step.HOTSPOT_FAILED
 		text.text = message(flow, step)
-		again.visible = failed
+		again.visible = failed or step == Step.FOUND
+		if step == Step.CHECKING:
+			_fill(list, [], flow)
 		settings_row.visible = (step == Step.NO_NETWORK or step == Step.HOTSPOT_FAILED) and can_open_settings
 		start_row.visible = (step == Step.NO_NETWORK or step == Step.HOTSPOT_FAILED) and flow.link.available()
 		scan_row.visible = flow.can_join_by_code()
 	flow.step_changed.connect(show)
+	flow.rooms_changed.connect(func(rooms: Array[Dictionary]) -> void:
+		text.text = message(flow, flow.step)
+		_fill(list, rooms, flow))
 	flow.finished.connect(func(url: String) -> void:
 		if card.is_open:
 			card.close(false)
@@ -129,6 +140,26 @@ static func _dialog(flow: HotspotFlow, on_done: Callable, open_settings: Callabl
 	card.add_child(driver)
 	card.opened.connect(flow.begin)
 	return card
+
+
+## One button a room in `rooms` (none clears the list); a tap joins it.
+static func _fill(list: VBoxContainer, rooms: Array[Dictionary], flow: HotspotFlow) -> void:
+	for old: Node in list.get_children():
+		old.queue_free()
+		list.remove_child(old)
+	for room: Dictionary in rooms:
+		var button: Button = MenuDialog.make_button(room_label(room), "green", UiMetrics.BODY)
+		button.name = "Room%d" % list.get_child_count()
+		button.pressed.connect(flow.choose.bind(room["url"] as String))
+		list.add_child(button)
+
+
+## What a room's button says: "Gabo's room  1/6" (no address: the player never sees network details).
+static func room_label(room: Dictionary) -> String:
+	var host: String = room.get("host", "") as String
+	var title: String = UiText.t("A room") if host.is_empty() else UiText.f("%s's room", [host])
+	var size: int = room.get("size", 0) as int
+	return title if size <= 0 else "%s  %d/%d" % [title, room.get("players", 0) as int, size]
 
 
 ## Runs the flow while its dialog is in the tree, and tells it when the app is back from the phone's settings.
