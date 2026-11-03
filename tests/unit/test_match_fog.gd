@@ -44,8 +44,8 @@ func test_every_match_has_a_fog_wall_past_each_end_just_beyond_the_boundary_row(
 	for wall: MeshInstance3D in fog.walls:
 		var z: float = absf(wall.position.z)
 		assert_gt(z, half + StreetMap.BARRIER_SETBACK, "past the boundary row's line")
-		assert_almost_eq(z, half + StreetMap.BARRIER_SETBACK + StreetMap.FOG_DEPTH, 0.001, "close to it: just past its pictures and props")
-		assert_lte(StreetMap.FOG_DEPTH, 2.5, "near the boundary")
+		assert_almost_eq(z, half + practice._map.fog_distance(), 0.001, "just past the boundary pictures, leaned back as they are")
+		assert_lte(practice._map.fog_distance(), 5.0, "near the boundary")
 		assert_almost_eq(wall.position.y, MatchFog.HEIGHT / 2.0, 0.001, "standing on the ground")
 	assert_ne(signf(fog.walls[0].position.z), signf(fog.walls[1].position.z), "one at each end")
 
@@ -73,3 +73,26 @@ func test_the_fog_never_takes_a_touch_and_casts_no_shadow() -> void:
 	var practice: PracticeMatch = _match()
 	for wall: MeshInstance3D in (practice.get_node("Fog") as MatchFog).walls:
 		assert_eq(wall.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+
+
+func test_the_near_walls_fog_ends_at_the_play_areas_end_line_and_the_far_walls_starts_above_the_pictures() -> void:
+	var practice: PracticeMatch = _match()
+	var fog: MatchFog = practice.get_node("Fog") as MatchFog
+	var past: float = practice._map.fog_distance()
+	for wall: MeshInstance3D in fog.walls:
+		var material: ShaderMaterial = (wall.mesh as QuadMesh).material as ShaderMaterial
+		assert_almost_eq(material.get_shader_parameter("near_reach") as float, past, 0.001, "as high as the wall is far from the end line: the fog stops at the end line on the screen, outside the play area")
+		assert_lt(material.get_shader_parameter("near_peak") as float, past, "thickest before it ends")
+	var code: String = MatchFog.SHADER.code
+	var start: RegExMatch = RegEx.create_from_string("uniform float far_start[^=]*=\\s*([0-9.]+)").search(code)
+	assert_gte(start.get_string(1).to_float(), 2.0, "clear up to about the boundary pictures' height")
+
+
+func test_no_boundary_picture_pokes_through_the_fog_wall() -> void:
+	var practice: PracticeMatch = _match()
+	var map: StreetMap = practice._map
+	var tallest: float = 0.0
+	for entry: Dictionary in StreetMap.BOUNDARY_PICTURES:
+		tallest = maxf(tallest, entry["height"] as float)
+	var top_reach: float = StreetMap.BARRIER_SETBACK + tallest * map.scenery() * sin(deg_to_rad(StreetMap.BOUNDARY_TILT))
+	assert_gt(map.fog_distance(), top_reach, "the wall is past where the tallest picture's top leans to")

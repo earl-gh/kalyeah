@@ -102,8 +102,9 @@ const CEMENT_LIFT: float = 0.004
 ## The owner's floor picture holds 18 tiles across; the play area is narrower now (16 tiles), so it shows the middle of the picture
 ## (no stretch): the share of the picture's width the play area uses, and where it starts.
 const CEMENT_PICTURE_TILES: float = 18.0
-## The fog wall at each end (`MatchFog`) stands this many metres past the end line's boundary row: just past its pictures and props.
-const FOG_DEPTH: float = 1.6
+## The fog wall at each end (`MatchFog`) stands this many metres past the top of the boundary pictures' lean (they lean back toward the street's
+## far side, so their tops reach past their feet): the pictures never poke through it.
+const FOG_MARGIN: float = 0.35
 const STREET_SHADER: Shader = preload("res://shaders/street_cement.gdshader")
 const OUTSIDE_SHADER: Shader = preload("res://shaders/floor_outside.gdshader")
 ## Paving around the whole map, so the street never ends in sky.
@@ -500,6 +501,15 @@ func _outside_floor(size: Vector2) -> MeshInstance3D:
 	patch.mesh = plane
 	patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return patch
+
+
+## How far past the end line the fog wall stands (m): past the end line's setback and as far as the tallest boundary picture leans back at its
+## top, plus `FOG_MARGIN`, so no picture pokes through it.
+func fog_distance() -> float:
+	var tallest: float = 0.0
+	for entry: Dictionary in BOUNDARY_PICTURES:
+		tallest = maxf(tallest, entry["height"] as float)
+	return BARRIER_SETBACK + tallest * scenery() * sin(deg_to_rad(BOUNDARY_TILT)) + FOG_MARGIN
 
 
 ## The share of the floor picture's width the play area shows (1 when the play area is as wide as the picture).
