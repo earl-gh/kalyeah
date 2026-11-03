@@ -62,6 +62,7 @@ func test_the_street_games_say_their_own_controls() -> void:
 	var tumbang: Dictionary = MatchBriefing.words_for(StreetMode.rules_for(&"tumbang_preso"))
 	assert_eq(tumbang["title"], "Tumbang Preso")
 	assert_eq((tumbang["rows"] as Array)[1][0], "Throw")
+	assert_eq((tumbang["rows"] as Array)[2], ["Kick", "Tap beside the can to kick it"], "Kick comes right below Throw")
 	assert_eq(tumbang["goal"], [["", "Knock the can over, fetch your slipper and run to the other end to score. Don't get caught."]])
 	var patintero: Dictionary = MatchBriefing.words_for(StreetMode.rules_for(&"patintero"))
 	assert_eq(patintero["title"], "Patintero")

@@ -54,7 +54,7 @@ static func words_for(game: StreetModeRules) -> Dictionary:
 		return {
 			"title": game.title,
 			"goal": [["", "Knock the can over, fetch your slipper and run to the other end to score. Don't get caught."]],
-			"rows": [["Move", "Push the knob to run"], ["Throw", "Hold to aim, drag to turn, release"]],
+			"rows": [["Move", "Push the knob to run"], ["Throw", "Hold to aim, drag to turn, release"], ["Kick", "Tap beside the can to kick it"]],
 		}
 	return {
 		"title": game.title,
