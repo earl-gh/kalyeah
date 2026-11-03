@@ -11,8 +11,8 @@ const REAL_KID: float = 1.3
 const CHUNK: float = 1.3
 ## Real heights in metres (height of what you see; the basketball pole is its length lying down; the drainage cover its width).
 const REAL_HEIGHT: Dictionary[String, float] = {
-	"ice_cream_cart": 2.1, "tricycle": 1.7, "ebike": 1.15,
-	"truck_wheels": 1.2, "bench": 0.9, "crates": 0.9, "sacks": 0.9, "no_id_no_entry": 1.5,
+	"ice_cream_cart": 2.1, "tricycle": 1.7,
+	"bench": 0.9, "crates": 0.9, "sacks": 0.9, "no_id_no_entry": 1.5,
 	"rooster_tent": 1.3, "plank_fence": 1.5,
 	"basketball_pole": 4.6, "cat": 0.25, "dog": 0.5, "chicken_cage": 0.7, "nanay": 1.6, "drainage_cover": 0.6,
 }

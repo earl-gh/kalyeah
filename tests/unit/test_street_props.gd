@@ -1,9 +1,9 @@
 extends GutTest
 ## The owner's street models: the nanay outside the play area and the five new barrier things
-## (tricycle, e-bike, sacks, NO ID NO ENTRY sign) across both ends.
+## (tricycle, sacks, NO ID NO ENTRY sign) on the road beyond both ends.
 
 const MAP_SCENE: PackedScene = preload("res://scenes/map/street_map.tscn")
-const NEW_BARRIERS: Array[String] = ["tricycle", "ebike", "sacks", "no_id_no_entry", "plank_fence"]
+const NEW_BARRIERS: Array[String] = ["tricycle", "sacks", "no_id_no_entry", "plank_fence"]
 
 
 func _map() -> StreetMap:
@@ -21,26 +21,21 @@ func test_every_new_model_exists_light_and_whole() -> void:
 		assert_lt(float(counts.x) / float(counts.y), 0.35, "%s is a whole surface" % id)
 
 
-func test_the_new_things_are_in_the_barrier_rows_at_both_ends() -> void:
+func test_the_new_things_stand_on_the_road_beyond_both_ends() -> void:
 	var map: StreetMap = _map()
-	assert_eq(map.barrier_rows.size(), 2, "a row at each end")
-	var seen: Dictionary = {}
-	for row: Array in map.barrier_rows:
-		assert_gte(row.size(), 4, "a full row (the bigger the things are drawn, the fewer fit across the street; the rest stand on the road beyond)")
-		for id: Variant in row:
-			seen[id] = true
 	for id: String in NEW_BARRIERS:
 		assert_true(StreetMap.BARRIER_HEIGHTS.has(id), "%s has a height" % id)
-		assert_true(seen.has(id) or map.far_props.has(id), "%s stands in a row or on the road beyond the end" % id)
+		assert_eq(map.far_props.count(id), 2, "%s stands beyond each end" % id)
 
 
-func test_the_rows_still_fit_the_street_at_true_size() -> void:
-	var map: StreetMap = _map()
-	for row: Array in map.barrier_rows:
-		var used: float = 0.0
-		for id: Variant in row:
-			used += StreetMap.barrier_width(id as String, map.scenery()) + StreetMap.BARRIER_GAP
-		assert_lt(used - StreetMap.BARRIER_GAP, map.layout.lane_width + 0.001, "the row fits the street")
+func test_the_ebike_and_the_truck_wheels_are_replaced_by_the_owners_pictures() -> void:
+	for id: String in ["ebike", "truck_wheels"]:
+		for extension: String in [".glb", ".glb.import", "_prop_base_color.jpg", "_prop_base_color.jpg.import"]:
+			assert_false(FileAccess.file_exists("res://assets/models/props/%s%s" % [id, extension]), "%s%s is deleted (owner)" % [id, extension])
+		assert_false(StreetMap.BARRIER_HEIGHTS.has(id))
+		assert_false(ScaleReference.REAL_HEIGHT.has(id))
+	for entry: Dictionary in StreetMap.BOTTOM_PICTURES:
+		assert_true(ResourceLoader.exists(StreetMap.BOUNDARY_PATH % entry["id"]), "%s is the owner's picture" % entry["id"])
 
 
 func test_the_nanay_stands_on_the_sidewalk_outside_the_play_area_facing_the_street() -> void:
@@ -71,7 +66,7 @@ func test_the_main_screen_model_has_no_nanay_or_barriers() -> void:
 	map.show_overview_camera = false
 	add_child(map)
 	assert_null(map.find_child("Nanay", true, false))
-	assert_eq(map.barrier_rows.size(), 0)
+	assert_eq(map.far_props.size(), 0)
 
 
 func test_the_ice_cream_cart_is_light_and_whole() -> void:
@@ -134,17 +129,13 @@ func test_the_pets_and_things_lie_on_the_sidewalks() -> void:
 	assert_eq(seen.size(), 4, "all four are there")
 
 
-func test_what_does_not_fit_in_a_row_stands_on_the_road_beyond() -> void:
+func test_every_street_thing_stands_on_the_road_beyond_the_ends() -> void:
 	var map: StreetMap = _map()
-	var rowed: Dictionary = {}
-	for row: Array in map.barrier_rows:
-		for id: Variant in row:
-			rowed[id] = true
-	assert_gt(map.far_props.size(), 0, "something did not fit")
+	assert_gt(map.far_props.size(), 0)
+	for id: String in StreetMap.BARRIER_HEIGHTS:
+		assert_true(map.far_props.has(id), "%s is on the far road" % id)
 	for id: String in map.far_props:
 		assert_true(StreetMap.BARRIER_HEIGHTS.has(id))
-	for id: String in StreetMap.BARRIER_HEIGHTS:
-		assert_true(rowed.has(id) or map.far_props.has(id), "%s is in a row or on the far road" % id)
 
 
 func test_only_houses_stand_along_the_street_beyond_the_ends() -> void:
@@ -163,17 +154,21 @@ func test_only_houses_stand_along_the_street_beyond_the_ends() -> void:
 	assert_gt(beyond, 4, "a run of houses beyond the ends")
 
 
-# ---- the top boundary: the owner's three pictures (fishball cart, tin fence, jeepney) ---------------------------------
+# ---- the boundary: the owner's pictures (top: fishball cart, jeepney; bottom: e-trike, tyres; corner walls of tin fence) ----
 
 const CAMERA_RULES: CameraRules = preload("res://data/rules/camera_rules.tres")
 const PICTURE_IDS: Array[String] = ["fishball_cart", "jeepney"]
+const BOTTOM_IDS: Array[String] = ["tricycle", "tires"]
 
 
-func _pictures(map: StreetMap, end: float) -> Array[MeshInstance3D]:
-	var row: Node3D = map.find_child("BoundaryPictures%s" % ("Far" if end < 0.0 else "Near"), true, false) as Node3D
+func _row(map: StreetMap, end: float, bottom: bool = false) -> Node3D:
+	return map.find_child("%s%s" % ["BoundaryBottom" if bottom else "BoundaryPictures", "Far" if end < 0.0 else "Near"], true, false) as Node3D
+
+
+func _pictures(map: StreetMap, end: float, bottom: bool = false) -> Array[MeshInstance3D]:
 	var found: Array[MeshInstance3D] = []
-	for child: Node in row.get_children():
-		if child is MeshInstance3D and String(child.name) in PICTURE_IDS:
+	for child: Node in _row(map, end, bottom).get_children():
+		if child is MeshInstance3D and String(child.name) in (BOTTOM_IDS if bottom else PICTURE_IDS):
 			found.append(child as MeshInstance3D)
 	return found
 
@@ -194,19 +189,64 @@ func test_cart_and_jeepney_keep_their_left_to_right_order() -> void:
 			assert_true(xs[k] > xs[k - 1] if end < 0.0 else xs[k] < xs[k - 1], "in order on the screen at end %s" % end)
 
 
-func test_only_the_end_at_the_top_of_the_screen_shows_the_pictures() -> void:
+func test_the_top_end_shows_the_top_pictures_and_the_bottom_end_the_bottom_ones() -> void:
 	var map: StreetMap = _map()
 	for own_side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		map.set_own_side(own_side)
 		var top: float = StreetMap.top_end(own_side)
 		assert_eq(top, -1.0 if own_side == MapLayout.SIDE_OWN else 1.0, "the far end for the viewer")
 		for end: float in [-1.0, 1.0]:
-			var row: Node3D = map.find_child("BoundaryPictures%s" % ("Far" if end < 0.0 else "Near"), true, false) as Node3D
-			assert_eq(row.visible, end == top, "pictures at the top end only (own side %d, end %s)" % [own_side, end])
-			var props: Array = map._row_props[end]
-			assert_gt(props.size(), 3, "the row of props is there")
-			for prop: Node3D in props:
-				assert_eq(prop.visible, end != top, "the props stand at the bottom end only")
+			assert_eq(_row(map, end).visible, end == top, "the cart and jeepney at the top end only (own side %d, end %s)" % [own_side, end])
+			assert_eq(_row(map, end, true).visible, end != top, "the e-trike and tyres at the bottom end only (own side %d, end %s)" % [own_side, end])
+
+
+func test_the_bottom_row_is_the_e_trike_then_the_tyres_between_two_corner_walls() -> void:
+	var map: StreetMap = _map()
+	for end: float in [-1.0, 1.0]:
+		var pictures: Array[MeshInstance3D] = _pictures(map, end, true)
+		var ids: Array[String] = []
+		for picture: MeshInstance3D in pictures:
+			ids.append(String(picture.name))
+		assert_eq(ids, BOTTOM_IDS, "the e-trike, then the tyres")
+		var row: Node3D = _row(map, end, true)
+		assert_not_null(row.get_node("RoofWallLeft"))
+		assert_not_null(row.get_node("RoofWallRight"))
+		assert_eq(row.get_child_count(), 4, "two pictures and two corner walls")
+		var xs: Array[float] = []
+		for picture: MeshInstance3D in pictures:
+			xs.append(picture.global_position.x)
+			var quad: QuadMesh = picture.mesh as QuadMesh
+			var texture: Texture2D = load(StreetMap.BOUNDARY_PATH % picture.name) as Texture2D
+			assert_almost_eq(quad.size.x / quad.size.y, texture.get_size().x / texture.get_size().y, 0.001, "%s: never stretched" % picture.name)
+			assert_almost_eq(picture.global_position.y, 0.0, 0.001, "on the ground")
+			assert_almost_eq(absf(picture.global_position.z), map.layout.lane_length / 2.0 + StreetMap.BARRIER_SETBACK, 0.001, "at the end line")
+			assert_lte(absf(picture.global_position.x) + quad.size.x / 2.0, map.layout.lane_width / 2.0 + 0.001, "%s: inside the street's width" % picture.name)
+		# the bottom row faces the viewer who sees that end at the bottom: +Z end for the own side, -Z end for the turned camera
+		assert_true(xs[1] > xs[0] if end > 0.0 else xs[1] < xs[0], "in order on the screen at end %s" % end)
+
+
+func test_the_bottom_pictures_lean_back_to_face_the_camera_that_sees_them() -> void:
+	var map: StreetMap = _map()
+	var pitch: float = deg_to_rad(CAMERA_RULES.pitch_degrees)
+	for end: float in [-1.0, 1.0]:
+		# the end at the bottom of the screen is the one the camera looks away from: toward -Z over the +Z end, toward +Z over the -Z end
+		var look: Vector3 = Vector3(0.0, -sin(pitch), -cos(pitch) * end)
+		for picture: MeshInstance3D in _pictures(map, end, true):
+			var normal: Vector3 = picture.global_transform.basis.z.normalized()
+			assert_almost_eq(normal.dot(-look), 1.0, 0.001, "%s squarely faces its camera (end %s)" % [picture.name, end])
+
+
+func test_the_bottom_pictures_are_the_owners_trimmed_files_and_import_lossless() -> void:
+	for entry: Dictionary in StreetMap.BOTTOM_PICTURES:
+		var path: String = StreetMap.BOUNDARY_PATH % entry["id"]
+		var image: Image = (load(path) as Texture2D).get_image()
+		# no empty margin: the picture's feet are on the ground line and its top is its true height (the owner's file is only trimmed)
+		var used: Rect2i = image.get_used_rect()
+		assert_lte(used.position.y, 12, "%s: no empty band on top" % entry["id"])
+		assert_gte(used.end.y, image.get_height() - 12, "%s: no empty band at the foot" % entry["id"])
+		var import_text: String = FileAccess.get_file_as_string(path + ".import")
+		assert_true(import_text.contains("compress/mode=0"), "%s imports lossless" % entry["id"])
+		assert_true(import_text.contains("mipmaps/generate=true"), "%s has mipmaps" % entry["id"])
 
 
 func test_each_picture_stands_on_the_ground_at_its_true_height_in_its_own_shape() -> void:
@@ -253,8 +293,8 @@ func test_the_pictures_are_drawn_as_made_not_shaded_or_tinted_and_lossless() -> 
 
 func test_corner_wall_pngs_are_centered_and_the_right_texture_is_mirrored() -> void:
 	var map: StreetMap = _map()
-	for suffix: String in ["Far", "Near"]:
-		var row: Node3D = map.find_child("BoundaryPictures%s" % suffix, true, false) as Node3D
+	for suffix: String in ["PicturesFar", "PicturesNear", "BottomFar", "BottomNear"]:
+		var row: Node3D = map.find_child("Boundary%s" % suffix, true, false) as Node3D
 		var left: MeshInstance3D = row.get_node("RoofWallLeft") as MeshInstance3D
 		var right: MeshInstance3D = row.get_node("RoofWallRight") as MeshInstance3D
 		assert_eq(left.position.x, -map.layout.lane_width / 2.0)
