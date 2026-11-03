@@ -166,6 +166,25 @@ func test_the_taya_roll_waits_for_the_briefing() -> void:
 	assert_not_null(practice._presentation._roll, "it starts when the briefing ends")
 
 
+func test_a_tap_never_skips_tumbang_presos_roll_but_still_skips_patinteros_opening_show() -> void:
+	var tap: InputEventScreenTouch = InputEventScreenTouch.new()
+	tap.pressed = true
+	var tumbang: PracticeMatch = _match(&"tumbang_preso")
+	tumbang.hud.briefing.finish()
+	tumbang.advance(DT)
+	assert_eq(tumbang.sim.phase, MatchSim.Phase.INTRO)
+	tumbang._input(tap)
+	tumbang.advance(DT)
+	assert_eq(tumbang.sim.phase, MatchSim.Phase.INTRO, "the roll plays on: a tap does not skip it (owner)")
+	assert_not_null(tumbang._presentation._roll)
+	var patintero: PracticeMatch = _match(&"patintero")
+	patintero.hud.briefing.finish()
+	patintero.advance(DT)
+	assert_eq(patintero.sim.phase, MatchSim.Phase.INTRO)
+	patintero._input(tap)
+	assert_eq(patintero.sim.phase, MatchSim.Phase.PLAYING, "Patintero's opening show still skips on a tap")
+
+
 func test_the_briefing_draws_over_tumbang_presos_points_column() -> void:
 	var practice: PracticeMatch = _match(&"tumbang_preso")
 	var hud: MatchHud = practice.hud

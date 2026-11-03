@@ -149,9 +149,12 @@ func _process(delta: float) -> void:
 	advance(delta)
 
 
-## A tap anywhere skips the opening show (offline: online the server runs it for everyone).
+## A tap anywhere skips the opening show (offline: online the server runs it for everyone), except Tumbang Preso's: its Mataya-taya! roll always
+## plays through (owner: it must show in Practice, Local and Online, and online nobody can skip it).
 func _input(event: InputEvent) -> void:
 	if online or sim == null or sim.phase != MatchSim.Phase.INTRO or is_picking() or hud.briefing.visible:
+		return
+	if sim.mode is TumbangPreso and (sim.mode as TumbangPreso).rules.roll_seconds > 0.0:
 		return
 	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
 		skip_intro()
