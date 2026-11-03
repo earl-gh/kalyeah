@@ -869,7 +869,7 @@ func _on_drawer_closed() -> void:
 
 ## Edit the nametag in place in its preview sheet; a toast answers a save.
 func open_name_editor() -> MenuDialog:
-	var card: MenuDialog = ProfileSheet.build(_on_profile_saved, open_id_camera, _on_photo_changed.bind("Photo removed"))
+	var card: MenuDialog = ProfileSheet.build(_on_profile_saved, open_id_camera, _on_photo_changed.bind("Photo removed"), open_gallery, _on_photo_changed.bind("Avatar saved!"))
 	card.closed.connect(name_tag.show)
 	_show_dialog(card)
 	name_tag.hide()
@@ -881,6 +881,20 @@ func open_id_camera() -> MenuDialog:
 	var card: MenuDialog = IdCameraSheet.build(_on_photo_changed.bind("Photo saved!"))
 	_show_dialog(card)
 	return card
+
+
+## "Pick from gallery": the phone's picture picker opens; the chosen picture becomes the ID photo (`IdPhotoPicker`).
+func open_gallery() -> void:
+	var asked: Error = IdPhotoPicker.pick(_on_gallery_answer)
+	if asked != OK:
+		UiToast.say(self, "The gallery can't open on this phone.")
+
+
+func _on_gallery_answer(result: Error) -> void:
+	if result == OK:
+		_on_photo_changed("Photo saved!")
+	elif result != ERR_SKIP:
+		UiToast.say(self, "That picture can't be opened. Try another!")
 
 
 func _on_photo_changed(toast: String) -> void:

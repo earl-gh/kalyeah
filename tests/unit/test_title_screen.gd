@@ -489,7 +489,7 @@ func test_hotspot_join_opens_the_checking_dialog_and_asks_for_no_code() -> void:
 	assert_eq(screen.dialog.find_children("*", "LineEdit", true, false).size(), 0, "no code, no address, no keyboard")
 
 
-func test_hotspot_join_opens_the_lobby_with_the_room_the_dialog_found() -> void:
+func test_hotspot_join_opens_the_lobby_with_the_room_the_player_tapped() -> void:
 	var server: GameServer = GameServer.new(RULES, LAYOUT, NET, 5)
 	server.auto_join = true
 	assert_eq(server.listen(18983), OK)
@@ -503,11 +503,16 @@ func test_hotspot_join_opens_the_lobby_with_the_room_the_dialog_found() -> void:
 	plan.interval = 1.0
 	var card: MenuDialog = screen.open_hotspot_join(func() -> Array: return Phones.on_home_wifi(), func(_seen: Array) -> HotspotNet.Plan: return plan)
 	for i: int in 300:
-		if not opened.is_empty():
+		if card.find_child("Room0", true, false) != null:
 			break
 		server.poll(0.016)
 		await wait_process_frames(1)
 	server.stop()
+	assert_true(opened.is_empty(), "the room is listed, not joined by itself")
+	var room: Button = card.find_child("Room0", true, false) as Button
+	assert_not_null(room, "the host's room is listed")
+	if room != null:
+		room.pressed.emit()
 	assert_eq(opened, [LobbyScreen.Intent.JOIN])
 	assert_eq(Session.lobby_url, "ws://127.0.0.1:18983")
 	assert_true(Session.lobby_hotspot)

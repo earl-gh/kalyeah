@@ -37,15 +37,21 @@ func _practice() -> PracticeMatch:
 
 # ---- the objective -------------------------------------------------------------------------------------------------
 
-func test_the_bases_and_rescue_areas_are_a_clear_fill_and_a_thin_edge() -> void:
-	assert_gte(StreetMap.ZONE_FILL_ALPHA, 0.3, "a fill you can see on the cement")
-	assert_lt(StreetMap.ZONE_FILL_ALPHA, 0.5, "that still lets the street show")
-	assert_gte(StreetMap.TAPE_WIDTH, 0.1, "an edge that still reads at phone size")
-	assert_lte(StreetMap.TAPE_WIDTH, 0.15, "half the 0.3 m it was (owner: thinner)")
+func test_the_bases_and_rescue_areas_are_chalk_outlines_like_patinteros_lines() -> void:
+	assert_eq(StreetMap.CHALK_SHADER, StreetModeView.CHALK_SHADER, "the same chalk as the street games' lines")
+	assert_eq(StreetMap.ZONE_CHALK_WIDTH, StreetModeView.LINE_WIDTH, "as wide as Patintero's lines")
+	assert_eq(StreetMap.ZONE_CHALK_BREAKS, StreetModeView.COURT_BREAKS, "and it breaks as much as its court")
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
-	var tape: Color = map.zone_colors(MapLayout.SIDE_ENEMY)[0]
-	assert_gt(tape.s, 0.5, "their tape reads red, not grey")
+	var chalk: Color = map.zone_colors(MapLayout.SIDE_ENEMY)[0]
+	assert_gt(chalk.s, 0.5, "their chalk reads red, not grey")
+	# no tinted fill: every zone mark is a chalk ribbon (a mesh with the chalk shader), none a flat tinted fan
+	for mesh: Node in map.get_node("%Geometry").find_children("*", "MeshInstance3D", true, false):
+		var instance: MeshInstance3D = mesh as MeshInstance3D
+		if instance.mesh is ArrayMesh and (instance.mesh as ArrayMesh).get_surface_count() > 0:
+			var material: Material = (instance.mesh as ArrayMesh).surface_get_material(0)
+			if material is StandardMaterial3D and (material as StandardMaterial3D).transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and (material as StandardMaterial3D).render_priority == -100:
+				fail_test("a tinted fill is still drawn")
 
 
 func test_the_street_is_calm_and_shows_no_shadows() -> void:

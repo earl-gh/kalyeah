@@ -130,7 +130,7 @@ func test_street_scene_builds_bases_boxes_cover_and_dressing() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
 	var geometry: Node3D = map.get_node("%Geometry") as Node3D
-	assert_gt(geometry.get_child_count(), 60, "street, cover, 2 bases, 2 rescue areas, houses and props")
+	assert_gt(geometry.get_child_count(), 50, "street, cover, 2 bases, 2 rescue areas (chalk outlines: one mesh each), houses and props")
 	assert_eq(map.base_color(MapLayout.SIDE_OWN), StreetMap.OWN_COLOR)
 	assert_eq(map.base_color(MapLayout.SIDE_ENEMY), StreetMap.ENEMY_COLOR)
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
@@ -140,14 +140,11 @@ func test_street_scene_builds_bases_boxes_cover_and_dressing() -> void:
 	assert_eq(map.base_color(MapLayout.SIDE_ENEMY), StreetMap.OWN_COLOR, "your post is always blue")
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var zone: Array[Color] = map.zone_colors(side)
-		assert_eq(zone.size(), 4, "base and rescue area are tinted: there is no box inside it any more")
-		assert_eq(zone[0], zone[2], "the rescue area has the same tape as the base")
-		assert_eq(Color(zone[1], 1.0), Color(zone[3], 1.0), "and the same fill colour")
-		assert_lt(zone[1].a, 0.5, "a base's fill stays faint")
-		assert_almost_eq(zone[3].a, StreetMap.RESCUE_FILL_ALPHA, 0.0001, "a rescue area's fill is stronger")
+		assert_eq(zone.size(), 2, "a base and a rescue area: chalk outlines only, no fill (owner, 2026-11-03)")
+		assert_eq(Color(zone[0], 1.0), Color(zone[1], 1.0), "the rescue area has the same colour as the base")
 
 
-func test_a_rescue_area_is_white_while_it_counts_down_and_the_teams_colour_once_ready() -> void:
+func test_a_rescue_areas_chalk_is_white_while_it_counts_down_and_the_teams_colour_once_ready() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
@@ -160,20 +157,11 @@ func test_a_rescue_area_is_white_while_it_counts_down_and_the_teams_colour_once_
 	sim.rescue_ready_left[0] = 5.0
 	sim.rescue_ready_left[1] = 0.0
 	map.sync_rescue(sim)
-	assert_true(Color(map.zone_colors(own_side)[2], 1.0).is_equal_approx(Color.WHITE), "counting down: the area is white")
-	assert_true(Color(map.zone_colors(own_side)[3], 1.0).is_equal_approx(Color.WHITE), "its fill too")
-	assert_true(Color(map.zone_colors(enemy_side)[2], 1.0).is_equal_approx(StreetMap.ENEMY_COLOR), "ready: their red")
+	assert_true(Color(map.zone_colors(own_side)[1], 1.0).is_equal_approx(Color.WHITE), "counting down: the area's chalk is white")
+	assert_true(Color(map.zone_colors(enemy_side)[1], 1.0).is_equal_approx(StreetMap.ENEMY_COLOR), "ready: their red")
 	assert_true(Color(map.zone_colors(own_side)[0], 1.0).is_equal_approx(StreetMap.OWN_COLOR), "the base itself keeps its colour")
-	# owner, 2026-10-30: while it counts down the white tint and the white outline are 50% see-through (the tint was 0.55, the outline opaque)
-	assert_almost_eq(map.zone_colors(own_side)[3].a, StreetMap.RESCUE_WHITE_ALPHA, 0.0001, "the countdown box's tint is half see-through")
-	assert_almost_eq(map.zone_colors(own_side)[2].a, StreetMap.RESCUE_WHITE_ALPHA, 0.0001, "and so is its outline")
-	assert_eq(StreetMap.RESCUE_WHITE_ALPHA, 0.5)
-	assert_eq(map.zone_colors(enemy_side)[2].a, 1.0, "ready: the outline is the exact team colour, solid, as before")
-	assert_almost_eq(map.zone_colors(enemy_side)[3].a, StreetMap.RESCUE_FILL_ALPHA, 0.0001, "and the tint is as it was")
-	sim.rescue_ready_left[0] = 0.0
-	map.sync_rescue(sim)
-	assert_true(Color(map.zone_colors(own_side)[2], 1.0).is_equal_approx(StreetMap.OWN_COLOR), "ready: your blue")
-	assert_eq(map.zone_colors(own_side)[2].a, 1.0, "solid again once ready")
+	assert_almost_eq(map.zone_colors(own_side)[1].a, StreetMap.RESCUE_WHITE_ALPHA, 0.0001, "the counting chalk is a little fainter")
+	assert_almost_eq(map.zone_colors(enemy_side)[1].a, StreetMap.CHALK_ALPHA, 0.0001, "ready: the exact team colour at full chalk strength")
 
 
 func test_each_rescue_area_is_a_gently_rounded_rectangle_against_the_street_edge() -> void:

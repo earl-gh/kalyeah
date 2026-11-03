@@ -100,7 +100,15 @@ func _handle(from: int, message: Dictionary) -> void:
 			var status: String = "incompatible"
 			if message.get("game", "") == "kalyeah" and message.get("v", -1) == NetProtocol.VERSION:
 				status = _discovery_status()
-			send(from, {"t": M.ROOM_DISCOVERED, "game": "kalyeah", "v": NetProtocol.VERSION, "status": status})
+			var answer: Dictionary = {"t": M.ROOM_DISCOVERED, "game": "kalyeah", "v": NetProtocol.VERSION, "status": status}
+			if status == "ready":
+				# what the guest's list shows, so a player with several hosts nearby picks the right one
+				var room: RoomService.Room = rooms.rooms.values()[0] as RoomService.Room
+				var host: RoomService.Member = room.member(room.host_player_id)
+				answer["host"] = host.name if host != null else ""
+				answer["players"] = room.members.size()
+				answer["size"] = RoomService.MAX_TEAM_SIZE * 2
+			send(from, answer)
 		M.HELLO:
 			# an older or newer build reads the match differently (an old one has no "v" at all): refuse it before it joins anything
 			if message.get("v", -1) != NetProtocol.VERSION:

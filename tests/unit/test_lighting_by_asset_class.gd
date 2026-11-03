@@ -33,23 +33,20 @@ func test_the_floor_is_the_owners_picture_unshaded_and_untinted() -> void:
 	assert_eq(material.vertex_color_use_as_albedo, false)
 
 
-func test_the_zone_marks_are_unshaded_in_the_exact_team_colours() -> void:
+func test_the_zone_marks_are_unshaded_chalk_in_the_exact_team_colours() -> void:
 	var map: StreetMap = _map()
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var want: Color = Palette.TEAM_OWN if side == MapLayout.SIDE_OWN else Palette.TEAM_ENEMY
 		var materials: Array = map._base_materials[side]
-		assert_eq(materials.size(), 4)
+		assert_eq(materials.size(), 2, "a base and a rescue area: chalk only, no fill")
 		for index: int in materials.size():
-			var material: StandardMaterial3D = materials[index] as StandardMaterial3D
-			assert_eq(material.shading_mode, BaseMaterial3D.SHADING_MODE_UNSHADED, "zone material %d is not lit" % index)
-			assert_eq(Color(material.albedo_color, 1.0), want, "zone material %d is exactly the palette colour, not softened" % index)
-		assert_eq((materials[0] as StandardMaterial3D).albedo_color.a, 1.0, "the line is solid")
-		assert_almost_eq((materials[1] as StandardMaterial3D).albedo_color.a, StreetMap.ZONE_FILL_ALPHA, 0.0001, "the fill is the palette colour at its alpha only")
-		assert_almost_eq((materials[3] as StandardMaterial3D).albedo_color.a, StreetMap.RESCUE_FILL_ALPHA, 0.0001, "the rescue fill likewise")
-		assert_eq((materials[2] as StandardMaterial3D).albedo_color.a, 1.0, "the rescue line is solid")
+			var material: ShaderMaterial = materials[index] as ShaderMaterial
+			assert_true(material.shader.code.contains("unshaded"), "zone chalk %d is not lit" % index)
+			assert_eq(Color(material.get_shader_parameter("chalk") as Color, 1.0), want, "zone chalk %d is exactly the palette colour, not softened" % index)
+		assert_almost_eq((materials[0].get_shader_parameter("chalk") as Color).a, StreetMap.CHALK_ALPHA, 0.0001, "the chalk is the palette colour at its strength only")
 	map.set_own_side(MapLayout.SIDE_ENEMY)
-	for material: StandardMaterial3D in map._base_materials[MapLayout.SIDE_ENEMY]:
-		assert_eq(Color(material.albedo_color, 1.0), Palette.TEAM_OWN, "still exact after the teams swap ends")
+	for material: ShaderMaterial in map._base_materials[MapLayout.SIDE_ENEMY]:
+		assert_eq(Color(material.get_shader_parameter("chalk") as Color, 1.0), Palette.TEAM_OWN, "still exact after the teams swap ends")
 
 
 func test_every_3d_model_is_matte() -> void:
@@ -91,16 +88,21 @@ func test_the_pole_is_two_to_three_times_a_kid_on_screen() -> void:
 	assert_lt(ratio, 3.0, "but proportionate, not a tower over the street")
 
 
-func test_the_ground_outside_the_play_area_is_slightly_darker_than_the_play_area() -> void:
+func test_the_ground_outside_the_play_area_is_the_floor_picture_with_no_dark_tint() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
 	var inside: MeshInstance3D = map.get_node("%Geometry").find_child("CementArt", true, false) as MeshInstance3D
 	var outside: MeshInstance3D = map.get_node("%Geometry").find_child("OutsideArt", true, false) as MeshInstance3D
 	assert_not_null(outside, "the outside patch is laid")
 	assert_eq((inside.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color, Color.WHITE, "the play area is the picture itself")
-	var shade: Color = ((outside.mesh as PlaneMesh).material as StandardMaterial3D).albedo_color
-	assert_lt(shade.v, 0.9, "outside is darker")
-	assert_gt(shade.v, 0.6, "but only slightly")
+	var material: ShaderMaterial = (outside.mesh as PlaneMesh).material as ShaderMaterial
+	assert_eq(material.get_shader_parameter("floor_picture"), StreetArt.texture("cement"), "the same picture")
+	var code: String = material.shader.code
+	assert_false(code.contains("far_shade") or code.contains("side_color"), "no shade or flat colour made up for the outside")
+	assert_true(code.contains("mirrored"), "the sidewalk strip is copied outward past the sides")
+	assert_true(code.contains("copy"), "the whole picture is copied past the top and the bottom")
+	assert_true(code.contains("seam"), "each copy is colour-corrected where it meets its neighbour")
+	assert_almost_eq(material.get_shader_parameter("edge_u") as float, (1.0 - map.cement_share()) / 2.0, 0.0001, "the sidewalk strip is what the play area crops off")
 	var size: Vector3 = inside.mesh.get_aabb().size
 	assert_almost_eq(size.x, map.layout.lane_width, 0.001, "the play area patch is exactly the play area")
 	assert_almost_eq(size.z, map.layout.lane_length, 0.001, "end to end")

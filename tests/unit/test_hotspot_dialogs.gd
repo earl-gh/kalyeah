@@ -1,6 +1,7 @@
 extends GutTest
 ## The two modals in front of a hotspot room, in every state: what they say, what they offer, and that nothing runs or calls
-## back once they are closed. Create only goes on when a hotspot is on; Join checks the Wi-Fi, then finds a real room.
+## back once they are closed. Create only goes on when a hotspot is on; Join checks the Wi-Fi, lists the real rooms it finds and
+## joins only the one the player taps (never one by itself: several friends may host at once).
 
 const NET: NetRules = preload("res://data/rules/net_rules.tres")
 const RULES: GameRules = preload("res://data/rules/game_rules.tres")
@@ -55,6 +56,37 @@ func _create(went: Array, open_settings: Callable = Callable()) -> MenuDialog:
 
 func _join(found: Array) -> MenuDialog:
 	return _open(HotspotDialogs.join_check(func(url: String) -> void: found.append(url), _interfaces, _loopback_plan))
+
+
+## Join with no broadcast: the hosts are asked straight at these loopback ports.
+func _join_direct(found: Array, ports: Array) -> MenuDialog:
+	var plan_for: Callable = func(_seen: Array) -> HotspotNet.Plan:
+		var plan: HotspotNet.Plan = HotspotNet.Plan.new()
+		plan.ws_port = WS_PORT
+		plan.beacon_port = UDP_PORT
+		plan.seconds = SEARCH_SECONDS
+		plan.interval = 0.3
+		for port: int in ports:
+			plan.candidates.append("ws://127.0.0.1:%d" % port)
+		return plan
+	return _open(HotspotDialogs.join_check(func(url: String) -> void: found.append(url), _interfaces, plan_for))
+
+
+func _room_texts(card: MenuDialog) -> Array:
+	var texts: Array = []
+	var list: Node = card.find_child("Rooms", true, false)
+	for button: Node in list.get_children() if list != null else []:
+		texts.append((button as Button).text)
+	return texts
+
+
+## Waits for the room list, then taps its `index`th room.
+func _tap_room(card: MenuDialog, index: int = 0) -> bool:
+	var row: String = "Room%d" % index
+	if not await _until(func() -> bool: return is_instance_valid(card) and card.find_child(row, true, false) != null):
+		return false
+	(card.find_child(row, true, false) as Button).pressed.emit()
+	return true
 
 
 func _loopback_plan(_interfaces_seen: Array) -> HotspotNet.Plan:
@@ -233,17 +265,47 @@ func test_join_without_a_wifi_says_to_connect_and_does_not_search() -> void:
 		card.close(false)
 
 
-func test_join_looks_for_a_room_and_joins_the_verified_one() -> void:
+func test_join_lists_the_verified_room_and_joins_it_only_when_tapped() -> void:
 	_host(true)
 	var found: Array = []
-	var card: MenuDialog = _join(found)
+	var card: MenuDialog = _join_direct(found, [WS_PORT])
 	await wait_process_frames(2)
-	assert_eq(_text(card, "Message"), "Looking for a room…")
+	assert_eq(_text(card, "Message"), "Looking for rooms…")
 	assert_true(_shown(card, "CloseButton"))
 	assert_false(_shown(card, "TryAgain"))
-	assert_true(await _until(func() -> bool: return not found.is_empty()))
+	assert_true(await _until(func() -> bool: return card.find_child("Room0", true, false) != null), "the room is listed")
+	assert_eq(_room_texts(card), ["Host's room  1/6"], "the host's name and how full it is")
+	# the search runs out and the list stays: nothing is joined by itself
+	assert_true(await _until(func() -> bool: return _shown(card, "TryAgain"), SEARCH_SECONDS + 2.0))
+	assert_eq(_text(card, "Message"), "Tap a room to join.")
+	assert_true(found.is_empty(), "never joins on its own")
+	assert_true(card.is_open)
+	assert_true(await _tap_room(card))
 	assert_eq(found, ["ws://127.0.0.1:%d" % WS_PORT])
 	assert_false(is_instance_valid(card) and card.is_open)
+
+
+func test_join_with_two_hosts_lists_both_and_joins_the_one_tapped() -> void:
+	_host(true)
+	var other: GameServer = GameServer.new(RULES, LAYOUT, NET, 5)
+	other.auto_join = true
+	assert_eq(other.listen(WS_PORT + 10), OK)
+	other.rooms.create_room(800, "Bea")
+	var found: Array = []
+	var card: MenuDialog = _join_direct(found, [WS_PORT, WS_PORT + 10])
+	var both: Callable = func() -> bool:
+		other.poll(0.016)
+		return card.find_child("Room1", true, false) != null
+	assert_true(await _until(both), "both rooms are listed")
+	var labels: Array = _room_texts(card)
+	labels.sort()
+	assert_eq(labels, ["Bea's room  1/6", "Host's room  1/6"])
+	assert_true(found.is_empty(), "two rooms: the player picks")
+	for button: Node in card.find_child("Rooms", true, false).get_children():
+		if (button as Button).text.begins_with("Bea"):
+			(button as Button).pressed.emit()
+	assert_eq(found, ["ws://127.0.0.1:%d" % (WS_PORT + 10)])
+	other.stop()
 
 
 func test_join_says_when_there_is_no_room_and_try_again_finds_it_once_the_host_creates_it() -> void:
@@ -255,7 +317,7 @@ func test_join_says_when_there_is_no_room_and_try_again_finds_it_once_the_host_c
 	assert_true(found.is_empty())
 	_server.rooms.create_room(700, "Host")
 	(card.find_child("TryAgain", true, false) as Button).pressed.emit()
-	assert_true(await _until(func() -> bool: return not found.is_empty()))
+	assert_true(await _tap_room(card))
 	assert_eq(found.size(), 1)
 
 
@@ -312,7 +374,8 @@ func test_coming_back_from_wifi_settings_searches_again_by_itself() -> void:
 	assert_true(found.is_empty())
 	phone = Phones.on_home_wifi()
 	card.propagate_notification(NOTIFICATION_APPLICATION_RESUMED)
-	assert_true(await _until(func() -> bool: return not found.is_empty()))
+	assert_true(await _tap_room(card))
+	assert_eq(found.size(), 1)
 
 
 # ---- the flow without a widget -----------------------------------------------------------------
