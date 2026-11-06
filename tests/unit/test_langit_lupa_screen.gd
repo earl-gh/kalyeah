@@ -81,6 +81,12 @@ func test_a_practice_is_you_and_five_bots_with_the_kids_column_the_platforms_and
 	var game: LangitLupa = practice.sim.mode as LangitLupa
 	assert_true(game.mounds.has(practice.local_id), "the Lupa button raises a mound")
 	assert_eq(view.mound_count(), 1, "drawn")
+	assert_not_null(view.model_of_mound(practice.local_id), "with the owner's sacks model")
+	assert_eq(view.model_of_mound(practice.local_id).scene_file_path, PropModel.PATH % LangitLupaView.MOUND_MODEL)
+	assert_eq(view.model_of_platform(0).scene_file_path, PropModel.PATH % LangitLupaView.PLATFORM_MODEL, "the platforms are the owner's crates")
+	var box: AABB = PropModel.bounds_of(LangitLupaView.PLATFORM_MODEL)
+	assert_almost_eq(box.size.y * view.model_of_platform(0).scale.y, LangitLupaView.PLATFORM_HEIGHT, 0.01, "fitted to the platform's height")
+	assert_almost_eq(box.size.x * view.model_of_platform(0).scale.x, practice.sim.mode.rules.langit_spots[0].size.x, 0.01, "and its footprint")
 	assert_false(pad.act_ready, "it cools down")
 	assert_lt(pad.charge, 0.1)
 	assert_eq(pad.title_label.text, "SAFE!")
