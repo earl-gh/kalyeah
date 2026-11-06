@@ -484,9 +484,13 @@ func test_a_taya_that_picks_the_can_up_scoops_it_with_both_hands_and_sets_it_dow
 	var game: TumbangPreso = practice.sim.mode as TumbangPreso
 	practice.advance(DT)
 	game.taya_id = practice.local_id  # you stand still when nobody touches the knob
+	# the bots do nothing: far away is not enough (a thrower is pulled back behind the throw line and, on the clock's seed, may throw at or
+	# kick the can in the last second after it is put back; it failed about 1 run in 12, once on the Android APK run of main)
+	practice._mode_coach.ids.clear()
 	for id: int in practice.sim.players:
 		if id != practice.local_id:
-			practice.sim.players[id].position = Vector2(-10.0 + float(id) * 3.0, -20.0)  # the bots are far away: nobody throws at the can
+			practice.sim.players[id].position = Vector2(-10.0 + float(id) * 3.0, -20.0)
+			practice.sim.set_input(id, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 0))
 	var taya: int = game.taya_id
 	var view: KidModel = practice._views[taya] as KidModel
 	var spot: Vector2 = game.rules.can_spot
