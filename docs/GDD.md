@@ -310,7 +310,7 @@ Tumbang Preso's throw line and far line, and Patintero's court (its first and la
 - **Points:** every kid but the taya earns 1 point for each `survive_seconds` 10 s it plays free (counted while it is not the taya), shown in the kids' column on the left sidewalk (no banner); the tagger's bonus is on top.
 - **Controls and HUD:** Tumbang Preso's: the knob at the left, the action button (LUPA, or none for the taya) at the right, one line between them saying what to do (RUN!, SAFE! with the seconds left, GET DOWN!, YOU'RE IT!).
 - **Bots:** a kid rests on the street while the taya is far or out of sight, runs for the standing platform with the most room from the taya when it comes near (or raises a mound when it is nearly on it) and steps down when its safe time runs low; the taya chases the nearest kid it can see that is not safe. In whole bot matches the taya changes hands about every 40 s and the six kids end within a few points of each other.
-- **Art to make (owner):** the game's picture for the Games page and the room picker (2D image; a sky-over-earth stand-in is drawn in code until then), the langit platform with its worn and broken looks and the mound (Blender models; code-drawn boxes and cones stand in).
+- **Art to make (owner):** the game's picture for the Games page and the room picker (2D image; a sky-over-earth stand-in is drawn in code until then), the langit platform with its worn and broken looks and the mound (Blender models; the owner's crates and sacks models stand in, fitted to size). Briefs: `docs/art-briefs/` 16 to 24.
 
 ## Accessibility preferences
 
