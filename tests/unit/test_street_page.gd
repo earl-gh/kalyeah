@@ -31,7 +31,7 @@ func test_every_game_has_its_name_and_picture_and_only_agawan_base_is_open() -> 
 	var screen: TitleScreen = _phone_screen()
 	screen.open_page(&"street")
 	await wait_frames(2)
-	assert_eq(screen.street_page.cards.size(), 3, "Agawang Base, Tumbang Preso, Patintero")
+	assert_eq(screen.street_page.cards.size(), 4, "Agawang Base, Tumbang Preso, Patintero, Langit Lupa")
 	assert_true(StreetPage.playable(&"street"))
 	assert_true(StreetPage.playable(&"tumbang_preso"), "Tumbang Preso plays in rooms too")
 	assert_true(StreetPage.playable(&"patintero"), "Patintero plays in rooms too")
@@ -42,7 +42,7 @@ func test_every_game_has_its_name_and_picture_and_only_agawan_base_is_open() -> 
 		names.append(title.text)
 		assert_not_null((card.find_child("Picture", true, false) as TextureRect).texture, "%s has its picture" % title.text)
 		assert_null(card.find_child("Game", true, false), "no second name line")
-	assert_eq(names, ["Agawang Base", "Tumbang Preso", "Patintero"] as Array[String], "the games are named, not the streets")
+	assert_eq(names, ["Agawang Base", "Tumbang Preso", "Patintero", "Langit Lupa"] as Array[String], "the games are named, not the streets")
 
 
 func test_the_mechanics_come_from_the_rules_so_they_cannot_go_stale() -> void:

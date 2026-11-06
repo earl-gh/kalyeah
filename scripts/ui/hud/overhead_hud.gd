@@ -99,6 +99,8 @@ var _local_id: int = -1
 var _local_team: int = 0
 ## Tumbang Preso's taya (owner: the only red kid, instead of an "IT" over its head): its bar and badge are the enemy's red whoever it is. -1 in other games.
 var taya_id: int = -1
+## The kids this phone cannot see now (Langit Lupa's brownout): no bar, no word over them.
+var hidden_ids: Dictionary[int, bool] = {}
 ## The bar's back, fill and gloss, made once and recoloured as each kid is drawn (no allocation per frame).
 var _bar_back: StyleBoxFlat
 var _bar_fill: StyleBoxFlat
@@ -207,7 +209,7 @@ func tick(delta: float) -> void:
 
 ## False for a tagged kid (owner: no health for tagged players). Free kids always show their bar, wherever they stand.
 func bar_visible(state: PlayerState) -> bool:
-	return not state.tagged
+	return not state.tagged and not hidden_ids.has(state.id)
 
 
 func bar_color(state: PlayerState) -> Color:
@@ -300,8 +302,8 @@ func _draw() -> void:
 ## The quick chat sticker over a kid: the owner's picture of what was said (`QuickChat.STICKER_PATH`), easing in and fading out.
 func _draw_say(said: Dictionary) -> void:
 	var state: PlayerState = _sim.players.get(said["id"]) as PlayerState
-	if state == null:
-		return
+	if state == null or hidden_ids.has(state.id):
+		return  # (a kid out of sight in a brownout: its sticker is not seen either)
 	var at: Variant = _head(state)
 	if at == null:
 		return

@@ -12,7 +12,13 @@ const STREETS: Array[Dictionary] = [
 		"blurb": "5 minutes: Knock the can over, fetch your slipper, and run to the other end to earn a score. The 'it' fetches the can and places it back to position. It can't tag players when the can is knocked over and not in position."},
 	{"id": &"patintero", "game": "Patintero", "picture": preload("res://assets/ui/games/patintero.webp"), "color": "green",
 		"blurb": "5 minutes: Get past the enemy guards, run to the other end and back to earn a team point. Enemy players that act as guards tag you or your ally to reduce the chances of your team making it to the other end and back."},
+	# no picture yet (the owner's 2D image, like the others: put its preload here): `picture_for` draws a stand-in until then
+	{"id": &"langit_lupa", "game": "Langit Lupa", "picture": null, "color": "red",
+		"blurb": "5 minutes: Run from the taya! Up on a langit you're safe for a few seconds, but the langit wears out, you can't rest up there, and the lights go out now and then."},
 ]
+## The stand-in: sky over earth (langit over lupa), drawn in code.
+const STAND_IN_SKY: Color = Color("62baff")
+const STAND_IN_EARTH: Color = Color("8a5a32")
 ## How big a game's picture is drawn beside its name (the picture keeps its own shape inside this square).
 const PICTURE_SIZE: float = 168.0
 ## What a street that is not built yet says where its mechanics will be.
@@ -44,8 +50,30 @@ func _ready() -> void:
 static func picture_for(id: StringName) -> Texture2D:
 	for street: Dictionary in STREETS:
 		if street["id"] == id:
-			return street["picture"] as Texture2D
+			if street["picture"] != null:
+				return street["picture"] as Texture2D
+			return _stand_in_picture()
 	return null
+
+
+static var _stand_in: Texture2D
+
+
+## A square of sky over earth (langit over lupa), for a game whose picture is not made yet.
+static func _stand_in_picture() -> Texture2D:
+	if _stand_in == null:
+		var gradient: Gradient = Gradient.new()
+		gradient.set_color(0, STAND_IN_SKY)
+		gradient.set_color(1, STAND_IN_EARTH)
+		gradient.add_point(0.55, STAND_IN_SKY.lerp(STAND_IN_EARTH, 0.5))
+		var texture: GradientTexture2D = GradientTexture2D.new()
+		texture.gradient = gradient
+		texture.width = 256
+		texture.height = 256
+		texture.fill_from = Vector2(0.5, 0.0)
+		texture.fill_to = Vector2(0.5, 1.0)
+		_stand_in = texture
+	return _stand_in
 
 
 static func playable(id: StringName) -> bool:
@@ -78,9 +106,19 @@ static func mechanics_for(id: StringName, rules: GameRules) -> Array[String]:
 	] as Array[String]
 
 
-## How Tumbang Preso or Patintero plays, with its numbers.
+## How Tumbang Preso, Patintero or Langit Lupa plays, with its numbers.
 static func street_game_lines(game: StreetModeRules) -> Array[String]:
 	var minutes: int = roundi(game.match_seconds / 60.0)
+	if game.id == &"langit_lupa":
+		return [
+			UiText.f("%d minutes! Every kid plays for itself and the most points wins. Play it in Practice, Local or Online.", [minutes]),
+			"One kid is the taya, the 'it'. The taya tags you by moving into your circle, and then you're the taya.",
+			UiText.f("Stand on a langit, a raised platform, and the taya can't tag you, for %d s in all. The street fills that time again.", [ceili(game.langit_seconds)]),
+			"Tap LUPA to raise a mound of earth under you: a langit of your own for a few seconds.",
+			"The langit wear out under your feet and break until the next round. You can't rest up there either: only the street refills your stamina.",
+			UiText.f("Brownout! Now and then the lights go out and you only see the kids within %d m of you.", [roundi(game.brownout_sight)]),
+			UiText.f("Every %d s you stay free is a point. Tag someone for a bonus point.", [roundi(game.survive_seconds)]),
+		] as Array[String]
 	if game.id == &"tumbang_preso":
 		return [
 			UiText.f("%d minutes! Every kid plays for itself and the most points wins. Play it in Practice.", [minutes]) if practice_only(game.id) else
@@ -112,7 +150,7 @@ func _card(street: Dictionary, rules: GameRules) -> Control:
 	head.add_theme_constant_override("separation", UiMetrics.GAP)
 	var picture: TextureRect = TextureRect.new()
 	picture.name = "Picture"
-	picture.texture = street["picture"] as Texture2D
+	picture.texture = picture_for(id)
 	picture.custom_minimum_size = Vector2(PICTURE_SIZE, PICTURE_SIZE)
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED

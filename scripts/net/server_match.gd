@@ -250,7 +250,7 @@ func _away_team() -> int:
 	return -1
 
 
-## The same public snapshot to everyone, each with only its own private part (elixir, stamina, move target).
+## The same public snapshot to everyone, each with only its own private part (elixir, stamina, move target) and without what it may not see (a brownout).
 func _send_snapshots(public: Dictionary) -> void:
 	if _server == null:
 		return
@@ -258,7 +258,7 @@ func _send_snapshots(public: Dictionary) -> void:
 		if m.connected:
 			var message: Dictionary = public.duplicate()
 			message.merge(Snapshot.private_for(sim, m.player_id))
-			_server.send(m.peer_id, message)
+			_server.send(m.peer_id, Snapshot.hide_for(sim, m.player_id, message))
 
 
 ## One input per tick per player, oldest first, so taps are never lost. With none

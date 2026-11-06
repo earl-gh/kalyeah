@@ -9,6 +9,7 @@ extends RefCounted
 const RULES_PATHS: Dictionary[StringName, String] = {
 	&"tumbang_preso": "res://data/rules/tumbang_preso.tres",
 	&"patintero": "res://data/rules/patintero.tres",
+	&"langit_lupa": "res://data/rules/langit_lupa.tres",
 }
 
 ## The id the tagger's touch is sent to the views as (`MatchSim.weapon_cast`): the kid plays its run-cast clip, as if it touched the other.
@@ -37,13 +38,15 @@ func _init(p_rules: StreetModeRules) -> void:
 	time_left = rules.match_seconds
 
 
-## The game for `p_rules.id` (Tumbang Preso or Patintero), or null for another id.
+## The game for `p_rules.id` (Tumbang Preso, Patintero or Langit Lupa), or null for another id.
 static func create(p_rules: StreetModeRules) -> StreetMode:
 	match p_rules.id:
 		&"tumbang_preso":
 			return TumbangPreso.new(p_rules)
 		&"patintero":
 			return Patintero.new(p_rules)
+		&"langit_lupa":
+			return LangitLupa.new(p_rules)
 	return null
 
 
@@ -81,6 +84,21 @@ func restore(data: Dictionary, _sim: MatchSim = null) -> void:
 ## The rules of game `id`, or null for Agawang Base (or an unknown id).
 static func rules_for(id: StringName) -> StreetModeRules:
 	return load(RULES_PATHS[id]) as StreetModeRules if RULES_PATHS.has(id) else null
+
+
+## True when the kid `viewer` can see `target` now (Langit Lupa's brownout hides the far ones). Every view asks this.
+func visible_to(_sim: MatchSim, _viewer: int, _target: int) -> bool:
+	return true
+
+
+## The kids `viewer` may not be told about now (Langit Lupa's brownout): the server leaves them out of that phone's snapshot.
+func hidden_from(_sim: MatchSim, _viewer: int) -> Array[int]:
+	return []
+
+
+## `data` (this game's `snapshot()`) as the phone that cannot see `hidden` gets it. Overridden by the game whose data says where kids are.
+func filter_for(data: Dictionary, _hidden: Array[int]) -> Dictionary:
+	return data
 
 
 ## Everyone to their places for the first turn (call once all players are in).
@@ -174,6 +192,11 @@ func _step_turn(_sim: MatchSim, _dt: float) -> void:
 ## The game's own actions from `state`'s input this tick (a Tumbang Preso throw or kick). There are no skills in the street games.
 func handle_input(_sim: MatchSim, _state: PlayerState, _input: PlayerInput, _dt: float) -> void:
 	pass
+
+
+## True when standing still refills `state`'s stamina here (Langit Lupa: not on a safe spot). Only kids with stamina ask.
+func can_rest(_state: PlayerState) -> bool:
+	return true
 
 
 ## Where a walk to `point` really goes (a Patintero guard stays on its line).

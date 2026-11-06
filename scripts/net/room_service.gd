@@ -68,8 +68,8 @@ class Room extends RefCounted:
 const MAX_TEAM_SIZE: int = 3
 ## The name of the base game (the other two say theirs in their rules: `StreetModeRules.title`).
 const BASE_TITLE: String = "Agawang Base"
-const MAP_IDS: Array[StringName] = [&"street", &"tumbang_preso", &"patintero"]
-const PLAYABLE_MAP_IDS: Array[StringName] = [&"street", &"patintero", &"tumbang_preso"]
+const MAP_IDS: Array[StringName] = [&"street", &"tumbang_preso", &"patintero", &"langit_lupa"]
+const PLAYABLE_MAP_IDS: Array[StringName] = [&"street", &"patintero", &"tumbang_preso", &"langit_lupa"]
 
 var rooms: Dictionary[String, Room] = {}
 ## What a host may pick, and what a new room starts with (GameRules.first_to*).

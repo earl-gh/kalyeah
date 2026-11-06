@@ -236,17 +236,18 @@ func test_the_kid_cards_are_rounded_with_a_shadow() -> void:
 	assert_not_null(picture.material, "the picture is cropped to the same corners")
 
 
-func test_the_map_carousel_lists_all_three_street_games_ready_to_pick() -> void:
+func test_the_map_carousel_lists_all_four_street_games_ready_to_pick() -> void:
 	var view: HotspotRoomView = _view(_room(2))
 	var picked: Array[StringName] = []
 	view.map_chosen.connect(func(id: StringName) -> void: picked.append(id))
 	view.map_card.pressed.emit()
-	assert_eq(view.map_carousel.cards.size(), 3, "three street games")
+	assert_eq(view.map_carousel.cards.size(), 4, "four street games")
 	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[0]), "Agawang Base")
 	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[1]), "Tumbang Preso")
 	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[2]), "Patintero")
+	assert_eq(ChoiceCard.choice_of(view.map_carousel.cards[3]), "Langit Lupa")
 	for card: Button in view.map_carousel.cards:
-		assert_ne((card.get_node("Heading") as Label).text, "Coming soon", "none says Coming soon: all three play in rooms (owner, 2026-10-31)")
+		assert_ne((card.get_node("Heading") as Label).text, "Coming soon", "none says Coming soon: all four play in rooms (owner, 2026-10-31)")
 	for i: int in RoomService.MAP_IDS.size():
 		var picture: TextureRect = view.map_carousel.cards[i].get_node("Picture") as TextureRect
 		assert_eq(picture.texture, StreetPage.picture_for(RoomService.MAP_IDS[i]), "the Games page's picture on each card (owner, 2026-11-01)")
@@ -282,11 +283,11 @@ func test_the_picker_says_how_each_game_plays_and_picks_with_its_button() -> voi
 	assert_true(tag.visible and tag.text == RoomMapPicker.PLAYING_NOW, "Agawang Base is playing now")
 	assert_false((view.map_carousel.cards[2].get_node("Heading") as Label).visible)
 	assert_eq(picker.info_label.text, "3v3 · Teams · Race to 3")
-	assert_eq(picker.dots_label.text, "●  ○  ○")
+	assert_eq(picker.dots_label.text, "●  ○  ○  ○")
 	assert_eq(picker.pick_button.text, "Keep Agawang Base")
 	view.map_carousel.select(2, false)
 	assert_eq(picker.info_label.text, "3v3 · Teams · 2 or more a team · 5 min", "Patintero is timed, and needs two a team")
-	assert_eq(picker.dots_label.text, "○  ○  ●")
+	assert_eq(picker.dots_label.text, "○  ○  ●  ○")
 	assert_eq(picker.pick_button.text, "Pick Patintero")
 	view.map_carousel.select(1, false)
 	assert_eq(picker.info_label.text, "3 to 6 kids · Every kid for itself · 5 min")

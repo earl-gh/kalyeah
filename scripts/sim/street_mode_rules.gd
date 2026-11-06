@@ -1,10 +1,10 @@
 class_name StreetModeRules
 extends Resource
-## The numbers of a timed street game (docs/GDD.md "Tumbang Preso and Patintero"). Values live in
-## data/rules/tumbang_preso.tres and data/rules/patintero.tres; nothing here is hardcoded.
+## The numbers of a timed street game (docs/GDD.md "Tumbang Preso and Patintero", "Langit Lupa"). Values live in
+## data/rules/tumbang_preso.tres, data/rules/patintero.tres and data/rules/langit_lupa.tres; nothing here is hardcoded.
 ## The street runs along Z: the throwers / runners start at the +Z end (the bottom of the screen) and run to the -Z end.
 
-## RoomService.MAP_IDS id: &"tumbang_preso" or &"patintero".
+## RoomService.MAP_IDS id: &"tumbang_preso", &"patintero" or &"langit_lupa".
 @export var id: StringName = &""
 ## The game's name, as the Games page and the Practice row write it.
 @export var title: String = ""
@@ -112,6 +112,36 @@ extends Resource
 @export var dive_recover: float = 0.5
 @export var dive_cooldown: float = 5.0
 @export var dive_return_speed_share: float = 1.5
+
+@export_group("Langit Lupa")
+## The langit ("heaven"): raised platforms on the street (x, z rects, m). A kid whose centre stands on one is safe from the taya, for a while.
+@export var langit_spots: Array[Rect2] = []
+## A kid is safe on a langit (or a mound) for at most this long in all (s): it drains while the kid stands on one and refills at
+## `langit_refill_per_s` seconds a second while it is on the lupa (the street). At 0 the langit no longer saves it.
+@export var langit_seconds: float = 3.0
+@export var langit_refill_per_s: float = 1.0
+## Heaven wears out: a platform takes this many kid-seconds of standing (two kids wear it twice as fast) and then breaks, gone until the
+## next round. 0 = never.
+@export var langit_wear_seconds: float = 10.0
+## The Lupa button (anyone but the taya): raises a mound of earth under the kid, a round langit `mound_radius` m wide that stands
+## `mound_seconds` s. The kid can raise the next one `mound_cooldown` s after.
+@export var mound_radius: float = 1.0
+@export var mound_seconds: float = 4.0
+@export var mound_cooldown: float = 12.0
+## Standing on a langit or a mound never refills stamina (only the street does). Off: they refill it like the street.
+@export var langit_blocks_rest: bool = true
+## Every kid but the taya earns a point for each `survive_seconds` s of play (the taya earns none); a tag gives the tagger `tag_points`.
+@export var survive_seconds: float = 10.0
+@export var tag_points: int = 1
+## Brownout: the street goes dark for `brownout_seconds` s, first `brownout_first` s into the match and then every `brownout_every` s
+## (from the start of one to the next). In the dark each kid sees only the kids within `brownout_sight` m (the server does not even send
+## the others). 0 `brownout_seconds` = no brownouts.
+@export var brownout_first: float = 45.0
+@export var brownout_every: float = 60.0
+@export var brownout_seconds: float = 10.0
+@export var brownout_sight: float = 5.0
+## The kids who are not the taya start on a ring this far (m) round the middle; the taya starts in the middle.
+@export var ring_radius: float = 9.0
 
 @export_group("Bots")
 ## Bots aim at the can within this much (m, either way, seeded) and hold the aim line until it reaches it.

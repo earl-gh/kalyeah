@@ -18,8 +18,9 @@ signal team_chosen(team: int)
 ## The big button: START for the host, READY (on or off) for everyone else.
 signal action_pressed
 
-const MAP_NAMES: Dictionary[StringName, String] = {&"street": "Agawang Base", &"tumbang_preso": "Tumbang Preso", &"patintero": "Patintero"}
-const MAP_COLORS: Dictionary[StringName, String] = {&"street": "blue", &"tumbang_preso": "orange", &"patintero": "green"}
+const MAP_NAMES: Dictionary[StringName, String] = {&"street": "Agawang Base", &"tumbang_preso": "Tumbang Preso", &"patintero": "Patintero",
+	&"langit_lupa": "Langit Lupa"}
+const MAP_COLORS: Dictionary[StringName, String] = {&"street": "blue", &"tumbang_preso": "orange", &"patintero": "green", &"langit_lupa": "red"}
 ## The cards in the map carousel are 3:4.
 const MAP_PICK_CARD: Vector2 = Vector2(414.0, 552.0)
 const TEAM_COLORS: Array[Color] = [Color(0.45, 0.65, 1.0), Color(1.0, 0.45, 0.45)]

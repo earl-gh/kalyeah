@@ -1,5 +1,5 @@
 class_name TumbangPreso
-extends StreetMode
+extends TayaGame
 ## Tumbang Preso (docs/GDD.md "Tumbang Preso"): one kid is the taya (the "it"), everyone else is a thrower, and every kid plays for itself.
 ## The throwers throw their slipper at the can from the throwing area (behind the throw line): hold the Throw button to aim, the aim line
 ## grows with the hold, let go to throw. While a thrower has its slipper in hand it cannot leave the throwing area. A hit flings the can and
@@ -36,12 +36,6 @@ const KICK_FROM_FEET: float = 0.2
 ## Walls are this far from a flung thing's centre.
 const FLING_MARGIN: float = 0.4
 
-## The taya (the "it"): the one kid that guards the can.
-var taya_id: int = -1
-## id -> points (the match is won by the kid with the most).
-var points: Dictionary[int, int] = {}
-## The kid that won (-1 until the match is over).
-var winner_id: int = -1
 ## Where the can is (on its spot, lying where it was flung or kicked, or in the taya's hands).
 var can_position: Vector2 = Vector2.ZERO
 ## True while the can stands in its spot: only then can the taya tag.
@@ -71,13 +65,9 @@ var _kick_down: Dictionary[int, bool] = {}
 var _slipper_def: WeaponDef
 
 
-func is_free_for_all() -> bool:
-	return true
-
-
 func synced_fields() -> Array[StringName]:
 	var fields: Array[StringName] = super()
-	fields.append_array([&"taya_id", &"points", &"winner_id", &"can_position", &"can_up", &"can_carrier", &"can_busy_left", &"slippers",
+	fields.append_array([&"can_position", &"can_up", &"can_carrier", &"can_busy_left", &"slippers",
 		&"slipper_busy", &"fetched", &"scared_left", &"hold", &"aim_dir", &"kick_left"])
 	return fields
 
@@ -103,34 +93,6 @@ func restore(data: Dictionary, sim: MatchSim = null) -> void:
 		for projectile: WeaponSystem.Projectile in sim.weapons.projectiles:
 			if id is int and projectile.id == (in_air as Dictionary)[id]:
 				flights[id as int] = projectile
-
-
-func is_attacker(state: PlayerState) -> bool:
-	return state.id != taya_id
-
-
-func speed_scale(state: PlayerState) -> float:
-	return rules.taya_speed_share if state.id == taya_id else 1.0
-
-
-## The first taya is drawn at random from everyone in the match (the match's seeded generator: nobody picks it in the lobby or the room;
-## the opening show plays the roll, `StreetModeRules.roll_seconds`), then everyone goes to their place.
-func setup(sim: MatchSim) -> void:
-	var kids: Array[int] = []
-	for id: int in sim.players:
-		points[id] = 0
-		kids.append(id)
-	if not kids.is_empty():
-		taya_id = kids[sim.rng.randi_range(0, kids.size() - 1)]
-	super.setup(sim)
-
-
-## The kids by points, most first (ties by id).
-func ranking() -> Array[int]:
-	var ids: Array[int] = []
-	ids.assign(points.keys())
-	ids.sort_custom(func(a: int, b: int) -> bool: return points[a] > points[b] or (points[a] == points[b] and a < b))
-	return ids
 
 
 # ---- the thrower -------------------------------------------------------------------------
@@ -473,49 +435,11 @@ func constrain(_sim: MatchSim, state: PlayerState) -> void:
 		state.position.y = maxf(state.position.y, rules.home_z)
 
 
-## A point for `state`; with `send_home` it is back in the throwing area, its slipper in hand. Once the time is up the point wins the match.
-func award(sim: MatchSim, state: PlayerState, send_home: bool = true, _how: int = MatchSim.CaptureKind.NONE) -> void:
-	points[state.id] = points.get(state.id, 0) + 1
+## A point for `state`: it is back in the throwing area, its slipper in hand (see `TayaGame.award`).
+func award(sim: MatchSim, state: PlayerState, send_home: bool = true, how: int = MatchSim.CaptureKind.NONE) -> void:
 	fetched.erase(state.id)
 	scared_left.erase(state.id)
-	scored.emit(state.team, state.id)
-	if send_home:
-		state.position = _spot(sim, state)
-		sim.end_move(state)
-	if time_left <= 0.0:
-		_end(sim)
-
-
-## The kid with the most points, or -1 when two or more share the most (or nobody has any).
-func _leader(_sim: MatchSim) -> int:
-	var best: int = -1
-	var tie: bool = false
-	var top: int = 0
-	for id: int in points:
-		if points[id] > top:
-			top = points[id]
-			best = id
-			tie = false
-		elif points[id] == top and top > 0:
-			tie = true
-	return -1 if tie else best
-
-
-func _end(sim: MatchSim) -> void:
-	winner_id = _leader(sim)
-	sim.score.winner = 0  # the sim's own winner is a team: everyone is on team 0, the kid that won is `winner_id`
-	for state: PlayerState in sim.players.values():
-		sim.end_move(state)
-	sim.phase = MatchSim.Phase.MATCH_OVER
-	sim.match_won.emit(0)
-
-
-func local_result(_sim: MatchSim, local_id: int) -> Dictionary:
-	var theirs: int = 0
-	for id: int in points:
-		if id != local_id:
-			theirs = maxi(theirs, points[id])
-	return {"won": winner_id == local_id, "mine": points.get(local_id, 0), "theirs": theirs}
+	super.award(sim, state, send_home, how)
 
 
 func _reset_game(sim: MatchSim) -> void:

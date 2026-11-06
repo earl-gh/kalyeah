@@ -327,6 +327,7 @@ func _sync_street_pad(sim: MatchSim, player: PlayerState, shown: bool, playing: 
 		street.release()
 	var game: TumbangPreso = sim.mode as TumbangPreso
 	var lines: Patintero = sim.mode as Patintero
+	var langit: LangitLupa = sim.mode as LangitLupa
 	var button: StreetGamePad.Action = StreetGamePad.Action.NONE
 	var fill: float = 0.0
 	var can_act: bool = false
@@ -341,6 +342,10 @@ func _sync_street_pad(sim: MatchSim, player: PlayerState, shown: bool, playing: 
 		button = StreetGamePad.Action.DIVE
 		fill = lines.dive_ready_share(player.id)
 		can_act = lines.can_dive(player)
+	elif playing and langit != null and langit.is_attacker(player):
+		button = StreetGamePad.Action.LUPA
+		fill = langit.mound_ready_share(player.id)
+		can_act = langit.can_raise(player)
 	var on_sidewalk: bool = lines != null and lines.is_jailed(player.id)
 	var status: Array[String] = PracticeMatchPresentation.street_status(sim, player)
 	chat.visible = shown and chat_enabled

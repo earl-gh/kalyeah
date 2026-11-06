@@ -81,6 +81,8 @@ var held_can: Callable = Callable()
 ## A kick holds the can's flight until the foot meets it (`release_fling`).
 var _hold_fling: bool = false
 var _tag_circles: Dictionary[int, Node3D] = {}
+## Langit Lupa's platforms and mounds (null in the other games).
+var langit: LangitLupaView
 
 
 ## Draws the lines of `sim`'s game (nothing for Agawang Base). `ctx` is WeaponFxView's (its dust and the kids' view scale).
@@ -110,6 +112,10 @@ func setup(sim: MatchSim, ctx: FxContext, local_id: int) -> void:
 		_build_aim()
 		_build_pickup()
 		_build_spot_ring()
+	if _mode is LangitLupa:
+		langit = LangitLupaView.new()
+		add_child(langit)
+		langit.setup(sim, ctx)
 	if _mode is Patintero:
 		var span: float = _mode.rules.line_span
 		for index: int in 2:
@@ -122,12 +128,19 @@ func sync(delta: float) -> void:
 	_time += delta
 	if _mode != null:
 		_sync_tag_circles()
+	if langit != null:
+		langit.sync(delta)
 	if _mode is TumbangPreso:
 		_sync_can()
 		_sync_spot_ring()
 		_sync_slippers(delta)
 		_sync_aim()
 		_sync_pickup()
+
+
+## How high a kid at `at` stands above the street (Langit Lupa: up on a langit; 0 in the other games).
+func ground_height(at: Vector2) -> float:
+	return langit.ground_height(at) if langit != null else 0.0
 
 
 ## The kids that have a tag circle on the ground right now (the ones the local taya or guard could tag).
@@ -460,7 +473,7 @@ func _sync_tag_circles() -> void:
 		open = open and (_mode as TumbangPreso).can_up
 	for id: int in _sim.players:
 		var kid: PlayerState = _sim.players[id]
-		var shown: bool = tagger and _mode.is_taggable(kid)
+		var shown: bool = tagger and _mode.is_taggable(kid) and _mode.visible_to(_sim, _local_id, id)
 		var circle: Node3D = _tag_circles.get(id) as Node3D
 		if circle == null:
 			if not shown:

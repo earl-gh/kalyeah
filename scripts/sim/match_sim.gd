@@ -594,6 +594,8 @@ func _tick_stamina(state: PlayerState, moved: bool, dt: float) -> void:
 		if state.exhaust_left > 0.0:
 			state.exhaust_left = state.exhaust_left - dt if state.exhaust_left - dt > EPSILON else 0.0
 			return
+		if mode != null and not mode.can_rest(state):
+			return  # Langit Lupa: a safe spot never refills it
 		state.stamina = minf(rules.stamina_max, state.stamina + rules.stamina_regen_per_s * dt)
 		if state.stamina >= rules.stamina_max - EPSILON:
 			state.stamina = rules.stamina_max
@@ -607,6 +609,9 @@ func _tick_stamina(state: PlayerState, moved: bool, dt: float) -> void:
 			state.overclocked = true
 			state.exhaust_left = rules.exhaust_seconds
 			exhausted.emit(state.id)
+		return
+	if mode != null and not mode.can_rest(state):
+		state.still_time = 0.0  # Langit Lupa: a safe spot never refills it (only the street does)
 		return
 	var refill: float = clampf(state.still_time + dt - rules.stamina_regen_delay, 0.0, dt)
 	state.still_time += dt
