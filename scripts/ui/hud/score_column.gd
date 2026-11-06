@@ -1,6 +1,6 @@
 class_name ScoreColumn
 extends Control
-## Tumbang Preso's points (every kid plays for itself): a column on the left sidewalk, the kid's character card with its points under it, the
+## Tumbang Preso's and Langit Lupa's points (every kid plays for itself): a column on the left sidewalk, the kid's character card with its points under it, the
 ## kid with the most at the top. When the points change the rows slide to their new places (and the number pops); with Reduce motion they jump.
 ## The taya's card has a red rim and yours a gold one. Display only; it never takes a touch. (Patintero has two teams and uses the score cards
 ## at the top centre, like Agawang Base.)
@@ -37,7 +37,7 @@ func _init() -> void:
 ## One row for each kid of `sim`.
 func setup(sim: MatchSim, local_id: int) -> void:
 	_local_id = local_id
-	var game: TumbangPreso = sim.mode as TumbangPreso
+	var game: TayaGame = sim.mode as TayaGame
 	for id: int in game.points:
 		_make_row(sim.players[id])
 	sync(sim, true)
@@ -45,7 +45,7 @@ func setup(sim: MatchSim, local_id: int) -> void:
 
 ## The rows in the order of the points and what each says; `instant`: no sliding.
 func sync(sim: MatchSim, instant: bool = false) -> void:
-	var game: TumbangPreso = sim.mode as TumbangPreso
+	var game: TayaGame = sim.mode as TayaGame
 	var order: Array[int] = game.ranking()
 	for index: int in order.size():
 		var id: int = order[index]

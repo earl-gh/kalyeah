@@ -386,6 +386,8 @@ func _on_snapshot(data: Dictionary) -> void:
 	var have_local: bool = false
 	for entry: Dictionary in data.get("players", []) as Array:
 		var id: int = entry["id"] as int
+		if entry.get("hid", false):
+			continue  # out of this phone's sight (a brownout): nothing to draw it toward
 		positions[id] = entry["pos"] as Vector2
 		if id == player_id:
 			server_position = entry["pos"] as Vector2

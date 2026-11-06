@@ -58,6 +58,12 @@ static func words_for(game: StreetModeRules) -> Dictionary:
 			"goal": [["", "Knock the can over, fetch your slipper and run to the other end to score. Don't get caught."]],
 			"rows": [["Move", "Push the knob to run"], ["Throw", "Hold to aim, drag to turn, release"], ["Kick", "Tap beside the can to kick it"]],
 		}
+	if game.id == &"langit_lupa":
+		return {
+			"title": game.title,
+			"goal": [["", "Stay free to score. On a langit the taya can't tag you, for a few seconds. Tagged? You're the taya."]],
+			"rows": [["Move", "Push the knob to run"], ["Lupa", "Tap to raise a mound and stand on it"]],
+		}
 	return {
 		"title": game.title,
 		"goal": [["Runners", "Get past every guard and back to base to score. Don't get caught."], ["Guards", "Tag all three runners to score."]],

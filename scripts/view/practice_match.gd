@@ -411,9 +411,9 @@ func _setup_bot_match() -> void:
 
 
 ## A street game in Practice. Patintero: you and two bot allies against three bots; your team runs first. Tumbang Preso: every kid plays
-## for itself (all on one team): you and five bots, one of them the taya to begin with.
+## for itself (all on one team): you and five bots, one of them the taya to begin with; Langit Lupa the same.
 func _setup_street_game(game: StreetModeRules) -> void:
-	var for_all: bool = game.id == &"tumbang_preso"
+	var for_all: bool = StreetMode.create(game).is_free_for_all()  # Tumbang Preso, Langit Lupa
 	sim.add_player(local_id, local_team)
 	_mode_coach = StreetModeCoach.new()
 	for id: int in BOT_ALLY_IDS:

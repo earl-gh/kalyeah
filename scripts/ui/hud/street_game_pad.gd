@@ -1,11 +1,11 @@
 class_name StreetGamePad
 extends Control
-## The controls of Tumbang Preso and Patintero, floating over the bottom of the street (there is no tray and no hand: no skills in these
+## The controls of Tumbang Preso, Patintero and Langit Lupa, floating over the bottom of the street (there is no tray and no hand: no skills in these
 ## games): the movement knob at the left, the action button at the right, and in between what your kid is to do. The action button is the
 ## round Throw button for a thrower with its slipper (press and hold to aim: the line on the street grows with the hold and a finger dragged
 ## anywhere turns it, fine while the line is short and fast when it is full; let go to throw; let go back on the button after dragging away
-## to cancel), the Kick button for a thrower without it, the Dive button in Patintero (a ring round it fills while it cools down), and
-## nothing for the taya.
+## to cancel), the Kick button for a thrower without it, the Dive button in Patintero and the Lupa button in Langit Lupa (a ring round
+## each fills while it cools down), and nothing for the taya.
 ## It reports fingers only: `knob_moved` (the way the knob points, -1 to 1 each way), `aim_dragged` in pixels, `action_pressed`; the match
 ## screen turns them into a PlayerInput. Built in code; MatchHud feeds it with `show_state()`.
 
@@ -15,11 +15,11 @@ signal aim_started
 signal aim_dragged(dx: float)
 ## The finger let go of the Throw button; `cancel` when it came back onto the button after leaving it.
 signal aim_released(cancel: bool)
-## The Kick or Dive button was pressed (both are one tap).
+## The Kick, Dive or Lupa button was pressed (each is one tap).
 signal action_pressed
 
 ## What the button at the right is.
-enum Action { NONE, THROW, KICK, DIVE }
+enum Action { NONE, THROW, KICK, DIVE, LUPA }
 
 const INK: Color = RoyaleStyle.NAVY
 const TITLE_COLOR: Color = RoyaleStyle.GOLD
@@ -36,6 +36,7 @@ const BUTTON_FACE: Color = Color(1.0, 0.76, 0.2)
 const BUTTON_PRESSED: Color = Color(1.0, 0.6, 0.12)
 const KICK_FACE: Color = Color(0.35, 0.82, 0.95)
 const DIVE_FACE: Color = Color(0.4, 0.9, 0.55)
+const LUPA_FACE: Color = Color(0.78, 0.55, 0.3)
 const BUTTON_OFF: Color = Color(0.45, 0.52, 0.64, 0.75)
 const RING_TRACK: Color = Color(0.05, 0.2, 0.46, 0.8)
 const RING_FILL: Color = Color(1.0, 1.0, 1.0)
@@ -250,6 +251,8 @@ func _draw() -> void:
 			_draw_button("KICK", KICK_FACE if act_ready else BUTTON_OFF, false)
 		Action.DIVE:
 			_draw_button("DIVE", DIVE_FACE if act_ready else BUTTON_OFF, true)
+		Action.LUPA:
+			_draw_button("LUPA", LUPA_FACE if act_ready else BUTTON_OFF, true)
 
 
 func _draw_button(words: String, face: Color, with_ring: bool) -> void:

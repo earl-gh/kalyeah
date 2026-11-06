@@ -53,6 +53,34 @@ static func private_for(sim: MatchSim, id: int) -> Dictionary:
 	}}
 
 
+## `message` (a snapshot for `viewer`'s phone) without what that phone may not know: in Langit Lupa's brownout, where the kids out of its
+## sight are (their entry keeps its id and says "hid"; its position is the middle of the street) and their mounds. `message` itself is
+## left as it was when nothing is hidden.
+static func hide_for(sim: MatchSim, viewer: int, message: Dictionary) -> Dictionary:
+	if sim.mode == null:
+		return message
+	var hidden: Array[int] = sim.mode.hidden_from(sim, viewer)
+	if hidden.is_empty():
+		return message
+	var out: Dictionary = message.duplicate()
+	var players: Array[Dictionary] = []
+	for entry: Dictionary in message.get("players", []) as Array:
+		if hidden.has(entry["id"] as int):
+			var blank: Dictionary = entry.duplicate()
+			blank["pos"] = Vector2.ZERO
+			blank["hid"] = true
+			players.append(blank)
+		else:
+			players.append(entry)
+	out["players"] = players
+	var mode: Dictionary = sim.mode.filter_for(message.get("mode", {}) as Dictionary, hidden)
+	var unseen: Array = []
+	unseen.assign(hidden)
+	mode["unseen"] = unseen
+	out["mode"] = mode
+	return out
+
+
 ## Writes `data` into `sim`. `local_id`'s position is left to the caller (prediction).
 static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 	sim.tick = data.get("tick", sim.tick) as int
@@ -62,8 +90,8 @@ static func apply(sim: MatchSim, data: Dictionary, local_id: int) -> void:
 		if p == null:
 			continue
 		p.cast_lock_left = entry.get("cl", p.cast_lock_left) as float
-		if id != local_id:
-			p.position = entry["pos"] as Vector2
+		if id != local_id and not entry.get("hid", false):
+			p.position = entry["pos"] as Vector2  # (a kid hidden from this phone keeps where it was last seen; the view hides it)
 		p.facing = entry["face"] as Vector2
 		p.hp = entry["hp"] as int
 		p.tagged = entry["tag"] as bool

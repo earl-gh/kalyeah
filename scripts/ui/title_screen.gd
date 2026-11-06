@@ -645,7 +645,7 @@ func open_practice_confirm() -> MenuDialog:
 	var card: MenuDialog = MenuDialog.create(game.title if game != null else "Practice", MenuDialog.WIDTH_SMALL)
 	var words: String = "3 v 3 against bots. Ready to rumble?"
 	if game != null:
-		var who: String = "You against 5 bots." if game.id == &"tumbang_preso" else "3 v 3 against bots."
+		var who: String = "You against 5 bots." if StreetMode.create(game).is_free_for_all() else "3 v 3 against bots."
 		words = "%s %d minutes, most points win!" % [who, roundi(game.match_seconds / 60.0)]
 	card.add_label(words, MenuDialog.TEXT_SIZE, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
 	if game == null:

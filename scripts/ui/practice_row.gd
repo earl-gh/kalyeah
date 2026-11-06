@@ -49,7 +49,7 @@ func _init() -> void:
 func refresh() -> void:
 	var game: Dictionary = game_entry(Session.practice_game)
 	game_button.text = String(game["game"])
-	game_button.icon = game["picture"] as Texture2D
+	game_button.icon = StreetPage.picture_for(game["id"] as StringName)
 	game_button.tooltip_text = "Game: %s" % game_button.text
 	kid_button.icon = KidModel.portrait(StringName(Session.avatar_id))
 	kid_button.tooltip_text = "Kid: %s" % kid_name(StringName(Session.avatar_id))
@@ -79,7 +79,7 @@ func open_game_picker() -> MenuDialog:
 		var id: StringName = street["id"] as StringName
 		var button: Button = MenuDialog.make_button(String(street["game"]), "gold" if id == Session.practice_game else "blue", UiMetrics.BODY)
 		button.name = "Game_%s" % String(id)
-		button.icon = street["picture"] as Texture2D
+		button.icon = StreetPage.picture_for(id)
 		button.expand_icon = true
 		card.body.add_child(button)
 		button.pressed.connect(func() -> void:

@@ -33,6 +33,8 @@ var _kicker: int = -1
 ## Tumbang Preso's roll for the first taya, while the opening show plays.
 var _roll: TumbangRoll
 var _can_before: Vector2 = Vector2.ZERO
+## Langit Lupa's brownout, banners and pad words (null in the other games).
+var _langit: LangitLupaPresentation
 
 
 ## The arena starts this far (UI pixels) below the header, so its shadow falls on the street's end and not on the play.
@@ -135,14 +137,16 @@ func connect_sim() -> void:
 func _connect_street_game(mode: StreetMode) -> void:
 	mode.tagged.connect(_on_caught)
 	mode.scored.connect(func(team: int, id: int) -> void:
-		if mode is Patintero:
-			return  # Patintero says its points in its own banners (the one that scored, all tagged, too slow)
+		if mode is Patintero or mode is LangitLupa:
+			return  # Patintero says its points in its own banners; Langit Lupa's survival points tick up in the score column
 		if id == owner.local_id:
 			owner.show_banner("+1 YOU SCORED!")
 		elif not mode.is_free_for_all():
 			owner.show_banner("+1 POINT!" if team == owner.local_team else "+1 THEM"))
 	if mode is TumbangPreso:
 		_connect_tumbang(mode as TumbangPreso)
+	if mode is LangitLupa:
+		_langit = LangitLupaPresentation.new(owner, mode as LangitLupa)
 	if mode is Patintero:
 		var lines: Patintero = mode as Patintero
 		lines.roles_swapped.connect(func(team: int) -> void: owner.show_banner("YOU RUN!" if team == owner.local_team else "YOU GUARD!"))
@@ -252,6 +256,8 @@ static func street_status(sim: MatchSim, player: PlayerState) -> Array[String]:
 		if game.scared_left.has(id) and player.position.y >= game.rules.home_z:
 			return ["FETCH IT OR YOU'RE IT!", UiText.f("Step into the fetch area: %d", [ceili(game.scared_left[id])])] as Array[String]
 		return ["FETCH YOUR SLIPPER!", "Kick the can to keep the taya busy."] as Array[String]
+	if mode is LangitLupa:
+		return LangitLupaPresentation.status(sim, player)
 	var lines: Patintero = mode as Patintero
 	if lines.is_jailed(player.id):
 		return ["TAGGED!", "Walk the sidewalk and cheer your team on in quick chat. A teammate who scores frees you!"] as Array[String]
@@ -289,9 +295,11 @@ func _keep_vignette_behind_the_top_boundary() -> void:
 func sync(delta: float) -> void:
 	_keep_vignette_behind_the_top_boundary()
 	owner._actors.visible = not owner.hud.briefing.visible  # the briefing shows the empty street: no kids behind its words
-	owner.hud.overhead.taya_id = (owner.sim.mode as TumbangPreso).taya_id if owner.sim.mode is TumbangPreso else -1
+	owner.hud.overhead.taya_id = (owner.sim.mode as TayaGame).taya_id if owner.sim.mode is TayaGame else -1
 	for id: int in owner.sim.players:
 		_sync_actor(owner.sim.players[id], delta)
+	if _langit != null:
+		_langit.sync(delta)
 	if owner.sim.mode is TumbangPreso:
 		_sync_can_acts(owner.sim.mode as TumbangPreso)
 	if owner.sim.phase in [MatchSim.Phase.POINT_FREEZE, MatchSim.Phase.MATCH_OVER] and owner._pick_screen.visible:
@@ -405,7 +413,7 @@ func _sync_actor(state: PlayerState, delta: float) -> void:
 	var view: KidModel = owner._views[state.id]
 	# the kid's own Airborne clip already leaves the ground: no extra lift
 	var at: Vector2 = owner.blend.kid(state)
-	view.position = Vector3(at.x, 0.0, at.y)
+	view.position = Vector3(at.x, owner.mode_view.ground_height(at), at.y)  # (Langit Lupa: up on a langit)
 	view.face(state.facing)
 	view.animate(delta, minf(view.ground_speed(state.position, delta), 20.0), state)
 

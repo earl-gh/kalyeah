@@ -1,6 +1,6 @@
 class_name StreetModeCoach
 extends RefCounted
-## Plays the bots of a street game in Practice (Tumbang Preso, Patintero) by role. Bots walk with the stick and never cast cards (there
+## Plays the bots of a street game in Practice (Tumbang Preso, Patintero, Langit Lupa) by role. Bots walk with the stick and never cast cards (there
 ## are none). Pure data in, input out, with the match's seeded rng, so it stays deterministic.
 ## - Tumbang Preso thrower: waits a moment in the throwing area, then holds the Throw button aimed at the can until the line reaches it
 ##   and lets go; then fetches its slipper when the can is down or the taya is far from it (or its scared timer is nearly out), kicks the
@@ -10,6 +10,9 @@ extends RefCounted
 ##   sidestepping the guard of the next horizontal line (keeping to the side it chose, toward the open street) until it has room to
 ##   pass, and keeping away from the middle where the vertical guard is once it has crossed.
 ## - Patintero guard: follows the nearest runner along its own line.
+## - Langit Lupa kid: rests on the street while the taya is far (or out of sight in a brownout); when it comes near, runs for the standing
+##   platform with the most room from it, or raises a mound when the taya is nearly on it; steps down once its safe time runs low.
+## - Langit Lupa taya: chases the nearest kid it can see that is not safe, else the nearest kid it can see, else walks to the middle.
 ## Patintero bots also dive (runners when the next line is near and the way past is clear, guards straight at a runner a little way off,
 ## which takes them off their line for a moment), whenever the dive is ready.
 
@@ -24,6 +27,11 @@ const CHASE_RANGE: float = 12.0
 ## A runner keeps this far from the middle (m) where the vertical guard stands, and the sidestep lane of a runner is this far (m) in from the street's edge.
 const MIDDLE_ROOM: float = 2.5
 const LANE_MARGIN: float = 9.0
+
+## A Langit Lupa kid steps down from a langit, and stops looking for one, below this share of its safe time.
+const LOW_SAFE_SHARE: float = 0.35
+## ... and raises a mound when the taya is this close (m).
+const MOUND_RANGE: float = 2.5
 
 var ids: Array[int] = []
 ## Seconds a Tumbang Preso thrower still waits before it aims (absent: not waiting yet).
@@ -55,6 +63,9 @@ func think(sim: MatchSim, state: PlayerState) -> PlayerInput:
 	if sim.mode is Patintero:
 		var lines: Patintero = sim.mode as Patintero
 		return _runner(sim, lines, state) if lines.is_attacker(state) else _line_guard(sim, lines, state)
+	if sim.mode is LangitLupa:
+		var langit: LangitLupa = sim.mode as LangitLupa
+		return _chaser(sim, langit, state) if state.id == langit.taya_id else _climber(sim, langit, state)
 	return _stick(Vector2.ZERO)
 
 
@@ -196,6 +207,55 @@ func _line_guard(sim: MatchSim, lines: Patintero, state: PlayerState) -> PlayerI
 	if dive:
 		return _stick(to_runner.normalized(), true)  # a dive is the one thing that takes a guard off its line
 	return _stick(Vector2(0.0, move) if vertical else Vector2(move, 0.0))
+
+
+# ---- Langit Lupa --------------------------------------------------------------------------
+
+func _climber(sim: MatchSim, game: LangitLupa, state: PlayerState) -> PlayerInput:
+	var taya: PlayerState = sim.players.get(game.taya_id) as PlayerState
+	var seen: bool = taya != null and game.visible_to(sim, state.id, taya.id)
+	var distance: float = state.position.distance_to(taya.position) if seen else INF
+	var low: bool = game.safe_share(state.id) < LOW_SAFE_SHARE
+	if game.is_safe(state) and not low:
+		return _stick(Vector2.ZERO)  # safe up here for now
+	if game.on_langit(state):
+		var away: Vector2 = state.position + (state.position - taya.position).normalized() * 3.0 if seen else state.position + Vector2(0.0, 2.0)
+		return _stick(_toward(state.position, sim.layout.keep_in_street(away, state.radius)))  # step down before the time is up
+	if distance >= game.rules.bot_safe_distance:
+		return _stick(Vector2.ZERO)  # rest on the street (only the street refills stamina)
+	if distance < MOUND_RANGE and game.can_raise(state) and not low:
+		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_CARD_2, 0)
+	var target: Vector2 = state.position + (state.position - taya.position).normalized() * game.rules.bot_safe_distance
+	if not low:
+		var best: float = -INF
+		for index: int in game.rules.langit_spots.size():
+			if not game.spot_standing(index):
+				continue
+			var spot: Vector2 = game.rules.langit_spots[index].get_center()
+			var room: float = spot.distance_to(taya.position) - spot.distance_to(state.position) * 1.5
+			if room > best:
+				best = room
+				target = spot
+	return _stick(_away_from(state.position, taya.position, sim.layout.keep_in_street(target, state.radius), game.rules.bot_safe_distance))
+
+
+func _chaser(sim: MatchSim, game: LangitLupa, state: PlayerState) -> PlayerInput:
+	var prey: PlayerState = null
+	var near: PlayerState = null
+	for other: PlayerState in sim.players.values():
+		if other.id == state.id or not game.visible_to(sim, state.id, other.id):
+			continue
+		var distance: float = other.position.distance_to(state.position)
+		if near == null or distance < near.position.distance_to(state.position):
+			near = other
+		if game.is_taggable(other) and (prey == null or distance < prey.position.distance_to(state.position)):
+			prey = other
+	var target: Vector2 = Vector2.ZERO
+	if prey != null:
+		target = prey.position
+	elif near != null:
+		target = near.position
+	return _stick(_toward(state.position, target))
 
 
 # ---- helpers -------------------------------------------------------------------------------
