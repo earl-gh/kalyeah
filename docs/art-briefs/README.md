@@ -19,3 +19,15 @@ By priority (how often the player sees it):
 13. [Softer body font (recommendation, not an asset to make)](body-font.md) (P3)
 14. [Trumpo, the bare wooden spinning top on a steel nail (full Blender model)](trumpo-model.md) (P2)
 15. [Jacks, plastic jacks in four colours (full Blender model)](jacks-model.md) (P3)
+
+Langit Lupa (the fourth street game, 2026-11-06):
+
+16. [Langit platform](langit-platform.md) (P1, Blender model, seen all match)
+17. [Lupa mound](lupa-mound.md) (P1, Blender model)
+18. [Langit Lupa game picture](langit-lupa-picture.md) (P1, 2D image)
+19. [Langit platform, worn and broken](langit-platform-worn.md) (P2, Blender model)
+20. [Dirt burst](dirt-burst.md) (P2, sprite sheet)
+21. [Safe-time ring](safe-time-ring.md) (P2, 2D image decal)
+22. [Langit Lupa sounds](langit-lupa-sounds.md) (P2 to P3, audio)
+23. [Brownout street lamp flicker](brownout-lamp.md) (P3, sprite sheet)
+24. [LUPA button art](lupa-button.md) (P3, 2D image)
