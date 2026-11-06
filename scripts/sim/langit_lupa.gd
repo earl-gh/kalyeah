@@ -120,10 +120,11 @@ func can_rest(state: PlayerState) -> bool:
 	return not (rules.langit_blocks_rest and on_langit(state))
 
 
-## True when `state` could raise a mound now: not the taya, free, able to move, and its last mound's wait is over.
+## True when `state` could raise a mound now: not the taya, free, able to move, its last mound's wait is over, and it has safe time left
+## (a mound raised with none would save nothing and waste the wait).
 func can_raise(state: PlayerState) -> bool:
 	return is_attacker(state) and not state.tagged and state.effects.can_move() and not is_resetting() \
-		and mound_wait.get(state.id, 0.0) <= 0.0
+		and mound_wait.get(state.id, 0.0) <= 0.0 and safe_left.get(state.id, 0.0) > 0.0
 
 
 ## How ready the next mound of `id` is (0 just raised to 1 ready).

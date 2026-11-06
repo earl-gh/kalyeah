@@ -173,6 +173,21 @@ func test_the_lupa_button_raises_a_mound_under_the_kid_that_saves_it_and_sinks_a
 	assert_true(game.can_raise(kid), "ready again")
 
 
+func test_the_lupa_button_waits_while_the_safe_time_is_used_up_so_no_mound_is_wasted() -> void:
+	var sim: MatchSim = _sim()
+	var game: LangitLupa = _game(sim)
+	var kid: PlayerState = sim.players[1]
+	game.safe_left[1] = 0.0
+	assert_false(game.can_raise(kid), "no safe time: a mound would save nothing")
+	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_CARD_2, sim.tick))
+	sim.step(DT)
+	assert_false(game.mounds.has(1), "the press raises nothing")
+	assert_eq(game.mound_wait.get(1, 0.0), 0.0, "and the wait does not start")
+	sim.set_input(1, null)
+	_wait(sim, 0.5)
+	assert_true(game.can_raise(kid), "the street gives some back: ready again")
+
+
 func test_standing_on_a_langit_never_refills_stamina_but_the_street_does() -> void:
 	var sim: MatchSim = _sim(_rules_with({"langit_seconds": 100.0}))
 	var kid: PlayerState = sim.players[1]
