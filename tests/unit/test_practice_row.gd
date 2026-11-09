@@ -1,6 +1,8 @@
 extends GutTest
 ## The main screen's Practice row (owner): above Play, a game picker and a kid picker, 80 : 20; and a Practice match of each street game.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")  # these tests pin the portrait match
+
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const PRACTICE_TAYA: GDScript = preload("res://tests/fixtures/practice_taya.gd")
@@ -16,6 +18,7 @@ var _coach: bool
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
 	_game = Session.practice_game
 	_avatar = Session.avatar_id
 	_mode = Session.menu_mode
@@ -25,6 +28,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
 	Session.practice_game = _game
 	Session.avatar_id = _avatar
 	Session.menu_mode = _mode
@@ -340,7 +344,7 @@ func test_holding_the_throw_button_aims_on_the_ground_with_a_line_that_grows_and
 	assert_gt(short, 0.0)
 	# a drag turns the aim a little while the line is short ...
 	var angle: float = practice._throw_angle
-	pad.aim_dragged.emit(100.0)
+	pad.aim_dragged.emit(Vector2(100.0, 0.0))
 	var fine_turn: float = absf(practice._throw_angle - angle)
 	assert_gt(fine_turn, 0.0)
 	# ... and much more at full length
@@ -349,7 +353,7 @@ func test_holding_the_throw_button_aims_on_the_ground_with_a_line_that_grows_and
 	assert_eq(game.charge(practice.local_id), 1.0)
 	assert_gt(practice.mode_view.aim_length(), short + 5.0, "the line grew with the hold")
 	angle = practice._throw_angle
-	pad.aim_dragged.emit(100.0)
+	pad.aim_dragged.emit(Vector2(100.0, 0.0))
 	assert_gt(absf(practice._throw_angle - angle), fine_turn * 2.5, "high sensitivity at the longest")
 	# the line lies on the ground: tested against the depth (a kid in front of it hides it) and a hand's breadth above the street
 	var line: MeshInstance3D = practice.mode_view.find_child("AimLine", true, false) as MeshInstance3D
@@ -379,7 +383,7 @@ func test_aiming_at_the_can_shows_a_short_solid_line_for_the_can_and_a_dashed_on
 	assert_lt((dashes[0] as MeshInstance3D).scale.x * StreetModeView.GUIDE_DASHES * 2.0, game.rules.guide_length + 0.01, "just as short")
 	assert_ne((solid.mesh as BoxMesh).material, (dashes[0] as MeshInstance3D).mesh.material, "a different style for each")
 	# aimed wide there is no guide, but the line is still there
-	practice.hud.street_pad.aim_dragged.emit(300.0)
+	practice.hud.street_pad.aim_dragged.emit(Vector2(300.0, 0.0))
 	practice.advance(DT)
 	assert_false(practice.mode_view.guides_visible())
 	assert_true(practice.mode_view.aim_visible())

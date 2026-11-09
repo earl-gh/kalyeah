@@ -1,5 +1,7 @@
 extends GutTest
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")  # these tests pin the portrait match
+
 var _saved_loadout: Array[StringName] = []
 
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
@@ -675,11 +677,13 @@ func test_the_whole_street_is_on_screen_at_once_with_your_base_at_the_bottom() -
 	assert_eq(camera.position, before, "the camera never follows anyone")
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
 	_saved_loadout = Session.saved_loadout.duplicate()
 	Session.saved_loadout.clear()
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
 	Session.saved_loadout = _saved_loadout
 	Session.save()
 

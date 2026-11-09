@@ -7,7 +7,7 @@ Read first: `docs/ROADMAP.md` (what is done, what is next, how to build), `docs/
 
 ## Stack (do not change without asking)
 - Godot **4.6.x** stable (exact version in `.godot-version`), **Compatibility renderer**, GDScript with static types everywhere.
-- Android export: one APK, `arm64-v8a`, portrait, only the permissions the game uses (see `tests/unit/test_android_build.gd`). The dedicated **Server** export (Linux, headless) is the only other preset.
+- Android export: one APK, `arm64-v8a`, portrait at start (matches turn to landscape at run time), only the permissions the game uses (see `tests/unit/test_android_build.gd`). The dedicated **Server** export (Linux, headless) is the only other preset.
 - Networking: `WebSocketMultiplayerPeer`, **server-authoritative** headless Godot. Clients send inputs only.
 - Tests: GUT, run headless. Claude runs them locally before every PR (Godot 4.6.2 headless binary from the official GitHub release); the `Android APK` workflow runs them again on `main` and fails the build if any fail.
 
@@ -43,8 +43,8 @@ assets/{models,textures,audio,icons,fonts}   server/   tests/{unit,integration}
 - What only a phone shows (touch feel, safe areas, performance, the hotspot on a real network) is called out in the PR as a device check instead of assumed.
 
 ## Art and orientation (binding)
-- **Portrait (vertical) only**: Android locked to portrait. Kalyeah is a vertical MOBA by design (see `docs/PROJECT.md` section 3.8 and `docs/GDD.md` "Vertical layout").
-- Art style: **Clash of Clans design language** on a fixed **orthographic camera tilted 45°** (nothing shrinks with distance; the whole street is always on screen; `docs/GDD.md` "Vertical layout"): soft, chunky, painted-looking stylised 3D with a Filipino street theme, readable at phone size. Inspired by, never copied: no Supercell or Riot assets, names or logos. Assets are authored in Blender (`bpy` works in the cloud session). Specs: `docs/PROJECT.md` section 3.8, `docs/ART.md`, `docs/ROADMAP.md`.
+- **Landscape matches, Wild Rift style (owner, 2026-11-09)**: a match turns the phone sideways (1280×720 base) with a camera that follows your kid along a street running left to right, a joystick under the left thumb, the cards as a round ability arc under the right thumb and a minimap (`docs/GDD.md` "Landscape layout"). The map keeps its 1:2 shape. The menus stay portrait until they are rebuilt for landscape; then the manifest flips. The old portrait match is kept only behind `CameraRules.follow` (data) until then.
+- Art style: **Clash of Clans design language** on an **orthographic camera tilted 45°** (nothing shrinks with distance; `docs/GDD.md` "Landscape layout"): soft, chunky, painted-looking stylised 3D with a Filipino street theme, readable at phone size. Inspired by, never copied: no Supercell or Riot assets, names or logos. Assets are authored in Blender (`bpy` works in the cloud session). Specs: `docs/PROJECT.md` section 3.8, `docs/ART.md`, `docs/ROADMAP.md`.
 
 ## Assets: advise, don't generate (owner rule)
 When an asset is needed (a prop, a character, an effect, an icon, a texture, a screen background), **do not generate it**. Say which kind it should be and why, and leave the making to the owner:
@@ -56,7 +56,7 @@ Keep the existing procedural/code-drawn stand-ins working until the owner's asse
 ## Definition of done (per task)
 - Static-typed, no warnings (treat warnings as errors in project settings).
 - Unit tests for every sim rule touched (`tests/unit/test_<thing>.gd`).
-- Touch only; no keyboard, mouse or desktop path. UI built portrait-first at 720×1280 base and usable at 390×844 with safe areas (notch, home bar); thumb-reachable controls.
+- Touch only; no keyboard, mouse or desktop path. Menus built portrait-first at 720×1280 base and usable at 390×844; the match built landscape at 1280×720 and usable at 844×390; safe areas (notch, home bar) respected either way; thumb-reachable controls.
 - The APK builds and starts (the `Android APK` workflow); nothing requires threads, local files or desktop-only APIs.
 - `docs/GDD.md` updated if a rule or number changed.
 

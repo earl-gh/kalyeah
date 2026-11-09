@@ -33,3 +33,21 @@ func test_fitting_the_window_changes_only_its_scale_aspect_and_only_when_asked_o
 	assert_eq(window.content_scale_aspect, Window.CONTENT_SCALE_ASPECT_EXPAND)
 	window.size = size
 	window.content_scale_aspect = saved
+
+
+## A match turns the screen sideways (docs/GDD.md "Landscape layout"): a wide window fills it, a tall one keeps the wide shape with bars.
+func test_in_a_match_a_tall_window_keeps_the_wide_shape_and_a_wide_one_fills_it() -> void:
+	assert_eq(Settings.aspect_for(Vector2i(2400, 1080), true), Window.CONTENT_SCALE_ASPECT_EXPAND, "a phone on its side")
+	assert_eq(Settings.aspect_for(Vector2i(1280, 800), true), Window.CONTENT_SCALE_ASPECT_EXPAND, "a tablet on its side")
+	assert_eq(Settings.aspect_for(Vector2i(1080, 2400), true), Window.CONTENT_SCALE_ASPECT_KEEP, "a phone that did not turn")
+
+
+func test_a_match_lays_the_ui_out_on_the_landscape_base_and_leaving_puts_the_portrait_base_back() -> void:
+	var window: Window = Settings.get_window()
+	Settings.set_landscape(true)
+	assert_true(Settings.landscape)
+	assert_eq(window.content_scale_size, Settings.LANDSCAPE_BASE)
+	Settings.set_landscape(false)
+	assert_false(Settings.landscape)
+	assert_eq(window.content_scale_size, Settings.PORTRAIT_BASE)
+	assert_eq(Settings.PORTRAIT_BASE, Vector2i(ProjectSettings.get_setting("display/window/size/viewport_width"), ProjectSettings.get_setting("display/window/size/viewport_height")), "the menus' base is the project's")

@@ -1,15 +1,19 @@
 extends GutTest
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")  # these tests pin the portrait match
+
 const PRACTICE: PackedScene = preload("res://scenes/match/practice.tscn")
 var _loadout: Array[StringName]
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
 	_loadout = Session.saved_loadout.duplicate()
 	Session.saved_loadout = [&"bato_light", &"lata"]
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
 	Session.saved_loadout = _loadout
 	Session.save()
 

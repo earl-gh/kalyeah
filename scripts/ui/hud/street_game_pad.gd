@@ -6,13 +6,13 @@ extends Control
 ## anywhere turns it, fine while the line is short and fast when it is full; let go to throw; let go back on the button after dragging away
 ## to cancel), the Kick button for a thrower without it, the Dive button in Patintero and the Lupa button in Langit Lupa (a ring round
 ## each fills while it cools down), and nothing for the taya.
-## It reports fingers only: `knob_moved` (the way the knob points, -1 to 1 each way), `aim_dragged` in pixels, `action_pressed`; the match
+## It reports fingers only: `knob_moved` (the way the knob points, -1 to 1 each way), `aim_dragged` (the finger's move in pixels), `action_pressed`; the match
 ## screen turns them into a PlayerInput. Built in code; MatchHud feeds it with `show_state()`.
 
 signal knob_moved(way: Vector2)
 signal aim_started
-## The finger moved `dx` pixels sideways (positive: to the right) while aiming.
-signal aim_dragged(dx: float)
+## The finger moved by `drag` pixels while aiming (the match screen takes the part across the throw line).
+signal aim_dragged(drag: Vector2)
 ## The finger let go of the Throw button; `cancel` when it came back onto the button after leaving it.
 signal aim_released(cancel: bool)
 ## The Kick, Dive or Lupa button was pressed (each is one tap).
@@ -190,7 +190,7 @@ func _input(event: InputEvent) -> void:
 		elif drag.index == _action_pointer:
 			if not _on_button(drag.position):
 				_left = true
-			aim_dragged.emit(drag.relative.x)
+			aim_dragged.emit(drag.relative)
 			get_viewport().set_input_as_handled()
 
 

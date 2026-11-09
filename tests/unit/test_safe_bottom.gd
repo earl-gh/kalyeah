@@ -2,6 +2,8 @@ extends GutTest
 ## The home bar / gesture area at the bottom of a phone: the tray grows by it, the hand and hints ride above it,
 ## and the camera keeps the taller tray clear. With no inset nothing changes.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")  # these tests pin the portrait match
+
 const PRACTICE: PackedScene = preload("res://scenes/match/practice.tscn")
 
 
@@ -67,3 +69,11 @@ func test_the_tray_has_no_health_and_hides_with_the_hand_when_you_are_tagged() -
 	practice.hud.set_chat_enabled(true)
 	assert_false(practice.hud.chat.visible, "and the chat button waits")
 	assert_eq(practice.hud.console.column_width, 0.0, "the cardboard runs the whole width then")
+
+
+func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
+
+
+func after_each() -> void:
+	PORTRAIT_MATCH.use(false)

@@ -20,6 +20,8 @@ const MAX_DISTANCE: float = 3000.0
 ## How far the orthographic camera stands from the point it aims at (metres). It changes nothing on screen, only where
 ## the depth range (near and far planes) sits.
 const STANDOFF: float = 150.0
+## The ground axes are rounded to this, so a quarter turn gives exact ones.
+const AXIS_SNAP: float = 0.000001
 
 ## The camera's turn around the arena (0 = looking straight along the street).
 @export var yaw_offset_degrees: float = 0.0
@@ -37,6 +39,15 @@ const STANDOFF: float = 150.0
 @export var kid_view_scale: float = 1.0
 ## How much smaller the health bars over the kids are drawn (1 = the full size).
 @export var bar_scale: float = 1.0
+## Follow camera (owner, 2026-11-09: Wild Rift style landscape; docs/GDD.md "Landscape layout"): instead of showing the whole street, the
+## camera keeps your kid in the middle of the screen and the street scrolls. Off: the fixed whole-street camera above.
+@export var follow: bool = false
+## How many metres tall the followed view is (orthographic: the same at every phone width; a wider phone sees more street to the sides).
+@export var follow_view_size: float = 18.0
+## How quickly the view catches up with your kid (seconds to close most of the gap); 0 = it sticks to the kid. Reduce motion sticks.
+@export var follow_lag: float = 0.0
+## How far past the street's edges (metres: the sidewalks, the end props) the followed view may show before it stops scrolling.
+@export var follow_edge: float = 0.0
 ## How long (s) the street takes to swing half way round when your view changes ends during a match (Tumbang Preso: becoming or no longer
 ## being the taya). It eases in and out; Reduce motion cuts instead.
 @export var turn_seconds: float = 0.8
@@ -136,3 +147,33 @@ func yaw_degrees(flip: bool) -> float:
 ## turned half way round, so the shift is the other way). Never moves with anyone.
 func camera_target(aim_z: float, flip: bool, aim_x: float = 0.0) -> Vector2:
 	return Vector2(-aim_x if flip else aim_x, -aim_z if flip else aim_z)
+
+
+## The ground ways (sim XZ, unit) that point right on the screen and up the screen for a camera turned `yaw` degrees (0 = looking down -Z).
+static func ground_axes(yaw: float) -> Array[Vector2]:
+	var turn: float = deg_to_rad(yaw)
+	# snapped, so a quarter or half turn gives exact axes (no 1e-16 left over from the sine of 180 degrees)
+	return [Vector2(cos(turn), -sin(turn)).snappedf(AXIS_SNAP), Vector2(-sin(turn), -cos(turn)).snappedf(AXIS_SNAP)]
+
+
+## A way on the screen (x right, y down, as a joystick reads) as a way on the ground for a camera turned `yaw` degrees.
+static func ground_way(screen_way: Vector2, yaw: float) -> Vector2:
+	var axes: Array[Vector2] = ground_axes(yaw)
+	return axes[0] * screen_way.x - axes[1] * screen_way.y
+
+
+## Where the followed view aims to keep `point` (sim XZ) in the middle without showing more than `follow_edge` past the `arena` (x, z
+## extents, centred on the origin): along each screen axis the aim is held back from the ends, and a street narrower than the view along an
+## axis stays centred on it. `view_size` metres tall on a screen of `aspect`, turned `yaw` degrees.
+func follow_aim(point: Vector2, arena: Vector2, view_size: float, aspect: float, yaw: float) -> Vector2:
+	var axes: Array[Vector2] = ground_axes(yaw)
+	var half: Vector2 = arena / 2.0 + Vector2.ONE * follow_edge
+	# the screen shows view_size * aspect metres across, and view_size / sin(pitch) metres of ground up the screen (the tilt shortens it)
+	var seen: Vector2 = Vector2(view_size * aspect, view_size / maxf(sin(deg_to_rad(pitch_degrees)), 0.01)) / 2.0
+	var aim: Vector2 = Vector2.ZERO
+	for i: int in 2:
+		var axis: Vector2 = axes[i]
+		var reach: float = half.x * absf(axis.x) + half.y * absf(axis.y)
+		var room: float = maxf(0.0, reach - seen[i])
+		aim += axis * clampf(point.dot(axis), -room, room)
+	return aim

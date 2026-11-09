@@ -2,6 +2,8 @@ extends GutTest
 ## Round 12 of the interface plan: a results card with a moment, and a hint for the tagged (the arrows are gone: the
 ## whole street is always on screen).
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")  # these tests pin the portrait match
+
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const DT: float = 1.0 / 30.0
 
@@ -10,12 +12,14 @@ var _motion: bool
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
 	_loadout = Session.saved_loadout.duplicate()
 	_motion = Settings.reduced_motion
 	Settings.set_reduced_motion(true)
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
 	Session.saved_loadout = _loadout
 	Session.save()
 	Settings.set_reduced_motion(_motion)

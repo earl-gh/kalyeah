@@ -1,6 +1,8 @@
 extends GutTest
 ## The fixed arena camera: the whole street is always on screen.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")  # these tests pin the portrait match
+
 const CAMERA: CameraRules = preload("res://data/rules/camera_rules.tres")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const PHONE: float = 720.0 / 1280.0
@@ -17,7 +19,8 @@ func _corners(distance: float, aspect: float, shift: float) -> Array[Vector2]:
 
 func test_a_fixed_orthographic_camera_tilted_about_45_degrees() -> void:
 	assert_eq(CAMERA.pitch_degrees, 45.0, "owner reference (Clash Royale): tilted, so fronts of kids and props show, yet the arena still reads like a board")
-	assert_eq(CAMERA.yaw_offset_degrees, 0.0, "straight along the street")
+	var rules: CameraRules = CAMERA  # (read at run time: the portrait fixture turned it back to the fixed camera's look straight along the street)
+	assert_eq(rules.yaw_offset_degrees, 0.0, "the fixed camera looks straight along the street")
 	assert_eq(CameraRules.DESIGN_ASPECT, 9.0 / 16.0, "portrait 9:16")
 
 
@@ -62,7 +65,8 @@ func test_the_camera_sits_behind_the_own_end_and_the_other_team_is_turned_half_w
 	assert_almost_eq(own.y, 100.0 * sin(deg_to_rad(CAMERA.pitch_degrees)), 0.001)
 	assert_almost_eq(other.z, -own.z, 0.0001)
 	assert_almost_eq(other.y, own.y, 0.0001)
-	assert_eq(CAMERA.yaw_degrees(true), CAMERA.yaw_offset_degrees + 180.0)
+	var rules: CameraRules = CAMERA
+	assert_eq(rules.yaw_degrees(true), rules.yaw_offset_degrees + 180.0)
 	assert_eq(CAMERA.camera_target(3.0, true), -CAMERA.camera_target(3.0, false), "the shift is the other way for the other team")
 
 
@@ -113,3 +117,11 @@ func test_a_cinematic_shot_uses_a_perspective_lens_and_the_camera_goes_back_afte
 	assert_lt(camera.near, 1.0)
 	camera.place(false)
 	assert_eq(camera.projection, Camera3D.PROJECTION_ORTHOGONAL, "and the fixed orthographic camera again")
+
+
+func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
+
+
+func after_each() -> void:
+	PORTRAIT_MATCH.use(false)

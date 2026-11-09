@@ -3,6 +3,8 @@ extends GutTest
 ## would cast nothing), the warning while a delayed snip winds up, the burst on a kid who is hit,
 ## and the cancel tile.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")  # these tests pin the portrait match
+
 var RULES: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
@@ -333,3 +335,11 @@ func test_the_match_menu_keeps_its_list_short_so_the_aim_guide_is_a_settings_pag
 	match_options.in_match = true
 	add_child(match_options)
 	assert_null(match_options.guide_toggle, "not in the match menu: Resume and Leave stay in view")
+
+
+func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
+
+
+func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
