@@ -41,17 +41,27 @@ func test_the_data_puts_the_camera_over_the_shoulder() -> void:
 	assert_gt(rules.look_pitch_max, rules.look_pitch_degrees, "and further down")
 
 
-func test_the_pose_stands_behind_and_right_of_the_kid_and_never_leaves_the_street() -> void:
+func test_the_pose_stands_exactly_the_distance_behind_the_kid_on_the_ground_and_looks_at_it() -> void:
 	var rules: CameraRules = CAMERA
-	var arena: Vector2 = Vector2(LAYOUT.lane_width, LAYOUT.lane_length)
-	var pose: Array[Vector3] = rules.shoulder_pose(Vector2.ZERO, 0.0, 10.0, arena)
+	assert_eq(rules.shoulder_distance, 12.0, "12 m behind the kid (owner)")
+	var pose: Array[Vector3] = rules.shoulder_pose(Vector2.ZERO, 0.0, 10.0)
 	assert_gt(pose[0].z, 0.0, "looking down -Z it stands on the +Z side: behind")
 	assert_gt(pose[0].x, 0.0, "and to the right")
 	assert_gt(pose[0].y, 0.0, "above the ground")
 	assert_eq(pose[1], Vector3(-10.0, 0.0, 0.0), "tilted down, turned the view's way")
-	var edge: Array[Vector3] = rules.shoulder_pose(Vector2(arena.x / 2.0, arena.y / 2.0), 0.0, 10.0, arena)
-	assert_lte(edge[0].x, arena.x / 2.0 + rules.shoulder_bounds_edge + 0.001, "at the street's corner it stays over the street and its edge")
-	assert_lte(edge[0].z, arena.y / 2.0 + rules.shoulder_bounds_edge + 0.001)
+	# anywhere on the street, the ends too, whichever way it looks: exactly the distance behind on the ground, nothing pulls it in
+	for feet: Vector2 in [Vector2.ZERO, Vector2(0.0, LAYOUT.lane_length / 2.0 - 1.0), Vector2(LAYOUT.lane_width / 2.0 - 1.0, 0.0)]:
+		for yaw: float in [0.0, 90.0, 180.0, 270.0, 37.0]:
+			var at: Array[Vector3] = rules.shoulder_pose(feet, yaw, rules.look_pitch_degrees)
+			var basis: Basis = Basis.from_euler(at[1] * (PI / 180.0))
+			var ground: Vector2 = Vector2(at[0].x, at[0].z) - feet
+			var right: Vector2 = Vector2(basis.x.x, basis.x.z).normalized()
+			var behind: float = ground.dot(Vector2(basis.z.x, basis.z.z).normalized())
+			assert_almost_eq(behind, rules.shoulder_distance, 0.001, "%s yaw %d: %.1f m behind" % [feet, yaw, behind])
+			assert_almost_eq(ground.dot(right), rules.shoulder_offset, 0.001, "and the shoulder offset to its right")
+			# the view's middle line passes over the kid: the point it looks at, shoulder_height above the feet, is straight ahead
+			var pivot: Vector3 = Vector3(feet.x, rules.shoulder_height, feet.y) + basis.x * rules.shoulder_offset
+			assert_almost_eq((pivot - at[0]).normalized().dot(-basis.z), 1.0, 0.0001, "it looks at the kid")
 	assert_eq(rules.clamp_pitch(200.0), rules.look_pitch_max)
 	assert_eq(rules.clamp_pitch(-200.0), rules.look_pitch_min)
 
@@ -207,3 +217,19 @@ func test_a_quick_tap_on_a_heal_card_heals_yourself_not_the_crosshair() -> void:
 	practice.card_moved(0, Vector2.ZERO, false, false)
 	assert_eq(practice.input.release_kind(Time.get_ticks_msec()), MatchInput.Release.CAST, "held and turned: it goes to the crosshair (a teammate there)")
 	practice.card_cancelled(0)
+
+
+func test_at_your_own_end_of_the_street_your_kid_stays_on_the_screen() -> void:
+	var practice: PracticeMatch = _practice()
+	var me: PlayerState = practice.sim.players[practice.local_id]
+	var end: float = LAYOUT.lane_length / 2.0 - 1.0
+	me.position = Vector2(0.0, end if practice.own_side() == MapLayout.SIDE_OWN else -end)
+	for i: int in 3:
+		practice.advance(DT)
+	var camera: ArenaCamera = practice._camera
+	var size: Vector2 = practice.get_viewport().get_visible_rect().size
+	for height: float in [0.2, 1.8, 3.4]:
+		var point: Vector3 = Vector3(me.position.x, height, me.position.y)
+		assert_false(camera.is_position_behind(point))
+		var on_screen: Vector2 = camera.unproject_position(point)
+		assert_true(Rect2(Vector2.ZERO, size).has_point(on_screen), "the kid at %.1f m is on the screen (%s)" % [height, on_screen])

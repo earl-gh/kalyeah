@@ -71,8 +71,7 @@ const AXIS_SNAP: float = 0.000001
 @export var aim_reach: float = 12.0
 ## In this view a kid's name over its bar shows only within this many metres of the camera (farther kids keep their number badge and bar).
 @export var shoulder_name_reach: float = 0.0
-## The camera never leaves the street and its sidewalks: it stays this far past the street's edges and ends at most (metres), so it never
-## stands inside a house or the end props.
+## The crosshair's point is taken as on the street up to this far past its edges and ends (metres).
 @export var shoulder_bounds_edge: float = 2.5
 ## How long (s) the street takes to swing half way round when your view changes ends during a match (Tumbang Preso: becoming or no longer
 ## being the taya). It eases in and out; Reduce motion cuts instead.
@@ -206,14 +205,17 @@ func follow_aim(point: Vector2, arena: Vector2, view_size: float, aspect: float,
 
 
 ## The shoulder camera's pose: for your kid's feet at `feet` (sim XZ) and a view turned `yaw` degrees (0 = looking down -Z) and tilted `pitch`
-## degrees down, where the camera stands (kept inside the street and its sidewalks: `arena` x, z extents) and its rotation in degrees.
-func shoulder_pose(feet: Vector2, yaw: float, pitch: float, arena: Vector2) -> Array[Vector3]:
+## degrees down, where the camera stands and its rotation in degrees. It is always exactly `shoulder_distance` behind the kid on the ground
+## (owner, 2026-11-09: 12 m) and `shoulder_offset` to its right, as high as the tilt puts it while it looks at the point `shoulder_height`
+## above the kid's feet; nothing pulls it in.
+func shoulder_pose(feet: Vector2, yaw: float, pitch: float) -> Array[Vector3]:
 	var rotation: Vector3 = Vector3(-pitch, yaw, 0.0)
 	var basis: Basis = Basis.from_euler(rotation * (PI / 180.0))
 	var pivot: Vector3 = Vector3(feet.x, shoulder_height, feet.y)
-	var at: Vector3 = pivot + basis.z * shoulder_distance + basis.x * shoulder_offset
-	var half: Vector2 = arena / 2.0 + Vector2.ONE * shoulder_bounds_edge
-	at = Vector3(clampf(at.x, -half.x, half.x), maxf(at.y, 0.5), clampf(at.z, -half.y, half.y))
+	var back: Vector3 = Vector3(basis.z.x, 0.0, basis.z.z).normalized()
+	var rise: float = shoulder_distance * tan(deg_to_rad(clampf(pitch, -80.0, 80.0)))
+	var at: Vector3 = pivot + back * shoulder_distance + Vector3.UP * rise + basis.x * shoulder_offset
+	at.y = maxf(at.y, 0.5)
 	return [at, rotation]
 
 

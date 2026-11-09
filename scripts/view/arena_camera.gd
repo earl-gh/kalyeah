@@ -262,7 +262,7 @@ func _control_yaw() -> float:
 ## the point it aims at instead.
 func _apply_pose() -> void:
 	if rules.third_person:
-		var pose: Array[Vector3] = rules.shoulder_pose(_aim, look_yaw, look_pitch, Vector2(layout.lane_width, layout.lane_length))
+		var pose: Array[Vector3] = rules.shoulder_pose(_aim, look_yaw, look_pitch)
 		position = pose[0]
 		rotation_degrees = pose[1]
 		projection = Camera3D.PROJECTION_PERSPECTIVE
