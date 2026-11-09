@@ -52,6 +52,9 @@ var lane_length: float:
 ## How tall the cardboard cover walls are drawn (m), and the electric posts.
 @export var cover_height: float = 1.15
 @export var post_height: float = 8.5
+## How wide the electric posts are drawn next to their height: their model's own width times this (1 = the model as made, less = narrower).
+## Cosmetic, like `post_height`. The model is one mesh, so its crossarm, transformer and flyers narrow with the pole.
+@export var post_width_share: float = 1.0
 @export var overview_height: float = 0.0
 @export var overview_size: float = 0.0
 

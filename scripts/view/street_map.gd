@@ -928,6 +928,7 @@ func _add_post(center: Vector2) -> Node3D:
 	post.name = "Post"
 	for id: String in [POST_BLUE, POST_RED]:
 		var model: Node3D = PropModel.by_height(id, post_height())
+		model.scale *= Vector3(layout.post_width_share, 1.0, layout.post_width_share)  # narrower than the model as made (MapLayout)
 		model.name = id
 		ModelLook.use_baked_shading(model)
 		model.rotation.y = BLUE_POST_TURN if id == POST_BLUE else 0.0

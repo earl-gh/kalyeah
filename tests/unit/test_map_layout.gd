@@ -231,6 +231,10 @@ func test_the_base_posts_are_the_owners_models_blue_for_you_and_red_for_them_fac
 		for id: String in [StreetMap.POST_BLUE, StreetMap.POST_RED]:
 			var model: Node3D = post.get_node(id) as Node3D
 			assert_almost_eq(PropModel.size_of(id).y * model.scale.y, map.post_height(), 0.01, "%s is as tall as the post height in the data" % id)
+			# narrower than the model as made (owner, 2026-11-09): its width is the data's share of what the height alone would give
+			var even: float = map.post_height() / PropModel.size_of(id).y
+			assert_almost_eq(model.scale.x, even * LAYOUT.post_width_share, 0.0001, "%s is narrowed across" % id)
+			assert_almost_eq(model.scale.z, even * LAYOUT.post_width_share, 0.0001, "and front to back")
 		assert_almost_eq(post.rotation.y, 0.0, 0.001, "its front (the flyers) faces the camera at the +Z end")
 		assert_almost_eq((post.get_node(StreetMap.POST_BLUE) as Node3D).rotation.y, StreetMap.BLUE_POST_TURN, 0.001, "the blue pole has its back to the camera")
 		assert_almost_eq((post.get_node(StreetMap.POST_RED) as Node3D).rotation.y, 0.0, 0.001, "the red pole's front faces the camera")
@@ -367,3 +371,12 @@ func test_the_posts_use_their_baked_shading_and_other_props_do_not() -> void:
 		var mesh_instance: MeshInstance3D = node as MeshInstance3D
 		var material: StandardMaterial3D = mesh_instance.get_surface_override_material(0) as StandardMaterial3D
 		assert_false(material.vertex_color_use_as_albedo, "other props keep the plain matte look")
+
+
+## The electric post is longer and narrower than the model as made (owner, 2026-11-09: "more realistic height and width"), only drawn so: the
+## pole is scenery, no rule or place changes.
+func test_the_post_is_longer_and_narrower_than_the_model_as_made() -> void:
+	assert_eq(LAYOUT.post_height, 15.0, "15 m tall (it was 9 m)")
+	assert_eq(LAYOUT.post_width_share, 0.55, "55% of the model's own width")
+	assert_lt(LAYOUT.post_width_share, 1.0, "narrower")
+	assert_gt(LAYOUT.post_width_share, 0.5, "but stretched gently: its flyers and transformer stay readable")

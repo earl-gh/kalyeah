@@ -78,14 +78,15 @@ func test_the_lights_leave_a_models_colour_at_about_its_own() -> void:
 	assert_almost_eq(up, 1.0, 0.1, "an upward face is lit to about 1.0 of its albedo")
 
 
-func test_the_pole_is_two_to_three_times_a_kid_on_screen() -> void:
+func test_the_pole_is_about_four_times_a_kid_on_screen() -> void:
 	var camera: CameraRules = load("res://data/rules/camera_rules.tres") as CameraRules
 	var layout: MapLayout = load("res://data/rules/map_layout.tres") as MapLayout
 	# the post is a standing model like the kids: the tilt shortens both by the same cos(pitch), so only their drawn heights count
 	var kid_drawn: float = KidModel.KID_HEIGHT * camera.kid_view_scale
 	var ratio: float = layout.post_height / kid_drawn
-	assert_gt(ratio, 2.0, "taller than a kid, clearly")
-	assert_lt(ratio, 3.0, "but proportionate, not a tower over the street")
+	# owner, 2026-11-09: a more realistic, longer pole (a real one is about 5 times a child); it was 2 to 3 times
+	assert_gt(ratio, 3.5, "a real electric pole's height over the kids")
+	assert_lt(ratio, 5.0, "short of a tower that the camera cannot fit")
 
 
 func test_the_ground_outside_the_play_area_is_the_floor_picture_with_no_dark_tint() -> void:
