@@ -147,4 +147,15 @@ func test_the_movement_controls_and_the_main_button_are_white_only() -> void:
 	assert_eq(pad.white_strength(), 1.0, "a ready button at full strength")
 	pad.act_ready = false
 	if pad.action != StreetGamePad.Action.THROW:
-		assert_eq(pad.white_strength(), HudStyle.WHITE_OFF, "not ready: the same white, dimmer (no grey or colour)")
+		assert_eq(pad.white_strength(), HudStyle.WHITE_OFF, "not ready: the same white, a dimmer word (no grey or colour)")
+
+
+## The main button's outline is the movement controls' rim (owner): both are drawn by `HudStyle.draw_white_disc` (one rim, never dimmed), and the
+## charge is a sweep inside it, never a second ring outside.
+func test_the_main_buttons_charge_stays_inside_the_shared_rim() -> void:
+	for share: float in [0.1, 0.5, 1.0]:
+		var points: PackedVector2Array = HudStyle.sweep_points(Vector2.ZERO, 56.0, share)
+		assert_gt(points.size(), 2)
+		for point: Vector2 in points:
+			assert_lte(point.length(), 56.0 - HudStyle.WHITE_RIM_WIDTH / 2.0 + 0.001, "inside the rim at %.1f" % share)
+	assert_eq(HudStyle.sweep_points(Vector2.ZERO, 56.0, 0.0).size(), 0, "no charge, no sweep")

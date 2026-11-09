@@ -320,19 +320,20 @@ func _draw_button(words: String, face: Color, with_ring: bool) -> void:
 	draw_string(font, center + Vector2(-width / 2.0, size_px * 0.35), words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px, Color.WHITE)
 
 
-## How strong the landscape main button is drawn: full while it can act (and while a throw is aimed), `HudStyle.WHITE_OFF` while not ready.
+## How strong the landscape main button's word is drawn: full while it can act (and while a throw is aimed), `HudStyle.WHITE_OFF` while not
+## ready. Its outline is never dimmed: it is the movement controls' rim.
 func white_strength() -> float:
 	return 1.0 if act_ready or action == Action.THROW else HudStyle.WHITE_OFF
 
 
-## The landscape main button, white only (owner): the white disc, a white ring of its charge (the throw's aim, the dive's cool-down) and the
-## white word on a soft shadow.
+## The landscape main button, white only (owner): the movement controls' disc and rim, its charge (the throw's aim, the dive's cool-down) as
+## a faint white sweep inside it, and the white word on a soft shadow.
 func _draw_white_button(words: String, center: Vector2, with_ring: bool) -> void:
 	var strength: float = white_strength()
-	HudStyle.draw_white_disc(self, center, button_radius(), strength)
-	if with_ring and charge > 0.0:
-		var ring: float = button_radius() + RING_WIDTH * 0.7
-		draw_arc(center, ring, -PI / 2.0, -PI / 2.0 + TAU * clampf(charge, 0.0, 1.0), 48, Color(HudStyle.WHITE_RIM, HudStyle.WHITE_RIM.a * strength), RING_WIDTH, true)
+	HudStyle.draw_white_disc(self, center, button_radius())
+	# a cooling dive or lupa fills up and is gone once ready (then it looks exactly like the joystick); a throw being aimed shows its charge
+	if with_ring and charge > 0.0 and (charge < 1.0 or aiming):
+		HudStyle.draw_white_sweep(self, center, button_radius(), charge)
 	var font: Font = get_theme_default_font()
 	var size_px: int = HudStyle.TITLE
 	var at: Vector2 = center + Vector2(-font.get_string_size(words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px).x / 2.0, size_px * 0.35)

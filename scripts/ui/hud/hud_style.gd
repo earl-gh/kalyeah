@@ -28,12 +28,15 @@ const THUMB: Color = Color(0.93, 0.95, 1.0, 0.7)
 const RIM_WIDTH: float = 3.0
 ## The movement controls (the joystick, the street games' knob) and the street games' main button (Throw, Kick, Dive, Lupa) are white only
 ## (owner, 2026-11-09): a white rim, a white thumb or word and a faint white body, no navy and no colour. A main button that is not ready is
-## the same, dimmer. Its word has a soft shadow under it instead of an outline, so it reads on a bright street.
+## the same with a dimmer word: the outline of every one of these is the same rim, never dimmed (owner). A main button's charge (the throw's
+## aim, the dive's cool-down) is a faint white sweep inside it, not a second ring. Its word has a soft shadow under it, so it reads on a bright
+## street.
 const WHITE_BODY: Color = Color(1.0, 1.0, 1.0, 0.14)
 const WHITE_RIM: Color = Color(1.0, 1.0, 1.0, 0.85)
 const WHITE_THUMB: Color = Color(1.0, 1.0, 1.0, 0.85)
 const WHITE_OFF: float = 0.45
 const WHITE_RIM_WIDTH: float = 4.0
+const WHITE_SWEEP: Color = Color(1.0, 1.0, 1.0, 0.22)
 const WORD_SHADOW: Color = Color(0.0, 0.0, 0.0, 0.35)
 const WORD_SHADOW_DROP: float = 2.0
 ## A panel over the street (the minimap): navy, a little more solid than a control, with the same rim.
@@ -54,11 +57,30 @@ static func letter(label: Label, font_size: int, color: Color) -> void:
 	label.add_theme_constant_override("outline_size", outline(font_size))
 
 
-## Draws a white-only control on `canvas` (the movement controls and the main button): a faint white body and a white rim, `strength` 1 when
-## live and `WHITE_OFF` when not ready.
-static func draw_white_disc(canvas: CanvasItem, middle: Vector2, radius: float, strength: float = 1.0) -> void:
-	canvas.draw_circle(middle, radius, Color(WHITE_BODY, WHITE_BODY.a * strength))
-	canvas.draw_arc(middle, radius, 0.0, TAU, 48, Color(WHITE_RIM, WHITE_RIM.a * strength), WHITE_RIM_WIDTH, true)
+## Draws a white-only control on `canvas` (the movement controls and the main button): a faint white body and the white rim, the same for all.
+static func draw_white_disc(canvas: CanvasItem, middle: Vector2, radius: float) -> void:
+	canvas.draw_circle(middle, radius, WHITE_BODY)
+	canvas.draw_arc(middle, radius, 0.0, TAU, 48, WHITE_RIM, WHITE_RIM_WIDTH, true)
+
+
+## A main button's charge inside its rim: a faint white sweep of `share` (0 to 1), clockwise from the top.
+static func draw_white_sweep(canvas: CanvasItem, middle: Vector2, radius: float, share: float) -> void:
+	var points: PackedVector2Array = sweep_points(middle, radius, share)
+	if points.size() > 2:
+		canvas.draw_colored_polygon(points, WHITE_SWEEP)
+
+
+## The sweep's outline: the middle and the arc of `share` just inside the rim (empty for no charge).
+static func sweep_points(middle: Vector2, radius: float, share: float) -> PackedVector2Array:
+	var filled: float = clampf(share, 0.0, 1.0)
+	var points: PackedVector2Array = PackedVector2Array()
+	if filled <= 0.0:
+		return points
+	points.append(middle)
+	var steps: int = maxi(2, ceili(48.0 * filled))
+	for i: int in steps + 1:
+		points.append(middle + Vector2.from_angle(-PI / 2.0 + TAU * filled * float(i) / float(steps)) * (radius - WHITE_RIM_WIDTH / 2.0))
+	return points
 
 
 ## Draws a round touch control on `canvas`: the see-through fill and the rim.
