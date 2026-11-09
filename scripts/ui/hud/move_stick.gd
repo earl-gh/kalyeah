@@ -124,5 +124,5 @@ func _local(viewport_position: Vector2) -> Vector2:
 func _draw() -> void:
 	if not active:
 		return
-	HudStyle.draw_disc(self, base_center, BASE_RADIUS)
-	draw_circle(base_center + way * BASE_RADIUS, THUMB_RADIUS, HudStyle.THUMB)
+	HudStyle.draw_white_disc(self, base_center, BASE_RADIUS)
+	draw_circle(base_center + way * BASE_RADIUS, THUMB_RADIUS, HudStyle.WHITE_THUMB)

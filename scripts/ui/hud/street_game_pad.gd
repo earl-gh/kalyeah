@@ -284,8 +284,8 @@ func _on_button(at: Vector2) -> bool:
 func _draw() -> void:
 	var middle: Vector2 = knob_center()
 	if landscape:
-		HudStyle.draw_disc(self, middle, knob_radius())
-		draw_circle(middle + knob_way * (knob_radius() - MoveStick.THUMB_RADIUS * 0.5), MoveStick.THUMB_RADIUS, HudStyle.THUMB)
+		HudStyle.draw_white_disc(self, middle, knob_radius())
+		draw_circle(middle + knob_way * (knob_radius() - MoveStick.THUMB_RADIUS * 0.5), MoveStick.THUMB_RADIUS, HudStyle.WHITE_THUMB)
 	else:
 		draw_circle(middle, knob_radius(), KNOB_BASE)
 		draw_arc(middle, knob_radius(), 0.0, TAU, 48, KNOB_RIM, 4.0, true)
@@ -304,12 +304,10 @@ func _draw() -> void:
 func _draw_button(words: String, face: Color, with_ring: bool) -> void:
 	var center: Vector2 = button_center()
 	if landscape:
-		# the HUD's control look with the action's colour: see-through, a cream rim, no drop shadow
-		draw_circle(center, button_radius(), Color(face, HudStyle.ACTION_ALPHA))
-		draw_arc(center, button_radius(), 0.0, TAU, 48, HudStyle.RIM, HudStyle.RIM_WIDTH, true)
-	else:
-		draw_circle(center + Vector2(0.0, 6.0), button_radius(), Color(0.03, 0.12, 0.3, 0.7))
-		draw_circle(center, button_radius(), face)
+		_draw_white_button(words, center, with_ring)
+		return
+	draw_circle(center + Vector2(0.0, 6.0), button_radius(), Color(0.03, 0.12, 0.3, 0.7))
+	draw_circle(center, button_radius(), face)
 	if with_ring:
 		draw_arc(center, button_radius() + RING_WIDTH * 0.7, 0.0, TAU, 48, RING_TRACK, RING_WIDTH, true)
 		if charge > 0.0:
@@ -320,6 +318,26 @@ func _draw_button(words: String, face: Color, with_ring: bool) -> void:
 	var width: float = font.get_string_size(words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px).x
 	draw_string_outline(font, center + Vector2(-width / 2.0, size_px * 0.35), words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px, HudStyle.outline(size_px) if landscape else 6, INK)
 	draw_string(font, center + Vector2(-width / 2.0, size_px * 0.35), words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px, Color.WHITE)
+
+
+## How strong the landscape main button is drawn: full while it can act (and while a throw is aimed), `HudStyle.WHITE_OFF` while not ready.
+func white_strength() -> float:
+	return 1.0 if act_ready or action == Action.THROW else HudStyle.WHITE_OFF
+
+
+## The landscape main button, white only (owner): the white disc, a white ring of its charge (the throw's aim, the dive's cool-down) and the
+## white word on a soft shadow.
+func _draw_white_button(words: String, center: Vector2, with_ring: bool) -> void:
+	var strength: float = white_strength()
+	HudStyle.draw_white_disc(self, center, button_radius(), strength)
+	if with_ring and charge > 0.0:
+		var ring: float = button_radius() + RING_WIDTH * 0.7
+		draw_arc(center, ring, -PI / 2.0, -PI / 2.0 + TAU * clampf(charge, 0.0, 1.0), 48, Color(HudStyle.WHITE_RIM, HudStyle.WHITE_RIM.a * strength), RING_WIDTH, true)
+	var font: Font = get_theme_default_font()
+	var size_px: int = HudStyle.TITLE
+	var at: Vector2 = center + Vector2(-font.get_string_size(words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px).x / 2.0, size_px * 0.35)
+	draw_string(font, at + Vector2.ONE * HudStyle.WORD_SHADOW_DROP, words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px, HudStyle.WORD_SHADOW)
+	draw_string(font, at, words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px, Color(1.0, 1.0, 1.0, strength))
 
 
 func _label(text: String, font_size: int, color: Color) -> Label:

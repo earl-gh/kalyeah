@@ -26,8 +26,16 @@ const FILL: Color = Color(0.035, 0.1, 0.27, 0.38)
 const RIM: Color = Color(0.93, 0.95, 1.0, 0.45)
 const THUMB: Color = Color(0.93, 0.95, 1.0, 0.7)
 const RIM_WIDTH: float = 3.0
-## A coloured action button (Throw, Kick, Dive, Lupa) keeps its colour but lets the street show through a little.
-const ACTION_ALPHA: float = 0.78
+## The movement controls (the joystick, the street games' knob) and the street games' main button (Throw, Kick, Dive, Lupa) are white only
+## (owner, 2026-11-09): a white rim, a white thumb or word and a faint white body, no navy and no colour. A main button that is not ready is
+## the same, dimmer. Its word has a soft shadow under it instead of an outline, so it reads on a bright street.
+const WHITE_BODY: Color = Color(1.0, 1.0, 1.0, 0.14)
+const WHITE_RIM: Color = Color(1.0, 1.0, 1.0, 0.85)
+const WHITE_THUMB: Color = Color(1.0, 1.0, 1.0, 0.85)
+const WHITE_OFF: float = 0.45
+const WHITE_RIM_WIDTH: float = 4.0
+const WORD_SHADOW: Color = Color(0.0, 0.0, 0.0, 0.35)
+const WORD_SHADOW_DROP: float = 2.0
 ## A panel over the street (the minimap): navy, a little more solid than a control, with the same rim.
 const PANEL: Color = Color(0.035, 0.1, 0.27, 0.55)
 const CORNER: float = 10.0
@@ -44,6 +52,13 @@ static func letter(label: Label, font_size: int, color: Color) -> void:
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_color_override("font_outline_color", INK)
 	label.add_theme_constant_override("outline_size", outline(font_size))
+
+
+## Draws a white-only control on `canvas` (the movement controls and the main button): a faint white body and a white rim, `strength` 1 when
+## live and `WHITE_OFF` when not ready.
+static func draw_white_disc(canvas: CanvasItem, middle: Vector2, radius: float, strength: float = 1.0) -> void:
+	canvas.draw_circle(middle, radius, Color(WHITE_BODY, WHITE_BODY.a * strength))
+	canvas.draw_arc(middle, radius, 0.0, TAU, 48, Color(WHITE_RIM, WHITE_RIM.a * strength), WHITE_RIM_WIDTH, true)
 
 
 ## Draws a round touch control on `canvas`: the see-through fill and the rim.

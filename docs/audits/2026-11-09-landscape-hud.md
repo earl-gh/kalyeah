@@ -70,7 +70,7 @@ What was still wrong:
 ## Round 3: final changes
 
 - The words stand right under the score (6 px), over the sky and the roofs; the tag toast pops in under them for its two seconds.
-- The street games' action button keeps its colour, see-through (78%), with the HUD's cream rim and no shadow.
+- The street games' action button keeps its colour, see-through (78%), with the HUD's cream rim and no shadow. Then (owner, after round 3): the movement controls and this main button are **white only**: a white rim, a white thumb or word, a faint white body, no navy and no colour; a button that is not ready is dimmer.
 
 ![after](images/landscape-hud-after.jpg)
 

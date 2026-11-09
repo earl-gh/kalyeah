@@ -116,3 +116,15 @@ func test_far_kids_show_no_name_in_the_shoulder_view_and_near_ones_do() -> void:
 		pass_test("nobody stood far enough at the start")
 		return
 	assert_eq(overhead.label_for(far), "", "a far kid keeps only its badge and bar")
+
+
+func test_the_movement_controls_and_the_main_button_are_white_only() -> void:
+	for color: Color in [HudStyle.WHITE_BODY, HudStyle.WHITE_RIM, HudStyle.WHITE_THUMB]:
+		assert_eq(Vector3(color.r, color.g, color.b), Vector3.ONE, "white, no tint (owner)")
+	var practice: PracticeMatch = _practice(&"patintero")
+	var pad: StreetGamePad = practice.hud.street_pad
+	pad.act_ready = true
+	assert_eq(pad.white_strength(), 1.0, "a ready button at full strength")
+	pad.act_ready = false
+	if pad.action != StreetGamePad.Action.THROW:
+		assert_eq(pad.white_strength(), HudStyle.WHITE_OFF, "not ready: the same white, dimmer (no grey or colour)")
