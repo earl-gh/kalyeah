@@ -196,3 +196,14 @@ func test_things_closer_than_your_kid_are_cut_away_not_drawn_over_the_screen() -
 	assert_eq(practice._camera.near, rules.shoulder_near)
 	var to_kid: float = Vector2(rules.shoulder_distance, rules.shoulder_offset).length()
 	assert_lt(rules.shoulder_near, to_kid - 1.0, "your own kid is always drawn")
+
+
+func test_a_quick_tap_on_a_heal_card_heals_yourself_not_the_crosshair() -> void:
+	var practice: PracticeMatch = _practice()
+	practice.sim.set_loadout(practice.local_id, &"heal", &"tsinelas_light")
+	practice.card_pressed(0)
+	practice.card_moved(0, Vector2.ZERO, true, false)
+	assert_eq(practice.input.release_kind(Time.get_ticks_msec()), MatchInput.Release.TAP, "a tap: the sim heals you (docs/GDD.md)")
+	practice.card_moved(0, Vector2.ZERO, false, false)
+	assert_eq(practice.input.release_kind(Time.get_ticks_msec()), MatchInput.Release.CAST, "held and turned: it goes to the crosshair (a teammate there)")
+	practice.card_cancelled(0)

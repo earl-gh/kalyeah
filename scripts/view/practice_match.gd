@@ -251,8 +251,12 @@ func card_pressed(slot: int) -> void:
 ## The held card's finger is at screen point `at` (on its own card, over the hand).
 func card_moved(slot: int, at: Vector2, on_card: bool, over_hand: bool) -> void:
 	if hud.hand is AbilityArc and _camera.rules.third_person:
-		# the shoulder view: the card goes where the crosshair is (the finger turns the view), a tap too; the X puts it back
+		# the shoulder view: the card goes where the crosshair is (the finger turns the view), a tap too; the X puts it back. A heal tapped
+		# without turning heals yourself, as everywhere (docs/GDD.md "Heal: a quick tap heals yourself"): it is a tap, not a cast at the crosshair
 		var cancel: bool = over_hand and not on_card
+		if on_card and not cancel and _is_heal(slot):
+			input.card_drag(true, null)
+			return
 		input.card_drag(false, null if cancel else crosshair_point(), true)
 		return
 	if hud.hand is AbilityArc:
@@ -265,6 +269,15 @@ func card_moved(slot: int, at: Vector2, on_card: bool, over_hand: bool) -> void:
 
 
 ## The held card was let go at screen point `at`: a cast there, a tap, or a drop back on the hand (MatchInput decides).
+## True when the card in `slot` of your hand heals.
+func _is_heal(slot: int) -> bool:
+	var state: PlayerState = sim.players.get(local_id) as PlayerState
+	if state == null or slot < 0 or slot >= state.weapons.size():
+		return false
+	var def: WeaponDef = sim.weapon_defs.get(state.weapons[slot]) as WeaponDef
+	return def != null and def.kind == WeaponDef.Kind.HEAL
+
+
 ## The shoulder view: the street point under the crosshair, kept inside the street. Looking over the horizon (or so far the point is past the
 ## street) the card goes `CameraRules.aim_reach` metres along the view from the kid instead.
 func crosshair_point() -> Vector2:
