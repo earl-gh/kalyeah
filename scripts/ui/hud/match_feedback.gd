@@ -16,6 +16,16 @@ var landscape: bool = false
 
 
 ## Keeps the hint line just above the tray, whatever its height.
+## The landscape match: the hint is a line at the top centre, `top` px down (under the score and the tag toast's place), in the HUD's type.
+func set_top_line(top: float) -> void:
+	hint.anchor_top = 0.0
+	hint.anchor_bottom = 0.0
+	hint.offset_top = top
+	hint.offset_bottom = top + HudStyle.LABEL * 2.0 + 16.0
+	hint.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	HudStyle.letter(hint, HudStyle.LABEL, Color.WHITE)
+
+
 func set_console_height(height: float) -> void:
 	hint.offset_top = -(height + 130.0)
 	hint.offset_bottom = -(height + 10.0)

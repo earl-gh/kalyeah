@@ -20,3 +20,4 @@ follow_edge = 4.0
 third_person = true
 shoulder_bounds_edge = 0.5
 shoulder_near = 3.5
+shoulder_name_reach = 22.0

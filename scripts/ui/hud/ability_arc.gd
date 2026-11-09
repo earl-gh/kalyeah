@@ -11,32 +11,32 @@ extends CardHand
 ## put the card back. The same signals as CardHand, so the match screen and MatchInput are unchanged; it never decides a rule.
 
 ## The buttons' radius, NEXT's, the arc's radius round the corner point, the angles (degrees, screen: 180 = left, 270 = up) of the four
-## buttons, and how far the corner point stands from the screen's right and bottom edges (inside the safe area).
-const BUTTON_RADIUS: float = 58.0
-const NEXT_RADIUS: float = 36.0
-const ARC_RADIUS: float = 190.0
+## buttons. The arc's corner point stands so the outermost buttons keep `HudStyle.EDGE` from the safe area's right and bottom edges (`corner_point`).
+const BUTTON_RADIUS: float = 48.0
+const NEXT_RADIUS: float = 30.0
+const ARC_RADIUS: float = 160.0
 const ANGLES: Array[float] = [175.0, 215.0, 255.0, 295.0]
-const CORNER: Vector2 = Vector2(150.0, 110.0)
 ## A drag this long (pixels) from the button is the card's whole range; less than `AIM_DEADZONE` is still a tap.
 const AIM_RADIUS: float = 160.0
 const AIM_DEADZONE: float = 22.0
-## The cancel button above the arc while aiming.
-const CANCEL_RADIUS: float = 46.0
-const CANCEL_LIFT: float = 150.0
-## The ice water bar along the bottom, left of the arc: its left end (share of the width: right of the joystick's area) and its gap to the arc.
-const BAR_LEFT_SHARE: float = 0.44
-const BAR_ARC_GAP: float = 30.0
-const BAR_BOTTOM: float = 34.0
+## The cancel button above the bar while aiming, and its gap to the bar.
+const CANCEL_RADIUS: float = 40.0
+const CANCEL_GAP: float = 18.0
+## The ice water bar: slim, over the arc (the right thumb's cluster, off your kid), from the leftmost button to the screen's edge, this far
+## above the highest button, with the whole points on a drop of `SLIM_DROP` px at its left end.
+const SLIM_BAR: float = 14.0
+const SLIM_DROP: float = 34.0
+const SLIM_BAR_GAP: float = 16.0
+const BAR_TRACK: Color = Color(0.035, 0.1, 0.27, 0.6)
+const BAR_DIVIDER: Color = Color(0.035, 0.1, 0.27, 0.7)
 ## The share of a card picture's width the round button shows (its middle: the art, without the torn frame).
 const ART_SHARE: float = 0.78
-const RIM: Color = Color(0.98, 0.86, 0.45)
-const RIM_WIDTH: float = 4.0
-const RIM_HELD: Color = Color(1.0, 1.0, 1.0)
-const BACK: Color = Color(0.05, 0.1, 0.24, 0.7)
+## A ready card's rim is the HUD's cream, the held one gold; the cancel button is a control with a red rim, filled red under the finger.
+const RIM: Color = Color(0.93, 0.95, 1.0, 0.75)
+const RIM_HELD: Color = RoyaleStyle.GOLD
 const COOL: Color = Color(0.02, 0.04, 0.1, 0.62)
-const CANCEL_FACE: Color = Color(0.75, 0.12, 0.1, 0.85)
-const CANCEL_HOT: Color = Color(1.0, 0.25, 0.2, 0.95)
-const DRAG_THUMB: Color = Color(1.0, 1.0, 1.0, 0.8)
+const CANCEL_RIM: Color = Color(1.0, 0.35, 0.3, 0.9)
+const CANCEL_HOT: Color = Color(0.85, 0.15, 0.12, 0.85)
 const CIRCLE_STEPS: int = 40
 
 ## The safe area's right and bottom insets (UI pixels): the arc keeps clear of a notch or the home bar.
@@ -69,8 +69,19 @@ func set_inset(value: Vector2) -> void:
 	_layout()
 
 
+## The arc's corner point on a `screen` of that size with those `insets` (right, bottom): the outermost buttons `HudStyle.EDGE` from the edges.
+## The street games' action button stands here too, so the right thumb's home is the same in every game.
+static func corner_point(screen: Vector2, insets: Vector2) -> Vector2:
+	var reach: Vector2 = Vector2.ZERO
+	for angle: float in ANGLES:
+		var way: Vector2 = Vector2.from_angle(deg_to_rad(angle)) * ARC_RADIUS
+		reach = reach.max(way)
+	var offset: Vector2 = reach + Vector2.ONE * (BUTTON_RADIUS + HudStyle.EDGE)
+	return screen - insets - offset
+
+
 func _layout() -> void:
-	corner = Vector2(size.x - inset.x - CORNER.x, size.y - inset.y - CORNER.y)
+	corner = corner_point(size, inset)
 	centers.clear()
 	card_rects.clear()
 	for angle: float in ANGLES:
@@ -79,11 +90,14 @@ func _layout() -> void:
 		card_rects.append(Rect2(middle - Vector2.ONE * BUTTON_RADIUS, Vector2.ONE * BUTTON_RADIUS * 2.0))
 	next_center = corner + Vector2(NEXT_RADIUS * 0.6, NEXT_RADIUS * 0.4)
 	next_rect = Rect2(next_center - Vector2.ONE * NEXT_RADIUS, Vector2.ONE * NEXT_RADIUS * 2.0)
-	cancel_center = corner + Vector2(0.0, -ARC_RADIUS - CANCEL_LIFT)
 	chat_rect = Rect2()
-	var left: float = size.x * BAR_LEFT_SHARE + BAR_BAG * HandArt.ICE_DRAW_ASPECT / 2.0
-	var right: float = card_rects[0].position.x - BAR_ARC_GAP
-	bar_rect = Rect2(Vector2(left, size.y - inset.y - BAR_BOTTOM - BAR_HEIGHT), Vector2(maxf(0.0, right - left), BAR_HEIGHT))
+	var top: float = card_rects[0].position.y
+	for rect: Rect2 in card_rects:
+		top = minf(top, rect.position.y)
+	var left: float = card_rects[0].position.x + SLIM_DROP * 0.6
+	var right: float = size.x - inset.x - HudStyle.EDGE
+	bar_rect = Rect2(Vector2(left, top - SLIM_BAR_GAP - SLIM_BAR), Vector2(maxf(0.0, right - left), SLIM_BAR))
+	cancel_center = Vector2(corner.x, bar_rect.position.y - SLIM_DROP / 2.0 - CANCEL_GAP - CANCEL_RADIUS)
 	_refresh()
 
 
@@ -170,13 +184,13 @@ func _draw() -> void:
 		if next_fill < 1.0:
 			_draw_cooling_on(self, next_center, NEXT_RADIUS, next_fill)
 	else:
-		draw_circle(next_center, NEXT_RADIUS, BACK)
+		HudStyle.draw_disc(self, next_center, NEXT_RADIUS)
 	_draw_next_label()
 	for slot: int in SLOTS:
 		var middle: Vector2 = centers[slot] + Vector2(deny_offset(slot), 0.0)
 		var def: WeaponDef = defs[slot]
 		if def == null:
-			draw_circle(middle, BUTTON_RADIUS, BACK)
+			HudStyle.draw_disc(self, middle, BUTTON_RADIUS)
 			continue
 		var dim: float = BLOCK_DIM if not blocked_text.is_empty() else 0.0
 		_draw_button(middle, BUTTON_RADIUS, def, 1.0 - dim, slot == held_slot)
@@ -187,13 +201,13 @@ func _draw() -> void:
 func _draw_next_label() -> void:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var label: String = next_label()
-	var width: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT).x
+	var width: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL).x
 	var at: Vector2 = Vector2(next_center.x - width / 2.0, next_center.y - NEXT_RADIUS - 6.0)
-	draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT, 7, Color.BLACK)
-	draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, NEXT_FONT, NEXT_COLOR)
+	draw_string_outline(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL, HudStyle.outline(HudStyle.SMALL), HudStyle.INK)
+	draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL, RoyaleStyle.CREAM)
 
 
-## One round button: the middle of the card picture (or the skill icon on the kind colour) in a circle, with a gold rim (white while held).
+## One round button: the middle of the card picture (or the skill icon on the kind colour) in a circle, with a cream rim (gold while held).
 func _draw_button(middle: Vector2, radius: float, def: WeaponDef, light: float, held: bool) -> void:
 	var tint: Color = Color(light, light, light)
 	var picture: Texture2D = CardStyle.picture(def.id)
@@ -205,7 +219,7 @@ func _draw_button(middle: Vector2, radius: float, def: WeaponDef, light: float, 
 		var icon: Texture2D = Icons.skill(def.id)
 		if icon != null:
 			_draw_round_texture(middle, radius * 0.8, icon, Vector2.ONE, tint)
-	draw_arc(middle, radius, 0.0, TAU, CIRCLE_STEPS, RIM_HELD if held else RIM, RIM_WIDTH, true)
+	draw_arc(middle, radius, 0.0, TAU, CIRCLE_STEPS, RIM_HELD if held else RIM, HudStyle.RIM_WIDTH, true)
 
 
 ## `texture` cut to a circle of `radius` at `middle`: the circle shows the middle `share` of the texture's width and height.
@@ -220,10 +234,36 @@ func _draw_round_texture(middle: Vector2, radius: float, texture: Texture2D, sha
 
 
 func _draw_cancel() -> void:
-	draw_circle(cancel_center, CANCEL_RADIUS, CANCEL_HOT if over_hand else CANCEL_FACE)
-	var arm: float = CANCEL_RADIUS * 0.4
+	HudStyle.draw_disc(self, cancel_center, CANCEL_RADIUS, CANCEL_RIM)
+	if over_hand:
+		draw_circle(cancel_center, CANCEL_RADIUS - HudStyle.RIM_WIDTH, CANCEL_HOT)
+	var arm: float = CANCEL_RADIUS * 0.38
 	for way: Vector2 in [Vector2(1.0, 1.0), Vector2(1.0, -1.0)]:
-		draw_line(cancel_center - way * arm, cancel_center + way * arm, Color.WHITE, 6.0, true)
+		draw_line(cancel_center - way * arm, cancel_center + way * arm, HudStyle.THUMB, 5.0, true)
+
+
+## The slim ice water bar over the arc: a navy track, the fill (each whole point a segment, divided in navy), and the whole points on a drop at
+## its left end. The old hand's chunky bar, its marker and its "Max" caption are left out: the cards' own costs say what each needs.
+func _draw_bar() -> void:
+	if not uses_elixir or bar_rect.size.x <= 0.0:
+		return
+	var radius: float = bar_rect.size.y / 2.0
+	var track: StyleBoxFlat = StyleBoxFlat.new()
+	track.bg_color = BAR_TRACK
+	track.set_corner_radius_all(roundi(radius))
+	track.anti_aliasing = true
+	draw_style_box(track, bar_rect)
+	var share: float = clampf(shown_elixir / maxf(elixir_max, 0.001), 0.0, 1.0)
+	if share > 0.0:
+		var fill: StyleBoxFlat = StyleBoxFlat.new()
+		fill.bg_color = ICE_WATER
+		fill.set_corner_radius_all(roundi(radius))
+		fill.anti_aliasing = true
+		draw_style_box(fill, Rect2(bar_rect.position, Vector2(maxf(bar_rect.size.y, bar_rect.size.x * share), bar_rect.size.y)))
+	for index: int in range(1, bar_segments()):
+		var x: float = bar_rect.position.x + bar_rect.size.x * float(index) / float(bar_segments())
+		draw_line(Vector2(x, bar_rect.position.y + 2.0), Vector2(x, bar_rect.end.y - 2.0), BAR_DIVIDER, 2.0)
+	HandArt.draw_ice(self, Vector2(bar_rect.position.x, bar_rect.get_center().y), SLIM_DROP, str(floori(elixir + 0.001)), HudStyle.SMALL)
 
 
 ## Over the buttons: the sweep of a cost the bar has not reached, the cost drop, the word (STUNNED, NO TARGET), the red flash of a press
@@ -249,7 +289,7 @@ func _draw_over_cards() -> void:
 		if _deny[slot] > 0.0:
 			_overlay.draw_circle(middle, BUTTON_RADIUS, Color(DENY_FLASH, DENY_FLASH.a * _deny[slot] / DENY_TIME))
 	if held_slot >= 0 and aim_way != Vector2.ZERO:
-		_overlay.draw_circle(centers[held_slot] + aim_way * AIM_RADIUS, BUTTON_RADIUS * 0.45, DRAG_THUMB)
+		_overlay.draw_circle(centers[held_slot] + aim_way * AIM_RADIUS, BUTTON_RADIUS * 0.45, HudStyle.THUMB)
 
 
 ## The dark sweep over a button that is not ready yet: what is still missing, clockwise from the top.

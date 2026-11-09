@@ -22,7 +22,7 @@ static func apply(hud: MatchHud) -> void:
 		hud._place(hud.hand, Vector4(0, 1, 1, 1), Vector4(0, -hud.console_height(), 0, -hud.bottom_inset))
 		hud.hand.set_mirrored(Settings.left_handed)
 		hud.sync_plate_column()
-	if hud.street_pad != null:
+	if hud.street_pad != null and not hud.landscape:
 		hud._place(hud.street_pad, Vector4(0, 1, 1, 1), Vector4(0, -hud.console_height(), 0, -hud.bottom_inset))
 	if hud.score_column != null:
 		# Tumbang Preso's points: a column on the left sidewalk under the header
@@ -46,17 +46,33 @@ static func _place_chat(hud: MatchHud) -> void:
 ## over the whole screen so they lay themselves out from its size, clear of the notch (left or right) and the home bar.
 static func _apply_landscape(hud: MatchHud) -> void:
 	hud.console.visible = false
+	# the header is 80% of its portrait size: the screen is 720 px tall here (docs/audits/2026-11-09-landscape-hud.md); the score and the clock
+	# shrink round the middle of the header's row, the tag toast round the middle of its own top edge
+	var pivot: Vector2 = Vector2(hud.top.size.x / 2.0, MatchHud.TOP_ROW_Y)
+	for item: Control in [hud.scoreboard, hud.clock_chip]:
+		item.pivot_offset = pivot - item.position
+		item.scale = Vector2.ONE * HudStyle.HEADER_SCALE
+	var header_bottom: float = hud.top_inset + MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y * HudStyle.HEADER_SCALE
+	# the role lines and the hints stand right under the score, over the sky and the roofs: off your kid (the lower middle) and off the far end
+	# of the street, where the far kids' tags are (round 2 of the audit); the tag toast pops in under them for its two seconds
+	var words_top: float = header_bottom + HudStyle.WORDS_GAP
+	var toast_top: float = words_top + HudStyle.WORDS_HEIGHT
+	hud._place(hud.tag_toast, Vector4(0, 0, 1, 0), Vector4(0, toast_top, 0, toast_top + TagToast.HEIGHT))
+	hud.tag_toast.pivot_offset = Vector2(hud.size.x / 2.0, 0.0)
+	hud.tag_toast.scale = Vector2.ONE * HudStyle.HEADER_SCALE
 	if hud.feedback != null:
-		# the hint line stands above the ice water bar
 		hud.feedback.landscape = true
-		hud.feedback.set_console_height(AbilityArc.BAR_BOTTOM + CardHand.BAR_HEIGHT + CardHand.BAR_BAG / 2.0 + hud.bottom_inset)
+		hud.feedback.set_top_line(words_top)
+	if hud.street_pad != null:
+		hud._place(hud.street_pad, Vector4(0, 0, 1, 1), Vector4.ZERO)
+		hud.street_pad.set_landscape(true, Vector4(hud.side_insets.x, hud.top_inset, hud.side_insets.y, hud.bottom_inset), words_top)
 	if hud.hand is AbilityArc:
 		hud._place(hud.hand, Vector4(0, 0, 1, 1), Vector4.ZERO)
 		(hud.hand as AbilityArc).set_inset(Vector2(hud.side_insets.y, hud.bottom_inset))
 	if hud.minimap != null:
 		# top left, beside the settings button on the header's row (Tumbang Preso's points column stands under the header at the left), clear
 		# of a notch on the left
-		var at: Vector2 = Vector2(MatchHud.MARGIN * 2.0 + MatchHud.GEAR_SIZE + hud.side_insets.x, hud.top_inset + MatchHud.TOP_ROW_Y)
+		var at: Vector2 = Vector2(MatchHud.MARGIN + MatchHud.GEAR_SIZE + HudStyle.EDGE + hud.side_insets.x, hud.top_inset + MatchHud.TOP_ROW_Y)
 		hud._place(hud.minimap, Vector4(0, 0, 0, 0), Vector4(at.x, at.y, at.x + StreetMinimap.SIZE.x, at.y + StreetMinimap.SIZE.y))
 	if hud.look != null:
 		hud.look.zone_left = hud.size.x * MoveStick.ZONE_SHARE

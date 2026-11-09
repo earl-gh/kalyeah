@@ -69,6 +69,8 @@ const AXIS_SNAP: float = 0.000001
 @export var look_sensitivity: float = 0.25
 ## Where the crosshair's ray meets nothing (looking over the horizon) the card goes this far along the view (metres).
 @export var aim_reach: float = 12.0
+## In this view a kid's name over its bar shows only within this many metres of the camera (farther kids keep their number badge and bar).
+@export var shoulder_name_reach: float = 0.0
 ## The camera never leaves the street and its sidewalks: it stays this far past the street's edges and ends at most (metres), so it never
 ## stands inside a house or the end props.
 @export var shoulder_bounds_edge: float = 2.5

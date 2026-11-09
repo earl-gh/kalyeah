@@ -1,0 +1,118 @@
+extends GutTest
+## The landscape match's HUD in one calm style (docs/audits/2026-11-09-landscape-hud.md): controls keep one margin from the safe edges and stand
+## in the same places in every game, the header is drawn smaller, words use the three-size ramp in the navy ink and stand under the score (off
+## your kid and off the far end of the street), the ice water bar sits with the arc, and far kids keep only their badge and bar.
+## Seam: HudStyle, MoveStick, AbilityArc, StreetGamePad, MatchHudLayout, MatchFeedback, OverheadHud.
+
+const PRACTICE: PackedScene = preload("res://scenes/match/practice.tscn")
+const SCREENS: Array[Vector2] = [Vector2(1280.0, 720.0), Vector2(1560.0, 720.0)]
+## Insets: none, and a notch on the left with a home bar.
+const INSETS: Array[Vector4] = [Vector4.ZERO, Vector4(60.0, 0.0, 0.0, 24.0)]
+const DT: float = 1.0 / 30.0
+
+var _kind: StringName
+var _game: StringName
+
+
+func before_each() -> void:
+	_kind = Session.practice_kind
+	_game = Session.practice_game
+	Session.practice_kind = &"match"
+
+
+func after_each() -> void:
+	Session.practice_kind = _kind
+	Session.practice_game = _game
+
+
+func _practice(game: StringName = &"street") -> PracticeMatch:
+	Session.practice_game = game
+	var practice: PracticeMatch = autofree(PRACTICE.instantiate()) as PracticeMatch
+	add_child(practice)
+	practice.set_process(false)
+	practice.finish_pick()
+	practice.skip_intro()
+	for i: int in 3:
+		practice.advance(DT)
+	return practice
+
+
+func test_the_joystick_and_the_arc_keep_one_margin_from_the_safe_edges() -> void:
+	for screen: Vector2 in SCREENS:
+		for insets: Vector4 in INSETS:
+			var rest: Vector2 = MoveStick.rest_point(screen, Vector2(insets.x, insets.w))
+			assert_almost_eq(rest.x - MoveStick.BASE_RADIUS, insets.x + HudStyle.EDGE, 0.01, "%s: the joystick's left edge" % screen)
+			assert_almost_eq(screen.y - insets.w - (rest.y + MoveStick.BASE_RADIUS), HudStyle.EDGE, 0.01, "its bottom edge")
+			var arc: AbilityArc = autofree(AbilityArc.new()) as AbilityArc
+			add_child(arc)
+			arc.size = screen
+			arc.set_inset(Vector2(insets.z, insets.w))
+			var right: float = 0.0
+			var bottom: float = 0.0
+			for rect: Rect2 in arc.card_rects:
+				right = maxf(right, rect.end.x)
+				bottom = maxf(bottom, rect.end.y)
+			assert_almost_eq(screen.x - insets.z - right, HudStyle.EDGE, 0.01, "%s: the arc's right edge" % screen)
+			assert_almost_eq(screen.y - insets.w - bottom, HudStyle.EDGE, 0.01, "the arc's bottom edge")
+
+
+func test_the_ice_water_bar_sits_with_the_arc_above_its_buttons_not_over_your_kid() -> void:
+	for screen: Vector2 in SCREENS:
+		var arc: AbilityArc = autofree(AbilityArc.new()) as AbilityArc
+		add_child(arc)
+		arc.size = screen
+		arc.set_inset(Vector2.ZERO)
+		for rect: Rect2 in arc.card_rects:
+			assert_lt(arc.bar_rect.end.y, rect.position.y, "%s: above every button" % screen)
+		assert_gt(arc.bar_rect.position.x, screen.x / 2.0, "in the right half: your kid is in the middle")
+		assert_lte(arc.bar_rect.end.x, screen.x - HudStyle.EDGE + 0.01, "the HUD's margin from the edge")
+		assert_lt(arc.cancel_center.y + AbilityArc.CANCEL_RADIUS, arc.bar_rect.position.y, "the cancel X above the bar")
+
+
+func test_the_street_games_controls_stand_where_the_joystick_and_the_arc_do() -> void:
+	var practice: PracticeMatch = _practice(&"patintero")
+	var pad: StreetGamePad = practice.hud.street_pad
+	assert_true(pad.landscape)
+	var screen: Vector2 = practice.hud.size
+	var insets: Vector4 = pad.safe
+	assert_eq(pad.knob_center(), MoveStick.rest_point(screen, Vector2(insets.x, insets.w)), "the knob rests where the joystick rests")
+	assert_eq(pad.knob_radius(), MoveStick.BASE_RADIUS, "and is as big")
+	assert_eq(pad.button_center(), AbilityArc.corner_point(screen, Vector2(insets.z, insets.w)), "the action button is the right thumb's home")
+	assert_eq(pad.title_label.get_theme_font_size("font_size"), HudStyle.TITLE, "the role line in the ramp's title size")
+	assert_eq(pad.hint_label.get_theme_font_size("font_size"), HudStyle.LABEL)
+	assert_eq(pad.title_label.get_theme_color("font_outline_color"), HudStyle.INK, "lettered in the HUD's ink")
+	assert_eq(pad.title_label.get_theme_constant("outline_size"), HudStyle.outline(HudStyle.TITLE))
+
+
+func test_the_header_is_smaller_and_the_words_stand_under_it_above_the_tag_toast() -> void:
+	var practice: PracticeMatch = _practice()
+	var hud: MatchHud = practice.hud
+	assert_eq(hud.scoreboard.scale, Vector2.ONE * HudStyle.HEADER_SCALE, "the score at 80%")
+	assert_eq(hud.clock_chip.scale, Vector2.ONE * HudStyle.HEADER_SCALE, "the clock with it")
+	var score: Rect2 = hud.scoreboard.get_global_rect()
+	assert_almost_eq(score.get_center().x, hud.size.x / 2.0, 1.0, "still in the middle")
+	assert_lt(score.size.y, MatchHud.SCORE_SIZE.y, "and shorter than the portrait one")
+	var hint: Label = hud.feedback.hint
+	assert_gte(hint.get_global_rect().position.y, score.end.y, "the hint line is under the score")
+	assert_lt(hint.get_global_rect().position.y, hud.size.y * 0.3, "in the top band: off your kid and off the far end of the street")
+	assert_gte(hud.tag_toast.get_global_rect().position.y, hint.get_global_rect().position.y + HudStyle.WORDS_HEIGHT - 0.5, "the tag toast pops in under the words")
+	assert_eq(hint.get_theme_font_size("font_size"), HudStyle.LABEL)
+
+
+func test_far_kids_show_no_name_in_the_shoulder_view_and_near_ones_do() -> void:
+	var practice: PracticeMatch = _practice()
+	var overhead: OverheadHud = practice.hud.overhead
+	var rules: CameraRules = practice._camera.rules
+	assert_eq(overhead.name_reach, rules.shoulder_name_reach)
+	var me: PlayerState = practice.sim.players[practice.local_id]
+	assert_ne(overhead.label_for(me), "", "your own kid, close to the camera, keeps its name")
+	var far: PlayerState = null
+	for id: int in practice.sim.players:
+		var state: PlayerState = practice.sim.players[id]
+		var reach: float = practice._camera.global_position.distance_to(Vector3(state.position.x, 0.0, state.position.y))
+		if reach > rules.shoulder_name_reach and overhead._status_text(state).is_empty():
+			far = state
+	if far == null:
+		pass_test("nobody stood far enough at the start")
+		return
+	assert_eq(overhead.label_for(far), "", "a far kid keeps only its badge and bar")

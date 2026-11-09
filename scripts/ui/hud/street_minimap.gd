@@ -6,11 +6,13 @@ extends Control
 ## kid is a faded dot on its sidewalk) and the frame of what the camera shows. View only: it reads the sim through `show_state()`.
 
 ## The minimap's size on the 1280 x 720 base (the street's 1:2 shape, turned on its side) and its padding round the street.
-const SIZE: Vector2 = Vector2(200.0, 104.0)
-const PAD: float = 6.0
-const BACK: Color = Color(0.03, 0.08, 0.2, 0.72)
-const STREET: Color = Color(0.42, 0.42, 0.45, 0.9)
-const EDGE: Color = Color(1.0, 1.0, 1.0, 0.5)
+const SIZE: Vector2 = Vector2(176.0, 96.0)
+const PAD: float = 8.0
+## The panel is the HUD's (`HudStyle.PANEL` with its rim); the street a pale see-through grey with a faint edge, so the dots are what reads.
+const STREET: Color = Color(0.62, 0.64, 0.7, 0.32)
+const EDGE: Color = Color(0.93, 0.95, 1.0, 0.35)
+## Every dot has a thin navy ring, so a blue dot reads on the navy panel.
+const DOT_RING: Color = RoyaleStyle.NAVY
 const VIEW: Color = Color(1.0, 1.0, 1.0, 0.85)
 const DOT_RADIUS: float = 5.0
 const SELF_RADIUS: float = 6.5
@@ -82,7 +84,13 @@ func to_map(point: Vector2) -> Vector2:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), BACK)
+	var panel: StyleBoxFlat = StyleBoxFlat.new()
+	panel.bg_color = HudStyle.PANEL
+	panel.border_color = HudStyle.RIM
+	panel.set_border_width_all(2)
+	panel.set_corner_radius_all(roundi(HudStyle.CORNER))
+	panel.anti_aliasing = true
+	draw_style_box(panel, Rect2(Vector2.ZERO, size))
 	var half: Vector2 = turned_arena() / 2.0
 	var street: Rect2 = Rect2(to_map(-half), to_map(half) - to_map(-half))
 	draw_rect(street, STREET)
@@ -97,7 +105,10 @@ func _draw() -> void:
 		if dot[2] as bool:
 			color.a = TAGGED_ALPHA
 		var you: bool = dot[3] as bool
-		draw_circle(to_map(dot[0] as Vector2), SELF_RADIUS if you else DOT_RADIUS, color)
+		var at: Vector2 = to_map(dot[0] as Vector2)
+		var radius: float = SELF_RADIUS if you else DOT_RADIUS
+		draw_circle(at, radius + 1.5, Color(DOT_RING, color.a))
+		draw_circle(at, radius, color)
 	if look_way != Vector2.ZERO:
 		var from: Vector2 = to_map(_self)
 		var way: Vector2 = turned(look_way).normalized()

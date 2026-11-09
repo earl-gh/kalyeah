@@ -8,19 +8,14 @@ extends Control
 
 signal knob_moved(way: Vector2)
 
-## The base's radius and the thumb's, and where the base rests (from the screen's bottom-left corner, before the safe area).
-const BASE_RADIUS: float = 92.0
-const THUMB_RADIUS: float = 40.0
-const REST_MARGIN: Vector2 = Vector2(150.0, 150.0)
+## The base's radius and the thumb's. The base rests `HudStyle.EDGE` in from the bottom-left corner of the safe area (`rest_center`).
+const BASE_RADIUS: float = 80.0
+const THUMB_RADIUS: float = 32.0
 ## The left share of the screen whose touches move the stick, and the top band (the header, the minimap) it leaves alone.
 const ZONE_SHARE: float = 0.42
 const ZONE_TOP: float = 200.0
 ## A push of less than this share of the radius does not move the kid.
 const DEADZONE: float = 0.12
-const BASE: Color = Color(0.04, 0.12, 0.3, 0.42)
-const RIM: Color = Color(1.0, 1.0, 1.0, 0.55)
-const THUMB: Color = Color(1.0, 1.0, 1.0, 0.85)
-const RIM_WIDTH: float = 5.0
 const NO_POINTER: int = -1
 
 ## Touches are taken (false under a menu, while tagged, during the opening show).
@@ -47,7 +42,13 @@ func _ready() -> void:
 
 ## Where the base rests: the bottom-left corner, clear of the safe area.
 func rest_center() -> Vector2:
-	return Vector2(inset.x + REST_MARGIN.x, size.y - inset.y - REST_MARGIN.y)
+	return rest_point(size, inset)
+
+
+## Where a joystick (this one, or the street games' knob) rests on a `screen` of that size with those `insets` (left, bottom).
+static func rest_point(screen: Vector2, insets: Vector2) -> Vector2:
+	var reach: float = HudStyle.EDGE + BASE_RADIUS
+	return Vector2(insets.x + reach, screen.y - insets.y - reach)
 
 
 ## The part of the screen (own pixels) whose touches move the stick.
@@ -123,6 +124,5 @@ func _local(viewport_position: Vector2) -> Vector2:
 func _draw() -> void:
 	if not active:
 		return
-	draw_circle(base_center, BASE_RADIUS, BASE)
-	draw_arc(base_center, BASE_RADIUS, 0.0, TAU, 48, RIM, RIM_WIDTH, true)
-	draw_circle(base_center + way * BASE_RADIUS, THUMB_RADIUS, THUMB)
+	HudStyle.draw_disc(self, base_center, BASE_RADIUS)
+	draw_circle(base_center + way * BASE_RADIUS, THUMB_RADIUS, HudStyle.THUMB)

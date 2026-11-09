@@ -68,6 +68,8 @@ func setup_hud() -> void:
 	owner.hud.overhead.blend = owner.blend
 	owner.hud.overhead.view_scale = owner._camera.rules.kid_view_scale
 	owner.hud.overhead.bar_scale = owner._camera.rules.bar_scale
+	if owner._camera.rules.third_person:
+		owner.hud.overhead.name_reach = owner._camera.rules.shoulder_name_reach
 	owner.hud.marker.setup(owner.sim, owner._camera, owner.local_id)
 	owner._fx.view_scale = owner._camera.rules.kid_view_scale
 	owner._fx.local_team = owner.local_team
