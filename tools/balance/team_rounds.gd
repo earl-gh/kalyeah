@@ -114,7 +114,7 @@ static func play(rules: GameRules, layout: MapLayout, plan0: String, plan1: Stri
 	sim.player_damaged.connect(func(id: int, amount: int) -> void:
 		if players[id].hp + amount >= rules.player_max_hp:
 			first_hit[id] = clock[0])
-	sim.player_tagged.connect(func(id: int) -> void:
+	sim.player_tagged.connect(func(id: int, _by: int) -> void:
 		counts["tags"] = (counts["tags"] as int) + 1
 		if first_hit.has(id) and clock[0] - first_hit[id] <= BURST_SECONDS + MatchSim.EPSILON:
 			counts["bursts"] = (counts["bursts"] as int) + 1)

@@ -29,7 +29,7 @@ enum DivePhase { NONE, BURST, RECOVER, RETURN }
 ## The stick is locked this long (s) on every tick of a dive, so it never steers it.
 const DIVE_LOCK: float = 0.1
 ## Tagged runners on one sidewalk stand this far apart (m).
-const WAIT_SPACING: float = 3.0
+const WAIT_SPACING: float = 6.0
 
 ## The runners who got past the last guard on this run (they score when they are back at the base).
 var crossed: Dictionary[int, bool] = {}

@@ -61,13 +61,9 @@ func test_the_word_over_the_next_card_is_next_with_a_colon() -> void:
 	assert_eq(hand.next_label(), "Next:")
 
 
-func test_the_sidewalks_are_twice_as_wide_and_the_play_area_two_tiles_narrower() -> void:
-	assert_almost_eq(StreetMap.SIDEWALK_WIDTH, 2.4, 0.0001, "1.2 m before")
-	assert_almost_eq(LAYOUT.lane_width, 24.0, 0.0001, "27 m before")
-	# the whole street (play area, boundary and both sidewalks) is about as wide as before
-	var before: float = 27.0 + 2.0 * (LAYOUT.boundary_thickness + 1.2)
-	var now: float = LAYOUT.lane_width + 2.0 * (LAYOUT.boundary_thickness + StreetMap.SIDEWALK_WIDTH)
-	assert_almost_eq(now, before, 0.8)
+func test_the_sidewalks_keep_their_width_while_the_play_area_doubled() -> void:
+	assert_almost_eq(StreetMap.SIDEWALK_WIDTH, 2.4, 0.0001, "1.2 m before, 2.4 m since")
+	assert_almost_eq(LAYOUT.lane_width, 48.0, 0.0001, "27 m, then 24 m, now twice that (owner, 2026-11-09: the play area doubled)")
 
 
 func test_the_floor_picture_is_cropped_not_stretched_on_the_narrower_play_area() -> void:
@@ -93,10 +89,10 @@ func test_the_ice_water_icon_is_the_owners_drop_with_a_snowflake_and_lossless() 
 
 func test_the_rescue_area_looks_square_on_screen_and_is_as_tall_as_it_was() -> void:
 	var camera: CameraRules = load("res://data/rules/camera_rules.tres") as CameraRules
-	assert_eq(LAYOUT.rescue_size, Vector2(4.25, 6.0), "widened from 3 m to 4.25 m, the height unchanged")
+	assert_eq(LAYOUT.rescue_size, Vector2(8.5, 12.0), "4.25 x 6 m doubled with the play area (owner, 2026-11-09)")
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var rect: Rect2 = LAYOUT.rescue_rect(side)
-		assert_almost_eq(rect.size.y, 6.0, 0.0001)
+		assert_almost_eq(rect.size.y, 12.0, 0.0001)
 		# the camera looks down at its pitch: a metre along the street shows as sin(pitch) of a metre on screen
 		var across: float = rect.size.x
 		var down: float = rect.size.y * sin(deg_to_rad(camera.pitch_degrees))

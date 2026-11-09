@@ -8,7 +8,6 @@ const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const PRACTICE_TAYA: GDScript = preload("res://tests/fixtures/practice_taya.gd")
 const PRACTICE_MODE: int = 2
 const DT: float = 1.0 / 30.0
-const TUMBANG_HOME: float = 12.0
 
 var _game: StringName
 var _avatar: String
@@ -303,7 +302,7 @@ func test_the_knob_walks_you_and_the_buttons_follow_what_you_hold() -> void:
 	pad.knob_moved.emit(Vector2(0.0, -1.0))
 	for i: int in 60:
 		practice.advance(DT)
-	assert_almost_eq(practice.sim.players[1].position.y, TUMBANG_HOME, 0.05, "the throw line holds you while you have your slipper")
+	assert_almost_eq(practice.sim.players[1].position.y, (practice.sim.mode as TumbangPreso).rules.home_z, 0.05, "the throw line holds you while you have your slipper")
 	pad.knob_moved.emit(Vector2.ZERO)
 	# without the slipper the button is Kick
 	game.slippers[1] = Vector2(0.0, 5.0)

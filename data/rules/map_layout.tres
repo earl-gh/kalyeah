@@ -5,12 +5,12 @@
 [resource]
 script = ExtResource("1_layout")
 tiles = Vector2i(16, 32)
-tile_size = 1.5
-base_inset = 2.5
-base_radius = 4.5
-base_corner = 1.0
-spawn_offset = 2.0
-rescue_size = Vector2(4.25, 6.0)
+tile_size = 3.0
+base_inset = 5.0
+base_radius = 9.0
+base_corner = 2.0
+spawn_offset = 4.0
+rescue_size = Vector2(8.5, 12.0)
 tagged_places = 3
 obstacles = Array[Rect2]([])
 obstacle_props = Array[StringName]([])
@@ -18,5 +18,5 @@ boundary_thickness = 0.6
 scenery_scale = 2.27
 cover_height = 3.2
 post_height = 9.0
-overview_height = 60.0
-overview_size = 58.0
+overview_height = 120.0
+overview_size = 116.0
