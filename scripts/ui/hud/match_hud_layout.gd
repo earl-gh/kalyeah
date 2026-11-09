@@ -24,7 +24,7 @@ static func apply(hud: MatchHud) -> void:
 		hud.sync_plate_column()
 	if hud.street_pad != null and not hud.landscape:
 		hud._place(hud.street_pad, Vector4(0, 1, 1, 1), Vector4(0, -hud.console_height(), 0, -hud.bottom_inset))
-	if hud.score_column != null:
+	if hud.score_column != null and not hud.landscape:
 		# Tumbang Preso's points: a column on the left sidewalk under the header
 		hud._place(hud.score_column, Vector4(0, 0, 0, 0), Vector4(4.0, hud.header_height() + MatchHud.SCORE_COLUMN_GAP, 4.0 + ScoreColumn.WIDTH, hud.header_height() + MatchHud.SCORE_COLUMN_GAP + ScoreColumn.ROW_HEIGHT * 8.0))
 	if hud.chat != null:
@@ -53,6 +53,8 @@ static func _apply_landscape(hud: MatchHud) -> void:
 		item.pivot_offset = pivot - item.position
 		item.scale = Vector2.ONE * HudStyle.HEADER_SCALE
 	var header_bottom: float = hud.top_inset + MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y * HudStyle.HEADER_SCALE
+	if hud.score_column != null:
+		header_bottom = maxf(header_bottom, _place_score_row(hud))
 	# the role lines and the hints stand right under the score, over the sky and the roofs: off your kid (the lower middle) and off the far end
 	# of the street, where the far kids' tags are (round 2 of the audit); the tag toast pops in under them for its two seconds
 	var words_top: float = header_bottom + HudStyle.WORDS_GAP
@@ -77,3 +79,16 @@ static func _apply_landscape(hud: MatchHud) -> void:
 		hud._place(hud.stick, Vector4(0, 0, 1, 1), Vector4.ZERO)
 		hud.stick.inset = Vector2(hud.side_insets.x, hud.bottom_inset)
 		hud.stick.cancel()
+
+
+## Tumbang Preso's and Langit Lupa's points in the landscape match (owner, 2026-11-09): the kids' cards in a row at the top centre, half on
+## each side of the clock (3, the clock, 3), at the header's scale round the middle of the header's row. Returns the row's bottom (UI pixels).
+static func _place_score_row(hud: MatchHud) -> float:
+	var clock: float = Scoreboard.middle_rect(MatchHud.SCORE_SIZE, MatchHud.CLOCK_GAP).size.x
+	hud.score_column.set_row(clock + MatchHud.SCORE_ROW_GAP * 2.0)
+	var width: float = hud.score_column.row_width()
+	var top: float = hud.top_inset + MatchHud.TOP_ROW_Y
+	hud._place(hud.score_column, Vector4(0.5, 0, 0.5, 0), Vector4(-width / 2.0, top, width / 2.0, top + ScoreColumn.ROW_HEIGHT))
+	hud.score_column.pivot_offset = Vector2(width / 2.0, 0.0)
+	hud.score_column.scale = Vector2.ONE * HudStyle.HEADER_SCALE
+	return top + ScoreColumn.ROW_HEIGHT * HudStyle.HEADER_SCALE

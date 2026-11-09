@@ -161,3 +161,30 @@ func test_the_main_buttons_charge_stays_inside_the_shared_rim() -> void:
 		for point: Vector2 in points:
 			assert_lte(point.length(), 56.0 - HudStyle.WHITE_RIM_WIDTH / 2.0 + 0.001, "inside the rim at %.1f" % share)
 	assert_eq(HudStyle.sweep_points(Vector2.ZERO, 56.0, 0.0).size(), 0, "no charge, no sweep")
+
+
+## Tumbang Preso's points (owner, 2026-11-09): the kids' cards in a row at the top centre, three, the clock, three; the words stand under them.
+func test_tumbang_presos_points_are_a_row_at_the_top_centre_three_each_side_of_the_clock() -> void:
+	var practice: PracticeMatch = _practice(&"tumbang_preso")
+	var hud: MatchHud = practice.hud
+	var column: ScoreColumn = hud.score_column
+	assert_gte(column.row_gap, 0.0, "a row, not the portrait column")
+	var clock: Rect2 = Rect2(hud.clock_chip.get_global_transform() * Vector2.ZERO, hud.clock_chip.size * hud.clock_chip.get_global_transform().get_scale())
+	var ids: Array[int] = column.order()
+	assert_eq(ids.size(), practice.sim.players.size(), "a card per kid")
+	assert_eq(column.left_count(), ceili(ids.size() / 2.0))
+	var row_top: float = -1.0
+	for index: int in ids.size():
+		var card: Control = column.get_node("Row%d" % ids[index]) as Control
+		var place: Rect2 = Rect2(column.get_global_transform() * column.target_of(ids[index]), card.size * column.get_global_transform().get_scale())
+		if index < column.left_count():
+			assert_lte(place.end.x, clock.position.x + 0.5, "card %d on the clock's left" % index)
+		else:
+			assert_gte(place.position.x, clock.end.x - 0.5, "card %d on the clock's right" % index)
+		if row_top < 0.0:
+			row_top = place.position.y
+		assert_almost_eq(place.position.y, row_top, 0.5, "one row")
+	assert_almost_eq((column.get_global_transform() * Vector2(column.row_width() / 2.0, 0.0)).x, hud.size.x / 2.0, 1.0, "centred")
+	assert_almost_eq(clock.get_center().x, hud.size.x / 2.0, 1.0, "the clock in the middle of it")
+	var bottom: float = (column.get_global_transform() * Vector2(0.0, ScoreColumn.ROW_HEIGHT)).y
+	assert_gte(hud.street_pad.title_label.get_global_rect().position.y, bottom - 0.5, "the role line stands under the cards")

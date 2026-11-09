@@ -62,6 +62,8 @@ const CONSOLE_HEIGHT: float = 255.0
 const STREET_TRAY: float = CONSOLE_HEIGHT
 ## Tumbang Preso's score column stands on the left sidewalk this far under the header, and the quick chat button (top right) is this big.
 const SCORE_COLUMN_GAP: float = 14.0
+## In the landscape row the kids' cards stand this far from the clock on each side.
+const SCORE_ROW_GAP: float = 12.0
 const STREET_CHAT_SIZE: float = 84.0
 ## The most the bottom inset can add (a tall gesture bar), so the tray never eats the street.
 const MAX_BOTTOM_INSET: float = 80.0
