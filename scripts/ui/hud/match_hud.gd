@@ -108,6 +108,12 @@ var landscape: bool = false
 ## The landscape joystick and minimap (null in the portrait layout).
 var stick: MoveStick
 var minimap: StreetMinimap
+## The shoulder view (docs/GDD.md "Shoulder view"): a drag on the right of the screen turns the view, and the crosshair in the middle is where
+## the cards go. `look` exists in every landscape match (the camera ignores it unless it is the shoulder camera); the crosshair only in the
+## shoulder view (`set_shoulder`).
+var look: LookTouch
+var crosshair: Crosshair
+var shoulder: bool = false
 ## The safe area's left and right insets (UI pixels: a notch on a phone on its side), set by the match screen.
 var side_insets: Vector2 = Vector2.ZERO
 ## The ring where your kid is walking to.
@@ -234,6 +240,8 @@ func set_controls_active(active: bool) -> void:
 	hand.set_process_input(active)
 	if stick != null:
 		stick.set_process_input(active)
+	if look != null:
+		look.set_process_unhandled_input(active)
 	street_pad.set_process_input(active)
 	street.set_process_unhandled_input(active)
 
@@ -243,6 +251,8 @@ func cancel_controls() -> void:
 	hand.cancel_hold()
 	if stick != null:
 		stick.cancel()
+	if look != null:
+		look.release()
 	street_pad.cancel()
 	street.release()
 
@@ -313,6 +323,13 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 		stick.visible = shown
 		if not playing:
 			stick.cancel()
+	if look != null:
+		look.active = playing and shoulder
+		if not look.active:
+			look.release()
+	if crosshair != null:
+		crosshair.visible = shown
+		crosshair.held = hand.holding()
 	if not playing or landscape:
 		street.release()
 	for slot: int in _no_target.size():
@@ -527,6 +544,8 @@ func _build() -> void:
 		add_child(stick)
 		minimap = StreetMinimap.new()
 		add_child(minimap)
+		look = LookTouch.new()
+		add_child(look)
 	hand = AbilityArc.new() if landscape else CardHand.new()
 	add_child(hand)
 	street_pad = StreetGamePad.new()
@@ -579,6 +598,18 @@ func _build() -> void:
 	feedback = MatchFeedback.new()
 	add_child(feedback)
 	feedback.return_home.connect(exit_pressed.emit)
+
+
+## The shoulder view: the crosshair shows and a card held turns the view instead of aiming from its button. Call before the first frame.
+func set_shoulder(on: bool) -> void:
+	shoulder = on and landscape
+	if shoulder and crosshair == null:
+		crosshair = Crosshair.new()
+		add_child(crosshair)
+		move_child(crosshair, overhead.get_index() + 1)  # over the street and the bars, under the controls
+	if hand is AbilityArc:
+		(hand as AbilityArc).shoulder = shoulder
+	layout_controls()
 
 
 ## The safe area's insets on a phone on its side (UI pixels): the notch at the left or the right, the home bar at the bottom.

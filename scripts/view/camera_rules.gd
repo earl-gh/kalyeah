@@ -48,6 +48,30 @@ const AXIS_SNAP: float = 0.000001
 @export var follow_lag: float = 0.0
 ## How far past the street's edges (metres: the sidewalks, the end props) the followed view may show before it stops scrolling.
 @export var follow_edge: float = 0.0
+## Third-person shoulder camera (owner, 2026-11-09: the players' point of view like the third-person hero shooters, Marvel Rivals and Deadlock;
+## docs/GDD.md "Shoulder view"): a perspective camera behind and a little to the right of your kid, looking where you look (a drag on the right
+## of the screen turns it), with a crosshair in the middle of the screen that the cards are cast at. It takes over from `follow`.
+@export var third_person: bool = false
+## The point the camera turns round: this high above your kid's feet (metres, for a kid drawn `kid_view_scale` times its size).
+@export var shoulder_height: float = 3.0
+## How far behind that point the camera stands, and how far to its right (the kid stands left of the crosshair, not under it).
+@export var shoulder_distance: float = 6.5
+@export var shoulder_offset: float = 1.1
+## The lens: vertical field of view (degrees), and how near the camera it starts drawing (metres): a sidewalk prop or a wall closer than
+## this (less than the way to your kid) is cut away instead of filling the screen.
+@export var shoulder_fov: float = 75.0
+@export var shoulder_near: float = 0.3
+## How far down the view looks at the start (degrees below level), and the most it may look down and up (up is negative).
+@export var look_pitch_degrees: float = 12.0
+@export var look_pitch_max: float = 60.0
+@export var look_pitch_min: float = -20.0
+## How many degrees the view turns for each UI pixel a finger drags.
+@export var look_sensitivity: float = 0.25
+## Where the crosshair's ray meets nothing (looking over the horizon) the card goes this far along the view (metres).
+@export var aim_reach: float = 12.0
+## The camera never leaves the street and its sidewalks: it stays this far past the street's edges and ends at most (metres), so it never
+## stands inside a house or the end props.
+@export var shoulder_bounds_edge: float = 2.5
 ## How long (s) the street takes to swing half way round when your view changes ends during a match (Tumbang Preso: becoming or no longer
 ## being the taya). It eases in and out; Reduce motion cuts instead.
 @export var turn_seconds: float = 0.8
@@ -177,3 +201,20 @@ func follow_aim(point: Vector2, arena: Vector2, view_size: float, aspect: float,
 		var room: float = maxf(0.0, reach - seen[i])
 		aim += axis * clampf(point.dot(axis), -room, room)
 	return aim
+
+
+## The shoulder camera's pose: for your kid's feet at `feet` (sim XZ) and a view turned `yaw` degrees (0 = looking down -Z) and tilted `pitch`
+## degrees down, where the camera stands (kept inside the street and its sidewalks: `arena` x, z extents) and its rotation in degrees.
+func shoulder_pose(feet: Vector2, yaw: float, pitch: float, arena: Vector2) -> Array[Vector3]:
+	var rotation: Vector3 = Vector3(-pitch, yaw, 0.0)
+	var basis: Basis = Basis.from_euler(rotation * (PI / 180.0))
+	var pivot: Vector3 = Vector3(feet.x, shoulder_height, feet.y)
+	var at: Vector3 = pivot + basis.z * shoulder_distance + basis.x * shoulder_offset
+	var half: Vector2 = arena / 2.0 + Vector2.ONE * shoulder_bounds_edge
+	at = Vector3(clampf(at.x, -half.x, half.x), maxf(at.y, 0.5), clampf(at.z, -half.y, half.y))
+	return [at, rotation]
+
+
+## The look's pitch kept inside its limits.
+func clamp_pitch(pitch: float) -> float:
+	return clampf(pitch, look_pitch_min, look_pitch_max)

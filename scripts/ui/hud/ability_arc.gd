@@ -49,6 +49,13 @@ var next_center: Vector2 = Vector2.ZERO
 var corner: Vector2 = Vector2.ZERO
 var cancel_center: Vector2 = Vector2.ZERO
 var _press_at: Vector2 = Vector2.ZERO
+## Shoulder view (docs/GDD.md "Shoulder view"): a card is cast at the crosshair, so a finger dragged while holding one turns the view
+## (`look_dragged`) instead of aiming from the button.
+var shoulder: bool = false
+var _last_finger: Vector2 = Vector2.ZERO
+
+## Shoulder view: the finger holding a card moved this far (UI pixels): the view turns with it.
+signal look_dragged(drag: Vector2)
 
 
 func _init() -> void:
@@ -108,9 +115,13 @@ func held_card_rect() -> Rect2:
 
 
 func _press(pointer: int, viewport_position: Vector2) -> void:
+	var on_button: bool = active and is_visible_in_tree() and held_slot < 0 and slot_at(_local(viewport_position)) >= 0
 	super(pointer, viewport_position)
+	if on_button and is_inside_tree():
+		get_viewport().set_input_as_handled()  # a press on a button never turns the view behind it
 	if held_slot >= 0:
 		_press_at = finger
+		_last_finger = finger
 		aim_way = Vector2.ZERO
 		over_hand = false
 
@@ -120,7 +131,12 @@ func _move(viewport_position: Vector2) -> void:
 	if held_slot < 0:
 		return
 	finger = _local(viewport_position)
-	aim_way = way_for(held_slot, finger)
+	if shoulder:
+		look_dragged.emit(finger - _last_finger)
+		_last_finger = finger
+		aim_way = Vector2.ZERO
+	else:
+		aim_way = way_for(held_slot, finger)
 	on_card = aim_way == Vector2.ZERO and not over_hand and finger.distance_to(_press_at) <= AIM_DEADZONE
 	over_hand = _over_hand(finger)
 	if over_hand:

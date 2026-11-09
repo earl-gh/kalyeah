@@ -15,6 +15,10 @@ const VIEW: Color = Color(1.0, 1.0, 1.0, 0.85)
 const DOT_RADIUS: float = 5.0
 const SELF_RADIUS: float = 6.5
 const TAGGED_ALPHA: float = 0.4
+## The shoulder view's cone: where you look, this long (pixels) and this wide each side (radians).
+const CONE: Color = Color(1.0, 1.0, 1.0, 0.35)
+const CONE_LENGTH: float = 34.0
+const CONE_HALF: float = 0.5
 
 ## The ground ways (sim XZ) that point right and up on the screen now (ArenaCamera.ground_axes), the arena's size (x, z), and the street
 ## rect the camera shows (in the same turned frame: centre u, v and half sizes), set by `show_state()`.
@@ -24,6 +28,9 @@ var view_center: Vector2 = Vector2.ZERO
 var view_half: Vector2 = Vector2.ZERO
 ## What is drawn: each kid's [position, colour, tagged, is you], and each base's [rect corners, colour].
 var dots: Array[Array] = []
+## The shoulder view: where you look (sim XZ, unit; zero: no cone), drawn as a cone from your dot, and your dot's turned position.
+var look_way: Vector2 = Vector2.ZERO
+var _self: Vector2 = Vector2.ZERO
 var bases: Array[Array] = []
 
 
@@ -34,8 +41,10 @@ func _ready() -> void:
 
 ## Reads the sim: the kids and the bases, turned like the camera (`ground_axes`); `view_center` (sim XZ) and `view_size` (metres across and
 ## along the ground up the screen) are what the camera shows.
-func show_state(sim: MatchSim, local_id: int, local_team: int, ground_axes: Array[Vector2], view_center_xz: Vector2, view_size: Vector2) -> void:
+func show_state(sim: MatchSim, local_id: int, local_team: int, ground_axes: Array[Vector2], view_center_xz: Vector2, view_size: Vector2,
+		look: Vector2 = Vector2.ZERO) -> void:
 	axes = ground_axes
+	look_way = look
 	arena = Vector2(sim.layout.lane_width, sim.layout.lane_length)
 	view_center = turned(view_center_xz)
 	view_half = view_size / 2.0
@@ -44,6 +53,8 @@ func show_state(sim: MatchSim, local_id: int, local_team: int, ground_axes: Arra
 		var state: PlayerState = sim.players[id]
 		var color: Color = TeamColors.bar_self() if id == local_id else (TeamColors.score_own() if state.team == local_team else TeamColors.score_enemy())
 		dots.append([turned(state.position), color, state.tagged, id == local_id])
+		if id == local_id:
+			_self = turned(state.position)
 	bases.clear()
 	if sim.mode == null:
 		for team: int in [local_team, 1 - local_team]:
@@ -87,6 +98,11 @@ func _draw() -> void:
 			color.a = TAGGED_ALPHA
 		var you: bool = dot[3] as bool
 		draw_circle(to_map(dot[0] as Vector2), SELF_RADIUS if you else DOT_RADIUS, color)
+	if look_way != Vector2.ZERO:
+		var from: Vector2 = to_map(_self)
+		var way: Vector2 = turned(look_way).normalized()
+		var reach: float = CONE_LENGTH
+		draw_colored_polygon(PackedVector2Array([from, from + way.rotated(-CONE_HALF) * reach, from + way.rotated(CONE_HALF) * reach]), CONE)
 	if view_half != Vector2.ZERO:
 		var low: Vector2 = to_map(view_center - view_half)
 		var high: Vector2 = to_map(view_center + view_half)

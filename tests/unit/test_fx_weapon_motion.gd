@@ -3,6 +3,8 @@ extends GutTest
 ## snip, the slipper spins and comes back, the marble bounces, the top wobbles on its tip, the can tumbles to its circle, the
 ## trap and jacks land and the walls rise and fall. Reduce motion keeps the travel and drops the motion. Facts, not pixels.
 
+const TOP_DOWN_MATCH: GDScript = preload("res://tests/fixtures/top_down_match.gd")  # these tests measure the screen from above
+
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const DT: float = 1.0 / 30.0
 
@@ -13,12 +15,14 @@ var _fx: WeaponFxView
 
 
 func before_each() -> void:
+	TOP_DOWN_MATCH.use(true)
 	_rules = load("res://data/rules/game_rules.tres") as GameRules
 	_motion = Settings.reduced_motion
 	Settings.reduced_motion = false
 
 
 func after_each() -> void:
+	TOP_DOWN_MATCH.use(false)
 	Settings.reduced_motion = _motion
 
 

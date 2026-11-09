@@ -48,6 +48,7 @@ func _init(owner: PracticeMatch) -> void:
 
 
 func setup_hud() -> void:
+	owner.hud.set_shoulder(owner._camera.rules.third_person)
 	owner.input.tap_time = owner.sim.rules.card_tap_time
 	owner.input.follow_hold = owner.sim.rules.move_follow_hold
 	owner.hud.console_height_changed.connect(func(height: float) -> void: owner._camera.bottom_reserve_px = height)
@@ -113,6 +114,10 @@ func connect_hud() -> void:
 	owner.hud.street.move_released.connect(owner.move_released)
 	if owner.hud.stick != null:
 		owner.hud.stick.knob_moved.connect(owner.knob_moved)
+	if owner.hud.look != null:
+		owner.hud.look.look_dragged.connect(owner._camera.look)
+	if owner.hud.hand is AbilityArc:
+		(owner.hud.hand as AbilityArc).look_dragged.connect(owner._camera.look)
 	owner.hud.menu.set_practice(not owner.online, Net.host != null, Session.practice_kind == &"match")
 	owner.hud.again_button.text = "Return home" if owner.online else "Practice again"
 	owner.hud.again_pressed.connect(_on_again_pressed)
@@ -300,6 +305,9 @@ static func cast_lead(sim: MatchSim, weapon: StringName) -> float:
 func _keep_vignette_behind_the_top_boundary() -> void:
 	if _film == null:
 		return
+	if owner._camera.rules.follow or owner._camera.rules.third_person:
+		_film.clear_above(0.0)  # only the fixed whole-street camera has the top boundary at a fixed height on the screen
+		return
 	var layout: MapLayout = owner.layout
 	var z: float = StreetMap.top_end(owner.shown_side()) * (layout.lane_length / 2.0 + StreetMap.BARRIER_SETBACK)
 	var height: float = maxf(owner.get_viewport().get_visible_rect().size.y, 1.0)
@@ -337,7 +345,13 @@ func sync(delta: float) -> void:
 		_near_side = owner._camera.near_side()
 		owner._map.hide_near_houses(_near_side)
 	if owner.hud.minimap != null:
-		owner.hud.minimap.show_state(owner.sim, owner.local_id, owner.local_team, owner._camera.ground_axes(), owner._camera.aim_point(), owner._camera.view_ground_size())
+		var rules: CameraRules = owner._camera.rules
+		if rules.third_person:
+			# the shoulder camera turns all the time: the minimap stays still, the street left to right with your end at the left, and a cone shows where you look
+			var still: Array[Vector2] = CameraRules.ground_axes(rules.yaw_degrees(owner._flip()))
+			owner.hud.minimap.show_state(owner.sim, owner.local_id, owner.local_team, still, Vector2.ZERO, Vector2.ZERO, owner._camera.ground_axes()[1])
+		else:
+			owner.hud.minimap.show_state(owner.sim, owner.local_id, owner.local_team, owner._camera.ground_axes(), owner._camera.aim_point(), owner._camera.view_ground_size())
 	# Tumbang Preso's taya turn swings the street round; Patintero's role switch cuts
 	owner._camera.place(owner.own_side() == MapLayout.SIDE_ENEMY, owner.sim.mode is TumbangPreso)
 	if owner.sim.phase == MatchSim.Phase.INTRO:

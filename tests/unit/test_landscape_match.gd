@@ -4,6 +4,7 @@ extends GutTest
 ## round ability arc under the right thumb aimed by dragging from the button, and a minimap shows the whole street. The map keeps its 1:2 shape.
 ## Seam: Settings.set_landscape, CameraRules.follow_aim / ground_way, ArenaCamera (follow), MoveStick, AbilityArc, StreetMinimap, PracticeMatch.
 
+const TOP_DOWN_MATCH: GDScript = preload("res://tests/fixtures/top_down_match.gd")
 const PRACTICE: PackedScene = preload("res://scenes/match/practice.tscn")
 const CAMERA: CameraRules = preload("res://data/rules/camera_rules.tres")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
@@ -15,13 +16,17 @@ const SCREENS: Array[Vector2] = [Vector2(1280.0, 720.0), Vector2(1560.0, 720.0)]
 var _kind: StringName
 
 
+## These tests pin the top-down follow camera (`CameraRules.follow`); the shoulder view that is on by default has its own tests
+## (test_shoulder_view.gd).
 func before_each() -> void:
 	_kind = Session.practice_kind
 	Session.practice_kind = &"match"
+	TOP_DOWN_MATCH.use(true)
 
 
 func after_each() -> void:
 	Session.practice_kind = _kind
+	TOP_DOWN_MATCH.use(false)
 
 
 func _practice() -> PracticeMatch:

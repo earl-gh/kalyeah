@@ -89,7 +89,7 @@ var _sfx: SfxView
 ## portrait match): set before the HUD lays itself out.
 func _enter_tree() -> void:
 	var camera: ArenaCamera = get_node_or_null("ArenaCamera") as ArenaCamera
-	Settings.set_landscape(camera == null or camera.rules == null or camera.rules.follow)
+	Settings.set_landscape(camera == null or camera.rules == null or camera.rules.follow or camera.rules.third_person)
 
 
 func _ready() -> void:
@@ -250,6 +250,11 @@ func card_pressed(slot: int) -> void:
 
 ## The held card's finger is at screen point `at` (on its own card, over the hand).
 func card_moved(slot: int, at: Vector2, on_card: bool, over_hand: bool) -> void:
+	if hud.hand is AbilityArc and _camera.rules.third_person:
+		# the shoulder view: the card goes where the crosshair is (the finger turns the view), a tap too; the X puts it back
+		var cancel: bool = over_hand and not on_card
+		input.card_drag(false, null if cancel else crosshair_point(), true)
+		return
 	if hud.hand is AbilityArc:
 		# Wild Rift aiming: the drag from the button is the way and share of the card's range from the kid; a tap or the cancel button aims nowhere
 		var aim: Variant = null if over_hand or on_card else arc_aim_point(slot, (hud.hand as AbilityArc).aim_way)
@@ -260,6 +265,21 @@ func card_moved(slot: int, at: Vector2, on_card: bool, over_hand: bool) -> void:
 
 
 ## The held card was let go at screen point `at`: a cast there, a tap, or a drop back on the hand (MatchInput decides).
+## The shoulder view: the street point under the crosshair, kept inside the street. Looking over the horizon (or so far the point is past the
+## street) the card goes `CameraRules.aim_reach` metres along the view from the kid instead.
+func crosshair_point() -> Vector2:
+	var state: PlayerState = sim.players.get(local_id) as PlayerState
+	var from: Vector2 = state.position if state != null else Vector2.ZERO
+	var hit: Variant = street_point(_camera.crosshair())
+	var lane: Rect2 = layout.lane_rect()
+	var point: Vector2
+	if hit is Vector2 and lane.grow(_camera.rules.shoulder_bounds_edge).has_point(hit as Vector2):
+		point = hit as Vector2
+	else:
+		point = from + _camera.ground_axes()[1] * _camera.rules.aim_reach
+	return point.clamp(lane.position, lane.end)
+
+
 ## The street point a drag of `way` (screen, at most 1 long) on the ability arc aims the card in `slot` at: that share of the card's range from
 ## your kid, along that way on the street, kept inside the street.
 func arc_aim_point(slot: int, way: Vector2) -> Vector2:
@@ -491,6 +511,9 @@ func _local_input(tick: int) -> PlayerInput:
 		_stop_tilt()
 		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_AIM_CANCEL, tick)
 	steer_by_tilt(TiltInput.gravity())
+	if _camera.rules.third_person and input.card_held() and input.over_street:
+		# the shoulder view: a held card follows the crosshair every tick (the kid walks, the view turns), not only when the finger moves
+		input.card_drag(false, crosshair_point(), true)
 	return input.build(tick)
 
 

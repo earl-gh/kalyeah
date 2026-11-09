@@ -17,3 +17,6 @@ follow = true
 follow_view_size = 20.0
 follow_lag = 0.15
 follow_edge = 4.0
+third_person = true
+shoulder_bounds_edge = 0.5
+shoulder_near = 3.5

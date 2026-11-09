@@ -12,10 +12,12 @@ static func use(on: bool) -> void:
 	var rules: CameraRules = RULES
 	if on:
 		if _saved.is_empty():
-			_saved = {"follow": RULES.follow, "yaw": RULES.yaw_offset_degrees}
+			_saved = {"follow": RULES.follow, "yaw": RULES.yaw_offset_degrees, "third_person": RULES.third_person}
 		rules.follow = false
+		rules.third_person = false
 		rules.yaw_offset_degrees = 0.0
 	elif not _saved.is_empty():
 		rules.follow = _saved["follow"] as bool
 		rules.yaw_offset_degrees = _saved["yaw"] as float
+		rules.third_person = _saved["third_person"] as bool
 		_saved = {}

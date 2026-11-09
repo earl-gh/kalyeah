@@ -58,6 +58,8 @@ static func _apply_landscape(hud: MatchHud) -> void:
 		# of a notch on the left
 		var at: Vector2 = Vector2(MatchHud.MARGIN * 2.0 + MatchHud.GEAR_SIZE + hud.side_insets.x, hud.top_inset + MatchHud.TOP_ROW_Y)
 		hud._place(hud.minimap, Vector4(0, 0, 0, 0), Vector4(at.x, at.y, at.x + StreetMinimap.SIZE.x, at.y + StreetMinimap.SIZE.y))
+	if hud.look != null:
+		hud.look.zone_left = hud.size.x * MoveStick.ZONE_SHARE
 	if hud.stick != null:
 		hud._place(hud.stick, Vector4(0, 0, 1, 1), Vector4.ZERO)
 		hud.stick.inset = Vector2(hud.side_insets.x, hud.bottom_inset)
