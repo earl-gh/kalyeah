@@ -1,12 +1,16 @@
 class_name ScoreColumn
 extends Control
-## Tumbang Preso's and Langit Lupa's points (every kid plays for itself): a column on the left sidewalk, the kid's character card with its points under it, the
+## Tumbang Preso's and Langit Lupa's points (every kid plays for itself): a column on the left sidewalk, the kid's square chest-up card with its points under it, the
 ## kid with the most at the top. When the points change the rows slide to their new places (and the number pops); with Reduce motion they jump.
 ## The taya's card has a red rim and yours a gold one. Display only; it never takes a touch. (Patintero has two teams and uses the score cards
 ## at the top centre, like Agawang Base.)
 
-## One row: the character card (the 1.75:2.5 picture of the Book's Kids) and the number under it.
-const CARD: Vector2 = Vector2(46.0, 66.0)
+## One row: the kid's card and the number under it. The card is square (owner, 2026-11-09): a close-up of the kid from the chest up, cut
+## from the owner's 3:4 close-up picture (`KidModel.card_face`): its full width, starting `CHEST_UP_TOP` of its height down.
+const CARD: Vector2 = Vector2(56.0, 56.0)
+const CHEST_UP_TOP: float = 0.1
+## Each kid's square, made once (the column asks for it on every update).
+static var _squares: Dictionary[StringName, Texture2D] = {}
 const ROW_HEIGHT: float = 114.0
 const WIDTH: float = 64.0
 const SLIDE_TIME: float = 0.35
@@ -171,10 +175,22 @@ func _make_row(state: PlayerState) -> void:
 	face.move_child(picture, 0)  # under the rim
 
 
-## The kid's character card picture (the Book's), or its portrait when a card has no picture.
+## The kid's square chest-up card: the top of the owner's 3:4 close-up cut to a square; a kid without one shows its standing portrait.
 static func _card(character_id: StringName) -> Texture2D:
-	var art: Texture2D = CharactersPage.card_picture(character_id)
-	return art if art != null else KidModel.portrait(character_id)
+	if not _squares.has(character_id):
+		var close_up: Texture2D = KidModel.card_face(character_id)
+		_squares[character_id] = chest_up(close_up) if close_up != null else KidModel.portrait(character_id)
+	return _squares[character_id]
+
+
+## The square from the top of `picture` (its full width, from `CHEST_UP_TOP` of its height down): the kid's face and chest.
+static func chest_up(picture: Texture2D) -> AtlasTexture:
+	var size: Vector2 = picture.get_size()
+	var side: float = minf(size.x, size.y)
+	var square: AtlasTexture = AtlasTexture.new()
+	square.atlas = picture
+	square.region = Rect2(Vector2((size.x - side) / 2.0, minf(size.y * CHEST_UP_TOP, size.y - side)), Vector2(side, side))
+	return square
 
 
 ## One row: a character card with a rim round it (the rim shows who is the taya and who is you) and the points under it, kept under `key`.

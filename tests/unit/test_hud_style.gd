@@ -188,3 +188,21 @@ func test_tumbang_presos_points_are_a_row_at_the_top_centre_three_each_side_of_t
 	assert_almost_eq(clock.get_center().x, hud.size.x / 2.0, 1.0, "the clock in the middle of it")
 	var bottom: float = (column.get_global_transform() * Vector2(0.0, ScoreColumn.ROW_HEIGHT)).y
 	assert_gte(hud.street_pad.title_label.get_global_rect().position.y, bottom - 0.5, "the role line stands under the cards")
+
+
+## The kids' cards in the points are squares showing the kid from the chest up (owner, 2026-11-09), cut from the owner's 3:4 close-ups.
+func test_the_point_cards_are_square_chest_up_close_ups() -> void:
+	assert_eq(ScoreColumn.CARD.x, ScoreColumn.CARD.y, "square")
+	var practice: PracticeMatch = _practice(&"tumbang_preso")
+	var column: ScoreColumn = practice.hud.score_column
+	for id: int in column.order():
+		var picture: TextureRect = column.get_node("Row%d/Face/Card" % id) as TextureRect
+		var face: Control = column.get_node("Row%d/Face" % id) as Control
+		assert_eq(face.size.x, face.size.y, "kid %d: a square card" % id)
+		var square: AtlasTexture = picture.texture as AtlasTexture
+		assert_not_null(square, "kid %d: cut from its close-up" % id)
+		var close_up: Texture2D = KidModel.card_face(practice.sim.players[id].character_id)
+		assert_eq(square.atlas, close_up, "the owner's 3:4 close-up of that kid")
+		assert_eq(square.region.size.x, square.region.size.y, "a square of it")
+		assert_almost_eq(square.region.position.y, close_up.get_height() * ScoreColumn.CHEST_UP_TOP, 0.5, "from near its top: face and chest")
+		assert_eq(square.region.size.x, float(close_up.get_width()), "its full width")
