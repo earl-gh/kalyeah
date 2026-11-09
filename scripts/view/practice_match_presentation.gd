@@ -346,14 +346,6 @@ func sync(delta: float) -> void:
 	if owner._camera.near_side() != _near_side:
 		_near_side = owner._camera.near_side()
 		owner._map.hide_near_houses(_near_side)
-	if owner.hud.minimap != null:
-		var rules: CameraRules = owner._camera.rules
-		if rules.third_person:
-			# the shoulder camera turns all the time: the minimap stays still, the street left to right with your end at the left, and a cone shows where you look
-			var still: Array[Vector2] = CameraRules.ground_axes(rules.yaw_degrees(owner._flip()))
-			owner.hud.minimap.show_state(owner.sim, owner.local_id, owner.local_team, still, Vector2.ZERO, Vector2.ZERO, owner._camera.ground_axes()[1])
-		else:
-			owner.hud.minimap.show_state(owner.sim, owner.local_id, owner.local_team, owner._camera.ground_axes(), owner._camera.aim_point(), owner._camera.view_ground_size())
 	# Tumbang Preso's taya turn swings the street round; Patintero's role switch cuts
 	owner._camera.place(owner.own_side() == MapLayout.SIDE_ENEMY, owner.sim.mode is TumbangPreso)
 	if owner.sim.phase == MatchSim.Phase.INTRO:

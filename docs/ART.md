@@ -55,7 +55,7 @@ The current art is a first pass built **in code**: procedural meshes and vector 
 
 ## Landscape match (owner, 2026-11-09; docs/GDD.md "Landscape layout")
 - **Ability arc:** each card is a round button that shows the middle 78% of the owner's card picture (`assets/ui/skill_cards/<id>.webp`) cut to a circle in code (`AbilityArc._draw_round_texture`), with a gold rim (white while held), the ice water cost drop at its foot and a dark clockwise sweep while the bar has not reached its cost. No new art. If the owner wants buttons made for the circle, they would be **2D images** (a round icon per weapon, square with alpha); the code does not read such files yet.
-- **Joystick and minimap** are drawn in code (navy base, white rim and thumb; a navy panel with the street in grey and team-coloured dots). Stand-ins: owner art for them would be **2D images**.
+- **The joystick** is drawn in code (white rim and thumb). A stand-in: owner art for it would be a **2D image**. (The minimap is gone: owner, 2026-11-09.)
 - **The camera looks across the street now**, so the row of buildings on its side is left out (`StreetMap.hide_near_houses`). The end-of-street pictures (`assets/textures/boundary/`: fishball cart, tin fence, jeepney, crates, tyres, e-trike) still lean back toward a camera that looked down the street: seen from the side now, they show turned a quarter at the left and right ends of the screen (in a 1280×720 render the jeepney and the tin fence lie on their sides at the right end). Not fixed here: they need the owner's call (turn the pictures to face the new camera, or make them **Blender models**, since they are now seen from the side).
 
 ## Street textures (Pillow)

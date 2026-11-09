@@ -218,12 +218,6 @@ func aim_point() -> Vector2:
 	return _aim
 
 
-## How much ground the view shows (metres): across the screen, and along the ground up the screen (the tilt lengthens it).
-func view_ground_size() -> Vector2:
-	var tall: float = view_size()
-	return Vector2(tall * screen_aspect(), tall / maxf(sin(deg_to_rad(rules.pitch_degrees)), 0.01))
-
-
 ## The side of the street the camera stands over (-1: the -X side, 1: the +X side), or 0 when it looks along the street (the fixed camera).
 func near_side() -> int:
 	if rules.third_person:

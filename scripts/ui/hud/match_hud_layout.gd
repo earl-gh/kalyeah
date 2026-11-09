@@ -71,11 +71,6 @@ static func _apply_landscape(hud: MatchHud) -> void:
 	if hud.hand is AbilityArc:
 		hud._place(hud.hand, Vector4(0, 0, 1, 1), Vector4.ZERO)
 		(hud.hand as AbilityArc).set_inset(Vector2(hud.side_insets.y, hud.bottom_inset))
-	if hud.minimap != null:
-		# top left, beside the settings button on the header's row (Tumbang Preso's points column stands under the header at the left), clear
-		# of a notch on the left
-		var at: Vector2 = Vector2(MatchHud.MARGIN + MatchHud.GEAR_SIZE + HudStyle.EDGE + hud.side_insets.x, hud.top_inset + MatchHud.TOP_ROW_Y)
-		hud._place(hud.minimap, Vector4(0, 0, 0, 0), Vector4(at.x, at.y, at.x + StreetMinimap.SIZE.x, at.y + StreetMinimap.SIZE.y))
 	if hud.look != null:
 		hud.look.zone_left = hud.size.x * MoveStick.ZONE_SHARE
 	if hud.stick != null:

@@ -11,7 +11,7 @@ signal knob_moved(way: Vector2)
 ## The base's radius and the thumb's. The base rests `HudStyle.EDGE` in from the bottom-left corner of the safe area (`rest_center`).
 const BASE_RADIUS: float = 80.0
 const THUMB_RADIUS: float = 32.0
-## The left share of the screen whose touches move the stick, and the top band (the header, the minimap) it leaves alone.
+## The left share of the screen whose touches move the stick, and the top band (the header) it leaves alone.
 const ZONE_SHARE: float = 0.42
 const ZONE_TOP: float = 200.0
 ## A push of less than this share of the radius does not move the kid.

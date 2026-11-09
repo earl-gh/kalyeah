@@ -6,8 +6,8 @@ extends RefCounted
 
 ## The gap between the screen's edge (inside the safe area) and every control.
 const EDGE: float = 24.0
-## The header (the score and the clock) is drawn this size in landscape: the screen is 720 px tall, not 1280.
-const HEADER_SCALE: float = 0.8
+## The header (the score and the clock) is drawn this size in landscape: the screen is 720 px tall, not 1280 (owner, 2026-11-09: smaller).
+const HEADER_SCALE: float = 0.65
 
 ## The words under the score (a role line and a hint of up to two lines): their gap below the score and the room they take.
 const WORDS_GAP: float = 6.0
@@ -39,9 +39,6 @@ const WHITE_RIM_WIDTH: float = 4.0
 const WHITE_SWEEP: Color = Color(1.0, 1.0, 1.0, 0.22)
 const WORD_SHADOW: Color = Color(0.0, 0.0, 0.0, 0.35)
 const WORD_SHADOW_DROP: float = 2.0
-## A panel over the street (the minimap): navy, a little more solid than a control, with the same rim.
-const PANEL: Color = Color(0.035, 0.1, 0.27, 0.55)
-const CORNER: float = 10.0
 
 
 ## The outline width for words of `font_size`.

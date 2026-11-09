@@ -105,9 +105,8 @@ var street: StreetTouch
 ## The landscape match (Wild Rift style, docs/GDD.md "Landscape layout"): the joystick under the left thumb moves the kid, the hand is the
 ## round ability arc under the right thumb, and there is no tray. Read from `Settings.landscape` when the HUD is built.
 var landscape: bool = false
-## The landscape joystick and minimap (null in the portrait layout).
+## The landscape joystick (null in the portrait layout).
 var stick: MoveStick
-var minimap: StreetMinimap
 ## The shoulder view (docs/GDD.md "Shoulder view"): a drag on the right of the screen turns the view, and the crosshair in the middle is where
 ## the cards go. `look` exists in every landscape match (the camera ignores it unless it is the shoulder camera); the crosshair only in the
 ## shoulder view (`set_shoulder`).
@@ -465,8 +464,6 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 			item.hide()
 		if stick != null:
 			stick.hide()
-	if minimap != null:
-		minimap.visible = not hidden
 		clock_flash.cancel()
 	if covered:
 		briefing.hide()
@@ -547,8 +544,6 @@ func _build() -> void:
 	if landscape:
 		stick = MoveStick.new()
 		add_child(stick)
-		minimap = StreetMinimap.new()
-		add_child(minimap)
 		look = LookTouch.new()
 		add_child(look)
 	hand = AbilityArc.new() if landscape else CardHand.new()

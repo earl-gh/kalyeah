@@ -1,8 +1,8 @@
 extends GutTest
 ## The landscape match, Wild Rift style (owner, 2026-11-09; docs/GDD.md "Landscape layout"): the phone turns sideways, the camera follows your
 ## kid with the street running left to right (your base at the left), a joystick under the left thumb walks the kid, the four cards are a
-## round ability arc under the right thumb aimed by dragging from the button, and a minimap shows the whole street. The map keeps its 1:2 shape.
-## Seam: Settings.set_landscape, CameraRules.follow_aim / ground_way, ArenaCamera (follow), MoveStick, AbilityArc, StreetMinimap, PracticeMatch.
+## round ability arc under the right thumb aimed by dragging from the button (no minimap: owner). The map keeps its 1:2 shape.
+## Seam: Settings.set_landscape, CameraRules.follow_aim / ground_way, ArenaCamera (follow), MoveStick, AbilityArc, PracticeMatch.
 
 const TOP_DOWN_MATCH: GDScript = preload("res://tests/fixtures/top_down_match.gd")
 const PRACTICE: PackedScene = preload("res://scenes/match/practice.tscn")
@@ -76,7 +76,7 @@ func test_the_followed_view_keeps_the_kid_in_the_middle_and_stops_at_the_ends_of
 
 # ---- the match --------------------------------------------------------------------
 
-func test_a_match_is_landscape_with_a_joystick_an_ability_arc_a_minimap_and_no_tray_and_leaving_turns_it_back() -> void:
+func test_a_match_is_landscape_with_a_joystick_an_ability_arc_and_no_tray_and_leaving_turns_it_back() -> void:
 	var practice: PracticeMatch = _practice()
 	assert_true(Settings.landscape, "the match turned the phone sideways")
 	assert_eq(get_window().content_scale_size, Settings.LANDSCAPE_BASE)
@@ -84,7 +84,6 @@ func test_a_match_is_landscape_with_a_joystick_an_ability_arc_a_minimap_and_no_t
 	assert_true(hud.landscape)
 	assert_true(hud.hand is AbilityArc, "the cards are the round ability arc")
 	assert_not_null(hud.stick, "a joystick")
-	assert_not_null(hud.minimap, "a minimap")
 	assert_false(hud.console.visible, "no tray")
 	assert_eq(hud.console_height(), 0.0)
 	assert_true(hud.stick.active, "the joystick takes touches while you play")
@@ -157,7 +156,7 @@ func test_a_finger_outside_the_joystick_zone_is_left_alone() -> void:
 	press.position = Vector2(SCREENS[0].x * 0.8, 500.0)
 	assert_false(stick.handle(press), "the right of the screen is the arc's")
 	press.position = Vector2(100.0, 60.0)
-	assert_false(stick.handle(press), "the top band is the header's and the minimap's")
+	assert_false(stick.handle(press), "the top band is the header's")
 	stick.active = false
 	press.position = Vector2(100.0, 500.0)
 	assert_false(stick.handle(press), "not while the controls are off")
@@ -237,23 +236,6 @@ func test_a_card_that_is_not_ready_cannot_be_picked_up() -> void:
 	arc.press_at(1, arc.centers[0])
 	assert_eq(arc.held_slot, -1)
 	assert_true(arc.denied(0), "it shakes")
-
-
-# ---- the minimap ------------------------------------------------------------------
-
-func test_the_minimap_shows_the_street_turned_like_the_camera_with_your_base_at_the_left() -> void:
-	var practice: PracticeMatch = _practice()
-	var minimap: StreetMinimap = practice.hud.minimap
-	assert_true(minimap.visible)
-	assert_eq(minimap.dots.size(), practice.sim.players.size(), "a dot per kid")
-	assert_eq(minimap.bases.size(), 2, "both bases in Agawang Base")
-	var own: Vector2 = minimap.to_map(minimap.turned(LAYOUT.base_center(practice.own_side())))
-	var enemy: Vector2 = minimap.to_map(minimap.turned(LAYOUT.base_center(-practice.own_side())))
-	assert_lt(own.x, enemy.x, "your base at the left, as on the screen")
-	var street: Vector2 = minimap.turned_arena()
-	assert_almost_eq(street.x / street.y, 2.0, 0.001, "the street's 1:2 shape lies on its side")
-	for corner: Vector2 in [-street / 2.0, street / 2.0]:
-		assert_true(Rect2(Vector2.ZERO, minimap.size).has_point(minimap.to_map(corner)), "the whole street is on the minimap")
 
 
 ## The first slot whose card can be cast now (-1: none). Practice deals a full bar, so normally slot 0.

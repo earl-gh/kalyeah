@@ -107,7 +107,9 @@ func test_the_street_games_controls_stand_where_the_joystick_and_the_arc_do() ->
 func test_the_header_is_smaller_and_the_words_stand_under_it_above_the_tag_toast() -> void:
 	var practice: PracticeMatch = _practice()
 	var hud: MatchHud = practice.hud
-	assert_eq(hud.scoreboard.scale, Vector2.ONE * HudStyle.HEADER_SCALE, "the score at 80%")
+	assert_eq(HudStyle.HEADER_SCALE, 0.65, "the top centre is small (owner)")
+	assert_eq(hud.scoreboard.scale, Vector2.ONE * HudStyle.HEADER_SCALE, "the score at 65%")
+	assert_null(hud.find_child("StreetMinimap", true, false), "no minimap (owner)")
 	assert_eq(hud.clock_chip.scale, Vector2.ONE * HudStyle.HEADER_SCALE, "the clock with it")
 	var score: Rect2 = hud.scoreboard.get_global_rect()
 	assert_almost_eq(score.get_center().x, hud.size.x / 2.0, 1.0, "still in the middle")

@@ -162,17 +162,6 @@ func test_looking_at_the_sky_casts_along_the_view_inside_the_street() -> void:
 	assert_gt((point - kid).dot(camera.ground_axes()[1]), 0.0, "ahead of the kid, the way it looks")
 
 
-func test_the_minimap_stays_still_and_shows_a_cone_where_you_look() -> void:
-	var practice: PracticeMatch = _practice()
-	var minimap: StreetMinimap = practice.hud.minimap
-	var before: Array[Vector2] = minimap.axes.duplicate()
-	practice._camera.look(Vector2(200.0, 0.0))
-	practice.advance(DT)
-	assert_eq(minimap.axes, before, "the minimap does not turn with the view")
-	assert_ne(minimap.look_way, Vector2.ZERO, "a cone shows where you look")
-	assert_almost_eq(minimap.look_way.distance_to(practice._camera.ground_axes()[1]), 0.0, 0.001)
-
-
 func test_a_held_card_keeps_following_the_crosshair_while_the_kid_walks_and_the_view_turns() -> void:
 	var practice: PracticeMatch = _practice()
 	var arc: AbilityArc = practice.hud.hand as AbilityArc
