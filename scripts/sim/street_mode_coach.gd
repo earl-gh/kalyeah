@@ -23,10 +23,10 @@ const SIDESTEP_ROOM: float = 3.0
 ## A stick this close to its target counts as there.
 const ARRIVED: float = 0.2
 ## The taya chases throwers this close to the can (m).
-const CHASE_RANGE: float = 12.0
+const CHASE_RANGE: float = 24.0
 ## A runner keeps this far from the middle (m) where the vertical guard stands, and the sidestep lane of a runner is this far (m) in from the street's edge.
-const MIDDLE_ROOM: float = 2.5
-const LANE_MARGIN: float = 9.0
+const MIDDLE_ROOM: float = 5.0
+const LANE_MARGIN: float = 18.0
 
 ## A Langit Lupa kid steps down from a langit, and stops looking for one, below this share of its safe time.
 const LOW_SAFE_SHARE: float = 0.35

@@ -205,6 +205,9 @@ var _posts: Dictionary[int, Node3D] = {}
 var _counts: Dictionary[int, Label3D] = {}
 ## Agawang Base's marks: the bases and the rescue areas with their countdowns (hidden in the other street games; the electric posts stay).
 var _base_marks: Array[Node3D] = []
+## The buildings along each side of the street (-1: the -X side, 1: the +X side), so the landscape camera can leave out the row between it and
+## the street (`hide_near_houses`).
+var house_rows: Dictionary[int, Array] = {-1: [], 1: []}
 
 @onready var _geometry: Node3D = %Geometry
 @onready var _camera: Camera3D = %Camera
@@ -286,6 +289,14 @@ func set_own_side(own_side: int) -> void:
 			var color: Color = tint
 			color.a = (material.get_shader_parameter("chalk") as Color).a
 			material.set_shader_parameter("chalk", color)
+
+
+## The landscape camera looks across the street from one side (`side`: -1 the -X side, 1 the +X side, 0 none): that side's buildings would
+## stand in front of the street, so they are left out; the other side's stay.
+func hide_near_houses(side: int) -> void:
+	for row: int in house_rows:
+		for house: Node3D in house_rows[row]:
+			house.visible = row != side
 
 
 ## Shows or hides Agawang Base's bases and rescue areas (Tumbang Preso and Patintero have none; the electric posts stay in their corners).
@@ -861,7 +872,8 @@ func _add_houses() -> void:
 				# its front-most part (the stools) stands at the street edge of the sidewalk, the stall behind them
 				var box: AABB = PropModel.bounds_of(id)
 				out = half_w + layout.boundary_thickness + KARINDERYA_MARGIN + (box.position.z + box.size.z) * scale_to
-			_add_prop(PropModel.make(id, Vector3.ONE * scale_to), Vector3(side * out, 0.0, z) - origin_shift, yaw)
+			var house: Node3D = _add_prop(PropModel.make(id, Vector3.ONE * scale_to), Vector3(side * out, 0.0, z) - origin_shift, yaw)
+			house_rows[int(side)].append(house)
 			variant += 1
 			z += spacing
 

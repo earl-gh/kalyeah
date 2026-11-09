@@ -2,6 +2,8 @@ extends GutTest
 ## Tumbang Preso's taya turn (owner): becoming the taya swings the street half way round (the throwers come at you from the top), eased
 ## over `CameraRules.turn_seconds`; the controls swap halfway through; no longer the taya, it swings back. Reduce motion cuts.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")  # these tests pin the portrait match
+
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const PRACTICE_TAYA: GDScript = preload("res://tests/fixtures/practice_taya.gd")
 const DT: float = 1.0 / 30.0
@@ -13,6 +15,7 @@ var _reduced: bool
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
 	_game = Session.practice_game
 	_kind = Session.practice_kind
 	_coach = Session.briefing_pending
@@ -21,6 +24,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
 	Session.practice_game = _game
 	Session.practice_kind = _kind
 	Session.briefing_pending = _coach

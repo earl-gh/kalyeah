@@ -85,6 +85,13 @@ var _sfx: SfxView
 @onready var _map: StreetMap = %Map
 
 
+## A match is played sideways with the follow camera (docs/GDD.md "Landscape layout"; `CameraRules.follow`, the data toggle that keeps the
+## portrait match): set before the HUD lays itself out.
+func _enter_tree() -> void:
+	var camera: ArenaCamera = get_node_or_null("ArenaCamera") as ArenaCamera
+	Settings.set_landscape(camera == null or camera.rules == null or camera.rules.follow or camera.rules.third_person)
+
+
 func _ready() -> void:
 	if online:
 		_setup_online()
@@ -185,6 +192,11 @@ func _notification(what: int) -> void:
 
 ## The phone's back button opens the match settings (Resume, Leave). The pick screen, the briefing and the settings take the
 ## press themselves; the results card has its own buttons. Deferred, so they still read as open here (see MenuDialog).
+## The screen changed shape (the phone turned): the safe area's insets are read again.
+func _on_screen_changed() -> void:
+	_presentation.apply_safe_insets()
+
+
 func _back_pressed() -> void:
 	if is_picking() or hud.menu.visible or hud.briefing.visible or sim.phase == MatchSim.Phase.MATCH_OVER:
 		return
@@ -192,6 +204,7 @@ func _back_pressed() -> void:
 
 
 func _exit_tree() -> void:
+	Settings.set_landscape(false)
 	if online and client != null and client.in_match():
 		client.leave_room()
 		Session.reconnect_token = ""
@@ -236,12 +249,63 @@ func card_pressed(slot: int) -> void:
 
 
 ## The held card's finger is at screen point `at` (on its own card, over the hand).
-func card_moved(_slot: int, at: Vector2, on_card: bool, over_hand: bool) -> void:
+func card_moved(slot: int, at: Vector2, on_card: bool, over_hand: bool) -> void:
+	if hud.hand is AbilityArc and _camera.rules.third_person:
+		# the shoulder view: the card goes where the crosshair is (the finger turns the view), a tap too; the X puts it back. A heal tapped
+		# without turning heals yourself, as everywhere (docs/GDD.md "Heal: a quick tap heals yourself"): it is a tap, not a cast at the crosshair
+		var cancel: bool = over_hand and not on_card
+		if on_card and not cancel and _is_heal(slot):
+			input.card_drag(true, null)
+			return
+		input.card_drag(false, null if cancel else crosshair_point(), true)
+		return
+	if hud.hand is AbilityArc:
+		# Wild Rift aiming: the drag from the button is the way and share of the card's range from the kid; a tap or the cancel button aims nowhere
+		var aim: Variant = null if over_hand or on_card else arc_aim_point(slot, (hud.hand as AbilityArc).aim_way)
+		input.card_drag(on_card, aim, true)
+		return
 	var point: Variant = null if over_hand else street_point(at)
 	input.card_drag(on_card, point, point is Vector2 and layout.lane_rect().has_point(point as Vector2))
 
 
 ## The held card was let go at screen point `at`: a cast there, a tap, or a drop back on the hand (MatchInput decides).
+## True when the card in `slot` of your hand heals.
+func _is_heal(slot: int) -> bool:
+	var state: PlayerState = sim.players.get(local_id) as PlayerState
+	if state == null or slot < 0 or slot >= state.weapons.size():
+		return false
+	var def: WeaponDef = sim.weapon_defs.get(state.weapons[slot]) as WeaponDef
+	return def != null and def.kind == WeaponDef.Kind.HEAL
+
+
+## The shoulder view: the street point under the crosshair, kept inside the street. Looking over the horizon (or so far the point is past the
+## street) the card goes `CameraRules.aim_reach` metres along the view from the kid instead.
+func crosshair_point() -> Vector2:
+	var state: PlayerState = sim.players.get(local_id) as PlayerState
+	var from: Vector2 = state.position if state != null else Vector2.ZERO
+	var hit: Variant = street_point(_camera.crosshair())
+	var lane: Rect2 = layout.lane_rect()
+	var point: Vector2
+	if hit is Vector2 and lane.grow(_camera.rules.shoulder_bounds_edge).has_point(hit as Vector2):
+		point = hit as Vector2
+	else:
+		point = from + _camera.ground_axes()[1] * _camera.rules.aim_reach
+	return point.clamp(lane.position, lane.end)
+
+
+## The street point a drag of `way` (screen, at most 1 long) on the ability arc aims the card in `slot` at: that share of the card's range from
+## your kid, along that way on the street, kept inside the street.
+func arc_aim_point(slot: int, way: Vector2) -> Vector2:
+	var state: PlayerState = sim.players.get(local_id) as PlayerState
+	if state == null:
+		return Vector2.ZERO
+	var def: WeaponDef = sim.weapon_defs.get(state.weapons[slot]) as WeaponDef if slot < state.weapons.size() else null
+	var reach: float = def.max_range if def != null else 0.0
+	var point: Vector2 = state.position + _camera.ground_way(way) * reach
+	var lane: Rect2 = layout.lane_rect()
+	return point.clamp(lane.position, lane.end)
+
+
 func card_released(slot: int, at: Vector2, on_card: bool, over_hand: bool) -> void:
 	card_moved(slot, at, on_card, over_hand)
 	var kind: MatchInput.Release = input.card_release(Time.get_ticks_msec())
@@ -460,6 +524,9 @@ func _local_input(tick: int) -> PlayerInput:
 		_stop_tilt()
 		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_AIM_CANCEL, tick)
 	steer_by_tilt(TiltInput.gravity())
+	if _camera.rules.third_person and input.card_held() and input.over_street:
+		# the shoulder view: a held card follows the crosshair every tick (the kid walks, the view turns), not only when the finger moves
+		input.card_drag(false, crosshair_point(), true)
 	return input.build(tick)
 
 
@@ -514,13 +581,14 @@ func throw_pressed() -> void:
 	input.throw_press(_way_of(_throw_angle))
 
 
-## The finger dragged `dx` pixels sideways: the aim turns by that much times the sensitivity of the line's length now (fine while it is
-## short, fast when it is full), within the arc the rules allow.
-func throw_dragged(dx: float) -> void:
+## The finger dragged `drag` pixels: the part of it across the throw line on the screen (toward where +X is shown: right on the portrait
+## street, down on the landscape one) turns the aim by that much times the sensitivity of the line's length now (fine while it is short,
+## fast when it is full), within the arc the rules allow.
+func throw_dragged(drag: Vector2) -> void:
 	var game: TumbangPreso = sim.mode as TumbangPreso
 	if game == null or not input.throw_held:
 		return
-	var turn: float = dx * game.sensitivity_at(game.charge(local_id)) * (-1.0 if _flip() else 1.0)
+	var turn: float = drag.dot(_camera.screen_way(Vector2.RIGHT)) * game.sensitivity_at(game.charge(local_id))
 	var arc: float = deg_to_rad(game.rules.aim_arc_degrees)
 	_throw_angle = clampf(_throw_angle + turn, -arc, arc)
 	input.throw_turn(_way_of(_throw_angle))
@@ -530,9 +598,9 @@ func throw_released(cancel: bool) -> void:
 	input.throw_release(cancel)
 
 
-## The movement knob points `way` on screen (up the screen is -1); the camera of a team that defends the far end is turned round.
+## The movement knob or the joystick points `way` on screen (up the screen is -1): the way on the street that is, however the camera is turned.
 func knob_moved(way: Vector2) -> void:
-	input.stick = -way if _flip() else way
+	input.stick = _camera.ground_way(way)
 
 
 ## The Kick or Dive button: one tap.

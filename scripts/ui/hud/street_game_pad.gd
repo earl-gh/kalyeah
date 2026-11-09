@@ -6,13 +6,13 @@ extends Control
 ## anywhere turns it, fine while the line is short and fast when it is full; let go to throw; let go back on the button after dragging away
 ## to cancel), the Kick button for a thrower without it, the Dive button in Patintero and the Lupa button in Langit Lupa (a ring round
 ## each fills while it cools down), and nothing for the taya.
-## It reports fingers only: `knob_moved` (the way the knob points, -1 to 1 each way), `aim_dragged` in pixels, `action_pressed`; the match
+## It reports fingers only: `knob_moved` (the way the knob points, -1 to 1 each way), `aim_dragged` (the finger's move in pixels), `action_pressed`; the match
 ## screen turns them into a PlayerInput. Built in code; MatchHud feeds it with `show_state()`.
 
 signal knob_moved(way: Vector2)
 signal aim_started
-## The finger moved `dx` pixels sideways (positive: to the right) while aiming.
-signal aim_dragged(dx: float)
+## The finger moved by `drag` pixels while aiming (the match screen takes the part across the throw line).
+signal aim_dragged(drag: Vector2)
 ## The finger let go of the Throw button; `cancel` when it came back onto the button after leaving it.
 signal aim_released(cancel: bool)
 ## The Kick, Dive or Lupa button was pressed (each is one tap).
@@ -56,6 +56,15 @@ var charge: float = 0.0
 var act_ready: bool = false
 ## A tagged runner (on the sidewalk) has no action button, and its movement knob stands in the middle of the bottom instead of at the left.
 var knob_centered: bool = false
+## The landscape match (docs/audits/2026-11-09-landscape-hud.md): the pad fills the screen, the knob rests where the joystick does, the action
+## button stands where the ability arc turns (the right thumb's home in every game), both in the HUD's style, and the words stand at the top
+## centre under the score instead of over your kid. `safe` is the safe area's insets (left, top, right, bottom) and `words_top` where the
+## words start (UI pixels).
+var landscape: bool = false
+var safe: Vector4 = Vector4.ZERO
+var words_top: float = 0.0
+## The landscape action button's radius: the arc's buttons plus a little, it is the only button there.
+const WIDE_BUTTON_RADIUS: float = 56.0
 ## The finger holds the Throw button.
 var aiming: bool = false
 ## The way the knob points now, and whether a finger holds it.
@@ -114,24 +123,49 @@ func show_state(title: String, hint: String, button: Action, fill: float, can_ac
 
 ## The knob's middle and the action button's middle, in this control's own pixels.
 func knob_center() -> Vector2:
+	if landscape:
+		var rest: Vector2 = MoveStick.rest_point(size, Vector2(safe.x, safe.w))
+		return Vector2(size.x / 2.0, rest.y) if knob_centered else rest
 	if knob_centered:
 		return Vector2(size.x / 2.0, size.y * 0.5)
-	return Vector2(SIDE_MARGIN + KNOB_RADIUS, size.y * 0.5)
+	return Vector2(SIDE_MARGIN + knob_radius(), size.y * 0.5)
 
 
 func button_center() -> Vector2:
-	return Vector2(size.x - SIDE_MARGIN - BUTTON_RADIUS, size.y * 0.5)
+	if landscape:
+		return AbilityArc.corner_point(size, Vector2(safe.z, safe.w))
+	return Vector2(size.x - SIDE_MARGIN - button_radius(), size.y * 0.5)
+
+
+## The action button's and the knob's radius now.
+func button_radius() -> float:
+	return WIDE_BUTTON_RADIUS if landscape else BUTTON_RADIUS
+
+
+func knob_radius() -> float:
+	return MoveStick.BASE_RADIUS if landscape else KNOB_RADIUS
+
+
+## Switches the landscape layout on (sizes and places, the words' type), with the safe area's insets and where the words start.
+func set_landscape(on: bool, insets: Vector4, words_at: float) -> void:
+	landscape = on
+	safe = insets
+	words_top = words_at
+	if on and title_label != null:
+		HudStyle.letter(title_label, HudStyle.TITLE, TITLE_COLOR)
+		HudStyle.letter(hint_label, HudStyle.LABEL, HINT_COLOR)
+	_place()
 
 
 ## The action button's rectangle on the screen (tests and the match screen's hit test).
 func button_rect() -> Rect2:
 	var middle: Vector2 = get_global_transform() * button_center()
-	return Rect2(middle - Vector2.ONE * BUTTON_RADIUS, Vector2.ONE * BUTTON_RADIUS * 2.0)
+	return Rect2(middle - Vector2.ONE * button_radius(), Vector2.ONE * button_radius() * 2.0)
 
 
 func knob_rect() -> Rect2:
 	var middle: Vector2 = get_global_transform() * knob_center()
-	return Rect2(middle - Vector2.ONE * KNOB_RADIUS, Vector2.ONE * KNOB_RADIUS * 2.0)
+	return Rect2(middle - Vector2.ONE * knob_radius(), Vector2.ONE * knob_radius() * 2.0)
 
 
 ## Lets go of the knob and the Throw button without throwing (a menu opened, the controls were switched off).
@@ -154,14 +188,22 @@ func _cancel_aim() -> void:
 func _place() -> void:
 	if title_label == null:
 		return
-	var left: float = SIDE_MARGIN * 2.0 + KNOB_RADIUS * 2.0
+	if landscape:
+		var wide: float = minf(size.x * 0.6, 760.0)
+		title_label.position = Vector2((size.x - wide) / 2.0, words_top)
+		title_label.size = Vector2(wide, HudStyle.TITLE + 12.0)
+		hint_label.position = Vector2((size.x - wide) / 2.0, words_top + HudStyle.TITLE + 10.0)
+		hint_label.size = Vector2(wide, HudStyle.LABEL * 2.0 + 12.0)
+		queue_redraw()
+		return
+	var left: float = SIDE_MARGIN * 2.0 + knob_radius() * 2.0
 	var width: float = maxf(size.x - left * 2.0 + 20.0, 120.0)
 	var middle: float = size.x / 2.0
 	var top: float = size.y * 0.5 - 62.0
 	if knob_centered:
 		# the knob is in the way in the middle: the words stand above it
 		width = maxf(size.x - SIDE_MARGIN * 4.0, 120.0)
-		top = size.y * 0.5 - KNOB_RADIUS - 200.0
+		top = size.y * 0.5 - knob_radius() - 200.0
 	title_label.position = Vector2(middle - width / 2.0, top)
 	title_label.size = Vector2(width, 70.0)
 	hint_label.position = Vector2(middle - width / 2.0, top + 72.0)
@@ -190,16 +232,16 @@ func _input(event: InputEvent) -> void:
 		elif drag.index == _action_pointer:
 			if not _on_button(drag.position):
 				_left = true
-			aim_dragged.emit(drag.relative.x)
+			aim_dragged.emit(drag.relative)
 			get_viewport().set_input_as_handled()
 
 
 func _press(index: int, at: Vector2) -> void:
-	if _knob_pointer == NO_POINTER and knob_rect().grow(KNOB_RADIUS * 0.3).has_point(at):
+	if _knob_pointer == NO_POINTER and knob_rect().grow(knob_radius() * 0.3).has_point(at):
 		_knob_pointer = index
 		_set_knob(_knob_vector(at))
 		get_viewport().set_input_as_handled()
-	elif action != Action.NONE and _action_pointer == NO_POINTER and button_rect().grow(BUTTON_RADIUS * 0.25).has_point(at):
+	elif action != Action.NONE and _action_pointer == NO_POINTER and button_rect().grow(button_radius() * 0.25).has_point(at):
 		_action_pointer = index
 		_left = false
 		if action == Action.THROW:
@@ -223,7 +265,7 @@ func _release_action(at: Vector2) -> void:
 
 ## The way a finger at screen point `at` pushes the knob: its distance from the middle over the radius, each way -1 to 1, up the screen -1.
 func _knob_vector(at: Vector2) -> Vector2:
-	var way: Vector2 = (at - get_global_transform() * knob_center()) / KNOB_RADIUS
+	var way: Vector2 = (at - get_global_transform() * knob_center()) / knob_radius()
 	return way.limit_length(1.0) if way.length() > KNOB_DEADZONE else Vector2.ZERO
 
 
@@ -236,14 +278,18 @@ func _set_knob(way: Vector2) -> void:
 
 
 func _on_button(at: Vector2) -> bool:
-	return at.distance_to(get_global_transform() * button_center()) <= BUTTON_RADIUS
+	return at.distance_to(get_global_transform() * button_center()) <= button_radius()
 
 
 func _draw() -> void:
 	var middle: Vector2 = knob_center()
-	draw_circle(middle, KNOB_RADIUS, KNOB_BASE)
-	draw_arc(middle, KNOB_RADIUS, 0.0, TAU, 48, KNOB_RIM, 4.0, true)
-	draw_circle(middle + knob_way * (KNOB_RADIUS - THUMB_RADIUS * 0.5), THUMB_RADIUS, THUMB)
+	if landscape:
+		HudStyle.draw_white_disc(self, middle, knob_radius())
+		draw_circle(middle + knob_way * (knob_radius() - MoveStick.THUMB_RADIUS * 0.5), MoveStick.THUMB_RADIUS, HudStyle.WHITE_THUMB)
+	else:
+		draw_circle(middle, knob_radius(), KNOB_BASE)
+		draw_arc(middle, knob_radius(), 0.0, TAU, 48, KNOB_RIM, 4.0, true)
+		draw_circle(middle + knob_way * (knob_radius() - THUMB_RADIUS * 0.5), THUMB_RADIUS, THUMB)
 	match action:
 		Action.THROW:
 			_draw_button("AIM" if aiming else "THROW", BUTTON_PRESSED if aiming else BUTTON_FACE, true)
@@ -257,18 +303,42 @@ func _draw() -> void:
 
 func _draw_button(words: String, face: Color, with_ring: bool) -> void:
 	var center: Vector2 = button_center()
-	draw_circle(center + Vector2(0.0, 6.0), BUTTON_RADIUS, Color(0.03, 0.12, 0.3, 0.7))
-	draw_circle(center, BUTTON_RADIUS, face)
+	if landscape:
+		_draw_white_button(words, center, with_ring)
+		return
+	draw_circle(center + Vector2(0.0, 6.0), button_radius(), Color(0.03, 0.12, 0.3, 0.7))
+	draw_circle(center, button_radius(), face)
 	if with_ring:
-		draw_arc(center, BUTTON_RADIUS + RING_WIDTH * 0.7, 0.0, TAU, 48, RING_TRACK, RING_WIDTH, true)
+		draw_arc(center, button_radius() + RING_WIDTH * 0.7, 0.0, TAU, 48, RING_TRACK, RING_WIDTH, true)
 		if charge > 0.0:
 			var color: Color = RING_FULL if charge >= 1.0 else RING_FILL
-			draw_arc(center, BUTTON_RADIUS + RING_WIDTH * 0.7, -PI / 2.0, -PI / 2.0 + TAU * charge, 48, color, RING_WIDTH, true)
+			draw_arc(center, button_radius() + RING_WIDTH * 0.7, -PI / 2.0, -PI / 2.0 + TAU * charge, 48, color, RING_WIDTH, true)
 	var font: Font = get_theme_default_font()
-	var size_px: int = UiMetrics.BODY
+	var size_px: int = HudStyle.TITLE if landscape else UiMetrics.BODY
 	var width: float = font.get_string_size(words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px).x
-	draw_string_outline(font, center + Vector2(-width / 2.0, size_px * 0.35), words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px, 6, INK)
+	draw_string_outline(font, center + Vector2(-width / 2.0, size_px * 0.35), words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px, HudStyle.outline(size_px) if landscape else 6, INK)
 	draw_string(font, center + Vector2(-width / 2.0, size_px * 0.35), words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px, Color.WHITE)
+
+
+## How strong the landscape main button's word is drawn: full while it can act (and while a throw is aimed), `HudStyle.WHITE_OFF` while not
+## ready. Its outline is never dimmed: it is the movement controls' rim.
+func white_strength() -> float:
+	return 1.0 if act_ready or action == Action.THROW else HudStyle.WHITE_OFF
+
+
+## The landscape main button, white only (owner): the movement controls' disc and rim, its charge (the throw's aim, the dive's cool-down) as
+## a faint white sweep inside it, and the white word on a soft shadow.
+func _draw_white_button(words: String, center: Vector2, with_ring: bool) -> void:
+	var strength: float = white_strength()
+	HudStyle.draw_white_disc(self, center, button_radius())
+	# a cooling dive or lupa fills up and is gone once ready (then it looks exactly like the joystick); a throw being aimed shows its charge
+	if with_ring and charge > 0.0 and (charge < 1.0 or aiming):
+		HudStyle.draw_white_sweep(self, center, button_radius(), charge)
+	var font: Font = get_theme_default_font()
+	var size_px: int = HudStyle.TITLE
+	var at: Vector2 = center + Vector2(-font.get_string_size(words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px).x / 2.0, size_px * 0.35)
+	draw_string(font, at + Vector2.ONE * HudStyle.WORD_SHADOW_DROP, words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px, HudStyle.WORD_SHADOW)
+	draw_string(font, at, words, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px, Color(1.0, 1.0, 1.0, strength))
 
 
 func _label(text: String, font_size: int, color: Color) -> Label:

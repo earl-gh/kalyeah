@@ -1,12 +1,13 @@
 extends GutTest
 ## The main screen's Practice row (owner): above Play, a game picker and a kid picker, 80 : 20; and a Practice match of each street game.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")  # these tests pin the portrait match
+
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const PRACTICE_TAYA: GDScript = preload("res://tests/fixtures/practice_taya.gd")
 const PRACTICE_MODE: int = 2
 const DT: float = 1.0 / 30.0
-const TUMBANG_HOME: float = 12.0
 
 var _game: StringName
 var _avatar: String
@@ -16,6 +17,7 @@ var _coach: bool
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
 	_game = Session.practice_game
 	_avatar = Session.avatar_id
 	_mode = Session.menu_mode
@@ -25,6 +27,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
 	Session.practice_game = _game
 	Session.avatar_id = _avatar
 	Session.menu_mode = _mode
@@ -299,7 +302,7 @@ func test_the_knob_walks_you_and_the_buttons_follow_what_you_hold() -> void:
 	pad.knob_moved.emit(Vector2(0.0, -1.0))
 	for i: int in 60:
 		practice.advance(DT)
-	assert_almost_eq(practice.sim.players[1].position.y, TUMBANG_HOME, 0.05, "the throw line holds you while you have your slipper")
+	assert_almost_eq(practice.sim.players[1].position.y, (practice.sim.mode as TumbangPreso).rules.home_z, 0.05, "the throw line holds you while you have your slipper")
 	pad.knob_moved.emit(Vector2.ZERO)
 	# without the slipper the button is Kick
 	game.slippers[1] = Vector2(0.0, 5.0)
@@ -340,7 +343,7 @@ func test_holding_the_throw_button_aims_on_the_ground_with_a_line_that_grows_and
 	assert_gt(short, 0.0)
 	# a drag turns the aim a little while the line is short ...
 	var angle: float = practice._throw_angle
-	pad.aim_dragged.emit(100.0)
+	pad.aim_dragged.emit(Vector2(100.0, 0.0))
 	var fine_turn: float = absf(practice._throw_angle - angle)
 	assert_gt(fine_turn, 0.0)
 	# ... and much more at full length
@@ -349,7 +352,7 @@ func test_holding_the_throw_button_aims_on_the_ground_with_a_line_that_grows_and
 	assert_eq(game.charge(practice.local_id), 1.0)
 	assert_gt(practice.mode_view.aim_length(), short + 5.0, "the line grew with the hold")
 	angle = practice._throw_angle
-	pad.aim_dragged.emit(100.0)
+	pad.aim_dragged.emit(Vector2(100.0, 0.0))
 	assert_gt(absf(practice._throw_angle - angle), fine_turn * 2.5, "high sensitivity at the longest")
 	# the line lies on the ground: tested against the depth (a kid in front of it hides it) and a hand's breadth above the street
 	var line: MeshInstance3D = practice.mode_view.find_child("AimLine", true, false) as MeshInstance3D
@@ -379,7 +382,7 @@ func test_aiming_at_the_can_shows_a_short_solid_line_for_the_can_and_a_dashed_on
 	assert_lt((dashes[0] as MeshInstance3D).scale.x * StreetModeView.GUIDE_DASHES * 2.0, game.rules.guide_length + 0.01, "just as short")
 	assert_ne((solid.mesh as BoxMesh).material, (dashes[0] as MeshInstance3D).mesh.material, "a different style for each")
 	# aimed wide there is no guide, but the line is still there
-	practice.hud.street_pad.aim_dragged.emit(300.0)
+	practice.hud.street_pad.aim_dragged.emit(Vector2(300.0, 0.0))
 	practice.advance(DT)
 	assert_false(practice.mode_view.guides_visible())
 	assert_true(practice.mode_view.aim_visible())
@@ -820,4 +823,6 @@ func test_the_street_games_have_no_difficulty_and_no_tilt_and_the_column_follows
 	var other: StringName = &"popoy" if practice.sim.players[2].character_id != &"popoy" else &"inday"
 	practice.sim.players[2].character_id = other
 	practice.advance(DT)
-	assert_eq(column._pictures[2].texture, CharactersPage.card_picture(other), "the kid's character card, not a round face")
+	var square: AtlasTexture = column._pictures[2].texture as AtlasTexture
+	assert_not_null(square, "the kid's square chest-up card (owner, 2026-11-09), not a round face")
+	assert_eq(square.atlas, KidModel.card_face(other), "cut from the new kid's own close-up: the column follows the faces")

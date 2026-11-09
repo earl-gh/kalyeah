@@ -2,6 +2,8 @@ extends GutTest
 ## The fog beyond the two ends of the street: a wall of fog standing in the street just past each end's boundary row, behind the pictures at
 ## the end far from the camera and in front of the props at the near end.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")  # these tests pin the portrait match
+
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const DT: float = 1.0 / 30.0
 
@@ -11,12 +13,14 @@ var _pending: bool
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
 	_kind = Session.practice_kind
 	_game = Session.practice_game
 	_pending = Session.briefing_pending
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
 	Session.practice_kind = _kind
 	Session.practice_game = _game
 	Session.briefing_pending = _pending

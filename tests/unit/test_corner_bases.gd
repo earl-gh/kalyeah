@@ -92,10 +92,11 @@ func _fits(position: Vector2, radius: float) -> bool:
 func test_walking_along_the_end_wall_into_a_corner_slides_round_the_curve_and_does_not_stick() -> void:
 	var sim: MatchSim = _sim()
 	var kid: PlayerState = sim.players[1]
-	kid.position = Vector2(-8.0, LAYOUT.lane_length / 2.0 - kid.radius)
+	kid.position = Vector2(-LAYOUT.lane_width / 2.0 + 4.0, LAYOUT.lane_length / 2.0 - kid.radius)
+	# pushed straight at the side wall, the slide up the curve closes in on the wall gradually: a bigger corner takes longer to settle
 	_walk(sim, 1, Vector2(-1.0, 0.0), 300)
 	assert_almost_eq(kid.position.x, -LAYOUT.lane_width / 2.0 + kid.radius, 0.05, "it reached the side wall instead of stopping in the curve")
-	assert_almost_eq(kid.position.y, LAYOUT.lane_length / 2.0 - LAYOUT.base_corner, 0.05, "having slid up the curve to where it meets the wall")
+	assert_almost_eq(kid.position.y, LAYOUT.lane_length / 2.0 - LAYOUT.base_corner, LAYOUT.base_corner * 0.05, "having slid up the curve to where it meets the wall (within 5% of the corner's radius)")
 	assert_true(_fits(kid.position, kid.radius))
 
 
@@ -112,14 +113,15 @@ func test_a_kid_cannot_leave_the_street_through_a_corner() -> void:
 func test_a_tap_in_the_corner_walks_to_the_curve_and_stops_there() -> void:
 	var sim: MatchSim = _sim()
 	var kid: PlayerState = sim.players[1]
-	kid.position = Vector2(-9.0, 20.0)
-	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_move_target(Vector2(-14.0, 25.0)))
+	# a tap beyond the own corner (the corner is at (-lane_width / 2, lane_length / 2))
+	kid.position = Vector2(-LAYOUT.lane_width / 2.0 + 6.0, LAYOUT.lane_length / 2.0 - 8.0)
+	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_move_target(Vector2(-LAYOUT.lane_width / 2.0 - 2.0, LAYOUT.lane_length / 2.0 + 1.0)))
 	sim.step(DT)
 	var target: Vector2 = kid.move_target
 	assert_true(_fits(target, kid.radius), "the target is pulled onto the curve")
 	assert_almost_eq(target, LAYOUT.post_position(MapLayout.SIDE_OWN) + _outward(MapLayout.SIDE_OWN) * (LAYOUT.base_corner - kid.radius), Vector2(0.001, 0.001))
 	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick))
-	for i: int in 120:
+	for i: int in 240:
 		sim.step(DT)
 	assert_false(kid.has_move_target, "it arrived")
 	assert_lt(kid.position.distance_to(target), RULES.move_arrival_radius + 0.001)

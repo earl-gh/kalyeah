@@ -3,6 +3,8 @@ extends GutTest
 ## Sides puts two cards on each side of the street and leaves only the ice water bar in a strip along the bottom.
 ## Seam: Settings.cards_tray, CardHand (layout and touches), MatchHud (tray heights, camera reserve), ControlOptions.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")  # these tests pin the portrait match
+
 const PRACTICE: PackedScene = preload("res://scenes/match/practice.tscn")
 
 var _saved: StringName
@@ -10,6 +12,7 @@ var _saved_left: bool
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
 	_saved = Settings.cards_tray
 	_saved_left = Settings.left_handed
 	Settings.set_left_handed(false)
@@ -17,6 +20,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
 	Settings.set_cards_tray(_saved)
 	Settings.set_left_handed(_saved_left)
 

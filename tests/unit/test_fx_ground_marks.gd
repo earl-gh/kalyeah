@@ -2,6 +2,8 @@ extends GutTest
 ## Ground marks of a hit area use the sim's exact numbers (never bigger or smaller), a delayed area fills in exactly over
 ## its delay, nothing flat sits on the street itself (it would z-fight), and the flat layers draw in the ladder's order.
 
+const TOP_DOWN_MATCH: GDScript = preload("res://tests/fixtures/top_down_match.gd")  # these tests measure the screen from above
+
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const DT: float = 1.0 / 30.0
 
@@ -9,11 +11,13 @@ var _motion: bool
 
 
 func before_each() -> void:
+	TOP_DOWN_MATCH.use(true)
 	_motion = Settings.reduced_motion
 	Settings.reduced_motion = false
 
 
 func after_each() -> void:
+	TOP_DOWN_MATCH.use(false)
 	Settings.reduced_motion = _motion
 
 

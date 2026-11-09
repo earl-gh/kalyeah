@@ -1,5 +1,7 @@
 extends GutTest
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")  # these tests pin the portrait match
+
 const PRACTICE: PackedScene = preload("res://scenes/match/practice.tscn")
 const SETTINGS_SCRIPT: Script = preload("res://scripts/autoload/settings.gd")
 
@@ -8,12 +10,14 @@ var _loadout: Array[StringName]
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
 	_motion = Settings.reduced_motion
 	_loadout = Session.saved_loadout.duplicate()
 	Settings.set_reduced_motion(false)
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
 	Session.saved_loadout = _loadout
 	Session.save()
 	Settings.set_reduced_motion(_motion)

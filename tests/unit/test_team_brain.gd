@@ -60,7 +60,7 @@ func test_a_rusher_that_has_arrived_walks_about_in_the_enemy_base_instead_of_sta
 func test_a_defender_holds_its_post_until_an_enemy_comes() -> void:
 	var sim: MatchSim = _sim()
 	sim.players[3].position = Vector2(100.0, 100.0)
-	sim.players[1].position = sim.players[1].spawn_position + Vector2(3.0, 0.0)
+	sim.players[1].position = sim.players[1].spawn_position + Vector2(sim.layout.base_radius + 3.0, 0.0)  # outside its base
 	var brain: TeamBrain = TeamBrain.defender(sim.players[1].spawn_position)
 	var input: PlayerInput = brain.think(sim.players[1], sim)
 	assert_lt(_way(input, sim.players[1]).dot(Vector2(1.0, 0.0)), -0.99, "it walks back to its post")
@@ -246,8 +246,11 @@ func test_a_fight_does_not_walk_into_the_enemy_base_it_goes_along_its_edge() -> 
 	var enemy_side: int = -sim.side_for_team(0)
 	var centre: Vector2 = LAYOUT.base_center(enemy_side)
 	var out: Vector2 = (Vector2.ZERO - centre).normalized()
-	# the enemy stands inside the base, 3 m in; the rusher stands at the edge with nothing to cast
-	var edge: Vector2 = centre + out * (LAYOUT.base_radius + 0.3)
+	# the enemy stands inside the base; the rusher stands just outside its edge (found by walking out from the middle) with nothing to cast
+	var edge: Vector2 = centre
+	while LAYOUT.in_base(enemy_side, edge):
+		edge += out * 0.1
+	edge += out * 0.3
 	sim.players[1].position = edge
 	sim.players[1].elixir = 0.0
 	sim.players[1].weapon_cooldowns.fill(99.0)

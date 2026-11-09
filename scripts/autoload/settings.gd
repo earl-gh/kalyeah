@@ -271,18 +271,40 @@ func set_reduced_motion(enabled: bool) -> void:
 	accessibility_changed.emit()
 
 
-## The game is vertical on every phone and tablet (docs/GDD.md "Vertical layout"): asked of the phone at start, even when the device's
-## auto-rotate is on. Android 16 may ignore the request on a large screen (a tablet or a folded-out phone); `fit_portrait` covers that.
+## The menus' design screen (portrait) and the match's (landscape, Wild Rift style: docs/GDD.md "Landscape layout").
+const PORTRAIT_BASE: Vector2i = Vector2i(720, 1280)
+const LANDSCAPE_BASE: Vector2i = Vector2i(1280, 720)
+
+## True while a match is on screen: the phone is turned sideways and the UI is laid out on `LANDSCAPE_BASE`. The menus stay vertical
+## until they are rebuilt for landscape (the manifest still asks for portrait at start).
+var landscape: bool = false
+
+
+## The menus are vertical on every phone and tablet: asked of the phone at start, even when the device's auto-rotate is on. Android 16 may
+## ignore the request on a large screen (a tablet or a folded-out phone); `fit_portrait` covers that.
 func lock_portrait() -> void:
 	if OS.has_feature("android"):
 		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_PORTRAIT)
 
 
-## How the street fills a window of `size`: a tall window fills it (more street above and below on a long phone), but a window that is
-## wider than tall (a tablet that did not stay vertical) keeps the vertical shape, centred, with bars at its sides, so the game
-## never lays itself out sideways.
-static func aspect_for(size: Vector2i) -> Window.ContentScaleAspect:
-	return Window.CONTENT_SCALE_ASPECT_KEEP if size.x > size.y else Window.CONTENT_SCALE_ASPECT_EXPAND
+## A match turns the phone sideways (`on`; either way round, the sensor picks) and lays the UI out on the landscape base; leaving it turns
+## the phone back upright on the portrait base.
+func set_landscape(on: bool) -> void:
+	landscape = on
+	if OS.has_feature("android"):
+		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE if on else DisplayServer.SCREEN_PORTRAIT)
+	var window: Window = get_window()
+	if window == null:
+		return
+	window.content_scale_size = LANDSCAPE_BASE if on else PORTRAIT_BASE
+	fit_portrait()
+
+
+## How the screen fills a window of `size`: a window of the wanted shape (tall for the menus, wide for a match: `wide`) fills it, but a window
+## of the other shape (a tablet that did not turn) keeps the wanted shape, centred, with bars, so the game never lays itself out the wrong way.
+static func aspect_for(size: Vector2i, wide: bool = false) -> Window.ContentScaleAspect:
+	var wrong: bool = size.y > size.x if wide else size.x > size.y
+	return Window.CONTENT_SCALE_ASPECT_KEEP if wrong else Window.CONTENT_SCALE_ASPECT_EXPAND
 
 
 ## Applies `aspect_for` to the game window (on a phone or tablet; a desktop window is left as it is unless `force`).
@@ -290,7 +312,7 @@ func fit_portrait(force: bool = false) -> void:
 	if not force and not OS.has_feature("android"):
 		return
 	var window: Window = get_window()
-	window.content_scale_aspect = aspect_for(window.size)
+	window.content_scale_aspect = aspect_for(window.size, landscape)
 
 
 ## The listed frame rate nearest to `value` (a hand-edited or missing file falls back to 60).

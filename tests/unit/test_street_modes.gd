@@ -276,7 +276,8 @@ func test_fetch_the_slipper_and_run_to_the_other_end_for_a_point_and_back_to_the
 	var game: TumbangPreso = sim.mode as TumbangPreso
 	_clear_street(sim, [1, 4])
 	sim.players[4].position = Vector2(-10.0, 5.0)
-	sim.players[1].position = Vector2(0.0, 14.0)
+	# (spots measured from the throw line, `home_z`: behind it is out of the fetch area, in front of it is in)
+	sim.players[1].position = Vector2(0.0, TUMBANG.home_z + 2.0)
 	_throw(sim, 1, Vector2(0.0, -1.0), TUMBANG.throw_charge_time)
 	_fly(sim, game, 1)
 	_wait(sim, 1.2)
@@ -318,12 +319,12 @@ func test_a_thrower_has_five_seconds_outside_the_fetch_area_or_becomes_the_taya(
 	_wait(sim, TUMBANG.scared_seconds - 2.0)
 	assert_lt(game.scared_left[1], 2.5)
 	# stepping into the fetch area stops the clock; stepping out goes on with what is left
-	sim.players[1].position = Vector2(0.0, 9.0)
+	sim.players[1].position = Vector2(0.0, TUMBANG.home_z - 3.0)
 	var left: float = game.scared_left[1]
 	_wait(sim, 3.0)
 	assert_almost_eq(game.scared_left[1], left, 0.05, "paused while in the fetch area")
 	assert_true(changes.is_empty())
-	sim.players[1].position = Vector2(0.0, 15.0)
+	sim.players[1].position = Vector2(0.0, TUMBANG.home_z + 3.0)
 	_wait(sim, left + 0.5)
 	assert_eq(changes, [[4, 1, &"scared"]], "too scared: the thrower is the taya now")
 	assert_eq(game.taya_id, 1)

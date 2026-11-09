@@ -117,6 +117,11 @@ var _says: Array[Dictionary] = []
 var away_ids: Dictionary[int, bool] = {}
 ## Each player's name by kid id (you: your name; online: the room's names). A kid with none is named after its character.
 var names: Dictionary[int, String] = {}
+## The shoulder view (docs/audits/2026-11-09-landscape-hud.md): a kid farther than this from the camera (metres) shows no name, only its number
+## badge and bar, so the far end of the street is not a stack of tags. 0: every name shows (the top-down cameras). A status word always shows.
+var name_reach: float = 0.0
+## The landscape match draws your stamina at the bottom centre (AbilityArc), so it is not drawn under your bar too.
+var stamina_on_bar: bool = true
 
 
 func setup(sim: MatchSim, camera: Camera3D, local_id: int, local_team: int) -> void:
@@ -226,6 +231,8 @@ func label_for(state: PlayerState) -> String:
 	var status: String = _status_text(state)
 	if not status.is_empty():
 		return status
+	if name_reach > 0.0 and _camera != null and _camera.global_position.distance_to(Vector3(state.position.x, 0.0, state.position.y)) > name_reach:
+		return ""
 	return name_of(state)
 
 
@@ -379,7 +386,7 @@ func _draw_hero(state: PlayerState) -> void:
 	_draw_bar(rect, fill, color)
 	_draw_label(label_for(state), rect)
 	_draw_badge(state, rect)
-	if stamina_visible(state):
+	if stamina_on_bar and stamina_visible(state):
 		var stamina: Vector2 = STAMINA_SIZE * bar_scale
 		var under: Rect2 = Rect2(Vector2(rect.position.x, stamina_top(rect)), stamina)
 		var look: Array = stamina_fill(state)

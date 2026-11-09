@@ -145,6 +145,8 @@ func test_the_deck_cycles_through_every_card_before_a_used_one_comes_back() -> v
 			arrived.append(card))
 	for use: int in order.size() - 1:
 		var used: StringName = state.weapons[0]
+		# in the middle of the street: a target near your spawn would stand in your base and capture it, which ends the round
+		state.position = Vector2.ZERO
 		sim.players[2].tagged = false
 		sim.players[2].hp = _rules.player_max_hp
 		sim.players[2].position = state.position + Vector2(0.0, -3.0)

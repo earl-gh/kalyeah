@@ -3,6 +3,8 @@ extends GutTest
 ## red and letting go there throws nothing (no tint or outline on the screen).
 ## Seam: MatchInput.card_drag (the `inside` flag), PracticeMatch.card_moved, AimIndicator.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")  # these tests pin the portrait match
+
 const NOW: int = 10000
 const DT: float = 1.0 / 30.0
 const PRACTICE: PackedScene = preload("res://scenes/match/practice.tscn")
@@ -11,11 +13,13 @@ var _kind: StringName
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
 	_kind = Session.practice_kind
 	Session.practice_kind = &"match"
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
 	Session.practice_kind = _kind
 
 

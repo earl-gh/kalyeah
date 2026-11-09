@@ -11,9 +11,21 @@ var connection: VBoxContainer
 var message: Label
 var leave: Button
 var hint: Label
+## The landscape match: a card is put back on the ability arc's cancel button, not dropped on the hand.
+var landscape: bool = false
 
 
 ## Keeps the hint line just above the tray, whatever its height.
+## The landscape match: the hint is a line at the top centre, `top` px down (under the score and the tag toast's place), in the HUD's type.
+func set_top_line(top: float) -> void:
+	hint.anchor_top = 0.0
+	hint.anchor_bottom = 0.0
+	hint.offset_top = top
+	hint.offset_bottom = top + HudStyle.LABEL * 2.0 + 16.0
+	hint.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	HudStyle.letter(hint, HudStyle.LABEL, Color.WHITE)
+
+
 func set_console_height(height: float) -> void:
 	hint.offset_top = -(height + 130.0)
 	hint.offset_bottom = -(height + 10.0)
@@ -78,7 +90,7 @@ func sync_hint(player: PlayerState, playing: bool, release: MatchInput.Release, 
 			MatchInput.Release.TAP:
 				hint.text = NOBODY if nobody else "Let go to auto-aim · drag out to aim"
 			MatchInput.Release.CAST:
-				hint.text = NOBODY if nobody else "Back on your hand to cancel"
+				hint.text = NOBODY if nobody else ("Drag to the X to cancel" if landscape else "Back on your hand to cancel")
 			MatchInput.Release.CANCEL:
 				hint.text = "Release here to cancel"
 	hint.visible = not hint.text.is_empty()

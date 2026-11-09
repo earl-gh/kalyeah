@@ -25,6 +25,8 @@ const KICK_SHAKE: float = 0.15
 var owner: PracticeMatch
 ## The side of the street the picture has at the bottom (Patintero turns it round when the local team changes roles).
 var _viewed_side: int = MapLayout.SIDE_OWN
+## The side of the street whose buildings are left out because the camera looks across them (2: not set yet).
+var _near_side: int = 2
 ## The film finish over the street (its vignette stays behind the top boundary pictures).
 var _film: FilmFinish
 ## The kid that holds the can (-1: nobody), the one that is kicking it, and where the can lay before this frame (for a pick-up).
@@ -46,6 +48,7 @@ func _init(owner: PracticeMatch) -> void:
 
 
 func setup_hud() -> void:
+	owner.hud.set_shoulder(owner._camera.rules.third_person)
 	owner.input.tap_time = owner.sim.rules.card_tap_time
 	owner.input.follow_hold = owner.sim.rules.move_follow_hold
 	owner.hud.console_height_changed.connect(func(height: float) -> void: owner._camera.bottom_reserve_px = height)
@@ -65,11 +68,23 @@ func setup_hud() -> void:
 	owner.hud.overhead.blend = owner.blend
 	owner.hud.overhead.view_scale = owner._camera.rules.kid_view_scale
 	owner.hud.overhead.bar_scale = owner._camera.rules.bar_scale
+	if owner._camera.rules.third_person:
+		owner.hud.overhead.name_reach = owner._camera.rules.shoulder_name_reach
 	owner.hud.marker.setup(owner.sim, owner._camera, owner.local_id)
 	owner._fx.view_scale = owner._camera.rules.kid_view_scale
 	owner._fx.local_team = owner.local_team
 	if owner.sim.mode != null and owner.sim.mode.is_free_for_all():
 		owner.hud.setup_street_scores(owner.sim, owner.local_id)
+	apply_safe_insets()
+	# the phone turns sideways after the match opens: the notch and the home bar move, so the insets are read again whenever the screen changes
+	# (through the match node, so the connection goes with it)
+	owner.get_viewport().size_changed.connect(owner._on_screen_changed)
+
+
+## The safe area's insets (the notch, the home bar) in UI pixels, for the HUD and the camera.
+func apply_safe_insets() -> void:
+	owner.hud.set_bottom_inset(_safe_bottom_inset())
+	owner.hud.set_side_insets(_safe_side_insets())
 	owner.hud.set_top_inset(_safe_top_inset())
 	owner._camera.top_reserve_px = owner.hud.header_height() + HEADER_GAP
 	owner.hud.overhead.top_limit = owner.hud.header_height()
@@ -99,6 +114,12 @@ func connect_hud() -> void:
 	owner.hud.street.move_pressed.connect(owner.move_pressed)
 	owner.hud.street.move_dragged.connect(owner.move_dragged)
 	owner.hud.street.move_released.connect(owner.move_released)
+	if owner.hud.stick != null:
+		owner.hud.stick.knob_moved.connect(owner.knob_moved)
+	if owner.hud.look != null:
+		owner.hud.look.look_dragged.connect(owner._camera.look)
+	if owner.hud.hand is AbilityArc:
+		(owner.hud.hand as AbilityArc).look_dragged.connect(owner._camera.look)
 	owner.hud.menu.set_practice(not owner.online, Net.host != null, Session.practice_kind == &"match")
 	owner.hud.again_button.text = "Return home" if owner.online else "Practice again"
 	owner.hud.again_pressed.connect(_on_again_pressed)
@@ -286,6 +307,9 @@ static func cast_lead(sim: MatchSim, weapon: StringName) -> float:
 func _keep_vignette_behind_the_top_boundary() -> void:
 	if _film == null:
 		return
+	if owner._camera.rules.follow or owner._camera.rules.third_person:
+		_film.clear_above(0.0)  # only the fixed whole-street camera has the top boundary at a fixed height on the screen
+		return
 	var layout: MapLayout = owner.layout
 	var z: float = StreetMap.top_end(owner.shown_side()) * (layout.lane_length / 2.0 + StreetMap.BARRIER_SETBACK)
 	var height: float = maxf(owner.get_viewport().get_visible_rect().size.y, 1.0)
@@ -317,6 +341,11 @@ func sync(delta: float) -> void:
 	owner.hud.tag_toast.tick(delta)
 	owner.hud.marker.tick(delta)
 	owner.hud.sync_score(owner.sim, owner.local_team, delta, owner.local_id)
+	# the landscape camera keeps your kid in the middle (CameraRules.follow); the fixed one ignores this
+	owner._camera.follow(owner.blend.kid(player))
+	if owner._camera.near_side() != _near_side:
+		_near_side = owner._camera.near_side()
+		owner._map.hide_near_houses(_near_side)
 	# Tumbang Preso's taya turn swings the street round; Patintero's role switch cuts
 	owner._camera.place(owner.own_side() == MapLayout.SIDE_ENEMY, owner.sim.mode is TumbangPreso)
 	if owner.sim.phase == MatchSim.Phase.INTRO:
@@ -424,7 +453,7 @@ func _sync_actor(state: PlayerState, delta: float) -> void:
 func _sync_aim(player: PlayerState) -> void:
 	var input: MatchInput = owner.input
 	var slot: int = input.held_slot
-	var playing: bool = owner.hud.street.active
+	var playing: bool = owner.hud.playing_controls()
 	if not playing:
 		owner._aim_indicator.clear()
 		owner.hud.sync_hold_hint(player, false, MatchInput.Release.NONE, false)
@@ -549,6 +578,17 @@ func _safe_bottom_inset() -> float:
 		return 0.0
 	var below: float = maxf(0.0, float(DisplayServer.window_get_position().y + window.y - safe.end.y))
 	return below * owner.get_viewport().get_visible_rect().size.y / float(window.y)
+
+
+## The parts of the screen's left and right edges the system keeps (a notch on a phone on its side), in UI pixels.
+func _safe_side_insets() -> Vector2:
+	var window: Vector2i = DisplayServer.window_get_size()
+	var safe: Rect2i = DisplayServer.get_display_safe_area()
+	if window.x <= 0 or safe.size.x <= 0:
+		return Vector2.ZERO
+	var at: int = DisplayServer.window_get_position().x
+	var scale: float = owner.get_viewport().get_visible_rect().size.x / float(window.x)
+	return Vector2(maxf(0.0, float(safe.position.x - at)), maxf(0.0, float(at + window.x - safe.end.x))) * scale
 
 
 func _safe_top_inset() -> float:

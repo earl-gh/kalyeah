@@ -1,7 +1,7 @@
 extends GutTest
 ## On a phone with a notch the top of the street games' HUD moves down by the inset (the gear and the clock are in `hud.top`). The points
 ## column (Tumbang Preso) and the quick chat button (both games) are placed outside it and must move with it: on the owner's phone the
-## column sat over the gear and the chat button over the clock (2026-11-01).
+## column sat over the gear and the chat button over the clock (2026-11-01). In landscape the points are a row at the top centre (2026-11-09).
 
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 ## About a phone notch in the 720-wide UI.
@@ -39,9 +39,23 @@ func _assert_clear(hud: MatchHud, what: String) -> void:
 	assert_gt(chat.position.x, clock.end.x, "%s: at the right of the clock" % what)
 	if hud.score_column != null and hud.score_column.visible:
 		var gear: Rect2 = hud.settings_button.get_global_rect()
-		var column: Rect2 = hud.score_column.get_global_rect()
-		assert_false(column.intersects(gear), "%s: the points column is not on the gear" % what)
-		assert_gte(column.position.y, gear.end.y, "%s: it starts under the gear" % what)
+		var column: Rect2 = _drawn_rect(hud.score_column)
+		assert_false(column.intersects(gear), "%s: the points are not on the gear" % what)
+		if hud.score_column.row_gap >= 0.0:
+			# the landscape row at the top centre (3, the clock, 3): clear of the chat button, under the notch, its middle left to the clock
+			assert_false(column.intersects(chat), "%s: the points row is not on the chat button" % what)
+			assert_gte(column.position.y, hud.top_inset + MatchHud.TOP_ROW_Y - 1.0, "%s: the row moves down with the notch" % what)
+			for id: int in hud.score_column.order():
+				var card: Rect2 = _drawn_rect(hud.score_column.get_node("Row%d" % id) as Control)
+				assert_false(card.intersects(_drawn_rect(hud.clock_chip)), "%s: card %d is not on the clock" % [what, id])
+		else:
+			assert_gte(column.position.y, gear.end.y, "%s: it starts under the gear" % what)
+
+
+## Where `control` is drawn on the screen, its scale (and its parents') included.
+func _drawn_rect(control: Control) -> Rect2:
+	var transform: Transform2D = control.get_global_transform()
+	return Rect2(transform * Vector2.ZERO, control.size * transform.get_scale())
 
 
 func test_nothing_covers_the_gear_or_the_clock_with_a_notch_or_without() -> void:

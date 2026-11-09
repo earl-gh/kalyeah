@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_camera")
-yaw_offset_degrees = 0.0
+yaw_offset_degrees = 90.0
 pitch_degrees = 45.0
 lens_curve = 0.0
 frame_top = 0.12
@@ -13,3 +13,14 @@ frame_side = 0.04
 kid_view_scale = 2.0
 bar_scale = 0.75
 turn_seconds = 0.8
+follow = true
+follow_view_size = 20.0
+follow_lag = 0.15
+follow_edge = 4.0
+third_person = true
+shoulder_height = 2.4
+shoulder_distance = 12.0
+look_pitch_degrees = 26.0
+shoulder_bounds_edge = 0.5
+shoulder_near = 3.5
+shoulder_name_reach = 22.0

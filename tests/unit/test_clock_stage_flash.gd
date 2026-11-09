@@ -2,6 +2,8 @@ extends GutTest
 ## The stage word: "Extended" / "Overtime" flashes in the middle when the clock's stage changes, then shrinks and flies to the caption
 ## of the clock at the top right, where it becomes the caption.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")  # these tests pin the portrait match
+
 const PRACTICE: PackedScene = preload("res://scenes/match/practice.tscn")
 const CAPTION_AT: Vector2 = Vector2(620.0, 50.0)
 const DT: float = 1.0 / 30.0
@@ -13,6 +15,7 @@ var _flash: ClockStageFlash
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
 	Settings.reduced_motion = false
 	var screen: Control = autofree(Control.new()) as Control
 	screen.size = Vector2(720.0, 1280.0)
@@ -22,6 +25,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
 	Settings.reduced_motion = false
 
 

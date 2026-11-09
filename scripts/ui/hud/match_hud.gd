@@ -62,6 +62,8 @@ const CONSOLE_HEIGHT: float = 255.0
 const STREET_TRAY: float = CONSOLE_HEIGHT
 ## Tumbang Preso's score column stands on the left sidewalk this far under the header, and the quick chat button (top right) is this big.
 const SCORE_COLUMN_GAP: float = 14.0
+## In the landscape row the kids' cards stand this far from the clock on each side.
+const SCORE_ROW_GAP: float = 12.0
 const STREET_CHAT_SIZE: float = 84.0
 ## The most the bottom inset can add (a tall gesture bar), so the tray never eats the street.
 const MAX_BOTTOM_INSET: float = 80.0
@@ -100,8 +102,21 @@ var score_column: ScoreColumn
 var tag_toast: TagToast
 ## True in those two games (set by the match screen before the first frame).
 var street_game: bool = false
-## Taps on the street (move orders).
+## Taps on the street (move orders; the portrait layout only).
 var street: StreetTouch
+## The landscape match (Wild Rift style, docs/GDD.md "Landscape layout"): the joystick under the left thumb moves the kid, the hand is the
+## round ability arc under the right thumb, and there is no tray. Read from `Settings.landscape` when the HUD is built.
+var landscape: bool = false
+## The landscape joystick (null in the portrait layout).
+var stick: MoveStick
+## The shoulder view (docs/GDD.md "Shoulder view"): a drag on the right of the screen turns the view, and the crosshair in the middle is where
+## the cards go. `look` exists in every landscape match (the camera ignores it unless it is the shoulder camera); the crosshair only in the
+## shoulder view (`set_shoulder`).
+var look: LookTouch
+var crosshair: Crosshair
+var shoulder: bool = false
+## The safe area's left and right insets (UI pixels: a notch on a phone on its side), set by the match screen.
+var side_insets: Vector2 = Vector2.ZERO
 ## The ring where your kid is walking to.
 var marker: MoveMarker
 var tagged_panel: TaggedPanel
@@ -180,6 +195,8 @@ func set_chat_enabled(on: bool) -> void:
 
 ## The tray's height now: its own plus the bottom inset.
 func console_height() -> float:
+	if landscape and not street_game:
+		return 0.0  # no tray: the arc and the joystick float over the street
 	if street_game:
 		return STREET_TRAY + bottom_inset
 	return (CardHand.SIDES_TRAY if sides_tray() else CONSOLE_HEIGHT) + bottom_inset
@@ -222,6 +239,10 @@ func set_controls_active(active: bool) -> void:
 	if not active:
 		cancel_controls()
 	hand.set_process_input(active)
+	if stick != null:
+		stick.set_process_input(active)
+	if look != null:
+		look.set_process_unhandled_input(active)
 	street_pad.set_process_input(active)
 	street.set_process_unhandled_input(active)
 
@@ -229,8 +250,17 @@ func set_controls_active(active: bool) -> void:
 ## Clears every live gesture (a held card is dropped, a finger on the street lets go) while leaving input processing as it is.
 func cancel_controls() -> void:
 	hand.cancel_hold()
+	if stick != null:
+		stick.cancel()
+	if look != null:
+		look.release()
 	street_pad.cancel()
 	street.release()
+
+
+## True while you play and can steer (a tap on the street in the portrait layout, the joystick in the landscape one).
+func playing_controls() -> bool:
+	return street.active or (stick != null and stick.active)
 
 
 func controls_active() -> bool:
@@ -288,8 +318,20 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	if shown != shown_before and sides_tray():
 		layout_controls()  # the plate is the strip while the hand shows, the whole tray while you wait
 	sync_plate_column()
-	street.active = playing
-	if not playing:
+	street.active = playing and not landscape
+	if stick != null:
+		stick.active = playing
+		stick.visible = shown
+		if not playing:
+			stick.cancel()
+	if look != null:
+		look.active = playing and shoulder
+		if not look.active:
+			look.release()
+	if crosshair != null:
+		crosshair.visible = shown
+		crosshair.held = hand.holding()
+	if not playing or landscape:
 		street.release()
 	for slot: int in _no_target.size():
 		_no_target[slot] = playing and sim.lacks_target(player, slot)
@@ -297,6 +339,11 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	for slot: int in _no_target.size():
 		notices.append(_notice(slot) if playing else "")
 	hand.show_state(sim, player, playing, _block_tag(sim, player) if playing else "", notices)
+	if hand is AbilityArc:
+		# your stamina sits under the ice water bar at the bottom centre while you play (stamina on), not under your kid's bar
+		var stamina_on: bool = sim.rules.stamina_enabled and player.has_stamina and not player.tagged
+		var look: Array = overhead.stamina_fill(player) if stamina_on else [1.0, OverheadHud.STAMINA_COLOR]
+		(hand as AbilityArc).show_stamina(stamina_on, look[0] as float, look[1] as Color)
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 
 
@@ -305,7 +352,10 @@ func set_street_game(on: bool) -> void:
 	street_game = on
 	hand.visible = not on
 	street_pad.visible = on
-	console.visible = not on  # no tray: the knob and the buttons float over the street
+	console.visible = not on and not landscape  # no tray: the knob and the buttons float over the street
+	if stick != null:
+		stick.visible = not on  # the street games' pad has its own knob
+		stick.active = stick.active and not on
 	layout_controls()
 
 
@@ -404,6 +454,8 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 		item.visible = not hidden
 	if score_column != null:
 		score_column.visible = not hidden
+	if landscape:
+		console.visible = false  # no tray in the landscape match
 	if street_game:
 		console.visible = false
 		# Patintero has a team score at the top centre like Agawang Base; Tumbang Preso's points are every kid's, in the column on the left sidewalk
@@ -412,6 +464,8 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 	if hidden:
 		for item: CanvasItem in [hand, street_pad, chat, tagged_panel, intro_bar, capture_label, capture_alert, banner]:
 			item.hide()
+		if stick != null:
+			stick.hide()
 		clock_flash.cancel()
 	if covered:
 		briefing.hide()
@@ -488,7 +542,13 @@ func _build() -> void:
 	MatchHudTop.build(self)
 	capture_alert = CaptureAlert.new()
 	add_child(capture_alert)
-	hand = CardHand.new()
+	landscape = Settings.landscape
+	if landscape:
+		stick = MoveStick.new()
+		add_child(stick)
+		look = LookTouch.new()
+		add_child(look)
+	hand = AbilityArc.new() if landscape else CardHand.new()
 	add_child(hand)
 	street_pad = StreetGamePad.new()
 	add_child(street_pad)
@@ -540,6 +600,26 @@ func _build() -> void:
 	feedback = MatchFeedback.new()
 	add_child(feedback)
 	feedback.return_home.connect(exit_pressed.emit)
+
+
+## The shoulder view: the crosshair shows and a card held turns the view instead of aiming from its button. Call before the first frame.
+func set_shoulder(on: bool) -> void:
+	shoulder = on and landscape
+	if shoulder and crosshair == null:
+		crosshair = Crosshair.new()
+		add_child(crosshair)
+		move_child(crosshair, overhead.get_index() + 1)  # over the street and the bars, under the controls
+	if hand is AbilityArc:
+		(hand as AbilityArc).shoulder = shoulder
+	layout_controls()
+
+
+## The safe area's insets on a phone on its side (UI pixels): the notch at the left or the right, the home bar at the bottom.
+func set_side_insets(pixels: Vector2) -> void:
+	if pixels == side_insets:
+		return
+	side_insets = pixels
+	layout_controls()
 
 
 ## Places the tray and the hand (see MatchHudLayout).

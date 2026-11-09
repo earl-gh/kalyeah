@@ -1,11 +1,14 @@
 class_name ArenaCamera
 extends Camera3D
-## The fixed orthographic gameplay camera (see CameraRules): it never moves, so the whole arena is on screen. Own base is
-## always at the bottom of the screen; the other team's view is rotated 180 degrees. It only re-frames when the
+## The orthographic gameplay camera (see CameraRules). With `CameraRules.follow` (the landscape match, Wild Rift style) it keeps your kid in
+## the middle of the screen and the street scrolls (`follow()`), held back at the street's ends. Otherwise it is fixed and the whole arena is on
+## screen. Own base is at the left (the turned landscape camera) or the bottom (the fixed one); the other team's view is rotated 180 degrees. It only re-frames when the
 ## screen's shape changes (a window resize, a rotation) or the view flips. A smooth flip (`place(flip, true)`) swings the whole camera
 ## half way round the arena's centre over `CameraRules.turn_seconds`, eased in and out.
 
 const SHAKE_DECAY: float = 1.4
+## The follow camera closes all but e^-FOLLOW_CLOSE (about 5%) of the gap to your kid in `CameraRules.follow_lag` seconds.
+const FOLLOW_CLOSE: float = 3.0
 ## The depth range is cut tight around the arena (the camera stands CameraRules.STANDOFF away), for depth precision and for the shadows.
 const NEAR_MARGIN: float = 70.0
 const FAR_MARGIN: float = 100.0
@@ -40,6 +43,15 @@ var top_reserve_px: float = 0.0
 ## the street is framed in what is left, pushed to the other side at the size that fits (the same shape, a smaller picture).
 var side_reserve_px: float = 0.0
 var side_reserve_left: bool = false
+## Follow camera: the point (sim XZ) the view keeps in the middle, and where it aims now (catching up over `CameraRules.follow_lag`).
+var follow_point: Vector2 = Vector2.ZERO
+var _aim: Vector2 = Vector2.ZERO
+var _aim_set: bool = false
+## Shoulder camera (`CameraRules.third_person`): where the view looks (degrees: yaw 0 = down -Z, pitch down positive), turned by `look()`.
+var look_yaw: float = 0.0
+var look_pitch: float = 0.0
+## The far plane of the shoulder camera's lens (metres; the near one is `CameraRules.shoulder_near`).
+const SHOULDER_FAR: float = 400.0
 
 
 func _ready() -> void:
@@ -73,6 +85,10 @@ func flat_position(screen: Vector2) -> Vector2:
 
 ## How many metres tall the view is for this screen (the orthographic size that fits the whole arena).
 func view_size() -> float:
+	if rules.third_person:
+		return rules.follow_view_size
+	if rules.follow:
+		return rules.follow_view_size
 	return _framed().x
 
 
@@ -91,6 +107,12 @@ func desired_position(flip: bool) -> Vector3:
 ## Puts the camera where it frames the whole arena (a no-op when nothing changed). With `smooth` a change of `flip` swings the
 ## camera round over `CameraRules.turn_seconds` (see `_process`) instead of cutting; the first placing and Reduce motion always cut.
 func place(flip: bool, smooth: bool = false) -> void:
+	if rules.third_person:
+		_place_shoulder(flip)
+		return
+	if rules.follow:
+		_place_following(flip, smooth)
+		return
 	var aspect: float = screen_aspect()
 	var sides: Vector2 = _current_sides()
 	var reframe: bool = not _placed or not is_equal_approx(aspect, _aspect) or not is_equal_approx(_bottom, _current_bottom()) \
@@ -119,8 +141,139 @@ func turn_degrees() -> float:
 	return 180.0 * smoothstep(0.0, 1.0, _turn)
 
 
-## The own view's pose turned `turn_degrees()` round the arena's centre (at 180 it is exactly the flipped pose).
+## Follow camera: keep `point` (sim XZ, your kid) in the middle of the screen. `snap` jumps there at once (a new match, a respawn).
+func follow(point: Vector2, snap: bool = false) -> void:
+	follow_point = point
+	if rules.third_person:
+		_aim = point  # the shoulder camera sticks to the kid: a lag would let the kid slide across the crosshair
+		_aim_set = true
+	elif snap or not _aim_set:
+		_aim = _follow_goal()
+		_aim_set = true
+
+
+## Where the followed view wants to aim now: your kid, held back at the street's ends.
+func _follow_goal() -> Vector2:
+	return rules.follow_aim(follow_point, Vector2(layout.lane_width, layout.lane_length), rules.follow_view_size, screen_aspect(), rules.yaw_degrees(false) + turn_degrees())
+
+
+## Shoulder camera: the first placing and a change of view (Tumbang Preso's taya, Patintero's roles) look down the street from your end again.
+func _place_shoulder(flip: bool) -> void:
+	if flip != _goal_flip or not _placed:
+		_goal_flip = flip
+		_turn = 1.0 if flip else 0.0
+		reset_look()
+	_apply_pose()
+
+
+## Shoulder camera: look straight down the street toward the other end, tilted the rules' way down.
+func reset_look() -> void:
+	look_yaw = 180.0 if _goal_flip else 0.0
+	look_pitch = rules.look_pitch_degrees
+
+
+## Shoulder camera: a finger dragged `drag` UI pixels: right turns the view right, up looks up (within the pitch limits).
+func look(drag: Vector2) -> void:
+	if not rules.third_person:
+		return
+	look_yaw = fposmod(look_yaw - drag.x * rules.look_sensitivity, 360.0)
+	look_pitch = rules.clamp_pitch(look_pitch + drag.y * rules.look_sensitivity)
+	if _placed:
+		_apply_pose()
+
+
+## Shoulder camera: the crosshair, in the middle of the screen (viewport pixels).
+func crosshair() -> Vector2:
+	var viewport: Viewport = get_viewport()
+	return viewport.get_visible_rect().size / 2.0 if viewport != null else Vector2.ZERO
+
+
+## Follow camera: the same turn as the fixed camera (a flip swings it round, here round the point it aims at), placed every frame.
+func _place_following(flip: bool, smooth: bool) -> void:
+	if flip != _goal_flip or not _placed:
+		_goal_flip = flip
+		if not smooth or not _placed or Settings.reduced_motion:
+			_turn = 1.0 if flip else 0.0
+	_apply_pose()
+
+
+## Follow camera: moves the aim toward the goal (it catches up over `follow_lag`; at once with Reduce motion or no lag).
+func advance_follow(delta: float) -> void:
+	if not (rules.follow or rules.third_person) or not _placed:
+		return
+	var goal: Vector2 = follow_point if rules.third_person else _follow_goal()
+	if rules.third_person:
+		_aim = goal
+		_apply_pose()
+		return
+	if Settings.reduced_motion or rules.follow_lag <= 0.0:
+		_aim = goal
+	else:
+		_aim = _aim.lerp(goal, 1.0 - exp(-delta * FOLLOW_CLOSE / rules.follow_lag))
+	_apply_pose()
+
+
+## Follow camera: where the view aims now (sim XZ: the middle of the screen).
+func aim_point() -> Vector2:
+	return _aim
+
+
+## The side of the street the camera stands over (-1: the -X side, 1: the +X side), or 0 when it looks along the street (the fixed camera).
+func near_side() -> int:
+	if rules.third_person:
+		return 0  # the camera stands in the street: every house stays
+	var back: Vector3 = rules.camera_offset(CameraRules.STANDOFF, false).rotated(Vector3.UP, deg_to_rad(turn_degrees()))
+	if absf(back.x) <= absf(back.z):
+		return 0
+	return 1 if back.x > 0.0 else -1
+
+
+## The ground ways (sim XZ) that point right on the screen and up the screen now.
+func ground_axes() -> Array[Vector2]:
+	if rules.third_person:
+		return CameraRules.ground_axes(look_yaw)
+	return CameraRules.ground_axes(rules.yaw_degrees(false) + turn_degrees())
+
+
+## A way on the screen (x right, y down: a joystick) as a way on the ground (sim XZ), whichever way the camera is turned. While the camera swings
+## round the controls swap at halfway (`shown_flip`), as the map does.
+func ground_way(screen_way: Vector2) -> Vector2:
+	return CameraRules.ground_way(screen_way, _control_yaw())
+
+
+## A way on the ground (sim XZ) as a way on the screen (x right, y down): the other way round from `ground_way`.
+func screen_way(ground: Vector2) -> Vector2:
+	var axes: Array[Vector2] = CameraRules.ground_axes(_control_yaw())
+	return Vector2(ground.dot(axes[0]), -ground.dot(axes[1]))
+
+
+## The turn the controls follow: where the shoulder camera looks, or the shown view of the others.
+func _control_yaw() -> float:
+	return look_yaw if rules.third_person else rules.yaw_degrees(shown_flip())
+
+
+## The own view's pose turned `turn_degrees()` round the arena's centre (at 180 it is exactly the flipped pose). The follow camera turns round
+## the point it aims at instead.
 func _apply_pose() -> void:
+	if rules.third_person:
+		var pose: Array[Vector3] = rules.shoulder_pose(_aim, look_yaw, look_pitch)
+		position = pose[0]
+		rotation_degrees = pose[1]
+		projection = Camera3D.PROJECTION_PERSPECTIVE
+		fov = rules.shoulder_fov
+		near = rules.shoulder_near
+		far = SHOULDER_FAR
+		_placed = true
+		return
+	if rules.follow:
+		var turned: float = turn_degrees()
+		position = Vector3(_aim.x, 0.0, _aim.y) + rules.camera_offset(CameraRules.STANDOFF, false).rotated(Vector3.UP, deg_to_rad(turned))
+		rotation_degrees = Vector3(-rules.pitch_degrees, rules.yaw_degrees(false) + turned, 0.0)
+		_use_gameplay_lens(rules.follow_view_size)
+		near = maxf(1.0, CameraRules.STANDOFF - NEAR_MARGIN)
+		far = CameraRules.STANDOFF + FAR_MARGIN
+		_placed = true
+		return
 	var framed: Vector2 = _framed()
 	var angle: float = turn_degrees()
 	position = desired_position(false).rotated(Vector3.UP, deg_to_rad(angle))
@@ -166,6 +319,7 @@ func shake(strength: float) -> void:
 
 func _process(delta: float) -> void:
 	advance_turn(delta)
+	advance_follow(delta)
 	if Settings.reduced_motion or _shake <= 0.001:
 		_shake = 0.0
 		h_offset = 0.0
