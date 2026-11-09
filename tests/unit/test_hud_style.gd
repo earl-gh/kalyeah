@@ -9,6 +9,8 @@ const SCREENS: Array[Vector2] = [Vector2(1280.0, 720.0), Vector2(1560.0, 720.0)]
 ## Insets: none, and a notch on the left with a home bar.
 const INSETS: Array[Vector4] = [Vector4.ZERO, Vector4(60.0, 0.0, 0.0, 24.0)]
 const DT: float = 1.0 / 30.0
+## How far the ice water drop reaches past its bar (it is drawn over the bar's left end).
+const SLIM_DROP_HALF: float = AbilityArc.SLIM_DROP / 2.0
 
 var _kind: StringName
 var _game: StringName
@@ -56,17 +58,35 @@ func test_the_joystick_and_the_arc_keep_one_margin_from_the_safe_edges() -> void
 			assert_almost_eq(screen.y - insets.w - bottom, HudStyle.EDGE, 0.01, "the arc's bottom edge")
 
 
-func test_the_ice_water_bar_sits_with_the_arc_above_its_buttons_not_over_your_kid() -> void:
+func test_the_ice_water_and_stamina_bars_sit_at_the_bottom_centre_and_the_cancel_x_above_the_arc() -> void:
 	for screen: Vector2 in SCREENS:
-		var arc: AbilityArc = autofree(AbilityArc.new()) as AbilityArc
-		add_child(arc)
-		arc.size = screen
-		arc.set_inset(Vector2.ZERO)
-		for rect: Rect2 in arc.card_rects:
-			assert_lt(arc.bar_rect.end.y, rect.position.y, "%s: above every button" % screen)
-		assert_gt(arc.bar_rect.position.x, screen.x / 2.0, "in the right half: your kid is in the middle")
-		assert_lte(arc.bar_rect.end.x, screen.x - HudStyle.EDGE + 0.01, "the HUD's margin from the edge")
-		assert_lt(arc.cancel_center.y + AbilityArc.CANCEL_RADIUS, arc.bar_rect.position.y, "the cancel X above the bar")
+		for inset: Vector2 in [Vector2.ZERO, Vector2(0.0, 24.0)]:
+			var arc: AbilityArc = autofree(AbilityArc.new()) as AbilityArc
+			add_child(arc)
+			arc.size = screen
+			arc.set_inset(inset)
+			assert_almost_eq(arc.bar_rect.get_center().x, screen.x / 2.0, 0.01, "%s: the ice water bar is centred" % screen)
+			assert_almost_eq(arc.stamina_rect.get_center().x, screen.x / 2.0, 0.01, "the stamina bar too")
+			assert_lt(arc.bar_rect.end.y, arc.stamina_rect.position.y, "ice water over stamina")
+			assert_almost_eq(screen.y - inset.y - arc.stamina_rect.end.y, HudStyle.EDGE, 0.01, "the HUD's margin from the bottom, over the home bar")
+			assert_lt(arc.stamina_rect.size.y, arc.bar_rect.size.y, "the stamina bar is the thinner one")
+			for rect: Rect2 in arc.card_rects:
+				assert_false(rect.intersects(arc.bar_rect.grow(SLIM_DROP_HALF)), "the bars clear the cards")
+				assert_lt(arc.cancel_center.y + AbilityArc.CANCEL_RADIUS, rect.position.y, "the cancel X stands above the arc")
+
+
+func test_your_stamina_is_drawn_at_the_bottom_not_under_your_kid_in_agawang_base() -> void:
+	var practice: PracticeMatch = _practice()
+	var arc: AbilityArc = practice.hud.hand as AbilityArc
+	assert_false(practice.hud.overhead.stamina_on_bar, "not under your kid's bar")
+	assert_true(arc.stamina_shown, "under the ice water bar while you play")
+	var me: PlayerState = practice.sim.players[practice.local_id]
+	me.stamina = practice.sim.rules.stamina_max * 0.1
+	practice.hud.sync_player(practice.sim, me, false)
+	assert_almost_eq(arc.stamina_share, 0.1, 0.001)
+	assert_eq(arc.stamina_color, OverheadHud.STAMINA_LOW_COLOR, "amber when low, as before")
+	var street: PracticeMatch = _practice(&"patintero")
+	assert_true(street.hud.overhead.stamina_on_bar, "the street games have no arc: their stamina stays under the kid's bar")
 
 
 func test_the_street_games_controls_stand_where_the_joystick_and_the_arc_do() -> void:

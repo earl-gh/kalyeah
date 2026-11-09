@@ -22,11 +22,14 @@ const AIM_DEADZONE: float = 22.0
 ## The cancel button above the bar while aiming, and its gap to the bar.
 const CANCEL_RADIUS: float = 40.0
 const CANCEL_GAP: float = 18.0
-## The ice water bar: slim, over the arc (the right thumb's cluster, off your kid), from the leftmost button to the screen's edge, this far
-## above the highest button, with the whole points on a drop of `SLIM_DROP` px at its left end.
+## The ice water bar and the stamina bar (owner, 2026-11-09): a pair at the bottom centre of the screen, `BARS_WIDTH` wide, `HudStyle.EDGE`
+## above the safe area's bottom: the ice water bar (`SLIM_BAR` tall, the whole points on a drop of `SLIM_DROP` px at its left end) over the
+## thinner stamina bar, `BARS_GAP` apart.
+const BARS_WIDTH: float = 360.0
 const SLIM_BAR: float = 14.0
 const SLIM_DROP: float = 34.0
-const SLIM_BAR_GAP: float = 16.0
+const STAMINA_BAR: float = 8.0
+const BARS_GAP: float = 8.0
 const BAR_TRACK: Color = Color(0.035, 0.1, 0.27, 0.6)
 const BAR_DIVIDER: Color = Color(0.035, 0.1, 0.27, 0.7)
 ## The share of a card picture's width the round button shows (its middle: the art, without the torn frame).
@@ -53,6 +56,12 @@ var _press_at: Vector2 = Vector2.ZERO
 ## (`look_dragged`) instead of aiming from the button.
 var shoulder: bool = false
 var _last_finger: Vector2 = Vector2.ZERO
+## The stamina bar under the ice water bar: where it is, whether it shows (stamina on, playing), and its share and colour
+## (`OverheadHud.stamina_fill`: blue, amber when low, blinking red while exhausted).
+var stamina_rect: Rect2 = Rect2()
+var stamina_shown: bool = false
+var stamina_share: float = 1.0
+var stamina_color: Color = OverheadHud.STAMINA_COLOR
 
 ## Shoulder view: the finger holding a card moved this far (UI pixels): the view turns with it.
 signal look_dragged(drag: Vector2)
@@ -94,10 +103,10 @@ func _layout() -> void:
 	var top: float = card_rects[0].position.y
 	for rect: Rect2 in card_rects:
 		top = minf(top, rect.position.y)
-	var left: float = card_rects[0].position.x + SLIM_DROP * 0.6
-	var right: float = size.x - inset.x - HudStyle.EDGE
-	bar_rect = Rect2(Vector2(left, top - SLIM_BAR_GAP - SLIM_BAR), Vector2(maxf(0.0, right - left), SLIM_BAR))
-	cancel_center = Vector2(corner.x, bar_rect.position.y - SLIM_DROP / 2.0 - CANCEL_GAP - CANCEL_RADIUS)
+	cancel_center = Vector2(corner.x, top - CANCEL_GAP - CANCEL_RADIUS)
+	var left: float = (size.x - BARS_WIDTH) / 2.0
+	stamina_rect = Rect2(Vector2(left, size.y - inset.y - HudStyle.EDGE - STAMINA_BAR), Vector2(BARS_WIDTH, STAMINA_BAR))
+	bar_rect = Rect2(Vector2(left, stamina_rect.position.y - BARS_GAP - SLIM_BAR), Vector2(BARS_WIDTH, SLIM_BAR))
 	_refresh()
 
 
@@ -179,6 +188,7 @@ func _draw() -> void:
 	if centers.size() < SLOTS:
 		return
 	_draw_bar()
+	_draw_stamina()
 	if next_def != null:
 		_draw_button(next_center, NEXT_RADIUS, next_def, 1.0, false)
 		if next_fill < 1.0:
@@ -242,7 +252,35 @@ func _draw_cancel() -> void:
 		draw_line(cancel_center - way * arm, cancel_center + way * arm, HudStyle.THUMB, 5.0, true)
 
 
-## The slim ice water bar over the arc: a navy track, the fill (each whole point a segment, divided in navy), and the whole points on a drop at
+## Shows your stamina under the ice water bar (`shown` false: stamina is off, or you wait tagged).
+func show_stamina(shown: bool, share: float, color: Color) -> void:
+	if shown == stamina_shown and is_equal_approx(share, stamina_share) and color == stamina_color:
+		return
+	stamina_shown = shown
+	stamina_share = share
+	stamina_color = color
+	queue_redraw()
+
+
+## The thin stamina bar under the ice water bar: the same navy track, the fill in the stamina's colour.
+func _draw_stamina() -> void:
+	if not stamina_shown or stamina_rect.size.x <= 0.0:
+		return
+	var radius: int = roundi(stamina_rect.size.y / 2.0)
+	var track: StyleBoxFlat = StyleBoxFlat.new()
+	track.bg_color = BAR_TRACK
+	track.set_corner_radius_all(radius)
+	track.anti_aliasing = true
+	draw_style_box(track, stamina_rect)
+	if stamina_share > 0.0:
+		var fill: StyleBoxFlat = StyleBoxFlat.new()
+		fill.bg_color = stamina_color
+		fill.set_corner_radius_all(radius)
+		fill.anti_aliasing = true
+		draw_style_box(fill, Rect2(stamina_rect.position, Vector2(maxf(stamina_rect.size.y, stamina_rect.size.x * stamina_share), stamina_rect.size.y)))
+
+
+## The slim ice water bar at the bottom centre: a navy track, the fill (each whole point a segment, divided in navy), and the whole points on a drop at
 ## its left end. The old hand's chunky bar, its marker and its "Max" caption are left out: the cards' own costs say what each needs.
 func _draw_bar() -> void:
 	if not uses_elixir or bar_rect.size.x <= 0.0:

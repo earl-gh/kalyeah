@@ -74,6 +74,8 @@ What was still wrong:
 
 ![after](images/landscape-hud-after.jpg)
 
+Then (owner): the ice water bar and the stamina (exhaustion) bar are a pair at the **bottom centre**, ice water over the thinner stamina bar, 24 px above the safe area's bottom; the stamina bar leaves your kid's health bar in Agawang Base, and the cancel X goes back above the arc.
+
 Pinned by `tests/unit/test_hud_style.gd` (margins, places in every game, the bar over the arc, the header scale, the words' place and type,
 far names). Still to check on a phone: whether 96 px buttons are easy to hit with a thumb, and whether the see-through controls read in
 bright daylight.

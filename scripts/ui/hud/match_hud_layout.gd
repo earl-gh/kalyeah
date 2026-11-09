@@ -66,6 +66,8 @@ static func _apply_landscape(hud: MatchHud) -> void:
 	if hud.street_pad != null:
 		hud._place(hud.street_pad, Vector4(0, 0, 1, 1), Vector4.ZERO)
 		hud.street_pad.set_landscape(true, Vector4(hud.side_insets.x, hud.top_inset, hud.side_insets.y, hud.bottom_inset), words_top)
+	# your stamina is under the ice water bar at the bottom centre; the street games have no arc, so theirs stays under your bar
+	hud.overhead.stamina_on_bar = hud.street_game
 	if hud.hand is AbilityArc:
 		hud._place(hud.hand, Vector4(0, 0, 1, 1), Vector4.ZERO)
 		(hud.hand as AbilityArc).set_inset(Vector2(hud.side_insets.y, hud.bottom_inset))

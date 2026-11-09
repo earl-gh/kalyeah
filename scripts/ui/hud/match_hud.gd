@@ -338,6 +338,11 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	for slot: int in _no_target.size():
 		notices.append(_notice(slot) if playing else "")
 	hand.show_state(sim, player, playing, _block_tag(sim, player) if playing else "", notices)
+	if hand is AbilityArc:
+		# your stamina sits under the ice water bar at the bottom centre while you play (stamina on), not under your kid's bar
+		var stamina_on: bool = sim.rules.stamina_enabled and player.has_stamina and not player.tagged
+		var look: Array = overhead.stamina_fill(player) if stamina_on else [1.0, OverheadHud.STAMINA_COLOR]
+		(hand as AbilityArc).show_stamina(stamina_on, look[0] as float, look[1] as Color)
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 
 
