@@ -348,6 +348,11 @@ func sync(delta: float) -> void:
 		owner._map.hide_near_houses(_near_side)
 	# Tumbang Preso's taya turn swings the street round; Patintero's role switch cuts
 	owner._camera.place(owner.own_side() == MapLayout.SIDE_ENEMY, owner.sim.mode is TumbangPreso)
+	if owner._camera.rules.third_person:
+		# a prop between the shoulder camera and your kid is left out while it is in the way
+		var feet: Vector2 = owner.blend.kid(player)
+		var rules: CameraRules = owner._camera.rules
+		owner._map.hide_between(owner._camera.global_position, Vector3(feet.x, 0.0, feet.y), KidModel.KID_HEIGHT * rules.kid_view_scale, rules.shoulder_clear_reach)
 	if owner.sim.phase == MatchSim.Phase.INTRO:
 		_play_intro_shot()
 		return

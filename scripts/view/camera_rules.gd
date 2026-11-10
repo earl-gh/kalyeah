@@ -61,6 +61,9 @@ const AXIS_SNAP: float = 0.000001
 ## this (less than the way to your kid) is cut away instead of filling the screen.
 @export var shoulder_fov: float = 75.0
 @export var shoulder_near: float = 0.3
+## Props (buildings, barrier rows, posts, sidewalk things) are left out while they stand in the line from the camera to your kid, or within
+## this many metres of the camera, where they would fill the side of the screen (owner, 2026-11-10; `StreetMap.hide_between`).
+@export var shoulder_clear_reach: float = 0.0
 ## How far down the view looks at the start (degrees below level), and the most it may look down and up (up is negative).
 @export var look_pitch_degrees: float = 12.0
 @export var look_pitch_max: float = 60.0
