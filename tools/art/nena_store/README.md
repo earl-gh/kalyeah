@@ -1,3 +1,5 @@
+> Superseded by `tools/art/buildings/` (2026-11-10): the store is rebuilt there with a real roof and painted from its materials. Kept for `sign_clean.py`, which made its cleaned sign.
+
 # Nena store: rebuild and repaint
 
 How `assets/models/props/nena_store.glb` is made from the owner's Meshy model (docs/ART.md, "The Nena store, polished").

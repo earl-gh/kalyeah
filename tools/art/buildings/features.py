@@ -13,5 +13,8 @@ for k in range(inv.max()+1):
     n=(fn[m]*ar[m,None]).sum(0); n/=max(np.linalg.norm(n),1e-9)
     cl=(col[m]*ar[m,None]).sum(0)/max(A,1e-12)
     h,l,s=colorsys.rgb_to_hls(*(cl/255))
-    out.append(dict(k=k,tris=int(m.sum()),area=float(A),lo=p.min(0).round(3).tolist(),hi=p.max(0).round(3).tolist(),n=n.round(2).tolist(),rgb=cl.astype(int).tolist(),h=round(h*360),l=round(l,2),s=round(s,2)))
+    samp=np.concatenate([tex[px[m][...,1],px[m][...,0]].reshape(-1,3)])
+    lum=samp.mean(1); mx=samp.max(1); mn=samp.min(1)
+    yfrac=float(((samp[:,0]>150)&(samp[:,1]>110)&(samp[:,2]<0.6*samp[:,1])).mean()) if len(samp) else 0.0
+    out.append(dict(k=k,tris=int(m.sum()),area=float(A),lstd=round(float(lum.std()),1),yfrac=round(yfrac,3),lo=p.min(0).round(3).tolist(),hi=p.max(0).round(3).tolist(),n=n.round(2).tolist(),rgb=cl.astype(int).tolist(),h=round(h*360),l=round(l,2),s=round(s,2)))
 json.dump(out,open(sys.argv[4],"w"))

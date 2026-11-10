@@ -16,13 +16,13 @@ func test_the_store_keeps_its_shape_and_its_triangles() -> void:
 	var box: AABB = PropModel.bounds_of(ID)
 	assert_almost_eq(box.position.y, 0.0, 0.001, "its foot on the origin")
 	assert_almost_eq(box.get_center().x, 0.0, 0.001)
-	assert_almost_eq(box.get_center().z, 0.0, 0.001)
-	assert_almost_eq(box.size.x, 1.0, 0.001, "as wide as made")
-	assert_almost_eq(box.size.y, 0.855, 0.001, "its ridge is its top: nothing floats over the roof")
+	assert_almost_eq(box.get_center().z, 0.0, 0.003)
+	assert_almost_eq(box.size.x, 1.028, 0.002, "as wide as made, plus the new roof's overhang")
+	assert_almost_eq(box.size.y, 0.892, 0.002, "the new roof's ridge cap is its top: nothing floats over the roof")
 	var model: Node3D = autofree(PropModel.make(ID)) as Node3D
 	var mesh: Mesh = (model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
 	assert_eq(mesh.get_surface_count(), 1, "one mesh, one material")
-	assert_eq((mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3, 5720, "every triangle but the pallet's (fewer tore the roof)")
+	assert_eq((mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3, 5326, "the model with its new roof, frame and left wall")
 
 
 func test_the_store_is_drawn_with_the_polished_look_over_its_own_picture() -> void:

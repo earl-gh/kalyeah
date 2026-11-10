@@ -29,7 +29,7 @@ func test_each_keeps_its_shape_its_triangles_and_one_material() -> void:
 		var mesh: Mesh = (model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
 		assert_eq(mesh.get_surface_count(), 1, "%s: one mesh, one material" % id)
 		var triangles: int = (mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
-		assert_between(triangles, 5600, 6200, "%s keeps its triangles (only floating shards went)" % id)
+		assert_between(triangles, 5000, 6800, "%s: its kept parts and its new roof" % id)
 
 
 func test_each_is_drawn_with_the_polished_look_over_its_own_picture() -> void:
