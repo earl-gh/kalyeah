@@ -50,7 +50,7 @@ func test_the_store_is_drawn_with_the_polished_look_over_its_own_picture() -> vo
 
 
 func test_other_props_keep_the_matte_look() -> void:
-	var look: StandardMaterial3D = _surface_material(autofree(PropModel.make("vulcanizing")) as Node3D)
+	var look: StandardMaterial3D = _surface_material(autofree(PropModel.make("bench")) as Node3D)
 	assert_eq(look.diffuse_mode, BaseMaterial3D.DIFFUSE_LAMBERT_WRAP)
 	assert_eq(look.specular_mode, BaseMaterial3D.SPECULAR_DISABLED)
 	assert_eq(look.roughness, 1.0)

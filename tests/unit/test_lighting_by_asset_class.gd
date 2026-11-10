@@ -61,8 +61,13 @@ func test_every_3d_model_is_matte() -> void:
 				if material == null:
 					continue
 				seen += 1
-				assert_eq(material.specular_mode, BaseMaterial3D.SPECULAR_DISABLED, "%s has no specular highlight" % id)
-				assert_eq(material.roughness, 1.0, "%s is fully rough" % id)
+				if PropModel.POLISHED.has(id):
+					# the buildings' polished look (docs/ART.md): toon light, smoother, a slight gloss
+					assert_eq(material.specular_mode, BaseMaterial3D.SPECULAR_TOON, "%s has its slight toon gloss" % id)
+					assert_almost_eq(material.roughness, ModelLook.POLISHED_ROUGHNESS, 0.0001, id)
+				else:
+					assert_eq(material.specular_mode, BaseMaterial3D.SPECULAR_DISABLED, "%s has no specular highlight" % id)
+					assert_eq(material.roughness, 1.0, "%s is fully rough" % id)
 				assert_eq(material.metallic, 0.0, "%s is not metal" % id)
 				assert_false(material.normal_enabled, "%s has no normal map" % id)
 				assert_false(material.emission_enabled, "%s glows by nothing" % id)
