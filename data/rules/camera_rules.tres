@@ -23,4 +23,5 @@ shoulder_distance = 12.0
 look_pitch_degrees = 26.0
 shoulder_bounds_edge = 0.5
 shoulder_near = 3.5
+shoulder_clear_reach = 5.0
 shoulder_name_reach = 22.0

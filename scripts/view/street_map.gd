@@ -208,6 +208,12 @@ var _base_marks: Array[Node3D] = []
 ## The buildings along each side of the street (-1: the -X side, 1: the +X side), so the landscape camera can leave out the row between it and
 ## the street (`hide_near_houses`).
 var house_rows: Dictionary[int, Array] = {-1: [], 1: []}
+## Every prop on the street (buildings, barrier rows, posts, sidewalk things) and its box in the world, measured once on first use, so the
+## shoulder camera can leave out the ones standing between it and your kid (`hide_between`).
+var _occluders: Array[Node3D] = []
+var _occluder_boxes: Array[AABB] = []
+## The props `hide_between` left out last time.
+var _hidden_props: Array[Node3D] = []
 
 @onready var _geometry: Node3D = %Geometry
 @onready var _camera: Camera3D = %Camera
@@ -757,6 +763,11 @@ func _add_boundary_pictures() -> void:
 	for end: float in [-1.0, 1.0]:
 		_row_pictures[end] = _boundary_row(end, BOUNDARY_PICTURES, "BoundaryPictures%s" % ("Far" if end < 0.0 else "Near"), end > 0.0, false)
 		_row_bottom[end] = _boundary_row(end, BOTTOM_PICTURES, "BoundaryBottom%s" % ("Far" if end < 0.0 else "Near"), end < 0.0, true)
+	# each picture can stand between the shoulder camera and your kid, like any prop (`hide_between`)
+	for row: Node3D in [_row_pictures[-1.0], _row_pictures[1.0], _row_bottom[-1.0], _row_bottom[1.0]]:
+		for picture: Node in row.get_children():
+			if picture is Node3D:
+				_occluders.append(picture as Node3D)
 
 
 ## `beyond`: the bottom row, whose pictures stand out past the end line to their `bottom_foot` (local +z points away from the play area).
@@ -944,13 +955,84 @@ func _dress_post(post: Node3D, own: bool, flipped: bool) -> void:
 	(post.get_node(POST_BLUE) as Node3D).visible = own
 	(post.get_node(POST_RED) as Node3D).visible = not own
 	post.rotation.y = PI if flipped else 0.0
+	_occluder_boxes.clear()  # its box turned with it
 
 
 func _add_prop(model: Node3D, at: Vector3, yaw: float = 0.0) -> Node3D:
 	model.position = at
 	model.rotation.y = yaw
 	_geometry.add_child(model)
+	_occluders.append(model)
+	_occluder_boxes.clear()  # measured again on the next `hide_between`
 	return model
+
+
+## The shoulder camera (owner, 2026-11-10): a prop that stands between the camera at `eye` and your kid (standing at `feet`, `height` tall),
+## or within `clear` metres of the camera, is left out, so the camera never looks at the back of a wall, a stall or the post instead of the
+## play; it comes back as soon as it is out of the way. The line is checked to the kid's feet, middle and head.
+func hide_between(eye: Vector3, feet: Vector3, height: float, clear: float = 0.0) -> void:
+	if _occluder_boxes.size() != _occluders.size():
+		_occluder_boxes.clear()
+		for prop: Node3D in _occluders:
+			_occluder_boxes.append(world_box(prop))
+	var targets: Array[Vector3] = [feet + Vector3.UP * height * 0.15, feet + Vector3.UP * height * 0.5, feet + Vector3.UP * height]
+	var hidden: Array[Node3D] = []
+	for i: int in _occluders.size():
+		var box: AABB = _occluder_boxes[i]
+		if (eye.clamp(box.position, box.end) - eye).length() < clear:
+			hidden.append(_occluders[i])
+			continue
+		for target: Vector3 in targets:
+			if segment_hits_box(eye, target, _occluder_boxes[i]):
+				hidden.append(_occluders[i])
+				break
+	for prop: Node3D in _hidden_props:
+		if not hidden.has(prop):
+			prop.visible = true
+	for prop: Node3D in hidden:
+		prop.visible = false
+	_hidden_props = hidden
+
+
+## The props the shoulder camera is leaving out now.
+func hidden_props() -> Array[Node3D]:
+	return _hidden_props
+
+
+## The box round everything drawn under `root` (models, pictures), in the world.
+static func world_box(root: Node3D) -> AABB:
+	var box: AABB = AABB()
+	var first: bool = true
+	var parts: Array[Node] = root.find_children("*", "VisualInstance3D", true, false)
+	if root is VisualInstance3D:
+		parts.append(root)
+	for node: Node in parts:
+		var shape: VisualInstance3D = node as VisualInstance3D
+		var part: AABB = shape.global_transform * shape.get_aabb()
+		box = part if first else box.merge(part)
+		first = false
+	return box
+
+
+## True when the straight line from `from` to `to` passes through `box` (either end inside counts).
+static func segment_hits_box(from: Vector3, to: Vector3, box: AABB) -> bool:
+	var way: Vector3 = to - from
+	var enter: float = 0.0
+	var leave: float = 1.0
+	for axis: int in 3:
+		var lo: float = box.position[axis]
+		var hi: float = box.end[axis]
+		if absf(way[axis]) < 1e-9:
+			if from[axis] < lo or from[axis] > hi:
+				return false
+			continue
+		var t0: float = (lo - from[axis]) / way[axis]
+		var t1: float = (hi - from[axis]) / way[axis]
+		enter = maxf(enter, minf(t0, t1))
+		leave = minf(leave, maxf(t0, t1))
+		if enter > leave:
+			return false
+	return true
 
 
 func _setup_camera() -> void:
