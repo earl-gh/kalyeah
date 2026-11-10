@@ -1,0 +1,16 @@
+{
+ "drop": [],
+ "drop_boxes": [],
+ "sign": [
+  16,
+  206
+ ],
+ "palette": {
+  "wall": "bare",
+  "roof": "#B0402F",
+  "trim": "#E2B23A",
+  "plywood": "#C9A774"
+ },
+ "roofs": [],
+ "shrink": 0.78
+}

@@ -10,8 +10,9 @@ const PATH: String = "res://assets/models/props/%s.glb"
 ## Models drawn with the materials their maker authored (the karinderya's see-through glass, glowing parts and metal), not the matte look of `ModelLook`:
 ## the owner's own model, not to be changed or lowered in quality.
 const AS_MADE: Array[String] = ["karinderya"]
-## Models drawn with the polished look (`ModelLook.make_polished`: toon shading, smoother, a slight gloss) instead of the plain matte one.
-const POLISHED: Array[String] = ["nena_store"]
+## Models drawn with the polished look (`ModelLook.make_polished`: toon shading, smoother, a slight gloss) instead of the plain matte one: the
+## street's buildings, repainted for it (docs/ART.md "The Nena store, polished" and "The other buildings").
+const POLISHED: Array[String] = ["nena_store", "vulcanizing", "barber_shop", "house_1", "house_2", "house_3", "tricycle_terminal"]
 
 static var _scenes: Dictionary[String, PackedScene] = {}
 static var _boxes: Dictionary[String, AABB] = {}
