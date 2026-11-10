@@ -1,8 +1,8 @@
 extends GutTest
 ## The Nena store, polished (owner, 2026-11-09): the owner's model with its split corners welded and hard edges where its faces fold (so toon
-## light falls in clean bands), the slatted pallet that floated over its ridge taken off, its picture repainted from scratch in a few calm
-## colours (no real brand's logo or sign), and drawn with the polished look laid on in order: albedo, toon shading, then smoothness and a
-## slight gloss. Seam: PropModel.make, ModelLook.make_polished.
+## light falls in clean bands), the slatted pallet that floated over its ridge taken off, its picture repainted (hollow-block walls, the
+## owner's sign cleaned; tools/art/nena_store/), and drawn with the polished look laid on in order: albedo, toon shading, then smoothness
+## and a slight gloss. Seam: PropModel.make, ModelLook.make_polished.
 
 const ID: String = "nena_store"
 

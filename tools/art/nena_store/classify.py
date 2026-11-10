@@ -61,6 +61,12 @@ def classify(f):
 	# walls: big vertical boards
 	if max(sx, sz) > 0.12 and sy > 0.3 and min(sx, sz) < 0.04:
 		return "plaster"
+	# the side walls' stacked boards and top plates: hollow-block courses like the rest of the walls (owner, 2026-11-10)
+	if (f["hi"][0] < -0.36 or f["lo"][0] > 0.38) and sz > 0.15 and sy < 0.11 and sx < 0.06:
+		return "plank"
+	# the side walls are thick: their stacked courses run 0.15 deep from the outside face in, below the eaves
+	if (f["lo"][0] < -0.40 or f["hi"][0] > 0.40) and sx < 0.2 and sz > 0.15 and sy < 0.07 and f["hi"][1] < 0.6:
+		return "plank"
 	return "wood"
 
 
