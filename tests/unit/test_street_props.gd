@@ -365,3 +365,12 @@ func test_cart_and_jeepney_have_equal_gaps_between_the_corner_walls() -> void:
 		assert_almost_eq(right_gap, middle_gap, 0.001)
 		assert_false(row.has_node("tin_fence"), "no middle wall beneath the cart")
 		assert_eq(row.get_child_count(), 4, "cart, jeepney and two corner walls")
+
+
+func test_the_nanay_wears_a_1024_picture_on_her_own_mesh() -> void:
+	# optimized (owner, 2026-11-10): her picture is 1024 px (it was 2048 px with 71% of it unused); her mesh is as the owner made it
+	var model: Node3D = autofree(PropModel.make("nanay")) as Node3D
+	var mesh: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+	var picture: Texture2D = (mesh.mesh.surface_get_material(0) as BaseMaterial3D).albedo_texture
+	assert_eq(picture.get_size(), Vector2(1024, 1024))
+	assert_eq((mesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3, 5998, "all her triangles: fewer smeared her dress")
