@@ -203,6 +203,9 @@ func test_the_model_props_are_light_and_standing_on_the_ground() -> void:
 		if PropModel.AS_MADE.has(id):
 			continue  # the owner's model keeps its own materials (glass, glow, metal)
 		var material: StandardMaterial3D = mesh.get_surface_override_material(0) as StandardMaterial3D
+		if PropModel.POLISHED.has(id):
+			assert_lt(material.roughness, 1.0, "%s is polished (tests/unit/test_nena_store.gd)" % id)
+			continue
 		assert_eq(material.roughness, 1.0, "%s is matte" % id)
 
 

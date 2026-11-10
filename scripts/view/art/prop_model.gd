@@ -10,6 +10,8 @@ const PATH: String = "res://assets/models/props/%s.glb"
 ## Models drawn with the materials their maker authored (the karinderya's see-through glass, glowing parts and metal), not the matte look of `ModelLook`:
 ## the owner's own model, not to be changed or lowered in quality.
 const AS_MADE: Array[String] = ["karinderya"]
+## Models drawn with the polished look (`ModelLook.make_polished`: toon shading, smoother, a slight gloss) instead of the plain matte one.
+const POLISHED: Array[String] = ["nena_store"]
 
 static var _scenes: Dictionary[String, PackedScene] = {}
 static var _boxes: Dictionary[String, AABB] = {}
@@ -20,7 +22,10 @@ static func make(id: String, scale: Vector3 = Vector3.ONE) -> Node3D:
 	if not _scenes.has(id):
 		_scenes[id] = load(PATH % id) as PackedScene
 	var root: Node3D = _scenes[id].instantiate() as Node3D
-	if not AS_MADE.has(id):
+	if POLISHED.has(id):
+		ModelLook.apply(root)
+		ModelLook.apply_polished(root)
+	elif not AS_MADE.has(id):
 		ModelLook.apply(root)
 	root.scale = scale
 	return root

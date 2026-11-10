@@ -8,6 +8,10 @@ extends RefCounted
 const ALBEDO_GAIN: float = 1.0
 const RIM: float = 0.1
 const RIM_TINT: float = 0.3
+## The polished look (owner, 2026-11-09: the Nena store), laid on the matte look in this order: its albedo (the cleaned picture, the same
+## gain), toon shading (light and shade in clean bands, not a smear), then smoothness and a slight gloss (a small, soft highlight).
+const POLISHED_ROUGHNESS: float = 0.45
+const POLISHED_SPECULAR: float = 0.2
 
 
 ## Gives every surface of every mesh under `root` its own copy of the look and returns them
@@ -42,6 +46,25 @@ static func make(source: Material) -> StandardMaterial3D:
 	material.rim_tint = RIM_TINT
 	material.albedo_color = Color(ALBEDO_GAIN, ALBEDO_GAIN, ALBEDO_GAIN) * material.albedo_color
 	return material
+
+
+## The polished look for one surface whose own material is `source`: the matte look's albedo, rim and settings, then toon shading, then
+## smoothness and a slight gloss.
+static func make_polished(source: Material) -> StandardMaterial3D:
+	var material: StandardMaterial3D = make(source)
+	material.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	material.specular_mode = BaseMaterial3D.SPECULAR_TOON
+	material.roughness = POLISHED_ROUGHNESS
+	material.metallic_specular = POLISHED_SPECULAR
+	return material
+
+
+## Gives every surface of every mesh under `root` the polished look (`make_polished`) in place of the matte one.
+static func apply_polished(root: Node) -> void:
+	for node: Node in root.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance: MeshInstance3D = node as MeshInstance3D
+		for surface: int in mesh_instance.mesh.get_surface_count():
+			mesh_instance.set_surface_override_material(surface, make_polished(mesh_instance.mesh.surface_get_material(surface)))
 
 
 ## Turns on the model's own baked shading (the vertex colours its maker painted: darker in the creases and under the parts, 0.6 to 1) for
