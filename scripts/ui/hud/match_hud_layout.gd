@@ -15,6 +15,8 @@ static func apply(hud: MatchHud) -> void:
 		hud.tagged_panel.set_console_height(hud.console_panel_height())
 	hud.console_height_changed.emit(hud.console_height())
 	hud.side_reserve_changed.emit(hud.side_reserve(), hud.side_reserve_left())
+	if hud.waypoints != null:
+		hud._place(hud.waypoints, Vector4(0, 0, 1, 1), Vector4.ZERO)
 	if hud.landscape:
 		_apply_landscape(hud)
 	elif hud.hand != null:
@@ -32,8 +34,7 @@ static func apply(hud: MatchHud) -> void:
 
 
 ## The quick chat button stands at the top right of every match, whatever the tray does (cards at the bottom or at the sides, left- or
-## right-handed, or the street games' knob and button): on the header's row, its right edge on the screen's margin, under the notch. The white
-## sticker panel opens under it, also at the top right. `hud.top` is moved down by the notch's inset, so the button goes down with it.
+## right-handed, or the street games' knob and button): on the header's row, its right edge on the screen's margin, under the notch.
 static func _place_chat(hud: MatchHud) -> void:
 	var right: float = -MatchHud.MARGIN
 	var top: float = hud.top_inset + MatchHud.TOP_ROW_Y
@@ -42,12 +43,14 @@ static func _place_chat(hud: MatchHud) -> void:
 	hud.chat.place_panel(Rect2(Vector2(hud.size.x - MatchHud.MARGIN - panel.x, top + MatchHud.STREET_CHAT_SIZE + 8.0), panel))
 
 
-## The landscape match (Wild Rift style): no tray; the joystick takes the left of the screen and the ability arc the bottom-right corner, both
-## over the whole screen so they lay themselves out from its size, clear of the notch (left or right) and the home bar.
+## Landscape 1280x720 90s Filipino Komiks x Valorant layout:
+## - Top-left: Settings gear + 156x156 BarangayMinimap
+## - Top-center: 5 Ally Portrait Chips + Scoreboard & ClockChip + 5 Enemy Portrait Chips
+## - Top-right: QuickChat + TakedownFeed slanted callout strips
+## - Bottom-left: MoveStick + HeroVitalsPanel hero card
+## - Bottom-right: AbilityArc (TIRADOR LMB, Q/E/R Superpowers, LUKSONG-TINIK SHIFT, BAGSAK F)
 static func _apply_landscape(hud: MatchHud) -> void:
 	hud.console.visible = false
-	# the header is 80% of its portrait size: the screen is 720 px tall here (docs/audits/2026-11-09-landscape-hud.md); the score and the clock
-	# shrink round the middle of the header's row, the tag toast round the middle of its own top edge
 	var pivot: Vector2 = Vector2(hud.top.size.x / 2.0, MatchHud.TOP_ROW_Y)
 	for item: Control in [hud.scoreboard, hud.clock_chip]:
 		item.pivot_offset = pivot - item.position
@@ -55,8 +58,6 @@ static func _apply_landscape(hud: MatchHud) -> void:
 	var header_bottom: float = hud.top_inset + MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y * HudStyle.HEADER_SCALE
 	if hud.score_column != null:
 		header_bottom = maxf(header_bottom, _place_score_row(hud))
-	# the role lines and the hints stand right under the score, over the sky and the roofs: off your kid (the lower middle) and off the far end
-	# of the street, where the far kids' tags are (round 2 of the audit); the tag toast pops in under them for its two seconds
 	var words_top: float = header_bottom + HudStyle.WORDS_GAP
 	var toast_top: float = words_top + HudStyle.WORDS_HEIGHT
 	hud._place(hud.tag_toast, Vector4(0, 0, 1, 0), Vector4(0, toast_top, 0, toast_top + TagToast.HEIGHT))
@@ -68,7 +69,6 @@ static func _apply_landscape(hud: MatchHud) -> void:
 	if hud.street_pad != null:
 		hud._place(hud.street_pad, Vector4(0, 0, 1, 1), Vector4.ZERO)
 		hud.street_pad.set_landscape(true, Vector4(hud.side_insets.x, hud.top_inset, hud.side_insets.y, hud.bottom_inset), words_top)
-	# your stamina is under the ice water bar at the bottom centre; the street games have no arc, so theirs stays under your bar
 	hud.overhead.stamina_on_bar = hud.street_game
 	if hud.hand is AbilityArc:
 		hud._place(hud.hand, Vector4(0, 0, 1, 1), Vector4.ZERO)
@@ -79,6 +79,18 @@ static func _apply_landscape(hud: MatchHud) -> void:
 		hud._place(hud.stick, Vector4(0, 0, 1, 1), Vector4.ZERO)
 		hud.stick.inset = Vector2(hud.side_insets.x, hud.bottom_inset)
 		hud.stick.cancel()
+	if hud.minimap != null:
+		var map_left: float = MatchHud.MARGIN + MatchHud.GEAR_SIZE + 8.0
+		var map_top: float = hud.top_inset + MatchHud.TOP_ROW_Y
+		hud._place(hud.minimap, Vector4(0, 0, 0, 0), Vector4(map_left, map_top, map_left + BarangayMinimap.SIZE.x, map_top + BarangayMinimap.SIZE.y))
+	if hud.takedown_feed != null:
+		var feed_right: float = -(hud.side_insets.y + MatchHud.MARGIN)
+		var feed_top: float = hud.top_inset + MatchHud.TOP_ROW_Y + MatchHud.STREET_CHAT_SIZE + 8.0
+		hud._place(hud.takedown_feed, Vector4(1, 0, 1, 0), Vector4(feed_right - TakedownFeed.WIDTH, feed_top, feed_right, feed_top + TakedownFeed.HEIGHT))
+	if hud.vitals_panel != null:
+		var vitals_left: float = hud.side_insets.x + HudStyle.EDGE + MoveStick.BASE_RADIUS * 2.0 + 14.0
+		var vitals_bottom: float = -(hud.bottom_inset + HudStyle.EDGE)
+		hud._place(hud.vitals_panel, Vector4(0, 1, 0, 1), Vector4(vitals_left, vitals_bottom - HeroVitalsPanel.SIZE.y, vitals_left + HeroVitalsPanel.SIZE.x, vitals_bottom))
 
 
 ## Tumbang Preso's and Langit Lupa's points in the landscape match (owner, 2026-11-09): the kids' cards in a row at the top centre, half on

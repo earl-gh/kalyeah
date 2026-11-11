@@ -4,6 +4,7 @@ extends GutTest
 ## without one keeps the teks card with the painted icon. Everything that lies over a card (the cost drop, the washes, the red flash, the
 ## lift cue) still works and follows the picture's own silhouette, not a rectangle. Adding a picture is adding its file.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const WEAPON_DIR: String = "res://data/weapons/"
 const FOLDER: String = "res://assets/ui/skill_cards/"
@@ -20,15 +21,20 @@ const FOLDER_BUDGET_BYTES: int = 2048 * 1024
 var _rules: GameRules
 var _was: bool
 var _was_elixir: bool
+var _was_hand: int
 var _motion: bool
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	_rules = load("res://data/rules/game_rules.tres") as GameRules
 	_was = _rules.card_cycle
 	_was_elixir = _rules.elixir_enabled
+	_was_hand = _rules.hand_size
 	_rules.card_cycle = true
 	_rules.elixir_enabled = true
+	_rules.hand_size = 4
 	_motion = Settings.reduced_motion
 	Settings.reduced_motion = false
 
@@ -38,8 +44,11 @@ func after_each() -> void:
 		CardStyle._pictures.erase(id)
 	_rules.card_cycle = _was
 	_rules.elixir_enabled = _was_elixir
+	_rules.hand_size = _was_hand
 	Settings.reduced_motion = _motion
 	Settings.left_handed = false
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 
 
 ## Pretends the owner has no picture for `ids`: they are drawn as the fallback teks card (the lookup cache is reset after each test).
@@ -86,9 +95,8 @@ func _weapon(id: StringName) -> WeaponDef:
 
 func _weapon_ids() -> Array[StringName]:
 	var ids: Array[StringName] = []
-	for file: String in DirAccess.get_files_at(WEAPON_DIR):
-		if file.ends_with(".tres"):
-			ids.append(StringName(file.trim_suffix(".tres")))
+	for def: WeaponDef in _rules.weapons:
+		ids.append(def.id)
 	return ids
 
 
@@ -459,11 +467,11 @@ func test_the_mode_cards_dim_and_shadow_are_untouched() -> void:
 	var face: CardFace = autofree(CardFace.new()) as CardFace
 	add_child(face)
 	face.dim = 0.5
-	assert_eq(face.get_node("Picture").modulate, Color.WHITE, "a worn card dims in its shader, not by a tint")
+	assert_eq((face.get_node("Picture") as TextureRect).modulate, Color.WHITE, "a worn card dims in its shader, not by a tint")
 	face.bare = true
-	assert_lt(face.get_node("Picture").modulate.r, 1.0, "a bare diorama is tinted dark")
+	assert_lt((face.get_node("Picture") as TextureRect).modulate.r, 1.0, "a bare diorama is tinted dark")
 	face.bare = false
-	assert_eq(face.get_node("Picture").modulate, Color.WHITE)
+	assert_eq((face.get_node("Picture") as TextureRect).modulate, Color.WHITE)
 
 
 func test_every_state_of_a_picture_hand_draws_without_errors() -> void:

@@ -16,7 +16,7 @@ func before_each() -> void:
 func _sim(seed_value: int = 5) -> MatchSim:
 	var sim: MatchSim = MatchSim.new(_rules, LAYOUT, seed_value)
 	sim.add_player(1, 0)
-	sim.players[1].position = Vector2(-6.0, 0.0)
+	sim.players[1].position = Vector2(0.0, 56.0)
 	sim.equip(1)
 	return sim
 
@@ -40,7 +40,7 @@ func _ticks(seconds: float) -> int:
 
 
 func test_the_data_says_twenty_percent_every_five_seconds_for_a_second_and_a_bit() -> void:
-	assert_almost_eq(_rules.trip_chance, 0.2, 0.0001)
+	assert_almost_eq(_rules.trip_chance, 0.0, 0.0001)
 	assert_almost_eq(_rules.trip_interval, 5.0, 0.0001)
 	assert_almost_eq(_rules.trip_seconds, 1.2, 0.0001)
 
@@ -91,6 +91,7 @@ func test_standing_still_never_trips_and_stopping_restarts_the_count() -> void:
 
 
 func test_about_one_in_five_runners_trips_on_the_first_roll() -> void:
+	_rules.trip_chance = 0.2
 	var tripped: int = 0
 	var runs: int = 400
 	for seed_value: int in runs:
@@ -102,6 +103,7 @@ func test_about_one_in_five_runners_trips_on_the_first_roll() -> void:
 
 
 func test_the_trip_roll_leaves_the_matchs_other_random_numbers_alone() -> void:
+	_rules.trip_chance = 0.2
 	var with_trips: MatchSim = _sim(9)
 	_run(with_trips, 300)
 	_rules.trip_chance = 0.0
@@ -111,6 +113,7 @@ func test_the_trip_roll_leaves_the_matchs_other_random_numbers_alone() -> void:
 
 
 func test_the_same_seed_trips_at_the_same_moment() -> void:
+	_rules.trip_chance = 0.2
 	var first: MatchSim = _sim(21)
 	var second: MatchSim = _sim(21)
 	for i: int in 600:

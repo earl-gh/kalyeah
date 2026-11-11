@@ -4,18 +4,23 @@ extends GutTest
 ## your health at its end, every card thumb-sized, in the bottom of the screen, above the home bar, and the street camera keeping
 ## the tray's height clear.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
 const SHAPES: Array[Vector2] = [Vector2(720.0, 1280.0), Vector2(720.0, 1558.0)]
 
 var _left: bool
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	_left = Settings.left_handed
 	Settings.left_handed = false
 
 
 func after_each() -> void:
 	Settings.left_handed = _left
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 
 
 func _hud(shape: Vector2, inset: float = 0.0) -> MatchHud:

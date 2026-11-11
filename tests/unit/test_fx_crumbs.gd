@@ -164,23 +164,24 @@ func test_the_soil_block_drops_crumbs_as_it_rises_widens_and_sinks() -> void:
 	_cast(&"langit_lupa", Vector2(0.0, -1.0))
 	var shield: WeaponSystem.Shield = _sim.weapons.shields[0]
 	var rise: Array = _bursts(2)
-	assert_eq(rise[0], 1, "a burst as it rises")
-	var emitter: CPUParticles3D = rise[1]
+	assert_eq(rise[0] as int, 1, "a burst as it rises")
+	var emitter: CPUParticles3D = rise[1] as CPUParticles3D
 	assert_almost_eq(emitter.emission_box_extents.x * 2.0, shield.half_width * 2.0, 0.2, "over its width at that moment")
 	var widen: Array = _bursts(int((shield.def.expand_delay + shield.def.expand_time) / DT))
-	assert_eq(widen[0], 2, "two while it widens (as it starts and half way)")
+	assert_eq(widen[0] as int, 2, "two while it widens (as it starts and half way)")
 	assert_gt((widen[2] as CPUParticles3D).emission_box_extents.x, (widen[1] as CPUParticles3D).emission_box_extents.x * 1.5, "each spread over a wider block than the one before")
 	var held: Array = _bursts(int((shield.time_left - FxWalls.SOIL_COLLAPSE_TIME) / DT) - 3)
-	assert_eq(held[0], 0, "none while it stands")
+	assert_eq(held[0] as int, 0, "none while it stands")
 	var sink: Array = _bursts(int(FxWalls.SOIL_COLLAPSE_TIME / DT) + 6)
-	assert_eq(sink[0], 2, "two as it sinks (when it starts and half way)")
-	assert_almost_eq((sink[2] as CPUParticles3D).emission_box_extents.x * 2.0, 3.6, 0.2, "over the full 3.6 m")
+	assert_eq(sink[0] as int, 2, "two as it sinks (when it starts and half way)")
+	var full_width: float = shield.def.width * shield.def.expand_factor
+	assert_almost_eq((sink[2] as CPUParticles3D).emission_box_extents.x * 2.0, full_width, 0.2, "over the full %.1f m" % full_width)
 
 
 func test_the_paper_wall_drops_no_crumbs() -> void:
 	_setup()
 	_cast(&"papel_shield", Vector2(0.0, -1.0))
-	assert_eq(_bursts(80)[0], 0, "paper is not earth")
+	assert_eq(_bursts(80)[0] as int, 0, "paper is not earth")
 
 
 func test_the_meteor_lands_in_crumbs() -> void:
@@ -192,23 +193,23 @@ func test_the_meteor_lands_in_crumbs() -> void:
 	for i: int in 100:
 		var now: Array = _bursts(1)
 		if _sim.weapons.zones.is_empty():
-			landed[0] += now[0]
+			landed[0] = (landed[0] as int) + (now[0] as int)
 			if landed[1] == null:
 				landed[1] = now[1]
 		else:
-			before += now[0]
+			before += now[0] as int
 	assert_eq(before, 0, "none while it falls")
-	assert_gte(landed[0], 1 + FxLandings.METEOR_RIM_SPOTS, "where it lands: the impact point and round the rim")
+	assert_gte(landed[0] as int, 1 + FxLandings.METEOR_RIM_SPOTS, "where it lands: the impact point and round the rim")
 
 
 func test_the_top_drops_crumbs_where_it_lands_and_while_it_spins() -> void:
 	_setup()
 	_cast(&"trumpo", Vector2(0.0, -1.0))
 	var landing: Array = _bursts(4)
-	assert_gte(landing[0], 1, "a burst where it lands")
+	assert_gte(landing[0] as int, 1, "a burst where it lands")
 	var trickle: Array = _bursts(30)
-	assert_gte(trickle[0], 2, "and a trickle while it spins")
-	assert_lt(trickle[0], 8, "kept small")
+	assert_gte(trickle[0] as int, 2, "and a trickle while it spins")
+	assert_lt(trickle[0] as int, 8, "kept small")
 
 
 func test_the_marble_drops_crumbs_at_each_bounce() -> void:
@@ -217,7 +218,7 @@ func test_the_marble_drops_crumbs_at_each_bounce() -> void:
 	_cast(&"bola", Vector2(0.0, -1.0))
 	var bursts: int = 0
 	for i: int in 120:
-		bursts += _bursts(1)[0]
+		bursts += _bursts(1)[0] as int
 		if _sim.weapons.projectiles.is_empty() and i > 10:
 			break
 	assert_gte(bursts, def.count, "a burst for each of its %d bounces" % def.count)

@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CharacterDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/character_def.gd" id="1_char"]
+
+[resource]
+script = ExtResource("1_char")
+id = &"tala"
+display_name = "Tala"
+description = "Barangay track sprinter in a deep maroon singlet trimmed with barrio gold, dark cycling shorts, woven habi headband cap, and colorful friendship bracelets on both wrists."
+tint = Color(0.52, 0.13, 0.22, 1)
+skin = Color(0.56, 0.39, 0.27, 1)
+hair_color = Color(0.15, 0.1, 0.08, 1)
+hair = 3
+top = 3
+top_accent = Color(0.9, 0.68, 0.16, 1)
+bottom = 0
+bottom_color = Color(0.18, 0.15, 0.21, 1)
+shoes = true
+shoe_color = Color(0.88, 0.66, 0.18, 1)
+extra = 5
+extra_color = Color(0.18, 0.68, 0.62, 1)
+cast_release_standing = 0.675
+cast_release_moving = 0.975
+body_width = 1.0

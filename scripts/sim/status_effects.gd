@@ -62,6 +62,13 @@ func clear() -> void:
 	_immune_left = 0.0
 
 
+func clear_type(type: Type) -> void:
+	if _time_left.has(type):
+		_time_left.erase(type)
+		if type == Type.SLOW:
+			_slow = 0.0
+
+
 func has(type: Type) -> bool:
 	return _time_left.has(type)
 

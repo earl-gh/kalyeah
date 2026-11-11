@@ -18,10 +18,20 @@ const BTN_WEAPON_2: int = BTN_CARD_2
 const BTN_AIM_CANCEL: int = 1 << 5
 ## `move_target` is a new street point this tick: it replaces the kid's move target.
 const BTN_MOVE_TARGET: int = 1 << 6
-## `aim_point` is the street point under the held card. Off on the release tick = a tap (auto-aim).
+## `aim_point` is the street point under the held card / crosshair. Off on the release tick = a tap (auto-aim).
 const BTN_AIM_POINT: int = 1 << 7
+## Tirador rapid primary slingshot fire toward `aim_point` / `aim` / `facing`.
+const BTN_PRIMARY: int = 1 << 8
+## Luksong-Tinik parkour vault-dash burst in the current movement or facing direction.
+const BTN_DASH: int = 1 << 9
+## Bagsak ng Kalye Ultimate superpower (consumes 100% `ult_charge`).
+const BTN_ULTIMATE: int = 1 << 10
 ## Every bit a client may send; anything else is dropped by the server.
-const KNOWN_BITS: int = BTN_CARD_1 | BTN_CARD_2 | BTN_CARD_3 | BTN_CARD_4 | BTN_AIM_CANCEL | BTN_MOVE_TARGET | BTN_AIM_POINT
+const KNOWN_BITS: int = (
+	BTN_CARD_1 | BTN_CARD_2 | BTN_CARD_3 | BTN_CARD_4
+	| BTN_AIM_CANCEL | BTN_MOVE_TARGET | BTN_AIM_POINT
+	| BTN_PRIMARY | BTN_DASH | BTN_ULTIMATE
+)
 
 ## Stick (bots only: the phone never sends one), x = left/right, y = along the lane (screen up = -1). Length <= 1. Non-zero clears the move target.
 var move: Vector2 = Vector2.ZERO

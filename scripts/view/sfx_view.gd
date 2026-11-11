@@ -25,12 +25,15 @@ const CAST: Dictionary[StringName, String] = {
 	&"trumpo": "trumpo",
 	&"tsinelas_light": "tsinelas_throw_light",
 	&"tsinelas_heavy": "tsinelas_throw_heavy",
+	&"tirador_bato": "tsinelas_throw_light",
+	&"ult_bagsak": "bato_meteor_fall",
 }
 
 ## Weapon id -> sound of its hit landing on a kid. The others play their own sound where the picture shows the impact
 ## (a landing, a snip, a bounce, a wall) or on the cast.
 const HIT: Dictionary[StringName, String] = {
 	&"bato_light": "tsinelas_hit",  # no sound of its own in the folder
+	&"tirador_bato": "tsinelas_hit",
 	&"tsinelas_light": "tsinelas_hit",
 	&"tsinelas_heavy": "tsinelas_hit_heavy",
 }

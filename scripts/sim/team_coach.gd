@@ -1,22 +1,33 @@
 class_name TeamCoach
 extends RefCounted
-## Plays one team of bots in a Practice match. Every bot is a real player of the sim (so it counts for a capture, can be
-## tagged and rescued), driven by a TeamBrain, and the coach decides each tick whether the team attacks (everyone rushes the
-## enemy base) or defends (everyone holds its base, fights what comes near and fetches a tagged teammate).
-## Both teams wait `bot_assault_delay` seconds into the round, then attack in waves (`bot_assault_window` seconds of attack,
-## `bot_rest_time` seconds back home), and only while at least two thirds of them are free: with more tagged they fall back to
-## defending. A team with a human to follow (the player's allies) also attacks whenever that human is free in the enemy half, so it
-## backs up what the player does (owner, 2026-10-29: it used to wait for the human, and stood still in its own half until then).
-## While attacking, `bot_base_holders` free attackers hold the enemy base for good: they walk about inside it and never step out to fight
-## (stepping in and out kept the capture clock resetting and the capture notice blinking); the other attackers fight from outside and
-## only walk back in once their enemies are gone. Nobody stands still on purpose: a bot with nothing to fight walks about its post.
-## Whatever the plan, three bots get a job of their own each tick:
-## - the rescuer: the free bot nearest the team's rescue area, while a teammate (bot or human) is tagged;
-## - a guard: while the other team is taking this team's base and the plan is to attack, the free bot nearest home goes back;
-## - a pusher (a team backing up a human, while it defends): the free bot nearest the enemy base attacks it alone once it is safe,
-##   when at most a third of the enemies are free (an empty enemy base is not enough: it is empty because they are attacking).
+## Plays one team of bots in a Practice or bot-filled match (up to 5 bots per side in 5v5 Agawang Base).
+## Every bot is a real player of the sim (so it counts for a capture, can be tagged and rescued), driven by a
+## TeamBrain, and the coach decides each tick whether the team attacks or defends.
+## Both teams wait `bot_assault_delay` seconds into the round, then attack in waves (`bot_assault_window` seconds of
+## attack, `bot_rest_time` seconds back home), and only while at least two thirds of them are free: with more tagged
+## they fall back to defending. A team with a human to follow (the player's allies) also attacks whenever that human
+## is free in the enemy half, backing up the push.
+## Tactical 5-bot role distribution each tick:
+## - `rescuer_id`: free bot nearest own rescue zone while a teammate (bot or human) is tagged;
+## - `guard_ids` / `guard_id`: up to 2 free bots nearest home fall back to contest when own base is being captured;
+## - `pusher_id`: on a squad backing up a defending human, 1 bot pushes once at most a third of enemies remain free;
+## - `bot_base_holders` (`2`): hold compact 2D courtyard positions inside `base_center(enemy_side)` without stepping
+##   out, while remaining vanguard attackers screen the eskinita approaches outside `no_cast_in_enemy_base`.
 
 enum Plan { DEFEND, ASSAULT }
+
+## Compact 2D pentagon courtyard unit offsets around `base_center(enemy_side)` so 5 bots stay well inside circular bases.
+const COURTYARD_OFFSETS: Array[Vector2] = [
+	Vector2(0.0, -0.42),
+	Vector2(-0.72, -0.14),
+	Vector2(0.72, -0.14),
+	Vector2(-0.46, 0.62),
+	Vector2(0.46, 0.62),
+]
+## Distance at which a vanguard screener cycles to its alternate eskinita patrol post so it never stands idle.
+const SCREEN_REACH: float = 2.4
+## Maximum home-base defenders peeled off an assault wave on a 4–5 bot squad.
+const MAX_SQUAD_GUARDS: int = 2
 
 var team: int
 var plan: Plan = Plan.DEFEND
@@ -26,6 +37,8 @@ var follow_id: int = -1
 var _brains: Dictionary[int, TeamBrain] = {}
 ## The attackers that hold the enemy base, kept while they stay free and attacking (so the job does not pass back and forth).
 var _holders: Array[int] = []
+var _courtyard_spots: Dictionary[int, Vector2] = {}
+var _screen_phase: Dictionary[int, int] = {}
 
 
 func _init(p_team: int, p_follow_id: int = -1) -> void:
@@ -33,11 +46,14 @@ func _init(p_team: int, p_follow_id: int = -1) -> void:
 	follow_id = p_follow_id
 
 
-## Puts `id` (already added to the sim) under this coach. `skill` is how well it aims (0 to 1).
+## Puts `id` (already added to the sim) under this coach in a compact 2D courtyard formation inside the enemy base.
 func add(sim: MatchSim, id: int, skill: float) -> void:
 	var state: PlayerState = sim.players[id]
 	var enemy_side: int = -sim.side_for_team(team)
-	var spot: Vector2 = sim.layout.spawn_center(enemy_side) + Vector2(float(_brains.size() - 1) * 1.2, 0.0)
+	var slot: int = _brains.size()
+	var spot: Vector2 = _courtyard_spot(sim, enemy_side, slot)
+	_courtyard_spots[id] = spot
+	_screen_phase[id] = slot % 2
 	var brain: TeamBrain = TeamBrain.member(state.spawn_position, spot)
 	brain.skill = skill
 	_brains[id] = brain
@@ -55,27 +71,35 @@ func drive(sim: MatchSim) -> void:
 		return
 	plan = decide(sim)
 	var rescuer: int = rescuer_id(sim)
-	var guard: int = guard_id(sim, rescuer)
+	var guards: Array[int] = guard_ids(sim, rescuer)
 	var pusher: int = pusher_id(sim, rescuer)
-	_pick_holders(sim, rescuer, guard, pusher)
+	_pick_holders(sim, rescuer, guards, pusher)
+	var enemies_free: bool = _any_free_enemy(sim)
+	var vanguard_slot: int = 0
+	var fallback_spot: Vector2 = sim.layout.base_center(-sim.side_for_team(team))
 	for id: int in _brains:
 		var state: PlayerState = sim.players[id]
 		if state.tagged:
 			continue
 		var brain: TeamBrain = _brains[id]
-		var attack: bool = (plan == Plan.ASSAULT and id != guard) or id == pusher
+		var attack: bool = (plan == Plan.ASSAULT and not guards.has(id)) or id == pusher
 		brain.role = TeamBrain.Role.RUSH if attack else TeamBrain.Role.DEFEND
 		brain.rescue_duty = 1 if id == rescuer else 0
 		brain.hold = attack and _holders.has(id)
+		if brain.hold or sim.rules.bot_base_holders <= 0 or not enemies_free:
+			brain.target = _courtyard_spots[id] if _courtyard_spots.has(id) else fallback_spot
+		elif attack:
+			brain.target = _vanguard_target(sim, state, vanguard_slot)
+			vanguard_slot += 1
 		sim.set_input(id, brain.think(state, sim))
 
 
 ## Chooses which attackers hold the enemy base this tick: the ones already holding stay, then the free attackers nearest that base.
-func _pick_holders(sim: MatchSim, rescuer: int, guard: int, pusher: int) -> void:
+func _pick_holders(sim: MatchSim, rescuer: int, guards: Array[int], pusher: int) -> void:
 	var wanted: int = sim.rules.bot_base_holders
 	var attackers: Array[int] = []
 	for id: int in _brains:
-		if sim.players[id].tagged or id == rescuer or id == guard:
+		if sim.players[id].tagged or id == rescuer or guards.has(id):
 			continue
 		if (plan == Plan.ASSAULT) or id == pusher:
 			attackers.append(id)
@@ -99,11 +123,33 @@ func rescuer_id(sim: MatchSim) -> int:
 	return _nearest_free(sim, sim.layout.rescue_rect(sim.side_for_team(team)).get_center(), -1)
 
 
-## The bot sent home while the other team takes this team's base and the plan is to attack (-1: none needed).
+## Primary guard sent home while the other team captures this team's base during an attack (-1: none needed).
 func guard_id(sim: MatchSim, rescuer: int) -> int:
+	var guards: Array[int] = guard_ids(sim, rescuer)
+	return guards[0] if not guards.is_empty() else -1
+
+
+## Up to 2 guards on 4–5 bot squads (1 on <=3 bot squads) peel back to contest when own base is being captured during an assault.
+func guard_ids(sim: MatchSim, rescuer: int) -> Array[int]:
+	var result: Array[int] = []
 	if plan != Plan.ASSAULT or sim.capture_team != 1 - team or sim.capture_kind != MatchSim.CaptureKind.BASE:
-		return -1
-	return _nearest_free(sim, sim.layout.base_center(sim.side_for_team(team)), rescuer)
+		return result
+	var home: Vector2 = sim.layout.base_center(sim.side_for_team(team))
+	var first: int = _nearest_free(sim, home, rescuer)
+	if first < 0:
+		return result
+	result.append(first)
+	if _brains.size() < 4:
+		return result
+	var available: int = 0
+	for id: int in _brains:
+		if not sim.players[id].tagged and id != rescuer:
+			available += 1
+	if available >= 3:
+		var second: int = _nearest_free(sim, home, rescuer, first)
+		if second >= 0 and result.size() < MAX_SQUAD_GUARDS:
+			result.append(second)
+	return result
 
 
 ## The bot that attacks alone while a team backing up a human defends, once that is safe (-1: none).
@@ -123,13 +169,13 @@ func pusher_id(sim: MatchSim, rescuer: int) -> int:
 	return _nearest_free(sim, sim.layout.base_center(-sim.side_for_team(team)), rescuer)
 
 
-## The free bot of this team nearest `point`, other than `skip` (-1: none).
-func _nearest_free(sim: MatchSim, point: Vector2, skip: int) -> int:
+## The free bot of this team nearest `point`, skipping `skip` and `second_skip` (-1: none).
+func _nearest_free(sim: MatchSim, point: Vector2, skip: int, second_skip: int = -1) -> int:
 	var best: int = -1
 	var best_distance: float = INF
 	for id: int in _brains:
 		var state: PlayerState = sim.players[id]
-		if state.tagged or id == skip:
+		if state.tagged or id == skip or id == second_skip:
 			continue
 		var distance: float = state.position.distance_to(point)
 		if distance < best_distance:
@@ -159,3 +205,75 @@ func decide(sim: MatchSim) -> Plan:
 func _in_enemy_half(sim: MatchSim, state: PlayerState) -> bool:
 	var own_z: float = sim.layout.base_center(sim.side_for_team(team)).y
 	return state.position.y * own_z < 0.0
+
+
+## Compact 2D courtyard formation around `base_center(side)` kept strictly inside `in_base(side, ...)`.
+func _courtyard_spot(sim: MatchSim, side: int, slot: int) -> Vector2:
+	var center: Vector2 = sim.layout.base_center(side)
+	var spread: float = clampf(sim.layout.base_radius * 0.32, 1.0, 3.8)
+	var unit: Vector2 = COURTYARD_OFFSETS[slot % COURTYARD_OFFSETS.size()]
+	var spot: Vector2 = center + Vector2(unit.x, unit.y * float(-side)) * spread
+	var margin: float = minf(maxf(sim.rules.player_radius + 0.6, 1.0), sim.layout.base_radius * 0.35)
+	var safe_rect: Rect2 = sim.layout.base_rect(side).grow(-margin)
+	if safe_rect.size.x > 0.0 and safe_rect.size.y > 0.0:
+		spot = spot.clamp(safe_rect.position, safe_rect.end)
+	return spot
+
+
+## Dynamic screening waypoint across the eskinita approaches outside the enemy base so vanguard bots stay armed and moving.
+func _vanguard_target(sim: MatchSim, state: PlayerState, lane_slot: int) -> Vector2:
+	var enemy_side: int = -sim.side_for_team(team)
+	var phase: int = _screen_phase[state.id] if _screen_phase.has(state.id) else 0
+	var goal: Vector2 = _screen_spot(sim, enemy_side, lane_slot, phase)
+	if state.position.distance_to(goal) <= SCREEN_REACH or state.stuck_time > 0.35:
+		phase = 1 - phase
+		_screen_phase[state.id] = phase
+		goal = _screen_spot(sim, enemy_side, lane_slot, phase)
+	return goal
+
+
+func _screen_spot(sim: MatchSim, enemy_side: int, lane_slot: int, phase: int) -> Vector2:
+	var base: Vector2 = sim.layout.base_center(enemy_side)
+	var inward: Vector2 = (-base).normalized() if base.length_squared() > 0.001 else Vector2(0.0, -float(enemy_side))
+	var across: Vector2 = Vector2(-inward.y, inward.x)
+	var depth: float = sim.layout.base_radius + (5.2 if phase == 0 else 9.6)
+	var max_lat: float = maxf(sim.layout.lane_width * 0.32, 2.5)
+	var lane: int = lane_slot % 3
+	var lateral: float = 0.0
+	if lane == 0:
+		lateral = -minf(8.5 if phase == 0 else 3.6, max_lat)
+	elif lane == 1:
+		lateral = minf(8.5 if phase == 0 else 3.6, max_lat)
+	else:
+		lateral = minf(3.2, max_lat) * (-1.0 if phase == 0 else 1.0)
+	var point: Vector2 = base + inward * depth + across * lateral
+	if sim.layout.in_base(enemy_side, point):
+		point += inward * (sim.layout.base_radius * 0.5 + 3.0)
+	var clearance: float = sim.rules.player_radius + 0.8
+	point = sim.layout.keep_in_street(point, clearance)
+	for rect: Rect2 in sim.layout.walk_obstacle_rects():
+		var padded: Rect2 = rect.grow(clearance)
+		if not padded.has_point(point):
+			continue
+		var d_left: float = absf(point.x - padded.position.x)
+		var d_right: float = absf(padded.end.x - point.x)
+		var d_top: float = absf(point.y - padded.position.y)
+		var d_bot: float = absf(padded.end.y - point.y)
+		var best: float = minf(minf(d_left, d_right), minf(d_top, d_bot))
+		if is_equal_approx(best, d_left):
+			point.x = padded.position.x - 0.2
+		elif is_equal_approx(best, d_right):
+			point.x = padded.end.x + 0.2
+		elif is_equal_approx(best, d_top):
+			point.y = padded.position.y - 0.2
+		else:
+			point.y = padded.end.y + 0.2
+	return sim.layout.keep_in_street(point, clearance)
+
+
+func _any_free_enemy(sim: MatchSim) -> bool:
+	for id: int in sim.players:
+		var other: PlayerState = sim.players[id]
+		if other.team != team and not other.tagged:
+			return true
+	return false

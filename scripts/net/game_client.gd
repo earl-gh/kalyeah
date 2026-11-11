@@ -222,12 +222,18 @@ func taken_kids() -> Array[StringName]:
 	return mirror.teammates_kids(player_id, locked_players) if mirror != null else []
 
 
-func pick_weapons(first: StringName, second: StringName, character: StringName = &"") -> void:
-	send({"t": NetProtocol.Msg.PICK_WEAPONS, "a": first, "b": second, "c": character})
+func pick_weapons(first: StringName, second: StringName, character: StringName = &"", third: StringName = &"") -> void:
+	var msg: Dictionary = {"t": NetProtocol.Msg.PICK_WEAPONS, "a": first, "b": second, "c": character}
+	if third != &"":
+		msg["d"] = third
+	send(msg)
 
 
-func swap_weapons(first: StringName, second: StringName) -> void:
-	send({"t": NetProtocol.Msg.SWAP_WEAPONS, "a": first, "b": second})
+func swap_weapons(first: StringName, second: StringName, third: StringName = &"") -> void:
+	var msg: Dictionary = {"t": NetProtocol.Msg.SWAP_WEAPONS, "a": first, "b": second}
+	if third != &"":
+		msg["d"] = third
+	send(msg)
 
 
 ## Sends a quick chat sticker (its number in `QuickChat.PHRASES`) to everyone in the match: it comes back as `said`, for you too.

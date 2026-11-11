@@ -71,15 +71,19 @@ const POP_BACK: float = 1.70158
 ## The scale at the bottom of the shrink (a true zero breaks the skinned mesh's transform).
 const GONE_SCALE: float = 0.001
 const STAR_COUNT: int = 5
-## The team outline (owner, 2026-10-29): blue round your team, red round the other, this many metres wide.
+## The team outline (owner, 2026-10-29): blue round your team, red round the other, this many metres wide, with a crisp
+## inner 90s Filipino Komiks dark charcoal ink edge (`INK_OUTLINE_COLOR`) hugging the silhouette inside the team rim.
 const OUTLINE_SHADER: Shader = preload("res://shaders/team_outline.gdshader")
-const OUTLINE_WIDTH: float = 0.035
+const OUTLINE_WIDTH: float = 0.042
+const INK_OUTLINE_COLOR: Color = Color(0.08, 0.06, 0.09, 1.0)
+const INK_OUTLINE_WIDTH: float = 0.022
 ## The stencil value a kid's pixels are marked with; the outline draws only where it is not (shaders/team_outline.gdshader).
 const STENCIL: int = 1
 
 static var _scenes: Dictionary[String, PackedScene] = {}
 static var _portraits: Dictionary[String, Texture2D] = {}
 static var _faces: Dictionary[String, Texture2D] = {}
+static var _ink_shader: Shader = null
 
 var character: CharacterDef
 ## A foot hit the ground (run cycle).
@@ -347,17 +351,33 @@ func cast_release(clip: String) -> float:
 	return character.cast_release_moving if clip == "cast_run" else character.cast_release_standing
 
 
-## Draws a `color` outline round the kid: its material (a copy of the authored one, every setting kept) also marks the kid's
-## pixels in the stencil, and a shell over it draws only outside them.
+## Draws a crisp dark charcoal fake-2D comic ink outline (`INK_OUTLINE_COLOR`) inside a `color` team rim round the kid:
+## its material (a copy of the authored one, every setting kept) marks the kid's pixels in the stencil, and the overlay
+## shells draw only outside them so Ally vs. Enemy stays unmistakable while every kid pops like a 90s komiks frame.
 func set_team_outline(color: Color) -> void:
 	var outline: ShaderMaterial = ShaderMaterial.new()
 	outline.shader = OUTLINE_SHADER
 	outline.set_shader_parameter("color", color)
 	outline.set_shader_parameter("width", OUTLINE_WIDTH)
+	var ink: ShaderMaterial = ShaderMaterial.new()
+	ink.shader = _get_ink_shader()
+	ink.render_priority = 1
+	ink.set_shader_parameter("ink_color", INK_OUTLINE_COLOR)
+	ink.set_shader_parameter("ink_width", INK_OUTLINE_WIDTH)
+	outline.next_pass = ink
+	_marked.append(outline)
+	_marked.append(ink)
 	for node: Node in _model.find_children("*", "MeshInstance3D", true, false):
 		var mesh: MeshInstance3D = node as MeshInstance3D
+		if mesh == null or mesh.mesh == null:
+			continue
 		for surface: int in mesh.mesh.get_surface_count():
-			var marked: BaseMaterial3D = mesh.get_active_material(surface).duplicate() as BaseMaterial3D
+			var source_mat: BaseMaterial3D = mesh.mesh.surface_get_material(surface) as BaseMaterial3D
+			if source_mat == null:
+				source_mat = mesh.get_active_material(surface) as BaseMaterial3D
+			if source_mat == null:
+				continue
+			var marked: BaseMaterial3D = source_mat.duplicate() as BaseMaterial3D
 			marked.stencil_mode = BaseMaterial3D.STENCIL_MODE_CUSTOM
 			marked.stencil_flags = BaseMaterial3D.STENCIL_FLAG_WRITE
 			marked.stencil_compare = BaseMaterial3D.STENCIL_COMPARE_ALWAYS
@@ -365,6 +385,43 @@ func set_team_outline(color: Color) -> void:
 			_marked.append(marked)
 			mesh.set_surface_override_material(surface, marked)
 		mesh.material_overlay = outline
+
+
+static func _get_ink_shader() -> Shader:
+	if _ink_shader == null:
+		var shader: Shader = Shader.new()
+		shader.code = """shader_type spatial;
+render_mode unshaded, cull_disabled, shadows_disabled, fog_disabled, depth_draw_never;
+stencil_mode read, compare_not_equal, 1;
+
+uniform vec4 ink_color : source_color = vec4(0.08, 0.06, 0.09, 1.0);
+uniform float ink_width = 0.022;
+
+varying float v_stroke;
+
+void vertex() {
+	vec3 world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec4 view_position = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	float w1 = sin(world_pos.x * 14.0 + world_pos.y * 19.0 + world_pos.z * 11.5);
+	float w2 = cos(world_pos.z * 23.0 - world_pos.x * 17.0 + world_pos.y * 13.0);
+	float wobble = w1 * 0.65 + w2 * 0.35;
+	v_stroke = wobble * 0.5 + 0.5;
+	float stroke_width = ink_width * (1.0 + 0.16 * wobble);
+	vec2 across = (MODELVIEW_MATRIX * vec4(NORMAL, 0.0)).xy;
+	if (dot(across, across) > 0.000001) {
+		view_position.xy += normalize(across) * stroke_width;
+	}
+	POSITION = PROJECTION_MATRIX * view_position;
+}
+
+void fragment() {
+	vec3 charcoal = mix(ink_color.rgb * 0.88, ink_color.rgb * vec3(1.14, 1.06, 1.18), v_stroke * 0.30);
+	ALBEDO = clamp(charcoal, vec3(0.0), vec3(0.18));
+	ALPHA = ink_color.a;
+}
+"""
+		_ink_shader = shader
+	return _ink_shader
 
 
 func is_can() -> bool:

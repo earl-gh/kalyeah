@@ -96,6 +96,8 @@ func rescue(sim: MatchSim, state: PlayerState, by_id: int) -> void:
 ## Cooldowns and elixir keep running.
 func clear_actions(state: PlayerState) -> void:
 	state.cast_lock_left = 0.0
+	state.dash_left = 0.0
+	state.sprinting = false
 	state.effects.clear()
 	state.aim_hold.fill(-1.0)
 	state.has_move_target = false

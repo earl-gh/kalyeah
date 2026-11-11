@@ -24,6 +24,7 @@ const OBJECTS: Dictionary[StringName, Array] = {
 	&"trumpo": ["trumpo", 1.12],
 	# the light rock is the meteor's stone, small (the owner made no separate rock)
 	&"bato_light": ["meteor", 0.55],
+	&"tirador_bato": ["meteor", 0.42],
 }
 ## The spikes of a jacks field: this many clusters (owner: fewer and smaller than the five 0.9 m ones), each this wide in metres. They end
 ## wherever they roll to: a different, random spread in every field (owner: no fixed formation), see `spikes`.

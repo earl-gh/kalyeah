@@ -2,6 +2,7 @@ extends GutTest
 ## The kids' overhead marks (owner): every bar says its player's name, every bar has a team badge with the player's
 ## number (the room's numbering), bars that would overlap stack so every number shows, and a tagged kid on the sidewalk has no ring.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const RULES: GameRules = preload("res://data/rules/game_rules.tres")
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
@@ -9,16 +10,22 @@ const DT: float = 1.0 / 30.0
 
 var _blind: bool
 var _motion: bool
+var _landscape: bool
 
 
 func before_each() -> void:
 	_blind = Settings.colorblind
 	_motion = Settings.reduced_motion
+	_landscape = Settings.landscape
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	Settings.set_colorblind(false)
 	Settings.set_reduced_motion(true)
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(_landscape)
 	Settings.set_colorblind(_blind)
 	Settings.set_reduced_motion(_motion)
 

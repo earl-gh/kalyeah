@@ -63,13 +63,14 @@ func test_the_word_over_the_next_card_is_next_with_a_colon() -> void:
 
 func test_the_sidewalks_keep_their_width_while_the_play_area_doubled() -> void:
 	assert_almost_eq(StreetMap.SIDEWALK_WIDTH, 2.4, 0.0001, "1.2 m before, 2.4 m since")
-	assert_almost_eq(LAYOUT.lane_width, 48.0, 0.0001, "27 m, then 24 m, now twice that (owner, 2026-11-09: the play area doubled)")
+	assert_almost_eq(LAYOUT.lane_width, 174.0, 0.0001, "58 x 3.0 m outer grid enclosing the 168 m circular barangay")
+	assert_almost_eq(LAYOUT.arena_radius, 84.0, 0.0001, "84 m circular barangay radius")
 
 
 func test_the_floor_picture_is_cropped_not_stretched_on_the_narrower_play_area() -> void:
 	var map: StreetMap = autofree((load("res://scenes/map/street_map.tscn") as PackedScene).instantiate()) as StreetMap
 	add_child(map)
-	assert_almost_eq(map.cement_share(), 16.0 / 18.0, 0.0001, "the middle 16 of the picture's 18 tile columns")
+	assert_eq(map.cement_share(), Vector2.ONE, "procedural barangay ground shader covers 100% without cropping")
 
 
 func test_the_ice_water_icon_is_the_owners_drop_with_a_snowflake_and_lossless() -> void:
@@ -89,12 +90,12 @@ func test_the_ice_water_icon_is_the_owners_drop_with_a_snowflake_and_lossless() 
 
 func test_the_rescue_area_looks_square_on_screen_and_is_as_tall_as_it_was() -> void:
 	var camera: CameraRules = load("res://data/rules/camera_rules.tres") as CameraRules
-	assert_eq(LAYOUT.rescue_size, Vector2(8.5, 12.0), "4.25 x 6 m doubled with the play area (owner, 2026-11-09)")
+	assert_eq(LAYOUT.rescue_size, Vector2(9.0, 15.0), "9 x 15 m perimeter waiting-shed rescue zone for 5v5")
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var rect: Rect2 = LAYOUT.rescue_rect(side)
-		assert_almost_eq(rect.size.y, 12.0, 0.0001)
-		# the camera looks down at its pitch: a metre along the street shows as sin(pitch) of a metre on screen
+		assert_almost_eq(rect.size.y, 15.0, 0.0001)
 		var across: float = rect.size.x
 		var down: float = rect.size.y * sin(deg_to_rad(camera.pitch_degrees))
-		assert_almost_eq(across / down, 1.0, 0.01, "as wide as it is tall on screen (side %d)" % side)
-		assert_true(LAYOUT.lane_rect().encloses(rect), "inside the street")
+		assert_between(across / down, 0.80, 1.05, "balanced foreshortened rescue zone on screen (side %d)" % side)
+		assert_true(LAYOUT.lane_rect().encloses(rect), "inside the outer span")
+		assert_true(LAYOUT.in_arena(rect.get_center()), "inside the circular barangay")

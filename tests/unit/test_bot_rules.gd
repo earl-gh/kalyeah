@@ -14,6 +14,9 @@ func before_each() -> void:
 	_rules.card_cycle = true
 	_rules.elixir_enabled = true
 	_rules.stamina_enabled = true
+	_rules.hand_size = 4
+	_rules.primary_weapon = null
+	_rules.ultimate_weapon = null
 
 
 ## Bot 1 (team 0, a rusher) and enemy 2 far away unless moved; both real players with a dealt hand.

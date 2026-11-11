@@ -29,6 +29,9 @@ var glow: TextureRect
 var core: TextureRect
 ## The dark of the vignette: the picture's blue, very dark, so the dark that closes in on the picture is never another hue mixed into it.
 var night: TextureRect
+## Procedural 2D 90s Filipino Komiks overlay: radial mango-gold/crimson sunburst rays, Ben-Day corner halftone dots,
+## and hand-inked `#161219` comic frame rules + corner action hatch lines (zero per-frame allocations).
+var komiks_art: Control
 var motes: CPUParticles2D
 ## The two lights are on while the main page shows (above a page they would shine over its content, so they are switched off there).
 var lights_on: bool = true:
@@ -94,6 +97,11 @@ func _init() -> void:
 	night.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	night.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(night)
+	komiks_art = _KomiksBackdropLayer.new()
+	komiks_art.name = "KomiksArt"
+	komiks_art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	komiks_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(komiks_art)
 	motes = CPUParticles2D.new()
 	motes.name = "Motes"
 	motes.amount = MOTES
@@ -238,3 +246,110 @@ func set_tilt(shift: Vector2) -> void:
 	picture.offset_right = TILT_ROOM + clamped.x
 	picture.offset_top = -TILT_ROOM + clamped.y
 	picture.offset_bottom = TILT_ROOM + clamped.y
+
+
+class _KomiksBackdropLayer extends Control:
+	const RAY_COUNT: int = 16
+	const DOT_SPACING: float = 22.0
+	const DOT_BAND: float = 132.0
+	const FRAME_INSET: float = 8.0
+
+	var _gold_wedges: Array[PackedVector2Array] = []
+	var _crimson_wedges: Array[PackedVector2Array] = []
+	var _halftone_dots: PackedVector2Array = PackedVector2Array()
+	var _dot_radii: PackedFloat32Array = PackedFloat32Array()
+	var _hatch_lines: PackedVector2Array = PackedVector2Array()
+	var _cached_size: Vector2 = Vector2.ZERO
+
+	func _init() -> void:
+		resized.connect(_rebuild)
+
+	func _rebuild() -> void:
+		if size.x < 16.0 or size.y < 16.0 or size.is_equal_approx(_cached_size):
+			return
+		_cached_size = size
+		_gold_wedges.clear()
+		_crimson_wedges.clear()
+		var center: Vector2 = Vector2(size.x * 0.5, size.y * 0.44)
+		var reach: float = size.length() * 0.72
+		var step: float = TAU / float(RAY_COUNT)
+		for i: int in RAY_COUNT:
+			var a0: float = float(i) * step - step * 0.18
+			var a1: float = float(i) * step + step * 0.18
+			var poly: PackedVector2Array = PackedVector2Array([
+				center,
+				center + Vector2(cos(a0), sin(a0)) * reach,
+				center + Vector2(cos(a1), sin(a1)) * reach,
+			])
+			if i % 2 == 0:
+				_gold_wedges.append(poly)
+			else:
+				_crimson_wedges.append(poly)
+
+		var dots: PackedVector2Array = PackedVector2Array()
+		var radii: PackedFloat32Array = PackedFloat32Array()
+		var cols: int = maxi(int(floorf(DOT_BAND / DOT_SPACING)), 1)
+		var rows: int = maxi(int(floorf(DOT_BAND / DOT_SPACING)), 1)
+		var corners: Array[Vector2] = [
+			Vector2(18.0, 18.0),
+			Vector2(size.x - 18.0, 18.0),
+			Vector2(18.0, size.y - 18.0),
+			Vector2(size.x - 18.0, size.y - 18.0),
+		]
+		var dirs: Array[Vector2] = [
+			Vector2(1.0, 1.0),
+			Vector2(-1.0, 1.0),
+			Vector2(1.0, -1.0),
+			Vector2(-1.0, -1.0),
+		]
+		for c_idx: int in corners.size():
+			var origin: Vector2 = corners[c_idx]
+			var dir: Vector2 = dirs[c_idx]
+			for gx: int in cols:
+				for gy: int in rows:
+					var falloff: float = 1.0 - float(gx + gy) / float(cols + rows)
+					if falloff <= 0.15:
+						continue
+					var shift_x: float = (DOT_SPACING * 0.5) if (gy % 2 == 1) else 0.0
+					var pt: Vector2 = origin + Vector2((float(gx) * DOT_SPACING + shift_x) * dir.x, float(gy) * DOT_SPACING * dir.y)
+					dots.append(pt)
+					radii.append(1.4 + falloff * 2.8)
+		_halftone_dots = dots
+		_dot_radii = radii
+
+		var hatches: PackedVector2Array = PackedVector2Array()
+		for h: int in 6:
+			var d: float = 20.0 + float(h) * 14.0
+			var span: float = maxf(8.0, 34.0 - float(h) * 4.0)
+			# Top-left & top-right komiks ink hatches
+			hatches.append(Vector2(FRAME_INSET + d, FRAME_INSET))
+			hatches.append(Vector2(FRAME_INSET + d - span * 0.55, FRAME_INSET + span))
+			hatches.append(Vector2(size.x - FRAME_INSET - d, FRAME_INSET))
+			hatches.append(Vector2(size.x - FRAME_INSET - d + span * 0.55, FRAME_INSET + span))
+			# Bottom-left & bottom-right komiks ink hatches
+			hatches.append(Vector2(FRAME_INSET + d, size.y - FRAME_INSET))
+			hatches.append(Vector2(FRAME_INSET + d - span * 0.55, size.y - FRAME_INSET - span))
+			hatches.append(Vector2(size.x - FRAME_INSET - d, size.y - FRAME_INSET))
+			hatches.append(Vector2(size.x - FRAME_INSET - d + span * 0.55, size.y - FRAME_INSET - span))
+		_hatch_lines = hatches
+		queue_redraw()
+
+	func _draw() -> void:
+		if _cached_size == Vector2.ZERO and size.x >= 16.0 and size.y >= 16.0:
+			_rebuild()
+		var gold_ray: Color = Color(KalyeahTheme.AMBER, 0.065)
+		for wedge: PackedVector2Array in _gold_wedges:
+			draw_colored_polygon(wedge, gold_ray)
+		var red_ray: Color = Color(KalyeahTheme.TEAM_RED, 0.045)
+		for wedge: PackedVector2Array in _crimson_wedges:
+			draw_colored_polygon(wedge, red_ray)
+		var cream_dot: Color = Color(KalyeahTheme.KOMIKS_PAPER, 0.13)
+		for i: int in _halftone_dots.size():
+			draw_circle(_halftone_dots[i], _dot_radii[i], cream_dot)
+		if _hatch_lines.size() >= 2:
+			draw_multiline(_hatch_lines, Color(KalyeahTheme.KOMIKS_INK, 0.48), 2.0)
+		var outer: Rect2 = Rect2(Vector2.ONE * (FRAME_INSET * 0.5), size - Vector2.ONE * FRAME_INSET)
+		if outer.size.x > 8.0 and outer.size.y > 8.0:
+			draw_rect(outer, Color(KalyeahTheme.KOMIKS_INK, 0.78), false, 3.5)
+			var inner: Rect2 = outer.grow(-4.0)
+			draw_rect(inner, Color(KalyeahTheme.AMBER, 0.24), false, 1.5)

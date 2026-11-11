@@ -9,6 +9,7 @@ var RULES: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 const DT: float = 1.0 / 30.0
 const STEP: float = 1.0 / 60.0
 const AUTHORED: Array[StringName] = [&"junjun", &"ligaya", &"migo", &"toni", &"popoy", &"inday"]
+const ALL_KIDS: Array[StringName] = [&"junjun", &"ligaya", &"migo", &"toni", &"popoy", &"inday", &"kiko", &"nene", &"buknoy", &"tala"]
 ## Their source finger tracks target a different rest rig, so their normalized GLBs keep the clean modelled hand pose.
 const STATIC_FINGERS: Array[StringName] = [&"ligaya", &"migo"]
 ## How tall each GLB's rest pose is drawn (m), measured on a rendered silhouette in the sandbox (1/200 of 3 m a pixel).
@@ -46,8 +47,8 @@ func _walk(kid: KidModel, speed: float, frames: int = 12) -> void:
 
 
 func test_all_six_kids_have_cast_release_times() -> void:
-	assert_eq(RULES.characters.size(), AUTHORED.size())
-	for id: StringName in AUTHORED:
+	assert_eq(RULES.characters.size(), ALL_KIDS.size())
+	for id: StringName in ALL_KIDS:
 		assert_true(_def(id).cast_release_standing > 0.0 and _def(id).cast_release_moving > 0.0, "%s has release times" % id)
 
 
@@ -123,7 +124,7 @@ func test_model_height_is_what_the_skinned_model_really_stands() -> void:
 
 
 func test_every_kid_is_drawn_at_the_one_kid_height() -> void:
-	for id: StringName in AUTHORED:
+	for id: StringName in ALL_KIDS:
 		var kid: KidModel = _kid(id)
 		var model: Node3D = kid.find_child("Model", true, false) as Node3D
 		assert_almost_eq(_skinned_bounds(model).size.y * model.scale.y, KidModel.KID_HEIGHT, 0.04, "%s stands %.2f m tall" % [id, KidModel.KID_HEIGHT])
@@ -508,4 +509,4 @@ func test_in_a_match_a_tagged_authored_kid_reappears_at_the_tagged_place() -> vo
 	assert_eq(view.position.z, state.position.y)
 	assert_eq(view._body.scale, Vector3.ONE, "full size again")
 	assert_eq(state.hp, hp_before, "the sim never knew")
-	assert_false(practice.sim.layout.lane_rect().has_point(state.position), "outside the play area")
+	assert_false(practice.sim.layout.in_arena(state.position), "outside the play area")

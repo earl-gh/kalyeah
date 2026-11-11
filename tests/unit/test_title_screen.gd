@@ -5,7 +5,7 @@ const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
 const RULES: GameRules = preload("res://data/rules/game_rules.tres")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const NET: NetRules = preload("res://data/rules/net_rules.tres")
-const Phones := preload("res://tests/unit/hotspot_phones.gd")
+const Phones: GDScript = preload("res://tests/unit/hotspot_phones.gd")
 
 var _saved_name: String
 var _saved_avatar: String
@@ -244,7 +244,7 @@ func test_the_logo_shows_on_play_only_so_pages_get_the_height() -> void:
 	await wait_frames(3)
 	var top: Control = screen.find_child("TopBar", true, false) as Control
 	assert_true(top.is_visible_in_tree(), "Play shows the logo")
-	var play_height: float = screen.get_node("Safe").get_global_rect().size.y
+	var play_height: float = (screen.get_node("Safe") as Control).get_global_rect().size.y
 	screen.open_page(&"history")
 	await wait_frames(2)
 	assert_false(top.is_visible_in_tree(), "a page has its own title")

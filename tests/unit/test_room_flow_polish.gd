@@ -6,12 +6,14 @@ const NET: NetRules = preload("res://data/rules/net_rules.tres")
 
 
 func test_lobby_kids_survive_match_initialization_for_every_team_size() -> void:
-	for size: int in [1, 2, 3]:
+	for size: int in [1, 2, 3, 5]:
 		for seed_value: int in [1, 2, 3]:
 			var server: GameServer = GameServer.new(RULES, LAYOUT, NET, seed_value)
 			var room: RoomService.Room = server.rooms.create_room(1, "Host")
 			for peer: int in range(2, size * 2 + 1):
 				server.rooms.join(room.code, peer, "Friend")
+			for pre: RoomService.Member in room.members:
+				pre.character = &""
 			for member: RoomService.Member in room.members:
 				var choice: StringName = StringName(Session.AVATARS[(member.player_id + 2) % Session.AVATARS.size()])
 				assert_true(server.rooms.set_character(member.peer_id, choice))
@@ -50,9 +52,9 @@ func test_discovery_rejects_online_empty_full_and_started_rooms() -> void:
 	assert_eq(server._discovery_status(), "no_room")
 	var room: RoomService.Room = server.rooms.create_room(1, "Host")
 	assert_eq(server._discovery_status(), "ready")
-	for peer: int in range(2, 7):
+	for peer: int in range(2, 11):
 		server.rooms.join(room.code, peer, "Friend")
-	assert_eq(server._discovery_status(), "full", "three a team, six in all")
+	assert_eq(server._discovery_status(), "full", "five a team, ten in all")
 	room.state = RoomService.State.PLAYING
 	assert_eq(server._discovery_status(), "in_progress")
 	server.stop()

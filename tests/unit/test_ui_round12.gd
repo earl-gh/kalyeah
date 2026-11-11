@@ -13,6 +13,7 @@ var _motion: bool
 
 func before_each() -> void:
 	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	_loadout = Session.saved_loadout.duplicate()
 	_motion = Settings.reduced_motion
 	Settings.set_reduced_motion(true)
@@ -20,6 +21,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 	Session.saved_loadout = _loadout
 	Session.save()
 	Settings.set_reduced_motion(_motion)

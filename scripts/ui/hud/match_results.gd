@@ -1,6 +1,6 @@
 class_name MatchResults
 extends Control
-## Centered match result over the dimmed arena: outcome, format, score and actions, without a panel or delay.
+## Centered match result over the dimmed arena: outcome, format, score, Tagalog Ranked LP card, and actions.
 
 const WIN_COLOR: Color = Color("ffd25a")
 const LOSS_COLOR: Color = Color("ff8a80")
@@ -12,6 +12,58 @@ const CONFETTI_MAX: float = 24.0
 
 signal home_pressed
 
+
+class RankEmblemControl extends Control:
+	var lp: int = 0
+
+	func set_lp(value: int) -> void:
+		if lp == value:
+			return
+		lp = value
+		queue_redraw()
+
+	func _draw() -> void:
+		var span: float = minf(size.x, size.y) * 0.45
+		RankedSystem.draw_emblem(self, size * 0.5, span, lp)
+
+
+class RankLpBar extends Control:
+	var current_ratio: float = 0.0
+	var target_ratio: float = 0.0
+	var fill_color: Color = Color("ffc938")
+	var accent_color: Color = Color("fff29c")
+
+	func set_state(cur: float, target: float, fill: Color, accent: Color) -> void:
+		current_ratio = clampf(cur, 0.0, 1.0)
+		target_ratio = clampf(target, 0.0, 1.0)
+		fill_color = fill
+		accent_color = accent
+		queue_redraw()
+
+	func set_current_ratio(cur: float) -> void:
+		current_ratio = clampf(cur, 0.0, 1.0)
+		queue_redraw()
+
+	func _draw() -> void:
+		var rect: Rect2 = Rect2(Vector2.ZERO, size)
+		if rect.size.x <= 4.0 or rect.size.y <= 4.0:
+			return
+		# 90s Komiks inked bar track.
+		draw_rect(rect, Color("090f24"), true)
+		var inner: Rect2 = rect.grow(-2.0)
+		draw_rect(inner, Color("14224a"), true)
+		if target_ratio > current_ratio:
+			var preview_w: float = inner.size.x * target_ratio
+			draw_rect(Rect2(inner.position, Vector2(preview_w, inner.size.y)), Color(accent_color, 0.35), true)
+		var fill_w: float = inner.size.x * current_ratio
+		if fill_w > 1.0:
+			var fill_rect: Rect2 = Rect2(inner.position, Vector2(fill_w, inner.size.y))
+			draw_rect(fill_rect, fill_color, true)
+			var gloss_rect: Rect2 = Rect2(inner.position, Vector2(fill_w, inner.size.y * 0.42))
+			draw_rect(gloss_rect, accent_color.lerp(Color.WHITE, 0.35), true)
+		draw_rect(rect, Color("050914"), false, 2.0)
+
+
 var title: Label
 var subtitle: Label
 var mine_label: Label
@@ -19,11 +71,27 @@ var theirs_label: Label
 var primary: Button
 var home_button: Button
 
+var rank_card: PanelContainer
+var promo_banner: PanelContainer
+var promo_label: Label
+var emblem_view: RankEmblemControl
+var rank_tier_label: Label
+var rank_delta_chip: PanelContainer
+var rank_delta_label: Label
+var rank_lp_bar: RankLpBar
+var rank_lp_label: Label
+
 var confetti: CPUParticles2D
 var _card: PanelContainer
 var _final_mine: int = 0
 var _final_theirs: int = 0
 var _shown: bool = false
+var _bar_from: float = 0.0
+var _bar_to: float = 0.0
+var _lp_tween: Tween
+var _gain_chip_style: StyleBoxFlat
+var _loss_chip_style: StyleBoxFlat
+var _promo_style: StyleBoxFlat
 
 
 func _init() -> void:
@@ -31,6 +99,7 @@ func _init() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
+	_build_cached_styles()
 	var dim: ColorRect = ColorRect.new()
 	dim.color = MenuDialog.DIM
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -45,7 +114,7 @@ func _init() -> void:
 	_card.custom_minimum_size = Vector2(WIDTH, 0.0)
 	center.add_child(_card)
 	var column: VBoxContainer = VBoxContainer.new()
-	column.add_theme_constant_override("separation", UiMetrics.GAP)
+	column.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	_card.add_child(column)
 	title = Label.new()
 	title.name = "Title"
@@ -57,13 +126,17 @@ func _init() -> void:
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(subtitle)
 	column.add_child(_score_card())
+	promo_banner = _make_promo_banner()
+	column.add_child(promo_banner)
+	rank_card = _make_rank_card()
+	column.add_child(rank_card)
 	var buttons: HBoxContainer = HBoxContainer.new()
 	buttons.name = "Buttons"
 	buttons.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	column.add_child(buttons)
 	home_button = MenuDialog.make_button("Home", "blue", UiMetrics.ACTION)
 	home_button.name = "HomeButton"
-	home_button.custom_minimum_size = Vector2(280.0, 100.0)
+	home_button.custom_minimum_size = Vector2(280.0, 92.0)
 	home_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	home_button.pressed.connect(home_pressed.emit)
 	buttons.add_child(home_button)
@@ -73,6 +146,123 @@ func _init() -> void:
 	move_child(confetti, dim.get_index() + 1)
 
 
+func _build_cached_styles() -> void:
+	_gain_chip_style = StyleBoxFlat.new()
+	_gain_chip_style.bg_color = UiKit.CHIP_GREEN
+	_gain_chip_style.border_color = Color("08381a")
+	_gain_chip_style.set_border_width_all(2)
+	_gain_chip_style.set_corner_radius_all(UiSkin.RADIUS_M)
+	_gain_chip_style.content_margin_left = 14.0
+	_gain_chip_style.content_margin_right = 14.0
+	_gain_chip_style.content_margin_top = 4.0
+	_gain_chip_style.content_margin_bottom = 4.0
+	_gain_chip_style.anti_aliasing = true
+
+	_loss_chip_style = StyleBoxFlat.new()
+	_loss_chip_style.bg_color = UiKit.CHIP_RED
+	_loss_chip_style.border_color = Color("4f0c0b")
+	_loss_chip_style.set_border_width_all(2)
+	_loss_chip_style.set_corner_radius_all(UiSkin.RADIUS_M)
+	_loss_chip_style.content_margin_left = 14.0
+	_loss_chip_style.content_margin_right = 14.0
+	_loss_chip_style.content_margin_top = 4.0
+	_loss_chip_style.content_margin_bottom = 4.0
+	_loss_chip_style.anti_aliasing = true
+
+	_promo_style = StyleBoxFlat.new()
+	_promo_style.bg_color = Color("ffb81c")
+	_promo_style.border_color = Color("240b00")
+	_promo_style.set_border_width_all(3)
+	_promo_style.set_corner_radius_all(UiSkin.RADIUS_M)
+	_promo_style.content_margin_left = 18.0
+	_promo_style.content_margin_right = 18.0
+	_promo_style.content_margin_top = 6.0
+	_promo_style.content_margin_bottom = 6.0
+	_promo_style.anti_aliasing = true
+
+
+func _make_promo_banner() -> PanelContainer:
+	var panel: PanelContainer = PanelContainer.new()
+	panel.name = "PromoBanner"
+	panel.visible = false
+	panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_stylebox_override("panel", _promo_style)
+	promo_label = Label.new()
+	promo_label.name = "PromoText"
+	promo_label.text = "ANGAT RANGGO!"
+	promo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	promo_label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
+	promo_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
+	promo_label.add_theme_color_override("font_color", Color.WHITE)
+	promo_label.add_theme_color_override("font_outline_color", Color("240b00"))
+	promo_label.add_theme_constant_override("outline_size", 5)
+	panel.add_child(promo_label)
+	return panel
+
+
+func _make_rank_card() -> PanelContainer:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "RankRow"
+	row.add_theme_constant_override("separation", UiMetrics.GAP)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+
+	emblem_view = RankEmblemControl.new()
+	emblem_view.name = "RankEmblem"
+	emblem_view.custom_minimum_size = Vector2(76.0, 76.0)
+	emblem_view.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	emblem_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(emblem_view)
+
+	var details: VBoxContainer = VBoxContainer.new()
+	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	details.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	details.add_theme_constant_override("separation", 6)
+	row.add_child(details)
+
+	var header: HBoxContainer = HBoxContainer.new()
+	header.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	details.add_child(header)
+
+	rank_tier_label = Label.new()
+	rank_tier_label.name = "RankTier"
+	rank_tier_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rank_tier_label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
+	rank_tier_label.add_theme_font_size_override("font_size", UiMetrics.BODY)
+	rank_tier_label.add_theme_color_override("font_color", Color("ffd25a"))
+	rank_tier_label.add_theme_color_override("font_outline_color", Color("091024"))
+	rank_tier_label.add_theme_constant_override("outline_size", 4)
+	header.add_child(rank_tier_label)
+
+	rank_delta_chip = PanelContainer.new()
+	rank_delta_chip.name = "RankDeltaChip"
+	rank_delta_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rank_delta_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rank_delta_chip.add_theme_stylebox_override("panel", _gain_chip_style)
+	rank_delta_label = Label.new()
+	rank_delta_label.name = "RankDelta"
+	rank_delta_label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
+	rank_delta_label.add_theme_font_size_override("font_size", UiMetrics.CAPTION)
+	rank_delta_label.add_theme_color_override("font_color", Color.WHITE)
+	rank_delta_chip.add_child(rank_delta_label)
+	header.add_child(rank_delta_chip)
+
+	rank_lp_bar = RankLpBar.new()
+	rank_lp_bar.name = "RankLpBar"
+	rank_lp_bar.custom_minimum_size = Vector2(0.0, 16.0)
+	rank_lp_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rank_lp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	details.add_child(rank_lp_bar)
+
+	rank_lp_label = UiKit.text("", UiMetrics.CAPTION, Color("c9d6f2"), false)
+	rank_lp_label.name = "RankLpText"
+	details.add_child(rank_lp_label)
+
+	var card: PanelContainer = UiKit.card(row, "raised", 14.0, UiSkin.RADIUS_L)
+	card.name = "RankCard"
+	return card
+
+
 ## Takes the HUD's existing main button (Play again or Return home) as the blue action, so the
 ## screen has one way on that every caller already knows. `with_home` adds Home beside it.
 func adopt(button: Button, with_home: bool) -> void:
@@ -80,8 +270,8 @@ func adopt(button: Button, with_home: bool) -> void:
 		button.get_parent().remove_child(button)
 	primary = button
 	primary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	primary.custom_minimum_size = Vector2(280.0, 100.0)
-	var buttons: Control = find_child("Buttons", true, false)
+	primary.custom_minimum_size = Vector2(280.0, 92.0)
+	var buttons: Control = find_child("Buttons", true, false) as Control
 	buttons.add_child(primary)
 	KalyeahTheme.style_button(primary, "blue")
 	home_button.visible = with_home
@@ -95,12 +285,12 @@ func _score_card() -> Control:
 	mine_label = mine.get_node("Number") as Label
 	var theirs: VBoxContainer = _side("THEM", TeamColors.ui_enemy())
 	theirs_label = theirs.get_node("Number") as Label
-	var dash: Label = Label.new()
-	dash.text = "-"
-	UiKit.letter(dash, UiMetrics.DISPLAY, Color("9fb0d6"))
-	dash.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var separator: Label = Label.new()
+	separator.text = "-"
+	UiKit.letter(separator, UiMetrics.DISPLAY, Color("9fb0d6"))
+	separator.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(mine)
-	row.add_child(dash)
+	row.add_child(separator)
 	row.add_child(theirs)
 	return row
 
@@ -199,7 +389,7 @@ func _fill(sim: MatchSim, local_id: int, local_team: int, mode_text: String) -> 
 	var mine: int = sim.score.points[local_team]
 	var theirs: int = sim.score.points[1 - local_team]
 	if sim.mode != null:
-		var result: Dictionary = sim.mode.local_result(sim, local_id)  # a street game knows its own winner and points
+		var result: Dictionary = sim.mode.local_result(sim, local_id)
 		won = result["won"] as bool
 		mine = result["mine"] as int
 		theirs = result["theirs"] as int
@@ -221,7 +411,44 @@ func _fill(sim: MatchSim, local_id: int, local_team: int, mode_text: String) -> 
 	_final_mine = mine
 	_final_theirs = theirs
 	_show_scores(1.0)
+	_fill_ranked(mode_text, won, mine, theirs)
 
+
+func _fill_ranked(mode_text: String, won: bool, mine: int, theirs: int) -> void:
+	var outcome: Dictionary = RankedSystem.consume_last_result()
+	if outcome.is_empty():
+		outcome = RankedSystem.preview_match(mode_text, won, mine, theirs)
+	var old_lp: int = outcome["old_lp"] as int
+	var new_lp: int = outcome["new_lp"] as int
+	var delta: int = outcome["delta"] as int
+	var tier_title: String = outcome["tier"] as String
+	var promoted: bool = outcome["promoted"] as bool
+	var spec: Dictionary = RankedSystem.tier_for_lp(new_lp)
+	var tier_color: Color = spec["color"] as Color
+	var tier_accent: Color = spec["accent"] as Color
+
+	emblem_view.set_lp(new_lp)
+	rank_tier_label.text = tier_title.to_upper()
+	rank_tier_label.add_theme_color_override("font_color", tier_accent)
+
+	if delta >= 0:
+		rank_delta_label.text = "+%d LP" % delta
+		rank_delta_chip.add_theme_stylebox_override("panel", _gain_chip_style)
+	else:
+		rank_delta_label.text = "%d LP" % delta
+		rank_delta_chip.add_theme_stylebox_override("panel", _loss_chip_style)
+
+	var ceiling_lp: int = RankedSystem.next_tier_lp(new_lp)
+	if ceiling_lp > 0:
+		var next_name: String = RankedSystem.tier_name(ceiling_lp)
+		rank_lp_label.text = "%d / %d LP · Next: %s" % [new_lp, ceiling_lp, next_name]
+	else:
+		rank_lp_label.text = "%d LP · Top Barrio Rank" % new_lp
+
+	promo_banner.visible = promoted
+	_bar_to = RankedSystem.tier_progress(new_lp)
+	_bar_from = 0.0 if promoted else RankedSystem.tier_progress(old_lp)
+	rank_lp_bar.set_state(_bar_from, _bar_to, tier_color, tier_accent)
 
 
 ## The two scores at `progress` (0 to 1) of the way to their final numbers.
@@ -232,26 +459,29 @@ func _show_scores(progress: float) -> void:
 
 func _reveal() -> void:
 	visible = true
+	if is_instance_valid(_lp_tween):
+		_lp_tween.kill()
 	confetti.emitting = false
 	confetti.position = Vector2(size.x / 2.0, -30.0)
 	confetti.emission_rect_extents = Vector2(size.x / 2.0, 6.0)
-	if Settings.reduced_motion or not is_inside_tree():
-		modulate.a = 1.0
-		_card.scale = Vector2.ONE
-		mouse_filter = Control.MOUSE_FILTER_STOP
-		_show_scores(1.0)
-		return
-	# The dim, final numbers and touch shield appear together.
 	modulate.a = 1.0
+	_card.scale = Vector2.ONE
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_show_scores(1.0)
-	_card.scale = Vector2.ONE
+	if Settings.reduced_motion or not is_inside_tree():
+		rank_lp_bar.set_current_ratio(_bar_to)
+		return
+	rank_lp_bar.set_current_ratio(_bar_from)
+	if absf(_bar_to - _bar_from) > 0.005:
+		_lp_tween = create_tween()
+		_lp_tween.tween_method(rank_lp_bar.set_current_ratio, _bar_from, _bar_to, 0.55).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	if CONFETTI and _final_mine > _final_theirs:
 		confetti.restart()
 
 
-
 func _hide() -> void:
+	if is_instance_valid(_lp_tween):
+		_lp_tween.kill()
 	visible = false
 	confetti.emitting = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE

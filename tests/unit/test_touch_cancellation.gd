@@ -2,6 +2,18 @@ extends GutTest
 ## A touch the system takes back (notification shade, an OS gesture, a call) never casts the held card, another finger's cancel never
 ## drops it, and switching the controls off drops it without a cast.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
+
+
+func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
+
+
+func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
+
 
 func _touch(pointer: int, position: Vector2, pressed: bool, cancelled: bool = false) -> InputEventScreenTouch:
 	var event: InputEventScreenTouch = InputEventScreenTouch.new()

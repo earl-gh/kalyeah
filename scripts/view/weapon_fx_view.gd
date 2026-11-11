@@ -26,6 +26,7 @@ var zones: FxZones
 var walls: FxWalls
 var cones: FxCones
 var heals: FxHeals
+var hero_actions: FxHeroActions
 ## The first frames' GL warm-up (FxWarmup).
 var warmup: FxWarmup
 var _ctx: FxContext
@@ -50,7 +51,9 @@ func _init() -> void:
 	walls = FxWalls.new()
 	cones = FxCones.new()
 	heals = FxHeals.new()
-	for node: Node3D in [_ctx.ground, _ctx.shadows, _ctx.particles, projectiles, zones, walls, cones, heals]:
+	hero_actions = FxHeroActions.new()
+	hero_actions.name = "HeroActions"
+	for node: Node3D in [_ctx.ground, _ctx.shadows, _ctx.particles, projectiles, zones, walls, cones, heals, hero_actions]:
 		add_child(node)
 	_ctx.ground.setup(_ctx)
 	_ctx.shadows.setup(_ctx)
@@ -61,6 +64,7 @@ func _init() -> void:
 	walls.setup(_ctx)
 	cones.setup(_ctx)
 	heals.setup(_ctx)
+	hero_actions.setup(_ctx, zones)
 	projectiles.gone.connect(_on_projectile_gone)
 	warmup = FxWarmup.new()
 	warmup.setup(_ctx, self)
@@ -91,6 +95,7 @@ static func clear_caches() -> void:
 	FxGround.clear_cache()
 	FxParticles.clear_cache()
 	FxShadows.clear_cache()
+	FxHeroActions.clear_cache()
 	WeaponModel.clear_cache()
 	ScissorsRig.clear_cache()
 
@@ -105,6 +110,8 @@ func watch(sim: MatchSim) -> void:
 	sim.player_healed.connect(heals.on_healed)
 	sim.weapon_cast.connect(_on_cast)
 	sim.effect_applied.connect(projectiles.on_effect)
+	sim.player_dashed.connect(hero_actions.on_player_dashed)
+	sim.ultimate_cast.connect(hero_actions.on_ultimate_cast)
 
 
 ## The screen draws flying things between two sim ticks with `blend` (offline only).
@@ -156,6 +163,7 @@ func sync(sim: MatchSim, delta: float) -> void:
 	projectiles.sync(sim)
 	zones.sync(sim)
 	walls.sync(sim)
+	hero_actions.sync(sim)
 	var hits: Dictionary[int, int] = _ctx.bursts.flush()
 	cones.resolve(hits)
 	for id: int in hits:
@@ -180,6 +188,7 @@ func _copy_settings() -> void:
 ## A projectile left the sim: a wall of the other team it stopped at reacts.
 func _on_projectile_gone(_id: int, def: WeaponDef, team: int, at: Vector3) -> void:
 	walls.on_projectile_gone(def, team, at)
+	hero_actions.on_projectile_gone(def, team, at)
 
 
 func _on_cast(id: int, weapon_id: StringName) -> void:

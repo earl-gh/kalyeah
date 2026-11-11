@@ -1,34 +1,26 @@
 class_name MatchHud
 extends Control
-## The whole in-match HUD, built in code (no scene text to patch): overhead bars,
-## top row (the settings button on the left, the score on the right; the whole street is
-## always on screen, so there is no minimap), ## the capture countdown, the settings menu, and the controls (docs/GDD.md "Controls: tap to move, cards to cast"):
-## the hand at the bottom (NEXT, four cards, the elixir bar and your health) within thumb reach, taps on the street to
-## walk (StreetTouch) and the ring where you are walking to (MoveMarker).
-## The match screen feeds it sim state through `sync_player()` and `sync_score()`.
+## Full in-match HUD built in code (no scene text to patch):
+## - Landscape 1280x720 2D 90s Filipino Komiks x Valorant combat HUD (`BarangayMinimap`, 5v5 Squad Wings,
+##   `WorldWaypoints`, `Crosshair` bloom/hitmarker/speed-ink, `TakedownFeed`, `HeroVitalsPanel`, and `AbilityArc` hero kit).
+## - Preserves all portrait & street mini-game (`TumbangPreso`, `Patintero`, `LangitLupa`) properties, signals, and methods.
 
 signal swap_pressed
 signal again_pressed
-## A card in the tagged panel was tapped: follow player `id`.
 signal exit_pressed
-## The tray's height changed (the bottom inset did): the camera keeps this much of the screen clear.
 signal console_height_changed(height: float)
-## The panel along one side of the screen (the cards of Cards tray = Sides) is this wide (0: none), on the left or not: the camera frames the street in the rest.
 signal side_reserve_changed(width: float, left: bool)
-## The header's height (with the top inset) changed: the camera keeps this much of the screen clear at the top.
 signal header_height_changed(height: float)
+signal primary_changed(held: bool)
+signal dash_pressed
+signal ultimate_pressed
 
 const BANNER_TIME: float = 2.0
-## GO!, SCORED and VICTORY / DEFEAT on the street (visual pass: were 44 px with a 12 px outline): big gold words in a thick navy
-## outline with a drop shadow, lettered at `UiMetrics.HERO` like every big word (`UiKit.letter`); a long one is set smaller to keep `BANNER_MARGIN` from the screen's sides. They pop in from
-## `BANNER_POP_FROM` times their size over `BANNER_POP_TIME` (not with Reduce motion).
 const BANNER_FONT: int = UiMetrics.HERO
-## The lettered outline at that size (`UiSkin.letter_outline`), kept clear of the screen's sides.
 const BANNER_OUTLINE: int = roundi(BANNER_FONT * UiSkin.LETTER_OUTLINE_SHARE)
 const BANNER_MARGIN: float = 40.0
 const BANNER_POP_FROM: float = 1.5
 const BANNER_POP_TIME: float = 0.28
-## The short word on the hand's cards for each status that stops casting.
 const CAST_BLOCK_TAGS: Dictionary[int, String] = {
 	StatusEffects.Type.STUN: "STUNNED",
 	StatusEffects.Type.AIRBORNE: "AIRBORNE",
@@ -37,90 +29,60 @@ const CAST_BLOCK_TAGS: Dictionary[int, String] = {
 	StatusEffects.Type.TRIPPED: "TRIPPED",
 	StatusEffects.Type.POLYMORPH: "CAN",
 }
-## What the cards say while you stand where nothing can be cast: in the enemy base, or in the rescue area with a teammate waiting.
 const CAPTURING_TAG: String = "CAPTURING"
 const RESCUING_TAG: String = "RESCUING"
-## Let go of a card with nobody to throw at in range: nothing is thrown, the card stays, and it says why for this long.
 const NO_TARGET_TAG: String = "NO TARGET"
 const NO_TARGET_MS: int = 1200
-## The header at the top of the screen (floating over the street, like Clash Royale): the settings button, the score and the clock sit in this row.
 const TOP_ROW_Y: float = 12.0
 const HEADER_HEIGHT: float = TOP_ROW_Y * 2.0 + 88.0
 const MARGIN: float = 14.0
 const GEAR_SIZE: float = UiMetrics.TOUCH
-## (Wide enough for the clock between the two team cells: "Extended" fits over the time.)
 const SCORE_SIZE: Vector2 = Vector2(380.0, 88.0)
-## The clock stands between the two team cells, this far clear of each.
 const CLOCK_GAP: float = 4.0
 const CAPTURE_COLOR: Color = Color(1.0, 0.95, 0.85)
-## How long the capture words and the warning stay up when the capture stops for a moment (seconds).
 const CAPTURE_LINGER: float = 0.4
-## The tray at the bottom of the screen (the hand and the elixir bar): the arena sits above it. The camera reserves the same height.
 const CONSOLE_HEIGHT: float = 255.0
-## The tray of Tumbang Preso and Patintero (no hand: the role line and the Throw button) is as tall as Agawang Base's, plus the bottom inset,
-## so the camera frames the street exactly the same size in all three games (owner).
 const STREET_TRAY: float = CONSOLE_HEIGHT
-## Tumbang Preso's score column stands on the left sidewalk this far under the header, and the quick chat button (top right) is this big.
 const SCORE_COLUMN_GAP: float = 14.0
-## In the landscape row the kids' cards stand this far from the clock on each side.
 const SCORE_ROW_GAP: float = 12.0
 const STREET_CHAT_SIZE: float = 84.0
-## The most the bottom inset can add (a tall gesture bar), so the tray never eats the street.
 const MAX_BOTTOM_INSET: float = 80.0
 
 var overhead: OverheadHud
 var _capture_linger: float = 0.0
 var _capture_alerting: bool = false
-## The red glow round the screen edge when you are hit (under the controls).
 var pulse: HurtPulse
-## The tray at the bottom (it only draws).
 var console: ConsolePanel
-## The quick chat button, fixed at the top right of the match (owner, 2026-11-03: whatever the tray does); it opens a white panel of six stickers under it, and what it says shows over your kid.
 var chat: QuickChat
-## Quick chat is for playing with others: off in offline practice (nobody to talk to).
 var chat_enabled: bool = true
-## UI pixels of the screen's bottom edge the system keeps (home bar), set by the match screen.
 var bottom_inset: float = 0.0
-## UI pixels the notch or status bar keeps at the top: the header grows by it.
 var top_inset: float = 0.0
 var header: HeaderPanel
 var top: Control
 var scoreboard: Scoreboard
-## The match clock at the right of the header.
 var clock_chip: ClockChip
-## The stage word that flashes in the middle and flies to the clock's caption.
 var clock_flash: ClockStageFlash
-## True while the match stands still (offline, behind the menu): the clock's stage word waits too.
+var ally_wing: Control
+var enemy_wing: Control
+var minimap: BarangayMinimap
+var waypoints: WorldWaypoints
+var takedown_feed: TakedownFeed
+var vitals_panel: HeroVitalsPanel
 var sim_held: bool = false
-## The hand: NEXT, four cards, the elixir bar and your health (it takes the touches on the tray).
 var hand: CardHand
-## Tumbang Preso and Patintero: no skills, so no hand; this stands on the tray instead (the role line and the Throw button).
 var street_pad: StreetGamePad
-## Tumbang Preso's kids' points, on the left sidewalk (null elsewhere: Patintero's team score is the card at the top centre).
 var score_column: ScoreColumn
-## The bar above the card tray that pops in for a tag (`TagToast`).
 var tag_toast: TagToast
-## True in those two games (set by the match screen before the first frame).
 var street_game: bool = false
-## Taps on the street (move orders; the portrait layout only).
 var street: StreetTouch
-## The landscape match (Wild Rift style, docs/GDD.md "Landscape layout"): the joystick under the left thumb moves the kid, the hand is the
-## round ability arc under the right thumb, and there is no tray. Read from `Settings.landscape` when the HUD is built.
 var landscape: bool = false
-## The landscape joystick (null in the portrait layout).
 var stick: MoveStick
-## The shoulder view (docs/GDD.md "Shoulder view"): a drag on the right of the screen turns the view, and the crosshair in the middle is where
-## the cards go. `look` exists in every landscape match (the camera ignores it unless it is the shoulder camera); the crosshair only in the
-## shoulder view (`set_shoulder`).
 var look: LookTouch
 var crosshair: Crosshair
 var shoulder: bool = false
-## The safe area's left and right insets (UI pixels: a notch on a phone on its side), set by the match screen.
 var side_insets: Vector2 = Vector2.ZERO
-## The ring where your kid is walking to.
 var marker: MoveMarker
 var tagged_panel: TaggedPanel
-## The opening show's banner along the bottom ("TAG THEIR BASE!").
 var intro_bar: Control
 var intro_title: Label
 var intro_sub: Label
@@ -130,25 +92,22 @@ var point_result: PointResult
 var _covered: bool = false
 var results: MatchResults
 var briefing: MatchBriefing
-## What the results card says the match was ("Practice", "Hotspot", "Online").
 var results_mode: String = "Practice"
-## Big countdown in the middle while a capture is running (not an enemy taking your base: that is `capture_alert`).
 var capture_label: Label
-## The warning for an enemy taking your base: a triangle in the middle of the scoreboard and two lines under its row.
 var capture_alert: CaptureAlert
 var settings_button: TextureButton
 var menu: MatchMenu
 var banner: Label
 
 var feedback: MatchFeedback
-## Per hand slot: letting go now would throw nothing (nobody in range); until when the card says so after a release.
 var _no_target: Array[bool] = [false, false, false, false]
 var _no_target_until: Array[int] = [0, 0, 0, 0]
 var connection_blocked: bool = false
 
 var _banner_tween: Tween
-
 var _banner_left: float = 0.0
+var _prev_primary_cd: float = 0.0
+var _world_hud_synced: bool = false
 
 
 func _ready() -> void:
@@ -166,18 +125,13 @@ func set_top_inset(pixels: float) -> void:
 	top_inset = pixels
 	header.set_header_height(header_height())
 	header_height_changed.emit(header_height())
-	# what is placed under the header from outside `top` (the street games' points column and chat button) moves down with it; laid out
-	# before the inset was known they stayed up, over the gear and the clock on a phone with a notch
 	layout_controls()
 
 
-## The header's height now: its own plus the notch's inset.
 func header_height() -> float:
 	return HEADER_HEIGHT + top_inset
 
 
-## The home bar or gesture area under the screen (UI pixels): the tray grows by it and the cards ride above it,
-## so a thumb that rests on the bar never lands on a card, and the camera keeps the taller tray clear.
 func set_bottom_inset(pixels: float) -> void:
 	var inset: float = clampf(pixels, 0.0, MAX_BOTTOM_INSET)
 	if is_equal_approx(inset, bottom_inset):
@@ -193,21 +147,18 @@ func set_chat_enabled(on: bool) -> void:
 		chat.set_open(false)
 
 
-## The tray's height now: its own plus the bottom inset.
 func console_height() -> float:
 	if landscape and not street_game:
-		return 0.0  # no tray: the arc and the joystick float over the street
+		return 0.0
 	if street_game:
 		return STREET_TRAY + bottom_inset
 	return (CardHand.SIDES_TRAY if sides_tray() else CONSOLE_HEIGHT) + bottom_inset
 
 
-## True with Settings > Cards tray = Sides: the cards stand on the sides of the street and the tray is only the ice water bar's strip.
 func sides_tray() -> bool:
 	return Settings.cards_tray == &"sides" and not street_game
 
 
-## The width of the side panel the cards stand on in the Sides layout (0 in the bottom tray), and its side: the writing hand's.
 func side_reserve() -> float:
 	return CardHand.SIDES_COLUMN if sides_tray() else 0.0
 
@@ -216,8 +167,6 @@ func side_reserve_left() -> bool:
 	return Settings.left_handed
 
 
-## The height of the blue plate (and of the tagged panel on it): the whole tray, or in the Sides layout only the bar's strip while you
-## play (the plate grows to the full tray while you wait on the sidewalk, so the tagged panel has room; the street stays framed the same).
 func console_panel_height() -> float:
 	if street_game:
 		return console_height()
@@ -226,8 +175,6 @@ func console_panel_height() -> float:
 	return CONSOLE_HEIGHT + bottom_inset
 
 
-## The column beside the blue plate while the hand shows (the plate is full width while you wait on the sidewalk): Bottom's holds NEXT and the
-## chat button, Sides' is the cards' column with the chat button at its foot; both stand outside the plate, over the street.
 func sync_plate_column() -> void:
 	var shown: bool = hand != null and hand.visible
 	var width: float = (CardHand.SIDES_COLUMN if sides_tray() else CardHand.COLUMN) if shown else 0.0
@@ -247,7 +194,6 @@ func set_controls_active(active: bool) -> void:
 	street.set_process_unhandled_input(active)
 
 
-## Clears every live gesture (a held card is dropped, a finger on the street lets go) while leaving input processing as it is.
 func cancel_controls() -> void:
 	hand.cancel_hold()
 	if stick != null:
@@ -258,7 +204,6 @@ func cancel_controls() -> void:
 	street.release()
 
 
-## True while you play and can steer (a tap on the street in the portrait layout, the joystick in the landscape one).
 func playing_controls() -> bool:
 	return street.active or (stick != null and stick.active)
 
@@ -280,7 +225,6 @@ func show_banner(text: String) -> void:
 		banner.scale = Vector2.ONE
 		banner.modulate.a = 1.0
 		return
-	# pop in: starts big and transparent, settles with a little overshoot
 	banner.pivot_offset = banner.size / 2.0
 	banner.scale = Vector2.ONE * BANNER_POP_FROM
 	banner.modulate.a = 0.0
@@ -289,7 +233,6 @@ func show_banner(text: String) -> void:
 	_banner_tween.tween_property(banner, "modulate:a", 1.0, 0.12)
 
 
-## The banner's font size for `text`: `BANNER_FONT`, or smaller so the words keep `BANNER_MARGIN` from both sides.
 func banner_font_size(text: String) -> int:
 	var room: float = maxf(size.x - BANNER_MARGIN * 2.0 - BANNER_OUTLINE * 2.0, 1.0)
 	var width: float = KalyeahTheme.DISPLAY_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, BANNER_FONT).x
@@ -302,12 +245,44 @@ func banner_text() -> String:
 	return banner.text if banner.visible else ""
 
 
+## Section 7 contract: projects 3D objective waypoints and updates the Barangay radar + hero vitals.
+func sync_world_hud(sim: MatchSim, camera: Camera3D, player: PlayerState, local_team: int, cam_yaw_deg: float) -> void:
+	if street_game or sim == null or player == null:
+		return
+	_world_hud_synced = true
+	if minimap != null and landscape:
+		minimap.sync_radar(sim, player, local_team, cam_yaw_deg)
+	if waypoints != null and landscape:
+		waypoints.sync_waypoints(sim, camera, player, local_team)
+	if vitals_panel != null and landscape:
+		vitals_panel.sync_vitals(sim, player, 0.0)
+	if crosshair != null:
+		crosshair.sprinting = not player.tagged and sim.phase == MatchSim.Phase.PLAYING and player.sprinting
+
+
+## Section 7 contract: flashes the crosshair hitmarker (crimson on hit, blazing gold + crimson on lethal tag).
+func notify_hit(lethal: bool = false) -> void:
+	if crosshair != null:
+		crosshair.flash_hit(lethal)
+		crosshair.kick_recoil(1.0 if lethal else 0.55)
+
+
+## Section 7 contract: pushes a 90s komiks takedown callout strip onto TakedownFeed.
+func notify_takedown(tagger_name: String, victim_name: String, ally_scored: bool, detail: String = "") -> void:
+	if takedown_feed != null:
+		takedown_feed.push_tag(tagger_name, victim_name, ally_scored, detail)
+
+
+## Section 7 contract: pushes a 90s komiks rescue callout strip onto TakedownFeed.
+func notify_rescue(rescuer_name: String, saved_name: String, ours: bool) -> void:
+	if takedown_feed != null:
+		takedown_feed.push_rescue(rescuer_name, saved_name, ours)
+
+
 ## The hand, the street taps and the hint for the local player.
 func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	tagged_panel.sync(sim, player, pick_open)
-	# no hand while you wait on the sidewalk (the tagged panel takes the tray)
 	var playing: bool = not player.tagged and sim.phase == MatchSim.Phase.PLAYING and not pick_open and not connection_blocked
-	# during the opening show the first hand is on the tray, dimmed and locked, instead of an empty tray
 	var shown: bool = playing or (sim.phase == MatchSim.Phase.INTRO and not player.tagged and not pick_open and not connection_blocked)
 	if street_game:
 		_sync_street_pad(sim, player, shown, playing)
@@ -316,7 +291,7 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	hand.visible = shown
 	chat.visible = shown and chat_enabled
 	if shown != shown_before and sides_tray():
-		layout_controls()  # the plate is the strip while the hand shows, the whole tray while you wait
+		layout_controls()
 	sync_plate_column()
 	street.active = playing and not landscape
 	if stick != null:
@@ -331,6 +306,17 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	if crosshair != null:
 		crosshair.visible = shown
 		crosshair.held = hand.holding()
+		crosshair.sprinting = playing and player.sprinting
+		if playing and player.primary_cd > _prev_primary_cd + 0.02:
+			crosshair.kick_recoil(0.38)
+	_prev_primary_cd = player.primary_cd
+	if vitals_panel != null:
+		var hud_hidden: bool = _covered or briefing.running
+		vitals_panel.visible = landscape and shown and not hud_hidden
+		if vitals_panel.visible:
+			vitals_panel.sync_vitals(sim, player, get_process_delta_time())
+	if minimap != null and landscape and not _world_hud_synced:
+		minimap.sync_radar(sim, player, player.team, 0.0)
 	if not playing or landscape:
 		street.release()
 	for slot: int in _no_target.size():
@@ -340,39 +326,37 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 		notices.append(_notice(slot) if playing else "")
 	hand.show_state(sim, player, playing, _block_tag(sim, player) if playing else "", notices)
 	if hand is AbilityArc:
-		# your stamina sits under the ice water bar at the bottom centre while you play (stamina on), not under your kid's bar
 		var stamina_on: bool = sim.rules.stamina_enabled and player.has_stamina and not player.tagged
-		var look: Array = overhead.stamina_fill(player) if stamina_on else [1.0, OverheadHud.STAMINA_COLOR]
-		(hand as AbilityArc).show_stamina(stamina_on, look[0] as float, look[1] as Color)
+		var stam_look: Array = overhead.stamina_fill(player) if stamina_on else [1.0, OverheadHud.STAMINA_COLOR]
+		(hand as AbilityArc).show_stamina(stamina_on, stam_look[0] as float, stam_look[1] as Color)
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 
 
-## Tumbang Preso and Patintero take the tray over (no hand): the tray is its own height and the pad stands on it. Call before the first frame.
 func set_street_game(on: bool) -> void:
 	street_game = on
 	hand.visible = not on
 	street_pad.visible = on
-	console.visible = not on and not landscape  # no tray: the knob and the buttons float over the street
+	console.visible = not on and not landscape
 	if stick != null:
-		stick.visible = not on  # the street games' pad has its own knob
+		stick.visible = not on
 		stick.active = stick.active and not on
+	for widget: Control in [minimap, waypoints, takedown_feed, vitals_panel, ally_wing, enemy_wing]:
+		if widget != null:
+			widget.visible = not on and landscape
 	layout_controls()
 
 
-## Tumbang Preso: every kid's points stand on the left sidewalk.
 func setup_street_scores(sim: MatchSim, local_id: int) -> void:
 	score_column = ScoreColumn.new()
 	add_child(score_column)
-	move_child(briefing, -1)  # the briefing stays over everything that is added after it
+	move_child(briefing, -1)
 	score_column.setup(sim, local_id)
 	layout_controls()
 
 
-## Tumbang Preso and Patintero: the role line on the tray and, for a thrower with its slipper behind the line, the Throw button. There is no
-## hand, no chat and no cards.
 func _sync_street_pad(sim: MatchSim, player: PlayerState, shown: bool, playing: bool) -> void:
 	hand.visible = false
-	street.active = false  # the knob moves the kid, not a tap on the street
+	street.active = false
 	if not playing:
 		street.release()
 	var game: TumbangPreso = sim.mode as TumbangPreso
@@ -400,19 +384,17 @@ func _sync_street_pad(sim: MatchSim, player: PlayerState, shown: bool, playing: 
 	var status: Array[String] = PracticeMatchPresentation.street_status(sim, player)
 	chat.visible = shown and chat_enabled
 	street_pad.visible = shown and not player.tagged
-	street_pad.show_state(status[0], status[1], button, fill, can_act, on_sidewalk)  # (a tagged runner's knob is in the middle of the bottom)
+	street_pad.show_state(status[0], status[1], button, fill, can_act, on_sidewalk)
 	if score_column != null:
 		score_column.sync(sim)
 	sync_plate_column()
 	pulse.sync_health(player.hp, sim.rules.player_max_hp, playing)
 
 
-## The hint over the tray while a card is held (`release`: what letting go now would do; `nobody`: it would throw nothing).
 func sync_hold_hint(player: PlayerState, playing: bool, release: MatchInput.Release, nobody: bool) -> void:
 	feedback.sync_hint(player, playing, release, nobody)
 
 
-## A card let go with nobody in range threw nothing: say so on it for a moment.
 func note_released(slot: int, cancelled: bool) -> void:
 	if slot >= 0 and slot < _no_target.size() and not cancelled and _no_target[slot]:
 		_no_target_until[slot] = Time.get_ticks_msec() + NO_TARGET_MS
@@ -422,7 +404,6 @@ func _notice(slot: int) -> String:
 	return NO_TARGET_TAG if Time.get_ticks_msec() < _no_target_until[slot] else ""
 
 
-## What to print on the cards while a status (or the place you stand in) stops you casting ("" when nothing does).
 func _block_tag(sim: MatchSim, player: PlayerState) -> String:
 	if sim.casting_blocked(player):
 		return CAPTURING_TAG if sim.layout.in_base(-sim.side_for_team(player.team), player.position) else RESCUING_TAG
@@ -434,12 +415,14 @@ func _block_tag(sim: MatchSim, player: PlayerState) -> String:
 	return ""
 
 
-## Top row: the score card; the capture countdown; banners fade out.
+## Top row: the score card, 5v5 squad wings, takedown feed, capture countdown, and banners.
 func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1) -> void:
 	scoreboard.show_score(sim.score, local_team, sim.match_time)
 	scoreboard.show_capture(sim, local_team)
 	_sync_clock(sim, delta)
 	_sync_capture(sim, local_team, delta)
+	if takedown_feed != null:
+		takedown_feed.tick(delta)
 	again_button.visible = sim.phase == MatchSim.Phase.MATCH_OVER
 	point_result.sync(sim, local_team)
 	results.set_over(sim.phase == MatchSim.Phase.MATCH_OVER, sim, local_id, local_team, results_mode)
@@ -448,17 +431,23 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 		chat.set_open(false)
 		if menu.visible:
 			menu.close()
-	# the briefing hides the whole match HUD, as a freeze does (the street is all that shows behind its words)
 	var hidden: bool = covered or briefing.running
 	for item: CanvasItem in [header, top, scoreboard, marker, pulse, console, feedback]:
 		item.visible = not hidden
+	MatchHudTop.sync_wings(self, sim, local_team, local_id, not hidden)
+	var show_combat_hud: bool = landscape and not street_game and not hidden
+	if minimap != null:
+		minimap.visible = show_combat_hud
+	if waypoints != null:
+		waypoints.visible = show_combat_hud
+	if takedown_feed != null:
+		takedown_feed.visible = show_combat_hud
 	if score_column != null:
 		score_column.visible = not hidden
 	if landscape:
-		console.visible = false  # no tray in the landscape match
+		console.visible = false
 	if street_game:
 		console.visible = false
-		# Patintero has a team score at the top centre like Agawang Base; Tumbang Preso's points are every kid's, in the column on the left sidewalk
 		scoreboard.visible = not hidden and not sim.mode.is_free_for_all()
 	overhead.visible = not hidden
 	if hidden:
@@ -466,6 +455,8 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 			item.hide()
 		if stick != null:
 			stick.hide()
+		if vitals_panel != null:
+			vitals_panel.hide()
 		clock_flash.cancel()
 	if covered:
 		briefing.hide()
@@ -478,8 +469,6 @@ func sync_score(sim: MatchSim, local_team: int, delta: float, local_id: int = -1
 			banner.visible = false
 
 
-## The clock: what is left of this stage (it restarts at Extended and again at Overtime), or the match time with the stages off. A new
-## stage flashes its name in the middle and flies it to the caption (`ClockStageFlash`).
 func _sync_clock(sim: MatchSim, delta: float) -> void:
 	var counting: bool = sim.counts_down()
 	var stage: MatchSim.ClockStage = sim.clock_stage()
@@ -493,9 +482,6 @@ func _sync_clock(sim: MatchSim, delta: float) -> void:
 	clock_chip.hide_caption(clock_flash.flying())
 
 
-## "HOLD THE BASE! 3" for us, in the middle of the screen; against us it is the warning triangle and its two lines at the top (`capture_alert`).
-## A capture that stops for a moment (a kid steps out and back, two teams meet in a base) keeps its words and warning for
-## `CAPTURE_LINGER` seconds, so a short gap does not make them blink; a change of who captures, or the end of the point, is shown at once.
 func _sync_capture(sim: MatchSim, local_team: int, delta: float) -> void:
 	var running: bool = sim.capture_team >= 0 and sim.phase == MatchSim.Phase.PLAYING
 	var ours: bool = sim.capture_team == local_team
@@ -533,7 +519,9 @@ func _build() -> void:
 	marker = MoveMarker.new()
 	marker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(marker)
-	move_child(marker, 0)  # under the bars over the kids
+	move_child(marker, 0)
+	waypoints = WorldWaypoints.new()
+	add_child(waypoints)
 	pulse = HurtPulse.new()
 	add_child(pulse)
 	console = ConsolePanel.new()
@@ -543,6 +531,15 @@ func _build() -> void:
 	capture_alert = CaptureAlert.new()
 	add_child(capture_alert)
 	landscape = Settings.landscape
+	minimap = BarangayMinimap.new()
+	minimap.visible = landscape and not street_game
+	add_child(minimap)
+	takedown_feed = TakedownFeed.new()
+	takedown_feed.visible = landscape and not street_game
+	add_child(takedown_feed)
+	vitals_panel = HeroVitalsPanel.new()
+	vitals_panel.visible = landscape and not street_game
+	add_child(vitals_panel)
 	if landscape:
 		stick = MoveStick.new()
 		add_child(stick)
@@ -550,6 +547,11 @@ func _build() -> void:
 		add_child(look)
 	hand = AbilityArc.new() if landscape else CardHand.new()
 	add_child(hand)
+	if hand is AbilityArc:
+		var arc: AbilityArc = hand as AbilityArc
+		arc.primary_changed.connect(primary_changed.emit)
+		arc.dash_pressed.connect(dash_pressed.emit)
+		arc.ultimate_pressed.connect(ultimate_pressed.emit)
 	street_pad = StreetGamePad.new()
 	add_child(street_pad)
 	chat = QuickChat.new()
@@ -591,8 +593,7 @@ func _build() -> void:
 	MatchHudTop.build_intro(self)
 	briefing = MatchBriefing.new(self)
 	add_child(briefing)
-	move_child(chat, briefing.get_index())  # the sticker panel draws over the toasts (the tag toast is under the scoreboard, next to it)
-	# last, so it draws over the hand
+	move_child(chat, briefing.get_index())
 	menu = MatchMenu.new()
 	add_child(menu)
 	menu.exit_pressed.connect(exit_pressed.emit)
@@ -602,19 +603,17 @@ func _build() -> void:
 	feedback.return_home.connect(exit_pressed.emit)
 
 
-## The shoulder view: the crosshair shows and a card held turns the view instead of aiming from its button. Call before the first frame.
 func set_shoulder(on: bool) -> void:
 	shoulder = on and landscape
 	if shoulder and crosshair == null:
 		crosshair = Crosshair.new()
 		add_child(crosshair)
-		move_child(crosshair, overhead.get_index() + 1)  # over the street and the bars, under the controls
+		move_child(crosshair, waypoints.get_index() + 1)
 	if hand is AbilityArc:
 		(hand as AbilityArc).shoulder = shoulder
 	layout_controls()
 
 
-## The safe area's insets on a phone on its side (UI pixels): the notch at the left or the right, the home bar at the bottom.
 func set_side_insets(pixels: Vector2) -> void:
 	if pixels == side_insets:
 		return
@@ -622,19 +621,16 @@ func set_side_insets(pixels: Vector2) -> void:
 	layout_controls()
 
 
-## Places the tray and the hand (see MatchHudLayout).
 func layout_controls() -> void:
 	MatchHudLayout.apply(self)
 
 
-## Shows the opening show's banner (`title`, `subtitle`), or hides it with "".
 func show_intro(title: String, subtitle: String = "") -> void:
 	intro_bar.visible = not title.is_empty()
 	intro_title.text = title
 	intro_sub.text = subtitle
 
 
-## Open or close the settings menu; the controls ignore touches while it is open.
 func toggle_menu() -> void:
 	if menu.visible:
 		menu.close()
@@ -643,7 +639,6 @@ func toggle_menu() -> void:
 	menu.open()
 
 
-## Anchors first, then offsets (setting an anchor can move offsets).
 func _place(control: Control, anchors: Vector4, offsets: Vector4) -> void:
 	control.anchor_left = anchors.x
 	control.anchor_top = anchors.y

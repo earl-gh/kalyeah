@@ -3,6 +3,7 @@ extends GutTest
 ## the tagged kid's face on the right. Every toast is on screen for exactly two seconds, the next waits its turn, and a sound plays as it pops
 ## in and as it pops out. Seam: TagToast (tick, say, signals), MatchSim (who tagged), the match's HUD and presentation.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
 const DT: float = 1.0 / 30.0
 const RULES: GameRules = preload("res://data/rules/game_rules.tres")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
@@ -22,6 +23,8 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 	Settings.reduced_motion = _reduced
 	Session.practice_kind = _kind  # (a test that starts a match leaves nothing behind for the next test file)
 	Session.practice_game = _game
@@ -231,6 +234,8 @@ func test_clear_drops_everything() -> void:
 
 
 func test_the_toast_sits_at_the_top_centre_just_under_the_scoreboard_in_every_layout() -> void:
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	var phone: Control = autofree(Control.new()) as Control
 	phone.size = Vector2(720.0, 1600.0)
 	add_child(phone)

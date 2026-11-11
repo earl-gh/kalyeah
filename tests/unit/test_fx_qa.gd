@@ -100,7 +100,9 @@ func test_every_weapon_cast_ends_clean_and_returns_the_node_count() -> void:
 		sim.players[1].hp = 40
 		sim.players[1].elixir = 10.0
 		assert_true(_cast(sim, 1, weapon), "%s fires" % weapon)
-		_run(sim, fx, 200)
+		var def: WeaponDef = sim.weapon_defs[weapon]
+		var settle_frames: int = maxi(200, ceili(maxf(def.lifetime, def.duration) / DT) + 45)
+		_run(sim, fx, settle_frames)
 		await get_tree().process_frame
 		assert_eq(_node_count(fx), base, "%s: back to the pooled nodes only" % weapon)
 	_idle(fx)
@@ -437,9 +439,10 @@ func test_bola_rings_and_walls_match_the_sim() -> void:
 	_cast(sim, 1, &"bola")
 	fx.sync(sim, DT)
 	var bola: WeaponDef = sim.weapon_defs[&"bola"]
-	var rec_rings: Array = fx.projectiles.find_children("*", "MeshInstance3D", true, false).filter(func(n: Node) -> bool: return n.mesh is ArrayMesh and n.get_parent() == fx.projectiles)
+	var rec_rings: Array[Node] = fx.projectiles.find_children("*", "MeshInstance3D", true, false).filter(func(n: Node) -> bool: return (n as MeshInstance3D).mesh is ArrayMesh and n.get_parent() == fx.projectiles)
 	assert_gt(rec_rings.size(), 0, "bounce rings are drawn")
-	for ring: MeshInstance3D in rec_rings:
+	for node: Node in rec_rings:
+		var ring: MeshInstance3D = node as MeshInstance3D
 		assert_between(_extent(ring.mesh).x, bola.radius - 0.001, bola.radius + FxKit.RIM, "ring radius is the bounce radius %.2f" % bola.radius)
 	for weapon: StringName in [&"papel_shield", &"langit_lupa"]:
 		var s2: MatchSim = _sim()

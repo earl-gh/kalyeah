@@ -52,6 +52,15 @@ var look_yaw: float = 0.0
 var look_pitch: float = 0.0
 ## The far plane of the shoulder camera's lens (metres; the near one is `CameraRules.shoulder_near`).
 const SHOULDER_FAR: float = 400.0
+## Sprint / Luksong-Tinik dash lens kick: degrees added to `shoulder_fov`, and smoothing speed.
+const SPEED_BOOST_FOV: float = 6.5
+const SPEED_BOOST_LERP: float = 8.0
+
+var _speed_boosting: bool = false
+var _fov_boost: float = 0.0
+var _obstacles_layout: MapLayout = null
+var _obstacles_count: int = -1
+var _obstacles_cache: Array[Rect2] = []
 
 
 func _ready() -> void:
@@ -197,8 +206,40 @@ func _place_following(flip: bool, smooth: bool) -> void:
 	_apply_pose()
 
 
+## Smoothly widens perspective FOV by +6.5 degrees during sprint/dash when Reduce motion is off.
+func set_speed_boost(boosting: bool) -> void:
+	_speed_boosting = boosting
+	if Settings.reduced_motion and _fov_boost != 0.0:
+		_fov_boost = 0.0
+		if _placed and rules != null and rules.third_person:
+			fov = rules.shoulder_fov
+
+
+func _step_fov_boost(delta: float) -> void:
+	var target: float = SPEED_BOOST_FOV if (_speed_boosting and not Settings.reduced_motion) else 0.0
+	if Settings.reduced_motion:
+		_fov_boost = 0.0
+		return
+	if is_equal_approx(_fov_boost, target):
+		_fov_boost = target
+		return
+	if delta > 0.0:
+		_fov_boost = lerpf(_fov_boost, target, 1.0 - exp(-delta * SPEED_BOOST_LERP))
+
+
+func _obstacle_rects() -> Array[Rect2]:
+	if layout == null:
+		return []
+	if layout != _obstacles_layout or layout.obstacles.size() != _obstacles_count:
+		_obstacles_layout = layout
+		_obstacles_count = layout.obstacles.size()
+		_obstacles_cache = layout.obstacle_rects()
+	return _obstacles_cache
+
+
 ## Follow camera: moves the aim toward the goal (it catches up over `follow_lag`; at once with Reduce motion or no lag).
 func advance_follow(delta: float) -> void:
+	_step_fov_boost(delta)
 	if not (rules.follow or rules.third_person) or not _placed:
 		return
 	var goal: Vector2 = follow_point if rules.third_person else _follow_goal()
@@ -257,10 +298,16 @@ func _control_yaw() -> float:
 func _apply_pose() -> void:
 	if rules.third_person:
 		var pose: Array[Vector3] = rules.shoulder_pose(_aim, look_yaw, look_pitch)
-		position = pose[0]
+		var eye: Vector3 = pose[0]
+		if layout != null:
+			var pivot: Vector3 = Vector3(_aim.x, rules.shoulder_height, _aim.y)
+			var arena_r: Variant = layout.get(&"arena_radius")
+			var radius: float = float(arena_r) if (arena_r is float or arena_r is int) else 0.0
+			eye = rules.clamp_shoulder_eye(pivot, eye, _obstacle_rects(), radius)
+		position = eye
 		rotation_degrees = pose[1]
 		projection = Camera3D.PROJECTION_PERSPECTIVE
-		fov = rules.shoulder_fov
+		fov = rules.shoulder_fov + (0.0 if Settings.reduced_motion else _fov_boost)
 		near = rules.shoulder_near
 		far = SHOULDER_FAR
 		_placed = true

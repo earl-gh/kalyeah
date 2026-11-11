@@ -9,9 +9,16 @@ const PLAYER: int = 1
 const BOT: int = 2
 
 
+static func _open_layout() -> MapLayout:
+	var layout: MapLayout = LAYOUT.duplicate() as MapLayout
+	layout.obstacles = [] as Array[Rect2]
+	layout.water_obstacles = [] as Array[Rect2]
+	return layout
+
+
 ## You at the middle of the street and a fighter `distance` metres up it, armed with `first` and `second`.
 func _duel(distance: float, first: StringName = &"bato_light", second: StringName = &"gunting_light", seed_value: int = 7) -> MatchSim:
-	var sim: MatchSim = MatchSim.new(RULES, LAYOUT, seed_value)
+	var sim: MatchSim = MatchSim.new(RULES, _open_layout(), seed_value)
 	var me: PlayerState = sim.add_player(PLAYER, 0)
 	me.position = Vector2(0.0, 0.0)
 	var spot: Vector2 = Vector2(0.0, -distance)
@@ -54,16 +61,19 @@ func test_a_fighter_does_not_react_to_an_enemy_out_of_its_aggro_range() -> void:
 func test_a_fighter_comes_back_to_its_spot_when_you_leave() -> void:
 	var sim: MatchSim = _duel(5.0)
 	_run(sim, 2.0)
-	sim.players[PLAYER].position = Vector2(0.0, 30.0)
+	sim.players[PLAYER].position = Vector2(0.0, 45.0)
 	_run(sim, 8.0)
 	assert_lt(sim.players[BOT].position.distance_to(Vector2(0.0, -5.0)), 0.5)
 
 
 func test_it_casts_no_faster_than_its_gap() -> void:
 	var sim: MatchSim = _duel(5.0, &"bato_light", &"tsinelas_light")
+	sim.players[PLAYER].hp = 9999
+	var primary_id: StringName = RULES.primary_weapon.id if RULES.primary_weapon != null else &""
+	var ult_id: StringName = RULES.ultimate_weapon.id if RULES.ultimate_weapon != null else &""
 	var times: Array[float] = []
-	sim.weapon_cast.connect(func(id: int, _weapon: StringName) -> void:
-		if id == BOT:
+	sim.weapon_cast.connect(func(id: int, weapon: StringName) -> void:
+		if id == BOT and weapon != primary_id and weapon != ult_id:
 			times.append(sim.match_time))
 	_run(sim, 10.0)
 	assert_gte(times.size(), 2)
@@ -72,8 +82,8 @@ func test_it_casts_no_faster_than_its_gap() -> void:
 
 
 func test_it_does_not_cast_a_weapon_that_cannot_reach() -> void:
-	# gunting reaches 3 m only; the enemy is 6 m away and the other weapon is a heal
-	var sim: MatchSim = _duel(6.0, &"gunting_light", &"heal")
+	# gunting_light reaches 8.5 m; the enemy starts 18 m away and the other weapon is a heal
+	var sim: MatchSim = _duel(18.0, &"gunting_light", &"heal")
 	var casts: Array[StringName] = _casts(sim)
 	_run(sim, 0.5)
 	assert_false(casts.has(&"gunting_light"), "not yet in reach")
@@ -91,10 +101,11 @@ func test_a_healthy_fighter_keeps_its_heal_and_a_hurt_one_uses_it() -> void:
 
 
 func test_a_fighter_closes_the_distance_then_stands_off() -> void:
-	var sim: MatchSim = _duel(12.0, &"bato_light", &"tsinelas_light")
+	var sim: MatchSim = _duel(22.0, &"bato_light", &"tsinelas_light")
+	sim.players[PLAYER].hp = 9999
 	_run(sim, 6.0)
 	var distance: float = sim.players[BOT].position.distance_to(sim.players[PLAYER].position)
-	assert_lt(distance, 12.0, "it closed in")
+	assert_lt(distance, 22.0, "it closed in")
 	assert_gt(distance, FightBrain.STANDOFF_MIN - 1.0, "but it keeps a standoff, it does not climb on you")
 
 
@@ -110,10 +121,12 @@ func test_it_never_casts_while_stunned_or_tagged() -> void:
 
 
 func test_a_fighter_fetches_a_tagged_teammate_when_no_enemy_is_close() -> void:
-	var sim: MatchSim = MatchSim.new(RULES, LAYOUT, 3)
-	var spot: Vector2 = Vector2(-6.0, 6.0)
+	var open_map: MapLayout = _open_layout()
+	var sim: MatchSim = MatchSim.new(RULES, open_map, 3)
+	var rescue_mid: Vector2 = open_map.rescue_rect(MapLayout.SIDE_OWN).get_center()
+	var spot: Vector2 = rescue_mid + Vector2(-8.0, 0.0)
 	sim.add_player(PLAYER, 1)
-	sim.players[PLAYER].position = Vector2(20.0, 20.0)
+	sim.players[PLAYER].position = Vector2(-50.0, -50.0)
 	sim.add_dummy(BOT, 0, spot, FightBrain.fighter(spot))
 	sim.add_player(3, 0)
 	sim.damage(3, 9999)
@@ -138,11 +151,16 @@ func test_a_fighter_is_still_a_dummy_for_captures() -> void:
 
 
 func test_a_sparring_loadout_always_has_something_that_hurts() -> void:
-	var sim: MatchSim = MatchSim.new(RULES, LAYOUT, 11)
+	var sim: MatchSim = MatchSim.new(RULES, _open_layout(), 11)
 	for i: int in 40:
-		var pair: Array[StringName] = sim.fighting_loadout()
-		assert_ne(pair[0], pair[1])
-		assert_true(sim.weapon_defs[pair[0]].damage > 0 or sim.weapon_defs[pair[1]].damage > 0, "%s %s" % [pair[0], pair[1]])
+		var kit: Array[StringName] = sim.fighting_loadout()
+		assert_eq(kit.size(), RULES.loadout_size)
+		assert_ne(kit[0], kit[1])
+		var has_damage: bool = false
+		for wid: StringName in kit:
+			if sim.weapon_defs.has(wid) and sim.weapon_defs[wid].damage > 0:
+				has_damage = true
+		assert_true(has_damage, "%s" % [kit])
 
 
 # ---- practice ---------------------------------------------------------------------------
@@ -164,7 +182,7 @@ func test_practice_has_one_sparring_partner_by_default() -> void:
 	assert_false(practice.sim.is_fighter(PracticeMatch.ENEMY_RESCUE_ID))
 	assert_false(practice.sim.is_fighter(PracticeMatch.ALLY_ID), "the ally stays a rescuer")
 	var arms: PlayerState = practice.sim.players[PracticeMatch.ENEMY_PATROL_ID]
-	assert_eq(arms.weapons.size(), 2, "it is armed")
+	assert_eq(arms.weapons.size(), RULES.loadout_size, "it is armed")
 
 
 func test_the_toggle_can_turn_the_fight_off_or_up() -> void:
@@ -182,7 +200,7 @@ func test_a_practice_fighter_goes_for_you_once_the_match_is_on() -> void:
 	var me: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 	var bot: PlayerState = practice.sim.players[PracticeMatch.ENEMY_PATROL_ID]
 	practice.sim.set_loadout(PracticeMatch.ENEMY_PATROL_ID, &"bato_light", &"tsinelas_light")
-	me.position = bot.position + Vector2(0.0, 5.0)
+	me.position = bot.position + Vector2(-5.0, 0.0)
 	for i: int in 150:
 		practice.advance(DT)
 	assert_lt(me.hp, RULES.player_max_hp, "the sparring partner hit you")
@@ -198,7 +216,7 @@ func _rules_without_error() -> GameRules:
 
 ## A bot (team 1) at the origin and an enemy (team 0) `where` away, with `speed` along x remembered from the last step.
 func _aim_setup(rules: GameRules, where: Vector2, speed: float, skill: float) -> Array:
-	var sim: MatchSim = MatchSim.new(rules, LAYOUT, 4)
+	var sim: MatchSim = MatchSim.new(rules, _open_layout(), 4)
 	var enemy: PlayerState = sim.add_dummy(1, 0, where - Vector2(speed / 30.0, 0.0), DummyBrain.standing())
 	var brain: FightBrain = FightBrain.fighter(Vector2.ZERO)
 	brain.skill = skill
@@ -269,6 +287,7 @@ func test_a_bot_behind_cover_steps_aside_and_never_throws_into_it() -> void:
 	var wall: Rect2 = Rect2(-3.0, -0.5, 6.0, 1.0)
 	var rects: Array[Rect2] = [wall]
 	layout.obstacles = rects
+	layout.water_obstacles = [] as Array[Rect2]
 	var sim: MatchSim = MatchSim.new(RULES, layout, 8)
 	var target: PlayerState = sim.add_player(PLAYER, 0)
 	target.position = Vector2(0.0, 5.0)

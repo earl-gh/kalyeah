@@ -19,7 +19,7 @@ func _sim() -> MatchSim:
 	for id: int in [4, 5, 6]:
 		sim.add_player(id, 1)
 	for id: int in sim.players:
-		sim.set_loadout(id, &"bato_light", &"papel_shield")
+		sim.set_loadout(id, &"bato_light", &"papel_shield", &"lata")
 	return sim
 
 
@@ -183,11 +183,11 @@ func test_a_practice_match_vs_bots_has_three_real_players_a_side() -> void:
 	for id: int in practice.sim.players:
 		counts[practice.sim.players[id].team] += 1
 		assert_false(practice.sim.is_fighter(id), "bots are players of the sim, not training dummies")
-	assert_eq(counts, [3, 3] as Array[int])
+	assert_eq(counts, [5, 5] as Array[int])
 	assert_eq(practice.local_team, 0)
 	for id: int in PracticeMatch.BOT_ENEMY_IDS:
 		assert_eq(practice.sim.players[id].team, 1)
-		assert_gt(practice.sim.players[id].weapons.size(), 1, "armed")
+		assert_eq(practice.sim.players[id].weapons.size(), 3, "armed with 3 superpowers")
 
 
 func test_training_is_still_the_default_practice() -> void:

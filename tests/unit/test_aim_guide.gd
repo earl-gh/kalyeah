@@ -49,6 +49,8 @@ func _vertices() -> PackedVector3Array:
 
 
 func _colors() -> PackedColorArray:
+	if _indicator.mesh.get_surface_count() == 0:
+		return PackedColorArray()
 	return _indicator.mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR] as PackedColorArray
 
 
@@ -79,7 +81,7 @@ func test_the_bounce_guide_is_exactly_its_two_rings() -> void:
 	var bola: WeaponDef = _def(&"bola")
 	var lines: Array[PackedVector2Array] = AimIndicator.outline(_sim, _sim.players[CASTER], bola, Vector2(0.0, -1.0))
 	assert_eq(lines.size(), 1 + bola.count, "the range circle and one ring a bounce (no lane)")
-	assert_eq(bola.count, 2)
+	assert_eq(bola.count, 3)
 	for i: int in range(1, lines.size()):
 		assert_eq(lines[i].size(), AimIndicator.CIRCLE_POINTS + 1, "ring %d is a closed circle" % i)
 		var middle: Vector2 = Vector2.ZERO
@@ -142,9 +144,9 @@ func test_a_circle_guide_is_one_strip_surface_without_heavy_ribbons() -> void:
 
 
 func test_vertex_counts_are_far_below_the_old_ribbons() -> void:
-	# before this pass (6 vertices a segment of 40 per circle, fans for fills): marble 504, circle 240, wedge 108
+	# before this pass (6 vertices a segment of 40 per circle, fans for fills): marble 504 (2 rings) / 756 (3 rings), circle 240, wedge 108
 	_show(&"bola", Vector2(0.0, -1.0))
-	assert_lt(_vertices().size(), 504 / 2, "the marble's guide")
+	assert_lt(_vertices().size(), 504 * 3 / 4, "the marble's guide")
 	_show(&"bato_heavy", Vector2(0.0, -0.5))
 	assert_lt(_vertices().size(), 240 / 2, "a landing circle, tint and outline")
 	_show(&"gunting_light", Vector2(0.0, -1.0))
@@ -306,7 +308,8 @@ func test_nobody_in_reach_and_not_dragged_draws_nothing() -> void:
 
 
 func test_a_ring_under_a_kid_in_reach_stays_red_for_an_enemy() -> void:
-	_sim.players[2].position = Vector2(0.0, 4.0)
+	var heavy: WeaponDef = _def(&"bato_heavy")
+	_sim.players[2].position = _sim.players[CASTER].position + Vector2(0.0, -0.5) * heavy.max_range
 	_show(&"bato_heavy", Vector2(0.0, -0.5), false, false)
 	assert_true(_has(_palette(), AimIndicator.REACH_ENEMY), "the tap still shows who it reaches")
 	assert_eq(_palette().size(), 1, "and only that (no landing circle on a tap)")

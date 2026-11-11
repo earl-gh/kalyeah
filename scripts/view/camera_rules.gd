@@ -22,6 +22,9 @@ const MAX_DISTANCE: float = 3000.0
 const STANDOFF: float = 150.0
 ## The ground axes are rounded to this, so a quarter turn gives exact ones.
 const AXIS_SNAP: float = 0.000001
+## Wall clearance (metres) around solid obstacles for the shoulder spring-arm ray, and circular perimeter inset.
+const SHOULDER_WALL_PAD: float = 0.48
+const SHOULDER_ARENA_PAD: float = 0.6
 
 ## The camera's turn around the arena (0 = looking straight along the street).
 @export var yaw_offset_degrees: float = 0.0
@@ -225,3 +228,72 @@ func shoulder_pose(feet: Vector2, yaw: float, pitch: float) -> Array[Vector3]:
 ## The look's pitch kept inside its limits.
 func clamp_pitch(pitch: float) -> float:
 	return clampf(pitch, look_pitch_min, look_pitch_max)
+
+
+## Spring-arm collision clamp in XZ: pulls `desired_eye` toward `pivot` when the segment hits any
+## solid obstacle in `obstacles` (grown by 0.48 m) and keeps the eye inside `arena_radius - 0.6 m`
+## when `arena_radius > 0.0`.
+func clamp_shoulder_eye(pivot: Vector3, desired_eye: Vector3, obstacles: Array[Rect2], arena_radius: float = 0.0) -> Vector3:
+	var p0: Vector2 = Vector2(pivot.x, pivot.z)
+	var p1: Vector2 = Vector2(desired_eye.x, desired_eye.z)
+	var delta: Vector2 = p1 - p0
+	var best_t: float = 1.0
+	if delta.length_squared() > 0.000001:
+		for rect: Rect2 in obstacles:
+			var box: Rect2 = rect.grow(SHOULDER_WALL_PAD)
+			var hit: Vector2 = _slab_ray_rect(p0, delta, box)
+			if hit.x > hit.y or hit.y <= 0.0 or hit.x >= best_t:
+				continue
+			if hit.x >= 0.0:
+				best_t = hit.x
+			else:
+				var solid: Vector2 = _slab_ray_rect(p0, delta, rect)
+				if hit.y >= best_t or (solid.x <= solid.y and solid.y > 0.0 and solid.x < best_t):
+					best_t = 0.0
+		if arena_radius > 0.0:
+			var max_r: float = maxf(0.0, arena_radius - SHOULDER_ARENA_PAD)
+			var end_at: Vector2 = p0 + delta * best_t
+			if end_at.length_squared() > max_r * max_r:
+				var a: float = delta.length_squared()
+				var b: float = p0.dot(delta)
+				var c: float = p0.length_squared() - max_r * max_r
+				if c <= 0.0:
+					var disc: float = maxf(0.0, b * b - a * c)
+					var t_circle: float = (-b + sqrt(disc)) / a
+					best_t = minf(best_t, clampf(t_circle, 0.0, 1.0))
+				else:
+					best_t = 0.0
+	var eye: Vector3 = pivot.lerp(desired_eye, best_t)
+	if arena_radius > 0.0:
+		var max_r: float = maxf(0.0, arena_radius - SHOULDER_ARENA_PAD)
+		var xz: Vector2 = Vector2(eye.x, eye.z)
+		if xz.length_squared() > max_r * max_r:
+			xz = xz.limit_length(max_r)
+			eye.x = xz.x
+			eye.z = xz.y
+	eye.y = maxf(eye.y, 0.5)
+	return eye
+
+
+static func _slab_ray_rect(origin: Vector2, delta: Vector2, box: Rect2) -> Vector2:
+	var t_min: float = -INF
+	var t_max: float = INF
+	if absf(delta.x) <= 0.000001:
+		if origin.x < box.position.x or origin.x > box.end.x:
+			return Vector2(1.0, -1.0)
+	else:
+		var inv_x: float = 1.0 / delta.x
+		var tx1: float = (box.position.x - origin.x) * inv_x
+		var tx2: float = (box.end.x - origin.x) * inv_x
+		t_min = maxf(t_min, minf(tx1, tx2))
+		t_max = minf(t_max, maxf(tx1, tx2))
+	if absf(delta.y) <= 0.000001:
+		if origin.y < box.position.y or origin.y > box.end.y:
+			return Vector2(1.0, -1.0)
+	else:
+		var inv_y: float = 1.0 / delta.y
+		var ty1: float = (box.position.y - origin.y) * inv_y
+		var ty2: float = (box.end.y - origin.y) * inv_y
+		t_min = maxf(t_min, minf(ty1, ty2))
+		t_max = minf(t_max, maxf(ty1, ty2))
+	return Vector2(t_min, t_max)

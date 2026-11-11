@@ -1,5 +1,7 @@
 extends GutTest
 
+const TMP_HISTORY_FALLBACK: String = "res://.godot/_test_tmp_history_polish.cfg"
+
 var _history_path: String
 var _player_name: String
 
@@ -8,11 +10,17 @@ func before_each() -> void:
 	_history_path = MatchHistory.path
 	_player_name = Session.player_name
 	MatchHistory.path = "user://history_polish_test.cfg"
+	var probe: ConfigFile = ConfigFile.new()
+	probe.set_value("probe", "ok", true)
+	if probe.save(MatchHistory.path) != OK:
+		MatchHistory.path = TMP_HISTORY_FALLBACK
 	MatchHistory.clear()
 
 
 func after_each() -> void:
 	MatchHistory.clear()
+	if FileAccess.file_exists(TMP_HISTORY_FALLBACK):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(TMP_HISTORY_FALLBACK))
 	MatchHistory.path = _history_path
 	Session.player_name = _player_name
 

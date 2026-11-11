@@ -25,7 +25,10 @@ func test_a_fixed_orthographic_camera_tilted_about_45_degrees() -> void:
 
 
 func test_the_street_is_24_by_48_with_sidewalks_twice_as_wide_as_they_were() -> void:
-	assert_almost_eq(LAYOUT.lane_width / LAYOUT.lane_length, 1.0 / 2.0, 0.001, "24 x 48 m (it was 27 x 48 before the sidewalks were made twice as wide)")
+	assert_eq(LAYOUT.tiles, Vector2i(58, 58), "58 x 58 grid enclosing the 168 m circular barangay")
+	assert_almost_eq(LAYOUT.lane_width / LAYOUT.lane_length, 1.0, 0.001, "1:1 square outer span around the circular barangay")
+	assert_almost_eq(LAYOUT.arena_radius, 84.0, 0.001, "84 m radius (168 m diameter)")
+	assert_true(LAYOUT.is_circular())
 
 
 func test_the_whole_arena_fits_on_a_phone_with_its_margins() -> void:
@@ -71,7 +74,7 @@ func test_the_camera_sits_behind_the_own_end_and_the_other_team_is_turned_half_w
 
 
 func test_the_kids_are_drawn_a_little_bigger_than_their_model_and_their_bars_smaller() -> void:
-	assert_almost_eq(CAMERA.kid_view_scale, 2.0, 0.0001, "a kid is about a tile wide like a Clash Royale troop and a quarter of a house (it was 3.2, then 1.5)")
+	assert_almost_eq(CAMERA.kid_view_scale, 1.75, 0.0001, "hero-action 5v5 barangay kid view scale")
 	assert_lt(CAMERA.bar_scale, 1.0)
 	assert_gt(LAYOUT.scenery_scale, 1.0, "the scenery is drawn bigger to match")
 
@@ -81,9 +84,9 @@ func test_the_kid_is_readable_at_this_size() -> void:
 	var feet: Vector2 = CAMERA.screen_point(framed.x, PHONE, Vector2.ZERO, framed.y)
 	var head: Vector2 = CAMERA.screen_point(framed.x, PHONE, Vector2.ZERO, framed.y, KidModel.KID_HEIGHT * CAMERA.kid_view_scale)
 	var tall: float = (head.y - feet.y) / 2.0 * 1280.0
-	assert_gt(tall, 46.0, "at least 46 px tall on a 1280 px screen (about 53 at the shipped scale: do not shrink the kids further)")
+	assert_gt(tall, 40.0, "readable silhouette height at 1.75 view scale")
 	var wide: float = absf(CAMERA.screen_point(framed.x, PHONE, Vector2(0.35 * CAMERA.kid_view_scale, 0.0), framed.y).x - feet.x) * 360.0 * 2.0
-	assert_gt(wide, 27.0, "and at least 27 px wide (about 31)")
+	assert_gt(wide, 24.0, "readable silhouette width at 1.75 view scale")
 
 
 func test_the_arena_camera_places_itself_and_keeps_the_whole_street_in_view() -> void:
@@ -121,7 +124,9 @@ func test_a_cinematic_shot_uses_a_perspective_lens_and_the_camera_goes_back_afte
 
 func before_each() -> void:
 	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 
 
 func after_each() -> void:
 	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)

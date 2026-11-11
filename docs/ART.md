@@ -1,8 +1,19 @@
 # Art, UI and audio
 
-Look: **Clash of Clans design language** (soft, chunky, painted-looking, toy-like) on a **League of Legends camera**, in a Filipino street. Inspired by, never copied (`docs/PROJECT.md` 3.8). The target is the owner's reference image; the work to get there is the visual overhaul in `docs/ROADMAP.md`.
+Look: **Valorant × Arcane painted 3D clarity** fused with **90s Filipino Komiks (*Funny Komiks* / *Bata Batuta*)** bold ink framing, built on top of Kalyeah's chunky stylized Filipino street silhouettes (`docs/BARANGAY_AAA_MODEL_QUALITY.md`, `docs/PROJECT.md` 3.8). Everything runs natively on **Godot 4.6.2 GL Compatibility** (`1280 × 720` landscape) with zero third-party asset copying.
 
-## Where we are
+## AAA Barangay 5v5 visual architecture (current)
+- **Painted Provincial Barangay World (`StreetMap`, `BarangayProps`, `SpaghettiWires`):**
+  - **Ground & Estero shaders:** `shaders/barangay_ground.gdshader` paints sun-baked provincial concrete slabs, hand-troweled cracks, warm afternoon dust, cobbled plaza stone (North), painted basketball court markings (South), and mossy Estero embankments in one shader pass without external megatextures; `shaders/estero_water.gdshader` renders stylized tropical canal ripples and stepped foam under the central concrete bridge and flanking bamboo plank crossings.
+  - **Tight *tabi-tabing bahay* & landmarks:** `BarangayProps` (`scripts/view/art/barangay_props.gd`) constructs multi-storey ancestral *bahay-na-bato* capiz windows, unpainted hollow-block extensions, corrugated *yero* awnings, *sari-sari* storefronts, *carinderia* counters, vulcanizing/barber shophouses, *palengke* stalls, waiting-shed rescue zones, the **South Covered Basketball Court** (`BARANGAY KALYEAH` fascia + rafters + twin hoops), the **North Barangay Hall Plaza** (flagpole + monument + civic facade), and a continuous **360° outer *tabi-tabing bahay* skyline** enclosing the `84 m`-radius arena.
+  - **Single-draw spaghetti wiring & *sampayan* (`SpaghettiWires`):** `scripts/view/art/spaghetti_wires.gd` batches chaotic Meralco-style pole-to-pole catenary bundles, cross-alley house service drops, coiled loops, and colourful overhead *sampayan* laundry shirts/shorts into merged `ArrayMesh` batches (`1–2` draw calls total).
+- **Valorant × Arcane 2D Ink & UX-Balanced Sketch VFX:**
+  - **10 Filipino Kids (`junjun`, `ligaya`, `migo`, `toni`, `popoy`, `inday`, `kiko`, `nene`, `buknoy`, `tala`):** Skinned `.glb` models in `assets/models/characters/` with VRAM-compressed textures (`test_texture_budget.gd`), crisp comic ink silhouettes (`shaders/arcane_ink_outline.gdshader` + team outlines `shaders/team_outline.gdshader`), portraits (`assets/portraits/<id>.png`), and character cards (`assets/ui/character_cards/<id>.webp`).
+  - **Arcane sketch VFX (`shaders/arcane_fx_master.gdshader`, `FxSketch`):** Posterized gouache impact rings, stepped charcoal streaks, and snappy `Tirador` / `Luksong-Tinik` / `Bagsak ng Kalye` shockwaves tuned with strict screen-space restraint (`<= 0.35 s` impact flash, translucent ground telegraphs) so 10-player 5v5 brawls never obscure silhouettes or crosshairs.
+- **90s Filipino Komiks `1280 × 720` HUD (`KomiksStyle`):**
+  - Bold `3–4 px` black ink borders, hard offset drop shadows (`4, 4`), skewed action headers, and subtle Ben-Day halftone accents across the circular **`BarangayMinimap`** (`164 × 164 px`, top-left), **5v5 Squad Wings** flanking the central **`Scoreboard` + `ClockChip`**, 3D **`WorldWaypoints`** (`BASE MO`, `AGAWAIN!`, `RESCUE`), top-right **`TakedownFeed`**, bottom-left **`HeroVitalsPanel`**, and bottom-right **`AbilityArc`** (`Tirador` + 3 Superpowers + `Luksong-Tinik` + `Bagsak` ultimate), plus the **7-tier Tagalog Rank Crest** (`Kahoy` → `Batang Kalyeah`) on `TitleScreen` and `MatchResults`.
+
+## Where we are (foundational history preserved below)
 The current art is a first pass built **in code**: procedural meshes and vector icons, with no asset files. It is soft-shaded and readable but not final. The plan replaces it piece by piece with real assets made in Blender (see "Asset pipeline").
 
 ### 3D (procedural, current)

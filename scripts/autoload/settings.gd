@@ -31,8 +31,12 @@ const TURBO_SCALE: float = 0.75
 const SFX_BUS: StringName = &"Sfx"
 const MUSIC_BUS: StringName = &"Music"
 
-const SAVE_PATH: String = "user://settings.cfg"
+const DEFAULT_SAVE_PATH: String = "user://settings.cfg"
+const FALLBACK_SAVE_PATH: String = "res://.godot/_test_tmp_settings.cfg"
 const PROJECT_KEY: String = "kalyeah/network/server_url"
+
+static var _cached_save_path: String = ""
+var SAVE_PATH: String = _resolve_save_path()
 
 var server_url: String = ""
 ## Whether button presses buzz the phone (owner-facing settings screen).
@@ -102,7 +106,7 @@ func _ready() -> void:
 		bot_level = StringName(String(file.get_value("practice", "bot_level", "")))
 	apply_graphics()
 	apply_audio()
-	lock_portrait()
+	set_landscape(true)
 	get_window().size_changed.connect(fit_portrait)
 	fit_portrait()
 	_load_translations()
@@ -244,6 +248,23 @@ func _save_value(section: String, key: String, value: Variant) -> void:
 	file.save(SAVE_PATH)
 
 
+static func _resolve_save_path() -> String:
+	if not _cached_save_path.is_empty():
+		return _cached_save_path
+	if DirAccess.open("user://") != null:
+		var probe_path: String = "user://.settings_write_probe.cfg"
+		var probe: ConfigFile = ConfigFile.new()
+		probe.set_value("probe", "ok", true)
+		if probe.save(probe_path) == OK:
+			DirAccess.remove_absolute(probe_path)
+			if FileAccess.file_exists(probe_path):
+				DirAccess.remove_absolute(ProjectSettings.globalize_path(probe_path))
+			_cached_save_path = DEFAULT_SAVE_PATH
+			return _cached_save_path
+	_cached_save_path = FALLBACK_SAVE_PATH
+	return _cached_save_path
+
+
 func _on_node_added(node: Node) -> void:
 	if node is Control and reduced_motion:
 		UiAccessibility.apply_weak.call_deferred(weakref(node))
@@ -271,33 +292,42 @@ func set_reduced_motion(enabled: bool) -> void:
 	accessibility_changed.emit()
 
 
-## The menus' design screen (portrait) and the match's (landscape, Wild Rift style: docs/GDD.md "Landscape layout").
+## The legacy portrait base and full-game native 1280x720 landscape base (`LANDSCAPE_BASE`).
 const PORTRAIT_BASE: Vector2i = Vector2i(720, 1280)
 const LANDSCAPE_BASE: Vector2i = Vector2i(1280, 720)
+const CAMERA_RULES_PATH: String = "res://data/rules/camera_rules.tres"
 
-## True while a match is on screen: the phone is turned sideways and the UI is laid out on `LANDSCAPE_BASE`. The menus stay vertical
-## until they are rebuilt for landscape (the manifest still asks for portrait at start).
-var landscape: bool = false
+## True in full-game widescreen mode: both menus and matches run sideways on `LANDSCAPE_BASE` (1280x720).
+var landscape: bool = true
+## Keeps widescreen landscape active when leaving a match (`PracticeMatch._exit_tree()` calls `set_landscape(false)`).
+var always_landscape: bool = true
 
 
-## The menus are vertical on every phone and tablet: asked of the phone at start, even when the device's auto-rotate is on. Android 16 may
-## ignore the request on a large screen (a tablet or a folded-out phone); `fit_portrait` covers that.
+## Kept for legacy callers; full-game runtime uses `set_landscape(true)` (`SCREEN_SENSOR_LANDSCAPE`).
 func lock_portrait() -> void:
 	if OS.has_feature("android"):
 		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_PORTRAIT)
 
 
-## A match turns the phone sideways (`on`; either way round, the sensor picks) and lays the UI out on the landscape base; leaving it turns
-## the phone back upright on the portrait base.
-func set_landscape(on: bool) -> void:
-	landscape = on
+## Activates `1280x720` widescreen landscape (`SCREEN_SENSOR_LANDSCAPE` on Android, `LANDSCAPE_BASE` on desktop/mobile).
+## Leaving a match (`set_landscape(false)`) keeps landscape active unless a portrait camera override is in effect.
+func set_landscape(on: bool = true) -> void:
+	var active: bool = on or (always_landscape and not _is_portrait_camera_override())
+	landscape = active
 	if OS.has_feature("android"):
-		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE if on else DisplayServer.SCREEN_PORTRAIT)
+		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE if active else DisplayServer.SCREEN_PORTRAIT)
 	var window: Window = get_window()
 	if window == null:
 		return
-	window.content_scale_size = LANDSCAPE_BASE if on else PORTRAIT_BASE
+	window.content_scale_size = LANDSCAPE_BASE if active else PORTRAIT_BASE
 	fit_portrait()
+
+
+static func _is_portrait_camera_override() -> bool:
+	if not ResourceLoader.exists(CAMERA_RULES_PATH):
+		return false
+	var rules: CameraRules = load(CAMERA_RULES_PATH) as CameraRules
+	return rules != null and not rules.follow and not rules.third_person
 
 
 ## How the screen fills a window of `size`: a window of the wanted shape (tall for the menus, wide for a match: `wide`) fills it, but a window

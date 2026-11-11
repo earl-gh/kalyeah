@@ -8,12 +8,19 @@ const DT: float = 1.0 / 30.0
 var _rules: GameRules
 
 
+static func _open_layout() -> MapLayout:
+	var layout: MapLayout = LAYOUT.duplicate() as MapLayout
+	layout.obstacles = [] as Array[Rect2]
+	layout.water_obstacles = [] as Array[Rect2]
+	return layout
+
+
 func before_each() -> void:
 	_rules = (load("res://data/rules/game_rules.tres") as GameRules).duplicate() as GameRules
 
 
 func _sim() -> MatchSim:
-	var sim: MatchSim = MatchSim.new(_rules, LAYOUT, 4)
+	var sim: MatchSim = MatchSim.new(_rules, _open_layout(), 4)
 	sim.add_player(1, 0)
 	sim.add_player(2, 0)
 	sim.add_player(3, 1)
@@ -27,7 +34,7 @@ func _wait(sim: MatchSim, seconds: float) -> void:
 
 
 func test_the_shipped_rules_give_a_round_a_time_so_the_clock_can_count_down() -> void:
-	assert_eq(_rules.overtime_after, 180.0, "three minutes (owner: Time left counts down) ...")
+	assert_eq(_rules.overtime_after, 240.0, "four minutes regular play in 5v5 Barangay ...")
 	assert_eq(_rules.extended_seconds, 60.0, "... then Extended for a minute ...")
 	assert_eq(_rules.overtime_seconds, 60.0, "... then Overtime for a minute")
 	assert_lt(_rules.overtime_capture_time, _rules.capture_solo_time, "overtime makes a capture shorter")
@@ -189,10 +196,10 @@ func test_each_stage_restarts_the_countdown_and_overtime_stays_at_zero() -> void
 func test_the_shipped_stages_are_three_minutes_then_two_one_minute_resets() -> void:
 	_rules = (load("res://data/rules/game_rules.tres") as GameRules).duplicate() as GameRules
 	var sim: MatchSim = _sim()
-	for at: Array in [[0.0, 180.0, MatchSim.ClockStage.REGULAR], [180.0, 60.0, MatchSim.ClockStage.EXTENDED], [239.0, 1.0, MatchSim.ClockStage.EXTENDED], [240.0, 60.0, MatchSim.ClockStage.OVERTIME], [300.0, 0.0, MatchSim.ClockStage.OVERTIME]]:
+	for at: Array in [[0.0, 240.0, MatchSim.ClockStage.REGULAR], [240.0, 60.0, MatchSim.ClockStage.EXTENDED], [299.0, 1.0, MatchSim.ClockStage.EXTENDED], [300.0, 60.0, MatchSim.ClockStage.OVERTIME], [360.0, 0.0, MatchSim.ClockStage.OVERTIME]]:
 		sim.round_time = at[0] as float
 		assert_eq(sim.clock_left(), at[1] as float)
-		assert_eq(sim.clock_stage(), at[2])
+		assert_eq(sim.clock_stage(), at[2] as int)
 
 
 func test_stepping_the_sim_walks_through_the_stages_and_a_point_restarts_them() -> void:

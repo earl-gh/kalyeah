@@ -4,19 +4,22 @@ extends GutTest
 ## Local plugin, version 0.7.0). The first version of the script looked for lines aapt2 does not print and failed a good APK; these
 ## tests keep it reading what is really there. Refresh the fixtures from that artifact of a newer run, never by hand.
 
-const SCRIPT := "res://.github/scripts/inspect-apk.sh"
-const BADGING := "res://tests/fixtures/android/badging.txt"
-const MANIFEST := "res://tests/fixtures/android/manifest.txt"
-const VERSION := "0.7.0"
+const SCRIPT: String = "res://.github/scripts/inspect-apk.sh"
+const BADGING: String = "res://tests/fixtures/android/badging.txt"
+const MANIFEST: String = "res://tests/fixtures/android/manifest.txt"
+const VERSION: String = "0.7.0"
 
 
 func _read(path: String) -> String:
 	return FileAccess.get_file_as_string(path)
 
 
-func _save(name: String, text: String) -> String:
-	var path: String = "user://%s" % name
+func _save(file_name: String, text: String) -> String:
+	var path: String = "user://%s" % file_name
 	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		path = "res://.godot/_test_tmp_%s" % file_name
+		file = FileAccess.open(path, FileAccess.WRITE)
 	file.store_string(text)
 	file.close()
 	return ProjectSettings.globalize_path(path)
@@ -33,9 +36,9 @@ func _inspect(badging: String, manifest: String) -> Dictionary:
 func _broken(from: String, to: String) -> Dictionary:
 	var manifest: String = _read(MANIFEST)
 	assert_true(manifest.contains(from), "the fixture holds %s" % from)
-	var result: Dictionary = _inspect(
-		ProjectSettings.globalize_path(BADGING), _save("manifest_broken.txt", manifest.replace(from, to)))
-	DirAccess.remove_absolute("user://manifest_broken.txt")
+	var saved: String = _save("manifest_broken.txt", manifest.replace(from, to))
+	var result: Dictionary = _inspect(ProjectSettings.globalize_path(BADGING), saved)
+	DirAccess.remove_absolute(saved)
 	return result
 
 
@@ -86,13 +89,15 @@ func test_a_failure_prints_the_raw_aapt2_output_to_read() -> void:
 
 func test_a_missing_multicast_permission_fails() -> void:
 	var badging: String = _read(BADGING).replace("uses-permission: name='android.permission.CHANGE_WIFI_MULTICAST_STATE'\n", "")
-	var result: Dictionary = _inspect(_save("badging_missing.txt", badging), ProjectSettings.globalize_path(MANIFEST))
-	DirAccess.remove_absolute("user://badging_missing.txt")
+	var saved: String = _save("badging_missing.txt", badging)
+	var result: Dictionary = _inspect(saved, ProjectSettings.globalize_path(MANIFEST))
+	DirAccess.remove_absolute(saved)
 	assert_true(String(result["text"]).contains("FAIL  only the permissions the game uses"), "the hotspot's broadcast needs it")
 
 
 func test_an_extra_permission_fails() -> void:
 	var badging: String = _read(BADGING) + "uses-permission: name='android.permission.RECORD_AUDIO'\n"
-	var result: Dictionary = _inspect(_save("badging_broken.txt", badging), ProjectSettings.globalize_path(MANIFEST))
-	DirAccess.remove_absolute("user://badging_broken.txt")
+	var saved: String = _save("badging_broken.txt", badging)
+	var result: Dictionary = _inspect(saved, ProjectSettings.globalize_path(MANIFEST))
+	DirAccess.remove_absolute(saved)
 	assert_true(String(result["text"]).contains("FAIL  only the permissions the game uses"))

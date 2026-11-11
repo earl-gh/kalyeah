@@ -209,8 +209,8 @@ func test_with_two_ready_hosts_both_are_listed_with_their_names_and_none_is_pick
 	for found: Dictionary in _finder.rooms:
 		by_host[found["host"]] = found
 	assert_true(by_host.has("Host") and by_host.has("Bea"))
-	assert_eq(by_host.get("Host"), {"url": "ws://127.0.0.1:18977", "host": "Host", "players": 1, "size": 6})
-	assert_eq(by_host.get("Bea"), {"url": "ws://127.0.0.1:18979", "host": "Bea", "players": 1, "size": 6})
+	assert_eq(by_host.get("Host"), {"url": "ws://127.0.0.1:18977", "host": "Host", "players": 1, "size": 10})
+	assert_eq(by_host.get("Bea"), {"url": "ws://127.0.0.1:18979", "host": "Bea", "players": 1, "size": 10})
 	assert_gt(frames, int(SEARCH_SECONDS / FRAME) - 5, "with a room found it still waits out the window for another host")
 
 

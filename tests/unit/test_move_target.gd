@@ -11,6 +11,7 @@ const COVER: Rect2 = Rect2(-13.5, 10.5, 3.0, 0.5)
 static func _cover_street() -> MapLayout:
 	var street: MapLayout = LAYOUT.duplicate() as MapLayout
 	street.obstacles = [Rect2(-13.5, 10.5, 3.0, 0.5)] as Array[Rect2]
+	street.water_obstacles = [] as Array[Rect2]
 	return street
 
 
@@ -49,7 +50,7 @@ func test_the_kid_runs_to_the_target_in_a_straight_line_at_move_speed() -> void:
 	_tap_to(sim, Vector2(8.0, 6.0))
 	_steps(sim, 29)
 	var state: PlayerState = sim.players[1]
-	assert_almost_eq(state.position.length(), 5.0, 0.001, "5 m in one second")
+	assert_almost_eq(state.position.length(), _rules.move_speed, 0.01, "move_speed metres in one second")
 	assert_almost_eq(state.position.normalized().dot(Vector2(0.8, 0.6)), 1.0, 0.0001, "on the straight line")
 	assert_almost_eq(state.facing.dot(Vector2(0.8, 0.6)), 1.0, 0.0001, "facing the way it walks")
 
@@ -86,9 +87,7 @@ func test_a_point_past_the_street_edge_is_pulled_in_where_the_kid_fits() -> void
 	var sim: MatchSim = _sim()
 	_tap_to(sim, Vector2(100.0, -100.0))
 	var r: float = _rules.player_radius
-	# the street's corner is rounded like the bases: the kid fits on the curve, `base_corner` - r from the middle of the corner's arc
-	var arc_centre: Vector2 = Vector2(LAYOUT.lane_width / 2.0 - LAYOUT.base_corner, -LAYOUT.lane_length / 2.0 + LAYOUT.base_corner)
-	assert_almost_eq(sim.players[1].move_target, arc_centre + Vector2(1.0, -1.0).normalized() * (LAYOUT.base_corner - r), Vector2(0.0001, 0.0001))
+	assert_almost_eq(sim.players[1].move_target, Vector2(1.0, -1.0).normalized() * (LAYOUT.arena_radius - r), Vector2(0.0001, 0.0001))
 
 
 func test_a_point_inside_the_cover_wall_is_pushed_out() -> void:
@@ -96,7 +95,7 @@ func test_a_point_inside_the_cover_wall_is_pushed_out() -> void:
 	for point: Vector2 in [COVER.get_center(), Vector2(-13.4, 10.6), Vector2(-10.6, 10.9)]:
 		var clamped: Vector2 = sim.clamp_move_target(point, _rules.player_radius)
 		assert_false(COVER.grow(_rules.player_radius - 0.001).has_point(clamped), "%s is out of the cover" % clamped)
-		assert_true(LAYOUT.lane_rect().grow(-_rules.player_radius + 0.001).has_point(clamped), "%s is in the street" % clamped)
+		assert_true(LAYOUT.in_arena(clamped, _rules.player_radius - 0.001), "%s is in the arena" % clamped)
 
 
 func test_walking_head_on_into_the_cover_ends_the_move_within_the_stuck_time() -> void:
@@ -201,7 +200,7 @@ func test_a_new_round_ends_the_move() -> void:
 	sim.kill(2)
 	var cleared_at_point: Array[bool] = []
 	sim.point_scored.connect(func(_team: int, _how: int) -> void: cleared_at_point.append(not sim.players[1].has_move_target))
-	for i: int in 30 * 12:
+	for i: int in 30 * 18:
 		# keeps walking back and forth, so it never arrives on its own
 		var x: float = 13.0 if i % 2 == 0 else -13.0
 		sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_move_target(Vector2(x, 3.0)))

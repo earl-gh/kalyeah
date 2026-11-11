@@ -5,15 +5,15 @@
 [resource]
 script = ExtResource("1_weapon")
 id = &"heal"
-display_name = "Langit · Heal"
+display_name = "Langit · Basbas-Araw"
 short_name = "Heal"
-description = "Tap to heal yourself, or drag to a teammate to heal them!"
+description = "Tap for an instant 42 HP sun-burst on yourself, or aim toward a teammate to heal them!"
 street_game = "Langit Lupa"
 kind = 3
 shape = 9
-cooldown = 12.0
+cooldown = 9.5
 elixir_cost = 4
-max_range = 8.0
-angle_degrees = 60.0
-heal = 30
-card_power = 750
+max_range = 22.0
+angle_degrees = 65.0
+heal = 42
+card_power = 1250

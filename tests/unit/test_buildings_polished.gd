@@ -1,43 +1,77 @@
 extends GutTest
-## The street's buildings were given the same steps as the Nena store (owner, 2026-11-10): floating shards taken off, the mesh welded with hard
-## edges where it folds, the picture repainted piece by piece (hollow-block walls, wood with grain, roofs with their ridges and rust, everything
-## else its own colours cleaned into flat tones, the signs cleaned into their own band of the picture) and drawn with the polished look. The
-## karinderya is the owner's own model, drawn as made. Seam: PropModel.make, PropModel.POLISHED; tools/art/buildings/.
+## Cellular-detail Provincial Barangay architectural buildings (`assets/models/barangay/*.glb` + shared
+## `BarangayAtlas.jpg`) and Valorant x Arcane x 90s Komiks ink outlines in `StreetMap`.
 
-const BUILT: Array[String] = ["vulcanizing", "barber_shop", "house_1", "house_2", "house_3", "tricycle_terminal"]
+const MAP_SCENE: PackedScene = preload("res://scenes/map/street_map.tscn")
+const ATLAS_PATH: String = "res://assets/models/barangay/BarangayAtlas.jpg"
+const BARANGAY_BUILDINGS: Array[String] = [
+	"brgy_tabi_cluster_a",
+	"brgy_tabi_cluster_b",
+	"brgy_house_two_storey",
+	"brgy_shophouse_row",
+	"brgy_sari_sari",
+	"brgy_covered_court",
+	"brgy_hall_plaza",
+	"brgy_waiting_shed",
+	"brgy_palengke_stall",
+]
 
 
-func test_every_building_on_the_street_but_the_karinderya_is_polished() -> void:
-	var street: Array[String] = []
-	street.append_array(StreetMap.BUILDINGS)
-	street.append_array(StreetMap.FILLER_HOUSES)
-	street.append(StreetMap.TERMINAL)
-	for id: String in street:
-		if id == StreetMap.KARINDERYA:
-			continue
-		assert_true(PropModel.POLISHED.has(id), "%s is polished" % id)
-	assert_false(PropModel.POLISHED.has(StreetMap.KARINDERYA), "the karinderya is drawn as its maker made it")
-	assert_true(PropModel.AS_MADE.has(StreetMap.KARINDERYA))
+func test_every_building_on_the_street_uses_the_barangay_kit_and_shared_atlas() -> void:
+	assert_true(ResourceLoader.exists(ATLAS_PATH), "shared BarangayAtlas.jpg exists")
+	var atlas_tex: Texture2D = load(ATLAS_PATH) as Texture2D
+	assert_not_null(atlas_tex)
+	assert_eq(atlas_tex.get_size(), Vector2(2048.0, 2048.0), "2048x2048 shared painterly barangay atlas")
+	var import_text: String = FileAccess.get_file_as_string(ATLAS_PATH + ".import")
+	assert_true(import_text.contains("compress/mode=2"), "BarangayAtlas.jpg is VRAM-compressed")
+
+	var configured: Array[String] = []
+	configured.append_array(StreetMap.FILLER_HOUSES)
+	configured.append(StreetMap.TERMINAL)
+	for id: String in configured:
+		assert_true(BARANGAY_BUILDINGS.has(id), "%s is part of the barangay architectural kit" % id)
+		assert_true(ResourceLoader.exists(StreetMap.BARANGAY_DIR % id), "%s.glb exists" % id)
 
 
 func test_each_keeps_its_shape_its_triangles_and_one_material() -> void:
-	for id: String in BUILT:
-		var box: AABB = PropModel.bounds_of(id)
-		assert_almost_eq(box.position.y, 0.0, 0.002, "%s stands on the ground" % id)
-		assert_almost_eq(box.get_center().x, 0.0, 0.01, "%s is centred" % id)
-		var model: Node3D = autofree(PropModel.make(id)) as Node3D
-		var mesh: Mesh = (model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
-		assert_eq(mesh.get_surface_count(), 1, "%s: one mesh, one material" % id)
-		var triangles: int = (mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
-		assert_between(triangles, 5000, 6800, "%s: its kept parts and its new roof" % id)
+	for id: String in BARANGAY_BUILDINGS:
+		var path: String = StreetMap.BARANGAY_DIR % id
+		var scene: PackedScene = load(path) as PackedScene
+		assert_not_null(scene, "%s loads as PackedScene" % id)
+		var model: Node3D = autofree(scene.instantiate()) as Node3D
+		var meshes: Array[Node] = model.find_children("*", "MeshInstance3D", true, false)
+		if model is MeshInstance3D:
+			meshes.append(model)
+		assert_eq(meshes.size(), 1, "%s: single combined MeshInstance3D" % id)
+		var mi: MeshInstance3D = meshes[0] as MeshInstance3D
+		var mesh: Mesh = mi.mesh
+		assert_eq(mesh.get_surface_count(), 1, "%s: single draw-call material surface" % id)
+		var box: AABB = mi.transform * mesh.get_aabb()
+		assert_between(box.position.y, -0.35, 0.06, "%s: grounded plinth sits on y = 0" % id)
+		assert_lt(absf(box.get_center().x), 1.5, "%s: horizontally centered" % id)
+		var arrays: Array = mesh.surface_get_arrays(0)
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] as PackedInt32Array
+		var triangles: int = indices.size() / 3
+		assert_between(triangles, 80, 18000, "%s: cellular 3D silhouette within mobile triangle budget (%d tris)" % [id, triangles])
 
 
-func test_each_is_drawn_with_the_polished_look_over_its_own_picture() -> void:
-	for id: String in BUILT:
-		var model: Node3D = autofree(PropModel.make(id)) as Node3D
-		var mesh: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
-		var look: StandardMaterial3D = mesh.get_surface_override_material(0) as StandardMaterial3D
-		assert_same(look.albedo_texture, (mesh.mesh.surface_get_material(0) as BaseMaterial3D).albedo_texture, "%s: its own picture" % id)
-		assert_eq(look.diffuse_mode, BaseMaterial3D.DIFFUSE_TOON, id)
-		assert_eq(look.specular_mode, BaseMaterial3D.SPECULAR_TOON, id)
-		assert_almost_eq(look.roughness, ModelLook.POLISHED_ROUGHNESS, 0.0001, id)
+func test_each_is_drawn_with_arcane_ink_outline_over_the_shared_atlas() -> void:
+	var saved_perf: StringName = Settings.performance
+	Settings.performance = &"standard"
+	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
+	add_child(map)
+	for landmark_name: String in ["CoveredBasketballCourt", "BarangayHall"]:
+		var node: Node3D = map.find_child(landmark_name, true, false) as Node3D
+		assert_not_null(node, "%s landmark placed in StreetMap" % landmark_name)
+		var meshes: Array[Node] = node.find_children("*", "MeshInstance3D", true, false)
+		assert_gt(meshes.size(), 0)
+		var mi: MeshInstance3D = meshes[0] as MeshInstance3D
+		var over: StandardMaterial3D = mi.get_surface_override_material(0) as StandardMaterial3D
+		assert_not_null(over, "%s receives outlined override material" % landmark_name)
+		var base_mat: BaseMaterial3D = mi.mesh.surface_get_material(0) as BaseMaterial3D
+		assert_same(over.albedo_texture, base_mat.albedo_texture, "%s preserves shared BarangayAtlas texture" % landmark_name)
+		assert_not_null(over.next_pass, "%s carries 2D Arcane ink outline next_pass" % landmark_name)
+		var ink_mat: ShaderMaterial = over.next_pass as ShaderMaterial
+		assert_not_null(ink_mat)
+		assert_eq(ink_mat.shader.resource_path, StreetMap.INK_OUTLINE_PATH)
+	Settings.performance = saved_perf

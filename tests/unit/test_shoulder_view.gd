@@ -43,7 +43,7 @@ func test_the_data_puts_the_camera_over_the_shoulder() -> void:
 
 func test_the_pose_stands_exactly_the_distance_behind_the_kid_on_the_ground_and_looks_at_it() -> void:
 	var rules: CameraRules = CAMERA
-	assert_eq(rules.shoulder_distance, 12.0, "12 m behind the kid (owner)")
+	assert_almost_eq(rules.shoulder_distance, 6.2, 0.001, "6.2 m hero-shooter shoulder distance")
 	var pose: Array[Vector3] = rules.shoulder_pose(Vector2.ZERO, 0.0, 10.0)
 	assert_gt(pose[0].z, 0.0, "looking down -Z it stands on the +Z side: behind")
 	assert_gt(pose[0].x, 0.0, "and to the right")
@@ -141,7 +141,7 @@ func test_a_card_goes_where_the_crosshair_is_and_the_x_puts_it_back() -> void:
 	assert_almost_eq(practice.input.aim_point.distance_to(expected), 0.0, 0.01, "held, the card aims at the crosshair")
 	var hit: Variant = practice.street_point(practice._camera.crosshair())
 	assert_true(hit is Vector2, "looking down the street, the crosshair is on the ground")
-	assert_true(practice.layout.lane_rect().has_point(expected), "inside the street")
+	assert_true(practice.layout.in_arena(expected), "inside the circular barangay")
 	assert_eq(practice.input.release_kind(Time.get_ticks_msec()), MatchInput.Release.CAST, "even a quick tap casts at the crosshair")
 	var yaw: float = practice._camera.look_yaw
 	arc._move(at + Vector2(30.0, 0.0))
@@ -158,7 +158,7 @@ func test_looking_at_the_sky_casts_along_the_view_inside_the_street() -> void:
 	assert_null(practice.street_point(camera.crosshair()), "nothing under the crosshair")
 	var kid: Vector2 = practice.sim.players[practice.local_id].position
 	var point: Vector2 = practice.crosshair_point()
-	assert_true(practice.layout.lane_rect().has_point(point), "kept inside the street")
+	assert_true(practice.layout.in_arena(point), "kept inside the circular barangay")
 	assert_gt((point - kid).dot(camera.ground_axes()[1]), 0.0, "ahead of the kid, the way it looks")
 
 
@@ -192,14 +192,14 @@ func test_a_held_card_keeps_following_the_crosshair_while_the_kid_walks_and_the_
 func test_things_closer_than_your_kid_are_cut_away_not_drawn_over_the_screen() -> void:
 	var rules: CameraRules = CAMERA
 	var practice: PracticeMatch = _practice()
-	assert_eq(practice._camera.near, rules.shoulder_near)
+	assert_almost_eq(practice._camera.near, rules.shoulder_near, 0.001)
 	var to_kid: float = Vector2(rules.shoulder_distance, rules.shoulder_offset).length()
 	assert_lt(rules.shoulder_near, to_kid - 1.0, "your own kid is always drawn")
 
 
 func test_a_quick_tap_on_a_heal_card_heals_yourself_not_the_crosshair() -> void:
 	var practice: PracticeMatch = _practice()
-	practice.sim.set_loadout(practice.local_id, &"heal", &"tsinelas_light")
+	practice.sim.set_loadout(practice.local_id, &"heal", &"tsinelas_light", &"bato_light")
 	practice.card_pressed(0)
 	practice.card_moved(0, Vector2.ZERO, true, false)
 	assert_eq(practice.input.release_kind(Time.get_ticks_msec()), MatchInput.Release.TAP, "a tap: the sim heals you (docs/GDD.md)")
@@ -211,7 +211,7 @@ func test_a_quick_tap_on_a_heal_card_heals_yourself_not_the_crosshair() -> void:
 func test_at_your_own_end_of_the_street_your_kid_stays_on_the_screen() -> void:
 	var practice: PracticeMatch = _practice()
 	var me: PlayerState = practice.sim.players[practice.local_id]
-	var end: float = LAYOUT.lane_length / 2.0 - 1.0
+	var end: float = LAYOUT.arena_radius - 4.0
 	me.position = Vector2(0.0, end if practice.own_side() == MapLayout.SIDE_OWN else -end)
 	for i: int in 3:
 		practice.advance(DT)

@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/weapon_def.gd" id="1_weapon"]
+
+[resource]
+script = ExtResource("1_weapon")
+id = &"ult_bagsak"
+display_name = "Bagsak ng Kalye"
+short_name = "ULTIMATE"
+description = "Unleash a massive Barangay shockwave meteor that launches nearby enemies skyward and restores health!"
+street_game = "Bida ng Kalye"
+kind = 0
+shape = 2
+cooldown = 1.0
+elixir_cost = 6
+max_range = 14.0
+damage = 48
+radius = 8.5
+delay = 0.35
+effect = 3
+effect_duration = 1.6
+heal = 30
+card_power = 5000

@@ -2,6 +2,10 @@ class_name MatchLoadoutFlow
 extends RefCounted
 ## Loadout presentation preserves server-owned lobby choices in networked matches.
 
+static func _slot_count(owner: PracticeMatch) -> int:
+	return maxi(owner.rules.loadout_size, WeaponPick.SLOTS)
+
+
 static func open(owner: PracticeMatch, heading: String, current: Array[StringName]) -> void:
 	# Online preserves the room choice; Practice starts with the saved profile preference.
 	var mine: StringName = owner.sim.players[owner.local_id].character_id if owner.online else StringName(Session.avatar_id)
@@ -9,8 +13,10 @@ static func open(owner: PracticeMatch, heading: String, current: Array[StringNam
 		mine = owner.sim.players[owner.local_id].character_id
 	owner._pick_screen.hosting = owner.online and Net.host != null
 	owner._pick_screen.cards_mode = owner.rules.card_cycle
-	var remembered: Array[StringName] = Session.loadout_for(_weapon_ids(owner)) if current.is_empty() else current
-	owner._pick_screen.open(WeaponPick.new(_weapon_ids(owner), owner.rules.weapon_pick_time, remembered), owner.rules.weapons, heading, owner.sim.rng, owner.rules.characters, mine, not owner.online)
+	var slot_count: int = _slot_count(owner)
+	var ids: Array[StringName] = _weapon_ids(owner)
+	var remembered: Array[StringName] = Session.loadout_for(ids, slot_count) if current.is_empty() else current
+	owner._pick_screen.open(WeaponPick.new(ids, owner.rules.weapon_pick_time, remembered, slot_count), owner.rules.weapons, heading, owner.sim.rng, owner.rules.characters, mine, not owner.online)
 	owner._set_controls_active(false)
 	if owner.rules.card_cycle:
 		# nothing to show: online the kid was chosen in the room, in Practice on the main screen (the Practice row's kid pick, owner)
@@ -21,7 +27,8 @@ static func open_swap(owner: PracticeMatch) -> void:
 	if owner.rules.card_cycle:
 		return  # no weapons to change: they come as cards
 	var player: PlayerState = owner.sim.players[owner.local_id]
-	owner._pick_screen.open_swap(WeaponPick.new(_weapon_ids(owner), 0.0, player.weapons), owner.rules.weapons, "CHANGE WEAPONS")
+	var slot_count: int = _slot_count(owner)
+	owner._pick_screen.open_swap(WeaponPick.new(_weapon_ids(owner), 0.0, player.weapons, slot_count), owner.rules.weapons, "CHANGE SUPERPOWERS")
 	owner._set_controls_active(false)
 
 
@@ -33,10 +40,13 @@ static func _weapon_ids(owner: PracticeMatch) -> Array[StringName]:
 
 
 static func confirm(owner: PracticeMatch, picks: Array[StringName]) -> void:
-	var weapons: bool = not owner.rules.card_cycle and owner.sim.mode == null  # no skills in Tumbang Preso and Patintero
+	var first: StringName = picks[0] if picks.size() > 0 else &""
+	var second: StringName = picks[1] if picks.size() > 1 else &""
+	var third: StringName = picks[2] if picks.size() > 2 else &""
+	var weapons: bool = not owner.rules.card_cycle and owner.sim.mode == null  # no superpowers in Tumbang Preso and Patintero
 	if weapons:
 		Session.remember_loadout(picks)
-		owner.sim.set_loadout(owner.local_id, picks[0], picks[1])
+		owner.sim.set_loadout(owner.local_id, first, second, third)
 	var kid: StringName = owner._pick_screen.character_id
 	if kid != &"":
 		owner.sim.set_character(owner.local_id, kid)
@@ -46,7 +56,7 @@ static func confirm(owner: PracticeMatch, picks: Array[StringName]) -> void:
 		owner._presentation.refresh_kids()
 	if owner.online:
 		# the server starts play for everyone once all have picked (or time is up)
-		owner.client.pick_weapons(picks[0], picks[1], kid)
+		owner.client.pick_weapons(first, second, kid, third)
 		if owner.client.stage != "play":
 			owner.show_banner("Waiting for your friends…")
 			return
@@ -61,12 +71,15 @@ static func confirm(owner: PracticeMatch, picks: Array[StringName]) -> void:
 
 
 static func swap(owner: PracticeMatch, picks: Array[StringName]) -> void:
+	var first: StringName = picks[0] if picks.size() > 0 else &""
+	var second: StringName = picks[1] if picks.size() > 1 else &""
+	var third: StringName = picks[2] if picks.size() > 2 else &""
 	Session.remember_loadout(picks)
 	if owner.online:
-		owner.client.swap_weapons(picks[0], picks[1])
+		owner.client.swap_weapons(first, second, third)
 		owner.sim.players[owner.local_id].weapons.assign(picks)
 	else:
-		owner.sim.swap_loadout(owner.local_id, picks[0], picks[1])
+		owner.sim.swap_loadout(owner.local_id, first, second, third)
 	owner._presentation.sync(0.0)
 
 

@@ -49,7 +49,8 @@ func test_the_data_turns_the_camera_to_look_across_the_street_and_follow_the_kid
 	assert_eq(rules.pitch_degrees, 45.0, "the same 45 degree tilt (docs/ART.md)")
 	assert_gt(rules.follow_view_size, 0.0)
 	var layout: MapLayout = LAYOUT
-	assert_eq(layout.tiles, Vector2i(16, 32), "the map keeps its 1:2 shape (owner)")
+	assert_eq(layout.tiles, Vector2i(58, 58), "58 x 58 grid enclosing the 168 m circular barangay")
+	assert_almost_eq(layout.arena_radius, 84.0, 0.001)
 
 
 func test_with_a_quarter_turn_right_on_the_screen_is_toward_the_enemy_end_and_up_is_minus_x() -> void:
@@ -90,8 +91,8 @@ func test_a_match_is_landscape_with_a_joystick_an_ability_arc_and_no_tray_and_le
 	assert_false(hud.street.active, "a tap on the street does not walk the kid: the joystick does")
 	remove_child(practice)
 	practice.free()
-	assert_false(Settings.landscape, "leaving the match turns the phone back upright")
-	assert_eq(get_window().content_scale_size, Settings.PORTRAIT_BASE)
+	assert_true(Settings.landscape, "widescreen 1280x720 stays active across menus and matches")
+	assert_eq(get_window().content_scale_size, Settings.LANDSCAPE_BASE)
 
 
 func test_the_camera_follows_your_kid_and_your_base_is_at_the_left() -> void:
@@ -172,16 +173,18 @@ func test_the_four_buttons_and_next_fit_the_bottom_right_corner_apart_and_clear_
 			arc.size = screen
 			arc.set_inset(inset)
 			var safe: Rect2 = Rect2(Vector2.ZERO, screen - inset)
+			var slot_radius: float = AbilityArc.BUTTON_RADIUS if arc.uses_elixir else AbilityArc.HERO_BTN_RADIUS
 			for slot: int in CardHand.SLOTS:
 				var button: Rect2 = arc.card_rects[slot]
 				assert_true(safe.encloses(button), "%s %s: button %d is on the screen, clear of the notch and home bar" % [screen, inset, slot])
 				assert_gt(button.position.x, screen.x * MoveStick.ZONE_SHARE, "right of the joystick's zone")
 				for other: int in range(slot + 1, CardHand.SLOTS):
-					assert_gt(arc.centers[slot].distance_to(arc.centers[other]), AbilityArc.BUTTON_RADIUS * 2.0, "buttons %d and %d do not overlap" % [slot, other])
-			assert_true(safe.encloses(arc.next_rect), "NEXT is on the screen")
+					assert_gt(arc.centers[slot].distance_to(arc.centers[other]), slot_radius * 2.0, "buttons %d and %d do not overlap" % [slot, other])
+			assert_true(safe.encloses(arc.next_rect), "NEXT / primary anchor is on the screen")
 			assert_true(safe.encloses(arc.bar_rect), "the ice water bar is on the screen")
 			assert_gt(arc.bar_rect.size.x, 100.0, "and long enough to read")
-			assert_lt(arc.cancel_center.y - AbilityArc.CANCEL_RADIUS, arc.card_rects[3].position.y, "cancel stands above the arc")
+			var top_slot: int = 3 if arc.uses_elixir else 2
+			assert_lt(arc.cancel_center.y - AbilityArc.CANCEL_RADIUS, arc.card_rects[top_slot].position.y, "cancel stands above the arc")
 			assert_gt(arc.cancel_center.y - AbilityArc.CANCEL_RADIUS, 100.0, "and below the header")
 
 
@@ -204,7 +207,8 @@ func test_dragging_from_a_button_aims_that_share_of_the_cards_range_from_the_kid
 	var def: WeaponDef = practice.sim.weapon_defs[state.weapons[slot]]
 	var expected: Vector2 = state.position + practice._camera.ground_way(Vector2(-0.5, 0.0)) * def.max_range
 	var lane: Rect2 = LAYOUT.lane_rect()
-	assert_almost_eq(practice.input.aim_point.distance_to(expected.clamp(lane.position, lane.end)), 0.0, 0.01, "that share of the range, that way, inside the street")
+	var clamped: Vector2 = LAYOUT.clamp_to_arena(expected, practice.rules.player_radius) if LAYOUT.is_circular() else expected.clamp(lane.position, lane.end)
+	assert_almost_eq(practice.input.aim_point.distance_to(clamped), 0.0, 0.01, "that share of the range, that way, inside the arena")
 	assert_eq(practice.input.release_kind(Time.get_ticks_msec()), MatchInput.Release.CAST, "letting go casts there")
 
 

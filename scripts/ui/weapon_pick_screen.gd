@@ -12,8 +12,11 @@ signal exit_requested
 
 ## Weapons mode: the kid tiles (3:4), six across the 656 px column, wide enough for the longest name at the caption floor.
 ## Cards mode has the `KidCarousel` instead.
+const RULES_PATH: String = "res://data/rules/game_rules.tres"
 const PROFILE_SIZE: Vector2 = Vector2(102.0, 136.0)
-const PROFILE_GAP: int = 8
+const WIDE_PROFILE_SIZE: Vector2 = Vector2(88.0, 94.0)
+const PROFILE_GAP: int = 6
+const SLOT_KEYS: Array[String] = ["Q", "E", "R"]
 ## The weapon grid: tiles across, and how tall each tile is.
 const GRID_COLUMNS: int = 3
 const TILE_HEIGHT: float = 200.0
@@ -63,6 +66,16 @@ var suggestion: Array[StringName] = []
 var _suggest_button: Button
 var _mode_label: Label
 var _safe_margin: MarginContainer
+var _root_column: VBoxContainer
+var _split_row: HBoxContainer
+var _left_column: VBoxContainer
+var _right_column: VBoxContainer
+var _sockets_row: HBoxContainer
+var _suggest_slot: Control
+var _weapons_scroll: Control
+var _info_panel: Control
+var _kid_about_panel: Control
+var _laid_out_wide: int = -1
 
 var _characters: Array[CharacterDef] = []
 var _profiles: Dictionary[StringName, Button] = {}
@@ -86,16 +99,27 @@ var _sockets: Array[LoadoutSocket] = []
 var _ready_button: Button
 var _rng: RandomNumberGenerator
 var _swap_total: float = 0.0
+var _rules: GameRules = load(RULES_PATH) as GameRules
 
 
 static func kind_color(kind: WeaponDef.Kind) -> Color:
 	return KIND_COLORS[kind]
 
 
+func slot_count() -> int:
+	return pick.slots if pick != null else WeaponPick.SLOTS
+
+
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	visible = false
+	resized.connect(_on_screen_resized)
+
+
+func _on_screen_resized() -> void:
+	if not _buttons.is_empty():
+		LoadoutLayout.apply_responsive_layout(self)
 
 
 ## Shows the screen for `p_pick`. `rng` fills empty slots on timeout. With `characters` the
@@ -106,7 +130,7 @@ func open(p_pick: WeaponPick, defs: Array[WeaponDef], heading: String, rng: Rand
 	_rng = rng
 	swap_mode = false
 	untimed = no_timer
-	replacement_slot = mini(pick.picks.size(), 1)
+	replacement_slot = mini(pick.picks.size(), slot_count() - 1)
 	_characters = characters
 	character_id = current if not characters.is_empty() else &""
 	if not characters.is_empty() and not characters.any(func(c: CharacterDef) -> bool: return c.id == character_id):
@@ -143,16 +167,24 @@ func show_time(seconds: float) -> void:
 func _show(defs: Array[WeaponDef], _heading: String) -> void:
 	if _buttons.is_empty():
 		_build(defs)
-	_title.text = "Change weapons" if swap_mode else ("Choose your kid" if cards_mode else "Loadout")
+	LoadoutLayout.sync_characters(self)
+	LoadoutLayout.sync_slots(self, defs)
+	var slots: int = slot_count()
+	if swap_mode:
+		_title.text = "Change superpowers" if slots >= 3 else "Change weapons"
+	elif cards_mode:
+		_title.text = "Choose your kid"
+	else:
+		_title.text = ("Choose %d superpowers" % slots) if slots >= 3 else "Loadout"
 	_mode_label.text = "Changes apply immediately" if swap_mode else ("Your weapons are cards!" if cards_mode else "Auto-pick at timeout")
 	_mode_label.visible = swap_mode or (not untimed and not cards_mode)
 	_ring.visible = not untimed and not cards_mode
 	for part: Control in _weapon_parts:
 		part.visible = not cards_mode
 	_filler.visible = cards_mode
-	LobbyWidgets.apply_safe_area(_safe_margin, UiMetrics.PAGE_MARGIN, UiMetrics.PAGE_MARGIN)
 	_character_row.visible = not swap_mode and not cards_mode and not _characters.is_empty()
 	(find_child("Characters", true, false) as Control).visible = _character_row.visible
+	LoadoutLayout.apply_responsive_layout(self)
 	_carousel.visible = cards_mode and not _characters.is_empty()
 	if _carousel.visible:
 		_carousel.setup_kids(_characters, character_id)
@@ -235,6 +267,19 @@ func show_info(id: StringName) -> void:
 		_info_bars.remove_child(child)
 		child.queue_free()
 	var bars: Control = LoadoutCards.bar_strip(def, _maxima)
+	if _rules == null:
+		_rules = load(RULES_PATH) as GameRules
+	var show_elixir: bool = _rules != null and _rules.uses_elixir()
+	var ice_stat: Control = bars.get_node_or_null("Stat_Ice water") as Control
+	if ice_stat != null:
+		ice_stat.visible = show_elixir
+	var has_visible_bar: bool = false
+	for bar_child: Node in bars.get_children():
+		if bar_child is Control and (bar_child as Control).visible:
+			has_visible_bar = true
+			break
+	bars.visible = has_visible_bar
+	_info_bars.visible = has_visible_bar
 	_info_bars.add_child(bars)
 	_info_stats.text = _stat_line(def)
 
@@ -248,14 +293,15 @@ func tap(id: StringName) -> void:
 	if not is_open():
 		return
 	show_info(id)
-	if pick.picks.size() == WeaponPick.SLOTS and not pick.picks.has(id):
+	var slots: int = slot_count()
+	if pick.picks.size() == slots and not pick.picks.has(id):
 		pick.replace_slot(replacement_slot, id)
-		replacement_slot = 1 - replacement_slot
+		replacement_slot = (replacement_slot + 1) % slots
 	else:
 		pick.toggle(id)
-		replacement_slot = mini(pick.picks.size(), 1)
+		replacement_slot = mini(pick.picks.size(), slots - 1)
 	_refresh()
-	if swap_mode and pick.picks.size() == WeaponPick.SLOTS:
+	if swap_mode and pick.picks.size() == slots:
 		swapped.emit(pick.picks.duplicate())
 
 
@@ -293,11 +339,13 @@ func _refresh() -> void:
 		_profiles[id].disabled = _taken.has(id)
 		_profiles[id].modulate = Color(0.6, 0.6, 0.66) if _taken.has(id) else Color.WHITE
 		_taken_labels[id].visible = _taken.has(id)
+	var slots: int = slot_count()
 	for id: StringName in _buttons:
 		var slot: int = pick.picks.find(id)
 		_buttons[id].set_pressed_no_signal(slot >= 0)
 		_badges[id].visible = slot >= 0
-		_badges[id].text = "%d" % (slot + 1)
+		if slot >= 0:
+			_badges[id].text = SLOT_KEYS[slot] if (slots == 3 and slot < SLOT_KEYS.size()) else ("%d" % (slot + 1))
 	for slot: int in _sockets.size():
 		var id: StringName = pick.picks[slot] if slot < pick.picks.size() else &""
 		_sockets[slot].active = slot == replacement_slot
@@ -308,7 +356,7 @@ func _refresh() -> void:
 		if _carousel.current_id() != character_id:
 			_carousel.show_kid(character_id)
 	_hint.text = selection_hint()
-	_suggest_button.visible = not swap_mode and not suggestion.is_empty() and pick.picks.size() < WeaponPick.SLOTS
+	_suggest_button.visible = not swap_mode and not suggestion.is_empty() and pick.picks.size() < slots
 	var can_go: bool = swap_mode or cards_mode or pick.can_confirm()
 	_ready_button.disabled = not can_go
 	_style_ready(can_go)
@@ -342,32 +390,38 @@ static func _stat_line(def: WeaponDef) -> String:
 	return LoadoutCards.stat_line(def)
 
 
-## Takes the suggested pair: the two weapons are tapped in, as if the player had chosen them.
+## Takes the suggested loadout: the superpowers are tapped in, as if the player had chosen them.
 func use_suggestion() -> void:
 	if not is_open() or swap_mode:
 		return
-	# exactly the suggested pair, whatever was picked before
 	for id: StringName in pick.picks.duplicate():
 		pick.toggle(id)
 	for id: StringName in suggestion:
 		pick.toggle(id)
-	replacement_slot = mini(pick.picks.size(), 1)
+	replacement_slot = mini(pick.picks.size(), slot_count() - 1)
 	_refresh()
 
 
 func select_slot(slot: int) -> void:
-	replacement_slot = clampi(slot, 0, WeaponPick.SLOTS - 1)
+	replacement_slot = clampi(slot, 0, slot_count() - 1)
 	_refresh()
 
 
 func selection_hint() -> String:
-	if pick.picks.size() >= WeaponPick.SLOTS and WeaponPick.deals_no_damage(pick.picks, _defs):
-		return "This pair deals no damage"
+	var slots: int = slot_count()
+	if pick.picks.size() >= slots and WeaponPick.deals_no_damage(pick.picks, _defs):
+		return "This pair deals no damage" if slots == WeaponPick.SLOTS else ("These %d deal no damage" % slots)
+	var key_tag: String = SLOT_KEYS[replacement_slot] if (slots == 3 and replacement_slot >= 0 and replacement_slot < SLOT_KEYS.size()) else ("%d" % (replacement_slot + 1))
 	if swap_mode:
-		return "Tap a weapon for slot %d" % (replacement_slot + 1)
-	if pick.picks.size() < WeaponPick.SLOTS:
-		return "Choose 2 weapons" if pick.picks.is_empty() else "Choose 1 more weapon"
-	return "Tap a weapon for slot %d" % (replacement_slot + 1)
+		return ("Tap a superpower for slot %s" % key_tag) if slots >= 3 else ("Tap a weapon for slot %d" % (replacement_slot + 1))
+	if pick.picks.size() < slots:
+		if slots == WeaponPick.SLOTS:
+			return "Choose 2 weapons" if pick.picks.is_empty() else "Choose 1 more weapon"
+		if pick.picks.is_empty():
+			return "Choose %d superpowers" % slots
+		var left_count: int = slots - pick.picks.size()
+		return "Choose %d more superpower%s" % [left_count, "s" if left_count > 1 else ""]
+	return ("Tap a superpower for slot %s" % key_tag) if slots >= 3 else ("Tap a weapon for slot %d" % (replacement_slot + 1))
 
 
 func _style_ready(enabled: bool) -> void:

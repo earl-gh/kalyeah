@@ -163,7 +163,7 @@ func test_a_tumbang_preso_room_has_six_places_and_needs_three_ready_kids() -> vo
 	var rooms: RoomService = RoomService.new(NET, 3)
 	var room: RoomService.Room = rooms.create_room(7, "Ana")
 	assert_true(rooms.set_map(7, &"tumbang_preso"), "open in rooms (owner, 2026-10-31)")
-	assert_eq(rooms.describe(room)["team_size"], 3, "six places, like every room")
+	assert_eq(rooms.describe(room)["team_size"], 5, "ten places, like every 5v5 room")
 	room.members[0].ready = true
 	assert_false(rooms.can_start(room), "one kid alone cannot start")
 	rooms.join(room.code, 8, "Ben")
@@ -174,7 +174,7 @@ func test_a_tumbang_preso_room_has_six_places_and_needs_three_ready_kids() -> vo
 	room.members[2].ready = true
 	assert_true(rooms.can_start(room), "three ready kids can start, whatever their columns")
 	var card: String = OpenRoomsList.card_text(rooms.describe(room).merged({"host_name": "Ana", "players": 3}))
-	assert_string_ends_with(card, "3/6 · Tumbang Preso", "no NvN: every kid for itself")
+	assert_string_ends_with(card, "3/10 · Tumbang Preso", "no NvN: every kid for itself")
 
 
 func test_a_room_plays_tumbang_preso_and_a_throw_flies_and_lands_on_every_phone() -> void:

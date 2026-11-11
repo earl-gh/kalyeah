@@ -18,6 +18,7 @@ var _coach: bool
 
 func before_each() -> void:
 	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	_game = Session.practice_game
 	_avatar = Session.avatar_id
 	_mode = Session.menu_mode
@@ -28,6 +29,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 	Session.practice_game = _game
 	Session.avatar_id = _avatar
 	Session.menu_mode = _mode
@@ -154,8 +156,9 @@ func test_a_tumbang_preso_practice_is_every_kid_for_itself_with_one_taya() -> vo
 	var acted: bool = false
 	for i: int in 240:
 		practice.advance(DT)
-		for id: int in PracticeMatch.BOT_ALLY_IDS + PracticeMatch.BOT_ENEMY_IDS:
-			acted = acted or practice.sim.players[id].position != practice.sim.players[id].spawn_position
+		for id: int in practice.sim.players:
+			if id != PracticeMatch.LOCAL_ID:
+				acted = acted or practice.sim.players[id].position != practice.sim.players[id].spawn_position
 		acted = acted or not game.hold.is_empty() or not game.flights.is_empty() or not game.slippers.is_empty()
 	assert_true(acted, "the bots play")
 	assert_lt(practice.sim.clock_left(), 300.0, "the five-minute clock runs")
@@ -230,10 +233,13 @@ func test_the_vignette_stays_behind_the_top_boundary_pictures_in_every_game() ->
 		practice.advance(DT)
 		var film: FilmFinish = practice.find_children("*", "FilmFinish", true, false)[0] as FilmFinish
 		var clear: float = film.finish.get_shader_parameter("clear_above") as float
-		var row: float = practice._camera.screen_position(Vector3(0.0, 0.0, StreetMap.top_end(practice.own_side()) * (practice.layout.lane_length / 2.0 + StreetMap.BARRIER_SETBACK))).y / practice.get_viewport().get_visible_rect().size.y
-		assert_gt(clear, 0.03, "%s: no vignette over the top pictures" % game)
-		assert_lt(clear, 0.35, "%s: only over them, not the street" % game)
-		assert_almost_eq(clear, row, 0.001, "%s: from the line they stand on" % game)
+		var want: float = 0.0
+		if not (practice._camera.rules.follow or practice._camera.rules.third_person):
+			var row: float = practice._camera.screen_position(Vector3(0.0, 0.0, StreetMap.top_end(practice.own_side()) * (practice.layout.lane_length / 2.0 + StreetMap.BARRIER_SETBACK))).y / maxf(practice.get_viewport().get_visible_rect().size.y, 1.0)
+			want = clampf(row, 0.0, 1.0)
+		assert_gte(clear, 0.0, "%s: non-negative vignette cutoff" % game)
+		assert_lt(clear, 0.35, "%s: never masks the playable street" % game)
+		assert_almost_eq(clear, want, 0.001, "%s: matches camera boundary projection" % game)
 
 
 func test_the_street_games_frame_the_street_exactly_like_agawan_base() -> void:

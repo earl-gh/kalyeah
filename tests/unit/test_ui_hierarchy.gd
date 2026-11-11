@@ -161,7 +161,7 @@ func test_a_modal_has_a_red_close_button_top_right_and_closes_on_a_tap_outside()
 	var outside: InputEventMouseButton = InputEventMouseButton.new()
 	outside.button_index = MOUSE_BUTTON_LEFT
 	outside.pressed = true
-	dialog.get_child(0).gui_input.emit(outside)
+	(dialog.get_child(0) as Control).gui_input.emit(outside)
 	assert_false(dialog.is_open, "a tap outside closes it")
 	var again: MenuDialog = MenuDialog.create("Hotspot")
 	again.open(phone)

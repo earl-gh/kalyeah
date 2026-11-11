@@ -4,20 +4,22 @@
 
 [resource]
 script = ExtResource("1_layout")
-tiles = Vector2i(16, 32)
+tiles = Vector2i(58, 58)
 tile_size = 3.0
-base_inset = 5.0
-base_radius = 9.0
-base_corner = 2.0
+arena_radius = 84.0
+base_inset = 20.0
+base_radius = 12.5
+base_corner = 3.5
 spawn_offset = 4.0
-rescue_size = Vector2(8.5, 12.0)
-tagged_places = 3
-obstacles = Array[Rect2]([])
-obstacle_props = Array[StringName]([])
-boundary_thickness = 0.6
-scenery_scale = 2.27
-cover_height = 3.2
-post_height = 15.0
-post_width_share = 0.55
-overview_height = 120.0
-overview_size = 116.0
+rescue_size = Vector2(9.0, 15.0)
+tagged_places = 5
+obstacles = Array[Rect2]([Rect2(-73.5, 8.2, 24.3, 13.8), Rect2(-43.6, 8.2, 17.8, 14.2), Rect2(-21.4, 8.2, 18.6, 14.2), Rect2(2.8, 8.2, 18.6, 14.2), Rect2(25.6, 8.2, 17.2, 14.2), Rect2(48.6, 8.2, 23.4, 11.8), Rect2(-74.6, 26.8, 4.6, 10.4), Rect2(-66.0, 26.8, 15.2, 15.6), Rect2(-46.2, 28.0, 17.8, 17.2), Rect2(-24.2, 28.0, 10.6, 16.4), Rect2(-9.2, 28.2, 18.4, 14.8), Rect2(13.6, 28.0, 10.6, 16.4), Rect2(28.4, 28.0, 17.8, 17.2), Rect2(50.8, 25.0, 10.2, 15.0), Rect2(-49.5, 49.4, 15.0, 12.0), Rect2(-30.1, 49.8, 13.6, 18.0), Rect2(16.5, 49.8, 13.6, 18.0), Rect2(34.5, 49.4, 15.0, 12.0)])
+obstacle_props = Array[StringName]([&"tabi_cluster_a", &"shophouse_row", &"tabi_cluster_b", &"tabi_cluster_a", &"sari_sari", &"tabi_cluster_b", &"palengke_stall", &"house_two_storey", &"tabi_cluster_a", &"sari_sari", &"tabi_cluster_b", &"house_two_storey", &"shophouse_row", &"waiting_shed", &"tabi_cluster_b", &"tabi_cluster_a", &"house_two_storey", &"sari_sari"])
+water_obstacles = Array[Rect2]([Rect2(-86.0, -4.2, 37.6, 8.4), Rect2(-43.0, -4.2, 40.1, 8.4)])
+boundary_thickness = 1.2
+scenery_scale = 1.85
+cover_height = 1.45
+post_height = 11.8
+post_width_share = 0.72
+overview_height = 96.0
+overview_size = 176.0

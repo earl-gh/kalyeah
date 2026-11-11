@@ -1,10 +1,8 @@
 extends GutTest
-## The nametag's photo grid (owner, 2026-11-03): two rows of four tiles; 1 takes a photo with the camera, 2 picks one from the gallery, 3 to 8
-## are the six avatars (3 is the default, and Remove photo goes back to it).
+## The nametag's photo grid: two rows of four tiles; 1 takes a photo with the camera, 2 picks one from the gallery, 3 to 8
+## are the six ID-card sticker avatars (`Session.AVATARS.slice(0, 6)`) while `Session.AVATARS` carries all 10 Barangay kids.
 
 const DIR: String = "res://tests/fixtures/photos/"
-## orientation -> [width, height, then the colour at the top left, top right, bottom left and bottom right of the picture a viewer shows]
-## (worked out with an independent library from one stored picture: red / green over blue / yellow, 32 x 16)
 const SHOWN: Dictionary[int, Array] = {
 	1: [32, 16, "red", "green", "blue", "yellow"],
 	2: [32, 16, "green", "red", "yellow", "blue"],
@@ -20,12 +18,21 @@ var _host: Control
 var _path: String
 
 
+static func _temp_file(file_name: String) -> String:
+	var probe: FileAccess = FileAccess.open("user://_test_tmp_photo_probe", FileAccess.WRITE)
+	if probe != null:
+		probe.close()
+		DirAccess.remove_absolute(ProjectSettings.globalize_path("user://_test_tmp_photo_probe"))
+		return "user://" + file_name
+	return "res://.godot/_test_tmp_" + file_name
+
+
 func before_each() -> void:
 	_host = autofree(Control.new()) as Control
-	_host.size = Vector2(720.0, 1280.0)
+	_host.size = Vector2(1280.0, 720.0)
 	add_child(_host)
 	_path = IdPhoto.path
-	IdPhoto.path = "user://photo_options_test.png"
+	IdPhoto.path = _temp_file("photo_options_test.png")
 	IdPhoto.remove()
 
 
@@ -65,7 +72,6 @@ func test_png_and_webp_are_read_and_the_format_comes_from_the_bytes_not_a_name()
 		var image: Image = IdPhotoPicker.decode(FileAccess.get_file_as_bytes(DIR + file))
 		assert_not_null(image, file)
 		assert_eq(_colour(image, 2, 2), "red", file)
-	# a JPEG whose name says nothing (an Android content:// address has no extension) is still read, and turned
 	var bare: Image = IdPhotoPicker.decode(FileAccess.get_file_as_bytes(DIR + "no_extension_6"))
 	assert_eq([bare.get_width(), bare.get_height()], [16, 32])
 
@@ -73,13 +79,16 @@ func test_png_and_webp_are_read_and_the_format_comes_from_the_bytes_not_a_name()
 func test_something_that_is_not_a_picture_is_refused_and_nothing_is_kept() -> void:
 	assert_null(IdPhotoPicker.decode(PackedByteArray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])))
 	assert_null(IdPhotoPicker.decode(PackedByteArray()))
-	assert_eq(IdPhotoPicker.keep("user://no_such_picture"), ERR_FILE_CANT_READ)
-	var junk: FileAccess = FileAccess.open("user://junk_photo", FileAccess.WRITE)
+	var missing_path: String = _temp_file("no_such_picture")
+	var junk_path: String = _temp_file("junk_photo")
+	assert_eq(IdPhotoPicker.keep(missing_path), ERR_FILE_CANT_READ)
+	var junk: FileAccess = FileAccess.open(junk_path, FileAccess.WRITE)
+	assert_not_null(junk)
 	junk.store_string("not a picture at all, just words")
 	junk.close()
-	assert_eq(IdPhotoPicker.keep("user://junk_photo"), ERR_FILE_UNRECOGNIZED)
+	assert_eq(IdPhotoPicker.keep(junk_path), ERR_FILE_UNRECOGNIZED)
 	assert_false(IdPhoto.exists(), "no photo is kept from it")
-	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://junk_photo"))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(junk_path))
 
 
 func test_a_picked_picture_is_kept_as_the_id_photo_its_middle_square_at_256() -> void:
@@ -110,8 +119,9 @@ func test_the_gallery_tile_is_greyed_out_where_the_phone_has_no_picker() -> void
 # ---- the avatars ---------------------------------------------------------------------------
 
 func test_the_six_kids_have_their_avatar_picture_and_it_is_cut_from_inside_the_white_mat() -> void:
-	assert_eq(Session.AVATARS.size(), 6)
-	for id: String in Session.AVATARS:
+	assert_eq(Session.AVATARS.size(), 10, "all 10 Filipino Barangay kids are registered in Session.AVATARS")
+	var sticker_ids: PackedStringArray = Session.AVATARS.slice(0, 6)
+	for id: String in sticker_ids:
 		var photo: Image = AvatarPhotos.photo_of(id)
 		assert_not_null(photo, "%s has a picture" % id)
 		assert_eq(photo.get_width(), 512 - AvatarPhotos.INSET * 2)
@@ -138,10 +148,10 @@ func test_the_grid_is_two_rows_of_four_camera_gallery_then_the_six_avatars() -> 
 	assert_eq(grid.get_child_count(), 8, "two rows of four")
 	var names: Array[String] = []
 	for tile: Node in grid.get_children():
-		names.append(tile.name)
+		names.append(String(tile.name))
 		assert_gte(minf((tile as Button).custom_minimum_size.x, (tile as Button).custom_minimum_size.y), UiMetrics.MIN_TARGET, "thumb-sized")
 	var want: Array[String] = ["Camera", "Gallery"]
-	for id: String in Session.AVATARS:
+	for id: String in Session.AVATARS.slice(0, 6):
 		want.append(id.capitalize())
 	assert_eq(names, want)
 
@@ -149,45 +159,45 @@ func test_the_grid_is_two_rows_of_four_camera_gallery_then_the_six_avatars() -> 
 func test_the_default_avatar_is_tile_3_and_the_tag_wears_it_with_no_photo() -> void:
 	var card: MenuDialog = _open_sheet()
 	var grid: GridContainer = card.find_child("PhotoOptions", true, false) as GridContainer
-	assert_eq(grid.get_child(2).name, Session.AVATARS[0].capitalize(), "tile 3 is the first avatar")
+	assert_eq(String(grid.get_child(2).name), Session.AVATARS[0].capitalize(), "tile 3 is the first avatar")
 	assert_false(IdPhoto.exists())
 	assert_eq(AvatarPhotos.current(), Session.AVATARS[0])
 	for i: int in grid.get_child_count():
 		if i >= 2:
-			assert_eq(grid.get_child(i).get_node("Ring").visible, i == 2, "only tile 3 is ringed")
+			assert_eq((grid.get_child(i).get_node("Ring") as Control).visible, i == 2, "only tile 3 is ringed")
 	var tag: NameTag = card.find_child("Preview", true, false) as NameTag
 	assert_true(tag.photo.visible, "the tag shows a picture, not the empty placeholder")
 	assert_false(tag.add_photo.visible)
-	assert_eq(card.find_child("RemovePhoto", true, false).visible, false, "nothing to remove")
+	assert_eq((card.find_child("RemovePhoto", true, false) as Control).visible, false, "nothing to remove")
 
 
 func test_tapping_an_avatar_keeps_it_rings_it_and_leaves_the_sheet_open() -> void:
 	var calls: Array[String] = []
 	var card: MenuDialog = _open_sheet(calls)
 	var grid: GridContainer = card.find_child("PhotoOptions", true, false) as GridContainer
-	(grid.get_child(4) as Button).pressed.emit()  # tile 5
+	(grid.get_child(4) as Button).pressed.emit()
 	assert_true(IdPhoto.exists(), "the avatar is now the ID photo")
 	var kept: Image = IdPhoto.texture().get_image()
 	assert_eq([kept.get_width(), kept.get_height()], [IdPhoto.SIZE, IdPhoto.SIZE])
 	assert_eq(AvatarPhotos.current(), Session.AVATARS[2])
 	for i: int in range(2, 8):
-		assert_eq(grid.get_child(i).get_node("Ring").visible, i == 4, "tile %d" % (i + 1))
+		assert_eq((grid.get_child(i).get_node("Ring") as Control).visible, i == 4, "tile %d" % (i + 1))
 	assert_true(card.is_open, "the sheet stays so the name can still be typed")
 	assert_eq(calls, ["avatar"] as Array[String])
-	assert_true(card.find_child("RemovePhoto", true, false).visible, "a kept photo can be removed")
+	assert_true((card.find_child("RemovePhoto", true, false) as Control).visible, "a kept photo can be removed")
 
 
 func test_remove_photo_goes_back_to_tile_3() -> void:
 	var calls: Array[String] = []
 	var card: MenuDialog = _open_sheet(calls)
 	var grid: GridContainer = card.find_child("PhotoOptions", true, false) as GridContainer
-	(grid.get_child(6) as Button).pressed.emit()  # tile 7
+	(grid.get_child(6) as Button).pressed.emit()
 	assert_eq(AvatarPhotos.current(), Session.AVATARS[4])
 	(card.find_child("RemovePhoto", true, false) as Button).pressed.emit()
 	assert_false(IdPhoto.exists())
 	assert_eq(AvatarPhotos.current(), Session.AVATARS[0])
-	assert_true(grid.get_child(2).get_node("Ring").visible, "tile 3 is ringed again")
-	assert_false(grid.get_child(6).get_node("Ring").visible)
+	assert_true((grid.get_child(2).get_node("Ring") as Control).visible, "tile 3 is ringed again")
+	assert_false((grid.get_child(6).get_node("Ring") as Control).visible)
 	assert_eq(calls, ["avatar", "removed"] as Array[String])
 
 
@@ -199,7 +209,7 @@ func test_a_photo_of_your_own_rings_no_tile() -> void:
 	var card: MenuDialog = _open_sheet()
 	var grid: GridContainer = card.find_child("PhotoOptions", true, false) as GridContainer
 	for i: int in range(2, 8):
-		assert_false(grid.get_child(i).get_node("Ring").visible)
+		assert_false((grid.get_child(i).get_node("Ring") as Control).visible)
 
 
 func test_camera_and_gallery_tiles_close_the_sheet_and_hand_over() -> void:
@@ -208,8 +218,8 @@ func test_camera_and_gallery_tiles_close_the_sheet_and_hand_over() -> void:
 	var grid: GridContainer = card.find_child("PhotoOptions", true, false) as GridContainer
 	var camera: Button = grid.get_child(0) as Button
 	var gallery: Button = grid.get_child(1) as Button
-	assert_eq(camera.name, "Camera")
-	assert_eq(gallery.name, "Gallery")
+	assert_eq(String(camera.name), "Camera")
+	assert_eq(String(gallery.name), "Gallery")
 	if not camera.disabled:
 		camera.pressed.emit()
 	gallery.pressed.emit()

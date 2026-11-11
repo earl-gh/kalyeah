@@ -1,7 +1,7 @@
 class_name HistoryPage
 extends VBoxContainer
-## The History page: the last battles this phone played, newest first, each a card with a big
-## Victory / Defeat badge, the score and when and where it was played.
+## The History page: prominent Tagalog Ranked Banner Card ("Kahoy" to "Batang Kalyeah") at the top,
+## mode filters, battle KPIs, and the last battles this device played, newest first.
 
 ## The empty state's button: go and play.
 signal play_pressed
@@ -11,37 +11,289 @@ const FILTERS: Array[Dictionary] = [
 	{"id": &"hotspot", "label": "Local"}, {"id": &"online", "label": "Online"},
 ]
 
+
+class CrestIcon extends Control:
+	var lp: int = 0
+
+	func set_lp(value: int) -> void:
+		if lp == value:
+			return
+		lp = value
+		queue_redraw()
+
+	func _draw() -> void:
+		var span: float = minf(size.x, size.y) * 0.45
+		RankedSystem.draw_emblem(self, size * 0.5, span, lp)
+
+
+class RankedProgressBar extends Control:
+	var ratio: float = 0.0
+	var fill_color: Color = Color("ffc938")
+	var accent_color: Color = Color("fff29c")
+
+	func set_progress(value: float, fill: Color, accent: Color) -> void:
+		ratio = clampf(value, 0.0, 1.0)
+		fill_color = fill
+		accent_color = accent
+		queue_redraw()
+
+	func _draw() -> void:
+		var rect: Rect2 = Rect2(Vector2.ZERO, size)
+		if rect.size.x <= 4.0 or rect.size.y <= 4.0:
+			return
+		draw_rect(rect, Color("080e22"), true)
+		var inner: Rect2 = rect.grow(-2.0)
+		draw_rect(inner, Color("132147"), true)
+		var fill_w: float = inner.size.x * ratio
+		if fill_w > 1.0:
+			draw_rect(Rect2(inner.position, Vector2(fill_w, inner.size.y)), fill_color, true)
+			draw_rect(Rect2(inner.position, Vector2(fill_w, inner.size.y * 0.42)), accent_color.lerp(Color.WHITE, 0.3), true)
+		draw_rect(rect, Color("040814"), false, 2.0)
+
+
 ## Which battles are shown: every mode (an empty name) or one.
 var filter: StringName = &""
+var rank_card: PanelContainer
 var summary_card: Control
 var filter_bar: UiSegmented
 var played_label: Label
 var rate_label: Label
 var streak_label: Label
 
+var rank_emblem: CrestIcon
+var rank_tier_label: Label
+var rank_lp_chip_label: Label
+var rank_progress_bar: RankedProgressBar
+var rank_next_label: Label
+var tier_badges_flow: HFlowContainer
+
+var _content: VBoxContainer
 var _top: VBoxContainer
 var _list: VBoxContainer
+var _tier_badges: Array[PanelContainer] = []
+var _tier_badge_labels: Array[Label] = []
+var _active_badge_style: StyleBoxFlat
+var _unlocked_badge_style: StyleBoxFlat
+var _locked_badge_style: StyleBoxFlat
+var _lp_chip_style: StyleBoxFlat
 
 
 func _ready() -> void:
 	name = "HistoryPage"
+	_build_badge_styles()
 	add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	add_child(UiKit.page_header("History"))
+	_content = VBoxContainer.new()
+	_content.name = "Content"
+	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_content.add_theme_constant_override("separation", UiMetrics.SECTION_GAP)
 	_top = VBoxContainer.new()
 	_top.name = "Top"
+	_top.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_top.add_theme_constant_override("separation", UiMetrics.GAP)
-	add_child(_top)
+	_content.add_child(_top)
+	rank_card = _build_rank_banner()
 	summary_card = _summary()
 	filter_bar = UiSegmented.new(FILTERS, UiMetrics.TOUCH, UiMetrics.CAPTION)
 	filter_bar.chosen.connect(show_filter)
+	_top.add_child(rank_card)
 	_top.add_child(filter_bar)
 	_top.add_child(summary_card)
 	_list = VBoxContainer.new()
 	_list.name = "List"
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override("separation", UiMetrics.GAP)
-	UiKit.add_gutter_scroll(self, _list)
+	_content.add_child(_list)
+	UiKit.add_gutter_scroll(self, _content)
 	refresh()
+
+
+func _build_badge_styles() -> void:
+	_active_badge_style = StyleBoxFlat.new()
+	_active_badge_style.bg_color = Color("2b3e78")
+	_active_badge_style.border_color = Color("ffd25a")
+	_active_badge_style.set_border_width_all(3)
+	_active_badge_style.set_corner_radius_all(UiSkin.RADIUS_M)
+	_active_badge_style.content_margin_left = 10.0
+	_active_badge_style.content_margin_right = 12.0
+	_active_badge_style.content_margin_top = 6.0
+	_active_badge_style.content_margin_bottom = 6.0
+	_active_badge_style.anti_aliasing = true
+
+	_unlocked_badge_style = StyleBoxFlat.new()
+	_unlocked_badge_style.bg_color = Color("182954")
+	_unlocked_badge_style.border_color = Color("4a6ab0")
+	_unlocked_badge_style.set_border_width_all(2)
+	_unlocked_badge_style.set_corner_radius_all(UiSkin.RADIUS_M)
+	_unlocked_badge_style.content_margin_left = 10.0
+	_unlocked_badge_style.content_margin_right = 12.0
+	_unlocked_badge_style.content_margin_top = 6.0
+	_unlocked_badge_style.content_margin_bottom = 6.0
+	_unlocked_badge_style.anti_aliasing = true
+
+	_locked_badge_style = StyleBoxFlat.new()
+	_locked_badge_style.bg_color = Color("0c1530")
+	_locked_badge_style.border_color = Color("1f315c")
+	_locked_badge_style.set_border_width_all(2)
+	_locked_badge_style.set_corner_radius_all(UiSkin.RADIUS_M)
+	_locked_badge_style.content_margin_left = 10.0
+	_locked_badge_style.content_margin_right = 12.0
+	_locked_badge_style.content_margin_top = 6.0
+	_locked_badge_style.content_margin_bottom = 6.0
+	_locked_badge_style.anti_aliasing = true
+
+	_lp_chip_style = StyleBoxFlat.new()
+	_lp_chip_style.bg_color = Color("13224a")
+	_lp_chip_style.border_color = Color("ffc83a")
+	_lp_chip_style.set_border_width_all(2)
+	_lp_chip_style.set_corner_radius_all(UiSkin.RADIUS_M)
+	_lp_chip_style.content_margin_left = 14.0
+	_lp_chip_style.content_margin_right = 14.0
+	_lp_chip_style.content_margin_top = 4.0
+	_lp_chip_style.content_margin_bottom = 4.0
+	_lp_chip_style.anti_aliasing = true
+
+
+func _build_rank_banner() -> PanelContainer:
+	var wrapper: VBoxContainer = VBoxContainer.new()
+	wrapper.name = "RankBannerBody"
+	wrapper.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+
+	var hero_row: HBoxContainer = HBoxContainer.new()
+	hero_row.add_theme_constant_override("separation", UiMetrics.GAP)
+	hero_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	wrapper.add_child(hero_row)
+
+	rank_emblem = CrestIcon.new()
+	rank_emblem.name = "RankEmblem"
+	rank_emblem.custom_minimum_size = Vector2(84.0, 84.0)
+	rank_emblem.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rank_emblem.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hero_row.add_child(rank_emblem)
+
+	var info_col: VBoxContainer = VBoxContainer.new()
+	info_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info_col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	info_col.add_theme_constant_override("separation", 6)
+	hero_row.add_child(info_col)
+
+	var title_row: HBoxContainer = HBoxContainer.new()
+	title_row.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	info_col.add_child(title_row)
+
+	rank_tier_label = Label.new()
+	rank_tier_label.name = "RankTier"
+	rank_tier_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UiKit.letter(rank_tier_label, UiMetrics.HEADLINE, Color("ffd25a"))
+	title_row.add_child(rank_tier_label)
+
+	var lp_chip: PanelContainer = PanelContainer.new()
+	lp_chip.name = "RankLpChip"
+	lp_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	lp_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lp_chip.add_theme_stylebox_override("panel", _lp_chip_style)
+	rank_lp_chip_label = Label.new()
+	rank_lp_chip_label.name = "RankLpValue"
+	rank_lp_chip_label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
+	rank_lp_chip_label.add_theme_font_size_override("font_size", UiMetrics.CAPTION)
+	rank_lp_chip_label.add_theme_color_override("font_color", Color("ffd25a"))
+	lp_chip.add_child(rank_lp_chip_label)
+	title_row.add_child(lp_chip)
+
+	rank_progress_bar = RankedProgressBar.new()
+	rank_progress_bar.name = "RankProgressBar"
+	rank_progress_bar.custom_minimum_size = Vector2(0.0, 16.0)
+	rank_progress_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rank_progress_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	info_col.add_child(rank_progress_bar)
+
+	rank_next_label = UiKit.text("", UiMetrics.CAPTION, Color("c9d6f2"))
+	rank_next_label.name = "RankNext"
+	info_col.add_child(rank_next_label)
+
+	wrapper.add_child(UiKit.divider())
+
+	tier_badges_flow = HFlowContainer.new()
+	tier_badges_flow.name = "TierBadges"
+	tier_badges_flow.alignment = FlowContainer.ALIGNMENT_CENTER
+	tier_badges_flow.add_theme_constant_override("h_separation", 8)
+	tier_badges_flow.add_theme_constant_override("v_separation", 8)
+	wrapper.add_child(tier_badges_flow)
+
+	_tier_badges.clear()
+	_tier_badge_labels.clear()
+	for i: int in RankedSystem.TIERS.size():
+		var spec: Dictionary = RankedSystem.TIERS[i]
+		var badge: PanelContainer = PanelContainer.new()
+		badge.name = "TierBadge_%d" % i
+		badge.mouse_filter = Control.MOUSE_FILTER_PASS
+		badge.add_theme_stylebox_override("panel", _locked_badge_style)
+		var item_row: HBoxContainer = HBoxContainer.new()
+		item_row.add_theme_constant_override("separation", 6)
+		item_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		var mini_crest: CrestIcon = CrestIcon.new()
+		mini_crest.custom_minimum_size = Vector2(28.0, 28.0)
+		mini_crest.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		mini_crest.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		mini_crest.set_lp(spec["min_lp"] as int)
+		item_row.add_child(mini_crest)
+		var tier_text: Label = Label.new()
+		tier_text.name = "BadgeName"
+		tier_text.text = spec["name"] as String
+		tier_text.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
+		tier_text.add_theme_font_size_override("font_size", UiMetrics.CAPTION)
+		tier_text.add_theme_color_override("font_color", Color("8fa3cc"))
+		item_row.add_child(tier_text)
+		badge.add_child(item_row)
+		tier_badges_flow.add_child(badge)
+		_tier_badges.append(badge)
+		_tier_badge_labels.append(tier_text)
+
+	var card: PanelContainer = UiKit.card(wrapper, "picked", 18.0, UiSkin.PLATE_RADIUS)
+	card.name = "RankBannerCard"
+	return card
+
+
+func _refresh_rank_banner() -> void:
+	if rank_card == null:
+		return
+	var lp: int = RankedSystem.current_lp()
+	var best_lp: int = RankedSystem.peak_lp()
+	var active_idx: int = RankedSystem.tier_index(lp)
+	var spec: Dictionary = RankedSystem.TIERS[active_idx]
+	var tier_color: Color = spec["color"] as Color
+	var tier_accent: Color = spec["accent"] as Color
+
+	rank_emblem.set_lp(lp)
+	rank_tier_label.text = (spec["name"] as String).to_upper()
+	rank_tier_label.add_theme_color_override("font_color", tier_accent)
+	rank_lp_chip_label.text = "%d LP" % lp
+	rank_progress_bar.set_progress(RankedSystem.tier_progress(lp), tier_color, tier_accent)
+
+	var next_lp: int = RankedSystem.next_tier_lp(lp)
+	if next_lp > 0:
+		var remaining: int = maxi(0, next_lp - lp)
+		var next_title: String = RankedSystem.tier_name(next_lp)
+		rank_next_label.text = "%d LP to %s · Peak: %d LP" % [remaining, next_title, best_lp]
+	else:
+		rank_next_label.text = "Batang Kalyeah Legend · Peak: %d LP" % best_lp
+
+	for i: int in _tier_badges.size():
+		var badge: PanelContainer = _tier_badges[i]
+		var label: Label = _tier_badge_labels[i]
+		var badge_spec: Dictionary = RankedSystem.TIERS[i]
+		if i == active_idx:
+			badge.add_theme_stylebox_override("panel", _active_badge_style)
+			badge.modulate = Color.WHITE
+			label.add_theme_color_override("font_color", badge_spec["accent"] as Color)
+		elif i < active_idx:
+			badge.add_theme_stylebox_override("panel", _unlocked_badge_style)
+			badge.modulate = Color.WHITE
+			label.add_theme_color_override("font_color", KalyeahTheme.TEXT)
+		else:
+			badge.add_theme_stylebox_override("panel", _locked_badge_style)
+			badge.modulate = Color(1.0, 1.0, 1.0, 0.72)
+			label.add_theme_color_override("font_color", Color("8fa3cc"))
 
 
 ## Shows the battles of one mode ("practice", "hotspot", "online") or all of them (an empty name).
@@ -78,10 +330,11 @@ func _figure(parent: HBoxContainer, caption: String, color: Color) -> Label:
 	return number
 
 
-## Rebuilds the figures and the list from the saved battles (of the chosen mode).
+## Rebuilds the Ranked banner, the figures, and the list from the saved battles (of the chosen mode).
 func refresh() -> void:
 	if _list == null:
 		return
+	_refresh_rank_banner()
 	for child: Node in _list.get_children():
 		_list.remove_child(child)
 		child.queue_free()
@@ -136,7 +389,12 @@ func _row(entry: Dictionary, now: int) -> Control:
 	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	words.add_theme_constant_override("separation", 0)
 	words.add_child(UiKit.text(String(entry.get("mode", "")).capitalize(), UiMetrics.BODY))
-	var when: Label = UiKit.text(MatchHistory.ago(int(entry.get("at", now)), now), UiMetrics.CAPTION, Color("9fb0d6"))
+	var age_text: String = MatchHistory.ago(int(entry.get("at", now)), now)
+	if entry.has("lp_delta"):
+		var delta: int = int(entry.get("lp_delta", 0))
+		var lp_part: String = "+%d LP" % delta if delta >= 0 else "%d LP" % delta
+		age_text = "%s · %s" % [age_text, lp_part]
+	var when: Label = UiKit.text(age_text, UiMetrics.CAPTION, Color("9fb0d6"))
 	when.name = "When"
 	words.add_child(when)
 	row.add_child(words)

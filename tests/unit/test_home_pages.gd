@@ -4,9 +4,18 @@ var _saved_loadout: Array[StringName] = []
 ## The pages behind the main screen's section buttons: characters, weapons, history, settings.
 
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
+const TMP_HISTORY_PATH: String = "res://.godot/_test_tmp_history.cfg"
 
 var _saved_avatar: String
 var _saved_history: String
+
+
+func _history_path() -> String:
+	var probe: ConfigFile = ConfigFile.new()
+	probe.set_value("probe", "ok", true)
+	if probe.save("user://history_test.cfg") == OK:
+		return "user://history_test.cfg"
+	return TMP_HISTORY_PATH
 
 
 func before_each() -> void:
@@ -14,13 +23,15 @@ func before_each() -> void:
 	Session.saved_loadout.clear()
 	_saved_avatar = Session.avatar_id
 	_saved_history = MatchHistory.path
-	MatchHistory.path = "user://history_test.cfg"
+	MatchHistory.path = _history_path()
 	MatchHistory.clear()
 
 
 func after_each() -> void:
 	Session.saved_loadout = _saved_loadout
 	MatchHistory.clear()
+	if FileAccess.file_exists(TMP_HISTORY_PATH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(TMP_HISTORY_PATH))
 	MatchHistory.path = _saved_history
 	Session.avatar_id = _saved_avatar
 	Session.save()
@@ -58,7 +69,7 @@ func test_the_characters_page_only_shows_and_describes_it_never_changes_your_fac
 		assert_eq(Session.avatar_id, "toni", "reading about %s does not choose them" % id)
 	assert_null(page.find_child("Mine", true, false), "no 'You' tag: nothing here is selected")
 	assert_false(page.find_child("Scroll", true, false).get_child(0).get_children().any(func(card: Node) -> bool: return card.find_child("Frame", true, false) != null), "no selection frame")
-	screen.dialog.find_child("CloseButton", true, false).pressed.emit()
+	(screen.dialog.find_child("CloseButton", true, false) as Button).pressed.emit()
 	assert_false(screen.dialog.is_open)
 
 
@@ -166,7 +177,7 @@ func test_tapping_a_tile_opens_the_detail_sheet_with_the_text_and_figures() -> v
 		var figures: Control = screen.dialog.find_child("Figures", true, false)
 		assert_eq(figures.get_child_count(), WeaponsPage.figures_of(weapon).size())
 		assert_gt(figures.get_child_count(), 0, "every weapon has a figure to show")
-	screen.dialog.find_child("CloseButton", true, false).pressed.emit()
+	(screen.dialog.find_child("CloseButton", true, false) as Button).pressed.emit()
 	assert_false(screen.dialog.is_open)
 
 

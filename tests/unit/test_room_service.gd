@@ -1,7 +1,6 @@
 extends GutTest
 
 const NET: NetRules = preload("res://data/rules/net_rules.tres")
-const R := RoomService.Result
 
 
 func _service() -> RoomService:
@@ -23,18 +22,18 @@ func test_every_room_has_six_places_three_a_team_and_joiners_fill_the_smaller_te
 	var service: RoomService = _service()
 	var room: RoomService.Room = service.create_room(10, "Host")
 	assert_eq(room.members[0].team, 0)
-	assert_eq(service.join(room.code.to_lower(), 11, "B"), R.OK, "codes are case-insensitive")
-	assert_eq(service.join(room.code, 12, "C"), R.OK)
-	assert_eq(service.join(room.code, 13, "D"), R.OK)
-	assert_eq(room.team_count(0), 2)
-	assert_eq(room.team_count(1), 2)
-	assert_eq(service.join(room.code, 14, "E"), R.OK)
-	assert_eq(service.join(room.code, 15, "F"), R.OK)
+	assert_eq(service.join(room.code.to_lower(), 11, "B"), RoomService.Result.OK, "codes are case-insensitive")
+	for peer: int in range(12, 16):
+		assert_eq(service.join(room.code, peer, "P%d" % peer), RoomService.Result.OK)
 	assert_eq(room.team_count(0), 3)
 	assert_eq(room.team_count(1), 3)
-	assert_eq(service.join(room.code, 16, "G"), R.FULL, "three a team, six in all")
-	assert_eq(service.join("ZZZZZZZZ", 17, "H"), R.NOT_FOUND)
-	assert_eq(service.describe(room)["team_size"], 3, "everyone is told the room is 3v3")
+	for peer: int in range(16, 20):
+		assert_eq(service.join(room.code, peer, "P%d" % peer), RoomService.Result.OK)
+	assert_eq(room.team_count(0), 5)
+	assert_eq(room.team_count(1), 5)
+	assert_eq(service.join(room.code, 20, "K"), RoomService.Result.FULL, "five a team, ten in all")
+	assert_eq(service.join("ZZZZZZZZ", 21, "L"), RoomService.Result.NOT_FOUND)
+	assert_eq(service.describe(room)["team_size"], 5, "everyone is told the room is 5v5")
 
 
 func test_names_are_trimmed_and_never_empty() -> void:
@@ -48,9 +47,9 @@ func test_names_are_trimmed_and_never_empty() -> void:
 func test_team_slots_and_ready() -> void:
 	var service: RoomService = _service()
 	var room: RoomService.Room = service.create_room(1, "A")
-	for peer: int in range(2, 7):
+	for peer: int in range(2, 11):
 		service.join(room.code, peer, "p%d" % peer)
-	assert_false(service.pick_team(2, 0), "team 0 has its three")
+	assert_false(service.pick_team(2, 0), "team 0 has its five")
 	assert_false(service.pick_team(1, 1), "and team 1 too")
 	assert_true(service.set_ready(2, true))
 	assert_true(room.member(room.members[1].player_id).ready)
@@ -89,7 +88,7 @@ func test_agawan_base_starts_with_one_a_side_or_any_mix_but_never_with_an_empty_
 	assert_false(service.start(2), "only the host starts")
 	assert_true(service.start(1))
 	assert_eq(room.state, RoomService.State.LOADING)
-	assert_eq(service.join(room.code, 3, "C"), R.IN_PROGRESS)
+	assert_eq(service.join(room.code, 3, "C"), RoomService.Result.IN_PROGRESS)
 
 
 func test_agawan_base_with_everyone_on_one_team_cannot_start() -> void:

@@ -9,6 +9,7 @@ extends Control
 const SERVER_SCENE: String = "res://server/main.tscn"
 const LOBBY_SCENE: String = "res://scenes/ui/lobby.tscn"
 const PRACTICE_SCENE: String = "res://scenes/match/practice.tscn"
+const RANKED_SYSTEM_PATH: String = "res://scripts/sim/ranked_system.gd"
 const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
 const TIPS_ICON: Texture2D = preload("res://assets/ui/tips_icon.png")
 const MAIL_ICON: Texture2D = preload("res://assets/ui/mail_icon.png")
@@ -22,7 +23,7 @@ const MODES: Array[Dictionary] = [
 	{"id": "hotspot", "bare": true, "plate": Rect2(120.0, 618.0, 528.0, 76.0), "title": "Local", "color": "blue", "accent": "4aa0ff", "power": 9999,
 		"text": "Battle your friends nearby!"},
 	{"id": "practice", "bare": true, "plate": Rect2(120.0, 636.0, 528.0, 58.0), "title": "Practice", "color": "green", "accent": "a45cf0", "power": 1200,
-		"text": "Take on 3 bots, solo!"},
+		"text": "Take on 5v5 Barangay Bots!"},
 ]
 ## The bottom tabs, left to right: Games (what each game is and how it plays), Cards (the Book of kids and weapons), Play (the home
 ## page), History (your last battles) and Settings.
@@ -98,6 +99,20 @@ const CTA_MIN_WIDTH: float = 240.0
 ## The buttons' lettering: 1.25 x `UiMetrics.BODY` (owner).
 const CTA_FONT: int = UiMetrics.HERO_BUTTON
 const CTA_PADDING: float = 56.0
+## Widescreen 1280x720 landscape metrics so TopBar, NameTag, RankCrest, ModeCarousel, PracticeRow, CTAs and UiTabBar fit 720px with zero overlap.
+const WIDE_LOGO_HEIGHT: float = 84.0
+const WIDE_TOP_ICON_SIZE: float = 84.0
+const WIDE_TOP_MARGIN: float = 8.0
+const WIDE_CTA_HEIGHT: float = 90.0
+const WIDE_PRACTICE_WIDTH: float = 480.0
+const WIDE_TAB_WIDTH: float = 720.0
+const WIDE_TAB_HEIGHT: float = 148.0
+const WIDE_DOCK_HEIGHT: float = 92.0
+const WIDE_HERO_MIN_HEIGHT: float = 224.0
+const WIDE_HERO_MAX_HEIGHT: float = 282.0
+const WIDE_HERO_AIR: float = 24.0
+const WIDE_NAMETAG_SCALE: float = 0.72
+const RANK_CREST_SIZE: Vector2 = Vector2(328.0, 92.0)
 ## The main action's breath: it waits `PULSE_DELAY` seconds, then swells to `PULSE_SCALE` and settles, each way in
 ## `PULSE_HALF` seconds.
 const PULSE_DELAY: float = 1.2
@@ -114,6 +129,7 @@ var carousel: MenuCarousel
 ## Leaning the phone shifts the models and the street picture a little (`HomeParallax`).
 var parallax: HomeParallax
 var name_tag: NameTag
+var rank_crest: Control
 ## The mode models (the carousel's items): Online, Local and Practice, in order.
 var mode_models: Array[Button]:
 	get:
@@ -143,8 +159,12 @@ var settings_page: SettingsPage
 var loading_screen: BootScreen
 var _loading: bool = false
 var _margin: MarginContainer
+var _shell: VBoxContainer
 var _home: VBoxContainer
 var _top_bar: Control
+var _actions_slot: CenterContainer
+var _actions_box: BoxContainer
+var _nav_dock: Control
 var tips_button: Button
 var mail_button: Button
 var _page_holder: Control
@@ -174,6 +194,8 @@ func _ready() -> void:
 	backdrop = UiBackdrop.new()
 	add_child(backdrop)
 	_build_layout()
+	refresh_rank_crest()
+	resized.connect(_apply_safe_area)
 	_apply_safe_area()
 	_refresh_mode()
 	carousel.selected.connect(_on_mode_selected)
@@ -209,6 +231,7 @@ func _build_layout() -> void:
 	shell.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	shell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_margin.add_child(shell)
+	_shell = shell
 	_top_bar = _build_top_bar()
 	shell.add_child(_top_bar)
 	var middle: Control = Control.new()
@@ -232,6 +255,10 @@ func _build_layout() -> void:
 	card_drawer.closed.connect(_on_drawer_closed)
 	add_child(card_drawer)
 	# the bottom bar is not inside the margins: it runs edge to edge and down to the bottom of the screen
+	_nav_dock = _KomiksNavDock.new()
+	_nav_dock.name = "NavDock"
+	_nav_dock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_nav_dock)
 	tab_bar = UiTabBar.new(TABS)
 	tab_bar.tab_pressed.connect(_on_tab_pressed)
 	add_child(tab_bar)
@@ -374,6 +401,9 @@ func _build_home() -> VBoxContainer:
 	name_tag = NameTag.new()
 	name_tag.tapped.connect(open_name_editor)
 	stage.add_child(name_tag)
+	rank_crest = _RankCrestBadge.new()
+	rank_crest.name = "RankCrest"
+	stage.add_child(rank_crest)
 	home.add_child(_build_titles())
 	# the button row is centred in the room between the phrase and the bar
 	var slot: CenterContainer = CenterContainer.new()
@@ -385,6 +415,7 @@ func _build_home() -> VBoxContainer:
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_child(_build_actions())
 	home.add_child(slot)
+	_actions_slot = slot
 	return home
 
 
@@ -412,11 +443,13 @@ func _build_titles() -> Control:
 
 ## The main action in one row: Create room and Join room, or Play; in Practice the game and kid pickers stand above Play.
 func _build_actions() -> Control:
-	var column: VBoxContainer = VBoxContainer.new()
+	var column: BoxContainer = BoxContainer.new()
+	column.vertical = true
 	column.name = "ActionsColumn"
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_actions_box = column
 	practice_row = PracticeRow.new()
 	practice_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	practice_row.picker_opened.connect(_show_dialog)
@@ -510,6 +543,7 @@ func close_page() -> void:
 	var way: int = signi(0 - int(PAGE_RANK.get(current_page, 0)))
 	card_drawer.close(false)
 	current_page = &""
+	refresh_rank_crest()
 	_apply_safe_area()
 	for id: StringName in pages:
 		pages[id].visible = false
@@ -543,16 +577,45 @@ static func model_ratio() -> float:
 	return MODEL_RATIO if models_are_bare() else HERO_RATIO
 
 
-## Sizes the hero cards to the stage (taller phones get a bigger card), then rebuilds them.
+func _is_widescreen() -> bool:
+	var extent: Vector2 = size
+	if extent.x <= 0.0 or extent.y <= 0.0:
+		var vp: Viewport = get_viewport()
+		extent = vp.get_visible_rect().size if vp != null else Vector2(Settings.LANDSCAPE_BASE)
+	return extent.x > extent.y
+
+
+func refresh_rank_crest() -> void:
+	if rank_crest == null:
+		return
+	var lp: int = 0
+	var tier_text: String = "Kahoy"
+	if ResourceLoader.exists(RANKED_SYSTEM_PATH):
+		var rs: Script = load(RANKED_SYSTEM_PATH) as Script
+		if rs != null:
+			lp = int(rs.call(&"current_lp"))
+			tier_text = String(rs.call(&"tier_name", lp))
+	(rank_crest as _RankCrestBadge).set_rank(tier_text, lp)
+
+
+## Sizes the hero cards to the stage (taller phones get a bigger card; 1280x720 widescreen scales cleanly to fit 720px), then rebuilds them.
 func _fit_hero() -> void:
 	var stage: Control = carousel.get_parent() as Control
 	if stage.size.y < 100.0:
 		return
-	var height: float = clampf(stage.size.y - HERO_AIR, HERO_MIN_HEIGHT, HERO_MAX_HEIGHT)
+	var wide: bool = _is_widescreen()
 	var diorama: bool = models_are_bare()
 	var ratio: float = MODEL_RATIO if diorama else HERO_RATIO
-	var width: float = minf(height * ratio, stage.size.x - (MODEL_SIDE_ROOM if diorama else 120.0)) * (MODEL_SCALE if diorama else HERO_SCALE)
-	var fitted: Vector2 = Vector2(roundf(width), roundf(width / ratio))
+	var fitted: Vector2
+	if wide:
+		var wide_h: float = clampf(stage.size.y - WIDE_HERO_AIR, WIDE_HERO_MIN_HEIGHT, WIDE_HERO_MAX_HEIGHT)
+		var max_w: float = maxf(200.0, stage.size.x * 0.44)
+		var wide_w: float = minf(wide_h * ratio, max_w)
+		fitted = Vector2(roundf(wide_w), roundf(wide_w / ratio))
+	else:
+		var height: float = clampf(stage.size.y - HERO_AIR, HERO_MIN_HEIGHT, HERO_MAX_HEIGHT)
+		var width: float = minf(height * ratio, stage.size.x - (MODEL_SIDE_ROOM if diorama else 120.0)) * (MODEL_SCALE if diorama else HERO_SCALE)
+		fitted = Vector2(roundf(width), roundf(width / ratio))
 	if fitted.distance_to(carousel.card_size) < 3.0:
 		return
 	carousel.card_size = fitted
@@ -560,13 +623,27 @@ func _fit_hero() -> void:
 
 
 
-## Hangs the name tag exactly in the middle between the bottom of the logo and the top of the chosen model (owner: visually centred; the
-## same room above the card as under it, `TAG_DROP` moves it), never so low that it touches the chosen model. It shrinks on a short phone.
-## The blurred models behind it pass under the card.
+## Hangs the name tag cleanly: in widescreen 1280x720 on the upper-left wing alongside the Live Tagalog Rank Crest on the upper-right wing;
+## in vertical portrait centred between the logo and the chosen model.
 func _place_name_tag() -> void:
 	if name_tag == null or carousel == null or _top_bar == null:
 		return
 	var stage: Control = carousel.get_parent() as Control
+	if _is_widescreen():
+		var wing_scale: float = WIDE_NAMETAG_SCALE
+		var card_w: float = name_tag.card.size.x if (name_tag.card != null and name_tag.card.size.x > 0.0) else NameTag.PHOTO_MIN_WIDTH
+		var half_card_w: float = card_w * wing_scale * 0.5
+		var wing_x: float = clampf(stage.size.x * 0.135, half_card_w + 6.0, maxf(half_card_w + 6.0, stage.size.x * 0.24))
+		var wide_top: float = 16.0
+		var wide_hole: Vector2 = Vector2(wing_x, wide_top + NameTag.SLOT_MIDDLE * wing_scale)
+		name_tag.hang(wide_hole, -stage.get_global_rect().position.y - TAG_OVERSHOOT, wing_scale)
+		if rank_crest != null:
+			rank_crest.visible = true
+			rank_crest.size = RANK_CREST_SIZE
+			rank_crest.position = Vector2(maxf(stage.size.x - RANK_CREST_SIZE.x - 6.0, stage.size.x * 0.64), 16.0)
+		return
+	if rank_crest != null:
+		rank_crest.visible = false
 	var logo: Control = _top_bar.find_child("Logo", true, false) as Control
 	var band_top: float = logo.get_global_rect().end.y - stage.get_global_rect().position.y
 	var band_bottom: float = carousel.front_top()
@@ -643,9 +720,9 @@ func _on_secondary_pressed() -> void:
 func open_practice_confirm() -> MenuDialog:
 	var game: StreetModeRules = StreetMode.rules_for(Session.practice_game)
 	var card: MenuDialog = MenuDialog.create(game.title if game != null else "Practice", MenuDialog.WIDTH_SMALL)
-	var words: String = "3 v 3 against bots. Ready to rumble?"
+	var words: String = "5 v 5 against Barangay bots! Ready to rumble?"
 	if game != null:
-		var who: String = "You against 5 bots." if StreetMode.create(game).is_free_for_all() else "3 v 3 against bots."
+		var who: String = "You against 9 bots." if StreetMode.create(game).is_free_for_all() else "5 v 5 against bots."
 		words = "%s %d minutes, most points win!" % [who, roundi(game.match_seconds / 60.0)]
 	card.add_label(words, MenuDialog.TEXT_SIZE, MenuDialog.TEXT_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
 	if game == null:
@@ -700,25 +777,105 @@ func open_hotspot_join(interfaces: Callable = Callable(), plan_for: Callable = C
 	return card
 
 
-## Keeps everything clear of notches, rounded corners and the home bar.
+## Keeps everything clear of notches, rounded corners and the home bar, and adapts cleanly between 1280x720 widescreen and 720x1280 portrait.
 func _apply_safe_area() -> void:
 	if _margin == null:
 		return
 	var inset: Vector4 = safe_insets()
+	var wide: bool = _is_widescreen()
 	var side: float = SIDE_MARGIN if current_page == &"" else PAGE_SIDE_MARGIN
 	_margin.add_theme_constant_override("margin_left", int(side + inset.x))
-	_margin.add_theme_constant_override("margin_top", int(TOP_MARGIN + inset.y))
 	_margin.add_theme_constant_override("margin_right", int(side + inset.z))
-	# the page and the home stop above the bar, which is flush with the bottom edge (and reaches under the home bar)
-	_margin.add_theme_constant_override("margin_bottom", int(UiTabBar.HEIGHT + inset.w + UiMetrics.COMPACT_GAP))
-	tab_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	tab_bar.offset_left = 0.0
-	tab_bar.offset_right = 0.0
-	tab_bar.offset_bottom = 0.0
-	tab_bar.offset_top = -(UiTabBar.HEIGHT + inset.w)
+	if wide:
+		_margin.add_theme_constant_override("margin_top", int(WIDE_TOP_MARGIN + inset.y))
+		var bottom_pad: float = (WIDE_TAB_HEIGHT + 4.0) if current_page == &"" else (WIDE_DOCK_HEIGHT + 8.0)
+		_margin.add_theme_constant_override("margin_bottom", int(bottom_pad + inset.w))
+		_apply_top_bar_metrics(WIDE_LOGO_HEIGHT, 4.0, WIDE_TOP_ICON_SIZE)
+		_apply_action_metrics(true)
+		_nav_dock.visible = true
+		_nav_dock.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		_nav_dock.offset_left = 0.0
+		_nav_dock.offset_right = 0.0
+		_nav_dock.offset_bottom = 0.0
+		_nav_dock.offset_top = -(WIDE_DOCK_HEIGHT + inset.w)
+		tab_bar.anchor_left = 0.5
+		tab_bar.anchor_right = 0.5
+		tab_bar.anchor_top = 1.0
+		tab_bar.anchor_bottom = 1.0
+		tab_bar.offset_left = -WIDE_TAB_WIDTH * 0.5
+		tab_bar.offset_right = WIDE_TAB_WIDTH * 0.5
+		tab_bar.offset_bottom = 0.0
+		tab_bar.offset_top = -(WIDE_TAB_HEIGHT + inset.w)
+	else:
+		_margin.add_theme_constant_override("margin_top", int(TOP_MARGIN + inset.y))
+		_margin.add_theme_constant_override("margin_bottom", int(UiTabBar.HEIGHT + inset.w + UiMetrics.COMPACT_GAP))
+		_apply_top_bar_metrics(LOGO_HEIGHT, LOGO_DROP, TOP_ICON_SIZE)
+		_apply_action_metrics(false)
+		_nav_dock.visible = false
+		tab_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		tab_bar.offset_left = 0.0
+		tab_bar.offset_right = 0.0
+		tab_bar.offset_bottom = 0.0
+		tab_bar.offset_top = -(UiTabBar.HEIGHT + inset.w)
 	# the drawer covers navigation and keeps only the home gesture inset clear
 	card_drawer.offset_bottom = 0.0
 	card_drawer.set_bottom_inset(inset.w)
+	if carousel != null and carousel.get_parent() != null:
+		_fit_hero()
+		_place_name_tag.call_deferred()
+
+
+func _apply_top_bar_metrics(logo_h: float, drop: float, icon_sz: float) -> void:
+	if _top_bar == null:
+		return
+	_top_bar.custom_minimum_size = Vector2(0.0, logo_h + drop)
+	var left: Control = _top_bar.get_node_or_null("TopLeft") as Control
+	var right: Control = _top_bar.get_node_or_null("TopRight") as Control
+	var logo: Control = _top_bar.get_node_or_null("Logo") as Control
+	if left != null:
+		left.custom_minimum_size = Vector2(0.0, logo_h)
+	if right != null:
+		right.custom_minimum_size = Vector2(0.0, logo_h)
+	if logo != null:
+		logo.custom_minimum_size = Vector2(logo_h * float(LOGO.get_width()) / float(LOGO.get_height()), logo_h)
+	if tips_button != null:
+		tips_button.custom_minimum_size = Vector2.ONE * icon_sz
+		tips_button.size = Vector2.ONE * icon_sz
+		tips_button.position = Vector2(TIPS_INSET, (logo_h - icon_sz) / 2.0)
+	if mail_button != null:
+		mail_button.custom_minimum_size = Vector2.ONE * icon_sz
+		mail_button.size = Vector2.ONE * icon_sz
+		mail_button.offset_left = -(icon_sz + TIPS_INSET)
+		mail_button.offset_right = -TIPS_INSET
+		mail_button.offset_top = -icon_sz / 2.0
+		mail_button.offset_bottom = icon_sz / 2.0
+
+
+func _apply_action_metrics(wide: bool) -> void:
+	var cta_h: float = WIDE_CTA_HEIGHT if wide else CTA_HEIGHT
+	if _shell != null:
+		_shell.add_theme_constant_override("separation", 6 if wide else UiMetrics.COMPACT_GAP)
+	if _home != null:
+		_home.add_theme_constant_override("separation", 6 if wide else UiMetrics.COMPACT_GAP)
+		var stage: Control = _home.get_node_or_null("Stage") as Control
+		if stage != null:
+			stage.custom_minimum_size.y = WIDE_HERO_MIN_HEIGHT if wide else (HERO_CARD.y * 0.5)
+	if _actions_box != null:
+		_actions_box.vertical = not wide
+	if _actions_slot != null:
+		_actions_slot.custom_minimum_size = Vector2(0.0, cta_h)
+		_actions_slot.size_flags_vertical = Control.SIZE_SHRINK_END if wide else Control.SIZE_EXPAND_FILL
+	if primary_button != null:
+		primary_button.custom_minimum_size.y = cta_h
+	if secondary_button != null:
+		secondary_button.custom_minimum_size.y = cta_h
+	if practice_row != null:
+		var row_size: Vector2 = Vector2(WIDE_PRACTICE_WIDTH, cta_h) if wide else PracticeRow.ROW_SIZE
+		practice_row.custom_minimum_size = row_size
+		if practice_row.game_button != null:
+			practice_row.game_button.custom_minimum_size.y = row_size.y
+		if practice_row.kid_button != null:
+			practice_row.kid_button.custom_minimum_size.y = row_size.y
 
 
 ## The unsafe screen edges (left, top, right, bottom) in UI pixels: the notch, the status bar,
@@ -952,3 +1109,109 @@ func _back_pressed() -> void:
 		return  # the kid pick closes itself on Back
 	if dialog == null or not is_instance_valid(dialog) or not dialog.is_open:
 		_go_back()
+
+
+class _KomiksNavDock extends Control:
+	var _pts: PackedVector2Array = PackedVector2Array()
+	var _cols: PackedColorArray = PackedColorArray([
+		UiTabBar.SLOT_IDLE_TOP,
+		UiTabBar.SLOT_IDLE_TOP,
+		UiTabBar.SLOT_IDLE_BOTTOM,
+		UiTabBar.SLOT_IDLE_BOTTOM,
+	])
+
+	func _init() -> void:
+		_pts.resize(4)
+		resized.connect(_rebuild)
+
+	func _rebuild() -> void:
+		_pts[0] = Vector2(0.0, 0.0)
+		_pts[1] = Vector2(size.x, 0.0)
+		_pts[2] = Vector2(size.x, size.y)
+		_pts[3] = Vector2(0.0, size.y)
+		queue_redraw()
+
+	func _draw() -> void:
+		if size.x <= 0.0 or size.y <= 0.0:
+			return
+		if _pts[2] != size:
+			_pts[1] = Vector2(size.x, 0.0)
+			_pts[2] = Vector2(size.x, size.y)
+			_pts[3] = Vector2(0.0, size.y)
+		draw_polygon(_pts, _cols)
+		draw_rect(Rect2(0.0, 0.0, size.x, 4.0), KalyeahTheme.KOMIKS_INK)
+		draw_rect(Rect2(0.0, 4.0, size.x, 2.0), Color(KalyeahTheme.AMBER, 0.55))
+
+
+class _RankEmblemCanvas extends Control:
+	var lp: int = 0
+	var _script_ref: Script = null
+	var _checked: bool = false
+
+	func set_lp(new_lp: int) -> void:
+		lp = new_lp
+		queue_redraw()
+
+	func _draw() -> void:
+		if not _checked:
+			_checked = true
+			if ResourceLoader.exists(TitleScreen.RANKED_SYSTEM_PATH):
+				_script_ref = load(TitleScreen.RANKED_SYSTEM_PATH) as Script
+		var center: Vector2 = size * 0.5
+		var radius: float = minf(size.x, size.y) * 0.45
+		if _script_ref != null:
+			_script_ref.call(&"draw_emblem", self, center, radius, lp)
+		else:
+			draw_circle(center, radius, KalyeahTheme.KOMIKS_INK)
+			draw_circle(center, radius * 0.82, KalyeahTheme.AMBER)
+
+
+class _RankCrestBadge extends PanelContainer:
+	var _emblem: _RankEmblemCanvas
+	var _tier_label: Label
+	var _lp_label: Label
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		custom_minimum_size = TitleScreen.RANK_CREST_SIZE
+		add_theme_stylebox_override("panel", KalyeahTheme.komiks_plate(KalyeahTheme.KOMIKS_PAPER, KalyeahTheme.KOMIKS_INK, 3, 10.0, UiSkin.RADIUS_M))
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(row)
+		_emblem = _RankEmblemCanvas.new()
+		_emblem.name = "RankEmblem"
+		_emblem.custom_minimum_size = Vector2(62.0, 62.0)
+		_emblem.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		_emblem.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(_emblem)
+		var text_col: VBoxContainer = VBoxContainer.new()
+		text_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text_col.alignment = BoxContainer.ALIGNMENT_CENTER
+		text_col.add_theme_constant_override("separation", 2)
+		text_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(text_col)
+		_tier_label = Label.new()
+		_tier_label.name = "RankTierLabel"
+		_tier_label.add_theme_font_override("font", KalyeahTheme.DISPLAY_FONT)
+		_tier_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
+		_tier_label.add_theme_color_override("font_color", KalyeahTheme.KOMIKS_INK)
+		_tier_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		_tier_label.clip_text = true
+		_tier_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		text_col.add_child(_tier_label)
+		_lp_label = Label.new()
+		_lp_label.name = "RankLpLabel"
+		_lp_label.add_theme_font_override("font", KalyeahTheme.DISPLAY_FONT)
+		_lp_label.add_theme_font_size_override("font_size", UiMetrics.MIN_TEXT)
+		_lp_label.add_theme_color_override("font_color", KalyeahTheme.MODAL_TEXT_MUTED)
+		_lp_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		_lp_label.clip_text = true
+		_lp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		text_col.add_child(_lp_label)
+
+	func set_rank(tier_name: String, lp: int) -> void:
+		_tier_label.text = tier_name
+		_lp_label.text = "RANGGO · %d LP" % lp
+		_emblem.set_lp(lp)

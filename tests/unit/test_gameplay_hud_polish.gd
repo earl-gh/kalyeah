@@ -2,7 +2,7 @@ extends GutTest
 
 func _hud() -> MatchHud:
 	var phone: Control = autofree(Control.new()) as Control
-	phone.size = Vector2(720.0, 1280.0)
+	phone.size = Vector2(Settings.LANDSCAPE_BASE)
 	add_child(phone)
 	var hud: MatchHud = MatchHud.new()
 	phone.add_child(hud)
@@ -26,8 +26,10 @@ func test_score_cells_restore_original_header_spacing() -> void:
 	assert_true(hud.header.get_global_rect().encloses(board.get_global_rect()))
 	var clock: Rect2 = hud.clock_chip.get_global_rect()
 	assert_true(board.get_global_rect().encloses(clock), "the clock is part of the score, in its middle")
-	assert_false(clock.intersects(Rect2(board.get_global_rect().position + cells[0].position, cells[0].size)), "clear of the blue cell")
-	assert_false(clock.intersects(Rect2(board.get_global_rect().position + cells[1].position, cells[1].size)), "and of the red one")
+	var blue_cell: Rect2 = board.get_global_transform() * cells[0]
+	var red_cell: Rect2 = board.get_global_transform() * cells[1]
+	assert_false(clock.intersects(blue_cell), "clear of the blue cell")
+	assert_false(clock.intersects(red_cell), "and of the red one")
 	assert_almost_eq(clock.get_center().x, board.get_global_rect().get_center().x, 1.0, "centred")
 	assert_false(board.get_global_rect().intersects(hud.settings_button.get_global_rect()))
 
@@ -41,7 +43,8 @@ func test_point_pause_and_results_hide_the_hud_and_restore_it_after_the_freeze()
 		hud.sync_player(sim, sim.players[1], false)
 		hud.sync_score(sim, 0, 0.0, 1)
 		var normal: bool = phase == MatchSim.Phase.PLAYING
-		for item: CanvasItem in [hud.console, hud.top, hud.hand, hud.scoreboard, hud.overhead, hud.marker, hud.chat]:
+		assert_eq(hud.console.visible, normal and not hud.landscape)
+		for item: CanvasItem in [hud.top, hud.hand, hud.scoreboard, hud.overhead, hud.marker, hud.chat]:
 			assert_eq(item.visible, normal)
 		assert_eq(hud.point_result.visible, phase == MatchSim.Phase.POINT_FREEZE)
 		assert_eq(hud.results.visible, phase == MatchSim.Phase.MATCH_OVER)

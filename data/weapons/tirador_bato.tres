@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/weapon_def.gd" id="1_weapon"]
+
+[resource]
+script = ExtResource("1_weapon")
+id = &"tirador_bato"
+display_name = "Tirador · Bato"
+short_name = "Tirador"
+description = "Snap a high-speed slingshot pebble straight toward your crosshair!"
+street_game = "Tirador"
+kind = 0
+shape = 10
+cooldown = 0.42
+elixir_cost = 1
+max_range = 24.0
+damage = 14
+speed = 34.0
+projectile_radius = 0.52
+card_power = 500

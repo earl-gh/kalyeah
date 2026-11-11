@@ -79,10 +79,12 @@ func test_one_player_alone_takes_the_solo_time_which_is_long_but_not_too_long() 
 
 
 func test_every_teammate_in_the_base_makes_the_capture_faster() -> void:
-	var times: Array[float] = [_base_time(1), _base_time(2), _base_time(3)]
+	var times: Array[float] = [_base_time(1), _base_time(2), _base_time(3), _base_time(5)]
 	assert_gt(times[0], times[1])
 	assert_gt(times[1], times[2])
-	assert_almost_eq(times[2], 4.8, 0.05, "the whole team of three is about the old five seconds")
+	assert_gt(times[2], times[3])
+	assert_almost_eq(times[2], 12.0 / 2.3, 0.05, "three teammates capture in ~5.22 s")
+	assert_almost_eq(times[3], 12.0 / 3.6, 0.05, "full 5v5 squad captures in ~3.33 s")
 	_rules.capture_ally_bonus = 1.0
 	assert_almost_eq(_base_time(2), _rules.capture_solo_time / 2.0, 0.001, "a bonus of 1 is linear")
 	_rules.capture_ally_bonus = 0.0

@@ -135,7 +135,8 @@ func ribbon_for(id: int) -> MeshInstance3D:
 
 
 ## A projectile of `team` left the sim at `at`: a wall of the other team it stopped at reacts.
-func on_projectile_gone(_def: WeaponDef, team: int, at: Vector3) -> void:
+func on_projectile_gone(def: WeaponDef, team: int, at: Vector3) -> void:
+	var step_slack: float = def.speed * FxSquash.FRAME if def != null else 0.0
 	var ground: Vector2 = Vector2(at.x, at.z)
 	for rec: Rec in _recs.values():
 		if rec.team == team:
@@ -143,7 +144,7 @@ func on_projectile_gone(_def: WeaponDef, team: int, at: Vector3) -> void:
 		var left: Vector2 = rec.center - rec.along * rec.half_width
 		var right: Vector2 = rec.center + rec.along * rec.half_width
 		var nearest: Vector2 = Geometry2D.get_closest_point_to_segment(ground, left, right)
-		if nearest.distance_to(ground) > BLOCK_NEAR:
+		if nearest.distance_to(ground) > BLOCK_NEAR + step_slack:
 			continue
 		rec.react_at = _ctx.time
 		rec.react_side = signf((ground - rec.center).dot(rec.along.orthogonal()))

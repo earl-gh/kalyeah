@@ -5,7 +5,7 @@ const DT: float = 1.0 / 30.0
 
 func test_last_tag_scores_on_the_next_simulation_step_for_either_team() -> void:
 	for winner: int in [0, 1]:
-		var sim: MatchSim = MatchSim.new(load("res://data/rules/game_rules.tres"), load("res://data/rules/map_layout.tres"), 17)
+		var sim: MatchSim = MatchSim.new(load("res://data/rules/game_rules.tres") as GameRules, load("res://data/rules/map_layout.tres") as MapLayout, 17)
 		for slot: int in 3:
 			sim.add_player(10 + slot, winner)
 			sim.add_player(20 + slot, 1 - winner)
@@ -38,7 +38,7 @@ func test_reapplying_a_status_uses_the_new_duration_and_magnitude() -> void:
 
 
 func test_a_team_wipe_scores_immediately_even_during_a_base_capture() -> void:
-	var sim: MatchSim = MatchSim.new(load("res://data/rules/game_rules.tres"), load("res://data/rules/map_layout.tres"), 18)
+	var sim: MatchSim = MatchSim.new(load("res://data/rules/game_rules.tres") as GameRules, load("res://data/rules/map_layout.tres") as MapLayout, 18)
 	var attacker: PlayerState = sim.add_player(1, 0)
 	sim.add_player(2, 1)
 	attacker.position = sim.layout.base_center(-sim.side_for_team(0))

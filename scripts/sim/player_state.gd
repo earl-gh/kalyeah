@@ -71,6 +71,20 @@ var has_move_target: bool = false
 ## Seconds of ticks that made too little progress toward the target (the move ends at `move_stuck_time`).
 var stuck_time: float = 0.0
 
+## Hero-Action 5v5 Street Superpower kit state:
+## Cooldown remaining for Tirador primary fire.
+var primary_cd: float = 0.0
+## Cooldown remaining for Luksong-Tinik parkour dash.
+var dash_cd: float = 0.0
+## Remaining active burst time of an ongoing dash, and its locked world XZ direction.
+var dash_left: float = 0.0
+var dash_dir: Vector2 = Vector2.ZERO
+## Bida Ultimate meter (0..100). Ready to cast `BTN_ULTIMATE` at 100.
+var ult_charge: float = 0.0
+## True while moving at full Athletic Street Sprint speed (`out_of_combat_time >= sprint_delay`).
+var sprinting: bool = false
+var out_of_combat_time: float = 0.0
+
 
 ## One cooldown, hold timer and aim lock per hand slot; a slot that is new is idle (not held, no lock).
 func resize_slots() -> void:

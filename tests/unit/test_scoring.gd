@@ -21,6 +21,7 @@ func _enemy_post(sim: MatchSim, player: PlayerState) -> Vector2:
 
 ## Puts `player` on the enemy post and waits for the point.
 func _score(sim: MatchSim, player: PlayerState) -> void:
+	sim.set_input(player.id, null)
 	player.position = _enemy_post(sim, player)
 	_wait(sim, RULES.capture_solo_time + 0.1)
 

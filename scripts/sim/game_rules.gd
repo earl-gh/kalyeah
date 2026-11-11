@@ -23,8 +23,24 @@ extends Resource
 @export var no_cast_in_enemy_base: bool = true
 ## Practice: a tagged training dummy walks out on its own after this long.
 @export var dummy_release_time: float = 0.0
-## Every weapon in the game (docs/GDD.md "Weapons"); each player equips two different ones.
+## Every weapon in the game (docs/GDD.md "Weapons"); each player equips `loadout_size` different ones.
 @export var weapons: Array[WeaponDef] = []
+## Number of street-game superpowers equipped in custom loadout mode (3 in 5v5 Barangay).
+@export var loadout_size: int = 3
+## Tirador rapid primary fire weapon definition, and Bida Ultimate superpower definition.
+@export var primary_weapon: WeaponDef = null
+@export var ultimate_weapon: WeaponDef = null
+## Athletic Street Sprint: kicks in automatically after `sprint_delay` s without casting/taking damage.
+@export var sprint_enabled: bool = true
+@export var sprint_delay: float = 1.2
+@export var sprint_multiplier: float = 1.32
+## Luksong-Tinik parkour vault-dash burst parameters.
+@export var dash_speed: float = 22.0
+@export var dash_duration: float = 0.24
+@export var dash_cooldown: float = 4.2
+## Bida Ultimate meter charge rates (0..100%).
+@export var ult_passive_per_s: float = 2.2
+@export var ult_per_damage: float = 0.45
 ## The six cosmetic characters, assigned at random with no duplicates.
 @export var characters: Array[CharacterDef] = []
 ## Weapon pick time (match start).

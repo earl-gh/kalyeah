@@ -12,6 +12,7 @@ func before_each() -> void:
 	_rules = (load("res://data/rules/game_rules.tres") as GameRules).duplicate() as GameRules
 	_rules.card_cycle = true
 	_rules.elixir_enabled = true
+	_rules.hand_size = 4
 
 
 func _sim(seed_value: int = 5) -> MatchSim:

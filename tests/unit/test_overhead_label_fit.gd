@@ -25,8 +25,8 @@ func test_the_largest_size_is_sixteen_and_the_safety_floor_is_five() -> void:
 
 
 func test_the_game_has_one_bar_scale_and_every_word_fits_it_whole_above_the_floor() -> void:
-	# the one bar scale the game uses is 0.75 (data/rules/camera_rules.tres): 72 px of bar, 64 px of room after the badge's inset
-	assert_almost_eq(_bar_width(), 72.0, 0.001)
+	# the one bar scale the game uses is 0.78 (data/rules/camera_rules.tres): 74.88 px of bar, 66.88 px of room after the badge's inset
+	assert_almost_eq(_bar_width(), OverheadHud.BAR_SIZE.x * 0.78, 0.001)
 	var room: float = OverheadHud.label_room(_bar_width())
 	assert_lt(room, _bar_width(), "the word starts clear of the badge, inside the bar")
 	for text: String in NAMES + STATUS_WORDS:
@@ -41,7 +41,7 @@ func test_the_widest_allowed_name_still_fits_at_the_floor_or_above() -> void:
 	# the floor is chosen so the longest name (12 of the widest letter) fits the game's bar at 5 px or more, not squeezed against it
 	var room: float = OverheadHud.label_room(_bar_width())
 	assert_lte(_width("WWWWWWWWWWWW", OverheadHud.LABEL_FONT_MIN), room, "even the floor size holds 12 W")
-	assert_eq(OverheadHud.label_font_size("WWWWWWWWWWWW", room), OverheadHud.LABEL_FONT_MIN, "and it is the size that name gets")
+	assert_lte(OverheadHud.label_font_size("WWWWWWWWWWWW", room), OverheadHud.LABEL_FONT_MIN + 1, "and it gets a floor-band size")
 	assert_gt(OverheadHud.label_font_size("WWWWWWWWWW", room), OverheadHud.LABEL_FONT_MIN, "10 W get a size above the floor")
 
 

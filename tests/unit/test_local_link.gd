@@ -3,7 +3,7 @@ extends GutTest
 ## from the Create dialog and its room shows it as a Wi-Fi QR; a friend joins it from the Join dialog by Scan QR or an NFC tap,
 ## and the room search follows. Saying no, a phone that cannot, and a code that is not a hotspot all end somewhere clear.
 
-const Phones := preload("res://tests/unit/hotspot_phones.gd")
+const Phones: GDScript = preload("res://tests/unit/hotspot_phones.gd")
 const QR_PICTURE: GDScript = preload("res://tests/fixtures/qr_picture.gd")
 const NETWORK: Dictionary = {"ssid": "AndroidShare_4821", "password": "kalye4h;play", "security": "WPA"}
 

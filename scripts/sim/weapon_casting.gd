@@ -117,6 +117,8 @@ func _try_fire(sim: MatchSim, state: PlayerState, slot: int, input: PlayerInput,
 	else:
 		state.weapon_cooldowns[slot] = def.cooldown
 	sim.cycle_used(state, slot)
+	state.out_of_combat_time = 0.0
+	state.sprinting = false
 	state.cast_lock_left = def.cast_lock
 	if def.cast_lock > 0.0:
 		sim.end_move(state)  # a heavy roots the kid and ends its walk

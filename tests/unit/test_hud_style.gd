@@ -14,15 +14,20 @@ const SLIM_DROP_HALF: float = AbilityArc.SLIM_DROP / 2.0
 
 var _kind: StringName
 var _game: StringName
+var _rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
+var _saved_stamina: bool
 
 
 func before_each() -> void:
 	_kind = Session.practice_kind
 	_game = Session.practice_game
+	_saved_stamina = _rules.stamina_enabled
+	_rules.stamina_enabled = true
 	Session.practice_kind = &"match"
 
 
 func after_each() -> void:
+	_rules.stamina_enabled = _saved_stamina
 	Session.practice_kind = _kind
 	Session.practice_game = _game
 
@@ -46,6 +51,7 @@ func test_the_joystick_and_the_arc_keep_one_margin_from_the_safe_edges() -> void
 			assert_almost_eq(rest.x - MoveStick.BASE_RADIUS, insets.x + HudStyle.EDGE, 0.01, "%s: the joystick's left edge" % screen)
 			assert_almost_eq(screen.y - insets.w - (rest.y + MoveStick.BASE_RADIUS), HudStyle.EDGE, 0.01, "its bottom edge")
 			var arc: AbilityArc = autofree(AbilityArc.new()) as AbilityArc
+			arc.uses_elixir = true
 			add_child(arc)
 			arc.size = screen
 			arc.set_inset(Vector2(insets.z, insets.w))
@@ -62,6 +68,7 @@ func test_the_ice_water_and_stamina_bars_sit_at_the_bottom_centre_and_the_cancel
 	for screen: Vector2 in SCREENS:
 		for inset: Vector2 in [Vector2.ZERO, Vector2(0.0, 24.0)]:
 			var arc: AbilityArc = autofree(AbilityArc.new()) as AbilityArc
+			arc.uses_elixir = true
 			add_child(arc)
 			arc.size = screen
 			arc.set_inset(inset)

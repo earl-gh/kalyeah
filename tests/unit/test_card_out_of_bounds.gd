@@ -14,12 +14,14 @@ var _kind: StringName
 
 func before_each() -> void:
 	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	_kind = Session.practice_kind
 	Session.practice_kind = &"match"
 
 
 func after_each() -> void:
 	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 	Session.practice_kind = _kind
 
 

@@ -339,7 +339,9 @@ func test_the_match_menu_keeps_its_list_short_so_the_aim_guide_is_a_settings_pag
 
 func before_each() -> void:
 	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 
 
 func after_each() -> void:
 	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)

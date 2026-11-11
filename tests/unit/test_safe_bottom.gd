@@ -73,7 +73,9 @@ func test_the_tray_has_no_health_and_hides_with_the_hand_when_you_are_tagged() -
 
 func before_each() -> void:
 	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 
 
 func after_each() -> void:
 	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)

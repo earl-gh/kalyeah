@@ -48,8 +48,9 @@ func slap(team: int, kid_radius: float, at: Vector2) -> void:
 	for rec: FxProjectiles.Rec in _projectiles.recs():
 		if rec.team == team or rec.kind != &"slipper":
 			continue
+		var step_slack: float = rec.def.speed * FxSquash.FRAME if rec.def != null else 0.0
 		var d: float = rec.track.last_pos.distance_to(at)
-		if d <= rec.def.projectile_radius + kid_radius + SLAP_REACH and d < best_d:
+		if d <= rec.def.projectile_radius + kid_radius + SLAP_REACH + step_slack and d < best_d:
 			best = rec
 			best_d = d
 	if best == null or _ctx.reduced:
@@ -105,7 +106,8 @@ func pose(rec: FxProjectiles.Rec, projectile: WeaponSystem.Projectile) -> void:
 func gone(rec: FxProjectiles.Rec) -> void:
 	var at: Vector3 = rec.holder.position
 	var thrower: PlayerState = _thrower(rec)
-	var reach: float = (_ctx.sim.rules.boomerang_catch_distance if _ctx.sim != null else 0.8) + CATCH_SLACK
+	var step_slack: float = rec.def.speed * FxSquash.FRAME if rec.def != null else 0.0
+	var reach: float = (_ctx.sim.rules.boomerang_catch_distance if _ctx.sim != null else 0.8) + CATCH_SLACK + step_slack
 	var ground: Vector3 = Vector3(at.x, 0.0, at.z)
 	if thrower != null and thrower.position.distance_to(rec.track.last_pos) <= reach and not thrower.tagged:
 		_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(thrower.position.x, 0.0, thrower.position.y), CATCH_DUST)

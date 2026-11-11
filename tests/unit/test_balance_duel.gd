@@ -48,7 +48,10 @@ func test_the_winner_is_the_same_loadout_with_the_sides_swapped() -> void:
 
 
 func test_two_loadouts_that_cannot_hurt_draw_at_the_time_limit() -> void:
-	var result: Dictionary = BalanceDuel.run(RULES, LAYOUT, _harmless, [&"langit_lupa", &"papel_shield"], 1, 8.0)
+	var passive_rules: GameRules = RULES.duplicate() as GameRules
+	passive_rules.primary_weapon = null
+	passive_rules.ultimate_weapon = null
+	var result: Dictionary = BalanceDuel.run(passive_rules, LAYOUT, _harmless, [&"langit_lupa", &"papel_shield"], 1, 8.0)
 	assert_eq(result["winner"], BalanceDuel.NO_WINNER)
 	assert_almost_eq(result["seconds"] as float, 8.0, 0.1)
 	assert_eq(result["hp"], [RULES.player_max_hp, RULES.player_max_hp])

@@ -3,6 +3,7 @@ extends GutTest
 ## the system cancels keeps the card, the box has one clear marker, the kid names fit and the results card stays clean. (The cancel
 ## mark is gone: a card dropped back on the hand cancels.)
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const DT: float = 1.0 / 30.0
@@ -10,19 +11,31 @@ const PHONE: Vector2 = Vector2(720.0, 1280.0)
 
 var _rules: GameRules
 var _was: bool
+var _was_elixir: bool
+var _was_hand: int
 var _left: bool
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	_rules = load("res://data/rules/game_rules.tres") as GameRules
 	_was = _rules.card_cycle
+	_was_elixir = _rules.elixir_enabled
+	_was_hand = _rules.hand_size
 	_rules.card_cycle = true
+	_rules.elixir_enabled = true
+	_rules.hand_size = 4
 	_left = Settings.left_handed
 
 
 func after_each() -> void:
 	_rules.card_cycle = _was
+	_rules.elixir_enabled = _was_elixir
+	_rules.hand_size = _was_hand
 	Settings.left_handed = _left
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 
 
 func _hud(left_handed: bool = false) -> MatchHud:

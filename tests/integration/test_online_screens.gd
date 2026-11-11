@@ -182,10 +182,12 @@ func test_online_match_screen_picks_then_plays_against_the_server() -> void:
 	pick.pick_character(&"popoy")
 	pick.tap(&"bato_light")
 	pick.tap(&"lata")
+	pick.tap(&"papel_shield")
 	pick.press_ready()
 	(views[1].get_node("%PickScreen") as WeaponPickScreen).pick_character(&"popoy")
 	(views[1].get_node("%PickScreen") as WeaponPickScreen).tap(&"jacks")
 	(views[1].get_node("%PickScreen") as WeaponPickScreen).tap(&"bola")
+	(views[1].get_node("%PickScreen") as WeaponPickScreen).tap(&"heal")
 	(views[1].get_node("%PickScreen") as WeaponPickScreen).press_ready()
 	assert_true(_until(func() -> bool: return not views[0].is_picking() and not views[1].is_picking()), "both playing")
 	assert_eq(views[0].hud.again_button.text, "Return home")
@@ -195,7 +197,7 @@ func test_online_match_screen_picks_then_plays_against_the_server() -> void:
 	_pump(0.2)
 	assert_eq(server_sim.phase, MatchSim.Phase.PLAYING)
 	var me: int = views[0].local_id
-	assert_eq(server_sim.players[me].weapons, [&"bato_light", &"lata"] as Array[StringName])
+	assert_eq(server_sim.players[me].weapons, [&"bato_light", &"lata", &"papel_shield"] as Array[StringName])
 	assert_eq(server_sim.players[me].character_id, &"popoy", "the server plays the kid we picked")
 	assert_eq(server_sim.players[views[1].local_id].character_id, &"popoy", "the other team may play the same kid")
 	assert_eq(views[1].sim.players[me].character_id, &"popoy", "the other player sees our kid")
@@ -343,7 +345,7 @@ func test_backgrounding_stops_server_input_without_another_view_frame() -> void:
 	pair[1].client.loaded()
 	assert_true(_until(func() -> bool: return view.client.stage == "pick"))
 	view.finish_pick()
-	pair[1].client.pick_weapons(&"bato_light", &"lata")
+	pair[1].client.pick_weapons(&"bato_light", &"lata", &"", &"papel_shield")
 	assert_true(_until(func() -> bool: return not view.is_picking()))
 	var server_sim: MatchSim = server.matches.values()[0].sim
 	server_sim.intro_left = 0.0

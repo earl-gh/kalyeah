@@ -4,59 +4,49 @@ const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const MAP_SCENE: PackedScene = preload("res://scenes/map/street_map.tscn")
 
 
-func test_the_playing_area_is_48_by_96_twice_the_24_by_48_it_was() -> void:
-	assert_eq(LAYOUT.lane_width, 48.0, "owner, 2026-11-09: the play area twice as big each way")
-	assert_eq(LAYOUT.lane_length, 96.0)
-	assert_almost_eq(LAYOUT.lane_width / LAYOUT.lane_length, 1.0 / 2.0, 0.001, "1:2: narrower than the 9:16 it was, so the street and its wider sidewalks fit a portrait screen")
-	assert_almost_eq(StreetMap.SIDEWALK_WIDTH, 2.4, 0.0001, "the sidewalks are 2.4 m (1.2 m before): twice as wide")
+func test_the_playing_area_is_a_circular_84m_barangay_on_a_58_by_58_grid() -> void:
+	assert_true(LAYOUT.is_circular(), "circular Barangay arena")
+	assert_almost_eq(LAYOUT.arena_radius, 84.0, 0.001, "84 m circular barangay radius (168 m diameter)")
+	assert_eq(LAYOUT.lane_width, 174.0)
+	assert_eq(LAYOUT.lane_length, 174.0)
+	assert_almost_eq(StreetMap.SIDEWALK_WIDTH, 2.4, 0.0001)
 
 
-func test_own_post_bottom_left_enemy_post_top_right() -> void:
+func test_own_base_south_court_and_enemy_base_north_hall_are_symmetric() -> void:
 	var own: Vector2 = LAYOUT.base_center(MapLayout.SIDE_OWN)
 	var enemy: Vector2 = LAYOUT.base_center(MapLayout.SIDE_ENEMY)
-	assert_lt(own.x, 0.0, "left")
-	assert_gt(own.y, 0.0, "bottom (+Z is the own end)")
-	assert_gt(enemy.x, 0.0, "right")
-	assert_lt(enemy.y, 0.0, "top")
-	assert_eq(enemy, -own, "the street is the same for both teams, turned round")
-	assert_true(LAYOUT.lane_rect().has_point(own))
+	assert_almost_eq(own.x, 0.0, 0.001, "centered on X")
+	assert_gt(own.y, 0.0, "South (+Z) Basketball Court is SIDE_OWN")
+	assert_almost_eq(enemy.x, 0.0, 0.001)
+	assert_lt(enemy.y, 0.0, "North (-Z) Barangay Hall is SIDE_ENEMY")
+	assert_eq(enemy, -own, "180-degree point-symmetric bases")
+	assert_true(LAYOUT.in_arena(own))
+	assert_true(LAYOUT.in_arena(enemy))
 
 
-func test_rescue_areas_are_against_the_side_edges_own_top_left_enemy_bottom_right() -> void:
-	var lane: Rect2 = LAYOUT.lane_rect()
+func test_rescue_areas_are_point_symmetric_inside_the_circular_arena_and_clear_of_bases() -> void:
 	var own: Rect2 = LAYOUT.rescue_rect(MapLayout.SIDE_OWN)
 	var enemy: Rect2 = LAYOUT.rescue_rect(MapLayout.SIDE_ENEMY)
-	assert_lt(own.get_center().x, 0.0, "your team's rescue area: left")
-	assert_lt(own.get_center().y, 0.0, "your team's rescue area: top")
-	assert_gt(enemy.get_center().x, 0.0, "their rescue area: right")
-	assert_gt(enemy.get_center().y, 0.0, "their rescue area: bottom")
-	assert_eq(own.size, LAYOUT.rescue_size, "one rectangle, its size from the data")
-	assert_almost_eq(own.position.x, lane.position.x, 0.001, "yours touches the left edge of the street")
-	assert_almost_eq(enemy.end.x, lane.end.x, 0.001, "theirs touches the right edge")
-	assert_true(lane.grow(0.001).encloses(own), "inside the play area")
-	assert_true(lane.grow(0.001).encloses(enemy))
-	assert_almost_eq(enemy.position, -own.end, Vector2(0.001, 0.001), "the street is the same for both teams, turned round")
+	assert_lt(own.get_center().x, 0.0, "own rescue patio in NW")
+	assert_lt(own.get_center().y, 0.0)
+	assert_gt(enemy.get_center().x, 0.0, "enemy rescue patio in SE")
+	assert_gt(enemy.get_center().y, 0.0)
+	assert_eq(own.size, LAYOUT.rescue_size)
+	assert_almost_eq(enemy.position, -own.end, Vector2(0.001, 0.001), "180-degree point-symmetric rescue patios")
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
+		var r_rect: Rect2 = LAYOUT.rescue_rect(side)
+		assert_true(LAYOUT.in_arena(r_rect.get_center()), "rescue center inside circular arena")
 		for other: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
-			assert_false(LAYOUT.in_base(other, LAYOUT.rescue_rect(side).get_center()), "rescue areas are clear of the bases")
+			assert_false(LAYOUT.in_base(other, r_rect.get_center()), "rescue areas are clear of bases")
 
 
-func test_the_outer_end_of_each_rescue_area_is_level_with_the_base_line_beside_it() -> void:
-	var own_area: Rect2 = LAYOUT.rescue_rect(MapLayout.SIDE_OWN)
-	var enemy_base: Rect2 = LAYOUT.base_rect(MapLayout.SIDE_ENEMY)
-	assert_almost_eq(own_area.position.y, enemy_base.end.y, 0.001, "the top line of the top left area is the bottom line of the top right base")
-	var enemy_area: Rect2 = LAYOUT.rescue_rect(MapLayout.SIDE_ENEMY)
-	var own_base: Rect2 = LAYOUT.base_rect(MapLayout.SIDE_OWN)
-	assert_almost_eq(enemy_area.end.y, own_base.position.y, 0.001, "and the bottom line of the bottom right area is the top line of the bottom left base")
-
-
-func test_a_base_is_a_rounded_rectangle_inside_the_street_the_other_team_captures_in() -> void:
+func test_a_base_is_a_rounded_rectangle_inside_the_arena_the_other_team_captures_in() -> void:
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var base: Rect2 = LAYOUT.base_rect(side)
-		assert_true(LAYOUT.lane_rect().grow(0.001).encloses(base), "wholly inside the street")
+		assert_true(LAYOUT.in_arena(base.get_center()))
 		assert_true(LAYOUT.in_base(side, base.get_center()))
-		assert_true(LAYOUT.in_base(side, base.position + Vector2(LAYOUT.base_corner, 0.05)), "a straight side")
-		assert_false(LAYOUT.in_base(side, base.position + Vector2(0.05, 0.05)), "every corner is rounded off, the one in the street's corner too")
+		assert_true(LAYOUT.in_base(side, base.position + Vector2(LAYOUT.base_corner, 0.05)), "straight edge inside base")
+		assert_false(LAYOUT.in_base(side, base.position + Vector2(0.05, 0.05)), "rounded corners trimmed")
 		assert_false(LAYOUT.in_base(side, base.end - Vector2(0.05, 0.05)))
 		assert_false(LAYOUT.in_base(side, base.position + Vector2(base.size.x + 0.1, 0.0)))
 	assert_gt(LAYOUT.base_corner, 0.0)
@@ -70,55 +60,53 @@ func test_bases_and_rescue_areas_are_always_blue_for_you_and_red_for_them() -> v
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var want: Color = StreetMap.OWN_COLOR if side == MapLayout.SIDE_OWN else StreetMap.ENEMY_COLOR
 		for colour: Color in map.zone_colors(side):
-			assert_true(Color(colour, 1.0).is_equal_approx(want), "fixed team colour, whatever the colour-blind setting")
+			assert_true(Color(colour, 1.0).is_equal_approx(want), "fixed team colour regardless of colorblind setting")
 	Settings.set_colorblind(false)
 
 
-func test_no_cover_stands_in_the_play_area() -> void:
-	assert_eq(LAYOUT.obstacle_rects().size(), 0, "no walls: the street is open (owner removed the cardboard walls)")
+func test_tight_tabi_tabing_bahay_obstacles_and_estero_water_are_point_symmetric() -> void:
+	var rects: Array[Rect2] = LAYOUT.obstacle_rects()
+	var count: int = LAYOUT.obstacles.size()
+	assert_eq(count, 18, "18 half-arena interior bahay & cover blocks")
+	assert_eq(rects.size(), 36, "36 mirrored interior blocks creating tight 3.8m-5.8m eskinitas")
+	for i: int in count:
+		assert_true(rects[i + count].is_equal_approx(Rect2(-rects[i].end, rects[i].size)), "obstacle %d mirrored around origin" % i)
+	var water: Array[Rect2] = LAYOUT.water_rects()
+	assert_eq(water.size(), 4, "Estero Creek split into 4 segments framing 3 bridges")
+	assert_eq(LAYOUT.walk_obstacle_rects().size(), rects.size() + water.size(), "water blocks walking while allowing projectiles")
 
 
-func test_tagged_places_are_on_the_sidewalk_beside_the_rescue_area_facing_the_street() -> void:
-	var lane: Rect2 = LAYOUT.lane_rect()
+func test_tagged_places_are_outside_the_circular_curb_beside_each_rescue_area() -> void:
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var area: Rect2 = LAYOUT.rescue_rect(side)
 		for index: int in LAYOUT.tagged_places:
 			var place: Vector2 = LAYOUT.tagged_place(side, index)
-			assert_false(lane.has_point(place), "outside the play area, on the sidewalk")
-			assert_almost_eq(absf(place.x), lane.end.x + LAYOUT.boundary_thickness, 0.001, "just past the street's edge")
+			assert_false(LAYOUT.in_arena(place), "tagged kid stands outside playable circle on perimeter sidewalk")
 			assert_eq(signf(place.x), signf(area.get_center().x), "on the same side as its rescue area")
-			assert_between(place.y, area.position.y, area.end.y, "level with the rescue area")
-			assert_eq(LAYOUT.tagged_facing(side).x, -signf(place.x), "facing in")
-	assert_eq(LAYOUT.tagged_place(MapLayout.SIDE_OWN, LAYOUT.tagged_places), LAYOUT.tagged_place(MapLayout.SIDE_OWN, 0), "more than the places share the first")
+			assert_between(place.y, area.position.y - 2.0, area.end.y + 2.0, "aligned with rescue waiting shed")
+			assert_eq(LAYOUT.tagged_facing(side).x, -signf(place.x), "facing inward toward arena")
+	assert_eq(LAYOUT.tagged_place(MapLayout.SIDE_OWN, LAYOUT.tagged_places), LAYOUT.tagged_place(MapLayout.SIDE_OWN, 0))
 
 
-func test_tagged_places_fit_a_whole_team_without_overlapping() -> void:
+func test_tagged_places_fit_a_whole_5v5_team_without_overlapping() -> void:
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
-	assert_gte(LAYOUT.tagged_places, RoomService.MAX_TEAM_SIZE, "a place for every kid of the biggest team")
+	assert_eq(RoomService.MAX_TEAM_SIZE, 5)
+	assert_gte(LAYOUT.tagged_places, RoomService.MAX_TEAM_SIZE, "5 slots for a full 5v5 team")
 	for index: int in LAYOUT.tagged_places - 1:
 		var gap: float = LAYOUT.tagged_place(MapLayout.SIDE_OWN, index + 1).distance_to(LAYOUT.tagged_place(MapLayout.SIDE_OWN, index))
 		assert_gte(gap, rules.player_radius * 2.0, "kids %d and %d don't overlap" % [index, index + 1])
 
 
-func test_base_is_a_circle_round_the_post() -> void:
+func test_base_radius_surrounds_base_center_and_spawns() -> void:
 	var post: Vector2 = LAYOUT.base_center(MapLayout.SIDE_ENEMY)
 	assert_true(LAYOUT.in_base(MapLayout.SIDE_ENEMY, post))
 	assert_true(LAYOUT.in_base(MapLayout.SIDE_ENEMY, post + Vector2(0.0, LAYOUT.base_radius - 0.1)))
 	assert_false(LAYOUT.in_base(MapLayout.SIDE_ENEMY, post + Vector2(0.0, LAYOUT.base_radius + 0.1)))
 	assert_false(LAYOUT.in_base(MapLayout.SIDE_OWN, post))
-	assert_true(LAYOUT.in_base(MapLayout.SIDE_OWN, LAYOUT.spawn_center(MapLayout.SIDE_OWN)), "players start at their post")
+	assert_true(LAYOUT.in_base(MapLayout.SIDE_OWN, LAYOUT.spawn_center(MapLayout.SIDE_OWN)), "players start inside their base")
 
 
-func test_fewer_obstacles_mirrored_for_both_halves() -> void:
-	var rects: Array[Rect2] = LAYOUT.obstacle_rects()
-	var count: int = LAYOUT.obstacles.size()
-	assert_eq(rects.size(), count * 2)
-	assert_lte(rects.size(), 6, "only a few cover pieces (owner: reduced twice)")
-	for i: int in count:
-		assert_true(rects[i + count].is_equal_approx(Rect2(-rects[i].end, rects[i].size)), "turned round the center")
-
-
-func test_boundary_walls_enclose_lane_without_overlapping_it() -> void:
+func test_boundary_walls_enclose_bounding_lane_without_overlapping_it() -> void:
 	var lane: Rect2 = LAYOUT.lane_rect()
 	var boundaries: Array[Rect2] = LAYOUT.boundary_rects()
 	assert_eq(boundaries.size(), 4)
@@ -130,18 +118,15 @@ func test_street_scene_builds_bases_boxes_cover_and_dressing() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
 	var geometry: Node3D = map.get_node("%Geometry") as Node3D
-	assert_gt(geometry.get_child_count(), 50, "street, cover, 2 bases, 2 rescue areas (chalk outlines: one mesh each), houses and props")
+	assert_gt(geometry.get_child_count(), 120, "circular barangay ground, creek, 3 bridges, 36 interior blocks, 40 poles, skyline & chalk zones")
 	assert_eq(map.base_color(MapLayout.SIDE_OWN), StreetMap.OWN_COLOR)
 	assert_eq(map.base_color(MapLayout.SIDE_ENEMY), StreetMap.ENEMY_COLOR)
-	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
-		for node: Node in map.get_node("%Geometry").find_children("Outline", "MeshInstance3D", true, false):
-			fail_test("no outline round the posts (owner), found one at base %d" % side)
 	map.set_own_side(MapLayout.SIDE_ENEMY)
 	assert_eq(map.base_color(MapLayout.SIDE_ENEMY), StreetMap.OWN_COLOR, "your post is always blue")
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var zone: Array[Color] = map.zone_colors(side)
-		assert_eq(zone.size(), 2, "a base and a rescue area: chalk outlines only, no fill (owner, 2026-11-03)")
-		assert_eq(Color(zone[0], 1.0), Color(zone[1], 1.0), "the rescue area has the same colour as the base")
+		assert_eq(zone.size(), 2, "a base and a rescue area: chalk outlines only, no fill")
+		assert_eq(Color(zone[0], 1.0), Color(zone[1], 1.0))
 
 
 func test_a_rescue_areas_chalk_is_white_while_it_counts_down_and_the_teams_colour_once_ready() -> void:
@@ -157,229 +142,107 @@ func test_a_rescue_areas_chalk_is_white_while_it_counts_down_and_the_teams_colou
 	sim.rescue_ready_left[0] = 5.0
 	sim.rescue_ready_left[1] = 0.0
 	map.sync_rescue(sim)
-	assert_true(Color(map.zone_colors(own_side)[1], 1.0).is_equal_approx(Color.WHITE), "counting down: the area's chalk is white")
-	assert_true(Color(map.zone_colors(enemy_side)[1], 1.0).is_equal_approx(StreetMap.ENEMY_COLOR), "ready: their red")
-	assert_true(Color(map.zone_colors(own_side)[0], 1.0).is_equal_approx(StreetMap.OWN_COLOR), "the base itself keeps its colour")
-	assert_almost_eq(map.zone_colors(own_side)[1].a, StreetMap.RESCUE_WHITE_ALPHA, 0.0001, "the counting chalk is a little fainter")
-	assert_almost_eq(map.zone_colors(enemy_side)[1].a, StreetMap.CHALK_ALPHA, 0.0001, "ready: the exact team colour at full chalk strength")
+	assert_true(Color(map.zone_colors(own_side)[1], 1.0).is_equal_approx(Color.WHITE), "counting down: white chalk")
+	assert_true(Color(map.zone_colors(enemy_side)[1], 1.0).is_equal_approx(StreetMap.ENEMY_COLOR), "ready: red chalk")
+	assert_true(Color(map.zone_colors(own_side)[0], 1.0).is_equal_approx(StreetMap.OWN_COLOR))
+	assert_almost_eq(map.zone_colors(own_side)[1].a, StreetMap.RESCUE_WHITE_ALPHA, 0.0001)
+	assert_almost_eq(map.zone_colors(enemy_side)[1].a, StreetMap.CHALK_ALPHA, 0.0001)
 
 
-func test_each_rescue_area_is_a_gently_rounded_rectangle_against_the_street_edge() -> void:
+func test_each_rescue_area_is_a_gently_rounded_rectangle() -> void:
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var area: Rect2 = LAYOUT.rescue_rect(side)
 		var outline: Array[Vector2] = StreetMap.rounded_outline(area, StreetMap.RESCUE_CORNER_RADIUS)
 		assert_eq(outline.size(), 4 * (StreetMap.ZONE_CORNER_STEPS + 1))
 		for point: Vector2 in outline:
-			assert_true(area.grow(0.001).has_point(point), "the outline stays inside the area")
-		assert_false(outline.has(area.position), "the corners are cut: the sharp corner is not on the outline")
+			assert_true(area.grow(0.001).has_point(point))
+		assert_false(outline.has(area.position))
 		assert_false(outline.has(area.end))
 
 
 func test_props_stay_low_poly() -> void:
-	var budgets: Dictionary = {
-		"house": Props.house(0), "store": Props.sari_sari(),
+	var budgets: Dictionary[String, ArrayMesh] = {
+		"house": Props.house(0),
+		"store": Props.sari_sari(),
 	}
-	for name: String in budgets:
-		var mesh: ArrayMesh = budgets[name]
+	for prop_name: String in budgets:
+		var mesh: ArrayMesh = budgets[prop_name]
 		var vertices: int = mesh.surface_get_array_len(0)
-		assert_lt(vertices, 3000, "%s has %d vertices" % [name, vertices])
-		assert_eq(mesh.surface_get_material(0), LowPoly.material(), "%s uses the one shared material" % name)
+		assert_lt(vertices, 3000, "%s has %d vertices" % [prop_name, vertices])
+		assert_eq(mesh.surface_get_material(0), LowPoly.material())
 
 
-func test_the_model_props_are_light_and_standing_on_the_ground() -> void:
-	var limits: Dictionary = {"bench": 4200, "rooster_tent": 4200,
-		"basketball_pole": 3700, "crates": 4200,
-		"sacks": 4200, "no_id_no_entry": 4200, "tricycle": 5200,
-		"ice_cream_cart": 5200, "nanay": 6200,
-		"nena_store": 6200, "vulcanizing": 6200, "barber_shop": 6200, "house_1": 6200, "house_2": 6200, "house_3": 6200, "karinderya": 6200, "cat": 3200, "dog": 3200, "chicken_cage": 4200, "drainage_cover": 2700, "tricycle_terminal": 6200, "plank_fence": 4200}
-	for id: String in limits:
-		var model: Node3D = autofree(PropModel.make(id)) as Node3D
-		var mesh: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
-		var vertices: int = mesh.mesh.surface_get_array_len(0)
-		assert_lt(vertices, limits[id] * 3, "%s has %d vertices" % [id, vertices])
-		var box: AABB = PropModel.bounds_of(id)  # a model of many parts (the karinderya) is measured as a whole
-		assert_almost_eq(box.position.y, 0.0, 0.01, "%s stands on the ground" % id)
-		assert_almost_eq(box.position.x + box.size.x / 2.0, 0.0, 0.01, "%s is centred" % id)
-		if PropModel.AS_MADE.has(id):
-			continue  # the owner's model keeps its own materials (glass, glow, metal)
-		var material: StandardMaterial3D = mesh.get_surface_override_material(0) as StandardMaterial3D
-		if PropModel.POLISHED.has(id):
-			assert_lt(material.roughness, 1.0, "%s is polished (tests/unit/test_nena_store.gd)" % id)
-			continue
-		assert_eq(material.roughness, 1.0, "%s is matte" % id)
-
-
-func test_cover_models_fill_their_footprint_and_stay_about_a_metre_high() -> void:
-	for id: String in ["bench", "rooster_tent"]:
-		var footprint: Vector2 = Vector2(2.6, 0.6)
-		var model: Node3D = autofree(PropModel.fit(id, footprint, 1.15)) as Node3D
-		var mesh: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
-		var box: AABB = mesh.mesh.get_aabb()
-		assert_almost_eq(box.size.x * model.scale.x, footprint.x, 0.02, "%s fills the length" % id)
-		assert_almost_eq(box.size.z * model.scale.z, footprint.y, 0.02, "%s fills the depth" % id)
-		assert_lte(box.size.y * model.scale.y, 1.16, "%s is no taller than the cap" % id)
-		assert_gt(box.size.y * model.scale.y, 0.5, "%s is tall enough to hide behind" % id)
-
-
-func test_the_base_posts_are_the_owners_models_blue_for_you_and_red_for_them_facing_the_camera() -> void:
+func test_the_base_posts_are_blue_for_you_and_red_for_them_scaled_to_layout_post_height() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
 	var own: Node3D = map._posts[MapLayout.SIDE_OWN]
 	var enemy: Node3D = map._posts[MapLayout.SIDE_ENEMY]
-	assert_true((own.get_node(StreetMap.POST_BLUE) as Node3D).visible, "your post is the blue model")
+	assert_true((own.get_node(StreetMap.POST_BLUE) as Node3D).visible, "your post is blue")
 	assert_false((own.get_node(StreetMap.POST_RED) as Node3D).visible)
-	assert_true((enemy.get_node(StreetMap.POST_RED) as Node3D).visible, "theirs the red one")
+	assert_true((enemy.get_node(StreetMap.POST_RED) as Node3D).visible, "enemy post is red")
 	assert_false((enemy.get_node(StreetMap.POST_BLUE) as Node3D).visible)
 	for post: Node3D in [own, enemy]:
 		for id: String in [StreetMap.POST_BLUE, StreetMap.POST_RED]:
 			var model: Node3D = post.get_node(id) as Node3D
-			assert_almost_eq(PropModel.size_of(id).y * model.scale.y, map.post_height(), 0.01, "%s is as tall as the post height in the data" % id)
-			# narrower than the model as made (owner, 2026-11-09): its width is the data's share of what the height alone would give
-			var even: float = map.post_height() / PropModel.size_of(id).y
-			assert_almost_eq(model.scale.x, even * LAYOUT.post_width_share, 0.0001, "%s is narrowed across" % id)
-			assert_almost_eq(model.scale.z, even * LAYOUT.post_width_share, 0.0001, "and front to back")
-		assert_almost_eq(post.rotation.y, 0.0, 0.001, "its front (the flyers) faces the camera at the +Z end")
-		assert_almost_eq((post.get_node(StreetMap.POST_BLUE) as Node3D).rotation.y, StreetMap.BLUE_POST_TURN, 0.001, "the blue pole has its back to the camera")
-		assert_almost_eq((post.get_node(StreetMap.POST_RED) as Node3D).rotation.y, 0.0, 0.001, "the red pole's front faces the camera")
-	assert_eq(Vector2(own.position.x, own.position.z), LAYOUT.post_position(MapLayout.SIDE_OWN), "in the street's corner")
+			var nat_h: float = map._kit_bounds(id).size.y
+			assert_almost_eq(nat_h * model.scale.y, map.post_height(), 0.02, "%s matches post_height" % id)
+			var even: float = map.post_height() / nat_h
+			assert_almost_eq(model.scale.x, even * LAYOUT.post_width_share, 0.001)
+			assert_almost_eq(model.scale.z, even * LAYOUT.post_width_share, 0.001)
+		assert_almost_eq(post.rotation.y, 0.0, 0.001)
+		assert_almost_eq((post.get_node(StreetMap.POST_BLUE) as Node3D).rotation.y, StreetMap.BLUE_POST_TURN, 0.001)
+		assert_almost_eq((post.get_node(StreetMap.POST_RED) as Node3D).rotation.y, 0.0, 0.001)
+	assert_eq(Vector2(own.position.x, own.position.z), LAYOUT.post_position(MapLayout.SIDE_OWN))
+	assert_almost_eq(own.position.y, 0.0, 0.001)
 	map.set_own_side(MapLayout.SIDE_ENEMY)
-	assert_true((enemy.get_node(StreetMap.POST_BLUE) as Node3D).visible, "the other team sees their own post blue")
+	assert_true((enemy.get_node(StreetMap.POST_BLUE) as Node3D).visible)
 	assert_true((own.get_node(StreetMap.POST_RED) as Node3D).visible)
 	assert_false((own.get_node(StreetMap.POST_BLUE) as Node3D).visible)
 	for post: Node3D in [own, enemy]:
-		assert_almost_eq(absf(post.rotation.y), PI, 0.001, "the camera is turned half way round for that team, so the posts turn with it")
-	assert_false(FileAccess.file_exists("res://assets/models/props/electric_pole.glb"), "the old electric pole model stays gone (owner)")
-	assert_false(FileAccess.file_exists("res://assets/textures/posts/post_blue.webp"), "the flat post pictures are replaced by the models (owner)")
-func test_the_street_things_stand_beyond_both_ends_and_stay_out_of_the_play_area() -> void:
-	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
-	add_child(map)
-	var seen: Dictionary = {}
-	var half_l: float = LAYOUT.lane_length / 2.0
-	for child: Node in map.get_node("%Geometry").get_children():
-		var node: Node3D = child as Node3D
-		if node == null or not node.scene_file_path.begins_with("res://assets/models/props/"):
-			continue
-		var id: String = node.scene_file_path.get_file().get_basename()
-		if not StreetMap.BARRIER_HEIGHTS.has(id) or absf(node.position.z) < half_l:
-			continue
-		seen[id] = int(seen.get(id, 0)) + 1
-		var mesh: MeshInstance3D = node.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
-		var depth: float = mesh.mesh.get_aabb().size.z * node.scale.z
-		assert_gt(absf(node.position.z) - depth / 2.0, half_l, "%s stays behind the end line" % id)
-		assert_lte(absf(node.position.x), LAYOUT.lane_width / 2.0, "%s across the street" % id)
-	for id: String in StreetMap.BARRIER_HEIGHTS:
-		assert_true(seen.has(id), "%s stands beyond an end" % id)
-	assert_lte(int(seen.get("rooster_tent", 0)), 4, "at most one A-frame beyond each end, not a row of them")
+		assert_almost_eq(absf(post.rotation.y), PI, 0.001)
 
 
 func test_the_street_slabs_are_plain_boxes_without_a_light_edge_line() -> void:
-	# `box` rounds its edges and lightens them: seen edge-on that is a thin white line along the street
 	var kit: LowPoly = LowPoly.new()
 	var colour: Color = Color(0.3, 0.3, 0.31)
 	kit.plain_box(Vector3.ZERO, Vector3(24.0, 0.1, 80.0), colour, colour)
-	assert_eq(kit.triangle_count(), 12, "a plain box is just six faces")
+	assert_eq(kit.triangle_count(), 12)
 	var mesh: ArrayMesh = kit.commit()
-	var colors: PackedColorArray = mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR]
+	var colors: PackedColorArray = mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR] as PackedColorArray
 	for vertex_colour: Color in colors:
-		assert_lte(vertex_colour.get_luminance(), colour.get_luminance() + 0.001, "no face is lighter than the slab")
+		assert_lte(vertex_colour.get_luminance(), colour.get_luminance() + 0.001)
 
 
-## The sidewalks are flat (owner: no raised curb): the street and both sidewalks are one slab whose top is the ground.
-func test_the_sidewalks_are_flat_with_the_street() -> void:
+func test_the_ground_plane_is_flat_and_uses_the_barangay_ground_shader() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
-	var street: MeshInstance3D = map.get_node("%Geometry").get_child(0) as MeshInstance3D
-	var box: AABB = street.mesh.get_aabb()
-	assert_almost_eq(box.end.y, 0.0, 0.001, "nothing stands above the street")
-	var reach: float = LAYOUT.boundary_thickness + StreetMap.SIDEWALK_WIDTH
-	assert_almost_eq(box.size.x, LAYOUT.lane_width + reach * 2.0, 0.01, "one slab under the street and both sidewalks")
+	var ground: MeshInstance3D = map.find_child("BarangayGround", true, false) as MeshInstance3D
+	assert_not_null(ground)
+	var box: AABB = ground.mesh.get_aabb()
+	assert_almost_eq(box.end.y, 0.0, 0.001, "ground plane sits cleanly at y = 0")
 	assert_eq(StreetMap.CURB_HEIGHT, 0.0)
+	var mat: ShaderMaterial = (ground.mesh as PlaneMesh).material as ShaderMaterial
+	assert_not_null(mat)
+	assert_eq(mat.shader, StreetMap.GROUND_SHADER)
+	assert_almost_eq(float(mat.get_shader_parameter("arena_radius")), LAYOUT.arena_radius, 0.001)
+	assert_false(ResourceLoader.exists("res://assets/textures/cement_generated.png"))
 
 
-func test_the_street_and_sidewalks_use_the_code_drawn_cement() -> void:
-	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
-	add_child(map)
-	var street: MeshInstance3D = map.get_node("%Geometry").get_child(0) as MeshInstance3D
-	var material: ShaderMaterial = street.material_override as ShaderMaterial
-	assert_not_null(material, "the street slab and sidewalks are drawn by the cement shader")
-	assert_eq(material.shader, StreetMap.STREET_SHADER)
-	assert_almost_eq(float(material.get_shader_parameter("lane_half_width")), LAYOUT.lane_width / 2.0, 0.001, "it knows where the sidewalks start")
-	assert_false(ResourceLoader.exists("res://assets/textures/cement_generated.png"), "no generated image files")
-
-
-
-# ---- the tile grid (Clash Royale's arena was 18 x 32 tiles; ours is 16 x 32) -------------------------------
-
-func test_the_street_is_a_16_by_32_tile_grid_of_3_metre_tiles() -> void:
-	assert_eq(LAYOUT.tiles, Vector2i(16, 32), "the same grid")
-	assert_almost_eq(LAYOUT.tile_size, 3.0, 0.0001, "twice the 1.5 m it was: the play area doubled (owner)")
-	assert_almost_eq(LAYOUT.lane_width, 48.0, 0.0001, "16 tiles across")
-	assert_almost_eq(LAYOUT.lane_length, 96.0, 0.0001, "32 tiles long")
-
-
-func test_tiles_and_metres_convert_both_ways() -> void:
-	assert_eq(LAYOUT.tile_center(Vector2i(0, 0)), Vector2(-22.5, -46.5), "the top-left tile")
-	assert_eq(LAYOUT.tile_center(Vector2i(15, 31)), Vector2(22.5, 46.5), "the bottom-right tile")
-	for tile: Vector2i in [Vector2i(0, 0), Vector2i(7, 15), Vector2i(8, 16), Vector2i(15, 31)]:
+func test_the_grid_is_58_by_58_of_3_metre_tiles_and_converts_both_ways() -> void:
+	assert_eq(LAYOUT.tiles, Vector2i(58, 58))
+	assert_almost_eq(LAYOUT.tile_size, 3.0, 0.0001)
+	assert_almost_eq(LAYOUT.lane_width, 174.0, 0.0001)
+	assert_almost_eq(LAYOUT.lane_length, 174.0, 0.0001)
+	assert_eq(LAYOUT.tile_center(Vector2i(0, 0)), Vector2(-85.5, -85.5))
+	assert_eq(LAYOUT.tile_center(Vector2i(57, 57)), Vector2(85.5, 85.5))
+	for tile: Vector2i in [Vector2i(0, 0), Vector2i(28, 28), Vector2i(29, 29), Vector2i(57, 57)]:
 		assert_eq(LAYOUT.tile_at(LAYOUT.tile_center(tile)), tile, "round trip %s" % tile)
-	assert_eq(LAYOUT.to_tiles(Vector2.ZERO), Vector2(8.0, 16.0), "the middle of the street is the corner of four tiles")
-	assert_eq(LAYOUT.lane_rect().size, Vector2(48.0, 96.0))
+	assert_eq(LAYOUT.to_tiles(Vector2.ZERO), Vector2(29.0, 29.0))
+	assert_eq(LAYOUT.lane_rect().size, Vector2(174.0, 174.0))
 
 
-func test_the_posts_and_boxes_sit_where_the_grid_says() -> void:
-	var own: Vector2 = LAYOUT.to_tiles(LAYOUT.base_center(MapLayout.SIDE_OWN))
-	assert_almost_eq(own.x, 2.5 / 1.5, 0.0001, "your base's centre: 1 2/3 tiles from the left curb")
-	assert_almost_eq(own.y, 32.0 - 2.5 / 1.5, 0.0001, "and 1 2/3 tiles from your end")
-	assert_almost_eq(LAYOUT.base_radius / LAYOUT.tile_size, 3.0, 0.0001, "the base circle is 3 tiles")
-
-
-## The box round a prop model's mesh, in the model's own units.
-func _model_box(id: String) -> AABB:
-	var model: Node3D = autofree(PropModel.make(id)) as Node3D
-	return (model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).get_aabb()
-
-
-func test_each_post_model_stands_with_its_foot_in_the_corner() -> void:
-	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
-	add_child(map)
-	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
-		var post: Node3D = map._posts[side]
-		assert_eq(Vector2(post.position.x, post.position.z), LAYOUT.post_position(side), "the pole stands in the street's corner")
-		assert_almost_eq(post.position.y, 0.0, 0.001, "on the ground")
-	for id: String in [StreetMap.POST_BLUE, StreetMap.POST_RED]:
-		var box: AABB = _model_box(id)
-		assert_almost_eq(box.position.y, 0.0, 0.001, "%s: the model's foot is its origin" % id)
-		assert_lt(box.position.x, 0.0, "%s: the pole is inside the model's width, with its arms either side" % id)
-		assert_gt(box.end.x, 0.0)
-		assert_lt(box.position.z, 0.0)
-		assert_gt(box.end.z, 0.0)
-
-
-func test_the_posts_use_their_baked_shading_and_other_props_do_not() -> void:
-	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
-	add_child(map)
-	var post: Node3D = map._posts[MapLayout.SIDE_OWN].get_node(StreetMap.POST_BLUE) as Node3D
-	var surfaces: int = 0
-	for node: Node in post.find_children("*", "MeshInstance3D", true, false):
-		var mesh_instance: MeshInstance3D = node as MeshInstance3D
-		for surface: int in mesh_instance.mesh.get_surface_count():
-			surfaces += 1
-			var material: StandardMaterial3D = mesh_instance.get_surface_override_material(surface) as StandardMaterial3D
-			assert_true(material.vertex_color_use_as_albedo, "the post's baked shading is on (surface %d)" % surface)
-			assert_eq(material.specular_mode, BaseMaterial3D.SPECULAR_DISABLED, "and it stays matte, no gloss")
-	assert_gt(surfaces, 10, "every surface of the post was checked")
-	var other: Node3D = PropModel.make("bench")
-	add_child_autofree(other)
-	for node: Node in other.find_children("*", "MeshInstance3D", true, false):
-		var mesh_instance: MeshInstance3D = node as MeshInstance3D
-		var material: StandardMaterial3D = mesh_instance.get_surface_override_material(0) as StandardMaterial3D
-		assert_false(material.vertex_color_use_as_albedo, "other props keep the plain matte look")
-
-
-## The electric post is longer and narrower than the model as made (owner, 2026-11-09: "more realistic height and width"), only drawn so: the
-## pole is scenery, no rule or place changes.
-func test_the_post_is_longer_and_narrower_than_the_model_as_made() -> void:
-	assert_eq(LAYOUT.post_height, 15.0, "15 m tall (it was 9 m)")
-	assert_eq(LAYOUT.post_width_share, 0.55, "55% of the model's own width")
-	assert_lt(LAYOUT.post_width_share, 1.0, "narrower")
-	assert_gt(LAYOUT.post_width_share, 0.5, "but stretched gently: its flyers and transformer stay readable")
+func test_the_post_proportions_stay_slender_and_readable() -> void:
+	assert_almost_eq(LAYOUT.post_height, 11.8, 0.001)
+	assert_almost_eq(LAYOUT.post_width_share, 0.72, 0.001)
+	assert_lt(LAYOUT.post_width_share, 1.0)
+	assert_gt(LAYOUT.post_width_share, 0.5)

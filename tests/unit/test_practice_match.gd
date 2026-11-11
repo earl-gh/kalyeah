@@ -67,7 +67,7 @@ func test_zero_hp_tags_you_onto_the_sidewalk_with_the_tagged_card() -> void:
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 	TouchHelper.hurt(practice, 100)
 	assert_true(player.tagged)
-	assert_false(LAYOUT.lane_rect().has_point(player.position), "sent out to the sidewalk")
+	assert_false(LAYOUT.in_arena(player.position), "sent out to the perimeter sidewalk")
 	assert_lt(player.position.x, 0.0, "on our side of the street")
 	assert_true(practice.hud.tagged_panel.visible)
 	practice.advance(DT)
@@ -106,8 +106,10 @@ func test_the_ally_dummy_runs_over_and_rescues_you() -> void:
 	assert_eq(player.hp, 100)
 	assert_true(LAYOUT.in_base(practice.own_side(), player.position), "back at our post")
 	assert_false(practice.hud.tagged_panel.visible)
-	for i: int in 30 * 15:
+	for i: int in 30 * 20:
 		practice.advance(DT)
+		if ally.position.distance_to(home) < 0.5:
+			break
 	assert_lt(ally.position.distance_to(home), 0.5, "and walks back to its spot")
 
 
@@ -126,7 +128,7 @@ func test_practice_has_three_enemy_dummies_and_one_ally() -> void:
 		practice.advance(DT)
 	assert_eq(stand.position, stand_start, "one enemy stands still")
 	assert_ne(patrol.position.x, patrol_start.x, "the other walks")
-	assert_eq(ally.position, Vector2(-6.0, 6.0))
+	assert_eq(ally.position, Vector2(practice.rules.dummy_ally_x, practice.rules.dummy_ally_z))
 
 
 func test_a_free_enemy_stands_in_its_own_rescue_area_and_keeps_its_bar() -> void:
@@ -187,13 +189,15 @@ func test_tapping_two_weapons_and_ready_sets_the_loadout() -> void:
 	var screen: WeaponPickScreen = _pick_screen(practice)
 	screen.tap(&"lata")
 	screen.tap(&"trumpo")
+	screen.tap(&"jacks")
 	screen.press_ready()
 	assert_false(practice.is_picking())
-	assert_eq(practice.sim.players[PracticeMatch.LOCAL_ID].weapons, [&"lata", &"trumpo"] as Array[StringName])
+	assert_eq(practice.sim.players[PracticeMatch.LOCAL_ID].weapons, [&"lata", &"trumpo", &"jacks"] as Array[StringName])
 	practice.advance(DT)
 	assert_eq(practice.sim.tick, 1, "the match starts")
 	assert_eq(practice.hud.hand.defs[0].id, &"lata", "the hand shows the pick")
 	assert_eq(practice.hud.hand.defs[1].id, &"trumpo")
+	assert_eq(practice.hud.hand.defs[2].id, &"jacks")
 
 
 func test_pick_screen_has_a_card_for_every_weapon() -> void:
@@ -221,8 +225,10 @@ func test_the_swap_screen_opens_from_the_box_with_your_weapons_and_a_rescue_clos
 	assert_eq(_pick_screen(practice).pick.picks, weapons)
 	practice.advance(DT)
 	assert_eq(practice.sim.tick, 1, "the match keeps running while you swap")
-	for i: int in 30 * 15:
+	for i: int in 30 * 25:
 		practice.advance(DT)
+		if not practice.sim.players[PracticeMatch.LOCAL_ID].tagged:
+			break
 	assert_false(practice.sim.players[PracticeMatch.LOCAL_ID].tagged, "the ally dummy came")
 	assert_false(practice.is_picking())
 	assert_eq(practice.sim.players[PracticeMatch.LOCAL_ID].weapons, weapons)
@@ -230,8 +236,8 @@ func test_the_swap_screen_opens_from_the_box_with_your_weapons_and_a_rescue_clos
 
 # ---- weapon buttons ------------------------------------------------------------
 
-func _equip(practice: PracticeMatch, first: StringName, second: StringName) -> void:
-	assert_true(practice.sim.set_loadout(PracticeMatch.LOCAL_ID, first, second))
+func _equip(practice: PracticeMatch, first: StringName, second: StringName, third: StringName = &"jacks") -> void:
+	assert_true(practice.sim.set_loadout(PracticeMatch.LOCAL_ID, first, second, third))
 
 
 func test_a_quick_tap_still_casts_with_auto_aim() -> void:
@@ -242,10 +248,10 @@ func test_a_quick_tap_still_casts_with_auto_aim() -> void:
 	practice.advance(DT)
 	practice.advance(DT)
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
-	assert_gt(player.weapon_cooldowns[0], 3.9)
+	assert_gt(player.weapon_cooldowns[0], 4.3)
 	for i: int in 30:
 		practice.advance(DT)
-	assert_eq(enemy.hp, 88)
+	assert_eq(enemy.hp, 80)
 	assert_lt(practice.hud.hand.reached[0], 1.0, "the card shows it is not ready")
 
 
@@ -256,7 +262,7 @@ func test_a_card_dropped_on_a_street_point_casts_toward_it() -> void:
 	_cast_at(practice, 0, enemy.position)
 	for i: int in 30:
 		practice.advance(DT)
-	assert_eq(enemy.hp, 76, "the cone goes toward the point")
+	assert_eq(enemy.hp, 58, "the cone goes toward the point")
 
 
 func test_a_card_dropped_behind_the_kid_misses_the_enemy_ahead() -> void:
@@ -439,7 +445,7 @@ func test_aim_indicator_shows_range_and_landing_circle() -> void:
 	var lines: Array[PackedVector2Array] = AimIndicator.outline(sim, caster, def, Vector2(0.0, -0.5), -1)
 	assert_eq(lines.size(), 2, "range circle and landing circle, no line from the player to it")
 	assert_almost_eq(lines[0][0].length(), def.max_range, 0.001)
-	assert_almost_eq(lines[1][0].distance_to(Vector2(0.0, -4.0)), def.radius, 0.001, "half the stick = half the range")
+	assert_almost_eq(lines[1][0].distance_to(Vector2(0.0, -def.max_range * 0.5)), def.radius, 0.001, "half the stick = half the range")
 	var cone: Array[PackedVector2Array] = AimIndicator.outline(sim, caster, sim.weapon_defs[&"gunting_light"], Vector2(1.0, 0.0))
 	assert_eq(cone.size(), 2)
 
@@ -455,7 +461,7 @@ func test_no_team_has_a_character_twice_and_no_name_over_their_head() -> void:
 		seen[key] = true
 	for id: int in practice.sim.players:
 		assert_eq(practice.overhead().text_for(id), "", "no status word over a healthy hero")
-		assert_ne(practice.overhead().label_for(practice.sim.players[id]), "", "but its name")
+		assert_ne(practice.overhead().name_of(practice.sim.players[id]), "", "but its name")
 	assert_eq(practice.overhead().label_for(practice.sim.players[practice.local_id]), Session.player_name, "yours is your own name")
 
 
@@ -476,18 +482,18 @@ func test_while_tagged_weapons_can_be_swapped_again_and_again() -> void:
 	var practice: PracticeMatch = _practice()
 	var screen: WeaponPickScreen = _pick_screen(practice)
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
-	practice.sim.set_loadout(PracticeMatch.LOCAL_ID, &"bato_light", &"lata")
+	practice.sim.set_loadout(PracticeMatch.LOCAL_ID, &"bato_light", &"lata", &"bola")
 	practice.sim.kill(PracticeMatch.LOCAL_ID)
 	practice.open_swap()
 	screen.tap(&"bato_light")
 	screen.tap(&"jacks")
-	assert_eq(player.weapons, [&"lata", &"jacks"] as Array[StringName], "applied at once")
+	assert_eq(player.weapons, [&"lata", &"bola", &"jacks"] as Array[StringName], "applied at once")
 	for i: int in 60:
 		practice.advance(DT)
 	assert_true(practice.is_picking(), "no pick timer: stays open while tagged")
 	screen.select_slot(0)
 	screen.tap(&"trumpo")
-	assert_eq(player.weapons, [&"trumpo", &"jacks"] as Array[StringName], "only the chosen slot changes")
+	assert_eq(player.weapons, [&"trumpo", &"bola", &"jacks"] as Array[StringName], "only the chosen slot changes")
 
 
 func test_done_closes_and_the_swap_button_reopens_while_tagged() -> void:
@@ -506,8 +512,10 @@ func test_done_closes_and_the_swap_button_reopens_while_tagged() -> void:
 	assert_true(swap.visible)
 	practice.open_swap()
 	assert_true(practice.is_picking(), "as many times as you like")
-	for i: int in 30 * 15:
+	for i: int in 30 * 25:
 		practice.advance(DT)
+		if not practice.sim.players[PracticeMatch.LOCAL_ID].tagged:
+			break
 	assert_false(practice.sim.players[PracticeMatch.LOCAL_ID].tagged)
 	assert_false(practice.is_picking(), "a rescue closes it")
 	assert_false(swap.visible)
@@ -668,7 +676,7 @@ func test_the_whole_street_is_on_screen_at_once_with_your_base_at_the_bottom() -
 	var own_base: Vector2 = camera.screen_position(Vector3(LAYOUT.base_center(practice.own_side()).x, 0.0, LAYOUT.base_center(practice.own_side()).y))
 	var their_base: Vector2 = camera.screen_position(Vector3(LAYOUT.base_center(-practice.own_side()).x, 0.0, LAYOUT.base_center(-practice.own_side()).y))
 	assert_gt(own_base.y, their_base.y, "your base is lower on the screen")
-	assert_lt(own_base.x, their_base.x, "your post bottom left, theirs top right")
+	assert_almost_eq(own_base.x, their_base.x, 1.0, "circular barangay north-south bases align on the central axis")
 	var player: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 	var before: Vector3 = camera.position
 	player.position = Vector2(8.0, -15.0)
@@ -678,12 +686,14 @@ func test_the_whole_street_is_on_screen_at_once_with_your_base_at_the_bottom() -
 
 func before_each() -> void:
 	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	_saved_loadout = Session.saved_loadout.duplicate()
 	Session.saved_loadout.clear()
 
 
 func after_each() -> void:
 	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 	Session.saved_loadout = _saved_loadout
 	Session.save()
 

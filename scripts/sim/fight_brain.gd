@@ -20,8 +20,8 @@ const HEAL_BELOW: float = 0.5
 ## A rescuer sets off this many seconds before its rescue area would be ready on its arrival (`MatchSim.rescue_ready_left`).
 const RESCUE_EARLY: float = 1.0
 ## Closest and farthest a bot stands from an enemy, whatever its weapons reach.
-const STANDOFF_MIN: float = 2.5
-const STANDOFF_MAX: float = 7.0
+const STANDOFF_MIN: float = 4.5
+const STANDOFF_MAX: float = 14.5
 ## Backs off when the enemy is closer than the standoff by more than this.
 const TOO_CLOSE_SLACK: float = 1.0
 ## Seconds between changes of strafing side.
@@ -151,8 +151,8 @@ func _steer(state: PlayerState, sim: MatchSim, direction: Vector2) -> PlayerInpu
 ## No enemy in reach: stay at the post, and rescue only from there (priorities 2 and 3).
 func _no_enemy(state: PlayerState, sim: MatchSim) -> PlayerInput:
 	if _rescue_due(state, sim):
-		return _walk_to(state, sim.layout.rescue_rect(sim.side_for_team(state.team)).get_center())
-	return _walk_to(state, home)
+		return _walk_to_nav(state, sim, sim.layout.rescue_rect(sim.side_for_team(state.team)).get_center())
+	return _walk_to_nav(state, sim, home)
 
 
 ## True while this bot should be off rescuing: a teammate is tagged and the bot is either already on its way or standing at its post.
@@ -189,6 +189,9 @@ func _fight(state: PlayerState, sim: MatchSim, enemy: PlayerState) -> PlayerInpu
 	var distance: float = offset.length()
 	var toward: Vector2 = offset.normalized() if distance > 0.001 else Vector2.DOWN
 	var blocked: bool = _in_cover(state.position, enemy.position, sim)
+	# Unleash Ultimate when fully charged and enemy is in shockwave reach!
+	if sim.rules.ultimate_weapon != null and state.ult_charge >= 100.0 - MatchSim.EPSILON and state.can_act() and distance <= sim.rules.ultimate_weapon.max_range:
+		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_ULTIMATE, sim.tick).with_aim_point(enemy.position)
 	# only looked for when it could cast now (the hand scan is the brain's hottest path)
 	var slot: int = _slot_to_cast(state, sim, distance, blocked) if _cooldown <= 0.0 and state.can_act() else -1
 	if slot >= 0:
@@ -212,7 +215,17 @@ func _fight(state: PlayerState, sim: MatchSim, enemy: PlayerState) -> PlayerInpu
 	else:
 		var side: float = 1.0 if (int(float(sim.tick) * sim.rules.tick_dt() / STRAFE_SWITCH) + state.id) % 2 == 0 else -1.0
 		move = toward.rotated(side * PI / 2.0)
-	return _steer(state, sim, _unpin(_avoid_entering(state, sim, move)))
+	var out: PlayerInput = _steer(state, sim, _unpin(_avoid_entering(state, sim, move)))
+	# Weave Tirador primary fire between superpower casts when line of sight is clear!
+	if not blocked and sim.rules.primary_weapon != null and state.primary_cd <= 0.0 and state.can_act() \
+		and distance <= sim.rules.primary_weapon.max_range:
+		var p_aim: Vector2 = _aim_at(state, enemy, sim.rules.primary_weapon, sim)
+		out.with_aim_point(state.position + p_aim * sim.rules.primary_weapon.max_range)
+		out.buttons |= PlayerInput.BTN_PRIMARY
+	# Vault-dash out of snares or to close distance in a duel
+	if state.dash_cd <= 0.0 and (state.effects.has(StatusEffects.Type.SLOW) or distance > standoff + 8.0):
+		out.buttons |= PlayerInput.BTN_DASH
+	return out
 
 
 ## True when this bot stays in the place it is in even though nothing can be cast there (a TeamBrain's base holder).
@@ -403,3 +416,19 @@ func _teammate_tagged(state: PlayerState, sim: MatchSim) -> bool:
 func _walk_to(state: PlayerState, target: Vector2) -> PlayerInput:
 	var point: Vector2 = state.position if state.position.distance_to(target) <= HOME_TOLERANCE else target
 	return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 0).with_move_target(point)
+
+
+## Walks to `target` routed cleanly through `sim.nav` around buildings & Estero Creek bridges.
+func _walk_to_nav(state: PlayerState, sim: MatchSim, target: Vector2) -> PlayerInput:
+	if state.position.distance_to(target) <= HOME_TOLERANCE:
+		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_move_target(state.position)
+	var waypoint: Vector2 = sim.nav.next_waypoint(state.position, target) if sim.nav != null else target
+	if _pinned >= PINNED_TICKS:
+		var nudged: Vector2 = (waypoint - state.position).normalized().rotated(_turn * PI * 0.45)
+		_pinned = 0
+		_turn = -_turn
+		waypoint = state.position + nudged * 4.0
+	var out: PlayerInput = PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_move_target(waypoint)
+	if state.dash_cd <= 0.0 and state.position.distance_to(target) > 36.0 and state.effects.has(StatusEffects.Type.SLOW):
+		out.buttons |= PlayerInput.BTN_DASH
+	return out

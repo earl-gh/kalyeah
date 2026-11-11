@@ -36,7 +36,7 @@ func test_a_new_room_is_open_and_listed_with_what_a_card_shows() -> void:
 	assert_true(room.open, "owner: open by default")
 	var listed: Array[Dictionary] = _rooms.open_rooms(NET.room_list_max)
 	assert_eq(listed.size(), 1)
-	assert_eq(listed[0], {"code": room.code, "host_name": "Ana", "team_size": 3, "players": 1, "first_to": room.first_to, "map": room.map_id})
+	assert_eq(listed[0], {"code": room.code, "host_name": "Ana", "team_size": 5, "players": 1, "first_to": room.first_to, "map": room.map_id})
 	assert_true(_rooms.describe(room)["open"], "the room screen knows too")
 
 
@@ -49,7 +49,7 @@ func test_private_started_and_full_rooms_are_not_listed() -> void:
 	started.state = RoomService.State.LOADING
 	var full: RoomService.Room = _create()
 	var guest: int = 0
-	for i: int in 5:
+	for i: int in 9:
 		guest = _join(full)
 	var waiting: RoomService.Room = _create()
 	assert_eq(_codes(), [waiting.code] as Array[String], "only the open one in the lobby with a free place")

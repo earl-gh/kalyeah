@@ -2,6 +2,7 @@ extends GutTest
 ## Tilt to run (opt-in) and Home's tilt parallax, from the phone's gravity sensor. Tilt only ever gives a direction: the kid runs at its
 ## one speed through the same move target a finger sets, so it can do nothing a finger cannot.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
 const RULES: GameRules = preload("res://data/rules/game_rules.tres")
@@ -13,6 +14,8 @@ var _was_motion: bool
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	_was_tilt = Settings.tilt_to_run
 	_was_motion = Settings.reduced_motion
 	Settings.reduced_motion = false
@@ -20,6 +23,8 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 	Settings.set_tilt_to_run(_was_tilt)
 	Settings.reduced_motion = _was_motion
 	TiltInput.test_gravity = null

@@ -19,8 +19,8 @@ func test_rules_match_gdd_core_numbers() -> void:
 	assert_eq(RULES.tick_rate, 30)
 	assert_almost_eq(RULES.tick_dt(), DT, 0.00001)
 	assert_eq(RULES.player_max_hp, 100)
-	assert_eq(RULES.move_speed, 5.0)
-	assert_eq(RULES.capture_solo_time, 12.0)
+	assert_almost_eq(RULES.move_speed, 8.2, 0.01)
+	assert_almost_eq(RULES.capture_solo_time, 12.0, 0.01)
 
 
 func test_players_spawn_at_their_own_base_with_full_hp() -> void:
@@ -31,7 +31,7 @@ func test_players_spawn_at_their_own_base_with_full_hp() -> void:
 	assert_eq(b.position, LAYOUT.spawn_center(MapLayout.SIDE_ENEMY))
 	assert_eq(a.hp, 100)
 	assert_false(a.tagged)
-	assert_eq(a.radius, 0.4)
+	assert_almost_eq(a.radius, 0.45, 0.001)
 
 
 func test_teammates_spawn_side_by_side() -> void:
@@ -52,7 +52,7 @@ func test_full_stick_moves_at_move_speed() -> void:
 	var p: PlayerState = sim.add_player(1, 0)
 	var start: Vector2 = p.position
 	_run(sim, 1, Vector2(0.0, -1.0), 30)
-	assert_almost_eq(p.position.y, start.y - 5.0, 0.01)
+	assert_almost_eq(p.position.y, start.y - RULES.move_speed, 0.02)
 	assert_almost_eq(p.position.x, start.x, 0.0001)
 
 
@@ -61,7 +61,7 @@ func test_diagonal_is_not_faster() -> void:
 	var p: PlayerState = sim.add_player(1, 0)
 	var start: Vector2 = p.position
 	_run(sim, 1, Vector2(1.0, -1.0), 30)
-	assert_almost_eq(p.position.distance_to(start), 5.0, 0.01)
+	assert_almost_eq(p.position.distance_to(start), RULES.move_speed, 0.02)
 
 
 func test_half_stick_moves_half_speed() -> void:
@@ -69,7 +69,7 @@ func test_half_stick_moves_half_speed() -> void:
 	var p: PlayerState = sim.add_player(1, 0)
 	var start: Vector2 = p.position
 	_run(sim, 1, Vector2(0.0, -0.5), 30)
-	assert_almost_eq(p.position.distance_to(start), 2.5, 0.01)
+	assert_almost_eq(p.position.distance_to(start), RULES.move_speed * 0.5, 0.02)
 
 
 func test_no_input_means_no_movement() -> void:

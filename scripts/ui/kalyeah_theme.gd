@@ -1,7 +1,8 @@
 class_name KalyeahTheme
 extends RefCounted
-## Kalyeah's portrait UI system: calm grouped surfaces and direct controls, with
-## the display face reserved for game identity and high-salience match moments.
+## Kalyeah's 2D 90s Filipino Komiks UI system: bold hand-inked `#161219` charcoal panel borders
+## with hard comic offset drop-shadows, warm sun-aged komiks newsprint (`#F6ECD8`), and vibrant
+## retro Pinoy street inks (sari-sari mango gold, jeepney crimson, cobalt sky).
 
 ## Clash (the owner's font, `assets/fonts/clash/`) is the one typeface: headings, body copy, buttons, fields and HUD numbers all use it. It has real lowercase letters, so the
 ## roles differ by size, colour and tracking (extra space between letters and words) instead of by face:
@@ -22,42 +23,45 @@ static var BUTTON_FONT: Font = _tracked(BUTTON_TRACKING, WORD_GAP - 2)
 ## Numbers and the match's drawn text: untracked, so digits and scores stay compact.
 static var ACTION_FONT: Font = DISPLAY_FONT
 
-const INK: Color = Color("10192d")
-const INK_DEEP: Color = Color("080f1d")
-const SURFACE: Color = Color("172743")
-const SURFACE_RAISED: Color = Color("203657")
-const CREAM: Color = Color("fff3d6")
-const TEXT: Color = Color("f8fbff")
-const TEXT_MUTED: Color = Color("aebbd0")
-const AMBER: Color = Color("ff9f0a")
-const AMBER_HOVER: Color = Color("ffb340")
-const BLUE: Color = Color("0a84ff")
-const GREEN: Color = Color("30a46c")
-const RED: Color = Color("ff5e57")
-const SLATE: Color = Color("3a4b63")
+const INK: Color = Color("161219")
+const INK_DEEP: Color = Color("120e16")
+const KOMIKS_INK: Color = Color("161219")
+const KOMIKS_PAPER: Color = Color("f6ecd8")
+const SURFACE: Color = Color("1f263d")
+const SURFACE_RAISED: Color = Color("293350")
+const CREAM: Color = Color("f6ecd8")
+const TEXT: Color = Color("fcf6ec")
+const TEXT_MUTED: Color = Color("c6bba6")
+const AMBER: Color = Color("ffab1a")
+const AMBER_HOVER: Color = Color("ffc048")
+const BLUE: Color = Color("2994ff")
+const GREEN: Color = Color("2fb36d")
+const RED: Color = Color("ff6256")
+const SLATE: Color = Color("3b465c")
 const FOCUS: Color = UiSkin.FOCUS_COLOR
 const SUCCESS: Color = Color("79daa5")
 const ERROR: Color = Color("ffb4ab")
-const TEAM_BLUE: Color = Color("435bc2")
-const TEAM_RED: Color = Color("b83246")
-const FIELD: Color = Color("0d1729")
-## The modal (owner, copied from the Clash Royale settings sheet): a slate blue-gray frame that holds the header (white letters with a dark
-## outline), and a light blue-white body inside it with dark text.
-const MODAL_FRAME: Color = Color("646b83")
-const MODAL_FRAME_EDGE: Color = Color("2e3447")
-const MODAL_BODY: Color = Color("e1ebf5")
-const MODAL_BODY_EDGE: Color = Color("a9bbd2")
+const TEAM_BLUE: Color = Color("2b52b8")
+const TEAM_RED: Color = Color("b52b38")
+const FIELD: Color = Color("15192b")
+## 90s Filipino Komiks modal sheet: dark charcoal-plum comic header frame (`#3B3042`) inked with `#161219`
+## and sun-aged komiks newsprint cream (`#F6ECD8`) body with dark charcoal text.
+const MODAL_FRAME: Color = Color("3b3042")
+const MODAL_FRAME_EDGE: Color = Color("161219")
+const MODAL_BODY: Color = Color("f6ecd8")
+const MODAL_BODY_EDGE: Color = Color("161219")
 const MODAL_TITLE: Color = Color.WHITE
-const MODAL_TITLE_OUTLINE: Color = Color("1a1d2b")
-const MODAL_TEXT: Color = Color("2b3350")
-const MODAL_TEXT_MUTED: Color = Color("5d6b86")
+const MODAL_TITLE_OUTLINE: Color = Color("161219")
+const MODAL_TEXT: Color = Color("161219")
+const MODAL_TEXT_MUTED: Color = Color("59483b")
 ## Modal corners (owner): rounder than the small skin radius, less than the big card rounding (steps of the UiSkin scale).
 const MODAL_FRAME_RADIUS: int = UiSkin.RADIUS_L
 const MODAL_BODY_RADIUS: int = UiSkin.RADIUS_M
 
 ## Flat surfaces share the skin's corner scale: CORNER is the button and card radius.
 const CORNER: int = UiSkin.RADIUS_L
-const BUTTON_SHADOW: int = 0
+const BUTTON_SHADOW: int = 1
+const KOMIKS_BORDER: int = 3
 const FONT_SIZE: int = UiMetrics.BODY
 const PANEL_PADDING: float = UiMetrics.PADDING
 
@@ -129,7 +133,7 @@ static func build() -> Theme:
 	theme.set_color("selection_color", "LineEdit", AMBER)
 
 	for type: String in ["Panel", "PanelContainer"]:
-		theme.set_stylebox("panel", type, surface_box(UiSkin.RADIUS_L, 2, 20.0))
+		theme.set_stylebox("panel", type, surface_box(UiSkin.RADIUS_L, KOMIKS_BORDER, 20.0))
 	return theme
 
 
@@ -162,8 +166,7 @@ static func skin_variant(color: String) -> String:
 			return "slate"
 
 
-## The flat version of a button colour, kept for the few places that need an editable StyleBoxFlat
-## (tests and small custom surfaces). Buttons themselves use UiSkin.
+## The flat version of a button colour, styled with 3px `#161219` komiks ink borders and a hard comic drop-shadow.
 static func painted_button(color: String, pressed: bool = false, tint: Color = Color.WHITE) -> StyleBoxFlat:
 	var face: Color = semantic_color(color) * tint
 	if pressed:
@@ -171,9 +174,11 @@ static func painted_button(color: String, pressed: bool = false, tint: Color = C
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = face
 	box.set_corner_radius_all(CORNER)
-	box.set_border_width_all(1)
-	box.border_color = Color(face.lightened(0.22), 0.72) if color != "grey" else Color(TEXT_MUTED, 0.24)
-	box.shadow_size = 0
+	box.set_border_width_all(KOMIKS_BORDER)
+	box.border_color = KOMIKS_INK
+	box.shadow_color = Color(KOMIKS_INK, 0.88)
+	box.shadow_size = BUTTON_SHADOW
+	box.shadow_offset = Vector2(2.0, 2.0) if pressed else Vector2(4.0, 5.0)
 	box.content_margin_left = 20.0
 	box.content_margin_right = 20.0
 	box.content_margin_top = 21.0
@@ -186,7 +191,7 @@ static func painted_button(color: String, pressed: bool = false, tint: Color = C
 static func button_box(color: Color, pressed: bool = false) -> StyleBoxFlat:
 	var box: StyleBoxFlat = painted_button("grey", pressed)
 	box.bg_color = color.darkened(0.07) if pressed else color
-	box.border_color = color.lightened(0.18)
+	box.border_color = KOMIKS_INK
 	return box
 
 
@@ -213,13 +218,30 @@ static func style_button(button: Button, color: String) -> void:
 	UiKit.feel_press(button)
 
 
-static func surface_box(corner: int = UiSkin.RADIUS_L, border: int = 1, padding: float = PANEL_PADDING) -> StyleBoxFlat:
+static func surface_box(corner: int = UiSkin.RADIUS_L, border: int = 3, padding: float = PANEL_PADDING) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = Color(SURFACE, 0.97)
+	box.bg_color = Color(SURFACE, 0.98)
 	box.set_corner_radius_all(corner)
-	box.set_border_width_all(border)
-	box.border_color = Color(TEXT_MUTED, 0.2)
-	box.shadow_size = 0
+	box.set_border_width_all(maxi(border, 1))
+	box.border_color = KOMIKS_INK
+	box.shadow_color = Color(KOMIKS_INK, 0.85)
+	box.shadow_size = 1
+	box.shadow_offset = Vector2(4.0, 5.0)
+	box.set_content_margin_all(padding)
+	box.anti_aliasing = true
+	return box
+
+
+## A 90s Filipino Komiks newsprint/ink badge plate with bold `#161219` borders and hard comic drop-shadow.
+static func komiks_plate(fill: Color = KOMIKS_PAPER, border_ink: Color = KOMIKS_INK, border_px: int = 3, padding: float = PANEL_PADDING, radius: int = UiSkin.RADIUS_M) -> StyleBoxFlat:
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = fill
+	box.set_corner_radius_all(radius)
+	box.set_border_width_all(border_px)
+	box.border_color = border_ink
+	box.shadow_color = Color(KOMIKS_INK, 0.9)
+	box.shadow_size = 1
+	box.shadow_offset = Vector2(4.0, 5.0)
 	box.set_content_margin_all(padding)
 	box.anti_aliasing = true
 	return box
@@ -230,25 +252,26 @@ static func painted_panel(padding: float = PANEL_PADDING) -> StyleBox:
 	return UiSkin.plate("glass", padding)
 
 
-## The slate frame of a modal: it holds the header and the body, `rim` px of gray round the body.
+## The charcoal-inked comic frame of a modal: 4px `#161219` border and hard offset comic drop-shadow.
 static func modal_frame(rim: float) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = MODAL_FRAME
 	box.set_corner_radius_all(MODAL_FRAME_RADIUS)
-	box.set_border_width_all(3)
+	box.set_border_width_all(4)
 	box.border_color = MODAL_FRAME_EDGE
-	box.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
-	box.shadow_size = 18
+	box.shadow_color = Color(KOMIKS_INK, 0.92)
+	box.shadow_size = 2
+	box.shadow_offset = Vector2(6.0, 7.0)
 	box.set_content_margin_all(rim)
 	box.anti_aliasing = true
 	return box
 
 
-## The light blue-white body inside a modal's frame.
+## The sun-aged komiks newsprint cream (`#F6ECD8`) body inside a modal's frame.
 static func modal_body(padding: float) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = MODAL_BODY
-	box.set_border_width_all(2)
+	box.set_border_width_all(3)
 	box.border_color = MODAL_BODY_EDGE
 	box.set_corner_radius_all(MODAL_BODY_RADIUS)
 	box.set_content_margin_all(padding)
@@ -265,9 +288,9 @@ static func modal_body_theme() -> Theme:
 
 
 static func painted_pill() -> StyleBoxFlat:
-	var box: StyleBoxFlat = surface_box(UiSkin.RADIUS_L, 1, 0.0)
-	box.bg_color = Color(INK, 0.88)
-	box.border_color = Color(TEXT_MUTED, 0.2)
+	var box: StyleBoxFlat = surface_box(UiSkin.RADIUS_L, 3, 0.0)
+	box.bg_color = Color(INK, 0.94)
+	box.border_color = Color(AMBER, 0.55)
 	box.content_margin_left = 18.0
 	box.content_margin_right = 18.0
 	box.content_margin_top = 9.0
@@ -276,10 +299,12 @@ static func painted_pill() -> StyleBoxFlat:
 
 
 static func map_title_plate() -> StyleBoxFlat:
-	var box: StyleBoxFlat = surface_box(UiSkin.RADIUS_M, 2, 0.0)
-	box.bg_color = Color("213b61")
+	var box: StyleBoxFlat = surface_box(UiSkin.RADIUS_M, 3, 0.0)
+	box.bg_color = Color("233454")
 	box.border_color = AMBER
-	box.shadow_size = 0
+	box.shadow_color = Color(KOMIKS_INK, 0.9)
+	box.shadow_size = 1
+	box.shadow_offset = Vector2(4.0, 5.0)
 	box.content_margin_left = 28.0
 	box.content_margin_right = 28.0
 	box.content_margin_top = 8.0
@@ -291,13 +316,15 @@ static func field_box(focused: bool, read_only: bool = false) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = Color(SURFACE_RAISED if read_only else FIELD, 0.98)
 	box.set_corner_radius_all(UiSkin.RADIUS_M)
-	box.set_border_width_all(3 if focused else 1)
-	box.border_color = BLUE if focused else Color(TEXT_MUTED, 0.3)
+	box.set_border_width_all(4 if focused else 3)
+	box.border_color = AMBER if focused else KOMIKS_INK
 	box.content_margin_left = 18.0
 	box.content_margin_right = 18.0
 	box.content_margin_top = 15.0
 	box.content_margin_bottom = 15.0
-	box.shadow_size = 0
+	box.shadow_color = Color(KOMIKS_INK, 0.8)
+	box.shadow_size = 1
+	box.shadow_offset = Vector2(3.0, 4.0)
 	box.anti_aliasing = true
 	return box
 

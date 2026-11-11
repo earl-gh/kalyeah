@@ -329,7 +329,7 @@ func test_the_release_trail_appears_on_the_cast_tick_along_the_aim() -> void:
 		assert_almost_eq(trail.basis.x.length(), FxRelease.length_for(speed), 0.01, "%s: as long as it travels in the smear frames" % weapon)
 		assert_between(FxRelease.length_for(speed), FxRelease.MIN_LENGTH, FxRelease.MAX_LENGTH)
 		# the light slipper throws three, each with its own trail, so it is only quiet once the last has faded
-		for i: int in FxSquash.TRAIL_FRAMES + 1 + (40 if weapon == &"tsinelas_light" else 0):
+		for i: int in FxSquash.TRAIL_FRAMES + 1 + (60 if weapon == &"tsinelas_light" else 0):
 			_frame()
 		assert_eq(_fx.context().ground.live_smears(), 0, "%s: gone after its trail's %d frames" % [weapon, FxSquash.TRAIL_FRAMES])
 		_fx.queue_free()
@@ -363,7 +363,7 @@ func test_reduced_motion_draws_no_smear() -> void:
 # ---- thrown objects -----------------------------------------------------------------------------------------------------
 
 func test_the_rock_is_smeared_along_its_flight_on_the_first_frames_only() -> void:
-	_setup(Vector2(0.0, 1.0))
+	_setup(Vector2(0.0, -8.0))
 	_cast(&"bato_light", Vector2(0.0, -1.0))
 	_fx.sync(_sim, 0.0)
 	var id: int = _sim.weapons.projectiles[0].id
@@ -647,7 +647,8 @@ func test_the_soil_wall_is_wide_while_low_then_stretched_thin_then_exact() -> vo
 	var body: Node3D = _fx.walls.node_for(shield.id)
 	var thinnest: float = 10.0
 	var widest: float = 0.0
-	for i: int in 9:
+	var rise_frames: int = int(shield.def.expand_delay / DT)
+	for i: int in rise_frames:
 		_frame()
 		thinnest = minf(thinnest, body.scale.z)
 		widest = maxf(widest, body.scale.z)

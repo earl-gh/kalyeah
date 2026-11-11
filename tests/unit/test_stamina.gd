@@ -12,14 +12,15 @@ var _rules: GameRules
 func before_each() -> void:
 	_rules = (load("res://data/rules/game_rules.tres") as GameRules).duplicate() as GameRules
 	_rules.stamina_enabled = true
+	_rules.sprint_enabled = false
 
 
 func _sim() -> MatchSim:
 	var sim: MatchSim = MatchSim.new(_rules, LAYOUT, 5)
 	sim.add_player(1, 0)
 	sim.add_player(2, 1)
-	sim.players[1].position = Vector2(-12.0, 0.0)
-	sim.players[2].position = Vector2(12.0, -20.0)
+	sim.players[1].position = Vector2(-12.0, 6.2)
+	sim.players[2].position = Vector2(12.0, -6.2)
 	sim.equip(1)
 	sim.equip(2)
 	return sim
@@ -56,7 +57,7 @@ func test_moving_drains_ten_a_second() -> void:
 
 func test_walking_to_a_move_target_drains_too() -> void:
 	var sim: MatchSim = _sim()
-	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_move_target(Vector2(12.0, 0.0)))
+	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_move_target(Vector2(12.0, 6.2)))
 	sim.step(DT)
 	_stand(sim, 29)
 	assert_almost_eq(sim.players[1].stamina, 90.0, 0.001)
@@ -86,7 +87,7 @@ func test_any_movement_restarts_the_wait() -> void:
 func _walked(sim: MatchSim, ticks: int) -> float:
 	var state: PlayerState = sim.players[1]
 	var from: Vector2 = state.position
-	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_move_target(Vector2(12.0, 0.0)))
+	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_move_target(Vector2(12.0, 6.2)))
 	for i: int in ticks:
 		sim.step(DT)
 	return state.position.distance_to(from)
@@ -96,7 +97,7 @@ func test_at_zero_the_kid_is_overclocked_and_keeps_walking_at_half_speed() -> vo
 	var sim: MatchSim = _sim()
 	watch_signals(sim)
 	sim.players[1].stamina = 1.0
-	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_move_target(Vector2(12.0, 0.0)))
+	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_move_target(Vector2(12.0, 6.2)))
 	for i: int in 5:
 		sim.step(DT)
 	var state: PlayerState = sim.players[1]
@@ -151,7 +152,7 @@ func test_the_kid_walks_until_the_bar_is_full_again_then_runs() -> void:
 	assert_eq(state.stamina, _rules.stamina_max, "with a full bar")
 	var seconds: float = float(ticks) * DT
 	assert_almost_eq(seconds, _rules.exhaust_seconds + _rules.stamina_max / _rules.stamina_regen_per_s, 0.3, "two seconds of blink, then 100 at 25 a second")
-	state.position = Vector2(-10.0, 0.0)  # inside the street, which is 24 m wide
+	state.position = Vector2(-10.0, 6.2)  # clear east-west lane south of Estero creek
 	assert_almost_eq(_walked(sim, 10), _rules.move_speed * 10.0 * DT, 0.01, "full run speed again")
 
 

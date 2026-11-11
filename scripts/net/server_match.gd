@@ -14,7 +14,7 @@ const RELAYED: Dictionary[String, Array] = {
 	"sim": [
 		"player_tagged", "player_rescued",
 		"point_scored", "match_won", "point_reset", "weapon_cast", "weapon_hit", "player_damaged", "player_healed", "effect_applied",
-		"exhausted",
+		"exhausted", "player_dashed", "ultimate_cast",
 	],
 	"weapons": ["cone_struck", "cone_winding"],
 }
@@ -150,11 +150,11 @@ func next_input_sequence(player_id: int) -> int:
 ## Picks are taken during loading too (a fast client may pick before a slow one loads).
 ## `character` is the kid the player chose (empty keeps the random one). A kid a teammate has
 ## already confirmed is not taken from them (the other team may have the same kid).
-func pick(player_id: int, first: StringName, second: StringName, character: StringName = &"") -> void:
+func pick(player_id: int, first: StringName, second: StringName, character: StringName = &"", third: StringName = &"") -> void:
 	if stage == Stage.PLAYING:
 		return  # the pick is over: a late or forged PICK must not change weapons or clear cooldowns
 	# cards mode: nobody picks weapons, the hand was dealt at the start; only the kid comes with the confirmation
-	var accepted: bool = sim.rules.card_cycle or sim.set_loadout(player_id, first, second)
+	var accepted: bool = sim.rules.card_cycle or sim.set_loadout(player_id, first, second, third)
 	if accepted:
 		_picked[player_id] = true
 		if character != &"" and not taken_kids(player_id).has(character):
@@ -171,9 +171,9 @@ func taken_kids(player_id: int) -> Array[StringName]:
 	return sim.teammates_kids(player_id, confirmed)
 
 
-func swap(player_id: int, first: StringName, second: StringName) -> void:
+func swap(player_id: int, first: StringName, second: StringName, third: StringName = &"") -> void:
 	if stage == Stage.PLAYING:
-		sim.swap_loadout(player_id, first, second)
+		sim.swap_loadout(player_id, first, second, third)
 
 
 func queue_input(player_id: int, input: PlayerInput) -> void:

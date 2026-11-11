@@ -46,12 +46,22 @@ static func decode(bytes: PackedByteArray) -> Dictionary:
 	return {}
 
 
+static func snap_vec(v: Vector2, step: float = 0.01) -> Vector2:
+	return Vector2(snappedf(v.x, step), snappedf(v.y, step))
+
+
 static func input_to_dict(input: PlayerInput) -> Dictionary:
-	var message: Dictionary = {"t": Msg.INPUT, "k": input.tick, "m": input.move, "a": input.aim, "b": input.buttons}
+	var message: Dictionary = {"t": Msg.INPUT, "k": input.tick}
+	if input.move != Vector2.ZERO:
+		message["m"] = snap_vec(input.move)
+	if input.aim != Vector2.ZERO:
+		message["a"] = snap_vec(input.aim)
+	if input.buttons != 0:
+		message["b"] = input.buttons
 	if input.is_pressed(PlayerInput.BTN_MOVE_TARGET):
-		message["mt"] = input.move_target
+		message["mt"] = snap_vec(input.move_target)
 	if input.is_pressed(PlayerInput.BTN_AIM_POINT):
-		message["ap"] = input.aim_point
+		message["ap"] = snap_vec(input.aim_point)
 	return message
 
 

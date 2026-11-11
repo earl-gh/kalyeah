@@ -179,7 +179,7 @@ func fire(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector2, hold
 			shield.prev_center = shield.center
 			shield.prev_half_width = shield.half_width
 			shields.append(shield)
-		WeaponDef.Shape.BOUNCER, WeaponDef.Shape.SPINNER:
+		WeaponDef.Shape.BOUNCER, WeaponDef.Shape.SPINNER, WeaponDef.Shape.SKILLSHOT:
 			_new_projectile(caster, def, aim_direction(caster, aim))
 		WeaponDef.Shape.HEAL:
 			var patient: PlayerState = heal_target(sim, caster, def, aim)
@@ -297,7 +297,7 @@ func would_reach(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector
 				for target: PlayerState in _enemies_within(sim, caster.team, at, def.radius):
 					if not reached.has(target):
 						reached.append(target)
-		WeaponDef.Shape.BOOMERANG, WeaponDef.Shape.SPINNER:
+		WeaponDef.Shape.BOOMERANG, WeaponDef.Shape.SPINNER, WeaponDef.Shape.SKILLSHOT:
 			var direction: Vector2 = aim_direction(caster, aim)
 			var end: Vector2 = caster.position + direction * def.max_range
 			var width: float = maxf(def.projectile_radius, def.radius if def.shape == WeaponDef.Shape.SPINNER else 0.0)
@@ -305,6 +305,8 @@ func would_reach(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector
 				var nearest: Vector2 = Geometry2D.get_closest_point_to_segment(target.position, caster.position, end)
 				if nearest.distance_to(target.position) <= width + target.radius:
 					reached.append(target)
+					if def.shape == WeaponDef.Shape.SKILLSHOT:
+						break
 	return reached
 
 
@@ -421,6 +423,9 @@ func _move_projectile(sim: MatchSim, projectile: Projectile, move: float) -> boo
 			if projectile.travelled >= def.max_range:
 				_check_hits(sim, projectile)
 				return false
+		WeaponDef.Shape.SKILLSHOT:
+			if projectile.travelled >= def.max_range:
+				return false
 	return true
 
 
@@ -482,6 +487,11 @@ func _check_hits(sim: MatchSim, projectile: Projectile) -> bool:
 				if projectile.position.distance_to(target.position) <= def.radius + target.radius:
 					projectile.hit_ids[target.id] = true
 					_hit(sim, target, def, projectile.owner_id)
+		WeaponDef.Shape.SKILLSHOT:
+			for target: PlayerState in sim.enemies_of(projectile.team):
+				if projectile.position.distance_to(target.position) <= def.projectile_radius + target.radius:
+					_hit(sim, target, def, projectile.owner_id)
+					return false
 	return true
 
 
