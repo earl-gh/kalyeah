@@ -123,6 +123,7 @@ func test_kids_have_two_rows_of_five_with_four_unknown_junjun_cards() -> void:
 	var screen: TitleScreen = await _open(CodexPage.CHARACTERS)
 	var kids: KidsScreen = screen.codex_page.kids_screen
 	assert_eq(kids.cells.size(), 10)
+	assert_eq(Session.AVATARS.size(), 10)
 	assert_eq(kids.grid.columns, 5)
 	var xs: Dictionary[int, bool] = {}
 	var ys: Dictionary[int, bool] = {}
@@ -132,14 +133,9 @@ func test_kids_have_two_rows_of_five_with_four_unknown_junjun_cards() -> void:
 		ys[int(cell.position.y)] = true
 		assert_false(cell.name_label.visible)
 		assert_false(cell.tag.visible)
-		if i < Session.AVATARS.size():
-			assert_false(cell.disabled)
-			assert_eq(cell.picture.texture, CharactersPage.card_picture(StringName(Session.AVATARS[i])))
-		else:
-			assert_true(cell.disabled)
-			assert_eq(cell.picture.texture, CharactersPage.card_picture(&"junjun"))
-			assert_lt(cell.picture.modulate.v, 0.2)
-			assert_eq((cell.find_child("Unknown", true, false) as Label).text, "Coming\nSoon")
+		assert_false(cell.disabled, "all 10 Filipino Barangay kids are unlocked real entries")
+		assert_null(cell.find_child("Unknown", true, false))
+		assert_eq(cell.picture.texture, CharactersPage.card_picture(StringName(Session.AVATARS[i])))
 	assert_eq(xs.size(), 5)
 	assert_eq(ys.size(), 2)
 
@@ -167,7 +163,6 @@ func test_skills_have_three_rows_of_five_with_one_unknown_bato_light_card() -> v
 	assert_eq(ys.size(), 3)
 	watch_signals(screen.card_drawer)
 	skills.cells[14].pressed.emit()
-	screen.codex_page.kids_screen.cells[9].pressed.emit()
 	assert_false(screen.card_drawer.is_open, "unknown cards do not open fabricated details")
 
 
@@ -406,7 +401,7 @@ func test_the_drawer_is_the_modals_slate_with_rounded_top_corners_and_a_handle()
 	assert_eq(box.corner_radius_bottom_left, 0, "square at the bottom, where it meets the bar")
 	var dialog: MenuDialog = autofree(MenuDialog.create("x")) as MenuDialog
 	assert_eq(box.bg_color, (dialog.panel.get_theme_stylebox("panel") as StyleBoxFlat).bg_color, "the same as a modal's frame")
-	var inner: StyleBoxFlat = drawer.find_child("Inner", true, false).get_theme_stylebox("panel") as StyleBoxFlat
+	var inner: StyleBoxFlat = (drawer.find_child("Inner", true, false) as Control).get_theme_stylebox("panel") as StyleBoxFlat
 	assert_eq(inner.bg_color, KalyeahTheme.MODAL_BODY, "with the modals' light body")
 	var pill: Control = drawer.handle.find_child("Pill", true, false) as Control
 	assert_not_null(pill, "a grab handle")

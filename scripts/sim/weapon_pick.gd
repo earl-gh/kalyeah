@@ -7,6 +7,7 @@ extends RefCounted
 
 const SLOTS: int = 2
 
+var slots: int = SLOTS
 var time_left: float = 0.0
 ## The pick time it started with (for countdown displays).
 var time_total: float = 0.0
@@ -16,13 +17,15 @@ var done: bool = false
 var _available: Array[StringName] = []
 
 
-## `current` pre-selects a loadout (the respawn swap keeps your weapons by default).
-func _init(available: Array[StringName], time: float, current: Array[StringName] = []) -> void:
+## `current` pre-selects a loadout (the respawn swap keeps your superpowers by default).
+## `p_slots` defaults to `SLOTS` (2) for legacy callers and accepts `3` for 5v5 3-superpower loadouts.
+func _init(available: Array[StringName], time: float, current: Array[StringName] = [], p_slots: int = SLOTS) -> void:
 	_available = available.duplicate()
+	slots = maxi(p_slots, 1)
 	time_left = time
 	time_total = time
 	for id: StringName in current:
-		if _available.has(id) and not picks.has(id) and picks.size() < SLOTS:
+		if _available.has(id) and not picks.has(id) and picks.size() < slots:
 			picks.append(id)
 
 
@@ -49,6 +52,45 @@ static func suggestion(defs: Array[WeaponDef]) -> Array[StringName]:
 	return found
 
 
+## Suggests `count` unique superpowers: delegates to `suggestion` when `count <= SLOTS`, and for 3+ slots
+## recommends Attack (homing throw preferred, else first Attack) + Block + Crowd Control, filling any missing
+## slot with remaining unique entries from `defs`.
+static func suggestion_for(defs: Array[WeaponDef], count: int) -> Array[StringName]:
+	if count <= SLOTS:
+		return suggestion(defs)
+	var attack: WeaponDef = null
+	var fallback_attack: WeaponDef = null
+	var block_def: WeaponDef = null
+	var crowd_def: WeaponDef = null
+	for def: WeaponDef in defs:
+		if attack == null and def.kind == WeaponDef.Kind.ATTACK and def.shape == WeaponDef.Shape.TARGETED:
+			attack = def
+		elif fallback_attack == null and def.kind == WeaponDef.Kind.ATTACK:
+			fallback_attack = def
+		elif block_def == null and def.kind == WeaponDef.Kind.BLOCK:
+			block_def = def
+		elif crowd_def == null and def.kind == WeaponDef.Kind.CROWD_CONTROL:
+			crowd_def = def
+	if attack == null:
+		attack = fallback_attack
+	var found: Array[StringName] = []
+	if attack == null:
+		return found
+	found.append(attack.id)
+	if block_def != null and not found.has(block_def.id) and found.size() < count:
+		found.append(block_def.id)
+	if crowd_def != null and not found.has(crowd_def.id) and found.size() < count:
+		found.append(crowd_def.id)
+	for def: WeaponDef in defs:
+		if found.size() >= count:
+			break
+		if not found.has(def.id):
+			found.append(def.id)
+	if found.size() < count:
+		found.clear()
+	return found
+
+
 ## True when none of `ids` can hurt anyone (no damage on any of them): a pair of traps, shields and heals only
 ## slows, blocks and heals. Allowed (open decision D10), but the picker says so. `defs` maps id to definition.
 static func deals_no_damage(ids: Array[StringName], defs: Dictionary[StringName, WeaponDef]) -> bool:
@@ -67,13 +109,13 @@ func toggle(id: StringName) -> void:
 	if picks.has(id):
 		picks.erase(id)
 		return
-	if picks.size() >= SLOTS:
+	if picks.size() >= slots:
 		picks.pop_front()
 	picks.append(id)
 
 
 func can_confirm() -> bool:
-	return not done and picks.size() == SLOTS
+	return not done and picks.size() == slots
 
 
 func confirm() -> bool:
@@ -99,7 +141,7 @@ func fill(rng: RandomNumberGenerator) -> void:
 	for id: StringName in _available:
 		if not picks.has(id):
 			left.append(id)
-	while picks.size() < SLOTS and not left.is_empty():
+	while picks.size() < slots and not left.is_empty():
 		picks.append(left.pop_at(rng.randi_range(0, left.size() - 1)))
 
 

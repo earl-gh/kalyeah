@@ -38,6 +38,8 @@ func step(sim: MatchSim) -> void:
 		_ctx.ground.drop_ring(_warm_ring)
 		_ctx.ground.drop_smear(_warm_smear)
 		_ctx.shadows.detach(WARM_KEY)
+		if _view.hero_actions != null:
+			_view.hero_actions.drop_warm()
 
 
 func _warm(sim: MatchSim) -> void:
@@ -60,3 +62,5 @@ func _warm(sim: MatchSim) -> void:
 	_warm_smear = _ctx.ground.warm_smear(at, WARM_FRAMES * FxSquash.FRAME)
 	if _ctx.shadows.attach(WARM_KEY, 0.1, _view.local_team):
 		_ctx.shadows.place(WARM_KEY, spot, 0.0)
+	if _view.hero_actions != null:
+		_view.hero_actions.warm_slot(at)

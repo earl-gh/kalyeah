@@ -2,10 +2,32 @@ extends GutTest
 ## Rounded street corners and posts in the corner (owner): the street's corners have the base's radius, kids are held on the curve,
 ## and each post stands at the centre of its corner's curve.
 
-const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
+const SHIPPED_LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const RULES: GameRules = preload("res://data/rules/game_rules.tres")
 const DT: float = 1.0 / 30.0
 const SIDES: Array[int] = [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]
+
+var LAYOUT: MapLayout
+
+
+static func _rect_layout() -> MapLayout:
+	var rect_map: MapLayout = MapLayout.new()
+	rect_map.tiles = Vector2i(16, 32)
+	rect_map.tile_size = 3.0
+	rect_map.arena_radius = 0.0
+	rect_map.base_inset = 6.0
+	rect_map.base_radius = 6.0
+	rect_map.base_corner = 4.0
+	rect_map.spawn_offset = 1.5
+	rect_map.rescue_size = Vector2(6.0, 9.0)
+	rect_map.tagged_places = 3
+	rect_map.obstacles = [] as Array[Rect2]
+	rect_map.water_obstacles = [] as Array[Rect2]
+	return rect_map
+
+
+func before_each() -> void:
+	LAYOUT = _rect_layout()
 
 
 ## The street's outer corner at a side's end, and the direction from the centre of its curve out to it.
@@ -72,7 +94,9 @@ func test_points_inside_or_along_a_straight_edge_are_left_alone() -> void:
 # ---- the sim keeps kids in the rounded street --------------------------------------------------------------------
 
 func _sim() -> MatchSim:
-	var sim: MatchSim = MatchSim.new(RULES, LAYOUT, 1)
+	var corner_rules: GameRules = RULES.duplicate() as GameRules
+	corner_rules.trip_chance = 0.0
+	var sim: MatchSim = MatchSim.new(corner_rules, LAYOUT, 1)
 	sim.add_player(1, 0)
 	sim.add_player(2, 1)
 	sim.players[2].position = Vector2(12.0, -20.0)
@@ -94,7 +118,7 @@ func test_walking_along_the_end_wall_into_a_corner_slides_round_the_curve_and_do
 	var kid: PlayerState = sim.players[1]
 	kid.position = Vector2(-LAYOUT.lane_width / 2.0 + 4.0, LAYOUT.lane_length / 2.0 - kid.radius)
 	# pushed straight at the side wall, the slide up the curve closes in on the wall gradually: a bigger corner takes longer to settle
-	_walk(sim, 1, Vector2(-1.0, 0.0), 300)
+	_walk(sim, 1, Vector2(-1.0, 0.0), 560)
 	assert_almost_eq(kid.position.x, -LAYOUT.lane_width / 2.0 + kid.radius, 0.05, "it reached the side wall instead of stopping in the curve")
 	assert_almost_eq(kid.position.y, LAYOUT.lane_length / 2.0 - LAYOUT.base_corner, LAYOUT.base_corner * 0.05, "having slid up the curve to where it meets the wall (within 5% of the corner's radius)")
 	assert_true(_fits(kid.position, kid.radius))
@@ -140,23 +164,21 @@ func test_the_base_can_still_be_held_from_the_corner() -> void:
 func test_the_posts_stand_in_the_corners_and_the_blue_one_keeps_its_back_to_the_camera() -> void:
 	var map: StreetMap = autofree(preload("res://scenes/map/street_map.tscn").instantiate()) as StreetMap
 	add_child(map)
+	assert_true(SHIPPED_LAYOUT.is_circular(), "shipped Barangay layout uses the circular arena")
 	for side: int in SIDES:
 		var post: Node3D = map._posts[side]
-		assert_eq(Vector2(post.position.x, post.position.z), LAYOUT.post_position(side), "side %d: at the corner's curve" % side)
-		assert_almost_eq((post.get_node(StreetMap.POST_BLUE) as Node3D).rotation.y, StreetMap.BLUE_POST_TURN, 0.001, "the blue pole is still turned its back to the camera")
+		var post_xz: Vector2 = SHIPPED_LAYOUT.post_position(side)
+		assert_eq(Vector2(post.position.x, post.position.z), post_xz, "side %d: post stands at its base post_position" % side)
+		assert_true(SHIPPED_LAYOUT.in_base(side, post_xz), "side %d: post stands inside its own base" % side)
+		assert_almost_eq((post.get_node(StreetMap.POST_BLUE) as Node3D).rotation.y, StreetMap.BLUE_POST_TURN, 0.001, "the blue pole keeps its back to the camera")
 
 
 func test_the_play_floor_is_cut_to_the_rounded_corners() -> void:
 	var map: StreetMap = autofree(preload("res://scenes/map/street_map.tscn").instantiate()) as StreetMap
 	add_child(map)
-	var floor_patch: MeshInstance3D = map.get_node("%Geometry").find_child("CementArt", true, false) as MeshInstance3D
-	var corners_cut: int = 0
-	var vertices: PackedVector3Array = floor_patch.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array
-	for vertex: Vector3 in vertices:
-		assert_true(_fits(Vector2(vertex.x, vertex.z), 0.0), "%s is on the rounded floor" % vertex)
-		if absf(vertex.x) > LAYOUT.lane_width / 2.0 - LAYOUT.base_corner and absf(vertex.z) > LAYOUT.lane_length / 2.0 - LAYOUT.base_corner:
-			corners_cut += 1
-	assert_gt(corners_cut, 0, "the corner curves are in the mesh")
-	var sharp: Vector2 = _corner(MapLayout.SIDE_OWN)
-	for vertex: Vector3 in vertices:
-		assert_gt(Vector2(vertex.x, vertex.z).distance_to(sharp), 0.1, "nothing reaches the old square corner")
+	var ground: MeshInstance3D = map.get_node("%Geometry").find_child("BarangayGround", true, false) as MeshInstance3D
+	assert_not_null(ground)
+	var mat: ShaderMaterial = (ground.mesh as PlaneMesh).material as ShaderMaterial
+	assert_almost_eq(mat.get_shader_parameter("arena_radius") as float, SHIPPED_LAYOUT.arena_radius, 0.001)
+	var sharp: Vector2 = Vector2(-SHIPPED_LAYOUT.lane_width * 0.5, SHIPPED_LAYOUT.lane_length * 0.5)
+	assert_false(SHIPPED_LAYOUT.in_arena(sharp), "the square outer corner lies outside the circular Barangay arena")

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="GameRules" load_steps=28 format=3]
+[gd_resource type="Resource" script_class="GameRules" load_steps=34 format=3]
 
 [ext_resource type="Script" path="res://scripts/sim/game_rules.gd" id="1_rules"]
 [ext_resource type="Script" path="res://scripts/sim/bot_level.gd" id="bl_script"]
@@ -7,6 +7,8 @@
 [ext_resource type="Resource" path="res://data/rules/bot_levels/hard.tres" id="bl_hard"]
 [ext_resource type="Script" path="res://scripts/sim/weapon_def.gd" id="w_script"]
 [ext_resource type="Script" path="res://scripts/sim/character_def.gd" id="c_script"]
+[ext_resource type="Resource" path="res://data/weapons/tirador_bato.tres" id="w_tirador"]
+[ext_resource type="Resource" path="res://data/weapons/ult_bagsak.tres" id="w_ult_bagsak"]
 [ext_resource type="Resource" path="res://data/weapons/bato_light.tres" id="w_bato_light"]
 [ext_resource type="Resource" path="res://data/weapons/bato_heavy.tres" id="w_bato_heavy"]
 [ext_resource type="Resource" path="res://data/weapons/gunting_light.tres" id="w_gunting_light"]
@@ -27,81 +29,115 @@
 [ext_resource type="Resource" path="res://data/characters/toni.tres" id="c_toni"]
 [ext_resource type="Resource" path="res://data/characters/popoy.tres" id="c_popoy"]
 [ext_resource type="Resource" path="res://data/characters/inday.tres" id="c_inday"]
+[ext_resource type="Resource" path="res://data/characters/kiko.tres" id="c_kiko"]
+[ext_resource type="Resource" path="res://data/characters/nene.tres" id="c_nene"]
+[ext_resource type="Resource" path="res://data/characters/buknoy.tres" id="c_buknoy"]
+[ext_resource type="Resource" path="res://data/characters/tala.tres" id="c_tala"]
 
 [resource]
 script = ExtResource("1_rules")
 tick_rate = 30
 player_max_hp = 100
-move_speed = 5.0
-player_radius = 0.4
-spawn_spacing = 1.2
+move_speed = 6.4
+player_radius = 0.45
+spawn_spacing = 1.6
 rescue_frees_all = false
-rescue_hold_time = 5.0
-rescue_cooldown = 10.0
+rescue_hold_time = 4.0
+rescue_cooldown = 8.0
 no_cast_in_rescue_area = true
 no_cast_in_enemy_base = true
 dummy_release_time = 6.0
+loadout_size = 3
+primary_weapon = ExtResource("w_tirador")
+ultimate_weapon = ExtResource("w_ult_bagsak")
+sprint_enabled = false
+sprint_delay = 1.2
+sprint_multiplier = 1.32
+walk_run_threshold = 0.62
+crouch_speed_share = 0.55
+jump_velocity = 5.6
+jump_gravity = 16.5
+jump_cooldown = 0.25
+slide_speed = 10.2
+slide_duration = 0.46
+slide_cooldown = 3.2
+dash_speed = 18.5
+dash_duration = 0.24
+dash_cooldown = 4.2
+powerup_pickup_radius = 1.65
+powerup_respawn_seconds = 25.0
+palamig_heal = 18
+palamig_speed_bonus = 0.22
+palamig_duration = 10.0
+teks_damage_bonus = 0.2
+teks_ult_bonus = 25.0
+teks_duration = 12.0
+turon_damage_reduction = 0.25
+turon_regen_per_s = 4.0
+turon_duration = 10.0
+ult_passive_per_s = 2.2
+ult_per_damage = 0.45
 capture_solo_time = 12.0
-capture_ally_bonus = 0.75
-overtime_after = 180.0
+capture_ally_bonus = 0.65
+overtime_after = 240.0
 extended_seconds = 60.0
 overtime_seconds = 60.0
-overtime_capture_time = 3.0
+overtime_capture_time = 4.0
 intro_time = 2.0
-briefing_seconds = 10.0
+briefing_seconds = 8.0
 sfx_level = 0.8
 bgm_volume = 0.4
 point_freeze_time = 3.0
 first_to = 3
-card_cycle = true
-hand_size = 4
-elixir_enabled = true
+card_cycle = false
+hand_size = 3
+elixir_enabled = false
 elixir_max = 10.0
 elixir_start = 5.0
 elixir_reset_on_round = true
 elixir_regen_per_s = 0.6
-stamina_enabled = true
+stamina_enabled = false
 stamina_max = 100.0
 stamina_drain_per_s = 10.0
 stamina_regen_per_s = 25.0
 stamina_regen_delay = 0.5
 exhaust_seconds = 2.0
 overclock_speed_share = 0.5
-trip_chance = 0.2
-trip_interval = 5.0
-trip_seconds = 1.2
-move_arrival_radius = 0.1
+trip_chance = 0.12
+trip_interval = 6.0
+trip_seconds = 1.05
+move_arrival_radius = 0.2
 move_stuck_share = 0.25
-move_stuck_time = 0.2
+move_stuck_time = 0.25
 move_follow_hold = true
 card_tap_time = 0.3
-self_cast_radius = 1.0
+self_cast_radius = 1.2
 aim_no_direction_radius = 0.1
-bot_base_holders = 1
+bot_base_holders = 2
 first_to_choices = Array[int]([3, 5, 7])
-dummy_z = 0.0
-dummy_stand_x = -5.0
-dummy_patrol_x = 5.0
-dummy_patrol_range = 3.0
-dummy_patrol_speed_scale = 0.5
-dummy_ally_x = -6.0
-dummy_ally_z = 6.0
+dummy_z = 26.0
+dummy_stand_x = -8.0
+dummy_patrol_x = 8.0
+dummy_patrol_range = 6.0
+dummy_patrol_speed_scale = 0.6
+dummy_ally_x = -62.0
+dummy_ally_z = 24.0
 practice_fighters = 1
-bot_aggro_range = 14.0
-bot_cast_gap = 1.6
-bot_aim_error_degrees = 10.0
-bot_standoff_share = 0.7
-bot_skill = 0.4
-bot_assault_delay = 3.0
-bot_assault_window = 20.0
-bot_rest_time = 8.0
-bot_rescue_aggro_range = 4.0
+bot_aggro_range = 28.0
+bot_cast_gap = 1.2
+bot_aim_error_degrees = 9.0
+bot_standoff_share = 0.65
+bot_skill = 0.5
+bot_assault_delay = 2.5
+bot_assault_window = 55.0
+bot_rest_time = 6.0
+bot_rescue_aggro_range = 8.0
 bot_levels = Array[ExtResource("bl_script")]([ExtResource("bl_easy"), ExtResource("bl_medium"), ExtResource("bl_hard")])
 bot_level_default = &"medium"
 weapons = Array[ExtResource("w_script")]([ExtResource("w_bato_light"), ExtResource("w_bato_heavy"), ExtResource("w_gunting_light"), ExtResource("w_gunting_heavy"), ExtResource("w_papel_trap"), ExtResource("w_papel_shield"), ExtResource("w_tsinelas_light"), ExtResource("w_tsinelas_heavy"), ExtResource("w_lata"), ExtResource("w_jacks"), ExtResource("w_bola"), ExtResource("w_trumpo"), ExtResource("w_heal"), ExtResource("w_langit_lupa")])
-characters = Array[ExtResource("c_script")]([ExtResource("c_junjun"), ExtResource("c_ligaya"), ExtResource("c_migo"), ExtResource("c_toni"), ExtResource("c_popoy"), ExtResource("c_inday")])
-weapon_pick_time = 10.0
+characters = Array[ExtResource("c_script")]([ExtResource("c_junjun"), ExtResource("c_ligaya"), ExtResource("c_migo"), ExtResource("c_toni"), ExtResource("c_popoy"), ExtResource("c_inday"), ExtResource("c_kiko"), ExtResource("c_nene"), ExtResource("c_buknoy"), ExtResource("c_tala")])
+weapon_pick_time = 12.0
 polymorph_speed_scale = 0.5
 aim_deadzone = 0.1
-boomerang_catch_distance = 0.8
+boomerang_catch_distance = 1.1
 cc_immunity = 1.0

@@ -95,9 +95,9 @@ func test_open_slots_can_be_tapped_to_join_that_team() -> void:
 
 func test_six_kid_cards_in_one_row_all_three_to_four() -> void:
 	var view: HotspotRoomView = _view(_room(2))
-	assert_eq(view.kid_cards.size(), 6)
+	assert_eq(view.kid_cards.size(), 10)
 	var row: Node = view.find_child("Kids", true, false)
-	assert_eq(row.get_child_count(), 6, "one row")
+	assert_eq(row.get_child_count(), 10, "one row of all 10 Barangay kids")
 	for id: String in view.kid_cards:
 		var size: Vector2 = view.kid_cards[id].custom_minimum_size
 		assert_almost_eq(size.x / size.y, 0.75, 0.01, "%s is 3:4" % id)
@@ -155,7 +155,7 @@ func test_player_cards_are_white_bars_with_no_picture_and_numbered_blocks() -> v
 	assert_eq(HotspotRoomView.slot_number(1, 0, 1), 2, "and in a 1v1 at 2")
 	var ana: Control = view.find_child("Player1", true, false) as Control
 	var ben: Control = view.find_child("Player2", true, false) as Control
-	var bar: StyleBoxFlat = ana.get_node("Bar").get_theme_stylebox("panel") as StyleBoxFlat
+	var bar: StyleBoxFlat = (ana.get_node("Bar") as Control).get_theme_stylebox("panel") as StyleBoxFlat
 	assert_eq(bar.bg_color, RoomPlayerCards.BAR_COLOR, "a dark glass bar")
 	# row 0: Ana (blue, number 1 at the left of the bar) and Ben (red, number 4 at the right)
 	var ana_number: Control = ana.find_child("Number", true, false) as Control
@@ -290,7 +290,7 @@ func test_the_picker_says_how_each_game_plays_and_picks_with_its_button() -> voi
 	assert_eq(picker.dots_label.text, "○  ○  ●  ○")
 	assert_eq(picker.pick_button.text, "Pick Patintero")
 	view.map_carousel.select(1, false)
-	assert_eq(picker.info_label.text, "3 to 6 kids · Every kid for itself · 5 min")
+	assert_eq(picker.info_label.text, "3 to 10 kids · Every kid for itself · 5 min")
 	view.map_carousel.select(2, false)
 	picker.pick_button.pressed.emit()
 	assert_eq(picked, [&"patintero"] as Array[StringName], "the Pick button picks the game in the middle, no question for a team game")

@@ -3,20 +3,27 @@ extends GutTest
 ## a fresh deal flies nothing, Reduce motion flies nothing, and the elixir-off path (the old shuffler, D26) still shows an empty slot
 ## as a card back with the shuffler's progress.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const DT: float = 1.0 / 30.0
 
 var _rules: GameRules
 var _was: bool
 var _was_elixir: bool
+var _was_hand: int
 var _motion: bool
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	_rules = load("res://data/rules/game_rules.tres") as GameRules
 	_was = _rules.card_cycle
 	_was_elixir = _rules.elixir_enabled
+	_was_hand = _rules.hand_size
 	_rules.card_cycle = true
+	_rules.elixir_enabled = true
+	_rules.hand_size = 4
 	_motion = Settings.reduced_motion
 	Settings.reduced_motion = false
 
@@ -24,7 +31,10 @@ func before_each() -> void:
 func after_each() -> void:
 	_rules.card_cycle = _was
 	_rules.elixir_enabled = _was_elixir
+	_rules.hand_size = _was_hand
 	Settings.reduced_motion = _motion
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 
 
 func _hud() -> MatchHud:

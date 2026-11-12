@@ -4,7 +4,7 @@ extends GutTest
 const NET: NetRules = preload("res://data/rules/net_rules.tres")
 const RULES: GameRules = preload("res://data/rules/game_rules.tres")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
-const Phones := preload("res://tests/unit/hotspot_phones.gd")
+const Phones: GDScript = preload("res://tests/unit/hotspot_phones.gd")
 
 
 func _verdict(interfaces: Array) -> Array[bool]:

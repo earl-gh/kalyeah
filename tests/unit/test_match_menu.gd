@@ -1,6 +1,18 @@
 extends GutTest
 ## The match settings menu and the header it opens from (kept from the old test_local_input.gd; its keyboard tests are gone).
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
+
+
+func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
+
+
+func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
+
 
 func test_the_settings_menu_pauses_the_controls() -> void:
 	var hud: MatchHud = autofree(MatchHud.new()) as MatchHud

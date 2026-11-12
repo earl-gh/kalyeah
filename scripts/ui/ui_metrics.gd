@@ -1,9 +1,11 @@
 class_name UiMetrics
 extends RefCounted
-## Shared design pixels at 720px width (2x the 360pt reference phone).
+## Shared design pixels at 720px width (2x the 360pt reference phone) and 1280x720 landscape.
 ## One readable type scale with 44pt minimum touch targets; no in-game text-size modes.
+## Paired across KalyeahDisplay (Londrina Solid, SIL OFL) for display/signboard lettering
+## and KalyeahSans (Source Sans 3 Variable, SIL OFL) for UI copy, buttons and HUD figures.
 
-## Sized for Bungee, which is much wider than a text face: the same room as the old scale in a lighter face.
+## Clean UI and heading steps sized for immediate thumb-distance legibility.
 const TITLE: int = 34
 const BODY: int = 28
 ## Home's two hero buttons (owner: 1.25 x BODY).
@@ -33,8 +35,11 @@ const PADDING: float = 24.0
 const GAP: int = 16
 const SECTION_GAP: int = 24
 const COMPACT_GAP: int = 12
+## Brand emblem proportions (`assets/ui/brand/kalyeah_wordmark.png` 1024x320, `kalyeah_crest.png` 512x512).
+const WORDMARK_ASPECT: float = 3.2
+const CREST_ASPECT: float = 1.0
 ## The display scale (docs/ART.md "Shared UI hierarchy"): the only sizes for big lettered words, each step about 1.4x the
-## one before so no two read as "almost the same". Lettered with `UiKit.letter`.
+## one before so no two read as "almost the same". Lettered in `KalyeahDisplay` with `UiKit.letter`.
 const HEADLINE: int = 40
 const DISPLAY: int = 56
 const HERO: int = 80

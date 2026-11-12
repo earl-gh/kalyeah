@@ -11,11 +11,22 @@ var _rules: GameRules
 
 func before_each() -> void:
 	_rules = (load("res://data/rules/game_rules.tres") as GameRules).duplicate() as GameRules
+	_rules.move_speed = 5.0
+	_rules.sprint_enabled = false
+
+
+static func _open_layout() -> MapLayout:
+	var open: MapLayout = LAYOUT.duplicate() as MapLayout
+	open.tiles = Vector2i(16, 32)
+	open.arena_radius = 0.0
+	open.obstacles = [] as Array[Rect2]
+	open.water_obstacles = [] as Array[Rect2]
+	return open
 
 
 ## Tumbang Preso: `size` kids on one team, ids 1..size; the last is the taya. Patintero: `size` kids a side, team 0 (ids 1..) runs first.
 func _sim(mode_rules: StreetModeRules, size: int = 4) -> MatchSim:
-	var sim: MatchSim = MatchSim.new(_rules, LAYOUT, 7)
+	var sim: MatchSim = MatchSim.new(_rules, _open_layout(), 7)
 	if mode_rules.id == &"tumbang_preso":
 		for i: int in size:
 			sim.add_player(1 + i, 0)

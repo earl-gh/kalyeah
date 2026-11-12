@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CharacterDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/character_def.gd" id="1_char"]
+
+[resource]
+script = ExtResource("1_char")
+id = &"tala"
+display_name = "Tala"
+description = "Paint-splattered boxy purple tee over black-and-white striped knit sleeves, diagonal kraft-cardboard poster tube slung across her back, chalk-and-komiks artist waist apron, fingerless sock-gloves, asymmetrical hairpin bob, and star-doodled canvas sneakers."
+tint = Color(0.48, 0.3, 0.68, 1)
+skin = Color(0.56, 0.39, 0.27, 1)
+hair_color = Color(0.12, 0.1, 0.12, 1)
+hair = 3
+top = 3
+top_accent = Color(0.52, 0.34, 0.72, 1)
+bottom = 0
+bottom_color = Color(0.68, 0.6, 0.46, 1)
+shoes = true
+shoe_color = Color(0.2, 0.2, 0.24, 1)
+extra = 5
+extra_color = Color(0.78, 0.62, 0.42, 1)
+cast_release_standing = 0.725
+cast_release_moving = 1.008
+body_width = 0.98

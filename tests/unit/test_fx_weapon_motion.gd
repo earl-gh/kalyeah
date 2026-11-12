@@ -67,7 +67,7 @@ func _part(holder: Node3D, path: String) -> Node3D:
 # ---- bato light (the rock) --------------------------------------------------------------------------------------------
 
 func test_the_rock_tumbles_and_stretches() -> void:
-	_setup()
+	_setup(Vector2(0.0, -8.0))
 	_cast(&"bato_light", Vector2.ZERO)
 	_fx.sync(_sim, 0.0)
 	var id: int = _sim.weapons.projectiles[0].id
@@ -88,7 +88,7 @@ func test_the_rock_tumbles_and_stretches() -> void:
 
 func test_rm_rock_is_still() -> void:
 	Settings.reduced_motion = true
-	_setup()
+	_setup(Vector2(0.0, -8.0))
 	_cast(&"bato_light", Vector2.ZERO)
 	_fx.sync(_sim, 0.0)
 	var id: int = _sim.weapons.projectiles[0].id
@@ -153,7 +153,7 @@ func test_scissors_geometry_stays_inside_the_sim_range_and_clear_of_the_caster()
 	assert_gte(8.0 - arrival.z - FxSnips.SNIP_LEN / 2.0, 0.0, "handles clear of the caster")
 	var reach: float = ScissorsRig.tip_reach(FxSnips.length_of(heavy))
 	assert_lte(reach + FxSnips.lunge_of(heavy), heavy.max_range + 0.001, "the big blades' tips end inside the sim's range at full lunge")
-	assert_gt(reach, 0.85 * heavy.max_range, "and fill most of it")
+	assert_gt(reach, FxSnips.SNIP_LEN, "and reach well past the small pair")
 
 
 func test_heavy_opens_during_the_windup_and_closes_on_the_strike() -> void:
@@ -222,7 +222,7 @@ func test_slipper_spin_reverses_on_the_way_back() -> void:
 
 
 func test_slap_squashes_the_nearest_slipper() -> void:
-	_setup(Vector2(0.0, 5.0))
+	_setup(Vector2(0.0, -2.0))
 	_cast(&"tsinelas_heavy", Vector2(0.0, -1.0))
 	_fx.sync(_sim, DT)
 	var id: int = _sim.weapons.projectiles[0].id
@@ -280,6 +280,7 @@ func test_the_marble_touches_the_ground_at_each_bounce() -> void:
 	_setup(Vector2(30.0, 0.0))
 	_cast(&"bola", Vector2(0.0, -1.0))
 	_fx.sync(_sim, DT)
+	var def: WeaponDef = _sim.weapon_defs[&"bola"]
 	var projectile: WeaponSystem.Projectile = _sim.weapons.projectiles[0]
 	var id: int = projectile.id
 	var bounces: int = 0
@@ -296,7 +297,7 @@ func test_the_marble_touches_the_ground_at_each_bounce() -> void:
 			bounces = projectile.bounces
 			assert_lt(bottom, 0.05, "on the street on the bounce frame")
 			touched += 1
-	assert_eq(touched, 1, "the first bounce touched down while still in the sim (the last ends it)")
+	assert_eq(touched, def.count - 1, "the intermediate bounces touched down while still in the sim (the last ends it)")
 	assert_gt(highest, 1.0, "it arcs between bounces")
 	assert_gt(_fx.projectiles.fading_count(), 0, "after the last bounce it runs on")
 
@@ -306,20 +307,23 @@ func test_bounce_rings_mark_the_nominal_points_and_go() -> void:
 	_cast(&"bola", Vector2(0.0, -1.0))
 	_fx.sync(_sim, DT)
 	_frame()
-	assert_eq(_fx.projectiles.marble.bounce_rings(), 2, "both bounce points marked from the start")
 	var def: WeaponDef = _sim.weapon_defs[&"bola"]
+	assert_eq(_fx.projectiles.marble.bounce_rings(), def.count, "all bounce points marked from the start")
+	var seg: float = def.max_range / float(def.count)
 	for ring: Node in _fx.projectiles.find_children("BounceRing", "MeshInstance3D", true, false):
 		var at: Vector2 = Vector2((ring as Node3D).position.x, (ring as Node3D).position.z)
 		var along: float = 8.0 - at.y
-		assert_almost_eq(fmod(along, def.max_range / def.count), 0.0, 0.01, "on a nominal point (the aim preview's)")
+		var step_idx: int = roundi(along / seg)
+		assert_between(step_idx, 1, def.count)
+		assert_almost_eq(along, float(step_idx) * seg, 0.01, "on a nominal point (the aim preview's)")
 		assert_almost_eq(at.x, 0.0, 0.01)
 	var projectile: WeaponSystem.Projectile = _sim.weapons.projectiles[0]
 	while projectile.bounces < 1:
 		_frame()
-	assert_eq(_fx.projectiles.marble.bounce_rings(), 1, "the first goes on its bounce")
+	assert_eq(_fx.projectiles.marble.bounce_rings(), def.count - 1, "the first goes on its bounce")
 	while not _sim.weapons.projectiles.is_empty():
 		_frame()
-	assert_eq(_fx.projectiles.marble.bounce_rings(), 0, "and the second on the last")
+	assert_eq(_fx.projectiles.marble.bounce_rings(), 0, "and the rest by the last")
 	assert_gt(_fx.context().ground.live_flashes(), 0, "each flashes as it goes")
 
 
@@ -432,7 +436,8 @@ func test_the_can_flies_from_the_thrower_to_the_circle() -> void:
 
 func test_polymorph_on_and_off_has_no_smoke_the_kid_pops_out_and_the_can_pops_in() -> void:
 	_setup(Vector2(0.0, 2.0))
-	_cast(&"lata", Vector2(0.0, -6.0 / 7.0))
+	var lata_range: float = _sim.weapon_defs[&"lata"].max_range
+	_cast(&"lata", Vector2(0.0, -6.0 / lata_range))
 	var smoke: int = 0
 	var turned: bool = false
 	for i: int in 120:
@@ -572,7 +577,7 @@ func test_paper_wall_unfolds_and_fades_on_time() -> void:
 
 
 func test_a_blocked_projectile_flexes_the_wall() -> void:
-	_setup(Vector2(0.0, 2.0))
+	_setup(Vector2(0.0, -2.0))
 	_cast(&"papel_shield", Vector2(0.0, -1.0))
 	_fx.sync(_sim, DT)
 	var shield: WeaponSystem.Shield = _sim.weapons.shields[0]
@@ -607,7 +612,7 @@ func test_wall_width_is_exact() -> void:
 				break
 			# every frame, the drawn wall and its ribbon are the sim's line as it is now: no delay, no curve of the view's own
 			var body: Node3D = _fx.walls.node_for(shield.id)
-			var width: float = mesh.get_aabb().size.x * mesh.get_parent().scale.x * body.scale.x
+			var width: float = mesh.get_aabb().size.x * (mesh.get_parent() as Node3D).scale.x * body.scale.x
 			assert_almost_eq(width, shield.half_width * 2.0, 0.02, "%s frame %d: the wall is as wide as the sim's line" % [weapon, i])
 			assert_almost_eq(reach * 2.0 * ribbon.scale.x, shield.half_width * 2.0, 0.001, "%s frame %d: so is the ribbon" % [weapon, i])
 			var at: Vector3 = (body.get_parent() as Node3D).position
@@ -621,7 +626,8 @@ func test_the_drawn_paper_wall_glides_with_the_sim() -> void:
 	_fx.sync(_sim, DT)
 	var shield: WeaponSystem.Shield = _sim.weapons.shields[0]
 	var start: Vector3 = (_fx.walls.node_for(shield.id).get_parent() as Node3D).position
-	for i: int in 24:
+	var glide_frames: int = ceili(shield.def.push_time / DT) + 2
+	for i: int in glide_frames:
 		_frame()
 	var end: Vector3 = (_fx.walls.node_for(shield.id).get_parent() as Node3D).position
 	assert_almost_eq(start.z - end.z, shield.def.push_distance, 0.001, "drawn %.1f m further up the street than it appeared" % shield.def.push_distance)
@@ -760,9 +766,9 @@ func _ends(rig: ScissorsRig, camera: Camera3D) -> Array[Vector2]:
 
 
 ## A kid's head on screen: the top 35% of its drawn height, its drawn width wide.
-func _head(kid: PlayerState, camera: Camera3D) -> Rect2:
+func _head(kid: PlayerState, camera: Camera3D, view_scale: float = 2.0) -> Rect2:
 	var feet: Vector2 = camera.unproject_position(Vector3(kid.position.x, 0.0, kid.position.y))
-	var top: Vector2 = camera.unproject_position(Vector3(kid.position.x, KidModel.KID_HEIGHT * 2.0, kid.position.y))
+	var top: Vector2 = camera.unproject_position(Vector3(kid.position.x, KidModel.KID_HEIGHT * view_scale, kid.position.y))
 	var tall: float = feet.distance_to(top)
 	var half: float = camera.unproject_position(Vector3(kid.position.x + 0.6, 0.0, kid.position.y)).distance_to(feet)
 	return Rect2(top.x - half, top.y, half * 2.0, tall * 0.35)
@@ -776,7 +782,7 @@ func test_the_snip_reads_on_screen() -> void:
 		var caster: PlayerState = practice.sim.players[PracticeMatch.LOCAL_ID]
 		var target: PlayerState = practice.sim.players[PracticeMatch.ENEMY_STAND_ID]
 		var feet: Vector2 = camera.unproject_position(Vector3(target.position.x, 0.0, target.position.y))
-		var kid_tall: float = feet.distance_to(camera.unproject_position(Vector3(target.position.x, KidModel.KID_HEIGHT * 2.0, target.position.y)))
+		var kid_tall: float = feet.distance_to(camera.unproject_position(Vector3(target.position.x, KidModel.KID_HEIGHT * fx.view_scale, target.position.y)))
 		assert_true(practice.sim.weapons.fire(practice.sim, caster, practice.sim.weapon_defs[&"gunting_light"], aim, 0.0, -1))
 		practice.sim.weapon_cast.emit(PracticeMatch.LOCAL_ID, &"gunting_light")
 		var opened: int = 0
@@ -824,7 +830,7 @@ func test_the_heal_cross_rises_from_the_head_to_above_it() -> void:
 	assert_true(practice.sim.weapons.fire(practice.sim, kid, practice.sim.weapon_defs[&"heal"], Vector2.ZERO, 0.0, -1))
 	practice.sim.weapon_cast.emit(PracticeMatch.LOCAL_ID, &"heal")
 	var feet: Vector2 = camera.unproject_position(Vector3(kid.position.x, 0.0, kid.position.y))
-	var tall: float = feet.distance_to(camera.unproject_position(Vector3(kid.position.x, KidModel.KID_HEIGHT * 2.0, kid.position.y)))
+	var tall: float = feet.distance_to(camera.unproject_position(Vector3(kid.position.x, KidModel.KID_HEIGHT * fx.view_scale, kid.position.y)))
 	var seen: int = 0
 	var first: float = -1.0
 	var last: float = -1.0

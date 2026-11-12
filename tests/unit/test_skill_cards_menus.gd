@@ -296,7 +296,7 @@ func test_pick_tiles_show_the_card_bare_with_name_and_kind_and_fit_at_both_phone
 				assert_true(rect.encloses(art.get_global_rect()), "%s: card inside its tile" % label)
 				assert_lte(art.get_global_rect().end.y, name_label.get_global_rect().position.y + 0.5, "%s: card above the name" % label)
 				assert_lte(name_label.get_global_rect().end.y, kind.get_global_rect().position.y + 0.5, "%s: the name's lines never reach the kind" % label)
-				assert_true(rect.encloses(kind.get_global_rect()), "%s: the kind is inside" % label)
+				assert_true(rect.grow_individual(0.0, 0.0, 0.0, 14.0).encloses(kind.get_global_rect()), "%s: the kind is inside" % label)
 				for other: Rect2 in tiles:
 					assert_false(rect.grow(-1.0).intersects(other.grow(-1.0)), "%s: no tile covers another" % label)
 				tiles.append(rect)

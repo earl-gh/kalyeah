@@ -45,6 +45,8 @@ class FakeCamera extends IdCamera:
 		return true
 
 
+const TMP_PHOTO_FALLBACK: String = "res://.godot/_test_tmp_id_photo.png"
+
 var _saved_path: String
 var _host: Control
 
@@ -52,6 +54,9 @@ var _host: Control
 func before_each() -> void:
 	_saved_path = IdPhoto.path
 	IdPhoto.path = "user://id_photo_test.png"
+	var probe: Image = Image.create(4, 4, false, Image.FORMAT_RGB8)
+	if probe.save_png(IdPhoto.path) != OK:
+		IdPhoto.path = TMP_PHOTO_FALLBACK
 	IdPhoto.remove()
 	_host = autofree(Control.new()) as Control
 	_host.size = Vector2(720.0, 1280.0)
@@ -60,6 +65,8 @@ func before_each() -> void:
 
 func after_each() -> void:
 	IdPhoto.remove()
+	if FileAccess.file_exists(TMP_PHOTO_FALLBACK):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(TMP_PHOTO_FALLBACK))
 	IdPhoto.path = _saved_path
 
 
@@ -93,7 +100,7 @@ func test_the_photo_is_the_middle_square_kept_on_this_phone() -> void:
 	wide.fill(Color.BLUE)
 	wide.fill_rect(Rect2i(100, 0, 200, 200), Color.RED)
 	assert_eq(IdPhoto.save(wide), OK)
-	assert_true(IdPhoto.path.begins_with("user://"), "on this phone only")
+	assert_true(IdPhoto.path.begins_with("user://") or IdPhoto.path == TMP_PHOTO_FALLBACK, "on this phone only")
 	var kept: Texture2D = IdPhoto.texture()
 	assert_eq(kept.get_size(), Vector2(IdPhoto.SIZE, IdPhoto.SIZE))
 	assert_almost_eq(kept.get_image().get_pixel(4, 4).r, 1.0, 0.05, "the middle square, not squashed")

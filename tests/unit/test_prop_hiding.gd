@@ -62,7 +62,7 @@ func test_props_in_the_way_are_left_out_and_come_back_when_the_line_is_clear() -
 func test_the_match_hides_what_stands_between_the_shoulder_camera_and_your_kid() -> void:
 	var practice: PracticeMatch = _practice()
 	var me: PlayerState = practice.sim.players[practice.local_id]
-	var end: float = LAYOUT.lane_length / 2.0 - 1.0
+	var end: float = LAYOUT.arena_radius - 2.0
 	me.position = Vector2(0.0, end if practice.own_side() == MapLayout.SIDE_OWN else -end)  # your own end: the camera stands behind the row
 	for i: int in 3:
 		practice.advance(DT)

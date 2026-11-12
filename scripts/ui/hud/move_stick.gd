@@ -1,16 +1,16 @@
 class_name MoveStick
 extends Control
-## The movement joystick of the landscape match (owner, 2026-11-09: Wild Rift style; docs/GDD.md "Landscape layout"), under the left thumb.
-## It floats: a finger that lands anywhere in the left part of the screen (`ZONE_SHARE` of the width, below the header) puts the base under
-## it and the thumb follows the finger; let go and it goes back to its resting place at the bottom left. It reports the way it points
-## (`knob_moved`, each axis -1 to 1, up the screen -1); the match screen turns that into a way on the street. One finger at a time, by its
-## index, so a second finger on a card is never blocked. Built in code; it never decides a rule.
+## The movement joystick of the landscape match under the left thumb.
+## Preserves analog stick magnitude (`0..1`): inside `WALK_THRESHOLD_SHARE` (`0.62 * BASE_RADIUS`)
+## the kid walks smoothly with zero trip rolls; outside `0.62` the kid runs.
 
 signal knob_moved(way: Vector2)
 
 ## The base's radius and the thumb's. The base rests `HudStyle.EDGE` in from the bottom-left corner of the safe area (`rest_center`).
 const BASE_RADIUS: float = 80.0
 const THUMB_RADIUS: float = 32.0
+## Subtle inner walk-vs-run threshold ring (`GameRules.walk_run_threshold = 0.62`).
+const WALK_THRESHOLD_SHARE: float = 0.62
 ## The left share of the screen whose touches move the stick, and the top band (the header) it leaves alone.
 const ZONE_SHARE: float = 0.42
 const ZONE_TOP: float = 200.0
@@ -125,4 +125,7 @@ func _draw() -> void:
 	if not active:
 		return
 	HudStyle.draw_white_disc(self, base_center, BASE_RADIUS)
+	var mag: float = way.length()
+	var walk_alpha: float = 0.28 if (mag > 0.001 and mag < WALK_THRESHOLD_SHARE) else 0.18
+	draw_arc(base_center, BASE_RADIUS * WALK_THRESHOLD_SHARE, 0.0, TAU, 40, Color(1.0, 1.0, 1.0, walk_alpha), 1.5, true)
 	draw_circle(base_center + way * BASE_RADIUS, THUMB_RADIUS, HudStyle.WHITE_THUMB)

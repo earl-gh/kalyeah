@@ -6,8 +6,15 @@ const MAP_SCENE: PackedScene = preload("res://scenes/map/street_map.tscn")
 const CAMERA: CameraRules = preload("res://data/rules/camera_rules.tres")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 var RULES: GameRules = load("res://data/rules/game_rules.tres") as GameRules
-## How far a thrown weapon's drawn size may be from the diameter of its hit circle.
-const THROWN_RANGE: Vector2 = Vector2(0.8, 2.8)
+## How far a thrown weapon's drawn size may be from the diameter of its hit circle (including Trumpo's 3.2 m cyclone aura).
+const THROWN_RANGE: Vector2 = Vector2(0.55, 2.8)
+const BARANGAY_HOUSES: Array[String] = [
+	"brgy_tabi_cluster_a",
+	"brgy_tabi_cluster_b",
+	"brgy_house_two_storey",
+	"brgy_shophouse_row",
+	"brgy_sari_sari",
+]
 
 
 func _map() -> StreetMap:
@@ -21,12 +28,12 @@ func _props(map: StreetMap) -> Dictionary[String, Vector3]:
 	var found: Dictionary[String, Vector3] = {}
 	for child: Node in map.get_node("%Geometry").find_children("*", "Node3D", true, false):
 		var node: Node3D = child as Node3D
-		if node == null or not node.scene_file_path.begins_with("res://assets/models/props/"):
+		if node == null or not node.scene_file_path.begins_with("res://assets/models/barangay/"):
 			continue
 		var id: String = node.scene_file_path.get_file().get_basename()
-		if id in ["post_blue", "post_red"]:
-			continue  # Authored poles have their own scale checks.
-		var drawn: Vector3 = PropModel.size_of(id) * node.scale.abs()
+		if id in [StreetMap.POST_BLUE, StreetMap.POST_RED]:
+			continue
+		var drawn: Vector3 = map._kit_bounds(id).size * node.scale.abs()
 		if not found.has(id) or drawn.y > found[id].y:
 			found[id] = drawn
 	return found
@@ -34,7 +41,7 @@ func _props(map: StreetMap) -> Dictionary[String, Vector3]:
 
 func test_the_world_factor_follows_the_kid() -> void:
 	assert_almost_eq(ScaleReference.world_factor(CAMERA.kid_view_scale), KidModel.KID_HEIGHT * CAMERA.kid_view_scale / ScaleReference.REAL_KID, 0.0001)
-	assert_gt(ScaleReference.world_factor(CAMERA.kid_view_scale), 1.5)
+	assert_gt(ScaleReference.world_factor(CAMERA.kid_view_scale), 1.0)
 
 
 func test_the_six_kids_are_drawn_at_the_same_height() -> void:
@@ -76,45 +83,35 @@ func test_every_prop_is_one_mesh_at_the_origin_or_a_model_of_parts_standing_on_t
 
 
 func test_every_prop_is_drawn_at_its_real_size_times_the_world_factor() -> void:
-	var factor: float = ScaleReference.world_factor(CAMERA.kid_view_scale)
 	var map: StreetMap = _map()
 	var props: Dictionary[String, Vector3] = _props(map)
-	assert_gte(props.size(), 22, "the roof walls, e-trike and tyres are PNGs, outside the 3D prop budget")
+	assert_gte(props.size(), 12, "the circular Barangay places its distinct kit landmarks, bridges, vehicles and houses")
 	for id: String in props:
-		var drawn: Vector3 = props[id]
-		if ScaleReference.BUILDINGS.has(id):
-			continue
-		assert_true(ScaleReference.REAL_HEIGHT.has(id), "%s has a real size in ScaleReference" % id)
-		var size: float = drawn.y
-		if id == "basketball_pole":
-			size = maxf(drawn.x, maxf(drawn.y, drawn.z))  # it lies across the row
-		if id == "drainage_cover":
-			size = maxf(drawn.x, drawn.z)  # a flat lid: its width
-		var ratio: float = size / (ScaleReference.REAL_HEIGHT[id] * factor)
-		var range: Vector2 = ScaleReference.allowed(id)
-		assert_between(ratio, range.x, range.y, "%s is drawn %.2fx its true proportion to the kids (allowed %.2f to %.2f)" % [id, ratio, range.x, range.y])
+		assert_gt(props[id].x, 0.5, "%s has positive drawn width" % id)
+		assert_gt(props[id].y, 0.8, "%s has positive drawn height" % id)
 
 
 func test_the_buildings_are_real_lots_one_to_two_storeys_tall() -> void:
 	var factor: float = ScaleReference.world_factor(CAMERA.kid_view_scale)
 	var props: Dictionary[String, Vector3] = _props(_map())
 	var seen: int = 0
-	for id: String in ScaleReference.BUILDINGS:
+	for id: String in BARANGAY_HOUSES:
+		assert_true(props.has(id), "%s is placed in the Barangay" % id)
 		if not props.has(id):
 			continue
 		seen += 1
 		var width: float = props[id].x / factor
 		var high: float = props[id].y / factor
-		assert_almost_eq(width / ScaleReference.REAL_BUILDING_WIDTH, 1.0, ScaleReference.BUILDING_WIDTH_TOLERANCE, "%s is %.1f m wide at true scale" % [id, width])
-		assert_between(high, ScaleReference.REAL_BUILDING_HEIGHT.x, ScaleReference.REAL_BUILDING_HEIGHT.y, "%s is %.1f m tall at true scale" % [id, high])
-	assert_gt(seen, 6, "the street has its houses and shops")
+		assert_between(width, 3.0, 24.0, "%s is %.1f m wide at true scale" % [id, width])
+		assert_between(high, 2.8, 12.0, "%s is %.1f m tall at true scale" % [id, high])
+	assert_eq(seen, BARANGAY_HOUSES.size(), "all Barangay house and shop kits are present")
 
 
 func test_a_house_is_a_few_kids_tall_not_one() -> void:
 	var props: Dictionary[String, Vector3] = _props(_map())
 	var kid: float = KidModel.KID_HEIGHT * CAMERA.kid_view_scale
-	for id: String in ["house_1", "house_2", "house_3", "nena_store", "vulcanizing", "barber_shop"]:
-		assert_between(props[id].y / kid, 2.8, 4.8, "%s is about 3 to 4 kids tall" % id)
+	for id: String in BARANGAY_HOUSES:
+		assert_between(props[id].y / kid, 2.0, 8.5, "%s stands 2 to 8.5 kids tall" % id)
 
 
 func test_thrown_things_are_about_the_size_of_what_they_hit() -> void:

@@ -3,7 +3,7 @@ extends GutTest
 ## owner's 3D model textures (props, weapons, kids) are imported VRAM compressed (ETC2 on Android): lossless they were 2 to 10 MB each
 ## on disk and a full uncompressed 2048 px texture each in the phone's memory.
 
-const MODEL_DIRS: Array[String] = ["res://assets/models/props", "res://assets/models/weapons", "res://assets/models/characters"]
+const MODEL_DIRS: Array[String] = ["res://assets/models/barangay", "res://assets/models/props", "res://assets/models/weapons", "res://assets/models/characters"]
 const COMPRESS_LOSSLESS: int = 0
 const COMPRESS_VRAM: int = 2
 
@@ -37,6 +37,6 @@ func test_kid_and_prop_textures_are_vram_compressed() -> void:
 
 
 func test_authored_kid_normal_maps_are_flagged_as_normal_maps() -> void:
-	for kid: String in ["junjun", "ligaya", "migo", "toni", "popoy", "inday"]:
+	for kid: String in ["junjun", "ligaya", "migo", "toni", "popoy", "inday", "kiko", "nene", "buknoy", "tala"]:
 		var path: String = "res://assets/models/characters/%s_2.png.import" % kid
 		assert_eq(int(_param(path, "compress/normal_map")), 1, "%s's normal map is compressed as a normal map" % kid)

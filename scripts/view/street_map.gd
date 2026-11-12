@@ -1,219 +1,168 @@
 class_name StreetMap
 extends Node3D
-## The barangay street the game is played on (view only; reads MapLayout, holds no
-## rules). The play area is the owner's tiled floor (cement.png) over a flat cement
-## slab (no markings) with curbs and sidewalks, house fronts, a sari-sari store with an
-## umbrella around it; the few cover
-## pieces kids hide behind (cardboard walls); each team's electric post in its corner with a chalk base
-## circle; and the rounded, taped rescue area against the street's side edge, level with the sidewalk where each team's tagged kids wait.
+## Circular 90s Philippine Provincial Barangay 3D map (view only; reads MapLayout, holds no sim rules).
+## Features 3 organic S-curved North-South pathways, 2 meandering East-West eskinita alleyways,
+## a sunken walkable *Tabing-Ilog* creek (`Y = -0.30 m` bed, `-0.12 m` olive-jade water, stone-cobbled
+## shallow causeway fords, descending river steps & washing stones), 16+16 true-scale (`0.95..1.02x`)
+## rotated shophouse/house parcels on 3D raised concrete curb pads, cohesive TODA terminal + talyer +
+## talipapa bays, 4 dry bridgehead Merienda stands, 3D soil tree planters, Deadlock painterly daylight
+## without comic hull outlines on architecture, and 100% two-ended anchored `SpaghettiWires`.
 
 const OWN_COLOR: Color = Palette.TEAM_OWN
 const ENEMY_COLOR: Color = Palette.TEAM_ENEMY
-# Light for the 3D models only (docs/ART.md "Light and colour by asset class"). The floor and the zone marks are unshaded and
-# are drawn exactly as made, so none of them reads these numbers; and the Environment has no tonemap curve, saturation or contrast
-# to bend them. Clash Royale's model look: a warm key light and a bright warm ambient so the shaded side stays light and soft, a faint
-# cool fill from behind; the three together put an upward face at about its own colour and a camera-facing side a little under it.
-const SKY_COLOR: Color = Color(0.74, 0.8, 0.9)
-const SKY_TOP: Color = Color(0.27, 0.54, 0.95)
-const SKY_HORIZON: Color = Color(0.78, 0.88, 1.0)
-const SUN_ANGLES: Vector3 = Vector3(-46.0, 52.0, 0.0)
-const SUN_COLOR: Color = Color(1.0, 0.96, 0.88)
-const SUN_ENERGY: float = 0.52
-## How far the (invisible) shadow pass reaches.
-const SHADOW_DISTANCE: float = 400.0
-const FILL_ANGLES: Vector3 = Vector3(-30.0, 258.0, 0.0)
-const FILL_COLOR: Color = Color(0.75, 0.85, 1.0)
-const FILL_ENERGY: float = 0.1
-const AMBIENT_COLOR: Color = Color(1.0, 0.97, 0.92)
-const AMBIENT_ENERGY: float = 0.63
-const RING_HEIGHT: float = 0.03
-## The bases and rescue areas are chalk outlines only (owner, 2026-11-03: like Patintero's lines, no tinted fill): a rounded rectangle drawn with
-## the same chalk as the street games' lines (`shaders/chalk_line.gdshader`: a wandering stroke, a ragged edge, breaks where the chalk lifted,
-## grain), but in the team's colour (blue yours, red theirs: owner). The stroke is as wide as Patintero's lines and breaks as much as its court.
+
+const GROUND_SHADER: Shader = preload("res://shaders/barangay_ground.gdshader")
+const STREET_SHADER: Shader = GROUND_SHADER
+const WATER_SHADER: Shader = preload("res://shaders/estero_water.gdshader")
+const SKY_SHADER: Shader = preload("res://shaders/tropical_sky.gdshader")
 const CHALK_SHADER: Shader = preload("res://shaders/chalk_line.gdshader")
+const INK_OUTLINE_PATH: String = "res://shaders/arcane_ink_outline.gdshader"
+
+const BARANGAY_DIR: String = "res://assets/models/barangay/%s.glb"
+const BARANGAY_NORMAL_PATH: String = "res://assets/models/barangay/BarangayAtlas_normal.png"
+const PROVINCE_NORMAL_PATH: String = "res://assets/models/barangay/ProvincePropsAtlas_normal.png"
+
+## Deadlock-inspired golden-afternoon barangay lighting constants (delegated to ArenaEnvironment).
+const SUN_ANGLES: Vector3 = ArenaEnvironment.SUN_ANGLES
+const SUN_COLOR: Color = ArenaEnvironment.SUN_COLOR
+const SUN_ENERGY: float = ArenaEnvironment.SUN_ENERGY
+const SHADOW_DISTANCE: float = ArenaEnvironment.SHADOW_DISTANCE
+const FILL_ANGLES: Vector3 = ArenaEnvironment.FILL_ANGLES
+const FILL_COLOR: Color = ArenaEnvironment.FILL_COLOR
+const FILL_ENERGY: float = ArenaEnvironment.FILL_ENERGY
+const AMBIENT_COLOR: Color = ArenaEnvironment.AMBIENT_COLOR
+const AMBIENT_ENERGY: float = ArenaEnvironment.AMBIENT_ENERGY
+
+const SIDEWALK_WIDTH: float = 2.4
+const CURB_HEIGHT: float = 0.0
+const BARRIER_SETBACK: float = 0.5
+const BOUNDARY_TILT: float = 15.0
+const FOG_MARGIN: float = 4.0
+const HOUSE_SPACING: float = 16.0
+const TERMINAL: String = "brgy_waiting_shed"
+const NANAY_HEIGHT: float = 1.65
+const NANAY_SWAY_DEGREES: float = 4.0
+const BOUNDARY_PATH: String = "res://assets/ui/boundary/%s.png"
+const BOTTOM_WALL_SHARE: float = 0.5
+const BOTTOM_PICTURE_SHARE: float = 0.5
+const CORNER_WALL: Dictionary = {"id": "tin_fence", "height": 2.0}
+const BARRIER_HEIGHTS: Dictionary[String, float] = {}
+const BOTTOM_PICTURES: Array[Dictionary] = []
+const BOUNDARY_PICTURES: Array[Dictionary] = []
+const BUILDINGS: Array[String] = []
+const FILLER_HOUSES: Array[String] = ["brgy_tabi_cluster_a", "brgy_tabi_cluster_b", "brgy_house_two_storey", "brgy_shophouse_row"]
+
+const RING_HEIGHT: float = 0.04
 const ZONE_CHALK_WIDTH: float = 0.32
 const ZONE_CHALK_BREAKS: float = 0.3
-## The chalk's strength in the team's colour.
-const CHALK_ALPHA: float = 0.95
-## While its countdown runs a rescue area's chalk is white and a little fainter (owner): back to the team's colour once a teammate can rescue there.
-const RESCUE_WHITE_ALPHA: float = 0.75
-## The countdown number is a mark on the ground like the area it is in (owner: a kid standing on it covers it): a flat Label3D lying on the
-## street at the area's middle, unshaded, `RESCUE_COUNT_HEIGHT` metres tall (an em), lifted just above the chalk. It stays (owner, 2026-11-03).
-## It is white and half see-through.
-const RESCUE_COUNT_HEIGHT: float = 1.25
+const CHALK_ALPHA: float = 0.96
+const RESCUE_WHITE_ALPHA: float = 0.78
+const RESCUE_COUNT_HEIGHT: float = 2.2
 const RESCUE_COUNT_FONT: int = 96
-const RESCUE_COUNT_LIFT: float = RING_HEIGHT + 0.02
-## The number is white and half see-through.
-const COUNT_ALPHA: float = 0.5
-## It draws after the area's chalk (priority -99), and before every other see-through mark of the street (priority 0 and up: the
-## kids' rings and shadows, the skill areas), so those draw over it; the kids themselves are solid and cover it by depth.
+const RESCUE_COUNT_LIFT: float = RING_HEIGHT + 0.03
+const COUNT_ALPHA: float = 0.72
 const RESCUE_COUNT_PRIORITY: int = -98
 const RESCUE_OUTLINE_PRIORITY: int = -99
-## The camera looks down at this angle (`CameraRules.pitch_degrees`), which squeezes a flat mark's height by its sine: the number is stretched
-## by the inverse so its digits look as tall as they are wide.
 const COUNT_PITCH_DEGREES: float = 45.0
-## A rescue number's quarter turn (see `_turn_count`).
 const COUNT_SPIN: float = PI / 2.0
-## Bases and rescue areas are rounded rectangles on the street, each a chalk outline in a fixed team colour (blue yours, red theirs: owner).
-const RESCUE_CORNER_RADIUS: float = 0.9
+const RESCUE_CORNER_RADIUS: float = 1.2
 const ZONE_CORNER_STEPS: int = 6
-## The sidewalks are flat, level with the street (owner: no raised curb).
-const CURB_HEIGHT: float = 0.0
-const SIDEWALK_WIDTH: float = 2.4
-## The street goes on past both ends of the play area (behind a barricade).
-## The road, the sidewalks and the ground go on this far past each end of the play area (m); the
-## buildings only part of the way (HOUSE_REACH), then the empty road carries on into the haze.
-const END_REACH: float = 70.0
-const HOUSE_REACH: float = 30.0
-## The main screen shows the play area alone as a small model, the game's exact 1:2 shape: the
-## cement on a chunky stone base with only the far base's electric post. No sidewalks, no team colours and no
-## street past the ends.
-const PLINTH: Color = Color(0.4, 0.43, 0.54)
-const PLINTH_HEIGHT: float = 4.0
-## The main-screen model sits on a thicker blue platform that reaches this far past it.
-const PLATFORM: Color = Color(0.07, 0.16, 0.4)
-const PLATFORM_HEIGHT: float = 6.0
-const PLATFORM_MARGIN: float = 2.0
-## Corner radius of the main-screen model's slab and stone base (the platform's is wider by the margin).
-const CORNER_RADIUS: float = 1.8
-const HOUSE_SPACING: float = 6.4
-## The owner's shopfront models, in the order they repeat, and how wide each is on the street.
-const BUILDINGS: Array[String] = ["vulcanizing", "barber_shop", "nena_store"]
-## The two houses that fill in between the shopfronts (shop, house, shop, house, ...).
-const FILLER_HOUSES: Array[String] = ["house_1", "house_2", "house_3", "karinderya"]
-const BUILDING_WIDTH: float = 6.0
-## The tricycle terminal stands in the left row of buildings at the top end of the play area.
-const TERMINAL: String = "tricycle_terminal"
-## The karinderya's stools reach out to this far from the play area's boundary (m): the whole sidewalk.
-const KARINDERYA: String = "karinderya"
-const KARINDERYA_MARGIN: float = 0.2
-## Sidewalk pets and things (heights in metres, in proportion to the kids): the cat and the dog lie
-## about, the chicken cage stands by a building, the drainage cover (a metre wide) is set in the walk.
-const CAT_HEIGHT: float = 0.3
-const DOG_HEIGHT: float = 0.62
-const CHICKEN_CAGE_HEIGHT: float = 0.9
-const DRAINAGE_COVER_WIDTH: float = 0.75
-## Painted ground sits just above the road slab.
-const PAVER_TILE: float = 2.4
-## The slab under the owner's tiled floor (and the street past both ends): dark grey cement.
-const CEMENT: Color = Color(0.3, 0.3, 0.31)
-## Optional realistic cement art (owner-made 2D image, see docs/ART.md): when this
-## file exists it is laid ONCE over the whole play area (stretched, never tiled).
-const CEMENT_ART: String = "res://assets/textures/cement.png"
-const CEMENT_LIFT: float = 0.004
-## The owner's floor picture holds 18 tiles across; the play area is narrower now (16 tiles), so it shows the middle of the picture
-## (no stretch): the share of the picture's width the play area uses, and where it starts.
-const CEMENT_PICTURE_TILES: float = 18.0
-## The fog wall at each end (`MatchFog`) stands this many metres past the top of the boundary pictures' lean (they lean back toward the street's
-## far side, so their tops reach past their feet): the pictures never poke through it.
-const FOG_MARGIN: float = 0.35
-const STREET_SHADER: Shader = preload("res://shaders/street_cement.gdshader")
-const OUTSIDE_SHADER: Shader = preload("res://shaders/floor_outside.gdshader")
-## Paving around the whole map, so the street never ends in sky.
-const OUTER_MARGIN: float = 40.0
-const OUTER_DROP: float = -0.12
-const SARI_SIGN_HEIGHT: float = 1.15
-## Which model each cover piece (MapLayout.obstacle_props) is drawn as.
-const OBSTACLE_MODELS: Dictionary[StringName, String] = {
-	&"bench": "bench", &"tent": "rooster_tent",
-}
-const COVER_HEIGHT: float = 1.15
-const POST_HEIGHT: float = 8.5
-## The base posts are the owner's 3D models (assets/models/props/post_blue.glb and post_red.glb: a painted concrete pole with flyers, a
-## crossarm, a transformer and a router box): blue for the viewer's own base, red for the other. The pole's foot is the model's origin and
-## its front (the flyers and the router label) looks toward +Z, where the camera stands, so the post turns half way round when the view flips.
-const POST_BLUE: String = "post_blue"
-## The blue post stands with its back to the camera (owner): turned half way round from the red one, whose front (flyers, router label) faces the camera.
+
+const PLINTH: Color = Color(0.34, 0.37, 0.46)
+const PLINTH_HEIGHT: float = 5.0
+const PLATFORM: Color = Color(0.08, 0.16, 0.36)
+const PLATFORM_HEIGHT: float = 7.0
+const PLATFORM_MARGIN: float = 4.0
+const CORNER_RADIUS: float = 3.0
+
+const COVER_HEIGHT: float = 1.35
+const POST_HEIGHT: float = 10.5
+const POST_BLUE: String = "brgy_post_blue"
+const POST_RED: String = "brgy_post_red"
 const BLUE_POST_TURN: float = PI
-const POST_RED: String = "post_red"
-## The barrier rows across both ends: every street thing at its real height (m), in proportion to
-## the kids (who stand 1.85 m, so a real thing is about 1.4 times its true size), side by side
-## in this order (the far end starts half way along, so the two rows differ).
-const BARRIER_HEIGHTS: Dictionary[String, float] = {
-	"tricycle": 2.4, "bench": 1.1, "crates": 1.1, "sacks": 1.0,
-	"basketball_pole": 6.0,
-	"no_id_no_entry": 1.7, "rooster_tent": 1.4, "plank_fence": 1.8,
+const OUTER_GROUND_MARGIN: float = 1200.0
+
+const OBSTACLE_KIT_MAP: Dictionary[StringName, String] = {
+	&"tabi_cluster_a": "brgy_tabi_cluster_a",
+	&"tabi_cluster_b": "brgy_tabi_cluster_b",
+	&"poso_well": "brgy_poso_well",
+	&"sari_sari": "brgy_sari_sari",
+	&"bakery_oven": "brgy_bakery_oven",
+	&"kapilya": "brgy_kapilya",
+	&"house_two_storey": "brgy_house_two_storey",
+	&"shophouse_row": "brgy_shophouse_row",
+	&"palengke_stall": "brgy_palengke_stall",
+	&"waiting_shed": "brgy_waiting_shed",
+	&"toda_shed": "brgy_toda_shed",
+	&"jeepney": "brgy_jeepney",
+	&"owner_jeep": "brgy_owner_jeep",
+	&"passenger_jeepney": "brgy_passenger_jeepney",
+	&"tricycle": "brgy_tricycle",
+	&"cover_wall": "brgy_cover_wall",
+	&"bench": "brgy_cover_wall",
+	&"tent": "brgy_palengke_stall",
 }
-## The top boundary (owner): the end of the street at the top of the screen is closed by the owner's PNG pictures instead of the row of
-## props, left to right on the screen. Each is a 2D picture (a transparent PNG, drawn as made: unshaded, no tint) standing across the end
-## and leaning back to face the camera (the fixed orthographic camera looks `BOUNDARY_TILT` degrees off straight ahead, so a picture
-## tilted that much shows undistorted, like a sprite); its bottom edge is on the ground at the end line. `height` is its true height in
-## metres, drawn `scenery()` times as big like every other street thing; the width follows the picture's shape.
-const BOUNDARY_PATH: String = "res://assets/textures/boundary/%s.png"
-const BOUNDARY_PICTURES: Array[Dictionary] = [
-	{"id": "fishball_cart", "height": 2.4},
-	{"id": "jeepney", "height": 2.4},
+
+const KIT_FALLBACK_MAP: Dictionary[String, String] = {
+	"brgy_tabi_cluster_a": "brgy_shophouse_row",
+	"brgy_tabi_cluster_b": "brgy_house_two_storey",
+	"brgy_poso_well": "brgy_cover_wall",
+	"brgy_bakery_oven": "brgy_sari_sari",
+	"brgy_kapilya": "brgy_hall_plaza",
+	"brgy_owner_jeep": "brgy_jeepney",
+	"brgy_passenger_jeepney": "brgy_jeepney",
+	"brgy_merienda_stand": "brgy_powerup_stand",
+	"brgy_toda_shed": "brgy_waiting_shed",
+	"brgy_barangay_hall": "brgy_hall_plaza",
+	"brgy_estero_bridge": "brgy_footbridge",
+	"brgy_electric_post": "brgy_meralco_post",
+}
+
+const PROCEDURAL_ONLY_KITS: Array[String] = [
+	"brgy_wooden_hoop",
+	"brgy_chb_wall",
+	"brgy_mango_tree",
+	"brgy_banana_clump",
+	"brgy_coconut_palm",
+	"brgy_sampayan_3d",
+	"brgy_powerup_stand",
+	"brgy_poster_cluster",
 ]
-## The bottom boundary (owner): the end of the street at the bottom of the screen has the same corner roof walls and three pictures in the
-## middle, the e-trike, the stack of crates and the stacked truck tyres (they replace the 3D e-bike, crates and truck wheels). A picture faces the
-## camera, so it shows UP the screen from its foot: at the bottom that is over the play area. They therefore stand beyond the end line, not on it
-## (owner: beyond the boundary line, not in line with it), but not so far that they sink into the fog and the tray (owner: "too far now"):
-## `BOTTOM_PICTURE_SHARE` (the corner walls: `BOTTOM_WALL_SHARE`) of the distance at which the top of each would be level with the end line on the screen (`bottom_foot`).
-## The pictures stand out a little farther than the corner walls (owner: the e-trike, crates and tyres pulled slightly backwards, 0.55 to 0.7).
-const BOTTOM_PICTURE_SHARE: float = 0.7
-const BOTTOM_WALL_SHARE: float = 0.55
-const BOTTOM_PICTURES: Array[Dictionary] = [
-	{"id": "tricycle", "height": 1.8},
-	{"id": "crates", "height": 1.5},
-	{"id": "tires", "height": 1.2},
+
+const BUILTIN_SLAB_KITS: Array[String] = [
+	"brgy_toda_shed",
+	"brgy_palengke_stall",
+	"brgy_bakery_oven",
+	"brgy_kapilya",
+	"brgy_waiting_shed",
+	"brgy_cover_wall",
 ]
-const CORNER_WALL: Dictionary = {"id": "tin_fence", "height": 2.0}
-## 90 degrees less the camera's pitch (`data/rules/camera_rules.tres`, 45).
-const BOUNDARY_TILT: float = 45.0
-## Things whose long side is their depth: they are turned a quarter so the long side faces the play area.
-const BARRIER_TURNED: Array[String] = ["tricycle"]
-## Things laid down on their side across the street (the basketball pole, so its whole length is
-## the boundary): their BARRIER_HEIGHTS entry is their length along the row.
-const BARRIER_LYING: Array[String] = ["basketball_pole"]
-## The nanay on the sidewalk by the sari-sari store, outside the play area, facing the street.
-## Parked on the sidewalk, outside the play area (heights in metres).
-const ICE_CREAM_CART_HEIGHT: float = 2.5
-const NANAY_HEIGHT: float = 2.2
-const NANAY_SWAY_DEGREES: float = 4.0
-const NANAY_SWAY_SECONDS: float = 3.5
-## The street things stand about on the road beyond the ends (behind the fog): how far out the first is (m past
-## the end line) and how far apart they are.
-const FAR_PROPS_START: float = 10.0
-const FAR_PROPS_SPACING: float = 6.0
-## How far a thing may turn (degrees), so they look set down by hand.
-const BARRIER_TURN: float = 12.0
-const BARRIER_SEED: int = 7
-## The boundary pictures stand this far behind the end line of the play area.
-const BARRIER_SETBACK: float = 0.15
 
 @export var layout: MapLayout
-## The main-screen map model: the play area's cement on a stone base, with the corner props.
 @export var diorama: bool = false
-## Off when a match scene supplies its own (follow) camera.
 @export var show_overview_camera: bool = true
-## The street things that stand on the road beyond the ends (behind the fog), for tests.
+
 var far_props: Array[String] = []
-## end (-1 = the -Z end, 1 = the +Z end) -> that end's row of the owner's top pictures, and -> its row of bottom pictures. The end at the top
-## of the screen shows the top row, the other the bottom row (`set_own_side`).
-var _row_pictures: Dictionary[float, Node3D] = {}
-var _row_bottom: Dictionary[float, Node3D] = {}
-## side -> [base chalk, rescue chalk] materials (recoloured per viewer).
-var _base_materials: Dictionary[int, Array] = {}
-## side -> that base's team colour as the viewer sees it (blue yours, red theirs).
-var _side_tint: Dictionary[int, Color] = {}
-## Per side: whether its rescue area was last drawn in the team's colour (ready) or white (counting down), so a material is touched only
-## when that changes.
-var _rescue_ready: Dictionary[int, bool] = {}
-## side -> that base's electric post.
-var _posts: Dictionary[int, Node3D] = {}
-## side -> the countdown number lying on that side's rescue area.
-var _counts: Dictionary[int, Label3D] = {}
-## Agawang Base's marks: the bases and the rescue areas with their countdowns (hidden in the other street games; the electric posts stay).
-var _base_marks: Array[Node3D] = []
-## The buildings along each side of the street (-1: the -X side, 1: the +X side), so the landscape camera can leave out the row between it and
-## the street (`hide_near_houses`).
 var house_rows: Dictionary[int, Array] = {-1: [], 1: []}
-## Every prop on the street (buildings, barrier rows, posts, sidewalk things) and its box in the world, measured once on first use, so the
-## shoulder camera can leave out the ones standing between it and your kid (`hide_between`).
+
+var _base_materials: Dictionary[int, Array] = {}
+var _side_tint: Dictionary[int, Color] = {}
+var _rescue_ready: Dictionary[int, bool] = {}
+var _posts: Dictionary[int, Node3D] = {}
+var _counts: Dictionary[int, Label3D] = {}
+var _base_marks: Array[Node3D] = []
 var _occluders: Array[Node3D] = []
 var _occluder_boxes: Array[AABB] = []
-## The props `hide_between` left out last time.
 var _hidden_props: Array[Node3D] = []
+var _placed_buildings: Array[Dictionary] = []
+var _interior_parcels: Array[Dictionary] = []
+var _tree_planter_spots: Array[Vector3] = []
+var _ground_mat: ShaderMaterial = null
+var _creek_bed_mat: ShaderMaterial = null
+
+static var _scene_cache: Dictionary[String, PackedScene] = {}
+static var _bounds_cache: Dictionary[String, AABB] = {}
+static var _arch_mat_cache: Dictionary[int, StandardMaterial3D] = {}
 
 @onready var _geometry: Node3D = %Geometry
 @onready var _camera: Camera3D = %Camera
@@ -229,64 +178,44 @@ func _ready() -> void:
 	_back_button.pressed.connect(_on_back_pressed)
 
 
-## Afternoon in a cool tone (owner): a high, neutral-cool sun (shorter shadows), a blue fill from the
-## other side and a cool blue ambient so the shadows stay blue, a clear blue sky and a pale blue haze
-## into the distance. No bloom.
 static func make_environment() -> Environment:
-	var env: Environment = Environment.new()
-	var sky_material: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = SKY_TOP
-	sky_material.sky_horizon_color = SKY_HORIZON
-	sky_material.ground_horizon_color = SKY_HORIZON
-	sky_material.ground_bottom_color = SKY_HORIZON
-	sky_material.sky_curve = 0.25
-	sky_material.sun_angle_max = 0.0
-	var sky: Sky = Sky.new()
-	sky.sky_material = sky_material
-	env.background_mode = Environment.BG_SKY
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = AMBIENT_COLOR
-	env.ambient_light_energy = AMBIENT_ENERGY
-	# the picture goes to the screen as drawn: a linear tonemap at exposure 1 and no colour adjustment (the owner's floor, the zone marks
-	# and the posts must not be graded; the models get their look from their own materials and the lights)
-	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
-	env.tonemap_exposure = 1.0
-	# no bloom: it is a blur laid over the bright parts (owner: nothing blurred during gameplay)
-	env.glow_enabled = false
-	env.adjustment_enabled = false
-	# no haze: the camera is far above the whole street, and fog by distance would wash all of it out
-	env.fog_enabled = false
-	return env
+	return ArenaEnvironment.make_environment()
 
 
-## The key sun and the sky fill for a scene (`sun` is reused; the fill is added).
+static func top_end(own_side: int) -> float:
+	return -1.0 if own_side == MapLayout.SIDE_OWN else 1.0
+
+
+static func tallest_boundary() -> float:
+	return 12.0
+
+
+static func boundary_width(entry: Dictionary, scale_value: float) -> float:
+	var h: float = float(entry.get("height", 2.0))
+	return h * scale_value
+
+
+func bottom_foot(entry: Dictionary, share: float) -> float:
+	var h: float = float(entry.get("height", 2.0))
+	return layout.lane_length * 0.5 + BARRIER_SETBACK + h * share
+
+
+func bottom_reach() -> float:
+	return 62.0
+
+
+func cement_share() -> Vector2:
+	return Vector2.ONE
+
+
 static func _light_scene(parent: Node, sun: DirectionalLight3D) -> void:
-	sun.rotation_degrees = SUN_ANGLES
-	sun.light_color = SUN_COLOR
-	sun.light_energy = SUN_ENERGY
-	# no shadows on the street (owner): the shadow is fully see-through. The light keeps its shadow pass on purpose: switching it
-	# off made the whole street much darker (about 30%) in the Compatibility renderer, and the owner only asked for no shadows.
-	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-	sun.directional_shadow_max_distance = SHADOW_DISTANCE
-	sun.shadow_opacity = 0.0
-	var fill: DirectionalLight3D = DirectionalLight3D.new()
-	fill.name = "SkyFill"
-	fill.rotation_degrees = FILL_ANGLES
-	fill.light_color = FILL_COLOR
-	fill.light_energy = FILL_ENERGY
-	fill.shadow_enabled = false
-	parent.add_child(fill)
+	ArenaEnvironment.light_scene(parent, sun)
 
 
-## Colors the bases and boxes for the viewer: `own_side` is blue, the other red
-## (teams switch ends every set).
 func set_own_side(own_side: int) -> void:
 	_turn_posts(own_side)
 	for side: int in _counts:
 		_turn_count(_counts[side], side, own_side)
-	_show_top_boundary(own_side)
 	_rescue_ready.clear()
 	for side: int in _base_materials:
 		var tint: Color = OWN_COLOR if side == own_side else ENEMY_COLOR
@@ -297,26 +226,21 @@ func set_own_side(own_side: int) -> void:
 			material.set_shader_parameter("chalk", color)
 
 
-## The landscape camera looks across the street from one side (`side`: -1 the -X side, 1 the +X side, 0 none): that side's buildings would
-## stand in front of the street, so they are left out; the other side's stay.
 func hide_near_houses(side: int) -> void:
 	for row: int in house_rows:
 		for house: Node3D in house_rows[row]:
 			house.visible = row != side
 
 
-## Shows or hides Agawang Base's bases and rescue areas (Tumbang Preso and Patintero have none; the electric posts stay in their corners).
 func show_bases(on: bool) -> void:
 	for mark: Node3D in _base_marks:
 		mark.visible = on
 
 
-## True when Agawang Base's bases and rescue areas are shown.
 func bases_shown() -> bool:
 	return _base_marks.is_empty() or _base_marks[0].visible
 
 
-## The electric posts standing now (two in the full street, wherever the game).
 func visible_posts() -> int:
 	var count: int = 0
 	for post: Node3D in _posts.values():
@@ -325,9 +249,6 @@ func visible_posts() -> int:
 	return count
 
 
-## Each team's rescue area's chalk is white while its countdown runs (`MatchSim.rescue_ready_left`), with the seconds on it, and
-## the team's colour (blue yours, red theirs) once a teammate can rescue there.
-## `hide_counts`: the briefing is up, so the numbers on the areas are not drawn (the areas themselves stay).
 func sync_rescue(sim: MatchSim, hide_counts: bool = false) -> void:
 	if sim.mode != null:
 		return
@@ -347,38 +268,19 @@ func sync_rescue(sim: MatchSim, hide_counts: bool = false) -> void:
 		(materials[1] as ShaderMaterial).set_shader_parameter("chalk", Color(tint, CHALK_ALPHA if ready else RESCUE_WHITE_ALPHA))
 
 
-## The seconds on the rescue area of base `side` right now ("" when the area is ready or hidden).
 func rescue_count_text(side: int) -> String:
 	var label: Label3D = _counts.get(side) as Label3D
 	return label.text if label != null and label.visible else ""
 
 
-## The countdown number of base `side`'s rescue area (a mark on the ground).
 func rescue_count(side: int) -> Label3D:
 	return _counts[side]
 
 
-func _show_count(label: Label3D, left: float) -> void:
-	label.visible = left > 0.0
-	if label.visible:
-		var seconds: String = str(ceili(left))
-		if label.text != seconds:
-			label.text = seconds
-
-
-## Each base's post shows the viewer's colours: the blue model for your own base, the red one for theirs (they swap when the teams
-## switch ends), and it faces the camera, which is turned half way round for the team that defends the -Z base.
-func _turn_posts(own_side: int) -> void:
-	for side: int in _posts:
-		_dress_post(_posts[side], side == own_side, own_side == MapLayout.SIDE_ENEMY)
-
-
-## The team colour of base `side` as the viewer sees it: blue for yours, red for theirs.
 func base_color(side: int) -> Color:
 	return _side_tint[side]
 
 
-## [base chalk, rescue chalk] colours for `side`.
 func zone_colors(side: int) -> Array[Color]:
 	var colors: Array[Color] = []
 	for material: ShaderMaterial in _base_materials[side]:
@@ -386,24 +288,8 @@ func zone_colors(side: int) -> Array[Color]:
 	return colors
 
 
-## How far the street goes on past each end of the play area.
-func _reach() -> float:
-	return 0.0 if diorama else END_REACH
-
-
-## The dark, matte blue platform under the main-screen model (concentric with its rounded corners).
-func _platform() -> ArrayMesh:
-	var kit: LowPoly = LowPoly.new()
-	var half: float = layout.lane_length / 2.0
-	var under: float = -0.1 - PLINTH_HEIGHT
-	kit.rounded_slab(Vector3(0.0, under - PLATFORM_HEIGHT / 2.0, -half / 2.0), Vector3(layout.lane_width + PLATFORM_MARGIN * 2.0, PLATFORM_HEIGHT, half + PLATFORM_MARGIN * 2.0), CORNER_RADIUS + PLATFORM_MARGIN, PLATFORM, PLATFORM)
-	return kit.commit()
-
-
-## The scenery's size next to the kids (`MapLayout.scenery_scale`), the cover walls' and the posts' drawn heights. The main-screen model
-## (`diorama`) keeps the true sizes: it frames its own little street.
 func scenery() -> float:
-	return 1.0 if diorama else layout.scenery_scale
+	return 1.0 if diorama else maxf(layout.scenery_scale, 0.5)
 
 
 func cover_height() -> float:
@@ -414,262 +300,1326 @@ func post_height() -> float:
 	return POST_HEIGHT if diorama else layout.post_height
 
 
+func fog_distance() -> float:
+	return 76.0
+
+
+func fog_far_start() -> float:
+	return 70.0
+
+
 func _build_map() -> void:
-	_add(_street(), Vector3.ZERO).material_override = street_material()
+	_placed_buildings.clear()
+	_interior_parcels.clear()
+	_tree_planter_spots.clear()
+	_build_ground()
 	if diorama:
-		var matte: StandardMaterial3D = StandardMaterial3D.new()
-		matte.vertex_color_use_as_albedo = true
-		matte.roughness = 1.0
-		matte.metallic = 0.0
-		matte.metallic_specular = 0.0
-		_add(_platform(), Vector3.ZERO).material_override = matte
-		_add_corner_props()
+		_build_diorama_plinth()
+		_posts[MapLayout.SIDE_ENEMY] = _add_post(layout.post_position(MapLayout.SIDE_ENEMY))
+		_turn_posts(MapLayout.SIDE_OWN)
 		return
-	_add_ground_textures()
-	for index: int in layout.obstacle_rects().size():
+
+	_build_estero_creek_and_bridges()
+	_build_district_landmarks()
+	var rects: Array[Rect2] = layout.obstacle_rects()
+	for index: int in rects.size():
 		_add_obstacle(index)
+	_sync_ground_parcel_uniforms()
+
 	var first_mark: int = _geometry.get_child_count()
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var color: Color = OWN_COLOR if side == MapLayout.SIDE_OWN else ENEMY_COLOR
 		_posts[side] = _add_post(layout.post_position(side))
-		var base: ShaderMaterial = _add_marked_zone(layout.base_rect(side), layout.base_corner, color, 1.0 + float(side))
-		var rescue: ShaderMaterial = _add_marked_zone(layout.rescue_rect(side), RESCUE_CORNER_RADIUS, color, 3.0 + float(side), true)
-		_base_materials[side] = [base, rescue]
+		var base_mat: ShaderMaterial = _add_marked_zone(layout.base_rect(side), layout.base_corner, color, 1.0 + float(side))
+		var rescue_mat: ShaderMaterial = _add_marked_zone(layout.rescue_rect(side), RESCUE_CORNER_RADIUS, color, 3.0 + float(side), true)
+		_base_materials[side] = [base_mat, rescue_mat]
 		_counts[side] = _add_count(layout.rescue_rect(side).get_center())
 		_turn_count(_counts[side], side, MapLayout.SIDE_OWN)
 		_side_tint[side] = color
+
 	for index: int in range(first_mark, _geometry.get_child_count()):
 		var mark: Node3D = _geometry.get_child(index) as Node3D
-		if not _posts.values().has(mark):  # the electric posts stand in every street game, in the same two corners
+		if not _posts.values().has(mark):
 			_base_marks.append(mark)
 	_turn_posts(MapLayout.SIDE_OWN)
-	_add_barricades()
-	_add_boundary_pictures()
-	_show_top_boundary(MapLayout.SIDE_OWN)
-	_add_houses()
-	_add_details()
+
+	_build_perimeter_skyline()
+	_build_spaghetti_wiring_and_poles()
 
 
-## The main-screen model's props: the far base's electric post.
-func _add_corner_props() -> void:
-	# only the far half of the street is modelled: the enemy post (top right)
-	_posts[MapLayout.SIDE_ENEMY] = _add_post(layout.post_position(MapLayout.SIDE_ENEMY))
-	_turn_posts(MapLayout.SIDE_OWN)
-
-
-## The look of the street and the sidewalks: code-drawn cement (shaders/street_cement.gdshader)
-## over their vertex colours, no image files (owner rule: no generated assets).
-func street_material() -> ShaderMaterial:
-	var material: ShaderMaterial = ShaderMaterial.new()
-	material.shader = STREET_SHADER
-	material.set_shader_parameter("lane_half_width", layout.lane_width / 2.0)
-	material.set_shader_parameter("wear", 0.3 if diorama else 1.0)
-	return material
-
-
-## The cement street (past both ends of the play area) and the sidewalks. There is no white curb
-## strip between them (owner): the sidewalk runs right up to the street edge (the sim still stops
-## kids at the edge, in the strip `boundary_thickness` wide).
-func _street() -> ArrayMesh:
-	var kit: LowPoly = LowPoly.new()
-	var length: float = layout.lane_length + _reach() * 2.0
-	if diorama:
-		# the main-screen model is the far half only: the exact lane_width x lane_length / 2 area
-		var half: float = layout.lane_length / 2.0
-		kit.rounded_slab(Vector3(0.0, -0.05, -half / 2.0), Vector3(layout.lane_width, 0.1, half), CORNER_RADIUS, CEMENT, CEMENT)
-		# the chunky stone base the map model stands on
-		kit.rounded_slab(Vector3(0.0, -0.1 - PLINTH_HEIGHT / 2.0, -half / 2.0), Vector3(layout.lane_width, PLINTH_HEIGHT, half), CORNER_RADIUS, PLINTH, PLINTH)
-		return kit.commit()
-	# one flat slab under the street and both sidewalks (owner: no raised curb)
-	var reach: float = layout.boundary_thickness + SIDEWALK_WIDTH
-	kit.plain_box(Vector3(0.0, -0.05, 0.0), Vector3(layout.lane_width + reach * 2.0, 0.1, length), CEMENT, CEMENT)
-	return kit.commit()
-
-
-## The owner's floor if there is one and paving all around.
-func _add_ground_textures() -> void:
-	var length: float = layout.lane_length + _reach() * 2.0
-	_add_cement_art()
-	var outer: MeshInstance3D = StreetArt.ground("pavers", Vector2(layout.lane_width + OUTER_MARGIN * 2.0, length + OUTER_MARGIN * 2.0), PAVER_TILE)
-	outer.position = Vector3(0.0, OUTER_DROP, 0.0)
-	_geometry.add_child(outer)
-
-
-## Lays the owner's floor image over all the ground the camera sees (owner): one whole picture, untouched, on the play area (its four
-## corners rounded like the bases'), and the same picture a little darker past both ends and under the sides, so the play area stands
-## out. The copies line up so the play area holds exactly one.
-func _add_cement_art() -> void:
-	if not ResourceLoader.exists(CEMENT_ART):
-		return
-	var size: Vector2 = Vector2(layout.lane_width, layout.lane_length + _reach() * 2.0) + Vector2.ONE * OUTER_MARGIN * 2.0
-	var outside: MeshInstance3D = _outside_floor(size)
-	outside.position.y = CEMENT_LIFT / 2.0
-	_geometry.add_child(outside)
-	var art: MeshInstance3D = _play_floor()
-	art.position.y = CEMENT_LIFT
-	_geometry.add_child(art)
-
-
-## The floor round the play area, `size` metres (x, z) centred on it, with no dark tint (owner, 2026-11-03): the picture's own sidewalk strip is
-## copied outward past the two sides and the whole picture is copied past the top and the bottom, each copy colour-corrected where it meets the
-## play area or another copy (`shaders/floor_outside.gdshader`).
-func _outside_floor(size: Vector2) -> MeshInstance3D:
+func _build_ground() -> void:
+	var pad: float = 0.0 if diorama else OUTER_GROUND_MARGIN
 	var plane: PlaneMesh = PlaneMesh.new()
-	plane.size = size
-	var material: ShaderMaterial = ShaderMaterial.new()
-	material.shader = OUTSIDE_SHADER
-	material.set_shader_parameter("floor_picture", StreetArt.texture("cement"))
-	material.set_shader_parameter("lane_half", Vector2(layout.lane_width, layout.lane_length) / 2.0)
-	material.set_shader_parameter("edge_u", (1.0 - cement_share()) / 2.0)
-	plane.material = material
-	var patch: MeshInstance3D = MeshInstance3D.new()
-	patch.name = "OutsideArt"
-	patch.mesh = plane
-	patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return patch
+	plane.size = Vector2(layout.lane_width + pad * 2.0, layout.lane_length + pad * 2.0)
+	plane.subdivide_width = 64
+	plane.subdivide_depth = 64
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = GROUND_SHADER
+	if layout.arena_radius > 0.0:
+		mat.set_shader_parameter("arena_radius", layout.arena_radius)
+	mat.set_shader_parameter("arena_half", Vector2(layout.lane_width * 0.5, layout.lane_length * 0.5))
+	mat.set_shader_parameter("own_base_center", layout.base_center(MapLayout.SIDE_OWN))
+	mat.set_shader_parameter("enemy_base_center", layout.base_center(MapLayout.SIDE_ENEMY))
+	mat.set_shader_parameter("wear", 0.35 if diorama else 1.0)
+	var carve_slot: bool = (not diorama) and layout.arena_radius > 0.0 and layout.water_rects().is_empty()
+	mat.set_shader_parameter("carve_creek_slot", carve_slot)
+	mat.set_shader_parameter("is_creek_bed", false)
+	_ground_mat = mat
+	plane.material = mat
+	var ground: MeshInstance3D = _add(plane, Vector3.ZERO)
+	ground.name = "BarangayGround"
+	ground.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
-## The true height of the tallest picture of the top boundary row (m).
-static func tallest_boundary() -> float:
-	var tallest: float = CORNER_WALL["height"] as float
-	for entry: Dictionary in BOUNDARY_PICTURES:
-		tallest = maxf(tallest, entry["height"] as float)
-	return tallest
+func _sync_ground_parcel_uniforms() -> void:
+	var count: int = mini(_interior_parcels.size(), 32)
+	var poses: PackedVector4Array = PackedVector4Array()
+	var halves: PackedVector4Array = PackedVector4Array()
+	poses.resize(32)
+	halves.resize(32)
+	for i: int in 32:
+		if i < count:
+			var p: Dictionary = _interior_parcels[i]
+			var c: Vector2 = p["center"] as Vector2
+			var h: Vector2 = p["half"] as Vector2
+			var y: float = float(p["yaw"])
+			poses[i] = Vector4(c.x, c.y, cos(y), sin(y))
+			halves[i] = Vector4(h.x, h.y, 0.0, 0.0)
+		else:
+			poses[i] = Vector4.ZERO
+			halves[i] = Vector4.ZERO
+	for smat: ShaderMaterial in [_ground_mat, _creek_bed_mat]:
+		if smat != null:
+			smat.set_shader_parameter("parcel_count", count)
+			smat.set_shader_parameter("parcel_pose", poses)
+			smat.set_shader_parameter("parcel_half", halves)
 
 
-## How far past the end line (m) a picture of the bottom row stands: `share` of the distance that puts its top level with the end
-## line on the screen (it faces the camera, so it shows up the screen by its drawn height, and each metre it stands further out moves it down the
-## screen by `sin(BOUNDARY_TILT)`); the rest of its height shows above the line.
-func bottom_foot(entry: Dictionary, share: float = BOTTOM_PICTURE_SHARE) -> float:
-	return share * float(entry["height"]) * scenery() / sin(deg_to_rad(BOUNDARY_TILT))
+func _build_diorama_plinth() -> void:
+	var kit: LowPoly = LowPoly.new()
+	var w: float = layout.lane_width
+	var l: float = layout.lane_length
+	kit.rounded_slab(Vector3(0.0, -PLINTH_HEIGHT * 0.5 - 0.05, 0.0), Vector3(w, PLINTH_HEIGHT, l), CORNER_RADIUS, PLINTH, PLINTH)
+	kit.rounded_slab(
+		Vector3(0.0, -PLINTH_HEIGHT - PLATFORM_HEIGHT * 0.5 - 0.05, 0.0),
+		Vector3(w + PLATFORM_MARGIN * 2.0, PLATFORM_HEIGHT, l + PLATFORM_MARGIN * 2.0),
+		CORNER_RADIUS + PLATFORM_MARGIN,
+		PLATFORM,
+		PLATFORM
+	)
+	var matte: StandardMaterial3D = StandardMaterial3D.new()
+	matte.vertex_color_use_as_albedo = true
+	matte.roughness = 0.95
+	_add(kit.commit(), Vector3.ZERO).material_override = matte
+	var mini_court: Node3D = _instantiate_kit("brgy_covered_court")
+	mini_court.scale = Vector3.ONE * 1.12
+	var own_c: Vector2 = layout.base_center(MapLayout.SIDE_OWN)
+	_place_walkthrough(mini_court, Vector3(own_c.x, 0.0, own_c.y), 0.0)
 
 
-## How far past the end line the farthest bottom picture (or corner wall) stands.
-func bottom_reach() -> float:
-	var reach: float = bottom_foot(CORNER_WALL, BOTTOM_WALL_SHARE)
-	for entry: Dictionary in BOTTOM_PICTURES:
-		reach = maxf(reach, bottom_foot(entry))
-	return reach
+func _build_estero_creek_and_bridges() -> void:
+	var water_rects: Array[Rect2] = layout.water_rects()
+	if water_rects.is_empty() and layout.arena_radius <= 0.0:
+		return
+
+	var water_mat: ShaderMaterial = ShaderMaterial.new()
+	water_mat.shader = WATER_SHADER
+	water_mat.set_shader_parameter("creek_half_width", 3.75)
+
+	if not water_rects.is_empty():
+		water_mat.set_shader_parameter("curve_scale", 0.0)
+		for rect: Rect2 in water_rects:
+			var custom_plane: PlaneMesh = PlaneMesh.new()
+			custom_plane.size = Vector2(rect.size.x, maxf(rect.size.y - 0.25, 1.0))
+			custom_plane.subdivide_width = maxi(4, int(rect.size.x * 0.5))
+			custom_plane.subdivide_depth = 6
+			custom_plane.material = water_mat
+			var c_pt: Vector2 = rect.get_center()
+			var cw_mesh: MeshInstance3D = _add(custom_plane, Vector3(c_pt.x, 0.02, c_pt.y))
+			cw_mesh.name = "EsteroWater"
+			cw_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		return
+
+	# 1. Sunken `-0.30 m` Tabing-Ilog Creek Bed (`PlaneMesh` seamlessly stitched into `BarangayGround` at `Y = 0`)
+	var canal_len: float = layout.arena_radius * 2.0 + 6.0
+	var bed_plane: PlaneMesh = PlaneMesh.new()
+	bed_plane.size = Vector2(canal_len, 9.4)
+	bed_plane.subdivide_width = 176
+	bed_plane.subdivide_depth = 32
+	var bed_mat: ShaderMaterial = _ground_mat.duplicate() as ShaderMaterial
+	bed_mat.set_shader_parameter("carve_creek_slot", false)
+	bed_mat.set_shader_parameter("is_creek_bed", true)
+	_creek_bed_mat = bed_mat
+	bed_plane.material = bed_mat
+	var bed_inst: MeshInstance3D = _add(bed_plane, Vector3.ZERO)
+	bed_inst.name = "TabingIlogChannelBed"
+	bed_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	# 2. Sunken Olive-Jade Creek Water (`Y = -0.12 m` deep, `-0.055 m` over cobbled causeway fords — NEVER above Y = 0!)
+	water_mat.set_shader_parameter("curve_scale", 1.0)
+	var water_plane: PlaneMesh = PlaneMesh.new()
+	water_plane.size = Vector2(canal_len, 7.5)
+	water_plane.subdivide_width = 148
+	water_plane.subdivide_depth = 10
+	water_plane.material = water_mat
+	var w_mesh: MeshInstance3D = _add(water_plane, Vector3(0.0, -0.12, 0.0))
+	w_mesh.name = "EsteroWater"
+	w_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	# 3. Sculpted 3D Mossy Volcanic-Tuff Riprap Creek Embankments, Descending River Steps & Basalt Ford Boulders!
+	var bank_kit: LowPoly = LowPoly.new()
+	var stone_lit: Color = Color(0.36, 0.34, 0.29)
+	var stone_side: Color = Color(0.25, 0.24, 0.21)
+	var moss_top: Color = Color(0.29, 0.33, 0.24)
+	var cobble_warm: Color = Color(0.34, 0.31, 0.27)
+	var cobble_wet: Color = Color(0.24, 0.25, 0.23)
+	var basalt_rim: Color = Color(0.18, 0.19, 0.17)
+	var batya_red: Color = Color(0.74, 0.24, 0.20)
+	var batya_blue: Color = Color(0.20, 0.44, 0.68)
+
+	# Curved non-ford embankment spans leaving wide open ramped causeway fords at West (-36.5), Center (0), East (+36.5)
+	var has_ilog_steps_glb: bool = ResourceLoader.exists(BARANGAY_DIR % "brgy_ilog_steps")
+	var has_laundry_stones_glb: bool = ResourceLoader.exists(BARANGAY_DIR % "brgy_laundry_stones")
+	var bank_spans: Array[Vector2] = [
+		Vector2(-82.5, -43.5),
+		Vector2(-29.2, -8.0),
+		Vector2(8.0, 29.2),
+		Vector2(43.5, 82.5),
+	]
+	for span_x: Vector2 in bank_spans:
+		var total_w: float = span_x.y - span_x.x
+		var seg_count: int = maxi(4, int(ceil(total_w / 3.8)))
+		var seg_len: float = total_w / float(seg_count)
+		for s_i: int in seg_count:
+			var x0: float = span_x.x + float(s_i) * seg_len
+			var x1: float = x0 + seg_len
+			var xm: float = (x0 + x1) * 0.5
+			var zm0: float = MapLayout.canal_z(x0)
+			var zm1: float = MapLayout.canal_z(x1)
+			var zm: float = MapLayout.canal_z(xm)
+			var seg_yaw: float = atan2(-(zm1 - zm0), x1 - x0)
+			var end_taper: float = minf(
+				clampf((xm - span_x.x) / 2.8, 0.25, 1.0),
+				clampf((span_x.y - xm) / 2.8, 0.25, 1.0)
+			)
+			var crest_y: float = 0.095 * end_taper
+			for bank_sign: float in [-1.0, 1.0]:
+				var step_landing_x: float = -19.2 * bank_sign
+				if has_ilog_steps_glb and absf(xm - step_landing_x) < 1.95:
+					continue
+				# Smooth organic weathered river-stone & olive moss gradient (s <= 0.28, ZERO alternating stripes!)
+				var moss_blend: float = 0.5 + 0.5 * sin(xm * 0.11 + bank_sign * 1.15) * cos(xm * 0.047 - 0.4)
+				var slope_top_col: Color = stone_lit.lerp(moss_top, moss_blend * 0.72)
+				var coping_top_col: Color = stone_lit.lerp(moss_top, (1.0 - moss_blend) * 0.55).darkened(0.04 * absf(sin(xm * 0.29)))
+				var bank_b: Basis = Basis(Vector3.UP, seg_yaw) * Basis(Vector3.RIGHT, bank_sign * 0.24)
+				_kit_oriented_box(
+					bank_kit,
+					bank_b,
+					Vector3(xm, -0.145, zm + bank_sign * 3.85),
+					Vector3(seg_len * 1.06, 0.33, 1.24),
+					slope_top_col,
+					stone_side
+				)
+				bank_kit.set_transform(Transform3D(Basis(Vector3.UP, seg_yaw), Vector3(xm, crest_y * 0.5 - 0.01, zm + bank_sign * 4.38)))
+				bank_kit.rounded_slab(
+					Vector3.ZERO,
+					Vector3(seg_len * 1.04, 0.12 + crest_y * 0.5, 0.60),
+					0.16,
+					stone_side,
+					coping_top_col,
+					4
+				)
+				bank_kit.reset_transform()
+
+				var toe_hash: float = sin(float(s_i) * 2.73 + xm * 0.19 + bank_sign * 1.7)
+				if toe_hash > -0.25:
+					var rad_r: float = 0.34 + 0.20 * absf(cos(float(s_i) * 3.1 + bank_sign))
+					var r_col: Color = cobble_wet.lerp(cobble_warm, 0.5 + 0.5 * toe_hash)
+					var toe_yaw: float = seg_yaw + 0.65 * toe_hash
+					bank_kit.set_transform(Transform3D(Basis(Vector3.UP, toe_yaw), Vector3(xm + 0.45 * toe_hash, -0.135, zm + bank_sign * (3.26 + 0.18 * toe_hash))))
+					bank_kit.rounded_slab(
+						Vector3.ZERO,
+						Vector3(rad_r * 2.1, 0.14, rad_r * 1.55),
+						rad_r * 0.46,
+						basalt_rim,
+						r_col,
+						4
+					)
+					bank_kit.reset_transform()
+
+	# Descending *Tabing-Ilog* Stone Steps + Wet *Batuhan* Laundry Stones & *Batya* Basins
+	for step_side: float in [-1.0, 1.0]:
+		var sx: float = -19.2 * step_side
+		var sz_c: float = MapLayout.canal_z(sx)
+		var slope_dz: float = MapLayout.canal_z(sx + 1.0) - MapLayout.canal_z(sx - 1.0)
+		var bank_yaw: float = atan2(-slope_dz, 2.0)
+		var step_b: Basis = Basis(Vector3.UP, bank_yaw)
+		var b_sign: float = step_side
+		if has_ilog_steps_glb:
+			var ilog_steps: Node3D = _instantiate_kit("brgy_ilog_steps")
+			ilog_steps.name = "TabingIlogStepsSouth" if step_side > 0.0 else "TabingIlogStepsNorth"
+			# Top step (`+0.40m * 0.95 = +0.38m` above `-0.28m` base -> `Y = +0.10m`) meets bank crest flush (`0.00m` cliff)!
+			ilog_steps.scale = Vector3(0.95, 0.95, 0.95)
+			var steps_yaw: float = bank_yaw + (PI if step_side > 0.0 else 0.0)
+			_place_walkthrough(ilog_steps, Vector3(sx, -0.28, sz_c + b_sign * 3.65), steps_yaw)
+		else:
+			for r_k: int in 4:
+				var step_y: float = lerpf(0.06, -0.14, float(r_k) / 3.0)
+				var step_z_off: float = b_sign * lerpf(4.42, 3.18, float(r_k) / 3.0)
+				bank_kit.set_transform(Transform3D(step_b, Vector3(sx, step_y, sz_c + step_z_off)))
+				bank_kit.rounded_slab(Vector3.ZERO, Vector3(2.85, 0.14, 0.52), 0.08, stone_side, stone_lit, 4)
+				bank_kit.reset_transform()
+			for cheek_x: float in [-1.52, 1.52]:
+				var cheek_p: Vector3 = Vector3(sx, -0.02, sz_c + b_sign * 3.82) + step_b * Vector3(cheek_x, 0.0, 0.0)
+				_kit_oriented_box(bank_kit, step_b * Basis(Vector3.RIGHT, b_sign * 0.14), cheek_p, Vector3(0.28, 0.34, 1.65), moss_top, stone_side)
+
+		if has_laundry_stones_glb:
+			var l_stones: Node3D = _instantiate_kit("brgy_laundry_stones")
+			l_stones.name = "TabingIlogLaundryStonesSouth" if step_side > 0.0 else "TabingIlogLaundryStonesNorth"
+			l_stones.scale = Vector3.ONE * 0.96
+			var lx_glb: float = sx + 3.15 * step_side
+			var lz_glb: float = MapLayout.canal_z(lx_glb) + b_sign * 3.02
+			_place_walkthrough(l_stones, Vector3(lx_glb, -0.16, lz_glb), bank_yaw + (PI if step_side > 0.0 else 0.0))
+		else:
+			for st_j: int in 3:
+				var lx: float = sx + (float(st_j) - 1.0) * 1.05
+				var lz: float = MapLayout.canal_z(lx) + b_sign * (2.82 + 0.16 * float(st_j % 2))
+				bank_kit.rounded_slab(Vector3(lx, -0.11, lz), Vector3(0.78, 0.14, 0.62), 0.22, cobble_wet.darkened(0.2), cobble_wet, 4)
+			var basin_col: Color = batya_red if step_side > 0.0 else batya_blue
+			bank_kit.cylinder(Vector3(sx + 1.35, -0.05, sz_c + b_sign * 3.15), 0.26, 0.32, 0.18, 10, basin_col, basin_col.darkened(0.2))
+
+	# 13 irregular broad flat wet basalt river boulders clustered naturally per shallow causeway ford (deeply seated!)
+	var ford_xs: PackedFloat32Array = PackedFloat32Array([MapLayout.lane_west_x(0.0), 0.0, MapLayout.lane_east_x(0.0)])
+	for f_idx: int in ford_xs.size():
+		var ford_x: float = ford_xs[f_idx]
+		for b_i: int in 13:
+			var seed_a: float = float(b_i) * 2.39996 + float(f_idx) * 1.71
+			var shoulder_sign: float = -1.0 if (b_i % 2 == 0) else 1.0
+			var bx_off: float = shoulder_sign * (3.65 + 2.35 * absf(sin(seed_a * 1.37))) + 0.85 * cos(seed_a * 2.11)
+			if b_i >= 10:
+				# 3 wide ultra-low submerged flat stepping stones nestled inside the shallow wade itself
+				bx_off = (float(b_i - 11)) * 2.35 + 0.65 * sin(seed_a * 1.9)
+			var bz_off: float = 3.05 * sin(seed_a * 1.73 + 0.4)
+			var world_bx: float = ford_x + bx_off
+			var world_bz: float = MapLayout.canal_z(world_bx) + bz_off
+			var bw: float = 0.58 + 0.46 * absf(cos(seed_a * 1.29 + 0.3))
+			var bd: float = 0.48 + 0.40 * absf(sin(seed_a * 1.61 + 0.8))
+			var bh: float = 0.095 + 0.032 * absf(sin(seed_a * 2.4))
+			var by: float = -0.136 + 0.026 * absf(cos(seed_a * 1.83))
+			if b_i >= 10:
+				by = -0.138
+				bh = 0.085
+			var b_yaw: float = seed_a * 1.15
+			var stone_top_c: Color = cobble_wet.lerp(cobble_warm, absf(sin(seed_a * 1.47)) * 0.72)
+			bank_kit.set_transform(Transform3D(Basis(Vector3.UP, b_yaw), Vector3(world_bx, by, world_bz)))
+			bank_kit.rounded_slab(
+				Vector3.ZERO,
+				Vector3(bw, bh, bd),
+				minf(bw, bd) * 0.38,
+				basalt_rim,
+				stone_top_c,
+				4
+			)
+			bank_kit.reset_transform()
+
+	var bank_mesh: ArrayMesh = bank_kit.commit()
+	var bank_mat: StandardMaterial3D = StandardMaterial3D.new()
+	bank_mat.vertex_color_use_as_albedo = true
+	bank_mat.roughness = 0.90
+	bank_mat.next_pass = null
+	bank_mesh.surface_set_material(0, bank_mat)
+	var bank_inst: MeshInstance3D = _add(bank_mesh, Vector3.ZERO)
+	bank_inst.name = "TabingIlogBanks"
+	bank_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	# Scenic outer river-mouth footbridges seated cleanly into the embankment abutments outside the 3 pathways
+	for mouth_sign: float in [-1.0, 1.0]:
+		var mx: float = mouth_sign * 81.2
+		var mz: float = MapLayout.canal_z(mx)
+		var m_slope: float = MapLayout.canal_z(mx + 1.0) - MapLayout.canal_z(mx - 1.0)
+		var bridge_id: String = "brgy_estero_bridge" if ResourceLoader.exists(BARANGAY_DIR % "brgy_estero_bridge") else "brgy_footbridge"
+		var bridge: Node3D = _instantiate_kit(bridge_id)
+		bridge.name = "RiverMouthFootbridgeWest" if mouth_sign < 0.0 else "RiverMouthFootbridgeEast"
+		var nat: Vector3 = _kit_bounds(bridge_id).size
+		bridge.scale = Vector3(4.2 / maxf(nat.x, 0.1), 0.92, 8.6 / maxf(nat.z, 0.1))
+		_place_walkthrough(bridge, Vector3(mx, -0.06, mz), atan2(-m_slope, 2.0))
 
 
-## How far past the end line the fog wall stands (m): past the end line's setback and past the farthest thing of either row (the top row's
-## tallest picture leans back to its top; the bottom row's pictures stand out to their feet), plus `FOG_MARGIN`, so none pokes through it.
-func fog_distance() -> float:
-	return BARRIER_SETBACK + maxf(tallest_boundary() * scenery() * sin(deg_to_rad(BOUNDARY_TILT)), bottom_reach()) + FOG_MARGIN
+func _build_district_landmarks() -> void:
+	# 1. South (+Z) Own Base Landmark: Covered Barangay Basketball Court framing the South Outdoor Liga Plaza (`Z = +95.5`, zero roof over `post_blue`!)
+	var own_c: Vector2 = layout.base_center(MapLayout.SIDE_OWN)
+	var court: Node3D = _instantiate_kit("brgy_covered_court")
+	court.name = "CoveredBasketballCourt"
+	court.scale = Vector3(1.12, 1.04, 1.08)
+	var court_z: float = (layout.arena_radius + 11.5) if layout.arena_radius > 0.0 else (layout.lane_length * 0.5 + 11.5)
+	var court_yaw: float = PI + deg_to_rad(3.5)
+	_add_prop(court, Vector3(own_c.x, 0.0, court_z), court_yaw)
+	_record_building_footprint(Vector2(own_c.x, court_z), _kit_bounds("brgy_covered_court").size * court.scale, court_yaw, false)
+
+	# 2. North (-Z) Enemy Base Landmark: Municipal Barangay Hall framing the -Z Base Forecourt (`Z = -89.2`)
+	var enemy_c: Vector2 = layout.base_center(MapLayout.SIDE_ENEMY)
+	var hall_id: String = "brgy_barangay_hall" if ResourceLoader.exists(BARANGAY_DIR % "brgy_barangay_hall") else "brgy_hall_plaza"
+	var hall: Node3D = _instantiate_kit(hall_id)
+	hall.name = "BarangayHall"
+	hall.scale = Vector3.ONE * 1.08
+	var hall_z: float = -(layout.arena_radius + 5.2) if layout.arena_radius > 0.0 else (-layout.lane_length * 0.5 - 7.5)
+	_add_prop(hall, Vector3(enemy_c.x, 0.0, hall_z), deg_to_rad(-4.5))
+	_record_building_footprint(Vector2(enemy_c.x, hall_z), _kit_bounds(hall_id).size * 1.08, deg_to_rad(-4.5), false, hall_id, hall.transform)
+
+	# 2b. Barrio Chapel (`brgy_kapilya`) Landmarks framing the South-East & North-West Plaza Horizon (`r > 84m`)
+	if layout.arena_radius > 0.0 and ResourceLoader.exists(BARANGAY_DIR % "brgy_kapilya"):
+		for kap_sign: float in [1.0, -1.0]:
+			var kap_xz: Vector2 = Vector2(21.5 * kap_sign, 88.2 * kap_sign)
+			var kap_yaw: float = atan2(-kap_xz.x, -kap_xz.y) + deg_to_rad(6.0 * kap_sign)
+			var kapilya: Node3D = _instantiate_kit("brgy_kapilya")
+			kapilya.name = "BarrioKapilyaSouth" if kap_sign > 0.0 else "BarrioKapilyaNorth"
+			kapilya.scale = Vector3.ONE * 1.02
+			_add_prop(kapilya, Vector3(kap_xz.x, 0.0, kap_xz.y), kap_yaw)
+			_record_building_footprint(kap_xz, _kit_bounds("brgy_kapilya").size * 1.02, kap_yaw, false, "brgy_kapilya", kapilya.transform)
+			var kap_row: int = -1 if kap_xz.x < 0.0 else 1
+			house_rows[kap_row].append(kapilya)
+			far_props.append("brgy_kapilya")
+
+	# 3. Makeshift 90s Provincial Wooden Basketball Posts (`brgy_wooden_hoop`) court-side at both plazas
+	for hoop_sign: float in [1.0, -1.0]:
+		var hoop: Node3D = _instantiate_kit("brgy_wooden_hoop")
+		hoop.name = "WoodenBasketballPostSouth" if hoop_sign > 0.0 else "WoodenBasketballPostNorth"
+		hoop.scale = Vector3.ONE * 0.98
+		var hoop_yaw: float = -PI * 0.46 if hoop_sign > 0.0 else PI * 0.54
+		_place_walkthrough(hoop, Vector3(hoop_sign * 10.6, 0.0, hoop_sign * 56.4), hoop_yaw)
+
+	# 4. NW & SE Rescue Patio Waiting Sheds framing the 5-slot tagged-player sidewalks
+	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
+		var r_rect: Rect2 = layout.rescue_rect(side)
+		var tag_mid: Vector2 = layout.tagged_place(side, 2)
+		var shed: Node3D = _instantiate_kit("brgy_waiting_shed")
+		shed.name = "RescueWaitingShedOwn" if side == MapLayout.SIDE_OWN else "RescueWaitingShedEnemy"
+		shed.scale = Vector3(1.06, 1.02, 1.04)
+		var outward_x: float = -float(side) * 2.15
+		var sx: float = tag_mid.x + outward_x
+		var yaw: float = PI * 0.5 if side == MapLayout.SIDE_OWN else -PI * 0.5
+		_place_walkthrough(shed, Vector3(sx, 0.0, r_rect.get_center().y), yaw)
+
+	# 5. 4 Dry Bridgehead Merienda Power-Up Stands (`brgy_powerup_stand` & `brgy_merienda_stand`) overlooking the crossings!
+	var has_merienda_alt: bool = ResourceLoader.exists(BARANGAY_DIR % "brgy_merienda_stand")
+	for pu_idx: int in layout.powerup_spots.size():
+		var pu_spot: Vector2 = layout.powerup_spots[pu_idx]
+		var stand_kit: String = "brgy_merienda_stand" if (has_merienda_alt and (pu_idx == 1 or pu_idx == 2)) else "brgy_powerup_stand"
+		var stand: Node3D = _instantiate_kit(stand_kit)
+		stand.name = "PowerupStand_%d" % pu_idx
+		stand.scale = Vector3.ONE * 0.96
+		# Offset onto flat dry bridgehead sidewalk concrete (`>= 7.15 m` clear of `canal_z`, zero overhang onto sloped creek banks!)
+		var near_lane_x: float = MapLayout.lane_center_x(pu_spot.y)
+		if absf(pu_spot.x) > 18.0:
+			near_lane_x = MapLayout.lane_west_x(pu_spot.y) if pu_spot.x < 0.0 else MapLayout.lane_east_x(pu_spot.y)
+		var away_sign: float = 1.0 if pu_spot.x >= near_lane_x else -1.0
+		var stand_x: float = pu_spot.x + away_sign * 1.55
+		var cz_stand: float = MapLayout.canal_z(stand_x)
+		var bank_dir: float = 1.0 if pu_spot.y >= cz_stand else -1.0
+		var stand_z: float = pu_spot.y + bank_dir * 1.15
+		if absf(stand_z - cz_stand) < 7.15:
+			stand_z = cz_stand + bank_dir * 7.15
+		for r_obs: Rect2 in layout.obstacle_rects():
+			var grown_obs: Rect2 = r_obs.grow(1.25)
+			if grown_obs.has_point(Vector2(stand_x, stand_z)):
+				stand_x = (grown_obs.position.x - 0.15) if stand_x < grown_obs.get_center().x else (grown_obs.end.x + 0.15)
+				cz_stand = MapLayout.canal_z(stand_x)
+				if absf(stand_z - cz_stand) < 7.15:
+					stand_z = cz_stand + bank_dir * 7.15
+		var stand_pos: Vector3 = Vector3(stand_x, 0.0, stand_z)
+		var face_vec: Vector2 = Vector2(pu_spot.x - stand_pos.x, pu_spot.y - stand_pos.z)
+		_place_walkthrough(stand, stand_pos, atan2(face_vec.x, face_vec.y))
+
+	# 6. Cohesive TODA Tricycle Terminal Queue (parked right beside `P07` `brgy_toda_shed` at `(-43.6, 17.6)`!)
+	var trike_specs: Array[Vector4] = [
+		Vector4(-42.1, 13.4, deg_to_rad(72.0), 0.96),
+		Vector4(-41.6, 10.6, deg_to_rad(84.0), 0.96),
+		Vector4(42.1, -13.4, deg_to_rad(-108.0), 0.96),
+		Vector4(41.6, -10.6, deg_to_rad(-96.0), 0.96),
+		Vector4(14.8, 46.8, deg_to_rad(-54.0), 0.96),
+		Vector4(-14.8, -46.8, deg_to_rad(126.0), 0.96),
+	]
+	for t_i: int in trike_specs.size():
+		var ts: Vector4 = trike_specs[t_i]
+		var trike: Node3D = _instantiate_kit("brgy_tricycle")
+		trike.name = "TodaTricycle_%d" % t_i
+		trike.scale = Vector3.ONE * ts.w
+		_place_walkthrough(trike, Vector3(ts.x, 0.0, ts.y), ts.z)
+
+	# 7. Vulcanizing Bay Owner-Type Jeeps (`brgy_owner_jeep`), Talipapa Passenger Jeepneys (`brgy_passenger_jeepney`) & Plaza Jeepneys!
+	var owner_kit: String = "brgy_owner_jeep" if ResourceLoader.exists(BARANGAY_DIR % "brgy_owner_jeep") else "brgy_jeepney"
+	var pass_kit: String = "brgy_passenger_jeepney" if ResourceLoader.exists(BARANGAY_DIR % "brgy_passenger_jeepney") else "brgy_jeepney"
+	var jeep_entries: Array[Dictionary] = [
+		{"kit": owner_kit, "pose": Vector4(42.2, 15.2, deg_to_rad(-114.0), 0.98)},   # Vulcanizing Shop apron (`P11`)
+		{"kit": owner_kit, "pose": Vector4(-42.2, -15.2, deg_to_rad(66.0), 0.98)},   # Mirrored North-West talyer bay
+		{"kit": pass_kit, "pose": Vector4(41.2, 40.2, deg_to_rad(-169.0), 0.96)},    # Curbside lay-by beside Talipapa Stalls (`P12/P13`)
+		{"kit": pass_kit, "pose": Vector4(-41.2, -40.2, deg_to_rad(11.0), 0.96)},    # Mirrored North-West curbside lay-by
+		{"kit": "brgy_jeepney", "pose": Vector4(-22.8, 72.4, deg_to_rad(62.0), 0.96)},  # South-West Plaza outer curb
+		{"kit": "brgy_jeepney", "pose": Vector4(22.8, -72.4, deg_to_rad(-118.0), 0.96)}, # North-East Plaza outer curb
+	]
+	for j_idx: int in jeep_entries.size():
+		var j_ent: Dictionary = jeep_entries[j_idx]
+		var js: Vector4 = j_ent["pose"] as Vector4
+		var jeep: Node3D = _instantiate_kit(String(j_ent["kit"]))
+		jeep.name = "ProvincialJeepney_%d" % j_idx
+		jeep.scale = Vector3.ONE * js.w
+		_place_walkthrough(jeep, Vector3(js.x, 0.0, js.y), js.z)
+
+	# 7b. Non-Military Breeze-Block *Ventanilla* & Bougainvillea Planter Walls (`brgy_cover_wall`) framing Plaza Gardens
+	for cw_sign: float in [1.0, -1.0]:
+		var cw_node: Node3D = _instantiate_kit("brgy_cover_wall")
+		cw_node.name = "PlazaBougainvilleaWallSouth" if cw_sign > 0.0 else "PlazaBougainvilleaWallNorth"
+		cw_node.scale = Vector3.ONE * 0.98
+		_place_walkthrough(
+			cw_node,
+			Vector3(14.2 * cw_sign, 0.0, 77.4 * cw_sign),
+			deg_to_rad(-18.0 if cw_sign > 0.0 else 162.0)
+		)
+
+	# 8. Shaded Plaza *Mamang Sorbetero* Carts (parked right under Mango Trees!) & Looban Barrio Poso Wells
+	for sign_f: float in [1.0, -1.0]:
+		var poso_at: Vector3 = Vector3(-16.2 * sign_f, 0.0, 22.4 * sign_f)
+		_place_poso_landmark(poso_at, deg_to_rad(28.0 if sign_f > 0.0 else -152.0))
+
+		var shade_tree_pos: Vector3 = Vector3(15.2 * sign_f, 0.0, 62.8 * sign_f)
+		var plaza_tree: Node3D = _instantiate_kit("brgy_mango_tree")
+		plaza_tree.name = "PlazaShadeMangoSouth" if sign_f > 0.0 else "PlazaShadeMangoNorth"
+		plaza_tree.scale = Vector3.ONE * 1.04
+		_place_walkthrough(plaza_tree, shade_tree_pos, 0.75 * sign_f)
+		_tree_planter_spots.append(shade_tree_pos)
+
+		var cart: Node3D = _instantiate_kit("brgy_sorbetes_cart")
+		cart.name = "SorbetesCartSouth" if sign_f > 0.0 else "SorbetesCartNorth"
+		cart.scale = Vector3.ONE * 0.96
+		_place_walkthrough(
+			cart,
+			Vector3(12.8 * sign_f, 0.0, 61.6 * sign_f),
+			deg_to_rad(-72.0 if sign_f > 0.0 else 108.0)
+		)
+
+	# 9. Standalone Street-Corner Wayfinding Notice Posts (`brgy_poster_cluster`, NEVER overlapping electric poles!)
+	if ResourceLoader.exists(BARANGAY_DIR % "brgy_poster_cluster"):
+		var corner_signs: Array[Vector3] = [
+			Vector3(-8.4, 0.0, 23.2),
+			Vector3(8.4, 0.0, -23.2),
+			Vector3(41.8, 0.0, 24.4),
+			Vector3(-41.8, 0.0, -24.4),
+		]
+		for cs_i: int in corner_signs.size():
+			var cs: Vector3 = corner_signs[cs_i]
+			var sign_post: Node3D = _instantiate_kit("brgy_poster_cluster")
+			sign_post.name = "CornerWayfindingSign_%d" % cs_i
+			sign_post.scale = Vector3.ONE * 0.95
+			_place_walkthrough(sign_post, cs, atan2(-cs.x, -cs.z) + deg_to_rad(18.0))
 
 
-## How far past the end line (on the screen, m) the top of the tallest boundary picture reaches at the far end: its foot's setback plus its height
-## times (sin + cos of the lean) for a picture leaning back as it does, plus `FOG_MARGIN`: where the far end's fog starts, just above the pictures.
-func fog_far_start() -> float:
-	var lean: float = deg_to_rad(BOUNDARY_TILT)
-	return BARRIER_SETBACK + tallest_boundary() * scenery() * (sin(lean) + cos(lean)) + FOG_MARGIN
+func _place_poso_landmark(at: Vector3, yaw: float) -> void:
+	var poso_glb: String = BARANGAY_DIR % "brgy_poso_well"
+	if ResourceLoader.exists(poso_glb):
+		var model: Node3D = _instantiate_kit("brgy_poso_well")
+		model.name = "BarrioPoso"
+		model.scale = Vector3.ONE * 1.02
+		_place_walkthrough(model, at, yaw)
+		return
+	var kit: LowPoly = LowPoly.new()
+	var slab_top: Color = Color(0.42, 0.41, 0.38)
+	var slab_side: Color = Color(0.28, 0.27, 0.25)
+	var iron_top: Color = Color(0.20, 0.40, 0.26)
+	var iron_side: Color = Color(0.12, 0.26, 0.18)
+	var handle_col: Color = Color(0.58, 0.22, 0.18)
+	var bucket_col: Color = Color(0.20, 0.38, 0.62)
+	kit.rounded_slab(Vector3(0.0, 0.06, 0.0), Vector3(1.55, 0.12, 1.55), 0.28, slab_side, slab_top)
+	kit.cylinder(Vector3(0.0, 0.12, 0.0), 0.15, 0.11, 0.88, 8, iron_top, iron_side)
+	kit.cylinder(Vector3(0.0, 0.98, 0.0), 0.19, 0.17, 0.22, 8, iron_top, iron_side)
+	kit.box(Vector3(0.22, 0.84, 0.0), Vector3(0.32, 0.09, 0.09), iron_top, iron_side)
+	_kit_oriented_box(
+		kit,
+		Basis.from_euler(Vector3(0.0, 0.0, -0.46)),
+		Vector3(-0.32, 1.12, 0.0),
+		Vector3(0.72, 0.06, 0.06),
+		handle_col,
+		handle_col * 0.72
+	)
+	kit.cylinder(Vector3(0.40, 0.12, 0.0), 0.16, 0.20, 0.32, 8, bucket_col, bucket_col * 0.72)
+	var mesh: ArrayMesh = kit.commit()
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.86
+	mat.next_pass = null
+	mesh.surface_set_material(0, mat)
+	var inst: MeshInstance3D = _add(mesh, at, yaw)
+	inst.name = "BarrioPoso"
 
 
-## The share of the floor picture's width the play area shows (1 when the play area is as wide as the picture).
-func cement_share() -> float:
-	return minf(float(layout.tiles.x) / CEMENT_PICTURE_TILES, 1.0)
+func _record_building_footprint(
+	center_xz: Vector2,
+	scaled_size: Vector3,
+	yaw: float,
+	is_interior: bool = false,
+	kit_id: String = "",
+	bldg_transform: Transform3D = Transform3D.IDENTITY
+) -> void:
+	var rec: Dictionary = {
+		"center": center_xz,
+		"half": Vector2(scaled_size.x * 0.5, scaled_size.z * 0.5),
+		"yaw": yaw,
+		"height": scaled_size.y,
+		"kit_id": kit_id,
+	}
+	if kit_id != "":
+		rec["transform"] = bldg_transform
+	_placed_buildings.append(rec)
+	if is_interior:
+		_interior_parcels.append(rec)
 
 
-## The play area's floor: the owner's picture once over the whole area, cut to its rounded corners (a fan out from the middle, each
-## point showing the picture where it stands).
-func _play_floor() -> MeshInstance3D:
-	var lane: Rect2 = layout.lane_rect()
-	var outline: Array[Vector2] = rounded_outline(lane, layout.base_corner)
-	var tool: SurfaceTool = SurfaceTool.new()
-	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	tool.set_normal(Vector3.UP)
-	for i: int in outline.size():
-		for point: Vector2 in [lane.get_center(), outline[i], outline[(i + 1) % outline.size()]]:
-			var across: float = (point.x - lane.position.x) / lane.size.x
-			tool.set_uv(Vector2((1.0 - cement_share()) / 2.0 + across * cement_share(), (point.y - lane.position.y) / lane.size.y))
-			tool.add_vertex(Vector3(point.x, 0.0, point.y))
-	var mesh: ArrayMesh = tool.commit()
-	mesh.surface_set_material(0, StreetArt.unlit_material(StreetArt.texture("cement")))
-	var patch: MeshInstance3D = MeshInstance3D.new()
-	patch.name = "CementArt"
-	patch.mesh = mesh
-	patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return patch
-
-
-## The cover piece `index` (MapLayout.obstacle_rects order), drawn as its prop.
 func _add_obstacle(index: int) -> void:
 	var rect: Rect2 = layout.obstacle_rects()[index]
+	var prop_key: StringName = layout.obstacle_prop(index)
+	var kit_id: String = OBSTACLE_KIT_MAP.get(prop_key, "brgy_cover_wall")
+	var model: Node3D = _instantiate_kit(kit_id)
+	var bounds: AABB = _kit_bounds(kit_id)
+	var nat: Vector3 = bounds.size
 	var center: Vector2 = rect.get_center()
-	var at: Vector3 = Vector3(center.x, 0.0, center.y)
-	# the long side lies along X; a rect that is longer in Z turns the model a quarter
-	var turned: bool = rect.size.y > rect.size.x
-	var footprint: Vector2 = Vector2(maxf(rect.size.x, rect.size.y), minf(rect.size.x, rect.size.y))
-	var id: String = String(OBSTACLE_MODELS.get(layout.obstacle_prop(index), "bench"))
-	_add_prop(PropModel.fit(id, footprint, cover_height(), not diorama), at, PI / 2.0 if turned else 0.0)
+
+	if layout.has_oriented_parcels():
+		# Overhaul v3: True-scale (`0.95..1.02x`) rotated parcels aligned to curved streets (ZERO 2.5x stretching!)
+		var yaw_oriented: float = layout.parcel_yaw_rad(index)
+		var u_scale: float = clampf(layout.parcel_scale(index), 0.90, 1.08)
+		var sy_var: float = u_scale * (0.97 + 0.05 * sin(float(index) * 2.3 + 0.5))
+		if prop_key == &"cover_wall":
+			sy_var = cover_height() / maxf(nat.y, 0.1)
+		model.scale = Vector3(u_scale, sy_var, u_scale)
+		var b_center_o: Vector3 = bounds.get_center() * model.scale
+		var shift_o: Vector3 = Basis(Vector3.UP, yaw_oriented) * Vector3(b_center_o.x, 0.0, b_center_o.z)
+		var plinth_lift: float = 0.0 if BUILTIN_SLAB_KITS.has(kit_id) else 0.045
+		var ground_y: float = -bounds.position.y * model.scale.y + plinth_lift
+		_add_prop(model, Vector3(center.x, ground_y, center.y) - shift_o, yaw_oriented)
+		_record_building_footprint(center, nat * model.scale, yaw_oriented, true, kit_id, model.transform)
+		return
+
+	# Legacy unrotated fallback for custom unit-test MapLayout instances without `obstacle_yaws_deg`
+	var turn_quarter: bool = (rect.size.y > rect.size.x * 1.18) and (kit_id != "brgy_jeepney" and kit_id != "brgy_tricycle")
+	var yaw_legacy: float = PI * 0.5 if (turn_quarter and center.x < 0.0) else (-PI * 0.5 if turn_quarter else (PI if center.y > 0.0 else 0.0))
+	var target_w: float = rect.size.y if turn_quarter else rect.size.x
+	var target_d: float = rect.size.x if turn_quarter else rect.size.y
+	var sx: float = clampf(target_w / maxf(nat.x, 0.1), 0.85, 1.25)
+	var sz: float = clampf(target_d / maxf(nat.z, 0.1), 0.85, 1.25)
+	var sy: float = cover_height() / maxf(nat.y, 0.1) if prop_key == &"cover_wall" else clampf((sx + sz) * 0.5, 0.85, 1.18)
+	model.scale = Vector3(sx, sy, sz)
+	var b_center: Vector3 = bounds.get_center() * model.scale
+	var shift: Vector3 = Basis(Vector3.UP, yaw_legacy) * Vector3(b_center_x_safe(b_center), 0.0, b_center.z)
+	_add_prop(model, Vector3(center.x, -bounds.position.y * model.scale.y, center.y) - shift, yaw_legacy)
+	_record_building_footprint(center, nat * model.scale, yaw_legacy, true, kit_id, model.transform)
 
 
-## A base or a rescue area: a rounded rectangle drawn in chalk in the team's colour, no fill (owner, 2026-11-03). Only a mark on the ground:
-## nothing is blocked. Returns its chalk material (recoloured per viewer). The rescue area's chalk is see-through ordered so its countdown number
-## draws over it. `seed` makes each area's chalk break in its own places.
-func _add_marked_zone(rect: Rect2, corner: float, color: Color, seed: float, rescue: bool = false) -> ShaderMaterial:
+static func b_center_x_safe(v: Vector3) -> float:
+	return v.x
+
+
+func _build_perimeter_skyline() -> void:
+	if layout.arena_radius <= 0.0 and layout.lane_width < 40.0:
+		return
+	var perimeter_kits: Array[String] = [
+		"brgy_tabi_cluster_a",
+		"brgy_shophouse_row",
+		"brgy_tabi_cluster_b",
+		"brgy_house_two_storey",
+		"brgy_sari_sari",
+		"brgy_tabi_cluster_a",
+		"brgy_house_two_storey",
+	]
+	var tree_kits: Array[String] = [
+		"brgy_mango_tree",
+		"brgy_coconut_palm",
+		"brgy_banana_clump",
+	]
+	var ring_radius: float = layout.arena_radius if layout.arena_radius > 0.0 else minf(layout.lane_width, layout.lane_length) * 0.5
+
+	# 1. Seamless Perimeter Compound CHB Wall (`r = 85.15 m`) + Lush Trees in Soil Planters + Non-Grid Skyline Houses!
+	var inner_slots: int = 48
+	var wall_r: float = ring_radius + 1.15
+	var house_inner_r: float = ring_radius + 6.8
+	var wall_chord: float = (TAU * wall_r / float(inner_slots)) * 1.05
+	var r_own: Rect2 = layout.rescue_rect(MapLayout.SIDE_OWN)
+	var r_ene: Rect2 = layout.rescue_rect(MapLayout.SIDE_ENEMY)
+
+	for i: int in inner_slots:
+		var angle: float = TAU * float(i) / float(inner_slots)
+		var dir: Vector2 = Vector2(cos(angle), sin(angle))
+		var p_wall: Vector2 = dir * wall_r
+		var in_canal_mouth: bool = absf(p_wall.y - MapLayout.canal_z(p_wall.x)) < 5.4
+		var in_own_shed: bool = p_wall.x < 0.0 and p_wall.y >= r_own.position.y - 1.5 and p_wall.y <= r_own.end.y + 1.5
+		var in_ene_shed: bool = p_wall.x > 0.0 and p_wall.y >= r_ene.position.y - 1.5 and p_wall.y <= r_ene.end.y + 1.5
+		var in_plaza_forecourt: bool = absf(p_wall.x) < 10.5 and absf(p_wall.y) > 76.0
+		var inward_yaw: float = atan2(-dir.x, -dir.y)
+
+		if not (in_canal_mouth or in_own_shed or in_ene_shed or in_plaza_forecourt):
+			var chb: Node3D = _instantiate_kit("brgy_chb_wall")
+			chb.name = "ChbPerimeterWall_%d" % i
+			var chb_nat: Vector3 = _kit_bounds("brgy_chb_wall").size
+			chb.scale = Vector3(clampf(wall_chord / maxf(chb_nat.x, 2.0), 0.96, 1.88), clampf(2.25 / maxf(chb_nat.y, 1.0), 0.92, 1.15), 1.0)
+			_place_walkthrough(chb, Vector3(p_wall.x, 0.0, p_wall.y), inward_yaw)
+
+			if i % 2 == 0:
+				var t_id: String = tree_kits[(i / 2) % tree_kits.size()]
+				var tree_node: Node3D = _instantiate_kit(t_id)
+				tree_node.name = "PerimeterTree_%d" % i
+				var t_scale: float = 0.94 + 0.24 * absf(sin(float(i) * 2.3))
+				tree_node.scale = Vector3.ONE * t_scale
+				var p_tree: Vector2 = dir * (ring_radius + 3.9 + 1.8 * absf(cos(float(i) * 1.9)))
+				var tree_pos: Vector3 = Vector3(p_tree.x, 0.0, p_tree.y)
+				_place_walkthrough(tree_node, tree_pos, float(i) * 1.1)
+				_tree_planter_spots.append(tree_pos)
+
+		# True-scale inner perimeter houses (`r = 90.8..98.5 m`, strictly `> arena_radius = 84.0 m`, rotated 6..15 deg!)
+		if i % 4 != 2:
+			var local_r: float = house_inner_r + 2.2 * sin(float(i) * 2.9 + 0.4)
+			if absf(dir.y) > 0.88:
+				local_r += 23.5
+			elif in_canal_mouth or in_own_shed or in_ene_shed:
+				local_r += 4.8
+			var pos2: Vector2 = dir * local_r
+			var near_kapilya: bool = pos2.distance_to(Vector2(21.5, 88.2)) < 9.2 or pos2.distance_to(Vector2(-21.5, -88.2)) < 9.2
+			if near_kapilya:
+				pos2 = dir * (local_r + 9.6)
+			var kit_id: String = perimeter_kits[i % perimeter_kits.size()]
+			var house: Node3D = _instantiate_kit(kit_id)
+			var nat: Vector3 = _kit_bounds(kit_id).size
+			var u_sc: float = 0.94 + 0.14 * absf(sin(float(i) * 2.13 + 0.3))
+			house.scale = Vector3.ONE * u_sc
+			var h_yaw: float = inward_yaw + deg_to_rad(11.5 * sin(float(i) * 3.7 + 0.9))
+			_add_prop(house, Vector3(pos2.x, 0.0, pos2.y), h_yaw)
+			_record_building_footprint(pos2, nat * house.scale, h_yaw, false, kit_id, house.transform)
+			var row_key: int = -1 if pos2.x < 0.0 else 1
+			house_rows[row_key].append(house)
+			far_props.append(kit_id)
+
+	# 2. Outer Provincial Barangay Roof & Coconut/Mango Grove Tier (`r = ring_radius + 19..25 m`)
+	var outer_count: int = 40
+	var outer_r: float = ring_radius + 19.6
+	for j: int in outer_count:
+		var angle_o: float = TAU * (float(j) + 0.5) / float(outer_count) + 0.018 * cos(float(j) * 3.1)
+		var dir_o: Vector2 = Vector2(cos(angle_o), sin(angle_o))
+		var r_o: float = outer_r + 2.8 * sin(float(j) * 3.3 + 1.1)
+		if absf(dir_o.y) > 0.88:
+			r_o += 16.0
+		var pos_o: Vector2 = dir_o * r_o
+		var kit_o: String = perimeter_kits[(j + 2) % perimeter_kits.size()]
+		var bldg: Node3D = _instantiate_kit(kit_o)
+		var u_so: float = 0.96 + 0.16 * absf(cos(float(j) * 2.3 + 0.7))
+		bldg.scale = Vector3.ONE * u_so
+		var yaw_o: float = atan2(-dir_o.x, -dir_o.y) + deg_to_rad(12.5 * cos(float(j) * 2.9))
+		_add_prop(bldg, Vector3(pos_o.x, 0.0, pos_o.y), yaw_o)
+		var row_o: int = -1 if pos_o.x < 0.0 else 1
+		house_rows[row_o].append(bldg)
+		far_props.append(kit_o)
+
+		if j % 2 == 0:
+			var grove_id: String = tree_kits[(j + 1) % tree_kits.size()]
+			var grove_tree: Node3D = _instantiate_kit(grove_id)
+			grove_tree.scale = Vector3.ONE * (1.04 + 0.22 * absf(sin(float(j) * 1.7)))
+			var pos_g: Vector2 = dir_o * (r_o + 8.5)
+			_place_walkthrough(grove_tree, Vector3(pos_g.x, 0.0, pos_g.y), float(j) * 1.4)
+
+
+func _curb_pole_spec(lane_id: int, z_val: float, side_sign: float) -> Vector4:
+	var z1: float = z_val + 1.0
+	var z0: float = z_val - 1.0
+	var x_c: float = 0.0
+	var hw: float = 4.6
+	var dx: float = 0.0
+	if lane_id == 0:
+		x_c = MapLayout.lane_center_x(z_val)
+		hw = MapLayout.lane_center_half_width(z_val)
+		dx = MapLayout.lane_center_x(z1) - MapLayout.lane_center_x(z0)
+	elif lane_id < 0:
+		x_c = MapLayout.lane_west_x(z_val)
+		hw = MapLayout.lane_side_half_width(z_val)
+		dx = MapLayout.lane_west_x(z1) - MapLayout.lane_west_x(z0)
+	else:
+		x_c = MapLayout.lane_east_x(z_val)
+		hw = MapLayout.lane_side_half_width(z_val)
+		dx = MapLayout.lane_east_x(z1) - MapLayout.lane_east_x(z0)
+	var curb_x: float = x_c + side_sign * (hw + 0.72)
+	var tangent_yaw: float = atan2(dx, 2.0)
+	# Nudge clear if close to any solid obstacle collider
+	var cand: Vector2 = Vector2(curb_x, z_val)
+	for r_obs: Rect2 in layout.obstacle_rects():
+		var grown: Rect2 = r_obs.grow(0.75)
+		if grown.has_point(cand):
+			cand.x = x_c + side_sign * (hw + 0.42)
+	return Vector4(cand.x, cand.y, tangent_yaw, 1.0)
+
+
+func _build_spaghetti_wiring_and_poles() -> void:
+	if layout.arena_radius <= 0.0 and layout.lane_width < 80.0:
+		return
+	var ring_r: float = (layout.arena_radius if layout.arena_radius > 0.0 else 84.0) - 0.45
+
+	# 1. Curb-Aligned Meralco Electric Poles following the 3 S-curved pathways + outer perimeter ring!
+	#    Indices:
+	#      0..5   = West Feeder Road West-curb chain (z = -52, -31, -9, +9, +31, +52)
+	#      6..11  = Center Avenue West/East curb chain (z = -48, -24, -8, +8, +24, +48)
+	#      12..17 = East Feeder Road East-curb chain (z = -52, -31, -9, +9, +31, +52)
+	#      18..23 = Opposite-curb Banner/Cross-Street Partner Poles (paired 1:1 for exact 2-ended Banderitas!)
+	#      24..39 = 16 Perimeter Ring Utility Poles around `r = 83.55 m`
+	var pole_specs: Array[Vector4] = []
+	var west_zs: Array[float] = [-52.0, -31.0, -8.8, 8.8, 31.0, 52.0]
+	for wz: float in west_zs:
+		pole_specs.append(_curb_pole_spec(-1, wz, -1.0))
+
+	var center_zs: Array[float] = [-47.5, -23.5, -8.2, 8.2, 23.5, 47.5]
+	for cz_i: int in center_zs.size():
+		var cz_v: float = center_zs[cz_i]
+		var c_side: float = -1.0 if cz_v > 0.0 else 1.0
+		pole_specs.append(_curb_pole_spec(0, cz_v, c_side))
+
+	for ez: float in west_zs:
+		pole_specs.append(_curb_pole_spec(1, ez, 1.0))
+
+	# Opposite-curb partner poles (18..23) creating exact cross-lane anchor pairs for Banderitas & Eskinita trunks!
+	pole_specs.append(_curb_pole_spec(-1, 31.0, 1.0))   # 18 pairs across West Road with pole 4
+	pole_specs.append(_curb_pole_spec(0, 47.5, 1.0))    # 19 pairs across Center Plaza throat with pole 11
+	pole_specs.append(_curb_pole_spec(1, 31.0, -1.0))   # 20 pairs across East Road with pole 16
+	pole_specs.append(_curb_pole_spec(-1, -31.0, 1.0))  # 21 pairs across West Road with pole 1
+	pole_specs.append(_curb_pole_spec(0, -47.5, -1.0))  # 22 pairs across North Center Plaza throat with pole 6
+	pole_specs.append(_curb_pole_spec(1, -31.0, -1.0))  # 23 pairs across East Road with pole 13
+
+	for p_ring_i: int in 16:
+		var ang: float = TAU * (float(p_ring_i) + 0.35) / 16.0
+		var px: float = cos(ang) * ring_r
+		var pz: float = sin(ang) * ring_r
+		pole_specs.append(Vector4(px, pz, ang, 0.90))
+
+	var pole_kit_id: String = "brgy_electric_post" if ResourceLoader.exists(BARANGAY_DIR % "brgy_electric_post") else "brgy_meralco_post"
+	var nat_pole_h: float = maxf(_kit_bounds(pole_kit_id).size.y, 6.0)
+	var primary_scale_y: float = 9.4 / nat_pole_h
+	var secondary_scale_y: float = 8.4 / nat_pole_h
+
+	var pole_nodes: Array[Node3D] = []
+	var pole_pin_sets: Array[PackedVector3Array] = []
+	var pole_shaft_tops: Array[Vector3] = []
+
+	for idx: int in pole_specs.size():
+		var spec: Vector4 = pole_specs[idx]
+		var spot: Vector3 = Vector3(spec.x, 0.0, spec.y)
+		var is_ring: bool = idx >= 24
+		var pole: Node3D = _instantiate_kit(pole_kit_id)
+		pole.name = "ElectricPole_%d" % idx
+		var sy_p: float = secondary_scale_y if is_ring else primary_scale_y
+		var sxz_p: float = 0.80 if is_ring else 0.88
+		pole.scale = Vector3(sxz_p, sy_p, sxz_p)
+		var lean_x: float = deg_to_rad(1.6 * sin(float(idx) * 2.1 + 0.4))
+		var lean_z: float = deg_to_rad(1.6 * cos(float(idx) * 1.7 - 0.3))
+		pole.position = spot
+		pole.rotation = Vector3(lean_x, spec.z, lean_z)
+		_geometry.add_child(pole)
+		pole_nodes.append(pole)
+		pole_pin_sets.append(SpaghettiWires.compute_pole_pins(pole))
+		pole_shaft_tops.append(pole.transform * Vector3(0.0, 10.15, -0.510))
+
+	# 2. Exact Two-Ended Pole-to-Pole Fiesta Banderitas (`0.00 m` air gap at both ends on the `-0.510` pole trunk!)
+	var dressing_kit: LowPoly = LowPoly.new()
+	var banner_pairs: Array[Vector2i] = [
+		Vector2i(4, 18),   # Across South-West Feeder Road
+		Vector2i(11, 19),  # Across South Center Plaza Throat
+		Vector2i(20, 16),  # Across South-East Feeder Road
+		Vector2i(1, 21),   # Across North-West Feeder Road
+		Vector2i(22, 6),   # Across North Center Plaza Throat
+		Vector2i(23, 13),  # Across North-East Feeder Road
+	]
+	var collar_steel: Color = Color(0.38, 0.40, 0.43)
+	for b_idx: int in banner_pairs.size():
+		var bp: Vector2i = banner_pairs[b_idx]
+		var pa_node: Node3D = pole_nodes[bp.x]
+		var pb_node: Node3D = pole_nodes[bp.y]
+		var anc_a: Vector3 = pa_node.transform * Vector3(0.0, 8.15, -0.510)
+		var anc_b: Vector3 = pb_node.transform * Vector3(0.0, 8.15, -0.510)
+		var y_anchor: float = (anc_a.y + anc_b.y) * 0.5
+		var span_xz: Vector2 = Vector2(anc_b.x - anc_a.x, anc_b.z - anc_a.z)
+		var span_len: float = span_xz.length()
+		if span_len > 4.0 and span_len < 22.0:
+			var bunting: Node3D = _instantiate_kit("brgy_banderitas")
+			bunting.name = "FiestaBanderitas_%d" % b_idx
+			_disable_shadows_recursive(bunting)
+			# `brgy_banderitas.glb` spans local X in `[-5.900, +5.900]` (`11.800 m`) at local Y = `5.378 m`
+			var b_yaw: float = atan2(-span_xz.y, span_xz.x)
+			bunting.scale = Vector3(span_len / 11.800, 1.05, 1.0)
+			var mid_x: float = (anc_a.x + anc_b.x) * 0.5
+			var mid_z: float = (anc_a.z + anc_b.z) * 0.5
+			_place_walkthrough(bunting, Vector3(mid_x, y_anchor - 5.378 * 1.05, mid_z), b_yaw)
+			# Wrap steel tie-collars + cross-bars on BOTH pole trunks at exact `y_anchor`!
+			for end_anc: Vector3 in [Vector3(anc_a.x, y_anchor, anc_a.z), Vector3(anc_b.x, y_anchor, anc_b.z)]:
+				dressing_kit.cylinder(end_anc - Vector3(0.0, 0.03, 0.0), 0.17, 0.17, 0.06, 8, collar_steel, collar_steel.darkened(0.2))
+				_kit_oriented_box(dressing_kit, Basis(Vector3.UP, b_yaw), end_anc, Vector3(0.10, 0.06, 0.96), collar_steel, collar_steel.darkened(0.18))
+
+	# 3. Pole-to-Pole Trunk Spans (along curved street curbs + eskinitas + perimeter ring, every span <= 46 m!)
+	var spans: Array[Vector2i] = [
+		# West Feeder Road chain (0..5)
+		Vector2i(0, 1), Vector2i(1, 2), Vector2i(2, 3), Vector2i(3, 4), Vector2i(4, 5),
+		# Center Avenue chain (6..11)
+		Vector2i(6, 7), Vector2i(7, 8), Vector2i(8, 9), Vector2i(9, 10), Vector2i(10, 11),
+		# East Feeder Road chain (12..17)
+		Vector2i(12, 13), Vector2i(13, 14), Vector2i(14, 15), Vector2i(15, 16), Vector2i(16, 17),
+		# Cross-Eskinita & Opposite-Curb Partner links
+		Vector2i(4, 18), Vector2i(18, 10), Vector2i(10, 20), Vector2i(20, 16),
+		Vector2i(1, 21), Vector2i(21, 7), Vector2i(7, 23), Vector2i(23, 13),
+		Vector2i(11, 19), Vector2i(6, 22),
+		Vector2i(3, 18), Vector2i(15, 20), Vector2i(2, 21), Vector2i(14, 23),
+		# 16-pole Outer Perimeter Ring (24..39)
+		Vector2i(24, 25), Vector2i(25, 26), Vector2i(26, 27), Vector2i(27, 28),
+		Vector2i(28, 29), Vector2i(29, 30), Vector2i(30, 31), Vector2i(31, 32),
+		Vector2i(32, 33), Vector2i(33, 34), Vector2i(34, 35), Vector2i(35, 36),
+		Vector2i(36, 37), Vector2i(37, 38), Vector2i(38, 39), Vector2i(39, 24),
+		# Radial tie-ins from perimeter ring to the 3 Feeder/Avenue chains
+		Vector2i(5, 29), Vector2i(11, 28), Vector2i(19, 27), Vector2i(17, 26),
+		Vector2i(0, 34), Vector2i(6, 36), Vector2i(22, 35), Vector2i(12, 37),
+		Vector2i(16, 25), Vector2i(4, 30), Vector2i(1, 33), Vector2i(13, 38),
+	]
+
+	# Build physically anchored overhead wire mesh AND populate 3D side-wall weatherheads into `dressing_kit`!
+	var wire_mesh: ArrayMesh = SpaghettiWires.build_anchored_wire_network(
+		pole_pin_sets,
+		pole_shaft_tops,
+		spans,
+		_placed_buildings,
+		dressing_kit
+	)
+	var wire_inst: MeshInstance3D = _add(wire_mesh, Vector3.ZERO)
+	wire_inst.name = "SpaghettiWiring"
+	wire_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	# 4. Batched `BarangayMicroDressing`: 3D Raised Concrete Sidewalks/Plinths + Grounded Courtyard Sampayan +
+	#    Interior Trees in 3D Mossy Soil Planter Curbs + Weatherhead Hardware!
+	_build_micro_dressing_and_curbs(dressing_kit)
+
+
+func _build_micro_dressing_and_curbs(kit: LowPoly) -> void:
+	# 1. Single Flush Sidewalk-Matched Foundation Plinths under walled buildings (`BUILTIN_SLAB_KITS` sit directly on their `.glb` slab!)
+	var curb_top: Color = Color(0.41, 0.39, 0.35)
+	var curb_side: Color = Color(0.30, 0.28, 0.25)
+	for parcel: Dictionary in _interior_parcels:
+		var p_kit: String = String(parcel.get("kit_id", ""))
+		if BUILTIN_SLAB_KITS.has(p_kit):
+			continue
+		var pc: Vector2 = parcel["center"] as Vector2
+		var ph: Vector2 = parcel["half"] as Vector2
+		var pyaw: float = float(parcel["yaw"])
+		var pb: Basis = Basis(Vector3.UP, pyaw)
+		kit.set_transform(Transform3D(pb, Vector3(pc.x, 0.005, pc.y)))
+		kit.rounded_slab(
+			Vector3.ZERO,
+			Vector3(ph.x * 2.0 + 0.68, 0.10, ph.y * 2.0 + 0.68),
+			0.30,
+			curb_side,
+			curb_top,
+			4
+		)
+		kit.reset_transform()
+
+	# 2. Grounded Courtyard / Side-Yard `brgy_sampayan_3d` Clotheslines (`Y = 0.0`, standing on built-in T-posts!)
+	var courtyard_sampayan: Array[Vector3] = [
+		Vector3(-56.2, 0.0, 21.6),
+		Vector3(54.8, 0.0, 25.4),
+		Vector3(-21.2, 0.0, 23.6),
+		Vector3(24.8, 0.0, 22.8),
+	]
+	var has_sampayan_glb: bool = ResourceLoader.exists(BARANGAY_DIR % "brgy_sampayan_3d")
+	var cloth_palette: Array[Color] = [
+		Color(0.76, 0.26, 0.22),
+		Color(0.22, 0.50, 0.72),
+		Color(0.80, 0.62, 0.20),
+		Color(0.26, 0.58, 0.36),
+	]
+	var trim_palette: Array[Color] = [Color(0.90, 0.86, 0.78), Color(0.84, 0.64, 0.18)]
+	for side_mul: float in [1.0, -1.0]:
+		for s_idx: int in courtyard_sampayan.size():
+			var base_s: Vector3 = courtyard_sampayan[s_idx]
+			var s_pos: Vector3 = Vector3(base_s.x * side_mul, 0.0, base_s.z * side_mul)
+			var s_yaw: float = deg_to_rad(24.0 + float(s_idx) * 38.0) + (0.0 if side_mul > 0.0 else PI)
+			if has_sampayan_glb:
+				var glb_line: Node3D = _instantiate_kit("brgy_sampayan_3d")
+				glb_line.name = "GroundedSampayan_%d_%s" % [s_idx, "S" if side_mul > 0.0 else "N"]
+				glb_line.scale = Vector3.ONE * 0.98
+				_place_walkthrough(glb_line, s_pos, s_yaw)
+			else:
+				var d_end: Vector3 = Basis(Vector3.UP, s_yaw) * Vector3(0.0, 0.0, 1.45)
+				SpaghettiWires.append_grounded_sampayan_with_posts(
+					kit,
+					s_pos - d_end,
+					s_pos + d_end,
+					cloth_palette,
+					trim_palette,
+					Color(0.52, 0.42, 0.26),
+					Color(0.66, 0.52, 0.30),
+					s_idx + (0 if side_mul > 0.0 else 7)
+				)
+
+	# 3. Interior *Tabing-Ilog* & Courtyard Provincial Trees seated inside 3D Mossy Soil Planter Curbs (NO random blue drums!)
+	var interior_tree_spots: Array[Vector3] = [
+		Vector3(-70.5, 0.0, 6.8),
+		Vector3(70.5, 0.0, -6.8),
+		Vector3(-68.2, 0.0, -6.4),
+		Vector3(68.2, 0.0, 6.4),
+		Vector3(-53.2, 0.0, 26.2),
+		Vector3(53.2, 0.0, -26.2),
+		Vector3(-60.5, 0.0, 48.2),
+		Vector3(60.5, 0.0, -48.2),
+		Vector3(-27.2, 0.0, 66.2),
+		Vector3(27.2, 0.0, -66.2),
+		Vector3(27.2, 0.0, 66.2),
+		Vector3(-27.2, 0.0, -66.2),
+	]
+	var tree_ids: Array[String] = ["brgy_banana_clump", "brgy_mango_tree", "brgy_coconut_palm"]
+	for t_i: int in interior_tree_spots.size():
+		var tp: Vector3 = interior_tree_spots[t_i]
+		var tid: String = tree_ids[t_i % tree_ids.size()]
+		var t_inst: Node3D = _instantiate_kit(tid)
+		t_inst.name = "BarangayTree_%d" % t_i
+		t_inst.scale = Vector3.ONE * (0.90 + 0.18 * absf(sin(float(t_i) * 2.1)))
+		_place_walkthrough(t_inst, tp, float(t_i) * 1.3)
+		_tree_planter_spots.append(tp)
+
+	# Build 3D octagonal mossy stone/CHB soil planter curbs under every interior, plaza, & perimeter tree!
+	var planter_wall: Color = Color(0.46, 0.44, 0.40)
+	var planter_moss: Color = Color(0.30, 0.40, 0.24)
+	var dark_soil: Color = Color(0.24, 0.18, 0.13)
+	for p_tree_pos: Vector3 in _tree_planter_spots:
+		kit.cylinder(p_tree_pos - Vector3(0.0, 0.04, 0.0), 1.18, 1.12, 0.24, 8, planter_moss, planter_wall)
+		kit.cylinder(p_tree_pos + Vector3(0.0, 0.02, 0.0), 0.96, 0.96, 0.19, 8, dark_soil, dark_soil.darkened(0.15))
+
+	var dressing_mesh: ArrayMesh = kit.commit()
+	var dressing_mat: StandardMaterial3D = StandardMaterial3D.new()
+	dressing_mat.vertex_color_use_as_albedo = true
+	dressing_mat.roughness = 0.88
+	dressing_mat.next_pass = null
+	dressing_mesh.surface_set_material(0, dressing_mat)
+	var dressing_inst: MeshInstance3D = _add(dressing_mesh, Vector3.ZERO)
+	dressing_inst.name = "BarangayMicroDressing"
+	dressing_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+static func _kit_oriented_box(kit: LowPoly, b: Basis, pos: Vector3, sz: Vector3, top_c: Color, side_c: Color) -> void:
+	kit.set_transform(Transform3D(b, pos))
+	kit.plain_box(Vector3.ZERO, sz, side_c, top_c)
+	kit.reset_transform()
+
+
+func _apply_architectural_materials(root: Node3D) -> void:
+	var meshes: Array[Node] = root.find_children("*", "MeshInstance3D", true, false)
+	if root is MeshInstance3D:
+		meshes.append(root)
+	for node: Node in meshes:
+		var mi: MeshInstance3D = node as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var surf_count: int = mi.mesh.get_surface_count()
+		for s_idx: int in surf_count:
+			var base_mat: Material = mi.get_active_material(s_idx)
+			if base_mat == null or base_mat is ShaderMaterial:
+				continue
+			var bmat: BaseMaterial3D = base_mat as BaseMaterial3D
+			if bmat == null:
+				continue
+			var key: int = bmat.get_instance_id()
+			if not _arch_mat_cache.has(key):
+				var copy_mat: StandardMaterial3D = null
+				if bmat is StandardMaterial3D:
+					copy_mat = bmat.duplicate() as StandardMaterial3D
+				else:
+					copy_mat = StandardMaterial3D.new()
+					copy_mat.albedo_color = bmat.albedo_color
+					copy_mat.vertex_color_use_as_albedo = bmat.vertex_color_use_as_albedo
+					copy_mat.vertex_color_is_srgb = bmat.vertex_color_is_srgb
+					copy_mat.cull_mode = bmat.cull_mode
+					copy_mat.transparency = bmat.transparency
+					copy_mat.alpha_scissor_threshold = bmat.alpha_scissor_threshold
+					copy_mat.normal_enabled = bmat.normal_enabled
+					copy_mat.normal_texture = bmat.normal_texture
+					copy_mat.normal_scale = bmat.normal_scale
+					if bmat is ORMMaterial3D:
+						var orm_mat: ORMMaterial3D = bmat as ORMMaterial3D
+						var orm_tex: Texture2D = orm_mat.orm_texture
+						if orm_tex != null:
+							copy_mat.ao_enabled = true
+							copy_mat.ao_texture = orm_tex
+							copy_mat.ao_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+							copy_mat.ao_light_affect = bmat.ao_light_affect
+							copy_mat.roughness = 1.0
+							copy_mat.roughness_texture = orm_tex
+							copy_mat.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_GREEN
+							copy_mat.metallic = 1.0
+							copy_mat.metallic_texture = orm_tex
+							copy_mat.metallic_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_BLUE
+				copy_mat.albedo_texture = bmat.albedo_texture
+				if bmat.normal_enabled and bmat.normal_texture != null:
+					copy_mat.normal_enabled = true
+					copy_mat.normal_texture = bmat.normal_texture
+					copy_mat.normal_scale = bmat.normal_scale
+				elif bmat.albedo_texture != null:
+					var tex_path: String = bmat.albedo_texture.resource_path
+					if tex_path.ends_with("BarangayAtlas.jpg") and ResourceLoader.exists(BARANGAY_NORMAL_PATH):
+						copy_mat.normal_enabled = true
+						copy_mat.normal_texture = load(BARANGAY_NORMAL_PATH) as Texture2D
+						copy_mat.normal_scale = 0.82
+					elif tex_path.ends_with("ProvincePropsAtlas.jpg") and ResourceLoader.exists(PROVINCE_NORMAL_PATH):
+						copy_mat.normal_enabled = true
+						copy_mat.normal_texture = load(PROVINCE_NORMAL_PATH) as Texture2D
+						copy_mat.normal_scale = 0.82
+				copy_mat.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
+				copy_mat.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+				if copy_mat.roughness_texture != null:
+					copy_mat.roughness = clampf(copy_mat.roughness, 0.85, 1.0)
+					copy_mat.metallic = clampf(copy_mat.metallic, 0.0, 1.0) if copy_mat.metallic_texture != null else 0.0
+				else:
+					copy_mat.metallic = 0.0
+					copy_mat.roughness = clampf(bmat.roughness, 0.72, 0.95)
+				copy_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+				copy_mat.next_pass = null
+				_arch_mat_cache[key] = copy_mat
+			mi.set_surface_override_material(s_idx, _arch_mat_cache[key])
+
+
+static func _disable_shadows_recursive(root: Node3D) -> void:
+	var geos: Array[Node] = root.find_children("*", "GeometryInstance3D", true, false)
+	if root is GeometryInstance3D:
+		geos.append(root)
+	for node: Node in geos:
+		var gi: GeometryInstance3D = node as GeometryInstance3D
+		if gi != null:
+			gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+static func _resolve_kit_path(kit_id: String) -> String:
+	var primary: String = BARANGAY_DIR % kit_id
+	if ResourceLoader.exists(primary):
+		return primary
+	if KIT_FALLBACK_MAP.has(kit_id):
+		var fallback: String = BARANGAY_DIR % KIT_FALLBACK_MAP[kit_id]
+		if ResourceLoader.exists(fallback):
+			return fallback
+	if PROCEDURAL_ONLY_KITS.has(kit_id):
+		return ""
+	var cover: String = BARANGAY_DIR % "brgy_cover_wall"
+	return cover if ResourceLoader.exists(cover) else ""
+
+
+func _instantiate_kit(kit_id: String) -> Node3D:
+	if not _scene_cache.has(kit_id):
+		var path: String = _resolve_kit_path(kit_id)
+		if path != "":
+			_scene_cache[kit_id] = load(path) as PackedScene
+	if _scene_cache.has(kit_id) and _scene_cache[kit_id] != null:
+		var inst: Node3D = _scene_cache[kit_id].instantiate() as Node3D
+		_apply_architectural_materials(inst)
+		return inst
+	return _build_procedural_kit_fallback(kit_id)
+
+
+func _build_procedural_kit_fallback(kit_id: String) -> Node3D:
+	var kit: LowPoly = LowPoly.new()
+	if kit_id == "brgy_wooden_hoop":
+		var coco_wood: Color = Color(0.46, 0.32, 0.19)
+		var board_white: Color = Color(0.90, 0.88, 0.82)
+		var rim_orange: Color = Color(0.84, 0.34, 0.14)
+		kit.rounded_slab(Vector3(0.0, 0.18, 0.0), Vector3(0.85, 0.36, 0.85), 0.18, Color(0.44, 0.43, 0.40), Color(0.52, 0.51, 0.48), 4)
+		kit.cylinder(Vector3(0.0, 0.36, 0.0), 0.12, 0.10, 2.95, 8, coco_wood, coco_wood.darkened(0.15))
+		_kit_oriented_box(kit, Basis(Vector3.RIGHT, -0.35), Vector3(0.0, 3.05, 0.35), Vector3(0.12, 0.12, 0.82), coco_wood, coco_wood)
+		kit.box(Vector3(0.0, 3.22, 0.72), Vector3(1.28, 0.88, 0.06), board_white, board_white)
+		kit.box(Vector3(0.0, 3.12, 0.76), Vector3(0.46, 0.36, 0.03), rim_orange, rim_orange)
+		kit.cylinder(Vector3(0.0, 2.92, 0.98), 0.23, 0.23, 0.045, 10, rim_orange, rim_orange)
+	elif kit_id == "brgy_chb_wall":
+		var chb_grey: Color = Color(0.54, 0.53, 0.50)
+		var moss_green: Color = Color(0.32, 0.44, 0.25)
+		var pillar_col: Color = Color(0.60, 0.58, 0.54)
+		kit.box(Vector3(0.0, 0.28, 0.0), Vector3(6.0, 0.56, 0.34), moss_green, chb_grey)
+		kit.box(Vector3(0.0, 1.32, 0.0), Vector3(6.0, 1.54, 0.28), chb_grey, pillar_col)
+		kit.box(Vector3(0.0, 2.15, 0.0), Vector3(6.1, 0.14, 0.36), pillar_col, moss_green)
+		for px: float in [-2.85, 0.0, 2.85]:
+			kit.box(Vector3(px, 1.15, 0.0), Vector3(0.38, 2.30, 0.40), pillar_col, pillar_col.lightened(0.08))
+	elif kit_id == "brgy_mango_tree":
+		var bark: Color = Color(0.34, 0.25, 0.18)
+		var leaf_a: Color = Color(0.26, 0.48, 0.22)
+		var leaf_b: Color = Color(0.34, 0.56, 0.24)
+		kit.cylinder(Vector3.ZERO, 0.38, 0.26, 3.4, 8, bark, bark.darkened(0.15))
+		for b_i: int in 3:
+			var byaw: float = TAU * float(b_i) / 3.0 + 0.4
+			var b_dir: Basis = Basis(Vector3.UP, byaw) * Basis(Vector3.RIGHT, 0.52)
+			_kit_oriented_box(kit, b_dir, Vector3(cos(byaw) * 0.55, 3.55, sin(byaw) * 0.55), Vector3(0.22, 1.45, 0.22), bark, bark)
+		kit.sphere(Vector3(0.0, 4.9, 0.0), 2.35, leaf_b, 9, 6)
+		kit.sphere(Vector3(1.25, 4.35, 0.75), 1.75, leaf_a, 8, 5)
+		kit.sphere(Vector3(-1.15, 4.45, -0.65), 1.65, leaf_b.darkened(0.06), 8, 5)
+		kit.sphere(Vector3(-0.35, 5.45, 0.85), 1.45, leaf_b.lightened(0.05), 8, 5)
+	elif kit_id == "brgy_coconut_palm":
+		var palm_bark: Color = Color(0.44, 0.36, 0.27)
+		var frond_green: Color = Color(0.28, 0.52, 0.22)
+		var coco_nut: Color = Color(0.42, 0.50, 0.18)
+		var cur_p: Vector3 = Vector3.ZERO
+		for seg_k: int in 6:
+			var next_p: Vector3 = cur_p + Vector3(0.14 * float(seg_k) * 0.35, 1.08, 0.06 * float(seg_k) * 0.25)
+			var r0: float = lerpf(0.26, 0.15, float(seg_k) / 6.0)
+			var r1: float = lerpf(0.26, 0.15, float(seg_k + 1) / 6.0)
+			SpaghettiWires.append_3d_tapered_tube(kit, cur_p, next_p, r0, r1, 7, palm_bark)
+			cur_p = next_p
+		for nut_i: int in 4:
+			var na: float = TAU * float(nut_i) / 4.0
+			kit.sphere(cur_p + Vector3(cos(na) * 0.22, -0.12, sin(na) * 0.22), 0.14, coco_nut, 6, 4)
+		for f_idx: int in 8:
+			var fyaw: float = TAU * float(f_idx) / 8.0
+			var f_b: Basis = Basis(Vector3.UP, fyaw) * Basis(Vector3.RIGHT, -0.38)
+			var f_mid: Vector3 = cur_p + Basis(Vector3.UP, fyaw) * Vector3(0.0, 0.22, 1.25)
+			_kit_oriented_box(kit, f_b, f_mid, Vector3(0.52, 0.08, 2.45), frond_green, frond_green.darkened(0.18))
+	elif kit_id == "brgy_banana_clump":
+		var stem_green: Color = Color(0.36, 0.52, 0.24)
+		var leaf_bright: Color = Color(0.34, 0.58, 0.22)
+		for st_k: int in 3:
+			var off: Vector3 = Vector3(float(st_k - 1) * 0.42, 0.0, (0.28 if st_k == 1 else -0.18))
+			var h_st: float = 2.65 + 0.35 * float(st_k % 2)
+			kit.cylinder(off, 0.16, 0.12, h_st, 7, stem_green, stem_green.darkened(0.15))
+			for lf_i: int in 5:
+				var lyaw: float = TAU * float(lf_i) / 5.0 + float(st_k) * 0.5
+				var l_b: Basis = Basis(Vector3.UP, lyaw) * Basis(Vector3.RIGHT, -0.44)
+				var l_p: Vector3 = off + Vector3(0.0, h_st, 0.0) + Basis(Vector3.UP, lyaw) * Vector3(0.0, 0.14, 0.98)
+				_kit_oriented_box(kit, l_b, l_p, Vector3(0.56, 0.06, 1.95), leaf_bright, stem_green.darkened(0.12))
+	elif kit_id == "brgy_powerup_stand":
+		var table_wood: Color = Color(0.54, 0.38, 0.22)
+		var jug_orange: Color = Color(0.90, 0.54, 0.16)
+		var canopy_c: Color = Color(0.86, 0.28, 0.22)
+		kit.rounded_slab(Vector3(0.0, 0.06, 0.0), Vector3(1.55, 0.12, 1.25), 0.22, Color(0.44, 0.42, 0.39), Color(0.54, 0.52, 0.48), 4)
+		kit.box(Vector3(0.0, 0.52, 0.0), Vector3(1.22, 0.80, 0.72), table_wood, table_wood.lightened(0.12))
+		kit.cylinder(Vector3(-0.26, 0.92, 0.0), 0.18, 0.18, 0.42, 8, jug_orange, Color(0.94, 0.92, 0.88))
+		kit.box(Vector3(0.24, 0.98, 0.0), Vector3(0.38, 0.12, 0.32), Color(0.84, 0.68, 0.24), Color(0.92, 0.78, 0.34))
+		for post_x: float in [-0.54, 0.54]:
+			kit.cylinder(Vector3(post_x, 0.92, -0.26), 0.035, 0.035, 1.15, 6, table_wood.darkened(0.15), table_wood)
+		kit.gable(Vector3(0.0, 2.02, 0.0), 1.36, 0.96, 0.34, canopy_c, 0.12)
+	else:
+		kit.box(Vector3(0.0, 2.6, 0.0), Vector3(7.2, 5.2, 7.2), Color(0.58, 0.48, 0.36), Color(0.64, 0.32, 0.24))
+
+	var fallback_root: Node3D = Node3D.new()
+	var mi: MeshInstance3D = MeshInstance3D.new()
+	var mesh: ArrayMesh = kit.commit()
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.88
+	mat.next_pass = null
+	mesh.surface_set_material(0, mat)
+	mi.mesh = mesh
+	fallback_root.add_child(mi)
+	return fallback_root
+
+
+func _kit_bounds(kit_id: String) -> AABB:
+	if not _bounds_cache.has(kit_id):
+		var temp: Node3D = _instantiate_kit(kit_id)
+		var box: AABB = AABB()
+		var first: bool = true
+		var meshes: Array[Node] = temp.find_children("*", "MeshInstance3D", true, false)
+		if temp is MeshInstance3D:
+			meshes.append(temp)
+		for node: Node in meshes:
+			var mi: MeshInstance3D = node as MeshInstance3D
+			if mi.mesh == null:
+				continue
+			var part: AABB = mi.transform * mi.mesh.get_aabb()
+			box = part if first else box.merge(part)
+			first = false
+		temp.free()
+		_bounds_cache[kit_id] = box
+	return _bounds_cache[kit_id]
+
+
+func _add_post(center: Vector2) -> Node3D:
+	var post: Node3D = Node3D.new()
+	post.name = "Post"
+	for id: String in [POST_BLUE, POST_RED]:
+		var model: Node3D = _instantiate_kit(id)
+		var nat_h: float = maxf(_kit_bounds(id).size.y, 0.1)
+		var s: float = post_height() / nat_h
+		model.scale = Vector3(s * layout.post_width_share, s, s * layout.post_width_share)
+		model.name = id
+		model.rotation.y = BLUE_POST_TURN if id == POST_BLUE else 0.0
+		post.add_child(model)
+	_dress_post(post, true, false)
+	_place_walkthrough(post, Vector3(center.x, 0.0, center.y), 0.0)
+	return post
+
+
+func _dress_post(post: Node3D, own: bool, flipped: bool) -> void:
+	(post.get_node(POST_BLUE) as Node3D).visible = own
+	(post.get_node(POST_RED) as Node3D).visible = not own
+	post.rotation.y = PI if flipped else 0.0
+
+
+func _turn_posts(own_side: int) -> void:
+	for side: int in _posts:
+		_dress_post(_posts[side], side == own_side, own_side == MapLayout.SIDE_ENEMY)
+
+
+func _add_marked_zone(rect: Rect2, corner: float, color: Color, seed_offset: float, under_count: bool = false) -> ShaderMaterial:
 	var material: ShaderMaterial = ShaderMaterial.new()
 	material.shader = CHALK_SHADER
 	material.set_shader_parameter("chalk", Color(color, CHALK_ALPHA))
-	material.set_shader_parameter("width_m", ZONE_CHALK_WIDTH)
-	material.set_shader_parameter("seed", seed * 7.31)
 	material.set_shader_parameter("breaks", ZONE_CHALK_BREAKS)
-	material.render_priority = RESCUE_OUTLINE_PRIORITY if rescue else -100
+	material.set_shader_parameter("seed", seed_offset)
+	if under_count:
+		material.render_priority = RESCUE_OUTLINE_PRIORITY
 	_add_chalk_loop(rect, corner, material)
 	return material
 
 
-## Lays a rescue area's number on its side for the viewer (owner, 2026-11-03): the area on the screen's left (the viewer's own side) reads
-## turned a quarter turn counter-clockwise (+90 degrees, bottom to top), the one on the right a quarter turn clockwise (-90 degrees, top to
-## bottom). The yaw half-turns the label for the team whose camera is turned round, so the spin is always as the screen shows it. The
-## pitch squeeze lands on the label's width now (its width runs up the screen), so the stretch is on x instead of y.
-func _turn_count(label: Label3D, side: int, own_side: int) -> void:
-	var spin: float = COUNT_SPIN if side == own_side else -COUNT_SPIN
-	label.rotation = Vector3(-PI / 2.0, PI if own_side == MapLayout.SIDE_ENEMY else 0.0, spin)
-	label.scale = Vector3(1.0 / sin(deg_to_rad(COUNT_PITCH_DEGREES)), 1.0, 1.0)
-
-
-## The seconds number of a rescue area: a Label3D lying flat on the ground at `middle` (x, z), white and half see-through, unshaded, drawn
-## in the see-through order described at `RESCUE_COUNT_PRIORITY`. Hidden until the sim says the area is counting.
-func _add_count(middle: Vector2) -> Label3D:
+func _add_count(center: Vector2) -> Label3D:
 	var label: Label3D = Label3D.new()
 	label.name = "RescueCount"
-	label.font = KalyeahTheme.ACTION_FONT
+	label.font = ThemeDB.fallback_font
 	label.font_size = RESCUE_COUNT_FONT
 	label.pixel_size = RESCUE_COUNT_HEIGHT / float(RESCUE_COUNT_FONT)
+	label.scale.y = 1.0 / sin(deg_to_rad(COUNT_PITCH_DEGREES))
 	label.modulate = Color(1.0, 1.0, 1.0, COUNT_ALPHA)
 	label.outline_size = 0
 	label.shaded = false
-	label.double_sided = true
+	label.double_sided = false
 	label.alpha_cut = Label3D.ALPHA_CUT_DISABLED
 	label.render_priority = RESCUE_COUNT_PRIORITY
+	label.rotation.x = -PI * 0.5
+	label.position = Vector3(center.x, RESCUE_COUNT_LIFT, center.y)
 	label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	label.position = Vector3(middle.x, RESCUE_COUNT_LIFT, middle.y)
 	label.visible = false
 	_geometry.add_child(label)
 	return label
 
 
-## The outline of `rect` with its corners rounded to `radius`, as a closed list of points (the same count for any rect).
+func _turn_count(label: Label3D, side: int, own_side: int) -> void:
+	var toward: float = 0.0 if own_side == MapLayout.SIDE_OWN else PI
+	label.rotation.y = toward + float(side * own_side) * COUNT_SPIN
+
+
+func _show_count(label: Label3D, left: float) -> void:
+	label.visible = left > 0.0
+	if label.visible:
+		var seconds: String = str(ceili(left))
+		if label.text != seconds:
+			label.text = seconds
+
+
 static func rounded_outline(rect: Rect2, radius: float) -> Array[Vector2]:
 	var points: Array[Vector2] = []
+	var r: float = minf(radius, minf(rect.size.x, rect.size.y) * 0.48)
 	var corners: Array[Vector2] = [
-		Vector2(rect.end.x - radius, rect.position.y + radius),
-		Vector2(rect.end.x - radius, rect.end.y - radius),
-		Vector2(rect.position.x + radius, rect.end.y - radius),
-		Vector2(rect.position.x + radius, rect.position.y + radius),
+		Vector2(rect.end.x - r, rect.position.y + r),
+		Vector2(rect.end.x - r, rect.end.y - r),
+		Vector2(rect.position.x + r, rect.end.y - r),
+		Vector2(rect.position.x + r, rect.position.y + r),
 	]
 	for corner: int in 4:
 		for step: int in ZONE_CORNER_STEPS + 1:
-			var angle: float = -PI / 2.0 + (float(corner) + float(step) / float(ZONE_CORNER_STEPS)) * PI / 2.0
-			points.append(corners[corner] + Vector2(cos(angle), sin(angle)) * radius)
+			var angle: float = -PI * 0.5 + (float(corner) + float(step) / float(ZONE_CORNER_STEPS)) * PI * 0.5
+			points.append(corners[corner] + Vector2(cos(angle), sin(angle)) * r)
 	return points
 
 
-## A ribbon `ZONE_CHALK_WIDTH` wide round `rect` (its corners rounded), inside the rectangle, for the chalk shader: UV.x runs along it (the whole
-## way round is `length_m`), UV.y across it.
 func _add_chalk_loop(rect: Rect2, corner: float, material: ShaderMaterial) -> void:
-	var half: float = ZONE_CHALK_WIDTH / 2.0
+	var half: float = ZONE_CHALK_WIDTH * 0.5
 	var path: Array[Vector2] = rounded_outline(rect.grow(-half), maxf(corner - half, 0.0))
 	var count: int = path.size()
 	var along: Array[float] = [0.0]
@@ -683,14 +1633,15 @@ func _add_chalk_loop(rect: Rect2, corner: float, material: ShaderMaterial) -> vo
 	for i: int in count:
 		var j: int = (i + 1) % count
 		var edge: Array[Vector3] = []
-		for k: Array in [[i, along[i]], [j, along[i + 1]]]:
-			var at: int = k[0] as int
+		var end_indices: PackedInt32Array = PackedInt32Array([i, j])
+		var end_alongs: PackedFloat32Array = PackedFloat32Array([along[i], along[i + 1]])
+		for step_k: int in 2:
+			var at: int = end_indices[step_k]
 			var direction: Vector2 = (path[(at + 1) % count] - path[(at - 1 + count) % count]).normalized()
 			var side: Vector2 = Vector2(direction.y, -direction.x) * half
-			var u: float = (k[1] as float) / along[count]
+			var u: float = end_alongs[step_k] / maxf(along[count], 0.001)
 			edge.append(Vector3(path[at].x + side.x, u, path[at].y + side.y))
 			edge.append(Vector3(path[at].x - side.x, u, path[at].y - side.y))
-		# edge = [outer_i, inner_i, outer_j, inner_j] as (x, u, z)
 		for corner_index: int in [0, 2, 3, 0, 3, 1]:
 			var vertex: Vector3 = edge[corner_index]
 			tool.set_uv(Vector2(vertex.y, 0.0 if corner_index % 2 == 0 else 1.0))
@@ -698,230 +1649,6 @@ func _add_chalk_loop(rect: Rect2, corner: float, material: ShaderMaterial) -> vo
 	var mesh: ArrayMesh = tool.commit()
 	mesh.surface_set_material(0, material)
 	_add(mesh, Vector3.ZERO).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-
-
-## How wide (m, along the row) a barrier thing is at its true size.
-static func barrier_width(id: String, scale: float = 1.0) -> float:
-	if BARRIER_LYING.has(id):
-		return BARRIER_HEIGHTS[id] * scale
-	var natural: Vector3 = PropModel.size_of(id)
-	var side: float = natural.z if BARRIER_TURNED.has(id) else natural.x
-	return side * BARRIER_HEIGHTS[id] * scale / natural.y
-
-
-## The street things (a bench, crates, a basketball hoop, the wooden A-frame, ...) stand about on the road beyond each end, behind the fog, each at
-## its true size (never stretched), facing the play area and a little turned, as if put down by hand. The boundary itself is the owner's pictures.
-func _add_barricades() -> void:
-	var ids: Array = BARRIER_HEIGHTS.keys()
-	for end_index: int in 2:
-		var end: float = -1.0 if end_index == 0 else 1.0
-		# the same street every match: a fixed seed per end
-		var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-		rng.seed = BARRIER_SEED + end_index
-		var z_far: float = layout.lane_length / 2.0 + FAR_PROPS_START * scenery()
-		var side: float = 1.0 if rng.randf() < 0.5 else -1.0
-		for id: String in ids:
-			var width: float = barrier_width(id, scenery())
-			var room: float = layout.lane_width / 2.0 - width / 2.0 - 0.5
-			var far_x: float = clampf(side * rng.randf_range(0.2, 1.0) * room, -room, room)
-			var far_turn: float = deg_to_rad(rng.randf_range(-BARRIER_TURN, BARRIER_TURN) * 2.0)
-			_put_barrier(PropModel.by_height(id, BARRIER_HEIGHTS[id] * scenery()), id, Vector3(far_x, 0.0, end * z_far), end, far_turn)
-			far_props.append(id)
-			side = -side
-			z_far += FAR_PROPS_SPACING * scenery()
-
-
-## Sets one barrier thing down at `at` (the middle of it), facing the play area at `end`.
-func _put_barrier(model: Node3D, id: String, at: Vector3, end: float, turn: float) -> Node3D:
-	var yaw: float = (0.0 if end < 0.0 else PI) + (PI / 2.0 if BARRIER_TURNED.has(id) else 0.0)
-	var placed: Node3D = _add_prop(model, at, yaw + turn)
-	if BARRIER_LYING.has(id):
-		# on its side: the pole's length runs along the row, its width becomes its height
-		var natural: Vector3 = PropModel.size_of(id)
-		placed.rotation = Vector3(0.0, turn, -PI / 2.0)
-		var along: Vector3 = Vector3(cos(turn), 0.0, -sin(turn))
-		placed.position = Vector3(at.x, natural.x * model.scale.x / 2.0, at.z) - along * (barrier_width(id, scenery()) / 2.0)
-	return placed
-
-
-## How wide (m) a boundary picture stands: its drawn height times the shape of its picture.
-static func boundary_width(entry: Dictionary, scale: float = 1.0) -> float:
-	var size: Vector2 = (load(BOUNDARY_PATH % String(entry["id"])) as Texture2D).get_size()
-	return float(entry["height"]) * scale * size.x / size.y
-
-
-## The end of the street (-1 or 1) at the top of the screen for a viewer whose own base is on `own_side`.
-static func top_end(own_side: int) -> float:
-	return -float(own_side)
-
-
-## Both ends have both rows (the top one: the cart and the jeepney; the bottom one: the e-trike and the tyres), each between two corner roof
-## walls with equal visible gaps; `set_own_side` shows the one the viewer's screen needs at each end. A row faces the camera of the viewer
-## who sees it: the viewer whose own base is at +Z sees the top row at the -Z end and the bottom row at the +Z end, both facing +Z; the turned
-## camera sees the +Z end at the top and the -Z end at the bottom, both facing -Z.
-func _add_boundary_pictures() -> void:
-	for end: float in [-1.0, 1.0]:
-		_row_pictures[end] = _boundary_row(end, BOUNDARY_PICTURES, "BoundaryPictures%s" % ("Far" if end < 0.0 else "Near"), end > 0.0, false)
-		_row_bottom[end] = _boundary_row(end, BOTTOM_PICTURES, "BoundaryBottom%s" % ("Far" if end < 0.0 else "Near"), end < 0.0, true)
-	# each picture can stand between the shoulder camera and your kid, like any prop (`hide_between`)
-	for row: Node3D in [_row_pictures[-1.0], _row_pictures[1.0], _row_bottom[-1.0], _row_bottom[1.0]]:
-		for picture: Node in row.get_children():
-			if picture is Node3D:
-				_occluders.append(picture as Node3D)
-
-
-## `beyond`: the bottom row, whose pictures stand out past the end line to their `bottom_foot` (local +z points away from the play area).
-func _boundary_row(end: float, pictures: Array[Dictionary], row_name: String, turned: bool, beyond: bool) -> Node3D:
-	var widths: Array[float] = []
-	var used: float = 0.0
-	for entry: Dictionary in pictures:
-		widths.append(boundary_width(entry, scenery()))
-		used += widths[widths.size() - 1]
-	var wall_width: float = boundary_width(CORNER_WALL, scenery())
-	# Equal visible gaps between the two fixed corner walls and the two pictures.
-	var gap: float = maxf(layout.lane_width - wall_width - used, 0.0) / float(pictures.size() + 1)
-	var left_edge: float = -layout.lane_width / 2.0 + wall_width / 2.0
-	var row: Node3D = Node3D.new()
-	row.name = row_name
-	row.position = Vector3(0.0, 0.0, end * (layout.lane_length / 2.0 + BARRIER_SETBACK))
-	row.rotation_degrees = Vector3(0.0, 180.0 if turned else 0.0, 0.0)
-	# in the row's own frame x runs to the right of the screen at either end
-	var x: float = left_edge
-	for k: int in pictures.size():
-		var picture: MeshInstance3D = _boundary_picture(pictures[k], widths[k])
-		picture.position = Vector3(x + gap + widths[k] / 2.0, 0.0, bottom_foot(pictures[k]) if beyond else 0.0)
-		x += gap + widths[k]
-		row.add_child(picture)
-	for side: float in [-1.0, 1.0]:
-		var roof: MeshInstance3D = _boundary_picture(CORNER_WALL, wall_width)
-		roof.name = "RoofWallLeft" if side < 0.0 else "RoofWallRight"
-		# A slight setback keeps the PNG behind the other boundary pictures without coplanar flicker.
-		roof.position = Vector3(side * layout.lane_width / 2.0, 0.0, (bottom_foot(CORNER_WALL, BOTTOM_WALL_SHARE) if beyond else 0.0) - 0.05)
-		if side > 0.0:
-			var material: StandardMaterial3D = (roof.mesh as QuadMesh).material as StandardMaterial3D
-			material.uv1_scale.x = -1.0
-			material.uv1_offset.x = 1.0
-		row.add_child(roof)
-	_geometry.add_child(row)
-	return row
-
-
-## One picture of the top boundary: an upright quad leaning back by `BOUNDARY_TILT`, its bottom edge on the ground, drawn as the owner made it.
-func _boundary_picture(entry: Dictionary, width: float) -> MeshInstance3D:
-	var height: float = float(entry["height"]) * scenery()
-	var quad: QuadMesh = QuadMesh.new()
-	quad.size = Vector2(width, height)
-	quad.center_offset = Vector3(0.0, height / 2.0, 0.0)
-	var material: StandardMaterial3D = StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
-	material.albedo_texture = load(BOUNDARY_PATH % String(entry["id"])) as Texture2D
-	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	quad.material = material
-	var picture: MeshInstance3D = MeshInstance3D.new()
-	picture.name = String(entry["id"])
-	picture.mesh = quad
-	picture.rotation_degrees = Vector3(-BOUNDARY_TILT, 0.0, 0.0)
-	picture.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return picture
-
-
-## The end at the top of the screen (the -Z end when the viewer's own base is at +Z, the +Z end when the camera is turned around) shows
-## the top row of the owner's pictures; the other end shows the bottom row.
-func _show_top_boundary(own_side: int) -> void:
-	var top: float = top_end(own_side)
-	for end: float in _row_pictures:
-		_row_pictures[end].visible = end == top
-		_row_bottom[end].visible = end != top
-
-
-## The owner's three shopfronts (Nena store, vulcanizing, barber shop) with his two houses between them, along both sides of the street, running on past
-## the ends (none across the ends), one of them (the Nena store) where the sari-sari store stood.
-func _add_houses() -> void:
-	var half_w: float = layout.lane_width / 2.0
-	var half_l: float = layout.lane_length / 2.0 + HOUSE_REACH
-	var front: float = half_w + layout.boundary_thickness + SIDEWALK_WIDTH
-	var store_z: float = -layout.lane_length * 0.18
-	# the top end of the play area, a little in from its end line
-	var terminal_z: float = -layout.lane_length / 2.0 + 3.0
-	var variant: int = 0
-	# the shopfronts rotate through the slots along the play area only (so every shop shows however wide the lots are drawn)
-	var shops: int = 0
-	for side: float in [-1.0, 1.0]:
-		var spacing: float = HOUSE_SPACING * scenery()
-		var z: float = -half_l + spacing / 2.0
-		var played: int = 0
-		while z < half_l:
-			var id: String = FILLER_HOUSES[variant % FILLER_HOUSES.size()]
-			if absf(z) <= layout.lane_length / 2.0:
-				# beside the play area: a shop, a house, a shop, ... (beyond its ends only houses, repeated: no shops, no terminal)
-				id = BUILDINGS[shops % BUILDINGS.size()] if played % 2 == 0 else FILLER_HOUSES[(played / 2) % FILLER_HOUSES.size()]
-				played += 1
-			if side < 0.0 and absf(z - store_z) < spacing / 2.0:
-				id = "nena_store"
-				z = store_z
-			elif side < 0.0 and absf(z - terminal_z) < spacing / 2.0:
-				id = TERMINAL
-				z = terminal_z
-			# the karinderya takes the right side's middle slot, pushed out so its stools fill the sidewalk
-			var karinderya: bool = side > 0.0 and absf(z) < spacing / 2.0
-			if karinderya:
-				id = KARINDERYA
-			if BUILDINGS.has(id):
-				shops += 1
-			var natural: Vector3 = PropModel.size_of(id)
-			var scale_to: float = BUILDING_WIDTH * scenery() / natural.x
-			var depth: float = natural.z * scale_to
-			# the front faces the street: +X on the left side, -X on the right
-			var yaw: float = PI / 2.0 if side < 0.0 else -PI / 2.0
-			# the lot's middle is where the model's own middle stands, whatever side of its origin that is (a model made of many parts, the
-			# karinderya, has its origin a little off its middle)
-			var middle: Vector3 = PropModel.bounds_of(id).get_center() * scale_to
-			var origin_shift: Vector3 = Basis(Vector3.UP, yaw) * Vector3(middle.x, 0.0, middle.z)
-			var out: float = front + depth / 2.0 + 0.2
-			if karinderya:
-				# its front-most part (the stools) stands at the street edge of the sidewalk, the stall behind them
-				var box: AABB = PropModel.bounds_of(id)
-				out = half_w + layout.boundary_thickness + KARINDERYA_MARGIN + (box.position.z + box.size.z) * scale_to
-			var house: Node3D = _add_prop(PropModel.make(id, Vector3.ONE * scale_to), Vector3(side * out, 0.0, z) - origin_shift, yaw)
-			house_rows[int(side)].append(house)
-			variant += 1
-			z += spacing
-
-
-## Life around the street (no power poles or bunting, owner):
-## the store's bench and the nanay, the owner's pets and things. The play area itself
-## stays plain cement.
-func _add_details() -> void:
-	var half_w: float = layout.lane_width / 2.0
-	var half_l: float = layout.lane_length / 2.0
-	var walk_x: float = half_w + layout.boundary_thickness + SIDEWALK_WIDTH / 2.0
-	var store_z: float = -layout.lane_length * 0.18
-	_add_prop(PropModel.fit("bench", Vector2(2.0, 0.7) * scenery(), 1.1 * scenery(), true), Vector3(-walk_x - 0.3, CURB_HEIGHT, store_z - 1.0), PI / 2.0)
-	# the nanay stands by the bench, a little swaying as she waits
-	var nanay: Node3D = _add_prop(PropModel.by_height("nanay", NANAY_HEIGHT * scenery()), Vector3(-walk_x, CURB_HEIGHT, store_z + 0.3), PI / 2.0)
-	nanay.name = "Nanay"
-	nanay.add_child(DecorativeSway.new(nanay, NANAY_SWAY_DEGREES, NANAY_SWAY_SECONDS))
-	_add_ice_cream_cart(half_l, walk_x)
-	_add_sidewalk_props(walk_x)
-
-
-## The owner's cat, dog, chicken cage and drainage covers on the sidewalks, facing the street.
-func _add_sidewalk_props(walk_x: float) -> void:
-	var left: float = PI / 2.0
-	var right: float = -PI / 2.0
-	_add_prop(PropModel.by_height("cat", CAT_HEIGHT * scenery()), Vector3(-walk_x - 0.2, CURB_HEIGHT, -3.0), left)
-	_add_prop(PropModel.by_height("dog", DOG_HEIGHT * scenery()), Vector3(walk_x + 0.2, CURB_HEIGHT, -9.0), right)
-	_add_prop(PropModel.by_height("chicken_cage", CHICKEN_CAGE_HEIGHT * scenery()), Vector3(walk_x + 0.3, CURB_HEIGHT, 6.0), right)
-	for spot: Vector2 in [Vector2(-walk_x, -17.0), Vector2(-walk_x, 7.0), Vector2(walk_x, 0.0), Vector2(walk_x, 19.0)]:
-		_add_prop(PropModel.make("drainage_cover", Vector3.ONE * (DRAINAGE_COVER_WIDTH * scenery() / PropModel.size_of("drainage_cover").x)), Vector3(spot.x, CURB_HEIGHT, spot.y))
-
-
-## The ice cream cart on the right sidewalk (outside the play area).
-func _add_ice_cream_cart(half_l: float, walk_x: float) -> void:
-	var cart: Node3D = PropModel.by_height("ice_cream_cart", ICE_CREAM_CART_HEIGHT * scenery())
-	cart.name = "IceCreamCart"
-	_add_prop(cart, Vector3(walk_x, CURB_HEIGHT, -half_l * 0.6), -PI / 2.0)
 
 
 func _add(mesh: Mesh, at: Vector3, yaw: float = 0.0) -> MeshInstance3D:
@@ -933,29 +1660,11 @@ func _add(mesh: Mesh, at: Vector3, yaw: float = 0.0) -> MeshInstance3D:
 	return instance
 
 
-## The owner's post models, standing on the ground at `center` (x, z), `post_height()` tall. Both colours are built and `_dress_post` shows one.
-func _add_post(center: Vector2) -> Node3D:
-	var post: Node3D = Node3D.new()
-	post.name = "Post"
-	for id: String in [POST_BLUE, POST_RED]:
-		var model: Node3D = PropModel.by_height(id, post_height())
-		model.scale *= Vector3(layout.post_width_share, 1.0, layout.post_width_share)  # narrower than the model as made (MapLayout)
-		PostShape.apply(model, layout.post_width_share)  # ... and every part on the pole keeps its own proportions
-		model.name = id
-		ModelLook.use_baked_shading(model)
-		model.rotation.y = BLUE_POST_TURN if id == POST_BLUE else 0.0
-		post.add_child(model)
-	_dress_post(post, true, false)
-	_add_prop(post, Vector3(center.x, 0.0, center.y))
-	return post
-
-
-## Shows the blue (`own`) or red model on a post, and turns it half way round when the camera is (`flipped`) so its front faces the screen.
-func _dress_post(post: Node3D, own: bool, flipped: bool) -> void:
-	(post.get_node(POST_BLUE) as Node3D).visible = own
-	(post.get_node(POST_RED) as Node3D).visible = not own
-	post.rotation.y = PI if flipped else 0.0
-	_occluder_boxes.clear()  # its box turned with it
+func _place_walkthrough(model: Node3D, at: Vector3, yaw: float = 0.0) -> Node3D:
+	model.position = at
+	model.rotation.y = yaw
+	_geometry.add_child(model)
+	return model
 
 
 func _add_prop(model: Node3D, at: Vector3, yaw: float = 0.0) -> Node3D:
@@ -963,13 +1672,10 @@ func _add_prop(model: Node3D, at: Vector3, yaw: float = 0.0) -> Node3D:
 	model.rotation.y = yaw
 	_geometry.add_child(model)
 	_occluders.append(model)
-	_occluder_boxes.clear()  # measured again on the next `hide_between`
+	_occluder_boxes.clear()
 	return model
 
 
-## The shoulder camera (owner, 2026-11-10): a prop that stands between the camera at `eye` and your kid (standing at `feet`, `height` tall),
-## or within `clear` metres of the camera, is left out, so the camera never looks at the back of a wall, a stall or the post instead of the
-## play; it comes back as soon as it is out of the way. The line is checked to the kid's feet, middle and head.
 func hide_between(eye: Vector3, feet: Vector3, height: float, clear: float = 0.0) -> void:
 	if _occluder_boxes.size() != _occluders.size():
 		_occluder_boxes.clear()
@@ -983,7 +1689,7 @@ func hide_between(eye: Vector3, feet: Vector3, height: float, clear: float = 0.0
 			hidden.append(_occluders[i])
 			continue
 		for target: Vector3 in targets:
-			if segment_hits_box(eye, target, _occluder_boxes[i]):
+			if segment_hits_box(eye, target, box):
 				hidden.append(_occluders[i])
 				break
 	for prop: Node3D in _hidden_props:
@@ -994,12 +1700,10 @@ func hide_between(eye: Vector3, feet: Vector3, height: float, clear: float = 0.0
 	_hidden_props = hidden
 
 
-## The props the shoulder camera is leaving out now.
 func hidden_props() -> Array[Node3D]:
 	return _hidden_props
 
 
-## The box round everything drawn under `root` (models, pictures), in the world.
 static func world_box(root: Node3D) -> AABB:
 	var box: AABB = AABB()
 	var first: bool = true
@@ -1014,7 +1718,6 @@ static func world_box(root: Node3D) -> AABB:
 	return box
 
 
-## True when the straight line from `from` to `to` passes through `box` (either end inside counts).
 static func segment_hits_box(from: Vector3, to: Vector3, box: AABB) -> bool:
 	var way: Vector3 = to - from
 	var enter: float = 0.0
@@ -1044,7 +1747,6 @@ func _setup_camera() -> void:
 	_camera.environment = make_environment()
 
 
-## The map's own Exit button (map preview); a match uses its settings menu instead.
 func show_back_button(visible_now: bool) -> void:
 	_back_button.visible = visible_now
 

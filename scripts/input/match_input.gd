@@ -48,6 +48,17 @@ var _sent_held: bool = false
 var _release: Release = Release.NONE
 var _release_slot: int = -1
 var _release_point: Vector2 = Vector2.ZERO
+## Hero-action Tirador primary fire (held via LMB or HUD Tirador button) and its world XZ aim point.
+var primary_held: bool = false
+var primary_aim_point: Vector2 = Vector2.ZERO
+var _primary_sent: bool = false
+var _primary_tap: bool = false
+var _ult_pending: bool = false
+var _ult_aim_point: Vector2 = Vector2.ZERO
+## Stealth crouch hold state (and 1-tick tap preservation).
+var crouch_held: bool = false
+var _crouch_sent: bool = false
+var _crouch_tap: bool = false
 
 
 ## A finger went down on the street at `point`: walk there.
@@ -73,6 +84,54 @@ func move_release() -> void:
 ## The Kick button was pressed: the next tick carries the second card's bit once (the sim kicks on the press, not while it is held).
 func kick_press() -> void:
 	pending_buttons |= PlayerInput.BTN_CARD_2
+
+
+## Holds or releases Tirador primary slingshot fire aimed at `aim_pt`.
+func set_primary(held: bool, aim_pt: Vector2) -> void:
+	if held:
+		if not primary_held:
+			_primary_sent = false
+		primary_held = true
+		primary_aim_point = aim_pt
+	else:
+		if primary_held and not _primary_sent:
+			_primary_tap = true
+			primary_aim_point = aim_pt
+		primary_held = false
+
+
+## Queues Luksong-Tinik parkour vault-dash for the next tick.
+func press_dash() -> void:
+	pending_buttons |= PlayerInput.BTN_DASH
+
+
+## Queues Bagsak ng Kalye Ultimate aimed at `aim_pt` for the next tick.
+func press_ultimate(aim_pt: Vector2) -> void:
+	pending_buttons |= PlayerInput.BTN_ULTIMATE
+	_ult_pending = true
+	_ult_aim_point = aim_pt
+
+
+## Queues an athletic street jump for the next tick.
+func press_jump() -> void:
+	pending_buttons |= PlayerInput.BTN_JUMP
+
+
+## Holds or releases stealth crouch (`BTN_CROUCH`), preserving quick single-tick taps.
+func set_crouch(active: bool) -> void:
+	if active:
+		if not crouch_held:
+			_crouch_sent = false
+		crouch_held = true
+	else:
+		if crouch_held and not _crouch_sent:
+			_crouch_tap = true
+		crouch_held = false
+
+
+## Queues a kinetic street baseball-slide burst for the next tick.
+func press_slide() -> void:
+	pending_buttons |= PlayerInput.BTN_SLIDE
 
 
 ## The Throw button was pressed, aimed along `way`.
@@ -186,16 +245,37 @@ func clear() -> void:
 	_throw_release = false
 	_throw_cancel = false
 	_throw_sent = false
+	primary_held = false
+	primary_aim_point = Vector2.ZERO
+	_primary_sent = false
+	_primary_tap = false
+	_ult_pending = false
+	_ult_aim_point = Vector2.ZERO
+	crouch_held = false
+	_crouch_sent = false
+	_crouch_tap = false
 	stick = Vector2.ZERO
 
 
-## This tick's input.
+## This tick's input (analog `stick` magnitude 0..1 preserved for walk vs run).
 func build(tick: int) -> PlayerInput:
 	var input: PlayerInput = PlayerInput.create(stick.limit_length(1.0), Vector2.ZERO, pending_buttons, tick)
 	pending_buttons = 0
 	if _move_fresh or (move_held and follow_hold):
 		input.with_move_target(move_point)
 		_move_fresh = false
+	if crouch_held or _crouch_tap:
+		input.buttons |= PlayerInput.BTN_CROUCH
+		_crouch_sent = crouch_held
+		_crouch_tap = false
+	if primary_held or _primary_tap:
+		input.buttons |= PlayerInput.BTN_PRIMARY
+		input.with_aim_point(primary_aim_point)
+		_primary_sent = primary_held
+		_primary_tap = false
+	if _ult_pending:
+		input.with_aim_point(_ult_aim_point)
+		_ult_pending = false
 	if throw_held:
 		input.buttons |= PlayerInput.BTN_CARD_1
 		input.aim = throw_aim
@@ -226,8 +306,11 @@ func build(tick: int) -> PlayerInput:
 			match _release:
 				Release.CAST:
 					input.with_aim_point(_release_point)
+				Release.TAP:
+					input.buttons &= ~PlayerInput.BTN_AIM_POINT
 				Release.CANCEL:
 					input.buttons |= PlayerInput.BTN_AIM_CANCEL
+					input.buttons &= ~PlayerInput.BTN_AIM_POINT
 			_release = Release.NONE
 			_release_slot = -1
 			_sent_held = false

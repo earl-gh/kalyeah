@@ -97,10 +97,11 @@ func flush() -> void:
 
 
 func _heal(at: Vector2) -> void:
-	_ctx.ground.ring(at, RING_FROM, RING_TO, AimIndicator.REACH_FRIEND, RING_FRAMES * FxSquash.FRAME, _ctx.reduced)
+	var k: float = _ctx.kid_scale()
+	_ctx.ground.ring(at, RING_FROM * k, RING_TO * k, AimIndicator.REACH_FRIEND, RING_FRAMES * FxSquash.FRAME, _ctx.reduced)
 	_ctx.particles.puff(FxParticles.Preset.PLUS, Vector3(at.x, 0.0, at.y), SPARKLES)
 	var back: Vector3 = _camera_back()
-	var front: Vector3 = Vector3(back.x, 0.0, back.z).normalized() * CROSS_FRONT
+	var front: Vector3 = Vector3(back.x, 0.0, back.z).normalized() * (CROSS_FRONT * k)
 	var cross: Cross = Cross.new()
 	cross.front = front
 	cross.node = WeaponModel.cross()
@@ -124,7 +125,7 @@ func _streak(from: Vector2, to: Vector2) -> void:
 		return
 	var offset: Vector2 = to - from
 	var middle: Vector2 = (from + to) / 2.0
-	var xform: Transform3D = Transform3D(Basis(Vector3.UP, -offset.angle()), Vector3(middle.x, STREAK_Y, middle.y))
+	var xform: Transform3D = Transform3D(Basis(Vector3.UP, -offset.angle()), Vector3(middle.x, STREAK_Y * _ctx.kid_scale(), middle.y))
 	_ctx.ground.smear(xform, &"streak", offset.length(), Palette.GUAVA, STREAK_FRAMES * FxSquash.FRAME)
 
 

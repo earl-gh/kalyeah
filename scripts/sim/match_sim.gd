@@ -31,12 +31,29 @@ signal card_drawn(id: int, slot: int)
 signal player_damaged(id: int, amount: int)
 ## A kid's stamina ran out: it is overclocked (walks until the bar is full again; not a status effect).
 signal exhausted(id: int)
+## A kid burst forward with Luksong-Tinik parkour vault-dash.
+signal player_dashed(id: int)
+## A kid unleashed their Bida Ultimate superpower.
+signal ultimate_cast(id: int)
+## A kid picked up a Barangay merienda power-up (`kind`: 1=PALAMIG, 2=TEKS, 3=TURON).
+signal powerup_taken(player_id: int, powerup_id: int, kind: int)
 
 const RELEASED_ALONE: int = -1
 ## Float slack for timers and the elixir bar (sums of 1/30 s ticks), not a gameplay number.
 const EPSILON: float = 0.00001
 ## Mixed into the match seed for the trip rolls' own generator.
 const TRIP_SEED_MIX: int = 0x7121B
+const POWERUP_NONE: int = 0
+const POWERUP_PALAMIG: int = 1
+const POWERUP_TEKS: int = 2
+const POWERUP_TURON: int = 3
+## Minimum `air_y` height (metres) that clears low pavement snares & jackstone fields.
+const JUMP_CLEAR_HEIGHT: float = 0.45
+const DEFAULT_POWERUP_SPOTS: Array[Vector2] = [
+	Vector2(-34.0, 0.0),
+	Vector2(0.0, 0.0),
+	Vector2(34.0, 0.0),
+]
 
 ## INTRO: the opening show of both teams at their posts; nothing moves.
 enum Phase { PLAYING, POINT_FREEZE, MATCH_OVER, INTRO }
@@ -89,6 +106,8 @@ var intro_left: float = 0.0
 var match_time: float = 0.0
 ## How every point of the match was won, in order: (team that scored, CaptureKind).
 var point_log: Array[Vector2i] = []
+## Small Barangay merienda power-up stands (`{"id": int, "kind": int, "pos": Vector2, "active": bool, "respawn_left": float}`).
+var powerups: Array[Dictionary] = []
 ## A timed street game (Tumbang Preso, Patintero) in place of Agawang Base's rescues and captures; null for Agawang Base.
 var mode: StreetMode = null
 
@@ -96,6 +115,12 @@ var _inputs: Dictionary[int, PlayerInput] = {}
 var _brains: Dictionary[int, DummyBrain] = {}
 var _team_counts: Dictionary[int, int] = {}
 var _blocking: Array[Rect2] = []
+var _walk_blocking: Array[Rect2] = []
+var _walk_obstacles: Array[Rect2] = []
+## Deterministic Barangay waypoint navigation graph for 5v5 bots.
+var nav: BarangayNav
+## Monotonic counter incremented on every emitted `weapon_cast` so failed no-target releases never spend cooldowns.
+var _cast_serial: int = 0
 ## The street (layout.lane_rect()), kept for the move-target clamp that runs every tick a target is sent.
 var _street: Rect2
 ## Which side team 0 defends this set (teams switch bases every set).
@@ -107,14 +132,24 @@ func _init(p_rules: GameRules, p_layout: MapLayout, seed_value: int) -> void:
 	rng.seed = seed_value
 	_trip_rng.seed = seed_value ^ TRIP_SEED_MIX  # its own numbers: trips never shift what the match's rng gives the other rules
 	obstacles = layout.obstacle_rects()
+	_walk_obstacles = layout.walk_obstacle_rects()
 	_street = layout.lane_rect()
 	_blocking.append_array(layout.boundary_rects())
 	_blocking.append_array(obstacles)
+	_walk_blocking.append_array(layout.boundary_rects())
+	_walk_blocking.append_array(_walk_obstacles)
+	nav = BarangayNav.new(layout, rules.player_radius)
+	weapon_cast.connect(_on_self_weapon_cast)
 	for def: WeaponDef in rules.weapons:
 		weapon_defs[def.id] = def
+	if rules.primary_weapon != null:
+		weapon_defs[rules.primary_weapon.id] = rules.primary_weapon
+	if rules.ultimate_weapon != null:
+		weapon_defs[rules.ultimate_weapon.id] = rules.ultimate_weapon
 	score = MatchScore.new(rules.first_to)
 	capture_needed = rules.capture_solo_time
 	rescue_ready_left = [rules.rescue_cooldown, rules.rescue_cooldown]
+	reset_powerups()
 
 
 ## Team 0 plays from the own (+Z) end, team 1 from the enemy (-Z) end.
@@ -132,6 +167,13 @@ func set_first_to(count: int) -> void:
 ## Plays `p_mode` (Tumbang Preso or Patintero) instead of Agawang Base and puts everyone in their places. Call once all players are in.
 func start_mode(p_mode: StreetMode) -> void:
 	mode = p_mode
+	powerups.clear()
+	obstacles.clear()
+	_walk_obstacles.clear()
+	_blocking.clear()
+	_blocking.append_array(layout.boundary_rects())
+	_walk_blocking.clear()
+	_walk_blocking.append_array(layout.boundary_rects())
 	score.first_to = 0  # no points to win: a street game is played against the clock
 	mode.setup(self)
 
@@ -140,7 +182,7 @@ func start_mode(p_mode: StreetMode) -> void:
 ## (walking; obstacles and speed modifiers included). Skills,
 ## weapons and everything else stay server-side.
 func predict_move(id: int, input: PlayerInput, dt: float) -> void:
-	var state: PlayerState = players.get(id) as PlayerState
+	var state: PlayerState = players[id] if players.has(id) else null
 	if state == null or state.tagged or phase != Phase.PLAYING or (mode != null and mode.is_resetting()):
 		return
 	_move(state, input, dt)
@@ -167,31 +209,47 @@ func add_player(id: int, team: int) -> PlayerState:
 	return state
 
 
-## A random pair of weapons with at least one that hurts, for a sparring bot (a bot with two shields is no
-## sparring partner).
+## A random loadout of superpowers with at least one that hurts, for a sparring/match bot.
 func fighting_loadout() -> Array[StringName]:
-	var pair: Array[StringName] = random_loadout()
+	var kit: Array[StringName] = random_loadout()
 	for attempt: int in 20:
-		if weapon_defs[pair[0]].damage > 0 or weapon_defs[pair[1]].damage > 0:
+		var has_damage: bool = false
+		for wid: StringName in kit:
+			if weapon_defs.has(wid) and weapon_defs[wid].damage > 0:
+				has_damage = true
+				break
+		if has_damage:
 			break
-		pair = random_loadout()
-	return pair
+		kit = random_loadout()
+	return kit
 
 
 ## True when `id` is driven by a bot that fights back.
 func is_fighter(id: int) -> bool:
-	return _brains.get(id) is FightBrain
+	return _brains.has(id) and (_brains[id] is FightBrain)
 
 
-## Equips two different weapons. Returns false (and changes nothing) for an
-## unknown weapon or the same weapon twice; two of the same *type* is fine.
-func set_loadout(id: int, first: StringName, second: StringName) -> bool:
-	if not players.has(id) or first == second:
+## Equips 2 or 3 distinct superpowers (`third` optional for 2-weapon callers).
+## Returns false (and changes nothing) for an unknown weapon or duplicate id.
+func set_loadout(id: int, first: StringName, second: StringName, third: StringName = &"") -> bool:
+	var chosen: Array[StringName] = [first, second]
+	if third != &"":
+		chosen.append(third)
+	return set_loadout_list(id, chosen)
+
+
+func set_loadout_list(id: int, chosen: Array[StringName]) -> bool:
+	if not players.has(id) or chosen.size() < 2 or chosen.size() > PlayerInput.CARD_BITS.size():
 		return false
-	if not weapon_defs.has(first) or not weapon_defs.has(second):
-		return false
+	for i: int in chosen.size():
+		var wid: StringName = chosen[i]
+		if wid == &"" or not rules.weapons.any(func(w: WeaponDef) -> bool: return w.id == wid):
+			return false
+		for j: int in range(i + 1, chosen.size()):
+			if chosen[j] == wid:
+				return false
 	var state: PlayerState = players[id]
-	state.weapons = [first, second]
+	state.weapons.assign(chosen)
 	_size_slots(state)
 	return true
 
@@ -235,13 +293,13 @@ func pays_elixir(state: PlayerState) -> bool:
 	return state.cards and rules.uses_elixir()
 
 
-## Equips a player for the match: a dealt hand in cards mode, else a random pair (`fighter`: one that hurts).
+## Equips a player for the match: a dealt hand in cards mode, else `loadout_size` random superpowers (`fighter`: at least one that hurts).
 func equip(id: int, fighter: bool = false) -> void:
 	if rules.card_cycle:
 		deal_cards(id)
 		return
-	var pair: Array[StringName] = fighting_loadout() if fighter else random_loadout()
-	set_loadout(id, pair[0], pair[1])
+	var kit: Array[StringName] = fighting_loadout() if fighter else random_loadout()
+	set_loadout_list(id, kit)
 
 
 ## A card was used from `slot`. With elixir: it goes to the back of the deck, NEXT drops into its slot at once and the front of the deck
@@ -319,30 +377,40 @@ func finish_reloads(state: PlayerState) -> void:
 
 ## Swap: only while tagged, as often as you like.
 ## A weapon you keep keeps its cooldown, so swapping away and back clears nothing.
-func swap_loadout(id: int, first: StringName, second: StringName) -> bool:
+func swap_loadout(id: int, first: StringName, second: StringName, third: StringName = &"") -> bool:
+	var chosen: Array[StringName] = [first, second]
+	if third != &"":
+		chosen.append(third)
+	return swap_loadout_list(id, chosen)
+
+
+func swap_loadout_list(id: int, chosen: Array[StringName]) -> bool:
 	if rules.card_cycle or not players.has(id) or not players[id].tagged:
 		return false
 	var state: PlayerState = players[id]
 	var kept: Dictionary[StringName, float] = {}
 	for slot: int in state.weapons.size():
 		kept[state.weapons[slot]] = state.weapon_cooldowns[slot]
-	if not set_loadout(id, first, second):
+	if not set_loadout_list(id, chosen):
 		return false
 	for slot: int in state.weapons.size():
-		state.weapon_cooldowns[slot] = kept.get(state.weapons[slot], 0.0) as float
+		var wid: StringName = state.weapons[slot]
+		state.weapon_cooldowns[slot] = kept[wid] if kept.has(wid) else 0.0
 	return true
 
 
-## Two different random weapons (auto-fill when the pick timer runs out).
+## Distinct random superpowers (`loadout_size` slots; auto-fill when the pick timer runs out).
 func random_loadout() -> Array[StringName]:
 	var ids: Array[StringName] = []
 	for def: WeaponDef in rules.weapons:
 		ids.append(def.id)
-	var first: int = rng.randi_range(0, ids.size() - 1)
-	var second: int = rng.randi_range(0, ids.size() - 2)
-	if second >= first:
-		second += 1
-	return [ids[first], ids[second]]
+	var count: int = clampi(rules.loadout_size, 2, mini(PlayerInput.CARD_BITS.size(), ids.size()))
+	for i: int in range(ids.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var swap_id: StringName = ids[i]
+		ids[i] = ids[j]
+		ids[j] = swap_id
+	return ids.slice(0, count)
 
 
 ## Sets a player's character (the one they picked). A team never has the same kid twice:
@@ -368,21 +436,31 @@ func teammates_kids(id: int, confirmed: Array[int]) -> Array[StringName]:
 	return kids
 
 
-## Gives every player a random character, no duplicates (seeded, so the server and
+## Gives every player a random character, with no duplicates on the same team (seeded, so the server and
 ## replays agree). Purely cosmetic.
 func assign_characters() -> void:
-	var ids: Array[StringName] = []
+	var base_ids: PackedStringArray = PackedStringArray()
 	for character: CharacterDef in rules.characters:
-		ids.append(character.id)
-	for i: int in range(ids.size() - 1, 0, -1):
-		var j: int = rng.randi_range(0, i)
-		var swap: StringName = ids[i]
-		ids[i] = ids[j]
-		ids[j] = swap
-	var index: int = 0
+		base_ids.append(String(character.id))
+	if base_ids.is_empty():
+		return
+	var pools: Dictionary[int, PackedStringArray] = {}
+	var cursors: Dictionary[int, int] = {}
 	for id: int in players:
-		players[id].character_id = ids[index % ids.size()]
-		index += 1
+		var t: int = players[id].team
+		if not pools.has(t):
+			var pool: PackedStringArray = base_ids.duplicate()
+			for i: int in range(pool.size() - 1, 0, -1):
+				var j: int = rng.randi_range(0, i)
+				var swap_id: String = pool[i]
+				pool[i] = pool[j]
+				pool[j] = swap_id
+			pools[t] = pool
+			cursors[t] = 0
+		var pool_t: PackedStringArray = pools[t]
+		var idx: int = cursors[t]
+		players[id].character_id = StringName(pool_t[idx % pool_t.size()])
+		cursors[t] = idx + 1
 
 
 ## Players that can be hit (everyone not waiting on the sidewalk).
@@ -447,15 +525,29 @@ func damage(id: int, amount: int, by: int = -1) -> void:
 	var state: PlayerState = players[id]
 	if state.tagged or mode != null:
 		return  # in Tumbang Preso and Patintero only a touch tags
-	state.hp = maxi(0, state.hp - amount)
-	player_damaged.emit(id, amount)
+	var final_amount: int = amount
+	if by >= 0 and players.has(by):
+		var src: PlayerState = players[by]
+		if src.buff_type == POWERUP_TEKS and src.buff_left > 0.0:
+			final_amount = maxi(1, roundi(float(final_amount) * (1.0 + rules.teks_damage_bonus)))
+	if state.buff_type == POWERUP_TURON and state.buff_left > 0.0:
+		final_amount = maxi(1, roundi(float(final_amount) * (1.0 - rules.turon_damage_reduction)))
+	state.hp = maxi(0, state.hp - final_amount)
+	state.out_of_combat_time = 0.0
+	state.sprinting = false
+	state.ult_charge = minf(100.0, state.ult_charge + float(final_amount) * rules.ult_per_damage * 0.45)
+	if by >= 0 and by != id and players.has(by):
+		var attacker: PlayerState = players[by]
+		if attacker.team != state.team:
+			attacker.ult_charge = minf(100.0, attacker.ult_charge + float(final_amount) * rules.ult_per_damage)
+	player_damaged.emit(id, final_amount)
 	if state.hp <= 0:
 		objectives.tag(self, state, by)
 
 
 ## Heals up to max HP; returns the HP actually gained. Nothing while tagged.
 func heal(id: int, amount: int) -> int:
-	var state: PlayerState = players.get(id) as PlayerState
+	var state: PlayerState = players[id] if players.has(id) else null
 	if state == null or amount <= 0 or state.tagged:
 		return 0
 	var gained: int = mini(amount, rules.player_max_hp - state.hp)
@@ -531,6 +623,7 @@ func step(dt: float) -> void:
 	if mode != null:
 		mode.step(self, dt)
 	else:
+		_step_powerups(dt)
 		objectives.check_rescues(self, dt)
 		objectives.check_captures(self, _brains, dt)
 	tick += 1
@@ -539,6 +632,13 @@ func step(dt: float) -> void:
 func _tick_cooldowns(state: PlayerState, dt: float) -> void:
 	for slot: int in state.weapon_cooldowns.size():
 		state.weapon_cooldowns[slot] = maxf(0.0, state.weapon_cooldowns[slot] - dt)
+	state.primary_cd = maxf(0.0, state.primary_cd - dt)
+	state.dash_cd = maxf(0.0, state.dash_cd - dt)
+	state.jump_cd = maxf(0.0, state.jump_cd - dt)
+	state.slide_cd = maxf(0.0, state.slide_cd - dt)
+	_tick_buff(state, dt)
+	if mode == null and not state.tagged:
+		state.ult_charge = minf(100.0, state.ult_charge + rules.ult_passive_per_s * dt)
 	_tick_shuffler(state, dt)
 
 
@@ -551,7 +651,8 @@ func _step_free(state: PlayerState, input: PlayerInput, dt: float) -> void:
 	if mode != null:
 		mode.handle_input(self, state, input, dt)  # no skills in the street games: only the game's own actions
 	elif input != null:
-		casting.handle(self, state, input, dt)
+		_step_hero_actions(state, input)
+		_handle_weapon_casting(state, input, dt)
 	var before: Vector2 = state.position
 	_move(state, input, dt)
 	if mode != null:
@@ -561,13 +662,139 @@ func _step_free(state: PlayerState, input: PlayerInput, dt: float) -> void:
 	_tick_trip(state, moved, dt)
 
 
-## Running for `trip_interval` s without stopping is one roll at `trip_chance`: a kid that trips falls for `trip_seconds`. Stopping, or any
-## fall or hit, starts the count again.
+func _on_self_weapon_cast(_id: int, _weapon_id: StringName) -> void:
+	_cast_serial += 1
+
+
+func _held_slot(state: PlayerState) -> int:
+	for slot: int in state.aim_hold.size():
+		if state.aim_hold[slot] >= 0.0:
+			return slot
+	return -1
+
+
+## Advances weapon slot aiming/release and guarantees that when `card_cycle == false` and a release
+## produces no cast (e.g. targeted `bato_light` with nobody in range), `weapon_cooldowns[slot]` stays `0.0`.
+func _handle_weapon_casting(state: PlayerState, input: PlayerInput, dt: float) -> void:
+	var released_slot: int = _held_slot(state)
+	var was_ready: bool = released_slot >= 0 and released_slot < state.weapon_cooldowns.size() \
+		and state.weapon_cooldowns[released_slot] <= 0.0
+	var did_release: bool = was_ready and (state.previous_buttons & WeaponCasting.CARD_BITS[released_slot]) != 0 \
+		and not input.is_pressed(WeaponCasting.CARD_BITS[released_slot])
+	var before_serial: int = _cast_serial
+	casting.handle(self, state, input, dt)
+	if did_release and not rules.card_cycle and _cast_serial == before_serial:
+		state.weapon_cooldowns[released_slot] = 0.0
+
+
+func _step_hero_actions(state: PlayerState, input: PlayerInput) -> void:
+	# 0. Athletic Street Jump (`BTN_JUMP`) & Ground Slide (`BTN_SLIDE` or fresh `BTN_CROUCH` while running)
+	var jump_fresh: bool = input.is_pressed(PlayerInput.BTN_JUMP) and (state.previous_buttons & PlayerInput.BTN_JUMP) == 0
+	if jump_fresh and state.air_y <= 0.01 and state.jump_cd <= 0.0 and state.dash_left <= 0.0 \
+		and state.slide_left <= 0.0 and state.cast_lock_left <= 0.0 and state.effects.can_move() and rules.jump_velocity > 0.0:
+		state.vel_y = rules.jump_velocity
+		state.jump_cd = rules.jump_cooldown
+		state.crouching = false
+
+	var stick_move: Vector2 = input.move.limit_length(1.0)
+	var stick_mag: float = stick_move.length()
+	var has_target_run: bool = stick_mag <= 0.001 and state.has_move_target and state.position.distance_squared_to(state.move_target) > 0.04
+	var running_fast: bool = (stick_mag >= rules.walk_run_threshold or has_target_run) and not state.overclocked
+	var slide_fresh: bool = input.is_pressed(PlayerInput.BTN_SLIDE) and (state.previous_buttons & PlayerInput.BTN_SLIDE) == 0
+	var crouch_fresh: bool = input.is_pressed(PlayerInput.BTN_CROUCH) and (state.previous_buttons & PlayerInput.BTN_CROUCH) == 0
+	if (slide_fresh or (crouch_fresh and not state.crouching)) and running_fast and state.air_y <= 0.01 \
+		and state.slide_cd <= 0.0 and state.slide_left <= 0.0 and state.dash_left <= 0.0 \
+		and state.cast_lock_left <= 0.0 and state.effects.can_move() and rules.slide_duration > 0.0:
+		var s_dir: Vector2 = Vector2.ZERO
+		if stick_mag > 0.001:
+			s_dir = stick_move.normalized()
+		elif has_target_run:
+			s_dir = (state.move_target - state.position).normalized()
+		else:
+			s_dir = state.facing if state.facing.length_squared() > 0.001 else Vector2(0.0, -side_for_team(state.team))
+		state.slide_dir = s_dir
+		state.facing = s_dir
+		state.slide_left = rules.slide_duration
+		state.slide_cd = rules.slide_cooldown
+		state.crouching = true
+		state.walking = false
+		state.run_time = 0.0
+	elif crouch_fresh and not running_fast and state.slide_left > 0.0:
+		state.slide_left = 0.0
+
+	# 1. Luksong-Tinik Parkour Vault-Dash (fresh press)
+	var dash_fresh: bool = input.is_pressed(PlayerInput.BTN_DASH) and (state.previous_buttons & PlayerInput.BTN_DASH) == 0
+	if dash_fresh and state.dash_cd <= 0.0 and state.dash_left <= 0.0 and state.effects.can_move() and rules.dash_duration > 0.0:
+		var dir: Vector2 = Vector2.ZERO
+		if input.move.length_squared() > 0.001:
+			dir = input.move.normalized()
+		elif state.has_move_target and state.position.distance_squared_to(state.move_target) > 0.04:
+			dir = (state.move_target - state.position).normalized()
+		elif input.is_pressed(PlayerInput.BTN_AIM_POINT) and input.aim_point.is_finite() and state.position.distance_squared_to(input.aim_point) > 0.04:
+			dir = (input.aim_point - state.position).normalized()
+		else:
+			dir = state.facing if state.facing.length_squared() > 0.001 else Vector2(0.0, -side_for_team(state.team))
+		state.dash_dir = dir
+		state.facing = dir
+		state.dash_left = rules.dash_duration
+		state.dash_cd = rules.dash_cooldown
+		state.slide_left = 0.0
+		state.crouching = false
+		state.effects.clear_type(StatusEffects.Type.SLOW)
+		player_dashed.emit(state.id)
+
+	# 2. Bagsak ng Kalye Ultimate (fresh press at 100% ult_charge)
+	var ult_fresh: bool = input.is_pressed(PlayerInput.BTN_ULTIMATE) and (state.previous_buttons & PlayerInput.BTN_ULTIMATE) == 0
+	if ult_fresh and rules.ultimate_weapon != null and state.ult_charge >= 100.0 - EPSILON and state.can_act() and not casting_blocked(state):
+		var ult_def: WeaponDef = rules.ultimate_weapon
+		var ult_aim: Vector2 = Vector2.ZERO
+		if input.is_pressed(PlayerInput.BTN_AIM_POINT) and input.aim_point.is_finite():
+			ult_aim = aim_from_point(state, ult_def, input.aim_point)
+		elif input.aim.is_finite() and input.aim.length() >= rules.aim_deadzone:
+			ult_aim = input.aim.limit_length(1.0)
+		else:
+			var near: PlayerState = nearest_enemy(state, ult_def.max_range)
+			if near != null and ult_def.max_range > 0.0:
+				ult_aim = ((near.position - state.position) / ult_def.max_range).limit_length(1.0)
+		if weapons.fire(self, state, ult_def, ult_aim, 0.0, -1):
+			state.ult_charge = 0.0
+			state.out_of_combat_time = 0.0
+			state.sprinting = false
+			if ult_def.heal > 0:
+				heal(state.id, ult_def.heal)
+			ultimate_cast.emit(state.id)
+			weapon_cast.emit(state.id, ult_def.id)
+
+	# 3. Tirador Rapid Primary Fire (hold or tap, when not actively aiming a superpower slot)
+	if input.is_pressed(PlayerInput.BTN_PRIMARY) and rules.primary_weapon != null and state.primary_cd <= 0.0 \
+		and state.can_act() and not casting_blocked(state) and _held_slot(state) < 0:
+		var p_def: WeaponDef = rules.primary_weapon
+		var p_aim: Vector2 = Vector2.ZERO
+		if input.is_pressed(PlayerInput.BTN_AIM_POINT) and input.aim_point.is_finite():
+			p_aim = aim_from_point(state, p_def, input.aim_point)
+		elif input.aim.is_finite() and input.aim.length() >= rules.aim_deadzone:
+			p_aim = input.aim.limit_length(1.0)
+		else:
+			p_aim = weapons.auto_aim(self, state, p_def)
+		if weapons.fire(self, state, p_def, p_aim, 0.0, -1):
+			if p_aim.length_squared() > 0.001:
+				state.facing = p_aim.normalized()
+			state.primary_cd = p_def.cooldown
+			state.out_of_combat_time = 0.0
+			state.sprinting = false
+			weapon_cast.emit(state.id, p_def.id)
+
+
+## Running for `trip_interval` s without stopping is one roll at `trip_chance`: a kid that trips falls for `trip_seconds`. Stopping, analog
+## walking (`< walk_run_threshold`), crouching, sliding, or any fall or hit starts the count again.
 func _tick_trip(state: PlayerState, moved: bool, dt: float) -> void:
 	if not state.trips or rules.trip_chance <= 0.0 or rules.trip_interval <= 0.0:
 		return
-	if not moved or state.overclocked or not state.effects.can_move():  # a worn-out kid only walks: walking does not trip
+	if not moved or state.walking or state.crouching or state.slide_left > 0.0 or state.dash_left > 0.0 \
+		or state.overclocked or not state.effects.can_move():
 		state.run_time = 0.0
+		return
+	if state.air_y > 0.0:
 		return
 	state.run_time += dt
 	if state.run_time < rules.trip_interval - EPSILON:
@@ -575,6 +802,136 @@ func _tick_trip(state: PlayerState, moved: bool, dt: float) -> void:
 	state.run_time = 0.0
 	if _trip_rng.randf() < rules.trip_chance:
 		apply_effect(state.id, StatusEffects.Type.TRIPPED, rules.trip_seconds, 0.0)
+
+
+## Spawns or resets the 3 Barangay merienda power-up stands when `layout.is_circular() and mode == null`.
+func reset_powerups() -> void:
+	powerups.clear()
+	if layout == null or not layout.is_circular() or mode != null:
+		return
+	var spots: Array[Vector2] = []
+	var raw_spots: Variant = layout.get(&"powerup_spots")
+	if raw_spots is Array:
+		var raw_arr: Array = raw_spots
+		for item: Variant in raw_arr:
+			if item is Vector2:
+				var pt: Vector2 = item
+				spots.append(pt)
+	if spots.is_empty():
+		spots.assign(DEFAULT_POWERUP_SPOTS)
+	for i: int in spots.size():
+		var entry: Dictionary = {
+			"id": i + 1,
+			"kind": (i % 3) + 1,
+			"pos": spots[i],
+			"active": true,
+			"respawn_left": 0.0,
+		}
+		powerups.append(entry)
+
+
+func _step_powerups(dt: float) -> void:
+	if powerups.is_empty() or mode != null:
+		return
+	for i: int in powerups.size():
+		var entry: Dictionary = powerups[i]
+		var is_active: bool = entry.has("active") and entry["active"] == true
+		if not is_active:
+			var rem: float = 0.0
+			if entry.has("respawn_left"):
+				var raw_rem: Variant = entry["respawn_left"]
+				if raw_rem is float:
+					rem = raw_rem
+				elif raw_rem is int:
+					rem = float(raw_rem)
+			rem = maxf(0.0, rem - dt)
+			entry["respawn_left"] = rem
+			if rem <= EPSILON:
+				entry["respawn_left"] = 0.0
+				entry["active"] = true
+			continue
+		if not entry.has("pos"):
+			continue
+		var raw_pos: Variant = entry["pos"]
+		if not (raw_pos is Vector2):
+			continue
+		var stand_pos: Vector2 = raw_pos
+		var winner: PlayerState = null
+		var best_dist: float = INF
+		for pid: int in players:
+			if _brains.has(pid):
+				continue
+			var candidate: PlayerState = players[pid]
+			if candidate.tagged:
+				continue
+			var reach: float = rules.powerup_pickup_radius + candidate.radius
+			var dist: float = candidate.position.distance_to(stand_pos)
+			if dist <= reach and dist < best_dist:
+				best_dist = dist
+				winner = candidate
+		if winner == null:
+			continue
+		var pid_stand: int = i + 1
+		if entry.has("id") and entry["id"] is int:
+			var typed_id: int = entry["id"]
+			pid_stand = typed_id
+		var p_kind: int = (i % 3) + 1
+		if entry.has("kind") and entry["kind"] is int:
+			var typed_kind: int = entry["kind"]
+			p_kind = typed_kind
+		entry["active"] = false
+		entry["respawn_left"] = rules.powerup_respawn_seconds
+		_apply_powerup(winner, p_kind)
+		powerup_taken.emit(winner.id, pid_stand, p_kind)
+
+
+func _apply_powerup(state: PlayerState, kind: int) -> void:
+	state.buff_regen_carry = 0.0
+	match kind:
+		POWERUP_PALAMIG:
+			heal(state.id, rules.palamig_heal)
+			state.buff_type = POWERUP_PALAMIG
+			state.buff_left = rules.palamig_duration
+		POWERUP_TEKS:
+			if mode == null:
+				state.ult_charge = minf(100.0, state.ult_charge + rules.teks_ult_bonus)
+			state.buff_type = POWERUP_TEKS
+			state.buff_left = rules.teks_duration
+		POWERUP_TURON:
+			state.buff_type = POWERUP_TURON
+			state.buff_left = rules.turon_duration
+
+
+func _tick_buff(state: PlayerState, dt: float) -> void:
+	if state.buff_left <= 0.0 or state.buff_type == POWERUP_NONE:
+		state.buff_left = 0.0
+		state.buff_type = POWERUP_NONE
+		state.buff_regen_carry = 0.0
+		return
+	var step_dt: float = minf(dt, state.buff_left)
+	state.buff_left = maxf(0.0, state.buff_left - dt)
+	if not state.tagged and state.buff_type == POWERUP_TURON and rules.turon_regen_per_s > 0.0:
+		if state.hp < rules.player_max_hp:
+			state.buff_regen_carry += rules.turon_regen_per_s * step_dt
+			var whole_hp: int = int(floorf(state.buff_regen_carry + EPSILON))
+			if whole_hp > 0:
+				state.buff_regen_carry = maxf(0.0, state.buff_regen_carry - float(whole_hp))
+				heal(state.id, whole_hp)
+		else:
+			state.buff_regen_carry = 0.0
+	if state.buff_left <= EPSILON:
+		state.buff_left = 0.0
+		state.buff_type = POWERUP_NONE
+		state.buff_regen_carry = 0.0
+
+
+func _step_air(state: PlayerState, dt: float) -> void:
+	if state.air_y > 0.0 or state.vel_y > 0.0:
+		state.air_y += state.vel_y * dt
+		state.vel_y -= rules.jump_gravity * dt
+		if state.air_y <= 0.0:
+			state.air_y = 0.0
+			state.vel_y = 0.0
 
 
 ## Elixir fills while the match runs (also while tagged), up to the bar; the extra is lost.
@@ -645,8 +1002,8 @@ func _step_tagged(state: PlayerState, input: PlayerInput, dt: float) -> void:
 ## as it is.
 func clamp_move_target(point: Vector2, radius: float) -> Vector2:
 	var street: Rect2 = _street.grow(-radius)
-	var result: Vector2 = layout.keep_in_street(point, radius)
-	for rect: Rect2 in obstacles:
+	var result: Vector2 = layout.clamp_to_arena(point, radius)
+	for rect: Rect2 in _walk_obstacles:
 		var grown: Rect2 = rect.grow(radius)
 		if not grown.has_point(result):
 			continue
@@ -657,8 +1014,10 @@ func clamp_move_target(point: Vector2, radius: float) -> Vector2:
 		var best: Vector2 = result
 		var best_distance: float = INF
 		for exit: Vector2 in exits:
-			var inside: bool = exit.x >= street.position.x - EPSILON and exit.x <= street.end.x + EPSILON \
+			var inside: bool = layout.in_arena(exit, maxf(radius - EPSILON, 0.0)) if layout.arena_radius > 0.0 else (
+				exit.x >= street.position.x - EPSILON and exit.x <= street.end.x + EPSILON
 				and exit.y >= street.position.y - EPSILON and exit.y <= street.end.y + EPSILON
+			)
 			if inside and exit.distance_to(result) < best_distance:
 				best_distance = exit.distance_to(result)
 				best = exit
@@ -672,7 +1031,8 @@ func can_afford(state: PlayerState, slot: int) -> bool:
 		return true
 	if slot < 0 or slot >= state.weapons.size():
 		return false
-	var def: WeaponDef = weapon_defs.get(state.weapons[slot]) as WeaponDef
+	var wid: StringName = state.weapons[slot]
+	var def: WeaponDef = weapon_defs[wid] if weapon_defs.has(wid) else null
 	return def != null and state.elixir + EPSILON >= float(def.elixir_cost)
 
 
@@ -748,7 +1108,8 @@ func resolved_target(state: PlayerState, slot: int) -> int:
 func lacks_target(state: PlayerState, slot: int) -> bool:
 	if slot < 0 or slot >= state.weapons.size():
 		return false
-	var def: WeaponDef = weapon_defs.get(state.weapons[slot]) as WeaponDef
+	var wid: StringName = state.weapons[slot]
+	var def: WeaponDef = weapon_defs[wid] if weapon_defs.has(wid) else null
 	if def == null or def.shape != WeaponDef.Shape.TARGETED:
 		return false
 	return weapons.target_in_range(self, state, def, resolved_target(state, slot)) == null
@@ -757,24 +1118,68 @@ func lacks_target(state: PlayerState, slot: int) -> bool:
 func _move(state: PlayerState, input: PlayerInput, dt: float) -> void:
 	if input != null:
 		_take_move_order(state, input)
+	_step_air(state, dt)
+	if state.dash_left > 0.0:
+		state.dash_left = maxf(0.0, state.dash_left - dt)
+		state.walking = false
+		state.crouching = false
+		if state.effects.can_move():
+			_move_by(state, state.dash_dir * rules.dash_speed * dt)
+			return
+		state.dash_left = 0.0
+	if state.slide_left > 0.0:
+		state.slide_left = maxf(0.0, state.slide_left - dt)
+		state.walking = false
+		state.sprinting = false
+		if state.effects.can_move() and state.air_y <= 0.01:
+			state.crouching = state.slide_left > 0.0 or (input != null and input.is_pressed(PlayerInput.BTN_CROUCH))
+			var slide_v: float = rules.slide_speed
+			if mode == null and state.buff_type == POWERUP_PALAMIG and state.buff_left > 0.0:
+				slide_v *= (1.0 + rules.palamig_speed_bonus)
+			_move_by(state, state.slide_dir * slide_v * dt)
+			return
+		state.slide_left = 0.0
 	if state.cast_lock_left > 0.0:
 		# a heavy attack's cast animation: aiming was free while moving, but now stand still
 		state.cast_lock_left = maxf(0.0, state.cast_lock_left - dt)
+		state.sprinting = false
+		state.walking = false
+		state.crouching = false
 		return
 	if not state.effects.can_move():
+		state.sprinting = false
+		state.walking = false
+		state.crouching = false
 		return  # a move target set meanwhile is kept and walked once the kid can move
+	state.out_of_combat_time += dt
+	var move: Vector2 = input.move.limit_length(1.0) if input != null else Vector2.ZERO
+	var stick_len: float = move.length()
+	state.crouching = mode == null and state.air_y <= 0.01 and input != null and input.is_pressed(PlayerInput.BTN_CROUCH)
+	state.walking = not state.crouching and stick_len > 0.0 and stick_len < rules.walk_run_threshold
 	var speed: float = rules.move_speed
 	if mode != null:
 		speed *= mode.speed_scale(state)
 	if state.overclocked:
 		speed *= rules.overclock_speed_share
+	elif state.crouching:
+		speed *= rules.crouch_speed_share
+	if mode == null and state.buff_type == POWERUP_PALAMIG and state.buff_left > 0.0:
+		speed *= (1.0 + rules.palamig_speed_bonus)
 	speed *= state.effects.speed_multiplier(rules.polymorph_speed_scale)
-	var move: Vector2 = input.move.limit_length(1.0) if input != null else Vector2.ZERO
-	if move.length_squared() > 0.0:
-		state.facing = move.normalized()
+	var wants_move: bool = stick_len > 0.0 or state.has_move_target
+	state.sprinting = wants_move and not state.walking and not state.crouching and rules.sprint_enabled \
+		and mode == null and not state.overclocked and not state.effects.has(StatusEffects.Type.SLOW) \
+		and state.out_of_combat_time >= rules.sprint_delay
+	if state.sprinting:
+		speed *= rules.sprint_multiplier
+	var prev_pos: Vector2 = state.position
+	if stick_len > 0.0:
+		state.facing = move / stick_len
 		_move_by(state, move * speed * dt)
 	elif state.has_move_target:
 		_walk_to_target(state, speed * dt, dt)
+	if state.walking and state.position.distance_squared_to(prev_pos) <= EPSILON * EPSILON:
+		state.walking = false
 
 
 ## A non-zero stick (bots) clears the move target; a new street point replaces it (pulled into the street and out of cover).
@@ -826,7 +1231,7 @@ func _move_by(state: PlayerState, delta: Vector2) -> void:
 	var count: int = maxi(1, ceili(length / state.radius))
 	var piece: Vector2 = delta / count
 	for i: int in count:
-		state.position = layout.keep_in_street(Collision.resolve(state.position + piece, state.radius, _blocking), state.radius)
+		state.position = layout.clamp_to_arena(Collision.resolve(state.position + piece, state.radius, _walk_blocking), state.radius)
 
 
 ## Slot 0 next to the post, then alternating +x / -x by spawn_spacing.

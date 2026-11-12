@@ -1,9 +1,9 @@
 class_name PracticeMatch
 extends Node3D
-## The match screen. Offline practice runs a local MatchSim with training dummies;
+## The match screen. Offline practice runs a local MatchSim with training dummies or a full 5v5 bot squad;
 ## online (`online = true`, scenes/match/online.tscn) it draws the GameClient's
 ## mirror of the server's match and sends inputs instead of stepping a sim.
-## It wires the pieces together: MatchInput (devices -> PlayerInput), MatchHud
+## It wires the pieces together: MatchInput + PcCombatInput (devices -> PlayerInput), MatchHud
 ## (all HUD controls), the 3D views, audio and the camera. Reads sim state only;
 ## all rules live in scripts/sim/.
 
@@ -14,9 +14,12 @@ const ENEMY_PATROL_ID: int = 3
 const ALLY_ID: int = 4
 ## A free enemy standing in its own rescue area (bottom right), a third target.
 const ENEMY_RESCUE_ID: int = 5
-## Practice match vs bots: your two allies and the three enemies (real players of the sim, driven by TeamCoach).
-const BOT_ALLY_IDS: Array[int] = [2, 3]
-const BOT_ENEMY_IDS: Array[int] = [4, 5, 6]
+## Practice match vs bots (Agawang Base 5v5): your four allies and five enemies (10 unique kids, driven by TeamCoach).
+const BOT_ALLY_IDS: Array[int] = [2, 3, 4, 5]
+const BOT_ENEMY_IDS: Array[int] = [6, 7, 8, 9, 10]
+## Street games (Patintero, Tumbang Preso, Langit Lupa) keep their 6-player street roster.
+const STREET_ALLY_IDS: Array[int] = [2, 3]
+const STREET_ENEMY_IDS: Array[int] = [4, 5, 6]
 const MAX_STEPS_PER_FRAME: int = 8
 const RECONNECT_INTERVAL: float = 2.0
 const TITLE_SCENE: String = "res://scenes/ui/title_screen.tscn"
@@ -39,6 +42,7 @@ var client: GameClient
 var local_id: int = LOCAL_ID
 var local_team: int = LOCAL_TEAM
 var input: MatchInput = MatchInput.new()
+var _pc_input: PcCombatInput = PcCombatInput.new()
 ## Tilt to run (Settings): the phone's lean, levelled each time the controls come back.
 var tilt: TiltInput = TiltInput.new()
 ## The move target is being steered by the tilt (not by a finger).
@@ -74,6 +78,9 @@ var mode_view: StreetModeView
 var _hold_ticked: bool = false
 ## Tumbang Preso: where the held Throw button aims (radians, see `_angle_of`).
 var _throw_angle: float = 0.0
+## Cached screen-space MoveStick deflection so camera turns keep steering a steady thumb.
+var _stick_screen_way: Vector2 = Vector2.ZERO
+var _suppress_idle_behind: bool = false
 
 @onready var hud: MatchHud = %Hud
 @onready var _camera: ArenaCamera = %ArenaCamera
@@ -85,8 +92,7 @@ var _sfx: SfxView
 @onready var _map: StreetMap = %Map
 
 
-## A match is played sideways with the follow camera (docs/GDD.md "Landscape layout"; `CameraRules.follow`, the data toggle that keeps the
-## portrait match): set before the HUD lays itself out.
+## A match is played sideways with the follow or shoulder camera (`CameraRules.follow` / `third_person`): set before the HUD lays itself out.
 func _enter_tree() -> void:
 	var camera: ArenaCamera = get_node_or_null("ArenaCamera") as ArenaCamera
 	Settings.set_landscape(camera == null or camera.rules == null or camera.rules.follow or camera.rules.third_person)
@@ -108,9 +114,10 @@ func _ready() -> void:
 	_sfx.name = "Sfx"
 	add_child(_sfx)
 	_sfx.watch(sim, local_id)
-	var fog: MatchFog = MatchFog.new()
-	add_child(fog)
-	fog.build(layout.lane_length, _map.fog_distance(), _map.fog_far_start())  # the fog walls past the two ends of the street
+	if _camera == null or _camera.rules == null or not _camera.rules.third_person:
+		var fog: MatchFog = MatchFog.new()
+		add_child(fog)
+		fog.build(layout.lane_length, _map.fog_distance(), _map.fog_far_start())  # legacy fixed-camera modes only
 	var music: MatchMusic = MatchMusic.new()
 	add_child(music)
 	music.start(rules.bgm_volume)  # the match's background music (silent until assets/audio/bgm.mp3 is added)
@@ -128,6 +135,7 @@ func _ready() -> void:
 	if not online:
 		hud.overhead.names[local_id] = Session.player_name  # the others are named after their kid (OverheadHud.name_of)
 	_presentation.connect_hud()
+	_ensure_locomotion_hud_signals()
 	_presentation.connect_sim()
 	_pick_screen.exit_requested.connect(_on_exit_pressed)
 	_pick_screen.confirmed.connect(_on_pick_confirmed)
@@ -136,7 +144,7 @@ func _ready() -> void:
 	# set before opening: with cards the pick finishes at once (Practice's kid is the main screen's) and that clears it again; set after,
 	# it stayed set and the match waited for a pick that was already over (nothing moved, nothing could be tapped)
 	_opening_pick = true
-	_open_pick("PICK A KID" if sim.mode != null else "PICK A KID + 2 WEAPONS", [])  # no skills in the street games
+	_open_pick("PICK A KID" if sim.mode != null else "PILI NA NG BIDA + 3 SUPERPOWERS", [])  # no skills in the street games
 	if online:
 		client.stage_changed.connect(_on_stage_changed)
 		client.picks_changed.connect(func() -> void: _pick_screen.set_taken(client.taken_kids()))
@@ -165,6 +173,22 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
 		skip_intro()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if sim == null or _camera == null or _camera.rules == null:
+		return
+	var active: bool = _pc_combat_active()
+	var aim_pt: Vector2 = crosshair_point() if active else Vector2.ZERO
+	var drag: Vector2 = _pc_input.handle_event(event, input, aim_pt, active)
+	if drag != Vector2.ZERO:
+		_camera.look(drag)
+
+
+func _pc_combat_active() -> bool:
+	return _application_focused and not _application_paused and controls_active() and not is_picking() \
+		and not hud.menu.visible and not hud.briefing.visible and sim != null and sim.mode == null \
+		and sim.phase == MatchSim.Phase.PLAYING and _camera != null and _camera.rules != null and _camera.rules.third_person
 
 
 func _notification(what: int) -> void:
@@ -204,6 +228,7 @@ func _back_pressed() -> void:
 
 
 func _exit_tree() -> void:
+	_pc_input.reset(input)
 	Settings.set_landscape(false)
 	if online and client != null and client.in_match():
 		client.leave_room()
@@ -265,43 +290,60 @@ func card_moved(slot: int, at: Vector2, on_card: bool, over_hand: bool) -> void:
 		input.card_drag(on_card, aim, true)
 		return
 	var point: Variant = null if over_hand else street_point(at)
-	input.card_drag(on_card, point, point is Vector2 and layout.lane_rect().has_point(point as Vector2))
+	var inside: bool = false
+	if point is Vector2:
+		var pt: Vector2 = point as Vector2
+		inside = layout.in_arena(pt, 0.0) if layout.arena_radius > 0.0 else layout.lane_rect().has_point(pt)
+	input.card_drag(on_card, point, inside)
 
 
-## The held card was let go at screen point `at`: a cast there, a tap, or a drop back on the hand (MatchInput decides).
 ## True when the card in `slot` of your hand heals.
 func _is_heal(slot: int) -> bool:
-	var state: PlayerState = sim.players.get(local_id) as PlayerState
+	var state: PlayerState = sim.players[local_id] if sim.players.has(local_id) else null
 	if state == null or slot < 0 or slot >= state.weapons.size():
 		return false
-	var def: WeaponDef = sim.weapon_defs.get(state.weapons[slot]) as WeaponDef
+	var wid: StringName = state.weapons[slot]
+	var def: WeaponDef = sim.weapon_defs[wid] if sim.weapon_defs.has(wid) else null
 	return def != null and def.kind == WeaponDef.Kind.HEAL
 
 
-## The shoulder view: the street point under the crosshair, kept inside the street. Looking over the horizon (or so far the point is past the
-## street) the card goes `CameraRules.aim_reach` metres along the view from the kid instead.
+## The shoulder view: the street point under the crosshair, kept inside the arena. Looking over the horizon (or so far the point is past the
+## arena) the card goes `CameraRules.aim_reach` metres along the view from the kid instead.
 func crosshair_point() -> Vector2:
-	var state: PlayerState = sim.players.get(local_id) as PlayerState
+	var state: PlayerState = sim.players[local_id] if sim.players.has(local_id) else null
 	var from: Vector2 = state.position if state != null else Vector2.ZERO
 	var hit: Variant = street_point(_camera.crosshair())
 	var lane: Rect2 = layout.lane_rect()
 	var point: Vector2
-	if hit is Vector2 and lane.grow(_camera.rules.shoulder_bounds_edge).has_point(hit as Vector2):
+	var hit_valid: bool = false
+	if hit is Vector2:
+		var candidate: Vector2 = hit as Vector2
+		if layout.arena_radius > 0.0:
+			hit_valid = candidate.length() <= layout.arena_radius + _camera.rules.shoulder_bounds_edge
+		else:
+			hit_valid = lane.grow(_camera.rules.shoulder_bounds_edge).has_point(candidate)
+	if hit_valid:
 		point = hit as Vector2
 	else:
 		point = from + _camera.ground_axes()[1] * _camera.rules.aim_reach
+	if layout.arena_radius > 0.0:
+		return layout.clamp_to_arena(point, rules.player_radius)
 	return point.clamp(lane.position, lane.end)
 
 
 ## The street point a drag of `way` (screen, at most 1 long) on the ability arc aims the card in `slot` at: that share of the card's range from
-## your kid, along that way on the street, kept inside the street.
+## your kid, along that way on the street, kept inside the arena.
 func arc_aim_point(slot: int, way: Vector2) -> Vector2:
-	var state: PlayerState = sim.players.get(local_id) as PlayerState
+	var state: PlayerState = sim.players[local_id] if sim.players.has(local_id) else null
 	if state == null:
 		return Vector2.ZERO
-	var def: WeaponDef = sim.weapon_defs.get(state.weapons[slot]) as WeaponDef if slot < state.weapons.size() else null
+	var def: WeaponDef = null
+	if slot >= 0 and slot < state.weapons.size() and sim.weapon_defs.has(state.weapons[slot]):
+		def = sim.weapon_defs[state.weapons[slot]]
 	var reach: float = def.max_range if def != null else 0.0
 	var point: Vector2 = state.position + _camera.ground_way(way) * reach
+	if layout.arena_radius > 0.0:
+		return layout.clamp_to_arena(point, rules.player_radius)
 	var lane: Rect2 = layout.lane_rect()
 	return point.clamp(lane.position, lane.end)
 
@@ -324,7 +366,7 @@ func own_side() -> int:
 	if sim.mode is Patintero:
 		# like Agawang Base the camera turns round so that your side is at the bottom: the runners run up from the base at the bottom; the
 		# guards (whose runners come from the other end) see it from the far end
-		var me: PlayerState = sim.players.get(local_id) as PlayerState
+		var me: PlayerState = sim.players[local_id] if sim.players.has(local_id) else null
 		return MapLayout.SIDE_OWN if me == null or sim.mode.is_attacker(me) else MapLayout.SIDE_ENEMY
 	if sim.mode is TumbangPreso:
 		# the taya sees the street from the far end, the throwers coming at it from the top; a thrower throws up the street
@@ -414,7 +456,32 @@ func advance(delta: float) -> void:
 	if steps == MAX_STEPS_PER_FRAME:
 		_accumulator = 0.0
 	blend.set_progress(_accumulator, dt)
+	_sync_camera_locomotion(delta)
 	_presentation.sync(delta)
+
+
+func _sync_camera_locomotion(delta: float) -> void:
+	if _camera == null or _camera.rules == null or not _camera.rules.third_person or sim == null or not sim.players.has(local_id):
+		return
+	var player: PlayerState = sim.players[local_id]
+	var is_low: bool = not player.tagged and (player.crouching or player.slide_left > 0.0)
+	var air_height: float = 0.0 if player.tagged else player.air_y
+	_camera.sync_posture(is_low, air_height, delta)
+	if sim.mode != null or sim.phase != MatchSim.Phase.PLAYING or player.tagged:
+		_suppress_idle_behind = false
+		return
+	var screen_move: Vector2 = _pc_input.last_screen_way if _pc_input.last_screen_way != Vector2.ZERO else _stick_screen_way
+	var backpedaling: bool = screen_move.y > 0.35
+	var moving_forward_or_side: bool = (screen_move != Vector2.ZERO and not backpedaling) \
+		or player.has_move_target or player.dash_left > 0.0 or player.slide_left > 0.0
+	if backpedaling:
+		_suppress_idle_behind = true
+	elif moving_forward_or_side:
+		_suppress_idle_behind = false
+	if input.primary_held or input.card_held() or backpedaling or (_suppress_idle_behind and not moving_forward_or_side):
+		_camera.tick_manual_look(delta)
+		return
+	_camera.sync_behind_character(player.facing, moving_forward_or_side or input.stick != Vector2.ZERO, delta)
 
 
 ## Offline, the match stands still while the match menu or the briefing is open (a match against the clock of bots
@@ -454,8 +521,8 @@ func _setup_practice() -> void:
 			sim.equip(id, true)
 
 
-## Three kids a side: you and two allies against three enemies, all real players of the sim. The allies back you up (they attack
-## when you do, defend and rescue otherwise); the enemies wait, then attack (see TeamCoach).
+## Five kids a side (5v5, 10 unique kids): you and four allies against five enemies, all real players of the sim.
+## The allies back you up (they attack when you do, defend and rescue otherwise); the enemies wait, then attack (see TeamCoach).
 func _setup_bot_match() -> void:
 	sim.add_player(local_id, local_team)
 	var allies: TeamCoach = TeamCoach.new(local_team, local_id)
@@ -467,11 +534,35 @@ func _setup_bot_match() -> void:
 		sim.add_player(id, 1 - local_team)
 		foes.add(sim, id, rules.bot_skill)
 	_coaches = [allies, foes]
-	sim.assign_characters()
-	sim.set_character(local_id, StringName(Session.avatar_id))
+	_assign_unique_roster()
 	sim.equip(local_id)
 	for id: int in BOT_ALLY_IDS + BOT_ENEMY_IDS:
 		sim.equip(id, true)
+
+
+## Deals 10 unique Filipino kids across all 10 players in 5v5 when the roster has enough characters.
+func _assign_unique_roster() -> void:
+	if rules.characters.size() < sim.players.size():
+		sim.assign_characters()
+		sim.set_character(local_id, StringName(Session.avatar_id))
+		return
+	var pool: Array[StringName] = []
+	for character: CharacterDef in rules.characters:
+		pool.append(character.id)
+	for i: int in range(pool.size() - 1, 0, -1):
+		var j: int = sim.rng.randi_range(0, i)
+		var held: StringName = pool[i]
+		pool[i] = pool[j]
+		pool[j] = held
+	var wanted: StringName = StringName(Session.avatar_id)
+	var wanted_idx: int = pool.find(wanted)
+	if wanted_idx > 0:
+		pool[wanted_idx] = pool[0]
+		pool[0] = wanted
+	var cursor: int = 0
+	for id: int in sim.players:
+		sim.players[id].character_id = pool[cursor]
+		cursor += 1
 
 
 ## A street game in Practice. Patintero: you and two bot allies against three bots; your team runs first. Tumbang Preso: every kid plays
@@ -480,10 +571,10 @@ func _setup_street_game(game: StreetModeRules) -> void:
 	var for_all: bool = StreetMode.create(game).is_free_for_all()  # Tumbang Preso, Langit Lupa
 	sim.add_player(local_id, local_team)
 	_mode_coach = StreetModeCoach.new()
-	for id: int in BOT_ALLY_IDS:
+	for id: int in STREET_ALLY_IDS:
 		sim.add_player(id, local_team)
 		_mode_coach.add(id)
-	for id: int in BOT_ENEMY_IDS:
+	for id: int in STREET_ENEMY_IDS:
 		sim.add_player(id, local_team if for_all else 1 - local_team)
 		_mode_coach.add(id)
 	sim.assign_characters()
@@ -520,10 +611,16 @@ func _step_once(dt: float) -> void:
 ## A menu, a pause or the pick screen drops what is held: a held aim must cancel rather than cast.
 func _local_input(tick: int) -> PlayerInput:
 	if not _application_focused or _application_paused or not controls_active() or is_picking() or hud.menu.visible:
+		_pc_input.reset(input)
 		input.clear()
+		_stick_screen_way = Vector2.ZERO
 		_stop_tilt()
 		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_AIM_CANCEL, tick)
 	steer_by_tilt(TiltInput.gravity())
+	if _stick_screen_way != Vector2.ZERO:
+		input.stick = _camera.ground_way(_stick_screen_way)
+	if sim.mode == null and _camera.rules.third_person:
+		_pc_input.poll_frame(input, _camera.ground_way, crosshair_point(), true)
 	if _camera.rules.third_person and input.card_held() and input.over_street:
 		# the shoulder view: a held card follows the crosshair every tick (the kid walks, the view turns), not only when the finger moves
 		input.card_drag(false, crosshair_point(), true)
@@ -600,7 +697,29 @@ func throw_released(cancel: bool) -> void:
 
 ## The movement knob or the joystick points `way` on screen (up the screen is -1): the way on the street that is, however the camera is turned.
 func knob_moved(way: Vector2) -> void:
+	_stick_screen_way = way
 	input.stick = _camera.ground_way(way)
+
+
+func jump_pressed() -> void:
+	input.press_jump()
+
+
+func crouch_changed(held: bool) -> void:
+	input.set_crouch(held)
+
+
+func slide_pressed() -> void:
+	input.press_slide()
+
+
+func _ensure_locomotion_hud_signals() -> void:
+	if hud.has_signal(&"jump_pressed") and hud.get_signal_connection_list(&"jump_pressed").is_empty():
+		hud.connect(&"jump_pressed", jump_pressed)
+	if hud.has_signal(&"crouch_changed") and hud.get_signal_connection_list(&"crouch_changed").is_empty():
+		hud.connect(&"crouch_changed", crouch_changed)
+	if hud.has_signal(&"slide_pressed") and hud.get_signal_connection_list(&"slide_pressed").is_empty():
+		hud.connect(&"slide_pressed", slide_pressed)
 
 
 ## The Kick or Dive button: one tap.
@@ -619,20 +738,83 @@ static func _way_of(angle: float) -> Vector2:
 
 # ---- weapon pick and swap ------------------------------------------------------------
 
+func _available_weapon_ids() -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for def: WeaponDef in rules.weapons:
+		ids.append(def.id)
+	return ids
+
+
 func _open_pick(heading: String, current: Array[StringName]) -> void:
-	MatchLoadoutFlow.open(self, heading, current)
+	var slots: int = clampi(rules.loadout_size, 2, 3)
+	var mine: StringName = sim.players[local_id].character_id if online else StringName(Session.avatar_id)
+	if not rules.characters.any(func(c: CharacterDef) -> bool: return c.id == mine):
+		mine = sim.players[local_id].character_id
+	var available: Array[StringName] = _available_weapon_ids()
+	_pick_screen.hosting = online and Net.host != null
+	_pick_screen.cards_mode = rules.card_cycle or sim.mode != null
+	var remembered: Array[StringName] = Session.loadout_for(available, slots) if current.is_empty() else current
+	_pick_screen.open(WeaponPick.new(available, rules.weapon_pick_time, remembered, slots), rules.weapons, heading, sim.rng, rules.characters, mine, not online)
+	_set_controls_active(false)
+	if rules.card_cycle:
+		_pick_screen.force_finish()
 
 
 func _open_swap_screen() -> void:
-	MatchLoadoutFlow.open_swap(self)
+	if rules.card_cycle or sim.mode != null:
+		return
+	var slots: int = clampi(rules.loadout_size, 2, 3)
+	var player: PlayerState = sim.players[local_id]
+	var available: Array[StringName] = _available_weapon_ids()
+	_pick_screen.open_swap(WeaponPick.new(available, 0.0, player.weapons, slots), rules.weapons, "CHANGE WEAPONS")
+	_set_controls_active(false)
 
 
 func _on_pick_confirmed(picks: Array[StringName]) -> void:
-	MatchLoadoutFlow.confirm(self, picks)
+	var has_weapons: bool = not rules.card_cycle and sim.mode == null
+	if has_weapons and picks.size() >= 2:
+		Session.remember_loadout(picks)
+		sim.set_loadout_list(local_id, picks)
+	var prev_kid: StringName = sim.players[local_id].character_id
+	var kid: StringName = _pick_screen.character_id
+	if kid != &"":
+		sim.set_character(local_id, kid)
+		if not online and not _coaches.is_empty() and rules.characters.size() >= sim.players.size():
+			for other_id: int in sim.players:
+				if other_id != local_id and sim.players[other_id].character_id == kid:
+					sim.players[other_id].character_id = prev_kid
+					break
+		Session.avatar_id = String(kid)
+		Session.save()
+		_presentation.refresh_kids()
+	if online:
+		var first_w: StringName = picks[0] if picks.size() >= 1 else &""
+		var second_w: StringName = picks[1] if picks.size() >= 2 else &""
+		var third_w: StringName = picks[2] if picks.size() >= 3 else &""
+		client.pick_weapons(first_w, second_w, kid, third_w)
+		if client.stage != "play":
+			show_banner("Waiting for your friends…")
+			return
+	_opening_pick = false
+	sim.begin_intro()
+	_set_controls_active(true)
+	if Session.briefing_pending and not online:
+		Session.briefing_pending = false
+		hud.briefing.start(StreetMode.rules_for(Session.practice_game), rules.briefing_seconds)
+	_presentation.sync(0.0)
 
 
 func _on_swapped(picks: Array[StringName]) -> void:
-	MatchLoadoutFlow.swap(self, picks)
+	if picks.size() < 2:
+		return
+	Session.remember_loadout(picks)
+	if online:
+		var third_w: StringName = picks[2] if picks.size() >= 3 else &""
+		client.swap_weapons(picks[0], picks[1], third_w)
+		sim.players[local_id].weapons.assign(picks)
+	else:
+		sim.swap_loadout_list(local_id, picks)
+	_presentation.sync(0.0)
 
 
 ## The touch controls read raw touches, so they are switched off under the pick
@@ -640,7 +822,9 @@ func _on_swapped(picks: Array[StringName]) -> void:
 func _set_controls_active(active: bool) -> void:
 	hud.set_controls_active(active)
 	if not active:
+		_pc_input.reset(input)
 		input.clear()
+		_stick_screen_way = Vector2.ZERO
 	# however the phone is held when the controls come back is level
 	_stop_tilt()
 
@@ -648,7 +832,9 @@ func _set_controls_active(active: bool) -> void:
 func _cancel_local_input() -> void:
 	if is_node_ready():
 		hud.cancel_controls()
+	_pc_input.reset(input)
 	input.clear()
+	_stick_screen_way = Vector2.ZERO
 	input.pending_buttons = PlayerInput.BTN_AIM_CANCEL
 
 
@@ -700,31 +886,36 @@ func _on_welcomed(reconnected: bool) -> void:
 func _on_room_changed(room: Dictionary) -> void:
 	var gone: PackedStringArray = PackedStringArray()
 	var others: int = 0
-	for entry: Dictionary in room.get("members", []) as Array:
-		var id: int = entry.get("player_id", -1) as int
-		var connected: bool = entry.get("connected", true) as bool
-		var afk: bool = entry.get("afk", false) as bool
-		var name: String = entry.get("name", "") as String
-		if not name.is_empty():
-			hud.overhead.names[id] = name
+	var members_raw: Variant = room.get("members", [])
+	var members: Array = members_raw if members_raw is Array else []
+	for item: Variant in members:
+		if not (item is Dictionary):
+			continue
+		var entry: Dictionary = item
+		var id: int = int(entry.get("player_id", -1))
+		var connected: bool = bool(entry.get("connected", true))
+		var afk: bool = bool(entry.get("afk", false))
+		var name_text: String = String(entry.get("name", ""))
+		if not name_text.is_empty():
+			hud.overhead.names[id] = name_text
 		var known: bool = _connected.has(id)
-		var was: bool = _connected.get(id, connected)
+		var was: bool = _connected[id] if known else connected
 		var was_afk: bool = hud.overhead.away_ids.has(id)
 		_connected[id] = connected
 		if afk:
 			hud.overhead.away_ids[id] = true
 		else:
 			hud.overhead.away_ids.erase(id)
-		if entry.get("team", -1) == 1 - local_team:
+		if int(entry.get("team", -1)) == 1 - local_team:
 			others += 1
 			if afk:
-				gone.append(name)
+				gone.append(name_text)
 		if id == local_id or not known:
 			continue
 		if afk and not was_afk:
-			show_banner("%s is AFK" % name)
+			show_banner("%s is AFK" % name_text)
 		elif was != connected:
-			show_banner(("%s is back!" if connected else "%s left the battle") % name)
+			show_banner(("%s is back!" if connected else "%s left the battle") % name_text)
 	gone_note = "%s is gone for a while" % " and ".join(gone) if others > 0 and gone.size() == others else ""
 
 

@@ -6,6 +6,12 @@ extends Resource
 @export var blurbs: Dictionary[String, String] = {}
 
 
-## The sentence for `game`, or "" when there is none.
+## The sentence for `game` (case-insensitive), or "" when there is none.
 func blurb_of(game: String) -> String:
-	return blurbs.get(game, "")
+	if blurbs.has(game):
+		return blurbs[game]
+	var lower: String = game.to_lower()
+	for known: String in blurbs:
+		if known.to_lower() == lower:
+			return blurbs[known]
+	return ""

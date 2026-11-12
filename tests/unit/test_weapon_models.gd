@@ -4,7 +4,7 @@ extends GutTest
 
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const DT: float = 1.0 / 30.0
-const MODELS: Array[String] = ["slipper", "can", "marble", "crumpled_paper", "paper", "trumpo", "spikes", "meteor", "scissor", "soil_block", "green_cross"]
+const MODELS: Array[String] = ["tirador", "slipper", "can", "marble", "crumpled_paper", "paper", "trumpo", "spikes", "meteor", "scissor", "soil_block", "green_cross"]
 
 var _motion: bool
 
@@ -45,25 +45,25 @@ func test_a_thrown_object_is_scaled_to_its_length_and_centred() -> void:
 		var node: Node3D = autofree(WeaponModel.make(id, true))
 		var mesh: MeshInstance3D = node.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
 		var box: AABB = mesh.get_aabb()
-		var scaled: Vector3 = box.size * mesh.get_parent().scale
+		var scaled: Vector3 = box.size * (mesh.get_parent() as Node3D).scale
 		var want: float = WeaponModel.OBJECTS[id][1] as float
 		assert_almost_eq(maxf(scaled.x, maxf(scaled.y, scaled.z)), want, 0.01, "%s is as long as it should be" % id)
-		var middle: float = (box.position.y + box.size.y / 2.0) * mesh.get_parent().scale.y + mesh.get_parent().position.y
+		var middle: float = (box.position.y + box.size.y / 2.0) * (mesh.get_parent() as Node3D).scale.y + (mesh.get_parent() as Node3D).position.y
 		assert_almost_eq(middle, 0.0, 0.01, "%s is centred" % id)
 	var heavy: Node3D = autofree(WeaponModel.make(&"tsinelas_heavy", true))
 	var light: Node3D = autofree(WeaponModel.make(&"tsinelas_light", true))
-	assert_gt(heavy.get_child(0).scale.x, light.get_child(0).scale.x, "the heavy slipper is bigger")
+	assert_gt((heavy.get_child(0) as Node3D).scale.x, (light.get_child(0) as Node3D).scale.x, "the heavy slipper is bigger")
 
 
 func test_a_placed_trap_stands_on_the_ground() -> void:
 	var node: Node3D = autofree(WeaponModel.make(&"papel_trap", false))
-	assert_almost_eq(node.get_child(0).position.y, 0.0, 0.001)
+	assert_almost_eq((node.get_child(0) as Node3D).position.y, 0.0, 0.001)
 
 
 func test_the_paper_wall_has_the_walls_size() -> void:
 	var node: Node3D = autofree(WeaponModel.shield(3.0, 1.6, 0.3))
 	var mesh: MeshInstance3D = node.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
-	var scaled: Vector3 = mesh.get_aabb().size * mesh.get_parent().scale
+	var scaled: Vector3 = mesh.get_aabb().size * (mesh.get_parent() as Node3D).scale
 	assert_almost_eq(scaled.x, 3.0, 0.01)
 	assert_almost_eq(scaled.y, 1.6, 0.01)
 	assert_almost_eq(scaled.z, 0.3, 0.01)

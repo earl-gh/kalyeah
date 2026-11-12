@@ -12,6 +12,7 @@ var _rules: GameRules
 
 func before_each() -> void:
 	_rules = (load("res://data/rules/game_rules.tres") as GameRules).duplicate() as GameRules
+	_rules.stamina_enabled = true
 
 
 ## Four kids, ids 1..4, kid 4 the taya, every kid far from the others on the street (none on a langit).

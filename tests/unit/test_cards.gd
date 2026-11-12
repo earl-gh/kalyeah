@@ -255,7 +255,7 @@ func test_the_kid_screen_is_only_the_kid_carousel_its_name_and_play() -> void:
 	await wait_process_frames(2)
 	assert_null(screen.find_child("DeckPreview", true, false), "the deck is in the Book, not on the way to the match")
 	assert_false(screen._mode_label.visible, "no subtitle")
-	assert_eq(screen._carousel.cards.size(), 6, "the six card pictures")
+	assert_eq(screen._carousel.cards.size(), _rules.characters.size(), "all 10 kid card pictures")
 	assert_false(screen._character_row.visible, "no row of small tiles")
 	assert_eq(screen._ready_button.text, "Play")
 	assert_false(screen._hint.visible, "no weapon hints in cards mode")

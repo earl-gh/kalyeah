@@ -6,7 +6,7 @@ extends GutTest
 const NET: NetRules = preload("res://data/rules/net_rules.tres")
 const RULES: GameRules = preload("res://data/rules/game_rules.tres")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
-const Phones := preload("res://tests/unit/hotspot_phones.gd")
+const Phones: GDScript = preload("res://tests/unit/hotspot_phones.gd")
 const WS_PORT: int = 18981
 const UDP_PORT: int = 18982
 const SEARCH_SECONDS: float = 1.0
@@ -274,7 +274,7 @@ func test_join_lists_the_verified_room_and_joins_it_only_when_tapped() -> void:
 	assert_true(_shown(card, "CloseButton"))
 	assert_false(_shown(card, "TryAgain"))
 	assert_true(await _until(func() -> bool: return card.find_child("Room0", true, false) != null), "the room is listed")
-	assert_eq(_room_texts(card), ["Host's room  1/6"], "the host's name and how full it is")
+	assert_eq(_room_texts(card), ["Host's room  1/10"], "the host's name and how full it is")
 	# the search runs out and the list stays: nothing is joined by itself
 	assert_true(await _until(func() -> bool: return _shown(card, "TryAgain"), SEARCH_SECONDS + 2.0))
 	assert_eq(_text(card, "Message"), "Tap a room to join.")
@@ -299,7 +299,7 @@ func test_join_with_two_hosts_lists_both_and_joins_the_one_tapped() -> void:
 	assert_true(await _until(both), "both rooms are listed")
 	var labels: Array = _room_texts(card)
 	labels.sort()
-	assert_eq(labels, ["Bea's room  1/6", "Host's room  1/6"])
+	assert_eq(labels, ["Bea's room  1/10", "Host's room  1/10"])
 	assert_true(found.is_empty(), "two rooms: the player picks")
 	for button: Node in card.find_child("Rooms", true, false).get_children():
 		if (button as Button).text.begins_with("Bea"):
@@ -333,8 +333,8 @@ func test_join_with_no_host_at_all_ends_with_no_room_instead_of_hanging() -> voi
 func test_join_says_when_the_room_is_full_or_the_match_started() -> void:
 	_host(true)
 	var room: RoomService.Room = _server.rooms.rooms.values()[0] as RoomService.Room
-	for peer: int in range(701, 706):
-		_server.rooms.join(room.code, peer, "Friend")  # six places in all
+	for peer: int in range(701, 710):
+		_server.rooms.join(room.code, peer, "Friend")  # ten places in all (5v5)
 	var card: MenuDialog = _join([])
 	assert_true(await _until(func() -> bool: return _shown(card, "TryAgain")))
 	assert_eq(_text(card, "Message"), "That room is full!")

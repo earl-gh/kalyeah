@@ -129,6 +129,7 @@ func setup(ctx: FxContext) -> void:
 		trail.scale_amount_min = TRAIL_SIZE
 		trail.scale_amount_max = TRAIL_SIZE
 		trail.scale_amount_curve = dust.size_curve
+		trail.color_ramp = spec(Preset.IMPACT).color_ramp
 		_trails.append(trail)
 		_trail_used.append(false)
 
@@ -191,31 +192,39 @@ func puff(preset: Preset, at: Vector3, amount: int, tint: Color = Color.WHITE, a
 	if index < 0:
 		return false
 	var s: Spec = spec(preset)
+	var k: float = _ctx.kid_scale()
 	var emitter: CPUParticles3D = _emitters[index]
 	emitter.mesh = s.mesh
 	emitter.material_override = s.material
 	emitter.color = s.color * tint
 	emitter.lifetime = s.lifetime
-	emitter.initial_velocity_min = s.speed_min
-	emitter.initial_velocity_max = s.speed_max
-	emitter.gravity = Vector3(0.0, -s.gravity, 0.0)
+	emitter.initial_velocity_min = s.speed_min * k
+	emitter.initial_velocity_max = s.speed_max * k
+	emitter.gravity = Vector3(0.0, -s.gravity * k, 0.0)
 	emitter.direction = s.direction
 	emitter.spread = s.spread
 	emitter.flatness = s.flatness
 	emitter.emission_shape = s.shape
-	emitter.emission_box_extents = s.box if area == Vector2.ZERO else Vector3(area.x / 2.0, s.box.y, area.y / 2.0)
+	emitter.emission_box_extents = (s.box * k) if area == Vector2.ZERO else Vector3(area.x / 2.0, s.box.y * k, area.y / 2.0)
 	emitter.rotation.y = yaw
-	emitter.emission_points = s.points
+	if is_equal_approx(k, 1.0) or s.points.is_empty():
+		emitter.emission_points = s.points
+	else:
+		var scaled_pts: PackedVector3Array = PackedVector3Array()
+		scaled_pts.resize(s.points.size())
+		for pi: int in s.points.size():
+			scaled_pts[pi] = s.points[pi] * k
+		emitter.emission_points = scaled_pts
 	emitter.emission_normals = s.normals
-	emitter.scale_amount_min = s.size
-	emitter.scale_amount_max = s.size if s.size_max < 0.0 else s.size_max
+	emitter.scale_amount_min = s.size * k
+	emitter.scale_amount_max = (s.size if s.size_max < 0.0 else s.size_max) * k
 	emitter.scale_amount_curve = s.size_curve
 	emitter.color_initial_ramp = s.color_initial_ramp
 	emitter.color_ramp = s.color_ramp
 	emitter.angle_min = 0.0
 	emitter.angle_max = 360.0 if s.random_angle else 0.0
 	emitter.particle_flag_rotate_y = s.random_angle
-	emitter.global_position = at + Vector3(0.0, s.spawn_y, 0.0)
+	emitter.global_position = at + Vector3(0.0, s.spawn_y * k, 0.0)
 	emitter.visible = true
 	emitter.restart()
 	emitter.emitting = true
@@ -227,9 +236,12 @@ func puff(preset: Preset, at: Vector3, amount: int, tint: Color = Color.WHITE, a
 func trail_take() -> CPUParticles3D:
 	if _ctx.reduced:
 		return null
+	var k: float = _ctx.kid_scale()
 	for i: int in _trails.size():
 		if not _trail_used[i]:
 			_trail_used[i] = true
+			_trails[i].scale_amount_min = TRAIL_SIZE * k
+			_trails[i].scale_amount_max = TRAIL_SIZE * k
 			_trails[i].visible = true
 			_trails[i].emitting = true
 			return _trails[i]
@@ -314,11 +326,13 @@ static func _build_specs() -> void:
 	var shrink: Curve = _curve([Vector2(0.0, 1.0), Vector2(1.0, 0.0)])
 	var hold_shrink: Curve = _curve([Vector2(0.0, 1.0), Vector2(0.7, 1.0), Vector2(1.0, 0.0)])
 	var puff_material: Material = FxKit.particle_material(true)
+	var dust_shader_material: Material = FxKit.dust_puff_material()
 	var flat_material: Material = FxKit.particle_material(false)
-	# DUST: a sidewalk-grey puff at the feet, low and short.
+	var cloud_erode_ramp: Gradient = puff_erosion_fade()
+	# DUST: a sidewalk-grey painterly puff at the feet, low and short, eroded via vs_dust_puff.tres.
 	var dust: Spec = Spec.new()
 	dust.mesh = FxKit.puff_quad()
-	dust.material = puff_material
+	dust.material = dust_shader_material
 	dust.color = Color(Palette.SIDEWALK, DUST_ALPHA)
 	dust.lifetime = 0.5
 	dust.speed_min = 1.2
@@ -335,7 +349,7 @@ static func _build_specs() -> void:
 	# IMPACT: a ring of dust thrown out from where the meteor lands.
 	var impact: Spec = Spec.new()
 	impact.mesh = FxKit.puff_quad()
-	impact.material = puff_material
+	impact.material = dust_shader_material
 	impact.color = Palette.SIDEWALK
 	impact.lifetime = 0.5
 	impact.speed_min = 2.0
@@ -351,6 +365,7 @@ static func _build_specs() -> void:
 		impact.normals.append(Vector3(cos(a), 0.35, sin(a)).normalized())
 	impact.size = IMPACT_SIZE
 	impact.size_curve = grow_fade
+	impact.color_ramp = cloud_erode_ramp
 	impact.apex_bound = 0.85
 	_specs[Preset.IMPACT] = impact
 	# PAPER / SOIL: confetti and clods thrown up from a wall or a sprung trap.
@@ -372,7 +387,7 @@ static func _build_specs() -> void:
 	# SMOKE: the comic puff that hides a kid turning into a can (and back).
 	var smoke: Spec = Spec.new()
 	smoke.mesh = FxKit.puff_quad()
-	smoke.material = puff_material
+	smoke.material = dust_shader_material
 	smoke.color = Palette.WHITE
 	smoke.lifetime = 0.4
 	smoke.speed_min = 0.6
@@ -384,6 +399,7 @@ static func _build_specs() -> void:
 	smoke.box = Vector3(0.9, 0.15, 0.9)
 	smoke.size = SMOKE_SIZE
 	smoke.size_curve = grow_fade
+	smoke.color_ramp = cloud_erode_ramp
 	smoke.apex_bound = 2.0
 	_specs[Preset.SMOKE] = smoke
 	# STARS: comic hit stars beside the kid at waist height, flying sideways and back (never toward the camera).
@@ -489,6 +505,14 @@ static func crumb_fade() -> Gradient:
 	var gradient: Gradient = Gradient.new()
 	gradient.offsets = PackedFloat32Array([0.0, CRUMB_FADE_START, 1.0])
 	gradient.colors = PackedColorArray([Color.WHITE, Color.WHITE, Color(1.0, 1.0, 1.0, 0.0)])
+	return gradient
+
+
+## Smooth alpha-erosion curve over a dust/smoke puff's life (`vs_dust_puff.tres` erodes scalloped cloud edges as `COLOR.a` drops).
+static func puff_erosion_fade() -> Gradient:
+	var gradient: Gradient = Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 0.34, 1.0])
+	gradient.colors = PackedColorArray([Color.WHITE, Color(0.98, 0.96, 0.93, 0.92), Color(0.90, 0.86, 0.80, 0.0)])
 	return gradient
 
 

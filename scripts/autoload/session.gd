@@ -57,7 +57,10 @@ func save() -> void:
 	file.save(SAVE_PATH)
 
 
-const AVATARS: Array[String] = ["junjun", "ligaya", "migo", "toni", "popoy", "inday"]
+const AVATARS: Array[String] = [
+	"junjun", "ligaya", "migo", "toni", "popoy", "inday",
+	"kiko", "nene", "buknoy", "tala",
+]
 ## Names share the server's twelve-character limit; the tag fits its lettering within the card.
 const MAX_NAME_LENGTH: int = 12
 ## What a name is made of: letters (any language, so Ñ and the rest), digits, and a space, apostrophe, dot, underscore or hyphen.
@@ -93,15 +96,22 @@ static func filter_name(raw: String) -> String:
 	return spaced.sub(kept.sub(raw, "", true), " ", true)
 
 
-func loadout_for(available: Array[StringName]) -> Array[StringName]:
+func loadout_for(available: Array[StringName], count: int = 3) -> Array[StringName]:
+	var limit: int = maxi(count, 1)
 	var valid: Array[StringName] = []
 	for id: StringName in saved_loadout:
-		if available.has(id) and not valid.has(id) and valid.size() < WeaponPick.SLOTS:
+		if available.has(id) and not valid.has(id) and valid.size() < limit:
 			valid.append(id)
 	return valid
 
 
 func remember_loadout(picks: Array[StringName]) -> void:
-	if picks.size() == WeaponPick.SLOTS and picks[0] != picks[1]:
-		saved_loadout = picks.duplicate()
-		save()
+	if picks.size() < WeaponPick.SLOTS or picks.size() > 3:
+		return
+	var unique: Array[StringName] = []
+	for id: StringName in picks:
+		if id == &"" or unique.has(id):
+			return
+		unique.append(id)
+	saved_loadout = unique
+	save()

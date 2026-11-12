@@ -2,6 +2,11 @@ class_name PlayerState
 extends RefCounted
 ## Per-player simulation state. Plain data; MatchSim owns and mutates it.
 
+const BUFF_NONE: int = 0
+const BUFF_PALAMIG: int = 1
+const BUFF_TEKS: int = 2
+const BUFF_TURON: int = 3
+
 var id: int = 0
 var team: int = 0
 ## Position in the XZ plane (x, z). +Z is the own-base end of the lane.
@@ -70,6 +75,32 @@ var move_target: Vector2 = Vector2.ZERO
 var has_move_target: bool = false
 ## Seconds of ticks that made too little progress toward the target (the move ends at `move_stuck_time`).
 var stuck_time: float = 0.0
+
+## Hero-Action 5v5 Street Superpower kit state:
+## Cooldown remaining for Tirador primary fire.
+var primary_cd: float = 0.0
+## Cooldown remaining for Luksong-Tinik parkour dash.
+var dash_cd: float = 0.0
+## Remaining active burst time of an ongoing dash, and its locked world XZ direction.
+var dash_left: float = 0.0
+var dash_dir: Vector2 = Vector2.ZERO
+## Bida Ultimate meter (0..100). Ready to cast `BTN_ULTIMATE` at 100.
+var ult_charge: float = 0.0
+## True while moving at full Athletic Street Sprint speed (`out_of_combat_time >= sprint_delay`).
+var sprinting: bool = false
+var out_of_combat_time: float = 0.0
+## Overhaul v2 locomotion & barangay merienda power-up state:
+var walking: bool = false
+var crouching: bool = false
+var air_y: float = 0.0
+var vel_y: float = 0.0
+var jump_cd: float = 0.0
+var slide_left: float = 0.0
+var slide_cd: float = 0.0
+var slide_dir: Vector2 = Vector2.ZERO
+var buff_type: int = 0
+var buff_left: float = 0.0
+var buff_regen_carry: float = 0.0
 
 
 ## One cooldown, hold timer and aim lock per hand slot; a slot that is new is idle (not held, no lock).

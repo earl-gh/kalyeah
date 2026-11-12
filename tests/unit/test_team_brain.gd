@@ -7,12 +7,19 @@ const DT: float = 1.0 / 30.0
 var _rules: GameRules
 
 
+static func _open_layout() -> MapLayout:
+	var layout: MapLayout = LAYOUT.duplicate() as MapLayout
+	layout.obstacles = [] as Array[Rect2]
+	layout.water_obstacles = [] as Array[Rect2]
+	return layout
+
+
 func before_each() -> void:
 	_rules = load("res://data/rules/game_rules.tres") as GameRules
 
 
 func _sim() -> MatchSim:
-	var sim: MatchSim = MatchSim.new(_rules, LAYOUT, 9)
+	var sim: MatchSim = MatchSim.new(_rules, _open_layout(), 9)
 	sim.add_player(1, 0)
 	sim.add_player(2, 0)
 	sim.add_player(3, 1)
@@ -40,7 +47,7 @@ func _spot(sim: MatchSim) -> Vector2:
 
 func test_a_rusher_walks_toward_the_enemy_base() -> void:
 	var sim: MatchSim = _sim()
-	sim.players[3].position = Vector2(100.0, 100.0)
+	sim.players[3].position = Vector2(200.0, 200.0)
 	var brain: TeamBrain = TeamBrain.rusher(sim.players[1].spawn_position, _spot(sim))
 	var input: PlayerInput = brain.think(sim.players[1], sim)
 	var way: Vector2 = (_spot(sim) - sim.players[1].position).normalized()
@@ -49,7 +56,7 @@ func test_a_rusher_walks_toward_the_enemy_base() -> void:
 
 func test_a_rusher_that_has_arrived_walks_about_in_the_enemy_base_instead_of_standing() -> void:
 	var sim: MatchSim = _sim()
-	sim.players[3].position = Vector2(100.0, 100.0)
+	sim.players[3].position = Vector2(200.0, 200.0)
 	sim.players[1].position = _spot(sim)
 	var brain: TeamBrain = TeamBrain.rusher(sim.players[1].spawn_position, _spot(sim))
 	var input: PlayerInput = brain.think(sim.players[1], sim)
@@ -59,7 +66,7 @@ func test_a_rusher_that_has_arrived_walks_about_in_the_enemy_base_instead_of_sta
 
 func test_a_defender_holds_its_post_until_an_enemy_comes() -> void:
 	var sim: MatchSim = _sim()
-	sim.players[3].position = Vector2(100.0, 100.0)
+	sim.players[3].position = Vector2(200.0, 200.0)
 	sim.players[1].position = sim.players[1].spawn_position + Vector2(sim.layout.base_radius + 3.0, 0.0)  # outside its base
 	var brain: TeamBrain = TeamBrain.defender(sim.players[1].spawn_position)
 	var input: PlayerInput = brain.think(sim.players[1], sim)
@@ -80,7 +87,7 @@ func test_a_rusher_that_meets_an_enemy_stops_and_fights_it_then_goes_on() -> voi
 	assert_true(pressed, "an enemy in reach is thrown at")
 	var after: PlayerInput = brain.think(sim.players[1], sim)
 	assert_eq(_card_bits(after), 0, "the second half of the tap lets go")
-	sim.players[3].position = Vector2(100.0, 100.0)
+	sim.players[3].position = Vector2(200.0, 200.0)
 	var next: PlayerInput = brain.think(sim.players[1], sim)
 	assert_gt(_way(next, sim.players[1]).dot((_spot(sim) - sim.players[1].position).normalized()), 0.99, "with the enemy gone it goes on toward their base")
 
@@ -94,7 +101,7 @@ func test_priority_one_an_enemy_in_reach_is_fought_before_the_base_and_before_a_
 	var centre: Vector2 = LAYOUT.base_center(-sim.side_for_team(0))
 	var out: Vector2 = (Vector2.ZERO - centre).normalized()
 	sim.players[1].position = centre + out * (LAYOUT.base_radius + 1.5)
-	var behind: Vector2 = sim.players[1].position + out * 10.0
+	var behind: Vector2 = sim.players[1].position + out * 22.0
 	sim.players[3].position = behind
 	var brain: TeamBrain = TeamBrain.rusher(sim.players[1].spawn_position, _spot(sim))
 	var input: PlayerInput = brain.think(sim.players[1], sim)
@@ -129,7 +136,7 @@ func test_a_tired_bot_in_a_fight_keeps_moving_it_never_stands_to_refill() -> voi
 
 func test_priority_two_the_base_comes_before_a_rescue_so_a_rusher_not_there_yet_keeps_going() -> void:
 	var sim: MatchSim = _sim()
-	sim.players[3].position = Vector2(100.0, 100.0)
+	sim.players[3].position = Vector2(200.0, 200.0)
 	sim.add_player(4, 0)
 	sim.set_loadout(4, &"bato_light", &"papel_shield")
 	sim.kill(4)
@@ -140,7 +147,7 @@ func test_priority_two_the_base_comes_before_a_rescue_so_a_rusher_not_there_yet_
 
 func test_priority_three_from_the_enemy_base_the_lowest_numbered_free_rusher_fetches_a_tagged_teammate() -> void:
 	var sim: MatchSim = _sim()
-	sim.players[3].position = Vector2(100.0, 100.0)
+	sim.players[3].position = Vector2(200.0, 200.0)
 	sim.add_player(4, 0)
 	sim.set_loadout(4, &"bato_light", &"papel_shield")
 	sim.kill(4)
@@ -157,7 +164,7 @@ func test_priority_three_from_the_enemy_base_the_lowest_numbered_free_rusher_fet
 
 func test_a_rescue_that_has_started_is_not_called_off_by_leaving_the_base() -> void:
 	var sim: MatchSim = _sim()
-	sim.players[3].position = Vector2(100.0, 100.0)
+	sim.players[3].position = Vector2(200.0, 200.0)
 	sim.add_player(4, 0)
 	sim.set_loadout(4, &"bato_light", &"papel_shield")
 	sim.kill(4)
@@ -172,7 +179,7 @@ func test_a_rescue_that_has_started_is_not_called_off_by_leaving_the_base() -> v
 
 func test_a_defender_at_its_post_fetches_a_tagged_teammate_only_from_the_post() -> void:
 	var sim: MatchSim = _sim()
-	sim.players[3].position = Vector2(100.0, 100.0)
+	sim.players[3].position = Vector2(200.0, 200.0)
 	sim.add_player(4, 0)
 	sim.set_loadout(4, &"bato_light", &"papel_shield")
 	sim.kill(4)
@@ -189,7 +196,7 @@ func test_a_defender_at_its_post_fetches_a_tagged_teammate_only_from_the_post() 
 
 func test_bots_walk_to_the_rescue_area_and_free_a_tagged_teammate() -> void:
 	var sim: MatchSim = _sim()
-	sim.players[3].position = Vector2(100.0, 100.0)
+	sim.players[3].position = Vector2(200.0, 200.0)
 	sim.add_player(4, 0)
 	sim.set_loadout(4, &"bato_light", &"papel_shield")
 	sim.kill(4)
@@ -209,7 +216,7 @@ func test_bots_walk_to_the_rescue_area_and_free_a_tagged_teammate() -> void:
 
 func test_a_bot_waiting_at_its_post_walks_about_in_its_base_and_never_stands() -> void:
 	var sim: MatchSim = _sim()
-	sim.players[3].position = Vector2(100.0, 100.0)
+	sim.players[3].position = Vector2(200.0, 200.0)
 	var home: int = sim.side_for_team(0)
 	var brain: TeamBrain = TeamBrain.defender(sim.players[1].spawn_position)
 	var state: PlayerState = sim.players[1]
@@ -273,7 +280,7 @@ func test_after_stepping_out_to_fight_a_rusher_waits_outside_before_going_back_i
 	var brain: TeamBrain = TeamBrain.rusher(sim.players[1].spawn_position, _spot(sim))
 	brain.think(sim.players[1], sim)  # steps out
 	sim.players[1].position = centre + out * (LAYOUT.base_radius + 1.0)
-	sim.players[3].position = Vector2(100.0, 100.0)  # the enemy is gone
+	sim.players[3].position = Vector2(200.0, 200.0)  # the enemy is gone
 	for i: int in 20:  # well under REENTER_DELAY
 		var input: PlayerInput = brain.think(sim.players[1], sim)
 		assert_false(LAYOUT.in_base(enemy_side, input.move_target), "tick %d: it does not walk straight back into the base" % i)

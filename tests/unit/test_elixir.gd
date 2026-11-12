@@ -6,21 +6,29 @@ const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const DT: float = 1.0 / 30.0
 ## The GDD Weapons table, "Elixir" column (owner-approved transcription, audit 2026-10-24).
 const COSTS: Dictionary[StringName, int] = {
-	&"bato_light": 2, &"bato_heavy": 4, &"gunting_light": 2, &"gunting_heavy": 3, &"papel_trap": 4, &"papel_shield": 5,
+	&"bato_light": 2, &"bato_heavy": 4, &"gunting_light": 2, &"gunting_heavy": 3, &"papel_trap": 3, &"papel_shield": 4,
 	&"tsinelas_light": 3, &"tsinelas_heavy": 4, &"lata": 5, &"jacks": 4, &"bola": 4, &"trumpo": 5, &"heal": 4, &"langit_lupa": 5,
 }
 
 var _rules: GameRules
 
 
+static func _open_layout() -> MapLayout:
+	var layout: MapLayout = LAYOUT.duplicate() as MapLayout
+	layout.obstacles = [] as Array[Rect2]
+	layout.water_obstacles = [] as Array[Rect2]
+	return layout
+
+
 func before_each() -> void:
 	_rules = (load("res://data/rules/game_rules.tres") as GameRules).duplicate() as GameRules
 	_rules.card_cycle = true
+	_rules.hand_size = 4
 	_rules.elixir_enabled = true
 
 
 func _sim() -> MatchSim:
-	var sim: MatchSim = MatchSim.new(_rules, LAYOUT, 5)
+	var sim: MatchSim = MatchSim.new(_rules, _open_layout(), 5)
 	sim.add_player(1, 0)
 	sim.add_player(2, 1)
 	sim.players[1].position = Vector2(0.0, 5.0)
@@ -172,7 +180,7 @@ func test_elixir_keeps_filling_while_tagged_and_a_rescue_keeps_it() -> void:
 
 func _play_a_point(sim: MatchSim) -> void:
 	sim.kill(2)
-	for i: int in 30 * 12:
+	for i: int in 30 * 18:
 		sim.step(DT)
 		if sim.phase == MatchSim.Phase.PLAYING and sim.score.points[0] > 0:
 			return

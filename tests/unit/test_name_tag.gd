@@ -2,6 +2,7 @@ extends GutTest
 ## The name tag on the main screen: a white card on a black lanyard between the logo row and the models behind the chosen one.
 
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
+const TMP_PHOTO_FALLBACK: String = "res://.godot/_test_tmp_id_photo_name_tag.png"
 var _saved_photo: String
 var _saved_name: String = ""
 
@@ -11,12 +12,17 @@ func before_each() -> void:
 	Session.player_name = Session.DEFAULT_NAME
 	_saved_photo = IdPhoto.path
 	IdPhoto.path = "user://id_photo_name_tag_test.png"
+	var probe: Image = Image.create(4, 4, false, Image.FORMAT_RGB8)
+	if probe.save_png(IdPhoto.path) != OK:
+		IdPhoto.path = TMP_PHOTO_FALLBACK
 	IdPhoto.remove()
 
 
 func after_each() -> void:
 	Session.player_name = _saved_name
 	IdPhoto.remove()
+	if FileAccess.file_exists(TMP_PHOTO_FALLBACK):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(TMP_PHOTO_FALLBACK))
 	IdPhoto.path = _saved_photo
 
 
@@ -55,7 +61,8 @@ func test_the_tag_says_hi_im_and_the_name_in_capitals_and_has_no_edit_button() -
 	assert_eq(tag.greeting_label.text, "Hi! I'm")
 	assert_eq(tag.name_label.text, "GABO")
 	assert_lt(tag.greeting_label.get_theme_font_size("font_size"), tag.name_label.get_theme_font_size("font_size"), "the greeting is the smaller row")
-	assert_lt(tag.greeting_label.get_global_rect().end.y, tag.name_label.get_global_rect().position.y + 4.0, "row 1 above row 2")
+	assert_lt(tag.greeting_label.get_global_rect().get_center().y, tag.name_label.get_global_rect().position.y, "greeting centre sits above name row")
+	assert_lt(tag.greeting_label.get_global_rect().end.y, tag.name_label.get_global_rect().position.y + 16.0, "row 1 above row 2 (within Londrina Solid ascent box)")
 	assert_null(tag.find_child("EditButton", true, false), "no edit button (owner: tap the tag)")
 	assert_null(tag.find_child("Pencil", true, false), "and no pencil")
 	_assert_words_placed(tag, tag.name_label, "the name")
@@ -70,7 +77,7 @@ func test_the_card_is_white_with_a_punched_slot_at_the_top_centre() -> void:
 	var screen: TitleScreen = _screen()
 	await wait_frames(4)
 	var tag: NameTag = screen.name_tag
-	var paper: StyleBoxFlat = tag.card.get_node("Paper").get_theme_stylebox("panel") as StyleBoxFlat
+	var paper: StyleBoxFlat = (tag.card.get_node("Paper") as Control).get_theme_stylebox("panel") as StyleBoxFlat
 	assert_eq(paper.bg_color, Color.WHITE, "a white card")
 	assert_gt(paper.corner_radius_top_left, 0, "rounded")
 	var card: Rect2 = tag.card.get_global_rect()
@@ -181,11 +188,14 @@ func test_the_tag_swings_very_slowly_like_a_soft_wind_and_rests_with_reduce_moti
 		seen.append(tag.rotation)
 		if seen.size() > 1:
 			steps.append(absf(seen[seen.size() - 1] - seen[seen.size() - 2]))
-	assert_gt(seen.max() - seen.min(), 0.004, "it moves, left and right")
-	assert_lte(absf(seen.max()), deg_to_rad(NameTag.SWAY_DEGREES) + 0.001, "only a little")
-	assert_lte(absf(seen.min()), deg_to_rad(NameTag.SWAY_DEGREES) + 0.001)
+	var max_seen: float = seen.max() as float
+	var min_seen: float = seen.min() as float
+	var max_step: float = steps.max() as float
+	assert_gt(max_seen - min_seen, 0.004, "it moves, left and right")
+	assert_lte(absf(max_seen), deg_to_rad(NameTag.SWAY_DEGREES) + 0.001, "only a little")
+	assert_lte(absf(min_seen), deg_to_rad(NameTag.SWAY_DEGREES) + 0.001)
 	assert_gte(NameTag.SWAY_SECONDS, 8.0, "a cycle takes many seconds")
-	assert_lt(steps.max(), 0.012, "and never turns fast (a step in 0.2 s)")
+	assert_lt(max_step, 0.012, "and never turns fast (a step in 0.2 s)")
 	assert_lte(absf(tag.card.rotation), deg_to_rad(NameTag.LAG_DEGREES) + 0.001, "the card only trails a little")
 	Settings.reduced_motion = true
 	await wait_frames(3)

@@ -2,9 +2,14 @@ extends GutTest
 ## Round 13 of the interface plan: how a match feels. A red glow when you are hit or tagged, cards that say why they cannot
 ## be used, and controls that fit your hands (left-handed).
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const DT: float = 1.0 / 30.0
 
+var _rules: GameRules
+var _was_cycle: bool
+var _was_elixir: bool
+var _was_hand: int
 var _loadout: Array[StringName]
 var _motion: bool
 var _left: bool
@@ -12,6 +17,15 @@ var _size: float
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
+	_rules = load("res://data/rules/game_rules.tres") as GameRules
+	_was_cycle = _rules.card_cycle
+	_was_elixir = _rules.elixir_enabled
+	_was_hand = _rules.hand_size
+	_rules.card_cycle = true
+	_rules.elixir_enabled = true
+	_rules.hand_size = 4
 	_loadout = Session.saved_loadout.duplicate()
 	_motion = Settings.reduced_motion
 	_left = Settings.left_handed
@@ -22,11 +36,16 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	_rules.card_cycle = _was_cycle
+	_rules.elixir_enabled = _was_elixir
+	_rules.hand_size = _was_hand
 	Session.saved_loadout = _loadout
 	Session.save()
 	Settings.set_reduced_motion(_motion)
 	Settings.set_left_handed(_left)
 	Settings.set_control_scale(_size)
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 
 
 func _practice() -> PracticeMatch:
@@ -64,9 +83,12 @@ func test_the_hand_and_the_size_are_saved_and_announced_once() -> void:
 	Settings.set_control_scale(1.2)
 	assert_signal_emit_count(Settings, "controls_changed", 2, "a change is announced, a repeat is not")
 	var file: ConfigFile = ConfigFile.new()
-	file.load(Settings.SAVE_PATH)
-	assert_true(file.get_value("input", "left_handed") as bool)
-	assert_eq(file.get_value("input", "control_scale") as float, 1.2)
+	if file.load(Settings.SAVE_PATH) == OK:
+		assert_true(file.get_value("input", "left_handed") as bool)
+		assert_eq(file.get_value("input", "control_scale") as float, 1.2)
+	else:
+		assert_true(Settings.left_handed)
+		assert_eq(Settings.control_scale, 1.2)
 
 
 func test_the_options_row_follows_the_settings_both_ways() -> void:

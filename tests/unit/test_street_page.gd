@@ -2,6 +2,7 @@ extends GutTest
 ## The Street page (left tab) and the Settings entries that took over the Book and History.
 
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
+const TMP_HISTORY_FALLBACK: String = "res://.godot/_test_tmp_street_history.cfg"
 
 var _saved_history: String
 
@@ -9,11 +10,17 @@ var _saved_history: String
 func before_each() -> void:
 	_saved_history = MatchHistory.path
 	MatchHistory.path = "user://history_test.cfg"
+	var probe: ConfigFile = ConfigFile.new()
+	probe.set_value("probe", "ok", true)
+	if probe.save(MatchHistory.path) != OK:
+		MatchHistory.path = TMP_HISTORY_FALLBACK
 	MatchHistory.clear()
 
 
 func after_each() -> void:
 	MatchHistory.clear()
+	if FileAccess.file_exists(TMP_HISTORY_FALLBACK):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(TMP_HISTORY_FALLBACK))
 	MatchHistory.path = _saved_history
 
 

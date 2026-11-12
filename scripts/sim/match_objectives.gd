@@ -44,7 +44,8 @@ func check_rescues(sim: MatchSim, dt: float) -> void:
 			sim.rescue_rescuer[team] = -1
 			sim.rescue_elapsed[team] = 0.0
 			continue
-		var holder: PlayerState = sim.players.get(sim.rescue_rescuer[team]) as PlayerState
+		var holder_id: int = sim.rescue_rescuer[team]
+		var holder: PlayerState = sim.players[holder_id] if sim.players.has(holder_id) else null
 		if holder != null and (holder.tagged or holder.team != team or not in_rescue_area(sim, holder)):
 			holder = null
 		if holder == null or not teammate_waiting(sim, team):
@@ -96,6 +97,18 @@ func rescue(sim: MatchSim, state: PlayerState, by_id: int) -> void:
 ## Cooldowns and elixir keep running.
 func clear_actions(state: PlayerState) -> void:
 	state.cast_lock_left = 0.0
+	state.dash_left = 0.0
+	state.sprinting = false
+	state.walking = false
+	state.crouching = false
+	state.air_y = 0.0
+	state.vel_y = 0.0
+	state.slide_left = 0.0
+	state.slide_dir = Vector2.ZERO
+	state.run_time = 0.0
+	state.buff_type = 0
+	state.buff_left = 0.0
+	state.buff_regen_carry = 0.0
 	state.effects.clear()
 	state.aim_hold.fill(-1.0)
 	state.has_move_target = false
@@ -223,6 +236,7 @@ func _clear_capture(sim: MatchSim) -> void:
 ## cleared; weapon objects are removed.
 func _reset_round(sim: MatchSim) -> void:
 	sim.weapons.reset()
+	sim.reset_powerups()
 	_clear_capture(sim)
 	sim.round_time = 0.0
 	sim.capture_needed = sim.rules.capture_solo_time
@@ -233,6 +247,10 @@ func _reset_round(sim: MatchSim) -> void:
 		var state: PlayerState = sim.players[id]
 		var was_tagged: bool = state.tagged
 		clear_actions(state)
+		state.primary_cd = 0.0
+		state.dash_cd = 0.0
+		state.jump_cd = 0.0
+		state.slide_cd = 0.0
 		state.position = state.spawn_position
 		state.facing = Vector2(0.0, -sim.side_for_team(state.team))
 		state.hp = sim.rules.player_max_hp

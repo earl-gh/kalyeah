@@ -61,17 +61,17 @@ func _no_enemy(state: PlayerState, sim: MatchSim) -> PlayerInput:
 		var area: Rect2 = sim.layout.rescue_rect(team_side)
 		if sim.objectives.in_rescue_area(sim, state):
 			return _patrol(state, sim, area, RESCUE_PATROL_MARGIN)
-		return _walk_to(state, area.get_center())
+		return _walk_to_nav(state, sim, area.get_center())
 	if role == Role.RUSH:
 		var enemy_side: int = -team_side
 		if _stay_out_left > 0.0 and not hold and not sim.layout.in_base(enemy_side, state.position):
 			return _patrol(state, sim, _siege_area(sim, enemy_side), 0.0)
 		if sim.layout.in_base(enemy_side, state.position):
 			return _patrol(state, sim, sim.layout.base_rect(enemy_side), sim.layout.base_corner)
-		return _walk_to(state, target)
+		return _walk_to_nav(state, sim, target)
 	if sim.layout.in_base(team_side, state.position):
 		return _patrol(state, sim, sim.layout.base_rect(team_side), sim.layout.base_corner)
-	return _walk_to(state, home)
+	return _walk_to_nav(state, sim, home)
 
 
 ## A patch of street just outside the enemy base, on the side toward the middle of the street.

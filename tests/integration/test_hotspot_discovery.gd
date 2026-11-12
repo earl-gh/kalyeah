@@ -137,8 +137,8 @@ func test_a_host_without_a_room_is_not_a_success_and_ends_early() -> void:
 func test_a_full_room_and_a_started_match_say_so() -> void:
 	var server: GameServer = _host(18957, 18967)
 	var room: RoomService.Room = server.rooms.rooms.values()[0] as RoomService.Room
-	for peer: int in range(701, 706):
-		server.rooms.join(room.code, peer, "Friend")  # six places in all
+	for peer: int in range(701, 710):
+		server.rooms.join(room.code, peer, "Friend")  # ten places in all (5v5)
 	_search(_plan(18957, 18967, [HotspotNet.LIMITED_BROADCAST]))
 	assert_true(_finder.failed)
 	assert_eq(_finder.failure_message, "That room is full!")
@@ -209,8 +209,8 @@ func test_with_two_ready_hosts_both_are_listed_with_their_names_and_none_is_pick
 	for found: Dictionary in _finder.rooms:
 		by_host[found["host"]] = found
 	assert_true(by_host.has("Host") and by_host.has("Bea"))
-	assert_eq(by_host.get("Host"), {"url": "ws://127.0.0.1:18977", "host": "Host", "players": 1, "size": 6})
-	assert_eq(by_host.get("Bea"), {"url": "ws://127.0.0.1:18979", "host": "Bea", "players": 1, "size": 6})
+	assert_eq(by_host.get("Host"), {"url": "ws://127.0.0.1:18977", "host": "Host", "players": 1, "size": 10})
+	assert_eq(by_host.get("Bea"), {"url": "ws://127.0.0.1:18979", "host": "Bea", "players": 1, "size": 10})
 	assert_gt(frames, int(SEARCH_SECONDS / FRAME) - 5, "with a room found it still waits out the window for another host")
 
 

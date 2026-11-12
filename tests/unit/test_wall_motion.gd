@@ -9,13 +9,20 @@ const DT: float = 1.0 / 30.0
 var _rules: GameRules
 
 
+static func _open_layout() -> MapLayout:
+	var layout: MapLayout = LAYOUT.duplicate() as MapLayout
+	layout.obstacles = [] as Array[Rect2]
+	layout.water_obstacles = [] as Array[Rect2]
+	return layout
+
+
 func before_each() -> void:
 	_rules = load("res://data/rules/game_rules.tres") as GameRules
 
 
 ## A sim with you (1, team 0) at (0, 8) facing north and an enemy (2) far to the side.
 func _setup(seed_value: int = 3) -> MatchSim:
-	var sim: MatchSim = MatchSim.new(_rules, LAYOUT, seed_value)
+	var sim: MatchSim = MatchSim.new(_rules, _open_layout(), seed_value)
 	sim.add_player(1, 0)
 	sim.add_player(2, 1)
 	sim.players[1].position = Vector2(0.0, 8.0)
@@ -33,16 +40,16 @@ func _cast(sim: MatchSim, weapon: StringName) -> WeaponSystem.Shield:
 func test_the_numbers_are_data() -> void:
 	var paper: WeaponDef = load("res://data/weapons/papel_shield.tres") as WeaponDef
 	var soil: WeaponDef = load("res://data/weapons/langit_lupa.tres") as WeaponDef
-	assert_eq(paper.push_distance, 1.5, "the paper wall glides 1.5 m")
-	assert_eq(paper.push_time, 0.6, "over 0.6 s")
+	assert_eq(paper.push_distance, 4.0, "the paper wall glides 4.0 m")
+	assert_eq(paper.push_time, 0.85, "over 0.85 s")
 	assert_eq(paper.expand_factor, 1.0, "and does not widen")
 	assert_eq(soil.expand_factor, 3.0, "the block triples its width")
 	assert_eq(soil.push_distance, 0.0, "and does not move")
 	assert_gte(soil.expand_delay, 0.2, "after it has risen")
-	assert_eq(paper.duration, 2.5, "the paper wall's time is unchanged")
-	assert_eq(soil.duration, 3.5, "so is the block's")
-	assert_eq(paper.width, 3.0)
-	assert_eq(soil.width, 1.2)
+	assert_eq(paper.duration, 3.5, "the paper wall's duration")
+	assert_eq(soil.duration, 4.5, "and the earth barricade's duration")
+	assert_eq(paper.width, 5.2)
+	assert_eq(soil.width, 2.4)
 	var plain: WeaponDef = load("res://data/weapons/bato_light.tres") as WeaponDef
 	assert_eq([plain.push_distance, plain.expand_factor], [0.0, 1.0], "any other weapon has the old defaults")
 
@@ -77,8 +84,8 @@ func test_the_paper_wall_line_follows_the_formula_every_tick() -> void:
 	var shield: WeaponSystem.Shield = _cast(sim, &"papel_shield")
 	var def: WeaponDef = shield.def
 	var start: Vector2 = sim.players[1].position + Vector2(0.0, -1.0) * def.offset
-	assert_eq(shield.center, start, "at first it is where it always was: 1.2 m ahead")
-	assert_almost_eq(shield.half_width, 1.5, 0.0001, "and 3 m wide")
+	assert_eq(shield.center, start, "at first it is where it was cast: 1.8 m ahead")
+	assert_almost_eq(shield.half_width, 2.6, 0.0001, "and 5.2 m wide")
 	var ticks: int = 0
 	while not sim.weapons.shields.is_empty():
 		sim.step(DT)
@@ -88,10 +95,10 @@ func test_the_paper_wall_line_follows_the_formula_every_tick() -> void:
 		var age: float = def.duration - shield.time_left
 		assert_almost_eq(shield.center.y, start.y - WallMotion.push(def, age), 0.0001, "tick %d: the line is where the formula puts it" % ticks)
 		assert_eq(shield.center.x, start.x, "straight ahead, never sideways")
-		assert_almost_eq(shield.half_width, 1.5, 0.0001, "the paper keeps its width")
+		assert_almost_eq(shield.half_width, 2.6, 0.0001, "the paper keeps its width")
 		if age >= def.push_time + 0.01:
-			assert_almost_eq(shield.center.y, start.y - def.push_distance, 0.0001, "pushed exactly 1.5 m, then it holds")
-	assert_almost_eq(float(ticks) * DT, def.duration, DT, "and it goes at the same time as before (2.5 s)")
+			assert_almost_eq(shield.center.y, start.y - def.push_distance, 0.0001, "pushed exactly 4.0 m, then it holds")
+	assert_almost_eq(float(ticks) * DT, def.duration, DT, "and it expires at its configured duration")
 
 
 func test_the_block_widens_after_rising_and_keeps_its_width_to_the_end() -> void:
@@ -99,7 +106,7 @@ func test_the_block_widens_after_rising_and_keeps_its_width_to_the_end() -> void
 	var shield: WeaponSystem.Shield = _cast(sim, &"langit_lupa")
 	var def: WeaponDef = shield.def
 	var start: Vector2 = shield.center
-	assert_almost_eq(shield.half_width, 0.6, 0.0001, "it begins person-wide")
+	assert_almost_eq(shield.half_width, 1.2, 0.0001, "it begins 2.4 m wide")
 	var widened: bool = false
 	var ticks: int = 0
 	while not sim.weapons.shields.is_empty():
@@ -109,21 +116,21 @@ func test_the_block_widens_after_rising_and_keeps_its_width_to_the_end() -> void
 			break
 		var age: float = def.duration - shield.time_left
 		assert_eq(shield.center, start, "the block stays where it rose")
-		assert_almost_eq(shield.half_width, 0.6 * WallMotion.width_scale(def, age), 0.0001, "tick %d: its line is as long as the formula says" % ticks)
+		assert_almost_eq(shield.half_width, 1.2 * WallMotion.width_scale(def, age), 0.0001, "tick %d: its line is as long as the formula says" % ticks)
 		if age <= def.expand_delay:
-			assert_almost_eq(shield.half_width, 0.6, 0.0001, "unchanged while it rises")
+			assert_almost_eq(shield.half_width, 1.2, 0.0001, "unchanged while it rises")
 		if age >= def.expand_delay + def.expand_time + 0.01:
 			widened = true
-			assert_almost_eq(shield.half_width, 1.8, 0.0001, "exactly three times as wide (3.6 m) from then until it is gone")
+			assert_almost_eq(shield.half_width, 3.6, 0.0001, "exactly three times as wide (7.2 m) from then until it is gone")
 	assert_true(widened)
-	assert_almost_eq(float(ticks) * DT, def.duration, DT, "and it goes at the same time as before (3.5 s)")
+	assert_almost_eq(float(ticks) * DT, def.duration, DT, "and it expires at its configured duration")
 
 
 func test_a_shot_is_stopped_where_the_wall_is_now() -> void:
 	var sim: MatchSim = _setup()
 	var shield: WeaponSystem.Shield = _cast(sim, &"papel_shield")
 	var old_y: float = shield.center.y
-	for i: int in 24:
+	for i: int in 30:
 		sim.step(DT)
 	var new_y: float = old_y - shield.def.push_distance
 	assert_almost_eq(shield.center.y, new_y, 0.0001)
@@ -146,15 +153,15 @@ func test_a_widening_block_stops_shots_in_the_new_width_only() -> void:
 	var sim: MatchSim = _setup()
 	var shield: WeaponSystem.Shield = _cast(sim, &"langit_lupa")
 	var y: float = shield.center.y
-	var wide: Vector2 = Vector2(1.5, y)
-	assert_false(sim.weapons.blocks_segment(1, wide + Vector2(0.0, -0.5), wide + Vector2(0.0, 0.5)), "1.5 m to the side is open at first (the block is 1.2 m wide)")
+	var wide: Vector2 = Vector2(2.5, y)
+	assert_false(sim.weapons.blocks_segment(1, wide + Vector2(0.0, -0.5), wide + Vector2(0.0, 0.5)), "2.5 m to the side is open at first (the block is 2.4 m wide)")
 	for i: int in 30:
 		sim.step(DT)
-	assert_true(sim.weapons.blocks_segment(1, wide + Vector2(0.0, -0.5), wide + Vector2(0.0, 0.5)), "and blocked once it has widened to 3.6 m")
-	assert_false(sim.weapons.blocks_segment(1, Vector2(2.0, y - 0.5), Vector2(2.0, y + 0.5)), "but not past its new edge (1.8 m)")
+	assert_true(sim.weapons.blocks_segment(1, wide + Vector2(0.0, -0.5), wide + Vector2(0.0, 0.5)), "and blocked once it has widened to 7.2 m")
+	assert_false(sim.weapons.blocks_segment(1, Vector2(4.0, y - 0.5), Vector2(4.0, y + 0.5)), "but not past its new edge (3.6 m)")
 
 
-## Your hp after an enemy rock is thrown at you from the side (3 m over, 6 m up), with the block cast first or not.
+## Your hp after an enemy rock is thrown at you from the side (5.5 m over, 6 m up), with the block cast first or not.
 func _rock_from_the_side(with_block: bool) -> int:
 	var sim: MatchSim = _setup()
 	if with_block:
@@ -162,7 +169,7 @@ func _rock_from_the_side(with_block: bool) -> int:
 	for i: int in 30:
 		sim.step(DT)
 	var enemy: PlayerState = sim.players[2]
-	enemy.position = Vector2(3.0, 2.0)
+	enemy.position = Vector2(5.5, 2.0)
 	var rock: WeaponDef = sim.weapon_defs[&"bato_light"]
 	var hit: Vector2 = (sim.players[1].position - enemy.position).normalized()
 	assert_true(sim.weapons.fire(sim, enemy, rock, hit, 0.0, 1))
@@ -173,7 +180,7 @@ func _rock_from_the_side(with_block: bool) -> int:
 
 func test_an_enemy_rock_thrown_at_the_widened_block_is_stopped_by_it() -> void:
 	assert_lt(_rock_from_the_side(false), _rules.player_max_hp, "without the block the rock hits you")
-	assert_eq(_rock_from_the_side(true), _rules.player_max_hp, "it crosses the line 0.8 m off centre, past the block's old edge (0.6 m), and the widened block stops it")
+	assert_eq(_rock_from_the_side(true), _rules.player_max_hp, "it crosses the line 2.93 m off centre, past the block's old edge (1.2 m), and the widened block (3.6 m) stops it")
 
 
 func test_a_wall_never_pushes_a_kid() -> void:
@@ -207,7 +214,7 @@ func test_a_mirror_moves_and_widens_the_walls_like_the_server() -> void:
 	var block: WeaponSystem.Shield = _cast(source, &"langit_lupa")
 	for i: int in 9:
 		source.step(DT)
-	var mirror: MatchSim = MatchSim.new(_rules, LAYOUT, 7)
+	var mirror: MatchSim = MatchSim.new(_rules, _open_layout(), 7)
 	mirror.add_player(1, 0)
 	Snapshot.apply(mirror, Snapshot.capture(source, {1: 1}), 1)
 	assert_eq(mirror.weapons.shields.size(), 2)

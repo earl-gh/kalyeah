@@ -42,6 +42,13 @@ func team_color(team: int) -> Color:
 	return TeamColors.world_own() if team == local_team else TeamColors.world_enemy()
 
 
+## Decorative VFX scale relative to the 2.0x reference (`1.0` when `view_scale == 2.0`, `~0.48` on `0.82x` kids).
+func kid_scale() -> float:
+	if is_equal_approx(view_scale, 2.0):
+		return 1.0
+	return clampf(lerpf(1.0, view_scale / 2.0, 0.88), 0.42, 1.25)
+
+
 ## The colour of a ground area thrown by `team` (a landing circle, a slow zone, a jacks field, a marble's bounce rings): white for the
 ## viewer's own team (every ally casts for the same team, so allies' areas read the same as yours), the enemy colour (red, orange when
 ## colour-blind) for the other team. A white area is colour-blind safe as it is.

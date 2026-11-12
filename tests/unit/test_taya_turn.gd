@@ -12,10 +12,13 @@ var _game: StringName
 var _kind: StringName
 var _coach: bool
 var _reduced: bool
+var _landscape: bool
 
 
 func before_each() -> void:
+	_landscape = Settings.landscape
 	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	_game = Session.practice_game
 	_kind = Session.practice_kind
 	_coach = Session.briefing_pending
@@ -25,6 +28,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(_landscape)
 	Session.practice_game = _game
 	Session.practice_kind = _kind
 	Session.briefing_pending = _coach

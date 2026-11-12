@@ -16,6 +16,7 @@ var _flash: ClockStageFlash
 
 func before_each() -> void:
 	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	Settings.reduced_motion = false
 	var screen: Control = autofree(Control.new()) as Control
 	screen.size = Vector2(720.0, 1280.0)
@@ -26,6 +27,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 	Settings.reduced_motion = false
 
 
@@ -218,7 +220,7 @@ func test_the_hud_flash_holds_still_behind_the_menu() -> void:
 func test_the_hud_flash_never_blocks_a_touch() -> void:
 	var practice: PracticeMatch = await _practice()
 	assert_eq(practice.hud.clock_flash.mouse_filter, Control.MOUSE_FILTER_IGNORE)
-	assert_eq(practice.hud.clock_flash.get_child(0).mouse_filter, Control.MOUSE_FILTER_IGNORE)
+	assert_eq((practice.hud.clock_flash.get_child(0) as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE)
 
 
 func test_a_point_ends_the_flash_and_the_clock_restarts_at_regular() -> void:

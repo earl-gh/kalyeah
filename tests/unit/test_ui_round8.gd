@@ -36,10 +36,10 @@ func _toast_texts() -> Array[String]:
 	return found
 
 
-func _lobby_join() -> Node:
+func _lobby_join() -> LobbyScreen:
 	Session.lobby_hotspot = false
 	Session.lobby_intent = 1
-	var lobby: Node = autofree((load("res://scenes/ui/lobby.tscn") as PackedScene).instantiate()) as Node
+	var lobby: LobbyScreen = autofree((load("res://scenes/ui/lobby.tscn") as PackedScene).instantiate()) as LobbyScreen
 	add_child(lobby)
 	return lobby
 
@@ -125,7 +125,7 @@ func test_read_only_boxes_just_show_a_code() -> void:
 # ---- join form --------------------------------------------------------------------------
 
 func test_the_join_form_uses_the_boxes_and_a_paste_button() -> void:
-	var lobby: Node = _lobby_join()
+	var lobby: LobbyScreen = _lobby_join()
 	await wait_process_frames(2)
 	assert_not_null(lobby._code_boxes)
 	assert_eq(lobby._code_edit, lobby._code_boxes.edit, "the screen still talks to one LineEdit")
@@ -137,7 +137,7 @@ func test_the_join_form_uses_the_boxes_and_a_paste_button() -> void:
 
 func test_a_short_code_is_refused_next_to_the_boxes_which_turn_red() -> void:
 	var saved_url: String = Settings.server_url
-	var lobby: Node = _lobby_join()
+	var lobby: LobbyScreen = _lobby_join()
 	await wait_process_frames(2)
 	# set only now: the Join screen connects as it opens to list the open rooms, and nothing listens here
 	Settings.server_url = "ws://127.0.0.1:1"
@@ -151,7 +151,7 @@ func test_a_short_code_is_refused_next_to_the_boxes_which_turn_red() -> void:
 
 
 func test_paste_cleans_what_a_friend_sent_and_says_so() -> void:
-	var lobby: Node = _lobby_join()
+	var lobby: LobbyScreen = _lobby_join()
 	await wait_process_frames(2)
 	lobby.paste_code("  k7m2 q9xa \n")
 	assert_eq(lobby._code_edit.text, "K7M2Q9XA")
@@ -160,7 +160,7 @@ func test_paste_cleans_what_a_friend_sent_and_says_so() -> void:
 
 
 func test_paste_of_a_short_or_empty_clipboard_warns_instead_of_guessing() -> void:
-	var lobby: Node = _lobby_join()
+	var lobby: LobbyScreen = _lobby_join()
 	await wait_process_frames(2)
 	lobby.paste_code("K7M")
 	assert_eq(lobby._code_edit.text, "K7M")
@@ -173,7 +173,7 @@ func test_paste_of_a_short_or_empty_clipboard_warns_instead_of_guessing() -> voi
 
 
 func test_a_refused_join_marks_the_boxes_and_shows_the_reason_under_them() -> void:
-	var lobby: Node = _lobby_join()
+	var lobby: LobbyScreen = _lobby_join()
 	await wait_process_frames(2)
 	lobby.toggle_code()  # the code form is folded under "Have a code?"
 	lobby._on_error("No room with that code. Check it and try again!")

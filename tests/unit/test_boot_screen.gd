@@ -78,12 +78,12 @@ func test_no_outline_line_runs_over_the_top_of_the_filled_and_unfilled_track() -
 	boot.queue_free()
 
 
-func test_the_percentage_is_clash_text_in_the_middle_of_the_base_instead_of_the_k() -> void:
+func test_the_percentage_is_display_text_in_the_middle_of_the_base_instead_of_the_k() -> void:
 	var boot: BootScreen = _boot()
 	boot.progress = 0.5
 	boot._layout()
 	assert_eq(boot._percent.text, "50%")
-	assert_eq(boot._percent.get_theme_font("font"), BootScreen.PERCENT_FONT, "the Clash font")
+	assert_eq(boot._percent.get_theme_font("font"), BootScreen.PERCENT_FONT, "the signboard display font")
 	assert_almost_eq(boot._percent.get_global_rect().get_center().x, 360.0, 1.0, "centred left to right")
 	assert_almost_eq(boot._percent.get_global_rect().get_center().y, boot._base.get_global_rect().position.y, 1.0, "vertically centred on the base's top edge")
 	assert_lt(boot._percent.get_global_rect().position.y, boot._base.get_global_rect().position.y, "it overlaps the base")

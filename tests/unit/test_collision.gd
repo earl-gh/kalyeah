@@ -7,6 +7,7 @@ const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 static func _cover_street() -> MapLayout:
 	var street: MapLayout = LAYOUT.duplicate() as MapLayout
 	street.obstacles = [Rect2(-13.5, 10.5, 3.0, 0.5)] as Array[Rect2]
+	street.water_obstacles = [] as Array[Rect2]
 	return street
 
 const DT: float = 1.0 / 30.0
@@ -73,7 +74,7 @@ func test_obstacles_block_both_teams_the_same() -> void:
 func test_player_slides_along_an_obstacle() -> void:
 	var sim: MatchSim = _sim()
 	var p: PlayerState = sim.add_player(1, 0)
-	var start: Vector2 = Vector2(_cover().get_center().x, _cover().end.y + 0.5)
+	var start: Vector2 = Vector2(_cover().position.x + 0.4, _cover().end.y + 0.5)
 	p.position = start
 	_run(sim, 1, Vector2(1.0, -1.0), 10)
 	assert_almost_eq(p.position.y, _cover().end.y + p.radius, 0.05, "held back by the bench")
@@ -83,15 +84,16 @@ func test_player_slides_along_an_obstacle() -> void:
 func test_player_cannot_leave_the_street_sideways() -> void:
 	var sim: MatchSim = _sim()
 	var p: PlayerState = sim.add_player(1, 0)
-	p.position = Vector2(0.0, -8.0)
+	p.position = Vector2.ZERO
 	_run(sim, 1, Vector2(1.0, 0.0), 900)
-	assert_almost_eq(p.position.x, LAYOUT.lane_width / 2.0 - p.radius, 0.05)
+	assert_almost_eq(p.position.x, LAYOUT.arena_radius - p.radius, 0.05)
 	_run(sim, 1, Vector2(-1.0, 0.0), 1200)
-	assert_almost_eq(p.position.x, -LAYOUT.lane_width / 2.0 + p.radius, 0.05)
+	assert_almost_eq(p.position.x, -LAYOUT.arena_radius + p.radius, 0.05)
 
 
 func test_player_cannot_leave_through_the_end() -> void:
 	var sim: MatchSim = _sim()
 	var p: PlayerState = sim.add_player(1, 0)
+	p.position = Vector2.ZERO
 	_run(sim, 1, Vector2(0.0, 1.0), 900)
-	assert_almost_eq(p.position.y, LAYOUT.lane_length / 2.0 - p.radius, 0.05)
+	assert_almost_eq(p.position.y, LAYOUT.arena_radius - p.radius, 0.05)

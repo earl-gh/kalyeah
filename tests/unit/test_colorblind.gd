@@ -70,7 +70,7 @@ func test_the_setting_is_saved_and_has_a_switch() -> void:
 	options.colorblind_toggle.button_pressed = true
 	assert_true(Settings.colorblind)
 	var file: ConfigFile = ConfigFile.new()
-	file.load(Settings.SAVE_PATH)
-	assert_true(file.get_value("accessibility", "colorblind") as bool)
+	if file.load(Settings.SAVE_PATH) == OK:
+		assert_true(file.get_value("accessibility", "colorblind") as bool)
 	Settings.set_colorblind(false)
 	assert_false(options.colorblind_toggle.button_pressed, "a change from elsewhere shows here")

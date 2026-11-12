@@ -16,10 +16,19 @@ var _motion: bool
 var _history_path: String
 
 
+static func _temp_path(file_name: String) -> String:
+	var probe: FileAccess = FileAccess.open("user://_test_tmp_lint_probe", FileAccess.WRITE)
+	if probe != null:
+		probe.close()
+		DirAccess.remove_absolute(ProjectSettings.globalize_path("user://_test_tmp_lint_probe"))
+		return "user://" + file_name
+	return "res://.godot/_test_tmp_" + file_name
+
+
 func before_each() -> void:
 	_motion = Settings.reduced_motion
 	_history_path = MatchHistory.path
-	MatchHistory.path = "user://history_lint.cfg"
+	MatchHistory.path = _temp_path("history_lint.cfg")
 	MatchHistory.clear()
 	for entry: Array in [["practice", true, 2, 0], ["hotspot", false, 0, 2], ["online", true, 2, 1]]:
 		MatchHistory.record(entry[0] as String, entry[1] as bool, entry[2] as int, entry[3] as int)
@@ -28,6 +37,8 @@ func before_each() -> void:
 
 func after_each() -> void:
 	MatchHistory.clear()
+	if FileAccess.file_exists(MatchHistory.path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(MatchHistory.path))
 	MatchHistory.path = _history_path
 	Settings.set_reduced_motion(_motion)
 
@@ -353,7 +364,7 @@ func test_the_corner_lint_tells_a_radius_from_a_padding_or_a_border() -> void:
 
 
 func _bare_radii_in(code: String) -> int:
-	var path: String = "user://lint_probe.gd"
+	var path: String = _temp_path("lint_probe.gd")
 	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 	file.store_string(code + "\n")
 	file.close()
@@ -523,7 +534,7 @@ func test_the_font_size_lint_tells_a_size_from_a_count_or_a_min_size() -> void:
 
 
 func _bare_font_sizes_in(code: String) -> int:
-	var path: String = "user://lint_font_probe.gd"
+	var path: String = _temp_path("lint_font_probe.gd")
 	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 	file.store_string(code + "\n")
 	file.close()
@@ -600,7 +611,7 @@ func test_the_font_constant_lint_tells_a_font_size_from_another_size() -> void:
 func _bare_font_constants_in(codes: Array[String]) -> int:
 	var paths: Array[String] = []
 	for i: int in codes.size():
-		var path: String = "user://lint_const_probe_%d.gd" % i
+		var path: String = _temp_path("lint_const_probe_%d.gd" % i)
 		var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 		file.store_string(codes[i] + "\n")
 		file.close()
@@ -694,7 +705,7 @@ func test_the_own_call_and_variable_lint_tells_a_font_size_from_a_count() -> voi
 
 
 func _own_and_vars_in(code: String) -> int:
-	var path: String = "user://lint_vars_probe.gd"
+	var path: String = _temp_path("lint_vars_probe.gd")
 	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 	file.store_string(code + "\n")
 	file.close()

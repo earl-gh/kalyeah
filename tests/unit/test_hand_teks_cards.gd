@@ -4,6 +4,7 @@ extends GutTest
 ## painted skill icon on it, each weapon with its own wear, the power number from data (cosmetic), and everything that worked before still working
 ## (cost drop inside the card, washes, deny shake, the held card's gold edge, the flight, Reduce motion, left-handed).
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
 const LAYOUT: MapLayout = preload("res://data/rules/map_layout.tres")
 const DT: float = 1.0 / 30.0
 const WEAPON_DIR: String = "res://data/weapons/"
@@ -15,17 +16,23 @@ const TEKS_NEXT: StringName = &"bato_light"
 var _rules: GameRules
 var _was: bool
 var _was_elixir: bool
+var _was_hand: int
 var _motion: bool
 var _left: bool
 
 
 func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	for id: StringName in TEKS_HAND:
 		CardStyle._pictures[id] = null
 	_rules = load("res://data/rules/game_rules.tres") as GameRules
 	_was = _rules.card_cycle
 	_was_elixir = _rules.elixir_enabled
+	_was_hand = _rules.hand_size
 	_rules.card_cycle = true
+	_rules.elixir_enabled = true
+	_rules.hand_size = 4
 	_motion = Settings.reduced_motion
 	Settings.reduced_motion = false
 	_left = Settings.left_handed
@@ -37,8 +44,11 @@ func after_each() -> void:
 		CardStyle._pictures.erase(id)
 	_rules.card_cycle = _was
 	_rules.elixir_enabled = _was_elixir
+	_rules.hand_size = _was_hand
 	Settings.reduced_motion = _motion
 	Settings.left_handed = _left
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 
 
 func _hud() -> MatchHud:
@@ -75,11 +85,7 @@ func _shown() -> Array:
 
 
 func _weapons() -> Array[WeaponDef]:
-	var found: Array[WeaponDef] = []
-	for file: String in DirAccess.get_files_at(WEAPON_DIR):
-		if file.ends_with(".tres"):
-			found.append(load(WEAPON_DIR + file) as WeaponDef)
-	return found
+	return _rules.weapons.duplicate()
 
 
 func _picture(card: HandCard) -> TextureRect:

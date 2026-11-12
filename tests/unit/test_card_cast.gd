@@ -8,20 +8,28 @@ const DT: float = 1.0 / 30.0
 var _rules: GameRules
 
 
+static func _open_layout() -> MapLayout:
+	var layout: MapLayout = LAYOUT.duplicate() as MapLayout
+	layout.obstacles = [] as Array[Rect2]
+	layout.water_obstacles = [] as Array[Rect2]
+	return layout
+
+
 func before_each() -> void:
 	_rules = (load("res://data/rules/game_rules.tres") as GameRules).duplicate() as GameRules
 	_rules.card_cycle = true
+	_rules.hand_size = 4
 	_rules.elixir_enabled = true
 
 
-## Player 1 (team 0) at (0, 5), teammate 3 at (-4, 5), enemy 2 far away unless moved.
+## Player 1 (team 0) at (0, 5), teammate 3 at (-12, 20), enemy 2 far away unless moved.
 func _sim() -> MatchSim:
-	var sim: MatchSim = MatchSim.new(_rules, LAYOUT, 5)
+	var sim: MatchSim = MatchSim.new(_rules, _open_layout(), 5)
 	sim.add_player(1, 0)
 	sim.add_player(2, 1)
 	sim.add_player(3, 0)
 	sim.players[1].position = Vector2(0.0, 5.0)
-	sim.players[2].position = Vector2(12.0, -20.0)
+	sim.players[2].position = Vector2(28.0, -30.0)
 	sim.players[3].position = Vector2(-12.0, 20.0)
 	for id: int in [1, 2, 3]:
 		sim.deal_cards(id)
@@ -57,18 +65,18 @@ func test_a_ground_card_lands_on_the_point() -> void:
 func test_a_point_past_the_range_lands_at_full_range_in_its_direction() -> void:
 	var sim: MatchSim = _sim()
 	_cast(sim, &"lata", Vector2(0.0, -95.0))
-	assert_almost_eq(_zone(sim).center, Vector2(0.0, 5.0 - 7.0), Vector2(0.0001, 0.0001), "clamped to lata's 7 m from where the kid stands")
+	assert_almost_eq(_zone(sim).center, Vector2(0.0, 5.0 - 20.0), Vector2(0.0001, 0.0001), "clamped to lata's 20 m from where the kid stands")
 
 
 func test_the_range_is_measured_from_where_the_kid_is_at_the_release() -> void:
 	var sim: MatchSim = _sim()
 	sim.players[1].weapons[0] = &"lata"
-	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_CARD_1, sim.tick).with_aim_point(Vector2(0.0, -2.0)))
+	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_CARD_1, sim.tick).with_aim_point(Vector2(0.0, -15.0)))
 	sim.step(DT)
 	sim.players[1].position = Vector2(0.0, 10.0)
-	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_aim_point(Vector2(0.0, -2.0)))
+	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick).with_aim_point(Vector2(0.0, -15.0)))
 	sim.step(DT)
-	assert_almost_eq(_zone(sim).center, Vector2(0.0, 3.0), Vector2(0.0001, 0.0001))
+	assert_almost_eq(_zone(sim).center, Vector2(0.0, -10.0), Vector2(0.0001, 0.0001))
 
 
 func test_a_directional_card_goes_toward_the_point() -> void:
@@ -96,7 +104,7 @@ func test_a_tap_with_nobody_in_range_casts_the_way_the_kid_faces_at_full_range()
 	var sim: MatchSim = _sim()
 	sim.players[1].facing = Vector2.LEFT
 	_cast(sim, &"lata")
-	assert_almost_eq(_zone(sim).center, Vector2(-7.0, 5.0), Vector2(0.0001, 0.0001))
+	assert_almost_eq(_zone(sim).center, Vector2(-20.0, 5.0), Vector2(0.0001, 0.0001))
 
 
 func test_the_homing_rock_locks_the_enemy_nearest_the_point() -> void:
@@ -112,9 +120,9 @@ func test_the_homing_rock_locks_the_enemy_nearest_the_point() -> void:
 
 func test_the_homing_rock_at_a_point_with_nobody_in_range_casts_nothing_and_spends_nothing() -> void:
 	var sim: MatchSim = _sim()
-	sim.players[2].position = Vector2(0.0, -10.0)
+	sim.players[2].position = Vector2(0.0, -25.0)
 	watch_signals(sim)
-	_cast(sim, &"bato_light", Vector2(0.0, -10.0))
+	_cast(sim, &"bato_light", Vector2(0.0, -25.0))
 	assert_signal_not_emitted(sim, "weapon_cast")
 	assert_almost_eq(sim.players[1].elixir, _rules.elixir_max, 0.0001)
 
@@ -125,7 +133,7 @@ func test_a_heal_tap_heals_yourself() -> void:
 	sim.players[3].hp = 50
 	sim.players[3].position = Vector2(-2.0, 5.0)
 	_cast(sim, &"heal")
-	assert_eq(sim.players[1].hp, 80)
+	assert_eq(sim.players[1].hp, 84)
 	assert_eq(sim.players[3].hp, 50)
 
 
@@ -135,7 +143,7 @@ func test_a_heal_dropped_near_your_kid_heals_yourself() -> void:
 	sim.players[3].hp = 50
 	sim.players[3].position = Vector2(-3.0, 5.0)
 	_cast(sim, &"heal", Vector2(-0.9, 5.0))
-	assert_eq(sim.players[1].hp, 80, "within 1.0 m of your kid")
+	assert_eq(sim.players[1].hp, 84, "within self_cast_radius of your kid")
 	assert_eq(sim.players[3].hp, 50)
 
 
@@ -145,7 +153,7 @@ func test_a_heal_dragged_at_a_teammate_heals_them() -> void:
 	sim.players[3].hp = 50
 	sim.players[3].position = Vector2(-4.0, 5.0)
 	_cast(sim, &"heal", Vector2(-4.0, 5.5))
-	assert_eq(sim.players[3].hp, 80)
+	assert_eq(sim.players[3].hp, 84)
 	assert_eq(sim.players[1].hp, 50)
 
 
@@ -163,4 +171,4 @@ func test_a_non_finite_point_is_never_used() -> void:
 	var sim: MatchSim = _sim()
 	sim.players[1].facing = Vector2.LEFT
 	_cast(sim, &"lata", Vector2(INF, NAN))
-	assert_almost_eq(_zone(sim).center, Vector2(-7.0, 5.0), Vector2(0.0001, 0.0001), "taken as a tap")
+	assert_almost_eq(_zone(sim).center, Vector2(-20.0, 5.0), Vector2(0.0001, 0.0001), "taken as a tap")

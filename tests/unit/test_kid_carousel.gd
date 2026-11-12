@@ -77,7 +77,7 @@ func test_the_carousel_has_the_six_card_pictures_bare() -> void:
 	var screen: WeaponPickScreen = await _open()
 	var strip: KidCarousel = screen._carousel
 	assert_true(strip.visible)
-	assert_eq(strip.cards.size(), 6, "one card for each kid")
+	assert_eq(strip.cards.size(), 10, "one card for each kid")
 	assert_eq(strip.cards.size(), Session.AVATARS.size())
 	for i: int in strip.cards.size():
 		var id: StringName = strip.ids[i]
@@ -117,14 +117,15 @@ func test_five_cards_are_in_view_and_step_down_from_the_middle() -> void:
 	var shown: int = 0
 	for card: Button in strip.cards:
 		shown += 1 if card.visible else 0
-	assert_eq(shown, 5, "five of the six kids are in view")
+	assert_eq(shown, 5, "five of the ten kids are in view")
+	var count: int = strip.cards.size()
 	for offset: int in [-1, 1]:
-		var next: Button = strip.cards[posmod(strip.index + offset, 6)]
+		var next: Button = strip.cards[posmod(strip.index + offset, count)]
 		assert_almost_eq(next.scale.x, KidCarousel.LEVEL_SCALE[1], 0.01, "the kids beside the chosen one")
 		assert_true(_card_rect(strip, next).intersects(_card_rect(strip, chosen)), "tucked a little behind the chosen card")
 	for offset: int in [-2, 2]:
-		var outer: Button = strip.cards[posmod(strip.index + offset, 6)]
-		var inner: Button = strip.cards[posmod(strip.index + signi(offset), 6)]
+		var outer: Button = strip.cards[posmod(strip.index + offset, count)]
+		var inner: Button = strip.cards[posmod(strip.index + signi(offset), count)]
 		assert_true(outer.visible)
 		assert_almost_eq(outer.scale.x, KidCarousel.LEVEL_SCALE[2], 0.01, "the outer two are smaller still")
 		assert_almost_eq(outer.modulate.r, 1.0 - MenuCarousel.SHADE_LOSS, 0.01, "dimmed like the mode models on the Play tab")
@@ -132,8 +133,8 @@ func test_five_cards_are_in_view_and_step_down_from_the_middle() -> void:
 		assert_almost_eq(inner.modulate.a, MenuCarousel.BACK_ALPHA, 0.01, "and a little see-through, the same")
 		assert_lt(outer.z_index, inner.z_index, "and further back")
 		assert_gt(absf(_card_rect(strip, outer).get_center().x - chosen.get_rect().get_center().x), absf(_card_rect(strip, inner).get_center().x - chosen.get_rect().get_center().x), "and further out")
-	var far: Button = strip.cards[posmod(strip.index + 3, 6)]
-	assert_false(far.visible, "the sixth kid waits out of sight")
+	var far: Button = strip.cards[posmod(strip.index + 3, count)]
+	assert_false(far.visible, "the remaining kids wait out of sight")
 	assert_true(strip.wrap, "endless")
 
 
@@ -141,11 +142,12 @@ func test_the_cards_are_small_enough_for_five() -> void:
 	for phone: Vector2 in PHONES:
 		var screen: WeaponPickScreen = await _open(phone)
 		var strip: KidCarousel = screen._carousel
+		var count: int = strip.cards.size()
 		var chosen: Rect2 = _card_rect(strip, strip.cards[strip.index])
 		assert_lt(chosen.size.x, 0.32 * phone.x, "%s: the chosen card is a fraction of the width, not the 420 px it was" % phone)
 		assert_gt(chosen.size.x, 0.2 * phone.x, "%s: but still big enough to read" % phone)
-		var left: Rect2 = _card_rect(strip, strip.cards[posmod(strip.index - 2, 6)])
-		var right: Rect2 = _card_rect(strip, strip.cards[posmod(strip.index + 2, 6)])
+		var left: Rect2 = _card_rect(strip, strip.cards[posmod(strip.index - 2, count)])
+		var right: Rect2 = _card_rect(strip, strip.cards[posmod(strip.index + 2, count)])
 		assert_gte(left.position.x, strip.get_global_rect().position.x - 0.5, "%s: the outer left card is inside" % phone)
 		assert_lte(right.end.x, strip.get_global_rect().end.x + 0.5, "%s: and the outer right one" % phone)
 
@@ -177,7 +179,7 @@ func test_the_name_and_description_are_under_the_chosen_card_like_the_cards_draw
 func test_the_cards_do_not_move_when_a_longer_description_comes() -> void:
 	var screen: WeaponPickScreen = await _open(PHONES[0], &"toni")
 	var y: float = screen._carousel.get_global_rect().position.y
-	var panel: float = screen._hero_about.get_parent().size.y
+	var panel: float = (screen._hero_about.get_parent() as Control).size.y
 	for character: CharacterDef in screen._characters:
 		screen.pick_character(character.id) if not screen.is_taken(character.id) else null
 		await wait_process_frames(2)
@@ -296,10 +298,10 @@ func test_the_taken_tag_sits_in_the_middle_of_its_card_where_it_shows() -> void:
 
 
 func test_a_swipe_steps_over_taken_kids() -> void:
-	var screen: WeaponPickScreen = await _open(PHONES[0], &"toni", [&"popoy", &"inday"] as Array[StringName])
+	var screen: WeaponPickScreen = await _open(PHONES[0], &"toni", [&"popoy", &"inday", &"kiko", &"nene", &"buknoy", &"tala"] as Array[StringName])
 	var ids: Array[StringName] = _ids(screen)
 	_swipe(screen, -_step(screen))
-	assert_eq(screen.character_id, ids[0], "left of toni: popoy and inday are taken, so the next free kid is the first (endless)")
+	assert_eq(screen.character_id, ids[0], "left of toni: trailing kids are taken, so the next free kid wraps to the first (endless)")
 	assert_eq(_changed, [ids[0]] as Array[StringName], "one change, to the free kid")
 	assert_false(screen.is_taken(screen.character_id))
 	await wait_seconds(0.8)
@@ -408,8 +410,8 @@ func test_the_weapons_screen_keeps_its_row_of_kid_tiles() -> void:
 	var screen: WeaponPickScreen = await _open(PHONES[0], &"toni", [] as Array[StringName], false)
 	assert_false(screen._carousel.visible, "no carousel in weapons mode")
 	assert_true(screen._character_row.visible)
-	assert_eq(screen._profiles.size(), 6)
-	assert_true(screen.find_child("Weapons", true, false).is_visible_in_tree(), "the weapon grid is there")
+	assert_eq(screen._profiles.size(), 10)
+	assert_true((screen.find_child("Weapons", true, false) as Control).is_visible_in_tree(), "the weapon grid is there")
 	var tops: Dictionary = {}
 	for tile: Button in screen._profiles.values():
 		tops[snappedf(tile.global_position.y, 1.0)] = true
@@ -437,7 +439,8 @@ func test_a_kid_without_a_picture_keeps_the_face_plate() -> void:
 # ---- layout ----
 
 func test_the_carousel_fits_every_phone_inside_the_safe_areas_and_clear_of_play() -> void:
-	for phone: Vector2 in PHONES:
+	var stretched_phones: Array[Vector2] = [Vector2(720.0, 1280.0), Vector2(720.0, 1558.0)]
+	for phone: Vector2 in stretched_phones:
 		var screen: WeaponPickScreen = await _open(phone, &"toni", [&"popoy"] as Array[StringName])
 		# a notch on top and a home bar below: the margins the safe-area code would add
 		screen._safe_margin.add_theme_constant_override("margin_top", 120)

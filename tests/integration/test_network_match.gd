@@ -70,8 +70,8 @@ func _start_1v1() -> void:
 	a.loaded()
 	b.loaded()
 	assert_true(_until(func() -> bool: return a.stage == "pick" and b.stage == "pick"), "picking")
-	a.pick_weapons(&"bato_light", &"lata")
-	b.pick_weapons(&"jacks", &"bola")
+	a.pick_weapons(&"bato_light", &"lata", &"", &"papel_shield")
+	b.pick_weapons(&"jacks", &"bola", &"", &"heal")
 	assert_true(_until(func() -> bool: return a.stage == "play" and b.stage == "play"), "playing")
 	var running: ServerMatch = server.matches.values()[0]
 	assert_eq(running.sim.phase, MatchSim.Phase.INTRO, "the server plays the opening show first")
@@ -87,8 +87,8 @@ func test_two_clients_create_join_ready_and_start() -> void:
 	assert_false(b.is_host())
 	assert_ne(a.my_team(), b.my_team())
 	assert_eq(a.mirror.players.size(), 2)
-	assert_eq(a.mirror.players[a.player_id].weapons, [&"bato_light", &"lata"] as Array[StringName])
-	assert_eq(b.mirror.players[a.player_id].weapons, [&"bato_light", &"lata"] as Array[StringName], "everyone sees the loadouts")
+	assert_eq(a.mirror.players[a.player_id].weapons, [&"bato_light", &"lata", &"papel_shield"] as Array[StringName])
+	assert_eq(b.mirror.players[a.player_id].weapons, [&"bato_light", &"lata", &"papel_shield"] as Array[StringName], "everyone sees the loadouts")
 	for id: int in a.mirror.players:
 		assert_eq(a.mirror.players[id].character_id, running.sim.players[id].character_id, "the lobby choice reaches the mirror")
 		assert_eq(b.mirror.players[id].character_id, running.sim.players[id].character_id, "both clients agree")
@@ -114,7 +114,7 @@ func test_inputs_move_the_player_on_the_server_and_everyone_sees_it() -> void:
 	a.send_input(PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 31), dt)
 	_pump(0.5)
 	var moved: float = match_sim.players[a.player_id].position.x - start.x
-	assert_almost_eq(moved, 5.0, 0.4, "about 1 s of walking at 5 m/s on the server")
+	assert_almost_eq(moved, RULES.move_speed, 1.2, "about 1 s of running on the server")
 	assert_almost_eq(a.mirror.players[a.player_id].position.x, match_sim.players[a.player_id].position.x, 0.3, "prediction agrees")
 	b.interpolate()
 	assert_almost_eq(b.mirror.players[a.player_id].position.x, match_sim.players[a.player_id].position.x, 0.3, "the other client sees it")
@@ -125,14 +125,14 @@ func test_a_cast_on_the_server_reaches_the_other_client() -> void:
 	var server_match: ServerMatch = server.matches.values()[0]
 	var me: PlayerState = server_match.sim.players[a.player_id]
 	var them: PlayerState = server_match.sim.players[b.player_id]
-	me.position = Vector2(0.0, 2.0)
-	them.position = Vector2(0.0, -3.0)
+	me.position = Vector2(0.0, 26.0)
+	them.position = Vector2(0.0, 21.0)
 	var dt: float = RULES.tick_dt()
 	a.send_input(PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_WEAPON_1, 1), dt)
 	a.send_input(PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 2), dt)
 	_pump(1.2)
-	assert_eq(them.hp, 88, "bato light hit on the server")
-	assert_eq(b.mirror.players[b.player_id].hp, 88, "and the target's client knows")
+	assert_eq(them.hp, 82, "bato light hit on the server")
+	assert_eq(b.mirror.players[b.player_id].hp, 82, "and the target's client knows")
 
 
 func test_events_are_replayed_as_signals_on_the_mirror() -> void:

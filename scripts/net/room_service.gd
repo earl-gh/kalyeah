@@ -32,6 +32,9 @@ class Member extends RefCounted:
 	var token: String = ""
 	## The kid the member picked in the room (cosmetic, shown to the others); &"" = not picked.
 	var character: StringName = &""
+	## Tagalog Ranked LP and resolved tier name (defaults keep legacy callers at 0 / "Kahoy").
+	var rank_lp: int = 0
+	var rank_tier: String = "Kahoy"
 
 
 class Room extends RefCounted:
@@ -64,8 +67,8 @@ class Room extends RefCounted:
 
 ## The street games a host sees in the map list, and the ones that can be played so far (the other
 ## two are listed as coming soon).
-## Every room is 3v3: three places a team, six in all.
-const MAX_TEAM_SIZE: int = 3
+## Every room is 5v5: five places a team, ten in all.
+const MAX_TEAM_SIZE: int = 5
 ## The name of the base game (the other two say theirs in their rules: `StreetModeRules.title`).
 const BASE_TITLE: String = "Agawang Base"
 const MAP_IDS: Array[StringName] = [&"street", &"tumbang_preso", &"patintero", &"langit_lupa"]
@@ -110,20 +113,20 @@ func member_of_peer(peer_id: int) -> Member:
 	return null
 
 
-## Creates a room (three places a team); the creator joins as host.
-func create_room(peer_id: int, player_name: String) -> Room:
+## Creates a room (five places a team); the creator joins as host.
+func create_room(peer_id: int, player_name: String, rank_lp: int = 0) -> Room:
 	if room_of_peer(peer_id) != null:
 		return null
 	var room: Room = Room.new()
 	room.code = _new_code()
 	room.first_to = default_first_to
 	rooms[room.code] = room
-	var host: Member = _add_member(room, peer_id, player_name)
+	var host: Member = _add_member(room, peer_id, player_name, rank_lp)
 	room.host_player_id = host.player_id
 	return room
 
 
-func join(code: String, peer_id: int, player_name: String) -> Result:
+func join(code: String, peer_id: int, player_name: String, rank_lp: int = 0) -> Result:
 	var room: Room = rooms.get(code.strip_edges().to_upper()) as Room
 	if room == null:
 		return Result.NOT_FOUND
@@ -133,8 +136,19 @@ func join(code: String, peer_id: int, player_name: String) -> Result:
 		return Result.FULL
 	if room_of_peer(peer_id) != null:
 		return Result.NOT_ALLOWED
-	_add_member(room, peer_id, player_name)
+	_add_member(room, peer_id, player_name, rank_lp)
 	return Result.OK
+
+
+## Updates a lobby member's Tagalog Ranked LP and resolved tier name.
+func set_rank(peer_id: int, lp: int) -> bool:
+	var room: Room = room_of_peer(peer_id)
+	var m: Member = member_of_peer(peer_id)
+	if m == null or room == null or room.state != State.LOBBY:
+		return false
+	m.rank_lp = maxi(0, lp)
+	m.rank_tier = RankedSystem.tier_name(m.rank_lp)
+	return true
 
 
 ## Moves a member to a team slot (0 or 1) if it has room. Un-readies them.
@@ -397,6 +411,7 @@ func describe(room: Room) -> Dictionary:
 		members.append({
 			"player_id": m.player_id, "name": m.name, "team": m.team,
 			"ready": m.ready, "connected": m.connected, "afk": m.afk, "char": m.character,
+			"rank_lp": m.rank_lp, "rank_tier": m.rank_tier,
 		})
 	return {
 		"code": room.code, "team_size": MAX_TEAM_SIZE, "host": room.host_player_id, "first_to": room.first_to,
@@ -406,12 +421,14 @@ func describe(room: Room) -> Dictionary:
 	}
 
 
-func _add_member(room: Room, peer_id: int, player_name: String) -> Member:
+func _add_member(room: Room, peer_id: int, player_name: String, rank_lp: int = 0) -> Member:
 	var m: Member = Member.new()
 	m.player_id = _next_player_id
 	_next_player_id += 1
 	m.peer_id = peer_id
 	m.name = clean_name(player_name)
+	m.rank_lp = maxi(0, rank_lp)
+	m.rank_tier = RankedSystem.tier_name(m.rank_lp)
 	m.token = "%08x%08x" % [_rng.randi(), _rng.randi()]
 	# drop into the smaller team (ties go to team 0)
 	var team: int = 0 if room.team_count(0) <= room.team_count(1) else 1

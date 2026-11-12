@@ -107,13 +107,13 @@ func test_the_match_stands_still_behind_it_and_runs_when_it_ends() -> void:
 func test_it_counts_ten_seconds_down_in_whole_numbers_and_ends_by_itself() -> void:
 	var practice: PracticeMatch = _match(&"street")
 	var briefing: MatchBriefing = practice.hud.briefing
-	assert_eq(practice.rules.briefing_seconds, 10.0, "ten seconds, from the rules data")
-	assert_eq(briefing.shown_seconds(), 10)
+	assert_eq(practice.rules.briefing_seconds, 8.0, "eight seconds, from the rules data")
+	assert_eq(briefing.shown_seconds(), 8)
 	briefing._process(1.0)
-	assert_eq(briefing.shown_seconds(), 9)
+	assert_eq(briefing.shown_seconds(), 7)
 	briefing._process(0.5)
-	assert_eq(briefing.shown_seconds(), 9, "a number holds until its second is over")
-	briefing._process(7.6)
+	assert_eq(briefing.shown_seconds(), 7, "a number holds until its second is over")
+	briefing._process(5.6)
 	assert_eq(briefing.shown_seconds(), 1)
 	assert_true(briefing.running)
 	var ended: Array[bool] = []
@@ -277,10 +277,10 @@ func test_the_title_is_left_and_the_countdown_is_a_plain_number_at_the_right_of_
 	assert_eq(briefing.title_label.horizontal_alignment, HORIZONTAL_ALIGNMENT_LEFT)
 	assert_eq(briefing.countdown.horizontal_alignment, HORIZONTAL_ALIGNMENT_RIGHT, "at the right-most end")
 	assert_true((briefing.title_label.size_flags_horizontal & Control.SIZE_EXPAND) != 0, "the title takes the room, so the number is pushed right")
-	assert_eq(briefing.countdown.text, "10")
+	assert_eq(briefing.countdown.text, "8")
 	assert_eq(briefing.find_children("*", "CountdownCircle", true, false).size(), 0, "no circle")
 	briefing._process(2.2)
-	assert_eq(briefing.countdown.text, "8", "whole seconds counting down")
+	assert_eq(briefing.countdown.text, "6", "whole seconds counting down")
 
 
 func test_a_thin_white_line_between_the_title_row_and_the_details_empties_with_the_countdown() -> void:
@@ -294,7 +294,7 @@ func test_a_thin_white_line_between_the_title_row_and_the_details_empties_with_t
 	assert_eq(briefing.head.get_child(briefing.bar.get_index() + 2), briefing.goal)
 	assert_lte(briefing.bar.custom_minimum_size.y, 8.0, "thin")
 	assert_almost_eq(briefing.bar.share(), 1.0, 0.001)
-	briefing._process(5.0)
+	briefing._process(4.0)
 	assert_almost_eq(briefing.bar.share(), 0.5, 0.001)
 
 

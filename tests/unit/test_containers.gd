@@ -2,7 +2,21 @@ extends GutTest
 ## Where a container earns its place (docs/audits/2026-10-20-containers.md): small state text read over the
 ## street (score, feed, skill type) sits on one; a container is never put inside another container.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
+
+var _saved_landscape: bool
+
+
+func before_each() -> void:
+	_saved_landscape = Settings.landscape
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
+
+
+func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(_saved_landscape)
 
 
 func _practice() -> PracticeMatch:

@@ -84,7 +84,7 @@ func test_the_middle_card_floats_slowly_and_its_shadow_follows_and_rests_with_re
 
 
 func test_the_button_row_is_centred_between_the_phrase_and_the_bar() -> void:
-	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
+	var screen: TitleScreen = autofree((load("res://scenes/ui/title_screen.tscn") as PackedScene).instantiate()) as TitleScreen
 	var holder: SubViewport = autofree(SubViewport.new()) as SubViewport
 	holder.size = Vector2i(720, 1280)
 	add_child(holder)
@@ -153,14 +153,16 @@ func test_the_mode_cards_are_old_teks_cards_worn_at_the_corners_each_differently
 
 
 func test_the_mode_name_and_its_phrase_are_white_with_a_black_outline() -> void:
-	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
+	var screen: TitleScreen = autofree((load("res://scenes/ui/title_screen.tscn") as PackedScene).instantiate()) as TitleScreen
 	add_child(screen)
 	await wait_frames(2)
 	var name_label: Label = (screen.mode_models[screen.carousel.index].get_node("Face") as CardFace).plate().get_child(0) as Label
-	for label: Label in [name_label, screen.mode_text_label]:
-		assert_eq(label.get_theme_color("font_color"), Color.WHITE, "%s is white" % label.name)
-		assert_eq(label.get_theme_color("font_outline_color"), Color.BLACK, "%s has a black outline" % label.name)
-		assert_gt(label.get_theme_constant("outline_size"), 3, "%s: a real outline" % label.name)
+	assert_eq(name_label.get_theme_color("font_color"), Color.WHITE, "%s is white" % name_label.name)
+	assert_eq(name_label.get_theme_color("font_outline_color"), Color.BLACK, "%s has a black outline" % name_label.name)
+	assert_gt(name_label.get_theme_constant("outline_size"), 3, "%s: a real outline" % name_label.name)
+	assert_eq(screen.mode_text_label.get_theme_color("font_color"), KalyeahTheme.CREAM, "%s uses sunlit cream" % screen.mode_text_label.name)
+	assert_eq(screen.mode_text_label.get_theme_color("font_outline_color"), KalyeahTheme.INK, "%s uses warm espresso outline" % screen.mode_text_label.name)
+	assert_gt(screen.mode_text_label.get_theme_constant("outline_size"), 3, "%s: a real outline" % screen.mode_text_label.name)
 
 
 func test_the_two_worn_layers_have_the_owners_lightness_grades() -> void:
@@ -200,9 +202,17 @@ func test_only_the_chosen_card_has_a_shadow_and_the_rest_are_dimmed() -> void:
 	assert_eq((strip.cards[1].get_node("Face") as CardFace).chosen, 0.0)
 
 
+func _portrait_title_screen() -> TitleScreen:
+	var screen: TitleScreen = autofree((load("res://scenes/ui/title_screen.tscn") as PackedScene).instantiate()) as TitleScreen
+	var holder: SubViewport = autofree(SubViewport.new()) as SubViewport
+	holder.size = Vector2i(720, 1280)
+	add_child(holder)
+	holder.add_child(screen)
+	return screen
+
+
 func test_the_main_menu_backdrop_is_backlit_behind_the_chosen_card() -> void:
-	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
-	add_child(screen)
+	var screen: TitleScreen = _portrait_title_screen()
 	await wait_frames(12)
 	var glow: TextureRect = screen.backdrop.glow
 	assert_eq((glow.material as CanvasItemMaterial).blend_mode, CanvasItemMaterial.BLEND_MODE_ADD, "the backlight is added light")
@@ -215,19 +225,18 @@ func test_the_main_menu_backdrop_is_backlit_behind_the_chosen_card() -> void:
 
 
 func test_the_main_menu_background_is_the_blue_picture_for_every_mode() -> void:
-	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
-	add_child(screen)
+	var screen: TitleScreen = _portrait_title_screen()
 	await wait_frames(4)
 	var backdrop: UiBackdrop = screen.backdrop
 	var pictures: Array[Node] = backdrop.find_children("*", "TextureRect", false, false).filter(func(node: Node) -> bool: return (node as TextureRect).texture == UiBackdrop.PICTURE)
 	assert_eq(pictures.size(), 1, "one picture, the blue one (owner: no purple or green)")
-	assert_eq(backdrop.get_node("Picture").modulate.a, 1.0)
-	assert_null(backdrop.get_node("Picture").material, "shown as it is, not tinted")
+	assert_eq((backdrop.get_node("Picture") as TextureRect).modulate.a, 1.0)
+	assert_null((backdrop.get_node("Picture") as TextureRect).material, "shown as it is, not tinted")
 	var motion: bool = Settings.reduced_motion
 	Settings.reduced_motion = true
 	for index: int in 3:
 		screen.carousel.select(index, false)
-		assert_eq(backdrop.get_node("Picture").modulate.a, 1.0, "the same picture behind %s" % TitleScreen.MODES[index]["id"])
+		assert_eq((backdrop.get_node("Picture") as TextureRect).modulate.a, 1.0, "the same picture behind %s" % TitleScreen.MODES[index]["id"])
 	Settings.reduced_motion = motion
 	assert_false(ResourceLoader.exists("res://assets/ui/main_bg_purple.webp"), "the purple picture is deleted")
 	assert_false(ResourceLoader.exists("res://assets/ui/main_bg_green.webp"), "the green picture is deleted")
@@ -240,8 +249,7 @@ func test_the_vignette_is_a_dark_of_the_pictures_own_blue() -> void:
 
 
 func test_the_mode_models_behind_are_blurred_to_look_far_away_and_the_chosen_one_is_sharp() -> void:
-	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
-	add_child(screen)
+	var screen: TitleScreen = _portrait_title_screen()
 	await wait_frames(6)
 	screen.carousel.select(1, false)
 	await wait_frames(3)
@@ -254,8 +262,7 @@ func test_the_mode_models_behind_are_blurred_to_look_far_away_and_the_chosen_one
 
 
 func test_a_smaller_stronger_neon_blue_core_sits_above_the_backlight() -> void:
-	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
-	add_child(screen)
+	var screen: TitleScreen = _portrait_title_screen()
 	await wait_frames(12)
 	var glow: TextureRect = screen.backdrop.glow
 	var core: TextureRect = screen.backdrop.core
@@ -270,8 +277,7 @@ func test_a_smaller_stronger_neon_blue_core_sits_above_the_backlight() -> void:
 
 
 func test_the_lights_shine_between_the_front_model_and_the_ones_behind_and_go_off_under_a_page() -> void:
-	var screen: TitleScreen = autofree(load("res://scenes/ui/title_screen.tscn").instantiate()) as TitleScreen
-	add_child(screen)
+	var screen: TitleScreen = _portrait_title_screen()
 	await wait_frames(12)
 	var glow: TextureRect = screen.backdrop.glow
 	var core: TextureRect = screen.backdrop.core

@@ -75,15 +75,20 @@ func test_the_lobby_says_the_server_is_waking_up_while_it_waits() -> void:
 
 
 func test_a_connection_that_never_opens_says_so_with_a_retry() -> void:
-	var lobby: LobbyScreen = _lobby()
+	var quick: NetRules = NET.duplicate() as NetRules
+	quick.connect_timeout = 0.5
+	var lobby: LobbyScreen = _lobby(quick)
 	var failed: Array[bool] = []
 	lobby.client.connect_failed.connect(func() -> void: failed.append(true))
 	lobby.set_fields("ws://127.0.0.1:%d" % CLOSED_PORT, "Ana")
 	lobby.submit()
+	var started_ms: int = Time.get_ticks_msec()
 	var waited: float = 0.0
-	while failed.is_empty() and waited < 5.0:
+	while failed.is_empty() and (waited < 5.0 or Time.get_ticks_msec() - started_ms < 2000):
 		_pump(lobby, 0.1)
 		waited += 0.1
+		if failed.is_empty():
+			OS.delay_msec(15)
 	# macOS logs this engine error for a refused connection (Linux does not); it is the closed port, not the game
 	for error: Variant in get_errors():
 		if str(error.code).contains("TCP no delay") or str(error.rationale).contains("TCP no delay"):

@@ -57,7 +57,7 @@ func test_a_toast_shows_its_words_and_mark_over_everything_and_takes_no_touches(
 	assert_eq(toasts.size(), 1)
 	assert_eq((toasts[0].find_child("Words", true, false) as Label).text, "Room code copied!")
 	assert_eq((toasts[0].find_child("Mark", true, false) as Label).text, "✓")
-	assert_eq(toasts[0].get_parent().layer, UiToast.LAYER, "its own layer, above the screen")
+	assert_eq((toasts[0].get_parent() as CanvasLayer).layer, UiToast.LAYER, "its own layer, above the screen")
 	assert_gt(UiToast.LAYER, 100)
 	for node: Node in toasts[0].find_children("*", "Control", true, false):
 		assert_eq((node as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE, "%s lets touches through" % node.name)
@@ -131,7 +131,7 @@ func test_dressing_a_label_gives_it_a_tinted_strip_and_keeps_its_words() -> void
 func test_the_lobby_status_line_is_dressed_when_it_says_something() -> void:
 	Session.lobby_hotspot = false
 	Session.lobby_intent = 1
-	var lobby: Node = autofree((load("res://scenes/ui/lobby.tscn") as PackedScene).instantiate()) as Node
+	var lobby: LobbyScreen = autofree((load("res://scenes/ui/lobby.tscn") as PackedScene).instantiate()) as LobbyScreen
 	add_child(lobby)
 	await wait_process_frames(2)
 	lobby._set_status("Connection lost. Try again!")

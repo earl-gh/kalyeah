@@ -74,10 +74,11 @@ func test_the_ui_theme_is_applied_everywhere() -> void:
 	assert_eq(box, UiSkin.button("gold"), "the default button is the gold one")
 	assert_eq(button.get_theme_font("font"), KalyeahTheme.BUTTON_FONT)
 	assert_eq(KalyeahTheme.build().default_font, KalyeahTheme.BODY_FONT)
-	assert_eq(KalyeahTheme.DISPLAY_FONT.get_font_name(), "Clash", "headings use Clash")
-	for font: Font in [KalyeahTheme.BODY_FONT, KalyeahTheme.CAPTION_FONT, KalyeahTheme.BUTTON_FONT]:
-		assert_eq((font as FontVariation).base_font, KalyeahTheme.DISPLAY_FONT, "one typeface everywhere (owner): Clash, tracked for its role")
-	assert_eq(KalyeahTheme.ACTION_FONT, KalyeahTheme.DISPLAY_FONT, "numbers stay untracked")
+	assert_eq(KalyeahTheme.DISPLAY_FONT.resource_path, "res://assets/fonts/brand/KalyeahDisplay-Regular.ttf", "headings use KalyeahDisplay signboard typeface")
+	assert_eq(KalyeahTheme.SANS_FONT.resource_path, "res://assets/fonts/brand/KalyeahSans-Variable.ttf", "UI and HUD copy use KalyeahSans variable typeface")
+	for font: Font in [KalyeahTheme.BODY_FONT, KalyeahTheme.CAPTION_FONT, KalyeahTheme.BUTTON_FONT, KalyeahTheme.ACTION_FONT]:
+		assert_eq((font as FontVariation).base_font, KalyeahTheme.SANS_FONT, "readable sans variations across body, captions, buttons, and HUD digits")
+	assert_eq((KalyeahTheme.ACTION_FONT as FontVariation).spacing_glyph, 0, "HUD numbers stay untracked")
 	assert_lt((KalyeahTheme.BODY_FONT as FontVariation).spacing_glyph, (KalyeahTheme.CAPTION_FONT as FontVariation).spacing_glyph, "the smaller the text, the more it is opened up")
 	assert_gt(KalyeahTheme.READING_LINE_SPACING, KalyeahTheme.LINE_SPACING, "paragraphs have air between their lines")
 	var field: LineEdit = autofree(LineEdit.new()) as LineEdit
@@ -87,7 +88,7 @@ func test_the_ui_theme_is_applied_everywhere() -> void:
 	assert_not_null(normal)
 	assert_not_null(focused)
 	assert_ne(normal.border_color, focused.border_color, "fields have a visible focus state")
-	assert_eq(field.get_theme_font("font"), KalyeahTheme.BODY_FONT, "fields use Clash too")
+	assert_eq(field.get_theme_font("font"), KalyeahTheme.BODY_FONT, "fields use the clean body font")
 
 
 func _animation_after(kid: KidModel, state: PlayerState, speed: float = 0.0) -> String:
@@ -126,6 +127,25 @@ func test_each_state_plays_its_own_animation() -> void:
 	state = PlayerState.new()
 	state.tagged = true
 	assert_eq(_animation_after(kid, state), "idle", "tagged kids stand on the sidewalk")
+	state = PlayerState.new()
+	state.walking = true
+	for i: int in 4:
+		kid.animate(0.05, 3.0, state)
+	assert_eq(kid.pose, "walk", "analog stick below threshold plays relaxed walk pose")
+	state = PlayerState.new()
+	state.crouching = true
+	kid.animate(0.05, 2.0, state)
+	assert_eq(kid.pose, "crouch", "crouching drops pelvis into stealth crouch pose")
+	state = PlayerState.new()
+	state.slide_left = 0.35
+	state.slide_dir = Vector2(0.0, -1.0)
+	kid.animate(0.05, 9.0, state)
+	assert_eq(kid.pose, "slide", "slide_left > 0 plays low baseball ground-slide pose")
+	state = PlayerState.new()
+	state.air_y = 0.65
+	state.vel_y = 3.2
+	kid.animate(0.05, 4.0, state)
+	assert_eq(kid.pose, "airborne", "jump air_y > 0 plays airborne jump pose")
 
 
 func test_running_makes_footstep_signals() -> void:

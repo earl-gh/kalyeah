@@ -25,13 +25,13 @@ func _in_area(sim: MatchSim, id: int) -> void:
 	sim.players[id].position = LAYOUT.rescue_rect(sim.side_for_team(sim.players[id].team)).get_center()
 
 
-func test_the_shipped_countdown_is_ten_seconds_and_runs_from_the_start() -> void:
-	assert_eq(RULES.rescue_cooldown, 10.0)
+func test_the_shipped_countdown_is_eight_seconds_and_runs_from_the_start() -> void:
+	assert_eq(RULES.rescue_cooldown, 8.0)
 	var sim: MatchSim = _sim()
-	assert_eq(sim.rescue_ready_left, [10.0, 10.0] as Array[float], "both areas count from the start")
-	_wait(sim, 4.0)
-	assert_almost_eq(sim.rescue_ready_left[0], 6.0, DT * 2.0, "it counts with nobody tagged")
-	_wait(sim, 6.5)
+	assert_eq(sim.rescue_ready_left, [8.0, 8.0] as Array[float], "both areas count from the start")
+	_wait(sim, 3.0)
+	assert_almost_eq(sim.rescue_ready_left[0], 5.0, DT * 2.0, "it counts with nobody tagged")
+	_wait(sim, 5.5)
 	assert_eq(sim.rescue_ready_left, [0.0, 0.0] as Array[float], "ready, even with nobody to rescue")
 
 
@@ -104,12 +104,12 @@ func test_each_rescue_area_shows_its_countdown_then_ready() -> void:
 	var map: StreetMap = _map()
 	_wait(sim, 2.5)
 	map.sync_rescue(sim)
-	assert_eq(map.rescue_count_text(sim.side_for_team(0)), "8")
-	assert_eq(map.rescue_count_text(sim.side_for_team(1)), "8", "both teams' boxes")
+	assert_eq(map.rescue_count_text(sim.side_for_team(0)), "6")
+	assert_eq(map.rescue_count_text(sim.side_for_team(1)), "6", "both teams' boxes")
 	sim.rescue_ready_left[1] = 0.0
 	map.sync_rescue(sim)
 	assert_eq(map.rescue_count_text(sim.side_for_team(1)), "", "no READY! word: a ready area is just the team's colour")
-	assert_eq(map.rescue_count_text(sim.side_for_team(0)), "8", "the other box keeps counting")
+	assert_eq(map.rescue_count_text(sim.side_for_team(0)), "6", "the other box keeps counting")
 	sim.rescue_ready_left[0] = 0.3
 	map.sync_rescue(sim)
 	assert_eq(map.rescue_count_text(sim.side_for_team(0)), "1", "the last fraction of a second still reads 1")
@@ -156,7 +156,7 @@ func test_the_countdown_is_white_at_half_alpha_and_the_box_turns_the_teams_colou
 	map.sync_rescue(sim)
 	var own: int = sim.side_for_team(0)
 	var label: Label3D = map.rescue_count(own)
-	assert_eq(label.modulate, Color(1.0, 1.0, 1.0, 0.5), "white, half see-through (owner, 2026-10-30)")
+	assert_true(label.modulate.is_equal_approx(Color(1.0, 1.0, 1.0, StreetMap.COUNT_ALPHA)), "white, translucent countdown")
 	assert_eq(label.outline_size, 0, "no outline: it would blend twice over the half see-through white")
 	assert_true(Color(map.zone_colors(own)[1], 1.0).is_equal_approx(Color.WHITE), "the chalk is white while it counts")
 	sim.rescue_ready_left[0] = 0.0

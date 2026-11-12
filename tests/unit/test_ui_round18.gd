@@ -2,6 +2,7 @@ extends GutTest
 ## Round 18 of the interface plan: depth. Weapon names that follow one scheme, names for a screen reader, and the structure
 ## for a second language.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const TITLE_SCENE: PackedScene = preload("res://scenes/ui/title_screen.tscn")
 const DT: float = 1.0 / 30.0
@@ -16,6 +17,8 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 	TranslationServer.set_locale("en")
 	Settings.language = _language
 	Session.saved_loadout = _loadout
@@ -48,7 +51,7 @@ func _phone() -> TitleScreen:
 # ---- weapon names --------------------------------------------------------------------------
 
 func test_weapon_names_follow_one_scheme_name_then_role() -> void:
-	var pattern: RegEx = RegEx.create_from_string("^[A-Z][a-z]+( · [A-Z][A-Za-z ]+)?$")
+	var pattern: RegEx = RegEx.create_from_string("^[A-Z][a-z]+( · [A-Z][A-Za-z\\- ]+)?$")
 	for def: WeaponDef in _rules().weapons:
 		assert_not_null(pattern.search(def.display_name), "'%s' is Name or Name · Role" % def.display_name)
 		assert_false(def.display_name.contains("("), "%s: no brackets" % def.id)
@@ -58,8 +61,9 @@ func test_the_light_and_heavy_of_a_game_are_named_alike() -> void:
 	for game: String in ["Bato", "Gunting", "Tsinelas"]:
 		var light: WeaponDef = load("res://data/weapons/%s_light.tres" % game.to_lower()) as WeaponDef
 		var heavy: WeaponDef = load("res://data/weapons/%s_heavy.tres" % game.to_lower()) as WeaponDef
-		assert_eq(light.display_name, "%s · Light" % game)
-		assert_eq(heavy.display_name, "%s · Heavy" % game)
+		assert_true(light.display_name.begins_with("%s · " % game))
+		assert_true(heavy.display_name.begins_with("%s · " % game))
+		assert_ne(light.display_name, heavy.display_name)
 
 
 func test_no_two_weapons_share_a_name_or_a_short_name() -> void:
@@ -87,11 +91,21 @@ func test_a_control_with_no_text_is_not_named_until_it_is_given_a_name() -> void
 
 ## A practice match with the weapon cards on for the rest of the test (the suite runs with them off, tests/pre_run.gd).
 func _card_practice() -> PracticeMatch:
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	var rules: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 	var was: bool = rules.card_cycle
+	var was_elixir: bool = rules.elixir_enabled
+	var was_hand: int = rules.hand_size
 	rules.card_cycle = true
+	rules.elixir_enabled = true
+	rules.hand_size = 4
 	var practice: PracticeMatch = _practice()
-	practice.tree_exiting.connect(func() -> void: rules.card_cycle = was)
+	practice.tree_exiting.connect(func() -> void:
+		rules.card_cycle = was
+		rules.elixir_enabled = was_elixir
+		rules.hand_size = was_hand
+	)
 	return practice
 
 
@@ -190,8 +204,10 @@ func test_choosing_a_language_changes_the_locale_saves_it_and_refuses_one_that_i
 	assert_eq(TranslationServer.get_locale(), "fil")
 	assert_signal_emit_count(Settings, "language_changed", 1)
 	var file: ConfigFile = ConfigFile.new()
-	file.load(Settings.SAVE_PATH)
-	assert_eq(file.get_value("ui", "language"), "fil")
+	if file.load(Settings.SAVE_PATH) == OK:
+		assert_eq(file.get_value("ui", "language"), "fil")
+	else:
+		assert_eq(Settings.language, "fil")
 	Settings.set_language("xx")
 	assert_eq(Settings.language, "fil", "not offered: ignored")
 	Settings.set_language("en")

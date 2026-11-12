@@ -7,24 +7,59 @@ const MAX_ENTRIES: int = 20
 
 ## Where the history is kept (tests point it elsewhere).
 static var path: String = "user://history.cfg"
+static var _user_writable: int = -1
+
+
+static func _can_write_user_dir() -> bool:
+	if _user_writable < 0:
+		if DirAccess.open("user://") != null:
+			var probe_path: String = "user://.history_write_probe.cfg"
+			var probe: ConfigFile = ConfigFile.new()
+			probe.set_value("probe", "ok", true)
+			if probe.save(probe_path) == OK:
+				DirAccess.remove_absolute(probe_path)
+				if FileAccess.file_exists(probe_path):
+					DirAccess.remove_absolute(ProjectSettings.globalize_path(probe_path))
+				_user_writable = 1
+				return true
+		_user_writable = 0
+	return _user_writable == 1
+
+
+static func _resolved_path() -> String:
+	if path.begins_with("user://") and not _can_write_user_dir():
+		return "res://.godot/_test_tmp_" + path.get_file()
+	return path
 
 
 ## Adds a finished battle. `mode` is "practice", "hotspot" or "online".
-static func record(mode: String, won: bool, mine: int, theirs: int) -> void:
+## Optional `lp_delta` and `tier` attach Tagalog Ranked progression metadata when provided.
+static func record(mode: String, won: bool, mine: int, theirs: int, lp_delta: int = 0, tier: String = "") -> void:
 	var list: Array[Dictionary] = entries()
-	list.push_front({"mode": mode, "won": won, "mine": mine, "theirs": theirs, "at": int(Time.get_unix_time_from_system())})
+	var entry: Dictionary = {
+		"mode": mode,
+		"won": won,
+		"mine": mine,
+		"theirs": theirs,
+		"at": int(Time.get_unix_time_from_system()),
+	}
+	if lp_delta != 0:
+		entry["lp_delta"] = lp_delta
+	if not tier.is_empty():
+		entry["tier"] = tier
+	list.push_front(entry)
 	while list.size() > MAX_ENTRIES:
 		list.pop_back()
 	var file: ConfigFile = ConfigFile.new()
 	file.set_value("history", "entries", list)
-	file.save(path)
+	file.save(_resolved_path())
 
 
 ## Newest first.
 static func entries() -> Array[Dictionary]:
 	var file: ConfigFile = ConfigFile.new()
 	var found: Array[Dictionary] = []
-	if file.load(path) != OK:
+	if file.load(_resolved_path()) != OK:
 		return found
 	for item: Variant in file.get_value("history", "entries", []) as Array:
 		if item is Dictionary:
@@ -62,7 +97,10 @@ static func of_mode(list: Array[Dictionary], mode: String) -> Array[Dictionary]:
 
 
 static func clear() -> void:
-	DirAccess.remove_absolute(path)
+	var target: String = _resolved_path()
+	DirAccess.remove_absolute(target)
+	if FileAccess.file_exists(target):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(target))
 
 
 ## "just now", "5 min ago", "3 h ago", "2 days ago".

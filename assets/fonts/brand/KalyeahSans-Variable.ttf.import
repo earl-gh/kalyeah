@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://bg7aj46xe3tjn"
-path="res://.godot/imported/Clash-Regular.otf-9c9c4c6d66e5b8bfb0ff421f6de3e36c.fontdata"
+uid="uid://bjwy0jvj68th0"
+path="res://.godot/imported/KalyeahSans-Variable.ttf-97a6c6b9e23ac017d79b7c5f918b512e.fontdata"
 
 [deps]
 
-source_file="res://assets/fonts/clash/Clash-Regular.otf"
-dest_files=["res://.godot/imported/Clash-Regular.otf-9c9c4c6d66e5b8bfb0ff421f6de3e36c.fontdata"]
+source_file="res://assets/fonts/brand/KalyeahSans-Variable.ttf"
+dest_files=["res://.godot/imported/KalyeahSans-Variable.ttf-97a6c6b9e23ac017d79b7c5f918b512e.fontdata"]
 
 [params]
 

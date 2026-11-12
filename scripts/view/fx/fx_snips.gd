@@ -162,14 +162,16 @@ func strike_height(heavy: bool) -> float:
 ## Where a small scissors launched over the shoulder `side` (+1 right, -1 left) of a caster at `origin` aiming `aim` (unit, 3D)
 ## starts: above the head, behind, on the shoulder line. Its middle.
 func launch_point(origin: Vector2, aim: Vector3, side: int) -> Vector3:
+	var k: float = _ctx.kid_scale()
 	var right: Vector3 = aim.cross(Vector3.UP).normalized()
 	var tall: float = KidModel.KID_HEIGHT * _ctx.view_scale
-	return Vector3(origin.x, SPAWN_Y * tall, origin.y) - aim * SNIP_BEHIND + right * (SNIP_SHOULDER * float(side))
+	return Vector3(origin.x, SPAWN_Y * tall, origin.y) - aim * (SNIP_BEHIND * k) + right * (SNIP_SHOULDER * k * float(side))
 
 
 ## Where a small scissors of `def` arrives (its middle: the tips are `strike_distance` out, on the aim line).
 func arrival_point(origin: Vector2, aim: Vector3, def: WeaponDef) -> Vector3:
-	return Vector3(origin.x, strike_height(false), origin.y) + aim * (strike_distance(def) - SNIP_LEN / 2.0)
+	var small_len: float = SNIP_LEN * _ctx.kid_scale()
+	return Vector3(origin.x, strike_height(false), origin.y) + aim * (strike_distance(def) - small_len / 2.0)
 
 
 ## A new volley (or big pair) for `def` cast by `owner_id` from `origin` along `direction`.
@@ -200,7 +202,7 @@ func _add_part(snip: Snip, side: int, launch: int, from: Vector3, to: Vector3) -
 	part.launch = launch
 	part.from = from
 	part.to = to
-	var length: float = length_of(snip.def)
+	var length: float = length_of(snip.def) if snip.heavy else SNIP_LEN * _ctx.kid_scale()
 	part.holder = Node3D.new()
 	part.holder.name = "Scissors"
 	part.holder.basis = _facing(snip.aim)

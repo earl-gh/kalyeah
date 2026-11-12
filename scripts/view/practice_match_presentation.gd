@@ -21,6 +21,20 @@ const KICK_LAUNCH_LIFE: float = 0.25
 const KICK_STARS: int = 6
 const KICK_DUST: int = 4
 const KICK_SHAKE: float = 0.15
+const DASH_SHAKE: float = 0.07
+const SLIDE_SHAKE: float = 0.05
+const LAND_SHAKE: float = 0.04
+const ULTIMATE_SHAKE: float = 0.30
+const JUMP_DUST: int = 4
+const SLIDE_DUST: int = 4
+const SLIDE_STREAK_WIDTH: float = 0.48
+const SLIDE_STREAK_LIFE: float = 0.24
+const SLIDE_STREAK_COLOR: Color = Color(0.96, 0.92, 0.82, 0.42)
+const CANAL_HALF_WIDTH_Z: float = 4.6
+const CANAL_BRIDGE_X: float = 34.0
+const CANAL_BRIDGE_HALF_W: float = 6.2
+const CANAL_SPLASH_COLOR: Color = Color(0.62, 0.92, 0.98, 0.62)
+const CANAL_WADE_INTERVAL: float = 0.28
 
 var owner: PracticeMatch
 ## The side of the street the picture has at the bottom (Patintero turns it round when the local team changes roles).
@@ -37,14 +51,22 @@ var _roll: TumbangRoll
 var _can_before: Vector2 = Vector2.ZERO
 ## Langit Lupa's brownout, banners and pad words (null in the other games).
 var _langit: LangitLupaPresentation
+## Tracks active cone caster, recent weapon casters, and last weapon hit per victim for accurate hitmarkers and takedown callouts.
+var _cone_caster_id: int = -1
+var _cone_weapon_id: StringName = &""
+var _last_caster_by_weapon: Dictionary[StringName, int] = {}
+var _last_hit_weapon: Dictionary[int, StringName] = {}
+var _was_airborne_by_id: Dictionary[int, bool] = {}
+var _was_sliding_by_id: Dictionary[int, bool] = {}
+var _wade_cd_by_id: Dictionary[int, float] = {}
 
 
 ## The arena starts this far (UI pixels) below the header, so its shadow falls on the street's end and not on the play.
 const HEADER_GAP: float = 12.0
 
 
-func _init(owner: PracticeMatch) -> void:
-	self.owner = owner
+func _init(p_owner: PracticeMatch) -> void:
+	self.owner = p_owner
 
 
 func setup_hud() -> void:
@@ -104,6 +126,18 @@ func connect_hud() -> void:
 	owner.hud.hand.card_moved.connect(owner.card_moved)
 	owner.hud.hand.card_released.connect(owner.card_released)
 	owner.hud.hand.card_cancelled.connect(owner.card_cancelled)
+	owner.hud.primary_changed.connect(func(held: bool) -> void:
+		owner.input.set_primary(held, owner.crosshair_point()))
+	owner.hud.dash_pressed.connect(func() -> void:
+		owner.input.press_dash())
+	owner.hud.ultimate_pressed.connect(func() -> void:
+		owner.input.press_ultimate(owner.crosshair_point()))
+	if owner.hud.has_signal(&"jump_pressed"):
+		owner.hud.connect(&"jump_pressed", owner.jump_pressed)
+	if owner.hud.has_signal(&"crouch_changed"):
+		owner.hud.connect(&"crouch_changed", owner.crouch_changed)
+	if owner.hud.has_signal(&"slide_pressed"):
+		owner.hud.connect(&"slide_pressed", owner.slide_pressed)
 	owner.hud.set_chat_enabled(true)
 	owner.hud.chat.said.connect(_send_sticker)
 	owner.hud.street_pad.knob_moved.connect(owner.knob_moved)
@@ -133,18 +167,36 @@ func connect_hud() -> void:
 
 func connect_sim() -> void:
 	_connect_tag_toast()
+	owner.sim.weapons.cone_struck.connect(func(caster_id: int, def: WeaponDef, _origin: Vector2, _direction: Vector2) -> void:
+		_cone_caster_id = caster_id
+		_cone_weapon_id = def.id if def != null else &"")
 	owner.sim.player_damaged.connect(func(id: int, amount: int) -> void:
 		if id == owner.local_id:
-			owner._camera.shake(minf(0.1 + amount * 0.01, 0.4))
+			owner._camera.shake(minf(0.1 + float(amount) * 0.01, 0.4))
 			owner.hud.pulse.hit(amount, owner.sim.rules.player_max_hp))
+	owner.sim.player_dashed.connect(func(id: int) -> void:
+		if id == owner.local_id:
+			owner._camera.shake(DASH_SHAKE))
+	owner.sim.ultimate_cast.connect(func(id: int) -> void:
+		if id == owner.local_id:
+			owner._camera.shake(ULTIMATE_SHAKE)
+			owner.show_banner("BAGSAK NG KALYE!"))
 	owner.sim.weapon_cast.connect(func(id: int, weapon: StringName) -> void:
-		var view: KidModel = owner._views[id] as KidModel
+		_last_caster_by_weapon[weapon] = id
+		var view: KidModel = owner._views[id] if owner._views.has(id) else null
+		if view == null:
+			return
 		if weapon == StreetMode.TAG_CAST:
 			view.play_touch()  # a tag: the kid reaches out and touches
 		else:
 			view.play_cast(cast_lead(owner.sim, weapon)))
+	owner.sim.weapon_hit.connect(_on_weapon_hit)
 	owner.sim.match_won.connect(_on_match_won)
 	owner.sim.point_reset.connect(func() -> void:
+		_last_hit_weapon.clear()
+		_was_airborne_by_id.clear()
+		_was_sliding_by_id.clear()
+		_wade_cd_by_id.clear()
 		owner.hud.street.release())
 	owner.sim.intro_finished.connect(func() -> void:
 		owner.show_banner("GO!"))
@@ -152,6 +204,53 @@ func connect_sim() -> void:
 	owner.sim.player_rescued.connect(_on_player_rescued)
 	if owner.sim.mode != null:
 		_connect_street_game(owner.sim.mode)
+
+
+func _on_weapon_hit(target_id: int, weapon_id: StringName) -> void:
+	_last_hit_weapon[target_id] = weapon_id
+	if _is_local_weapon_hit(target_id, weapon_id):
+		owner.hud.notify_hit(false)
+
+
+func _is_local_weapon_hit(target_id: int, weapon_id: StringName) -> bool:
+	var target: PlayerState = owner.sim.players[target_id] if owner.sim.players.has(target_id) else null
+	if target == null or target_id == owner.local_id or _is_ally(target):
+		return false
+	if _cone_caster_id >= 0 and _cone_weapon_id == weapon_id:
+		return _cone_caster_id == owner.local_id
+	var matched_any: bool = false
+	for proj: WeaponSystem.Projectile in owner.sim.weapons.projectiles:
+		if proj.def == null or proj.def.id != weapon_id:
+			continue
+		var reach: float = maxf(proj.def.projectile_radius, proj.def.radius) + target.radius + 1.5
+		if proj.position.distance_to(target.position) <= reach:
+			matched_any = true
+			if proj.owner_id == owner.local_id:
+				return true
+	for zone: WeaponSystem.Zone in owner.sim.weapons.zones:
+		if zone.def == null or zone.def.id != weapon_id:
+			continue
+		if zone.center.distance_to(target.position) <= zone.radius + target.radius + 1.5:
+			matched_any = true
+			if zone.owner_id == owner.local_id:
+				return true
+	if matched_any:
+		return false
+	var last_caster: int = _last_caster_by_weapon[weapon_id] if _last_caster_by_weapon.has(weapon_id) else -1
+	return last_caster == owner.local_id
+
+
+func _weapon_label(weapon_id: StringName) -> String:
+	if weapon_id == &"":
+		return ""
+	var def: WeaponDef = owner.sim.weapon_defs[weapon_id] if owner.sim.weapon_defs.has(weapon_id) else null
+	if def == null and owner.sim.rules.primary_weapon != null and owner.sim.rules.primary_weapon.id == weapon_id:
+		def = owner.sim.rules.primary_weapon
+	if def == null and owner.sim.rules.ultimate_weapon != null and owner.sim.rules.ultimate_weapon.id == weapon_id:
+		def = owner.sim.rules.ultimate_weapon
+	if def == null:
+		return ""
+	return def.short_name if not def.short_name.is_empty() else def.display_name
 
 
 ## Tumbang Preso and Patintero say what happens in a banner: who is it or whose turn it is, a point, and (for you) what to do next.
@@ -190,7 +289,7 @@ func _connect_street_game(mode: StreetMode) -> void:
 ## pops in above the tray (`TagToast`: no banner across the screen). The one that touched it has played its touch (or is finishing its
 ## dive: the catch is the dive's end).
 func _on_caught(tagger: int, target: int) -> void:
-	var view: KidModel = owner._views.get(target) as KidModel
+	var view: KidModel = owner._views[target] if owner._views.has(target) else null
 	var pause: float = owner.sim.mode.catch_seconds()
 	if view != null:
 		view.play_tripped(pause)
@@ -206,7 +305,7 @@ func _on_caught(tagger: int, target: int) -> void:
 ## A kid dives (Patintero): it crouches, leaps, slides on its belly and gets up (`KidModel.play_dive`, `time` s of burst and `recover` s of
 ## lying and rising), with dust where it leaves the ground and where the burst ends and a streak on the street between them.
 func _on_dived(id: int, way: Vector2, time: float, recover: float) -> void:
-	var view: KidModel = owner._views.get(id) as KidModel
+	var view: KidModel = owner._views[id] if owner._views.has(id) else null
 	if view != null:
 		view.play_dive(time + recover)
 	var state: PlayerState = owner.sim.players[id]
@@ -245,12 +344,12 @@ func _connect_tumbang(game: TumbangPreso) -> void:
 		elif game.taya_id == owner.local_id:
 			owner.show_banner("THEY KICKED THE CAN!"))
 	game.can_flung.connect(func(from: Vector2, _path: Array[Vector2]) -> void:
-		var view: KidModel = owner._views.get(_kicker) as KidModel
+		var view: KidModel = owner._views[_kicker] if owner._views.has(_kicker) else null
 		if view != null:
 			view.play_kick(Vector3(from.x, _can_drawn_height() / 2.0, from.y))
 		_kicker = -1)
 	game.can_placed.connect(func(id: int) -> void:
-		var view: KidModel = owner._views.get(id) as KidModel
+		var view: KidModel = owner._views[id] if owner._views.has(id) else null
 		if view != null:
 			view.play_place(Vector3(game.rules.can_spot.x, _can_drawn_height() / 2.0, game.rules.can_spot.y)))
 	owner.mode_view.held_can = _held_can
@@ -296,7 +395,7 @@ static func street_status(sim: MatchSim, player: PlayerState) -> Array[String]:
 ## How long before its release a kid's cast clip starts for `weapon`: a delayed cone (the big snip) strikes `delay` seconds
 ## after the cast, so the hand comes down on the strike; everything else releases on the cast tick.
 static func cast_lead(sim: MatchSim, weapon: StringName) -> float:
-	var def: WeaponDef = sim.weapon_defs.get(weapon) as WeaponDef
+	var def: WeaponDef = sim.weapon_defs[weapon] if sim.weapon_defs.has(weapon) else null
 	if def != null and def.shape == WeaponDef.Shape.CONE and def.delay > 0.0:
 		return def.delay
 	return 0.0
@@ -317,6 +416,8 @@ func _keep_vignette_behind_the_top_boundary() -> void:
 
 
 func sync(delta: float) -> void:
+	_cone_caster_id = -1
+	_cone_weapon_id = &""
 	_keep_vignette_behind_the_top_boundary()
 	owner._actors.visible = not owner.hud.briefing.visible  # the briefing shows the empty street: no kids behind its words
 	owner.hud.overhead.taya_id = (owner.sim.mode as TayaGame).taya_id if owner.sim.mode is TayaGame else -1
@@ -341,6 +442,8 @@ func sync(delta: float) -> void:
 	owner.hud.tag_toast.tick(delta)
 	owner.hud.marker.tick(delta)
 	owner.hud.sync_score(owner.sim, owner.local_team, delta, owner.local_id)
+	var local_sliding: bool = player.slide_left > 0.0
+	owner._camera.set_speed_boost(player.sprinting or player.dash_left > 0.0 or local_sliding)
 	# the landscape camera keeps your kid in the middle (CameraRules.follow); the fixed one ignores this
 	owner._camera.follow(owner.blend.kid(player))
 	if owner._camera.near_side() != _near_side:
@@ -351,13 +454,15 @@ func sync(delta: float) -> void:
 	if owner._camera.rules.third_person:
 		# a prop between the shoulder camera and your kid is left out while it is in the way
 		var feet: Vector2 = owner.blend.kid(player)
-		var rules: CameraRules = owner._camera.rules
-		owner._map.hide_between(owner._camera.global_position, Vector3(feet.x, 0.0, feet.y), KidModel.KID_HEIGHT * rules.kid_view_scale, rules.shoulder_clear_reach)
+		var cam_rules: CameraRules = owner._camera.rules
+		owner._map.hide_between(owner._camera.global_position, Vector3(feet.x, 0.0, feet.y), KidModel.KID_HEIGHT * cam_rules.kid_view_scale, cam_rules.shoulder_clear_reach)
 	if owner.sim.phase == MatchSim.Phase.INTRO:
 		_play_intro_shot()
+		owner.hud.sync_world_hud(owner.sim, owner._camera, player, owner.local_team, owner._camera.look_yaw)
 		return
 	owner.hud.show_intro("")
 	_hide_roll()
+	owner.hud.sync_world_hud(owner.sim, owner._camera, player, owner.local_team, owner._camera.look_yaw)
 
 
 ## Tumbang Preso's opening show: the kid carousel spins and stops on the first taya (`TumbangRoll`), on the show's own clock.
@@ -378,7 +483,7 @@ func _hide_roll() -> void:
 
 
 func make_actor_view(state: PlayerState) -> void:
-	var character: CharacterDef = owner._characters.get(state.character_id) as CharacterDef
+	var character: CharacterDef = owner._characters[state.character_id] if owner._characters.has(state.character_id) else null
 	if character == null:
 		character = owner.rules.characters[0]
 	var view: KidModel = KidModel.new()
@@ -392,7 +497,7 @@ func make_actor_view(state: PlayerState) -> void:
 
 func refresh_kids() -> void:
 	for id: int in owner.sim.players:
-		var view: KidModel = owner._views[id] as KidModel
+		var view: KidModel = owner._views[id] if owner._views.has(id) else null
 		if view != null and view.character.id == owner.sim.players[id].character_id:
 			continue
 		if view != null:
@@ -403,15 +508,15 @@ func refresh_kids() -> void:
 
 ## The drawn can's height (m): the lata's, at the kids' view scale.
 func _can_drawn_height() -> float:
-	return (WeaponModel.OBJECTS[&"lata"][1] as float) * owner._camera.rules.kid_view_scale * StreetModeView.CAN_SCALE
+	return WeaponModel._spec_length(WeaponModel.OBJECTS[&"lata"]) * owner._camera.rules.kid_view_scale * StreetModeView.CAN_SCALE
 
 
 ## A kid that picks the can up scoops it with both hands (`KidModel.play_pickup`); one that loses it any other way than setting it down
 ## lets go at once.
 func _sync_can_acts(game: TumbangPreso) -> void:
 	if game.can_carrier != _carrier:
-		var now: KidModel = owner._views.get(game.can_carrier) as KidModel
-		var before: KidModel = owner._views.get(_carrier) as KidModel
+		var now: KidModel = owner._views[game.can_carrier] if owner._views.has(game.can_carrier) else null
+		var before: KidModel = owner._views[_carrier] if owner._views.has(_carrier) else null
 		if now != null:
 			now.play_pickup(Vector3(_can_before.x, _can_drawn_height() * StreetModeView.LYING_SHARE, _can_before.y))
 		elif before != null and not before.is_acting():
@@ -423,8 +528,8 @@ func _sync_can_acts(game: TumbangPreso) -> void:
 
 ## The can as the kid that holds it has it (what `StreetModeView` draws), or null.
 func _held_can() -> Variant:
-	for view: Variant in owner._views.values():
-		var held: Dictionary = (view as KidModel).can_hold()
+	for view_id: int in owner._views:
+		var held: Dictionary = owner._views[view_id].can_hold()
 		if not held.is_empty():
 			return held
 	return null
@@ -444,12 +549,84 @@ func _on_kick_struck(from: Vector3, foot: Vector3, way: Vector3, id: int) -> voi
 
 
 func _sync_actor(state: PlayerState, delta: float) -> void:
-	var view: KidModel = owner._views[state.id]
-	# the kid's own Airborne clip already leaves the ground: no extra lift
+	var view: KidModel = owner._views[state.id] if owner._views.has(state.id) else null
+	if view == null:
+		make_actor_view(state)
+		view = owner._views[state.id]
 	var at: Vector2 = owner.blend.kid(state)
-	view.position = Vector3(at.x, owner.mode_view.ground_height(at), at.y)  # (Langit Lupa: up on a langit)
+	var ground_y: float = owner.mode_view.ground_height(at)
+	view.position = Vector3(at.x, ground_y, at.y)  # (Langit Lupa: up on a langit; KidModel._body.position.y adds state.air_y)
 	view.face(state.facing)
-	view.animate(delta, minf(view.ground_speed(state.position, delta), 20.0), state)
+	var speed: float = minf(view.ground_speed(state.position, delta), 20.0)
+	view.animate(delta, speed, state)
+	_sync_locomotion_fx(state, at, ground_y, speed, delta)
+
+
+func _in_shallow_canal(at: Vector2) -> bool:
+	if not owner.layout.is_circular():
+		return false
+	if absf(at.y) > CANAL_HALF_WIDTH_Z:
+		return false
+	if absf(absf(at.x) - CANAL_BRIDGE_X) < CANAL_BRIDGE_HALF_W:
+		return false
+	return at.length() < owner.layout.arena_radius - 6.0
+
+
+func _sync_locomotion_fx(state: PlayerState, at: Vector2, ground_y: float, speed: float, delta: float) -> void:
+	var id: int = state.id
+	var air_y: float = state.air_y
+	var slide_left: float = state.slide_left
+	var slide_dir: Vector2 = state.slide_dir
+	var in_air: bool = not state.tagged and air_y > 0.015
+	var was_air: bool = _was_airborne_by_id.get(id, false)
+	_was_airborne_by_id[id] = in_air
+
+	var sliding: bool = not state.tagged and slide_left > 0.0
+	var was_sliding: bool = _was_sliding_by_id.get(id, false)
+	_was_sliding_by_id[id] = sliding
+
+	var wade_cd: float = maxf(0.0, _wade_cd_by_id.get(id, 0.0) - delta)
+	var in_canal: bool = not state.tagged and ground_y <= 0.05 and _in_shallow_canal(at)
+	var context: FxContext = owner._fx.context()
+	var calm: bool = Settings.reduced_motion
+
+	if in_air and not was_air and not calm:
+		if in_canal:
+			context.ground.ring(at, 0.30, 1.15, CANAL_SPLASH_COLOR, 0.30, false)
+		else:
+			context.particles.puff(FxParticles.Preset.DUST, Vector3(at.x, ground_y, at.y), JUMP_DUST)
+	elif not in_air and was_air and not state.tagged:
+		if not calm:
+			if in_canal:
+				context.ground.ring(at, 0.35, 1.35, CANAL_SPLASH_COLOR, 0.34, false)
+			else:
+				context.particles.puff(FxParticles.Preset.DUST, Vector3(at.x, ground_y, at.y), JUMP_DUST)
+		if id == owner.local_id:
+			owner._camera.shake(LAND_SHAKE)
+
+	if sliding and not was_sliding:
+		if not calm:
+			var way: Vector2 = slide_dir.normalized() if slide_dir.length_squared() > 0.0001 else state.facing
+			if in_canal:
+				context.ground.ring(at, 0.35, 1.45, CANAL_SPLASH_COLOR, 0.34, false)
+			else:
+				context.particles.puff(FxParticles.Preset.DUST, Vector3(at.x, ground_y, at.y), SLIDE_DUST)
+				if way.length_squared() > 0.0001:
+					var streak_to: Vector2 = at + way * 2.4
+					context.ground.trail(
+						Vector3(at.x, ground_y + DIVE_STREAK_LIFT, at.y),
+						Vector3(streak_to.x, ground_y + DIVE_STREAK_LIFT, streak_to.y),
+						SLIDE_STREAK_WIDTH,
+						SLIDE_STREAK_COLOR,
+						SLIDE_STREAK_LIFE
+					)
+		if id == owner.local_id:
+			owner._camera.shake(SLIDE_SHAKE)
+
+	if in_canal and not in_air and speed > 0.6 and wade_cd <= 0.0 and not calm:
+		context.ground.ring(at, 0.25, 0.95, CANAL_SPLASH_COLOR, 0.28, false)
+		wade_cd = CANAL_WADE_INTERVAL
+	_wade_cd_by_id[id] = wade_cd
 
 
 ## The aim guide and the hint for the held card: before it leaves its card only the rings a tap would reach; over the street the
@@ -511,6 +688,17 @@ func _play_intro_shot() -> void:
 
 func _on_player_tagged(id: int, by_id: int) -> void:
 	_toast_tag(by_id, id)
+	var by: PlayerState = owner.sim.players[by_id] if owner.sim.players.has(by_id) else null
+	var victim: PlayerState = owner.sim.players[id] if owner.sim.players.has(id) else null
+	if victim != null:
+		var tagger_name: String = owner.hud.overhead.name_of(by) if by != null else "KALYE"
+		var victim_name: String = owner.hud.overhead.name_of(victim)
+		var ally_scored: bool = _is_ally(by) if by != null else not _is_ally(victim)
+		var hit_wid: StringName = _last_hit_weapon[id] if _last_hit_weapon.has(id) else &""
+		var detail: String = _weapon_label(hit_wid)
+		owner.hud.notify_takedown(tagger_name, victim_name, ally_scored, detail)
+	if by_id == owner.local_id:
+		owner.hud.notify_hit(true)
 	if id == owner.local_id:
 		owner._camera.shake(0.25)
 		owner.hud.pulse.tagged()
@@ -519,8 +707,8 @@ func _on_player_tagged(id: int, by_id: int) -> void:
 ## The tag toast for `tagger` (-1: nobody) tagging `target`: their kids' faces and numbers, on a blue bar when the tagger is an ally and a red one
 ## when an enemy (`TagToast.say`).
 func _toast_tag(tagger: int, target: int) -> void:
-	var by: PlayerState = owner.sim.players.get(tagger) as PlayerState
-	var tagged: PlayerState = owner.sim.players.get(target) as PlayerState
+	var by: PlayerState = owner.sim.players[tagger] if owner.sim.players.has(tagger) else null
+	var tagged: PlayerState = owner.sim.players[target] if owner.sim.players.has(target) else null
 	var tone: StringName = &""
 	if by != null:
 		tone = TagToast.ALLY if _is_ally(by) else TagToast.ENEMY
@@ -548,10 +736,42 @@ func _connect_tag_toast() -> void:
 	toast.popped_out.connect(func() -> void: owner._sfx.play(TagToast.SOUND_OUT, TagToast.SPEED_OUT))
 
 
-func _on_player_rescued(id: int, _by_id: int) -> void:
+func _on_player_rescued(id: int, by_id: int) -> void:
 	if id == owner.local_id:
 		if owner._pick_screen.visible:
 			owner._pick_screen.force_finish()
+	if by_id == MatchSim.RELEASED_ALONE:
+		return
+	var saved: PlayerState = owner.sim.players[id] if owner.sim.players.has(id) else null
+	var rescuer: PlayerState = owner.sim.players[by_id] if owner.sim.players.has(by_id) else null
+	if saved == null or rescuer == null:
+		return
+	owner.hud.notify_rescue(owner.hud.overhead.name_of(rescuer), owner.hud.overhead.name_of(saved), _is_ally(saved))
+
+
+static func _dict_bool(d: Dictionary, key: String, fallback: bool = false) -> bool:
+	var raw: Variant = d.get(key, fallback)
+	if raw is bool:
+		return raw
+	return fallback
+
+
+static func _dict_int(d: Dictionary, key: String, fallback: int = 0) -> int:
+	var raw: Variant = d.get(key, fallback)
+	if raw is int:
+		return raw
+	if raw is float:
+		return int(raw)
+	return fallback
+
+
+static func _dict_str(d: Dictionary, key: String, fallback: String = "") -> String:
+	var raw: Variant = d.get(key, fallback)
+	if raw is String:
+		return raw
+	if raw is StringName:
+		return String(raw)
+	return fallback
 
 
 func _on_match_won(team: int) -> void:
@@ -562,9 +782,13 @@ func _on_match_won(team: int) -> void:
 	var points: Array[int] = owner.sim.score.points
 	if owner.sim.mode != null:
 		var result: Dictionary = owner.sim.mode.local_result(owner.sim, owner.local_id)
-		MatchHistory.record(mode, result["won"] as bool, result["mine"] as int, result["theirs"] as int)
+		MatchHistory.record(mode, _dict_bool(result, "won"), _dict_int(result, "mine"), _dict_int(result, "theirs"))
 		return
-	MatchHistory.record(mode, team == owner.local_team, points[owner.local_team], points[1 - owner.local_team])
+	var won: bool = team == owner.local_team
+	var my_score: int = points[owner.local_team]
+	var their_score: int = points[1 - owner.local_team]
+	var rank_res: Dictionary = RankedSystem.record_match(mode, won, my_score, their_score)
+	MatchHistory.record(mode, won, my_score, their_score, _dict_int(rank_res, "delta"), _dict_str(rank_res, "tier"))
 
 
 func _on_again_pressed() -> void:

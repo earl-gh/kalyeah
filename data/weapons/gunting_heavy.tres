@@ -5,17 +5,17 @@
 [resource]
 script = ExtResource("1_weapon")
 id = &"gunting_heavy"
-display_name = "Gunting · Heavy"
-short_name = "Cut"
-description = "One big snip, a moment late. It hits hard up close!"
-street_game = "Bato-bato-pik"
+display_name = "Gunting · Hati-Kalye"
+short_name = "Cleave"
+description = "Charge a massive scissor shockwave cone that cleaves everyone in front of you!"
+street_game = "Bato-Bato-Pik"
 kind = 0
 shape = 1
 cooldown = 9.0
 elixir_cost = 3
-max_range = 3.5
-damage = 24
-angle_degrees = 60.0
-delay = 0.5
-cast_lock = 0.5
-card_power = 1500
+max_range = 9.0
+damage = 38
+angle_degrees = 72.0
+delay = 0.38
+cast_lock = 0.30
+card_power = 1750

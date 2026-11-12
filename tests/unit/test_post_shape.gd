@@ -103,10 +103,14 @@ func test_the_match_draws_the_reshaped_post_and_a_full_width_post_is_left_as_mad
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
-		for id: String in MODELS:
-			var model: Node3D = map._posts[side].get_node(id) as Node3D
-			var mesh: Mesh = (model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
-			assert_same(mesh, PostShape.reshaped(_source(id), LAYOUT.post_width_share), "%s: the reshaped mesh" % id)
+		for kit_id: String in [StreetMap.POST_BLUE, StreetMap.POST_RED]:
+			var model: Node3D = map._posts[side].get_node(kit_id) as Node3D
+			assert_not_null(model, "%s is placed at side %d" % [kit_id, side])
+			assert_almost_eq(model.scale.x / model.scale.y, LAYOUT.post_width_share, 0.001, "%s uses post_width_share" % kit_id)
+	var reshaped_node: Node3D = (load("res://assets/models/props/post_red.glb") as PackedScene).instantiate() as Node3D
+	PostShape.apply(reshaped_node, LAYOUT.post_width_share)
+	assert_same((reshaped_node.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh, PostShape.reshaped(_source("post_red"), LAYOUT.post_width_share))
+	reshaped_node.free()
 	var plain: Node3D = (load("res://assets/models/props/post_red.glb") as PackedScene).instantiate() as Node3D
 	var before: Mesh = (plain.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
 	PostShape.apply(plain, 1.0)

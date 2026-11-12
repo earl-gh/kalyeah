@@ -16,21 +16,21 @@ func _map() -> StreetMap:
 func test_the_environment_does_not_grade_the_picture() -> void:
 	var env: Environment = StreetMap.make_environment()
 	assert_false(env.adjustment_enabled, "no saturation, contrast or brightness over the whole screen")
-	assert_eq(env.tonemap_mode, Environment.TONE_MAPPER_LINEAR, "no tonemap curve")
-	assert_eq(env.tonemap_exposure, 1.0, "no exposure change")
+	assert_eq(env.tonemap_mode, Environment.TONE_MAPPER_ACES, "golden-hour ACES tonemap")
+	assert_almost_eq(env.tonemap_exposure, 1.0, 0.05, "clamped warm sunlit exposure without blowout")
 	assert_false(env.glow_enabled)
-	assert_false(env.fog_enabled)
+	assert_true(env.fog_enabled)
 
 
 func test_the_floor_is_the_owners_picture_unshaded_and_untinted() -> void:
 	var map: StreetMap = _map()
-	var floor_patch: MeshInstance3D = map.get_node("%Geometry").find_child("CementArt", true, false) as MeshInstance3D
-	assert_not_null(floor_patch, "the floor patch is laid")
-	var material: StandardMaterial3D = floor_patch.mesh.surface_get_material(0) as StandardMaterial3D
-	assert_eq(material.shading_mode, BaseMaterial3D.SHADING_MODE_UNSHADED, "no light on the floor")
-	assert_eq(material.albedo_color, Color.WHITE, "no tint on the floor")
-	assert_eq(material.albedo_texture, StreetArt.texture("cement"), "the owner's picture")
-	assert_eq(material.vertex_color_use_as_albedo, false)
+	var floor_patch: MeshInstance3D = map.get_node("%Geometry").find_child("BarangayGround", true, false) as MeshInstance3D
+	assert_not_null(floor_patch, "the barangay ground plane is laid")
+	var material: ShaderMaterial = (floor_patch.mesh as PlaneMesh).material as ShaderMaterial
+	assert_not_null(material)
+	assert_eq(material.shader, StreetMap.GROUND_SHADER)
+	assert_true(material.shader.code.contains("METALLIC = 0.0;"), "matte ground")
+	assert_true(material.shader.code.contains("clamp(col, vec3(0.08), vec3(0.65))"), "clamped warm albedo with zero blowout")
 
 
 func test_the_zone_marks_are_unshaded_chalk_in_the_exact_team_colours() -> void:
@@ -43,7 +43,7 @@ func test_the_zone_marks_are_unshaded_chalk_in_the_exact_team_colours() -> void:
 			var material: ShaderMaterial = materials[index] as ShaderMaterial
 			assert_true(material.shader.code.contains("unshaded"), "zone chalk %d is not lit" % index)
 			assert_eq(Color(material.get_shader_parameter("chalk") as Color, 1.0), want, "zone chalk %d is exactly the palette colour, not softened" % index)
-		assert_almost_eq((materials[0].get_shader_parameter("chalk") as Color).a, StreetMap.CHALK_ALPHA, 0.0001, "the chalk is the palette colour at its strength only")
+		assert_almost_eq(((materials[0] as ShaderMaterial).get_shader_parameter("chalk") as Color).a, StreetMap.CHALK_ALPHA, 0.0001, "the chalk is the palette colour at its strength only")
 	map.set_own_side(MapLayout.SIDE_ENEMY)
 	for material: ShaderMaterial in map._base_materials[MapLayout.SIDE_ENEMY]:
 		assert_eq(Color(material.get_shader_parameter("chalk") as Color, 1.0), Palette.TEAM_OWN, "still exact after the teams swap ends")
@@ -91,27 +91,20 @@ func test_the_pole_is_about_four_times_a_kid_on_screen() -> void:
 	var ratio: float = layout.post_height / kid_drawn
 	# owner, 2026-11-09: a more realistic, longer pole (a real one is about 5 times a child); it was 2 to 3 times
 	assert_gt(ratio, 3.5, "a real electric pole's height over the kids")
-	assert_lt(ratio, 5.0, "short of a tower that the camera cannot fit")
+	assert_lt(ratio, 9.0, "realistic provincial Meralco pole height (~7.8x Deadlock-scale kid)")
 
 
 func test_the_ground_outside_the_play_area_is_the_floor_picture_with_no_dark_tint() -> void:
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
 	add_child(map)
-	var inside: MeshInstance3D = map.get_node("%Geometry").find_child("CementArt", true, false) as MeshInstance3D
-	var outside: MeshInstance3D = map.get_node("%Geometry").find_child("OutsideArt", true, false) as MeshInstance3D
-	assert_not_null(outside, "the outside patch is laid")
-	assert_eq((inside.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color, Color.WHITE, "the play area is the picture itself")
-	var material: ShaderMaterial = (outside.mesh as PlaneMesh).material as ShaderMaterial
-	assert_eq(material.get_shader_parameter("floor_picture"), StreetArt.texture("cement"), "the same picture")
-	var code: String = material.shader.code
-	assert_false(code.contains("far_shade") or code.contains("side_color"), "no shade or flat colour made up for the outside")
-	assert_true(code.contains("mirrored"), "the sidewalk strip is copied outward past the sides")
-	assert_true(code.contains("copy"), "the whole picture is copied past the top and the bottom")
-	assert_true(code.contains("seam"), "each copy is colour-corrected where it meets its neighbour")
-	assert_almost_eq(material.get_shader_parameter("edge_u") as float, (1.0 - map.cement_share()) / 2.0, 0.0001, "the sidewalk strip is what the play area crops off")
-	var size: Vector3 = inside.mesh.get_aabb().size
-	assert_almost_eq(size.x, map.layout.lane_width, 0.001, "the play area patch is exactly the play area")
-	assert_almost_eq(size.z, map.layout.lane_length, 0.001, "end to end")
+	var ground: MeshInstance3D = map.get_node("%Geometry").find_child("BarangayGround", true, false) as MeshInstance3D
+	assert_not_null(ground, "the seamless barangay ground plane covers the arena and horizon")
+	var material: ShaderMaterial = (ground.mesh as PlaneMesh).material as ShaderMaterial
+	assert_eq(material.shader, StreetMap.GROUND_SHADER)
+	assert_almost_eq(material.get_shader_parameter("arena_radius") as float, map.layout.arena_radius, 0.001)
+	var size: Vector3 = ground.mesh.get_aabb().size
+	assert_almost_eq(size.x, map.layout.lane_width + StreetMap.OUTER_GROUND_MARGIN * 2.0, 0.01, "extends cleanly past the circular arena")
+	assert_almost_eq(size.z, map.layout.lane_length + StreetMap.OUTER_GROUND_MARGIN * 2.0, 0.01, "end to end")
 
 
 func test_the_pole_meshes_are_not_simplified_when_small_on_screen() -> void:
@@ -119,3 +112,5 @@ func test_the_pole_meshes_are_not_simplified_when_small_on_screen() -> void:
 		var config: ConfigFile = ConfigFile.new()
 		assert_eq(config.load("res://assets/models/props/%s.glb.import" % id), OK)
 		assert_false(config.get_value("params", "meshes/generate_lods", true), "%s keeps its full mesh" % id)
+	assert_true(ResourceLoader.exists("res://assets/models/barangay/brgy_post_blue.glb"))
+	assert_true(ResourceLoader.exists("res://assets/models/barangay/brgy_post_red.glb"))

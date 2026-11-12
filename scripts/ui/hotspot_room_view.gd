@@ -21,28 +21,32 @@ signal action_pressed
 const MAP_NAMES: Dictionary[StringName, String] = {&"street": "Agawang Base", &"tumbang_preso": "Tumbang Preso", &"patintero": "Patintero",
 	&"langit_lupa": "Langit Lupa"}
 const MAP_COLORS: Dictionary[StringName, String] = {&"street": "blue", &"tumbang_preso": "orange", &"patintero": "green", &"langit_lupa": "red"}
-## The cards in the map carousel are 3:4.
-const MAP_PICK_CARD: Vector2 = Vector2(414.0, 552.0)
-const TEAM_COLORS: Array[Color] = [Color(0.45, 0.65, 1.0), Color(1.0, 0.45, 0.45)]
+## The cards in the map carousel are 3:4 (276 x 368 fits cleanly inside 1280x720 widescreen and 720x1280 portrait).
+const MAP_PICK_CARD: Vector2 = Vector2(276.0, 368.0)
+const TEAM_COLORS: Array[Color] = [Color("1f9d8b"), Color("e2553e")]
 ## Spacing and type scale of the screen: one set of values so it reads as one system.
 const MARGIN: float = UiMetrics.PAGE_MARGIN
 const GAP: float = 16.0
 const SECTION_GAP: int = UiMetrics.SECTION_GAP
 ## The compact arena header fills a row; character cards keep a 3:4 portrait ratio.
 const MAP_CARD: Vector2 = Vector2(0.0, 108.0)
+const WIDE_MAP_CARD: Vector2 = Vector2(0.0, 96.0)
 const KID_CARD: Vector2 = Vector2(96.0, 128.0)
 const KID_RADIUS: int = UiSkin.RADIUS_M
-## The room QR dialog's code, a side (29 modules with its margin: 15 px each in the 720 px design width).
-const QR_SIDE: float = 435.0
+## The room QR dialog's code, a side (29 modules x 12 px = 348 px so it fits 1280x720 cleanly).
+const QR_SIDE: float = 348.0
 const BAR_HEIGHT: float = 96.0
+const WIDE_BAR_HEIGHT: float = 82.0
 const NUMBER_WIDTH: float = 56.0
-## The solid number blocks and tags of the mock-up, and the navy of the names on the white bars.
+## The solid number blocks and tags of the mock-up, and the warm slate-espresso of the names.
 const TEAM_BLOCKS: Array[Color] = [KalyeahTheme.TEAM_BLUE, KalyeahTheme.TEAM_RED]
-const NAME_COLOR: Color = Color(0.12, 0.27, 0.52)
-const MAX_ROWS: int = 3
+const NAME_COLOR: Color = Color("2a2522")
+const MAX_ROWS: int = RoomService.MAX_TEAM_SIZE
 
 ## Width of each of the three first-to number buttons.
 const FIRST_TO_WIDTH: float = 120.0
+const WIDE_FIRST_TO_WIDTH: float = 84.0
+const WIDE_LEFT_WIDTH: float = 488.0
 var online_room: bool = false
 var code_label: Label
 var code_boxes: UiCodeBoxes
@@ -93,6 +97,15 @@ var _room: Dictionary = {}
 var _my_id: int = -1
 var _content: Control
 var _safe_margin: MarginContainer
+var _outer_column: VBoxContainer
+var _wide_columns: HBoxContainer
+var _left_col: VBoxContainer
+var _right_col: VBoxContainer
+var _footer_row: HBoxContainer
+var _map_group: Control
+var _player_group: Control
+var _kid_group: Control
+var _laid_out_wide: int = -1
 
 
 func _init() -> void:
@@ -103,7 +116,8 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	LobbyWidgets.apply_safe_area(_safe_margin, MARGIN, 20.0)
+	resized.connect(_apply_responsive_layout)
+	_apply_responsive_layout()
 
 
 func _build() -> void:
@@ -116,8 +130,9 @@ func _build() -> void:
 	margin.add_theme_constant_override("margin_bottom", 20)
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(margin)
-	margin.resized.connect(LobbyWidgets.apply_safe_area.bind(margin, MARGIN, 20.0))
+	margin.resized.connect(_apply_responsive_layout)
 	var column: VBoxContainer = VBoxContainer.new()
+	_outer_column = column
 	column.add_theme_constant_override("separation", SECTION_GAP)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_child(column)
@@ -132,20 +147,54 @@ func _build() -> void:
 	scroll.name = "RoomScroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	UiKit.style_scrollbar(scroll.get_v_scroll_bar())
 	column.add_child(scroll)
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_content)
 	code_row = RoomHeader.code_row(self)
 	_content.add_child(code_row)
-	_content.add_child(LobbyWidgets.group(_build_map_section()))
-	_content.add_child(LobbyWidgets.group(_build_player_section()))
-	_content.add_child(LobbyWidgets.group(_build_kid_section()))
+	_wide_columns = HBoxContainer.new()
+	_wide_columns.name = "WideColumns"
+	_wide_columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_wide_columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_wide_columns.add_theme_constant_override("separation", int(GAP))
+	_wide_columns.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wide_columns.visible = false
+	_content.add_child(_wide_columns)
+	_left_col = VBoxContainer.new()
+	_left_col.name = "LeftColumn"
+	_left_col.custom_minimum_size.x = WIDE_LEFT_WIDTH
+	_left_col.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	_left_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wide_columns.add_child(_left_col)
+	_right_col = VBoxContainer.new()
+	_right_col.name = "RightColumn"
+	_right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_right_col.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_right_col.add_theme_constant_override("separation", UiMetrics.COMPACT_GAP)
+	_right_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wide_columns.add_child(_right_col)
+	_map_group = LobbyWidgets.group(_build_map_section())
+	_player_group = LobbyWidgets.group(_build_player_section())
+	_kid_group = LobbyWidgets.group(_build_kid_section())
+	_content.add_child(_map_group)
+	_content.add_child(_player_group)
+	_content.add_child(_kid_group)
+	_footer_row = HBoxContainer.new()
+	_footer_row.name = "FooterRow"
+	_footer_row.add_theme_constant_override("separation", int(GAP))
+	_footer_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_footer_row.visible = false
+	column.add_child(_footer_row)
 	readiness_label = Label.new()
 	readiness_label.name = "Readiness"
 	readiness_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	readiness_label.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
 	readiness_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	readiness_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	readiness_label.add_theme_font_override("font", KalyeahTheme.BODY_FONT)
 	readiness_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
+	readiness_label.add_theme_color_override("font_color", KalyeahTheme.TEXT)
 	column.add_child(readiness_label)
 	action_button = MenuDialog.make_button("Ready", "orange", UiMetrics.BODY, Vector2(0.0, 88.0))
 	action_button.name = "ActionButton"
@@ -155,6 +204,8 @@ func _build() -> void:
 	status_label = Label.new()
 	status_label.name = "Status"
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status_label.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
 	status_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
@@ -168,6 +219,7 @@ func _build() -> void:
 		retry_button.visible = false
 		retry_pressed.emit())
 	column.add_child(retry_button)
+	_apply_responsive_layout()
 
 
 func _build_top_row() -> Control:
@@ -394,13 +446,14 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	copy_button.text = "Copy"
 	_copy_timer.stop()
 	readiness_label.text = _readiness(room)
+	readiness_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL if not readiness_label.text.is_empty() else Control.SIZE_FILL
 	action_button.visible = true
 	retry_button.visible = false
 	var count: int = room.get("first_to", 3) as int
 	for choice: int in first_to_buttons:
 		first_to_buttons[choice].set_pressed_no_signal(choice == count)
 		first_to_buttons[choice].disabled = not host
-	# section 1: the map (the host changes it, everyone sees it); every room is 3v3
+	# section 1: the map (the host changes it, everyone sees it); every room is 5v5
 	var map_id: StringName = StringName(room.get("map", "street") as String)
 	ChoiceCard.set_card(map_card, "", MAP_NAMES.get(map_id, String(map_id).to_upper()) as String, "blue")
 	map_picture.texture = StreetPage.picture_for(map_id)
@@ -431,13 +484,14 @@ func show_room(room: Dictionary, my_id: int) -> void:
 	settings_gap.visible = race_group.visible and bots_row.visible
 	settings_row.visible = race_group.visible or bots_row.visible
 	bots_button.set_state(bots_on)
-	# the summary line says only whether an Online room is listed: the race and the game are in the rows above, every room is 3v3, and the
+	# the summary line says only whether an Online room is listed: the race and the game are in the rows above, every room is 5v5, and the
 	# minutes of a street game are not shown in the room (owner)
 	format_summary.text = ""
 	if online_room:
 		format_summary.text = "Open" if open else "Private"
 	format_summary.visible = not host and not format_summary.text.is_empty()
 	_fill_players(members, size)
+	_apply_responsive_layout()
 	var picked: String = String(me.get("char", ""))
 	if picked.is_empty():
 		picked = Session.avatar_id
@@ -450,7 +504,7 @@ func show_room(room: Dictionary, my_id: int) -> void:
 		kid_cards[id].tooltip_text = "Selected by a teammate" if taken else id.capitalize()
 		RoomCharacterCards.style(kid_cards[id], id == picked)
 		if taken:
-			kid_cards[id].modulate = Color(0.5, 0.5, 0.55)
+			kid_cards[id].modulate = Color(0.68, 0.64, 0.58)
 		else:
 			kid_cards[id].modulate = Color.WHITE
 	# the one button
@@ -466,7 +520,7 @@ func show_room(room: Dictionary, my_id: int) -> void:
 		KalyeahTheme.style_button(action_button, "grey" if ready else "orange")
 
 
-## Two columns (blue team, red team) of at most three rows: a card for each player, an open slot
+## Two columns (blue team, red team) of at most five rows (`MAX_ROWS`): a card for each player, an open slot
 ## (tap it to join that team) for each place still free.
 func _fill_players(members: Array, size: int) -> void:
 	for card: Control in player_cards:
@@ -481,6 +535,7 @@ func _fill_players(members: Array, size: int) -> void:
 			teams[team].append(member)
 		if member["player_id"] == _my_id:
 			my_team = team
+	var row_height: float = WIDE_BAR_HEIGHT if _is_widescreen() else BAR_HEIGHT
 	for row: int in mini(size, MAX_ROWS):
 		for team: int in 2:
 			var card: Control
@@ -488,8 +543,89 @@ func _fill_players(members: Array, size: int) -> void:
 				card = RoomPlayerCards.player_card(teams[team][row] as Dictionary, team, _room)
 			else:
 				card = RoomPlayerCards.open_slot(team, row, my_team != team, _room, team_chosen.emit)
+			card.custom_minimum_size.y = row_height
 			player_grid.add_child(card)
 			player_cards.append(card)
+
+
+func _is_widescreen() -> bool:
+	var extent: Vector2 = size
+	if extent.x <= 0.0 or extent.y <= 0.0:
+		var vp: Viewport = get_viewport()
+		extent = vp.get_visible_rect().size if vp != null else Vector2(Settings.LANDSCAPE_BASE)
+	return extent.x > extent.y
+
+
+static func _reparent_control(node: Control, target: Control) -> void:
+	if node == null or target == null:
+		return
+	var cur: Node = node.get_parent()
+	if cur != target:
+		if cur != null:
+			cur.remove_child(node)
+		target.add_child(node)
+
+
+func _apply_responsive_layout() -> void:
+	if _safe_margin == null or _outer_column == null or _wide_columns == null:
+		return
+	var wide: bool = _is_widescreen()
+	if wide:
+		LobbyWidgets.apply_safe_area(_safe_margin, 16.0, 8.0)
+	else:
+		LobbyWidgets.apply_safe_area(_safe_margin, MARGIN, 20.0)
+	_outer_column.add_theme_constant_override("separation", 8 if wide else SECTION_GAP)
+	_content.add_theme_constant_override("separation", 10 if wide else SECTION_GAP)
+	var row_height: float = WIDE_BAR_HEIGHT if wide else BAR_HEIGHT
+	for card: Control in player_cards:
+		card.custom_minimum_size.y = row_height
+	if player_grid != null:
+		player_grid.add_theme_constant_override("v_separation", 8 if wide else int(GAP))
+		player_grid.add_theme_constant_override("h_separation", 12 if wide else int(GAP))
+	if map_card != null:
+		map_card.custom_minimum_size = WIDE_MAP_CARD if wide else MAP_CARD
+		if map_picture != null:
+			map_picture.offset_left = -(map_card.custom_minimum_size.y - 16.0) - 12.0
+	for btn: Button in first_to_buttons.values():
+		btn.custom_minimum_size = Vector2(WIDE_FIRST_TO_WIDTH if wide else FIRST_TO_WIDTH, 82.0 if wide else 88.0)
+	for btn: Button in open_buttons.values():
+		btn.custom_minimum_size = Vector2(0.0, 82.0 if wide else 88.0)
+	if race_group != null and race_group.get_child_count() > 1:
+		(race_group.get_child(1) as HBoxContainer).add_theme_constant_override("separation", 8 if wide else (int(GAP) + 2))
+	if settings_row != null:
+		settings_row.add_theme_constant_override("separation", 10 if wide else (int(GAP) + 2))
+	var mode_flag: int = 1 if wide else 0
+	if _laid_out_wide == mode_flag:
+		return
+	_laid_out_wide = mode_flag
+	if wide:
+		_wide_columns.visible = true
+		_reparent_control(_map_group, _left_col)
+		_reparent_control(_kid_group, _left_col)
+		_reparent_control(_player_group, _right_col)
+		_footer_row.visible = true
+		readiness_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		readiness_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL if not readiness_label.text.is_empty() else Control.SIZE_FILL
+		action_button.custom_minimum_size = Vector2(280.0, 84.0)
+		retry_button.custom_minimum_size = Vector2(180.0, 84.0)
+		_reparent_control(readiness_label, _footer_row)
+		_reparent_control(status_label, _footer_row)
+		_reparent_control(retry_button, _footer_row)
+		_reparent_control(action_button, _footer_row)
+	else:
+		_wide_columns.visible = false
+		_reparent_control(_map_group, _content)
+		_reparent_control(_player_group, _content)
+		_reparent_control(_kid_group, _content)
+		_footer_row.visible = false
+		readiness_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		readiness_label.size_flags_horizontal = Control.SIZE_FILL
+		action_button.custom_minimum_size = Vector2(0.0, 88.0)
+		retry_button.custom_minimum_size = Vector2(0.0, 88.0)
+		_reparent_control(readiness_label, _outer_column)
+		_reparent_control(action_button, _outer_column)
+		_reparent_control(status_label, _outer_column)
+		_reparent_control(retry_button, _outer_column)
 
 
 ## A player card, like the owner's mock-up: a white bar with the name in bold navy and the slot
@@ -504,6 +640,7 @@ func clear_room() -> void:
 	_content.visible = false
 	action_button.visible = false
 	readiness_label.text = ""
+	readiness_label.size_flags_horizontal = Control.SIZE_FILL
 	code_label.text = ""
 	code_boxes.set_text("")
 	code_row.hide()

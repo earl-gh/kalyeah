@@ -9,14 +9,15 @@ var RULES: GameRules = load("res://data/rules/game_rules.tres") as GameRules
 const DT: float = 1.0 / 30.0
 const STEP: float = 1.0 / 60.0
 const AUTHORED: Array[StringName] = [&"junjun", &"ligaya", &"migo", &"toni", &"popoy", &"inday"]
+const ALL_KIDS: Array[StringName] = [&"junjun", &"ligaya", &"migo", &"toni", &"popoy", &"inday", &"kiko", &"nene", &"buknoy", &"tala"]
 ## Their source finger tracks target a different rest rig, so their normalized GLBs keep the clean modelled hand pose.
 const STATIC_FINGERS: Array[StringName] = [&"ligaya", &"migo"]
 ## How tall each GLB's rest pose is drawn (m), measured on a rendered silhouette in the sandbox (1/200 of 3 m a pixel).
 const RENDERED_REST_HEIGHT: Dictionary[StringName, float] = {&"junjun": 1.705, &"ligaya": 1.700, &"migo": 1.701, &"toni": 1.7, &"popoy": 1.7, &"inday": 1.7}
 const HIPS_BONE: String = "mixamorig_Hips"
 const FINGER_BONES: Array[String] = ["HandThumb", "HandIndex", "HandMiddle", "HandRing", "HandPinky"]
-## Junjun's roughness/metal map (`junjun_0.png`) is 4096 px; every other texture of the six is 2048 px.
-const ROUGH_METAL_SIZE: Dictionary[StringName, int] = {&"junjun": 4096, &"ligaya": 2048, &"migo": 2048, &"toni": 2048, &"popoy": 2048, &"inday": 2048}
+## Overhaul v3 standardizes all 10 kids' Albedo (`_1`), Normal (`_2`), and ORM (`_0`) maps at 1024x1024 VRAM-compressed.
+const KIDS_TEX_SIZE: Vector2 = Vector2(1024.0, 1024.0)
 ## The part of each clip that is the cast gesture (seconds): Cast_OneHand's swing from the wind-up to the hand's arrival, and
 ## Cast_Run's raise (after the run cycle's own arm swing). The release is the time the hand has covered half of its travel.
 const WINDOW: Dictionary[String, Vector2] = {"Cast_OneHand": Vector2(0.5, 0.9), "Cast_Run": Vector2(0.85, 1.15)}
@@ -46,8 +47,8 @@ func _walk(kid: KidModel, speed: float, frames: int = 12) -> void:
 
 
 func test_all_six_kids_have_cast_release_times() -> void:
-	assert_eq(RULES.characters.size(), AUTHORED.size())
-	for id: StringName in AUTHORED:
+	assert_eq(RULES.characters.size(), ALL_KIDS.size())
+	for id: StringName in ALL_KIDS:
 		assert_true(_def(id).cast_release_standing > 0.0 and _def(id).cast_release_moving > 0.0, "%s has release times" % id)
 
 
@@ -59,7 +60,8 @@ func test_their_old_baked_textures_are_gone() -> void:
 
 
 func test_the_material_stays_exactly_as_authored() -> void:
-	for id: StringName in AUTHORED:
+	var seen_vertex_counts: Dictionary[int, StringName] = {}
+	for id: StringName in ALL_KIDS:
 		var kid: KidModel = _kid(id)
 		var mesh: MeshInstance3D = kid.find_child("Model", true, false).find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
 		assert_null(mesh.get_surface_override_material(0), "%s has no override (no ModelLook)" % id)
@@ -68,12 +70,18 @@ func test_the_material_stays_exactly_as_authored() -> void:
 		assert_eq(material.resource_name, "Original", id)
 		assert_eq(material.roughness, 1.0)
 		assert_true(material.normal_enabled, "the authored normal map is on")
-		var size: float = ROUGH_METAL_SIZE[id]
-		assert_eq(material.albedo_texture.get_size(), Vector2(2048, 2048), "%s: full size base colour" % id)
-		assert_eq(material.normal_texture.get_size(), Vector2(2048, 2048), "%s: full size normal map" % id)
-		assert_eq(material.roughness_texture.get_size(), Vector2(size, size), "%s: full size roughness/metal map, not shrunk" % id)
+		assert_eq(material.albedo_texture.get_size(), KIDS_TEX_SIZE, "%s: 1024x1024 VRAM base colour" % id)
+		assert_eq(material.normal_texture.get_size(), KIDS_TEX_SIZE, "%s: 1024x1024 VRAM normal map" % id)
+		assert_eq(material.roughness_texture.get_size(), KIDS_TEX_SIZE, "%s: 1024x1024 VRAM ORM map" % id)
 		kid.animate(DT, 0.0, PlayerState.new())
 		assert_eq(material.albedo_color, Color.WHITE, "no tint on the authored colours")
+		var arrays: Array = mesh.mesh.surface_get_arrays(0)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] as PackedInt32Array
+		var tris: int = indices.size() / 3
+		assert_between(tris, 3500, 15000, "%s: Valorant stylized triangle budget (%d tris)" % [id, tris])
+		assert_false(seen_vertex_counts.has(verts.size()), "%s has unique bespoke 3D topology (not a clone)" % id)
+		seen_vertex_counts[verts.size()] = id
 
 
 # ---- height and ground: the skinned model, measured on the CPU ----------------------------------------------------------
@@ -123,7 +131,7 @@ func test_model_height_is_what_the_skinned_model_really_stands() -> void:
 
 
 func test_every_kid_is_drawn_at_the_one_kid_height() -> void:
-	for id: StringName in AUTHORED:
+	for id: StringName in ALL_KIDS:
 		var kid: KidModel = _kid(id)
 		var model: Node3D = kid.find_child("Model", true, false) as Node3D
 		assert_almost_eq(_skinned_bounds(model).size.y * model.scale.y, KidModel.KID_HEIGHT, 0.04, "%s stands %.2f m tall" % [id, KidModel.KID_HEIGHT])
@@ -508,4 +516,4 @@ func test_in_a_match_a_tagged_authored_kid_reappears_at_the_tagged_place() -> vo
 	assert_eq(view.position.z, state.position.y)
 	assert_eq(view._body.scale, Vector3.ONE, "full size again")
 	assert_eq(state.hp, hp_before, "the sim never knew")
-	assert_false(practice.sim.layout.lane_rect().has_point(state.position), "outside the play area")
+	assert_false(practice.sim.layout.in_arena(state.position), "outside the play area")

@@ -8,12 +8,14 @@ var _loadout: Array[StringName]
 
 func before_each() -> void:
 	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
 	_loadout = Session.saved_loadout.duplicate()
-	Session.saved_loadout = [&"bato_light", &"lata"]
+	Session.saved_loadout = [&"bato_light", &"lata", &"trumpo"]
 
 
 func after_each() -> void:
 	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 	Session.saved_loadout = _loadout
 	Session.save()
 

@@ -1,11 +1,12 @@
 class_name KidModel
 extends Node3D
-## One of the six kids (docs/PROJECT.md 3.2) as the owner's own 3D model: a skinned GLB (assets/models/characters/<kid>.glb)
+## One of the kids (docs/PROJECT.md 3.2) as the owner's own 3D model: a skinned GLB (assets/models/characters/<kid>.glb)
 ## that keeps its material exactly as authored (no ModelLook, no tint) and plays its own clips (CLIP_FOR) at their own
-## speed. Visual only: the hitbox and every number come from the sim. Origin at the feet, the kid faces -Z (like a
-## camera). Every cast is Cast_OneHand (standing) or Cast_Run (moving), started at the hand's release moment so the
-## release lands on the sim's cast tick; a knock-out shows as Stunned (no kid has a fall); a tagged kid shrinks away
-## where it stood, then grows back in the tagged box. A character with no model of its own yet uses FALLBACK_SET.
+## speed, layered with skeletal postures (`KidPose`) for analog walk, crouch, crouch-walk, baseball slide, jump launch tuck
+## and landing knee-flex compression. Visual only: the hitbox and every number come from the sim. Origin at the feet, the
+## kid faces -Z (like a camera). Every cast is Cast_OneHand (standing) or Cast_Run (moving), started at the hand's release
+## moment so the release lands on the sim's cast tick; a knock-out shows as Stunned (no kid has a fall); a tagged kid shrinks
+## away where it stood, then grows back in the tagged box. A character with no model of its own yet uses FALLBACK_SET.
 
 const MODEL_PATH: String = "res://assets/models/characters/%s.glb"
 const PORTRAIT_PATH: String = "res://assets/portraits/%s.png"
@@ -38,9 +39,17 @@ const DIVE_AIR_TO: float = 0.6
 const DIVE_SLIDE_FROM: float = 1.35
 const DIVE_SLIDE_TO: float = 1.85
 const DIVE_GETUP_TO: float = 3.5
-## A kid that is caught stumbles and falls (the Tripped clip from `TRIP_FROM` to `TRIP_TO` s into it) over the length of the pause that follows.
-const TRIP_FROM: float = 0.15
-const TRIP_TO: float = 1.75
+## A kid that stumbles while running or is caught lurches forward with arms out, drops onto its belly, and pushes back up to standing.
+const TRIP_FROM: float = 0.12
+const TRIP_CATCH_END: float = 0.28
+const TRIP_BELLY_END: float = 0.62
+const TRIP_CATCH_AT: float = 1.10
+const TRIP_TO: float = 1.85
+## Landing compression window after touching down from a street jump.
+const LAND_DURATION: float = 0.18
+## Crouch lowers the pelvis by ~0.46 m on a 1.85 m kid (~0.70x standing profile) with knees bent over planted/sneaking feet.
+const CROUCH_PELVIS_DROP: float = -0.46
+const SLIDE_PELVIS_DROP: float = -0.60
 ## The pose of a scripted clip (a dive, a stumble): the clip is set frame by frame, never played.
 const SCRIPTED: String = "scripted"
 ## The sim steps at 30 Hz but the screen draws faster: with no new position for this
@@ -71,18 +80,22 @@ const POP_BACK: float = 1.70158
 ## The scale at the bottom of the shrink (a true zero breaks the skinned mesh's transform).
 const GONE_SCALE: float = 0.001
 const STAR_COUNT: int = 5
-## The team outline (owner, 2026-10-29): blue round your team, red round the other, this many metres wide.
+## Harmonious dual-outline: fine warm deep espresso-slate ink line (`INK_OUTLINE_COLOR`, `INK_OUTLINE_WIDTH`) tucked cleanly
+## inside a soft, balanced team color rim (`OUTLINE_WIDTH`).
 const OUTLINE_SHADER: Shader = preload("res://shaders/team_outline.gdshader")
-const OUTLINE_WIDTH: float = 0.035
+const OUTLINE_WIDTH: float = 0.026
+const INK_OUTLINE_COLOR: Color = Color(0.13, 0.10, 0.12, 0.92)
+const INK_OUTLINE_WIDTH: float = 0.009
 ## The stencil value a kid's pixels are marked with; the outline draws only where it is not (shaders/team_outline.gdshader).
 const STENCIL: int = 1
 
 static var _scenes: Dictionary[String, PackedScene] = {}
 static var _portraits: Dictionary[String, Texture2D] = {}
 static var _faces: Dictionary[String, Texture2D] = {}
+static var _ink_shader: Shader = null
 
 var character: CharacterDef
-## A foot hit the ground (run cycle).
+## A foot hit the ground (run / walk / sneak cycle).
 signal footstep
 ## The kick's foot meets the can (`foot` and `from` are world points: where the foot is and where it swung from; `way` the unit direction of
 ## the kick on the street): the can leaves now, the street shows the smear and the burst.
@@ -137,6 +150,11 @@ var _stars_up: bool = true
 ## The tag pop's own scale (1 when the kid is not being tagged).
 var _tag_size: float = 1.0
 var _move_blend: float = 0.0
+var _walk_blend: float = 0.0
+var _crouch_blend: float = 0.0
+var _slide_blend: float = 0.0
+var _was_jumping: bool = false
+var _land_timer: float = 0.0
 var _last_step: int = 0
 var _anim: String = "idle"
 var _playing: String = ""
@@ -160,7 +178,7 @@ var _hold: Dictionary = {}  # the can's state this frame: position (world), upri
 var _pose: KidPose
 var _skeleton: Skeleton3D
 var _manual: bool = false
-## Last pose name, for tests and debugging ("idle", "run", "cast", "stunned", "airborne").
+## Last pose name, for tests and debugging ("idle", "walk", "run", "crouch", "slide", "cast", "stunned", "airborne", "tripped", "dive").
 var pose: String = "idle"
 
 
@@ -222,7 +240,7 @@ func play_dive(total: float) -> void:
 	_trip_left = 0.0
 
 
-## The kid was caught (a tag): it stumbles and falls over `total` s. A dive in progress carries on instead (the catch is the dive's end).
+## The kid stumbled while running or was caught (a tag): forward stumble, arms-out catch, belly drop, and push-up recovery over `total` s.
 func play_tripped(total: float) -> void:
 	if _dive_left > 0.0:
 		return
@@ -307,7 +325,7 @@ func dive_progress() -> float:
 	return 1.0 - _dive_left / _dive_total if _dive_left > 0.0 else 0.0
 
 
-## True while the kid stumbles after being caught.
+## True while the kid stumbles after tripping or being caught.
 func is_tripping() -> bool:
 	return _trip_left > 0.0
 
@@ -329,9 +347,35 @@ static func dive_step(progress: float) -> Dictionary:
 	return {"clip": DIVE_CLIP_FALL, "time": lerpf(DIVE_SLIDE_TO, DIVE_GETUP_TO, t), "lean": 0.0, "lift": 0.0, "squash": 1.0}
 
 
-## The stumble at `progress` (0 to 1): the Tripped clip from the first lurch to lying flat.
+## Lifelike running stumble at `progress` (0 to 1): forward stumble + arms-out catch, belly drop onto the street, and hands push-up recovery.
 static func trip_step(progress: float) -> Dictionary:
-	return {"clip": DIVE_CLIP_FALL, "time": lerpf(TRIP_FROM, TRIP_TO, clampf(progress, 0.0, 1.0)), "lean": 0.0, "lift": 0.0, "squash": 1.0}
+	var p: float = clampf(progress, 0.0, 1.0)
+	if p < TRIP_CATCH_END:
+		var t: float = p / TRIP_CATCH_END
+		return {
+			"clip": DIVE_CLIP_FALL,
+			"time": lerpf(TRIP_FROM, TRIP_CATCH_AT, t),
+			"lean": -0.34 * sin(t * PI),
+			"lift": 0.07 * sin(t * PI),
+			"squash": 1.0,
+		}
+	if p < TRIP_BELLY_END:
+		var t: float = (p - TRIP_CATCH_END) / (TRIP_BELLY_END - TRIP_CATCH_END)
+		return {
+			"clip": DIVE_CLIP_FALL,
+			"time": lerpf(TRIP_CATCH_AT, TRIP_TO, t),
+			"lean": 0.0,
+			"lift": 0.0,
+			"squash": lerpf(0.88, 1.0, t),
+		}
+	var t: float = (p - TRIP_BELLY_END) / (1.0 - TRIP_BELLY_END)
+	return {
+		"clip": DIVE_CLIP_FALL,
+		"time": lerpf(TRIP_TO, DIVE_GETUP_TO, t),
+		"lean": 0.0,
+		"lift": 0.0,
+		"squash": 1.0,
+	}
 
 
 ## What a scripted pose (the dive, or the stumble) is at this moment.
@@ -347,17 +391,33 @@ func cast_release(clip: String) -> float:
 	return character.cast_release_moving if clip == "cast_run" else character.cast_release_standing
 
 
-## Draws a `color` outline round the kid: its material (a copy of the authored one, every setting kept) also marks the kid's
-## pixels in the stencil, and a shell over it draws only outside them.
+## Draws a fine warm deep espresso-slate ink outline (`INK_OUTLINE_COLOR`) inside a harmonious `color` team rim round the kid:
+## its material (a copy of the authored one, every setting kept) marks the kid's pixels in the stencil, and the overlay
+## shells draw only outside them so Ally vs. Enemy stays unmistakable without harsh thick outline cages.
 func set_team_outline(color: Color) -> void:
 	var outline: ShaderMaterial = ShaderMaterial.new()
 	outline.shader = OUTLINE_SHADER
 	outline.set_shader_parameter("color", color)
 	outline.set_shader_parameter("width", OUTLINE_WIDTH)
+	var ink: ShaderMaterial = ShaderMaterial.new()
+	ink.shader = _get_ink_shader()
+	ink.render_priority = 1
+	ink.set_shader_parameter("ink_color", INK_OUTLINE_COLOR)
+	ink.set_shader_parameter("ink_width", INK_OUTLINE_WIDTH)
+	outline.next_pass = ink
+	_marked.append(outline)
+	_marked.append(ink)
 	for node: Node in _model.find_children("*", "MeshInstance3D", true, false):
 		var mesh: MeshInstance3D = node as MeshInstance3D
+		if mesh == null or mesh.mesh == null:
+			continue
 		for surface: int in mesh.mesh.get_surface_count():
-			var marked: BaseMaterial3D = mesh.get_active_material(surface).duplicate() as BaseMaterial3D
+			var source_mat: BaseMaterial3D = mesh.mesh.surface_get_material(surface) as BaseMaterial3D
+			if source_mat == null:
+				source_mat = mesh.get_active_material(surface) as BaseMaterial3D
+			if source_mat == null:
+				continue
+			var marked: BaseMaterial3D = source_mat.duplicate() as BaseMaterial3D
 			marked.stencil_mode = BaseMaterial3D.STENCIL_MODE_CUSTOM
 			marked.stencil_flags = BaseMaterial3D.STENCIL_FLAG_WRITE
 			marked.stencil_compare = BaseMaterial3D.STENCIL_COMPARE_ALWAYS
@@ -365,6 +425,43 @@ func set_team_outline(color: Color) -> void:
 			_marked.append(marked)
 			mesh.set_surface_override_material(surface, marked)
 		mesh.material_overlay = outline
+
+
+static func _get_ink_shader() -> Shader:
+	if _ink_shader == null:
+		var shader: Shader = Shader.new()
+		shader.code = """shader_type spatial;
+render_mode blend_mix, unshaded, cull_disabled, shadows_disabled, fog_disabled, depth_draw_never;
+stencil_mode read, compare_not_equal, 1;
+
+uniform vec4 ink_color : source_color = vec4(0.13, 0.10, 0.12, 0.92);
+uniform float ink_width = 0.009;
+
+varying float v_stroke;
+
+void vertex() {
+	vec3 world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec4 view_position = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	float w1 = sin(world_pos.x * 14.0 + world_pos.y * 19.0 + world_pos.z * 11.5);
+	float w2 = cos(world_pos.z * 23.0 - world_pos.x * 17.0 + world_pos.y * 13.0);
+	float wobble = w1 * 0.65 + w2 * 0.35;
+	v_stroke = wobble * 0.5 + 0.5;
+	float stroke_width = ink_width * (1.0 + 0.08 * wobble);
+	vec2 across = (MODELVIEW_MATRIX * vec4(NORMAL, 0.0)).xy;
+	if (dot(across, across) > 0.000001) {
+		view_position.xy += normalize(across) * stroke_width;
+	}
+	POSITION = PROJECTION_MATRIX * view_position;
+}
+
+void fragment() {
+	vec3 espresso = mix(ink_color.rgb * 0.94, ink_color.rgb * vec3(1.08, 1.04, 1.10), v_stroke * 0.24);
+	ALBEDO = clamp(espresso, vec3(0.05, 0.04, 0.05), vec3(0.24, 0.20, 0.22));
+	ALPHA = ink_color.a;
+}
+"""
+		_ink_shader = shader
+	return _ink_shader
 
 
 func is_can() -> bool:
@@ -400,9 +497,42 @@ func ground_speed(world_position: Vector2, delta: float) -> float:
 	return _ground_speed
 
 
+static func _dict_float(d: Dictionary, key: String, fallback: float = 0.0) -> float:
+	var raw: Variant = d.get(key, fallback)
+	if raw is float:
+		return raw
+	if raw is int:
+		return float(raw)
+	return fallback
+
+
+static func _dict_vec3(d: Dictionary, key: String, fallback: Vector3 = Vector3.ZERO) -> Vector3:
+	var raw: Variant = d.get(key, fallback)
+	if raw is Vector3:
+		return raw
+	return fallback
+
+
+static func _dict_str(d: Dictionary, key: String, fallback: String = "") -> String:
+	var raw: Variant = d.get(key, fallback)
+	if raw is String:
+		return raw
+	if raw is StringName:
+		return String(raw)
+	return fallback
+
+
 ## Per frame: `speed` is the ground speed in m/s.
 func animate(delta: float, speed: float, state: PlayerState) -> void:
 	_clock += delta
+	var state_walking: bool = state.walking
+	var state_crouching: bool = state.crouching
+	var air_y: float = state.air_y
+	var vel_y: float = state.vel_y
+	var slide_left: float = state.slide_left
+	var slide_dir: Vector2 = state.slide_dir
+	if slide_left > 0.0 and slide_dir.length_squared() > 0.0001:
+		face(slide_dir)
 	_turn(delta)
 	_cast_left = maxf(0.0, _cast_left - delta)
 	if _cast_left <= 0.0:
@@ -419,6 +549,11 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	_step_morph(delta, polymorphed)
 	if polymorphed:
 		pose = "can"
+		_was_jumping = false
+		_land_timer = 0.0
+		_walk_blend = 0.0
+		_crouch_blend = 0.0
+		_slide_blend = 0.0
 		_pop_stars(delta, false)
 		_can.rotation.z = sin(_clock * 10.0) * 0.1 * clampf(speed, 0.0, 1.0)
 		_can.position.y = absf(sin(_clock * 10.0)) * 0.08 * clampf(speed, 0.0, 1.0)
@@ -430,12 +565,46 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	_move_blend = move_toward(_move_blend, 1.0 if running else 0.0, delta * 6.0)
 	_tired = state.overclocked
 	_step_vanish(delta, state.tagged)
+
+	var status_airborne: bool = state.effects.has(StatusEffects.Type.AIRBORNE) or state.effects.has(StatusEffects.Type.BOUNCE)
+	var status_stun: bool = state.effects.has(StatusEffects.Type.STUN) or state.effects.has(StatusEffects.Type.KNOCKOUT)
+	var can_busy: bool = _act != Act.NONE or _carrying
+	var blocked: bool = state.tagged or status_airborne or status_stun or _dive_left > 0.0 or _trip_left > 0.0 or can_busy
+
+	var jump_active: bool = not blocked and air_y > 0.005
+	if _was_jumping and not jump_active and not blocked:
+		_land_timer = LAND_DURATION
+	elif blocked:
+		_land_timer = 0.0
+	_was_jumping = jump_active
+	_land_timer = maxf(0.0, _land_timer - delta)
+
+	var slide_active: bool = not blocked and not jump_active and slide_left > 0.0
+	var crouch_active: bool = not blocked and not jump_active and not slide_active and state_crouching
+	var walk_active: bool = not blocked and not jump_active and not slide_active and not crouch_active and state_walking and _move_blend > 0.5
+
+	_walk_blend = move_toward(_walk_blend, 1.0 if walk_active else 0.0, delta * 9.0)
+	_crouch_blend = move_toward(_crouch_blend, 1.0 if crouch_active else 0.0, delta * 10.0)
+	_slide_blend = move_toward(_slide_blend, 1.0 if slide_active else 0.0, delta * 14.0)
+	if _walk_blend < 0.001:
+		_walk_blend = 0.0
+	if _crouch_blend < 0.001:
+		_crouch_blend = 0.0
+	if _slide_blend < 0.001:
+		_slide_blend = 0.0
+
 	# a cast belongs to the clip it began with: when the kid starts or stops moving it is over
 	if _cast_left > 0.0 and not _cast_keep and (_move_blend > 0.5) != (_cast_clip == "cast_run"):
 		_cast_left = 0.0
-	if speed > 0.3:
-		# the feet step with the run clip's own cycle, two steps a cycle
-		_phase += delta / maxf(_clip_length("tired" if _tired else "run"), 0.01)
+	if speed > 0.3 and not jump_active and not slide_active:
+		# the feet step with the cycle: two steps a cycle, quieter and slower when sneaking or walking
+		var cadence_scale: float = 1.0
+		if crouch_active:
+			cadence_scale = 0.62
+		elif walk_active:
+			cadence_scale = 0.74
+		var ref_clip: String = "tired" if (_tired or walk_active or crouch_active) else "run"
+		_phase += (delta * cadence_scale) / maxf(_clip_length(ref_clip), 0.01)
 		var step_index: int = int(floor(_phase * 2.0))
 		if step_index != _last_step:
 			_last_step = step_index
@@ -444,10 +613,10 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 	if state.tagged:
 		# waiting in the box: just standing there
 		pose = "idle"
-	elif state.effects.has(StatusEffects.Type.AIRBORNE) or state.effects.has(StatusEffects.Type.BOUNCE):
+	elif status_airborne:
 		pose = "airborne"  # the clip leaves the ground by itself
 		anim = "airborne"
-	elif state.effects.has(StatusEffects.Type.STUN) or state.effects.has(StatusEffects.Type.KNOCKOUT):
+	elif status_stun:
 		pose = "stunned"  # no fall: a knock-out shows as stunned too
 		anim = "stun"
 	elif _dive_left > 0.0 or _trip_left > 0.0:
@@ -455,9 +624,21 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 		anim = SCRIPTED  # a clip set frame by frame (`_scrub`); the body's lean and lift are drawn in `_apply_dive`
 	elif _act == Act.KICK:
 		pose = "kick"  # the clip is the kid standing; the foot, the arms and the body are the act's (`_apply_act`)
+	elif jump_active:
+		pose = "airborne"
+		anim = "airborne"
+	elif slide_active:
+		pose = "slide"
+		anim = "airborne"
 	elif _cast_left > 0.0:
 		pose = "cast"
 		anim = _cast_clip
+	elif crouch_active:
+		pose = "crouch"
+		anim = "tired" if _move_blend > 0.5 else "idle"
+	elif walk_active:
+		pose = "walk"
+		anim = "tired"
 	elif _move_blend > 0.5:
 		pose = "run"
 		anim = "tired" if _tired else "run"
@@ -465,11 +646,18 @@ func animate(delta: float, speed: float, state: PlayerState) -> void:
 		pose = "idle"
 	_anim = anim
 	_drive(anim)
-	_pop_stars(delta, anim == "stun" or pose == "airborne")
+	if anim != SCRIPTED:
+		if crouch_active and _move_blend > 0.5:
+			_player.speed_scale = clampf(0.55 + speed * 0.06, 0.52, 0.78)
+		elif walk_active:
+			_player.speed_scale = clampf(0.64 + speed * 0.06, 0.62, 0.86)
+		else:
+			_player.speed_scale = 1.0
+	_pop_stars(delta, anim == "stun" or status_airborne)
 	_stars.rotation.y = _clock * 2.6
 	_apply_pops()
 	_apply_dive()
-	_apply_act(delta, speed)
+	_apply_act(delta, speed, air_y, vel_y, slide_left, blocked)
 	_advance_by_hand(delta)
 
 
@@ -489,7 +677,7 @@ func _step_act(delta: float) -> void:
 		var step: Dictionary = KidActs.kick_step(KidActs.KICK_CONTACT / KidActs.KICK_TOTAL, _kick_reach)
 		var before: Dictionary = KidActs.kick_step(0.22, _kick_reach)
 		var way: Vector3 = (global_transform.basis * Vector3(0.0, 0.0, -1.0)).normalized()
-		kick_struck.emit(global_transform * (before["foot"] as Vector3), global_transform * (step["foot"] as Vector3), way)
+		kick_struck.emit(global_transform * _dict_vec3(before, "foot"), global_transform * _dict_vec3(step, "foot"), way)
 	if _act_elapsed >= _act_total:
 		if _act == Act.PLACE:
 			_carrying = false
@@ -498,8 +686,8 @@ func _step_act(delta: float) -> void:
 
 
 ## Puts the can acts on the body (leans, rises, squashes and stretches it, smeared along a kick), on the arms and the kicking foot, and
-## works out where the can is. Nothing is touched when the kid does none of it.
-func _apply_act(delta: float, speed: float) -> void:
+## works out where the can is; when no can act is playing, applies street locomotion postures (walk, crouch, slide, jump & landing).
+func _apply_act(_delta: float, speed: float, air_y: float, vel_y: float, slide_left: float, blocked: bool) -> void:
 	var step: Dictionary = {}
 	if _act == Act.PICKUP:
 		step = KidActs.pickup_step(_act_elapsed / _act_total, _can_local)
@@ -510,54 +698,172 @@ func _apply_act(delta: float, speed: float) -> void:
 	elif _carrying and _dive_left <= 0.0 and _trip_left <= 0.0:
 		step = KidActs.carry_step(_phase, clampf(speed / 3.0, 0.0, 1.0))
 	if step.is_empty():
-		if _pose != null:
-			_pose.arm_weight = 0.0
-			_pose.foot_weight = 0.0
-			_pose.active = false
-			_set_manual(false)
 		_hold = {}
 		if _dive_left <= 0.0 and _trip_left <= 0.0 and (_body.rotation.z != 0.0 or _body.position.z != 0.0):
 			_body.rotation.z = 0.0
 			_body.position.z = 0.0
+		_apply_locomotion(air_y, vel_y, slide_left, blocked)
 		return
 	var calm: bool = Settings.reduced_motion
-	var squash: float = 1.0 if calm else step["squash"] as float
-	var stretch: float = 1.0 if calm else step["stretch"] as float
-	_body.rotation.x = (step["lean"] as float) * (0.4 if calm else 1.0)
-	_body.rotation.z = 0.0 if calm else step["roll"] as float
-	_body.position = Vector3(0.0, 0.0 if calm else step["lift"] as float, step["lunge"] as float * (0.4 if calm else 1.0))
+	var squash: float = 1.0 if calm else _dict_float(step, "squash", 1.0)
+	var stretch: float = 1.0 if calm else _dict_float(step, "stretch", 1.0)
+	_body.rotation.x = _dict_float(step, "lean") * (0.4 if calm else 1.0)
+	_body.rotation.z = 0.0 if calm else _dict_float(step, "roll")
+	_body.position = Vector3(0.0, 0.0 if calm else _dict_float(step, "lift"), _dict_float(step, "lunge") * (0.4 if calm else 1.0))
 	var across: float = 1.0 / sqrt(maxf(squash * stretch, 0.05))
 	_body.scale *= Vector3(across, squash, stretch * across)  # volume kept: squashed wide, stretched long and thin
 	if _pose == null:
 		_make_pose()
+	_pose.reset_locomotion()
 	_pose.active = true
 	_set_manual(true)
-	_pose.arm_weight = step["arm_w"] as float
-	_pose.hand_left = step["hand_l"] as Vector3
-	_pose.hand_right = step["hand_r"] as Vector3
-	_pose.foot_weight = step["foot_w"] as float
+	var hand_l: Vector3 = _dict_vec3(step, "hand_l")
+	var hand_r: Vector3 = _dict_vec3(step, "hand_r")
+	_pose.arm_weight = _dict_float(step, "arm_w")
+	_pose.hand_left = hand_l
+	_pose.hand_right = hand_r
+	_pose.foot_weight = _dict_float(step, "foot_w")
 	if step.has("foot"):
-		_pose.foot = step["foot"] as Vector3
+		_pose.foot = _dict_vec3(step, "foot")
 	# where the can is: in the hands (or where it lay / will stand, by how much it is held)
-	var hands: Vector3 = ((step["hand_l"] as Vector3) + (step["hand_r"] as Vector3)) / 2.0
-	var hold_amount: float = step["hold"] as float
+	var hands: Vector3 = (hand_l + hand_r) / 2.0
+	var hold_amount: float = _dict_float(step, "hold")
 	if _act == Act.KICK or hold_amount <= 0.0 and _act != Act.PICKUP:
 		_hold = {}
 		return
-	var in_hands: Vector3 = global_transform * (step["centre"] as Vector3 if step.has("centre") else hands + Vector3(0.0, 0.0, 0.0))
+	var in_hands: Vector3 = global_transform * (_dict_vec3(step, "centre") if step.has("centre") else hands)
 	var elsewhere: Vector3 = _spot_world if _act == Act.PLACE else global_transform * _can_local
 	_hold = {"position": elsewhere.lerp(in_hands, hold_amount), "upright": step["upright"], "hold": hold_amount,
 		"squash": Vector3(across, squash, across) if not calm else Vector3.ONE}
 
 
-## While a can act plays the clips and the skeleton are advanced by hand, in this order: the clip, then the arms and the foot on top of it
-## (the automatic order would lay the clip over them again). Back to the automatic order when it is over.
+## Applies vertical jump lift and `KidPose` skeletal adjustments for jump tuck, soft knee-flex landing, baseball slide, crouch, and analog walk.
+## Leaves `_pose` inactive and `_body` completely untouched when standing or running normally.
+func _apply_locomotion(air_y: float, vel_y: float, slide_left: float, blocked: bool) -> void:
+	if not blocked and air_y > 0.005:
+		_body.position.y = air_y
+	elif _dive_left <= 0.0 and _trip_left <= 0.0 and _body.position.y != 0.0:
+		_body.position.y = 0.0
+
+	var has_loco: bool = not blocked and (
+		air_y > 0.005
+		or _land_timer > 0.0
+		or _slide_blend > 0.001
+		or _crouch_blend > 0.001
+		or _walk_blend > 0.001
+	)
+	if not has_loco:
+		if _pose != null:
+			_pose.arm_weight = 0.0
+			_pose.foot_weight = 0.0
+			_pose.reset_locomotion()
+			_pose.active = false
+		_set_manual(false)
+		return
+
+	if _pose == null:
+		_make_pose()
+	_pose.arm_weight = 0.0
+	_pose.foot_weight = 0.0
+	_pose.reset_locomotion()
+	_pose.active = true
+	_set_manual(true)
+
+	var calm: bool = Settings.reduced_motion
+	if air_y > 0.005:
+		var tuck: float = clampf(vel_y / 5.6, 0.0, 1.0)
+		var descend: float = clampf(-vel_y / 6.5, 0.0, 1.0)
+		_pose.torso_weight = 0.75
+		_pose.spine_rot = Vector3(-0.18 * tuck - 0.06 * descend, 0.0, 0.0)
+		_pose.head_rot = Vector3(0.14 * tuck + 0.06 * descend, 0.0, 0.0)
+		if tuck > 0.02 and not calm:
+			_pose.foot = Vector3(0.13, 0.08 + 0.26 * tuck, -0.18 * tuck)
+			_pose.left_foot = Vector3(-0.13, 0.06 + 0.20 * tuck, -0.08 * tuck)
+			_pose.foot_weight = 0.58 * tuck
+			_pose.left_foot_weight = 0.58 * tuck
+		return
+
+	if _slide_blend > 0.001:
+		var sw: float = _slide_blend
+		if slide_left > 0.0 and slide_left < 0.12:
+			sw *= clampf(slide_left / 0.12, 0.25, 1.0)
+		_pose.pelvis_offset = Vector3(0.0, SLIDE_PELVIS_DROP, 0.12)
+		_pose.pelvis_weight = sw
+		_pose.torso_weight = sw
+		_pose.hips_rot = Vector3(0.40, 0.12, -0.18)
+		_pose.spine_rot = Vector3(0.32, -0.10, 0.10)
+		_pose.head_rot = Vector3(-0.54, 0.0, 0.08)
+		_pose.foot = Vector3(0.08, 0.10, -0.80)
+		_pose.foot_weight = sw
+		_pose.left_foot = Vector3(-0.20, 0.11, -0.08)
+		_pose.left_foot_weight = sw
+		_pose.left_knee_pole = Vector3(-0.95, 0.15, -0.30)
+		_pose.hand_left = Vector3(-0.46, 0.22, 0.14)
+		_pose.hand_right = Vector3(0.38, 0.56, -0.22)
+		_pose.arm_weight = sw * 0.85
+		return
+
+	if _crouch_blend > 0.001:
+		var cw: float = _crouch_blend
+		var sneaking: float = _move_blend
+		var sway: float = 0.0 if calm else sin(_phase * TAU) * 0.035 * sneaking
+		var bob: float = 0.0 if calm else absf(cos(_phase * TAU)) * 0.025 * sneaking
+		var land_extra: float = 0.0
+		if _land_timer > 0.0 and not calm:
+			land_extra = -0.10 * sin((_land_timer / LAND_DURATION) * PI)
+		_pose.pelvis_offset = Vector3(sway * 0.4, CROUCH_PELVIS_DROP + bob + land_extra, 0.05)
+		_pose.pelvis_weight = cw
+		_pose.pin_feet_weight = cw
+		_pose.stride_scale = lerpf(1.0, 0.56, sneaking)
+		_pose.foot_lift_scale = lerpf(1.0, 0.38, sneaking)
+		_pose.torso_weight = cw
+		# "tired" already leans forward, so stationary "idle" needs a fuller forward sneak lean than crouch-walk.
+		var sneak_lean: float = lerpf(-0.32, -0.10, sneaking)
+		_pose.hips_rot = Vector3(0.0, sway * 1.1, -sway * 0.8)
+		_pose.spine_rot = Vector3(sneak_lean, -sway * 1.2, sway * 0.6)
+		_pose.head_rot = Vector3(lerpf(0.28, 0.22, sneaking), 0.0, 0.0)
+		return
+
+	if _walk_blend > 0.001:
+		var ww: float = _walk_blend
+		var gait: float = _phase * TAU
+		var sway_x: float = 0.0 if calm else sin(gait) * 0.020
+		var bob_y: float = 0.0 if calm else absf(cos(gait)) * 0.016
+		var land_dip: float = -0.14 * sin((_land_timer / LAND_DURATION) * PI) if (_land_timer > 0.0 and not calm) else 0.0
+		_pose.pelvis_offset = Vector3(sway_x, 0.02 + bob_y + land_dip, 0.0)
+		_pose.pelvis_weight = ww
+		_pose.pin_feet_weight = ww * 0.55
+		_pose.stride_scale = 0.72
+		_pose.foot_lift_scale = 0.52
+		_pose.torso_weight = ww
+		# Lift Exhausted_Run's slumped torso into an upright, relaxed child walking posture with gentle hip/shoulder counter-sway.
+		var hip_sway: float = 0.0 if calm else sin(gait)
+		_pose.hips_rot = Vector3(0.0, hip_sway * 0.055, -hip_sway * 0.042)
+		_pose.spine_rot = Vector3(0.28, -hip_sway * 0.065, hip_sway * 0.038)
+		_pose.head_rot = Vector3(0.18, 0.0, 0.0)
+		return
+
+	if _land_timer > 0.0:
+		var lk: float = sin((_land_timer / LAND_DURATION) * PI)
+		var drop: float = -0.08 * lk if calm else -0.20 * lk
+		_pose.pelvis_offset = Vector3(0.0, drop, 0.02 * lk)
+		_pose.pelvis_weight = lk
+		_pose.pin_feet_weight = 0.88 * lk
+		_pose.torso_weight = lk
+		_pose.spine_rot = Vector3(-0.15 * lk, 0.0, 0.0)
+		_pose.head_rot = Vector3(0.12 * lk, 0.0, 0.0)
+
+
+## While a can act or skeletal locomotion pose plays, the clips and the skeleton are advanced by hand, in this order: the clip, then
+## `KidPose` on top of it (the automatic order would lay the clip over them again). Back to the automatic order when it is over.
 func _set_manual(on: bool) -> void:
 	if _manual == on or _skeleton == null:
 		return
 	_manual = on
 	_player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL if on else AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_IDLE
 	_skeleton.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_MANUAL if on else Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_IDLE
+	if not on:
+		_player.advance(0.0)
 
 
 ## Advances the clip and the skeleton by hand (only while `_manual`).
@@ -583,9 +889,9 @@ func _apply_dive() -> void:
 	if not scripted and _body.rotation.x == 0.0 and _body.position.y == 0.0 and _act == Act.NONE and not _carrying:
 		return
 	var step: Dictionary = _scripted_step() if scripted else {"lean": 0.0, "lift": 0.0, "squash": 1.0}
-	_body.rotation.x = step["lean"] as float
-	_body.position.y = step["lift"] as float
-	_body.scale.y *= step["squash"] as float
+	_body.rotation.x = _dict_float(step, "lean")
+	_body.position.y = _dict_float(step, "lift")
+	_body.scale.y *= _dict_float(step, "squash", 1.0)
 
 
 ## A tagged kid pops out where it stood, then pops in at full size in the tagged box, where the sim has already put it. View only: the
@@ -627,7 +933,7 @@ func _step_morph(delta: float, polymorphed: bool) -> void:
 	_can_p = _move_pop(_can_p, can_target, delta)
 
 
-## The stun stars pop in while the kid is stunned or airborne, and out when it stops.
+## The stun stars pop in while the kid is stunned or status-airborne, and out when it stops.
 func _pop_stars(delta: float, show: bool) -> void:
 	var target: float = 1.0 if show else 0.0
 	_stars_up = target > _stars_p
@@ -687,13 +993,13 @@ func _drive(anim: String) -> void:
 
 ## Sets the clip of a scripted pose at the second it asks for (a change of clip is a cut: the poses either side are both flat or crouched).
 func _scrub(step: Dictionary) -> void:
-	var clip: String = step["clip"] as String
+	var clip: String = _dict_str(step, "clip")
 	_playing = SCRIPTED
 	if clip != _scripted_clip:
 		_scripted_clip = clip
 		_player.play(clip, 0.0)
 	_player.speed_scale = 0.0
-	_player.seek(step["time"] as float, true)
+	_player.seek(_dict_float(step, "time"), true)
 
 
 func _play(clip: String) -> void:

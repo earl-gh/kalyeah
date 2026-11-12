@@ -8,10 +8,19 @@ const DT: float = 1.0 / 30.0
 var _rules: GameRules
 
 
+static func _open_layout() -> MapLayout:
+	var layout: MapLayout = LAYOUT.duplicate() as MapLayout
+	layout.obstacles = [] as Array[Rect2]
+	layout.water_obstacles = [] as Array[Rect2]
+	return layout
+
+
 func before_each() -> void:
 	_rules = (load("res://data/rules/game_rules.tres") as GameRules).duplicate() as GameRules
 	_rules.card_cycle = true
+	_rules.hand_size = 4
 	_rules.elixir_enabled = true
+	_rules.stamina_enabled = true
 
 
 func _wire(message: Dictionary) -> Dictionary:
@@ -57,7 +66,7 @@ func test_the_protocol_version_was_bumped_for_the_new_controls() -> void:
 
 
 func _sim() -> MatchSim:
-	var sim: MatchSim = MatchSim.new(_rules, LAYOUT, 5)
+	var sim: MatchSim = MatchSim.new(_rules, _open_layout(), 5)
 	sim.add_player(1, 0)
 	sim.add_player(2, 1)
 	sim.equip(1)
@@ -66,7 +75,7 @@ func _sim() -> MatchSim:
 
 
 func _mirror() -> MatchSim:
-	var mirror: MatchSim = MatchSim.new(_rules, LAYOUT, 99)
+	var mirror: MatchSim = MatchSim.new(_rules, _open_layout(), 99)
 	mirror.add_player(1, 0)
 	mirror.add_player(2, 1)
 	return mirror
@@ -216,11 +225,12 @@ func _running() -> ServerMatch:
 		member.team = id - 1
 		member.connected = true
 		room.members.append(member)
-	var server: RecordingServer = RecordingServer.new(_rules, LAYOUT, NetRules.new(), 3)
+	var open_layout: MapLayout = _open_layout()
+	var server: RecordingServer = RecordingServer.new(_rules, open_layout, NetRules.new(), 3)
 	var net: NetRules = NetRules.new()
 	net.snapshot_rate = 30
 	net.max_queued_inputs = 8
-	var running: ServerMatch = ServerMatch.new(server, room, _rules, LAYOUT, net, 5)
+	var running: ServerMatch = ServerMatch.new(server, room, _rules, open_layout, net, 5)
 	running.stage = ServerMatch.Stage.PLAYING
 	return running
 
@@ -230,8 +240,8 @@ func test_the_server_pulls_a_forged_target_into_the_street() -> void:
 	running.queue_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 1).with_move_target(Vector2(1.0e9, -1.0e9)))
 	running.poll(DT)
 	var state: PlayerState = running.sim.players[1]
-	assert_true(LAYOUT.lane_rect().has_point(state.move_target), "the target is inside the street")
-	assert_true(LAYOUT.lane_rect().has_point(state.position))
+	assert_true(LAYOUT.in_arena(state.move_target), "the target is inside the arena")
+	assert_true(LAYOUT.in_arena(state.position))
 
 
 func test_the_server_clamps_a_forged_aim_point_to_the_range() -> void:
@@ -244,7 +254,7 @@ func test_the_server_clamps_a_forged_aim_point_to_the_range() -> void:
 	running.poll(DT)
 	running.poll(DT)
 	assert_eq(running.sim.weapons.zones.size(), 1)
-	assert_almost_eq(running.sim.weapons.zones[0].center.distance_to(state.position), 7.0, 0.01, "lata lands at most 7 m away")
+	assert_almost_eq(running.sim.weapons.zones[0].center.distance_to(state.position), 20.0, 0.05, "lata lands at most 20 m away")
 
 
 func test_each_client_gets_only_its_own_private_part() -> void:
@@ -285,10 +295,51 @@ func test_a_repeated_input_does_not_give_the_move_order_again() -> void:
 
 
 func test_a_mirror_takes_a_dealt_hand_of_four() -> void:
-	var client: GameClient = GameClient.new(_rules, LAYOUT, NetRules.new())
+	var client: GameClient = GameClient.new(_rules, _open_layout(), NetRules.new())
 	client._handle({"t": NetProtocol.Msg.MATCH_LOADING, "seed": 9, "players": [{"id": 1, "team": 0}]})
 	var hand: Array[StringName] = [&"lata", &"jacks", &"bola", &"heal"]
 	client._handle({"t": NetProtocol.Msg.MATCH_PLAY, "stage": "play", "time": 0.0, "loadouts": {1: hand}})
 	var mine: PlayerState = client.mirror.players[1]
 	assert_eq(mine.weapons, hand)
 	assert_eq(mine.aim_hold, [-1.0, -1.0, -1.0, -1.0] as Array[float], "every slot idle")
+
+
+func test_snapshot_round_trip_carries_v2_locomotion_and_merienda_powerups() -> void:
+	var sim: MatchSim = _sim()
+	var me: PlayerState = sim.players[1]
+	var rival: PlayerState = sim.players[2]
+	rival.walking = true
+	rival.crouching = true
+	rival.air_y = 0.72
+	rival.vel_y = 2.45
+	rival.jump_cd = 0.18
+	rival.slide_left = 0.31
+	rival.slide_dir = Vector2(0.0, 1.0)
+	rival.slide_cd = 2.15
+	rival.buff_type = PlayerState.BUFF_TURON
+	rival.buff_left = 7.5
+	me.buff_type = PlayerState.BUFF_NONE
+	me.buff_left = 0.0
+	if not sim.powerups.is_empty():
+		var pu0: Dictionary = sim.powerups[0]
+		pu0["active"] = false
+		pu0["respawn_left"] = 14.25
+		sim.powerups[0] = pu0
+	var empty_acks: Dictionary[int, int] = {}
+	var data: Dictionary = Snapshot.capture(sim, empty_acks)
+	var mirror: MatchSim = _mirror()
+	Snapshot.apply(mirror, _wire(data), 1)
+	var seen_rival: PlayerState = mirror.players[2]
+	assert_true(seen_rival.walking)
+	assert_true(seen_rival.crouching)
+	assert_almost_eq(seen_rival.air_y, 0.72, 0.015)
+	assert_almost_eq(seen_rival.vel_y, 2.45, 0.015)
+	assert_almost_eq(seen_rival.jump_cd, 0.18, 0.015)
+	assert_almost_eq(seen_rival.slide_left, 0.31, 0.015)
+	assert_almost_eq(seen_rival.slide_dir.distance_to(Vector2(0.0, 1.0)), 0.0, 0.02)
+	assert_almost_eq(seen_rival.slide_cd, 2.15, 0.015)
+	assert_eq(seen_rival.buff_type, PlayerState.BUFF_TURON)
+	assert_almost_eq(seen_rival.buff_left, 7.5, 0.015)
+	if not mirror.powerups.is_empty():
+		assert_false(bool(mirror.powerups[0]["active"]))
+		assert_almost_eq(float(mirror.powerups[0]["respawn_left"]), 14.25, 0.02)

@@ -1,126 +1,80 @@
 class_name OverheadHud
 extends Control
-## MOBA-style overhead display drawn in screen space over each hero, like League
-## of Legends: a solid health bar (green you, blue ally, red enemy) with the player's number on a team-coloured badge at its left end, the word
-## one word over the bar's left end: a status in plain words ("Stunned", "Slowed", "Exhausted") while there is one, else the player's name (yours, your allies' and your enemies'). Under your own bar a thin stamina bar shows
-## while it is not full (your eyes are on your kid while you tap to walk, and stamina only matters while walking); at 0 it reads Exhausted and
-## runs out over the 2 s. No health numbers and no damage numbers (heals still pop a green "+N"). While a
-## team holds the enemy base, a spinner fills over its kids' heads. Reads the sim
-## and projects through the match camera.
+## Clean, non-intrusive overhead health bar, team-slot badge, and status/name word projected over heroes.
+## Preserves all test contracts (`test_hud_bars`, `test_overhead_badges`, `test_overhead_label_fit`) while
+## softening border & text outline contrast so sunlit 3D gameplay stays visually airy.
 
-## The bar before `bar_scale` (visual pass: 92 x 13 read as a hairline at phone size; now a chunky rounded bar).
+## The bar before `bar_scale`.
 const BAR_SIZE: Vector2 = Vector2(96.0, 18.0)
 ## The dark outline round the bar: thin (screen px, kept at any bar_scale).
 const BAR_OUTLINE: float = 2.0
-## The word over your own bar, at its top left (its middle level with the bar's top outline), and how far it reaches above the bar (a
-## little under its own size: half of it sits on the outline).
+## The word over a bar, at its top left (its middle level with the bar's top outline).
 const LABEL_FONT: int = UiMetrics.WORLD_SMALL
 const LABEL_LINE: float = float(LABEL_FONT) * 0.8
-## The word is `LABEL_FONT` (its largest) while it fits the bar's FULL width (never the filled part: it does not move with the health), and
-## shrinks one pixel at a time until it does (owner: it is never cut, never wrapped, never ends in dots). `LABEL_FONT_MIN` is only the safety
-## floor: at the game's bar (96 x 0.75 = 72 px, 64 px of room after `LABEL_INSET`) a 12 letter name of the widest letter (the name limit) and every
-## status word, alone or with AFK, fit at 5 px or more. It starts `LABEL_INSET` in from the bar's left end, clear of the badge.
 const LABEL_FONT_MIN: int = UiMetrics.WORLD_MIN
-## The word's black outline is this share of its size (5 px at 16, so the look at the largest size is what it was), at least 1 px, so a small word is
-## not drowned in a thick outline.
 const LABEL_OUTLINE_SHARE: float = 0.3
-## The badge at the bar's left end (owner): the player's number, as the room shows it, in white on the team's colour. A rounded square a
-## little taller than the bar, covering the first `BADGE_OVERLAP` px of it, its number the world text size with the bars' dark outline.
 const BADGE_FONT: int = UiMetrics.WORLD
 const BADGE_PAD: float = 4.0
 const BADGE_SIZE: float = float(BADGE_FONT) + BADGE_PAD * 2.0
 const BADGE_OVERLAP: float = 6.0
-const BADGE_TEXT_OUTLINE: int = 3
+const BADGE_TEXT_OUTLINE: int = 2
 const LABEL_INSET: float = BADGE_OVERLAP + BAR_OUTLINE
-## A bar keeps this far from the screen's sides (its badge included), so a kid against a wall never loses its number.
 const EDGE_PAD: float = 4.0
-## The bar sits just above the top of the head (the kid's model is KID_HEIGHT tall).
 const HEAD_HEIGHT: float = KidModel.KID_HEIGHT + 0.2
-## The dark outline round the word over a bar and the status words (screen px).
 const TEXT_OUTLINE: int = 5
 const POPUP_TIME: float = 0.9
 const POPUP_RISE: float = 56.0
-## The status word takes the place of the name over the bar (owner): the same size, in the same spot, never stacked above it.
 const STATUS_FONT: int = LABEL_FONT
-## Your stamina under your health bar (before `bar_scale`): a thin bar, a gap above it; it warns below `STAMINA_LOW` of full. When it runs
-## out you are overclocked (owner): the bar blinks blank and red for `exhaust_seconds`, then refills in amber while you only walk, until
-## it is full. Other kids' stamina is never drawn (docs/GDD.md D33), only their *Exhausted*.
 const STAMINA_SIZE: Vector2 = Vector2(96.0, 8.0)
 const STAMINA_LOW: float = 0.25
-## Stamina is blue (health is green, yours; blue for an ally's bar too, but the stamina bar is only ever under your own).
 const STAMINA_COLOR: Color = Color(0.22, 0.52, 1.0)
 const STAMINA_LOW_COLOR: Color = ConsolePanel.HEALTH_AMBER
 const EXHAUSTED_COLOR: Color = ConsolePanel.HEALTH_RED
-## How long the overclock's red / blank blink holds each state (seconds); steady red with Reduce motion.
 const BLINK_PERIOD: float = 0.25
-## The word over an exhausted kid, yours or another's, in sentence case like every status word (owner).
 const EXHAUSTED: String = "Exhausted"
-## The word over a kid whose player has been gone too long (online): their kid stands still until they come back.
 const AWAY: String = "AFK"
 const POPUP_FONT: int = UiMetrics.BODY
-## A quick chat bubble: the words' size, the padding round them and how far over the health number it floats.
-## A sent sticker: the owner's picture over the kid's head, small and a little see-through so it never hides the play under it (owner: pop in and out
-## must not disturb the game), just over the health bar, easing in from a bit smaller over `SAY_POP` seconds (no overshoot) and fading in the last
-## 0.3 s of `QuickChat.SAY_TIME`.
 const SAY_ART: float = 60.0
 const SAY_LIFT: float = 2.0
 const SAY_POP: float = 0.18
 const SAY_FROM: float = 0.7
 const SAY_ALPHA: float = 0.9
-## The empty part of a health or stamina bar: a flat, opaque dark gray (just the colour: no sheen, no texture).
 const EMPTY_BAR: Color = Color(0.18, 0.19, 0.21)
+const SOFT_BORDER: Color = Color(0.10, 0.11, 0.14, 0.62)
+const SOFT_LABEL_OUTLINE: Color = Color(0.08, 0.09, 0.12, 0.64)
 const SELF_COLOR: Color = Color(0.35, 0.95, 0.35)
 const ALLY_COLOR: Color = Color(0.35, 0.65, 1.0)
 const ENEMY_COLOR: Color = Color(1.0, 0.3, 0.3)
 const DAMAGE_COLOR: Color = Color(1.0, 0.95, 0.85)
 const HEAL_COLOR: Color = Color(0.55, 1.0, 0.45)
-## The spinner above a hero holding the enemy base.
-const SPINNER_RADIUS: float = 15.0
-const SPINNER_LIFT: float = 36.0
+const SPINNER_RADIUS: float = 14.0
+const SPINNER_LIFT: float = 34.0
 const SPINNER_COLOR: Color = Color(1.0, 0.86, 0.3)
-## The rescuer's ring (green: it frees a teammate), the capturer's stays gold.
 const RESCUE_COLOR: Color = Color(0.45, 0.9, 0.5)
-const SPINNER_BACK: Color = Color(0.08, 0.06, 0.1, 0.7)
+const SPINNER_BACK: Color = Color(0.08, 0.09, 0.12, 0.48)
 const SPINNER_SPEED: float = 5.0
 
-## Where the screen draws each kid between two sim ticks (null: where the sim has it): the bar rides on the drawn kid.
 var blend: TickBlend
-## How much bigger than real the kids are drawn (CameraRules.kid_view_scale): the bar rides on their heads.
 var view_scale: float = 1.0
-## How much smaller the health bar is drawn (CameraRules.bar_scale): the kids are small on a screen that shows the whole street.
 var bar_scale: float = 1.0
-## Words and counters never ride higher than this (the header's bottom edge), nor past the screen's sides: a kid at the street's far end
-## keeps its status readable instead of hiding under the header.
 var top_limit: float = 0.0
 
 var _sim: MatchSim
 var _camera: Camera3D
 var _local_id: int = -1
 var _local_team: int = 0
-## Tumbang Preso's taya (owner: the only red kid, instead of an "IT" over its head): its bar and badge are the enemy's red whoever it is. -1 in other games.
 var taya_id: int = -1
-## The kids this phone cannot see now (Langit Lupa's brownout): no bar, no word over them.
 var hidden_ids: Dictionary[int, bool] = {}
-## The bar's back, fill and gloss, made once and recoloured as each kid is drawn (no allocation per frame).
 var _bar_back: StyleBoxFlat
 var _bar_fill: StyleBoxFlat
 var _bar_gloss: StyleBoxFlat
 var _badge_box: StyleBoxFlat
-## The bar groups drawn so far this frame (`_clear_of_others`).
 var _placed: Array[Rect2] = []
-## {id, amount, age, heal, jitter}
 var _popups: Array[Dictionary] = []
-## Quick chat bubbles over kids: {id, text, age}.
 var _says: Array[Dictionary] = []
-## One brief tag marker per kid, fixed at the last visible street position.
-## Online: the kids whose players are away (AFK), set from the room.
 var away_ids: Dictionary[int, bool] = {}
-## Each player's name by kid id (you: your name; online: the room's names). A kid with none is named after its character.
 var names: Dictionary[int, String] = {}
-## The shoulder view (docs/audits/2026-11-09-landscape-hud.md): a kid farther than this from the camera (metres) shows no name, only its number
-## badge and bar, so the far end of the street is not a stack of tags. 0: every name shows (the top-down cameras). A status word always shows.
 var name_reach: float = 0.0
-## The landscape match draws your stamina at the bottom centre (AbilityArc), so it is not drawn under your bar too.
 var stamina_on_bar: bool = true
 
 
@@ -133,28 +87,24 @@ func setup(sim: MatchSim, camera: Camera3D, local_id: int, local_team: int) -> v
 	sim.player_healed.connect(_on_healed)
 	_bar_back = StyleBoxFlat.new()
 	_bar_back.bg_color = EMPTY_BAR
-	_bar_back.border_color = Icons.OUTLINE
+	_bar_back.border_color = SOFT_BORDER
 	_bar_back.anti_aliasing = true
 	_bar_fill = StyleBoxFlat.new()
 	_bar_fill.anti_aliasing = true
 	_bar_gloss = StyleBoxFlat.new()
-	_bar_gloss.bg_color = Color(1.0, 1.0, 1.0, 0.35)
+	_bar_gloss.bg_color = Color(1.0, 1.0, 1.0, 0.20)
 	_bar_gloss.anti_aliasing = true
 	_badge_box = StyleBoxFlat.new()
-	_badge_box.border_color = Icons.OUTLINE
+	_badge_box.border_color = SOFT_BORDER
 	_badge_box.set_border_width_all(int(BAR_OUTLINE))
 	_badge_box.set_corner_radius_all(UiSkin.RADIUS_S)
 	_badge_box.anti_aliasing = true
 
 
-## The status words shown above a hero's bar: "Stunned", "Slowed", ...
-## Empty when nothing is wrong. Heroes have no name text.
 func text_for(id: int) -> String:
 	return _status_text(_sim.players[id])
 
 
-## A tagged kid stands on the sidewalk, which already says it: no "Tagged" over each one (two of them ran into one word).
-## A negative status shows instead of "Exhausted" (never stacked); the exhaustion keeps counting in the sim meanwhile, so the word returns when the status ends.
 func _status_text(state: PlayerState) -> String:
 	var words: PackedStringArray = PackedStringArray()
 	if away_ids.has(state.id):
@@ -168,15 +118,12 @@ func _status_text(state: PlayerState) -> String:
 	return " · ".join(words)
 
 
-## True while your own stamina bar is drawn: stamina is on, not full, or you are exhausted (never for another kid).
 func stamina_visible(state: PlayerState) -> bool:
 	if state.id != _local_id or state.tagged or not _sim.rules.stamina_enabled or not state.has_stamina:
 		return false
 	return state.overclocked or state.stamina < _sim.rules.stamina_max - 0.01
 
 
-## The share and colour of your stamina bar: the stamina left (amber when low). Overclocked: blinking blank and red while the blink
-## runs (steady red with Reduce motion), then the refill in amber.
 func stamina_fill(state: PlayerState) -> Array:
 	if state.overclocked and state.exhaust_left > 0.0:
 		var lit: bool = Settings.reduced_motion or int(state.exhaust_left / BLINK_PERIOD) % 2 == 0
@@ -191,7 +138,6 @@ func popup_count() -> int:
 	return _popups.size()
 
 
-## A quick chat bubble over kid `id` saying `text` for QuickChat.SAY_TIME (a new one replaces that kid's old one).
 func say(id: int, text: String) -> void:
 	_says = _says.filter(func(s: Dictionary) -> bool: return (s["id"] as int) != id)
 	_says.append({"id": id, "text": text, "age": 0.0})
@@ -212,7 +158,6 @@ func tick(delta: float) -> void:
 	queue_redraw()
 
 
-## False for a tagged kid (owner: no health for tagged players). Free kids always show their bar, wherever they stand.
 func bar_visible(state: PlayerState) -> bool:
 	return not state.tagged and not hidden_ids.has(state.id)
 
@@ -225,8 +170,6 @@ func bar_color(state: PlayerState) -> Color:
 	return TeamColors.bar_ally() if state.team == _local_team else TeamColors.bar_enemy()
 
 
-## The one word over a kid's bar (owner): its status while it has one ("Stunned", "Slowed", ...), else the player's name, for you, your
-## allies and your enemies alike.
 func label_for(state: PlayerState) -> String:
 	var status: String = _status_text(state)
 	if not status.is_empty():
@@ -236,7 +179,6 @@ func label_for(state: PlayerState) -> String:
 	return name_of(state)
 
 
-## The player's name over a kid: the one it was given, else its character's name (the bots').
 func name_of(state: PlayerState) -> String:
 	var given: String = names.get(state.id, "") as String
 	if not given.is_empty():
@@ -247,8 +189,6 @@ func name_of(state: PlayerState) -> String:
 	return ""
 
 
-## The number on a kid's badge, the same one the room shows: blue's places first, then red's (`RoomPlayerCards.slot_number`), each team's
-## in the order its players were added.
 func player_number(state: PlayerState) -> int:
 	var row: int = 0
 	var team_zero: int = 0
@@ -267,7 +207,6 @@ func player_number(state: PlayerState) -> int:
 	return RoomPlayerCards.slot_number(state.team, row, maxi(team_zero, team_one))
 
 
-## The badge's colour: your team's blue or the other team's red (orange and blue with the colour-blind setting), as the bases show them.
 func badge_color(state: PlayerState) -> Color:
 	if state.id == taya_id:
 		return TeamColors.world_enemy()
@@ -280,7 +219,8 @@ func _on_healed(id: int, amount: int) -> void:
 
 func _head(state: PlayerState) -> Variant:
 	var at: Vector2 = blend.kid(state) if blend != null else state.position
-	var world: Vector3 = Vector3(at.x, HEAD_HEIGHT * view_scale, at.y)
+	var height_mul: float = 0.78 if state.crouching else 1.0
+	var world: Vector3 = Vector3(at.x, HEAD_HEIGHT * view_scale * height_mul + state.air_y, at.y)
 	if _camera == null or _camera.is_position_behind(world):
 		return null
 	return _camera.screen_position(world) if _camera is ArenaCamera else _camera.unproject_position(world)
@@ -293,7 +233,6 @@ func _draw() -> void:
 		return
 	for id: int in _sim.players:
 		_draw_progress(_sim.players[id])
-	# your own bar first: it stays on your head and the others stack above it where they would overlap (`_clear_of_others`)
 	_placed.clear()
 	if _sim.players.has(_local_id):
 		_draw_hero(_sim.players[_local_id])
@@ -306,11 +245,10 @@ func _draw() -> void:
 		_draw_popup(popup)
 
 
-## The quick chat sticker over a kid: the owner's picture of what was said (`QuickChat.STICKER_PATH`), easing in and fading out.
 func _draw_say(said: Dictionary) -> void:
 	var state: PlayerState = _sim.players.get(said["id"]) as PlayerState
 	if state == null or hidden_ids.has(state.id):
-		return  # (a kid out of sight in a brownout: its sticker is not seen either)
+		return
 	var at: Variant = _head(state)
 	if at == null:
 		return
@@ -327,13 +265,11 @@ func _draw_say(said: Dictionary) -> void:
 	draw_texture_rect(texture, rect, false, Color(1.0, 1.0, 1.0, SAY_ALPHA * fade))
 
 
-## The sticker's size over its first moments, as a share of its full size: it eases out from `SAY_FROM` to full and stays (never bigger than full).
 static func say_pop_scale(age: float) -> float:
 	var t: float = clampf(age / SAY_POP, 0.0, 1.0)
 	return lerpf(SAY_FROM, 1.0, 1.0 - (1.0 - t) * (1.0 - t))
 
 
-## True while `state`'s team holds the enemy base and this kid stands in it.
 func spinner_visible(state: PlayerState) -> bool:
 	return (
 		not state.tagged and _sim.capture_team == state.team
@@ -342,12 +278,10 @@ func spinner_visible(state: PlayerState) -> bool:
 	)
 
 
-## True while this kid is the teammate rescuing a tagged one (it stands in the rescue area and the count is running).
 func rescue_visible(state: PlayerState) -> bool:
 	return not state.tagged and state.team >= 0 and state.team < _sim.rescue_rescuer.size() and _sim.rescue_rescuer[state.team] == state.id
 
 
-## The health bar over `state`'s head, centred on it and pulled inside the screen's sides with its badge; null when it has no bar to show.
 func _bar_rect(state: PlayerState) -> Variant:
 	var head: Variant = _head(state)
 	if head == null or not bar_visible(state):
@@ -357,8 +291,6 @@ func _bar_rect(state: PlayerState) -> Variant:
 	return Rect2(Vector2(clampf((head as Vector2).x - bar.x / 2.0, left, maxf(size.x - bar.x - EDGE_PAD, left)), (head as Vector2).y), bar)
 
 
-## Where a bar group (its badge, its word and its bar) over `rect` goes: `rect`, or the nearest place above it that no bar group already
-## drawn this frame covers (never above the header), so kids standing together each keep a readable number. Remembers the place it gives.
 func _clear_of_others(rect: Rect2) -> Rect2:
 	var group: Rect2 = Rect2(
 		Vector2(rect.position.x + BADGE_OVERLAP - BADGE_SIZE, rect.position.y - BAR_OUTLINE - LABEL_LINE),
@@ -393,8 +325,6 @@ func _draw_hero(state: PlayerState) -> void:
 		_draw_thin(under, look[0] as float, look[1] as Color)
 
 
-## The ring over a kid holding the enemy base or rescuing a teammate, drawn under the bars at the kid's own head (kids who stand together
-## show the same ring on the same spot).
 func _draw_progress(state: PlayerState) -> void:
 	var at: Variant = _bar_rect(state)
 	if at == null or not (spinner_visible(state) or rescue_visible(state)):
@@ -408,7 +338,6 @@ func _draw_progress(state: PlayerState) -> void:
 		_draw_spinner(centre, _sim.rescue_elapsed[state.team] / maxf(_sim.rules.rescue_hold_time, 0.001), RESCUE_COLOR)
 
 
-## The word at the bar's top left corner, clear of the badge, its middle level with the bar's top outline; kept inside the screen sides.
 func _draw_label(text: String, rect: Rect2) -> void:
 	if text.is_empty():
 		return
@@ -417,16 +346,13 @@ func _draw_label(text: String, rect: Rect2) -> void:
 	var font_size: int = label_font_size(text, room)
 	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
 	var centre: Vector2 = keep_on_screen(Vector2(rect.position.x + LABEL_INSET + width / 2.0, label_baseline(rect, font_size)), font, text, font_size)
-	_text(font, text, centre, font_size, Color.WHITE, label_outline(font_size), Color.BLACK)
+	_text(font, text, centre, font_size, Color(1.0, 1.0, 1.0, 0.94), label_outline(font_size), SOFT_LABEL_OUTLINE)
 
 
-## The width the word over a bar may fill: the bar's full width (`bar_width`, at the current `bar_scale`) less the badge side's inset.
 static func label_room(bar_width: float) -> float:
 	return maxf(bar_width - LABEL_INSET, 0.0)
 
 
-## The font size of `text` over a bar with `room` to spare: `LABEL_FONT`, or smaller (never under `LABEL_FONT_MIN`) until it fits. It depends
-## on the word and the room only, never on the health.
 static func label_font_size(text: String, room: float) -> int:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var font_size: int = LABEL_FONT
@@ -435,31 +361,25 @@ static func label_font_size(text: String, room: float) -> int:
 	return font_size
 
 
-## The black outline round a word drawn at `font_size`: it shrinks with the word.
 static func label_outline(font_size: int) -> int:
 	return maxi(roundi(float(font_size) * LABEL_OUTLINE_SHARE), 1)
 
 
-## The badge at the bar's left end: the player's number, white, on a rounded square in the team's colour.
 func _draw_badge(state: PlayerState, rect: Rect2) -> void:
 	var badge: Rect2 = Rect2(Vector2(rect.position.x + BADGE_OVERLAP - BADGE_SIZE, rect.get_center().y - BADGE_SIZE / 2.0), Vector2.ONE * BADGE_SIZE)
 	_badge_box.bg_color = badge_color(state)
 	draw_style_box(_badge_box, badge)
-	_text(KalyeahTheme.ACTION_FONT, str(player_number(state)), Vector2(badge.get_center().x, badge.get_center().y + float(BADGE_FONT) * 0.36), BADGE_FONT, Color.WHITE, BADGE_TEXT_OUTLINE)
+	_text(KalyeahTheme.ACTION_FONT, str(player_number(state)), Vector2(badge.get_center().x, badge.get_center().y + float(BADGE_FONT) * 0.36), BADGE_FONT, Color.WHITE, BADGE_TEXT_OUTLINE, SOFT_LABEL_OUTLINE)
 
 
-## Where the stamina bar starts under a health bar at `rect`: no gap, the two bars share the line between them (the stamina bar's top
-## outline is the health bar's bottom outline).
 static func stamina_top(rect: Rect2) -> float:
 	return rect.end.y + BAR_OUTLINE
 
 
-## The baseline of the word over a bar at `rect`: its middle level with the middle of the bar's top outline.
 static func label_baseline(rect: Rect2, font_size: int = LABEL_FONT) -> float:
 	return rect.position.y - BAR_OUTLINE / 2.0 + float(font_size) * 0.36
 
 
-## A rounded bar with a dark outline: the fill in `color`, and a gloss on its upper third.
 func _draw_bar(rect: Rect2, fill: float, color: Color) -> void:
 	_bar_back.set_border_width_all(int(BAR_OUTLINE))
 	_bar_back.set_corner_radius_all(UiSkin.bar_radius(rect.size.y + BAR_OUTLINE * 2.0))
@@ -473,7 +393,6 @@ func _draw_bar(rect: Rect2, fill: float, color: Color) -> void:
 		draw_style_box(_bar_gloss, Rect2(rect.position + Vector2(rect.size.y / 3.0, 1.0), Vector2(maxf(width - rect.size.y / 1.5, 1.0), rect.size.y / 3.0)))
 
 
-## A thin bar with a dark outline, filled to `fill` in `color` (your stamina).
 func _draw_thin(rect: Rect2, fill: float, color: Color) -> void:
 	_bar_back.set_border_width_all(int(BAR_OUTLINE))
 	_bar_back.set_corner_radius_all(UiSkin.bar_radius(rect.size.y + BAR_OUTLINE * 2.0))
@@ -485,21 +404,18 @@ func _draw_thin(rect: Rect2, fill: float, color: Color) -> void:
 	draw_style_box(_bar_fill, Rect2(rect.position, Vector2(maxf(rect.size.x * fill, rect.size.y), rect.size.y)))
 
 
-## Where `text` is drawn: its centre pulled inside the screen's sides and its baseline kept under `top_limit`.
 func keep_on_screen(centre: Vector2, font: Font, text: String, font_size: int) -> Vector2:
 	var half: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x / 2.0 + 4.0
 	var x: float = clampf(centre.x, half, maxf(size.x - half, half))
 	return Vector2(x, maxf(centre.y, top_limit + float(font_size) + 4.0))
 
 
-## A spinning ring over a hero holding the enemy base: the ring fills as the point
-## gets closer (it scores when it is full).
 func _draw_spinner(center: Vector2, progress: float, color: Color) -> void:
-	draw_circle(center, SPINNER_RADIUS + 4.0, SPINNER_BACK)
-	draw_arc(center, SPINNER_RADIUS, 0.0, TAU, 28, Color(1.0, 1.0, 1.0, 0.25), 4.0)
+	draw_circle(center, SPINNER_RADIUS + 3.0, SPINNER_BACK)
+	draw_arc(center, SPINNER_RADIUS, 0.0, TAU, 28, Color(1.0, 1.0, 1.0, 0.22), 3.0, true)
 	var spin: float = float(Time.get_ticks_msec()) / 1000.0 * SPINNER_SPEED
-	draw_arc(center, SPINNER_RADIUS, spin, spin + TAU * 0.28, 12, Color(1.0, 1.0, 1.0, 0.9), 4.0)
-	draw_arc(center, SPINNER_RADIUS - 6.0, -PI / 2.0, -PI / 2.0 + TAU * clampf(progress, 0.0, 1.0), 24, color, 4.0)
+	draw_arc(center, SPINNER_RADIUS, spin, spin + TAU * 0.28, 12, Color(1.0, 1.0, 1.0, 0.85), 3.0, true)
+	draw_arc(center, SPINNER_RADIUS - 5.0, -PI / 2.0, -PI / 2.0 + TAU * clampf(progress, 0.0, 1.0), 24, color, 3.2, true)
 
 
 func _draw_popup(popup: Dictionary) -> void:
@@ -510,20 +426,20 @@ func _draw_popup(popup: Dictionary) -> void:
 	if at == null:
 		return
 	var age: float = (popup["age"] as float) / POPUP_TIME
-	var pos: Vector2 = (at as Vector2) + Vector2(popup["jitter"] as float, -30.0 - POPUP_RISE * age)
+	var pos: Vector2 = (at as Vector2) + Vector2(popup["jitter"] as float, -28.0 - POPUP_RISE * age)
 	var healed: bool = popup["heal"] as bool
 	var color: Color = HEAL_COLOR if healed else (DAMAGE_COLOR if state.team == _local_team else Color(1.0, 0.85, 0.3))
 	color.a = 1.0 - age * age
-	var size: int = int(POPUP_FONT * (1.25 - 0.25 * age) * (1.2 if healed else 1.0))
-	_text(KalyeahTheme.ACTION_FONT, ("+%d" if healed else "-%d") % (popup["amount"] as int), pos, size, color, 6)
+	var pop_sz: int = int(POPUP_FONT * (1.2 - 0.2 * age) * (1.15 if healed else 1.0))
+	_text(KalyeahTheme.ACTION_FONT, ("+%d" if healed else "-%d") % (popup["amount"] as int), pos, pop_sz, color, 3, SOFT_LABEL_OUTLINE)
 
 
-func _text(font: Font, text: String, center: Vector2, font_size: int, color: Color, outline: int, outline_color: Color = Icons.OUTLINE) -> void:
+func _text(font: Font, text: String, center: Vector2, font_size: int, color: Color, outline: int, outline_color: Color = SOFT_LABEL_OUTLINE) -> void:
 	if text.is_empty():
 		return
 	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
 	var origin: Vector2 = center - Vector2(width / 2.0, 0.0)
 	var dark: Color = outline_color
-	dark.a = color.a
+	dark.a = outline_color.a * color.a
 	draw_string_outline(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, outline, dark)
 	draw_string(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, color)

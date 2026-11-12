@@ -46,7 +46,7 @@ var _host: Control
 
 func before_each() -> void:
 	_host = autofree(Control.new()) as Control
-	_host.size = Vector2(720.0, 1280.0)
+	_host.size = Vector2(1280.0, 720.0)
 	add_child(_host)
 
 
@@ -162,7 +162,7 @@ func test_the_room_qr_dialog_shows_the_code_big_and_crisp() -> void:
 	var card: MenuDialog = view.show_qr()
 	var qr: QrView = card.body.get_node("QrView") as QrView
 	assert_eq(qr.code.version, 1)
-	assert_true(qr.custom_minimum_size.x >= 29 * 15, "15 px a module in the 720 px design width")
+	assert_true(qr.custom_minimum_size.x >= 29 * 12, "12 px a module in the 1280x720 landscape design")
 	# what the dialog draws reads back as this room
 	var n: int = qr.code.size + 8
 	var bits: PackedByteArray = PackedByteArray()

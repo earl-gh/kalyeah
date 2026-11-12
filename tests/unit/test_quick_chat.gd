@@ -1,6 +1,25 @@
 extends GutTest
 ## The quick chat button, the owner's pictures for the hand, and the ice water bag.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
+
+var _saved_kind: StringName
+var _saved_briefing: bool
+
+
+func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
+	_saved_kind = Session.practice_kind
+	_saved_briefing = Session.briefing_pending
+
+
+func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
+	Session.practice_kind = _saved_kind
+	Session.briefing_pending = _saved_briefing
+
 
 func _hud() -> MatchHud:
 	var phone: Control = autofree(Control.new()) as Control

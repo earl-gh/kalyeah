@@ -15,6 +15,7 @@ enum Shape {
 	BOUNCER,    ## skillshot that bounces `count` times evenly up to max range, AoE at each bounce
 	SPINNER,    ## linear projectile that passes through enemies up to max range
 	HEAL,       ## instant: tap heals the caster, a drag picks a teammate in that direction within max range
+	SKILLSHOT,  ## fast linear projectile that stops on the first enemy or obstacle hit
 }
 
 @export var id: StringName = &""

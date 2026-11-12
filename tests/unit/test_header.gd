@@ -2,7 +2,18 @@ extends GutTest
 ## The header at the top of the match screen: the console's deck turned over, the settings button and the score on it, the camera keeping
 ## the arena below it, and a notch's inset making it taller.
 
+const PORTRAIT_MATCH: GDScript = preload("res://tests/fixtures/portrait_match.gd")
 const PRACTICE: PackedScene = preload("res://scenes/match/practice.tscn")
+
+
+func before_each() -> void:
+	PORTRAIT_MATCH.use(true)
+	Settings.set_landscape(false)
+
+
+func after_each() -> void:
+	PORTRAIT_MATCH.use(false)
+	Settings.set_landscape(true)
 
 
 func _practice() -> PracticeMatch:

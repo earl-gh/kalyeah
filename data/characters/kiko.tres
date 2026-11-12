@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CharacterDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/character_def.gd" id="1_char"]
+
+[resource]
+script = ExtResource("1_char")
+id = &"kiko"
+display_name = "Kiko"
+description = "Runs completely barefoot on sun-warmed asphalt with his teal-and-white rubber tsinelas slipped onto both hands through the Y-straps for extra focus and speed, paired with a sun-faded mustard sprinter tank, rolled dark-red shorts, and a forehead bimpo sweatband."
+tint = Color(0.12, 0.7, 0.67, 1)
+skin = Color(0.62, 0.44, 0.31, 1)
+hair_color = Color(0.14, 0.09, 0.07, 1)
+hair = 6
+top = 1
+top_accent = Color(0.95, 0.84, 0.34, 1)
+bottom = 1
+bottom_color = Color(0.68, 0.2, 0.2, 1)
+shoes = false
+shoe_color = Color(0.12, 0.7, 0.67, 1)
+extra = 3
+extra_color = Color(0.96, 0.95, 0.9, 1)
+cast_release_standing = 0.725
+cast_release_moving = 1.008
+body_width = 0.97

@@ -48,8 +48,9 @@ func slap(team: int, kid_radius: float, at: Vector2) -> void:
 	for rec: FxProjectiles.Rec in _projectiles.recs():
 		if rec.team == team or rec.kind != &"slipper":
 			continue
+		var step_slack: float = rec.def.speed * FxSquash.FRAME if rec.def != null else 0.0
 		var d: float = rec.track.last_pos.distance_to(at)
-		if d <= rec.def.projectile_radius + kid_radius + SLAP_REACH and d < best_d:
+		if d <= rec.def.projectile_radius + kid_radius + SLAP_REACH + step_slack and d < best_d:
 			best = rec
 			best_d = d
 	if best == null or _ctx.reduced:
@@ -61,8 +62,10 @@ func slap(team: int, kid_radius: float, at: Vector2) -> void:
 	var dir: Vector3 = Vector3(best.track.dir.x, 0.0, best.track.dir.y)
 	best.squash.basis = FxSquash.stretch_basis(dir, SLAP_S)
 	# the arc's middle crosses the path at the slipper, its centre `SLAP_ARC` m back along the flight
-	var place: Vector3 = Vector3(best.holder.position.x, SLAP_Y, best.holder.position.z) - dir * SLAP_ARC
-	_ctx.ground.smear(Transform3D(Basis(Vector3.UP, atan2(-dir.x, -dir.z)), place), &"arc", SLAP_ARC, FxRelease.TINT_SLIPPER, SLAP_FRAMES * FxSquash.FRAME)
+	var k: float = _ctx.kid_scale()
+	var arc_r: float = SLAP_ARC * k
+	var place: Vector3 = Vector3(best.holder.position.x, SLAP_Y * k, best.holder.position.z) - dir * arc_r
+	_ctx.ground.smear(Transform3D(Basis(Vector3.UP, atan2(-dir.x, -dir.z)), place), &"arc", arc_r, FxRelease.TINT_SLIPPER, SLAP_FRAMES * FxSquash.FRAME)
 
 
 ## The slipper frisbees out, hangs and turns back spinning the other way, and slaps what it hits.
@@ -105,7 +108,8 @@ func pose(rec: FxProjectiles.Rec, projectile: WeaponSystem.Projectile) -> void:
 func gone(rec: FxProjectiles.Rec) -> void:
 	var at: Vector3 = rec.holder.position
 	var thrower: PlayerState = _thrower(rec)
-	var reach: float = (_ctx.sim.rules.boomerang_catch_distance if _ctx.sim != null else 0.8) + CATCH_SLACK
+	var step_slack: float = rec.def.speed * FxSquash.FRAME if rec.def != null else 0.0
+	var reach: float = (_ctx.sim.rules.boomerang_catch_distance if _ctx.sim != null else 0.8) + CATCH_SLACK + step_slack
 	var ground: Vector3 = Vector3(at.x, 0.0, at.z)
 	if thrower != null and thrower.position.distance_to(rec.track.last_pos) <= reach and not thrower.tagged:
 		_ctx.particles.puff(FxParticles.Preset.DUST, Vector3(thrower.position.x, 0.0, thrower.position.y), CATCH_DUST)

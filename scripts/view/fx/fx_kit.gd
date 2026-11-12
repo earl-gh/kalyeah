@@ -82,10 +82,12 @@ const CRACK_RING: float = 0.75
 const CRACK_RING_WIDTH: float = 0.07
 const CRACK_SPOKE_WIDTH: float = 0.05
 const CRACK_SPOKES: int = 4
+const DUST_PUFF_SHADER: Shader = preload("res://shaders/visual/vs_dust_puff.tres")
 
 static var _materials_made: int = 0
 static var _overlays: Dictionary[int, StandardMaterial3D] = {}
 static var _meshes: Dictionary[StringName, ArrayMesh] = {}
+static var _dust_puff_mat: ShaderMaterial = null
 
 
 ## The shared see-through, unshaded, vertex-coloured material drawn in `priority` order (both sides, no culling).
@@ -123,6 +125,18 @@ static func particle_material(billboard: bool) -> StandardMaterial3D:
 	return material
 
 
+## Shared painterly billboarded dust/smoke erosion `VisualShader` material (`shaders/visual/vs_dust_puff.tres`),
+## built once for `CPUParticles3D` footsteps, slides, jumps, trips, and impact clouds on `gl_compatibility`.
+static func dust_puff_material() -> ShaderMaterial:
+	if _dust_puff_mat == null:
+		var mat: ShaderMaterial = ShaderMaterial.new()
+		mat.shader = DUST_PUFF_SHADER
+		mat.render_priority = PRIO_DECAL
+		count_material()
+		_dust_puff_mat = mat
+	return _dust_puff_mat
+
+
 ## Counts a material made outside this file for the effects (a pool's shader material).
 static func count_material() -> void:
 	_materials_made += 1
@@ -135,13 +149,14 @@ static func material_count() -> int:
 
 ## Shared meshes and overlay materials cached right now (tests).
 static func cached_count() -> int:
-	return _meshes.size() + _overlays.size()
+	return _meshes.size() + _overlays.size() + (1 if _dust_puff_mat != null else 0)
 
 
 ## Empties the caches and the material count (the last effect view left the tree).
 static func clear_cache() -> void:
 	_meshes.clear()
 	_overlays.clear()
+	_dust_puff_mat = null
 	_materials_made = 0
 
 
@@ -154,11 +169,18 @@ static func ring_mesh() -> ArrayMesh:
 	return _meshes[&"ring"]
 
 
-## A filled disc of radius 1 on the ground plane, white.
+## A filled disc of radius 1 on the ground plane, white, with radial `[0..1]` UVs.
 static func disc_mesh() -> ArrayMesh:
 	if not _meshes.has(&"disc"):
 		var mesh: ImmediateMesh = _begin()
-		AimIndicator.fill(mesh, _circle(1.0), Color.WHITE, 0.0)
+		for i: int in CIRCLE_POINTS:
+			var a: float = TAU * float(i) / float(CIRCLE_POINTS)
+			var b: float = TAU * float(i + 1) / float(CIRCLE_POINTS)
+			var pa: Vector3 = Vector3(cos(a), 0.0, sin(a))
+			var pb: Vector3 = Vector3(cos(b), 0.0, sin(b))
+			_smear_vertex(mesh, Vector3.ZERO, Vector2(0.5, 0.5), Color.WHITE)
+			_smear_vertex(mesh, pa, Vector2(0.5 + pa.x * 0.5, 0.5 + pa.z * 0.5), Color.WHITE)
+			_smear_vertex(mesh, pb, Vector2(0.5 + pb.x * 0.5, 0.5 + pb.z * 0.5), Color.WHITE)
 		_meshes[&"disc"] = bake(mesh)
 	return _meshes[&"disc"]
 
@@ -189,16 +211,25 @@ static func plus_quad() -> ArrayMesh:
 	return _meshes[&"plus"]
 
 
-## A 1 m square lying on the ground plane (paper scraps, shadows, the soil crack strip), centred, white.
+## A 1 m square lying on the ground plane (paper scraps, shadows, the soil crack strip), centred, white, with `[0..1]` UVs.
 static func flat_quad() -> ArrayMesh:
 	if not _meshes.has(&"flat"):
 		var mesh: ImmediateMesh = _begin()
-		AimIndicator.fill(mesh, PackedVector2Array([Vector2(-0.5, -0.5), Vector2(0.5, -0.5), Vector2(0.5, 0.5), Vector2(-0.5, 0.5)]), Color.WHITE, 0.0)
+		var a: Vector3 = Vector3(-0.5, 0.0, -0.5)
+		var b: Vector3 = Vector3(0.5, 0.0, -0.5)
+		var c: Vector3 = Vector3(0.5, 0.0, 0.5)
+		var d: Vector3 = Vector3(-0.5, 0.0, 0.5)
+		_smear_vertex(mesh, a, Vector2(0.0, 0.0), Color.WHITE)
+		_smear_vertex(mesh, b, Vector2(1.0, 0.0), Color.WHITE)
+		_smear_vertex(mesh, c, Vector2(1.0, 1.0), Color.WHITE)
+		_smear_vertex(mesh, a, Vector2(0.0, 0.0), Color.WHITE)
+		_smear_vertex(mesh, c, Vector2(1.0, 1.0), Color.WHITE)
+		_smear_vertex(mesh, d, Vector2(0.0, 1.0), Color.WHITE)
 		_meshes[&"flat"] = bake(mesh)
 	return _meshes[&"flat"]
 
 
-## A 1 m soft puff standing in the XY plane (faces +Z, for billboards): a round blob, a little darker at its rim.
+## A 1 m soft puff standing in the XY plane (faces +Z, for billboards): a round blob, a little darker at its rim, with radial `[0..1]` UVs.
 static func puff_quad() -> ArrayMesh:
 	if not _meshes.has(&"puff"):
 		var mesh: ImmediateMesh = _begin()
@@ -206,9 +237,13 @@ static func puff_quad() -> ArrayMesh:
 		for i: int in CIRCLE_POINTS:
 			var a: float = TAU * float(i) / float(CIRCLE_POINTS)
 			var b: float = TAU * float(i + 1) / float(CIRCLE_POINTS)
-			_vertex(mesh, Vector3.ZERO, Color.WHITE)
-			_vertex(mesh, Vector3(cos(a), sin(a), 0.0) * 0.5, rim)
-			_vertex(mesh, Vector3(cos(b), sin(b), 0.0) * 0.5, rim)
+			var ca: float = cos(a) * 0.5
+			var sa: float = sin(a) * 0.5
+			var cb: float = cos(b) * 0.5
+			var sb: float = sin(b) * 0.5
+			_smear_vertex(mesh, Vector3.ZERO, Vector2(0.5, 0.5), Color.WHITE)
+			_smear_vertex(mesh, Vector3(ca, sa, 0.0), Vector2(0.5 + ca, 0.5 - sa), rim)
+			_smear_vertex(mesh, Vector3(cb, sb, 0.0), Vector2(0.5 + cb, 0.5 - sb), rim)
 		_meshes[&"puff"] = bake(mesh)
 	return _meshes[&"puff"]
 

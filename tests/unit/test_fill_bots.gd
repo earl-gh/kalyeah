@@ -77,16 +77,16 @@ func test_bots_fill_every_team_up_to_three_and_a_free_for_all_up_to_six() -> voi
 	var room: RoomService.Room = _room_for(service, &"street", 1)  # the host is blue, the friend is red
 	assert_eq(RoomService.bot_teams(room), [] as Array[int], "off: none")
 	service.set_fill_bots(1, true)
-	assert_eq(RoomService.bot_teams(room), [0, 0, 1, 1] as Array[int])
+	assert_eq(RoomService.bot_teams(room), [0, 0, 0, 0, 1, 1, 1, 1] as Array[int])
 	room.map_id = &"patintero"
-	assert_eq(RoomService.bot_teams(room), [0, 0, 1, 1] as Array[int])
+	assert_eq(RoomService.bot_teams(room), [0, 0, 0, 0, 1, 1, 1, 1] as Array[int])
 	room.map_id = &"tumbang_preso"
-	assert_eq(RoomService.bot_teams(room).size(), 4, "six kids in all")
+	assert_eq(RoomService.bot_teams(room).size(), 8, "ten kids in all")
 
 
 func test_a_full_room_gets_no_bots() -> void:
 	var service: RoomService = _service()
-	var room: RoomService.Room = _room_for(service, &"street", 5)
+	var room: RoomService.Room = _room_for(service, &"street", 9)
 	service.set_fill_bots(1, true)
 	assert_eq(RoomService.bot_teams(room).size(), 0)
 
@@ -109,9 +109,9 @@ func _match(map_id: StringName, friends: int) -> ServerMatch:
 func test_the_match_has_six_kids_and_the_bots_are_not_members() -> void:
 	for map_id: StringName in RoomService.PLAYABLE_MAP_IDS:
 		var running: ServerMatch = _match(map_id, 0)
-		assert_eq(running.sim.players.size(), 6, "%s: six kids" % map_id)
+		assert_eq(running.sim.players.size(), 10, "%s: ten kids" % map_id)
 		assert_eq(running.room.members.size(), 1, "only the host is a member")
-		assert_eq(running.bots.size(), 5)
+		assert_eq(running.bots.size(), 9)
 		for id: int in running.bots:
 			assert_gte(id, RoomService.BOT_ID_BASE)
 			assert_true(running.sim.players.has(id))
@@ -124,8 +124,8 @@ func test_agawan_teams_are_three_and_three() -> void:
 	for id: int in running.sim.players:
 		if running.sim.players[id].team == 0:
 			blue += 1
-	assert_eq(blue, 3)
-	assert_eq(running.sim.players.size() - blue, 3)
+	assert_eq(blue, 5)
+	assert_eq(running.sim.players.size() - blue, 5)
 	for id: int in running.bots:
 		assert_false(running.sim.players[id].weapons.is_empty(), "a bot is equipped like everyone")
 	running.dispose()
@@ -134,7 +134,7 @@ func test_agawan_teams_are_three_and_three() -> void:
 func test_the_loading_message_lists_the_bots_for_every_phone() -> void:
 	var running: ServerMatch = _match(&"patintero", 0)
 	var listed: Array = running.info()["players"] as Array
-	assert_eq(listed.size(), 6)
+	assert_eq(listed.size(), 10)
 	var names: Array = listed.map(func(entry: Dictionary) -> String: return entry["name"] as String)
 	assert_true(names.has("Bot 1"))
 	assert_true(names.has("Host"))
@@ -187,7 +187,7 @@ func test_the_room_screen_shows_the_switch_to_the_host_of_a_hotspot_room_only() 
 	assert_true(view.bots_button.button_pressed)
 	view.show_room(room, 2)
 	assert_true(view.bots_row.visible, "a guest reads it as text")
-	assert_false(view.bots_row.get_child(1).visible, "but gets no switch")
+	assert_false((view.bots_row.get_child(1) as Control).visible, "but gets no switch")
 	room["bots_allowed"] = false
 	view.show_room(room, 1)
 	assert_false(view.bots_row.visible, "an online room has no bots")
@@ -275,10 +275,10 @@ func test_a_guest_reads_the_game_and_the_settings_as_text_in_two_rows() -> void:
 	assert_false(view.map_hint.visible)
 	# row 2: Race to and Fill with bots, each its choice as text
 	assert_true(view.race_group.visible)
-	assert_false(view.race_group.get_child(1).visible, "no buttons")
+	assert_false((view.race_group.get_child(1) as Control).visible, "no buttons")
 	assert_eq((view.race_group.get_child(2) as Label).text, "5")
 	assert_true(view.bots_row.visible)
-	assert_false(view.bots_row.get_child(1).visible, "no switch")
+	assert_false((view.bots_row.get_child(1) as Control).visible, "no switch")
 	assert_eq((view.bots_row.get_child(2) as Label).text, "On")
 	room["fill_bots"] = false
 	view.show_room(room, 2)
