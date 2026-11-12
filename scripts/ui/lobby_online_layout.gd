@@ -18,8 +18,6 @@ func build() -> void:
 	margin.add_theme_constant_override("margin_bottom", 24)
 	screen.add_child(margin)
 	screen._setup_layer = margin
-	LobbyWidgets.apply_safe_area(margin, UiMetrics.PAGE_MARGIN, UiMetrics.PAGE_MARGIN)
-	margin.resized.connect(LobbyWidgets.apply_safe_area.bind(margin, UiMetrics.PAGE_MARGIN, UiMetrics.PAGE_MARGIN))
 	var column: VBoxContainer = VBoxContainer.new()
 	column.add_theme_constant_override("separation", 16)
 	margin.add_child(column)
@@ -28,6 +26,7 @@ func build() -> void:
 	scroll.name = "LobbyScroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	UiKit.style_scrollbar(scroll.get_v_scroll_bar())
 	column.add_child(scroll)
 	var card: PanelContainer = PanelContainer.new()
 	card.name = "LobbyCard"
@@ -45,6 +44,28 @@ func build() -> void:
 	screen._status.visible = false
 	screen._status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(screen._status)
+	_apply_layout(margin, column, card)
+	margin.resized.connect(_apply_layout.bind(margin, column, card))
+
+
+static func _apply_layout(margin: MarginContainer, column: VBoxContainer, card: PanelContainer) -> void:
+	var extent: Vector2 = margin.size
+	if extent.x <= 0.0 or extent.y <= 0.0:
+		var vp: Viewport = margin.get_viewport()
+		extent = vp.get_visible_rect().size if vp != null else Vector2(Settings.LANDSCAPE_BASE)
+	var wide: bool = extent.x > extent.y
+	if wide:
+		LobbyWidgets.apply_safe_area(margin, 24.0, 12.0)
+		column.add_theme_constant_override("separation", 10)
+		card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		card.custom_minimum_size.x = minf(820.0, maxf(560.0, extent.x - 96.0))
+		card.add_theme_stylebox_override("panel", KalyeahTheme.painted_panel(22.0))
+	else:
+		LobbyWidgets.apply_safe_area(margin, UiMetrics.PAGE_MARGIN, UiMetrics.PAGE_MARGIN)
+		column.add_theme_constant_override("separation", 16)
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.custom_minimum_size.x = 0.0
+		card.add_theme_stylebox_override("panel", KalyeahTheme.painted_panel(UiMetrics.PAGE_MARGIN))
 
 
 func _build_setup(parent: Control) -> void:

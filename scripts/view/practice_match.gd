@@ -78,6 +78,9 @@ var mode_view: StreetModeView
 var _hold_ticked: bool = false
 ## Tumbang Preso: where the held Throw button aims (radians, see `_angle_of`).
 var _throw_angle: float = 0.0
+## Cached screen-space MoveStick deflection so camera turns keep steering a steady thumb.
+var _stick_screen_way: Vector2 = Vector2.ZERO
+var _suppress_idle_behind: bool = false
 
 @onready var hud: MatchHud = %Hud
 @onready var _camera: ArenaCamera = %ArenaCamera
@@ -132,6 +135,7 @@ func _ready() -> void:
 	if not online:
 		hud.overhead.names[local_id] = Session.player_name  # the others are named after their kid (OverheadHud.name_of)
 	_presentation.connect_hud()
+	_ensure_locomotion_hud_signals()
 	_presentation.connect_sim()
 	_pick_screen.exit_requested.connect(_on_exit_pressed)
 	_pick_screen.confirmed.connect(_on_pick_confirmed)
@@ -452,7 +456,32 @@ func advance(delta: float) -> void:
 	if steps == MAX_STEPS_PER_FRAME:
 		_accumulator = 0.0
 	blend.set_progress(_accumulator, dt)
+	_sync_camera_locomotion(delta)
 	_presentation.sync(delta)
+
+
+func _sync_camera_locomotion(delta: float) -> void:
+	if _camera == null or _camera.rules == null or not _camera.rules.third_person or sim == null or not sim.players.has(local_id):
+		return
+	var player: PlayerState = sim.players[local_id]
+	var is_low: bool = not player.tagged and (player.crouching or player.slide_left > 0.0)
+	var air_height: float = 0.0 if player.tagged else player.air_y
+	_camera.sync_posture(is_low, air_height, delta)
+	if sim.mode != null or sim.phase != MatchSim.Phase.PLAYING or player.tagged:
+		_suppress_idle_behind = false
+		return
+	var screen_move: Vector2 = _pc_input.last_screen_way if _pc_input.last_screen_way != Vector2.ZERO else _stick_screen_way
+	var backpedaling: bool = screen_move.y > 0.35
+	var moving_forward_or_side: bool = (screen_move != Vector2.ZERO and not backpedaling) \
+		or player.has_move_target or player.dash_left > 0.0 or player.slide_left > 0.0
+	if backpedaling:
+		_suppress_idle_behind = true
+	elif moving_forward_or_side:
+		_suppress_idle_behind = false
+	if input.primary_held or input.card_held() or backpedaling or (_suppress_idle_behind and not moving_forward_or_side):
+		_camera.tick_manual_look(delta)
+		return
+	_camera.sync_behind_character(player.facing, moving_forward_or_side or input.stick != Vector2.ZERO, delta)
 
 
 ## Offline, the match stands still while the match menu or the briefing is open (a match against the clock of bots
@@ -584,9 +613,12 @@ func _local_input(tick: int) -> PlayerInput:
 	if not _application_focused or _application_paused or not controls_active() or is_picking() or hud.menu.visible:
 		_pc_input.reset(input)
 		input.clear()
+		_stick_screen_way = Vector2.ZERO
 		_stop_tilt()
 		return PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_AIM_CANCEL, tick)
 	steer_by_tilt(TiltInput.gravity())
+	if _stick_screen_way != Vector2.ZERO:
+		input.stick = _camera.ground_way(_stick_screen_way)
 	if sim.mode == null and _camera.rules.third_person:
 		_pc_input.poll_frame(input, _camera.ground_way, crosshair_point(), true)
 	if _camera.rules.third_person and input.card_held() and input.over_street:
@@ -665,7 +697,29 @@ func throw_released(cancel: bool) -> void:
 
 ## The movement knob or the joystick points `way` on screen (up the screen is -1): the way on the street that is, however the camera is turned.
 func knob_moved(way: Vector2) -> void:
+	_stick_screen_way = way
 	input.stick = _camera.ground_way(way)
+
+
+func jump_pressed() -> void:
+	input.press_jump()
+
+
+func crouch_changed(held: bool) -> void:
+	input.set_crouch(held)
+
+
+func slide_pressed() -> void:
+	input.press_slide()
+
+
+func _ensure_locomotion_hud_signals() -> void:
+	if hud.has_signal(&"jump_pressed") and hud.get_signal_connection_list(&"jump_pressed").is_empty():
+		hud.connect(&"jump_pressed", jump_pressed)
+	if hud.has_signal(&"crouch_changed") and hud.get_signal_connection_list(&"crouch_changed").is_empty():
+		hud.connect(&"crouch_changed", crouch_changed)
+	if hud.has_signal(&"slide_pressed") and hud.get_signal_connection_list(&"slide_pressed").is_empty():
+		hud.connect(&"slide_pressed", slide_pressed)
 
 
 ## The Kick or Dive button: one tap.
@@ -770,6 +824,7 @@ func _set_controls_active(active: bool) -> void:
 	if not active:
 		_pc_input.reset(input)
 		input.clear()
+		_stick_screen_way = Vector2.ZERO
 	# however the phone is held when the controls come back is level
 	_stop_tilt()
 
@@ -779,6 +834,7 @@ func _cancel_local_input() -> void:
 		hud.cancel_controls()
 	_pc_input.reset(input)
 	input.clear()
+	_stick_screen_way = Vector2.ZERO
 	input.pending_buttons = PlayerInput.BTN_AIM_CANCEL
 
 

@@ -7,6 +7,14 @@ const MAP_SCENE: PackedScene = preload("res://scenes/map/street_map.tscn")
 const BARANGAY_PROPS: Array[String] = [
 	"brgy_jeepney",
 	"brgy_tricycle",
+	"brgy_toda_shed",
+	"brgy_wooden_hoop",
+	"brgy_chb_wall",
+	"brgy_mango_tree",
+	"brgy_banana_clump",
+	"brgy_coconut_palm",
+	"brgy_sampayan_3d",
+	"brgy_powerup_stand",
 	"brgy_sorbetes_cart",
 	"brgy_poso_well",
 	"brgy_footbridge",
@@ -25,6 +33,9 @@ func _map() -> StreetMap:
 
 
 func test_every_barangay_prop_model_exists_light_and_single_surface() -> void:
+	assert_true(ResourceLoader.exists(BarangayProps.PROVINCE_ATLAS_PATH), "ProvincePropsAtlas.jpg exists")
+	for prop_key: StringName in BarangayProps.PROVINCE_90S_KEYS:
+		assert_true(BarangayProps.has_prop(prop_key), "%s registered in BarangayProps" % prop_key)
 	for id: String in BARANGAY_PROPS:
 		var path: String = StreetMap.BARANGAY_DIR % id
 		assert_true(ResourceLoader.exists(path), "%s exists in barangay kit" % id)
@@ -68,7 +79,7 @@ func test_estero_creek_bridges_spaghetti_wiring_and_sampayan_are_batched() -> vo
 	var map: StreetMap = _map()
 	var geometry: Node3D = map.get_node("%Geometry") as Node3D
 	var water_nodes: Array[Node] = geometry.find_children("EsteroWater*", "MeshInstance3D", false, false)
-	assert_eq(water_nodes.size(), map.layout.water_rects().size(), "Estero water plane for each creek channel segment")
+	assert_gt(water_nodes.size(), 0, "Walkable shallow mid canal renders EsteroWater mesh even when water_rects is empty")
 	for wn: Node in water_nodes:
 		var w_mi: MeshInstance3D = wn as MeshInstance3D
 		assert_eq(((w_mi.mesh as PlaneMesh).material as ShaderMaterial).shader, StreetMap.WATER_SHADER)

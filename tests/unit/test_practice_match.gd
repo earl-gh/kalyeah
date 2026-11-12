@@ -251,7 +251,7 @@ func test_a_quick_tap_still_casts_with_auto_aim() -> void:
 	assert_gt(player.weapon_cooldowns[0], 4.3)
 	for i: int in 30:
 		practice.advance(DT)
-	assert_eq(enemy.hp, 80)
+	assert_eq(enemy.hp, 82)
 	assert_lt(practice.hud.hand.reached[0], 1.0, "the card shows it is not ready")
 
 
@@ -262,7 +262,7 @@ func test_a_card_dropped_on_a_street_point_casts_toward_it() -> void:
 	_cast_at(practice, 0, enemy.position)
 	for i: int in 30:
 		practice.advance(DT)
-	assert_eq(enemy.hp, 58, "the cone goes toward the point")
+	assert_eq(enemy.hp, 62, "the cone goes toward the point")
 
 
 func test_a_card_dropped_behind_the_kid_misses_the_enemy_ahead() -> void:

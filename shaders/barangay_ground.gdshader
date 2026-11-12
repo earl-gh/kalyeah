@@ -1,6 +1,9 @@
 shader_type spatial;
-// Provincial Pinoy Barangay circular ground shader (Valorant clarity x Arcane brushwork x 90s Komiks ink).
-// Strict lighting discipline: diffuse albedo never exceeds 0.65 on any channel (zero white clipping).
+// Sunlit 90s Philippine Provincial Barangay circular ground shader (Overhaul v2):
+// - 3 wider main N-S pathways (West X = -34, Center X = 0, East X = +34) + 2 E-W alleys (Z = -26, +26)
+// - Shallow walkable mid canal bed across Z = 0 (NO mid bridge at X = 0!) with sloped Tabing-Ilog stone wading ramps
+// - Warm sunlit provincial concrete slabs, golden-ochre packed earth, damp green lumot (moss) patches,
+//   and soft warm-espresso slab seams (diffuse ALBEDO strictly <= 0.65 for zero white overexposure).
 render_mode cull_back, diffuse_burley, specular_schlick_ggx;
 
 uniform float arena_radius = 84.0;
@@ -57,56 +60,53 @@ void fragment() {
 	float fine_grain = value_noise(xz * 3.8);
 	float macro_var = fbm(xz * 0.085);
 	float brush_var = fbm(xz * 0.28 + vec2(grain * 0.65, -macro_var * 0.55));
+	float moss_noise = fbm(xz * 0.36 + vec2(17.4, -23.1));
 
 	// Inside circular barangay compound (r <= arena_radius)
 	float inside_arena = 1.0 - smoothstep(eff_radius - 1.2, eff_radius + 1.6, r);
 
-	// Organic barrio road & eskinita lane masks inside the 84m circle
-	float spine_wobble = sin(xz.y * 0.055) * 1.4;
-	float lane_spine = 1.0 - smoothstep(4.2, 4.9, abs(xz.x + spine_wobble));
-	// Flank lanes curving through West Talipapa & East Toda crossings
-	float flank_x = 46.0 - 0.14 * min(axz.y, 60.0);
-	float lane_flanks = (1.0 - smoothstep(3.4, 4.1, abs(axz.x - flank_x))) * (1.0 - smoothstep(58.0, 66.0, axz.y));
-	// Concentric barrio ring lanes & creek-bank walk
-	float ring_mid = 1.0 - smoothstep(2.6, 3.2, abs(r - 39.0));
-	float ring_outer = 1.0 - smoothstep(3.0, 3.7, abs(r - 64.0));
-	float creek_walk = (1.0 - smoothstep(2.4, 3.0, abs(axz.y - 9.2))) * (1.0 - smoothstep(eff_radius - 8.0, eff_radius - 3.0, axz.x));
+	// 3 Wider Main N-S Pathways (~12m wide: West X = -34 Tabing-Ilog/Karinderya, Center X = 0, East X = +34 TODA/Barberya)
+	float wobble_ns = sin(xz.y * 0.05) * 0.65;
+	float lane_center = (1.0 - smoothstep(5.6, 6.6, abs(xz.x + wobble_ns))) * (1.0 - smoothstep(66.0, 73.0, axz.y));
+	float lane_west = (1.0 - smoothstep(5.2, 6.2, abs(xz.x + 34.0 - wobble_ns * 0.7))) * (1.0 - smoothstep(56.0, 64.0, axz.y));
+	float lane_east = (1.0 - smoothstep(5.2, 6.2, abs(xz.x - 34.0 + wobble_ns * 0.7))) * (1.0 - smoothstep(56.0, 64.0, axz.y));
+	float main_ns_lanes = max(lane_center, max(lane_west, lane_east));
 
-	float asphalt_lane = clamp(max(max(lane_spine, lane_flanks), max(ring_outer, creek_walk * 0.85)), 0.0, 1.0) * inside_arena;
+	// 2 Connecting E-W Alleyways at Z = -26 and Z = +26 (~9.6m wide) + outer base connector ring (r ~ 62m)
+	float wobble_ew = cos(xz.x * 0.06) * 0.55;
+	float alley_ew = (1.0 - smoothstep(4.2, 5.1, abs(axz.y - 26.0 + wobble_ew))) * (1.0 - smoothstep(42.0, 50.0, axz.x));
+	float ring_outer = 1.0 - smoothstep(3.6, 4.5, abs(r - 62.0));
+	float canal_promenade = (1.0 - smoothstep(2.4, 3.2, abs(axz.y - 7.8))) * (1.0 - smoothstep(eff_radius - 7.0, eff_radius - 2.5, axz.x));
 
-	// Narrow barrio concrete slab eskinitas & residential walkways inside r <= 84m
-	float eskinita_diag = 1.0 - smoothstep(2.1, 2.6, abs(abs(xz.x) * 0.72 - abs(xz.y) * 0.58 + 4.0));
-	float concrete_pad = clamp(max(ring_mid, eskinita_diag * 0.9) + smoothstep(0.36, 0.68, macro_var) * 0.78, 0.0, 1.0) * inside_arena;
+	float road_lane = clamp(max(max(main_ns_lanes, alley_ew), ring_outer * 0.92), 0.0, 1.0) * inside_arena;
+	float concrete_pad = clamp(max(alley_ew, canal_promenade) + smoothstep(0.34, 0.68, macro_var) * 0.80, 0.0, 1.0) * inside_arena;
 
-	// Estero / Sapa creek bed mask (narrow drainage creek around z = 0, spared at the 3 bridges)
-	float bridge_center = 1.0 - smoothstep(7.2, 7.8, axz.x);
-	float bridge_flanks = max(
-		1.0 - smoothstep(5.8, 6.4, abs(axz.x - 46.0)),
-		1.0 - smoothstep(5.8, 6.4, abs(axz.x - 67.0))
-	);
-	float bridge_span = clamp(max(bridge_center, bridge_flanks), 0.0, 1.0);
-	float in_creek_bed = (1.0 - smoothstep(5.0, 5.8, axz.y)) * (1.0 - bridge_span) * inside_arena;
+	// Continuous Shallow Walkable Mid Canal Bed across Z = 0 (NO mid bridge at X = 0!)
+	float in_canal_bed = (1.0 - smoothstep(4.0, 4.9, axz.y)) * inside_arena;
+	float canal_bank_zone = smoothstep(3.6, 4.6, axz.y) * (1.0 - smoothstep(6.8, 8.8, axz.y)) * inside_arena;
 
-	// 1. Compacted brown provincial earth & outer barangay countryside (r > 84m & between lanes)
-	vec3 earth_dry = vec3(0.41, 0.31, 0.22);
-	vec3 earth_damp = vec3(0.27, 0.20, 0.15);
-	vec3 earth_col = mix(earth_damp, earth_dry, clamp(brush_var * 0.75 + fine_grain * 0.25, 0.0, 1.0));
-	// Sparse interior damuhan weeds inside the compound
-	float weed_mask = smoothstep(0.60, 0.82, fbm(xz * 0.42 + 19.4)) * (1.0 - asphalt_lane);
-	earth_col = mix(earth_col, vec3(0.22, 0.28, 0.16), weed_mask * 0.55);
+	// Soft warm-espresso pen/mortar tone (replaces harsh #141016 black comic ink)
+	vec3 warm_espresso = vec3(0.20, 0.16, 0.14);
 
-	// Outer provincial countryside beyond the 84m perimeter (r >= 86m):
-	// dark-olive damuhan/talahib grass patches + meandering earthen footpaths (zero square borders).
-	float outer_zone = smoothstep(eff_radius + 2.0, eff_radius + 9.5, r);
+	// 1. Warm sunlit golden-ochre & sandy provincial earth (between slabs & outside 84m perimeter)
+	vec3 earth_sunlit = vec3(0.52, 0.42, 0.31);
+	vec3 earth_warm = vec3(0.41, 0.33, 0.24);
+	vec3 earth_col = mix(earth_warm, earth_sunlit, clamp(brush_var * 0.72 + fine_grain * 0.28, 0.0, 1.0));
+	// Sunlit tropical grass tufts on unpaved earth pockets
+	float grass_tuft = smoothstep(0.56, 0.80, fbm(xz * 0.40 + 19.4)) * (1.0 - road_lane);
+	earth_col = mix(earth_col, vec3(0.30, 0.42, 0.21), grass_tuft * 0.58);
+
+	// Outer sunlit provincial countryside beyond the 84m perimeter (r >= 85m):
+	// lively tropical damuhan grass + warm sandy footpaths (pilapil / landas), zero square borders.
+	float outer_zone = smoothstep(eff_radius + 1.5, eff_radius + 9.0, r);
 	if (outer_zone > 0.001) {
 		float meadow_macro = fbm(xz * 0.055 + vec2(31.2, -17.8));
 		float meadow_detail = fbm(xz * 0.24 - vec2(9.4, 22.1));
-		float olive_patch = smoothstep(0.36, 0.66, meadow_macro * 0.68 + meadow_detail * 0.32);
-		vec3 dark_olive = mix(vec3(0.14, 0.21, 0.11), vec3(0.21, 0.28, 0.14), meadow_detail);
-		vec3 sun_grass = vec3(0.33, 0.29, 0.17);
-		vec3 outer_grass = mix(dark_olive, sun_grass, smoothstep(0.66, 0.88, grain) * 0.48);
+		float grass_patch = smoothstep(0.32, 0.65, meadow_macro * 0.66 + meadow_detail * 0.34);
+		vec3 lush_grass = mix(vec3(0.24, 0.37, 0.18), vec3(0.32, 0.45, 0.22), meadow_detail);
+		vec3 sun_meadow = vec3(0.47, 0.44, 0.27);
+		vec3 outer_grass = mix(lush_grass, sun_meadow, smoothstep(0.62, 0.86, grain) * 0.46);
 
-		// Organic meandering provincial earthen footpaths (pilapil / landas) radiating & curving past r = 90m
 		float warp_ang = theta + sin(r * 0.048 + macro_var * 2.6) * 0.28 + (brush_var - 0.5) * 0.16;
 		float radial_spoke = abs(sin(warp_ang * 3.0 + 0.45)) * r;
 		float radial_path = 1.0 - smoothstep(1.6, 3.1, radial_spoke);
@@ -114,82 +114,88 @@ void fragment() {
 		float loop_path = 1.0 - smoothstep(1.3, 2.5, abs(r - loop_radius));
 		float footpath = clamp(max(radial_path, loop_path), 0.0, 1.0) * (1.0 - smoothstep(126.0, 142.0, r));
 
-		vec3 path_clay = mix(vec3(0.32, 0.24, 0.17), vec3(0.43, 0.33, 0.23), fine_grain * 0.65 + grain * 0.35);
-		float path_edge_ink = smoothstep(0.15, 0.45, footpath) * (1.0 - smoothstep(0.55, 0.85, footpath));
-		path_clay = mix(path_clay, vec3(0.13, 0.11, 0.10), path_edge_ink * 0.28);
-
-		vec3 countryside = mix(earth_col, outer_grass, olive_patch * 0.86);
-		countryside = mix(countryside, path_clay, footpath * 0.90);
+		vec3 path_sand = mix(vec3(0.44, 0.36, 0.26), vec3(0.54, 0.45, 0.33), fine_grain * 0.65 + grain * 0.35);
+		vec3 countryside = mix(earth_col, outer_grass, grass_patch * 0.88);
+		countryside = mix(countryside, path_sand, footpath * 0.88);
 		earth_col = mix(earth_col, countryside, outer_zone);
 	}
 
-	// 2. Cracked wet barrio cement slabs (strictly <= 0.52)
-	vec3 cement_lit = vec3(0.49, 0.46, 0.42);
-	vec3 cement_worn = vec3(0.37, 0.35, 0.33);
-	vec3 concrete_col = mix(cement_lit, cement_worn, clamp(brush_var * wear, 0.0, 1.0));
-	float wet_slab = smoothstep(0.56, 0.78, fbm(xz * 0.21 + 7.3)) * wear;
-	concrete_col = mix(concrete_col, vec3(0.28, 0.27, 0.26), wet_slab * 0.52);
+	// 2. Sunlit provincial poured-concrete barangay slabs (warm cream-stone, <= 0.59)
+	vec3 cement_sun = vec3(0.58, 0.54, 0.48);
+	vec3 cement_shaded = vec3(0.46, 0.43, 0.39);
+	vec3 concrete_col = mix(cement_sun, cement_shaded, clamp(brush_var * wear * 0.85, 0.0, 1.0));
+	float damp_slab = smoothstep(0.60, 0.82, fbm(xz * 0.21 + 7.3)) * wear;
+	concrete_col = mix(concrete_col, vec3(0.39, 0.37, 0.34), damp_slab * 0.42);
 
-	// Concrete pour expansion joints (2.4m slabs) + komiks diagonal slab cracks
-	float slab_seam = grid_line(xz / 2.4, 1.15);
-	vec2 crack_uv = xz * 0.42 + vec2(grain * 0.55, brush_var * 0.55);
+	// 3.0m concrete expansion joints + delicate warm-espresso hairline cracks
+	float slab_seam = grid_line(xz / 3.0, 1.05);
+	vec2 crack_uv = xz * 0.38 + vec2(grain * 0.50, brush_var * 0.50);
 	float crack_field = abs(fract(crack_uv.x + crack_uv.y * 0.73) - 0.5);
-	float crack_line = (1.0 - smoothstep(0.008, 0.026, crack_field)) * smoothstep(0.52, 0.74, macro_var) * wear;
-	vec3 komiks_ink = vec3(0.09, 0.08, 0.10);
-	concrete_col = mix(concrete_col, komiks_ink, clamp(slab_seam * 0.48 + crack_line * 0.55, 0.0, 0.72));
+	float crack_line = (1.0 - smoothstep(0.007, 0.022, crack_field)) * smoothstep(0.58, 0.78, macro_var) * wear;
+	concrete_col = mix(concrete_col, warm_espresso, clamp(slab_seam * 0.28 + crack_line * 0.32, 0.0, 0.45));
 
-	// 3. Worn barrio asphalt lanes
-	vec3 asphalt_col = mix(vec3(0.18, 0.19, 0.21), vec3(0.27, 0.27, 0.29), grain * 0.65 + fine_grain * 0.35);
-	float tire_rut = exp(-pow((abs(xz.x + spine_wobble) - 1.6) * 1.1, 2.0)) * lane_spine;
-	asphalt_col *= 1.0 - tire_rut * 0.12;
-	// Faded painted barrio lane center dashes (warm ochre-amber, capped well below 0.65)
-	float center_dash = (1.0 - smoothstep(0.09, 0.16, abs(xz.x + spine_wobble))) * step(0.48, fract(xz.y * 0.18)) * lane_spine * (1.0 - in_creek_bed);
-	float paint_chip = smoothstep(0.28, 0.62, grain * wear);
-	asphalt_col = mix(asphalt_col, vec3(0.56, 0.45, 0.22), center_dash * (1.0 - paint_chip * 0.45) * 0.72);
+	// 3. Sun-bleached warm barrio road macadam / concrete lanes along X = {-34, 0, +34}
+	vec3 road_col = mix(vec3(0.38, 0.36, 0.35), vec3(0.48, 0.45, 0.42), grain * 0.62 + fine_grain * 0.38);
+	float road_seam = grid_line(xz / 3.0, 0.95) * 0.22;
+	road_col = mix(road_col, warm_espresso, road_seam);
+	// Faded warm mango-ochre barrio center dashes on the 3 main N-S pathways (spared across the shallow canal)
+	float nearest_lane_dx = min(abs(xz.x + wobble_ns), min(abs(xz.x + 34.0 - wobble_ns * 0.7), abs(xz.x - 34.0 + wobble_ns * 0.7)));
+	float center_dash = (1.0 - smoothstep(0.09, 0.16, nearest_lane_dx)) * step(0.50, fract(xz.y * 0.16)) * main_ns_lanes * (1.0 - in_canal_bed) * (1.0 - canal_bank_zone * 0.6);
+	float paint_chip = smoothstep(0.30, 0.66, grain * wear);
+	road_col = mix(road_col, vec3(0.61, 0.50, 0.28), center_dash * (1.0 - paint_chip * 0.42) * 0.68);
 
-	// 4. Mossy kanal street-edge gutters & komiks cross-hatching along lane borders
-	float kanal_band = smoothstep(0.08, 0.38, asphalt_lane) * (1.0 - smoothstep(0.62, 0.92, asphalt_lane));
-	float grate_rib = step(0.55, fract((xz.x + xz.y) * 2.6));
-	vec3 kanal_moss = mix(vec3(0.14, 0.16, 0.15), vec3(0.17, 0.25, 0.14), smoothstep(0.35, 0.70, grain));
-	kanal_moss = mix(kanal_moss, komiks_ink, grate_rib * 0.32);
-
-	// Compose base ground from earth -> concrete eskinitas -> asphalt lanes -> mossy kanal gutters
+	// Compose sunlit ground layers
 	vec3 col = mix(earth_col, concrete_col, concrete_pad);
-	col = mix(col, asphalt_col, asphalt_lane);
-	col = mix(col, kanal_moss, kanal_band * 0.88);
+	col = mix(col, road_col, road_lane);
 
-	// Subtle painted 90s Komiks pen hatch lines in worn concrete & gutter shadows
-	float hatch_stripe = 1.0 - smoothstep(0.06, 0.18, abs(fract((xz.x - xz.y) * 3.4) - 0.5));
-	float hatch_mask = (kanal_band * 0.65 + crack_line * 0.45 + smoothstep(0.68, 0.86, macro_var) * concrete_pad * 0.35) * wear;
-	col = mix(col, komiks_ink, clamp(hatch_stripe * hatch_mask * 0.34, 0.0, 0.40));
+	// 4. Realistic damp green lumot (moss) along canal banks, street gutters, slab seams, and perimeter CHB wall bases
+	float gutter_band = smoothstep(0.06, 0.34, road_lane) * (1.0 - smoothstep(0.66, 0.94, road_lane));
+	float perim_wall_moss = (1.0 - smoothstep(0.0, 4.8, abs(r - (eff_radius - 0.8)))) * inside_arena;
+	float lumot_carrier = clamp(gutter_band * 0.78 + canal_bank_zone * 0.92 + perim_wall_moss * 0.85 + slab_seam * concrete_pad * (1.0 - main_ns_lanes * 0.65) * 0.45, 0.0, 1.0);
+	float lumot_mask = smoothstep(0.42, 0.70, moss_noise * 0.72 + fine_grain * 0.28) * lumot_carrier * wear;
+	vec3 lumot_col = mix(vec3(0.22, 0.36, 0.17), vec3(0.32, 0.46, 0.21), grain);
+	col = mix(col, lumot_col, clamp(lumot_mask * 0.78, 0.0, 0.78));
 
-	// Rain puddles on provincial earth & worn concrete corners (dark wet albedo + low roughness, tapered out past r = 104m)
+	// Shallow sunlit damp patches after a brief provincial shower (subtle warm reflection, not dark mud)
 	float puddle_noise = fbm(xz * 0.19 - vec2(13.7, 8.2));
 	float puddle_fade = 1.0 - smoothstep(96.0, 112.0, r);
-	float puddle_mask = smoothstep(0.67, 0.76, puddle_noise) * (1.0 - asphalt_lane * 0.75) * (1.0 - in_creek_bed) * wear * puddle_fade;
-	float puddle_rim = smoothstep(0.64, 0.68, puddle_noise) * (1.0 - puddle_mask) * wear * puddle_fade;
-	col = mix(col, vec3(0.16, 0.15, 0.15), puddle_mask * 0.62);
-	col = mix(col, komiks_ink, puddle_rim * 0.25);
+	float puddle_mask = smoothstep(0.71, 0.79, puddle_noise) * (1.0 - road_lane * 0.80) * (1.0 - in_canal_bed) * wear * puddle_fade;
+	col = mix(col, col * 0.80 + vec3(0.04, 0.05, 0.05), puddle_mask * 0.55);
 
-	// Central Rotonda / Poso Well radial stone apron around (0, 0)
-	if (r < 11.5) {
-		float hub_blend = (1.0 - smoothstep(10.2, 11.5, r)) * (1.0 - in_creek_bed * 0.4);
-		float cobble_ring = abs(fract(r * 0.55) - 0.5);
-		float cobble_spoke = abs(fract(theta * 3.82) - 0.5);
-		float mortar = 1.0 - smoothstep(0.04, 0.11, min(cobble_ring, cobble_spoke));
-		vec3 poso_stone = mix(vec3(0.44, 0.38, 0.32), vec3(0.51, 0.45, 0.38), grain);
-		poso_stone = mix(poso_stone, vec3(0.38, 0.26, 0.20), 1.0 - smoothstep(2.4, 2.9, r));
-		poso_stone = mix(poso_stone, komiks_ink, mortar * 0.42);
-		col = mix(col, poso_stone, hub_blend * 0.88);
+	// 5. Sloped Tabing-Ilog river-stone wading aprons & shallow pebble canal bed across Z = 0
+	float d_powerup = min(length(xz - vec2(-34.0, 0.0)), min(length(xz), length(xz - vec2(34.0, 0.0))));
+	if (axz.y < 8.2 && inside_arena > 0.01) {
+		float ford_lane = max(lane_center, max(lane_west, lane_east));
+		// Smooth river-cobble wading ramp along canal banks (4.0..7.6m)
+		float ramp_mask = smoothstep(3.8, 4.5, axz.y) * (1.0 - smoothstep(6.2, 7.8, axz.y)) * (0.55 + 0.45 * ford_lane) * inside_arena;
+		float cobble_n = value_noise(xz * 2.6 + vec2(grain * 0.8, 0.0));
+		vec3 river_stone = mix(vec3(0.45, 0.43, 0.39), vec3(0.55, 0.51, 0.45), cobble_n);
+		river_stone = mix(river_stone, lumot_col, smoothstep(0.58, 0.82, moss_noise) * 0.38);
+		col = mix(col, river_stone, ramp_mask * 0.85);
+
+		// Sunlit shallow river-pebble & aqua-tinted silt bed beneath the walkable turquoise canal
+		if (in_canal_bed > 0.01) {
+			float pebble = value_noise(xz * 3.4);
+			vec3 bed_stone = mix(vec3(0.28, 0.38, 0.34), vec3(0.42, 0.47, 0.40), pebble * 0.65 + grain * 0.35);
+			bed_stone = mix(bed_stone, vec3(0.24, 0.39, 0.24), smoothstep(0.62, 0.84, moss_noise) * 0.35);
+			// Subtle carved stone stepping rondels under the 3 canal power-up spots (-34,0), (0,0), (+34,0)
+			if (d_powerup < 3.4) {
+				float rondel = 1.0 - smoothstep(2.6, 3.2, d_powerup);
+				float ring_groove = 1.0 - smoothstep(0.06, 0.14, abs(d_powerup - 2.1));
+				vec3 stand_stone = mix(vec3(0.48, 0.46, 0.40), vec3(0.57, 0.52, 0.42), grain);
+				stand_stone = mix(stand_stone, warm_espresso, ring_groove * 0.35);
+				bed_stone = mix(bed_stone, stand_stone, rondel * 0.82);
+			}
+			col = mix(col, bed_stone, in_canal_bed);
+		}
 	}
 
-	// 5. South Half-Court rustic painted basketball lines at own_base_center (default 0, +64)
+	// 6. South Half-Court sunlit barrio basketball court lines at own_base_center (default 0, +64)
 	vec2 d_south = xz - own_base_center;
 	if (abs(d_south.x) < 13.8 && abs(d_south.y) < 13.8) {
 		float court_scuff = clamp(grain * 0.7 + fine_grain * 0.3, 0.0, 1.0) * wear;
-		vec3 court_slab = mix(vec3(0.21, 0.34, 0.28), concrete_col, court_scuff * 0.42);
-		vec3 key_paint = mix(vec3(0.47, 0.24, 0.19), concrete_col, court_scuff * 0.36);
-		// Key lane toward the south baseline + free-throw circle + 3-point arc
+		vec3 court_slab = mix(vec3(0.29, 0.46, 0.39), concrete_col, court_scuff * 0.40);
+		vec3 key_paint = mix(vec3(0.55, 0.33, 0.25), concrete_col, court_scuff * 0.34);
 		float key_dir = own_base_center.y >= 0.0 ? 1.0 : -1.0;
 		float local_y = d_south.y * key_dir;
 		float in_key = step(abs(d_south.x), 3.2) * step(2.2, local_y) * step(local_y, 11.6);
@@ -209,69 +215,59 @@ void fragment() {
 		float half_line = (1.0 - smoothstep(0.09, 0.17, abs(local_y + 11.6))) * step(abs(d_south.x), 10.9);
 		float court_lines = clamp(max(max(outer_box, key_border), max(max(ft_circle, arc_3pt), half_line)), 0.0, 1.0);
 
-		// Rustic weathered cream-ochre paint (strictly <= 0.62, chipped by street wear)
-		float line_wear = 1.0 - smoothstep(0.58, 0.88, fine_grain * wear) * 0.42;
-		vec3 rustic_line_col = vec3(0.61, 0.56, 0.45);
+		float line_wear = 1.0 - smoothstep(0.58, 0.88, fine_grain * wear) * 0.38;
+		vec3 rustic_line_col = vec3(0.64, 0.60, 0.50);
 		court_col = mix(court_col, rustic_line_col, court_lines * line_wear);
 		float court_blend = (1.0 - smoothstep(12.2, 13.6, abs(d_south.x))) * (1.0 - smoothstep(12.2, 13.6, abs(d_south.y)));
 		col = mix(col, court_col, court_blend * 0.94);
 	}
 
-	// 6. North Barrio Plaza terracotta & sandstone tiles at enemy_base_center (default 0, -64)
+	// 7. North Barrio Plaza sunlit terracotta & warm sandstone tiles at enemy_base_center (default 0, -64)
 	vec2 d_north = xz - enemy_base_center;
 	if (abs(d_north.x) < 13.8 && abs(d_north.y) < 13.8) {
 		vec2 tile_uv = d_north * 0.85;
 		vec2 tile_id = floor(tile_uv);
 		float checker = mod(tile_id.x + tile_id.y, 2.0);
-		float tile_mortar = grid_line(tile_uv, 1.25);
-		vec3 clay_tile = vec3(0.47, 0.29, 0.22);
-		vec3 adobe_tile = vec3(0.53, 0.46, 0.37);
-		vec3 plaza_col = mix(adobe_tile, clay_tile, checker * 0.72);
-		plaza_col *= 0.90 + 0.14 * value_noise(tile_id * 1.7);
-		// Faded barrio sun-seal ring & mortar ink
+		float tile_mortar = grid_line(tile_uv, 1.15);
+		vec3 clay_tile = vec3(0.54, 0.36, 0.27);
+		vec3 adobe_tile = vec3(0.59, 0.53, 0.44);
+		vec3 plaza_col = mix(adobe_tile, clay_tile, checker * 0.68);
+		plaza_col *= 0.92 + 0.12 * value_noise(tile_id * 1.7);
 		float seal_ring = 1.0 - smoothstep(0.12, 0.24, abs(length(d_north) - 5.4));
-		plaza_col = mix(plaza_col, vec3(0.58, 0.45, 0.22), seal_ring * 0.82);
-		plaza_col = mix(plaza_col, komiks_ink, tile_mortar * 0.50);
+		plaza_col = mix(plaza_col, vec3(0.62, 0.50, 0.28), seal_ring * 0.78);
+		plaza_col = mix(plaza_col, warm_espresso, tile_mortar * 0.34);
 		float plaza_blend = (1.0 - smoothstep(12.2, 13.6, abs(d_north.x))) * (1.0 - smoothstep(12.2, 13.6, abs(d_north.y)));
 		col = mix(col, plaza_col, plaza_blend * 0.94);
 	}
 
-	// Creek bed mossy silt & stone under Estero water
-	if (in_creek_bed > 0.01) {
-		vec3 creek_bed = mix(vec3(0.11, 0.17, 0.14), vec3(0.18, 0.24, 0.18), grain);
-		col = mix(col, creek_bed, in_creek_bed);
-	}
-
-	// Circular 84m barangay boundary kanal curb ring
+	// Circular 84m barangay boundary mossy concrete curb ring
 	float ring_edge = abs(r - eff_radius);
 	if (ring_edge < 1.1) {
 		float curb_joint = step(0.5, fract(theta * 28.0));
-		vec3 perim_curb = mix(vec3(0.36, 0.33, 0.28), vec3(0.20, 0.24, 0.17), curb_joint * 0.55);
-		perim_curb = mix(perim_curb, komiks_ink, 1.0 - smoothstep(0.0, 0.18, abs(ring_edge - 0.45)));
+		vec3 perim_curb = mix(vec3(0.47, 0.44, 0.38), lumot_col, curb_joint * 0.42 + smoothstep(0.45, 0.75, moss_noise) * 0.35);
+		perim_curb = mix(perim_curb, warm_espresso, (1.0 - smoothstep(0.0, 0.16, abs(ring_edge - 0.45))) * 0.42);
 		float ring_mask = 1.0 - smoothstep(0.35, 1.05, ring_edge);
-		col = mix(col, perim_curb, ring_mask * 0.82);
+		col = mix(col, perim_curb, ring_mask * 0.80);
 	}
 
-	// Radial edge feathering into warm golden-hour horizon haze (r = 102..142m) and sky-dome ground match (r = 142..176m)
-	// so high bird's-eye overview never reveals a square outer PlaneMesh boundary or corner seam.
+	// Seamless radial feather into warm sunlit horizon earth & tropical_sky.gdshader ground_color (0.40, 0.34, 0.27)
 	float radial_wobble = (macro_var - 0.5) * 11.0 + (brush_var - 0.5) * 4.5;
 	float haze_fade = smoothstep(102.0, 142.0, r + radial_wobble);
-	vec3 golden_haze_earth = mix(vec3(0.39, 0.29, 0.20), vec3(0.31, 0.24, 0.18), smoothstep(112.0, 142.0, r));
-	col = mix(col, golden_haze_earth, haze_fade * 0.90);
+	vec3 sunlit_haze_earth = mix(vec3(0.46, 0.39, 0.29), vec3(0.41, 0.35, 0.28), smoothstep(112.0, 142.0, r));
+	col = mix(col, sunlit_haze_earth, haze_fade * 0.88);
 
 	float outer_span = max(r, max(axz.x, axz.y) * 0.98);
 	float skirt_fade = smoothstep(140.0, 174.0, outer_span + radial_wobble * 0.45);
-	// Matches tropical_sky.gdshader's lower hemisphere ground_color (0.25, 0.20, 0.18) under StreetMap golden-hour light.
-	col = mix(col, vec3(0.24, 0.20, 0.19), skirt_fade);
+	col = mix(col, vec3(0.40, 0.34, 0.27), skirt_fade);
 
-	// Silence unused uniform optimization warning if arena_half is set from GDScript while keeping zero square border.
+	// Keep arena_half active without introducing a square border seam.
 	col += vec3(0.000001) * clamp(arena_half.x + arena_half.y, 0.0, 1.0);
 
 	// Hard anti-overexposure guarantee: max RGB <= 0.65 everywhere.
-	ALBEDO = clamp(col, vec3(0.04), vec3(0.65));
-	float base_rough = mix(0.92, 0.76, max(asphalt_lane, concrete_pad * 0.6));
-	base_rough = mix(base_rough, 0.58, wet_slab * concrete_pad);
-	base_rough = mix(base_rough, 0.26, puddle_mask);
-	ROUGHNESS = mix(base_rough, 0.98, clamp(haze_fade * 0.85 + skirt_fade, 0.0, 1.0));
+	ALBEDO = clamp(col, vec3(0.08), vec3(0.65));
+	float base_rough = mix(0.90, 0.78, max(road_lane, concrete_pad * 0.65));
+	base_rough = mix(base_rough, 0.62, damp_slab * concrete_pad);
+	base_rough = mix(base_rough, 0.30, puddle_mask);
+	ROUGHNESS = mix(base_rough, 0.96, clamp(haze_fade * 0.85 + skirt_fade, 0.0, 1.0));
 	METALLIC = 0.0;
 }

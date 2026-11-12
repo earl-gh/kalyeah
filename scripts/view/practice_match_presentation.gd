@@ -22,7 +22,19 @@ const KICK_STARS: int = 6
 const KICK_DUST: int = 4
 const KICK_SHAKE: float = 0.15
 const DASH_SHAKE: float = 0.07
+const SLIDE_SHAKE: float = 0.05
+const LAND_SHAKE: float = 0.04
 const ULTIMATE_SHAKE: float = 0.30
+const JUMP_DUST: int = 4
+const SLIDE_DUST: int = 4
+const SLIDE_STREAK_WIDTH: float = 0.48
+const SLIDE_STREAK_LIFE: float = 0.24
+const SLIDE_STREAK_COLOR: Color = Color(0.96, 0.92, 0.82, 0.42)
+const CANAL_HALF_WIDTH_Z: float = 4.6
+const CANAL_BRIDGE_X: float = 34.0
+const CANAL_BRIDGE_HALF_W: float = 6.2
+const CANAL_SPLASH_COLOR: Color = Color(0.62, 0.92, 0.98, 0.62)
+const CANAL_WADE_INTERVAL: float = 0.28
 
 var owner: PracticeMatch
 ## The side of the street the picture has at the bottom (Patintero turns it round when the local team changes roles).
@@ -44,6 +56,9 @@ var _cone_caster_id: int = -1
 var _cone_weapon_id: StringName = &""
 var _last_caster_by_weapon: Dictionary[StringName, int] = {}
 var _last_hit_weapon: Dictionary[int, StringName] = {}
+var _was_airborne_by_id: Dictionary[int, bool] = {}
+var _was_sliding_by_id: Dictionary[int, bool] = {}
+var _wade_cd_by_id: Dictionary[int, float] = {}
 
 
 ## The arena starts this far (UI pixels) below the header, so its shadow falls on the street's end and not on the play.
@@ -117,6 +132,12 @@ func connect_hud() -> void:
 		owner.input.press_dash())
 	owner.hud.ultimate_pressed.connect(func() -> void:
 		owner.input.press_ultimate(owner.crosshair_point()))
+	if owner.hud.has_signal(&"jump_pressed"):
+		owner.hud.connect(&"jump_pressed", owner.jump_pressed)
+	if owner.hud.has_signal(&"crouch_changed"):
+		owner.hud.connect(&"crouch_changed", owner.crouch_changed)
+	if owner.hud.has_signal(&"slide_pressed"):
+		owner.hud.connect(&"slide_pressed", owner.slide_pressed)
 	owner.hud.set_chat_enabled(true)
 	owner.hud.chat.said.connect(_send_sticker)
 	owner.hud.street_pad.knob_moved.connect(owner.knob_moved)
@@ -173,6 +194,9 @@ func connect_sim() -> void:
 	owner.sim.match_won.connect(_on_match_won)
 	owner.sim.point_reset.connect(func() -> void:
 		_last_hit_weapon.clear()
+		_was_airborne_by_id.clear()
+		_was_sliding_by_id.clear()
+		_wade_cd_by_id.clear()
 		owner.hud.street.release())
 	owner.sim.intro_finished.connect(func() -> void:
 		owner.show_banner("GO!"))
@@ -418,7 +442,8 @@ func sync(delta: float) -> void:
 	owner.hud.tag_toast.tick(delta)
 	owner.hud.marker.tick(delta)
 	owner.hud.sync_score(owner.sim, owner.local_team, delta, owner.local_id)
-	owner._camera.set_speed_boost(player.sprinting or player.dash_left > 0.0)
+	var local_sliding: bool = player.slide_left > 0.0
+	owner._camera.set_speed_boost(player.sprinting or player.dash_left > 0.0 or local_sliding)
 	# the landscape camera keeps your kid in the middle (CameraRules.follow); the fixed one ignores this
 	owner._camera.follow(owner.blend.kid(player))
 	if owner._camera.near_side() != _near_side:
@@ -483,8 +508,7 @@ func refresh_kids() -> void:
 
 ## The drawn can's height (m): the lata's, at the kids' view scale.
 func _can_drawn_height() -> float:
-	var lata_entry: Array = WeaponModel.OBJECTS[&"lata"]
-	return float(lata_entry[1]) * owner._camera.rules.kid_view_scale * StreetModeView.CAN_SCALE
+	return WeaponModel._spec_length(WeaponModel.OBJECTS[&"lata"]) * owner._camera.rules.kid_view_scale * StreetModeView.CAN_SCALE
 
 
 ## A kid that picks the can up scoops it with both hands (`KidModel.play_pickup`); one that loses it any other way than setting it down
@@ -529,11 +553,80 @@ func _sync_actor(state: PlayerState, delta: float) -> void:
 	if view == null:
 		make_actor_view(state)
 		view = owner._views[state.id]
-	# the kid's own Airborne clip already leaves the ground: no extra lift
 	var at: Vector2 = owner.blend.kid(state)
-	view.position = Vector3(at.x, owner.mode_view.ground_height(at), at.y)  # (Langit Lupa: up on a langit)
+	var ground_y: float = owner.mode_view.ground_height(at)
+	view.position = Vector3(at.x, ground_y, at.y)  # (Langit Lupa: up on a langit; KidModel._body.position.y adds state.air_y)
 	view.face(state.facing)
-	view.animate(delta, minf(view.ground_speed(state.position, delta), 20.0), state)
+	var speed: float = minf(view.ground_speed(state.position, delta), 20.0)
+	view.animate(delta, speed, state)
+	_sync_locomotion_fx(state, at, ground_y, speed, delta)
+
+
+func _in_shallow_canal(at: Vector2) -> bool:
+	if not owner.layout.is_circular():
+		return false
+	if absf(at.y) > CANAL_HALF_WIDTH_Z:
+		return false
+	if absf(absf(at.x) - CANAL_BRIDGE_X) < CANAL_BRIDGE_HALF_W:
+		return false
+	return at.length() < owner.layout.arena_radius - 6.0
+
+
+func _sync_locomotion_fx(state: PlayerState, at: Vector2, ground_y: float, speed: float, delta: float) -> void:
+	var id: int = state.id
+	var air_y: float = state.air_y
+	var slide_left: float = state.slide_left
+	var slide_dir: Vector2 = state.slide_dir
+	var in_air: bool = not state.tagged and air_y > 0.015
+	var was_air: bool = _was_airborne_by_id.get(id, false)
+	_was_airborne_by_id[id] = in_air
+
+	var sliding: bool = not state.tagged and slide_left > 0.0
+	var was_sliding: bool = _was_sliding_by_id.get(id, false)
+	_was_sliding_by_id[id] = sliding
+
+	var wade_cd: float = maxf(0.0, _wade_cd_by_id.get(id, 0.0) - delta)
+	var in_canal: bool = not state.tagged and ground_y <= 0.05 and _in_shallow_canal(at)
+	var context: FxContext = owner._fx.context()
+	var calm: bool = Settings.reduced_motion
+
+	if in_air and not was_air and not calm:
+		if in_canal:
+			context.ground.ring(at, 0.30, 1.15, CANAL_SPLASH_COLOR, 0.30, false)
+		else:
+			context.particles.puff(FxParticles.Preset.DUST, Vector3(at.x, ground_y, at.y), JUMP_DUST)
+	elif not in_air and was_air and not state.tagged:
+		if not calm:
+			if in_canal:
+				context.ground.ring(at, 0.35, 1.35, CANAL_SPLASH_COLOR, 0.34, false)
+			else:
+				context.particles.puff(FxParticles.Preset.DUST, Vector3(at.x, ground_y, at.y), JUMP_DUST)
+		if id == owner.local_id:
+			owner._camera.shake(LAND_SHAKE)
+
+	if sliding and not was_sliding:
+		if not calm:
+			var way: Vector2 = slide_dir.normalized() if slide_dir.length_squared() > 0.0001 else state.facing
+			if in_canal:
+				context.ground.ring(at, 0.35, 1.45, CANAL_SPLASH_COLOR, 0.34, false)
+			else:
+				context.particles.puff(FxParticles.Preset.DUST, Vector3(at.x, ground_y, at.y), SLIDE_DUST)
+				if way.length_squared() > 0.0001:
+					var streak_to: Vector2 = at + way * 2.4
+					context.ground.trail(
+						Vector3(at.x, ground_y + DIVE_STREAK_LIFT, at.y),
+						Vector3(streak_to.x, ground_y + DIVE_STREAK_LIFT, streak_to.y),
+						SLIDE_STREAK_WIDTH,
+						SLIDE_STREAK_COLOR,
+						SLIDE_STREAK_LIFE
+					)
+		if id == owner.local_id:
+			owner._camera.shake(SLIDE_SHAKE)
+
+	if in_canal and not in_air and speed > 0.6 and wade_cd <= 0.0 and not calm:
+		context.ground.ring(at, 0.25, 0.95, CANAL_SPLASH_COLOR, 0.28, false)
+		wade_cd = CANAL_WADE_INTERVAL
+	_wade_cd_by_id[id] = wade_cd
 
 
 ## The aim guide and the hint for the held card: before it leaves its card only the rings a tap would reach; over the street the
@@ -656,6 +749,31 @@ func _on_player_rescued(id: int, by_id: int) -> void:
 	owner.hud.notify_rescue(owner.hud.overhead.name_of(rescuer), owner.hud.overhead.name_of(saved), _is_ally(saved))
 
 
+static func _dict_bool(d: Dictionary, key: String, fallback: bool = false) -> bool:
+	var raw: Variant = d.get(key, fallback)
+	if raw is bool:
+		return raw
+	return fallback
+
+
+static func _dict_int(d: Dictionary, key: String, fallback: int = 0) -> int:
+	var raw: Variant = d.get(key, fallback)
+	if raw is int:
+		return raw
+	if raw is float:
+		return int(raw)
+	return fallback
+
+
+static func _dict_str(d: Dictionary, key: String, fallback: String = "") -> String:
+	var raw: Variant = d.get(key, fallback)
+	if raw is String:
+		return raw
+	if raw is StringName:
+		return String(raw)
+	return fallback
+
+
 func _on_match_won(team: int) -> void:
 	owner.hud.tag_toast.clear()
 	var mode: String = "practice"
@@ -664,13 +782,13 @@ func _on_match_won(team: int) -> void:
 	var points: Array[int] = owner.sim.score.points
 	if owner.sim.mode != null:
 		var result: Dictionary = owner.sim.mode.local_result(owner.sim, owner.local_id)
-		MatchHistory.record(mode, bool(result.get("won", false)), int(result.get("mine", 0)), int(result.get("theirs", 0)))
+		MatchHistory.record(mode, _dict_bool(result, "won"), _dict_int(result, "mine"), _dict_int(result, "theirs"))
 		return
 	var won: bool = team == owner.local_team
 	var my_score: int = points[owner.local_team]
 	var their_score: int = points[1 - owner.local_team]
 	var rank_res: Dictionary = RankedSystem.record_match(mode, won, my_score, their_score)
-	MatchHistory.record(mode, won, my_score, their_score, int(rank_res.get("delta", 0)), String(rank_res.get("tier", "")))
+	MatchHistory.record(mode, won, my_score, their_score, _dict_int(rank_res, "delta"), _dict_str(rank_res, "tier"))
 
 
 func _on_again_pressed() -> void:

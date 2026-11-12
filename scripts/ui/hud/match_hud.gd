@@ -1,8 +1,9 @@
 class_name MatchHud
 extends Control
 ## Full in-match HUD built in code (no scene text to patch):
-## - Landscape 1280x720 2D 90s Filipino Komiks x Valorant combat HUD (`BarangayMinimap`, 5v5 Squad Wings,
-##   `WorldWaypoints`, `Crosshair` bloom/hitmarker/speed-ink, `TakedownFeed`, `HeroVitalsPanel`, and `AbilityArc` hero kit).
+## - Landscape 1280x720 Deadlock-inspired (`image_1`) combat HUD (`BarangayMinimap` + compact bottom-right gear,
+##   airy 5v5 Squad Wings, `WorldWaypoints`, delicate `Crosshair`, translucent `TakedownFeed`, waist-left vertical
+##   `HeroVitalsPanel`, and minimalist pure-white `AbilityArc` hero & locomotion kit).
 ## - Preserves all portrait & street mini-game (`TumbangPreso`, `Patintero`, `LangitLupa`) properties, signals, and methods.
 
 signal swap_pressed
@@ -14,6 +15,9 @@ signal header_height_changed(height: float)
 signal primary_changed(held: bool)
 signal dash_pressed
 signal ultimate_pressed
+signal jump_pressed
+signal crouch_changed(held: bool)
+signal slide_pressed
 
 const BANNER_TIME: float = 2.0
 const BANNER_FONT: int = UiMetrics.HERO
@@ -257,7 +261,15 @@ func sync_world_hud(sim: MatchSim, camera: Camera3D, player: PlayerState, local_
 	if vitals_panel != null and landscape:
 		vitals_panel.sync_vitals(sim, player, 0.0)
 	if crosshair != null:
-		crosshair.sprinting = not player.tagged and sim.phase == MatchSim.Phase.PLAYING and player.sprinting
+		crosshair.sprinting = sim.phase == MatchSim.Phase.PLAYING and _is_running_fast(player)
+
+
+func _is_running_fast(player: PlayerState) -> bool:
+	if player == null or player.tagged:
+		return false
+	if player.sprinting:
+		return true
+	return not player.walking and not player.crouching and not player.overclocked and player.run_time > 0.02
 
 
 ## Section 7 contract: flashes the crosshair hitmarker (crimson on hit, blazing gold + crimson on lethal tag).
@@ -306,7 +318,7 @@ func sync_player(sim: MatchSim, player: PlayerState, pick_open: bool) -> void:
 	if crosshair != null:
 		crosshair.visible = shown
 		crosshair.held = hand.holding()
-		crosshair.sprinting = playing and player.sprinting
+		crosshair.sprinting = playing and _is_running_fast(player)
 		if playing and player.primary_cd > _prev_primary_cd + 0.02:
 			crosshair.kick_recoil(0.38)
 	_prev_primary_cd = player.primary_cd
@@ -534,6 +546,7 @@ func _build() -> void:
 	minimap = BarangayMinimap.new()
 	minimap.visible = landscape and not street_game
 	add_child(minimap)
+	move_child(minimap, top.get_index())
 	takedown_feed = TakedownFeed.new()
 	takedown_feed.visible = landscape and not street_game
 	add_child(takedown_feed)
@@ -552,6 +565,9 @@ func _build() -> void:
 		arc.primary_changed.connect(primary_changed.emit)
 		arc.dash_pressed.connect(dash_pressed.emit)
 		arc.ultimate_pressed.connect(ultimate_pressed.emit)
+		arc.jump_pressed.connect(jump_pressed.emit)
+		arc.crouch_changed.connect(crouch_changed.emit)
+		arc.slide_pressed.connect(slide_pressed.emit)
 	street_pad = StreetGamePad.new()
 	add_child(street_pad)
 	chat = QuickChat.new()

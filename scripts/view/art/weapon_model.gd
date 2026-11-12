@@ -1,38 +1,35 @@
 class_name WeaponModel
 extends RefCounted
 ## The thrown and placed skill objects that are real 3D models (assets/models/weapons/<id>.glb,
-## made by tools/blender/build_prop_model.py from the owner's models): the slipper (tsinelas),
-## the can (lata), the marble (bola), the crumpled paper (papel trap), the paper sheet (papel
-## shield), the spinning top (trumpo), the spikes (jacks), the meteor (bato heavy), the scissors
-## (gunting), the soil block (langit lupa wall) and the green cross (heal). Each has its base
-## centre on the origin and the painted look from WeaponLook.
-## Weapons without a model here keep their code-drawn object (Props.weapon_object).
+## crafted by tools/blender/build_weapons.py and tools/blender/build_prop_model.py): the carved
+## guava-branch Y-slingshot (tirador), the woven/molded tsinelas (slipper), the dented tin can
+## (lata), the swirled glass holen/bola (marble), the crumpled paper (papel trap), the folded paper
+## sheet (papel shield), the pear-shaped wooden trumpo, the 6-prong metal jackstone (spikes), the
+## smooth river bato (meteor), the steel gunting (scissor), the terraced soil block (langit lupa
+## wall) and the green cross (heal). Each has its base centre on the origin and the painted look
+## from WeaponLook.
 ## Every instance of one model shares one set of look materials (built by the first instance), and every model mesh joins
 ## `GROUP` so tests and tools can tell the skill objects apart from the flat effects drawn round them.
 
 const PATH: String = "res://assets/models/weapons/%s.glb"
-## Weapon id -> [model, longest side in metres]. The slippers are drawn at most twice their hit circle (0.6 m light, 1.0 m
-## heavy; 1.2 and 2.0 m on screen) so a flying slipper never hides a whole kid (owner's call: they were 0.8 and 1.5).
+## Weapon id -> [model, longest side in metres before `kid_view_scale`]. Balanced for the `0.82x` gameplay kids so thrown street toys read
+## crisply in motion without overwhelming smaller kid silhouettes, while staying cleanly paired with each weapon's sim hit circle.
 const OBJECTS: Dictionary[StringName, Array] = {
-	&"tsinelas_light": ["slipper", 0.6],
-	&"tsinelas_heavy": ["slipper", 1.0],
+	&"tsinelas_light": ["slipper", 0.52],
+	&"tsinelas_heavy": ["slipper", 0.84],
 	&"lata": ["can", 0.7],
-	# the marble: 1.12 m drawn (owner's call: 0.8 / 1.6 m covered kids' faces, 0.9 m was too small, so +25%; it bounces low)
 	&"bola": ["marble", 0.56],
-	&"papel_trap": ["crumpled_paper", 0.7],
-	# the top: 0.9 m was a little small (owner), +25%
+	&"papel_trap": ["crumpled_paper", 0.54],
 	&"trumpo": ["trumpo", 1.12],
-	# the light rock is the meteor's stone, small (the owner made no separate rock)
-	&"bato_light": ["meteor", 0.55],
-	&"tirador_bato": ["meteor", 0.42],
+	&"bato_light": ["meteor", 0.44],
+	&"tirador_bato": ["meteor", 0.34],
 }
-## The spikes of a jacks field: this many clusters (owner: fewer and smaller than the five 0.9 m ones), each this wide in metres. They end
-## wherever they roll to: a different, random spread in every field (owner: no fixed formation), see `spikes`.
+## The spikes of a jacks field: this many clusters, each this wide in metres. They end wherever they roll to: a different, random spread in
+## every field (no fixed formation), see `spikes`.
 const SPIKE_CLUSTERS: int = 6
 const SPIKE_WIDTH: float = 0.315 * 1.75
-## The plastic colours of the jacks: the owner's photo's yellow, pink, green and orange (a little cleaner and brighter in the painted way), then
-## blue and purple (owner); each cluster of a field takes the next one, so a field of six has all of them. The model's picture is plain light plastic and the colour
-## rides in the cluster's vertex colours (see `_instance`), so there is still one look for the model.
+## The plastic colours of the jacks: yellow, pink, green and orange, then blue and purple; each cluster of a field takes the next one, so a
+## field of six has all of them. The model's picture is plain light metal/plastic and the colour rides in the cluster's vertex colours.
 const SPIKE_COLOURS: Array[Color] = [Color("F4E43A"), Color("FF4F9A"), Color("45E06C"), Color("FF6A1F"), Color("3D8BFF"), Color("A855F7")]
 ## A jack lies at most this far (of its width) in from the field's rim, so it never overhangs the slow and damage area, and no two lie closer
 ## than `SPIKE_APART` of their width (when there is room for that).
@@ -40,14 +37,16 @@ const SPIKE_RIM: float = 0.6
 const SPIKE_APART: float = 1.25
 ## Tries for a jack's spot before it takes the roomiest one it saw.
 const SPIKE_TRIES: int = 40
-## The rock meteor of bato heavy (metres across; a 2 m circle reads "a big rock lands here" without hiding both kids in it).
-const METEOR_SIZE: float = 1.4
-## The heal cross (metres wide before the kids' view scale: 0.84 m drawn, so on the chest it stays under the face).
-const CROSS_WIDTH: float = 0.42
+## The rock meteor of bato heavy (metres across, toned down for `0.82x` gameplay kids so a landing boulder reads clearly without burying both kids).
+const METEOR_SIZE: float = 1.05
+## The heal cross (metres wide before the kids' view scale).
+const CROSS_WIDTH: float = 0.38
 ## The group every weapon model mesh joins.
 const GROUP: StringName = &"weapon_model"
 ## The paper wall's model.
 const SHIELD: String = "paper"
+## The carved guava-branch Y-slingshot model (`assets/models/weapons/tirador.glb`).
+const TIRADOR: String = "tirador"
 
 static var _scenes: Dictionary[String, PackedScene] = {}
 static var _sizes: Dictionary[String, Vector3] = {}
@@ -55,6 +54,46 @@ static var _sizes: Dictionary[String, Vector3] = {}
 static var _looks: Dictionary[String, Array] = {}
 ## "model:colour" -> the model's mesh with that colour in its vertex colours (one mesh per colour, shared by every copy).
 static var _painted: Dictionary[String, ArrayMesh] = {}
+
+
+static func _spec_model(spec: Array) -> String:
+	if spec.is_empty():
+		return ""
+	var raw: Variant = spec[0]
+	if raw is String:
+		return raw
+	if raw is StringName:
+		return String(raw)
+	return ""
+
+
+static func _spec_length(spec: Array) -> float:
+	if spec.size() < 2:
+		return 0.5
+	var raw: Variant = spec[1]
+	if raw is float:
+		return raw
+	if raw is int:
+		return float(raw)
+	return 0.5
+
+
+static func _vertices_of(arrays: Array) -> PackedVector3Array:
+	if arrays.size() <= Mesh.ARRAY_VERTEX:
+		return PackedVector3Array()
+	var raw: Variant = arrays[Mesh.ARRAY_VERTEX]
+	if raw is PackedVector3Array:
+		return raw
+	return PackedVector3Array()
+
+
+static func _material_at(looks: Array, idx: int) -> Material:
+	if idx < 0 or idx >= looks.size():
+		return null
+	var raw: Variant = looks[idx]
+	if raw is Material:
+		return raw
+	return null
 
 
 static func has_model(weapon_id: StringName) -> bool:
@@ -71,9 +110,9 @@ static func has_scissors(weapon_id: StringName) -> bool:
 ## `colour`: painted over the model's picture (a Tumbang Preso kid's own slipper colour, as the jacks' spikes are painted); null keeps it.
 static func make(weapon_id: StringName, centered: bool, colour: Variant = null) -> Node3D:
 	var spec: Array = OBJECTS[weapon_id]
-	var id: String = spec[0] as String
+	var id: String = _spec_model(spec)
 	var natural: Vector3 = size_of(id)
-	var scale: float = (spec[1] as float) / maxf(natural.x, maxf(natural.y, natural.z))
+	var scale: float = _spec_length(spec) / maxf(natural.x, maxf(natural.y, natural.z))
 	var holder: Node3D = Node3D.new()
 	var model: Node3D = _instance(id, colour)
 	model.scale = Vector3.ONE * scale
@@ -81,6 +120,11 @@ static func make(weapon_id: StringName, centered: bool, colour: Variant = null) 
 		model.position.y = -natural.y * scale / 2.0
 	holder.add_child(model)
 	return holder
+
+
+## Carved guava-branch Y-slingshot (`tirador.glb`), `length` metres tall with base at origin.
+static func tirador(length: float = 0.32) -> Node3D:
+	return _scaled(TIRADOR, length, false)
 
 
 ## The paper wall: `width` metres wide, `height` tall and `thickness` deep (the model is a thin
@@ -163,7 +207,7 @@ static func _painted_mesh(id: String, mesh: Mesh, colour: Color) -> ArrayMesh:
 	var key: String = "%s:%s" % [id, colour.to_html(false)]
 	if not _painted.has(key):
 		var arrays: Array = mesh.surface_get_arrays(0)
-		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+		var vertices: PackedVector3Array = _vertices_of(arrays)
 		var colours: PackedColorArray = PackedColorArray()
 		colours.resize(vertices.size())
 		colours.fill(colour)
@@ -249,7 +293,7 @@ static func mesh_of(id: String) -> Mesh:
 static func look_of(id: String) -> Material:
 	if not _looks.has(id):
 		_instance(id).free()
-	return _looks[id][0] as Material
+	return _material_at(_looks[id], 0)
 
 
 static func _scaled(id: String, longest: float, centered: bool) -> Node3D:
@@ -276,7 +320,8 @@ static func size_of(id: String) -> Vector3:
 
 static func _scene(id: String) -> PackedScene:
 	if not _scenes.has(id):
-		_scenes[id] = load(PATH % id) as PackedScene
+		var loaded: Resource = load(PATH % id)
+		_scenes[id] = loaded as PackedScene
 	return _scenes[id]
 
 
@@ -284,10 +329,10 @@ static func _scene(id: String) -> PackedScene:
 static func _instance(id: String, colour: Variant = null) -> Node3D:
 	var root: Node3D = _scene(id).instantiate() as Node3D
 	var meshes: Array[Node] = root.find_children("*", "MeshInstance3D", true, false)
-	if colour != null:
+	if colour is Color:
 		for node: Node in meshes:
 			var mesh_instance: MeshInstance3D = node as MeshInstance3D
-			mesh_instance.mesh = _painted_mesh(id, mesh_instance.mesh, colour as Color)
+			mesh_instance.mesh = _painted_mesh(id, mesh_instance.mesh, colour)
 	if not _looks.has(id):
 		_looks[id] = WeaponLook.apply(root, id)
 	else:
@@ -298,7 +343,9 @@ static func _instance(id: String, colour: Variant = null) -> Node3D:
 			mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 			for surface: int in mesh_instance.mesh.get_surface_count():
 				if next < looks.size():
-					mesh_instance.set_surface_override_material(surface, looks[next] as Material)
+					var mat: Material = _material_at(looks, next)
+					if mat != null:
+						mesh_instance.set_surface_override_material(surface, mat)
 				next += 1
 	for node: Node in meshes:
 		node.add_to_group(GROUP)

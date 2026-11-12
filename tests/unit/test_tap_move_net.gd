@@ -302,3 +302,44 @@ func test_a_mirror_takes_a_dealt_hand_of_four() -> void:
 	var mine: PlayerState = client.mirror.players[1]
 	assert_eq(mine.weapons, hand)
 	assert_eq(mine.aim_hold, [-1.0, -1.0, -1.0, -1.0] as Array[float], "every slot idle")
+
+
+func test_snapshot_round_trip_carries_v2_locomotion_and_merienda_powerups() -> void:
+	var sim: MatchSim = _sim()
+	var me: PlayerState = sim.players[1]
+	var rival: PlayerState = sim.players[2]
+	rival.walking = true
+	rival.crouching = true
+	rival.air_y = 0.72
+	rival.vel_y = 2.45
+	rival.jump_cd = 0.18
+	rival.slide_left = 0.31
+	rival.slide_dir = Vector2(0.0, 1.0)
+	rival.slide_cd = 2.15
+	rival.buff_type = PlayerState.BUFF_TURON
+	rival.buff_left = 7.5
+	me.buff_type = PlayerState.BUFF_NONE
+	me.buff_left = 0.0
+	if not sim.powerups.is_empty():
+		var pu0: Dictionary = sim.powerups[0]
+		pu0["active"] = false
+		pu0["respawn_left"] = 14.25
+		sim.powerups[0] = pu0
+	var empty_acks: Dictionary[int, int] = {}
+	var data: Dictionary = Snapshot.capture(sim, empty_acks)
+	var mirror: MatchSim = _mirror()
+	Snapshot.apply(mirror, _wire(data), 1)
+	var seen_rival: PlayerState = mirror.players[2]
+	assert_true(seen_rival.walking)
+	assert_true(seen_rival.crouching)
+	assert_almost_eq(seen_rival.air_y, 0.72, 0.015)
+	assert_almost_eq(seen_rival.vel_y, 2.45, 0.015)
+	assert_almost_eq(seen_rival.jump_cd, 0.18, 0.015)
+	assert_almost_eq(seen_rival.slide_left, 0.31, 0.015)
+	assert_almost_eq(seen_rival.slide_dir.distance_to(Vector2(0.0, 1.0)), 0.0, 0.02)
+	assert_almost_eq(seen_rival.slide_cd, 2.15, 0.015)
+	assert_eq(seen_rival.buff_type, PlayerState.BUFF_TURON)
+	assert_almost_eq(seen_rival.buff_left, 7.5, 0.015)
+	if not mirror.powerups.is_empty():
+		assert_false(bool(mirror.powerups[0]["active"]))
+		assert_almost_eq(float(mirror.powerups[0]["respawn_left"]), 14.25, 0.02)

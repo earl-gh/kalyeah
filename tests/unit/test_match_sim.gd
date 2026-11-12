@@ -19,7 +19,7 @@ func test_rules_match_gdd_core_numbers() -> void:
 	assert_eq(RULES.tick_rate, 30)
 	assert_almost_eq(RULES.tick_dt(), DT, 0.00001)
 	assert_eq(RULES.player_max_hp, 100)
-	assert_almost_eq(RULES.move_speed, 8.2, 0.01)
+	assert_almost_eq(RULES.move_speed, 6.4, 0.01)
 	assert_almost_eq(RULES.capture_solo_time, 12.0, 0.01)
 
 

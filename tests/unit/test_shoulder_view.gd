@@ -43,7 +43,11 @@ func test_the_data_puts_the_camera_over_the_shoulder() -> void:
 
 func test_the_pose_stands_exactly_the_distance_behind_the_kid_on_the_ground_and_looks_at_it() -> void:
 	var rules: CameraRules = CAMERA
-	assert_almost_eq(rules.shoulder_distance, 6.2, 0.001, "6.2 m hero-shooter shoulder distance")
+	assert_almost_eq(rules.shoulder_distance, 4.15, 0.001, "4.15 m Deadlock shoulder distance")
+	assert_almost_eq(rules.shoulder_height, 1.88, 0.001, "1.88 m shoulder pivot height")
+	assert_almost_eq(rules.shoulder_offset, 0.62, 0.001, "0.62 m right shoulder offset framing kid slightly left of center")
+	assert_almost_eq(rules.look_pitch_degrees, 15.5, 0.001, "15.5 deg downward pitch")
+	assert_almost_eq(rules.shoulder_fov, 68.0, 0.001, "68 deg perspective FOV")
 	var pose: Array[Vector3] = rules.shoulder_pose(Vector2.ZERO, 0.0, 10.0)
 	assert_gt(pose[0].z, 0.0, "looking down -Z it stands on the +Z side: behind")
 	assert_gt(pose[0].x, 0.0, "and to the right")
@@ -217,8 +221,20 @@ func test_at_your_own_end_of_the_street_your_kid_stays_on_the_screen() -> void:
 		practice.advance(DT)
 	var camera: ArenaCamera = practice._camera
 	var size: Vector2 = practice.get_viewport().get_visible_rect().size
-	for height: float in [0.2, 1.8, 3.4]:
+	for height: float in [0.2, 0.9, 1.5]:
 		var point: Vector3 = Vector3(me.position.x, height, me.position.y)
 		assert_false(camera.is_position_behind(point))
 		var on_screen: Vector2 = camera.unproject_position(point)
 		assert_true(Rect2(Vector2.ZERO, size).has_point(on_screen), "the kid at %.1f m is on the screen (%s)" % [height, on_screen])
+
+
+func test_auto_behind_camera_follows_character_until_manual_look_overrides_it() -> void:
+	var practice: PracticeMatch = _practice()
+	var camera: ArenaCamera = practice._camera
+	var pitch_before: float = camera.look_pitch
+	camera.sync_behind_character(Vector2(1.0, 0.0), true, 0.5)
+	assert_eq(camera.look_pitch, pitch_before, "auto-behind adjusts yaw only, never look_pitch")
+	camera.look(Vector2(60.0, 0.0))
+	var manual_yaw: float = camera.look_yaw
+	camera.sync_behind_character(Vector2(-1.0, 0.0), true, 0.2)
+	assert_almost_eq(camera.look_yaw, manual_yaw, 0.001, "manual look immediately overrides auto-behind follow during hold window")

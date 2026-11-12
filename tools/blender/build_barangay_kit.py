@@ -6,9 +6,11 @@ gouache value shifts & grime/moss storytelling) x 90s Filipino Komiks (baked #1A
 ink panel/crevice contours on 3D geometry).
 
 Outputs:
-  - 1 shared 2048x2048 painterly atlas (`assets/models/barangay/BarangayAtlas.jpg`, max RGB <= 0.72,
-    VRAM-compressed `compress/mode=2` via `BarangayAtlas.jpg.import`)
-  - 19 single-draw-call `.glb` models in `assets/models/barangay/` referencing `BarangayAtlas.jpg`
+  - 1 shared 2048x2048 sunlit 90s province painterly atlas (`assets/models/barangay/BarangayAtlas.jpg`,
+    mean_sRGB in [0.43, 0.49], max_sRGB <= 0.78, 0% <0.08 harsh black pixels, VRAM-compressed
+    `compress/mode=2` via `BarangayAtlas.jpg.import`)
+  - 18 single-draw-call architectural & street `.glb` models in `assets/models/barangay/` referencing
+    `BarangayAtlas.jpg` (never touches `brgy_jeepney.glb` or `brgy_tricycle.glb`)
 
 Run:
   "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" --background --python tools/blender/build_barangay_kit.py
@@ -34,93 +36,132 @@ CELL = ATLAS_SIZE // GRID  # 256x256 px per swatch
 PAD_PX = 16                # 16 px mipmap bleed gutter around every 256x256 cell
 PAD_UV = PAD_PX / float(CELL)
 
-# Pre-JPEG ceiling 0.568 ensures raw decoded JPEG sRGB bytes (even with DCT Gibbs overshoot at #1A1619 ink borders) stay strictly in [0.55, 0.72]
-MAX_ALBEDO = 0.568
-MIN_ALBEDO = 0.045
-INK_RGB = np.array([0.102, 0.086, 0.098], dtype=np.float32)  # #1A1619 90s Komiks charcoal ink
+# Sunlit 90s province daytime clamping: warm espresso floor (#2A2024 >= 0.155 -> 0% <0.08 pixels after JPEG),
+# pre-JPEG ceiling 0.595 keeps decoded JPEG max_sRGB <= 0.78 and mean_sRGB right inside [0.43, 0.49].
+MAX_ALBEDO = 0.608
+MIN_ALBEDO = 0.212
+INK_RGB = np.array([0.222, 0.184, 0.196], dtype=np.float32)  # Warm sunlit espresso-umber contour ink
 
 
-# 64 curated provincial Pinoy Barangay swatches: name -> (row, col, base_rgb, kind, param)
+# Crisp 5x7 bitmap font for hand-painted 90s Philippine province signboards & pole notices
+FONT_5X7 = {
+    "A": ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
+    "B": ["11110", "10001", "10001", "11110", "10001", "10001", "11110"],
+    "C": ["01111", "10000", "10000", "10000", "10000", "10000", "01111"],
+    "D": ["11110", "10001", "10001", "10001", "10001", "10001", "11110"],
+    "E": ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+    "F": ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
+    "G": ["01111", "10000", "10000", "10011", "10001", "10001", "01111"],
+    "H": ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
+    "I": ["01110", "00100", "00100", "00100", "00100", "00100", "01110"],
+    "J": ["00111", "00010", "00010", "00010", "10010", "10010", "01100"],
+    "K": ["10001", "10010", "10100", "11000", "10100", "10010", "10001"],
+    "L": ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
+    "M": ["10001", "11011", "10101", "10101", "10001", "10001", "10001"],
+    "N": ["10001", "11001", "10101", "10011", "10001", "10001", "10001"],
+    "O": ["01110", "10001", "10001", "10001", "10001", "10001", "01110"],
+    "P": ["11110", "10001", "10001", "11110", "10000", "10000", "10000"],
+    "R": ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
+    "S": ["01111", "10000", "10000", "01110", "00001", "00001", "11110"],
+    "T": ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
+    "U": ["10001", "10001", "10001", "10001", "10001", "10001", "01110"],
+    "V": ["10001", "10001", "10001", "10001", "10001", "01010", "00100"],
+    "W": ["10001", "10001", "10001", "10101", "10101", "11011", "10001"],
+    "Y": ["10001", "10001", "01010", "00100", "00100", "00100", "00100"],
+    "Z": ["11111", "00001", "00010", "00100", "01000", "10000", "11111"],
+    "0": ["01110", "10011", "10101", "10101", "11001", "10001", "01110"],
+    "5": ["11111", "10000", "11110", "00001", "00001", "10001", "01110"],
+    "9": ["01110", "10001", "10001", "01111", "00001", "00001", "01110"],
+    "!": ["00100", "00100", "00100", "00100", "00100", "00000", "00100"],
+    "/": ["00001", "00010", "00010", "00100", "01000", "01000", "10000"],
+    "-": ["00000", "00000", "00000", "11111", "00000", "00000", "00000"],
+    ".": ["00000", "00000", "00000", "00000", "00000", "01100", "01100"],
+    "'": ["00100", "00100", "01000", "00000", "00000", "00000", "00000"],
+    " ": ["00000", "00000", "00000", "00000", "00000", "00000", "00000"],
+}
+
+
+# 64 curated sunlit 90s provincial Pinoy Barangay swatches: name -> (row, col, base_rgb, kind, param)
 SWATCHES = {
-    # Row 0: Sharp 40x20cm CHB hollow-block walls + flaking provincial turquoise/ochre/terracotta paint + lumot moss
-    "chb_raw_moss":       (0, 0, (0.42, 0.43, 0.41), "chb", {"moss": True, "plaster": 0.0, "rain": 0.75}),
-    "chb_cream_moss":     (0, 1, (0.58, 0.53, 0.42), "chb", {"moss": True, "plaster": 0.56, "rain": 0.68}),
-    "chb_salmon_moss":    (0, 2, (0.57, 0.30, 0.22), "chb", {"moss": True, "plaster": 0.58, "rain": 0.72}),  # Flaking provincial terracotta
-    "chb_mint_moss":      (0, 3, (0.19, 0.49, 0.48), "chb", {"moss": True, "plaster": 0.55, "rain": 0.74}),  # Flaking provincial turquoise
-    "chb_ochre_moss":     (0, 4, (0.59, 0.46, 0.20), "chb", {"moss": True, "plaster": 0.57, "rain": 0.70}),  # Flaking barrio ochre
-    "chb_sky_moss":       (0, 5, (0.22, 0.45, 0.55), "chb", {"moss": True, "plaster": 0.56, "rain": 0.72}),  # Flaking kalye cyan-turquoise
-    "chb_raw_upper":      (0, 6, (0.45, 0.45, 0.44), "chb", {"moss": False, "plaster": 0.0, "rain": 0.62}),
-    "chb_plaster_cracked":(0, 7, (0.56, 0.44, 0.26), "chb", {"moss": False, "plaster": 0.60, "rain": 0.65}), # Upper flaking ochre-cream over CHB
+    # Row 0: Sunlit 40x20cm CHB hollow-block walls + flaking provincial paint + lumot moss + BAWAL UMIHI DITO
+    "chb_raw_moss":       (0, 0, (0.50, 0.51, 0.48), "chb", {"moss": True, "plaster": 0.0, "rain": 0.45}),
+    "chb_cream_moss":     (0, 1, (0.61, 0.57, 0.46), "chb", {"moss": True, "plaster": 0.62, "rain": 0.40}),
+    "chb_salmon_moss":    (0, 2, (0.60, 0.39, 0.31), "chb", {"moss": True, "plaster": 0.62, "rain": 0.42}),
+    "chb_mint_moss":      (0, 3, (0.31, 0.56, 0.53), "chb", {"moss": True, "plaster": 0.60, "rain": 0.42}),
+    "chb_ochre_moss":     (0, 4, (0.62, 0.51, 0.29), "chb", {"moss": True, "plaster": 0.62, "rain": 0.40}),
+    "chb_sky_moss":       (0, 5, (0.33, 0.52, 0.60), "chb", {"moss": True, "plaster": 0.60, "rain": 0.42}),
+    "chb_bawal_umihi":    (0, 6, (0.58, 0.56, 0.50), "bawal_sign", {}),
+    "chb_plaster_cracked":(0, 7, (0.60, 0.51, 0.36), "chb", {"moss": False, "plaster": 0.66, "rain": 0.38}),
 
-    # Row 1: Concrete structural columns/aprons & patchwork oxidized rusted GI (kalawang na yero)
-    "concrete_moss":      (1, 0, (0.41, 0.42, 0.39), "concrete", {"moss": True, "rain": 0.75}),
-    "concrete_pillar":    (1, 1, (0.50, 0.49, 0.46), "concrete", {"moss": False, "rain": 0.55}),
-    "concrete_dark":      (1, 2, (0.29, 0.30, 0.31), "concrete", {"moss": False, "rain": 0.50}),
-    "yero_rust_heavy":    (1, 3, (0.44, 0.22, 0.14), "yero", {"rust": 0.82, "patch": False}),
-    "yero_patchwork":     (1, 4, (0.48, 0.35, 0.28), "yero", {"rust": 0.60, "patch": True}),
-    "yero_red_oxide":     (1, 5, (0.51, 0.21, 0.16), "yero", {"rust": 0.46, "patch": False}),
-    "yero_zinc_weathered":(1, 6, (0.51, 0.53, 0.54), "yero", {"rust": 0.34, "patch": False}),
-    "yero_green_faded":   (1, 7, (0.23, 0.42, 0.29), "yero", {"rust": 0.38, "patch": False}),
+    # Row 1: Sunlit concrete structural columns/aprons, Barberya sign & oxidized rusted GI (kalawang na yero)
+    "concrete_moss":      (1, 0, (0.50, 0.51, 0.47), "concrete", {"moss": True, "rain": 0.45}),
+    "concrete_pillar":    (1, 1, (0.57, 0.55, 0.51), "concrete", {"moss": False, "rain": 0.32}),
+    "sign_barberya":      (1, 2, (0.60, 0.58, 0.53), "text_sign", {"l1": "BARBERYA", "l2": "GUPIT POGI", "fg": (0.20, 0.33, 0.54), "hdr": (0.58, 0.23, 0.21), "hdr_fg": (0.62, 0.59, 0.52)}),
+    "yero_rust_heavy":    (1, 3, (0.52, 0.31, 0.21), "yero", {"rust": 0.78, "patch": False}),
+    "yero_patchwork":     (1, 4, (0.54, 0.43, 0.35), "yero", {"rust": 0.56, "patch": True}),
+    "yero_red_oxide":     (1, 5, (0.56, 0.29, 0.23), "yero", {"rust": 0.46, "patch": False}),
+    "yero_zinc_weathered":(1, 6, (0.57, 0.58, 0.59), "yero", {"rust": 0.34, "patch": False}),
+    "yero_green_faded":   (1, 7, (0.33, 0.50, 0.36), "yero", {"rust": 0.36, "patch": False}),
 
-    # Row 2: Woven diagonal bamboo sawali, weathered plywood, coco-lumber & shanty planks
-    "sawali_honey":       (2, 0, (0.55, 0.42, 0.24), "sawali", {"aged": False}),
-    "sawali_aged":        (2, 1, (0.41, 0.30, 0.18), "sawali", {"aged": True}),
-    "plywood_weathered":  (2, 2, (0.54, 0.44, 0.32), "plywood", {"peel": (0.37, 0.30, 0.22)}),
-    "plywood_teal_peel":  (2, 3, (0.18, 0.48, 0.47), "plywood", {"peel": (0.44, 0.35, 0.25)}),
-    "wood_coco":          (2, 4, (0.43, 0.28, 0.17), "wood", {"planks": 3}),
-    "wood_dark":          (2, 5, (0.25, 0.17, 0.12), "wood", {"planks": 2}),
-    "planks_shack":       (2, 6, (0.46, 0.36, 0.26), "wood", {"planks": 6}),
-    "bamboo_pole":        (2, 7, (0.49, 0.45, 0.24), "bamboo", {}),
+    # Row 2: Sunlit woven bamboo sawali, weathered plywood, coco-lumber & shanty planks
+    "sawali_honey":       (2, 0, (0.60, 0.49, 0.31), "sawali", {"aged": False}),
+    "sawali_aged":        (2, 1, (0.50, 0.40, 0.27), "sawali", {"aged": True}),
+    "plywood_weathered":  (2, 2, (0.59, 0.50, 0.38), "plywood", {"peel": (0.46, 0.38, 0.29)}),
+    "plywood_teal_peel":  (2, 3, (0.29, 0.54, 0.52), "plywood", {"peel": (0.51, 0.42, 0.31)}),
+    "wood_coco":          (2, 4, (0.51, 0.36, 0.24), "wood", {"planks": 3}),
+    "wood_dark":          (2, 5, (0.37, 0.27, 0.20), "wood", {"planks": 2}),
+    "planks_shack":       (2, 6, (0.54, 0.44, 0.33), "wood", {"planks": 5}),
+    "bamboo_pole":        (2, 7, (0.56, 0.51, 0.30), "bamboo", {}),
 
-    # Row 3: Jalousie louvers, rusted iron rehas grills, doors, chipped barrio tiles, bilao, burlap
-    "jalousie_window":    (3, 0, (0.26, 0.40, 0.46), "jalousie", {}),
-    "rehas_grill":        (3, 1, (0.28, 0.21, 0.18), "rehas", {"counter": False}),
-    "sari_grill_counter": (3, 2, (0.25, 0.23, 0.22), "rehas", {"counter": True}),
-    "door_provincial":    (3, 3, (0.36, 0.23, 0.15), "door", {}),
-    "tile_teal_chipped":  (3, 4, (0.21, 0.49, 0.48), "tile", {"grid": 6}),
-    "tile_terracotta":    (3, 5, (0.55, 0.29, 0.20), "tile", {"grid": 5}),
-    "bilao_weave":        (3, 6, (0.56, 0.44, 0.25), "sawali", {"aged": False}),
-    "sandbag_burlap":     (3, 7, (0.51, 0.45, 0.33), "burlap", {}),
+    # Row 3: Jalousie louvers, rusted iron rehas grills, doors, chipped barrio tiles, barber pole, burlap
+    "jalousie_window":    (3, 0, (0.36, 0.49, 0.54), "jalousie", {}),
+    "rehas_grill":        (3, 1, (0.41, 0.31, 0.26), "rehas", {"counter": False}),
+    "sari_grill_counter": (3, 2, (0.39, 0.34, 0.31), "rehas", {"counter": True}),
+    "door_provincial":    (3, 3, (0.48, 0.34, 0.24), "door", {}),
+    "tile_teal_chipped":  (3, 4, (0.31, 0.55, 0.53), "tile", {"grid": 6}),
+    "tile_terracotta":    (3, 5, (0.59, 0.37, 0.27), "tile", {"grid": 5}),
+    "barber_pole_stripe": (3, 6, (0.61, 0.59, 0.54), "barber_pole", {}),
+    "sandbag_burlap":     (3, 7, (0.57, 0.51, 0.39), "burlap", {}),
 
-    # Row 4: Faded trapal tarpaulins, sachet strips, weathered kalye tin signboards, hazard curbs
-    "trapal_blue":        (4, 0, (0.18, 0.39, 0.60), "trapal", {"striped": False}),
-    "trapal_orange":      (4, 1, (0.60, 0.32, 0.16), "trapal", {"striped": False}),
-    "trapal_striped":     (4, 2, (0.21, 0.41, 0.57), "trapal", {"striped": True}),
-    "sachet_strips":      (4, 3, (0.58, 0.25, 0.27), "sachets", {}),
-    "sign_sari_sari":     (4, 4, (0.57, 0.21, 0.17), "sign", {"accent": (0.60, 0.48, 0.18), "style": 0}),
-    "sign_talyer":        (4, 5, (0.20, 0.23, 0.27), "sign", {"accent": (0.60, 0.45, 0.16), "style": 1}),
-    "sign_brgy_hall":     (4, 6, (0.14, 0.24, 0.38), "sign", {"accent": (0.59, 0.48, 0.19), "style": 2}),
-    "hazard_curb":        (4, 7, (0.60, 0.48, 0.15), "hazard", {}),
+    # Row 4: Sunlit trapal tarpaulins, chichirya strips, hand-painted Nena / Vulcanizing / Hall signs, hazard curbs
+    "trapal_blue":        (4, 0, (0.27, 0.47, 0.61), "trapal", {"striped": False}),
+    "trapal_orange":      (4, 1, (0.61, 0.39, 0.23), "trapal", {"striped": False}),
+    "trapal_striped":     (4, 2, (0.30, 0.49, 0.60), "trapal", {"striped": True}),
+    "sachet_strips":      (4, 3, (0.60, 0.34, 0.32), "sachets", {}),
+    "sign_sari_sari":     (4, 4, (0.61, 0.57, 0.47), "text_sign", {"l1": "TINDAHAN NI", "l2": "ALING NENA", "fg": (0.56, 0.20, 0.19), "hdr": (0.59, 0.23, 0.20), "hdr_fg": (0.62, 0.59, 0.48)}),
+    "sign_talyer":        (4, 5, (0.61, 0.51, 0.22), "text_sign", {"l1": "VULCANIZING", "l2": "SHOP", "fg": (0.20, 0.17, 0.18), "hdr": (0.28, 0.31, 0.35), "hdr_fg": (0.62, 0.55, 0.25)}),
+    "sign_brgy_hall":     (4, 6, (0.24, 0.39, 0.55), "text_sign", {"l1": "BARANGAY", "l2": "HALL PLAZA", "fg": (0.62, 0.59, 0.50), "hdr": (0.61, 0.49, 0.21), "hdr_fg": (0.20, 0.16, 0.17)}),
+    "hazard_curb":        (4, 7, (0.61, 0.51, 0.21), "hazard", {}),
 
-    # Row 5: Structural steel, rust iron, brushed zinc, electric meters, tires, wires, blue drums, LPG
-    "steel_dark":         (5, 0, (0.20, 0.22, 0.25), "metal", {"rust": 0.22}),
-    "steel_rusted":       (5, 1, (0.37, 0.21, 0.15), "metal", {"rust": 0.76}),
-    "zinc_brushed":       (5, 2, (0.53, 0.55, 0.57), "metal", {"rust": 0.14}),
-    "meter_box":          (5, 3, (0.45, 0.47, 0.46), "meter", {}),
-    "rubber_tire":        (5, 4, (0.15, 0.15, 0.17), "tire", {}),
-    "wire_bundle":        (5, 5, (0.12, 0.12, 0.14), "wire", {}),
-    "water_drum_blue":    (5, 6, (0.15, 0.38, 0.61), "drum", {}),
-    "lpg_teal":           (5, 7, (0.19, 0.44, 0.43), "drum", {}),
+    # Row 5: Structural steel, rust iron, brushed zinc, electric meters, tires, NO ENTRY sign, drums, LPG
+    "steel_dark":         (5, 0, (0.33, 0.34, 0.37), "metal", {"rust": 0.24}),
+    "steel_rusted":       (5, 1, (0.49, 0.30, 0.21), "metal", {"rust": 0.72}),
+    "zinc_brushed":       (5, 2, (0.57, 0.58, 0.59), "metal", {"rust": 0.14}),
+    "meter_box":          (5, 3, (0.52, 0.53, 0.51), "meter", {}),
+    "rubber_tire":        (5, 4, (0.26, 0.25, 0.27), "tire", {}),
+    "sign_no_entry":      (5, 5, (0.59, 0.23, 0.21), "text_sign", {"l1": "NO ENTRY", "l2": "BAWAL DITO", "fg": (0.62, 0.60, 0.55), "hdr": (0.62, 0.60, 0.55), "hdr_fg": (0.58, 0.21, 0.19)}),
+    "water_drum_blue":    (5, 6, (0.26, 0.46, 0.62), "drum", {}),
+    "lpg_teal":           (5, 7, (0.29, 0.51, 0.49), "drum", {}),
 
-    # Row 6: Jeepney/tricycle liveries, team banners, sampayan laundry fabrics, worn court backboard
-    "jeep_ochre":         (6, 0, (0.61, 0.48, 0.15), "livery", {"trim": (0.56, 0.19, 0.16)}),
-    "jeep_crimson":       (6, 1, (0.57, 0.18, 0.17), "livery", {"trim": (0.60, 0.49, 0.19)}),
-    "jeep_cobalt":        (6, 2, (0.16, 0.34, 0.59), "livery", {"trim": (0.60, 0.50, 0.20)}),
-    "team_blue":          (6, 3, (0.15, 0.41, 0.64), "banner", {"chevron": (0.56, 0.60, 0.64)}),
-    "team_red":           (6, 4, (0.61, 0.18, 0.18), "banner", {"chevron": (0.61, 0.52, 0.26)}),
-    "laundry_warm":       (6, 5, (0.58, 0.33, 0.30), "laundry", {"stripe": (0.60, 0.52, 0.33)}),
-    "laundry_cool":       (6, 6, (0.31, 0.46, 0.56), "laundry", {"stripe": (0.54, 0.58, 0.56)}),
-    "backboard_worn":     (6, 7, (0.56, 0.55, 0.52), "backboard", {}),
+    # Row 6: Liveries, VOTE! HALALAN poster, team banners, 3D sampayan laundry fabrics, court backboard
+    "jeep_ochre":         (6, 0, (0.62, 0.51, 0.21), "livery", {"trim": (0.58, 0.25, 0.21)}),
+    "jeep_crimson":       (6, 1, (0.59, 0.25, 0.22), "livery", {"trim": (0.62, 0.52, 0.24)}),
+    "poster_vote_halalan":(6, 2, (0.61, 0.58, 0.49), "text_sign", {"l1": "VOTE!", "l2": "HALALAN '95", "fg": (0.21, 0.34, 0.56), "hdr": (0.59, 0.22, 0.20), "hdr_fg": (0.62, 0.58, 0.25)}),
+    "team_blue":          (6, 3, (0.25, 0.47, 0.63), "banner", {"chevron": (0.59, 0.61, 0.63)}),
+    "team_red":           (6, 4, (0.61, 0.25, 0.23), "banner", {"chevron": (0.62, 0.55, 0.31)}),
+    "laundry_warm":       (6, 5, (0.61, 0.41, 0.36), "laundry", {"stripe": (0.62, 0.55, 0.38)}),
+    "laundry_cool":       (6, 6, (0.38, 0.52, 0.60), "laundry", {"stripe": (0.59, 0.61, 0.59)}),
+    "backboard_worn":     (6, 7, (0.60, 0.59, 0.55), "backboard", {}),
 
-    # Row 7: Provincial foliage, market produce, warm barrio lamps, painted plinths, clay, charcoal ink
-    "leaf_banana":        (7, 0, (0.23, 0.45, 0.19), "foliage", {}),
-    "leaf_moss_dark":     (7, 1, (0.16, 0.31, 0.15), "foliage", {}),
-    "bougainvillea":      (7, 2, (0.56, 0.19, 0.38), "foliage", {}),
-    "produce_mango":      (7, 3, (0.60, 0.46, 0.16), "produce", {}),
-    "lamp_warm":          (7, 4, (0.61, 0.54, 0.36), "lamp", {}),
-    "steel_ochre":        (7, 5, (0.59, 0.46, 0.17), "metal", {"rust": 0.26}),
-    "terracotta_pot":     (7, 6, (0.51, 0.27, 0.18), "concrete", {"moss": False, "rain": 0.45}),
-    "charcoal_ink":       (7, 7, (0.11, 0.09, 0.10), "ink", {}),
+    # Row 7: Foliage, KARINDERYA sign, bougainvillea, mango, warm lamps, steel ochre, MALABANAN notice, warm ink
+    "leaf_banana":        (7, 0, (0.35, 0.53, 0.26), "foliage", {}),
+    "sign_karinderya":    (7, 1, (0.62, 0.52, 0.25), "text_sign", {"l1": "KARINDERYA", "l2": "LUTONG BAHAY", "fg": (0.22, 0.16, 0.16), "hdr": (0.58, 0.24, 0.20), "hdr_fg": (0.62, 0.59, 0.49)}),
+    "bougainvillea":      (7, 2, (0.59, 0.28, 0.44), "foliage", {}),
+    "produce_mango":      (7, 3, (0.62, 0.51, 0.22), "produce", {}),
+    "lamp_warm":          (7, 4, (0.62, 0.57, 0.42), "lamp", {}),
+    "steel_ochre":        (7, 5, (0.61, 0.50, 0.23), "metal", {"rust": 0.26}),
+    "poster_malabanan":   (7, 6, (0.62, 0.54, 0.22), "malabanan_sign", {}),
+    "charcoal_ink":       (7, 7, (0.23, 0.19, 0.20), "ink", {}),
 }
 
 
@@ -159,30 +200,52 @@ def _mix(a: np.ndarray, b, t: np.ndarray) -> np.ndarray:
     return a * (1.0 - t[..., None]) + b_arr * t[..., None]
 
 
+def _text_mask(lu: np.ndarray, lv: np.ndarray, text: str, u0: float, u1: float, v_bot: float, v_top: float) -> np.ndarray:
+    """Renders crisp 5x7 hand-painted signboard block glyphs into UV space (lv increases upward)."""
+    n_chars = max(len(text), 1)
+    total_cols = n_chars * 6 - 1
+    mask = np.zeros_like(lu, dtype=np.float32)
+    in_box = (lu >= u0) & (lu <= u1) & (lv >= v_bot) & (lv <= v_top)
+    cu = (lu - u0) / max(u1 - u0, 1e-4) * total_cols
+    cv = (v_top - lv) / max(v_top - v_bot, 1e-4) * 7.0
+    col_i = np.floor(cu).astype(np.int32)
+    row_i = np.floor(cv).astype(np.int32)
+    char_idx = col_i // 6
+    sub_col = col_i % 6
+    for idx, ch in enumerate(text.upper()):
+        glyph = FONT_5X7.get(ch, FONT_5X7[" "])
+        for r in range(7):
+            row_bits = glyph[r]
+            for c in range(5):
+                if row_bits[c] == "1":
+                    hit = in_box & (char_idx == idx) & (sub_col == c) & (row_i == r)
+                    mask = np.maximum(mask, hit.astype(np.float32))
+    return mask
+
+
 def _apply_rain_and_moss(rgb: np.ndarray, lu: np.ndarray, lv: np.ndarray, seed: int, rain_amt: float, moss: bool) -> np.ndarray:
-    """Applies vertical tropical monsoon rain-drip streaks from eaves/sills + rising dark-olive lumot moss."""
+    """Applies soft sunlit monsoon drip streaks + organic green lumot moss rising up CHB/concrete bases."""
     if rain_amt > 0.0:
-        # High-frequency vertical drip channels strongest below top eave/lintel (lv -> 1.0) and mid streaks
-        drip_hi = _value_noise(lu, lv, 28, 3, seed + 611)
-        drip_mid = _value_noise(lu, lv, 13, 2, seed + 647)
-        channel = np.clip((0.65 * drip_hi + 0.35 * drip_mid - 0.54) * 5.2, 0.0, 1.0)
-        top_reach = np.clip((lv - 0.12) * 1.15, 0.0, 1.0) ** 0.75
-        eave_soot = np.clip((lv - 0.82) * 5.0, 0.0, 1.0) * (0.45 + 0.55 * drip_mid)
-        streak = np.maximum(channel * top_reach, eave_soot * 0.75) * rain_amt
-        rgb = _mix(rgb, (0.16, 0.17, 0.14), streak * 0.62)
+        drip_hi = _value_noise(lu, lv, 26, 3, seed + 611)
+        drip_mid = _value_noise(lu, lv, 12, 2, seed + 647)
+        channel = np.clip((0.65 * drip_hi + 0.35 * drip_mid - 0.56) * 4.8, 0.0, 1.0)
+        top_reach = np.clip((lv - 0.14) * 1.12, 0.0, 1.0) ** 0.78
+        eave_stain = np.clip((lv - 0.85) * 4.6, 0.0, 1.0) * (0.42 + 0.58 * drip_mid)
+        streak = np.maximum(channel * top_reach, eave_stain * 0.65) * rain_amt
+        rgb = _mix(rgb, (0.35, 0.34, 0.30), streak * 0.38)
 
     if moss:
-        # Multi-stage dark-olive lumot moss rising up the bottom ~34% with capillary damp fingers
-        fingers = _value_noise(lu, lv, 19, 5, seed + 409) * 0.18 + (_fbm_brush(lu, lv, seed + 431, 7, 4) * 0.14)
-        moss_h = 0.25 + fingers
-        damp_halo = np.clip((moss_h + 0.13 - lv) * 5.8, 0.0, 1.0)
-        olive_mat = np.clip((moss_h - lv) * 9.5, 0.0, 1.0)
-        deep_root = np.clip((0.11 + fingers * 0.45 - lv) * 13.0, 0.0, 1.0)
-        spore_speck = ((_value_noise(lu, lv, 38, 38, seed + 463) > 0.74) & (lv < moss_h)).astype(np.float32)
-        rgb = _mix(rgb, (0.20, 0.23, 0.16), damp_halo * 0.72)
-        rgb = _mix(rgb, (0.13, 0.24, 0.09), olive_mat * 0.88)
-        rgb = _mix(rgb, (0.22, 0.33, 0.12), spore_speck * olive_mat * 0.58)
-        rgb = _mix(rgb, (0.08, 0.13, 0.07), deep_root * 0.90)
+        # Organic green lumot moss rising up lower courses with capillary damp halo & sunlit moss tufts
+        fingers = _value_noise(lu, lv, 18, 5, seed + 409) * 0.18 + (_fbm_brush(lu, lv, seed + 431, 7, 4) * 0.13)
+        moss_h = 0.27 + fingers
+        damp_halo = np.clip((moss_h + 0.12 - lv) * 5.6, 0.0, 1.0)
+        lumot_mat = np.clip((moss_h - lv) * 9.0, 0.0, 1.0)
+        deep_root = np.clip((0.11 + fingers * 0.42 - lv) * 12.0, 0.0, 1.0)
+        spore_speck = ((_value_noise(lu, lv, 34, 34, seed + 463) > 0.69) & (lv < moss_h)).astype(np.float32)
+        rgb = _mix(rgb, (0.34, 0.38, 0.27), damp_halo * 0.58)
+        rgb = _mix(rgb, (0.21, 0.39, 0.17), lumot_mat * 0.84)
+        rgb = _mix(rgb, (0.33, 0.49, 0.21), spore_speck * lumot_mat * 0.58)
+        rgb = _mix(rgb, (0.17, 0.29, 0.16), deep_root * 0.74)
     return rgb
 
 
@@ -200,145 +263,112 @@ def _paint_swatch(row: int, col: int, base_rgb, kind: str, param: dict) -> np.nd
 
     brush = _fbm_brush(lu, lv, seed, 6, 6)
     wobble = _value_noise(lu, lv, 14, 14, seed + 99) - 0.5
-    # Arcane warm-light / cool-shadow color shift
-    rgb[..., 0] += brush * 0.085
-    rgb[..., 1] += brush * 0.068
-    rgb[..., 2] += brush * 0.045 - brush * 0.020
+    # Sunlit warm-daylight painterly brush shift
+    rgb[..., 0] += brush * 0.075
+    rgb[..., 1] += brush * 0.062
+    rgb[..., 2] += brush * 0.042
 
     if kind == "chb":
-        # Sharp 10-course x 5-column 40x20cm running-bond Concrete Hollow Blocks (~2.0m x 2.0m bay scale!)
-        courses = 10.0
-        cols = 5.0
-        by = lv * courses + wobble * 0.038
+        # Sunlit 9-course x 4.5-column 40x20cm running-bond Concrete Hollow Blocks with mossy mortar courses
+        courses = 9.0
+        cols = 4.5
+        by = lv * courses + wobble * 0.034
         row_idx = np.floor(by)
         fy = by - row_idx
-        bx = lu * cols + (row_idx % 2.0) * 0.5 + wobble * 0.026
+        bx = lu * cols + (row_idx % 2.0) * 0.5 + wobble * 0.024
         col_idx = np.floor(bx)
         fx = bx - col_idx
 
-        # Strong per-block tonal & warm/cool cement separation
         blk_hash = ((np.sin(row_idx * 12.9898 + col_idx * 78.233 + seed) * 43758.5453) % 1.0) - 0.5
         blk_warm = ((np.sin(row_idx * 39.346 + col_idx * 11.135 + seed) * 19283.71) % 1.0) - 0.5
         raw_chb = np.empty_like(rgb)
-        raw_chb[..., 0] = 0.41 + blk_hash * 0.095 + blk_warm * 0.025 + brush * 0.065
-        raw_chb[..., 1] = 0.42 + blk_hash * 0.090 + brush * 0.065
-        raw_chb[..., 2] = 0.40 + blk_hash * 0.085 - blk_warm * 0.025 + brush * 0.055
+        raw_chb[..., 0] = 0.51 + blk_hash * 0.075 + blk_warm * 0.022 + brush * 0.055
+        raw_chb[..., 1] = 0.51 + blk_hash * 0.072 + brush * 0.055
+        raw_chb[..., 2] = 0.48 + blk_hash * 0.068 - blk_warm * 0.022 + brush * 0.048
 
-        # Crisp indented mortar courses: dark recessed cement trough + #1A1619 top shadow lip + sunlit block arris!
-        h_mortar = fy < 0.145
-        v_mortar = fx < 0.090
+        h_mortar = fy < 0.135
+        v_mortar = fx < 0.085
         mortar = (h_mortar | v_mortar).astype(np.float32)
-        mortar_shadow = ((fy > 0.085) & (fy < 0.145)) | ((fx > 0.048) & (fx < 0.090))
-        mortar_core = (fy < 0.048) | (fx < 0.032)
-        arris_hi = (((fy >= 0.145) & (fy < 0.195)) & (~v_mortar)).astype(np.float32)
-        raw_chb = _mix(raw_chb, (0.23, 0.22, 0.21), mortar * 0.90)
-        raw_chb = _mix(raw_chb, INK_RGB, (mortar_shadow | mortar_core).astype(np.float32) * 0.80)
-        raw_chb += arris_hi[..., None] * 0.055
+        arris_hi = (((fy >= 0.135) & (fy < 0.190)) & (~v_mortar)).astype(np.float32)
+        mortar_tone = (0.25, 0.36, 0.21) if param.get("moss", False) else (0.34, 0.32, 0.30)
+        raw_chb = _mix(raw_chb, mortar_tone, mortar * 0.84)
+        raw_chb += arris_hi[..., None] * 0.045
 
-        # Coarse gravel aggregate pits & dark trowel patch smears
-        pit_noise = _value_noise(lu, lv, 44, 44, seed + 201)
-        pit_dark = (pit_noise > 0.77).astype(np.float32)
-        pit_spec = (pit_noise < 0.14).astype(np.float32) * (1.0 - mortar)
-        raw_chb = _mix(raw_chb, (0.19, 0.18, 0.18), pit_dark * 0.68)
-        raw_chb += pit_spec[..., None] * 0.042
+        pit_noise = _value_noise(lu, lv, 40, 40, seed + 201)
+        pit_dark = (pit_noise > 0.79).astype(np.float32)
+        raw_chb = _mix(raw_chb, (0.33, 0.31, 0.30), pit_dark * 0.45)
 
         plaster_amt = float(param.get("plaster", 0.0))
         if plaster_amt > 0.0:
-            # Multi-stage flaking provincial turquoise / ochre / terracotta paint over grey cement render & CHB!
-            cement_render = _mix(raw_chb, (0.45, 0.45, 0.43), np.full_like(lu, 0.62))
+            cement_render = _mix(raw_chb, (0.53, 0.52, 0.49), np.full_like(lu, 0.58))
             flake_macro = _fbm_brush(lu, lv, seed + 303, 5, 5)
             flake_detail = _value_noise(lu, lv, 22, 22, seed + 337) - 0.5
-            flake_field = flake_macro + flake_detail * 0.34 + 0.48 + lv * 0.28
-            # Primer/undercoat halo slightly wider than surviving vibrant paint islands
+            flake_field = flake_macro + flake_detail * 0.32 + 0.50 + lv * 0.26
             primer_mask = np.clip((flake_field - (0.92 - plaster_amt)) * 9.0, 0.0, 1.0)
-            paint_mask = np.clip((flake_field - (1.03 - plaster_amt)) * 12.0, 0.0, 1.0)
-            chip_rim = ((paint_mask > 0.06) & (paint_mask < 0.78)).astype(np.float32)
-            chip_curl = ((paint_mask >= 0.78) & (paint_mask < 0.96)).astype(np.float32)
+            paint_mask = np.clip((flake_field - (1.02 - plaster_amt)) * 11.0, 0.0, 1.0)
+            chip_rim = ((paint_mask > 0.08) & (paint_mask < 0.74)).astype(np.float32)
 
-            # Subtle CHB mortar courses telegraphing through thin barrio paint
-            painted = rgb - mortar[..., None] * 0.038 + arris_hi[..., None] * 0.022
-            primer_col = _mix(cement_render, painted * 0.86 + 0.06, np.full_like(lu, 0.45))
-            rgb = _mix(raw_chb, cement_render, np.clip(primer_mask * 1.25, 0.0, 1.0))
+            painted = rgb - mortar[..., None] * 0.032 + arris_hi[..., None] * 0.022
+            primer_col = _mix(cement_render, painted * 0.90 + 0.04, np.full_like(lu, 0.48))
+            rgb = _mix(raw_chb, cement_render, np.clip(primer_mask * 1.2, 0.0, 1.0))
             rgb = _mix(rgb, primer_col, primer_mask)
             rgb = _mix(rgb, painted, paint_mask)
-            rgb += chip_curl[..., None] * 0.048
-            rgb = _mix(rgb, INK_RGB, chip_rim * 0.78)
+            rgb = _mix(rgb, INK_RGB, chip_rim * 0.48)
         else:
             rgb = raw_chb
 
-        # Forked hand-inked structural settlement cracks
-        crack_main = np.abs((lv - 0.16) - (lu - 0.18) * 0.68 - wobble * 0.095)
-        crack_fork = np.abs((lv - 0.42) + (lu - 0.56) * 0.52 - wobble * 0.07)
-        c_mask = (((crack_main < 0.012) & (lu > 0.16) & (lu < 0.80)) | ((crack_fork < 0.009) & (lu > 0.48) & (lu < 0.82))).astype(np.float32)
-        rgb = _mix(rgb, INK_RGB, c_mask * 0.88)
-
-        rgb = _apply_rain_and_moss(rgb, lu, lv, seed, float(param.get("rain", 0.65)), bool(param.get("moss", False)))
+        crack_main = np.abs((lv - 0.18) - (lu - 0.20) * 0.65 - wobble * 0.085)
+        c_mask = ((crack_main < 0.010) & (lu > 0.18) & (lu < 0.78)).astype(np.float32)
+        rgb = _mix(rgb, INK_RGB, c_mask * 0.62)
+        rgb = _apply_rain_and_moss(rgb, lu, lv, seed, float(param.get("rain", 0.42)), bool(param.get("moss", False)))
 
     elif kind == "concrete":
         streak = _fbm_brush(lu, lv, seed + 11, 4, 14)
-        pitting = (_value_noise(lu, lv, 36, 36, seed + 119) > 0.78).astype(np.float32)
-        rgb += streak[..., None] * 0.065
-        rgb = _mix(rgb, (0.21, 0.21, 0.20), pitting * 0.45)
-        # Formwork board horizontal seam + tie-holes & hairline crack
-        seam_h = (np.abs((lv * 3.0) % 1.0 - 0.5) < 0.018).astype(np.float32)
-        rgb = _mix(rgb, INK_RGB, seam_h * 0.48)
-        for tx in (0.25, 0.75):
-            for ty in (0.28, 0.72):
-                hole = (np.hypot(lu - tx, lv - ty) < 0.022).astype(np.float32)
-                drip = ((np.abs(lu - tx) < 0.014) & (lv < ty) & (lv > ty - 0.16)).astype(np.float32)
-                rgb = _mix(rgb, (0.24, 0.17, 0.13), drip * 0.52)
-                rgb = _mix(rgb, INK_RGB, hole * 0.84)
-        rgb = _apply_rain_and_moss(rgb, lu, lv, seed, float(param.get("rain", 0.55)), bool(param.get("moss", False)))
+        pitting = (_value_noise(lu, lv, 34, 34, seed + 119) > 0.79).astype(np.float32)
+        rgb += streak[..., None] * 0.055
+        rgb = _mix(rgb, (0.35, 0.34, 0.32), pitting * 0.40)
+        seam_h = (np.abs((lv * 3.0) % 1.0 - 0.5) < 0.016).astype(np.float32)
+        rgb = _mix(rgb, INK_RGB, seam_h * 0.38)
+        rgb = _apply_rain_and_moss(rgb, lu, lv, seed, float(param.get("rain", 0.38)), bool(param.get("moss", False)))
 
     elif kind == "yero":
         if param.get("patch", False):
-            # Multi-panel patchwork yero: weathered zinc-grey left, sienna rust right, red-oxide top lap, faded turquoise scrap
             right_sheet = (lu > 0.48 + wobble * 0.02).astype(np.float32)
             top_sheet = (lv > 0.53 + wobble * 0.02).astype(np.float32)
             corner_patch = ((lu < 0.34) & (lv < 0.38)).astype(np.float32)
-            rgb = np.broadcast_to(np.array([0.48, 0.50, 0.51], dtype=np.float32), rgb.shape).copy()
-            rgb = _mix(rgb, (0.44, 0.22, 0.13), right_sheet)
-            rgb = _mix(rgb, (0.49, 0.20, 0.16), top_sheet * (1.0 - right_sheet * 0.5))
-            rgb = _mix(rgb, (0.21, 0.42, 0.43), corner_patch * 0.78)
-            rgb += brush[..., None] * 0.065
-            v_seam = (np.abs(lu - (0.48 + wobble * 0.02)) < 0.016).astype(np.float32)
-            rgb = _mix(rgb, INK_RGB, v_seam * 0.90)
+            rgb = np.broadcast_to(np.array([0.55, 0.56, 0.57], dtype=np.float32), rgb.shape).copy()
+            rgb = _mix(rgb, (0.53, 0.29, 0.18), right_sheet)
+            rgb = _mix(rgb, (0.55, 0.27, 0.21), top_sheet * (1.0 - right_sheet * 0.5))
+            rgb = _mix(rgb, (0.32, 0.50, 0.49), corner_patch * 0.76)
+            rgb += brush[..., None] * 0.055
+            v_seam = (np.abs(lu - (0.48 + wobble * 0.02)) < 0.014).astype(np.float32)
+            rgb = _mix(rgb, INK_RGB, v_seam * 0.65)
 
-        # 16 sharp corrugated GI ribs with deep comic shadow grooves + sunlit ridge crown
-        ribs = 16.0
+        # 15 sunlit corrugated GI ribs + oxidized orange-brown rust streaks
+        ribs = 15.0
         phase = lu * ribs * 2.0 * math.pi
         wave = np.sin(phase)
         crown = np.clip(np.cos(phase - 0.45), 0.0, 1.0) ** 3.0
-        groove = np.clip(-np.cos(phase + 0.35) - 0.45, 0.0, 0.55) / 0.55
-        deep_valley = (np.cos(phase + 0.35) < -0.84).astype(np.float32)
-        rgb += wave[..., None] * 0.072 + crown[..., None] * 0.052
-        rgb = _mix(rgb, (0.16, 0.13, 0.13), groove * 0.58)
-        rgb = _mix(rgb, INK_RGB, deep_valley * 0.74)
+        groove = np.clip(-np.cos(phase + 0.35) - 0.48, 0.0, 0.52) / 0.52
+        rgb += wave[..., None] * 0.062 + crown[..., None] * 0.042
+        rgb = _mix(rgb, INK_RGB, groove * 0.52)
 
-        # Oxidized kalawang orange-sienna & dark crusted ferric-umber rust patches
         rust_amt = float(param.get("rust", 0.45))
         rust_macro = _fbm_brush(lu, lv, seed + 512, 5, 9)
-        rust_fine = _value_noise(lu, lv, 24, 24, seed + 547) - 0.5
-        rust_field = rust_macro + rust_fine * 0.28 + 0.52
-        rust_mask = np.clip((rust_field - (1.0 - rust_amt)) * 5.5, 0.0, 1.0)
-        deep_rust = np.clip((rust_field - (1.13 - rust_amt)) * 8.0, 0.0, 1.0)
-        rust_edge = ((rust_mask > 0.12) & (rust_mask < 0.68)).astype(np.float32)
-        rgb = _mix(rgb, (0.46, 0.20, 0.11), rust_mask * 0.85)
-        rgb = _mix(rgb, (0.23, 0.10, 0.08), deep_rust * 0.82)
-        rgb = _mix(rgb, INK_RGB, rust_edge * 0.35)
+        rust_fine = _value_noise(lu, lv, 22, 22, seed + 547) - 0.5
+        rust_field = rust_macro + rust_fine * 0.26 + 0.52
+        rust_mask = np.clip((rust_field - (1.0 - rust_amt)) * 5.2, 0.0, 1.0)
+        deep_rust = np.clip((rust_field - (1.14 - rust_amt)) * 7.5, 0.0, 1.0)
+        rgb = _mix(rgb, (0.55, 0.28, 0.16), rust_mask * 0.84)
+        rgb = _mix(rgb, (0.41, 0.21, 0.15), deep_rust * 0.72)
 
-        # Horizontal sheet overlap drop-shadow + umbrella nail row + vertical rust-drip trails!
-        lap_y = 0.52 + wobble * 0.015
-        lap_line = (np.abs(lv - lap_y) < 0.015).astype(np.float32)
-        lap_shadow = ((lv < lap_y) & (lv > lap_y - 0.055)).astype(np.float32)
-        rgb = _mix(rgb, (0.14, 0.11, 0.11), lap_shadow * 0.52)
-        rgb = _mix(rgb, INK_RGB, lap_line * 0.92)
+        lap_y = 0.52 + wobble * 0.014
+        lap_line = (np.abs(lv - lap_y) < 0.014).astype(np.float32)
+        rgb = _mix(rgb, INK_RGB, lap_line * 0.68)
         rib_u = (lu * ribs) % 1.0
         nail_col = (np.floor(lu * ribs) % 2.0) < 0.5
-        nails = ((np.abs(lv - 0.56) < 0.016) & (np.abs(rib_u - 0.25) < 0.16) & nail_col).astype(np.float32)
-        nail_drip = ((lv < 0.56) & (lv > 0.28) & (np.abs(rib_u - 0.25) < 0.10) & nail_col).astype(np.float32) * np.clip((lv - 0.28) / 0.28, 0.0, 1.0)
-        rgb = _mix(rgb, (0.38, 0.15, 0.09), nail_drip * 0.72)
-        rgb = _mix(rgb, INK_RGB, nails * 0.92)
+        nail_drip = ((lv < 0.56) & (lv > 0.22) & (np.abs(rib_u - 0.25) < 0.12) & nail_col).astype(np.float32) * np.clip((lv - 0.22) / 0.34, 0.0, 1.0)
+        rgb = _mix(rgb, (0.52, 0.25, 0.15), nail_drip * 0.76)
 
     elif kind == "sawali":
         # 45-degree diagonal 2-over-2-under woven bamboo sawali slats
@@ -355,223 +385,266 @@ def _paint_swatch(row: int, col: int, base_rgb, kind: str, param: dict) -> np.nd
         slat = np.where(over[..., None], tone_a, tone_b)
         fiber = np.where(over, np.sin(fv * math.pi * 7.0), np.sin(fu * math.pi * 7.0)) * 0.036
         rgb = slat + fiber[..., None] + brush[..., None] * 0.048
-        edge = ((fu < 0.12) | (fv < 0.12)).astype(np.float32)
-        rgb = _mix(rgb, INK_RGB, edge * 0.78)
-        rgb = _apply_rain_and_moss(rgb, lu, lv, seed, 0.38, False)
+        edge = ((fu < 0.11) | (fv < 0.11)).astype(np.float32)
+        rgb = _mix(rgb, INK_RGB, edge * 0.45)
+        rgb = _apply_rain_and_moss(rgb, lu, lv, seed, 0.34, False)
 
     elif kind == "plywood":
-        grain = np.sin(lu * 8.0 + _fbm_brush(lu, lv, seed + 71, 4, 14) * 6.0) * 0.048
+        grain = np.sin(lu * 8.0 + _fbm_brush(lu, lv, seed + 71, 4, 14) * 6.0) * 0.045
         rgb += grain[..., None]
         if param.get("peel") is not None:
             peel_field = _fbm_brush(lu, lv, seed + 88, 6, 6) + (_value_noise(lu, lv, 20, 20, seed + 91) - 0.5) * 0.30
             peel_m = np.clip((peel_field + 0.12 - lv * 0.22) * 9.0, 0.0, 1.0)
             peel_rim = ((peel_m > 0.08) & (peel_m < 0.76)).astype(np.float32)
-            raw_wood = np.asarray(param["peel"], dtype=np.float32) + grain[..., None] * 1.2
-            rgb = _mix(rgb, raw_wood, peel_m * 0.92)
-            rgb = _mix(rgb, INK_RGB, peel_rim * 0.74)
+            raw_wood = np.asarray(param["peel"], dtype=np.float32) + grain[..., None] * 1.1
+            rgb = _mix(rgb, raw_wood, peel_m * 0.88)
+            rgb = _mix(rgb, INK_RGB, peel_rim * 0.45)
         # Water stain + vertical wood batten strips at thirds
-        rgb = _apply_rain_and_moss(rgb, lu, lv, seed, 0.52, False)
-        stain = np.clip((0.20 + wobble * 0.06 - lv) * 6.5, 0.0, 1.0)
-        rgb = _mix(rgb, (0.20, 0.16, 0.12), stain * 0.65)
+        rgb = _apply_rain_and_moss(rgb, lu, lv, seed, 0.42, False)
+        stain = np.clip((0.18 + wobble * 0.06 - lv) * 6.0, 0.0, 1.0)
+        rgb = _mix(rgb, (0.34, 0.28, 0.22), stain * 0.52)
         for bx_pos in (0.33, 0.67):
             batten = (np.abs(lu - bx_pos) < 0.018).astype(np.float32)
             batten_ink = (np.abs(np.abs(lu - bx_pos) - 0.018) < 0.006).astype(np.float32)
-            rgb = _mix(rgb, (0.26, 0.18, 0.12), batten * 0.82)
-            rgb = _mix(rgb, INK_RGB, batten_ink * 0.70)
+            rgb = _mix(rgb, (0.40, 0.30, 0.21), batten * 0.76)
+            rgb = _mix(rgb, INK_RGB, batten_ink * 0.48)
 
     elif kind == "wood":
         planks = float(param.get("planks", 4))
         py_idx = np.floor(lv * planks)
         fy = (lv * planks) - py_idx
-        streak = _fbm_brush(lu, lv, seed + 19, 18, 4) * 0.095
-        var = ((np.sin(py_idx * 37.7 + seed) * 1973.3) % 1.0 - 0.5) * 0.07
+        streak = _fbm_brush(lu, lv, seed + 19, 18, 4) * 0.085
+        var = ((np.sin(py_idx * 37.7 + seed) * 1973.3) % 1.0 - 0.5) * 0.065
         rgb += (streak + var)[..., None]
-        gap = (fy < 0.085).astype(np.float32)
-        rgb = _mix(rgb, INK_RGB, gap * 0.85)
+        gap = (fy < 0.080).astype(np.float32)
+        rgb = _mix(rgb, INK_RGB, gap * 0.58)
 
     elif kind == "bamboo":
-        # Vertical segmented bamboo culm with dark buko node rings
-        cyl = np.cos((lu - 0.5) * math.pi) * 0.08 - 0.03
+        # Vertical segmented bamboo culm with warm buko node rings
+        cyl = np.cos((lu - 0.5) * math.pi) * 0.075 - 0.02
         rgb += cyl[..., None]
         for nz in (0.25, 0.52, 0.78):
             ring = (np.abs(lv - nz) < 0.022).astype(np.float32)
-            rgb = _mix(rgb, (0.24, 0.20, 0.11), ring * 0.85)
+            rgb = _mix(rgb, (0.34, 0.28, 0.17), ring * 0.78)
 
     elif kind == "jalousie":
-        # Dark room interior + 10 horizontal overlapping glass/wood louver slats
-        rgb[:] = (0.12, 0.15, 0.18)
+        # Sunlit room interior + 10 horizontal overlapping glass/wood louver slats
+        rgb[:] = (0.24, 0.30, 0.35)
         frame = ((lu < 0.08) | (lu > 0.92) | (lv < 0.06) | (lv > 0.94)).astype(np.float32)
         mullion = (np.abs(lu - 0.50) < 0.022).astype(np.float32)
         slats = 10.0
         sy = (lv * slats) % 1.0
         glass_tone = np.empty_like(rgb)
-        glass_tone[..., 0] = 0.21 + sy * 0.15 + brush * 0.04
-        glass_tone[..., 1] = 0.35 + sy * 0.17 + brush * 0.04
-        glass_tone[..., 2] = 0.42 + sy * 0.17 + brush * 0.04
-        lip = (sy < 0.16).astype(np.float32)
-        glass_tone = _mix(glass_tone, INK_RGB, lip * 0.88)
-        shine = ((sy > 0.66) & (sy < 0.84) & (lu + lv * 0.4 > 0.44) & (lu + lv * 0.4 < 0.76)).astype(np.float32)
-        glass_tone = _mix(glass_tone, (0.49, 0.58, 0.60), shine * 0.58)
-        rgb = _mix(glass_tone, (0.39, 0.41, 0.42), np.maximum(frame, mullion))
+        glass_tone[..., 0] = 0.29 + sy * 0.16 + brush * 0.04
+        glass_tone[..., 1] = 0.42 + sy * 0.17 + brush * 0.04
+        glass_tone[..., 2] = 0.48 + sy * 0.16 + brush * 0.04
+        lip = (sy < 0.14).astype(np.float32)
+        glass_tone = _mix(glass_tone, INK_RGB, lip * 0.62)
+        shine = ((sy > 0.64) & (sy < 0.86) & (lu + lv * 0.4 > 0.42) & (lu + lv * 0.4 < 0.78)).astype(np.float32)
+        glass_tone = _mix(glass_tone, (0.56, 0.62, 0.63), shine * 0.58)
+        rgb = _mix(glass_tone, (0.48, 0.49, 0.47), np.maximum(frame, mullion))
 
     elif kind == "rehas":
-        # Deep interior shadow + rusted wrought-iron security bars & decorative C-scrolls
-        rgb[:] = (0.10, 0.09, 0.11)
-        bars_u = np.abs(((lu * 6.0) % 1.0) - 0.5) < 0.095
-        bars_v = (np.abs(lv - 0.18) < 0.026) | (np.abs(lv - 0.82) < 0.026) | (np.abs(lv - 0.50) < 0.024)
+        # Soft shaded interior + oxidized orange-brown rusted wrought-iron security bars
+        rgb[:] = (0.26, 0.23, 0.22)
+        bars_u = np.abs(((lu * 6.0) % 1.0) - 0.5) < 0.10
+        bars_v = (np.abs(lv - 0.18) < 0.028) | (np.abs(lv - 0.82) < 0.028) | (np.abs(lv - 0.50) < 0.025)
         if param.get("counter", False):
-            # Pass-through sari-sari bentahan hole at bottom-center
+            # Pass-through sari-sari bentahan hole at bottom-center with warm shelf glow behind
+            shelf_bg = (lv > 0.44).astype(np.float32)
+            rgb = _mix(rgb, (0.38, 0.32, 0.25), shelf_bg * 0.55)
             hole = (lu > 0.34) & (lu < 0.66) & (lv > 0.10) & (lv < 0.42)
             bars_u = bars_u & (~hole)
-            hole_rim = ((np.abs(lu - 0.34) < 0.022) | (np.abs(lu - 0.66) < 0.022) | (np.abs(lv - 0.42) < 0.026)) & (lu >= 0.32) & (lu <= 0.68) & (lv <= 0.44)
+            hole_rim = ((np.abs(lu - 0.34) < 0.024) | (np.abs(lu - 0.66) < 0.024) | (np.abs(lv - 0.42) < 0.028)) & (lu >= 0.32) & (lu <= 0.68) & (lv <= 0.44)
             bars_v = bars_v | hole_rim
         iron = (bars_u | bars_v).astype(np.float32)
         iron_col = np.empty_like(rgb)
-        iron_col[..., 0] = 0.35 + brush * 0.11
-        iron_col[..., 1] = 0.21 + brush * 0.06
-        iron_col[..., 2] = 0.16 + brush * 0.05
+        iron_col[..., 0] = 0.51 + brush * 0.10
+        iron_col[..., 1] = 0.30 + brush * 0.06
+        iron_col[..., 2] = 0.20 + brush * 0.05
         rgb = _mix(rgb, iron_col, iron)
 
     elif kind == "door":
-        # Provincial 2-panel timber door with stiles, wood grain & kickplate wear
+        # Provincial 2-panel timber door with stiles, wood grain & moss base
         panel_x = (lu > 0.18) & (lu < 0.82)
         panel_top = panel_x & (lv > 0.54) & (lv < 0.86)
         panel_bot = panel_x & (lv > 0.14) & (lv < 0.44)
         recess = (panel_top | panel_bot).astype(np.float32)
-        rgb = _mix(rgb, np.array(base_rgb, dtype=np.float32) * 0.74, recess * 0.84)
+        rgb = _mix(rgb, np.array(base_rgb, dtype=np.float32) * 0.82, recess * 0.76)
         border = (((np.abs(lu - 0.18) < 0.020) | (np.abs(lu - 0.82) < 0.020)) & (lv > 0.14) & (lv < 0.86)).astype(np.float32)
-        rgb = _mix(rgb, INK_RGB, border * 0.80)
-        knob = (np.hypot(lu - 0.84, lv - 0.48) < 0.032).astype(np.float32)
-        rgb = _mix(rgb, (0.54, 0.45, 0.23), knob)
-        rgb = _apply_rain_and_moss(rgb, lu, lv, seed, 0.42, True)
+        rgb = _mix(rgb, INK_RGB, border * 0.55)
+        knob = (np.hypot(lu - 0.84, lv - 0.48) < 0.034).astype(np.float32)
+        rgb = _mix(rgb, (0.60, 0.50, 0.26), knob)
+        rgb = _apply_rain_and_moss(rgb, lu, lv, seed, 0.36, True)
 
     elif kind == "tile":
         g = float(param.get("grid", 5))
         tx = (lu * g) % 1.0
         ty = (lv * g) % 1.0
-        grout = ((tx < 0.10) | (ty < 0.10)).astype(np.float32)
-        rgb = _mix(rgb, (0.20, 0.19, 0.18), grout * 0.88)
-        chip = (_value_noise(lu, lv, 20, 20, seed + 61) > 0.81).astype(np.float32)
-        rgb = _mix(rgb, (0.35, 0.33, 0.30), chip * 0.76)
+        grout = ((tx < 0.09) | (ty < 0.09)).astype(np.float32)
+        rgb = _mix(rgb, (0.34, 0.32, 0.29), grout * 0.72)
+        chip = (_value_noise(lu, lv, 20, 20, seed + 61) > 0.82).astype(np.float32)
+        rgb = _mix(rgb, (0.46, 0.44, 0.40), chip * 0.65)
 
     elif kind == "burlap":
         weave = (np.sin(lu * 90.0) * np.sin(lv * 90.0)) * 0.035
         rgb += weave[..., None]
         seam = (np.abs(lv - 0.5) < 0.022).astype(np.float32)
-        rgb = _mix(rgb, INK_RGB, seam * 0.55)
+        rgb = _mix(rgb, INK_RGB, seam * 0.42)
+
+    elif kind == "barber_pole":
+        # Classic 90s Barberya diagonal red / warm-cream / cobalt-blue cylinder stripes
+        stripe_phase = (lu * 2.0 + lv * 3.0) % 1.0
+        red_band = (stripe_phase < 0.30).astype(np.float32)
+        blue_band = ((stripe_phase >= 0.50) & (stripe_phase < 0.80)).astype(np.float32)
+        rgb = _mix(rgb, (0.60, 0.23, 0.21), red_band * 0.92)
+        rgb = _mix(rgb, (0.24, 0.39, 0.59), blue_band * 0.92)
+        gloss = np.cos((lu - 0.42) * math.pi) * 0.055
+        rgb += gloss[..., None]
 
     elif kind == "trapal":
         if param.get("striped", False):
             band = np.floor(lu * 6.0) % 3.0
-            rgb = np.where((band == 1.0)[..., None], np.array([0.58, 0.53, 0.43], dtype=np.float32), rgb)
-            rgb = np.where((band == 2.0)[..., None], np.array([0.56, 0.23, 0.19], dtype=np.float32), rgb)
-            rgb += brush[..., None] * 0.06
+            rgb = np.where((band == 1.0)[..., None], np.array([0.61, 0.57, 0.48], dtype=np.float32), rgb)
+            rgb = np.where((band == 2.0)[..., None], np.array([0.59, 0.27, 0.22], dtype=np.float32), rgb)
+            rgb += brush[..., None] * 0.05
         # Tarp scrim grid + diagonal sun-bleached fold creases + brass grommets
         scrim = (np.sin(lu * 110.0) + np.sin(lv * 110.0)) * 0.014
-        crease = np.exp(-((lu * 0.8 + lv - 0.92) ** 2) * 320.0) * 0.075
-        grime = np.clip((_fbm_brush(lu, lv, seed + 177, 8, 8) + 0.08) * 3.0, 0.0, 1.0)
-        rgb = _mix(rgb + (scrim + crease)[..., None], (0.24, 0.22, 0.19), grime * 0.28)
+        crease = np.exp(-((lu * 0.8 + lv - 0.92) ** 2) * 320.0) * 0.065
+        grime = np.clip((_fbm_brush(lu, lv, seed + 177, 8, 8) + 0.06) * 2.6, 0.0, 1.0)
+        rgb = _mix(rgb + (scrim + crease)[..., None], (0.35, 0.33, 0.29), grime * 0.22)
         for gx in (0.12, 0.50, 0.88):
             for gy in (0.08, 0.92):
                 d = np.hypot(lu - gx, lv - gy)
                 ring = ((d < 0.032) & (d > 0.014)).astype(np.float32)
                 hole = (d <= 0.014).astype(np.float32)
-                rgb = _mix(rgb, (0.54, 0.46, 0.26), ring)
-                rgb = _mix(rgb, INK_RGB, hole)
+                rgb = _mix(rgb, (0.58, 0.50, 0.28), ring)
+                rgb = _mix(rgb, INK_RGB, hole * 0.75)
 
     elif kind == "sachets":
-        # Hanging colorful chichirya & shampoo packets
+        # Hanging sunlit colorful chichirya & shampoo packets ( Boy Bawang / Clover / Sunsilk vibes )
         cx = np.floor(lu * 4.0)
         cy = np.floor(lv * 5.0)
         fx = (lu * 4.0) - cx
         fy = (lv * 5.0) - cy
         pal = [
-            (0.59, 0.45, 0.15),
-            (0.57, 0.19, 0.20),
-            (0.17, 0.40, 0.58),
-            (0.22, 0.47, 0.26),
+            (0.62, 0.50, 0.20),
+            (0.60, 0.25, 0.23),
+            (0.25, 0.46, 0.61),
+            (0.29, 0.53, 0.31),
         ]
         idx = ((cx * 3 + cy * 5) % 4).astype(np.int32)
         for k in range(4):
             rgb = np.where((idx == k)[..., None], np.array(pal[k], dtype=np.float32), rgb)
-        rgb += brush[..., None] * 0.05
-        seal = ((fx < 0.10) | (fy < 0.11)).astype(np.float32)
-        rgb = _mix(rgb, INK_RGB, seal * 0.88)
+        rgb += brush[..., None] * 0.045
+        label_band = ((fx > 0.18) & (fx < 0.82) & (fy > 0.42) & (fy < 0.68)).astype(np.float32)
+        rgb = _mix(rgb, (0.62, 0.59, 0.51), label_band * 0.65)
+        seal = ((fx < 0.09) | (fy < 0.10)).astype(np.float32)
+        rgb = _mix(rgb, INK_RGB, seal * 0.58)
 
-    elif kind == "sign":
-        # Weathered hand-painted provincial kalye tin signboard: header banner, bold shadowed glyphs, chipped rust corners!
-        accent = np.asarray(param.get("accent", (0.59, 0.48, 0.18)), dtype=np.float32)
-        style = int(param.get("style", 0))
-        header = ((lv > 0.67) & (lv < 0.92) & (lu > 0.06) & (lu < 0.94)).astype(np.float32)
-        rgb = _mix(rgb, accent, header * 0.92)
+    elif kind == "text_sign":
+        # Hand-painted 90s Philippine province tin signboard with legible block typography & oxidized rust corners!
+        hdr_col = np.asarray(param.get("hdr", (0.58, 0.23, 0.20)), dtype=np.float32)
+        hdr_fg = np.asarray(param.get("hdr_fg", (0.62, 0.59, 0.49)), dtype=np.float32)
+        body_fg = np.asarray(param.get("fg", (0.21, 0.17, 0.18)), dtype=np.float32)
+        line1 = str(param.get("l1", "TINDAHAN"))
+        line2 = str(param.get("l2", "SARI-SARI"))
 
-        # Sub-header ink glyphs inside top ribbon
-        sub_glyph = ((lv > 0.74) & (lv < 0.85) & (((lu * 14.0 + style * 0.3) % 1.0) > 0.28) & (lu > 0.16) & (lu < 0.84)).astype(np.float32)
-        rgb = _mix(rgb, INK_RGB, sub_glyph * 0.84)
+        header_band = ((lv > 0.58) & (lv < 0.91) & (lu > 0.06) & (lu < 0.94)).astype(np.float32)
+        rgb = _mix(rgb, hdr_col, header_band * 0.94)
 
-        # Bold hand-lettered main kalye block letters with #1A1619 3D comic drop shadow!
-        def _letter_mask(u_c, v_c):
-            col_u = (u_c * (7.0 + style)) % 1.0
-            in_box = (u_c > 0.10) & (u_c < 0.90) & (v_c > 0.22) & (v_c < 0.56)
-            stem = col_u > 0.22
-            cross_cut = (col_u > 0.42) & (col_u < 0.68) & (np.abs(v_c - 0.39) > 0.045) & (v_c < 0.49) & (v_c > 0.29)
-            return in_box & stem & (~cross_cut)
+        m1 = _text_mask(lu, lv, line1, 0.09, 0.91, 0.64, 0.86)
+        m1_sh = _text_mask(lu - 0.008, lv + 0.012, line1, 0.09, 0.91, 0.64, 0.86) * (1.0 - m1)
+        rgb = _mix(rgb, INK_RGB, m1_sh * 0.62)
+        rgb = _mix(rgb, hdr_fg, m1 * 0.96)
 
-        glyph_fg = _letter_mask(lu, lv).astype(np.float32)
-        glyph_sh = (_letter_mask(lu - 0.014, lv + 0.022) & (~(_letter_mask(lu, lv)))).astype(np.float32)
-        rgb = _mix(rgb, INK_RGB, glyph_sh * 0.90)
-        rgb = _mix(rgb, (0.59, 0.56, 0.47), glyph_fg * 0.92)
+        u_pad2 = 0.08 if len(line2) >= 9 else 0.15
+        m2 = _text_mask(lu, lv, line2, u_pad2, 1.0 - u_pad2, 0.18, 0.49)
+        m2_sh = _text_mask(lu - 0.009, lv + 0.014, line2, u_pad2, 1.0 - u_pad2, 0.18, 0.49) * (1.0 - m2)
+        rgb = _mix(rgb, (0.34, 0.28, 0.24), m2_sh * 0.55)
+        rgb = _mix(rgb, body_fg, m2 * 0.96)
 
-        # Enamel pinstripe border + chipped kalawang rust corners & vertical nail rust drips
         pinstripe = (
-            (((np.abs(lu - 0.055) < 0.012) | (np.abs(lu - 0.945) < 0.012)) & (lv > 0.07) & (lv < 0.93))
-            | (((np.abs(lv - 0.075) < 0.014) | (np.abs(lv - 0.665) < 0.015) | (np.abs(lv - 0.925) < 0.014)) & (lu > 0.05) & (lu < 0.95))
+            (((np.abs(lu - 0.055) < 0.011) | (np.abs(lu - 0.945) < 0.011)) & (lv > 0.07) & (lv < 0.93))
+            | (((np.abs(lv - 0.075) < 0.013) | (np.abs(lv - 0.575) < 0.013) | (np.abs(lv - 0.915) < 0.013)) & (lu > 0.05) & (lu < 0.95))
         ).astype(np.float32)
-        rgb = _mix(rgb, INK_RGB, pinstripe * 0.88)
+        rgb = _mix(rgb, INK_RGB, pinstripe * 0.68)
 
         rust_f = _fbm_brush(lu, lv, seed + 709, 7, 7) + 0.5
-        edge_prox = 1.0 - np.clip(np.minimum(np.minimum(lu, 1.0 - lu), np.minimum(lv, 1.0 - lv)) * 6.5, 0.0, 1.0)
-        sign_rust = np.clip((rust_f * 0.75 + edge_prox * 0.65 - 0.62) * 5.0, 0.0, 1.0)
-        rgb = _mix(rgb, (0.42, 0.18, 0.10), sign_rust * 0.85)
+        edge_prox = 1.0 - np.clip(np.minimum(np.minimum(lu, 1.0 - lu), np.minimum(lv, 1.0 - lv)) * 7.0, 0.0, 1.0)
+        sign_rust = np.clip((rust_f * 0.72 + edge_prox * 0.65 - 0.66) * 4.8, 0.0, 1.0)
+        rgb = _mix(rgb, (0.53, 0.27, 0.16), sign_rust * 0.78)
         for nx in (0.09, 0.91):
             for ny in (0.12, 0.88):
-                nh = (np.hypot(lu - nx, lv - ny) < 0.020).astype(np.float32)
-                ndrip = ((np.abs(lu - nx) < 0.012) & (lv < ny) & (lv > ny - 0.24)).astype(np.float32)
-                rgb = _mix(rgb, (0.36, 0.15, 0.09), ndrip * 0.72)
-                rgb = _mix(rgb, INK_RGB, nh * 0.92)
+                nh = (np.hypot(lu - nx, lv - ny) < 0.018).astype(np.float32)
+                ndrip = ((np.abs(lu - nx) < 0.011) & (lv < ny) & (lv > ny - 0.18)).astype(np.float32)
+                rgb = _mix(rgb, (0.50, 0.25, 0.15), ndrip * 0.65)
+                rgb = _mix(rgb, INK_RGB, nh * 0.78)
+
+    elif kind == "malabanan_sign":
+        # Classic 90s electric-post yellow/orange tin notice: MALABANAN / SIPSIP POSO / NEGRO
+        top_bar = ((lv > 0.69) & (lv < 0.92) & (lu > 0.06) & (lu < 0.94)).astype(np.float32)
+        rgb = _mix(rgb, (0.59, 0.24, 0.19), top_bar * 0.92)
+        t1 = _text_mask(lu, lv, "MALABANAN", 0.09, 0.91, 0.73, 0.89)
+        t2 = _text_mask(lu, lv, "SIPSIP POSO", 0.08, 0.92, 0.44, 0.63)
+        t3 = _text_mask(lu, lv, "NEGRO", 0.20, 0.80, 0.17, 0.37)
+        rgb = _mix(rgb, (0.63, 0.60, 0.50), t1 * 0.96)
+        rgb = _mix(rgb, (0.20, 0.17, 0.18), np.maximum(t2, t3) * 0.95)
+        frame = (
+            (((np.abs(lu - 0.055) < 0.012) | (np.abs(lu - 0.945) < 0.012)) & (lv > 0.07) & (lv < 0.93))
+            | (((np.abs(lv - 0.08) < 0.013) | (np.abs(lv - 0.92) < 0.013)) & (lu > 0.05) & (lu < 0.95))
+        ).astype(np.float32)
+        rgb = _mix(rgb, INK_RGB, frame * 0.70)
+        rust_corner = np.clip((1.0 - np.hypot(lu - 0.08, lv - 0.10) * 4.5), 0.0, 1.0) + np.clip((1.0 - np.hypot(lu - 0.92, lv - 0.88) * 4.5), 0.0, 1.0)
+        rgb = _mix(rgb, (0.53, 0.27, 0.16), np.clip(rust_corner, 0.0, 1.0) * 0.75)
+
+    elif kind == "bawal_sign":
+        # Sunlit lime-washed CHB base wall with red stenciled "BAWAL UMIHI DITO" + green moss foot
+        courses = 7.0
+        fy = (lv * courses + wobble * 0.025) % 1.0
+        mortar = (fy < 0.075).astype(np.float32)
+        rgb = _mix(rgb, (0.44, 0.43, 0.39), mortar * 0.48)
+        patch = ((lu > 0.07) & (lu < 0.93) & (lv > 0.26) & (lv < 0.88)).astype(np.float32)
+        rgb = _mix(rgb, (0.62, 0.60, 0.54), patch * 0.86)
+        b1 = _text_mask(lu, lv, "BAWAL UMIHI", 0.09, 0.91, 0.60, 0.81)
+        b2 = _text_mask(lu, lv, "DITO", 0.26, 0.74, 0.34, 0.54)
+        stencil = np.maximum(b1, b2)
+        spray_halo = (_value_noise(lu, lv, 28, 28, seed + 303) > 0.35).astype(np.float32)
+        rgb = _mix(rgb, (0.58, 0.21, 0.19), stencil * (0.85 + 0.15 * spray_halo))
+        rgb = _apply_rain_and_moss(rgb, lu, lv, seed, 0.36, True)
 
     elif kind == "hazard":
         diag = ((np.floor((lu + lv) * 7.0) % 2.0) > 0.5).astype(np.float32)
-        rgb = _mix(rgb, (0.15, 0.14, 0.16), diag * 0.92)
-        wear = np.clip((_fbm_brush(lu, lv, seed + 77, 8, 8) + 0.15) * 3.0, 0.0, 1.0)
-        rgb = _mix(rgb, (0.38, 0.37, 0.35), wear * 0.42)
+        rgb = _mix(rgb, (0.24, 0.22, 0.23), diag * 0.86)
+        wear = np.clip((_fbm_brush(lu, lv, seed + 77, 8, 8) + 0.12) * 2.6, 0.0, 1.0)
+        rgb = _mix(rgb, (0.46, 0.45, 0.41), wear * 0.38)
 
     elif kind == "metal":
         sheen = np.sin((lu * 0.7 + lv * 0.3) * math.pi * 5.0) * 0.045
         rgb += sheen[..., None]
-        rust_amt = float(param.get("rust", 0.2))
-        rf = np.clip((_fbm_brush(lu, lv, seed + 141, 7, 7) + rust_amt - 0.22) * 4.5, 0.0, 1.0)
-        rgb = _mix(rgb, (0.41, 0.20, 0.12), rf * 0.82)
+        rust_amt = float(param.get("rust", 0.25))
+        rf = np.clip((_fbm_brush(lu, lv, seed + 141, 7, 7) + rust_amt - 0.18) * 4.2, 0.0, 1.0)
+        rgb = _mix(rgb, (0.53, 0.28, 0.17), rf * 0.82)
 
     elif kind == "meter":
-        # Galvanized Meralco kWh meter box with round dark glass dial dome, cyclometer digits & rust corners
+        # Galvanized Meralco kWh meter box with glass dial dome, cyclometer digits & rust corners
         d = np.hypot(lu - 0.50, lv - 0.58)
         glass = (d < 0.27).astype(np.float32)
         rim = ((d >= 0.24) & (d < 0.30)).astype(np.float32)
         dial = ((np.abs(lv - 0.60) < 0.052) & (np.abs(lu - 0.50) < 0.17)).astype(np.float32)
         disc = ((np.abs(lv - 0.49) < 0.018) & (np.abs(lu - 0.50) < 0.14)).astype(np.float32)
-        rgb = _mix(rgb, (0.14, 0.18, 0.21), glass * 0.92)
-        rgb = _mix(rgb, (0.56, 0.54, 0.48), dial * 0.90)
-        rgb = _mix(rgb, (0.58, 0.24, 0.16), disc * 0.85)
-        rgb = _mix(rgb, INK_RGB, rim * 0.92)
+        rgb = _mix(rgb, (0.25, 0.31, 0.35), glass * 0.88)
+        rgb = _mix(rgb, (0.60, 0.58, 0.52), dial * 0.92)
+        rgb = _mix(rgb, (0.59, 0.26, 0.18), disc * 0.85)
+        rgb = _mix(rgb, INK_RGB, rim * 0.78)
         tag = ((lu > 0.28) & (lu < 0.72) & (lv > 0.14) & (lv < 0.25)).astype(np.float32)
-        rgb = _mix(rgb, (0.59, 0.46, 0.15), tag * 0.88)
+        rgb = _mix(rgb, (0.61, 0.50, 0.20), tag * 0.88)
 
     elif kind == "tire":
-        tread = (((np.floor(lv * 12.0) + np.floor(lu * 4.0)) % 2.0) * 0.03)
+        tread = (((np.floor(lv * 12.0) + np.floor(lu * 4.0)) % 2.0) * 0.035)
         rgb += tread[..., None]
         groove = ((np.abs(lu - 0.33) < 0.025) | (np.abs(lu - 0.67) < 0.025)).astype(np.float32)
-        rgb = _mix(rgb, INK_RGB, groove * 0.80)
+        rgb = _mix(rgb, INK_RGB, groove * 0.62)
 
     elif kind == "wire":
         strand = np.sin(lu * math.pi * 10.0) * 0.025
@@ -580,39 +653,39 @@ def _paint_swatch(row: int, col: int, base_rgb, kind: str, param: dict) -> np.nd
     elif kind == "drum":
         for rz in (0.28, 0.68):
             rib = (np.abs(lv - rz) < 0.028).astype(np.float32)
-            rgb = _mix(rgb, np.array(base_rgb, dtype=np.float32) * 0.65, rib * 0.85)
-        scuff = np.clip((_fbm_brush(lu, lv, seed + 93, 8, 8) + 0.1) * 3.5, 0.0, 1.0)
-        rgb = _mix(rgb, (0.26, 0.28, 0.30), scuff * 0.30)
+            rgb = _mix(rgb, np.array(base_rgb, dtype=np.float32) * 0.74, rib * 0.78)
+        scuff = np.clip((_fbm_brush(lu, lv, seed + 93, 8, 8) + 0.08) * 3.0, 0.0, 1.0)
+        rgb = _mix(rgb, (0.38, 0.40, 0.41), scuff * 0.26)
 
     elif kind == "livery":
-        trim = np.asarray(param.get("trim", (0.56, 0.19, 0.17)), dtype=np.float32)
+        trim = np.asarray(param.get("trim", (0.58, 0.24, 0.20)), dtype=np.float32)
         stripe = ((lv > 0.38) & (lv < 0.62)).astype(np.float32)
         pin = ((np.abs(lv - 0.35) < 0.018) | (np.abs(lv - 0.65) < 0.018)).astype(np.float32)
         rgb = _mix(rgb, trim, stripe * 0.88)
-        rgb = _mix(rgb, INK_RGB, pin * 0.85)
+        rgb = _mix(rgb, INK_RGB, pin * 0.65)
 
     elif kind == "banner":
-        chev_col = np.asarray(param.get("chevron", (0.58, 0.58, 0.58)), dtype=np.float32)
+        chev_col = np.asarray(param.get("chevron", (0.61, 0.61, 0.61)), dtype=np.float32)
         chev = (np.abs((lv - 0.50) + np.abs(lu - 0.50) * 0.75) < 0.075).astype(np.float32)
         chev2 = (np.abs((lv - 0.28) + np.abs(lu - 0.50) * 0.75) < 0.055).astype(np.float32)
         rgb = _mix(rgb, chev_col, np.maximum(chev, chev2) * 0.90)
         chev_ink = (np.abs((lv - 0.50) + np.abs(lu - 0.50) * 0.75) < 0.095) & (chev < 0.5)
-        rgb = _mix(rgb, INK_RGB, chev_ink.astype(np.float32) * 0.80)
+        rgb = _mix(rgb, INK_RGB, chev_ink.astype(np.float32) * 0.58)
 
     elif kind == "laundry":
-        stripe_col = np.asarray(param.get("stripe", (0.58, 0.52, 0.42)), dtype=np.float32)
+        stripe_col = np.asarray(param.get("stripe", (0.61, 0.56, 0.46)), dtype=np.float32)
         band = ((lv > 0.42) & (lv < 0.60)).astype(np.float32)
         fold = np.sin(lu * math.pi * 5.0) * 0.045
         rgb = _mix(rgb, stripe_col, band * 0.85) + fold[..., None]
 
     elif kind == "backboard":
-        # Painted red shooter's box on scuffed plywood backboard
+        # Painted red shooter's box on sunlit scuffed plywood backboard
         box_x = (lu > 0.30) & (lu < 0.70)
         box_y = (lv > 0.18) & (lv < 0.56)
         inner_x = (lu > 0.35) & (lu < 0.65)
         inner_y = (lv > 0.23) & (lv < 0.51)
         shooter = (box_x & box_y & (~(inner_x & inner_y))).astype(np.float32)
-        rgb = _mix(rgb, (0.56, 0.18, 0.16), shooter * 0.92)
+        rgb = _mix(rgb, (0.59, 0.23, 0.20), shooter * 0.92)
 
     elif kind == "foliage":
         rib = (np.abs(lu - 0.50) < 0.025).astype(np.float32)
@@ -625,35 +698,32 @@ def _paint_swatch(row: int, col: int, base_rgb, kind: str, param: dict) -> np.nd
         gy = (lv * 4.0) % 1.0 - 0.5
         d = np.hypot(gx, gy)
         rim = ((d > 0.34) & (d < 0.46)).astype(np.float32)
-        rgb = _mix(rgb, INK_RGB, rim * 0.75)
+        rgb = _mix(rgb, INK_RGB, rim * 0.55)
 
     elif kind == "lamp":
         glow = np.clip(1.0 - np.hypot(lu - 0.5, lv - 0.5) * 1.2, 0.0, 1.0)
-        rgb = _mix(np.array([0.44, 0.36, 0.22], dtype=np.float32), base_rgb, glow)
+        rgb = _mix(np.array([0.48, 0.40, 0.26], dtype=np.float32), base_rgb, glow)
 
     elif kind == "ink":
-        rgb[:] = INK_RGB
+        rgb[:] = (0.24, 0.20, 0.21)
 
-    # Hand-inked 90s Filipino Komiks charcoal panel contour + corner sketch hatch lines!
-    if kind not in ("ink", "wire", "bamboo"):
+    # Soft sunlit 90s Filipino Komiks panel contour (warm espresso, never harsh black)
+    if kind not in ("ink", "wire", "bamboo", "barber_pole"):
         edge_dist = np.minimum(np.minimum(lu, 1.0 - lu), np.minimum(lv, 1.0 - lv))
-        ink_w = 0.024 + wobble * 0.006
-        border_ink = np.clip((ink_w - edge_dist) * 90.0, 0.0, 1.0)
-        # Subtle diagonal comic cross-hatch ticks near corners
-        corner_zone = ((lu + lv < 0.22) | ((1.0 - lu) + (1.0 - lv) < 0.20)).astype(np.float32)
-        hatch = ((np.abs(((lu - lv) * 26.0) % 1.0 - 0.5) < 0.12) & (edge_dist < 0.09)).astype(np.float32) * corner_zone * 0.44
-        rgb = _mix(rgb, INK_RGB, np.maximum(border_ink * 0.88, hatch))
+        ink_w = 0.015 + wobble * 0.004
+        border_ink = np.clip((ink_w - edge_dist) * 95.0, 0.0, 1.0)
+        rgb = _mix(rgb, INK_RGB, border_ink * 0.42)
 
     return np.clip(rgb, MIN_ALBEDO, MAX_ALBEDO)
 
 
 def build_atlas_image() -> bpy.types.Image:
-    """Generates the 2048x2048 painterly atlas, writes BarangayAtlas.jpg + .jpg.import."""
+    """Generates the 2048x2048 sunlit 90s province painterly atlas, writes BarangayAtlas.jpg + .jpg.import."""
     if ATLAS_NAME in bpy.data.images:
         bpy.data.images.remove(bpy.data.images[ATLAS_NAME])
 
     # Blender image rows are bottom-to-top (v=0 at bottom, v=1 at top)
-    atlas = np.full((ATLAS_SIZE, ATLAS_SIZE, 4), 0.35, dtype=np.float32)
+    atlas = np.full((ATLAS_SIZE, ATLAS_SIZE, 4), 0.46, dtype=np.float32)
     atlas[..., 3] = 1.0
 
     for _name, (row, col, base_rgb, kind, param) in SWATCHES.items():
@@ -662,8 +732,14 @@ def build_atlas_image() -> bpy.types.Image:
         x0 = col * CELL
         atlas[y0:y0 + CELL, x0:x0 + CELL, :3] = tile_rgb
 
+    # Calibrate warm sunlit daytime exposure gently if needed so mean_sRGB lands cleanly around ~0.46 in [0.43, 0.49]
+    pre_mean = float(atlas[..., :3].mean())
+    if pre_mean < 0.442 or pre_mean > 0.478:
+        shift = 0.460 - pre_mean
+        atlas[..., :3] = np.clip(atlas[..., :3] + shift, MIN_ALBEDO, MAX_ALBEDO)
+
     max_pre = float(atlas[..., :3].max())
-    assert max_pre <= 0.72, f"Atlas pre-JPEG max RGB exceeded 0.72: {max_pre:.4f}"
+    assert max_pre <= 0.74, f"Atlas pre-JPEG max RGB exceeded 0.74: {max_pre:.4f}"
 
     os.makedirs(OUT_DIR, exist_ok=True)
     img = bpy.data.images.new(ATLAS_NAME, width=ATLAS_SIZE, height=ATLAS_SIZE, alpha=False)
@@ -684,12 +760,16 @@ def build_atlas_image() -> bpy.types.Image:
     chk_srgb = chk_raw.reshape((-1, 4))[:, :3]
     max_srgb = float(chk_srgb.max())
     mean_srgb = float(chk_srgb.mean())
+    min_srgb = float(chk_srgb.min())
+    pct_dark = float((chk_srgb < 0.08).mean()) * 100.0
     print(
         f"Saved {jpg_path} ({ATLAS_SIZE}x{ATLAS_SIZE}, "
-        f"raw JPEG max_sRGB = {max_srgb:.4f} in [0.55, 0.72], mean_sRGB = {mean_srgb:.4f} >= 0.20)"
+        f"mean_sRGB={mean_srgb:.4f} [0.43..0.49], max_sRGB={max_srgb:.4f} <=0.78, "
+        f"min_sRGB={min_srgb:.4f}, <0.08={pct_dark:.3f}%)"
     )
-    assert 0.55 <= max_srgb <= 0.72, f"Decoded JPEG max_sRGB out of [0.55, 0.72]: {max_srgb:.4f}"
-    assert mean_srgb >= 0.20, f"Decoded JPEG mean_sRGB too dark (< 0.20): {mean_srgb:.4f}"
+    assert 0.43 <= mean_srgb <= 0.49, f"Decoded JPEG mean_sRGB out of [0.43, 0.49]: {mean_srgb:.4f}"
+    assert max_srgb <= 0.78, f"Decoded JPEG max_sRGB > 0.78: {max_srgb:.4f}"
+    assert pct_dark == 0.0, f"Decoded JPEG has harsh <0.08 black pixels: {pct_dark:.4f}%"
 
     _write_godot_jpg_import(jpg_path)
     _clean_legacy_duplicate_jpegs()
@@ -937,7 +1017,7 @@ class KitBuilder:
         ret = bmesh.ops.create_cube(self.bm, size=1.0)
         verts = ret["verts"]
         bmesh.ops.scale(self.bm, vec=Vector((sx, sy, sz)), verts=verts)
-        if bevel > 0.0 and min(sx, sy, sz) > bevel * 3.1:
+        if bevel > 0.0 and min(sx, sy, sz) >= max(bevel * 3.1, 0.28):
             edges = list({e for v in verts for e in v.link_edges})
             brev = bmesh.ops.bevel(self.bm, geom=edges, offset=bevel, segments=1, affect="EDGES")
             verts = list({v for v in (list(brev["verts"]) + verts) if v.is_valid})
@@ -949,8 +1029,8 @@ class KitBuilder:
         self._map_faces(faces, swatch, mode=mode, bevel_thresh=bevel * 2.3)
         return verts
 
-    def add_subdivided_box(self, size, center, swatch: str, bay_max: float = 2.15, bevel: float = 0.024):
-        """Creates an axis-aligned room volume sliced into ~2.1m bays so CHB/paint/sawali texels stay razor-sharp."""
+    def add_subdivided_box(self, size, center, swatch: str, bay_max: float = 5.4, bevel: float = 0.024):
+        """Creates an axis-aligned room volume sliced into crisp CHB/sawali bays while keeping low-poly triangle budgets."""
         sx, sy, sz = size
         cx, cy, cz = center
         prev_v = set(self.bm.verts)
@@ -960,7 +1040,7 @@ class KitBuilder:
         ret = bmesh.ops.create_cube(self.bm, size=1.0)
         verts = ret["verts"]
         bmesh.ops.scale(self.bm, vec=Vector((sx, sy, sz)), verts=verts)
-        if bevel > 0.0 and min(sx, sy, sz) > bevel * 3.1:
+        if bevel > 0.0 and min(sx, sy, sz) >= max(bevel * 3.1, 0.28):
             edges = list({e for v in verts for e in v.link_edges})
             bmesh.ops.bevel(self.bm, geom=edges, offset=bevel, segments=1, affect="EDGES")
         bmesh.ops.translate(self.bm, vec=Vector((cx, cy, cz)), verts=[v for v in self.bm.verts if v not in prev_v])
@@ -994,7 +1074,7 @@ class KitBuilder:
         self._map_faces(new_faces, swatch, mode="panel", bevel_thresh=bevel * 2.3)
         return [v for v in self.bm.verts if v not in prev_v and v.is_valid]
 
-    def add_cylinder(self, radius: float, depth: float, center, swatch: str, segments: int = 10, rot_euler=(0.0, 0.0, 0.0), mode: str = "trim"):
+    def add_cylinder(self, radius: float, depth: float, center, swatch: str, segments: int = 8, rot_euler=(0.0, 0.0, 0.0), mode: str = "trim"):
         ret = bmesh.ops.create_cone(
             self.bm, cap_ends=True, cap_tris=False,
             segments=segments, radius1=radius, radius2=radius, depth=depth
@@ -1030,76 +1110,75 @@ class KitBuilder:
         wall_swatch: str, pillar_swatch: str = "concrete_pillar", plinth: bool = True,
         exposed_sides=("-Y", "+Y", "-X", "+X"), mid_beam: bool = True,
     ):
-        """Builds a subdivided structural CHB room with 3D corner & bay pilasters (haligi) + lintel/waist beams."""
+        """Builds a subdivided structural CHB room with 3D beveled corner & bay pilasters (haligi) + lintel/waist beams."""
         cx, cy = (x0 + x1) * 0.5, (y0 + y1) * 0.5
         w, d, h = (x1 - x0), (y1 - y0), (z1 - z0)
         if plinth and z0 < 0.05:
             self.add_box((w + 0.14, d + 0.14, 0.24), (cx, cy, 0.12), "concrete_moss", bevel=0.02)
 
-        # Subdivided wall bays (~2.15m) so 40x20cm CHB hollow-block courses & flaking paint stay crisp on all sides!
-        self.add_subdivided_box((w, d, h), (cx, cy, z0 + h * 0.5), wall_swatch, bay_max=2.15, bevel=0.024)
+        self.add_subdivided_box((w, d, h), (cx, cy, z0 + h * 0.5), wall_swatch, bay_max=5.4, bevel=0.024)
 
-        # 4 corner concrete haligi columns
+        # 4 beveled corner concrete haligi columns
         pw = 0.20
         for px in (x0 + pw * 0.35, x1 - pw * 0.35):
             for py in (y0 + pw * 0.35, y1 - pw * 0.35):
                 self.add_box((pw, pw, h + 0.02), (px, py, z0 + h * 0.5), pillar_swatch, bevel=0.018)
 
-        # Intermediate 3D pilasters on front (-Y), back (+Y), and eskinita side (-X/+X) walls!
-        nx_bays = max(1, int(round(w / 2.15)))
+        # Intermediate 3D pilasters on front (-Y), back (+Y), and eskinita side (-X/+X) walls
+        nx_bays = max(1, int(round(w / 3.4)))
         for k in range(1, nx_bays):
             bx = x0 + k * (w / float(nx_bays))
             if "-Y" in exposed_sides:
-                self.add_box((0.17, 0.10, h), (bx, y0 - 0.02, z0 + h * 0.5), pillar_swatch, bevel=0.014)
+                self.add_box((0.17, 0.10, h), (bx, y0 - 0.02, z0 + h * 0.5), pillar_swatch, bevel=0.0)
             if "+Y" in exposed_sides:
-                self.add_box((0.17, 0.10, h), (bx, y1 + 0.02, z0 + h * 0.5), pillar_swatch, bevel=0.014)
+                self.add_box((0.17, 0.10, h), (bx, y1 + 0.02, z0 + h * 0.5), pillar_swatch, bevel=0.0)
 
-        ny_bays = max(1, int(round(d / 2.15)))
+        ny_bays = max(1, int(round(d / 3.4)))
         for k in range(1, ny_bays):
             by = y0 + k * (d / float(ny_bays))
             if "-X" in exposed_sides:
-                self.add_box((0.10, 0.17, h), (x0 - 0.02, by, z0 + h * 0.5), pillar_swatch, bevel=0.014)
+                self.add_box((0.10, 0.17, h), (x0 - 0.02, by, z0 + h * 0.5), pillar_swatch, bevel=0.0)
             if "+X" in exposed_sides:
-                self.add_box((0.10, 0.17, h), (x1 + 0.02, by, z0 + h * 0.5), pillar_swatch, bevel=0.014)
+                self.add_box((0.10, 0.17, h), (x1 + 0.02, by, z0 + h * 0.5), pillar_swatch, bevel=0.0)
 
-        # Top concrete biga tie-beam + optional waist-height sill band on exposed side/back walls
+        # Beveled top concrete biga tie-beam + waist-height sill band on exposed side/back walls
         self.add_box((w + 0.09, d + 0.09, 0.18), (cx, cy, z1 - 0.08), pillar_swatch, bevel=0.02)
         if mid_beam and h >= 2.75:
             z_band = z0 + 0.88
             if "+Y" in exposed_sides:
-                self.add_box((w + 0.06, 0.07, 0.10), (cx, y1 + 0.02, z_band), pillar_swatch, bevel=0.01)
+                self.add_box((w + 0.06, 0.07, 0.10), (cx, y1 + 0.02, z_band), pillar_swatch, bevel=0.0)
             if "-X" in exposed_sides:
-                self.add_box((0.07, d + 0.06, 0.10), (x0 - 0.02, cy, z_band), pillar_swatch, bevel=0.01)
+                self.add_box((0.07, d + 0.06, 0.10), (x0 - 0.02, cy, z_band), pillar_swatch, bevel=0.0)
             if "+X" in exposed_sides:
-                self.add_box((0.07, d + 0.06, 0.10), (x1 + 0.02, cy, z_band), pillar_swatch, bevel=0.01)
+                self.add_box((0.07, d + 0.06, 0.10), (x1 + 0.02, cy, z_band), pillar_swatch, bevel=0.0)
 
     def add_upper_story_volume(
         self, x0: float, x1: float, y0: float, y1: float, z0: float, z1: float,
         wall_swatch: str, trim_swatch: str = "wood_coco", exposed_sides=("-Y", "+Y", "-X", "+X"),
     ):
-        """Builds a subdivided 2nd-storey sawali/plywood/plank room with exterior studs & ledger beams."""
+        """Builds a subdivided 2nd-storey sawali/plywood/plank room with beveled corner posts & exterior studs."""
         cx, cy = (x0 + x1) * 0.5, (y0 + y1) * 0.5
         w, d, h = (x1 - x0), (y1 - y0), (z1 - z0)
-        self.add_subdivided_box((w, d, h), (cx, cy, z0 + h * 0.5), wall_swatch, bay_max=2.15, bevel=0.022)
-        # Corner timber posts
+        self.add_subdivided_box((w, d, h), (cx, cy, z0 + h * 0.5), wall_swatch, bay_max=5.4, bevel=0.022)
+        # Beveled corner timber posts
         for px in (x0 + 0.05, x1 - 0.05):
             for py in (y0 + 0.05, y1 - 0.05):
-                self.add_box((0.14, 0.14, h + 0.02), (px, py, z0 + h * 0.5), trim_swatch, bevel=0.012)
-        # Exterior vertical bay studs along exposedeskinita walls
-        nx_bays = max(1, int(round(w / 2.15)))
+                self.add_box((0.15, 0.15, h + 0.02), (px, py, z0 + h * 0.5), trim_swatch, bevel=0.014)
+        # Exterior vertical bay studs along exposed eskinita walls
+        nx_bays = max(1, int(round(w / 3.4)))
         for k in range(1, nx_bays):
             bx = x0 + k * (w / float(nx_bays))
             if "-Y" in exposed_sides:
-                self.add_box((0.10, 0.07, h), (bx, y0 - 0.015, z0 + h * 0.5), trim_swatch, bevel=0.008)
+                self.add_box((0.10, 0.07, h), (bx, y0 - 0.015, z0 + h * 0.5), trim_swatch, bevel=0.0)
             if "+Y" in exposed_sides:
-                self.add_box((0.10, 0.07, h), (bx, y1 + 0.015, z0 + h * 0.5), trim_swatch, bevel=0.008)
-        ny_bays = max(1, int(round(d / 2.15)))
+                self.add_box((0.10, 0.07, h), (bx, y1 + 0.015, z0 + h * 0.5), trim_swatch, bevel=0.0)
+        ny_bays = max(1, int(round(d / 3.4)))
         for k in range(1, ny_bays):
             by = y0 + k * (d / float(ny_bays))
             if "-X" in exposed_sides:
-                self.add_box((0.07, 0.10, h), (x0 - 0.015, by, z0 + h * 0.5), trim_swatch, bevel=0.008)
+                self.add_box((0.07, 0.10, h), (x0 - 0.015, by, z0 + h * 0.5), trim_swatch, bevel=0.0)
             if "+X" in exposed_sides:
-                self.add_box((0.07, 0.10, h), (x1 + 0.015, by, z0 + h * 0.5), trim_swatch, bevel=0.008)
+                self.add_box((0.07, 0.10, h), (x1 + 0.015, by, z0 + h * 0.5), trim_swatch, bevel=0.0)
 
     def add_shed_yero_roof(self, x0: float, x1: float, y0: float, y1: float, z_low: float, z_high: float, swatches, slope_front_to_back: bool = True, weights_seed: int = 0):
         """Multi-sheet overlapping corrugated GI (kalawang na yero) lean-to roof + coco-lumber rafters & tire/stone weights."""
@@ -1107,10 +1186,9 @@ class KitBuilder:
         d = y1 - y0
         cx, cy = (x0 + x1) * 0.5, (y0 + y1) * 0.5
         rise = z_high - z_low
-        n_sheets = max(2, int(round(w / 1.55)))
+        n_sheets = max(2, int(round(w / 1.75)))
         sheet_w = (w / float(n_sheets)) + 0.08
         if slope_front_to_back:
-            # Low at front (-Y = y0), high at back (+Y = y1) -> drains forward or vice versa
             slope_len = math.hypot(d, rise)
             pitch = math.atan2(rise, d)
             rot = (pitch, 0.0, 0.0)
@@ -1120,8 +1198,8 @@ class KitBuilder:
             rot = (0.0, pitch, 0.0)
 
         # Coco-lumber purlins under eaves
-        self.add_box((w - 0.08, 0.12, 0.12), (cx, y0 + 0.18, z_low - 0.04), "wood_coco", bevel=0.01)
-        self.add_box((w - 0.08, 0.12, 0.12), (cx, y1 - 0.18, (z_high if slope_front_to_back else z_low) - 0.04), "wood_coco", bevel=0.01)
+        self.add_box((w - 0.08, 0.12, 0.12), (cx, y0 + 0.18, z_low - 0.04), "wood_coco", bevel=0.0)
+        self.add_box((w - 0.08, 0.12, 0.12), (cx, y1 - 0.18, (z_high if slope_front_to_back else z_low) - 0.04), "wood_coco", bevel=0.0)
 
         for i in range(n_sheets):
             sx = x0 + (i + 0.5) * (w / float(n_sheets))
@@ -1129,32 +1207,29 @@ class KitBuilder:
             sw = swatches[i % len(swatches)]
             if slope_front_to_back:
                 mz = (z_low + z_high) * 0.5 + 0.06 + step_z
-                self.add_box((sheet_w, slope_len, 0.07), (sx, cy, mz), sw, rot_euler=rot, bevel=0.012)
+                self.add_box((sheet_w, slope_len, 0.07), (sx, cy, mz), sw, rot_euler=rot, bevel=0.0)
             else:
                 t = (i + 0.5) / float(n_sheets)
                 mz = z_low + rise * t + 0.06 + step_z
                 seg_l = math.hypot(sheet_w, rise / float(n_sheets))
-                self.add_box((seg_l, d, 0.07), (sx, cy, mz), sw, rot_euler=(0.0, -pitch, 0.0), bevel=0.012)
+                self.add_box((seg_l, d, 0.07), (sx, cy, mz), sw, rot_euler=(0.0, -pitch, 0.0), bevel=0.0)
 
         if weights_seed > 0:
             self._place_roof_weights(x0 + 0.6, x1 - 0.6, y0 + 0.7, y1 - 0.7, z_low, z_high, slope_front_to_back, rot, weights_seed)
 
     def _place_roof_weights(self, x0, x1, y0, y1, z_low, z_high, slope_fb, rot, seed: int):
         """Places authentic typhoon roof weights: old rubber tires, concrete stones & scrap lumber battens."""
-        # Tire 1
         tx = x0 + (x1 - x0) * (0.28 if (seed % 2 == 0) else 0.70)
         ty = y0 + (y1 - y0) * 0.42
         tz = (z_low + (z_high - z_low) * ((ty - y0) / max(y1 - y0, 0.1))) if slope_fb else ((z_low + z_high) * 0.5)
         self.add_tire_flat((tx, ty, tz + 0.13), radius=0.40, rot_euler=rot)
-        # Concrete block / stone weight
         bx = x0 + (x1 - x0) * (0.72 if (seed % 2 == 0) else 0.32)
         by = y0 + (y1 - y0) * 0.64
         bz = (z_low + (z_high - z_low) * ((by - y0) / max(y1 - y0, 0.1))) if slope_fb else ((z_low + z_high) * 0.5)
-        self.add_box((0.42, 0.24, 0.18), (bx, by, bz + 0.12), "chb_raw_upper", rot_euler=rot, bevel=0.02)
-        # Scrap coco-lumber batten across sheets
+        self.add_box((0.42, 0.24, 0.18), (bx, by, bz + 0.12), "concrete_pillar", rot_euler=rot, bevel=0.02)
         my = (y0 + y1) * 0.5
         mz = (z_low + z_high) * 0.5 + 0.11
-        self.add_box((min(x1 - x0, 2.6), 0.11, 0.07), ((x0 + x1) * 0.5, my, mz), "wood_coco", rot_euler=rot, bevel=0.01)
+        self.add_box((min(x1 - x0, 2.6), 0.11, 0.07), ((x0 + x1) * 0.5, my, mz), "wood_coco", rot_euler=rot, bevel=0.0)
 
     def add_gable_prism(self, width_x: float, depth_y: float, base_z: float, rise_z: float, swatch: str, center_xy=(0.0, 0.0)):
         """Watertight triangular attic/pediment prism closing the space under a pitched gable roof."""
@@ -1177,12 +1252,11 @@ class KitBuilder:
             self.bm.faces.new((v_fl, v_bl, v_br, v_fr)),    # Base
         ]
         self._map_faces(faces, swatch, mode="panel", bevel_thresh=0.02)
-        # Louvered attic vent on front & back gable pediments
         if rise_z >= 0.95 and hx >= 1.2:
             vw = min(hx * 0.52, 0.95)
             vh = min(rise_z * 0.36, 0.48)
             for sy in (cy - hy - 0.03, cy + hy + 0.03):
-                self.add_box((vw, 0.08, vh), (cx, sy, z0 + rise_z * 0.42), "jalousie_window", bevel=0.01)
+                self.add_box((vw, 0.08, vh), (cx, sy, z0 + rise_z * 0.42), "jalousie_window", bevel=0.0)
 
     def add_gable_yero_roof(self, width_x: float, depth_y: float, base_z: float, rise_z: float, swatches, ridge_swatch: str = "yero_zinc_weathered", center_xy=(0.0, 0.0), weights_seed: int = 0, gable_swatch: str = "sawali_aged"):
         """Multi-panel patchwork gable GI roof with closed pediment prism, wood bargeboards, ridge flashing & weights."""
@@ -1192,7 +1266,7 @@ class KitBuilder:
         half_x = width_x * 0.5
         slope_len = math.hypot(half_x, rise_z)
         angle = math.atan2(rise_z, half_x)
-        n_panels = max(2, int(round(depth_y / 1.9)))
+        n_panels = max(2, int(round(depth_y / 2.2)))
         panel_d = (depth_y / float(n_panels)) + 0.07
         y0 = cy - depth_y * 0.5
 
@@ -1204,12 +1278,12 @@ class KitBuilder:
                 py = y0 + (j + 0.5) * (depth_y / float(n_panels))
                 step = ((j + side_idx) % 2) * 0.022
                 sw = swatches[(j + side_idx * 2) % len(swatches)]
-                self.add_box((slope_len, panel_d, 0.08), (px, py, pz + step), sw, rot_euler=(0.0, rot_y, 0.0), bevel=0.014)
+                self.add_box((slope_len, panel_d, 0.08), (px, py, pz + step), sw, rot_euler=(0.0, rot_y, 0.0), bevel=0.0)
 
         # Ridge cap & front/back timber fascia
-        self.add_box((0.34, depth_y + 0.08, 0.12), (cx, cy, base_z + rise_z + 0.04), ridge_swatch, bevel=0.02)
+        self.add_box((0.34, depth_y + 0.08, 0.14), (cx, cy, base_z + rise_z + 0.04), ridge_swatch, bevel=0.02)
         for fy in (cy - depth_y * 0.5 + 0.06, cy + depth_y * 0.5 - 0.06):
-            self.add_box((width_x - 0.10, 0.08, 0.16), (cx, fy, base_z + 0.02), "wood_dark", bevel=0.01)
+            self.add_box((width_x - 0.10, 0.08, 0.16), (cx, fy, base_z + 0.02), "wood_dark", bevel=0.0)
 
         if weights_seed > 0:
             for sign, frac_y in ((-1.0, -0.22), (1.0, 0.25)):
@@ -1219,12 +1293,12 @@ class KitBuilder:
                 if sign < 0 or (weights_seed % 2 == 1):
                     self.add_tire_flat((tx, cy + depth_y * frac_y, tz), radius=0.39, rot_euler=rot)
                 else:
-                    self.add_box((0.40, 0.22, 0.18), (tx, cy + depth_y * frac_y, tz), "chb_raw_upper", rot_euler=rot, bevel=0.02)
+                    self.add_box((0.40, 0.22, 0.18), (tx, cy + depth_y * frac_y, tz), "concrete_pillar", rot_euler=rot, bevel=0.02)
 
     def add_tire_flat(self, center, radius: float = 0.42, thickness: float = 0.20, rot_euler=(0.0, 0.0, 0.0)):
-        """Old black rubber tire with dark hollow center hub."""
-        self.add_cylinder(radius, thickness, center, "rubber_tire", segments=10, rot_euler=rot_euler, mode="panel")
-        self.add_cylinder(radius * 0.50, thickness + 0.02, center, "charcoal_ink", segments=8, rot_euler=rot_euler, mode="trim")
+        """3D old black rubber tire with dark recessed wheel hub."""
+        self.add_cylinder(radius, thickness, center, "rubber_tire", segments=8, rot_euler=rot_euler, mode="panel")
+        self.add_cylinder(radius * 0.50, thickness + 0.02, center, "charcoal_ink", segments=6, rot_euler=rot_euler, mode="trim")
 
     def add_rehas_window(
         self, center, width: float, height: float, facing: str = "-Y",
@@ -1234,15 +1308,15 @@ class KitBuilder:
         cx, cy, cz = center
         if facing in ("-Y", "+Y"):
             sgn = -1.0 if facing == "-Y" else 1.0
-            self.add_box((width, 0.12, height), (cx, cy + sgn * 0.02, cz), "jalousie_window", bevel=0.015)
-            self.add_box((width + 0.18, 0.22, 0.10), (cx, cy + sgn * 0.09, cz - height * 0.5 - 0.04), "concrete_pillar", bevel=0.015)
-            self.add_box((width + 0.14, 0.16, 0.08), (cx, cy + sgn * 0.06, cz + height * 0.5 + 0.04), "concrete_pillar", bevel=0.012)
+            self.add_box((width, 0.12, height), (cx, cy + sgn * 0.02, cz), "jalousie_window", bevel=0.0)
+            self.add_box((width + 0.18, 0.22, 0.10), (cx, cy + sgn * 0.09, cz - height * 0.5 - 0.04), "concrete_pillar", bevel=0.0)
+            self.add_box((width + 0.14, 0.16, 0.08), (cx, cy + sgn * 0.06, cz + height * 0.5 + 0.04), "concrete_pillar", bevel=0.0)
             if box_grill:
                 gy = cy + sgn * 0.16
                 for bz in (cz - height * 0.46, cz + height * 0.46):
-                    self.add_box((width + 0.08, 0.20, 0.04), (cx, cy + sgn * 0.10, bz), "steel_rusted", bevel=0.006, mode="trim")
+                    self.add_box((width + 0.08, 0.20, 0.04), (cx, cy + sgn * 0.10, bz), "steel_rusted", bevel=0.0, mode="trim")
                 self.add_box((width + 0.06, 0.035, 0.035), (cx, gy, cz), "steel_rusted", bevel=0.0, mode="trim")
-                n_bars = max(3, int(round(width / 0.30)))
+                n_bars = max(2, int(round(width / 0.62)))
                 for bi in range(n_bars + 1):
                     bx = cx - width * 0.5 + bi * (width / float(n_bars))
                     self.add_box((0.034, 0.034, height + 0.04), (bx, gy, cz), "steel_dark", bevel=0.0, mode="trim")
@@ -1252,20 +1326,20 @@ class KitBuilder:
                     hx = cx + side_s * (width * 0.5 + 0.08 + sh_w * 0.38)
                     hy = cy + sgn * (0.09 + sh_w * 0.22)
                     yaw = sgn * side_s * 0.42
-                    self.add_box((sh_w, 0.045, height * 0.94), (hx, hy, cz), "jalousie_window", rot_euler=(0.0, 0.0, yaw), bevel=0.008)
+                    self.add_box((sh_w, 0.045, height * 0.94), (hx, hy, cz), "jalousie_window", rot_euler=(0.0, 0.0, yaw), bevel=0.0)
             if hood_swatch:
-                self.add_box((width + 0.34, 0.62, 0.06), (cx, cy + sgn * 0.29, cz + height * 0.5 + 0.16), hood_swatch, rot_euler=(-sgn * 0.28, 0.0, 0.0), bevel=0.01)
+                self.add_box((width + 0.34, 0.62, 0.06), (cx, cy + sgn * 0.29, cz + height * 0.5 + 0.16), hood_swatch, rot_euler=(-sgn * 0.28, 0.0, 0.0), bevel=0.0)
         else:
             sgn = -1.0 if facing == "-X" else 1.0
-            self.add_box((0.12, width, height), (cx + sgn * 0.02, cy, cz), "jalousie_window", bevel=0.015)
-            self.add_box((0.20, width + 0.18, 0.10), (cx + sgn * 0.08, cy, cz - height * 0.5 - 0.04), "concrete_pillar", bevel=0.015)
-            self.add_box((0.15, width + 0.14, 0.08), (cx + sgn * 0.06, cy, cz + height * 0.5 + 0.04), "concrete_pillar", bevel=0.012)
+            self.add_box((0.12, width, height), (cx + sgn * 0.02, cy, cz), "jalousie_window", bevel=0.0)
+            self.add_box((0.20, width + 0.18, 0.10), (cx + sgn * 0.08, cy, cz - height * 0.5 - 0.04), "concrete_pillar", bevel=0.0)
+            self.add_box((0.15, width + 0.14, 0.08), (cx + sgn * 0.06, cy, cz + height * 0.5 + 0.04), "concrete_pillar", bevel=0.0)
             if box_grill:
                 gx = cx + sgn * 0.15
                 for bz in (cz - height * 0.46, cz + height * 0.46):
-                    self.add_box((0.18, width + 0.08, 0.04), (cx + sgn * 0.09, cy, bz), "steel_rusted", bevel=0.006, mode="trim")
+                    self.add_box((0.18, width + 0.08, 0.04), (cx + sgn * 0.09, cy, bz), "steel_rusted", bevel=0.0, mode="trim")
                 self.add_box((0.035, width + 0.06, 0.035), (gx, cy, cz), "steel_rusted", bevel=0.0, mode="trim")
-                n_bars = max(3, int(round(width / 0.30)))
+                n_bars = max(2, int(round(width / 0.62)))
                 for bi in range(n_bars + 1):
                     by = cy - width * 0.5 + bi * (width / float(n_bars))
                     self.add_box((0.034, 0.034, height + 0.04), (gx, by, cz), "steel_dark", bevel=0.0, mode="trim")
@@ -1275,39 +1349,63 @@ class KitBuilder:
                     hy = cy + side_s * (width * 0.5 + 0.08 + sh_w * 0.38)
                     hx = cx + sgn * (0.08 + sh_w * 0.20)
                     yaw = -sgn * side_s * 0.40
-                    self.add_box((0.045, sh_w, height * 0.94), (hx, hy, cz), "jalousie_window", rot_euler=(0.0, 0.0, yaw), bevel=0.008)
+                    self.add_box((0.045, sh_w, height * 0.94), (hx, hy, cz), "jalousie_window", rot_euler=(0.0, 0.0, yaw), bevel=0.0)
             if hood_swatch:
-                self.add_box((0.50, width + 0.32, 0.06), (cx + sgn * 0.23, cy, cz + height * 0.5 + 0.15), hood_swatch, rot_euler=(0.0, sgn * 0.28, 0.0), bevel=0.01)
+                self.add_box((0.50, width + 0.32, 0.06), (cx + sgn * 0.23, cy, cz + height * 0.5 + 0.15), hood_swatch, rot_euler=(0.0, sgn * 0.28, 0.0), bevel=0.0)
 
     def add_trapal_awning(self, center_top, width: float, reach_y: float, drop_z: float, swatch: str = "trapal_blue", props: bool = True):
         """Sloped faded tarpaulin or scrap-yero eskinita sunshade + diagonal bamboo/coco struts."""
         cx, y_wall, z_wall = center_top
         length = math.hypot(reach_y, drop_z)
         ang = math.atan2(drop_z, reach_y)
-        self.add_box((width, length, 0.055), (cx, y_wall - reach_y * 0.5, z_wall - drop_z * 0.5), swatch, rot_euler=(ang, 0.0, 0.0), bevel=0.01)
-        # Front bamboo hem bar
+        self.add_box((width, length, 0.06), (cx, y_wall - reach_y * 0.5, z_wall - drop_z * 0.5), swatch, rot_euler=(ang, 0.0, 0.0), bevel=0.0)
         self.add_cylinder(0.035, width + 0.08, (cx, y_wall - reach_y, z_wall - drop_z), "bamboo_pole", segments=6, rot_euler=(0.0, math.pi * 0.5, 0.0))
         if props:
             for sx in (cx - width * 0.44, cx + width * 0.44):
                 self.add_box((0.05, 0.05, reach_y * 1.15), (sx, y_wall - reach_y * 0.48, z_wall - drop_z - 0.35), "wood_coco", rot_euler=(-0.72, 0.0, 0.0), bevel=0.0, mode="trim")
 
     def add_sampayan(self, center, span_x: float = 2.4, seed: int = 1):
-        """Hanging bamboo laundry pole with 4 colorful Pinoy shirts/shorts drying under the eave."""
+        """Hanging bamboo laundry pole with volumetric 3D puffed shirts (sleeves + collar) & 3D two-legged shorts."""
         cx, cy, cz = center
         self.add_cylinder(0.032, span_x, (cx, cy, cz), "bamboo_pole", segments=6, rot_euler=(0.0, math.pi * 0.5, 0.0))
-        fabrics = ["laundry_warm", "laundry_cool", "trapal_orange", "jeep_cobalt"]
-        count = max(3, int(round(span_x / 0.62)))
+        fabrics = ["laundry_warm", "laundry_cool", "trapal_orange", "trapal_blue"]
+        count = max(3, min(4, int(round(span_x / 0.72))))
         for i in range(count):
-            lx = cx - span_x * 0.40 + i * (span_x * 0.80 / float(max(count - 1, 1)))
-            h = 0.52 if (i + seed) % 2 == 0 else 0.38
+            lx = cx - span_x * 0.38 + i * (span_x * 0.76 / float(max(count - 1, 1)))
             sw = fabrics[(i + seed) % len(fabrics)]
-            self.add_box((0.40, 0.05, h), (lx, cy, cz - h * 0.5 - 0.02), sw, rot_euler=(0.06 * ((i % 2) * 2 - 1), 0.0, 0.0), bevel=0.008)
+            sway = 0.07 * ((i % 2) * 2 - 1)
+            # 3D wooden sipit clothespins gripping the bamboo pole
+            for px_off in (-0.11, 0.11):
+                self.add_box((0.026, 0.042, 0.065), (lx + px_off, cy, cz + 0.022), "wood_coco", bevel=0.0, mode="trim")
+            if (i + seed) % 2 == 0:
+                # Volumetric 3D puffed T-shirt: beveled 14cm-thick chest torso + 2 angled tubular sleeves + collar ring
+                self.add_box((0.35, 0.14, 0.46), (lx, cy, cz - 0.25), sw, rot_euler=(sway, 0.0, 0.0), bevel=0.016)
+                self.add_cylinder(0.062, 0.05, (lx, cy, cz - 0.03), "concrete_pillar", segments=6, mode="trim")
+                for s_side in (-1.0, 1.0):
+                    self.add_cylinder(
+                        0.056, 0.20,
+                        (lx + s_side * 0.22, cy, cz - 0.13),
+                        sw, segments=6,
+                        rot_euler=(sway, s_side * 0.92, 0.0),
+                        mode="panel",
+                    )
+            else:
+                # Volumetric 3D basketball shorts: beveled 14cm waistband block + 2 distinct tubular leg cylinders
+                self.add_box((0.34, 0.14, 0.17), (lx, cy, cz - 0.10), sw, rot_euler=(sway, 0.0, 0.0), bevel=0.016)
+                for l_side in (-1.0, 1.0):
+                    self.add_cylinder(
+                        0.074, 0.25,
+                        (lx + l_side * 0.095, cy, cz - 0.28),
+                        sw, segments=6,
+                        rot_euler=(sway, l_side * 0.08, 0.0),
+                        mode="panel",
+                    )
 
     def add_water_drum(self, base_pos, swatch: str = "water_drum_blue"):
         """200L blue plastic barangay water drum + dark lid."""
         bx, by, bz = base_pos
-        self.add_cylinder(0.29, 0.88, (bx, by, bz + 0.44), swatch, segments=10, mode="panel")
-        self.add_cylinder(0.305, 0.06, (bx, by, bz + 0.89), "steel_dark", segments=10, mode="trim")
+        self.add_cylinder(0.29, 0.88, (bx, by, bz + 0.44), swatch, segments=8, mode="panel")
+        self.add_cylinder(0.305, 0.06, (bx, by, bz + 0.89), "steel_dark", segments=8, mode="trim")
 
     def add_electric_meter(self, pos, facing_y: float = -1.0, riser_h: float = 1.6):
         """Galvanized Meralco kWh meter box + glass dome + service conduit pipe."""
@@ -1323,16 +1421,15 @@ class KitBuilder:
                 ox = (i - (count - 1) * 0.5) * 0.31
                 oz = (i % 2) * 0.09
                 self.add_box((0.26, 0.14, 0.35), (mx + ox, wy, mz + oz), "meter_box", bevel=0.014)
-                self.add_cylinder(0.086, 0.09, (mx + ox, wy + sgn * 0.08, mz + oz + 0.04), "charcoal_ink", segments=8, rot_euler=(math.pi * 0.5, 0.0, 0.0))
+                self.add_cylinder(0.086, 0.09, (mx + ox, wy + sgn * 0.08, mz + oz + 0.04), "charcoal_ink", segments=6, rot_euler=(math.pi * 0.5, 0.0, 0.0))
             if pvc_up > 0.2:
-                # Steel weatherhead service riser + orange PVC branch conduit + junction box
                 rx = mx + (count - 1) * 0.15 + 0.07
                 self.add_cylinder(0.024, pvc_up, (rx, wy, mz + 0.17 + pvc_up * 0.5), "zinc_brushed", segments=6)
-                self.add_box((0.10, 0.12, 0.09), (rx, wy + sgn * 0.03, mz + 0.17 + pvc_up), "steel_rusted", bevel=0.01)
+                self.add_box((0.10, 0.12, 0.09), (rx, wy + sgn * 0.03, mz + 0.17 + pvc_up), "steel_rusted", bevel=0.0)
                 if pvc_side > 0.15:
                     self.add_cylinder(0.019, pvc_side, (mx - pvc_side * 0.5, wy, mz - 0.22), "trapal_orange", segments=6, rot_euler=(0.0, math.pi * 0.5, 0.0))
                     self.add_cylinder(0.019, 0.95, (mx - pvc_side, wy, mz - 0.22 + 0.475), "trapal_orange", segments=6)
-                    self.add_box((0.09, 0.08, 0.09), (mx - pvc_side, wy + sgn * 0.02, mz - 0.22), "steel_dark", bevel=0.01)
+                    self.add_box((0.09, 0.08, 0.09), (mx - pvc_side, wy + sgn * 0.02, mz - 0.22), "steel_dark", bevel=0.0)
         else:
             sgn = -1.0 if facing == "-X" else 1.0
             wx = mx + sgn * 0.05
@@ -1340,15 +1437,15 @@ class KitBuilder:
                 oy = (i - (count - 1) * 0.5) * 0.31
                 oz = (i % 2) * 0.09
                 self.add_box((0.14, 0.26, 0.35), (wx, my + oy, mz + oz), "meter_box", bevel=0.014)
-                self.add_cylinder(0.086, 0.09, (wx + sgn * 0.08, my + oy, mz + oz + 0.04), "charcoal_ink", segments=8, rot_euler=(0.0, math.pi * 0.5, 0.0))
+                self.add_cylinder(0.086, 0.09, (wx + sgn * 0.08, my + oy, mz + oz + 0.04), "charcoal_ink", segments=6, rot_euler=(0.0, math.pi * 0.5, 0.0))
             if pvc_up > 0.2:
                 ry = my + (count - 1) * 0.15 + 0.07
                 self.add_cylinder(0.024, pvc_up, (wx, ry, mz + 0.17 + pvc_up * 0.5), "zinc_brushed", segments=6)
-                self.add_box((0.12, 0.10, 0.09), (wx + sgn * 0.03, ry, mz + 0.17 + pvc_up), "steel_rusted", bevel=0.01)
+                self.add_box((0.12, 0.10, 0.09), (wx + sgn * 0.03, ry, mz + 0.17 + pvc_up), "steel_rusted", bevel=0.0)
                 if pvc_side > 0.15:
                     self.add_cylinder(0.019, pvc_side, (wx, my - pvc_side * 0.5, mz - 0.22), "trapal_orange", segments=6, rot_euler=(math.pi * 0.5, 0.0, 0.0))
                     self.add_cylinder(0.019, 0.95, (wx, my - pvc_side, mz - 0.22 + 0.475), "trapal_orange", segments=6)
-                    self.add_box((0.08, 0.09, 0.09), (wx + sgn * 0.02, my - pvc_side, mz - 0.22), "steel_dark", bevel=0.01)
+                    self.add_box((0.08, 0.09, 0.09), (wx + sgn * 0.02, my - pvc_side, mz - 0.22), "steel_dark", bevel=0.0)
 
     def add_lpg_tank(self, base_pos):
         """11kg steel LPG cylinder + valve collar guard."""
@@ -1367,7 +1464,7 @@ class KitBuilder:
     def add_wire_coil(self, center, rx: float = 0.28, rz: float = 0.44, rot_yaw: float = 0.0, figure_eight: bool = False):
         """3D coiled spaghetti-wire slack loop ('dead coil') hung on utility poles."""
         cx, cy, cz = center
-        segs = 10
+        segs = 8
         pts = []
         for i in range(segs):
             t = (2.0 * math.pi * i) / float(segs)
@@ -1379,7 +1476,6 @@ class KitBuilder:
                 px = math.cos(t) * rx
                 pz = math.sin(t) * rz
                 py = math.sin(2.0 * t) * 0.03
-            # Rotate around Z by rot_yaw
             rx_w = px * math.cos(rot_yaw) - py * math.sin(rot_yaw)
             ry_w = px * math.sin(rot_yaw) + py * math.cos(rot_yaw)
             pts.append(Vector((cx + rx_w, cy + ry_w, cz + pz)))
@@ -1393,44 +1489,58 @@ class KitBuilder:
                 continue
             mid = (p0 + p1) * 0.5
             quat = Vector((0.0, 0.0, 1.0)).rotation_difference(seg_v.normalized())
-            self.add_cylinder(0.034, seg_len + 0.02, mid, "wire_bundle", segments=6, rot_euler=quat.to_euler("XYZ"), mode="trim")
+            self.add_cylinder(0.034, seg_len + 0.02, mid, "rubber_tire", segments=6, rot_euler=quat.to_euler("XYZ"), mode="trim")
+
+    def add_curved_pole_notice(self, pole_xy, z_center: float, radius: float, arc_span: float, height: float, swatch: str, yaw_center: float = -math.pi * 0.5):
+        """3-panel curved tin/tarpaulin notice board wrapped around a round utility post + rusted wire ties."""
+        px, py = pole_xy
+        n_seg = 3
+        seg_ang = arc_span / float(n_seg)
+        panel_w = 2.0 * radius * math.sin(seg_ang * 0.5) + 0.012
+        for i in range(n_seg):
+            ang = yaw_center - arc_span * 0.5 + (i + 0.5) * seg_ang
+            cx = px + math.cos(ang) * radius
+            cy = py + math.sin(ang) * radius
+            # Local -Y of add_box should point outward along (cos(ang), sin(ang)) -> yaw = ang + pi/2
+            yaw = ang + math.pi * 0.5
+            self.add_box((panel_w, 0.026, height), (cx, cy, z_center), swatch, rot_euler=(0.0, 0.0, yaw), bevel=0.0)
+        for wz in (z_center - height * 0.40, z_center + height * 0.40):
+            self.add_cylinder(radius + 0.016, 0.020, (px, py, wz), "steel_rusted", segments=10, mode="trim")
 
     def _bake_ground_plinth_ao(self) -> None:
-        """Slices a clean horizontal ring at Z=0.18m & Z=0.45m and bakes 0.68x ground-plinth AO into COLOR_0."""
+        """Slices one clean horizontal ring at Z=0.42m and bakes soft sunlit ground-plinth AO into COLOR_0."""
         if not self.bm.verts:
             return
         min_z = min(v.co.z for v in self.bm.verts)
         max_z = max(v.co.z for v in self.bm.verts)
-        if min_z < 0.44 and max_z > 0.46:
-            for z_cut in (0.18, 0.45):
-                geom_all = list(self.bm.verts) + list(self.bm.edges) + list(self.bm.faces)
-                bmesh.ops.bisect_plane(
-                    self.bm, geom=geom_all, dist=1e-4,
-                    plane_co=Vector((0.0, 0.0, z_cut)),
-                    plane_no=Vector((0.0, 0.0, 1.0)),
-                )
+        if min_z < 0.38 and max_z > 0.46:
+            geom_all = list(self.bm.verts) + list(self.bm.edges) + list(self.bm.faces)
+            bmesh.ops.bisect_plane(
+                self.bm, geom=geom_all, dist=1e-4,
+                plane_co=Vector((0.0, 0.0, 0.42)),
+                plane_no=Vector((0.0, 0.0, 1.0)),
+            )
 
         color_layer = self.bm.loops.layers.color.new("Color")
         for f in self.bm.faces:
             f.normal_update()
-            soffit = 0.89 if (f.normal.z < -0.58) else 1.0
+            soffit = 0.91 if (f.normal.z < -0.58) else 1.0
             for loop in f.loops:
                 z = loop.vert.co.z
-                if z >= 0.45:
+                if z >= 0.42:
                     ao = 1.0
                 elif z <= 0.0:
-                    ao = 0.68
+                    ao = 0.72
                 else:
-                    t = z / 0.45
+                    t = z / 0.42
                     s = t * t * (3.0 - 2.0 * t)
-                    ao = 0.68 + 0.32 * s
+                    ao = 0.72 + 0.28 * s
                 if z > 1.45:
                     ao *= soffit
-                # Subtle damp-earth/olive shadow coolness near Z=0, pure neutral 1.0 at Z>=0.45m
-                ground_t = max(0.0, 1.0 - max(z, 0.0) / 0.45)
-                r = min(1.0, ao * (1.0 - 0.015 * ground_t))
-                g = min(1.0, ao * (1.0 + 0.008 * ground_t))
-                b = min(1.0, ao * (1.0 - 0.030 * ground_t))
+                ground_t = max(0.0, 1.0 - max(z, 0.0) / 0.42)
+                r = min(1.0, ao * (1.0 - 0.012 * ground_t))
+                g = min(1.0, ao * (1.0 + 0.010 * ground_t))
+                b = min(1.0, ao * (1.0 - 0.025 * ground_t))
                 loop[color_layer] = (r, g, b, 1.0)
 
     def export_glb(self, name: str, mat: bpy.types.Material) -> dict:
@@ -1440,8 +1550,15 @@ class KitBuilder:
             bpy.data.meshes.remove(m, do_unlink=True)
 
         bmesh.ops.remove_doubles(self.bm, verts=self.bm.verts, dist=1e-4)
+        if name != "brgy_banderitas" and self.bm.verts:
+            cur_min_z = min(v.co.z for v in self.bm.verts)
+            if abs(cur_min_z) > 1e-5:
+                bmesh.ops.translate(self.bm, vec=Vector((0.0, 0.0, -cur_min_z)), verts=list(self.bm.verts))
         self._bake_ground_plinth_ao()
         bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
+        open_edges = sum(1 for e in self.bm.edges if len(e.link_faces) == 1)
+        min_z = min((v.co.z for v in self.bm.verts), default=0.0)
+        max_z = max((v.co.z for v in self.bm.verts), default=0.0)
 
         mesh = bpy.data.meshes.new(name)
         self.bm.to_mesh(mesh)
@@ -1473,8 +1590,14 @@ class KitBuilder:
         faces_n = len(mesh.polygons)
         tris_n = sum(len(p.vertices) - 2 for p in mesh.polygons)
         size_kb = os.path.getsize(out_path) / 1024.0
-        print(f"Exported {name}.glb | verts={verts_n} tris={tris_n} mats={len(mesh.materials)} size={size_kb:.1f}KB")
-        return {"name": name, "verts": verts_n, "faces": faces_n, "tris": tris_n, "kb": size_kb}
+        print(
+            f"Exported {name}.glb | verts={verts_n} tris={tris_n} open_edges={open_edges} "
+            f"z=[{min_z:.3f},{max_z:.3f}] size={size_kb:.1f}KB"
+        )
+        return {
+            "name": name, "verts": verts_n, "faces": faces_n, "tris": tris_n,
+            "open_edges": open_edges, "min_z": min_z, "max_z": max_z, "kb": size_kb,
+        }
 
 
 # ==============================================================================
@@ -1543,7 +1666,7 @@ def make_tabi_cluster_a(mat) -> dict:
     kb.add_box((0.96, 0.14, 2.05), (5.25, -3.22, 0.20 + 1.025), "door_provincial", bevel=0.015)
     kb.add_rehas_window((7.05, -3.22, 1.82), 1.35, 1.05, facing="-Y", box_grill=True, shutters=True)
     kb.add_rehas_window((6.4, -3.34, 4.55), 2.35, 1.20, facing="-Y", box_grill=True, hood_swatch="yero_zinc_weathered")
-    kb.add_box((0.65, 0.24, 0.22), (5.8, -3.50, 3.88), "terracotta_pot", bevel=0.02)
+    kb.add_box((0.65, 0.24, 0.22), (5.8, -3.50, 3.88), "chb_salmon_moss", bevel=0.02)
     # Exposed +X & +Y corner eskinita walls: 3D rehas cages + jalousie shutters + kWh meters + PVC conduits
     kb.add_rehas_window((8.41, -1.15, 1.95), 1.30, 1.02, facing="+X", box_grill=True, hood_swatch="yero_rust_heavy", shutters=True)
     kb.add_rehas_window((8.45, -1.25, 4.55), 1.25, 1.02, facing="+X", box_grill=True, shutters=True)
@@ -1571,7 +1694,6 @@ def make_tabi_cluster_b(mat) -> dict:
     kb.add_rehas_window((-3.8, -3.32, 1.88), 1.65, 1.10, facing="-Y", box_grill=True, hood_swatch="trapal_orange", shutters=True)
     kb.add_rehas_window((-5.8, -3.54, 4.82), 1.45, 1.15, facing="-Y", box_grill=False, hood_swatch="yero_red_oxide", shutters=True)
     kb.add_rehas_window((-3.5, -3.54, 4.82), 1.45, 1.15, facing="-Y", box_grill=True)
-    # Exposed -X side & +Y back walls: 3D pilasters, protruding rusted rehas cages, jalousie shutters & kWh meters
     kb.add_rehas_window((-7.21, -1.15, 1.92), 1.40, 1.05, facing="-X", box_grill=True, hood_swatch="yero_rust_heavy", shutters=True)
     kb.add_rehas_window((-7.22, 0.55, 4.82), 1.45, 1.08, facing="-X", box_grill=True, shutters=True)
     kb.add_wall_meter_cluster((-7.21, 1.85, 1.88), facing="-X", count=2, pvc_up=1.85, pvc_side=0.65)
@@ -1585,16 +1707,14 @@ def make_tabi_cluster_b(mat) -> dict:
     # --- UNIT 2 (-2.2 .. +2.4): Low Squeezed 1-Storey Sari-Sari / Yelo Shack (Exposed -Y, +Y) ---
     kb.add_walled_room(-2.2, 2.4, -3.1, 3.2, 0.20, 3.30, "chb_raw_moss", plinth=False, exposed_sides=("-Y", "+Y"))
     kb.add_box((2.9, 0.65, 0.96), (0.1, -3.28, 0.20 + 0.48), "tile_terracotta", bevel=0.02)
-    kb.add_box((2.6, 0.14, 1.35), (0.1, -3.12, 1.86), "sari_grill_counter", bevel=0.015)
+    kb.add_box((2.6, 0.15, 1.35), (0.1, -3.12, 1.86), "sari_grill_counter", bevel=0.015)
     for sx in (-0.85, -0.22, 0.42, 1.02):
-        kb.add_box((0.42, 0.08, 0.95), (sx, -3.02, 2.02), "sachet_strips", bevel=0.008)
-    kb.add_box((2.5, 0.10, 0.58), (0.1, -3.18, 2.92), "sign_sari_sari", bevel=0.01)
+        kb.add_box((0.40, 0.14, 0.95), (sx, -3.02, 2.02), "sachet_strips", bevel=0.015)
+    kb.add_box((2.6, 0.15, 0.62), (0.1, -3.18, 2.92), "sign_sari_sari", bevel=0.018)
     kb.add_trapal_awning((0.1, -3.12, 3.18), 4.1, 1.25, 0.48, "trapal_striped", props=True)
-    # +Y back service window + kWh meter + PVC conduit
     kb.add_rehas_window((-0.25, 3.21, 1.92), 1.45, 1.00, facing="+Y", box_grill=True, hood_swatch="yero_rust_heavy", shutters=True)
     kb.add_wall_meter_cluster((1.55, 3.21, 1.85), facing="+Y", count=1, pvc_up=1.35, pvc_side=0.55)
     kb.add_electric_meter((-2.02, -3.18, 1.95), riser_h=1.4)
-    kb.add_electric_meter((-1.70, -3.18, 1.85), riser_h=1.5)
     kb.add_lpg_tank((1.88, -3.42, 0.20))
     kb.add_shed_yero_roof(-2.3, 2.5, -3.55, 3.55, 3.30, 4.05, ["yero_rust_heavy", "yero_patchwork"], slope_front_to_back=True, weights_seed=2)
 
@@ -1605,19 +1725,17 @@ def make_tabi_cluster_b(mat) -> dict:
     kb.add_rehas_window((5.65, -3.22, 1.82), 1.55, 1.08, facing="-Y", box_grill=True, shutters=True)
     kb.add_rehas_window((3.65, -3.38, 4.50), 1.35, 1.12, facing="-Y", box_grill=True)
     kb.add_rehas_window((5.85, -3.38, 4.50), 1.35, 1.12, facing="-Y", box_grill=False, hood_swatch="yero_zinc_weathered", shutters=True)
-    # Exposed +X & +Y tower eskinita walls: protruding 3D rehas cages, jalousie shutters & dual kWh meter + PVC conduits
     kb.add_rehas_window((7.21, -1.05, 1.90), 1.35, 1.02, facing="+X", box_grill=True, hood_swatch="trapal_blue", shutters=True)
     kb.add_rehas_window((7.21, -0.25, 4.50), 1.45, 1.10, facing="+X", box_grill=True, shutters=True)
     kb.add_wall_meter_cluster((7.21, 1.85, 1.92), facing="+X", count=2, pvc_up=2.65, pvc_side=0.75)
     kb.add_rehas_window((4.85, 3.41, 1.90), 1.45, 1.02, facing="+Y", box_grill=True, shutters=True)
     kb.add_rehas_window((4.85, 3.41, 4.50), 1.50, 1.08, facing="+Y", box_grill=True, hood_swatch="yero_red_oxide", shutters=True)
     kb.add_wall_meter_cluster((3.15, 3.41, 1.88), facing="+Y", count=1, pvc_up=2.20, pvc_side=0.55)
-    # 3rd-level half-enclosed bubong terrace
-    kb.add_subdivided_box((4.84, 6.80, 0.92), (4.8, 0.02, 5.80 + 0.46), "chb_raw_upper", bay_max=2.2, bevel=0.02)
+    kb.add_subdivided_box((4.84, 6.80, 0.92), (4.8, 0.02, 5.80 + 0.46), "chb_cream_moss", bay_max=5.4, bevel=0.02)
     kb.add_upper_story_volume(2.50, 7.10, 0.05, 3.25, 5.80, 7.85, "plywood_weathered", trim_swatch="wood_coco", exposed_sides=("-Y", "+Y", "+X"))
     for px in (2.65, 6.95):
         kb.add_box((0.09, 0.09, 1.95), (px, -3.10, 5.80 + 0.975), "steel_rusted", bevel=0.0, mode="trim")
-    kb.add_sampayan((4.8, -2.55, 7.35), span_x=3.2, seed=4)
+    kb.add_sampayan((4.8, -2.55, 7.35), span_x=3.0, seed=4)
     kb.add_water_drum((6.45, -2.65, 5.85))
     kb.add_shed_yero_roof(2.25, 7.35, -3.55, 3.65, 7.55, 8.15, ["yero_patchwork", "yero_zinc_weathered", "yero_rust_heavy"], slope_front_to_back=True, weights_seed=3)
     kb.add_tv_antenna((3.1, 2.2, 8.05), height=0.72)
@@ -1626,92 +1744,125 @@ def make_tabi_cluster_b(mat) -> dict:
 
 
 def make_shophouse_row(mat) -> dict:
-    """4-Unit Cramped Barrio Commercial & Working-Class Dwelling Row (zero gaps, 15.2m x 7.6m)."""
+    """3-Bay 90s Provincial Commercial Shophouse Strip: Karinderya, Barberya & Vulcanizing Shop (15.2m x 7.6m)."""
     kb = KitBuilder()
     kb.add_box((15.3, 7.6, 0.20), (0.0, 0.0, 0.10), "concrete_moss", bevel=0.02)
 
-    # --- Bay 1 (-7.6 .. -3.8): Barrio Karinderya + Attic (Exposed -X, -Y, +Y) ---
-    kb.add_walled_room(-7.6, -3.8, -3.0, 3.3, 0.20, 3.50, "chb_ochre_moss", plinth=False, exposed_sides=("-Y", "+Y", "-X"))
-    kb.add_box((3.4, 0.85, 1.00), (-5.7, -3.15, 0.20 + 0.50), "tile_terracotta", bevel=0.02)
-    for kx in (-6.8, -5.95, -5.1, -4.35):
-        kb.add_cylinder(0.23, 0.30, (kx, -3.12, 1.35), "zinc_brushed", segments=8, mode="panel")
-    for sx in (-6.6, -5.7, -4.8):
-        kb.add_box((0.42, 0.42, 0.44), (sx, -3.68, 0.20 + 0.22), "trapal_orange", bevel=0.02)
-    # Exposed -X & +Y eskinita walls on Bay 1
-    kb.add_rehas_window((-7.61, -0.35, 1.95), 1.35, 1.02, facing="-X", box_grill=True, hood_swatch="yero_red_oxide", shutters=True)
-    kb.add_wall_meter_cluster((-7.61, 1.75, 1.88), facing="-X", count=2, pvc_up=1.55, pvc_side=0.65)
-    kb.add_rehas_window((-5.75, 3.31, 1.95), 1.45, 1.02, facing="+Y", box_grill=True, hood_swatch="yero_rust_heavy", shutters=True)
-    kb.add_trapal_awning((-5.7, -3.02, 3.22), 3.55, 1.15, 0.44, "trapal_striped", props=True)
-    kb.add_gable_yero_roof(4.05, 6.95, 3.50, 1.15, ["yero_red_oxide", "yero_rust_heavy"], ridge_swatch="yero_zinc_weathered", center_xy=(-5.7, 0.15), weights_seed=1)
+    # --- Bay 1 (-7.6 .. -2.5): Karinderya / Lutong Bahay (Kaldero Pots, Tiled Counter, Stools, Awning & Sign) ---
+    kb.add_walled_room(-7.6, -2.5, -3.0, 3.3, 0.20, 3.55, "chb_ochre_moss", plinth=False, exposed_sides=("-Y", "+Y", "-X"))
+    kb.add_box((4.1, 0.86, 1.02), (-5.05, -3.16, 0.20 + 0.51), "tile_terracotta", bevel=0.02)
+    kb.add_box((3.9, 0.15, 1.26), (-5.05, -3.02, 1.88), "sari_grill_counter", bevel=0.015)
+    # 4 3D brushed-aluminum kaldero cooking pots + domed lids & top handles on the turo-turo counter
+    for kx in (-6.55, -5.55, -4.55, -3.60):
+        kb.add_cylinder(0.23, 0.28, (kx, -3.22, 1.36), "zinc_brushed", segments=8, mode="panel")
+        kb.add_cylinder(0.245, 0.045, (kx, -3.22, 1.52), "steel_dark", segments=8, mode="trim")
+        kb.add_box((0.08, 0.05, 0.05), (kx, -3.22, 1.56), "charcoal_ink", bevel=0.0, mode="trim")
+    # 3 wooden/orange bangko stools along the counter + teal LPG tank
+    for sx in (-6.35, -5.05, -3.75):
+        kb.add_box((0.44, 0.44, 0.46), (sx, -3.70, 0.20 + 0.23), "trapal_orange", bevel=0.02)
+    kb.add_lpg_tank((-7.22, -3.42, 0.20))
+    # Prominent beveled "KARINDERYA / LUTONG BAHAY" fascia signboard + striped trapal awning
+    kb.add_box((4.15, 0.16, 0.80), (-5.05, -3.12, 3.52), "sign_karinderya", bevel=0.02)
+    kb.add_trapal_awning((-5.05, -3.02, 3.08), 4.45, 1.18, 0.44, "trapal_striped", props=True)
+    # Stenciled "BAWAL UMIHI DITO" mossy side-alley CHB base plaque + eskinita windows/meters
+    kb.add_box((0.14, 1.65, 0.76), (-7.62, -1.85, 0.20 + 0.38), "chb_bawal_umihi", bevel=0.016)
+    kb.add_rehas_window((-7.61, 0.15, 1.95), 1.35, 1.02, facing="-X", box_grill=True, hood_swatch="yero_red_oxide", shutters=True)
+    kb.add_wall_meter_cluster((-7.61, 1.95, 1.88), facing="-X", count=2, pvc_up=1.55, pvc_side=0.65)
+    kb.add_rehas_window((-5.05, 3.31, 1.95), 1.55, 1.02, facing="+Y", box_grill=True, hood_swatch="yero_rust_heavy", shutters=True)
+    kb.add_gable_yero_roof(5.30, 6.95, 3.55, 1.15, ["yero_red_oxide", "yero_rust_heavy", "yero_patchwork"], ridge_swatch="yero_zinc_weathered", center_xy=(-5.05, 0.15), weights_seed=1)
 
-    # --- Bay 2 (-3.8 .. +0.2): 2-Storey Pagupitan Barbershop + Sawali Upstairs (Exposed -Y, +Y) ---
-    kb.add_walled_room(-3.8, 0.2, -3.1, 3.4, 0.20, 3.20, "chb_sky_moss", plinth=False, exposed_sides=("-Y", "+Y"))
-    kb.add_upper_story_volume(-3.82, 0.22, -3.37, 3.42, 3.20, 5.85, "plywood_weathered", trim_swatch="wood_coco", exposed_sides=("-Y", "+Y"))
-    kb.add_box((1.95, 6.84, 2.55), (-0.85, 0.03, 3.20 + 1.30), "sawali_honey", bevel=0.02)
-    kb.add_rehas_window((-1.55, -3.12, 1.82), 2.15, 1.30, facing="-Y", box_grill=True)
-    kb.add_box((0.92, 0.14, 2.05), (-3.15, -3.12, 0.20 + 1.025), "door_provincial", bevel=0.015)
-    kb.add_cylinder(0.13, 0.98, (-3.62, -3.28, 2.25), "trapal_striped", segments=8, mode="panel")
-    kb.add_box((3.3, 0.12, 0.68), (-1.8, -3.18, 3.08), "sign_brgy_hall", bevel=0.015)
-    kb.add_rehas_window((-2.7, -3.38, 4.55), 1.25, 1.10, facing="-Y", box_grill=False, hood_swatch="yero_rust_heavy", shutters=True)
-    kb.add_rehas_window((-0.9, -3.38, 4.55), 1.25, 1.10, facing="-Y", box_grill=True)
-    # +Y back alley details on Bay 2
-    kb.add_box((0.92, 0.14, 2.02), (-3.05, 3.41, 0.20 + 1.01), "door_provincial", bevel=0.015)
-    kb.add_rehas_window((-1.15, 3.41, 1.90), 1.35, 1.02, facing="+Y", box_grill=True, shutters=True)
-    kb.add_rehas_window((-1.80, 3.43, 4.55), 1.55, 1.08, facing="+Y", box_grill=True, hood_swatch="yero_zinc_weathered", shutters=True)
-    kb.add_wall_meter_cluster((-0.15, 3.41, 1.88), facing="+Y", count=2, pvc_up=1.75, pvc_side=0.60)
-    kb.add_sampayan((-1.8, -3.55, 5.55), span_x=2.5, seed=2)
-    kb.add_gable_yero_roof(4.35, 7.35, 5.85, 1.22, ["yero_zinc_weathered", "yero_patchwork", "yero_rust_heavy"], ridge_swatch="yero_red_oxide", center_xy=(-1.8, 0.05), weights_seed=2)
+    # --- Bay 2 (-2.5 .. +2.5): 2-Storey 90s Barberya + Striped 3D Barber Pole Cylinder + Sawali Upstairs ---
+    kb.add_walled_room(-2.5, 2.5, -3.1, 3.4, 0.20, 3.25, "chb_sky_moss", plinth=False, exposed_sides=("-Y", "+Y"))
+    kb.add_upper_story_volume(-2.52, 2.52, -3.36, 3.42, 3.25, 5.88, "plywood_weathered", trim_swatch="wood_coco", exposed_sides=("-Y", "+Y"))
+    kb.add_box((2.40, 6.82, 2.55), (1.15, 0.03, 3.25 + 1.30), "sawali_honey", bevel=0.02)
+    kb.add_box((1.02, 0.15, 2.10), (-1.55, -3.12, 0.20 + 1.05), "door_provincial", bevel=0.016)
+    kb.add_rehas_window((0.85, -3.12, 1.84), 2.35, 1.28, facing="-Y", box_grill=True)
+    # 3D Striped Rotating Barber Pole Cylinder + Brushed-Zinc Chrome End Caps & Iron Wall Brackets!
+    bp_x, bp_y, bp_z = -2.28, -3.38, 2.15
+    kb.add_cylinder(0.155, 0.98, (bp_x, bp_y, bp_z), "barber_pole_stripe", segments=10, mode="panel")
+    for cap_dz in (-0.52, 0.52):
+        kb.add_cylinder(0.18, 0.11, (bp_x, bp_y, bp_z + cap_dz), "zinc_brushed", segments=10, mode="panel")
+        kb.add_box((0.08, 0.30, 0.06), (bp_x, bp_y + 0.16, bp_z + cap_dz * 0.88), "steel_dark", bevel=0.0, mode="trim")
+    kb.add_cylinder(0.09, 0.08, (bp_x, bp_y, bp_z + 0.61), "lamp_warm", segments=8, mode="panel")
+    # Prominent beveled "BARBERYA / GUPIT POGI" fascia signboard
+    kb.add_box((4.15, 0.16, 0.78), (0.0, -3.20, 3.08), "sign_barberya", bevel=0.02)
+    kb.add_rehas_window((-1.15, -3.38, 4.58), 1.35, 1.10, facing="-Y", box_grill=False, hood_swatch="yero_rust_heavy", shutters=True)
+    kb.add_rehas_window((1.15, -3.38, 4.58), 1.35, 1.10, facing="-Y", box_grill=True)
+    # +Y back alley details + volumetric 3D sampayan laundry
+    kb.add_box((0.94, 0.14, 2.02), (-1.45, 3.41, 0.20 + 1.01), "door_provincial", bevel=0.015)
+    kb.add_rehas_window((0.75, 3.41, 1.90), 1.45, 1.02, facing="+Y", box_grill=True, shutters=True)
+    kb.add_rehas_window((0.0, 3.43, 4.58), 1.65, 1.08, facing="+Y", box_grill=True, hood_swatch="yero_zinc_weathered", shutters=True)
+    kb.add_wall_meter_cluster((2.05, 3.41, 1.88), facing="+Y", count=2, pvc_up=1.75, pvc_side=0.60)
+    kb.add_sampayan((0.0, -3.58, 5.58), span_x=2.6, seed=2)
+    kb.add_gable_yero_roof(5.30, 7.35, 5.88, 1.22, ["yero_zinc_weathered", "yero_patchwork", "yero_rust_heavy"], ridge_swatch="yero_red_oxide", center_xy=(0.0, 0.05), weights_seed=2)
 
-    # --- Bay 3 (+0.2 .. +3.8): Cramped 1-Storey Tubig / LPG Entresuelo (Exposed -Y, +Y) ---
-    kb.add_walled_room(0.2, 3.8, -3.0, 3.3, 0.20, 3.25, "chb_raw_moss", plinth=False, exposed_sides=("-Y", "+Y"))
-    kb.add_box((2.2, 0.14, 2.15), (2.0, -3.02, 0.20 + 1.075), "rehas_grill", bevel=0.015)
-    kb.add_water_drum((0.75, -3.45, 0.20))
-    kb.add_water_drum((1.42, -3.48, 0.20))
-    kb.add_lpg_tank((3.25, -3.38, 0.20))
-    for mi, mz in enumerate((1.65, 2.08, 1.85)):
-        kb.add_electric_meter((0.38 + mi * 0.30, -3.08, mz), riser_h=1.35)
-    # +Y back rehas window + kWh meter + PVC conduit
-    kb.add_rehas_window((1.85, 3.31, 1.92), 1.35, 0.98, facing="+Y", box_grill=True, hood_swatch="trapal_blue", shutters=True)
-    kb.add_wall_meter_cluster((3.25, 3.31, 1.85), facing="+Y", count=1, pvc_up=1.35, pvc_side=0.50)
-    kb.add_trapal_awning((2.0, -3.02, 3.05), 3.3, 1.05, 0.38, "trapal_blue", props=False)
-    kb.add_shed_yero_roof(0.1, 3.9, -3.45, 3.55, 3.25, 3.98, ["yero_rust_heavy", "yero_red_oxide"], slope_front_to_back=True, weights_seed=3)
-
-    # --- Bay 4 (+3.8 .. +7.6): 2-Storey Vulcanizing / Talyer Shack (Exposed +X, -Y, +Y) ---
-    kb.add_walled_room(3.8, 7.6, -3.1, 3.4, 0.20, 3.30, "chb_raw_moss", plinth=False, exposed_sides=("-Y", "+Y", "+X"))
-    kb.add_upper_story_volume(3.78, 7.62, -3.20, 3.44, 3.30, 5.65, "planks_shack", trim_swatch="wood_dark", exposed_sides=("-Y", "+Y", "+X"))
-    kb.add_box((2.4, 0.16, 2.20), (5.3, -3.12, 0.20 + 1.10), "charcoal_ink", bevel=0.01)
-    kb.add_box((3.4, 0.12, 0.72), (5.7, -3.18, 3.05), "sign_talyer", bevel=0.015)
-    kb.add_cylinder(0.25, 1.18, (4.65, -3.48, 0.56), "jeep_crimson", segments=10, rot_euler=(0.0, math.pi * 0.5, 0.0), mode="panel")
+    # --- Bay 3 (+2.5 .. +7.6): Vulcanizing Shop (3D Hanging Tires + Horizontal Air Compressor Tank + BAWAL UMIHI DITO) ---
+    kb.add_walled_room(2.5, 7.6, -3.1, 3.4, 0.20, 3.35, "chb_raw_moss", plinth=False, exposed_sides=("-Y", "+Y", "+X"))
+    kb.add_upper_story_volume(2.48, 7.62, -3.20, 3.44, 3.35, 5.68, "planks_shack", trim_swatch="wood_dark", exposed_sides=("-Y", "+Y", "+X"))
+    # Open recessed talyer service bay + rolled iron shutter header
+    kb.add_box((2.75, 0.16, 2.22), (4.35, -3.12, 0.20 + 1.11), "charcoal_ink", bevel=0.016)
+    kb.add_box((2.85, 0.24, 0.26), (4.35, -3.20, 2.50), "steel_rusted", bevel=0.02)
+    # Prominent beveled "VULCANIZING / SHOP" fascia signboard
+    kb.add_box((4.25, 0.16, 0.80), (5.05, -3.20, 3.10), "sign_talyer", bevel=0.02)
+    # Stenciled "BAWAL UMIHI DITO" base wall panel along the front-right mossy CHB apron!
+    kb.add_box((1.65, 0.15, 0.78), (6.62, -3.14, 0.20 + 0.39), "chb_bawal_umihi", bevel=0.016)
+    # Horizontal painted crimson-steel Air Compressor Tank + motor block + pressure manifold + steel support legs
+    comp_x, comp_y, comp_z = 3.95, -3.52, 0.62
+    kb.add_cylinder(0.26, 1.24, (comp_x, comp_y, comp_z), "jeep_crimson", segments=10, rot_euler=(0.0, math.pi * 0.5, 0.0), mode="panel")
+    for leg_dx in (-0.42, 0.42):
+        kb.add_box((0.10, 0.36, 0.26), (comp_x + leg_dx, comp_y, 0.20 + 0.13), "steel_dark", bevel=0.0, mode="trim")
+    kb.add_box((0.36, 0.28, 0.24), (comp_x - 0.24, comp_y, comp_z + 0.34), "steel_dark", bevel=0.02)
+    kb.add_cylinder(0.11, 0.26, (comp_x + 0.24, comp_y, comp_z + 0.34), "steel_ochre", segments=8, rot_euler=(0.0, math.pi * 0.5, 0.0), mode="panel")
+    # Overhead rusted iron tire-rack arm + 2 3D Hanging Rubber Tires + 3 stacked sidewalk tires!
+    kb.add_box((0.10, 0.92, 0.10), (6.95, -3.48, 2.68), "steel_rusted", bevel=0.0, mode="trim")
+    for h_idx, (hy, hz, yaw_t) in enumerate(((-3.46, 2.04, 0.25), (-3.82, 1.88, -0.35))):
+        kb.add_cylinder(0.022, 0.52, (6.95, hy, 2.40 - h_idx * 0.08), "steel_dark", segments=6)
+        kb.add_tire_flat((6.95, hy, hz), radius=0.38, thickness=0.19, rot_euler=(math.pi * 0.5, 0.0, yaw_t))
     for tz in range(3):
-        kb.add_tire_flat((6.95, -3.48, 0.31 + tz * 0.21), radius=0.43, thickness=0.20)
-    kb.add_rehas_window((5.7, -3.24, 4.48), 1.65, 1.02, facing="-Y", box_grill=True, hood_swatch="trapal_orange", shutters=True)
-    # Exposed +X & +Y eskinita walls on Bay 4: 3D pilasters, protruding rehas cages, jalousie shutters & kWh meters
+        kb.add_tire_flat((5.55, -3.52, 0.30 + tz * 0.20), radius=0.41, thickness=0.19)
+    # 2nd-storey & +X/+Y eskinita details on Bay 3
+    kb.add_rehas_window((5.05, -3.24, 4.50), 1.85, 1.05, facing="-Y", box_grill=True, hood_swatch="trapal_orange", shutters=True)
     kb.add_rehas_window((7.61, -0.95, 1.92), 1.35, 1.02, facing="+X", box_grill=True, hood_swatch="yero_patchwork", shutters=True)
-    kb.add_rehas_window((7.63, 0.65, 4.48), 1.30, 0.98, facing="+X", box_grill=True, shutters=True)
+    kb.add_rehas_window((7.63, 0.65, 4.50), 1.30, 0.98, facing="+X", box_grill=True, shutters=True)
     kb.add_wall_meter_cluster((7.61, 1.85, 1.88), facing="+X", count=2, pvc_up=1.90, pvc_side=0.65)
-    kb.add_rehas_window((5.75, 3.41, 1.92), 1.40, 1.00, facing="+Y", box_grill=True, shutters=True)
-    kb.add_rehas_window((5.75, 3.45, 4.48), 1.45, 0.98, facing="+Y", box_grill=True, hood_swatch="yero_rust_heavy", shutters=True)
-    kb.add_shed_yero_roof(3.7, 7.8, -3.55, 3.65, 5.55, 6.35, ["yero_patchwork", "yero_rust_heavy", "yero_zinc_weathered"], slope_front_to_back=True, weights_seed=4)
-    kb.add_tv_antenna((6.8, 1.4, 6.25), height=0.76)
+    kb.add_rehas_window((5.05, 3.41, 1.92), 1.45, 1.00, facing="+Y", box_grill=True, shutters=True)
+    kb.add_rehas_window((5.05, 3.45, 4.50), 1.50, 0.98, facing="+Y", box_grill=True, hood_swatch="yero_rust_heavy", shutters=True)
+    kb.add_shed_yero_roof(2.40, 7.80, -3.55, 3.65, 5.58, 6.38, ["yero_patchwork", "yero_rust_heavy", "yero_zinc_weathered"], slope_front_to_back=True, weights_seed=4)
+    kb.add_tv_antenna((6.8, 1.4, 6.28), height=0.76)
 
     return kb.export_glb("brgy_shophouse_row", mat)
 
 
 def make_sari_sari(mat) -> dict:
-    """Working-Class Corner Sari-Sari Store (tight centered footprint 8.0m x 6.8m x 5.6m)."""
+    """90s Province Corner Sari-Sari Store — Tindahan ni Aling Nena (8.0m x 6.8m x 5.6m)."""
     kb = KitBuilder()
     kb.add_box((8.0, 6.8, 0.22), (0.0, 0.0, 0.11), "concrete_moss", bevel=0.02)
     kb.add_walled_room(-3.7, 3.7, -2.5, 3.1, 0.22, 3.55, "chb_mint_moss", plinth=False, exposed_sides=("-Y", "+Y", "-X", "+X"))
 
-    # Chipped teal-tile front counter + iron rehas cage with bentahan pass-through
-    kb.add_box((4.6, 0.82, 1.06), (-0.35, -2.78, 0.22 + 0.53), "tile_teal_chipped", bevel=0.025)
-    kb.add_box((4.25, 0.16, 1.58), (-0.35, -2.56, 2.08), "sari_grill_counter", bevel=0.015)
-    for sx in (-2.05, -1.30, 0.55, 1.25):
-        kb.add_box((0.46, 0.08, 1.18), (sx, -2.66, 2.18), "sachet_strips", bevel=0.008)
+    # Chipped teal-tile front counter + 3D iron rehas security grille cage with bentahan pass-through opening
+    kb.add_box((4.65, 0.84, 1.06), (-0.35, -2.78, 0.22 + 0.53), "tile_teal_chipped", bevel=0.025)
+    kb.add_box((4.30, 0.16, 1.58), (-0.35, -2.56, 2.08), "sari_grill_counter", bevel=0.016)
+    # Real 3D protruding rusted iron security bars framing the sari-sari counter cage
+    for bx in (-2.42, -1.55, -0.88, 0.18, 0.85, 1.72):
+        kb.add_box((0.038, 0.18, 1.56), (bx, -2.68, 2.08), "steel_rusted", bevel=0.0, mode="trim")
+    for bz in (1.34, 2.82):
+        kb.add_box((4.34, 0.20, 0.045), (-0.35, -2.68, bz), "steel_rusted", bevel=0.0, mode="trim")
 
-    # Front timber entrance door + upgraded eskinita side (-X/+X) & back (+Y) 3D rehas cages, jalousie shutters & kWh meters!
-    kb.add_box((0.98, 0.14, 2.08), (2.65, -2.52, 0.22 + 1.04), "door_provincial", bevel=0.015)
-    kb.add_rehas_window((-3.71, -0.35, 1.95), 1.45, 1.08, facing="-X", box_grill=True, hood_swatch="yero_rust_heavy", shutters=True)
+    # Bamboo display rod + 5 volumetric beveled 3D hanging chichirya & shampoo packet strips!
+    kb.add_cylinder(0.028, 4.30, (-0.35, -2.84, 2.78), "bamboo_pole", segments=6, rot_euler=(0.0, math.pi * 0.5, 0.0))
+    for i, sx in enumerate((-2.15, -1.42, -0.70, 0.62, 1.35)):
+        kb.add_box(
+            (0.44, 0.14, 1.16),
+            (sx, -2.84, 2.16),
+            "sachet_strips",
+            rot_euler=(0.05 * ((i % 2) * 2 - 1), 0.0, 0.04 * (i - 2)),
+            bevel=0.016,
+        )
+
+    # Front timber entrance door + stenciled "BAWAL UMIHI DITO" side plaque + eskinita 3D rehas cages & meters
+    kb.add_box((0.98, 0.15, 2.08), (2.65, -2.52, 0.22 + 1.04), "door_provincial", bevel=0.016)
+    kb.add_box((0.15, 1.65, 0.78), (-3.74, -1.65, 0.22 + 0.39), "chb_bawal_umihi", bevel=0.016)
+    kb.add_rehas_window((-3.71, 0.15, 1.95), 1.45, 1.08, facing="-X", box_grill=True, hood_swatch="yero_rust_heavy", shutters=True)
     kb.add_wall_meter_cluster((-3.71, 1.95, 1.90), facing="-X", count=1, pvc_up=1.55, pvc_side=0.65)
     kb.add_rehas_window((3.71, -0.25, 1.95), 1.45, 1.08, facing="+X", box_grill=True, hood_swatch="yero_zinc_weathered", shutters=True)
     kb.add_wall_meter_cluster((3.71, 1.90, 1.92), facing="+X", count=2, pvc_up=1.55, pvc_side=0.65)
@@ -1720,21 +1871,22 @@ def make_sari_sari(mat) -> dict:
     kb.add_wall_meter_cluster((0.0, 3.11, 1.92), facing="+Y", count=1, pvc_up=1.50, pvc_side=0.55)
     kb.add_lpg_tank((-3.15, 3.26, 0.22))
 
-    # Sloped patchwork yero + trapal front store awning propped on coco-lumber posts
-    kb.add_trapal_awning((-0.35, -2.52, 3.22), 5.3, 1.32, 0.48, "yero_red_oxide", props=False)
-    for px in (-2.85, 2.15):
-        kb.add_box((0.12, 0.12, 2.75), (px, -3.72, 0.22 + 1.375), "wood_coco", bevel=0.01)
-    # Hand-painted tin signboard ("ALING NENA SARI-SARI")
-    kb.add_box((4.6, 0.14, 0.78), (-0.35, -2.62, 3.68), "sign_sari_sari", bevel=0.015)
+    # Sloped oxidized red-oxide yero & striped trapal front awning propped on coco-lumber posts
+    kb.add_trapal_awning((-0.35, -2.52, 3.22), 5.4, 1.34, 0.48, "yero_red_oxide", props=False)
+    for px in (-2.90, 2.20):
+        kb.add_box((0.14, 0.14, 2.75), (px, -3.74, 0.22 + 1.375), "wood_coco", bevel=0.014)
+    # Prominent beveled hand-painted fascia signboard: "TINDAHAN NI ALING NENA" + timber frame backing
+    kb.add_box((4.92, 0.14, 0.94), (-0.35, -2.66, 3.72), "wood_coco", bevel=0.016)
+    kb.add_box((4.76, 0.16, 0.84), (-0.35, -2.72, 3.72), "sign_sari_sari", bevel=0.02)
 
     # Tambay wooden bangko bench + blue ice-tubig cooler + water drum + Meralco meter
-    kb.add_box((2.15, 0.46, 0.46), (-1.45, -3.28, 0.22 + 0.23), "wood_coco", bevel=0.02)
-    kb.add_box((0.95, 0.62, 0.68), (1.25, -3.22, 0.22 + 0.34), "water_drum_blue", bevel=0.025)
-    kb.add_box((0.99, 0.66, 0.10), (1.25, -3.22, 0.22 + 0.72), "plywood_weathered", bevel=0.015)
+    kb.add_box((2.15, 0.46, 0.46), (-1.45, -3.32, 0.22 + 0.23), "wood_coco", bevel=0.02)
+    kb.add_box((0.95, 0.62, 0.68), (1.25, -3.26, 0.22 + 0.34), "water_drum_blue", bevel=0.025)
+    kb.add_box((0.99, 0.66, 0.14), (1.25, -3.26, 0.22 + 0.72), "plywood_weathered", bevel=0.015)
     kb.add_water_drum((3.25, -3.05, 0.22))
     kb.add_electric_meter((3.45, -2.56, 1.95), riser_h=1.55)
 
-    # Sawali gable pediment & patchwork rusted yero roof with tire + stone weights
+    # Sawali gable pediment & patchwork oxidized rusted yero roof with tire + stone weights
     kb.add_gable_yero_roof(8.0, 6.3, 3.55, 1.42, ["yero_red_oxide", "yero_patchwork", "yero_rust_heavy"], ridge_swatch="yero_zinc_weathered", center_xy=(0.0, 0.3), weights_seed=1, gable_swatch="sawali_honey")
     return kb.export_glb("brgy_sari_sari", mat)
 
@@ -1744,20 +1896,17 @@ def make_house_two_storey(mat) -> dict:
     kb = KitBuilder()
     kb.add_box((8.4, 7.8, 0.24), (0.0, 0.0, 0.12), "concrete_moss", bevel=0.02)
 
-    # Ground floor flaking terracotta CHB + subdivided 3D pilasters on all 4 sides
     kb.add_walled_room(-3.8, 2.8, -3.1, 3.2, 0.24, 3.28, "chb_salmon_moss", plinth=False, exposed_sides=("-Y", "+Y", "-X", "+X"))
-    # Cantilevered 2nd storey (flaking plywood + woven bamboo sawali panels + exterior studs)
     kb.add_box((7.15, 6.95, 0.20), (-0.5, -0.05, 3.36), "wood_coco", bevel=0.015)
     kb.add_upper_story_volume(-4.02, 3.02, -3.45, 3.35, 3.46, 6.31, "plywood_teal_peel", trim_swatch="wood_dark", exposed_sides=("-Y", "+Y", "-X", "+X"))
     kb.add_box((3.20, 6.84, 2.75), (-2.1, -0.05, 3.46 + 1.38), "sawali_honey", bevel=0.02)
 
-    # Ground door + scrap-yero porch hood + front rehas windows
     kb.add_box((1.10, 0.14, 2.18), (-0.5, -3.12, 0.24 + 1.09), "door_provincial", bevel=0.015)
     kb.add_trapal_awning((-0.5, -3.12, 2.85), 2.15, 0.95, 0.32, "yero_zinc_weathered", props=True)
     for wx in (-2.45, 1.35):
         kb.add_rehas_window((wx, -3.12, 1.92), 1.45, 1.12, facing="-Y", box_grill=True, shutters=True)
         kb.add_rehas_window((wx, -3.46, 4.88), 1.60, 1.18, facing="-Y", box_grill=False, hood_swatch="yero_rust_heavy", shutters=True)
-        kb.add_box((1.68, 0.36, 0.28), (wx, -3.66, 4.16), "terracotta_pot", bevel=0.02)
+        kb.add_box((1.68, 0.36, 0.28), (wx, -3.66, 4.16), "chb_salmon_moss", bevel=0.02)
         kb.add_box((1.55, 0.34, 0.30), (wx, -3.68, 4.42), "bougainvillea", bevel=0.03)
 
     # Eskinita side (-X/+X) & rear (+Y) walls: 3D pilasters, protruding rusted rehas cages, jalousie shutters, kWh meters & PVC conduits!
@@ -1888,7 +2037,7 @@ def make_palengke_stall(mat) -> dict:
     kb.add_box((5.4, 2.0, 0.72), (0.0, 0.0, 0.16 + 0.36), "chb_raw_moss", bevel=0.02)
     kb.add_box((5.65, 2.25, 0.18), (0.0, 0.0, 0.97), "tile_teal_chipped", bevel=0.02)
     # Wooden produce crates + woven rattan bilao baskets
-    items = [(-1.95, "produce_mango"), (-0.65, "leaf_banana"), (0.65, "bilao_weave"), (1.95, "sachet_strips")]
+    items = [(-1.95, "produce_mango"), (-0.65, "leaf_banana"), (0.65, "sawali_aged"), (1.95, "sachet_strips")]
     for bx, sw in items:
         kb.add_box((1.05, 1.35, 0.30), (bx, 0.0, 1.21), "wood_coco", bevel=0.02)
         kb.add_box((0.90, 1.18, 0.20), (bx, 0.0, 1.42), sw, bevel=0.025)
@@ -1921,19 +2070,19 @@ def make_waiting_shed(mat) -> dict:
 def make_footbridge(mat) -> dict:
     """Estero / Sapa Provincial Concrete & Rusted-Pipe Crossing Bridge (9.2m wide x 14.2m span)."""
     kb = KitBuilder()
-    # Deck top sits near Z=+0.12m (matching StreetMap creek elevation); underside concrete girders down to -0.44m
-    kb.add_box((9.2, 14.2, 0.52), (0.0, 0.0, -0.14), "concrete_moss", bevel=0.03)
+    # Underside concrete girders rest cleanly at Z=0.0 (glTF min_y == 0.0); mossy concrete deck sits above
     for gx in (-3.2, 0.0, 3.2):
-        kb.add_box((0.42, 14.0, 0.32), (gx, 0.0, -0.48), "concrete_dark", bevel=0.02)
+        kb.add_box((0.42, 14.0, 0.32), (gx, 0.0, 0.16), "concrete_moss", bevel=0.02)
+    kb.add_box((9.2, 14.2, 0.52), (0.0, 0.0, 0.50), "concrete_moss", bevel=0.03)
     # Raised weathered hazard curbs & rusted iron pipe + rebar railings on -X and +X flanks
     for sx in (-4.35, 4.35):
-        kb.add_box((0.50, 14.2, 0.30), (sx, 0.0, 0.26), "hazard_curb", bevel=0.02)
+        kb.add_box((0.50, 14.2, 0.30), (sx, 0.0, 0.90), "hazard_curb", bevel=0.02)
         for py in (-6.5, -3.9, -1.3, 1.3, 3.9, 6.5):
-            kb.add_box((0.18, 0.18, 1.08), (sx, py, 0.41 + 0.54), "concrete_pillar", bevel=0.015)
+            kb.add_box((0.18, 0.18, 1.08), (sx, py, 1.05 + 0.54), "concrete_pillar", bevel=0.015)
         for ry in range(-6, 7):
-            kb.add_box((0.04, 0.04, 0.92), (sx, ry * 1.0, 0.88), "steel_rusted", bevel=0.0, mode="trim")
-        kb.add_box((0.11, 13.6, 0.09), (sx, 0.0, 1.44), "steel_ochre", bevel=0.01)
-        kb.add_box((0.09, 13.6, 0.07), (sx, 0.0, 0.96), "steel_rusted", bevel=0.01)
+            kb.add_box((0.04, 0.04, 0.92), (sx, ry * 1.0, 1.52), "steel_rusted", bevel=0.0, mode="trim")
+        kb.add_box((0.11, 13.6, 0.09), (sx, 0.0, 2.08), "steel_ochre", bevel=0.01)
+        kb.add_box((0.09, 13.6, 0.07), (sx, 0.0, 1.60), "steel_rusted", bevel=0.01)
     return kb.export_glb("brgy_footbridge", mat)
 
 
@@ -1955,7 +2104,7 @@ def make_jeepney(mat) -> dict:
     # Passenger cabin body (ochre + crimson + cobalt provincial livery bands, zero white clip!)
     kb.add_box((2.32, 4.92, 1.04), (0.0, 0.86, 1.16), "jeep_ochre", bevel=0.035)
     kb.add_box((2.36, 4.84, 0.30), (0.0, 0.86, 1.22), "jeep_crimson", bevel=0.015)
-    kb.add_box((2.35, 4.84, 0.18), (0.0, 0.86, 0.80), "jeep_cobalt", bevel=0.015)
+    kb.add_box((2.35, 4.84, 0.18), (0.0, 0.86, 0.80), "trapal_blue", bevel=0.015)
     # Interior benches & dark passenger bay recess
     kb.add_box((1.95, 4.55, 0.55), (0.0, 0.92, 1.82), "charcoal_ink", bevel=0.01)
     # Split windshield + route signboard + cabin window pillars
@@ -1997,7 +2146,7 @@ def make_tricycle(mat) -> dict:
         kb.add_cylinder(0.17, 0.18, (-0.55, wy, 0.35), "zinc_brushed", segments=8, rot_euler=(0.0, math.pi * 0.5, 0.0), mode="trim")
 
     # Barrio sidecar right side (+0.42)
-    kb.add_box((1.06, 1.85, 0.76), (0.42, 0.05, 0.68), "jeep_cobalt", bevel=0.035)
+    kb.add_box((1.06, 1.85, 0.76), (0.42, 0.05, 0.68), "trapal_blue", bevel=0.035)
     kb.add_box((1.09, 1.20, 0.28), (0.42, -0.18, 0.66), "zinc_brushed", bevel=0.02)
     kb.add_box((1.04, 0.12, 0.58), (0.42, -0.72, 1.28), "jalousie_window", rot_euler=(-0.30, 0.0, 0.0), bevel=0.015)
     kb.add_box((1.22, 2.08, 0.11), (0.32, 0.05, 1.76), "trapal_orange", rot_euler=(0.05, 0.0, 0.0), bevel=0.02)
@@ -2014,7 +2163,7 @@ def make_sorbetes_cart(mat) -> dict:
     kb = KitBuilder()
     kb.add_box((1.02, 1.62, 0.96), (0.0, 0.0, 0.85), "jeep_ochre", bevel=0.035)
     kb.add_box((1.06, 1.66, 0.26), (0.0, 0.0, 0.85), "jeep_crimson", bevel=0.02)
-    kb.add_box((1.05, 1.65, 0.16), (0.0, 0.0, 0.46), "jeep_cobalt", bevel=0.015)
+    kb.add_box((1.05, 1.65, 0.16), (0.0, 0.0, 0.46), "trapal_blue", bevel=0.015)
     # Push-handle bar & brass sorbetes handbell at +Y
     kb.add_cylinder(0.03, 0.96, (0.0, 0.98, 1.24), "wood_dark", segments=6, rot_euler=(0.0, math.pi * 0.5, 0.0))
     kb.add_tapered_pole(0.07, 0.02, 0.14, (0.36, 0.98, 1.26), "steel_ochre", segments=8)
@@ -2103,6 +2252,12 @@ def make_meralco_post(mat, name: str, banner_swatch: str, lean_rad: float = 0.05
     kb.add_box((1.55, 0.10, 0.10), (lx - 0.72, ly, lz), "steel_rusted", rot_euler=(0.0, -0.24, 0.0), bevel=0.01)
     kb.add_box((0.54, 0.34, 0.20), (lx - 1.46, ly, lz + 0.14), "lamp_warm", bevel=0.025)
 
+    # Pole-mounted 90s election ("VOTE! HALALAN '95") & siphoning ("MALABANAN") curved notice boards (Z = 1.85..2.85m)
+    nx1, ny1, _ = pole_pt(2.08)
+    kb.add_curved_pole_notice((nx1, ny1), 2.08, 0.345, 1.32, 0.46, "poster_malabanan", yaw_center=-math.pi * 0.50)
+    nx2, ny2, _ = pole_pt(2.62)
+    kb.add_curved_pole_notice((nx2, ny2), 2.62, 0.338, 1.32, 0.46, "poster_vote_halalan", yaw_center=-math.pi * 0.28)
+
     # Team Base Banner (for Agawang Base brgy_post_blue / brgy_post_red)
     if banner_swatch:
         bx, by, bz = pole_pt(5.55)
@@ -2171,17 +2326,41 @@ def make_banderitas(mat) -> dict:
             seg = pt - prev_pt
             mid = (pt + prev_pt) * 0.5
             ang = math.atan2(seg.z, seg.x)
-            kb.add_box((seg.length + 0.02, 0.035, 0.035), mid, "wire_bundle", rot_euler=(0.0, -ang, 0.0), bevel=0.0, mode="trim")
+            kb.add_box((seg.length + 0.02, 0.035, 0.035), mid, "charcoal_ink", rot_euler=(0.0, -ang, 0.0), bevel=0.0, mode="trim")
             # Triangular-look tapered pennant hanging from wire segment midpoint
             kb.add_box((0.32, 0.04, 0.42), (mid.x, 0.0, mid.z - 0.23), colors[(i - 1) % len(colors)], rot_euler=(0.08 * ((i % 2) * 2 - 1), 0.0, 0.0), bevel=0.006)
         prev_pt = pt
     return kb.export_glb("brgy_banderitas", mat)
 
 
+def make_poster_cluster(mat) -> dict:
+    """90s Province Pole/Corner Notice & Signage Cluster (~1.68m x 0.84m x 2.48m, min_z=0)."""
+    kb = KitBuilder()
+    # Rusted iron pole-collar brackets & coco-lumber vertical mounting battens grounded at Z=0
+    for bz in (0.04, 0.62, 1.24, 1.86):
+        kb.add_cylinder(0.28, 0.06, (0.0, 0.0, bz), "steel_rusted", segments=10, mode="trim")
+    for sx in (-0.30, 0.30):
+        kb.add_box((0.07, 0.07, 2.02), (sx, -0.26, 1.01), "wood_coco", bevel=0.0, mode="trim")
+    # Weathered mossy CHB / plaster base curb plaque with stenciled "BAWAL UMIHI DITO"
+    kb.add_box((1.06, 0.20, 0.50), (-0.08, -0.32, 0.25), "chb_raw_moss", bevel=0.018)
+    kb.add_box((0.98, 0.14, 0.44), (-0.08, -0.38, 0.26), "chb_bawal_umihi", bevel=0.016)
+    # Curved "MALABANAN" siphoning tin notice + angled "VOTE! HALALAN '95" campaign tarpaulin board
+    kb.add_curved_pole_notice((0.0, 0.0), 0.86, 0.30, 1.45, 0.52, "poster_malabanan", yaw_center=-math.pi * 0.46)
+    kb.add_box((0.96, 0.10, 0.62), (-0.12, -0.33, 1.52), "wood_coco", rot_euler=(0.04, 0.0, -0.08), bevel=0.014)
+    kb.add_box((0.90, 0.14, 0.56), (-0.12, -0.35, 1.52), "poster_vote_halalan", rot_euler=(0.04, 0.0, -0.08), bevel=0.016)
+    # Side steel sign-post arm + beveled "NO ENTRY / BAWAL DITO" street sign plate
+    kb.add_cylinder(0.038, 2.42, (0.54, -0.10, 1.21), "steel_dark", segments=8)
+    kb.add_box((0.58, 0.07, 0.07), (0.28, -0.10, 1.92), "steel_rusted", bevel=0.0, mode="trim")
+    kb.add_box((0.68, 0.14, 0.60), (0.54, -0.14, 2.16), "sign_no_entry", rot_euler=(0.0, 0.0, 0.06), bevel=0.018)
+    return kb.export_glb("brgy_poster_cluster", mat)
+
+
 def _verify_exports(stats: list) -> None:
-    """Verifies all 19 GLBs exist, carry COLOR_0 vertex AO + external BarangayAtlas.jpg URI, and checks .jpg.import."""
-    assert len(stats) == 19, f"Expected 19 models, got {len(stats)}"
+    """Verifies all 18 GLBs exist, stay <=6500 tris, carry COLOR_0 vertex AO + external BarangayAtlas.jpg URI, and checks .jpg.import."""
+    assert len(stats) == 18, f"Expected 18 models, got {len(stats)}"
     for item in stats:
+        assert 40 <= item["tris"] <= 6500, f"{item['name']}.glb tris={item['tris']} outside [40, 6500]!"
+        assert item["open_edges"] == 0, f"{item['name']}.glb has {item['open_edges']} open edges (must be 0 watertight)!"
         p = os.path.join(OUT_DIR, f"{item['name']}.glb")
         assert os.path.isfile(p) and os.path.getsize(p) > 1024, f"Missing or empty GLB: {p}"
         with open(p, "rb") as gf:
@@ -2214,8 +2393,8 @@ def _verify_exports(stats: list) -> None:
     total_kb = sum(s["kb"] for s in stats)
     atlas_kb = os.path.getsize(os.path.join(OUT_DIR, ATLAS_FILENAME)) / 1024.0
     print("=" * 78)
-    print(f"VERIFIED ALL 19 BARANGAY GLB MODELS + COLOR_0 AO + 1 SHARED 2048x2048 ATLAS ({atlas_kb:.1f} KB)")
-    print(f"Total Kit Geometry: {total_verts} verts | {total_tris} tris | {total_kb:.1f} KB across 19 GLBs")
+    print(f"VERIFIED ALL 18 BARANGAY GLB MODELS + COLOR_0 AO + 1 SHARED 2048x2048 ATLAS ({atlas_kb:.1f} KB)")
+    print(f"Total Kit Geometry: {total_verts} verts | {total_tris} tris | {total_kb:.1f} KB across 18 GLBs")
     print("=" * 78)
 
 
@@ -2233,8 +2412,6 @@ def main():
         make_house_two_storey(mat),
         make_shophouse_row(mat),
         make_palengke_stall(mat),
-        make_jeepney(mat),
-        make_tricycle(mat),
         make_sorbetes_cart(mat),
         make_meralco_post(mat, "brgy_meralco_post", "", lean_rad=0.056),
         make_meralco_post(mat, "brgy_post_blue", "team_blue", lean_rad=0.022),
@@ -2244,6 +2421,7 @@ def main():
         make_tabi_cluster_a(mat),
         make_tabi_cluster_b(mat),
         make_poso_well(mat),
+        make_poster_cluster(mat),
     ]
     _verify_exports(stats)
 

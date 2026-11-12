@@ -191,31 +191,39 @@ func puff(preset: Preset, at: Vector3, amount: int, tint: Color = Color.WHITE, a
 	if index < 0:
 		return false
 	var s: Spec = spec(preset)
+	var k: float = _ctx.kid_scale()
 	var emitter: CPUParticles3D = _emitters[index]
 	emitter.mesh = s.mesh
 	emitter.material_override = s.material
 	emitter.color = s.color * tint
 	emitter.lifetime = s.lifetime
-	emitter.initial_velocity_min = s.speed_min
-	emitter.initial_velocity_max = s.speed_max
-	emitter.gravity = Vector3(0.0, -s.gravity, 0.0)
+	emitter.initial_velocity_min = s.speed_min * k
+	emitter.initial_velocity_max = s.speed_max * k
+	emitter.gravity = Vector3(0.0, -s.gravity * k, 0.0)
 	emitter.direction = s.direction
 	emitter.spread = s.spread
 	emitter.flatness = s.flatness
 	emitter.emission_shape = s.shape
-	emitter.emission_box_extents = s.box if area == Vector2.ZERO else Vector3(area.x / 2.0, s.box.y, area.y / 2.0)
+	emitter.emission_box_extents = (s.box * k) if area == Vector2.ZERO else Vector3(area.x / 2.0, s.box.y * k, area.y / 2.0)
 	emitter.rotation.y = yaw
-	emitter.emission_points = s.points
+	if is_equal_approx(k, 1.0) or s.points.is_empty():
+		emitter.emission_points = s.points
+	else:
+		var scaled_pts: PackedVector3Array = PackedVector3Array()
+		scaled_pts.resize(s.points.size())
+		for pi: int in s.points.size():
+			scaled_pts[pi] = s.points[pi] * k
+		emitter.emission_points = scaled_pts
 	emitter.emission_normals = s.normals
-	emitter.scale_amount_min = s.size
-	emitter.scale_amount_max = s.size if s.size_max < 0.0 else s.size_max
+	emitter.scale_amount_min = s.size * k
+	emitter.scale_amount_max = (s.size if s.size_max < 0.0 else s.size_max) * k
 	emitter.scale_amount_curve = s.size_curve
 	emitter.color_initial_ramp = s.color_initial_ramp
 	emitter.color_ramp = s.color_ramp
 	emitter.angle_min = 0.0
 	emitter.angle_max = 360.0 if s.random_angle else 0.0
 	emitter.particle_flag_rotate_y = s.random_angle
-	emitter.global_position = at + Vector3(0.0, s.spawn_y, 0.0)
+	emitter.global_position = at + Vector3(0.0, s.spawn_y * k, 0.0)
 	emitter.visible = true
 	emitter.restart()
 	emitter.emitting = true
@@ -227,9 +235,12 @@ func puff(preset: Preset, at: Vector3, amount: int, tint: Color = Color.WHITE, a
 func trail_take() -> CPUParticles3D:
 	if _ctx.reduced:
 		return null
+	var k: float = _ctx.kid_scale()
 	for i: int in _trails.size():
 		if not _trail_used[i]:
 			_trail_used[i] = true
+			_trails[i].scale_amount_min = TRAIL_SIZE * k
+			_trails[i].scale_amount_max = TRAIL_SIZE * k
 			_trails[i].visible = true
 			_trails[i].emitting = true
 			return _trails[i]

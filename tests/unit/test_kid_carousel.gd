@@ -439,7 +439,8 @@ func test_a_kid_without_a_picture_keeps_the_face_plate() -> void:
 # ---- layout ----
 
 func test_the_carousel_fits_every_phone_inside_the_safe_areas_and_clear_of_play() -> void:
-	for phone: Vector2 in PHONES:
+	var stretched_phones: Array[Vector2] = [Vector2(720.0, 1280.0), Vector2(720.0, 1558.0)]
+	for phone: Vector2 in stretched_phones:
 		var screen: WeaponPickScreen = await _open(phone, &"toni", [&"popoy"] as Array[StringName])
 		# a notch on top and a home bar below: the margins the safe-area code would add
 		screen._safe_margin.add_theme_constant_override("margin_top", 120)

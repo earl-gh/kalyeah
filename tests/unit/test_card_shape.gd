@@ -157,10 +157,12 @@ func test_the_mode_name_and_its_phrase_are_white_with_a_black_outline() -> void:
 	add_child(screen)
 	await wait_frames(2)
 	var name_label: Label = (screen.mode_models[screen.carousel.index].get_node("Face") as CardFace).plate().get_child(0) as Label
-	for label: Label in [name_label, screen.mode_text_label]:
-		assert_eq(label.get_theme_color("font_color"), Color.WHITE, "%s is white" % label.name)
-		assert_eq(label.get_theme_color("font_outline_color"), Color.BLACK, "%s has a black outline" % label.name)
-		assert_gt(label.get_theme_constant("outline_size"), 3, "%s: a real outline" % label.name)
+	assert_eq(name_label.get_theme_color("font_color"), Color.WHITE, "%s is white" % name_label.name)
+	assert_eq(name_label.get_theme_color("font_outline_color"), Color.BLACK, "%s has a black outline" % name_label.name)
+	assert_gt(name_label.get_theme_constant("outline_size"), 3, "%s: a real outline" % name_label.name)
+	assert_eq(screen.mode_text_label.get_theme_color("font_color"), KalyeahTheme.CREAM, "%s uses sunlit cream" % screen.mode_text_label.name)
+	assert_eq(screen.mode_text_label.get_theme_color("font_outline_color"), KalyeahTheme.INK, "%s uses warm espresso outline" % screen.mode_text_label.name)
+	assert_gt(screen.mode_text_label.get_theme_constant("outline_size"), 3, "%s: a real outline" % screen.mode_text_label.name)
 
 
 func test_the_two_worn_layers_have_the_owners_lightness_grades() -> void:

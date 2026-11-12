@@ -28,8 +28,8 @@ class CrestIcon extends Control:
 
 class RankedProgressBar extends Control:
 	var ratio: float = 0.0
-	var fill_color: Color = Color("ffc938")
-	var accent_color: Color = Color("fff29c")
+	var fill_color: Color = Color("f5a623")
+	var accent_color: Color = Color("ffd97d")
 
 	func set_progress(value: float, fill: Color, accent: Color) -> void:
 		ratio = clampf(value, 0.0, 1.0)
@@ -41,14 +41,14 @@ class RankedProgressBar extends Control:
 		var rect: Rect2 = Rect2(Vector2.ZERO, size)
 		if rect.size.x <= 4.0 or rect.size.y <= 4.0:
 			return
-		draw_rect(rect, Color("080e22"), true)
-		var inner: Rect2 = rect.grow(-2.0)
-		draw_rect(inner, Color("132147"), true)
+		draw_rect(rect, Color("dfd0b4"), true)
+		var inner: Rect2 = rect.grow(-1.5)
+		draw_rect(inner, Color("efe4cd"), true)
 		var fill_w: float = inner.size.x * ratio
 		if fill_w > 1.0:
 			draw_rect(Rect2(inner.position, Vector2(fill_w, inner.size.y)), fill_color, true)
-			draw_rect(Rect2(inner.position, Vector2(fill_w, inner.size.y * 0.42)), accent_color.lerp(Color.WHITE, 0.3), true)
-		draw_rect(rect, Color("040814"), false, 2.0)
+			draw_rect(Rect2(inner.position, Vector2(fill_w, inner.size.y * 0.42)), accent_color.lerp(Color("faf3e3"), 0.35), true)
+		draw_rect(rect, Color(Color("2a2522"), 0.36), false, 1.5)
 
 
 ## Which battles are shown: every mode (an empty name) or one.
@@ -72,6 +72,7 @@ var _top: VBoxContainer
 var _list: VBoxContainer
 var _tier_badges: Array[PanelContainer] = []
 var _tier_badge_labels: Array[Label] = []
+var _rank_card_style: StyleBoxFlat
 var _active_badge_style: StyleBoxFlat
 var _unlocked_badge_style: StyleBoxFlat
 var _locked_badge_style: StyleBoxFlat
@@ -109,10 +110,21 @@ func _ready() -> void:
 
 
 func _build_badge_styles() -> void:
+	_rank_card_style = StyleBoxFlat.new()
+	_rank_card_style.bg_color = Color("faf3e3")
+	_rank_card_style.border_color = Color("f5a623")
+	_rank_card_style.set_border_width_all(2)
+	_rank_card_style.set_corner_radius_all(UiSkin.PLATE_RADIUS)
+	_rank_card_style.shadow_color = Color(Color("2a2522"), 0.20)
+	_rank_card_style.shadow_size = 5
+	_rank_card_style.shadow_offset = Vector2(0.0, 3.0)
+	_rank_card_style.set_content_margin_all(18.0)
+	_rank_card_style.anti_aliasing = true
+
 	_active_badge_style = StyleBoxFlat.new()
-	_active_badge_style.bg_color = Color("2b3e78")
-	_active_badge_style.border_color = Color("ffd25a")
-	_active_badge_style.set_border_width_all(3)
+	_active_badge_style.bg_color = Color("fff3d1")
+	_active_badge_style.border_color = Color("f5a623")
+	_active_badge_style.set_border_width_all(2)
 	_active_badge_style.set_corner_radius_all(UiSkin.RADIUS_M)
 	_active_badge_style.content_margin_left = 10.0
 	_active_badge_style.content_margin_right = 12.0
@@ -121,8 +133,8 @@ func _build_badge_styles() -> void:
 	_active_badge_style.anti_aliasing = true
 
 	_unlocked_badge_style = StyleBoxFlat.new()
-	_unlocked_badge_style.bg_color = Color("182954")
-	_unlocked_badge_style.border_color = Color("4a6ab0")
+	_unlocked_badge_style.bg_color = Color("e3f5f1")
+	_unlocked_badge_style.border_color = Color("1f9d8b")
 	_unlocked_badge_style.set_border_width_all(2)
 	_unlocked_badge_style.set_corner_radius_all(UiSkin.RADIUS_M)
 	_unlocked_badge_style.content_margin_left = 10.0
@@ -132,9 +144,9 @@ func _build_badge_styles() -> void:
 	_unlocked_badge_style.anti_aliasing = true
 
 	_locked_badge_style = StyleBoxFlat.new()
-	_locked_badge_style.bg_color = Color("0c1530")
-	_locked_badge_style.border_color = Color("1f315c")
-	_locked_badge_style.set_border_width_all(2)
+	_locked_badge_style.bg_color = Color("efe5d2")
+	_locked_badge_style.border_color = Color("cbbba0")
+	_locked_badge_style.set_border_width_all(1)
 	_locked_badge_style.set_corner_radius_all(UiSkin.RADIUS_M)
 	_locked_badge_style.content_margin_left = 10.0
 	_locked_badge_style.content_margin_right = 12.0
@@ -143,8 +155,8 @@ func _build_badge_styles() -> void:
 	_locked_badge_style.anti_aliasing = true
 
 	_lp_chip_style = StyleBoxFlat.new()
-	_lp_chip_style.bg_color = Color("13224a")
-	_lp_chip_style.border_color = Color("ffc83a")
+	_lp_chip_style.bg_color = Color("136e61")
+	_lp_chip_style.border_color = Color("0d4f46")
 	_lp_chip_style.set_border_width_all(2)
 	_lp_chip_style.set_corner_radius_all(UiSkin.RADIUS_M)
 	_lp_chip_style.content_margin_left = 14.0
@@ -184,7 +196,10 @@ func _build_rank_banner() -> PanelContainer:
 	rank_tier_label = Label.new()
 	rank_tier_label.name = "RankTier"
 	rank_tier_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	UiKit.letter(rank_tier_label, UiMetrics.HEADLINE, Color("ffd25a"))
+	rank_tier_label.add_theme_font_override("font", KalyeahTheme.DISPLAY_FONT)
+	rank_tier_label.add_theme_font_size_override("font_size", UiMetrics.HEADLINE)
+	rank_tier_label.add_theme_color_override("font_color", Color("2a2522"))
+	rank_tier_label.add_theme_constant_override("outline_size", 0)
 	title_row.add_child(rank_tier_label)
 
 	var lp_chip: PanelContainer = PanelContainer.new()
@@ -196,7 +211,7 @@ func _build_rank_banner() -> PanelContainer:
 	rank_lp_chip_label.name = "RankLpValue"
 	rank_lp_chip_label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
 	rank_lp_chip_label.add_theme_font_size_override("font_size", UiMetrics.CAPTION)
-	rank_lp_chip_label.add_theme_color_override("font_color", Color("ffd25a"))
+	rank_lp_chip_label.add_theme_color_override("font_color", Color("faf3e3"))
 	lp_chip.add_child(rank_lp_chip_label)
 	title_row.add_child(lp_chip)
 
@@ -207,11 +222,16 @@ func _build_rank_banner() -> PanelContainer:
 	rank_progress_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info_col.add_child(rank_progress_bar)
 
-	rank_next_label = UiKit.text("", UiMetrics.CAPTION, Color("c9d6f2"))
+	rank_next_label = UiKit.text("", UiMetrics.CAPTION, Color("57493f"))
 	rank_next_label.name = "RankNext"
 	info_col.add_child(rank_next_label)
 
-	wrapper.add_child(UiKit.divider())
+	var divider_line: ColorRect = ColorRect.new()
+	divider_line.custom_minimum_size = Vector2(0.0, 1.0)
+	divider_line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	divider_line.color = Color(Color("2a2522"), 0.14)
+	divider_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrapper.add_child(divider_line)
 
 	tier_badges_flow = HFlowContainer.new()
 	tier_badges_flow.name = "TierBadges"
@@ -242,15 +262,18 @@ func _build_rank_banner() -> PanelContainer:
 		tier_text.text = spec["name"] as String
 		tier_text.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
 		tier_text.add_theme_font_size_override("font_size", UiMetrics.CAPTION)
-		tier_text.add_theme_color_override("font_color", Color("8fa3cc"))
+		tier_text.add_theme_color_override("font_color", Color("635447"))
 		item_row.add_child(tier_text)
 		badge.add_child(item_row)
 		tier_badges_flow.add_child(badge)
 		_tier_badges.append(badge)
 		_tier_badge_labels.append(tier_text)
 
-	var card: PanelContainer = UiKit.card(wrapper, "picked", 18.0, UiSkin.PLATE_RADIUS)
+	var card: PanelContainer = PanelContainer.new()
 	card.name = "RankBannerCard"
+	card.mouse_filter = Control.MOUSE_FILTER_PASS
+	card.add_theme_stylebox_override("panel", _rank_card_style)
+	card.add_child(wrapper)
 	return card
 
 
@@ -263,10 +286,11 @@ func _refresh_rank_banner() -> void:
 	var spec: Dictionary = RankedSystem.TIERS[active_idx]
 	var tier_color: Color = spec["color"] as Color
 	var tier_accent: Color = spec["accent"] as Color
+	var tier_ink: Color = Color("2a2522").lerp(spec["dark"] as Color, 0.72)
 
 	rank_emblem.set_lp(lp)
 	rank_tier_label.text = (spec["name"] as String).to_upper()
-	rank_tier_label.add_theme_color_override("font_color", tier_accent)
+	rank_tier_label.add_theme_color_override("font_color", tier_ink)
 	rank_lp_chip_label.text = "%d LP" % lp
 	rank_progress_bar.set_progress(RankedSystem.tier_progress(lp), tier_color, tier_accent)
 
@@ -285,15 +309,15 @@ func _refresh_rank_banner() -> void:
 		if i == active_idx:
 			badge.add_theme_stylebox_override("panel", _active_badge_style)
 			badge.modulate = Color.WHITE
-			label.add_theme_color_override("font_color", badge_spec["accent"] as Color)
+			label.add_theme_color_override("font_color", Color("2a2522").lerp(badge_spec["dark"] as Color, 0.72))
 		elif i < active_idx:
 			badge.add_theme_stylebox_override("panel", _unlocked_badge_style)
 			badge.modulate = Color.WHITE
-			label.add_theme_color_override("font_color", KalyeahTheme.TEXT)
+			label.add_theme_color_override("font_color", Color("13594e"))
 		else:
 			badge.add_theme_stylebox_override("panel", _locked_badge_style)
-			badge.modulate = Color(1.0, 1.0, 1.0, 0.72)
-			label.add_theme_color_override("font_color", Color("8fa3cc"))
+			badge.modulate = Color.WHITE
+			label.add_theme_color_override("font_color", Color("635447"))
 
 
 ## Shows the battles of one mode ("practice", "hotspot", "online") or all of them (an empty name).
@@ -308,9 +332,9 @@ func _summary() -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.name = "Summary"
 	row.add_theme_constant_override("separation", UiMetrics.GAP)
-	played_label = _figure(row, "Played", Color("ffd25a"))
-	rate_label = _figure(row, "Won", Color("6fe39a"))
-	streak_label = _figure(row, "Streak", Color("8fd0ff"))
+	played_label = _figure(row, "Played", Color("f5a623"))
+	rate_label = _figure(row, "Won", Color("28c7ae"))
+	streak_label = _figure(row, "Streak", Color("ff8c66"))
 	return UiKit.card(row, "glass", 18.0)
 
 
@@ -320,10 +344,10 @@ func _figure(parent: HBoxContainer, caption: String, color: Color) -> Label:
 	column.add_theme_constant_override("separation", 0)
 	var number: Label = Label.new()
 	number.name = caption
-	UiKit.letter(number, UiMetrics.DISPLAY, color)
+	UiKit.letter(number, UiMetrics.DISPLAY, color, Color("2a2522"))
 	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(number)
-	var label: Label = UiKit.text(caption, UiMetrics.CAPTION, Color("9fb0d6"), false)
+	var label: Label = UiKit.text(caption, UiMetrics.CAPTION, KalyeahTheme.TEXT_MUTED, false)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(label)
 	parent.add_child(column)
@@ -364,7 +388,7 @@ func _empty(heading: String = "No battles yet", hint_text: String = "Win your fi
 	var title: Label = UiKit.text(heading, UiMetrics.ACTION)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(title)
-	var hint: Label = UiKit.text(hint_text, UiMetrics.DETAIL, Color("9fb0d6"))
+	var hint: Label = UiKit.text(hint_text, UiMetrics.DETAIL, KalyeahTheme.TEXT_MUTED)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(hint)
 	var play: Button = MenuDialog.make_button("Start a battle!", "orange", UiMetrics.ACTION, Vector2(0.0, UiMetrics.TOUCH))
@@ -376,10 +400,10 @@ func _empty(heading: String = "No battles yet", hint_text: String = "Win your fi
 
 func _row(entry: Dictionary, now: int) -> Control:
 	var won: bool = bool(entry.get("won", false))
-	var accent: Color = UiKit.CHIP_GREEN if won else UiKit.CHIP_RED
+	var accent: Color = Color("136e61") if won else Color("b83a28")
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", UiMetrics.GAP)
-	var badge: PanelContainer = UiKit.chip("Victory" if won else "Defeat", accent, Color.WHITE, UiMetrics.DETAIL)
+	var badge: PanelContainer = UiKit.chip("Victory" if won else "Defeat", accent, Color("faf3e3"), UiMetrics.DETAIL)
 	badge.name = "Result"
 	badge.custom_minimum_size = Vector2(176.0, 0.0)
 	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -394,14 +418,14 @@ func _row(entry: Dictionary, now: int) -> Control:
 		var delta: int = int(entry.get("lp_delta", 0))
 		var lp_part: String = "+%d LP" % delta if delta >= 0 else "%d LP" % delta
 		age_text = "%s · %s" % [age_text, lp_part]
-	var when: Label = UiKit.text(age_text, UiMetrics.CAPTION, Color("9fb0d6"))
+	var when: Label = UiKit.text(age_text, UiMetrics.CAPTION, KalyeahTheme.TEXT_MUTED)
 	when.name = "When"
 	words.add_child(when)
 	row.add_child(words)
 	var score: Label = Label.new()
 	score.name = "Score"
 	score.text = "%d - %d" % [int(entry.get("mine", 0)), int(entry.get("theirs", 0))]
-	UiKit.letter(score, UiMetrics.HEADLINE)
+	UiKit.letter(score, UiMetrics.HEADLINE, KalyeahTheme.CREAM, Color("2a2522"))
 	score.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(score)
 	return UiKit.card(row, "glass", 22.0)

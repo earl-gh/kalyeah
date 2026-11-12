@@ -333,8 +333,8 @@ func test_join_with_no_host_at_all_ends_with_no_room_instead_of_hanging() -> voi
 func test_join_says_when_the_room_is_full_or_the_match_started() -> void:
 	_host(true)
 	var room: RoomService.Room = _server.rooms.rooms.values()[0] as RoomService.Room
-	for peer: int in range(701, 706):
-		_server.rooms.join(room.code, peer, "Friend")  # six places in all
+	for peer: int in range(701, 710):
+		_server.rooms.join(room.code, peer, "Friend")  # ten places in all (5v5)
 	var card: MenuDialog = _join([])
 	assert_true(await _until(func() -> bool: return _shown(card, "TryAgain")))
 	assert_eq(_text(card, "Message"), "That room is full!")

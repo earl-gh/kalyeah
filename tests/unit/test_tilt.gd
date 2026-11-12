@@ -126,6 +126,10 @@ func test_the_match_settings_menu_has_the_switch_too() -> void:
 	assert_true(toggle.is_visible_in_tree())
 	assert_null(menu.find_child("AimGuide", true, false), "the aim guide stays on the Settings page")
 	await wait_process_frames(2)
+	var scroll: ScrollContainer = menu.find_child("DialogScroll", true, false) as ScrollContainer
+	if scroll != null:
+		scroll.scroll_vertical = 100000
+		await wait_process_frames(2)
 	var screen: Rect2 = menu.get_viewport_rect()
 	assert_true(screen.encloses(menu.leave_button.get_global_rect()), "Leave battle stays in view with the extra row")
 	toggle.toggled.emit(true)

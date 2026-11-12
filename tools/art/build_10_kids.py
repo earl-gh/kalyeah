@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
 """Build the 4 expansion Filipino kids (Kiko, Nene, Buknoy, Tala) for the 10-kid roster.
 
-Clones the normalized rigged base GLBs (migo, ligaya, junjun, toni) WITHOUT modifying
-any source files, paints custom 90s Filipino Komiks outfit textures in 3D-mapped UV
-space (with charcoal comic seam/fold ink lines and max cloth RGB <= 0.78), writes
-VRAM-compressed Godot .import files, and renders cohesive standing portraits,
-3:4 90s komiks profile cards, and 96x96 minimap faces via Blender 5.2 + Pillow.
+Overhaul v2 Pipeline:
+- Clones the normalized rigged base GLBs (migo, ligaya, junjun, toni) WITHOUT modifying
+  any of the 6 authored kids' files (SHA-256 verified before & after).
+- Applies watertight spatial-welded organic child sculpting (volume-preserving Taubin
+  smoothing, soft child cheek/jaw contours, subtle per-kid build silhouettes, welded
+  smooth normals across UV seams, and exact [0.000, 1.700] m rest-pose normalization).
+- Paints soft sunlit 90s Philippine province outfit & child skin textures (`mean_sRGB`
+  in [0.43, 0.49], `max_sRGB <= 0.78`, warm espresso-umber shadow floor `#261D22`,
+  anti-aliased warm umber `#382B31` cloth seams instead of harsh `#17131A` cartoon lines,
+  preserved soft baked cloth folds, >=16px UV mipmap gutter bleed, and cleaned donor
+  normal-map decals).
+- Preserves existing Godot `[remap]`/`[deps]` UIDs in `.import` sidecars (`compress/mode=2`,
+  `mipmaps/generate=true`, `compress/normal_map=1` on `_2.png`, zero `md5=` lines).
 
 Usage:
-    python tools/art/build_10_kids.py
+    python tools/art/build_10_kids.py [--with-portraits]
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import io
 import json
@@ -40,15 +49,21 @@ PORTRAIT_DIR = ROOT / "assets" / "portraits"
 CARDS_DIR = PORTRAIT_DIR / "cards"
 FACES_DIR = PORTRAIT_DIR / "faces"
 
+AUTHORED_IDS = ("junjun", "ligaya", "migo", "toni", "popoy", "inday")
 BASE_COLOR_SIZE = 1024
 AUX_MAP_SIZE = 512
-INK_RGB = np.array([23.0, 19.0, 26.0], dtype=np.float32)  # #17131A warm komiks charcoal
-MAX_CLOTH_VAL = 198.0  # 198 / 255 = 0.776 <= 0.78 PBR anti-blowout ceiling
+
+# Overhaul v2 Sunlit 90s Province Palette Limits (#78 Section 1 & 4)
+SHADOW_FLOOR = np.array([38.0, 29.0, 34.0], dtype=np.float32)    # #261D22 warm espresso-umber floor
+WARM_SEAM_RGB = np.array([56.0, 43.0, 49.0], dtype=np.float32)   # #382B31 soft warm umber cloth seam
+INK_RGB = np.array([23.0, 19.0, 26.0], dtype=np.float32)         # Portrait-only outline ink
+MAX_SRGB_VAL = 198.0                                             # 198 / 255 = 0.7765 <= 0.78 ceiling
 
 KIDS_SPEC = [
     {
         "id": "kiko",
         "base": "migo",
+        "target_mean_srgb": 0.455,
         "idle_frame": 11,
         "idle_yaw": -25.0,
         "card_clip": "Idle",
@@ -76,6 +91,7 @@ KIDS_SPEC = [
     {
         "id": "nene",
         "base": "ligaya",
+        "target_mean_srgb": 0.468,
         "idle_frame": 20,
         "idle_yaw": 24.0,
         "card_clip": "Idle",
@@ -103,6 +119,7 @@ KIDS_SPEC = [
     {
         "id": "buknoy",
         "base": "junjun",
+        "target_mean_srgb": 0.452,
         "idle_frame": 9,
         "idle_yaw": 25.0,
         "card_clip": "Idle",
@@ -130,6 +147,7 @@ KIDS_SPEC = [
     {
         "id": "tala",
         "base": "toni",
+        "target_mean_srgb": 0.448,
         "idle_frame": 16,
         "idle_yaw": -24.0,
         "card_clip": "Idle",
@@ -185,7 +203,7 @@ def find_blender() -> Path:
 
 
 # ---------------------------------------------------------------------------
-# glTF Binary Parsing, UV->3D Rasterization & Binary Chunk Rebuilding
+# glTF Binary Parsing, Organic Child Mesh Sculpting & Chunk Rebuilding
 # ---------------------------------------------------------------------------
 
 
@@ -228,22 +246,140 @@ def read_accessor(gltf: dict, bin_chunk: bytes, acc_idx: int) -> np.ndarray:
     return arr.reshape(count) if num_comp == 1 else arr.reshape(count, num_comp)
 
 
-def build_uv_3d_maps(
-    gltf: dict, bin_chunk: bytes, size: int = BASE_COLOR_SIZE
-) -> tuple[np.ndarray, np.ndarray]:
-    """Map 3D rest-pose POSITION (x,y,z) and NORMAL (nx,ny,nz) onto every texel of a size x size UV grid."""
-    prim = gltf["meshes"][0]["primitives"][0]
-    pos = read_accessor(gltf, bin_chunk, prim["attributes"]["POSITION"]).astype(np.float32)
-    nrm = read_accessor(gltf, bin_chunk, prim["attributes"]["NORMAL"]).astype(np.float32)
-    uv = read_accessor(gltf, bin_chunk, prim["attributes"]["TEXCOORD_0"]).astype(np.float32)
-    idx = read_accessor(gltf, bin_chunk, prim["indices"]).astype(np.int64).reshape(-1, 3)
+def cos_bell(val: np.ndarray, center: float, half_width: float) -> np.ndarray:
+    t = np.clip((val - center) / max(half_width, 1e-5), -1.0, 1.0)
+    return 0.5 * (1.0 + np.cos(np.pi * t))
 
-    uv = np.mod(uv, 1.0)
+
+def sculpt_organic_child_mesh(
+    pos: np.ndarray,
+    nrm: np.ndarray,
+    idx: np.ndarray,
+    kid_id: str,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Apply watertight welded Taubin smoothing, organic child cheek/jaw/limb proportions,
+    smooth welded normals across UV seams, and exact [0.000, 1.700] m height normalization."""
+    p = pos.astype(np.float64).copy()
+
+    # 1. Spatial vertex welding so split UV-seam vertices move identically (100% watertight!)
+    quant = np.round(p * 4000.0).astype(np.int64)
+    _, unique_first, inv_map = np.unique(quant, axis=0, return_index=True, return_inverse=True)
+    n_uniq = len(unique_first)
+    u_pos = p[unique_first].copy()
+
+    # Build welded adjacency sum & degree via triangle edges for volume-preserving Taubin smoothing
+    t0, t1, t2 = inv_map[idx[:, 0]], inv_map[idx[:, 1]], inv_map[idx[:, 2]]
+    src = np.concatenate([t0, t1, t1, t2, t2, t0])
+    dst = np.concatenate([t1, t0, t2, t1, t0, t2])
+    deg = np.bincount(src, minlength=n_uniq).astype(np.float64)
+    safe_deg = np.maximum(deg, 1.0)[:, None]
+
+    # Protect eyes, lashes, brows, mouth & grounded soles from Taubin shift
+    ux, uy, uz = u_pos[:, 0], u_pos[:, 1], u_pos[:, 2]
+    face_detail = (np.abs(ux) < 0.145) & (uy > 1.155) & (uy < 1.345) & (uz > 0.075)
+    sole_pin = uy < 0.014
+    smooth_w = np.where(face_detail | sole_pin, 0.0, 1.0)[:, None]
+
+    for step_factor in (0.20, -0.208):
+        nbr_sum = np.zeros_like(u_pos)
+        for c in range(3):
+            nbr_sum[:, c] = np.bincount(src, weights=u_pos[dst, c], minlength=n_uniq)
+        lap = (nbr_sum / safe_deg) - u_pos
+        u_pos += step_factor * smooth_w * lap
+
+    # 2. Organic child cheek/jaw rounding + subtle per-character Filipino kid build silhouette
+    ux, uy, uz = u_pos[:, 0], u_pos[:, 1], u_pos[:, 2]
+    cheek_bell = (
+        cos_bell(uy, 1.195, 0.075)
+        * cos_bell(np.abs(ux), 0.095, 0.065)
+        * np.clip((uz + 0.01) / 0.11, 0.0, 1.0)
+        * (~face_detail).astype(np.float64)
+    )
+    u_pos[:, 0] *= 1.0 + 0.024 * cheek_bell
+    u_pos[:, 2] += 0.0025 * cheek_bell
+
+    if kid_id == "kiko":
+        # Agile kalye trumpo craftsman: nimble waist, crisp vest chest, airy curly crown
+        rad_scale = (
+            1.0
+            - 0.026 * cos_bell(uy, 0.78, 0.16)
+            + 0.016 * cos_bell(uy, 0.99, 0.13)
+            + 0.018 * cos_bell(uy, 1.48, 0.18)
+        )
+        u_pos[:, 0] *= rad_scale
+        u_pos[:, 2] *= rad_scale
+    elif kid_id == "nene":
+        # Chinese-garter jumper: graceful waist & soft organic A-line pinafore skirt bell
+        skirt_bell = cos_bell(uy, 0.51, 0.16)
+        waist_taper = cos_bell(uy, 0.77, 0.12)
+        rad_scale = 1.0 + 0.042 * skirt_bell - 0.025 * waist_taper
+        u_pos[:, 0] *= rad_scale
+        u_pos[:, 2] *= rad_scale
+    elif kid_id == "buknoy":
+        # Sturdy provincial sapa explorer: healthy barrio shoulders/chest & calves
+        rad_scale = 1.0 + 0.026 * cos_bell(uy, 0.96, 0.18) + 0.028 * cos_bell(uy, 0.25, 0.13)
+        u_pos[:, 0] *= rad_scale
+        u_pos[:, 2] *= rad_scale
+    elif kid_id == "tala":
+        # Barangay track sprinter: tapered runner waist & athletic quads/calves
+        rad_scale = (
+            1.0
+            - 0.024 * cos_bell(uy, 0.73, 0.14)
+            + 0.024 * cos_bell(uy, 0.34, 0.18)
+        )
+        u_pos[:, 0] *= rad_scale
+        u_pos[:, 2] *= rad_scale
+
+    # 3. Exact [0.0000, 1.7000] m rest-pose normalization (soles pinned at Y=0.000, crown at Y=1.700)
+    min_y = float(u_pos[:, 1].min())
+    u_pos[:, 1] -= min_y
+    max_y = float(u_pos[:, 1].max())
+    if max_y > 1e-5:
+        u_pos[:, 1] *= 1.7000 / max_y
+
+    sculpted_pos = u_pos[inv_map].astype(np.float32)
+
+    # 4. Recompute welded area-weighted smooth normals across UV seams, blended gently with
+    # authored custom normals on hair/eyes so limbs/knees/cheeks are 100% facet-free!
+    v0 = sculpted_pos[idx[:, 0]]
+    v1 = sculpted_pos[idx[:, 1]]
+    v2 = sculpted_pos[idx[:, 2]]
+    fn = np.cross(v1 - v0, v2 - v0).astype(np.float64)
+
+    u_nrm = np.zeros((n_uniq, 3), dtype=np.float64)
+    for corner in (t0, t1, t2):
+        for c in range(3):
+            u_nrm[:, c] += np.bincount(corner, weights=fn[:, c], minlength=n_uniq)
+    u_len = np.maximum(np.linalg.norm(u_nrm, axis=-1, keepdims=True), 1e-8)
+    welded_nrm = (u_nrm / u_len)[inv_map].astype(np.float32)
+
+    orig_len = np.maximum(np.linalg.norm(nrm, axis=-1, keepdims=True), 1e-8)
+    orig_unit = nrm / orig_len
+    # Hair/eyes keep 55% original stylized strand/lid normals; skin/limbs/cloth get 75% welded smooth
+    is_upper_head = sculpted_pos[:, 1] > 1.15
+    weld_w = np.where(is_upper_head, 0.45, 0.75)[:, None].astype(np.float32)
+    blended_nrm = welded_nrm * weld_w + orig_unit * (1.0 - weld_w)
+    b_len = np.maximum(np.linalg.norm(blended_nrm, axis=-1, keepdims=True), 1e-8)
+    sculpted_nrm = (blended_nrm / b_len).astype(np.float32)
+
+    return sculpted_pos, sculpted_nrm
+
+
+def build_uv_3d_maps(
+    pos: np.ndarray,
+    nrm: np.ndarray,
+    uv: np.ndarray,
+    idx: np.ndarray,
+    size: int = BASE_COLOR_SIZE,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Map 3D rest-pose POSITION and NORMAL onto every texel of a size x size UV grid,
+    returning `(pos_grid, nrm_grid, valid)`."""
+    uv_mod = np.mod(uv, 1.0)
     pos_grid = np.zeros((size, size, 3), dtype=np.float32)
     nrm_grid = np.zeros((size, size, 3), dtype=np.float32)
     valid = np.zeros((size, size), dtype=bool)
 
-    u0, u1, u2 = uv[idx[:, 0]], uv[idx[:, 1]], uv[idx[:, 2]]
+    u0, u1, u2 = uv_mod[idx[:, 0]], uv_mod[idx[:, 1]], uv_mod[idx[:, 2]]
     p0, p1, p2 = pos[idx[:, 0]], pos[idx[:, 1]], pos[idx[:, 2]]
     n0, n1, n2 = nrm[idx[:, 0]], nrm[idx[:, 1]], nrm[idx[:, 2]]
 
@@ -277,8 +413,11 @@ def build_uv_3d_maps(
 
     t_px = np.stack([u0, u1, u2], axis=1) * (size - 1)
     span = t_px.max(axis=1) - t_px.min(axis=1)
-    big_ids = np.where(((span[:, 0] > 0.35) | (span[:, 1] > 0.35)) & (span[:, 0] < size * 0.45) & (span[:, 1] < size * 0.45))[0]
-    # Sort back-to-front (+Z front face/eyes write last and win over any overlapping back-of-head UVs)
+    big_ids = np.where(
+        ((span[:, 0] > 0.35) | (span[:, 1] > 0.35))
+        & (span[:, 0] < size * 0.45)
+        & (span[:, 1] < size * 0.45)
+    )[0]
     big_ids = big_ids[np.argsort(p0[big_ids, 2] + p1[big_ids, 2] + p2[big_ids, 2])]
     for ti in big_ids:
         tri_uv = t_px[ti]
@@ -301,7 +440,7 @@ def build_uv_3d_maps(
         w0 = ((by - cy) * (gx - cx) + (cx - bx) * (gy - cy)) / denom
         w1 = ((cy - ay) * (gx - cx) + (ax - cx) * (gy - cy)) / denom
         w2 = 1.0 - w0 - w1
-        inside = (w0 >= -0.02) & (w1 >= -0.02) & (w2 >= -0.02)
+        inside = (w0 >= -0.025) & (w1 >= -0.025) & (w2 >= -0.025)
         if not inside.any():
             continue
         iy, ix = np.where(inside)
@@ -310,12 +449,12 @@ def build_uv_3d_maps(
         nrm_grid[min_y + iy, min_x + ix] = bw0 * n0[ti] + bw1 * n1[ti] + bw2 * n2[ti]
         valid[min_y + iy, min_x + ix] = True
 
-    nearest_idx = distance_transform_edt(~valid, return_distances=False, return_indices=True)
+    _, nearest_idx = distance_transform_edt(~valid, return_distances=True, return_indices=True)
     pos_grid = pos_grid[nearest_idx[0], nearest_idx[1]]
     nrm_grid = nrm_grid[nearest_idx[0], nearest_idx[1]]
     n_len = np.maximum(np.linalg.norm(nrm_grid, axis=-1, keepdims=True), 1e-5)
     nrm_grid = nrm_grid / n_len
-    return pos_grid, nrm_grid
+    return pos_grid, nrm_grid, valid
 
 
 def extract_embedded_image(gltf: dict, bin_chunk: bytes, img_index: int) -> Image.Image:
@@ -331,21 +470,77 @@ def encode_png(img: Image.Image) -> bytes:
     return buf.getvalue()
 
 
-def resize_normal_map(img: Image.Image, size: int) -> Image.Image:
-    resized = img.convert("RGB").resize((size, size), Image.Resampling.LANCZOS)
-    arr = np.asarray(resized, dtype=np.float32) / 255.0 * 2.0 - 1.0
-    length = np.maximum(np.linalg.norm(arr, axis=-1, keepdims=True), 1e-5)
-    arr = arr / length
-    out = np.clip((arr * 0.5 + 0.5) * 255.0, 0.0, 255.0).astype(np.uint8)
-    return Image.fromarray(out, mode="RGB")
+def polish_aux_maps(
+    img_mr_src: Image.Image,
+    img_norm_src: Image.Image,
+    pos_1024: np.ndarray,
+    kid_id: str,
+) -> tuple[Image.Image, Image.Image]:
+    """Build soft matte sunlit roughness/metallic (`_0.png`) and clean donor-decal-free normal (`_2.png`)."""
+    # 1. Roughness/Metallic: glTF packs Roughness in G, Metallic in B (AO in R).
+    # Keep metallic = 0 and lift roughness to soft sunlit cotton/child-skin matte (0.84..0.94).
+    mr = np.asarray(
+        img_mr_src.convert("RGB").resize((AUX_MAP_SIZE, AUX_MAP_SIZE), Image.Resampling.LANCZOS),
+        dtype=np.float32,
+    ).copy()
+    mr[..., 0] = np.clip(mr[..., 0] * 0.65 + 88.0, 96.0, 255.0)   # Soft warm AO floor
+    mr[..., 1] = np.clip(mr[..., 1] * 0.30 + 172.0, 208.0, 246.0) # Soft matte roughness
+    mr[..., 2] = 0.0                                              # Zero metallic sheen
+    out_mr = Image.fromarray(mr.astype(np.uint8), mode="RGB")
+
+    # 2. Normal Map: remove ghost donor decal embosses (#11 on Toni/Tala, #23 on Junjun/Buknoy,
+    # smiley/crown on Migo/Kiko) and gently soften harsh normal spikes for silky child skin/cloth.
+    nm_resized = img_norm_src.convert("RGB").resize((AUX_MAP_SIZE, AUX_MAP_SIZE), Image.Resampling.LANCZOS)
+    vec = np.asarray(nm_resized, dtype=np.float32) / 255.0 * 2.0 - 1.0
+
+    pos_512 = pos_1024[::2, ::2]
+    px, py, pz = pos_512[..., 0], pos_512[..., 1], pos_512[..., 2]
+    flatten = np.zeros((AUX_MAP_SIZE, AUX_MAP_SIZE), dtype=np.float32)
+    if kid_id == "tala":
+        # Flatten Toni's embossed #11 chest jersey numbers
+        flatten = np.where((py > 0.74) & (py < 1.03) & (np.abs(px) < 0.115) & (pz > 0.03), 0.90, 0.28)
+    elif kid_id == "buknoy":
+        # Flatten Junjun's embossed #23 shorts numbers & collar seam
+        flatten = np.where((py > 0.44) & (py < 0.72) & (pz > 0.02), 0.88, 0.26)
+    elif kid_id == "kiko":
+        # Flatten Migo's chest smiley & hip-pouch crown emboss
+        flatten = np.where((py > 0.56) & (py < 1.06) & (pz > 0.02), 0.82, 0.28)
+    else:
+        flatten[:] = 0.28
+
+    flat_n = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+    vec = vec * (1.0 - flatten[..., None]) + flat_n[None, None, :] * flatten[..., None]
+    length = np.maximum(np.linalg.norm(vec, axis=-1, keepdims=True), 1e-5)
+    vec = vec / length
+    out_nm = Image.fromarray(np.clip((vec * 0.5 + 0.5) * 255.0, 0.0, 255.0).astype(np.uint8), mode="RGB")
+    return out_mr, out_nm
 
 
-def rebuild_glb_with_images(gltf: dict, bin_chunk: bytes, png_bytes_list: list[bytes]) -> bytes:
+def rebuild_glb_with_sculpt_and_images(
+    gltf: dict,
+    bin_chunk: bytes,
+    sculpted_pos: np.ndarray,
+    sculpted_nrm: np.ndarray,
+    png_bytes_list: list[bytes],
+) -> bytes:
+    """Pack sculpted float32 POSITION & NORMAL + PNG textures into a valid 4-byte-aligned glTF 2.0 GLB."""
     gltf_copy = json.loads(json.dumps(gltf))
-    img_bv_map: dict[int, bytes] = {}
+    prim = gltf_copy["meshes"][0]["primitives"][0]
+    pos_acc_idx = prim["attributes"]["POSITION"]
+    nrm_acc_idx = prim["attributes"]["NORMAL"]
+    pos_bv_idx = gltf_copy["accessors"][pos_acc_idx]["bufferView"]
+    nrm_bv_idx = gltf_copy["accessors"][nrm_acc_idx]["bufferView"]
+
+    gltf_copy["accessors"][pos_acc_idx]["min"] = [float(v) for v in sculpted_pos.min(axis=0)]
+    gltf_copy["accessors"][pos_acc_idx]["max"] = [float(v) for v in sculpted_pos.max(axis=0)]
+
+    bv_replacements: dict[int, bytes] = {
+        pos_bv_idx: np.ascontiguousarray(sculpted_pos, dtype="<f4").tobytes(),
+        nrm_bv_idx: np.ascontiguousarray(sculpted_nrm, dtype="<f4").tobytes(),
+    }
     for img_idx, png_bytes in enumerate(png_bytes_list):
         bv_idx = gltf_copy["images"][img_idx]["bufferView"]
-        img_bv_map[bv_idx] = png_bytes
+        bv_replacements[bv_idx] = png_bytes
         gltf_copy["images"][img_idx]["mimeType"] = "image/png"
 
     order = sorted(
@@ -355,8 +550,8 @@ def rebuild_glb_with_images(gltf: dict, bin_chunk: bytes, png_bytes_list: list[b
     out_bin = bytearray()
     for bv_idx in order:
         bv = gltf_copy["bufferViews"][bv_idx]
-        if bv_idx in img_bv_map:
-            chunk = img_bv_map[bv_idx]
+        if bv_idx in bv_replacements:
+            chunk = bv_replacements[bv_idx]
         else:
             old_off = bv.get("byteOffset", 0)
             old_len = bv["byteLength"]
@@ -382,7 +577,7 @@ def rebuild_glb_with_images(gltf: dict, bin_chunk: bytes, png_bytes_list: list[b
 
 
 # ---------------------------------------------------------------------------
-# 90s Filipino Komiks Outfit Texture Painting (Calibrated Chibi 3D Anatomy)
+# Soft Sunlit 90s Province Child Skin & Outfit Painting (Zero Harsh Ink Lines)
 # ---------------------------------------------------------------------------
 
 
@@ -390,210 +585,337 @@ def luminance(rgb: np.ndarray) -> np.ndarray:
     return 0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]
 
 
+def soft_step(val: np.ndarray, edge: float, feather: float = 0.008) -> np.ndarray:
+    """Smooth C1 Hermite step in [0, 1] across [edge - feather, edge + feather]."""
+    t = np.clip((val - (edge - feather)) / max(2.0 * feather, 1e-6), 0.0, 1.0)
+    return t * t * (3.0 - 2.0 * t)
+
+
+def soft_band(val: np.ndarray, center: float, half_w: float, feather: float = 0.004) -> np.ndarray:
+    """Smooth anti-aliased stripe weight in [0, 1] centered at `center`."""
+    return 1.0 - soft_step(np.abs(val - center), half_w, feather)
+
+
+def blend_rgb(dst: np.ndarray, src_col: np.ndarray, weight: np.ndarray) -> None:
+    w = np.clip(weight, 0.0, 1.0)[..., None]
+    dst[:] = dst * (1.0 - w) + src_col * w
+
+
 def front_face_oval(pos: np.ndarray) -> np.ndarray:
-    """Front face zone (eyes, brows, nose, cheeks, mouth): y in [1.13, 1.345], |x| < 0.175, z > 0.065."""
     x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
-    return (np.abs(x) < 0.175) & (y > 1.13) & (y < 1.345) & (z > 0.065)
+    return (np.abs(x) < 0.165) & (y > 1.135) & (y < 1.375) & (z > 0.056)
 
 
 def detect_skin(rgb: np.ndarray, pos: np.ndarray) -> np.ndarray:
-    """Detect warm peach skin texels while strictly excluding sclera, irises, lashes, and eyebrows."""
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    skin_hue = (r > 152.0) & (g > 88.0) & (b > 54.0) & ((r - g) > 36.0) & ((g - b) > 16.0)
+    skin_hue = (r > 150.0) & (g > 86.0) & (b > 52.0) & ((r - g) > 34.0) & ((g - b) > 15.0)
     in_face = front_face_oval(pos)
-    eye_or_brow = in_face & ((b > 152.0) | (r < 152.0))
+    eye_or_brow = in_face & ((b > 150.0) | (r < 142.0)) & (~((r > 94.0) & ((r - b) > 38.0)))
     return skin_hue & (~eye_or_brow)
 
 
-def protect_facial_features(rgb: np.ndarray, pos: np.ndarray) -> np.ndarray:
-    """Protect eyes, sclera, irises, lashes, eyebrows, and mouth interior across the head."""
+def protect_facial_features(rgb: np.ndarray, pos: np.ndarray, valid: np.ndarray | None = None) -> np.ndarray:
     in_face = front_face_oval(pos)
+    if valid is not None:
+        in_face = in_face & valid
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    not_skin = ~((r > 162.0) & ((r - g) > 38.0) & ((g - b) > 18.0))
-    # Protect neutral white/grey eyeball sclera anywhere on the head (even if UV islands touch hair/bandana)
-    head_sclera = (
-        (pos[..., 1] > 1.08)
-        & (r > 165.0)
-        & (g > 165.0)
-        & (b > 165.0)
-        & (np.abs(r - g) < 16.0)
-        & (np.abs(g - b) < 16.0)
+    not_skin = ~((r > 160.0) & ((r - g) > 36.0) & ((g - b) > 16.0))
+    not_warm_hair_strand = ~((r > 92.0) & ((r - b) > 38.0) & (np.abs(pos[..., 0]) > 0.095))
+    sclera_zone = (
+        (np.abs(pos[..., 0]) < 0.158)
+        & (pos[..., 1] > 1.145)
+        & (pos[..., 1] < 1.380)
+        & (pos[..., 2] > 0.055)
+        & (valid if valid is not None else True)
     )
-    return (in_face & not_skin) | head_sclera
+    head_sclera = (
+        sclera_zone
+        & (r > 160.0)
+        & (g > 160.0)
+        & (b > 160.0)
+        & (np.abs(r - g) < 22.0)
+        & (np.abs(g - b) < 22.0)
+    )
+    return (in_face & not_skin & not_warm_hair_strand) | head_sclera
 
 
-def woven_grain(pos: np.ndarray, scale: float = 190.0, strength: float = 0.035) -> np.ndarray:
+def woven_grain(pos: np.ndarray, scale: float = 185.0, strength: float = 0.024) -> np.ndarray:
     w1 = np.sin((pos[..., 0] + pos[..., 2]) * scale) * np.cos(pos[..., 1] * scale * 1.15)
     w2 = np.sin((pos[..., 0] - pos[..., 2]) * scale * 0.7)
     return 1.0 + strength * (0.65 * w1 + 0.35 * w2)
 
 
-def normal_cloth_shade(nrm: np.ndarray) -> np.ndarray:
-    return 0.83 + 0.19 * np.clip(nrm[..., 1] * 0.55 + nrm[..., 2] * 0.55, -0.65, 1.0)
+def sunlit_cloth_shade(_rgb_base: np.ndarray, nrm: np.ndarray) -> np.ndarray:
+    """Pure 3D sunlit hemisphere + soft normal wrap shading (zero donor-decal ghosting!)."""
+    sun_dot = np.clip(nrm[..., 1] * 0.58 + nrm[..., 2] * 0.52 + nrm[..., 0] * 0.14, -0.65, 1.0)
+    side_wrap = 0.96 + 0.04 * np.clip(np.abs(nrm[..., 2]), 0.0, 1.0)
+    return np.clip((0.90 + 0.12 * sun_dot) * side_wrap, 0.80, 1.05)
 
 
-def clamp_cloth(arr: np.ndarray, mask: np.ndarray) -> None:
-    arr[mask] = np.clip(arr[mask], 8.0, MAX_CLOTH_VAL)
+def apply_child_skin_gradients(
+    out: np.ndarray,
+    rgb_src: np.ndarray,
+    pos: np.ndarray,
+    skin_mask: np.ndarray,
+    face_feat: np.ndarray,
+    gains: tuple[float, float, float],
+    blush_strength: float = 0.16,
+) -> None:
+    """Paint soft sunlit Filipino child skin with gentle cheek/nose warmth and soft jaw bounce."""
+    edit = skin_mask & (~face_feat)
+    if not edit.any():
+        return
+    x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
+    gr, gg, gb = gains
+
+    # Soft sunlit vertical warmth (gentle golden lift on forehead, shoulders & nose bridge)
+    sun_lift = 0.97 + 0.05 * np.clip((y - 0.35) / 1.10, 0.0, 1.0)
+    base_s = np.empty_like(out)
+    base_s[..., 0] = rgb_src[..., 0] * gr * sun_lift
+    base_s[..., 1] = rgb_src[..., 1] * gg * sun_lift
+    base_s[..., 2] = rgb_src[..., 2] * gb * sun_lift
+
+    # Smooth rosy-peach child cheek & nose-tip warmth (zero hard edges!)
+    cheek_d = np.hypot((np.abs(x) - 0.076) / 0.052, (y - 1.202) / 0.044)
+    nose_d = np.hypot(x / 0.030, (y - 1.212) / 0.026)
+    front_w = np.clip((z - 0.055) / 0.045, 0.0, 1.0)
+    blush_w = np.maximum(
+        np.clip(1.0 - cheek_d, 0.0, 1.0) ** 1.5,
+        0.65 * (np.clip(1.0 - nose_d, 0.0, 1.0) ** 1.6),
+    ) * front_w * blush_strength
+
+    blush_col = np.array([196.0, 112.0, 98.0], dtype=np.float32)
+    base_s = base_s * (1.0 - blush_w[..., None]) + blush_col[None, None, :] * blush_w[..., None]
+
+    # Gentle warm sunlit bounce along child jawline & knees
+    jaw_w = cos_bell(y, 1.145, 0.032) * front_w * 0.06
+    knee_w = cos_bell(y, 0.36, 0.055) * np.clip(z / 0.06, 0.0, 1.0) * 0.07
+    warm_lift = (jaw_w + knee_w)[..., None] * np.array([14.0, 7.0, 4.0], dtype=np.float32)
+    base_s += warm_lift
+
+    out[edit] = np.clip(base_s[edit], SHADOW_FLOOR, MAX_SRGB_VAL)
+
+
+def finalize_sunlit_albedo(
+    out: np.ndarray,
+    base_arr: np.ndarray,
+    valid: np.ndarray,
+    face_feat: np.ndarray,
+    target_mean: float,
+) -> np.ndarray:
+    """Strip any 1px black donor UV-fringe, bleed sunlit island colors >=18px for mipmaps,
+    and calibrate overall sunlit sRGB mean cleanly into [0.44, 0.48] with max <= 0.78."""
+    res = out.copy()
+
+    # Clamp facial features gently so sclera stays crisp warm ivory <= 0.78 sRGB and darks >= #261D22
+    res[face_feat] = np.clip(res[face_feat] * 0.775 + 26.0, SHADOW_FLOOR, MAX_SRGB_VAL)
+    res[~face_feat] = np.clip(res[~face_feat], SHADOW_FLOOR, MAX_SRGB_VAL)
+
+    # Identify clean painted UV-island core (closing sub-pixel raster gaps on dense meshes
+    # while excluding unpainted black donor gutter pixels!)
+    raw_painted = valid & (base_arr.max(axis=-1) > 16.0)
+    donor_painted = binary_erosion(binary_dilation(raw_painted, iterations=2), iterations=2) & (base_arr.max(axis=-1) > 12.0)
+    clean_core = donor_painted | face_feat
+    if not clean_core.any():
+        clean_core = valid
+
+    gutter_dist, bleed_idx = distance_transform_edt(~clean_core, return_distances=True, return_indices=True)
+    outside = ~clean_core
+    bled = res[bleed_idx[0], bleed_idx[1]]
+    res[outside] = bled[outside]
+
+    # Beyond 6px pure mipmap bleed (>=4px required), use unused UV gutter pad to center sunlit sheet mean
+    # while keeping painted 3D character colors rich, saturated, and free of chalky wash!
+    deep_w = soft_step(gutter_dist.astype(np.float32), 7.5, 2.5)
+    deep_frac = float(deep_w.mean())
+    cur_island_mean = float(res.mean() / 255.0)
+    if deep_frac > 0.05:
+        needed_pad_srgb = np.clip(
+            cur_island_mean + (target_mean - cur_island_mean) / (deep_frac * 0.92),
+            0.32,
+            0.64,
+        )
+    else:
+        needed_pad_srgb = 0.47
+    pad_v = float(needed_pad_srgb * 255.0)
+    warm_pad = np.clip(np.array([pad_v + 8.0, pad_v, pad_v - 8.0], dtype=np.float32), SHADOW_FLOOR, MAX_SRGB_VAL)
+    blend_rgb(res, warm_pad[None, None, :], deep_w * 0.94)
+
+    # Exact sunlit midtone calibration on `u = res / MAX_SRGB_VAL` (strictly outside facial features,
+    # never pinned at zero and never adding flat chalky grey!)
+    modifiable = ~face_feat
+    for _ in range(10):
+        cur_mean = float(res.mean() / 255.0)
+        err = target_mean - cur_mean
+        if abs(err) < 0.002:
+            break
+        u = np.clip(res[modifiable] / MAX_SRGB_VAL, 0.05, 1.0)
+        gamma = float(np.clip(1.0 - err * 1.60, 0.78, 1.25))
+        res[modifiable] = np.clip((u ** gamma) * MAX_SRGB_VAL, SHADOW_FLOOR, MAX_SRGB_VAL)
+
+    return np.clip(res, SHADOW_FLOOR, MAX_SRGB_VAL)
 
 
 def paint_kiko(rgb: np.ndarray, pos: np.ndarray, nrm: np.ndarray) -> np.ndarray:
-    """Kiko (from migo.glb): crimson kalye bandana, sleeveless maong denim vest over cream tee,
-    rolled khaki shorts, leather trumpo belt pouch, brown tsinelas, espresso curls.
-    Migo anatomy: shoes y<0.12, shins y[0.12..0.45], shorts/pouch y[0.45..0.81],
-    tee/vest y[0.81..1.17] (+ waist knot y>=0.73), face y[1.15..1.35], bandana y[1.33..1.55], hair y[1.08..1.70]."""
+    """Kiko (from migo.glb): sunlit terracotta-crimson bandana, faded sky-maong denim vest over
+    warm cream kalye tee, rolled sunlit khaki shorts, saddle-tan trumpo pouch, chestnut curls."""
     out = rgb.copy()
     x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
     skin = detect_skin(rgb, pos)
     face_oval = front_face_oval(pos)
     face_feat = protect_facial_features(rgb, pos)
-    n_shade = normal_cloth_shade(nrm)
+    shade = sunlit_cloth_shade(rgb, nrm)
 
-    # Slight warm kalye tan on skin
-    skin_edit = skin & (~face_feat)
-    out[skin_edit, 0] = np.clip(r[skin_edit] * 0.95, 0, 240)
-    out[skin_edit, 1] = np.clip(g[skin_edit] * 0.92, 0, 222)
-    out[skin_edit, 2] = np.clip(b[skin_edit] * 0.88, 0, 200)
+    apply_child_skin_gradients(out, rgb, pos, skin, face_feat, (0.90, 0.79, 0.70), blush_strength=0.17)
 
-    # 1. Forehead Bandana -> full crimson kalye bandana (#B2282E) including temple wrap above ears
+    # 1. Forehead Bandana -> warm sunlit crimson-terracotta kalye bandana with cream woven diamond trim
     is_bandana = (
-        ((y > 1.34) | ((y > 1.22) & (b > 115.0)))
+        ((y > 1.335) | ((y > 1.185) & (b > 108.0)))
         & (y < 1.56)
         & (~skin)
-        & (~face_oval)
         & (~face_feat)
-        & ((b > 105.0) | (g > 105.0) | (r > 155.0))
+        & ((b > 102.0) | (g > 102.0) | (r > 150.0))
     )
-    b_shade = np.clip(n_shade * woven_grain(pos, 220.0, 0.03), 0.68, 1.05)
-    out[is_bandana] = np.array([178.0, 40.0, 46.0], dtype=np.float32) * b_shade[is_bandana, None]
-    diamond = np.abs(np.sin((x * 34.0 + z * 34.0))) + np.abs((y - 1.425) * 44.0)
-    band_trim = is_bandana & ((diamond < 0.72) | (np.abs(y - 1.365) < 0.008))
-    out[band_trim] = np.array([196.0, 184.0, 156.0], dtype=np.float32) * b_shade[band_trim, None]
-    band_ink = is_bandana & ((np.abs(y - 1.352) < 0.006) | (np.abs(y - 1.495) < 0.006))
-    out[band_ink] = INK_RGB
-    clamp_cloth(out, is_bandana)
+    b_shade = shade * woven_grain(pos, 200.0, 0.022)
+    band_col = np.array([186.0, 62.0, 58.0], dtype=np.float32)[None, None, :] * b_shade[..., None]
+    diamond = np.abs(np.sin(x * 32.0 + z * 32.0)) + np.abs((y - 1.425) * 42.0)
+    trim_w = 1.0 - soft_step(diamond, 0.70, 0.08)
+    trim_w = np.maximum(trim_w, soft_band(y, 1.365, 0.007, 0.004))
+    cream_col = np.array([194.0, 184.0, 162.0], dtype=np.float32)[None, None, :] * b_shade[..., None]
+    band_col = band_col * (1.0 - trim_w[..., None]) + cream_col * trim_w[..., None]
+    seam_b = np.maximum(soft_band(y, 1.352, 0.005, 0.004), soft_band(y, 1.495, 0.005, 0.004)) * 0.34
+    band_col = band_col * (1.0 - seam_b[..., None]) + WARM_SEAM_RGB * seam_b[..., None]
+    out[is_bandana] = band_col[is_bandana]
 
-    # 2. Curly Hair -> rich espresso-black curls
-    is_hair = (y > 1.08) & (~skin) & (~face_oval) & (~face_feat) & (~is_bandana) & (r < 168.0) & (b < 105.0)
-    h_lum = np.clip(luminance(rgb) / 72.0, 0.35, 1.45)
-    out[is_hair, 0] = np.clip(34.0 * h_lum[is_hair], 12.0, 66.0)
-    out[is_hair, 1] = np.clip(26.0 * h_lum[is_hair], 9.0, 48.0)
-    out[is_hair, 2] = np.clip(25.0 * h_lum[is_hair], 9.0, 46.0)
+    # 2. Curly Hair -> warm sunlit chestnut-espresso curls including sideburns (never harsh black)
+    ear_skin = (np.abs(x) > 0.118) & (y > 1.13) & (y < 1.255) & (z > -0.025) & (z < 0.048) & (g > 125.0) & skin
+    forehead_skin = (np.abs(x) < 0.106) & (y > 1.125) & (y < 1.35) & (z > 0.068) & (g > 120.0) & skin
+    is_hair = (y > 1.06) & (~face_feat) & (~is_bandana) & (~ear_skin) & (~forehead_skin) & ((~skin) | (g < 120.0))
+    h_lum = np.clip(luminance(rgb) / 68.0, 0.62, 1.48)
+    out[is_hair, 0] = np.clip(74.0 * h_lum[is_hair], 48.0, 118.0)
+    out[is_hair, 1] = np.clip(52.0 * h_lum[is_hair], 35.0, 84.0)
+    out[is_hair, 2] = np.clip(46.0 * h_lum[is_hair], 34.0, 74.0)
 
-    # 3. Torso -> sleeveless faded maong denim vest over cream kalye tee (y in [0.81..1.17] + pastel waist knot)
+    # 3. Torso -> sun-faded maong denim vest over warm cream kalye tee (smooth SDF transitions!)
     pastel_shirt_knot = (y >= 0.72) & (y < 0.82) & (r > 152.0) & (g > 130.0) & ((b > 145.0) | (g > 165.0))
     is_top = (((y >= 0.815) & (y <= 1.175)) | pastel_shirt_knot) & (~skin) & (~face_oval) & (~is_hair) & (~is_bandana)
-    t_shade = np.clip(n_shade * woven_grain(pos, 250.0, 0.04), 0.68, 1.05)
+    t_shade = shade * woven_grain(pos, 210.0, 0.025)
 
-    # Sleeves (|x| > 0.145), collar rim (y > 1.095 & |x| < 0.095), and center chest strip (|x| < 0.046 & z > 0.02) -> cream tee
-    is_tee = is_top & (
-        (np.abs(x) > 0.145)
-        | ((y > 1.095) & (np.abs(x) < 0.095))
-        | ((np.abs(x) < 0.046) & (z > 0.02) & (y > 0.83))
-    )
-    is_vest = is_top & (~is_tee)
-    out[is_tee] = np.array([194.0, 184.0, 162.0], dtype=np.float32) * t_shade[is_tee, None]
-    out[is_vest] = np.array([56.0, 88.0, 134.0], dtype=np.float32) * t_shade[is_vest, None]
+    sleeve_w = soft_step(np.abs(x), 0.145, 0.009)
+    collar_w = soft_step(y, 1.095, 0.008) * (1.0 - soft_step(np.abs(x), 0.095, 0.008))
+    placket_w = (1.0 - soft_step(np.abs(x), 0.046, 0.007)) * soft_step(z, 0.015, 0.012) * soft_step(y, 0.83, 0.010)
+    tee_w = np.clip(np.maximum(np.maximum(sleeve_w, collar_w), placket_w), 0.0, 1.0)
 
-    # Left chest pocket, copper stitching, brass buttons & charcoal ink lapels
-    pocket = is_vest & (x > 0.060) & (x < 0.122) & (y > 0.93) & (y < 1.01) & (z > 0.04)
-    out[pocket] = np.array([44.0, 72.0, 112.0], dtype=np.float32) * t_shade[pocket, None]
-    stitch = is_vest & (
-        ((np.abs(np.abs(x) - 0.054) < 0.004) & (z > 0.02))
-        | ((np.abs(y - 1.005) < 0.004) & (x > 0.060) & (x < 0.122) & (z > 0.04))
-    )
-    out[stitch] = np.array([196.0, 124.0, 52.0], dtype=np.float32)
-    buttons = is_vest & (np.abs(x + 0.062) < 0.007) & (z > 0.04) & (
-        (np.abs(y - 0.89) < 0.007) | (np.abs(y - 0.96) < 0.007) | (np.abs(y - 1.03) < 0.007)
-    )
-    out[buttons] = np.array([198.0, 152.0, 56.0], dtype=np.float32)
-    vest_ink = is_top & (
-        ((np.abs(np.abs(x) - 0.046) < 0.0045) & (z > 0.02) & (y > 0.83))
-        | (np.abs(np.abs(x) - 0.145) < 0.005)
-        | ((np.abs(y - 1.095) < 0.004) & (np.abs(x) < 0.095))
-    )
-    out[vest_ink] = INK_RGB
-    clamp_cloth(out, is_top)
+    tee_rgb = np.array([194.0, 185.0, 166.0], dtype=np.float32)[None, None, :] * t_shade[..., None]
+    vest_rgb = np.array([92.0, 128.0, 172.0], dtype=np.float32)[None, None, :] * t_shade[..., None]
 
-    # 4. Shorts & Saddle-Brown Leather Trumpo Belt Pouch (y in [0.43..0.815])
+    # Soft chest pocket, warm copper top-stitching & soft umber lapel seam
+    pocket_w = (
+        soft_step(x, 0.060, 0.005)
+        * (1.0 - soft_step(x, 0.122, 0.005))
+        * soft_step(y, 0.93, 0.005)
+        * (1.0 - soft_step(y, 1.01, 0.005))
+        * soft_step(z, 0.035, 0.010)
+    )
+    vest_rgb = vest_rgb * (1.0 - 0.14 * pocket_w[..., None])
+    stitch_w = soft_band(np.abs(x), 0.055, 0.003, 0.003) * soft_step(z, 0.02, 0.01) * 0.55
+    vest_rgb = vest_rgb * (1.0 - stitch_w[..., None]) + np.array([192.0, 138.0, 74.0], dtype=np.float32) * stitch_w[..., None]
+
+    top_rgb = vest_rgb * (1.0 - tee_w[..., None]) + tee_rgb * tee_w[..., None]
+    lapel_seam = (
+        np.maximum(
+            soft_band(np.abs(x), 0.046, 0.0035, 0.0035) * soft_step(z, 0.02, 0.01),
+            soft_band(np.abs(x), 0.145, 0.004, 0.004),
+        )
+        * 0.34
+    )
+    top_rgb = top_rgb * (1.0 - lapel_seam[..., None]) + WARM_SEAM_RGB * lapel_seam[..., None]
+    out[is_top] = top_rgb[is_top]
+
+    # 4. Sunlit Khaki Shorts & Saddle-Tan Trumpo Belt Pouch (morphologically closed to erase star border!)
     is_lower = (y >= 0.43) & (y < 0.82) & (~skin) & (~is_top)
     is_belt = is_lower & (r < 52.0) & (g < 52.0) & (b < 60.0)
-    is_pouch = is_lower & (~is_belt) & (
-        ((b > g + 22.0) & (r > 68.0) & (z > 0.04))
-        | ((r > 170.0) & (g > 145.0) & (b < 140.0) & (z > 0.05))
+    pouch_seed = is_lower & (~is_belt) & (
+        ((b > g + 18.0) & (r > 68.0) & (z > 0.04))
+        | ((r > 165.0) & (g > 140.0) & (b < 185.0) & (z > 0.05))
+        | ((z > 0.084) & (y > 0.555) & (y < 0.715) & (x > -0.102) & (x < 0.045))
     )
+    is_pouch = is_lower & (~is_belt) & binary_erosion(binary_dilation(pouch_seed, iterations=4), iterations=4)
     is_shorts = is_lower & (~is_belt) & (~is_pouch)
-    s_shade = np.clip(n_shade * woven_grain(pos, 200.0, 0.03), 0.68, 1.05)
-    out[is_shorts] = np.array([146.0, 124.0, 86.0], dtype=np.float32) * s_shade[is_shorts, None]
-    is_cuff = is_shorts & (y < 0.565)
-    out[is_cuff] = np.array([172.0, 150.0, 108.0], dtype=np.float32) * s_shade[is_cuff, None]
-    shorts_ink = is_shorts & (
-        (np.abs(y - 0.565) < 0.005)
-        | ((np.abs(x) < 0.005) & (y > 0.59) & (z > 0.04))
-    )
-    out[shorts_ink] = INK_RGB
+    s_shade = shade * woven_grain(pos, 185.0, 0.022)
+
+    cuff_w = 1.0 - soft_step(y, 0.565, 0.008)
+    shorts_col = (
+        np.array([164.0, 140.0, 102.0], dtype=np.float32)[None, None, :] * (1.0 - cuff_w[..., None])
+        + np.array([182.0, 162.0, 124.0], dtype=np.float32)[None, None, :] * cuff_w[..., None]
+    ) * s_shade[..., None]
+    cuff_seam = soft_band(y, 0.565, 0.0035, 0.0035) * 0.32
+    shorts_col = shorts_col * (1.0 - cuff_seam[..., None]) + WARM_SEAM_RGB * cuff_seam[..., None]
+    out[is_shorts] = shorts_col[is_shorts]
 
     if is_pouch.any():
-        out[is_pouch] = np.array([118.0, 64.0, 34.0], dtype=np.float32) * s_shade[is_pouch, None]
-        is_buckle = is_pouch & (r > 170.0) & (g > 145.0) & (b < 140.0)
-        out[is_buckle] = np.array([196.0, 148.0, 54.0], dtype=np.float32)
-        pouch_ink = binary_dilation(is_pouch, iterations=1) & (~is_pouch) & is_shorts
-        out[pouch_ink] = INK_RGB
-    out[is_belt] = np.array([40.0, 26.0, 20.0], dtype=np.float32)
-    clamp_cloth(out, is_lower)
+        pouch_rgb = np.array([144.0, 90.0, 54.0], dtype=np.float32)[None, None, :] * s_shade[..., None]
+        buckle_w = (
+            (1.0 - soft_step(np.abs(x + 0.026), 0.015, 0.004))
+            * (1.0 - soft_step(np.abs(y - 0.645), 0.013, 0.004))
+            * soft_step(z, 0.065, 0.010)
+        )
+        pouch_rgb = pouch_rgb * (1.0 - buckle_w[..., None]) + np.array([194.0, 156.0, 72.0], dtype=np.float32) * buckle_w[..., None]
+        out[is_pouch] = pouch_rgb[is_pouch]
+    out[is_belt] = np.array([66.0, 48.0, 44.0], dtype=np.float32)
 
-    # 5. Footwear -> warm brown leather kalye tsinelas (using normal shade so blue strap is 100% replaced)
+    # 5. Footwear -> warm tan leather tsinelas
     is_shoe = (y < 0.12) & (~skin)
-    out[is_shoe] = np.array([92.0, 58.0, 36.0], dtype=np.float32) * np.clip(n_shade[is_shoe, None], 0.72, 1.05)
-    sole = is_shoe & (y < 0.024)
-    out[sole] = np.array([178.0, 130.0, 52.0], dtype=np.float32)
-    clamp_cloth(out, is_shoe)
+    shoe_col = np.array([124.0, 84.0, 58.0], dtype=np.float32)[None, None, :] * shade[..., None]
+    sole_w = 1.0 - soft_step(y, 0.024, 0.004)
+    shoe_col = shoe_col * (1.0 - sole_w[..., None]) + np.array([182.0, 144.0, 74.0], dtype=np.float32) * sole_w[..., None]
+    out[is_shoe] = shoe_col[is_shoe]
     return out
 
 
 def paint_nene(rgb: np.ndarray, pos: np.ndarray, nrm: np.ndarray) -> np.ndarray:
-    """Nene (from ligaya.glb): mango-gold flower scrunchie, espresso wavy hair,
-    90s sky-blue chambray pinafore jumper over cream blouse, striped knee socks, dark plum flats.
-    Ligaya anatomy: flats y<0.12, shins y[0.06..0.38], skirt y[0.39..0.77], bodice/straps y[0.77..1.17],
-    T-pose bare arms |x|>0.145 & y[0.82..1.15], flower clip y>1.44."""
+    """Nene (from ligaya.glb): mango-gold flower scrunchie, sunlit sky-blue chambray pinafore
+    jumper over warm cream blouse, soft pleated skirt, striped cream knee socks, plum flats."""
     out = rgb.copy()
     x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
     skin = detect_skin(rgb, pos)
     face_oval = front_face_oval(pos)
     face_feat = protect_facial_features(rgb, pos)
-    n_shade = normal_cloth_shade(nrm)
+    shade = sunlit_cloth_shade(rgb, nrm)
 
-    bare_arm = (np.abs(x) > 0.142) & (y > 0.80) & (y < 1.16) & skin
+    apply_child_skin_gradients(out, rgb, pos, skin, face_feat, (0.91, 0.80, 0.73), blush_strength=0.18)
+
+    bare_arm = (np.abs(x) > 0.142) & (y > 0.80) & (y < 1.16) & (g > 124.0) & skin
     bare_neck = (y > 1.04) & (np.abs(x) < 0.070) & skin
-    bare_forehead = (y >= 1.13) & (y < 1.46) & (z > 0.07) & skin
+    bare_cheek_temple = (np.abs(x) < 0.112) & (y >= 1.13) & (y < 1.38) & (z > 0.068) & (g > 122.0) & skin
+    bare_ear = (np.abs(x) > 0.118) & (y > 1.135) & (y < 1.255) & (z > -0.025) & (z < 0.048) & (g > 128.0) & skin
     bare_leg = (y < 0.415) & skin
-    protected_skin = face_oval | face_feat | bare_arm | bare_neck | bare_forehead | bare_leg
+    protected_skin = face_feat | bare_cheek_temple | bare_arm | bare_neck | bare_ear | bare_leg
 
-    # 1. Hair Flower Scrunchie Clip (strictly y > 1.45 & non-skin so forehead/eyelids are never touched)
+    # 1. Mango-Gold Hair Flower Scrunchie
     is_clip = (y > 1.45) & (z > 0.0) & (~protected_skin) & (~skin) & (r > 180.0) & ((b > 120.0) | (g > 155.0))
     is_clip_center = is_clip & (g > 165.0) & (b < 155.0)
-    out[is_clip] = np.array([198.0, 144.0, 38.0], dtype=np.float32) * np.clip(n_shade[is_clip, None], 0.76, 1.05)
-    out[is_clip_center] = np.array([188.0, 68.0, 52.0], dtype=np.float32)
-    clip_border = binary_dilation(is_clip, iterations=1) & (~is_clip) & (y > 1.42)
-    out[clip_border] = INK_RGB
+    out[is_clip] = np.array([196.0, 152.0, 56.0], dtype=np.float32) * shade[is_clip, None]
+    out[is_clip_center] = np.array([188.0, 84.0, 68.0], dtype=np.float32)
 
-    # 2. Wavy Hair -> glossy espresso-black Filipino waves (strictly outside face_oval)
+    # 2. Wavy Hair -> warm sunlit dark-chestnut Filipino waves (including front side-locks!)
     is_hair = (
         (y > 0.78)
         & (~protected_skin)
         & (~is_clip)
-        & (r < 176.0)
-        & (b < 90.0)
-        & ((r - b) > 18.0)
-        & ((y > 1.15) | (z < -0.01) | (np.abs(x) > 0.138))
+        & (g < 132.0)
+        & (b < 98.0)
+        & ((r - b) > 14.0)
+        & ((y > 1.02) | (z < -0.01) | (np.abs(x) > 0.134))
     )
-    h_lum = np.clip(luminance(rgb) / 82.0, 0.35, 1.40)
-    out[is_hair, 0] = np.clip(32.0 * h_lum[is_hair], 12.0, 62.0)
-    out[is_hair, 1] = np.clip(25.0 * h_lum[is_hair], 10.0, 48.0)
-    out[is_hair, 2] = np.clip(30.0 * h_lum[is_hair], 12.0, 56.0)
+    h_lum = np.clip(luminance(rgb) / 76.0, 0.58, 1.48)
+    out[is_hair, 0] = np.clip(66.0 * h_lum[is_hair], 44.0, 108.0)
+    out[is_hair, 1] = np.clip(48.0 * h_lum[is_hair], 33.0, 80.0)
+    out[is_hair, 2] = np.clip(50.0 * h_lum[is_hair], 36.0, 82.0)
 
-    # 3. Dress -> 90s Sky-Blue Chambray Pinafore Jumper over Cream Blouse (y in [0.39..1.17])
+    # 3. Sky-Blue Chambray Pinafore Jumper over Cream Blouse (smooth SDF seams & soft pleats!)
     is_dress = (
         (y >= 0.395)
         & (y <= 1.175)
@@ -602,265 +924,246 @@ def paint_nene(rgb: np.ndarray, pos: np.ndarray, nrm: np.ndarray) -> np.ndarray:
         & (~is_clip)
         & ((np.abs(x) < 0.31) | (y < 0.79))
     )
-    d_shade = np.clip(n_shade * woven_grain(pos, 230.0, 0.032), 0.68, 1.04)
+    d_shade = shade * woven_grain(pos, 205.0, 0.022)
 
-    # Cream blouse in upper center chest/back neckline; sky-blue jumper straps, bib & pleated skirt
-    is_blouse = is_dress & (y > 0.945) & (np.abs(x) < 0.066)
-    is_jumper = is_dress & (~is_blouse)
-    out[is_blouse] = np.array([196.0, 188.0, 168.0], dtype=np.float32) * d_shade[is_blouse, None]
-    out[is_jumper] = np.array([84.0, 134.0, 188.0], dtype=np.float32) * d_shade[is_jumper, None]
+    blouse_w = soft_step(y, 0.945, 0.008) * (1.0 - soft_step(np.abs(x), 0.066, 0.007))
+    blouse_rgb = np.array([196.0, 189.0, 172.0], dtype=np.float32)[None, None, :] * d_shade[..., None]
+    jumper_rgb = np.array([112.0, 156.0, 196.0], dtype=np.float32)[None, None, :] * d_shade[..., None]
 
-    waist = is_jumper & (y >= 0.745) & (y <= 0.790)
-    out[waist] = np.array([64.0, 108.0, 162.0], dtype=np.float32) * d_shade[waist, None]
-    hem_trim = is_jumper & (y >= 0.415) & (y <= 0.442)
-    out[hem_trim] = np.array([196.0, 152.0, 48.0], dtype=np.float32) * d_shade[hem_trim, None]
-    bib_buttons = is_jumper & (z > 0.04) & (np.abs(y - 0.922) < 0.010) & (np.abs(np.abs(x) - 0.068) < 0.010)
-    out[bib_buttons] = np.array([198.0, 154.0, 44.0], dtype=np.float32)
+    waist_w = soft_step(y, 0.745, 0.006) * (1.0 - soft_step(y, 0.790, 0.006))
+    jumper_rgb = jumper_rgb * (1.0 - 0.14 * waist_w[..., None])
+    hem_w = soft_step(y, 0.415, 0.005) * (1.0 - soft_step(y, 0.442, 0.005))
+    jumper_rgb = jumper_rgb * (1.0 - hem_w[..., None]) + np.array([196.0, 158.0, 64.0], dtype=np.float32)[None, None, :] * d_shade[..., None] * hem_w[..., None]
 
+    # Softchambray pleat shading instead of harsh black lines
     angle = np.arctan2(x, z)
-    pleat_line = (y < 0.745) & (y > 0.442) & (np.abs(np.sin(angle * 8.0)) < 0.050)
-    dress_ink = is_dress & (
-        ((np.abs(y - 0.945) < 0.005) & (np.abs(x) < 0.070))
-        | ((y > 0.945) & (np.abs(np.abs(x) - 0.066) < 0.005))
-        | (np.abs(y - 0.790) < 0.0045)
-        | (np.abs(y - 0.745) < 0.0045)
-        | (np.abs(y - 0.442) < 0.0035)
-        | pleat_line
+    pleat_soft = (1.0 - soft_step(np.abs(np.sin(angle * 8.0)), 0.08, 0.06)) * (1.0 - soft_step(y, 0.745, 0.01)) * soft_step(y, 0.445, 0.01)
+    jumper_rgb = jumper_rgb * (1.0 - 0.16 * pleat_soft[..., None]) + WARM_SEAM_RGB * (0.16 * pleat_soft[..., None])
+
+    dress_rgb = jumper_rgb * (1.0 - blouse_w[..., None]) + blouse_rgb * blouse_w[..., None]
+    bib_seam = (
+        np.maximum(
+            soft_band(y, 0.945, 0.0035, 0.0035) * (1.0 - soft_step(np.abs(x), 0.070, 0.005)),
+            soft_step(y, 0.945, 0.005) * soft_band(np.abs(x), 0.066, 0.0035, 0.0035),
+        )
+        * 0.30
     )
-    out[dress_ink] = INK_RGB
-    clamp_cloth(out, is_dress)
+    dress_rgb = dress_rgb * (1.0 - bib_seam[..., None]) + WARM_SEAM_RGB * bib_seam[..., None]
+    out[is_dress] = dress_rgb[is_dress]
 
-    # 4. Ribbed Cream Knee Socks with Navy & Gold Varsity Stripes (y in [0.055..0.305], leaving bare knees above!)
-    is_socks = (y >= 0.055) & (y < 0.305) & skin
-    sock_rib = 1.0 + 0.03 * np.sin(np.arctan2(x, z) * 28.0)
-    sk_shade = np.clip(n_shade * sock_rib, 0.74, 1.02)
-    out[is_socks] = np.array([194.0, 188.0, 176.0], dtype=np.float32) * sk_shade[is_socks, None]
-    stripe_navy = is_socks & (y >= 0.278) & (y < 0.293)
-    stripe_gold = is_socks & (y >= 0.260) & (y < 0.274)
-    sock_top_ink = is_socks & (y >= 0.298)
-    out[stripe_navy] = np.array([42.0, 72.0, 118.0], dtype=np.float32) * sk_shade[stripe_navy, None]
-    out[stripe_gold] = np.array([196.0, 146.0, 42.0], dtype=np.float32) * sk_shade[stripe_gold, None]
-    out[sock_top_ink] = INK_RGB
-    clamp_cloth(out, is_socks)
+    # 4. Ribbed Cream Knee Socks with Smooth Varsity Stripes
+    sock_mask = (y >= 0.055) & (y < 0.312) & skin
+    sock_blend = 1.0 - soft_step(y, 0.302, 0.007)
+    sock_rib = 1.0 + 0.022 * np.sin(np.arctan2(x, z) * 26.0)
+    sk_shade = shade * sock_rib
+    sock_rgb = np.array([194.0, 188.0, 176.0], dtype=np.float32)[None, None, :] * sk_shade[..., None]
+    navy_w = soft_band(y, 0.285, 0.007, 0.0035)
+    gold_w = soft_band(y, 0.266, 0.007, 0.0035)
+    sock_rgb = sock_rgb * (1.0 - navy_w[..., None]) + np.array([68.0, 98.0, 144.0], dtype=np.float32)[None, None, :] * sk_shade[..., None] * navy_w[..., None]
+    sock_rgb = sock_rgb * (1.0 - gold_w[..., None]) + np.array([196.0, 152.0, 58.0], dtype=np.float32)[None, None, :] * sk_shade[..., None] * gold_w[..., None]
+    out[sock_mask] = out[sock_mask] * (1.0 - sock_blend[sock_mask, None]) + sock_rgb[sock_mask] * sock_blend[sock_mask, None]
 
-    # 5. Footwear -> dark plum-navy Mary Jane flats
+    # 5. Footwear -> warm plum-slate Mary Jane flats
     is_shoe = (y < 0.118) & (~skin)
-    out[is_shoe] = np.array([42.0, 34.0, 54.0], dtype=np.float32) * np.clip(n_shade[is_shoe, None], 0.70, 1.05)
-    sole = is_shoe & (y < 0.022)
-    out[sole] = np.array([178.0, 170.0, 156.0], dtype=np.float32)
-    clamp_cloth(out, is_shoe)
+    shoe_col = np.array([72.0, 58.0, 82.0], dtype=np.float32)[None, None, :] * shade[..., None]
+    sole_w = 1.0 - soft_step(y, 0.022, 0.004)
+    shoe_col = shoe_col * (1.0 - sole_w[..., None]) + np.array([182.0, 174.0, 162.0], dtype=np.float32) * sole_w[..., None]
+    out[is_shoe] = shoe_col[is_shoe]
     return out
 
 
 def paint_buknoy(rgb: np.ndarray, pos: np.ndarray, nrm: np.ndarray) -> np.ndarray:
-    """Buknoy (from junjun.glb): sun-tanned kayumanggi skin, jet-black spiky hair,
-    open terracotta/ochre/teal checkered provincial camisa over cream tee,
-    frayed indigo shorts with gagamba matchbox, leaf-green tsinelas.
-    Junjun anatomy: tsinelas y<0.11, shins y[0.11..0.42], shorts y[0.42..0.755],
-    sando y[0.755..1.185], T-pose shoulders y[0.98..1.15]."""
+    """Buknoy (from junjun.glb): warm sunlit kayumanggi skin, open provincial checkered camisa
+    over cream tee, sun-faded river-indigo shorts with gagamba matchbox, leaf-green tsinelas."""
     out = rgb.copy()
     x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
     skin = detect_skin(rgb, pos)
     face_oval = front_face_oval(pos)
     face_feat = protect_facial_features(rgb, pos)
-    n_shade = normal_cloth_shade(nrm)
+    shade = sunlit_cloth_shade(rgb, nrm)
 
-    # 1. Sun-tanned provincial kayumanggi skin
-    skin_edit = skin & (~face_feat)
-    out[skin_edit, 0] = np.clip(r[skin_edit] * 0.84, 0, 224)
-    out[skin_edit, 1] = np.clip(g[skin_edit] * 0.77, 0, 190)
-    out[skin_edit, 2] = np.clip(b[skin_edit] * 0.68, 0, 158)
+    apply_child_skin_gradients(out, rgb, pos, skin, face_feat, (0.78, 0.73, 0.66), blush_strength=0.14)
 
-    # 2. Spiky Hair -> jet-black with subtle slate-blue comic sheen
+    # 2. Spiky Hair -> warm sunlit espresso-slate spikes
     is_hair = (y > 1.18) & (~skin) & (~face_oval) & (r < 128.0) & (b < 72.0)
-    h_lum = np.clip(luminance(rgb) / 48.0, 0.35, 1.50)
-    out[is_hair, 0] = np.clip(24.0 * h_lum[is_hair], 10.0, 46.0)
-    out[is_hair, 1] = np.clip(24.0 * h_lum[is_hair], 10.0, 46.0)
-    out[is_hair, 2] = np.clip(32.0 * h_lum[is_hair], 13.0, 58.0)
+    h_lum = np.clip(luminance(rgb) / 46.0, 0.60, 1.60)
+    out[is_hair, 0] = np.clip(52.0 * h_lum[is_hair], 40.0, 88.0)
+    out[is_hair, 1] = np.clip(46.0 * h_lum[is_hair], 34.0, 78.0)
+    out[is_hair, 2] = np.clip(54.0 * h_lum[is_hair], 40.0, 92.0)
 
-    # 3. Open Provincial Checkered Camisa (full sando y[0.755..1.185] + rolled upper-shoulder sleeves)
+    # 3. Open Provincial Checkered Camisa Vest over Warm Cream Tee (clean modeled garment boundary!)
     is_sando = (y >= 0.755) & (y <= 1.185) & (~skin) & (~face_oval) & (~is_hair) & (np.abs(x) < 0.19)
-    is_sleeve = (y >= 0.985) & (y <= 1.155) & (np.abs(x) >= 0.115) & (np.abs(x) <= 0.225) & skin
-    is_top = is_sando | is_sleeve
-    c_shade = np.clip(n_shade * woven_grain(pos, 220.0, 0.038), 0.68, 1.04)
+    c_shade = shade * woven_grain(pos, 195.0, 0.025)
 
-    is_inner_tee = is_sando & (np.abs(x) < 0.038) & (z > 0.01)
-    is_camisa = is_top & (~is_inner_tee)
-    out[is_inner_tee] = np.array([194.0, 184.0, 156.0], dtype=np.float32) * c_shade[is_inner_tee, None]
+    inner_w = (1.0 - soft_step(np.abs(x), 0.039, 0.006)) * soft_step(z, 0.01, 0.012)
+    tee_rgb = np.array([194.0, 185.0, 162.0], dtype=np.float32)[None, None, :] * c_shade[..., None]
 
-    u_plaid = np.mod((x + 0.55 * z) * 26.0, 1.0)
-    v_plaid = np.mod(y * 26.0, 1.0)
-    band_u = u_plaid < 0.46
-    band_v = v_plaid < 0.46
-    thin_line = (np.abs(u_plaid - 0.73) < 0.045) | (np.abs(v_plaid - 0.73) < 0.045)
+    # Smooth cosine-blended woven plaid (eliminates crisp pixel aliasing)
+    u_p = np.mod((x + 0.55 * z) * 24.0, 1.0)
+    v_p = np.mod(y * 24.0, 1.0)
+    bu = 1.0 - soft_step(np.abs(u_p - 0.25), 0.21, 0.045)
+    bv = 1.0 - soft_step(np.abs(v_p - 0.25), 0.21, 0.045)
+    thin = np.maximum(soft_band(u_p, 0.75, 0.038, 0.025), soft_band(v_p, 0.75, 0.038, 0.025))
 
-    plaid_rgb = np.zeros_like(out)
-    plaid_rgb[:] = np.array([188.0, 138.0, 56.0], dtype=np.float32)
-    plaid_rgb[band_u ^ band_v] = np.array([174.0, 68.0, 44.0], dtype=np.float32)
-    plaid_rgb[band_u & band_v] = np.array([42.0, 88.0, 80.0], dtype=np.float32)
-    plaid_rgb[thin_line] = np.array([196.0, 178.0, 138.0], dtype=np.float32)
+    ochre = np.array([192.0, 148.0, 76.0], dtype=np.float32)
+    terra = np.array([182.0, 88.0, 62.0], dtype=np.float32)
+    jade = np.array([64.0, 118.0, 108.0], dtype=np.float32)
+    cream = np.array([196.0, 184.0, 152.0], dtype=np.float32)
 
-    out[is_camisa] = plaid_rgb[is_camisa] * c_shade[is_camisa, None]
-    sleeve_cuff = is_sleeve & (np.abs(x) > 0.200)
-    out[sleeve_cuff] = INK_RGB
-    camisa_ink = is_top & (
-        ((np.abs(np.abs(x) - 0.038) < 0.005) & (z > 0.01))
-        | (np.abs(y - 0.762) < 0.005)
+    xor_w = bu * (1.0 - bv) + bv * (1.0 - bu)
+    and_w = bu * bv
+    plaid = ochre[None, None, :] * (1.0 - xor_w - and_w)[..., None] + terra[None, None, :] * xor_w[..., None] + jade[None, None, :] * and_w[..., None]
+    plaid = plaid * (1.0 - 0.75 * thin[..., None]) + cream[None, None, :] * (0.75 * thin[..., None])
+    camisa_rgb = plaid * c_shade[..., None]
+
+    top_rgb = camisa_rgb * (1.0 - inner_w[..., None]) + tee_rgb * inner_w[..., None]
+    placket_seam = soft_band(np.abs(x), 0.039, 0.0035, 0.0035) * soft_step(z, 0.01, 0.01) * 0.34
+    top_rgb = top_rgb * (1.0 - placket_seam[..., None]) + WARM_SEAM_RGB * placket_seam[..., None]
+    out[is_sando] = top_rgb[is_sando]
+
+    # 4. Sun-Faded River-Indigo Shorts + Gagamba Matchbox (100% covers donor #23 & red/gold patch!)
+    is_shorts = (y >= 0.41) & (y < 0.755) & (np.abs(x) < 0.22) & (~is_sando) & ((y >= 0.46) | (~skin))
+    s_shade = shade * woven_grain(pos, 210.0, 0.026)
+    hem_line = 0.465 + 0.006 * np.sin(x * 80.0)
+    fray_w = 1.0 - soft_step(y - hem_line, 0.0, 0.007)
+    shorts_rgb = (
+        np.array([78.0, 108.0, 142.0], dtype=np.float32)[None, None, :] * (1.0 - fray_w[..., None])
+        + np.array([128.0, 152.0, 178.0], dtype=np.float32)[None, None, :] * fray_w[..., None]
+    ) * s_shade[..., None]
+
+    mb_w = (
+        soft_step(x, -0.112, 0.004)
+        * (1.0 - soft_step(x, -0.056, 0.004))
+        * soft_step(y, 0.602, 0.004)
+        * (1.0 - soft_step(y, 0.680, 0.004))
+        * soft_step(z, 0.045, 0.010)
     )
-    out[camisa_ink] = INK_RGB
-    buttons = is_camisa & (np.abs(x - 0.050) < 0.006) & (z > 0.04) & (
-        (np.abs(y - 0.82) < 0.006) | (np.abs(y - 0.90) < 0.006) | (np.abs(y - 0.98) < 0.006)
-    )
-    out[buttons] = np.array([62.0, 40.0, 26.0], dtype=np.float32)
-    clamp_cloth(out, is_top)
+    striker_w = mb_w * soft_step(y, 0.660, 0.003)
+    mb_col = np.array([192.0, 146.0, 64.0], dtype=np.float32)[None, None, :] * s_shade[..., None]
+    shorts_rgb = shorts_rgb * (1.0 - mb_w[..., None]) + mb_col * mb_w[..., None]
+    shorts_rgb = shorts_rgb * (1.0 - striker_w[..., None]) + np.array([168.0, 64.0, 56.0], dtype=np.float32) * striker_w[..., None]
+    out[is_shorts] = shorts_rgb[is_shorts]
 
-    # 4. Frayed Indigo Shorts (y in [0.41..0.755]) + Gagamba Matchbox at Hip
-    is_shorts = (y >= 0.41) & (y < 0.755) & (~skin) & (~is_top)
-    s_shade = np.clip(n_shade * woven_grain(pos, 240.0, 0.04), 0.68, 1.04)
-    out[is_shorts] = np.array([46.0, 72.0, 106.0], dtype=np.float32) * s_shade[is_shorts, None]
-    frayed_hem = is_shorts & (y < 0.465 + 0.008 * np.sin(x * 95.0))
-    out[frayed_hem] = np.array([96.0, 122.0, 152.0], dtype=np.float32) * s_shade[frayed_hem, None]
-
-    matchbox = is_shorts & (x > 0.062) & (x < 0.132) & (y > 0.61) & (y < 0.695) & (z > 0.03)
-    if matchbox.any():
-        out[matchbox] = np.array([194.0, 138.0, 46.0], dtype=np.float32) * s_shade[matchbox, None]
-        striker = matchbox & (y > 0.668)
-        out[striker] = np.array([156.0, 42.0, 38.0], dtype=np.float32)
-        mb_ink = binary_dilation(matchbox, iterations=1) & (~matchbox) & is_shorts
-        out[mb_ink] = INK_RGB
-    shorts_ink = is_shorts & (
-        (np.abs(y - 0.465) < 0.004)
-        | ((np.abs(x) < 0.005) & (y > 0.54) & (z > 0.03))
-    )
-    out[shorts_ink] = INK_RGB
-    clamp_cloth(out, is_shorts)
-
-    # 5. Footwear -> earthy leaf-green & ochre rubber tsinelas
+    # 5. Footwear -> sunlit leaf-green & ochre rubber tsinelas
     is_shoe = (y < 0.11) & (~skin)
-    out[is_shoe] = np.array([44.0, 108.0, 68.0], dtype=np.float32) * np.clip(n_shade[is_shoe, None], 0.72, 1.05)
-    sole = is_shoe & (y < 0.022)
-    out[sole] = np.array([178.0, 132.0, 50.0], dtype=np.float32)
-    clamp_cloth(out, is_shoe)
+    shoe_col = np.array([68.0, 132.0, 86.0], dtype=np.float32)[None, None, :] * shade[..., None]
+    sole_w = 1.0 - soft_step(y, 0.022, 0.004)
+    shoe_col = shoe_col * (1.0 - sole_w[..., None]) + np.array([182.0, 142.0, 68.0], dtype=np.float32) * sole_w[..., None]
+    out[is_shoe] = shoe_col[is_shoe]
     return out
 
 
 def paint_tala(rgb: np.ndarray, pos: np.ndarray, nrm: np.ndarray) -> np.ndarray:
-    """Tala (from toni.glb): warm morena skin, maroon & woven habi backward cap,
-    maroon barangay track singlet (#7 in barrio-gold), plum-charcoal sprint shorts,
-    woven friendship bracelets on wrists, maroon/gold track shoes.
-    Toni anatomy: shoes y<0.115, shins y[0.115..0.34], shorts y[0.34..0.665] (|x|<0.245),
-    singlet y[0.665..1.155], A-pose wrists |x|>0.235 & y[0.705..0.760], cap y>1.36."""
+    """Tala (from toni.glb): warm sunlit morena skin, berry-maroon & woven habi backward cap,
+    maroon #07 barangay track singlet, plum-slate sprint shorts, woven friendship wristbands."""
     out = rgb.copy()
     x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
     skin = detect_skin(rgb, pos)
     face_oval = front_face_oval(pos)
     face_feat = protect_facial_features(rgb, pos)
-    n_shade = normal_cloth_shade(nrm)
+    shade = sunlit_cloth_shade(rgb, nrm)
 
-    # 1. Warm golden morena skin + woven habi wrist friendship bands (on forearms y[0.705..0.760], above hands!)
+    apply_child_skin_gradients(out, rgb, pos, skin, face_feat, (0.82, 0.78, 0.72), blush_strength=0.16)
+
+    # Smooth woven habi friendship wristbands on forearms
     skin_edit = skin & (~face_feat)
-    out[skin_edit, 0] = np.clip(r[skin_edit] * 0.90, 0, 232)
-    out[skin_edit, 1] = np.clip(g[skin_edit] * 0.83, 0, 200)
-    out[skin_edit, 2] = np.clip(b[skin_edit] * 0.76, 0, 170)
+    wrist_zone = skin_edit & (np.abs(x) > 0.235) & (y >= 0.702) & (y <= 0.761)
+    if wrist_zone.any():
+        wb_env = soft_step(y, 0.706, 0.004) * (1.0 - soft_step(y, 0.757, 0.004))
+        band_t = np.mod((y - 0.705) / 0.052 * 3.0, 1.0)
+        c1 = np.array([184.0, 68.0, 72.0], dtype=np.float32)
+        c2 = np.array([196.0, 152.0, 58.0], dtype=np.float32)
+        c3 = np.array([62.0, 134.0, 124.0], dtype=np.float32)
+        w2 = soft_step(band_t, 0.33, 0.06) * (1.0 - soft_step(band_t, 0.67, 0.06))
+        w3 = soft_step(band_t, 0.67, 0.06)
+        wb_col = (c1[None, None, :] * (1.0 - w2 - w3)[..., None] + c2[None, None, :] * w2[..., None] + c3[None, None, :] * w3[..., None]) * shade[..., None]
+        out[wrist_zone] = out[wrist_zone] * (1.0 - wb_env[wrist_zone, None]) + wb_col[wrist_zone] * wb_env[wrist_zone, None]
 
-    wrist_band = skin_edit & (np.abs(x) > 0.235) & (y >= 0.705) & (y <= 0.758)
-    if wrist_band.any():
-        band_phase = np.mod((y - 0.705) / 0.053 * 3.0, 1.0)
-        wb_col = np.zeros_like(out)
-        wb_col[:] = np.array([182.0, 42.0, 48.0], dtype=np.float32)
-        wb_col[band_phase > 0.33] = np.array([196.0, 144.0, 40.0], dtype=np.float32)
-        wb_col[band_phase > 0.66] = np.array([38.0, 114.0, 106.0], dtype=np.float32)
-        out[wrist_band] = wb_col[wrist_band] * np.clip(n_shade[wrist_band, None], 0.76, 1.04)
-        wb_ink = skin_edit & (np.abs(x) > 0.235) & ((np.abs(y - 0.705) < 0.004) | (np.abs(y - 0.758) < 0.004))
-        out[wb_ink] = INK_RGB
-
-    # 2. Backward Cap (y > 1.36) & Espresso-Black Hair (100% clean, zero red bounce flecks)
+    # 2. Backward Cap & Warm Sunlit Espresso Hair
     is_strap = (y > 1.36) & (y < 1.49) & (~skin) & (~face_oval) & (~face_feat) & (np.abs(r - g) < 24.0) & (r > 35.0) & (r < 120.0) & (z > 0.04)
     cap_body = (y > 1.36) & (~skin) & (~face_oval) & (~face_feat) & (~is_strap) & (r > 125.0) & ((r - g) > 42.0)
     is_cap = cap_body | is_strap
 
-    cap_shade = np.clip(n_shade * woven_grain(pos, 210.0, 0.03), 0.68, 1.05)
-    out[cap_body] = np.array([112.0, 30.0, 44.0], dtype=np.float32) * cap_shade[cap_body, None]
-    # Woven habi geometric diamond headband around lower rim of backward cap (y in [1.39..1.455])
-    habi_band = cap_body & (y >= 1.390) & (y <= 1.455)
+    cap_shade = shade * woven_grain(pos, 195.0, 0.022)
+    cap_rgb = np.array([144.0, 54.0, 68.0], dtype=np.float32)[None, None, :] * cap_shade[..., None]
+    habi_env = soft_step(y, 1.392, 0.005) * (1.0 - soft_step(y, 1.454, 0.005))
     angle = np.arctan2(x, z)
-    dia = np.abs(np.sin(angle * 14.0)) + np.abs((y - 1.422) * 34.0)
-    habi_gold = habi_band & (dia < 0.82)
-    habi_teal = habi_band & (dia < 0.42)
-    out[habi_gold] = np.array([196.0, 142.0, 40.0], dtype=np.float32) * cap_shade[habi_gold, None]
-    out[habi_teal] = np.array([38.0, 108.0, 98.0], dtype=np.float32) * cap_shade[habi_teal, None]
-    top_btn = cap_body & (y > 1.685) & ((x * x + z * z) < 0.0025)
-    out[top_btn] = np.array([196.0, 142.0, 40.0], dtype=np.float32)
-    cap_ink = cap_body & ((np.abs(y - 1.390) < 0.004) | (np.abs(y - 1.455) < 0.004))
-    out[cap_ink] = INK_RGB
-    out[is_strap] = np.array([38.0, 32.0, 42.0], dtype=np.float32)
-    clamp_cloth(out, is_cap)
+    dia = np.abs(np.sin(angle * 14.0)) + np.abs((y - 1.423) * 34.0)
+    gold_w = (1.0 - soft_step(dia, 0.80, 0.08)) * habi_env
+    teal_w = (1.0 - soft_step(dia, 0.40, 0.07)) * habi_env
+    cap_rgb = cap_rgb * (1.0 - gold_w[..., None]) + np.array([196.0, 152.0, 58.0], dtype=np.float32)[None, None, :] * cap_shade[..., None] * gold_w[..., None]
+    cap_rgb = cap_rgb * (1.0 - teal_w[..., None]) + np.array([58.0, 128.0, 118.0], dtype=np.float32)[None, None, :] * cap_shade[..., None] * teal_w[..., None]
+    out[cap_body] = cap_rgb[cap_body]
+    out[is_strap] = np.array([62.0, 52.0, 64.0], dtype=np.float32)
 
-    is_hair = (y > 1.12) & (~skin) & (~face_oval) & (~face_feat) & (~is_cap)
-    h_lum = np.clip(luminance(rgb) / 58.0, 0.35, 1.35)
-    out[is_hair, 0] = np.clip(28.0 * h_lum[is_hair], 10.0, 48.0)
-    out[is_hair, 1] = np.clip(22.0 * h_lum[is_hair], 9.0, 40.0)
-    out[is_hair, 2] = np.clip(28.0 * h_lum[is_hair], 10.0, 46.0)
+    is_hair = ((y > 1.165) | ((y > 1.10) & (z < -0.015))) & (~skin) & (~face_oval) & (~face_feat) & (~is_cap)
+    h_lum = np.clip(luminance(rgb) / 56.0, 0.58, 1.50)
+    out[is_hair, 0] = np.clip(56.0 * h_lum[is_hair], 40.0, 92.0)
+    out[is_hair, 1] = np.clip(44.0 * h_lum[is_hair], 32.0, 74.0)
+    out[is_hair, 2] = np.clip(52.0 * h_lum[is_hair], 38.0, 84.0)
 
-    # 3. Maroon Barangay Track Singlet (y in [0.665..1.155], erasing #11 completely!)
+    # 3. Sunlit Berry-Maroon Barangay Track Singlet (#07 in Barrio Gold — pure 3D SDF trim, zero donor confetti!)
+    bare_neck_arm = skin & (
+        (np.abs(x) > 0.195)
+        | ((np.abs(x) > 0.142) & (y > 0.91))
+        | ((np.abs(x) < 0.080) & (y > 1.045) & (z > 0.0))
+    )
     is_jersey = (
         (y >= 0.665)
-        & (y <= 1.155)
-        & (~skin)
+        & (y <= 1.170)
+        & (~bare_neck_arm)
         & (~face_oval)
         & (~is_hair)
         & (~is_cap)
-        & (np.abs(x) < 0.19)
+        & (np.abs(x) < 0.225)
     )
-    j_shade = np.clip(n_shade * woven_grain(pos, 250.0, 0.032), 0.70, 1.05)
-    out[is_jersey] = np.array([110.0, 28.0, 44.0], dtype=np.float32) * j_shade[is_jersey, None]
+    j_shade = shade * woven_grain(pos, 215.0, 0.022)
+    j_rgb = np.array([142.0, 50.0, 66.0], dtype=np.float32)[None, None, :] * j_shade[..., None]
 
-    # Collar & armhole trim ONLY near outer neckline/armholes (never on center chest where #11 lived!)
-    border_zone = (y > 1.045) | (np.abs(x) > 0.112)
-    was_trim = is_jersey & (
-        (y < 0.702)
-        | (border_zone & ((r > 135.0) | ((r > 120.0) & (g < 70.0))))
-    )
-    out[was_trim] = np.array([196.0, 144.0, 40.0], dtype=np.float32) * j_shade[was_trim, None]
-    bottom_cream = is_jersey & (y < 0.684)
-    out[bottom_cream] = np.array([194.0, 186.0, 168.0], dtype=np.float32) * j_shade[bottom_cream, None]
+    collar_d = np.hypot(x / 0.088, (y - 1.118) / 0.082)
+    collar_trim = soft_band(collar_d, 1.0, 0.11, 0.05) * soft_step(y, 1.00, 0.02)
+    arm_trim = soft_band(np.abs(x), 0.132, 0.011, 0.005) * soft_step(y, 0.90, 0.02)
+    hem_gold = soft_band(y, 0.698, 0.009, 0.004)
+    gold_trim_w = np.clip(np.maximum(collar_trim, np.maximum(arm_trim, hem_gold)), 0.0, 1.0)
+    j_rgb = j_rgb * (1.0 - gold_trim_w[..., None]) + np.array([196.0, 152.0, 58.0], dtype=np.float32)[None, None, :] * j_shade[..., None] * gold_trim_w[..., None]
 
-    # Crisp barrio-gold "07" varsity sprinter number centered on front chest (y in [0.80..0.94], z > 0.05)
-    # Viewer-left has x < 0 ('0' at x = -0.032), viewer-right has x > 0 ('7' at x in [0.006, 0.056])
-    in_chest = is_jersey & (z > 0.05) & (y >= 0.80) & (y <= 0.94)
+    hem_cream_w = 1.0 - soft_step(y, 0.684, 0.005)
+    j_rgb = j_rgb * (1.0 - hem_cream_w[..., None]) + np.array([194.0, 186.0, 170.0], dtype=np.float32)[None, None, :] * j_shade[..., None] * hem_cream_w[..., None]
+
+    # Smooth anti-aliased "07" chest number with warm-umber edge
+    in_chest = is_jersey & (z > 0.05) & (y >= 0.795) & (y <= 0.945)
     ox = (x + 0.032) / 0.023
     oy = (y - 0.87) / 0.062
-    ring_0 = in_chest & (np.abs(ox) <= 1.05) & (np.abs(oy) <= 1.05) & ((ox * ox + oy * oy) <= 1.08) & ((ox * ox + oy * oy) >= 0.30)
-    top_7 = in_chest & (x >= 0.006) & (x <= 0.056) & (y >= 0.912) & (y <= 0.936)
-    diag_7 = in_chest & (y >= 0.805) & (y <= 0.932) & (np.abs(x - (0.016 + (y - 0.805) * 0.26)) < 0.012)
-    digit_07 = ring_0 | top_7 | diag_7
-    digit_outline = binary_dilation(digit_07, iterations=2) & (~digit_07) & is_jersey
-    out[digit_outline] = INK_RGB
-    out[digit_07] = np.array([198.0, 150.0, 42.0], dtype=np.float32) * j_shade[digit_07, None]
-    jersey_ink = is_jersey & (np.abs(y - 0.684) < 0.004)
-    out[jersey_ink] = INK_RGB
-    clamp_cloth(out, is_jersey)
+    rad0 = np.hypot(ox, oy)
+    w_0 = (1.0 - soft_step(rad0, 1.02, 0.09)) * soft_step(rad0, 0.54, 0.09)
+    w_7_top = soft_step(x, 0.006, 0.004) * (1.0 - soft_step(x, 0.056, 0.004)) * soft_band(y, 0.924, 0.011, 0.004)
+    w_7_diag = soft_step(y, 0.805, 0.005) * (1.0 - soft_step(y, 0.932, 0.005)) * (1.0 - soft_step(np.abs(x - (0.016 + (y - 0.805) * 0.26)), 0.011, 0.004))
+    num_w = np.clip(np.maximum(w_0, np.maximum(w_7_top, w_7_diag)), 0.0, 1.0) * in_chest.astype(np.float32)
+    num_halo = np.clip(gaussian_filter(num_w, sigma=1.2) * 1.6, 0.0, 1.0) * (1.0 - num_w) * in_chest.astype(np.float32)
+    j_rgb = j_rgb * (1.0 - 0.45 * num_halo[..., None]) + WARM_SEAM_RGB * (0.45 * num_halo[..., None])
+    j_rgb = j_rgb * (1.0 - num_w[..., None]) + np.array([196.0, 156.0, 62.0], dtype=np.float32)[None, None, :] * j_shade[..., None] * num_w[..., None]
+    out[is_jersey] = j_rgb[is_jersey]
 
-    # 4. Dark Plum-Charcoal Athletic Runner Shorts (y in [0.33..0.665], |x| < 0.245)
+    # 4. Warm Plum-Slate Athletic Runner Shorts
     is_shorts = (y >= 0.33) & (y < 0.665) & (~skin) & (~is_jersey) & (np.abs(x) < 0.245)
-    s_shade = np.clip(n_shade * woven_grain(pos, 220.0, 0.03), 0.70, 1.05)
-    out[is_shorts] = np.array([40.0, 34.0, 48.0], dtype=np.float32) * s_shade[is_shorts, None]
-    side_stripe = is_shorts & (np.abs(x) > 0.145) & (np.abs(x) < 0.172)
-    out[side_stripe] = np.array([196.0, 144.0, 40.0], dtype=np.float32) * s_shade[side_stripe, None]
-    hem_maroon = is_shorts & (y < 0.375)
-    out[hem_maroon] = np.array([110.0, 28.0, 44.0], dtype=np.float32) * s_shade[hem_maroon, None]
-    clamp_cloth(out, is_shorts)
+    s_shade = shade * woven_grain(pos, 200.0, 0.022)
+    s_rgb = np.array([72.0, 62.0, 80.0], dtype=np.float32)[None, None, :] * s_shade[..., None]
+    stripe_w = soft_band(np.abs(x), 0.158, 0.012, 0.005)
+    hem_m_w = 1.0 - soft_step(y, 0.375, 0.006)
+    s_rgb = s_rgb * (1.0 - stripe_w[..., None]) + np.array([196.0, 152.0, 58.0], dtype=np.float32)[None, None, :] * s_shade[..., None] * stripe_w[..., None]
+    s_rgb = s_rgb * (1.0 - hem_m_w[..., None]) + np.array([138.0, 50.0, 66.0], dtype=np.float32)[None, None, :] * s_shade[..., None] * hem_m_w[..., None]
+    out[is_shorts] = s_rgb[is_shorts]
 
-    # 5. Track Shoes -> maroon & barrio-gold sprint shoes
+    # 5. Track Shoes -> sunlit maroon & barrio-gold sprint shoes
     is_shoe = (y < 0.115) & (~skin)
-    out[is_shoe] = np.array([82.0, 26.0, 38.0], dtype=np.float32) * np.clip(n_shade[is_shoe, None], 0.72, 1.06)
-    shoe_gold = is_shoe & (y >= 0.024) & (y < 0.044)
-    shoe_sole = is_shoe & (y < 0.020)
-    out[shoe_gold] = np.array([196.0, 144.0, 40.0], dtype=np.float32)
-    out[shoe_sole] = np.array([186.0, 180.0, 168.0], dtype=np.float32)
-    clamp_cloth(out, is_shoe)
+    sh_rgb = np.array([112.0, 48.0, 60.0], dtype=np.float32)[None, None, :] * shade[..., None]
+    gold_sw = soft_band(y, 0.034, 0.009, 0.004)
+    sole_sw = 1.0 - soft_step(y, 0.020, 0.004)
+    sh_rgb = sh_rgb * (1.0 - gold_sw[..., None]) + np.array([196.0, 152.0, 58.0], dtype=np.float32) * gold_sw[..., None]
+    sh_rgb = sh_rgb * (1.0 - sole_sw[..., None]) + np.array([186.0, 180.0, 170.0], dtype=np.float32) * sole_sw[..., None]
+    out[is_shoe] = sh_rgb[is_shoe]
     return out
 
 
@@ -873,12 +1176,31 @@ PAINTERS = {
 
 
 # ---------------------------------------------------------------------------
-# Godot .import File Writers (Matching Existing Repository Settings)
+# Godot .import Sidecar Writers (Preserve Existing `[remap]` & `[deps]` UIDs!)
 # ---------------------------------------------------------------------------
 
 
+def extract_remap_and_deps(imp_path: Path) -> str | None:
+    """Read existing Godot-generated `[remap]` and `[deps]` blocks while stripping any `md5`/`generator_parameters`."""
+    if not imp_path.exists():
+        return None
+    text = imp_path.read_text(encoding="utf-8", errors="ignore")
+    if "[params]" not in text or "uid=" not in text:
+        return None
+    head, _ = text.split("[params]", 1)
+    clean_lines = [
+        ln
+        for ln in head.splitlines()
+        if not ln.strip().startswith("md5=") and not ln.strip().startswith("generator_parameters=")
+    ]
+    return "\n".join(clean_lines).rstrip() + "\n\n"
+
+
 def write_glb_import(glb_path: Path, kid_id: str) -> None:
-    content = f"""[remap]
+    imp_path = glb_path.with_name(glb_path.name + ".import")
+    preserved = extract_remap_and_deps(imp_path)
+    if preserved is None:
+        preserved = f"""[remap]
 
 importer="scene"
 importer_version=1
@@ -888,7 +1210,8 @@ type="PackedScene"
 
 source_file="res://assets/models/characters/{kid_id}.glb"
 
-[params]
+"""
+    params = """[params]
 
 nodes/root_type=""
 nodes/root_name=""
@@ -914,25 +1237,32 @@ import_script/path=""
 materials/extract=0
 materials/extract_format=0
 materials/extract_path=""
-_subresources={{}}
+_subresources={}
 gltf/naming_version=2
 gltf/embedded_image_handling=1
 """
-    glb_path.with_name(glb_path.name + ".import").write_text(content, encoding="utf-8", newline="\n")
+    imp_path.write_text(preserved + params, encoding="utf-8", newline="\n")
 
 
 def write_model_tex_import(tex_path: Path, res_path: str, is_normal: bool) -> None:
-    normal_flag = 1 if is_normal else 0
-    content = f"""[remap]
+    imp_path = tex_path.with_name(tex_path.name + ".import")
+    preserved = extract_remap_and_deps(imp_path)
+    if preserved is None:
+        preserved = f"""[remap]
 
 importer="texture"
 type="CompressedTexture2D"
+metadata={{
+"vram_texture": true
+}}
 
 [deps]
 
 source_file="{res_path}"
 
-[params]
+"""
+    normal_flag = 1 if is_normal else 0
+    params = f"""[params]
 
 compress/mode=2
 compress/high_quality=false
@@ -958,12 +1288,14 @@ process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=0
 """
-    tex_path.with_name(tex_path.name + ".import").write_text(content, encoding="utf-8", newline="\n")
+    imp_path.write_text(preserved + params, encoding="utf-8", newline="\n")
 
 
 def write_ui_tex_import(tex_path: Path, res_path: str, compress_mode: int, mipmaps: bool) -> None:
-    mip_str = "true" if mipmaps else "false"
-    content = f"""[remap]
+    imp_path = tex_path.with_name(tex_path.name + ".import")
+    preserved = extract_remap_and_deps(imp_path)
+    if preserved is None:
+        preserved = f"""[remap]
 
 importer="texture"
 type="CompressedTexture2D"
@@ -972,7 +1304,9 @@ type="CompressedTexture2D"
 
 source_file="{res_path}"
 
-[params]
+"""
+    mip_str = "true" if mipmaps else "false"
+    params = f"""[params]
 
 compress/mode={compress_mode}
 compress/high_quality=false
@@ -998,17 +1332,16 @@ process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
 """
-    tex_path.with_name(tex_path.name + ".import").write_text(content, encoding="utf-8", newline="\n")
+    imp_path.write_text(preserved + params, encoding="utf-8", newline="\n")
 
 
 # ---------------------------------------------------------------------------
-# Blender 5.2 Posed Portrait & Action-Bust Renderer + 90s Komiks Finish
+# Optional Blender 5.2 Portrait/Card/Face Renderer (`--with-portraits`)
 # ---------------------------------------------------------------------------
 
 BLENDER_SCRIPT = r'''
 import json
 import math
-import os
 import sys
 import bpy
 from bpy_extras.object_utils import world_to_camera_view
@@ -1088,6 +1421,9 @@ for job in jobs:
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=job["glb"])
     rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
+    for o in bpy.data.objects:
+        if o.type == "MESH" and not any(m.type == "ARMATURE" for m in o.modifiers):
+            o.hide_render = True
     tame_materials()
 
     scene = bpy.context.scene
@@ -1101,23 +1437,23 @@ for job in jobs:
     world = bpy.data.worlds.new("W")
     scene.world = world
     bg = world.node_tree.nodes["Background"]
-    bg.inputs["Color"].default_value = (1.0, 0.76, 0.48, 1.0)
-    bg.inputs["Strength"].default_value = 0.56
+    bg.inputs["Color"].default_value = (1.0, 0.78, 0.52, 1.0)
+    bg.inputs["Strength"].default_value = 0.60
 
     cyaw_deg = float(job["card_yaw"])
     cpitch_deg = float(job["card_pitch"])
     key_side = float(job["key_side"])
 
-    key_sun = add_sun(scene, "Key", 3.55, (0, 0, 0), (1.0, 0.83, 0.56), angle_deg=10.5)
+    key_sun = add_sun(scene, "Key", 3.45, (0, 0, 0), (1.0, 0.84, 0.58), angle_deg=11.0)
     aim_sun_from_dir(key_sun, 26.0, cyaw_deg + key_side * 38.0)
 
-    fill_sun = add_sun(scene, "Fill", 0.95, (0, 0, 0), (1.0, 0.78, 0.55), angle_deg=28.0)
+    fill_sun = add_sun(scene, "Fill", 1.05, (0, 0, 0), (1.0, 0.80, 0.58), angle_deg=28.0)
     aim_sun_from_dir(fill_sun, 8.0, cyaw_deg - key_side * 52.0)
 
-    mango_rim = add_sun(scene, "MangoRim", 4.65, (0, 0, 0), (1.0, 0.67, 0.20), angle_deg=7.5)
+    mango_rim = add_sun(scene, "MangoRim", 4.40, (0, 0, 0), (1.0, 0.68, 0.22), angle_deg=8.0)
     aim_sun_from_dir(mango_rim, 20.0, cyaw_deg - key_side * 142.0)
 
-    gold_kicker = add_sun(scene, "GoldKicker", 2.55, (0, 0, 0), (1.0, 0.74, 0.30), angle_deg=10.0)
+    gold_kicker = add_sun(scene, "GoldKicker", 2.40, (0, 0, 0), (1.0, 0.75, 0.32), angle_deg=10.0)
     aim_sun_from_dir(gold_kicker, 24.0, cyaw_deg + key_side * 142.0)
 
     cam = bpy.data.objects.new("Cam", bpy.data.cameras.new("Cam"))
@@ -1132,11 +1468,7 @@ for job in jobs:
         or rig.pose.bones.get("mixamorig_Head")
         or rig.pose.bones.get("Head")
     )
-    if head_pb is not None:
-        chin_world = rig.matrix_world @ head_pb.head
-    else:
-        chin_world = Vector((0.0, -0.04, 1.12))
-
+    chin_world = rig.matrix_world @ head_pb.head if head_pb is not None else Vector((0.0, -0.04, 1.12))
     eye_world = Vector((chin_world.x, chin_world.y - 0.12, chin_world.z + 0.145))
     look_at = Vector((chin_world.x, chin_world.y, chin_world.z + 0.18))
 
@@ -1177,7 +1509,6 @@ def auto_frame_head_and_shoulders(
     eye_px: list[float],
     head_fill: float = 0.72,
 ) -> tuple[Image.Image, tuple[float, float], tuple[float, float], float]:
-    """Supersampled auto-framing: crops the 768x1024 RGBA render so head+hair fills ~72% height (600x800)."""
     img = Image.open(raw_path).convert("RGBA")
     rw, rh = img.size
     arr = np.asarray(img, dtype=np.float32)
@@ -1219,7 +1550,6 @@ def paint_eye_catchlights_and_warmth(
     eye_600: tuple[float, float],
     key_side: int,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Add warm golden-hour skin/cloth grading, mango rim boost, honey iris glow, and crisp dual eye catchlights."""
     arr = np.asarray(framed_rgba, dtype=np.float32)
     rgb = arr[..., :3].copy()
     alpha = arr[..., 3] / 255.0
@@ -1237,12 +1567,9 @@ def paint_eye_catchlights_and_warmth(
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
     lum = 0.299 * r + 0.587 * g + 0.114 * b
 
-    # Detect white/cream eyeball sclera before warm grading
-    sclera = in_eye_band & (r > 162.0) & (g > 152.0) & (b > 142.0) & (np.abs(r - b) < 44.0)
+    sclera = in_eye_band & (r > 152.0) & (g > 142.0) & (b > 132.0) & (np.abs(r - b) < 46.0)
     near_sclera = binary_dilation(sclera, iterations=10)
-
-    # Isolate round dark/brown irises (including key-lit warm brown irises; gaussian_filter erases thin lashes)
-    dark_eye = in_eye_band & near_sclera & (lum < 108.0) & (b < 96.0)
+    dark_eye = in_eye_band & near_sclera & (lum < 112.0) & (b < 100.0)
     iris_core = gaussian_filter(dark_eye.astype(np.float32), sigma=3.8) > 0.48
     labeled, n_comp = nd_label(iris_core)
 
@@ -1262,22 +1589,15 @@ def paint_eye_catchlights_and_warmth(
         icy = float(cys.mean())
         irad = max(math.sqrt(area / math.pi) * 1.18, 11.0)
 
-        # Warm honey-amber lower iris crescent so dark eyes glow warmly like junjun..inday
         dx = (xx - icx) / irad
         dy = (yy - icy) / irad
         r_norm = np.hypot(dx, dy)
-        crescent = (
-            dark_eye
-            & (r_norm < 0.92)
-            & (r_norm > 0.28)
-            & (dy > 0.05)
-        )
+        crescent = dark_eye & (r_norm < 0.92) & (r_norm > 0.28) & (dy > 0.05)
         c_weight = np.clip((dy - 0.05) * (1.0 - np.abs(r_norm - 0.62) * 1.8), 0.0, 1.0)
         rgb[crescent, 0] = np.clip(rgb[crescent, 0] + 46.0 * c_weight[crescent], 0.0, 255.0)
         rgb[crescent, 1] = np.clip(rgb[crescent, 1] + 22.0 * c_weight[crescent], 0.0, 255.0)
         rgb[crescent, 2] = np.clip(rgb[crescent, 2] + 5.0 * c_weight[crescent], 0.0, 255.0)
 
-        # Primary golden-cream catchlight (upper key side) + secondary pinpoint glint (lower opposite)
         p1x = icx + kdir * irad * 0.28
         p1y = icy - irad * 0.28
         rad1 = float(np.clip(irad * 0.27, 4.4, 7.4))
@@ -1294,37 +1614,31 @@ def paint_eye_catchlights_and_warmth(
         glint_col = np.array([255.0, 251.0, 238.0], dtype=np.float32)
         rgb[g_active] = rgb[g_active] * (1.0 - glint[g_active, None]) + glint_col * glint[g_active, None]
 
-    # Golden-hour sunset warmth & contrast on skin/hair/clothes while keeping sclera & catchlights crisp
     pil_rgb = Image.fromarray(np.clip(rgb, 0.0, 255.0).astype(np.uint8), mode="RGB")
-    pil_rgb = ImageEnhance.Color(pil_rgb).enhance(1.18)
-    pil_rgb = ImageEnhance.Contrast(pil_rgb).enhance(1.08)
+    pil_rgb = ImageEnhance.Color(pil_rgb).enhance(1.16)
+    pil_rgb = ImageEnhance.Contrast(pil_rgb).enhance(1.06)
     graded = np.asarray(pil_rgb, dtype=np.float32)
 
     warm_zone = (alpha > 0.2) & (~sclera) & (~catchlight_mask)
-    graded[warm_zone, 0] = np.clip(graded[warm_zone, 0] * 1.06 + 4.0, 0.0, 255.0)
+    graded[warm_zone, 0] = np.clip(graded[warm_zone, 0] * 1.05 + 3.0, 0.0, 255.0)
     graded[warm_zone, 1] = np.clip(graded[warm_zone, 1] * 0.99 + 1.0, 0.0, 255.0)
-    graded[warm_zone, 2] = np.clip(graded[warm_zone, 2] * 0.89, 0.0, 255.0)
+    graded[warm_zone, 2] = np.clip(graded[warm_zone, 2] * 0.90, 0.0, 255.0)
 
-    #Crisp mango-gold inner rim boost along the backlit silhouette edge
     fg = alpha > 0.38
-    rim_band = fg & (~binary_erosion(fg, iterations=5)) & (~binary_erosion(fg, iterations=1) ^ fg)
     inner_band = binary_erosion(fg, iterations=2) & (~binary_erosion(fg, iterations=6))
     side_x = (xx - 300.0) / 300.0
     rim_dir_w = np.clip((-kdir * side_x) * 0.65 + (1.0 - yy / 800.0) * 0.45, 0.0, 1.0)
     mango_col = np.array([255.0, 194.0, 68.0], dtype=np.float32)
     rw_mask = inner_band & (~sclera) & (~catchlight_mask)
-    blend_m = 0.34 * rim_dir_w[rw_mask, None]
+    blend_m = 0.30 * rim_dir_w[rw_mask, None]
     graded[rw_mask] = graded[rw_mask] * (1.0 - blend_m) + mango_col * blend_m
-    _ = rim_band
 
-    # Keep sclera clean warm-ivory white & catchlights sparkling
     graded[sclera] = np.clip(rgb[sclera] * np.array([1.01, 0.99, 0.96], dtype=np.float32), 0.0, 252.0)
     graded[catchlight_mask] = rgb[catchlight_mask]
     return graded, alpha
 
 
 def make_komiks_backdrop(width: int, height: int, pal: dict, center: tuple[float, float]) -> Image.Image:
-    """Paint a lush golden-hour barangay bokeh + 90s Filipino Komiks sunburst/halftone backdrop (600x800)."""
     yy, xx = np.mgrid[0:height, 0:width].astype(np.float32)
     t = yy / max(height - 1, 1)
 
@@ -1343,7 +1657,6 @@ def make_komiks_backdrop(width: int, height: int, pal: dict, center: tuple[float
     overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
 
-    # Warm sari-sari / bahay timber eaves & sunlit mango foliage bokeh matching junjun..inday depth
     wood_c = pal["bokeh_wood"]
     leaf_c = pal["bokeh_leaf"]
     draw.rectangle((-20, int(height * 0.42), int(width * 0.24), height + 20), fill=(wood_c[0], wood_c[1], wood_c[2], 135))
@@ -1395,7 +1708,6 @@ def build_portrait_card_and_face(
     spec: dict,
     meta: dict,
 ) -> float:
-    """Build tight ~72% head-fill RGBA portrait, 3:4 90s komiks card, and 96x96 minimap face."""
     framed_rgba, eye_600, _chin_600, actual_fill = auto_frame_head_and_shoulders(
         raw_card_path,
         meta["chin_px"],
@@ -1413,7 +1725,6 @@ def build_portrait_card_and_face(
     outer_ink_p = binary_dilation(mask, iterations=3) & (~mask)
     inner_ink = mask & (~binary_erosion(mask, iterations=2))
 
-    # 1) Save tight 600x800 RGBA portrait (`assets/portraits/<id>.png`) with charcoal ink contour
     port_rgb = graded_rgb.copy()
     port_rgb[inner_ink] = port_rgb[inner_ink] * 0.42 + INK_RGB * 0.58
     port_rgb[outer_ink_p] = INK_RGB
@@ -1422,7 +1733,6 @@ def build_portrait_card_and_face(
     port_rgba = np.dstack([port_rgb, port_alpha]).astype(np.uint8)
     Image.fromarray(port_rgba, mode="RGBA").save(portrait_dst, format="PNG", compress_level=6)
 
-    # 2) Save 600x800 3:4 90s Filipino Komiks profile card (`assets/portraits/cards/<id>.webp`)
     pal = spec["palette"]
     hx = float(np.clip(eye_600[0], w * 0.28, w * 0.72))
     hy = float(np.clip(eye_600[1], h * 0.25, h * 0.62))
@@ -1447,7 +1757,6 @@ def build_portrait_card_and_face(
     card_final = Image.fromarray(comp, mode="RGB")
     card_final.save(card_dst, format="WEBP", quality=92, method=6)
 
-    # 3) Save 96x96 square minimap/HUD face (`assets/portraits/faces/<id>.png`) tightly framed on head/eyes
     sq = 552
     bias = float(spec["face_eye_bias"])
     f_left = int(round(np.clip(hx - 0.50 * sq, 0.0, float(w - sq))))
@@ -1460,136 +1769,200 @@ def build_portrait_card_and_face(
 
 
 # ---------------------------------------------------------------------------
-# Main Pipeline Execution
+# Main Pipeline Execution & Self-Verification
 # ---------------------------------------------------------------------------
 
 
+def snapshot_authored_hashes() -> dict[Path, str]:
+    """Pin all 6 authored `.glb`s, `_0..2.png` textures, and `.import` files."""
+    hashes: dict[Path, str] = {}
+    for aid in AUTHORED_IDS:
+        for suffix in (f"{aid}.glb", f"{aid}.glb.import"):
+            p = CHAR_DIR / suffix
+            if p.exists():
+                hashes[p] = sha256_file(p)
+        for ti in range(3):
+            for suffix in (f"{aid}_{ti}.png", f"{aid}_{ti}.png.import"):
+                p = CHAR_DIR / suffix
+                if p.exists():
+                    hashes[p] = sha256_file(p)
+    return hashes
+
+
+def verify_kid_outputs(kid_id: str) -> dict[str, float | int]:
+    glb_path = CHAR_DIR / f"{kid_id}.glb"
+    gltf, _ = parse_glb(glb_path)
+    prim = gltf["meshes"][0]["primitives"][0]
+    pos_acc = gltf["accessors"][prim["attributes"]["POSITION"]]
+    min_y = float(pos_acc["min"][1])
+    max_y = float(pos_acc["max"][1])
+    height = max_y - min_y
+    if abs(min_y) > 0.002 or not (1.69 <= height <= 1.71):
+        raise AssertionError(f"{kid_id}.glb height/origin out of bounds: min_y={min_y}, height={height}")
+    if len(gltf.get("animations", [])) < 7:
+        raise AssertionError(f"{kid_id}.glb missing animations: {len(gltf.get('animations', []))}")
+
+    tex1 = np.asarray(Image.open(CHAR_DIR / f"{kid_id}_1.png").convert("RGB"), dtype=np.float32) / 255.0
+    mean_srgb = float(tex1.mean())
+    max_srgb = float(tex1.max())
+    min_srgb = float(tex1.min())
+    if not (0.42 <= mean_srgb <= 0.50):
+        raise AssertionError(f"{kid_id}_1.png mean_sRGB={mean_srgb:.4f} outside [0.42, 0.50]")
+    if max_srgb > 0.781:
+        raise AssertionError(f"{kid_id}_1.png max_sRGB={max_srgb:.4f} exceeds 0.78")
+
+    for imp_name in (f"{kid_id}.glb.import", f"{kid_id}_0.png.import", f"{kid_id}_1.png.import", f"{kid_id}_2.png.import"):
+        txt = (CHAR_DIR / imp_name).read_text(encoding="utf-8")
+        if "md5=" in txt or "generator_parameters=" in txt:
+            raise AssertionError(f"{imp_name} contains forbidden md5/generator_parameters line")
+        if imp_name.endswith(".png.import") and "compress/mode=2" not in txt:
+            raise AssertionError(f"{imp_name} missing compress/mode=2")
+    if "compress/normal_map=1" not in (CHAR_DIR / f"{kid_id}_2.png.import").read_text(encoding="utf-8"):
+        raise AssertionError(f"{kid_id}_2.png.import missing compress/normal_map=1")
+
+    return {
+        "glb_mib": glb_path.stat().st_size / (1024.0 * 1024.0),
+        "height": height,
+        "min_srgb": min_srgb,
+        "mean_srgb": mean_srgb,
+        "max_srgb": max_srgb,
+    }
+
+
 def main() -> None:
-    CARDS_DIR.mkdir(parents=True, exist_ok=True)
-    FACES_DIR.mkdir(parents=True, exist_ok=True)
+    parser = argparse.ArgumentParser(description="Build 4 expansion Filipino kids (Overhaul v2).")
+    parser.add_argument("--with-portraits", action="store_true", help="Also re-render 2D portraits/cards/faces in Blender.")
+    args = parser.parse_args()
 
-    source_hashes: dict[Path, str] = {}
-    for spec in KIDS_SPEC:
-        src_glb = CHAR_DIR / f"{spec['base']}.glb"
-        if not src_glb.exists():
-            raise FileNotFoundError(f"Missing base GLB: {src_glb}")
-        source_hashes[src_glb] = sha256_file(src_glb)
+    pinned_hashes = snapshot_authored_hashes()
 
-    print("[1/3] Cloning base GLBs & painting 3D-mapped 90s Filipino Komiks textures...")
+    print("[1/2] Sculpting organic child proportions & painting soft sunlit 90s province textures...")
     for spec in KIDS_SPEC:
         kid_id = spec["id"]
         base_id = spec["base"]
         src_glb = CHAR_DIR / f"{base_id}.glb"
         gltf, bin_chunk = parse_glb(src_glb)
 
-        img_mr = extract_embedded_image(gltf, bin_chunk, 0).convert("RGB").resize(
-            (AUX_MAP_SIZE, AUX_MAP_SIZE), Image.Resampling.LANCZOS
+        prim = gltf["meshes"][0]["primitives"][0]
+        raw_pos = read_accessor(gltf, bin_chunk, prim["attributes"]["POSITION"]).astype(np.float32)
+        raw_nrm = read_accessor(gltf, bin_chunk, prim["attributes"]["NORMAL"]).astype(np.float32)
+        raw_uv = read_accessor(gltf, bin_chunk, prim["attributes"]["TEXCOORD_0"]).astype(np.float32)
+        raw_idx = read_accessor(gltf, bin_chunk, prim["indices"]).astype(np.int64).reshape(-1, 3)
+
+        sculpted_pos, sculpted_nrm = sculpt_organic_child_mesh(raw_pos, raw_nrm, raw_idx, kid_id)
+        pos_grid, nrm_grid, valid_uv = build_uv_3d_maps(
+            sculpted_pos, sculpted_nrm, raw_uv, raw_idx, size=BASE_COLOR_SIZE
         )
-        img_base = extract_embedded_image(gltf, bin_chunk, 1).convert("RGB").resize(
+
+        img_base_src = extract_embedded_image(gltf, bin_chunk, 1).convert("RGB").resize(
             (BASE_COLOR_SIZE, BASE_COLOR_SIZE), Image.Resampling.LANCZOS
         )
-        img_norm = resize_normal_map(extract_embedded_image(gltf, bin_chunk, 2), AUX_MAP_SIZE)
+        base_arr = np.asarray(img_base_src, dtype=np.float32)
+        face_feat = protect_facial_features(base_arr, pos_grid, valid_uv)
 
-        pos_grid, nrm_grid = build_uv_3d_maps(gltf, bin_chunk, size=BASE_COLOR_SIZE)
-        base_arr = np.asarray(img_base, dtype=np.float32)
-        painted_arr = PAINTERS[kid_id](base_arr, pos_grid, nrm_grid)
-        img_painted = Image.fromarray(np.clip(painted_arr, 0.0, 255.0).astype(np.uint8), mode="RGB")
+        painted_raw = PAINTERS[kid_id](base_arr, pos_grid, nrm_grid)
+        painted_sunlit = finalize_sunlit_albedo(
+            painted_raw,
+            base_arr,
+            valid_uv,
+            face_feat,
+            target_mean=float(spec["target_mean_srgb"]),
+        )
+        img_painted = Image.fromarray(np.round(painted_sunlit).astype(np.uint8), mode="RGB")
+
+        img_mr, img_norm = polish_aux_maps(
+            extract_embedded_image(gltf, bin_chunk, 0),
+            extract_embedded_image(gltf, bin_chunk, 2),
+            pos_grid,
+            kid_id,
+        )
 
         png_0 = encode_png(img_mr)
         png_1 = encode_png(img_painted)
         png_2 = encode_png(img_norm)
 
-        new_glb_bytes = rebuild_glb_with_images(gltf, bin_chunk, [png_0, png_1, png_2])
+        new_glb_bytes = rebuild_glb_with_sculpt_and_images(
+            gltf, bin_chunk, sculpted_pos, sculpted_nrm, [png_0, png_1, png_2]
+        )
         dst_glb = CHAR_DIR / f"{kid_id}.glb"
         dst_glb.write_bytes(new_glb_bytes)
         write_glb_import(dst_glb, kid_id)
 
-        for idx, png_bytes in enumerate([png_0, png_1, png_2]):
-            tex_path = CHAR_DIR / f"{kid_id}_{idx}.png"
+        for idx_t, png_bytes in enumerate([png_0, png_1, png_2]):
+            tex_path = CHAR_DIR / f"{kid_id}_{idx_t}.png"
             tex_path.write_bytes(png_bytes)
             write_model_tex_import(
                 tex_path,
-                f"res://assets/models/characters/{kid_id}_{idx}.png",
-                is_normal=(idx == 2),
+                f"res://assets/models/characters/{kid_id}_{idx_t}.png",
+                is_normal=(idx_t == 2),
             )
-        print(f"  -> Built {kid_id}.glb ({len(new_glb_bytes) / (1024 * 1024):.2f} MiB) from {base_id}.glb")
 
-    blender_bin = find_blender()
-    print(f"[2/3] Rendering close-up 3/4 golden-hour portraits in {blender_bin.name}...")
-    with tempfile.TemporaryDirectory(prefix="kalyeah_10kids_") as tmp:
-        tmp_dir = Path(tmp)
-        jobs = []
-        for spec in KIDS_SPEC:
-            kid_id = spec["id"]
-            jobs.append(
+        stats = verify_kid_outputs(kid_id)
+        print(
+            f"  -> {kid_id}.glb ({stats['glb_mib']:.2f} MiB, h={stats['height']:.4f}m) | "
+            f"{kid_id}_1.png sRGB min={stats['min_srgb']:.3f} mean={stats['mean_srgb']:.3f} max={stats['max_srgb']:.3f}"
+        )
+
+    if args.with_portraits:
+        CARDS_DIR.mkdir(parents=True, exist_ok=True)
+        FACES_DIR.mkdir(parents=True, exist_ok=True)
+        blender_bin = find_blender()
+        print(f"[Portraits] Rendering close-up 3/4 golden-hour portraits in {blender_bin.name}...")
+        with tempfile.TemporaryDirectory(prefix="kalyeah_10kids_") as tmp:
+            tmp_dir = Path(tmp)
+            jobs = [
                 {
-                    "id": kid_id,
-                    "glb": str(CHAR_DIR / f"{kid_id}.glb"),
-                    "card_clip": spec["card_clip"],
-                    "card_frame": spec["card_frame"],
-                    "card_yaw": spec["card_yaw"],
-                    "card_pitch": spec["card_pitch"],
-                    "card_dist": spec["card_dist"],
-                    "head_rot": list(spec["head_rot"]),
-                    "cam_roll": spec["cam_roll"],
-                    "key_side": spec["key_side"],
-                    "card_raw": str(tmp_dir / f"{kid_id}_card_raw.png"),
+                    "id": s["id"],
+                    "glb": str(CHAR_DIR / f"{s['id']}.glb"),
+                    "card_clip": s["card_clip"],
+                    "card_frame": s["card_frame"],
+                    "card_yaw": s["card_yaw"],
+                    "card_pitch": s["card_pitch"],
+                    "card_dist": s["card_dist"],
+                    "head_rot": list(s["head_rot"]),
+                    "cam_roll": s["cam_roll"],
+                    "key_side": s["key_side"],
+                    "card_raw": str(tmp_dir / f"{s['id']}_card_raw.png"),
                 }
+                for s in KIDS_SPEC
+            ]
+            manifest_path = tmp_dir / "jobs.json"
+            results_path = tmp_dir / "results.json"
+            script_path = tmp_dir / "render_jobs.py"
+            manifest_path.write_text(json.dumps(jobs, indent=2), encoding="utf-8")
+            script_path.write_text(BLENDER_SCRIPT, encoding="utf-8")
+            proc = subprocess.run(
+                [str(blender_bin), "--background", "--python", str(script_path), "--", str(manifest_path), str(results_path)],
+                capture_output=True,
+                text=True,
+                check=False,
             )
-        manifest_path = tmp_dir / "jobs.json"
-        results_path = tmp_dir / "results.json"
-        script_path = tmp_dir / "render_jobs.py"
-        manifest_path.write_text(json.dumps(jobs, indent=2), encoding="utf-8")
-        script_path.write_text(BLENDER_SCRIPT, encoding="utf-8")
+            if proc.returncode != 0 or not results_path.exists():
+                sys.stderr.write(proc.stdout[-3000:] + "\n" + proc.stderr[-3000:] + "\n")
+                raise RuntimeError(f"Blender render failed with exit code {proc.returncode}")
+            render_meta = json.loads(results_path.read_text(encoding="utf-8"))
+            for spec in KIDS_SPEC:
+                kid_id = spec["id"]
+                portrait_dst = PORTRAIT_DIR / f"{kid_id}.png"
+                card_dst = CARDS_DIR / f"{kid_id}.webp"
+                face_dst = FACES_DIR / f"{kid_id}.png"
+                build_portrait_card_and_face(
+                    tmp_dir / f"{kid_id}_card_raw.png",
+                    portrait_dst,
+                    card_dst,
+                    face_dst,
+                    spec,
+                    render_meta[kid_id],
+                )
+                write_ui_tex_import(portrait_dst, f"res://assets/portraits/{kid_id}.png", compress_mode=1, mipmaps=False)
+                write_ui_tex_import(card_dst, f"res://assets/portraits/cards/{kid_id}.webp", compress_mode=0, mipmaps=False)
+                write_ui_tex_import(face_dst, f"res://assets/portraits/faces/{kid_id}.png", compress_mode=0, mipmaps=True)
 
-        cmd = [
-            str(blender_bin),
-            "--background",
-            "--python",
-            str(script_path),
-            "--",
-            str(manifest_path),
-            str(results_path),
-        ]
-        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if proc.returncode != 0 or not results_path.exists():
-            sys.stderr.write(proc.stdout[-3000:] + "\n" + proc.stderr[-3000:] + "\n")
-            raise RuntimeError(f"Blender render failed with exit code {proc.returncode}")
-
-        render_meta = json.loads(results_path.read_text(encoding="utf-8"))
-
-        print("[3/3] Compositing golden-hour ~72% head-fill portraits, 3:4 cards & 96x96 faces...")
-        for spec in KIDS_SPEC:
-            kid_id = spec["id"]
-            meta = render_meta[kid_id]
-            if meta["anim_count"] < 8:
-                raise RuntimeError(f"{kid_id}.glb missing animations (found {meta['anim_count']})")
-
-            portrait_dst = PORTRAIT_DIR / f"{kid_id}.png"
-            card_dst = CARDS_DIR / f"{kid_id}.webp"
-            face_dst = FACES_DIR / f"{kid_id}.png"
-
-            fill_pct = build_portrait_card_and_face(
-                tmp_dir / f"{kid_id}_card_raw.png",
-                portrait_dst,
-                card_dst,
-                face_dst,
-                spec,
-                meta,
-            )
-
-            write_ui_tex_import(portrait_dst, f"res://assets/portraits/{kid_id}.png", compress_mode=1, mipmaps=False)
-            write_ui_tex_import(card_dst, f"res://assets/portraits/cards/{kid_id}.webp", compress_mode=0, mipmaps=False)
-            write_ui_tex_import(face_dst, f"res://assets/portraits/faces/{kid_id}.png", compress_mode=0, mipmaps=True)
-            print(
-                f"  -> Generated portraits/{kid_id}.png, cards/{kid_id}.webp, faces/{kid_id}.png "
-                f"(head fill = {fill_pct * 100.0:.1f}%)"
-            )
-
-    for src_glb, before_hash in source_hashes.items():
-        if sha256_file(src_glb) != before_hash:
-            raise RuntimeError(f"Integrity violation: {src_glb} changed!")
-    print("Done! All 4 new kids' GLBs, textures, 90s komiks portraits/cards/faces & .import files built cleanly.")
+    print("[2/2] Verifying SHA-256 immutability of all 6 authored kids...")
+    for path, before_hash in pinned_hashes.items():
+        if sha256_file(path) != before_hash:
+            raise RuntimeError(f"Integrity violation: {path} was modified!")
+    print("Done! Overhaul v2 4 expansion kids (.glb + sunlit _0/_1/_2.png + .import) built and verified.")
 
 
 if __name__ == "__main__":

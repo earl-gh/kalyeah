@@ -112,7 +112,7 @@ var _next_id: int = 1
 
 ## The enemy a TARGETED cast of `def` would throw at: `target_id` while it is a targetable enemy in range, else null.
 func target_in_range(sim: MatchSim, caster: PlayerState, def: WeaponDef, target_id: int) -> PlayerState:
-	var target: PlayerState = sim.players.get(target_id) as PlayerState
+	var target: PlayerState = sim.players[target_id] if sim.players.has(target_id) else null
 	if target == null or not sim.is_targetable(target) or target.team == caster.team:
 		return null
 	return target if caster.position.distance_to(target.position) <= def.max_range else null
@@ -262,7 +262,7 @@ func aim_point(caster: PlayerState, def: WeaponDef, aim: Vector2) -> Vector2:
 func would_cast(sim: MatchSim, caster: PlayerState, def: WeaponDef, aim: Vector2, target_id: int = -1) -> bool:
 	match def.shape:
 		WeaponDef.Shape.TARGETED:
-			var target: PlayerState = sim.players.get(target_id) as PlayerState
+			var target: PlayerState = sim.players[target_id] if sim.players.has(target_id) else null
 			return (
 				target != null and sim.is_targetable(target) and target.team != caster.team
 				and caster.position.distance_to(target.position) <= def.max_range
@@ -340,7 +340,7 @@ func _step_cones(sim: MatchSim, dt: float) -> void:
 		if cone.time_left > 0.0:
 			still.append(cone)
 			continue
-		var caster: PlayerState = sim.players.get(cone.owner_id) as PlayerState
+		var caster: PlayerState = sim.players[cone.owner_id] if sim.players.has(cone.owner_id) else null
 		if caster != null and not caster.tagged:
 			_hit_cone(sim, caster, cone.def, cone.direction, 1)
 	_cones = still
@@ -353,7 +353,7 @@ func _step_throws(sim: MatchSim, dt: float) -> void:
 		if queued.time_left > 0.0:
 			still.append(queued)
 			continue
-		var caster: PlayerState = sim.players.get(queued.owner_id) as PlayerState
+		var caster: PlayerState = sim.players[queued.owner_id] if sim.players.has(queued.owner_id) else null
 		if caster != null and not caster.tagged:
 			_new_projectile(caster, queued.def, queued.direction)
 	_throws = still
@@ -394,13 +394,13 @@ func _move_projectile(sim: MatchSim, projectile: Projectile, move: float) -> boo
 	match def.shape:
 		WeaponDef.Shape.TARGETED:
 			if projectile.target_id >= 0:
-				var target: PlayerState = sim.players.get(projectile.target_id) as PlayerState
+				var target: PlayerState = sim.players[projectile.target_id] if sim.players.has(projectile.target_id) else null
 				if target == null or not sim.is_targetable(target):
 					return false
 				projectile.direction = projectile.position.direction_to(target.position)
 		WeaponDef.Shape.BOOMERANG:
 			if projectile.returning:
-				var thrower: PlayerState = sim.players.get(projectile.owner_id) as PlayerState
+				var thrower: PlayerState = sim.players[projectile.owner_id] if sim.players.has(projectile.owner_id) else null
 				if thrower == null or thrower.tagged:
 					return false
 				if projectile.position.distance_to(thrower.position) <= sim.rules.boomerang_catch_distance:
@@ -469,7 +469,7 @@ func _check_hits(sim: MatchSim, projectile: Projectile) -> bool:
 	var def: WeaponDef = projectile.def
 	match def.shape:
 		WeaponDef.Shape.TARGETED:
-			var target: PlayerState = sim.players.get(projectile.target_id) as PlayerState
+			var target: PlayerState = sim.players[projectile.target_id] if sim.players.has(projectile.target_id) else null
 			if target != null and projectile.position.distance_to(target.position) <= def.projectile_radius + target.radius:
 				_hit(sim, target, def, projectile.owner_id)
 				return false
@@ -513,7 +513,7 @@ func _step_zone(sim: MatchSim, zone: Zone, dt: float) -> bool:
 				return false
 		ZoneKind.TRAP:
 			zone.timer -= dt
-			if zone.timer <= 0.0 and _any_enemy_within(sim, zone.team, zone.center, zone.radius):
+			if zone.timer <= 0.0 and _any_grounded_enemy_within(sim, zone.team, zone.center, zone.radius):
 				zone.kind = ZoneKind.SLOW_ZONE
 				zone.radius = zone.def.radius
 				zone.time_left = zone.def.duration
@@ -521,13 +521,14 @@ func _step_zone(sim: MatchSim, zone: Zone, dt: float) -> bool:
 			return zone.time_left > 0.0
 		ZoneKind.SLOW_ZONE:
 			for target: PlayerState in _enemies_within(sim, zone.team, zone.center, zone.radius):
-				sim.apply_effect(target.id, zone.def.effect, zone.def.effect_duration, zone.def.effect_magnitude)
+				if target.air_y < MatchSim.JUMP_CLEAR_HEIGHT:
+					sim.apply_effect(target.id, zone.def.effect, zone.def.effect_duration, zone.def.effect_magnitude)
 			return zone.time_left > 0.0
 		ZoneKind.FIELD:
 			zone.timer -= dt
 			if zone.timer <= 0.0:
 				zone.timer += zone.def.interval
-				_area_hit(sim, zone.team, zone.def, zone.center, zone.radius, zone.owner_id)
+				_grounded_area_hit(sim, zone.team, zone.def, zone.center, zone.radius, zone.owner_id)
 			return zone.time_left > 0.0
 	return true
 
@@ -549,6 +550,12 @@ func _area_hit(sim: MatchSim, team: int, def: WeaponDef, center: Vector2, radius
 		_hit(sim, target, def, by)
 
 
+func _grounded_area_hit(sim: MatchSim, team: int, def: WeaponDef, center: Vector2, radius: float, by: int) -> void:
+	for target: PlayerState in _enemies_within(sim, team, center, radius):
+		if target.air_y < MatchSim.JUMP_CLEAR_HEIGHT:
+			_hit(sim, target, def, by)
+
+
 func _enemies_within(sim: MatchSim, team: int, center: Vector2, radius: float) -> Array[PlayerState]:
 	var result: Array[PlayerState] = []
 	for target: PlayerState in sim.enemies_of(team):
@@ -559,6 +566,13 @@ func _enemies_within(sim: MatchSim, team: int, center: Vector2, radius: float) -
 
 func _any_enemy_within(sim: MatchSim, team: int, center: Vector2, radius: float) -> bool:
 	return not _enemies_within(sim, team, center, radius).is_empty()
+
+
+func _any_grounded_enemy_within(sim: MatchSim, team: int, center: Vector2, radius: float) -> bool:
+	for target: PlayerState in _enemies_within(sim, team, center, radius):
+		if target.air_y < MatchSim.JUMP_CLEAR_HEIGHT:
+			return true
+	return false
 
 
 func _hit(sim: MatchSim, target: PlayerState, def: WeaponDef, by: int) -> void:

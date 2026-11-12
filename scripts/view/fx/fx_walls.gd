@@ -151,17 +151,20 @@ func on_projectile_gone(def: WeaponDef, team: int, at: Vector3) -> void:
 		_ctx.play_sound("soil_block" if rec.soil else "paper_block")
 		if _ctx.reduced:
 			continue
+		var k: float = _ctx.kid_scale()
 		var bits: Vector3 = Vector3(nearest.x, 0.0, nearest.y)
 		if rec.soil:
-			_ctx.particles.puff(FxParticles.Preset.CHIPS, bits + Vector3(0.0, SOIL_HEIGHT / 2.0, 0.0), BLOCK_CHIPS)
+			_ctx.particles.puff(FxParticles.Preset.CHIPS, bits + Vector3(0.0, SOIL_HEIGHT * maxf(k, 0.56) / 2.0, 0.0), BLOCK_CHIPS)
 		else:
 			var star: Transform3D = Transform3D(Basis(Vector3.UP, -rec.along.angle()), Vector3(nearest.x, at.y, nearest.y))
-			_ctx.ground.smear(star, &"streak", BLOCK_STAR, FxRelease.TINT_PAPER, BLOCK_STAR_FRAMES * FxSquash.FRAME)
+			_ctx.ground.smear(star, &"streak", BLOCK_STAR * k, FxRelease.TINT_PAPER, BLOCK_STAR_FRAMES * FxSquash.FRAME)
 			_ctx.particles.puff(FxParticles.Preset.PAPER, bits, PAPER_BITS)
 
 
 func _create(shield: WeaponSystem.Shield) -> Rec:
 	var rec: Rec = Rec.new()
+	var k: float = _ctx.kid_scale()
+	var wall_k: float = 1.0 if is_equal_approx(k, 1.0) else maxf(k, 0.56)
 	rec.id = shield.id
 	rec.def = shield.def
 	rec.team = shield.team
@@ -173,10 +176,10 @@ func _create(shield: WeaponSystem.Shield) -> Rec:
 	rec.node = Node3D.new()
 	var width: float = rec.base_half_width * 2.0
 	if rec.soil:
-		rec.body = WeaponModel.soil(width, SOIL_HEIGHT, width)
+		rec.body = WeaponModel.soil(width, SOIL_HEIGHT * wall_k, width)
 	else:
 		# a standing sheet of paper (the owner's model); its base sits on the ground
-		rec.body = WeaponModel.shield(width, SHIELD_HEIGHT, PAPER_THICKNESS)
+		rec.body = WeaponModel.shield(width, SHIELD_HEIGHT * wall_k, PAPER_THICKNESS * wall_k)
 	rec.node.add_child(rec.body)
 	for node: Node in rec.body.find_children("*", "MeshInstance3D", true, false):
 		rec.meshes.append(node as GeometryInstance3D)
@@ -192,14 +195,14 @@ func _create(shield: WeaponSystem.Shield) -> Rec:
 	if rec.soil:
 		_ctx.ground.crack(shield.center, -shield.along.angle(), &"strip", Vector2(width, SOIL_CRACK_DEPTH), SOIL_CRACK_TIME)
 		_ctx.particles.puff(FxParticles.Preset.SOIL, base, SOIL_BURST)
-		_ctx.particles.puff(FxParticles.Preset.CHIPS, base + Vector3(0.0, 0.5, 0.0), SOIL_CHIPS)
+		_ctx.particles.puff(FxParticles.Preset.CHIPS, base + Vector3(0.0, 0.5 * wall_k, 0.0), SOIL_CHIPS)
 	else:
 		_ctx.particles.puff(FxParticles.Preset.PAPER, base, PAPER_BITS)
 		if not _ctx.reduced and shield.def != null:
 			var forward: Vector2 = shield.forward() * shield.def.push_distance
 			var ahead: Vector3 = Vector3(forward.x, 0.0, forward.y)
-			var mid: Vector3 = Vector3(0.0, PAPER_TRAIL_Y, 0.0)
-			_ctx.ground.trail(base + mid, base + mid + ahead, PAPER_TRAIL_WIDTH, FxRelease.TINT_PAPER, PAPER_TRAIL_FRAMES * FxSquash.FRAME)
+			var mid: Vector3 = Vector3(0.0, PAPER_TRAIL_Y * wall_k, 0.0)
+			_ctx.ground.trail(base + mid, base + mid + ahead, PAPER_TRAIL_WIDTH * k, FxRelease.TINT_PAPER, PAPER_TRAIL_FRAMES * FxSquash.FRAME)
 	return rec
 
 

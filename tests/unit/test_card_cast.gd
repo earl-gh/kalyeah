@@ -133,7 +133,7 @@ func test_a_heal_tap_heals_yourself() -> void:
 	sim.players[3].hp = 50
 	sim.players[3].position = Vector2(-2.0, 5.0)
 	_cast(sim, &"heal")
-	assert_eq(sim.players[1].hp, 92)
+	assert_eq(sim.players[1].hp, 84)
 	assert_eq(sim.players[3].hp, 50)
 
 
@@ -143,7 +143,7 @@ func test_a_heal_dropped_near_your_kid_heals_yourself() -> void:
 	sim.players[3].hp = 50
 	sim.players[3].position = Vector2(-3.0, 5.0)
 	_cast(sim, &"heal", Vector2(-0.9, 5.0))
-	assert_eq(sim.players[1].hp, 92, "within self_cast_radius of your kid")
+	assert_eq(sim.players[1].hp, 84, "within self_cast_radius of your kid")
 	assert_eq(sim.players[3].hp, 50)
 
 
@@ -153,7 +153,7 @@ func test_a_heal_dragged_at_a_teammate_heals_them() -> void:
 	sim.players[3].hp = 50
 	sim.players[3].position = Vector2(-4.0, 5.0)
 	_cast(sim, &"heal", Vector2(-4.0, 5.5))
-	assert_eq(sim.players[3].hp, 92)
+	assert_eq(sim.players[3].hp, 84)
 	assert_eq(sim.players[1].hp, 50)
 
 

@@ -31,13 +31,37 @@ extends Resource
 @export var primary_weapon: WeaponDef = null
 @export var ultimate_weapon: WeaponDef = null
 ## Athletic Street Sprint: kicks in automatically after `sprint_delay` s without casting/taking damage.
-@export var sprint_enabled: bool = true
+@export var sprint_enabled: bool = false
 @export var sprint_delay: float = 1.2
 @export var sprint_multiplier: float = 1.32
+## Analog MoveStick walk/run threshold (`< walk_run_threshold` = walk with zero trip rolls; `>=` = run).
+@export var walk_run_threshold: float = 0.62
+## Stealth crouch walk speed multiplier (`BTN_CROUCH`, zero trip rolls).
+@export var crouch_speed_share: float = 0.55
+## Athletic street jump vertical launch velocity, gravity, and landing cooldown.
+@export var jump_velocity: float = 5.6
+@export var jump_gravity: float = 16.5
+@export var jump_cooldown: float = 0.25
+## Kinetic street ground slide burst speed, duration, and cooldown.
+@export var slide_speed: float = 10.2
+@export var slide_duration: float = 0.46
+@export var slide_cooldown: float = 3.2
 ## Luksong-Tinik parkour vault-dash burst parameters.
-@export var dash_speed: float = 22.0
+@export var dash_speed: float = 18.5
 @export var dash_duration: float = 0.24
 @export var dash_cooldown: float = 4.2
+## Small Barangay merienda power-up stand pickup, respawn, and buff tuning (`1=PALAMIG`, `2=TEKS`, `3=TURON`).
+@export var powerup_pickup_radius: float = 1.65
+@export var powerup_respawn_seconds: float = 25.0
+@export var palamig_heal: int = 18
+@export var palamig_speed_bonus: float = 0.22
+@export var palamig_duration: float = 10.0
+@export var teks_damage_bonus: float = 0.20
+@export var teks_ult_bonus: float = 25.0
+@export var teks_duration: float = 12.0
+@export var turon_damage_reduction: float = 0.25
+@export var turon_regen_per_s: float = 4.0
+@export var turon_duration: float = 10.0
 ## Bida Ultimate meter charge rates (0..100%).
 @export var ult_passive_per_s: float = 2.2
 @export var ult_per_damage: float = 0.45
@@ -109,9 +133,9 @@ extends Resource
 @export var overclock_speed_share: float = 0.5
 ## Tripping (owner, for realism; every game, every kid but the training dummies): each `trip_interval` s of running without stopping is one roll
 ## at `trip_chance` (0 = never); a kid that trips falls for `trip_seconds` and cannot move or cast, then gets up.
-@export_range(0.0, 1.0) var trip_chance: float = 0.2
-@export var trip_interval: float = 5.0
-@export var trip_seconds: float = 1.2
+@export_range(0.0, 1.0) var trip_chance: float = 0.12
+@export var trip_interval: float = 6.0
+@export var trip_seconds: float = 1.05
 ## Metres; within it the move target is reached.
 @export var move_arrival_radius: float = 0.1
 ## A tick that makes less than this share of its intended progress toward the target counts as stuck.

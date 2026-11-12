@@ -55,7 +55,17 @@ const SHOULDER_FAR: float = 400.0
 ## Sprint / Luksong-Tinik dash lens kick: degrees added to `shoulder_fov`, and smoothing speed.
 const SPEED_BOOST_FOV: float = 6.5
 const SPEED_BOOST_LERP: float = 8.0
+## Crouch / slide and jump vertical pivot offsets (metres) for the Deadlock shoulder camera.
+const CROUCH_PIVOT_OFFSET: float = -0.42
+const AIR_PIVOT_SHARE: float = 0.65
+const POSTURE_PIVOT_LERP: float = 14.0
+## Manual camera drag / mouse-look hold duration (seconds) before auto-behind follow resumes.
+const MANUAL_LOOK_HOLD: float = 1.6
+const AUTO_BEHIND_LERP: float = 4.6
+const AUTO_BEHIND_IDLE_LERP: float = 3.0
 
+var _vertical_offset: float = 0.0
+var _manual_look_hold: float = 0.0
 var _speed_boosting: bool = false
 var _fov_boost: float = 0.0
 var _obstacles_layout: MapLayout = null
@@ -179,15 +189,56 @@ func _place_shoulder(flip: bool) -> void:
 func reset_look() -> void:
 	look_yaw = 180.0 if _goal_flip else 0.0
 	look_pitch = rules.look_pitch_degrees
+	_manual_look_hold = 0.0
 
 
 ## Shoulder camera: a finger dragged `drag` UI pixels: right turns the view right, up looks up (within the pitch limits).
 func look(drag: Vector2) -> void:
 	if not rules.third_person:
 		return
+	if drag != Vector2.ZERO:
+		_manual_look_hold = MANUAL_LOOK_HOLD
 	look_yaw = fposmod(look_yaw - drag.x * rules.look_sensitivity, 360.0)
 	look_pitch = rules.clamp_pitch(look_pitch + drag.y * rules.look_sensitivity)
 	if _placed:
+		_apply_pose()
+
+
+## Default auto-behind shoulder follow: smoothly aligns `look_yaw` behind `facing` (`look_pitch` untouched),
+## yielding immediately to manual touch/mouse look for `MANUAL_LOOK_HOLD` seconds.
+func sync_behind_character(facing: Vector2, moving: bool, dt: float) -> void:
+	if rules == null or not rules.third_person:
+		return
+	var step_dt: float = maxf(dt, 0.0)
+	if _manual_look_hold > 0.0:
+		_manual_look_hold = maxf(0.0, _manual_look_hold - step_dt)
+		return
+	if facing.length_squared() <= 0.0001 or step_dt <= 0.0:
+		return
+	var target_yaw: float = fposmod(rad_to_deg(atan2(-facing.x, -facing.y)), 360.0)
+	var rate: float = AUTO_BEHIND_LERP if moving else AUTO_BEHIND_IDLE_LERP
+	var weight: float = 1.0 if Settings.reduced_motion else (1.0 - exp(-step_dt * rate))
+	var yaw_rad: float = lerp_angle(deg_to_rad(look_yaw), deg_to_rad(target_yaw), weight)
+	look_yaw = fposmod(rad_to_deg(yaw_rad), 360.0)
+	if _placed:
+		_apply_pose()
+
+
+func tick_manual_look(dt: float) -> void:
+	if _manual_look_hold > 0.0:
+		_manual_look_hold = maxf(0.0, _manual_look_hold - maxf(dt, 0.0))
+
+
+## Smoothly adjusts `_vertical_offset` for crouch/slide (`-0.42 m`) and jump (`+air_y * 0.65`).
+func sync_posture(crouching_or_sliding: bool, air_y: float, dt: float) -> void:
+	var target: float = (CROUCH_PIVOT_OFFSET if crouching_or_sliding else 0.0) + maxf(air_y, 0.0) * AIR_PIVOT_SHARE
+	if Settings.reduced_motion or dt <= 0.0:
+		_vertical_offset = target
+	elif is_equal_approx(_vertical_offset, target):
+		_vertical_offset = target
+	else:
+		_vertical_offset = lerpf(_vertical_offset, target, 1.0 - exp(-dt * POSTURE_PIVOT_LERP))
+	if _placed and rules != null and rules.third_person:
 		_apply_pose()
 
 
@@ -298,9 +349,11 @@ func _control_yaw() -> float:
 func _apply_pose() -> void:
 	if rules.third_person:
 		var pose: Array[Vector3] = rules.shoulder_pose(_aim, look_yaw, look_pitch)
+		var pivot_y: float = maxf(0.35, rules.shoulder_height + _vertical_offset)
 		var eye: Vector3 = pose[0]
+		eye.y = maxf(0.5, eye.y + (pivot_y - rules.shoulder_height))
 		if layout != null:
-			var pivot: Vector3 = Vector3(_aim.x, rules.shoulder_height, _aim.y)
+			var pivot: Vector3 = Vector3(_aim.x, pivot_y, _aim.y)
 			var arena_r: Variant = layout.get(&"arena_radius")
 			var radius: float = float(arena_r) if (arena_r is float or arena_r is int) else 0.0
 			eye = rules.clamp_shoulder_eye(pivot, eye, _obstacle_rects(), radius)

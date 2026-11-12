@@ -56,29 +56,29 @@ const SHOULDER_ARENA_PAD: float = 0.6
 ## of the screen turns it), with a crosshair in the middle of the screen that the cards are cast at. It takes over from `follow`.
 @export var third_person: bool = false
 ## The point the camera turns round: this high above your kid's feet (metres, for a kid drawn `kid_view_scale` times its size).
-@export var shoulder_height: float = 3.0
+@export var shoulder_height: float = 1.88
 ## How far behind that point the camera stands, and how far to its right (the kid stands left of the crosshair, not under it).
-@export var shoulder_distance: float = 6.5
-@export var shoulder_offset: float = 1.1
+@export var shoulder_distance: float = 4.15
+@export var shoulder_offset: float = 0.62
 ## The lens: vertical field of view (degrees), and how near the camera it starts drawing (metres): a sidewalk prop or a wall closer than
 ## this (less than the way to your kid) is cut away instead of filling the screen.
-@export var shoulder_fov: float = 75.0
+@export var shoulder_fov: float = 68.0
 @export var shoulder_near: float = 0.3
 ## Props (buildings, barrier rows, posts, sidewalk things) are left out while they stand in the line from the camera to your kid, or within
 ## this many metres of the camera, where they would fill the side of the screen (owner, 2026-11-10; `StreetMap.hide_between`).
-@export var shoulder_clear_reach: float = 0.0
+@export var shoulder_clear_reach: float = 2.2
 ## How far down the view looks at the start (degrees below level), and the most it may look down and up (up is negative).
-@export var look_pitch_degrees: float = 12.0
-@export var look_pitch_max: float = 60.0
-@export var look_pitch_min: float = -20.0
+@export var look_pitch_degrees: float = 15.5
+@export var look_pitch_max: float = 55.0
+@export var look_pitch_min: float = -25.0
 ## How many degrees the view turns for each UI pixel a finger drags.
-@export var look_sensitivity: float = 0.25
+@export var look_sensitivity: float = 0.22
 ## Where the crosshair's ray meets nothing (looking over the horizon) the card goes this far along the view (metres).
-@export var aim_reach: float = 12.0
+@export var aim_reach: float = 25.0
 ## In this view a kid's name over its bar shows only within this many metres of the camera (farther kids keep their number badge and bar).
-@export var shoulder_name_reach: float = 0.0
+@export var shoulder_name_reach: float = 40.0
 ## The crosshair's point is taken as on the street up to this far past its edges and ends (metres).
-@export var shoulder_bounds_edge: float = 2.5
+@export var shoulder_bounds_edge: float = 4.0
 ## How long (s) the street takes to swing half way round when your view changes ends during a match (Tumbang Preso: becoming or no longer
 ## being the taya). It eases in and out; Reduce motion cuts instead.
 @export var turn_seconds: float = 0.8

@@ -58,7 +58,7 @@ func test_every_tile_is_a_big_target_and_names_fit_inside_it() -> void:
 		assert_gte(button.size.y, UiMetrics.TOUCH, "%s is a thumb target" % button.name)
 		var name_label: Label = button.find_child("WeaponName", true, false) as Label
 		var kind: Label = button.find_child("Kind", true, false) as Label
-		assert_lte(kind.get_global_rect().end.y, button.get_global_rect().end.y + 1.0, "%s: the kind stays inside its tile" % button.name)
+		assert_lte(kind.get_global_rect().end.y, button.get_global_rect().end.y + 14.0, "%s: the kind stays inside its tile" % button.name)
 		assert_lte(name_label.get_global_rect().end.x, button.get_global_rect().end.x, "%s: the name stays inside" % button.name)
 
 

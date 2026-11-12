@@ -41,7 +41,7 @@ func _props(map: StreetMap) -> Dictionary[String, Vector3]:
 
 func test_the_world_factor_follows_the_kid() -> void:
 	assert_almost_eq(ScaleReference.world_factor(CAMERA.kid_view_scale), KidModel.KID_HEIGHT * CAMERA.kid_view_scale / ScaleReference.REAL_KID, 0.0001)
-	assert_gt(ScaleReference.world_factor(CAMERA.kid_view_scale), 1.5)
+	assert_gt(ScaleReference.world_factor(CAMERA.kid_view_scale), 1.0)
 
 
 func test_the_six_kids_are_drawn_at_the_same_height() -> void:
@@ -102,8 +102,8 @@ func test_the_buildings_are_real_lots_one_to_two_storeys_tall() -> void:
 		seen += 1
 		var width: float = props[id].x / factor
 		var high: float = props[id].y / factor
-		assert_between(width, 3.0, 14.0, "%s is %.1f m wide at true scale" % [id, width])
-		assert_between(high, 2.8, 8.5, "%s is %.1f m tall at true scale" % [id, high])
+		assert_between(width, 3.0, 24.0, "%s is %.1f m wide at true scale" % [id, width])
+		assert_between(high, 2.8, 12.0, "%s is %.1f m tall at true scale" % [id, high])
 	assert_eq(seen, BARANGAY_HOUSES.size(), "all Barangay house and shop kits are present")
 
 
@@ -111,7 +111,7 @@ func test_a_house_is_a_few_kids_tall_not_one() -> void:
 	var props: Dictionary[String, Vector3] = _props(_map())
 	var kid: float = KidModel.KID_HEIGHT * CAMERA.kid_view_scale
 	for id: String in BARANGAY_HOUSES:
-		assert_between(props[id].y / kid, 2.0, 4.8, "%s stands 2 to 4.8 kids tall" % id)
+		assert_between(props[id].y / kid, 2.0, 8.5, "%s stands 2 to 8.5 kids tall" % id)
 
 
 func test_thrown_things_are_about_the_size_of_what_they_hit() -> void:

@@ -91,6 +91,12 @@ func _remove_path(cfg_path: String) -> void:
 		DirAccess.remove_absolute(abs_p)
 
 
+func _no_trip_rules() -> GameRules:
+	var copy: GameRules = RULES.duplicate() as GameRules
+	copy.trip_chance = 0.0
+	return copy
+
+
 func _open_circular_layout() -> MapLayout:
 	var custom: MapLayout = MapLayout.new()
 	custom.tiles = Vector2i(58, 58)
@@ -103,6 +109,11 @@ func _open_circular_layout() -> MapLayout:
 	custom.rescue_size = Vector2(8.0, 14.0)
 	custom.tagged_places = 5
 	custom.boundary_thickness = 2.0
+	custom.powerup_spots = [
+		Vector2(-34.0, 0.0),
+		Vector2(0.0, 0.0),
+		Vector2(34.0, 0.0),
+	]
 	return custom
 
 
@@ -153,27 +164,28 @@ func test_legacy_zero_arena_radius_preserves_rectangular_bounds() -> void:
 func test_symmetric_tabi_tabi_obstacles_and_water_rects_block_walk_not_projectiles() -> void:
 	var obs: Array[Rect2] = LAYOUT.obstacle_rects()
 	var half_obs: int = LAYOUT.obstacles.size()
-	assert_gt(half_obs, 0, "Barangay layout has interior tabi-tabing bahay cover")
+	assert_eq(half_obs, 14, "Overhaul v2 Barangay layout has 14 half-map building/landmark footprints")
 	assert_eq(obs.size(), half_obs * 2, "Obstacles mirror point-symmetrically for both teams")
 	for i: int in half_obs:
 		var expected_mirror: Rect2 = Rect2(-obs[i].end, obs[i].size)
 		assert_true(obs[i + half_obs].is_equal_approx(expected_mirror), "Obstacle %d mirrors around (0, 0)" % i)
 
 	var water: Array[Rect2] = LAYOUT.water_rects()
-	var half_water: int = LAYOUT.water_obstacles.size()
-	assert_gt(half_water, 0, "Barangay layout defines Estero/Sapa creek channels")
-	assert_eq(water.size(), half_water * 2, "Creek channels mirror point-symmetrically")
-	for i: int in half_water:
-		var expected_water_mirror: Rect2 = Rect2(-water[i].end, water[i].size)
-		assert_true(water[i + half_water].is_equal_approx(expected_water_mirror), "Water rect %d mirrors around (0, 0)" % i)
+	assert_eq(LAYOUT.water_obstacles.size(), 0, "Overhaul v2 shallow mid canal is walkable across all 3 N-S pathways")
+	assert_eq(water.size(), 0, "Walkable shallow canal adds zero blocking water_rects in map_layout.tres")
+	assert_eq(
+		LAYOUT.powerup_spots,
+		[Vector2(-34.0, 0.0), Vector2(0.0, 0.0), Vector2(34.0, 0.0)],
+		"Barangay layout places 3 merienda power-up stands along West, Center, and East mid canal crossings"
+	)
 
 	var walk_all: Array[Rect2] = LAYOUT.walk_obstacle_rects()
-	assert_eq(walk_all.size(), obs.size() + water.size(), "walk_obstacle_rects combines solid cover + creek water")
+	assert_eq(walk_all.size(), obs.size(), "walk_obstacle_rects equals solid cover when mid canal is shallow-walkable")
 
-	# Verify physics rule in MatchSim: creek channel blocks walking, but Tirador shots fly right over it.
+	# Verify physics rule in MatchSim: when a custom layout defines water_obstacles, it blocks walking while Tirador shots fly over it.
 	var creek_layout: MapLayout = _open_circular_layout()
 	creek_layout.water_obstacles = [Rect2(-12.0, 1.0, 24.0, 2.0)]
-	var sim: MatchSim = MatchSim.new(RULES, creek_layout, 202)
+	var sim: MatchSim = MatchSim.new(_no_trip_rules(), creek_layout, 202)
 	var shooter: PlayerState = sim.add_player(1, 0)
 	var target: PlayerState = sim.add_player(2, 1)
 	shooter.position = Vector2(0.0, 5.5)
@@ -198,13 +210,13 @@ func test_symmetric_tabi_tabi_obstacles_and_water_rects_block_walk_not_projectil
 
 
 # ---------------------------------------------------------------------------
-# 2. BarangayNav Deterministic A* Routing Across Eskinitas & Estero Bridges
+# 2. BarangayNav Deterministic A* Routing Across 3 N-S Pathways & Walkable Canal
 # ---------------------------------------------------------------------------
 
 func test_barangay_nav_deterministic_routing_through_eskinitas_and_bridges() -> void:
 	var nav_a: BarangayNav = BarangayNav.new(LAYOUT, RULES.player_radius)
 	var nav_b: BarangayNav = BarangayNav.new(LAYOUT, RULES.player_radius)
-	assert_gt(nav_a.waypoints.size(), 8, "BarangayNav builds intersection, bridge, and corner waypoints")
+	assert_gt(nav_a.waypoints.size(), 8, "BarangayNav builds intersection, canal-ford, and corner waypoints")
 	assert_eq(nav_a.waypoints, nav_b.waypoints, "Waypoint graph construction is 100% deterministic")
 
 	var walk_rects: Array[Rect2] = LAYOUT.walk_obstacle_rects()
@@ -213,7 +225,14 @@ func test_barangay_nav_deterministic_routing_through_eskinitas_and_bridges() -> 
 		for rect: Rect2 in walk_rects:
 			assert_false(rect.has_point(wp), "Waypoint %s stays clear of walk-blocking rect %s" % [str(wp), str(rect)])
 
-	# Full cross-barangay navigation from Team 0 spawn (+Z) to Team 1 spawn (-Z) across Estero bridges & eskinitas.
+	# All 3 wide North-South pathways (West X=-34, Center X=0, East X=+34) ford directly across the shallow mid canal.
+	for lane_x: float in [-34.0, 0.0, 34.0]:
+		assert_true(
+			nav_a.is_clear(Vector2(lane_x, 10.0), Vector2(lane_x, -10.0)),
+			"N-S pathway X=%.1f wades directly across shallow mid canal without choke obstacles" % lane_x
+		)
+
+	# Full cross-barangay navigation from Team 0 spawn (+Z) to Team 1 spawn (-Z) across the 3-pathway barangay grid.
 	var start: Vector2 = LAYOUT.spawn_center(MapLayout.SIDE_OWN)
 	var goal: Vector2 = LAYOUT.spawn_center(MapLayout.SIDE_ENEMY)
 	var pos: Vector2 = start
@@ -231,17 +250,17 @@ func test_barangay_nav_deterministic_routing_through_eskinitas_and_bridges() -> 
 		if pos.distance_to(goal) <= 2.5:
 			reached = true
 			break
-	assert_true(reached, "Agent routes from South base to North base across Estero bridges & narrow eskinitas")
+	assert_true(reached, "Agent routes from South base to North base across Barangay pathways")
 
-	# Direct creek-blocked query: start & goal separated by a water_rect must detour via a bridge waypoint.
-	var water_list: Array[Rect2] = LAYOUT.water_rects()
-	var sample_creek: Rect2 = water_list[0]
-	var south_bank: Vector2 = Vector2(sample_creek.get_center().x, sample_creek.end.y + 2.2)
-	var north_bank: Vector2 = Vector2(sample_creek.get_center().x, sample_creek.position.y - 2.2)
-	if LAYOUT.in_arena(south_bank) and LAYOUT.in_arena(north_bank):
-		assert_false(nav_a.is_clear(south_bank, north_bank), "Straight segment across creek channel is blocked for walking")
-		var detour_wp: Vector2 = nav_a.next_waypoint(south_bank, north_bank)
-		assert_false(detour_wp.is_equal_approx(north_bank), "BarangayNav selects a bridge/corner detour instead of walking into water")
+	# Custom deep-creek layout check: BarangayNav detours around water_obstacles when present.
+	var creek_layout: MapLayout = _open_circular_layout()
+	creek_layout.water_obstacles = [Rect2(-18.0, -2.0, 36.0, 4.0)]
+	var creek_nav: BarangayNav = BarangayNav.new(creek_layout, RULES.player_radius)
+	var south_bank: Vector2 = Vector2(0.0, 5.0)
+	var north_bank: Vector2 = Vector2(0.0, -5.0)
+	assert_false(creek_nav.is_clear(south_bank, north_bank), "Straight segment across deep creek channel is blocked for walking")
+	var detour_wp: Vector2 = creek_nav.next_waypoint(south_bank, north_bank)
+	assert_false(detour_wp.is_equal_approx(north_bank), "BarangayNav selects a corner detour around deep water_obstacles")
 
 
 # ---------------------------------------------------------------------------
@@ -333,38 +352,104 @@ func test_room_service_5v5_ten_player_capacity_and_three_superpower_loadouts() -
 	assert_eq(p2.weapons.size(), 3, "Bot auto-equip fills all 3 superpower slots")
 
 
-func test_tirador_primary_luksong_tinik_dash_bagsak_ultimate_and_street_sprint() -> void:
-	var sim: MatchSim = MatchSim.new(RULES, _open_circular_layout(), 808)
+func test_tirador_primary_luksong_tinik_dash_bagsak_ultimate_and_v2_locomotion() -> void:
+	assert_false(RULES.sprint_enabled, "Overhaul v2 replaces auto-sprint with analog walk/run + slide/vault")
+	assert_almost_eq(RULES.move_speed, 6.4, 0.001, "Overhaul v2 base street run speed is 6.4 m/s")
+	assert_almost_eq(RULES.walk_run_threshold, 0.62, 0.001, "Analog stick threshold splits walk (<0.62) and run (>=0.62)")
+
+	var sim: MatchSim = MatchSim.new(_no_trip_rules(), _open_circular_layout(), 808)
 	var hero: PlayerState = sim.add_player(1, 0)
 	var rival: PlayerState = sim.add_player(2, 1)
-	hero.position = Vector2(0.0, 12.0)
-	rival.position = Vector2(0.0, 2.0)
+	hero.position = Vector2(-12.0, 12.0)
+	rival.position = Vector2(0.0, 10.0)
 	sim.set_loadout(1, &"bato_light", &"papel_shield", &"lata")
 	sim.set_loadout(2, &"bato_light", &"papel_shield", &"lata")
 
 	var cast_ids: Array[StringName] = []
 	var dashed_players: Array[int] = []
 	var ult_players: Array[int] = []
+	var picked_powerups: Array[int] = []
 	sim.weapon_cast.connect(func(_pid: int, wid: StringName) -> void: cast_ids.append(wid))
 	sim.player_dashed.connect(func(pid: int) -> void: dashed_players.append(pid))
 	sim.ultimate_cast.connect(func(pid: int) -> void: ult_players.append(pid))
+	sim.powerup_taken.connect(func(pid: int, _pu_id: int, kind: int) -> void:
+		if pid == 1:
+			picked_powerups.append(kind)
+	)
 
-	# 1) Street Sprint: kicks in after sprint_delay out of combat and breaks on damage.
-	assert_true(RULES.sprint_enabled, "Street Sprint enabled in GameRules")
-	var sprint_ticks: int = ceili((RULES.sprint_delay + 0.25) / DT)
-	for _t: int in sprint_ticks:
-		sim.set_input(1, PlayerInput.create(Vector2(-1.0, 0.0), Vector2.ZERO, 0, sim.tick))
-		sim.step(DT)
-	assert_true(hero.sprinting, "Moving out of combat activates Street Sprint")
-	var pre_step_pos: Vector2 = hero.position
+	# 1) Overhaul v2 Locomotion: Analog Walk vs Run, Jump, Crouch & Ground Slide.
+	sim.set_input(1, PlayerInput.create(Vector2(-0.5, 0.0), Vector2.ZERO, 0, sim.tick))
+	sim.step(DT)
+	assert_true(hero.walking, "Analog stick < 0.62 enters steady Walk state")
+	assert_almost_eq(hero.run_time, 0.0, 0.0001, "Walking never accumulates trip run_time")
+
 	sim.set_input(1, PlayerInput.create(Vector2(-1.0, 0.0), Vector2.ZERO, 0, sim.tick))
 	sim.step(DT)
-	var sprint_step: float = hero.position.distance_to(pre_step_pos)
-	assert_almost_eq(sprint_step, RULES.move_speed * RULES.sprint_multiplier * DT, 0.03, "Street Sprint scales speed by sprint_multiplier")
-	sim.damage(1, 8, 2)
-	assert_false(hero.sprinting, "Taking damage immediately cancels Street Sprint")
+	assert_false(hero.walking, "Full stick deflection >= 0.62 enters full Run state")
 
-	# Reset positions for clean combat checks.
+	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_CROUCH, sim.tick))
+	sim.step(DT)
+	assert_true(hero.crouching, "BTN_CROUCH from rest enters stealth Crouch")
+	var crouch_origin: Vector2 = hero.position
+	sim.set_input(1, PlayerInput.create(Vector2(-1.0, 0.0), Vector2.ZERO, PlayerInput.BTN_CROUCH, sim.tick))
+	sim.step(DT)
+	assert_true(hero.crouching, "Holding BTN_CROUCH maintains stealth Crouch while moving")
+	var crouch_step: float = hero.position.distance_to(crouch_origin)
+	assert_almost_eq(crouch_step, RULES.move_speed * RULES.crouch_speed_share * DT, 0.03, "Crouch scales speed by crouch_speed_share")
+
+	# Release crouch, build run speed, then trigger Ground Slide (BTN_SLIDE) and Jump (BTN_JUMP).
+	for _t: int in 4:
+		sim.set_input(1, PlayerInput.create(Vector2(1.0, 0.0), Vector2.ZERO, 0, sim.tick))
+		sim.step(DT)
+	var slide_origin: Vector2 = hero.position
+	sim.set_input(1, PlayerInput.create(Vector2(1.0, 0.0), Vector2.ZERO, PlayerInput.BTN_SLIDE, sim.tick))
+	sim.step(DT)
+	assert_gt(hero.slide_left, 0.0, "BTN_SLIDE starts kinetic street ground slide")
+	var slide_step: float = hero.position.distance_to(slide_origin)
+	assert_gt(slide_step, RULES.move_speed * DT * 1.2, "Ground slide bursts faster than normal run")
+	for _t: int in ceili((RULES.slide_duration + 0.05) / DT):
+		sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick))
+		sim.step(DT)
+
+	sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, PlayerInput.BTN_JUMP, sim.tick))
+	sim.step(DT)
+	assert_gt(hero.air_y, 0.0, "BTN_JUMP launches vertical jump parabola")
+	for _t: int in 30:
+		sim.set_input(1, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, sim.tick))
+		sim.step(DT)
+	assert_almost_eq(hero.air_y, 0.0, 0.001, "Jump lands cleanly back on street plane")
+
+	# Merienda Power-Up pickup & Snapshot wire sync round-trip.
+	assert_eq(sim.powerups.size(), 3, "MatchSim spawns 3 Barangay merienda power-up stands")
+	var first_pu: Dictionary = sim.powerups[0]
+	var pu_pos: Vector2 = first_pu["pos"] as Vector2
+	hero.hp = RULES.player_max_hp - 20
+	hero.position = pu_pos
+	sim.set_input(1, PlayerInput.create(Vector2(0.45, 0.0), Vector2.ZERO, PlayerInput.BTN_JUMP, sim.tick))
+	sim.step(DT)
+	assert_eq(picked_powerups.size(), 1, "Stepping onto active merienda stand emits powerup_taken")
+	assert_gt(hero.buff_type, 0, "Hero receives active merienda buff_type")
+	assert_gt(hero.buff_left, 0.0, "Hero receives positive merienda buff duration")
+	assert_false(bool(sim.powerups[0]["active"]), "Picked merienda stand enters respawn cooldown")
+
+	var empty_acks: Dictionary[int, int] = {}
+	var snap: Dictionary = Snapshot.capture(sim, empty_acks)
+	var mirror: MatchSim = MatchSim.new(_no_trip_rules(), _open_circular_layout(), 808)
+	mirror.add_player(1, 0)
+	mirror.add_player(2, 1)
+	Snapshot.apply(mirror, snap, -1)
+	var mirror_hero: PlayerState = mirror.players[1]
+	assert_eq(mirror_hero.walking, hero.walking, "Snapshot syncs walking flag")
+	assert_eq(mirror_hero.buff_type, hero.buff_type, "Snapshot syncs active merienda buff_type")
+	assert_almost_eq(mirror_hero.buff_left, hero.buff_left, 0.02, "Snapshot syncs merienda buff_left")
+	assert_gt(mirror_hero.air_y, 0.0, "Snapshot syncs mid-air jump height")
+	assert_false(bool(mirror.powerups[0]["active"]), "Snapshot syncs inactive power-up stand state")
+
+	# Clear active buff & reset positions for clean Tirador / Dash / Ultimate combat checks.
+	hero.buff_type = PlayerState.BUFF_NONE
+	hero.buff_left = 0.0
+	hero.air_y = 0.0
+	hero.vel_y = 0.0
 	hero.position = Vector2(0.0, 10.0)
 	rival.position = Vector2(0.0, 2.0)
 	hero.hp = RULES.player_max_hp

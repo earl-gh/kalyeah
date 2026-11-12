@@ -137,8 +137,8 @@ func test_a_host_without_a_room_is_not_a_success_and_ends_early() -> void:
 func test_a_full_room_and_a_started_match_say_so() -> void:
 	var server: GameServer = _host(18957, 18967)
 	var room: RoomService.Room = server.rooms.rooms.values()[0] as RoomService.Room
-	for peer: int in range(701, 706):
-		server.rooms.join(room.code, peer, "Friend")  # six places in all
+	for peer: int in range(701, 710):
+		server.rooms.join(room.code, peer, "Friend")  # ten places in all (5v5)
 	_search(_plan(18957, 18967, [HotspotNet.LIMITED_BROADCAST]))
 	assert_true(_finder.failed)
 	assert_eq(_finder.failure_message, "That room is full!")

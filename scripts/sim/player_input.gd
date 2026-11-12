@@ -26,14 +26,21 @@ const BTN_PRIMARY: int = 1 << 8
 const BTN_DASH: int = 1 << 9
 ## Bagsak ng Kalye Ultimate superpower (consumes 100% `ult_charge`).
 const BTN_ULTIMATE: int = 1 << 10
+## Athletic street jump (`air_y` vertical parabola).
+const BTN_JUMP: int = 1 << 11
+## Stealth crouch (`crouch_speed_share` walk speed, 0 trip rolls; fresh press while running fast slides when ready).
+const BTN_CROUCH: int = 1 << 12
+## Kinetic street ground slide burst along movement or facing direction.
+const BTN_SLIDE: int = 1 << 13
 ## Every bit a client may send; anything else is dropped by the server.
 const KNOWN_BITS: int = (
 	BTN_CARD_1 | BTN_CARD_2 | BTN_CARD_3 | BTN_CARD_4
 	| BTN_AIM_CANCEL | BTN_MOVE_TARGET | BTN_AIM_POINT
 	| BTN_PRIMARY | BTN_DASH | BTN_ULTIMATE
+	| BTN_JUMP | BTN_CROUCH | BTN_SLIDE
 )
 
-## Stick (bots only: the phone never sends one), x = left/right, y = along the lane (screen up = -1). Length <= 1. Non-zero clears the move target.
+## Analog movement stick (`0 < move.length() < walk_run_threshold` = Walk; `>= walk_run_threshold` = Run). Non-zero clears `move_target`.
 var move: Vector2 = Vector2.ZERO
 ## Stick-style aim relative to the kid (length 0..1 of the range; zero = auto-aim). Used when BTN_AIM_POINT is off.
 var aim: Vector2 = Vector2.ZERO

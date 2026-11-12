@@ -112,6 +112,10 @@ func watch(sim: MatchSim) -> void:
 	sim.effect_applied.connect(projectiles.on_effect)
 	sim.player_dashed.connect(hero_actions.on_player_dashed)
 	sim.ultimate_cast.connect(hero_actions.on_ultimate_cast)
+	if sim.has_signal(&"powerup_picked"):
+		sim.connect(&"powerup_picked", hero_actions.on_powerup_taken)
+	elif sim.has_signal(&"powerup_taken"):
+		sim.connect(&"powerup_taken", hero_actions.on_powerup_taken)
 
 
 ## The screen draws flying things between two sim ticks with `blend` (offline only).

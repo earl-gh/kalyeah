@@ -256,8 +256,8 @@ func test_multiplayer_pick_keeps_timeout_while_practice_does_not() -> void:
 
 func test_weapon_statistics_preserve_fractional_range_and_damage_units() -> void:
 	var heavy: WeaponDef = load("res://data/weapons/gunting_heavy.tres") as WeaponDef
-	assert_eq(LoadoutCards.stat_line(heavy), "42 dmg · CD 8.5s · Range 10.5m")
+	assert_eq(LoadoutCards.stat_line(heavy), "38 dmg · CD 9s · Range 9m")
 	var light: WeaponDef = load("res://data/weapons/gunting_light.tres") as WeaponDef
-	assert_eq(LoadoutCards.stat_line(light), "11 dmg / snip · CD 5s · Range 8.5m")
+	assert_eq(LoadoutCards.stat_line(light), "9 dmg / snip · CD 5.4s · Range 7.5m")
 	var field: WeaponDef = load("res://data/weapons/jacks.tres") as WeaponDef
-	assert_eq(LoadoutCards.stat_line(field), "8 dmg / 0.5s · CD 10s · Range 19m")
+	assert_eq(LoadoutCards.stat_line(field), "7 dmg / 0.5s · CD 10.5s · Range 19m")

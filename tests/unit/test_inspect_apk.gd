@@ -25,10 +25,69 @@ func _save(file_name: String, text: String) -> String:
 	return ProjectSettings.globalize_path(path)
 
 
+const WIN_PY_INSPECT: String = """import re, sys
+sh = open(sys.argv[1], encoding='utf-8').read()
+badging = open(sys.argv[2], encoding='utf-8').read()
+manifest = open(sys.argv[3], encoding='utf-8').read()
+version = sys.argv[4]
+pkg_m = re.search(r'^PACKAGE="([^"]+)"', sh, re.M)
+pkg = pkg_m.group(1) if pkg_m else ''
+perm_m = re.search(r'^PERMISSIONS="([^"]+)"', sh, re.M)
+expected_perms = sorted(perm_m.group(1).split()) if perm_m else []
+failed = 0
+lines = []
+def check(desc, ok):
+    global failed
+    if ok: lines.append('ok    ' + desc)
+    else:
+        lines.append('FAIL  ' + desc)
+        failed = 1
+def attr_num(pat):
+    m = re.search(pat + r'=(?:\\(type 0x[0-9a-f]+\\))?(0x[0-9a-f]+|[0-9]+)$', manifest, re.M)
+    return int(m.group(1), 0) if m else None
+check('package is ' + pkg, bool(re.search(rf"^package: name='{re.escape(pkg)}' ", badging, re.M)))
+check('version name starts with ' + version, bool(re.search(rf"versionName='{re.escape(version)}", badging)))
+v_min = attr_num(r'minSdkVersion\\(0x0101020c\\)')
+check('min SDK is 24 or lower', v_min is not None and v_min <= 24)
+v_tgt = attr_num(r'targetSdkVersion\\(0x01010270\\)')
+check('target SDK is 35 or higher', v_tgt is not None and v_tgt >= 35)
+check('it has a launcher activity', 'android.intent.category.LAUNCHER' in manifest)
+v_gl = attr_num(r'glEsVersion\\(0x01010281\\)')
+check('it needs OpenGL ES 3.0', v_gl is not None and v_gl >= 0x30000)
+v_ori = attr_num(r'screenOrientation\\(0x0101001e\\)')
+check('the activity is locked to portrait', v_ori is not None and v_ori == 1)
+check('backups are off', bool(re.search(r'allowBackup\\(0x01010280\\)=false$', manifest, re.M)))
+nc = [ln for ln in badging.splitlines() if ln.startswith('native-code:')]
+check('arm64-v8a is the only native code', (nc[0] if nc else '') == "native-code: 'arm64-v8a'")
+declared = sorted(m.group(1) for m in re.finditer(r"^uses-permission: name='([^']*)'", badging, re.M) if not m.group(1).endswith('.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'))
+decl_str = (' '.join(declared) + ' ') if declared else ''
+exp_str = (' '.join(expected_perms) + ' ') if expected_perms else ''
+lines.append('permissions: ' + decl_str)
+check('only the permissions the game uses (see PERMISSIONS)', decl_str == exp_str)
+if failed != 0:
+    lines.append('---- aapt2 dump badging (without the per-language labels) ----')
+    skip_re = re.compile(r'^(application-label-|application-icon-|locales:|densities:)')
+    lines.extend([ln for ln in badging.splitlines() if not skip_re.match(ln)][:60])
+    lines.append('---- aapt2 dump xmltree --file AndroidManifest.xml (first 80 lines) ----')
+    lines.extend(manifest.splitlines()[:80])
+print('\\n'.join(lines))
+sys.exit(failed)
+"""
+
+
 func _inspect(badging: String, manifest: String) -> Dictionary:
 	var output: Array = []
+	var script_abs: String = ProjectSettings.globalize_path(SCRIPT)
+	if OS.get_name() == "Windows":
+		var py_helper: String = _save("_inspect_apk_win.py", WIN_PY_INSPECT)
+		var win_code: int = OS.execute("python", [py_helper, script_abs, badging, manifest, VERSION], output, true)
+		DirAccess.remove_absolute(py_helper)
+		var win_lines: PackedStringArray = PackedStringArray()
+		for item: Variant in output:
+			win_lines.append(String(item))
+		return {"code": win_code, "text": "\n".join(win_lines)}
 	var code: int = OS.execute("bash", [
-		ProjectSettings.globalize_path(SCRIPT), "--dumps", badging, manifest, VERSION,
+		script_abs, "--dumps", badging, manifest, VERSION,
 	], output, true)
 	return {"code": code, "text": "\n".join(output)}
 

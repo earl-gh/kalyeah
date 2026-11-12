@@ -64,10 +64,12 @@ static func length_for(speed: float) -> float:
 static func play(ctx: FxContext, from: Vector2, dir: Vector2, speed: float, height: float, tint: Color = TINT) -> bool:
 	if ctx.reduced or dir.length_squared() < 0.0001:
 		return false
+	var k: float = ctx.kid_scale()
 	var aim: Vector2 = dir.normalized()
-	var start: Vector2 = from + aim * HAND_CLEAR
-	var end: Vector2 = start + aim * length_for(speed)
-	return ctx.ground.trail(Vector3(start.x, height, start.y), Vector3(end.x, height, end.y), WIDTH, tint, FxSquash.TRAIL_FRAMES * FxSquash.FRAME)
+	var start: Vector2 = from + aim * (HAND_CLEAR * k)
+	var span: float = length_for(speed) * (k if speed <= 0.0 else 1.0)
+	var end: Vector2 = start + aim * span
+	return ctx.ground.trail(Vector3(start.x, height, start.y), Vector3(end.x, height, end.y), WIDTH * k, tint, FxSquash.TRAIL_FRAMES * FxSquash.FRAME)
 
 
 ## Draws the trail of a fast thing whose head is at `head` (world) moving along `dir` at `speed` m/s: it runs back along the path,
@@ -75,5 +77,6 @@ static func play(ctx: FxContext, from: Vector2, dir: Vector2, speed: float, heig
 static func behind(ctx: FxContext, head: Vector3, dir: Vector3, speed: float, frames: int = FxSquash.TRAIL_FRAMES, width: float = WIDTH, tint: Color = TINT) -> bool:
 	if ctx.reduced or dir.length_squared() < 0.0001:
 		return false
+	var use_w: float = width * ctx.kid_scale() if is_equal_approx(width, WIDTH) else width
 	var tail: Vector3 = head - dir.normalized() * length_for(speed)
-	return ctx.ground.trail(tail, head, width, tint, frames * FxSquash.FRAME)
+	return ctx.ground.trail(tail, head, use_w, tint, frames * FxSquash.FRAME)

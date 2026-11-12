@@ -23,15 +23,15 @@ const TILE_HEIGHT: float = 200.0
 const NAME_FONT: int = UiMetrics.BODY
 const DESCRIPTION_FONT: int = UiMetrics.BODY
 const STAT_FONT: int = UiMetrics.DETAIL
-const PICKED_COLOR: Color = Color(1.0, 0.82, 0.25)
+const PICKED_COLOR: Color = Color("f5a623")
 const CARD_COLOR: Color = KalyeahTheme.SURFACE
 const SURFACE_SELECTED: Color = KalyeahTheme.SURFACE_RAISED
-const INK: Color = Color(0.1, 0.06, 0.06)
+const INK: Color = Color("2a2522")
 const KIND_COLORS: Dictionary[WeaponDef.Kind, Color] = {
-	WeaponDef.Kind.ATTACK: Color(1.0, 0.42, 0.34),
-	WeaponDef.Kind.CROWD_CONTROL: Color(0.74, 0.52, 1.0),
-	WeaponDef.Kind.BLOCK: Color(0.42, 0.72, 1.0),
-	WeaponDef.Kind.HEAL: Color(0.45, 0.85, 0.4),
+	WeaponDef.Kind.ATTACK: Color("e2553e"),
+	WeaponDef.Kind.CROWD_CONTROL: Color("9b63d9"),
+	WeaponDef.Kind.BLOCK: Color("1f9d8b"),
+	WeaponDef.Kind.HEAL: Color("38a852"),
 }
 
 var pick: WeaponPick
@@ -261,7 +261,9 @@ func show_info(id: StringName) -> void:
 	var def: WeaponDef = _defs[id]
 	_info_name.text = def.display_name
 	_info_kind.text = String(WeaponsPage.KIND_NAMES.get(def.kind, ""))
-	_info_kind.add_theme_color_override("font_color", kind_color(def.kind))
+	var base_kind_col: Color = kind_color(def.kind)
+	var tuned_kind_col: Color = base_kind_col.lightened(0.28) if KalyeahTheme.SURFACE.get_luminance() < 0.35 else base_kind_col.darkened(0.18)
+	_info_kind.add_theme_color_override("font_color", tuned_kind_col)
 	_info_text.text = def.description
 	for child: Node in _info_bars.get_children():
 		_info_bars.remove_child(child)
@@ -337,7 +339,7 @@ func _refresh() -> void:
 	for id: StringName in _profiles:
 		_profiles[id].set_pressed_no_signal(id == character_id)
 		_profiles[id].disabled = _taken.has(id)
-		_profiles[id].modulate = Color(0.6, 0.6, 0.66) if _taken.has(id) else Color.WHITE
+		_profiles[id].modulate = Color(0.72, 0.68, 0.63) if _taken.has(id) else Color.WHITE
 		_taken_labels[id].visible = _taken.has(id)
 	var slots: int = slot_count()
 	for id: StringName in _buttons:

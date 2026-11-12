@@ -62,8 +62,10 @@ func slap(team: int, kid_radius: float, at: Vector2) -> void:
 	var dir: Vector3 = Vector3(best.track.dir.x, 0.0, best.track.dir.y)
 	best.squash.basis = FxSquash.stretch_basis(dir, SLAP_S)
 	# the arc's middle crosses the path at the slipper, its centre `SLAP_ARC` m back along the flight
-	var place: Vector3 = Vector3(best.holder.position.x, SLAP_Y, best.holder.position.z) - dir * SLAP_ARC
-	_ctx.ground.smear(Transform3D(Basis(Vector3.UP, atan2(-dir.x, -dir.z)), place), &"arc", SLAP_ARC, FxRelease.TINT_SLIPPER, SLAP_FRAMES * FxSquash.FRAME)
+	var k: float = _ctx.kid_scale()
+	var arc_r: float = SLAP_ARC * k
+	var place: Vector3 = Vector3(best.holder.position.x, SLAP_Y * k, best.holder.position.z) - dir * arc_r
+	_ctx.ground.smear(Transform3D(Basis(Vector3.UP, atan2(-dir.x, -dir.z)), place), &"arc", arc_r, FxRelease.TINT_SLIPPER, SLAP_FRAMES * FxSquash.FRAME)
 
 
 ## The slipper frisbees out, hangs and turns back spinning the other way, and slaps what it hits.

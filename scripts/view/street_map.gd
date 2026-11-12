@@ -1,10 +1,12 @@
 class_name StreetMap
 extends Node3D
-## Circular Tight Provincial Barangay 3D map (view only; reads MapLayout, holds no sim rules).
-## Features an unbroken 360-degree ring of tabi-tabing mga bahay around `arena_radius = 84m`,
-## claustrophobic 3.8m-5.8m eskinitas with overhead sampayan laundry lines, 3 tight Estero Creek
-## bridges, a single batched Chaotic Spaghetti Wiring ArrayMesh across 24 leaning Meralco poles,
-## and Valorant x Arcane x 90s Komiks ink outlines (`arcane_ink_outline.gdshader`).
+## Circular 90s Philippine Provincial Barangay 3D map (view only; reads MapLayout, holds no sim rules).
+## Features 3 wider main North-South pathways (`X = -34, 0, +34`), 2 connecting East-West alleyways
+## (`Z = +-26`), a walkable shallow mid canal (`Z = 0`, NO mid bridge) with sloped *Tabing-Ilog*
+## stone wading ramps, dynamic perimeter mossy CHB hollow-block walls + provincial trees + houses,
+## authentic 90s province landmarks (Jeepneys, TODA Tricycle Terminal, Nena's Sari-Sari Store,
+## Karinderya, Barberya, Vulcanizing Shop, Wooden Basketball Post, Power-Up Stands, Pole Posters,
+## NO ENTRY & BAWAL UMIHI DITO signs), 3D volumetric *sampayan* clothes, and batched `SpaghettiWires`.
 
 const OWN_COLOR: Color = Palette.TEAM_OWN
 const ENEMY_COLOR: Color = Palette.TEAM_ENEMY
@@ -14,20 +16,21 @@ const STREET_SHADER: Shader = GROUND_SHADER
 const WATER_SHADER: Shader = preload("res://shaders/estero_water.gdshader")
 const SKY_SHADER: Shader = preload("res://shaders/tropical_sky.gdshader")
 const CHALK_SHADER: Shader = preload("res://shaders/chalk_line.gdshader")
+const SIGNBOARD_FONT: Font = preload("res://assets/fonts/brand/KalyeahDisplay-Regular.ttf")
 const INK_OUTLINE_PATH: String = "res://shaders/arcane_ink_outline.gdshader"
 
 const BARANGAY_DIR: String = "res://assets/models/barangay/%s.glb"
 
-## Balanced golden-hour ("alas-kwatro") lighting: rich warm contrast with zero white blowout.
-const SUN_ANGLES: Vector3 = Vector3(-41.0, 36.0, 0.0)
-const SUN_COLOR: Color = Color(1.0, 0.91, 0.77)
-const SUN_ENERGY: float = 0.88
+## Lively, warm, soft sunlit 90s provincial daytime lighting (zero white blowout).
+const SUN_ANGLES: Vector3 = Vector3(-44.0, 38.0, 0.0)
+const SUN_COLOR: Color = Color(1.0, 0.94, 0.83)
+const SUN_ENERGY: float = 0.84
 const SHADOW_DISTANCE: float = 185.0
-const FILL_ANGLES: Vector3 = Vector3(-34.0, 216.0, 0.0)
-const FILL_COLOR: Color = Color(0.58, 0.74, 0.96)
-const FILL_ENERGY: float = 0.24
-const AMBIENT_COLOR: Color = Color(0.92, 0.86, 0.80)
-const AMBIENT_ENERGY: float = 0.42
+const FILL_ANGLES: Vector3 = Vector3(-36.0, 218.0, 0.0)
+const FILL_COLOR: Color = Color(0.66, 0.82, 0.98)
+const FILL_ENERGY: float = 0.30
+const AMBIENT_COLOR: Color = Color(0.95, 0.91, 0.85)
+const AMBIENT_ENERGY: float = 0.46
 
 const SIDEWALK_WIDTH: float = 2.4
 const CURB_HEIGHT: float = 0.0
@@ -71,7 +74,7 @@ const PLATFORM_HEIGHT: float = 7.0
 const PLATFORM_MARGIN: float = 4.0
 const CORNER_RADIUS: float = 3.0
 
-const COVER_HEIGHT: float = 1.45
+const COVER_HEIGHT: float = 1.35
 const POST_HEIGHT: float = 10.5
 const POST_BLUE: String = "brgy_post_blue"
 const POST_RED: String = "brgy_post_red"
@@ -87,6 +90,7 @@ const OBSTACLE_KIT_MAP: Dictionary[StringName, String] = {
 	&"shophouse_row": "brgy_shophouse_row",
 	&"palengke_stall": "brgy_palengke_stall",
 	&"waiting_shed": "brgy_waiting_shed",
+	&"toda_shed": "brgy_toda_shed",
 	&"jeepney": "brgy_jeepney",
 	&"tricycle": "brgy_tricycle",
 	&"cover_wall": "brgy_cover_wall",
@@ -98,7 +102,22 @@ const KIT_FALLBACK_MAP: Dictionary[String, String] = {
 	"brgy_tabi_cluster_a": "brgy_shophouse_row",
 	"brgy_tabi_cluster_b": "brgy_house_two_storey",
 	"brgy_poso_well": "brgy_cover_wall",
+	"brgy_toda_shed": "brgy_waiting_shed",
+	"brgy_barangay_hall": "brgy_hall_plaza",
+	"brgy_estero_bridge": "brgy_footbridge",
+	"brgy_electric_post": "brgy_meralco_post",
 }
+
+const PROCEDURAL_ONLY_KITS: Array[String] = [
+	"brgy_wooden_hoop",
+	"brgy_chb_wall",
+	"brgy_mango_tree",
+	"brgy_banana_clump",
+	"brgy_coconut_palm",
+	"brgy_sampayan_3d",
+	"brgy_powerup_stand",
+	"brgy_poster_cluster",
+]
 
 @export var layout: MapLayout
 @export var diorama: bool = false
@@ -148,13 +167,13 @@ static func make_environment() -> Environment:
 	env.ambient_light_color = AMBIENT_COLOR
 	env.ambient_light_energy = AMBIENT_ENERGY
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.tonemap_exposure = 0.96
+	env.tonemap_exposure = 1.0
 	env.glow_enabled = false
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.90, 0.78, 0.64)
-	env.fog_light_energy = 0.36
-	env.fog_density = 0.0012
-	env.fog_sky_affect = 0.16
+	env.fog_light_color = Color(0.94, 0.88, 0.78)
+	env.fog_light_energy = 0.28
+	env.fog_density = 0.00085
+	env.fog_sky_affect = 0.12
 	return env
 
 
@@ -293,11 +312,11 @@ func post_height() -> float:
 
 
 func fog_distance() -> float:
-	return 68.0
+	return 76.0
 
 
 func fog_far_start() -> float:
-	return 64.0
+	return 70.0
 
 
 func _build_map() -> void:
@@ -332,7 +351,6 @@ func _build_map() -> void:
 	_turn_posts(MapLayout.SIDE_OWN)
 
 	_build_perimeter_skyline()
-	_build_micro_dressing_and_sampayan()
 	_build_spaghetti_wiring_and_poles()
 
 
@@ -380,48 +398,133 @@ func _build_diorama_plinth() -> void:
 
 func _build_estero_creek_and_bridges() -> void:
 	var water_rects: Array[Rect2] = layout.water_rects()
-	if water_rects.is_empty():
+	if water_rects.is_empty() and layout.arena_radius <= 0.0:
 		return
+
 	var water_mat: ShaderMaterial = ShaderMaterial.new()
 	water_mat.shader = WATER_SHADER
-	water_mat.set_shader_parameter("creek_half_width", 4.0)
-	var embankment_mat: StandardMaterial3D = StandardMaterial3D.new()
-	embankment_mat.albedo_color = Color(0.39, 0.37, 0.34)
-	embankment_mat.roughness = 0.92
+	water_mat.set_shader_parameter("creek_half_width", 3.7)
+	water_mat.set_shader_parameter("shallow_color", Color(0.22, 0.44, 0.37, 0.80))
+	water_mat.set_shader_parameter("deep_color", Color(0.12, 0.29, 0.28, 0.86))
+
+	if not water_rects.is_empty():
+		for rect: Rect2 in water_rects:
+			var custom_plane: PlaneMesh = PlaneMesh.new()
+			custom_plane.size = Vector2(rect.size.x, maxf(rect.size.y - 0.30, 1.0))
+			custom_plane.subdivide_width = maxi(4, int(rect.size.x * 0.5))
+			custom_plane.subdivide_depth = 6
+			custom_plane.material = water_mat
+			var c_pt: Vector2 = rect.get_center()
+			var cw_mesh: MeshInstance3D = _add(custom_plane, Vector3(c_pt.x, 0.055, c_pt.y))
+			cw_mesh.name = "EsteroWater"
+			cw_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		return
+
+	# Walkable Shallow Mid Canal (`Z in [-3.7, +3.7]`, NO mid bridge at `X = 0`!)
+	var canal_len: float = layout.arena_radius * 2.0 + 4.0
+	var water_plane: PlaneMesh = PlaneMesh.new()
+	water_plane.size = Vector2(canal_len, 7.4)
+	water_plane.subdivide_width = 72
+	water_plane.subdivide_depth = 8
+	water_plane.material = water_mat
+	var w_mesh: MeshInstance3D = _add(water_plane, Vector3(0.0, 0.052, 0.0))
+	w_mesh.name = "EsteroWater"
+	w_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	# Sloped *Tabing-Ilog* Stone & Mossy Concrete Riverbank + 3 Walkable Wading Ramps (`X = -34, 0, +34`)
+	var bank_kit: LowPoly = LowPoly.new()
+	var stone_lit: Color = Color(0.49, 0.47, 0.43)
+	var stone_side: Color = Color(0.36, 0.35, 0.32)
+	var moss_top: Color = Color(0.30, 0.42, 0.24)
+	var cobble_warm: Color = Color(0.46, 0.42, 0.36)
+	var cobble_cool: Color = Color(0.38, 0.40, 0.38)
+
+	# Non-ford mossy sloped concrete & river-stone embankments (leaving wide open wading ramps at X = -34, 0, +34!)
+	var bank_spans: Array[Vector2] = [
+		Vector2(-82.5, -40.8),
+		Vector2(-27.2, -7.2),
+		Vector2(7.2, 27.2),
+		Vector2(40.8, 82.5),
+	]
+	for span_x: Vector2 in bank_spans:
+		var seg_w: float = span_x.y - span_x.x
+		var mid_x: float = (span_x.x + span_x.y) * 0.5
+		for bank_sign: float in [-1.0, 1.0]:
+			var slope_basis: Basis = Basis(Vector3.RIGHT, bank_sign * 0.16)
+			_kit_oriented_box(
+				bank_kit,
+				slope_basis,
+				Vector3(mid_x, -0.04, bank_sign * 4.05),
+				Vector3(seg_w, 0.34, 1.45),
+				moss_top if span_x.x < 0.0 else stone_lit,
+				stone_side
+			)
+			# Low beveled river coping with mossy patches
+			bank_kit.rounded_slab(
+				Vector3(mid_x, 0.08, bank_sign * 4.55),
+				Vector3(seg_w, 0.18, 0.68),
+				0.18,
+				stone_side,
+				moss_top if int(absf(mid_x)) % 2 == 0 else stone_lit,
+				4
+			)
+			# Natural *Tabing-Ilog* river boulders & flat washing stones (*batuhan*) along the West & mid banks
+			var rock_count: int = maxi(3, int(seg_w / 5.5))
+			for r_i: int in rock_count:
+				var rx: float = lerpf(span_x.x + 1.2, span_x.y - 1.2, (float(r_i) + 0.5) / float(rock_count))
+				var rz: float = bank_sign * (3.55 + 0.32 * sin(float(r_i) * 2.7 + mid_x))
+				var rad_r: float = 0.38 + 0.16 * absf(cos(float(r_i) * 3.1 + bank_sign))
+				var r_col: Color = cobble_warm if r_i % 2 == 0 else cobble_cool
+				bank_kit.rounded_slab(Vector3(rx, 0.05, rz), Vector3(rad_r * 2.1, 0.16, rad_r * 1.6), rad_r * 0.6, r_col.darkened(0.15), r_col, 4)
+
+	# 3 Wide Sloped Stone Wading Ramps at West (-34m), Center (0m — NO bridge!), and East (+34m) Pathways
+	for ford_x: float in [-34.0, 0.0, 34.0]:
+		var ford_w: float = 13.0 if is_zero_approx(ford_x) else 12.2
+		for bank_sign: float in [-1.0, 1.0]:
+			var ramp_basis: Basis = Basis(Vector3.RIGHT, bank_sign * 0.055)
+			_kit_oriented_box(
+				bank_kit,
+				ramp_basis,
+				Vector3(ford_x, 0.015, bank_sign * 4.35),
+				Vector3(ford_w, 0.14, 2.2),
+				stone_lit,
+				stone_side
+			)
+		# Submerged/ankle-level river flagstone ford markers guiding players straight through the shallow water
+		var stone_cols: int = 4
+		for col_i: int in stone_cols:
+			var sx: float = ford_x + (float(col_i) - 1.5) * 2.6
+			for step_k: int in 3:
+				var sz: float = (float(step_k) - 1.0) * 2.0 + 0.25 * sin(float(col_i * 3 + step_k))
+				var fw: float = 1.45 + 0.25 * absf(cos(float(col_i + step_k)))
+				bank_kit.rounded_slab(
+					Vector3(sx, 0.032, sz),
+					Vector3(fw, 0.06, 1.15),
+					0.32,
+					stone_side,
+					cobble_warm if (col_i + step_k) % 2 == 0 else stone_lit,
+					4
+				)
+
+	var bank_mesh: ArrayMesh = bank_kit.commit()
+	var bank_mat: StandardMaterial3D = StandardMaterial3D.new()
+	bank_mat.vertex_color_use_as_albedo = true
+	bank_mat.roughness = 0.90
 	var outline: Material = _outline_material()
 	if outline != null:
-		embankment_mat.next_pass = outline
+		bank_mat.next_pass = outline
+	bank_mesh.surface_set_material(0, bank_mat)
+	var bank_inst: MeshInstance3D = _add(bank_mesh, Vector3.ZERO)
+	bank_inst.name = "TabingIlogBanks"
 
-	for rect: Rect2 in water_rects:
-		var water_plane: PlaneMesh = PlaneMesh.new()
-		water_plane.size = Vector2(rect.size.x, maxf(rect.size.y - 0.35, 1.0))
-		water_plane.subdivide_width = maxi(4, int(rect.size.x * 0.5))
-		water_plane.subdivide_depth = 6
-		water_plane.material = water_mat
-		var center: Vector2 = rect.get_center()
-		var w_mesh: MeshInstance3D = _add(water_plane, Vector3(center.x, 0.07, center.y))
-		w_mesh.name = "EsteroWater"
-		w_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-
-		for bank_sign: float in [-1.0, 1.0]:
-			var curb: BoxMesh = BoxMesh.new()
-			curb.size = Vector3(rect.size.x, 0.44, 0.44)
-			curb.material = embankment_mat
-			_add(curb, Vector3(center.x, 0.22, center.y + bank_sign * (rect.size.y * 0.5 - 0.14)))
-
-	# Three tight tactical crossings: West Talipapa (-45.7), Central Poso/Rotonda (0.0), East Toda (+45.7)
-	var bridge_specs: Array[Vector2] = [
-		Vector2(-45.7, 5.8),
-		Vector2(0.0, 6.4),
-		Vector2(45.7, 5.8),
-	]
-	for spec: Vector2 in bridge_specs:
-		var bx: float = spec.x
-		var width_x: float = spec.y
-		var bridge: Node3D = _instantiate_kit("brgy_footbridge")
-		var nat: Vector3 = _kit_bounds("brgy_footbridge").size
-		bridge.scale = Vector3(width_x / maxf(nat.x, 0.1), 0.92, 10.2 / maxf(nat.z, 0.1))
-		_place_walkthrough(bridge, Vector3(bx, 0.0, 0.0), 0.0)
+	# Scenic outer river-mouth wooden footbridges ONLY outside the playable pathways (`X = +-81.2m`)
+	for mouth_sign: float in [-1.0, 1.0]:
+		var bridge_id: String = "brgy_estero_bridge" if ResourceLoader.exists(BARANGAY_DIR % "brgy_estero_bridge") else "brgy_footbridge"
+		var bridge: Node3D = _instantiate_kit(bridge_id)
+		bridge.name = "RiverMouthFootbridgeWest" if mouth_sign < 0.0 else "RiverMouthFootbridgeEast"
+		var nat: Vector3 = _kit_bounds(bridge_id).size
+		bridge.scale = Vector3(4.2 / maxf(nat.x, 0.1), 0.85, 8.8 / maxf(nat.z, 0.1))
+		_place_walkthrough(bridge, Vector3(mouth_sign * 81.2, 0.0, 0.0), 0.0)
 
 
 func _build_district_landmarks() -> void:
@@ -429,92 +532,263 @@ func _build_district_landmarks() -> void:
 	var own_c: Vector2 = layout.base_center(MapLayout.SIDE_OWN)
 	var court: Node3D = _instantiate_kit("brgy_covered_court")
 	court.name = "CoveredBasketballCourt"
-	court.scale = Vector3(1.28, 1.18, 1.18)
+	court.scale = Vector3(1.18, 1.06, 1.12)
 	_place_walkthrough(court, Vector3(own_c.x, 0.0, own_c.y), 0.0)
 
 	# 2. North (-Z) Enemy Base Landmark: Municipal Barangay Hall framing the -Z Base Plaza
 	var enemy_c: Vector2 = layout.base_center(MapLayout.SIDE_ENEMY)
-	var hall: Node3D = _instantiate_kit("brgy_hall_plaza")
+	var hall_id: String = "brgy_barangay_hall" if ResourceLoader.exists(BARANGAY_DIR % "brgy_barangay_hall") else "brgy_hall_plaza"
+	var hall: Node3D = _instantiate_kit(hall_id)
 	hall.name = "BarangayHall"
-	hall.scale = Vector3.ONE * 1.24
-	var hall_z: float = -(layout.arena_radius + 5.8) if layout.arena_radius > 0.0 else (-layout.lane_length * 0.5 - 7.5)
+	hall.scale = Vector3.ONE * 1.14
+	var hall_z: float = -(layout.arena_radius + 5.6) if layout.arena_radius > 0.0 else (-layout.lane_length * 0.5 - 7.5)
 	_place_walkthrough(hall, Vector3(enemy_c.x, 0.0, hall_z), 0.0)
 
-	# 3. NW & SE Rescue Patio Waiting Sheds framing the 5-slot tagged-player sidewalks
+	# 3. Makeshift 90s Provincial Wooden Basketball Posts (`brgy_wooden_hoop`) court-side at both plazas
+	for hoop_sign: float in [1.0, -1.0]:
+		var hoop: Node3D = _instantiate_kit("brgy_wooden_hoop")
+		hoop.name = "WoodenBasketballPostSouth" if hoop_sign > 0.0 else "WoodenBasketballPostNorth"
+		hoop.scale = Vector3.ONE * 0.96
+		var hoop_yaw: float = -PI * 0.5 if hoop_sign > 0.0 else PI * 0.5
+		_place_walkthrough(hoop, Vector3(hoop_sign * 10.6, 0.0, hoop_sign * 56.4), hoop_yaw)
+
+	# 4. NW & SE Rescue Patio Waiting Sheds framing the 5-slot tagged-player sidewalks
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var r_rect: Rect2 = layout.rescue_rect(side)
 		var tag_mid: Vector2 = layout.tagged_place(side, 2)
 		var shed: Node3D = _instantiate_kit("brgy_waiting_shed")
-		shed.scale = Vector3(1.42, 1.18, 1.25)
+		shed.name = "RescueWaitingShedOwn" if side == MapLayout.SIDE_OWN else "RescueWaitingShedEnemy"
+		shed.scale = Vector3(1.28, 1.06, 1.15)
 		var outward_x: float = -float(side) * 2.2
 		var sx: float = tag_mid.x + outward_x
 		var yaw: float = PI * 0.5 if side == MapLayout.SIDE_OWN else -PI * 0.5
 		_place_walkthrough(shed, Vector3(sx, 0.0, r_rect.get_center().y), yaw)
 
-	# 4. Central Barrio Poso (cast-iron hand pump + wet concrete apron) beside the Central Bridge
-	for sign_f: float in [-1.0, 1.0]:
-		_place_poso_landmark(Vector3(sign_f * 4.4, 0.0, sign_f * 6.4), 0.0 if sign_f > 0.0 else PI)
+	# 5. 3 Small Map Power-Up Objective Stands (`brgy_powerup_stand`: Palamig, Teks, Turon) beside `layout.powerup_spots`
+	for pu_idx: int in layout.powerup_spots.size():
+		var pu_spot: Vector2 = layout.powerup_spots[pu_idx]
+		var stand: Node3D = _instantiate_kit("brgy_powerup_stand")
+		stand.name = "PowerupStand_%d" % pu_idx
+		stand.scale = Vector3.ONE * 0.92
+		var z_off: float = 2.05 if pu_idx != 1 else -2.15
+		var stand_yaw: float = PI if z_off > 0.0 else 0.0
+		_place_walkthrough(stand, Vector3(pu_spot.x + (1.65 if pu_idx == 1 else 0.0), 0.0, pu_spot.y + z_off), stand_yaw)
 
-	# 5. Parked TODA Tricycles at East/West Toda pockets & Sorbetes carts near base plazas
+	# 6. Iconic 90s Provincial Jeepneys (`brgy_jeepney`) parked in East/West TODA bays & perimeter road gates
+	var jeep_spots: Array[Vector4] = [
+		Vector4(69.5, 14.5, -PI * 0.38, 1.0),
+		Vector4(-69.5, -14.5, PI * 0.62, 1.0),
+		Vector4(34.0, 86.8, PI * 0.5, 1.0),
+		Vector4(-34.0, -86.8, -PI * 0.5, 1.0),
+	]
+	for j_idx: int in jeep_spots.size():
+		var j_spec: Vector4 = jeep_spots[j_idx]
+		var jeep: Node3D = _instantiate_kit("brgy_jeepney")
+		jeep.name = "ProvincialJeepney_%d" % j_idx
+		jeep.scale = Vector3.ONE * 0.96
+		_place_walkthrough(jeep, Vector3(j_spec.x, 0.0, j_spec.y), j_spec.z)
+
+	# 7. TODA Tricycle Terminal Canopies & Queued Tricycles (`brgy_toda_shed` + `brgy_tricycle`)
+	var has_toda_glb: bool = ResourceLoader.exists(BARANGAY_DIR % "brgy_toda_shed")
+	for t_sign: float in [1.0, -1.0]:
+		var toda_canopy: Node3D = _instantiate_kit("brgy_toda_shed")
+		toda_canopy.name = "TodaTerminalEast" if t_sign > 0.0 else "TodaTerminalWest"
+		toda_canopy.scale = Vector3.ONE * 0.95
+		_place_walkthrough(toda_canopy, Vector3(t_sign * 53.5, 0.0, t_sign * 21.6), PI if t_sign > 0.0 else 0.0)
+		if not has_toda_glb:
+			_add_signboard_label(
+				Vector3(t_sign * 40.48, 2.85, t_sign * 14.2),
+				-t_sign * PI * 0.5,
+				"BRGY. TODA TERMINAL",
+				Color(0.98, 0.86, 0.24)
+			)
+
 	var trike_spots: Array[Vector3] = [
-		Vector3(51.5, 0.0, 6.6),
-		Vector3(-51.5, 0.0, -6.6),
-		Vector3(-15.2, 0.0, 48.0),
-		Vector3(15.2, 0.0, -48.0),
+		Vector3(53.4, 0.0, 5.8),
+		Vector3(57.4, 0.0, 5.8),
+		Vector3(-53.4, 0.0, -5.8),
+		Vector3(-57.4, 0.0, -5.8),
+		Vector3(15.6, 0.0, 49.4),
+		Vector3(-15.6, 0.0, -49.4),
 	]
 	for idx: int in trike_spots.size():
 		var spot: Vector3 = trike_spots[idx]
 		var trike: Node3D = _instantiate_kit("brgy_tricycle")
-		trike.scale = Vector3.ONE * 1.08
+		trike.name = "TodaTricycle_%d" % idx
+		trike.scale = Vector3.ONE * 0.94
 		var t_yaw: float = PI * 0.5 if spot.x < 0.0 else -PI * 0.5
 		_place_walkthrough(trike, spot, t_yaw)
 
-	for side_sign: float in [-1.0, 1.0]:
+	# 8. Barrio Poso hand-pumps & Sorbetes carts beside the plazas
+	for sign_f: float in [-1.0, 1.0]:
+		_place_poso_landmark(Vector3(sign_f * 8.4, 0.0, sign_f * 6.2), 0.0 if sign_f > 0.0 else PI)
 		var cart: Node3D = _instantiate_kit("brgy_sorbetes_cart")
-		cart.scale = Vector3.ONE * 1.08
-		_place_walkthrough(cart, Vector3(side_sign * 14.8, 0.0, side_sign * 63.0), -side_sign * PI * 0.5)
+		cart.name = "SorbetesCartSouth" if sign_f > 0.0 else "SorbetesCartNorth"
+		cart.scale = Vector3.ONE * 0.96
+		_place_walkthrough(cart, Vector3(sign_f * 14.8, 0.0, sign_f * 63.0), -sign_f * PI * 0.5)
 
-	# 6. Fiesta Banderitas across the 3 bridges and base approaches
+	# 9. Authentic 90s Shopfront Vignettes along the 3 Main Pathways:
+	#    Nena's Sari-Sari Store, Karinderya/Eatery, Barbershop (Barberya), Vulcanizing Shop, & NO ENTRY Gates!
+	_build_90s_shopfront_vignettes_and_gates()
+
+	# 10. Fiesta Banderitas high overhead (`Y >= 5.2m`) across pathway entrances
 	var banderita_spans: Array[Vector3] = [
-		Vector3(-45.7, 0.0, 0.0),
-		Vector3(0.0, 0.0, 0.0),
-		Vector3(45.7, 0.0, 0.0),
-		Vector3(0.0, 0.0, 46.5),
-		Vector3(0.0, 0.0, -46.5),
+		Vector3(-34.0, 0.6, 26.0),
+		Vector3(0.0, 0.6, 48.0),
+		Vector3(34.0, 0.6, -26.0),
+		Vector3(0.0, 0.6, -48.0),
 	]
 	for span_at: Vector3 in banderita_spans:
 		var bunting: Node3D = _instantiate_kit("brgy_banderitas")
-		bunting.scale = Vector3(0.85, 1.05, 0.95)
+		bunting.scale = Vector3(0.95, 1.02, 0.95)
 		_place_walkthrough(bunting, span_at, 0.0)
+
+
+func _build_90s_shopfront_vignettes_and_gates() -> void:
+	var kit: LowPoly = LowPoly.new()
+	var wood_warm: Color = Color(0.48, 0.34, 0.21)
+	var wood_dark: Color = Color(0.32, 0.22, 0.14)
+	var steel_col: Color = Color(0.56, 0.58, 0.60)
+	var tire_black: Color = Color(0.14, 0.14, 0.16)
+	var tire_rim: Color = Color(0.46, 0.47, 0.49)
+	var barber_red: Color = Color(0.78, 0.20, 0.18)
+	var barber_blue: Color = Color(0.18, 0.36, 0.72)
+	var barber_white: Color = Color(0.90, 0.88, 0.84)
+	var tank_orange: Color = Color(0.76, 0.38, 0.16)
+	var cooler_blue: Color = Color(0.18, 0.44, 0.68)
+	var sign_cream: Color = Color(0.88, 0.83, 0.70)
+	var sign_red: Color = Color(0.74, 0.18, 0.16)
+
+	for s_mul: float in [1.0, -1.0]:
+		var inward_w_yaw: float = -s_mul * PI * 0.5
+		var inward_e_yaw: float = s_mul * PI * 0.5
+
+		# A. Tindahan ni Aling Nena (Nena's Sari-Sari Store) at `(-27.55, 12.6)` facing West `-34m` Pathway
+		var nena_pos: Vector3 = Vector3(-27.55 * s_mul, 0.0, 12.6 * s_mul)
+		var nena_b: Basis = Basis(Vector3.UP, inward_w_yaw)
+		_kit_oriented_box(kit, nena_b, nena_pos + nena_b * Vector3(0.0, 0.44, 0.42), Vector3(2.2, 0.46, 0.42), wood_warm, wood_dark)
+		_kit_oriented_box(kit, nena_b, nena_pos + nena_b * Vector3(-1.35, 0.38, 0.46), Vector3(0.72, 0.68, 0.52), cooler_blue, cooler_blue.darkened(0.18))
+		_kit_oriented_box(kit, nena_b, nena_pos + nena_b * Vector3(0.0, 2.72, 0.16), Vector3(3.1, 0.62, 0.08), sign_red, sign_cream)
+		_add_signboard_label(nena_pos + nena_b * Vector3(0.0, 2.72, 0.22), inward_w_yaw, "TINDAHAN NI ALING NENA", Color(0.72, 0.14, 0.12))
+
+		# B. Karinderya / Lutong Bahay Eatery at `(-40.48, 14.2)` facing East into West `-34m` Tabing-Ilog Pathway
+		var karin_pos: Vector3 = Vector3(-40.48 * s_mul, 0.0, 14.2 * s_mul)
+		var karin_b: Basis = Basis(Vector3.UP, inward_e_yaw)
+		_kit_oriented_box(kit, karin_b, karin_pos + karin_b * Vector3(0.0, 0.48, 0.48), Vector3(2.8, 0.92, 0.64), sign_cream, wood_warm)
+		for pot_i: int in 3:
+			var pot_p: Vector3 = karin_pos + karin_b * Vector3((float(pot_i) - 1.0) * 0.78, 0.96, 0.48)
+			kit.cylinder(pot_p, 0.22, 0.24, 0.26, 8, steel_col, steel_col.lightened(0.12))
+		_kit_oriented_box(kit, karin_b, karin_pos + karin_b * Vector3(0.0, 0.42, 1.18), Vector3(2.4, 0.44, 0.36), wood_warm, wood_dark)
+		_kit_oriented_box(kit, karin_b, karin_pos + karin_b * Vector3(0.0, 2.78, 0.18), Vector3(3.4, 0.62, 0.08), wood_dark, Color(0.92, 0.74, 0.22))
+		_add_signboard_label(karin_pos + karin_b * Vector3(0.0, 2.78, 0.24), inward_e_yaw, "KARINDERYA LUTONG BAHAY", Color(0.18, 0.12, 0.08))
+
+		# C. Barangayan Barbershop ("BARBERYA") + 3D Striped Barber Pole at `(27.55, 11.2)` facing East `+34m` Pathway
+		var barb_pos: Vector3 = Vector3(27.55 * s_mul, 0.0, 11.2 * s_mul)
+		var barb_b: Basis = Basis(Vector3.UP, inward_e_yaw)
+		var pole_base: Vector3 = barb_pos + barb_b * Vector3(-1.25, 1.45, 0.34)
+		_kit_oriented_box(kit, barb_b, pole_base + barb_b * Vector3(0.0, 0.42, -0.18), Vector3(0.08, 0.08, 0.32), steel_col, steel_col)
+		kit.sphere(pole_base + Vector3(0.0, 0.92, 0.0), 0.13, steel_col, 8, 5)
+		kit.sphere(pole_base + Vector3(0.0, 0.0, 0.0), 0.13, steel_col, 8, 5)
+		for band_i: int in 6:
+			var band_c: Color = barber_red if band_i % 3 == 0 else (barber_white if band_i % 3 == 1 else barber_blue)
+			kit.cylinder(pole_base + Vector3(0.0, 0.06 + float(band_i) * 0.13, 0.0), 0.11, 0.11, 0.13, 8, band_c, band_c)
+		_kit_oriented_box(kit, barb_b, barb_pos + barb_b * Vector3(0.2, 0.42, 0.44), Vector3(1.8, 0.45, 0.40), wood_warm, wood_dark)
+		_kit_oriented_box(kit, barb_b, barb_pos + barb_b * Vector3(0.0, 2.72, 0.16), Vector3(2.8, 0.58, 0.08), barber_blue, barber_white)
+		_add_signboard_label(barb_pos + barb_b * Vector3(0.0, 2.72, 0.22), inward_e_yaw, "BARBERYA GUPIT BINATA", barber_blue.darkened(0.2))
+
+		# D. Vulcanizing Shop (3D Stacked & Hanging Rubber Tires + Steel Air Compressor Tank) at `(27.55, 17.6)`
+		var vulc_pos: Vector3 = Vector3(27.55 * s_mul, 0.0, 17.6 * s_mul)
+		var vulc_b: Basis = Basis(Vector3.UP, inward_e_yaw)
+		# Stacked rubber tires on sidewalk apron
+		for t_stack: int in 3:
+			var tp: Vector3 = vulc_pos + vulc_b * Vector3(-1.15, float(t_stack) * 0.26, 0.55)
+			kit.cylinder(tp, 0.42, 0.42, 0.25, 10, tire_black, tire_rim)
+		# Upright leaning spare tire + horizontal painted air receiver tank
+		kit.set_transform(Transform3D(vulc_b * Basis(Vector3.RIGHT, PI * 0.5), vulc_pos + vulc_b * Vector3(-0.35, 0.42, 0.52)))
+		kit.cylinder(Vector3(0.0, -0.12, 0.0), 0.42, 0.42, 0.24, 10, tire_black, tire_rim)
+		kit.reset_transform()
+		kit.set_transform(Transform3D(vulc_b * Basis(Vector3.FORWARD, PI * 0.5), vulc_pos + vulc_b * Vector3(0.85, 0.46, 0.52)))
+		kit.cylinder(Vector3(0.0, -0.55, 0.0), 0.24, 0.24, 1.10, 8, tank_orange, tank_orange.darkened(0.2))
+		kit.reset_transform()
+		_kit_oriented_box(kit, vulc_b, vulc_pos + vulc_b * Vector3(0.0, 2.72, 0.16), Vector3(3.0, 0.58, 0.08), tire_black, Color(0.92, 0.80, 0.20))
+		_add_signboard_label(vulc_pos + vulc_b * Vector3(0.0, 2.72, 0.22), inward_e_yaw, "VULCANIZING SHOP", Color(0.12, 0.12, 0.14))
+
+	# E. Perimeter "NO ENTRY" Provincial Street Barriers (`r > 84.4m` at road mouths)
+	var gate_specs: Array[Vector3] = [
+		Vector3(-34.0, 77.8, PI),
+		Vector3(34.0, 77.8, PI),
+		Vector3(-34.0, -77.8, 0.0),
+		Vector3(34.0, -77.8, 0.0),
+		Vector3(-80.6, 26.0, PI * 0.5),
+		Vector3(80.6, -26.0, -PI * 0.5),
+	]
+	for g_spec: Vector3 in gate_specs:
+		var g_pos: Vector3 = Vector3(g_spec.x, 0.0, g_spec.y)
+		var g_yaw: float = g_spec.z
+		var g_b: Basis = Basis(Vector3.UP, g_yaw)
+		for leg_s: float in [-1.4, 1.4]:
+			_kit_oriented_box(kit, g_b, g_pos + g_b * Vector3(leg_s, 0.55, 0.0), Vector3(0.12, 1.10, 0.65), wood_dark, wood_warm)
+		_kit_oriented_box(kit, g_b, g_pos + g_b * Vector3(0.0, 0.92, 0.0), Vector3(3.4, 0.24, 0.10), sign_red, barber_white)
+		_kit_oriented_box(kit, g_b, g_pos + g_b * Vector3(0.0, 1.52, 0.04), Vector3(1.55, 0.52, 0.08), barber_white, sign_red)
+		_add_signboard_label(g_pos + g_b * Vector3(0.0, 1.52, 0.10), g_yaw, "NO ENTRY", Color(0.98, 0.96, 0.92))
+
+	var shop_mesh: ArrayMesh = kit.commit()
+	var shop_mat: StandardMaterial3D = StandardMaterial3D.new()
+	shop_mat.vertex_color_use_as_albedo = true
+	shop_mat.roughness = 0.86
+	var outline: Material = _outline_material()
+	if outline != null:
+		shop_mat.next_pass = outline
+	shop_mesh.surface_set_material(0, shop_mat)
+	var shop_inst: MeshInstance3D = _add(shop_mesh, Vector3.ZERO)
+	shop_inst.name = "Province90sShopfrontsAndGates"
+
+
+func _add_signboard_label(pos: Vector3, yaw: float, text_str: String, tint: Color) -> void:
+	var lbl: Label3D = Label3D.new()
+	lbl.text = text_str
+	lbl.font = SIGNBOARD_FONT
+	lbl.font_size = 44
+	lbl.pixel_size = 0.0055
+	lbl.modulate = tint
+	lbl.outline_size = 4
+	lbl.outline_modulate = Color(0.96, 0.94, 0.88, 0.65) if tint.v < 0.45 else Color(0.12, 0.09, 0.08, 0.85)
+	lbl.shaded = true
+	lbl.double_sided = false
+	lbl.position = pos
+	lbl.rotation.y = yaw
+	lbl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_geometry.add_child(lbl)
 
 
 func _place_poso_landmark(at: Vector3, yaw: float) -> void:
 	var poso_glb: String = BARANGAY_DIR % "brgy_poso_well"
 	if ResourceLoader.exists(poso_glb):
 		var model: Node3D = _instantiate_kit("brgy_poso_well")
-		model.scale = Vector3.ONE * 1.15
+		model.name = "BarrioPoso"
+		model.scale = Vector3.ONE * 1.05
 		_place_walkthrough(model, at, yaw)
 		return
 	var kit: LowPoly = LowPoly.new()
-	var slab_top: Color = Color(0.36, 0.35, 0.33)
-	var slab_side: Color = Color(0.24, 0.23, 0.22)
-	var iron_top: Color = Color(0.18, 0.36, 0.24)
-	var iron_side: Color = Color(0.11, 0.23, 0.16)
-	var handle_col: Color = Color(0.54, 0.20, 0.16)
-	var bucket_col: Color = Color(0.18, 0.34, 0.56)
-	kit.rounded_slab(Vector3(0.0, 0.06, 0.0), Vector3(1.65, 0.12, 1.65), 0.28, slab_top, slab_side)
-	kit.cylinder(Vector3(0.0, 0.12, 0.0), 0.16, 0.12, 0.92, 8, iron_top, iron_side)
-	kit.cylinder(Vector3(0.0, 1.02, 0.0), 0.20, 0.18, 0.24, 8, iron_top, iron_side)
-	kit.box(Vector3(0.24, 0.88, 0.0), Vector3(0.34, 0.10, 0.10), iron_top, iron_side)
+	var slab_top: Color = Color(0.42, 0.41, 0.38)
+	var slab_side: Color = Color(0.28, 0.27, 0.25)
+	var iron_top: Color = Color(0.20, 0.40, 0.26)
+	var iron_side: Color = Color(0.12, 0.26, 0.18)
+	var handle_col: Color = Color(0.58, 0.22, 0.18)
+	var bucket_col: Color = Color(0.20, 0.38, 0.62)
+	kit.rounded_slab(Vector3(0.0, 0.06, 0.0), Vector3(1.55, 0.12, 1.55), 0.28, slab_side, slab_top)
+	kit.cylinder(Vector3(0.0, 0.12, 0.0), 0.15, 0.11, 0.88, 8, iron_top, iron_side)
+	kit.cylinder(Vector3(0.0, 0.98, 0.0), 0.19, 0.17, 0.22, 8, iron_top, iron_side)
+	kit.box(Vector3(0.22, 0.84, 0.0), Vector3(0.32, 0.09, 0.09), iron_top, iron_side)
 	_kit_oriented_box(
 		kit,
 		Basis.from_euler(Vector3(0.0, 0.0, -0.46)),
-		Vector3(-0.34, 1.18, 0.0),
-		Vector3(0.76, 0.06, 0.06),
+		Vector3(-0.32, 1.12, 0.0),
+		Vector3(0.72, 0.06, 0.06),
 		handle_col,
 		handle_col * 0.72
 	)
-	kit.cylinder(Vector3(0.42, 0.12, 0.0), 0.17, 0.21, 0.34, 8, bucket_col, bucket_col * 0.72)
+	kit.cylinder(Vector3(0.40, 0.12, 0.0), 0.16, 0.20, 0.32, 8, bucket_col, bucket_col * 0.72)
 	var mesh: ArrayMesh = kit.commit()
 	var mat: StandardMaterial3D = StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
@@ -547,22 +821,21 @@ func _add_obstacle(index: int) -> void:
 		if index % 3 == 1:
 			yaw += PI
 
-	# Subtle provincial looban yaw jitter (+-3.2 deg) & micro-offset so blocks read as organic construction, never a rigid grid
-	var jitter_deg: float = (1.2 if prop_key == &"cover_wall" else 3.2) * sin(float(index) * 4.13 + 1.17)
+	var jitter_deg: float = (1.0 if prop_key == &"cover_wall" else 2.2) * sin(float(index) * 4.13 + 1.17)
 	yaw += deg_to_rad(jitter_deg)
 	var jitter_off: Vector3 = Vector3(
-		0.18 * cos(float(index) * 3.71 + 0.4),
+		0.12 * cos(float(index) * 3.71 + 0.4),
 		0.0,
-		0.20 * sin(float(index) * 2.89 + 0.9)
+		0.14 * sin(float(index) * 2.89 + 0.9)
 	)
 
 	var target_w: float = rect.size.y if turn_quarter else rect.size.x
 	var target_d: float = rect.size.x if turn_quarter else rect.size.y
-	var overhang: float = 0.96 if prop_key == &"cover_wall" else 1.005
+	var overhang: float = 0.96 if prop_key == &"cover_wall" else 0.995
 	var sx: float = (target_w * overhang) / maxf(nat.x, 0.1)
 	var sz: float = (target_d * overhang) / maxf(nat.z, 0.1)
-	var h_var: float = 0.88 + 0.34 * absf(sin(float(index) * 2.73 + 0.65))
-	var sy: float = clampf((sx + sz) * 0.50 * h_var, 0.88, 1.72)
+	var h_var: float = 0.86 + 0.26 * absf(sin(float(index) * 2.73 + 0.65))
+	var sy: float = clampf((sx + sz) * 0.40 * h_var, 0.78, 1.24)
 	if prop_key == &"cover_wall":
 		sy = cover_height() / maxf(nat.y, 0.1)
 	model.scale = Vector3(sx, sy, sz)
@@ -584,204 +857,341 @@ func _build_perimeter_skyline() -> void:
 		"brgy_tabi_cluster_a",
 		"brgy_house_two_storey",
 	]
+	var tree_kits: Array[String] = [
+		"brgy_mango_tree",
+		"brgy_coconut_palm",
+		"brgy_banana_clump",
+	]
 	var ring_radius: float = layout.arena_radius if layout.arena_radius > 0.0 else minf(layout.lane_width, layout.lane_length) * 0.5
 
-	# Ring 1: Unbroken 360-degree wall-to-wall inner ring with organic radial pockets & +-3.2 deg looban yaw jitter
-	var inner_count: int = 40
-	var inner_r: float = ring_radius + 6.5
-	var chord_w: float = (TAU * inner_r / float(inner_count)) * 1.15
-	for i: int in inner_count:
-		var angle: float = TAU * float(i) / float(inner_count) + 0.012 * sin(float(i) * 2.7)
-		var dir: Vector2 = Vector2(cos(angle), sin(angle))
-		var local_r: float = inner_r + 1.55 * sin(float(i) * 2.9 + 0.4) + 0.75 * cos(float(i) * 5.1)
-		# Set back slightly behind the North Barangay Hall, Estero outlets, and Rescue Sheds so landmarks breathe while sealing horizon
-		if dir.y < -0.94:
-			local_r += 7.5
-		elif absf(dir.y) < 0.09:
-			local_r += 4.2
-		elif (dir.x < -0.75 and dir.y < -0.20 and dir.y > -0.55) or (dir.x > 0.75 and dir.y > 0.20 and dir.y < 0.55):
-			local_r += 4.5
-		var pos2: Vector2 = dir * local_r
-		var kit_id: String = perimeter_kits[i % perimeter_kits.size()]
-		var house: Node3D = _instantiate_kit(kit_id)
-		var nat: Vector3 = _kit_bounds(kit_id).size
-		var sx: float = chord_w / maxf(nat.x, 4.0)
-		var sz: float = clampf((10.8 + 2.2 * absf(cos(float(i) * 1.7))) / maxf(nat.z, 4.0), 0.92, 1.52)
-		var sy: float = clampf(0.96 + 0.46 * absf(sin(float(i) * 2.13 + 0.3)), 0.96, 1.54)
-		house.scale = Vector3(sx, sy, sz)
-		var inward_yaw: float = atan2(-dir.x, -dir.y) + deg_to_rad(3.2 * sin(float(i) * 3.7 + 0.9))
-		_add_prop(house, Vector3(pos2.x, 0.0, pos2.y), inward_yaw)
-		var row_key: int = -1 if pos2.x < 0.0 else 1
-		house_rows[row_key].append(house)
-		far_props.append(kit_id)
+	# 1. Dynamic Inner Boundary (`r = 85.4..92.0m`): alternates Mossy CHB Hollow-Block Walls + Lush Provincial Trees
+	#    with Cozy Sunlit Provincial Houses, plus stenciled "BAWAL UMIHI DITO" compound walls!
+	var inner_slots: int = 48
+	var wall_r: float = ring_radius + 1.45
+	var house_inner_r: float = ring_radius + 6.4
+	var wall_chord: float = (TAU * wall_r / float(inner_slots)) * 1.06
+	var house_chord: float = (TAU * house_inner_r / float(inner_slots)) * 1.38
+	var r_own: Rect2 = layout.rescue_rect(MapLayout.SIDE_OWN)
+	var r_ene: Rect2 = layout.rescue_rect(MapLayout.SIDE_ENEMY)
 
-	# Ring 2: Staggered irregular outer barangay roof tier (`r = ring_radius + 16..22m`)
-	var outer_count: int = 32
-	var outer_r: float = ring_radius + 18.6
-	var outer_chord: float = (TAU * outer_r / float(outer_count)) * 1.16
+	for i: int in inner_slots:
+		var angle: float = TAU * float(i) / float(inner_slots)
+		var dir: Vector2 = Vector2(cos(angle), sin(angle))
+		var p_wall: Vector2 = dir * wall_r
+		var in_canal_mouth: bool = absf(p_wall.y) < 5.2
+		var in_own_shed: bool = p_wall.x < 0.0 and p_wall.y >= r_own.position.y - 1.5 and p_wall.y <= r_own.end.y + 1.5
+		var in_ene_shed: bool = p_wall.x > 0.0 and p_wall.y >= r_ene.position.y - 1.5 and p_wall.y <= r_ene.end.y + 1.5
+		var in_road_gate: bool = (absf(absf(p_wall.x) - 34.0) < 4.5 and absf(p_wall.y) > 70.0) or (absf(absf(p_wall.y) - 26.0) < 4.2 and absf(p_wall.x) > 74.0)
+		var inward_yaw: float = atan2(-dir.x, -dir.y)
+
+		if not (in_canal_mouth or in_own_shed or in_ene_shed or in_road_gate):
+			# Alternate CHB hollow-block garden walls + tropical trees vs street-fronting provincial houses!
+			if i % 3 != 1:
+				var chb: Node3D = _instantiate_kit("brgy_chb_wall")
+				chb.name = "ChbPerimeterWall_%d" % i
+				var chb_nat: Vector3 = _kit_bounds("brgy_chb_wall").size
+				chb.scale = Vector3(clampf(wall_chord / maxf(chb_nat.x, 2.0), 0.95, 1.85), clampf(2.25 / maxf(chb_nat.y, 1.0), 0.85, 1.25), 1.0)
+				_place_walkthrough(chb, Vector3(p_wall.x, 0.0, p_wall.y), inward_yaw)
+				if i % 6 == 0 and not ResourceLoader.exists(BARANGAY_DIR % "brgy_chb_wall"):
+					_add_signboard_label(
+						Vector3(p_wall.x, 1.48, p_wall.y) - Vector3(dir.x, 0.0, dir.y) * 0.28,
+						inward_yaw,
+						"BAWAL UMIHI DITO",
+						Color(0.76, 0.16, 0.14)
+					)
+				# Lush Philippine provincial tree rising just behind the mossy CHB wall (`r > 87.5m`)
+				var t_id: String = tree_kits[i % tree_kits.size()]
+				var tree_node: Node3D = _instantiate_kit(t_id)
+				tree_node.name = "PerimeterTree_%d" % i
+				var t_scale: float = 0.92 + 0.28 * absf(sin(float(i) * 2.3))
+				tree_node.scale = Vector3.ONE * t_scale
+				var p_tree: Vector2 = dir * (ring_radius + 4.2 + 2.4 * absf(cos(float(i) * 1.9)))
+				_place_walkthrough(tree_node, Vector3(p_tree.x, 0.0, p_tree.y), float(i) * 1.1)
+
+		# Provincial house tier (`r = 90.0..97.0m`, strictly `> arena_radius = 84.0m`)
+		if i % 4 != 2:
+			var local_r: float = house_inner_r + 1.8 * sin(float(i) * 2.9 + 0.4)
+			if dir.y < -0.93:
+				local_r += 7.5
+			elif in_canal_mouth or in_own_shed or in_ene_shed:
+				local_r += 4.6
+			elif i % 3 != 1:
+				local_r += 2.6
+			var pos2: Vector2 = dir * local_r
+			var kit_id: String = perimeter_kits[i % perimeter_kits.size()]
+			var house: Node3D = _instantiate_kit(kit_id)
+			var nat: Vector3 = _kit_bounds(kit_id).size
+			var sx: float = house_chord / maxf(nat.x, 4.0)
+			var sz: float = clampf((9.6 + 1.8 * absf(cos(float(i) * 1.7))) / maxf(nat.z, 4.0), 0.84, 1.28)
+			var sy: float = clampf(0.80 + 0.34 * absf(sin(float(i) * 2.13 + 0.3)), 0.80, 1.18)
+			house.scale = Vector3(sx, sy, sz)
+			var h_yaw: float = inward_yaw + deg_to_rad(3.2 * sin(float(i) * 3.7 + 0.9))
+			_add_prop(house, Vector3(pos2.x, 0.0, pos2.y), h_yaw)
+			var row_key: int = -1 if pos2.x < 0.0 else 1
+			house_rows[row_key].append(house)
+			far_props.append(kit_id)
+
+	# 2. Outer Provincial Barangay Roof & Coconut/Mango Grove Tier (`r = ring_radius + 18..25m`)
+	var outer_count: int = 40
+	var outer_r: float = ring_radius + 19.2
+	var outer_chord: float = (TAU * outer_r / float(outer_count)) * 1.12
 	for j: int in outer_count:
 		var angle_o: float = TAU * (float(j) + 0.5) / float(outer_count) + 0.018 * cos(float(j) * 3.1)
 		var dir_o: Vector2 = Vector2(cos(angle_o), sin(angle_o))
-		var r_o: float = outer_r + 2.6 * sin(float(j) * 3.3 + 1.1) + 1.3 * cos(float(j) * 4.7)
+		var r_o: float = outer_r + 2.8 * sin(float(j) * 3.3 + 1.1)
 		var pos_o: Vector2 = dir_o * r_o
 		var kit_o: String = perimeter_kits[(j + 2) % perimeter_kits.size()]
 		var bldg: Node3D = _instantiate_kit(kit_o)
 		var nat_o: Vector3 = _kit_bounds(kit_o).size
 		var sx_o: float = outer_chord / maxf(nat_o.x, 4.0)
-		var sy_o: float = 1.12 + 0.44 * absf(cos(float(j) * 2.3 + 0.7))
-		bldg.scale = Vector3(sx_o, sy_o, clampf(12.5 / maxf(nat_o.z, 4.0), 0.98, 1.54))
+		var sy_o: float = 0.88 + 0.32 * absf(cos(float(j) * 2.3 + 0.7))
+		bldg.scale = Vector3(sx_o, sy_o, clampf(10.8 / maxf(nat_o.z, 4.0), 0.86, 1.28))
 		var yaw_o: float = atan2(-dir_o.x, -dir_o.y) + deg_to_rad(4.8 * cos(float(j) * 2.9))
 		_add_prop(bldg, Vector3(pos_o.x, 0.0, pos_o.y), yaw_o)
 		var row_o: int = -1 if pos_o.x < 0.0 else 1
 		house_rows[row_o].append(bldg)
 		far_props.append(kit_o)
 
-	# Ring 3: Scattered provincial homestead clusters (`r = ring_radius + 28..38m`) feathering the outer barangay silhouette
-	var outlier_count: int = 18
-	for k: int in outlier_count:
-		var ang_k: float = TAU * (float(k) + 0.25) / float(outlier_count) + 0.09 * sin(float(k) * 2.4 + 0.6)
-		var dir_k: Vector2 = Vector2(cos(ang_k), sin(ang_k))
-		if absf(dir_k.y) < 0.11:
-			continue
-		var r_k: float = ring_radius + 31.5 + 4.8 * sin(float(k) * 3.7 + 0.5)
-		var pos_k: Vector2 = dir_k * r_k
-		var kit_k: String = perimeter_kits[(k * 3 + 1) % perimeter_kits.size()]
-		var out_house: Node3D = _instantiate_kit(kit_k)
-		var nat_k: Vector3 = _kit_bounds(kit_k).size
-		var sx_k: float = (13.5 + 3.0 * absf(sin(float(k) * 1.9))) / maxf(nat_k.x, 4.0)
-		var sy_k: float = 0.94 + 0.36 * absf(cos(float(k) * 2.7))
-		out_house.scale = Vector3(sx_k, sy_k, clampf(11.0 / maxf(nat_k.z, 4.0), 0.92, 1.38))
-		var yaw_k: float = atan2(-dir_k.x, -dir_k.y) + deg_to_rad(8.5 * sin(float(k) * 4.1))
-		_place_walkthrough(out_house, Vector3(pos_k.x, 0.0, pos_k.y), yaw_k)
+		if j % 2 == 0:
+			var grove_id: String = tree_kits[(j + 1) % tree_kits.size()]
+			var grove_tree: Node3D = _instantiate_kit(grove_id)
+			grove_tree.scale = Vector3.ONE * (1.05 + 0.25 * absf(sin(float(j) * 1.7)))
+			var pos_g: Vector2 = dir_o * (r_o + 8.5)
+			_place_walkthrough(grove_tree, Vector3(pos_g.x, 0.0, pos_g.y), float(j) * 1.4)
 
 
-func _build_micro_dressing_and_sampayan() -> void:
+func _build_spaghetti_wiring_and_poles() -> void:
 	if layout.arena_radius <= 0.0 and layout.lane_width < 80.0:
 		return
+	var ring_r: float = (layout.arena_radius if layout.arena_radius > 0.0 else 84.0) - 0.35
+
+	# 1. Primary Leaning Electric Posts (`brgy_electric_post` / `brgy_meralco_post`) tucked cleanly onto
+	#    building sidewalk corners along the 3 Main Pathways (`X = -34, 0, +34`) & `83.65m` perimeter!
+	var inner_poles: Array[Vector3] = [
+		Vector3(-40.8, 0.0, 7.2),
+		Vector3(-7.2, 0.0, 7.2),
+		Vector3(40.8, 0.0, 7.2),
+		Vector3(40.8, 0.0, -7.2),
+		Vector3(7.2, 0.0, -7.2),
+		Vector3(-40.8, 0.0, -7.2),
+		Vector3(-27.2, 0.0, 21.4),
+		Vector3(27.2, 0.0, 21.4),
+		Vector3(27.2, 0.0, -21.4),
+		Vector3(-27.2, 0.0, -21.4),
+		Vector3(-18.2, 0.0, 51.8),
+		Vector3(18.2, 0.0, -51.8),
+	]
+	var outer_poles: Array[Vector3] = []
+	for i: int in 12:
+		var ang: float = TAU * (float(i) + 0.35) / 12.0
+		outer_poles.append(Vector3(cos(ang) * ring_r, 0.0, sin(ang) * ring_r))
+
+	# 16 Pathway/Alley Corner Utility Masts (24..39) flush against building corners (never inside lanes!)
+	var corner_half_poles: Array[Vector3] = [
+		Vector3(-27.3, 0.0, 14.0),
+		Vector3(-7.1, 0.0, 20.6),
+		Vector3(-27.3, 0.0, 38.6),
+		Vector3(-40.7, 0.0, 14.4),
+		Vector3(-7.1, 0.0, 38.6),
+		Vector3(7.1, 0.0, 38.6),
+		Vector3(27.3, 0.0, 14.4),
+		Vector3(40.7, 0.0, 38.6),
+	]
+	var eskinita_poles: Array[Vector3] = []
+	for ep: Vector3 in corner_half_poles:
+		eskinita_poles.append(ep)
+	for ep_neg: Vector3 in corner_half_poles:
+		eskinita_poles.append(Vector3(-ep_neg.x, 0.0, -ep_neg.z))
+
+	var all_poles: Array[Vector3] = []
+	all_poles.append_array(inner_poles)
+	all_poles.append_array(outer_poles)
+	all_poles.append_array(eskinita_poles)
+
+	var pole_kit_id: String = "brgy_electric_post" if ResourceLoader.exists(BARANGAY_DIR % "brgy_electric_post") else "brgy_meralco_post"
+	var has_poster_glb: bool = ResourceLoader.exists(BARANGAY_DIR % "brgy_poster_cluster")
+	var pole_tops: Array[Vector3] = []
+	var nat_pole_h: float = maxf(_kit_bounds(pole_kit_id).size.y, 6.0)
+	var pole_scale_y: float = 9.0 / nat_pole_h
+	var alley_pole_scale_y: float = 6.8 / nat_pole_h
+
+	for idx: int in all_poles.size():
+		var spot: Vector3 = all_poles[idx]
+		var is_alley_mast: bool = idx >= 24
+		var pole: Node3D = _instantiate_kit(pole_kit_id)
+		pole.name = "ElectricPole_%d" % idx
+		if is_alley_mast:
+			pole.scale = Vector3(0.66, alley_pole_scale_y, 0.66)
+		else:
+			pole.scale = Vector3(0.86, pole_scale_y, 0.86)
+		var yaw: float = (PI * 0.5 if spot.x < 0.0 else -PI * 0.5) if is_alley_mast else atan2(-spot.x, -spot.z)
+		var lean_amp: float = 3.2 if is_alley_mast else 2.2
+		var lean_x: float = deg_to_rad(lean_amp * sin(float(idx) * 2.1 + 0.4))
+		var lean_z: float = deg_to_rad(lean_amp * cos(float(idx) * 1.7 - 0.3))
+		pole.position = spot
+		pole.rotation = Vector3(lean_x, yaw, lean_z)
+		_geometry.add_child(pole)
+
+		if idx < 16 and has_poster_glb:
+			var poster_node: Node3D = _instantiate_kit("brgy_poster_cluster")
+			poster_node.name = "PolePosterCluster_%d" % idx
+			_place_walkthrough(poster_node, spot, yaw)
+
+		var anchor_h: float = 6.25 if is_alley_mast else 8.20
+		var top_offset: Vector3 = pole.transform.basis.orthonormalized() * Vector3(0.0, anchor_h, 0.0)
+		pole_tops.append(spot + top_offset)
+
+	var spans: Array[Vector2i] = [
+		Vector2i(12, 13), Vector2i(13, 14), Vector2i(14, 15), Vector2i(15, 16),
+		Vector2i(16, 17), Vector2i(17, 18), Vector2i(18, 19), Vector2i(19, 20),
+		Vector2i(20, 21), Vector2i(21, 22), Vector2i(22, 23), Vector2i(23, 12),
+		Vector2i(0, 1), Vector2i(1, 2), Vector2i(3, 4), Vector2i(4, 5),
+		Vector2i(0, 5), Vector2i(1, 4), Vector2i(2, 3),
+		Vector2i(0, 6), Vector2i(1, 6), Vector2i(1, 7), Vector2i(2, 7),
+		Vector2i(5, 9), Vector2i(4, 9), Vector2i(4, 8), Vector2i(3, 8),
+		Vector2i(6, 10), Vector2i(7, 10), Vector2i(8, 11), Vector2i(9, 11),
+		Vector2i(12, 2), Vector2i(14, 7), Vector2i(15, 10), Vector2i(17, 6),
+		Vector2i(18, 0), Vector2i(20, 9), Vector2i(21, 11), Vector2i(23, 8),
+		Vector2i(0, 27), Vector2i(27, 24), Vector2i(27, 6),
+		Vector2i(1, 24), Vector2i(24, 25), Vector2i(25, 6), Vector2i(6, 26), Vector2i(26, 10),
+		Vector2i(25, 28), Vector2i(28, 10), Vector2i(28, 29), Vector2i(29, 7),
+		Vector2i(1, 30), Vector2i(30, 7), Vector2i(30, 31), Vector2i(2, 31),
+		Vector2i(3, 35), Vector2i(35, 32), Vector2i(35, 8),
+		Vector2i(4, 32), Vector2i(32, 33), Vector2i(33, 8), Vector2i(8, 34), Vector2i(34, 11),
+		Vector2i(33, 36), Vector2i(36, 11), Vector2i(36, 37), Vector2i(37, 9),
+		Vector2i(4, 38), Vector2i(38, 9), Vector2i(38, 39), Vector2i(5, 39),
+	]
+
+	var alley_corridors: Array[Vector4] = [
+		Vector4(-40.6, -27.4, 9.0, 20.0),
+		Vector4(-7.0, 7.0, 9.2, 20.0),
+		Vector4(27.4, 40.6, 9.0, 20.0),
+		Vector4(-40.6, -27.4, 32.2, 45.2),
+		Vector4(-7.0, 7.0, 32.2, 45.2),
+		Vector4(27.4, 40.6, 32.2, 45.2),
+	]
+
+	var wire_mesh: ArrayMesh = SpaghettiWires.build_wire_network_mesh(
+		pole_tops,
+		spans,
+		alley_corridors,
+		layout.obstacle_rects(),
+		ring_r
+	)
+	var wire_inst: MeshInstance3D = _add(wire_mesh, Vector3.ZERO)
+	wire_inst.name = "SpaghettiWiring"
+	wire_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	# 2. Batched `BarangayMicroDressing`: True 3D Volumetric Sampayan Clotheslines + Pole Election/Malabanan
+	#    Poster Boards + Interior Tabing-Ilog Trees & Barrio Water Drums!
+	_build_micro_dressing_and_volumetric_sampayan(inner_poles)
+
+
+func _build_micro_dressing_and_volumetric_sampayan(poster_poles: Array[Vector3]) -> void:
 	var kit: LowPoly = LowPoly.new()
-	var ring_r: float = layout.arena_radius if layout.arena_radius > 0.0 else minf(layout.lane_width, layout.lane_length) * 0.5
 
-	# 1. Circular 360-degree weathered hollow-block & concrete curb along `r = ring_r + 0.65m`
-	var curb_top: Color = Color(0.42, 0.39, 0.35)
-	var curb_side: Color = Color(0.28, 0.26, 0.24)
-	var post_accent: Color = Color(0.56, 0.44, 0.18)
-	var segs: int = 72
-	var curb_r: float = ring_r + 0.65
-	var seg_len: float = (TAU * curb_r / float(segs)) * 1.03
-	var r_own: Rect2 = layout.rescue_rect(MapLayout.SIDE_OWN)
-	var r_ene: Rect2 = layout.rescue_rect(MapLayout.SIDE_ENEMY)
-	for i: int in segs:
-		var a: float = TAU * (float(i) + 0.5) / float(segs)
-		var p: Vector2 = Vector2(cos(a), sin(a)) * curb_r
-		# Leave clean walk-in bays at the 2 Rescue Waiting Sheds and 2 Estero Creek outlets
-		var in_estero: bool = absf(p.y) < 4.4
-		var in_own_shed: bool = p.x < 0.0 and p.y >= r_own.position.y - 1.0 and p.y <= r_own.end.y + 1.0
-		var in_ene_shed: bool = p.x > 0.0 and p.y >= r_ene.position.y - 1.0 and p.y <= r_ene.end.y + 1.0
-		if in_estero or in_own_shed or in_ene_shed:
-			continue
-		var tangent_yaw: float = atan2(-cos(a), sin(a))
-		var basis_c: Basis = Basis(Vector3.UP, tangent_yaw)
-		_kit_oriented_box(kit, basis_c, Vector3(p.x, 0.36, p.y), Vector3(seg_len, 0.72, 0.42), curb_top, curb_side)
-		if i % 2 == 0:
-			kit.cylinder(Vector3(p.x, 0.72, p.y), 0.16, 0.15, 0.46, 6, post_accent, curb_side)
+	# 1. Election ("VOTE!") & Siphoning Service ("MALABANAN SIPSIP POSO NEGRO") 3D notices on poles
+	if not ResourceLoader.exists(BARANGAY_DIR % "brgy_poster_cluster"):
+		SpaghettiWires.append_pole_posters(kit, poster_poles)
+		for p_idx: int in range(0, poster_poles.size(), 2):
+			var p_spot: Vector3 = poster_poles[p_idx]
+			var f_yaw: float = atan2(-p_spot.x, -p_spot.z)
+			_add_signboard_label(
+				p_spot + Vector3(0.0, 2.12, 0.0) + Basis(Vector3.UP, f_yaw) * Vector3(0.0, 0.0, 0.23),
+				f_yaw,
+				"MALABANAN\nSIPSIP POSO",
+				Color(0.10, 0.20, 0.48)
+			)
+			var v_yaw: float = f_yaw + PI * 0.55
+			_add_signboard_label(
+				p_spot + Vector3(0.0, 3.06, 0.0) + Basis(Vector3.UP, v_yaw) * Vector3(0.0, 0.0, 0.22),
+				v_yaw,
+				"VOTE!",
+				Color(0.98, 0.94, 0.84)
+			)
 
-	# 2. Overhead Sampayan (bamboo clotheslines + recognizable T-shirts, sando jerseys & puruntong shorts!)
+	# 2. True 3D Volumetric Hanging Clothes (`brgy_sampayan_3d.glb` when exported; `SpaghettiWires` fallback otherwise)
 	var sampayan_spans: PackedVector3Array = PackedVector3Array([
-		Vector3(-49.0, 5.15, 12.0), Vector3(-43.8, 5.30, 12.5),
-		Vector3(-49.0, 4.95, 18.5), Vector3(-43.8, 5.05, 18.0),
-		Vector3(-25.6, 5.20, 11.5), Vector3(-21.6, 5.05, 12.1),
-		Vector3(-25.6, 5.55, 15.6), Vector3(-21.6, 5.40, 16.2),
-		Vector3(-25.6, 4.95, 19.8), Vector3(-21.6, 5.15, 19.3),
-		Vector3(21.6, 5.05, 13.0), Vector3(25.4, 5.30, 12.6),
-		Vector3(21.6, 5.35, 19.2), Vector3(25.4, 5.10, 18.7),
-		Vector3(43.0, 5.15, 14.5), Vector3(48.4, 4.95, 15.0),
-		Vector3(-50.6, 5.20, 33.0), Vector3(-46.4, 5.05, 33.6),
-		Vector3(-28.2, 5.05, 31.8), Vector3(-24.4, 5.25, 32.3),
-		Vector3(-28.2, 5.35, 39.2), Vector3(-24.4, 5.10, 38.7),
-		Vector3(-13.4, 5.30, 32.5), Vector3(-9.4, 5.10, 33.0),
-		Vector3(9.4, 5.10, 35.0), Vector3(13.4, 5.30, 34.4),
-		Vector3(24.4, 5.05, 36.5), Vector3(28.2, 4.90, 36.0),
-		Vector3(-34.3, 5.15, 54.5), Vector3(-30.3, 5.30, 55.0),
-		Vector3(30.3, 5.20, 55.0), Vector3(34.3, 5.05, 54.4),
+		Vector3(-55.6, 5.15, 11.2), Vector3(-53.4, 5.30, 11.8),
+		Vector3(52.4, 5.10, 12.0), Vector3(54.6, 5.25, 11.4),
+		Vector3(-39.6, 5.15, 10.6), Vector3(-39.6, 5.20, 14.0),
+		Vector3(28.4, 5.15, 13.8), Vector3(28.4, 5.20, 17.2),
+		Vector3(-39.6, 5.10, 35.6), Vector3(-39.6, 5.18, 39.0),
+		Vector3(28.4, 5.10, 36.6), Vector3(28.4, 5.18, 40.0),
+		Vector3(-26.8, 5.20, 21.0), Vector3(-23.2, 5.30, 21.0),
+		Vector3(23.2, 5.25, 21.0), Vector3(26.8, 5.15, 21.0),
 	])
 	var cloth_palette: Array[Color] = [
-		Color(0.66, 0.21, 0.19),
-		Color(0.19, 0.44, 0.62),
-		Color(0.64, 0.50, 0.16),
-		Color(0.22, 0.50, 0.30),
-		Color(0.56, 0.30, 0.48),
-		Color(0.62, 0.57, 0.49),
+		Color(0.76, 0.26, 0.22),
+		Color(0.22, 0.50, 0.72),
+		Color(0.80, 0.62, 0.20),
+		Color(0.26, 0.58, 0.36),
+		Color(0.68, 0.36, 0.56),
+		Color(0.82, 0.78, 0.70),
 	]
 	var trim_palette: Array[Color] = [
-		Color(0.68, 0.64, 0.56),
-		Color(0.64, 0.48, 0.16),
-		Color(0.16, 0.22, 0.34),
-		Color(0.62, 0.22, 0.18),
+		Color(0.90, 0.86, 0.78),
+		Color(0.84, 0.64, 0.18),
+		Color(0.18, 0.28, 0.46),
+		Color(0.74, 0.24, 0.20),
 	]
-	var bamboo_col: Color = Color(0.46, 0.38, 0.22)
-	var pin_col: Color = Color(0.58, 0.46, 0.26)
+	var cord_col: Color = Color(0.52, 0.42, 0.26)
+	var pin_col: Color = Color(0.66, 0.52, 0.30)
+	var has_sampayan_glb: bool = ResourceLoader.exists(BARANGAY_DIR % "brgy_sampayan_3d")
 	var pair_count: int = sampayan_spans.size() / 2
+
 	for side_mul: float in [1.0, -1.0]:
 		for s_idx: int in pair_count:
 			var a_pt: Vector3 = sampayan_spans[s_idx * 2] * Vector3(side_mul, 1.0, side_mul)
 			var b_pt: Vector3 = sampayan_spans[s_idx * 2 + 1] * Vector3(side_mul, 1.0, side_mul)
-			var span_vec: Vector3 = b_pt - a_pt
-			var span_len: float = span_vec.length()
-			if span_len < 0.5:
+			var d_vec: Vector3 = b_pt - a_pt
+			var span_len: float = d_vec.length()
+			if has_sampayan_glb:
+				var glb_line: Node3D = _instantiate_kit("brgy_sampayan_3d")
+				glb_line.name = "VolumetricSampayan_%d_%s" % [s_idx, "S" if side_mul > 0.0 else "N"]
+				var nat_sz: Vector3 = _kit_bounds("brgy_sampayan_3d").size
+				glb_line.scale = Vector3(1.0, 1.0, clampf(span_len / maxf(nat_sz.z, 1.0), 0.82, 1.28))
+				var mid_pt: Vector3 = (a_pt + b_pt) * 0.5
+				mid_pt.y = maxf(minf(a_pt.y, b_pt.y) - 0.45, 4.65)
+				_place_walkthrough(glb_line, mid_pt, atan2(d_vec.x, d_vec.z))
 				continue
-			var dir_s: Vector3 = span_vec / span_len
-			var yaw_s: float = atan2(dir_s.x, dir_s.z)
-			var pitch_s: float = -asin(clampf(dir_s.y, -0.5, 0.5))
-			var pole_basis: Basis = Basis(Vector3.UP, yaw_s) * Basis(Vector3.RIGHT, pitch_s)
-			var mid_s: Vector3 = (a_pt + b_pt) * 0.5 - Vector3(0.0, 0.06, 0.0)
-			_kit_oriented_box(kit, pole_basis, mid_s, Vector3(0.048, 0.048, span_len), bamboo_col, bamboo_col * 0.74)
-			var pieces: int = 5
-			for p_i: int in pieces:
-				var t: float = (float(p_i) + 0.65) / float(pieces + 0.3)
-				var hang_top: Vector3 = a_pt.lerp(b_pt, t) - Vector3(0.0, 0.06, 0.0)
-				var c_col: Color = cloth_palette[(s_idx * 2 + p_i) % cloth_palette.size()]
-				var tr_col: Color = trim_palette[(s_idx + p_i) % trim_palette.size()]
-				var kind: int = (p_i + s_idx) % 3
-				var sway_rad: float = deg_to_rad(5.5 * sin(float(s_idx * 5 + p_i) * 2.1 + side_mul))
-				_append_sampayan_garment(kit, yaw_s, hang_top, c_col, tr_col, pin_col, kind, sway_rad)
+			SpaghettiWires.append_volumetric_sampayan_span(
+				kit,
+				a_pt,
+				b_pt,
+				cloth_palette,
+				trim_palette,
+				cord_col,
+				pin_col,
+				s_idx + (0 if side_mul > 0.0 else 11)
+			)
 
-	# 3. Tight-corner Tropical Trees (Banana "Saging" clumps & Mango/Acacia canopies) + Blue Water Drums
-	var tree_spots: Array[Vector3] = [
-		Vector3(-73.8, 0.0, 23.4), Vector3(73.8, 0.0, -23.4),
-		Vector3(-50.2, 0.0, 23.2), Vector3(50.2, 0.0, -23.2),
-		Vector3(50.2, 0.0, 21.2), Vector3(-50.2, 0.0, -21.2),
-		Vector3(-66.5, 0.0, 44.2), Vector3(66.5, 0.0, -44.2),
-		Vector3(-51.2, 0.0, 62.8), Vector3(51.2, 0.0, -62.8),
-		Vector3(51.2, 0.0, 62.8), Vector3(-51.2, 0.0, -62.8),
-		Vector3(-17.8, 0.0, 69.2), Vector3(17.8, 0.0, -69.2),
-		Vector3(17.8, 0.0, 69.2), Vector3(-17.8, 0.0, -69.2),
-		Vector3(-82.5, 0.0, -8.5), Vector3(82.5, 0.0, 8.5),
-		Vector3(-82.5, 0.0, 8.5), Vector3(82.5, 0.0, -8.5),
+	# 3. Interior *Tabing-Ilog* Riverbank & Courtyard Banana / Mango / Coconut Trees (clear of all 3 pathways!)
+	var interior_tree_spots: Array[Vector3] = [
+		Vector3(-70.5, 0.0, 5.8),
+		Vector3(70.5, 0.0, -5.8),
+		Vector3(-68.2, 0.0, -5.8),
+		Vector3(68.2, 0.0, 5.8),
+		Vector3(-54.8, 0.0, 6.2),
+		Vector3(54.8, 0.0, -6.2),
+		Vector3(-60.5, 0.0, 47.6),
+		Vector3(60.5, 0.0, -47.6),
+		Vector3(-25.8, 0.0, 66.5),
+		Vector3(25.8, 0.0, -66.5),
+		Vector3(25.8, 0.0, 66.5),
+		Vector3(-25.8, 0.0, -66.5),
 	]
-	var trunk_col: Color = Color(0.28, 0.20, 0.14)
-	var leaf_lit: Color = Color(0.24, 0.44, 0.20)
-	var leaf_dark: Color = Color(0.15, 0.30, 0.14)
-	var banana_lit: Color = Color(0.30, 0.48, 0.20)
-	var drum_blue: Color = Color(0.14, 0.34, 0.58)
-	for t_i: int in tree_spots.size():
-		var tp: Vector3 = tree_spots[t_i]
-		if t_i % 2 == 0:
-			# Banana (Saging) clump: slender pseudostem + 5 arching broad tropical fronds
-			kit.cylinder(tp, 0.18, 0.13, 3.2, 6, banana_lit * 0.72, trunk_col)
-			for f_i: int in 5:
-				var fyaw: float = TAU * float(f_i) / 5.0 + float(t_i) * 0.4
-				var fbasis: Basis = Basis(Vector3.UP, fyaw) * Basis(Vector3.RIGHT, -0.48)
-				var fpos: Vector3 = tp + Vector3(0.0, 3.15, 0.0) + Basis(Vector3.UP, fyaw) * Vector3(0.0, 0.15, 1.05)
-				_kit_oriented_box(kit, fbasis, fpos, Vector3(0.58, 0.06, 2.15), banana_lit, leaf_dark)
-		else:
-			# Provincial Mango / Acacia shade tree: sturdy dark trunk + layered painterly crown
-			kit.cylinder(tp, 0.34, 0.24, 3.8, 7, trunk_col, trunk_col * 0.75)
-			kit.sphere(tp + Vector3(0.0, 4.7, 0.0), 2.35, leaf_lit, 8, 5)
-			kit.sphere(tp + Vector3(1.15, 4.2, 0.65), 1.65, leaf_lit * 0.94, 8, 5)
-			kit.sphere(tp + Vector3(-1.05, 4.3, -0.55), 1.55, banana_lit * 0.92, 8, 5)
-		# Blue barrio plastic water drum tucked beside house corner
-		var d_off: Vector3 = Vector3(0.85 if tp.x < 0.0 else -0.85, 0.0, 0.65)
-		kit.cylinder(tp + d_off, 0.29, 0.29, 0.92, 8, drum_blue, drum_blue * 0.72)
+	var tree_ids: Array[String] = ["brgy_banana_clump", "brgy_mango_tree", "brgy_coconut_palm"]
+	var drum_blue: Color = Color(0.18, 0.42, 0.68)
+	for t_i: int in interior_tree_spots.size():
+		var tp: Vector3 = interior_tree_spots[t_i]
+		var tid: String = tree_ids[t_i % tree_ids.size()]
+		var t_inst: Node3D = _instantiate_kit(tid)
+		t_inst.name = "BarangayTree_%d" % t_i
+		t_inst.scale = Vector3.ONE * (0.88 + 0.22 * absf(sin(float(t_i) * 2.1)))
+		_place_walkthrough(t_inst, tp, float(t_i) * 1.3)
+		var d_off: Vector3 = Vector3(1.15 if tp.x < 0.0 else -1.15, 0.0, 0.75)
+		kit.cylinder(tp + d_off, 0.27, 0.27, 0.86, 8, drum_blue, drum_blue * 0.76)
 
 	var dressing_mesh: ArrayMesh = kit.commit()
 	var dressing_mat: StandardMaterial3D = StandardMaterial3D.new()
@@ -795,347 +1205,10 @@ func _build_micro_dressing_and_sampayan() -> void:
 	dressing_inst.name = "BarangayMicroDressing"
 
 
-static func _append_sampayan_garment(
-	kit: LowPoly,
-	yaw_s: float,
-	hang_top: Vector3,
-	c_col: Color,
-	trim_col: Color,
-	pin_col: Color,
-	kind: int,
-	sway_rad: float
-) -> void:
-	var g_basis: Basis = Basis(Vector3.UP, yaw_s) * Basis(Vector3.FORWARD, sway_rad)
-	var dark_c: Color = c_col * 0.76
-	# Two wooden sipit clothespins gripping the bamboo pole
-	for pin_sign: float in [-1.0, 1.0]:
-		var pin_pos: Vector3 = hang_top + g_basis * Vector3(0.0, 0.03, pin_sign * 0.14)
-		_kit_oriented_box(kit, g_basis, pin_pos, Vector3(0.035, 0.09, 0.032), pin_col, pin_col * 0.72)
-
-	if kind == 0:
-		# Classic Pinoy T-Shirt (kamiseta): torso body + ringer collar + two angled sleeves!
-		var body_pos: Vector3 = hang_top + g_basis * Vector3(0.0, -0.32, 0.0)
-		_kit_oriented_box(kit, g_basis, body_pos, Vector3(0.038, 0.58, 0.42), c_col, dark_c)
-		var collar_pos: Vector3 = hang_top + g_basis * Vector3(0.0, -0.06, 0.0)
-		_kit_oriented_box(kit, g_basis, collar_pos, Vector3(0.044, 0.07, 0.16), trim_col, trim_col * 0.76)
-		for side_s: float in [-1.0, 1.0]:
-			var slv_basis: Basis = g_basis * Basis(Vector3.RIGHT, side_s * 0.62)
-			var slv_pos: Vector3 = hang_top + g_basis * Vector3(0.0, -0.15, side_s * 0.27)
-			_kit_oriented_box(kit, slv_basis, slv_pos, Vector3(0.036, 0.17, 0.23), c_col, dark_c)
-			var cuff_pos: Vector3 = hang_top + g_basis * Vector3(0.0, -0.21, side_s * 0.35)
-			_kit_oriented_box(kit, slv_basis, cuff_pos, Vector3(0.040, 0.175, 0.045), trim_col, trim_col * 0.76)
-	elif kind == 1:
-		# Basketball Shorts (puruntong): elastic waistband + two clearly separated legs with hem stripes!
-		var waist_pos: Vector3 = hang_top + g_basis * Vector3(0.0, -0.07, 0.0)
-		_kit_oriented_box(kit, g_basis, waist_pos, Vector3(0.042, 0.11, 0.44), trim_col, trim_col * 0.76)
-		for leg_s: float in [-1.0, 1.0]:
-			var leg_basis: Basis = g_basis * Basis(Vector3.RIGHT, -leg_s * 0.09)
-			var leg_pos: Vector3 = hang_top + g_basis * Vector3(0.0, -0.34, leg_s * 0.13)
-			_kit_oriented_box(kit, leg_basis, leg_pos, Vector3(0.038, 0.45, 0.17), c_col, dark_c)
-			var hem_pos: Vector3 = hang_top + g_basis * Vector3(0.0, -0.54, leg_s * 0.15)
-			_kit_oriented_box(kit, leg_basis, hem_pos, Vector3(0.042, 0.055, 0.175), trim_col, trim_col * 0.76)
-	else:
-		# Barrio Basketball Jersey / Sando: two shoulder straps with open neck scoop + striped chest!
-		for strap_s: float in [-1.0, 1.0]:
-			var strap_pos: Vector3 = hang_top + g_basis * Vector3(0.0, -0.10, strap_s * 0.135)
-			_kit_oriented_box(kit, g_basis, strap_pos, Vector3(0.038, 0.17, 0.082), c_col, dark_c)
-		var chest_pos: Vector3 = hang_top + g_basis * Vector3(0.0, -0.41, 0.0)
-		_kit_oriented_box(kit, g_basis, chest_pos, Vector3(0.038, 0.47, 0.40), c_col, dark_c)
-		var stripe_pos: Vector3 = hang_top + g_basis * Vector3(0.0, -0.33, 0.0)
-		_kit_oriented_box(kit, g_basis, stripe_pos, Vector3(0.044, 0.10, 0.405), trim_col, trim_col * 0.76)
-
-
 static func _kit_oriented_box(kit: LowPoly, b: Basis, pos: Vector3, sz: Vector3, top_c: Color, side_c: Color) -> void:
 	kit.set_transform(Transform3D(b, pos))
 	kit.plain_box(Vector3.ZERO, sz, side_c, top_c)
 	kit.reset_transform()
-
-
-func _build_spaghetti_wiring_and_poles() -> void:
-	if layout.arena_radius <= 0.0 and layout.lane_width < 80.0:
-		return
-	var ring_r: float = (layout.arena_radius if layout.arena_radius > 0.0 else 84.0) - 0.35
-
-	# 1. 24 Primary Leaning Meralco Posts (0..11 inner bridge/plaza poles + 12..23 perimeter ring poles)
-	var inner_poles: Array[Vector3] = [
-		Vector3(-49.0, 0.0, 7.6),
-		Vector3(-3.4, 0.0, 7.6),
-		Vector3(48.8, 0.0, 7.6),
-		Vector3(49.0, 0.0, -7.6),
-		Vector3(3.4, 0.0, -7.6),
-		Vector3(-48.8, 0.0, -7.6),
-		Vector3(-24.8, 0.0, 27.4),
-		Vector3(24.8, 0.0, 27.4),
-		Vector3(24.8, 0.0, -27.4),
-		Vector3(-24.8, 0.0, -27.4),
-		Vector3(-15.8, 0.0, 50.2),
-		Vector3(15.8, 0.0, -50.2),
-	]
-	var outer_poles: Array[Vector3] = []
-	for i: int in 12:
-		var ang: float = TAU * (float(i) + 0.35) / 12.0
-		outer_poles.append(Vector3(cos(ang) * ring_r, 0.0, sin(ang) * ring_r))
-
-	# 16 Mid-Eskinita Utility Corner Poles / Wall-Bracket Masts (24..39) tucked flush along narrow Z = +-12..44m alleys!
-	var eskinita_half_poles: Array[Vector3] = [
-		Vector3(-25.65, 0.0, 13.6),
-		Vector3(-21.55, 0.0, 20.6),
-		Vector3(-28.25, 0.0, 35.4),
-		Vector3(-43.75, 0.0, 15.4),
-		Vector3(-13.45, 0.0, 35.6),
-		Vector3(13.45, 0.0, 35.6),
-		Vector3(21.55, 0.0, 15.4),
-		Vector3(43.00, 0.0, 15.4),
-	]
-	var eskinita_poles: Array[Vector3] = []
-	for ep: Vector3 in eskinita_half_poles:
-		eskinita_poles.append(ep)
-	for ep_neg: Vector3 in eskinita_half_poles:
-		eskinita_poles.append(Vector3(-ep_neg.x, 0.0, -ep_neg.z))
-
-	var all_poles: Array[Vector3] = []
-	all_poles.append_array(inner_poles)
-	all_poles.append_array(outer_poles)
-	all_poles.append_array(eskinita_poles)
-
-	var pole_tops: Array[Vector3] = []
-	var nat_pole_h: float = maxf(_kit_bounds("brgy_meralco_post").size.y, 6.0)
-	var pole_scale_y: float = 9.4 / nat_pole_h
-	var alley_pole_scale_y: float = 6.9 / nat_pole_h
-	for idx: int in all_poles.size():
-		var spot: Vector3 = all_poles[idx]
-		var is_alley_mast: bool = idx >= 24
-		var pole: Node3D = _instantiate_kit("brgy_meralco_post")
-		if is_alley_mast:
-			pole.scale = Vector3(0.66, alley_pole_scale_y, 0.66)
-		else:
-			pole.scale = Vector3(0.88, pole_scale_y, 0.88)
-		var yaw: float = (PI * 0.5 if spot.x < 0.0 else -PI * 0.5) if is_alley_mast else atan2(-spot.x, -spot.z)
-		var lean_amp: float = 4.2 if is_alley_mast else 2.6
-		var lean_x: float = deg_to_rad(lean_amp * sin(float(idx) * 2.1 + 0.4))
-		var lean_z: float = deg_to_rad(lean_amp * cos(float(idx) * 1.7 - 0.3))
-		pole.position = spot
-		pole.rotation = Vector3(lean_x, yaw, lean_z)
-		_geometry.add_child(pole)
-		var anchor_h: float = 6.20 if is_alley_mast else 8.40
-		var top_offset: Vector3 = pole.transform.basis.orthonormalized() * Vector3(0.0, anchor_h, 0.0)
-		pole_tops.append(spot + top_offset)
-
-	# Single batched ArrayMesh for the entire 2.5x Chaotic Pinoy Spaghetti Wiring Network!
-	var st: SurfaceTool = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-
-	# 2. Pole-to-pole trunk & mid-eskinita overhead spans (indices into `pole_tops` 0..39)
-	var spans: Array[Vector2i] = [
-		# Outer 12-pole perimeter ring loop (12..23)
-		Vector2i(12, 13), Vector2i(13, 14), Vector2i(14, 15), Vector2i(15, 16),
-		Vector2i(16, 17), Vector2i(17, 18), Vector2i(18, 19), Vector2i(19, 20),
-		Vector2i(20, 21), Vector2i(21, 22), Vector2i(22, 23), Vector2i(23, 12),
-		# Inner creek & bridge trunk web
-		Vector2i(0, 1), Vector2i(1, 2), Vector2i(3, 4), Vector2i(4, 5),
-		Vector2i(0, 5), Vector2i(1, 4), Vector2i(2, 3),
-		# Inner mid-barangay & base web
-		Vector2i(0, 6), Vector2i(1, 6), Vector2i(1, 7), Vector2i(2, 7),
-		Vector2i(5, 9), Vector2i(4, 9), Vector2i(4, 8), Vector2i(3, 8),
-		Vector2i(6, 10), Vector2i(7, 10), Vector2i(8, 11), Vector2i(9, 11),
-		# Radial feeders from perimeter ring into inner barangay poles
-		Vector2i(12, 2), Vector2i(14, 7), Vector2i(15, 10), Vector2i(17, 6),
-		Vector2i(18, 0), Vector2i(20, 9), Vector2i(21, 11), Vector2i(23, 8),
-		# +Z Mid-eskinita low-hanging spaghetti chains (24..31) along narrow Z = 12..44m alleys!
-		Vector2i(0, 27), Vector2i(27, 24), Vector2i(27, 6),
-		Vector2i(1, 24), Vector2i(24, 25), Vector2i(25, 6), Vector2i(6, 26), Vector2i(26, 10),
-		Vector2i(25, 28), Vector2i(28, 10), Vector2i(28, 29), Vector2i(29, 7),
-		Vector2i(1, 30), Vector2i(30, 7), Vector2i(30, 31), Vector2i(2, 31), Vector2i(31, 7),
-		# -Z Symmetric mid-eskinita low-hanging spaghetti chains (32..39)!
-		Vector2i(3, 35), Vector2i(35, 32), Vector2i(35, 8),
-		Vector2i(4, 32), Vector2i(32, 33), Vector2i(33, 8), Vector2i(8, 34), Vector2i(34, 11),
-		Vector2i(33, 36), Vector2i(36, 11), Vector2i(36, 37), Vector2i(37, 9),
-		Vector2i(4, 38), Vector2i(38, 9), Vector2i(38, 39), Vector2i(5, 39), Vector2i(39, 9),
-	]
-
-	for s_idx: int in spans.size():
-		var pair: Vector2i = spans[s_idx]
-		var p_a: Vector3 = pole_tops[pair.x]
-		var p_b: Vector3 = pole_tops[pair.y]
-		var horiz: Vector3 = Vector3(p_b.x - p_a.x, 0.0, p_b.z - p_a.z)
-		var dist: float = horiz.length()
-		if dist < 1.0:
-			continue
-		var side_dir: Vector3 = Vector3(-horiz.z, 0.0, horiz.x) / dist
-		var is_eskinita_span: bool = pair.x >= 24 or pair.y >= 24
-		var strand_count: int = 6 if is_eskinita_span else 5
-		for strand: int in strand_count:
-			var f_st: float = float(strand)
-			var spread: float = (f_st - 2.2) * 0.22 + 0.08 * sin(float(s_idx * 5 + strand) * 1.9)
-			var y_drop: float = -0.14 * f_st + 0.05 * cos(float(s_idx + strand) * 2.3)
-			var start_p: Vector3 = p_a + side_dir * spread + Vector3(0.0, y_drop, 0.0)
-			var end_p: Vector3 = p_b + side_dir * (spread * 0.82) + Vector3(0.0, y_drop - 0.08 * sin(f_st), 0.0)
-			var sag_cap: float = 0.78 if is_eskinita_span else 1.25
-			var sag: float = clampf(dist * (0.016 + 0.005 * f_st) + 0.14 * absf(sin(float(s_idx * 3 + strand))), 0.30, sag_cap)
-			var radius_w: float = 0.036 if strand == 0 else 0.026
-			_append_catenary_wire(st, start_p, end_p, sag, radius_w, 7)
-			if is_eskinita_span and strand == 1 and s_idx % 2 == 0:
-				var mid_sag_pt: Vector3 = start_p.lerp(end_p, 0.5) - Vector3(0.0, sag + 0.08, 0.0)
-				_append_wire_coil(st, mid_sag_pt, 0.24, 0.30, atan2(horiz.x, horiz.z))
-
-	# 3. Dense Crisscrossing Overhead Eskinita Web (`Y = 4.65..6.75m`) across all narrow Z = +-9..44m alleys!
-	# Each Vector4 encodes `(x_west_wall, x_east_wall, z_start, z_end)` for a +Z narrow eskinita (mirrored to -Z).
-	var alley_corridors: Array[Vector4] = [
-		Vector4(-49.1, -43.7, 9.4, 21.4),
-		Vector4(-25.7, -21.5, 8.9, 22.0),
-		Vector4(-2.7, 2.7, 9.2, 21.6),
-		Vector4(21.5, 25.5, 9.4, 21.6),
-		Vector4(42.9, 48.5, 9.4, 19.6),
-		Vector4(-50.7, -46.3, 28.4, 41.8),
-		Vector4(-28.3, -24.3, 28.5, 44.0),
-		Vector4(-13.5, -9.3, 28.8, 42.4),
-		Vector4(9.3, 13.5, 28.8, 42.4),
-		Vector4(24.3, 28.3, 28.5, 44.0),
-		Vector4(46.3, 50.7, 28.4, 41.8),
-		Vector4(-34.4, -30.2, 50.4, 60.6),
-		Vector4(30.2, 34.4, 50.4, 60.6),
-	]
-	for side_z: float in [1.0, -1.0]:
-		for c_idx: int in alley_corridors.size():
-			var corr: Vector4 = alley_corridors[c_idx]
-			var x_l: float = corr.x * side_z
-			var x_r: float = corr.y * side_z
-			var stations: int = 5 if (c_idx == 1 or c_idx == 6) else 3
-			for st_i: int in stations:
-				var frac: float = (float(st_i) + 0.45) / float(stations)
-				var z_base: float = lerpf(corr.z, corr.w, frac) * side_z
-				var z_diag: float = lerpf(corr.z, corr.w, clampf(frac + 0.24, 0.05, 0.98)) * side_z
-				var y_l: float = 5.55 + 1.05 * absf(sin(float(c_idx * 7 + st_i * 3) + side_z * 0.5))
-				var y_r: float = 5.60 + 1.00 * absf(cos(float(c_idx * 5 + st_i * 4) - side_z * 0.3))
-				var anchor_l: Vector3 = Vector3(x_l, y_l, z_base)
-				var anchor_r: Vector3 = Vector3(x_r, y_r, z_base + 0.7 * side_z)
-				var anchor_r_diag: Vector3 = Vector3(x_r, clampf(y_r - 0.28, 5.30, 6.7), z_diag)
-				var anchor_l_diag: Vector3 = Vector3(x_l, clampf(y_l - 0.24, 5.30, 6.7), z_diag)
-				# Wall-mounted steel utility standoffs jutting 0.24m out from opposing bahay walls
-				_append_wall_bracket(st, anchor_l, signf(x_r - x_l) * 0.24)
-				_append_wall_bracket(st, anchor_r, signf(x_l - x_r) * 0.24)
-				# 3-strand sagging cross-eskinita bundle + 2 crisscrossing X-drop wires (`Y = 4.65..6.65m`)
-				for w_k: int in 3:
-					var wy: float = -0.14 * float(w_k)
-					var wz: float = (float(w_k) - 1.0) * 0.22 * side_z
-					var sag_c: float = 0.30 + 0.11 * float(w_k) + 0.08 * absf(sin(float(st_i + w_k)))
-					_append_catenary_wire(
-						st,
-						anchor_l + Vector3(0.0, wy, wz),
-						anchor_r + Vector3(0.0, wy - 0.06, -wz),
-						sag_c,
-						0.026 if w_k == 0 else 0.020,
-						6
-					)
-				_append_catenary_wire(st, anchor_l, anchor_r_diag, 0.46, 0.022, 6)
-				_append_catenary_wire(st, anchor_r, anchor_l_diag, 0.50, 0.022, 6)
-				# Suspended figure-8 telecom slack loop silhouette directly overhead in the narrow alley!
-				if (st_i + c_idx) % 2 == 0:
-					var loop_pt: Vector3 = anchor_l.lerp(anchor_r, 0.36) - Vector3(0.0, 0.36, 0.0)
-					_append_wire_coil(st, loop_pt, 0.22, 0.30, float(st_i) * 0.9 + 0.4)
-
-	# 4. Tangled Telecom Slack Coils ("ikot ng kable") on all 40 poles (0..39), strictly overhead (`Y >= 4.7m`)
-	for p_i: int in pole_tops.size():
-		var top_p: Vector3 = pole_tops[p_i]
-		var coil_drop: float = 0.62 if p_i >= 24 else 1.10
-		var coil_center: Vector3 = top_p - Vector3(0.0, coil_drop, 0.0)
-		for loop_k: int in 4:
-			var loop_yaw: float = float(p_i) * 1.1 + float(loop_k) * 0.85
-			var loop_r_x: float = 0.28 + 0.06 * float(loop_k)
-			var loop_r_y: float = 0.34 + 0.07 * float(loop_k)
-			_append_wire_coil(st, coil_center + Vector3(0.0, -0.09 * float(loop_k), 0.0), loop_r_x, loop_r_y, loop_yaw)
-
-	# 5. Diagonal Service Drop-Wires fanning from poles into nearby interior & perimeter house eaves!
-	var obs_rects: Array[Rect2] = layout.obstacle_rects()
-	for p_i: int in pole_tops.size():
-		var junction_p: Vector3 = pole_tops[p_i] - Vector3(0.0, 0.45 if p_i >= 24 else 0.95, 0.0)
-		var max_drops: int = 5 if p_i >= 24 else 3
-		var drops_added: int = 0
-		for o_i: int in obs_rects.size():
-			if drops_added >= max_drops:
-				break
-			var r_obs: Rect2 = obs_rects[(o_i + p_i * 3) % obs_rects.size()]
-			var corner_2d: Vector2 = Vector2(
-				clampf(junction_p.x, r_obs.position.x + 0.35, r_obs.end.x - 0.35),
-				clampf(junction_p.z, r_obs.position.y + 0.35, r_obs.end.y - 0.35)
-			)
-			var d2: float = Vector2(junction_p.x, junction_p.z).distance_to(corner_2d)
-			if d2 > 1.2 and d2 < 24.0:
-				var eave_h: float = 5.15 + 0.85 * absf(sin(float(o_i + p_i) * 1.7))
-				var eave_pt: Vector3 = Vector3(corner_2d.x, eave_h, corner_2d.y)
-				_append_catenary_wire(st, junction_p, eave_pt, clampf(0.24 + d2 * 0.012, 0.26, 0.56), 0.021, 5)
-				drops_added += 1
-		# Outer poles (12..23) also drop service wires into the perimeter house ring behind them
-		if p_i >= 12 and p_i < 24:
-			var rad_dir: Vector2 = Vector2(junction_p.x, junction_p.z).normalized()
-			for branch: float in [-3.8, 3.8]:
-				var tang: Vector2 = Vector2(-rad_dir.y, rad_dir.x) * branch
-				var eave_out: Vector2 = rad_dir * (ring_r + 5.6) + tang
-				_append_catenary_wire(st, junction_p, Vector3(eave_out.x, 5.25, eave_out.y), 0.32, 0.020, 4)
-
-	st.generate_normals()
-	var wire_mesh: ArrayMesh = st.commit()
-	var wire_mat: StandardMaterial3D = StandardMaterial3D.new()
-	wire_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	wire_mat.albedo_color = Color(0.08, 0.07, 0.10)
-	wire_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	wire_mesh.surface_set_material(0, wire_mat)
-	var wire_inst: MeshInstance3D = _add(wire_mesh, Vector3.ZERO)
-	wire_inst.name = "SpaghettiWiring"
-	wire_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-
-
-static func _append_wall_bracket(st: SurfaceTool, wall_pt: Vector3, out_x: float) -> void:
-	var tip: Vector3 = wall_pt + Vector3(out_x, 0.0, 0.0)
-	var brace_low: Vector3 = wall_pt + Vector3(0.0, -0.22, 0.0)
-	var bar_z: Vector3 = Vector3(0.0, 0.0, 0.22)
-	var thick: Vector3 = Vector3(0.0, 0.032, 0.0)
-	_append_quad(st, wall_pt - thick, wall_pt + thick, tip + thick, tip - thick)
-	_append_quad(st, brace_low - thick, brace_low + thick, tip + thick, tip - thick)
-	_append_quad(st, tip - bar_z - thick, tip - bar_z + thick, tip + bar_z + thick, tip + bar_z - thick)
-
-
-static func _append_catenary_wire(st: SurfaceTool, a: Vector3, b: Vector3, sag: float, radius: float, segments: int) -> void:
-	var chord: Vector3 = b - a
-	var horiz: Vector3 = Vector3(chord.x, 0.0, chord.z)
-	var h_len: float = horiz.length()
-	var side: Vector3 = Vector3(-horiz.z / h_len, 0.0, horiz.x / h_len) * radius if h_len > 0.001 else Vector3(radius, 0.0, 0.0)
-	var up: Vector3 = Vector3(0.0, radius * 1.15, 0.0)
-	for i: int in segments:
-		var t0: float = float(i) / float(segments)
-		var t1: float = float(i + 1) / float(segments)
-		var p0: Vector3 = a.lerp(b, t0) - Vector3(0.0, 4.0 * sag * t0 * (1.0 - t0), 0.0)
-		var p1: Vector3 = a.lerp(b, t1) - Vector3(0.0, 4.0 * sag * t1 * (1.0 - t1), 0.0)
-		p0.y = maxf(p0.y, 4.50)
-		p1.y = maxf(p1.y, 4.50)
-		# Crisp crossed ribbon (vertical + horizontal fins) reads from both shoulder-level and overview angles at minimal triangles!
-		_append_quad(st, p0 - up, p0 + up, p1 + up, p1 - up)
-		_append_quad(st, p0 - side, p0 + side, p1 + side, p1 - side)
-
-
-static func _append_wire_coil(st: SurfaceTool, center: Vector3, rx: float, ry: float, yaw: float) -> void:
-	var steps: int = 10
-	var basis: Basis = Basis(Vector3.UP, yaw)
-	var thick: Vector3 = Vector3(0.0, 0.032, 0.0)
-	var wide: Vector3 = basis * Vector3(0.028, 0.0, 0.0)
-	for i: int in steps:
-		var a0: float = TAU * float(i) / float(steps)
-		var a1: float = TAU * float(i + 1) / float(steps)
-		var p0: Vector3 = center + basis * Vector3(cos(a0) * rx, sin(a0) * ry, 0.06 * sin(a0 * 2.0))
-		var p1: Vector3 = center + basis * Vector3(cos(a1) * rx, sin(a1) * ry, 0.06 * sin(a1 * 2.0))
-		p0.y = maxf(p0.y, 4.50)
-		p1.y = maxf(p1.y, 4.50)
-		_append_quad(st, p0 - thick, p0 + thick, p1 + thick, p1 - thick)
-		_append_quad(st, p0 - wide, p0 + wide, p1 + wide, p1 - wide)
-
-
-static func _append_quad(st: SurfaceTool, v0: Vector3, v1: Vector3, v2: Vector3, v3: Vector3) -> void:
-	st.add_vertex(v0)
-	st.add_vertex(v1)
-	st.add_vertex(v2)
-	st.add_vertex(v0)
-	st.add_vertex(v2)
-	st.add_vertex(v3)
 
 
 func _outline_material() -> Material:
@@ -1147,9 +1220,9 @@ func _outline_material() -> Material:
 			if shader != null:
 				var smat: ShaderMaterial = ShaderMaterial.new()
 				smat.shader = shader
-				smat.set_shader_parameter("ink_width", 0.019)
-				smat.set_shader_parameter("distance_comp", 0.56)
-				smat.set_shader_parameter("max_distance", 148.0)
+				smat.set_shader_parameter("ink_width", 0.008)
+				smat.set_shader_parameter("distance_comp", 0.50)
+				smat.set_shader_parameter("max_distance", 155.0)
 				_ink_outline_mat = smat
 		if _ink_outline_mat == null:
 			_ink_outline_mat = LowPoly.outline_material()
@@ -1191,6 +1264,8 @@ static func _resolve_kit_path(kit_id: String) -> String:
 		var fallback: String = BARANGAY_DIR % KIT_FALLBACK_MAP[kit_id]
 		if ResourceLoader.exists(fallback):
 			return fallback
+	if PROCEDURAL_ONLY_KITS.has(kit_id):
+		return ""
 	var cover: String = BARANGAY_DIR % "brgy_cover_wall"
 	return cover if ResourceLoader.exists(cover) else ""
 
@@ -1204,20 +1279,99 @@ func _instantiate_kit(kit_id: String) -> Node3D:
 		var inst: Node3D = _scene_cache[kit_id].instantiate() as Node3D
 		_apply_ink_outlines(inst)
 		return inst
-	# Graceful procedural fallback if `.glb` has not been imported yet
+	return _build_procedural_kit_fallback(kit_id)
+
+
+func _build_procedural_kit_fallback(kit_id: String) -> Node3D:
+	var kit: LowPoly = LowPoly.new()
+	if kit_id == "brgy_wooden_hoop":
+		var coco_wood: Color = Color(0.46, 0.32, 0.19)
+		var board_white: Color = Color(0.90, 0.88, 0.82)
+		var rim_orange: Color = Color(0.84, 0.34, 0.14)
+		kit.rounded_slab(Vector3(0.0, 0.18, 0.0), Vector3(0.85, 0.36, 0.85), 0.18, Color(0.44, 0.43, 0.40), Color(0.52, 0.51, 0.48), 4)
+		kit.cylinder(Vector3(0.0, 0.36, 0.0), 0.12, 0.10, 2.95, 8, coco_wood, coco_wood.darkened(0.15))
+		_kit_oriented_box(kit, Basis(Vector3.RIGHT, -0.35), Vector3(0.0, 3.05, 0.35), Vector3(0.12, 0.12, 0.82), coco_wood, coco_wood)
+		kit.box(Vector3(0.0, 3.22, 0.72), Vector3(1.28, 0.88, 0.06), board_white, board_white)
+		kit.box(Vector3(0.0, 3.12, 0.76), Vector3(0.46, 0.36, 0.03), rim_orange, rim_orange)
+		kit.cylinder(Vector3(0.0, 2.92, 0.98), 0.23, 0.23, 0.045, 10, rim_orange, rim_orange)
+	elif kit_id == "brgy_chb_wall":
+		var chb_grey: Color = Color(0.54, 0.53, 0.50)
+		var moss_green: Color = Color(0.32, 0.44, 0.25)
+		var pillar_col: Color = Color(0.60, 0.58, 0.54)
+		kit.box(Vector3(0.0, 0.28, 0.0), Vector3(6.0, 0.56, 0.34), moss_green, chb_grey)
+		kit.box(Vector3(0.0, 1.32, 0.0), Vector3(6.0, 1.54, 0.28), chb_grey, pillar_col)
+		kit.box(Vector3(0.0, 2.15, 0.0), Vector3(6.1, 0.14, 0.36), pillar_col, moss_green)
+		for px: float in [-2.85, 0.0, 2.85]:
+			kit.box(Vector3(px, 1.15, 0.0), Vector3(0.38, 2.30, 0.40), pillar_col, pillar_col.lightened(0.08))
+	elif kit_id == "brgy_mango_tree":
+		var bark: Color = Color(0.34, 0.25, 0.18)
+		var leaf_a: Color = Color(0.26, 0.48, 0.22)
+		var leaf_b: Color = Color(0.34, 0.56, 0.24)
+		kit.cylinder(Vector3.ZERO, 0.38, 0.26, 3.4, 8, bark, bark.darkened(0.15))
+		for b_i: int in 3:
+			var byaw: float = TAU * float(b_i) / 3.0 + 0.4
+			var b_dir: Basis = Basis(Vector3.UP, byaw) * Basis(Vector3.RIGHT, 0.52)
+			_kit_oriented_box(kit, b_dir, Vector3(cos(byaw) * 0.55, 3.55, sin(byaw) * 0.55), Vector3(0.22, 1.45, 0.22), bark, bark)
+		kit.sphere(Vector3(0.0, 4.9, 0.0), 2.35, leaf_b, 9, 6)
+		kit.sphere(Vector3(1.25, 4.35, 0.75), 1.75, leaf_a, 8, 5)
+		kit.sphere(Vector3(-1.15, 4.45, -0.65), 1.65, leaf_b.darkened(0.06), 8, 5)
+		kit.sphere(Vector3(-0.35, 5.45, 0.85), 1.45, leaf_b.lightened(0.05), 8, 5)
+	elif kit_id == "brgy_coconut_palm":
+		var palm_bark: Color = Color(0.44, 0.36, 0.27)
+		var frond_green: Color = Color(0.28, 0.52, 0.22)
+		var coco_nut: Color = Color(0.42, 0.50, 0.18)
+		var cur_p: Vector3 = Vector3.ZERO
+		for seg_k: int in 6:
+			var next_p: Vector3 = cur_p + Vector3(0.14 * float(seg_k) * 0.35, 1.08, 0.06 * float(seg_k) * 0.25)
+			var r0: float = lerpf(0.26, 0.15, float(seg_k) / 6.0)
+			var r1: float = lerpf(0.26, 0.15, float(seg_k + 1) / 6.0)
+			SpaghettiWires.append_3d_tapered_tube(kit, cur_p, next_p, r0, r1, 7, palm_bark)
+			cur_p = next_p
+		for nut_i: int in 4:
+			var na: float = TAU * float(nut_i) / 4.0
+			kit.sphere(cur_p + Vector3(cos(na) * 0.22, -0.12, sin(na) * 0.22), 0.14, coco_nut, 6, 4)
+		for f_idx: int in 8:
+			var fyaw: float = TAU * float(f_idx) / 8.0
+			var f_b: Basis = Basis(Vector3.UP, fyaw) * Basis(Vector3.RIGHT, -0.38)
+			var f_mid: Vector3 = cur_p + Basis(Vector3.UP, fyaw) * Vector3(0.0, 0.22, 1.25)
+			_kit_oriented_box(kit, f_b, f_mid, Vector3(0.52, 0.08, 2.45), frond_green, frond_green.darkened(0.18))
+	elif kit_id == "brgy_banana_clump":
+		var stem_green: Color = Color(0.36, 0.52, 0.24)
+		var leaf_bright: Color = Color(0.34, 0.58, 0.22)
+		for st_k: int in 3:
+			var off: Vector3 = Vector3(float(st_k - 1) * 0.42, 0.0, (0.28 if st_k == 1 else -0.18))
+			var h_st: float = 2.65 + 0.35 * float(st_k % 2)
+			kit.cylinder(off, 0.16, 0.12, h_st, 7, stem_green, stem_green.darkened(0.15))
+			for lf_i: int in 5:
+				var lyaw: float = TAU * float(lf_i) / 5.0 + float(st_k) * 0.5
+				var l_b: Basis = Basis(Vector3.UP, lyaw) * Basis(Vector3.RIGHT, -0.44)
+				var l_p: Vector3 = off + Vector3(0.0, h_st, 0.0) + Basis(Vector3.UP, lyaw) * Vector3(0.0, 0.14, 0.98)
+				_kit_oriented_box(kit, l_b, l_p, Vector3(0.56, 0.06, 1.95), leaf_bright, stem_green.darkened(0.12))
+	elif kit_id == "brgy_powerup_stand":
+		var table_wood: Color = Color(0.54, 0.38, 0.22)
+		var jug_orange: Color = Color(0.90, 0.54, 0.16)
+		var canopy_c: Color = Color(0.86, 0.28, 0.22)
+		kit.rounded_slab(Vector3(0.0, 0.06, 0.0), Vector3(1.55, 0.12, 1.25), 0.22, Color(0.44, 0.42, 0.39), Color(0.54, 0.52, 0.48), 4)
+		kit.box(Vector3(0.0, 0.52, 0.0), Vector3(1.22, 0.80, 0.72), table_wood, table_wood.lightened(0.12))
+		kit.cylinder(Vector3(-0.26, 0.92, 0.0), 0.18, 0.18, 0.42, 8, jug_orange, Color(0.94, 0.92, 0.88))
+		kit.box(Vector3(0.24, 0.98, 0.0), Vector3(0.38, 0.12, 0.32), Color(0.84, 0.68, 0.24), Color(0.92, 0.78, 0.34))
+		for post_x: float in [-0.54, 0.54]:
+			kit.cylinder(Vector3(post_x, 0.92, -0.26), 0.035, 0.035, 1.15, 6, table_wood.darkened(0.15), table_wood)
+		kit.gable(Vector3(0.0, 2.02, 0.0), 1.36, 0.96, 0.34, canopy_c, 0.12)
+	else:
+		kit.box(Vector3(0.0, 2.6, 0.0), Vector3(7.2, 5.2, 7.2), Color(0.58, 0.48, 0.36), Color(0.64, 0.32, 0.24))
+
 	var fallback_root: Node3D = Node3D.new()
 	var mi: MeshInstance3D = MeshInstance3D.new()
-	var box: BoxMesh = BoxMesh.new()
-	box.size = Vector3(8.0, 6.0, 8.0)
+	var mesh: ArrayMesh = kit.commit()
 	var mat: StandardMaterial3D = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.46, 0.36, 0.28)
-	mat.roughness = 0.9
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.88
 	var outline: Material = _outline_material()
 	if outline != null:
 		mat.next_pass = outline
-	box.material = mat
-	mi.mesh = box
-	mi.position.y = 3.0
+	mesh.surface_set_material(0, mat)
+	mi.mesh = mesh
 	fallback_root.add_child(mi)
 	return fallback_root
 

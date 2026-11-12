@@ -2,8 +2,8 @@ class_name MatchResults
 extends Control
 ## Centered match result over the dimmed arena: outcome, format, score, Tagalog Ranked LP card, and actions.
 
-const WIN_COLOR: Color = Color("ffd25a")
-const LOSS_COLOR: Color = Color("ff8a80")
+const WIN_COLOR: Color = Color("ffc642")
+const LOSS_COLOR: Color = Color("f2735c")
 const WIDTH: float = 600.0
 const CONFETTI: bool = true
 ## Confetti paper size range (px).
@@ -30,8 +30,8 @@ class RankEmblemControl extends Control:
 class RankLpBar extends Control:
 	var current_ratio: float = 0.0
 	var target_ratio: float = 0.0
-	var fill_color: Color = Color("ffc938")
-	var accent_color: Color = Color("fff29c")
+	var fill_color: Color = Color("f5a623")
+	var accent_color: Color = Color("ffd97d")
 
 	func set_state(cur: float, target: float, fill: Color, accent: Color) -> void:
 		current_ratio = clampf(cur, 0.0, 1.0)
@@ -48,20 +48,20 @@ class RankLpBar extends Control:
 		var rect: Rect2 = Rect2(Vector2.ZERO, size)
 		if rect.size.x <= 4.0 or rect.size.y <= 4.0:
 			return
-		# 90s Komiks inked bar track.
-		draw_rect(rect, Color("090f24"), true)
-		var inner: Rect2 = rect.grow(-2.0)
-		draw_rect(inner, Color("14224a"), true)
+		# Sunlit 90s Kalye warm recessed sand bar track.
+		draw_rect(rect, Color("dfd0b4"), true)
+		var inner: Rect2 = rect.grow(-1.5)
+		draw_rect(inner, Color("efe4cd"), true)
 		if target_ratio > current_ratio:
 			var preview_w: float = inner.size.x * target_ratio
-			draw_rect(Rect2(inner.position, Vector2(preview_w, inner.size.y)), Color(accent_color, 0.35), true)
+			draw_rect(Rect2(inner.position, Vector2(preview_w, inner.size.y)), Color(accent_color, 0.42), true)
 		var fill_w: float = inner.size.x * current_ratio
 		if fill_w > 1.0:
 			var fill_rect: Rect2 = Rect2(inner.position, Vector2(fill_w, inner.size.y))
 			draw_rect(fill_rect, fill_color, true)
 			var gloss_rect: Rect2 = Rect2(inner.position, Vector2(fill_w, inner.size.y * 0.42))
-			draw_rect(gloss_rect, accent_color.lerp(Color.WHITE, 0.35), true)
-		draw_rect(rect, Color("050914"), false, 2.0)
+			draw_rect(gloss_rect, accent_color.lerp(Color("faf3e3"), 0.35), true)
+		draw_rect(rect, Color(Color("2a2522"), 0.36), false, 1.5)
 
 
 var title: Label
@@ -89,6 +89,7 @@ var _shown: bool = false
 var _bar_from: float = 0.0
 var _bar_to: float = 0.0
 var _lp_tween: Tween
+var _rank_card_style: StyleBoxFlat
 var _gain_chip_style: StyleBoxFlat
 var _loss_chip_style: StyleBoxFlat
 var _promo_style: StyleBoxFlat
@@ -119,9 +120,9 @@ func _init() -> void:
 	title = Label.new()
 	title.name = "Title"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UiKit.letter(title, UiMetrics.HERO)
+	UiKit.letter(title, UiMetrics.HERO, WIN_COLOR, Color("2a2522"))
 	column.add_child(title)
-	subtitle = UiKit.text("", UiMetrics.DETAIL, Color("c9d6f2"), false)
+	subtitle = UiKit.text("", UiMetrics.DETAIL, Color("faf3e3"), false)
 	subtitle.name = "Subtitle"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(subtitle)
@@ -136,7 +137,7 @@ func _init() -> void:
 	column.add_child(buttons)
 	home_button = MenuDialog.make_button("Home", "blue", UiMetrics.ACTION)
 	home_button.name = "HomeButton"
-	home_button.custom_minimum_size = Vector2(280.0, 92.0)
+	home_button.custom_minimum_size = Vector2(260.0, 88.0)
 	home_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	home_button.pressed.connect(home_pressed.emit)
 	buttons.add_child(home_button)
@@ -147,9 +148,20 @@ func _init() -> void:
 
 
 func _build_cached_styles() -> void:
+	_rank_card_style = StyleBoxFlat.new()
+	_rank_card_style.bg_color = Color("faf3e3")
+	_rank_card_style.border_color = Color("f5a623")
+	_rank_card_style.set_border_width_all(2)
+	_rank_card_style.set_corner_radius_all(UiSkin.RADIUS_L)
+	_rank_card_style.shadow_color = Color(Color("2a2522"), 0.22)
+	_rank_card_style.shadow_size = 5
+	_rank_card_style.shadow_offset = Vector2(0.0, 3.0)
+	_rank_card_style.set_content_margin_all(14.0)
+	_rank_card_style.anti_aliasing = true
+
 	_gain_chip_style = StyleBoxFlat.new()
-	_gain_chip_style.bg_color = UiKit.CHIP_GREEN
-	_gain_chip_style.border_color = Color("08381a")
+	_gain_chip_style.bg_color = Color("136e61")
+	_gain_chip_style.border_color = Color("0d4f46")
 	_gain_chip_style.set_border_width_all(2)
 	_gain_chip_style.set_corner_radius_all(UiSkin.RADIUS_M)
 	_gain_chip_style.content_margin_left = 14.0
@@ -159,8 +171,8 @@ func _build_cached_styles() -> void:
 	_gain_chip_style.anti_aliasing = true
 
 	_loss_chip_style = StyleBoxFlat.new()
-	_loss_chip_style.bg_color = UiKit.CHIP_RED
-	_loss_chip_style.border_color = Color("4f0c0b")
+	_loss_chip_style.bg_color = Color("b83a28")
+	_loss_chip_style.border_color = Color("87281a")
 	_loss_chip_style.set_border_width_all(2)
 	_loss_chip_style.set_corner_radius_all(UiSkin.RADIUS_M)
 	_loss_chip_style.content_margin_left = 14.0
@@ -170,9 +182,9 @@ func _build_cached_styles() -> void:
 	_loss_chip_style.anti_aliasing = true
 
 	_promo_style = StyleBoxFlat.new()
-	_promo_style.bg_color = Color("ffb81c")
-	_promo_style.border_color = Color("240b00")
-	_promo_style.set_border_width_all(3)
+	_promo_style.bg_color = Color("f5a623")
+	_promo_style.border_color = Color("9e5f08")
+	_promo_style.set_border_width_all(2)
 	_promo_style.set_corner_radius_all(UiSkin.RADIUS_M)
 	_promo_style.content_margin_left = 18.0
 	_promo_style.content_margin_right = 18.0
@@ -192,11 +204,10 @@ func _make_promo_banner() -> PanelContainer:
 	promo_label.name = "PromoText"
 	promo_label.text = "ANGAT RANGGO!"
 	promo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	promo_label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
+	promo_label.add_theme_font_override("font", KalyeahTheme.DISPLAY_FONT)
 	promo_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
-	promo_label.add_theme_color_override("font_color", Color.WHITE)
-	promo_label.add_theme_color_override("font_outline_color", Color("240b00"))
-	promo_label.add_theme_constant_override("outline_size", 5)
+	promo_label.add_theme_color_override("font_color", Color("2a2522"))
+	promo_label.add_theme_constant_override("outline_size", 0)
 	panel.add_child(promo_label)
 	return panel
 
@@ -209,7 +220,7 @@ func _make_rank_card() -> PanelContainer:
 
 	emblem_view = RankEmblemControl.new()
 	emblem_view.name = "RankEmblem"
-	emblem_view.custom_minimum_size = Vector2(76.0, 76.0)
+	emblem_view.custom_minimum_size = Vector2(72.0, 72.0)
 	emblem_view.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	emblem_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(emblem_view)
@@ -227,11 +238,10 @@ func _make_rank_card() -> PanelContainer:
 	rank_tier_label = Label.new()
 	rank_tier_label.name = "RankTier"
 	rank_tier_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	rank_tier_label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
-	rank_tier_label.add_theme_font_size_override("font_size", UiMetrics.BODY)
-	rank_tier_label.add_theme_color_override("font_color", Color("ffd25a"))
-	rank_tier_label.add_theme_color_override("font_outline_color", Color("091024"))
-	rank_tier_label.add_theme_constant_override("outline_size", 4)
+	rank_tier_label.add_theme_font_override("font", KalyeahTheme.DISPLAY_FONT)
+	rank_tier_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
+	rank_tier_label.add_theme_color_override("font_color", Color("2a2522"))
+	rank_tier_label.add_theme_constant_override("outline_size", 0)
 	header.add_child(rank_tier_label)
 
 	rank_delta_chip = PanelContainer.new()
@@ -243,7 +253,7 @@ func _make_rank_card() -> PanelContainer:
 	rank_delta_label.name = "RankDelta"
 	rank_delta_label.add_theme_font_override("font", KalyeahTheme.BUTTON_FONT)
 	rank_delta_label.add_theme_font_size_override("font_size", UiMetrics.CAPTION)
-	rank_delta_label.add_theme_color_override("font_color", Color.WHITE)
+	rank_delta_label.add_theme_color_override("font_color", Color("faf3e3"))
 	rank_delta_chip.add_child(rank_delta_label)
 	header.add_child(rank_delta_chip)
 
@@ -254,12 +264,15 @@ func _make_rank_card() -> PanelContainer:
 	rank_lp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	details.add_child(rank_lp_bar)
 
-	rank_lp_label = UiKit.text("", UiMetrics.CAPTION, Color("c9d6f2"), false)
+	rank_lp_label = UiKit.text("", UiMetrics.CAPTION, Color("57493f"), false)
 	rank_lp_label.name = "RankLpText"
 	details.add_child(rank_lp_label)
 
-	var card: PanelContainer = UiKit.card(row, "raised", 14.0, UiSkin.RADIUS_L)
+	var card: PanelContainer = PanelContainer.new()
 	card.name = "RankCard"
+	card.mouse_filter = Control.MOUSE_FILTER_PASS
+	card.add_theme_stylebox_override("panel", _rank_card_style)
+	card.add_child(row)
 	return card
 
 
@@ -270,7 +283,7 @@ func adopt(button: Button, with_home: bool) -> void:
 		button.get_parent().remove_child(button)
 	primary = button
 	primary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	primary.custom_minimum_size = Vector2(280.0, 92.0)
+	primary.custom_minimum_size = Vector2(260.0, 88.0)
 	var buttons: Control = find_child("Buttons", true, false) as Control
 	buttons.add_child(primary)
 	KalyeahTheme.style_button(primary, "blue")
@@ -287,7 +300,7 @@ func _score_card() -> Control:
 	theirs_label = theirs.get_node("Number") as Label
 	var separator: Label = Label.new()
 	separator.text = "-"
-	UiKit.letter(separator, UiMetrics.DISPLAY, Color("9fb0d6"))
+	UiKit.letter(separator, UiMetrics.DISPLAY, Color("faf3e3"), Color("2a2522"))
 	separator.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(mine)
 	row.add_child(separator)
@@ -337,7 +350,7 @@ func _side(_caption: String, color: Color) -> VBoxContainer:
 	var number: Label = Label.new()
 	number.name = "Number"
 	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UiKit.letter(number, UiMetrics.DISPLAY, color.lightened(0.55), color.darkened(0.6))
+	UiKit.letter(number, UiMetrics.DISPLAY, color.lightened(0.55), Color("2a2522"))
 	column.add_child(number)
 	return column
 
@@ -354,7 +367,7 @@ func set_over(over: bool, sim: MatchSim, local_id: int, local_team: int, mode_te
 	_reveal()
 
 
-## A one-shot burst of paper squares from the top edge: gold, blue, red and green, tumbling as they fall.
+## A one-shot burst of barrio fiesta banderitas paper from the top edge: sunlit mango, sari-sari jade, fiesta coral, and cream.
 func _make_confetti() -> CPUParticles2D:
 	var burst: CPUParticles2D = CPUParticles2D.new()
 	burst.name = "Confetti"
@@ -379,7 +392,7 @@ func _make_confetti() -> CPUParticles2D:
 	burst.scale_amount_max = CONFETTI_MAX
 	var ramp: Gradient = Gradient.new()
 	ramp.offsets = PackedFloat32Array([0.0, 0.33, 0.66, 1.0])
-	ramp.colors = PackedColorArray([Color("ffc233"), Color("4aa0ff"), Color("ff7a70"), Color("45dd78")])
+	ramp.colors = PackedColorArray([Color("f5a623"), Color("1f9d8b"), Color("e2553e"), Color("faf3e3")])
 	burst.color_initial_ramp = ramp
 	return burst
 
@@ -426,10 +439,11 @@ func _fill_ranked(mode_text: String, won: bool, mine: int, theirs: int) -> void:
 	var spec: Dictionary = RankedSystem.tier_for_lp(new_lp)
 	var tier_color: Color = spec["color"] as Color
 	var tier_accent: Color = spec["accent"] as Color
+	var tier_ink: Color = Color("2a2522").lerp(spec["dark"] as Color, 0.72)
 
 	emblem_view.set_lp(new_lp)
 	rank_tier_label.text = tier_title.to_upper()
-	rank_tier_label.add_theme_color_override("font_color", tier_accent)
+	rank_tier_label.add_theme_color_override("font_color", tier_ink)
 
 	if delta >= 0:
 		rank_delta_label.text = "+%d LP" % delta

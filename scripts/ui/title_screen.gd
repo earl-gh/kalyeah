@@ -10,9 +10,16 @@ const SERVER_SCENE: String = "res://server/main.tscn"
 const LOBBY_SCENE: String = "res://scenes/ui/lobby.tscn"
 const PRACTICE_SCENE: String = "res://scenes/match/practice.tscn"
 const RANKED_SYSTEM_PATH: String = "res://scripts/sim/ranked_system.gd"
+const BRAND_WORDMARK_PATH: String = "res://assets/ui/brand/kalyeah_wordmark.png"
+const BRAND_CREST_PATH: String = "res://assets/ui/brand/kalyeah_crest.png"
 const LOGO: Texture2D = preload("res://assets/ui/kalyeah_logo.png")
 const TIPS_ICON: Texture2D = preload("res://assets/ui/tips_icon.png")
 const MAIL_ICON: Texture2D = preload("res://assets/ui/mail_icon.png")
+const SUNLIT_CREAM: Color = Color("faf3e3")
+const SUNLIT_ESPRESSO: Color = Color("2a2522")
+const SUNLIT_MANGO: Color = Color("f5a623")
+const SUNLIT_JADE: Color = Color("1f9d8b")
+const SUNLIT_JADE_TEXT: Color = Color("156e61")
 
 ## The game modes in card order: Online, Local in the middle (the default, `Session.menu_mode` 1), Practice (owner).
 ## `accent` tints the frame of the card and the glow behind it. `plate` is the front face of the model's platform on its picture (picture
@@ -61,8 +68,8 @@ const HERO_BOTTOM_GAP: float = 14.0
 const TITLES_SEPARATION: int = -10
 ## How far the backlight reaches round the chosen card (times the card's height).
 const BACKLIGHT_REACH: float = 1.15
-## The black outline round the mode's one-line phrase.
-const MODE_TEXT_OUTLINE: int = 6
+## Soft warm slate-espresso outline round the mode's one-line phrase.
+const MODE_TEXT_OUTLINE: int = 4
 ## The share of the room the hero card takes (owner: smaller, so the floating card floats with space round it).
 const HERO_SCALE: float = 0.86
 ## The button row's slot takes this share of the free height next to the card's stage (1.0).
@@ -100,7 +107,7 @@ const CTA_MIN_WIDTH: float = 240.0
 const CTA_FONT: int = UiMetrics.HERO_BUTTON
 const CTA_PADDING: float = 56.0
 ## Widescreen 1280x720 landscape metrics so TopBar, NameTag, RankCrest, ModeCarousel, PracticeRow, CTAs and UiTabBar fit 720px with zero overlap.
-const WIDE_LOGO_HEIGHT: float = 84.0
+const WIDE_LOGO_HEIGHT: float = 88.0
 const WIDE_TOP_ICON_SIZE: float = 84.0
 const WIDE_TOP_MARGIN: float = 8.0
 const WIDE_CTA_HEIGHT: float = 90.0
@@ -112,7 +119,7 @@ const WIDE_HERO_MIN_HEIGHT: float = 224.0
 const WIDE_HERO_MAX_HEIGHT: float = 282.0
 const WIDE_HERO_AIR: float = 24.0
 const WIDE_NAMETAG_SCALE: float = 0.72
-const RANK_CREST_SIZE: Vector2 = Vector2(328.0, 92.0)
+const RANK_CREST_SIZE: Vector2 = Vector2(376.0, 92.0)
 ## The main action's breath: it waits `PULSE_DELAY` seconds, then swells to `PULSE_SCALE` and settles, each way in
 ## `PULSE_HALF` seconds.
 const PULSE_DELAY: float = 1.2
@@ -269,7 +276,15 @@ func _build_layout() -> void:
 	move_child(card_drawer, get_child_count() - 1)
 
 
-## The top bar: the KALYEAH! logo, centred and dropped a little from the top edge. Your profile is edited on the nametag.
+static func _resolve_logo_texture() -> Texture2D:
+	if ResourceLoader.exists(BRAND_WORDMARK_PATH):
+		var brand_tex: Texture2D = load(BRAND_WORDMARK_PATH) as Texture2D
+		if brand_tex != null:
+			return brand_tex
+	return LOGO
+
+
+## The top bar: the KALYEAH! signboard header, centred and dropped a little from the top edge. Your profile is edited on the nametag.
 func _build_top_bar() -> Control:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.name = "TopBar"
@@ -287,12 +302,14 @@ func _build_top_bar() -> Control:
 	tips_button = _icon_button("TipsButton", "Game of the month", TIPS_ICON, _open_tips)
 	tips_button.position = Vector2(TIPS_INSET, (LOGO_HEIGHT - TOP_ICON_SIZE) / 2.0)
 	left.add_child(tips_button)
+	var logo_tex: Texture2D = _resolve_logo_texture()
+	var logo_ratio: float = float(logo_tex.get_width()) / maxf(float(logo_tex.get_height()), 1.0)
 	var logo: TextureRect = TextureRect.new()
 	logo.name = "Logo"
-	logo.texture = LOGO
+	logo.texture = logo_tex
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	logo.custom_minimum_size = Vector2(LOGO_HEIGHT * float(LOGO.get_width()) / float(LOGO.get_height()), LOGO_HEIGHT)
+	logo.custom_minimum_size = Vector2(minf(LOGO_HEIGHT * logo_ratio, 400.0), LOGO_HEIGHT)
 	logo.size_flags_vertical = Control.SIZE_SHRINK_END
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# the logo is in front of every part of the name tag's lanyard, which hangs from the top of the screen behind it
@@ -430,9 +447,9 @@ func _build_titles() -> Control:
 	mode_text_label = Label.new()
 	mode_text_label.name = "ModeText"
 	mode_text_label.add_theme_font_size_override("font_size", UiMetrics.DETAIL)
-	# white letters with a black outline, like the name on the platform (owner)
-	mode_text_label.add_theme_color_override("font_color", Color.WHITE)
-	mode_text_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	# sunlit cream letters with a soft warm slate-espresso outline over the diorama stage
+	mode_text_label.add_theme_color_override("font_color", SUNLIT_CREAM)
+	mode_text_label.add_theme_color_override("font_outline_color", SUNLIT_ESPRESSO)
 	mode_text_label.add_theme_constant_override("outline_size", MODE_TEXT_OUTLINE)
 	mode_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mode_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -831,13 +848,18 @@ func _apply_top_bar_metrics(logo_h: float, drop: float, icon_sz: float) -> void:
 	_top_bar.custom_minimum_size = Vector2(0.0, logo_h + drop)
 	var left: Control = _top_bar.get_node_or_null("TopLeft") as Control
 	var right: Control = _top_bar.get_node_or_null("TopRight") as Control
-	var logo: Control = _top_bar.get_node_or_null("Logo") as Control
+	var logo: TextureRect = _top_bar.get_node_or_null("Logo") as TextureRect
 	if left != null:
 		left.custom_minimum_size = Vector2(0.0, logo_h)
 	if right != null:
 		right.custom_minimum_size = Vector2(0.0, logo_h)
 	if logo != null:
-		logo.custom_minimum_size = Vector2(logo_h * float(LOGO.get_width()) / float(LOGO.get_height()), logo_h)
+		if logo.texture == LOGO and ResourceLoader.exists(BRAND_WORDMARK_PATH):
+			logo.texture = _resolve_logo_texture()
+		var tex: Texture2D = logo.texture if logo.texture != null else LOGO
+		var tex_ratio: float = float(tex.get_width()) / maxf(float(tex.get_height()), 1.0)
+		var max_logo_w: float = 520.0 if _is_widescreen() else 400.0
+		logo.custom_minimum_size = Vector2(minf(logo_h * tex_ratio, max_logo_w), logo_h)
 	if tips_button != null:
 		tips_button.custom_minimum_size = Vector2.ONE * icon_sz
 		tips_button.size = Vector2.ONE * icon_sz
@@ -1112,12 +1134,14 @@ func _back_pressed() -> void:
 
 
 class _KomiksNavDock extends Control:
+	const DOCK_TOP: Color = Color(0.24, 0.19, 0.16, 0.90)
+	const DOCK_BOTTOM: Color = Color(0.16, 0.14, 0.13, 0.96)
 	var _pts: PackedVector2Array = PackedVector2Array()
 	var _cols: PackedColorArray = PackedColorArray([
-		UiTabBar.SLOT_IDLE_TOP,
-		UiTabBar.SLOT_IDLE_TOP,
-		UiTabBar.SLOT_IDLE_BOTTOM,
-		UiTabBar.SLOT_IDLE_BOTTOM,
+		DOCK_TOP,
+		DOCK_TOP,
+		DOCK_BOTTOM,
+		DOCK_BOTTOM,
 	])
 
 	func _init() -> void:
@@ -1139,13 +1163,18 @@ class _KomiksNavDock extends Control:
 			_pts[2] = Vector2(size.x, size.y)
 			_pts[3] = Vector2(0.0, size.y)
 		draw_polygon(_pts, _cols)
-		draw_rect(Rect2(0.0, 0.0, size.x, 4.0), KalyeahTheme.KOMIKS_INK)
-		draw_rect(Rect2(0.0, 4.0, size.x, 2.0), Color(KalyeahTheme.AMBER, 0.55))
+		draw_rect(Rect2(0.0, 0.0, size.x, 2.0), Color(TitleScreen.SUNLIT_MANGO, 0.85))
+		draw_rect(Rect2(0.0, 2.0, size.x, 1.0), Color(TitleScreen.SUNLIT_CREAM, 0.48))
+		var wing: float = maxf(0.0, (size.x - TitleScreen.WIDE_TAB_WIDTH) * 0.5 - 24.0)
+		if wing > 24.0:
+			draw_rect(Rect2(16.0, 6.0, wing, 2.0), Color(TitleScreen.SUNLIT_JADE, 0.52))
+			draw_rect(Rect2(size.x - 16.0 - wing, 6.0, wing, 2.0), Color(TitleScreen.SUNLIT_JADE, 0.52))
 
 
 class _RankEmblemCanvas extends Control:
 	var lp: int = 0
 	var _script_ref: Script = null
+	var _brand_crest: Texture2D = null
 	var _checked: bool = false
 
 	func set_lp(new_lp: int) -> void:
@@ -1157,13 +1186,19 @@ class _RankEmblemCanvas extends Control:
 			_checked = true
 			if ResourceLoader.exists(TitleScreen.RANKED_SYSTEM_PATH):
 				_script_ref = load(TitleScreen.RANKED_SYSTEM_PATH) as Script
+			if ResourceLoader.exists(TitleScreen.BRAND_CREST_PATH):
+				_brand_crest = load(TitleScreen.BRAND_CREST_PATH) as Texture2D
 		var center: Vector2 = size * 0.5
 		var radius: float = minf(size.x, size.y) * 0.45
 		if _script_ref != null:
 			_script_ref.call(&"draw_emblem", self, center, radius, lp)
+		elif _brand_crest != null:
+			var side: float = radius * 2.0
+			draw_texture_rect(_brand_crest, Rect2(center - Vector2.ONE * radius, Vector2.ONE * side), false)
 		else:
-			draw_circle(center, radius, KalyeahTheme.KOMIKS_INK)
-			draw_circle(center, radius * 0.82, KalyeahTheme.AMBER)
+			draw_circle(center, radius, TitleScreen.SUNLIT_ESPRESSO)
+			draw_circle(center, radius * 0.86, TitleScreen.SUNLIT_MANGO)
+			draw_circle(center, radius * 0.56, TitleScreen.SUNLIT_JADE)
 
 
 class _RankCrestBadge extends PanelContainer:
@@ -1171,10 +1206,33 @@ class _RankCrestBadge extends PanelContainer:
 	var _tier_label: Label
 	var _lp_label: Label
 
+	static func _signboard_style() -> StyleBoxFlat:
+		var box: StyleBoxFlat = StyleBoxFlat.new()
+		box.bg_color = TitleScreen.SUNLIT_CREAM
+		box.set_corner_radius_all(UiSkin.RADIUS_M)
+		box.set_border_width_all(2)
+		box.border_color = TitleScreen.SUNLIT_MANGO.darkened(0.08)
+		box.shadow_color = Color(TitleScreen.SUNLIT_ESPRESSO, 0.22)
+		box.shadow_size = 6
+		box.shadow_offset = Vector2(0.0, 3.0)
+		box.content_margin_left = 12.0
+		box.content_margin_right = 14.0
+		box.content_margin_top = 8.0
+		box.content_margin_bottom = 8.0
+		box.anti_aliasing = true
+		return box
+
+	static func _accent_bar_style() -> StyleBoxFlat:
+		var bar: StyleBoxFlat = StyleBoxFlat.new()
+		bar.bg_color = TitleScreen.SUNLIT_JADE
+		bar.set_corner_radius_all(UiSkin.round_radius(4.0))
+		bar.anti_aliasing = true
+		return bar
+
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		custom_minimum_size = TitleScreen.RANK_CREST_SIZE
-		add_theme_stylebox_override("panel", KalyeahTheme.komiks_plate(KalyeahTheme.KOMIKS_PAPER, KalyeahTheme.KOMIKS_INK, 3, 10.0, UiSkin.RADIUS_M))
+		add_theme_stylebox_override("panel", _signboard_style())
 		var row: HBoxContainer = HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 		row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1186,6 +1244,13 @@ class _RankCrestBadge extends PanelContainer:
 		_emblem.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		_emblem.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(_emblem)
+		var accent: Panel = Panel.new()
+		accent.name = "JadeAccent"
+		accent.custom_minimum_size = Vector2(4.0, 48.0)
+		accent.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		accent.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		accent.add_theme_stylebox_override("panel", _accent_bar_style())
+		row.add_child(accent)
 		var text_col: VBoxContainer = VBoxContainer.new()
 		text_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text_col.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1196,20 +1261,32 @@ class _RankCrestBadge extends PanelContainer:
 		_tier_label.name = "RankTierLabel"
 		_tier_label.add_theme_font_override("font", KalyeahTheme.DISPLAY_FONT)
 		_tier_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
-		_tier_label.add_theme_color_override("font_color", KalyeahTheme.KOMIKS_INK)
+		_tier_label.add_theme_color_override("font_color", TitleScreen.SUNLIT_ESPRESSO)
 		_tier_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		_tier_label.clip_text = true
 		_tier_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		text_col.add_child(_tier_label)
 		_lp_label = Label.new()
 		_lp_label.name = "RankLpLabel"
-		_lp_label.add_theme_font_override("font", KalyeahTheme.DISPLAY_FONT)
+		_lp_label.add_theme_font_override("font", KalyeahTheme.CAPTION_FONT)
 		_lp_label.add_theme_font_size_override("font_size", UiMetrics.MIN_TEXT)
-		_lp_label.add_theme_color_override("font_color", KalyeahTheme.MODAL_TEXT_MUTED)
+		_lp_label.add_theme_color_override("font_color", TitleScreen.SUNLIT_JADE_TEXT)
 		_lp_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		_lp_label.clip_text = true
 		_lp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		text_col.add_child(_lp_label)
+		if ResourceLoader.exists(TitleScreen.BRAND_CREST_PATH):
+			var seal_tex: Texture2D = load(TitleScreen.BRAND_CREST_PATH) as Texture2D
+			if seal_tex != null:
+				var seal: TextureRect = TextureRect.new()
+				seal.name = "BrandSeal"
+				seal.texture = seal_tex
+				seal.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				seal.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				seal.custom_minimum_size = Vector2(28.0, 28.0)
+				seal.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+				seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				row.add_child(seal)
 
 	func set_rank(tier_name: String, lp: int) -> void:
 		_tier_label.text = tier_name

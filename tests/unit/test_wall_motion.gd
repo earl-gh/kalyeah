@@ -40,7 +40,7 @@ func _cast(sim: MatchSim, weapon: StringName) -> WeaponSystem.Shield:
 func test_the_numbers_are_data() -> void:
 	var paper: WeaponDef = load("res://data/weapons/papel_shield.tres") as WeaponDef
 	var soil: WeaponDef = load("res://data/weapons/langit_lupa.tres") as WeaponDef
-	assert_eq(paper.push_distance, 4.5, "the paper wall glides 4.5 m")
+	assert_eq(paper.push_distance, 4.0, "the paper wall glides 4.0 m")
 	assert_eq(paper.push_time, 0.85, "over 0.85 s")
 	assert_eq(paper.expand_factor, 1.0, "and does not widen")
 	assert_eq(soil.expand_factor, 3.0, "the block triples its width")
@@ -48,7 +48,7 @@ func test_the_numbers_are_data() -> void:
 	assert_gte(soil.expand_delay, 0.2, "after it has risen")
 	assert_eq(paper.duration, 3.5, "the paper wall's duration")
 	assert_eq(soil.duration, 4.5, "and the earth barricade's duration")
-	assert_eq(paper.width, 6.5)
+	assert_eq(paper.width, 5.2)
 	assert_eq(soil.width, 2.4)
 	var plain: WeaponDef = load("res://data/weapons/bato_light.tres") as WeaponDef
 	assert_eq([plain.push_distance, plain.expand_factor], [0.0, 1.0], "any other weapon has the old defaults")
@@ -84,8 +84,8 @@ func test_the_paper_wall_line_follows_the_formula_every_tick() -> void:
 	var shield: WeaponSystem.Shield = _cast(sim, &"papel_shield")
 	var def: WeaponDef = shield.def
 	var start: Vector2 = sim.players[1].position + Vector2(0.0, -1.0) * def.offset
-	assert_eq(shield.center, start, "at first it is where it was cast: 2.0 m ahead")
-	assert_almost_eq(shield.half_width, 3.25, 0.0001, "and 6.5 m wide")
+	assert_eq(shield.center, start, "at first it is where it was cast: 1.8 m ahead")
+	assert_almost_eq(shield.half_width, 2.6, 0.0001, "and 5.2 m wide")
 	var ticks: int = 0
 	while not sim.weapons.shields.is_empty():
 		sim.step(DT)
@@ -95,9 +95,9 @@ func test_the_paper_wall_line_follows_the_formula_every_tick() -> void:
 		var age: float = def.duration - shield.time_left
 		assert_almost_eq(shield.center.y, start.y - WallMotion.push(def, age), 0.0001, "tick %d: the line is where the formula puts it" % ticks)
 		assert_eq(shield.center.x, start.x, "straight ahead, never sideways")
-		assert_almost_eq(shield.half_width, 3.25, 0.0001, "the paper keeps its width")
+		assert_almost_eq(shield.half_width, 2.6, 0.0001, "the paper keeps its width")
 		if age >= def.push_time + 0.01:
-			assert_almost_eq(shield.center.y, start.y - def.push_distance, 0.0001, "pushed exactly 4.5 m, then it holds")
+			assert_almost_eq(shield.center.y, start.y - def.push_distance, 0.0001, "pushed exactly 4.0 m, then it holds")
 	assert_almost_eq(float(ticks) * DT, def.duration, DT, "and it expires at its configured duration")
 
 

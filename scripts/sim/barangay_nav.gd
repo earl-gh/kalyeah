@@ -1,9 +1,9 @@
 class_name BarangayNav
 extends RefCounted
-## Deterministic waypoint A* navigation graph over MapLayout's circular tight barangay.
-## Pure data + math (no Node, no NavigationServer3D) so 5v5 bots route cleanly through
-## narrow 3.8m-5.8m eskinitas, curved flank alleys, and all 3 Estero Creek bridges
-## identically on client, server, and headless tests.
+## Deterministic waypoint A* navigation graph over MapLayout's circular 90s provincial barangay.
+## Pure data + math (no Node, no NavigationServer3D) so 5v5 bots route cleanly along the
+## 3 main North-South pathways (`X = -34, 0, +34`), 2 connecting East-West alleyways (`Z = +-26`),
+## and right through the walkable shallow mid canal (`Z = 0`) identically on client, server, and tests.
 
 const CORNER_MARGIN: float = 0.92
 const CLEARANCE_MARGIN: float = 0.16
@@ -117,41 +117,45 @@ func _is_walkable_point(point: Vector2) -> bool:
 
 func _build_waypoints(layout: MapLayout, raw_rects: Array[Rect2], corner_pad: float) -> void:
 	var candidates: Array[Vector2] = []
-	# 1. Center & the 3 Estero bridges (West Talipapa x=-45.7, Central Poso x=0, East Toda x=+45.7).
-	candidates.append(Vector2.ZERO)
-	candidates.append(Vector2(-45.7, 0.0))
-	candidates.append(Vector2(45.7, 0.0))
+	# 1. Walkable shallow mid-canal spine (`Z = 0.0`) & power-up objective spots (`-34, 0`, `0, 0`, `+34, 0`).
+	for pu_spot: Vector2 in layout.powerup_spots:
+		candidates.append(pu_spot)
+	for canal_x: float in [-74.0, -54.5, -34.0, -17.0, 0.0, 17.0, 34.0, 54.5, 74.0]:
+		candidates.append(Vector2(canal_x, 0.0))
 
-	# 2. Symmetriceskinita spines, cross-alley junctions, bases, and rescue zones on both halves.
+	# 2. Symmetric 3-pathway N-S spines (`X = -34, 0, +34`), 2 connecting E-W alleyways (`Z = +-26`),
+	#    canal towpaths (`Z = +-5.4`), base plazas, and rescue patios on both halves.
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var s: float = float(side)
 		candidates.append(layout.base_center(side))
 		candidates.append(layout.spawn_center(side))
 		var rescue: Rect2 = layout.rescue_rect(side)
 		candidates.append(rescue.get_center())
-		candidates.append(Vector2(rescue.get_center().x, rescue.position.y - 2.0))
-		candidates.append(Vector2(rescue.get_center().x, rescue.end.y + 2.0))
+		candidates.append(Vector2(rescue.get_center().x, rescue.position.y - 2.2))
+		candidates.append(Vector2(rescue.get_center().x, rescue.end.y + 2.2))
+		var inward_rx: float = rescue.end.x + 2.4 if side == MapLayout.SIDE_OWN else rescue.position.x - 2.4
+		candidates.append(Vector2(inward_rx, rescue.get_center().y))
 
-		# Creekside towpath & bridge mouths (z = +-6.2)
-		for bx: float in [-76.0, -60.0, -45.7, -23.5, 0.0, 23.5, 45.7, 60.0, 75.5]:
-			candidates.append(Vector2(bx * s, 6.2 * s))
+		# Shallow canal North/South bank towpaths (`Z = +-5.4`)
+		for bx: float in [-74.0, -54.5, -34.0, -17.0, 0.0, 17.0, 34.0, 53.5, 74.0]:
+			candidates.append(Vector2(bx * s, 5.4 * s))
 
-		# Band A eskinita spines (z = +-15.2) & Band A/B cross-eskinita junctions (z = +-25.1)
-		for ax: float in [-76.5, -46.4, -23.5, 0.0, 23.5, 45.7, 67.0, 75.5]:
-			candidates.append(Vector2(ax * s, 15.2 * s))
-			candidates.append(Vector2(ax * s, 25.1 * s))
+		# 3 Main North-South Pathways (`X = -34.0` West, `X = 0.0` Center, `X = +34.0` East) + outer flanks
+		for lane_x: float in [-72.0, -34.0, 0.0, 34.0, 72.0]:
+			candidates.append(Vector2(lane_x * s, 14.2 * s))
+			candidates.append(Vector2(lane_x * s, 38.8 * s))
 
-		# Band B tight eskinita spines (z = +-35.5) & Band B/C cross-eskinita junctions (z = +-47.3)
-		for mx: float in [-68.0, -48.5, -26.3, -11.4, 11.4, 26.3, 48.5, 67.4]:
-			candidates.append(Vector2(mx * s, 35.5 * s))
-			candidates.append(Vector2(mx * s, 47.3 * s))
+		# 2 Connecting East-West Alleyways (`Z = +-26.0`, clear `10.2m` wide cross-lanes)
+		for ax: float in [-72.0, -62.0, -49.5, -34.0, -17.2, 0.0, 17.2, 34.0, 49.5, 60.2, 72.0]:
+			candidates.append(Vector2(ax * s, 26.0 * s))
 
-		# Defender courtyard & Band C base-flank eskinitas (z = +-47.3, +-57.0, +-65.0, +-73.0)
-		candidates.append(Vector2(0.0, 47.3 * s))
-		for cx: float in [-53.0, -32.3, -14.5, 0.0, 14.5, 32.3, 53.0]:
-			candidates.append(Vector2(cx * s, 57.0 * s))
-		for rx: float in [-32.3, -14.5, 14.5, 32.3]:
-			candidates.append(Vector2(rx * s, 69.5 * s))
+		# Base approach promenade (`Z = +-48.4`) & Base Basketball/Hall Plaza (`Z = +-57.5, +-69.0, +-78.5`)
+		for px: float in [-56.0, -34.0, -15.5, 0.0, 15.5, 34.0, 56.0]:
+			candidates.append(Vector2(px * s, 48.4 * s))
+		for cx: float in [-34.0, -15.2, 0.0, 15.2, 34.0]:
+			candidates.append(Vector2(cx * s, 57.5 * s))
+		for rx: float in [-28.0, -14.5, 14.5, 28.0]:
+			candidates.append(Vector2(rx * s, 69.0 * s))
 		candidates.append(Vector2(0.0, 78.5 * s))
 
 	# 3. Circular outer perimeter flank ring inside `arena_radius` (`r = arena_radius - 3.6m`).

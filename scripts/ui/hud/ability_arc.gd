@@ -2,9 +2,9 @@ class_name AbilityArc
 extends CardHand
 ## Right-thumb action cluster for landscape matches:
 ## - When `uses_elixir` is true: legacy 4-card arc + NEXT + ice-water & stamina bars (100% compatible with legacy tests).
-## - When `not uses_elixir` (5v5 Barangay Hero-Action kit): 2D 90s Filipino Komiks cluster featuring
-##   holdable TIRADOR (`LMB`) Primary Fire, 3 Street-Game Superpowers (`Q`, `E`, `R`) with clockwise cooldown sweeps,
-##   LUKSONG-TINIK (`SHIFT`) vault button with cyan rim, and BAGSAK (`F`) Ultimate button with blazing 0–100% barrio-gold charge ring.
+## - When `not uses_elixir` (5v5 Barangay Hero-Action kit): minimalist pure-white outline discs (`HudStyle.draw_white_button`,
+##   `HudStyle.draw_white_sweep`, and `assets/ui/hud_icons/<id>.png` silhouettes) for Primary `Tirador`, 3 Street-Game
+##   Superpowers, `Bagsak` Ultimate, `Vault`, `Jump`, and smart context-aware `Crouch / Slide`.
 
 const BUTTON_RADIUS: float = 48.0
 const NEXT_RADIUS: float = 30.0
@@ -29,22 +29,17 @@ const CANCEL_RIM: Color = Color(1.0, 0.35, 0.3, 0.9)
 const CANCEL_HOT: Color = Color(0.85, 0.15, 0.12, 0.85)
 const CIRCLE_STEPS: int = 40
 
-## Hero-Action 90s Komiks cluster constants (`not uses_elixir`)
-const PRIMARY_RADIUS: float = 54.0
-const HERO_BTN_RADIUS: float = 42.0
-const HERO_ARC_RADIUS: float = 132.0
-const HERO_ANGLES: Array[float] = [182.0, 226.0, 270.0]
-const VAULT_RADIUS: float = 36.0
-const ULT_RADIUS: float = 44.0
-const SLOT_KEYS: Array[String] = ["Q", "E", "R", "4"]
-
-const KOMIKS_INK: Color = Color("141016")
-const KOMIKS_SHADOW: Color = Color(0.08, 0.06, 0.09, 0.82)
-const KOMIKS_PAPER: Color = Color("f5ebd6")
-const KOMIKS_GOLD: Color = Color("ffbe2e")
-const KOMIKS_CRIMSON: Color = Color("f23838")
-const KOMIKS_CYAN: Color = Color("2ce6ff")
-const KOMIKS_DARK: Color = Color("241e29")
+## Hero-Action pure-white outline cluster geometry (`not uses_elixir`)
+const PRIMARY_RADIUS: float = 50.0
+const HERO_BTN_RADIUS: float = 38.0
+const HERO_ARC_RADIUS: float = 122.0
+const HERO_ANGLES: Array[float] = [180.0, 225.0, 270.0]
+const ULT_RADIUS: float = 37.0
+const JUMP_RADIUS: float = 31.0
+const VAULT_RADIUS: float = 30.0
+const CROUCH_RADIUS: float = 30.0
+const TAG_BG: Color = Color(0.05, 0.07, 0.10, 0.48)
+const TAG_BORDER: Color = Color(1.0, 1.0, 1.0, 0.35)
 
 var inset: Vector2 = Vector2.ZERO
 var aim_way: Vector2 = Vector2.ZERO
@@ -62,12 +57,15 @@ var stamina_color: Color = OverheadHud.STAMINA_COLOR
 
 ## Hero-Action state & button centers
 var _primary_center: Vector2 = Vector2.ZERO
-var _vault_center: Vector2 = Vector2.ZERO
 var _ult_center: Vector2 = Vector2.ZERO
+var _jump_center: Vector2 = Vector2.ZERO
+var _vault_center: Vector2 = Vector2.ZERO
+var _crouch_center: Vector2 = Vector2.ZERO
+
 var _primary_def: WeaponDef = null
 var _ult_def: WeaponDef = null
 var _primary_cd: float = 0.0
-var _primary_cd_max: float = 0.35
+var _primary_cd_max: float = 0.48
 var _slot_cds: Array[float] = [0.0, 0.0, 0.0, 0.0]
 var _vault_cd: float = 0.0
 var _vault_cd_max: float = 4.2
@@ -75,14 +73,34 @@ var _vault_active: bool = false
 var _vault_ready: bool = false
 var _ult_charge: float = 0.0
 var _ult_ready: bool = false
+
+var _jump_cd: float = 0.0
+var _jump_cd_max: float = 0.25
+var _jump_ready: bool = false
+var _in_air: bool = false
+var _can_move: bool = false
+var _is_running: bool = false
+var _can_slide: bool = false
+var _sliding: bool = false
+var _slide_cd: float = 0.0
+var _slide_cd_max: float = 3.2
+var _crouching_state: bool = false
+
 var _primary_held: bool = false
 var _primary_pointer: int = NO_POINTER
 var _primary_last_finger: Vector2 = Vector2.ZERO
+var _crouch_held: bool = false
+var _crouch_pointer: int = NO_POINTER
+
 var _primary_deny: float = 0.0
 var _vault_deny: float = 0.0
 var _ult_deny: float = 0.0
+var _jump_deny: float = 0.0
+var _crouch_deny: float = 0.0
 var _vault_flash: float = 0.0
 var _ult_flash: float = 0.0
+var _jump_flash: float = 0.0
+var _slide_flash: float = 0.0
 var _ult_pulse: float = 0.0
 
 ## Cached styleboxes so `_draw()` never allocates StyleBoxFlat
@@ -96,6 +114,9 @@ signal look_dragged(drag: Vector2)
 signal primary_changed(held: bool)
 signal dash_pressed
 signal ultimate_pressed
+signal jump_pressed
+signal crouch_changed(held: bool)
+signal slide_pressed
 
 
 func _init() -> void:
@@ -127,10 +148,10 @@ func _init_styleboxes() -> void:
 	_bar_fill_box.anti_aliasing = true
 
 	_tag_pill_box = StyleBoxFlat.new()
-	_tag_pill_box.bg_color = KOMIKS_INK
-	_tag_pill_box.border_color = KOMIKS_GOLD
-	_tag_pill_box.set_border_width_all(2)
-	_tag_pill_box.set_corner_radius_all(UiSkin.round_radius(TAG_HEIGHT))
+	_tag_pill_box.bg_color = TAG_BG
+	_tag_pill_box.border_color = TAG_BORDER
+	_tag_pill_box.set_border_width_all(1)
+	_tag_pill_box.set_corner_radius_all(UiSkin.RADIUS_S)
 	_tag_pill_box.anti_aliasing = true
 
 
@@ -169,21 +190,25 @@ func _layout() -> void:
 		cancel_center = Vector2(corner.x, top_legacy - CANCEL_GAP - CANCEL_RADIUS)
 	else:
 		var anchor: Vector2 = size - inset
-		_primary_center = anchor - Vector2(PRIMARY_RADIUS + HudStyle.EDGE + 14.0, PRIMARY_RADIUS + HudStyle.EDGE + 14.0)
+		_primary_center = anchor - Vector2(86.0, 84.0)
 		for angle: float in HERO_ANGLES:
 			var hero_mid: Vector2 = _primary_center + Vector2.from_angle(deg_to_rad(angle)) * HERO_ARC_RADIUS
 			centers.append(hero_mid)
 			card_rects.append(Rect2(hero_mid - Vector2.ONE * HERO_BTN_RADIUS, Vector2.ONE * HERO_BTN_RADIUS * 2.0))
-		# Keep 4th slot entry non-overlapping so SLOTS == 4 indexing is always safe
-		var extra_mid: Vector2 = _primary_center + Vector2(-280.0, 20.0)
+		# Keep 4th slot entry inside safe right-side bounds & non-overlapping so SLOTS == 4 indexing stays safe
+		var extra_mid: Vector2 = _primary_center + Vector2(-312.0, -10.0)
 		centers.append(extra_mid)
 		card_rects.append(Rect2(extra_mid - Vector2.ONE * HERO_BTN_RADIUS, Vector2.ONE * HERO_BTN_RADIUS * 2.0))
-		_vault_center = _primary_center + Vector2(-216.0, 20.0)
-		_ult_center = _primary_center + Vector2(-186.0, -138.0)
+
+		_ult_center = _primary_center + Vector2(-168.0, -134.0)
+		_jump_center = _primary_center + Vector2(8.0, -204.0)
+		_vault_center = _primary_center + Vector2(-208.0, -44.0)
+		_crouch_center = _primary_center + Vector2(-206.0, 34.0)
+
 		next_center = _primary_center
 		next_rect = Rect2(_primary_center - Vector2.ONE * NEXT_RADIUS, Vector2.ONE * NEXT_RADIUS * 2.0)
-		var top_hero: float = minf(card_rects[2].position.y, _ult_center.y - ULT_RADIUS)
-		cancel_center = Vector2(_primary_center.x - 36.0, maxf(top_hero - CANCEL_GAP - CANCEL_RADIUS, CANCEL_RADIUS + 20.0))
+		var top_slot_y: float = card_rects[2].position.y
+		cancel_center = Vector2(_primary_center.x - 42.0, maxf(top_slot_y - CANCEL_GAP - CANCEL_RADIUS - 48.0, CANCEL_RADIUS + 112.0))
 
 	chat_rect = Rect2()
 	var left: float = (size.x - BARS_WIDTH) / 2.0
@@ -198,7 +223,7 @@ func show_state(sim: MatchSim, player: PlayerState, playing: bool, block: String
 	_primary_def = sim.rules.primary_weapon
 	_ult_def = sim.rules.ultimate_weapon
 	_primary_cd = maxf(player.primary_cd, 0.0)
-	_primary_cd_max = _primary_def.cooldown if (_primary_def != null and _primary_def.cooldown > 0.0) else 0.35
+	_primary_cd_max = _primary_def.cooldown if (_primary_def != null and _primary_def.cooldown > 0.0) else 0.48
 	_vault_cd = maxf(player.dash_cd, 0.0)
 	_vault_cd_max = maxf(sim.rules.dash_cooldown, 0.001)
 	_vault_active = player.dash_left > 0.0
@@ -206,12 +231,32 @@ func show_state(sim: MatchSim, player: PlayerState, playing: bool, block: String
 	_ult_charge = clampf(player.ult_charge, 0.0, 100.0)
 	_ult_ready = playing and block.is_empty() and _ult_charge >= 99.99 and _ult_def != null
 	_ult_pulse = sim.match_time
+
+	var is_walking: bool = player.walking
+	_crouching_state = player.crouching
+	var air_y: float = player.air_y
+	_jump_cd = maxf(player.jump_cd, 0.0)
+	_jump_cd_max = maxf(sim.rules.jump_cooldown, 0.05)
+	var slide_left: float = player.slide_left
+	_slide_cd = maxf(player.slide_cd, 0.0)
+	_slide_cd_max = maxf(sim.rules.slide_cooldown, 0.1)
+
+	_can_move = playing and not player.tagged and player.effects.can_move()
+	_in_air = air_y > 0.02
+	_jump_ready = _can_move and not _in_air and _jump_cd <= 0.01
+	_sliding = slide_left > 0.01
+	_is_running = _can_move and not is_walking and not _crouching_state and not player.overclocked and (player.run_time > 0.01 or player.sprinting)
+	_can_slide = _is_running and not _in_air and _slide_cd <= 0.01 and not _sliding
+
 	for slot: int in SLOTS:
 		_slot_cds[slot] = player.weapon_cooldowns[slot] if slot < player.weapon_cooldowns.size() else 0.0
 
 	if _primary_held and (not playing or not block.is_empty() or player.tagged):
 		_primary_pointer = NO_POINTER
 		_set_primary_held(false)
+	if _crouch_held and (not playing or player.tagged or not player.effects.can_move()):
+		_crouch_pointer = NO_POINTER
+		_set_crouch_held(false)
 
 	super(sim, player, playing, block, notice)
 	if prev_elixir_mode != next_elixir_mode:
@@ -222,14 +267,18 @@ func show_state(sim: MatchSim, player: PlayerState, playing: bool, block: String
 
 func step(delta: float) -> bool:
 	var moving: bool = super(delta)
-	for val: float in [_primary_deny, _vault_deny, _ult_deny, _vault_flash, _ult_flash]:
+	for val: float in [_primary_deny, _vault_deny, _ult_deny, _jump_deny, _crouch_deny, _vault_flash, _ult_flash, _jump_flash, _slide_flash]:
 		if val > 0.0:
 			moving = true
 	_primary_deny = maxf(0.0, _primary_deny - delta)
 	_vault_deny = maxf(0.0, _vault_deny - delta)
 	_ult_deny = maxf(0.0, _ult_deny - delta)
+	_jump_deny = maxf(0.0, _jump_deny - delta)
+	_crouch_deny = maxf(0.0, _crouch_deny - delta)
 	_vault_flash = maxf(0.0, _vault_flash - delta)
 	_ult_flash = maxf(0.0, _ult_flash - delta)
+	_jump_flash = maxf(0.0, _jump_flash - delta)
+	_slide_flash = maxf(0.0, _slide_flash - delta)
 	if not uses_elixir and _ult_charge >= 99.99 and not Settings.reduced_motion:
 		_ult_pulse = fposmod(_ult_pulse + delta, 100.0)
 		moving = true
@@ -244,10 +293,21 @@ func _set_primary_held(on: bool) -> void:
 	_refresh()
 
 
+func _set_crouch_held(on: bool) -> void:
+	if _crouch_held == on:
+		return
+	_crouch_held = on
+	crouch_changed.emit(on)
+	_refresh()
+
+
 func cancel_hold() -> void:
 	if _primary_held or _primary_pointer != NO_POINTER:
 		_primary_pointer = NO_POINTER
 		_set_primary_held(false)
+	if _crouch_held or _crouch_pointer != NO_POINTER:
+		_crouch_pointer = NO_POINTER
+		_set_crouch_held(false)
 	super()
 
 
@@ -320,10 +380,41 @@ func _input(event: InputEvent) -> void:
 							Settings.vibrate(DENY_BUZZ_MS)
 						_refresh()
 						return
-			elif touch.index == _primary_pointer:
-				_primary_pointer = NO_POINTER
-				_set_primary_held(false)
-				return
+					if local.distance_to(_jump_center) <= JUMP_RADIUS + 6.0:
+						if is_inside_tree():
+							get_viewport().set_input_as_handled()
+						if _jump_ready:
+							_jump_flash = 0.16
+							jump_pressed.emit()
+						else:
+							_jump_deny = DENY_TIME
+							Settings.vibrate(DENY_BUZZ_MS)
+						_refresh()
+						return
+					if _crouch_pointer == NO_POINTER and local.distance_to(_crouch_center) <= CROUCH_RADIUS + 6.0:
+						if is_inside_tree():
+							get_viewport().set_input_as_handled()
+						if _can_move:
+							if _can_slide:
+								_slide_flash = 0.20
+								slide_pressed.emit()
+							else:
+								_crouch_pointer = touch.index
+								_set_crouch_held(true)
+						else:
+							_crouch_deny = DENY_TIME
+							Settings.vibrate(DENY_BUZZ_MS)
+						_refresh()
+						return
+			else:
+				if touch.index == _primary_pointer:
+					_primary_pointer = NO_POINTER
+					_set_primary_held(false)
+					return
+				if touch.index == _crouch_pointer:
+					_crouch_pointer = NO_POINTER
+					_set_crouch_held(false)
+					return
 		elif event is InputEventScreenDrag:
 			var drag: InputEventScreenDrag = event as InputEventScreenDrag
 			if drag.index == _primary_pointer:
@@ -409,28 +500,74 @@ func _draw() -> void:
 
 func _draw_hero_kit() -> void:
 	var blocked: bool = not blocked_text.is_empty()
-	var dim: float = BLOCK_DIM if blocked else 0.0
 
-	# 1. TIRADOR (`LMB`) Primary Fire button
-	var prim_shake: float = _shake_for(_primary_deny)
-	var prim_at: Vector2 = _primary_center + Vector2(prim_shake, 0.0)
-	_draw_primary_button(prim_at, 1.0 - dim)
+	# 1. Primary Fire (`Tirador`) — pure white outline disc + white silhouette
+	var prim_at: Vector2 = _primary_center + Vector2(_shake_for(_primary_deny), 0.0)
+	HudStyle.draw_white_button(self, prim_at, PRIMARY_RADIUS, _primary_held)
+	if _primary_cd > 0.02 and _primary_cd_max > 0.05:
+		var prim_share: float = 1.0 - clampf(_primary_cd / _primary_cd_max, 0.0, 1.0)
+		HudStyle.draw_white_sweep(self, prim_at, PRIMARY_RADIUS, prim_share)
+	var prim_id: StringName = &"tirador" if (_primary_def == null or _primary_def.id == &"tirador_bato") else _primary_def.id
+	var prim_alpha: float = HudStyle.WHITE_OFF if blocked else 0.96
+	HudStyle.draw_white_icon_or_glyph(self, prim_at, PRIMARY_RADIUS, prim_id, prim_alpha)
 
-	# 2. 3 Street-Game Superpowers (`Q`, `E`, `R`)
+	# 2. 3 Street-Game Superpowers — pure white outline discs + clockwise white sweeps
 	for slot: int in SLOTS:
 		var def: WeaponDef = defs[slot]
 		if def == null:
 			continue
 		var middle: Vector2 = centers[slot] + Vector2(deny_offset(slot), 0.0)
-		_draw_komiks_slot(middle, HERO_BTN_RADIUS, def, 1.0 - dim, slot == held_slot)
+		var is_held: bool = slot == held_slot
+		var cd_left: float = _slot_cds[slot]
+		var ready_now: bool = not blocked and cd_left <= 0.02 and pickable[slot]
+		HudStyle.draw_white_button(self, middle, HERO_BTN_RADIUS, is_held)
+		if not blocked and cd_left > 0.02:
+			HudStyle.draw_white_sweep(self, middle, HERO_BTN_RADIUS, reached[slot])
+		var slot_alpha: float = 0.96 if (ready_now or is_held) else HudStyle.WHITE_OFF
+		HudStyle.draw_white_icon_or_glyph(self, middle, HERO_BTN_RADIUS, def.id, slot_alpha)
 
-	# 3. LUKSONG-TINIK (`SHIFT`) Vault-Dash button
-	var vault_at: Vector2 = _vault_center + Vector2(_shake_for(_vault_deny), 0.0)
-	_draw_vault_button(vault_at)
-
-	# 4. BAGSAK (`F`) Ultimate button with 0-100% circular charge ring
+	# 3. Ultimate (`ult_bagsak`) — 0-100% white sweep + soft outer white halo when ready
 	var ult_at: Vector2 = _ult_center + Vector2(_shake_for(_ult_deny), 0.0)
-	_draw_ultimate_button(ult_at)
+	var ult_full: bool = _ult_charge >= 99.99
+	HudStyle.draw_white_button(self, ult_at, ULT_RADIUS, _ult_flash > 0.0)
+	var charge_share: float = clampf(_ult_charge / 100.0, 0.0, 1.0)
+	if not ult_full and charge_share > 0.005:
+		HudStyle.draw_white_sweep(self, ult_at, ULT_RADIUS, charge_share)
+	elif ult_full:
+		var halo_a: float = 0.48 if Settings.reduced_motion else (0.36 + 0.24 * (0.5 + 0.5 * sin(_ult_pulse * 4.2)))
+		draw_arc(ult_at, ULT_RADIUS + 4.5, 0.0, TAU, 48, Color(1.0, 1.0, 1.0, halo_a), 1.8, true)
+	var ult_id: StringName = _ult_def.id if _ult_def != null else &"ult_bagsak"
+	var ult_alpha: float = 0.96 if (ult_full and not blocked) else HudStyle.WHITE_OFF
+	HudStyle.draw_white_icon_or_glyph(self, ult_at, ULT_RADIUS, ult_id, ult_alpha)
+
+	# 4. Vault (`vault`) — pure white outline disc + cooldown sweep
+	var vault_at: Vector2 = _vault_center + Vector2(_shake_for(_vault_deny), 0.0)
+	HudStyle.draw_white_button(self, vault_at, VAULT_RADIUS, _vault_active or _vault_flash > 0.0)
+	if _vault_cd > 0.02:
+		var vault_share: float = 1.0 - clampf(_vault_cd / _vault_cd_max, 0.0, 1.0)
+		HudStyle.draw_white_sweep(self, vault_at, VAULT_RADIUS, vault_share)
+	var vault_alpha: float = 0.95 if (_vault_ready or _vault_active) else HudStyle.WHITE_OFF
+	HudStyle.draw_white_icon_or_glyph(self, vault_at, VAULT_RADIUS, &"vault", vault_alpha)
+
+	# 5. Jump (`jump`) — pure white outline disc
+	var jump_at: Vector2 = _jump_center + Vector2(_shake_for(_jump_deny), 0.0)
+	HudStyle.draw_white_button(self, jump_at, JUMP_RADIUS, _in_air or _jump_flash > 0.0)
+	if _jump_cd > 0.02:
+		var jump_share: float = 1.0 - clampf(_jump_cd / _jump_cd_max, 0.0, 1.0)
+		HudStyle.draw_white_sweep(self, jump_at, JUMP_RADIUS, jump_share)
+	var jump_alpha: float = 0.95 if (_jump_ready or _in_air) else HudStyle.WHITE_OFF
+	HudStyle.draw_white_icon_or_glyph(self, jump_at, JUMP_RADIUS, &"jump", jump_alpha)
+
+	# 6. Smart Crouch / Slide (`crouch` while stationary/walking, `slide` while running)
+	var crouch_at: Vector2 = _crouch_center + Vector2(_shake_for(_crouch_deny), 0.0)
+	var show_slide: bool = _can_slide or _sliding
+	HudStyle.draw_white_button(self, crouch_at, CROUCH_RADIUS, _crouch_held or _crouching_state or _sliding or _slide_flash > 0.0)
+	if _slide_cd > 0.02 and not _crouching_state:
+		var slide_share: float = 1.0 - clampf(_slide_cd / _slide_cd_max, 0.0, 1.0)
+		HudStyle.draw_white_sweep(self, crouch_at, CROUCH_RADIUS, slide_share)
+	var cs_icon: StringName = &"slide" if show_slide else &"crouch"
+	var cs_alpha: float = 0.95 if (not blocked and _can_move) else HudStyle.WHITE_OFF
+	HudStyle.draw_white_icon_or_glyph(self, crouch_at, CROUCH_RADIUS, cs_icon, cs_alpha)
 
 	if held_slot >= 0:
 		_draw_cancel()
@@ -441,130 +578,6 @@ func _shake_for(timer: float) -> float:
 		return 0.0
 	var t: float = 1.0 - timer / DENY_TIME
 	return sin(t * TAU * DENY_WAVES) * DENY_SHAKE * (1.0 - t)
-
-
-func _draw_primary_button(at: Vector2, light: float) -> void:
-	var r: float = PRIMARY_RADIUS
-	draw_circle(at + Vector2(3.0, 4.0), r + 2.0, KOMIKS_SHADOW)
-	draw_circle(at, r + 2.5, KOMIKS_INK)
-	var bg: Color = KOMIKS_GOLD if _primary_held else KOMIKS_PAPER.darkened(0.08)
-	draw_circle(at, r - 1.0, bg * Color(light, light, light, 1.0))
-	draw_circle(at, r - 6.0, KOMIKS_DARK)
-	if _primary_def != null:
-		var pic: Texture2D = CardStyle.picture(_primary_def.id)
-		var icon: Texture2D = Icons.skill(_primary_def.id)
-		if pic != null:
-			var share: Vector2 = Vector2(ART_SHARE, ART_SHARE * float(pic.get_width()) / float(pic.get_height()))
-			_draw_round_texture(at, r - 6.0, pic, share, Color(light, light, light))
-		elif icon != null:
-			_draw_round_texture(at, (r - 6.0) * 0.78, icon, Vector2.ONE, Color(light, light, light))
-		else:
-			_draw_tirador_glyph(at, r * 0.46, _primary_held)
-	else:
-		_draw_tirador_glyph(at, r * 0.46, _primary_held)
-	var rim_col: Color = KOMIKS_GOLD if _primary_held else KOMIKS_PAPER
-	draw_arc(at, r - 2.0, 0.0, TAU, CIRCLE_STEPS, rim_col, 3.2, true)
-	draw_arc(at, r + 1.0, 0.0, TAU, CIRCLE_STEPS, KOMIKS_INK, 3.2, true)
-
-
-func _draw_tirador_glyph(at: Vector2, s: float, hot: bool) -> void:
-	# Bold 90s komiks Y-frame slingshot + stretched rubber band + pebble
-	var wood: Color = KOMIKS_GOLD if hot else Color("d99b52")
-	var band: Color = KOMIKS_CRIMSON if hot else KOMIKS_PAPER
-	var fork_l: Vector2 = at + Vector2(-s * 0.62, -s * 0.55)
-	var fork_r: Vector2 = at + Vector2(s * 0.62, -s * 0.55)
-	var crotch: Vector2 = at + Vector2(0.0, s * 0.1)
-	var handle_bot: Vector2 = at + Vector2(0.0, s * 0.82)
-	var pouch: Vector2 = at + Vector2(0.0, -s * 0.08)
-	for seg: Array in [[fork_l, crotch], [fork_r, crotch], [crotch, handle_bot]]:
-		draw_line(seg[0] as Vector2, seg[1] as Vector2, KOMIKS_INK, 8.5, true)
-		draw_line(seg[0] as Vector2, seg[1] as Vector2, wood, 4.8, true)
-	draw_line(fork_l, pouch, band, 2.4, true)
-	draw_line(fork_r, pouch, band, 2.4, true)
-	draw_circle(pouch, 5.2, KOMIKS_INK)
-	draw_circle(pouch, 3.4, KOMIKS_GOLD)
-
-
-func _draw_komiks_slot(middle: Vector2, radius: float, def: WeaponDef, light: float, held: bool) -> void:
-	draw_circle(middle + Vector2(2.5, 3.5), radius + 2.0, KOMIKS_SHADOW)
-	draw_circle(middle, radius + 2.5, KOMIKS_INK)
-	_draw_button(middle, radius - 1.0, def, light, held)
-	draw_arc(middle, radius + 1.0, 0.0, TAU, CIRCLE_STEPS, KOMIKS_INK, 3.0, true)
-
-
-func _draw_vault_button(at: Vector2) -> void:
-	var r: float = VAULT_RADIUS
-	draw_circle(at + Vector2(2.5, 3.5), r + 2.0, KOMIKS_SHADOW)
-	draw_circle(at, r + 2.2, KOMIKS_INK)
-	draw_circle(at, r - 1.0, KOMIKS_DARK)
-	var rim_col: Color = KOMIKS_CYAN if (_vault_ready or _vault_active) else Color(KOMIKS_CYAN, 0.45)
-	draw_arc(at, r - 2.0, 0.0, TAU, 36, rim_col, 3.2, true)
-	draw_arc(at, r + 1.0, 0.0, TAU, 36, KOMIKS_INK, 2.8, true)
-	# Luksong-Tinik double speed-chevron vault glyph
-	var chev_col: Color = KOMIKS_PAPER if _vault_ready else Color(KOMIKS_PAPER, 0.55)
-	for offset_y: float in [-4.0, 5.0]:
-		var tip: Vector2 = at + Vector2(0.0, offset_y - 7.0)
-		var l_pt: Vector2 = at + Vector2(-10.0, offset_y + 3.0)
-		var r_pt: Vector2 = at + Vector2(10.0, offset_y + 3.0)
-		draw_polyline(PackedVector2Array([l_pt, tip, r_pt]), KOMIKS_INK, 5.2, true)
-		draw_polyline(PackedVector2Array([l_pt, tip, r_pt]), chev_col, 2.8, true)
-
-
-func _draw_ultimate_button(at: Vector2) -> void:
-	var r: float = ULT_RADIUS
-	var full: bool = _ult_charge >= 99.99
-	# Blazing barrio-gold comic starburst spikes at 100%!
-	if full:
-		var rot: float = 0.0 if Settings.reduced_motion else _ult_pulse * 1.4
-		var spikes: int = 10
-		for i: int in spikes:
-			var ang: float = rot + TAU * float(i) / float(spikes)
-			var dir: Vector2 = Vector2.from_angle(ang)
-			var perp: Vector2 = Vector2(-dir.y, dir.x) * 4.2
-			var spike_len: float = r + (11.0 if i % 2 == 0 else 6.5)
-			var tri: PackedVector2Array = PackedVector2Array([
-				at + dir * (r - 1.0) - perp,
-				at + dir * (r - 1.0) + perp,
-				at + dir * spike_len,
-			])
-			draw_colored_polygon(tri, KOMIKS_GOLD)
-			draw_polyline(PackedVector2Array([tri[0], tri[2], tri[1]]), KOMIKS_INK, 1.8, true)
-
-	draw_circle(at + Vector2(2.5, 3.5), r + 2.0, KOMIKS_SHADOW)
-	draw_circle(at, r + 2.5, KOMIKS_INK)
-	draw_circle(at, r - 1.0, KOMIKS_GOLD.darkened(0.55) if full else KOMIKS_DARK)
-
-	if _ult_def != null:
-		var light: float = 1.0 if full else 0.58
-		var pic: Texture2D = CardStyle.picture(_ult_def.id)
-		var icon: Texture2D = Icons.skill(_ult_def.id)
-		if pic != null:
-			var share: Vector2 = Vector2(ART_SHARE, ART_SHARE * float(pic.get_width()) / float(pic.get_height()))
-			_draw_round_texture(at, r - 6.0, pic, share, Color(light, light, light))
-		elif icon != null:
-			_draw_round_texture(at, (r - 6.0) * 0.78, icon, Vector2.ONE, Color(light, light, light))
-		else:
-			_draw_bagsak_star(at, r * 0.42, full)
-	else:
-		_draw_bagsak_star(at, r * 0.42, full)
-
-	# 0-100% circular charge ring
-	var charge_share: float = clampf(_ult_charge / 100.0, 0.0, 1.0)
-	draw_arc(at, r - 2.5, 0.0, TAU, CIRCLE_STEPS, Color(KOMIKS_PAPER, 0.2), 4.2, true)
-	if charge_share > 0.005:
-		var end_ang: float = -PI * 0.5 + TAU * charge_share
-		var ring_col: Color = KOMIKS_GOLD if full else KOMIKS_GOLD.lerp(KOMIKS_PAPER, 0.2)
-		draw_arc(at, r - 2.5, -PI * 0.5, end_ang, CIRCLE_STEPS, ring_col, 4.6, true)
-	draw_arc(at, r + 1.2, 0.0, TAU, CIRCLE_STEPS, KOMIKS_INK, 3.0, true)
-
-
-func _draw_bagsak_star(at: Vector2, r: float, full: bool) -> void:
-	var pts: PackedVector2Array = PackedVector2Array()
-	for i: int in 10:
-		var ang: float = -PI * 0.5 + TAU * float(i) / 10.0
-		var rad: float = r if i % 2 == 0 else r * 0.44
-		pts.append(at + Vector2.from_angle(ang) * rad)
-	draw_colored_polygon(pts, KOMIKS_GOLD if full else Color(KOMIKS_PAPER, 0.65))
 
 
 func _draw_next_label() -> void:
@@ -587,7 +600,7 @@ func _draw_button(middle: Vector2, radius: float, def: WeaponDef, light: float, 
 		var icon: Texture2D = Icons.skill(def.id)
 		if icon != null:
 			_draw_round_texture(middle, radius * 0.8, icon, Vector2.ONE, tint)
-	var rim_color: Color = (KOMIKS_GOLD if held else KOMIKS_PAPER) if not uses_elixir else (RIM_HELD if held else RIM)
+	var rim_color: Color = RIM_HELD if held else RIM
 	draw_arc(middle, radius, 0.0, TAU, CIRCLE_STEPS, rim_color, HudStyle.RIM_WIDTH, true)
 
 
@@ -602,6 +615,12 @@ func _draw_round_texture(middle: Vector2, radius: float, texture: Texture2D, sha
 
 
 func _draw_cancel() -> void:
+	if not uses_elixir:
+		HudStyle.draw_white_button(self, cancel_center, CANCEL_RADIUS, over_hand)
+		var arm_w: float = CANCEL_RADIUS * 0.34
+		for way_w: Vector2 in [Vector2(1.0, 1.0), Vector2(1.0, -1.0)]:
+			draw_line(cancel_center - way_w * arm_w, cancel_center + way_w * arm_w, HudStyle.WHITE_THUMB, 3.2, true)
+		return
 	HudStyle.draw_disc(self, cancel_center, CANCEL_RADIUS, CANCEL_RIM)
 	if over_hand:
 		draw_circle(cancel_center, CANCEL_RADIUS - HudStyle.RIM_WIDTH, CANCEL_HOT)
@@ -671,17 +690,10 @@ func _draw_over_cards() -> void:
 func _draw_over_hero_kit() -> void:
 	var blocked: bool = not blocked_text.is_empty()
 
-	# Primary Fire (`TIRADOR` / `LMB`) overlay
 	var prim_at: Vector2 = _primary_center + Vector2(_shake_for(_primary_deny), 0.0)
-	if _primary_cd > 0.02 and _primary_cd_max > 0.05:
-		var prim_share: float = 1.0 - clampf(_primary_cd / _primary_cd_max, 0.0, 1.0)
-		_draw_cooling_on(_overlay, prim_at, PRIMARY_RADIUS - 3.0, prim_share)
 	if _primary_deny > 0.0:
-		_overlay.draw_circle(prim_at, PRIMARY_RADIUS, Color(DENY_FLASH, DENY_FLASH.a * _primary_deny / DENY_TIME))
-	_draw_keycap(_overlay, prim_at + Vector2(0.0, -PRIMARY_RADIUS + 4.0), "LMB", _primary_held)
-	_draw_caption_strip(_overlay, prim_at + Vector2(0.0, PRIMARY_RADIUS - 4.0), "TIRADOR", KOMIKS_GOLD if _primary_held else KOMIKS_PAPER)
+		_overlay.draw_circle(prim_at, PRIMARY_RADIUS, Color(1.0, 1.0, 1.0, 0.20 * (_primary_deny / DENY_TIME)))
 
-	# 3 Street-Game Superpowers (`Q`, `E`, `R`) overlays
 	for slot: int in SLOTS:
 		var def: WeaponDef = defs[slot]
 		if def == null:
@@ -689,95 +701,57 @@ func _draw_over_hero_kit() -> void:
 		var middle: Vector2 = centers[slot] + Vector2(deny_offset(slot), 0.0)
 		var cd_left: float = _slot_cds[slot]
 		if not blocked and cd_left > 0.02:
-			_overlay.draw_circle(middle, HERO_BTN_RADIUS - 2.0, Color(COOL, 0.42))
-			_draw_cooling_on(_overlay, middle, HERO_BTN_RADIUS - 2.0, reached[slot])
 			_draw_cd_seconds(_overlay, middle, cd_left)
 		var tag: String = blocked_text if blocked else notices[slot]
 		if not tag.is_empty():
 			_draw_tag(_overlay, middle, UiText.t(tag))
 		if _deny[slot] > 0.0:
-			_overlay.draw_circle(middle, HERO_BTN_RADIUS, Color(DENY_FLASH, DENY_FLASH.a * _deny[slot] / DENY_TIME))
-		_draw_keycap(_overlay, middle + Vector2(-HERO_BTN_RADIUS * 0.66, -HERO_BTN_RADIUS * 0.68), SLOT_KEYS[slot], slot == held_slot)
+			_overlay.draw_circle(middle, HERO_BTN_RADIUS, Color(1.0, 1.0, 1.0, 0.20 * (_deny[slot] / DENY_TIME)))
 
-	# LUKSONG-TINIK (`SHIFT`) overlay
-	var vault_at: Vector2 = _vault_center + Vector2(_shake_for(_vault_deny), 0.0)
-	if _vault_cd > 0.02:
-		var vault_share: float = 1.0 - clampf(_vault_cd / _vault_cd_max, 0.0, 1.0)
-		_draw_cooling_on(_overlay, vault_at, VAULT_RADIUS - 2.0, vault_share)
-		_draw_cd_seconds(_overlay, vault_at, _vault_cd)
-	if _vault_flash > 0.0:
-		_overlay.draw_circle(vault_at, VAULT_RADIUS, Color(KOMIKS_CYAN, 0.48 * (_vault_flash / 0.18)))
-	if _vault_deny > 0.0:
-		_overlay.draw_circle(vault_at, VAULT_RADIUS, Color(DENY_FLASH, DENY_FLASH.a * _vault_deny / DENY_TIME))
-	_draw_keycap(_overlay, vault_at + Vector2(0.0, -VAULT_RADIUS - 2.0), "SHIFT", _vault_active)
-	_draw_caption_strip(_overlay, vault_at + Vector2(0.0, VAULT_RADIUS - 1.0), "LUKSONG-TINIK", KOMIKS_CYAN)
-
-	# BAGSAK (`F`) Ultimate overlay
 	var ult_at: Vector2 = _ult_center + Vector2(_shake_for(_ult_deny), 0.0)
 	var ult_full: bool = _ult_charge >= 99.99
 	if not ult_full:
 		var pct_text: String = "%d%%" % floori(_ult_charge)
-		_draw_centered_word(_overlay, ult_at + Vector2(0.0, 6.0), pct_text, HudStyle.SMALL, KOMIKS_PAPER)
+		_draw_centered_word(_overlay, ult_at + Vector2(0.0, ULT_RADIUS * 0.56), pct_text, UiMetrics.WORLD_SMALL, Color(1.0, 1.0, 1.0, 0.82))
 	if _ult_flash > 0.0:
-		_overlay.draw_circle(ult_at, ULT_RADIUS, Color(KOMIKS_GOLD, 0.55 * (_ult_flash / 0.24)))
+		_overlay.draw_circle(ult_at, ULT_RADIUS, Color(1.0, 1.0, 1.0, 0.26 * (_ult_flash / 0.24)))
 	if _ult_deny > 0.0:
-		_overlay.draw_circle(ult_at, ULT_RADIUS, Color(DENY_FLASH, DENY_FLASH.a * _ult_deny / DENY_TIME))
-	_draw_keycap(_overlay, ult_at + Vector2(-ULT_RADIUS * 0.66, -ULT_RADIUS * 0.68), "F", ult_full)
-	_draw_caption_strip(_overlay, ult_at + Vector2(0.0, ULT_RADIUS + 1.0), "BAGSAK!" if ult_full else "BAGSAK", KOMIKS_GOLD if ult_full else KOMIKS_PAPER)
+		_overlay.draw_circle(ult_at, ULT_RADIUS, Color(1.0, 1.0, 1.0, 0.20 * (_ult_deny / DENY_TIME)))
+
+	var vault_at: Vector2 = _vault_center + Vector2(_shake_for(_vault_deny), 0.0)
+	if _vault_cd > 0.02:
+		_draw_cd_seconds(_overlay, vault_at, _vault_cd)
+	if _vault_flash > 0.0:
+		_overlay.draw_circle(vault_at, VAULT_RADIUS, Color(1.0, 1.0, 1.0, 0.24 * (_vault_flash / 0.18)))
+	if _vault_deny > 0.0:
+		_overlay.draw_circle(vault_at, VAULT_RADIUS, Color(1.0, 1.0, 1.0, 0.20 * (_vault_deny / DENY_TIME)))
+
+	var jump_at: Vector2 = _jump_center + Vector2(_shake_for(_jump_deny), 0.0)
+	if _jump_flash > 0.0:
+		_overlay.draw_circle(jump_at, JUMP_RADIUS, Color(1.0, 1.0, 1.0, 0.22 * (_jump_flash / 0.16)))
+
+	var crouch_at: Vector2 = _crouch_center + Vector2(_shake_for(_crouch_deny), 0.0)
+	if _is_running and _slide_cd > 0.15 and not _crouching_state:
+		_draw_cd_seconds(_overlay, crouch_at, _slide_cd)
+	if _slide_flash > 0.0:
+		_overlay.draw_circle(crouch_at, CROUCH_RADIUS, Color(1.0, 1.0, 1.0, 0.24 * (_slide_flash / 0.20)))
 
 	if held_slot >= 0 and aim_way != Vector2.ZERO:
-		_overlay.draw_circle(centers[held_slot] + aim_way * AIM_RADIUS, HERO_BTN_RADIUS * 0.45, HudStyle.THUMB)
+		_overlay.draw_circle(centers[held_slot] + aim_way * AIM_RADIUS, HERO_BTN_RADIUS * 0.42, HudStyle.WHITE_THUMB)
 
 
 func _draw_cd_seconds(canvas: CanvasItem, center: Vector2, seconds_left: float) -> void:
 	var text: String = "%.1f" % seconds_left if seconds_left < 1.0 else "%d" % ceili(seconds_left)
-	_draw_centered_word(canvas, center + Vector2(0.0, 8.0), text, HudStyle.LABEL, Color.WHITE)
+	_draw_centered_word(canvas, center + Vector2(0.0, 7.0), text, HudStyle.LABEL, Color(1.0, 1.0, 1.0, 0.94))
 
 
 func _draw_centered_word(canvas: CanvasItem, baseline_center: Vector2, word: String, size_px: int, fill: Color) -> void:
 	var font: Font = KalyeahTheme.ACTION_FONT
 	var tw: float = font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px).x
 	var at: Vector2 = Vector2(baseline_center.x - tw * 0.5, baseline_center.y)
-	canvas.draw_string_outline(font, at, word, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px, 5, KOMIKS_INK)
+	var drop: Vector2 = Vector2(0.0, HudStyle.WORD_SHADOW_DROP)
+	canvas.draw_string(font, at + drop, word, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px, HudStyle.WORD_SHADOW)
 	canvas.draw_string(font, at, word, HORIZONTAL_ALIGNMENT_LEFT, -1.0, size_px, fill)
-
-
-func _draw_keycap(canvas: CanvasItem, center: Vector2, key_text: String, highlighted: bool) -> void:
-	var font: Font = KalyeahTheme.ACTION_FONT
-	var tw: float = font.get_string_size(key_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL).x
-	var w: float = maxf(tw + 10.0, 22.0)
-	var h: float = 19.0
-	var slant: float = 3.0
-	var x: float = center.x - w * 0.5
-	var y: float = center.y - h * 0.5
-	var poly: PackedVector2Array = PackedVector2Array([
-		Vector2(x + slant, y),
-		Vector2(x + w, y),
-		Vector2(x + w - slant, y + h),
-		Vector2(x, y + h),
-	])
-	canvas.draw_colored_polygon(poly, KOMIKS_GOLD if highlighted else KOMIKS_PAPER)
-	canvas.draw_polyline(PackedVector2Array([poly[0], poly[1], poly[2], poly[3], poly[0]]), KOMIKS_INK, 2.2, true)
-	canvas.draw_string(font, Vector2(center.x - tw * 0.5, y + h - 3.5), key_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL, KOMIKS_INK)
-
-
-func _draw_caption_strip(canvas: CanvasItem, center: Vector2, text: String, fill: Color) -> void:
-	var font: Font = KalyeahTheme.ACTION_FONT
-	var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL).x
-	var w: float = tw + 10.0
-	var h: float = 17.0
-	var slant: float = 3.0
-	var x: float = center.x - w * 0.5
-	var y: float = center.y - h * 0.5
-	var poly: PackedVector2Array = PackedVector2Array([
-		Vector2(x + slant, y),
-		Vector2(x + w, y),
-		Vector2(x + w - slant, y + h),
-		Vector2(x, y + h),
-	])
-	canvas.draw_colored_polygon(poly, KOMIKS_INK)
-	canvas.draw_polyline(PackedVector2Array([poly[0], poly[1], poly[2], poly[3], poly[0]]), fill, 1.5, true)
-	canvas.draw_string(font, Vector2(center.x - tw * 0.5, y + h - 3.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL, fill)
 
 
 func _draw_cooling_on(canvas: CanvasItem, middle: Vector2, radius: float, reached_share: float) -> void:
@@ -794,11 +768,9 @@ func _draw_cooling_on(canvas: CanvasItem, middle: Vector2, radius: float, reache
 
 func _draw_tag(canvas: CanvasItem, at: Vector2, text: String) -> void:
 	var font: Font = KalyeahTheme.ACTION_FONT
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.CAPTION).x + 20.0
-	canvas.draw_style_box(_tag_pill_box, Rect2(at - Vector2(width / 2.0, TAG_HEIGHT / 2.0), Vector2(width, TAG_HEIGHT)))
-	canvas.draw_string_outline(font, at + Vector2(-width / 2.0 + 10.0, float(UiMetrics.CAPTION) * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.CAPTION, 5, KOMIKS_INK)
-	canvas.draw_string(font, at + Vector2(-width / 2.0 + 10.0, float(UiMetrics.CAPTION) * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.CAPTION, KOMIKS_GOLD)
-
-
-func _draw_over_held() -> void:
-	pass
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.CAPTION).x + 18.0
+	var pos: Vector2 = at - Vector2(width / 2.0, TAG_HEIGHT / 2.0)
+	canvas.draw_style_box(_tag_pill_box, Rect2(pos, Vector2(width, TAG_HEIGHT)))
+	var baseline: Vector2 = at + Vector2(-width / 2.0 + 9.0, float(UiMetrics.CAPTION) * 0.34)
+	canvas.draw_string(font, baseline + Vector2(0.0, 1.5), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.CAPTION, HudStyle.WORD_SHADOW)
+	canvas.draw_string(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.CAPTION, Color(1.0, 1.0, 1.0, 0.94))

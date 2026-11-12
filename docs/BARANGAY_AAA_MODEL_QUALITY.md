@@ -1,133 +1,131 @@
-# Kalyeah — AAA Barangay Model, Art & Production Quality Specification
+# Kalyeah — AAA Barangay Model, Art, 3C & Production Quality Specification (Overhaul v2)
 
-> **Status**: Binding Studio Production Standard (Pass 1 -> Pass N Iterative Audit Loop)  
-> **Target Benchmark**: *Valorant* (competitive silhouette & map readability, painterly 3D materials) × *Arcane* (hand-painted brush value variation & floating kinetic sketch lines) × **90s Filipino Komiks / Kalye Illustration** (bold fake-2D charcoal ink outlines on 3D models, widescreen `1280×720` landscape UX).
-
----
-
-## 1. Honest Baseline Audit (Checkpoint 1 Self-Grade: `4.2 / 10`)
-
-Before launching the 10-specialist AAA swarm, our initial blockout render (`checkpoint1_*.png`) was audited and graded honestly:
-- **Environment Topology (`3.5 / 10`)**: Used a wide rectangular highway grid with large bare blocks instead of a **circular, claustrophobic provincial Pinoy barangay** of *tabi-tabing mga bahay* (wall-to-wall cramped houses with narrow `3.6–5.8 m` *eskinitas*).
-- **Material & Cellular Realism (`4.0 / 10`)**: Sidewalks clipped to white under sunlight; buildings used clean pastel blocks instead of weathered working-class provincial materials (raw hollow-block CHB mortar courses, rusted patchwork *yero* corrugated tin roofs, *sawali*/plywood upper walls, damp *lumot* moss stains, *rehas* iron grills, and chaotic electric pole **spaghetti wiring**).
-- **2D-on-3D Art Style & VFX (`4.5 / 10`)**: Missing fake-2D ink outlines on 3D world models and missing *Arcane*-inspired floating kinetic sketch lines balanced for competitive UX clarity.
-- **Roster, Landscape UX & Ranked (`4.8 / 10`)**: Only 6 kids (needs **10 unique Filipino kids**), menus still portrait-first (needs **full-game `1280×720` Landscape 90s Filipino Art Style**), and online play lacked the **7-tier Tagalog Ranked System** (*Kahoy* -> *Batang Kalyeah*).
-
-**Target Acceptance Gate**: **`>= 9.0 / 10`** verified via 1280×720 PNG checkpoints, `qa-gatekeeper` lean-code audit, and 100% passing GUT suite.
+> **Status**: Binding Studio Production Standard — **Overhaul v2 (Playtest-Driven 90s Province, Deadlock 3C/HUD, Grounded Locomotion & Sunlit Kalye Brand Rework)**  
+> **Target Benchmark**: *Deadlock* (`image_1` left-shoulder framing, waist-left tapered vertical HP bar & airy minimalist white-outline HUD) × *Valorant / Arcane* (sunlit painterly 3D materials, fine espresso inner contour + soft team outer rim, readable VFX) × **Authentic 1990s Philippine Provincial Barangay** (sunlit shophouses, mossy CHB hollow blocks, rusted *yero*, walkable shallow canal, 10 Filipino kids, and open-licensed Kalye signboard typography).
 
 ---
 
-## 2. Environment & 3D Model Quality Standard ("Cellular-Level" Provincial Pinoy Barangay)
+## 1. Evolution & Acceptance Gate (`>= 9.5 / 10` Per Domain)
 
-### 2.1 Zero Tourist "Filipino Branding" — Authentic Working-Class Provincial Barangay
-- **Do NOT** use theme-park fiesta cliches, neon tourist signs, or suburban American setbacks/lawns.
-- **DO** build a lived-in, humble, tight provincial-urban Pinoy *looban / barangay*:
-  - **Circular Barangay Footprint (`R = 84 m`, `168 m` diameter)**: The playable compound is circular, enclosed `360°` around its perimeter by an unbroken organic ring of **tabi-tabing mga bahay** (houses pressed directly wall-to-wall, zero gap or `<= 0.35 m` fire-alley slit, staggered roof heights and angles).
-  - **Narrow Spaces & *Eskinitas***: Interior clusters form tight `3.6 m – 5.8 m` alleys (*eskinitas*) and curved lanes with sharp line-of-sight breaks, overhanging *yero* eaves, and 3 tactical chokepoints across a narrow provincial *sapa / estero* drainage creek (West Talipapa Footbridge, Central Rotonda / *Poso* Well Bridge, East Toda / Waiting Shed Bridge).
+Following Overhaul v1 (`9.7/10` technical foundation, 189/189 green GUT suites) and live playtest review, **Overhaul v2** resolves key gameplay feel, readability, environment flow, and brand identity upgrades:
+- **Map Flow & Landmarks**: Replaces fragmented tight alleys and the central mid bridge with **3 wider main North–South pathways (`~11–14 m`)**, **2 East–West connecting alleyways**, a **walkable shallow mid canal (`water_obstacles = []`, NO bridge at `X = 0`)**, **dynamic outer perimeter walls** (provincial houses + mossy CHB walls + mango/coconut/banana trees), **3 small Power-Up objective stands**, and handcrafted 90s provincial landmarks (Jeepney, Tricycle, TODA Terminal, Wooden Basketball Post, Nena's Sari-Sari Store, Karinderya, Barberya, Vulcanizing Shop, Tabing-Ilog embankments, pole posters, and **true 3D volumetric hanging clothes**).
+- **Scale, 3C Camera & Grounded Kid Locomotion**: Scales gameplay kids to realistic child proportions (`kid_view_scale = 0.82`, `~1.51 m` in-world while keeping `KidModel.KID_HEIGHT = 1.85` raw asset invariants), adopts *Deadlock* (`image_1`) left-shoulder framing (`shoulder_distance = 4.15`, `shoulder_height = 1.88`, `shoulder_offset = 0.62`, `look_pitch_degrees = 15.5`, `shoulder_fov = 68.0`) with **default auto-behind camera follow + immediate manual look override (`1.6 s` hold)**, slower tactical run (`move_speed = 6.4 m/s`, `sprint_enabled = false`), **analog Walk (`< 0.62`) vs. Run (`>= 0.62`)**, re-enabled **deterministic running kid trip (`12%` every `6.0 s`)**, plus **Jump, Crouch, and Slide** animations & netcode sync.
+- **Lively Sunlit Vibe, Dual Outlines & Minimalist HUD**: Shifts atmosphere from dark/heavy to **warm, lively, soft sunlit 90s provincial afternoon**, refines outlines to a **fine warm-espresso inner contour (`0.008–0.009`) + soft outer team rim (`0.026`)**, reworks the HUD to *Deadlock* (`image_1`) layout (waist-left vertical HP bar, top-left minimap with smaller bottom-right gear button, pure-white silhouette ability/movement discs), and replaces `Clash-Regular.otf` completely with open-licensed SIL OFL `KalyeahDisplay-Regular.ttf` + `KalyeahSans-Variable.ttf` and custom sunlit signboard branding.
 
-### 2.2 Cellular-Level 3D Geometry & Painterly `2048×2048` Atlas Requirements
-Every `.glb` model in `assets/models/barangay/` must meet these structural and texture standards:
-1. **Painterly 2D-Illustrated-on-3D Atlas (`2048×2048`, VRAM-compressed `compress/mode=2`)**:
-   - **Raw Concrete Hollow Blocks (CHB)**: Individual `40×20 cm` block courses, troweled mortar joints, diagonal plaster cracks, exposed aggregate chips, and dark olive-green *lumot* (moss/dampness) rising `40 cm` from ground contact.
-   - **Patchwork Corrugated GI Roofs (*Kalawang na Yero*)**: Multi-tone oxidized rust sienna, chalky zinc grey, faded red-oxide primer panels, dark overlap seams, nail rows, and roof weights (old rubber tires, concrete chunks, scrap lumber battens).
-   - **Mixed Wood, *Sawali* & *Trapal***: Sun-bleached plywood grain, woven diagonal bamboo *sawali* slats, faded blue/orange *trapal* tarpaulin sunshades with rope grommets, jalousie louver glass strips, and rusted wrought-iron *rehas* security bars.
-   - **Hand-Inked 2D Crevice & Sketch Lines**: Baked dark charcoal (`#1A1619`) comic contour lines along panel borders, window frames, and roof ribs so every surface reads like a 90s Filipino comic background painted onto 3D forms.
-2. **Silhouette & Micro-Detail Geometry (Budgeted for Mobile + PC 60 FPS)**:
-   - Every building cluster (`brgy_tabi_row_a.glb`, `brgy_tabi_row_b.glb`, `brgy_shophouse_row.glb`, `brgy_house_two_storey.glb`, `brgy_sari_sari.glb`) must break boxiness with staggered 1- and 2-storey volumes, pitched/lean-to *yero* roofs with visible overhang thickness, window awnings, exterior hollow-block ledges, water drums, galvanized electric meters, and rooftop TV antennas.
-   - **Electric Poles with Spaghetti Wiring (`brgy_meralco_post.glb` + `StreetMap` Catenary Wire Mesh)**:
-     - Leaning weathered concrete/wood utility poles with rusted crossarms, cylindrical pole-mounted transformer, 3–4 junction boxes, coiled figure-8 slack cable loops ("dead coils") hanging on the pole, and dense multi-strand sagging catenary black cable bundles crisscrossing between poles and fanning out as service drop-wires directly to house eaves!
-3. **Lighting & Albedo Discipline (`gl_compatibility`)**:
-   - Maximum diffuse surface albedo `<= 0.72` (never pure white `1.0`) so golden-hour directional sunlight (`light_energy ~ 0.85–0.92`) never clips sidewalks or walls to flat white.
+**Target Acceptance Gate**: **`>= 9.5 / 10`** across all 5 audit domains (`audit-3d`, `audit-map`, `audit-combat`, `audit-hud`, `audit-brand`), `0` Godot 4.6.2 static type warnings (`treat_warnings_as_errors = true`), and `100%` passing GUT unit suite.
 
 ---
 
-## 3. Fake-2D Ink Outlines & Valorant × Arcane Gameplay VFX Standard
+## 2. Environment, Map Flow & 90s Province 3D Model Standard
 
-1. **Fake-2D Outline Shader (`shaders/arcane_ink_outline.gdshader` & `shaders/team_outline.gdshader`)**:
-   - All 3D kid models (`KidModel`) and key 3D barangay props/landmarks wear crisp dark charcoal-ink silhouettes (`#171318`) so 3D geometry reads immediately as 2D-illustrated art in motion.
-   - Kids retain unambiguous team readability (Ally Cobalt vs. Enemy Crimson/Orange rim/badge) without obscuring their 90s Filipino outfit textures.
-2. **Arcane Floating Kinetic Sketch Lines + Valorant UX Clarity**:
-   - Gameplay VFX (`FxHeroActions`, `WeaponFxView`) combine **clean geometric hit-zone boundaries** (Valorant rule: exact radius/range ring on the ground, low center opacity `<= 0.22` so floor hazards and enemies remain 100% readable) with **brief, expressive floating ink/chalk sketch arcs** (2–4 frame hand-drawn speed strokes around dashes, slingshot releases, and ultimate slams).
-   - Zero opaque smoke walls over the camera; respect `Settings.reduced_motion` and `Settings.performance == &"turbo"`.
+### 2.1 Circular Barangay (`R = 84.0 m`) — 3 Main Pathways, 2 Alleyways & Walkable Mid Canal
+- **Circular Compound (`arena_radius = 84.0 m`, `168 m` diameter)**:
+  - **3 Wider Main North–South Pathways (`~11–14 m` wide)**:
+    1. **West Lane (`X ≈ -34 m`)**: *Tabing-Ilog & Karinderya / Lutong Bahay* corridor.
+    2. **Center Lane (`X = 0 m`)**: *Plaza – Walkable Shallow Canal – Kalye Basketball* corridor.
+    3. **East Lane (`X ≈ +34 m`)**: *TODA Tricycle Terminal, Barberya & Vulcanizing Shop* corridor.
+  - **2 East–West Connecting Alleyways**: Clear cross-lanes at `Z ≈ -26 m` (North) and `Z ≈ +26 m` (South) linking all 3 pathways cleanly for 5v5 rotations and `BarangayNav` A* routing.
+  - **Walkable Shallow Mid Canal (`NO` Bridge at `X = 0`)**:
+    - Remove the central footbridge at `X = 0` and set `water_obstacles = Array[Rect2]([])` in `data/rules/map_layout.tres` so players and bots walk directly through the shallow turquoise-jade canal (`Y ≈ -0.28 m` bed) via sloped stone/concrete *Tabing-Ilog* embankments and wading ramps, accompanied by water splash/ripple VFX.
+  - **Dynamic Outer Perimeter Ring**:
+    - Breaks monotony around the `84 m` perimeter by mixing multi-storey provincial houses, mossy **Cement Hollow Block (`brgy_chb_wall.glb`)** wall segments (recessed mortar joints, rebar stubs, stenciled *"BAWAL UMIHI DITO"*), and organic Philippine provincial trees (**Punong Mangga** `brgy_mango_tree.glb`, **Puno ng Saging** `brgy_banana_clump.glb`, **Puno ng Niyog** `brgy_coconut_palm.glb`).
+  - **3 Small Power-Up Objective Stands (`MapLayout.powerup_spots`)**:
+    - Placed at `[Vector2(-34.0, 0.0), Vector2(0.0, 0.0), Vector2(34.0, 0.0)]` dressed with `brgy_powerup_stand.glb` (*Palamig / Sago't Gulaman* glass jug cooler + *Teks / Turon* street tray).
 
----
-
-## 4. The 10 Filipino Kids Lineup (`10 Bida ng Kalye`)
-
-Cosmetic-only (`CharacterDef` — identical hitbox, HP, and speed for competitive fairness), allowing a full **5v5 match with 10 unique kids**:
-1. **`junjun`** — White *sando*, red basketball shorts, *bimpo* towel at the neck, rubber *tsinelas*, spiky bangs.
-2. **`ligaya`** — Sun-yellow knotted tee, maong shorts, colorful hair clips, barrio patintero captain.
-3. **`migo`** — 90s striped oversized polo, cargo shorts, backward cap, chest *belt bag*.
-4. **`toni`** — Loose barangay liga jersey, track pants, wristbands, cropped tousled hair.
-5. **`popoy`** — Stocky build (`body_width = 1.14`), public-school PE shirt, athletic shorts, fearless blocker.
-6. **`inday`** — Provincial floral cotton *bestida* over shorts, twin pigtails with bright *panali* bands.
-7. **`kiko`** *(New)* — Sleeveless faded maong vest over tee, rolled pants, forehead bandana, *trumpo* craftsman.
-8. **`nene`** *(New)* — 90s pinafore jumper over white blouse, high scrunchie ponytail, knee socks, *garter* ace.
-9. **`buknoy`** *(New)* — Sun-tanned river kid, open checkered *camisa*, frayed shorts, matchbox *gagamba* pouch.
-10. **`tala`** *(New)* — Barangay sprinter, maroon singlet, cycling shorts, woven friendship bracelets & headband.
-
-Every kid MUST have:
-- `data/characters/<id>.tres` wired into `data/rules/game_rules.tres`
-- Rigged `assets/models/characters/<id>.glb` with all required animation clips (`Idle`, `Run`, `Exhausted_Run`, `Stunned`, `Airborne`, `Cast_OneHand`, `Cast_Run`, `Tripped`)
-- Cohesive 90s Filipino Komiks `assets/portraits/<id>.png`, `assets/portraits/faces/<id>.png`, and `assets/portraits/cards/<id>.webp`.
-
----
-
-## 5. Full Landscape 90s Filipino Art Style UI & Tagalog Ranked System
-
-1. **Full-Game Widescreen Landscape (`1280 × 720`)**:
-   - `project.godot` uses `viewport_width = 1280`, `viewport_height = 720` (keeping `window/handheld/orientation = 1` in `project.godot` so Android APK manifest CI inspection stays unchanged, while `Settings._ready()` activates `set_landscape(true)` for runtime `SCREEN_SENSOR_LANDSCAPE` across all screens!).
-   - Every screen (`TitleScreen`, `WeaponPickScreen`, `HistoryPage`, `MatchResults`, `MatchHud`) fits `1280×720` cleanly without vertical overflow, styled with **90s Filipino Komiks** inked borders, warm sun-aged paper/gold plates, and punchy street typography.
-2. **Online Tagalog Ranked Tiers (`RankedSystem`)**:
-   - 7 competitive tiers based on Tagalog materials & street legend status:
-     1. **Kahoy** (`0 – 199 LP`)
-     2. **Bakal** (`200 – 399 LP`)
-     3. **Tanso** (`400 – 599 LP`)
-     4. **Pilak** (`600 – 849 LP`)
-     5. **Ginto** (`850 – 1149 LP`)
-     6. **Brilyante** (`1150 – 1499 LP`)
-     7. **Batang Kalyeah** (`1500+ LP`)
+### 2.2 Authentic 90s Province Landmarks & Zero-AI-Slop 3D Geometry
+Every `.glb` in `assets/models/barangay/` and `assets/models/weapons/` must look handcrafted with beveled edges, realistic silhouettes, and clean UVs (zero primitive-stack AI slop):
+1. **Vehicles & Street Fixtures (`province-props`)**:
+   - `brgy_jeepney.glb` (`~5.4 m`): Rounded pressed-steel hood, grille slats, dual headlights, *"POBLACION - TABING-ILOG"* signboard, side grab bars, rear stepboard, wheel arches & subtle fender rust.
+   - `brgy_tricycle.glb` (`~2.3 m`): Classic Pinoy motorcycle + galvanized steel *kolong/pampasahero* sidecar, angled windshield tarp, roof rack, number plate.
+   - `brgy_toda_shed.glb`: Corrugated rusty GI dispatch shed with *"BRGY. TODA TERMINAL"* signboard, wooden bench, and hanging tire bumper.
+   - `brgy_wooden_hoop.glb`: Coco-lumber `4×4` basketball post anchored in a concrete-filled tire/block base, hand-painted white plywood backboard with faded red shooter's square, rusty orange ring & cord net.
+   - `brgy_sampayan_3d.glb` + `SpaghettiWires` volumetric laundry: **True 3D extruded garments** (tubular sleeves, collars, puffed torso folds, shorts legs, draped towels & *sipit* clothespins on sagging lines — **NEVER flat 2D planes**).
+2. **Shophouses, Utility Poles & Street Signage (`env-kit`)**:
+   - Hand-painted signboards for **"TINDAHAN NI ALING NENA"** (Nena's Sari-Sari Store with security grille), **"KARINDERYA / LUTONG BAHAY"**, **"BARBERYA"** (with barber pole), and **"VULCANIZING SHOP"** (hanging tires & air tank).
+   - Leaning utility poles (`>= 4.5 m` wire clearance) with **Election Posters (*VOTE!* tarps)**, **Siphoning Service (*MALABANAN SIPSIP POSO NEGRO*) notices**, **"NO ENTRY"** signboards, and catenary spaghetti wiring.
+3. **Sunlit Soft Texture Atlases (`BarangayAtlas.jpg` & `ProvincePropsAtlas.jpg`)**:
+   - VRAM-compressed (`compress/mode=2`, `<= 2048×2048`, **zero `md5=` lines** in `.import` sidecars).
+   - Warm, lively sunlit daytime values (`mean_sRGB ~ 0.44–0.49`, `max_sRGB <= 0.78` so `gl_compatibility` directional sunlight never clips to white; **never** apply manual `** 2.4` gamma on 8-bit Blender `Image.pixels`), damp green *lumot* moss on concrete/CHB bases, and oxidized sienna rust on metal/GI roofs.
 
 ---
 
-## 6. Offline & Online Optimization Budgets + Anti-Over-Engineering Rules
+## 3. Sunlit Atmosphere, Dual-Outline Harmony & Scaled VFX (`0.82x` Kids)
 
-1. **Strict GDScript Static Typing**: `treat_warnings_as_errors = true` in `project.godot`. Every `var`, loop iterator (`for item: Type in list`), parameter, and return type MUST be explicitly typed. Never use `:=` on `Variant`, `Dictionary.get()`, or untyped arrays.
-2. **Performance Budgets**:
-   - Batch static wires/props into combined `ArrayMesh` or `MultiMeshInstance3D` (keep total draw calls low for budget Android GPUs).
-   - Zero `StyleBoxFlat.new()` or `Font` allocations inside per-frame `_draw()` loops — cache styleboxes/arrays as member fields.
-   - Keep `scripts/sim/` 100% deterministic (`RefCounted`/`Resource` only, `MatchSim.rng` only, 30 Hz fixed tick, compact `Snapshot` dicts).
-3. **Anti-Over-Engineering Mandate (`qa-gatekeeper`)**:
-   - No speculative abstractions, no unused config layers, no extra autoloads (strictly `Net`, `Session`, `Settings`), no touching `version.txt` or `CHANGELOG.md`.
+1. **Harmonious Black + Team Outline Pairing (`KidModel`, `arcane_ink_outline.gdshader`, `team_outline.gdshader`)**:
+   - World props wear a fine warm-espresso contour (`~0.008`) instead of harsh black cages.
+   - `KidModel` pairs a fine warm deep-espresso inner ink line (`INK_OUTLINE_WIDTH = 0.009`, `Color(0.13, 0.10, 0.12, 0.92)`) with a softened harmonious outer team aura (`OUTLINE_WIDTH = 0.026`), preserving clear Ally vs. Enemy readability at smaller `0.82x` screen scale.
+2. **Scaled 3D Street-Toy Weapons & UX-Balanced VFX (`WeaponModel`, `WeaponFxView`)**:
+   - Custom weapon `.glb`s (*tirador* guava-branch Y-slingshot, woven/molded *tsinelas*, smooth river *bato*, steel *gunting*, folded *papel*, dented *lata*, 6-prong *jackstone*, swirled glass *holen/bola*, wooden pear *trumpo*) and `WeaponFxView` rings/projectiles are scaled down proportionally to `kid_view_scale = 0.82` while preserving `test_fx_qa.gd` pooled-node and `<= 96` material caps.
 
 ---
 
-## 7. Cross-Worker Interface Contracts (Must Match Exactly)
+## 4. Deadlock (`image_1`) 3C Camera, Locomotion, Trip & Combat Balance
 
-- **`MapLayout` (`barangay-map`)**:
-  - `@export var arena_radius: float = 84.0` (0.0 disables circular clamp for legacy rectangular tests; `> 0.0` clamps players inside `position.length() <= arena_radius - player_radius`!).
-  - Keep `water_rects()`, `obstacle_rects()`, `walk_obstacle_rects()`, `lane_rect()`, `base_center(side)`, `rescue_rect(side)`, `tagged_spot(side, slot)`.
-- **`ArenaCamera` (`camera-input`)**:
-  - `func set_speed_boost(boosting: bool) -> void`
-  - Automatic spring-arm obstacle clamping inside `_apply_pose()` when `rules.third_person and layout != null`.
-- **`MatchInput` & `PcCombatInput` (`camera-input`)**:
-  - `MatchInput.set_primary(held: bool, aim_pt: Vector2) -> void`
-  - `MatchInput.press_dash() -> void`
-  - `MatchInput.press_ultimate(aim_pt: Vector2) -> void`
-  - `PcCombatInput` (`class_name PcCombatInput extends RefCounted`):
-    - `func handle_event(event: InputEvent, input: MatchInput, aim_pt: Vector2, active: bool) -> Vector2` (returns look delta `Vector2` for `ArenaCamera.look`)
-    - `func poll_frame(input: MatchInput, ground_way_fn: Callable, aim_pt: Vector2, active: bool) -> void`
-- **`MatchHud` & Sub-Widgets (`hud-90s`)**:
-  - Signals on `MatchHud` (and `AbilityArc`): `primary_changed(held: bool)`, `dash_pressed`, `ultimate_pressed` (plus all existing signals `swap_pressed`, `again_pressed`, `exit_pressed`, etc.).
-  - Methods on `MatchHud`:
-    - `func sync_world_hud(sim: MatchSim, camera: Camera3D, player: PlayerState, local_team: int, cam_yaw_deg: float) -> void`
-    - `func notify_hit(lethal: bool = false) -> void`
-    - `func notify_takedown(tagger_name: String, victim_name: String, ally_scored: bool, detail: String = "") -> void`
-    - `func notify_rescue(rescuer_name: String, saved_name: String, ours: bool) -> void`
-- **`RankedSystem` (`ranked-net`)**:
-  - `const TIERS: Array[Dictionary]` (`Kahoy`, `Bakal`, `Tanso`, `Pilak`, `Ginto`, `Brilyante`, `Batang Kalyeah`)
-  - `static func tier_for_lp(lp: int) -> Dictionary`
-  - `static func tier_name(lp: int) -> String`
-  - `static func record_match(mode: String, won: bool, my_score: int, their_score: int) -> Dictionary` (updates saved LP in `MatchHistory` / `user://ranked.cfg` and returns `{"old_lp": int, "new_lp": int, "delta": int, "tier": String, "promoted": bool}`)
-  - `static func current_lp() -> int`
-  - `static func draw_emblem(canvas: CanvasItem, center: Vector2, radius: float, lp: int) -> void`
+1. **Smaller Kid Scale & *Deadlock* (`image_1`) Camera Framing (`data/rules/camera_rules.tres`, `ArenaCamera`)**:
+   - `kid_view_scale = 0.82` (`~1.51 m` world height; `KidModel.KID_HEIGHT = 1.85` constant preserved).
+   - `shoulder_distance = 4.15`, `shoulder_height = 1.88`, `shoulder_offset = 0.62` (local player framed slightly left of center at `x ≈ 38%–43%`), `look_pitch_degrees = 15.5` (camera higher above kid, pitched gently downward toward crosshair), `shoulder_fov = 68.0`.
+   - **Default Auto-Behind Follow + Manual Override**: `ArenaCamera` automatically aligns behind the local character's movement/facing (`sync_behind_character`) by default, while manual camera drag or mouse motion (`look(drag)`) **immediately overrides** auto-follow and holds manual control for `_manual_look_hold = 1.6 s` after drag ends. Includes smooth vertical pivot offsets for crouch/slide (`-0.42 m`) and jump (`+air_y * 0.65`).
+2. **Grounded Kid Locomotion & Random Trip (`GameRules`, `PlayerInput`, `PlayerState`, `MatchSim`)**:
+   - **Analog Walk vs. Slower Run**: `move_speed = 6.4 m/s`, `sprint_enabled = false`, `walk_run_threshold = 0.62`, `crouch_speed_share = 0.55`.
+     - Stick deflection `0 < len < 0.62` (or PC `Alt` walk `0.45`): **Walk** (`state.walking = true`, speed proportional to deflection, **zero trip rolls**).
+     - Stick deflection `>= 0.62` (or full `move_target` run): **Run** (`state.walking = false`, rolls deterministic `MatchSim._trip_rng` every `trip_interval = 6.0 s` at `trip_chance = 0.12`, applying `StatusEffects.Type.TRIPPED` for `trip_seconds = 1.05 s`).
+   - **Jump, Crouch & Slide**:
+     - **Jump (`BTN_JUMP = 1 << 11`)**: Grounded launch `vel_y = 5.6`, `jump_gravity = 16.5`, vertical `air_y` parabola, `jump_cooldown = 0.25 s`.
+     - **Crouch (`BTN_CROUCH = 1 << 12`)**: Grounded stealth posture (`state.crouching = true`, `0.55x` walk speed, `0` trip rolls).
+     - **Slide (`BTN_SLIDE = 1 << 13` or crouch-tap while running)**: `0.46 s` ground slide burst at `10.2 m/s` along `slide_dir`, `slide_cooldown = 3.2 s`.
+   - **Full Kid Animation Repertoire (`KidModel.animate`)**: Smoothly drives `walk`, `run`, `jump` (`Airborne` + launch/landing knee flex), `crouch` / crouch-walk, `slide`, and `trip` (`Tripped` stumble & push-up recovery), while keeping `_walk(kid, 6.0)` with default `PlayerState.new()` playing `"run"` at `speed_scale == 1.0` for `test_authored_kids.gd`.
+3. **3 Small Power-Up Objectives & 5v5 Weapon Rebalance**:
+   - `MatchSim.powerups` (`25.0 s` respawn):
+     - `1 = PALAMIG`: `+18 HP` instant heal & `+22%` move speed for `10.0 s`.
+     - `2 = TEKS`: `+20%` weapon damage & `+25` ultimate charge for `12.0 s`.
+     - `3 = TURON`: `25%` incoming damage reduction & `+4 HP/s` regen for `10.0 s`.
+   - Tactical 5v5 TTK rebalance across `data/weapons/*.tres`: `tirador_bato` (`11` dmg, `0.48 s` CD, `0.24 m` radius), `ult_bagsak` (`42` dmg, `4.2 m` radius), and balanced 14 street-game superpowers.
+
+---
+
+## 5. The 10 Filipino Kids Lineup (`10 Bida ng Kalye`)
+
+Cosmetic-only (`CharacterDef` — identical hitbox, HP, and speed), supporting full **5v5 matches with 10 unique kids**:
+1. **`junjun`**, 2. **`ligaya`**, 3. **`migo`**, 4. **`toni`**, 5. **`popoy`**, 6. **`inday`** — **CRITICAL INVARIANT**: Never overwrite raw `{junjun,ligaya,migo,toni,popoy,inday}.glb` or their `_0/_1/_2.png` textures pinned by `tests/unit/test_authored_kids.gd`!
+7. **`kiko`**, 8. **`nene`**, 9. **`buknoy`**, 10. **`tala`** — Sculpted in `tools/art/build_10_kids.py` with smooth organic child proportions, soft sunlit 90s Pinoy outfit textures, normalized `1.70 m` source rig height, all 8 required animation clips (`Idle`, `Run`, `Exhausted_Run`, `Stunned`, `Airborne`, `Cast_OneHand`, `Cast_Run`, `Tripped`), and full portrait sets.
+
+---
+
+## 6. Sunlit 90s Kalye Brand Typography, Deadlock (`image_1`) HUD & Tagalog Ranked
+
+1. **Open-Licensed Brand Typography (`assets/fonts/brand/` — ZERO `Clash-Regular.otf`)**:
+   - `assets/fonts/clash/Clash-Regular.otf` (+ `.import`) is **permanently deleted** with zero remaining references in code or resources.
+   - Replaced by SIL OFL open-licensed fonts in `assets/fonts/brand/` (with `OFL-LondrinaSolid.txt` & `OFL-SourceSans3.txt`):
+     - **Display / Signboard Font**: `KalyeahDisplay-Regular.ttf` (Londrina Solid).
+     - **Readable UI / HUD Font**: `KalyeahSans-Variable.ttf` (Source Sans 3 with `FontVariation` weights `600` body, `700` buttons/labels, `800` crisp HUD numbers `ACTION_FONT`).
+   - **Sunlit 90s Kalye Brand Palette & Emblem (`KalyeahTheme`, `UiSkin`, `KomiksStyle`, `TitleScreen`)**:
+     - Custom hand-painted provincial wooden/tin signboard crest & wordmark (`assets/ui/brand/kalyeah_wordmark.png`, `kalyeah_crest.png`) paired with warm sunlit cream (`#FAF3E3`), soft tropical slate-espresso (`#2A2522`), mango amber (`#F5A623`), sari-sari jade teal (`#1F9D8B`), and terracotta coral (`#E2553E`).
+2. **Non-Disruptive *Deadlock* (`image_1`) Match HUD (`1280 × 720`)**:
+   - **`HeroVitalsPanel`**: Tapered, angled vertical HP bar positioned at the player's **left waist** (`x ≈ 215..295, y ≈ 430..630` on `1280×720`, cleanly above `MoveStick`), crisp white current-HP fill rising from bottom, coral-red damage/missing-HP band above it, bold white numeric HP breaking the right edge + `/100` + compact status/power-up pips.
+   - **Top-Left `BarangayMinimap` + Compact Bottom-Right `settings_button`**: Minimap at top-left (`x = 16, y = top_inset + 12`, displaying the 3 main pathways, walkable mid canal, and 3 power-up spots; no mid bridge), with `settings_button` tucked onto the minimap's bottom-right (`>= 80×80` `UiMetrics.MIN_TARGET` hit rect, sleek `~34 px` white-rimmed gear badge).
+   - **Minimalist White-Outline Action Discs (`AbilityArc` + `MoveStick`)**: Pure-white `128×128` RGBA silhouettes (`assets/ui/hud_icons/<id>.png`) rendered with thin white outline + faint translucent white fill ONLY (`HudStyle.draw_white_disc` + `draw_white_sweep`) across `Tirador`, 3 superpowers, `Bagsak` ultimate, `Vault`, **`Jump`**, and **`Crouch/Slide`**, paired with `MoveStick`'s faint `0.62 * BASE_RADIUS` inner walk-threshold ring, airy `MatchHudTop`, and delicate `Crosshair`.
+   - **`test_ui_lint.gd` Invariants**: Zero banned copy (`"skill"`, `"dash"`, `"dummies"`, `"..."`, `"•"`, `"Lobby"`), zero bare font sizes or corner radii, `>= 80×80` touch targets, `UiA11y.name_it(...)` on icon buttons.
+3. **7-Tier Online Tagalog Ranked System (`RankedSystem`)**:
+   - **Kahoy** (`0–199 LP`), **Bakal** (`200–399 LP`), **Tanso** (`400–599 LP`), **Pilak** (`600–849 LP`), **Ginto** (`850–1149 LP`), **Brilyante** (`1150–1499 LP`), **Batang Kalyeah** (`1500+ LP`).
+
+---
+
+## 7. Locked Cross-Worker Interface Contracts (Overhaul v2)
+
+- **`PlayerInput` (`scripts/sim/player_input.gd`)**:
+  - `const BTN_JUMP: int = 1 << 11`, `const BTN_CROUCH: int = 1 << 12`, `const BTN_SLIDE: int = 1 << 13` (all 3 included in `KNOWN_BITS`).
+  - `move: Vector2` preserves analog `0..1` magnitude (`< rules.walk_run_threshold` = Walk; `>= 0.62` = Run).
+- **`PlayerState` (`scripts/sim/player_state.gd`)**:
+  - `var walking: bool = false`, `var crouching: bool = false`, `var air_y: float = 0.0`, `var vel_y: float = 0.0`, `var jump_cd: float = 0.0`, `var slide_left: float = 0.0`, `var slide_cd: float = 0.0`, `var slide_dir: Vector2 = Vector2.ZERO`, `var buff_type: int = 0`, `var buff_left: float = 0.0`.
+- **`MatchSim` & `MapLayout` (`combat-ai`, `barangay-map`)**:
+  - `MatchSim.powerups: Array[Dictionary]` (`{"id": int, "kind": int, "pos": Vector2, "active": bool, "respawn_left": float}`), `signal powerup_taken(player_id: int, powerup_id: int, kind: int)`.
+  - `MapLayout.arena_radius == 84.0`, `MapLayout.water_obstacles == []` (walkable mid canal), `@export var powerup_spots: Array[Vector2] = [Vector2(-34.0, 0.0), Vector2(0.0, 0.0), Vector2(34.0, 0.0)]`.
+- **`ArenaCamera`, `MatchInput` & `PcCombatInput` (`camera-input`)**:
+  - `ArenaCamera`: `sync_behind_character` default auto-follow + `_manual_look_hold = 1.6` on `look(drag)` + crouch/slide/air_y vertical pivot offsets.
+  - `MatchInput`: `press_jump() -> void`, `set_crouch(held: bool) -> void`, `press_slide() -> void`, analog `stick` magnitude preserved.
+- **`MatchHud` (`hud-90s`)**:
+  - Signals: `primary_changed(held: bool)`, `dash_pressed`, `ultimate_pressed`, `jump_pressed`, `crouch_changed(held: bool)`, `slide_pressed` (plus all existing HUD signals & methods).
+- **`Snapshot` & `NetProtocol` (`ranked-net`)**:
+  - Quantized delta sync for `walking`, `crouching`, `air_y`, `slide_left`, `slide_dir`, `buff_type`, `buff_left`, and `sim.powerups` with zero extra bytes when idle/default.
+- **Strict Static Typing (`qa-gatekeeper`)**:
+  - `treat_warnings_as_errors = true` in Godot 4.6.2: `100%` explicit static types, `0` `:=` on `Variant`, `0` untyped `var` / `for` / parameters, deterministic `MatchSim` (`RefCounted`/`Resource` only, no `randf()`), and untouched `version.txt` / `CHANGELOG.md`.

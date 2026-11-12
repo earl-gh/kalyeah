@@ -626,7 +626,8 @@ func test_the_drawn_paper_wall_glides_with_the_sim() -> void:
 	_fx.sync(_sim, DT)
 	var shield: WeaponSystem.Shield = _sim.weapons.shields[0]
 	var start: Vector3 = (_fx.walls.node_for(shield.id).get_parent() as Node3D).position
-	for i: int in 24:
+	var glide_frames: int = ceili(shield.def.push_time / DT) + 2
+	for i: int in glide_frames:
 		_frame()
 	var end: Vector3 = (_fx.walls.node_for(shield.id).get_parent() as Node3D).position
 	assert_almost_eq(start.z - end.z, shield.def.push_distance, 0.001, "drawn %.1f m further up the street than it appeared" % shield.def.push_distance)

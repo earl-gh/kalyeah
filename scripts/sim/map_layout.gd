@@ -1,10 +1,11 @@
 class_name MapLayout
 extends Resource
 ## Geometry of the playground barangay, in meters. Pure data + math, no nodes.
-## When `arena_radius > 0.0`, the playable neighborhood is a tight circular barangay
-## (`position.length() <= arena_radius`) with symmetric team bases at `(0, +-64)` and
-## narrow eskinita alleys + 3 Estero Creek bridges. When `arena_radius <= 0.0`, legacy
-## rectangular street bounds (`lane_rect()` with `base_corner` corners) remain active.
+## When `arena_radius > 0.0`, the playable neighborhood is a circular 90s provincial
+## barangay (`position.length() <= arena_radius`) with symmetric team bases at `(0, +-64)`,
+## 3 main North-South pathways (`X = -34, 0, +34`), 2 connecting East-West alleyways
+## (`Z = +-26`), and a walkable shallow mid canal (`Z = 0`). When `arena_radius <= 0.0`,
+## legacy rectangular street bounds (`lane_rect()` with `base_corner` corners) remain active.
 ## All numbers come from data/rules/map_layout.tres.
 
 const SIDE_OWN: int = 1
@@ -32,13 +33,15 @@ var lane_length: float:
 @export var rescue_size: Vector2 = Vector2.ZERO
 ## Number of tagged player slots lined up on the sidewalk beside each rescue zone.
 @export var tagged_places: int = 1
+## World (x, z) positions of small map power-up objectives along the mid canal / pathways.
+@export var powerup_spots: Array[Vector2] = [Vector2(-34.0, 0.0), Vector2(0.0, 0.0), Vector2(34.0, 0.0)]
 ## Solid building / cover footprints on the +Z half (point-symmetrically mirrored to -Z).
 ## Blocks both walking and projectiles.
 @export var obstacles: Array[Rect2] = []
 ## Cosmetic kit prop id for each entry in `obstacles`.
 @export var obstacle_props: Array[StringName] = []
-## Estero creek / low channel rects on the +Z/West half (point-symmetrically mirrored).
-## Blocks walking so players route across the 3 bridges, while projectiles fly over.
+## Optional non-walkable creek / channel rects on the +Z/West half (point-symmetrically mirrored).
+## Empty in the walkable shallow mid-canal barangay; when populated in custom layouts, blocks walking while projectiles fly over.
 @export var water_obstacles: Array[Rect2] = []
 @export var boundary_thickness: float = 0.0
 ## Cosmetic scale multiplier for houses, shophouses, vehicles, and street props.

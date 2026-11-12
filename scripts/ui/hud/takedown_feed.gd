@@ -1,28 +1,27 @@
 class_name TakedownFeed
 extends Control
-## Top-right 90s Filipino Komiks slanted callout strips for tags and rescues (`push_tag`, `push_rescue`, `clear`, `tick`).
+## Top-right airy translucent callout pills for tags and rescues (`push_tag`, `push_rescue`, `clear`, `tick`).
+## Dynamically measures string widths with >= 24px right padding so player names never clip.
 
-const WIDTH: float = 436.0
-const ROW_H: float = 36.0
-const ROW_GAP: float = 6.0
-const SLANT: float = 8.0
-const RIGHT_PAD: float = 28.0
-const LEFT_PAD: float = 10.0
-const INNER_GAP: float = 10.0
-const STRIPE_W: float = 12.0
+const WIDTH: float = 420.0
+const ROW_H: float = 28.0
+const ROW_GAP: float = 5.0
+const RIGHT_PAD: float = 24.0
+const LEFT_PAD: float = 12.0
+const INNER_GAP: float = 8.0
+const ACCENT_W: float = 4.0
 const MAX_ROWS: int = 4
-const HEIGHT: float = ROW_H * float(MAX_ROWS) + ROW_GAP * float(MAX_ROWS - 1) + 8.0
-const ITEM_LIFE: float = 3.8
-const ENTER_TIME: float = 0.16
-const FADE_TIME: float = 0.55
+const HEIGHT: float = ROW_H * float(MAX_ROWS) + ROW_GAP * float(MAX_ROWS - 1) + 4.0
+const ITEM_LIFE: float = 3.4
+const ENTER_TIME: float = 0.14
+const FADE_TIME: float = 0.50
 
-const INK: Color = Color("141016")
-const SHADOW: Color = Color(0.08, 0.06, 0.09, 0.82)
-const PAPER: Color = Color("f5ebd6")
-const GOLD: Color = Color("ffbe2e")
-const COBALT: Color = Color("2b7bff")
-const CRIMSON: Color = Color("f23838")
-const RESCUE_GREEN: Color = Color("38e864")
+const PILL_BG: Color = Color(0.07, 0.09, 0.12, 0.44)
+const PILL_RIM: Color = Color(1.0, 1.0, 1.0, 0.20)
+const ALLY_SKY: Color = Color(0.42, 0.74, 1.0, 0.96)
+const ENEMY_CORAL: Color = Color(1.0, 0.46, 0.40, 0.96)
+const BADGE_TAG: Color = Color(1.0, 0.86, 0.52, 0.95)
+const BADGE_RESCUE: Color = Color(0.44, 0.96, 0.66, 0.95)
 
 
 class Entry extends RefCounted:
@@ -37,6 +36,7 @@ class Entry extends RefCounted:
 
 
 var _entries: Array[Entry] = []
+var _pill_box: StyleBoxFlat
 
 
 func _init() -> void:
@@ -44,13 +44,19 @@ func _init() -> void:
 	custom_minimum_size = Vector2(WIDTH, HEIGHT)
 	size = Vector2(WIDTH, HEIGHT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pill_box = StyleBoxFlat.new()
+	_pill_box.bg_color = PILL_BG
+	_pill_box.border_color = PILL_RIM
+	_pill_box.set_border_width_all(1)
+	_pill_box.set_corner_radius_all(UiSkin.RADIUS_S)
+	_pill_box.anti_aliasing = true
 
 
 func push_tag(tagger_name: String, victim_name: String, ally_scored: bool, detail: String = "") -> void:
 	var item: Entry = Entry.new()
 	item.left_name = _trim_name(tagger_name, 14)
 	item.right_name = _trim_name(victim_name, 14)
-	item.badge = "TAG!"
+	item.badge = "TAG"
 	item.detail = _trim_name(detail, 10)
 	item.friendly = ally_scored
 	item.is_rescue = false
@@ -61,7 +67,7 @@ func push_rescue(rescuer_name: String, saved_name: String, ours: bool) -> void:
 	var item: Entry = Entry.new()
 	item.left_name = _trim_name(rescuer_name, 14)
 	item.right_name = _trim_name(saved_name, 14)
-	item.badge = "LIGTAS!"
+	item.badge = "SAVED"
 	item.detail = ""
 	item.friendly = ours
 	item.is_rescue = true
@@ -104,8 +110,8 @@ static func _trim_name(raw: String, limit: int) -> String:
 
 func _team_color(friendly: bool) -> Color:
 	if friendly:
-		return TeamColors.score_own() if Settings.colorblind else COBALT
-	return TeamColors.score_enemy() if Settings.colorblind else CRIMSON
+		return TeamColors.score_own() if Settings.colorblind else ALLY_SKY
+	return TeamColors.score_enemy() if Settings.colorblind else ENEMY_CORAL
 
 
 func _draw() -> void:
@@ -122,74 +128,37 @@ func _draw() -> void:
 		var slide_x: float = 0.0
 		if not Settings.reduced_motion and item.age < ENTER_TIME:
 			var t: float = 1.0 - item.age / ENTER_TIME
-			slide_x = t * t * 30.0
+			slide_x = t * t * 22.0
 
-		var badge_word: String = item.badge if item.detail.is_empty() else "%s %s" % [item.detail.to_upper(), item.badge]
+		var badge_word: String = ("· %s ·" % item.badge) if item.detail.is_empty() else ("· %s %s ·" % [item.detail.to_upper(), item.badge])
 		var left_w: float = font.get_string_size(item.left_name, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL).x
-		var badge_text_w: float = font.get_string_size(badge_word, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL).x
-		var bw: float = badge_text_w + 16.0
+		var bw: float = font.get_string_size(badge_word, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL).x
 		var right_w: float = font.get_string_size(item.right_name, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL).x
 
-		var needed_w: float = SLANT + STRIPE_W + LEFT_PAD + left_w + INNER_GAP + bw + INNER_GAP + right_w + RIGHT_PAD + SLANT
-		var w: float = maxf(needed_w, 228.0)
-		var x0: float = (size.x - 4.0 - w) + slide_x
+		var needed_w: float = ACCENT_W + LEFT_PAD + left_w + INNER_GAP + bw + INNER_GAP + right_w + RIGHT_PAD
+		var w: float = maxf(needed_w, 188.0)
+		var x0: float = (size.x - 2.0 - w) + slide_x
 		var y0: float = float(idx) * (ROW_H + ROW_GAP)
-		var h: float = ROW_H
 
-		var ink_a: Color = Color(INK, alpha)
-		var paper_a: Color = Color(PAPER, alpha * 0.96)
-		var shadow_a: Color = Color(SHADOW, SHADOW.a * alpha)
 		var team_col: Color = Color(_team_color(item.friendly), alpha)
 		var victim_col: Color = Color(_team_color(item.friendly if item.is_rescue else not item.friendly), alpha)
+		var sh_col: Color = Color(0.0, 0.0, 0.0, 0.45 * alpha)
 
-		# Hard comic shadow + right-aligned newsprint parallelogram plate
-		var sh: PackedVector2Array = PackedVector2Array([
-			Vector2(x0 + SLANT + 3.0, y0 + 3.5),
-			Vector2(x0 + w + 3.0, y0 + 3.5),
-			Vector2(x0 + w - SLANT + 3.0, y0 + h + 3.5),
-			Vector2(x0 + 3.0, y0 + h + 3.5),
-		])
-		draw_colored_polygon(sh, shadow_a)
+		_pill_box.bg_color = Color(PILL_BG.r, PILL_BG.g, PILL_BG.b, PILL_BG.a * alpha)
+		_pill_box.border_color = Color(1.0, 1.0, 1.0, PILL_RIM.a * alpha)
+		draw_style_box(_pill_box, Rect2(Vector2(x0, y0), Vector2(w, ROW_H)))
+		draw_rect(Rect2(Vector2(x0 + 2.0, y0 + 5.0), Vector2(ACCENT_W - 1.0, ROW_H - 10.0)), team_col, true)
 
-		var plate: PackedVector2Array = PackedVector2Array([
-			Vector2(x0 + SLANT, y0),
-			Vector2(x0 + w, y0),
-			Vector2(x0 + w - SLANT, y0 + h),
-			Vector2(x0, y0 + h),
-		])
-		draw_colored_polygon(plate, paper_a)
-
-		# Left slanted team accent wedge
-		var stripe: PackedVector2Array = PackedVector2Array([
-			Vector2(x0 + SLANT, y0),
-			Vector2(x0 + SLANT + STRIPE_W, y0),
-			Vector2(x0 + STRIPE_W, y0 + h),
-			Vector2(x0, y0 + h),
-		])
-		draw_colored_polygon(stripe, team_col)
-		draw_polyline(PackedVector2Array([plate[0], plate[1], plate[2], plate[3], plate[0]]), ink_a, 2.8, true)
-
-		# Sequential dynamic layout: [Left Name] [Action Burst] [Right Name + >=24px right pad]
-		var left_x: float = x0 + SLANT + STRIPE_W + LEFT_PAD
-		var text_y: float = y0 + h - 10.0
-		draw_string_outline(font, Vector2(left_x, text_y), item.left_name, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL, 4, ink_a)
-		draw_string(font, Vector2(left_x, text_y), item.left_name, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL, team_col.lightened(0.18))
+		var text_y: float = y0 + ROW_H - 8.0
+		var left_x: float = x0 + ACCENT_W + LEFT_PAD
+		draw_string_outline(font, Vector2(left_x, text_y), item.left_name, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL, 2, sh_col)
+		draw_string(font, Vector2(left_x, text_y), item.left_name, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL, team_col)
 
 		var bx: float = left_x + left_w + INNER_GAP
-		var by: float = y0 + 5.0
-		var bh: float = h - 10.0
-		var b_slant: float = 4.0
-		var badge_poly: PackedVector2Array = PackedVector2Array([
-			Vector2(bx + b_slant, by),
-			Vector2(bx + bw, by),
-			Vector2(bx + bw - b_slant, by + bh),
-			Vector2(bx, by + bh),
-		])
-		var burst_fill: Color = Color(RESCUE_GREEN if item.is_rescue else GOLD, alpha)
-		draw_colored_polygon(badge_poly, burst_fill)
-		draw_polyline(PackedVector2Array([badge_poly[0], badge_poly[1], badge_poly[2], badge_poly[3], badge_poly[0]]), ink_a, 2.0, true)
-		draw_string(font, Vector2(bx + 8.0, by + bh - 5.0), badge_word, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL, ink_a)
+		var badge_col: Color = Color(BADGE_RESCUE if item.is_rescue else BADGE_TAG, alpha * 0.92)
+		draw_string_outline(font, Vector2(bx, text_y - 1.0), badge_word, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL, 2, sh_col)
+		draw_string(font, Vector2(bx, text_y - 1.0), badge_word, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL, badge_col)
 
 		var right_x: float = bx + bw + INNER_GAP
-		draw_string_outline(font, Vector2(right_x, text_y), item.right_name, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL, 4, ink_a)
-		draw_string(font, Vector2(right_x, text_y), item.right_name, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL, victim_col.lightened(0.18))
+		draw_string_outline(font, Vector2(right_x, text_y), item.right_name, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL, 2, sh_col)
+		draw_string(font, Vector2(right_x, text_y), item.right_name, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL, victim_col)

@@ -46,6 +46,7 @@ func _ready() -> void:
 		var card: CardsHubCard = kids_card if index == 0 else skills_card
 		var grid: CardsScreen = kids_screen if index == 0 else skills_screen
 		cards.append(card)
+		card.detail_label.add_theme_font_override("font", KalyeahTheme.BODY_FONT)
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.focus_mode = Control.FOCUS_NONE
 		var slot: MarginContainer = MarginContainer.new()

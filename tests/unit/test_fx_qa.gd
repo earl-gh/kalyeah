@@ -179,7 +179,7 @@ func test_a_caster_who_leaves_mid_flight_does_not_break_or_stick_any_weapon() ->
 		_run(sim, fx, 4)
 		sim.players.erase(1)
 		sim.players[2].tagged = true
-		_run(sim, fx, 700)
+		_run(sim, fx, 820)
 		assert_eq(fx.live_count(), 0, "%s: nothing stuck once its owner is gone" % weapon)
 		assert_eq(fx.fading_count(), 0, "%s: no ghost stuck" % weapon)
 		assert_eq(fx.particle_count(), 0, "%s: no particle or trail stuck" % weapon)

@@ -35,12 +35,25 @@ signal exhausted(id: int)
 signal player_dashed(id: int)
 ## A kid unleashed their Bida Ultimate superpower.
 signal ultimate_cast(id: int)
+## A kid picked up a Barangay merienda power-up (`kind`: 1=PALAMIG, 2=TEKS, 3=TURON).
+signal powerup_taken(player_id: int, powerup_id: int, kind: int)
 
 const RELEASED_ALONE: int = -1
 ## Float slack for timers and the elixir bar (sums of 1/30 s ticks), not a gameplay number.
 const EPSILON: float = 0.00001
 ## Mixed into the match seed for the trip rolls' own generator.
 const TRIP_SEED_MIX: int = 0x7121B
+const POWERUP_NONE: int = 0
+const POWERUP_PALAMIG: int = 1
+const POWERUP_TEKS: int = 2
+const POWERUP_TURON: int = 3
+## Minimum `air_y` height (metres) that clears low pavement snares & jackstone fields.
+const JUMP_CLEAR_HEIGHT: float = 0.45
+const DEFAULT_POWERUP_SPOTS: Array[Vector2] = [
+	Vector2(-34.0, 0.0),
+	Vector2(0.0, 0.0),
+	Vector2(34.0, 0.0),
+]
 
 ## INTRO: the opening show of both teams at their posts; nothing moves.
 enum Phase { PLAYING, POINT_FREEZE, MATCH_OVER, INTRO }
@@ -93,6 +106,8 @@ var intro_left: float = 0.0
 var match_time: float = 0.0
 ## How every point of the match was won, in order: (team that scored, CaptureKind).
 var point_log: Array[Vector2i] = []
+## Small Barangay merienda power-up stands (`{"id": int, "kind": int, "pos": Vector2, "active": bool, "respawn_left": float}`).
+var powerups: Array[Dictionary] = []
 ## A timed street game (Tumbang Preso, Patintero) in place of Agawang Base's rescues and captures; null for Agawang Base.
 var mode: StreetMode = null
 
@@ -134,6 +149,7 @@ func _init(p_rules: GameRules, p_layout: MapLayout, seed_value: int) -> void:
 	score = MatchScore.new(rules.first_to)
 	capture_needed = rules.capture_solo_time
 	rescue_ready_left = [rules.rescue_cooldown, rules.rescue_cooldown]
+	reset_powerups()
 
 
 ## Team 0 plays from the own (+Z) end, team 1 from the enemy (-Z) end.
@@ -151,6 +167,7 @@ func set_first_to(count: int) -> void:
 ## Plays `p_mode` (Tumbang Preso or Patintero) instead of Agawang Base and puts everyone in their places. Call once all players are in.
 func start_mode(p_mode: StreetMode) -> void:
 	mode = p_mode
+	powerups.clear()
 	obstacles.clear()
 	_walk_obstacles.clear()
 	_blocking.clear()
@@ -508,15 +525,22 @@ func damage(id: int, amount: int, by: int = -1) -> void:
 	var state: PlayerState = players[id]
 	if state.tagged or mode != null:
 		return  # in Tumbang Preso and Patintero only a touch tags
-	state.hp = maxi(0, state.hp - amount)
+	var final_amount: int = amount
+	if by >= 0 and players.has(by):
+		var src: PlayerState = players[by]
+		if src.buff_type == POWERUP_TEKS and src.buff_left > 0.0:
+			final_amount = maxi(1, roundi(float(final_amount) * (1.0 + rules.teks_damage_bonus)))
+	if state.buff_type == POWERUP_TURON and state.buff_left > 0.0:
+		final_amount = maxi(1, roundi(float(final_amount) * (1.0 - rules.turon_damage_reduction)))
+	state.hp = maxi(0, state.hp - final_amount)
 	state.out_of_combat_time = 0.0
 	state.sprinting = false
-	state.ult_charge = minf(100.0, state.ult_charge + float(amount) * rules.ult_per_damage * 0.45)
+	state.ult_charge = minf(100.0, state.ult_charge + float(final_amount) * rules.ult_per_damage * 0.45)
 	if by >= 0 and by != id and players.has(by):
 		var attacker: PlayerState = players[by]
 		if attacker.team != state.team:
-			attacker.ult_charge = minf(100.0, attacker.ult_charge + float(amount) * rules.ult_per_damage)
-	player_damaged.emit(id, amount)
+			attacker.ult_charge = minf(100.0, attacker.ult_charge + float(final_amount) * rules.ult_per_damage)
+	player_damaged.emit(id, final_amount)
 	if state.hp <= 0:
 		objectives.tag(self, state, by)
 
@@ -599,6 +623,7 @@ func step(dt: float) -> void:
 	if mode != null:
 		mode.step(self, dt)
 	else:
+		_step_powerups(dt)
 		objectives.check_rescues(self, dt)
 		objectives.check_captures(self, _brains, dt)
 	tick += 1
@@ -609,6 +634,9 @@ func _tick_cooldowns(state: PlayerState, dt: float) -> void:
 		state.weapon_cooldowns[slot] = maxf(0.0, state.weapon_cooldowns[slot] - dt)
 	state.primary_cd = maxf(0.0, state.primary_cd - dt)
 	state.dash_cd = maxf(0.0, state.dash_cd - dt)
+	state.jump_cd = maxf(0.0, state.jump_cd - dt)
+	state.slide_cd = maxf(0.0, state.slide_cd - dt)
+	_tick_buff(state, dt)
 	if mode == null and not state.tagged:
 		state.ult_charge = minf(100.0, state.ult_charge + rules.ult_passive_per_s * dt)
 	_tick_shuffler(state, dt)
@@ -660,6 +688,40 @@ func _handle_weapon_casting(state: PlayerState, input: PlayerInput, dt: float) -
 
 
 func _step_hero_actions(state: PlayerState, input: PlayerInput) -> void:
+	# 0. Athletic Street Jump (`BTN_JUMP`) & Ground Slide (`BTN_SLIDE` or fresh `BTN_CROUCH` while running)
+	var jump_fresh: bool = input.is_pressed(PlayerInput.BTN_JUMP) and (state.previous_buttons & PlayerInput.BTN_JUMP) == 0
+	if jump_fresh and state.air_y <= 0.01 and state.jump_cd <= 0.0 and state.dash_left <= 0.0 \
+		and state.slide_left <= 0.0 and state.cast_lock_left <= 0.0 and state.effects.can_move() and rules.jump_velocity > 0.0:
+		state.vel_y = rules.jump_velocity
+		state.jump_cd = rules.jump_cooldown
+		state.crouching = false
+
+	var stick_move: Vector2 = input.move.limit_length(1.0)
+	var stick_mag: float = stick_move.length()
+	var has_target_run: bool = stick_mag <= 0.001 and state.has_move_target and state.position.distance_squared_to(state.move_target) > 0.04
+	var running_fast: bool = (stick_mag >= rules.walk_run_threshold or has_target_run) and not state.overclocked
+	var slide_fresh: bool = input.is_pressed(PlayerInput.BTN_SLIDE) and (state.previous_buttons & PlayerInput.BTN_SLIDE) == 0
+	var crouch_fresh: bool = input.is_pressed(PlayerInput.BTN_CROUCH) and (state.previous_buttons & PlayerInput.BTN_CROUCH) == 0
+	if (slide_fresh or (crouch_fresh and not state.crouching)) and running_fast and state.air_y <= 0.01 \
+		and state.slide_cd <= 0.0 and state.slide_left <= 0.0 and state.dash_left <= 0.0 \
+		and state.cast_lock_left <= 0.0 and state.effects.can_move() and rules.slide_duration > 0.0:
+		var s_dir: Vector2 = Vector2.ZERO
+		if stick_mag > 0.001:
+			s_dir = stick_move.normalized()
+		elif has_target_run:
+			s_dir = (state.move_target - state.position).normalized()
+		else:
+			s_dir = state.facing if state.facing.length_squared() > 0.001 else Vector2(0.0, -side_for_team(state.team))
+		state.slide_dir = s_dir
+		state.facing = s_dir
+		state.slide_left = rules.slide_duration
+		state.slide_cd = rules.slide_cooldown
+		state.crouching = true
+		state.walking = false
+		state.run_time = 0.0
+	elif crouch_fresh and not running_fast and state.slide_left > 0.0:
+		state.slide_left = 0.0
+
 	# 1. Luksong-Tinik Parkour Vault-Dash (fresh press)
 	var dash_fresh: bool = input.is_pressed(PlayerInput.BTN_DASH) and (state.previous_buttons & PlayerInput.BTN_DASH) == 0
 	if dash_fresh and state.dash_cd <= 0.0 and state.dash_left <= 0.0 and state.effects.can_move() and rules.dash_duration > 0.0:
@@ -676,6 +738,8 @@ func _step_hero_actions(state: PlayerState, input: PlayerInput) -> void:
 		state.facing = dir
 		state.dash_left = rules.dash_duration
 		state.dash_cd = rules.dash_cooldown
+		state.slide_left = 0.0
+		state.crouching = false
 		state.effects.clear_type(StatusEffects.Type.SLOW)
 		player_dashed.emit(state.id)
 
@@ -721,13 +785,16 @@ func _step_hero_actions(state: PlayerState, input: PlayerInput) -> void:
 			weapon_cast.emit(state.id, p_def.id)
 
 
-## Running for `trip_interval` s without stopping is one roll at `trip_chance`: a kid that trips falls for `trip_seconds`. Stopping, or any
-## fall or hit, starts the count again.
+## Running for `trip_interval` s without stopping is one roll at `trip_chance`: a kid that trips falls for `trip_seconds`. Stopping, analog
+## walking (`< walk_run_threshold`), crouching, sliding, or any fall or hit starts the count again.
 func _tick_trip(state: PlayerState, moved: bool, dt: float) -> void:
 	if not state.trips or rules.trip_chance <= 0.0 or rules.trip_interval <= 0.0:
 		return
-	if not moved or state.overclocked or not state.effects.can_move():  # a worn-out kid only walks: walking does not trip
+	if not moved or state.walking or state.crouching or state.slide_left > 0.0 or state.dash_left > 0.0 \
+		or state.overclocked or not state.effects.can_move():
 		state.run_time = 0.0
+		return
+	if state.air_y > 0.0:
 		return
 	state.run_time += dt
 	if state.run_time < rules.trip_interval - EPSILON:
@@ -735,6 +802,136 @@ func _tick_trip(state: PlayerState, moved: bool, dt: float) -> void:
 	state.run_time = 0.0
 	if _trip_rng.randf() < rules.trip_chance:
 		apply_effect(state.id, StatusEffects.Type.TRIPPED, rules.trip_seconds, 0.0)
+
+
+## Spawns or resets the 3 Barangay merienda power-up stands when `layout.is_circular() and mode == null`.
+func reset_powerups() -> void:
+	powerups.clear()
+	if layout == null or not layout.is_circular() or mode != null:
+		return
+	var spots: Array[Vector2] = []
+	var raw_spots: Variant = layout.get(&"powerup_spots")
+	if raw_spots is Array:
+		var raw_arr: Array = raw_spots
+		for item: Variant in raw_arr:
+			if item is Vector2:
+				var pt: Vector2 = item
+				spots.append(pt)
+	if spots.is_empty():
+		spots.assign(DEFAULT_POWERUP_SPOTS)
+	for i: int in spots.size():
+		var entry: Dictionary = {
+			"id": i + 1,
+			"kind": (i % 3) + 1,
+			"pos": spots[i],
+			"active": true,
+			"respawn_left": 0.0,
+		}
+		powerups.append(entry)
+
+
+func _step_powerups(dt: float) -> void:
+	if powerups.is_empty() or mode != null:
+		return
+	for i: int in powerups.size():
+		var entry: Dictionary = powerups[i]
+		var is_active: bool = entry.has("active") and entry["active"] == true
+		if not is_active:
+			var rem: float = 0.0
+			if entry.has("respawn_left"):
+				var raw_rem: Variant = entry["respawn_left"]
+				if raw_rem is float:
+					rem = raw_rem
+				elif raw_rem is int:
+					rem = float(raw_rem)
+			rem = maxf(0.0, rem - dt)
+			entry["respawn_left"] = rem
+			if rem <= EPSILON:
+				entry["respawn_left"] = 0.0
+				entry["active"] = true
+			continue
+		if not entry.has("pos"):
+			continue
+		var raw_pos: Variant = entry["pos"]
+		if not (raw_pos is Vector2):
+			continue
+		var stand_pos: Vector2 = raw_pos
+		var winner: PlayerState = null
+		var best_dist: float = INF
+		for pid: int in players:
+			if _brains.has(pid):
+				continue
+			var candidate: PlayerState = players[pid]
+			if candidate.tagged:
+				continue
+			var reach: float = rules.powerup_pickup_radius + candidate.radius
+			var dist: float = candidate.position.distance_to(stand_pos)
+			if dist <= reach and dist < best_dist:
+				best_dist = dist
+				winner = candidate
+		if winner == null:
+			continue
+		var pid_stand: int = i + 1
+		if entry.has("id") and entry["id"] is int:
+			var typed_id: int = entry["id"]
+			pid_stand = typed_id
+		var p_kind: int = (i % 3) + 1
+		if entry.has("kind") and entry["kind"] is int:
+			var typed_kind: int = entry["kind"]
+			p_kind = typed_kind
+		entry["active"] = false
+		entry["respawn_left"] = rules.powerup_respawn_seconds
+		_apply_powerup(winner, p_kind)
+		powerup_taken.emit(winner.id, pid_stand, p_kind)
+
+
+func _apply_powerup(state: PlayerState, kind: int) -> void:
+	state.buff_regen_carry = 0.0
+	match kind:
+		POWERUP_PALAMIG:
+			heal(state.id, rules.palamig_heal)
+			state.buff_type = POWERUP_PALAMIG
+			state.buff_left = rules.palamig_duration
+		POWERUP_TEKS:
+			if mode == null:
+				state.ult_charge = minf(100.0, state.ult_charge + rules.teks_ult_bonus)
+			state.buff_type = POWERUP_TEKS
+			state.buff_left = rules.teks_duration
+		POWERUP_TURON:
+			state.buff_type = POWERUP_TURON
+			state.buff_left = rules.turon_duration
+
+
+func _tick_buff(state: PlayerState, dt: float) -> void:
+	if state.buff_left <= 0.0 or state.buff_type == POWERUP_NONE:
+		state.buff_left = 0.0
+		state.buff_type = POWERUP_NONE
+		state.buff_regen_carry = 0.0
+		return
+	var step_dt: float = minf(dt, state.buff_left)
+	state.buff_left = maxf(0.0, state.buff_left - dt)
+	if not state.tagged and state.buff_type == POWERUP_TURON and rules.turon_regen_per_s > 0.0:
+		if state.hp < rules.player_max_hp:
+			state.buff_regen_carry += rules.turon_regen_per_s * step_dt
+			var whole_hp: int = int(floorf(state.buff_regen_carry + EPSILON))
+			if whole_hp > 0:
+				state.buff_regen_carry = maxf(0.0, state.buff_regen_carry - float(whole_hp))
+				heal(state.id, whole_hp)
+		else:
+			state.buff_regen_carry = 0.0
+	if state.buff_left <= EPSILON:
+		state.buff_left = 0.0
+		state.buff_type = POWERUP_NONE
+		state.buff_regen_carry = 0.0
+
+
+func _step_air(state: PlayerState, dt: float) -> void:
+	if state.air_y > 0.0 or state.vel_y > 0.0:
+		state.air_y += state.vel_y * dt
+		state.vel_y -= rules.jump_gravity * dt
+		if state.air_y <= 0.0:
+			state.air_y = 0.0
+			state.vel_y = 0.0
 
 
 ## Elixir fills while the match runs (also while tagged), up to the bar; the extra is lost.
@@ -921,38 +1118,68 @@ func lacks_target(state: PlayerState, slot: int) -> bool:
 func _move(state: PlayerState, input: PlayerInput, dt: float) -> void:
 	if input != null:
 		_take_move_order(state, input)
+	_step_air(state, dt)
 	if state.dash_left > 0.0:
 		state.dash_left = maxf(0.0, state.dash_left - dt)
+		state.walking = false
+		state.crouching = false
 		if state.effects.can_move():
 			_move_by(state, state.dash_dir * rules.dash_speed * dt)
 			return
 		state.dash_left = 0.0
+	if state.slide_left > 0.0:
+		state.slide_left = maxf(0.0, state.slide_left - dt)
+		state.walking = false
+		state.sprinting = false
+		if state.effects.can_move() and state.air_y <= 0.01:
+			state.crouching = state.slide_left > 0.0 or (input != null and input.is_pressed(PlayerInput.BTN_CROUCH))
+			var slide_v: float = rules.slide_speed
+			if mode == null and state.buff_type == POWERUP_PALAMIG and state.buff_left > 0.0:
+				slide_v *= (1.0 + rules.palamig_speed_bonus)
+			_move_by(state, state.slide_dir * slide_v * dt)
+			return
+		state.slide_left = 0.0
 	if state.cast_lock_left > 0.0:
 		# a heavy attack's cast animation: aiming was free while moving, but now stand still
 		state.cast_lock_left = maxf(0.0, state.cast_lock_left - dt)
 		state.sprinting = false
+		state.walking = false
+		state.crouching = false
 		return
 	if not state.effects.can_move():
 		state.sprinting = false
+		state.walking = false
+		state.crouching = false
 		return  # a move target set meanwhile is kept and walked once the kid can move
 	state.out_of_combat_time += dt
+	var move: Vector2 = input.move.limit_length(1.0) if input != null else Vector2.ZERO
+	var stick_len: float = move.length()
+	state.crouching = mode == null and state.air_y <= 0.01 and input != null and input.is_pressed(PlayerInput.BTN_CROUCH)
+	state.walking = not state.crouching and stick_len > 0.0 and stick_len < rules.walk_run_threshold
 	var speed: float = rules.move_speed
 	if mode != null:
 		speed *= mode.speed_scale(state)
 	if state.overclocked:
 		speed *= rules.overclock_speed_share
+	elif state.crouching:
+		speed *= rules.crouch_speed_share
+	if mode == null and state.buff_type == POWERUP_PALAMIG and state.buff_left > 0.0:
+		speed *= (1.0 + rules.palamig_speed_bonus)
 	speed *= state.effects.speed_multiplier(rules.polymorph_speed_scale)
-	var move: Vector2 = input.move.limit_length(1.0) if input != null else Vector2.ZERO
-	var wants_move: bool = move.length_squared() > 0.0 or state.has_move_target
-	state.sprinting = wants_move and rules.sprint_enabled and mode == null and not state.overclocked \
-		and not state.effects.has(StatusEffects.Type.SLOW) and state.out_of_combat_time >= rules.sprint_delay
+	var wants_move: bool = stick_len > 0.0 or state.has_move_target
+	state.sprinting = wants_move and not state.walking and not state.crouching and rules.sprint_enabled \
+		and mode == null and not state.overclocked and not state.effects.has(StatusEffects.Type.SLOW) \
+		and state.out_of_combat_time >= rules.sprint_delay
 	if state.sprinting:
 		speed *= rules.sprint_multiplier
-	if move.length_squared() > 0.0:
-		state.facing = move.normalized()
+	var prev_pos: Vector2 = state.position
+	if stick_len > 0.0:
+		state.facing = move / stick_len
 		_move_by(state, move * speed * dt)
 	elif state.has_move_target:
 		_walk_to_target(state, speed * dt, dt)
+	if state.walking and state.position.distance_squared_to(prev_pos) <= EPSILON * EPSILON:
+		state.walking = false
 
 
 ## A non-zero stick (bots) clears the move target; a new street point replaces it (pulled into the street and out of cover).

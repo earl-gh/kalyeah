@@ -74,7 +74,7 @@ func test_the_camera_sits_behind_the_own_end_and_the_other_team_is_turned_half_w
 
 
 func test_the_kids_are_drawn_a_little_bigger_than_their_model_and_their_bars_smaller() -> void:
-	assert_almost_eq(CAMERA.kid_view_scale, 1.75, 0.0001, "hero-action 5v5 barangay kid view scale")
+	assert_almost_eq(CAMERA.kid_view_scale, 0.82, 0.0001, "realistic 0.82 gameplay kid view scale (~1.52 m)")
 	assert_lt(CAMERA.bar_scale, 1.0)
 	assert_gt(LAYOUT.scenery_scale, 1.0, "the scenery is drawn bigger to match")
 
@@ -84,9 +84,9 @@ func test_the_kid_is_readable_at_this_size() -> void:
 	var feet: Vector2 = CAMERA.screen_point(framed.x, PHONE, Vector2.ZERO, framed.y)
 	var head: Vector2 = CAMERA.screen_point(framed.x, PHONE, Vector2.ZERO, framed.y, KidModel.KID_HEIGHT * CAMERA.kid_view_scale)
 	var tall: float = (head.y - feet.y) / 2.0 * 1280.0
-	assert_gt(tall, 40.0, "readable silhouette height at 1.75 view scale")
+	assert_gt(tall, 18.0, "readable silhouette height at 0.82 view scale")
 	var wide: float = absf(CAMERA.screen_point(framed.x, PHONE, Vector2(0.35 * CAMERA.kid_view_scale, 0.0), framed.y).x - feet.x) * 360.0 * 2.0
-	assert_gt(wide, 24.0, "readable silhouette width at 1.75 view scale")
+	assert_gt(wide, 10.0, "readable silhouette width at 0.82 view scale")
 
 
 func test_the_arena_camera_places_itself_and_keeps_the_whole_street_in_view() -> void:

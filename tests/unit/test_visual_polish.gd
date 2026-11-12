@@ -56,7 +56,7 @@ func test_the_bases_and_rescue_areas_are_chalk_outlines_like_patinteros_lines() 
 
 func test_the_street_is_calm_and_shows_no_shadows() -> void:
 	assert_eq(StreetMap.STREET_SHADER, StreetMap.GROUND_SHADER, "Barangay ground shader powers the arena floor")
-	assert_true(StreetMap.GROUND_SHADER.code.contains("clamp(col, vec3(0.04), vec3(0.65))"), "ground albedo strictly capped <= 0.65 against white blowout")
+	assert_true(StreetMap.GROUND_SHADER.code.contains("clamp(col, vec3(0.08), vec3(0.65))"), "ground albedo strictly capped <= 0.65 against white blowout")
 	assert_between(StreetMap.AMBIENT_ENERGY, 0.35, 0.55, "balanced golden-hour ambient keeps shadowed walls readable without washout")
 	var upward: float = StreetMap.SUN_ENERGY * sin(deg_to_rad(-StreetMap.SUN_ANGLES.x)) + StreetMap.AMBIENT_ENERGY
 	assert_almost_eq(upward, 1.0, 0.12, "sun + ambient places upward faces near 1.0x albedo without over-exposure")

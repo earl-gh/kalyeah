@@ -50,7 +50,7 @@ var _was_online: bool = false
 var _pending: Array[PlayerInput] = []
 var _clock: float = 0.0
 var _connect_started: float = 0.0
-## Snapshots of other players' positions: {"time": float, "pos": {id: Vector2}}.
+## Snapshots of other players' positions and jump heights: {"time": float, "pos": {id: Vector2}, "air": {id: float}}.
 var _buffer: Array[Dictionary] = []
 
 
@@ -197,13 +197,13 @@ func leave_room() -> void:
 
 
 func is_host() -> bool:
-	return not room.is_empty() and room.get("host", -1) == player_id
+	return not room.is_empty() and _int_in(room, "host", -1) == player_id
 
 
 func my_team() -> int:
-	for member: Dictionary in room.get("members", []) as Array:
-		if member["player_id"] == player_id:
-			return member["team"] as int
+	for raw_member: Variant in _arr_in(room, "members"):
+		if raw_member is Dictionary and _int_in(raw_member, "player_id", -2) == player_id:
+			return _int_in(raw_member, "team", -1)
 	return -1
 
 
@@ -259,7 +259,7 @@ func send_input(input: PlayerInput, dt: float) -> void:
 	mirror.predict_move(player_id, wire_input, dt)
 
 
-## Places the other players between the two snapshots around (now - delay).
+## Places the other players between the two snapshots around (now - delay), interpolating XZ position and jump `air_y`.
 func interpolate() -> void:
 	if mirror == null or _buffer.is_empty():
 		return
@@ -267,84 +267,92 @@ func interpolate() -> void:
 	var older: Dictionary = _buffer[0]
 	var newer: Dictionary = _buffer[0]
 	for entry: Dictionary in _buffer:
-		if (entry["time"] as float) <= render_time:
+		if _float_in(entry, "time", 0.0) <= render_time:
 			older = entry
 			newer = entry
 		else:
 			newer = entry
 			break
-	var span: float = (newer["time"] as float) - (older["time"] as float)
-	var weight: float = 0.0 if span <= 0.0 else clampf((render_time - (older["time"] as float)) / span, 0.0, 1.0)
-	var from: Dictionary = older["pos"] as Dictionary
-	var to: Dictionary = newer["pos"] as Dictionary
+	var older_time: float = _float_in(older, "time", 0.0)
+	var newer_time: float = _float_in(newer, "time", 0.0)
+	var span: float = newer_time - older_time
+	var weight: float = 0.0 if span <= 0.0 else clampf((render_time - older_time) / span, 0.0, 1.0)
+	var from: Dictionary = _dict_in(older, "pos")
+	var to: Dictionary = _dict_in(newer, "pos")
+	var from_air: Dictionary = _dict_in(older, "air")
+	var to_air: Dictionary = _dict_in(newer, "air")
 	for id: int in mirror.players:
 		if id == player_id or not from.has(id) or not to.has(id):
 			continue
-		mirror.players[id].position = (from[id] as Vector2).lerp(to[id] as Vector2, weight)
+		var remote: PlayerState = mirror.players[id]
+		remote.position = _vec2_val(from[id]).lerp(_vec2_val(to[id]), weight)
+		if from_air.has(id) and to_air.has(id):
+			remote.set(&"air_y", lerpf(_float_val(from_air[id]), _float_val(to_air[id]), weight))
 
 
 func _handle(message: Dictionary) -> void:
-	var M := NetProtocol.Msg
-	match message["t"] as int:
-		M.WELCOME:
-			if message.get("v", -1) != NetProtocol.VERSION:
+	var msg_type: int = _int_in(message, "t", -1)
+	match msg_type:
+		NetProtocol.Msg.WELCOME:
+			if _int_in(message, "v", -1) != NetProtocol.VERSION:
 				error_received.emit(NetProtocol.INCOMPATIBLE_TEXT)
 				return
-			var reconnected: bool = message.get("reconnected", false) as bool
+			var reconnected: bool = _bool_in(message, "reconnected", false)
 			if message.has("input_next"):
-				next_input_sequence = maxi(next_input_sequence, message["input_next"] as int)
+				next_input_sequence = maxi(next_input_sequence, _int_in(message, "input_next", next_input_sequence))
 			elif not reconnected:
 				next_input_sequence = 1
 			welcomed.emit(reconnected)
-		M.ERROR:
-			error_received.emit(message.get("text", "") as String)
-		M.ROOM:
+		NetProtocol.Msg.ERROR:
+			error_received.emit(_str_in(message, "text", ""))
+		NetProtocol.Msg.ROOM:
 			room = message
-			player_id = message.get("you", -1) as int
-			token = message.get("token", "") as String
+			player_id = _int_in(message, "you", -1)
+			token = _str_in(message, "token", "")
 			room_changed.emit(room)
-		M.ROOM_CLOSED:
+		NetProtocol.Msg.ROOM_CLOSED:
 			room_closed.emit()
-		M.ROOM_LIST:
+		NetProtocol.Msg.ROOM_LIST:
 			var listed: Array[Dictionary] = []
-			var raw: Variant = message.get("rooms", [])
-			if raw is Array:
-				for entry: Variant in raw as Array:
-					if entry is Dictionary and (entry as Dictionary).get("code") is String:
-						listed.append(entry as Dictionary)
+			for entry: Variant in _arr_in(message, "rooms"):
+				if entry is Dictionary and entry.get("code") is String:
+					listed.append(entry)
 			rooms_listed.emit(listed)
-		M.MATCH_LOADING:
+		NetProtocol.Msg.MATCH_LOADING:
 			_build_mirror(message)
 			match_loading.emit(message)
-		M.MATCH_PLAY:
+		NetProtocol.Msg.MATCH_PLAY:
 			_on_stage(message)
-		M.SNAPSHOT:
+		NetProtocol.Msg.SNAPSHOT:
 			_on_snapshot(message)
-		M.EVENTS:
-			_on_events(message.get("list", []) as Array)
-		M.SAID:
+		NetProtocol.Msg.EVENTS:
+			_on_events(_arr_in(message, "list"))
+		NetProtocol.Msg.SAID:
 			var sender: Variant = message.get("p")
 			var sticker: Variant = message.get("s")
-			if sender is int and sticker is int and (sticker as int) >= 0 and (sticker as int) < _net.chat_stickers:
-				said.emit(sender as int, sticker as int)
+			if sender is int and sticker is int and sticker >= 0 and sticker < _net.chat_stickers:
+				said.emit(sender, sticker)
 
 
 func _build_mirror(info: Dictionary) -> void:
-	if mirror != null and match_info.get("seed", -1) == info.get("seed", -2):
+	if mirror != null and _int_in(match_info, "seed", -1) == _int_in(info, "seed", -2):
 		# reconnected into the same match: keep the mirror the views already use
 		_pending.clear()
 		_buffer.clear()
 		return
 	match_info = info
-	mirror = MatchSim.new(_rules, _layout, info.get("seed", 0) as int)
-	for entry: Dictionary in info.get("players", []) as Array:
-		var state: PlayerState = mirror.add_player(entry["id"] as int, entry["team"] as int)
-		state.character_id = entry.get("char", &"") as StringName
+	mirror = MatchSim.new(_rules, _layout, _int_in(info, "seed", 0))
+	for raw_entry: Variant in _arr_in(info, "players"):
+		if not (raw_entry is Dictionary):
+			continue
+		var state: PlayerState = mirror.add_player(_int_in(raw_entry, "id", 0), _int_in(raw_entry, "team", 0))
+		state.character_id = _sname_in(raw_entry, "char", &"")
 	# a street game: the same game on the copy, so the views show it and the local kid's walk is predicted by its rules
-	var game: StreetModeRules = StreetMode.rules_for(StringName(String(info.get("game", ""))))
+	var game: StreetModeRules = StreetMode.rules_for(StringName(_str_in(info, "game", "")))
 	if game != null:
 		var mode: StreetMode = StreetMode.create(game)
-		mode.attack_team = clampi(int(info.get("runs", 0)) if info.get("runs", 0) is int else 0, 0, 1)
+		var raw_runs: Variant = info.get("runs", 0)
+		mode.attack_team = clampi(raw_runs if raw_runs is int else 0, 0, 1)
 		mirror.start_mode(mode)
 	_pending.clear()
 	_buffer.clear()
@@ -352,32 +360,49 @@ func _build_mirror(info: Dictionary) -> void:
 
 
 func _on_stage(message: Dictionary) -> void:
-	stage = message.get("stage", "") as String
-	stage_time = message.get("time", 0.0) as float
+	stage = _str_in(message, "stage", "")
+	stage_time = _float_in(message, "time", 0.0)
 	if mirror != null:
-		var loadouts: Dictionary = message.get("loadouts", {}) as Dictionary
-		for id: Variant in loadouts:
-			var pair: Array = loadouts[id] as Array
-			if pair.is_empty() or pair.size() > PlayerInput.CARD_BITS.size() or not mirror.players.has(id as int):
+		var loadouts: Dictionary = _dict_in(message, "loadouts")
+		for raw_id: Variant in loadouts:
+			if not (raw_id is int) or not mirror.players.has(raw_id):
+				continue
+			var pid: int = raw_id
+			var raw_pair: Variant = loadouts[raw_id]
+			if not (raw_pair is Array):
+				continue
+			var pair: Array = raw_pair
+			if pair.is_empty() or pair.size() > PlayerInput.CARD_BITS.size():
+				continue
+			var typed_names: Array[StringName] = []
+			var names_ok: bool = true
+			for item: Variant in pair:
+				if item is StringName:
+					typed_names.append(item)
+				elif item is String:
+					typed_names.append(StringName(item))
+				else:
+					names_ok = false
+					break
+			if not names_ok:
 				continue
 			if mirror.rules.card_cycle:
 				# a hand of `hand_size` cards (an empty slot while the old shuffler works); the server dealt it, so take it as it is
-				var player: PlayerState = mirror.players[id as int]
-				player.weapons.assign(pair)
+				var player: PlayerState = mirror.players[pid]
+				player.weapons.assign(typed_names)
 				player.cards = true
 				player.resize_slots()
-			elif pair.size() != 2:
-				continue
-			else:
-				mirror.set_loadout(id as int, pair[0] as StringName, pair[1] as StringName)
+			elif typed_names.size() >= 2:
+				mirror.set_loadout_list(pid, typed_names)
 		# the server settled who plays which kid (a pick may have swapped two players' kids)
-		var kids: Dictionary = message.get("chars", {}) as Dictionary
-		for id: Variant in kids:
-			if mirror.players.has(id as int):
-				mirror.players[id as int].character_id = kids[id] as StringName
+		var kids: Dictionary = _dict_in(message, "chars")
+		for raw_id: Variant in kids:
+			if raw_id is int and mirror.players.has(raw_id):
+				mirror.players[raw_id].character_id = _sname_val(kids[raw_id])
 		locked_players.clear()
-		for id: Variant in message.get("locked", []) as Array:
-			locked_players.append(id as int)
+		for raw_id: Variant in _arr_in(message, "locked"):
+			if raw_id is int:
+				locked_players.append(raw_id)
 	stage_changed.emit(stage)
 	if stage == "pick":
 		picks_changed.emit()
@@ -388,21 +413,27 @@ func _on_snapshot(data: Dictionary) -> void:
 		return
 	Snapshot.apply(mirror, data, player_id)
 	var positions: Dictionary = {}
+	var airs: Dictionary = {}
 	var server_position: Vector2 = Vector2.ZERO
 	var have_local: bool = false
-	for entry: Dictionary in data.get("players", []) as Array:
-		var id: int = entry["id"] as int
-		if entry.get("hid", false):
+	for raw_entry: Variant in _arr_in(data, "players"):
+		if not (raw_entry is Dictionary):
+			continue
+		var id: int = _int_in(raw_entry, "id", -1)
+		if id < 0 or _bool_in(raw_entry, "hid", false):
 			continue  # out of this phone's sight (a brownout): nothing to draw it toward
-		positions[id] = entry["pos"] as Vector2
+		var pos: Vector2 = _vec2_in(raw_entry, "pos", Vector2.ZERO)
+		positions[id] = pos
+		airs[id] = _float_in(raw_entry, "ay", 0.0)
 		if id == player_id:
-			server_position = entry["pos"] as Vector2
+			server_position = pos
 			have_local = true
-	_buffer.append({"time": _clock, "pos": positions})
+	_buffer.append({"time": _clock, "pos": positions, "air": airs})
 	while _buffer.size() > 4:
 		_buffer.pop_front()
 	if have_local:
-		var ack: int = (data.get("acks", {}) as Dictionary).get(player_id, -1) as int
+		var acks: Dictionary = _dict_in(data, "acks")
+		var ack: int = _int_in(acks, player_id, -1)
 		next_input_sequence = maxi(next_input_sequence, ack + 1)
 		_reconcile(server_position, ack)
 	snapshot_applied.emit()
@@ -410,9 +441,9 @@ func _on_snapshot(data: Dictionary) -> void:
 
 ## Server position as of the last input it used, then the newer inputs replayed.
 func _reconcile(server_position: Vector2, ack: int) -> void:
-	var local: PlayerState = mirror.players.get(player_id) as PlayerState
-	if local == null:
+	if not mirror.players.has(player_id):
 		return
+	var local: PlayerState = mirror.players[player_id]
 	while not _pending.is_empty() and _pending[0].tick <= ack:
 		_pending.pop_front()
 	local.position = server_position
@@ -429,14 +460,110 @@ func _on_events(list: Array) -> void:
 	}
 	if mirror.mode != null:
 		targets["mode"] = mirror.mode
-	for event: Array in list:
-		if event.size() != 3 or not targets.has(event[0] as String):
+	for raw_event: Variant in list:
+		if not (raw_event is Array):
 			continue
-		var args: Array = (event[2] as Array).duplicate()
-		if (event[1] == "cone_struck" or event[1] == "cone_winding") and args.size() == 4:
-			args[1] = mirror.weapon_defs.get(args[1] as StringName)
-			if args[1] == null:
+		var event: Array = raw_event
+		if event.size() != 3 or not (event[0] is String) or not (event[1] is String or event[1] is StringName) or not (event[2] is Array):
+			continue
+		var target_key: String = event[0]
+		if not targets.has(target_key):
+			continue
+		var target_obj: Object = targets[target_key]
+		var sig_str: String = String(event[1])
+		var sig_name: StringName = StringName(sig_str)
+		if not target_obj.has_signal(sig_name):
+			continue
+		var raw_args: Array = event[2]
+		var args: Array = raw_args.duplicate()
+		if (sig_str == "cone_struck" or sig_str == "cone_winding") and args.size() == 4:
+			var wid: StringName = _sname_val(args[1])
+			var def: WeaponDef = mirror.weapon_defs[wid] if mirror.weapon_defs.has(wid) else null
+			if def == null:
 				continue
-		var call_args: Array = [event[1] as StringName]
+			args[1] = def
+		var call_args: Array = [sig_name]
 		call_args.append_array(args)
-		targets[event[0] as String].callv("emit_signal", call_args)
+		target_obj.callv("emit_signal", call_args)
+
+
+static func _int_in(d: Dictionary, key: Variant, fallback: int = 0) -> int:
+	var v: Variant = d.get(key, fallback)
+	if v is int:
+		return v
+	if v is float:
+		return int(v)
+	return fallback
+
+
+static func _float_in(d: Dictionary, key: Variant, fallback: float = 0.0) -> float:
+	var v: Variant = d.get(key, fallback)
+	if v is float:
+		return v
+	if v is int:
+		return float(v)
+	return fallback
+
+
+static func _bool_in(d: Dictionary, key: Variant, fallback: bool = false) -> bool:
+	var v: Variant = d.get(key, fallback)
+	if v is bool:
+		return v
+	return fallback
+
+
+static func _str_in(d: Dictionary, key: Variant, fallback: String = "") -> String:
+	var v: Variant = d.get(key, fallback)
+	if v is String:
+		return v
+	if v is StringName:
+		return String(v)
+	return fallback
+
+
+static func _sname_in(d: Dictionary, key: Variant, fallback: StringName = &"") -> StringName:
+	var v: Variant = d.get(key, fallback)
+	return _sname_val(v, fallback)
+
+
+static func _sname_val(v: Variant, fallback: StringName = &"") -> StringName:
+	if v is StringName:
+		return v
+	if v is String:
+		return StringName(v)
+	return fallback
+
+
+static func _vec2_in(d: Dictionary, key: Variant, fallback: Vector2 = Vector2.ZERO) -> Vector2:
+	var v: Variant = d.get(key, fallback)
+	if v is Vector2:
+		return v
+	return fallback
+
+
+static func _vec2_val(v: Variant) -> Vector2:
+	if v is Vector2:
+		return v
+	return Vector2.ZERO
+
+
+static func _float_val(v: Variant) -> float:
+	if v is float:
+		return v
+	if v is int:
+		return float(v)
+	return 0.0
+
+
+static func _dict_in(d: Dictionary, key: Variant) -> Dictionary:
+	var v: Variant = d.get(key)
+	if v is Dictionary:
+		return v
+	return {}
+
+
+static func _arr_in(d: Dictionary, key: Variant) -> Array:
+	var v: Variant = d.get(key)
+	if v is Array:
+		return v
+	return []

@@ -8,6 +8,7 @@ static func _cover_street() -> MapLayout:
 	var street: MapLayout = LAYOUT.duplicate() as MapLayout
 	street.obstacles = [Rect2(-13.5, 10.5, 3.0, 0.5)] as Array[Rect2]
 	street.water_obstacles = [] as Array[Rect2]
+	street.powerup_spots = [Vector2(-70.0, 70.0)] as Array[Vector2]
 	return street
 
 const DT: float = 1.0 / 30.0
@@ -22,6 +23,7 @@ func _open_layout() -> MapLayout:
 	var street: MapLayout = LAYOUT.duplicate() as MapLayout
 	street.obstacles = [] as Array[Rect2]
 	street.water_obstacles = [] as Array[Rect2]
+	street.powerup_spots = [Vector2(-70.0, 70.0)] as Array[Vector2]
 	return street
 
 
@@ -67,18 +69,18 @@ func test_the_weapons_match_the_gdd_table() -> void:
 	assert_eq(RULES.weapons.size(), 14)
 	var expected: Dictionary = {
 		# id: [kind, cooldown, range, damage]
-		&"bato_light": [WeaponDef.Kind.ATTACK, 4.5, 20.0, 20],
-		&"bato_heavy": [WeaponDef.Kind.ATTACK, 10.0, 24.0, 38],
-		&"gunting_light": [WeaponDef.Kind.ATTACK, 5.0, 8.5, 11],
-		&"gunting_heavy": [WeaponDef.Kind.ATTACK, 8.5, 10.5, 42],
-		&"papel_trap": [WeaponDef.Kind.CROWD_CONTROL, 9.0, 18.0, 0],
-		&"papel_shield": [WeaponDef.Kind.BLOCK, 10.5, 0.0, 0],
-		&"tsinelas_light": [WeaponDef.Kind.ATTACK, 6.5, 21.0, 11],
-		&"tsinelas_heavy": [WeaponDef.Kind.ATTACK, 8.5, 24.0, 32],
-		&"lata": [WeaponDef.Kind.CROWD_CONTROL, 11.5, 20.0, 16],
-		&"jacks": [WeaponDef.Kind.CROWD_CONTROL, 10.0, 19.0, 8],
-		&"bola": [WeaponDef.Kind.CROWD_CONTROL, 9.5, 23.0, 16],
-		&"trumpo": [WeaponDef.Kind.CROWD_CONTROL, 11.0, 22.0, 26],
+		&"bato_light": [WeaponDef.Kind.ATTACK, 4.8, 20.0, 18],
+		&"bato_heavy": [WeaponDef.Kind.ATTACK, 10.5, 24.0, 36],
+		&"gunting_light": [WeaponDef.Kind.ATTACK, 5.4, 7.5, 9],
+		&"gunting_heavy": [WeaponDef.Kind.ATTACK, 9.0, 9.0, 38],
+		&"papel_trap": [WeaponDef.Kind.CROWD_CONTROL, 9.5, 18.0, 0],
+		&"papel_shield": [WeaponDef.Kind.BLOCK, 11.0, 0.0, 0],
+		&"tsinelas_light": [WeaponDef.Kind.ATTACK, 7.0, 21.0, 9],
+		&"tsinelas_heavy": [WeaponDef.Kind.ATTACK, 9.0, 24.0, 25],
+		&"lata": [WeaponDef.Kind.CROWD_CONTROL, 12.0, 20.0, 14],
+		&"jacks": [WeaponDef.Kind.CROWD_CONTROL, 10.5, 19.0, 7],
+		&"bola": [WeaponDef.Kind.CROWD_CONTROL, 9.8, 23.0, 14],
+		&"trumpo": [WeaponDef.Kind.CROWD_CONTROL, 11.5, 22.0, 22],
 	}
 	for id: StringName in expected:
 		var def: WeaponDef = _def(id)
@@ -132,9 +134,9 @@ func test_weapons_cast_on_release_and_go_on_cooldown() -> void:
 	assert_eq(caster.weapon_cooldowns[0], 0.0, "holding does not cast yet")
 	sim.set_input(CASTER, PlayerInput.create(Vector2.ZERO, Vector2.ZERO, 0, 1))
 	sim.step(DT)
-	assert_almost_eq(caster.weapon_cooldowns[0], 4.5, 0.001)
+	assert_almost_eq(caster.weapon_cooldowns[0], 4.8, 0.001)
 	_wait(sim, 1.0)
-	assert_eq(enemy.hp, 80)
+	assert_eq(enemy.hp, 82)
 
 
 func test_release_over_the_cancel_zone_does_not_cast() -> void:
@@ -155,11 +157,11 @@ func test_cooldown_blocks_recasting() -> void:
 	_wait(sim, 1.0)
 	_cast(sim, 0)
 	_wait(sim, 1.0)
-	assert_eq(enemy.hp, 80, "second cast inside 4.5 s does nothing")
-	_wait(sim, 3.0)
+	assert_eq(enemy.hp, 82, "second cast inside 4.8 s does nothing")
+	_wait(sim, 3.2)
 	_cast(sim, 0)
 	_wait(sim, 1.0)
-	assert_eq(enemy.hp, 60)
+	assert_eq(enemy.hp, 64)
 
 
 func test_cannot_cast_while_stunned_polymorphed_or_tagged() -> void:
@@ -242,7 +244,7 @@ func test_targeted_bato_hits_the_nearest_enemy_only_in_range() -> void:
 	var near: PlayerState = _target(sim, 3, Vector2(3.0, -3.0))
 	_cast(sim, 0)
 	_wait(sim, 1.0)
-	assert_eq(near.hp, 80)
+	assert_eq(near.hp, 82)
 	assert_eq(far.hp, 100)
 
 
@@ -255,9 +257,9 @@ func test_ground_aoe_lands_after_the_delay_with_stun() -> void:
 	_wait(sim, 0.3)
 	assert_eq(hit.hp, 100, "still in the air")
 	_wait(sim, 0.4)
-	assert_eq(hit.hp, 62)
+	assert_eq(hit.hp, 64)
 	assert_true(hit.effects.has(StatusEffects.Type.STUN))
-	assert_eq(near_miss.hp, 100, "5.2 m from the impact is outside r = 4.2 + 0.45")
+	assert_eq(near_miss.hp, 100, "5.2 m from the impact is outside r = 3.4 + 0.45")
 
 
 func test_ground_aoe_auto_aims_at_the_nearest_enemy() -> void:
@@ -266,7 +268,7 @@ func test_ground_aoe_auto_aims_at_the_nearest_enemy() -> void:
 	var enemy: PlayerState = _target(sim, 2, Vector2(4.0, -5.0))
 	_cast(sim, 0)
 	_wait(sim, 1.0)
-	assert_eq(enemy.hp, 62)
+	assert_eq(enemy.hp, 64)
 
 
 func test_gunting_light_snips_by_hold_time_in_a_cone() -> void:
@@ -276,12 +278,12 @@ func test_gunting_light_snips_by_hold_time_in_a_cone() -> void:
 	var behind: PlayerState = _target(sim, 3, Vector2(0.0, 2.0))
 	var too_far: PlayerState = _target(sim, 4, Vector2(0.5, -9.8))
 	_cast(sim, 0, Vector2(0.0, -1.0), 1)
-	assert_eq(front.hp, 78, "a tap is 2 snips of 11")
+	assert_eq(front.hp, 82, "a tap is 2 snips of 9")
 	assert_eq(behind.hp, 100)
 	assert_eq(too_far.hp, 100)
-	_wait(sim, 5.2)
+	_wait(sim, 5.6)
 	_cast(sim, 0, Vector2(0.0, -1.0), 40)
-	assert_eq(front.hp, 23, "a long hold is 5 snips of 11")
+	assert_eq(front.hp, 37, "a long hold is 5 snips of 9")
 
 
 func test_snip_count_from_hold_time() -> void:
@@ -299,7 +301,7 @@ func test_gunting_heavy_is_one_delayed_snip() -> void:
 	_cast(sim, 0, Vector2(0.0, -1.0))
 	assert_eq(enemy.hp, 100, "wind-up")
 	_wait(sim, 0.6)
-	assert_eq(enemy.hp, 58)
+	assert_eq(enemy.hp, 62)
 
 
 func test_papel_trap_arms_then_becomes_a_slow_zone() -> void:
@@ -339,7 +341,7 @@ func test_papel_shield_blocks_enemy_projectiles_not_own() -> void:
 	assert_eq(me.hp, 100, "enemy rock stopped by the paper wall")
 	_cast(sim, 1)
 	_wait(sim, 1.0)
-	assert_eq(enemy.hp, 80, "own rock passes own shield")
+	assert_eq(enemy.hp, 82, "own rock passes own shield")
 	_wait(sim, 2.0)
 	assert_true(sim.weapons.shields.is_empty(), "gone after 3.5 s")
 
@@ -350,7 +352,7 @@ func test_tsinelas_light_three_boomerangs_hit_out_and_back() -> void:
 	var enemy: PlayerState = _target(sim, 2, Vector2(0.0, -4.0))
 	_cast(sim, 0, Vector2(0.0, -1.0))
 	_wait(sim, 2.5)
-	assert_eq(enemy.hp, 100 - 3 * 2 * 11)
+	assert_eq(enemy.hp, 100 - 3 * 2 * 9)
 	assert_true(sim.weapons.projectiles.is_empty(), "all caught again")
 
 
@@ -360,7 +362,7 @@ func test_tsinelas_heavy_one_big_boomerang() -> void:
 	var enemy: PlayerState = _target(sim, 2, Vector2(0.0, -4.0))
 	_cast(sim, 0, Vector2(0.0, -1.0))
 	_wait(sim, 3.0)
-	assert_eq(enemy.hp, 100 - 2 * 32)
+	assert_eq(enemy.hp, 100 - 2 * 25)
 
 
 func test_lata_polymorphs_after_its_flight() -> void:
@@ -370,7 +372,7 @@ func test_lata_polymorphs_after_its_flight() -> void:
 	_cast(sim, 0, Vector2(0.0, -5.0) / 20.0)
 	assert_eq(enemy.hp, 100, "still flying")
 	_wait(sim, 0.5)
-	assert_eq(enemy.hp, 84)
+	assert_eq(enemy.hp, 86)
 	assert_true(enemy.effects.has(StatusEffects.Type.POLYMORPH))
 	assert_false(enemy.can_act())
 
@@ -383,7 +385,7 @@ func test_jacks_field_ticks_damage_and_slow() -> void:
 	_wait(sim, 0.2)
 	assert_true(enemy.effects.has(StatusEffects.Type.SLOW))
 	_wait(sim, 4.6)
-	assert_between(enemy.hp, 20, 36, "about 9 ticks of 8 over 4.5 s")
+	assert_between(enemy.hp, 28, 46, "about 9 ticks of 7 over 4.5 s")
 	assert_true(sim.weapons.zones.is_empty())
 
 
@@ -396,10 +398,10 @@ func test_bola_bounces_twice_bouncing_enemies() -> void:
 	var between: PlayerState = _target(sim, 4, Vector2(0.0, -step_z * 1.5))
 	_cast(sim, 0, Vector2(0.0, -1.0))
 	_wait(sim, 0.4)
-	assert_eq(first.hp, 84)
+	assert_eq(first.hp, 86)
 	assert_true(first.effects.has(StatusEffects.Type.BOUNCE))
 	_wait(sim, 0.7)
-	assert_eq(second.hp, 84)
+	assert_eq(second.hp, 86)
 	assert_eq(between.hp, 100, "only the bounce points hit")
 	assert_true(sim.weapons.projectiles.is_empty())
 
@@ -415,8 +417,8 @@ func test_trumpo_passes_through_and_launches_once_each() -> void:
 	assert_true(a.effects.has(StatusEffects.Type.AIRBORNE))
 	assert_false(a.can_act())
 	_wait(sim, 1.0)
-	assert_eq(a.hp, 74, "hit once, not every tick")
-	assert_eq(b.hp, 74)
+	assert_eq(a.hp, 78, "hit once, not every tick")
+	assert_eq(b.hp, 78)
 	assert_true(b.effects.has(StatusEffects.Type.AIRBORNE))
 	assert_eq(beyond.hp, 100, "stops at 22 m")
 
@@ -459,11 +461,11 @@ func test_holding_a_weapon_through_its_cooldown_does_not_precast() -> void:
 	var enemy: PlayerState = _target(sim, 2, Vector2(0.0, -5.0))
 	_cast(sim, 0)
 	_wait(sim, 1.0)
-	assert_eq(enemy.hp, 80)
+	assert_eq(enemy.hp, 82)
 	# press during the cooldown and keep holding until it is over, then let go
-	_cast(sim, 0, Vector2.ZERO, 150)
+	_cast(sim, 0, Vector2.ZERO, 160)
 	_wait(sim, 1.0)
-	assert_eq(enemy.hp, 80, "a press during the cooldown never starts an aim")
+	assert_eq(enemy.hp, 82, "a press during the cooldown never starts an aim")
 	assert_eq(caster.weapon_cooldowns[0], 0.0)
 
 
@@ -494,7 +496,7 @@ func test_targeted_bato_throws_at_the_enemy_locked_at_the_press() -> void:
 	first.position = Vector2(0.0, -6.5)
 	_cast(sim, 0, Vector2.ZERO, 0)
 	_wait(sim, 1.0)
-	assert_eq(first.hp, 80, "still the locked enemy, not the now-nearer one")
+	assert_eq(first.hp, 82, "still the locked enemy, not the now-nearer one")
 	assert_eq(second.hp, 100)
 	assert_gt(caster.weapon_cooldowns[0], 0.0)
 
@@ -583,7 +585,7 @@ func test_langit_lupa_skills_exist_with_their_numbers() -> void:
 	var heal: WeaponDef = RULES.weapons.filter(func(w: WeaponDef) -> bool: return w.id == &"heal")[0]
 	assert_eq(heal.kind, WeaponDef.Kind.HEAL)
 	assert_eq(heal.street_game, "Langit Lupa")
-	assert_eq(heal.heal, 42)
+	assert_eq(heal.heal, 34)
 	var lupa: WeaponDef = RULES.weapons.filter(func(w: WeaponDef) -> bool: return w.id == &"langit_lupa")[0]
 	assert_eq(lupa.kind, WeaponDef.Kind.BLOCK)
 	assert_eq(lupa.shape, WeaponDef.Shape.SHIELD)
@@ -597,7 +599,7 @@ func test_tapping_heal_heals_yourself() -> void:
 	sim.set_loadout(1, &"heal", &"bato_light")
 	me.hp = 40
 	_fire_slot(sim, 1, Vector2.ZERO)
-	assert_eq(me.hp, 82)
+	assert_eq(me.hp, 74)
 	assert_gt(me.weapon_cooldowns[0], 0.0)
 
 
@@ -612,7 +614,7 @@ func test_dragging_heal_toward_a_teammate_heals_them_not_you() -> void:
 	friend.hp = 50
 	other.hp = 50
 	_fire_slot(sim, 1, Vector2(1.0, 0.0))
-	assert_eq(friend.hp, 92, "the teammate on that side")
+	assert_eq(friend.hp, 84, "the teammate on that side")
 	assert_eq(other.hp, 50, "not the one on the other side")
 	assert_eq(me.hp, 40, "and not yourself")
 

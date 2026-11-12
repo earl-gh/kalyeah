@@ -40,9 +40,20 @@ func _ticks(seconds: float) -> int:
 
 
 func test_the_data_says_twenty_percent_every_five_seconds_for_a_second_and_a_bit() -> void:
-	assert_almost_eq(_rules.trip_chance, 0.0, 0.0001)
-	assert_almost_eq(_rules.trip_interval, 5.0, 0.0001)
-	assert_almost_eq(_rules.trip_seconds, 1.2, 0.0001)
+	assert_almost_eq(_rules.trip_chance, 0.12, 0.0001)
+	assert_almost_eq(_rules.trip_interval, 6.0, 0.0001)
+	assert_almost_eq(_rules.trip_seconds, 1.05, 0.0001)
+
+
+func test_analog_walk_below_threshold_sets_walking_and_never_trips() -> void:
+	_rules.trip_chance = 1.0
+	var sim: MatchSim = _sim()
+	for i: int in _ticks(_rules.trip_interval) * 2:
+		var way: float = 0.5 if int(i / 30) % 2 == 0 else -0.5
+		sim.set_input(1, PlayerInput.create(Vector2(way, 0.0), Vector2.ZERO, 0, sim.tick))
+		sim.step(DT)
+		assert_true(sim.players[1].walking, "analog deflection < 0.62 walks")
+		assert_false(sim.players[1].effects.has(StatusEffects.Type.TRIPPED), "walking never rolls a trip")
 
 
 func test_a_sure_trip_drops_the_runner_after_the_interval_and_not_before() -> void:

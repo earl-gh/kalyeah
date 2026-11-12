@@ -4,7 +4,7 @@ extends GutTest
 
 const PRACTICE_SCENE: PackedScene = preload("res://scenes/match/practice.tscn")
 const DT: float = 1.0 / 30.0
-const MODELS: Array[String] = ["slipper", "can", "marble", "crumpled_paper", "paper", "trumpo", "spikes", "meteor", "scissor", "soil_block", "green_cross"]
+const MODELS: Array[String] = ["tirador", "slipper", "can", "marble", "crumpled_paper", "paper", "trumpo", "spikes", "meteor", "scissor", "soil_block", "green_cross"]
 
 var _motion: bool
 

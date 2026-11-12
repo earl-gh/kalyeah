@@ -10,31 +10,42 @@ extends RefCounted
 ## the control with the style box's expand margins.
 
 ## Colours of every button variant: the face (top, bottom), the lip under it, the dark outline and
-## the label (colour and outline). `gold` is the one main action on a screen.
+## the label (colour and outline). `gold` is the one main action on a screen; `mango`, `jade`,
+## `coral` and warm `slate` carry the sunlit 90s Kalye signboard palette.
 const BUTTONS: Dictionary[String, Dictionary] = {
 	"gold": {"top": Color("fed44f"), "bottom": Color("f5b61c"), "lip": Color("b07100"), "line": Color("5e3a04"),
-		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
-	"blue": {"top": Color("62baff"), "bottom": Color("379ef0"), "lip": Color("0a66b4"), "line": Color("0a3d73"),
-		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 5},
+	"mango": {"top": Color("ffc54d"), "bottom": Color("f5a623"), "lip": Color("ad6908"), "line": Color("573304"),
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 5},
+	"blue": {"top": Color("5eb8ff"), "bottom": Color("2d9bf0"), "lip": Color("1463a8"), "line": Color("0d3966"),
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 5},
 	"navy": {"top": Color("2f66bd"), "bottom": Color("1a4590"), "lip": Color("0d2a62"), "line": Color("061638"),
-		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
-	"green": {"top": Color("62dc72"), "bottom": Color("1f9a3b"), "lip": Color("126628"), "line": Color("08381a"),
-		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
-	"red": {"top": Color("ff7f72"), "bottom": Color("d6342e"), "lip": Color("8c1d1b"), "line": Color("4f0c0b"),
-		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
-	"slate": {"top": Color("62779f"), "bottom": Color("3b4c74"), "lip": Color("222e4e"), "line": Color("111830"),
-		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 6},
-	"disabled": {"top": Color("3a4562"), "bottom": Color("2d374f"), "lip": Color("232b40"), "line": Color("151a2b"),
-		"text": Color(0.72, 0.76, 0.84, 0.7), "outline": Color(0.0, 0.0, 0.0, 0.0), "outline_size": 0},
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 5},
+	"green": {"top": Color("32c4b0"), "bottom": Color("1f9d8b"), "lip": Color("13695c"), "line": Color("0c3d35"),
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 5},
+	"jade": {"top": Color("32c4b0"), "bottom": Color("1f9d8b"), "lip": Color("13695c"), "line": Color("0c3d35"),
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 5},
+	"red": {"top": Color("f4765f"), "bottom": Color("e2553e"), "lip": Color("9c3120"), "line": Color("4d1810"),
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 5},
+	"coral": {"top": Color("f4765f"), "bottom": Color("e2553e"), "lip": Color("9c3120"), "line": Color("4d1810"),
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 5},
+	"slate": {"top": Color("6b5c54"), "bottom": Color("463d38"), "lip": Color("2a2522"), "line": Color("1c1715"),
+		"text": Color.WHITE, "outline": Color.BLACK, "outline_size": 5},
+	"disabled": {"top": Color("544943"), "bottom": Color("3d3531"), "lip": Color("2d2724"), "line": Color("1f1a18"),
+		"text": Color(0.85, 0.80, 0.72, 0.72), "outline": Color(0.0, 0.0, 0.0, 0.0), "outline_size": 0},
 }
 ## Panel kinds: the body (top, bottom), the outer line (and its width), and the shadow strength.
 const PLATES: Dictionary[String, Dictionary] = {
 	"glass": {"top": Color("22396f"), "bottom": Color("111f48"), "line": Color("050b1e"), "light": 0.2, "shadow": 0.55},
-	"raised": {"top": Color("2c4685"), "bottom": Color("182a5c"), "line": Color("050b1e"), "light": 0.26, "shadow": 0.6},
-	"inset": {"top": Color("060d24"), "bottom": Color("0b1635"), "line": Color("2b4072"), "light": 0.0, "shadow": 0.0},
-	"night": {"top": Color("0f1c42"), "bottom": Color("08112c"), "line": Color("040a1a"), "light": 0.12, "shadow": 0.5},
+	"raised": {"top": Color("473c36"), "bottom": Color("2f2824"), "line": Color("221c19"), "light": 0.24, "shadow": 0.42},
+	"inset": {"top": Color("1f1a17"), "bottom": Color("2a2522"), "line": Color("594c44"), "light": 0.0, "shadow": 0.0},
+	"night": {"top": Color("332b27"), "bottom": Color("221d1a"), "line": Color("171311"), "light": 0.14, "shadow": 0.36},
 	# a chosen card: a warm body in a thick gold rim
 	"picked": {"top": Color("3a4a7e"), "bottom": Color("1d2d63"), "line": Color("ffc83a"), "line_width": 5.0, "light": 0.22, "shadow": 0.6},
+	# sunlit 90s Kalye brand plates: warm cream cards and painted provincial signboards
+	"cream": {"top": Color("fffdf7"), "bottom": Color("faf3e3"), "line": Color("d9c5a3"), "light": 0.28, "shadow": 0.28},
+	"sunlit": {"top": Color("faf3e3"), "bottom": Color("f2e0be"), "line": Color("e5b35c"), "light": 0.26, "shadow": 0.30},
+	"signboard": {"top": Color("3d322c"), "bottom": Color("2a2522"), "line": Color("f5a623"), "line_width": 3.0, "light": 0.20, "shadow": 0.36},
 }
 ## The one corner scale (art direction, docs/ART.md "Shared UI hierarchy"): on the same 8 px rhythm as the spacing in
 ## `UiMetrics`. Small: bars' gloss, dots, small tags; medium: fields, code boxes, rows, strips, small tiles; large: buttons,
@@ -63,14 +74,14 @@ const PLATE_RADIUS: int = RADIUS_XL
 const PLATE_PAD: int = 22
 ## The focus ring: how far it stands outside its control (also its line), and its one colour for the whole game.
 const FOCUS_EXPAND: int = 4
-const FOCUS_COLOR: Color = Color("fff0a8")
+const FOCUS_COLOR: Color = Color("ffe699")
 ## Big lettered words (the display scale, `UiMetrics.HEADLINE` to `SCORE`): the outline and the drop of the shadow are
-## shares of the font size so every size reads as one family; the ink is the HUD chrome's navy and the shadow the same
-## blue-black the skin's button and panel shadows use.
+## shares of the font size so every size reads as one family; the ink is warm tropical slate-espresso (`#2A2522`) and the
+## shadow a soft sunlit afternoon drop.
 const LETTER_OUTLINE_SHARE: float = 1.0 / 6.0
-const LETTER_INK: Color = RoyaleStyle.NAVY
+const LETTER_INK: Color = Color("2a2522")
 const LETTER_SHADOW_SHARE: float = 1.0 / 12.0
-const LETTER_SHADOW: Color = Color(0.0, 0.01, 0.06, 0.5)
+const LETTER_SHADOW: Color = Color(0.16, 0.13, 0.11, 0.42)
 
 static var _cache: Dictionary[String, StyleBoxTexture] = {}
 
@@ -78,8 +89,11 @@ static var _cache: Dictionary[String, StyleBoxTexture] = {}
 ## loading bar (`warm_next`), so the first tap on Home or a dialog does not pay for drawing them.
 const WARM_PLATES: Array[Array] = [
 	["glass", RADIUS_XL], ["raised", RADIUS_XL], ["inset", RADIUS_XL], ["night", RADIUS_XL], ["picked", RADIUS_XL],
+	["cream", RADIUS_XL], ["sunlit", RADIUS_XL], ["signboard", RADIUS_XL],
 	["glass", RADIUS_L], ["raised", RADIUS_L], ["inset", RADIUS_L], ["night", RADIUS_L], ["picked", RADIUS_L],
+	["cream", RADIUS_L], ["sunlit", RADIUS_L], ["signboard", RADIUS_L],
 	["glass", RADIUS_M], ["raised", RADIUS_M], ["inset", RADIUS_M], ["night", RADIUS_M], ["picked", RADIUS_M],
+	["cream", RADIUS_M], ["sunlit", RADIUS_M], ["signboard", RADIUS_M],
 ]
 static var _warmed: int = 0
 
@@ -110,7 +124,7 @@ static func warm_fraction() -> float:
 	return float(_warmed) / float(warm_total())
 
 
-## A game button of `variant` (gold, blue, navy, green, red, slate, disabled) in `state` (normal, hover,
+## A game button of `variant` (gold, mango, blue, navy, green, jade, red, coral, slate, disabled) in `state` (normal, hover,
 ## pressed). The face sinks into its lip when pressed.
 static func button(variant: String, state: String = "normal", radius: int = BUTTON_RADIUS) -> StyleBoxTexture:
 	var key: String = "b/%s/%s/%d" % [variant, state, radius]

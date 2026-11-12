@@ -213,3 +213,28 @@ func test_the_point_cards_are_square_chest_up_close_ups() -> void:
 		assert_eq(square.region.size.x, square.region.size.y, "a square of it")
 		assert_almost_eq(square.region.position.y, close_up.get_height() * ScoreColumn.CHEST_UP_TOP, 0.5, "from near its top: face and chest")
 		assert_eq(square.region.size.x, float(close_up.get_width()), "its full width")
+
+
+func test_deadlock_waist_left_vitals_minimap_gear_and_pure_white_hud_icons() -> void:
+	var practice: PracticeMatch = _practice()
+	var hud: MatchHud = practice.hud
+	assert_not_null(hud.vitals_panel, "MatchHud builds waist-left HeroVitalsPanel")
+	assert_true(hud.vitals_panel.visible, "HeroVitalsPanel is visible during landscape 5v5 play")
+	var vitals_rect: Rect2 = hud.vitals_panel.get_global_rect()
+	var stick_right: float = MoveStick.rest_point(hud.size, Vector2(hud.side_insets.x, hud.bottom_inset)).x + MoveStick.BASE_RADIUS
+	assert_gt(vitals_rect.position.x, stick_right + 12.0, "Waist-left HeroVitalsPanel clears MoveStick cleanly")
+	assert_lt(vitals_rect.end.x, hud.size.x * 0.35, "HeroVitalsPanel stays beside the player's left waist")
+
+	assert_not_null(hud.minimap, "MatchHud builds top-left BarangayMinimap")
+	var map_rect: Rect2 = hud.minimap.get_global_rect()
+	var gear_rect: Rect2 = hud.settings_button.get_global_rect()
+	assert_gte(gear_rect.size.x, UiMetrics.MIN_TARGET, "Compact gear keeps accessible touch target")
+	assert_lt(gear_rect.get_center().distance_to(map_rect.end - Vector2(22.0, 22.0)), 2.0, "Compact gear tucks onto minimap bottom-right")
+
+	for icon_id: StringName in [
+		&"tirador", &"ult_bagsak", &"vault", &"jump", &"crouch", &"slide", &"gear",
+		&"bato_light", &"bato_heavy", &"gunting_light", &"gunting_heavy",
+		&"papel_trap", &"papel_shield", &"tsinelas_light", &"tsinelas_heavy",
+		&"lata", &"jacks", &"bola", &"trumpo", &"heal", &"langit_lupa",
+	]:
+		assert_not_null(HudStyle.hud_icon(icon_id), "Pure-white HUD icon loads for %s" % String(icon_id))

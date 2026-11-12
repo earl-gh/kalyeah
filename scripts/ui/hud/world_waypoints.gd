@@ -1,23 +1,21 @@
 class_name WorldWaypoints
 extends Control
-## Projects 3D tactical objectives (`CAPTURE BASE`, `DEFEND BASE!`, `RESCUE ALLY!`) through Camera3D
-## onto screen/edge 90s Filipino Komiks chevrons with live distance in meters.
-## Keeps objective callouts elevated above overhead combat health bars and softens alpha to 0.65 near screen center.
+## Projects 3D tactical objectives (`CAPTURE BASE`, `DEFEND BASE`, `RESCUE ALLY`) through Camera3D
+## onto soft, airy translucent chevrons + compact distance callouts (`alpha <= 0.44` backing,
+## `0.48` near screen center, elevated clear of combat health bars and `BarangayMinimap`).
 
-const EDGE_MARGIN_X: float = 84.0
-const EDGE_MARGIN_TOP: float = 96.0
-const EDGE_MARGIN_BOTTOM: float = 108.0
-const CENTER_ALPHA: float = 0.65
-const EDGE_ALPHA: float = 0.95
+const EDGE_MARGIN_X: float = 76.0
+const EDGE_MARGIN_TOP: float = 88.0
+const EDGE_MARGIN_BOTTOM: float = 104.0
+const CENTER_ALPHA: float = 0.48
+const EDGE_ALPHA: float = 0.78
 const WORLD_LIFT_Y: float = 5.4
 
-const INK: Color = Color("141016")
-const SHADOW: Color = Color(0.08, 0.06, 0.09, 0.78)
-const PAPER: Color = Color("f5ebd6")
-const GOLD: Color = Color("ffbe2e")
-const COBALT: Color = Color("2b7bff")
-const CRIMSON: Color = Color("f23838")
-const RESCUE_GREEN: Color = Color("38e864")
+const PILL_BG: Color = Color(0.07, 0.09, 0.12, 0.40)
+const PILL_RIM: Color = Color(1.0, 1.0, 1.0, 0.24)
+const CAPTURE_AMBER: Color = Color(1.0, 0.84, 0.44)
+const DEFEND_CORAL: Color = Color(0.96, 0.38, 0.32)
+const RESCUE_MINT: Color = Color(0.38, 0.94, 0.62)
 
 enum Kind { CAPTURE, DEFEND, RESCUE }
 
@@ -30,12 +28,19 @@ var _meters: Array[int] = [0, 0, 0]
 var _kind: Array[int] = [Kind.CAPTURE, Kind.DEFEND, Kind.RESCUE]
 var _urgent: Array[bool] = [false, false, false]
 var _pulse: float = 0.0
+var _pill_box: StyleBoxFlat
 
 
 func _init() -> void:
 	name = "WorldWaypoints"
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pill_box = StyleBoxFlat.new()
+	_pill_box.bg_color = PILL_BG
+	_pill_box.border_color = PILL_RIM
+	_pill_box.set_border_width_all(1)
+	_pill_box.set_corner_radius_all(UiSkin.RADIUS_S)
+	_pill_box.anti_aliasing = true
 
 
 func sync_waypoints(sim: MatchSim, camera: Camera3D, player: PlayerState, local_team: int) -> void:
@@ -54,13 +59,11 @@ func sync_waypoints(sim: MatchSim, camera: Camera3D, player: PlayerState, local_
 	var own_side: int = sim.side_for_team(local_team)
 	var idx: int = 0
 
-	# 1. CAPTURE BASE (enemy base, anchored high above street health bars)
 	var enemy_base: Vector2 = sim.layout.base_center(-own_side)
 	var taking_enemy: bool = sim.capture_team == local_team and sim.capture_kind == MatchSim.CaptureKind.BASE
 	_project_slot(idx, camera, Vector3(enemy_base.x, WORLD_LIFT_Y, enemy_base.y), player.position.distance_to(enemy_base), Kind.CAPTURE, taking_enemy)
 	idx += 1
 
-	# 2. DEFEND BASE! (own base under threat)
 	var own_base: Vector2 = sim.layout.base_center(own_side)
 	var enemy_in_base: bool = sim.capture_team >= 0 and sim.capture_team != local_team and sim.capture_kind == MatchSim.CaptureKind.BASE
 	if not enemy_in_base:
@@ -73,7 +76,6 @@ func sync_waypoints(sim: MatchSim, camera: Camera3D, player: PlayerState, local_
 		_project_slot(idx, camera, Vector3(own_base.x, WORLD_LIFT_Y, own_base.y), player.position.distance_to(own_base), Kind.DEFEND, true)
 		idx += 1
 
-	# 3. RESCUE ALLY! (any teammate tagged on sidewalk)
 	var ally_tagged: bool = false
 	for id: int in sim.players:
 		var other: PlayerState = sim.players[id]
@@ -103,13 +105,12 @@ func _project_slot(slot: int, camera: Camera3D, world_pos: Vector3, dist_m: floa
 		var raw_screen_pt: Vector2 = camera.unproject_position(world_pos)
 		if safe.has_point(raw_screen_pt):
 			var screen_pt: Vector2 = raw_screen_pt
-			# Keep centered and off-center waypoints elevated above the street combat / overhead health-bar band
-			var combat_band_top: float = maxf(EDGE_MARGIN_TOP + 24.0, size.y * 0.20)
+			var combat_band_top: float = maxf(EDGE_MARGIN_TOP + 20.0, size.y * 0.19)
 			var combat_band_bot: float = size.y * 0.66
 			if absf(screen_pt.x - center.x) < size.x * 0.44 and screen_pt.y > combat_band_top and screen_pt.y < combat_band_bot:
 				screen_pt.y = combat_band_top
-			if screen_pt.x < 332.0 and screen_pt.y < 256.0:
-				screen_pt.y = 256.0
+			if screen_pt.x < 264.0 and screen_pt.y < 236.0:
+				screen_pt.y = 236.0
 			_pos[slot] = screen_pt
 			_clamped[slot] = false
 			_dir[slot] = Vector2.DOWN
@@ -134,8 +135,8 @@ func _clamp_to_safe(slot: int, center: Vector2, safe: Rect2, raw_way: Vector2) -
 	var ty: float = half_y / maxf(absf(dir.y), 0.0001)
 	var t: float = minf(tx, ty)
 	var clamped_pt: Vector2 = (center + dir * t).clamp(safe.position, safe.end)
-	if clamped_pt.x < 332.0 and clamped_pt.y < 256.0:
-		clamped_pt.y = 256.0
+	if clamped_pt.x < 264.0 and clamped_pt.y < 236.0:
+		clamped_pt.y = 236.0
 	_pos[slot] = clamped_pt
 	_clamped[slot] = true
 	_dir[slot] = dir
@@ -144,26 +145,18 @@ func _clamp_to_safe(slot: int, center: Vector2, safe: Rect2, raw_way: Vector2) -
 
 func _color_for(kind: int) -> Color:
 	if kind == Kind.DEFEND:
-		return TeamColors.score_enemy() if Settings.colorblind else CRIMSON
+		return TeamColors.score_enemy() if Settings.colorblind else DEFEND_CORAL
 	if kind == Kind.RESCUE:
-		return GOLD if Settings.colorblind else RESCUE_GREEN
-	return TeamColors.score_own() if Settings.colorblind else GOLD
+		return CAPTURE_AMBER if Settings.colorblind else RESCUE_MINT
+	return TeamColors.score_own() if Settings.colorblind else CAPTURE_AMBER
 
 
 func _title_for(kind: int) -> String:
 	if kind == Kind.DEFEND:
-		return "DEFEND BASE!"
+		return "DEFEND"
 	if kind == Kind.RESCUE:
-		return "RESCUE ALLY!"
-	return "CAPTURE BASE"
-
-
-func _glyph_for(kind: int) -> String:
-	if kind == Kind.DEFEND:
-		return "!"
-	if kind == Kind.RESCUE:
-		return "+"
-	return "B"
+		return "RESCUE"
+	return "BASE"
 
 
 func _draw() -> void:
@@ -174,81 +167,48 @@ func _draw() -> void:
 		var at: Vector2 = _pos[i]
 		var a: float = _alpha[i]
 		var col: Color = Color(_color_for(_kind[i]), a)
-		var ink_a: Color = Color(INK, a)
-		var paper_a: Color = Color(PAPER, a)
-		var shadow_a: Color = Color(SHADOW, SHADOW.a * a)
-		var wave: float = 0.0 if Settings.reduced_motion else sin(_pulse * 7.5 + float(i))
-		var scale_pop: float = 1.0 + (0.08 * wave if _urgent[i] else 0.0)
-		var r: float = 14.0 * scale_pop
+		var white_a: Color = Color(1.0, 1.0, 1.0, a * 0.92)
+		var sh_a: Color = Color(0.0, 0.0, 0.0, 0.42 * a)
+		var wave: float = 0.0 if Settings.reduced_motion else sin(_pulse * 6.5 + float(i))
+		var r: float = 8.5 * (1.0 + (0.08 * wave if _urgent[i] else 0.0))
 
-		# Directional chevron pointer (points down when in-world, outward when clamped to edge)
+		# Delicate directional chevron
 		var pointer_dir: Vector2 = _dir[i] if _clamped[i] else Vector2.DOWN
 		var side: Vector2 = Vector2(-pointer_dir.y, pointer_dir.x)
-		var tip: Vector2 = at + pointer_dir * (r + 9.0)
-		var chev_out: PackedVector2Array = PackedVector2Array([
+		var tip: Vector2 = at + pointer_dir * (r + 5.5)
+		draw_polyline(PackedVector2Array([
+			at + pointer_dir * (r + 1.0) - side * 4.2,
 			tip,
-			at + pointer_dir * (r + 1.0) + side * 7.0,
-			at + pointer_dir * (r + 1.0) - side * 7.0,
-		])
-		draw_colored_polygon(chev_out, ink_a)
-		var chev_in: PackedVector2Array = PackedVector2Array([
-			at + pointer_dir * (r + 6.8),
-			at + pointer_dir * (r + 2.0) + side * 4.5,
-			at + pointer_dir * (r + 2.0) - side * 4.5,
-		])
-		draw_colored_polygon(chev_in, col)
+			at + pointer_dir * (r + 1.0) + side * 4.2,
+		]), col, 2.0, true)
 
-		# 90s Komiks diamond badge
-		var diamond_shadow: PackedVector2Array = PackedVector2Array([
-			at + Vector2(2.0, -r + 3.0),
-			at + Vector2(r + 2.0, 3.0),
-			at + Vector2(2.0, r + 3.0),
-			at + Vector2(-r + 2.0, 3.0),
-		])
-		draw_colored_polygon(diamond_shadow, shadow_a)
-		var diamond_ink: PackedVector2Array = PackedVector2Array([
-			at + Vector2(0.0, -(r + 2.8)),
-			at + Vector2(r + 2.8, 0.0),
-			at + Vector2(0.0, r + 2.8),
-			at + Vector2(-(r + 2.8), 0.0),
-		])
-		draw_colored_polygon(diamond_ink, ink_a)
-		var diamond_fill: PackedVector2Array = PackedVector2Array([
+		# Soft translucent diamond pip with thin white rim
+		var diamond: PackedVector2Array = PackedVector2Array([
 			at + Vector2(0.0, -r),
 			at + Vector2(r, 0.0),
 			at + Vector2(0.0, r),
 			at + Vector2(-r, 0.0),
 		])
-		draw_colored_polygon(diamond_fill, col)
+		draw_colored_polygon(diamond, Color(col.r, col.g, col.b, a * 0.42))
+		draw_polyline(PackedVector2Array([diamond[0], diamond[1], diamond[2], diamond[3], diamond[0]]), Color(1.0, 1.0, 1.0, a * 0.72), 1.5, true)
 
-		var glyph: String = _glyph_for(_kind[i])
-		var gw: float = font.get_string_size(glyph, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL).x
-		var g_pos: Vector2 = Vector2(at.x - gw * 0.5, at.y + 6.0)
-		draw_string_outline(font, g_pos, glyph, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL, 4, ink_a)
-		draw_string(font, g_pos, glyph, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL, paper_a)
-
-		# Slanted komiks callout strip with objective + meters (placed above badge so it never dips into combat bars)
+		# Minimal translucent pill callout above pip
 		var dist_text: String = "%dm" % _meters[i]
-		var show_full: bool = _clamped[i] or _urgent[i] or _meters[i] >= 22
+		var show_full: bool = _clamped[i] or _urgent[i] or _meters[i] >= 24
 		var callout: String = "%s · %s" % [_title_for(_kind[i]), dist_text] if show_full else dist_text
 		var tw: float = font.get_string_size(callout, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL).x
-		var pad_x: float = 9.0
+		var pad_x: float = 7.0
 		var box_w: float = tw + pad_x * 2.0
-		var box_h: float = 20.0
-		var slant: float = 4.0
+		var box_h: float = 18.0
 		var box_x: float = clampf(at.x - box_w * 0.5, 8.0, maxf(size.x - box_w - 8.0, 8.0))
-		var box_y: float = at.y - r - box_h - 5.0
+		var box_y: float = at.y - r - box_h - 4.0
 		if _clamped[i] and _dir[i].y < -0.5:
-			box_y = at.y + r + 8.0
-		if box_y < 220.0 and box_x < 230.0:
-			box_x = 230.0
-		var plate: PackedVector2Array = PackedVector2Array([
-			Vector2(box_x + slant, box_y),
-			Vector2(box_x + box_w, box_y),
-			Vector2(box_x + box_w - slant, box_y + box_h),
-			Vector2(box_x, box_y + box_h),
-		])
-		draw_colored_polygon(plate, paper_a)
-		draw_polyline(PackedVector2Array([plate[0], plate[1], plate[2], plate[3], plate[0]]), ink_a, 2.2, true)
+			box_y = at.y + r + 7.0
+		if box_y < 210.0 and box_x < 210.0:
+			box_x = 210.0
+		_pill_box.bg_color = Color(PILL_BG.r, PILL_BG.g, PILL_BG.b, PILL_BG.a * a)
+		_pill_box.border_color = Color(1.0, 1.0, 1.0, PILL_RIM.a * a)
+		draw_style_box(_pill_box, Rect2(Vector2(box_x, box_y), Vector2(box_w, box_h)))
 		var text_at: Vector2 = Vector2(box_x + pad_x, box_y + box_h - 4.0)
-		draw_string(font, text_at, callout, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL, ink_a)
+		draw_string_outline(font, text_at, callout, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL, 2, sh_a)
+		draw_string(font, text_at, callout, HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL, white_a)

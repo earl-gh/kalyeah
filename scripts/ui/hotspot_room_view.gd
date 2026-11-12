@@ -23,7 +23,7 @@ const MAP_NAMES: Dictionary[StringName, String] = {&"street": "Agawang Base", &"
 const MAP_COLORS: Dictionary[StringName, String] = {&"street": "blue", &"tumbang_preso": "orange", &"patintero": "green", &"langit_lupa": "red"}
 ## The cards in the map carousel are 3:4 (276 x 368 fits cleanly inside 1280x720 widescreen and 720x1280 portrait).
 const MAP_PICK_CARD: Vector2 = Vector2(276.0, 368.0)
-const TEAM_COLORS: Array[Color] = [Color(0.45, 0.65, 1.0), Color(1.0, 0.45, 0.45)]
+const TEAM_COLORS: Array[Color] = [Color("1f9d8b"), Color("e2553e")]
 ## Spacing and type scale of the screen: one set of values so it reads as one system.
 const MARGIN: float = UiMetrics.PAGE_MARGIN
 const GAP: float = 16.0
@@ -38,9 +38,9 @@ const QR_SIDE: float = 348.0
 const BAR_HEIGHT: float = 96.0
 const WIDE_BAR_HEIGHT: float = 82.0
 const NUMBER_WIDTH: float = 56.0
-## The solid number blocks and tags of the mock-up, and the navy of the names on the white bars.
+## The solid number blocks and tags of the mock-up, and the warm slate-espresso of the names.
 const TEAM_BLOCKS: Array[Color] = [KalyeahTheme.TEAM_BLUE, KalyeahTheme.TEAM_RED]
-const NAME_COLOR: Color = Color(0.12, 0.27, 0.52)
+const NAME_COLOR: Color = Color("2a2522")
 const MAX_ROWS: int = RoomService.MAX_TEAM_SIZE
 
 ## Width of each of the three first-to number buttons.
@@ -147,6 +147,7 @@ func _build() -> void:
 	scroll.name = "RoomScroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	UiKit.style_scrollbar(scroll.get_v_scroll_bar())
 	column.add_child(scroll)
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_content)
@@ -191,7 +192,9 @@ func _build() -> void:
 	readiness_label.add_theme_constant_override("line_spacing", KalyeahTheme.READING_LINE_SPACING)
 	readiness_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	readiness_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	readiness_label.add_theme_font_override("font", KalyeahTheme.BODY_FONT)
 	readiness_label.add_theme_font_size_override("font_size", UiMetrics.ACTION)
+	readiness_label.add_theme_color_override("font_color", KalyeahTheme.TEXT)
 	column.add_child(readiness_label)
 	action_button = MenuDialog.make_button("Ready", "orange", UiMetrics.BODY, Vector2(0.0, 88.0))
 	action_button.name = "ActionButton"
@@ -501,7 +504,7 @@ func show_room(room: Dictionary, my_id: int) -> void:
 		kid_cards[id].tooltip_text = "Selected by a teammate" if taken else id.capitalize()
 		RoomCharacterCards.style(kid_cards[id], id == picked)
 		if taken:
-			kid_cards[id].modulate = Color(0.5, 0.5, 0.55)
+			kid_cards[id].modulate = Color(0.68, 0.64, 0.58)
 		else:
 			kid_cards[id].modulate = Color.WHITE
 	# the one button

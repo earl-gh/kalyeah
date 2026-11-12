@@ -3,7 +3,7 @@ extends GutTest
 ## owner's 3D model textures (props, weapons, kids) are imported VRAM compressed (ETC2 on Android): lossless they were 2 to 10 MB each
 ## on disk and a full uncompressed 2048 px texture each in the phone's memory.
 
-const MODEL_DIRS: Array[String] = ["res://assets/models/props", "res://assets/models/weapons", "res://assets/models/characters"]
+const MODEL_DIRS: Array[String] = ["res://assets/models/barangay", "res://assets/models/props", "res://assets/models/weapons", "res://assets/models/characters"]
 const COMPRESS_LOSSLESS: int = 0
 const COMPRESS_VRAM: int = 2
 

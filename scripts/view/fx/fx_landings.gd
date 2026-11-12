@@ -61,19 +61,21 @@ func setup(ctx: FxContext, zones: FxZones) -> void:
 ## its shadow running along the ground under it; it lands upright on its base as the zone lands.
 func can(rec: FxZones.Rec, zone: WeaponSystem.Zone) -> void:
 	var p: float = _zones.progress(zone, rec)
+	var k: float = _ctx.kid_scale()
+	var hand_y: float = CAN_HAND_Y * k
 	var rest: float = can_height() / 2.0
 	var to: Vector3 = Vector3(0.0, rest, 0.0)
-	var from: Vector3 = Vector3(0.0, CAN_HAND_Y, 0.0)
+	var from: Vector3 = Vector3(0.0, hand_y, 0.0)
 	var peak: float = 0.0
 	var dir: Vector3 = Vector3.ZERO
 	if rec.origin != Vector2.INF and rec.origin.distance_to(zone.center) > 0.01:
 		var offset: Vector2 = rec.origin - zone.center
-		from = Vector3(offset.x, CAN_HAND_Y, offset.y)
-		peak = CAN_PEAK + CAN_PEAK_PER_M * offset.length()
+		from = Vector3(offset.x, hand_y, offset.y)
+		peak = CAN_PEAK * k + CAN_PEAK_PER_M * offset.length()
 		dir = Vector3(-offset.x, 0.0, -offset.y).normalized()
 	rec.obj.position = FxMotion.toss(from, to, peak, p)
 	if dir != Vector3.ZERO:
-		rec.obj.position += dir.cross(Vector3.UP).normalized() * CAN_BOW * sin(PI * p)
+		rec.obj.position += dir.cross(Vector3.UP).normalized() * (CAN_BOW * k) * sin(PI * p)
 	var ground: Vector2 = zone.center + Vector2(rec.obj.position.x, rec.obj.position.z)
 	if _ctx.shadows.attach(rec.id, can_height(), rec.team):
 		_ctx.shadows.place(rec.id, ground, rec.obj.position.y)

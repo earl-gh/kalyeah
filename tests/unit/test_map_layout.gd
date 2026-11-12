@@ -67,13 +67,14 @@ func test_bases_and_rescue_areas_are_always_blue_for_you_and_red_for_them() -> v
 func test_tight_tabi_tabing_bahay_obstacles_and_estero_water_are_point_symmetric() -> void:
 	var rects: Array[Rect2] = LAYOUT.obstacle_rects()
 	var count: int = LAYOUT.obstacles.size()
-	assert_eq(count, 18, "18 half-arena interior bahay & cover blocks")
-	assert_eq(rects.size(), 36, "36 mirrored interior blocks creating tight 3.8m-5.8m eskinitas")
+	assert_eq(count, 14, "14 half-arena shophouse & cover blocks framing 3 N-S pathways and 2 E-W alleys")
+	assert_eq(rects.size(), 28, "28 mirrored interior blocks across the 84 m circular barangay")
 	for i: int in count:
 		assert_true(rects[i + count].is_equal_approx(Rect2(-rects[i].end, rects[i].size)), "obstacle %d mirrored around origin" % i)
 	var water: Array[Rect2] = LAYOUT.water_rects()
-	assert_eq(water.size(), 4, "Estero Creek split into 4 segments framing 3 bridges")
-	assert_eq(LAYOUT.walk_obstacle_rects().size(), rects.size() + water.size(), "water blocks walking while allowing projectiles")
+	assert_eq(water.size(), 0, "shallow mid canal is walkable (water_obstacles empty, no mid bridge)")
+	assert_eq(LAYOUT.walk_obstacle_rects().size(), rects.size(), "only solid buildings/cover block walking")
+	assert_eq(LAYOUT.powerup_spots.size(), 3, "3 small merienda power-up stands along Z = 0")
 
 
 func test_tagged_places_are_outside_the_circular_curb_beside_each_rescue_area() -> void:

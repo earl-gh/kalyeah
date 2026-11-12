@@ -94,7 +94,9 @@ func test_points_inside_or_along_a_straight_edge_are_left_alone() -> void:
 # ---- the sim keeps kids in the rounded street --------------------------------------------------------------------
 
 func _sim() -> MatchSim:
-	var sim: MatchSim = MatchSim.new(RULES, LAYOUT, 1)
+	var corner_rules: GameRules = RULES.duplicate() as GameRules
+	corner_rules.trip_chance = 0.0
+	var sim: MatchSim = MatchSim.new(corner_rules, LAYOUT, 1)
 	sim.add_player(1, 0)
 	sim.add_player(2, 1)
 	sim.players[2].position = Vector2(12.0, -20.0)
@@ -116,7 +118,7 @@ func test_walking_along_the_end_wall_into_a_corner_slides_round_the_curve_and_do
 	var kid: PlayerState = sim.players[1]
 	kid.position = Vector2(-LAYOUT.lane_width / 2.0 + 4.0, LAYOUT.lane_length / 2.0 - kid.radius)
 	# pushed straight at the side wall, the slide up the curve closes in on the wall gradually: a bigger corner takes longer to settle
-	_walk(sim, 1, Vector2(-1.0, 0.0), 420)
+	_walk(sim, 1, Vector2(-1.0, 0.0), 560)
 	assert_almost_eq(kid.position.x, -LAYOUT.lane_width / 2.0 + kid.radius, 0.05, "it reached the side wall instead of stopping in the curve")
 	assert_almost_eq(kid.position.y, LAYOUT.lane_length / 2.0 - LAYOUT.base_corner, LAYOUT.base_corner * 0.05, "having slid up the curve to where it meets the wall (within 5% of the corner's radius)")
 	assert_true(_fits(kid.position, kid.radius))

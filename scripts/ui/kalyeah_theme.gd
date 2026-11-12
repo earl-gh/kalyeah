@@ -1,77 +1,100 @@
 class_name KalyeahTheme
 extends RefCounted
-## Kalyeah's 2D 90s Filipino Komiks UI system: bold hand-inked `#161219` charcoal panel borders
-## with hard comic offset drop-shadows, warm sun-aged komiks newsprint (`#F6ECD8`), and vibrant
-## retro Pinoy street inks (sari-sari mango gold, jeepney crimson, cobalt sky).
+## Kalyeah's sunlit 90s Philippine Kalye UI system: warm sunlit cream (`#FAF3E3`), soft tropical
+## slate-espresso (`#2A2522`), ripe mango amber (`#F5A623`), sari-sari jade teal (`#1F9D8B`), and
+## terracotta coral (`#E2553E`), paired with open-licensed signboard display + clean sans typography.
 
-## Clash (the owner's font, `assets/fonts/clash/`) is the one typeface: headings, body copy, buttons, fields and HUD numbers all use it. It has real lowercase letters, so the
-## roles differ by size, colour and tracking (extra space between letters and words) instead of by face:
-## display (titles, big numbers, the score) is untracked; body copy and buttons are opened a little; captions and section labels a little more.
-const DISPLAY_FONT: Font = preload("res://assets/fonts/clash/Clash-Regular.otf")
+## Open-licensed SIL OFL brand typefaces (`assets/fonts/brand/`):
+## - `DISPLAY_FONT` (`KalyeahDisplay-Regular.ttf`, Londrina Solid): hand-painted 90s provincial signboard headings.
+## - `SANS_FONT` (`KalyeahSans-Variable.ttf`, Source Sans 3 Variable): crisp readable body copy (`600`),
+##   captions (`700`), and chunky buttons + compact HUD action figures (`850`).
+const DISPLAY_FONT: Font = preload("res://assets/fonts/brand/KalyeahDisplay-Regular.ttf")
+const SANS_FONT: Font = preload("res://assets/fonts/brand/KalyeahSans-Variable.ttf")
+const WORDMARK_PATH: String = "res://assets/ui/brand/kalyeah_wordmark.png"
+const CREST_PATH: String = "res://assets/ui/brand/kalyeah_crest.png"
+
+## 32-bit OpenType `'wght'` axis tag (`TextServer.name_to_tag("wght") == 2003265652`).
+const WGHT_TAG: int = 2003265652
+const BODY_WEIGHT: int = 600
+const BUTTON_WEIGHT: int = 850
+const CAPTION_WEIGHT: int = 700
+const ACTION_WEIGHT: int = 850
+
 const BODY_TRACKING: int = 0
 const BUTTON_TRACKING: int = 0
 const CAPTION_TRACKING: int = 2
-## Extra space at every word gap: all-capital words run together without it.
-const WORD_GAP: int = 4
+## Extra space at word gaps so tracked uppercase labels breathe cleanly.
+const WORD_GAP: int = 2
 ## Extra space between the lines of wrapped text.
 const LINE_SPACING: int = 0
 ## Paragraphs (descriptions, tips, hints) open their lines up a little more; tight tiles and buttons keep the default.
 const READING_LINE_SPACING: int = 6
-static var BODY_FONT: Font = _tracked(BODY_TRACKING, WORD_GAP)
-static var CAPTION_FONT: Font = _tracked(CAPTION_TRACKING, WORD_GAP)
-static var BUTTON_FONT: Font = _tracked(BUTTON_TRACKING, WORD_GAP - 2)
-## Numbers and the match's drawn text: untracked, so digits and scores stay compact.
-static var ACTION_FONT: Font = DISPLAY_FONT
 
-const INK: Color = Color("161219")
-const INK_DEEP: Color = Color("120e16")
-const KOMIKS_INK: Color = Color("161219")
-const KOMIKS_PAPER: Color = Color("f6ecd8")
-const SURFACE: Color = Color("1f263d")
-const SURFACE_RAISED: Color = Color("293350")
-const CREAM: Color = Color("f6ecd8")
-const TEXT: Color = Color("fcf6ec")
-const TEXT_MUTED: Color = Color("c6bba6")
-const AMBER: Color = Color("ffab1a")
+static var BODY_FONT: Font = _sans_variation(BODY_WEIGHT, BODY_TRACKING, WORD_GAP)
+static var CAPTION_FONT: Font = _sans_variation(CAPTION_WEIGHT, CAPTION_TRACKING, WORD_GAP)
+static var BUTTON_FONT: Font = _sans_variation(BUTTON_WEIGHT, BUTTON_TRACKING, 0)
+## Numbers and the match's drawn text: extra-bold (`wght = 850`) and untracked so digits and scores stay crisp.
+static var ACTION_FONT: Font = _sans_variation(ACTION_WEIGHT, 0, 0)
+
+const INK: Color = Color("2a2522")
+const INK_DEEP: Color = Color("14100e")
+const KOMIKS_INK: Color = Color("2a2522")
+const KOMIKS_PAPER: Color = Color("faf3e3")
+const SURFACE: Color = Color("2a2522")
+const SURFACE_RAISED: Color = Color("38312d")
+const CREAM: Color = Color("faf3e3")
+const CREAM_WARM: Color = Color("f2e2c4")
+const TEXT: Color = Color("faf3e3")
+const TEXT_MUTED: Color = Color("d8cbb5")
+const AMBER: Color = Color("f5a623")
 const AMBER_HOVER: Color = Color("ffc048")
-const BLUE: Color = Color("2994ff")
-const GREEN: Color = Color("2fb36d")
-const RED: Color = Color("ff6256")
-const SLATE: Color = Color("3b465c")
+const MANGO: Color = Color("f5a623")
+const BLUE: Color = Color("2d9bf0")
+const JADE: Color = Color("1f9d8b")
+const GREEN: Color = Color("1f9d8b")
+const CORAL: Color = Color("e2553e")
+const RED: Color = Color("e2553e")
+const SLATE: Color = Color("463d38")
 const FOCUS: Color = UiSkin.FOCUS_COLOR
-const SUCCESS: Color = Color("79daa5")
-const ERROR: Color = Color("ffb4ab")
-const TEAM_BLUE: Color = Color("2b52b8")
-const TEAM_RED: Color = Color("b52b38")
-const FIELD: Color = Color("15192b")
-## 90s Filipino Komiks modal sheet: dark charcoal-plum comic header frame (`#3B3042`) inked with `#161219`
-## and sun-aged komiks newsprint cream (`#F6ECD8`) body with dark charcoal text.
-const MODAL_FRAME: Color = Color("3b3042")
-const MODAL_FRAME_EDGE: Color = Color("161219")
-const MODAL_BODY: Color = Color("f6ecd8")
-const MODAL_BODY_EDGE: Color = Color("161219")
-const MODAL_TITLE: Color = Color.WHITE
-const MODAL_TITLE_OUTLINE: Color = Color("161219")
-const MODAL_TEXT: Color = Color("161219")
-const MODAL_TEXT_MUTED: Color = Color("59483b")
+const SUCCESS: Color = Color("5fd9c6")
+const ERROR: Color = Color("ff9f8e")
+const TEAM_BLUE: Color = Color("1d56b5")
+const TEAM_RED: Color = Color("b8352b")
+const FIELD: Color = Color("211c19")
+
+## Sunlit 90s Kalye modal sheet: warm roasted timber-slate header frame (`#3A302B`) around
+## a bright sunlit cream (`#FAF3E3`) body with soft tropical espresso text.
+const MODAL_FRAME: Color = Color("3a302b")
+const MODAL_FRAME_EDGE: Color = Color("2a2522")
+const MODAL_BODY: Color = Color("faf3e3")
+const MODAL_BODY_EDGE: Color = Color("d6c3a3")
+const MODAL_TITLE: Color = Color("faf3e3")
+const MODAL_TITLE_OUTLINE: Color = Color("2a2522")
+const MODAL_TEXT: Color = Color("2a2522")
+const MODAL_TEXT_MUTED: Color = Color("635449")
 ## Modal corners (owner): rounder than the small skin radius, less than the big card rounding (steps of the UiSkin scale).
 const MODAL_FRAME_RADIUS: int = UiSkin.RADIUS_L
 const MODAL_BODY_RADIUS: int = UiSkin.RADIUS_M
 
 ## Flat surfaces share the skin's corner scale: CORNER is the button and card radius.
 const CORNER: int = UiSkin.RADIUS_L
-const BUTTON_SHADOW: int = 1
-const KOMIKS_BORDER: int = 3
+const BUTTON_SHADOW: int = 2
+const KOMIKS_BORDER: int = 2
 const FONT_SIZE: int = UiMetrics.BODY
 const PANEL_PADDING: float = UiMetrics.PADDING
 
 
-static func _tracked(glyph: int, word: int) -> Font:
+static func _sans_variation(weight: int, glyph: int = 0, word: int = 0) -> FontVariation:
 	var font: FontVariation = FontVariation.new()
-	font.base_font = DISPLAY_FONT
+	font.base_font = SANS_FONT
+	font.variation_opentype = {WGHT_TAG: weight}
 	font.spacing_glyph = glyph
 	font.spacing_space = word
 	return font
+
+
+static func _tracked(glyph: int, word: int) -> Font:
+	return _sans_variation(BODY_WEIGHT, glyph, word)
 
 
 static func apply() -> void:
@@ -87,13 +110,13 @@ static func build() -> Theme:
 	theme.default_font_size = FONT_SIZE
 	theme.set_font("font", "Label", BODY_FONT)
 	theme.set_color("font_color", "Label", TEXT)
-	theme.set_color("font_outline_color", "Label", INK_DEEP)
+	theme.set_color("font_outline_color", "Label", INK)
 	theme.set_constant("outline_size", "Label", 0)
 	theme.set_constant("line_spacing", "Label", LINE_SPACING)
 	theme.set_type_variation("DisplayLabel", "Label")
 	theme.set_font("font", "DisplayLabel", DISPLAY_FONT)
 	theme.set_color("font_color", "DisplayLabel", CREAM)
-	theme.set_color("font_outline_color", "DisplayLabel", INK_DEEP)
+	theme.set_color("font_outline_color", "DisplayLabel", INK)
 	theme.set_constant("outline_size", "DisplayLabel", 3)
 	theme.set_type_variation("SectionLabel", "Label")
 	theme.set_font("font", "SectionLabel", CAPTION_FONT)
@@ -115,7 +138,7 @@ static func build() -> Theme:
 	theme.set_stylebox("focus", "Button", focus_ring(UiSkin.BUTTON_RADIUS))
 	for state: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
 		theme.set_color(state, "Button", INK_DEEP)
-	theme.set_color("font_disabled_color", "Button", Color(TEXT_MUTED, 0.62))
+	theme.set_color("font_disabled_color", "Button", Color(TEXT_MUTED, 0.65))
 	theme.set_color("font_outline_color", "Button", Color.TRANSPARENT)
 	theme.set_constant("outline_size", "Button", 0)
 	theme.set_constant("h_separation", "Button", 10)
@@ -139,20 +162,20 @@ static func build() -> Theme:
 
 static func semantic_color(name: String) -> Color:
 	match name:
-		"orange", "gold":
+		"orange", "gold", "mango":
 			return AMBER
 		"blue":
 			return BLUE
-		"green":
+		"green", "jade", "teal":
 			return GREEN
-		"red":
+		"red", "coral":
 			return RED
 		_:
 			return SLATE
 
 
 static func semantic_text_color(name: String) -> Color:
-	return TEXT if name == "grey" else INK_DEEP
+	return TEXT if name == "grey" or name == "slate" else INK_DEEP
 
 
 ## The UiSkin variant that draws a semantic colour name.
@@ -160,25 +183,25 @@ static func skin_variant(color: String) -> String:
 	match color:
 		"orange", "gold":
 			return "gold"
-		"blue", "green", "red":
+		"mango", "blue", "green", "jade", "red", "coral", "navy":
 			return color
 		_:
 			return "slate"
 
 
-## The flat version of a button colour, styled with 3px `#161219` komiks ink borders and a hard comic drop-shadow.
+## Flat painted button surface with soft 2px `#2A2522` slate-espresso trim and gentle warm afternoon shadow.
 static func painted_button(color: String, pressed: bool = false, tint: Color = Color.WHITE) -> StyleBoxFlat:
 	var face: Color = semantic_color(color) * tint
 	if pressed:
-		face = face.darkened(0.08)
+		face = face.darkened(0.04)
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = face
 	box.set_corner_radius_all(CORNER)
 	box.set_border_width_all(KOMIKS_BORDER)
-	box.border_color = KOMIKS_INK
-	box.shadow_color = Color(KOMIKS_INK, 0.88)
+	box.border_color = INK
+	box.shadow_color = Color(INK_DEEP, 0.28)
 	box.shadow_size = BUTTON_SHADOW
-	box.shadow_offset = Vector2(2.0, 2.0) if pressed else Vector2(4.0, 5.0)
+	box.shadow_offset = Vector2(0.0, 1.0) if pressed else Vector2(0.0, 3.0)
 	box.content_margin_left = 20.0
 	box.content_margin_right = 20.0
 	box.content_margin_top = 21.0
@@ -190,8 +213,8 @@ static func painted_button(color: String, pressed: bool = false, tint: Color = C
 ## Kept for toggle controls and small custom surfaces.
 static func button_box(color: Color, pressed: bool = false) -> StyleBoxFlat:
 	var box: StyleBoxFlat = painted_button("grey", pressed)
-	box.bg_color = color.darkened(0.07) if pressed else color
-	box.border_color = KOMIKS_INK
+	box.bg_color = color.darkened(0.05) if pressed else color
+	box.border_color = INK
 	return box
 
 
@@ -203,7 +226,7 @@ static func set_button_styles(theme: Theme, type: String, color: String) -> void
 	theme.set_stylebox("hover_pressed", type, UiSkin.button(variant, "pressed"))
 
 
-## Dresses a button in a game-button variant: a gradient face with a lip (UiSkin), a heavy label, and the shared press
+## Dresses a button in a game-button variant: a gradient face with a lip (UiSkin), a clean bold label, and the shared press
 ## feel (UiKit.feel_press), wired once.
 static func style_button(button: Button, color: String) -> void:
 	var variant: String = skin_variant(color)
@@ -218,32 +241,45 @@ static func style_button(button: Button, color: String) -> void:
 	UiKit.feel_press(button)
 
 
-static func surface_box(corner: int = UiSkin.RADIUS_L, border: int = 3, padding: float = PANEL_PADDING) -> StyleBoxFlat:
+static func surface_box(corner: int = UiSkin.RADIUS_L, border: int = 2, padding: float = PANEL_PADDING) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
-	box.bg_color = Color(SURFACE, 0.98)
+	box.bg_color = Color(SURFACE, 0.97)
 	box.set_corner_radius_all(corner)
 	box.set_border_width_all(maxi(border, 1))
-	box.border_color = KOMIKS_INK
-	box.shadow_color = Color(KOMIKS_INK, 0.85)
-	box.shadow_size = 1
-	box.shadow_offset = Vector2(4.0, 5.0)
+	box.border_color = Color("4a3f39")
+	box.shadow_color = Color(INK_DEEP, 0.28)
+	box.shadow_size = 4
+	box.shadow_offset = Vector2(0.0, 3.0)
 	box.set_content_margin_all(padding)
 	box.anti_aliasing = true
 	return box
 
 
-## A 90s Filipino Komiks newsprint/ink badge plate with bold `#161219` borders and hard comic drop-shadow.
-static func komiks_plate(fill: Color = KOMIKS_PAPER, border_ink: Color = KOMIKS_INK, border_px: int = 3, padding: float = PANEL_PADDING, radius: int = UiSkin.RADIUS_M) -> StyleBoxFlat:
+## A sunlit 90s Kalye cream/signboard plate with clean 2px warm trim and soft drop shadow.
+static func komiks_plate(fill: Color = KOMIKS_PAPER, border_ink: Color = KOMIKS_INK, border_px: int = 2, padding: float = PANEL_PADDING, radius: int = UiSkin.RADIUS_M) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = fill
 	box.set_corner_radius_all(radius)
-	box.set_border_width_all(border_px)
+	box.set_border_width_all(maxi(border_px, 1))
 	box.border_color = border_ink
-	box.shadow_color = Color(KOMIKS_INK, 0.9)
-	box.shadow_size = 1
-	box.shadow_offset = Vector2(4.0, 5.0)
+	box.shadow_color = Color(INK_DEEP, 0.24)
+	box.shadow_size = 3
+	box.shadow_offset = Vector2(0.0, 3.0)
 	box.set_content_margin_all(padding)
 	box.anti_aliasing = true
+	return box
+
+
+## Warm sunlit cream (`#FAF3E3`) card surface with subtle sand-timber trim.
+static func sunlit_card(padding: float = PANEL_PADDING, radius: int = UiSkin.RADIUS_L, accent: Color = Color("d9c5a3")) -> StyleBoxFlat:
+	return komiks_plate(CREAM, accent, 2, padding, radius)
+
+
+## Hand-painted provincial signboard surface (`#2A2522`) with mango-amber (`#F5A623`) trim.
+static func signboard_plate(padding: float = PANEL_PADDING, radius: int = UiSkin.RADIUS_L, trim: Color = AMBER) -> StyleBoxFlat:
+	var box: StyleBoxFlat = surface_box(radius, 2, padding)
+	box.bg_color = SURFACE
+	box.border_color = trim
 	return box
 
 
@@ -252,26 +288,26 @@ static func painted_panel(padding: float = PANEL_PADDING) -> StyleBox:
 	return UiSkin.plate("glass", padding)
 
 
-## The charcoal-inked comic frame of a modal: 4px `#161219` border and hard offset comic drop-shadow.
+## The warm timber-slate frame of a modal: clean 2px border and soft shadow.
 static func modal_frame(rim: float) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = MODAL_FRAME
 	box.set_corner_radius_all(MODAL_FRAME_RADIUS)
-	box.set_border_width_all(4)
+	box.set_border_width_all(2)
 	box.border_color = MODAL_FRAME_EDGE
-	box.shadow_color = Color(KOMIKS_INK, 0.92)
-	box.shadow_size = 2
-	box.shadow_offset = Vector2(6.0, 7.0)
+	box.shadow_color = Color(INK_DEEP, 0.34)
+	box.shadow_size = 6
+	box.shadow_offset = Vector2(0.0, 4.0)
 	box.set_content_margin_all(rim)
 	box.anti_aliasing = true
 	return box
 
 
-## The sun-aged komiks newsprint cream (`#F6ECD8`) body inside a modal's frame.
+## The warm sunlit cream (`#FAF3E3`) body inside a modal's frame.
 static func modal_body(padding: float) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = MODAL_BODY
-	box.set_border_width_all(3)
+	box.set_border_width_all(1)
 	box.border_color = MODAL_BODY_EDGE
 	box.set_corner_radius_all(MODAL_BODY_RADIUS)
 	box.set_content_margin_all(padding)
@@ -288,9 +324,9 @@ static func modal_body_theme() -> Theme:
 
 
 static func painted_pill() -> StyleBoxFlat:
-	var box: StyleBoxFlat = surface_box(UiSkin.RADIUS_L, 3, 0.0)
+	var box: StyleBoxFlat = surface_box(UiSkin.RADIUS_L, 2, 0.0)
 	box.bg_color = Color(INK, 0.94)
-	box.border_color = Color(AMBER, 0.55)
+	box.border_color = Color(AMBER, 0.65)
 	box.content_margin_left = 18.0
 	box.content_margin_right = 18.0
 	box.content_margin_top = 9.0
@@ -299,12 +335,12 @@ static func painted_pill() -> StyleBoxFlat:
 
 
 static func map_title_plate() -> StyleBoxFlat:
-	var box: StyleBoxFlat = surface_box(UiSkin.RADIUS_M, 3, 0.0)
-	box.bg_color = Color("233454")
+	var box: StyleBoxFlat = surface_box(UiSkin.RADIUS_M, 2, 0.0)
+	box.bg_color = SURFACE_RAISED
 	box.border_color = AMBER
-	box.shadow_color = Color(KOMIKS_INK, 0.9)
-	box.shadow_size = 1
-	box.shadow_offset = Vector2(4.0, 5.0)
+	box.shadow_color = Color(INK_DEEP, 0.30)
+	box.shadow_size = 3
+	box.shadow_offset = Vector2(0.0, 3.0)
 	box.content_margin_left = 28.0
 	box.content_margin_right = 28.0
 	box.content_margin_top = 8.0
@@ -316,15 +352,15 @@ static func field_box(focused: bool, read_only: bool = false) -> StyleBoxFlat:
 	var box: StyleBoxFlat = StyleBoxFlat.new()
 	box.bg_color = Color(SURFACE_RAISED if read_only else FIELD, 0.98)
 	box.set_corner_radius_all(UiSkin.RADIUS_M)
-	box.set_border_width_all(4 if focused else 3)
-	box.border_color = AMBER if focused else KOMIKS_INK
+	box.set_border_width_all(3 if focused else 2)
+	box.border_color = AMBER if focused else Color("594c44")
 	box.content_margin_left = 18.0
 	box.content_margin_right = 18.0
 	box.content_margin_top = 15.0
 	box.content_margin_bottom = 15.0
-	box.shadow_color = Color(KOMIKS_INK, 0.8)
-	box.shadow_size = 1
-	box.shadow_offset = Vector2(3.0, 4.0)
+	box.shadow_color = Color(INK_DEEP, 0.22)
+	box.shadow_size = 2
+	box.shadow_offset = Vector2(0.0, 2.0)
 	box.anti_aliasing = true
 	return box
 

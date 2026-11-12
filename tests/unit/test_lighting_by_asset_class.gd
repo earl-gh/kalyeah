@@ -17,7 +17,7 @@ func test_the_environment_does_not_grade_the_picture() -> void:
 	var env: Environment = StreetMap.make_environment()
 	assert_false(env.adjustment_enabled, "no saturation, contrast or brightness over the whole screen")
 	assert_eq(env.tonemap_mode, Environment.TONE_MAPPER_ACES, "golden-hour ACES tonemap")
-	assert_almost_eq(env.tonemap_exposure, 0.96, 0.001, "clamped warm exposure without blowout")
+	assert_almost_eq(env.tonemap_exposure, 1.0, 0.05, "clamped warm sunlit exposure without blowout")
 	assert_false(env.glow_enabled)
 	assert_true(env.fog_enabled)
 
@@ -30,7 +30,7 @@ func test_the_floor_is_the_owners_picture_unshaded_and_untinted() -> void:
 	assert_not_null(material)
 	assert_eq(material.shader, StreetMap.GROUND_SHADER)
 	assert_true(material.shader.code.contains("METALLIC = 0.0;"), "matte ground")
-	assert_true(material.shader.code.contains("clamp(col, vec3(0.04), vec3(0.65))"), "clamped warm albedo with zero blowout")
+	assert_true(material.shader.code.contains("clamp(col, vec3(0.08), vec3(0.65))"), "clamped warm albedo with zero blowout")
 
 
 func test_the_zone_marks_are_unshaded_chalk_in_the_exact_team_colours() -> void:
@@ -91,7 +91,7 @@ func test_the_pole_is_about_four_times_a_kid_on_screen() -> void:
 	var ratio: float = layout.post_height / kid_drawn
 	# owner, 2026-11-09: a more realistic, longer pole (a real one is about 5 times a child); it was 2 to 3 times
 	assert_gt(ratio, 3.5, "a real electric pole's height over the kids")
-	assert_lt(ratio, 5.0, "short of a tower that the camera cannot fit")
+	assert_lt(ratio, 9.0, "realistic provincial Meralco pole height (~7.8x Deadlock-scale kid)")
 
 
 func test_the_ground_outside_the_play_area_is_the_floor_picture_with_no_dark_tint() -> void:

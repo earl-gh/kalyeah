@@ -21,6 +21,7 @@ var _rules: GameRules
 func before_each() -> void:
 	_rules = (load("res://data/rules/game_rules.tres") as GameRules).duplicate() as GameRules
 	_rules.stamina_enabled = false
+	_rules.trip_chance = 0.0
 
 
 func _sim(at: Vector2 = Vector2.ZERO) -> MatchSim:

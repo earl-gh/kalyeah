@@ -220,8 +220,12 @@ func _courtyard_spot(sim: MatchSim, side: int, slot: int) -> Vector2:
 	return spot
 
 
-## Dynamic screening waypoint across the eskinita approaches outside the enemy base so vanguard bots stay armed and moving.
+## Dynamic screening waypoint across the 3 main pathways outside the enemy base (plus nearby active merienda stands).
 func _vanguard_target(sim: MatchSim, state: PlayerState, lane_slot: int) -> Vector2:
+	if state.buff_left <= 1.5:
+		var stand: Vector2 = _nearby_powerup_spot(sim, state.position, 18.0)
+		if stand.is_finite():
+			return stand
 	var enemy_side: int = -sim.side_for_team(team)
 	var phase: int = _screen_phase[state.id] if _screen_phase.has(state.id) else 0
 	var goal: Vector2 = _screen_spot(sim, enemy_side, lane_slot, phase)
@@ -232,18 +236,38 @@ func _vanguard_target(sim: MatchSim, state: PlayerState, lane_slot: int) -> Vect
 	return goal
 
 
+func _nearby_powerup_spot(sim: MatchSim, origin: Vector2, max_dist: float) -> Vector2:
+	var best: Vector2 = Vector2.INF
+	var best_dist: float = max_dist
+	for entry: Dictionary in sim.powerups:
+		if not entry.has("active") or entry["active"] != true or not entry.has("pos"):
+			continue
+		var raw_pos: Variant = entry["pos"]
+		if not (raw_pos is Vector2):
+			continue
+		var pos: Vector2 = raw_pos
+		var d: float = origin.distance_to(pos)
+		if d <= best_dist:
+			best_dist = d
+			best = pos
+	return best
+
+
 func _screen_spot(sim: MatchSim, enemy_side: int, lane_slot: int, phase: int) -> Vector2:
 	var base: Vector2 = sim.layout.base_center(enemy_side)
 	var inward: Vector2 = (-base).normalized() if base.length_squared() > 0.001 else Vector2(0.0, -float(enemy_side))
 	var across: Vector2 = Vector2(-inward.y, inward.x)
-	var depth: float = sim.layout.base_radius + (5.2 if phase == 0 else 9.6)
+	var circular: bool = sim.layout.is_circular()
+	var depth: float = sim.layout.base_radius + ((8.0 if phase == 0 else 16.0) if circular else (5.2 if phase == 0 else 9.6))
 	var max_lat: float = maxf(sim.layout.lane_width * 0.32, 2.5)
+	var wide_lat: float = 28.0 if circular else 8.5
+	var mid_lat: float = 16.0 if circular else 3.6
 	var lane: int = lane_slot % 3
 	var lateral: float = 0.0
 	if lane == 0:
-		lateral = -minf(8.5 if phase == 0 else 3.6, max_lat)
+		lateral = -minf(wide_lat if phase == 0 else mid_lat, max_lat)
 	elif lane == 1:
-		lateral = minf(8.5 if phase == 0 else 3.6, max_lat)
+		lateral = minf(wide_lat if phase == 0 else mid_lat, max_lat)
 	else:
 		lateral = minf(3.2, max_lat) * (-1.0 if phase == 0 else 1.0)
 	var point: Vector2 = base + inward * depth + across * lateral

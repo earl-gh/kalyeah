@@ -1,29 +1,84 @@
 class_name MatchHudTop
 extends RefCounted
+## Top-of-screen match HUD builder & layout:
+## - Airy Deadlock-inspired 5v5 circular squad portrait wings flanking the centered Scoreboard & ClockChip.
+## - Settings gear button that stays in the top-left header in portrait/street games, and tucks cleanly as a
+##   compact `34px` white-outline badge onto the bottom-right corner of `BarangayMinimap` in landscape 5v5.
 
-## Empty space round the gear's art inside its button, as a share of the art's size on each side (0.3: the art is about 0.62 of the button).
+## Empty space round the gear's art inside its button, as a share of the art's size on each side.
 const GEAR_PADDING: float = 0.3
-## The owner's settings gear for the match (cropped to its visible art).
+## Standard match settings gear texture used in portrait & street games.
 const GEAR: Texture2D = preload("res://assets/ui/match_gear.webp")
 
 const WING_SLOTS: int = 5
-const CHIP_W: float = 40.0
-const CHIP_H: float = 52.0
-const CHIP_GAP: float = 5.0
-const WING_W: float = CHIP_W * float(WING_SLOTS) + CHIP_GAP * float(WING_SLOTS - 1) + 6.0
-const WING_H: float = CHIP_H + 6.0
+const CHIP_W: float = 34.0
+const CHIP_H: float = 42.0
+const CHIP_GAP: float = 6.0
+const WING_W: float = CHIP_W * float(WING_SLOTS) + CHIP_GAP * float(WING_SLOTS - 1) + 4.0
+const WING_H: float = CHIP_H + 4.0
 const WING_SCORE_GAP: float = 10.0
 
 
+class GearBadge extends Control:
+	const BADGE_RADIUS: float = 17.0
+	const BADGE_BG: Color = Color(0.06, 0.08, 0.11, 0.42)
+	const BADGE_BG_HELD: Color = Color(0.14, 0.17, 0.22, 0.56)
+
+	var held: bool = false
+
+	func _init() -> void:
+		name = "GearBadge"
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+	func _draw() -> void:
+		var center: Vector2 = size * 0.5
+		draw_circle(center, BADGE_RADIUS, BADGE_BG_HELD if held else BADGE_BG)
+		draw_circle(center, BADGE_RADIUS, HudStyle.WHITE_BODY_HELD if held else HudStyle.WHITE_BODY)
+		draw_arc(center, BADGE_RADIUS, 0.0, TAU, 36, HudStyle.WHITE_RIM, 2.0, true)
+		HudStyle.draw_white_icon_or_glyph(self, center, BADGE_RADIUS, &"gear", 0.92)
+
+
+class GearButton extends TextureButton:
+	var _badge: GearBadge
+	var _compact: bool = false
+
+	func _init() -> void:
+		_badge = GearBadge.new()
+		_badge.visible = false
+		add_child(_badge)
+		button_down.connect(_sync_press)
+		button_up.connect(_sync_press)
+
+	func set_compact_badge(on: bool) -> void:
+		if _compact == on and _badge.visible == on:
+			return
+		_compact = on
+		self_modulate = Color(1.0, 1.0, 1.0, 0.0 if on else 1.0)
+		_badge.visible = on
+		_badge.queue_redraw()
+
+	func _sync_press() -> void:
+		if _badge != null:
+			_badge.held = is_pressed()
+			_badge.queue_redraw()
+
+
 class SquadWing extends Control:
-	const INK: Color = Color("141016")
-	const SHADOW: Color = Color(0.08, 0.06, 0.09, 0.8)
-	const PAPER: Color = Color("f5ebd6")
-	const GOLD: Color = Color("ffbe2e")
-	const COBALT: Color = Color("2b7bff")
-	const CRIMSON: Color = Color("f23838")
-	const HP_GREEN: Color = Color("2ee068")
-	const TAG_GREY: Color = Color(0.36, 0.35, 0.4, 0.92)
+	const PORTRAIT_RADIUS: float = 15.0
+	const ULT_PIP_RADIUS: float = 4.6
+	const CIRCLE_STEPS: int = 28
+
+	const DISC_BG: Color = Color(0.06, 0.08, 0.11, 0.42)
+	const BAR_TRACK: Color = Color(0.05, 0.07, 0.10, 0.46)
+	const ALLY_ACCENT: Color = Color(0.32, 0.68, 1.0, 0.86)
+	const ENEMY_ACCENT: Color = Color(0.95, 0.36, 0.34, 0.86)
+	const HP_ALLY: Color = Color(0.36, 0.92, 0.62, 0.95)
+	const HP_WARN: Color = Color(1.0, 0.78, 0.28, 0.95)
+	const HP_LOW: Color = Color(0.95, 0.36, 0.34, 0.95)
+	const ULT_GLOW: Color = Color(1.0, 0.84, 0.32, 0.96)
+	const TAG_CROSS: Color = Color(0.96, 0.38, 0.36, 0.78)
+	const SHADOW: Color = Color(0.04, 0.05, 0.07, 0.55)
 
 	var ally_side: bool = true
 	var _count: int = 0
@@ -80,19 +135,19 @@ class SquadWing extends Control:
 
 	func _team_accent() -> Color:
 		if ally_side:
-			return TeamColors.score_own() if Settings.colorblind else COBALT
-		return TeamColors.score_enemy() if Settings.colorblind else CRIMSON
+			return Color(TeamColors.score_own(), 0.88) if Settings.colorblind else ALLY_ACCENT
+		return Color(TeamColors.score_enemy(), 0.88) if Settings.colorblind else ENEMY_ACCENT
 
 	func _bar_color(share: float) -> Color:
 		if not ally_side:
-			return TeamColors.score_enemy() if Settings.colorblind else CRIMSON
+			return Color(TeamColors.score_enemy(), 0.92) if Settings.colorblind else ENEMY_ACCENT
 		if Settings.colorblind:
-			return TeamColors.BLIND_OWN
-		if share <= 0.3:
-			return CRIMSON
-		if share <= 0.6:
-			return GOLD
-		return HP_GREEN
+			return Color(TeamColors.BLIND_OWN, 0.95)
+		if share <= 0.30:
+			return HP_LOW
+		if share <= 0.60:
+			return HP_WARN
+		return HP_ALLY
 
 	func _draw() -> void:
 		if _count <= 0:
@@ -100,90 +155,63 @@ class SquadWing extends Control:
 		var font: Font = KalyeahTheme.ACTION_FONT
 		var accent: Color = _team_accent()
 		var total_w: float = float(_count) * CHIP_W + float(maxi(_count - 1, 0)) * CHIP_GAP
-		var start_x: float = (size.x - total_w - 3.0) if ally_side else 3.0
+		var start_x: float = (size.x - total_w - 2.0) if ally_side else 2.0
 
 		for i: int in _count:
 			var x: float = start_x + float(i) * (CHIP_W + CHIP_GAP)
-			var y: float = 2.0
-			var slant: float = 3.0 if ally_side else -3.0
+			var center: Vector2 = Vector2(x + CHIP_W * 0.5, 2.0 + PORTRAIT_RADIUS + 2.0)
+			var is_out: bool = _tagged[i]
 
-			# Hard comic shadow + slanted backing plate
-			var sh: PackedVector2Array = PackedVector2Array([
-				Vector2(x + slant + 2.0, y + 3.0),
-				Vector2(x + CHIP_W + slant + 2.0, y + 3.0),
-				Vector2(x + CHIP_W + 2.0, y + CHIP_H + 3.0),
-				Vector2(x + 2.0, y + CHIP_H + 3.0),
-			])
-			draw_colored_polygon(sh, SHADOW)
+			draw_circle(center, PORTRAIT_RADIUS + 0.5, DISC_BG)
 
-			var plate: PackedVector2Array = PackedVector2Array([
-				Vector2(x + slant, y),
-				Vector2(x + CHIP_W + slant, y),
-				Vector2(x + CHIP_W, y + CHIP_H),
-				Vector2(x, y + CHIP_H),
-			])
-			draw_colored_polygon(plate, TAG_GREY if _tagged[i] else PAPER)
-
-			# Top team color header strip
-			var top_h: float = 5.0
-			var top_bar: PackedVector2Array = PackedVector2Array([
-				Vector2(x + slant, y),
-				Vector2(x + CHIP_W + slant, y),
-				Vector2(x + CHIP_W + slant * 0.8, y + top_h),
-				Vector2(x + slant * 0.8, y + top_h),
-			])
-			draw_colored_polygon(top_bar, accent.darkened(0.35) if _tagged[i] else accent)
-
-			# Face art (`KidModel.minimap_face`) or komiks inked initial fallback
-			var face_rect: Rect2 = Rect2(Vector2(x + 3.0, y + 6.0), Vector2(CHIP_W - 6.0, CHIP_W - 6.0))
 			var tex: Texture2D = _faces[i]
 			if tex != null:
-				var tint: Color = Color(0.42, 0.42, 0.46, 0.85) if _tagged[i] else Color.WHITE
-				draw_texture_rect(tex, face_rect, false, tint)
+				var face_tint: Color = Color(0.45, 0.47, 0.52, 0.46) if is_out else Color.WHITE
+				_draw_round_face(center, PORTRAIT_RADIUS - 0.8, tex, face_tint)
 			else:
-				draw_rect(face_rect, accent.darkened(0.45) if _tagged[i] else accent.lightened(0.15), true)
+				var fallback_bg: Color = Color(accent.r * 0.45, accent.g * 0.45, accent.b * 0.45, 0.35 if is_out else 0.58)
+				draw_circle(center, PORTRAIT_RADIUS - 0.8, fallback_bg)
 				var init_str: String = _initials[i]
-				var iw: float = font.get_string_size(init_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.LABEL).x
-				var ib: Vector2 = Vector2(face_rect.get_center().x - iw * 0.5, face_rect.get_center().y + 8.0)
-				draw_string_outline(font, ib, init_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.LABEL, 4, INK)
-				draw_string(font, ib, init_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.LABEL, PAPER)
-			draw_rect(face_rect, INK, false, 1.6)
+				var iw: float = font.get_string_size(init_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL).x
+				var ib: Vector2 = Vector2(center.x - iw * 0.5, center.y + 6.0)
+				draw_string(font, ib + Vector2(1.0, 1.0), init_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL, SHADOW)
+				draw_string(font, ib, init_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, HudStyle.SMALL, Color(1.0, 1.0, 1.0, 0.48 if is_out else 0.94))
 
-			# Bottom live HP bar
-			var bar_rect: Rect2 = Rect2(Vector2(x + 3.0, y + CHIP_H - 9.0), Vector2(CHIP_W - 6.0, 6.0))
-			draw_rect(bar_rect, INK, true)
-			if not _tagged[i] and _hp_shares[i] > 0.01:
-				var fill_w: float = (bar_rect.size.x - 2.0) * _hp_shares[i]
-				draw_rect(Rect2(bar_rect.position + Vector2(1.0, 1.0), Vector2(fill_w, bar_rect.size.y - 2.0)), _bar_color(_hp_shares[i]), true)
+			var ring_col: Color = Color(1.0, 1.0, 1.0, 0.24) if is_out else (Color(1.0, 1.0, 1.0, 0.92) if _self_flag[i] else accent)
+			var ring_w: float = 2.0 if _self_flag[i] and not is_out else 1.5
+			draw_arc(center, PORTRAIT_RADIUS, 0.0, TAU, CIRCLE_STEPS, ring_col, ring_w, true)
 
-			# Komiks ink border (barrio-gold highlight for local player)
-			var border_col: Color = GOLD if _self_flag[i] else INK
-			draw_polyline(PackedVector2Array([plate[0], plate[1], plate[2], plate[3], plate[0]]), border_col, 2.5, true)
-			if _self_flag[i]:
-				draw_polyline(PackedVector2Array([plate[0], plate[1], plate[2], plate[3], plate[0]]), INK, 1.2, true)
+			# Slim airy HP strip beneath portrait
+			var bar_rect: Rect2 = Rect2(Vector2(x + 2.0, CHIP_H - 4.5), Vector2(CHIP_W - 4.0, 3.5))
+			draw_rect(bar_rect, BAR_TRACK, true)
+			if not is_out and _hp_shares[i] > 0.01:
+				var fill_w: float = bar_rect.size.x * _hp_shares[i]
+				draw_rect(Rect2(bar_rect.position, Vector2(fill_w, bar_rect.size.y)), _bar_color(_hp_shares[i]), true)
 
-			# Greyed `TAG` stamp when tagged
-			if _tagged[i]:
-				var stamp_rect: Rect2 = Rect2(Vector2(x + 2.0, face_rect.get_center().y - 8.0), Vector2(CHIP_W - 4.0, 16.0))
-				draw_rect(stamp_rect, INK, true)
-				draw_rect(stamp_rect.grow(-1.2), CRIMSON.darkened(0.15), true)
-				var tag_w: float = font.get_string_size("TAG", HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL).x
-				draw_string(font, Vector2(stamp_rect.get_center().x - tag_w * 0.5, stamp_rect.end.y - 2.5), "TAG", HORIZONTAL_ALIGNMENT_LEFT, -1.0, UiMetrics.WORLD_SMALL, PAPER)
+			if is_out:
+				var arm: float = PORTRAIT_RADIUS * 0.42
+				draw_line(center + Vector2(-arm, -arm), center + Vector2(arm, arm), TAG_CROSS, 1.8, true)
+				draw_line(center + Vector2(arm, -arm), center + Vector2(-arm, arm), TAG_CROSS, 1.8, true)
 			elif _ult_full[i]:
-				# Gold star when `ult_charge >= 100`
-				_draw_ult_star(Vector2(x + CHIP_W - 6.0, y + 7.0), 7.2)
+				_draw_ult_pip(center + Vector2(PORTRAIT_RADIUS * 0.72, -PORTRAIT_RADIUS * 0.72))
 
-	func _draw_ult_star(center: Vector2, r: float) -> void:
-		var outer: PackedVector2Array = PackedVector2Array()
-		var inner: PackedVector2Array = PackedVector2Array()
-		for k: int in 10:
-			var ang: float = -PI * 0.5 + TAU * float(k) / 10.0
-			var rad_out: float = (r + 1.8) if k % 2 == 0 else (r * 0.45 + 1.4)
-			var rad_in: float = r if k % 2 == 0 else r * 0.44
-			outer.append(center + Vector2.from_angle(ang) * rad_out)
-			inner.append(center + Vector2.from_angle(ang) * rad_in)
-		draw_colored_polygon(outer, INK)
-		draw_colored_polygon(inner, GOLD)
+	func _draw_round_face(center: Vector2, radius: float, tex: Texture2D, tint: Color) -> void:
+		var pts: PackedVector2Array = PackedVector2Array()
+		var uvs: PackedVector2Array = PackedVector2Array()
+		for step_i: int in CIRCLE_STEPS:
+			var way: Vector2 = Vector2.from_angle(TAU * float(step_i) / float(CIRCLE_STEPS))
+			pts.append(center + way * radius)
+			uvs.append(Vector2(0.5, 0.5) + way * 0.48)
+		draw_polygon(pts, PackedColorArray([tint]), uvs, tex)
+
+	func _draw_ult_pip(center: Vector2) -> void:
+		draw_circle(center, ULT_PIP_RADIUS + 1.0, SHADOW)
+		var pts: PackedVector2Array = PackedVector2Array()
+		for k: int in 8:
+			var ang: float = -PI * 0.5 + TAU * float(k) / 8.0
+			var r: float = ULT_PIP_RADIUS if k % 2 == 0 else ULT_PIP_RADIUS * 0.44
+			pts.append(center + Vector2.from_angle(ang) * r)
+		draw_colored_polygon(pts, ULT_GLOW)
 
 
 static func build(hud: MatchHud) -> void:
@@ -194,8 +222,9 @@ static func build(hud: MatchHud) -> void:
 	hud._place(hud.top, Vector4(0, 0, 1, 0), Vector4(0, 0, 0, 520))
 	hud.top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(hud.top)
-	# left: the settings button
-	hud.settings_button = TextureButton.new()
+	# Settings button (`>= 80x80` touch rect; compact `34px` white-rimmed badge at minimap's bottom-right in landscape 5v5)
+	var gear_btn: GearButton = GearButton.new()
+	hud.settings_button = gear_btn
 	var gear: AtlasTexture = AtlasTexture.new()
 	gear.atlas = GEAR
 	gear.region = Rect2(Vector2.ZERO, GEAR.get_size())
@@ -205,21 +234,20 @@ static func build(hud: MatchHud) -> void:
 	hud.settings_button.ignore_texture_size = true
 	hud.settings_button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 	hud.settings_button.tooltip_text = "Match settings"
-	hud.settings_button.accessibility_name = "Match settings"
+	UiA11y.name_it(hud.settings_button, "Match settings")
 	hud.settings_button.pressed.connect(hud.toggle_menu)
 	hud.top.add_child(hud.settings_button)
-	# 5v5 Squad Wings flanking the scoreboard
+	# Airy 5v5 Squad Wings flanking the scoreboard
 	hud.ally_wing = SquadWing.new(true)
 	hud.ally_wing.visible = false
 	hud.top.add_child(hud.ally_wing)
 	hud.enemy_wing = SquadWing.new(false)
 	hud.enemy_wing.visible = false
 	hud.top.add_child(hud.enemy_wing)
-	# the middle of the header: the score (points and the match clock)
+	# Top-center scoreboard & match clock
 	hud.scoreboard = Scoreboard.new()
 	hud.scoreboard.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.top.add_child(hud.scoreboard)
-	# right: the match clock, the counterpart of the settings button
 	hud.clock_chip = ClockChip.new()
 	hud.top.add_child(hud.clock_chip)
 	layout(hud)
@@ -237,8 +265,9 @@ static func sync_wings(hud: MatchHud, sim: MatchSim, local_team: int, local_id: 
 	(hud.enemy_wing as SquadWing).sync_team(sim, 1 - local_team, local_id)
 
 
-## Places the settings button at the top left, the clock between the two scores, 5v5 squad wings flanking the score in landscape,
-## the tag toast under them, the capture warning above the tray and the opening objective sheet.
+## Places the top-center scoreboard & clock, 5v5 squad wings, and settings gear:
+## - Portrait / street games: standard gear button in top-left header (`MARGIN, TOP_ROW_Y`).
+## - Landscape 5v5: compact `34px` white-rimmed gear badge (`80x80` touch rect) at the minimap's bottom-right.
 static func layout(hud: MatchHud) -> void:
 	if hud.intro_bar != null:
 		hud._place(hud.intro_bar, Vector4(0, 1, 1, 1), Vector4(80, -(hud.console_height() + 150.0), -80, -(hud.console_height() + 6.0)))
@@ -248,14 +277,26 @@ static func layout(hud: MatchHud) -> void:
 	if hud.capture_alert != null:
 		hud._place(hud.capture_alert, Vector4(0, 1, 1, 1), Vector4(0, -(hud.console_height() + TagToast.HEIGHT + TagToast.GAP), 0, -(hud.console_height() + TagToast.GAP)))
 	hud._place(hud.scoreboard, Vector4(0.5, 0, 0.5, 0), Vector4(-MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y, MatchHud.SCORE_SIZE.x / 2.0, MatchHud.TOP_ROW_Y + MatchHud.SCORE_SIZE.y))
-	var gear_box: Vector4 = Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE)
-	hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear_box)
+
+	var compact_gear: bool = hud.landscape and not hud.street_game
+	if hud.settings_button is GearButton:
+		(hud.settings_button as GearButton).set_compact_badge(compact_gear)
+	if compact_gear:
+		# Note: `hud.top.position.y == hud.top_inset`, so local `12.0` matches `minimap` global top `hud.top_inset + 12.0`.
+		var gear_cx: float = hud.side_insets.x + 16.0 + BarangayMinimap.SIZE.x - 22.0
+		var gear_cy: float = 12.0 + BarangayMinimap.SIZE.y - 22.0
+		var half_hit: float = MatchHud.GEAR_SIZE * 0.5
+		hud._place(hud.settings_button, Vector4(0, 0, 0, 0), Vector4(gear_cx - half_hit, gear_cy - half_hit, gear_cx + half_hit, gear_cy + half_hit))
+	else:
+		var gear_box: Vector4 = Vector4(MatchHud.MARGIN, MatchHud.TOP_ROW_Y, MatchHud.MARGIN + MatchHud.GEAR_SIZE, MatchHud.TOP_ROW_Y + MatchHud.GEAR_SIZE)
+		hud._place(hud.settings_button, Vector4(0, 0, 0, 0), gear_box)
+
 	var middle: Rect2 = Scoreboard.middle_rect(MatchHud.SCORE_SIZE, MatchHud.CLOCK_GAP)
 	var left: float = middle.position.x - MatchHud.SCORE_SIZE.x / 2.0
 	hud._place(hud.clock_chip, Vector4(0.5, 0, 0.5, 0), Vector4(left, MatchHud.TOP_ROW_Y + middle.position.y, left + middle.size.x, MatchHud.TOP_ROW_Y + middle.position.y + middle.size.y))
 	if hud.ally_wing != null and hud.enemy_wing != null:
 		var half_score: float = (MatchHud.SCORE_SIZE.x * HudStyle.HEADER_SCALE) * 0.5
-		var wing_y: float = MatchHud.TOP_ROW_Y + 1.0
+		var wing_y: float = MatchHud.TOP_ROW_Y + 4.0
 		hud._place(hud.ally_wing, Vector4(0.5, 0, 0.5, 0), Vector4(-(half_score + WING_SCORE_GAP + WING_W), wing_y, -(half_score + WING_SCORE_GAP), wing_y + WING_H))
 		hud._place(hud.enemy_wing, Vector4(0.5, 0, 0.5, 0), Vector4(half_score + WING_SCORE_GAP, wing_y, half_score + WING_SCORE_GAP + WING_W, wing_y + WING_H))
 
