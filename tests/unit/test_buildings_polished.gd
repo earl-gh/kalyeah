@@ -55,7 +55,7 @@ func test_each_keeps_its_shape_its_triangles_and_one_material() -> void:
 		assert_between(triangles, 80, 18000, "%s: cellular 3D silhouette within mobile triangle budget (%d tris)" % [id, triangles])
 
 
-func test_each_is_drawn_with_arcane_ink_outline_over_the_shared_atlas() -> void:
+func test_each_is_drawn_with_deadlock_pbr_shading_without_comic_hull_outlines() -> void:
 	var saved_perf: StringName = Settings.performance
 	Settings.performance = &"standard"
 	var map: StreetMap = autofree(MAP_SCENE.instantiate()) as StreetMap
@@ -67,11 +67,55 @@ func test_each_is_drawn_with_arcane_ink_outline_over_the_shared_atlas() -> void:
 		assert_gt(meshes.size(), 0)
 		var mi: MeshInstance3D = meshes[0] as MeshInstance3D
 		var over: StandardMaterial3D = mi.get_surface_override_material(0) as StandardMaterial3D
-		assert_not_null(over, "%s receives outlined override material" % landmark_name)
+		assert_not_null(over, "%s receives PBR surface override material" % landmark_name)
 		var base_mat: BaseMaterial3D = mi.mesh.surface_get_material(0) as BaseMaterial3D
 		assert_same(over.albedo_texture, base_mat.albedo_texture, "%s preserves shared BarangayAtlas texture" % landmark_name)
-		assert_not_null(over.next_pass, "%s carries 2D Arcane ink outline next_pass" % landmark_name)
-		var ink_mat: ShaderMaterial = over.next_pass as ShaderMaterial
-		assert_not_null(ink_mat)
-		assert_eq(ink_mat.shader.resource_path, StreetMap.INK_OUTLINE_PATH)
+		assert_true(over.normal_enabled, "%s enables normal map relief" % landmark_name)
+		assert_not_null(over.normal_texture, "%s binds shared PBR normal map" % landmark_name)
+		assert_not_null(over.roughness_texture, "%s binds shared ORM roughness channel" % landmark_name)
+		assert_true(over.ao_enabled, "%s enables ORM ambient occlusion" % landmark_name)
+		assert_null(over.next_pass, "%s omits comic black hull outline next_pass for Deadlock architectural readability" % landmark_name)
 	Settings.performance = saved_perf
+
+
+func test_overhaul_v3_pbr_atlases_and_new_barangay_kits_have_vertex_ao_and_vram_compression() -> void:
+	var pbr_textures: Array[String] = [
+		"res://assets/models/barangay/BarangayAtlas.jpg",
+		"res://assets/models/barangay/BarangayAtlas_normal.png",
+		"res://assets/models/barangay/BarangayAtlas_orm.png",
+		"res://assets/models/barangay/ProvincePropsAtlas.jpg",
+		"res://assets/models/barangay/ProvincePropsAtlas_normal.png",
+		"res://assets/models/barangay/ProvincePropsAtlas_orm.png",
+	]
+	for tex_path: String in pbr_textures:
+		assert_true(ResourceLoader.exists(tex_path), "%s exists" % tex_path)
+		var tex: Texture2D = load(tex_path) as Texture2D
+		assert_not_null(tex)
+		assert_eq(tex.get_size(), Vector2(2048.0, 2048.0), "%s is 2048x2048" % tex_path)
+		var imp: String = FileAccess.get_file_as_string(tex_path + ".import")
+		assert_true(imp.contains("compress/mode=2"), "%s uses VRAM compression" % tex_path)
+
+	var v3_kits: Array[String] = [
+		"brgy_kapilya",
+		"brgy_bakery_oven",
+		"brgy_ilog_steps",
+		"brgy_laundry_stones",
+		"brgy_merienda_stand",
+		"brgy_owner_jeep",
+		"brgy_passenger_jeepney",
+		"brgy_water_drum",
+	]
+	for kit_id: String in v3_kits:
+		var kit_path: String = StreetMap.BARANGAY_DIR % kit_id
+		assert_true(ResourceLoader.exists(kit_path), "%s exists" % kit_path)
+		var scene: PackedScene = load(kit_path) as PackedScene
+		assert_not_null(scene)
+		var inst: Node3D = autofree(scene.instantiate()) as Node3D
+		var meshes: Array[Node] = inst.find_children("*", "MeshInstance3D", true, false)
+		if inst is MeshInstance3D:
+			meshes.append(inst)
+		assert_eq(meshes.size(), 1, "%s single combined MeshInstance3D" % kit_id)
+		var mi: MeshInstance3D = meshes[0] as MeshInstance3D
+		var arrays: Array = mi.mesh.surface_get_arrays(0)
+		var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR] as PackedColorArray
+		assert_gt(colors.size(), 0, "%s carries baked vertex AO in COLOR_0" % kit_id)

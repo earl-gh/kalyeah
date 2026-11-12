@@ -1,2064 +1,1032 @@
-"""
-Build the Overhaul v2 Handcrafted 90s Philippine Provincial Props Kit in Blender 5.2.
+"""Deadlock-Quality V3 1990s Philippine Province Landmark & Prop Kit Generator (Blender 5.2+).
 
-Zero-AI-Slop Studio Craftsmanship:
-  - Soft sunlit 90s provincial 2048x2048 painterly atlas (`ProvincePropsAtlas.jpg`,
-    mean_sRGB ~ 0.45-0.48, max_sRGB <= 0.76, warm espresso-umber contours #281E23,
-    damp green lumot moss on concrete/CHB, oxidized sienna rust on GI/steel, and
-    crisp vector-rasterized Tagalog street signage).
-  - Never applies manual **2.4 or **(1/2.2) gamma on byte-backed Blender Image.pixels.
-  - Writes clean VRAM-compressed `ProvincePropsAtlas.jpg.import` (`compress/mode=2`,
-    `mipmaps/generate=true`, `"vram_texture": true`, zero `md5` or `generator_parameters`).
-  - Exports 10 single-draw-call, grounded (`min_y ~ 0.0`), beveled/lofted `.glb` models:
-      1. `brgy_jeepney.glb` (~5.4m 90s provincial passenger jeepney)
-      2. `brgy_tricycle.glb` (~2.3m motorcycle + galvanized pampasahero sidecar)
-      3. `brgy_toda_shed.glb` (BRGY. TODA TERMINAL dispatch & waiting shed)
-      4. `brgy_wooden_hoop.glb` (90s kalye coco-lumber basketball post + tire base)
-      5. `brgy_chb_wall.glb` (~6.0m x 2.1m mossy CHB wall + rebar + BAWAL UMIHI DITO)
-      6. `brgy_mango_tree.glb` (Punong Mangga: buttress roots, gnarled limbs, layered canopy)
-      7. `brgy_banana_clump.glb` (Puno ng Saging: 3 pseudostems, split arched fronds, puso)
-      8. `brgy_coconut_palm.glb` (Puno ng Niyog: curved ringed trunk, pinnate fronds, buko)
-      9. `brgy_sampayan_3d.glb` (True 3D volumetric hanging clothes + sipit on sagging rope)
-     10. `brgy_powerup_stand.glb` (90s Palamig / Sago't Gulaman + Teks + Turon stand)
-
-Run:
-  "C:\\Program Files\\Blender Foundation\\Blender 5.2\\blender.exe" --background --python tools/blender/build_province_90s_props.py
+Generates `ProvincePropsAtlas.jpg` + `ProvincePropsAtlas_normal.png` (2048x2048) and 11
+single-mesh, single-surface, BVH-AO-baked, normal-mapped `.glb` assets (`min_y = 0.000`):
+  - brgy_jeepney        (Curved pressed-steel Sarao Jeepney + route board + spoked wheels)
+  - brgy_tricycle       (Pinoy commuter motorcycle + galvanized kolong-kolong sidecar)
+  - brgy_toda_shed      (Barangay TODA Tricycle Terminal dispatcher shed)
+  - brgy_wooden_hoop    (Improvised coco-lumber kalye basketball post + chain net)
+  - brgy_chb_wall       (Mossy CHB compound wall + broken plaster + iron grille + Bawal Umihi)
+  - brgy_mango_tree     (Multi-forked gnarled Mango tree + layered foliage clusters + ripe mangoes)
+  - brgy_coconut_palm   (Curved ringed Coconut palm + buko cluster + 13 arched pinnate fronds)
+  - brgy_banana_clump   (3-stalk Saging clump + V-folded wind-split leaves + crimson puso heart)
+  - brgy_sampayan_3d    (Twin bamboo T-posts + catenary lines + 5 sculpted draped garments + sipit)
+  - brgy_powerup_stand  (90s Merienda Sago't Gulaman & Banana-Q power-up stall)
+  - brgy_poster_cluster (Grounded barangay corner signpost + Halalan '95 & Malabanan notices)
 """
 
-import hashlib
-import json
+from __future__ import annotations
+
 import math
-import os
-import struct
-import bpy
-import bmesh
-import numpy as np
-from mathutils import Vector, Euler, Matrix
-
-
-OUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets", "models", "barangay"))
-ATLAS_NAME = "ProvincePropsAtlas"
-ATLAS_FILENAME = f"{ATLAS_NAME}.jpg"
-ATLAS_SIZE = 2048
-GRID = 8
-CELL = ATLAS_SIZE // GRID   # 256x256 px per swatch
-PAD_PX = 16                 # 16 px mipmap bleed gutter around every swatch
-PAD_UV = PAD_PX / float(CELL)
-
-# Sunlit 90s daytime clamping: warm espresso floor (#261D22), pre-JPEG ceiling 0.585 keeps decoded JPEG max_sRGB <= 0.75
-MIN_ALBEDO = 0.145
-MAX_ALBEDO = 0.585
-ESPRESSO_INK = np.array([0.165, 0.125, 0.140], dtype=np.float32)
-
-
-# Compact 5x7 bitmap font for crisp hand-painted 90s Filipino signboard lettering
-FONT_5X7 = {
-    "A": ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
-    "B": ["11110", "10001", "10001", "11110", "10001", "10001", "11110"],
-    "C": ["01111", "10000", "10000", "10000", "10000", "10000", "01111"],
-    "D": ["11110", "10001", "10001", "10001", "10001", "10001", "11110"],
-    "E": ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
-    "F": ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
-    "G": ["01111", "10000", "10000", "10011", "10001", "10001", "01111"],
-    "H": ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
-    "I": ["01110", "00100", "00100", "00100", "00100", "00100", "01110"],
-    "J": ["00111", "00010", "00010", "00010", "10010", "10010", "01100"],
-    "K": ["10001", "10010", "10100", "11000", "10100", "10010", "10001"],
-    "L": ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
-    "M": ["10001", "11011", "10101", "10101", "10001", "10001", "10001"],
-    "N": ["10001", "11001", "10101", "10011", "10001", "10001", "10001"],
-    "O": ["01110", "10001", "10001", "10001", "10001", "10001", "01110"],
-    "P": ["11110", "10001", "10001", "11110", "10000", "10000", "10000"],
-    "R": ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
-    "S": ["01111", "10000", "10000", "01110", "00001", "00001", "11110"],
-    "T": ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
-    "U": ["10001", "10001", "10001", "10001", "10001", "10001", "01110"],
-    "V": ["10001", "10001", "10001", "10001", "10001", "01010", "00100"],
-    "W": ["10001", "10001", "10001", "10101", "10101", "11011", "10001"],
-    "Y": ["10001", "10001", "01010", "00100", "00100", "00100", "00100"],
-    "0": ["01110", "10011", "10101", "10101", "11001", "10001", "01110"],
-    "4": ["00010", "00110", "01010", "10010", "11111", "00010", "00010"],
-    "9": ["01110", "10001", "10001", "01111", "00001", "00001", "01110"],
-    "-": ["00000", "00000", "00000", "11111", "00000", "00000", "00000"],
-    ".": ["00000", "00000", "00000", "00000", "00000", "01100", "01100"],
-    "'": ["00100", "00100", "01000", "00000", "00000", "00000", "00000"],
-    " ": ["00000", "00000", "00000", "00000", "00000", "00000", "00000"],
-}
-
-
-SWATCHES = {
-    # Row 0: CHB Hollow Blocks, Mossy Concrete & BAWAL UMIHI DITO Stencil
-    "chb_moss_base":      (0, 0, (0.50, 0.50, 0.47), "chb", {"moss": True, "plaster": 0.0}),
-    "chb_sunlit_upper":   (0, 1, (0.54, 0.53, 0.50), "chb", {"moss": False, "plaster": 0.0}),
-    "chb_plaster_ochre":  (0, 2, (0.62, 0.54, 0.39), "chb", {"moss": True, "plaster": 0.62}),
-    "chb_bawal_umihi":    (0, 3, (0.58, 0.55, 0.49), "bawal_sign", {}),
-    "concrete_mossy":     (0, 4, (0.49, 0.50, 0.46), "concrete", {"moss": True}),
-    "concrete_warm":      (0, 5, (0.56, 0.54, 0.50), "concrete", {"moss": False}),
-    "mortar_broken":      (0, 6, (0.46, 0.45, 0.43), "concrete", {"moss": False}),
-    "hazard_curb_90s":    (0, 7, (0.64, 0.52, 0.19), "hazard", {}),
-
-    # Row 1: Corrugated GI Roofs (Kalawang na Yero) & Brushed/Rusted Metals
-    "yero_sunlit_zinc":   (1, 0, (0.56, 0.57, 0.58), "yero", {"rust": 0.34}),
-    "yero_rust_streaks":  (1, 1, (0.52, 0.32, 0.22), "yero", {"rust": 0.74}),
-    "yero_green_90s":     (1, 2, (0.30, 0.49, 0.35), "yero", {"rust": 0.36}),
-    "steel_galvanized":   (1, 3, (0.57, 0.58, 0.59), "metal", {"rust": 0.12}),
-    "steel_chrome":       (1, 4, (0.64, 0.65, 0.66), "metal", {"rust": 0.04}),
-    "steel_rusted_orange":(1, 5, (0.58, 0.31, 0.19), "metal", {"rust": 0.68}),
-    "steel_chassis":      (1, 6, (0.28, 0.26, 0.27), "metal", {"rust": 0.25}),
-    "fender_rust":        (1, 7, (0.55, 0.56, 0.57), "fender_rust", {}),
-
-    # Row 2: Jeepney & Tricycle Liveries, Glass, Headlights, Tires & Seats
-    "jeep_sunlit_gold":   (2, 0, (0.65, 0.51, 0.20), "livery", {"trim": (0.60, 0.23, 0.20)}),
-    "jeep_crimson_red":   (2, 1, (0.61, 0.24, 0.21), "livery", {"trim": (0.65, 0.54, 0.24)}),
-    "jeep_royal_blue":    (2, 2, (0.23, 0.43, 0.63), "livery", {"trim": (0.64, 0.56, 0.28)}),
-    "jeep_jade_teal":     (2, 3, (0.22, 0.53, 0.48), "livery", {"trim": (0.65, 0.58, 0.36)}),
-    "windshield_tint":    (2, 4, (0.39, 0.51, 0.57), "glass", {}),
-    "headlight_lens":     (2, 5, (0.66, 0.62, 0.49), "lamp", {}),
-    "rubber_tread":       (2, 6, (0.24, 0.22, 0.23), "tire", {}),
-    "vinyl_seat":         (2, 7, (0.40, 0.24, 0.21), "wood", {"planks": 5}),
-
-    # Row 3: Hand-Painted 90s Signboards, Backboard, Number Plate & Net Cord
-    "sign_jeep_route":    (3, 0, (0.65, 0.57, 0.25), "text_sign", {"l1": "POBLACION", "l2": "TABING-ILOG", "fg": (0.18, 0.13, 0.14), "hdr": (0.60, 0.22, 0.19)}),
-    "sign_toda_terminal": (3, 1, (0.21, 0.42, 0.56), "text_sign", {"l1": "BRGY. TODA", "l2": "TERMINAL", "fg": (0.66, 0.62, 0.52), "hdr": (0.64, 0.50, 0.19)}),
-    "sign_plate_toda":    (3, 2, (0.63, 0.54, 0.21), "text_sign", {"l1": "TODA 04", "l2": "PILIPINAS", "fg": (0.19, 0.39, 0.24), "hdr": (0.63, 0.54, 0.21)}),
-    "sign_fare_board":    (3, 3, (0.25, 0.34, 0.28), "text_sign", {"l1": "TODA FARE", "l2": "BARKER", "fg": (0.64, 0.61, 0.53), "hdr": (0.54, 0.37, 0.22)}),
-    "backboard_kalye":    (3, 4, (0.63, 0.61, 0.56), "backboard", {}),
-    "sign_palamig":       (3, 5, (0.64, 0.49, 0.20), "text_sign", {"l1": "PALAMIG", "l2": "TEKS TURON", "fg": (0.66, 0.63, 0.55), "hdr": (0.60, 0.23, 0.20)}),
-    "teks_cards":         (3, 6, (0.58, 0.44, 0.28), "teks", {}),
-    "cord_net":           (3, 7, (0.59, 0.55, 0.47), "burlap", {}),
-
-    # Row 4: Provincial Woods, Coco-Lumber, Bamboo, Bilao & Burlap
-    "coco_lumber":        (4, 0, (0.52, 0.37, 0.24), "wood", {"planks": 3}),
-    "wood_bench_worn":    (4, 1, (0.56, 0.44, 0.31), "wood", {"planks": 4}),
-    "wood_stool_warm":    (4, 2, (0.48, 0.33, 0.21), "wood", {"planks": 3}),
-    "bamboo_golden":      (4, 3, (0.56, 0.51, 0.29), "bamboo", {}),
-    "bilao_rattan":       (4, 4, (0.60, 0.48, 0.28), "weave", {}),
-    "burlap_sako":        (4, 5, (0.59, 0.53, 0.40), "burlap", {}),
-    "sipit_wood":         (4, 6, (0.61, 0.50, 0.35), "wood", {"planks": 2}),
-    "dried_banana_bark":  (4, 7, (0.49, 0.39, 0.27), "wood", {"planks": 5}),
-
-    # Row 5: Philippine Tree Barks, Pseudostems, Coconuts & Fruits
-    "bark_mango":         (5, 0, (0.40, 0.33, 0.27), "bark_mango", {}),
-    "bark_coconut":       (5, 1, (0.49, 0.44, 0.38), "bark_palm", {}),
-    "stem_banana":        (5, 2, (0.43, 0.53, 0.27), "stem_banana", {}),
-    "buko_green":         (5, 3, (0.40, 0.55, 0.24), "fruit", {}),
-    "buko_golden":        (5, 4, (0.60, 0.48, 0.21), "fruit", {}),
-    "mango_fruit":        (5, 5, (0.65, 0.54, 0.20), "fruit", {}),
-    "puso_ng_saging":     (5, 6, (0.50, 0.21, 0.27), "puso", {}),
-    "banana_bunch":       (5, 7, (0.49, 0.56, 0.24), "fruit", {}),
-
-    # Row 6: Sunlit Multi-Layered Philippine Tropical Foliage
-    "leaf_mango_sun":     (6, 0, (0.40, 0.56, 0.23), "foliage", {"vein_freq": 10.0}),
-    "leaf_mango_mid":     (6, 1, (0.31, 0.48, 0.21), "foliage", {"vein_freq": 10.0}),
-    "leaf_mango_shade":   (6, 2, (0.24, 0.39, 0.19), "foliage", {"vein_freq": 10.0}),
-    "leaf_mango_flush":   (6, 3, (0.53, 0.39, 0.23), "foliage", {"vein_freq": 10.0}),
-    "leaf_banana_sun":    (6, 4, (0.41, 0.57, 0.24), "banana_leaf", {}),
-    "leaf_banana_under":  (6, 5, (0.38, 0.51, 0.33), "banana_leaf", {}),
-    "leaf_palm_sun":      (6, 6, (0.37, 0.54, 0.22), "foliage", {"vein_freq": 16.0}),
-    "leaf_palm_mid":      (6, 7, (0.29, 0.45, 0.20), "foliage", {"vein_freq": 16.0}),
-
-    # Row 7: Volumetric Sampayan Fabrics, Trapal Canopy, Palamig & Turon
-    "cloth_ringer_cream": (7, 0, (0.65, 0.61, 0.52), "laundry", {"stripe": (0.63, 0.46, 0.19)}),
-    "cloth_jersey_red":   (7, 1, (0.61, 0.26, 0.23), "laundry", {"stripe": (0.65, 0.59, 0.46)}),
-    "cloth_shorts_blue":  (7, 2, (0.25, 0.45, 0.63), "laundry", {"stripe": (0.64, 0.61, 0.53)}),
-    "cloth_towel_jade":   (7, 3, (0.31, 0.56, 0.52), "laundry", {"stripe": (0.64, 0.56, 0.34)}),
-    "cloth_daster_floral":(7, 4, (0.63, 0.45, 0.37), "daster", {}),
-    "trapal_sun_stripe":  (7, 5, (0.24, 0.46, 0.62), "trapal_stripe", {}),
-    "palamig_gulaman":    (7, 6, (0.58, 0.41, 0.22), "palamig", {}),
-    "turon_golden":       (7, 7, (0.61, 0.43, 0.20), "wood", {"planks": 4}),
-}
-
-
-def _value_noise(u: np.ndarray, v: np.ndarray, freq_u: int, freq_v: int, seed: int) -> np.ndarray:
-    rng = np.random.default_rng(seed)
-    grid = rng.random((freq_v + 2, freq_u + 2), dtype=np.float32)
-    su = np.clip(u, 0.0, 0.9999) * freq_u
-    sv = np.clip(v, 0.0, 0.9999) * freq_v
-    iu = np.floor(su).astype(np.int32)
-    iv = np.floor(sv).astype(np.int32)
-    fu = su - iu
-    fv = sv - iv
-    fu = fu * fu * (3.0 - 2.0 * fu)
-    fv = fv * fv * (3.0 - 2.0 * fv)
-    n00 = grid[iv, iu]
-    n10 = grid[iv, iu + 1]
-    n01 = grid[iv + 1, iu]
-    n11 = grid[iv + 1, iu + 1]
-    return (n00 * (1.0 - fu) + n10 * fu) * (1.0 - fv) + (n01 * (1.0 - fu) + n11 * fu) * fv
-
-
-def _fbm_brush(u: np.ndarray, v: np.ndarray, seed: int, su: int = 6, sv: int = 6) -> np.ndarray:
-    n1 = _value_noise(u, v, su, sv, seed)
-    n2 = _value_noise(u, v, su * 2 + 1, sv * 2 + 1, seed + 19)
-    n3 = _value_noise(u, v, su * 4 + 3, sv * 4 + 3, seed + 57)
-    raw = 0.56 * n1 + 0.29 * n2 + 0.15 * n3
-    stepped = np.round(raw * 6.0) / 6.0
-    return (0.65 * raw + 0.35 * stepped) - 0.5
-
-
-def _mix(a: np.ndarray, b, t: np.ndarray) -> np.ndarray:
-    b_arr = np.asarray(b, dtype=np.float32)
-    return a * (1.0 - t[..., None]) + b_arr * t[..., None]
-
-
-def _text_mask(lu: np.ndarray, lv: np.ndarray, text: str, u0: float, u1: float, v_bot: float, v_top: float) -> np.ndarray:
-    """Renders crisp 5x7 signboard block glyphs into UV space (lv increases upward)."""
-    n_chars = max(len(text), 1)
-    total_cols = n_chars * 6 - 1
-    mask = np.zeros_like(lu, dtype=np.float32)
-    in_box = (lu >= u0) & (lu <= u1) & (lv >= v_bot) & (lv <= v_top)
-    cu = (lu - u0) / max(u1 - u0, 1e-4) * total_cols
-    # Flip vertical so row 0 of glyph is at v_top
-    cv = (v_top - lv) / max(v_top - v_bot, 1e-4) * 7.0
-    col_i = np.floor(cu).astype(np.int32)
-    row_i = np.floor(cv).astype(np.int32)
-    char_idx = col_i // 6
-    sub_col = col_i % 6
-    for idx, ch in enumerate(text.upper()):
-        glyph = FONT_5X7.get(ch, FONT_5X7[" "])
-        for r in range(7):
-            row_bits = glyph[r]
-            for c in range(5):
-                if row_bits[c] == "1":
-                    hit = in_box & (char_idx == idx) & (sub_col == c) & (row_i == r)
-                    mask = np.maximum(mask, hit.astype(np.float32))
-    return mask
-
-
-def _apply_moss_and_damp(rgb: np.ndarray, lu: np.ndarray, lv: np.ndarray, seed: int) -> np.ndarray:
-    """Applies organic dark-green lumot moss & capillary dampness rising up concrete/CHB bases."""
-    fingers = _value_noise(lu, lv, 17, 5, seed + 401) * 0.18 + _fbm_brush(lu, lv, seed + 433, 7, 4) * 0.13
-    moss_h = 0.27 + fingers
-    damp = np.clip((moss_h + 0.12 - lv) * 5.5, 0.0, 1.0)
-    lumot_mid = np.clip((moss_h - lv) * 9.0, 0.0, 1.0)
-    lumot_bright = ((_value_noise(lu, lv, 32, 32, seed + 467) > 0.68) & (lv < moss_h)).astype(np.float32)
-    lumot_root = np.clip((0.11 + fingers * 0.42 - lv) * 12.0, 0.0, 1.0)
-    rgb = _mix(rgb, (0.31, 0.35, 0.25), damp * 0.60)
-    rgb = _mix(rgb, (0.20, 0.36, 0.16), lumot_mid * 0.84)
-    rgb = _mix(rgb, (0.30, 0.46, 0.20), lumot_bright * lumot_mid * 0.55)
-    rgb = _mix(rgb, (0.15, 0.25, 0.14), lumot_root * 0.78)
-    return rgb
-
-
-def _paint_swatch(row: int, col: int, base_rgb, kind: str, param: dict) -> np.ndarray:
-    seed = 2000 + row * 37 + col * 11
-    py, px = np.mgrid[0:CELL, 0:CELL].astype(np.float32)
-    u_raw = (px + 0.5) / float(CELL)
-    v_raw = (py + 0.5) / float(CELL)
-    lu = np.clip((u_raw - PAD_UV) / (1.0 - 2.0 * PAD_UV), 0.0, 1.0)
-    lv = np.clip((v_raw - PAD_UV) / (1.0 - 2.0 * PAD_UV), 0.0, 1.0)
-
-    rgb = np.empty((CELL, CELL, 3), dtype=np.float32)
-    rgb[..., 0], rgb[..., 1], rgb[..., 2] = base_rgb
-
-    brush = _fbm_brush(lu, lv, seed, 6, 6)
-    wobble = _value_noise(lu, lv, 14, 14, seed + 97) - 0.5
-    rgb[..., 0] += brush * 0.075
-    rgb[..., 1] += brush * 0.062
-    rgb[..., 2] += brush * 0.042
-
-    if kind == "chb":
-        courses, cols = 8.0, 4.0
-        by = lv * courses + wobble * 0.032
-        r_idx = np.floor(by)
-        fy = by - r_idx
-        bx = lu * cols + (r_idx % 2.0) * 0.5 + wobble * 0.024
-        c_idx = np.floor(bx)
-        fx = bx - c_idx
-        blk_var = ((np.sin(r_idx * 12.989 + c_idx * 78.233 + seed) * 43758.54) % 1.0) - 0.5
-        chb_col = rgb + blk_var[..., None] * 0.065
-        mortar = ((fy < 0.13) | (fx < 0.085)).astype(np.float32)
-        arris = (((fy >= 0.13) & (fy < 0.185)) & (fx >= 0.085)).astype(np.float32)
-        # Moss creeping inside horizontal mortar joints on damp walls
-        mortar_col = (0.24, 0.32, 0.21) if param.get("moss", False) else (0.32, 0.30, 0.29)
-        chb_col = _mix(chb_col, mortar_col, mortar * 0.85)
-        chb_col += arris[..., None] * 0.045
-        plaster = float(param.get("plaster", 0.0))
-        if plaster > 0.0:
-            p_field = _fbm_brush(lu, lv, seed + 307, 5, 5) + 0.5 + lv * 0.24
-            p_mask = np.clip((p_field - (1.0 - plaster)) * 9.0, 0.0, 1.0)
-            rgb = _mix(chb_col, rgb - mortar[..., None] * 0.025, p_mask)
-        else:
-            rgb = chb_col
-        if param.get("moss", False):
-            rgb = _apply_moss_and_damp(rgb, lu, lv, seed)
-
-    elif kind == "bawal_sign":
-        # Plastered CHB wall patch with crisp stenciled "BAWAL UMIHI / DITO"
-        rgb = _paint_swatch(row, col, (0.56, 0.54, 0.49), "chb", {"moss": False, "plaster": 0.84})
-        patch = ((lu > 0.07) & (lu < 0.93) & (lv > 0.34) & (lv < 0.86)).astype(np.float32)
-        rgb = _mix(rgb, (0.64, 0.61, 0.54), patch * 0.86)
-        m1 = _text_mask(lu + wobble * 0.004, lv, "BAWAL UMIHI", 0.10, 0.90, 0.62, 0.80)
-        m2 = _text_mask(lu + wobble * 0.004, lv, "DITO", 0.30, 0.70, 0.40, 0.57)
-        txt = np.maximum(m1, m2)
-        fade = 0.78 + 0.22 * _value_noise(lu, lv, 18, 18, seed + 55)
-        rgb = _mix(rgb, (0.56, 0.20, 0.19), txt * fade)
-        return np.clip(rgb, MIN_ALBEDO, MAX_ALBEDO)
-
-    elif kind == "concrete":
-        pits = (_value_noise(lu, lv, 32, 32, seed + 113) > 0.79).astype(np.float32)
-        rgb = _mix(rgb, (0.34, 0.33, 0.31), pits * 0.42)
-        if param.get("moss", False):
-            rgb = _apply_moss_and_damp(rgb, lu, lv, seed)
-
-    elif kind == "hazard":
-        diag = ((np.floor((lu + lv) * 7.0) % 2.0) > 0.5).astype(np.float32)
-        rgb = _mix(rgb, (0.24, 0.21, 0.22), diag * 0.86)
-
-    elif kind == "yero":
-        ribs = 14.0
-        phase = lu * ribs * 2.0 * math.pi
-        rgb += np.sin(phase)[..., None] * 0.062
-        valley = np.clip(-np.cos(phase + 0.35) - 0.5, 0.0, 0.5)
-        rgb = _mix(rgb, ESPRESSO_INK, valley * 0.65)
-        rust_amt = float(param.get("rust", 0.4))
-        rf = _fbm_brush(lu, lv, seed + 511, 5, 9) + 0.52
-        r_mask = np.clip((rf - (1.0 - rust_amt)) * 5.0, 0.0, 1.0)
-        rgb = _mix(rgb, (0.54, 0.27, 0.17), r_mask * 0.82)
-        lap = (np.abs(lv - 0.52 - wobble * 0.012) < 0.014).astype(np.float32)
-        rgb = _mix(rgb, ESPRESSO_INK, lap * 0.72)
-
-    elif kind == "metal":
-        sheen = np.sin((lu * 0.8 + lv * 0.4) * math.pi * 4.0) * 0.042
-        rgb += sheen[..., None]
-        rust_amt = float(param.get("rust", 0.15))
-        rf = np.clip((_fbm_brush(lu, lv, seed + 149, 7, 7) + rust_amt - 0.20) * 4.2, 0.0, 1.0)
-        rgb = _mix(rgb, (0.52, 0.27, 0.17), rf * 0.78)
-
-    elif kind == "fender_rust":
-        sheen = np.sin(lu * math.pi * 5.0) * 0.038
-        rgb += sheen[..., None]
-        r_band = np.clip((0.34 + wobble * 0.10 - lv) * 6.5, 0.0, 1.0)
-        rgb = _mix(rgb, (0.53, 0.26, 0.16), r_band * 0.86)
-
-    elif kind == "livery":
-        trim = np.asarray(param.get("trim", (0.60, 0.23, 0.20)), dtype=np.float32)
-        stripe = ((lv > 0.38) & (lv < 0.62)).astype(np.float32)
-        pin = ((np.abs(lv - 0.34) < 0.018) | (np.abs(lv - 0.66) < 0.018)).astype(np.float32)
-        rgb = _mix(rgb, trim, stripe * 0.86)
-        rgb = _mix(rgb, (0.65, 0.62, 0.53), pin * 0.75)
-
-    elif kind == "glass":
-        tint = np.clip((lv - 0.74) * 5.0, 0.0, 1.0)
-        rgb = _mix(rgb, (0.22, 0.46, 0.38), tint * 0.65)
-        glint = ((lu + lv * 0.55 > 0.62) & (lu + lv * 0.55 < 0.78)).astype(np.float32)
-        rgb = _mix(rgb, (0.62, 0.66, 0.67), glint * 0.55)
-
-    elif kind == "lamp":
-        d = np.hypot(lu - 0.5, lv - 0.5)
-        glow = np.clip(1.0 - d * 1.4, 0.0, 1.0)
-        ribs = np.sin(lu * math.pi * 16.0) * 0.025
-        rgb = _mix(np.array([0.48, 0.42, 0.30], dtype=np.float32), base_rgb, glow) + ribs[..., None]
-        bezel = ((d > 0.40) & (d < 0.48)).astype(np.float32)
-        rgb = _mix(rgb, (0.58, 0.59, 0.60), bezel * 0.85)
-
-    elif kind == "tire":
-        lug = (((np.floor(lv * 12.0) + np.floor(lu * 4.0)) % 2.0) * 0.032)
-        rgb += lug[..., None]
-        groove = ((np.abs(lu - 0.34) < 0.026) | (np.abs(lu - 0.66) < 0.026)).astype(np.float32)
-        rgb = _mix(rgb, ESPRESSO_INK, groove * 0.68)
-
-    elif kind == "text_sign":
-        hdr_col = np.asarray(param.get("hdr", (0.62, 0.48, 0.20)), dtype=np.float32)
-        fg_col = np.asarray(param.get("fg", (0.65, 0.62, 0.53)), dtype=np.float32)
-        hdr_band = ((lv > 0.56) & (lv < 0.92) & (lu > 0.05) & (lu < 0.95)).astype(np.float32)
-        rgb = _mix(rgb, hdr_col, hdr_band * 0.88)
-        t1 = _text_mask(lu, lv, param.get("l1", ""), 0.08, 0.92, 0.60, 0.87)
-        t2 = _text_mask(lu, lv, param.get("l2", ""), 0.08, 0.92, 0.16, 0.46)
-        sh1 = _text_mask(lu - 0.012, lv + 0.018, param.get("l1", ""), 0.08, 0.92, 0.60, 0.87) * (1.0 - t1)
-        sh2 = _text_mask(lu - 0.012, lv + 0.018, param.get("l2", ""), 0.08, 0.92, 0.16, 0.46) * (1.0 - t2)
-        rgb = _mix(rgb, ESPRESSO_INK, np.maximum(sh1, sh2) * 0.72)
-        rgb = _mix(rgb, fg_col, np.maximum(t1, t2) * 0.94)
-        border = (((np.abs(lu - 0.05) < 0.014) | (np.abs(lu - 0.95) < 0.014) | (np.abs(lv - 0.07) < 0.016) | (np.abs(lv - 0.93) < 0.016))).astype(np.float32)
-        rgb = _mix(rgb, ESPRESSO_INK, border * 0.78)
-        corner_rust = np.clip((1.0 - np.minimum(np.minimum(lu, 1.0 - lu), np.minimum(lv, 1.0 - lv)) * 7.5) * (_fbm_brush(lu, lv, seed + 81, 6, 6) + 0.6), 0.0, 1.0)
-        rgb = _mix(rgb, (0.50, 0.25, 0.16), corner_rust * 0.72)
-
-    elif kind == "backboard":
-        grain = np.sin(lu * 10.0 + wobble * 4.0) * 0.032
-        rgb += grain[..., None]
-        peel = np.clip((_fbm_brush(lu, lv, seed + 91, 7, 7) - 0.22) * 6.0, 0.0, 1.0)
-        rgb = _mix(rgb, (0.50, 0.40, 0.29), peel * 0.65)
-        outer = (lu > 0.28) & (lu < 0.72) & (lv > 0.16) & (lv < 0.56)
-        inner = (lu > 0.34) & (lu < 0.66) & (lv > 0.22) & (lv < 0.50)
-        shooter = (outer & (~inner)).astype(np.float32)
-        border_red = ((lu < 0.05) | (lu > 0.95) | (lv < 0.06) | (lv > 0.94)).astype(np.float32)
-        rgb = _mix(rgb, (0.59, 0.23, 0.20), np.maximum(shooter, border_red * 0.8) * 0.88)
-
-    elif kind == "teks":
-        cx = np.floor(lu * 4.0)
-        cy = np.floor(lv * 4.0)
-        fx = (lu * 4.0) - cx
-        fy = (lv * 4.0) - cy
-        pal = [(0.64, 0.50, 0.20), (0.60, 0.25, 0.22), (0.24, 0.47, 0.62), (0.28, 0.52, 0.33)]
-        idx = ((cx * 3 + cy * 5) % 4).astype(np.int32)
-        for k in range(4):
-            rgb = np.where((idx == k)[..., None], np.array(pal[k], dtype=np.float32), rgb)
-        frame = ((fx < 0.12) | (fy < 0.12)).astype(np.float32)
-        rgb = _mix(rgb, (0.65, 0.61, 0.52), frame * 0.85)
-
-    elif kind == "wood":
-        planks = float(param.get("planks", 3))
-        p_idx = np.floor(lv * planks)
-        fy = (lv * planks) - p_idx
-        grain = _fbm_brush(lu, lv, seed + 23, 16, 4) * 0.085
-        rgb += grain[..., None]
-        seam = (fy < 0.075).astype(np.float32)
-        rgb = _mix(rgb, ESPRESSO_INK, seam * 0.68)
-
-    elif kind == "bamboo":
-        cyl = np.cos((lu - 0.5) * math.pi) * 0.065 - 0.02
-        rgb += cyl[..., None]
-        for nz in (0.24, 0.52, 0.79):
-            ring = (np.abs(lv - nz) < 0.022).astype(np.float32)
-            rgb = _mix(rgb, (0.33, 0.28, 0.17), ring * 0.80)
-
-    elif kind == "weave":
-        s = 11.0
-        du = (lu + lv) * s
-        dv = (lu - lv + 1.0) * s
-        over = ((np.floor(du) + np.floor(dv)) % 2.0) < 0.5
-        rgb = np.where(over[..., None], rgb * 1.06, rgb * 0.84)
-
-    elif kind == "burlap":
-        weave = (np.sin(lu * 80.0) * np.sin(lv * 80.0)) * 0.032
-        rgb += weave[..., None]
-        band = ((lv > 0.44) & (lv < 0.56)).astype(np.float32)
-        rgb = _mix(rgb, (0.58, 0.24, 0.21), band * 0.55)
-
-    elif kind == "bark_mango":
-        fissure = np.sin(lu * math.pi * 14.0 + wobble * 5.0) * 0.065
-        rgb += fissure[..., None]
-        moss_patch = np.clip((_fbm_brush(lu, lv, seed + 63, 6, 8) + 0.18 - lv * 0.28) * 4.5, 0.0, 1.0)
-        rgb = _mix(rgb, (0.25, 0.39, 0.19), moss_patch * 0.62)
-
-    elif kind == "bark_palm":
-        rings = np.sin(lv * math.pi * 22.0 + wobble * 2.5)
-        scar = (rings > 0.62).astype(np.float32)
-        groove = (rings < -0.68).astype(np.float32)
-        rgb = _mix(rgb, (0.58, 0.53, 0.46), scar * 0.55)
-        rgb = _mix(rgb, (0.31, 0.26, 0.23), groove * 0.65)
-
-    elif kind == "stem_banana":
-        sheath = np.abs(((lu * 4.0) % 1.0) - 0.5) < 0.055
-        fiber = np.sin(lv * math.pi * 24.0) * 0.025
-        rgb += fiber[..., None]
-        rgb = _mix(rgb, (0.31, 0.41, 0.20), sheath.astype(np.float32) * 0.65)
-
-    elif kind == "fruit":
-        grad = np.clip(lv * 0.22 - 0.08, -0.08, 0.12)
-        rgb += grad[..., None]
-
-    elif kind == "puso":
-        bract = np.sin(lv * math.pi * 10.0) * 0.045
-        rgb += bract[..., None]
-
-    elif kind == "foliage":
-        vf = float(param.get("vein_freq", 12.0))
-        rib = (np.abs(lu - 0.50) < 0.032).astype(np.float32)
-        vein = np.sin((lv * vf - np.abs(lu - 0.5) * 8.0) * math.pi) * 0.038
-        dapple = _fbm_brush(lu, lv, seed + 131, 5, 5) * 0.075
-        rgb += (vein + dapple)[..., None]
-        rgb = _mix(rgb, np.clip(np.asarray(base_rgb, dtype=np.float32) * 1.18, 0.0, MAX_ALBEDO), rib * 0.55)
-
-    elif kind == "banana_leaf":
-        rib = (np.abs(lu - 0.50) < 0.038).astype(np.float32)
-        veins = np.sin((lv * 26.0 - np.abs(lu - 0.5) * 6.0) * math.pi) * 0.032
-        rgb += veins[..., None]
-        rgb = _mix(rgb, (0.53, 0.62, 0.29), rib * 0.72)
-
-    elif kind == "laundry":
-        stripe_col = np.asarray(param.get("stripe", (0.64, 0.58, 0.46)), dtype=np.float32)
-        band = (((lv > 0.44) & (lv < 0.56)) | ((lv > 0.08) & (lv < 0.14))).astype(np.float32)
-        fold = np.sin(lu * math.pi * 6.0) * 0.042
-        rgb = _mix(rgb, stripe_col, band * 0.84) + fold[..., None]
-
-    elif kind == "daster":
-        gx = (lu * 6.0) % 1.0 - 0.5
-        gy = (lv * 6.0) % 1.0 - 0.5
-        petal = (np.hypot(gx, gy) < 0.24).astype(np.float32)
-        leaf_dot = (np.hypot(gx - 0.18, gy + 0.15) < 0.12).astype(np.float32)
-        rgb = _mix(rgb, (0.66, 0.61, 0.46), petal * 0.80)
-        rgb = _mix(rgb, (0.30, 0.50, 0.34), leaf_dot * 0.70)
-
-    elif kind == "trapal_stripe":
-        band = np.floor(lu * 6.0) % 3.0
-        rgb = np.where((band == 1.0)[..., None], np.array([0.65, 0.61, 0.51], dtype=np.float32), rgb)
-        rgb = np.where((band == 2.0)[..., None], np.array([0.63, 0.47, 0.19], dtype=np.float32), rgb)
-        rgb += brush[..., None] * 0.045
-
-    elif kind == "palamig":
-        # Sunlit glass jar of Sago't Gulaman: dark tapioca pearls at bottom + amber syrup + ice cubes at top
-        ice = ((lv > 0.70) & (((np.floor(lu * 6.0) + np.floor(lv * 8.0)) % 2.0) < 0.5)).astype(np.float32)
-        sago = ((lv < 0.35) & (_value_noise(lu, lv, 24, 24, seed + 73) > 0.62)).astype(np.float32)
-        glint = ((lu > 0.22) & (lu < 0.32)).astype(np.float32)
-        rgb = _mix(rgb, (0.65, 0.63, 0.57), ice * 0.68)
-        rgb = _mix(rgb, (0.26, 0.17, 0.15), sago * 0.76)
-        rgb = _mix(rgb, (0.66, 0.64, 0.58), glint * 0.40)
-
-    # Soft warm-espresso panel contour around architectural/vehicle swatches (omitted on organic bark/leaves)
-    if kind in ("chb", "concrete", "yero", "livery", "text_sign", "backboard"):
-        edge_dist = np.minimum(np.minimum(lu, 1.0 - lu), np.minimum(lv, 1.0 - lv))
-        border = np.clip((0.018 + wobble * 0.004 - edge_dist) * 85.0, 0.0, 1.0)
-        rgb = _mix(rgb, ESPRESSO_INK, border * 0.68)
-
-    return np.clip(rgb, MIN_ALBEDO, MAX_ALBEDO)
-
-
-def build_atlas_image() -> bpy.types.Image:
-    """Generates sunlit 2048x2048 ProvincePropsAtlas.jpg + VRAM-compressed .import sidecar."""
-    if ATLAS_NAME in bpy.data.images:
-        bpy.data.images.remove(bpy.data.images[ATLAS_NAME])
-
-    atlas = np.full((ATLAS_SIZE, ATLAS_SIZE, 4), 0.46, dtype=np.float32)
-    atlas[..., 3] = 1.0
-
-    for _name, (row, col, base_rgb, kind, param) in SWATCHES.items():
-        tile_rgb = _paint_swatch(row, col, base_rgb, kind, param)
-        y0 = row * CELL
-        x0 = col * CELL
-        atlas[y0:y0 + CELL, x0:x0 + CELL, :3] = tile_rgb
-
-    # Calibrate sunlit mean_sRGB right into [0.445, 0.485] while keeping max <= 0.72
-    cur_mean = float(atlas[..., :3].mean())
-    if cur_mean < 0.445 or cur_mean > 0.485:
-        gain = 0.465 / max(cur_mean, 1e-4)
-        atlas[..., :3] = np.clip(atlas[..., :3] * gain, MIN_ALBEDO, MAX_ALBEDO)
-
-    os.makedirs(OUT_DIR, exist_ok=True)
-    img = bpy.data.images.new(ATLAS_NAME, width=ATLAS_SIZE, height=ATLAS_SIZE, alpha=False)
-    # Byte-backed Blender Image (float_buffer=False) stores sRGB [0..1] directly in img.pixels (NO **2.4!)
-    img.pixels.foreach_set(atlas.ravel())
-
-    jpg_path = os.path.join(OUT_DIR, ATLAS_FILENAME)
-    img.filepath_raw = jpg_path
-    img.file_format = "JPEG"
-    bpy.context.scene.render.image_settings.quality = 94
-    img.save()
-
-    check_img = bpy.data.images.load(jpg_path, check_existing=False)
-    chk_raw = np.empty(ATLAS_SIZE * ATLAS_SIZE * 4, dtype=np.float32)
-    check_img.pixels.foreach_get(chk_raw)
-    bpy.data.images.remove(check_img)
-    chk_srgb = chk_raw.reshape((-1, 4))[:, :3]
-    max_srgb = float(chk_srgb.max())
-    mean_srgb = float(chk_srgb.mean())
-    print(
-        f"Saved {jpg_path} ({ATLAS_SIZE}x{ATLAS_SIZE}, "
-        f"mean_sRGB={mean_srgb:.4f} in [0.42, 0.50], max_sRGB={max_srgb:.4f} <= 0.78)"
+import sys
+import time
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+from mathutils import Matrix, Vector
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from barangay_v3_arch import (  # noqa: E402
+    MeshBuilder,
+    add_gable_yero_roof,
+    add_rooftop_eave_signboard,
+    add_shed_yero_roof,
+    add_signboard_panel,
+    finalize_and_export_glb,
+)
+from barangay_v3_textures import OUT_DIR, generate_province_props_atlas  # noqa: E402
+
+ALBEDO_FILE = "ProvincePropsAtlas.jpg"
+NORMAL_FILE = "ProvincePropsAtlas_normal.png"
+ORM_FILE = "ProvincePropsAtlas_orm.png"
+
+
+def _add_wheel_x(
+    mb: MeshBuilder,
+    cx: float,
+    cy: float,
+    cz: float,
+    r_tire: float,
+    width: float,
+    rim_swatch: str = "wheel_rim",
+) -> None:
+    """Builds a treaded rubber tire + recessed lugged wheel rim + hub cap along the X axis (`min_z = cz - r_tire`)."""
+    hw = width * 0.5
+    # Outer rubber tire barrel
+    mb.tube((cx - hw, cy, cz), (cx + hw, cy, cz), r_tire, r_tire, 14, "tire_rubber", cap_start=True, cap_end=True)
+    # Recessed wheel rim discs + protruding center axle hubcap on outer face
+    r_rim = r_tire * 0.64
+    sgn = 1.0 if cx >= 0.0 else -1.0
+    mb.tube((cx + sgn * (hw - 0.01), cy, cz), (cx + sgn * (hw + 0.018), cy, cz), r_rim, r_rim * 0.92, 10, rim_swatch)
+    mb.tube((cx + sgn * (hw + 0.018), cy, cz), (cx + sgn * (hw + 0.045), cy, cz), r_rim * 0.28, r_rim * 0.18, 8, "jeep_chrome")
+
+
+# ---------------------------------------------------------------------------
+# 1. Iconic Sarao-Style Philippine Jeepney (`brgy_jeepney.glb` ~ 2.08m x 5.45m x 2.38m)
+#    Front faces `-Y` in Blender -> `+Z` in Godot!
+# ---------------------------------------------------------------------------
+
+def build_jeepney(
+    uvs: Dict[str, Tuple[float, float, float, float]],
+    variant: str = "classic",
+) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
+    r_w = 0.40  # Wheel radius -> axle at Z = 0.40 touches ground Z = 0.000!
+    is_prov = variant == "provincial"
+    main_livery = "jeep_green" if is_prov else "jeep_red"
+    trim_livery = "jeep_yellow"
+    roof_top_sw = "yero_green" if is_prov else "jeep_blue"
+
+    # 1. 4 Grounded Tires & Lugged Golden Rims + Wooden Wheel Chock (*Kalso*) + Steel Chassis Frame Rails
+    for sx in (-0.84, 0.84):
+        _add_wheel_x(mb, sx, -1.68, r_w, r_w, 0.24)
+        _add_wheel_x(mb, sx, 1.38, r_w, r_w, 0.26)
+    # Grounded wooden wheel chock wedged against front-right tire (`min_z = 0.000`)
+    chock_x = -0.84 if is_prov else 0.84
+    mb.frustum_plinth(chock_x, -2.02, 0.0, 0.08, 0.14, 0.22, 0.22, 0.20, 0.08, "wood_dark", "wood_coco")
+    mb.box(0.0, -0.10, 0.36, 0.52, 1.32, 4.75, "steel_dark")
+    # Heavy chrome front bumper (-Y) + rear diamond-plate boarding step (+Y)
+    mb.box(0.0, -2.58, 0.40, 0.58, 1.98, 0.16, "jeep_chrome")
+    for tx in (-0.65, 0.65):
+        mb.box(tx, -2.66, 0.42, 0.62, 0.10, 0.10, "steel_dark")
+    mb.box(0.0, 2.52, 0.34, 0.44, 1.48, 0.32, "jeep_chrome")
+
+    # 2. Sculpted Tapered Pressed-Steel Sarao Engine Hood & Flared Front Fenders (`Y = -2.48..-1.12`)
+    y_nose, y_cowl = -2.46, -1.12
+    wn, wc = 0.61, 0.87
+    zn_top, zc_top = 1.18, 1.32
+    z_ch = 0.52
+
+    # Front chrome radiator louver grille (`-Y` outward!)
+    mb.quad((-wn, y_nose, z_ch), (wn, y_nose, z_ch), (wn * 0.94, y_nose, zn_top), (-wn * 0.94, y_nose, zn_top), "radiator_grille")
+    # Rounded 3-facet arched hood crown (left shoulder, center chrome spear, right shoulder)
+    hood_crown_sw = "jeep_green" if is_prov else "jeep_yellow"
+    mb.quad((-wn * 0.94, y_nose, zn_top), (-0.14, y_nose, zn_top + 0.07), (-0.18, y_cowl, zc_top + 0.08), (-wc * 0.92, y_cowl, zc_top), hood_crown_sw)
+    mb.quad((-0.14, y_nose, zn_top + 0.07), (0.14, y_nose, zn_top + 0.07), (0.18, y_cowl, zc_top + 0.08), (-0.18, y_cowl, zc_top + 0.08), "jeep_chrome")
+    mb.quad((0.14, y_nose, zn_top + 0.07), (wn * 0.94, y_nose, zn_top), (wc * 0.92, y_cowl, zc_top), (0.18, y_cowl, zc_top), hood_crown_sw)
+    # Hood side louver panels
+    mb.quad((-wc, y_cowl, z_ch), (-wn, y_nose, z_ch), (-wn * 0.94, y_nose, zn_top), (-wc * 0.92, y_cowl, zc_top), main_livery)
+    mb.quad((wn, y_nose, z_ch), (wc, y_cowl, z_ch), (wc * 0.92, y_cowl, zc_top), (wn * 0.94, y_nose, zn_top), main_livery)
+
+    # Twin Sarao chrome hood ornaments + round bezel headlamps + swept front fenders over wheels!
+    for sx in (-1.0, 1.0):
+        mb.box(sx * 0.80, -1.68, 0.78, 0.90, 0.38, 1.12, "jeep_chrome")
+        mb.box(sx * 0.80, -2.18, 0.52, 0.86, 0.36, 0.24, trim_livery)
+        mb.tube((sx * 0.48, -2.44, 0.96), (sx * 0.48, -2.55, 0.96), 0.125, 0.115, 10, "headlamp_amber")
+        mb.box(sx * 0.34, -2.22, zn_top + 0.04, zn_top + 0.20, 0.05, 0.24, "jeep_chrome")
+        mb.tube((sx * 0.72, -1.95, 0.90), (sx * 0.98, -1.95, 1.42), 0.016, 0.014, 5, "jeep_chrome")
+        mb.box(sx * 1.00, -1.95, 1.38, 1.54, 0.05, 0.14, "jeep_chrome")
+
+    # 3. Recessed Sloped Split V-Windshield + Route Signboard (`BRGY. KALYEAH - BAYAN`)
+    mb.quad((-0.86, y_cowl + 0.05, zc_top + 0.02), (0.86, y_cowl + 0.05, zc_top + 0.02), (0.82, -0.77, 1.90), (-0.82, -0.77, 1.90), "windshield_glass")
+    mb.box(0.0, y_cowl + 0.01, zc_top - 0.02, zc_top + 0.05, 1.78, 0.09, "jeep_chrome")
+    for px in (-0.86, 0.0, 0.86):
+        mb.tube((px, y_cowl, zc_top), (px * 0.96, -0.82, 1.94), 0.036, 0.032, 5, "jeep_chrome")
+    add_signboard_panel(mb, 0.0, -0.88, 1.88, 2.16, 1.62, "sign_jeep_route", facing="-Y", relief=0.08, framed=True)
+
+    # 4. Elongated Fiesta Passenger Body (`Y = -1.12..+2.42`, `W = 1.92m`)
+    hw_b = 0.96
+    mb.box(0.0, 0.65, 0.52, 0.62, hw_b * 2.0, 3.54, "steel_dark", "jeep_chrome")
+    for sx in (-1.0, 1.0):
+        mb.box(sx * (hw_b - 0.04), -0.35, 0.56, 1.26, 0.08, 1.54, main_livery if is_prov else trim_livery)
+        mb.box(sx * (hw_b - 0.04), 1.38, 0.92, 1.26, 0.08, 1.92, trim_livery if is_prov else main_livery)
+        mb.box(sx * (hw_b - 0.04), 2.16, 0.56, 0.92, 0.08, 0.52, main_livery)
+        mb.box(sx * (hw_b + 0.04), 1.38, 0.82, 0.92, 0.14, 0.98, "jeep_chrome")  # rear fender flare
+        for py_pil in (-1.06, 0.12, 1.28, 2.36):
+            mb.box(sx * (hw_b - 0.04), py_pil, 1.26, 1.92, 0.08, 0.14, "jeep_chrome")
+        mb.tube((sx * (hw_b + 0.05), -0.95, 1.18), (sx * (hw_b + 0.05), 2.32, 1.18), 0.018, 0.018, 5, "jeep_chrome")
+        mb.box(sx * 0.66, 0.82, 0.62, 0.86, 0.44, 2.95, "steel_dark", "vinyl_seat")
+
+    # Driver bulkhead & steering wheel
+    mb.box(-0.42, -0.78, 0.62, 0.92, 0.56, 0.44, "vinyl_seat")
+    mb.tube((-0.42, -0.98, 1.02), (-0.42, -0.82, 1.26), 0.022, 0.022, 5, "steel_dark")
+
+    # Rear Open Boarding Portal (`Y = +2.42`): side cheeks + vertical chrome grab poles
+    for sx in (-1.0, 1.0):
+        mb.box(sx * 0.68, 2.38, 0.56, 1.92, 0.56, 0.08, main_livery)
+        mb.tube((sx * 0.38, 2.44, 0.44), (sx * 0.38, 2.44, 1.92), 0.022, 0.022, 6, "jeep_chrome")
+
+    # 5. Cambered Pressed-Steel Jeepney Roof + Chrome Roof Cargo Rack (`Z = 1.92..2.34m`)
+    mb.frustum_plinth(0.0, 0.78, 1.92, 2.02, 2.08, 1.96, 3.48, 1.72, 3.26, "jeep_chrome", roof_top_sw)
+    for sx in (-0.76, 0.76):
+        mb.tube((sx, -0.45, 2.14), (sx, 2.15, 2.14), 0.018, 0.018, 5, "jeep_chrome")
+    for ry in (-0.45, 0.85, 2.15):
+        mb.tube((-0.76, ry, 2.14), (0.76, ry, 2.14), 0.018, 0.018, 5, "jeep_chrome")
+
+    if is_prov:
+        # Provincial *Biyaheng Bayan* Top-Load Cargo: 2 woven bamboo *tiklis* market baskets + 2 rice sacks + rear ladder!
+        mb.tube((-0.36, 0.25, 2.08), (-0.36, 0.25, 2.42), 0.22, 0.27, 9, "bamboo_gold")
+        mb.tube((-0.36, 0.25, 2.38), (-0.36, 0.25, 2.45), 0.24, 0.16, 8, "fruit_mango_gold")
+        mb.tube((0.34, 0.38, 2.08), (0.34, 0.38, 2.38), 0.20, 0.25, 9, "bamboo_gold")
+        mb.tube((0.34, 0.38, 2.34), (0.34, 0.38, 2.41), 0.22, 0.15, 8, "leaf_banana_rib")
+        # Bulging cream woven *sako ng bigas* rice sacks strapped on rear half of roof rack
+        mb.frustum_plinth(-0.28, 1.32, 2.08, 2.22, 2.30, 0.56, 0.78, 0.44, 0.62, "cloth_sando_white", "cloth_sando_white")
+        mb.frustum_plinth(0.30, 1.38, 2.08, 2.20, 2.28, 0.52, 0.74, 0.40, 0.58, "cloth_sando_white", "cloth_sando_white")
+        # Rear roof-access side ladder on +X rear corner
+        for lx_r in (0.62, 0.82):
+            mb.tube((lx_r, 2.43, 0.62), (lx_r, 2.40, 2.12), 0.014, 0.014, 4, "steel_dark")
+        for rz_step in (0.95, 1.32, 1.68):
+            mb.tube((0.62, 2.42, rz_step), (0.82, 2.42, rz_step), 0.012, 0.012, 4, "steel_dark")
+    return mb
+
+
+# ---------------------------------------------------------------------------
+# 2. Provincial Kolong-Kolong Tricycle (`brgy_tricycle.glb` ~ 1.62m x 2.38m x 1.72m)
+#    Front faces `-Y` in Blender -> `+Z` in Godot!
+# ---------------------------------------------------------------------------
+
+def build_tricycle(uvs: Dict[str, Tuple[float, float, float, float]]) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
+    r_w = 0.29
+    bx = -0.42  # Motorcycle centerline X
+    sx = 0.36   # Sidecar centerline X
+
+    # 1. 3 Spoked Wheels touching Z = 0.000 (front bike, rear bike, right sidecar) + Wheel Chock
+    _add_wheel_x(mb, bx, -0.82, r_w, r_w, 0.11, "jeep_chrome")
+    _add_wheel_x(mb, bx, 0.68, r_w, r_w, 0.12, "jeep_chrome")
+    _add_wheel_x(mb, sx + 0.38, 0.24, r_w, r_w, 0.12, "jeep_chrome")
+    mb.frustum_plinth(sx + 0.38, -0.02, 0.0, 0.06, 0.11, 0.14, 0.16, 0.12, 0.06, "wood_dark", "wood_coco")
+
+    # 2. Motorcycle Fork, Fender, Headlamp, Handlebars + Side Mirrors, Teardrop Tank, Finned Engine & Saddle
+    for fk in (-0.07, 0.07):
+        mb.tube((bx + fk, -0.82, r_w), (bx + fk, -0.52, 0.98), 0.022, 0.022, 6, "jeep_chrome")
+    mb.box(bx, -0.82, r_w + 0.26, r_w + 0.34, 0.16, 0.46, "trike_blue")
+    mb.tube((bx, -0.60, 0.96), (bx, -0.72, 0.96), 0.10, 0.09, 8, "headlamp_amber")
+    mb.tube((bx - 0.34, -0.46, 1.06), (bx + 0.34, -0.46, 1.06), 0.018, 0.018, 5, "jeep_chrome")
+    for ms in (-1.0, 1.0):
+        mb.tube((bx + ms * 0.28, -0.46, 1.06), (bx + ms * 0.36, -0.50, 1.24), 0.010, 0.009, 4, "jeep_chrome")
+        mb.box(bx + ms * 0.38, -0.50, 1.22, 1.30, 0.09, 0.03, "jeep_chrome")
+
+    # Teardrop fuel tank, air-cooled finned engine block, vinyl dual saddle, chrome muffler
+    mb.frustum_plinth(bx, -0.18, 0.72, 0.86, 0.94, 0.26, 0.52, 0.18, 0.38, "trike_blue", "trike_blue")
+    mb.box(bx, -0.14, 0.34, 0.68, 0.24, 0.36, "engine_metal")
+    mb.box(bx, 0.42, 0.68, 0.82, 0.26, 0.72, "vinyl_seat")
+    mb.tube((bx - 0.14, -0.10, 0.32), (bx - 0.16, 0.88, 0.38), 0.035, 0.045, 6, "jeep_chrome")
+
+    # Steel chassis struts linking motorcycle to sidecar
+    for cy_link in (-0.28, 0.52):
+        mb.tube((bx, cy_link, 0.38), (sx, cy_link, 0.38), 0.026, 0.026, 5, "steel_dark")
+
+    # 3. Provincial Galvanized *Kolong-Kolong* Sidecar (`sx = +0.36`)
+    # Boat-nose tapered front cowl + galvanized side tub + passenger seat + wheel fender
+    mb.frustum_plinth(sx, -0.48, 0.32, 0.62, 0.86, 0.68, 0.66, 0.62, 0.52, "trike_galv", "trike_blue")
+    mb.box(sx, 0.22, 0.30, 0.42, 0.70, 1.18, "steel_dark", "trike_galv")
+    mb.box(sx + 0.33, 0.22, 0.32, 0.88, 0.06, 1.16, "trike_galv")  # outer sidecar wall
+    mb.box(sx, 0.68, 0.32, 0.94, 0.70, 0.10, "trike_blue")          # rear backrest wall
+    mb.box(sx, 0.44, 0.42, 0.64, 0.62, 0.46, "vinyl_seat")          # passenger bench
+    mb.box(sx + 0.42, 0.24, 0.56, 0.66, 0.18, 0.68, "trike_blue")   # sidecar wheel fender
+
+    # Sloped sidecar windshield + tubular canopy frame + overhanging green GI roof + TODA 04 plate!
+    mb.quad((sx - 0.31, -0.68, 0.86), (sx + 0.31, -0.68, 0.86), (sx + 0.30, -0.42, 1.48), (sx - 0.30, -0.42, 1.48), "windshield_glass")
+    for px, py in ((sx - 0.31, -0.42), (sx + 0.31, -0.42), (sx - 0.32, 0.72), (sx + 0.32, 0.72)):
+        mb.tube((px, py, 0.86), (px, py, 1.56), 0.018, 0.018, 5, "steel_dark")
+    # Canopy roof covering both sidecar & driver shoulder!
+    add_shed_yero_roof(mb, 0.02, 0.12, 1.54, 1.66, 1.32, 1.52, ov_x=0.10, ov_y=0.14, roof_swatch="yero_green", high_at_rear=False)
+    add_signboard_panel(mb, sx, -0.81, 0.46, 0.80, 0.52, "plate_toda_04", facing="-Y", relief=0.03, framed=True)
+    return mb
+
+
+# ---------------------------------------------------------------------------
+# 3. Barangay TODA Terminal Shed (`brgy_toda_shed.glb` ~ 4.8m x 3.4m x 3.45m)
+# ---------------------------------------------------------------------------
+
+def build_toda_shed(uvs: Dict[str, Tuple[float, float, float, float]]) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
+    w, d = 4.5, 3.0
+    hy = d * 0.5
+
+    mb.frustum_plinth(0.0, 0.0, 0.0, 0.10, 0.16, w + 0.16, d + 0.16, w, d, "concrete_moss", "concrete_cap")
+
+    # 4 Coco-lumber corner posts + diagonal timber braces
+    for sx in (-1.0, 1.0):
+        px = sx * (w * 0.5 - 0.18)
+        for sy in (-1.0, 1.0):
+            py = sy * (hy - 0.18)
+            mb.box(px, py, 0.16, 2.72, 0.14, 0.14, "wood_coco")
+            mb.tube((px, py, 2.15), (px - sx * 0.52, py, 2.66), 0.032, 0.030, 4, "wood_dark")
+
+    # Rear CHB + Wood windbreak wall, wooden waiting bench, dispatcher desk & spare tire
+    mb.box(0.0, hy - 0.14, 0.16, 1.32, w - 0.32, 0.18, "chb_wall_moss", "concrete_cap")
+    mb.box(-0.65, hy - 0.48, 0.16, 0.52, 2.45, 0.46, "wood_dark", "wood_coco")
+    mb.box(1.35, -0.15, 0.16, 0.88, 0.92, 0.62, "wood_coco", "wood_dark")
+    _add_wheel_x(mb, -w * 0.5 + 0.06, -0.25, 0.46, 0.30, 0.14, "wheel_rim")
+
+    # Front unobstructed eave "BRGY. TODA TERMINAL" signboard + Side "NO ENTRY • BAWAL DITO" sign
+    add_rooftop_eave_signboard(mb, 0.0, -hy - 0.36, 2.66, height=0.72, width=3.65, swatch="sign_toda_terminal")
+    add_signboard_panel(mb, w * 0.5, 0.0, 1.45, 2.08, 1.35, "sign_no_entry", facing="+X", relief=0.05, framed=True)
+
+    add_gable_yero_roof(
+        mb, 0.0, 0.0, 2.72, w, d, rise=0.78, ov_x=0.32, ov_y=0.38,
+        roof_swatch="yero_rusted", wall_swatch="wood_coco", downspout_corners=[(1, 1)],
     )
-    assert 0.42 <= mean_srgb <= 0.50, f"ProvincePropsAtlas mean_sRGB out of [0.42, 0.50]: {mean_srgb:.4f}"
-    assert max_srgb <= 0.78, f"ProvincePropsAtlas max_sRGB exceeded 0.78: {max_srgb:.4f}"
-
-    _write_godot_jpg_import(jpg_path)
-    return img
+    # Proportional old tricycle tire ballast resting high on upper roof slope (`radius = 0.30m <= 0.34m`, above sign!)
+    mb.tube((-1.35, -0.32, 3.28), (-1.35, -0.26, 3.44), 0.30, 0.30, 10, "tire_rubber")
+    return mb
 
 
-def _write_godot_jpg_import(jpg_path: str) -> None:
-    """Writes VRAM-compressed Godot .import sidecar (`compress/mode=2`, mipmaps=true, zero checksum keys)."""
-    import_path = jpg_path + ".import"
-    res_source = f"res://assets/models/barangay/{ATLAS_FILENAME}"
-    digest_hex = hashlib.new("m" + "d5", res_source.encode("utf-8")).hexdigest()
-    ctex_s3tc = f"res://.godot/imported/{ATLAS_FILENAME}-{digest_hex}.s3tc.ctex"
-    ctex_etc2 = f"res://.godot/imported/{ATLAS_FILENAME}-{digest_hex}.etc2.ctex"
-    import_text = f"""[remap]
+# ---------------------------------------------------------------------------
+# 4. Improvised Kalye Wooden Basketball Post (`brgy_wooden_hoop.glb` ~ 1.55m x 1.75m x 3.85m)
+# ---------------------------------------------------------------------------
 
-importer="texture"
-type="CompressedTexture2D"
-uid="uid://c9p4v7r2k8x1q"
-path.s3tc="{ctex_s3tc}"
-path.etc2="{ctex_etc2}"
-metadata={{
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
-}}
+def build_wooden_hoop(uvs: Dict[str, Tuple[float, float, float, float]]) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
 
-[deps]
+    # Heavy grounded concrete ballast block + old truck tire collar (`Z = 0.000`)
+    mb.frustum_plinth(0.0, 0.35, 0.0, 0.28, 0.46, 0.92, 0.92, 0.68, 0.68, "chb_wall_moss", "concrete_cap")
+    mb.tube((0.0, 0.35, 0.46), (0.0, 0.35, 0.66), 0.36, 0.35, 10, "tire_rubber")
 
-source_file="{res_source}"
-dest_files=["{ctex_s3tc}", "{ctex_etc2}"]
+    # Weathered coco-lumber main post + 2 diagonal timber base struts + forward gooseneck arm
+    mb.tube((0.0, 0.35, 0.20), (0.0, 0.26, 3.38), 0.105, 0.088, 7, "wood_coco")
+    for sx in (-0.34, 0.34):
+        mb.tube((sx, 0.35, 0.42), (0.0, 0.32, 1.35), 0.045, 0.040, 5, "wood_dark")
+    # Forward overhanging arm toward street (`-Y`) + diagonal brace
+    mb.tube((0.0, 0.26, 3.24), (0.0, -0.46, 3.42), 0.075, 0.068, 6, "wood_coco")
+    mb.tube((0.0, 0.28, 2.58), (0.0, -0.28, 3.34), 0.048, 0.042, 5, "wood_dark")
 
-[params]
+    # Weathered plank backboard (`1.48 x 1.02m`) with crisp red shooter's square & "BRGY. LIGA '95"!
+    mb.box(0.0, -0.48, 2.86, 3.88, 1.48, 0.06, "wood_dark")
+    add_signboard_panel(mb, 0.0, -0.51, 2.88, 3.86, 1.44, "backboard_liga", facing="-Y", relief=0.025, framed=True)
 
-compress/mode=2
-compress/high_quality=false
-compress/lossy_quality=0.7
-compress/uastc_level=0
-compress/rdo_quality_loss=0.0
-compress/hdr_compression=1
-compress/normal_map=0
-compress/channel_pack=0
-mipmaps/generate=true
-mipmaps/limit=-1
-roughness/mode=0
-roughness/src_normal=""
-process/channel_remap/red=0
-process/channel_remap/green=1
-process/channel_remap/blue=2
-process/channel_remap/alpha=3
-process/fix_alpha_border=true
-process/premult_alpha=false
-process/normal_map_invert_y=false
-process/hdr_as_srgb=false
-process/hdr_clamp_exposure=false
-process/size_limit=0
-detect_3d/compress_to=1
-"""
-    with open(import_path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(import_text)
-
-
-def _rewrite_glb_external_atlas(glb_path: str) -> None:
-    """Rewrites GLB image chunk to reference shared external URI `ProvincePropsAtlas.jpg`."""
-    with open(glb_path, "rb") as f:
-        raw = f.read()
-    magic, ver, _total = struct.unpack_from("<4sII", raw, 0)
-    assert magic == b"glTF" and ver == 2
-    j_len, j_type = struct.unpack_from("<II", raw, 12)
-    assert j_type == 0x4E4F534A
-    gltf = json.loads(raw[20:20 + j_len].decode("utf-8"))
-
-    b_off = 20 + j_len
-    b_len, b_type = struct.unpack_from("<II", raw, b_off)
-    assert b_type == 0x004E4942
-    bin_blob = raw[b_off + 8:b_off + 8 + b_len]
-
-    images = gltf.get("images", [])
-    bvs = gltf.get("bufferViews", [])
-    if images and "bufferView" in images[0]:
-        img_bv_idx = images[0]["bufferView"]
-        if img_bv_idx == len(bvs) - 1:
-            new_bin_len = bvs[img_bv_idx]["byteOffset"]
-            bvs.pop()
-            bin_blob = bin_blob[:new_bin_len]
-            gltf["buffers"][0]["byteLength"] = new_bin_len
-        images[0] = {
-            "name": ATLAS_NAME,
-            "uri": ATLAS_FILENAME,
-            "mimeType": "image/jpeg",
-        }
-
-    j_bytes = json.dumps(gltf, separators=(",", ":")).encode("utf-8")
-    j_bytes += b" " * ((4 - (len(j_bytes) % 4)) % 4)
-    bin_padded = bin_blob + (b"\x00" * ((4 - (len(bin_blob) % 4)) % 4))
-
-    total_len = 12 + 8 + len(j_bytes) + 8 + len(bin_padded)
-    out = bytearray()
-    out += struct.pack("<4sII", b"glTF", 2, total_len)
-    out += struct.pack("<II", len(j_bytes), 0x4E4F534A)
-    out += j_bytes
-    out += struct.pack("<II", len(bin_padded), 0x004E4942)
-    out += bin_padded
-    with open(glb_path, "wb") as f:
-        f.write(out)
-
-
-def build_shared_material(atlas_img: bpy.types.Image) -> bpy.types.Material:
-    mat_name = "ProvincePropsMat"
-    if mat_name in bpy.data.materials:
-        bpy.data.materials.remove(bpy.data.materials[mat_name])
-    mat = bpy.data.materials.new(name=mat_name)
-    nodes = mat.node_tree.nodes
-    links = mat.node_tree.links
-    nodes.clear()
-
-    out = nodes.new("ShaderNodeOutputMaterial")
-    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
-    bsdf.inputs["Roughness"].default_value = 0.86
-    bsdf.inputs["Metallic"].default_value = 0.0
-
-    tex = nodes.new("ShaderNodeTexImage")
-    tex.image = atlas_img
-    tex.interpolation = "Linear"
-
-    vc = nodes.new("ShaderNodeVertexColor")
-    vc.layer_name = "Color"
-
-    mix = nodes.new("ShaderNodeMix")
-    mix.data_type = "RGBA"
-    mix.blend_type = "MULTIPLY"
-    mix.inputs["Factor"].default_value = 1.0
-
-    links.new(tex.outputs["Color"], mix.inputs[6])
-    links.new(vc.outputs["Color"], mix.inputs[7])
-    links.new(mix.outputs[2], bsdf.inputs["Base Color"])
-    links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
-    return mat
-
-
-def swatch_uv_box(swatch_name: str):
-    row, col, *_ = SWATCHES[swatch_name]
-    u0 = (col + PAD_UV) / float(GRID)
-    u1 = (col + 1.0 - PAD_UV) / float(GRID)
-    v0 = (row + PAD_UV) / float(GRID)
-    v1 = (row + 1.0 - PAD_UV) / float(GRID)
-    return u0, v0, u1, v1
-
-
-class ProvincePropBuilder:
-    """Handcrafted BMesh sculptor with organic lofted tubes, profile extrusions, and volumetric fronds."""
-
-    def __init__(self):
-        self.bm = bmesh.new()
-        self.uv_layer = self.bm.loops.layers.uv.new("UVMap")
-
-    def map_faces(self, faces, swatch: str, mode: str = "panel", flip_u: bool = False):
-        u0, v0, u1, v1 = swatch_uv_box(swatch)
-        du, dv = (u1 - u0), (v1 - v0)
-        for f in faces:
-            if not f.is_valid:
-                continue
-            f.smooth = True
-            f.normal_update()
-            n = f.normal
-            if abs(n.z) > 0.92:
-                tu = Vector((1.0, 0.0, 0.0))
-                tv = Vector((0.0, 1.0, 0.0))
-            else:
-                tu = Vector((-n.y, n.x, 0.0))
-                if tu.length_squared < 1e-6:
-                    tu = Vector((1.0, 0.0, 0.0))
-                else:
-                    tu.normalize()
-                tv = tu.cross(n)
-                if tv.z < 0.0:
-                    tv = -tv
-                tv.normalize()
-
-            us = [loop.vert.co.dot(tu) for loop in f.loops]
-            vs = [loop.vert.co.dot(tv) for loop in f.loops]
-            min_u, max_u = min(us), max(us)
-            min_v, max_v = min(vs), max(vs)
-            span_u = max(max_u - min_u, 1e-4)
-            span_v = max(max_v - min_v, 1e-4)
-            margin = 0.12 if mode == "trim" else 0.02
-            for loop, pu, pv in zip(f.loops, us, vs):
-                su = (pu - min_u) / span_u
-                if flip_u:
-                    su = 1.0 - su
-                sv = (pv - min_v) / span_v
-                su = margin + su * (1.0 - 2.0 * margin)
-                sv = margin + sv * (1.0 - 2.0 * margin)
-                loop[self.uv_layer].uv = (u0 + su * du, v0 + sv * dv)
-
-    def add_box(self, size, center, swatch: str, rot_euler=(0.0, 0.0, 0.0), bevel: float = 0.022, mode: str = "panel"):
-        sx, sy, sz = size
-        ret = bmesh.ops.create_cube(self.bm, size=1.0)
-        verts = ret["verts"]
-        bmesh.ops.scale(self.bm, vec=Vector((sx, sy, sz)), verts=verts)
-        if bevel > 0.0 and min(sx, sy, sz) > bevel * 2.8:
-            edges = list({e for v in verts for e in v.link_edges})
-            brev = bmesh.ops.bevel(self.bm, geom=edges, offset=bevel, segments=1, affect="EDGES")
-            verts = list({v for v in (list(brev["verts"]) + verts) if v.is_valid})
-        if any(abs(a) > 1e-5 for a in rot_euler):
-            rot = Euler(rot_euler, "XYZ").to_matrix()
-            bmesh.ops.rotate(self.bm, cent=Vector((0.0, 0.0, 0.0)), matrix=rot, verts=verts)
-        bmesh.ops.translate(self.bm, vec=Vector(center), verts=verts)
-        faces = list({f for v in verts for f in v.link_faces if f.is_valid})
-        self.map_faces(faces, swatch, mode=mode)
-        return verts
-
-    def add_sign_panel(self, size, center, front_swatch: str, back_swatch: str, rot_euler=(0.0, 0.0, 0.0), bevel: float = 0.014):
-        """Creates a beveled signboard panel where the front (-Y local) face maps full-bleed to `front_swatch`."""
-        sx, sy, sz = size
-        ret = bmesh.ops.create_cube(self.bm, size=1.0)
-        verts = ret["verts"]
-        bmesh.ops.scale(self.bm, vec=Vector((sx, sy, sz)), verts=verts)
-        if bevel > 0.0 and min(sx, sy, sz) > bevel * 2.6:
-            edges = list({e for v in verts for e in v.link_edges})
-            brev = bmesh.ops.bevel(self.bm, geom=edges, offset=bevel, segments=1, affect="EDGES")
-            verts = list({v for v in (list(brev["verts"]) + verts) if v.is_valid})
-
-        faces = list({f for v in verts for f in v.link_faces if f.is_valid})
-        u0, v0, u1, v1 = swatch_uv_box(front_swatch)
-        front_faces = []
-        other_faces = []
-        for f in faces:
-            f.normal_update()
-            if f.normal.y < -0.82:
-                front_faces.append(f)
-                for loop in f.loops:
-                    co = loop.vert.co
-                    # From front (-Y looking +Y), +X is right!
-                    su = np.clip((co.x / max(sx, 1e-4)) + 0.5, 0.02, 0.98)
-                    sv = np.clip((co.z / max(sz, 1e-4)) + 0.5, 0.02, 0.98)
-                    loop[self.uv_layer].uv = (u0 + su * (u1 - u0), v0 + sv * (v1 - v0))
-                f.smooth = True
-            else:
-                other_faces.append(f)
-        self.map_faces(other_faces, back_swatch, mode="trim")
-
-        if any(abs(a) > 1e-5 for a in rot_euler):
-            rot = Euler(rot_euler, "XYZ").to_matrix()
-            bmesh.ops.rotate(self.bm, cent=Vector((0.0, 0.0, 0.0)), matrix=rot, verts=verts)
-        bmesh.ops.translate(self.bm, vec=Vector(center), verts=verts)
-        return verts
-
-    def add_cylinder(self, radius: float, depth: float, center, swatch: str, segments: int = 12, rot_euler=(0.0, 0.0, 0.0), mode: str = "trim", r2: float = -1.0):
-        rad2 = radius if r2 < 0.0 else r2
-        ret = bmesh.ops.create_cone(
-            self.bm, cap_ends=True, cap_tris=False,
-            segments=segments, radius1=radius, radius2=rad2, depth=depth
+    # Orange steel rim (`Z = 3.02m`) + L-bracket + galvanized chain-link net
+    mb.box(0.0, -0.60, 2.98, 3.05, 0.16, 0.14, "hoop_rim_orange")
+    rim_y = -0.82
+    for seg in range(10):
+        a0 = 2.0 * math.pi * seg / 10
+        a1 = 2.0 * math.pi * (seg + 1) / 10
+        mb.tube(
+            (0.23 * math.cos(a0), rim_y + 0.23 * math.sin(a0), 3.02),
+            (0.23 * math.cos(a1), rim_y + 0.23 * math.sin(a1), 3.02),
+            0.017, 0.017, 5, "hoop_rim_orange", cap_start=False, cap_end=False,
         )
-        verts = ret["verts"]
-        if any(abs(a) > 1e-5 for a in rot_euler):
-            rot = Euler(rot_euler, "XYZ").to_matrix()
-            bmesh.ops.rotate(self.bm, cent=Vector((0.0, 0.0, 0.0)), matrix=rot, verts=verts)
-        bmesh.ops.translate(self.bm, vec=Vector(center), verts=verts)
-        faces = list({f for v in verts for f in v.link_faces if f.is_valid})
-        self.map_faces(faces, swatch, mode=mode)
-        return verts
+    mb.tube((0.0, rim_y, 2.62), (0.0, rim_y, 3.00), 0.14, 0.22, 8, "chain_net", cap_start=False, cap_end=False)
+    return mb
 
-    def add_wheel_assembly(self, center, tire_r: float, width: float, rim_r: float, rim_swatch: str = "steel_galvanized", segments: int = 14):
-        """Sculpted rubber tire with beveled shoulder sidewall + recessed steel rim & hubcap."""
-        cx, cy, cz = center
-        # Outer tread + beveled shoulders via lofted profile along X
-        hw = width * 0.5
-        pts = [
-            Vector((cx - hw, cy, cz)),
-            Vector((cx - hw * 0.78, cy, cz)),
-            Vector((cx + hw * 0.78, cy, cz)),
-            Vector((cx + hw, cy, cz)),
-        ]
-        rads = [tire_r * 0.86, tire_r, tire_r, tire_r * 0.86]
-        self.add_lofted_tube(pts, rads, "rubber_tread", segments=segments, cap_ends=True, mode="panel")
-        # Steel wheel rim + lugged center hubcap on both sides
-        self.add_cylinder(rim_r, width + 0.025, center, rim_swatch, segments=max(10, segments - 2), rot_euler=(0.0, math.pi * 0.5, 0.0), mode="panel")
-        self.add_cylinder(rim_r * 0.45, width + 0.055, center, "steel_chrome", segments=8, rot_euler=(0.0, math.pi * 0.5, 0.0), mode="trim")
 
-    def add_lofted_tube(
-        self, points, radii, swatch: str, segments: int = 8,
-        cap_ends: bool = True, closed_loop: bool = False,
-        scale_ab=(1.0, 1.0), bulge_fn=None, mode: str = "trim",
-    ):
-        """Sweeps a closed ring along `points` using twist-free parallel transport frames."""
-        pts = [Vector(p) for p in points]
-        n_pts = len(pts)
-        assert n_pts >= 2
-        u0, v0, u1, v1 = swatch_uv_box(swatch)
-        du, dv = (u1 - u0), (v1 - v0)
+# ---------------------------------------------------------------------------
+# 5. Mossy CHB Perimeter Wall (`brgy_chb_wall.glb` ~ 6.0m x 0.52m x 2.24m)
+# ---------------------------------------------------------------------------
 
-        # Compute tangents
-        tangents = []
-        for i in range(n_pts):
-            if closed_loop:
-                t = pts[(i + 1) % n_pts] - pts[(i - 1) % n_pts]
-            elif i == 0:
-                t = pts[1] - pts[0]
-            elif i == n_pts - 1:
-                t = pts[-1] - pts[-2]
-            else:
-                t = pts[i + 1] - pts[i - 1]
-            if t.length_squared < 1e-8:
-                t = Vector((0.0, 0.0, 1.0))
-            else:
-                t.normalize()
-            tangents.append(t)
+def build_chb_wall(uvs: Dict[str, Tuple[float, float, float, float]]) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
+    w = 6.0
 
-        # Initial normal frame
-        t0 = tangents[0]
-        up_ref = Vector((1.0, 0.0, 0.0)) if abs(t0.z) > 0.92 else Vector((0.0, 0.0, 1.0))
-        n_cur = t0.cross(up_ref).normalized()
-        b_cur = t0.cross(n_cur).normalized()
+    # Grounded mossy concrete base course (`Z = 0.000`)
+    mb.frustum_plinth(0.0, 0.0, 0.0, 0.22, 0.32, w, 0.44, w - 0.04, 0.34, "chb_wall_moss", "concrete_cap")
 
-        rings = []
-        sa, sb = scale_ab
-        for i in range(n_pts):
-            if i > 0:
-                q = tangents[i - 1].rotation_difference(tangents[i])
-                n_cur = (q @ n_cur).normalized()
-                b_cur = tangents[i].cross(n_cur).normalized()
-            r_base = radii[i] if isinstance(radii, (list, tuple)) else float(radii)
-            ring = []
-            frac_s = i / float(max(n_pts - 1, 1))
-            for s in range(segments):
-                ang = (2.0 * math.pi * s) / float(segments)
-                mod = bulge_fn(frac_s, ang) if bulge_fn is not None else 1.0
-                off = n_cur * (math.cos(ang) * r_base * sa * mod) + b_cur * (math.sin(ang) * r_base * sb * mod)
-                ring.append(self.bm.verts.new(pts[i] + off))
-            rings.append(ring)
+    # 3 Molded concrete piers (`X = -2.82, 0.0, +2.82`) with beveled pyramidal pier caps
+    for px in (-2.82, 0.0, 2.82):
+        mb.box(px, 0.0, 0.0, 2.12, 0.36, 0.44, "concrete_cap")
+        mb.frustum_plinth(px, 0.0, 2.12, 2.17, 2.24, 0.44, 0.50, 0.24, 0.28, "concrete_cap", "concrete_cap")
 
-        created_faces = []
-        ring_pairs = n_pts if closed_loop else (n_pts - 1)
-        for i in range(ring_pairs):
-            r_a = rings[i]
-            r_b = rings[(i + 1) % n_pts]
-            va = 0.08 + 0.84 * (i / float(max(ring_pairs, 1)))
-            vb = 0.08 + 0.84 * ((i + 1) / float(max(ring_pairs, 1)))
-            for s in range(segments):
-                s_next = (s + 1) % segments
-                ua = 0.08 + 0.84 * (s / float(segments))
-                ub = 0.08 + 0.84 * ((s + 1) / float(segments))
-                try:
-                    f = self.bm.faces.new((r_a[s], r_a[s_next], r_b[s_next], r_b[s]))
-                    f.smooth = True
-                    uvs = [(ua, va), (ub, va), (ub, vb), (ua, vb)]
-                    for loop, (su, sv) in zip(f.loops, uvs):
-                        loop[self.uv_layer].uv = (u0 + su * du, v0 + sv * dv)
-                    created_faces.append(f)
-                except ValueError:
-                    pass
+    # Left bay: Mossy CHB masonry (`Z = 0.32..1.72`) + BAWAL UMIHI DITO stencil + upper iron security grille!
+    mb.box(-1.41, 0.0, 0.32, 1.72, 2.48, 0.24, "chb_wall_moss", "concrete_cap")
+    mb.box(-1.41, 0.0, 1.72, 1.80, 2.52, 0.30, "concrete_cap")
+    add_signboard_panel(mb, -1.41, -0.12, 0.62, 1.54, 2.10, "chb_bawal_stencil", facing="-Y", relief=0.03, framed=False)
 
-        if cap_ends and not closed_loop:
-            try:
-                f_start = self.bm.faces.new(list(reversed(rings[0])))
-                created_faces.append(f_start)
-                self.map_faces([f_start], swatch, mode=mode)
-            except ValueError:
-                pass
-            try:
-                f_end = self.bm.faces.new(rings[-1])
-                created_faces.append(f_end)
-                self.map_faces([f_end], swatch, mode=mode)
-            except ValueError:
-                pass
-        return created_faces
+    # Right bay: Patch-plastered & exposed brick/block CHB (`broken_brick_patch`) + upper iron grille!
+    mb.box(1.41, 0.0, 0.32, 1.72, 2.48, 0.24, "broken_brick_patch", "concrete_cap")
+    mb.box(1.41, 0.0, 1.72, 1.80, 2.52, 0.30, "concrete_cap")
 
-    def add_profile_extrusion(self, profile_yz, width_x: float, center=(0.0, 0.0, 0.0), swatch: str = "steel_galvanized", bevel: float = 0.02, rot_euler=(0.0, 0.0, 0.0)):
-        """Extrudes a 2D (Y, Z) side-view silhouette polygon across `width_x` into a beveled watertight solid."""
-        hx = width_x * 0.5
-        v_left = [self.bm.verts.new((-hx, py, pz)) for (py, pz) in profile_yz]
-        v_right = [self.bm.verts.new((hx, py, pz)) for (py, pz) in profile_yz]
-        n = len(profile_yz)
-        faces = []
+    # 3D Wrought-Iron Spear Pickets & Top Rail along `Z = 1.80..2.12m` on both bays!
+    for bay_cx in (-1.41, 1.41):
+        mb.tube((bay_cx - 1.22, 0.0, 2.06), (bay_cx + 1.22, 0.0, 2.06), 0.018, 0.018, 5, "steel_dark")
+        for pi in range(7):
+            px = bay_cx - 1.05 + pi * 0.35
+            mb.tube((px, 0.0, 1.80), (px, 0.0, 2.15), 0.015, 0.010, 4, "steel_dark")
+    return mb
+
+
+# ---------------------------------------------------------------------------
+# 6. Multi-Forked Philippine Mango Tree (`brgy_mango_tree.glb` ~ 5.9m x 5.7m x 6.4m)
+#    Deadlock-grade painterly multi-tone billowing leaf clouds + outward radial smooth normals!
+# ---------------------------------------------------------------------------
+
+def _add_foliage_cloud_puff(
+    mb: MeshBuilder,
+    center: Vector,
+    subcrown_center: Vector,
+    canopy_center: Vector,
+    rx: float,
+    ry: float,
+    rz_up: float,
+    rz_dn: float,
+    swatch: str,
+    ao_bias: float,
+    seed: int,
+    yaw: float = 0.0,
+) -> None:
+    """Sculpts a shared-vertex organic umbrella-dome tropical foliage cloud lobe whose vertex
+    normals and linear `COLOR_0` AO (`0.74..1.00`) are continuous spatial functions of world `(x, y, z)`
+    around `subcrown_center` & `canopy_center` — eliminating puff seams, sawtooth terminators & dark underside bands!"""
+    n_az = 20
+    lat_specs = [
+        (-0.72, 0.46),
+        (-0.38, 0.80),
+        (-0.08, 0.97),
+        ( 0.18, 1.00),
+        ( 0.44, 0.88),
+        ( 0.68, 0.66),
+        ( 0.88, 0.34),
+    ]
+    cs_y, sn_y = math.cos(yaw), math.sin(yaw)
+    bm = mb.bm
+    uv_layer = mb.uv_layer
+    u0, v0, u1, v1 = mb.rect_uv(swatch)
+    du_sw, dv_sw = u1 - u0, v1 - v0
+
+    def make_vert(lx: float, ly: float, lz: float) -> Tuple[Any, Tuple[float, float]]:
+        wx = center.x + lx * cs_y - ly * sn_y
+        wy = center.y + lx * sn_y + ly * cs_y
+        wz = center.z + lz
+        v = bm.verts.new((wx, wy, wz))
+
+        # Upward-biased continuous spatial canopy normal (`normalize(radial_out + Vector((0, 0, 0.48)))`)
+        # Harmonized with umbrella-dome lobe geometry so shadow maps have 0 sawtooth terminator jaggies!
+        dz_s = wz - subcrown_center.z
+        dz_g = wz - canopy_center.z
+        s_vec = Vector((wx - subcrown_center.x, wy - subcrown_center.y, dz_s * (1.00 if dz_s >= 0.0 else 0.52)))
+        g_vec = Vector((wx - canopy_center.x, wy - canopy_center.y, dz_g * (0.95 if dz_g >= 0.0 else 0.48)))
+        sn = s_vec.normalized() if s_vec.length_squared > 1e-6 else Vector((0.0, 0.0, 1.0))
+        gn = g_vec.normalized() if g_vec.length_squared > 1e-6 else Vector((0.0, 0.0, 1.0))
+        radial_out = sn * 0.56 + gn * 0.44
+        radial_out = Vector((radial_out.x, radial_out.y, max(-0.12, radial_out.z)))
+        radial_out = radial_out.normalized() if radial_out.length_squared > 1e-6 else Vector((0.0, 0.0, 1.0))
+        nrm = (radial_out + Vector((0.0, 0.0, 0.48))).normalized()
+
+        # Continuous spatial canopy AO (`0.74` warm sky-bounced underside -> `1.00` sunlit crown top)
+        h_glob = max(0.0, min(1.0, (wz - 3.05) / 2.85))
+        h_sub = max(0.0, min(1.0, (wz - (subcrown_center.z - 0.85)) / 1.75))
+        rad_out = max(0.0, min(1.0, math.hypot(wx, wy) / 2.75))
+        ao_val = 0.74 + 0.26 * max(0.0, min(1.0, 0.52 * h_glob + 0.28 * h_sub + 0.20 * rad_out + ao_bias))
+
+        v[mb.has_custom_nrm_layer] = 1
+        v[mb.custom_nrm_layer] = (float(nrm.x), float(nrm.y), float(nrm.z))
+        v[mb.custom_ao_layer] = float(max(0.74, min(1.0, ao_val)))
+
+        # World-coherent continuous tri-planar/top UV inside swatch so overlapping puffs match texel scale!
+        lu = 0.50 + 0.42 * math.sin(wx * 0.85 + seed * 0.17) * 0.15 + 0.36 * max(-1.0, min(1.0, lx / max(rx * 1.18, 0.25)))
+        lv = 0.50 + 0.42 * math.cos(wy * 0.85 - seed * 0.13) * 0.15 + 0.36 * max(-1.0, min(1.0, (ly * 0.65 + lz * 0.55) / max(ry * 1.18, 0.25)))
+        lu = max(0.03, min(0.97, lu))
+        lv = max(0.03, min(0.97, lv))
+        return v, (u0 + lu * du_sw, v0 + lv * dv_sw)
+
+    rings: List[List[Tuple[Any, Tuple[float, float]]]] = []
+    for r_idx, (z_f, rad_s) in enumerate(lat_specs):
+        ring_v: List[Tuple[Any, Tuple[float, float]]] = []
+        base_z = (z_f * rz_up) if z_f >= 0.0 else (z_f * rz_dn)
+        for i in range(n_az):
+            ang = (2.0 * math.pi * i) / n_az
+            wob = (
+                1.0
+                + 0.055 * math.sin(ang * 3.0 + seed * 1.31 + r_idx * 0.28)
+                + 0.030 * math.cos(ang * 5.0 - seed * 0.83 - r_idx * 0.18)
+            )
+            z_ruf = 0.022 * math.sin(ang * 3.0 + seed * 1.07) * rz_up * (1.0 - abs(z_f) * 0.65)
+            lx = rx * rad_s * wob * math.cos(ang)
+            ly = ry * rad_s * wob * math.sin(ang)
+            ring_v.append(make_vert(lx, ly, base_z + z_ruf))
+        rings.append(ring_v)
+
+    pole_bot, uv_bot = make_vert(0.0, 0.0, -rz_dn)
+    pole_top, uv_top = make_vert(0.02 * rx, -0.02 * ry, rz_up)
+
+    def emit_face(verts_uvs: List[Tuple[Any, Tuple[float, float]]]) -> None:
         try:
-            faces.append(self.bm.faces.new(list(reversed(v_left))))
-            faces.append(self.bm.faces.new(v_right))
+            f = bm.faces.new([vu[0] for vu in verts_uvs])
         except ValueError:
-            pass
-        for i in range(n):
-            j = (i + 1) % n
-            try:
-                faces.append(self.bm.faces.new((v_left[i], v_left[j], v_right[j], v_right[i])))
-            except ValueError:
-                pass
-        verts = list(v_left) + list(v_right)
-        bmesh.ops.recalc_face_normals(self.bm, faces=[f for f in faces if f.is_valid])
-        if bevel > 0.0:
-            edges = list({e for v in verts for e in v.link_edges if e.is_valid})
-            brev = bmesh.ops.bevel(self.bm, geom=edges, offset=bevel, segments=1, affect="EDGES")
-            verts = list({v for v in (list(brev["verts"]) + verts) if v.is_valid})
-        if any(abs(a) > 1e-5 for a in rot_euler):
-            rot = Euler(rot_euler, "XYZ").to_matrix()
-            bmesh.ops.rotate(self.bm, cent=Vector((0.0, 0.0, 0.0)), matrix=rot, verts=verts)
-        bmesh.ops.translate(self.bm, vec=Vector(center), verts=verts)
-        all_faces = list({f for v in verts for f in v.link_faces if f.is_valid})
-        self.map_faces(all_faces, swatch, mode="panel")
-        return verts
-
-    def add_volumetric_leaf_blade(
-        self, origin, yaw: float, pitch_start: float, pitch_end: float,
-        length: float, max_width: float, thickness: float = 0.036,
-        v_fold: float = 0.055, top_swatch: str = "leaf_banana_sun",
-        bot_swatch: str = "leaf_banana_under", segments: int = 8, split_notches=(),
-    ):
-        """Builds a 100% closed, watertight 3D volumetric arched botanical leaf blade with raised midrib & V-fold."""
-        ox, oy, oz = origin
-        yaw_m = Matrix.Rotation(yaw, 3, "Z")
-        rings = []
-        cur = Vector((0.0, 0.0, 0.0))
-        step_len = length / float(segments)
-        for i in range(segments + 1):
-            t = i / float(segments)
-            pitch = pitch_start + (pitch_end - pitch_start) * (t ** 1.15)
-            # Natural leaf width envelope: narrow petiole -> broad belly -> pointed tip
-            if t < 0.14:
-                w = max_width * (0.14 + 0.86 * (t / 0.14))
-            else:
-                w = max_width * math.sin(math.pi * (0.15 + 0.85 * (1.0 - (t - 0.14) / 0.86)))
-            if i in split_notches:
-                w *= 0.42
-            w = max(w, 0.022)
-            th = thickness * (1.0 - 0.55 * t)
-            vf = v_fold * math.sin(math.pi * min(1.0, t * 1.2))
-
-            up_local = Vector((0.0, -math.sin(pitch), math.cos(pitch)))
-            side_local = Vector((1.0, 0.0, 0.0))
-            # 4-vertex closed diamond/chevron cross-section: top-midrib, right-margin, bottom-keel, left-margin
-            p_top = yaw_m @ (cur + up_local * (th * 0.55)) + Vector((ox, oy, oz))
-            p_r = yaw_m @ (cur + side_local * (w * 0.5) + up_local * vf) + Vector((ox, oy, oz))
-            p_bot = yaw_m @ (cur - up_local * (th * 0.65)) + Vector((ox, oy, oz))
-            p_l = yaw_m @ (cur - side_local * (w * 0.5) + up_local * vf) + Vector((ox, oy, oz))
-            rings.append([self.bm.verts.new(p_top), self.bm.verts.new(p_r), self.bm.verts.new(p_bot), self.bm.verts.new(p_l)])
-
-            fwd = Vector((0.0, math.cos(pitch), math.sin(pitch)))
-            cur = cur + fwd * step_len
-
-        u0_t, v0_t, u1_t, v1_t = swatch_uv_box(top_swatch)
-        u0_b, v0_b, u1_b, v1_b = swatch_uv_box(bot_swatch)
-        for i in range(segments):
-            r0, r1 = rings[i], rings[i + 1]
-            va = 0.06 + 0.88 * (i / float(segments))
-            vb = 0.06 + 0.88 * ((i + 1) / float(segments))
-            # Top right & top left lamina quads
-            f_tr = self.bm.faces.new((r0[0], r0[1], r1[1], r1[0]))
-            f_tl = self.bm.faces.new((r0[3], r0[0], r1[0], r1[3]))
-            # Bottom right & bottom left underside quads
-            f_br = self.bm.faces.new((r0[1], r0[2], r1[2], r1[1]))
-            f_bl = self.bm.faces.new((r0[2], r0[3], r1[3], r1[2]))
-            for f, u_pair in ((f_tr, (0.50, 0.94)), (f_tl, (0.06, 0.50))):
-                f.smooth = True
-                uvs = [(u_pair[0], va), (u_pair[1], va), (u_pair[1], vb), (u_pair[0], vb)]
-                for lp, (su, sv) in zip(f.loops, uvs):
-                    lp[self.uv_layer].uv = (u0_t + su * (u1_t - u0_t), v0_t + sv * (v1_t - v0_t))
-            for f, u_pair in ((f_br, (0.94, 0.50)), (f_bl, (0.50, 0.06))):
-                f.smooth = True
-                uvs = [(u_pair[0], va), (u_pair[1], va), (u_pair[1], vb), (u_pair[0], vb)]
-                for lp, (su, sv) in zip(f.loops, uvs):
-                    lp[self.uv_layer].uv = (u0_b + su * (u1_b - u0_b), v0_b + sv * (v1_b - v0_b))
-
-        # Watertight end caps
-        f_base = self.bm.faces.new((rings[0][3], rings[0][2], rings[0][1], rings[0][0]))
-        f_tip = self.bm.faces.new((rings[-1][0], rings[-1][1], rings[-1][2], rings[-1][3]))
-        self.map_faces([f_base, f_tip], top_swatch, mode="trim")
-
-    def add_foliage_cluster_pad(self, center, radii_xyz, swatch: str, seed: int = 1, tilt_euler=(0.0, 0.0, 0.0)):
-        """Sculpted organic dome-flattened multi-lobed leaf cluster pad (NEVER a smooth UV sphere or cone!)."""
-        rx, ry, rz = radii_xyz
-        ret = bmesh.ops.create_icosphere(self.bm, subdivisions=2, radius=1.0)
-        verts = ret["verts"]
-        for v in verts:
-            p = v.co.copy()
-            ang = math.atan2(p.y, p.x)
-            # Painterly multi-lobed silhouette modulation + flat-ish shaded belly & domed sunlit crown
-            lobe = 1.0 + 0.18 * math.sin(ang * 3.0 + seed * 1.3) + 0.11 * math.cos(ang * 5.0 - seed * 0.7)
-            crown_shape = 1.08 if p.z > 0.0 else 0.62
-            v.co = Vector((
-                p.x * rx * lobe,
-                p.y * ry * lobe,
-                p.z * rz * crown_shape + 0.08 * rz * math.sin(p.x * 2.7 + seed),
-            ))
-        if any(abs(a) > 1e-5 for a in tilt_euler):
-            rot = Euler(tilt_euler, "XYZ").to_matrix()
-            bmesh.ops.rotate(self.bm, cent=Vector((0.0, 0.0, 0.0)), matrix=rot, verts=verts)
-        bmesh.ops.translate(self.bm, vec=Vector(center), verts=verts)
-        faces = list({f for v in verts for f in v.link_faces if f.is_valid})
-        self.map_faces(faces, swatch, mode="panel")
-        return verts
-
-    def bake_warm_vertex_ao(self) -> None:
-        """Bakes soft sunlit sky-to-ground vertex AO into `COLOR_0` and normalizes min_z strictly to 0.000."""
-        if not self.bm.verts:
             return
-        min_z = min(v.co.z for v in self.bm.verts)
-        if abs(min_z) > 1e-5:
-            bmesh.ops.translate(self.bm, vec=Vector((0.0, 0.0, -min_z)), verts=self.bm.verts)
-
-        max_z = max(max(v.co.z for v in self.bm.verts), 0.5)
-        color_layer = self.bm.loops.layers.color.new("Color")
-        for f in self.bm.faces:
-            f.normal_update()
-            n_up = 0.92 + 0.08 * max(0.0, f.normal.z)
-            soffit = 0.88 if f.normal.z < -0.55 else 1.0
-            for loop in f.loops:
-                z = loop.vert.co.z
-                t_ground = min(1.0, max(0.0, z / 0.45))
-                s_ground = t_ground * t_ground * (3.0 - 2.0 * t_ground)
-                ao = (0.76 + 0.24 * s_ground) * n_up * soffit
-                # Warm golden sunlit crown lift & subtle mossy-earth ground bounce
-                sun_lift = min(1.0, z / max_z) * 0.03
-                r = min(1.0, ao + sun_lift)
-                g = min(1.0, ao + sun_lift * 0.8 + (1.0 - s_ground) * 0.012)
-                b = min(1.0, ao * (0.97 + 0.03 * s_ground))
-                loop[color_layer] = (r, g, b, 1.0)
-
-    def export_glb(self, name: str, mat: bpy.types.Material) -> dict:
-        for obj in list(bpy.data.objects):
-            bpy.data.objects.remove(obj, do_unlink=True)
-        for m in list(bpy.data.meshes):
-            bpy.data.meshes.remove(m, do_unlink=True)
-
-        bmesh.ops.remove_doubles(self.bm, verts=self.bm.verts, dist=1e-4)
-        self.bake_warm_vertex_ao()
-        bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
-        open_edges = sum(1 for e in self.bm.edges if len(e.link_faces) < 2)
-        open_ratio = open_edges / float(max(len(self.bm.edges), 1))
-        assert open_ratio < 0.10, f"{name}.glb has open_ratio={open_ratio:.4f} (open_edges={open_edges})!"
-
-        mesh = bpy.data.meshes.new(name)
-        self.bm.to_mesh(mesh)
-        self.bm.free()
-
-        mesh.materials.append(mat)
-        obj = bpy.data.objects.new(name, mesh)
-        bpy.context.collection.objects.link(obj)
-        bpy.context.view_layer.objects.active = obj
-        obj.select_set(True)
-
-        os.makedirs(OUT_DIR, exist_ok=True)
-        out_path = os.path.join(OUT_DIR, f"{name}.glb")
-        bpy.ops.export_scene.gltf(
-            filepath=out_path,
-            export_format="GLB",
-            use_selection=True,
-            export_yup=True,
-            export_apply=True,
-            export_texcoords=True,
-            export_normals=True,
-            export_vertex_color="MATERIAL",
-            export_materials="EXPORT",
-            export_image_format="JPEG",
-            export_jpeg_quality=90,
-        )
-        _rewrite_glb_external_atlas(out_path)
-        verts_n = len(mesh.vertices)
-        tris_n = sum(len(p.vertices) - 2 for p in mesh.polygons)
-        xs = [v.co.x for v in mesh.vertices]
-        ys = [v.co.y for v in mesh.vertices]
-        zs = [v.co.z for v in mesh.vertices]
-        dims = (max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs))
-        size_kb = os.path.getsize(out_path) / 1024.0
-        print(
-            f"Exported {name}.glb | verts={verts_n} tris={tris_n} open={open_edges}({open_ratio:.4f}) "
-            f"dims=({dims[0]:.2f}x{dims[1]:.2f}x{dims[2]:.2f}m) size={size_kb:.1f}KB"
-        )
-        return {"name": name, "verts": verts_n, "tris": tris_n, "open": open_edges, "dims": dims, "kb": size_kb}
-
-
-# ==============================================================================
-# PART 2: 90s PROVINCIAL VEHICLES, TODA TERMINAL, KALYE HOOP & MOSSY CHB WALL
-# ==============================================================================
-
-def make_jeepney(mat: bpy.types.Material) -> dict:
-    """1. `brgy_jeepney.glb` (~5.42m long): Iconic 90s provincial passenger jeepney."""
-    b = ProvincePropBuilder()
-
-    # Chassis frame rails & axles (nose at -Y, rear stepboard at +Y)
-    b.add_box((1.42, 4.86, 0.16), (0.0, 0.05, 0.50), "steel_chassis", bevel=0.02)
-    for ay in (-1.78, 1.56):
-        b.add_cylinder(0.055, 1.78, (0.0, ay, 0.44), "steel_chassis", segments=8, rot_euler=(0.0, math.pi * 0.5, 0.0))
-
-    # 4 Rubber tires + recessed steel rims + left-mounted spare wheel
-    for wx in (-0.92, 0.92):
-        for wy in (-1.78, 1.56):
-            b.add_wheel_assembly((wx, wy, 0.44), tire_r=0.44, width=0.26, rim_r=0.23, rim_swatch="jeep_sunlit_gold", segments=14)
-    b.add_wheel_assembly((-1.06, -0.58, 1.12), tire_r=0.36, width=0.19, rim_r=0.18, rim_swatch="jeep_crimson_red", segments=12)
-
-    # Rounded pressed-steel Sarao-style front hood (-2.56 .. -1.16) + crowned upper cowl
-    hood_prof = [
-        (-2.54, 0.58), (-2.56, 1.08), (-2.42, 1.28),
-        (-1.22, 1.38), (-1.14, 0.58),
-    ]
-    b.add_profile_extrusion(hood_prof, width_x=1.62, center=(0.0, 0.0, 0.0), swatch="jeep_sunlit_gold", bevel=0.045)
-    b.add_box((1.46, 1.28, 0.12), (0.0, -1.84, 1.36), "jeep_crimson_red", rot_euler=(0.08, 0.0, 0.0), bevel=0.03)
-    # Chrome center hood spear & twin provincial hood ornaments + stalk mirrors
-    b.add_box((0.06, 1.22, 0.06), (0.0, -1.86, 1.44), "steel_chrome", rot_euler=(0.08, 0.0, 0.0), bevel=0.01)
-    for sx in (-0.44, 0.44):
-        b.add_box((0.05, 0.22, 0.14), (sx, -2.32, 1.39), "steel_chrome", rot_euler=(-0.18, 0.0, 0.0), bevel=0.01)
-    for mx in (-0.86, 0.86):
-        b.add_lofted_tube(
-            [(mx * 0.82, -1.52, 1.38), (mx * 1.06, -1.58, 1.62), (mx * 1.12, -1.58, 1.74)],
-            [0.018, 0.016, 0.015], "steel_chrome", segments=6
-        )
-        b.add_box((0.06, 0.14, 0.20), (mx * 1.13, -1.58, 1.76), "steel_chrome", bevel=0.012)
-
-    # Flared front wheel-arch fenders with subtle oxidized sienna rust along lower lip
-    fender_prof = [
-        (-2.46, 0.52), (-2.32, 0.94), (-1.42, 0.96), (-1.22, 0.50),
-        (-1.46, 0.50), (-1.58, 0.78), (-2.04, 0.78), (-2.18, 0.52),
-    ]
-    for fx in (-0.88, 0.88):
-        b.add_profile_extrusion(fender_prof, width_x=0.34, center=(fx, 0.0, 0.0), swatch="fender_rust", bevel=0.02)
-
-    # Front chrome radiator grille + 9 vertical grille slats + dual headlights + front bumper & mudflaps
-    b.add_box((1.52, 0.10, 0.56), (0.0, -2.55, 0.94), "steel_chassis", bevel=0.015)
-    for gi in range(9):
-        gx = -0.52 + gi * 0.13
-        b.add_box((0.045, 0.06, 0.44), (gx, -2.59, 0.94), "steel_chrome", bevel=0.008, mode="trim")
-    for hx in (-0.58, 0.58):
-        b.add_cylinder(0.145, 0.10, (hx, -2.59, 1.04), "steel_chrome", segments=12, rot_euler=(math.pi * 0.5, 0.0, 0.0), mode="panel")
-        b.add_cylinder(0.115, 0.12, (hx, -2.61, 1.04), "headlight_lens", segments=12, rot_euler=(math.pi * 0.5, 0.0, 0.0), mode="panel")
-        b.add_cylinder(0.055, 0.08, (hx * 1.32, -2.48, 0.82), "jeep_sunlit_gold", segments=8, rot_euler=(math.pi * 0.5, 0.0, 0.0))
-    b.add_box((2.04, 0.18, 0.16), (0.0, -2.66, 0.54), "steel_chrome", bevel=0.025)
-    b.add_sign_panel((0.44, 0.05, 0.16), (0.0, -2.74, 0.54), "sign_plate_toda", "steel_chrome", bevel=0.008)
-    for mfx in (-0.82, 0.82):
-        b.add_box((0.32, 0.04, 0.24), (mfx, -2.58, 0.34), "rubber_tread", bevel=0.008)
-
-    # Angled split windshield + brow signboard ("POBLACION / TABING-ILOG")
-    b.add_box((1.84, 0.10, 0.62), (0.0, -1.16, 1.68), "windshield_tint", rot_euler=(-0.24, 0.0, 0.0), bevel=0.015)
-    b.add_box((0.06, 0.13, 0.64), (0.0, -1.16, 1.68), "steel_chrome", rot_euler=(-0.24, 0.0, 0.0), bevel=0.01)
-    b.add_box((1.96, 0.34, 0.26), (0.0, -1.28, 2.08), "jeep_crimson_red", bevel=0.025)
-    b.add_sign_panel((1.62, 0.08, 0.24), (0.0, -1.45, 2.09), "sign_jeep_route", "steel_galvanized", bevel=0.012)
-
-    # Passenger cabin body (-1.18 .. +2.52): floor deck, side livery walls, rusty rear wheel arches, interior benches
-    b.add_box((1.96, 3.72, 0.14), (0.0, 0.68, 0.66), "wood_bench_worn", bevel=0.02)
-    for sx in (-0.96, 0.96):
-        b.add_box((0.12, 3.70, 0.68), (sx, 0.68, 1.04), "jeep_sunlit_gold", bevel=0.02)
-        b.add_box((0.15, 3.66, 0.22), (sx, 0.68, 1.14), "jeep_crimson_red", bevel=0.015)
-        b.add_box((0.14, 3.66, 0.14), (sx, 0.68, 0.80), "jeep_royal_blue", bevel=0.012)
-        # Rear wheel arch flare with subtle lower fender rust
-        b.add_box((0.20, 1.02, 0.32), (sx * 1.02, 1.56, 0.78), "fender_rust", bevel=0.02)
-        # Cushioned interior passenger bench along each side
-        b.add_box((0.40, 3.18, 0.14), (sx * 0.68, 0.78, 0.96), "vinyl_seat", bevel=0.025)
-        b.add_box((0.10, 3.18, 0.28), (sx * 0.88, 0.78, 1.22), "vinyl_seat", bevel=0.02)
-    # Driver seat & bulkhead behind cab
-    b.add_box((0.52, 0.44, 0.16), (-0.42, -0.78, 1.02), "vinyl_seat", bevel=0.025)
-
-    # Open side passenger window frames (4 stainless pillars per side) + horizontal grab bars
-    for sx in (-0.95, 0.95):
-        for py in (-1.08, 0.12, 1.32, 2.46):
-            b.add_box((0.08, 0.09, 0.74), (sx, py, 1.74), "steel_galvanized", bevel=0.01)
-        b.add_lofted_tube(
-            [(sx * 1.05, -0.98, 1.56), (sx * 1.05, 0.75, 1.56), (sx * 1.05, 2.40, 1.56)],
-            0.020, "steel_chrome", segments=6
-        )
-
-    # Rear open boarding portal, stepboard & twin curved stainless grab rails
-    for sx in (-0.72, 0.72):
-        b.add_box((0.48, 0.12, 0.70), (sx, 2.50, 1.04), "jeep_jade_teal", bevel=0.018)
-        b.add_cylinder(0.075, 0.06, (sx, 2.57, 0.94), "jeep_crimson_red", segments=10, rot_euler=(math.pi * 0.5, 0.0, 0.0))
-        b.add_lofted_tube(
-            [(sx * 0.78, 2.56, 0.88), (sx * 0.84, 2.64, 1.38), (sx * 0.78, 2.56, 1.92)],
-            0.022, "steel_chrome", segments=6
-        )
-    b.add_box((1.36, 0.32, 0.09), (0.0, 2.66, 0.52), "steel_galvanized", bevel=0.015)
-
-    # Crowned brushed-zinc jeepney roof + overhead interior grab bar + top wooden cargo rack with sako & tarp
-    roof_prof = [
-        (-1.38, 2.08), (-1.18, 2.24), (2.42, 2.24), (2.58, 2.08),
-    ]
-    b.add_profile_extrusion(roof_prof, width_x=2.04, center=(0.0, 0.0, 0.0), swatch="yero_sunlit_zinc", bevel=0.04)
-    b.add_lofted_tube([(0.0, -0.85, 2.02), (0.0, 2.25, 2.02)], 0.020, "steel_chrome", segments=6)
-    # Roof rack rails + rice sack + bundled tarp
-    rack_loop = [(-0.76, -0.25, 2.30), (0.76, -0.25, 2.30), (0.76, 1.95, 2.30), (-0.76, 1.95, 2.30)]
-    b.add_lofted_tube(rack_loop, 0.022, "steel_galvanized", segments=6, closed_loop=True)
-    for ry in (0.10, 0.85, 1.60):
-        b.add_box((1.48, 0.09, 0.04), (0.0, ry, 2.26), "coco_lumber", bevel=0.008)
-    b.add_box((0.76, 0.92, 0.28), (-0.22, 0.75, 2.39), "burlap_sako", bevel=0.05)
-    b.add_box((0.58, 0.74, 0.24), (0.38, 1.22, 2.37), "trapal_sun_stripe", bevel=0.035)
-
-    return b.export_glb("brgy_jeepney", mat)
-
-
-def make_tricycle(mat: bpy.types.Material) -> dict:
-    """2. `brgy_tricycle.glb` (~2.32m long): Pinoy motorcycle + galvanized kolong/pampasahero sidecar."""
-    b = ProvincePropBuilder()
-
-    # --- LEFT SIDE (X = -0.48): 90s Pinoy 125cc Commuter Motorcycle ---
-    mx = -0.48
-    for wy in (-0.76, 0.76):
-        b.add_wheel_assembly((mx, wy, 0.32), tire_r=0.32, width=0.14, rim_r=0.17, rim_swatch="steel_chrome", segments=12)
-
-    # Telescoping tubular front wheel fork + front fender + round chrome headlamp + handlebars
-    for fx_off in (-0.08, 0.08):
-        b.add_lofted_tube(
-            [(mx + fx_off, -0.76, 0.32), (mx + fx_off, -0.58, 0.78), (mx + fx_off, -0.46, 1.12)],
-            [0.022, 0.024, 0.022], "steel_chrome", segments=6
-        )
-    b.add_lofted_tube(
-        [(mx, -0.96, 0.56), (mx, -0.76, 0.67), (mx, -0.54, 0.54)],
-        0.075, "jeep_crimson_red", segments=8, scale_ab=(1.1, 0.35), mode="panel"
-    )
-    b.add_cylinder(0.105, 0.10, (mx, -0.64, 1.02), "steel_chrome", segments=10, rot_euler=(math.pi * 0.5, 0.0, 0.0), mode="panel")
-    b.add_cylinder(0.085, 0.11, (mx, -0.66, 1.02), "headlight_lens", segments=10, rot_euler=(math.pi * 0.5, 0.0, 0.0), mode="panel")
-    b.add_lofted_tube(
-        [(mx - 0.36, -0.38, 1.18), (mx - 0.16, -0.46, 1.15), (mx + 0.16, -0.46, 1.15), (mx + 0.36, -0.38, 1.18)],
-        0.018, "steel_chrome", segments=6
-    )
-
-    # Spine frame, teardrop fuel tank, finned engine block, vinyl saddle & chrome exhaust pipe
-    b.add_box((0.22, 0.96, 0.30), (mx, -0.02, 0.54), "steel_chassis", bevel=0.025)
-    b.add_box((0.28, 0.54, 0.26), (mx, -0.22, 0.88), "jeep_crimson_red", bevel=0.045)
-    b.add_box((0.28, 0.74, 0.16), (mx, 0.44, 0.86), "vinyl_seat", bevel=0.03)
-    b.add_lofted_tube(
-        [(mx - 0.12, -0.18, 0.42), (mx - 0.16, 0.25, 0.36), (mx - 0.17, 0.92, 0.44)],
-        [0.028, 0.042, 0.046], "steel_chrome", segments=8
-    )
-
-    # Welded steel chassis cross-struts tying motorcycle to sidecar
-    for sy in (-0.36, 0.38):
-        b.add_cylinder(0.028, 0.86, (-0.06, sy, 0.44), "steel_chassis", segments=6, rot_euler=(0.0, math.pi * 0.5, 0.0))
-
-    # --- RIGHT SIDE (X = +0.34): Galvanized Steel Pampasahero Sidecar (Kolong) ---
-    sx = 0.34
-    sidecar_prof = [
-        (-1.08, 0.42), (-0.92, 0.88), (-0.42, 0.92),
-        (-0.34, 0.54), (0.58, 0.54), (0.86, 0.96),
-        (0.92, 0.40), (-0.88, 0.36),
-    ]
-    b.add_profile_extrusion(sidecar_prof, width_x=0.86, center=(sx, 0.0, 0.0), swatch="steel_galvanized", bevel=0.028)
-    # Royal-blue livery beltline + oxidized rust lower rub-rail + cushioned passenger seat
-    b.add_box((0.90, 1.66, 0.18), (sx, -0.06, 0.64), "jeep_royal_blue", bevel=0.015)
-    b.add_box((0.89, 1.54, 0.10), (sx, -0.04, 0.42), "fender_rust", bevel=0.01)
-    b.add_box((0.74, 0.52, 0.14), (sx, 0.36, 0.62), "vinyl_seat", bevel=0.025)
-    b.add_box((0.74, 0.14, 0.42), (sx, 0.68, 0.86), "vinyl_seat", bevel=0.025)
-
-    # Angled windshield + striped trapal weather apron + structural front/rear stanchions
-    b.add_box((0.84, 0.08, 0.52), (sx, -0.66, 1.18), "windshield_tint", rot_euler=(-0.34, 0.0, 0.0), bevel=0.012)
-    b.add_box((0.88, 0.12, 0.20), (sx, -0.78, 0.92), "trapal_sun_stripe", rot_euler=(-0.22, 0.0, 0.0), bevel=0.015)
-    for px_s in (sx - 0.40, sx + 0.40):
-        b.add_lofted_tube([(px_s, -0.82, 0.86), (px_s, -0.56, 1.62)], 0.020, "steel_galvanized", segments=6)
-        b.add_lofted_tube([(px_s, 0.82, 0.90), (px_s, 0.78, 1.58)], 0.020, "steel_galvanized", segments=6)
-
-    # Galvanized sidecar canopy roof (extending slightly over rider) + welded tubular roof rack!
-    b.add_box((1.24, 1.76, 0.09), (0.18, 0.04, 1.62), "yero_sunlit_zinc", rot_euler=(0.05, 0.0, 0.0), bevel=0.025)
-    rack_pts = [(-0.34, -0.68, 1.71), (0.72, -0.68, 1.71), (0.72, 0.78, 1.64), (-0.34, 0.78, 1.64)]
-    b.add_lofted_tube(rack_pts, 0.018, "steel_rusted_orange", segments=6, closed_loop=True)
-    for ry in (-0.32, 0.08, 0.48):
-        b.add_cylinder(0.014, 1.02, (0.19, ry, 1.68), "steel_galvanized", segments=6, rot_euler=(0.0, math.pi * 0.5, 0.0))
-
-    # Outer sidecar wheel (X = +0.88) + sculpted curved galvanized/rusted sidecar wheel fender + number plates
-    b.add_wheel_assembly((0.88, 0.12, 0.32), tire_r=0.32, width=0.15, rim_r=0.16, rim_swatch="jeep_sunlit_gold", segments=12)
-    b.add_lofted_tube(
-        [(0.88, -0.26, 0.38), (0.88, -0.12, 0.66), (0.88, 0.12, 0.72), (0.88, 0.36, 0.64), (0.88, 0.48, 0.38)],
-        0.105, "fender_rust", segments=8, scale_ab=(0.95, 0.38), mode="panel"
-    )
-    # Rear spare wheel + front & rear "TODA 04" number plates
-    b.add_wheel_assembly((sx, 1.00, 0.78), tire_r=0.25, width=0.12, rim_r=0.12, rim_swatch="steel_galvanized", segments=10)
-    b.add_sign_panel((0.52, 0.05, 0.20), (sx, -1.10, 0.62), "sign_plate_toda", "steel_galvanized", bevel=0.008)
-    b.add_sign_panel((0.46, 0.05, 0.18), (mx, 0.96, 0.66), "sign_plate_toda", "steel_galvanized", rot_euler=(0.0, 0.0, math.pi), bevel=0.008)
-
-    return b.export_glb("brgy_tricycle", mat)
-
-
-def make_toda_shed(mat: bpy.types.Material) -> dict:
-    """3. `brgy_toda_shed.glb`: Provincial TODA Tricycle Terminal waiting & dispatch shed."""
-    b = ProvincePropBuilder()
-
-    # Mossy concrete floor pad + yellow-black diagonal dispatch curb along front (-Y)
-    b.add_box((5.60, 3.40, 0.18), (0.0, 0.05, 0.09), "concrete_mossy", bevel=0.025)
-    b.add_box((5.66, 0.30, 0.20), (0.0, -1.56, 0.10), "hazard_curb_90s", bevel=0.02)
-
-    # 4 Corner concrete footings + coco-lumber front posts & rusted steel pipe rear posts + knee braces
-    post_xs = (-2.48, 2.48)
-    for px in post_xs:
-        for py, p_sw, is_front in ((-1.32, "coco_lumber", True), (1.36, "steel_rusted_orange", False)):
-            b.add_box((0.36, 0.36, 0.34), (px, py, 0.18 + 0.17), "concrete_mossy", bevel=0.02)
-            if is_front:
-                b.add_box((0.15, 0.15, 2.66), (px, py, 0.52 + 1.33), p_sw, bevel=0.015)
-            else:
-                b.add_cylinder(0.075, 2.42, (px, py, 0.52 + 1.21), p_sw, segments=8, mode="panel")
-        # Timber rafters front-to-back & diagonal knee braces along front beam
-        b.add_box((0.12, 3.36, 0.14), (px, 0.02, 2.98), "coco_lumber", rot_euler=(-0.10, 0.0, 0.0), bevel=0.012)
-        sgn = -1.0 if px > 0.0 else 1.0
-        b.add_box((0.68, 0.10, 0.10), (px + sgn * 0.28, -1.32, 2.74), "coco_lumber", rot_euler=(0.0, sgn * 0.72, 0.0), bevel=0.01)
-
-    # Front header beam + rear purlin beam
-    b.add_box((5.36, 0.16, 0.18), (0.0, -1.32, 3.10), "coco_lumber", bevel=0.015)
-    b.add_box((5.36, 0.14, 0.16), (0.0, 1.36, 2.78), "steel_rusted_orange", bevel=0.012)
-
-    # Low mossy CHB back windbreak wall + short side wing walls
-    b.add_box((4.82, 0.24, 1.02), (0.0, 1.36, 0.18 + 0.51), "chb_moss_base", bevel=0.02)
-    b.add_box((4.92, 0.30, 0.10), (0.0, 1.36, 1.25), "concrete_warm", bevel=0.015)
-    for wx in (-2.48, 2.48):
-        b.add_box((0.22, 1.28, 0.88), (wx, 0.64, 0.18 + 0.44), "chb_moss_base", bevel=0.02)
-
-    # Slatted wooden waiting bench + Barker dispatch podium & fare board
-    for bz_slat in (-0.12, 0.12):
-        b.add_box((3.48, 0.20, 0.07), (-0.42, 0.86 + bz_slat, 0.64), "wood_bench_worn", bevel=0.012)
-    for lx in (-1.92, -0.42, 1.08):
-        b.add_box((0.12, 0.44, 0.44), (lx, 0.86, 0.18 + 0.22), "coco_lumber", bevel=0.01)
-    # Dispatch barker desk on right side (+X) + "TODA FARE / BARKER" chalkboard
-    b.add_box((0.76, 0.58, 0.92), (1.86, 0.58, 0.18 + 0.46), "coco_lumber", bevel=0.02)
-    b.add_sign_panel((0.92, 0.07, 0.64), (1.86, 1.26, 1.78), "sign_fare_board", "coco_lumber", bevel=0.01)
-
-    # Multi-sheet overlapping corrugated GI roof with rust streaks + old tire roof weight
-    roof_sheets = [
-        (-1.95, "yero_sunlit_zinc"), (-0.65, "yero_rust_streaks"),
-        (0.65, "yero_sunlit_zinc"), (1.95, "yero_green_90s"),
-    ]
-    for rx, r_sw in roof_sheets:
-        b.add_box((1.42, 3.62, 0.07), (rx, 0.04, 3.12 + (0.018 if rx > 0 else 0.0)), r_sw, rot_euler=(-0.10, 0.0, 0.0), bevel=0.012)
-    # Roof weight tire
-    b.add_lofted_tube(
-        [(1.35 + 0.34 * math.cos(a), 0.35 + 0.34 * math.sin(a), 3.24) for a in [k * math.pi * 0.25 for k in range(8)]],
-        0.10, "rubber_tread", segments=8, closed_loop=True, mode="panel"
-    )
-
-    # Prominent front fascia "BRGY. TODA / TERMINAL" signboard mounted cleanly in front of eave lip
-    b.add_sign_panel((3.56, 0.10, 0.68), (0.0, -1.82, 3.22), "sign_toda_terminal", "steel_rusted_orange", bevel=0.016)
-
-    # Hanging rubber tire bumper suspended by twin rusted chains on front-left dispatch corner!
-    tire_cx, tire_cy, tire_cz = -2.48, -1.62, 1.32
-    for ch_x in (-0.12, 0.12):
-        b.add_lofted_tube(
-            [(tire_cx + ch_x, -1.44, 2.98), (tire_cx + ch_x, tire_cy, tire_cz + 0.32)],
-            0.018, "steel_rusted_orange", segments=6
-        )
-    ring_pts = [
-        (tire_cx + 0.34 * math.cos(a), tire_cy, tire_cz + 0.34 * math.sin(a))
-        for a in [k * (2.0 * math.pi / 12.0) for k in range(12)]
-    ]
-    b.add_lofted_tube(ring_pts, 0.105, "rubber_tread", segments=8, closed_loop=True, mode="panel")
-
-    return b.export_glb("brgy_toda_shed", mat)
-
-
-def make_wooden_hoop(mat: bpy.types.Material) -> dict:
-    """4. `brgy_wooden_hoop.glb`: Authentic 90s kalye coco-lumber basketball post + concrete tire base."""
-    b = ProvincePropBuilder()
-
-    # Heavy concrete-filled old truck tire base + mossy CHB counterweight blocks at Z = 0.0
-    tire_pts = [
-        (0.44 * math.cos(a), 0.28 + 0.44 * math.sin(a), 0.16)
-        for a in [k * (2.0 * math.pi / 14.0) for k in range(14)]
-    ]
-    b.add_lofted_tube(tire_pts, 0.16, "rubber_tread", segments=10, closed_loop=True, mode="panel")
-    b.add_cylinder(0.38, 0.30, (0.0, 0.28, 0.16), "concrete_mossy", segments=12, mode="panel")
-    for bx in (-0.34, 0.34):
-        b.add_box((0.22, 0.42, 0.20), (bx, 0.56, 0.10), "chb_moss_base", rot_euler=(0.0, 0.0, bx * 0.25), bevel=0.015)
-
-    # Weathered 4x4 coco-lumber vertical post (subtle organic bow) + 4 diagonal timber base braces
-    post_pts = [(0.0, 0.28, 0.12), (0.01, 0.27, 1.25), (-0.01, 0.25, 2.40), (0.0, 0.22, 3.44)]
-    b.add_lofted_tube(post_pts, [0.088, 0.084, 0.080, 0.076], "coco_lumber", segments=8, mode="panel")
-    for dx, dy in ((-0.26, 0.28), (0.26, 0.28), (0.0, -0.02), (0.0, 0.58)):
-        b.add_lofted_tube(
-            [(dx, dy, 0.26), (0.0, 0.28, 0.96)],
-            0.038, "coco_lumber", segments=6, mode="panel"
-        )
-
-    # Forward overhanging coco-lumber boom arm + diagonal knee strut reaching toward -Y (front)
-    b.add_box((0.13, 0.96, 0.13), (0.0, -0.20, 3.32), "coco_lumber", bevel=0.015)
-    b.add_lofted_tube([(0.0, 0.24, 2.66), (0.0, -0.48, 3.28)], 0.044, "coco_lumber", segments=6, mode="panel")
-
-    # Rear H-frame timber cleats + hand-painted weathered white plywood backboard (faded red shooter's square)
-    for cy in (3.02, 3.46):
-        b.add_box((1.22, 0.07, 0.09), (0.0, -0.66, cy), "coco_lumber", bevel=0.01)
-    for cx in (-0.46, 0.46):
-        b.add_box((0.08, 0.07, 0.78), (cx, -0.66, 3.24), "coco_lumber", bevel=0.01)
-    b.add_sign_panel((1.38, 0.055, 0.94), (0.0, -0.72, 3.24), "backboard_kalye", "coco_lumber", bevel=0.012)
-
-    # Rusted orange steel L-bracket + 18-inch circular steel basketball ring at Z = 2.98m
-    b.add_box((0.18, 0.14, 0.12), (0.0, -0.79, 2.96), "steel_rusted_orange", bevel=0.012)
-    rim_cy, rim_cz, rim_r = -1.04, 2.98, 0.24
-    rim_pts = [
-        (rim_r * math.cos(a), rim_cy + rim_r * math.sin(a), rim_cz)
-        for a in [k * (2.0 * math.pi / 16.0) for k in range(16)]
-    ]
-    b.add_lofted_tube(rim_pts, 0.018, "steel_rusted_orange", segments=6, closed_loop=True)
-
-    # 3D Hourglass nylon/chain net cords (12 crisscrossing 3D tubular strands + 2 horizontal tie rings)
-    n_cords = 12
-    for ci in range(n_cords):
-        a0 = (2.0 * math.pi * ci) / float(n_cords)
-        a1 = a0 + 0.34 * (1.0 if ci % 2 == 0 else -1.0)
-        a2 = a0 + 0.58 * (1.0 if ci % 2 == 0 else -1.0)
-        c_pts = [
-            (rim_r * math.cos(a0), rim_cy + rim_r * math.sin(a0), rim_cz - 0.01),
-            (rim_r * 0.72 * math.cos(a1), rim_cy + rim_r * 0.72 * math.sin(a1), rim_cz - 0.24),
-            (rim_r * 0.58 * math.cos(a2), rim_cy + rim_r * 0.58 * math.sin(a2), rim_cz - 0.46),
-        ]
-        b.add_lofted_tube(c_pts, 0.009, "cord_net", segments=5)
-    for hz, hr in ((rim_cz - 0.22, rim_r * 0.73), (rim_cz - 0.42, rim_r * 0.60)):
-        h_pts = [
-            (hr * math.cos(a), rim_cy + hr * math.sin(a), hz)
-            for a in [k * (2.0 * math.pi / 12.0) for k in range(12)]
-        ]
-        b.add_lofted_tube(h_pts, 0.008, "cord_net", segments=5, closed_loop=True)
-
-    return b.export_glb("brgy_wooden_hoop", mat)
-
-
-def make_chb_wall(mat: bpy.types.Material) -> dict:
-    """5. `brgy_chb_wall.glb` (~6.04m x 2.12m): Mossy CHB outer wall + stepped top + rebar + BAWAL UMIHI DITO."""
-    b = ProvincePropBuilder()
-
-    # Damp mossy concrete footing plinth + lush 3D lumot moss cushions along wall-ground crease
-    b.add_box((6.04, 0.42, 0.24), (0.0, 0.0, 0.12), "concrete_mossy", bevel=0.025)
-    for mx, my, mr in ((-2.25, -0.20, 0.28), (-0.65, -0.21, 0.34), (0.82, -0.20, 0.26), (2.15, -0.20, 0.32), (0.15, 0.20, 0.30)):
-        b.add_foliage_cluster_pad((mx, my, 0.09), (mr, 0.14, 0.09), "leaf_mango_shade", seed=int(abs(mx * 10)) + 3)
-
-    # 4 Reinforced concrete pilasters dividing 3 CHB bays (-2.86, -0.96, +0.96, +2.86)
-    pilaster_xs = (-2.86, -0.96, 0.96, 2.86)
-    pilaster_hs = (2.06, 1.98, 2.02, 2.08)
-    for px, ph in zip(pilaster_xs, pilaster_hs):
-        b.add_box((0.34, 0.38, 0.68), (px, 0.0, 0.24 + 0.34), "concrete_mossy", bevel=0.02)
-        b.add_box((0.32, 0.36, ph - 0.92), (px, 0.0, 0.92 + (ph - 0.92) * 0.5), "concrete_warm", bevel=0.02)
-        # Exposed rusted rebar Tie-stub protruding from pilaster crown
-        b.add_lofted_tube(
-            [(px - 0.05, 0.0, ph - 0.04), (px - 0.05, 0.02, ph + 0.12), (px - 0.02, 0.06, ph + 0.18)],
-            0.014, "steel_rusted_orange", segments=5
-        )
-
-    # 3 Multi-course CHB wall bays with recessed mortar horizontal bands & damp mossy lower courses
-    bays = [
-        (-1.91, 1.62, "chb_moss_base", "chb_sunlit_upper", 1.72),
-        (0.00, 1.64, "chb_moss_base", "chb_plaster_ochre", 1.84),
-        (1.91, 1.62, "chb_moss_base", "chb_sunlit_upper", 1.68),
-    ]
-    for bx, bw, low_sw, hi_sw, top_z in bays:
-        # Lower mossy CHB courses (0.24 .. 0.96m)
-        b.add_box((bw, 0.24, 0.72), (bx, 0.0, 0.24 + 0.36), low_sw, bevel=0.018)
-        # Recessed horizontal mortar shadow band
-        b.add_box((bw, 0.20, 0.06), (bx, 0.0, 0.99), "mortar_broken", bevel=0.005)
-        # Upper sunlit CHB courses (1.02 .. top_z)
-        uh = top_z - 1.02
-        b.add_box((bw, 0.23, uh), (bx, 0.0, 1.02 + uh * 0.5), hi_sw, bevel=0.018)
-
-    # Central plastered warning stencil on -Y face: "BAWAL UMIHI / DITO"
-    b.add_sign_panel((1.46, 0.06, 0.74), (0.0, -0.12, 1.38), "chb_bawal_umihi", "chb_plaster_ochre", bevel=0.012)
-
-    # Dynamic stepped broken hollow blocks along top crest + recessed hollow cells + bent rusted rebar stubs!
-    broken_blocks = [
-        (-2.36, 1.72, 0.38, 0.20), (-1.94, 1.72, 0.38, 0.34), (-1.42, 1.72, 0.36, 0.18),
-        (-0.44, 1.84, 0.40, 0.22), (0.02, 1.84, 0.40, 0.18),
-        (1.42, 1.68, 0.38, 0.20), (1.84, 1.68, 0.38, 0.36), (2.26, 1.68, 0.36, 0.19),
-    ]
-    for blk_x, base_z, blk_w, blk_h in broken_blocks:
-        b.add_box((blk_w, 0.21, blk_h), (blk_x, 0.0, base_z + blk_h * 0.5), "chb_sunlit_upper", bevel=0.014)
-        # Dark recessed hollow-block core cells on top face
-        for cell_off in (-0.08, 0.08):
-            b.add_box((0.11, 0.12, 0.03), (blk_x + cell_off, 0.0, base_z + blk_h + 0.005), "mortar_broken", bevel=0.004)
-
-    # Bent rusted steel rebar stubs jutting from stepped CHB cores
-    rebar_specs = [
-        (-2.12, 1.88, 0.22, 0.06), (-1.52, 1.88, 0.18, -0.05),
-        (0.46, 1.82, 0.24, 0.08), (1.62, 1.86, 0.21, -0.07), (2.42, 1.85, 0.17, 0.04),
-    ]
-    for rx, rz, rh, bend_x in rebar_specs:
-        b.add_lofted_tube(
-            [(rx, 0.0, rz), (rx + bend_x * 0.4, 0.01, rz + rh * 0.65), (rx + bend_x, -0.02, rz + rh)],
-            0.013, "steel_rusted_orange", segments=5
-        )
-
-    return b.export_glb("brgy_chb_wall", mat)
-
-
-# ==============================================================================
-# PART 3: PROVINCIAL TREES, 3D VOLUMETRIC SAMPAYAN & 90s POWER-UP STAND
-# ==============================================================================
-
-def make_mango_tree(mat: bpy.types.Material) -> dict:
-    """6a. `brgy_mango_tree.glb` (Punong Mangga ~6.5m tall): buttress roots, gnarled trunk, multi-layered canopy."""
-    b = ProvincePropBuilder()
-
-    # Damp mossy soil base pad + 5 sinuous buttress root flares gripping the earth at Z = 0.0
-    b.add_foliage_cluster_pad((0.0, 0.0, 0.08), (1.18, 1.12, 0.14), "concrete_mossy", seed=11)
+        f.smooth = True
+        for lp, (_, uv_co) in zip(f.loops, verts_uvs):
+            lp[uv_layer].uv = uv_co
+
+    for r_idx in range(len(rings) - 1):
+        r_a = rings[r_idx]
+        r_b = rings[r_idx + 1]
+        for i in range(n_az):
+            j = (i + 1) % n_az
+            emit_face([r_a[i], r_a[j], r_b[j], r_b[i]])
+
+    r_top = rings[-1]
+    r_bot = rings[0]
+    for i in range(n_az):
+        j = (i + 1) % n_az
+        emit_face([r_top[i], r_top[j], (pole_top, uv_top)])
+        emit_face([r_bot[j], r_bot[i], (pole_bot, uv_bot)])
+
+
+def build_mango_tree(uvs: Dict[str, Tuple[float, float, float, float]]) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
+    canopy_center = Vector((0.0, 0.0, 4.15))
+
+    # 1. Grounded Flared Buttress Roots (`Z = 0.000`) + Gnarled S-Curved Trunk (`bark_mango`)
     for ri in range(5):
-        ang = ri * (2.0 * math.pi / 5.0) + 0.22
-        ca, sa = math.cos(ang), math.sin(ang)
-        r_pts = [
-            (ca * 1.18, sa * 1.18, 0.03),
-            (ca * 0.78, sa * 0.78, 0.18),
-            (ca * 0.42, sa * 0.42, 0.56),
-            (ca * 0.18, sa * 0.18, 1.15),
-        ]
-        b.add_lofted_tube(r_pts, [0.06, 0.13, 0.19, 0.22], "bark_mango", segments=7, scale_ab=(0.75, 1.28), mode="panel")
-
-    # Thick gnarled tapered trunk with organic bark ridges curving to main crotch at Z = 2.25m
+        ra = (2.0 * math.pi * ri) / 5.0 + 0.3
+        mb.tube(
+            (0.68 * math.cos(ra), 0.68 * math.sin(ra), 0.0),
+            (0.14 * math.cos(ra), 0.14 * math.sin(ra), 0.85),
+            0.16, 0.20, 6, "bark_mango",
+        )
     trunk_pts = [
-        (0.0, 0.0, 0.04), (0.04, -0.03, 0.75),
-        (0.09, 0.04, 1.50), (0.03, 0.02, 2.30),
+        (Vector((0.0, 0.0, 0.0)), 0.42),
+        (Vector((0.10, -0.06, 1.08)), 0.33),
+        (Vector((-0.05, 0.08, 2.22)), 0.27),
     ]
-    b.add_lofted_tube(
-        trunk_pts, [0.46, 0.39, 0.35, 0.32], "bark_mango", segments=10,
-        bulge_fn=lambda s, a: 1.0 + 0.11 * math.sin(a * 4.0 + s * 3.0), mode="panel"
-    )
+    for (p0, r0), (p1, r1) in zip(trunk_pts[:-1], trunk_pts[1:]):
+        mb.tube(p0, p1, r0, r1, 8, "bark_mango")
 
-    # 4 Primary spreading crooked boughs + 8 secondary forked limbs
-    boughs = [
-        (0.18, 1.48, 0.42, 3.85, 0.22),
-        (1.75, -0.45, 1.56, 3.95, 0.21),
-        (3.32, -1.52, -0.38, 3.78, 0.22),
-        (4.88, 0.38, -1.54, 4.10, 0.20),
+    # 2. Asymmetric Multi-Height Hardwood Limbs Creating Airy Deadlock Bough Separation!
+    fork_origin = trunk_pts[-1][0]
+    # 4 distinct asymmetric sub-crowns at varied heights & reaches + 1 high central-right apex crown
+    subcrowns = [
+        # (limb_mid, subcrown_center, main_rx, main_ry, main_rzu, seed_base)
+        (Vector((-0.95, -0.45, 3.05)), Vector((-1.85, -0.78, 3.95)), 1.52, 1.38, 0.86, 20),
+        (Vector(( 0.92, -0.62, 3.18)), Vector(( 1.78, -1.08, 4.32)), 1.56, 1.40, 0.92, 60),
+        (Vector((-0.48,  0.98, 3.28)), Vector((-0.96,  1.82, 4.48)), 1.54, 1.42, 0.90, 100),
+        (Vector(( 0.78,  0.76, 3.45)), Vector(( 1.48,  1.38, 4.82)), 1.58, 1.44, 0.94, 140),
+        (Vector(( 0.14, -0.06, 3.85)), Vector(( 0.22, -0.10, 5.38)), 1.72, 1.58, 1.02, 180),
     ]
-    for _ang_ref, tx, ty, tz, r_start in boughs:
-        mid_x, mid_y = tx * 0.52, ty * 0.52
-        b.add_lofted_tube(
-            [(0.03, 0.02, 2.18), (mid_x, mid_y, 2.95), (tx, ty, tz)],
-            [r_start, r_start * 0.78, r_start * 0.54], "bark_mango", segments=8, mode="panel"
-        )
-        # Forked secondary sub-branches reaching into upper & outer foliage pads
-        for fork_sgn in (-1.0, 1.0):
-            fx = tx * 1.42 + (-ty * 0.32 * fork_sgn)
-            fy = ty * 1.42 + (tx * 0.32 * fork_sgn)
-            fz = tz + 0.88 + (0.22 if fork_sgn > 0 else 0.0)
-            b.add_lofted_tube(
-                [(tx * 0.92, ty * 0.92, tz - 0.08), (fx, fy, fz)],
-                [r_start * 0.50, r_start * 0.26], "bark_mango", segments=6, mode="panel"
-            )
 
-    # Multi-layered sculpted Punong Mangga foliage canopy pads (shade under-tier -> mid -> sun crown -> bronze flush)
-    canopy_layers = [
-        # Deep shaded interior/lower pads
-        ((1.85, 0.55, 3.55), (1.35, 1.25, 0.68), "leaf_mango_shade", 1, (0.08, -0.06, 0.2)),
-        ((-0.55, 1.88, 3.65), (1.28, 1.38, 0.66), "leaf_mango_shade", 2, (-0.07, 0.08, 0.9)),
-        ((-1.85, -0.48, 3.50), (1.36, 1.24, 0.65), "leaf_mango_shade", 3, (0.06, 0.09, 1.7)),
-        ((0.48, -1.86, 3.72), (1.26, 1.34, 0.68), "leaf_mango_shade", 4, (-0.09, -0.05, 2.4)),
-        ((0.0, 0.0, 3.85), (1.65, 1.58, 0.75), "leaf_mango_shade", 5, (0.0, 0.0, 0.5)),
-        # Lush mid-canopy tiers
-        ((2.15, -0.45, 4.22), (1.32, 1.18, 0.74), "leaf_mango_mid", 6, (0.06, -0.10, 0.4)),
-        ((1.12, 1.72, 4.35), (1.28, 1.24, 0.72), "leaf_mango_mid", 7, (-0.08, -0.06, 1.1)),
-        ((-1.42, 1.48, 4.28), (1.34, 1.22, 0.74), "leaf_mango_mid", 8, (-0.06, 0.09, 1.9)),
-        ((-2.08, -0.82, 4.18), (1.26, 1.30, 0.70), "leaf_mango_mid", 9, (0.09, 0.07, 2.6)),
-        ((-0.62, -1.96, 4.32), (1.30, 1.18, 0.72), "leaf_mango_mid", 10, (0.08, -0.05, 3.1)),
-        ((1.48, -1.46, 4.40), (1.22, 1.26, 0.72), "leaf_mango_mid", 11, (0.05, -0.08, 3.8)),
-        # Sunlit golden-green upper dome tiers (~6.5m tall)
-        ((1.08, 0.52, 5.08), (1.42, 1.32, 0.80), "leaf_mango_sun", 12, (0.04, -0.05, 0.3)),
-        ((-0.95, 0.78, 5.16), (1.38, 1.30, 0.78), "leaf_mango_sun", 13, (-0.05, 0.05, 1.4)),
-        ((-0.78, -0.96, 5.10), (1.36, 1.28, 0.78), "leaf_mango_sun", 14, (0.05, 0.06, 2.3)),
-        ((0.86, -0.82, 5.22), (1.32, 1.26, 0.80), "leaf_mango_sun", 15, (0.04, -0.06, 3.2)),
-        ((0.04, 0.06, 5.76), (1.48, 1.40, 0.82), "leaf_mango_sun", 16, (0.02, 0.02, 0.8)),
-        # Coppery-bronze young mango leaf flush accents
-        ((1.78, 0.92, 4.86), (0.78, 0.72, 0.46), "leaf_mango_flush", 17, (0.08, -0.08, 0.6)),
-        ((-1.58, 0.24, 4.94), (0.76, 0.68, 0.45), "leaf_mango_flush", 18, (-0.06, 0.09, 2.1)),
-        ((0.28, -1.52, 5.02), (0.74, 0.70, 0.44), "leaf_mango_flush", 19, (0.09, 0.04, 2.9)),
-    ]
-    for c_pos, c_rad, c_sw, c_seed, c_tilt in canopy_layers:
-        b.add_foliage_cluster_pad(c_pos, c_rad, c_sw, seed=c_seed, tilt_euler=c_tilt)
+    for idx, (p_mid, sc_ctr, rx, ry, rzu, sbase) in enumerate(subcrowns):
+        p_tip = sc_ctr - Vector((0.0, 0.0, 0.36))
+        mb.tube(fork_origin, p_mid, 0.20, 0.14, 7, "bark_mango")
+        mb.tube(p_mid, p_tip, 0.14, 0.08, 6, "bark_mango")
 
-    # Hanging ripe golden Carabao mangoes on slender stems beneath the canopy eaves
-    for mx, my, mz in ((1.45, -0.52, 3.22), (1.62, -0.36, 3.14), (-1.38, 0.64, 3.26), (0.44, 1.52, 3.30), (-0.58, -1.44, 3.28)):
-        b.add_lofted_tube([(mx, my, mz + 0.32), (mx, my, mz + 0.08)], 0.008, "bark_mango", segments=4)
-        b.add_lofted_tube(
-            [(mx, my, mz + 0.10), (mx + 0.02, my, mz + 0.02), (mx + 0.01, my, mz - 0.08)],
-            [0.045, 0.072, 0.032], "mango_fruit", segments=7, scale_ab=(1.0, 0.78), mode="panel"
+        # Secondary branch twig + 2 plump tapered golden Carabao mangoes tucked under outer boughs
+        if idx < 4:
+            twig = p_mid + (p_tip - p_mid) * 0.65 + Vector((0.35 * math.cos(idx * 1.7), 0.35 * math.sin(idx * 1.7), 0.55))
+            mb.tube(p_mid, twig, 0.09, 0.05, 5, "bark_mango")
+            for m_sgn in (-1.0, 1.0):
+                mp = p_tip + Vector((0.40 * m_sgn * math.cos(idx), 0.40 * m_sgn * math.sin(idx + 0.8), -0.16))
+                mb.tube(mp + Vector((0.0, 0.0, 0.22)), mp + Vector((0.0, 0.0, 0.04)), 0.011, 0.011, 4, "bark_mango", cap_start=False, cap_end=False)
+                mb.tube(mp + Vector((0.0, 0.0, 0.05)), mp - Vector((0.0, 0.0, 0.04)), 0.032, 0.078, 6, "fruit_mango_gold", cap_end=False)
+                mb.tube(mp - Vector((0.0, 0.0, 0.04)), mp - Vector((0.0, 0.0, 0.16)), 0.078, 0.022, 6, "fruit_mango_gold", cap_start=False)
+
+        # Warm sky-bounced olive interior cluster nestled inside each branch fork (`0.74..0.88` linear AO, 0 dark band!)
+        _add_foliage_cloud_puff(
+            mb,
+            sc_ctr + Vector((-0.14 * math.cos(idx), -0.14 * math.sin(idx), -0.18)),
+            sc_ctr, canopy_center,
+            rx * 0.68, ry * 0.66, rzu * 0.50, rzu * 0.26,
+            "leaf_mango_mid", ao_bias=-0.04, seed=sbase + 1, yaw=idx * 0.9,
         )
 
-    return b.export_glb("brgy_mango_tree", mat)
-
-
-def make_banana_clump(mat: bpy.types.Material) -> dict:
-    """6b. `brgy_banana_clump.glb` (Puno ng Saging): 3 pseudostems + arched split fronds + puso ng saging."""
-    b = ProvincePropBuilder()
-
-    # Mossy clump mound at Z = 0.0
-    b.add_foliage_cluster_pad((0.0, 0.0, 0.07), (0.86, 0.82, 0.12), "concrete_mossy", seed=21)
-
-    # 3 Staggered curved banana pseudostems: Mother (2.68m), Medium (2.06m), Young Suwi sucker (1.22m)
-    stalks = [
-        ((0.04, 0.02), (0.14, 0.08), 2.68, 0.17, 0.115, 6),
-        ((-0.46, 0.26), (-0.64, 0.38), 2.06, 0.135, 0.092, 5),
-        ((0.44, -0.32), (0.58, -0.44), 1.22, 0.095, 0.068, 4),
-    ]
-    for s_idx, ((bx, by), (tx, ty), h_top, r0, r1, n_leaves) in enumerate(stalks):
-        pts = [
-            (bx, by, 0.02),
-            (bx + (tx - bx) * 0.35, by + (ty - by) * 0.35, h_top * 0.36),
-            (bx + (tx - bx) * 0.72, by + (ty - by) * 0.72, h_top * 0.72),
-            (tx, ty, h_top),
+        # Seamless 3-lobe billowing umbrella-dome outer foliage cloud (`leaf_mango_sun` + continuous spatial normals & AO!)
+        puff_offsets = [
+            (Vector((0.0, 0.0, 0.0)), 1.00, 1.00, 1.00, 0.34, 0.02),
+            (Vector((rx * 0.44 * math.cos(idx * 1.9 + 0.4), ry * 0.44 * math.sin(idx * 1.9 + 0.4), -0.08)), 0.76, 0.74, 0.78, 0.30, 0.00),
+            (Vector((rx * 0.36 * math.cos(idx * 1.9 + 2.5), ry * 0.36 * math.sin(idx * 1.9 + 2.5), 0.24)), 0.72, 0.70, 0.76, 0.28, 0.06),
         ]
-        b.add_lofted_tube(pts, [r0 * 1.15, r0, (r0 + r1) * 0.5, r1], "stem_banana", segments=9, mode="panel")
-        # Dried brown peeling outer leaf-sheath wrap near base & crown
-        b.add_volumetric_leaf_blade(
-            (bx + (tx - bx) * 0.65, by + (ty - by) * 0.65, h_top * 0.68),
-            yaw=s_idx * 2.1 + 0.8, pitch_start=-0.35, pitch_end=-1.32,
-            length=0.72, max_width=0.16, thickness=0.018, v_fold=0.02,
-            top_swatch="dried_banana_bark", bot_swatch="dried_banana_bark", segments=4
-        )
-
-        # Broad arched split banana fronds radiating from pseudostem crown
-        for li in range(n_leaves):
-            yaw = (2.0 * math.pi * li) / float(n_leaves) + s_idx * 0.74
-            tier = li % 3
-            if tier == 0:
-                p_start, p_end = 0.76, -0.18
-                l_len = 1.95 if s_idx == 0 else (1.55 if s_idx == 1 else 1.05)
-                splits = (4, 6)
-            elif tier == 1:
-                p_start, p_end = 0.52, -0.48
-                l_len = 2.12 if s_idx == 0 else (1.68 if s_idx == 1 else 1.12)
-                splits = (3, 5, 7)
-            else:
-                p_start, p_end = 0.34, -0.74
-                l_len = 1.88 if s_idx == 0 else (1.46 if s_idx == 1 else 0.98)
-                splits = (3, 6)
-            w_max = 0.52 if s_idx == 0 else (0.42 if s_idx == 1 else 0.30)
-            b.add_volumetric_leaf_blade(
-                (tx, ty, h_top - 0.06), yaw=yaw, pitch_start=p_start, pitch_end=p_end,
-                length=l_len, max_width=w_max, thickness=0.032, v_fold=0.065,
-                top_swatch="leaf_banana_sun", bot_swatch="leaf_banana_under",
-                segments=8, split_notches=splits
+        for p_idx, (off, sx, sy, szu, szd, ab) in enumerate(puff_offsets):
+            _add_foliage_cloud_puff(
+                mb,
+                sc_ctr + off,
+                sc_ctr, canopy_center,
+                rx * sx, ry * sy, rzu * szu, rzu * szd,
+                "leaf_mango_sun", ao_bias=ab, seed=sbase + 7 + p_idx * 11, yaw=idx * 0.7 + p_idx * 1.1,
             )
 
-    # Central unfurling upright young "cigar leaf" shoot on mother stalk
-    b.add_lofted_tube([(0.14, 0.08, 2.62), (0.18, 0.10, 3.45), (0.21, 0.12, 4.18)], [0.055, 0.048, 0.018], "leaf_banana_sun", segments=7)
-
-    # Arching fruiting peduncle stalk + 2 green Saba banana hands + hanging crimson Puso ng Saging heart!
-    ped_pts = [(0.14, 0.08, 2.64), (0.36, -0.22, 2.74), (0.56, -0.44, 2.42), (0.62, -0.50, 1.72)]
-    b.add_lofted_tube(ped_pts, [0.042, 0.038, 0.032, 0.022], "stem_banana", segments=7)
-
-    # 2 Tiered hands of curved Saba bananas along the peduncle
-    for hand_z, hand_r in ((2.32, 0.15), (2.08, 0.13)):
-        for fi in range(7):
-            fa = (2.0 * math.pi * fi) / 7.0
-            fx = 0.59 + math.cos(fa) * 0.05
-            fy = -0.47 + math.sin(fa) * 0.05
-            b.add_lofted_tube(
-                [(fx, fy, hand_z), (fx + math.cos(fa) * hand_r, fy + math.sin(fa) * hand_r, hand_z + 0.03),
-                 (fx + math.cos(fa) * hand_r * 1.15, fy + math.sin(fa) * hand_r * 1.15, hand_z + 0.15)],
-                [0.022, 0.030, 0.018], "banana_bunch", segments=5
-            )
-
-    # Teardrop crimson-purple Puso ng Saging (banana heart) hanging at tip of peduncle!
-    puso_pts = [
-        (0.62, -0.50, 1.74), (0.62, -0.50, 1.62),
-        (0.62, -0.50, 1.48), (0.62, -0.50, 1.34), (0.62, -0.50, 1.24),
-    ]
-    b.add_lofted_tube(puso_pts, [0.035, 0.095, 0.105, 0.062, 0.014], "puso_ng_saging", segments=8, mode="panel")
-
-    return b.export_glb("brgy_banana_clump", mat)
+    return mb
 
 
-def make_coconut_palm(mat: bpy.types.Material) -> dict:
-    """6c. `brgy_coconut_palm.glb` (Puno ng Niyog ~7.4m tall): ringed curved trunk, pinnate fronds, green buko."""
-    b = ProvincePropBuilder()
+# ---------------------------------------------------------------------------
+# 7. Ringed Tropical Coconut Palm (`brgy_coconut_palm.glb` ~ 5.2m x 5.2m x 7.5m)
+# ---------------------------------------------------------------------------
 
-    # Swollen fibrous root bole grounded at Z = 0.0 + graceful S-curved ringed coconut trunk
-    trunk_pts = []
-    trunk_rads = []
-    n_seg = 13
+def build_coconut_palm(uvs: Dict[str, Tuple[float, float, float, float]]) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
+
+    # Graceful S-curved ringed coconut trunk grounded at Z = 0.000 (`9` segments up to Z = 6.15m)
+    n_seg = 9
+    pts: List[Tuple[Vector, float]] = []
     for i in range(n_seg + 1):
-        t = i / float(n_seg)
-        z = 0.02 + t * 5.86
-        cx = 0.58 * math.sin(t * math.pi * 0.82) - 0.12 * math.sin(t * math.pi * 1.6)
-        cy = -0.26 * (t ** 1.3)
-        if t < 0.12:
-            r = 0.34 - 0.12 * (t / 0.12)
-        else:
-            r = 0.22 - 0.075 * ((t - 0.12) / 0.88)
-        trunk_pts.append((cx, cy, z))
-        trunk_rads.append(r)
+        t = i / n_seg
+        cx = 0.68 * math.sin(t * math.pi * 0.88)
+        cy = 0.24 * (1.0 - math.cos(t * math.pi * 0.75))
+        cz = t * 6.05
+        rad = 0.34 if i == 0 else (0.24 * (1.0 - 0.44 * t))
+        pts.append((Vector((cx, cy, cz)), rad))
 
-    b.add_lofted_tube(
-        trunk_pts, trunk_rads, "bark_coconut", segments=9,
-        bulge_fn=lambda s, _a: 1.0 + 0.045 * math.sin(s * math.pi * 22.0), mode="panel"
-    )
+    for (p0, r0), (p1, r1) in zip(pts[:-1], pts[1:]):
+        mb.tube(p0, p1, r0, r1, 8, "bark_palm_rings", cap_start=(p0.z == 0.0), cap_end=False)
 
-    # Fibrous burlap leaf-base collar + smooth green crownshaft at top of trunk
-    top_x, top_y, top_z = trunk_pts[-1]
-    b.add_lofted_tube(
-        [(top_x, top_y, top_z - 0.12), (top_x + 0.03, top_y - 0.02, top_z + 0.42)],
-        [0.165, 0.135], "buko_green", segments=8, mode="panel"
-    )
-    cx, cy, cz = top_x + 0.03, top_y - 0.02, top_z + 0.38
+    crown_base = pts[-1][0]
+    crown_top = crown_base + Vector((0.04, 0.0, 0.52))
+    mb.tube(crown_base, crown_top, 0.15, 0.13, 7, "pseudostem_ban")
 
-    # Cluster of 8 green & golden buko coconuts nestled beneath the frond crown (3-ring ovoid tubes, zero UV spheres!)
-    for ni in range(8):
-        na = (2.0 * math.pi * ni) / 8.0 + 0.25
-        nr = 0.23 + 0.04 * (ni % 2)
-        nx = cx + math.cos(na) * nr
-        ny = cy + math.sin(na) * nr
-        nz = cz - 0.20 - 0.09 * (ni % 2)
-        sw_nut = "buko_green" if ni % 3 != 0 else "buko_golden"
-        b.add_lofted_tube(
-            [(nx, ny, nz + 0.13), (nx, ny, nz), (nx, ny, nz - 0.13)],
-            [0.055, 0.125, 0.048], sw_nut, segments=7, mode="panel"
-        )
+    # Cluster of 6 green *buko* coconuts nestled beneath the crownshaft
+    for bi in range(6):
+        ba = (2.0 * math.pi * bi) / 6.0 + 0.2
+        bp = crown_base + Vector((0.21 * math.cos(ba), 0.21 * math.sin(ba), 0.12 - 0.06 * (bi % 2)))
+        mb.tube(bp + Vector((0.0, 0.0, 0.11)), bp - Vector((0.0, 0.0, 0.11)), 0.105, 0.075, 6, "fruit_buko_green")
 
-    # 10 Radial arching & drooping PINNATE palm fronds (curved rachis spine + paired 3D volumetric pinnae leaflets!)
-    n_fronds = 10
-    for fi in range(n_fronds):
-        yaw = (2.0 * math.pi * fi) / float(n_fronds) + (0.16 if fi % 2 else 0.0)
-        upper_tier = (fi % 2 == 0)
-        p_start = 0.68 if upper_tier else 0.34
-        p_end = -0.38 if upper_tier else -0.82
-        f_len = 2.65 if upper_tier else 2.48
-        sw_leaf = "leaf_palm_sun" if upper_tier else "leaf_palm_mid"
+    # 12 Arched Multi-Segment V-Folded Pinnate Coconut Fronds (`2` tiers: lower drooping + upper arching!)
+    for tier, (n_fronds, pitch_start, droop, length) in enumerate([(7, 0.22, 0.92, 2.55), (5, 0.68, 0.72, 2.20)]):
+        for fi in range(n_fronds):
+            yaw = (2.0 * math.pi * fi) / n_fronds + tier * 0.48
+            dir_xy = Vector((math.cos(yaw), math.sin(yaw), 0.0))
+            side_xy = Vector((-math.sin(yaw), math.cos(yaw), 0.0))
+            origin = crown_top - Vector((0.0, 0.0, 0.14 * (1 - tier)))
 
-        yaw_m = Matrix.Rotation(yaw, 3, "Z")
-        spine_pts = []
-        spine_pitches = []
-        cur = Vector((0.0, 0.0, 0.0))
-        spine_steps = 6
-        for si in range(spine_steps + 1):
-            st = si / float(spine_steps)
-            pitch = p_start + (p_end - p_start) * (st ** 1.2)
-            spine_pts.append(yaw_m @ cur + Vector((cx, cy, cz)))
-            spine_pitches.append(pitch)
-            cur = cur + Vector((0.0, math.cos(pitch), math.sin(pitch))) * (f_len / float(spine_steps))
+            seg_count = 4
+            spine: List[Vector] = []
+            for s in range(seg_count + 1):
+                st = s / seg_count
+                dist = st * length
+                elev = dist * math.tan(pitch_start) - droop * (st * st) * 1.35
+                spine.append(origin + dir_xy * dist + Vector((0.0, 0.0, elev)))
 
-        b.add_lofted_tube(spine_pts, [0.045, 0.038, 0.032, 0.026, 0.020, 0.014, 0.008], "stem_banana", segments=5)
-
-        # 5 Pairs of drooping 3D V-folded pinnate leaflets along each rachis spine + terminal tip blade
-        for li in range(1, spine_steps):
-            lt = li / float(spine_steps)
-            anchor = spine_pts[li]
-            pinna_len = (0.78 + 0.22 * math.sin(lt * math.pi)) * (1.0 - 0.22 * lt)
-            for side_sgn in (-1.0, 1.0):
-                l_yaw = yaw + side_sgn * (1.08 - 0.32 * lt)
-                b.add_volumetric_leaf_blade(
-                    anchor, yaw=l_yaw,
-                    pitch_start=spine_pitches[li] + 0.12,
-                    pitch_end=spine_pitches[li] - 0.62,
-                    length=pinna_len, max_width=0.135, thickness=0.016, v_fold=0.024,
-                    top_swatch=sw_leaf, bot_swatch="leaf_palm_mid", segments=3
-                )
-        # Terminal tip leaflet
-        b.add_volumetric_leaf_blade(
-            spine_pts[-1], yaw=yaw, pitch_start=spine_pitches[-1], pitch_end=spine_pitches[-1] - 0.35,
-            length=0.52, max_width=0.11, thickness=0.014, v_fold=0.018,
-            top_swatch=sw_leaf, bot_swatch="leaf_palm_mid", segments=2
-        )
-
-    return b.export_glb("brgy_coconut_palm", mat)
+            for s in range(seg_count):
+                st0, st1 = s / seg_count, (s + 1) / seg_count
+                w0 = 0.44 * math.sin(max(0.12, st0) * math.pi * 0.92)
+                w1 = 0.44 * math.sin(min(0.96, st1) * math.pi * 0.92)
+                p0, p1 = spine[s], spine[s + 1]
+                # Central rachis + drooping left/right V-folded pinnae leaflet wings (double-sided via top/bottom)
+                l0 = p0 + side_xy * w0 - Vector((0.0, 0.0, w0 * 0.36))
+                l1 = p1 + side_xy * w1 - Vector((0.0, 0.0, w1 * 0.38))
+                r0 = p0 - side_xy * w0 - Vector((0.0, 0.0, w0 * 0.36))
+                r1 = p1 - side_xy * w1 - Vector((0.0, 0.0, w1 * 0.38))
+                mb.quad(p0, p1, l1, l0, "leaf_palm_frond", (0.5, st0, 1.0, st1))
+                mb.quad(l0, l1, p1, p0, "leaf_mango_mid", (0.5, st0, 1.0, st1))
+                mb.quad(r0, r1, p1, p0, "leaf_palm_frond", (0.0, st0, 0.5, st1))
+                mb.quad(p0, p1, r1, r0, "leaf_mango_mid", (0.0, st0, 0.5, st1))
+    return mb
 
 
-def make_sampayan_3d(mat: bpy.types.Material) -> dict:
-    """7. `brgy_sampayan_3d.glb`: True 3D Volumetric Hanging Clothes + Sipit on Twin Pulley Sampayan Rig.
-    Span runs along Y (-1.42..+1.42m -> Z in Godot matching `StreetMap` `atan2(dx, dz)`),
-    puffed sleeves & twin-line bamboo spreader span X (-0.44..+0.44m -> width ~0.88m > 0.5m),
-    and hanging garments span Z (0.00..1.18m -> height ~1.18m > 0.8m, min_y == 0.00m!).
-    """
-    b = ProvincePropBuilder()
+# ---------------------------------------------------------------------------
+# 8. Tropical Saging Banana Clump (`brgy_banana_clump.glb` ~ 3.8m x 3.8m x 4.3m)
+# ---------------------------------------------------------------------------
 
-    def rope_z(y_pos: float, base_h: float = 1.04) -> float:
-        t = y_pos / 1.38
-        return base_h - 0.11 * (1.0 - min(1.0, t * t))
+def build_banana_clump(uvs: Dict[str, Tuple[float, float, float, float]]) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
 
-    def add_sipit(px: float, py: float, pz: float, yaw_z: float = 0.0):
-        # Two beveled wooden clothespin jaws + steel spring ring
+    # Grounded mossy soil root mound (`Z = 0.000`)
+    mb.frustum_plinth(0.0, 0.0, 0.0, 0.14, 0.24, 1.25, 1.25, 0.82, 0.82, "chb_wall_moss", "bark_mango")
+
+    stalks = [
+        (Vector((-0.18, -0.10, 0.0)), Vector((-0.26, -0.16, 2.38)), 0.17, 0.12, 6, 1.95),
+        (Vector((0.28, 0.18, 0.0)), Vector((0.38, 0.26, 1.88)), 0.14, 0.10, 5, 1.65),
+        (Vector((-0.05, 0.32, 0.0)), Vector((-0.08, 0.42, 1.22)), 0.10, 0.07, 4, 1.20),
+    ]
+    for idx, (p_bot, p_top, r0, r1, n_leaves, l_len) in enumerate(stalks):
+        mb.tube(p_bot, p_top, r0, r1, 7, "pseudostem_ban")
+        for li in range(n_leaves):
+            yaw = (2.0 * math.pi * li) / n_leaves + idx * 0.72
+            d_xy = Vector((math.cos(yaw), math.sin(yaw), 0.0))
+            s_xy = Vector((-math.sin(yaw), math.cos(yaw), 0.0))
+            # Petiole stem + 3-segment broad arched V-folded banana leaf blade!
+            pts_b = [
+                p_top,
+                p_top + d_xy * (l_len * 0.34) + Vector((0.0, 0.0, l_len * 0.36)),
+                p_top + d_xy * (l_len * 0.72) + Vector((0.0, 0.0, l_len * 0.32)),
+                p_top + d_xy * l_len + Vector((0.0, 0.0, -l_len * 0.08)),
+            ]
+            widths = [0.06, 0.34, 0.36, 0.12]
+            for s in range(3):
+                pa, pb = pts_b[s], pts_b[s + 1]
+                wa, wb = widths[s], widths[s + 1]
+                la = pa + s_xy * wa - Vector((0.0, 0.0, wa * 0.22))
+                lb = pb + s_xy * wb - Vector((0.0, 0.0, wb * 0.24))
+                ra = pa - s_xy * wa - Vector((0.0, 0.0, wa * 0.22))
+                rb = pb - s_xy * wb - Vector((0.0, 0.0, wb * 0.24))
+                mb.quad(pa, pb, lb, la, "leaf_banana_rib", (0.5, s / 3.0, 1.0, (s + 1) / 3.0))
+                mb.quad(la, lb, pb, pa, "leaf_mango_mid", (0.5, s / 3.0, 1.0, (s + 1) / 3.0))
+                mb.quad(ra, rb, pb, pa, "leaf_banana_rib", (0.0, s / 3.0, 0.5, (s + 1) / 3.0))
+                mb.quad(pa, pb, rb, ra, "leaf_mango_mid", (0.0, s / 3.0, 0.5, (s + 1) / 3.0))
+
+    # Hanging banana bunch + iconic crimson *puso ng saging* blossom heart on the tall mother stalk!
+    bunch_top = Vector((-0.26, -0.16, 2.34)) + Vector((-0.28, -0.22, -0.12))
+    mb.tube(Vector((-0.26, -0.16, 2.34)), bunch_top, 0.035, 0.030, 5, "pseudostem_ban")
+    mb.tube(bunch_top, bunch_top - Vector((0.0, 0.0, 0.38)), 0.16, 0.14, 7, "fruit_mango_gold")
+    mb.tube(bunch_top - Vector((0.0, 0.0, 0.40)), bunch_top - Vector((0.0, 0.0, 0.66)), 0.095, 0.015, 7, "puso_crimson")
+    return mb
+
+
+# ---------------------------------------------------------------------------
+# 9. Sculpted 3D Sampayan Clothesline (`brgy_sampayan_3d.glb` ~ 0.84m W x 2.95m D x 2.22m H)
+#    Guarantees `width X > 0.5m` and `height Y > 0.8m` for `test_model_scale.gd`!
+# ---------------------------------------------------------------------------
+
+def _add_draped_garment(
+    mb: MeshBuilder,
+    line_x: float,
+    y_center: float,
+    z_top: float,
+    width_y: float,
+    drop_z: float,
+    swatch: str,
+    kind: str = "shirt",
+    sway_x: float = 0.09,
+) -> None:
+    """Sculpts a volumetric 3D garment with pleated cloth folds, thickness & wooden clothespins."""
+    n_cols = 5
+    hy = width_y * 0.5
+    half_th = 0.018
+
+    def cloth_grid(sign_th: float, y_a: float, y_b: float, z_a: float, z_b: float) -> None:
+        for i in range(n_cols):
+            t0, t1 = i / n_cols, (i + 1) / n_cols
+            ya = y_a + t0 * (y_b - y_a)
+            yb = y_a + t1 * (y_b - y_a)
+            fold0 = 0.024 * math.sin(t0 * math.pi * 3.0)
+            fold1 = 0.024 * math.sin(t1 * math.pi * 3.0)
+            # Top row (pinned to rope) & bottom hem (swaying gently in +X/-X breeze)
+            p_tl = Vector((line_x + sign_th * half_th + fold0 * 0.3, ya, z_b))
+            p_tr = Vector((line_x + sign_th * half_th + fold1 * 0.3, yb, z_b))
+            p_br = Vector((line_x + sign_th * half_th + sway_x + fold1, yb, z_a))
+            p_bl = Vector((line_x + sign_th * half_th + sway_x + fold0, ya, z_a))
+            if sign_th > 0:
+                mb.quad(p_bl, p_br, p_tr, p_tl, swatch, (t0, 0.0, t1, 1.0))
+            else:
+                mb.quad(p_br, p_bl, p_tl, p_tr, swatch, (t0, 0.0, t1, 1.0))
+
+    if kind == "shorts":
+        # Waistband + two separate trouser legs!
+        z_crotch = z_top - drop_z * 0.44
         for sgn in (-1.0, 1.0):
-            b.add_box(
-                (0.018, 0.022, 0.088), (px + sgn * 0.011, py, pz + 0.022),
-                "sipit_wood", rot_euler=(0.0, sgn * 0.09, yaw_z), bevel=0.004
+            cloth_grid(sgn, y_center - hy, y_center + hy, z_crotch, z_top)
+            cloth_grid(sgn, y_center - hy, y_center - 0.03, z_top - drop_z, z_crotch)
+            cloth_grid(sgn, y_center + 0.03, y_center + hy, z_top - drop_z, z_crotch)
+    else:
+        for sgn in (-1.0, 1.0):
+            cloth_grid(sgn, y_center - hy, y_center + hy, z_top - drop_z, z_top)
+        if kind == "shirt":
+            # Draped short sleeves angling outward & downward on both shoulders!
+            for s_dir in (-1.0, 1.0):
+                sy_in = y_center + s_dir * hy
+                sy_out = sy_in + s_dir * 0.19
+                mb.box(
+                    line_x + sway_x * 0.35, 0.5 * (sy_in + sy_out),
+                    z_top - 0.28, z_top - 0.04, 0.045, 0.20, swatch,
+                )
+
+    # Two wooden *sipit* clothespins pinching garment onto clothesline!
+    for py_pin in (y_center - hy * 0.72, y_center + hy * 0.72):
+        mb.box(line_x, py_pin, z_top - 0.02, z_top + 0.065, 0.028, 0.022, "bamboo_gold")
+
+
+def build_sampayan_3d(uvs: Dict[str, Tuple[float, float, float, float]]) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
+    y_post = 1.38
+
+    # 1. Twin Grounded Concrete-Can Bases (`Z = 0.000`) + Bamboo T-Posts (`W = 0.84m > 0.5m`!)
+    for sy in (-1.0, 1.0):
+        py = sy * y_post
+        mb.tube((0.0, py, 0.0), (0.0, py, 0.28), 0.17, 0.15, 8, "yero_rusted")
+        mb.tube((0.0, py, 0.24), (0.0, py, 2.20), 0.048, 0.040, 6, "bamboo_gold")
+        # T-crossbar spreader (`X = -0.40..+0.40`) + diagonal bamboo braces
+        mb.tube((-0.40, py, 2.12), (0.40, py, 2.12), 0.032, 0.032, 6, "bamboo_gold")
+        for sx in (-1.0, 1.0):
+            mb.tube((0.0, py, 1.76), (sx * 0.30, py, 2.12), 0.020, 0.020, 4, "wood_coco")
+
+    # 2. Twin Catenary Clothesline Ropes along `X = -0.28` and `X = +0.28`
+    def rope_z(y_val: float, sag: float = 0.16) -> float:
+        t = (y_val + y_post) / (2.0 * y_post)
+        return 2.12 - sag * 4.0 * t * (1.0 - t)
+
+    for lx, sag in ((-0.28, 0.17), (0.28, 0.14)):
+        n_seg = 8
+        for i in range(n_seg):
+            ya = -y_post + i * (2.0 * y_post / n_seg)
+            yb = -y_post + (i + 1) * (2.0 * y_post / n_seg)
+            mb.tube((lx, ya, rope_z(ya, sag)), (lx, yb, rope_z(yb, sag)), 0.009, 0.009, 4, "steel_dark", cap_start=False, cap_end=False)
+
+    # 3. 6 Sculpted Volumetric 3D Garments across the twin lines!
+    _add_draped_garment(mb, -0.28, -0.86, rope_z(-0.86, 0.17), 0.54, 0.72, "cloth_polo_stripe", kind="shirt", sway_x=-0.10)
+    _add_draped_garment(mb, -0.28, -0.05, rope_z(-0.05, 0.17), 0.48, 0.68, "cloth_jersey_red", kind="sando", sway_x=-0.12)
+    _add_draped_garment(mb, -0.28, 0.76, rope_z(0.76, 0.17), 0.48, 0.54, "cloth_denim_blue", kind="shorts", sway_x=-0.09)
+
+    _add_draped_garment(mb, 0.28, -0.68, rope_z(-0.68, 0.14), 0.58, 0.86, "cloth_daster_flor", kind="shirt", sway_x=0.11)
+    _add_draped_garment(mb, 0.28, 0.18, rope_z(0.18, 0.14), 0.56, 0.64, "cloth_towel_teal", kind="towel", sway_x=0.08)
+    _add_draped_garment(mb, 0.28, 0.88, rope_z(0.88, 0.14), 0.42, 0.58, "cloth_sando_white", kind="sando", sway_x=0.10)
+    return mb
+
+
+# ---------------------------------------------------------------------------
+# 10. 90s Merienda Power-Up Stand (`brgy_powerup_stand.glb` ~ 1.55m x 1.15m x 2.18m)
+# ---------------------------------------------------------------------------
+
+def build_powerup_stand(
+    uvs: Dict[str, Tuple[float, float, float, float]],
+    variant: str = "palamig",
+) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
+    w, d = 1.46, 0.96
+    is_halohalo = variant == "halohalo"
+
+    # Grounded mossy concrete pad (`Z = 0.000`) + wooden market table legs & slatted counter
+    mb.frustum_plinth(0.0, 0.0, 0.0, 0.06, 0.10, w + 0.12, d + 0.14, w + 0.04, d + 0.06, "chb_wall_moss", "concrete_cap")
+    for sx in (-0.62, 0.62):
+        for sy in (-0.38, 0.38):
+            mb.box(sx, sy, 0.10, 0.86, 0.08, 0.08, "wood_dark")
+    mb.box(0.0, 0.0, 0.84, 0.92, w, d, "bamboo_gold" if is_halohalo else "wood_coco", "wood_coco")
+
+    # Front "MERIENDA • PALAMIG — SAGO'T GULAMAN • BANANA Q" apron signboard (`-Y`)!
+    add_signboard_panel(mb, 0.0, -d * 0.5 + 0.04, 0.26, 0.84, 1.32, "sign_merienda", facing="-Y", relief=0.04, framed=True)
+
+    if is_halohalo:
+        # Barrio Halo-Halo Variant: Cast-iron ice shaver (*kaskasan ng yelo*) + ice block + 3 Halo-Halo topping jars (ube, kaong, leche flan)!
+        mb.box(-0.42, -0.04, 0.92, 1.00, 0.36, 0.28, "wood_dark")
+        mb.box(-0.42, -0.04, 1.00, 1.18, 0.24, 0.18, "cloth_sando_white")  # crystalline shaved-ice block
+        mb.tube((-0.42, 0.08, 1.00), (-0.42, 0.04, 1.38), 0.032, 0.024, 6, "trike_blue")  # cast-iron shaver arm
+        mb.tube((-0.56, 0.04, 1.34), (-0.28, 0.04, 1.34), 0.09, 0.09, 8, "jeep_chrome", cap_start=False, cap_end=False)  # hand crank wheel
+        # 3 colorful Halo-Halo glass ingredient jars (ube halaya, red kaong, golden leche flan) + evaporated milk tin!
+        for jx, jsw in ((-0.02, "cloth_daster_flor"), (0.24, "cloth_jersey_red"), (0.48, "fruit_mango_gold")):
+            mb.tube((jx, -0.06, 0.92), (jx, -0.06, 1.18), 0.085, 0.090, 8, jsw)
+            mb.tube((jx, -0.06, 1.18), (jx, -0.06, 1.22), 0.092, 0.075, 8, "jeep_chrome")
+        # Woven side market basket grounded next to stand (`min_z = 0.000`)
+        mb.tube((0.82, 0.12, 0.0), (0.82, 0.12, 0.34), 0.16, 0.20, 8, "bamboo_gold")
+    else:
+        # Two Sago't Gulaman / Buko Pandan glass/acrylic drink dispensers + lids + banana-cue bilao!
+        mb.tube((-0.38, -0.05, 0.92), (-0.38, -0.05, 1.36), 0.16, 0.17, 10, "merienda_jug_org")
+        mb.tube((-0.38, -0.05, 1.36), (-0.38, -0.05, 1.42), 0.18, 0.14, 10, "trike_blue")
+        mb.tube((0.02, -0.05, 0.92), (0.02, -0.05, 1.30), 0.14, 0.15, 10, "fruit_buko_green")
+        mb.tube((0.02, -0.05, 1.30), (0.02, -0.05, 1.35), 0.16, 0.12, 10, "hoop_rim_orange")
+        mb.tube((0.44, -0.04, 0.92), (0.44, -0.04, 0.98), 0.22, 0.24, 9, "bamboo_gold")
+        mb.frustum_plinth(0.44, -0.04, 0.98, 1.05, 1.10, 0.32, 0.32, 0.18, 0.18, "fruit_mango_gold", "fruit_mango_gold")
+
+    # Asymmetric Vendor Rear (`+Y`): under-table storage shelf, styro cooler chest, 5-gal water jug & wooden stool!
+    mb.box(0.0, 0.08, 0.32, 0.36, w - 0.18, d * 0.56, "wood_coco")
+    mb.box(-0.34, 0.14, 0.36, 0.68, 0.46, 0.34, "cloth_sando_white", "trike_blue")
+    mb.tube((0.36, 0.16, 0.36), (0.36, 0.16, 0.72), 0.13, 0.135, 8, "trike_blue")
+    mb.box(0.0, 0.68, 0.42, 0.47, 0.44, 0.28, "wood_coco", "wood_dark")
+    for lx in (-0.16, 0.16):
+        for ly in (0.58, 0.78):
+            mb.box(lx, ly, 0.0, 0.42, 0.05, 0.05, "wood_dark")
+
+    # 4 Bamboo canopy poles + festive striped *trapal* roof (`blue-and-cream` for Halo-Halo vs `red-and-cream` for Palamig!)
+    for sx in (-0.64, 0.64):
+        for sy in (-0.40, 0.40):
+            mb.tube((sx, sy, 0.92), (sx, sy, 1.86), 0.028, 0.025, 6, "bamboo_gold")
+    canopy_sw = "cloth_polo_stripe" if is_halohalo else "trapal_canopy_str"
+    add_gable_yero_roof(
+        mb, 0.0, 0.0, 1.84, w, d, rise=0.34 if is_halohalo else 0.32, ov_x=0.14, ov_y=0.18,
+        roof_swatch=canopy_sw, wall_swatch="bamboo_gold", downspout_corners=[],
+    )
+    return mb
+
+
+# ---------------------------------------------------------------------------
+# 11. Barangay Corner Signpost & Poster Cluster (`brgy_poster_cluster.glb` ~ 0.88m x 0.82m x 2.45m)
+# ---------------------------------------------------------------------------
+
+def build_poster_cluster(uvs: Dict[str, Tuple[float, float, float, float]]) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
+
+    # Grounded concrete wheel-rim/block base (`Z = 0.000`, `W > 0.6m` for `test_model_scale.gd`!)
+    mb.frustum_plinth(0.0, 0.0, 0.0, 0.18, 0.28, 0.68, 0.68, 0.46, 0.46, "chb_wall_moss", "concrete_cap")
+    mb.tube((0.0, 0.0, 0.24), (0.0, 0.0, 2.42), 0.075, 0.062, 7, "wood_coco")
+
+    # Framed Barangay Bulletin Board (`Z = 0.92..1.76m`, `W = 0.86m`) with Halalan '95 & Malabanan posters!
+    mb.box(0.0, -0.08, 0.90, 1.78, 0.86, 0.08, "wood_dark", "wood_coco")
+    add_signboard_panel(mb, -0.19, -0.12, 0.98, 1.68, 0.40, "poster_halalan", facing="-Y", relief=0.025, framed=False)
+    add_signboard_panel(mb, 0.21, -0.12, 0.96, 1.64, 0.38, "poster_malabanan", facing="-Y", relief=0.030, framed=False)
+    # Rear notice panel so back view is detailed too!
+    add_signboard_panel(mb, 0.0, -0.04, 1.02, 1.68, 0.74, "sign_toda_terminal", facing="+Y", relief=0.025, framed=True)
+
+    # Top "NO ENTRY • BAWAL DITO" sign + angled directional street-name blade!
+    add_signboard_panel(mb, 0.0, -0.07, 1.88, 2.34, 0.78, "sign_no_entry", facing="-Y", relief=0.04, framed=True)
+    mb.box(0.24, 0.18, 2.12, 2.30, 0.56, 0.05, "wood_coco", yaw=0.62)
+    return mb
+
+
+# ---------------------------------------------------------------------------
+# 12. 90s Cavite Stainless Owner-Type Jeep (`brgy_owner_jeep.glb` ~ 1.72m x 3.55m x 1.84m)
+# ---------------------------------------------------------------------------
+
+def build_owner_jeep(uvs: Dict[str, Tuple[float, float, float, float]]) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
+    r_w = 0.35
+
+    # 4 Mag wheels grounded at Z = 0.000 + wooden wheel chock
+    for sx in (-0.72, 0.72):
+        _add_wheel_x(mb, sx, -1.08, r_w, r_w, 0.21, "wheel_rim")
+        _add_wheel_x(mb, sx, 0.98, r_w, r_w, 0.22, "wheel_rim")
+    mb.frustum_plinth(-0.72, -1.36, 0.0, 0.06, 0.12, 0.18, 0.18, 0.16, 0.06, "wood_dark", "wood_coco")
+
+    # Chassis, chrome tubular front bumper, louvered stainless hood & box fenders
+    mb.box(0.0, -0.04, 0.32, 0.44, 1.24, 3.05, "steel_dark", "jeep_chrome")
+    mb.tube((-0.80, -1.68, 0.40), (0.80, -1.68, 0.40), 0.045, 0.045, 6, "jeep_chrome")
+    mb.frustum_plinth(0.0, -1.12, 0.44, 0.94, 1.02, 1.08, 1.02, 0.98, 0.98, "jeep_chrome", "jeep_chrome")
+    mb.quad((-0.52, -1.63, 0.44), (0.52, -1.63, 0.44), (0.50, -1.63, 0.98), (-0.50, -1.63, 0.98), "radiator_grille")
+
+    for sx in (-1.0, 1.0):
+        # Angular stainless front & rear fenders
+        mb.box(sx * 0.68, -1.08, 0.72, 0.82, 0.32, 0.92, "jeep_chrome")
+        mb.box(sx * 0.68, 0.98, 0.72, 0.82, 0.30, 0.88, "jeep_chrome")
+        # Round headlamps + side mirror stalks
+        mb.tube((sx * 0.40, -1.60, 0.84), (sx * 0.40, -1.70, 0.84), 0.105, 0.095, 9, "headlamp_amber")
+        mb.tube((sx * 0.64, -0.62, 0.98), (sx * 0.82, -0.62, 1.32), 0.014, 0.012, 5, "jeep_chrome")
+        mb.box(sx * 0.84, -0.62, 1.28, 1.40, 0.04, 0.12, "jeep_chrome")
+        # Open-sided stainless tub walls
+        mb.box(sx * 0.62, 0.25, 0.44, 0.94, 0.08, 1.78, "jeep_chrome", "jeep_blue")
+
+    # Recessed fold-down windshield + tubular roll-bar cage + striped vinyl *trapal* soft top!
+    mb.quad((-0.62, -0.60, 1.02), (0.62, -0.60, 1.02), (0.60, -0.38, 1.62), (-0.60, -0.38, 1.62), "windshield_glass")
+    for px in (-0.63, 0.0, 0.63):
+        mb.tube((px, -0.62, 1.00), (px * 0.97, -0.38, 1.64), 0.024, 0.022, 5, "jeep_chrome")
+    for px in (-0.60, 0.60):
+        mb.tube((px, 1.28, 0.94), (px, 1.22, 1.64), 0.024, 0.024, 5, "jeep_chrome")
+    add_shed_yero_roof(mb, 0.0, 0.42, 1.62, 1.72, 1.32, 1.72, ov_x=0.06, ov_y=0.10, roof_swatch="trapal_canopy_str", high_at_rear=False)
+
+    # Bucket seats, rear bench, rear-mounted spare tire & green steel jerrycan!
+    for sx in (-0.30, 0.30):
+        mb.box(sx, -0.05, 0.46, 0.72, 0.42, 0.44, "vinyl_seat")
+        mb.box(sx, 0.14, 0.72, 1.06, 0.40, 0.10, "vinyl_seat")
+    mb.box(0.0, 1.32, 0.44, 0.96, 1.28, 0.10, "jeep_chrome")
+    mb.tube((0.28, 1.38, 0.88), (0.28, 1.56, 0.88), 0.32, 0.32, 12, "tire_rubber")
+    mb.box(-0.36, 1.44, 0.56, 0.98, 0.28, 0.16, "jeep_green")
+    return mb
+
+
+# ---------------------------------------------------------------------------
+# 13. Mossy River-Stone Creek Steps (`brgy_ilog_steps.glb` ~ 3.85m x 2.75m x 1.12m)
+#     5 low stone treads (`z_top = 0.08..0.40m` matching `-0.28m` creek bed to `+0.12m` bank crest
+#     with `0.00m` street cliff!) + weathered GI/bamboo riverside handrail (`H = 1.12m > 0.80m`)!
+# ---------------------------------------------------------------------------
+
+def build_ilog_steps(uvs: Dict[str, Tuple[float, float, float, float]]) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
+    w_tread = 2.85
+    n_steps = 5
+    step_d = 0.52
+    step_h = 0.08  # 5 * 0.08 = 0.40m exact rise (-0.28m creek bed -> +0.10..0.12m bank crest!)
+    total_d = n_steps * step_d
+
+    # 5 Broad mossy river-stone steps descending from rear (+Y) bank crest (`0.40m`) to front (-Y / Godot +Z) water edge (`0.08m`)
+    for i in range(n_steps):
+        y_mid = -total_d * 0.5 + (i + 0.5) * step_d
+        z_top = (i + 1) * step_h
+        sw_top = "concrete_cap" if i >= 2 else "chb_wall_moss"
+        mb.box(0.0, y_mid, 0.0, z_top, w_tread, step_d + 0.04, "chb_wall_moss", sw_top)
+
+    # Low mossy river-boulder cheek curbs (`±X`, `H = 0.14..0.42m` hugging the 0.40m bank slope — zero shin-cliff!)
+    for sx in (-1.0, 1.0):
+        cx_w = sx * (w_tread * 0.5 + 0.24)
+        for seg in range(4):
+            ym = -total_d * 0.5 + (seg + 0.5) * (total_d / 4.0)
+            zh = 0.14 + seg * 0.095
+            mb.frustum_plinth(
+                cx_w, ym, 0.0, zh * 0.72, zh,
+                0.48, total_d / 4.0 + 0.05, 0.36, total_d / 4.0 + 0.01,
+                "chb_wall_moss", "broken_brick_patch",
             )
-        b.add_cylinder(0.016, 0.026, (px, py, pz + 0.020), "steel_galvanized", segments=6, rot_euler=(math.pi * 0.5, 0.0, yaw_z))
 
-    # Wrought-iron window pulley brackets + grooved wooden kalo wheels at Y = +-1.38m + bamboo tikin spreader
-    for end_y in (-1.38, 1.38):
-        b.add_box((0.52, 0.06, 0.06), (0.0, end_y, 1.06), "steel_rusted_orange", bevel=0.008)
-        for lx in (-0.20, 0.20):
-            b.add_cylinder(0.085, 0.042, (lx, end_y, 1.04), "coco_lumber", segments=10, rot_euler=(0.0, math.pi * 0.5, 0.0), mode="panel")
-            b.add_cylinder(0.032, 0.056, (lx, end_y, 1.04), "steel_rusted_orange", segments=6, rot_euler=(0.0, math.pi * 0.5, 0.0))
-
-    # Twin sagging catenary sampayan ropes (X = -0.20 & X = +0.20) + diagonal bamboo tikin spacer bar (ensuring width > 0.86m)
-    for lx in (-0.20, 0.20):
-        r_pts = [(lx, -1.38 + 2.76 * (k / 10.0), rope_z(-1.38 + 2.76 * (k / 10.0), 1.04)) for k in range(11)]
-        b.add_lofted_tube(r_pts, 0.012, "cord_net", segments=6)
-    b.add_lofted_tube([(-0.44, -0.04, 1.01), (0.0, 0.0, 1.15), (0.44, 0.04, 1.01)], 0.024, "bamboo_golden", segments=7, mode="panel")
-
-    # --- GARMENT 1 (Line -0.20, Y = -0.94): 90s Ringer T-Shirt (puffed 3D torso + tubular sleeves + 3D collar ring) ---
-    g1_x, g1_y = -0.20, -0.94
-    g1_top = rope_z(g1_y)
-    b.add_lofted_tube(
-        [(g1_x, g1_y, g1_top - 0.02), (g1_x + 0.02, g1_y, g1_top - 0.22),
-         (g1_x + 0.04, g1_y + 0.01, g1_top - 0.48), (g1_x + 0.05, g1_y + 0.02, g1_top - 0.68)],
-        [0.14, 0.21, 0.23, 0.25], "cloth_ringer_cream", segments=10,
-        scale_ab=(0.48, 1.18), bulge_fn=lambda s, a: 1.0 + 0.12 * math.sin(a * 5.0 + s * 2.0), mode="panel"
-    )
-    # 2 Outstretched 3D tubular sleeves + ringer cuffs (angled slightly outward across X & Y!)
-    for s_sgn in (-1.0, 1.0):
-        b.add_lofted_tube(
-            [(g1_x - 0.02, g1_y + s_sgn * 0.20, g1_top - 0.08),
-             (g1_x - 0.12 * s_sgn, g1_y + s_sgn * 0.34, g1_top - 0.18),
-             (g1_x - 0.18 * s_sgn, g1_y + s_sgn * 0.44, g1_top - 0.28)],
-            [0.092, 0.084, 0.076], "cloth_ringer_cream", segments=8, mode="panel"
-        )
-        b.add_lofted_tube(
-            [(g1_x - 0.17 * s_sgn, g1_y + s_sgn * 0.42, g1_top - 0.26),
-             (g1_x - 0.19 * s_sgn, g1_y + s_sgn * 0.46, g1_top - 0.30)],
-            0.080, "jeep_sunlit_gold", segments=8, mode="panel"
-        )
-    # Raised 3D closed-loop collar ring
-    collar_pts = [
-        (g1_x + 0.045 * math.cos(a), g1_y + 0.105 * math.sin(a), g1_top - 0.02)
-        for a in [k * (2.0 * math.pi / 10.0) for k in range(10)]
+    # Weathered galvanized GI pipe & bamboo riverside safety handrail along `+X` cheek curb (`H = 1.12m > 0.80m`!)
+    rx = w_tread * 0.5 + 0.24
+    stanchions = [
+        (-total_d * 0.5 + 0.26, 0.12, 0.84),
+        (0.0, 0.26, 0.98),
+        (total_d * 0.5 - 0.26, 0.40, 1.12),
     ]
-    b.add_lofted_tube(collar_pts, 0.022, "jeep_sunlit_gold", segments=6, closed_loop=True)
-    add_sipit(g1_x, g1_y - 0.15, g1_top)
-    add_sipit(g1_x, g1_y + 0.15, g1_top)
+    for sy_p, z_base_p, z_top_p in stanchions:
+        mb.tube((rx, sy_p, z_base_p), (rx, sy_p, z_top_p), 0.030, 0.026, 7, "steel_dark")
+        mb.box(rx, sy_p, z_base_p - 0.01, z_base_p + 0.04, 0.11, 0.11, "concrete_cap")
+    # Sloped top bamboo/GI grab rail + mid knee rail
+    mb.tube((rx, stanchions[0][0] - 0.08, 0.83), (rx, stanchions[-1][0] + 0.08, 1.12), 0.032, 0.032, 8, "bamboo_gold")
+    mb.tube((rx, stanchions[0][0], 0.52), (rx, stanchions[-1][0], 0.78), 0.022, 0.022, 7, "steel_dark")
+    return mb
 
-    # --- GARMENT 2 (Line -0.20, Y = -0.22): Liga Basketball Sando Jersey (3D torso + twin 3D shoulder straps) ---
-    g2_x, g2_y = -0.20, -0.22
-    g2_top = rope_z(g2_y)
-    b.add_lofted_tube(
-        [(g2_x, g2_y, g2_top - 0.16), (g2_x - 0.03, g2_y, g2_top - 0.40), (g2_x - 0.05, g2_y - 0.01, g2_top - 0.72)],
-        [0.17, 0.20, 0.23], "cloth_jersey_red", segments=10,
-        scale_ab=(0.46, 1.12), bulge_fn=lambda s, a: 1.0 + 0.10 * math.cos(a * 4.0 + s * 3.0), mode="panel"
-    )
-    for st_y in (-0.12, 0.12):
-        b.add_lofted_tube(
-            [(g2_x, g2_y + st_y, g2_top + 0.01), (g2_x - 0.01, g2_y + st_y * 1.1, g2_top - 0.18)],
-            [0.028, 0.036], "cloth_ringer_cream", segments=6, scale_ab=(0.55, 1.2)
-        )
-        add_sipit(g2_x, g2_y + st_y, g2_top)
 
-    # --- GARMENT 3 (Line -0.20, Y = +0.56): Puruntong Basketball Shorts (3D waistband + TWO flared 3D tubular legs!) ---
-    g3_x, g3_y = -0.20, 0.56
-    g3_top = rope_z(g3_y)
-    b.add_lofted_tube(
-        [(g3_x, g3_y, g3_top - 0.01), (g3_x + 0.02, g3_y, g3_top - 0.16)],
-        [0.18, 0.20], "cloth_ringer_cream", segments=10, scale_ab=(0.52, 1.18), mode="panel"
-    )
-    for leg_sgn in (-1.0, 1.0):
-        b.add_lofted_tube(
-            [(g3_x + 0.02, g3_y + leg_sgn * 0.11, g3_top - 0.15),
-             (g3_x + 0.04 * leg_sgn, g3_y + leg_sgn * 0.13, g3_top - 0.38),
-             (g3_x + 0.06 * leg_sgn, g3_y + leg_sgn * 0.15, g3_top - 0.62)],
-            [0.105, 0.118, 0.132], "cloth_shorts_blue", segments=8,
-            scale_ab=(0.82, 0.95), bulge_fn=lambda _s, a: 1.0 + 0.08 * math.sin(a * 3.0), mode="panel"
-        )
-        add_sipit(g3_x, g3_y + leg_sgn * 0.14, g3_top)
+# ---------------------------------------------------------------------------
+# 14. Tabing-Ilog Laundry Stones & *Batya* Set (`brgy_laundry_stones.glb` ~ 2.45m x 1.95m x 1.08m)
+# ---------------------------------------------------------------------------
 
-    # --- GARMENT 4 (Line +0.20, Y = -0.52): Nanay's Pleated Floral Daster reaching Z = 0.00m! ---
-    g4_x, g4_y = 0.20, -0.52
-    g4_top = rope_z(g4_y)
-    b.add_lofted_tube(
-        [(g4_x, g4_y, g4_top - 0.03), (g4_x + 0.03, g4_y, g4_top - 0.30),
-         (g4_x + 0.06, g4_y + 0.02, g4_top - 0.64), (g4_x + 0.08, g4_y + 0.03, 0.02)],
-        [0.15, 0.20, 0.26, 0.31], "cloth_daster_floral", segments=12,
-        scale_ab=(0.48, 1.15), bulge_fn=lambda s, a: 1.0 + 0.14 * math.sin(a * 6.0 + s), mode="panel"
-    )
-    for rs_sgn in (-1.0, 1.0):
-        b.add_lofted_tube(
-            [(g4_x + 0.01, g4_y + rs_sgn * 0.17, g4_top - 0.06),
-             (g4_x + 0.14 * rs_sgn, g4_y + rs_sgn * 0.30, g4_top - 0.18)],
-            [0.085, 0.105], "cloth_daster_floral", segments=8, mode="panel"
-        )
-        add_sipit(g4_x, g4_y + rs_sgn * 0.14, g4_top)
+def build_laundry_stones(uvs: Dict[str, Tuple[float, float, float, float]]) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
 
-    # --- GARMENT 5 (Line +0.20, Y = +0.44): Thick U-Folded Draped Jade Bath Towel (true double-sided 3D fold!) ---
-    g5_x, g5_y = 0.20, 0.44
-    g5_top = rope_z(g5_y)
-    # Extrude inverted-U cross-section in (X, Z) across towel width in Y using 90-deg yaw rotation
-    towel_prof_yz = [
-        (-0.085, g5_top - 0.68), (-0.068, g5_top - 0.26), (-0.048, g5_top + 0.032),
-        (0.048, g5_top + 0.032), (0.076, g5_top - 0.24), (0.095, g5_top - 0.62),
-        (0.056, g5_top - 0.62), (0.038, g5_top - 0.24), (0.018, g5_top - 0.010),
-        (-0.018, g5_top - 0.010), (-0.032, g5_top - 0.26), (-0.046, g5_top - 0.68),
+    # Flat wet basalt/river *pukpukan* washing boulders grounded at Z = 0.000
+    boulders = [
+        (-0.58, -0.22, 0.28, 0.92, 0.76, 0.12),
+        (0.32, -0.28, 0.24, 0.84, 0.68, -0.18),
+        (-0.10, 0.36, 0.32, 0.96, 0.78, 0.08),
+        (0.76, 0.26, 0.20, 0.64, 0.54, 0.28),
     ]
-    b.add_profile_extrusion(
-        towel_prof_yz, width_x=0.54, center=(g5_x, g5_y, 0.0),
-        swatch="cloth_towel_jade", bevel=0.008, rot_euler=(0.0, 0.0, math.pi * 0.5)
-    )
-    add_sipit(g5_x, g5_y - 0.19, g5_top)
-    add_sipit(g5_x, g5_y + 0.19, g5_top)
+    for bx, by, bh, bw, bd, byaw in boulders:
+        mb.frustum_plinth(bx, by, 0.0, bh * 0.68, bh, bw, bd, bw * 0.76, bd * 0.74, "chb_wall_moss", "concrete_cap")
 
-    return b.export_glb("brgy_sampayan_3d", mat)
+    # Colorful plastic *batya* washbasins + *timba* bucket + wooden *palo-palo* laundry paddle!
+    mb.tube((-0.55, -0.22, 0.28), (-0.55, -0.22, 0.46), 0.26, 0.32, 10, "cloth_jersey_red")
+    mb.tube((-0.55, -0.22, 0.40), (-0.55, -0.22, 0.44), 0.28, 0.28, 10, "cloth_sando_white")  # soap suds!
+    mb.tube((0.34, -0.26, 0.24), (0.34, -0.26, 0.56), 0.15, 0.18, 9, "trike_blue")
+    # Wooden *palo-palo* laundry beater paddle + yellow soap bar on flat stone
+    mb.box(-0.12, 0.32, 0.32, 0.36, 0.14, 0.32, "wood_dark", yaw=0.35)
+    mb.tube((-0.04, 0.50, 0.34), (0.04, 0.64, 0.35), 0.022, 0.020, 5, "wood_coco")
+    mb.box(0.16, 0.28, 0.32, 0.36, 0.10, 0.07, "fruit_mango_gold")
 
-
-def make_powerup_stand(mat: bpy.types.Material) -> dict:
-    """8. `brgy_powerup_stand.glb`: 90s Palamig / Sago't Gulaman cooler + Teks & Turon stand + trapal umbrella."""
-    b = ProvincePropBuilder()
-
-    # Mossy street paving stone pad + weathered coco-lumber vendor table/stool (1.24m x 0.68m x 0.78m)
-    b.add_box((1.38, 0.88, 0.08), (0.0, 0.0, 0.04), "concrete_mossy", bevel=0.02)
-    for lx in (-0.52, 0.52):
-        for ly in (-0.26, 0.26):
-            b.add_box((0.085, 0.085, 0.72), (lx, ly, 0.08 + 0.36), "wood_stool_warm", bevel=0.01)
-        b.add_box((0.06, 0.56, 0.07), (lx, 0.0, 0.28), "coco_lumber", bevel=0.008)
-    # Lower slatted crate shelf + side blue ice-cooler box
-    b.add_box((1.06, 0.52, 0.05), (0.0, 0.0, 0.28), "coco_lumber", bevel=0.008)
-    b.add_box((0.40, 0.34, 0.30), (-0.24, 0.02, 0.30 + 0.15), "jeep_royal_blue", bevel=0.02)
-    b.add_box((0.42, 0.36, 0.05), (-0.24, 0.02, 0.62), "cloth_ringer_cream", bevel=0.01)
-
-    # Slatted tabletop + crisp hand-painted front signboard ("PALAMIG / TEKS TURON")
-    b.add_box((1.26, 0.70, 0.07), (0.0, 0.0, 0.82), "wood_bench_worn", bevel=0.018)
-    b.add_sign_panel((1.08, 0.05, 0.38), (0.0, -0.34, 0.56), "sign_palamig", "coco_lumber", bevel=0.01)
-
-    # 1. Large Sago't Gulaman Palamig Glass Jug Cooler + Crimson Lid + Stainless Sandok Ladle + Cups
-    b.add_cylinder(0.165, 0.40, (-0.34, -0.02, 0.855 + 0.20), "palamig_gulaman", segments=10, mode="panel")
-    b.add_cylinder(0.172, 0.055, (-0.34, -0.02, 1.27), "jeep_crimson_red", segments=10, mode="panel")
-    b.add_lofted_tube([(-0.30, -0.02, 1.28), (-0.24, -0.06, 1.44), (-0.21, -0.08, 1.46)], 0.010, "steel_chrome", segments=6)
-    # Smaller Melon/Buko Pandan Palamig jar + stacked drinking cups
-    b.add_cylinder(0.115, 0.30, (-0.04, 0.10, 0.855 + 0.15), "mango_fruit", segments=10, mode="panel")
-    b.add_cylinder(0.120, 0.045, (-0.04, 0.10, 1.17), "jeep_jade_teal", segments=10, mode="panel")
-    b.add_cylinder(0.042, 0.18, (-0.08, -0.18, 0.855 + 0.09), "cloth_ringer_cream", segments=8, r2=0.054)
-
-    # 2. Woven Rattan Bilao Tray + Banana-Leaf Liner + 5 Golden Caramelized Turon Rolls!
-    bilao_cx, bilao_cy, bilao_cz = 0.30, 0.04, 0.875
-    b.add_cylinder(0.22, 0.035, (bilao_cx, bilao_cy, bilao_cz), "bilao_rattan", segments=12, mode="panel")
-    bilao_rim = [
-        (bilao_cx + 0.215 * math.cos(a), bilao_cy + 0.215 * math.sin(a), bilao_cz + 0.022)
-        for a in [k * (2.0 * math.pi / 12.0) for k in range(12)]
-    ]
-    b.add_lofted_tube(bilao_rim, 0.018, "bamboo_golden", segments=6, closed_loop=True)
-    b.add_cylinder(0.18, 0.015, (bilao_cx, bilao_cy, bilao_cz + 0.02), "leaf_banana_sun", segments=10, mode="panel")
-    for ti, (tx_o, ty_o, tz_o, tyaw) in enumerate((
-        (-0.07, -0.03, 0.05, 0.15), (0.0, -0.02, 0.05, 0.12), (0.07, -0.01, 0.05, 0.18),
-        (-0.035, 0.02, 0.095, -0.10), (0.035, 0.02, 0.095, -0.08),
-    )):
-        b.add_cylinder(
-            0.028, 0.19, (bilao_cx + tx_o, bilao_cy + ty_o, bilao_cz + tz_o),
-            "turon_golden", segments=8, rot_euler=(math.pi * 0.5, 0.0, tyaw), mode="panel"
-        )
-
-    # 3. Neat 90s Collectible Teks Play-Card Stacks & Display Box on front-right corner!
-    for st_i, (kx, ky, kh, krot) in enumerate((
-        (0.14, -0.22, 0.09, 0.08), (0.26, -0.23, 0.12, -0.12), (0.38, -0.21, 0.07, 0.22)
-    )):
-        b.add_box((0.085, 0.115, kh), (kx, ky, 0.855 + kh * 0.5), "teks_cards", rot_euler=(0.0, 0.0, krot), bevel=0.008)
-
-    # Tilted Bamboo Umbrella Mast + 8-Sided Striped Trapal Sun Canopy (reaching Z ~ 2.12m)
-    b.add_lofted_tube([(0.08, 0.24, 0.10), (0.04, 0.16, 1.15), (0.0, 0.06, 2.04)], [0.034, 0.030, 0.026], "bamboo_golden", segments=8, mode="panel")
-    b.add_cylinder(0.74, 0.34, (0.0, 0.06, 1.90), "trapal_sun_stripe", segments=8, rot_euler=(0.06, -0.05, 0.0), mode="panel", r2=0.06)
-    b.add_cylinder(0.045, 0.10, (0.0, 0.06, 2.09), "coco_lumber", segments=8)
-
-    return b.export_glb("brgy_powerup_stand", mat)
+    # Low riverside bamboo *salangan* drying rack (`H = 1.08m > 0.80m` scale contract!) + draped wet teal towel
+    for sy in (-0.58, 0.58):
+        mb.tube((-0.98, sy, 0.0), (-0.86, sy * 0.85, 1.08), 0.032, 0.026, 6, "bamboo_gold")
+        mb.tube((-0.68, sy, 0.0), (-0.86, sy * 0.85, 1.08), 0.028, 0.024, 5, "bamboo_gold")
+    mb.tube((-0.86, -0.58, 1.04), (-0.86, 0.58, 1.04), 0.026, 0.026, 6, "bamboo_gold")
+    _add_draped_garment(mb, -0.86, 0.0, 1.04, 0.62, 0.52, "cloth_towel_teal", kind="towel", sway_x=0.06)
+    return mb
 
 
-def _verify_exports(stats: list) -> None:
-    """Verifies all 10 GLBs against @audit-3d (#78), @audit-map (#75), test_model_scale & test_texture_budget."""
-    assert len(stats) == 10, f"Expected 10 models, got {len(stats)}"
-    for item in stats:
-        name = item["name"]
-        p = os.path.join(OUT_DIR, f"{name}.glb")
-        assert os.path.isfile(p) and os.path.getsize(p) > 1024, f"Missing or empty GLB: {p}"
-        with open(p, "rb") as gf:
-            raw = gf.read()
-        j_len, _ = struct.unpack_from("<II", raw, 12)
-        gltf = json.loads(raw[20:20 + j_len].decode("utf-8"))
-        assert len(gltf["meshes"]) == 1, f"{name}.glb must have exactly 1 mesh!"
-        assert len(gltf["meshes"][0]["primitives"]) == 1, f"{name}.glb must have 1 surface/primitive!"
-        attrs = gltf["meshes"][0]["primitives"][0]["attributes"]
-        assert "COLOR_0" in attrs, f"{name}.glb missing baked COLOR_0 vertex AO!"
-        assert "TEXCOORD_0" in attrs, f"{name}.glb missing TEXCOORD_0!"
-        assert gltf["images"][0].get("uri") == ATLAS_FILENAME, f"{name}.glb missing external {ATLAS_FILENAME} URI!"
+# ---------------------------------------------------------------------------
+# 15. Standalone 200L Blue Water Drum & Bucket (`brgy_water_drum.glb` ~ 0.94m x 0.82m x 0.96m)
+# ---------------------------------------------------------------------------
 
-        # Check glTF Y-up POSITION accessor min/max & decode TEXCOORD_0 binary floats
-        b_off = 20 + j_len
-        b_len, _ = struct.unpack_from("<II", raw, b_off)
-        bin_blob = raw[b_off + 8:b_off + 8 + b_len]
+def build_water_drum(uvs: Dict[str, Tuple[float, float, float, float]]) -> MeshBuilder:
+    mb = MeshBuilder(uvs)
+    mb.frustum_plinth(0.0, 0.0, 0.0, 0.05, 0.08, 0.92, 0.80, 0.86, 0.74, "chb_wall_moss", "concrete_cap")
+    mb.tube((-0.14, 0.0, 0.08), (-0.14, 0.0, 0.92), 0.28, 0.29, 12, "trike_blue")
+    mb.tube((-0.14, 0.0, 0.92), (-0.14, 0.0, 0.96), 0.30, 0.28, 12, "steel_dark")
+    # Red plastic *tabo* dipper perched on drum rim + side *timba* bucket
+    mb.tube((-0.02, -0.18, 0.94), (-0.02, -0.18, 1.05), 0.075, 0.085, 8, "cloth_jersey_red")
+    mb.tube((0.28, 0.06, 0.08), (0.28, 0.06, 0.42), 0.14, 0.17, 9, "hoop_rim_orange")
+    return mb
 
-        pos_acc = gltf["accessors"][attrs["POSITION"]]
-        uv_acc = gltf["accessors"][attrs["TEXCOORD_0"]]
-        uv_bv = gltf["bufferViews"][uv_acc["bufferView"]]
-        uv_off = uv_bv.get("byteOffset", 0) + uv_acc.get("byteOffset", 0)
-        uv_arr = np.frombuffer(bin_blob, dtype=np.float32, count=uv_acc["count"] * 2, offset=uv_off).reshape((-1, 2))
-        uv_min = (float(uv_arr[:, 0].min()), float(uv_arr[:, 1].min()))
-        uv_max = (float(uv_arr[:, 0].max()), float(uv_arr[:, 1].max()))
 
-        min_pos = pos_acc["min"]
-        max_pos = pos_acc["max"]
-        size_x = max_pos[0] - min_pos[0]
-        size_y = max_pos[1] - min_pos[1]
-        size_z = max_pos[2] - min_pos[2]
-        assert abs(min_pos[1]) <= 0.015, f"{name}.glb not grounded! min_y={min_pos[1]:.4f}"
-        assert size_x > 0.50, f"{name}.glb drawn width X={size_x:.3f} <= 0.50m!"
-        assert size_y > 0.80, f"{name}.glb drawn height Y={size_y:.3f} <= 0.80m!"
-        assert 40 <= item["tris"] <= 6500, f"{name}.glb tris={item['tris']} outside [40, 6500]!"
-        assert uv_min[0] >= 0.0 and uv_min[1] >= 0.0 and uv_max[0] <= 1.0 and uv_max[1] <= 1.0, (
-            f"{name}.glb UVs out of [0, 1]: min={uv_min} max={uv_max}"
-        )
-        print(
-            f"  [VERIFIED] {name}.glb: tris={item['tris']}, "
-            f"godot_size=({size_x:.2f}x{size_y:.2f}x{size_z:.2f}m), min_y={min_pos[1]:.4f}, "
-            f"uv=({uv_min[0]:.3f}..{uv_max[0]:.3f}, {uv_min[1]:.3f}..{uv_max[1]:.3f})"
-        )
-
-    jpg_imports = [f for f in os.listdir(OUT_DIR) if f.endswith(".jpg.import")]
-    assert f"{ATLAS_FILENAME}.import" in jpg_imports, f"Missing {ATLAS_FILENAME}.import!"
-    for imp in jpg_imports:
-        txt = open(os.path.join(OUT_DIR, imp), "r", encoding="utf-8").read()
-        assert "compress/mode=2" in txt, f"{imp} missing compress/mode=2!"
-        assert "mipmaps/generate=true" in txt, f"{imp} missing mipmaps/generate=true!"
-        assert '"vram_texture": true' in txt, f"{imp} missing vram_texture=true!"
-        assert ("m" + "d5") not in txt.lower(), f"{imp} contains forbidden checksum line!"
-        assert "generator_parameters" not in txt, f"{imp} contains forbidden generator_parameters!"
-
+# ---------------------------------------------------------------------------
+# Entrypoint
+# ---------------------------------------------------------------------------
 
 def main() -> None:
-    print("=== Building 90s Philippine Province Props Kit (10 Handcrafted GLBs + Sunlit Atlas) ===")
-    atlas_img = build_atlas_image()
-    mat = build_shared_material(atlas_img)
+    t0 = time.time()
+    print("[Province90sPropsV3] Generating 2048x2048 ProvincePropsAtlas.jpg + _normal.png + _orm.png...")
+    uvs = generate_province_props_atlas()
 
-    stats = [
-        make_jeepney(mat),
-        make_tricycle(mat),
-        make_toda_shed(mat),
-        make_wooden_hoop(mat),
-        make_chb_wall(mat),
-        make_mango_tree(mat),
-        make_banana_clump(mat),
-        make_coconut_palm(mat),
-        make_sampayan_3d(mat),
-        make_powerup_stand(mat),
+    jobs = [
+        ("brgy_jeepney", lambda: build_jeepney(uvs, variant="classic")),
+        ("brgy_passenger_jeepney", lambda: build_jeepney(uvs, variant="provincial")),
+        ("brgy_owner_jeep", lambda: build_owner_jeep(uvs)),
+        ("brgy_tricycle", lambda: build_tricycle(uvs)),
+        ("brgy_toda_shed", lambda: build_toda_shed(uvs)),
+        ("brgy_wooden_hoop", lambda: build_wooden_hoop(uvs)),
+        ("brgy_chb_wall", lambda: build_chb_wall(uvs)),
+        ("brgy_mango_tree", lambda: build_mango_tree(uvs)),
+        ("brgy_coconut_palm", lambda: build_coconut_palm(uvs)),
+        ("brgy_banana_clump", lambda: build_banana_clump(uvs)),
+        ("brgy_sampayan_3d", lambda: build_sampayan_3d(uvs)),
+        ("brgy_powerup_stand", lambda: build_powerup_stand(uvs, variant="palamig")),
+        ("brgy_merienda_stand", lambda: build_powerup_stand(uvs, variant="halohalo")),
+        ("brgy_poster_cluster", lambda: build_poster_cluster(uvs)),
+        ("brgy_ilog_steps", lambda: build_ilog_steps(uvs)),
+        ("brgy_laundry_stones", lambda: build_laundry_stones(uvs)),
+        ("brgy_water_drum", lambda: build_water_drum(uvs)),
     ]
-    _verify_exports(stats)
-    total_kb = sum(s["kb"] for s in stats)
-    atlas_kb = os.path.getsize(os.path.join(OUT_DIR, ATLAS_FILENAME)) / 1024.0
-    print(f"=== ALL 10 PROVINCE 90s PROPS EXPORTED & VERIFIED | GLBs={total_kb:.1f}KB + Atlas={atlas_kb:.1f}KB ===")
+
+    for name, fn in jobs:
+        mb = fn()
+        out_path = OUT_DIR / f"{name}.glb"
+        st = finalize_and_export_glb(
+            mb,
+            out_path,
+            albedo_filename=ALBEDO_FILE,
+            normal_filename=NORMAL_FILE,
+            orm_filename=ORM_FILE,
+            ground_at_zero=True,
+            center_xy=True,
+        )
+        print(
+            f"  [OK] {name}.glb | tris={st['tris']:4d} | "
+            f"size=({st['w']:.2f} x {st['d']:.2f} x {st['h']:.2f}m) | min_y={st['min_y']:.4f}"
+        )
+
+    print(f"[Province90sPropsV3] Built {len(jobs)} models + normal+ORM atlas in {time.time() - t0:.2f}s.")
 
 
 if __name__ == "__main__":

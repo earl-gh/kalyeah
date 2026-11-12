@@ -217,6 +217,8 @@ func _create(projectile: WeaponSystem.Projectile) -> Rec:
 func _release(rec: Rec, projectile: WeaponSystem.Projectile) -> void:
 	if _ctx.reduced:
 		return
+	if projectile.def != null and projectile.def.shape == WeaponDef.Shape.SKILLSHOT:
+		return
 	var at: Vector2 = projectile.position
 	if rec.kind == &"top":
 		var head: Vector3 = Vector3(at.x, TOP_DROP + drawn_width(rec.def) * TOP_SHADOW, at.y)

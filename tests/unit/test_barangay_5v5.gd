@@ -110,9 +110,10 @@ func _open_circular_layout() -> MapLayout:
 	custom.tagged_places = 5
 	custom.boundary_thickness = 2.0
 	custom.powerup_spots = [
-		Vector2(-34.0, 0.0),
-		Vector2(0.0, 0.0),
-		Vector2(34.0, 0.0),
+		Vector2(-31.5, 4.8),
+		Vector2(5.8, 6.4),
+		Vector2(-5.8, -6.4),
+		Vector2(31.5, -4.8),
 	]
 	return custom
 
@@ -164,20 +165,30 @@ func test_legacy_zero_arena_radius_preserves_rectangular_bounds() -> void:
 func test_symmetric_tabi_tabi_obstacles_and_water_rects_block_walk_not_projectiles() -> void:
 	var obs: Array[Rect2] = LAYOUT.obstacle_rects()
 	var half_obs: int = LAYOUT.obstacles.size()
-	assert_eq(half_obs, 14, "Overhaul v2 Barangay layout has 14 half-map building/landmark footprints")
+	assert_eq(half_obs, 16, "Overhaul v3 Barangay layout has 16 half-map true-scale rotated building/landmark parcels")
 	assert_eq(obs.size(), half_obs * 2, "Obstacles mirror point-symmetrically for both teams")
+	assert_eq(LAYOUT.obstacle_yaws_deg.size(), half_obs, "Each half-map parcel carries an explicit street-aligned yaw")
+	assert_eq(LAYOUT.obstacle_scales.size(), half_obs, "Each half-map parcel carries a true-scale factor")
+	var organic_rotated_count: int = 0
 	for i: int in half_obs:
 		var expected_mirror: Rect2 = Rect2(-obs[i].end, obs[i].size)
 		assert_true(obs[i + half_obs].is_equal_approx(expected_mirror), "Obstacle %d mirrors around (0, 0)" % i)
+		assert_between(LAYOUT.obstacle_scales[i], 0.90, 1.10, "Obstacle %d stays at 1:1 human architectural scale" % i)
+		var mod_yaw: float = fposmod(absf(LAYOUT.obstacle_yaws_deg[i]), 90.0)
+		if mod_yaw > 5.0 and mod_yaw < 85.0:
+			organic_rotated_count += 1
+	assert_gte(organic_rotated_count, 8, "Majority of shophouse/house parcels rotate organically along curved streets")
 
 	var water: Array[Rect2] = LAYOUT.water_rects()
-	assert_eq(LAYOUT.water_obstacles.size(), 0, "Overhaul v2 shallow mid canal is walkable across all 3 N-S pathways")
+	assert_eq(LAYOUT.water_obstacles.size(), 0, "Shallow Tabing-Ilog creek is walkable across all 3 curved N-S pathways")
 	assert_eq(water.size(), 0, "Walkable shallow canal adds zero blocking water_rects in map_layout.tres")
 	assert_eq(
 		LAYOUT.powerup_spots,
-		[Vector2(-34.0, 0.0), Vector2(0.0, 0.0), Vector2(34.0, 0.0)],
-		"Barangay layout places 3 merienda power-up stands along West, Center, and East mid canal crossings"
+		[Vector2(-31.5, 4.8), Vector2(5.8, 6.4), Vector2(-5.8, -6.4), Vector2(31.5, -4.8)],
+		"Barangay layout places 4 point-symmetric dry bridgehead Merienda stands overlooking the creek fords"
 	)
+	for spot: Vector2 in LAYOUT.powerup_spots:
+		assert_gt(absf(spot.y - MapLayout.canal_z(spot.x)), 3.5, "Merienda stand at %s sits on dry bridgehead bank outside creek channel" % str(spot))
 
 	var walk_all: Array[Rect2] = LAYOUT.walk_obstacle_rects()
 	assert_eq(walk_all.size(), obs.size(), "walk_obstacle_rects equals solid cover when mid canal is shallow-walkable")
@@ -225,11 +236,18 @@ func test_barangay_nav_deterministic_routing_through_eskinitas_and_bridges() -> 
 		for rect: Rect2 in walk_rects:
 			assert_false(rect.has_point(wp), "Waypoint %s stays clear of walk-blocking rect %s" % [str(wp), str(rect)])
 
-	# All 3 wide North-South pathways (West X=-34, Center X=0, East X=+34) ford directly across the shallow mid canal.
-	for lane_x: float in [-34.0, 0.0, 34.0]:
+	# All 3 curved North-South pathways (West, Center, East) ford directly across the shallow meandering Tabing-Ilog creek.
+	var ford_pairs: Array[Array] = [
+		[Vector2(MapLayout.lane_west_x(10.0), 10.0), Vector2(MapLayout.lane_west_x(-10.0), -10.0)],
+		[Vector2(MapLayout.lane_center_x(10.0), 10.0), Vector2(MapLayout.lane_center_x(-10.0), -10.0)],
+		[Vector2(MapLayout.lane_east_x(10.0), 10.0), Vector2(MapLayout.lane_east_x(-10.0), -10.0)],
+	]
+	for pair: Array in ford_pairs:
+		var p_south: Vector2 = pair[0] as Vector2
+		var p_north: Vector2 = pair[1] as Vector2
 		assert_true(
-			nav_a.is_clear(Vector2(lane_x, 10.0), Vector2(lane_x, -10.0)),
-			"N-S pathway X=%.1f wades directly across shallow mid canal without choke obstacles" % lane_x
+			nav_a.is_clear(p_south, p_north),
+			"Curved N-S pathway %s -> %s wades directly across shallow mid canal without choke obstacles" % [str(p_south), str(p_north)]
 		)
 
 	# Full cross-barangay navigation from Team 0 spawn (+Z) to Team 1 spawn (-Z) across the 3-pathway barangay grid.
@@ -420,7 +438,7 @@ func test_tirador_primary_luksong_tinik_dash_bagsak_ultimate_and_v2_locomotion()
 	assert_almost_eq(hero.air_y, 0.0, 0.001, "Jump lands cleanly back on street plane")
 
 	# Merienda Power-Up pickup & Snapshot wire sync round-trip.
-	assert_eq(sim.powerups.size(), 3, "MatchSim spawns 3 Barangay merienda power-up stands")
+	assert_eq(sim.powerups.size(), 4, "MatchSim spawns 4 dry bridgehead Barangay merienda power-up stands")
 	var first_pu: Dictionary = sim.powerups[0]
 	var pu_pos: Vector2 = first_pu["pos"] as Vector2
 	hero.hp = RULES.player_max_hp - 20

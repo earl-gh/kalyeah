@@ -35,6 +35,10 @@ static var CAPTION_FONT: Font = _sans_variation(CAPTION_WEIGHT, CAPTION_TRACKING
 static var BUTTON_FONT: Font = _sans_variation(BUTTON_WEIGHT, BUTTON_TRACKING, 0)
 ## Numbers and the match's drawn text: extra-bold (`wght = 850`) and untracked so digits and scores stay crisp.
 static var ACTION_FONT: Font = _sans_variation(ACTION_WEIGHT, 0, 0)
+## Compact widescreen MOBA stage fonts with trimmed FreeType vertical air so 2-line glass capsules & gold CTAs never clip.
+static var STAGE_TITLE_FONT: Font = _stage_sans_variation(780, 0.92, -5, -6, 0)
+static var STAGE_SUB_FONT: Font = _stage_sans_variation(650, 0.81, -5, -6, -1)
+static var STAGE_DISPLAY_FONT: Font = _stage_display_variation(-6, -6)
 
 const INK: Color = Color("2a2522")
 const INK_DEEP: Color = Color("14100e")
@@ -61,6 +65,15 @@ const ERROR: Color = Color("ff9f8e")
 const TEAM_BLUE: Color = Color("1d56b5")
 const TEAM_RED: Color = Color("b8352b")
 const FIELD: Color = Color("211c19")
+
+## Modern MOBA glassmorphic & radiant gold header/rail surface tokens (Wild Rift / MLBB benchmark).
+const GLASS_DARK: Color = Color(0.09, 0.08, 0.07, 0.76)
+const GLASS_HOVER: Color = Color(0.15, 0.12, 0.10, 0.86)
+const GLASS_ACTIVE: Color = Color(0.21, 0.16, 0.10, 0.88)
+const GLASS_RIM: Color = Color(0.98, 0.91, 0.74, 0.28)
+const GOLD_BRIGHT: Color = Color("ffe680")
+const GOLD_CORE: Color = Color("f5a623")
+const GOLD_DEEP: Color = Color("b8680a")
 
 ## Sunlit 90s Kalye modal sheet: warm roasted timber-slate header frame (`#3A302B`) around
 ## a bright sunlit cream (`#FAF3E3`) body with soft tropical espresso text.
@@ -90,6 +103,26 @@ static func _sans_variation(weight: int, glyph: int = 0, word: int = 0) -> FontV
 	font.variation_opentype = {WGHT_TAG: weight}
 	font.spacing_glyph = glyph
 	font.spacing_space = word
+	return font
+
+
+static func _stage_sans_variation(weight: int, width_scale: float, top_trim: int, bottom_trim: int, glyph_spacing: int = 0) -> FontVariation:
+	var font: FontVariation = FontVariation.new()
+	font.base_font = SANS_FONT
+	font.variation_opentype = {WGHT_TAG: weight}
+	font.spacing_glyph = glyph_spacing
+	font.spacing_space = 0
+	font.spacing_top = top_trim
+	font.spacing_bottom = bottom_trim
+	font.variation_transform = Transform2D(Vector2(width_scale, 0.0), Vector2(0.0, 1.0), Vector2.ZERO)
+	return font
+
+
+static func _stage_display_variation(top_trim: int, bottom_trim: int) -> FontVariation:
+	var font: FontVariation = FontVariation.new()
+	font.base_font = DISPLAY_FONT
+	font.spacing_top = top_trim
+	font.spacing_bottom = bottom_trim
 	return font
 
 
@@ -368,3 +401,46 @@ static func field_box(focused: bool, read_only: bool = false) -> StyleBoxFlat:
 ## The focus ring round a control whose corners are `radius`: the one ring, UiSkin's.
 static func focus_ring(radius: int) -> StyleBoxFlat:
 	return UiSkin.focus_ring(radius)
+
+
+## Sleek translucent dark-espresso glass capsule for slim header bars, status pills, and utility clusters.
+static func glass_capsule(radius: int = UiSkin.RADIUS_L, border_color: Color = GLASS_RIM, fill: Color = GLASS_DARK, pad_x: float = 16.0, pad_y: float = 8.0) -> StyleBoxFlat:
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	box.bg_color = fill
+	box.set_corner_radius_all(radius)
+	box.set_border_width_all(1)
+	box.border_color = border_color
+	box.shadow_color = Color(INK_DEEP, 0.30)
+	box.shadow_size = 4
+	box.shadow_offset = Vector2(0.0, 2.0)
+	box.content_margin_left = pad_x
+	box.content_margin_right = pad_x
+	box.content_margin_top = pad_y
+	box.content_margin_bottom = pad_y
+	box.anti_aliasing = true
+	return box
+
+
+## Frameless vertical rail tab highlight box with luminous left gold indicator bar when active.
+static func nav_rail_box(active: bool = false, hovered: bool = false) -> StyleBoxFlat:
+	var box: StyleBoxFlat = StyleBoxFlat.new()
+	if active:
+		box.bg_color = GLASS_ACTIVE
+		box.border_width_left = 4
+		box.border_width_top = 1
+		box.border_width_bottom = 1
+		box.border_width_right = 1
+		box.border_color = GOLD_CORE
+	elif hovered:
+		box.bg_color = Color(GLASS_HOVER, 0.56)
+		box.border_width_left = 2
+		box.border_color = Color(GOLD_BRIGHT, 0.65)
+	else:
+		box.bg_color = Color(GLASS_DARK, 0.0)
+	box.set_corner_radius_all(UiSkin.RADIUS_S)
+	box.content_margin_left = 18.0
+	box.content_margin_right = 14.0
+	box.content_margin_top = 8.0
+	box.content_margin_bottom = 8.0
+	box.anti_aliasing = true
+	return box

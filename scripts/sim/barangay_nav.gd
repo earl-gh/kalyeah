@@ -1,15 +1,15 @@
 class_name BarangayNav
 extends RefCounted
 ## Deterministic waypoint A* navigation graph over MapLayout's circular 90s provincial barangay.
-## Pure data + math (no Node, no NavigationServer3D) so 5v5 bots route cleanly along the
-## 3 main North-South pathways (`X = -34, 0, +34`), 2 connecting East-West alleyways (`Z = +-26`),
-## and right through the walkable shallow mid canal (`Z = 0`) identically on client, server, and tests.
+## Pure data + math (no Node, no NavigationServer3D) so 5v5 bots route smoothly along the
+## 3 organic curved North-South pathways, 2 curved East-West eskinita alleyways, oriented
+## building corners, and right through the walkable shallow *Tabing-Ilog* canal fords.
 
-const CORNER_MARGIN: float = 0.92
+const CORNER_MARGIN: float = 0.95
 const CLEARANCE_MARGIN: float = 0.16
 const EDGE_EXTRA_MARGIN: float = 0.08
 const MAX_EDGE_LENGTH: float = 72.0
-const MIN_WAYPOINT_DIST_SQ: float = 2.56
+const MIN_WAYPOINT_DIST_SQ: float = 3.24
 
 var waypoints: Array[Vector2] = []
 var _neighbors: Array[PackedInt32Array] = []
@@ -82,24 +82,30 @@ func _is_edge_clear(a: Vector2, b: Vector2) -> bool:
 
 func _clamp_walkable(point: Vector2) -> Vector2:
 	var result: Vector2 = _layout.clamp_to_arena(point, _agent_pad) if _layout != null else point.clamp(_bounds.position, _bounds.end)
-	for rect: Rect2 in _padded_rects:
-		if not rect.has_point(result):
-			continue
-		var exits: Array[Vector2] = [
-			Vector2(rect.position.x - 0.05, result.y),
-			Vector2(rect.end.x + 0.05, result.y),
-			Vector2(result.x, rect.position.y - 0.05),
-			Vector2(result.x, rect.end.y + 0.05),
-		]
-		var best: Vector2 = result
-		var best_d: float = INF
-		for ex: Vector2 in exits:
-			if _is_walkable_point(ex):
-				var d: float = ex.distance_squared_to(result)
-				if d < best_d:
-					best_d = d
-					best = ex
-		result = best
+	for _pass: int in 2:
+		var moved: bool = false
+		for rect: Rect2 in _padded_rects:
+			if not rect.has_point(result):
+				continue
+			var exits: Array[Vector2] = [
+				Vector2(rect.position.x - 0.08, result.y),
+				Vector2(rect.end.x + 0.08, result.y),
+				Vector2(result.x, rect.position.y - 0.08),
+				Vector2(result.x, rect.end.y + 0.08),
+			]
+			var best: Vector2 = result
+			var best_d: float = INF
+			for ex: Vector2 in exits:
+				if _is_walkable_point(ex):
+					var d: float = ex.distance_squared_to(result)
+					if d < best_d:
+						best_d = d
+						best = ex
+			if best != result:
+				result = best
+				moved = true
+		if not moved:
+			break
 	return result
 
 
@@ -117,48 +123,49 @@ func _is_walkable_point(point: Vector2) -> bool:
 
 func _build_waypoints(layout: MapLayout, raw_rects: Array[Rect2], corner_pad: float) -> void:
 	var candidates: Array[Vector2] = []
-	# 1. Walkable shallow mid-canal spine (`Z = 0.0`) & power-up objective spots (`-34, 0`, `0, 0`, `+34, 0`).
+
+	# 1. Merienda power-up stands & curved shallow *Tabing-Ilog* canal spine + North/South bank towpaths.
 	for pu_spot: Vector2 in layout.powerup_spots:
 		candidates.append(pu_spot)
-	for canal_x: float in [-74.0, -54.5, -34.0, -17.0, 0.0, 17.0, 34.0, 54.5, 74.0]:
-		candidates.append(Vector2(canal_x, 0.0))
+	for canal_x: float in [-74.0, -56.0, -34.0, -17.0, 0.0, 17.0, 34.0, 56.0, 74.0]:
+		var cz: float = MapLayout.canal_z(canal_x) if layout.arena_radius > 0.0 else 0.0
+		candidates.append(Vector2(canal_x, cz))
+		candidates.append(Vector2(canal_x, cz + 5.6))
+		candidates.append(Vector2(canal_x, cz - 5.6))
 
-	# 2. Symmetric 3-pathway N-S spines (`X = -34, 0, +34`), 2 connecting E-W alleyways (`Z = +-26`),
-	#    canal towpaths (`Z = +-5.4`), base plazas, and rescue patios on both halves.
+	# 2. 3 Organic Curved North-South Pathways (West Tabing-Ilog, Center Avenue, East TODA Road).
+	if layout.arena_radius > 0.0:
+		for z_sample: float in [-64.0, -52.0, -40.0, -28.0, -16.0, -8.0, 0.0, 8.0, 16.0, 28.0, 40.0, 52.0, 64.0]:
+			candidates.append(Vector2(MapLayout.lane_center_x(z_sample), z_sample))
+			candidates.append(Vector2(MapLayout.lane_west_x(z_sample), z_sample))
+			candidates.append(Vector2(MapLayout.lane_east_x(z_sample), z_sample))
+
+		# 2 Curved East-West Eskinita Alleyways (South & North).
+		for x_sample: float in [-72.0, -56.0, -41.0, -31.0, -18.0, -4.0, 4.0, 18.0, 31.0, 41.0, 56.0, 72.0]:
+			candidates.append(Vector2(x_sample, MapLayout.eskinita_south_z(x_sample)))
+			candidates.append(Vector2(x_sample, MapLayout.eskinita_north_z(x_sample)))
+
+	# 3. Symmetric Team Bases, Spawns, Rescue Patios & Base Plazas.
 	for side: int in [MapLayout.SIDE_OWN, MapLayout.SIDE_ENEMY]:
 		var s: float = float(side)
 		candidates.append(layout.base_center(side))
 		candidates.append(layout.spawn_center(side))
 		var rescue: Rect2 = layout.rescue_rect(side)
 		candidates.append(rescue.get_center())
-		candidates.append(Vector2(rescue.get_center().x, rescue.position.y - 2.2))
-		candidates.append(Vector2(rescue.get_center().x, rescue.end.y + 2.2))
-		var inward_rx: float = rescue.end.x + 2.4 if side == MapLayout.SIDE_OWN else rescue.position.x - 2.4
+		candidates.append(Vector2(rescue.get_center().x, rescue.position.y - 2.4))
+		candidates.append(Vector2(rescue.get_center().x, rescue.end.y + 2.4))
+		var inward_rx: float = rescue.end.x + 2.6 if side == MapLayout.SIDE_OWN else rescue.position.x - 2.6
 		candidates.append(Vector2(inward_rx, rescue.get_center().y))
 
-		# Shallow canal North/South bank towpaths (`Z = +-5.4`)
-		for bx: float in [-74.0, -54.5, -34.0, -17.0, 0.0, 17.0, 34.0, 53.5, 74.0]:
-			candidates.append(Vector2(bx * s, 5.4 * s))
-
-		# 3 Main North-South Pathways (`X = -34.0` West, `X = 0.0` Center, `X = +34.0` East) + outer flanks
-		for lane_x: float in [-72.0, -34.0, 0.0, 34.0, 72.0]:
-			candidates.append(Vector2(lane_x * s, 14.2 * s))
-			candidates.append(Vector2(lane_x * s, 38.8 * s))
-
-		# 2 Connecting East-West Alleyways (`Z = +-26.0`, clear `10.2m` wide cross-lanes)
-		for ax: float in [-72.0, -62.0, -49.5, -34.0, -17.2, 0.0, 17.2, 34.0, 49.5, 60.2, 72.0]:
-			candidates.append(Vector2(ax * s, 26.0 * s))
-
-		# Base approach promenade (`Z = +-48.4`) & Base Basketball/Hall Plaza (`Z = +-57.5, +-69.0, +-78.5`)
-		for px: float in [-56.0, -34.0, -15.5, 0.0, 15.5, 34.0, 56.0]:
-			candidates.append(Vector2(px * s, 48.4 * s))
-		for cx: float in [-34.0, -15.2, 0.0, 15.2, 34.0]:
+		for px: float in [-54.0, -33.0, -15.5, 0.0, 15.5, 33.0, 54.0]:
+			candidates.append(Vector2(px * s, 49.0 * s))
+		for cx: float in [-32.0, -15.2, 0.0, 15.2, 32.0]:
 			candidates.append(Vector2(cx * s, 57.5 * s))
-		for rx: float in [-28.0, -14.5, 14.5, 28.0]:
+		for rx: float in [-27.0, -14.5, 14.5, 27.0]:
 			candidates.append(Vector2(rx * s, 69.0 * s))
 		candidates.append(Vector2(0.0, 78.5 * s))
 
-	# 3. Circular outer perimeter flank ring inside `arena_radius` (`r = arena_radius - 3.6m`).
+	# 4. Circular outer perimeter flank ring inside `arena_radius` (`r = arena_radius - 3.6m`).
 	if layout.arena_radius > 10.0:
 		var ring_r: float = layout.arena_radius - 3.6
 		var ring_steps: int = 24
@@ -166,7 +173,7 @@ func _build_waypoints(layout: MapLayout, raw_rects: Array[Rect2], corner_pad: fl
 			var angle: float = TAU * float(step_i) / float(ring_steps)
 			candidates.append(Vector2(cos(angle) * ring_r, sin(angle) * ring_r))
 
-	# 4. Padded obstacle corners so bots route cleanly around every house block & cover wall.
+	# 5. Tightly padded collider corners around every building parcel & optional water rect.
 	for rect: Rect2 in raw_rects:
 		var grown: Rect2 = rect.grow(corner_pad)
 		candidates.append(grown.position)

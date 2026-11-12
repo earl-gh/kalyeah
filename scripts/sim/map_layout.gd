@@ -3,9 +3,10 @@ extends Resource
 ## Geometry of the playground barangay, in meters. Pure data + math, no nodes.
 ## When `arena_radius > 0.0`, the playable neighborhood is a circular 90s provincial
 ## barangay (`position.length() <= arena_radius`) with symmetric team bases at `(0, +-64)`,
-## 3 main North-South pathways (`X = -34, 0, +34`), 2 connecting East-West alleyways
-## (`Z = +-26`), and a walkable shallow mid canal (`Z = 0`). When `arena_radius <= 0.0`,
-## legacy rectangular street bounds (`lane_rect()` with `base_corner` corners) remain active.
+## 3 organic S-curved North-South pathways, 2 meandering East-West eskinita alleyways,
+## 16+16 true-scale rotated house/shophouse parcels, and a shallow walkable *Tabing-Ilog*
+## meandering creek (NO mid bridge). When `arena_radius <= 0.0`, legacy rectangular street
+## bounds (`lane_rect()` with `base_corner` corners) remain active.
 ## All numbers come from data/rules/map_layout.tres.
 
 const SIDE_OWN: int = 1
@@ -33,11 +34,21 @@ var lane_length: float:
 @export var rescue_size: Vector2 = Vector2.ZERO
 ## Number of tagged player slots lined up on the sidewalk beside each rescue zone.
 @export var tagged_places: int = 1
-## World (x, z) positions of small map power-up objectives along the mid canal / pathways.
-@export var powerup_spots: Array[Vector2] = [Vector2(-34.0, 0.0), Vector2(0.0, 0.0), Vector2(34.0, 0.0)]
-## Solid building / cover footprints on the +Z half (point-symmetrically mirrored to -Z).
-## Blocks both walking and projectiles.
+## World (x, z) positions of 4 dry bridgehead Merienda power-up stands overlooking the crossings.
+@export var powerup_spots: Array[Vector2] = [
+	Vector2(-31.5, 4.8),
+	Vector2(5.8, 6.4),
+	Vector2(-5.8, -6.4),
+	Vector2(31.5, -4.8),
+]
+## Tight inscribed solid building / stall collision footprints on the +Z half,
+## point-symmetrically mirrored to -Z (`obstacle_rects().size() == obstacles.size() * 2`).
 @export var obstacles: Array[Rect2] = []
+## Street-aligned rotation in degrees for each parcel in `obstacles` (`0` = local `+Z` Front faces
+## South `+Z`, `90` = East `+X`, `-90` = West `-X`, `180` = North `-Z`).
+@export var obstacle_yaws_deg: PackedFloat32Array = PackedFloat32Array()
+## Uniform true-scale factor (`~0.95..1.03`) for each visual building in `obstacles`.
+@export var obstacle_scales: PackedFloat32Array = PackedFloat32Array()
 ## Cosmetic kit prop id for each entry in `obstacles`.
 @export var obstacle_props: Array[StringName] = []
 ## Optional non-walkable creek / channel rects on the +Z/West half (point-symmetrically mirrored).
@@ -52,6 +63,69 @@ var lane_length: float:
 @export var post_width_share: float = 1.0
 @export var overview_height: float = 0.0
 @export var overview_size: float = 0.0
+
+
+static func smooth_band(edge0: float, edge1: float, val: float) -> float:
+	var span: float = maxf(edge1 - edge0, 0.0001)
+	var t: float = clampf((val - edge0) / span, 0.0, 1.0)
+	return t * t * (3.0 - 2.0 * t)
+
+
+## Point-symmetric meandering *Tabing-Ilog* creek centerline `Z(x)` (`canal_z(-x) == -canal_z(x)`).
+static func canal_z(x: float) -> float:
+	return 2.4 * sin(x * 0.046) + 0.8 * sin(x * 0.105)
+
+
+## Center Barangay Avenue S-bend centerline `X(z)` (`lane_center_x(-z) == -lane_center_x(z)`).
+static func lane_center_x(z: float) -> float:
+	var taper: float = 1.0 - smooth_band(50.0, 62.0, absf(z))
+	return 4.2 * sin(z * 0.048) * taper
+
+
+## East *TODA / Talipapa* Feeder Road curved centerline `X(z)`.
+static func lane_east_x(z: float) -> float:
+	var taper: float = 1.0 - smooth_band(56.0, 74.0, absf(z))
+	return 34.5 + (3.8 * sin(z * 0.052 + 0.55) - 0.055 * absf(z)) * taper
+
+
+## West *Tabing-Ilog* Feeder Road curved centerline `X(z)` (`lane_west_x(-z) == -lane_east_x(z)`).
+static func lane_west_x(z: float) -> float:
+	return -lane_east_x(-z)
+
+
+## South meandering *Eskinita* cross-street centerline `Z(x)`.
+static func eskinita_south_z(x: float) -> float:
+	return 28.0 + 3.0 * sin(x * 0.058)
+
+
+## North meandering *Eskinita* cross-street centerline `Z(x)` (`eskinita_north_z(-x) == -eskinita_south_z(x)`).
+static func eskinita_north_z(x: float) -> float:
+	return -eskinita_south_z(-x)
+
+
+## Variable asphalt carriageway half-width along Center Avenue (tight mid-blocks -> sunlit plazas).
+static func lane_center_half_width(z: float) -> float:
+	var az: float = absf(z)
+	var dz_esk: float = (az - 28.0) / 8.5
+	var dz_ford: float = z / 8.5
+	var dz_plaza: float = (az - 62.0) / 10.0
+	return 4.45 + 2.15 * exp(-dz_esk * dz_esk) + 1.85 * exp(-dz_ford * dz_ford) + 2.40 * exp(-dz_plaza * dz_plaza)
+
+
+## Variable asphalt carriageway half-width along West & East Feeder Roads.
+static func lane_side_half_width(z: float) -> float:
+	var az: float = absf(z)
+	var dz_esk: float = (az - 28.0) / 9.0
+	var dz_ford: float = z / 8.5
+	return 4.25 + 1.95 * exp(-dz_esk * dz_esk) + 1.65 * exp(-dz_ford * dz_ford)
+
+
+## Variable width along North & South *Eskinita* cross-streets.
+static func eskinita_half_width(x: float) -> float:
+	var ax: float = absf(x)
+	var dx_mid: float = ax / 9.0
+	var dx_side: float = (ax - 34.5) / 8.5
+	return 3.55 + 1.55 * exp(-dx_mid * dx_mid) + 1.45 * exp(-dx_side * dx_side)
 
 
 ## Centre of the tile `tile` in world metres (x, z).
@@ -196,6 +270,48 @@ func _keep_in_rect_street(point: Vector2, radius: float) -> Vector2:
 	if out.length() <= curve:
 		return inside
 	return inner.get_center() + arc_centre + out.normalized() * curve
+
+
+func has_oriented_parcels() -> bool:
+	return not obstacle_yaws_deg.is_empty() and obstacle_yaws_deg.size() == obstacles.size()
+
+
+func parcel_count() -> int:
+	return obstacles.size() * 2
+
+
+func parcel_rect(index: int) -> Rect2:
+	var half: int = obstacles.size()
+	if half == 0:
+		return Rect2()
+	if index < half:
+		return obstacles[index]
+	var src: Rect2 = obstacles[index - half]
+	return Rect2(-src.end, src.size)
+
+
+func parcel_yaw_rad(index: int) -> float:
+	var half: int = obstacles.size()
+	if half == 0 or obstacle_yaws_deg.is_empty():
+		return 0.0
+	var base_idx: int = index % half
+	var deg: float = obstacle_yaws_deg[base_idx] if base_idx < obstacle_yaws_deg.size() else 0.0
+	var rad: float = deg_to_rad(deg)
+	if index >= half:
+		rad = wrapf(rad + PI, -PI, PI)
+	return rad
+
+
+func parcel_scale(index: int) -> float:
+	var half: int = obstacles.size()
+	if half == 0 or obstacle_scales.is_empty():
+		return 1.0
+	var base_idx: int = index % half
+	return obstacle_scales[base_idx] if base_idx < obstacle_scales.size() else 1.0
+
+
+func parcel_prop(index: int) -> StringName:
+	return obstacle_prop(index)
 
 
 ## Every solid obstacle on the map: own-half pieces plus point-symmetric enemy-half mirrors.

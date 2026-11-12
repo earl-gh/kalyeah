@@ -43,11 +43,11 @@ func test_the_data_puts_the_camera_over_the_shoulder() -> void:
 
 func test_the_pose_stands_exactly_the_distance_behind_the_kid_on_the_ground_and_looks_at_it() -> void:
 	var rules: CameraRules = CAMERA
-	assert_almost_eq(rules.shoulder_distance, 4.15, 0.001, "4.15 m Deadlock shoulder distance")
-	assert_almost_eq(rules.shoulder_height, 1.88, 0.001, "1.88 m shoulder pivot height")
-	assert_almost_eq(rules.shoulder_offset, 0.62, 0.001, "0.62 m right shoulder offset framing kid slightly left of center")
-	assert_almost_eq(rules.look_pitch_degrees, 15.5, 0.001, "15.5 deg downward pitch")
-	assert_almost_eq(rules.shoulder_fov, 68.0, 0.001, "68 deg perspective FOV")
+	assert_almost_eq(rules.shoulder_distance, 2.55, 0.001, "2.55 m close Deadlock shoulder distance")
+	assert_almost_eq(rules.shoulder_height, 1.42, 0.001, "1.42 m low-shoulder pivot height")
+	assert_almost_eq(rules.shoulder_offset, 0.68, 0.001, "0.68 m right shoulder offset framing kid beside vitals HUD")
+	assert_almost_eq(rules.look_pitch_degrees, 9.5, 0.001, "9.5 deg street-canyon pitch")
+	assert_almost_eq(rules.shoulder_fov, 66.0, 0.001, "66 deg perspective FOV")
 	var pose: Array[Vector3] = rules.shoulder_pose(Vector2.ZERO, 0.0, 10.0)
 	assert_gt(pose[0].z, 0.0, "looking down -Z it stands on the +Z side: behind")
 	assert_gt(pose[0].x, 0.0, "and to the right")
@@ -238,3 +238,54 @@ func test_auto_behind_camera_follows_character_until_manual_look_overrides_it() 
 	var manual_yaw: float = camera.look_yaw
 	camera.sync_behind_character(Vector2(-1.0, 0.0), true, 0.2)
 	assert_almost_eq(camera.look_yaw, manual_yaw, 0.001, "manual look immediately overrides auto-behind follow during hold window")
+
+
+func test_fortnite_lateral_orbit_law_deadzones_and_smooth_damp_continuity() -> void:
+	var prev_motion: bool = Settings.reduced_motion
+	Settings.reduced_motion = false
+
+	# Straight-ahead (0 deg) and straight-backpedal (180 deg) never whip the camera around
+	assert_almost_eq(CameraRules.lateral_orbit_weight(0.0, 0.0, 1.0), 0.0, 0.0001, "0 deg straight-forward has zero lateral orbit")
+	assert_almost_eq(CameraRules.lateral_orbit_weight(0.0, 180.0, 1.0), 0.0, 0.0001, "180 deg backpedal has zero lateral orbit")
+	assert_almost_eq(CameraRules.lateral_orbit_weight(0.0, 90.0, 1.0), 1.0, 0.0001, "90 deg pure strafe reaches full lateral orbit weight")
+
+	# Critically-damped angular spring crosses the 0/360 degree seam smoothly without overshoot
+	var yaw: float = 354.0
+	var vel: float = 0.0
+	for _i: int in 45:
+		var stepped: Vector2 = CameraRules.smooth_damp_angle_step(yaw, 12.0, vel, 0.22, 160.0, 1.0 / 60.0)
+		yaw = stepped.x
+		vel = stepped.y
+	var rem_deg: float = absf(rad_to_deg(angle_difference(deg_to_rad(yaw), deg_to_rad(12.0))))
+	assert_lt(rem_deg, 1.5, "smooth_damp_angle_step converges cleanly across 354 -> 12 deg seam")
+
+	# Sub-frame ActorView smoothing glides between 30 Hz ticks and snaps cleanly on teleports
+	var actor_view: ActorView = autofree(ActorView.new()) as ActorView
+	add_child(actor_view)
+	actor_view.snap_to(Vector2(0.0, 10.0), Vector2(0.0, -1.0), 0.0)
+	actor_view.sync_subframe(Vector2(0.4, 10.0), Vector2(1.0, 0.0), 0.0, 1.0 / 60.0, false)
+	assert_gt(actor_view.smoothed_pivot_xz().x, 0.0, "sub-frame XZ advances smoothly")
+	assert_lt(actor_view.smoothed_pivot_xz().x, 0.4, "sub-frame XZ does not step instantaneously")
+	actor_view.sync_subframe(Vector2(12.0, -8.0), Vector2(0.0, 1.0), 0.0, 1.0 / 60.0, false)
+	assert_almost_eq(actor_view.smoothed_pivot_xz().distance_to(Vector2(12.0, -8.0)), 0.0, 0.001, "teleport beyond threshold snaps cleanly")
+
+	Settings.reduced_motion = prev_motion
+
+
+func test_five_vfx_visual_shader_node_graphs_load_for_gl_compatibility() -> void:
+	var paths: Array[String] = [
+		"res://shaders/visual/vs_impact_shockwave.tres",
+		"res://shaders/visual/vs_projectile_ribbon.tres",
+		"res://shaders/visual/vs_water_ripple.tres",
+		"res://shaders/visual/vs_merienda_aura.tres",
+		"res://shaders/visual/vs_dust_puff.tres",
+	]
+	for path: String in paths:
+		assert_true(ResourceLoader.exists(path), "%s exists" % path)
+		var vs: VisualShader = load(path) as VisualShader
+		assert_not_null(vs, "%s loads as VisualShader" % path)
+		if vs != null:
+			var code: String = vs.get_code()
+			assert_true(code.contains("shader_type spatial;"), "%s generates spatial shader code" % path)
+			var frag_nodes: PackedInt32Array = vs.get_node_list(VisualShader.TYPE_FRAGMENT)
+			assert_gt(frag_nodes.size(), 4, "%s has a genuine fragment node graph" % path)

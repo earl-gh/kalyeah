@@ -60,12 +60,20 @@ const CROUCH_PIVOT_OFFSET: float = -0.42
 const AIR_PIVOT_SHARE: float = 0.65
 const POSTURE_PIVOT_LERP: float = 14.0
 ## Manual camera drag / mouse-look hold duration (seconds) before auto-behind follow resumes.
-const MANUAL_LOOK_HOLD: float = 1.6
+const MANUAL_LOOK_HOLD: float = 1.1
 const AUTO_BEHIND_LERP: float = 4.6
 const AUTO_BEHIND_IDLE_LERP: float = 3.0
 
 var _vertical_offset: float = 0.0
 var _manual_look_hold: float = 0.0
+var _manual_blend: float = 1.0
+var _yaw_velocity: float = 0.0
+var _smoothed_move_yaw: float = 0.0
+var _move_yaw_velocity: float = 0.0
+var _move_yaw_ready: bool = false
+var _pivot_velocity: Vector2 = Vector2.ZERO
+var _last_follow_input: Vector2 = Vector2.ZERO
+var _pending_pivot_dt: float = 0.0
 var _speed_boosting: bool = false
 var _fov_boost: float = 0.0
 var _obstacles_layout: MapLayout = null
@@ -162,12 +170,27 @@ func turn_degrees() -> float:
 
 ## Follow camera: keep `point` (sim XZ, your kid) in the middle of the screen. `snap` jumps there at once (a new match, a respawn).
 func follow(point: Vector2, snap: bool = false) -> void:
+	var stationary_input: bool = _aim_set and point.is_equal_approx(_last_follow_input)
+	_last_follow_input = point
 	follow_point = point
 	if rules.third_person:
-		_aim = point  # the shoulder camera sticks to the kid: a lag would let the kid slide across the crosshair
+		var step_dt: float = _pending_pivot_dt
+		_pending_pivot_dt = 0.0
+		var smooth_t: float = rules.pivot_smooth_time if rules != null else 0.0
+		if snap or not _aim_set or Settings.reduced_motion or step_dt <= 0.0 or smooth_t <= 0.0 or point.distance_to(_aim) > TickBlend.SNAP_DISTANCE:
+			_aim = point
+			_pivot_velocity = Vector2.ZERO
+		elif stationary_input and point.distance_to(_aim) < 0.025:
+			_aim = point
+			_pivot_velocity = Vector2.ZERO
+		else:
+			var damped: Array[Vector2] = CameraRules.smooth_damp_vec2(_aim, point, _pivot_velocity, smooth_t, 0.0, step_dt)
+			_aim = damped[0]
+			_pivot_velocity = damped[1]
 		_aim_set = true
 	elif snap or not _aim_set:
 		_aim = _follow_goal()
+		_pivot_velocity = Vector2.ZERO
 		_aim_set = true
 
 
@@ -190,6 +213,10 @@ func reset_look() -> void:
 	look_yaw = 180.0 if _goal_flip else 0.0
 	look_pitch = rules.look_pitch_degrees
 	_manual_look_hold = 0.0
+	_manual_blend = 1.0
+	_yaw_velocity = 0.0
+	_move_yaw_velocity = 0.0
+	_move_yaw_ready = false
 
 
 ## Shoulder camera: a finger dragged `drag` UI pixels: right turns the view right, up looks up (within the pitch limits).
@@ -197,40 +224,104 @@ func look(drag: Vector2) -> void:
 	if not rules.third_person:
 		return
 	if drag != Vector2.ZERO:
-		_manual_look_hold = MANUAL_LOOK_HOLD
+		_manual_look_hold = rules.manual_override_cooldown if rules != null else MANUAL_LOOK_HOLD
+		_manual_blend = 0.0
+		_yaw_velocity = 0.0
+		_move_yaw_ready = false
 	look_yaw = fposmod(look_yaw - drag.x * rules.look_sensitivity, 360.0)
 	look_pitch = rules.clamp_pitch(look_pitch + drag.y * rules.look_sensitivity)
 	if _placed:
 		_apply_pose()
 
 
-## Default auto-behind shoulder follow: smoothly aligns `look_yaw` behind `facing` (`look_pitch` untouched),
-## yielding immediately to manual touch/mouse look for `MANUAL_LOOK_HOLD` seconds.
-func sync_behind_character(facing: Vector2, moving: bool, dt: float) -> void:
+## Critically-damped angular spring solver updating `_yaw_velocity` continuously across frames.
+func smooth_damp_angle(
+	current_yaw: float,
+	target_yaw: float,
+	smooth_time: float,
+	max_speed: float,
+	delta: float
+) -> float:
+	var stepped: Vector2 = CameraRules.smooth_damp_angle_step(current_yaw, target_yaw, _yaw_velocity, smooth_time, max_speed, delta)
+	_yaw_velocity = stepped.y
+	return stepped.x
+
+
+## Current angular velocity (deg/s) of the shoulder movement-follow spring.
+func yaw_velocity() -> float:
+	return _yaw_velocity
+
+
+## Fortnite-smooth lateral-orbit shoulder follow: glides `look_yaw` behind `facing` (`look_pitch` untouched)
+## using a critically-damped angular spring proportional to `sin(angle_difference(look_yaw, move_yaw)) * speed_ratio`.
+## Straight forward (`0 deg`) and straight backpedal (`180 deg`) never whip the camera around; manual look overrides
+## immediately and eases smoothly back in after `manual_override_cooldown`.
+func sync_behind_character(facing: Vector2, moving: bool, dt: float, speed_ratio: float = 1.0) -> void:
 	if rules == null or not rules.third_person:
 		return
 	var step_dt: float = maxf(dt, 0.0)
 	if _manual_look_hold > 0.0:
 		_manual_look_hold = maxf(0.0, _manual_look_hold - step_dt)
+		_manual_blend = 0.0
+		_yaw_velocity = 0.0
 		return
-	if facing.length_squared() <= 0.0001 or step_dt <= 0.0:
+	if step_dt <= 0.0:
 		return
-	var target_yaw: float = fposmod(rad_to_deg(atan2(-facing.x, -facing.y)), 360.0)
-	var rate: float = AUTO_BEHIND_LERP if moving else AUTO_BEHIND_IDLE_LERP
-	var weight: float = 1.0 if Settings.reduced_motion else (1.0 - exp(-step_dt * rate))
-	var yaw_rad: float = lerp_angle(deg_to_rad(look_yaw), deg_to_rad(target_yaw), weight)
-	look_yaw = fposmod(rad_to_deg(yaw_rad), 360.0)
+	if not moving or facing.length_squared() <= 0.0001:
+		_move_yaw_ready = false
+		_move_yaw_velocity = 0.0
+		if absf(_yaw_velocity) > 0.01 and not Settings.reduced_motion:
+			look_yaw = smooth_damp_angle(look_yaw, look_yaw, rules.auto_follow_smooth_time, rules.auto_follow_max_speed, step_dt)
+			if _placed:
+				_apply_pose()
+		else:
+			_yaw_velocity = 0.0
+		return
+	var blend_window: float = maxf(rules.manual_override_blend_time, 0.001)
+	_manual_blend = 1.0 if Settings.reduced_motion else move_toward(_manual_blend, 1.0, step_dt / blend_window)
+	var ease_blend: float = smoothstep(0.0, 1.0, _manual_blend)
+	var raw_move_yaw: float = fposmod(rad_to_deg(atan2(-facing.x, -facing.y)), 360.0)
+	if not _move_yaw_ready or Settings.reduced_motion or rules.facing_smooth_time <= 0.0:
+		_smoothed_move_yaw = raw_move_yaw
+		_move_yaw_velocity = 0.0
+		_move_yaw_ready = true
+	else:
+		var move_step: Vector2 = CameraRules.smooth_damp_angle_step(_smoothed_move_yaw, raw_move_yaw, _move_yaw_velocity, rules.facing_smooth_time, 720.0, step_dt)
+		_smoothed_move_yaw = move_step.x
+		_move_yaw_velocity = move_step.y
+	var lateral_weight: float = CameraRules.lateral_orbit_weight(look_yaw, _smoothed_move_yaw, speed_ratio) * rules.auto_follow_lateral_gain * ease_blend
+	if lateral_weight <= 0.0005:
+		if absf(_yaw_velocity) > 0.01 and not Settings.reduced_motion:
+			look_yaw = smooth_damp_angle(look_yaw, look_yaw, rules.auto_follow_smooth_time, rules.auto_follow_max_speed, step_dt)
+			if _placed:
+				_apply_pose()
+		else:
+			_yaw_velocity = 0.0
+		return
+	if Settings.reduced_motion:
+		_yaw_velocity = 0.0
+		var snap_rate: float = AUTO_BEHIND_LERP * clampf(lateral_weight, 0.15, 1.0)
+		var yaw_rad: float = lerp_angle(deg_to_rad(look_yaw), deg_to_rad(_smoothed_move_yaw), 1.0 - exp(-step_dt * snap_rate))
+		look_yaw = fposmod(rad_to_deg(yaw_rad), 360.0)
+	else:
+		var eff_max_speed: float = maxf(4.0, rules.auto_follow_max_speed * lateral_weight)
+		var eff_smooth_time: float = lerpf(rules.auto_follow_smooth_time * 1.55, rules.auto_follow_smooth_time, clampf(lateral_weight, 0.0, 1.0))
+		look_yaw = smooth_damp_angle(look_yaw, _smoothed_move_yaw, eff_smooth_time, eff_max_speed, step_dt)
 	if _placed:
 		_apply_pose()
 
 
 func tick_manual_look(dt: float) -> void:
+	var step_dt: float = maxf(dt, 0.0)
 	if _manual_look_hold > 0.0:
-		_manual_look_hold = maxf(0.0, _manual_look_hold - maxf(dt, 0.0))
+		_manual_look_hold = maxf(0.0, _manual_look_hold - step_dt)
+	if absf(_yaw_velocity) > 0.001:
+		_yaw_velocity = move_toward(_yaw_velocity, 0.0, step_dt * 360.0)
 
 
 ## Smoothly adjusts `_vertical_offset` for crouch/slide (`-0.42 m`) and jump (`+air_y * 0.65`).
 func sync_posture(crouching_or_sliding: bool, air_y: float, dt: float) -> void:
+	_pending_pivot_dt = maxf(dt, 0.0)
 	var target: float = (CROUCH_PIVOT_OFFSET if crouching_or_sliding else 0.0) + maxf(air_y, 0.0) * AIR_PIVOT_SHARE
 	if Settings.reduced_motion or dt <= 0.0:
 		_vertical_offset = target
@@ -295,7 +386,18 @@ func advance_follow(delta: float) -> void:
 		return
 	var goal: Vector2 = follow_point if rules.third_person else _follow_goal()
 	if rules.third_person:
-		_aim = goal
+		var smooth_t: float = rules.pivot_smooth_time if rules != null else 0.0
+		if Settings.reduced_motion or delta <= 0.0 or smooth_t <= 0.0 or goal.distance_to(_aim) > TickBlend.SNAP_DISTANCE:
+			_aim = goal
+			_pivot_velocity = Vector2.ZERO
+		elif goal.distance_to(_aim) > 0.00001:
+			var damped: Array[Vector2] = CameraRules.smooth_damp_vec2(_aim, goal, _pivot_velocity, smooth_t, 0.0, delta)
+			_aim = damped[0]
+			_pivot_velocity = damped[1]
+		else:
+			_aim = goal
+			_pivot_velocity = Vector2.ZERO
+		_pending_pivot_dt = 0.0
 		_apply_pose()
 		return
 	if Settings.reduced_motion or rules.follow_lag <= 0.0:

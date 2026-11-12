@@ -67,14 +67,16 @@ func test_bases_and_rescue_areas_are_always_blue_for_you_and_red_for_them() -> v
 func test_tight_tabi_tabing_bahay_obstacles_and_estero_water_are_point_symmetric() -> void:
 	var rects: Array[Rect2] = LAYOUT.obstacle_rects()
 	var count: int = LAYOUT.obstacles.size()
-	assert_eq(count, 14, "14 half-arena shophouse & cover blocks framing 3 N-S pathways and 2 E-W alleys")
-	assert_eq(rects.size(), 28, "28 mirrored interior blocks across the 84 m circular barangay")
+	assert_eq(count, 16, "16 half-arena shophouse & cover parcels framing 3 curved N-S pathways and 2 E-W eskinitas")
+	assert_eq(rects.size(), 32, "32 point-symmetric interior parcels across the 84 m circular barangay")
 	for i: int in count:
 		assert_true(rects[i + count].is_equal_approx(Rect2(-rects[i].end, rects[i].size)), "obstacle %d mirrored around origin" % i)
 	var water: Array[Rect2] = LAYOUT.water_rects()
 	assert_eq(water.size(), 0, "shallow mid canal is walkable (water_obstacles empty, no mid bridge)")
 	assert_eq(LAYOUT.walk_obstacle_rects().size(), rects.size(), "only solid buildings/cover block walking")
-	assert_eq(LAYOUT.powerup_spots.size(), 3, "3 small merienda power-up stands along Z = 0")
+	assert_eq(LAYOUT.powerup_spots.size(), 4, "4 dry bridgehead merienda power-up stands overlooking the Tabing-Ilog crossings")
+	assert_ne(MapLayout.lane_center_x(20.0), 0.0, "center Barangay avenue follows an organic S-bend curve")
+	assert_almost_eq(MapLayout.canal_z(-24.0), -MapLayout.canal_z(24.0), 0.0001, "meandering Tabing-Ilog creek is point-symmetric")
 
 
 func test_tagged_places_are_outside_the_circular_curb_beside_each_rescue_area() -> void:

@@ -202,9 +202,17 @@ func test_only_the_chosen_card_has_a_shadow_and_the_rest_are_dimmed() -> void:
 	assert_eq((strip.cards[1].get_node("Face") as CardFace).chosen, 0.0)
 
 
-func test_the_main_menu_backdrop_is_backlit_behind_the_chosen_card() -> void:
+func _portrait_title_screen() -> TitleScreen:
 	var screen: TitleScreen = autofree((load("res://scenes/ui/title_screen.tscn") as PackedScene).instantiate()) as TitleScreen
-	add_child(screen)
+	var holder: SubViewport = autofree(SubViewport.new()) as SubViewport
+	holder.size = Vector2i(720, 1280)
+	add_child(holder)
+	holder.add_child(screen)
+	return screen
+
+
+func test_the_main_menu_backdrop_is_backlit_behind_the_chosen_card() -> void:
+	var screen: TitleScreen = _portrait_title_screen()
 	await wait_frames(12)
 	var glow: TextureRect = screen.backdrop.glow
 	assert_eq((glow.material as CanvasItemMaterial).blend_mode, CanvasItemMaterial.BLEND_MODE_ADD, "the backlight is added light")
@@ -217,8 +225,7 @@ func test_the_main_menu_backdrop_is_backlit_behind_the_chosen_card() -> void:
 
 
 func test_the_main_menu_background_is_the_blue_picture_for_every_mode() -> void:
-	var screen: TitleScreen = autofree((load("res://scenes/ui/title_screen.tscn") as PackedScene).instantiate()) as TitleScreen
-	add_child(screen)
+	var screen: TitleScreen = _portrait_title_screen()
 	await wait_frames(4)
 	var backdrop: UiBackdrop = screen.backdrop
 	var pictures: Array[Node] = backdrop.find_children("*", "TextureRect", false, false).filter(func(node: Node) -> bool: return (node as TextureRect).texture == UiBackdrop.PICTURE)
@@ -242,8 +249,7 @@ func test_the_vignette_is_a_dark_of_the_pictures_own_blue() -> void:
 
 
 func test_the_mode_models_behind_are_blurred_to_look_far_away_and_the_chosen_one_is_sharp() -> void:
-	var screen: TitleScreen = autofree((load("res://scenes/ui/title_screen.tscn") as PackedScene).instantiate()) as TitleScreen
-	add_child(screen)
+	var screen: TitleScreen = _portrait_title_screen()
 	await wait_frames(6)
 	screen.carousel.select(1, false)
 	await wait_frames(3)
@@ -256,8 +262,7 @@ func test_the_mode_models_behind_are_blurred_to_look_far_away_and_the_chosen_one
 
 
 func test_a_smaller_stronger_neon_blue_core_sits_above_the_backlight() -> void:
-	var screen: TitleScreen = autofree((load("res://scenes/ui/title_screen.tscn") as PackedScene).instantiate()) as TitleScreen
-	add_child(screen)
+	var screen: TitleScreen = _portrait_title_screen()
 	await wait_frames(12)
 	var glow: TextureRect = screen.backdrop.glow
 	var core: TextureRect = screen.backdrop.core
@@ -272,8 +277,7 @@ func test_a_smaller_stronger_neon_blue_core_sits_above_the_backlight() -> void:
 
 
 func test_the_lights_shine_between_the_front_model_and_the_ones_behind_and_go_off_under_a_page() -> void:
-	var screen: TitleScreen = autofree((load("res://scenes/ui/title_screen.tscn") as PackedScene).instantiate()) as TitleScreen
-	add_child(screen)
+	var screen: TitleScreen = _portrait_title_screen()
 	await wait_frames(12)
 	var glow: TextureRect = screen.backdrop.glow
 	var core: TextureRect = screen.backdrop.core

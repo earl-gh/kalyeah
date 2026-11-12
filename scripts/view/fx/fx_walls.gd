@@ -13,9 +13,10 @@ extends Node3D
 ## screen, it was 1.6).
 const SHIELD_HEIGHT: float = 2.6
 const PAPER_THICKNESS: float = 0.3
-## The soil block's drawn height (metres; owner's call: 2.4, it was 1.7); it rises (overshooting to `SOIL_PEAK`, settled exactly
-## at the sim's `expand_delay`, when the sim starts to widen it) and sinks over `SOIL_COLLAPSE_TIME` s at its end.
-const SOIL_HEIGHT: float = 2.4
+## The soil block's drawn height and front-to-back depth (metres): a low beveled street-turf curb step (`<= 0.36 m` at `kid_view_scale = 0.82`)
+## that rises (overshooting to `SOIL_PEAK`, settled at `expand_delay`) and sinks over `SOIL_COLLAPSE_TIME` s without blocking shoulder sightlines.
+const SOIL_HEIGHT: float = 0.44
+const SOIL_DEPTH: float = 0.62
 const SOIL_PEAK: float = 1.12
 const SOIL_COLLAPSE_TIME: float = 0.6
 ## The rise time of a block whose weapon sets no `expand_delay`.
@@ -176,7 +177,7 @@ func _create(shield: WeaponSystem.Shield) -> Rec:
 	rec.node = Node3D.new()
 	var width: float = rec.base_half_width * 2.0
 	if rec.soil:
-		rec.body = WeaponModel.soil(width, SOIL_HEIGHT * wall_k, width)
+		rec.body = WeaponModel.soil(width, SOIL_HEIGHT * wall_k, SOIL_DEPTH * wall_k)
 	else:
 		# a standing sheet of paper (the owner's model); its base sits on the ground
 		rec.body = WeaponModel.shield(width, SHIELD_HEIGHT * wall_k, PAPER_THICKNESS * wall_k)

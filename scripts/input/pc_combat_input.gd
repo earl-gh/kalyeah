@@ -6,6 +6,13 @@ extends RefCounted
 
 const WALK_SCALE: float = 0.45
 const RUN_SLIDE_THRESHOLD: float = 0.62
+## Smooth octant-curve filter rate (rad/s) for adjacent WASD transitions (`W -> W+D -> D`), fast counter-strafe rate (`W <-> S`, `A <-> D`),
+## and camera ground-basis latch-blend rates so continuous WASD holds never stair-step against 30 Hz sim ticks.
+const WASD_CURVE_SMOOTH_RATE: float = 15.5
+const WASD_COUNTERSTRAFE_RATE: float = 28.0
+const REF_AUTO_FOLLOW_RATE: float = 7.5
+const REF_MANUAL_LOOK_RATE: float = 26.0
+const MANUAL_LOOK_WINDOW: float = 0.25
 
 var rmb_held: bool = false
 var lmb_held: bool = false
@@ -14,6 +21,12 @@ var cursor_unlocked: bool = false
 var last_screen_way: Vector2 = Vector2.ZERO
 
 var _wasd_active: bool = false
+var _smoothed_screen_way: Vector2 = Vector2.ZERO
+var _ref_right: Vector2 = Vector2.RIGHT
+var _ref_down: Vector2 = Vector2.DOWN
+var _ref_ready: bool = false
+var _manual_look_timer: float = 0.0
+var _last_poll_usec: int = 0
 var _ctrl_down: bool = false
 var _c_down: bool = false
 var _alt_down: bool = false
@@ -63,6 +76,7 @@ func handle_event(event: InputEvent, input: MatchInput, aim_pt: Vector2, active:
 		if mm.device == InputEvent.DEVICE_ID_EMULATION:
 			return Vector2.ZERO
 		if (not cursor_unlocked or rmb_held or mouse_captured) and mm.relative != Vector2.ZERO:
+			_manual_look_timer = MANUAL_LOOK_WINDOW
 			return mm.relative
 		return Vector2.ZERO
 
@@ -132,15 +146,23 @@ func poll_frame(input: MatchInput, ground_way_fn: Callable, aim_pt: Vector2, act
 		reset(input, aim_pt)
 		return
 
+	var now_usec: int = Time.get_ticks_usec()
+	var dt: float = clampf(float(now_usec - _last_poll_usec) / 1000000.0, 0.001, 0.05) if _last_poll_usec > 0 else (1.0 / 60.0)
+	_last_poll_usec = now_usec
+	if _manual_look_timer > 0.0:
+		_manual_look_timer = maxf(0.0, _manual_look_timer - dt)
+
 	var screen_way: Vector2 = _read_wasd()
 	last_screen_way = screen_way
 	if screen_way != Vector2.ZERO:
+		var starting_hold: bool = not _wasd_active
 		_wasd_active = true
-		var converted: Variant = ground_way_fn.call(screen_way) if ground_way_fn.is_valid() else screen_way
-		if converted is Vector2:
-			input.stick = converted as Vector2
+		_smoothed_screen_way = _smooth_wasd_way(screen_way, dt, starting_hold)
+		input.stick = _project_ground_way(_smoothed_screen_way, ground_way_fn, dt, starting_hold)
 	elif _wasd_active:
 		_wasd_active = false
+		_smoothed_screen_way = Vector2.ZERO
+		_ref_ready = false
 		input.stick = Vector2.ZERO
 
 	if input.primary_held:
@@ -151,6 +173,48 @@ func poll_frame(input: MatchInput, ground_way_fn: Callable, aim_pt: Vector2, act
 		_held_key_code = KEY_NONE
 	if input.card_held() and (input.over_street or _held_key_slot == input.held_slot):
 		input.card_drag(false, aim_pt, true)
+
+
+func _smooth_wasd_way(target_way: Vector2, dt: float, snap_now: bool) -> Vector2:
+	if snap_now or Settings.reduced_motion or _smoothed_screen_way.length_squared() <= 0.0001:
+		return target_way
+	var target_len: float = target_way.length()
+	var target_dir: Vector2 = target_way / maxf(target_len, 0.0001)
+	var cur_len: float = _smoothed_screen_way.length()
+	var cur_dir: Vector2 = _smoothed_screen_way / maxf(cur_len, 0.0001)
+	if cur_dir.dot(target_dir) < -0.5:
+		var fast_w: float = 1.0 - exp(-dt * WASD_COUNTERSTRAFE_RATE)
+		return _smoothed_screen_way.lerp(target_way, fast_w)
+	var curve_w: float = 1.0 - exp(-dt * WASD_CURVE_SMOOTH_RATE)
+	var next_angle: float = lerp_angle(cur_dir.angle(), target_dir.angle(), curve_w)
+	var next_len: float = lerpf(cur_len, target_len, curve_w)
+	return Vector2.from_angle(next_angle) * next_len
+
+
+func _project_ground_way(screen_way: Vector2, ground_way_fn: Callable, dt: float, snap_now: bool) -> Vector2:
+	if not ground_way_fn.is_valid():
+		return screen_way
+	var rx_var: Variant = ground_way_fn.call(Vector2.RIGHT)
+	var ry_var: Variant = ground_way_fn.call(Vector2.DOWN)
+	if not (rx_var is Vector2 and ry_var is Vector2):
+		var fallback: Variant = ground_way_fn.call(screen_way)
+		return (fallback as Vector2) if fallback is Vector2 else screen_way
+	var target_right: Vector2 = (rx_var as Vector2).normalized()
+	var target_down: Vector2 = (ry_var as Vector2).normalized()
+	if snap_now or not _ref_ready or Settings.reduced_motion:
+		_ref_right = target_right
+		_ref_down = target_down
+		_ref_ready = true
+	else:
+		var manual_steering: bool = rmb_held or mouse_captured or _manual_look_timer > 0.0
+		var ref_rate: float = REF_MANUAL_LOOK_RATE if manual_steering else REF_AUTO_FOLLOW_RATE
+		var ref_w: float = 1.0 - exp(-dt * ref_rate)
+		var next_angle: float = lerp_angle(_ref_right.angle(), target_right.angle(), ref_w)
+		_ref_right = Vector2.from_angle(next_angle)
+		var cross_sign: float = 1.0 if target_right.cross(target_down) >= 0.0 else -1.0
+		_ref_down = Vector2(-_ref_right.y * cross_sign, _ref_right.x * cross_sign)
+	var world_way: Vector2 = _ref_right * screen_way.x + _ref_down * screen_way.y
+	return world_way.limit_length(1.0)
 
 
 ## Releases any held PC inputs and restores mouse cursor visibility.
@@ -170,6 +234,10 @@ func reset(input: MatchInput = null, aim_pt: Vector2 = Vector2.ZERO) -> void:
 	if _wasd_active and input != null:
 		input.stick = Vector2.ZERO
 	_wasd_active = false
+	_smoothed_screen_way = Vector2.ZERO
+	_ref_ready = false
+	_manual_look_timer = 0.0
+	_last_poll_usec = 0
 	last_screen_way = Vector2.ZERO
 	cursor_unlocked = false
 	_keys_down.clear()

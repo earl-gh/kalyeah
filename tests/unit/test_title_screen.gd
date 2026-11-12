@@ -74,6 +74,16 @@ func _phone_screen() -> TitleScreen:
 	return screen
 
 
+func _widescreen_screen() -> TitleScreen:
+	var wide_box: Control = autofree(Control.new()) as Control
+	wide_box.custom_minimum_size = Vector2(1280.0, 720.0)
+	wide_box.size = Vector2(1280.0, 720.0)
+	add_child(wide_box)
+	var screen: TitleScreen = autofree(TITLE_SCENE.instantiate()) as TitleScreen
+	wide_box.add_child(screen)
+	return screen
+
+
 func test_tab_titles_share_the_play_logo_row_without_subtitles_or_dividers() -> void:
 	var motion: bool = Settings.reduced_motion
 	Settings.set_reduced_motion(true)
@@ -571,10 +581,11 @@ func test_two_quick_taps_leave_the_main_action_one_breath() -> void:
 	Settings.set_reduced_motion(false)
 	var screen: TitleScreen = _screen()
 	await wait_seconds(0.1)
+	var button: Button = screen._active_cta_control()
 	for i: int in 2:
-		screen.primary_button.button_down.emit()
+		button.button_down.emit()
 		await wait_seconds(0.05)
-		screen.primary_button.button_up.emit()
+		button.button_up.emit()
 		await wait_seconds(0.05)
 	await wait_seconds(3.0)
 	assert_eq(_breathing_loops(), 1, "one breath on the main action")
@@ -588,7 +599,7 @@ func test_holding_the_main_action_stops_its_breath_fighting_the_press() -> void:
 	Settings.set_reduced_motion(false)
 	var screen: TitleScreen = _screen()
 	await wait_seconds(1.8)
-	var button: Button = screen.primary_button
+	var button: Button = screen._active_cta_control()
 	button.button_down.emit()
 	await wait_seconds(0.3)
 	var lowest: float = button.scale.x
@@ -836,3 +847,42 @@ func test_the_name_fades_in_only_after_the_model_is_centred() -> void:
 	await wait_seconds(CardFace.PLATE_FADE_IN + 0.15)
 	assert_almost_eq(arriving.modulate.a, 1.0, 0.02, "then it is fully there")
 	Settings.reduced_motion = old_motion
+
+
+func test_overhaul_v3_wild_rift_widescreen_4zone_hero_stage_and_signals() -> void:
+	var screen: TitleScreen = _widescreen_screen()
+	await wait_frames(4)
+	assert_true(screen._is_widescreen(), "1280x720 activates Wild Rift / MLBB widescreen stage")
+	assert_not_null(screen.hero_stage, "full-bleed 3D HeroShowcaseStage exists")
+	assert_true(screen.hero_stage.visible, "HeroShowcaseStage is active on home")
+	assert_not_null(screen.stage_hud, "4-zone StageHud exists")
+	assert_true(screen.stage_hud.visible, "StageHud is visible on home")
+	assert_not_null(screen.top_header, "Zone 1: TopHeader exists")
+	assert_not_null(screen.profile_capsule, "Zone 1: ProfileCapsule exists")
+	assert_not_null(screen.nav_rail, "Zone 2: Left vertical NavRail exists")
+	assert_not_null(screen.kid_callout, "Zone 3: Lower-left KidCallout exists")
+	assert_not_null(screen.action_cluster, "Zone 4: Bottom-right ActionCluster exists")
+	assert_not_null(screen.cta_button, "Zone 4: Chamfered gold MAGLARO CTA exists")
+	var zones: Array[Control] = [screen.top_header, screen.nav_rail, screen.kid_callout, screen.action_cluster]
+	var total_zone_area: float = 0.0
+	for i: int in range(zones.size()):
+		var rect_i: Rect2 = zones[i].get_global_rect()
+		total_zone_area += rect_i.size.x * rect_i.size.y
+		for j: int in range(i + 1, zones.size()):
+			var rect_j: Rect2 = zones[j].get_global_rect()
+			assert_false(rect_i.intersects(rect_j), "4 HUD zones never collide (%s vs %s)" % [zones[i].name, zones[j].name])
+	var stage_rect: Rect2 = screen.get_global_rect()
+	var viewport_area: float = maxf(stage_rect.size.x * stage_rect.size.y, 1.0)
+	assert_lte(total_zone_area / viewport_area, 0.35, ">= 65-70%% of 1280x720 remains open 3D showcase stage")
+	assert_gte(screen.cta_button.size.y, UiMetrics.MIN_TARGET, "MAGLARO CTA meets touch floor")
+	assert_gte(screen.profile_capsule.size.y, UiMetrics.MIN_TARGET, "Profile capsule meets touch floor")
+	var before_kid: String = Session.avatar_id
+	screen.cycle_showcase_kid(1)
+	assert_ne(Session.avatar_id, before_kid, "cycling showcase kid updates live avatar")
+	watch_signals(screen)
+	screen._select_stage_mode(2)
+	screen.cta_button.pressed.emit()
+	assert_signal_emitted(screen, "play_pressed")
+	assert_signal_emitted(screen, "practice_pressed")
+	if screen.dialog != null and screen.dialog.is_open:
+		screen.dialog.close(false)

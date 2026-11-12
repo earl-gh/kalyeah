@@ -56,19 +56,19 @@ const SHOULDER_ARENA_PAD: float = 0.6
 ## of the screen turns it), with a crosshair in the middle of the screen that the cards are cast at. It takes over from `follow`.
 @export var third_person: bool = false
 ## The point the camera turns round: this high above your kid's feet (metres, for a kid drawn `kid_view_scale` times its size).
-@export var shoulder_height: float = 1.88
+@export var shoulder_height: float = 1.42
 ## How far behind that point the camera stands, and how far to its right (the kid stands left of the crosshair, not under it).
-@export var shoulder_distance: float = 4.15
-@export var shoulder_offset: float = 0.62
+@export var shoulder_distance: float = 2.55
+@export var shoulder_offset: float = 0.68
 ## The lens: vertical field of view (degrees), and how near the camera it starts drawing (metres): a sidewalk prop or a wall closer than
 ## this (less than the way to your kid) is cut away instead of filling the screen.
-@export var shoulder_fov: float = 68.0
+@export var shoulder_fov: float = 66.0
 @export var shoulder_near: float = 0.3
 ## Props (buildings, barrier rows, posts, sidewalk things) are left out while they stand in the line from the camera to your kid, or within
 ## this many metres of the camera, where they would fill the side of the screen (owner, 2026-11-10; `StreetMap.hide_between`).
 @export var shoulder_clear_reach: float = 2.2
 ## How far down the view looks at the start (degrees below level), and the most it may look down and up (up is negative).
-@export var look_pitch_degrees: float = 15.5
+@export var look_pitch_degrees: float = 9.5
 @export var look_pitch_max: float = 55.0
 @export var look_pitch_min: float = -25.0
 ## How many degrees the view turns for each UI pixel a finger drags.
@@ -82,6 +82,15 @@ const SHOULDER_ARENA_PAD: float = 0.6
 ## How long (s) the street takes to swing half way round when your view changes ends during a match (Tumbang Preso: becoming or no longer
 ## being the taya). It eases in and out; Reduce motion cuts instead.
 @export var turn_seconds: float = 0.8
+## Fortnite-style lateral-orbit soft-follow tuning: critically-damped angular spring smooth time (s), peak angular follow speed (deg/s),
+## lateral orbit gain, manual look override cooldown (~1.1 s), ease-in blend window (s), and sub-frame 30 Hz -> 60+ Hz smoothing times (s).
+@export var auto_follow_smooth_time: float = 0.22
+@export var auto_follow_max_speed: float = 160.0
+@export var auto_follow_lateral_gain: float = 1.0
+@export var manual_override_cooldown: float = 1.1
+@export var manual_override_blend_time: float = 0.45
+@export var pivot_smooth_time: float = 0.007
+@export var facing_smooth_time: float = 0.045
 
 
 ## Barrel strength of the lens for `lens_curve` (a curve of 1 would be k = 0.5).
@@ -297,3 +306,107 @@ static func _slab_ray_rect(origin: Vector2, delta: Vector2, box: Rect2) -> Vecto
 		t_min = maxf(t_min, minf(ty1, ty2))
 		t_max = minf(t_max, maxf(ty1, ty2))
 	return Vector2(t_min, t_max)
+
+
+## Frame-rate-independent critically-damped scalar spring (Game Programming Gems 4, Ch. 1.10).
+## Returns `Vector2(next_value, next_velocity)`.
+static func smooth_damp_scalar(
+	current: float,
+	target: float,
+	velocity: float,
+	smooth_time: float,
+	max_speed: float,
+	dt: float
+) -> Vector2:
+	if dt <= 0.000001:
+		return Vector2(current, velocity)
+	var st: float = maxf(0.0001, smooth_time)
+	var omega: float = 2.0 / st
+	var x: float = omega * dt
+	var exp_term: float = 1.0 / (1.0 + x + 0.48 * x * x + 0.235 * x * x * x)
+	var change: float = current - target
+	var original_to: float = target
+	if max_speed > 0.0:
+		var max_change: float = max_speed * st
+		change = clampf(change, -max_change, max_change)
+	var clamped_target: float = current - change
+	var temp: float = (velocity + omega * change) * dt
+	var next_vel: float = (velocity - omega * temp) * exp_term
+	var output: float = clamped_target + (change + temp) * exp_term
+	if (original_to - current > 0.0) == (output > original_to):
+		output = original_to
+		next_vel = 0.0
+	return Vector2(output, next_vel)
+
+
+## Critically-damped angular spring in degrees (`[0, 360)`), wrapping cleanly across the 0/360 seam.
+## Returns `Vector2(next_yaw_deg, next_yaw_velocity_deg)`.
+static func smooth_damp_angle_step(
+	current_deg: float,
+	target_deg: float,
+	velocity_deg: float,
+	smooth_time: float,
+	max_speed_deg: float,
+	dt: float
+) -> Vector2:
+	var delta_deg: float = rad_to_deg(angle_difference(deg_to_rad(current_deg), deg_to_rad(target_deg)))
+	var continuous_target: float = current_deg + delta_deg
+	var stepped: Vector2 = smooth_damp_scalar(current_deg, continuous_target, velocity_deg, smooth_time, max_speed_deg, dt)
+	return Vector2(fposmod(stepped.x, 360.0), stepped.y)
+
+
+## Critically-damped 2D vector spring for sub-frame XZ pivot interpolation across 30 Hz sim ticks.
+## Returns `[next_position, next_velocity]`.
+static func smooth_damp_vec2(
+	current: Vector2,
+	target: Vector2,
+	velocity: Vector2,
+	smooth_time: float,
+	max_speed: float,
+	dt: float
+) -> Array[Vector2]:
+	if dt <= 0.000001:
+		return [current, velocity]
+	var st: float = maxf(0.0001, smooth_time)
+	var omega: float = 2.0 / st
+	var x: float = omega * dt
+	var exp_term: float = 1.0 / (1.0 + x + 0.48 * x * x + 0.235 * x * x * x)
+	var change: Vector2 = current - target
+	var original_to: Vector2 = target
+	if max_speed > 0.0:
+		var max_change: float = max_speed * st
+		if change.length_squared() > max_change * max_change:
+			change = change.normalized() * max_change
+	var clamped_target: Vector2 = current - change
+	var temp: Vector2 = (velocity + change * omega) * dt
+	var next_vel: Vector2 = (velocity - temp * omega) * exp_term
+	var output: Vector2 = clamped_target + (change + temp) * exp_term
+	var orig_minus_cur: Vector2 = original_to - current
+	var out_minus_orig: Vector2 = output - original_to
+	if orig_minus_cur.dot(out_minus_orig) > 0.0:
+		output = original_to
+		next_vel = Vector2.ZERO
+	return [output, next_vel]
+
+
+## Fortnite lateral-orbit follow weight (`0.0 .. 1.25`): proportional to `|sin(angle_difference(look_yaw, move_yaw))| * speed_ratio`
+## with a smooth backpedal deadzone taper near 180 deg so straight-forward (`0 deg`) and straight-backpedal (`180 deg`) never whip
+## the camera around, while curving/strafing (`15 deg - 135 deg`) glides smoothly behind the shoulder.
+static func lateral_orbit_weight(look_yaw_deg: float, move_yaw_deg: float, speed_ratio: float = 1.0) -> float:
+	var diff_rad: float = angle_difference(deg_to_rad(look_yaw_deg), deg_to_rad(move_yaw_deg))
+	var abs_diff: float = absf(diff_rad)
+	var backpedal_gate: float = smoothstep(deg_to_rad(176.0), deg_to_rad(142.0), abs_diff)
+	return absf(sin(diff_rad)) * backpedal_gate * clampf(speed_ratio, 0.0, 1.25)
+
+
+## Signed lateral-orbit angular rate (`deg/s`) toward `move_yaw_deg`.
+static func lateral_orbit_velocity_deg(
+	look_yaw_deg: float,
+	move_yaw_deg: float,
+	speed_ratio: float,
+	max_speed_deg: float
+) -> float:
+	var diff_rad: float = angle_difference(deg_to_rad(look_yaw_deg), deg_to_rad(move_yaw_deg))
+	var abs_diff: float = absf(diff_rad)
+	var backpedal_gate: float = smoothstep(deg_to_rad(176.0), deg_to_rad(142.0), abs_diff)
+	return sin(diff_rad) * backpedal_gate * clampf(speed_ratio, 0.0, 1.25) * max_speed_deg

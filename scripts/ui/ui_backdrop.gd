@@ -56,6 +56,15 @@ var ambient: bool = true:
 		ambient = value
 		if motes != null:
 			_apply_motion()
+## True when a full-bleed 3D showcase viewport sits opaque above the 2D backdrop (pauses 2D particles & additive glows underneath).
+var stage_covered: bool = false:
+	set(value):
+		stage_covered = value
+		_sync_lights()
+		if motes != null:
+			_apply_motion()
+		if komiks_art != null:
+			komiks_art.visible = not stage_covered
 
 
 func _init() -> void:
@@ -165,7 +174,7 @@ func _set_light_alpha(alpha: float) -> void:
 
 
 func _sync_lights() -> void:
-	var visible_now: bool = lights_on and not _held
+	var visible_now: bool = lights_on and not _held and not stage_covered
 	if glow != null:
 		glow.visible = visible_now
 	if core != null:
@@ -198,7 +207,7 @@ static func _night_color(accent: Color) -> Color:
 
 
 func _apply_motion() -> void:
-	var on: bool = ambient and not Settings.reduced_motion
+	var on: bool = ambient and not stage_covered and not Settings.reduced_motion
 	motes.emitting = on
 	motes.visible = on
 

@@ -168,3 +168,191 @@ static func draw_signboard_frame(canvas: CanvasItem, rect: Rect2, fill: Color = 
 		for pt: Vector2 in corners:
 			canvas.draw_circle(pt, 3.0, MANGO_AMBER)
 			canvas.draw_arc(pt, 3.0, 0.0, TAU, 12, SLATE_ESPRESSO, 1.0, true)
+
+
+## Builds an 8-point asymmetric chamfered MOBA polygon (angled top-left & bottom-right hero cuts, minor opposite bevels).
+static func chamfered_points(rect: Rect2, cut_major: float = 16.0, cut_minor: float = 5.0) -> PackedVector2Array:
+	var maj: float = minf(cut_major, minf(rect.size.x, rect.size.y) * 0.34)
+	var mnr: float = minf(cut_minor, minf(rect.size.x, rect.size.y) * 0.18)
+	var x0: float = rect.position.x
+	var y0: float = rect.position.y
+	var x1: float = rect.end.x
+	var y1: float = rect.end.y
+	return PackedVector2Array([
+		Vector2(x0 + maj, y0),
+		Vector2(x1 - mnr, y0),
+		Vector2(x1, y0 + mnr),
+		Vector2(x1, y1 - maj),
+		Vector2(x1 - maj, y1),
+		Vector2(x0 + mnr, y1),
+		Vector2(x0, y1 - mnr),
+		Vector2(x0, y0 + maj),
+	])
+
+
+## Draws a radiant metallic gold chamfered primary CTA button (Wild Rift / MLBB benchmark).
+static func draw_chamfered_gold_cta(canvas: CanvasItem, rect: Rect2, hovered: bool, pressed: bool, glint_phase: float = -1.0) -> void:
+	if rect.size.x < 12.0 or rect.size.y < 12.0:
+		return
+	var shift_y: float = 1.5 if pressed else 0.0
+	var body_rect: Rect2 = Rect2(rect.position + Vector2(0.0, shift_y), rect.size)
+	if not pressed:
+		var shadow_pts: PackedVector2Array = chamfered_points(Rect2(body_rect.position + Vector2(0.0, 4.0), body_rect.size), 16.0, 5.0)
+		canvas.draw_colored_polygon(shadow_pts, Color(0.04, 0.03, 0.02, 0.48))
+
+	var outer_pts: PackedVector2Array = chamfered_points(body_rect, 16.0, 5.0)
+	var top_gold: Color = Color("fff09e") if hovered else Color("ffe373")
+	var mid_gold: Color = Color("ffbb38") if hovered else MANGO_AMBER
+	var bot_gold: Color = Color("c97006") if pressed else Color("d67b08")
+	var cols: PackedColorArray = PackedColorArray([
+		top_gold,
+		top_gold,
+		mid_gold,
+		bot_gold,
+		bot_gold,
+		bot_gold.darkened(0.06),
+		mid_gold,
+		top_gold,
+	])
+	canvas.draw_polygon(outer_pts, cols)
+
+	# Specular champagne inner bevel & subtle upper gloss band
+	var inner_rect: Rect2 = body_rect.grow(-3.0)
+	if inner_rect.size.x > 8.0 and inner_rect.size.y > 8.0:
+		var inner_pts: PackedVector2Array = chamfered_points(inner_rect, 14.0, 4.0)
+		var inner_loop: PackedVector2Array = inner_pts.duplicate()
+		inner_loop.append(inner_pts[0])
+		canvas.draw_polyline(inner_loop, Color(SUNLIT_CREAM, 0.62 if hovered else 0.46), 1.6, true)
+
+	if glint_phase >= 0.0 and glint_phase <= 1.0 and not pressed:
+		var cx: float = lerpf(body_rect.position.x + 28.0, body_rect.end.x - 28.0, glint_phase)
+		var band_w: float = 26.0
+		var slant: float = 18.0
+		var g_top: float = body_rect.position.y + 4.0
+		var g_bot: float = body_rect.end.y - 4.0
+		var glint_poly: PackedVector2Array = PackedVector2Array([
+			Vector2(cx - band_w * 0.5 + slant, g_top),
+			Vector2(cx + band_w * 0.5 + slant, g_top),
+			Vector2(cx + band_w * 0.5 - slant, g_bot),
+			Vector2(cx - band_w * 0.5 - slant, g_bot),
+		])
+		canvas.draw_colored_polygon(glint_poly, Color(1.0, 0.98, 0.88, 0.20))
+
+	# Outer dark bronze-espresso armor border + gold outer hairline
+	var rim_loop: PackedVector2Array = outer_pts.duplicate()
+	rim_loop.append(outer_pts[0])
+	canvas.draw_polyline(rim_loop, Color("261b12"), 2.4, true)
+
+
+## Draws a sleek chamfered dark-glass card/pill with luminous accent rim for mode selectors and action capsules.
+static func draw_chamfered_glass_card(canvas: CanvasItem, rect: Rect2, accent: Color, active: bool = false, hovered: bool = false, cut_major: float = 11.0) -> void:
+	if rect.size.x < 10.0 or rect.size.y < 10.0:
+		return
+	var pts: PackedVector2Array = chamfered_points(rect, cut_major, 4.0)
+	var shadow_pts: PackedVector2Array = chamfered_points(Rect2(rect.position + Vector2(0.0, 2.5), rect.size), cut_major, 4.0)
+	canvas.draw_colored_polygon(shadow_pts, Color(0.03, 0.02, 0.02, 0.34))
+	var fill: Color = KalyeahTheme.GLASS_ACTIVE if active else (KalyeahTheme.GLASS_HOVER if hovered else KalyeahTheme.GLASS_DARK)
+	canvas.draw_colored_polygon(pts, fill)
+	var loop: PackedVector2Array = pts.duplicate()
+	loop.append(pts[0])
+	var rim_alpha: float = 0.88 if active else (0.58 if hovered else 0.30)
+	canvas.draw_polyline(loop, Color(accent, rim_alpha), 2.0 if active else 1.4, true)
+	if active:
+		var bar_y0: float = rect.position.y + cut_major + 2.0
+		var bar_y1: float = rect.end.y - 6.0
+		if bar_y1 > bar_y0:
+			canvas.draw_line(Vector2(rect.position.x + 2.5, bar_y0), Vector2(rect.position.x + 2.5, bar_y1), accent, 3.0, true)
+
+
+## Crisp anti-aliased vector iconography for modern MOBA header, rail, and stage controls.
+static func draw_stage_glyph(canvas: CanvasItem, glyph: StringName, center: Vector2, radius: float, color: Color) -> void:
+	var r: float = maxf(radius, 4.0)
+	match glyph:
+		&"play":
+			var tri: PackedVector2Array = PackedVector2Array([
+				center + Vector2(-r * 0.46, -r * 0.68),
+				center + Vector2(r * 0.74, 0.0),
+				center + Vector2(-r * 0.46, r * 0.68),
+			])
+			canvas.draw_colored_polygon(tri, color)
+		&"kids":
+			canvas.draw_circle(center + Vector2(-r * 0.24, -r * 0.28), r * 0.28, color)
+			canvas.draw_arc(center + Vector2(-r * 0.24, r * 0.56), r * 0.52, PI * 1.12, PI * 1.88, 12, color, 2.4, true)
+			canvas.draw_circle(center + Vector2(r * 0.34, -r * 0.16), r * 0.22, Color(color, color.a * 0.82))
+			canvas.draw_arc(center + Vector2(r * 0.34, r * 0.56), r * 0.40, PI * 1.15, PI * 1.85, 10, Color(color, color.a * 0.82), 2.0, true)
+		&"arsenal":
+			# Stylized crossed tirador Y-slingshot + star spark
+			canvas.draw_line(center + Vector2(0.0, r * 0.72), center + Vector2(0.0, r * 0.05), color, 2.6, true)
+			canvas.draw_line(center + Vector2(0.0, r * 0.05), center + Vector2(-r * 0.52, -r * 0.56), color, 2.5, true)
+			canvas.draw_line(center + Vector2(0.0, r * 0.05), center + Vector2(r * 0.52, -r * 0.56), color, 2.5, true)
+			canvas.draw_circle(center + Vector2(0.0, -r * 0.38), r * 0.20, color)
+		&"ranked":
+			var shield: PackedVector2Array = PackedVector2Array([
+				center + Vector2(0.0, -r * 0.78),
+				center + Vector2(r * 0.66, -r * 0.42),
+				center + Vector2(r * 0.52, r * 0.26),
+				center + Vector2(0.0, r * 0.78),
+				center + Vector2(-r * 0.52, r * 0.26),
+				center + Vector2(-r * 0.66, -r * 0.42),
+			])
+			var loop: PackedVector2Array = shield.duplicate()
+			loop.append(shield[0])
+			canvas.draw_polyline(loop, color, 2.2, true)
+			var gem: PackedVector2Array = PackedVector2Array([
+				center + Vector2(0.0, -r * 0.34),
+				center + Vector2(r * 0.26, 0.0),
+				center + Vector2(0.0, r * 0.34),
+				center + Vector2(-r * 0.26, 0.0),
+			])
+			canvas.draw_colored_polygon(gem, color)
+		&"trophy":
+			canvas.draw_arc(center + Vector2(0.0, -r * 0.18), r * 0.48, 0.0, PI, 12, color, 2.3, true)
+			canvas.draw_line(center + Vector2(-r * 0.48, -r * 0.18), center + Vector2(-r * 0.48, -r * 0.56), color, 2.3, true)
+			canvas.draw_line(center + Vector2(r * 0.48, -r * 0.18), center + Vector2(r * 0.48, -r * 0.56), color, 2.3, true)
+			canvas.draw_line(center + Vector2(-r * 0.54, -r * 0.56), center + Vector2(r * 0.54, -r * 0.56), color, 2.3, true)
+			canvas.draw_line(center + Vector2(0.0, r * 0.30), center + Vector2(0.0, r * 0.64), color, 2.4, true)
+			canvas.draw_line(center + Vector2(-r * 0.38, r * 0.64), center + Vector2(r * 0.38, r * 0.64), color, 2.5, true)
+		&"settings":
+			canvas.draw_arc(center, r * 0.34, 0.0, TAU, 16, color, 2.2, true)
+			for i: int in 8:
+				var ang: float = float(i) * TAU / 8.0
+				var dir: Vector2 = Vector2(cos(ang), sin(ang))
+				canvas.draw_line(center + dir * (r * 0.46), center + dir * (r * 0.74), color, 2.3, true)
+		&"tips":
+			var page: Rect2 = Rect2(center - Vector2(r * 0.60, r * 0.56), Vector2(r * 1.20, r * 1.16))
+			canvas.draw_rect(page, color, false, 2.0)
+			canvas.draw_line(page.position + Vector2(0.0, r * 0.30), Vector2(page.end.x, page.position.y + r * 0.30), color, 1.8, true)
+			canvas.draw_circle(center + Vector2(0.0, r * 0.14), r * 0.18, color)
+		&"mail":
+			var env: Rect2 = Rect2(center - Vector2(r * 0.68, r * 0.46), Vector2(r * 1.36, r * 0.92))
+			canvas.draw_rect(env, color, false, 2.0)
+			var flap: PackedVector2Array = PackedVector2Array([
+				env.position,
+				center + Vector2(0.0, r * 0.08),
+				Vector2(env.end.x, env.position.y),
+			])
+			canvas.draw_polyline(flap, color, 1.9, true)
+		&"chevron_left":
+			var cl: PackedVector2Array = PackedVector2Array([
+				center + Vector2(r * 0.26, -r * 0.54),
+				center + Vector2(-r * 0.30, 0.0),
+				center + Vector2(r * 0.26, r * 0.54),
+			])
+			canvas.draw_polyline(cl, color, 2.6, true)
+		&"chevron_right":
+			var cr: PackedVector2Array = PackedVector2Array([
+				center + Vector2(-r * 0.26, -r * 0.54),
+				center + Vector2(r * 0.30, 0.0),
+				center + Vector2(-r * 0.26, r * 0.54),
+			])
+			canvas.draw_polyline(cr, color, 2.6, true)
+		&"chevron_down":
+			var cd: PackedVector2Array = PackedVector2Array([
+				center + Vector2(-r * 0.48, -r * 0.20),
+				center + Vector2(0.0, r * 0.28),
+				center + Vector2(r * 0.48, -r * 0.20),
+			])
+			canvas.draw_polyline(cd, color, 2.4, true)
+		&"edit":
+			canvas.draw_line(center + Vector2(-r * 0.46, r * 0.46), center + Vector2(r * 0.42, -r * 0.42), color, 2.2, true)
+			canvas.draw_circle(center + Vector2(-r * 0.52, r * 0.52), 1.6, color)
