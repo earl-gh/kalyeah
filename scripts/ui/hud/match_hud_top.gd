@@ -181,10 +181,11 @@ class SquadWing extends Control:
 			var ring_w: float = 2.0 if _self_flag[i] and not is_out else 1.5
 			draw_arc(center, PORTRAIT_RADIUS, 0.0, TAU, CIRCLE_STEPS, ring_col, ring_w, true)
 
-			# Slim airy HP strip beneath portrait
+			# Slim airy HP strip beneath portrait: your own team's only (owner, 2026-11-13: an enemy's health is never shown during play)
 			var bar_rect: Rect2 = Rect2(Vector2(x + 2.0, CHIP_H - 4.5), Vector2(CHIP_W - 4.0, 3.5))
-			draw_rect(bar_rect, BAR_TRACK, true)
-			if not is_out and _hp_shares[i] > 0.01:
+			if ally_side:
+				draw_rect(bar_rect, BAR_TRACK, true)
+			if ally_side and not is_out and _hp_shares[i] > 0.01:
 				var fill_w: float = bar_rect.size.x * _hp_shares[i]
 				draw_rect(Rect2(bar_rect.position, Vector2(fill_w, bar_rect.size.y)), _bar_color(_hp_shares[i]), true)
 

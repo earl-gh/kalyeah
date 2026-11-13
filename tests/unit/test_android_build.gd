@@ -71,7 +71,7 @@ func test_the_android_preset_is_one_portrait_arm64_app_with_only_the_permissions
 	assert_true(android["gradle_build/use_gradle_build"], "the Local plugin (android/kalyeah_local) needs a Gradle export")
 	assert_true(android["gradle_build/compress_native_libraries"], "stored uncompressed, the engine library alone is 75 MB instead of 25 and the APK goes over its 200 MB budget (Android APK run 41468724309: 209 MB)")
 	assert_false(android.has("screen/orientation"), "not an option in Godot 4: the project setting below decides")
-	assert_eq(ProjectSettings.get_setting("display/window/handheld/orientation"), DisplayServer.SCREEN_PORTRAIT)
+	assert_eq(ProjectSettings.get_setting("display/window/handheld/orientation"), DisplayServer.SCREEN_SENSOR_LANDSCAPE, "landscape only, either way up")
 
 
 func test_the_splash_is_the_studio_logo_centred_on_the_picture_s_own_black() -> void:

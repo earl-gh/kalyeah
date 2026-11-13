@@ -162,6 +162,19 @@ func bar_visible(state: PlayerState) -> bool:
 	return not state.tagged and not hidden_ids.has(state.id)
 
 
+## True for a kid the local player plays against: the other team, or the taya in a street game (owner, 2026-11-13: an enemy's health is
+## never shown during play; its badge and status word still are).
+func is_enemy(state: PlayerState) -> bool:
+	if state.id == _local_id:
+		return false
+	return state.id == taya_id or state.team != _local_team
+
+
+## Whether the health bar itself is drawn over `state` (never over an enemy).
+func health_shown(state: PlayerState) -> bool:
+	return bar_visible(state) and not is_enemy(state)
+
+
 func bar_color(state: PlayerState) -> Color:
 	if state.id == _local_id:
 		return TeamColors.bar_self()
@@ -315,7 +328,8 @@ func _draw_hero(state: PlayerState) -> void:
 	var max_hp: float = float(_sim.rules.player_max_hp)
 	var fill: float = clampf(float(state.hp) / max_hp, 0.0, 1.0)
 	var color: Color = bar_color(state)
-	_draw_bar(rect, fill, color)
+	if not is_enemy(state):
+		_draw_bar(rect, fill, color)
 	_draw_label(label_for(state), rect)
 	_draw_badge(state, rect)
 	if stamina_on_bar and stamina_visible(state):
