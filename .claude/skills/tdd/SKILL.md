@@ -3,23 +3,6 @@ name: tdd
 description: Test-driven development. Use when the user wants to build features or fix bugs test-first, mentions "red-green-refactor", or wants integration tests.
 ---
 
-## Kalyeah integration (local addition)
-
-Read `CLAUDE.md`, `.claude/skills/README.md` and the relevant project specialist.
-Use Godot 4.6.2 and the existing GUT suite; TypeScript examples illustrate the
-method, not a request to add Node, Jest, another runner or a new architecture.
-Existing specialists retain implementation ownership. Referenced skills not
-installed here are optional; resolve routine design through the existing owner
-and `gstack-plan-eng-review`, rather than automatically installing dependencies.
-
-For this local copy, the following overrides upstream's requirement to reconfirm
-every test seam: use existing public interfaces and behavior already authorized
-by the current task, GDD and session decisions. State the selected boundary and
-what it proves. Ask when a genuinely new interface or unresolved product rule
-needs a user decision; do not ask again merely to test an approved behavior.
-Meaningful red/green evidence and public behavior checks remain mandatory for
-non-trivial behavior changes; installation-only work runs existing validation.
-
 # Test-Driven Development
 
 TDD is the red → green loop. This skill is the reference that makes that loop produce tests worth keeping: what a good test is, where tests go, the anti-patterns, and the rules of the loop. Every section applies on every cycle: consult them before and during the loop, not after.

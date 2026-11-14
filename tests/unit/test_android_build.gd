@@ -69,7 +69,7 @@ func test_the_android_preset_is_one_portrait_arm64_app_with_only_the_permissions
 		if key.begins_with("permissions/") and not key in ["permissions/internet", "permissions/vibrate", "permissions/change_wifi_multicast_state", "permissions/camera"]:
 			assert_false(android[key], "%s is not needed (the hotspot only opens sockets and lists addresses)" % key)
 	assert_true(android["gradle_build/use_gradle_build"], "the Local plugin (android/kalyeah_local) needs a Gradle export")
-	assert_true(android["gradle_build/compress_native_libraries"], "stored uncompressed, the engine library alone is 75 MB instead of 25 and the APK goes over its 200 MB budget (Android APK run 41468724309: 209 MB)")
+	assert_true(android["gradle_build/compress_native_libraries"], "compress native libraries in the APK (stored uncompressed, the engine library alone is 75 MB instead of 25 MB)")
 	assert_false(android.has("screen/orientation"), "not an option in Godot 4: the project setting below decides")
 	assert_eq(ProjectSettings.get_setting("display/window/handheld/orientation"), DisplayServer.SCREEN_PORTRAIT)
 

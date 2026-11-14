@@ -9,17 +9,6 @@ description: >
   batching, garbage collection/GC spikes, object pooling, or "the game runs slow".
 ---
 
-## Kalyeah compatibility override (local addition)
-
-Read `CLAUDE.md` and `.claude/skills/README.md` before this skill. Kalyeah remains on
-Godot 4.6.2, Compatibility rendering, typed GDScript, fixed 30 Hz simulation,
-WebSocket authority and one Android APK (no web or desktop client). Upstream's 4.7 baseline is not an
-upgrade instruction: verify version-sensitive APIs against 4.6 before use.
-Use this as a technical reference under the existing specialist's ownership.
-Examples do not authorize new autoloads, physics-driven authoritative rules,
-asset generation, new dependencies, pausing multiplayer, or changing exports.
-Related skills not installed here are optional references, not dependencies.
-
 # Performance optimization
 
 Performance work is a measurement discipline, not a bag of tricks. The method is always the

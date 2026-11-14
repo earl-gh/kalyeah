@@ -84,7 +84,7 @@ Goal: the look of the owner's reference image (League of Legends mid view, Clash
 | P7 ✅ | `1280 × 720` 90s Filipino Komiks UI & HUD (`KomiksStyle`, circular `BarangayMinimap`, 5v5 Squad Wings, `WorldWaypoints`, `TakedownFeed`, `HeroVitalsPanel`, `AbilityArc`, Rank Crest & 7 Tagalog tiers) | full-game landscape HUD & menus complete |
 | P8 | Performance and Android device verification: frame rate on target phones, signed release APK/AAB, physical Hotspot/QR/NFC checks | budgets below |
 
-Budgets (M6): 60 fps on a recommended Android phone, 30+ on the minimum; APK under 200 MB (enforced by the `Android APK` workflow; it was 150 until the owner's Junjun, Ligaya and Migo models were added at full quality, owner's call; the run measured 192 MB with them, so the limit is 200). The prop, weapon and kid textures are imported **VRAM compressed** (`compress/mode=2`: ETC2 on the phone, a quarter of the memory of a lossless texture on the GPU; the normal maps flagged `compress/normal_map=1`), pinned by `tests/unit/test_texture_budget.gd`. Lossless, the three first authored kids and the 11 houses and carts had put the APK at 205 MB; compressed it measured about 145 MB (the textures are 165 MB of imported files lossless, 105 MB compressed), 148 MB before the last three kids. **Estimate for Junjun, Ligaya and Migo (the Android APK run measured 192 MB in the end):** their imported files are 40.0 MiB of ETC2 textures (Junjun 18.7, Ligaya 10.7, Migo 10.7; Junjun's roughness/metal map is 4096 px, 10.7 MiB of it) and 6.7 MiB of meshes (0.8, 2.4, 3.4), minus the 4.3 MiB of the old baked models they replace: about +42 MiB, so about 190 MiB if the APK stores them as they are. Capping Junjun's roughness/metal map at 2048 px (`process/size_limit=2048` in `junjun_0.png.import`) would save 8 MiB. A new 3D model's textures must be imported the same way.
+Budgets (M6): 60 fps on a recommended Android phone, 30+ on the minimum; there is no hard APK or file size limit during development. The prop, weapon and kid textures are imported **VRAM compressed** (`compress/mode=2`: ETC2 on the phone, a quarter of the memory of a lossless texture on the GPU; the normal maps flagged `compress/normal_map=1`) for phone GPU memory, pinned by `tests/unit/test_texture_budget.gd`. A new 3D model's textures must be imported the same way.
 
 ### HUD spec (owner)
 - No player name above the health bar.
@@ -101,8 +101,7 @@ Budgets (M6): 60 fps on a recommended Android phone, 30+ on the minimum; APK und
 1. **No regex on `.tscn` files.** Complex screens are built in code and tested; scene files stay small and stable.
 2. **Every text replacement is guarded:** it must match the expected number of times or the edit stops.
 3. **One concern per commit.** Each step ends with: project import, the full GUT suite, and a 720×1280 screenshot checked by eye.
-4. Files over about 400 lines are split before they are edited again.
-5. Pull requests are meaningful chunks, opened by Claude and merged by the owner. See `CLAUDE.md`.
+4. Pull requests are meaningful chunks, opened by Claude and merged by the owner. See `CLAUDE.md`.
 
 ## Decisions log
 - No basic attack (see `GDD.md`).

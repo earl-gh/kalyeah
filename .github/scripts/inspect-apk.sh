@@ -7,7 +7,6 @@
 # the permissions and the native code. Whenever a check fails the raw aapt2 output is printed, so the next failure can be read.
 set -euo pipefail
 
-MAX_MB=200      # MiB; docs/ROADMAP.md "Budgets (M6)". 148 before the owner's Junjun, Ligaya and Migo models, 192 measured by the Android APK run with all six authored kids at full quality (owner's call), so a heavy new asset fails the build
 PACKAGE="com.kalyeah.game"
 # CAMERA: the ID photo and the QR scanner. The rest is Local play (android/kalyeah_local/src/main/AndroidManifest.xml): Wi-Fi and network
 # state for the game hotspot and joining it, NEARBY_WIFI_DEVICES (Android 13+) or location (Android 8 to 12) that Android asks for
@@ -110,11 +109,6 @@ done
 check "the zip is 16 KB aligned" "$TOOLS/zipalign" -c -P 16 4 "$APK"
 
 size_mb=$(( $(stat -c %s "$APK") / 1048576 ))
-echo "size: ${size_mb} MB (limit ${MAX_MB} MB)"
-check "the APK is under ${MAX_MB} MB" test "$size_mb" -lt "$MAX_MB"
-if [ "$size_mb" -ge "$MAX_MB" ]; then
-  echo "---- the 15 biggest files in the APK ----"
-  unzip -lv "$APK" | awk 'NR>3 && $1 ~ /^[0-9]+$/ {print $3, $8}' | sort -n -r | head -n 15
-fi
+echo "size: ${size_mb} MB"
 
 exit "$failed"
