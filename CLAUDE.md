@@ -78,7 +78,7 @@ for UI and profiling, and Matt Pocock's `tdd` and `domain-modeling` for behavior
 tests and terminology (`GLOSSARY.md`). Use `godot-unity-*` (`godot-unity-sim`,
 `godot-unity-view`, `godot-unity-platform`) when migrating sim/view/platform to Unity,
 and `apex-*` (`apex-combat-cam`, `apex-street-world`, `apex-mobile-hud`,
-`apex-net-frame`, and `apex-roast-gate`) for AAA mobile craft, brutal 3D/HUD review,
-and acceptance-pass gating. Architecture, owner art policy and this PR workflow
+`apex-screen-fit`, `apex-net-frame`, and `apex-roast-gate`) for AAA mobile craft,
+multi-screen responsiveness, brutal 3D/HUD review, and acceptance-pass gating. Architecture, owner art policy and this PR workflow
 remain binding. Do not execute upstream plugin installers, hooks, telemetry or
 auto-updaters.

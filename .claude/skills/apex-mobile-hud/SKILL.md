@@ -2,9 +2,9 @@
 name: apex-mobile-hud
 description: >
   Canonical AAA mobile thumb-zone ergonomics, multi-touch fingerId locking, Wild Rift radial
-  ability arc, drag/tap/cancel UX, 10-kid overhead bars, and safe-area HUD readability (Riot Wild
-  Rift × Call of Duty: Mobile × Epic Fortnite). Use when designing or building match HUDs, touch
-  controls, overhead health bars, or responsive mobile menus.
+  ability arc, drag/tap/cancel UX, and 10-kid overhead bars (Riot Wild Rift × Call of Duty: Mobile
+  × Epic Fortnite). Use when designing or building match HUDs, touch controls, ability arcs, or
+  overhead health bars.
 ---
 
 # Apex Mobile HUD & Thumb UX
@@ -13,17 +13,17 @@ Fuse **Riot (*Wild Rift*)** radial ability arcs, cast/cancel clarity, and 5v5 HU
 ***Call of Duty: Mobile*** zero-ms multi-touch ergonomics, and **Epic (*Fortnite*)** bold Komiks
 legibility for Kalyeah on Android phones.
 
-**Boundary (Canonical Owner):** Single source of truth for touch-zone layout, multi-touch finger
-ownership, match HUD (`MatchHud`, `AbilityArc`, `HeroVitalsPanel`, `BarangayMinimap`), world-space
-overhead bar hierarchy/stacking, menu screen stacks, typography, and safe-area insets. Defers 3P
-aim raycasting/gear physics to `apex-combat-cam`, coordinate-origin/API translation to
-`godot-unity-view`/`godot-unity-platform`, and frame/GC budgets to `apex-net-frame`.
+**Boundary (Canonical Owner):** Single source of truth for touch-zone combat layout, multi-touch
+`fingerId` ownership, match HUD (`MatchHud`, `AbilityArc`, `HeroVitalsPanel`, `BarangayMinimap`),
+cast/aim/cancel UX, and world-space 10-kid overhead bar hierarchy/stacking. Defers aspect-ratio
+scaling, DPI/`dp` math, cutouts, orientation flips, and multi-aspect bounds matrices to
+`apex-screen-fit`, 3P aim raycasting/gear physics to `apex-combat-cam`, coordinate/API translation
+to `godot-unity-view`/`godot-unity-platform`, and frame/GC budgets to `apex-net-frame`.
 
 ## 1. Ergonomic Thumb Partitioning & Multi-Touch Concurrency
 
-- **Target viewports & touch-only discipline:** Author match HUDs landscape-native at `1280×720`
-  verified down to narrow/notched `844×390`; author portrait menus at `720×1280` verified at
-  `390×844` until landscape menu parity flips the manifest. Ban hover-only states or cursor chrome.
+- **Touch-only discipline:** Ban hover-only states and desktop cursor chrome; delegate viewport
+  aspect matrices, corner-pinned scaling, and physical `dp`/DPI sizing to `apex-screen-fit`.
 - **Left-thumb locomotion zone:** Dedicate the lower-left quadrant to the floating/anchored stick
   (honoring `Settings` left-handed swap) with a crisp visual/haptic threshold step at
   `walk_run_threshold` (`0.62`, gear feel in `apex-combat-cam`): calm inner ring for **Walk**
@@ -35,9 +35,9 @@ aim raycasting/gear physics to `apex-combat-cam`, coordinate-origin/API translat
     (`ConsolePanel` / `CardHand`) when `card_cycle` is active.
   - **Outer/satellite arc:** `Luksong-Tinik` vault, `Bagsak ng Kalye` ultimate (lit at `100%`
     `ult_charge`), plus claw-reachable `Jump` and `Crouch/Slide` satellites.
-- **Multi-finger `fingerId` locking (2-thumb + 3-finger claw concurrency):** Enforce `>= 48 dp`
-  (`~9 mm`) hit rects and `>= 8 dp` inter-button dead-zone gutters. Track every active contact
-  strictly by persistent `touchId` / `fingerId`—**never `Input.GetTouch(0)` or array-index order**:
+- **Multi-finger `fingerId` locking (2-thumb + 3-finger claw concurrency):** Keep inter-button
+  dead-zone gutters (`apex-screen-fit` §2) and track every active contact strictly by persistent
+  `touchId` / `fingerId`—**never `Input.GetTouch(0)` or array-index order**:
   1. Lock each `fingerId` on touch-down to one exclusive role (`Stick`, `CameraLook`, or a single
      `Ability/Satellite` control) until that exact `fingerId` lifts or cancels.
   2. Support simultaneous left-thumb stick + right-thumb camera drag + quick thumb transition or
@@ -59,7 +59,7 @@ aim raycasting/gear physics to `apex-combat-cam`, coordinate-origin/API translat
   `no_cast_in_rescue_area`, `no_cast_in_enemy_base`, `Tagged`, or stunned/tripped buttons clearly
   greyed/badged. Holding an unavailable button across refill does nothing—require a fresh press.
 
-## 3. Sacred Clear Center, Canonical Overhead Bars & Safe Areas
+## 3. Sacred Clear Center & Canonical Overhead Bars
 
 - **Sacred `45% × 50%` center sightbox:** Keep the central crosshair and kid sightbox free of
   persistent HUD chrome or mid-fight banners. Pin `BarangayMinimap`, 5v5 Squad Wings, score/clock
@@ -72,10 +72,8 @@ aim raycasting/gear physics to `apex-combat-cam`, coordinate-origin/API translat
   `You` tag on the local kid (never player names), gapless local stamina bar underneath, and **at
   most one** italic priority status word above (`Stunned` / `Tripped` overrides `Exhausted`).
   Vertically stack overlapping bars cleanly when kids clump in teamfights.
-- **Dynamic safe areas & font floors:** Inset interactive controls and readouts inside dynamic OS
-  safe areas (re-applied on resize/orientation flip; decorative backplates may bleed to edges).
-  Enforce dark-outlined Komiks type (`KomiksStyle` / `UiKit`) at `>= 18–22 px` reference floor and
-  honor `Reduce motion` on UI transitions.
+- **Safe-area, typography & motion handoff:** Apply dynamic asymmetric safe-area insets and bounded
+  dark-outlined Komiks type per `apex-screen-fit`, and honor `Reduce motion` on UI transitions.
 
 ## 4. Anti-Bloat UI Architecture
 
