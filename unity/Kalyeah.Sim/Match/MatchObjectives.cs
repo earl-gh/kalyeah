@@ -257,7 +257,7 @@ namespace Kalyeah.Sim
         }
 
         /// <summary>Everyone back to their post at full HP, cooldowns and effects cleared; weapon objects removed.</summary>
-        void ResetRound(MatchSim sim)
+        public void ResetRound(MatchSim sim)
         {
             sim.Weapons.Reset();
             sim.ResetPowerups();

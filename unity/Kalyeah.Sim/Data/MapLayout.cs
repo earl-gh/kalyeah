@@ -39,6 +39,19 @@ namespace Kalyeah.Sim
         public double OverviewHeight;
         public double OverviewSize;
 
+        /// <summary>A copy (Godot's Resource.duplicate()): the lists are new, so a test or a street game can change them.</summary>
+        public MapLayout Duplicate()
+        {
+            var copy = (MapLayout)MemberwiseClone();
+            copy.PowerupSpots = new List<Vec2>(PowerupSpots);
+            copy.Obstacles = new List<Rect2>(Obstacles);
+            copy.ObstacleYawsDeg = new List<float>(ObstacleYawsDeg);
+            copy.ObstacleScales = new List<float>(ObstacleScales);
+            copy.ObstacleProps = new List<string>(ObstacleProps);
+            copy.WaterObstacles = new List<Rect2>(WaterObstacles);
+            return copy;
+        }
+
         /// <summary>Playable bounding span along X (from the grid).</summary>
         public double LaneWidth => Tiles.X * TileSize;
         /// <summary>Playable bounding span along Z (from the grid).</summary>
