@@ -43,8 +43,9 @@ func _packed_files(preset_name: String, dir: String = "res://") -> PackedStringA
 		if not _is_excluded(dir.path_join(file), patterns):
 			found.append(dir.path_join(file))
 	for sub: String in DirAccess.get_directories_at(dir):
-		if not sub.begins_with(".") and not _is_excluded(dir.path_join(sub) + "/", patterns):
-			found.append_array(_packed_files(preset_name, dir.path_join(sub)))
+		var sub_dir: String = dir.path_join(sub)
+		if not sub.begins_with(".") and not FileAccess.file_exists(sub_dir.path_join(".gdignore")) and not _is_excluded(sub_dir + "/", patterns):
+			found.append_array(_packed_files(preset_name, sub_dir))
 	return found
 
 
@@ -172,7 +173,7 @@ func test_back_in_the_lobby_closes_its_dialog_first_and_does_not_leave() -> void
 func test_the_export_leaves_out_the_test_framework_the_tools_and_the_docs() -> void:
 	for preset_name: String in ["Android", "Server"]:
 		var patterns: PackedStringArray = _exclude_patterns(preset_name)
-		for left_out: String in ["addons/*", "tests/*", "tools/*", "docs/*"]:
+		for left_out: String in ["addons/*", "tests/*", "tools/*", "docs/*", "unity/*"]:
 			assert_true(left_out in patterns, "%s leaves out %s" % [preset_name, left_out])
 		# GUT's stub scene gives a node a script that is no script: the export logged "Cannot set object script" for it.
 		assert_true(_is_excluded("res://addons/gut/gut_loader_the_scene.tscn", patterns), preset_name)

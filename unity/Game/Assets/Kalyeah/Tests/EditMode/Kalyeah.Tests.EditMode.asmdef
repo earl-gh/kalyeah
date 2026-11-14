@@ -1,0 +1,32 @@
+{
+    "name": "Kalyeah.Tests.EditMode",
+    "rootNamespace": "Kalyeah.Game",
+    "references": [
+        "Kalyeah.Sim",
+        "Kalyeah.Net",
+        "Kalyeah.Game.Core",
+        "Kalyeah.Game",
+        "UnityEngine.UI",
+        "Unity.InputSystem"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.kalyeah.sim",
+            "expression": "1.0.0",
+            "define": "KALYEAH_SIM_PORTED"
+        }
+    ],
+    "noEngineReferences": false
+}

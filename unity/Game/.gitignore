@@ -2,12 +2,14 @@
 /Assets/Imported/
 /Assets/Imported.meta
 /Packages/com.kalyeah.sim/
+/Packages/packages-lock.json
 # Written by KalyeahBuild.Setup on every build (scenes, the URP assets, the few materials the code needs)
 /Assets/Kalyeah/Generated/
 /Assets/Kalyeah/Generated.meta
 # URP writes its global settings the first time it runs
 /Assets/UniversalRenderPipelineGlobalSettings.asset
 /Assets/UniversalRenderPipelineGlobalSettings.asset.meta
+/Assets/DefaultVolumeProfile.asset*
 /Assets/Settings/
 /Assets/Settings.meta
 # Unity's own generated folders and IDE files

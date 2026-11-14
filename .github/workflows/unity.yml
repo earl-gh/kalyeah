@@ -1,11 +1,11 @@
 name: Unity
 # The Unity port (unity/, see unity/README.md "Unity project"). The Godot game's own gate stays the "Android APK" workflow.
-#   sim-tests    dotnet test unity/Kalyeah.sln: the shared C# sim against the Godot game's recordings (no licence needed)
-#   unity-check  reads the editor version (unity/Game/ProjectSettings/ProjectVersion.txt) and whether the Unity licence secrets are set;
-#                without them the two jobs below are skipped (the run stays green) and a notice says what to add
-#   android      tools/unity_export/sync_assets.sh, then GameCI builds the APK with KalyeahBuild.BuildAndroid -> artifact kalyeah-unity-apk
-#   screenshots  the same, with KalyeahBuild.Screenshots (title + match from fixed shoulder spots, 1280x720 PNGs, rendered under
-#                xvfb by GameCI's editor image, no -nographics) -> artifact kalyeah-unity-screenshots
+#   sim-tests       dotnet test unity/Kalyeah.sln: shared C# sim + net suites against Godot recordings (no licence needed)
+#   unity-check     reads the editor version (unity/Game/ProjectSettings/ProjectVersion.txt) and whether Unity licence secrets are set;
+#                   without them the Unity jobs below are skipped (the run stays green) and a notice says what to add
+#   editmode-tests  Pillow + tools/unity_export/sync_assets.sh, then GameCI runs EditMode tests (game-ci/unity-test-runner@v4)
+#   android         Pillow + sync_assets.sh, GameCI builds KalyeahBuild.BuildAndroid, verifies arm64-v8a ABI + logs MB -> kalyeah-unity-apk
+#   screenshots     Pillow + sync_assets.sh, KalyeahBuild.Screenshots (dual-aspect 1280x720 + 844x390 PNGs under xvfb) -> kalyeah-unity-screenshots
 # Secrets: UNITY_LICENSE (the contents of a Unity_lic.ulf), UNITY_EMAIL, UNITY_PASSWORD; UNITY_SERIAL instead of UNITY_LICENSE for Pro.
 on:
   workflow_dispatch:
@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   sim-tests:
-    name: Sim tests (.NET)
+    name: Sim & Net tests (.NET)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -62,13 +62,67 @@ jobs:
             echo "Unity $version: licence secrets found" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Unity build skipped::Add the repository secrets UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD (Settings -> Secrets and variables -> Actions; how: unity/README.md, Unity project) to build the Unity APK and screenshots."
+            echo "::notice title=Unity build skipped::Add the repository secrets UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD (Settings -> Secrets and variables -> Actions; how: unity/README.md, Unity project) to run Unity EditMode tests, build the APK and render screenshots."
             {
-              echo "### Unity APK and screenshots skipped"
+              echo "### Unity EditMode tests, APK and screenshots skipped"
               echo "The repository secrets UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD are not set (UNITY_SERIAL replaces UNITY_LICENSE for a Pro licence)."
               echo "How to get them: unity/README.md, section Unity project, and https://game.ci/docs/github/activation"
             } >> "$GITHUB_STEP_SUMMARY"
           fi
+
+  editmode-tests:
+    name: Unity EditMode tests
+    needs: [sim-tests, unity-check]
+    if: needs.unity-check.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Free disk space (the Unity editor image is large)
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: false
+      - uses: actions/checkout@v4
+      - name: Ensure Pillow for .webp -> .png asset sync
+        run: |
+          if ! python3 -c "from PIL import Image" >/dev/null 2>&1; then
+            python3 -m pip install --quiet --break-system-packages Pillow 2>/dev/null || python3 -m pip install --quiet Pillow 2>/dev/null || { sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends python3-pil; }
+          fi
+          python3 -c "from PIL import Image"
+      - name: Copy the art, the data and the sim into the Unity project
+        run: tools/unity_export/sync_assets.sh
+      - uses: actions/cache/restore@v4
+        with:
+          path: unity/Game/Library
+          key: unity-library-${{ needs.unity-check.outputs.version }}-${{ hashFiles('unity/Game/Packages/manifest.json') }}-${{ github.sha }}
+          restore-keys: |
+            unity-library-${{ needs.unity-check.outputs.version }}-${{ hashFiles('unity/Game/Packages/manifest.json') }}-
+            unity-library-${{ needs.unity-check.outputs.version }}-
+      - name: Run Unity EditMode tests
+        id: editmode
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: unity/Game
+          unityVersion: ${{ needs.unity-check.outputs.version }}
+          testMode: EditMode
+          artifactsPath: build/test-results
+      - name: Upload EditMode test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kalyeah-unity-editmode-results
+          path: ${{ steps.editmode.outputs.artifactsPath }}
+          if-no-files-found: ignore
 
   android:
     name: Unity Android APK
@@ -88,6 +142,12 @@ jobs:
           docker-images: true
           swap-storage: false
       - uses: actions/checkout@v4
+      - name: Ensure Pillow for .webp -> .png asset sync
+        run: |
+          if ! python3 -c "from PIL import Image" >/dev/null 2>&1; then
+            python3 -m pip install --quiet --break-system-packages Pillow 2>/dev/null || python3 -m pip install --quiet Pillow 2>/dev/null || { sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends python3-pil; }
+          fi
+          python3 -c "from PIL import Image"
       - name: Copy the art, the data and the sim into the Unity project
         run: tools/unity_export/sync_assets.sh
       - uses: actions/cache@v4
@@ -113,6 +173,35 @@ jobs:
           androidExportType: androidPackage
           versioning: None
           allowDirtyBuild: true
+      - name: Verify APK size and arm64-v8a ABI
+        run: |
+          shopt -s nullglob
+          apks=(build/Android/*.apk)
+          if [ "${#apks[@]}" -eq 0 ]; then
+            echo "::error::No APK found matching build/Android/*.apk"
+            exit 1
+          fi
+          for apk in "${apks[@]}"; do
+            bytes="$(stat -c '%s' "$apk")"
+            size_mb="$(awk -v b="$bytes" 'BEGIN { printf "%.2f", b / 1048576 }')"
+            echo "APK: $apk — ${size_mb} MB (${bytes} bytes)"
+            if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+              echo "- **APK:** \`$apk\` — **${size_mb} MB** (${bytes} bytes)" >> "$GITHUB_STEP_SUMMARY"
+            fi
+            entries="$(unzip -Z1 "$apk")"
+            if ! grep -qE '^lib/arm64-v8a/.*\.so$' <<< "$entries"; then
+              echo "::error::$apk is missing lib/arm64-v8a/*.so native libraries"
+              exit 1
+            fi
+            other_abis="$(grep -E '^lib/[^/]+/' <<< "$entries" | grep -v '^lib/arm64-v8a/' || true)"
+            if [ -n "$other_abis" ]; then
+              echo "::error::$apk contains unexpected non-arm64-v8a ABIs:"
+              echo "$other_abis"
+              exit 1
+            fi
+            arm64_libs="$(grep -E '^lib/arm64-v8a/.*\.so$' <<< "$entries" | tr '\n' ' ')"
+            echo "Verified arm64-v8a ABI: $arm64_libs"
+          done
       - name: Upload the APK
         uses: actions/upload-artifact@v4
         with:
@@ -138,6 +227,12 @@ jobs:
           docker-images: true
           swap-storage: false
       - uses: actions/checkout@v4
+      - name: Ensure Pillow for .webp -> .png asset sync
+        run: |
+          if ! python3 -c "from PIL import Image" >/dev/null 2>&1; then
+            python3 -m pip install --quiet --break-system-packages Pillow 2>/dev/null || python3 -m pip install --quiet Pillow 2>/dev/null || { sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends python3-pil; }
+          fi
+          python3 -c "from PIL import Image"
       - name: Copy the art, the data and the sim into the Unity project
         run: tools/unity_export/sync_assets.sh
       - uses: actions/cache/restore@v4
@@ -166,5 +261,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kalyeah-unity-screenshots
-          path: unity/Game/Build/screenshots/*.png
+          path: |
+            unity/Game/Build/screenshots/*.png
+            unity/Game/Build/screenshots/**/*.png
           if-no-files-found: error

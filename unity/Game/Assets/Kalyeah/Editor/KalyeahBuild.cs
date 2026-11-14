@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using Kalyeah.Game;
 using UnityEditor;
 using UnityEditor.Build;
@@ -41,6 +43,16 @@ public static class KalyeahBuild
     const string ModelsRoot = "Assets/Imported/Resources/models";
     const string CharactersRoot = ModelsRoot + "/characters";
     const int ShotWidth = 1280, ShotHeight = 720;
+    const int NarrowWidth = 844, NarrowHeight = 390;
+    const int UltraWidth = 934, UltraHeight = 400;
+    const int FoldWidth = 1024, FoldHeight = 768;
+
+    static readonly string[] GltfShaderGraphPaths =
+    {
+        "Packages/com.unity.cloud.gltfast/Runtime/Shader/glTF-pbrMetallicRoughness.shadergraph",
+        "Packages/com.unity.cloud.gltfast/Runtime/Shader/glTF-pbrSpecularGlossiness.shadergraph",
+        "Packages/com.unity.cloud.gltfast/Runtime/Shader/glTF-unlit.shadergraph",
+    };
 
     static string ProjectRoot => Directory.GetParent(Application.dataPath).FullName;
 
@@ -56,6 +68,7 @@ public static class KalyeahBuild
         EnsureFolder(RenderingDir);
         ApplyPlayerSettings();
         EnsurePipeline();
+        PrepareGltfForUrp();
         EnsureMaterials();
         FixModelImports();
         EnsureScenes();
@@ -86,7 +99,9 @@ public static class KalyeahBuild
         PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
         PlayerSettings.allowedAutorotateToLandscapeLeft = true;
         PlayerSettings.allowedAutorotateToLandscapeRight = true;
+#pragma warning disable CS0618
         PlayerSettings.useAnimatedAutorotation = true;
+#pragma warning restore CS0618
         // the 1280 x 720 landscape base (the HUD's CanvasScaler uses the same reference)
         PlayerSettings.defaultScreenWidth = (int)Ui.Base.x;
         PlayerSettings.defaultScreenHeight = (int)Ui.Base.y;
@@ -135,7 +150,72 @@ public static class KalyeahBuild
         QualitySettings.SetQualityLevel(current, false);
     }
 
-    /// <summary>The materials the code makes things with (KalyeahResources.Material), saved so their shaders go into the build.</summary>
+    /// <summary>
+    /// On a cold checkout (ProjectSettings/* ignored), Unity imports .glb files before EnsurePipeline sets URP, so glTFast latches
+    /// RenderPipeline.BuiltIn and BuiltInMaterialGenerator in private static fields. Right after EnsurePipeline sets KalyeahURP,
+    /// synchronously recompile glTFast's ShaderGraphs for URP and reset glTFast's static caches so FixModelImports generates URP PBR materials.
+    /// </summary>
+    static void PrepareGltfForUrp()
+    {
+        foreach (string graphPath in GltfShaderGraphPaths)
+        {
+            if (!string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(graphPath)))
+                AssetDatabase.ImportAsset(graphPath, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
+        }
+
+        const BindingFlags StaticAny = BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public;
+        foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            Type rpUtils = asm.GetType("GLTFast.RenderPipelineUtils", false);
+            if (rpUtils != null)
+            {
+                FieldInfo rpField = rpUtils.GetField("s_RenderPipeline", StaticAny);
+                if (rpField != null)
+                    rpField.SetValue(null, rpField.FieldType.IsEnum ? Enum.ToObject(rpField.FieldType, 0) : 0);
+            }
+
+            ResetStaticGeneratorFields(asm.GetType("GLTFast.Materials.MaterialGenerator", false), StaticAny);
+            ResetStaticGeneratorFields(asm.GetType("GLTFast.Materials.BuiltInMaterialGenerator", false), StaticAny);
+
+            Type sgGen = asm.GetType("GLTFast.Materials.ShaderGraphMaterialGenerator", false);
+            if (sgGen != null)
+            {
+                SetStaticField(sgGen, "s_MetallicShader", null, StaticAny);
+                SetStaticField(sgGen, "s_SpecularShader", null, StaticAny);
+                SetStaticField(sgGen, "s_UnlitShader", null, StaticAny);
+                SetStaticField(sgGen, "s_MetallicShaderQueried", false, StaticAny);
+                SetStaticField(sgGen, "s_SpecularShaderQueried", false, StaticAny);
+                SetStaticField(sgGen, "s_UnlitShaderQueried", false, StaticAny);
+                ClearStaticDictionary(sgGen, "s_MetallicShaders", StaticAny);
+                ClearStaticDictionary(sgGen, "s_SpecularShaders", StaticAny);
+                ClearStaticDictionary(sgGen, "s_UnlitShaders", StaticAny);
+            }
+        }
+    }
+
+    static void ResetStaticGeneratorFields(Type type, BindingFlags flags)
+    {
+        if (type == null) return;
+        SetStaticField(type, "s_DefaultMaterialGenerator", null, flags);
+        SetStaticField(type, "s_DefaultMaterialGenerated", false, flags);
+        SetStaticField(type, "s_DefaultMaterial", null, flags);
+    }
+
+    static void SetStaticField(Type type, string fieldName, object value, BindingFlags flags)
+    {
+        FieldInfo field = type.GetField(fieldName, flags);
+        if (field != null && !field.IsInitOnly)
+            field.SetValue(null, value);
+    }
+
+    static void ClearStaticDictionary(Type type, string fieldName, BindingFlags flags)
+    {
+        FieldInfo field = type.GetField(fieldName, flags);
+        if (field?.GetValue(null) is IDictionary dict)
+            dict.Clear();
+    }
+
+    /// <summary>The materials the code makes things with (KalyeahResources.Material), saved so their shaders go into the IL2CPP build.</summary>
     static void EnsureMaterials()
     {
         EnsureMaterial("Ground", "Universal Render Pipeline/Lit", m =>
@@ -152,20 +232,52 @@ public static class KalyeahBuild
             m.SetColor("_GroundColor", new Color(0.62f, 0.58f, 0.52f));
             m.SetFloat("_Exposure", 1.25f);
         });
+        EnsureMaterial("BarangayGround", "Kalyeah/BarangayGround");
+        EnsureMaterial("EsteroWater", "Kalyeah/EsteroWater");
+        EnsureMaterial("TropicalSky", "Kalyeah/TropicalSky");
+        EnsureMaterial("TeamOutline", "Kalyeah/TeamOutline", m =>
+        {
+            if (m.HasProperty("_OutlineColor")) m.SetColor("_OutlineColor", new Color(0.20f, 0.50f, 1.00f, 1f));
+            if (m.HasProperty("_OutlineWidth")) m.SetFloat("_OutlineWidth", 0.024f);
+        });
+        EnsureMaterial("ArcaneFx", "Kalyeah/ArcaneFx", m => m.enableInstancing = true);
+        EnsureMaterial("TransparentUnlit", "Universal Render Pipeline/Unlit", m =>
+        {
+            m.SetColor("_BaseColor", Color.white);
+            if (m.HasProperty("_Surface")) m.SetFloat("_Surface", 1f);
+            if (m.HasProperty("_Blend")) m.SetFloat("_Blend", 0f);
+            if (m.HasProperty("_SrcBlend")) m.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+            if (m.HasProperty("_DstBlend")) m.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+            if (m.HasProperty("_ZWrite")) m.SetInt("_ZWrite", 0);
+            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            m.renderQueue = (int)RenderQueue.Transparent;
+        });
+        EnsureMaterial("GltfPbr", "Shader Graphs/glTF-pbrMetallicRoughness", _ => { }, optional: true);
     }
 
-    static void EnsureMaterial(string name, string shaderName, Action<Material> configure)
+    static void EnsureMaterial(string name, string shaderName, Action<Material> configure = null, bool optional = false)
     {
-        string path = $"{MaterialsDir}/{name}.mat";
-        if (AssetDatabase.LoadAssetAtPath<Material>(path) != null) return;
         Shader shader = Shader.Find(shaderName);
         if (shader == null)
         {
-            Debug.LogError($"KalyeahBuild: shader {shaderName} not found (is URP installed?)");
+            if (optional) Debug.LogWarning($"KalyeahBuild: optional shader {shaderName} not found");
+            else Debug.LogError($"KalyeahBuild: shader {shaderName} not found (is URP installed?)");
+            return;
+        }
+        string path = $"{MaterialsDir}/{name}.mat";
+        Material existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (existing != null)
+        {
+            if (existing.shader != shader || !existing.shader.isSupported)
+            {
+                existing.shader = shader;
+                configure?.Invoke(existing);
+                EditorUtility.SetDirty(existing);
+            }
             return;
         }
         var material = new Material(shader) { name = name };
-        configure(material);
+        configure?.Invoke(material);
         AssetDatabase.CreateAsset(material, path);
     }
 
@@ -183,16 +295,22 @@ public static class KalyeahBuild
             string path = AssetDatabase.GUIDToAssetPath(guid);
             if (!path.EndsWith(".glb", StringComparison.OrdinalIgnoreCase) || again.Contains(path)) continue;
             bool legacy = path.StartsWith(CharactersRoot, StringComparison.Ordinal) && UseLegacyAnimation(path);
-            bool builtIn = AssetDatabase.LoadAllAssetsAtPath(path).OfType<Material>()
-                .Any(m => m.shader == null || m.shader.name.StartsWith("glTF/", StringComparison.Ordinal) || m.shader.name.Contains("InternalErrorShader"));
-            if (legacy || builtIn) again.Add(path);
+            bool brokenMaterial = AssetDatabase.LoadAllAssetsAtPath(path).OfType<Material>()
+                .Any(m => m == null
+                    || m.shader == null
+                    || !m.shader.isSupported
+                    || m.shader.name.StartsWith("glTF/", StringComparison.Ordinal)
+                    || m.shader.name == "Standard"
+                    || m.shader.name.Contains("InternalErrorShader"));
+            if (legacy || brokenMaterial) again.Add(path);
         }
         if (again.Count == 0) return;
         Debug.Log($"KalyeahBuild: importing {again.Count} models again for URP / legacy clips");
         AssetDatabase.StartAssetEditing();
         try
         {
-            foreach (string path in again) AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            foreach (string path in again)
+                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
         }
         finally
         {
@@ -299,72 +417,257 @@ public static class KalyeahBuild
         new Spot("match_04_west_alley", -30f, 2f, 270f, 9.5f),
         new Spot("match_05_enemy_post", 0f, -48f, 0f, 4f),
         new Spot("match_06_own_base_behind", 0f, 44f, 180f, 12f),
-        new Spot("match_07_high_look", 20f, 20f, 315f, 40f),
+        new Spot("match_07_high_look", 20f, 20f, 315f, -14f),
     };
 
     public static void Screenshots()
     {
         Setup();
         bool asyncShaders = EditorSettings.asyncShaderCompilation;
+        bool prevAsync = ShaderUtil.allowAsyncCompilation;
         EditorSettings.asyncShaderCompilation = false; // no cyan placeholder shaders in a still
+        ShaderUtil.allowAsyncCompilation = false;
         string dir = Path.Combine(ProjectRoot, "Build", "screenshots");
         Directory.CreateDirectory(dir);
+        DataSource data = KalyeahResources.Data();
         try
         {
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            var titleRoot = new GameObject("TitleShot").transform;
-            var titleCamera = new GameObject("TitleCamera", typeof(Camera)).GetComponent<Camera>();
-            titleCamera.transform.SetParent(titleRoot, false);
-            TitleScreen.Build(titleRoot, titleCamera, null);
-            Capture(titleCamera, Path.Combine(dir, "title.png"));
+            CaptureTitleShot(dir, "title.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight));
+            CaptureTitleShot(
+                dir,
+                $"title_{NarrowWidth}x{NarrowHeight}.png",
+                NarrowWidth,
+                NarrowHeight,
+                ScreenFitMetrics.AsymmetricCutoutSafeRect(NarrowWidth, NarrowHeight));
 
+            SetFullViewport();
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var pickRoot = new GameObject("PickShot").transform;
+            var pickCamera = new GameObject("PickCamera", typeof(Camera)).GetComponent<Camera>();
+            pickCamera.transform.SetParent(pickRoot, false);
+            pickCamera.clearFlags = CameraClearFlags.SolidColor;
+            pickCamera.backgroundColor = Ui.Navy;
+            pickCamera.orthographic = true;
+            Canvas pickCanvas = Ui.MakeCanvas("PickCanvas", pickRoot, pickCamera);
+            var pickView = new PickScreenView(pickCanvas.transform, data, null);
+            if (pickView.SafeRoot.GetComponent<SafeArea>() == null)
+                pickView.SafeRoot.gameObject.AddComponent<SafeArea>().ForceApply();
+            CaptureQuadAspect(pickCamera, dir, "menu_pick", pickView.RefreshResponsiveLayout);
+
+            SetFullViewport();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var root = new GameObject("MatchShot").transform;
-            var world = new MatchWorld(root, KalyeahResources.Data(), 7, "junjun", interactive: false, hudCamera: true);
-            float dt = world.Sim.TickDt;
-            Capture(world.Camera, Path.Combine(dir, "match_01_spawn.png"));
-
-            // two seconds of running forward with the stick pushed up: the bots spread out, the kids run
-            world.Sim.SetLocalInput(world.Shoulder.GroundWay(Vector2.up), 0);
-            for (int i = 0; i < 60; i++)
+            using (var world = new MatchWorld(root, data, 7, "junjun", interactive: false, hudCamera: true))
             {
-                world.StepTick();
-                world.Draw(1f, dt);
-            }
-            Capture(world.Camera, Path.Combine(dir, "match_02_running.png"));
+                world.Sim.SkipIntro();
+                world.Draw(1f, 0f);
+                CaptureQuadAspect(world.Camera, dir, "match_01_spawn", () => world.Draw(1f, 0f));
 
-            foreach (Spot spot in Spots)
-            {
-                world.Shoulder.Yaw = spot.Yaw;
-                world.Shoulder.Pitch = spot.Pitch;
-                world.Shoulder.Apply(world.Camera, spot.Feet);
-                Capture(world.Camera, Path.Combine(dir, spot.Name + ".png"));
+                // 75 ticks (2.5 s) running forward while firing primary: bots spread out, weapon & HUD fire active
+                float dt = world.Sim.TickDt;
+                for (int i = 0; i < 75; i++)
+                {
+                    System.Numerics.Vector2 move = world.Shoulder.GroundWay(Vector2.up);
+                    world.Sim.SetLocalInput(move, move, InputButtons.Primary);
+                    world.StepTick();
+                    world.Draw(1f, dt);
+                }
+                CaptureDualAspect(world.Camera, dir, "match_02_running", () => world.Draw(1f, 0f));
+
+                SetFullViewport();
+                foreach (Spot spot in Spots)
+                {
+                    (System.Numerics.Vector2 _, System.Numerics.Vector2 down) = GodotSpace.GroundAxes(spot.Yaw);
+                    world.Sim.SetPlayerPositionForPreview(SimBridge.LocalId, spot.Feet, -down);
+                    world.Draw(1f, 0f);
+                    world.Shoulder.Yaw = spot.Yaw;
+                    world.Shoulder.Pitch = spot.Pitch;
+                    world.Shoulder.Apply(world.Camera, spot.Feet, 0f);
+                    world.Hud.Refresh(world.Sim, world.Camera, world.Shoulder, world.View.Layout, 0f);
+                    Capture(world.Camera, Path.Combine(dir, spot.Name + ".png"), ShotWidth, ShotHeight, () =>
+                    {
+                        world.Shoulder.Yaw = spot.Yaw;
+                        world.Shoulder.Pitch = spot.Pitch;
+                        world.Shoulder.Apply(world.Camera, spot.Feet, 0f);
+                        world.Hud.Refresh(world.Sim, world.Camera, world.Shoulder, world.View.Layout, 0f);
+                    });
+                }
             }
+
+            long tumbangSeed = FindTumbangThrowerSeed(data);
+            CaptureStreetShot(data, dir, StreetGameKind.Patintero, 11, "street_patintero", dualAspect: true, brownoutPreview: false);
+            CaptureStreetShot(data, dir, StreetGameKind.TumbangPreso, tumbangSeed, "street_tumbang_preso", dualAspect: true, brownoutPreview: false);
+            CaptureStreetShot(data, dir, StreetGameKind.LangitLupa, 23, "street_langit_lupa", dualAspect: true, brownoutPreview: true);
+
             Debug.Log($"KalyeahBuild: screenshots in {dir}");
         }
         finally
         {
+            ScreenFitMetrics.ClearSimulatedViewport();
+            ShaderUtil.allowAsyncCompilation = prevAsync;
             EditorSettings.asyncShaderCompilation = asyncShaders;
         }
     }
 
-    /// <summary>Renders `camera` into a 1280 x 720 texture and writes it as a PNG.</summary>
-    static void Capture(Camera camera, string file)
+    static long FindTumbangThrowerSeed(DataSource data)
     {
-        var target = new RenderTexture(ShotWidth, ShotHeight, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 1 };
+        for (long seed = 1; seed <= 30; seed++)
+        {
+            var probeRoot = new GameObject("TumbangSeedProbe");
+            try
+            {
+                using var probe = new StreetMatchWorld(probeRoot.transform, data, StreetGameKind.TumbangPreso, seed, "junjun", interactive: false, hudCamera: false);
+                probe.Sim.SkipIntro();
+                for (int w = 0; w < 150 && probe.Sim.IsIntro; w++)
+                    probe.StepTick();
+                if (probe.Sim.LocalKid.HasValue && probe.Sim.LocalKid.Value.Role != StreetRoleKind.Taya)
+                    return seed;
+            }
+            finally
+            {
+                Object.DestroyImmediate(probeRoot);
+            }
+        }
+        return 1;
+    }
+
+    static void CaptureTitleShot(string dir, string fileName, int width, int height, Rect safeRect)
+    {
+        ScreenFitMetrics.SetSimulatedViewport(new Vector2Int(width, height), safeRect);
+        EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        var titleRoot = new GameObject("TitleShot").transform;
+        var titleCamera = new GameObject("TitleCamera", typeof(Camera)).GetComponent<Camera>();
+        titleCamera.transform.SetParent(titleRoot, false);
+        TitleScreen.Build(titleRoot, titleCamera, null);
+        Capture(titleCamera, Path.Combine(dir, fileName), width, height);
+    }
+
+    static void CaptureStreetShot(
+        DataSource data,
+        string dir,
+        StreetGameKind kind,
+        long seed,
+        string stem,
+        bool dualAspect,
+        bool brownoutPreview)
+    {
+        SetFullViewport();
+        EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        var streetRoot = new GameObject("StreetShot_" + kind).transform;
+        using var street = new StreetMatchWorld(streetRoot, data, kind, seed, "junjun", interactive: false, hudCamera: true);
+        street.Sim.SkipIntro();
+        for (int w = 0; w < 150 && street.Sim.IsIntro; w++)
+            street.StepTick();
+
+        float dt = street.Sim.TickDt;
+        int ticks = kind == StreetGameKind.TumbangPreso ? 35 : 45;
+        for (int i = 0; i < ticks; i++)
+        {
+            if (kind == StreetGameKind.TumbangPreso)
+            {
+                System.Numerics.Vector2 pos = street.Sim.LocalKid.HasValue ? street.Sim.LocalKid.Value.Position : System.Numerics.Vector2.Zero;
+                System.Numerics.Vector2 toCan = street.Sim.TumbangPresoState.CanPosition - pos;
+                System.Numerics.Vector2 aim = toCan.LengthSquared() > 0.001f
+                    ? System.Numerics.Vector2.Normalize(toCan)
+                    : street.Shoulder.GroundWay(Vector2.up);
+                if (i == 0)
+                    street.Shoulder.Yaw = ShoulderRig.YawToward(pos, street.Sim.TumbangPresoState.CanPosition);
+                System.Numerics.Vector2 stepTowardToe = i < 16 ? aim : System.Numerics.Vector2.Zero;
+                street.Sim.SetLocalInput(stepTowardToe, aim, primaryHeld: i >= 16 && i < 31, secondaryPressed: false, cancelAim: false);
+            }
+            else
+            {
+                Vector2 stick = kind == StreetGameKind.LangitLupa ? new Vector2(0.25f, 1f) : Vector2.up;
+                System.Numerics.Vector2 move = street.Shoulder.GroundWay(stick);
+                street.Sim.SetLocalInput(move, move, primaryHeld: false, secondaryPressed: kind == StreetGameKind.Patintero && i == 25, cancelAim: false);
+            }
+            street.StepTick();
+            street.Draw(1f, dt);
+        }
+
+        if (brownoutPreview)
+            street.SetBrownoutPreview(true);
+
+        if (dualAspect)
+            CaptureDualAspect(street.Camera, dir, stem, () => street.Draw(1f, 0f));
+        else
+            Capture(street.Camera, Path.Combine(dir, stem + ".png"), ShotWidth, ShotHeight, () => street.Draw(1f, 0f));
+    }
+
+    static void SetFullViewport() =>
+        ScreenFitMetrics.SetSimulatedViewport(new Vector2Int(ShotWidth, ShotHeight), new Rect(0f, 0f, ShotWidth, ShotHeight));
+
+    static void SetNotchedViewport() =>
+        ScreenFitMetrics.SetSimulatedViewport(
+            new Vector2Int(NarrowWidth, NarrowHeight),
+            ScreenFitMetrics.AsymmetricCutoutSafeRect(NarrowWidth, NarrowHeight));
+
+    static void CaptureDualAspect(Camera camera, string dir, string stem, Action onViewportReflow = null)
+    {
+        SetFullViewport();
+        Capture(camera, Path.Combine(dir, stem + ".png"), ShotWidth, ShotHeight, onViewportReflow);
+        SetNotchedViewport();
+        Capture(camera, Path.Combine(dir, $"{stem}_{NarrowWidth}x{NarrowHeight}.png"), NarrowWidth, NarrowHeight, onViewportReflow);
+        SetFullViewport();
+    }
+
+    static void CaptureQuadAspect(Camera camera, string dir, string stem, Action onViewportReflow = null)
+    {
+        CaptureDualAspect(camera, dir, stem, onViewportReflow);
+        ScreenFitMetrics.SetSimulatedViewport(new Vector2Int(UltraWidth, UltraHeight), new Rect(0f, 0f, UltraWidth, UltraHeight));
+        Capture(camera, Path.Combine(dir, $"{stem}_{UltraWidth}x{UltraHeight}.png"), UltraWidth, UltraHeight, onViewportReflow);
+        ScreenFitMetrics.SetSimulatedViewport(new Vector2Int(FoldWidth, FoldHeight), new Rect(0f, 0f, FoldWidth, FoldHeight));
+        Capture(camera, Path.Combine(dir, $"{stem}_{FoldWidth}x{FoldHeight}.png"), FoldWidth, FoldHeight, onViewportReflow);
+        SetFullViewport();
+    }
+
+    /// <summary>Renders `camera` into a `width` x `height` texture (reflowing SafeAreas and Canvases first) and writes it as a PNG.</summary>
+    static void Capture(Camera camera, string file, int width = ShotWidth, int height = ShotHeight, Action onViewportReflow = null)
+    {
+        var target = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 1 };
         target.Create();
         RenderTexture previousTarget = camera.targetTexture;
         camera.targetTexture = target;
-        camera.aspect = (float)ShotWidth / ShotHeight;
+        camera.aspect = (float)width / height;
         Canvas.ForceUpdateCanvases();
-        var request = new UniversalRenderPipeline.SingleCameraRequest { destination = target };
-        if (RenderPipeline.SupportsRenderRequest(camera, request)) RenderPipeline.SubmitRenderRequest(camera, request);
-        else camera.Render();
+        if (camera.gameObject.scene.IsValid())
+        {
+            GameObject[] roots = camera.gameObject.scene.GetRootGameObjects();
+            for (int r = 0; r < roots.Length; r++)
+            {
+                SafeArea[] safeAreas = roots[r].GetComponentsInChildren<SafeArea>(true);
+                for (int i = 0; i < safeAreas.Length; i++)
+                    safeAreas[i].ForceApply();
+            }
+        }
+        onViewportReflow?.Invoke();
+        Canvas.ForceUpdateCanvases();
+
+        bool prevAllowAsync = ShaderUtil.allowAsyncCompilation;
+        ShaderUtil.allowAsyncCompilation = false;
+        try
+        {
+            var request = new UniversalRenderPipeline.SingleCameraRequest { destination = target };
+            if (RenderPipeline.SupportsRenderRequest(camera, request)) RenderPipeline.SubmitRenderRequest(camera, request);
+            else camera.Render();
+
+            if (ShaderUtil.anythingCompiling)
+            {
+                for (int w = 0; w < 200 && ShaderUtil.anythingCompiling; w++)
+                    System.Threading.Thread.Sleep(25);
+                if (RenderPipeline.SupportsRenderRequest(camera, request)) RenderPipeline.SubmitRenderRequest(camera, request);
+                else camera.Render();
+            }
+        }
+        finally
+        {
+            ShaderUtil.allowAsyncCompilation = prevAllowAsync;
+        }
 
         RenderTexture previousActive = RenderTexture.active;
         RenderTexture.active = target;
-        var pixels = new Texture2D(ShotWidth, ShotHeight, TextureFormat.RGB24, false);
-        pixels.ReadPixels(new Rect(0, 0, ShotWidth, ShotHeight), 0, 0);
+        var pixels = new Texture2D(width, height, TextureFormat.RGB24, false);
+        pixels.ReadPixels(new Rect(0, 0, width, height), 0, 0);
         pixels.Apply();
         RenderTexture.active = previousActive;
         camera.targetTexture = previousTarget;

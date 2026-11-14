@@ -1,0 +1,701 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+
+namespace Kalyeah.Game
+{
+    /// <summary>
+    /// Push/pop UGUI screen stack for the Title/Home menu flow, handling Android Back navigation, a root
+    /// "Quit Kalyeah?" confirmation modal, and PlayerPrefs persistence for <see cref="AppSession.Current"/>
+    /// and <see cref="SettingsStore.Current"/>.
+    /// </summary>
+    public sealed class MenuStack : IDisposable
+    {
+        public const string HomeId = "home";
+        public const string PickId = "pick";
+        public const string CodexId = "codex";
+        public const string HistoryId = "history";
+        public const string SettingsId = "settings";
+        public const string LobbyId = "lobby";
+        public const string HotspotId = "hotspot";
+
+        static readonly Color ScrimColor = new Color(0.03f, 0.05f, 0.12f, 0.80f);
+        static readonly Color InkBorderColor = new Color(0.10f, 0.08f, 0.14f, 0.98f);
+        static readonly Color CardBodyColor = new Color(0.98f, 0.95f, 0.88f, 1f);
+        static readonly Color HeaderBandColor = new Color(0.95f, 0.63f, 0.16f, 1f);
+        static readonly Color CancelBtnColor = new Color(0.22f, 0.44f, 0.78f, 1f);
+        static readonly Color QuitBtnColor = new Color(0.86f, 0.25f, 0.22f, 1f);
+        static readonly Color EspressoText = new Color(0.16f, 0.12f, 0.10f, 1f);
+
+        static readonly Dictionary<string, Sprite> UiSpriteCache = new Dictionary<string, Sprite>(StringComparer.Ordinal);
+        static Sprite _roundedSprite;
+
+        sealed class ScreenEntry
+        {
+            public string Id;
+            public RectTransform Root;
+            public Action OnShow;
+            public Action OnHide;
+            public Func<bool> OnBackOverride;
+        }
+
+        sealed class StackLifecycle : MonoBehaviour
+        {
+            public MenuStack Owner;
+
+            void OnEnable() => Owner?.RefreshModalLayout();
+
+            void OnRectTransformDimensionsChange() => Owner?.RefreshModalLayout();
+
+            void OnApplicationPause(bool paused)
+            {
+                if (paused) Owner?.SavePersistedState();
+            }
+
+            void OnDestroy() => Owner?.DetachPersistenceListeners();
+        }
+
+        readonly Dictionary<string, ScreenEntry> _screens = new Dictionary<string, ScreenEntry>(StringComparer.Ordinal);
+        readonly List<string> _stack = new List<string>(8);
+        readonly Action _onQuitConfirmed;
+        readonly AudioHub _audio;
+
+        Transform _modalParent;
+        Canvas _canvas;
+        RectTransform _quitModalRoot;
+        RectTransform _quitCard;
+        RectTransform _cancelRect;
+        RectTransform _quitRect;
+        Text _quitTitleLabel;
+        Text _quitBodyLabel;
+        Text _cancelLabel;
+        Text _quitLabel;
+        Button _cancelButton;
+        Button _quitButton;
+        StackLifecycle _lifecycle;
+        string _defaultRootId;
+        bool _persistenceBound;
+        bool _disposed;
+
+        public event Action<string> ScreenChanged;
+        public event Action<bool> QuitModalChanged;
+
+        public string CurrentId => _stack.Count > 0 ? _stack[_stack.Count - 1] : null;
+
+        public RectTransform CurrentRoot =>
+            CurrentId != null && _screens.TryGetValue(CurrentId, out ScreenEntry entry) ? entry.Root : null;
+
+        public int Depth => _stack.Count;
+
+        public bool IsAtRoot => _stack.Count <= 1;
+
+        public bool IsQuitModalOpen => _quitModalRoot != null && _quitModalRoot.gameObject.activeSelf;
+
+        public RectTransform QuitModalRoot => _quitModalRoot;
+
+        public Button QuitCancelButton => _cancelButton;
+
+        public Button QuitConfirmButton => _quitButton;
+
+        public MenuStack(Transform modalParent = null, Action onQuitConfirmed = null, AudioHub audio = null)
+        {
+            _modalParent = modalParent;
+            _onQuitConfirmed = onQuitConfirmed ?? DefaultQuitApplication;
+            _audio = audio;
+
+            if (_modalParent != null)
+            {
+                _canvas = _modalParent.GetComponentInParent<Canvas>();
+                EnsureLifecycle(_modalParent.gameObject);
+                BuildQuitModal(_modalParent);
+            }
+        }
+
+        public void Register(string id, RectTransform root, Action onShow = null)
+        {
+            Register(id, root, onShow, null, null);
+        }
+
+        public void Register(
+            string id,
+            RectTransform root,
+            Action onShow,
+            Action onHide,
+            Func<bool> onBackOverride = null)
+        {
+            if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("Screen id cannot be empty.", nameof(id));
+            if (root == null) throw new ArgumentNullException(nameof(root));
+
+            string key = id.Trim();
+            _screens[key] = new ScreenEntry
+            {
+                Id = key,
+                Root = root,
+                OnShow = onShow,
+                OnHide = onHide,
+                OnBackOverride = onBackOverride,
+            };
+
+            if (_defaultRootId == null || string.Equals(key, HomeId, StringComparison.Ordinal))
+                _defaultRootId = key;
+
+            if (_modalParent == null && root.parent != null)
+            {
+                _modalParent = root.parent;
+                _canvas = _modalParent.GetComponentInParent<Canvas>();
+                EnsureLifecycle(_modalParent.gameObject);
+                BuildQuitModal(_modalParent);
+            }
+
+            bool isActiveTop = string.Equals(CurrentId, key, StringComparison.Ordinal);
+            root.gameObject.SetActive(isActiveTop);
+            KeepModalOnTop();
+        }
+
+        public bool Contains(string id) => !string.IsNullOrWhiteSpace(id) && _screens.ContainsKey(id.Trim());
+
+        public void Push(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return;
+            string key = id.Trim();
+            if (!_screens.TryGetValue(key, out ScreenEntry target) || target.Root == null) return;
+
+            HideQuitModal(playSound: false);
+
+            string previousId = CurrentId;
+            if (string.Equals(previousId, key, StringComparison.Ordinal))
+            {
+                target.Root.gameObject.SetActive(true);
+                KeepModalOnTop();
+                target.OnShow?.Invoke();
+                FocusInitialSelectable(target.Root);
+                return;
+            }
+
+            if (previousId != null && _screens.TryGetValue(previousId, out ScreenEntry previous) && previous.Root != null)
+            {
+                previous.Root.gameObject.SetActive(false);
+                previous.OnHide?.Invoke();
+            }
+
+            int existingIndex = _stack.IndexOf(key);
+            if (existingIndex >= 0)
+            {
+                _stack.RemoveRange(existingIndex + 1, _stack.Count - existingIndex - 1);
+            }
+            else
+            {
+                if (_stack.Count == 0 && _defaultRootId != null && !string.Equals(_defaultRootId, key, StringComparison.Ordinal)
+                    && _screens.TryGetValue(_defaultRootId, out ScreenEntry rootEntry) && rootEntry.Root != null)
+                {
+                    rootEntry.Root.gameObject.SetActive(false);
+                    _stack.Add(_defaultRootId);
+                }
+                _stack.Add(key);
+            }
+
+            target.Root.gameObject.SetActive(true);
+            target.Root.SetAsLastSibling();
+            KeepModalOnTop();
+            target.OnShow?.Invoke();
+            FocusInitialSelectable(target.Root);
+            ScreenChanged?.Invoke(key);
+        }
+
+        public void Pop()
+        {
+            if (IsQuitModalOpen)
+            {
+                HideQuitModal(playSound: true);
+                return;
+            }
+
+            if (_stack.Count <= 1) return;
+
+            string poppedId = _stack[_stack.Count - 1];
+            _stack.RemoveAt(_stack.Count - 1);
+
+            if (_screens.TryGetValue(poppedId, out ScreenEntry popped) && popped.Root != null)
+            {
+                popped.Root.gameObject.SetActive(false);
+                popped.OnHide?.Invoke();
+            }
+
+            string nextId = CurrentId;
+            if (nextId != null && _screens.TryGetValue(nextId, out ScreenEntry next) && next.Root != null)
+            {
+                next.Root.gameObject.SetActive(true);
+                next.Root.SetAsLastSibling();
+                KeepModalOnTop();
+                next.OnShow?.Invoke();
+                FocusInitialSelectable(next.Root);
+            }
+
+            PlayFeedback(cancel: true);
+            ScreenChanged?.Invoke(nextId);
+        }
+
+        public void PopToRoot()
+        {
+            HideQuitModal(playSound: false);
+            if (_stack.Count <= 1) return;
+
+            for (int i = _stack.Count - 1; i >= 1; i--)
+            {
+                string id = _stack[i];
+                if (_screens.TryGetValue(id, out ScreenEntry entry) && entry.Root != null)
+                {
+                    entry.Root.gameObject.SetActive(false);
+                    entry.OnHide?.Invoke();
+                }
+                _stack.RemoveAt(i);
+            }
+
+            string rootId = CurrentId;
+            if (rootId != null && _screens.TryGetValue(rootId, out ScreenEntry root) && root.Root != null)
+            {
+                root.Root.gameObject.SetActive(true);
+                root.Root.SetAsLastSibling();
+                KeepModalOnTop();
+                root.OnShow?.Invoke();
+                FocusInitialSelectable(root.Root);
+            }
+
+            ScreenChanged?.Invoke(rootId);
+        }
+
+        /// <summary>
+        /// Handles Android Back / Escape: dismisses the Quit modal if open, lets an active subscreen consume Back if needed,
+        /// pops back toward Home when deeper in the stack, or opens the "Quit Kalyeah?" confirmation modal on Home.
+        /// </summary>
+        public bool HandleBack()
+        {
+            if (IsQuitModalOpen)
+            {
+                HideQuitModal(playSound: true);
+                return true;
+            }
+
+            string activeId = CurrentId;
+            if (activeId != null && _screens.TryGetValue(activeId, out ScreenEntry active) && active.OnBackOverride != null)
+            {
+                if (active.OnBackOverride.Invoke())
+                    return true;
+            }
+
+            if (_stack.Count > 1)
+            {
+                Pop();
+                return true;
+            }
+
+            ShowQuitModal();
+            return true;
+        }
+
+        public void ShowQuitModal()
+        {
+            if (_quitModalRoot == null)
+            {
+                Transform targetParent = _modalParent ?? CurrentRoot?.parent ?? CurrentRoot;
+                if (targetParent == null) return;
+                _modalParent = targetParent;
+                _canvas = _modalParent.GetComponentInParent<Canvas>();
+                EnsureLifecycle(_modalParent.gameObject);
+                BuildQuitModal(_modalParent);
+            }
+
+            RefreshQuitCopy();
+            RefreshModalLayout();
+            _quitModalRoot.gameObject.SetActive(true);
+            _quitModalRoot.SetAsLastSibling();
+            PlayFeedback(cancel: false);
+            FocusInitialSelectable(_quitModalRoot);
+            QuitModalChanged?.Invoke(true);
+        }
+
+        public void HideQuitModal() => HideQuitModal(playSound: true);
+
+        void HideQuitModal(bool playSound)
+        {
+            if (_quitModalRoot == null || !_quitModalRoot.gameObject.activeSelf) return;
+            _quitModalRoot.gameObject.SetActive(false);
+            if (playSound) PlayFeedback(cancel: true);
+            if (CurrentRoot != null) FocusInitialSelectable(CurrentRoot);
+            QuitModalChanged?.Invoke(false);
+        }
+
+        public void ConfirmQuit()
+        {
+            SavePersistedState();
+            PlayFeedback(cancel: false);
+            if (_quitModalRoot != null)
+                _quitModalRoot.gameObject.SetActive(false);
+            _onQuitConfirmed?.Invoke();
+        }
+
+        /// <summary>Loads <see cref="SettingsStore.Current"/> and <see cref="AppSession.Current"/> from <see cref="PlayerPrefs"/> and binds auto-save.</summary>
+        public void LoadPersistedState()
+        {
+            LoadPersistedState(AppSession.Current, SettingsStore.Current);
+            BindPersistenceListeners();
+        }
+
+        /// <summary>Saves <see cref="SettingsStore.Current"/> and <see cref="AppSession.Current"/> to <see cref="PlayerPrefs"/>.</summary>
+        public void SavePersistedState()
+        {
+            SavePersistedState(AppSession.Current, SettingsStore.Current);
+        }
+
+        public static void LoadPersistedState(AppSession session, SettingsStore settings)
+        {
+            if (settings != null && PlayerPrefs.HasKey(SettingsStore.PlayerPrefsKey))
+            {
+                string settingsJson = PlayerPrefs.GetString(SettingsStore.PlayerPrefsKey, "");
+                settings.LoadJson(settingsJson);
+            }
+
+            if (settings != null)
+            {
+                Haptics.Enabled = settings.Haptics;
+                if (settings.TargetFrameRate > 0)
+                    Application.targetFrameRate = settings.TargetFrameRate;
+            }
+
+            if (session != null && PlayerPrefs.HasKey(AppSession.PlayerPrefsKey))
+            {
+                string sessionJson = PlayerPrefs.GetString(AppSession.PlayerPrefsKey, "");
+                session.LoadJson(sessionJson);
+            }
+        }
+
+        public static void SavePersistedState(AppSession session, SettingsStore settings)
+        {
+            if (settings != null)
+            {
+                Haptics.Enabled = settings.Haptics;
+                PlayerPrefs.SetString(SettingsStore.PlayerPrefsKey, settings.ToJson());
+            }
+
+            if (session != null)
+            {
+                PlayerPrefs.SetString(AppSession.PlayerPrefsKey, session.ToJson());
+            }
+
+            PlayerPrefs.Save();
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            DetachPersistenceListeners();
+            if (_quitModalRoot != null)
+            {
+                KalyeahResources.Kill(_quitModalRoot.gameObject);
+                _quitModalRoot = null;
+            }
+        }
+
+        void BindPersistenceListeners()
+        {
+            if (_persistenceBound) return;
+            _persistenceBound = true;
+            AppSession.Current.Changed += OnStateChanged;
+            SettingsStore.Current.Changed += OnStateChanged;
+        }
+
+        void DetachPersistenceListeners()
+        {
+            if (!_persistenceBound) return;
+            _persistenceBound = false;
+            AppSession.Current.Changed -= OnStateChanged;
+            SettingsStore.Current.Changed -= OnStateChanged;
+        }
+
+        void OnStateChanged()
+        {
+            SavePersistedState();
+            if (IsQuitModalOpen) RefreshQuitCopy();
+        }
+
+        void EnsureLifecycle(GameObject host)
+        {
+            if (_lifecycle != null || host == null) return;
+            _lifecycle = host.GetComponent<StackLifecycle>();
+            if (_lifecycle == null) _lifecycle = host.AddComponent<StackLifecycle>();
+            _lifecycle.Owner = this;
+        }
+
+        void BuildQuitModal(Transform parent)
+        {
+            if (_quitModalRoot != null || parent == null) return;
+
+            _quitModalRoot = Ui.Fill("QuitModal", parent);
+            Image scrim = _quitModalRoot.gameObject.AddComponent<Image>();
+            scrim.color = ScrimColor;
+            scrim.raycastTarget = true;
+
+            RectTransform inkOuter = Ui.Panel(
+                "QuitCardFrame",
+                _quitModalRoot,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                Vector2.zero,
+                new Vector2(500f, 286f));
+            Image outerImg = inkOuter.gameObject.AddComponent<Image>();
+            outerImg.sprite = RoundedSprite();
+            outerImg.type = Image.Type.Sliced;
+            outerImg.color = InkBorderColor;
+            outerImg.raycastTarget = true;
+            _quitCard = inkOuter;
+
+            RectTransform body = Ui.Fill("QuitCardBody", inkOuter);
+            body.offsetMin = new Vector2(6f, 6f);
+            body.offsetMax = new Vector2(-6f, -6f);
+            Image bodyImg = body.gameObject.AddComponent<Image>();
+            bodyImg.sprite = TryUiSprite("ui/panel") ?? RoundedSprite();
+            bodyImg.type = bodyImg.sprite == _roundedSprite ? Image.Type.Sliced : Image.Type.Simple;
+            bodyImg.color = CardBodyColor;
+            bodyImg.raycastTarget = false;
+
+            RectTransform headerBand = Ui.Panel(
+                "HeaderBand",
+                body,
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(0.5f, 1f),
+                Vector2.zero,
+                new Vector2(0f, 74f));
+            Image headerImg = headerBand.gameObject.AddComponent<Image>();
+            headerImg.sprite = RoundedSprite();
+            headerImg.type = Image.Type.Sliced;
+            headerImg.color = HeaderBandColor;
+            headerImg.raycastTarget = false;
+
+            _quitTitleLabel = Ui.MakeText(
+                "QuitTitle",
+                headerBand,
+                "Quit Kalyeah?",
+                34,
+                Ui.Cream,
+                TextAnchor.MiddleCenter,
+                KalyeahResources.DisplayFont());
+            RectTransform titleRect = _quitTitleLabel.rectTransform;
+            titleRect.anchorMin = Vector2.zero;
+            titleRect.anchorMax = Vector2.one;
+            titleRect.offsetMin = new Vector2(16f, 4f);
+            titleRect.offsetMax = new Vector2(-16f, -4f);
+
+            _quitBodyLabel = Ui.MakeText(
+                "QuitMessage",
+                body,
+                "Head home from the street and close the game?",
+                22,
+                EspressoText,
+                TextAnchor.MiddleCenter);
+            _quitBodyLabel.GetComponent<Outline>().enabled = false;
+            _quitBodyLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _quitBodyLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            RectTransform msgRect = _quitBodyLabel.rectTransform;
+            msgRect.anchorMin = new Vector2(0f, 0.44f);
+            msgRect.anchorMax = new Vector2(1f, 0.72f);
+            msgRect.offsetMin = new Vector2(24f, 0f);
+            msgRect.offsetMax = new Vector2(-24f, 0f);
+
+            _cancelButton = MakeModalButton(
+                "Cancel",
+                body,
+                "Cancel",
+                CancelBtnColor,
+                "ui/button_blue",
+                new Vector2(0f, 0f),
+                new Vector2(0f, 0f),
+                new Vector2(22f, 18f),
+                out _cancelRect,
+                out _cancelLabel);
+            _cancelButton.onClick.AddListener(() => HideQuitModal(playSound: true));
+
+            _quitButton = MakeModalButton(
+                "Quit",
+                body,
+                "Quit",
+                QuitBtnColor,
+                "ui/button_red",
+                new Vector2(1f, 0f),
+                new Vector2(1f, 0f),
+                new Vector2(-22f, 18f),
+                out _quitRect,
+                out _quitLabel);
+            _quitButton.onClick.AddListener(ConfirmQuit);
+
+            RefreshQuitCopy();
+            RefreshModalLayout();
+            _quitModalRoot.gameObject.SetActive(false);
+        }
+
+        static Button MakeModalButton(
+            string name,
+            Transform parent,
+            string text,
+            Color tint,
+            string resourcePath,
+            Vector2 anchor,
+            Vector2 pivot,
+            Vector2 anchoredPos,
+            out RectTransform rect,
+            out Text label)
+        {
+            rect = Ui.Panel(name, parent, anchor, anchor, pivot, anchoredPos, new Vector2(206f, 96f));
+            Image bg = rect.gameObject.AddComponent<Image>();
+            Sprite art = TryUiSprite(resourcePath);
+            bg.sprite = art != null ? art : RoundedSprite();
+            bg.type = art != null ? Image.Type.Simple : Image.Type.Sliced;
+            bg.color = art != null ? Color.white : tint;
+            bg.raycastTarget = true;
+
+            Button btn = rect.gameObject.AddComponent<Button>();
+            btn.targetGraphic = bg;
+            ColorBlock colors = btn.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(1f, 0.97f, 0.88f, 1f);
+            colors.pressedColor = new Color(0.84f, 0.84f, 0.88f, 1f);
+            btn.colors = colors;
+
+            label = Ui.MakeText("Label", rect, text, 28, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            RectTransform lr = label.rectTransform;
+            lr.anchorMin = Vector2.zero;
+            lr.anchorMax = Vector2.one;
+            lr.offsetMin = new Vector2(10f, 4f);
+            lr.offsetMax = new Vector2(-10f, -4f);
+            return btn;
+        }
+
+        void RefreshQuitCopy()
+        {
+            if (_quitTitleLabel == null) return;
+            bool fil = string.Equals(SettingsStore.Current.Language, "fil", StringComparison.OrdinalIgnoreCase);
+            _quitTitleLabel.text = "Quit Kalyeah?";
+            _quitBodyLabel.text = fil
+                ? "Uuwi ka na ba mula sa kalye at isasara ang laro?"
+                : "Leave the street and close the game?";
+            _cancelLabel.text = "Cancel";
+            _quitLabel.text = "Quit";
+        }
+
+        void RefreshModalLayout()
+        {
+            if (_quitCard == null) return;
+            if (_canvas == null && _modalParent != null)
+                _canvas = _modalParent.GetComponentInParent<Canvas>();
+
+            Vector2 safe = ScreenFitMetrics.SafeCanvasSize(_canvas);
+            float minTouch = ScreenFitMetrics.ClampTouchSize(96f, ScreenFitMetrics.MinTouchDp, _canvas);
+            float cardWidth = Mathf.Clamp(safe.x - 48f, Mathf.Max(360f, minTouch * 2f + 72f), 520f);
+            float btnHeight = Mathf.Clamp(minTouch, 96f, 112f);
+            float cardHeight = Mathf.Clamp(btnHeight + 190f, 286f, Mathf.Max(286f, safe.y - 32f));
+            float innerWidth = cardWidth - 12f;
+            float btnWidth = Mathf.Max(minTouch, (innerWidth - 56f) * 0.5f);
+
+            _quitCard.sizeDelta = new Vector2(cardWidth, cardHeight);
+            if (_cancelRect != null) _cancelRect.sizeDelta = new Vector2(btnWidth, btnHeight);
+            if (_quitRect != null) _quitRect.sizeDelta = new Vector2(btnWidth, btnHeight);
+        }
+
+        void KeepModalOnTop()
+        {
+            if (_quitModalRoot != null)
+                _quitModalRoot.SetAsLastSibling();
+        }
+
+        void PlayFeedback(bool cancel)
+        {
+            if (cancel) Haptics.CancelTick();
+            else Haptics.LightTap();
+            _audio?.PlayUiTap(cancel);
+        }
+
+        static void FocusInitialSelectable(RectTransform screenRoot)
+        {
+            if (screenRoot == null || EventSystem.current == null) return;
+            Selectable[] selectables = screenRoot.GetComponentsInChildren<Selectable>(false);
+            for (int i = 0; i < selectables.Length; i++)
+            {
+                Selectable s = selectables[i];
+                if (s != null && s.IsActive() && s.interactable)
+                {
+                    EventSystem.current.SetSelectedGameObject(s.gameObject);
+                    return;
+                }
+            }
+        }
+
+        internal static Sprite TryUiSprite(string resourcePath)
+        {
+            if (string.IsNullOrEmpty(resourcePath)) return null;
+            if (UiSpriteCache.TryGetValue(resourcePath, out Sprite cached) && cached != null)
+                return cached;
+            Texture2D tex = KalyeahResources.Texture(resourcePath);
+            if (tex == null) return null;
+            var sprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+            sprite.name = tex.name;
+            UiSpriteCache[resourcePath] = sprite;
+            return sprite;
+        }
+
+        internal static Sprite RoundedSprite()
+        {
+            if (_roundedSprite != null) return _roundedSprite;
+            const int size = 32;
+            const int radius = 9;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = "KalyeahMenuRounded",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = 0f;
+                    if (x < radius) dx = radius - (x + 0.5f);
+                    else if (x >= size - radius) dx = (x + 0.5f) - (size - radius);
+
+                    float dy = 0f;
+                    if (y < radius) dy = radius - (y + 0.5f);
+                    else if (y >= size - radius) dy = (y + 0.5f) - (size - radius);
+
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    byte a = (byte)(Mathf.Clamp01(radius + 0.5f - dist) * 255f);
+                    pixels[y * size + x] = new Color32(255, 255, 255, a);
+                }
+            }
+            tex.SetPixels32(pixels);
+            tex.Apply(false, true);
+            _roundedSprite = Sprite.Create(
+                tex,
+                new Rect(0f, 0f, size, size),
+                new Vector2(0.5f, 0.5f),
+                100f,
+                0u,
+                SpriteMeshType.FullRect,
+                new Vector4(radius, radius, radius, radius));
+            _roundedSprite.name = "KalyeahMenuRounded";
+            return _roundedSprite;
+        }
+
+        static void DefaultQuitApplication()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
+    }
+}

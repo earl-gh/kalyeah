@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -5,16 +6,36 @@ using UnityEngine.UI;
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// A first-pass title in landscape: the studio's boot icon, the game's name, the ten kids' portraits and one Play button (a 5v5
-    /// practice match). The Godot game's menus (cards, games, history, settings, lobby) are not ported yet. Back asks nothing yet: it
-    /// leaves the app (the Godot title asks "Quit game?" first; to port).
+    /// Landscape Title &amp; Multiplayer Hub: boots EnhancedTouch, loads persisted session/settings, starts BGM via AudioHub,
+    /// and registers all 7 menu screens (Home, Pick, Codex, History, Settings, Hotspot, Lobby) on MenuStack.
     /// </summary>
     public sealed class TitleScreen : MonoBehaviour
     {
         public const string SceneName = "Title";
-        static readonly Color Sky = new Color(0.98f, 0.70f, 0.36f);
-        static readonly Color Dusk = new Color(0.36f, 0.20f, 0.42f);
-        static readonly Color PlayColor = new Color(0.98f, 0.78f, 0.18f);
+        static readonly Color Dusk = new Color(0.06f, 0.09f, 0.18f, 1f);
+
+        Canvas _canvas;
+        AudioHub _audio;
+        MenuStack _stack;
+        HomeScreenView _home;
+        PickScreenView _pick;
+        CodexScreenView _codex;
+        HistoryScreenView _history;
+        SettingsScreenView _settings;
+        HotspotFlowView _hotspot;
+        LobbyScreenView _lobby;
+        bool _settingsSubscribed;
+
+        public Canvas Canvas => _canvas;
+        public MenuStack Stack => _stack;
+        public AudioHub Audio => _audio;
+        public HomeScreenView Home => _home;
+        public PickScreenView Pick => _pick;
+        public CodexScreenView Codex => _codex;
+        public HistoryScreenView History => _history;
+        public SettingsScreenView Settings => _settings;
+        public HotspotFlowView Hotspot => _hotspot;
+        public LobbyScreenView Lobby => _lobby;
 
         void Awake()
         {
@@ -23,97 +44,275 @@ namespace Kalyeah.Game
             Screen.autorotateToPortraitUpsideDown = false;
             Screen.autorotateToLandscapeLeft = true;
             Screen.autorotateToLandscapeRight = true;
+
+            ScreenFitMetrics.EnsureEnhancedTouch();
             Ui.EnsureEventSystem();
-            var camera = new GameObject("TitleCamera", typeof(Camera)).GetComponent<Camera>();
-            camera.transform.SetParent(transform, false);
-            Build(transform, camera, () => SceneManager.LoadScene(MatchBoot.SceneName));
+
+            var cameraGo = new GameObject("TitleCamera", typeof(Camera));
+            cameraGo.transform.SetParent(transform, false);
+            if (FindAnyObjectByType<AudioListener>() == null)
+                cameraGo.AddComponent<AudioListener>();
+            var camera = cameraGo.GetComponent<Camera>();
+            ConfigureCamera(camera);
+
+            DataSource data = KalyeahResources.Data();
+            _canvas = Ui.MakeCanvas("Title", transform, camera);
+
+            _audio = new AudioHub(transform);
+            _audio.BindRules(data);
+
+            _stack = new MenuStack(_canvas.transform, null, _audio);
+            _stack.LoadPersistedState();
+            ResetStaleSessionMode();
+
+            BindSettings();
+            _audio.PlayBgm();
+
+            RegisterHubPages(data, LaunchMatchScene);
+            _stack.Push(MenuStack.HomeId);
         }
 
         void Update()
         {
-            if (MatchBoot.BackPressed()) Application.Quit();
+            if (MatchBoot.BackPressed())
+            {
+                QrCodeView qrModal = _canvas != null ? _canvas.GetComponentInChildren<QrCodeView>(false) : null;
+                if (qrModal != null)
+                {
+                    qrModal.Close();
+                    return;
+                }
+
+                _stack?.HandleBack();
+                return;
+            }
+
+            float dt = Time.deltaTime;
+            string activeId = _stack?.CurrentId;
+            if (activeId == MenuStack.HotspotId && _hotspot != null)
+            {
+                _hotspot.Tick(dt);
+            }
+            else if (activeId == MenuStack.LobbyId && _lobby != null)
+            {
+                _lobby.Tick(dt);
+            }
+            else
+            {
+                AppSession.Current.PollNetwork(dt);
+            }
+        }
+
+        void OnDestroy()
+        {
+            if (_settingsSubscribed)
+            {
+                _settingsSubscribed = false;
+                SettingsStore.Current.Changed -= ApplyAudioSettings;
+            }
+
+            _lobby?.Dispose();
+            _lobby = null;
+
+            _hotspot?.Dispose();
+            _hotspot = null;
+
+            _settings?.Dispose();
+            _settings = null;
+
+            _history?.Dispose();
+            _history = null;
+
+            _codex?.Dispose();
+            _codex = null;
+
+            _home?.Dispose();
+            _home = null;
+
+            _pick = null;
+
+            _stack?.Dispose();
+            _stack = null;
+
+            _audio?.Dispose();
+            _audio = null;
         }
 
         /// <summary>
-        /// Builds the title under `parent`, drawn by `camera` (a plain colour behind it). `play` runs when Play is tapped (null: not
-        /// clickable, the screenshot).
+        /// Builds the Home Hub under <paramref name="parent"/> drawn by <paramref name="camera"/>.
+        /// When <paramref name="play"/> is null (screenshot capture), raycasting is disabled while keeping full normal visuals.
         /// </summary>
         public static Canvas Build(Transform parent, Camera camera, UnityEngine.Events.UnityAction play)
         {
+            ScreenFitMetrics.EnsureEnhancedTouch();
+            ConfigureCamera(camera);
+
+            Canvas canvas = Ui.MakeCanvas("Title", parent, camera);
+            if (play == null)
+            {
+                GraphicRaycaster raycaster = canvas.GetComponent<GraphicRaycaster>();
+                if (raycaster != null) raycaster.enabled = false;
+            }
+
+            DataSource data = KalyeahResources.Data();
+            var home = new HomeScreenView(
+                canvas.transform,
+                data,
+                onNavigate: null,
+                onLaunchMatch: mode =>
+                {
+                    AppSession.Current.Mode = mode;
+                    MenuStack.SavePersistedState(AppSession.Current, SettingsStore.Current);
+                    play?.Invoke();
+                });
+            home.Refresh();
+            home.RefreshLayout();
+            return canvas;
+        }
+
+        public void BindSettings()
+        {
+            if (!_settingsSubscribed)
+            {
+                _settingsSubscribed = true;
+                SettingsStore.Current.Changed += ApplyAudioSettings;
+            }
+            ApplyAudioSettings();
+        }
+
+        void ApplyAudioSettings()
+        {
+            SettingsStore s = SettingsStore.Current;
+            AudioListener.volume = Mathf.Clamp01(s.MasterVolume);
+            _audio?.BindVolumes(s.MusicVolume, s.SfxVolume, s.MusicEnabled, s.SoundsEnabled, s.MasterVolume);
+        }
+
+        void RegisterHubPages(DataSource data, Action<GameMode> onLaunchMatch)
+        {
+            Transform pageRoot = _canvas.transform;
+            Action<Action<string>> scanRequester = QrCodeView.MakeScanRequester(pageRoot);
+
+            _home = new HomeScreenView(
+                pageRoot,
+                data,
+                onNavigate: _stack.Push,
+                onLaunchMatch: onLaunchMatch,
+                audio: _audio);
+
+            _pick = new PickScreenView(
+                pageRoot,
+                data,
+                onBack: _stack.Pop,
+                onConfirmed: _stack.Pop)
+            {
+                Audio = _audio,
+            };
+
+            _codex = new CodexScreenView(pageRoot, data, onBack: _stack.Pop);
+            _history = new HistoryScreenView(pageRoot, data, onBack: _stack.Pop);
+            _settings = new SettingsScreenView(pageRoot, data, onBack: _stack.Pop);
+
+            _hotspot = new HotspotFlowView(
+                pageRoot,
+                data,
+                onBack: _stack.Pop,
+                onEnterLobby: () => _stack.Push(MenuStack.LobbyId),
+                qrSpriteProvider: QrCodeView.EncodeSprite,
+                lanIpProvider: AndroidLocalLink.GetLanIpv4,
+                qrScanRequester: scanRequester);
+
+            _lobby = new LobbyScreenView(
+                pageRoot,
+                data,
+                onBack: _stack.Pop,
+                onMatchStarted: () =>
+                {
+                    _stack.SavePersistedState();
+                    SceneManager.LoadScene(MatchBoot.SceneName);
+                },
+                onPickKid: () => _stack.Push(MenuStack.PickId),
+                qrSpriteProvider: QrCodeView.EncodeSprite,
+                lanIpProvider: AndroidLocalLink.GetLanIpv4,
+                qrScanRequester: scanRequester);
+
+            _stack.Register(
+                MenuStack.HomeId,
+                _home.Root,
+                onShow: () =>
+                {
+                    _home.Refresh();
+                    _home.RefreshLayout();
+                });
+
+            _stack.Register(
+                MenuStack.PickId,
+                _pick.Root,
+                onShow: () =>
+                {
+                    _pick.RefreshFromSession();
+                    _pick.RefreshResponsiveLayout();
+                });
+
+            _stack.Register(MenuStack.CodexId, _codex.Root, onShow: _codex.Show, onHide: _codex.Hide);
+            _stack.Register(MenuStack.HistoryId, _history.Root, onShow: _history.Show, onHide: _history.Hide);
+            _stack.Register(MenuStack.SettingsId, _settings.Root, onShow: _settings.Show, onHide: _settings.Hide);
+
+            _stack.Register(
+                MenuStack.HotspotId,
+                _hotspot.Root,
+                onShow: OnHotspotShown,
+                onHide: null,
+                onBackOverride: _hotspot.HandleBack);
+
+            _stack.Register(
+                MenuStack.LobbyId,
+                _lobby.Root,
+                onShow: _lobby.OnShow,
+                onHide: null,
+                onBackOverride: _lobby.HandleBack);
+        }
+
+        void OnHotspotShown()
+        {
+            if (_hotspot == null) return;
+            if (_hotspot.CurrentRole == HotspotFlowView.FlowRole.ChooseRole)
+            {
+                AppSession session = AppSession.Current;
+                if (session.Mode == GameMode.HotspotHost && session.Intent == LobbyIntent.Create)
+                {
+                    _hotspot.StartHostWizard();
+                    return;
+                }
+                if (session.Mode == GameMode.HotspotClient && session.Intent == LobbyIntent.Join)
+                {
+                    _hotspot.StartGuestWizard();
+                    return;
+                }
+            }
+            _hotspot.OnShow();
+        }
+
+        void LaunchMatchScene(GameMode mode)
+        {
+            AppSession.Current.Mode = mode;
+            _stack?.SavePersistedState();
+            SceneManager.LoadScene(MatchBoot.SceneName);
+        }
+
+        static void ResetStaleSessionMode()
+        {
+            AppSession session = AppSession.Current;
+            bool inActiveRoom = session.IsHosting || (session.Client != null && !session.Client.Room.IsEmpty);
+            if (!inActiveRoom && (session.Mode == GameMode.Online || session.Mode == GameMode.HotspotHost || session.Mode == GameMode.HotspotClient))
+                session.Mode = GameMode.Practice;
+        }
+
+        static void ConfigureCamera(Camera camera)
+        {
+            if (camera == null) return;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = Dusk;
             camera.orthographic = true;
-            Canvas canvas = Ui.MakeCanvas("Title", parent, camera);
-            RectTransform full = Ui.Fill("Backdrop", canvas.transform);
-
-            // a warm evening sky: two stacked colours (the owner's key art replaces it)
-            Image top = Ui.MakeImage("Sky", full, Sky);
-            top.rectTransform.anchorMin = new Vector2(0f, 0.35f);
-            top.rectTransform.anchorMax = Vector2.one;
-            top.rectTransform.sizeDelta = Vector2.zero;
-            Image bottom = Ui.MakeImage("Street", full, Dusk);
-            bottom.rectTransform.anchorMin = Vector2.zero;
-            bottom.rectTransform.anchorMax = new Vector2(1f, 0.35f);
-            bottom.rectTransform.sizeDelta = Vector2.zero;
-
-            RectTransform safe = Ui.Fill("SafeArea", canvas.transform);
-            safe.gameObject.AddComponent<SafeArea>().Apply();
-
-            Texture2D icon = KalyeahResources.Texture("ui/boot/boot_icon");
-            if (icon != null)
-            {
-                var go = new GameObject("BootIcon", typeof(RectTransform), typeof(RawImage));
-                go.transform.SetParent(safe, false);
-                var image = go.GetComponent<RawImage>();
-                image.texture = icon;
-                image.raycastTarget = false;
-                image.rectTransform.anchorMin = image.rectTransform.anchorMax = new Vector2(0.5f, 1f);
-                image.rectTransform.pivot = new Vector2(0.5f, 1f);
-                image.rectTransform.anchoredPosition = new Vector2(0f, -36f);
-                float tall = 120f;
-                image.rectTransform.sizeDelta = new Vector2(tall * icon.width / Mathf.Max(icon.height, 1), tall);
-            }
-
-            Text title = Ui.MakeText("Name", safe, "KALYEAH", 120, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            title.rectTransform.anchorMin = title.rectTransform.anchorMax = new Vector2(0.5f, 0.62f);
-
-            string[] kids = KalyeahResources.Data().CharacterIds();
-            const float size = 96f, gap = 10f;
-            float x0 = -(kids.Length * size + (kids.Length - 1) * gap) * 0.5f + size * 0.5f;
-            for (int i = 0; i < kids.Length; i++)
-            {
-                Texture2D art = KalyeahResources.Texture("portraits/" + kids[i]);
-                Image ring = Ui.MakeImage($"Kid_{kids[i]}", safe, Ui.Cream, round: true);
-                RectTransform r = ring.rectTransform;
-                r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.36f);
-                r.anchoredPosition = new Vector2(x0 + i * (size + gap), 0f);
-                r.sizeDelta = Vector2.one * size;
-                if (art == null) continue;
-                var go = new GameObject("Portrait", typeof(RectTransform), typeof(RawImage));
-                go.transform.SetParent(r, false);
-                var portrait = go.GetComponent<RawImage>();
-                portrait.texture = art;
-                portrait.raycastTarget = false;
-                portrait.rectTransform.anchorMin = Vector2.zero;
-                portrait.rectTransform.anchorMax = Vector2.one;
-                portrait.rectTransform.sizeDelta = Vector2.one * -8f;
-            }
-
-            Image plate = Ui.MakeImage("Play", safe, PlayColor, raycast: play != null);
-            RectTransform p = plate.rectTransform;
-            p.anchorMin = p.anchorMax = new Vector2(0.5f, 0f);
-            p.pivot = new Vector2(0.5f, 0f);
-            p.anchoredPosition = new Vector2(0f, 40f);
-            p.sizeDelta = new Vector2(320f, 96f);
-            Text label = Ui.MakeText("Label", p, "LARO!", 52, new Color(0.18f, 0.10f, 0.04f), TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            label.GetComponent<Outline>().enabled = false;
-            if (play != null)
-            {
-                Button button = plate.gameObject.AddComponent<Button>();
-                button.targetGraphic = plate;
-                button.onClick.AddListener(play);
-            }
-            return canvas;
         }
     }
 }

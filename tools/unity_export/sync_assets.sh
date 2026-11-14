@@ -2,33 +2,26 @@
 # Copies what the Unity project needs from the Godot project and the shared sim into unity/Game, before Unity opens it.
 # Nothing it writes is kept in git (unity/.gitignore, unity/Game/.gitignore): the Godot project stays the one source of the art.
 #
-#   assets/models/{characters,barangay,props,weapons}, assets/{textures,audio,fonts,ui,icons,portraits}
-#       -> unity/Game/Assets/Imported/Resources/<same path under assets/>  (glTFast imports each .glb as a prefab; Resources.Load finds it)
-#   unity/Data/*.json
-#       -> unity/Game/Assets/Imported/Resources/Data/                       (TextAssets: Resources.Load<TextAsset>("Data/rules__game_rules"))
-#   unity/Kalyeah.Sim/**/*.cs + Kalyeah.Sim.asmdef
-#       -> unity/Game/Packages/com.kalyeah.sim/Runtime/                     (an embedded package; its package.json is written here too)
-#
-# The package version says whether the sim port has landed (a `class MatchSim` in unity/Kalyeah.Sim): 1.0.0 when it has, 0.1.0 while
-# not. Kalyeah.Game.Core.asmdef turns 1.0.0 into the KALYEAH_SIM_PORTED define (versionDefines), which switches SimBridge from its
-# stand-in to the real sim. Godot-only files (*.import, *.uid, *.tres, *.tscn, *.gd, shaders) are left out, and the .meta files Unity
-# writes next to the copies are kept, so a second run does not make Unity import everything again.
-#
-# Usage: tools/unity_export/sync_assets.sh   (from anywhere in the repository; needs bash, uses rsync when it is installed, else cp)
+# Delegates to tools/unity_export/sync_assets.py (cross-platform Python 3 + Pillow .webp -> .png conversion + i18n CSV sync)
+# when Python 3 is available, keeping a bash fallback below.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+for py in python3 python; do
+	if command -v "$py" > /dev/null 2>&1 && "$py" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 8) else 1)' > /dev/null 2>&1; then
+		exec "$py" "$ROOT/tools/unity_export/sync_assets.py" "$@"
+	fi
+done
+
 GAME="$ROOT/unity/Game"
 IMPORTED="$GAME/Assets/Imported/Resources"
 SIM_SRC="$ROOT/unity/Kalyeah.Sim"
 SIM_PKG="$GAME/Packages/com.kalyeah.sim"
 
 ASSET_DIRS=(models/characters models/barangay models/props models/weapons textures audio fonts ui icons portraits)
-GODOT_ONLY=('*.import' '*.uid' '*.tres' '*.res' '*.tscn' '*.gd' '*.gdshader' '*.godot')
+GODOT_ONLY=('*.import' '*.uid' '*.tres' '*.res' '*.tscn' '*.gd' '*.gdshader' '*.godot' '.gdignore')
 
-# mirror SRC DEST [exclude-glob...]: DEST gets every file of SRC except the excluded ones. With rsync, files gone from SRC are removed
-# from DEST too (Unity's .meta files are always kept). Without rsync it only copies over: run `git clean -xdf unity/Game/Assets/Imported`
-# after deleting an asset in the Godot project.
 mirror() {
 	local src="$1" dest="$2"
 	shift 2
@@ -56,10 +49,11 @@ for dir in "${ASSET_DIRS[@]}"; do
 done
 
 mirror "$ROOT/unity/Data" "$IMPORTED/Data"
+if [[ -f "$ROOT/data/i18n/strings.csv" ]]; then
+	cp "$ROOT/data/i18n/strings.csv" "$IMPORTED/Data/i18n__strings.csv"
+fi
 
-# The shared sim as an embedded package: sources and the asmdef only (no .NET build output, no csproj).
 mirror "$SIM_SRC" "$SIM_PKG/Runtime" 'bin' 'obj' '*.csproj' '*.csproj.user'
-# the network layer (rooms, protocol, client, hotspot host and finder) rides in the same package, in its own assembly (Kalyeah.Net.asmdef)
 mirror "$ROOT/unity/Kalyeah.Net" "$SIM_PKG/Net" 'bin' 'obj' '*.csproj' '*.csproj.user'
 version="0.1.0"
 if grep -rqsE --include='*.cs' 'class[[:space:]]+MatchSim([^A-Za-z0-9_]|$)' "$SIM_SRC"; then

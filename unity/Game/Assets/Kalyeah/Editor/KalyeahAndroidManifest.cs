@@ -5,10 +5,9 @@ using UnityEditor.Android;
 using UnityEngine;
 
 /// <summary>
-/// The APK asks for exactly the permissions the Godot game's Android preset declares (tests/unit/test_android_build.gd): INTERNET (Online
-/// and Hotspot sockets), VIBRATE (haptics), CHANGE_WIFI_MULTICAST_STATE (the host hears the guests' broadcast on a hotspot) and CAMERA
-/// (the ID photo; the camera feature itself is optional). Unity adds INTERNET and VIBRATE only when code uses them, and never the other
-/// two, so they are written into the generated unityLibrary manifest here.
+/// Declares the exact Android manifest permissions and optional hardware features required for Online play, LAN/Hotspot discovery
+/// (ConnectivityManager, WifiManager, LocalOnlyHotspot, WifiNetworkSpecifier, NEARBY_WIFI_DEVICES on API 33+, coarse/fine location
+/// capped at API 32), haptics, and QR/photo camera scan (.github/scripts/inspect-apk.sh &amp; android/kalyeah_local/src/main/AndroidManifest.xml).
 /// </summary>
 public sealed class KalyeahAndroidManifest : IPostGenerateGradleAndroidProject
 {
@@ -20,6 +19,13 @@ public sealed class KalyeahAndroidManifest : IPostGenerateGradleAndroidProject
         "android.permission.VIBRATE",
         "android.permission.CHANGE_WIFI_MULTICAST_STATE",
         "android.permission.CAMERA",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.CHANGE_WIFI_STATE",
+        "android.permission.CHANGE_NETWORK_STATE",
+        "android.permission.NEARBY_WIFI_DEVICES",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
     };
 
     public int callbackOrder => 0;
@@ -35,19 +41,57 @@ public sealed class KalyeahAndroidManifest : IPostGenerateGradleAndroidProject
         var doc = new XmlDocument();
         doc.Load(manifestPath);
         XmlElement manifest = doc.DocumentElement;
-        foreach (string permission in Permissions) Ensure(doc, manifest, "uses-permission", permission, null);
-        Ensure(doc, manifest, "uses-feature", "android.hardware.camera", "false");
+
+        EnsurePermission(doc, manifest, "android.permission.INTERNET");
+        EnsurePermission(doc, manifest, "android.permission.VIBRATE");
+        EnsurePermission(doc, manifest, "android.permission.CHANGE_WIFI_MULTICAST_STATE");
+        EnsurePermission(doc, manifest, "android.permission.CAMERA");
+        EnsurePermission(doc, manifest, "android.permission.ACCESS_NETWORK_STATE");
+        EnsurePermission(doc, manifest, "android.permission.ACCESS_WIFI_STATE");
+        EnsurePermission(doc, manifest, "android.permission.CHANGE_WIFI_STATE");
+        EnsurePermission(doc, manifest, "android.permission.CHANGE_NETWORK_STATE");
+        EnsurePermission(doc, manifest, "android.permission.NEARBY_WIFI_DEVICES", "usesPermissionFlags", "neverForLocation");
+        EnsurePermission(doc, manifest, "android.permission.ACCESS_COARSE_LOCATION", "maxSdkVersion", "32");
+        EnsurePermission(doc, manifest, "android.permission.ACCESS_FINE_LOCATION", "maxSdkVersion", "32");
+
+        EnsureFeature(doc, manifest, "android.hardware.camera", "false");
+        EnsureFeature(doc, manifest, "android.hardware.wifi", "false");
+        EnsureFeature(doc, manifest, "android.hardware.location", "false");
         doc.Save(manifestPath);
     }
 
-    static void Ensure(XmlDocument doc, XmlElement manifest, string tag, string name, string required)
+    static void EnsurePermission(XmlDocument doc, XmlElement manifest, string name, string extraAttr = null, string extraValue = null)
+    {
+        XmlElement elem = FindElement(manifest, "uses-permission", name);
+        if (elem == null)
+        {
+            elem = doc.CreateElement("uses-permission");
+            elem.SetAttribute("name", AndroidNs, name);
+            manifest.PrependChild(elem);
+        }
+        if (extraAttr != null && extraValue != null)
+            elem.SetAttribute(extraAttr, AndroidNs, extraValue);
+    }
+
+    static void EnsureFeature(XmlDocument doc, XmlElement manifest, string name, string required)
+    {
+        XmlElement elem = FindElement(manifest, "uses-feature", name);
+        if (elem == null)
+        {
+            elem = doc.CreateElement("uses-feature");
+            elem.SetAttribute("name", AndroidNs, name);
+            manifest.PrependChild(elem);
+        }
+        if (required != null)
+            elem.SetAttribute("required", AndroidNs, required);
+    }
+
+    static XmlElement FindElement(XmlElement manifest, string tag, string name)
     {
         foreach (XmlNode node in manifest.ChildNodes)
-            if (node is XmlElement element && element.Name == tag && element.GetAttribute("name", AndroidNs) == name) return;
-        XmlElement added = doc.CreateElement(tag);
-        added.SetAttribute("name", AndroidNs, name);
-        if (required != null) added.SetAttribute("required", AndroidNs, required);
-        manifest.PrependChild(added);
+            if (node is XmlElement element && element.Name == tag && element.GetAttribute("name", AndroidNs) == name)
+                return element;
+        return null;
     }
 }
 #endif
