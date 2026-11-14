@@ -87,3 +87,15 @@ the look of anything on screen, and the target SDK 35 platform being in GameCI's
   (virtual `Think`, `IsFighter`; FightBrain/TeamBrain extend it), `Geometry2D.SegmentHitsRect` (FightBrain's static helper).
 - No extra DLL: data loads with the built-in `MiniJson` via `SimData.Load(dir)` or `SimData.AddFile(json)` (e.g. from TextAssets).
   SimData fills fields by reflection, so keep this assembly from being stripped in IL2CPP builds (a `link.xml` preserving `Kalyeah.Sim`).
+
+## The network layer (Kalyeah.Net) and the dedicated server
+
+- `unity/Kalyeah.Net/`: rooms, protocol, snapshots, the server match, client, WebSocket transports, hotspot beacon/finder (no engine
+  dependency; synced into the Unity package `com.kalyeah.sim/Net`). Byte-compatible with the Godot game: the wire format is Godot's
+  `var_to_bytes` (`VariantCodec`), checked by goldens in `unity/Golden/Net/` (`tools/unity_export/export_net.gd`) and by live runs of a
+  Godot client on the C# server and C# clients on the Godot server (`GodotInteropTests`, explicit). Not ported: the Android hotspot/NFC
+  plugin glue (`local_link.gd`).
+- `unity/Kalyeah.Server/`: the headless server (`PORT=8080 dotnet run --project unity/Kalyeah.Server`; data from `$KALYEAH_DATA`,
+  `--data`, or the `Data` folder next to the binary). A plain HTTP GET answers `200 kalyeah` for health checks.
+- Client: `new GameClient(rules, layout, NetRules.FromData(data), new StreetCatalog(data))`, `ConnectTo(url)`, `Poll(dt)` every frame,
+  the lobby calls (`CreateRoom`, `JoinRoom`, `PickTeam`, `SetReady`, `StartMatch`...), then `SendInput` each tick and draw `client.Mirror`.

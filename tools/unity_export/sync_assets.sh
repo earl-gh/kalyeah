@@ -59,6 +59,8 @@ mirror "$ROOT/unity/Data" "$IMPORTED/Data"
 
 # The shared sim as an embedded package: sources and the asmdef only (no .NET build output, no csproj).
 mirror "$SIM_SRC" "$SIM_PKG/Runtime" 'bin' 'obj' '*.csproj' '*.csproj.user'
+# the network layer (rooms, protocol, client, hotspot host and finder) rides in the same package, in its own assembly (Kalyeah.Net.asmdef)
+mirror "$ROOT/unity/Kalyeah.Net" "$SIM_PKG/Net" 'bin' 'obj' '*.csproj' '*.csproj.user'
 version="0.1.0"
 if grep -rqsE --include='*.cs' 'class[[:space:]]+MatchSim([^A-Za-z0-9_]|$)' "$SIM_SRC"; then
 	version="1.0.0"
