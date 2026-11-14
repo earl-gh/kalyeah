@@ -74,3 +74,16 @@ auto-follow, spring arm and prop hiding, every menu but a bare title, online/hot
 Unverified until the first CI run with a licence: the package versions resolving (glTFast 6.8.0, Input System 1.11.2, URP 17.0.4,
 Test Framework 1.4.5), every Unity-only API call (`View/` was compiled here only against the 2021.3 engine modules and hand UGUI stubs, `Editor/` not at all),
 the look of anything on screen, and the target SDK 35 platform being in GameCI's Android image.
+
+## The sim port (Kalyeah.Sim)
+
+- Names: GDScript snake_case becomes PascalCase (`rules.move_speed` is `Rules.MoveSpeed`, `sim.add_player()` is `sim.AddPlayer()`),
+  signals become C# events of the same name (`player_tagged` is `PlayerTagged`). Exceptions where C# needs a different name:
+  `MatchSim.Phase` is a `MatchSim.MatchPhase`, `capture_kind` is `CurrentCaptureKind`, `clock_stage()` is `GetClockStage()`,
+  `GameRules.bot_level()` is `GetBotLevel()`, `WeaponDef.Kind/Shape` enums are `WeaponKind/WeaponShape`, `sim._brains` is `Brains`.
+- Maths: `Vec2`/`Rect2` are Godot's float32 Vector2/Rect2 with Godot's formulas; `.x`/`.y` read a component as a double, like GDScript.
+  Scalars are doubles. `GodotRng` is Godot's RandomNumberGenerator. The golden replays match Godot bit for bit.
+- Seams for the ports still to come: `IStreetMode` (what MatchSim calls on a street game; `MatchSim.StartMode`), `DummyBrain`
+  (virtual `Think`, `IsFighter`; FightBrain/TeamBrain extend it), `Geometry2D.SegmentHitsRect` (FightBrain's static helper).
+- No extra DLL: data loads with the built-in `MiniJson` via `SimData.Load(dir)` or `SimData.AddFile(json)` (e.g. from TextAssets).
+  SimData fills fields by reflection, so keep this assembly from being stripped in IL2CPP builds (a `link.xml` preserving `Kalyeah.Sim`).
