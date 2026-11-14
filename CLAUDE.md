@@ -71,12 +71,9 @@ Keep the existing procedural/code-drawn stand-ins working until the owner's asse
 ## Project skills
 
 Read `.claude/skills/README.md` and select only the skills relevant to the task.
-Use `router` for ownership, `ponytail` for smallest-complete changes and the local
-gstack planning/review/investigation ports when appropriate. The existing five
-specialists own implementation; upstream skills are supporting methods/API references.
-Pinned Godot 4.6.2, architecture, owner art policy and this PR workflow remain binding.
-Do not execute upstream plugin installers, hooks, telemetry or auto-updaters.
-
-For gameplay behavior changes, use the local `gameplay-engineering` companion and
-Matt Pocock's `tdd` under the existing specialist. Read `GLOSSARY.md`; use
-`domain-modeling` to resolve terminology without adding speculative abstractions.
+Use `ponytail` for smallest-complete changes, `ponytail-review` before PRs,
+`ponytail-audit` for codebase audits, `game-ui-ux` / `performance-optimization`
+for UI and profiling, and Matt Pocock's `tdd` and `domain-modeling` for behavior
+tests and terminology (`GLOSSARY.md`). Architecture, owner art policy and this PR
+workflow remain binding. Do not execute upstream plugin installers, hooks,
+telemetry or auto-updaters.

@@ -3,22 +3,18 @@
 Read `CLAUDE.md` first, then `docs/PROJECT.md`, `docs/GDD.md` and `docs/ROADMAP.md`.
 The same project constraints apply to every coding agent.
 
-Read `.claude/skills/README.md`; start with `router` when ownership is unclear.
-Canonical skills live in `.claude/skills/`; `.agents/skills/` points to that tree
-for Codex discovery. Load only the selected SKILL.md and needed references.
+Read `.claude/skills/README.md` and load only the `SKILL.md` and references
+needed for the task. Canonical skills live in `.claude/skills/`; `.agents/skills/`
+points to that tree for Codex and `.agents/skills.json` exposes it to Antigravity.
 
-The owner requested awesome-gamedev-agent-skills, Ponytail, gstack and selected
-Matt Pocock skills with a game-specific engineering companion. The catalog
-records the exact selection, upstream versions/licenses, compatibility overrides,
-and which gstack workflows are local ports rather than installed CLI commands.
-Use Ponytail to keep changes complete and small; apply the local gstack review
-before PRs. Existing specialists retain ownership; supporting skills do not
-change Godot 4.6.2, sim authority, export settings or authorization boundaries.
-Use `gameplay-engineering` + `tdd` for relevant gameplay behavior changes and
-`domain-modeling` when terminology needs work.
+The catalog vendors engine-neutral skills from Ponytail, awesome-gamedev-agent-skills
+(`game-ui-ux`, `performance-optimization`), and Matt Pocock (`tdd`, `domain-modeling`),
+with exact upstream commits, hashes and licenses in `.claude/skills/sources.lock.json`.
+Use `ponytail` to keep changes complete and small, and `ponytail-review` before PRs.
+Use `tdd` for behavior changes and `domain-modeling` when terminology needs work.
 Read `GLOSSARY.md` for player terms. Do not reconfirm already-authorized test
 boundaries; clarify genuinely new interfaces or unresolved game rules.
-Do not spawn agents merely because a skill describes a studio role.
+Do not spawn agents merely because a skill describes a role.
 
 Work on a task branch, validate locally and open a reviewable PR; the owner merges.
 Versions (`version.txt`) and CHANGELOG.md change only when the owner asks (release-please was removed). Do not run the upstream automation

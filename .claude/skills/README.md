@@ -1,112 +1,29 @@
-# KalyeAh project skills
+# Kalyeah project skills
 
-These project-local agent skills encode the specialist workflows used to change KalyeAh without broadening its scope or weakening its architecture. Each skill reads `CLAUDE.md` first; that file remains the source of truth.
+Engine-neutral agent skills shared across the repository as Kalyeah migrates to Unity. Each skill defers to `CLAUDE.md` and `AGENTS.md` for project rules and workflow constraints.
 
-| Skill | Owns | Does not own |
-| --- | --- | --- |
-| `gameplay-simulation` | Agawang Base rules, deterministic simulation, weapon behavior, input semantics | Network transport, presentation, export settings |
-| `authoritative-multiplayer` | WebSocket protocol, rooms, server authority, snapshots, reconnects | Game balance, animation, Android rendering |
-| `gameplay-presentation` | Animation, camera, VFX/audio hooks, HUD feedback, sim-to-view mapping | Simulation outcomes, protocol, asset creation |
-| `android-performance` | Profiling, mobile budgets, touch/safe areas, Android compatibility | Game rules, networking semantics, art direction |
-| `game-qa-release` | Risk-based tests, regression coverage, validation, PR and release readiness | Product scope, feature implementation, manual version edits |
-
-The boundaries are deliberate. Multiple agents may use these skills at the same time when their file ownership does not overlap. If a task crosses boundaries, split it into commits and let the owning specialist review each part.
-
-## Requested upstream skills
-
-The owner's requested collections are installed as project-local Markdown skills.
-The existing five specialists above retain implementation ownership; upstream
-skills provide references or review methods, not competing owners.
-Start with [router](router/SKILL.md) when the task crosses concerns.
+## Installed skills (10)
 
 | Source | Installed skills | Purpose |
 |---|---|---|
-| awesome-gamedev-agent-skills | `godot-gdscript`, `godot-ui-control`, `godot-animation`, `godot-shaders`, `godot-export`, `game-ui-ux`, `performance-optimization`; project-scoped `router` port | Concrete Godot APIs, responsive UI and measured optimization |
-| Ponytail | `ponytail`, `ponytail-audit`, `ponytail-review`, `ponytail-debt`, `ponytail-gain`, `ponytail-help` (standalone upstream skills) | Smallest complete implementation, connected-code diff review, evidence-based codebase audits and shortcut debt ledger |
-| gstack | `gstack-plan-eng-review`, `gstack-review`, `gstack-investigate` (compact Kalyeah workflow ports) | Architecture/code/tests/performance review, trust-boundary and test-gate review, root-cause debugging |
-| Matt Pocock — Skills for Real Engineers | `tdd`, `domain-modeling` (vendored with project overrides) | Behavior-first tests, stable public test boundaries, precise game terminology and proportionate architecture records |
-| Kalyeah companion adapted from Matt's methods | `gameplay-engineering` | Connect player intent, fixed-tick simulation, authority, readable feedback and device evidence through the existing specialists |
+| Ponytail | `ponytail`, `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help` | Smallest complete implementation, connected-code diff review, whole-repo quality audits and shortcut debt ledger |
+| awesome-gamedev-agent-skills | `game-ui-ux`, `performance-optimization` | Engine-neutral responsive HUD/menu patterns, safe areas, frame-budget profiling and pooling (includes Unity 6.3 LTS references) |
+| Matt Pocock — Skills for Real Engineers | `tdd`, `domain-modeling` | Behavior-first red-green-refactor testing, domain glossary (`GLOSSARY.md`) and proportionate ADRs |
 
-There are **25 installed skills**: the five original specialists plus 20 supporting
-skills/workflow ports. The game-specific companion is project-authored; it is not
-an official Matt Pocock game-development package.
+Load only the `SKILL.md` and `references/` files relevant to the current task:
+- Use `ponytail` on coding tasks, `ponytail-review` before PRs, `ponytail-audit` for scoped codebase audits, and `ponytail-debt` to list `shortcut:` comments.
+- Use `tdd` for behavior-first tests against public boundaries; do not reconfirm already-authorized test seams.
+- Use `domain-modeling` when sharpening terminology in [GLOSSARY.md](../../GLOSSARY.md) or recording consequential architecture decisions.
+- Use `game-ui-ux` and `performance-optimization` for responsive mobile UI and profiler-driven performance work.
 
-Use one responsible specialist and the smallest relevant reference set per task.
-Use Ponytail when choosing an implementation, gstack engineering review for complex
-plans, gstack review before PRs, and investigation for reproduced bugs. Use `gameplay-engineering` with `tdd` for
-gameplay behavior changes; use `domain-modeling` when terminology actually needs
-clarification. [GLOSSARY.md](../../GLOSSARY.md) records settled player terms.
-An audit or
-review-only request produces findings without changing implementation.
+## Discovery and provenance
 
-### Compatibility and installation scope
+- **Claude Code** reads `.claude/skills/`.
+- **Codex** reads `.agents/skills/` (a relative symlink to `../.claude/skills`).
+- **Antigravity** reads `.agents/skills.json` (which resolves `.claude/skills` directly, including on Windows checkouts where Git symlinks are plain files).
 
-`CLAUDE.md`, project manifests and user instructions take precedence. The game-dev
-upstream uses a Godot 4.7 new-project baseline; Kalyeah stays on **4.6.2**. Each
-vendored skill has an explicit compatibility override; examples must be checked
-against the pinned engine. Generic movement, safe-area and pause examples do not
-replace Kalyeah's deterministic simulation, coordinate conversion or running
-multiplayer. Related skills named upstream are optional, not auto-install requests.
-
-These are **skills, not plugin installations**. gstack's CLI, browser binaries,
-Bun/Node packages, hooks, telemetry, external-model integrations and auto-updater
-are not installed. Its three ports preserve selected review/debugging methods;
-they do not claim full upstream gstack command compatibility. Ponytail's UI band,
-board and lifecycle hooks are not needed for its standalone Markdown skills.
-Other engines, ENet samples, C#, asset generation and alternate test frameworks
-are omitted. No agent-tool package is needed at game runtime.
-
-Claude reads `.claude/skills/`. Codex reads `.agents/skills/`, a relative symlink
-to the same canonical tree, and Antigravity reads `.agents/skills.json` (which also
-resolves `.claude/skills` on Windows checkouts where symlinks are plain files), so
-references cannot drift between duplicate copies.
-If a client does not follow project skill links, read this catalog directly;
-restart or reopen the project if its skill picker caches discovery. Skills can
-also be used immediately by reading the named `SKILL.md`.
-
-### Matt Pocock integration
-
-The copied `tdd` and `domain-modeling` folders retain their references and agent
-metadata, plus the original MIT license. Marked local additions require Godot/GUT
-and existing ownership; their TypeScript examples do not add a JavaScript stack.
-The local TDD notice explicitly replaces upstream's per-seam confirmation rule:
-already-authorized behavior at an existing public boundary does not need another
-confirmation. New interfaces or unresolved product rules still need clarification.
-No testing requirement is relaxed. Optional related skills are not auto-installed.
-
-The `gameplay-engineering` companion applies the methods to simulation, multiplayer,
-input interruptions, animation feedback and measured Android/build validation.
-It is a workflow reference, not another implementation owner. Existing game-dev
-references remain the concrete API guides. No new test runner or engine bundle
-is installed. First use: [behavior-first skill review](../../docs/audits/2026-10-19-behavior-first-skills.md).
-
-### Provenance and maintenance
-
-[sources.lock.json](sources.lock.json) pins all four upstream commit SHAs and
-SHA-256 hashes for installed upstream-derived files. It identifies unchanged
-copies, added compatibility notices and workflow ports, including the source
-files used for each adaptation. Licenses and the Apache NOTICE are in `licenses/`.
-This is a provenance manifest, not a package-manager executable lockfile.
-
-To update: fetch the named upstream at an explicit commit in a temporary checkout,
-review only the selected skill directories and references, retain local overrides,
-then refresh the hashes and run the install checks and required Godot validation.
-Never auto-update or overwrite the existing specialist skills. New runtime tools,
-frameworks and unrelated bundles require a separate justified task.
-
-First use and remaining checks: [skill adoption review](../../docs/audits/2026-10-19-skill-adoption.md).
+[sources.lock.json](sources.lock.json) pins upstream commit SHAs and SHA-256 hashes for all 10 vendored skills; licenses and the Apache NOTICE live in `licenses/`. These are standalone Markdown skills — no upstream CLI binaries, lifecycle hooks, telemetry or auto-updaters are installed.
 
 ## Studio subagents
 
-Eight agents in `.claude/agents/` (Claude Code subagents, run by name or with `/agents`), a Supercell-style studio team (inspired by, never copied). Shared rules, ownership of paths, commands and the report format are in [docs/STUDIO.md](../../docs/STUDIO.md); each agent file holds only its own role. All of them audit **and** apply changes, and are judged on proof (tests, screenshots, measured numbers), not on prose.
-
-| Agent | Owns |
-| --- | --- |
-| `orchestrator` | Task outcome and the release gate: acceptance checks, delegation, independent verification, PR |
-| `game-designer` | Weapons, rules numbers, balance by before/after bot runs, `docs/GDD.md` |
-| `gameplay-engineer` | Sim, multiplayer, snapshots, autoloads, server, with tests |
-| `ux-ui-artist` | Screens, HUD, flows, touch ergonomics, layout tests |
-| `art-director` | Brand tokens, `docs/ART.md`, art briefs (`docs/art-briefs/`), code-drawn stand-ins and effect timing, originality, veto on off-brand; no asset files |
-| `qa-engineer` | Tests, APK and emulator audits, defect reports, regression |
-| `hotspot-engineer` | Hotspot mode end to end: Create and Join modals, network detection, room discovery and verification, host server, device checks |
-| `android-engineer` | Export preset, manifest, Android workflow, APK inspection and emulator smoke test, safe areas and device checks |
+Eight Claude Code subagents remain in `.claude/agents/` (shared conventions in [docs/STUDIO.md](../../docs/STUDIO.md)): `orchestrator`, `game-designer`, `gameplay-engineer`, `ux-ui-artist`, `art-director`, `qa-engineer`, `hotspot-engineer`, and `android-engineer`.

@@ -3,15 +3,6 @@ name: domain-modeling
 description: Build and sharpen a project's domain model. Use when discussing codebase terminology, writing or editing a GLOSSARY.md, or recording or editing an ADR.
 ---
 
-## Kalyeah integration (local addition)
-
-Read `CLAUDE.md`, `.claude/skills/README.md` and the relevant project specialist.
-Use Godot 4.6.2 and the existing GUT suite; TypeScript examples illustrate the
-method, not a request to add Node, Jest, another runner or a new architecture.
-Existing specialists retain implementation ownership. Referenced skills not
-installed here are optional; resolve routine design through the existing owner
-and `gstack-plan-eng-review`, rather than automatically installing dependencies.
-
 # Domain Modeling
 
 Actively build and sharpen the project's domain model as you design. This is the *active* discipline: challenging terms, inventing edge-case scenarios, and writing the glossary and decisions down the moment they crystallise. (Merely *reading* `GLOSSARY.md` for vocabulary is not this skill: that's a one-line habit any skill can do. This skill is for when you're changing the model, not just consuming it.)

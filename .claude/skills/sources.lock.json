@@ -12,11 +12,6 @@
       "commit": "96608e078b2d5ea607c5c3b8b5a54d1c1fba6846",
       "license": "MIT"
     },
-    "gstack": {
-      "repository": "https://github.com/garrytan/gstack",
-      "commit": "2d42e4ece834a7fa2c16edda87ec136af6db4c26",
-      "license": "MIT"
-    },
     "mattpocock": {
       "repository": "https://github.com/mattpocock/skills",
       "commit": "49dd158d1076134a641b33efb035946536778336",
@@ -25,104 +20,14 @@
   },
   "skills": [
     {
-      "name": "godot-gdscript",
-      "provider": "gamedev",
-      "mode": "vendored-with-compatibility-notice",
-      "upstream_path": "skills/godot/godot-gdscript",
-      "files": [
-        {
-          "path": ".claude/skills/godot-gdscript/SKILL.md",
-          "sha256": "8749bfaface958243fb13eaaf9647238b7bf31d91a4a9522a18300d6f8462177",
-          "upstream_sha256": "b2625f5651fc9373e057ea47b5e2372319c4ed027fffc958f8a91d25cdea5a39"
-        },
-        {
-          "path": ".claude/skills/godot-gdscript/references/annotations-and-typing.md",
-          "sha256": "f1cea898e0346be3fac816093b577b30ef0f112d83cc2c1472c44d4a936700b3",
-          "upstream_sha256": "f1cea898e0346be3fac816093b577b30ef0f112d83cc2c1472c44d4a936700b3"
-        }
-      ]
-    },
-    {
-      "name": "godot-ui-control",
-      "provider": "gamedev",
-      "mode": "vendored-with-compatibility-notice",
-      "upstream_path": "skills/godot/godot-ui-control",
-      "files": [
-        {
-          "path": ".claude/skills/godot-ui-control/SKILL.md",
-          "sha256": "0c71710ff8d0a93f41cdc460755b0ca0eeed2b077edf13a4fffdbb30eb26df36",
-          "upstream_sha256": "9ac89920e74bbf8d939b4d565e350d53b07c9afbe0970345c97d4122f590cfd5"
-        },
-        {
-          "path": ".claude/skills/godot-ui-control/references/layout-and-theming.md",
-          "sha256": "2b5a7d64f00709640385adda215aa3f9a839c2d461c53c886ba9c320723a9f3d",
-          "upstream_sha256": "2b5a7d64f00709640385adda215aa3f9a839c2d461c53c886ba9c320723a9f3d"
-        }
-      ]
-    },
-    {
-      "name": "godot-animation",
-      "provider": "gamedev",
-      "mode": "vendored-with-compatibility-notice",
-      "upstream_path": "skills/godot/godot-animation",
-      "files": [
-        {
-          "path": ".claude/skills/godot-animation/SKILL.md",
-          "sha256": "65dea3ace77df653206edfebe2031becefe1b1a6294d188c13753623e93b44af",
-          "upstream_sha256": "9d32ef721eaa227494180b6ffb0208624a76e93217a2e39c2286eb0b5701e8e5"
-        },
-        {
-          "path": ".claude/skills/godot-animation/references/animation-tree-and-tween.md",
-          "sha256": "455ef0e15357428f250035fd5b0c587500b9d565f3bbcc33f95f378a986380a6",
-          "upstream_sha256": "455ef0e15357428f250035fd5b0c587500b9d565f3bbcc33f95f378a986380a6"
-        }
-      ]
-    },
-    {
-      "name": "godot-shaders",
-      "provider": "gamedev",
-      "mode": "vendored-with-compatibility-notice",
-      "upstream_path": "skills/godot/godot-shaders",
-      "files": [
-        {
-          "path": ".claude/skills/godot-shaders/SKILL.md",
-          "sha256": "6aa059a80114d837f7a26ce706ee959cfefc8278fdfa73c08d2057792552e161",
-          "upstream_sha256": "15bf46f7b0af586f026c1bb58beaeba2579009b70398f43859b7ab286a45e63e"
-        },
-        {
-          "path": ".claude/skills/godot-shaders/references/shading-language.md",
-          "sha256": "582b146d8d47b61d80eb8def8e48923d87ef1c7964542f0a12e9e05645c517e9",
-          "upstream_sha256": "582b146d8d47b61d80eb8def8e48923d87ef1c7964542f0a12e9e05645c517e9"
-        }
-      ]
-    },
-    {
-      "name": "godot-export",
-      "provider": "gamedev",
-      "mode": "vendored-with-compatibility-notice",
-      "upstream_path": "skills/godot/godot-export",
-      "files": [
-        {
-          "path": ".claude/skills/godot-export/SKILL.md",
-          "sha256": "da99f68ab3df0bcad4fb87aad1233245c2eb4b0135eb33ac1a3b07b33e17980b",
-          "upstream_sha256": "e97f0a889b8e06934aced7fdcee667d5bb848e33bc44d500c92f580e60295305"
-        },
-        {
-          "path": ".claude/skills/godot-export/references/presets-and-cli.md",
-          "sha256": "ddb73ed10a107d806e883a1d13c6a78377226223d57b536201dda9c97505ae62",
-          "upstream_sha256": "ddb73ed10a107d806e883a1d13c6a78377226223d57b536201dda9c97505ae62"
-        }
-      ]
-    },
-    {
       "name": "game-ui-ux",
       "provider": "gamedev",
-      "mode": "vendored-with-compatibility-notice",
+      "mode": "vendored-unmodified",
       "upstream_path": "skills/disciplines/game-ui-ux",
       "files": [
         {
           "path": ".claude/skills/game-ui-ux/SKILL.md",
-          "sha256": "bbbe185562e5fe988f3a2bc6b5702f25832719b7e89c7833a8759f6f9626ccea",
+          "sha256": "8a094c84a377503aa8f4c40df676d1c6b6fc07d36ff95554ce06467f1614397e",
           "upstream_sha256": "8a094c84a377503aa8f4c40df676d1c6b6fc07d36ff95554ce06467f1614397e"
         },
         {
@@ -135,12 +40,12 @@
     {
       "name": "performance-optimization",
       "provider": "gamedev",
-      "mode": "vendored-with-compatibility-notice",
+      "mode": "vendored-unmodified",
       "upstream_path": "skills/disciplines/performance-optimization",
       "files": [
         {
           "path": ".claude/skills/performance-optimization/SKILL.md",
-          "sha256": "d81660f342899c1d82e7777c4edf9b7f16c8e5001bc9f990bbd3626588c532d5",
+          "sha256": "ddfc68c927f9a482d78cc0e103edb2e2711bc876a5965ff53eabd9a7d308dfab",
           "upstream_sha256": "ddfc68c927f9a482d78cc0e103edb2e2711bc876a5965ff53eabd9a7d308dfab"
         },
         {
@@ -229,90 +134,14 @@
       ]
     },
     {
-      "name": "router",
-      "provider": "gamedev",
-      "mode": "project-workflow-port",
-      "upstream_files": [
-        {
-          "path": "router/SKILL.md",
-          "sha256": "548b9c354f4bc152607b4f00f575f40786d28be92d1f4354c8802437f958488e"
-        }
-      ],
-      "files": [
-        {
-          "path": ".claude/skills/router/SKILL.md",
-          "sha256": "679427e24b9e15a5a370a4a634e4cd716eb1a619697ae70b5db7bd47e317ae96"
-        }
-      ]
-    },
-    {
-      "name": "gstack-plan-eng-review",
-      "provider": "gstack",
-      "mode": "project-workflow-port",
-      "upstream_files": [
-        {
-          "path": "plan-eng-review/SKILL.md",
-          "sha256": "0e1385c1f4aee7b09f1556a0c82208d0cc01d889242d1176b22631608c91dd14"
-        },
-        {
-          "path": "plan-eng-review/sections/review-sections.md",
-          "sha256": "85a91ef48528380b76c253b92422f5756fd446c5da79eed895a4b7ba20ca4219"
-        }
-      ],
-      "files": [
-        {
-          "path": ".claude/skills/gstack-plan-eng-review/SKILL.md",
-          "sha256": "9d42234e055fe780f7faad2552152354768354bb1af3a46f6ae90fe26acceb71"
-        }
-      ]
-    },
-    {
-      "name": "gstack-review",
-      "provider": "gstack",
-      "mode": "project-workflow-port",
-      "upstream_files": [
-        {
-          "path": "review/SKILL.md",
-          "sha256": "491fa0bdc3b99c1364e29097368b60a5095efed12c888a503a59f8d3dc79e91f"
-        },
-        {
-          "path": "review/checklist.md",
-          "sha256": "cb9a5b6feb7fff38f9b041e89257f23fe92655c444214f4358aec86188490604"
-        }
-      ],
-      "files": [
-        {
-          "path": ".claude/skills/gstack-review/SKILL.md",
-          "sha256": "9198d07736e5a210028fd8251efdf40ed898040b22fbb88b116022e291a0fae1"
-        }
-      ]
-    },
-    {
-      "name": "gstack-investigate",
-      "provider": "gstack",
-      "mode": "project-workflow-port",
-      "upstream_files": [
-        {
-          "path": "investigate/SKILL.md",
-          "sha256": "d84173a78160734e138f3946f6124623c06072981ca665afb24442cfcb649c08"
-        }
-      ],
-      "files": [
-        {
-          "path": ".claude/skills/gstack-investigate/SKILL.md",
-          "sha256": "48ff50e16fece19ddca6474dc9f0743568e301c6a79989754516323168257fb7"
-        }
-      ]
-    },
-    {
       "name": "tdd",
       "provider": "mattpocock",
-      "mode": "vendored-with-project-override",
+      "mode": "vendored-unmodified",
       "upstream_path": "skills/engineering/tdd",
       "files": [
         {
           "path": ".claude/skills/tdd/SKILL.md",
-          "sha256": "64b7579465ff648297092ef7d87bea7942398eb6c3ed6cdde9ddaf2cf9966cfd",
+          "sha256": "5505d25bbaa8fc14a79e4d20163936958992a2995b7f1dd1d6197edc9ed722e0",
           "upstream_sha256": "5505d25bbaa8fc14a79e4d20163936958992a2995b7f1dd1d6197edc9ed722e0"
         },
         {
@@ -335,7 +164,7 @@
     {
       "name": "domain-modeling",
       "provider": "mattpocock",
-      "mode": "vendored-with-project-override",
+      "mode": "vendored-unmodified",
       "upstream_path": "skills/engineering/domain-modeling",
       "files": [
         {
@@ -350,34 +179,13 @@
         },
         {
           "path": ".claude/skills/domain-modeling/SKILL.md",
-          "sha256": "7ea9b89c0cb6036f78ec06a005fc8b9cbdd07815bbb090e206abc414b9a65d7c",
+          "sha256": "7b925d7b1e341a2eeae33ad68a8a8c0ab889a38ddd22a7598e4c240e5a7556a3",
           "upstream_sha256": "7b925d7b1e341a2eeae33ad68a8a8c0ab889a38ddd22a7598e4c240e5a7556a3"
         },
         {
           "path": ".claude/skills/domain-modeling/agents/openai.yaml",
           "sha256": "f6bf2aa996c6e6f53fdd0708e18a0d16a56aed8322cca59fedbe3c0d2c75f06b",
           "upstream_sha256": "f6bf2aa996c6e6f53fdd0708e18a0d16a56aed8322cca59fedbe3c0d2c75f06b"
-        }
-      ]
-    },
-    {
-      "name": "gameplay-engineering",
-      "provider": "mattpocock",
-      "mode": "project-workflow-port",
-      "upstream_files": [
-        {
-          "path": "skills/engineering/tdd/SKILL.md",
-          "sha256": "5505d25bbaa8fc14a79e4d20163936958992a2995b7f1dd1d6197edc9ed722e0"
-        },
-        {
-          "path": "skills/engineering/domain-modeling/SKILL.md",
-          "sha256": "7b925d7b1e341a2eeae33ad68a8a8c0ab889a38ddd22a7598e4c240e5a7556a3"
-        }
-      ],
-      "files": [
-        {
-          "path": ".claude/skills/gameplay-engineering/SKILL.md",
-          "sha256": "dc82306b710b89aff76b2da29368128b66ee892fc968f6646420a1bcb0624e1a"
         }
       ]
     }
