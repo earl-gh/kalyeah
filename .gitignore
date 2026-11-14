@@ -10,3 +10,6 @@ __pycache__/
 # The Android build template (installed by the Android APK workflow) and the Local plugin's AAR (built there too)
 android/.build_version
 addons/kalyeah_local/bin/
+
+# Claude Code agents' temporary working copies (never part of the game)
+.claude/worktrees/
