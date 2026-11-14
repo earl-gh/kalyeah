@@ -22,12 +22,12 @@ Start with [router](router/SKILL.md) when the task crosses concerns.
 | Source | Installed skills | Purpose |
 |---|---|---|
 | awesome-gamedev-agent-skills | `godot-gdscript`, `godot-ui-control`, `godot-animation`, `godot-shaders`, `godot-export`, `game-ui-ux`, `performance-optimization`; project-scoped `router` port | Concrete Godot APIs, responsive UI and measured optimization |
-| Ponytail | `ponytail`, `ponytail-audit` (standalone upstream skills) | Smallest complete implementation; evidence-based codebase audits |
+| Ponytail | `ponytail`, `ponytail-audit`, `ponytail-review`, `ponytail-debt`, `ponytail-gain`, `ponytail-help` (standalone upstream skills) | Smallest complete implementation, connected-code diff review, evidence-based codebase audits and shortcut debt ledger |
 | gstack | `gstack-plan-eng-review`, `gstack-review`, `gstack-investigate` (compact Kalyeah workflow ports) | Architecture/code/tests/performance review, trust-boundary and test-gate review, root-cause debugging |
 | Matt Pocock — Skills for Real Engineers | `tdd`, `domain-modeling` (vendored with project overrides) | Behavior-first tests, stable public test boundaries, precise game terminology and proportionate architecture records |
 | Kalyeah companion adapted from Matt's methods | `gameplay-engineering` | Connect player intent, fixed-tick simulation, authority, readable feedback and device evidence through the existing specialists |
 
-There are **21 installed skills**: the five original specialists plus 16 supporting
+There are **25 installed skills**: the five original specialists plus 20 supporting
 skills/workflow ports. The game-specific companion is project-authored; it is not
 an official Matt Pocock game-development package.
 
@@ -57,7 +57,9 @@ Other engines, ENet samples, C#, asset generation and alternate test frameworks
 are omitted. No agent-tool package is needed at game runtime.
 
 Claude reads `.claude/skills/`. Codex reads `.agents/skills/`, a relative symlink
-to the same canonical tree, so references cannot drift between duplicate copies.
+to the same canonical tree, and Antigravity reads `.agents/skills.json` (which also
+resolves `.claude/skills` on Windows checkouts where symlinks are plain files), so
+references cannot drift between duplicate copies.
 If a client does not follow project skill links, read this catalog directly;
 restart or reopen the project if its skill picker caches discovery. Skills can
 also be used immediately by reading the named `SKILL.md`.
