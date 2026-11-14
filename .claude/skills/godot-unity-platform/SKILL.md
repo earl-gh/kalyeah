@@ -1,56 +1,57 @@
 ---
 name: godot-unity-platform
 description: >
-  Port Kalyeah's autoloads (Net, Session, Settings), authoritative WebSocket and
-  LAN Hotspot networking, touch/tilt input, GUT tests, and Android arm64 APK
-  pipeline into Unity 6 and Linux headless Dedicated Server.
+  Port Kalyeah's autoloads (Net, Session, Settings), IL2CPP-safe WebSocket and
+  LAN Hotspot hosts, EnhancedTouch/GravitySensor input, GUT tests, and Android
+  arm64 APK + Linux Dedicated Server builds into Unity 6.
 ---
 
 # Godot-to-Unity Migration — Part 3: Platform, Net, Input & APK (`godot-unity-platform`)
 
-Owns porting Godot autoloads (`Net`, `Session`, `Settings`), WebSocket + LAN Hotspot transport, touch/tilt input, GUT-to-UTF test suites, and Android/Linux build gates into Unity 6.
+Owns translating Godot autoloads (`Net`, `Session`, `Settings`), WebSocket + LAN Hotspot transport, touch/tilt input, GUT-to-UTF test runners, and Android/Linux build pipelines into Unity 6.
 
 ## Boundary (zero overlap)
 
-- **Owns:** Single Bootstrap composition root, WebSocket client/server transport + `20 Hz` snapshot wire serializer, UDP LAN Hotspot discovery + `kalyeah_local` Android bridge, `EnhancedTouch` + `GravitySensor` -> `PlayerInput` sampling, NUnit `EditMode`/`PlayMode` test harness, and Android `arm64-v8a` APK + Linux headless server builds.
-- **Defers to:** `godot-unity-sim` for `Kalyeah.Sim` gameplay rules and `ScriptableObject` data schemas; `godot-unity-view` for URP Mobile Prefabs, shaders, `.glb` rigs, and visual pools.
+- **Owns:** Single `Bootstrap` composition root, IL2CPP-safe RFC-6455 WebSocket server/client + UDP `Beacon` + `kalyeah_local` JNI bridge, `Linux64` `-batchmode` tick pacing, `EnhancedTouch` + `GravitySensor` -> `PlayerInput` sampling, NUnit `EditMode`/`PlayMode` test harness, and Android `arm64-v8a` APK + `Linux64` Dedicated Server builds.
+- **Defers to:** `godot-unity-sim` (`Kalyeah.Sim` & `SimConfig`); `godot-unity-view` (URP Mobile Prefabs, shaders, rigs, pools); `apex-net-frame` (client prediction/reconciliation, `<= 300 B` delta snapshot budget, send-queue backpressure, and frame/GC budgets); `apex-mobile-hud` (thumb-zone layout, radial ability arc UX, and safe-area visual ergonomics).
 
-## 1. Autoloads -> single Bootstrap composition root
+## 1. Autoloads -> single `Bootstrap` root & Android OS lifecycle
 
-- Replace Godot's three allowed globals (`Net`, `Session`, `Settings`) — and nothing else global — with one `Bootstrap` startup scene owning a single `DontDestroyOnLoad` `AppServices` root that wires plain C# `NetService`, `SessionState`, and `SettingsStore` into screen/match controllers.
-- Do not add scattered `static Instance` singletons, third-party DI containers, or extra global managers.
-- Handle Android lifecycle interruptions (`OnApplicationPause`, `OnApplicationFocus(false)`) synchronously: cancel active touch gestures/held cards and immediately flush a stop + `BTN_AIM_CANCEL` `PlayerInput` packet to the server before suspension.
-- Map Android hardware Back (`Key.Escape` on Android) to match-settings toggle in matches, dialog/page pop in menus, and quit confirmation on Home — never hard-quitting abruptly.
+- Replace Godot's three allowed globals (`Net`, `Session`, `Settings`) — and nothing else global — with one `Bootstrap` startup scene owning a single `DontDestroyOnLoad` `AppServices` root that injects plain C# `NetService`, `SessionState`, and `SettingsStore`.
+- Never introduce scattered `static Instance` singletons, third-party DI frameworks, or extra global managers.
+- **Android suspension hook:** Handle `OnApplicationPause(true)` and `OnApplicationFocus(false)` synchronously on the Unity main thread — clear active `EnhancedTouch` gesture state and immediately write/flush a stop + `BTN_AIM_CANCEL` `PlayerInput` frame to the socket before Android suspends process threads.
+- Map Android hardware Back (`Keyboard.current.escapeKey` / back action) to match-settings toggle in matches, dialog/page pop in menus, and quit confirmation on Home — never calling `Application.Quit()` abruptly mid-screen.
 
-## 2. Authoritative WebSocket server & LAN Hotspot
+## 2. IL2CPP-safe WebSocket server, LAN Hotspot & headless CPU cap
 
-- Preserve the exact network contract: **WebSocket** gameplay transport (zero ENet/UDP gameplay sockets), protocol version check at handshake, server-authoritative `30 Hz` sim, quantized `20 Hz` delta snapshots, and client-to-server `PlayerInput` frames serialized into pooled byte buffers (`Span<byte>`, zero per-packet GC).
-- Run one shared C# transport/room assembly across all three hosts:
-  1. **Dedicated Server** (`Linux64` Unity Dedicated Server build target, `-batchmode -nographics`),
-  2. **In-app Android Hotspot Host** (local authoritative room server inside the host phone's APK), and
-  3. **Android Client** (`8`-char alphanumeric Online room codes + QR scan, plus code-free Local Hotspot join).
-- Keep UDP broadcast `Beacon` LAN discovery (host answers broadcast and client verifies Kalyeah protocol + active room over WebSocket — never hardcoding `.1` gateway IP on stock Android) and JNI `AndroidJavaObject` calls to `android/kalyeah_local` for Wi-Fi QR and NFC join.
+- **Ban `System.Net.HttpListener`:** `HttpListener` is unsupported/broken under Android IL2CPP. Implement one shared managed RFC-6455 WebSocket handshake + binary framing server directly over `System.Net.Sockets.TcpListener` / `Socket` (`NoDelay = true`) so the exact same C# transport assembly powers:
+  1. **`Linux64` Dedicated Server** (`-batchmode -nographics`), and
+  2. **In-app Android Hotspot Host** (authoritative `30 Hz` room server running inside the host phone's IL2CPP APK).
+- Pair `ClientWebSocket` (Online rooms + Hotspot clients) and server sockets with a preallocated **main-thread ring-buffer pump** (`Span<byte>` framing, protocol-version handshake check, zero ENet/UDP gameplay sockets).
+- Guard Android IL2CPP `ClientWebSocket` keepalive/TLS quirks and marshal all async socket completions onto the Unity main loop before touching `SessionState` or `MatchSim` (`apex-net-frame` owns snapshot quantization, reconciliation, and send-queue backpressure).
+- Keep UDP broadcast `Beacon` LAN discovery (client verifies Kalyeah protocol + active room over WebSocket — never hardcoding `.1` gateway IP on stock Android) and JNI `AndroidJavaObject` bindings to `android/kalyeah_local` for Wi-Fi QR and NFC join.
+- **Cap `Linux64` headless CPU spin:** Unity `-batchmode -nographics` ignores vSync and spins an uncapped loop at `1000+ FPS` (`100%` vCPU) unless throttled; explicitly set `QualitySettings.vSyncCount = 0` and `Application.targetFrameRate = 30` (or drive `MatchSim.Step` via a monotonic `Stopwatch` sleep loop) so dedicated rooms pace cleanly at `30 Hz`.
 
-## 3. Touch-only input (`EnhancedTouch` + `GravitySensor`)
+## 3. Touch-only input sampling (`EnhancedTouch` + `GravitySensor`)
 
-- Build gameplay and menu input exclusively on Unity Input System `EnhancedTouchSupport` — **no mouse, keyboard, or desktop gameplay paths**.
-- Sample active touches deterministically each tick into `PlayerInput` (`Move`, `MoveTarget`, `AimPoint`, button bitmask, `Tick`):
-  - **Landscape match (`1280×720` base, usable at `844×390`):** left-thumb movement stick, right-side shoulder camera drag, right-thumb ability arc with drag-to-aim, `MapLayout` out-of-bounds/hand-drop cancel (`BTN_AIM_CANCEL`), and quick-tap auto-aim within `card_tap_time` (`0.3 s`, target locked at press).
-  - **Portrait menus (`720×1280` base, usable at `390×844`):** switch `Screen.orientation` cleanly on match enter/exit until menus flip to landscape; enforce `Screen.safeArea` notch/home-bar insets on every edge.
-  - **Opt-in Tilt (`GravitySensor`):** calibrate neutral hold when controls resume, apply `8°` deadzone, emit direction-only move targets (never tilt-scaled speed), and yield immediately to any active street touch.
+- Enable `EnhancedTouchSupport` at bootstrap and bind zero mouse, keyboard, or gamepad gameplay actions.
+- Sample `Touch.activeTouches` by `fingerId` once per sim tick into `PlayerInput` (`Move`, `MoveTarget`, `AimPoint`, button bitmask, `Tick`), including `MapLayout` out-of-bounds/hand-drop `BTN_AIM_CANCEL` and `card_tap_time` (`0.3 s`, target locked at press) — deferring HUD layout and radial arc ergonomics to `apex-mobile-hud`.
+- Switch `Screen.orientation` cleanly between Portrait menus (`720×1280` / `390×844`) and Landscape match (`1280×720` / `844×390`), feeding `Screen.safeArea` insets to UI roots on orientation/resolution change.
+- Drive opt-in Tilt via `InputSystem.EnableDevice(GravitySensor.current)`: calibrate neutral hold when controls resume, apply an `8°` deadzone, emit direction-only move targets (never tilt-scaled speed), and yield immediately to any active street touch.
 
-## 4. GUT -> Unity Test Framework & Android APK gate
+## 4. GUT -> Unity Test Framework & Android/Linux build gates
 
-| Godot gate | Unity 6 gate |
+| Godot 4.6 gate | Unity 6 gate |
 |---|---|
 | `tests/unit/test_*.gd` (headless GUT) | Fast NUnit `EditMode` tests (`Kalyeah.Tests.EditMode`, zero scene load) |
-| `tests/integration/` & touch/UI checks | `PlayMode` tests (`InputTestFixture` simulated `Touchscreen`, no mouse shims) |
-| `Android APK` workflow + `inspect-apk.sh` | IL2CPP `arm64-v8a` APK (`minSdkVersion 26`), `16 KB` page-aligned `.so`, compressed native libs, ASTC/ETC2 VRAM textures, minimal `INTERNET` + `VIBRATE` (+ `kalyeah_local` Wi-Fi/NFC permissions) |
+| `tests/integration/` & touch/UI checks | `PlayMode` tests (`InputTestFixture` simulated `Touchscreen`, zero mouse shims) |
+| `Android APK` workflow + `inspect-apk.sh` | IL2CPP `arm64-v8a` APK (`minSdkVersion 26`), `16 KB` page-aligned `.so`, compressed native libs, minimal `INTERNET` + `VIBRATE` (+ `kalyeah_local` Wi-Fi/NFC permissions) |
+| Headless server check | `Linux64` Dedicated Server build (`-batchmode -nographics`, capped `30 Hz` loop) |
 
-- Run `EditMode` + `PlayMode` suites headlessly before opening any PR, verify the `Android` preset builds without desktop/editor-only APIs, and list phone-only verification steps (touch feel, safe areas, thermals, physical Hotspot/QR/NFC) in the PR body.
+- Run `EditMode` + `PlayMode` suites headlessly before opening a PR, verify both `Android` and `Linux64` Dedicated Server targets compile without editor/desktop-only APIs, and list phone-only checks (touch feel, safe areas, thermals, Hotspot/QR/NFC) in the PR body.
 
 ## Anti-patterns to reject
 
-- Sending client position, hit claims, cooldowns, or deck state over the wire instead of `PlayerInput`.
-- Using reflection/JSON string serialization per `20 Hz` snapshot instead of compact binary bitpacking.
-- Adding `Standalone`/WebGL export paths, mouse/WASD fallbacks, or unapproved Android manifest permissions.
+- Using `System.Net.HttpListener` for the Android Hotspot WebSocket host or leaving `Linux64` `-batchmode` uncapped at `100%` CPU.
+- Mutating `SessionState` or `MatchSim` directly from background `Socket`/`ClientWebSocket` thread-pool callbacks instead of pumping a main-thread ring buffer.
+- Sending client positions/hits over the wire, or adding `Standalone`/WebGL targets, mouse/WASD fallbacks, or unapproved Android permissions.

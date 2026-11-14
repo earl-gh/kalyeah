@@ -14,17 +14,17 @@ peek/telegraph honesty, and ***Call of Duty: Mobile*** crisp hit confirmation fo
 barangay street brawls.
 
 **Boundary:** Owns 3P over-the-shoulder camera framing, crosshair parallax reconciliation,
-kinetic locomotion feel, cast telegraphs, and hit feedback. Leaves 3D world/materials/lighting
-to `apex-street-world`, 2D HUD/touch zones to `apex-mobile-hud`, and netcode/60 FPS budgets to
-`apex-net-frame`. Respect Kalyeah's strict sim/view split (`scripts/sim/` vs `scripts/view/`
-or pure `Kalyeah.Sim` vs Unity View).
+kinetic locomotion feel, cast telegraphs, and hit feedback. Defers 3D world/horizon art to
+`apex-street-world`, 2D HUD/multi-touch zones to `apex-mobile-hud`, netcode/60 FPS budgets to
+`apex-net-frame`, and `-Z`/`+Z` engine porting to `godot-unity-view` (preserving the strict
+sim/view split in `CLAUDE.md`).
 
 ## 1. Right-Shoulder Framing & Parallax Solver
 
 - **Lower-left hero framing:** Anchor the `1.52 m` kid (`kid_view_scale = 0.82`) in the
-  lower-left third of the `1280×720` / `844×390` frame (behind and right of the shoulder) so
-  the center crosshair and forward barangay horizon stay open. Keep `CameraRules.third_person`
-  and `CameraRules.follow` fallback strictly data-driven.
+  lower-left third of the landscape frame (behind and right of the shoulder) so the center
+  crosshair and `0°–25°` forward horizon stay open. Keep `CameraRules.third_person` and
+  `CameraRules.follow` fallback strictly data-driven.
 - **Dual-ray parallax reconciliation:**
   1. Cast a primary camera ray through the screen crosshair to locate the world aim point.
   2. Clamp its XZ ground target to `WeaponDef.max_range` from the kid's authoritative sim XZ.
@@ -64,9 +64,8 @@ or pure `Kalyeah.Sim` vs Unity View).
   1. **Silhouette:** Distinct upper-body windup pose readable through team outlines at `35 m`.
   2. **Audio:** Sharp weapon-specific transient (`Tirador` rubber snap, `Lata` tin clatter,
      `Trumpo` cord rip) mixed above street ambience.
-  3. **World boundary:** Team-colored (`blue` ally / `red` enemy, colorblind-safe local) cone,
-     flight line, or ground landing rim (`arcane_fx_master` / `FxSketch`) matching exact sim
-     hit bounds.
+  3. **World boundary:** Team-readable cone, flight line, or ground landing rim
+     (`arcane_fx_master` / `FxSketch`) matching exact sim hit bounds.
 - **CoD Mobile hit-confirm & damage arcs:** Fire an instant `60–90 ms` crosshair tick + pitched
   click on confirmed hit (plus a distinct heavier sting when tagging an enemy at `0 HP`). Show
   incoming hits via a clean directional arc around the crosshair—never camera roll, red-jelly
