@@ -1,6 +1,6 @@
 # Kalyeah — Project Documentation
 
-> 3D stylised multiplayer MOBA for Android, themed on Filipino street games (*mga larong Pinoy sa kalye*). Entry for an Android game development competition.
+> 3D stylised multiplayer MOBA for Android, themed on Filipino street games (*mga larong Pinoy sa kalye*).
 
 ## 1. Abstract
 

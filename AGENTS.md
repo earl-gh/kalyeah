@@ -14,7 +14,21 @@ Use `ponytail` to keep changes complete and small, and `ponytail-review` before 
 Use `tdd` for behavior changes and `domain-modeling` when terminology needs work.
 Read `GLOSSARY.md` for player terms. Do not reconfirm already-authorized test
 boundaries; clarify genuinely new interfaces or unresolved game rules.
-Do not spawn agents merely because a skill describes a role.
+Spawn subagents or /swarm workers only when parallel work or explicit user direction calls for them.
+
+## Subagents and `/swarm` workers
+
+Antigravity subagents in `.agents/agents/` share names with `/swarm` workers and load these canonical skills:
+
+| Name | Subagent | Backing `.claude/skills/` files |
+|---|---|---|
+| `ponytail` | `.agents/agents/ponytail.md` | `.claude/skills/ponytail/SKILL.md`, `.claude/skills/ponytail-help/SKILL.md`, `.claude/skills/ponytail-gain/SKILL.md` |
+| `reviewer` | `.agents/agents/reviewer.md` | `.claude/skills/ponytail-review/SKILL.md` |
+| `auditor` | `.agents/agents/auditor.md` | `.claude/skills/ponytail-audit/SKILL.md`, `.claude/skills/ponytail-debt/SKILL.md` |
+| `tdd` | `.agents/agents/tdd.md` | `.claude/skills/tdd/SKILL.md`, `.claude/skills/tdd/tests.md`, `.claude/skills/tdd/mocking.md` |
+| `domain` | `.agents/agents/domain.md` | `.claude/skills/domain-modeling/SKILL.md`, `.claude/skills/domain-modeling/GLOSSARY-FORMAT.md`, `.claude/skills/domain-modeling/ADR-FORMAT.md` |
+| `ui-ux` | `.agents/agents/ui-ux.md` | `.claude/skills/game-ui-ux/SKILL.md`, `.claude/skills/game-ui-ux/references/layout-and-flow.md` |
+| `perf` | `.agents/agents/perf.md` | `.claude/skills/performance-optimization/SKILL.md`, `.claude/skills/performance-optimization/references/profiling-and-budgets.md` |
 
 Work on a task branch, validate locally and open a reviewable PR; the owner merges.
 Versions (`version.txt`) and CHANGELOG.md change only when the owner asks (release-please was removed). Do not run the upstream automation

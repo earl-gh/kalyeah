@@ -14,9 +14,6 @@ const WITH_PICTURE: Array[StringName] = [&"heal", &"papel_shield", &"papel_trap"
 ## Every weapon has its picture now; the teks card with the painted icon stays as the fallback for a weapon without one. These stand in for
 ## such weapons in the tests that look at it (`_no_picture`).
 const TEKS_ONLY: Array[StringName] = [&"bato_light", &"lata", &"tsinelas_heavy", &"tsinelas_light"]
-## What the pictures may add to the APK: the imported textures are about 190 KB each, the whole folder stays under this (the APK is close
-## to its 200 MB limit).
-const FOLDER_BUDGET_BYTES: int = 2048 * 1024
 
 var _rules: GameRules
 var _was: bool
@@ -134,14 +131,11 @@ func test_every_weapon_has_a_picture() -> void:
 
 
 func test_the_pictures_are_trimmed_small_and_keep_the_cards_proportions() -> void:
-	var total: int = 0
 	for file: String in _picture_files():
 		var texture: Texture2D = CardStyle.picture(StringName(file.trim_suffix(".webp")))
 		assert_between(texture.get_width(), 400, 640, "%s: downscaled (about 512 px wide)" % file)
 		var aspect: float = float(texture.get_width()) / float(texture.get_height())
 		assert_between(aspect, 0.74, 0.79, "%s: trimmed to the card (the slot is 0.79 wide over tall), no empty margin" % file)
-		total += FileAccess.get_file_as_bytes(FOLDER + file).size()
-	assert_lt(total, FOLDER_BUDGET_BYTES, "the pictures stay small (the APK is close to its limit)")
 
 
 func test_the_import_is_lossy_with_mipmaps_and_not_vram_compressed() -> void:

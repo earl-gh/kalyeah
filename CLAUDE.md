@@ -3,7 +3,7 @@
 @docs/DOS_AND_DONTS.md
 
 Read first: `docs/ROADMAP.md` (what is done, what is next, how to build), `docs/GDD.md` (rules + numbers), `docs/PROJECT.md` (scope).
-**Android is the only client** (competition entry): the game is played and tested as an installed **APK**. There is no web or desktop build. The owner works from a phone in cloud sessions and can't run the editor, so every change must be checkable in the **debug APK that the `Android APK` workflow builds** (Actions → Android APK → the run on `main`, or the run you start on a branch → artifact `kalyeah-debug-apk`).
+**Android is the only client**: the game is played and tested as an installed **APK**. There is no web or desktop build. The owner works from a phone in cloud sessions and can't run the editor, so every change must be checkable in the **debug APK that the `Android APK` workflow builds** (Actions → Android APK → the run on `main`, or the run you start on a branch → artifact `kalyeah-debug-apk`).
 
 ## Stack (do not change without asking)
 - Godot **4.6.x** stable (exact version in `.godot-version`), **Compatibility renderer**, GDScript with static types everywhere.
