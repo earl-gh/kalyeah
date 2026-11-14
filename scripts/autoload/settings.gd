@@ -303,19 +303,20 @@ var landscape: bool = true
 var always_landscape: bool = true
 
 
-## Kept for legacy callers; full-game runtime uses `set_landscape(true)` (`SCREEN_SENSOR_LANDSCAPE`).
-func lock_portrait() -> void:
-	if OS.has_feature("android"):
-		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_PORTRAIT)
+## The only orientation the game ever asks for (owner, 2026-11-13): landscape, which the phone may turn upside down (the other landscape)
+## but never upright. The app starts this way too (`display/window/handheld/orientation` = 4, Android's `sensorLandscape`), so the main menu is
+## never laid out in a portrait window and cropped before the first match.
+const ORIENTATION: DisplayServer.ScreenOrientation = DisplayServer.SCREEN_SENSOR_LANDSCAPE
 
 
-## Activates `1280x720` widescreen landscape (`SCREEN_SENSOR_LANDSCAPE` on Android, `LANDSCAPE_BASE` on desktop/mobile).
-## Leaving a match (`set_landscape(false)`) keeps landscape active unless a portrait camera override is in effect.
+## Activates `1280x720` widescreen landscape (`ORIENTATION` on Android, `LANDSCAPE_BASE` on desktop/mobile).
+## Leaving a match (`set_landscape(false)`) keeps landscape active unless a portrait camera override is in effect; the phone stays in
+## landscape whatever happens.
 func set_landscape(on: bool = true) -> void:
 	var active: bool = on or (always_landscape and not _is_portrait_camera_override())
 	landscape = active
 	if OS.has_feature("android"):
-		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE if active else DisplayServer.SCREEN_PORTRAIT)
+		DisplayServer.screen_set_orientation(ORIENTATION)
 	var window: Window = get_window()
 	if window == null:
 		return

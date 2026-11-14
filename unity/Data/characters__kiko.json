@@ -1,0 +1,60 @@
+{
+ "source": "res://data/characters/kiko.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "kiko",
+  "display_name": "Kiko",
+  "description": "Runs completely barefoot on sun-warmed asphalt with his teal-and-white rubber tsinelas slipped onto both hands through the Y-straps for extra focus and speed, paired with a sun-faded mustard sprinter tank, rolled dark-red shorts, and a forehead bimpo sweatband.",
+  "tint": {
+   "r": 0.11999999731779099,
+   "g": 0.699999988079071,
+   "b": 0.6700000166893005,
+   "a": 1.0
+  },
+  "skin": {
+   "r": 0.6200000047683716,
+   "g": 0.4399999976158142,
+   "b": 0.3100000023841858,
+   "a": 1.0
+  },
+  "hair_color": {
+   "r": 0.14000000059604645,
+   "g": 0.09000000357627869,
+   "b": 0.07000000029802322,
+   "a": 1.0
+  },
+  "hair": 6,
+  "top": 1,
+  "top_accent": {
+   "r": 0.949999988079071,
+   "g": 0.8399999737739563,
+   "b": 0.3400000035762787,
+   "a": 1.0
+  },
+  "bottom": 1,
+  "bottom_color": {
+   "r": 0.6800000071525574,
+   "g": 0.20000000298023224,
+   "b": 0.20000000298023224,
+   "a": 1.0
+  },
+  "shoes": false,
+  "shoe_color": {
+   "r": 0.11999999731779099,
+   "g": 0.699999988079071,
+   "b": 0.6700000166893005,
+   "a": 1.0
+  },
+  "extra": 3,
+  "extra_color": {
+   "r": 0.9599999785423279,
+   "g": 0.949999988079071,
+   "b": 0.8999999761581421,
+   "a": 1.0
+  },
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 0.97
+ }
+}

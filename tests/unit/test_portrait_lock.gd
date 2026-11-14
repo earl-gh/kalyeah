@@ -4,10 +4,13 @@ extends GutTest
 ## explicit aspect-fitting helpers for both landscape and legacy portrait test fixtures.
 
 
-func test_the_project_asks_for_plain_portrait_not_a_sensor_that_follows_the_device() -> void:
+func test_the_app_starts_and_stays_in_landscape_turning_only_upside_down() -> void:
+	# owner, 2026-11-13: landscape only (the phone may flip it 180 degrees, never upright), from the very first frame, so the main menu is
+	# never laid out in a portrait window and cropped
 	var orient: int = int(ProjectSettings.get_setting("display/window/handheld/orientation"))
-	assert_eq(orient, DisplayServer.SCREEN_PORTRAIT, "Android export preset contract in project.godot while Settings.always_landscape drives 1280x720 landscape at runtime")
-	assert_ne(orient, DisplayServer.SCREEN_SENSOR)
+	assert_eq(orient, DisplayServer.SCREEN_SENSOR_LANDSCAPE, "Android's sensorLandscape: landscape and reverse landscape only")
+	assert_eq(Settings.ORIENTATION, DisplayServer.SCREEN_SENSOR_LANDSCAPE, "and the only one the game asks for at run time")
+	assert_false(Settings.has_method("lock_portrait"), "nothing can ask for portrait any more")
 	assert_true(Settings.always_landscape, "full-game 1280x720 widescreen landscape at runtime")
 	assert_eq(int(ProjectSettings.get_setting("display/window/size/viewport_width")), 1280)
 	assert_eq(int(ProjectSettings.get_setting("display/window/size/viewport_height")), 720)

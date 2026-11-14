@@ -148,3 +148,18 @@ func test_a_kid_against_the_side_wall_keeps_its_badge_on_screen() -> void:
 		var rect: Rect2 = hud._bar_rect(kid) as Rect2
 		assert_gte(rect.position.x + OverheadHud.BADGE_OVERLAP - OverheadHud.BADGE_SIZE, 0.0, "the badge starts inside the screen at x %s" % x)
 		assert_lte(rect.end.x, width, "and the bar ends inside it")
+
+
+func test_an_enemy_shows_no_health_bar_but_keeps_its_badge() -> void:
+	# owner, 2026-11-13: during play an enemy's health is never shown; you, your teammates and every badge still are
+	var sim: MatchSim = _three_a_side()
+	var hud: OverheadHud = _hud(sim)
+	for id: int in sim.players:
+		var state: PlayerState = sim.players[id]
+		var enemy: bool = state.team != sim.players[1].team
+		assert_eq(hud.is_enemy(state), enemy, "kid %d" % id)
+		assert_eq(hud.health_shown(state), not enemy, "kid %d: a bar only over your own team" % id)
+		assert_true(hud.bar_visible(state), "kid %d keeps its badge and word" % id)
+	hud.taya_id = 2
+	assert_true(hud.is_enemy(sim.players[2]), "the taya of a street game is an enemy too")
+	assert_false(hud.is_enemy(sim.players[1]), "never yourself")
