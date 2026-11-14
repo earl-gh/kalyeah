@@ -1,0 +1,17 @@
+{
+ "source": "res://data/rules/bot_levels/hard.tres",
+ "class": "BotLevel",
+ "data": {
+  "$class": "BotLevel",
+  "id": "hard",
+  "label": "Hard",
+  "blurb": "Relentless 5v5 Bida squad with sharp aim, dashes, and multi-lane pushes.",
+  "skill": 0.85,
+  "aim_error_degrees": 4.5,
+  "cast_gap": 0.85,
+  "aggro_range": 34.0,
+  "assault_delay": 1.0,
+  "assault_window": 75.0,
+  "rest_time": 3.5
+ }
+}

@@ -1,0 +1,60 @@
+{
+ "source": "res://data/characters/tala.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "tala",
+  "display_name": "Tala",
+  "description": "Paint-splattered boxy purple tee over black-and-white striped knit sleeves, diagonal kraft-cardboard poster tube slung across her back, chalk-and-komiks artist waist apron, fingerless sock-gloves, asymmetrical hairpin bob, and star-doodled canvas sneakers.",
+  "tint": {
+   "r": 0.47999998927116394,
+   "g": 0.30000001192092896,
+   "b": 0.6800000071525574,
+   "a": 1.0
+  },
+  "skin": {
+   "r": 0.5600000023841858,
+   "g": 0.38999998569488525,
+   "b": 0.27000001072883606,
+   "a": 1.0
+  },
+  "hair_color": {
+   "r": 0.11999999731779099,
+   "g": 0.10000000149011612,
+   "b": 0.11999999731779099,
+   "a": 1.0
+  },
+  "hair": 3,
+  "top": 3,
+  "top_accent": {
+   "r": 0.5199999809265137,
+   "g": 0.3400000035762787,
+   "b": 0.7200000286102295,
+   "a": 1.0
+  },
+  "bottom": 0,
+  "bottom_color": {
+   "r": 0.6800000071525574,
+   "g": 0.6000000238418579,
+   "b": 0.46000000834465027,
+   "a": 1.0
+  },
+  "shoes": true,
+  "shoe_color": {
+   "r": 0.20000000298023224,
+   "g": 0.20000000298023224,
+   "b": 0.23999999463558197,
+   "a": 1.0
+  },
+  "extra": 5,
+  "extra_color": {
+   "r": 0.7799999713897705,
+   "g": 0.6200000047683716,
+   "b": 0.41999998688697815,
+   "a": 1.0
+  },
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 0.98
+ }
+}

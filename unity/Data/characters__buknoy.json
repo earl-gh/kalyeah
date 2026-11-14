@@ -1,0 +1,60 @@
+{
+ "source": "res://data/characters/buknoy.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "buknoy",
+  "display_name": "Buknoy",
+  "description": "Cutoff frayed rust-plaid flannel vest over a smudged grey tee, black vulcanized rubber bicycle inner-tube (interior ng gulong) wrapped diagonally across his chest and coiled around his forearm, frayed maong shorts, backwards mechanic cap, and thick tire-sole tsinelas.",
+  "tint": {
+   "r": 0.7599999904632568,
+   "g": 0.36000001430511475,
+   "b": 0.2199999988079071,
+   "a": 1.0
+  },
+  "skin": {
+   "r": 0.49000000953674316,
+   "g": 0.33000001311302185,
+   "b": 0.20999999344348907,
+   "a": 1.0
+  },
+  "hair_color": {
+   "r": 0.12999999523162842,
+   "g": 0.09000000357627869,
+   "b": 0.05999999865889549,
+   "a": 1.0
+  },
+  "hair": 5,
+  "top": 4,
+  "top_accent": {
+   "r": 0.7400000095367432,
+   "g": 0.3199999928474426,
+   "b": 0.2199999988079071,
+   "a": 1.0
+  },
+  "bottom": 0,
+  "bottom_color": {
+   "r": 0.23999999463558197,
+   "g": 0.3199999928474426,
+   "b": 0.46000000834465027,
+   "a": 1.0
+  },
+  "shoes": false,
+  "shoe_color": {
+   "r": 0.18000000715255737,
+   "g": 0.1899999976158142,
+   "b": 0.20999999344348907,
+   "a": 1.0
+  },
+  "extra": 1,
+  "extra_color": {
+   "r": 0.1599999964237213,
+   "g": 0.17000000178813934,
+   "b": 0.1899999976158142,
+   "a": 1.0
+  },
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.04
+ }
+}

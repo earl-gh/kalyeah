@@ -1,0 +1,60 @@
+{
+ "source": "res://data/characters/toni.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "toni",
+  "display_name": "Toni",
+  "description": "Oversized #08 crimson-and-gold mesh Barangay Liga jersey over a wide-sleeve white tee, backwards charcoal-teal snapback over a 90s undercut, baggy olive cargo shorts with a tansan keychain, finger tape, and scuffed 90s high-top sneakers.",
+  "tint": {
+   "r": 0.18000000715255737,
+   "g": 0.18000000715255737,
+   "b": 0.2199999988079071,
+   "a": 1.0
+  },
+  "skin": {
+   "r": 0.6000000238418579,
+   "g": 0.41999998688697815,
+   "b": 0.30000001192092896,
+   "a": 1.0
+  },
+  "hair_color": {
+   "r": 0.18000000715255737,
+   "g": 0.12999999523162842,
+   "b": 0.10000000149011612,
+   "a": 1.0
+  },
+  "hair": 3,
+  "top": 3,
+  "top_accent": {
+   "r": 0.8199999928474426,
+   "g": 0.1599999964237213,
+   "b": 0.18000000715255737,
+   "a": 1.0
+  },
+  "bottom": 1,
+  "bottom_color": {
+   "r": 0.41999998688697815,
+   "g": 0.46000000834465027,
+   "b": 0.30000001192092896,
+   "a": 1.0
+  },
+  "shoes": true,
+  "shoe_color": {
+   "r": 0.7599999904632568,
+   "g": 0.18000000715255737,
+   "b": 0.20000000298023224,
+   "a": 1.0
+  },
+  "extra": 0,
+  "extra_color": {
+   "r": 0.14000000059604645,
+   "g": 0.6600000262260437,
+   "b": 0.6200000047683716,
+   "a": 1.0
+  },
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.0
+ }
+}

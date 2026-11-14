@@ -1,0 +1,60 @@
+{
+ "source": "res://data/characters/popoy.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "popoy",
+  "display_name": "Popoy",
+  "description": "Stocky barrio defender in an open vertical-striped polo over a crisp white undershirt, packing-taped corrugated-cardboard kalasag forearm guard, right-hip insulated ice-candy pouch, sturdy navy shorts, and wide rubber tsinelas.",
+  "tint": {
+   "r": 0.3499999940395355,
+   "g": 0.5600000023841858,
+   "b": 0.9200000166893005,
+   "a": 1.0
+  },
+  "skin": {
+   "r": 0.7200000286102295,
+   "g": 0.550000011920929,
+   "b": 0.41999998688697815,
+   "a": 1.0
+  },
+  "hair_color": {
+   "r": 0.18000000715255737,
+   "g": 0.10000000149011612,
+   "b": 0.07000000029802322,
+   "a": 1.0
+  },
+  "hair": 6,
+  "top": 4,
+  "top_accent": {
+   "r": 0.9700000286102295,
+   "g": 0.9700000286102295,
+   "b": 0.949999988079071,
+   "a": 1.0
+  },
+  "bottom": 0,
+  "bottom_color": {
+   "r": 0.20000000298023224,
+   "g": 0.2800000011920929,
+   "b": 0.5400000214576721,
+   "a": 1.0
+  },
+  "shoes": false,
+  "shoe_color": {
+   "r": 0.20000000298023224,
+   "g": 0.3400000035762787,
+   "b": 0.7799999713897705,
+   "a": 1.0
+  },
+  "extra": 4,
+  "extra_color": {
+   "r": 0.7799999713897705,
+   "g": 0.6000000238418579,
+   "b": 0.3799999952316284,
+   "a": 1.0
+  },
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.22
+ }
+}
