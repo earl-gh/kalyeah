@@ -1,0 +1,4 @@
+<!-- IL2CPP must keep the whole sim: SimData fills its classes by reflection (unity/README.md "The sim port"). -->
+<linker>
+  <assembly fullname="Kalyeah.Sim" preserve="all" />
+</linker>

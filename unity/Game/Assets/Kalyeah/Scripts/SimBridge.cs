@@ -8,25 +8,12 @@
 //                                  Kalyeah.Game.Core.asmdef turns that version into the define (versionDefines).
 //   not defined (today)         -> StandInMatch.cs, a throwaway stand-in (NOT the rules) so the view can be built and seen now.
 //
-// ASSUMED SIM API (the PascalCase mapping of scripts/sim/*.gd; namespace Kalyeah.Sim; vectors are System.Numerics.Vector2 on the
-// ground plane, X = x and Y = z, as Godot's Vector2 position is):
-//   new DataLoader(Func<string, string> readJson)          readJson("rules__game_rules") -> the text of unity/Data/rules__game_rules.json
-//       GameRules DataLoader.LoadGameRules()               (rules__game_rules + every $ref it names)   <- the least certain name
-//       MapLayout DataLoader.LoadMapLayout()               (rules__map_layout)
-//   new MatchSim(GameRules rules, MapLayout layout, long seed)
-//       PlayerState MatchSim.AddPlayer(int id, int team)
-//       void MatchSim.AssignCharacters()
-//       bool MatchSim.SetCharacter(int id, string characterId)
-//       void MatchSim.Equip(int id, bool fighter = false)
-//       void MatchSim.SetInput(int id, PlayerInput input)
-//       void MatchSim.Step(float dt)
-//       IReadOnlyDictionary<int, PlayerState> / Dictionary<int, PlayerState> MatchSim.Players   (insertion order)
-//       int MatchSim.Tick;  float MatchSim.MatchTime;  MatchScore MatchSim.Score  (int[] MatchScore.Points, 2 teams)
-//       event Action<int, int> MatchSim.PlayerTagged  (id, byId);  event Action<int, int> MatchSim.PointScored  (team, how)
-//   PlayerState: int Id, Team, Hp;  bool Tagged;  string CharacterId;  Vector2 Position, Facing
-//   PlayerInput.Create(Vector2 move, Vector2 aim, int buttons, int tick)
-//   GameRules: int TickRate, PlayerMaxHp;  float BotSkill
-//   new TeamCoach(int team, int followId = -1);  void TeamCoach.Add(MatchSim sim, int id, float skill);  void TeamCoach.Drive(MatchSim sim)
+// SIM API USED (unity/Kalyeah.Sim; namespace Kalyeah.Sim; Vec2 is Godot's float32 Vector2, X = x and Y = z on the ground):
+//   SimData (AddFile per unity/Data json, following $refs) -> GameRules, MapLayout
+//   new MatchSim(GameRules, MapLayout, long seed): AddPlayer, Equip, SetInput, Step, BeginIntro, Rng, Players (insertion order), Tick,
+//       MatchTime, Score.Points, events PlayerTagged (id, byId) and PointScored (team, how)
+//   PlayerState: Id, Team, Hp, Tagged, CharacterId, Position, Facing;  PlayerInput.Create(Vec2 move, Vec2 aim, int buttons, int tick)
+//   new TeamCoach(team, followId = -1): Add(sim, id, skill), Drive(sim) once per tick before Step
 // =====================================================================================================================================
 using System;
 using System.Collections.Generic;
@@ -84,15 +71,15 @@ namespace Kalyeah.Game
 
         public SimBridge(DataSource data, long seed, string localCharacter)
         {
-            var loader = new DataLoader(data.Text);
-            GameRules rules = loader.LoadGameRules();
-            MapLayout layout = loader.LoadMapLayout();
+            SimData simData = LoadSimData(data, "rules__game_rules", "rules__map_layout");
+            GameRules rules = simData.GameRules;
+            MapLayout layout = simData.MapLayout;
             TickDt = 1f / rules.TickRate;
             MaxHp = rules.PlayerMaxHp;
-            _runPerTick = DataSource.F(data.Props("rules__game_rules"), "move_speed") * TickDt;
+            _runPerTick = (float)rules.MoveSpeed * TickDt;
             _sim = new MatchSim(rules, layout, seed);
             _sim.PlayerTagged += (id, by) => Tagged?.Invoke(id, by);
-            _sim.PointScored += (team, how) => PointScored?.Invoke(team, how);
+            _sim.PointScored += (team, how) => PointScored?.Invoke(team, (int)how);
             // practice_match.gd _setup_bot_match: you, four allies backing you up, five enemies
             _sim.AddPlayer(LocalId, LocalTeam);
             var allies = new TeamCoach(LocalTeam, LocalId);
@@ -100,24 +87,65 @@ namespace Kalyeah.Game
             foreach (int id in AllyIds) { _sim.AddPlayer(id, LocalTeam); allies.Add(_sim, id, rules.BotSkill); }
             foreach (int id in EnemyIds) { _sim.AddPlayer(id, 1 - LocalTeam); foes.Add(_sim, id, rules.BotSkill); }
             _coaches = new[] { allies, foes };
-            _sim.AssignCharacters();
-            if (!string.IsNullOrEmpty(localCharacter)) _sim.SetCharacter(LocalId, localCharacter);
+            AssignUniqueRoster(_sim, rules, localCharacter);
             _sim.Equip(LocalId);
             foreach (int id in AllyIds) _sim.Equip(id, true);
             foreach (int id in EnemyIds) _sim.Equip(id, true);
+            _sim.BeginIntro();
             UsesStandIn = false;
             Refresh();
         }
 
+        /// <summary>The sim's data: the named files and every file they name through a `$ref`, from the game's copy of unity/Data.</summary>
+        static SimData LoadSimData(DataSource data, params string[] roots)
+        {
+            var simData = new SimData();
+            var pending = new Queue<string>(roots);
+            var seen = new HashSet<string>();
+            while (pending.Count > 0)
+            {
+                string name = pending.Dequeue();
+                if (!seen.Add(name)) continue;
+                string text = data.Text(name);
+                simData.AddFile(text);
+                foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(text, "\"\\$ref\"\\s*:\\s*\"(res://data/[^\"]+)\""))
+                    pending.Enqueue(DataSource.NameOfResPath(m.Groups[1].Value));
+            }
+            return simData;
+        }
+
+        /// <summary>practice_match.gd _assign_unique_roster: ten different kids drawn from the match's rng, yours first (the same draws as the
+        /// Godot game, so a Unity match follows the Godot one tick for tick; checked by the bot golden replays).</summary>
+        static void AssignUniqueRoster(MatchSim sim, GameRules rules, string avatar)
+        {
+            if (rules.Characters.Count < sim.Players.Count || string.IsNullOrEmpty(avatar))
+            {
+                sim.AssignCharacters();
+                if (!string.IsNullOrEmpty(avatar)) sim.SetCharacter(LocalId, avatar);
+                return;
+            }
+            var pool = new List<string>();
+            foreach (CharacterDef c in rules.Characters) pool.Add(c.Id);
+            for (int i = pool.Count - 1; i > 0; i--)
+            {
+                int j = sim.Rng.RandiRange(0, i);
+                (pool[i], pool[j]) = (pool[j], pool[i]);
+            }
+            int wanted = pool.IndexOf(avatar);
+            if (wanted > 0) { pool[wanted] = pool[0]; pool[0] = avatar; }
+            int cursor = 0;
+            foreach (var pair in sim.Players) pair.Value.CharacterId = pool[cursor++];
+        }
+
         public int Tick => _sim.Tick;
-        public float ClockSeconds => _sim.MatchTime;
+        public float ClockSeconds => (float)_sim.MatchTime;
         public int ScoreOf(int team) => _sim.Score.Points[team];
 
         /// <summary>One fixed tick: the bots decide, your input goes in, the sim steps.</summary>
         public void Step()
         {
             foreach (TeamCoach coach in _coaches) coach.Drive(_sim);
-            _sim.SetInput(LocalId, PlayerInput.Create(_move, Vector2.Zero, _buttons, _sim.Tick));
+            _sim.SetInput(LocalId, PlayerInput.Create(new Vec2(_move.X, _move.Y), Vec2.Zero, _buttons, _sim.Tick));
             _sim.Step(TickDt);
             Refresh();
         }
@@ -125,10 +153,10 @@ namespace Kalyeah.Game
         void Refresh()
         {
             _kids.Clear();
-            foreach (KeyValuePair<int, PlayerState> pair in _sim.Players)
+            foreach (var pair in _sim.Players)
             {
                 PlayerState p = pair.Value;
-                _kids.Add(Snapshot(p.Id, p.Team, p.CharacterId, p.Position, p.Facing, p.Hp, p.Tagged));
+                _kids.Add(Snapshot(p.Id, p.Team, p.CharacterId, new Vector2(p.Position.X, p.Position.Y), new Vector2(p.Facing.X, p.Facing.Y), p.Hp, p.Tagged));
             }
         }
 #else
