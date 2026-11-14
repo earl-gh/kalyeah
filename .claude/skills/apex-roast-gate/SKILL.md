@@ -15,19 +15,17 @@ Kalyeah from greybox slop, unreadable mobile HUD clutter, and over-engineered bl
 
 **Read-only critic rule:** Never edit author files directly. Inspect connected code, data
 resources, executed seam tests, and rendered phone captures against canonical specs in
-`apex-street-world`, `apex-combat-cam`, `apex-mobile-hud`, `apex-net-frame`, `ponytail`, and
-`CLAUDE.md`, running **all 5 mandatory gates** without sugarcoating.
+`apex-street-world`, `apex-combat-cam`, `apex-mobile-hud`, `apex-screen-fit`, `apex-net-frame`,
+`ponytail`, and `CLAUDE.md`, running **all 5 mandatory gates** without sugarcoating.
 
 ## 1. Acceptance Criteria & Mandatory Visual Capture Gate (`[AC]`)
 
 - **Automatic visual-capture blocker (`[AC-MISS: NO VISUAL CAPTURE]`):** Any task touching 3D
   world layout, props, shaders, lighting, 3P camera framing, GUI, or HUD **automatically fails**
-  with `[AC-MISS: NO VISUAL CAPTURE]` unless actual rendered captures at **both** phone aspect
-  extremes were generated and visually inspected by eye:
-  - **Landscape match:** `1280×720` (`16:9`) **AND** `844×390` (narrow/notched safe-area).
-  - **Portrait menus:** `720×1280` (`9:16`) **AND** `390×844` (narrow/notched safe-area).
-  Code-only, scene-diff-only, or headless-unit-test-only signoff on visual or HUD work is strictly
-  forbidden.
+  with `[AC-MISS: NO VISUAL CAPTURE]` unless actual rendered captures at phone aspect extremes
+  (`16:9` `1280×720` **AND** narrow/notched `844×390` landscape; `720×1280` **AND** `390×844`
+  portrait; plus automated 4-aspect bounds checks per `apex-screen-fit` §5) were generated and
+  visually inspected by eye. Code-only, scene-diff-only, or headless-test-only signoff is forbidden.
 - **Observable pass/fail grading:** Verify deterministic data-driven rules (`data/*.tres` /
   `ScriptableObject`) and executed seam-test output (`surgical-focus`). If explicit acceptance
   criteria were missing or vague, **write crisp player-observable pass/fail checks first** and fail
@@ -47,7 +45,8 @@ resources, executed seam tests, and rendered phone captures against canonical sp
 
 ## 3. Brutal 3D World & Camera Roaster (`[3D-ROAST]`)
 
-Audit rendered captures against `apex-street-world` and `apex-combat-cam`; roast without mercy:
+Audit rendered captures against `apex-street-world`, `apex-combat-cam`, and `apex-screen-fit` §4;
+roast without mercy:
 
 - **Band/silhouette camouflage:** Outlined kids or projectiles blending into same-value surfaces or
   noisy `Band 2` walls instead of reading in `< 100 ms` at `40 m` (`apex-street-world` §1).
@@ -56,21 +55,23 @@ Audit rendered captures against `apex-street-world` and `apex-combat-cam`; roast
 - **Dead lighting or "parking-lot" arenas:** Crushed `#000` shadow pits, `#FFF` glare erasing
   ground timers, floating boxes lacking sidewalks/curbs/gutters/AO, `< 2 cm` shimmering edges, or
   broken human scale vs `1.52 m` kids (`apex-street-world` §2).
-- **Dishonest camera or telegraphs:** Wall clipping, FOV sickness surges, muzzle-parallax cover
-  snags, skating strides, or missing `< 150 ms` 3-channel telegraphs (`apex-combat-cam` §§1–3).
+- **Dishonest camera or telegraphs:** Wall clipping, FOV sickness surges, cropped `4:3`/`16:9`
+  vertical FOV or uncapped `> 21.5:9` peeks (`apex-screen-fit` §4), muzzle-parallax cover snags,
+  skating strides, or missing `< 150 ms` 3-channel telegraphs (`apex-combat-cam` §§1–3).
 
 ## 4. Brutal Mobile GUI & HUD Roaster (`[HUD-ROAST]`)
 
-Audit both `16:9` and narrow/notched captures against `apex-mobile-hud`; roast without mercy:
+Audit multi-aspect captures against `apex-mobile-hud` and `apex-screen-fit`; roast without mercy:
 
-- **Center-sightbox spam:** Banners, toasts, debug labels, or persistent chrome intruding into the
-  central crosshair/hero sightbox (`apex-mobile-hud` §3).
-- **Thumb misfires & single-touch traps:** Cramped arcs, undersized hit rects/gutters, `GetTouch(0)`
-  multi-finger bugs jerking camera yaw on claw taps, ambiguous walk/run stick feedback, or missing
-  zero-cost red cancel (`apex-mobile-hud` §§1–2).
-- **Phone illegibility, notch clipping & bar violations:** Micro-type, un-outlined text washing out
-  over bright concrete, `390 px` string overflow, notch/home-bar clipping, lifeless lockout states,
-  forbidden ground rings, or unstacked overhead bar soup (`apex-mobile-hud` §3).
+- **Center-sightbox spam & bar violations:** Banners, toasts, or chrome inside the central sightbox,
+  lifeless lockout states, forbidden ground rings, or unstacked overhead bar soup (`apex-mobile-hud` §§2–3).
+- **Thumb misfires & single-touch traps:** Cramped arcs, undersized `< 48 dp` hit rects/gutters,
+  `GetTouch(0)` multi-finger bugs jerking camera yaw on claw taps, ambiguous walk/run stick feedback,
+  or missing zero-cost red cancel (`apex-mobile-hud` §§1–2, `apex-screen-fit` §2).
+- **Screen-fit, cutout & foldable failures:** `4:3` foldable stick/arc collisions or stretched menu
+  grids, `21:9` inward-drifting thumb controls, `LandscapeLeft`/`Right` asymmetric cutout or
+  gesture-bar clipping, hardcoded pixel coords/`(640, 360)` rays, micro-type, or `360 px` string
+  overflow (`apex-screen-fit` §§1–5).
 
 ## 5. Multi-Pass Convergence Check & Verdict Protocol
 
