@@ -78,6 +78,12 @@ clip. Missing clips fall back by group (e.g. `Cast_Slam` → `Cast_Throw`).
   leg-length ratio; re-plant feet with a foot-lock pass on contact frames (IK to the source
   contact height); fingers copy local rotations about the palm-facing roll axis.
 - Unmapped bones (twist, cloth) keep rest; mirrored clips use the mirrored name map.
+- **Limits on transfer:** after each frame's rotations land, swing–twist clamp every bone to the
+  target's `rig__joint_limits.json` (`apex-rig-forge` R2); log each clamp (bone, frame, overshoot).
+  Overshoot > 10° means the source pose doesn't fit this kid: fix it in the source with the
+  control rig's FK/IK, not by widening limits.
+- Owner clips are keyed on the control rig (FK/IK switch, pole targets, reverse foot); export bakes
+  them onto deform bones.
 - Verify per kid: clip names and durations, release-time measurement (hand path midpoint),
   feet slide ≤ 2 cm per cycle, no limb flips, finger curls bend toward the palm.
 
@@ -89,11 +95,20 @@ clip. Missing clips fall back by group (e.g. `Cast_Slam` → `Cast_Throw`).
 - **Layers:** upper-body masks via `AddMixingTransform(Spine1, recursive)` for `Aim_Hold`,
   `Fire`, `Reload`, casts while legs keep locomotion; additive layers
   (`AnimationBlendMode.Additive`) for breathing and hit flinches.
-- **LateUpdate order (after sampling):** aim offset (spine/neck yaw-pitch split 40/30/30 toward
-  the `AimSolver` point) → two-bone foot IK to ground/stairs (pelvis drops to the lower foot)
-  → hand IK for held props → spring bones on hair/cloth chains (verlet, 2 iterations,
-  stiffness/damping in data) → corrective weights from `kalyeah_correctives`
-  (`apex-rig-forge` R5) → overhead bar anchor.
+- **FK → IK (LateUpdate, after sampling):** the sampled clip is the FK pose; IK only corrects it.
+  1. Aim offset: spine/neck yaw-pitch split 40/30/30 toward the `AimSolver` point, each share
+     clamped to that bone's limits.
+  2. Foot IK: analytic two-bone solve (law of cosines) per leg to the ground/stair hit, knee aimed
+     at a pole on the leg's clip plane (no knee flips); pelvis drops to the lower foot; ankle
+     aligned to the ground normal within foot limits.
+  3. Hand IK for held props, same solver with an elbow pole.
+  4. Clamp: swing–twist clamp every IK-touched bone to `rig__joint_limits.json`; if the target
+     is out of reach, stop at full extension minus 1° (never lock straight or hyperextend).
+  5. Half-angle helpers (`apex-rig-forge` R2) follow 50% of their joint.
+  6. Spring bones on hair/cloth chains (verlet, 2 iterations, stiffness/damping in data,
+     collide against head/torso capsules).
+  7. Corrective weights from `kalyeah_correctives` (`apex-rig-forge` R5), then the overhead bar
+     anchor.
 - **Cost:** `cullingType = BasedOnRenderers`; kids beyond the near ring update every 2nd frame;
   spring bones and IK off for kids beyond ~20 m or off-screen; no per-frame allocations, cached
   `AnimationState` refs, no string lookups per frame.
@@ -104,6 +119,9 @@ Review captures as frame strips (every 2nd frame) at 1280×720 and 844×390, plu
 for feet:
 - No pops (frame-to-frame joint jump > 25°), no foot slide > 2 cm per cycle, no T-pose frames,
   no clipping through own body at any key pose.
+- **Limit scan:** script every frame of every clip on every kid (and live IK output in a
+  stress scene): zero bones outside `rig__joint_limits.json`, zero hinge joints bending
+  sideways, no knee or elbow straight-locked at full IK reach.
 - Every attack identifiable within its first 4 frames from behind and from the side.
 - Fortnite bar: clear anticipation and overshoot on every action, holds on extremes, appealing
   silhouettes. Valorant bar: honest release timing, grounded idles, readable direction.
