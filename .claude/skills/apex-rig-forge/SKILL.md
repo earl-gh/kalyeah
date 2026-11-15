@@ -116,6 +116,10 @@ the clip scan use the same axes; nothing hard-codes a local X/Y/Z.
 | Finger 1 / 2 / 3 | −15 … 90 / 0 … 100 / −5 … 80 | ±15 (index, pinky ±20) / 0 / 0 | 0 |
 | Thumb 1 / 2 / 3 | −10 … 50 / 0 … 60 / −10 … 80 | ±60 / 0 / 0 | ±30 / 0 / 0 |
 
+**Per-kid overrides** (`overrides.<Kid>` in the same file) only narrow a range, never widen it:
+a joint's flex limit ends where its parts first touch plus the squash allowance (R4 contact gate),
+so a chubby kid's elbow or knee stops earlier than a slim one's.
+
 Clamp by **swing–twist decomposition** (extract twist about the twist axis, clamp; clamp the
 swing inside the flex×abduct ellipse); never clamp Euler channels separately.
 
@@ -140,14 +144,22 @@ swing inside the flex×abduct ellipse); never clamp Euler channels separately.
    wider bends like a noodle): hinges ~1.0 × biased 60/40 to the parent on the outside; ball joints
    ~1.5 × with clavicle/spine sharing deltoid/glute; wrist/ankle ~0.7 ×. Crease-band vertices
    take the half-angle helper as one influence; forearm vertices take the twist ramp (R2).
-4. **Cloth vs body:** skirt/shorts hems follow the thigh they cover (≥ 70% `UpLeg` near the hem,
+4. **Layer binding (no gaps, no poke-through):** every stacked layer (shirt, shorts, bracelet,
+   strap, hair over the neck) copies its weights from the surface directly beneath it (`Data
+   Transfer`, nearest face interpolated, then the layer's own extra chains), so layer and skin
+   move by the same matrices and their rest gap never changes. Skin that sits fully under a
+   layer and can never be seen is offered to the owner for removal or a 2–3 mm inset (modelling
+   change, owner's call); until then it stays bound to the layer's weights.
+5. **Cloth vs body:** skirt/shorts hems follow the thigh they cover (≥ 70% `UpLeg` near the hem,
    the hips above) with the skirt chain for the rest; loose cloth gets capsule colliders on
    `UpLeg`/`Leg` for spring bones (`apex-anim-craft`); clipping at the R4 hip/knee limits fails.
-5. **Smoothing** only inside joint zones (factor 0.35–0.5, 2–3 iterations); never global.
-6. **Integrity:** seam twins identical; no opposite-side influence; `neutral_bone` vertices take the
+6. **Smoothing** only inside joint zones (factor 0.35–0.5, 2–3 iterations); never global.
+7. **Integrity (no exploding skin):** seam twins identical; no opposite-side influence; remove any
+   influence whose bone segment is farther from the vertex than 1.5 × the local limb radius (stray
+   influences throw vertices out as spikes when that bone moves); `neutral_bone` vertices take the
    nearest skinned vertex's weights and the bone is removed.
-7. **Normalize:** prune < 0.01, top **4** influences (helpers and twist bones count), renormalize.
-8. **Mirror check:** L/R weight maps match within tolerance on symmetric kids.
+8. **Normalize:** prune < 0.01, top **4** influences (helpers and twist bones count), renormalize.
+9. **Mirror check:** L/R weight maps match within tolerance on symmetric kids.
 
 ## R4 · Range-of-motion QA (measured, `rom_metrics.py`)
 
@@ -164,6 +176,12 @@ measure, then confirm with renders (textured and grey/red):
 | Self-intersection | faces crossing faces of the same body part | none outside the contact zone |
 | Cloth | hem/skirt faces inside the leg | none at hip/knee limits |
 | Integrity | open edges, back faces | none new |
+| Spikes (exploding) | each vertex's posed offset from its neighbours' average vs the same at rest | ≤ 3 × the mesh median; no vertex outside the posed limb's capsule + 2 cm |
+| Layer gap | distance from each layer vertex to the skin beneath, along the skin normal | stays within the rest gap ± 2 mm; skin never in front of a layer |
+| Contact between parts | penetration depth between different parts (forearm↔upper arm, calf↔thigh, arm↔torso, thigh↔thigh, hand↔thigh) | touching allowed; ≤ 3 mm deep (squash zone), else narrow the per-kid limit or add a squash shape |
+
+Contact poses join the limit poses: elbow and knee at full flex, arms down in the rest A-pose and
+in the widest clip pose, hand on hip and thigh, feet together, both legs at full hip flex.
 
 Fix order: weights (R3) → helpers and twist (R2) → correctives (R5), one at a time.
 
@@ -181,6 +199,10 @@ Fix order: weights (R3) → helpers and twist (R2) → correctives (R5), one at 
   shape at both limits, driven by the product of both weights, holding the difference between the
   combined fix and the sum of the singles. Per-vertex total corrective offset is capped at the
   largest single delta.
+- **Squash shapes** for contact: at the contact pose, vertices of both parts that penetrate are
+  pushed back to the shared contact surface (the mid-plane between the parts) and their
+  neighbours relaxed, giving a flattened, compressed look like real skin pressing on skin; baked
+  and driven like any corrective (`corr_<Bone>_Squash`).
 - Budget ≤ 10 shapes per kid; deltas only where > 0.5 mm; none on joints that pass R4 without them.
 
 ## R6 · Face rig (owner-made shapes, wired here)

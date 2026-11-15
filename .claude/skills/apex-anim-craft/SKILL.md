@@ -73,6 +73,10 @@ non-uniform bone scale.
   (stored once as Unity `AnimationClip` assets, legacy, bound by transform path) drives all 12 kids;
   the hips' height track is scaled per kid by leg length at load (`Hips` local position ×
   `kidLegLength / referenceLegLength`).
+- **Girth offsets:** shared clips are authored on the reference kid; a wider kid's arms would sink
+  into the belly and thighs would rub through. Each kid gets a small additive pose (data, per kid):
+  `Shoulder`/`Arm` abduction and `UpLeg` stance width solved so the limb capsules clear the torso
+  and other leg in the reference clip's tightest frames (+ 1 cm), within the kid's limits.
 - A kid whose rest rotations can't match gets its own baked copy (A5); the scan in A8 flags it.
 - Clips import with keyframe reduction (rotation error 0.5°, position 0.5 mm) and compression;
   no scale curves; one clip set in memory regardless of roster size.
@@ -99,6 +103,9 @@ non-uniform bone scale.
 - Swing–twist clamp to `rig__joint_limits.json` each frame; log bone, frame and overshoot; > 10°
   means the source pose doesn't fit — fix it on the control rig (FK/IK), never widen limits.
 - Helpers and twist bones are baked from their rules (`apex-rig-forge` R2), not copied.
+- **Penetration pass:** each frame, test the kid's limb capsules (upper arm, forearm, hand, thigh,
+  shin) against torso, hip and the other leg; resolve any overlap by the smallest change to `Arm`
+  abduction or `UpLeg` spread inside limits, smoothed over ±2 frames so it never pops; log what moved.
 
 ## A6 · Runtime (Unity legacy `Animation`, View only)
 
@@ -119,10 +126,13 @@ non-uniform bone scale.
   3. Hand IK for held props, same solver with an elbow pole.
   4. Swing–twist clamp every IK-touched bone to the limits (axes from the exported limits data); out
      of reach stops at full extension minus 1°.
-  5. Re-evaluate half-angle helpers and twist bones only for joints IK changed.
-  6. Spring bones on hair/cloth (verlet, 2 iterations, stiffness/damping in data, capsule colliders
+  5. **Body push-out:** arm and hand capsules vs torso/hip capsules, thigh vs thigh: if they overlap,
+     rotate `Arm` (abduct) or `UpLeg` (spread) by the minimum angle that clears them, within limits,
+     eased over 0.1 s so contact settles instead of snapping. Capsules come from each kid's rig data.
+  6. Re-evaluate half-angle helpers and twist bones only for joints IK or push-out changed.
+  7. Spring bones on hair/cloth (verlet, 2 iterations, stiffness/damping in data, capsule colliders
      on head, torso, `UpLeg`, `Leg`).
-  7. Correctives from `kalyeah_correctives` (hinge angle, cone readers, combination products), then
+  8. Correctives from `kalyeah_correctives` (hinge angle, cone readers, combination products, squash shapes), then
      face (blink every 2–6 s randomized in the view, expression per state), then the overhead bar
      anchor.
 - **Update-rate LOD:** near kids sample every frame; far kids disable the `Animation` component and
@@ -145,6 +155,9 @@ list it in the PR's device checks.
 - **Limit scan:** every frame of every clip on every kid, plus live IK in a stress scene: zero bones
   outside limits, zero sideways hinges, no straight-locked limbs; also flags kids whose rest
   rotations miss the shared set (A3).
+- **Contact scan:** the same frames, capsule test on every frame and mesh test on key poses: no
+  limb deeper than 3 mm into another part, no layer gap or skin poking through a layer
+  (`apex-rig-forge` R4 gates), no vertex spikes.
 - Fortnite bar: anticipation, holds and overshoot on every action, appealing silhouettes. Valorant
   bar: honest release timing, grounded idles, readable direction.
 - 10 kids ≤ 1.5 ms CPU on the target phone, inside the 3.0 ms View budget of `apex-net-frame` §2;
