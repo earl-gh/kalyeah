@@ -267,14 +267,18 @@ namespace Kalyeah.Game
             FillRect(_heldPreviewCost.rectTransform, new Vector2(0f, 3f));
             _heldPreviewCard.gameObject.SetActive(false);
 
-            // Top-right explicit red cancel target (in addition to dropping back onto the hand tray)
-            _cancelZone = Ui.Panel("CardCancelZone", _root, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-18f, -18f), new Vector2(228f, 56f));
+            // Top-band explicit red cancel target clear of QuickChatButton / PauseButton (in addition to dropping back onto the hand tray)
+            _cancelZone = Ui.Panel("CardCancelZone", _root, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-132f, -12f), new Vector2(220f, 96f));
             _cancelPlate = Ui.MakeImage("Plate", _cancelZone, CancelIdleColor, round: false, raycast: false);
             _cancelPlate.sprite = HudIconCache.RoundedPlateSprite();
             _cancelPlate.type = Image.Type.Sliced;
             FillRect(_cancelPlate.rectTransform, Vector2.zero);
-            Text cancelTxt = Ui.MakeText("Label", _cancelZone, "Release here to cancel", 18, Ui.Cream, TextAnchor.MiddleCenter);
-            FillRect(cancelTxt.rectTransform, new Vector2(10f, 4f));
+            Text cancelTxt = Ui.MakeText("Label", _cancelZone, "Release to\ncancel", 18, Color.white, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            cancelTxt.lineSpacing = 0.95f;
+            cancelTxt.resizeTextForBestFit = true;
+            cancelTxt.resizeTextMinSize = 14;
+            cancelTxt.resizeTextMaxSize = 18;
+            FillRect(cancelTxt.rectTransform, new Vector2(12f, 8f));
             _cancelZone.gameObject.SetActive(false);
         }
 
@@ -444,9 +448,24 @@ namespace Kalyeah.Game
                     Vector2 cAnchor = _leftHanded ? new Vector2(0f, 1f) : new Vector2(1f, 1f);
                     _cancelZone.anchorMin = _cancelZone.anchorMax = cAnchor;
                     _cancelZone.pivot = cAnchor;
-                    float ch = ScreenFitMetrics.ClampTouchSize(50f * dp, ScreenFitMetrics.MinTouchDp, canvas);
-                    _cancelZone.sizeDelta = new Vector2(Mathf.Max(220f, ch * 2.3f), ch);
-                    _cancelZone.anchoredPosition = new Vector2(_leftHanded ? 18f : -18f, -18f);
+                    float ch = ScreenFitMetrics.ClampTouchSize(48f * dp, ScreenFitMetrics.MinTouchDp, canvas);
+                    float minCornerBtn = ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, canvas);
+                    float cornerInset = Mathf.Max(24f, 12f * dp);
+                    float innerOffset = cornerInset + minCornerBtn + 12f;
+                    float openWingGap = safe.x * 0.5f - 344f - innerOffset;
+                    if (openWingGap >= 160f)
+                    {
+                        float cw = Mathf.Clamp(openWingGap, 164f, 224f);
+                        _cancelZone.sizeDelta = new Vector2(cw, ch);
+                        _cancelZone.anchoredPosition = new Vector2(_leftHanded ? innerOffset : -innerOffset, -12f);
+                    }
+                    else
+                    {
+                        float cw = _leftHanded ? Mathf.Max(124f, ch * 1.35f) : Mathf.Max(188f, ch * 2.1f);
+                        float cx = _leftHanded ? 234f : -innerOffset;
+                        _cancelZone.sizeDelta = new Vector2(cw, ch);
+                        _cancelZone.anchoredPosition = new Vector2(cx, -68f);
+                    }
                 }
             }
             finally

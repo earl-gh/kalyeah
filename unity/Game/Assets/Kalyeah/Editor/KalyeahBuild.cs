@@ -4,12 +4,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Kalyeah.Game;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using Object = UnityEngine.Object;
@@ -20,6 +22,7 @@ using Object = UnityEngine.Object;
 ///   KalyeahBuild.Setup         player settings (package, landscape, arm64, SDKs, input), the URP pipeline asset, the few materials the
 ///                              code needs, the glTFast import settings, the Title and Match scenes and the build's scene list.
 ///   KalyeahBuild.BuildAndroid  Setup, then the APK at -customBuildPath (GameCI passes it) or Build/Android/kalyeah-unity.apk.
+///   KalyeahBuild.BuildIos      Setup, then the iOS Xcode project at -customBuildPath or Build/iOS.
 ///   KalyeahBuild.Screenshots   Setup, then the title and the match from fixed shoulder-camera spots, 1280 x 720 PNGs in Build/screenshots.
 ///                              Needs a graphics device: run without -nographics (GameCI's editor image wraps Unity in xvfb-run).
 /// Run tools/unity_export/sync_assets.sh first (the art, the data and the sim come from there).
@@ -28,6 +31,7 @@ public static class KalyeahBuild
 {
     public const string PackageId = "com.kalyeah.game";
     public const string ProductName = "Kalyeah";
+    const string TargetIosVersion = "15.0";
     /// <summary>Android SDK floor (24 on Unity 6.0 LTS / GameCI; 26 on Unity 6.3+ where the Editor enforces API 26+) and target 35.</summary>
 #if UNITY_6000_3_OR_NEWER
     const int MinSdk = 26, TargetSdk = 35;
@@ -65,6 +69,20 @@ public static class KalyeahBuild
 
     // ---- Setup ------------------------------------------------------------------------------------------------------------------
 
+    [InitializeOnLoadMethod]
+    static void EnsureTitleSceneOpenOnEditorLoad()
+    {
+        if (Application.isBatchMode) return;
+        EditorApplication.delayCall += () =>
+        {
+            if (Application.isBatchMode || EditorApplication.isPlayingOrWillChangePlaymode) return;
+            if (!File.Exists(Path.Combine(ProjectRoot, TitleScenePath)))
+                Setup();
+            else if (string.IsNullOrEmpty(UnityEngine.SceneManagement.SceneManager.GetActiveScene().path))
+                EditorSceneManager.OpenScene(TitleScenePath, OpenSceneMode.Single);
+        };
+    }
+
     [MenuItem("Kalyeah/Setup Project")]
     public static void Setup()
     {
@@ -88,6 +106,7 @@ public static class KalyeahBuild
         PlayerSettings.companyName = ProductName;
         PlayerSettings.productName = ProductName;
         PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, PackageId);
+        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, PackageId);
         StampVersionAndBuildInfo();
 
         // one APK, arm64-v8a only (IL2CPP is the only backend that builds arm64)
@@ -98,6 +117,13 @@ public static class KalyeahBuild
         PlayerSettings.Android.forceInternetPermission = true;   // Online and Hotspot open sockets (KalyeahAndroidManifest adds the rest)
         PlayerSettings.Android.forceSDCardPermission = false;
         EditorUserBuildSettings.buildAppBundle = false;
+
+        // iOS mobile readiness: IL2CPP arm64 only, iOS 15.0+, full-screen landscape (iPhone + iPad)
+        PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
+        PlayerSettings.SetArchitecture(NamedBuildTarget.iOS, 1); // 1 = ARM64
+        PlayerSettings.iOS.targetOSVersionString = TargetIosVersion;
+        PlayerSettings.iOS.targetDevice = iOSTargetDevice.iPhoneAndiPad;
+        PlayerSettings.iOS.requiresFullScreen = true;
 
         // Android immersive fullscreen + edge-to-edge safe-area rendering (SafeArea.cs handles cutouts and gesture bars)
         PlayerSettings.statusBarHidden = true;
@@ -121,6 +147,7 @@ public static class KalyeahBuild
 
         PlayerSettings.colorSpace = ColorSpace.Linear;
         PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, true);
+        PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.iOS, true);
 
         ConfigureAppIconsAndSplash();
 
@@ -152,9 +179,17 @@ public static class KalyeahBuild
         if (string.IsNullOrEmpty(runNumberRaw))
             runNumberRaw = Environment.GetEnvironmentVariable("KALYEAH_VERSION_CODE")?.Trim();
         if (!string.IsNullOrEmpty(runNumberRaw) && int.TryParse(runNumberRaw, out int versionCode) && versionCode > 0)
+        {
             PlayerSettings.Android.bundleVersionCode = versionCode;
-        else if (PlayerSettings.Android.bundleVersionCode < 1)
-            PlayerSettings.Android.bundleVersionCode = 1;
+            PlayerSettings.iOS.buildNumber = versionCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        else
+        {
+            if (PlayerSettings.Android.bundleVersionCode < 1)
+                PlayerSettings.Android.bundleVersionCode = 1;
+            if (string.IsNullOrWhiteSpace(PlayerSettings.iOS.buildNumber))
+                PlayerSettings.iOS.buildNumber = PlayerSettings.Android.bundleVersionCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
 
         string rawServerUrl = Arg("-serverUrl");
         if (string.IsNullOrWhiteSpace(rawServerUrl))
@@ -207,6 +242,14 @@ public static class KalyeahBuild
             var fallbackArray = new Texture2D[count];
             for (int i = 0; i < count; i++) fallbackArray[i] = fallbackIcon;
             PlayerSettings.SetIcons(NamedBuildTarget.Unknown, fallbackArray, IconKind.Application);
+
+            int[] iosSizes = PlayerSettings.GetIconSizes(NamedBuildTarget.iOS, IconKind.Application);
+            if (iosSizes != null && iosSizes.Length > 0)
+            {
+                var iosIcons = new Texture2D[iosSizes.Length];
+                for (int i = 0; i < iosSizes.Length; i++) iosIcons[i] = fallbackIcon;
+                PlayerSettings.SetIcons(NamedBuildTarget.iOS, iosIcons, IconKind.Application);
+            }
         }
 
         PlatformIconKind[] kinds = PlayerSettings.GetSupportedIconKinds(NamedBuildTarget.Android);
@@ -495,8 +538,8 @@ public static class KalyeahBuild
     static void EnsureScenes()
     {
         if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
-        WriteScene(TitleScenePath, TitleScreen.SceneName, typeof(TitleScreen));
         WriteScene(MatchScenePath, MatchBoot.SceneName, typeof(MatchBoot));
+        WriteScene(TitleScenePath, TitleScreen.SceneName, typeof(TitleScreen));
         EditorBuildSettings.scenes = new[]
         {
             new EditorBuildSettingsScene(TitleScenePath, true),
@@ -522,6 +565,7 @@ public static class KalyeahBuild
 
     // ---- BuildAndroid -----------------------------------------------------------------------------------------------------------
 
+    [MenuItem("Kalyeah/Build Android APK")]
     public static void BuildAndroid()
     {
         Setup();
@@ -586,6 +630,29 @@ public static class KalyeahBuild
         }
     }
 
+    // ---- BuildIos ---------------------------------------------------------------------------------------------------------------
+
+    [MenuItem("Kalyeah/Build iOS Xcode Project")]
+    public static void BuildIos()
+    {
+        Setup();
+        string path = Arg("-customBuildPath") ?? Path.Combine(ProjectRoot, "Build", "iOS");
+        Directory.CreateDirectory(path);
+        var options = new BuildPlayerOptions
+        {
+            scenes = new[] { TitleScenePath, MatchScenePath },
+            locationPathName = path,
+            target = BuildTarget.iOS,
+            targetGroup = BuildTargetGroup.iOS,
+            options = BuildOptions.None,
+        };
+        BuildReport report = BuildPipeline.BuildPlayer(options);
+        BuildSummary summary = report.summary;
+        Debug.Log($"KalyeahBuild: {summary.result} {path} {summary.totalSize / (1024 * 1024)} MB in {summary.totalTime}");
+        if (summary.result != BuildResult.Succeeded)
+            throw new BuildFailedException($"iOS build {summary.result}: {summary.totalErrors} errors (see the log above)");
+    }
+
     // ---- Screenshots ------------------------------------------------------------------------------------------------------------
 
     /// <summary>A fixed shoulder-camera spot: your kid's feet (sim XZ), where the view looks (yaw 0 = toward the enemy end), its pitch.</summary>
@@ -635,17 +702,19 @@ public static class KalyeahBuild
 
             SetFullViewport();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            var pickRoot = new GameObject("PickShot").transform;
-            var pickCamera = new GameObject("PickCamera", typeof(Camera)).GetComponent<Camera>();
-            pickCamera.transform.SetParent(pickRoot, false);
-            pickCamera.clearFlags = CameraClearFlags.SolidColor;
-            pickCamera.backgroundColor = Ui.Navy;
-            pickCamera.orthographic = true;
-            Canvas pickCanvas = Ui.MakeCanvas("PickCanvas", pickRoot, pickCamera);
-            var pickView = new PickScreenView(pickCanvas.transform, data, null);
-            if (pickView.SafeRoot.GetComponent<SafeArea>() == null)
-                pickView.SafeRoot.gameObject.AddComponent<SafeArea>().ForceApply();
-            CaptureQuadAspect(pickCamera, dir, "menu_pick", pickView.RefreshResponsiveLayout);
+            {
+                var pickRoot = new GameObject("PickShot").transform;
+                var pickCamera = new GameObject("PickCamera", typeof(Camera)).GetComponent<Camera>();
+                pickCamera.transform.SetParent(pickRoot, false);
+                pickCamera.clearFlags = CameraClearFlags.SolidColor;
+                pickCamera.backgroundColor = Ui.Navy;
+                pickCamera.orthographic = true;
+                Canvas pickCanvas = Ui.MakeCanvas("PickCanvas", pickRoot, pickCamera);
+                using var pickView = new PickScreenView(pickCanvas.transform, data, null);
+                if (pickView.SafeRoot.GetComponent<SafeArea>() == null)
+                    pickView.SafeRoot.gameObject.AddComponent<SafeArea>().ForceApply();
+                CaptureQuadAspect(pickCamera, dir, "menu_pick", pickView.RefreshResponsiveLayout);
+            }
 
             SetFullViewport();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -700,6 +769,660 @@ public static class KalyeahBuild
             ShaderUtil.allowAsyncCompilation = prevAsync;
             EditorSettings.asyncShaderCompilation = asyncShaders;
         }
+    }
+
+    /// <summary>
+    /// Captures the complete 52-PNG dual-aspect (1280x720 + 844x390 asymmetric cutout) GUI gallery into Build/gui_roast
+    /// covering all 26 surfaces: Home/menus, LoadingScreenView, Home/system modals, 5v5 gameplay HUD states, and 5v5/Street gameplay modals.
+    /// </summary>
+    public static void GuiRoastScreenshots()
+    {
+        Setup();
+        bool asyncShaders = EditorSettings.asyncShaderCompilation;
+        bool prevAsync = ShaderUtil.allowAsyncCompilation;
+        EditorSettings.asyncShaderCompilation = false;
+        ShaderUtil.allowAsyncCompilation = false;
+
+        string savedSessionJson = AppSession.Current.ToJson();
+        string savedSettingsJson = SettingsStore.Current.ToJson();
+
+        string dir = Path.Combine(ProjectRoot, "Build", "gui_roast");
+        Directory.CreateDirectory(dir);
+        foreach (string stalePng in Directory.GetFiles(dir, "*.png"))
+            File.Delete(stalePng);
+
+        DataSource data = KalyeahResources.Data();
+        try
+        {
+            AppSession.Current.StopAllNetwork();
+            AndroidLocalLink.HandlePluginHotspotStopped();
+            SettingsStore.Current.ResetToDefaults();
+
+            AppSession.Current.LoadJson("{}");
+            AppSession.Current.PlayerName = "Junjun";
+            AppSession.Current.SelectedCharacter = "junjun";
+            AppSession.Current.SetSuperpowers(new[] { "bato_light", "tsinelas_light", "papel_shield" });
+            AppSession.Current.Mode = GameMode.Practice;
+            AppSession.Current.BriefingPending = false;
+            AppSession.Current.RecordMatchResult("online", "junjun", true, 3, 1, 1731600100L);
+            AppSession.Current.RecordMatchResult("patintero", "ligaya", true, 5, 2, 1731600400L);
+            AppSession.Current.RecordMatchResult("tumbang_preso", "migo", false, 2, 4, 1731600700L);
+            AppSession.Current.RecordMatchResult("langit_lupa", "tala", true, 6, 3, 1731601000L);
+            AppSession.Current.ConsumeLastOutcome();
+
+            // 1. Home Hub + Home/System Modals (Profile, Monthly, Donate, Quit, QR)
+            {
+                Canvas homeCanvas = MakeMenuShotCanvas("Home", data, out Camera homeCam);
+                using var stack = new MenuStack(homeCanvas.transform, onQuitConfirmed: () => { });
+                using var home = new HomeScreenView(
+                    homeCanvas.transform,
+                    data,
+                    onNavigate: stack.Push,
+                    onLaunchMatch: _ => { });
+                stack.Register(
+                    MenuStack.HomeId,
+                    home.Root,
+                    onShow: () =>
+                    {
+                        home.Refresh();
+                        home.RefreshLayout();
+                    },
+                    onHide: null,
+                    onBackOverride: home.HandleBack);
+                stack.Push(MenuStack.HomeId);
+
+                CaptureDualAspect(homeCam, dir, "gui_home", () =>
+                {
+                    home.Refresh();
+                    home.RefreshLayout();
+                });
+
+                home.Sheets.OpenProfile();
+                CaptureDualAspect(homeCam, dir, "gui_modal_profile", () =>
+                {
+                    home.RefreshLayout();
+                    home.Sheets.RefreshLayout();
+                });
+                home.Sheets.Close();
+
+                home.Sheets.OpenGameOfMonth(1);
+                CaptureDualAspect(homeCam, dir, "gui_modal_monthly", () =>
+                {
+                    home.RefreshLayout();
+                    home.Sheets.RefreshLayout();
+                });
+                home.Sheets.Close();
+
+                home.Sheets.OpenDonate();
+                CaptureDualAspect(homeCam, dir, "gui_modal_donate", () =>
+                {
+                    home.RefreshLayout();
+                    home.Sheets.RefreshLayout();
+                });
+                home.Sheets.Close();
+
+                stack.ShowQuitModal();
+                CaptureDualAspect(homeCam, dir, "gui_modal_quit", () =>
+                {
+                    home.RefreshLayout();
+                    stack.RefreshModalLayout();
+                });
+                stack.HideQuitModal();
+
+                QrCodeView qr = QrCodeView.CreateModal(
+                    homeCanvas.transform,
+                    "Share & Scan Room QR",
+                    "WIFI:T:WPA;S:Kalyeah-4821;P:larokalye;;",
+                    _ => { },
+                    null,
+                    null,
+                    "Scan to join Hotspot Wi-Fi",
+                    "ws://192.168.43.1:7777");
+                CaptureDualAspect(homeCam, dir, "gui_modal_qr", () =>
+                {
+                    home.RefreshLayout();
+                    qr.RefreshLayout();
+                });
+                qr.Close();
+            }
+
+            // 2. Loading Curtain, Pick, Codex, History, Settings
+            {
+                Canvas loadCanvas = MakeMenuShotCanvas("Loading", data, out Camera loadCam);
+                using var loading = LoadingScreenView.BuildPreview(loadCanvas.transform, data, LoadingScreenView.DefaultModeTitle, 0.68f);
+                CaptureDualAspect(loadCam, dir, "gui_loading", loading.RefreshLayout);
+            }
+
+            {
+                Canvas pickCanvas = MakeMenuShotCanvas("Pick", data, out Camera pickCam);
+                using var pick = new PickScreenView(pickCanvas.transform, data, onBack: () => { }, onConfirmed: () => { });
+                pick.RefreshFromSession();
+                pick.RefreshResponsiveLayout();
+                CaptureDualAspect(pickCam, dir, "gui_pick", pick.RefreshResponsiveLayout);
+            }
+
+            {
+                Canvas codexCanvas = MakeMenuShotCanvas("Codex", data, out Camera codexCam);
+                using var codex = new CodexScreenView(codexCanvas.transform, data, onBack: () => { });
+                codex.Show();
+                CaptureDualAspect(codexCam, dir, "gui_codex", codex.Show);
+            }
+
+            {
+                Canvas histCanvas = MakeMenuShotCanvas("History", data, out Camera histCam);
+                using var history = new HistoryScreenView(histCanvas.transform, data, onBack: () => { });
+                history.Show();
+                CaptureDualAspect(histCam, dir, "gui_history", history.Show);
+            }
+
+            {
+                Canvas setCanvas = MakeMenuShotCanvas("Settings", data, out Camera setCam);
+                using var settings = new SettingsScreenView(setCanvas.transform, data, onBack: () => { });
+                settings.Show();
+                CaptureDualAspect(setCam, dir, "gui_settings", settings.Show);
+            }
+
+            // 3. Lobby (Browser + Populated 5v5 Room via deterministic MemoryHub)
+            {
+                AppSession.Current.StopAllNetwork();
+                AppSession.Current.Mode = GameMode.Online;
+                AppSession.Current.Intent = LobbyIntent.Join;
+                AppSession.Current.ServerUrl = "";
+
+                Kalyeah.Sim.SimData simData = AppSession.Current.EnsureSimData(data);
+                Kalyeah.Net.NetRules netRules = Kalyeah.Net.NetRules.FromData(simData);
+                var catalog = new Kalyeah.Net.StreetCatalog(simData);
+                var memHub = new Kalyeah.Net.MemoryHub();
+                var memServer = new Kalyeah.Net.GameServer(simData.GameRules, simData.MapLayout, netRules, 20261115L, catalog)
+                {
+                    AutoJoin = false,
+                };
+                memServer.Attach(memHub);
+
+                var hostPeer = new Kalyeah.Net.GameClient(simData.GameRules, simData.MapLayout, netRules, catalog)
+                {
+                    PlayerName = "Ligaya",
+                };
+                hostPeer.Attach(memHub.Connect(1));
+                Kalyeah.Net.GameClient localClient = AppSession.Current.EnsureClient(data);
+                localClient.PlayerName = "Junjun";
+                localClient.Attach(memHub.Connect(2));
+
+                void PumpLobby(int ticks)
+                {
+                    const double dt = 1.0 / 30.0;
+                    for (int i = 0; i < ticks; i++)
+                    {
+                        memHub.Poll();
+                        memServer.Poll(dt);
+                        hostPeer.Poll(dt);
+                        localClient.Poll(dt);
+                    }
+                }
+
+                PumpLobby(3);
+                hostPeer.CreateRoom();
+                PumpLobby(3);
+                hostPeer.SetCharacter("ligaya");
+                hostPeer.SetFillBots(true);
+                hostPeer.SetOpen(true);
+                hostPeer.SetReady(true);
+                PumpLobby(3);
+                string openCode = hostPeer.Room.GetStr("code", "");
+                localClient.ListRooms();
+                PumpLobby(3);
+
+                Canvas lobbyCanvas = MakeMenuShotCanvas("Lobby", data, out Camera lobbyCam);
+                using (var lobby = new LobbyScreenView(
+                    lobbyCanvas.transform,
+                    data,
+                    onBack: () => { },
+                    onMatchStarted: () => { },
+                    onPickKid: () => { },
+                    qrSpriteProvider: QrCodeView.EncodeSprite,
+                    lanIpProvider: () => "192.168.43.1",
+                    qrScanRequester: QrCodeView.MakeScanRequester(lobbyCanvas.transform)))
+                {
+                    lobby.AutoPollNetwork = false;
+                    lobby.SetFields("", "Junjun", openCode);
+                    localClient.ListRooms();
+                    PumpLobby(3);
+                    CaptureDualAspect(lobbyCam, dir, "gui_lobby_browser", () =>
+                    {
+                        lobby.OnShow();
+                        localClient.ListRooms();
+                        PumpLobby(2);
+                    });
+
+                    localClient.JoinRoom(openCode);
+                    PumpLobby(4);
+                    localClient.SetCharacter("junjun");
+                    localClient.SetReady(true);
+                    PumpLobby(4);
+                    lobby.OnShow();
+                    if (!lobby.InRoom)
+                        Debug.LogError("KalyeahBuild: gui_lobby failed to enter populated RoomPanel");
+                    CaptureDualAspect(lobbyCam, dir, "gui_lobby", lobby.OnShow);
+                }
+
+                hostPeer.Close();
+                memServer.CloseRooms();
+                AppSession.Current.StopAllNetwork();
+            }
+
+            // 4. Hotspot Flow (Role Chooser + Active Host Wizard with Wi-Fi QR)
+            {
+                AppSession.Current.StopAllNetwork();
+                AppSession.Current.Mode = GameMode.HotspotHost;
+                AppSession.Current.Intent = LobbyIntent.Create;
+
+                Canvas hotspotCanvas = MakeMenuShotCanvas("Hotspot", data, out Camera hotspotCam);
+                using (var hotspot = new HotspotFlowView(
+                    hotspotCanvas.transform,
+                    data,
+                    onBack: () => { },
+                    onEnterLobby: () => { },
+                    qrSpriteProvider: QrCodeView.EncodeSprite,
+                    lanIpProvider: () => "192.168.43.1",
+                    qrScanRequester: QrCodeView.MakeScanRequester(hotspotCanvas.transform)))
+                {
+                    hotspot.ShowChooseRole();
+                    CaptureDualAspect(hotspotCam, dir, "gui_hotspot", hotspot.OnShow);
+
+                    AndroidLocalLink.HandlePluginHotspotStarted("Kalyeah-4821", "larokalye", "WPA");
+                    hotspot.StartHostWizard(port: 17777, seed: 42L, direct: true);
+                    for (int i = 0; i < 16; i++)
+                    {
+                        AppSession.Current.PollNetwork(0.05);
+                        hotspot.Tick(0.05f);
+                        System.Threading.Thread.Sleep(10);
+                    }
+                    hotspot.OnShow();
+                    CaptureDualAspect(hotspotCam, dir, "gui_hotspot_host", hotspot.OnShow);
+                }
+
+                AppSession.Current.StopAllNetwork();
+                AndroidLocalLink.HandlePluginHotspotStopped();
+                AppSession.Current.Mode = GameMode.Practice;
+            }
+
+            // 5. 5v5 Gameplay HUD & Modals (Briefing, Combat HUD, Aim+Cancel, QuickChat, Pause)
+            {
+                AppSession.Current.Mode = GameMode.Practice;
+                AppSession.Current.BriefingPending = true;
+                SetFullViewport();
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                ScreenFitMetrics.EnsureEnhancedTouch();
+                Ui.EnsureEventSystem();
+
+                var matchRoot = new GameObject("GuiRoastMatch").transform;
+                var setup = new MatchSetup
+                {
+                    Seed = 7L,
+                    LocalCharacter = "junjun",
+                    SuperpowerLoadout = new[] { "bato_light", "tsinelas_light", "papel_shield" },
+                    FirstTo = 3,
+                };
+                using var world = new MatchWorld(
+                    matchRoot,
+                    data,
+                    setup,
+                    interactive: true,
+                    hudCamera: true,
+                    audio: null,
+                    onPlayAgain: () => { },
+                    onBackToHome: () => { });
+
+                world.Sim.SkipIntro();
+                world.Draw(1f, 0f);
+                CaptureDualAspect(world.Camera, dir, "gui_modal_briefing", () =>
+                {
+                    world.Hud.RefreshLayout();
+                    world.Draw(1f, 0f);
+                });
+
+                world.Hud.Overlays.DismissBriefing();
+                float dt = world.Sim.TickDt;
+                for (int i = 0; i < 60; i++)
+                {
+                    System.Numerics.Vector2 move = world.Shoulder.GroundWay(Vector2.up);
+                    world.Sim.SetLocalInput(move, move, InputButtons.Primary);
+                    world.StepTick();
+                    world.Draw(1f, dt);
+                }
+                world.Hud.Overlays.PushTag("Migo", "Baste", true, "Tsinelas");
+                world.Hud.Overlays.PushRescue("Ligaya", "Popoy", true);
+                world.Draw(1f, 0f);
+
+                CaptureDualAspect(world.Camera, dir, "gui_hud_5v5", () =>
+                {
+                    world.Hud.RefreshLayout();
+                    world.Draw(1f, 0f);
+                });
+
+                StageAimCancelHover(world);
+                CaptureDualAspect(world.Camera, dir, "gui_hud_5v5_aim_cancel", () => StageAimCancelHover(world));
+                world.Hud.AbilityArc.CancelAll();
+                world.SampleInput(ScreenFitMetrics.ScreenSizePx.y);
+                world.Draw(1f, 0f);
+
+                world.Hud.Overlays.SetQuickChatOpen(true);
+                world.Draw(1f, 0f);
+                CaptureDualAspect(world.Camera, dir, "gui_modal_quickchat", () =>
+                {
+                    world.Hud.RefreshLayout();
+                    world.Draw(1f, 0f);
+                });
+                world.Hud.Overlays.SetQuickChatOpen(false);
+
+                world.Hud.Overlays.SetPaused(true);
+                world.Draw(1f, 0f);
+                CaptureDualAspect(world.Camera, dir, "gui_modal_pause", () =>
+                {
+                    world.Hud.RefreshLayout();
+                    world.Draw(1f, 0f);
+                });
+                world.Hud.Overlays.SetPaused(false);
+            }
+
+            // 6. Tagged Sidewalk State + D13 Swap Loadout Modal
+            {
+                AppSession.Current.Mode = GameMode.Practice;
+                AppSession.Current.BriefingPending = false;
+                DataSource tagData = new DataSource(name =>
+                {
+                    string json = data.Text(name);
+                    if (name != "rules__game_rules") return json;
+                    json = Regex.Replace(json, "\"player_max_hp\"\\s*:\\s*[^,\\r\\n}]+", "\"player_max_hp\": 1");
+                    json = Regex.Replace(json, "\"practice_fighters\"\\s*:\\s*[^,\\r\\n}]+", "\"practice_fighters\": 2");
+                    json = Regex.Replace(json, "\"dummy_stand_x\"\\s*:\\s*[^,\\r\\n}]+", "\"dummy_stand_x\": 0.0");
+                    json = Regex.Replace(json, "\"dummy_patrol_x\"\\s*:\\s*[^,\\r\\n}]+", "\"dummy_patrol_x\": 2.0");
+                    json = Regex.Replace(json, "\"dummy_z\"\\s*:\\s*[^,\\r\\n}]+", "\"dummy_z\": 50.0");
+                    return json;
+                });
+
+                SetFullViewport();
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                ScreenFitMetrics.EnsureEnhancedTouch();
+                Ui.EnsureEventSystem();
+
+                var tagRoot = new GameObject("GuiRoastTagged").transform;
+                var tagSetup = new MatchSetup
+                {
+                    Seed = 123L,
+                    LocalCharacter = "junjun",
+                    SuperpowerLoadout = new[] { "bato_light", "tsinelas_light", "papel_shield" },
+                    TrainingMode = true,
+                };
+                using var tagWorld = new MatchWorld(
+                    tagRoot,
+                    tagData,
+                    tagSetup,
+                    interactive: true,
+                    hudCamera: true,
+                    audio: null,
+                    onPlayAgain: () => { },
+                    onBackToHome: () => { });
+
+                tagWorld.Sim.SkipIntro();
+                float dt = tagWorld.Sim.TickDt;
+                for (int i = 0; i < 180 && (!tagWorld.Sim.LocalKid.HasValue || !tagWorld.Sim.LocalKid.Value.Tagged); i++)
+                {
+                    tagWorld.Sim.SetLocalInput(new LocalInputFrame { Move = new System.Numerics.Vector2(0f, -1f) });
+                    tagWorld.StepTick();
+                    tagWorld.Draw(1f, dt);
+                }
+                tagWorld.Draw(1f, 0f);
+
+                CaptureDualAspect(tagWorld.Camera, dir, "gui_hud_5v5_tagged", () =>
+                {
+                    tagWorld.Hud.RefreshLayout();
+                    tagWorld.Draw(1f, 0f);
+                });
+
+                tagWorld.Hud.Overlays.SetSwapPickerOpen(true);
+                tagWorld.Draw(1f, 0f);
+                CaptureDualAspect(tagWorld.Camera, dir, "gui_hud_5v5_tagged_swap", () =>
+                {
+                    tagWorld.Hud.RefreshLayout();
+                    tagWorld.Draw(1f, 0f);
+                });
+                tagWorld.Hud.Overlays.SetSwapPickerOpen(false);
+            }
+
+            // 7. 5v5 MatchOver Victory / Scoreboard / Ranked LP Modal
+            {
+                AppSession.Current.Mode = GameMode.Practice;
+                AppSession.Current.BriefingPending = false;
+                AppSession.Current.ConsumeLastOutcome();
+                DataSource winData = new DataSource(name =>
+                {
+                    string json = data.Text(name);
+                    if (name != "rules__game_rules") return json;
+                    json = Regex.Replace(json, "\"capture_solo_time\"\\s*:\\s*[^,\\r\\n}]+", "\"capture_solo_time\": 0.05");
+                    json = Regex.Replace(json, "\"point_freeze_time\"\\s*:\\s*[^,\\r\\n}]+", "\"point_freeze_time\": 0.05");
+                    json = Regex.Replace(json, "\"first_to\"\\s*:\\s*[^,\\r\\n}]+", "\"first_to\": 1");
+                    return json;
+                });
+
+                SetFullViewport();
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                ScreenFitMetrics.EnsureEnhancedTouch();
+                Ui.EnsureEventSystem();
+
+                var winRoot = new GameObject("GuiRoastMatchOver").transform;
+                var winSetup = new MatchSetup
+                {
+                    Seed = 7L,
+                    LocalCharacter = "junjun",
+                    SuperpowerLoadout = new[] { "bato_light", "tsinelas_light", "papel_shield" },
+                    FirstTo = 1,
+                };
+                using var winWorld = new MatchWorld(
+                    winRoot,
+                    winData,
+                    winSetup,
+                    interactive: true,
+                    hudCamera: true,
+                    audio: null,
+                    onPlayAgain: () => { },
+                    onBackToHome: () => { });
+
+                winWorld.Sim.SkipIntro();
+                System.Numerics.Vector2 enemyBasePos = new System.Numerics.Vector2(0f, -52f);
+                for (int i = 0; i < winWorld.Sim.Bases.Count; i++)
+                {
+                    if (winWorld.Sim.Bases[i].Team != SimBridge.LocalTeam)
+                    {
+                        enemyBasePos = winWorld.Sim.Bases[i].Center;
+                        break;
+                    }
+                }
+                foreach (int foeId in SimBridge.EnemyIds)
+                    winWorld.Sim.SetPlayerPositionForPreview(foeId, System.Numerics.Vector2.Zero, System.Numerics.Vector2.UnitY);
+
+                float dt = winWorld.Sim.TickDt;
+                for (int i = 0; i < 30 && winWorld.Sim.Phase != MatchPhaseKind.MatchOver; i++)
+                {
+                    winWorld.Sim.SetPlayerPositionForPreview(SimBridge.LocalId, enemyBasePos, -System.Numerics.Vector2.UnitY);
+                    winWorld.StepTick();
+                    winWorld.Draw(1f, dt);
+                }
+                winWorld.Draw(1f, 0.35f);
+
+                CaptureDualAspect(winWorld.Camera, dir, "gui_modal_match_over", () =>
+                {
+                    winWorld.Hud.RefreshLayout();
+                    winWorld.Draw(1f, 0f);
+                });
+            }
+
+            // 8. Street Gameplay Modals (Tumbang Preso Roulette, Street Pause/Leave, Street MatchOver)
+            {
+                AppSession.Current.Mode = GameMode.TumbangPreso;
+                AppSession.Current.BriefingPending = false;
+                long tumbangSeed = FindTumbangThrowerSeed(data);
+
+                SetFullViewport();
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                ScreenFitMetrics.EnsureEnhancedTouch();
+                Ui.EnsureEventSystem();
+
+                var tumbangRoot = new GameObject("GuiRoastTumbangRoll").transform;
+                using var tumbang = new StreetMatchWorld(
+                    tumbangRoot,
+                    data,
+                    StreetGameKind.TumbangPreso,
+                    tumbangSeed,
+                    "junjun",
+                    interactive: true,
+                    hudCamera: true,
+                    onPlayAgain: () => { },
+                    onHome: () => { });
+
+                float dt = tumbang.Sim.TickDt;
+                for (int i = 0; i < 20; i++)
+                {
+                    tumbang.StepTick();
+                    tumbang.Draw(1f, dt);
+                }
+                if (!tumbang.Hud.IsTumbangRollVisible)
+                    Debug.LogError("KalyeahBuild: gui_modal_tumbang_roll failed to show TumbangRoll");
+
+                CaptureDualAspect(tumbang.Camera, dir, "gui_modal_tumbang_roll", () =>
+                {
+                    tumbang.Hud.ApplyResponsiveLayout();
+                    tumbang.Draw(1f, 0f);
+                });
+            }
+
+            {
+                AppSession.Current.Mode = GameMode.Patintero;
+                AppSession.Current.BriefingPending = false;
+                DataSource fastStreetData = new DataSource(name =>
+                {
+                    string json = data.Text(name);
+                    if (name != "rules__patintero") return json;
+                    json = Regex.Replace(json, "\"home_z\"\\s*:\\s*[^,\\r\\n}]+", "\"home_z\": 1.5");
+                    json = Regex.Replace(json, "\"goal_z\"\\s*:\\s*[^,\\r\\n}]+", "\"goal_z\": -1.5");
+                    json = Regex.Replace(json, "\"tag_circle_radius\"\\s*:\\s*[^,\\r\\n}]+", "\"tag_circle_radius\": 0.01");
+                    return Regex.Replace(json, "\"match_seconds\"\\s*:\\s*[^,\\r\\n}]+", "\"match_seconds\": 1.8");
+                });
+
+                SetFullViewport();
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                ScreenFitMetrics.EnsureEnhancedTouch();
+                Ui.EnsureEventSystem();
+
+                var patRoot = new GameObject("GuiRoastStreetModals").transform;
+                using var pat = new StreetMatchWorld(
+                    patRoot,
+                    fastStreetData,
+                    StreetGameKind.Patintero,
+                    11L,
+                    "junjun",
+                    interactive: true,
+                    hudCamera: true,
+                    onPlayAgain: () => { },
+                    onHome: () => { });
+
+                pat.Sim.SkipIntro();
+                for (int w = 0; w < 150 && pat.Sim.IsIntro; w++)
+                    pat.StepTick();
+
+                float dt = pat.Sim.TickDt;
+                for (int i = 0; i < 10; i++)
+                {
+                    System.Numerics.Vector2 move = pat.Shoulder.GroundWay(Vector2.up);
+                    pat.Sim.SetLocalInput(move, move, primaryHeld: false, secondaryPressed: false, cancelAim: false);
+                    pat.StepTick();
+                    pat.Draw(1f, dt);
+                }
+
+                pat.Hud.SetLeaveConfirmOpen(true);
+                pat.Draw(1f, 0f);
+                CaptureDualAspect(pat.Camera, dir, "gui_modal_street_pause", () =>
+                {
+                    pat.Hud.ApplyResponsiveLayout();
+                    pat.Draw(1f, 0f);
+                });
+                pat.Hud.SetLeaveConfirmOpen(false);
+
+                for (int i = 0; i < 150 && !pat.Sim.IsMatchOver; i++)
+                {
+                    Vector2 stick = i < 30 ? Vector2.up : Vector2.down;
+                    System.Numerics.Vector2 move = pat.Shoulder.GroundWay(stick);
+                    pat.Sim.SetLocalInput(move, move, primaryHeld: false, secondaryPressed: false, cancelAim: false);
+                    pat.StepTick();
+                    pat.Draw(1f, dt);
+                }
+                pat.Draw(1f, 0f);
+                if (!pat.Hud.IsMatchOverVisible)
+                    Debug.LogError("KalyeahBuild: gui_modal_street_over failed to reach StreetHudView MatchOver");
+
+                CaptureDualAspect(pat.Camera, dir, "gui_modal_street_over", () =>
+                {
+                    pat.Hud.ApplyResponsiveLayout();
+                    pat.Draw(1f, 0f);
+                });
+            }
+
+            Debug.Log($"KalyeahBuild: gui_roast screenshots in {dir}");
+        }
+        finally
+        {
+            AppSession.Current.StopAllNetwork();
+            AndroidLocalLink.HandlePluginHotspotStopped();
+            AppSession.Current.LoadJson(savedSessionJson);
+            SettingsStore.Current.LoadJson(savedSettingsJson);
+            MenuStack.SavePersistedState(AppSession.Current, SettingsStore.Current);
+            ScreenFitMetrics.ClearSimulatedViewport();
+            ShaderUtil.allowAsyncCompilation = prevAsync;
+            EditorSettings.asyncShaderCompilation = asyncShaders;
+        }
+    }
+
+    static Canvas MakeMenuShotCanvas(string name, DataSource data, out Camera camera)
+    {
+        SetFullViewport();
+        EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        ScreenFitMetrics.EnsureEnhancedTouch();
+        Ui.EnsureEventSystem();
+        var root = new GameObject(name + "Shot").transform;
+        camera = new GameObject(name + "Camera", typeof(Camera)).GetComponent<Camera>();
+        camera.transform.SetParent(root, false);
+        camera.clearFlags = CameraClearFlags.SolidColor;
+        camera.backgroundColor = new Color(0.06f, 0.09f, 0.18f, 1f);
+        camera.orthographic = true;
+        MatchBoot.ApplyBootResourcesAndGraphics(data);
+        return Ui.MakeCanvas(name + "Canvas", root, camera);
+    }
+
+    static void StageAimCancelHover(MatchWorld world)
+    {
+        AbilityArcView arc = world.Hud.AbilityArc;
+        arc.CancelAll();
+        world.Hud.RefreshLayout();
+        Canvas.ForceUpdateCanvases();
+        arc.Sync(world.Sim, 0f, world.Shoulder, world.Camera, world.View.Layout);
+
+        Canvas hudCanvas = arc.Root.GetComponentInParent<Canvas>();
+        Camera uiCam = (hudCanvas != null && hudCanvas.renderMode != RenderMode.ScreenSpaceOverlay) ? hudCanvas.worldCamera : null;
+        RectTransform slotRect = arc.GetSuperpowerButtonRect(0);
+        Vector2 slotScreen = RectTransformUtility.WorldToScreenPoint(uiCam, slotRect.TransformPoint(slotRect.rect.center));
+
+        Ui.EnsureEventSystem();
+        var ptr = new PointerEventData(EventSystem.current) { pointerId = 41, position = slotScreen };
+        slotRect.GetComponent<IPointerDownHandler>().OnPointerDown(ptr);
+        arc.Sync(world.Sim, 0.25f, world.Shoulder, world.Camera, world.View.Layout);
+        Canvas.ForceUpdateCanvases();
+
+        Vector2 cancelScreen = RectTransformUtility.WorldToScreenPoint(uiCam, arc.CancelZoneRect.TransformPoint(arc.CancelZoneRect.rect.center));
+        ptr.position = cancelScreen;
+        slotRect.GetComponent<IDragHandler>().OnDrag(ptr);
+
+        world.SampleInput(ScreenFitMetrics.ScreenSizePx.y);
+        world.Draw(1f, 0f);
     }
 
     static long FindTumbangThrowerSeed(DataSource data)

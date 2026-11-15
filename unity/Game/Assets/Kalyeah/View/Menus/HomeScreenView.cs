@@ -52,9 +52,10 @@ namespace Kalyeah.Game
             ["tala"] = new KidMeta { Display = "Tala", Epithet = "KOMIKS PINTOR", Accent = new Color(0.70f, 0.49f, 0.96f) },
         };
 
+        [ExecuteAlways]
         sealed class HomeLifecycle : MonoBehaviour
         {
-            public HomeScreenView Owner;
+            [NonSerialized] public HomeScreenView Owner;
 
             void OnEnable() => Owner?.OnEnabled();
             void OnDisable() => Owner?.OnDisabled();
@@ -88,10 +89,8 @@ namespace Kalyeah.Game
         RectTransform _topBar;
         RectTransform _nameBoxRect;
         RectTransform _profileAvatarBtnRect;
+        RectTransform _nameInputRect;
         RawImage _profileAvatarImage;
-        RectTransform _nameCaptionRect;
-        RectTransform _namePlaceholderRect;
-        RectTransform _nameInputTextRect;
         RectTransform _rankBadgeRect;
         RectTransform _brandCenterRect;
         readonly RectTransform[] _navBtnRects = new RectTransform[6];
@@ -103,6 +102,7 @@ namespace Kalyeah.Game
         RectTransform _rightCol;
 
         RectTransform _portraitCardRect;
+        RectTransform _cosmeticPillRect;
         RectTransform _loadoutCardRect;
 
         RectTransform _practiceCardRect;
@@ -126,6 +126,7 @@ namespace Kalyeah.Game
         // Dynamic UI content refs
         Image _rankFillImage;
         Image _rankCrestBg;
+        Text _rankEmblemText;
         RectTransform _rankProgressFill;
         Text _rankTierText;
         Text _rankLpText;
@@ -224,7 +225,7 @@ namespace Kalyeah.Game
 
             BuildTopBar(SafeRoot);
             BuildBodyColumns(SafeRoot);
-            Sheets = new HomeSheetsView(SafeRoot, _data, _audio, IsInteractive);
+            Sheets = new HomeSheetsView(Root, _data, _audio, IsInteractive);
             Sheets.ProfileChanged += Refresh;
 
             var lifecycle = Root.gameObject.AddComponent<HomeLifecycle>();
@@ -300,10 +301,11 @@ namespace Kalyeah.Game
         void BuildBackdrop(RectTransform parent)
         {
             RectTransform bg = Ui.Fill("Backdrop", parent);
+            bg.gameObject.AddComponent<RectMask2D>();
             Texture2D mainBg = KalyeahResources.Texture("ui/main_bg") ?? KalyeahResources.Texture("ui/boot/boot_bg");
             if (mainBg != null)
             {
-                var rawGo = new GameObject("ArtBackdrop", typeof(RectTransform), typeof(RawImage));
+                var rawGo = new GameObject("ArtBackdrop", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
                 rawGo.transform.SetParent(bg, false);
                 var raw = rawGo.GetComponent<RawImage>();
                 raw.texture = mainBg;
@@ -313,6 +315,10 @@ namespace Kalyeah.Game
                 rr.anchorMin = Vector2.zero;
                 rr.anchorMax = Vector2.one;
                 rr.sizeDelta = Vector2.zero;
+
+                var fitter = rawGo.GetComponent<AspectRatioFitter>();
+                fitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+                fitter.aspectRatio = mainBg.height > 0 ? (float)mainBg.width / mainBg.height : (16f / 9f);
 
                 Image wash = Ui.MakeImage("ReadabilityWash", bg, new Color(0.08f, 0.06f, 0.14f, 0.34f));
                 wash.rectTransform.anchorMin = Vector2.zero;
@@ -349,18 +355,15 @@ namespace Kalyeah.Game
                 new Vector2(0f, -6f),
                 new Vector2(0f, 96f));
 
-            // 1. Editable PlayerName card + ID Avatar button (top-left)
-            _nameBoxRect = MakeKomiksFrame(
+            // 1. Non-nested sibling ID Avatar button + Editable PlayerName input inside PlayerNameCard container
+            _nameBoxRect = Ui.Panel(
                 "PlayerNameCard",
                 _topBar,
                 new Vector2(0f, 0.5f),
                 new Vector2(0f, 0.5f),
                 new Vector2(0f, 0.5f),
-                new Vector2(12f, 0f),
-                new Vector2(236f, 96f),
-                SunlitCream,
-                out Image nameBodyImg);
-            nameBodyImg.raycastTarget = true;
+                new Vector2(10f, 0f),
+                new Vector2(246f, 96f));
 
             _profileAvatarBtnRect = MakeKomiksFrame(
                 "ProfileAvatarButton",
@@ -368,110 +371,147 @@ namespace Kalyeah.Game
                 new Vector2(0f, 0.5f),
                 new Vector2(0f, 0.5f),
                 new Vector2(0f, 0.5f),
-                new Vector2(8f, 0f),
-                new Vector2(68f, 68f),
+                Vector2.zero,
+                new Vector2(96f, 96f),
                 StreetSlate,
                 out Image avatarFrameFill);
             avatarFrameFill.raycastTarget = true;
             ProfileSheetButton = AttachButton(_profileAvatarBtnRect.gameObject, avatarFrameFill, () => Sheets?.OpenProfile());
 
-            var avGo = new GameObject("AvatarPhoto", typeof(RectTransform), typeof(RawImage));
-            avGo.transform.SetParent(_profileAvatarBtnRect, false);
+            RectTransform avatarSlot = Ui.Fill("AvatarSlot", avatarFrameFill.transform);
+            avatarSlot.offsetMin = new Vector2(4f, 4f);
+            avatarSlot.offsetMax = new Vector2(-4f, -4f);
+
+            var avGo = new GameObject("AvatarPhoto", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
+            avGo.transform.SetParent(avatarSlot, false);
             _profileAvatarImage = avGo.GetComponent<RawImage>();
             _profileAvatarImage.raycastTarget = false;
-            RectTransform avr = _profileAvatarImage.rectTransform;
-            avr.anchorMin = Vector2.zero;
-            avr.anchorMax = Vector2.one;
-            avr.offsetMin = new Vector2(3f, 3f);
-            avr.offsetMax = new Vector2(-3f, -3f);
+            var avFit = avGo.GetComponent<AspectRatioFitter>();
+            avFit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            avFit.aspectRatio = 1f;
 
-            Text nameCaption = Ui.MakeText("Caption", _nameBoxRect, "PLAYER TAG", 13, new Color(Espresso.r, Espresso.g, Espresso.b, 0.84f), TextAnchor.UpperLeft);
+            _nameInputRect = MakeKomiksFrame(
+                "NameInput",
+                _nameBoxRect,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(102f, 0f),
+                new Vector2(144f, 96f),
+                SunlitCream,
+                out Image nameBodyImg);
+            nameBodyImg.raycastTarget = true;
+
+            Text nameCaption = Ui.MakeText("Caption", _nameInputRect, "PLAYER TAG", 18, new Color(Espresso.r, Espresso.g, Espresso.b, 0.86f), TextAnchor.UpperLeft);
             nameCaption.fontStyle = FontStyle.Bold;
             nameCaption.GetComponent<Outline>().enabled = false;
-            _nameCaptionRect = nameCaption.rectTransform;
-            _nameCaptionRect.anchorMin = new Vector2(0f, 0.62f);
-            _nameCaptionRect.anchorMax = new Vector2(1f, 1f);
-            _nameCaptionRect.offsetMin = new Vector2(84f, 0f);
-            _nameCaptionRect.offsetMax = new Vector2(-10f, -8f);
+            nameCaption.resizeTextForBestFit = true;
+            nameCaption.resizeTextMinSize = 16;
+            nameCaption.resizeTextMaxSize = 18;
+            RectTransform capRect = nameCaption.rectTransform;
+            capRect.anchorMin = new Vector2(0f, 0.56f);
+            capRect.anchorMax = new Vector2(1f, 1f);
+            capRect.offsetMin = new Vector2(10f, 0f);
+            capRect.offsetMax = new Vector2(-8f, -6f);
 
-            PlayerNameInput = _nameBoxRect.gameObject.AddComponent<InputField>();
+            PlayerNameInput = _nameInputRect.gameObject.AddComponent<InputField>();
             PlayerNameInput.targetGraphic = nameBodyImg;
             PlayerNameInput.characterLimit = AppSession.MaxNameLength;
             PlayerNameInput.lineType = InputField.LineType.SingleLine;
 
-            Text placeholder = Ui.MakeText("Placeholder", _nameBoxRect, "Enter name...", 20, new Color(0.45f, 0.40f, 0.35f, 0.65f), TextAnchor.LowerLeft);
+            Text placeholder = Ui.MakeText("Placeholder", _nameInputRect, "Enter name...", 20, new Color(0.42f, 0.36f, 0.31f, 0.72f), TextAnchor.LowerLeft);
             placeholder.GetComponent<Outline>().enabled = false;
             placeholder.fontStyle = FontStyle.Italic;
-            _namePlaceholderRect = placeholder.rectTransform;
-            _namePlaceholderRect.anchorMin = new Vector2(0f, 0f);
-            _namePlaceholderRect.anchorMax = new Vector2(1f, 0.66f);
-            _namePlaceholderRect.offsetMin = new Vector2(84f, 10f);
-            _namePlaceholderRect.offsetMax = new Vector2(-10f, 0f);
+            placeholder.resizeTextForBestFit = true;
+            placeholder.resizeTextMinSize = 16;
+            placeholder.resizeTextMaxSize = 20;
+            RectTransform phRect = placeholder.rectTransform;
+            phRect.anchorMin = new Vector2(0f, 0f);
+            phRect.anchorMax = new Vector2(1f, 0.58f);
+            phRect.offsetMin = new Vector2(10f, 8f);
+            phRect.offsetMax = new Vector2(-8f, 0f);
 
-            Text inputText = Ui.MakeText("Text", _nameBoxRect, AppSession.Current.PlayerName, 24, Espresso, TextAnchor.LowerLeft, KalyeahResources.DisplayFont());
+            Text inputText = Ui.MakeText("Text", _nameInputRect, AppSession.Current.PlayerName, 22, Espresso, TextAnchor.LowerLeft, KalyeahResources.DisplayFont());
             inputText.GetComponent<Outline>().enabled = false;
             inputText.supportRichText = false;
             inputText.horizontalOverflow = HorizontalWrapMode.Wrap;
             inputText.verticalOverflow = VerticalWrapMode.Truncate;
             inputText.resizeTextForBestFit = true;
-            inputText.resizeTextMinSize = 16;
-            inputText.resizeTextMaxSize = 24;
-            _nameInputTextRect = inputText.rectTransform;
-            _nameInputTextRect.anchorMin = new Vector2(0f, 0f);
-            _nameInputTextRect.anchorMax = new Vector2(1f, 0.66f);
-            _nameInputTextRect.offsetMin = new Vector2(84f, 10f);
-            _nameInputTextRect.offsetMax = new Vector2(-10f, 0f);
+            inputText.resizeTextMinSize = 12;
+            inputText.resizeTextMaxSize = 22;
+            RectTransform itRect = inputText.rectTransform;
+            itRect.anchorMin = new Vector2(0f, 0f);
+            itRect.anchorMax = new Vector2(1f, 0.58f);
+            itRect.offsetMin = new Vector2(10f, 8f);
+            itRect.offsetMax = new Vector2(-8f, 0f);
 
             PlayerNameInput.textComponent = inputText;
             PlayerNameInput.placeholder = placeholder;
             PlayerNameInput.text = AppSession.Current.PlayerName;
             PlayerNameInput.onEndEdit.AddListener(OnPlayerNameEndEdit);
 
-            // 2. Ranked Tier Badge (beside PlayerName)
+            // 2. Ranked Tier Badge (beside PlayerName) with Tier Initial Emblem
             _rankBadgeRect = MakeKomiksFrame(
                 "RankedTierBadge",
                 _topBar,
                 new Vector2(0f, 0.5f),
                 new Vector2(0f, 0.5f),
                 new Vector2(0f, 0.5f),
-                new Vector2(240f, 0f),
-                new Vector2(190f, 96f),
+                new Vector2(264f, 0f),
+                new Vector2(188f, 96f),
                 StreetSlate,
                 out _rankFillImage);
             _rankFillImage.raycastTarget = true;
             RankedBadgeButton = AttachButton(_rankBadgeRect.gameObject, _rankFillImage, () => Navigate(MenuStack.HistoryId));
 
-            _rankCrestBg = Ui.MakeImage("TierEmblem", _rankBadgeRect, MangoGold, round: true);
+            Image emblemRim = Ui.MakeImage("TierEmblemRim", _rankBadgeRect, KomiksInk, round: true);
+            RectTransform rimRect = emblemRim.rectTransform;
+            rimRect.anchorMin = rimRect.anchorMax = new Vector2(0f, 0.58f);
+            rimRect.pivot = new Vector2(0f, 0.5f);
+            rimRect.anchoredPosition = new Vector2(10f, 0f);
+            rimRect.sizeDelta = new Vector2(40f, 40f);
+
+            _rankCrestBg = Ui.MakeImage("TierEmblem", emblemRim.transform, MangoGold, round: true);
             RectTransform emblemRect = _rankCrestBg.rectTransform;
-            emblemRect.anchorMin = emblemRect.anchorMax = new Vector2(0f, 0.56f);
-            emblemRect.pivot = new Vector2(0f, 0.5f);
-            emblemRect.anchoredPosition = new Vector2(12f, 0f);
-            emblemRect.sizeDelta = new Vector2(34f, 34f);
+            emblemRect.anchorMin = Vector2.zero;
+            emblemRect.anchorMax = Vector2.one;
+            emblemRect.offsetMin = new Vector2(2f, 2f);
+            emblemRect.offsetMax = new Vector2(-2f, -2f);
+
+            _rankEmblemText = Ui.MakeText("EmblemGlyph", _rankCrestBg.transform, "K", 22, Color.white, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            _rankEmblemText.GetComponent<Outline>().effectDistance = new Vector2(1.5f, -1.5f);
+            _rankEmblemText.rectTransform.SetFullStretch();
 
             _rankTierText = Ui.MakeText("TierName", _rankBadgeRect, "Kahoy", 22, Ui.Cream, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _rankTierText.resizeTextForBestFit = true;
+            _rankTierText.resizeTextMinSize = 17;
+            _rankTierText.resizeTextMaxSize = 22;
             RectTransform tierRect = _rankTierText.rectTransform;
-            tierRect.anchorMin = new Vector2(0f, 0.48f);
-            tierRect.anchorMax = new Vector2(1f, 0.94f);
-            tierRect.offsetMin = new Vector2(52f, 0f);
-            tierRect.offsetMax = new Vector2(-10f, -4f);
+            tierRect.anchorMin = new Vector2(0f, 0.52f);
+            tierRect.anchorMax = new Vector2(1f, 0.95f);
+            tierRect.offsetMin = new Vector2(56f, 0f);
+            tierRect.offsetMax = new Vector2(-8f, -4f);
 
-            _rankLpText = Ui.MakeText("TierLp", _rankBadgeRect, "0 / 200 LP", 14, SunlitPaper, TextAnchor.MiddleLeft);
-            _rankLpText.GetComponent<Outline>().enabled = false;
+            _rankLpText = Ui.MakeText("TierLp", _rankBadgeRect, "0 / 200 LP", 18, SunlitPaper, TextAnchor.MiddleLeft);
+            _rankLpText.GetComponent<Outline>().effectDistance = new Vector2(1f, -1f);
+            _rankLpText.resizeTextForBestFit = true;
+            _rankLpText.resizeTextMinSize = 16;
+            _rankLpText.resizeTextMaxSize = 18;
             RectTransform lpRect = _rankLpText.rectTransform;
             lpRect.anchorMin = new Vector2(0f, 0.22f);
-            lpRect.anchorMax = new Vector2(1f, 0.52f);
-            lpRect.offsetMin = new Vector2(52f, 0f);
-            lpRect.offsetMax = new Vector2(-10f, 0f);
+            lpRect.anchorMax = new Vector2(1f, 0.54f);
+            lpRect.offsetMin = new Vector2(56f, 0f);
+            lpRect.offsetMax = new Vector2(-8f, 0f);
 
-            RectTransform barTrack = Ui.Panel("LpTrack", _rankBadgeRect, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 10f), new Vector2(-24f, 8f));
-            Ui.MakeImage("TrackBg", barTrack, new Color(0f, 0f, 0f, 0.45f)).rectTransform.SetFullStretch();
+            RectTransform barTrack = Ui.Panel("LpTrack", _rankBadgeRect, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 9f), new Vector2(-22f, 8f));
+            Ui.MakeImage("TrackBg", barTrack, new Color(0f, 0f, 0f, 0.48f)).rectTransform.SetFullStretch();
             Image fillImg = Ui.MakeImage("TrackFill", barTrack, MangoGold);
             _rankProgressFill = fillImg.rectTransform;
             _rankProgressFill.anchorMin = Vector2.zero;
             _rankProgressFill.anchorMax = new Vector2(0.15f, 1f);
             _rankProgressFill.sizeDelta = Vector2.zero;
 
-            // 3. Brand lockup (center decorative)
+            // 3. Brand lockup (center decorative with 3.2:1 AspectRatioFitter)
             _brandCenterRect = Ui.Panel(
                 "BrandLockup",
                 _topBar,
@@ -479,26 +519,32 @@ namespace Kalyeah.Game
                 new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f),
                 Vector2.zero,
-                new Vector2(220f, 84f));
+                new Vector2(224f, 84f));
             Texture2D wordmark = KalyeahResources.Texture("ui/brand/kalyeah_wordmark")
                 ?? KalyeahResources.Texture("ui/kalyeah_logo")
                 ?? KalyeahResources.Texture("ui/brand/kalyeah_crest");
             if (wordmark != null)
             {
-                var logoGo = new GameObject("BrandArt", typeof(RectTransform), typeof(RawImage));
-                logoGo.transform.SetParent(_brandCenterRect, false);
+                RectTransform logoPad = Ui.Fill("BrandPad", _brandCenterRect);
+                logoPad.offsetMin = new Vector2(2f, 2f);
+                logoPad.offsetMax = new Vector2(-2f, -2f);
+
+                var logoGo = new GameObject("BrandArt", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
+                logoGo.transform.SetParent(logoPad, false);
                 var raw = logoGo.GetComponent<RawImage>();
                 raw.texture = wordmark;
                 raw.raycastTarget = false;
-                RectTransform lr = raw.rectTransform;
-                lr.anchorMin = Vector2.zero;
-                lr.anchorMax = Vector2.one;
-                lr.offsetMin = new Vector2(4f, 4f);
-                lr.offsetMax = new Vector2(-4f, -4f);
+
+                var brandFitter = logoGo.GetComponent<AspectRatioFitter>();
+                brandFitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                brandFitter.aspectRatio = wordmark.height > 0 ? (float)wordmark.width / wordmark.height : 3.2f;
             }
             else
             {
-                Text brandText = Ui.MakeText("BrandTitle", _brandCenterRect, "KALYEAH!", 38, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+                Text brandText = Ui.MakeText("BrandTitle", _brandCenterRect, "KALYEAH!", 36, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+                brandText.resizeTextForBestFit = true;
+                brandText.resizeTextMinSize = 20;
+                brandText.resizeTextMaxSize = 36;
                 brandText.rectTransform.SetFullStretch();
             }
 
@@ -528,7 +574,7 @@ namespace Kalyeah.Game
                 new Vector2(1f, 0.5f),
                 new Vector2(1f, 0.5f),
                 Vector2.zero,
-                new Vector2(88f, 96f),
+                new Vector2(96f, 96f),
                 StreetSlate,
                 out Image bodyImg);
             bodyImg.raycastTarget = true;
@@ -544,24 +590,32 @@ namespace Kalyeah.Game
             Texture2D iconTex = KalyeahResources.Texture(iconPath) ?? (index == 5 ? KalyeahResources.Texture("ui/hud_icons/gear") : null);
             if (iconTex != null)
             {
-                var iconGo = new GameObject("Icon", typeof(RectTransform), typeof(RawImage));
-                iconGo.transform.SetParent(rect, false);
+                RectTransform iconSlot = Ui.Panel(
+                    "IconSlot",
+                    rect,
+                    new Vector2(0.18f, 0.36f),
+                    new Vector2(0.82f, 0.88f),
+                    new Vector2(0.5f, 0.5f),
+                    Vector2.zero,
+                    Vector2.zero);
+                var iconGo = new GameObject("Icon", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
+                iconGo.transform.SetParent(iconSlot, false);
                 var raw = iconGo.GetComponent<RawImage>();
                 raw.texture = iconTex;
                 raw.raycastTarget = false;
-                RectTransform ir = raw.rectTransform;
-                ir.anchorMin = ir.anchorMax = new Vector2(0.5f, 0.62f);
-                ir.sizeDelta = new Vector2(34f, 34f);
+                var fit = iconGo.GetComponent<AspectRatioFitter>();
+                fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                fit.aspectRatio = iconTex.height > 0 ? (float)iconTex.width / iconTex.height : 1f;
             }
 
-            label = Ui.MakeText("Label", rect, title, 16, Ui.Cream, TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
+            label = Ui.MakeText("Label", rect, title, 18, Ui.Cream, TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
             label.resizeTextForBestFit = true;
-            label.resizeTextMinSize = 11;
-            label.resizeTextMaxSize = 16;
+            label.resizeTextMinSize = 13;
+            label.resizeTextMaxSize = 18;
             RectTransform lr = label.rectTransform;
             lr.anchorMin = new Vector2(0f, 0f);
-            lr.anchorMax = new Vector2(1f, iconTex != null ? 0.42f : 1f);
-            lr.offsetMin = new Vector2(4f, 8f);
+            lr.anchorMax = new Vector2(1f, iconTex != null ? 0.36f : 1f);
+            lr.offsetMin = new Vector2(4f, 5f);
             lr.offsetMax = new Vector2(-4f, iconTex != null ? 0f : -8f);
             if (iconTex == null) label.alignment = TextAnchor.MiddleCenter;
 
@@ -598,7 +652,7 @@ namespace Kalyeah.Game
                 new Vector2(1f, 1f),
                 new Vector2(0.5f, 1f),
                 Vector2.zero,
-                new Vector2(0f, 384f),
+                new Vector2(0f, 380f),
                 SunlitCream,
                 out Image cardBg);
             cardBg.raycastTarget = true;
@@ -608,7 +662,7 @@ namespace Kalyeah.Game
             _portraitAuraBg.sprite = MenuStack.RoundedSprite();
             _portraitAuraBg.type = Image.Type.Sliced;
             RectTransform auraRect = _portraitAuraBg.rectTransform;
-            auraRect.anchorMin = new Vector2(0f, 0.24f);
+            auraRect.anchorMin = new Vector2(0f, 0.25f);
             auraRect.anchorMax = Vector2.one;
             auraRect.offsetMin = new Vector2(8f, 0f);
             auraRect.offsetMax = new Vector2(-8f, -8f);
@@ -625,32 +679,41 @@ namespace Kalyeah.Game
             fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             fitter.aspectRatio = 1f;
 
-            RectTransform cosPill = Ui.Panel("CosmeticPill", auraRect, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-6f, -6f), new Vector2(128f, 24f));
-            Image cosBg = Ui.MakeImage("Bg", cosPill, new Color(0.06f, 0.08f, 0.18f, 0.90f));
+            _cosmeticPillRect = Ui.Panel("CosmeticPill", auraRect, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-6f, -6f), new Vector2(168f, 30f));
+            Image cosBg = Ui.MakeImage("Bg", _cosmeticPillRect, new Color(0.06f, 0.08f, 0.18f, 0.92f));
             cosBg.sprite = MenuStack.RoundedSprite();
             cosBg.type = Image.Type.Sliced;
             cosBg.rectTransform.SetFullStretch();
 
-            _cosmeticNoteText = Ui.MakeText("CosmeticText", cosPill, "COSMETIC ONLY", 12, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            _cosmeticNoteText = Ui.MakeText("CosmeticText", _cosmeticPillRect, "COSMETIC ONLY", 18, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            _cosmeticNoteText.resizeTextForBestFit = true;
+            _cosmeticNoteText.resizeTextMinSize = 16;
+            _cosmeticNoteText.resizeTextMaxSize = 18;
             RectTransform cosRect = _cosmeticNoteText.rectTransform;
             cosRect.anchorMin = Vector2.zero;
             cosRect.anchorMax = Vector2.one;
-            cosRect.offsetMin = new Vector2(6f, 1f);
-            cosRect.offsetMax = new Vector2(-6f, -1f);
+            cosRect.offsetMin = new Vector2(8f, 2f);
+            cosRect.offsetMax = new Vector2(-8f, -2f);
 
-            _kidNameText = Ui.MakeText("KidName", _portraitCardRect, "JUNJUN", 28, Espresso, TextAnchor.LowerLeft, KalyeahResources.DisplayFont());
+            _kidNameText = Ui.MakeText("KidName", _portraitCardRect, "JUNJUN", 26, Espresso, TextAnchor.LowerLeft, KalyeahResources.DisplayFont());
             _kidNameText.GetComponent<Outline>().enabled = false;
+            _kidNameText.resizeTextForBestFit = true;
+            _kidNameText.resizeTextMinSize = 18;
+            _kidNameText.resizeTextMaxSize = 26;
             RectTransform knRect = _kidNameText.rectTransform;
-            knRect.anchorMin = new Vector2(0f, 0.09f);
-            knRect.anchorMax = new Vector2(1f, 0.24f);
+            knRect.anchorMin = new Vector2(0f, 0.11f);
+            knRect.anchorMax = new Vector2(1f, 0.25f);
             knRect.offsetMin = new Vector2(14f, 0f);
             knRect.offsetMax = new Vector2(-12f, 0f);
 
-            _kidEpithetText = Ui.MakeText("KidEpithet", _portraitCardRect, "KAPITAN KUMOT", 14, FiestaOrange, TextAnchor.UpperLeft, KalyeahResources.DisplayFont());
+            _kidEpithetText = Ui.MakeText("KidEpithet", _portraitCardRect, "KAPITAN KUMOT", 18, Espresso, TextAnchor.UpperLeft, KalyeahResources.DisplayFont());
             _kidEpithetText.GetComponent<Outline>().enabled = false;
+            _kidEpithetText.resizeTextForBestFit = true;
+            _kidEpithetText.resizeTextMinSize = 16;
+            _kidEpithetText.resizeTextMaxSize = 18;
             RectTransform epRect = _kidEpithetText.rectTransform;
             epRect.anchorMin = new Vector2(0f, 0.01f);
-            epRect.anchorMax = new Vector2(1f, 0.10f);
+            epRect.anchorMax = new Vector2(1f, 0.12f);
             epRect.offsetMin = new Vector2(14f, 4f);
             epRect.offsetMax = new Vector2(-12f, 0f);
 
@@ -662,15 +725,18 @@ namespace Kalyeah.Game
                 new Vector2(1f, 0f),
                 new Vector2(0.5f, 0f),
                 Vector2.zero,
-                new Vector2(0f, 168f),
+                new Vector2(0f, 176f),
                 StreetSlate,
                 out Image loadoutBg);
             loadoutBg.raycastTarget = true;
             LoadoutButton = AttachButton(_loadoutCardRect.gameObject, loadoutBg, () => Navigate(MenuStack.PickId));
 
-            _swapKitLabel = Ui.MakeText("LoadoutHeader", _loadoutCardRect, "SUPERPOWERS · TAP TO SWAP", 14, MangoGold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _swapKitLabel = Ui.MakeText("LoadoutHeader", _loadoutCardRect, "SUPERPOWERS · TAP TO SWAP", 18, MangoGold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _swapKitLabel.resizeTextForBestFit = true;
+            _swapKitLabel.resizeTextMinSize = 16;
+            _swapKitLabel.resizeTextMaxSize = 18;
             RectTransform lhRect = _swapKitLabel.rectTransform;
-            lhRect.anchorMin = new Vector2(0f, 0.76f);
+            lhRect.anchorMin = new Vector2(0f, 0.77f);
             lhRect.anchorMax = new Vector2(1f, 1f);
             lhRect.offsetMin = new Vector2(12f, 0f);
             lhRect.offsetMax = new Vector2(-12f, -4f);
@@ -679,24 +745,38 @@ namespace Kalyeah.Game
             {
                 float xMin = 0.03f + i * 0.32f;
                 float xMax = xMin + 0.30f;
-                RectTransform chip = Ui.Panel("Chip_" + i, _loadoutCardRect, new Vector2(xMin, 0.07f), new Vector2(xMax, 0.75f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+                RectTransform chip = Ui.Panel("Chip_" + i, _loadoutCardRect, new Vector2(xMin, 0.06f), new Vector2(xMax, 0.76f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
                 Image frame = Ui.MakeImage("Bg", chip, SunlitCream);
                 frame.sprite = MenuStack.RoundedSprite();
                 frame.type = Image.Type.Sliced;
                 frame.rectTransform.SetFullStretch();
 
+                // Top-right Elixir CostPip anchored cleanly above IconWell so narrow 4:3 chips never overlap
+                Image drop = Ui.MakeImage("CostPip", chip, BarrioBlue, round: true);
+                RectTransform dr = drop.rectTransform;
+                dr.anchorMin = dr.anchorMax = new Vector2(1f, 1f);
+                dr.pivot = new Vector2(1f, 1f);
+                dr.anchoredPosition = new Vector2(-4f, -3f);
+                dr.sizeDelta = new Vector2(26f, 26f);
+
+                Text costLbl = Ui.MakeText("Cost", drop.transform, "2", 18, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+                costLbl.resizeTextForBestFit = true;
+                costLbl.resizeTextMinSize = 16;
+                costLbl.resizeTextMaxSize = 18;
+                costLbl.rectTransform.SetFullStretch();
+
                 Image iconWell = Ui.MakeImage("IconWell", chip, new Color(0.08f, 0.11f, 0.22f, 0.96f));
                 iconWell.sprite = MenuStack.RoundedSprite();
                 iconWell.type = Image.Type.Sliced;
                 RectTransform wr = iconWell.rectTransform;
-                wr.anchorMin = new Vector2(0.08f, 0.31f);
-                wr.anchorMax = new Vector2(0.92f, 0.94f);
-                wr.offsetMin = Vector2.zero;
-                wr.offsetMax = Vector2.zero;
+                wr.anchorMin = Vector2.zero;
+                wr.anchorMax = Vector2.one;
+                wr.offsetMin = new Vector2(5f, 30f);
+                wr.offsetMax = new Vector2(-5f, -31f);
 
                 RectTransform iconPad = Ui.Fill("IconPad", wr);
-                iconPad.offsetMin = new Vector2(4f, 4f);
-                iconPad.offsetMax = new Vector2(-4f, -4f);
+                iconPad.offsetMin = new Vector2(3f, 3f);
+                iconPad.offsetMax = new Vector2(-3f, -3f);
 
                 var iconGo = new GameObject("Icon", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
                 iconGo.transform.SetParent(iconPad, false);
@@ -706,28 +786,19 @@ namespace Kalyeah.Game
                 iconFitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
                 iconFitter.aspectRatio = 1f;
 
-                Text nameLbl = Ui.MakeText("WeaponName", chip, "Bato", 14, Espresso, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+                Text nameLbl = Ui.MakeText("WeaponName", chip, "Bato", 18, Espresso, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
                 nameLbl.GetComponent<Outline>().enabled = false;
                 nameLbl.horizontalOverflow = HorizontalWrapMode.Wrap;
                 nameLbl.verticalOverflow = VerticalWrapMode.Truncate;
                 nameLbl.resizeTextForBestFit = true;
                 nameLbl.resizeTextMinSize = 11;
-                nameLbl.resizeTextMaxSize = 15;
+                nameLbl.resizeTextMaxSize = 18;
                 RectTransform nr = nameLbl.rectTransform;
                 nr.anchorMin = new Vector2(0f, 0f);
-                nr.anchorMax = new Vector2(1f, 0.31f);
-                nr.offsetMin = new Vector2(3f, 2f);
-                nr.offsetMax = new Vector2(-3f, 0f);
-
-                Image drop = Ui.MakeImage("CostPip", chip, BarrioBlue, round: true);
-                RectTransform dr = drop.rectTransform;
-                dr.anchorMin = dr.anchorMax = new Vector2(1f, 1f);
-                dr.pivot = new Vector2(1f, 1f);
-                dr.anchoredPosition = new Vector2(-3f, -3f);
-                dr.sizeDelta = new Vector2(22f, 22f);
-
-                Text costLbl = Ui.MakeText("Cost", drop.transform, "2", 12, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-                costLbl.rectTransform.SetFullStretch();
+                nr.anchorMax = new Vector2(1f, 0f);
+                nr.pivot = new Vector2(0.5f, 0f);
+                nr.anchoredPosition = new Vector2(0f, 2f);
+                nr.sizeDelta = new Vector2(-6f, 26f);
 
                 _superpowerSlots[i] = new SuperpowerSlotUi
                 {
@@ -799,7 +870,7 @@ namespace Kalyeah.Game
             pracSub.horizontalOverflow = HorizontalWrapMode.Wrap;
             pracSub.verticalOverflow = VerticalWrapMode.Truncate;
             pracSub.resizeTextForBestFit = true;
-            pracSub.resizeTextMinSize = 14;
+            pracSub.resizeTextMinSize = 12;
             pracSub.resizeTextMaxSize = 18;
             RectTransform psRect = pracSub.rectTransform;
             psRect.anchorMin = Vector2.zero;
@@ -832,7 +903,16 @@ namespace Kalyeah.Game
 
             _playPracticeLabel = Ui.MakeText("Label", _playPracticeRect, "LARO! · PLAY 5v5 PRACTICE", 28, Espresso, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             _playPracticeLabel.GetComponent<Outline>().enabled = false;
-            _playPracticeLabel.rectTransform.SetFullStretch();
+            _playPracticeLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _playPracticeLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            _playPracticeLabel.resizeTextForBestFit = true;
+            _playPracticeLabel.resizeTextMinSize = 14;
+            _playPracticeLabel.resizeTextMaxSize = 28;
+            RectTransform playLblRect = _playPracticeLabel.rectTransform;
+            playLblRect.anchorMin = Vector2.zero;
+            playLblRect.anchorMax = Vector2.one;
+            playLblRect.offsetMin = new Vector2(10f, 4f);
+            playLblRect.offsetMax = new Vector2(-10f, -4f);
 
             // Bottom card: Larong Kalye Street Modes (Patintero, TumbangPreso, LangitLupa)
             _streetCardRect = MakeKomiksFrame(
@@ -848,7 +928,7 @@ namespace Kalyeah.Game
 
             _streetSectionTitle = Ui.MakeText("StreetHeader", _streetCardRect, "LARONG KALYE · STREET MINI-GAMES", 18, MangoGold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
             _streetSectionTitle.resizeTextForBestFit = true;
-            _streetSectionTitle.resizeTextMinSize = 14;
+            _streetSectionTitle.resizeTextMinSize = 16;
             _streetSectionTitle.resizeTextMaxSize = 18;
             RectTransform shRect = _streetSectionTitle.rectTransform;
             shRect.anchorMin = new Vector2(0f, 1f);
@@ -906,6 +986,9 @@ namespace Kalyeah.Game
             bg.raycastTarget = true;
 
             label = Ui.MakeText("Label", rect, title, 19, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 16;
+            label.resizeTextMaxSize = 19;
             RectTransform lr = label.rectTransform;
             lr.anchorMin = Vector2.zero;
             lr.anchorMax = Vector2.one;
@@ -936,7 +1019,7 @@ namespace Kalyeah.Game
             topArtBg.sprite = MenuStack.RoundedSprite();
             topArtBg.type = Image.Type.Sliced;
             RectTransform ar = topArtBg.rectTransform;
-            ar.anchorMin = new Vector2(0f, 0.42f);
+            ar.anchorMin = new Vector2(0f, 0.44f);
             ar.anchorMax = Vector2.one;
             ar.offsetMin = new Vector2(5f, 2f);
             ar.offsetMax = new Vector2(-5f, -5f);
@@ -963,11 +1046,11 @@ namespace Kalyeah.Game
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
             t.verticalOverflow = VerticalWrapMode.Truncate;
             t.resizeTextForBestFit = true;
-            t.resizeTextMinSize = 14;
+            t.resizeTextMinSize = 12;
             t.resizeTextMaxSize = 18;
             RectTransform tr = t.rectTransform;
-            tr.anchorMin = new Vector2(0f, 0.23f);
-            tr.anchorMax = new Vector2(1f, 0.42f);
+            tr.anchorMin = new Vector2(0f, 0.24f);
+            tr.anchorMax = new Vector2(1f, 0.44f);
             tr.offsetMin = new Vector2(4f, 0f);
             tr.offsetMax = new Vector2(-4f, 0f);
 
@@ -976,7 +1059,7 @@ namespace Kalyeah.Game
             subPlate.type = Image.Type.Sliced;
             RectTransform spr = subPlate.rectTransform;
             spr.anchorMin = new Vector2(0f, 0f);
-            spr.anchorMax = new Vector2(1f, 0.23f);
+            spr.anchorMax = new Vector2(1f, 0.24f);
             spr.offsetMin = new Vector2(5f, 5f);
             spr.offsetMax = new Vector2(-5f, -1f);
 
@@ -985,7 +1068,7 @@ namespace Kalyeah.Game
             sub.horizontalOverflow = HorizontalWrapMode.Wrap;
             sub.verticalOverflow = VerticalWrapMode.Truncate;
             sub.resizeTextForBestFit = true;
-            sub.resizeTextMinSize = 14;
+            sub.resizeTextMinSize = 12;
             sub.resizeTextMaxSize = 18;
             RectTransform sr = sub.rectTransform;
             sr.anchorMin = Vector2.zero;
@@ -1136,13 +1219,13 @@ namespace Kalyeah.Game
             sub.horizontalOverflow = HorizontalWrapMode.Wrap;
             sub.verticalOverflow = VerticalWrapMode.Truncate;
             sub.resizeTextForBestFit = true;
-            sub.resizeTextMinSize = 14;
+            sub.resizeTextMinSize = 11;
             sub.resizeTextMaxSize = 18;
             RectTransform sr = sub.rectTransform;
             sr.anchorMin = Vector2.zero;
             sr.anchorMax = Vector2.one;
-            sr.offsetMin = new Vector2(10f, 2f);
-            sr.offsetMax = new Vector2(-10f, -2f);
+            sr.offsetMin = new Vector2(8f, 1f);
+            sr.offsetMax = new Vector2(-8f, -1f);
             return header;
         }
 
@@ -1167,6 +1250,9 @@ namespace Kalyeah.Game
             bg.raycastTarget = true;
 
             Text lbl = Ui.MakeText("Label", rect, labelText, 22, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            lbl.resizeTextForBestFit = true;
+            lbl.resizeTextMinSize = 16;
+            lbl.resizeTextMaxSize = 22;
             RectTransform lr = lbl.rectTransform;
             lr.anchorMin = Vector2.zero;
             lr.anchorMax = Vector2.one;
@@ -1202,13 +1288,15 @@ namespace Kalyeah.Game
                 _profileAvatarImage.enabled = Sheets.CurrentIdTexture != null;
             }
 
-            // 2. Ranked Tier Badge
+            // 2. Ranked Tier Badge & Tier Initial Medallion
             RankTierInfo tier = session.CurrentTier;
+            string tierName = string.IsNullOrWhiteSpace(tier.Name) ? "Kahoy" : tier.Name.Trim();
             Color tierMain = ParseHexColor(tier.ColorHex, MangoGold);
             Color tierDark = ParseHexColor(tier.DarkHex, StreetSlate);
             if (_rankFillImage != null) _rankFillImage.color = Color.Lerp(StreetSlate, tierDark, 0.72f);
             if (_rankCrestBg != null) _rankCrestBg.color = tierMain;
-            if (_rankTierText != null) _rankTierText.text = tier.Name ?? "Kahoy";
+            if (_rankEmblemText != null) _rankEmblemText.text = tierName.Substring(0, 1).ToUpperInvariant();
+            if (_rankTierText != null) _rankTierText.text = tierName;
             if (_rankLpText != null)
             {
                 int nextLp = session.NextTierLp;
@@ -1234,7 +1322,9 @@ namespace Kalyeah.Game
             if (_kidEpithetText != null)
             {
                 _kidEpithetText.text = meta.Epithet;
-                _kidEpithetText.color = meta.Accent;
+                _kidEpithetText.color = Color.Lerp(Espresso, meta.Accent, 0.30f);
+                Outline epOutline = _kidEpithetText.GetComponent<Outline>();
+                if (epOutline != null) epOutline.enabled = false;
             }
             if (_cosmeticNoteText != null)
                 _cosmeticNoteText.text = fil ? "PAMPORMA LANG" : "COSMETIC ONLY";
@@ -1331,65 +1421,116 @@ namespace Kalyeah.Game
             if (_canvas == null && Root != null)
                 _canvas = Root.GetComponentInParent<Canvas>();
 
+            _safeArea?.Apply();
+
             Vector2 safe = ScreenFitMetrics.SafeCanvasSize(_canvas);
             float safeW = Mathf.Max(640f, safe.x);
             float safeH = Mathf.Max(480f, safe.y);
             float minTouch = ScreenFitMetrics.ClampTouchSize(64f, ScreenFitMetrics.MinTouchDp, _canvas);
 
-            // Top bar sizing (pinned to safe-area top corners)
-            float topH = Mathf.Clamp(minTouch, 84f, 104f);
-            const float topPad = 10f;
+            const float topPad = 8f;
             const float gap = 8f;
-            const float navGap = 6f;
+            const float navGap = 5f;
+            int navCount = _navBtnRects.Length;
+
+            float rowH = Mathf.Clamp(minTouch, 90f, 102f);
+            float avatarW = Mathf.Max(minTouch, rowH);
+            float minNameInputW = Mathf.Max(minTouch, 128f);
+            float minRankW = Mathf.Max(minTouch, 178f);
+            float minNavW = Mathf.Max(minTouch, 92f);
+            float minOneRowBrandW = 180f;
+
+            float requiredOneRowW = topPad * 2f
+                + (avatarW + 6f + minNameInputW)
+                + gap + minRankW
+                + gap * 2f + minOneRowBrandW
+                + (navCount * minNavW + (navCount - 1) * navGap);
+
+            bool twoRowTopBar = safeW < requiredOneRowW;
+            float topH = twoRowTopBar ? (rowH * 2f + 6f) : rowH;
+
             _topBar.anchoredPosition = new Vector2(0f, -6f);
             _topBar.sizeDelta = new Vector2(0f, topH);
 
-            int navCount = _navBtnRects.Length;
-            float navBtnW = Mathf.Max(minTouch, Mathf.Min(88f, (safeW * 0.48f - navGap * (navCount - 1)) / navCount));
-            for (int i = 0; i < navCount; i++)
+            if (!twoRowTopBar)
             {
-                RectTransform nr = _navBtnRects[i];
-                if (nr == null) continue;
-                int fromRight = (navCount - 1) - i;
-                nr.sizeDelta = new Vector2(navBtnW, topH);
-                nr.anchoredPosition = new Vector2(-(topPad + fromRight * (navBtnW + navGap)), 0f);
-            }
-
-            float rightNavSpan = topPad + navCount * navBtnW + (navCount - 1) * navGap;
-            float leftAvail = Mathf.Max(minTouch * 2f + gap, safeW - rightNavSpan - topPad - gap * 2f);
-            float nameW = Mathf.Clamp(leftAvail * 0.54f, minTouch, 244f);
-            float rankW = Mathf.Clamp(leftAvail - nameW - gap, minTouch, 198f);
-
-            _nameBoxRect.sizeDelta = new Vector2(nameW, topH);
-            _nameBoxRect.anchoredPosition = new Vector2(topPad, 0f);
-
-            if (_profileAvatarBtnRect != null)
-            {
-                bool showAvatar = nameW >= minTouch + 86f;
-                _profileAvatarBtnRect.gameObject.SetActive(showAvatar);
-                float avatarSide = Mathf.Clamp(topH - 18f, Mathf.Min(minTouch, topH - 12f), 74f);
-                _profileAvatarBtnRect.sizeDelta = new Vector2(avatarSide, avatarSide);
-                float textLeft = showAvatar ? (avatarSide + 16f) : 14f;
-                if (_nameCaptionRect != null) _nameCaptionRect.offsetMin = new Vector2(textLeft, 0f);
-                if (_namePlaceholderRect != null) _namePlaceholderRect.offsetMin = new Vector2(textLeft, 10f);
-                if (_nameInputTextRect != null) _nameInputTextRect.offsetMin = new Vector2(textLeft, 10f);
-            }
-
-            _rankBadgeRect.sizeDelta = new Vector2(rankW, topH);
-            _rankBadgeRect.anchoredPosition = new Vector2(topPad + nameW + gap, 0f);
-
-            float leftUsed = topPad + nameW + gap + rankW;
-            float centerGap = safeW - leftUsed - rightNavSpan - gap * 2f;
-            if (_brandCenterRect != null)
-            {
-                bool showBrand = centerGap >= 88f;
-                _brandCenterRect.gameObject.SetActive(showBrand);
-                if (showBrand)
+                float navBtnW = Mathf.Max(minTouch, Mathf.Min(96f, (safeW * 0.48f - navGap * (navCount - 1)) / navCount));
+                for (int i = 0; i < navCount; i++)
                 {
-                    float brandW = Mathf.Min(centerGap, 250f);
+                    RectTransform nr = _navBtnRects[i];
+                    if (nr == null) continue;
+                    int fromRight = (navCount - 1) - i;
+                    nr.sizeDelta = new Vector2(navBtnW, rowH);
+                    nr.anchoredPosition = new Vector2(-(topPad + fromRight * (navBtnW + navGap)), 0f);
+                }
+
+                float rightNavSpan = topPad + navCount * navBtnW + (navCount - 1) * navGap;
+                float leftBudget = safeW - rightNavSpan - topPad - gap * 2f - minOneRowBrandW;
+                float nameInputW = Mathf.Clamp(leftBudget * 0.44f - avatarW - 6f, minNameInputW, 168f);
+                float nameBoxW = avatarW + 6f + nameInputW;
+                float rankW = Mathf.Clamp(leftBudget - nameBoxW - gap, minRankW, 206f);
+
+                _nameBoxRect.sizeDelta = new Vector2(nameBoxW, rowH);
+                _nameBoxRect.anchoredPosition = new Vector2(topPad, 0f);
+                _profileAvatarBtnRect.sizeDelta = new Vector2(avatarW, rowH);
+                _profileAvatarBtnRect.anchoredPosition = Vector2.zero;
+                _nameInputRect.sizeDelta = new Vector2(nameInputW, rowH);
+                _nameInputRect.anchoredPosition = new Vector2(avatarW + 6f, 0f);
+
+                _rankBadgeRect.sizeDelta = new Vector2(rankW, rowH);
+                _rankBadgeRect.anchoredPosition = new Vector2(topPad + nameBoxW + gap, 0f);
+
+                float leftUsed = topPad + nameBoxW + gap + rankW;
+                float centerGap = Mathf.Max(minOneRowBrandW, safeW - leftUsed - rightNavSpan - gap * 2f);
+                if (_brandCenterRect != null)
+                {
+                    _brandCenterRect.gameObject.SetActive(true);
+                    float brandW = Mathf.Min(centerGap, 272f);
                     float centerX = leftUsed + gap + centerGap * 0.5f - safeW * 0.5f;
                     _brandCenterRect.anchoredPosition = new Vector2(centerX, 0f);
-                    _brandCenterRect.sizeDelta = new Vector2(brandW, topH - 10f);
+                    _brandCenterRect.sizeDelta = new Vector2(brandW, rowH - 6f);
+                }
+            }
+            else
+            {
+                // 4:3 foldable 2-row TopBar: Row 1 holds Avatar + NameInput + BrandLockup + RankedTierBadge; Row 2 holds all 6 >= 48 dp Nav buttons
+                float row1Y = (rowH + 6f) * 0.5f;
+                float row2Y = -(rowH + 6f) * 0.5f;
+
+                float nameInputW = Mathf.Max(minTouch, Mathf.Clamp(safeW * 0.19f, 142f, 196f));
+                float nameBoxW = avatarW + 6f + nameInputW;
+                float rankW = Mathf.Max(minTouch, Mathf.Clamp(safeW * 0.24f, 192f, 236f));
+
+                _nameBoxRect.sizeDelta = new Vector2(nameBoxW, rowH);
+                _nameBoxRect.anchoredPosition = new Vector2(topPad, row1Y);
+                _profileAvatarBtnRect.sizeDelta = new Vector2(avatarW, rowH);
+                _profileAvatarBtnRect.anchoredPosition = Vector2.zero;
+                _nameInputRect.sizeDelta = new Vector2(nameInputW, rowH);
+                _nameInputRect.anchoredPosition = new Vector2(avatarW + 6f, 0f);
+
+                _rankBadgeRect.sizeDelta = new Vector2(rankW, rowH);
+                _rankBadgeRect.anchoredPosition = new Vector2(safeW - topPad - rankW, row1Y);
+
+                if (_brandCenterRect != null)
+                {
+                    float leftEdge = topPad + nameBoxW + gap;
+                    float rightEdge = safeW - topPad - rankW - gap;
+                    float centerGap = Mathf.Max(140f, rightEdge - leftEdge);
+                    _brandCenterRect.gameObject.SetActive(true);
+                    float brandW = Mathf.Min(centerGap, 256f);
+                    float centerX = (leftEdge + rightEdge) * 0.5f - safeW * 0.5f;
+                    _brandCenterRect.anchoredPosition = new Vector2(centerX, row1Y);
+                    _brandCenterRect.sizeDelta = new Vector2(brandW, rowH - 6f);
+                }
+
+                float navBtnW = Mathf.Max(minTouch, (safeW - topPad * 2f - navGap * (navCount - 1)) / navCount);
+                for (int i = 0; i < navCount; i++)
+                {
+                    RectTransform nr = _navBtnRects[i];
+                    if (nr == null) continue;
+                    int fromRight = (navCount - 1) - i;
+                    nr.sizeDelta = new Vector2(navBtnW, rowH);
+                    nr.anchoredPosition = new Vector2(-(topPad + fromRight * (navBtnW + navGap)), row2Y);
                 }
             }
 
@@ -1397,7 +1538,7 @@ namespace Kalyeah.Game
 
             // 3-column body container (clamped max width so 21:9 never stretches cards edge-to-edge)
             float bodyBottom = 8f;
-            float bodyTopReserve = topH + 14f;
+            float bodyTopReserve = 6f + topH + 8f;
             float bodyH = Mathf.Max(420f, safeH - bodyTopReserve - bodyBottom);
             float bodyW = Mathf.Clamp(safeW - topPad * 2f, 620f, 1360f);
             _bodyContainer.anchoredPosition = new Vector2(0f, bodyBottom);
@@ -1406,13 +1547,16 @@ namespace Kalyeah.Game
             const float colGap = 10f;
             float availCols = bodyW - colGap * 2f;
 
-            // Guarantee leftW + centerW + rightW == availCols with every interactive control >= minTouch
-            float minCenterW = minTouch * 4f + 6f * 3f + 20f;
+            float oneRowPillsCenterMin = minTouch * 4f + 6f * 3f + 20f;
+            float twoRowPillsCenterMin = minTouch * 3f + 8f * 2f + 20f;
             float minRightW = minTouch * 2f + 8f + 20f;
-            float minLeftW = minTouch + 16f;
+            float minLeftW = Mathf.Max(minTouch, 256f);
+
+            bool twoRowPills = availCols < (oneRowPillsCenterMin + minRightW + minLeftW);
+            float minCenterW = twoRowPills ? twoRowPillsCenterMin : oneRowPillsCenterMin;
 
             float centerW = Mathf.Clamp(availCols * 0.44f, minCenterW, Mathf.Max(minCenterW, availCols - minRightW - minLeftW));
-            float rightW = Mathf.Clamp(availCols * 0.29f, minRightW, Mathf.Max(minRightW, availCols - centerW - minLeftW));
+            float rightW = Mathf.Clamp(availCols * 0.27f, minRightW, Mathf.Max(minRightW, availCols - centerW - minLeftW));
             float leftW = Mathf.Max(minTouch, availCols - centerW - rightW);
 
             _leftCol.anchoredPosition = Vector2.zero;
@@ -1428,43 +1572,66 @@ namespace Kalyeah.Game
             _rightCol.sizeDelta = new Vector2(rightW, 0f);
 
             // Column 1 vertical split
-            float loadoutH = Mathf.Clamp(bodyH * 0.30f, Mathf.Max(minTouch, 140f), 176f);
+            float loadoutH = Mathf.Clamp(bodyH * 0.32f, Mathf.Max(minTouch, 166f), 184f);
             float portraitH = Mathf.Max(minTouch, bodyH - loadoutH - gap);
             _portraitCardRect.sizeDelta = new Vector2(0f, portraitH);
             _loadoutCardRect.sizeDelta = new Vector2(0f, loadoutH);
+            if (_cosmeticPillRect != null)
+                _cosmeticPillRect.sizeDelta = new Vector2(Mathf.Clamp(leftW - 28f, 148f, 184f), 30f);
 
             // Column 2 vertical split (5v5 Practice + Larong Kalye)
-            float practiceMinH = minTouch * 2f + 86f;
-            float practiceH = Mathf.Clamp(bodyH * 0.57f, practiceMinH, Mathf.Max(practiceMinH, bodyH - (minTouch + 46f) - gap));
-            float streetH = Mathf.Max(minTouch + 42f, bodyH - practiceH - gap);
+            int pillRows = twoRowPills ? 2 : 1;
+            float playCtaH = Mathf.Clamp(minTouch, 90f, 100f);
+            float pillH = Mathf.Clamp(minTouch, 88f, 98f);
+            float pillGap = 6f;
+            float pillsBlockH = pillRows * pillH + (pillRows - 1) * pillGap;
+            float practiceMinH = 8f + playCtaH + 8f + pillsBlockH + 8f + 56f + 6f;
+            float streetMinH = minTouch + 46f;
+
+            float practiceH = Mathf.Clamp(bodyH * 0.58f, practiceMinH, Mathf.Max(practiceMinH, bodyH - streetMinH - gap));
+            float streetH = Mathf.Max(streetMinH, bodyH - practiceH - gap);
             practiceH = bodyH - streetH - gap;
             _practiceCardRect.sizeDelta = new Vector2(0f, practiceH);
             _streetCardRect.sizeDelta = new Vector2(0f, streetH);
 
-            float playCtaH = Mathf.Clamp(minTouch, 84f, 102f);
             _playPracticeRect.anchoredPosition = new Vector2(0f, 8f);
             _playPracticeRect.sizeDelta = new Vector2(centerW - 20f, playCtaH);
 
-            float pillY = 8f + playCtaH + 6f;
-            float pillH = Mathf.Clamp(minTouch, 80f, Mathf.Max(minTouch, practiceH - pillY - 68f));
-            float pillGap = 6f;
-            float pillW = Mathf.Max(minTouch, (centerW - 20f - pillGap * 3f) / 4f);
-            for (int i = 0; i < 4; i++)
+            float pillBaseY = 8f + playCtaH + 8f;
+            if (!twoRowPills)
             {
-                RectTransform pr = _pillRects[i];
-                if (pr == null) continue;
-                pr.anchoredPosition = new Vector2(10f + i * (pillW + pillGap), pillY);
-                pr.sizeDelta = new Vector2(pillW, pillH);
+                float pillW = Mathf.Max(minTouch, (centerW - 20f - pillGap * 3f) / 4f);
+                for (int i = 0; i < 4; i++)
+                {
+                    RectTransform pr = _pillRects[i];
+                    if (pr == null) continue;
+                    pr.anchoredPosition = new Vector2(10f + i * (pillW + pillGap), pillBaseY);
+                    pr.sizeDelta = new Vector2(pillW, pillH);
+                }
+            }
+            else
+            {
+                float pillW = Mathf.Max(minTouch, (centerW - 20f - pillGap) * 0.5f);
+                for (int i = 0; i < 4; i++)
+                {
+                    RectTransform pr = _pillRects[i];
+                    if (pr == null) continue;
+                    int colIdx = i % 2;
+                    int rowFromTop = i / 2;
+                    float py = pillBaseY + (1 - rowFromTop) * (pillH + pillGap);
+                    pr.anchoredPosition = new Vector2(10f + colIdx * (pillW + pillGap), py);
+                    pr.sizeDelta = new Vector2(pillW, pillH);
+                }
             }
 
             if (_practiceBannerRect != null)
             {
-                float bannerH = Mathf.Clamp(practiceH - (pillY + pillH) - 12f, 52f, 88f);
+                float bannerH = Mathf.Clamp(practiceH - (pillBaseY + pillsBlockH) - 14f, 52f, 92f);
                 _practiceBannerRect.sizeDelta = new Vector2(-12f, bannerH);
             }
 
             float streetCardBottom = 8f;
-            float streetCardH = Mathf.Max(minTouch, streetH - 42f);
+            float streetCardH = Mathf.Max(minTouch, streetH - 46f);
             float streetGap = 8f;
             float streetW = Mathf.Max(minTouch, (centerW - 20f - streetGap * 2f) / 3f);
             for (int i = 0; i < 3; i++)
@@ -1481,13 +1648,13 @@ namespace Kalyeah.Game
             _hotspotCardRect.sizeDelta = new Vector2(0f, roomCardH);
 
             float roomBtnW = Mathf.Max(minTouch, (rightW - 28f) * 0.5f);
-            float roomBtnH = Mathf.Clamp(minTouch, 84f, Mathf.Max(minTouch, roomCardH - 104f));
+            float roomBtnH = Mathf.Clamp(minTouch, 88f, Mathf.Max(minTouch, roomCardH - 96f));
             _onlineCreateRect.sizeDelta = new Vector2(roomBtnW, roomBtnH);
             _onlineJoinRect.sizeDelta = new Vector2(roomBtnW, roomBtnH);
             _hotspotHostRect.sizeDelta = new Vector2(roomBtnW, roomBtnH);
             _hotspotJoinRect.sizeDelta = new Vector2(roomBtnW, roomBtnH);
 
-            float roomHeaderH = Mathf.Clamp(roomCardH - roomBtnH - 22f, 68f, 140f);
+            float roomHeaderH = Mathf.Clamp(roomCardH - roomBtnH - 24f, 64f, 140f);
             if (_onlineHeaderRect != null) _onlineHeaderRect.sizeDelta = new Vector2(-12f, roomHeaderH);
             if (_hotspotHeaderRect != null) _hotspotHeaderRect.sizeDelta = new Vector2(-12f, roomHeaderH);
 

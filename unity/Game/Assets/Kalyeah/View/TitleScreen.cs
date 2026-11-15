@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace Kalyeah.Game
@@ -14,6 +13,7 @@ namespace Kalyeah.Game
         public const string SceneName = "Title";
         static readonly Color Dusk = new Color(0.06f, 0.09f, 0.18f, 1f);
 
+        DataSource _data;
         Canvas _canvas;
         AudioHub _audio;
         MenuStack _stack;
@@ -57,6 +57,7 @@ namespace Kalyeah.Game
             ConfigureCamera(camera);
 
             DataSource data = KalyeahResources.Data();
+            _data = data;
             MatchBoot.ApplyBootResourcesAndGraphics(data);
             _canvas = Ui.MakeCanvas("Title", transform, camera);
 
@@ -75,6 +76,8 @@ namespace Kalyeah.Game
             _pauseGuard = NetworkPauseGuard.Attach(gameObject);
             _stack.Push(MenuStack.HomeId);
         }
+
+        void Start() => LoadingScreenView.CompleteAndHide();
 
         void Update()
         {
@@ -132,6 +135,8 @@ namespace Kalyeah.Game
             _home?.Dispose();
             _home = null;
 
+            object pickObj = _pick;
+            (pickObj as IDisposable)?.Dispose();
             _pick = null;
 
             _stack?.Dispose();
@@ -233,7 +238,10 @@ namespace Kalyeah.Game
                 onMatchStarted: () =>
                 {
                     _stack.SavePersistedState();
-                    SceneManager.LoadScene(MatchBoot.SceneName);
+                    LoadingScreenView.LoadScene(
+                        MatchBoot.SceneName,
+                        _data,
+                        LoadingScreenView.ResolveSessionModeTitle(AppSession.Current));
                 },
                 onPickKid: () => _stack.Push(MenuStack.PickId),
                 qrSpriteProvider: QrCodeView.EncodeSprite,
@@ -303,7 +311,10 @@ namespace Kalyeah.Game
         {
             AppSession.Current.Mode = mode;
             _stack?.SavePersistedState();
-            SceneManager.LoadScene(MatchBoot.SceneName);
+            LoadingScreenView.LoadScene(
+                MatchBoot.SceneName,
+                _data,
+                LoadingScreenView.ResolveSessionModeTitle(AppSession.Current));
         }
 
         static void ResetStaleSessionMode()

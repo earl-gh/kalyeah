@@ -5,6 +5,7 @@ using System.Text;
 using Kalyeah.Net;
 using Kalyeah.Sim;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Kalyeah.Game
@@ -31,6 +32,8 @@ namespace Kalyeah.Game
         static readonly Color GoldCta = new Color(0.98f, 0.78f, 0.18f, 1f);
         static readonly Color GreenReady = new Color(0.22f, 0.78f, 0.48f, 1f);
         static readonly Color MutedBtn = new Color(0.17f, 0.25f, 0.42f, 1f);
+        static readonly Color DisabledPlate = new Color(0.20f, 0.26f, 0.40f, 1f);
+        static readonly Color GuestRulePlate = new Color(0.14f, 0.20f, 0.34f, 0.96f);
         static readonly Color InkDark = new Color(0.14f, 0.09f, 0.04f, 1f);
         static readonly Color SubtleText = new Color(0.76f, 0.84f, 0.96f, 1f);
         static readonly Color WarnText = new Color(1f, 0.78f, 0.34f, 1f);
@@ -39,10 +42,11 @@ namespace Kalyeah.Game
         static Sprite _fallbackQrSprite;
 
         readonly DataSource _data;
-        readonly Canvas _canvas;
+        Canvas _canvas;
         readonly NetRules _netRules;
         readonly string[] _allWeaponIds;
 
+        readonly RectTransform _safeRoot;
         readonly RectTransform _frame;
         readonly RectTransform _connectPanel;
         readonly RectTransform _roomPanel;
@@ -51,24 +55,75 @@ namespace Kalyeah.Game
         readonly Text _qrModalCaption;
 
         // Top bar
+        RectTransform _topBar;
+        RectTransform _backBtnRect;
+        RectTransform _titleBlockRect;
+        RectTransform _roomRightCluster;
+        RectTransform _copyCodeBtnRect;
+        RectTransform _qrModalBtnRect;
         readonly Text _modeTitleLabel;
         readonly Text _statusLabel;
         readonly RectTransform _roomCodePill;
         readonly Text _roomCodeLabel;
 
         // Online Connect / Code Join panel
+        RectTransform _setupCardRect;
+        RectTransform _urlCaptionRect;
+        RectTransform _serverInputRect;
+        RectTransform _createRoomBtnRect;
+        RectTransform _browseOpenBtnRect;
+        RectTransform _codeCaptionRect;
+        RectTransform _codeInputRect;
+        RectTransform _pasteCodeBtnRect;
+        RectTransform _joinByCodeBtnRect;
+        RectTransform _scanCodeQrBtnRect;
+        RectTransform _openRoomsCardRect;
+        RectTransform _openRoomsHeaderRect;
+        RectTransform _openRoomsScrollRect;
+        readonly LayoutElement[] _openRoomLayouts = new LayoutElement[MaxOpenRoomRows];
         readonly InputField _serverUrlInput;
         readonly InputField _joinCodeInput;
         readonly Text _openRoomsEmptyLabel;
         readonly OpenRoomRow[] _openRoomRows = new OpenRoomRow[MaxOpenRoomRows];
 
         // 10-slot 5v5 Blue vs Red grid
+        RectTransform _blueColRect;
+        RectTransform _blueJoinBtnRect;
+        RectTransform _blueSlotsRect;
+        RectTransform _redColRect;
+        RectTransform _redJoinBtnRect;
+        RectTransform _redSlotsRect;
         readonly Text _blueHeaderLabel;
         readonly Text _redHeaderLabel;
         readonly SlotWidgets[] _blueSlots = new SlotWidgets[SlotsPerTeam];
         readonly SlotWidgets[] _redSlots = new SlotWidgets[SlotsPerTeam];
 
         // Bottom controls
+        RectTransform _bottomBarRect;
+        RectTransform _pickKidBtnRect;
+        RectTransform _myKidThumbFrame;
+        RectTransform _myKidTextBlock;
+        RectTransform _swapTeamBtnRect;
+        Button _mapButton;
+        Image _mapBtnBg;
+        RectTransform _mapBtnRect;
+        Button _firstToButton;
+        Image _firstToBtnBg;
+        RectTransform _firstToBtnRect;
+        Image _botsBtnBg;
+        RectTransform _botsBtnRect;
+        Image _openBtnBg;
+        RectTransform _openBtnRect;
+        RectTransform _readyBtnRect;
+        RectTransform _startBtnRect;
+
+        // QR overlay
+        RectTransform _qrCardRect;
+        RectTransform _qrCardTitleRect;
+        RectTransform _qrCardPlateRect;
+        RectTransform _qrCardCaptionRect;
+        RectTransform _qrCloseBtnRect;
+
         readonly RawImage _myKidThumb;
         readonly Text _myKidLabel;
         readonly Text _mapBtnLabel;
@@ -92,8 +147,26 @@ namespace Kalyeah.Game
         bool _transportWelcomed;
         bool _announcedCharacter;
         bool _matchStartFired;
+        bool _viewportSubscribed;
+        bool _inLayout;
         float _listRefreshLeft;
         string _lastAnnouncedChar = "";
+
+        sealed class RoomQrScrimDismiss : MonoBehaviour, IPointerClickHandler
+        {
+            [NonSerialized] public Action OnDismiss;
+
+            public void OnPointerClick(PointerEventData eventData)
+            {
+                if (eventData != null &&
+                    eventData.pointerCurrentRaycast.gameObject != null &&
+                    eventData.pointerCurrentRaycast.gameObject != gameObject)
+                {
+                    return;
+                }
+                OnDismiss?.Invoke();
+            }
+        }
 
         struct SlotWidgets
         {
@@ -153,25 +226,28 @@ namespace Kalyeah.Game
             _canvas = parent.GetComponentInParent<Canvas>();
 
             Root = Ui.Fill("LobbyScreenView", parent);
-            Image backdrop = Ui.MakeImage("Backdrop", Root, new Color(0.04f, 0.07f, 0.15f, 0.95f), raycast: true);
+            Image backdrop = Ui.MakeImage("Backdrop", Root, new Color(0.03f, 0.06f, 0.14f, 0.96f), raycast: true);
             Stretch(backdrop.rectTransform);
+
+            _safeRoot = Ui.Fill("SafeRoot", Root);
+            _safeRoot.gameObject.AddComponent<SafeArea>();
 
             _frame = Ui.Panel(
                 "LobbyFrame",
-                Root,
+                _safeRoot,
                 new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f),
                 Vector2.zero,
-                new Vector2(1180f, 668f));
+                new Vector2(1240f, 668f));
             StyleCard(_frame, FrameBg);
 
             BuildTopBar(_frame, out _modeTitleLabel, out _statusLabel, out _roomCodePill, out _roomCodeLabel);
 
-            _connectPanel = Ui.Panel("OnlineConnectPanel", _frame, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), new Vector2(0f, -30f), new Vector2(-36f, -84f));
+            _connectPanel = Ui.Panel("OnlineConnectPanel", _frame, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             BuildConnectPanel(_connectPanel, out _serverUrlInput, out _joinCodeInput, out _openRoomsEmptyLabel);
 
-            _roomPanel = Ui.Panel("RoomPanel", _frame, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), new Vector2(0f, -30f), new Vector2(-32f, -84f));
+            _roomPanel = Ui.Panel("RoomPanel", _frame, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             BuildRoomPanel(
                 _roomPanel,
                 out _blueHeaderLabel,
@@ -190,18 +266,20 @@ namespace Kalyeah.Game
                 out _startBtnBg,
                 out _startBtnLabel);
 
-            _qrOverlay = BuildQrModal(_frame, out _qrModalImage, out _qrModalCaption);
+            _qrOverlay = BuildQrModal(Root, out _qrModalImage, out _qrModalCaption);
             _qrOverlay.gameObject.SetActive(false);
 
             var driver = Root.gameObject.AddComponent<LobbyViewDriver>();
             driver.Bind(this);
 
+            SubscribeViewport(true);
             ApplyResponsiveMetrics();
             Open();
         }
 
         public void Show()
         {
+            SubscribeViewport(true);
             Root.gameObject.SetActive(true);
             OnShow();
         }
@@ -580,9 +658,22 @@ namespace Kalyeah.Game
 
         public void Dispose()
         {
+            SubscribeViewport(false);
             BindClient(null);
             ReleaseOwnedQrSprite();
         }
+
+        void SubscribeViewport(bool subscribe)
+        {
+            if (subscribe == _viewportSubscribed) return;
+            _viewportSubscribed = subscribe;
+            if (subscribe)
+                ScreenFitMetrics.SimulatedViewportChanged += OnSimulatedViewportChanged;
+            else
+                ScreenFitMetrics.SimulatedViewportChanged -= OnSimulatedViewportChanged;
+        }
+
+        void OnSimulatedViewportChanged() => ApplyResponsiveMetrics();
 
         bool IsBrowsingOpenRooms() =>
             AppSession.Current.Mode == GameMode.Online &&
@@ -873,24 +964,66 @@ namespace Kalyeah.Game
             PopulateTeamSlots(_blueSlots, blueMembers, myId, hostId, fillBots, blueAccent, "Blue");
             PopulateTeamSlots(_redSlots, redMembers, myId, hostId, fillBots, redAccent, "Red");
 
-            _mapBtnLabel.text = "GAME: " + MapTitle(mapId).ToUpperInvariant() + (amHost ? "  [CHANGE]" : "");
-            _firstToBtnLabel.text = string.Format(CultureInfo.InvariantCulture, "FIRST TO {0}{1}", firstTo, amHost ? "  [+]" : "");
+            Color ruleFill = amHost ? MutedBtn : GuestRulePlate;
+            Color ruleText = amHost ? Ui.Cream : SubtleText;
+
+            if (_mapButton != null) _mapButton.interactable = amHost;
+            if (_mapBtnBg != null) _mapBtnBg.color = ruleFill;
+            _mapBtnLabel.color = ruleText;
+            SyncOutlineForColor(_mapBtnLabel, ruleText);
+            _mapBtnLabel.text = "GAME:\n" + MapTitle(mapId).ToUpperInvariant();
+
+            if (_firstToButton != null) _firstToButton.interactable = amHost;
+            if (_firstToBtnBg != null) _firstToBtnBg.color = ruleFill;
+            _firstToBtnLabel.color = ruleText;
+            SyncOutlineForColor(_firstToBtnLabel, ruleText);
+            _firstToBtnLabel.text = string.Format(CultureInfo.InvariantCulture, "FIRST\nTO {0}", firstTo);
 
             _botsButton.gameObject.SetActive(botsAllowed || isHotspot);
             _botsButton.interactable = amHost && botsAllowed;
-            _botsBtnLabel.text = fillBots ? "BOT-FILL: ON" : "BOT-FILL: OFF";
+            if (_botsBtnBg != null) _botsBtnBg.color = (amHost && botsAllowed) ? MutedBtn : GuestRulePlate;
+            Color botsText = (amHost && botsAllowed) ? Ui.Cream : SubtleText;
+            _botsBtnLabel.color = botsText;
+            SyncOutlineForColor(_botsBtnLabel, botsText);
+            _botsBtnLabel.text = fillBots ? "BOTS:\nON" : "BOTS:\nOFF";
 
             _openButton.gameObject.SetActive(!isHotspot);
             _openButton.interactable = amHost && !isHotspot;
-            _openBtnLabel.text = openRoom ? "PUBLIC ROOM" : "CODE ONLY";
+            if (_openBtnBg != null) _openBtnBg.color = (amHost && !isHotspot) ? MutedBtn : GuestRulePlate;
+            Color openText = (amHost && !isHotspot) ? Ui.Cream : SubtleText;
+            _openBtnLabel.color = openText;
+            SyncOutlineForColor(_openBtnLabel, openText);
+            _openBtnLabel.text = openRoom ? "PUBLIC\nROOM" : "CODE\nONLY";
 
-            _readyBtnBg.color = myReady ? GreenReady : MutedBtn;
-            _readyBtnLabel.text = myReady ? "READY! (TAP UNREADY)" : "TAP READY";
+            _readyBtnBg.color = myReady ? GreenReady : new Color(0.18f, 0.48f, 0.84f, 1f);
+            Color readyText = myReady ? InkDark : Ui.Cream;
+            _readyBtnLabel.color = readyText;
+            SyncOutlineForColor(_readyBtnLabel, readyText);
+            _readyBtnLabel.text = myReady ? "READY!\nUNREADY" : "TAP\nREADY";
 
-            _startButton.gameObject.SetActive(amHost);
-            _startBtnBg.color = canStartHost ? GoldCta : new Color(0.36f, 0.34f, 0.26f, 1f);
-            _startBtnLabel.color = canStartHost ? InkDark : Ui.Cream;
-            _startBtnLabel.text = canStartHost ? "START MATCH!" : "START (WAITING)";
+            _startButton.gameObject.SetActive(true);
+            _startButton.interactable = amHost && canStartHost;
+            if (amHost && canStartHost)
+            {
+                _startBtnBg.color = GoldCta;
+                _startBtnLabel.color = InkDark;
+                _startBtnLabel.text = "START\nMATCH!";
+            }
+            else if (amHost)
+            {
+                _startBtnBg.color = DisabledPlate;
+                _startBtnLabel.color = SubtleText;
+                _startBtnLabel.text = "START\n(WAIT)";
+            }
+            else
+            {
+                _startBtnBg.color = DisabledPlate;
+                _startBtnLabel.color = SubtleText;
+                _startBtnLabel.text = "HOST\nSTARTS";
+            }
+            SyncOutlineForColor(_startBtnLabel, _startBtnLabel.color);
+
+            ApplyResponsiveMetrics();
 
             if (string.IsNullOrEmpty(startNote))
                 SetStatus(amHost ? "All players ready — tap START MATCH!" : "All players ready — waiting for Host to start!", GreenReady);
@@ -928,54 +1061,64 @@ namespace Kalyeah.Game
                     slot.Bg.color = teamFill;
                     slot.NameLabel.text = tags.ToString();
                     slot.NameLabel.color = Ui.Cream;
+                    SyncOutlineForColor(slot.NameLabel, Ui.Cream);
                     slot.SubLabel.text = PrettyKidName(charId) + "  •  " + rankTier;
 
                     Texture2D tex = LoadPortrait(charId);
-                    slot.Portrait.texture = tex;
-                    slot.Portrait.color = tex != null ? Color.white : new Color(1f, 1f, 1f, 0.18f);
+                    ApplyBustPortrait(slot.Portrait, tex, Color.white, new Color(1f, 1f, 1f, 0.18f));
 
                     if (!connected)
                     {
                         slot.BadgeBg.color = ErrorText;
+                        slot.BadgeLabel.color = InkDark;
                         slot.BadgeLabel.text = "DROPPED";
                     }
                     else if (afk)
                     {
                         slot.BadgeBg.color = WarnText;
+                        slot.BadgeLabel.color = InkDark;
                         slot.BadgeLabel.text = "AFK";
                     }
                     else if (ready || pid == hostId)
                     {
                         slot.BadgeBg.color = GreenReady;
+                        slot.BadgeLabel.color = InkDark;
                         slot.BadgeLabel.text = pid == hostId && !ready ? "HOST" : "READY";
                     }
                     else
                     {
                         slot.BadgeBg.color = MutedBtn;
+                        slot.BadgeLabel.color = Ui.Cream;
                         slot.BadgeLabel.text = "WAITING";
                     }
+                    SyncOutlineForColor(slot.BadgeLabel, slot.BadgeLabel.color);
                 }
                 else
                 {
                     slot.Bg.color = EmptySlotFill;
-                    slot.Portrait.texture = null;
-                    slot.Portrait.color = new Color(1f, 1f, 1f, 0.08f);
+                    ApplyBustPortrait(slot.Portrait, null, Color.white, new Color(1f, 1f, 1f, 0.08f));
                     if (fillBots)
                     {
                         slot.NameLabel.text = string.Format(CultureInfo.InvariantCulture, "{0} Bot #{1}", teamLabel, i + 1);
                         slot.NameLabel.color = SubtleText;
+                        SyncOutlineForColor(slot.NameLabel, SubtleText);
                         slot.SubLabel.text = "AI Squadmate (Auto-fill)";
                         slot.BadgeBg.color = new Color(0.22f, 0.36f, 0.52f, 1f);
+                        slot.BadgeLabel.color = Ui.Cream;
                         slot.BadgeLabel.text = "BOT";
                     }
                     else
                     {
+                        Color emptyName = new Color(0.66f, 0.74f, 0.88f, 0.90f);
                         slot.NameLabel.text = "Open Slot";
-                        slot.NameLabel.color = new Color(0.62f, 0.70f, 0.84f, 0.85f);
+                        slot.NameLabel.color = emptyName;
+                        SyncOutlineForColor(slot.NameLabel, emptyName);
                         slot.SubLabel.text = "Tap " + teamLabel + " header to take slot";
-                        slot.BadgeBg.color = new Color(0.14f, 0.18f, 0.28f, 0.8f);
+                        slot.BadgeBg.color = new Color(0.14f, 0.18f, 0.28f, 0.85f);
+                        slot.BadgeLabel.color = SubtleText;
                         slot.BadgeLabel.text = "EMPTY";
                     }
+                    SyncOutlineForColor(slot.BadgeLabel, slot.BadgeLabel.color);
                 }
             }
         }
@@ -987,30 +1130,56 @@ namespace Kalyeah.Game
             out RectTransform codePill,
             out Text codeLabel)
         {
-            RectTransform bar = Ui.Panel("TopBar", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -12f), new Vector2(-32f, 56f));
+            _topBar = Ui.Panel("TopBar", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -6f), new Vector2(-32f, 108f));
 
-            MakeButton("BackBtn", bar, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(124f, 50f), "BACK", MutedBtn, Ui.Cream, 20, () => HandleBack());
+            Button backBtn = MakeButton("BackBtn", _topBar, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(124f, 96f), "BACK", MutedBtn, Ui.Cream, 20, () => HandleBack());
+            _backBtnRect = backBtn.GetComponent<RectTransform>();
 
-            modeTitle = Ui.MakeText("LobbyModeTitle", bar, "5v5 ROOM LOBBY", 28, GoldCta, TextAnchor.UpperLeft, KalyeahResources.DisplayFont());
+            _titleBlockRect = Ui.Panel("TitleBlock", _topBar, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+
+            modeTitle = Ui.MakeText("LobbyModeTitle", _titleBlockRect, "5v5 ROOM LOBBY", 25, GoldCta, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            modeTitle.resizeTextForBestFit = true;
+            modeTitle.resizeTextMinSize = 16;
+            modeTitle.resizeTextMaxSize = 26;
+            modeTitle.horizontalOverflow = HorizontalWrapMode.Wrap;
+            modeTitle.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(modeTitle, GoldCta);
             modeTitle.rectTransform.anchorMin = new Vector2(0f, 0.48f);
-            modeTitle.rectTransform.anchorMax = new Vector2(0.55f, 1f);
-            modeTitle.rectTransform.offsetMin = new Vector2(138f, 0f);
-            modeTitle.rectTransform.offsetMax = Vector2.zero;
+            modeTitle.rectTransform.anchorMax = new Vector2(1f, 1f);
+            modeTitle.rectTransform.offsetMin = new Vector2(0f, 2f);
+            modeTitle.rectTransform.offsetMax = new Vector2(0f, -4f);
 
-            statusLabel = Ui.MakeText("LobbyStatus", bar, "Ready", 17, SubtleText, TextAnchor.LowerLeft);
+            statusLabel = Ui.MakeText("LobbyStatus", _titleBlockRect, "Ready", 18, SubtleText, TextAnchor.MiddleLeft);
+            statusLabel.resizeTextForBestFit = true;
+            statusLabel.resizeTextMinSize = 15;
+            statusLabel.resizeTextMaxSize = 19;
+            statusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+            statusLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(statusLabel, SubtleText);
             statusLabel.rectTransform.anchorMin = new Vector2(0f, 0f);
-            statusLabel.rectTransform.anchorMax = new Vector2(0.58f, 0.50f);
-            statusLabel.rectTransform.offsetMin = new Vector2(138f, 0f);
-            statusLabel.rectTransform.offsetMax = Vector2.zero;
+            statusLabel.rectTransform.anchorMax = new Vector2(1f, 0.48f);
+            statusLabel.rectTransform.offsetMin = new Vector2(0f, 4f);
+            statusLabel.rectTransform.offsetMax = new Vector2(0f, -2f);
 
-            codePill = Ui.Panel("RoomCodePill", bar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, new Vector2(476f, 50f));
+            _roomRightCluster = Ui.Panel("RoomRightCluster", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, new Vector2(460f, 96f));
+
+            codePill = Ui.Panel("RoomCodePill", _roomRightCluster, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, new Vector2(236f, 60f));
             StyleCard(codePill, PanelBg);
 
-            codeLabel = Ui.MakeText("RoomCodeText", codePill, "CODE: --------", 20, Ui.Cream, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
-            Stretch(codeLabel.rectTransform, 14f, 0f, 206f, 0f);
+            codeLabel = Ui.MakeText("RoomCodeText", codePill, "CODE: --------", 19, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            codeLabel.resizeTextForBestFit = true;
+            codeLabel.resizeTextMinSize = 14;
+            codeLabel.resizeTextMaxSize = 20;
+            codeLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+            codeLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(codeLabel, Ui.Cream);
+            Stretch(codeLabel.rectTransform, 12f, 4f, 12f, 4f);
 
-            MakeButton("CopyCodeBtn", codePill, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-102f, 0f), new Vector2(92f, 48f), "COPY", MutedBtn, Ui.Cream, 17, CopyRoomShare);
-            MakeButton("QrModalBtn", codePill, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-6f, 0f), new Vector2(90f, 48f), "QR", GoldCta, InkDark, 18, OpenRoomQrModal);
+            Button copyBtn = MakeButton("CopyCodeBtn", _roomRightCluster, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, new Vector2(100f, 96f), "COPY", MutedBtn, Ui.Cream, 18, CopyRoomShare);
+            _copyCodeBtnRect = copyBtn.GetComponent<RectTransform>();
+
+            Button qrBtn = MakeButton("QrModalBtn", _roomRightCluster, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, new Vector2(96f, 96f), "QR", GoldCta, InkDark, 19, OpenRoomQrModal);
+            _qrModalBtnRect = qrBtn.GetComponent<RectTransform>();
         }
 
         void BuildConnectPanel(
@@ -1020,25 +1189,35 @@ namespace Kalyeah.Game
             out Text emptyRoomsLabel)
         {
             // Left card: Server URL + Create / Code Join
-            RectTransform left = Ui.Panel("SetupCard", parent, new Vector2(0f, 0.02f), new Vector2(0.49f, 0.98f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(left, PanelBg);
+            _setupCardRect = Ui.Panel("SetupCard", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            StyleCard(_setupCardRect, PanelBg);
 
-            Text urlCaption = Ui.MakeText("UrlCaption", left, "ONLINE SERVER URL", 20, GoldCta, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
-            urlCaption.rectTransform.anchorMin = new Vector2(0.05f, 0.86f);
-            urlCaption.rectTransform.anchorMax = new Vector2(0.95f, 0.95f);
-            urlCaption.rectTransform.sizeDelta = Vector2.zero;
+            Text urlCaption = Ui.MakeText("UrlCaption", _setupCardRect, "ONLINE SERVER URL", 19, GoldCta, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            urlCaption.resizeTextForBestFit = true;
+            urlCaption.resizeTextMinSize = 15;
+            urlCaption.resizeTextMaxSize = 20;
+            SyncOutlineForColor(urlCaption, GoldCta);
+            _urlCaptionRect = urlCaption.rectTransform;
 
-            serverInput = MakeInputField("ServerUrlInput", left, new Vector2(0.05f, 0.73f), new Vector2(0.95f, 0.85f), "wss://play.kalyeah.example or ws://127.0.0.1:8080", 19, 128);
+            serverInput = MakeInputField("ServerUrlInput", _setupCardRect, "wss://play.kalyeah.example or ws://127.0.0.1:8080", 19, 128);
+            _serverInputRect = serverInput.GetComponent<RectTransform>();
 
-            MakeButton("CreateOnlineRoomBtn", left, new Vector2(0.05f, 0.57f), new Vector2(0.58f, 0.69f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, "CREATE 5v5 ROOM", GoldCta, InkDark, 21, () => ConnectAndCreateOnlineRoom());
-            MakeButton("BrowseOpenBtn", left, new Vector2(0.61f, 0.57f), new Vector2(0.95f, 0.69f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, "REFRESH LIST", MutedBtn, Ui.Cream, 18, () => ConnectForOnlineBrowse());
+            Button createBtn = MakeButton("CreateOnlineRoomBtn", _setupCardRect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(240f, 96f), "CREATE 5v5 ROOM", GoldCta, InkDark, 20, () => ConnectAndCreateOnlineRoom());
+            _createRoomBtnRect = createBtn.GetComponent<RectTransform>();
 
-            Text codeCaption = Ui.MakeText("CodeCaption", left, "JOIN BY 8-CHAR ROOM CODE", 20, new Color(0.46f, 0.94f, 0.86f, 1f), TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
-            codeCaption.rectTransform.anchorMin = new Vector2(0.05f, 0.41f);
-            codeCaption.rectTransform.anchorMax = new Vector2(0.95f, 0.51f);
-            codeCaption.rectTransform.sizeDelta = Vector2.zero;
+            Button browseBtn = MakeButton("BrowseOpenBtn", _setupCardRect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(160f, 96f), "REFRESH LIST", MutedBtn, Ui.Cream, 18, () => ConnectForOnlineBrowse());
+            _browseOpenBtnRect = browseBtn.GetComponent<RectTransform>();
 
-            codeInput = MakeInputField("RoomCodeInput", left, new Vector2(0.05f, 0.27f), new Vector2(0.64f, 0.40f), "ABCD2345", 24, 8);
+            Color codeAccent = new Color(0.46f, 0.94f, 0.86f, 1f);
+            Text codeCaption = Ui.MakeText("CodeCaption", _setupCardRect, "JOIN BY 8-CHAR ROOM CODE", 19, codeAccent, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            codeCaption.resizeTextForBestFit = true;
+            codeCaption.resizeTextMinSize = 15;
+            codeCaption.resizeTextMaxSize = 20;
+            SyncOutlineForColor(codeCaption, codeAccent);
+            _codeCaptionRect = codeCaption.rectTransform;
+
+            codeInput = MakeInputField("RoomCodeInput", _setupCardRect, "ABCD2345", 22, 8);
+            _codeInputRect = codeInput.GetComponent<RectTransform>();
             InputField capturedCode = codeInput;
             codeInput.onValueChanged.AddListener(raw =>
             {
@@ -1047,47 +1226,102 @@ namespace Kalyeah.Game
                     capturedCode.SetTextWithoutNotify(cleaned);
             });
 
-            MakeButton("PasteCodeBtn", left, new Vector2(0.66f, 0.27f), new Vector2(0.95f, 0.40f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, "PASTE", MutedBtn, Ui.Cream, 19, PasteCodeFromClipboard);
+            Button pasteBtn = MakeButton("PasteCodeBtn", _setupCardRect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(140f, 96f), "PASTE", MutedBtn, Ui.Cream, 19, PasteCodeFromClipboard);
+            _pasteCodeBtnRect = pasteBtn.GetComponent<RectTransform>();
 
-            MakeButton("JoinByCodeBtn", left, new Vector2(0.05f, 0.08f), new Vector2(0.64f, 0.21f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, "JOIN WITH CODE", GreenReady, InkDark, 21, () => JoinByCode());
-            MakeButton("ScanCodeQrBtn", left, new Vector2(0.66f, 0.08f), new Vector2(0.95f, 0.21f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, "SCAN QR", MutedBtn, Ui.Cream, 19, RequestScanRoomCode);
+            Button joinCodeBtn = MakeButton("JoinByCodeBtn", _setupCardRect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(240f, 96f), "JOIN WITH CODE", GreenReady, InkDark, 20, () => JoinByCode());
+            _joinByCodeBtnRect = joinCodeBtn.GetComponent<RectTransform>();
+
+            Button scanQrBtn = MakeButton("ScanCodeQrBtn", _setupCardRect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(140f, 96f), "SCAN QR", MutedBtn, Ui.Cream, 19, RequestScanRoomCode);
+            _scanCodeQrBtnRect = scanQrBtn.GetComponent<RectTransform>();
 
             // Right card: Open Rooms browser
-            RectTransform right = Ui.Panel("OpenRoomsCard", parent, new Vector2(0.51f, 0.02f), new Vector2(1f, 0.98f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(right, PanelBg);
+            _openRoomsCardRect = Ui.Panel("OpenRoomsCard", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            StyleCard(_openRoomsCardRect, PanelBg);
 
-            Text listHeader = Ui.MakeText("OpenRoomsHeader", right, "OPEN ROOMS (TAP TO JOIN)", 22, Ui.Cream, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
-            listHeader.rectTransform.anchorMin = new Vector2(0.04f, 0.86f);
-            listHeader.rectTransform.anchorMax = new Vector2(0.96f, 0.96f);
-            listHeader.rectTransform.sizeDelta = Vector2.zero;
+            Text listHeader = Ui.MakeText("OpenRoomsHeader", _openRoomsCardRect, "OPEN ROOMS (TAP TO JOIN)", 21, Ui.Cream, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            listHeader.resizeTextForBestFit = true;
+            listHeader.resizeTextMinSize = 16;
+            listHeader.resizeTextMaxSize = 22;
+            SyncOutlineForColor(listHeader, Ui.Cream);
+            _openRoomsHeaderRect = listHeader.rectTransform;
 
-            RectTransform listArea = Ui.Panel("OpenRoomsListArea", right, new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.84f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            emptyRoomsLabel = Ui.MakeText("EmptyOpenRooms", listArea, "Connect to a server to list open rooms, or create one on the left!", 19, SubtleText, TextAnchor.MiddleCenter);
+            _openRoomsScrollRect = Ui.Panel("OpenRoomsListArea", _openRoomsCardRect, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            Image listHit = _openRoomsScrollRect.gameObject.AddComponent<Image>();
+            ApplySlicedPlate(listHit, new Color(0.05f, 0.08f, 0.16f, 0.55f));
+            listHit.raycastTarget = true;
+            _openRoomsScrollRect.gameObject.AddComponent<RectMask2D>();
+
+            var scroll = _openRoomsScrollRect.gameObject.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 28f;
+            scroll.viewport = _openRoomsScrollRect;
+
+            RectTransform content = Ui.Panel("Content", _openRoomsScrollRect, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
+            var vlg = content.gameObject.AddComponent<VerticalLayoutGroup>();
+            vlg.padding = new RectOffset(8, 8, 8, 8);
+            vlg.spacing = 8f;
+            vlg.childAlignment = TextAnchor.UpperCenter;
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = true;
+            vlg.childForceExpandWidth = true;
+            vlg.childForceExpandHeight = false;
+            var csf = content.gameObject.AddComponent<ContentSizeFitter>();
+            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            scroll.content = content;
+
+            emptyRoomsLabel = Ui.MakeText("EmptyOpenRooms", _openRoomsScrollRect, "Connect to a server to list open rooms, or create one on the left!", 19, SubtleText, TextAnchor.MiddleCenter);
             emptyRoomsLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+            emptyRoomsLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(emptyRoomsLabel, SubtleText);
             Stretch(emptyRoomsLabel.rectTransform, 18f, 12f, 18f, 12f);
 
-            float slice = 1f / MaxOpenRoomRows;
             for (int i = 0; i < MaxOpenRoomRows; i++)
             {
                 int idx = i;
-                float yMax = 1f - i * slice;
-                float yMin = yMax - slice;
-                RectTransform row = Ui.Panel("OpenRoom_" + i.ToString(CultureInfo.InvariantCulture), listArea, new Vector2(0f, yMin), new Vector2(1f, yMax), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, -8f));
-                Image bg = Ui.MakeImage("Bg", row, new Color(0.15f, 0.24f, 0.44f, 1f), raycast: true);
-                Stretch(bg.rectTransform);
-                Button btn = bg.gameObject.AddComponent<Button>();
+                RectTransform row = Ui.Panel(
+                    "OpenRoom_" + i.ToString(CultureInfo.InvariantCulture),
+                    content,
+                    new Vector2(0f, 1f),
+                    new Vector2(1f, 1f),
+                    new Vector2(0.5f, 1f),
+                    Vector2.zero,
+                    new Vector2(0f, 96f));
+                Image bg = row.gameObject.AddComponent<Image>();
+                ApplySlicedPlate(bg, new Color(0.15f, 0.24f, 0.44f, 1f));
+                bg.raycastTarget = true;
+
+                Button btn = row.gameObject.AddComponent<Button>();
                 btn.targetGraphic = bg;
                 btn.onClick.AddListener(() =>
                 {
                     string code = _openRoomRows[idx].Code;
                     if (!string.IsNullOrEmpty(code)) JoinByCode(code);
                 });
-                _touchTargets.Add(row);
 
-                Text title = Ui.MakeText("Title", row, "", 20, Ui.Cream, TextAnchor.MiddleLeft);
-                Stretch(title.rectTransform, 14f, 0f, 250f, 0f);
-                Text meta = Ui.MakeText("Meta", row, "", 17, GoldCta, TextAnchor.MiddleRight);
-                Stretch(meta.rectTransform, 240f, 0f, 14f, 0f);
+                var le = row.gameObject.AddComponent<LayoutElement>();
+                le.minHeight = 96f;
+                le.preferredHeight = 96f;
+                le.flexibleWidth = 1f;
+                _openRoomLayouts[i] = le;
+
+                Text title = Ui.MakeText("Title", row, "", 19, Ui.Cream, TextAnchor.MiddleLeft);
+                title.verticalOverflow = VerticalWrapMode.Truncate;
+                SyncOutlineForColor(title, Ui.Cream);
+                title.rectTransform.anchorMin = new Vector2(0f, 0f);
+                title.rectTransform.anchorMax = new Vector2(0.54f, 1f);
+                title.rectTransform.offsetMin = new Vector2(16f, 4f);
+                title.rectTransform.offsetMax = new Vector2(-6f, -4f);
+
+                Text meta = Ui.MakeText("Meta", row, "", 18, GoldCta, TextAnchor.MiddleRight);
+                meta.verticalOverflow = VerticalWrapMode.Truncate;
+                SyncOutlineForColor(meta, GoldCta);
+                meta.rectTransform.anchorMin = new Vector2(0.56f, 0f);
+                meta.rectTransform.anchorMax = new Vector2(1f, 1f);
+                meta.rectTransform.offsetMin = new Vector2(6f, 4f);
+                meta.rectTransform.offsetMax = new Vector2(-16f, -4f);
 
                 row.gameObject.SetActive(false);
                 _openRoomRows[i] = new OpenRoomRow { Root = row, Label = title, Meta = meta, Code = "" };
@@ -1112,77 +1346,112 @@ namespace Kalyeah.Game
             out Image startBg,
             out Text startLabel)
         {
-            // Blue Squad Column (5 slots)
-            RectTransform blueCol = Ui.Panel("BlueTeamColumn", parent, new Vector2(0f, 0.21f), new Vector2(0.492f, 0.99f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(blueCol, PanelBg);
+            // Blue Squad Column (5 read-only squad slots under >= 48 dp JoinBlueHeaderBtn)
+            _blueColRect = Ui.Panel("BlueTeamColumn", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            StyleCard(_blueColRect, PanelBg);
 
-            Button blueJoinBtn = MakeButton("JoinBlueHeaderBtn", blueCol, new Vector2(0.02f, 0.855f), new Vector2(0.98f, 0.98f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, "BLUE SQUAD (0/5) — TAP TO JOIN", BlueHeader, Ui.Cream, 20, () => PickTeam(0));
-            blueHeader = blueJoinBtn.transform.parent.Find("Label").GetComponent<Text>();
+            Button blueJoinBtn = MakeButton("JoinBlueHeaderBtn", _blueColRect, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 96f), "BLUE SQUAD (0/5) — TAP TO JOIN", BlueHeader, Ui.Cream, 20, () => PickTeam(0));
+            _blueJoinBtnRect = blueJoinBtn.GetComponent<RectTransform>();
+            blueHeader = _blueJoinBtnRect.Find("Label").GetComponent<Text>();
 
-            RectTransform blueList = Ui.Panel("BlueSlots", blueCol, new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.84f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            BuildTeamSlotRows(blueList, _blueSlots, 0);
+            _blueSlotsRect = Ui.Panel("BlueSlots", _blueColRect, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            BuildTeamSlotRows(_blueSlotsRect, _blueSlots, 0);
 
-            // Red Squad Column (5 slots)
-            RectTransform redCol = Ui.Panel("RedTeamColumn", parent, new Vector2(0.508f, 0.21f), new Vector2(1f, 0.99f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(redCol, PanelBg);
+            // Red Squad Column (5 read-only squad slots under >= 48 dp JoinRedHeaderBtn)
+            _redColRect = Ui.Panel("RedTeamColumn", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            StyleCard(_redColRect, PanelBg);
 
-            Button redJoinBtn = MakeButton("JoinRedHeaderBtn", redCol, new Vector2(0.02f, 0.855f), new Vector2(0.98f, 0.98f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, "RED SQUAD (0/5) — TAP TO JOIN", RedHeader, Ui.Cream, 20, () => PickTeam(1));
-            redHeader = redJoinBtn.transform.parent.Find("Label").GetComponent<Text>();
+            Button redJoinBtn = MakeButton("JoinRedHeaderBtn", _redColRect, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 96f), "RED SQUAD (0/5) — TAP TO JOIN", RedHeader, Ui.Cream, 20, () => PickTeam(1));
+            _redJoinBtnRect = redJoinBtn.GetComponent<RectTransform>();
+            redHeader = _redJoinBtnRect.Find("Label").GetComponent<Text>();
 
-            RectTransform redList = Ui.Panel("RedSlots", redCol, new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.84f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            BuildTeamSlotRows(redList, _redSlots, 1);
+            _redSlotsRect = Ui.Panel("RedSlots", _redColRect, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            BuildTeamSlotRows(_redSlotsRect, _redSlots, 1);
 
-            // Bottom Controls Bar (2 rows inside bottom 19% strip so every button >= 48 dp with zero overlap)
-            RectTransform bottomBar = Ui.Panel("BottomControls", parent, new Vector2(0f, 0f), new Vector2(1f, 0.195f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(bottomBar, PanelBg);
+            // Bottom Controls Bar: single non-overlapping >= 48 dp action deck
+            _bottomBarRect = Ui.Panel("BottomControls", parent, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, 112f));
+            StyleCard(_bottomBarRect, PanelBg);
 
-            // Kid picker shortcut cluster on left
-            RectTransform kidChip = Ui.Panel("KidPickerCluster", bottomBar, new Vector2(0.01f, 0.10f), new Vector2(0.27f, 0.90f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(kidChip, new Color(0.07f, 0.11f, 0.21f, 1f));
+            // 1. Kid picker card button (portrait bust + kid name + PICK KID hint)
+            Button pickKidBtn = MakeButton("PickScreenBtn", _bottomBarRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(190f, 96f), "", new Color(0.14f, 0.21f, 0.38f, 1f), Ui.Cream, 18, InvokePickKidShortcut);
+            _pickKidBtnRect = pickKidBtn.GetComponent<RectTransform>();
+            Transform defaultPickLabel = _pickKidBtnRect.Find("Label");
+            if (defaultPickLabel != null)
+                defaultPickLabel.gameObject.SetActive(false);
 
-            var thumbGo = new GameObject("MyKidThumb", typeof(RectTransform), typeof(RawImage));
-            thumbGo.transform.SetParent(kidChip, false);
+            _myKidThumbFrame = Ui.Panel("MyKidThumbFrame", _pickKidBtnRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(10f, 0f), new Vector2(52f, 52f));
+            Image thumbPlate = _myKidThumbFrame.gameObject.AddComponent<Image>();
+            ApplySlicedPlate(thumbPlate, new Color(0.06f, 0.09f, 0.18f, 1f));
+            thumbPlate.raycastTarget = false;
+            _myKidThumbFrame.gameObject.AddComponent<RectMask2D>();
+
+            var thumbGo = new GameObject("MyKidThumb", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
+            thumbGo.transform.SetParent(_myKidThumbFrame, false);
             myKidThumb = thumbGo.GetComponent<RawImage>();
             myKidThumb.raycastTarget = false;
-            myKidThumb.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-            myKidThumb.rectTransform.anchorMax = new Vector2(0f, 0.5f);
-            myKidThumb.rectTransform.pivot = new Vector2(0f, 0.5f);
-            myKidThumb.rectTransform.anchoredPosition = new Vector2(8f, 0f);
-            myKidThumb.rectTransform.sizeDelta = new Vector2(54f, 54f);
+            var thumbFit = thumbGo.GetComponent<AspectRatioFitter>();
+            thumbFit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            thumbFit.aspectRatio = 1f;
 
-            myKidLabel = Ui.MakeText("MyKidName", kidChip, "JUNJUN", 18, Ui.Cream, TextAnchor.UpperLeft, KalyeahResources.DisplayFont());
-            myKidLabel.rectTransform.anchorMin = new Vector2(0f, 0.50f);
-            myKidLabel.rectTransform.anchorMax = new Vector2(1f, 0.95f);
-            myKidLabel.rectTransform.offsetMin = new Vector2(68f, 0f);
-            myKidLabel.rectTransform.offsetMax = new Vector2(-8f, 0f);
+            _myKidTextBlock = Ui.Panel("MyKidTextBlock", _pickKidBtnRect, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            myKidLabel = Ui.MakeText("MyKidName", _myKidTextBlock, "JUNJUN", 18, Ui.Cream, TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
+            myKidLabel.raycastTarget = false;
+            myKidLabel.resizeTextForBestFit = true;
+            myKidLabel.resizeTextMinSize = 14;
+            myKidLabel.resizeTextMaxSize = 19;
+            myKidLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(myKidLabel, Ui.Cream);
+            myKidLabel.rectTransform.anchorMin = new Vector2(0f, 0.48f);
+            myKidLabel.rectTransform.anchorMax = new Vector2(1f, 1f);
+            myKidLabel.rectTransform.offsetMin = new Vector2(4f, 0f);
+            myKidLabel.rectTransform.offsetMax = new Vector2(-4f, -4f);
 
-            MakeButton("PrevKidBtn", kidChip, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(66f, 6f), new Vector2(48f, 48f), "<", MutedBtn, Ui.Cream, 18, () => CycleKid(-1));
-            MakeButton("PickScreenBtn", kidChip, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(118f, 6f), new Vector2(118f, 48f), "PICK KID", GoldCta, InkDark, 17, InvokePickKidShortcut);
-            MakeButton("NextKidBtn", kidChip, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(240f, 6f), new Vector2(48f, 48f), ">", MutedBtn, Ui.Cream, 18, () => CycleKid(1));
+            Text pickSub = Ui.MakeText("PickKidHint", _myKidTextBlock, "PICK KID", 15, GoldCta, TextAnchor.UpperCenter, KalyeahResources.DisplayFont());
+            pickSub.raycastTarget = false;
+            pickSub.resizeTextForBestFit = true;
+            pickSub.resizeTextMinSize = 13;
+            pickSub.resizeTextMaxSize = 16;
+            pickSub.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(pickSub, GoldCta);
+            pickSub.rectTransform.anchorMin = new Vector2(0f, 0f);
+            pickSub.rectTransform.anchorMax = new Vector2(1f, 0.48f);
+            pickSub.rectTransform.offsetMin = new Vector2(4f, 4f);
+            pickSub.rectTransform.offsetMax = new Vector2(-4f, 0f);
 
-            // Middle: Team Swap + Host settings (Game, FirstTo, Bot-Fill, Open/Private)
-            MakeButton("SwapTeamBtn", bottomBar, new Vector2(0.28f, 0.52f), new Vector2(0.43f, 0.94f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, "SWAP TEAM", MutedBtn, Ui.Cream, 17, SwapTeam);
+            // 2. Swap Team + Host/Room Rule Chips
+            Button swapBtn = MakeButton("SwapTeamBtn", _bottomBarRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(114f, 96f), "SWAP\nTEAM", MutedBtn, Ui.Cream, 18, SwapTeam);
+            _swapTeamBtnRect = swapBtn.GetComponent<RectTransform>();
 
-            Button mapBtn = MakeButton("MapCycleBtn", bottomBar, new Vector2(0.44f, 0.52f), new Vector2(0.68f, 0.94f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, "GAME: AGAWANG BASE", MutedBtn, Ui.Cream, 16, CycleMap);
-            mapLabel = mapBtn.transform.parent.Find("Label").GetComponent<Text>();
+            _mapButton = MakeButton("MapCycleBtn", _bottomBarRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(156f, 96f), "GAME:\nAGAWANG BASE", MutedBtn, Ui.Cream, 17, CycleMap);
+            _mapBtnBg = (Image)_mapButton.targetGraphic;
+            _mapBtnRect = _mapButton.GetComponent<RectTransform>();
+            mapLabel = _mapBtnRect.Find("Label").GetComponent<Text>();
 
-            Button ftBtn = MakeButton("FirstToBtn", bottomBar, new Vector2(0.28f, 0.06f), new Vector2(0.43f, 0.48f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, "FIRST TO 3", MutedBtn, Ui.Cream, 16, CycleFirstTo);
-            firstToLabel = ftBtn.transform.parent.Find("Label").GetComponent<Text>();
+            _firstToButton = MakeButton("FirstToBtn", _bottomBarRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(112f, 96f), "FIRST\nTO 3", MutedBtn, Ui.Cream, 17, CycleFirstTo);
+            _firstToBtnBg = (Image)_firstToButton.targetGraphic;
+            _firstToBtnRect = _firstToButton.GetComponent<RectTransform>();
+            firstToLabel = _firstToBtnRect.Find("Label").GetComponent<Text>();
 
-            botsBtn = MakeButton("BotFillBtn", bottomBar, new Vector2(0.44f, 0.06f), new Vector2(0.56f, 0.48f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, "BOT-FILL: OFF", MutedBtn, Ui.Cream, 15, ToggleBotFill);
-            botsLabel = botsBtn.transform.parent.Find("Label").GetComponent<Text>();
+            botsBtn = MakeButton("BotFillBtn", _bottomBarRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(112f, 96f), "BOTS:\nOFF", MutedBtn, Ui.Cream, 17, ToggleBotFill);
+            _botsBtnBg = (Image)botsBtn.targetGraphic;
+            _botsBtnRect = botsBtn.GetComponent<RectTransform>();
+            botsLabel = _botsBtnRect.Find("Label").GetComponent<Text>();
 
-            openBtn = MakeButton("OpenPrivacyBtn", bottomBar, new Vector2(0.565f, 0.06f), new Vector2(0.68f, 0.48f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, "PUBLIC ROOM", MutedBtn, Ui.Cream, 15, ToggleOpenPrivacy);
-            openLabel = openBtn.transform.parent.Find("Label").GetComponent<Text>();
+            openBtn = MakeButton("OpenPrivacyBtn", _bottomBarRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(114f, 96f), "PUBLIC\nROOM", MutedBtn, Ui.Cream, 17, ToggleOpenPrivacy);
+            _openBtnBg = (Image)openBtn.targetGraphic;
+            _openBtnRect = openBtn.GetComponent<RectTransform>();
+            openLabel = _openBtnRect.Find("Label").GetComponent<Text>();
 
-            // Right: Ready toggle + Host Start Match button
-            Button readyBtn = MakeButton("ReadyToggleBtn", bottomBar, new Vector2(0.69f, 0.12f), new Vector2(0.835f, 0.88f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, "TAP READY", MutedBtn, Ui.Cream, 19, PressReady);
+            // 3. Ready toggle + Always-visible Start Match plate
+            Button readyBtn = MakeButton("ReadyToggleBtn", _bottomBarRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(140f, 96f), "TAP\nREADY", new Color(0.18f, 0.48f, 0.84f, 1f), Ui.Cream, 18, PressReady);
             readyBg = (Image)readyBtn.targetGraphic;
-            readyLabel = readyBtn.transform.parent.Find("Label").GetComponent<Text>();
+            _readyBtnRect = readyBtn.GetComponent<RectTransform>();
+            readyLabel = _readyBtnRect.Find("Label").GetComponent<Text>();
 
-            startBtn = MakeButton("StartMatchBtn", bottomBar, new Vector2(0.845f, 0.12f), new Vector2(0.99f, 0.88f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, "START MATCH!", GoldCta, InkDark, 20, PressStart);
+            startBtn = MakeButton("StartMatchBtn", _bottomBarRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(150f, 96f), "START\nMATCH!", GoldCta, InkDark, 19, PressStart);
             startBg = (Image)startBtn.targetGraphic;
-            startLabel = startBtn.transform.parent.Find("Label").GetComponent<Text>();
+            _startBtnRect = startBtn.GetComponent<RectTransform>();
+            startLabel = _startBtnRect.Find("Label").GetComponent<Text>();
         }
 
         void BuildTeamSlotRows(RectTransform container, SlotWidgets[] targetArray, int teamIndex)
@@ -1199,42 +1468,62 @@ namespace Kalyeah.Game
                     new Vector2(1f, yMax),
                     new Vector2(0.5f, 0.5f),
                     Vector2.zero,
-                    new Vector2(0f, -5f));
+                    new Vector2(0f, -4f));
 
-                Image bg = Ui.MakeImage("SlotBg", row, EmptySlotFill, raycast: true);
+                // Read-only squad member card (JoinBlueHeaderBtn / JoinRedHeaderBtn above handle >= 48 dp team picking)
+                Image bg = Ui.MakeImage("SlotBg", row, EmptySlotFill, raycast: false);
+                ApplySlicedPlate(bg, EmptySlotFill);
                 Stretch(bg.rectTransform);
-                int capturedTeam = teamIndex;
-                Button rowBtn = bg.gameObject.AddComponent<Button>();
-                rowBtn.targetGraphic = bg;
-                rowBtn.onClick.AddListener(() => PickTeam(capturedTeam));
 
-                var portraitGo = new GameObject("Portrait", typeof(RectTransform), typeof(RawImage));
-                portraitGo.transform.SetParent(row, false);
+                RectTransform portraitFrame = Ui.Panel("PortraitFrame", row, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(8f, 0f), new Vector2(44f, 44f));
+                Image pFrameBg = portraitFrame.gameObject.AddComponent<Image>();
+                ApplySlicedPlate(pFrameBg, new Color(0.05f, 0.08f, 0.16f, 0.90f));
+                pFrameBg.raycastTarget = false;
+                portraitFrame.gameObject.AddComponent<RectMask2D>();
+
+                var portraitGo = new GameObject("Portrait", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
+                portraitGo.transform.SetParent(portraitFrame, false);
                 var portrait = portraitGo.GetComponent<RawImage>();
                 portrait.raycastTarget = false;
-                portrait.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-                portrait.rectTransform.anchorMax = new Vector2(0f, 0.5f);
-                portrait.rectTransform.pivot = new Vector2(0f, 0.5f);
-                portrait.rectTransform.anchoredPosition = new Vector2(8f, 0f);
-                portrait.rectTransform.sizeDelta = new Vector2(46f, 46f);
+                var fitter = portraitGo.GetComponent<AspectRatioFitter>();
+                fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                fitter.aspectRatio = 1f;
 
-                Text nameText = Ui.MakeText("PlayerName", row, "Open Slot", 19, Ui.Cream, TextAnchor.UpperLeft);
-                nameText.rectTransform.anchorMin = new Vector2(0f, 0.46f);
+                Text nameText = Ui.MakeText("PlayerName", row, "Open Slot", 18, Ui.Cream, TextAnchor.LowerLeft);
+                nameText.raycastTarget = false;
+                nameText.resizeTextForBestFit = true;
+                nameText.resizeTextMinSize = 14;
+                nameText.resizeTextMaxSize = 19;
+                nameText.verticalOverflow = VerticalWrapMode.Truncate;
+                SyncOutlineForColor(nameText, Ui.Cream);
+                nameText.rectTransform.anchorMin = new Vector2(0f, 0.48f);
                 nameText.rectTransform.anchorMax = new Vector2(1f, 0.96f);
-                nameText.rectTransform.offsetMin = new Vector2(62f, 0f);
-                nameText.rectTransform.offsetMax = new Vector2(-118f, 0f);
+                nameText.rectTransform.offsetMin = new Vector2(60f, 0f);
+                nameText.rectTransform.offsetMax = new Vector2(-110f, 0f);
 
-                Text subText = Ui.MakeText("SubInfo", row, "", 15, SubtleText, TextAnchor.LowerLeft);
+                Text subText = Ui.MakeText("SubInfo", row, "", 15, SubtleText, TextAnchor.UpperLeft);
+                subText.raycastTarget = false;
+                subText.resizeTextForBestFit = true;
+                subText.resizeTextMinSize = 13;
+                subText.resizeTextMaxSize = 16;
+                subText.verticalOverflow = VerticalWrapMode.Truncate;
+                SyncOutlineForColor(subText, SubtleText);
                 subText.rectTransform.anchorMin = new Vector2(0f, 0.04f);
-                subText.rectTransform.anchorMax = new Vector2(1f, 0.50f);
-                subText.rectTransform.offsetMin = new Vector2(62f, 0f);
-                subText.rectTransform.offsetMax = new Vector2(-118f, 0f);
+                subText.rectTransform.anchorMax = new Vector2(1f, 0.48f);
+                subText.rectTransform.offsetMin = new Vector2(60f, 0f);
+                subText.rectTransform.offsetMax = new Vector2(-110f, 0f);
 
-                RectTransform badge = Ui.Panel("ReadyBadge", row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-8f, 0f), new Vector2(102f, 34f));
+                RectTransform badge = Ui.Panel("ReadyBadge", row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-8f, 0f), new Vector2(96f, 34f));
                 Image badgeBg = Ui.MakeImage("Bg", badge, MutedBtn, raycast: false);
+                ApplySlicedPlate(badgeBg, MutedBtn);
                 Stretch(badgeBg.rectTransform);
                 Text badgeText = Ui.MakeText("Text", badge, "EMPTY", 15, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-                Stretch(badgeText.rectTransform, 4f, 2f, 4f, 2f);
+                badgeText.raycastTarget = false;
+                badgeText.resizeTextForBestFit = true;
+                badgeText.resizeTextMinSize = 12;
+                badgeText.resizeTextMaxSize = 16;
+                SyncOutlineForColor(badgeText, Ui.Cream);
+                Stretch(badgeText.rectTransform, 6f, 2f, 6f, 2f);
 
                 targetArray[i] = new SlotWidgets
                 {
@@ -1249,38 +1538,49 @@ namespace Kalyeah.Game
             }
         }
 
-        RectTransform BuildQrModal(RectTransform parent, out Image qrImg, out Text qrText)
+        RectTransform BuildQrModal(RectTransform fullBleedParent, out Image qrImg, out Text qrText)
         {
-            RectTransform overlay = Ui.Fill("RoomQrModal", parent);
-            Image dim = Ui.MakeImage("Dim", overlay, new Color(0.02f, 0.04f, 0.10f, 0.88f), raycast: true);
-            Stretch(dim.rectTransform);
-            Button closeBg = dim.gameObject.AddComponent<Button>();
-            closeBg.targetGraphic = dim;
-            closeBg.onClick.AddListener(() => overlay.gameObject.SetActive(false));
+            RectTransform overlay = Ui.Fill("RoomQrModal", fullBleedParent);
 
-            RectTransform card = Ui.Panel("QrCard", overlay, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(440f, 480f));
-            StyleCard(card, PanelBg);
+            RectTransform scrim = Ui.Fill("Dim", overlay);
+            Image dim = scrim.gameObject.AddComponent<Image>();
+            dim.color = new Color(0.01f, 0.02f, 0.06f, 0.86f);
+            dim.raycastTarget = true;
+            var dismiss = scrim.gameObject.AddComponent<RoomQrScrimDismiss>();
+            dismiss.OnDismiss = () => overlay.gameObject.SetActive(false);
 
-            Text title = Ui.MakeText("Title", card, "SCAN TO JOIN ROOM", 26, GoldCta, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            title.rectTransform.anchorMin = new Vector2(0.06f, 0.86f);
-            title.rectTransform.anchorMax = new Vector2(0.94f, 0.97f);
-            title.rectTransform.sizeDelta = Vector2.zero;
+            RectTransform safe = Ui.Fill("Safe", overlay);
+            safe.gameObject.AddComponent<SafeArea>();
 
-            RectTransform plate = Ui.Panel("WhitePlate", card, new Vector2(0.5f, 0.52f), new Vector2(0.5f, 0.52f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(280f, 280f));
-            Image white = Ui.MakeImage("Bg", plate, Color.white);
+            _qrCardRect = Ui.Panel("QrCard", safe, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(460f, 540f));
+            StyleCard(_qrCardRect, PanelBg);
+            Image cardBlocker = _qrCardRect.GetComponentInChildren<Image>();
+            if (cardBlocker != null) cardBlocker.raycastTarget = true;
+
+            Text title = Ui.MakeText("Title", _qrCardRect, "SCAN TO JOIN ROOM", 24, GoldCta, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            title.resizeTextForBestFit = true;
+            title.resizeTextMinSize = 18;
+            title.resizeTextMaxSize = 26;
+            SyncOutlineForColor(title, GoldCta);
+            _qrCardTitleRect = title.rectTransform;
+
+            _qrCardPlateRect = Ui.Panel("WhitePlate", _qrCardRect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(260f, 260f));
+            Image white = Ui.MakeImage("Bg", _qrCardPlateRect, Color.white);
+            ApplySlicedPlate(white, Color.white);
             Stretch(white.rectTransform);
 
-            qrImg = Ui.MakeImage("QrCodeImage", plate, Color.white);
+            qrImg = Ui.MakeImage("QrCodeImage", _qrCardPlateRect, Color.white);
             qrImg.preserveAspect = true;
             Stretch(qrImg.rectTransform, 12f, 12f, 12f, 12f);
 
-            qrText = Ui.MakeText("Caption", card, "", 18, Ui.Cream, TextAnchor.MiddleCenter);
+            qrText = Ui.MakeText("Caption", _qrCardRect, "", 18, Ui.Cream, TextAnchor.MiddleCenter);
             qrText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            qrText.rectTransform.anchorMin = new Vector2(0.06f, 0.14f);
-            qrText.rectTransform.anchorMax = new Vector2(0.94f, 0.24f);
-            qrText.rectTransform.sizeDelta = Vector2.zero;
+            qrText.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(qrText, Ui.Cream);
+            _qrCardCaptionRect = qrText.rectTransform;
 
-            MakeButton("CloseQrBtn", card, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 14f), new Vector2(180f, 50f), "CLOSE", MutedBtn, Ui.Cream, 20, () => overlay.gameObject.SetActive(false));
+            Button closeBtn = MakeButton("CloseQrBtn", _qrCardRect, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 14f), new Vector2(188f, 96f), "CLOSE", MutedBtn, Ui.Cream, 20, () => overlay.gameObject.SetActive(false));
+            _qrCloseBtnRect = closeBtn.GetComponent<RectTransform>();
             return overlay;
         }
 
@@ -1288,7 +1588,11 @@ namespace Kalyeah.Game
         {
             _connectPanel.gameObject.SetActive(!inRoom);
             _roomPanel.gameObject.SetActive(inRoom);
-            _roomCodePill.gameObject.SetActive(inRoom);
+            if (_roomRightCluster != null)
+                _roomRightCluster.gameObject.SetActive(inRoom);
+            else if (_roomCodePill != null)
+                _roomCodePill.gameObject.SetActive(inRoom);
+            ApplyResponsiveMetrics();
         }
 
         void RefreshMyKidChip()
@@ -1299,8 +1603,7 @@ namespace Kalyeah.Game
             if (_myKidThumb != null)
             {
                 Texture2D tex = LoadPortrait(kid);
-                _myKidThumb.texture = tex;
-                _myKidThumb.color = tex != null ? Color.white : new Color(1f, 1f, 1f, 0.2f);
+                ApplyBustPortrait(_myKidThumb, tex, Color.white, new Color(1f, 1f, 1f, 0.2f));
             }
         }
 
@@ -1331,6 +1634,7 @@ namespace Kalyeah.Game
             _qrModalImage.sprite = customQr != null ? customQr : FallbackQrSprite();
             _qrModalCaption.text = payload;
             _qrOverlay.gameObject.SetActive(true);
+            ApplyResponsiveMetrics();
         }
 
         string CurrentSharePayload()
@@ -1467,8 +1771,28 @@ namespace Kalyeah.Game
             if (_portraitCache.TryGetValue(characterId, out Texture2D cached))
                 return cached;
             Texture2D loaded = KalyeahResources.Texture("portraits/" + characterId);
+            if (loaded == null)
+                loaded = KalyeahResources.Texture("ui/avatars/" + characterId);
             _portraitCache[characterId] = loaded;
             return loaded;
+        }
+
+        static void ApplyBustPortrait(RawImage img, Texture2D tex, Color loadedTint, Color emptyTint)
+        {
+            if (img == null) return;
+            img.texture = tex;
+            if (tex != null)
+            {
+                img.color = loadedTint;
+                img.uvRect = tex.height > tex.width
+                    ? new Rect(0f, 0.25f, 1f, 0.75f)
+                    : new Rect(0f, 0f, 1f, 1f);
+            }
+            else
+            {
+                img.color = emptyTint;
+                img.uvRect = new Rect(0f, 0f, 1f, 1f);
+            }
         }
 
         void SetStatus(string text, Color color)
@@ -1478,26 +1802,366 @@ namespace Kalyeah.Game
             {
                 _statusLabel.text = StatusText;
                 _statusLabel.color = color;
+                SyncOutlineForColor(_statusLabel, color);
             }
         }
 
         void ApplyResponsiveMetrics()
         {
-            if (_frame != null)
+            if (_inLayout || _frame == null) return;
+            _inLayout = true;
+            try
             {
-                Vector2 safe = ScreenFitMetrics.SafeCanvasSize(_canvas);
-                float w = Mathf.Clamp(safe.x - 20f, 700f, 1188f);
-                float h = Mathf.Clamp(safe.y - 16f, 540f, 684f);
-                _frame.sizeDelta = new Vector2(w, h);
-            }
+                if (_canvas == null && Root != null)
+                    _canvas = Root.GetComponentInParent<Canvas>();
 
-            for (int i = 0; i < _touchTargets.Count; i++)
-            {
-                RectTransform rt = _touchTargets[i];
-                if (rt == null) continue;
-                if (rt.anchorMin.x == rt.anchorMax.x && rt.anchorMin.y == rt.anchorMax.y)
-                    rt.sizeDelta = ScreenFitMetrics.ClampTouchSize(rt.sizeDelta, ScreenFitMetrics.MinTouchDp, _canvas);
+                Vector2 safe = ScreenFitMetrics.SafeCanvasSize(_canvas);
+                float minTouch = ScreenFitMetrics.ClampTouchSize(48f, ScreenFitMetrics.MinTouchDp, _canvas);
+                float gutter = Mathf.Max(14f, ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinGutterDp, _canvas));
+
+                float frameW = Mathf.Clamp(safe.x - 16f, Mathf.Min(safe.x - 8f, 640f), 1320f);
+                float frameH = Mathf.Clamp(safe.y - 16f, Mathf.Min(safe.y - 8f, 520f), 670f);
+                _frame.sizeDelta = new Vector2(frameW, frameH);
+
+                float padX = 14f;
+                float topH = Mathf.Max(108f, minTouch + 12f);
+                if (_topBar != null)
+                {
+                    _topBar.anchorMin = new Vector2(0f, 1f);
+                    _topBar.anchorMax = new Vector2(1f, 1f);
+                    _topBar.pivot = new Vector2(0.5f, 1f);
+                    _topBar.offsetMin = new Vector2(padX, -(6f + topH));
+                    _topBar.offsetMax = new Vector2(-padX, -6f);
+                }
+
+                float barW = Mathf.Max(320f, frameW - padX * 2f);
+                float backW = Mathf.Max(minTouch, 124f);
+                if (_backBtnRect != null)
+                    _backBtnRect.sizeDelta = new Vector2(backW, minTouch);
+
+                bool rightActive = _roomRightCluster != null && _roomRightCluster.gameObject.activeSelf;
+                float rightClusterW = 0f;
+                if (_roomRightCluster != null)
+                {
+                    float qrW = minTouch;
+                    float copyW = Mathf.Max(minTouch, 100f);
+                    float pillW = Mathf.Clamp(barW * 0.22f, 168f, 256f);
+                    rightClusterW = pillW + gutter + copyW + gutter + qrW;
+                    _roomRightCluster.sizeDelta = new Vector2(rightClusterW, minTouch);
+
+                    if (_qrModalBtnRect != null)
+                    {
+                        _qrModalBtnRect.anchoredPosition = Vector2.zero;
+                        _qrModalBtnRect.sizeDelta = new Vector2(qrW, minTouch);
+                    }
+                    if (_copyCodeBtnRect != null)
+                    {
+                        _copyCodeBtnRect.anchoredPosition = new Vector2(-(qrW + gutter), 0f);
+                        _copyCodeBtnRect.sizeDelta = new Vector2(copyW, minTouch);
+                    }
+                    if (_roomCodePill != null)
+                    {
+                        _roomCodePill.anchoredPosition = new Vector2(-(qrW + gutter + copyW + gutter), 0f);
+                        _roomCodePill.sizeDelta = new Vector2(pillW, Mathf.Min(topH - 16f, 62f));
+                    }
+                }
+                if (_titleBlockRect != null)
+                    Stretch(_titleBlockRect, backW + gutter, 4f, rightActive ? rightClusterW + gutter : 8f, 4f);
+
+                float contentTop = topH + 12f;
+                float contentBottom = 12f;
+                float contentW = Mathf.Max(320f, frameW - padX * 2f);
+                float contentH = Mathf.Max(300f, frameH - contentTop - contentBottom);
+
+                SetPanelBounds(_connectPanel, padX, contentBottom, contentTop);
+                SetPanelBounds(_roomPanel, padX, contentBottom, contentTop);
+
+                // OnlineConnectPanel layout
+                float setupW = Mathf.Round((contentW - gutter) * 0.50f);
+                float openW = Mathf.Max(240f, contentW - gutter - setupW);
+                if (_setupCardRect != null)
+                {
+                    _setupCardRect.anchorMin = new Vector2(0f, 0f);
+                    _setupCardRect.anchorMax = new Vector2(0f, 1f);
+                    _setupCardRect.pivot = new Vector2(0f, 0.5f);
+                    _setupCardRect.offsetMin = new Vector2(0f, 0f);
+                    _setupCardRect.offsetMax = new Vector2(setupW, 0f);
+                }
+                float cardPad = 16f;
+                float innerSetupW = Mathf.Max(minTouch * 2f + gutter, setupW - cardPad * 2f);
+                float freeSetupH = Mathf.Max(20f, contentH - minTouch * 4f);
+                float capH = Mathf.Clamp(freeSetupH * 0.20f, 22f, 30f);
+                float rowGap = Mathf.Clamp(freeSetupH * 0.08f, 6f, 12f);
+                float sectionGap = Mathf.Clamp(freeSetupH * 0.12f, 10f, 18f);
+                float sy = Mathf.Clamp((contentH - (capH * 2f + minTouch * 4f + rowGap * 2f + sectionGap + 8f)) * 0.5f, 6f, 18f);
+
+                SetTopRow(_urlCaptionRect, cardPad, sy, innerSetupW, capH);
+                sy += capH + 4f;
+                SetTopRow(_serverInputRect, cardPad, sy, innerSetupW, minTouch);
+                sy += minTouch + rowGap;
+
+                float pairAvail = Mathf.Max(minTouch * 2f, innerSetupW - gutter);
+                float createW = Mathf.Max(minTouch, Mathf.Round(pairAvail * 0.58f));
+                float browseW = Mathf.Max(minTouch, pairAvail - createW);
+                createW = Mathf.Max(minTouch, pairAvail - browseW);
+                SetTopLeftBox(_createRoomBtnRect, cardPad, sy, createW, minTouch);
+                SetTopLeftBox(_browseOpenBtnRect, cardPad + createW + gutter, sy, browseW, minTouch);
+                sy += minTouch + sectionGap;
+
+                SetTopRow(_codeCaptionRect, cardPad, sy, innerSetupW, capH);
+                sy += capH + 4f;
+
+                float codeW = Mathf.Max(minTouch, Mathf.Round(pairAvail * 0.62f));
+                float sideW = Mathf.Max(minTouch, pairAvail - codeW);
+                codeW = Mathf.Max(minTouch, pairAvail - sideW);
+                SetTopLeftBox(_codeInputRect, cardPad, sy, codeW, minTouch);
+                SetTopLeftBox(_pasteCodeBtnRect, cardPad + codeW + gutter, sy, sideW, minTouch);
+                sy += minTouch + rowGap;
+
+                SetTopLeftBox(_joinByCodeBtnRect, cardPad, sy, codeW, minTouch);
+                SetTopLeftBox(_scanCodeQrBtnRect, cardPad + codeW + gutter, sy, sideW, minTouch);
+
+                if (_openRoomsCardRect != null)
+                {
+                    _openRoomsCardRect.anchorMin = new Vector2(0f, 0f);
+                    _openRoomsCardRect.anchorMax = new Vector2(0f, 1f);
+                    _openRoomsCardRect.pivot = new Vector2(0f, 0.5f);
+                    _openRoomsCardRect.offsetMin = new Vector2(setupW + gutter, 0f);
+                    _openRoomsCardRect.offsetMax = new Vector2(contentW, 0f);
+                }
+                if (_openRoomsHeaderRect != null)
+                {
+                    _openRoomsHeaderRect.anchorMin = new Vector2(0f, 1f);
+                    _openRoomsHeaderRect.anchorMax = new Vector2(1f, 1f);
+                    _openRoomsHeaderRect.pivot = new Vector2(0.5f, 1f);
+                    _openRoomsHeaderRect.offsetMin = new Vector2(16f, -48f);
+                    _openRoomsHeaderRect.offsetMax = new Vector2(-16f, -12f);
+                }
+                if (_openRoomsScrollRect != null)
+                {
+                    _openRoomsScrollRect.anchorMin = Vector2.zero;
+                    _openRoomsScrollRect.anchorMax = Vector2.one;
+                    _openRoomsScrollRect.offsetMin = new Vector2(16f, 14f);
+                    _openRoomsScrollRect.offsetMax = new Vector2(-16f, -54f);
+                }
+                for (int i = 0; i < MaxOpenRoomRows; i++)
+                {
+                    if (_openRoomLayouts[i] != null)
+                    {
+                        _openRoomLayouts[i].minHeight = minTouch;
+                        _openRoomLayouts[i].preferredHeight = minTouch;
+                    }
+                }
+
+                // RoomPanel layout
+                float bottomBarH = minTouch + 16f;
+                if (_bottomBarRect != null)
+                {
+                    _bottomBarRect.anchorMin = new Vector2(0f, 0f);
+                    _bottomBarRect.anchorMax = new Vector2(1f, 0f);
+                    _bottomBarRect.pivot = new Vector2(0.5f, 0f);
+                    _bottomBarRect.anchoredPosition = Vector2.zero;
+                    _bottomBarRect.sizeDelta = new Vector2(0f, bottomBarH);
+                }
+
+                float colW = Mathf.Max(220f, (contentW - gutter) * 0.5f);
+                float colBottom = bottomBarH + 10f;
+                LayoutTeamColumn(_blueColRect, _blueJoinBtnRect, _blueSlotsRect, 0f, colW, colBottom, minTouch);
+                LayoutTeamColumn(_redColRect, _redJoinBtnRect, _redSlotsRect, colW + gutter, colW, colBottom, minTouch);
+
+                LayoutBottomControls(contentW, minTouch, gutter);
+                LayoutQrOverlay(safe, minTouch);
             }
+            finally
+            {
+                _inLayout = false;
+            }
+        }
+
+        void LayoutBottomControls(float contentW, float minTouch, float gutter)
+        {
+            if (_bottomBarRect == null) return;
+            const float barPad = 10f;
+            float innerW = Mathf.Max(minTouch * 4f, contentW - barPad * 2f);
+
+            RectTransform[] items =
+            {
+                _pickKidBtnRect,
+                _swapTeamBtnRect,
+                _mapBtnRect,
+                _firstToBtnRect,
+                _botsBtnRect,
+                _openBtnRect,
+                _readyBtnRect,
+                _startBtnRect,
+            };
+            float[] weights = { 2.15f, 1.00f, 1.55f, 1.00f, 1.00f, 1.05f, 1.35f, 1.50f };
+
+            int activeCount = 0;
+            float extraWeightSum = 0f;
+            for (int i = 0; i < items.Length; i++)
+            {
+                if (items[i] == null || !items[i].gameObject.activeSelf) continue;
+                activeCount++;
+                extraWeightSum += Mathf.Max(0.05f, weights[i] - 0.85f);
+            }
+            if (activeCount == 0) return;
+
+            float maxAllowedGap = activeCount > 1
+                ? Mathf.Max(4f, (innerW - activeCount * minTouch) / (activeCount - 1))
+                : 0f;
+            float gap = activeCount > 1 ? Mathf.Min(gutter, maxAllowedGap) : 0f;
+            float surplus = Mathf.Max(0f, innerW - gap * (activeCount - 1) - activeCount * minTouch);
+
+            float cursorX = barPad;
+            for (int i = 0; i < items.Length; i++)
+            {
+                RectTransform rt = items[i];
+                if (rt == null || !rt.gameObject.activeSelf) continue;
+                float share = extraWeightSum > 0f ? Mathf.Max(0.05f, weights[i] - 0.85f) / extraWeightSum : (1f / activeCount);
+                float btnW = Mathf.Max(minTouch, minTouch + surplus * share);
+
+                rt.anchorMin = new Vector2(0f, 0.5f);
+                rt.anchorMax = new Vector2(0f, 0.5f);
+                rt.pivot = new Vector2(0f, 0.5f);
+                rt.anchoredPosition = new Vector2(cursorX, 0f);
+                rt.sizeDelta = new Vector2(btnW, minTouch);
+                cursorX += btnW + gap;
+
+                if (ReferenceEquals(rt, _pickKidBtnRect))
+                {
+                    bool showThumb = btnW >= 148f;
+                    if (_myKidThumbFrame != null)
+                    {
+                        _myKidThumbFrame.gameObject.SetActive(showThumb);
+                        float thumbSz = Mathf.Clamp(minTouch - 26f, 40f, 56f);
+                        _myKidThumbFrame.anchoredPosition = new Vector2(10f, 0f);
+                        _myKidThumbFrame.sizeDelta = new Vector2(thumbSz, thumbSz);
+                        if (_myKidTextBlock != null)
+                            Stretch(_myKidTextBlock, showThumb ? (14f + thumbSz) : 6f, 4f, 6f, 4f);
+                    }
+                }
+            }
+        }
+
+        void LayoutQrOverlay(Vector2 safe, float minTouch)
+        {
+            if (_qrCardRect == null) return;
+            float cardW = Mathf.Clamp(safe.x - 24f, 320f, 480f);
+            float cardH = Mathf.Clamp(safe.y - 20f, 420f, 560f);
+            _qrCardRect.sizeDelta = new Vector2(cardW, cardH);
+
+            if (_qrCardTitleRect != null)
+            {
+                _qrCardTitleRect.anchorMin = new Vector2(0f, 1f);
+                _qrCardTitleRect.anchorMax = new Vector2(1f, 1f);
+                _qrCardTitleRect.pivot = new Vector2(0.5f, 1f);
+                _qrCardTitleRect.offsetMin = new Vector2(18f, -56f);
+                _qrCardTitleRect.offsetMax = new Vector2(-18f, -14f);
+            }
+            if (_qrCloseBtnRect != null)
+            {
+                _qrCloseBtnRect.anchoredPosition = new Vector2(0f, 14f);
+                _qrCloseBtnRect.sizeDelta = new Vector2(Mathf.Max(minTouch, 196f), minTouch);
+            }
+            float capBottom = 14f + minTouch + 10f;
+            float capTop = capBottom + 48f;
+            if (_qrCardCaptionRect != null)
+            {
+                _qrCardCaptionRect.anchorMin = new Vector2(0f, 0f);
+                _qrCardCaptionRect.anchorMax = new Vector2(1f, 0f);
+                _qrCardCaptionRect.pivot = new Vector2(0.5f, 0f);
+                _qrCardCaptionRect.offsetMin = new Vector2(18f, capBottom);
+                _qrCardCaptionRect.offsetMax = new Vector2(-18f, capTop);
+            }
+            if (_qrCardPlateRect != null)
+            {
+                float topUsed = 62f;
+                float bottomUsed = capTop + 8f;
+                float availH = Mathf.Max(140f, cardH - topUsed - bottomUsed);
+                float qrSz = Mathf.Clamp(Mathf.Min(cardW - 48f, availH), 148f, 268f);
+                float centerOffsetY = (bottomUsed - topUsed) * 0.5f;
+                _qrCardPlateRect.anchoredPosition = new Vector2(0f, centerOffsetY);
+                _qrCardPlateRect.sizeDelta = new Vector2(qrSz, qrSz);
+            }
+        }
+
+        static void LayoutTeamColumn(
+            RectTransform col,
+            RectTransform headerBtn,
+            RectTransform slotsContainer,
+            float x,
+            float w,
+            float bottom,
+            float minTouch)
+        {
+            if (col == null) return;
+            col.anchorMin = new Vector2(0f, 0f);
+            col.anchorMax = new Vector2(0f, 1f);
+            col.pivot = new Vector2(0f, 0.5f);
+            col.offsetMin = new Vector2(x, bottom);
+            col.offsetMax = new Vector2(x + w, 0f);
+
+            if (headerBtn != null)
+            {
+                headerBtn.anchorMin = new Vector2(0f, 1f);
+                headerBtn.anchorMax = new Vector2(1f, 1f);
+                headerBtn.pivot = new Vector2(0.5f, 1f);
+                headerBtn.offsetMin = new Vector2(10f, -(8f + minTouch));
+                headerBtn.offsetMax = new Vector2(-10f, -8f);
+            }
+            if (slotsContainer != null)
+            {
+                slotsContainer.anchorMin = Vector2.zero;
+                slotsContainer.anchorMax = Vector2.one;
+                slotsContainer.offsetMin = new Vector2(10f, 8f);
+                slotsContainer.offsetMax = new Vector2(-10f, -(minTouch + 16f));
+            }
+        }
+
+        static void SetPanelBounds(RectTransform panel, float padX, float bottom, float top)
+        {
+            if (panel == null) return;
+            panel.anchorMin = Vector2.zero;
+            panel.anchorMax = Vector2.one;
+            panel.pivot = new Vector2(0.5f, 0.5f);
+            panel.offsetMin = new Vector2(padX, bottom);
+            panel.offsetMax = new Vector2(-padX, -top);
+        }
+
+        static void SetTopRow(RectTransform rt, float padX, float topY, float width, float height)
+        {
+            SetTopLeftBox(rt, padX, topY, width, height);
+        }
+
+        static void SetTopLeftBox(RectTransform rt, float x, float topY, float width, float height)
+        {
+            if (rt == null) return;
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(x, -topY);
+            rt.sizeDelta = new Vector2(width, height);
+        }
+
+        static void ApplySlicedPlate(Image img, Color color)
+        {
+            if (img == null) return;
+            Sprite rounded = MenuStack.RoundedSprite();
+            if (rounded != null)
+            {
+                img.sprite = rounded;
+                img.type = Image.Type.Sliced;
+            }
+            img.color = color;
+        }
+
+        static void SyncOutlineForColor(Text label, Color c)
+        {
+            if (label == null) return;
+            Outline ol = label.GetComponent<Outline>();
+            if (ol != null)
+                ol.enabled = (0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b) >= 0.25f;
         }
 
         Button MakeButton(
@@ -1516,39 +2180,57 @@ namespace Kalyeah.Game
         {
             Vector2 effectiveSize = (anchorMin.x == anchorMax.x && anchorMin.y == anchorMax.y)
                 ? ScreenFitMetrics.ClampTouchSize(size, ScreenFitMetrics.MinTouchDp, _canvas)
-                : size;
+                : new Vector2(size.x, ScreenFitMetrics.ClampTouchSize(size.y, ScreenFitMetrics.MinTouchDp, _canvas));
             RectTransform rt = Ui.Panel(name, parent, anchorMin, anchorMax, pivot, pos, effectiveSize);
-            Image bg = Ui.MakeImage("Bg", rt, fill, raycast: true);
-            Stretch(bg.rectTransform);
-            var outline = bg.gameObject.AddComponent<Outline>();
-            outline.effectColor = new Color(0.03f, 0.05f, 0.12f, 0.95f);
+            Image bg = rt.gameObject.AddComponent<Image>();
+            ApplySlicedPlate(bg, fill);
+            bg.raycastTarget = true;
+            var outline = rt.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0.03f, 0.05f, 0.12f, 0.90f);
             outline.effectDistance = new Vector2(2f, -2f);
 
             Text label = Ui.MakeText("Label", rt, text, fontSize, textColor, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            if (textColor == InkDark)
-                label.GetComponent<Outline>().enabled = false;
-            Stretch(label.rectTransform, 6f, 2f, 6f, 2f);
+            label.raycastTarget = false;
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 14;
+            label.resizeTextMaxSize = fontSize;
+            label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            label.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(label, textColor);
+            Stretch(label.rectTransform, 10f, 4f, 10f, 4f);
 
-            Button btn = bg.gameObject.AddComponent<Button>();
+            Button btn = rt.gameObject.AddComponent<Button>();
             btn.targetGraphic = bg;
+            ColorBlock cb = btn.colors;
+            cb.disabledColor = Color.white;
+            btn.colors = cb;
             if (onClick != null)
                 btn.onClick.AddListener(onClick);
             _touchTargets.Add(rt);
             return btn;
         }
 
-        static InputField MakeInputField(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax, string placeholderText, int fontSize, int charLimit)
+        InputField MakeInputField(string name, Transform parent, string placeholderText, int fontSize, int charLimit)
         {
-            RectTransform rt = Ui.Panel(name, parent, anchorMin, anchorMax, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            Image bg = Ui.MakeImage("InputBg", rt, new Color(0.04f, 0.07f, 0.14f, 1f), raycast: true);
-            Stretch(bg.rectTransform);
+            float touchH = ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, _canvas);
+            RectTransform rt = Ui.Panel(name, parent, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(240f, touchH));
+            Image bg = rt.gameObject.AddComponent<Image>();
+            ApplySlicedPlate(bg, new Color(0.04f, 0.07f, 0.14f, 1f));
+            bg.raycastTarget = true;
 
             Text textComp = Ui.MakeText("Text", rt, "", fontSize, Ui.Cream, TextAnchor.MiddleLeft);
+            textComp.raycastTarget = false;
             textComp.supportRichText = false;
-            Stretch(textComp.rectTransform, 12f, 4f, 12f, 4f);
+            textComp.horizontalOverflow = HorizontalWrapMode.Overflow;
+            textComp.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(textComp, Ui.Cream);
+            Stretch(textComp.rectTransform, 14f, 6f, 14f, 6f);
 
-            Text placeholder = Ui.MakeText("Placeholder", rt, placeholderText, fontSize - 2, new Color(0.55f, 0.64f, 0.78f, 0.72f), TextAnchor.MiddleLeft);
-            Stretch(placeholder.rectTransform, 12f, 4f, 12f, 4f);
+            Text placeholder = Ui.MakeText("Placeholder", rt, placeholderText, Mathf.Max(17, fontSize - 2), new Color(0.62f, 0.70f, 0.84f, 0.85f), TextAnchor.MiddleLeft);
+            placeholder.raycastTarget = false;
+            placeholder.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(placeholder, placeholder.color);
+            Stretch(placeholder.rectTransform, 14f, 6f, 14f, 6f);
 
             var field = rt.gameObject.AddComponent<InputField>();
             field.targetGraphic = bg;
@@ -1601,10 +2283,11 @@ namespace Kalyeah.Game
         static void StyleCard(RectTransform card, Color bg)
         {
             Image fill = Ui.MakeImage("CardBg", card, bg, raycast: false);
+            ApplySlicedPlate(fill, bg);
             Stretch(fill.rectTransform);
             fill.transform.SetAsFirstSibling();
             var border = fill.gameObject.AddComponent<Outline>();
-            border.effectColor = new Color(0.02f, 0.04f, 0.10f, 0.95f);
+            border.effectColor = new Color(0.02f, 0.04f, 0.10f, 0.90f);
             border.effectDistance = new Vector2(3f, -3f);
         }
 
@@ -1656,13 +2339,27 @@ namespace Kalyeah.Game
             return _fallbackQrSprite;
         }
 
+        [ExecuteAlways]
         sealed class LobbyViewDriver : MonoBehaviour
         {
             LobbyScreenView _owner;
 
             public void Bind(LobbyScreenView owner) => _owner = owner;
 
-            void Update() => _owner?.Tick(Time.unscaledDeltaTime);
+            void OnEnable()
+            {
+                if (_owner != null)
+                {
+                    _owner.SubscribeViewport(true);
+                    _owner.ApplyResponsiveMetrics();
+                }
+            }
+
+            void Update()
+            {
+                if (Application.isPlaying)
+                    _owner?.Tick(Time.unscaledDeltaTime);
+            }
 
             void OnRectTransformDimensionsChange() => _owner?.ApplyResponsiveMetrics();
 

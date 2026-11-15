@@ -16,9 +16,9 @@ namespace Kalyeah.Game
         public const int TabControls = 1;
         public const int TabGraphics = 2;
 
-        static readonly Color BgTop = new Color(0.11f, 0.16f, 0.30f, 1f);
-        static readonly Color BgBottom = new Color(0.05f, 0.08f, 0.16f, 1f);
-        static readonly Color HeaderBg = new Color(0.06f, 0.10f, 0.22f, 0.94f);
+        static readonly Color BackdropSolid = new Color(0.06f, 0.10f, 0.20f, 1f);
+        static readonly Color BackdropWash = new Color(0.05f, 0.08f, 0.17f, 0.84f);
+        static readonly Color HeaderBg = new Color(0.06f, 0.10f, 0.22f, 0.96f);
         static readonly Color PanelBg = new Color(0.08f, 0.12f, 0.24f, 0.96f);
         static readonly Color RowBg = new Color(0.11f, 0.16f, 0.30f, 0.94f);
         static readonly Color ChoiceIdleBg = new Color(0.06f, 0.10f, 0.20f, 0.96f);
@@ -27,15 +27,111 @@ namespace Kalyeah.Game
         static readonly Color Teal = new Color(0.22f, 0.78f, 0.68f, 1f);
         static readonly Color Ink = new Color(0.08f, 0.10f, 0.16f, 1f);
 
+        [ExecuteAlways]
+        sealed class SettingsLifecycle : MonoBehaviour
+        {
+            [NonSerialized] public SettingsScreenView Owner;
+            bool _subscribed;
+
+            void OnEnable()
+            {
+                EnsureSubscribed();
+                Owner?.RefreshLayout();
+            }
+
+            void OnDisable() => Unsubscribe();
+
+            void OnDestroy()
+            {
+                Unsubscribe();
+                Owner?.DisposeFromLifecycle();
+            }
+
+            void OnRectTransformDimensionsChange() => Owner?.RefreshLayout();
+
+            void EnsureSubscribed()
+            {
+                if (_subscribed) return;
+                ScreenFitMetrics.SimulatedViewportChanged += HandleViewportChanged;
+                _subscribed = true;
+            }
+
+            void Unsubscribe()
+            {
+                if (!_subscribed) return;
+                ScreenFitMetrics.SimulatedViewportChanged -= HandleViewportChanged;
+                _subscribed = false;
+            }
+
+            void HandleViewportChanged()
+            {
+                if (this == null)
+                {
+                    Unsubscribe();
+                    return;
+                }
+                Owner?.RefreshLayout();
+            }
+        }
+
+        sealed class ToggleRowRefs
+        {
+            public LayoutElement RowLayout;
+            public RectTransform TitleRect;
+            public RectTransform ToggleRect;
+        }
+
+        sealed class SliderRowRefs
+        {
+            public LayoutElement RowLayout;
+            public RectTransform TitleRect;
+            public RectTransform MinusRect;
+            public RectTransform SliderRect;
+            public RectTransform TrackRect;
+            public RectTransform FillAreaRect;
+            public RectTransform HandleSlideRect;
+            public RectTransform HandleRect;
+            public RectTransform PlusRect;
+            public RectTransform PercentRect;
+        }
+
+        sealed class SegmentedRowRefs
+        {
+            public LayoutElement RowLayout;
+            public RectTransform TitleRect;
+            public RectTransform GroupRect;
+            public HorizontalLayoutGroup GroupLayout;
+            public LayoutElement[] ChoiceLayouts;
+        }
+
+        sealed class ScrollPaneRefs
+        {
+            public ScrollRect Scroll;
+            public RectTransform TrackRect;
+            public RectTransform ThumbRect;
+        }
+
         readonly Action _onBack;
-        readonly Canvas _canvas;
+        Canvas _canvas;
         readonly SafeArea _safeArea;
         readonly RectTransform _shell;
 
         readonly RectTransform[] _tabPanes = new RectTransform[3];
         readonly Image[] _tabPillBgs = new Image[3];
         readonly Text[] _tabPillLabels = new Text[3];
+        readonly LayoutElement[] _tabPillLayouts = new LayoutElement[3];
         readonly List<Action> _syncCallbacks = new List<Action>(20);
+        readonly List<ToggleRowRefs> _toggleRows = new List<ToggleRowRefs>(8);
+        readonly List<SliderRowRefs> _sliderRows = new List<SliderRowRefs>(4);
+        readonly List<SegmentedRowRefs> _segmentedRows = new List<SegmentedRowRefs>(8);
+        readonly List<ScrollPaneRefs> _scrollPanes = new List<ScrollPaneRefs>(3);
+
+        RectTransform _headerRect;
+        RectTransform _backBtnRect;
+        RectTransform _resetBtnRect;
+        RectTransform _headerTitleRect;
+        RectTransform _tabBarRect;
+        HorizontalLayoutGroup _tabBarLayout;
 
         Text _headerTitle;
         Text _backLabel;
@@ -43,9 +139,12 @@ namespace Kalyeah.Game
 
         int _activeTab;
         bool _updatingUi;
+        bool _refreshingLayout;
         bool _disposed;
 
         public RectTransform Root { get; }
+        public RectTransform SafeRoot { get; }
+        public SafeArea SafeAreaComponent => _safeArea;
         public int ActiveTab => _activeTab;
 
         public SettingsScreenView(Transform parent, DataSource data, Action onBack = null)
@@ -63,11 +162,20 @@ namespace Kalyeah.Game
             Root = Ui.Fill("SettingsScreen", parent);
             BuildBackdrop(Root);
 
-            RectTransform safeRect = Ui.Fill("SafeArea", Root);
-            _safeArea = safeRect.gameObject.AddComponent<SafeArea>();
+            SafeArea parentSafe = parent.GetComponentInParent<SafeArea>();
+            if (parentSafe != null)
+            {
+                _safeArea = parentSafe;
+                SafeRoot = Ui.Fill("SafeRoot", Root);
+            }
+            else
+            {
+                SafeRoot = Ui.Fill("SafeArea", Root);
+                _safeArea = SafeRoot.gameObject.AddComponent<SafeArea>();
+            }
             _safeArea.Changed += OnSafeAreaChanged;
 
-            _shell = Ui.Panel("Shell", safeRect, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1180f, 0f));
+            _shell = Ui.Panel("Shell", SafeRoot, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1180f, 0f));
 
             BuildHeader(_shell);
             BuildTabBar(_shell);
@@ -75,13 +183,17 @@ namespace Kalyeah.Game
             BuildControlsTab(_shell);
             BuildGraphicsTab(_shell);
 
-            _safeArea.Apply();
-            UpdateShellWidth();
+            var lifecycle = Root.gameObject.AddComponent<SettingsLifecycle>();
+            lifecycle.Owner = this;
 
             SettingsStore.Current.Changed += OnStoreChanged;
+            ScreenFitMetrics.SimulatedViewportChanged += RefreshLayout;
+
+            _safeArea.Apply();
             ApplyRuntimeSettings();
             Refresh();
             SetActiveTab(TabAudio);
+            RefreshLayout();
         }
 
         public static void LoadPersistedSettings()
@@ -112,9 +224,8 @@ namespace Kalyeah.Game
         public void Show()
         {
             if (Root != null) Root.gameObject.SetActive(true);
-            _safeArea?.Apply();
-            UpdateShellWidth();
             Refresh();
+            RefreshLayout();
         }
 
         public void Hide()
@@ -130,8 +241,14 @@ namespace Kalyeah.Game
                 bool active = i == _activeTab;
                 if (_tabPanes[i] != null) _tabPanes[i].gameObject.SetActive(active);
                 if (_tabPillBgs[i] != null) _tabPillBgs[i].color = active ? Gold : RowBg;
-                if (_tabPillLabels[i] != null) _tabPillLabels[i].color = active ? Ink : Ui.Cream;
+                if (_tabPillLabels[i] != null)
+                {
+                    _tabPillLabels[i].color = active ? Ink : Ui.Cream;
+                    Outline outline = _tabPillLabels[i].GetComponent<Outline>();
+                    if (outline != null) outline.enabled = !active;
+                }
             }
+            UpdateScrollIndicators();
         }
 
         public void ResetDefaults()
@@ -161,6 +278,7 @@ namespace Kalyeah.Game
             {
                 _updatingUi = false;
             }
+            UpdateScrollIndicators();
         }
 
         public void Dispose()
@@ -168,8 +286,11 @@ namespace Kalyeah.Game
             if (_disposed) return;
             _disposed = true;
             SettingsStore.Current.Changed -= OnStoreChanged;
+            ScreenFitMetrics.SimulatedViewportChanged -= RefreshLayout;
             if (_safeArea != null) _safeArea.Changed -= OnSafeAreaChanged;
         }
+
+        void DisposeFromLifecycle() => Dispose();
 
         void OnStoreChanged()
         {
@@ -186,66 +307,306 @@ namespace Kalyeah.Game
             Refresh();
         }
 
-        void OnSafeAreaChanged(SafeArea _) => UpdateShellWidth();
+        void OnSafeAreaChanged(SafeArea _) => RefreshLayout();
 
-        void UpdateShellWidth()
+        public void RefreshLayout()
         {
-            if (_shell == null) return;
+            if (_disposed || _refreshingLayout || Root == null || _shell == null) return;
+            _refreshingLayout = true;
+            try
+            {
+                RefreshLayoutCore();
+            }
+            finally
+            {
+                _refreshingLayout = false;
+            }
+        }
+
+        void RefreshLayoutCore()
+        {
+            if (_canvas == null) _canvas = Root.GetComponentInParent<Canvas>();
+
+            _safeArea?.Apply();
+
             Vector2 safeSize = ScreenFitMetrics.SafeCanvasSize(_canvas);
-            float clampedWidth = Mathf.Clamp(safeSize.x - 16f, 620f, 1180f);
+            float clampedWidth = Mathf.Clamp(safeSize.x - 24f, 640f, 1260f);
             _shell.sizeDelta = new Vector2(clampedWidth, 0f);
+
+            float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
+            float minGutter = Mathf.Max(8f, ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinGutterDp, _canvas));
+            float headerH = Mathf.Max(108f, minTouch + 12f);
+            float tabBarH = Mathf.Max(100f, minTouch + 4f);
+
+            if (_headerRect != null)
+            {
+                _headerRect.anchoredPosition = new Vector2(0f, -6f);
+                _headerRect.sizeDelta = new Vector2(0f, headerH);
+            }
+
+            Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(140f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            if (_backBtnRect != null)
+            {
+                _backBtnRect.anchoredPosition = new Vector2(10f, 0f);
+                _backBtnRect.sizeDelta = backSize;
+            }
+
+            Vector2 resetSize = ScreenFitMetrics.ClampTouchSize(new Vector2(204f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            if (_resetBtnRect != null)
+            {
+                _resetBtnRect.anchoredPosition = new Vector2(-10f, 0f);
+                _resetBtnRect.sizeDelta = resetSize;
+            }
+
+            if (_headerTitleRect != null)
+            {
+                _headerTitleRect.anchorMin = Vector2.zero;
+                _headerTitleRect.anchorMax = Vector2.one;
+                _headerTitleRect.offsetMin = new Vector2(10f + backSize.x + minGutter, 8f);
+                _headerTitleRect.offsetMax = new Vector2(-(10f + resetSize.x + minGutter), -8f);
+            }
+
+            float tabBarTop = -(6f + headerH + 6f);
+            if (_tabBarRect != null)
+            {
+                _tabBarRect.anchoredPosition = new Vector2(0f, tabBarTop);
+                _tabBarRect.sizeDelta = new Vector2(0f, tabBarH);
+            }
+
+            if (_tabBarLayout != null)
+                _tabBarLayout.spacing = Mathf.Max(10f, minGutter);
+
+            for (int i = 0; i < _tabPillLayouts.Length; i++)
+            {
+                LayoutElement le = _tabPillLayouts[i];
+                if (le == null) continue;
+                le.minWidth = minTouch;
+                le.minHeight = minTouch;
+                le.preferredHeight = minTouch;
+            }
+
+            float paneTopInset = tabBarTop - tabBarH - 8f;
+            for (int i = 0; i < _tabPanes.Length; i++)
+            {
+                if (_tabPanes[i] == null) continue;
+                _tabPanes[i].offsetMin = new Vector2(0f, 6f);
+                _tabPanes[i].offsetMax = new Vector2(0f, paneTopInset);
+            }
+
+            float toggleRowH = Mathf.Max(100f, minTouch + 4f);
+            Vector2 toggleBtnSize = ScreenFitMetrics.ClampTouchSize(new Vector2(184f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            for (int i = 0; i < _toggleRows.Count; i++)
+            {
+                ToggleRowRefs r = _toggleRows[i];
+                r.RowLayout.minHeight = toggleRowH;
+                r.RowLayout.preferredHeight = toggleRowH;
+                r.ToggleRect.anchoredPosition = new Vector2(-14f, 0f);
+                r.ToggleRect.sizeDelta = toggleBtnSize;
+                r.TitleRect.anchorMin = Vector2.zero;
+                r.TitleRect.anchorMax = Vector2.one;
+                r.TitleRect.offsetMin = new Vector2(16f, 6f);
+                r.TitleRect.offsetMax = new Vector2(-(14f + toggleBtnSize.x + minGutter), -6f);
+            }
+
+            float sliderRowH = Mathf.Max(108f, minTouch + 12f);
+            float btnSide = minTouch;
+            float knobPx = minTouch;
+            float halfKnob = knobPx * 0.5f;
+            float pctWidth = 82f;
+            float rightPad = 12f;
+            float plusRightEdge = -(rightPad + pctWidth + 10f);
+            float sliderRightEdge = plusRightEdge - btnSide - minGutter;
+            float titleMaxShare = clampedWidth < 1020f ? 0.33f : 0.37f;
+
+            for (int i = 0; i < _sliderRows.Count; i++)
+            {
+                SliderRowRefs s = _sliderRows[i];
+                s.RowLayout.minHeight = sliderRowH;
+                s.RowLayout.preferredHeight = sliderRowH;
+
+                s.TitleRect.anchorMin = new Vector2(0f, 0f);
+                s.TitleRect.anchorMax = new Vector2(titleMaxShare, 1f);
+                s.TitleRect.offsetMin = new Vector2(16f, 6f);
+                s.TitleRect.offsetMax = new Vector2(-8f, -6f);
+
+                s.MinusRect.anchorMin = new Vector2(titleMaxShare, 0.5f);
+                s.MinusRect.anchorMax = new Vector2(titleMaxShare, 0.5f);
+                s.MinusRect.pivot = new Vector2(0f, 0.5f);
+                s.MinusRect.anchoredPosition = new Vector2(8f, 0f);
+                s.MinusRect.sizeDelta = new Vector2(btnSide, btnSide);
+
+                float sliderPadY = Mathf.Max(4f, (sliderRowH - minTouch) * 0.5f);
+                s.SliderRect.anchorMin = new Vector2(titleMaxShare, 0f);
+                s.SliderRect.anchorMax = new Vector2(1f, 1f);
+                s.SliderRect.offsetMin = new Vector2(8f + btnSide + minGutter, sliderPadY);
+                s.SliderRect.offsetMax = new Vector2(sliderRightEdge, -sliderPadY);
+
+                s.TrackRect.anchorMin = new Vector2(0f, 0.5f);
+                s.TrackRect.anchorMax = new Vector2(1f, 0.5f);
+                s.TrackRect.offsetMin = new Vector2(halfKnob, -10f);
+                s.TrackRect.offsetMax = new Vector2(-halfKnob, 10f);
+
+                s.FillAreaRect.anchorMin = new Vector2(0f, 0.5f);
+                s.FillAreaRect.anchorMax = new Vector2(1f, 0.5f);
+                s.FillAreaRect.offsetMin = new Vector2(halfKnob, -10f);
+                s.FillAreaRect.offsetMax = new Vector2(-halfKnob, 10f);
+
+                s.HandleSlideRect.anchorMin = new Vector2(0f, 0.5f);
+                s.HandleSlideRect.anchorMax = new Vector2(1f, 0.5f);
+                s.HandleSlideRect.offsetMin = new Vector2(halfKnob, -halfKnob);
+                s.HandleSlideRect.offsetMax = new Vector2(-halfKnob, halfKnob);
+                s.HandleRect.sizeDelta = new Vector2(knobPx, 0f);
+
+                s.PlusRect.anchorMin = new Vector2(1f, 0.5f);
+                s.PlusRect.anchorMax = new Vector2(1f, 0.5f);
+                s.PlusRect.pivot = new Vector2(1f, 0.5f);
+                s.PlusRect.anchoredPosition = new Vector2(plusRightEdge, 0f);
+                s.PlusRect.sizeDelta = new Vector2(btnSide, btnSide);
+
+                s.PercentRect.anchorMin = new Vector2(1f, 0f);
+                s.PercentRect.anchorMax = new Vector2(1f, 1f);
+                s.PercentRect.offsetMin = new Vector2(-(rightPad + pctWidth), 6f);
+                s.PercentRect.offsetMax = new Vector2(-rightPad, -6f);
+            }
+
+            float segRowH = Mathf.Max(104f, minTouch + 8f);
+            float segTitleShare = clampedWidth < 1020f ? 0.34f : 0.38f;
+            float segPadY = Mathf.Max(4f, (segRowH - minTouch) * 0.5f);
+            for (int i = 0; i < _segmentedRows.Count; i++)
+            {
+                SegmentedRowRefs sr = _segmentedRows[i];
+                sr.RowLayout.minHeight = segRowH;
+                sr.RowLayout.preferredHeight = segRowH;
+                sr.TitleRect.anchorMin = new Vector2(0f, 0f);
+                sr.TitleRect.anchorMax = new Vector2(segTitleShare, 1f);
+                sr.TitleRect.offsetMin = new Vector2(16f, 6f);
+                sr.TitleRect.offsetMax = new Vector2(-8f, -6f);
+
+                sr.GroupRect.anchorMin = new Vector2(segTitleShare, 0f);
+                sr.GroupRect.anchorMax = new Vector2(1f, 1f);
+                sr.GroupRect.offsetMin = new Vector2(8f, segPadY);
+                sr.GroupRect.offsetMax = new Vector2(-12f, -segPadY);
+                sr.GroupLayout.spacing = Mathf.Max(8f, minGutter * 0.5f);
+
+                for (int c = 0; c < sr.ChoiceLayouts.Length; c++)
+                {
+                    sr.ChoiceLayouts[c].minWidth = minTouch;
+                    sr.ChoiceLayouts[c].minHeight = minTouch;
+                    sr.ChoiceLayouts[c].preferredHeight = minTouch;
+                }
+            }
+
+            UpdateScrollIndicators();
+        }
+
+        void UpdateScrollIndicators()
+        {
+            for (int i = 0; i < _scrollPanes.Count; i++)
+            {
+                ScrollPaneRefs sp = _scrollPanes[i];
+                if (sp.Scroll == null || sp.Scroll.viewport == null || sp.Scroll.content == null || sp.TrackRect == null || sp.ThumbRect == null)
+                    continue;
+
+                if (sp.Scroll.content.gameObject.activeInHierarchy)
+                    LayoutRebuilder.ForceRebuildLayoutImmediate(sp.Scroll.content);
+
+                float viewH = sp.Scroll.viewport.rect.height;
+                float contentH = sp.Scroll.content.rect.height;
+                bool canScroll = contentH > viewH + 4f && viewH > 10f;
+                sp.TrackRect.gameObject.SetActive(canScroll);
+                if (!canScroll) continue;
+
+                float ratio = Mathf.Clamp(viewH / contentH, 0.18f, 1f);
+                float norm = Mathf.Clamp01(sp.Scroll.verticalNormalizedPosition);
+                float top = Mathf.Lerp(1f - ratio, 1f, norm);
+                float bottom = top - ratio;
+                sp.ThumbRect.anchorMin = new Vector2(0f, bottom);
+                sp.ThumbRect.anchorMax = new Vector2(1f, top);
+                sp.ThumbRect.offsetMin = Vector2.zero;
+                sp.ThumbRect.offsetMax = Vector2.zero;
+            }
         }
 
         static void BuildBackdrop(RectTransform root)
         {
-            Image bottom = Ui.MakeImage("BackdropBottom", root, BgBottom);
-            Stretch(bottom.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            Image baseFill = Ui.MakeImage("Backdrop", root, BackdropSolid);
+            Stretch(baseFill.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            baseFill.gameObject.AddComponent<RectMask2D>();
 
-            Image top = Ui.MakeImage("BackdropTop", root, BgTop);
-            Stretch(top.rectTransform, new Vector2(0f, 0.40f), Vector2.one, Vector2.zero, Vector2.zero);
+            Texture2D mainBg = KalyeahResources.Texture("ui/main_bg") ?? KalyeahResources.Texture("ui/boot/boot_bg");
+            if (mainBg != null)
+            {
+                var rawGo = new GameObject("ArtBackdrop", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
+                rawGo.transform.SetParent(baseFill.transform, false);
+                var raw = rawGo.GetComponent<RawImage>();
+                raw.texture = mainBg;
+                raw.color = new Color(0.90f, 0.88f, 0.96f, 0.24f);
+                raw.raycastTarget = false;
+                Stretch(raw.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+
+                var fitter = rawGo.GetComponent<AspectRatioFitter>();
+                fitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+                fitter.aspectRatio = mainBg.height > 0 ? (float)mainBg.width / mainBg.height : (16f / 9f);
+            }
+
+            Image wash = Ui.MakeImage("BackdropWash", baseFill.transform, BackdropWash);
+            Stretch(wash.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         }
 
         void BuildHeader(RectTransform parent)
         {
-            RectTransform bar = Ui.Panel("Header", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -6f), new Vector2(0f, 62f));
-            Image bg = Ui.MakeImage("HeaderBg", bar, HeaderBg);
+            float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
+            float headerH = Mathf.Max(108f, minTouch + 12f);
+
+            _headerRect = Ui.Panel("Header", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -6f), new Vector2(0f, headerH));
+            Image bg = KomiksUi.MakeSlicedFill("HeaderBg", _headerRect, HeaderBg, KomiksUi.RadiusM);
             Stretch(bg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
-            Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(132f, 50f), ScreenFitMetrics.MinTouchDp, _canvas);
-            MakeHeaderButton("BackButton", bar, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(10f, 0f), backSize, Coral, () =>
+            Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(140f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            _backBtnRect = MakeHeaderButton("BackButton", _headerRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(10f, 0f), backSize, Coral, () =>
             {
                 SavePersistedSettings();
                 _onBack?.Invoke();
             }, out _backLabel, "<- BACK");
 
-            _headerTitle = MakeFittedText("Title", bar, "SETTINGS", 28, Gold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
-            Stretch(_headerTitle.rectTransform, new Vector2(0f, 0f), new Vector2(0.65f, 1f), new Vector2(154f, 6f), new Vector2(-8f, -6f));
+            _headerTitle = MakeFittedText("Title", _headerRect, "SETTINGS", 28, Gold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _headerTitleRect = _headerTitle.rectTransform;
+            Stretch(_headerTitleRect, Vector2.zero, Vector2.one, new Vector2(166f, 8f), new Vector2(-230f, -8f));
 
-            Vector2 resetSize = ScreenFitMetrics.ClampTouchSize(new Vector2(196f, 50f), ScreenFitMetrics.MinTouchDp, _canvas);
-            MakeHeaderButton("ResetDefaultsButton", bar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-10f, 0f), resetSize, new Color(0.58f, 0.22f, 0.24f, 1f), ResetDefaults, out _resetLabel, "RESET DEFAULTS");
+            Vector2 resetSize = ScreenFitMetrics.ClampTouchSize(new Vector2(204f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            _resetBtnRect = MakeHeaderButton("ResetDefaultsButton", _headerRect, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-10f, 0f), resetSize, new Color(0.58f, 0.22f, 0.24f, 1f), ResetDefaults, out _resetLabel, "RESET DEFAULTS");
         }
 
         void BuildTabBar(RectTransform parent)
         {
-            RectTransform tabs = Ui.Panel("TabBar", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -74f), new Vector2(0f, 54f));
-            var h = tabs.gameObject.AddComponent<HorizontalLayoutGroup>();
-            h.spacing = 10f;
-            h.childControlWidth = true;
-            h.childControlHeight = true;
-            h.childForceExpandWidth = true;
-            h.childForceExpandHeight = true;
+            float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
+            float headerH = Mathf.Max(108f, minTouch + 12f);
+            float tabBarH = Mathf.Max(100f, minTouch + 4f);
 
-            float minH = Mathf.Max(50f, ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas));
+            _tabBarRect = Ui.Panel("TabBar", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -(6f + headerH + 6f)), new Vector2(0f, tabBarH));
+            _tabBarLayout = _tabBarRect.gameObject.AddComponent<HorizontalLayoutGroup>();
+            _tabBarLayout.padding = new RectOffset(0, 0, 2, 2);
+            _tabBarLayout.spacing = 12f;
+            _tabBarLayout.childControlWidth = true;
+            _tabBarLayout.childControlHeight = true;
+            _tabBarLayout.childForceExpandWidth = true;
+            _tabBarLayout.childForceExpandHeight = true;
+
             string[] names = { "AUDIO", "CONTROLS", "GRAPHICS & ACCESSIBILITY" };
             for (int i = 0; i < 3; i++)
             {
                 int idx = i;
                 var go = new GameObject($"SettingsTab_{i}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
-                go.transform.SetParent(tabs, false);
+                go.transform.SetParent(_tabBarRect, false);
                 var img = go.GetComponent<Image>();
+                img.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+                img.type = Image.Type.Sliced;
                 img.color = RowBg;
+
                 var le = go.GetComponent<LayoutElement>();
-                le.minHeight = minH;
+                le.minWidth = minTouch;
+                le.minHeight = minTouch;
+                le.preferredHeight = minTouch;
                 le.preferredWidth = i == 2 ? 320f : 220f;
 
                 var btn = go.GetComponent<Button>();
@@ -253,10 +614,11 @@ namespace Kalyeah.Game
                 btn.onClick.AddListener(() => SetActiveTab(idx));
 
                 Text lbl = MakeFittedText("Label", go.transform, names[i], 20, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-                Stretch(lbl.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 4f), new Vector2(-8f, -4f));
+                Stretch(lbl.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 4f), new Vector2(-10f, -4f));
 
                 _tabPillBgs[i] = img;
                 _tabPillLabels[i] = lbl;
+                _tabPillLayouts[i] = le;
             }
         }
 
@@ -339,6 +701,7 @@ namespace Kalyeah.Game
                 "CardsTrayRow",
                 () => SettingsStore.Current.Language == "fil" ? "Ayos ng Superpowers" : "Ability Layout (Cards Tray)",
                 new[] { "Radial Arc", "4-Card Tray" },
+                null,
                 () => SettingsStore.Current.CardsTrayMode ? 1 : 0,
                 idx => CommitChange(() => SettingsStore.Current.CardsTrayMode = idx == 1));
 
@@ -347,6 +710,7 @@ namespace Kalyeah.Game
                 "CardsPlacementRow",
                 () => SettingsStore.Current.Language == "fil" ? "Pwesto ng Card Tray" : "Card Tray Placement",
                 new[] { "Bottom", "Sides" },
+                null,
                 () => SettingsStore.Current.CardsTrayPlacement == "sides" ? 1 : 0,
                 idx => CommitChange(() => SettingsStore.Current.CardsTrayPlacement = idx == 1 ? "sides" : "bottom"));
 
@@ -355,6 +719,7 @@ namespace Kalyeah.Game
                 "ControlScaleRow",
                 () => SettingsStore.Current.Language == "fil" ? "Laki ng Pindutan (Control Scale)" : "Button Control Scale",
                 new[] { "85% Small", "100% Normal", "120% Large" },
+                null,
                 () =>
                 {
                     float s = SettingsStore.Current.ControlScale;
@@ -379,6 +744,7 @@ namespace Kalyeah.Game
                 "FpsRow",
                 () => SettingsStore.Current.Language == "fil" ? "Bilis ng Frame (FPS Cap)" : "Target Frame Rate",
                 new[] { "30 FPS Saver", "60 FPS Smooth" },
+                null,
                 () => SettingsStore.Current.TargetFrameRate <= 30 ? 0 : 1,
                 idx => CommitChange(() => SettingsStore.Current.TargetFrameRate = idx == 0 ? 30 : 60));
 
@@ -387,6 +753,7 @@ namespace Kalyeah.Game
                 "GraphicsQualityRow",
                 () => SettingsStore.Current.Language == "fil" ? "Kalidad / Turbo Mode" : "Graphics Quality & Turbo",
                 new[] { "Turbo (0.75x)", "Standard", "High" },
+                null,
                 () => Mathf.Clamp(SettingsStore.Current.GraphicsQuality, 0, 2),
                 idx => CommitChange(() => SettingsStore.Current.GraphicsQuality = idx));
 
@@ -407,8 +774,9 @@ namespace Kalyeah.Game
             AddSegmentedRow(
                 content,
                 "ColorblindRow",
-                () => SettingsStore.Current.Language == "fil" ? "Kulay para sa Colorblind (0-3)" : "Colorblind Palette (0-3)",
-                new[] { "0 · Off", "1 · Protan", "2 · Deuter", "3 · Tritan" },
+                () => SettingsStore.Current.Language == "fil" ? "Kulay para sa Colorblind" : "Colorblind Palette",
+                new[] { "Off", "Protan", "Deuter", "Tritan" },
+                new[] { "Wala", "Protan", "Deuter", "Tritan" },
                 () => Mathf.Clamp(SettingsStore.Current.ColorblindMode, 0, 3),
                 idx => CommitChange(() => SettingsStore.Current.ColorblindMode = idx));
 
@@ -417,6 +785,7 @@ namespace Kalyeah.Game
                 "LanguageRow",
                 () => SettingsStore.Current.Language == "fil" ? "Wika (Language)" : "Language / Wika",
                 new[] { "EN · English", "FIL · Filipino" },
+                null,
                 () => SettingsStore.Current.Language == "fil" ? 1 : 0,
                 idx => CommitChange(() => SettingsStore.Current.Language = idx == 1 ? "fil" : "en"));
         }
@@ -424,16 +793,16 @@ namespace Kalyeah.Game
         RectTransform CreateScrollableTabPane(string name, RectTransform parent, out RectTransform paneRoot)
         {
             paneRoot = Ui.Panel(name, parent, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            paneRoot.offsetMin = new Vector2(0f, 8f);
-            paneRoot.offsetMax = new Vector2(0f, -136f);
+            paneRoot.offsetMin = new Vector2(0f, 6f);
+            paneRoot.offsetMax = new Vector2(0f, -228f);
 
-            Image bg = Ui.MakeImage("PaneBg", paneRoot, PanelBg);
+            Image bg = KomiksUi.MakeSlicedFill("PaneBg", paneRoot, PanelBg, KomiksUi.RadiusM);
             Stretch(bg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             var scrollGo = new GameObject("Scroll", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
             scrollGo.transform.SetParent(paneRoot, false);
             var scrollRt = scrollGo.GetComponent<RectTransform>();
-            Stretch(scrollRt, Vector2.zero, Vector2.one, new Vector2(8f, 8f), new Vector2(-8f, -8f));
+            Stretch(scrollRt, Vector2.zero, Vector2.one, new Vector2(8f, 4f), new Vector2(-22f, -4f));
             scrollGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.01f);
 
             var contentGo = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
@@ -446,8 +815,8 @@ namespace Kalyeah.Game
             content.sizeDelta = Vector2.zero;
 
             var v = contentGo.GetComponent<VerticalLayoutGroup>();
-            v.padding = new RectOffset(8, 8, 8, 8);
-            v.spacing = 10f;
+            v.padding = new RectOffset(6, 6, 4, 8);
+            v.spacing = 6f;
             v.childControlWidth = true;
             v.childControlHeight = true;
             v.childForceExpandWidth = true;
@@ -462,22 +831,48 @@ namespace Kalyeah.Game
             scroll.vertical = true;
             scroll.movementType = ScrollRect.MovementType.Clamped;
             scroll.scrollSensitivity = 28f;
+
+            // Non-interactive visual scroll indicator (zero sub-48dp Selectable components)
+            Image trackImg = KomiksUi.MakeSlicedFill("ScrollTrack", paneRoot, new Color(0.04f, 0.06f, 0.14f, 0.88f), 4);
+            Stretch(trackImg.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-15f, 10f), new Vector2(-7f, -10f));
+            Image thumbImg = KomiksUi.MakeSlicedFill("ScrollThumb", trackImg.transform, Gold, 4);
+            Stretch(thumbImg.rectTransform, new Vector2(0f, 0.35f), Vector2.one, Vector2.zero, Vector2.zero);
+
+            var refs = new ScrollPaneRefs
+            {
+                Scroll = scroll,
+                TrackRect = trackImg.rectTransform,
+                ThumbRect = thumbImg.rectTransform,
+            };
+            _scrollPanes.Add(refs);
+            scroll.onValueChanged.AddListener(_ => UpdateScrollIndicators());
             return content;
         }
 
         void AddToggleRow(RectTransform parent, string name, Func<string> titleGetter, Func<bool> getter, Action<bool> setter)
         {
-            RectTransform row = CreateRowContainer(parent, name, out Text titleText);
+            float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
+            float rowH = Mathf.Max(100f, minTouch + 4f);
+            RectTransform row = CreateRowContainer(parent, name, rowH, out LayoutElement rowLe, out Text titleText);
 
-            Vector2 btnSize = ScreenFitMetrics.ClampTouchSize(new Vector2(180f, 50f), ScreenFitMetrics.MinTouchDp, _canvas);
+            Vector2 btnSize = ScreenFitMetrics.ClampTouchSize(new Vector2(184f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
             RectTransform toggleRt = Ui.Panel("ToggleBtn", row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-14f, 0f), btnSize);
             Image toggleBg = toggleRt.gameObject.AddComponent<Image>();
+            toggleBg.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+            toggleBg.type = Image.Type.Sliced;
             Button btn = toggleRt.gameObject.AddComponent<Button>();
             btn.targetGraphic = toggleBg;
             btn.onClick.AddListener(() => setter(!getter()));
 
             Text stateLbl = MakeFittedText("State", toggleRt, "ON", 20, Ink, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             Stretch(stateLbl.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 4f), new Vector2(-8f, -4f));
+
+            _toggleRows.Add(new ToggleRowRefs
+            {
+                RowLayout = rowLe,
+                TitleRect = titleText.rectTransform,
+                ToggleRect = toggleRt,
+            });
 
             _syncCallbacks.Add(() =>
             {
@@ -487,20 +882,27 @@ namespace Kalyeah.Game
                 toggleBg.color = on ? Teal : ChoiceIdleBg;
                 stateLbl.text = on ? (fil ? "BUKAS (ON)" : "ON") : (fil ? "PATAY (OFF)" : "OFF");
                 stateLbl.color = on ? Ink : Ui.Cream;
-                stateLbl.GetComponent<Outline>().enabled = !on;
+                Outline outline = stateLbl.GetComponent<Outline>();
+                if (outline != null) outline.enabled = !on;
             });
         }
 
         void AddSliderRow(RectTransform parent, string name, Func<string> titleGetter, Func<float> getter, Action<float> setter)
         {
-            RectTransform row = CreateRowContainer(parent, name, out Text titleText);
-            titleText.rectTransform.anchorMax = new Vector2(0.42f, 1f);
+            float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
+            float rowH = Mathf.Max(108f, minTouch + 12f);
+            RectTransform row = CreateRowContainer(parent, name, rowH, out LayoutElement rowLe, out Text titleText);
+            titleText.rectTransform.anchorMax = new Vector2(0.36f, 1f);
 
-            float btnSide = Mathf.Max(48f, ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas));
+            float btnSide = minTouch;
+            float knobPx = minTouch;
+            float halfKnob = knobPx * 0.5f;
 
             // Minus button
-            RectTransform minusRt = Ui.Panel("MinusBtn", row, new Vector2(0.44f, 0.5f), new Vector2(0.44f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(btnSide, btnSide));
+            RectTransform minusRt = Ui.Panel("MinusBtn", row, new Vector2(0.36f, 0.5f), new Vector2(0.36f, 0.5f), new Vector2(0f, 0.5f), new Vector2(8f, 0f), new Vector2(btnSide, btnSide));
             Image minusImg = minusRt.gameObject.AddComponent<Image>();
+            minusImg.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+            minusImg.type = Image.Type.Sliced;
             minusImg.color = ChoiceIdleBg;
             Button minusBtn = minusRt.gameObject.AddComponent<Button>();
             minusBtn.targetGraphic = minusImg;
@@ -508,24 +910,33 @@ namespace Kalyeah.Game
             Text minusTxt = MakeFittedText("Label", minusRt, "-", 26, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             Stretch(minusTxt.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
-            // UGUI Slider
+            // UGUI Slider (height >= 48 dp; HandleSlideArea fixed knobPx tall & inset by halfKnob so circular 48 dp Handle never stretches or escapes Slider bounds)
             var sliderGo = new GameObject("Slider", typeof(RectTransform), typeof(Slider));
             sliderGo.transform.SetParent(row, false);
             var sliderRt = sliderGo.GetComponent<RectTransform>();
-            Stretch(sliderRt, new Vector2(0.51f, 0.18f), new Vector2(0.82f, 0.82f), Vector2.zero, Vector2.zero);
+            Stretch(sliderRt, new Vector2(0.36f, 0f), new Vector2(1f, 1f), new Vector2(8f + btnSide + 16f, 6f), new Vector2(-(104f + btnSide + 16f), -6f));
 
-            Image track = Ui.MakeImage("Track", sliderRt, ChoiceIdleBg);
-            Stretch(track.rectTransform, new Vector2(0f, 0.34f), new Vector2(1f, 0.66f), Vector2.zero, Vector2.zero);
+            Image track = KomiksUi.MakeSlicedFill("Track", sliderRt, ChoiceIdleBg, 6);
+            Stretch(track.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(halfKnob, -10f), new Vector2(-halfKnob, 10f));
 
-            RectTransform fillArea = Ui.Fill("FillArea", sliderRt);
-            fillArea.offsetMin = new Vector2(0f, 12f);
-            fillArea.offsetMax = new Vector2(0f, -12f);
-            Image fill = Ui.MakeImage("Fill", fillArea, Gold);
+            RectTransform fillArea = Ui.Panel("FillArea", sliderRt, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            fillArea.offsetMin = new Vector2(halfKnob, -10f);
+            fillArea.offsetMax = new Vector2(-halfKnob, 10f);
+            Image fill = KomiksUi.MakeSlicedFill("Fill", fillArea, Gold, 6);
             Stretch(fill.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
-            RectTransform handleSlide = Ui.Fill("HandleSlideArea", sliderRt);
-            Image handle = Ui.MakeImage("Handle", handleSlide, Ui.Cream, round: true, raycast: true);
-            handle.rectTransform.sizeDelta = new Vector2(30f, 30f);
+            RectTransform handleSlide = Ui.Panel("HandleSlideArea", sliderRt, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            handleSlide.offsetMin = new Vector2(halfKnob, -halfKnob);
+            handleSlide.offsetMax = new Vector2(-halfKnob, halfKnob);
+
+            Image handle = Ui.MakeImage("Handle", handleSlide, Ink, round: true, raycast: true);
+            handle.rectTransform.sizeDelta = new Vector2(knobPx, 0f);
+
+            Image handleFace = Ui.MakeImage("KnobFace", handle.transform, Ui.Cream, round: true, raycast: false);
+            Stretch(handleFace.rectTransform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+
+            Image handlePip = Ui.MakeImage("KnobPip", handleFace.transform, Gold, round: true, raycast: false);
+            Stretch(handlePip.rectTransform, new Vector2(0.32f, 0.32f), new Vector2(0.68f, 0.68f), Vector2.zero, Vector2.zero);
 
             var slider = sliderGo.GetComponent<Slider>();
             slider.minValue = 0f;
@@ -533,11 +944,13 @@ namespace Kalyeah.Game
             slider.wholeNumbers = false;
             slider.fillRect = fill.rectTransform;
             slider.handleRect = handle.rectTransform;
-            slider.targetGraphic = handle;
+            slider.targetGraphic = handleFace;
 
             // Plus button
-            RectTransform plusRt = Ui.Panel("PlusBtn", row, new Vector2(0.83f, 0.5f), new Vector2(0.83f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(btnSide, btnSide));
+            RectTransform plusRt = Ui.Panel("PlusBtn", row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-104f, 0f), new Vector2(btnSide, btnSide));
             Image plusImg = plusRt.gameObject.AddComponent<Image>();
+            plusImg.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+            plusImg.type = Image.Type.Sliced;
             plusImg.color = ChoiceIdleBg;
             Button plusBtn = plusRt.gameObject.AddComponent<Button>();
             plusBtn.targetGraphic = plusImg;
@@ -546,7 +959,21 @@ namespace Kalyeah.Game
             Stretch(plusTxt.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             Text pctLabel = MakeFittedText("Percent", row, "100%", 20, Gold, TextAnchor.MiddleRight, KalyeahResources.DisplayFont());
-            Stretch(pctLabel.rectTransform, new Vector2(0.89f, 0f), new Vector2(0.99f, 1f), Vector2.zero, new Vector2(-10f, 0f));
+            Stretch(pctLabel.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-94f, 6f), new Vector2(-12f, -6f));
+
+            _sliderRows.Add(new SliderRowRefs
+            {
+                RowLayout = rowLe,
+                TitleRect = titleText.rectTransform,
+                MinusRect = minusRt,
+                SliderRect = sliderRt,
+                TrackRect = track.rectTransform,
+                FillAreaRect = fillArea,
+                HandleSlideRect = handleSlide,
+                HandleRect = handle.rectTransform,
+                PlusRect = plusRt,
+                PercentRect = pctLabel.rectTransform,
+            });
 
             slider.onValueChanged.AddListener(v =>
             {
@@ -563,75 +990,108 @@ namespace Kalyeah.Game
             });
         }
 
-        void AddSegmentedRow(RectTransform parent, string name, Func<string> titleGetter, string[] options, Func<int> getter, Action<int> setter)
+        void AddSegmentedRow(
+            RectTransform parent,
+            string name,
+            Func<string> titleGetter,
+            string[] optionsEn,
+            string[] optionsFil,
+            Func<int> getter,
+            Action<int> setter)
         {
-            RectTransform row = CreateRowContainer(parent, name, out Text titleText);
-            titleText.rectTransform.anchorMax = new Vector2(0.42f, 1f);
+            float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
+            float rowH = Mathf.Max(104f, minTouch + 8f);
+            RectTransform row = CreateRowContainer(parent, name, rowH, out LayoutElement rowLe, out Text titleText);
+            titleText.rectTransform.anchorMax = new Vector2(0.36f, 1f);
 
-            RectTransform group = Ui.Panel("Choices", row, new Vector2(0.43f, 0.10f), new Vector2(0.99f, 0.90f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
-            group.offsetMax = new Vector2(-10f, 0f);
+            RectTransform group = Ui.Panel("Choices", row, new Vector2(0.36f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+            group.offsetMin = new Vector2(8f, 4f);
+            group.offsetMax = new Vector2(-12f, -4f);
             var h = group.gameObject.AddComponent<HorizontalLayoutGroup>();
-            h.spacing = 6f;
+            h.spacing = 8f;
             h.childControlWidth = true;
             h.childControlHeight = true;
             h.childForceExpandWidth = true;
             h.childForceExpandHeight = true;
 
-            float minH = Mathf.Max(48f, ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas));
-            var bgs = new Image[options.Length];
-            var labels = new Text[options.Length];
+            var bgs = new Image[optionsEn.Length];
+            var labels = new Text[optionsEn.Length];
+            var choiceLayouts = new LayoutElement[optionsEn.Length];
 
-            for (int i = 0; i < options.Length; i++)
+            for (int i = 0; i < optionsEn.Length; i++)
             {
                 int idx = i;
                 var optGo = new GameObject($"Choice_{i}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
                 optGo.transform.SetParent(group, false);
                 var img = optGo.GetComponent<Image>();
+                img.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+                img.type = Image.Type.Sliced;
                 img.color = ChoiceIdleBg;
-                optGo.GetComponent<LayoutElement>().minHeight = minH;
+
+                var cle = optGo.GetComponent<LayoutElement>();
+                cle.minWidth = minTouch;
+                cle.minHeight = minTouch;
+                cle.preferredHeight = minTouch;
 
                 var btn = optGo.GetComponent<Button>();
                 btn.targetGraphic = img;
                 btn.onClick.AddListener(() => setter(idx));
 
-                Text lbl = MakeFittedText("Label", optGo.transform, options[i], 18, Ui.Cream, TextAnchor.MiddleCenter);
+                Text lbl = MakeFittedText("Label", optGo.transform, optionsEn[i], 18, Ui.Cream, TextAnchor.MiddleCenter);
                 Stretch(lbl.rectTransform, Vector2.zero, Vector2.one, new Vector2(6f, 2f), new Vector2(-6f, -2f));
 
                 bgs[i] = img;
                 labels[i] = lbl;
+                choiceLayouts[i] = cle;
             }
+
+            _segmentedRows.Add(new SegmentedRowRefs
+            {
+                RowLayout = rowLe,
+                TitleRect = titleText.rectTransform,
+                GroupRect = group,
+                GroupLayout = h,
+                ChoiceLayouts = choiceLayouts,
+            });
 
             _syncCallbacks.Add(() =>
             {
+                bool fil = SettingsStore.Current.Language == "fil";
                 titleText.text = titleGetter();
-                int selected = Mathf.Clamp(getter(), 0, options.Length - 1);
-                for (int i = 0; i < options.Length; i++)
+                int selected = Mathf.Clamp(getter(), 0, optionsEn.Length - 1);
+                for (int i = 0; i < optionsEn.Length; i++)
                 {
                     bool active = i == selected;
+                    if (optionsFil != null && i < optionsFil.Length)
+                        labels[i].text = fil ? optionsFil[i] : optionsEn[i];
                     bgs[i].color = active ? Gold : ChoiceIdleBg;
                     labels[i].color = active ? Ink : Ui.Cream;
-                    labels[i].GetComponent<Outline>().enabled = !active;
+                    Outline outline = labels[i].GetComponent<Outline>();
+                    if (outline != null) outline.enabled = !active;
                 }
             });
         }
 
-        RectTransform CreateRowContainer(RectTransform parent, string name, out Text titleText)
+        static RectTransform CreateRowContainer(RectTransform parent, string name, float rowH, out LayoutElement le, out Text titleText)
         {
-            float rowH = Mathf.Max(66f, ScreenFitMetrics.DpToCanvasPx(54f, _canvas));
             var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(LayoutElement));
             go.transform.SetParent(parent, false);
-            go.GetComponent<Image>().color = RowBg;
-            var le = go.GetComponent<LayoutElement>();
+            var img = go.GetComponent<Image>();
+            img.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+            img.type = Image.Type.Sliced;
+            img.color = RowBg;
+
+            le = go.GetComponent<LayoutElement>();
             le.minHeight = rowH;
             le.preferredHeight = rowH;
 
             var rt = go.GetComponent<RectTransform>();
             titleText = MakeFittedText("Title", rt, "", 20, Ui.Cream, TextAnchor.MiddleLeft);
-            Stretch(titleText.rectTransform, new Vector2(0f, 0f), new Vector2(0.58f, 1f), new Vector2(16f, 4f), new Vector2(-8f, -4f));
+            Stretch(titleText.rectTransform, new Vector2(0f, 0f), new Vector2(0.58f, 1f), new Vector2(16f, 6f), new Vector2(-8f, -6f));
             return rt;
         }
 
-        static void MakeHeaderButton(
+        static RectTransform MakeHeaderButton(
             string name,
             RectTransform parent,
             Vector2 anchor,
@@ -645,6 +1105,8 @@ namespace Kalyeah.Game
         {
             RectTransform rt = Ui.Panel(name, parent, anchor, anchor, pivot, pos, size);
             Image img = rt.gameObject.AddComponent<Image>();
+            img.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+            img.type = Image.Type.Sliced;
             img.color = color;
             Button btn = rt.gameObject.AddComponent<Button>();
             btn.targetGraphic = img;
@@ -652,6 +1114,7 @@ namespace Kalyeah.Game
 
             label = MakeFittedText("Label", rt, text, 19, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             Stretch(label.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 4f), new Vector2(-8f, -4f));
+            return rt;
         }
 
         static Text MakeFittedText(string name, Transform parent, string text, int maxSize, Color color, TextAnchor align, Font font = null)
@@ -660,7 +1123,7 @@ namespace Kalyeah.Game
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
             t.verticalOverflow = VerticalWrapMode.Truncate;
             t.resizeTextForBestFit = true;
-            t.resizeTextMinSize = 18;
+            t.resizeTextMinSize = 12;
             t.resizeTextMaxSize = Mathf.Max(18, maxSize);
             return t;
         }
