@@ -3,17 +3,21 @@ using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
+using SVector2 = System.Numerics.Vector2;
 
 namespace Kalyeah.Game
 {
     /// <summary>
     /// Full match HUD overlays on the 1280x720 SafeArea-pinned landscape canvas:
+    /// 0. HurtPulse low-HP/damage screen-edge red vignette &amp; WorldWaypoints projected 3D-&gt;2D Home/Enemy/Rescue diamonds.
     /// 1. Local Hero Vitals chip (HP + damage trail + Stamina/Overclock + Merienda buff icon/timer) &amp; 5v5 Squad Wings (enemy HP hidden).
     /// 2. Top-right TakedownFeed (3 recent tags/rescues, auto-fading) &amp; CaptureAlert banner (0.4s hysteresis anti-flicker).
     /// 3. Tagged Sidewalk Overlay (rescue timer + teammate pips + D13 3-superpower loadout swap picker via SimBridge.TrySwapLoadout).
     /// 4. Quick-Chat / Sticker wheel + speech chips (SimBridge.SendQuickChat / QuickChatSaid).
-    /// 5. Round Intro, Point Freeze, Match Victory &amp; Ranked LP summary, and In-Match Pause &amp; Quick Settings Sheet (+ Android Back toggle).
+    /// 5. First-match Agawang Base BriefingCard, Round Intro, Point Freeze, Match Victory &amp; Ranked LP summary, and In-Match Pause &amp; Quick Settings Sheet (+ Android Back toggle).
     /// </summary>
     public sealed class MatchOverlaysView : IDisposable
     {
@@ -24,12 +28,22 @@ namespace Kalyeah.Game
         public const float SpeechDurationSeconds = 2.0f;
         public const float DamageTrailHoldSeconds = 0.16f;
         public const float DamageTrailDecayPerSec = 1.20f;
+        public const float BriefingAutoDismissSeconds = 12.0f;
+        public const float HurtEdgeDepth = 150f;
+        public const float LowHealthThresholdShare = 0.30f;
+        public const float HurtFlashMinAlpha = 0.20f;
+        public const float HurtFlashMaxAlpha = 0.48f;
+        public const float HurtTaggedAlpha = 0.70f;
+        public const float HurtFlashSeconds = 0.40f;
+        public const float HurtTaggedSeconds = 0.90f;
+        public const float LowHealthBreathPeriod = 1.60f;
 
         public const int MaxTakedownRows = 3;
         public const int SquadWingSlots = 5;
         public const int SpeechPoolSize = 4;
         public const int MaxSwapWeaponTiles = 16;
         public const int ConfettiCount = 18;
+        public const int MaxWaypoints = 3;
 
         public static readonly string[] StickerPhrases =
         {
@@ -55,10 +69,31 @@ namespace Kalyeah.Game
         static readonly Color ColPalamig = new Color(0.26f, 0.88f, 0.96f, 0.96f);
         static readonly Color ColTeks = new Color(0.98f, 0.74f, 0.22f, 0.96f);
         static readonly Color ColTuron = new Color(0.32f, 0.90f, 0.56f, 0.96f);
+        static readonly Color ColHurtRed = new Color(0.92f, 0.10f, 0.08f, 1f);
 
         static Sprite s_roundedCard;
         static Sprite s_pillSprite;
         static Sprite s_warningSprite;
+        static Sprite s_edgeGradientSprite;
+        static Sprite s_chevronSprite;
+
+        struct WaypointMarkerUi
+        {
+            public RectTransform Root;
+            public CanvasGroup Group;
+            public RectTransform DiamondBox;
+            public Image DiamondRing;
+            public Image DiamondFill;
+            public RectTransform ChevronRect;
+            public Image ChevronImg;
+            public RectTransform PillRect;
+            public Image PillBg;
+            public Text PillText;
+            public int CachedMeters;
+            public bool CachedClamped;
+            public bool CachedUrgent;
+            public string CachedWord;
+        }
 
         struct SquadSlotUi
         {
@@ -164,13 +199,17 @@ namespace Kalyeah.Game
         public bool IsPaused { get; private set; }
         public bool IsSwapPickerOpen { get; private set; }
         public bool IsQuickChatOpen { get; private set; }
+        public bool IsBriefingVisible => _interactive && _briefingRoot != null && _briefingRoot.gameObject.activeSelf;
+        public bool IsHurtPulseVisible => _hurtPulseRoot != null && _hurtPulseRoot.gameObject.activeSelf;
+        public float HurtPulseAlpha => _hurtCurrentAlpha;
+        public int ActiveWaypointCount { get; private set; }
         public bool IsTaggedOverlayVisible => _taggedRoot != null && _taggedRoot.gameObject.activeSelf;
         public bool IsCaptureAlertVisible => _captureAlertRoot != null && _captureAlertRoot.gameObject.activeSelf;
         public bool IsLeaveConfirmOpen => _pauseConfirmRow != null && _pauseConfirmRow.gameObject.activeSelf;
         public RankOutcomeInfo? LastRecordedOutcome { get; private set; }
 
         public bool IsBlockingGameplayInput =>
-            IsPaused || IsSwapPickerOpen || _lastPhase == MatchPhaseKind.Intro || _lastPhase == MatchPhaseKind.MatchOver;
+            IsPaused || IsSwapPickerOpen || IsBriefingVisible || _lastPhase == MatchPhaseKind.Intro || _lastPhase == MatchPhaseKind.MatchOver;
 
         // Bound sim & transient tracking
         SimBridge _sim;
@@ -312,6 +351,28 @@ namespace Kalyeah.Game
         bool _confettiActive;
         float _confettiElapsed;
 
+        // 0. HurtPulse screen-edge vignette & projected 3D->2D WorldWaypoints + first-match BriefingCard
+        readonly RectTransform _hurtPulseRoot;
+        readonly Image[] _hurtEdges = new Image[4];
+        float _hurtFlashPeak;
+        float _hurtFlashSpan = 0.4f;
+        float _hurtFlashLeft;
+        float _lowHpWeight;
+        float _lowHpTime;
+        float _hurtCurrentAlpha;
+
+        readonly RectTransform _waypointsRoot;
+        readonly WaypointMarkerUi[] _waypoints = new WaypointMarkerUi[MaxWaypoints];
+        float _waypointPulseTime;
+
+        readonly RectTransform _briefingRoot;
+        readonly RectTransform _briefingPanelRect;
+        readonly RectTransform _briefingGotItRect;
+        readonly RectTransform _briefingBarFill;
+        readonly Text _briefingCountdownText;
+        float _briefingTimeLeft = BriefingAutoDismissSeconds;
+        int _lastBriefingCeil = -1;
+
         public MatchOverlaysView(
             RectTransform safeRoot,
             SimBridge sim,
@@ -337,6 +398,8 @@ namespace Kalyeah.Game
             }
 
             // Build HUD layers back-to-front so modals cleanly sit over persistent chrome.
+            BuildHurtPulseOverlay(out _hurtPulseRoot);
+            BuildWorldWaypointsOverlay(out _waypointsRoot);
             BuildSquadWings(out _wingsContainer, out _allyWingRoot, out _enemyWingRoot);
             BuildHeroVitals(
                 out _heroVitalsRoot, out _heroRing, out _heroFace, out _heroInitial,
@@ -355,6 +418,7 @@ namespace Kalyeah.Game
                 out _swapModalRoot, out _swapCardRect, out _swapConfirmBtn, out _swapConfirmImg, out _swapConfirmText);
             BuildPointFreezeOverlay(out _pointFreezeRoot, out _freezeSubjectText, out _freezeOutcomeText, out _freezeScoreText);
             BuildIntroOverlay(out _introRoot, out _introRoundText, out _introCountdownText, out _introBarFill);
+            BuildBriefingCard(out _briefingRoot, out _briefingPanelRect, out _briefingGotItRect, out _briefingBarFill, out _briefingCountdownText);
             BuildVictoryOverlay(
                 out _victoryRoot, out _victoryCardRect, out _victoryTitleText, out _victorySubText,
                 out _victoryMyScoreText, out _victoryTheirScoreText, out _promoBannerObj,
@@ -373,6 +437,7 @@ namespace Kalyeah.Game
             BindSim(sim);
             SyncQuickSettingsLabels();
             RefreshLayout();
+            SyncBriefingCard(sim != null ? sim.Phase : MatchPhaseKind.Playing, 0f);
             if (sim != null) Refresh(sim, 0f);
         }
 
@@ -406,15 +471,23 @@ namespace Kalyeah.Game
             _vitalsSynced = false;
             _captureHoldLeft = 0f;
             _wasRawCapturing = false;
+            _hurtFlashLeft = 0f;
+            _lowHpWeight = 0f;
+            _lowHpTime = 0f;
+            _hurtCurrentAlpha = 0f;
+            if (_hurtPulseRoot != null) _hurtPulseRoot.gameObject.SetActive(false);
+            HideAllWaypoints();
             ClearTakedowns();
             ClearSpeechBubbles();
             SetSwapPickerOpen(false);
             SetQuickChatOpen(false);
             SetPaused(false);
+            SyncBriefingCard(_sim != null ? _sim.Phase : MatchPhaseKind.Playing, 0f);
 
             if (_sim != null)
             {
                 _sim.Tagged += OnSimTagged;
+                _sim.PlayerDamaged += OnSimPlayerDamaged;
                 _sim.Rescued += OnSimRescued;
                 _sim.PointScored += OnSimPointScored;
                 _sim.QuickChatSaid += OnSimQuickChatSaid;
@@ -426,6 +499,7 @@ namespace Kalyeah.Game
         {
             if (_sim == null) return;
             _sim.Tagged -= OnSimTagged;
+            _sim.PlayerDamaged -= OnSimPlayerDamaged;
             _sim.Rescued -= OnSimRescued;
             _sim.PointScored -= OnSimPointScored;
             _sim.QuickChatSaid -= OnSimQuickChatSaid;
@@ -454,6 +528,7 @@ namespace Kalyeah.Game
             int localTeam = sim.LocalPlayerTeam;
             KidSnapshot? localKid = sim.LocalKid;
 
+            TickHurtPulse(sim, localKid, safeDt);
             SyncHeroVitals(sim, localKid, safeDt);
             SyncSquadWings(sim, localId, localTeam);
             TickTakedownFeed(safeDt);
@@ -461,6 +536,7 @@ namespace Kalyeah.Game
             SyncTaggedOverlay(sim, localKid, localTeam);
             TickSpeechBubbles(sim, safeDt);
             SyncPhaseOverlays(sim, localKid, localTeam, safeDt);
+            SyncWorldWaypoints(sim, localKid, localId, localTeam, safeDt);
         }
 
         /// <summary>Responsive layout pass clamping 5v5 wing spread, modal bounds, and >= 48 dp touch floors across 21:9..4:3.</summary>
@@ -548,6 +624,15 @@ namespace Kalyeah.Game
                 _pauseCardRect.sizeDelta = new Vector2(sheetW, sheetH);
             }
 
+            if (_briefingPanelRect != null)
+            {
+                float briefW = Mathf.Clamp(safeSize.x - 48f, 340f, 580f);
+                float briefH = Mathf.Clamp(safeSize.y - 36f, 276f, 356f);
+                _briefingPanelRect.sizeDelta = new Vector2(briefW, briefH);
+            }
+            if (_briefingGotItRect != null)
+                _briefingGotItRect.sizeDelta = ScreenFitMetrics.ClampTouchSize(new Vector2(236f, 52f), ScreenFitMetrics.MinTouchDp, _canvas);
+
             if (_victoryCardRect != null)
             {
                 float vicW = Mathf.Clamp(safeSize.x - 48f, 340f, 580f);
@@ -575,12 +660,29 @@ namespace Kalyeah.Game
             }
         }
 
+        /// <summary>Dismisses the first-match Agawang Base onboarding BriefingCard and persists BriefingPending = false.</summary>
+        public void DismissBriefing()
+        {
+            AppSession.Current.BriefingPending = false;
+            SaveSessionPrefs();
+            if (_briefingRoot != null && _briefingRoot.gameObject.activeSelf)
+                _briefingRoot.gameObject.SetActive(false);
+            if (_sim != null && _sim.Phase == MatchPhaseKind.Intro)
+                _sim.SkipIntro();
+        }
+
         /// <summary>Android Back / Escape handler closing transient modals first, otherwise toggling the Pause sheet.</summary>
         public bool HandleBack()
         {
             if (Application.isPlaying)
                 _lastBackFrame = Time.frameCount;
 
+            if (IsBriefingVisible)
+            {
+                DismissBriefing();
+                Audio?.PlayUiTap("confirm");
+                return true;
+            }
             if (_lastPhase == MatchPhaseKind.Intro)
             {
                 if (_sim != null && _sim.SkipIntro())
@@ -1222,6 +1324,9 @@ namespace Kalyeah.Game
         void OnSimTagged(int victimId, int taggerId)
         {
             if (_sim == null) return;
+            if (victimId == _sim.LocalPlayerId)
+                TriggerHurtFlash(HurtTaggedAlpha, HurtTaggedSeconds);
+
             int localTeam = _sim.LocalPlayerTeam;
             KidSnapshot? victim = _sim.Find(victimId);
             KidSnapshot? tagger = _sim.Find(taggerId);
@@ -1229,6 +1334,29 @@ namespace Kalyeah.Game
             string taggerName = DisplayKidName(_sim, taggerId, tagger);
             string victimName = DisplayKidName(_sim, victimId, victim);
             PushTag(taggerName, victimName, allyScored);
+        }
+
+        void OnSimPlayerDamaged(int playerId, int amount)
+        {
+            if (_sim == null || amount <= 0 || playerId != _sim.LocalPlayerId) return;
+            float share = Mathf.Clamp01((float)amount / Mathf.Max(_sim.MaxHp, 1));
+            float peak = Mathf.Lerp(HurtFlashMinAlpha, HurtFlashMaxAlpha, Mathf.Clamp01(share / 0.30f));
+            TriggerHurtFlash(peak, HurtFlashSeconds);
+        }
+
+        public void TriggerHurtFlash(float peak, float seconds)
+        {
+            bool reduce = SettingsStore.Current.ReduceMotion;
+            float effPeak = reduce ? peak * 0.5f : peak;
+            float effSpan = Mathf.Max(reduce ? Mathf.Min(seconds, 0.6f) : seconds, 0.05f);
+            if (effPeak >= _hurtCurrentAlpha)
+            {
+                _hurtFlashPeak = effPeak;
+                _hurtFlashSpan = effSpan;
+                _hurtFlashLeft = effSpan;
+                _hurtCurrentAlpha = effPeak;
+                ApplyHurtPulseVisual(_hurtCurrentAlpha);
+            }
         }
 
         void OnSimRescued(int savedId, int rescuerId)
@@ -2138,7 +2266,7 @@ namespace Kalyeah.Game
                 });
             }
 
-            RectTransform card = Ui.Panel("BriefingCard", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(540f, 270f));
+            RectTransform card = Ui.Panel("IntroCard", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(540f, 270f));
             Image plate = MakeSlicedImage("Plate", card, ColCardDark);
             Stretch(plate.rectTransform, 0f);
 
@@ -2189,6 +2317,490 @@ namespace Kalyeah.Game
             tapHint.rectTransform.sizeDelta = new Vector2(-48f, 28f);
 
             root.gameObject.SetActive(false);
+        }
+
+        void BuildBriefingCard(
+            out RectTransform root,
+            out RectTransform panelRect,
+            out RectTransform gotItRect,
+            out RectTransform barFill,
+            out Text countdownText)
+        {
+            root = Ui.Fill("BriefingCard", Root);
+            Image dim = Ui.MakeImage("Backdrop", root, new Color(0.01f, 0.03f, 0.08f, 0.78f), raycast: _interactive);
+            Stretch(dim.rectTransform, 0f);
+            if (_interactive)
+            {
+                var tapDismiss = dim.gameObject.AddComponent<Button>();
+                tapDismiss.transition = Selectable.Transition.None;
+                tapDismiss.onClick.AddListener(() =>
+                {
+                    Haptics.LightTap();
+                    Audio?.PlayUiTap("confirm");
+                    DismissBriefing();
+                });
+            }
+
+            panelRect = Ui.Panel("OnboardingPanel", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(560f, 340f));
+            Image plate = MakeSlicedImage("Plate", panelRect, ColCardDark, raycast: _interactive);
+            Stretch(plate.rectTransform, 0f);
+
+            Text kicker = Ui.MakeText("Kicker", panelRect, "FIRST MATCH BRIEFING", 13, ColStamina, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            kicker.rectTransform.anchorMin = new Vector2(0f, 1f);
+            kicker.rectTransform.anchorMax = new Vector2(0.76f, 1f);
+            kicker.rectTransform.pivot = new Vector2(0f, 1f);
+            kicker.rectTransform.anchoredPosition = new Vector2(24f, -14f);
+            kicker.rectTransform.sizeDelta = new Vector2(0f, 20f);
+
+            Text title = Ui.MakeText("Title", panelRect, "AGAWANG BASE", 32, ColGold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            title.rectTransform.anchorMin = new Vector2(0f, 1f);
+            title.rectTransform.anchorMax = new Vector2(0.76f, 1f);
+            title.rectTransform.pivot = new Vector2(0f, 1f);
+            title.rectTransform.anchoredPosition = new Vector2(24f, -34f);
+            title.rectTransform.sizeDelta = new Vector2(0f, 38f);
+
+            countdownText = Ui.MakeText("Countdown", panelRect, "12", 30, Color.white, TextAnchor.MiddleRight, KalyeahResources.DisplayFont());
+            countdownText.rectTransform.anchorMin = new Vector2(0.76f, 1f);
+            countdownText.rectTransform.anchorMax = new Vector2(1f, 1f);
+            countdownText.rectTransform.pivot = new Vector2(1f, 1f);
+            countdownText.rectTransform.anchoredPosition = new Vector2(-24f, -24f);
+            countdownText.rectTransform.sizeDelta = new Vector2(0f, 40f);
+
+            RectTransform barBox = Ui.Panel("CountdownBar", panelRect, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -78f), new Vector2(-48f, 6f));
+            Image barBg = Ui.MakeImage("Track", barBox, new Color(1f, 1f, 1f, 0.22f));
+            Stretch(barBg.rectTransform, 0f);
+            Image fillImg = Ui.MakeImage("Fill", barBox, ColGold);
+            barFill = fillImg.rectTransform;
+            barFill.anchorMin = Vector2.zero;
+            barFill.anchorMax = Vector2.one;
+            barFill.sizeDelta = Vector2.zero;
+
+            Text bullet1 = Ui.MakeText("RuleGoal", panelRect, "• WIN A POINT: Capture the Enemy Base post OR tag all 5 rivals (First to 3)!", 15, Ui.Cream, TextAnchor.MiddleLeft);
+            bullet1.horizontalOverflow = HorizontalWrapMode.Wrap;
+            bullet1.rectTransform.anchorMin = new Vector2(0f, 1f);
+            bullet1.rectTransform.anchorMax = new Vector2(1f, 1f);
+            bullet1.rectTransform.pivot = new Vector2(0.5f, 1f);
+            bullet1.rectTransform.anchoredPosition = new Vector2(0f, -94f);
+            bullet1.rectTransform.sizeDelta = new Vector2(-48f, 44f);
+
+            Text bullet2 = Ui.MakeText("RuleRescue", panelRect, "• RESCUE MATES: Stand in your Rescue Shed for 5 s to free tagged allies.", 15, ColRegenMint, TextAnchor.MiddleLeft);
+            bullet2.horizontalOverflow = HorizontalWrapMode.Wrap;
+            bullet2.rectTransform.anchorMin = new Vector2(0f, 1f);
+            bullet2.rectTransform.anchorMax = new Vector2(1f, 1f);
+            bullet2.rectTransform.pivot = new Vector2(0.5f, 1f);
+            bullet2.rectTransform.anchoredPosition = new Vector2(0f, -142f);
+            bullet2.rectTransform.sizeDelta = new Vector2(-48f, 42f);
+
+            Text bullet3 = Ui.MakeText("RuleControls", panelRect, "• THUMBS: Left stick moves · Tap Tirador or drag a Superpower to aim!", 14, ColStamina, TextAnchor.MiddleLeft);
+            bullet3.horizontalOverflow = HorizontalWrapMode.Wrap;
+            bullet3.rectTransform.anchorMin = new Vector2(0f, 1f);
+            bullet3.rectTransform.anchorMax = new Vector2(1f, 1f);
+            bullet3.rectTransform.pivot = new Vector2(0.5f, 1f);
+            bullet3.rectTransform.anchoredPosition = new Vector2(0f, -188f);
+            bullet3.rectTransform.sizeDelta = new Vector2(-48f, 40f);
+
+            MakeActionButton(
+                "GotItButton",
+                panelRect,
+                "LET'S LARO!",
+                new Color(0.18f, 0.68f, 0.42f, 1f),
+                18,
+                () =>
+                {
+                    Haptics.LightTap();
+                    Audio?.PlayUiTap("confirm");
+                    DismissBriefing();
+                },
+                out gotItRect,
+                out _,
+                out _);
+            gotItRect.anchorMin = gotItRect.anchorMax = new Vector2(0.5f, 0f);
+            gotItRect.pivot = new Vector2(0.5f, 0f);
+            gotItRect.anchoredPosition = new Vector2(0f, 16f);
+            gotItRect.sizeDelta = ScreenFitMetrics.ClampTouchSize(new Vector2(236f, 52f), ScreenFitMetrics.MinTouchDp, _canvas);
+
+            root.gameObject.SetActive(false);
+        }
+
+        void SyncBriefingCard(MatchPhaseKind phase, float dt)
+        {
+            if (_briefingRoot == null) return;
+            bool shouldShow = _interactive && AppSession.Current.BriefingPending && phase != MatchPhaseKind.MatchOver;
+            if (_briefingRoot.gameObject.activeSelf != shouldShow)
+            {
+                _briefingRoot.gameObject.SetActive(shouldShow);
+                if (shouldShow)
+                {
+                    _briefingTimeLeft = BriefingAutoDismissSeconds;
+                    _lastBriefingCeil = -1;
+                }
+            }
+            if (!shouldShow) return;
+
+            if (dt > 0f)
+            {
+                _briefingTimeLeft -= dt;
+                if (_briefingTimeLeft <= 0f)
+                {
+                    DismissBriefing();
+                    return;
+                }
+            }
+
+            int ceilSec = Mathf.Max(1, Mathf.CeilToInt(_briefingTimeLeft));
+            if (ceilSec != _lastBriefingCeil && _briefingCountdownText != null)
+            {
+                _lastBriefingCeil = ceilSec;
+                _briefingCountdownText.text = ceilSec.ToString(CultureInfo.InvariantCulture);
+            }
+            if (_briefingBarFill != null)
+                _briefingBarFill.anchorMax = new Vector2(Mathf.Clamp01(_briefingTimeLeft / BriefingAutoDismissSeconds), 1f);
+        }
+
+        // =============================================================================================================================
+        // 0. HurtPulse Screen-Edge Vignette & Projected 3D->2D WorldWaypoints ([GAP-VIEW-7])
+        // =============================================================================================================================
+
+        void BuildHurtPulseOverlay(out RectTransform root)
+        {
+            root = Ui.Fill("HurtPulseOverlay", Root);
+            root.offsetMin = new Vector2(-64f, -48f);
+            root.offsetMax = new Vector2(64f, 48f);
+            Sprite grad = EdgeGradientSprite();
+
+            // 0 = Bottom (0 deg), 1 = Top (180 deg), 2 = Left (-90 deg), 3 = Right (+90 deg)
+            _hurtEdges[0] = CreateHurtEdge("BottomEdge", root, grad, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, HurtEdgeDepth), 0f);
+            _hurtEdges[1] = CreateHurtEdge("TopEdge", root, grad, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, HurtEdgeDepth), 180f);
+            _hurtEdges[2] = CreateHurtEdge("LeftEdge", root, grad, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(1200f, HurtEdgeDepth), -90f);
+            _hurtEdges[2].rectTransform.anchoredPosition = new Vector2(HurtEdgeDepth * 0.5f, 0f);
+            _hurtEdges[3] = CreateHurtEdge("RightEdge", root, grad, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(1200f, HurtEdgeDepth), 90f);
+            _hurtEdges[3].rectTransform.anchoredPosition = new Vector2(-HurtEdgeDepth * 0.5f, 0f);
+
+            root.gameObject.SetActive(false);
+        }
+
+        static Image CreateHurtEdge(string name, Transform parent, Sprite grad, Vector2 aMin, Vector2 aMax, Vector2 pivot, Vector2 size, float rotZ)
+        {
+            RectTransform rt = Ui.Panel(name, parent, aMin, aMax, pivot, Vector2.zero, size);
+            rt.localEulerAngles = new Vector3(0f, 0f, rotZ);
+            Image img = Ui.MakeImage("Gradient", rt, ColHurtRed, round: false, raycast: false);
+            img.sprite = grad;
+            Stretch(img.rectTransform, 0f);
+            return img;
+        }
+
+        void TickHurtPulse(SimBridge sim, KidSnapshot? localKid, float dt)
+        {
+            if (_hurtPulseRoot == null) return;
+
+            if (_hurtFlashLeft > 0f)
+                _hurtFlashLeft = Mathf.Max(0f, _hurtFlashLeft - dt);
+
+            float hitAlpha = _hurtFlashLeft > 0f
+                ? _hurtFlashPeak * (_hurtFlashLeft / Mathf.Max(_hurtFlashSpan, 0.05f))
+                : 0f;
+
+            bool lowHp = sim.Phase == MatchPhaseKind.Playing &&
+                         localKid.HasValue &&
+                         !localKid.Value.Tagged &&
+                         localKid.Value.Hp > 0 &&
+                         localKid.Value.Hp <= sim.MaxHp * LowHealthThresholdShare;
+
+            float breathAlpha = 0f;
+            if (SettingsStore.Current.ReduceMotion)
+            {
+                _lowHpWeight = Mathf.MoveTowards(_lowHpWeight, lowHp ? 1f : 0f, dt * 1.5f);
+                breathAlpha = 0.14f * _lowHpWeight;
+            }
+            else
+            {
+                _lowHpWeight = Mathf.MoveTowards(_lowHpWeight, lowHp ? 1f : 0f, dt * (lowHp ? 3.0f : 2.5f));
+                if (_lowHpWeight > 0.001f)
+                {
+                    _lowHpTime += dt;
+                    float wave = 0.5f - 0.5f * Mathf.Cos(_lowHpTime * Mathf.PI * 2f / LowHealthBreathPeriod);
+                    breathAlpha = Mathf.Lerp(0.10f, 0.28f, wave) * _lowHpWeight;
+                }
+                else
+                {
+                    _lowHpTime = 0f;
+                }
+            }
+
+            _hurtCurrentAlpha = Mathf.Max(hitAlpha, breathAlpha);
+            ApplyHurtPulseVisual(_hurtCurrentAlpha);
+        }
+
+        void ApplyHurtPulseVisual(float alpha)
+        {
+            if (_hurtPulseRoot == null) return;
+            bool show = alpha > 0.003f;
+            if (_hurtPulseRoot.gameObject.activeSelf != show)
+                _hurtPulseRoot.gameObject.SetActive(show);
+            if (!show) return;
+
+            Color tint = SettingsStore.Current.IsColorblind
+                ? Color.Lerp(ColHurtRed, EnemyTeamColor(), 0.35f)
+                : ColHurtRed;
+            tint.a = Mathf.Clamp01(alpha);
+            for (int i = 0; i < _hurtEdges.Length; i++)
+            {
+                if (_hurtEdges[i] != null)
+                    _hurtEdges[i].color = tint;
+            }
+        }
+
+        void BuildWorldWaypointsOverlay(out RectTransform root)
+        {
+            root = Ui.Fill("WorldWaypointsOverlay", Root);
+            Sprite chevron = ChevronSprite();
+
+            for (int i = 0; i < MaxWaypoints; i++)
+            {
+                RectTransform marker = Ui.Panel("Waypoint_" + i, root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(88f, 48f));
+                var group = marker.gameObject.AddComponent<CanvasGroup>();
+                group.blocksRaycasts = false;
+                group.interactable = false;
+
+                RectTransform chevronRt = Ui.Panel("Chevron", marker, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(18f, 18f));
+                Image chevronImg = Ui.MakeImage("Arrow", chevronRt, ColGold, round: false, raycast: false);
+                chevronImg.sprite = chevron;
+                Stretch(chevronImg.rectTransform, 0f);
+                chevronRt.gameObject.SetActive(false);
+
+                RectTransform diamondBox = Ui.Panel("Diamond", marker, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 6f), new Vector2(18f, 18f));
+                diamondBox.localEulerAngles = new Vector3(0f, 0f, 45f);
+                Image dRing = Ui.MakeImage("Rim", diamondBox, ColInk, round: false, raycast: false);
+                Stretch(dRing.rectTransform, 0f);
+                Image dFill = Ui.MakeImage("Core", diamondBox, ColGold, round: false, raycast: false);
+                Stretch(dFill.rectTransform, 2.5f);
+
+                RectTransform pillRt = Ui.Panel("DistancePill", marker, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 1f), new Vector2(0f, -6f), new Vector2(82f, 19f));
+                Image pillBg = MakeSlicedImage("Plate", pillRt, new Color(0.04f, 0.06f, 0.11f, 0.78f), pill: true, raycast: false);
+                Stretch(pillBg.rectTransform, 0f);
+                Text pillTxt = Ui.MakeText("Label", pillRt, "38m", 11, ColGold, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+                pillTxt.raycastTarget = false;
+                Stretch(pillTxt.rectTransform, 2f);
+
+                marker.gameObject.SetActive(false);
+                _waypoints[i] = new WaypointMarkerUi
+                {
+                    Root = marker,
+                    Group = group,
+                    DiamondBox = diamondBox,
+                    DiamondRing = dRing,
+                    DiamondFill = dFill,
+                    ChevronRect = chevronRt,
+                    ChevronImg = chevronImg,
+                    PillRect = pillRt,
+                    PillBg = pillBg,
+                    PillText = pillTxt,
+                    CachedMeters = -1,
+                    CachedWord = "",
+                };
+            }
+        }
+
+        void HideAllWaypoints()
+        {
+            ActiveWaypointCount = 0;
+            for (int i = 0; i < MaxWaypoints; i++)
+            {
+                if (_waypoints[i].Root != null && _waypoints[i].Root.gameObject.activeSelf)
+                    _waypoints[i].Root.gameObject.SetActive(false);
+            }
+        }
+
+        void SyncWorldWaypoints(SimBridge sim, KidSnapshot? localKid, int localId, int localTeam, float dt)
+        {
+            if (_waypointsRoot == null ||
+                WorldCamera == null ||
+                sim.Phase != MatchPhaseKind.Playing ||
+                !localKid.HasValue ||
+                localKid.Value.Tagged ||
+                IsPaused ||
+                IsBriefingVisible)
+            {
+                HideAllWaypoints();
+                return;
+            }
+
+            if (!SettingsStore.Current.ReduceMotion)
+                _waypointPulseTime += dt;
+
+            SVector2 myFeet = localKid.Value.Position;
+            int enemyTeam = 1 - localTeam;
+            bool cb = SettingsStore.Current.IsColorblind;
+            int activeCount = 0;
+
+            // Slot 0: Enemy Base ("BASE")
+            bool showEnemyBase = sim.Bases != null && enemyTeam >= 0 && enemyTeam < sim.Bases.Count;
+            if (showEnemyBase)
+            {
+                BaseObjectiveSnapshot eb = sim.Bases[enemyTeam];
+                SVector2 targetXz = eb.PostPosition.LengthSquared() > 0.01f ? eb.PostPosition : eb.Center;
+                bool urgent = eb.Holders > 0 || (sim.CaptureTeam == localTeam && sim.CaptureReason == CaptureReasonKind.Base);
+                Color col = cb ? OwnTeamColor() : HexColor("ffd670", ColGold);
+                if (SyncSingleWaypoint(ref _waypoints[0], myFeet, targetXz, 5.4f, I18n.Tr("BASE"), col, urgent))
+                    activeCount++;
+            }
+            else if (_waypoints[0].Root.gameObject.activeSelf)
+            {
+                _waypoints[0].Root.gameObject.SetActive(false);
+            }
+
+            // Slot 1: Own Base ("DEFEND") — shown only while contested / being captured by rivals
+            bool showDefend = false;
+            if (sim.Bases != null && localTeam >= 0 && localTeam < sim.Bases.Count)
+            {
+                BaseObjectiveSnapshot ob = sim.Bases[localTeam];
+                bool underThreat = ob.Holders > 0 || ob.CapturingTeam == enemyTeam ||
+                                   (sim.CaptureTeam == enemyTeam && sim.CaptureReason == CaptureReasonKind.Base);
+                if (underThreat)
+                {
+                    SVector2 targetXz = ob.PostPosition.LengthSquared() > 0.01f ? ob.PostPosition : ob.Center;
+                    Color col = cb ? EnemyTeamColor() : HexColor("f56152", ColMissingCoral);
+                    showDefend = SyncSingleWaypoint(ref _waypoints[1], myFeet, targetXz, 5.4f, I18n.Tr("DEFEND"), col, urgent: true);
+                    if (showDefend) activeCount++;
+                }
+            }
+            if (!showDefend && _waypoints[1].Root.gameObject.activeSelf)
+                _waypoints[1].Root.gameObject.SetActive(false);
+
+            // Slot 2: Own Rescue Shed ("RESCUE") — shown only when at least one ally is tagged on the sidewalk
+            bool showRescue = false;
+            if (sim.Rescues != null && localTeam >= 0 && localTeam < sim.Rescues.Count)
+            {
+                RescueObjectiveSnapshot rz = sim.Rescues[localTeam];
+                bool allyWaiting = rz.WaitingCount > 0;
+                if (!allyWaiting)
+                {
+                    IReadOnlyList<KidSnapshot> kids = sim.Kids;
+                    for (int i = 0; i < kids.Count; i++)
+                    {
+                        if (kids[i].Team == localTeam && kids[i].Id != localId && kids[i].Tagged)
+                        {
+                            allyWaiting = true;
+                            break;
+                        }
+                    }
+                }
+                if (allyWaiting)
+                {
+                    Color col = cb ? HexColor("ffd670", ColGold) : HexColor("61f09e", ColRegenMint);
+                    showRescue = SyncSingleWaypoint(ref _waypoints[2], myFeet, rz.Center, 4.8f, I18n.Tr("RESCUE"), col, urgent: rz.RescuerId >= 0);
+                    if (showRescue) activeCount++;
+                }
+            }
+            if (!showRescue && _waypoints[2].Root.gameObject.activeSelf)
+                _waypoints[2].Root.gameObject.SetActive(false);
+
+            ActiveWaypointCount = activeCount;
+        }
+
+        bool SyncSingleWaypoint(
+            ref WaypointMarkerUi ui,
+            SVector2 myFeet,
+            SVector2 targetGround,
+            float worldY,
+            string word,
+            Color color,
+            bool urgent)
+        {
+            float distMeters = SVector2.Distance(myFeet, targetGround);
+            if (distMeters < 4.0f)
+            {
+                if (ui.Root.gameObject.activeSelf)
+                    ui.Root.gameObject.SetActive(false);
+                return false;
+            }
+
+            Rect rect = Root.rect;
+            if (rect.width <= 1f || rect.height <= 1f)
+                rect = new Rect(-640f, -360f, 1280f, 720f);
+
+            const float marginX = 82f;
+            const float marginTop = 94f;
+            const float marginBottom = 108f;
+            float minX = rect.xMin + marginX;
+            float maxX = rect.xMax - marginX;
+            float minY = rect.yMin + marginBottom;
+            float maxY = rect.yMax - marginTop;
+            if (minX > maxX) { minX = maxX = rect.center.x; }
+            if (minY > maxY) { minY = maxY = rect.center.y; }
+
+            Vector3 worldPos = KalyeahResources.World(targetGround, worldY);
+            Vector3 camLocal = WorldCamera.transform.InverseTransformPoint(worldPos);
+            Vector3 screenPt = WorldCamera.WorldToScreenPoint(worldPos);
+            Camera uiCam = (_canvas != null && _canvas.renderMode != RenderMode.ScreenSpaceOverlay) ? _canvas.worldCamera : null;
+
+            Vector2 localPt;
+            bool inFront = camLocal.z > 0.15f && screenPt.z > 0.15f;
+            if (inFront && RectTransformUtility.ScreenPointToLocalPointInRectangle(Root, new Vector2(screenPt.x, screenPt.y), uiCam, out Vector2 projected))
+            {
+                localPt = projected;
+            }
+            else
+            {
+                Vector2 dir = new Vector2(camLocal.x, camLocal.z > 0.15f ? camLocal.y : -Mathf.Abs(camLocal.y) - 0.35f);
+                if (dir.sqrMagnitude < 0.0001f) dir = Vector2.down;
+                dir.Normalize();
+                localPt = rect.center + dir * 2000f;
+            }
+
+            bool clamped = !inFront || localPt.x < minX || localPt.x > maxX || localPt.y < minY || localPt.y > maxY;
+            Vector2 outDir = Vector2.up;
+            if (clamped)
+            {
+                Vector2 delta = localPt - rect.center;
+                if (delta.sqrMagnitude < 0.0001f) delta = Vector2.down;
+                float halfW = Mathf.Max(1f, (maxX - minX) * 0.5f);
+                float halfH = Mathf.Max(1f, (maxY - minY) * 0.5f);
+                Vector2 boxCenter = new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
+                float sx = Mathf.Abs(delta.x) > 0.001f ? halfW / Mathf.Abs(delta.x) : float.MaxValue;
+                float sy = Mathf.Abs(delta.y) > 0.001f ? halfH / Mathf.Abs(delta.y) : float.MaxValue;
+                float t = Mathf.Min(sx, sy);
+                localPt = boxCenter + delta * t;
+                outDir = delta.normalized;
+            }
+
+            if (!ui.Root.gameObject.activeSelf)
+                ui.Root.gameObject.SetActive(true);
+
+            ui.Root.anchoredPosition = localPt;
+            ui.Group.alpha = clamped ? (urgent ? 0.90f : 0.76f) : (urgent ? 0.78f : 0.48f);
+            ui.DiamondFill.color = color;
+            ui.PillText.color = color;
+
+            float pulse = (urgent && !SettingsStore.Current.ReduceMotion)
+                ? (1f + 0.10f * Mathf.Sin(_waypointPulseTime * Mathf.PI * 2f * 2.2f))
+                : 1f;
+            ui.DiamondBox.localScale = new Vector3(pulse, pulse, 1f);
+
+            if (ui.ChevronRect.gameObject.activeSelf != clamped)
+                ui.ChevronRect.gameObject.SetActive(clamped);
+            if (clamped)
+            {
+                ui.ChevronImg.color = color;
+                ui.ChevronRect.anchoredPosition = new Vector2(0f, 6f) + outDir * 16f;
+                float deg = Mathf.Atan2(outDir.y, outDir.x) * Mathf.Rad2Deg - 90f;
+                ui.ChevronRect.localEulerAngles = new Vector3(0f, 0f, deg);
+            }
+
+            int meters = Mathf.Max(1, Mathf.RoundToInt(distMeters));
+            bool showWord = clamped || urgent;
+            if (meters != ui.CachedMeters || showWord != ui.CachedClamped || urgent != ui.CachedUrgent || !string.Equals(word, ui.CachedWord, StringComparison.Ordinal))
+            {
+                ui.CachedMeters = meters;
+                ui.CachedClamped = showWord;
+                ui.CachedUrgent = urgent;
+                ui.CachedWord = word;
+                string mStr = meters.ToString(CultureInfo.InvariantCulture) + "m";
+                ui.PillText.text = showWord ? (word + " · " + mStr) : mStr;
+                ui.PillRect.sizeDelta = new Vector2(showWord ? 92f : 48f, 19f);
+            }
+
+            return true;
         }
 
         void BuildPointFreezeOverlay(
@@ -2433,7 +3045,9 @@ namespace Kalyeah.Game
             bool phaseChanged = phase != _lastPhase;
             _lastPhase = phase;
 
-            bool showIntro = phase == MatchPhaseKind.Intro;
+            SyncBriefingCard(phase, dt);
+
+            bool showIntro = phase == MatchPhaseKind.Intro && !IsBriefingVisible;
             if (_introRoot.gameObject.activeSelf != showIntro)
             {
                 _introRoot.gameObject.SetActive(showIntro);
@@ -2903,6 +3517,7 @@ namespace Kalyeah.Game
 
         void PersistSettings()
         {
+            ApplyUrpRenderScale();
             SyncAudioFromSettings();
             SyncQuickSettingsLabels();
             try
@@ -2913,6 +3528,14 @@ namespace Kalyeah.Game
             catch (Exception)
             {
             }
+        }
+
+        static void ApplyUrpRenderScale()
+        {
+            var urp = (QualitySettings.renderPipeline as UniversalRenderPipelineAsset)
+                      ?? (GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset);
+            if (urp != null)
+                urp.renderScale = SettingsStore.Current.IsTurboGraphics ? SettingsStore.TurboRenderScale : 1f;
         }
 
         static void SaveSessionPrefs()
@@ -3222,6 +3845,65 @@ namespace Kalyeah.Game
             s_warningSprite = Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
             s_warningSprite.name = "KalyeahWarningTriangle";
             return s_warningSprite;
+        }
+
+        static Sprite EdgeGradientSprite()
+        {
+            if (s_edgeGradientSprite != null) return s_edgeGradientSprite;
+            const int w = 4;
+            const int h = 64;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
+            {
+                name = "KalyeahHurtEdgeGradient",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            var px = new Color32[w * h];
+            for (int y = 0; y < h; y++)
+            {
+                float t = y / (float)(h - 1);
+                float falloff = (1f - t) * (1f - t);
+                byte a = (byte)Mathf.RoundToInt(falloff * 255f);
+                var c = new Color32(255, 255, 255, a);
+                for (int x = 0; x < w; x++)
+                    px[y * w + x] = c;
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            s_edgeGradientSprite = Sprite.Create(tex, new Rect(0f, 0f, w, h), new Vector2(0.5f, 0.5f), 100f);
+            s_edgeGradientSprite.name = "KalyeahHurtEdgeGradient";
+            return s_edgeGradientSprite;
+        }
+
+        static Sprite ChevronSprite()
+        {
+            if (s_chevronSprite != null) return s_chevronSprite;
+            const int size = 32;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = "KalyeahWaypointChevron",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            var px = new Color32[size * size];
+            Vector2 tip = new Vector2(16f, 26f);
+            Vector2 bl = new Vector2(5f, 10f);
+            Vector2 br = new Vector2(27f, 10f);
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                    float sd = SignedDistTriangle(p, tip, bl, br);
+                    float a = Mathf.Clamp01(1.5f - sd);
+                    px[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+                }
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            s_chevronSprite = Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
+            s_chevronSprite.name = "KalyeahWaypointChevron";
+            return s_chevronSprite;
         }
 
         static float SignedDistTriangle(Vector2 p, Vector2 p0, Vector2 p1, Vector2 p2)

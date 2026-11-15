@@ -24,6 +24,7 @@ namespace Kalyeah.Game
         SettingsScreenView _settings;
         HotspotFlowView _hotspot;
         LobbyScreenView _lobby;
+        NetworkPauseGuard _pauseGuard;
         bool _settingsSubscribed;
 
         public Canvas Canvas => _canvas;
@@ -56,6 +57,7 @@ namespace Kalyeah.Game
             ConfigureCamera(camera);
 
             DataSource data = KalyeahResources.Data();
+            MatchBoot.ApplyBootResourcesAndGraphics(data);
             _canvas = Ui.MakeCanvas("Title", transform, camera);
 
             _audio = new AudioHub(transform);
@@ -63,12 +65,14 @@ namespace Kalyeah.Game
 
             _stack = new MenuStack(_canvas.transform, null, _audio);
             _stack.LoadPersistedState();
+            MatchBoot.ApplyDeviceQualityAndFrameRate();
             ResetStaleSessionMode();
 
             BindSettings();
             _audio.PlayBgm();
 
             RegisterHubPages(data, LaunchMatchScene);
+            _pauseGuard = NetworkPauseGuard.Attach(gameObject);
             _stack.Push(MenuStack.HomeId);
         }
 
@@ -89,22 +93,21 @@ namespace Kalyeah.Game
 
             float dt = Time.deltaTime;
             string activeId = _stack?.CurrentId;
-            if (activeId == MenuStack.HotspotId && _hotspot != null)
-            {
-                _hotspot.Tick(dt);
-            }
-            else if (activeId == MenuStack.LobbyId && _lobby != null)
-            {
-                _lobby.Tick(dt);
-            }
-            else
-            {
+            if (activeId != MenuStack.HotspotId && activeId != MenuStack.LobbyId)
                 AppSession.Current.PollNetwork(dt);
-            }
         }
 
         void OnDestroy()
         {
+            if (_pauseGuard != null)
+            {
+                if (Application.isPlaying)
+                    Destroy(_pauseGuard);
+                else
+                    DestroyImmediate(_pauseGuard);
+                _pauseGuard = null;
+            }
+
             if (_settingsSubscribed)
             {
                 _settingsSubscribed = false;
@@ -155,6 +158,7 @@ namespace Kalyeah.Game
             }
 
             DataSource data = KalyeahResources.Data();
+            MatchBoot.ApplyBootResourcesAndGraphics(data);
             var home = new HomeScreenView(
                 canvas.transform,
                 data,
@@ -185,6 +189,7 @@ namespace Kalyeah.Game
             SettingsStore s = SettingsStore.Current;
             AudioListener.volume = Mathf.Clamp01(s.MasterVolume);
             _audio?.BindVolumes(s.MusicVolume, s.SfxVolume, s.MusicEnabled, s.SoundsEnabled, s.MasterVolume);
+            MatchBoot.ApplyDeviceQualityAndFrameRate();
         }
 
         void RegisterHubPages(DataSource data, Action<GameMode> onLaunchMatch)
@@ -242,7 +247,9 @@ namespace Kalyeah.Game
                 {
                     _home.Refresh();
                     _home.RefreshLayout();
-                });
+                },
+                onHide: null,
+                onBackOverride: _home.HandleBack);
 
             _stack.Register(
                 MenuStack.PickId,

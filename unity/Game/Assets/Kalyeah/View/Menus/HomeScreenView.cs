@@ -87,9 +87,14 @@ namespace Kalyeah.Game
         // Top header layout refs
         RectTransform _topBar;
         RectTransform _nameBoxRect;
+        RectTransform _profileAvatarBtnRect;
+        RawImage _profileAvatarImage;
+        RectTransform _nameCaptionRect;
+        RectTransform _namePlaceholderRect;
+        RectTransform _nameInputTextRect;
         RectTransform _rankBadgeRect;
         RectTransform _brandCenterRect;
-        readonly RectTransform[] _navBtnRects = new RectTransform[4];
+        readonly RectTransform[] _navBtnRects = new RectTransform[6];
 
         // 3-column body layout refs
         RectTransform _bodyContainer;
@@ -141,12 +146,16 @@ namespace Kalyeah.Game
         Text _streetSectionTitle;
         Text _onlineTitleLabel;
         Text _hotspotTitleLabel;
-        readonly Text[] _navLabels = new Text[4];
+        readonly Text[] _navLabels = new Text[6];
 
         public RectTransform Root { get; }
         public RectTransform SafeRoot { get; }
+        public HomeSheetsView Sheets { get; private set; }
 
         public InputField PlayerNameInput { get; private set; }
+        public Button ProfileSheetButton { get; private set; }
+        public Button GameOfMonthButton { get; private set; }
+        public Button DonateButton { get; private set; }
         public Button RankedBadgeButton { get; private set; }
         public Button PortraitCardButton { get; private set; }
         public Button LoadoutButton { get; private set; }
@@ -215,6 +224,8 @@ namespace Kalyeah.Game
 
             BuildTopBar(SafeRoot);
             BuildBodyColumns(SafeRoot);
+            Sheets = new HomeSheetsView(SafeRoot, _data, _audio, IsInteractive);
+            Sheets.ProfileChanged += Refresh;
 
             var lifecycle = Root.gameObject.AddComponent<HomeLifecycle>();
             lifecycle.Owner = this;
@@ -227,6 +238,17 @@ namespace Kalyeah.Game
                 RefreshLayout();
             }
         }
+
+        bool IsInteractive()
+        {
+            if (_canvas == null && Root != null)
+                _canvas = Root.GetComponentInParent<Canvas>();
+            if (_canvas == null) return true;
+            GraphicRaycaster raycaster = _canvas.GetComponent<GraphicRaycaster>();
+            return raycaster == null || raycaster.enabled;
+        }
+
+        public bool HandleBack() => Sheets != null && Sheets.Close();
 
         static DataSource TryDefaultData()
         {
@@ -250,6 +272,7 @@ namespace Kalyeah.Game
 
         void OnDisabled()
         {
+            Sheets?.Close();
             if (!_subscribed) return;
             _subscribed = false;
             AppSession.Current.Changed -= Refresh;
@@ -265,6 +288,12 @@ namespace Kalyeah.Game
             if (_disposed) return;
             _disposed = true;
             OnDisabled();
+            if (Sheets != null)
+            {
+                Sheets.ProfileChanged -= Refresh;
+                Sheets.Dispose();
+                Sheets = null;
+            }
             if (Root != null) KalyeahResources.Kill(Root.gameObject);
         }
 
@@ -320,7 +349,7 @@ namespace Kalyeah.Game
                 new Vector2(0f, -6f),
                 new Vector2(0f, 96f));
 
-            // 1. Editable PlayerName card (top-left)
+            // 1. Editable PlayerName card + ID Avatar button (top-left)
             _nameBoxRect = MakeKomiksFrame(
                 "PlayerNameCard",
                 _topBar,
@@ -328,44 +357,70 @@ namespace Kalyeah.Game
                 new Vector2(0f, 0.5f),
                 new Vector2(0f, 0.5f),
                 new Vector2(12f, 0f),
-                new Vector2(220f, 96f),
+                new Vector2(236f, 96f),
                 SunlitCream,
                 out Image nameBodyImg);
             nameBodyImg.raycastTarget = true;
 
+            _profileAvatarBtnRect = MakeKomiksFrame(
+                "ProfileAvatarButton",
+                _nameBoxRect,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(8f, 0f),
+                new Vector2(68f, 68f),
+                StreetSlate,
+                out Image avatarFrameFill);
+            avatarFrameFill.raycastTarget = true;
+            ProfileSheetButton = AttachButton(_profileAvatarBtnRect.gameObject, avatarFrameFill, () => Sheets?.OpenProfile());
+
+            var avGo = new GameObject("AvatarPhoto", typeof(RectTransform), typeof(RawImage));
+            avGo.transform.SetParent(_profileAvatarBtnRect, false);
+            _profileAvatarImage = avGo.GetComponent<RawImage>();
+            _profileAvatarImage.raycastTarget = false;
+            RectTransform avr = _profileAvatarImage.rectTransform;
+            avr.anchorMin = Vector2.zero;
+            avr.anchorMax = Vector2.one;
+            avr.offsetMin = new Vector2(3f, 3f);
+            avr.offsetMax = new Vector2(-3f, -3f);
+
             Text nameCaption = Ui.MakeText("Caption", _nameBoxRect, "PLAYER TAG", 13, new Color(Espresso.r, Espresso.g, Espresso.b, 0.84f), TextAnchor.UpperLeft);
             nameCaption.fontStyle = FontStyle.Bold;
             nameCaption.GetComponent<Outline>().enabled = false;
-            RectTransform capRect = nameCaption.rectTransform;
-            capRect.anchorMin = new Vector2(0f, 0.62f);
-            capRect.anchorMax = new Vector2(1f, 1f);
-            capRect.offsetMin = new Vector2(14f, 0f);
-            capRect.offsetMax = new Vector2(-12f, -8f);
+            _nameCaptionRect = nameCaption.rectTransform;
+            _nameCaptionRect.anchorMin = new Vector2(0f, 0.62f);
+            _nameCaptionRect.anchorMax = new Vector2(1f, 1f);
+            _nameCaptionRect.offsetMin = new Vector2(84f, 0f);
+            _nameCaptionRect.offsetMax = new Vector2(-10f, -8f);
 
             PlayerNameInput = _nameBoxRect.gameObject.AddComponent<InputField>();
             PlayerNameInput.targetGraphic = nameBodyImg;
             PlayerNameInput.characterLimit = AppSession.MaxNameLength;
             PlayerNameInput.lineType = InputField.LineType.SingleLine;
 
-            Text placeholder = Ui.MakeText("Placeholder", _nameBoxRect, "Enter name...", 22, new Color(0.45f, 0.40f, 0.35f, 0.65f), TextAnchor.LowerLeft);
+            Text placeholder = Ui.MakeText("Placeholder", _nameBoxRect, "Enter name...", 20, new Color(0.45f, 0.40f, 0.35f, 0.65f), TextAnchor.LowerLeft);
             placeholder.GetComponent<Outline>().enabled = false;
             placeholder.fontStyle = FontStyle.Italic;
-            RectTransform phRect = placeholder.rectTransform;
-            phRect.anchorMin = new Vector2(0f, 0f);
-            phRect.anchorMax = new Vector2(1f, 0.66f);
-            phRect.offsetMin = new Vector2(14f, 10f);
-            phRect.offsetMax = new Vector2(-12f, 0f);
+            _namePlaceholderRect = placeholder.rectTransform;
+            _namePlaceholderRect.anchorMin = new Vector2(0f, 0f);
+            _namePlaceholderRect.anchorMax = new Vector2(1f, 0.66f);
+            _namePlaceholderRect.offsetMin = new Vector2(84f, 10f);
+            _namePlaceholderRect.offsetMax = new Vector2(-10f, 0f);
 
-            Text inputText = Ui.MakeText("Text", _nameBoxRect, AppSession.Current.PlayerName, 25, Espresso, TextAnchor.LowerLeft, KalyeahResources.DisplayFont());
+            Text inputText = Ui.MakeText("Text", _nameBoxRect, AppSession.Current.PlayerName, 24, Espresso, TextAnchor.LowerLeft, KalyeahResources.DisplayFont());
             inputText.GetComponent<Outline>().enabled = false;
             inputText.supportRichText = false;
             inputText.horizontalOverflow = HorizontalWrapMode.Wrap;
             inputText.verticalOverflow = VerticalWrapMode.Truncate;
-            RectTransform txtRect = inputText.rectTransform;
-            txtRect.anchorMin = new Vector2(0f, 0f);
-            txtRect.anchorMax = new Vector2(1f, 0.66f);
-            txtRect.offsetMin = new Vector2(14f, 10f);
-            txtRect.offsetMax = new Vector2(-12f, 0f);
+            inputText.resizeTextForBestFit = true;
+            inputText.resizeTextMinSize = 16;
+            inputText.resizeTextMaxSize = 24;
+            _nameInputTextRect = inputText.rectTransform;
+            _nameInputTextRect.anchorMin = new Vector2(0f, 0f);
+            _nameInputTextRect.anchorMax = new Vector2(1f, 0.66f);
+            _nameInputTextRect.offsetMin = new Vector2(84f, 10f);
+            _nameInputTextRect.offsetMax = new Vector2(-10f, 0f);
 
             PlayerNameInput.textComponent = inputText;
             PlayerNameInput.placeholder = placeholder;
@@ -447,11 +502,13 @@ namespace Kalyeah.Game
                 brandText.rectTransform.SetFullStretch();
             }
 
-            // 4. Top-right Nav buttons: Pick, Codex, History, Settings
-            PickNavButton = MakeNavButton("Nav_Pick", "Pick", "ui/nav/nav_cards", BarrioBlue, 0, () => Navigate(MenuStack.PickId), out _navBtnRects[0], out _navLabels[0]);
-            CodexNavButton = MakeNavButton("Nav_Codex", "Codex", "ui/nav/nav_street", FiestaOrange, 1, () => Navigate(MenuStack.CodexId), out _navBtnRects[1], out _navLabels[1]);
-            HistoryNavButton = MakeNavButton("Nav_History", "History", "ui/nav/nav_history", MangoGold, 2, () => Navigate(MenuStack.HistoryId), out _navBtnRects[2], out _navLabels[2]);
-            SettingsNavButton = MakeNavButton("Nav_Settings", "Settings", "ui/nav/nav_settings", JadeGreen, 3, () => Navigate(MenuStack.SettingsId), out _navBtnRects[3], out _navLabels[3]);
+            // 4. Top-right Sheet + Nav buttons: GameOfMonth, Donate, Pick, Codex, History, Settings
+            GameOfMonthButton = MakeNavButton("Nav_GameOfMonth", "Monthly", "ui/tips_icon", MangoGold, 0, () => Sheets?.OpenGameOfMonth(), out _navBtnRects[0], out _navLabels[0]);
+            DonateButton = MakeNavButton("Nav_Donate", "Donate", "ui/mail_icon", FiestaOrange, 1, () => Sheets?.OpenDonate(), out _navBtnRects[1], out _navLabels[1]);
+            PickNavButton = MakeNavButton("Nav_Pick", "Pick", "ui/nav/nav_cards", BarrioBlue, 2, () => Navigate(MenuStack.PickId), out _navBtnRects[2], out _navLabels[2]);
+            CodexNavButton = MakeNavButton("Nav_Codex", "Codex", "ui/nav/nav_street", FiestaOrange, 3, () => Navigate(MenuStack.CodexId), out _navBtnRects[3], out _navLabels[3]);
+            HistoryNavButton = MakeNavButton("Nav_History", "History", "ui/nav/nav_history", MangoGold, 4, () => Navigate(MenuStack.HistoryId), out _navBtnRects[4], out _navLabels[4]);
+            SettingsNavButton = MakeNavButton("Nav_Settings", "Settings", "ui/nav/nav_settings", JadeGreen, 5, () => Navigate(MenuStack.SettingsId), out _navBtnRects[5], out _navLabels[5]);
         }
 
         Button MakeNavButton(
@@ -471,7 +528,7 @@ namespace Kalyeah.Game
                 new Vector2(1f, 0.5f),
                 new Vector2(1f, 0.5f),
                 Vector2.zero,
-                new Vector2(96f, 96f),
+                new Vector2(88f, 96f),
                 StreetSlate,
                 out Image bodyImg);
             bodyImg.raycastTarget = true;
@@ -484,7 +541,7 @@ namespace Kalyeah.Game
             sr.anchoredPosition = new Vector2(0f, -4f);
             sr.sizeDelta = new Vector2(-10f, 6f);
 
-            Texture2D iconTex = KalyeahResources.Texture(iconPath) ?? (index == 3 ? KalyeahResources.Texture("ui/hud_icons/gear") : null);
+            Texture2D iconTex = KalyeahResources.Texture(iconPath) ?? (index == 5 ? KalyeahResources.Texture("ui/hud_icons/gear") : null);
             if (iconTex != null)
             {
                 var iconGo = new GameObject("Icon", typeof(RectTransform), typeof(RawImage));
@@ -494,10 +551,13 @@ namespace Kalyeah.Game
                 raw.raycastTarget = false;
                 RectTransform ir = raw.rectTransform;
                 ir.anchorMin = ir.anchorMax = new Vector2(0.5f, 0.62f);
-                ir.sizeDelta = new Vector2(36f, 36f);
+                ir.sizeDelta = new Vector2(34f, 34f);
             }
 
-            label = Ui.MakeText("Label", rect, title, 17, Ui.Cream, TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
+            label = Ui.MakeText("Label", rect, title, 16, Ui.Cream, TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 11;
+            label.resizeTextMaxSize = 16;
             RectTransform lr = label.rectTransform;
             lr.anchorMin = new Vector2(0f, 0f);
             lr.anchorMax = new Vector2(1f, iconTex != null ? 0.42f : 1f);
@@ -1123,12 +1183,23 @@ namespace Kalyeah.Game
             SettingsStore settings = SettingsStore.Current;
             bool fil = string.Equals(settings.Language, "fil", StringComparison.OrdinalIgnoreCase);
 
-            // 1. PlayerName
+            // 1. PlayerName & ID Avatar
+            if (!IsInteractive() && Sheets != null && Sheets.IsOpen)
+                Sheets.Close();
+
             if (PlayerNameInput != null && !PlayerNameInput.isFocused)
             {
                 _suppressNameCallback = true;
                 PlayerNameInput.text = session.PlayerName;
                 _suppressNameCallback = false;
+            }
+
+            if (_profileAvatarImage != null && Sheets != null)
+            {
+                Sheets.SyncFromSession();
+                _profileAvatarImage.texture = Sheets.CurrentIdTexture;
+                _profileAvatarImage.uvRect = Sheets.CurrentIdUvRect;
+                _profileAvatarImage.enabled = Sheets.CurrentIdTexture != null;
             }
 
             // 2. Ranked Tier Badge
@@ -1244,10 +1315,12 @@ namespace Kalyeah.Game
                 _onlineTitleLabel.text = "ONLINE ROOM";
             if (_hotspotTitleLabel != null)
                 _hotspotTitleLabel.text = "LOCAL HOTSPOT";
-            if (_navLabels[0] != null) _navLabels[0].text = "Pick";
-            if (_navLabels[1] != null) _navLabels[1].text = "Codex";
-            if (_navLabels[2] != null) _navLabels[2].text = "History";
-            if (_navLabels[3] != null) _navLabels[3].text = "Settings";
+            if (_navLabels[0] != null) _navLabels[0].text = fil ? "Buwan" : "Monthly";
+            if (_navLabels[1] != null) _navLabels[1].text = fil ? "Suporta" : "Donate";
+            if (_navLabels[2] != null) _navLabels[2].text = "Pick";
+            if (_navLabels[3] != null) _navLabels[3].text = "Codex";
+            if (_navLabels[4] != null) _navLabels[4].text = "History";
+            if (_navLabels[5] != null) _navLabels[5].text = "Settings";
             if (_trainingPillLabel != null) _trainingPillLabel.text = "Training";
         }
 
@@ -1267,26 +1340,40 @@ namespace Kalyeah.Game
             float topH = Mathf.Clamp(minTouch, 84f, 104f);
             const float topPad = 10f;
             const float gap = 8f;
+            const float navGap = 6f;
             _topBar.anchoredPosition = new Vector2(0f, -6f);
             _topBar.sizeDelta = new Vector2(0f, topH);
 
-            float navBtnW = Mathf.Max(minTouch, Mathf.Min(108f, (safeW * 0.44f - gap * 3f) / 4f));
-            for (int i = 0; i < 4; i++)
+            int navCount = _navBtnRects.Length;
+            float navBtnW = Mathf.Max(minTouch, Mathf.Min(88f, (safeW * 0.48f - navGap * (navCount - 1)) / navCount));
+            for (int i = 0; i < navCount; i++)
             {
                 RectTransform nr = _navBtnRects[i];
                 if (nr == null) continue;
-                int fromRight = 3 - i;
+                int fromRight = (navCount - 1) - i;
                 nr.sizeDelta = new Vector2(navBtnW, topH);
-                nr.anchoredPosition = new Vector2(-(topPad + fromRight * (navBtnW + gap)), 0f);
+                nr.anchoredPosition = new Vector2(-(topPad + fromRight * (navBtnW + navGap)), 0f);
             }
 
-            float rightNavSpan = topPad + 4f * navBtnW + 3f * gap;
+            float rightNavSpan = topPad + navCount * navBtnW + (navCount - 1) * navGap;
             float leftAvail = Mathf.Max(minTouch * 2f + gap, safeW - rightNavSpan - topPad - gap * 2f);
-            float nameW = Mathf.Clamp(leftAvail * 0.50f, minTouch, 240f);
-            float rankW = Mathf.Clamp(leftAvail - nameW - gap, minTouch, 210f);
+            float nameW = Mathf.Clamp(leftAvail * 0.54f, minTouch, 244f);
+            float rankW = Mathf.Clamp(leftAvail - nameW - gap, minTouch, 198f);
 
             _nameBoxRect.sizeDelta = new Vector2(nameW, topH);
             _nameBoxRect.anchoredPosition = new Vector2(topPad, 0f);
+
+            if (_profileAvatarBtnRect != null)
+            {
+                bool showAvatar = nameW >= minTouch + 86f;
+                _profileAvatarBtnRect.gameObject.SetActive(showAvatar);
+                float avatarSide = Mathf.Clamp(topH - 18f, Mathf.Min(minTouch, topH - 12f), 74f);
+                _profileAvatarBtnRect.sizeDelta = new Vector2(avatarSide, avatarSide);
+                float textLeft = showAvatar ? (avatarSide + 16f) : 14f;
+                if (_nameCaptionRect != null) _nameCaptionRect.offsetMin = new Vector2(textLeft, 0f);
+                if (_namePlaceholderRect != null) _namePlaceholderRect.offsetMin = new Vector2(textLeft, 10f);
+                if (_nameInputTextRect != null) _nameInputTextRect.offsetMin = new Vector2(textLeft, 10f);
+            }
 
             _rankBadgeRect.sizeDelta = new Vector2(rankW, topH);
             _rankBadgeRect.anchoredPosition = new Vector2(topPad + nameW + gap, 0f);
@@ -1305,6 +1392,8 @@ namespace Kalyeah.Game
                     _brandCenterRect.sizeDelta = new Vector2(brandW, topH - 10f);
                 }
             }
+
+            Sheets?.RefreshLayout();
 
             // 3-column body container (clamped max width so 21:9 never stretches cards edge-to-edge)
             float bodyBottom = 8f;

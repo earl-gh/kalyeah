@@ -18,10 +18,10 @@ description: >
 
 ## 1. Locate first, then slice-read
 
-- Run `rg -n` or `git grep -n` for exact class, method, signal, or resource field names before opening files.
-- Read only `StartLine..EndLine` around the target function plus 1-hop direct callers, callees, and data contracts.
+- Run `rg -n` or `git grep -n` for exact class, method, event, or JSON data field names before opening files.
+- Read only `StartLine..EndLine` around the target function plus 1-hop direct callers, callees, and `unity/Data/*.json` contracts.
 - Never read entire directories, untouched sibling systems, or 400+ line docs (`docs/GDD.md`, `docs/ROADMAP.md`, `docs/PROJECT.md`, `docs/ART.md`, `GLOSSARY.md`) end-to-end when one grepped section answers the question.
-- Do not open generated imports, `.uid` files, binary assets, or lockfiles unless debugging an asset/import failure.
+- Do not open synced `Assets/Imported/`, `Assets/Kalyeah/Generated/`, `.meta` files, binary assets, or lockfiles unless debugging an asset/import failure.
 
 ## 2. Single-pass batching & bounded thinking
 
@@ -32,7 +32,7 @@ description: >
 
 ## 3. Touch only the active seam (no unsolicited audits)
 
-- Trace breakage strictly along the connected call/signal/data path of your change.
+- Trace breakage strictly along the connected call/event/data path of your change.
 - Never run unrequested whole-repo audits, formatting sweeps, file splits, dead-code hunts, or tangential refactors in adjacent files.
 - If you spot an unrelated bug outside your seam, note `file:line` in one sentence at the end of your reply and leave the file untouched.
 
@@ -42,22 +42,22 @@ Run the narrowest test that exercises the changed seam while iterating:
 
 | Stack / Layer | Iteration command (fast seam check) | When to escalate to full suite |
 |---|---|---|
-| Godot GUT (`tests/unit/`, `tests/integration/`) | `godot --headless -s addons/gut/gut_cmdln.gd -gselect=test_<seam> -gexit` | Shared core contracts (`PlayerInput`, `GameRules`, snapshot wire format) or final PR gate |
-| Unity Test Framework (`EditMode` / `PlayMode`) | `unity -batchmode -runTests -testPlatform EditMode -testFilter <NamespaceOrClass>` | Assembly-wide refactors, `SimConfig` schema changes, or pre-PR gate |
-| Shell / CI scripts (`.github/scripts/*.sh`) | `bash -n <script.sh>` + targeted fixture test (`test_inspect_apk.gd`) | Workflow YAML or release-gate changes |
+| `.NET 8` Sim & Net (`unity/Kalyeah.Sim.Tests`, `unity/Kalyeah.Net.Tests`) | `dotnet test unity/Kalyeah.sln --filter FullyQualifiedName~<TestClassOrMethod>` | Shared core contracts (`PlayerInput`, `GameRules`, snapshot wire format) or final PR gate |
+| Unity Test Framework (`EditMode`) | `Unity -batchmode -projectPath unity/Game -runTests -testPlatform EditMode -testFilter <NamespaceOrClass> -quit` | Assembly-wide refactors, `SimData`/`GameData` schema changes, or pre-PR gate |
+| Shell / CI scripts (`.github/scripts/*.sh`) | `bash -n <script.sh>` + golden fixture check (`unity/Golden/Android/`) | Workflow YAML or release-gate changes |
 
-- Never run the entire test suite after every tiny edit when a single `-gselect` or `-testFilter` proves the behavior in seconds.
+- Never run the entire test + screenshot suite after every tiny edit when a single `--filter` or `-testFilter` proves the behavior in seconds.
 - Do not re-test unchanged systems.
 
 ## 5. One-screen output discipline
 
 - Lead with the result or fix, not a chronological diary of what you searched.
-- Link every referenced file and line range (`[file.gd](file:///.../file.gd#L10-L24)`).
+- Link every referenced file and line range (`[MatchSim.cs](file:///.../MatchSim.cs#L10-L24)`).
 - Skip prompt recaps, filler transitions, and boilerplate summaries; close with Ponytail's 1–2 line skipped/risk note when shipping code.
 
 ## Anti-patterns to reject
 
-- Reading all of `scripts/sim/` or `scripts/ui/` "to understand the architecture" before a localized fix.
-- Running full GUT or PlayMode suites three times in one turn for a single-file rule tweak.
+- Reading all of `unity/Kalyeah.Sim/` or `unity/Game/Assets/Kalyeah/View/` "to understand the architecture" before a localized fix.
+- Running full `EditMode` + dual-aspect screenshot builds three times in one turn for a single-file rule tweak.
 - Turning a 10-line bug fix into a 6-file cleanup pass.
 - Writing 300 words explaining a 5-line diff that speaks for itself.

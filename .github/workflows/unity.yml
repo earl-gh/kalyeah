@@ -1,19 +1,19 @@
-name: Unity
-# The Unity port (unity/, see unity/README.md "Unity project"). The Godot game's own gate stays the "Android APK" workflow.
-#   sim-tests       dotnet test unity/Kalyeah.sln: shared C# sim + net suites against Godot recordings (no licence needed)
+name: Unity 6 CI
+# Canonical quality gate for Kalyeah (Unity 6 URP Mobile + .NET 8):
+#   sim-tests       dotnet test unity/Kalyeah.sln + dotnet publish unity/Kalyeah.Server + APK manifest fixture check (no licence needed)
 #   unity-check     reads the editor version (unity/Game/ProjectSettings/ProjectVersion.txt) and whether Unity licence secrets are set;
 #                   without them the Unity jobs below are skipped (the run stays green) and a notice says what to add
 #   editmode-tests  Pillow + tools/unity_export/sync_assets.sh, then GameCI runs EditMode tests (game-ci/unity-test-runner@v4)
-#   android         Pillow + sync_assets.sh, GameCI builds KalyeahBuild.BuildAndroid, verifies arm64-v8a ABI + logs MB -> kalyeah-unity-apk
-#   screenshots     Pillow + sync_assets.sh, KalyeahBuild.Screenshots (dual-aspect 1280x720 + 844x390 PNGs under xvfb) -> kalyeah-unity-screenshots
-# Secrets: UNITY_LICENSE (the contents of a Unity_lic.ulf), UNITY_EMAIL, UNITY_PASSWORD; UNITY_SERIAL instead of UNITY_LICENSE for Pro.
+#   android         Pillow + sync_assets.sh, GameCI builds KalyeahBuild.BuildAndroid -> kalyeah-unity-apk + inspect-apk.sh
+#   screenshots     Pillow + sync_assets.sh, KalyeahBuild.Screenshots (multi-aspect PNGs under xvfb) -> kalyeah-unity-screenshots
+# Secrets: UNITY_LICENSE (the contents of a Unity_lic.ulf), UNITY_EMAIL, UNITY_PASSWORD; UNITY_SERIAL instead of UNITY_LICENSE for Pro;
+#          optional KALYEAH_DEBUG_KEYSTORE_B64 (base64 debug.keystore, alias androiddebugkey, password android).
+# Variables: optional KALYEAH_SERVER_URL (or BAYABAS_SERVER_URL) stamped into the APK as the default online WebSocket server.
 on:
-  workflow_dispatch:
   push:
-    paths:
-      - "unity/**"
-      - "tools/unity_export/**"
-      - ".github/workflows/unity.yml"
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   sim-tests:
-    name: Sim & Net tests (.NET)
+    name: Sim, Net & Server (.NET 8)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -31,6 +31,15 @@ jobs:
           dotnet-version: "8.0.x"
       - name: dotnet test unity/Kalyeah.sln
         run: dotnet test unity/Kalyeah.sln --configuration Release --logger "console;verbosity=normal"
+      - name: dotnet publish unity/Kalyeah.Server
+        run: |
+          dotnet publish unity/Kalyeah.Server/Kalyeah.Server.csproj --configuration Release --output build/server
+          test -f build/server/Kalyeah.Server.dll
+          test -f build/server/Data/rules__game_rules.json
+      - name: Verify CI shell scripts and Android manifest fixtures
+        run: |
+          bash -n .github/scripts/inspect-apk.sh .github/scripts/smoke-test.sh
+          bash .github/scripts/inspect-apk.sh --dumps unity/Golden/Android/badging.txt unity/Golden/Android/manifest.txt "$(tr -d '\r\n' < version.txt)"
 
   unity-check:
     name: Unity licence
@@ -130,6 +139,8 @@ jobs:
     if: needs.unity-check.outputs.ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      ANDROID_BUILD_TOOLS: "35.0.1"
     steps:
       - name: Free disk space (the Unity Android editor image is large)
         uses: jlumbroso/free-disk-space@v1.3.1
@@ -150,6 +161,14 @@ jobs:
           python3 -c "from PIL import Image"
       - name: Copy the art, the data and the sim into the Unity project
         run: tools/unity_export/sync_assets.sh
+      - name: Pre-stamp online server URL when configured
+        env:
+          SERVER_URL: ${{ vars.KALYEAH_SERVER_URL || vars.BAYABAS_SERVER_URL }}
+        run: |
+          if [ -n "$SERVER_URL" ]; then
+            mkdir -p unity/Game/Assets/Imported/Resources/Data
+            printf '%s\n' "$SERVER_URL" > unity/Game/Assets/Imported/Resources/Data/build_stamp.txt
+          fi
       - uses: actions/cache@v4
         with:
           path: unity/Game/Library
@@ -164,6 +183,11 @@ jobs:
           UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          KALYEAH_SERVER_URL: ${{ vars.KALYEAH_SERVER_URL || vars.BAYABAS_SERVER_URL }}
+          BAYABAS_SERVER_URL: ${{ vars.BAYABAS_SERVER_URL }}
+          KALYEAH_DEBUG_KEYSTORE_B64: ${{ secrets.KALYEAH_DEBUG_KEYSTORE_B64 }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_SHA: ${{ github.sha }}
         with:
           projectPath: unity/Game
           unityVersion: ${{ needs.unity-check.outputs.version }}
@@ -189,8 +213,12 @@ jobs:
               echo "- **APK:** \`$apk\` — **${size_mb} MB** (${bytes} bytes)" >> "$GITHUB_STEP_SUMMARY"
             fi
             entries="$(unzip -Z1 "$apk")"
-            if ! grep -qE '^lib/arm64-v8a/.*\.so$' <<< "$entries"; then
-              echo "::error::$apk is missing lib/arm64-v8a/*.so native libraries"
+            if ! grep -qE '^lib/arm64-v8a/libunity\.so$' <<< "$entries"; then
+              echo "::error::$apk is missing lib/arm64-v8a/libunity.so"
+              exit 1
+            fi
+            if ! grep -qE '^lib/arm64-v8a/libil2cpp\.so$' <<< "$entries"; then
+              echo "::error::$apk is missing lib/arm64-v8a/libil2cpp.so"
               exit 1
             fi
             other_abis="$(grep -E '^lib/[^/]+/' <<< "$entries" | grep -v '^lib/arm64-v8a/' || true)"
@@ -202,12 +230,36 @@ jobs:
             arm64_libs="$(grep -E '^lib/arm64-v8a/.*\.so$' <<< "$entries" | tr '\n' ' ')"
             echo "Verified arm64-v8a ABI: $arm64_libs"
           done
+      # Uploaded before inspect-apk.sh so a failing manifest/alignment check turns the build red without hiding the built APK.
       - name: Upload the APK
         uses: actions/upload-artifact@v4
         with:
           name: kalyeah-unity-apk
           path: build/Android/*.apk
           if-no-files-found: error
+      - name: Reclaim Unity Docker image space before installing Android build-tools
+        run: docker image prune -af || true
+      - name: Set up Android SDK build-tools for APK inspection
+        uses: android-actions/setup-android@v3
+      - name: Install Android build-tools ${{ env.ANDROID_BUILD_TOOLS }}
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;${ANDROID_BUILD_TOOLS}"
+      - name: Inspect the APK
+        run: |
+          shopt -s nullglob
+          apks=(build/Android/*.apk)
+          app_ver="$(tr -d '\r\n' < version.txt)"
+          for apk in "${apks[@]}"; do
+            bash .github/scripts/inspect-apk.sh "$apk" "$app_ver" build/Android/dumps
+          done
+      - name: Upload aapt2 dumps
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kalyeah-apk-dumps
+          path: build/Android/dumps
+          if-no-files-found: ignore
 
   screenshots:
     name: Unity screenshots

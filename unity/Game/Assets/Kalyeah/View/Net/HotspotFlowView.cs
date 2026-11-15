@@ -66,7 +66,9 @@ namespace Kalyeah.Game
         Sprite _ownedQrSprite;
         bool _openedDirectly;
         bool _hostRoomRequested;
+        bool _nativeSubscribed;
         string _lastQrPayload = "";
+        string _lastNfcPayload = "";
         int _lastRenderedRoomCount = -1;
         string _lastRenderedFirstUrl = "";
 
@@ -155,17 +157,24 @@ namespace Kalyeah.Game
             var driver = Root.gameObject.AddComponent<HotspotFlowDriver>();
             driver.Bind(this);
 
+            SubscribeNativeLink(true);
             ApplyResponsiveMetrics(frame);
             ShowChooseRole();
         }
 
         public void Show()
         {
+            SubscribeNativeLink(true);
             Root.gameObject.SetActive(true);
             OnShow();
         }
 
-        public void Hide() => Root.gameObject.SetActive(false);
+        public void Hide()
+        {
+            AndroidLocalLink.SetNfcReading(false);
+            SubscribeNativeLink(false);
+            Root.gameObject.SetActive(false);
+        }
 
         public void OnShow()
         {
@@ -184,6 +193,7 @@ namespace Kalyeah.Game
         {
             _openedDirectly = false;
             CurrentRole = FlowRole.ChooseRole;
+            AndroidLocalLink.SetNfcReading(false);
             _headerTitle.text = "LOCAL HOTSPOT — STEP 1 OF 2";
             _choosePanel.gameObject.SetActive(true);
             _hostPanel.gameObject.SetActive(false);
@@ -196,10 +206,20 @@ namespace Kalyeah.Game
         {
             _openedDirectly = direct;
             CurrentRole = FlowRole.Host;
+            SubscribeNativeLink(true);
+            AndroidLocalLink.SetNfcReading(false);
+            AndroidLocalLink.AcquireMulticastLock();
             _headerTitle.text = "HOST HOTSPOT ROOM — STEP 2 OF 2";
             _choosePanel.gameObject.SetActive(false);
             _hostPanel.gameObject.SetActive(true);
             _guestPanel.gameObject.SetActive(false);
+
+            if (AndroidLocalLink.IsNativePluginAvailable &&
+                !AndroidLocalLink.IsHotspotActive(_netRules) &&
+                !AndroidLocalLink.IsWifiConnected(_netRules))
+            {
+                AndroidLocalLink.StartHotspot();
+            }
 
             AppSession session = AppSession.Current;
             session.StopDiscovery();
@@ -226,7 +246,9 @@ namespace Kalyeah.Game
                 _boundClient.CreateRoom();
             }
 
-            SetStatus("Hosting on LAN! Have friends scan the QR or tap your room in Join.");
+            SetStatus(AndroidLocalLink.HasActiveHotspot
+                ? "Game Hotspot \"" + AndroidLocalLink.ActiveHotspot.Ssid + "\" active! Scan QR or tap phones (NFC)."
+                : "Hosting on LAN! Have friends scan the QR, tap phones (NFC), or tap your room in Join.");
             RefreshHostUi();
         }
 
@@ -234,6 +256,8 @@ namespace Kalyeah.Game
         {
             _openedDirectly = direct;
             CurrentRole = FlowRole.Guest;
+            SubscribeNativeLink(true);
+            AndroidLocalLink.SetNfcReading(true);
             _headerTitle.text = "JOIN NEARBY HOTSPOT — STEP 2 OF 2";
             _choosePanel.gameObject.SetActive(false);
             _hostPanel.gameObject.SetActive(false);
@@ -264,8 +288,9 @@ namespace Kalyeah.Game
             _lastRenderedFirstUrl = "";
             AppSession.Current.StartHotspotDiscovery(_data, AndroidLocalLink.GetInterfaces());
             HotspotFinder finder = AppSession.Current.Finder;
+            bool nfcOn = string.Equals(AndroidLocalLink.GetNfcState(), "on", StringComparison.Ordinal);
             SetStatus(finder != null && finder.IsSearching
-                ? "Scanning Wi-Fi / Hotspot for Kalyeah hosts..."
+                ? (nfcOn ? "Scanning Wi-Fi / Hotspot for hosts (or tap phones via NFC)..." : "Scanning Wi-Fi / Hotspot for Kalyeah hosts...")
                 : HotspotFinder.NoRoom);
             RefreshGuestUi(force: true);
         }
@@ -285,6 +310,7 @@ namespace Kalyeah.Game
                 return false;
             }
 
+            AndroidLocalLink.SetNfcReading(false);
             BindClient(AppSession.Current.Client);
             SetStatus("Connecting to " + cleaned + "...");
             SaveSessionPrefs();
@@ -310,6 +336,12 @@ namespace Kalyeah.Game
                     WifiJoinRequester.Invoke(wifi);
                     return true;
                 }
+                if (AndroidLocalLink.IsNativePluginAvailable)
+                {
+                    SetStatus("Joining Wi-Fi \"" + wifi.Ssid + "\"...");
+                    AndroidLocalLink.JoinWifi(wifi);
+                    return true;
+                }
                 SetStatus("Wi-Fi \"" + wifi.Ssid + "\" read — connect to it in Settings, then tap Scan Again.");
                 return false;
             }
@@ -322,6 +354,7 @@ namespace Kalyeah.Game
         public void Tick(float dt)
         {
             if (dt < 0f) dt = 0f;
+            AndroidLocalLink.PumpPendingCallbacks();
             AppSession.Current.PollNetwork(dt);
 
             if (CurrentRole == FlowRole.Host)
@@ -346,17 +379,31 @@ namespace Kalyeah.Game
             if (CurrentRole != FlowRole.ChooseRole && !_openedDirectly)
             {
                 if (CurrentRole == FlowRole.Guest)
+                {
+                    AndroidLocalLink.SetNfcReading(false);
+                    AndroidLocalLink.LeaveWifi();
                     AppSession.Current.StopDiscovery();
+                }
                 else if (CurrentRole == FlowRole.Host)
+                {
+                    AndroidLocalLink.StopHotspot();
+                    AndroidLocalLink.ReleaseMulticastLock();
                     AppSession.Current.StopAllNetwork();
+                }
                 ShowChooseRole();
                 return true;
             }
 
             if (CurrentRole == FlowRole.Guest)
+            {
+                AndroidLocalLink.LeaveLocalSession();
                 AppSession.Current.StopDiscovery();
+            }
             else if (CurrentRole == FlowRole.Host)
+            {
+                AndroidLocalLink.LeaveLocalSession();
                 AppSession.Current.StopAllNetwork();
+            }
 
             OnBack?.Invoke();
             return true;
@@ -364,9 +411,12 @@ namespace Kalyeah.Game
 
         public void Dispose()
         {
+            SubscribeNativeLink(false);
+            AndroidLocalLink.SetNfcReading(false);
             BindClient(null);
             ReleaseOwnedQrSprite();
             _lastQrPayload = "";
+            _lastNfcPayload = "";
         }
 
         void BuildChoosePanel(RectTransform parent)
@@ -709,7 +759,7 @@ namespace Kalyeah.Game
         {
             List<NetInterface> interfaces = AndroidLocalLink.GetInterfaces();
 
-            bool tether = HotspotNet.HotspotOn(interfaces, _netRules);
+            bool tether = HotspotNet.HotspotOn(interfaces, _netRules) || AndroidLocalLink.HasActiveHotspot;
             bool wifi = HotspotNet.WifiConnected(interfaces, _netRules);
             if (tether)
             {
@@ -762,22 +812,33 @@ namespace Kalyeah.Game
                 _hostPlayersLabel.text = "Starting local room...";
             }
 
-            if (!string.Equals(_lastQrPayload, ShareUrl, StringComparison.Ordinal))
+            string qrPayload = AndroidLocalLink.HasActiveHotspot ? AndroidLocalLink.ShareWifiQrText() : ShareUrl;
+            if (!string.Equals(_lastNfcPayload, qrPayload, StringComparison.Ordinal))
             {
-                _lastQrPayload = ShareUrl;
+                _lastNfcPayload = qrPayload;
+                AndroidLocalLink.NfcShare(qrPayload);
+            }
+
+            if (!string.Equals(_lastQrPayload, qrPayload, StringComparison.Ordinal))
+            {
+                _lastQrPayload = qrPayload;
                 ReleaseOwnedQrSprite();
-                Sprite customQr = QrSpriteProvider?.Invoke(ShareUrl);
+                Sprite customQr = QrSpriteProvider?.Invoke(qrPayload);
                 if (customQr != null)
                 {
                     if (!ReferenceEquals(customQr, _fallbackQrSprite))
                         _ownedQrSprite = customQr;
                     _qrImage.sprite = customQr;
-                    _qrCaption.text = "Scan with Kalyeah QR camera to join " + ShareUrl;
+                    _qrCaption.text = AndroidLocalLink.HasActiveHotspot
+                        ? "Scan QR or tap phones (NFC) to join \"" + AndroidLocalLink.ActiveHotspot.Ssid + "\""
+                        : "Scan with Kalyeah QR camera to join " + ShareUrl;
                 }
                 else
                 {
                     _qrImage.sprite = FallbackQrSprite();
-                    _qrCaption.text = "LAN URL ready: " + ShareUrl + " (tap Copy URL or Find Rooms)";
+                    _qrCaption.text = AndroidLocalLink.HasActiveHotspot
+                        ? "Hotspot \"" + AndroidLocalLink.ActiveHotspot.Ssid + "\" ready (scan QR or tap NFC)"
+                        : "LAN URL ready: " + ShareUrl + " (tap Copy URL or Find Rooms)";
                 }
             }
         }
@@ -902,6 +963,93 @@ namespace Kalyeah.Game
                 return;
             }
             PasteIntoManualUrl();
+        }
+
+        void SubscribeNativeLink(bool subscribe)
+        {
+            if (subscribe == _nativeSubscribed) return;
+            _nativeSubscribed = subscribe;
+            if (subscribe)
+            {
+                AndroidLocalLink.HotspotStarted += OnNativeHotspotStarted;
+                AndroidLocalLink.HotspotFailed += OnNativeHotspotFailed;
+                AndroidLocalLink.HotspotStopped += OnNativeHotspotStopped;
+                AndroidLocalLink.WifiJoined += OnNativeWifiJoined;
+                AndroidLocalLink.WifiFailed += OnNativeWifiFailed;
+                AndroidLocalLink.WifiLost += OnNativeWifiLost;
+                AndroidLocalLink.NfcRead += OnNativeNfcRead;
+            }
+            else
+            {
+                AndroidLocalLink.HotspotStarted -= OnNativeHotspotStarted;
+                AndroidLocalLink.HotspotFailed -= OnNativeHotspotFailed;
+                AndroidLocalLink.HotspotStopped -= OnNativeHotspotStopped;
+                AndroidLocalLink.WifiJoined -= OnNativeWifiJoined;
+                AndroidLocalLink.WifiFailed -= OnNativeWifiFailed;
+                AndroidLocalLink.WifiLost -= OnNativeWifiLost;
+                AndroidLocalLink.NfcRead -= OnNativeNfcRead;
+            }
+        }
+
+        void OnNativeHotspotStarted(WifiQr.Network net)
+        {
+            if (CurrentRole != FlowRole.Host) return;
+            AppSession session = AppSession.Current;
+            if (!session.IsHosting && session.StartHotspotHost(_data))
+            {
+                BindClient(session.Client);
+                _hostRoomRequested = _boundClient != null && !_boundClient.Room.IsEmpty;
+                if (_boundClient != null && _boundClient.IsOnline() && _boundClient.Room.IsEmpty && !_hostRoomRequested)
+                {
+                    _hostRoomRequested = true;
+                    _boundClient.CreateRoom();
+                }
+            }
+            RefreshNetworkBadge();
+            SetStatus("Game Hotspot \"" + (net != null ? net.Ssid : "") + "\" active! Scan QR or tap phones (NFC).");
+            RefreshHostUi();
+        }
+
+        void OnNativeHotspotFailed(string reason)
+        {
+            if (CurrentRole != FlowRole.Host) return;
+            RefreshNetworkBadge();
+            if (!AndroidLocalLink.IsWifiConnected(_netRules))
+                SetStatus(AndroidLocalLink.DescribeHotspotFailure(reason));
+        }
+
+        void OnNativeHotspotStopped()
+        {
+            if (CurrentRole != FlowRole.Host) return;
+            RefreshNetworkBadge();
+            RefreshHostUi();
+        }
+
+        void OnNativeWifiJoined()
+        {
+            if (CurrentRole != FlowRole.Guest) return;
+            RefreshNetworkBadge();
+            SetStatus("Joined Hotspot! Scanning for host room...");
+            RescanHosts();
+        }
+
+        void OnNativeWifiFailed(string reason)
+        {
+            if (CurrentRole != FlowRole.Guest) return;
+            SetStatus(AndroidLocalLink.DescribeWifiFailure(reason));
+        }
+
+        void OnNativeWifiLost()
+        {
+            if (CurrentRole != FlowRole.Guest) return;
+            RefreshNetworkBadge();
+            SetStatus("Friend's Hotspot disconnected — scan QR or tap Scan Again.");
+        }
+
+        void OnNativeNfcRead(string payload)
+        {
+            if (CurrentRole != FlowRole.Guest || string.IsNullOrWhiteSpace(payload)) return;
+            AcceptScannedPayload(payload);
         }
 
         void BindClient(GameClient client)

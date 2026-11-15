@@ -5031,11 +5031,11 @@ def export_and_canonicalize_glb(
     """
     Exports `<id>.glb` and canonicalizes the glTF JSON + BIN buffer so:
       1. `materials[0]` is named `"Original"` with `metallicFactor=0`, `roughnessFactor=1`, `normalTexture.scale=0.85`
-      2. `images` has EXACTLY 3 unnamed PNG entries in exact Godot sidecar order:
+      2. `images` has EXACTLY 3 unnamed PNG entries in canonical sidecar order:
            index 0 -> ORM    (`<id>_0.png`)
            index 1 -> Albedo (`<id>_1.png`)
-           index 2 -> Normal (`<id>_2.png`, matching `<id>_2.png.import` `compress/normal_map=1`!)
-      3. Writes `<id>_0.png`, `<id>_1.png`, `<id>_2.png` directly to disk while keeping existing `.import` files untouched!
+           index 2 -> Normal (`<id>_2.png`)
+      3. Writes `<id>_0.png`, `<id>_1.png`, `<id>_2.png` directly to disk.
     """
     bpy.ops.export_scene.gltf(
         filepath=str(glb_path),
@@ -5140,26 +5140,6 @@ def export_and_canonicalize_glb(
     (CHAR_DIR / f"{kid_id}_0.png").write_bytes(orm_png)
     (CHAR_DIR / f"{kid_id}_1.png").write_bytes(albedo_png)
     (CHAR_DIR / f"{kid_id}_2.png").write_bytes(normal_png)
-
-    # Preserve Godot's [remap]/[deps] headers on existing .import sidecars while enforcing VRAM compression!
-    for slot_idx in (0, 1, 2):
-        imp_p = CHAR_DIR / f"{kid_id}_{slot_idx}.png.import"
-        if imp_p.exists():
-            lines_imp = imp_p.read_text(encoding="utf-8").splitlines()
-            norm_val = "1" if slot_idx == 2 else "0"
-            patched: list[str] = []
-            for ln in lines_imp:
-                if ln.startswith("compress/mode="):
-                    patched.append("compress/mode=2")
-                elif ln.startswith("compress/normal_map="):
-                    patched.append(f"compress/normal_map={norm_val}")
-                elif ln.startswith("mipmaps/generate="):
-                    patched.append("mipmaps/generate=true")
-                elif ln.startswith("detect_3d/compress_to="):
-                    patched.append("detect_3d/compress_to=0")
-                else:
-                    patched.append(ln)
-            imp_p.write_text("\n".join(patched) + "\n", encoding="utf-8")
 
     return {
         "kid": kid_id,

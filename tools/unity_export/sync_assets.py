@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Cross-platform Unity asset, data, i18n, and shared C# package sync.
+"""Cross-platform Unity asset, data, i18n, app-icon, and shared C# package sync.
 
-Mirrors Godot-authored assets, exported JSON + i18n data, and engine-free
-Kalyeah.Sim / Kalyeah.Net sources into unity/Game (converting *.webp -> *.png
+Mirrors authored assets (including Android app icons), canonical JSON + i18n CSV data,
+and engine-free Kalyeah.Sim / Kalyeah.Net sources into unity/Game (converting *.webp -> *.png
 with RGBA preserved via Pillow so Unity Resources.Load<Texture2D/Sprite> works).
 """
 from __future__ import annotations
@@ -23,6 +23,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[2]
 GAME = ROOT / "unity" / "Game"
 IMPORTED = GAME / "Assets" / "Imported" / "Resources"
+APP_ICON_DEST = GAME / "Assets" / "Imported" / "AppIcon"
 SIM_SRC = ROOT / "unity" / "Kalyeah.Sim"
 NET_SRC = ROOT / "unity" / "Kalyeah.Net"
 SIM_PKG = GAME / "Packages" / "com.kalyeah.sim"
@@ -197,11 +198,23 @@ def main() -> int:
         else:
             print(f"sync_assets: assets/{rel_dir} is missing, skipped", file=sys.stderr)
 
+    app_icon_src = ROOT / "assets" / "app_icon"
+    if app_icon_src.is_dir():
+        seen, encoded = mirror_tree(
+            app_icon_src,
+            APP_ICON_DEST,
+            GODOT_ONLY,
+            convert_webp=True,
+        )
+        webp_seen_total += seen
+        webp_encoded_total += encoded
+    else:
+        print("sync_assets: assets/app_icon is missing, skipped", file=sys.stderr)
+
     mirror_tree(
         ROOT / "unity" / "Data",
         IMPORTED / "Data",
-        include_globs=("*.json",),
-        extra_files={Path("i18n__strings.csv"): ROOT / "data" / "i18n" / "strings.csv"},
+        include_globs=("*.json", "*.csv"),
     )
 
     mirror_tree(SIM_SRC, SIM_PKG / "Runtime", CS_EXCLUDES)

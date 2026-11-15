@@ -28,8 +28,12 @@ public static class KalyeahBuild
 {
     public const string PackageId = "com.kalyeah.game";
     public const string ProductName = "Kalyeah";
-    /// <summary>The same SDKs as the Godot game's APK (export_presets.cfg / the Android APK workflow: min 24, target android-35).</summary>
+    /// <summary>Android SDK floor (24 on Unity 6.0 LTS / GameCI; 26 on Unity 6.3+ where the Editor enforces API 26+) and target 35.</summary>
+#if UNITY_6000_3_OR_NEWER
+    const int MinSdk = 26, TargetSdk = 35;
+#else
     const int MinSdk = 24, TargetSdk = 35;
+#endif
 
     const string Generated = "Assets/Kalyeah/Generated";
     const string MaterialsDir = Generated + "/Resources/KalyeahMaterials";
@@ -42,6 +46,9 @@ public static class KalyeahBuild
     const string MatchScenePath = ScenesDir + "/" + MatchBoot.SceneName + ".unity";
     const string ModelsRoot = "Assets/Imported/Resources/models";
     const string CharactersRoot = ModelsRoot + "/characters";
+    const string AppIconDir = "Assets/Imported/AppIcon";
+    const string ImportedDataDir = "Assets/Imported/Resources/Data";
+    const string BuildStampAssetPath = ImportedDataDir + "/build_stamp.txt";
     const int ShotWidth = 1280, ShotHeight = 720;
     const int NarrowWidth = 844, NarrowHeight = 390;
     const int UltraWidth = 934, UltraHeight = 400;
@@ -81,8 +88,7 @@ public static class KalyeahBuild
         PlayerSettings.companyName = ProductName;
         PlayerSettings.productName = ProductName;
         PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, PackageId);
-        string version = Path.Combine(ProjectRoot, "..", "..", "version.txt");
-        if (File.Exists(version)) PlayerSettings.bundleVersion = File.ReadAllText(version).Trim();
+        StampVersionAndBuildInfo();
 
         // one APK, arm64-v8a only (IL2CPP is the only backend that builds arm64)
         PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
@@ -92,6 +98,13 @@ public static class KalyeahBuild
         PlayerSettings.Android.forceInternetPermission = true;   // Online and Hotspot open sockets (KalyeahAndroidManifest adds the rest)
         PlayerSettings.Android.forceSDCardPermission = false;
         EditorUserBuildSettings.buildAppBundle = false;
+
+        // Android immersive fullscreen + edge-to-edge safe-area rendering (SafeArea.cs handles cutouts and gesture bars)
+        PlayerSettings.statusBarHidden = true;
+#pragma warning disable CS0618
+        PlayerSettings.Android.startInFullscreen = true;
+#pragma warning restore CS0618
+        PlayerSettings.Android.renderOutsideSafeArea = true;
 
         // landscape only, either way round (the phone may be turned half way): no portrait at all
         PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
@@ -109,6 +122,8 @@ public static class KalyeahBuild
         PlayerSettings.colorSpace = ColorSpace.Linear;
         PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, true);
 
+        ConfigureAppIconsAndSplash();
+
         // Input System for the touches (and Android Back); "Both" keeps any old-Input code from throwing
         Object playerSettings = Unsupported.GetSerializedAssetInterfaceSingleton("PlayerSettings");
         if (playerSettings != null)
@@ -121,6 +136,141 @@ public static class KalyeahBuild
                 serialized.ApplyModifiedPropertiesWithoutUndo();
             }
         }
+    }
+
+    static void StampVersionAndBuildInfo()
+    {
+        string versionFile = Path.Combine(ProjectRoot, "..", "..", "version.txt");
+        string baseVersion = File.Exists(versionFile) ? File.ReadAllText(versionFile).Trim() : "0.1.0";
+        if (string.IsNullOrEmpty(baseVersion)) baseVersion = "0.1.0";
+
+        string sha = Environment.GetEnvironmentVariable("GITHUB_SHA")?.Trim() ?? "";
+        if (sha.Length > 7) sha = sha.Substring(0, 7);
+        PlayerSettings.bundleVersion = sha.Length > 0 ? $"{baseVersion}+{sha}" : baseVersion;
+
+        string runNumberRaw = Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER")?.Trim();
+        if (string.IsNullOrEmpty(runNumberRaw))
+            runNumberRaw = Environment.GetEnvironmentVariable("KALYEAH_VERSION_CODE")?.Trim();
+        if (!string.IsNullOrEmpty(runNumberRaw) && int.TryParse(runNumberRaw, out int versionCode) && versionCode > 0)
+            PlayerSettings.Android.bundleVersionCode = versionCode;
+        else if (PlayerSettings.Android.bundleVersionCode < 1)
+            PlayerSettings.Android.bundleVersionCode = 1;
+
+        string rawServerUrl = Arg("-serverUrl");
+        if (string.IsNullOrWhiteSpace(rawServerUrl))
+            rawServerUrl = Environment.GetEnvironmentVariable("KALYEAH_SERVER_URL");
+        if (string.IsNullOrWhiteSpace(rawServerUrl))
+            rawServerUrl = Environment.GetEnvironmentVariable("BAYABAS_SERVER_URL");
+
+        string normalizedServerUrl = SettingsStore.NormalizeServerUrl(rawServerUrl ?? "");
+        string dataDirDisk = Path.Combine(ProjectRoot, ImportedDataDir);
+        if (Directory.Exists(dataDirDisk))
+        {
+            string stampDiskPath = Path.Combine(ProjectRoot, BuildStampAssetPath);
+            if (string.IsNullOrEmpty(normalizedServerUrl))
+            {
+                if (File.Exists(stampDiskPath))
+                    AssetDatabase.DeleteAsset(BuildStampAssetPath);
+            }
+            else
+            {
+                string content = normalizedServerUrl + "\n";
+                if (!File.Exists(stampDiskPath) || File.ReadAllText(stampDiskPath) != content)
+                {
+                    File.WriteAllBytes(stampDiskPath, System.Text.Encoding.UTF8.GetBytes(content));
+                    AssetDatabase.ImportAsset(BuildStampAssetPath, ImportAssetOptions.ForceSynchronousImport);
+                }
+            }
+        }
+    }
+
+    static void ConfigureAppIconsAndSplash()
+    {
+        PlayerSettings.SplashScreen.show = true;
+        PlayerSettings.SplashScreen.showUnityLogo = false;
+        PlayerSettings.SplashScreen.backgroundColor = Color.black;
+        PlayerSettings.SplashScreen.drawMode = PlayerSettings.SplashScreen.DrawMode.AllSequential;
+
+        if (!AssetDatabase.IsValidFolder(AppIconDir))
+            return;
+
+        Texture2D adaptiveBg = LoadAppIconTexture(AppIconDir + "/adaptive_background.png", asSprite: false);
+        Texture2D adaptiveFg = LoadAppIconTexture(AppIconDir + "/adaptive_foreground.png", asSprite: false);
+        Texture2D main192 = LoadAppIconTexture(AppIconDir + "/main_192.png", asSprite: false);
+        Texture2D legacyIcon = LoadAppIconTexture(AppIconDir + "/icon.png", asSprite: false);
+        Texture2D fallbackIcon = main192 != null ? main192 : legacyIcon;
+
+        if (fallbackIcon != null)
+        {
+            int[] unknownSizes = PlayerSettings.GetIconSizes(NamedBuildTarget.Unknown, IconKind.Application);
+            int count = unknownSizes != null && unknownSizes.Length > 0 ? unknownSizes.Length : 1;
+            var fallbackArray = new Texture2D[count];
+            for (int i = 0; i < count; i++) fallbackArray[i] = fallbackIcon;
+            PlayerSettings.SetIcons(NamedBuildTarget.Unknown, fallbackArray, IconKind.Application);
+        }
+
+        PlatformIconKind[] kinds = PlayerSettings.GetSupportedIconKinds(NamedBuildTarget.Android);
+        if (kinds != null)
+        {
+            foreach (PlatformIconKind kind in kinds)
+            {
+                string kindName = kind.ToString() ?? "";
+                PlatformIcon[] slots = PlayerSettings.GetPlatformIcons(NamedBuildTarget.Android, kind);
+                if (slots == null || slots.Length == 0) continue;
+
+                if (kindName.IndexOf("Adaptive", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    if (adaptiveBg == null || adaptiveFg == null) continue;
+                    foreach (PlatformIcon slot in slots)
+                    {
+                        if (slot.maxLayerCount >= 2)
+                        {
+                            slot.SetTexture(adaptiveBg, 0);
+                            slot.SetTexture(adaptiveFg, 1);
+                        }
+                    }
+                    PlayerSettings.SetPlatformIcons(NamedBuildTarget.Android, kind, slots);
+                }
+                else if (fallbackIcon != null)
+                {
+                    foreach (PlatformIcon slot in slots)
+                    {
+                        if (slot.maxLayerCount >= 1)
+                            slot.SetTexture(fallbackIcon, 0);
+                    }
+                    PlayerSettings.SetPlatformIcons(NamedBuildTarget.Android, kind, slots);
+                }
+            }
+        }
+
+        string splashPath = AppIconDir + "/boot_splash.png";
+        LoadAppIconTexture(splashPath, asSprite: true);
+        Sprite splashSprite = AssetDatabase.LoadAssetAtPath<Sprite>(splashPath);
+        if (splashSprite != null)
+        {
+            PlayerSettings.SplashScreen.logos = new[]
+            {
+                PlayerSettings.SplashScreenLogo.Create(2.0f, splashSprite),
+            };
+        }
+    }
+
+    static Texture2D LoadAppIconTexture(string assetPath, bool asSprite)
+    {
+        if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(assetPath)))
+            return null;
+
+        if (AssetImporter.GetAtPath(assetPath) is TextureImporter ti)
+        {
+            bool dirty = false;
+            TextureImporterType desiredType = asSprite ? TextureImporterType.Sprite : TextureImporterType.Default;
+            if (ti.textureType != desiredType) { ti.textureType = desiredType; dirty = true; }
+            if (asSprite && ti.spriteImportMode != SpriteImportMode.Single) { ti.spriteImportMode = SpriteImportMode.Single; dirty = true; }
+            if (!ti.alphaIsTransparency) { ti.alphaIsTransparency = true; dirty = true; }
+            if (ti.mipmapEnabled) { ti.mipmapEnabled = false; dirty = true; }
+            if (dirty) ti.SaveAndReimport();
+        }
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
     }
 
     /// <summary>A URP asset and its renderer, made once and set as the project's pipeline for every quality level.</summary>
@@ -375,6 +525,19 @@ public static class KalyeahBuild
     public static void BuildAndroid()
     {
         Setup();
+        ConfigureAndroidKeystoreFromEnv();
+        string abiOverride = Arg("-androidAbi") ?? Environment.GetEnvironmentVariable("KALYEAH_ANDROID_ABI");
+        if (string.Equals(abiOverride?.Trim(), "x86_64", StringComparison.OrdinalIgnoreCase))
+        {
+#pragma warning disable CS0618
+            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.X86_64;
+#pragma warning restore CS0618
+        }
+        else
+        {
+            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+        }
+
         string path = Arg("-customBuildPath") ?? Path.Combine(ProjectRoot, "Build", "Android", "kalyeah-unity.apk");
         if (!path.EndsWith(".apk", StringComparison.OrdinalIgnoreCase)) path = Path.Combine(path, "kalyeah-unity.apk");
         Directory.CreateDirectory(Path.GetDirectoryName(path));
@@ -391,6 +554,36 @@ public static class KalyeahBuild
         Debug.Log($"KalyeahBuild: {summary.result} {path} {summary.totalSize / (1024 * 1024)} MB in {summary.totalTime}");
         if (summary.result != BuildResult.Succeeded)
             throw new BuildFailedException($"Android build {summary.result}: {summary.totalErrors} errors (see the log above)");
+    }
+
+    static void ConfigureAndroidKeystoreFromEnv()
+    {
+        string keystoreB64 = Environment.GetEnvironmentVariable("KALYEAH_DEBUG_KEYSTORE_B64")?.Trim();
+        string keystorePathEnv = Environment.GetEnvironmentVariable("KALYEAH_ANDROID_KEYSTORE_PATH")?.Trim();
+
+        string keystorePath = null;
+        if (!string.IsNullOrEmpty(keystoreB64))
+        {
+            byte[] decoded = Convert.FromBase64String(keystoreB64);
+            keystorePath = Path.Combine(Path.GetTempPath(), "kalyeah-debug.keystore");
+            File.WriteAllBytes(keystorePath, decoded);
+        }
+        else if (!string.IsNullOrEmpty(keystorePathEnv) && File.Exists(keystorePathEnv))
+        {
+            keystorePath = keystorePathEnv;
+        }
+
+        if (!string.IsNullOrEmpty(keystorePath))
+        {
+            string storePass = Environment.GetEnvironmentVariable("KALYEAH_ANDROID_KEYSTORE_PASS") ?? "android";
+            string aliasName = Environment.GetEnvironmentVariable("KALYEAH_ANDROID_KEYALIAS_NAME") ?? "androiddebugkey";
+            string aliasPass = Environment.GetEnvironmentVariable("KALYEAH_ANDROID_KEYALIAS_PASS") ?? storePass;
+            PlayerSettings.Android.useCustomKeystore = true;
+            PlayerSettings.Android.keystoreName = keystorePath;
+            PlayerSettings.Android.keystorePass = storePass;
+            PlayerSettings.Android.keyaliasName = aliasName;
+            PlayerSettings.Android.keyaliasPass = aliasPass;
+        }
     }
 
     // ---- Screenshots ------------------------------------------------------------------------------------------------------------

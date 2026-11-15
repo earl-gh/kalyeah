@@ -289,5 +289,279 @@ namespace Kalyeah.Net.Tests
             Assert.IsTrue(VariantCodec.TryDecode(good, out _));
             Assert.IsFalse(VariantCodec.TryDecode(good.Take(good.Length - 3).ToArray(), out _));
         }
+
+        [Test]
+        public void LangitLupaOnlineBrownoutHidesFarKidsAndMoundsThenRestoresOverWebSockets()
+        {
+            GameServer server = NewServer(21);
+            var transport = WsServerTransport.Listen(0, IPAddress.Loopback);
+            server.Attach(transport);
+            string url = "ws://127.0.0.1:" + transport.Port;
+            var clients = new List<GameClient>
+            {
+                NewClient("Ana"),
+                NewClient("Ben"),
+                NewClient("Cy"),
+            };
+            try
+            {
+                foreach (GameClient c in clients) Assert.IsTrue(c.ConnectTo(url));
+                Assert.IsTrue(PollUntil(() => clients.All(c => c.IsOnline()), server, clients), "all online");
+
+                GameClient host = clients[0];
+                host.CreateRoom();
+                Assert.IsTrue(PollUntil(() => !host.Room.IsEmpty, server, clients), "room created");
+                host.SetMap("langit_lupa");
+                Assert.IsTrue(PollUntil(() => host.Room.GetStr("map") == "langit_lupa", server, clients), "host picked Langit Lupa");
+
+                string code = host.Room.GetStr("code");
+                foreach (GameClient c in clients.Skip(1)) c.JoinRoom(code);
+                Assert.IsTrue(PollUntil(() => host.Room.GetArr("members").Count == 3 && clients.All(c => c.PlayerId > 0), server, clients), "all 3 in room");
+
+                foreach (GameClient c in clients) c.SetReady(true);
+                Assert.IsTrue(PollUntil(() => host.Room.GetBool("can_start"), server, clients), "three kids can start");
+                host.StartMatch();
+                Assert.IsTrue(PollUntil(() => clients.All(c => c.InMatch()), server, clients), "loading");
+                foreach (GameClient c in clients) c.Loaded();
+                Assert.IsTrue(PollUntil(() => clients.All(c => c.Stage == "play"), server, clients), "straight to play");
+
+                ServerMatch running = server.Matches.Values.First();
+                running.Sim.IntroLeft = 0.0;
+                Assert.IsTrue(PollUntil(() => running.Sim.Phase == MatchSim.MatchPhase.Playing, server, clients), "playing");
+
+                var game = running.Sim.Mode as LangitLupa;
+                Assert.IsNotNull(game, "the room plays Langit Lupa");
+                Assert.IsTrue(PollUntil(
+                    () => clients.All(c => c.Mirror.Mode is LangitLupa m && m.TayaId == game.TayaId),
+                    server,
+                    clients), "every phone knows the taya");
+
+                int[] ids = clients.Select(c => c.PlayerId).ToArray();
+                GameClient viewer = clients[0];
+                int farId = ids[2];
+
+                // Lights out: far kid beyond BrownoutSight on its own mound, near kid within sight.
+                game.GraceLeft = 99.0;
+                game.TimeLeft = game.Rules.MatchSeconds - game.Rules.BrownoutFirst - 0.5;
+                running.Sim.Players[ids[0]].Position = new Vec2(-6.0, 20.0);
+                running.Sim.Players[ids[1]].Position = new Vec2(-6.0, 17.0);
+                running.Sim.Players[farId].Position = new Vec2(8.0, -20.0);
+                game.RaiseMound(running.Sim, running.Sim.Players[farId]);
+
+                Assert.IsTrue(PollUntil(
+                    () => viewer.Mirror.Mode is LangitLupa m && m.IsBrownout() && m.Unseen.Contains(farId),
+                    server,
+                    clients), "viewer mirror knows it may not see far kid");
+
+                var copy = (LangitLupa)viewer.Mirror.Mode;
+                Assert.IsFalse(copy.Unseen.Contains(ids[1]), "near kid stays seen");
+                Assert.IsFalse(copy.Mounds.ContainsKey(farId), "far kid's mound is stripped for viewer");
+                Assert.IsFalse(copy.VisibleTo(viewer.Mirror, viewer.PlayerId, farId));
+                Assert.Greater(
+                    viewer.Mirror.Players[farId].Position.DistanceTo(new Vec2(8.0, -20.0)),
+                    5.0,
+                    "viewer mirror never receives far kid's real position");
+
+                GDict redacted = Snapshot.HideFor(running.Sim, viewer.PlayerId, Snapshot.Capture(running.Sim, new OrderedDict<int, int>()));
+                bool checkedFarWire = false;
+                foreach (object raw in redacted.GetArr("players"))
+                {
+                    var entry = (GDict)raw;
+                    if (entry.GetInt("id", -1) == farId)
+                    {
+                        checkedFarWire = true;
+                        Assert.IsTrue(entry.GetBool("hid"), "wire marks far entry hidden");
+                        Assert.AreEqual(Vec2.Zero, entry.GetVec2("pos", new Vec2(99.0, 99.0)), "wire zeroes far player's position");
+                    }
+                }
+                Assert.IsTrue(checkedFarWire);
+
+                Assert.IsTrue(PollUntil(
+                    () => clients[2].Mirror.Mode is LangitLupa fm && fm.Mounds.ContainsKey(farId),
+                    server,
+                    clients), "far kid's own phone sees its mound");
+
+                // Lights return: everyone is seen again and real position syncs.
+                game.TimeLeft = game.Rules.MatchSeconds - game.Rules.BrownoutFirst - game.Rules.BrownoutSeconds - 1.0;
+                Assert.IsTrue(PollUntil(
+                    () => ((LangitLupa)viewer.Mirror.Mode).Unseen.Count == 0,
+                    server,
+                    clients), "seen again after brownout");
+                Assert.IsTrue(PollUntil(
+                    () => viewer.Mirror.Players[farId].Position.DistanceTo(running.Sim.Players[farId].Position) < 1.0,
+                    server,
+                    clients), "viewer mirror catches up to far kid's real position");
+            }
+            finally
+            {
+                foreach (GameClient c in clients) c.Close();
+                server.Stop();
+            }
+        }
+
+        [Test]
+        public void OpenRoomsRateLimitsBurstHidesPrivateAndStartedRoomsAndRefusesCodeFreeOnlineJoin()
+        {
+            GameServer server = NewServer(9);
+            var transport = WsServerTransport.Listen(0, IPAddress.Loopback);
+            server.Attach(transport);
+            string url = "ws://127.0.0.1:" + transport.Port;
+            GameClient host = NewClient("Ana");
+            GameClient guest = NewClient("Ben");
+            GameClient late = NewClient("Cy");
+            var clients = new List<GameClient> { host, guest, late };
+            try
+            {
+                Assert.IsTrue(host.ConnectTo(url));
+                Assert.IsTrue(guest.ConnectTo(url));
+                Assert.IsTrue(late.ConnectTo(url));
+                Assert.IsTrue(PollUntil(() => clients.All(c => c.IsOnline()), server, clients), "connected");
+
+                host.CreateRoom();
+                Assert.IsTrue(PollUntil(() => !host.Room.IsEmpty, server, clients), "host room open");
+                string code = host.Room.GetStr("code");
+
+                // Online server refuses code-free join (AutoJoin is false).
+                string onlineJoinErr = "";
+                late.ErrorReceived += err => onlineJoinErr = err;
+                late.JoinRoom("");
+                Assert.IsTrue(PollUntil(() => onlineJoinErr.Length > 0, server, clients), "code-free join refused online");
+                Assert.IsTrue(late.Room.IsEmpty, "no room joined without its code");
+
+                // Burst of 5 ListRooms calls within RoomListMinGap produces exactly 1 answer.
+                var answers = new List<List<GDict>>();
+                guest.RoomsListed += rooms => answers.Add(rooms);
+                for (int i = 0; i < 5; i++) guest.ListRooms();
+                for (int i = 0; i < 15; i++)
+                {
+                    server.Poll(DT);
+                    guest.Poll(DT);
+                    Thread.Sleep(2);
+                }
+                Assert.AreEqual(1, answers.Count, "five asks in a burst, one answer");
+                Assert.AreEqual(1, answers[0].Count);
+                Assert.AreEqual(code, answers[0][0].GetStr("code"));
+
+                // Private room drops off OpenRooms, yet direct code join still succeeds.
+                host.SetOpen(false);
+                Assert.IsTrue(PollUntil(() => !host.Room.GetBool("open", true), server, clients), "room marked private");
+                for (int i = 0; i < 36; i++)
+                {
+                    server.Poll(DT);
+                    guest.Poll(DT);
+                }
+                guest.ListRooms();
+                Assert.IsTrue(PollUntil(() => answers.Count == 2, server, clients), "second list after min gap");
+                Assert.IsEmpty(answers[1], "private room omitted from open list");
+
+                guest.JoinRoom(code);
+                Assert.IsTrue(PollUntil(() => !guest.Room.IsEmpty && guest.Room.GetStr("code") == code, server, clients), "private room still joins by code");
+
+                // Reopen and start match: started room drops off list and late joiner gets explicit error.
+                host.SetOpen(true);
+                Assert.IsTrue(PollUntil(() => host.Room.GetBool("open"), server, clients));
+                host.SetReady(true);
+                guest.SetReady(true);
+                Assert.IsTrue(PollUntil(() => host.Room.GetBool("can_start"), server, clients));
+                host.StartMatch();
+                Assert.IsTrue(PollUntil(() => host.InMatch() && guest.InMatch(), server, clients), "match started");
+
+                onlineJoinErr = "";
+                late.JoinRoom(code);
+                Assert.IsTrue(PollUntil(() => onlineJoinErr.Contains("already started"), server, clients), "late joiner told match started");
+                Assert.IsTrue(late.Room.IsEmpty);
+
+                var lateLists = new List<List<GDict>>();
+                late.RoomsListed += rooms => lateLists.Add(rooms);
+                late.ListRooms();
+                Assert.IsTrue(PollUntil(() => lateLists.Count == 1, server, clients), "late client gets room list");
+                Assert.IsEmpty(lateLists[0], "started room dropped off open rooms list");
+            }
+            finally
+            {
+                foreach (GameClient c in clients) c.Close();
+                server.Stop();
+            }
+        }
+
+        [Test]
+        public void LoopbackWebSocketMatchRelaysTeammateKidLockWeaponCastsAndQuickChat()
+        {
+            GameServer server = NewServer(33);
+            var transport = WsServerTransport.Listen(0, IPAddress.Loopback);
+            server.Attach(transport);
+            string url = "ws://127.0.0.1:" + transport.Port;
+            GameClient a1 = NewClient("Ally1");
+            GameClient a2 = NewClient("Ally2");
+            GameClient b1 = NewClient("Rival1");
+            var clients = new List<GameClient> { a1, a2, b1 };
+            try
+            {
+                foreach (GameClient c in clients) Assert.IsTrue(c.ConnectTo(url));
+                Assert.IsTrue(PollUntil(() => clients.All(c => c.IsOnline()), server, clients), "connected");
+
+                a1.CreateRoom();
+                Assert.IsTrue(PollUntil(() => !a1.Room.IsEmpty, server, clients));
+                string code = a1.Room.GetStr("code");
+                b1.JoinRoom(code);
+                Assert.IsTrue(PollUntil(() => b1.PlayerId > 0, server, clients));
+                a2.JoinRoom(code);
+                Assert.IsTrue(PollUntil(() => a1.Room.GetArr("members").Count == 3 && a2.PlayerId > 0, server, clients));
+                Assert.AreEqual(0, a1.MyTeam());
+                Assert.AreEqual(0, a2.MyTeam());
+                Assert.AreEqual(1, b1.MyTeam());
+
+                foreach (GameClient c in clients) c.SetReady(true);
+                Assert.IsTrue(PollUntil(() => a1.Room.GetBool("can_start"), server, clients));
+                a1.StartMatch();
+                Assert.IsTrue(PollUntil(() => clients.All(c => c.InMatch()), server, clients));
+                foreach (GameClient c in clients) c.Loaded();
+                Assert.IsTrue(PollUntil(() => clients.All(c => c.Stage == "pick"), server, clients));
+
+                // Ally1 locks "toni" first; Ally2 learns "toni" is in TakenKids() and cannot steal it over the wire.
+                a1.PickWeapons("bato_light", "lata", "toni", "papel_shield");
+                Assert.IsTrue(PollUntil(() => a2.TakenKids().Contains("toni"), server, clients), "teammate sees locked kid");
+                a2.PickWeapons("bato_light", "lata", "toni", "papel_shield");
+                b1.PickWeapons("jacks", "bola", "toni", "trumpo");
+                Assert.IsTrue(PollUntil(() => clients.All(c => c.Stage == "play"), server, clients), "all entered play");
+
+                Assert.AreEqual("toni", b1.Mirror.Players[a1.PlayerId].CharacterId);
+                Assert.AreNotEqual("toni", b1.Mirror.Players[a2.PlayerId].CharacterId, "teammate could not steal toni");
+                Assert.AreEqual("toni", b1.Mirror.Players[b1.PlayerId].CharacterId, "opponent could pick toni");
+
+                ServerMatch running = server.Matches.Values.First();
+                running.Sim.IntroLeft = 0.0;
+
+                int weaponEvents = 0;
+                int stickers = 0;
+                int snapshots = 0;
+                b1.EventReceived += (target, name, _) => { if (target == "sim" && name == "weapon_cast") weaponEvents++; };
+                b1.Said += (_, _) => stickers++;
+                b1.SnapshotApplied += () => snapshots++;
+
+                Vec2 start = b1.Mirror.Players[a1.PlayerId].Position;
+                int tick = 0;
+                Assert.IsTrue(PollUntil(
+                    () => snapshots > 15 && weaponEvents > 0 && stickers == 1 && !b1.Mirror.Players[a1.PlayerId].Position.IsEqualApprox(start),
+                    server,
+                    clients,
+                    12.0,
+                    () =>
+                    {
+                        tick++;
+                        int btns = (tick == 10 ? PlayerInput.BtnPrimary : 0) | (tick >= 12 && tick <= 14 ? PlayerInput.BtnCard1 : 0);
+                        a1.SendInput(PlayerInput.Create(new Vec2(1.0, 0.0), new Vec2(1.0, 0.0), btns, tick), DT);
+                        a2.SendInput(PlayerInput.Create(Vec2.Zero, Vec2.Zero, 0, tick), DT);
+                        b1.SendInput(PlayerInput.Create(Vec2.Zero, Vec2.Zero, 0, tick), DT);
+                        b1.Interpolate();
+                        if (tick == 20) a1.Say(1);
+                    }), "snapshots, weapon cast events, chat sticker, and movement over loopback WebSockets");
+            }
+            finally
+            {
+                foreach (GameClient c in clients) c.Close();
+                server.Stop();
+            }
+        }
     }
 }

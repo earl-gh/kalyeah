@@ -1,19 +1,13 @@
 // =====================================================================================================================================
 // SimBridge: the ONE place the Unity game calls the Agawang Base sim (unity/Kalyeah.Sim) and online client (unity/Kalyeah.Net).
 // Everything in unity/Game/Assets/Kalyeah/View reads the engine-free snapshots and events below.
-//
-// Two builds of this file:
-//   KALYEAH_SIM_PORTED defined  -> the real deterministic 30 Hz sim (Kalyeah.Sim) and WebSocket/Hotspot mirror (Kalyeah.Net).
-//   not defined                 -> StandInMatch.cs fallback so View assemblies still compile standalone.
 // =====================================================================================================================================
 using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text.RegularExpressions;
-#if KALYEAH_SIM_PORTED
 using Kalyeah.Net;
 using Kalyeah.Sim;
-#endif
 
 namespace Kalyeah.Game
 {
@@ -140,9 +134,7 @@ namespace Kalyeah.Game
         public bool TrainingMode;
         public bool? CardCycleOverride;
         public int FirstTo;
-#if KALYEAH_SIM_PORTED
         public GameClient OnlineClient;
-#endif
     }
 
     /// <summary>What the view draws of one kid, copied out of the sim after each tick (zero per-tick heap allocations).</summary>
@@ -435,7 +427,6 @@ namespace Kalyeah.Game
         {
         }
 
-#if KALYEAH_SIM_PORTED
         readonly MatchSim _offlineSim;
         readonly TeamCoach[] _coaches;
         readonly GameClient _client;
@@ -1301,118 +1292,6 @@ namespace Kalyeah.Game
                 };
             }
         }
-#else
-        readonly StandInMatch _sim;
-
-        public SimBridge(DataSource data, MatchSetup setup)
-        {
-            if (data == null) throw new ArgumentNullException(nameof(data));
-            setup ??= new MatchSetup { Seed = 1L, LocalCharacter = "junjun" };
-            var rules = data.Props("rules__game_rules");
-            var layout = MapLayoutData.Load(data);
-            TickDt = 1f / DataSource.I(rules, "tick_rate");
-            _runPerTick = DataSource.F(rules, "move_speed") * TickDt;
-            _sim = new StandInMatch(data, layout, setup.Seed);
-            MaxHp = _sim.MaxHp;
-            MaxStamina = 100f;
-            MaxElixir = 10f;
-            ArenaRadius = layout.ArenaRadius;
-            PlayerRadius = DataSource.F(rules, "player_radius");
-            _sim.AddPlayer(LocalId, LocalTeam);
-            foreach (int id in AllyIds) _sim.AddPlayer(id, LocalTeam);
-            foreach (int id in EnemyIds) _sim.AddPlayer(id, 1 - LocalTeam);
-            _sim.AssignCharacters(LocalId, setup.LocalCharacter);
-            UsesStandIn = true;
-            IsTraining = setup.TrainingMode;
-            IsOnline = false;
-            Refresh();
-            TouchUnusedEvents();
-        }
-
-        public int LocalPlayerId => LocalId;
-        public int LocalPlayerTeam => LocalTeam;
-        public int Tick => _sim.Tick;
-        public float ClockSeconds => _sim.MatchTime;
-        public float RoundClockLeft => 180f - _sim.MatchTime;
-        public bool ClockCountsDown => true;
-        public MatchPhaseKind Phase => MatchPhaseKind.Playing;
-        public ClockStageKind ClockStage => ClockStageKind.Regular;
-        public CaptureReasonKind CaptureReason => CaptureReasonKind.None;
-        public float PhaseTimeLeft => 0f;
-        public int WinnerTeam => -1;
-        public int PointsToWin => 3;
-        public int RoundNumber => 1;
-        public int CaptureTeam => -1;
-        public float CaptureProgress01 => 0f;
-        public bool CanSwapLoadout => false;
-        public int ScoreOf(int team) => (team >= 0 && team < _sim.Points.Length) ? _sim.Points[team] : 0;
-
-        public void Step()
-        {
-            _sim.SetMove(LocalId, _localInput.Move);
-            _sim.Step(TickDt);
-            Refresh();
-        }
-
-        public void SyncInterpolated() { }
-        public bool SkipIntro() => false;
-        public bool ApplyLoadout(IList<string> weaponIds, string characterId = null) => false;
-        public bool TrySwapLoadout(IList<string> weaponIds) => false;
-        public void SendQuickChat(int sticker) => QuickChatSaid?.Invoke(LocalId, sticker);
-        public void Dispose() { }
-
-        public void SetPlayerPositionForPreview(int id, Vector2 position, Vector2 facing)
-        {
-            if (_sim.Kids.TryGetValue(id, out StandInMatch.Kid k))
-            {
-                k.Position = position;
-                if (facing.LengthSquared() > 0.0001f)
-                    k.Facing = Vector2.Normalize(facing);
-                _lastPositions[id] = position;
-            }
-            Refresh();
-        }
-
-        void Refresh()
-        {
-            _kids.Clear();
-            foreach (StandInMatch.Kid k in _sim.Kids.Values)
-            {
-                float speed = MeasureSpeed01(k.Id, k.Position);
-                _kids.Add(new KidSnapshot
-                {
-                    Id = k.Id,
-                    Team = k.Team,
-                    CharacterId = k.CharacterId ?? "",
-                    Position = k.Position,
-                    Facing = k.Facing,
-                    Hp = k.Hp,
-                    Tagged = false,
-                    Speed01 = speed,
-                    Stamina = MaxStamina,
-                    MaxStamina = MaxStamina,
-                    Elixir = 5f,
-                    MaxElixir = MaxElixir,
-                    BuffId = "",
-                    CastingWeaponId = "",
-                    HeldSlot = -1,
-                    HandWeaponIds = Array.Empty<string>(),
-                    SlotCooldowns = Array.Empty<float>(),
-                    SlotMaxCooldowns = Array.Empty<float>(),
-                    SlotElixirCosts = Array.Empty<int>(),
-                    NextWeaponId = "",
-                    ShuffleWeaponId = "",
-                });
-            }
-        }
-
-        void TouchUnusedEvents()
-        {
-            _ = Tagged; _ = Rescued; _ = PointScored; _ = MatchWon; _ = PointReset; _ = IntroFinished;
-            _ = WeaponCast; _ = WeaponHit; _ = PlayerDamaged; _ = PlayerHealed; _ = StatusApplied;
-            _ = PlayerDashed; _ = UltimateCast; _ = PlayerExhausted; _ = PowerupTaken; _ = ConeTriggered;
-        }
-#endif
 
         /// <summary>Backwards-compatible input setter (`move` in sim XZ, `buttons` bitmask).</summary>
         public void SetLocalInput(Vector2 move, int buttons)

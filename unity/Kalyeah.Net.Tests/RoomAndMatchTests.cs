@@ -173,6 +173,37 @@ namespace Kalyeah.Net.Tests
             Assert.IsFalse(service.SetCharacter(1, "nobody"));
         }
 
+        [Test]
+        public void ServerDoesNotTakeAKidFromAConfirmedTeammate()
+        {
+            RoomService service = NetKit.Service();
+            var room = new RoomService.Room();
+            room.Members.Add(new RoomService.Member { PlayerId = 1, Team = 0, Name = "A" });
+            room.Members.Add(new RoomService.Member { PlayerId = 2, Team = 0, Name = "B" });
+            room.Members.Add(new RoomService.Member { PlayerId = 3, Team = 1, Name = "C" });
+            var running = new ServerMatch(null, service, room, NetKit.Rules, NetKit.Layout, NetKit.Net, 5);
+            try
+            {
+                running.CurrentStage = ServerMatch.Stage.Picking;
+                running.Pick(1, "bato_light", "lata", "toni", "papel_shield");
+                Assert.AreEqual("toni", running.Sim.Players[1].CharacterId);
+                CollectionAssert.AreEqual(new[] { "toni" }, running.TakenKids(2));
+                CollectionAssert.IsEmpty(running.TakenKids(3), "an opponent on team 1 is not blocked by team 0's lock");
+
+                running.Pick(2, "bato_light", "lata", "toni", "papel_shield");
+                Assert.AreNotEqual("toni", running.Sim.Players[2].CharacterId, "player 2 cannot take confirmed teammate player 1's kid");
+                Assert.AreEqual("toni", running.Sim.Players[1].CharacterId, "player 1 keeps toni");
+                CollectionAssert.AreEqual(new[] { "toni" }, running.TakenKids(2));
+
+                running.Pick(3, "bato_light", "lata", "toni", "papel_shield");
+                Assert.AreEqual("toni", running.Sim.Players[3].CharacterId, "opponent on team 1 may pick toni");
+            }
+            finally
+            {
+                running.Dispose();
+            }
+        }
+
         // ---- test_open_rooms.gd ----
 
         [Test]

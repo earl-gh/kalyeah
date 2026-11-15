@@ -1095,8 +1095,7 @@ namespace Kalyeah.Game
             if (_heldSlot >= 0)
             {
                 buttons |= InputButtons.CardSlotBit(_heldSlot);
-                if (tickAdvanced)
-                    _slotPressObservedBySim = true;
+                _slotPressObservedBySim = true;
 
                 previewWid = _slotWeaponIds[_heldSlot];
                 float range = _slotMaxRanges[_heldSlot];
@@ -1308,14 +1307,24 @@ namespace Kalyeah.Game
                 Canvas canvas = _root != null ? _root.GetComponentInParent<Canvas>() : null;
                 bool overCancel = _isCancelHovered || IsOverCancelZone(eventData.position, eventData.pressEventCamera ?? (canvas != null ? canvas.worldCamera : null));
                 if (overCancel)
+                {
                     Haptics.CancelTick();
-
-                _pendingReleaseSlot = _heldSlot;
-                _pendingReleaseCancel = overCancel;
-                _pendingReleaseUseDragAim = !overCancel && _hasDraggedPastDeadZone;
-                _pendingReleaseUseCrosshairAim = !overCancel && !_hasDraggedPastDeadZone && _holdElapsed > QuickTapMaxSeconds;
-                _pendingReleaseDragWay = _screenDragWay;
-                _pendingReleaseMaxRange = _slotMaxRanges[_heldSlot];
+                    _latchedAimCancel = true;
+                    _pendingReleaseSlot = -1;
+                    _pendingReleaseCancel = false;
+                    _pendingReleaseUseDragAim = false;
+                    _pendingReleaseUseCrosshairAim = false;
+                    _slotPressObservedBySim = false;
+                }
+                else
+                {
+                    _pendingReleaseSlot = _heldSlot;
+                    _pendingReleaseCancel = false;
+                    _pendingReleaseUseDragAim = _hasDraggedPastDeadZone;
+                    _pendingReleaseUseCrosshairAim = !_hasDraggedPastDeadZone && _holdElapsed > QuickTapMaxSeconds;
+                    _pendingReleaseDragWay = _screenDragWay;
+                    _pendingReleaseMaxRange = _slotMaxRanges[_heldSlot];
+                }
 
                 _slotPointer = NoPointer;
                 _heldSlot = -1;

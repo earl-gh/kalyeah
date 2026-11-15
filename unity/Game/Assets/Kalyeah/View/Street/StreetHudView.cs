@@ -172,7 +172,21 @@ namespace Kalyeah.Game
         static readonly Color CancelIdleBg = new Color(0.76f, 0.16f, 0.18f, 0.88f);
         static readonly Color CancelHoverBg = new Color(1.00f, 0.22f, 0.20f, 0.98f);
         static readonly Color BrownoutAlertBg = new Color(0.14f, 0.11f, 0.32f, 0.95f);
+        static readonly Color BrownoutShadeTint = new Color(0.06f, 0.09f, 0.19f, 1f);
+        static readonly Color TumbangResultColor = new Color(1.00f, 0.30f, 0.26f, 1f);
+        static readonly Color TumbangSlotIdleBorder = new Color(0.20f, 0.27f, 0.42f, 0.88f);
         static readonly Color GoldText = new Color(1.00f, 0.84f, 0.28f, 1f);
+
+        const float BrownoutFadeSeconds = 0.40f;
+        const float BrownoutFeatherShare = 0.30f;
+        const float BrownoutShadeMaxAlpha = 0.56f;
+
+        const int TumbangRollLaps = 2;
+        const float TumbangRollCurve = 1.6f;
+        const float TumbangRollFinishShare = 0.78f;
+        const float TumbangRollTotalSeconds = 2.35f;
+
+        static Sprite s_brownoutHoleSprite;
 
         public readonly Canvas Canvas;
         public readonly RectTransform Safe;
@@ -181,6 +195,7 @@ namespace Kalyeah.Game
         public readonly LookPad Look;
         public readonly bool Interactive;
 
+        readonly Camera _defaultCamera;
         readonly Action _onPlayAgain;
         readonly Action _onHome;
 
@@ -204,12 +219,37 @@ namespace Kalyeah.Game
         readonly RectTransform _cancelZoneRect;
         readonly Image _cancelZoneBg;
 
-        // Brownout alert & toast
+        // Brownout radial screen-space spotlight shade (under Safe) + alert banner
+        readonly RectTransform _brownoutShadeRoot;
+        readonly RectTransform _brownoutHoleRect;
+        readonly Image _brownoutHoleImg;
+        readonly RectTransform[] _brownoutEdgeRects;
+        readonly Image[] _brownoutEdgeImgs;
+        float _brownoutShadeStrength;
+
         readonly GameObject _brownoutBannerObj;
         readonly Image _brownoutBannerBg;
         readonly Text _brownoutBannerText;
         float _lightsOnFlashLeft;
         bool _wasBrownout;
+
+        // Interactive-only Tumbang Preso opening roulette ("Mataya-taya!")
+        readonly RectTransform _tumbangRollRect;
+        readonly GameObject _tumbangRollRoot;
+        readonly Image[] _tumbangRollSlotBorders;
+        readonly RectTransform[] _tumbangRollSlotRects;
+        readonly int[] _tumbangRollSlotIds;
+        readonly string[] _tumbangRollSpinNames;
+        readonly string[] _tumbangRollLandedTexts;
+        readonly Text _tumbangRollWhoText;
+        float _tumbangRollElapsed;
+        int _tumbangRollTargetKidId = int.MinValue;
+        int _tumbangRollTargetSlot;
+        int _tumbangRollTotalSteps;
+        int _tumbangRollStepIndex = -1;
+        int _tumbangRollActiveSlot = -1;
+        bool _tumbangRollLandedFired;
+        bool _tumbangRollDismissed;
 
         // Action cluster (right thumb by default, left thumb when LeftHanded)
         readonly RectTransform _actionClusterRect;
@@ -261,6 +301,15 @@ namespace Kalyeah.Game
         public RectTransform PrimaryButtonRect => _primaryBtnRect;
         public RectTransform SecondaryButtonRect => _secondaryBtnRect;
 
+        public event Action TumbangRollStepped;
+        public event Action TumbangRollLanded;
+
+        public bool? ForceBrownoutPreview { get; set; }
+        public RectTransform BrownoutShadeRect => _brownoutShadeRoot;
+        public bool IsBrownoutShadeVisible => _brownoutShadeRoot != null && _brownoutShadeRoot.gameObject.activeSelf;
+        public float BrownoutShadeStrength => _brownoutShadeStrength;
+        public bool IsTumbangRollVisible => _tumbangRollRoot != null && _tumbangRollRoot.activeSelf;
+
         public bool PrimaryHeld => Interactive && !IsBlockingGameplayInput && _primaryHandler != null && _primaryHandler.IsHeld;
         public bool IsCancelHovered => _primaryHandler != null && _primaryHandler.IsHoveringCancel;
         public string DisplayedRoleText => _rolePillText != null ? _rolePillText.text : "";
@@ -282,6 +331,7 @@ namespace Kalyeah.Game
             if (bridge == null) throw new ArgumentNullException(nameof(bridge));
 
             Interactive = interactive;
+            _defaultCamera = camera;
             _onPlayAgain = onPlayAgain;
             _onHome = onHome;
 
@@ -291,6 +341,17 @@ namespace Kalyeah.Game
                 var raycaster = Canvas.GetComponent<GraphicRaycaster>();
                 if (raycaster != null) raycaster.enabled = false;
             }
+
+            // Place BrownoutShade at siblingIndex 0 directly under Canvas BEFORE SafeArea so all HUD pills,
+            // labels, joystick, and action buttons inside Safe stay 100% bright and readable above the shade.
+            _brownoutShadeRoot = Ui.Fill("BrownoutShade", Canvas.transform);
+            BuildBrownoutShade(
+                _brownoutShadeRoot,
+                out _brownoutHoleRect,
+                out _brownoutHoleImg,
+                out _brownoutEdgeRects,
+                out _brownoutEdgeImgs);
+            _brownoutShadeRoot.gameObject.SetActive(false);
 
             Safe = Ui.Fill("SafeArea", Canvas.transform);
             SafeAreaComponent = Safe.gameObject.AddComponent<SafeArea>();
@@ -440,6 +501,30 @@ namespace Kalyeah.Game
             _tayaCornerBadge = tayaChip.gameObject;
             _tayaCornerBadge.SetActive(false);
 
+            // 5b. Interactive-only Tumbang Preso opening roulette ("Mataya-taya!")
+            if (interactive && bridge.Kind == StreetGameKind.TumbangPreso && bridge.Kids != null && bridge.Kids.Count > 0)
+            {
+                _tumbangRollRect = BuildTumbangRollBanner(
+                    Safe,
+                    bridge,
+                    displayFont,
+                    navyPillSprite,
+                    roundedWhiteSprite,
+                    out _tumbangRollSlotBorders,
+                    out _tumbangRollSlotRects,
+                    out _tumbangRollSlotIds,
+                    out _tumbangRollSpinNames,
+                    out _tumbangRollLandedTexts,
+                    out _tumbangRollWhoText);
+                _tumbangRollRoot = _tumbangRollRect.gameObject;
+                SyncTumbangRollTarget(bridge.TumbangPresoState.TayaId);
+                if (!bridge.IsIntro)
+                {
+                    _tumbangRollDismissed = true;
+                    _tumbangRollRoot.SetActive(false);
+                }
+            }
+
             // 6. Leave Confirmation Modal & Match Over Summary Modal
             _leaveConfirmRoot = BuildLeaveConfirmModal(Safe, displayFont, navyPillSprite, roundedWhiteSprite);
             _leaveConfirmRoot.SetActive(false);
@@ -452,7 +537,229 @@ namespace Kalyeah.Game
             ScreenFitMetrics.SimulatedViewportChanged += ApplyResponsiveLayout;
 
             ApplyResponsiveLayout();
-            Refresh(bridge, 0f);
+            Refresh(bridge, 0f, camera);
+        }
+
+        static void BuildBrownoutShade(
+            RectTransform shadeRoot,
+            out RectTransform holeRect,
+            out Image holeImg,
+            out RectTransform[] edgeRects,
+            out Image[] edgeImgs)
+        {
+            holeImg = Ui.MakeImage("SpotlightHole", shadeRoot, Color.clear, round: false, raycast: false);
+            holeImg.sprite = GetBrownoutHoleSprite();
+            holeImg.type = Image.Type.Simple;
+            holeRect = holeImg.rectTransform;
+            StretchFull(holeRect);
+
+            string[] edgeNames = { "TopFill", "BottomFill", "LeftFill", "RightFill" };
+            edgeRects = new RectTransform[4];
+            edgeImgs = new Image[4];
+            for (int i = 0; i < 4; i++)
+            {
+                Image fill = Ui.MakeImage(edgeNames[i], shadeRoot, Color.clear, round: false, raycast: false);
+                edgeImgs[i] = fill;
+                edgeRects[i] = fill.rectTransform;
+                StretchFull(fill.rectTransform);
+            }
+        }
+
+        static Sprite GetBrownoutHoleSprite()
+        {
+            if (s_brownoutHoleSprite != null)
+                return s_brownoutHoleSprite;
+
+            const int size = 256;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, mipChain: false)
+            {
+                name = "KalyeahBrownoutSpotlight",
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+
+            const float outerR = 0.98f;
+            float innerR = outerR * (1f - BrownoutFeatherShare);
+            float invFeather = 1f / Mathf.Max(0.001f, outerR - innerR);
+            var pixels = new Color32[size * size];
+
+            for (int y = 0; y < size; y++)
+            {
+                float ny = (y / (float)(size - 1)) * 2f - 1f;
+                int row = y * size;
+                for (int x = 0; x < size; x++)
+                {
+                    float nx = (x / (float)(size - 1)) * 2f - 1f;
+                    float r = Mathf.Sqrt(nx * nx + ny * ny);
+                    byte a;
+                    if (r <= innerR)
+                    {
+                        a = 0;
+                    }
+                    else if (r >= outerR)
+                    {
+                        a = 255;
+                    }
+                    else
+                    {
+                        float t = Mathf.Clamp01((r - innerR) * invFeather);
+                        float smooth = t * t * (3f - 2f * t);
+                        a = (byte)Mathf.RoundToInt(smooth * 255f);
+                    }
+                    pixels[row + x] = new Color32(255, 255, 255, a);
+                }
+            }
+
+            tex.SetPixels32(pixels);
+            tex.Apply(updateMipmaps: false, makeNoLongerReadable: true);
+
+            s_brownoutHoleSprite = Sprite.Create(
+                tex,
+                new Rect(0f, 0f, size, size),
+                new Vector2(0.5f, 0.5f),
+                100f);
+            s_brownoutHoleSprite.name = "KalyeahBrownoutSpotlightSprite";
+            s_brownoutHoleSprite.hideFlags = HideFlags.HideAndDontSave;
+            return s_brownoutHoleSprite;
+        }
+
+        static RectTransform BuildTumbangRollBanner(
+            Transform parent,
+            StreetBridge bridge,
+            Font displayFont,
+            Sprite navyPillSprite,
+            Sprite roundedWhiteSprite,
+            out Image[] slotBorders,
+            out RectTransform[] slotRects,
+            out int[] slotIds,
+            out string[] spinNames,
+            out string[] landedTexts,
+            out Text whoText)
+        {
+            RectTransform banner = Ui.Panel(
+                "TumbangRoll",
+                parent,
+                new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f),
+                new Vector2(0f, -132f),
+                new Vector2(548f, 166f));
+
+            Image bg = MakeSlicedPill("RollBg", banner, navyPillSprite, Color.white, raycast: false);
+            StretchFull(bg.rectTransform);
+
+            Text title = Ui.MakeText("Title", banner, "MATAYA-TAYA!", 21, GoldText, TextAnchor.UpperCenter, displayFont);
+            title.raycastTarget = false;
+            RectTransform titleRt = title.rectTransform;
+            titleRt.anchorMin = new Vector2(0f, 1f);
+            titleRt.anchorMax = new Vector2(1f, 1f);
+            titleRt.pivot = new Vector2(0.5f, 1f);
+            titleRt.anchoredPosition = new Vector2(0f, -8f);
+            titleRt.sizeDelta = new Vector2(-20f, 26f);
+
+            var kids = bridge.Kids;
+            int count = kids.Count;
+            slotBorders = new Image[count];
+            slotRects = new RectTransform[count];
+            slotIds = new int[count];
+            spinNames = new string[count];
+            landedTexts = new string[count];
+
+            const float gap = 8f;
+            float slotW = Mathf.Clamp((504f - (count - 1) * gap) / Mathf.Max(1, count), 54f, 80f);
+            float slotH = 82f;
+            float totalRowW = count * slotW + Mathf.Max(0, count - 1) * gap;
+            float startX = -totalRowW * 0.5f + slotW * 0.5f;
+
+            for (int i = 0; i < count; i++)
+            {
+                StreetKidSnapshot kid = kids[i];
+                slotIds[i] = kid.Id;
+                bool isLocal = kid.Id == bridge.LocalPlayerId;
+                string upperName = FormatKidShortName(kid.CharacterId, kid.Id);
+                string cardCaption = isLocal ? "YOU" : upperName;
+                spinNames[i] = cardCaption;
+                landedTexts[i] = isLocal ? "YOU'RE IT!" : $"{upperName} IS IT!";
+
+                RectTransform slot = Ui.Panel(
+                    $"RollSlot_{i}",
+                    banner,
+                    new Vector2(0.5f, 0.5f),
+                    new Vector2(0.5f, 0.5f),
+                    new Vector2(0.5f, 0.5f),
+                    new Vector2(startX + i * (slotW + gap), 2f),
+                    new Vector2(slotW, slotH));
+                slotRects[i] = slot;
+
+                Image border = MakeSlicedPill("Border", slot, roundedWhiteSprite, TumbangSlotIdleBorder, raycast: false);
+                StretchFull(border.rectTransform);
+                slotBorders[i] = border;
+
+                Image inner = MakeSlicedPill("Inner", slot, roundedWhiteSprite, new Color(0.06f, 0.10f, 0.21f, 0.96f), raycast: false);
+                inner.rectTransform.anchorMin = Vector2.zero;
+                inner.rectTransform.anchorMax = Vector2.one;
+                inner.rectTransform.offsetMin = new Vector2(3f, 3f);
+                inner.rectTransform.offsetMax = new Vector2(-3f, -3f);
+
+                Texture2D portraitTex = !string.IsNullOrEmpty(kid.CharacterId)
+                    ? Resources.Load<Texture2D>("portraits/" + kid.CharacterId)
+                    : null;
+                if (portraitTex != null)
+                {
+                    var portraitGo = new GameObject("Portrait", typeof(RectTransform), typeof(RawImage));
+                    portraitGo.transform.SetParent(slot, false);
+                    var raw = portraitGo.GetComponent<RawImage>();
+                    raw.texture = portraitTex;
+                    raw.uvRect = new Rect(0f, 0.25f, 1f, 0.75f);
+                    raw.raycastTarget = false;
+                    RectTransform prt = raw.rectTransform;
+                    prt.anchorMin = Vector2.zero;
+                    prt.anchorMax = Vector2.one;
+                    prt.offsetMin = new Vector2(6f, 20f);
+                    prt.offsetMax = new Vector2(-6f, -6f);
+                }
+                else
+                {
+                    string initial = upperName.Length > 0 ? upperName.Substring(0, 1) : "?";
+                    Text badge = Ui.MakeText("Initial", slot, initial, 24, GoldText, TextAnchor.MiddleCenter, displayFont);
+                    badge.raycastTarget = false;
+                    RectTransform brt = badge.rectTransform;
+                    brt.anchorMin = Vector2.zero;
+                    brt.anchorMax = Vector2.one;
+                    brt.offsetMin = new Vector2(4f, 18f);
+                    brt.offsetMax = new Vector2(-4f, -4f);
+                }
+
+                Text cap = Ui.MakeText("Name", slot, cardCaption, 12, isLocal ? GoldText : Ui.Cream, TextAnchor.LowerCenter, displayFont);
+                cap.raycastTarget = false;
+                RectTransform crt = cap.rectTransform;
+                crt.anchorMin = new Vector2(0f, 0f);
+                crt.anchorMax = new Vector2(1f, 0f);
+                crt.pivot = new Vector2(0.5f, 0f);
+                crt.anchoredPosition = new Vector2(0f, 4f);
+                crt.sizeDelta = new Vector2(-6f, 16f);
+            }
+
+            whoText = Ui.MakeText("WhoLabel", banner, "", 20, Ui.Cream, TextAnchor.LowerCenter, displayFont);
+            whoText.fontStyle = FontStyle.Bold;
+            whoText.raycastTarget = false;
+            RectTransform whoRt = whoText.rectTransform;
+            whoRt.anchorMin = new Vector2(0f, 0f);
+            whoRt.anchorMax = new Vector2(1f, 0f);
+            whoRt.pivot = new Vector2(0.5f, 0f);
+            whoRt.anchoredPosition = new Vector2(0f, 7f);
+            whoRt.sizeDelta = new Vector2(-20f, 26f);
+
+            return banner;
+        }
+
+        static string FormatKidShortName(string characterId, int fallbackId)
+        {
+            if (string.IsNullOrWhiteSpace(characterId))
+                return $"KID {fallbackId + 1}";
+            string trimmed = characterId.Trim();
+            return trimmed.Length <= 8 ? trimmed.ToUpperInvariant() : trimmed.Substring(0, 8).ToUpperInvariant();
         }
 
         static RectTransform BuildActionOrb(
@@ -752,6 +1059,22 @@ namespace Kalyeah.Game
                 tayaRect.pivot = corner;
                 tayaRect.anchoredPosition = new Vector2(sign * 24f, 34f);
             }
+
+            if (_tumbangRollRect != null)
+            {
+                float safeWidth = Safe != null && Safe.rect.width > 120f
+                    ? Safe.rect.width
+                    : ScreenFitMetrics.SafeCanvasSize(Canvas).x;
+                float rollW = Mathf.Min(548f, Mathf.Max(336f, safeWidth - 40f));
+                float rollTop = 132f;
+                if (_statusHintPillRect != null && safeWidth < 1040f)
+                {
+                    float hintBottom = -_statusHintPillRect.anchoredPosition.y + _statusHintPillRect.sizeDelta.y + 8f;
+                    if (hintBottom > rollTop) rollTop = hintBottom;
+                }
+                _tumbangRollRect.sizeDelta = new Vector2(rollW, 166f);
+                _tumbangRollRect.anchoredPosition = new Vector2(0f, -rollTop);
+            }
         }
 
         public void CollectActiveControlRects(System.Collections.Generic.List<RectTransform> dst)
@@ -854,7 +1177,7 @@ namespace Kalyeah.Game
 
         // ---- Per-Frame Refresh --------------------------------------------------------------------------------------------------
 
-        public void Refresh(StreetBridge bridge, float dt = 0f)
+        public void Refresh(StreetBridge bridge, float dt = 0f, Camera worldCamera = null, Vector3? localWorldPos = null)
         {
             if (bridge == null) return;
             float stepDt = Mathf.Max(0f, dt);
@@ -867,7 +1190,9 @@ namespace Kalyeah.Game
 
             RefreshHeader(bridge);
             RefreshRoleAndHint(bridge);
+            RefreshBrownoutShade(bridge, stepDt, worldCamera, localWorldPos);
             RefreshBrownoutBanner(bridge, stepDt);
+            RefreshTumbangRoll(bridge, stepDt);
             RefreshActionButtons(bridge);
             RefreshMatchOver(bridge);
         }
@@ -1053,6 +1378,111 @@ namespace Kalyeah.Game
             return "CLIMB A LANGIT OR TAP LUPA TO RAISE EARTH!";
         }
 
+        void RefreshBrownoutShade(StreetBridge bridge, float dt, Camera worldCamera, Vector3? localWorldPos)
+        {
+            if (_brownoutShadeRoot == null) return;
+            if (bridge.Kind != StreetGameKind.LangitLupa)
+            {
+                _brownoutShadeStrength = 0f;
+                if (_brownoutShadeRoot.gameObject.activeSelf)
+                    _brownoutShadeRoot.gameObject.SetActive(false);
+                return;
+            }
+
+            LangitLupaSnapshot ll = bridge.LangitLupaState;
+            bool dark = (ForceBrownoutPreview ?? ll.IsBrownout) && !bridge.IsMatchOver;
+            float target = dark ? 1f : 0f;
+            bool instant = !Application.isPlaying
+                || dt <= 0f
+                || SettingsStore.Current.ReduceMotion
+                || ForceBrownoutPreview.HasValue;
+
+            _brownoutShadeStrength = instant
+                ? target
+                : Mathf.MoveTowards(_brownoutShadeStrength, target, dt / BrownoutFadeSeconds);
+
+            bool visible = _brownoutShadeStrength > 0.002f;
+            if (_brownoutShadeRoot.gameObject.activeSelf != visible)
+                _brownoutShadeRoot.gameObject.SetActive(visible);
+            if (!visible) return;
+
+            Camera cam = worldCamera != null ? worldCamera : _defaultCamera;
+            float aspect = 16f / 9f;
+            if (cam != null && cam.aspect > 0.1f)
+            {
+                aspect = cam.aspect;
+            }
+            else
+            {
+                Vector2 safeSz = ScreenFitMetrics.SafeCanvasSize(Canvas);
+                if (safeSz.y > 1f) aspect = safeSz.x / safeSz.y;
+                else if (Screen.height > 0) aspect = (float)Screen.width / Screen.height;
+            }
+            aspect = Mathf.Clamp(aspect, 0.4f, 3.5f);
+
+            float cx = 0.5f;
+            float cy = 0.44f;
+            float ry = 0.46f;
+
+            StreetKidSnapshot? me = bridge.LocalKid;
+            if (cam != null && (localWorldPos.HasValue || me.HasValue))
+            {
+                Vector3 focusWorld = localWorldPos ?? KalyeahResources.World(me.Value.Position, 0.35f);
+                Vector3 vpCenter = cam.WorldToViewportPoint(focusWorld);
+                if (vpCenter.z > 0.05f)
+                {
+                    cx = Mathf.Clamp(vpCenter.x, 0.14f, 0.86f);
+                    cy = Mathf.Clamp(vpCenter.y, 0.16f, 0.84f);
+
+                    float sightMeters = Mathf.Max(4.5f, ll.BrownoutSight);
+                    Vector3 vpEdge = cam.WorldToViewportPoint(focusWorld + cam.transform.right * sightMeters);
+                    float dxNormH = (vpEdge.x - vpCenter.x) * aspect;
+                    float dyNormH = vpEdge.y - vpCenter.y;
+                    float projectedRy = Mathf.Sqrt(dxNormH * dxNormH + dyNormH * dyNormH);
+                    ry = Mathf.Clamp(projectedRy, 0.38f, 0.66f);
+                }
+            }
+
+            float rx = ry / aspect;
+            float x0 = cx - rx;
+            float x1 = cx + rx;
+            float y0 = cy - ry;
+            float y1 = cy + ry;
+
+            float cx0 = Mathf.Clamp01(x0);
+            float cx1 = Mathf.Clamp01(x1);
+            float cy0 = Mathf.Clamp01(y0);
+            float cy1 = Mathf.Clamp01(y1);
+
+            SetNormRect(_brownoutHoleRect, x0, y0, x1, y1);
+            SetNormRect(_brownoutEdgeRects[0], 0f, cy1, 1f, 1f);
+            SetNormRect(_brownoutEdgeRects[1], 0f, 0f, 1f, cy0);
+            SetNormRect(_brownoutEdgeRects[2], 0f, cy0, cx0, cy1);
+            SetNormRect(_brownoutEdgeRects[3], cx1, cy0, 1f, cy1);
+
+            Color shadeCol = new Color(
+                BrownoutShadeTint.r,
+                BrownoutShadeTint.g,
+                BrownoutShadeTint.b,
+                BrownoutShadeMaxAlpha * _brownoutShadeStrength);
+
+            _brownoutHoleImg.color = shadeCol;
+            for (int i = 0; i < _brownoutEdgeImgs.Length; i++)
+                _brownoutEdgeImgs[i].color = shadeCol;
+        }
+
+        static void SetNormRect(RectTransform rt, float x0, float y0, float x1, float y1)
+        {
+            bool active = (x1 - x0) > 0.0001f && (y1 - y0) > 0.0001f;
+            if (rt.gameObject.activeSelf != active)
+                rt.gameObject.SetActive(active);
+            if (!active) return;
+            rt.anchorMin = new Vector2(x0, y0);
+            rt.anchorMax = new Vector2(x1, y1);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+        }
+
         void RefreshBrownoutBanner(StreetBridge bridge, float dt)
         {
             if (bridge.Kind != StreetGameKind.LangitLupa)
@@ -1062,7 +1492,7 @@ namespace Kalyeah.Game
             }
 
             LangitLupaSnapshot ll = bridge.LangitLupaState;
-            bool dark = ll.IsBrownout && !bridge.IsMatchOver;
+            bool dark = (ForceBrownoutPreview ?? ll.IsBrownout) && !bridge.IsMatchOver;
             if (_wasBrownout && !dark)
                 _lightsOnFlashLeft = 1.4f;
             _wasBrownout = dark;
@@ -1078,11 +1508,12 @@ namespace Kalyeah.Game
 
             if (dark)
             {
-                int bSec = Mathf.Max(1, Mathf.CeilToInt(ll.BrownoutLeft));
+                int bSec = ll.BrownoutLeft > 0.05f ? Mathf.CeilToInt(ll.BrownoutLeft) : 6;
                 if (bSec != _cachedBrownoutSeconds)
                 {
                     _cachedBrownoutSeconds = bSec;
-                    _brownoutBannerText.text = $"BROWNOUT! {Mathf.RoundToInt(ll.BrownoutSight)}M SIGHT ({bSec}S)";
+                    float sight = ll.BrownoutSight > 0.5f ? ll.BrownoutSight : 5f;
+                    _brownoutBannerText.text = $"BROWNOUT! {Mathf.RoundToInt(sight)}M SIGHT ({bSec}S)";
                 }
                 _brownoutBannerBg.color = BrownoutAlertBg;
             }
@@ -1091,6 +1522,144 @@ namespace Kalyeah.Game
                 _cachedBrownoutSeconds = -2;
                 _brownoutBannerText.text = "LIGHTS ON!";
                 _brownoutBannerBg.color = new Color(0.16f, 0.52f, 0.30f, 0.90f);
+            }
+        }
+
+        void SyncTumbangRollTarget(int tayaId)
+        {
+            if (_tumbangRollSlotIds == null || _tumbangRollSlotIds.Length == 0)
+                return;
+            if (_tumbangRollTargetKidId == tayaId && _tumbangRollTotalSteps > 0)
+                return;
+
+            _tumbangRollTargetKidId = tayaId;
+            int found = 0;
+            for (int i = 0; i < _tumbangRollSlotIds.Length; i++)
+            {
+                if (_tumbangRollSlotIds[i] == tayaId)
+                {
+                    found = i;
+                    break;
+                }
+            }
+            _tumbangRollTargetSlot = found;
+            _tumbangRollTotalSteps = TumbangRollLaps * _tumbangRollSlotIds.Length + found;
+            if (_tumbangRollTotalSteps <= 0)
+                _tumbangRollTotalSteps = _tumbangRollSlotIds.Length;
+        }
+
+        void RefreshTumbangRoll(StreetBridge bridge, float dt)
+        {
+            if (_tumbangRollRoot == null || _tumbangRollDismissed)
+                return;
+
+            if (!Interactive || bridge.Kind != StreetGameKind.TumbangPreso || bridge.IsMatchOver || IsBlockingGameplayInput)
+            {
+                if (_tumbangRollRoot.activeSelf)
+                    _tumbangRollRoot.SetActive(false);
+                if (bridge.IsMatchOver)
+                    _tumbangRollDismissed = true;
+                return;
+            }
+
+            SyncTumbangRollTarget(bridge.TumbangPresoState.TayaId);
+            int slotCount = _tumbangRollSlotIds.Length;
+            if (slotCount == 0) return;
+
+            bool reduceMotion = SettingsStore.Current.ReduceMotion;
+            _tumbangRollElapsed += dt;
+
+            float dismissAfter = reduceMotion ? 1.15f : TumbangRollTotalSeconds;
+            if ((_tumbangRollElapsed >= dismissAfter && !bridge.IsIntro)
+                || _tumbangRollElapsed >= TumbangRollTotalSeconds + 0.65f)
+            {
+                _tumbangRollDismissed = true;
+                if (_tumbangRollRoot.activeSelf)
+                    _tumbangRollRoot.SetActive(false);
+                return;
+            }
+
+            if (!_tumbangRollRoot.activeSelf)
+                _tumbangRollRoot.SetActive(true);
+
+            if (reduceMotion)
+            {
+                ApplyTumbangRollHighlight(_tumbangRollTargetSlot, landed: true);
+                if (!_tumbangRollLandedFired && dt > 0f)
+                {
+                    _tumbangRollLandedFired = true;
+                    TumbangRollLanded?.Invoke();
+                }
+                return;
+            }
+
+            float spinDuration = TumbangRollTotalSeconds * TumbangRollFinishShare;
+            int desiredStep = 0;
+            if (_tumbangRollElapsed >= spinDuration)
+            {
+                desiredStep = _tumbangRollTotalSteps;
+            }
+            else
+            {
+                for (int k = 1; k <= _tumbangRollTotalSteps; k++)
+                {
+                    float norm = k / (float)_tumbangRollTotalSteps;
+                    float stepTime = spinDuration * Mathf.Pow(norm, TumbangRollCurve);
+                    if (_tumbangRollElapsed >= stepTime)
+                        desiredStep = k;
+                    else
+                        break;
+                }
+            }
+
+            if (desiredStep != _tumbangRollStepIndex)
+            {
+                bool hadPriorStep = _tumbangRollStepIndex >= 0;
+                _tumbangRollStepIndex = desiredStep;
+
+                if (desiredStep >= _tumbangRollTotalSteps)
+                {
+                    ApplyTumbangRollHighlight(_tumbangRollTargetSlot, landed: true);
+                    if (!_tumbangRollLandedFired)
+                    {
+                        _tumbangRollLandedFired = true;
+                        if (dt > 0f)
+                            TumbangRollLanded?.Invoke();
+                    }
+                }
+                else
+                {
+                    ApplyTumbangRollHighlight(desiredStep % slotCount, landed: false);
+                    if (hadPriorStep && dt > 0f)
+                        TumbangRollStepped?.Invoke();
+                }
+            }
+        }
+
+        void ApplyTumbangRollHighlight(int activeIndex, bool landed)
+        {
+            int encoded = landed ? (activeIndex + 1000) : activeIndex;
+            if (_tumbangRollActiveSlot == encoded)
+                return;
+            _tumbangRollActiveSlot = encoded;
+
+            for (int i = 0; i < _tumbangRollSlotBorders.Length; i++)
+            {
+                bool active = i == activeIndex;
+                _tumbangRollSlotBorders[i].color = active
+                    ? (landed ? TumbangResultColor : GoldText)
+                    : TumbangSlotIdleBorder;
+                _tumbangRollSlotRects[i].localScale = active
+                    ? Vector3.one * (landed ? 1.08f : 1.04f)
+                    : Vector3.one;
+            }
+
+            if (_tumbangRollWhoText != null && activeIndex >= 0 && activeIndex < _tumbangRollSpinNames.Length)
+            {
+                _tumbangRollWhoText.text = landed
+                    ? _tumbangRollLandedTexts[activeIndex]
+                    : _tumbangRollSpinNames[activeIndex];
+                _tumbangRollWhoText.color = landed ? TumbangResultColor : Ui.Cream;
             }
         }
 

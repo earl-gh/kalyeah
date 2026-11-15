@@ -1,31 +1,38 @@
-#if UNITY_ANDROID
+using System;
 using System.IO;
 using System.Xml;
-using UnityEditor.Android;
 using UnityEngine;
+#if UNITY_ANDROID
+using UnityEditor.Android;
+#endif
 
 /// <summary>
-/// Declares the exact Android manifest permissions and optional hardware features required for Online play, LAN/Hotspot discovery
-/// (ConnectivityManager, WifiManager, LocalOnlyHotspot, WifiNetworkSpecifier, NEARBY_WIFI_DEVICES on API 33+, coarse/fine location
-/// capped at API 32), haptics, and QR/photo camera scan (.github/scripts/inspect-apk.sh &amp; android/kalyeah_local/src/main/AndroidManifest.xml).
+/// Declares the exact 12 Android manifest permissions, optional hardware features, backup policy, and NFC HCE ShareService
+/// required for Online play, Local Hotspot rooms (LocalOnlyHotspot + WifiNetworkSpecifier + NFC Tap-to-Join), haptics, and
+/// QR/ID camera scan (.github/scripts/inspect-apk.sh &amp; Assets/Plugins/Android/kalyeah_local.androidlib/AndroidManifest.xml).
 /// </summary>
-public sealed class KalyeahAndroidManifest : IPostGenerateGradleAndroidProject
+public sealed class KalyeahAndroidManifest
+#if UNITY_ANDROID
+    : IPostGenerateGradleAndroidProject
+#endif
 {
-    const string AndroidNs = "http://schemas.android.com/apk/res/android";
+    public const string AndroidNs = "http://schemas.android.com/apk/res/android";
 
+    /// <summary>Sorted canonical permission set enforced by .github/scripts/inspect-apk.sh.</summary>
     public static readonly string[] Permissions =
     {
-        "android.permission.INTERNET",
-        "android.permission.VIBRATE",
-        "android.permission.CHANGE_WIFI_MULTICAST_STATE",
-        "android.permission.CAMERA",
-        "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.ACCESS_WIFI_STATE",
-        "android.permission.CHANGE_WIFI_STATE",
-        "android.permission.CHANGE_NETWORK_STATE",
-        "android.permission.NEARBY_WIFI_DEVICES",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.CAMERA",
+        "android.permission.CHANGE_NETWORK_STATE",
+        "android.permission.CHANGE_WIFI_MULTICAST_STATE",
+        "android.permission.CHANGE_WIFI_STATE",
+        "android.permission.INTERNET",
+        "android.permission.NEARBY_WIFI_DEVICES",
+        "android.permission.NFC",
+        "android.permission.VIBRATE",
     };
 
     public int callbackOrder => 0;
@@ -40,7 +47,21 @@ public sealed class KalyeahAndroidManifest : IPostGenerateGradleAndroidProject
         }
         var doc = new XmlDocument();
         doc.Load(manifestPath);
+        ApplyToDocument(doc);
+        doc.Save(manifestPath);
+    }
+
+    /// <summary>Applies Kalyeah's exact Android permissions, optional hardware features, allowBackup=false, and NFC HCE service to <paramref name="doc"/>.</summary>
+    public static void ApplyToDocument(XmlDocument doc)
+    {
+        if (doc == null) throw new ArgumentNullException(nameof(doc));
         XmlElement manifest = doc.DocumentElement;
+        if (manifest == null)
+        {
+            manifest = doc.CreateElement("manifest");
+            manifest.SetAttribute("xmlns:android", AndroidNs);
+            doc.AppendChild(manifest);
+        }
 
         EnsurePermission(doc, manifest, "android.permission.INTERNET");
         EnsurePermission(doc, manifest, "android.permission.VIBRATE");
@@ -53,16 +74,27 @@ public sealed class KalyeahAndroidManifest : IPostGenerateGradleAndroidProject
         EnsurePermission(doc, manifest, "android.permission.NEARBY_WIFI_DEVICES", "usesPermissionFlags", "neverForLocation");
         EnsurePermission(doc, manifest, "android.permission.ACCESS_COARSE_LOCATION", "maxSdkVersion", "32");
         EnsurePermission(doc, manifest, "android.permission.ACCESS_FINE_LOCATION", "maxSdkVersion", "32");
+        EnsurePermission(doc, manifest, "android.permission.NFC");
 
         EnsureFeature(doc, manifest, "android.hardware.camera", "false");
         EnsureFeature(doc, manifest, "android.hardware.wifi", "false");
         EnsureFeature(doc, manifest, "android.hardware.location", "false");
-        doc.Save(manifestPath);
+        EnsureFeature(doc, manifest, "android.hardware.nfc", "false");
+        EnsureFeature(doc, manifest, "android.hardware.nfc.hce", "false");
+
+        XmlElement application = FindFirstChildElement(manifest, "application");
+        if (application == null)
+        {
+            application = doc.CreateElement("application");
+            manifest.AppendChild(application);
+        }
+        application.SetAttribute("allowBackup", AndroidNs, "false");
+        EnsureShareService(doc, application);
     }
 
     static void EnsurePermission(XmlDocument doc, XmlElement manifest, string name, string extraAttr = null, string extraValue = null)
     {
-        XmlElement elem = FindElement(manifest, "uses-permission", name);
+        XmlElement elem = FindElementByAndroidName(manifest, "uses-permission", name);
         if (elem == null)
         {
             elem = doc.CreateElement("uses-permission");
@@ -75,7 +107,7 @@ public sealed class KalyeahAndroidManifest : IPostGenerateGradleAndroidProject
 
     static void EnsureFeature(XmlDocument doc, XmlElement manifest, string name, string required)
     {
-        XmlElement elem = FindElement(manifest, "uses-feature", name);
+        XmlElement elem = FindElementByAndroidName(manifest, "uses-feature", name);
         if (elem == null)
         {
             elem = doc.CreateElement("uses-feature");
@@ -86,12 +118,55 @@ public sealed class KalyeahAndroidManifest : IPostGenerateGradleAndroidProject
             elem.SetAttribute("required", AndroidNs, required);
     }
 
-    static XmlElement FindElement(XmlElement manifest, string tag, string name)
+    static void EnsureShareService(XmlDocument doc, XmlElement application)
     {
-        foreach (XmlNode node in manifest.ChildNodes)
+        const string serviceName = "com.kalyeah.local.ShareService";
+        XmlElement service = FindElementByAndroidName(application, "service", serviceName);
+        if (service == null)
+        {
+            service = doc.CreateElement("service");
+            service.SetAttribute("name", AndroidNs, serviceName);
+            application.AppendChild(service);
+        }
+        service.SetAttribute("exported", AndroidNs, "true");
+        service.SetAttribute("permission", AndroidNs, "android.permission.BIND_NFC_SERVICE");
+
+        if (FindFirstChildElement(service, "intent-filter") == null)
+        {
+            XmlElement filter = doc.CreateElement("intent-filter");
+            XmlElement action = doc.CreateElement("action");
+            action.SetAttribute("name", AndroidNs, "android.nfc.cardemulation.action.HOST_APDU_SERVICE");
+            filter.AppendChild(action);
+            service.AppendChild(filter);
+        }
+
+        XmlElement meta = FindElementByAndroidName(service, "meta-data", "android.nfc.cardemulation.host_apdu_service");
+        if (meta == null)
+        {
+            meta = doc.CreateElement("meta-data");
+            meta.SetAttribute("name", AndroidNs, "android.nfc.cardemulation.host_apdu_service");
+            service.AppendChild(meta);
+        }
+        meta.SetAttribute("resource", AndroidNs, "@xml/kalyeah_apdu");
+    }
+
+    static XmlElement FindFirstChildElement(XmlElement parent, string tag)
+    {
+        foreach (XmlNode node in parent.ChildNodes)
+        {
+            if (node is XmlElement element && element.Name == tag)
+                return element;
+        }
+        return null;
+    }
+
+    static XmlElement FindElementByAndroidName(XmlElement parent, string tag, string name)
+    {
+        foreach (XmlNode node in parent.ChildNodes)
+        {
             if (node is XmlElement element && element.Name == tag && element.GetAttribute("name", AndroidNs) == name)
                 return element;
+        }
         return null;
     }
 }
-#endif

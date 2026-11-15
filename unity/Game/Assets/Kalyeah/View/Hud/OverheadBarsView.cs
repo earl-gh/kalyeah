@@ -23,10 +23,12 @@ namespace Kalyeah.Game
         public const float StaminaHeight = 7f;
         public const float BadgeSize = 24f;
         public const float BadgeOverlap = 6f;
+        public const float DefaultBarScale = 0.78f;
+        public const float DefaultShoulderNameReach = 40f;
         public const float MinScale = 0.65f;
         public const float MaxScale = 1.05f;
         public const float NearScaleMeters = 4f;
-        public const float FarScaleMeters = 42f;
+        public const float FarScaleMeters = DefaultShoulderNameReach;
         public const float MaxEnemyDistanceMeters = 30f;
         public const float MaxAllyDistanceMeters = 55f;
         public const float RecentlyDamagedSeconds = 1.5f;
@@ -54,10 +56,12 @@ namespace Kalyeah.Game
             public CanvasGroup Group;
 
             public GameObject HpPlateObj;
+            public RectTransform HpPlateRect;
             public RectTransform HpFillRect;
             public Image HpFillImage;
 
             public GameObject StaminaPlateObj;
+            public RectTransform StaminaPlateRect;
             public RectTransform StaminaFillRect;
             public Image StaminaFillImage;
 
@@ -82,6 +86,32 @@ namespace Kalyeah.Game
         public float TopReservedPx { get; set; } = 12f;
         public int ActivePlateCount { get; private set; }
 
+        /// <summary>data/rules/camera_rules.tres <c>bar_scale</c> (0.78): scales HP and stamina bar dimensions while keeping 2 px borders and badges crisp.</summary>
+        public float BarScale
+        {
+            get => _barScale;
+            set
+            {
+                float clamped = Mathf.Clamp(value, 0.4f, 2f);
+                if (Mathf.Abs(_barScale - clamped) > 0.0005f)
+                {
+                    _barScale = clamped;
+                    ApplyBarScaleToPlates();
+                }
+            }
+        }
+
+        /// <summary>data/rules/camera_rules.tres <c>shoulder_name_reach</c> (40 m): distance scale horizon and non-local overhead label reach.</summary>
+        public float ShoulderNameReach
+        {
+            get => _shoulderNameReach;
+            set => _shoulderNameReach = Mathf.Max(0f, value);
+        }
+
+        float ScaledBarWidth => Mathf.Round(BarWidth * _barScale);
+        float ScaledBarHeight => Mathf.Max(10f, Mathf.Round(BarHeight * _barScale));
+        float ScaledStaminaHeight => Mathf.Max(5f, Mathf.Round(StaminaHeight * _barScale));
+
         readonly Canvas _canvas;
         readonly PlateSlot[] _plates = new PlateSlot[MaxPlates];
         readonly int[] _candidateIndices = new int[MaxPlates];
@@ -93,21 +123,81 @@ namespace Kalyeah.Game
         readonly float[] _lastDamagedClock = new float[DamageTrackSlots];
         int _trackedCount;
         float _prevClockSeconds = -1f;
+        float _barScale = DefaultBarScale;
+        float _shoulderNameReach = DefaultShoulderNameReach;
 
         public OverheadBarsView(Transform parent, Canvas canvas = null)
+            : this(parent, canvas, null, null)
+        {
+        }
+
+        public OverheadBarsView(Transform parent, Canvas canvas, DataSource data, CameraRulesData cameraRules = null)
         {
             if (parent == null) throw new ArgumentNullException(nameof(parent));
             _canvas = canvas != null ? canvas : parent.GetComponentInParent<Canvas>();
+
+            Configure(data ?? KalyeahResources.Data(), cameraRules);
 
             Root = Ui.Fill("OverheadBars", parent);
             for (int i = 0; i < MaxPlates; i++)
                 _plates[i] = BuildPlate(i);
         }
 
+        /// <summary>Loads <c>bar_scale</c>, <c>shoulder_name_reach</c>, and <c>kid_view_scale</c> from <c>rules__camera_rules</c>.</summary>
+        public void Configure(DataSource data, CameraRulesData cameraRules = null)
+        {
+            if (data != null)
+            {
+                try
+                {
+                    Dictionary<string, object> p = data.Props("rules__camera_rules");
+                    if (p != null)
+                    {
+                        if (p.TryGetValue("bar_scale", out object bs) && bs != null)
+                            _barScale = Mathf.Clamp(Convert.ToSingle(bs, System.Globalization.CultureInfo.InvariantCulture), 0.4f, 2f);
+                        if (p.TryGetValue("shoulder_name_reach", out object snr) && snr != null)
+                            _shoulderNameReach = Mathf.Max(0f, Convert.ToSingle(snr, System.Globalization.CultureInfo.InvariantCulture));
+                        if (p.TryGetValue("kid_view_scale", out object kvs) && kvs != null)
+                            KidViewScale = Mathf.Clamp(Convert.ToSingle(kvs, System.Globalization.CultureInfo.InvariantCulture), 0.35f, 2f);
+                    }
+                }
+                catch
+                {
+                    // Keep defaults when constructed in isolated unit tests without Resources/Data.
+                }
+            }
+
+            if (cameraRules != null && cameraRules.KidViewScale > 0.01f)
+                KidViewScale = cameraRules.KidViewScale;
+
+            ApplyBarScaleToPlates();
+        }
+
+        void ApplyBarScaleToPlates()
+        {
+            float barW = ScaledBarWidth;
+            float barH = ScaledBarHeight;
+            float stamH = ScaledStaminaHeight;
+            for (int i = 0; i < MaxPlates; i++)
+            {
+                PlateSlot slot = _plates[i];
+                if (slot == null) continue;
+                slot.HpPlateRect.sizeDelta = new Vector2(barW, barH);
+                slot.StaminaPlateRect.anchoredPosition = new Vector2(BadgeSize - BadgeOverlap, -(barH * 0.5f) + BorderPx);
+                slot.StaminaPlateRect.sizeDelta = new Vector2(barW, stamH);
+                slot.Root.sizeDelta = slot.HpVisible
+                    ? new Vector2(barW + BadgeSize - BadgeOverlap, barH)
+                    : new Vector2(BadgeSize, barH);
+            }
+        }
+
         PlateSlot BuildPlate(int index)
         {
             var slot = new PlateSlot();
-            float totalWidth = BarWidth + BadgeSize - BadgeOverlap;
+            float barW = ScaledBarWidth;
+            float barH = ScaledBarHeight;
+            float stamH = ScaledStaminaHeight;
+            float totalWidth = barW + BadgeSize - BadgeOverlap;
             RectTransform root = Ui.Panel(
                 $"OverheadPlate_{index}",
                 Root,
@@ -115,7 +205,7 @@ namespace Kalyeah.Game
                 new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f),
                 Vector2.zero,
-                new Vector2(totalWidth, BarHeight));
+                new Vector2(totalWidth, barH));
             slot.Root = root;
             slot.RootObj = root.gameObject;
 
@@ -125,7 +215,7 @@ namespace Kalyeah.Game
             group.alpha = 1f;
             slot.Group = group;
 
-            int barR = KomiksUi.BarRadius(BarHeight);
+            int barR = KomiksUi.BarRadius(barH);
 
             // HP Plate (shown ONLY for local player and allies; strictly hidden on enemies)
             Image hpPlate = KomiksUi.MakeInkPanel("HpPlate", root, KomiksUi.EmptyBar, KomiksUi.SoftBorder, barR, 2);
@@ -133,8 +223,9 @@ namespace Kalyeah.Game
             hpRect.anchorMin = hpRect.anchorMax = new Vector2(0f, 0.5f);
             hpRect.pivot = new Vector2(0f, 0.5f);
             hpRect.anchoredPosition = new Vector2(BadgeSize - BadgeOverlap, 0f);
-            hpRect.sizeDelta = new Vector2(BarWidth, BarHeight);
+            hpRect.sizeDelta = new Vector2(barW, barH);
             slot.HpPlateObj = hpPlate.gameObject;
+            slot.HpPlateRect = hpRect;
 
             RectTransform hpInner = Ui.Panel("HpInner", hpRect, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-BorderPx * 2f, -BorderPx * 2f));
             Image hpFill = KomiksUi.MakeSlicedFill("HpFill", hpInner, KomiksUi.SelfHealthColor(0), Mathf.Max(2, barR - 1));
@@ -151,9 +242,10 @@ namespace Kalyeah.Game
             RectTransform stamRect = stamPlate.rectTransform;
             stamRect.anchorMin = stamRect.anchorMax = new Vector2(0f, 0.5f);
             stamRect.pivot = new Vector2(0f, 1f);
-            stamRect.anchoredPosition = new Vector2(BadgeSize - BadgeOverlap, -(BarHeight * 0.5f) + BorderPx);
-            stamRect.sizeDelta = new Vector2(BarWidth, StaminaHeight);
+            stamRect.anchoredPosition = new Vector2(BadgeSize - BadgeOverlap, -(barH * 0.5f) + BorderPx);
+            stamRect.sizeDelta = new Vector2(barW, stamH);
             slot.StaminaPlateObj = stamPlate.gameObject;
+            slot.StaminaPlateRect = stamRect;
 
             RectTransform stamInner = Ui.Panel("StamInner", stamRect, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-BorderPx * 2f, -BorderPx * 2f));
             Image stamFill = KomiksUi.MakeSlicedFill("StamFill", stamInner, Color.white, 2);
@@ -212,8 +304,13 @@ namespace Kalyeah.Game
 
         /// <summary>Maps camera-to-head distance in meters onto the GDD overhead scale range [0.65..1.05].</summary>
         public static float ComputeDistanceScale(float distanceMeters)
+            => ComputeDistanceScale(distanceMeters, DefaultShoulderNameReach);
+
+        /// <summary>Maps camera-to-head distance in meters onto [0.65..1.05] using <c>shoulder_name_reach</c> as the far horizon.</summary>
+        public static float ComputeDistanceScale(float distanceMeters, float shoulderNameReach)
         {
-            float t = Mathf.InverseLerp(NearScaleMeters, FarScaleMeters, Mathf.Max(0f, distanceMeters));
+            float farMeters = shoulderNameReach > NearScaleMeters + 1f ? shoulderNameReach : DefaultShoulderNameReach;
+            float t = Mathf.InverseLerp(NearScaleMeters, farMeters, Mathf.Max(0f, distanceMeters));
             return Mathf.Clamp(Mathf.Lerp(MaxScale, MinScale, t), MinScale, MaxScale);
         }
 
@@ -306,6 +403,13 @@ namespace Kalyeah.Game
             int cbMode = SettingsStore.Current.ColorblindMode;
             bool reduceMotion = SettingsStore.Current.ReduceMotion;
 
+            float reachScale = _shoulderNameReach > 0.01f ? (_shoulderNameReach / DefaultShoulderNameReach) : 1f;
+            float maxEnemyDist = MaxEnemyDistanceMeters * reachScale;
+            float maxAllyDist = MaxAllyDistanceMeters * reachScale;
+            float barW = ScaledBarWidth;
+            float barH = ScaledBarHeight;
+            float stamH = ScaledStaminaHeight;
+
             // Order candidates: local player first, then visible allies/enemies sorted near-to-far
             int count = 0;
             Vector3 camPos = camera.transform.position;
@@ -329,7 +433,7 @@ namespace Kalyeah.Game
                     bool isEnemy = !isLocal && kid.Team != localTeam;
                     if (!isLocal)
                     {
-                        float maxDist = isEnemy ? MaxEnemyDistanceMeters : MaxAllyDistanceMeters;
+                        float maxDist = isEnemy ? maxEnemyDist : maxAllyDist;
                         if (dist > maxDist)
                             continue;
 
@@ -383,7 +487,7 @@ namespace Kalyeah.Game
 
                 Vector3 headWorld = ComputeBodyWorld(in kid, BaseKidHeadMeters, worldFeetOverride);
                 float dist = Vector3.Distance(camPos, headWorld);
-                float scale = ComputeDistanceScale(dist);
+                float scale = ComputeDistanceScale(dist, _shoulderNameReach);
 
                 Vector3 screenPt = camera.WorldToScreenPoint(headWorld);
                 Vector2 localPt = ScreenToLocalPoint(new Vector2(screenPt.x, screenPt.y), camera, parentRect, screenSizePx);
@@ -392,20 +496,21 @@ namespace Kalyeah.Game
                 bool isEnemy = !isLocal && kid.Team != localTeam;
                 bool showHp = !isEnemy;
                 bool showStamina = isLocal && kid.MaxStamina > 0.01f;
-                string statusWord = ResolvePriorityStatus(in kid);
+                bool withinLabelReach = isLocal || _shoulderNameReach <= 0f || dist <= _shoulderNameReach || WasDamagedRecently(kid.Id, nowClock);
+                string statusWord = withinLabelReach ? ResolvePriorityStatus(in kid) : string.Empty;
 
-                float rawWidth = showHp ? (BarWidth + BadgeSize - BadgeOverlap) : BadgeSize;
+                float rawWidth = showHp ? (barW + BadgeSize - BadgeOverlap) : BadgeSize;
                 float w = rawWidth * scale;
 
                 // Asymmetric vertical bounds relative to plate center so local "You" (+24 px) and stamina are fully protected
-                float bottomExtent = (BarHeight * 0.5f + (showStamina ? (StaminaHeight - BorderPx) : 0f) + 2f) * scale;
+                float bottomExtent = (barH * 0.5f + (showStamina ? (stamH - BorderPx) : 0f) + 2f) * scale;
                 float topExtent;
                 if (isLocal)
-                    topExtent = (BarHeight * 0.5f + LocalYouTopPadPx + (statusWord.Length > 0 ? 20f : 0f)) * scale + 4f;
+                    topExtent = (barH * 0.5f + LocalYouTopPadPx + (statusWord.Length > 0 ? 20f : 0f)) * scale + 4f;
                 else if (statusWord.Length > 0)
-                    topExtent = (BarHeight * 0.5f + 22f) * scale;
+                    topExtent = (barH * 0.5f + 22f) * scale;
                 else
-                    topExtent = (BarHeight * 0.5f + 2f) * scale;
+                    topExtent = (barH * 0.5f + 2f) * scale;
 
                 if (bottomExtent + topExtent < MinVerticalSeparationPx)
                 {
@@ -480,7 +585,9 @@ namespace Kalyeah.Game
                     maxHp,
                     localTeam,
                     cbMode,
-                    reduceMotion);
+                    reduceMotion,
+                    barW,
+                    barH);
                 placedCount++;
             }
 
@@ -711,7 +818,9 @@ namespace Kalyeah.Game
             int maxHp,
             int localTeam,
             int cbMode,
-            bool reduceMotion)
+            bool reduceMotion,
+            float barW,
+            float barH)
         {
             if (!slot.Active)
             {
@@ -730,8 +839,8 @@ namespace Kalyeah.Game
 
             // Center badge cleanly when enemy HP plate is hidden; anchor left of bar when ally/self HP is shown
             slot.Root.sizeDelta = showHp
-                ? new Vector2(BarWidth + BadgeSize - BadgeOverlap, BarHeight)
-                : new Vector2(BadgeSize, BarHeight);
+                ? new Vector2(barW + BadgeSize - BadgeOverlap, barH)
+                : new Vector2(BadgeSize, barH);
 
             int badgeNum = ComputeSlotNumber(in kid, allKids);
             if (slot.LastBadgeNumber != badgeNum)

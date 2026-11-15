@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
-#if KALYEAH_SIM_PORTED
 using Kalyeah.Net;
 using Kalyeah.Sim;
-#endif
 
 namespace Kalyeah.Game
 {
@@ -72,6 +70,7 @@ namespace Kalyeah.Game
         public const string PlayerPrefsKey = "kalyeah.session.v1";
         public const string DefaultPlayerName = "GABO";
         public const string DefaultCharacter = "junjun";
+        public const string CustomIdPhotoFileName = "id_photo.png";
         public const int MaxNameLength = 12;
         public const int MaxHistoryEntries = 50;
         const double CloseGraceSeconds = 0.5;
@@ -80,6 +79,12 @@ namespace Kalyeah.Game
         {
             "junjun", "ligaya", "migo", "toni", "popoy",
             "inday", "kiko", "nene", "buknoy", "tala",
+        };
+
+        /// <summary>The 6 nametag avatar photo tiles synced under <c>ui/avatars/*</c> (in <c>Session.AVATARS</c> order).</summary>
+        public static readonly string[] AvatarPhotoIds =
+        {
+            "junjun", "ligaya", "migo", "toni", "popoy", "inday",
         };
 
         public static readonly string[] DefaultSuperpowers =
@@ -101,23 +106,32 @@ namespace Kalyeah.Game
         static readonly Regex DisallowedNameChars = new Regex(@"[^\p{L}\p{N} '._-]", RegexOptions.Compiled);
         static readonly Regex MultiSpaces = new Regex(@" {2,}", RegexOptions.Compiled);
 
+        static readonly List<WeaponDef> DefaultWeaponDefs = BuildDefaultWeaponDefs();
+        static readonly Dictionary<string, WeaponDef> DefaultWeaponDefMap = BuildWeaponDefMap(DefaultWeaponDefs);
+
         public static AppSession Current { get; } = new AppSession();
         public static AppSession Instance => Current;
 
         public event Action Changed;
         public event Action<bool> ConnectionChanged;
 
-        public AppSession()
-        {
-#if !KALYEAH_SIM_PORTED
-            _ = ConnectionChanged;
-#endif
-        }
-
         string _playerName = DefaultPlayerName;
         string _selectedCharacter = DefaultCharacter;
+        int _avatarIndex;
+        bool _hasCustomIdPhoto;
+        string _defaultServerUrl = "";
         readonly List<string> _selectedSuperpowers = new List<string>(DefaultSuperpowers);
         readonly List<MatchHistoryEntry> _history = new List<MatchHistoryEntry>();
+
+        readonly RankedSystem.Record _rankRecord = new RankedSystem.Record();
+        SimData _sharedSimData;
+        Dictionary<string, WeaponDef> _sharedWeaponDefMap;
+        GameClient _client;
+        GameServer _hostServer;
+        GameServer _closingServer;
+        double _closingLeft;
+        HotspotBeacon _beacon;
+        HotspotFinder _finder;
 
         public GameMode Mode { get; set; } = GameMode.Practice;
         public LobbyIntent Intent { get; set; } = LobbyIntent.Create;
@@ -131,6 +145,17 @@ namespace Kalyeah.Game
         public string ReconnectUrl { get; set; } = "";
         public string ServerUrl { get; set; } = "";
         public string HostEndpoint { get; set; } = "";
+
+        /// <summary>CI-stamped online WebSocket URL loaded from <c>Data/build_stamp</c>.</summary>
+        public string DefaultServerUrl => _defaultServerUrl;
+
+        public string EffectiveServerUrl =>
+            SettingsStore.NormalizeServerUrl(
+                !string.IsNullOrWhiteSpace(ServerUrl)
+                    ? ServerUrl
+                    : (!string.IsNullOrWhiteSpace(_defaultServerUrl)
+                        ? _defaultServerUrl
+                        : SettingsStore.Current.EffectiveServerUrl));
 
         public string PlayerName
         {
@@ -151,6 +176,33 @@ namespace Kalyeah.Game
                 string id = string.IsNullOrWhiteSpace(value) ? DefaultCharacter : value.Trim();
                 if (!IsKnownAvatar(id)) id = DefaultCharacter;
                 _selectedCharacter = id;
+                Changed?.Invoke();
+            }
+        }
+
+        /// <summary>Selected nametag avatar photo index (0..5 across <see cref="AvatarPhotoIds"/>).</summary>
+        public int AvatarIndex
+        {
+            get => _avatarIndex;
+            set
+            {
+                int next = Math.Clamp(value, 0, AvatarPhotoIds.Length - 1);
+                if (_avatarIndex == next) return;
+                _avatarIndex = next;
+                Changed?.Invoke();
+            }
+        }
+
+        public string AvatarPhotoId => AvatarPhotoIds[Math.Clamp(_avatarIndex, 0, AvatarPhotoIds.Length - 1)];
+
+        /// <summary>True when a local-only selfie (<see cref="CustomIdPhotoFileName"/>) is kept on this device.</summary>
+        public bool HasCustomIdPhoto
+        {
+            get => _hasCustomIdPhoto;
+            set
+            {
+                if (_hasCustomIdPhoto == value) return;
+                _hasCustomIdPhoto = value;
                 Changed?.Invoke();
             }
         }
@@ -188,7 +240,7 @@ namespace Kalyeah.Game
                 kind = SelectedStreetGameKind;
                 return true;
             }
-#if KALYEAH_SIM_PORTED
+
             if (IsNetworkedMode && _client != null)
             {
                 string roomMap = _client.Room != null ? _client.Room.GetStr("map") : "";
@@ -199,7 +251,13 @@ namespace Kalyeah.Game
                     return true;
                 }
 
-                string matchMap = _client.MatchInfo != null ? _client.MatchInfo.GetStr("map") : "";
+                string matchMap = "";
+                if (_client.MatchInfo != null)
+                {
+                    matchMap = _client.MatchInfo.GetStr("game");
+                    if (string.IsNullOrEmpty(matchMap))
+                        matchMap = _client.MatchInfo.GetStr("map");
+                }
                 StreetGameKind? fromMatch = StreetBridge.KindFromModeId(matchMap);
                 if (fromMatch.HasValue)
                 {
@@ -212,20 +270,10 @@ namespace Kalyeah.Game
                 if (liveMode is TumbangPreso) { kind = StreetGameKind.TumbangPreso; return true; }
                 if (liveMode is LangitLupa) { kind = StreetGameKind.LangitLupa; return true; }
             }
-#endif
+
             kind = StreetGameKind.Patintero;
             return false;
         }
-
-#if KALYEAH_SIM_PORTED
-        readonly RankedSystem.Record _rankRecord = new RankedSystem.Record();
-        SimData _sharedSimData;
-        GameClient _client;
-        GameServer _hostServer;
-        GameServer _closingServer;
-        double _closingLeft;
-        HotspotBeacon _beacon;
-        HotspotFinder _finder;
 
         public GameClient Client => _client;
         public GameServer HostServer => _hostServer;
@@ -240,76 +288,17 @@ namespace Kalyeah.Game
         public int PeakLp => _rankRecord.PeakLp;
         public int TotalMatches => _rankRecord.Matches;
         public int TotalWins => _rankRecord.Wins;
-#else
-        int _lp;
-        int _peakLp;
-        int _matches;
-        int _wins;
-        RankOutcomeInfo? _fallbackOutcome;
-
-        public bool IsOnlineConnected => false;
-        public bool IsConnecting => false;
-        public bool IsHosting => false;
-
-        public int Lp => _lp;
-        public int PeakLp => _peakLp;
-        public int TotalMatches => _matches;
-        public int TotalWins => _wins;
-#endif
-
         public float WinRate01 => TotalMatches > 0 ? (float)TotalWins / TotalMatches : 0f;
 
-        public int TierIndex
-        {
-            get
-            {
-#if KALYEAH_SIM_PORTED
-                return RankedSystem.TierIndex(_rankRecord.Lp);
-#else
-                int idx = 0;
-                for (int i = 0; i < RankTiers.Length; i++)
-                    if (_lp >= RankTiers[i].MinLp) idx = i;
-                return idx;
-#endif
-            }
-        }
-
+        public int TierIndex => RankedSystem.TierIndex(_rankRecord.Lp);
         public RankTierInfo CurrentTier => RankTiers[Math.Clamp(TierIndex, 0, RankTiers.Length - 1)];
-
-        public int NextTierLp
-        {
-            get
-            {
-#if KALYEAH_SIM_PORTED
-                return RankedSystem.NextTierLp(_rankRecord.Lp);
-#else
-                int idx = TierIndex;
-                return idx + 1 < RankTiers.Length ? RankTiers[idx + 1].MinLp : -1;
-#endif
-            }
-        }
-
-        public float TierProgress01
-        {
-            get
-            {
-#if KALYEAH_SIM_PORTED
-                return (float)RankedSystem.TierProgress(_rankRecord.Lp);
-#else
-                int idx = TierIndex;
-                if (idx + 1 >= RankTiers.Length) return 1f;
-                int floor = RankTiers[idx].MinLp;
-                int span = Math.Max(RankTiers[idx + 1].MinLp - floor, 1);
-                return Math.Clamp((float)(_lp - floor) / span, 0f, 1f);
-#endif
-            }
-        }
+        public int NextTierLp => RankedSystem.NextTierLp(_rankRecord.Lp);
+        public float TierProgress01 => (float)RankedSystem.TierProgress(_rankRecord.Lp);
 
         public RankOutcomeInfo? LastOutcome
         {
             get
             {
-#if KALYEAH_SIM_PORTED
                 RankedSystem.Outcome r = _rankRecord.LastResult;
                 if (r == null) return null;
                 RankedSystem.Tier t = RankedSystem.TierForLp(r.NewLp);
@@ -322,10 +311,28 @@ namespace Kalyeah.Game
                     TierName = !string.IsNullOrEmpty(r.Tier) ? r.Tier : CurrentTier.Name,
                     Promoted = r.Promoted,
                 };
-#else
-                return _fallbackOutcome;
-#endif
             }
+        }
+
+        /// <summary>
+        /// Applies CI build-stamp text (<c>KALYEAH_SERVER_URL</c> / <c>Data/build_stamp</c>) as <see cref="DefaultServerUrl"/>
+        /// and updates <see cref="ServerUrl"/> unless a different custom endpoint is already set.
+        /// </summary>
+        public string ApplyBuildStampServerUrl(string rawStamp)
+        {
+            string normalized = SettingsStore.ExtractServerUrlFromBuildStamp(rawStamp);
+            string previousDefault = _defaultServerUrl;
+            _defaultServerUrl = normalized;
+            if (ReferenceEquals(this, Current))
+                SettingsStore.Current.ApplyBuildStampServerUrl(rawStamp);
+
+            if (!string.IsNullOrEmpty(normalized) &&
+                (string.IsNullOrWhiteSpace(ServerUrl) || string.Equals(ServerUrl, previousDefault, StringComparison.Ordinal)))
+            {
+                ServerUrl = normalized;
+                Changed?.Invoke();
+            }
+            return normalized;
         }
 
         public bool SetSuperpowers(IList<string> weaponIds)
@@ -347,6 +354,60 @@ namespace Kalyeah.Game
         }
 
         public string[] GetSuperpowerArray() => _selectedSuperpowers.ToArray();
+
+        /// <summary>True when every currently selected superpower in <see cref="SelectedSuperpowers"/> deals 0 direct damage (<see cref="WeaponPick.DealsNoDamage"/>).</summary>
+        public bool IsZeroDamageLoadout() => IsZeroDamageLoadout(_selectedSuperpowers, null);
+
+        /// <summary>True when <paramref name="weaponIds"/> is non-empty and none of its weapons deal direct damage (<see cref="WeaponPick.DealsNoDamage"/>).</summary>
+        public bool IsZeroDamageLoadout(IList<string> weaponIds, DataSource data = null)
+        {
+            if (weaponIds == null || weaponIds.Count == 0) return false;
+            ResolveWeaponDefs(data, out _, out IReadOnlyDictionary<string, WeaponDef> defMap);
+            var cleaned = new List<string>(weaponIds.Count);
+            for (int i = 0; i < weaponIds.Count; i++)
+            {
+                string id = weaponIds[i];
+                if (string.IsNullOrWhiteSpace(id)) return false;
+                cleaned.Add(id.Trim());
+            }
+            return WeaponPick.DealsNoDamage(cleaned, defMap);
+        }
+
+        public static bool DealsNoDamage(IList<string> weaponIds, DataSource data = null) =>
+            Current.IsZeroDamageLoadout(weaponIds, data);
+
+        /// <summary>Returns the canonical 3-slot superpower suggestion (Targeted Attack + Block + Crowd Control) via <see cref="WeaponPick.SuggestionFor"/>.</summary>
+        public string[] SuggestSuperpowers() => SuggestSuperpowers(null, 3, null);
+
+        /// <summary>Returns <paramref name="count"/> suggested superpowers via <see cref="WeaponPick.Suggestion"/> / <see cref="WeaponPick.SuggestionFor"/>.</summary>
+        public string[] SuggestSuperpowers(int count) => SuggestSuperpowers(null, count, null);
+
+        /// <summary>Returns <paramref name="count"/> suggested superpowers from <paramref name="data"/> (excluding any taken IDs in <paramref name="excludedWeaponIds"/>).</summary>
+        public string[] SuggestSuperpowers(DataSource data, int count = 3, ICollection<string> excludedWeaponIds = null)
+        {
+            int targetCount = Math.Max(count, 1);
+            ResolveWeaponDefs(data, out IList<WeaponDef> defs, out _);
+            IList<WeaponDef> pool = defs;
+            if (excludedWeaponIds != null && excludedWeaponIds.Count > 0)
+            {
+                var filtered = new List<WeaponDef>(defs.Count);
+                for (int i = 0; i < defs.Count; i++)
+                {
+                    WeaponDef def = defs[i];
+                    if (def != null && !string.IsNullOrEmpty(def.Id) && !excludedWeaponIds.Contains(def.Id))
+                        filtered.Add(def);
+                }
+                pool = filtered;
+            }
+
+            List<string> suggested = targetCount <= WeaponPick.DefaultSlots
+                ? WeaponPick.Suggestion(pool)
+                : WeaponPick.SuggestionFor(pool, targetCount);
+
+            if (targetCount == 1 && suggested.Count > 1)
+                return new[] { suggested[0] };
+            return suggested.ToArray();
+        }
 
         public string[] ValidLoadoutFor(IList<string> availableWeaponIds, int count = 3)
         {
@@ -372,16 +433,8 @@ namespace Kalyeah.Game
 
         public int PreviewMatchLp(string mode, bool won, int myScore = 0, int theirScore = 0)
         {
-#if KALYEAH_SIM_PORTED
             RankedSystem.Outcome o = RankedSystem.PreviewMatch(mode ?? "practice", won, myScore, theirScore, _rankRecord.Lp);
             return o.Delta;
-#else
-            string cleanMode = (mode ?? "").Trim().ToLowerInvariant();
-            int margin = Math.Max(0, myScore - theirScore);
-            if (cleanMode == "practice")
-                return won ? 12 + Math.Min(margin, 3) : -6;
-            return won ? 30 + Math.Min(margin, 5) * 2 : -18;
-#endif
         }
 
         public RankOutcomeInfo RecordMatchResult(
@@ -396,11 +449,9 @@ namespace Kalyeah.Game
             string kid = string.IsNullOrWhiteSpace(characterId) ? _selectedCharacter : characterId.Trim();
             long ts = timestampUnixSeconds > 0 ? timestampUnixSeconds : DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-            RankOutcomeInfo info;
-#if KALYEAH_SIM_PORTED
             RankedSystem.Outcome outcome = RankedSystem.RecordMatch(_rankRecord, normMode, won, myScore, theirScore);
             RankedSystem.Tier tierObj = RankedSystem.TierForLp(outcome.NewLp);
-            info = new RankOutcomeInfo
+            var info = new RankOutcomeInfo
             {
                 OldLp = outcome.OldLp,
                 NewLp = outcome.NewLp,
@@ -409,26 +460,6 @@ namespace Kalyeah.Game
                 TierName = !string.IsNullOrEmpty(outcome.Tier) ? outcome.Tier : CurrentTier.Name,
                 Promoted = outcome.Promoted,
             };
-#else
-            int oldLp = _lp;
-            int oldIdx = TierIndex;
-            int delta = PreviewMatchLp(normMode, won, myScore, theirScore);
-            _lp = Math.Max(0, _lp + delta);
-            _peakLp = Math.Max(_peakLp, _lp);
-            _matches += 1;
-            if (won) _wins += 1;
-            RankTierInfo tier = CurrentTier;
-            info = new RankOutcomeInfo
-            {
-                OldLp = oldLp,
-                NewLp = _lp,
-                Delta = _lp - oldLp,
-                TierId = tier.Id,
-                TierName = tier.Name,
-                Promoted = TierIndex > oldIdx,
-            };
-            _fallbackOutcome = info;
-#endif
 
             _history.Insert(0, new MatchHistoryEntry
             {
@@ -449,7 +480,6 @@ namespace Kalyeah.Game
 
         public RankOutcomeInfo? ConsumeLastOutcome()
         {
-#if KALYEAH_SIM_PORTED
             RankedSystem.Outcome r = RankedSystem.ConsumeLastResult(_rankRecord);
             if (r == null) return null;
             RankedSystem.Tier t = RankedSystem.TierForLp(r.NewLp);
@@ -462,11 +492,6 @@ namespace Kalyeah.Game
                 TierName = !string.IsNullOrEmpty(r.Tier) ? r.Tier : CurrentTier.Name,
                 Promoted = r.Promoted,
             };
-#else
-            RankOutcomeInfo? held = _fallbackOutcome;
-            _fallbackOutcome = null;
-            return held;
-#endif
         }
 
         /// <summary>Builds a <see cref="MatchSetup"/> ready to pass to <c>new SimBridge(data, setup)</c>.</summary>
@@ -483,14 +508,11 @@ namespace Kalyeah.Game
                 CardCycleOverride = SettingsStore.Current.CardsTrayMode ? true : (bool?)null,
                 FirstTo = FirstTo,
             };
-#if KALYEAH_SIM_PORTED
             if (IsNetworkedMode && _client != null)
                 setup.OnlineClient = _client;
-#endif
             return setup;
         }
 
-#if KALYEAH_SIM_PORTED
         public SimData EnsureSimData(DataSource data)
         {
             if (_sharedSimData != null) return _sharedSimData;
@@ -505,6 +527,7 @@ namespace Kalyeah.Game
                 "rules__langit_lupa",
                 "rules__larong_kalye",
                 "rules__donate_info");
+            _sharedWeaponDefMap = BuildWeaponDefMap(_sharedSimData.GameRules.Weapons);
             return _sharedSimData;
         }
 
@@ -544,7 +567,8 @@ namespace Kalyeah.Game
 
         public bool StartOnlineClient(DataSource data, string wsUrl, bool patient = true)
         {
-            string normalized = SettingsStore.NormalizeServerUrl(string.IsNullOrWhiteSpace(wsUrl) ? ServerUrl : wsUrl);
+            string candidate = !string.IsNullOrWhiteSpace(wsUrl) ? wsUrl : EffectiveServerUrl;
+            string normalized = SettingsStore.NormalizeServerUrl(candidate);
             if (string.IsNullOrEmpty(normalized)) return false;
             GameClient client = EnsureClient(data);
             client.Token = ReconnectToken ?? "";
@@ -708,17 +732,18 @@ namespace Kalyeah.Game
             ConnectionChanged?.Invoke(online);
             Changed?.Invoke();
         }
-#endif
 
         public string ToJson()
         {
-            var sb = new StringBuilder(512);
+            var sb = new StringBuilder(576);
             sb.Append('{');
             sb.Append("\"player_name\":\"");
             SettingsStore.EscapeJsonString(sb, _playerName);
             sb.Append("\",\"selected_character\":\"");
             SettingsStore.EscapeJsonString(sb, _selectedCharacter);
-            sb.Append("\",\"bot_difficulty\":\"");
+            sb.Append("\",\"avatar_index\":").Append(_avatarIndex.ToString(CultureInfo.InvariantCulture));
+            sb.Append(",\"has_custom_id_photo\":").Append(_hasCustomIdPhoto ? "true" : "false");
+            sb.Append(",\"bot_difficulty\":\"");
             SettingsStore.EscapeJsonString(sb, BotDifficulty ?? "medium");
             sb.Append("\",\"first_to\":").Append(FirstTo.ToString(CultureInfo.InvariantCulture));
             sb.Append(",\"room_code\":\"");
@@ -781,6 +806,10 @@ namespace Kalyeah.Game
             }
             if (SettingsStore.TryString(d, "selected_character", out string sc) && IsKnownAvatar(sc))
                 _selectedCharacter = sc;
+            if (SettingsStore.TryInt(d, "avatar_index", out int avIdx))
+                _avatarIndex = Math.Clamp(avIdx, 0, AvatarPhotoIds.Length - 1);
+            if (SettingsStore.TryBool(d, "has_custom_id_photo", out bool customPhoto))
+                _hasCustomIdPhoto = customPhoto;
             if (SettingsStore.TryString(d, "bot_difficulty", out string bd))
                 BotDifficulty = SettingsStore.NormalizeDifficulty(bd);
             if (SettingsStore.TryInt(d, "first_to", out int ft) && ft > 0)
@@ -792,7 +821,7 @@ namespace Kalyeah.Game
             if (SettingsStore.TryString(d, "reconnect_url", out string ru))
                 ReconnectUrl = ru;
             if (SettingsStore.TryString(d, "server_url", out string su))
-                ServerUrl = su;
+                ServerUrl = !string.IsNullOrWhiteSpace(su) ? SettingsStore.NormalizeServerUrl(su) : _defaultServerUrl;
 
             if (d.TryGetValue("superpowers", out object spObj) && spObj is List<object> spList)
             {
@@ -811,17 +840,10 @@ namespace Kalyeah.Game
             SettingsStore.TryInt(d, "peak_lp", out int peak);
             SettingsStore.TryInt(d, "matches", out int matches);
             SettingsStore.TryInt(d, "wins", out int wins);
-#if KALYEAH_SIM_PORTED
             _rankRecord.Lp = Math.Max(0, lp);
             _rankRecord.PeakLp = Math.Max(_rankRecord.Lp, peak);
             _rankRecord.Matches = Math.Max(0, matches);
             _rankRecord.Wins = Math.Clamp(wins, 0, _rankRecord.Matches);
-#else
-            _lp = Math.Max(0, lp);
-            _peakLp = Math.Max(_lp, peak);
-            _matches = Math.Max(0, matches);
-            _wins = Math.Clamp(wins, 0, _matches);
-#endif
 
             _history.Clear();
             if (d.TryGetValue("history", out object histObj) && histObj is List<object> histList)
@@ -896,6 +918,88 @@ namespace Kalyeah.Game
                 case GameMode.LangitLupa: return "langit_lupa";
                 default: return "practice";
             }
+        }
+
+        void ResolveWeaponDefs(
+            DataSource data,
+            out IList<WeaponDef> list,
+            out IReadOnlyDictionary<string, WeaponDef> map)
+        {
+            if (data != null)
+            {
+                try
+                {
+                    SimData simData = EnsureSimData(data);
+                    if (simData?.GameRules?.Weapons != null && simData.GameRules.Weapons.Count > 0)
+                    {
+                        list = simData.GameRules.Weapons;
+                        _sharedWeaponDefMap ??= BuildWeaponDefMap(simData.GameRules.Weapons);
+                        map = _sharedWeaponDefMap;
+                        return;
+                    }
+                }
+                catch
+                {
+                }
+            }
+            else if (_sharedSimData?.GameRules?.Weapons != null && _sharedSimData.GameRules.Weapons.Count > 0)
+            {
+                list = _sharedSimData.GameRules.Weapons;
+                _sharedWeaponDefMap ??= BuildWeaponDefMap(_sharedSimData.GameRules.Weapons);
+                map = _sharedWeaponDefMap;
+                return;
+            }
+
+            list = DefaultWeaponDefs;
+            map = DefaultWeaponDefMap;
+        }
+
+        static List<WeaponDef> BuildDefaultWeaponDefs()
+        {
+            return new List<WeaponDef>(14)
+            {
+                MakeStubWeapon("bato_light", WeaponDef.WeaponKind.Attack, WeaponDef.WeaponShape.Targeted, 18),
+                MakeStubWeapon("bato_heavy", WeaponDef.WeaponKind.Attack, WeaponDef.WeaponShape.GroundAoe, 36),
+                MakeStubWeapon("gunting_light", WeaponDef.WeaponKind.Attack, WeaponDef.WeaponShape.Cone, 9),
+                MakeStubWeapon("gunting_heavy", WeaponDef.WeaponKind.Attack, WeaponDef.WeaponShape.Cone, 38),
+                MakeStubWeapon("papel_trap", WeaponDef.WeaponKind.CrowdControl, WeaponDef.WeaponShape.Trap, 0),
+                MakeStubWeapon("papel_shield", WeaponDef.WeaponKind.Block, WeaponDef.WeaponShape.Shield, 0),
+                MakeStubWeapon("tsinelas_light", WeaponDef.WeaponKind.Attack, WeaponDef.WeaponShape.Boomerang, 9),
+                MakeStubWeapon("tsinelas_heavy", WeaponDef.WeaponKind.Attack, WeaponDef.WeaponShape.Boomerang, 25),
+                MakeStubWeapon("lata", WeaponDef.WeaponKind.CrowdControl, WeaponDef.WeaponShape.GroundAoe, 16),
+                MakeStubWeapon("jacks", WeaponDef.WeaponKind.CrowdControl, WeaponDef.WeaponShape.Field, 6),
+                MakeStubWeapon("bola", WeaponDef.WeaponKind.CrowdControl, WeaponDef.WeaponShape.Bouncer, 14),
+                MakeStubWeapon("trumpo", WeaponDef.WeaponKind.CrowdControl, WeaponDef.WeaponShape.Spinner, 22),
+                MakeStubWeapon("heal", WeaponDef.WeaponKind.Heal, WeaponDef.WeaponShape.Heal, 0),
+                MakeStubWeapon("langit_lupa", WeaponDef.WeaponKind.Block, WeaponDef.WeaponShape.Field, 0),
+            };
+        }
+
+        static WeaponDef MakeStubWeapon(
+            string id,
+            WeaponDef.WeaponKind kind,
+            WeaponDef.WeaponShape shape,
+            int damage)
+        {
+            return new WeaponDef
+            {
+                Id = id,
+                Kind = kind,
+                Shape = shape,
+                Damage = damage,
+            };
+        }
+
+        static Dictionary<string, WeaponDef> BuildWeaponDefMap(IList<WeaponDef> defs)
+        {
+            var map = new Dictionary<string, WeaponDef>(defs.Count, StringComparer.Ordinal);
+            for (int i = 0; i < defs.Count; i++)
+            {
+                WeaponDef d = defs[i];
+                if (d != null && !string.IsNullOrEmpty(d.Id))
+                    map[d.Id] = d;
+            }
+            return map;
         }
 
         static bool ContainsOrdinal(IList<string> list, string item)

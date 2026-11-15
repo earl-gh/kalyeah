@@ -7,10 +7,8 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-#if KALYEAH_SIM_PORTED
 using Kalyeah.Net;
 using Kalyeah.Sim;
-#endif
 
 namespace Kalyeah.Game
 {
@@ -225,7 +223,6 @@ namespace Kalyeah.Game
         public event Action<int> MoundFell;
         public event Action<int> PlatformBroke;
 
-#if KALYEAH_SIM_PORTED
         readonly MatchSim _offlineSim;
         readonly StreetModeCoach _coach;
         readonly GameClient _client;
@@ -680,67 +677,6 @@ namespace Kalyeah.Game
                 SecondaryReady01 = (float)ll.MoundReadyShare(localId),
             };
         }
-#else
-        int _tick;
-        float _timeLeft = 120f;
-
-        public StreetBridge(
-            DataSource data,
-            StreetGameKind kind,
-            long seed,
-            string localCharacter = "junjun",
-            object onlineClient = null)
-        {
-            Kind = kind;
-            ModeId = ModeIdOf(kind);
-            DisplayTitle = DefaultTitleOf(kind);
-            IsFreeForAll = kind != StreetGameKind.Patintero;
-            TickDt = 1f / 30f;
-            _runPerTick = 6.4f * TickDt;
-            ArenaWidth = 24f;
-            ArenaLength = 48f;
-            IsOnline = false;
-            _kids.Add(new StreetKidSnapshot
-            {
-                Id = LocalId,
-                Team = LocalTeam,
-                CharacterId = localCharacter ?? "junjun",
-                Facing = new Vector2(0f, -1f),
-                Visible = true,
-            });
-            PatinteroState = new PatinteroSnapshot { GuardLines = _guardLines };
-            TumbangPresoState = new TumbangPresoSnapshot { Slippers = _slippers };
-            LangitLupaState = new LangitLupaSnapshot { Platforms = _platforms, Mounds = _mounds };
-            TouchUnusedEvents();
-        }
-
-        public int LocalPlayerId => LocalId;
-        public int Tick => _tick;
-        public float TimeLeft => _timeLeft;
-        public bool IsIntro => false;
-        public bool IsResetting => false;
-        public bool IsMatchOver => _timeLeft <= 0f;
-        public int Winner => 0;
-        public int TeamScore(int team) => 0;
-        public int PlayerScore(int playerId) => 0;
-        public StreetMatchResult GetLocalResult() => default;
-        public bool SkipIntro() => false;
-
-        public void Step()
-        {
-            _tick += 1;
-            _timeLeft = MathF.Max(0f, _timeLeft - TickDt);
-        }
-
-        public void SyncInterpolated() { }
-
-        void TouchUnusedEvents()
-        {
-            _ = Tagged; _ = Scored; _ = RolesSwapped; _ = MatchWon; _ = SlipperThrown;
-            _ = CanKicked; _ = CanPlaced; _ = CanFlung; _ = Dived; _ = MoundRaised;
-            _ = MoundFell; _ = PlatformBroke;
-        }
-#endif
 
         /// <summary>High-level street mode input: movement, aim direction, primary action (Throw hold), secondary action (Dive / Kick / Lupa).</summary>
         public void SetLocalInput(

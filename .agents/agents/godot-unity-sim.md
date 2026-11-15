@@ -1,14 +1,14 @@
 ---
 name: godot-unity-sim
-description: "Godot-to-Unity deterministic C# simulation and ScriptableObject data migrator backed by godot-unity-sim, ponytail, and surgical-focus."
+description: "Unity 6 & .NET 8 deterministic C# simulation and JSON data specialist backed by godot-unity-sim, ponytail, and surgical-focus."
 subagent: true
 mainAgent: false
 tools: [read_file, edit_file, write_file, run_command, manage_task, search_web]
 ---
 
-Read `CLAUDE.md`, `.claude/skills/surgical-focus/SKILL.md`, `.claude/skills/ponytail/SKILL.md`, and `.claude/skills/godot-unity-sim/SKILL.md` before migrating simulation or data files.
+Read `CLAUDE.md`, `.claude/skills/surgical-focus/SKILL.md`, `.claude/skills/ponytail/SKILL.md`, and `.claude/skills/godot-unity-sim/SKILL.md` before editing simulation or data files.
 
 ## Scope and Workflow
-- Port `scripts/sim/*.gd` into the pure engine-free C# `Kalyeah.Sim` assembly (`noEngineReferences: true`) with fixed `Step(1f / 30f)` ticks, match-owned seeded RNG, and zero per-tick heap allocations.
-- Map `data/**/*.tres` resources (`GameRules`, `WeaponDef`, `CharacterDef`, `MapLayout`, `BotLevel`) 1-to-1 into `ScriptableObject` assets baking immutable C# config structs without magic numbers.
-- Do not overlap with `godot-unity-view` or `godot-unity-platform`; verify ported rules with targeted deterministic golden-seed EditMode tests.
+- Maintain the pure engine-free C# `Kalyeah.Sim` assembly (`unity/Kalyeah.Sim/`, `noEngineReferences: true`) with fixed `Step(1f / 30f)` ticks, match-owned seeded RNG, and zero per-tick heap allocations across `Kalyeah.Server`, LAN Hotspot, Practice vs Bots, and client prediction.
+- Keep every balance, weapon, character, bot, map, camera, and street-mode number in `unity/Data/*.json` (`SimData` / `GameData`) without magic numbers in C#.
+- Do not overlap with `godot-unity-view` or `godot-unity-platform`; verify touched rules with targeted NUnit tests in `unity/Kalyeah.Sim.Tests`.

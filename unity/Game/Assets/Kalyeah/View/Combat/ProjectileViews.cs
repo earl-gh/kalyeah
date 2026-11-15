@@ -97,6 +97,7 @@ namespace Kalyeah.Game
             public Transform Tr;
             public Transform Tilt;
             public Transform Spin;
+            public ScissorsRig Scissors;
             public Renderer[] Renderers;
             public Renderer[] OutlineRenderers;
             public MaterialPropertyBlock Block;
@@ -150,10 +151,12 @@ namespace Kalyeah.Game
             public ModelNode Model;
             public float Elapsed;
             public float Duration;
+            public float BaseModelSize;
             public Vector3 StartPos;
             public Vector3 Velocity;
             public bool IsCone;
             public bool IsScissors;
+            public bool IsHeavyScissors;
         }
 
         readonly Transform _root;
@@ -168,6 +171,14 @@ namespace Kalyeah.Game
         readonly Mesh _wedgeFillMesh;
         readonly Mesh _ribbonQuadMesh;
         readonly Mesh _curvedShieldMesh;
+        Mesh _scissorBladeAMesh;
+        Mesh _scissorBladeBMesh;
+        Material _scissorMaterial;
+        Vector3 _scissorScrewPivot;
+        float _scissorOpenSignA = 1f;
+        float _scissorNaturalLength = 1f;
+        float _scissorMinLengthY;
+        bool _scissorUsesFallback = true;
         readonly Dictionary<string, Mesh> _fallbackMeshes = new Dictionary<string, Mesh>(16, StringComparer.Ordinal);
         readonly Dictionary<string, GameObject> _prefabTemplates = new Dictionary<string, GameObject>(16, StringComparer.Ordinal);
         readonly Dictionary<string, Vector3> _prefabNaturalSizes = new Dictionary<string, Vector3>(16, StringComparer.Ordinal);
@@ -195,6 +206,20 @@ namespace Kalyeah.Game
         public int LocalTeam { get; set; } = SimBridge.LocalTeam;
         public int LiveEffectCount => _activeSlots.Count;
         public int ActiveFlashCount => _liveTransients.Count;
+        public float LastScissorsAngleDegrees { get; private set; }
+
+        public int ActiveScissorsCount
+        {
+            get
+            {
+                int count = 0;
+                foreach (var kv in _activeSlots)
+                    if (kv.Value.PrimaryModel != null && kv.Value.PrimaryModel.Scissors != null) count++;
+                for (int i = 0; i < _liveTransients.Count; i++)
+                    if (_liveTransients[i].Model != null && _liveTransients[i].Model.Scissors != null) count++;
+                return count;
+            }
+        }
 
         public int LiveProjectileCount
         {
@@ -452,6 +477,8 @@ namespace Kalyeah.Game
             KalyeahResources.Kill(_wedgeFillMesh);
             KalyeahResources.Kill(_ribbonQuadMesh);
             KalyeahResources.Kill(_curvedShieldMesh);
+            KalyeahResources.Kill(_scissorBladeAMesh);
+            KalyeahResources.Kill(_scissorBladeBMesh);
 
             foreach (var kv in _fallbackMeshes)
                 KalyeahResources.Kill(kv.Value);
@@ -808,6 +835,25 @@ namespace Kalyeah.Game
                 return;
             }
 
+            if (m.Scissors != null)
+            {
+                // Gunting (Hati-Kalye / Gupit-Kidlat) projectile: counter-rotating twin blades snipping along aim.
+                m.Tr.localPosition = new Vector3(0f, 0.90f * ViewScale, 0f);
+                m.Spin.localRotation = Quaternion.identity;
+                float bladeDeg = ScissorsRig.Closed;
+                if (!ReduceMotion)
+                {
+                    slot.SpinAngleRad += dt * 9f;
+                    float cycle = Mathf.Repeat(slot.SpinAngleRad, 1f);
+                    bladeDeg = cycle < 0.35f
+                        ? Mathf.Lerp(ScissorsRig.Closed, ScissorsRig.Wide, cycle / 0.35f)
+                        : ScissorsRig.CutAngle((cycle - 0.35f) / 0.65f);
+                }
+                m.Scissors.SetOpen(bladeDeg);
+                LastScissorsAngleDegrees = bladeDeg;
+                return;
+            }
+
             // Default projectile (tirador_bato, bato_light, etc.): crisp flight height + rock tumble.
             m.Tr.localPosition = new Vector3(0f, ProjectileFlightHeight * ViewScale, 0f);
             if (!ReduceMotion)
@@ -991,10 +1037,17 @@ namespace Kalyeah.Game
             if (slot.PrimaryModel != null)
             {
                 float scSize = BaseModelMeters(slot.BoundWeaponId) * ViewScale;
-                float tremor = ReduceMotion ? 0f : Mathf.Sin(_clock * 42f) * 2.5f * progress;
-                slot.PrimaryModel.Tr.localPosition = new Vector3(0f, 0.95f * ViewScale, Mathf.Min(reach * 0.42f, 1.15f));
-                slot.PrimaryModel.Tr.localScale = new Vector3(scSize * Mathf.Lerp(0.85f, 1.25f, progress), scSize, scSize);
-                slot.PrimaryModel.Spin.localRotation = Quaternion.Euler(0f, tremor, 0f);
+                float pullback = ReduceMotion ? 0f : -0.32f * (1f - (1f - progress) * (1f - progress));
+                float forwardOffset = Mathf.Max(0.35f, Mathf.Min(reach * 0.44f, 1.20f) + pullback);
+                slot.PrimaryModel.Tr.localPosition = new Vector3(0f, 0.95f * ViewScale, forwardOffset);
+                slot.PrimaryModel.Tr.localScale = Vector3.one * scSize;
+                slot.PrimaryModel.Spin.localRotation = Quaternion.identity;
+                if (slot.PrimaryModel.Scissors != null)
+                {
+                    float windupDeg = ScissorsRig.WindupAngle(progress, _clock, snap.TimeLeft, ReduceMotion);
+                    slot.PrimaryModel.Scissors.SetOpen(windupDeg);
+                    LastScissorsAngleDegrees = windupDeg;
+                }
             }
         }
 
@@ -1206,25 +1259,33 @@ namespace Kalyeah.Game
             tv.GroundRenderer.gameObject.SetActive(true);
 
             bool hasScissors = weaponId == "gunting_light" || weaponId == "gunting_heavy";
+            bool heavyScissors = weaponId == "gunting_heavy";
+            float sz = BaseModelMeters(weaponId) * ViewScale;
             if (hasScissors)
             {
                 tv.Model = AcquireModel("scissor");
                 AttachModel(tv.Tr, tv.Model);
-                float sz = BaseModelMeters(weaponId) * ViewScale;
-                tv.Model.Tr.localPosition = new Vector3(0f, 0.92f * ViewScale, Mathf.Min(range * 0.48f, 1.35f));
+                tv.Model.Tr.localPosition = new Vector3(0f, (heavyScissors ? 0.86f : 0.92f) * ViewScale, Mathf.Min(range * 0.48f, 1.35f));
                 tv.Model.Tr.localScale = Vector3.one * sz;
                 SetWeaponOutlineAccent(tv.Model, teamCol);
                 TintModelIfFallback(tv.Model, new Color(0.86f, 0.90f, 0.95f, 1f));
+                float startOpen = ReduceMotion
+                    ? ScissorsRig.Closed
+                    : (heavyScissors ? ScissorsRig.WideHeavy : ScissorsRig.Wide);
+                tv.Model.Scissors?.SetOpen(startOpen);
+                LastScissorsAngleDegrees = startOpen;
             }
 
             tv.StartPos = KalyeahResources.World(origin, 0f);
             tv.Velocity = Vector3.zero;
+            tv.BaseModelSize = sz;
             tv.Tr.position = tv.StartPos;
             tv.Tr.rotation = Quaternion.LookRotation(fwd, Vector3.up);
             tv.Elapsed = 0f;
-            tv.Duration = 0.24f;
+            tv.Duration = hasScissors ? (heavyScissors ? 0.30f : 0.36f) : 0.24f;
             tv.IsCone = true;
             tv.IsScissors = hasScissors;
+            tv.IsHeavyScissors = heavyScissors;
             tv.Root.SetActive(true);
             _liveTransients.Add(tv);
         }
@@ -1243,12 +1304,92 @@ namespace Kalyeah.Game
 
                 float t = Mathf.Clamp01(tv.Elapsed / tv.Duration);
                 tv.Tr.position = tv.StartPos + tv.Velocity * tv.Elapsed;
-                if (tv.IsScissors && tv.Model != null && !ReduceMotion)
+                if (tv.IsScissors && tv.Model != null)
                 {
-                    float snipPinch = Mathf.Lerp(1.2f, 0.55f, Mathf.Clamp01(t * 2.2f));
-                    float baseSz = tv.Model.Tr.localScale.y;
-                    tv.Model.Tr.localScale = new Vector3(baseSz * snipPinch, baseSz, baseSz);
+                    PoseTransientScissors(tv, t);
                 }
+            }
+        }
+
+        void PoseTransientScissors(TransientVisual tv, float t)
+        {
+            float baseSz = Mathf.Max(0.05f, tv.BaseModelSize);
+            if (ReduceMotion)
+            {
+                tv.Model.Tr.localScale = Vector3.one * baseSz;
+                if (tv.Model.Scissors != null)
+                {
+                    tv.Model.Scissors.SetOpen(ScissorsRig.Closed);
+                    LastScissorsAngleDegrees = ScissorsRig.Closed;
+                }
+                return;
+            }
+
+            float bladeDeg;
+            float sideX = 0f;
+            float lungeZ = 0f;
+            float liftY = 0f;
+            float scaleMul = 1f;
+
+            if (tv.IsHeavyScissors)
+            {
+                // Gupit-Kidlat (gunting_heavy): wide blades snap shut on strike with forward lunge, hold shut, then lift & shrink.
+                if (t < 0.24f)
+                {
+                    float u = t / 0.24f;
+                    bladeDeg = Mathf.Lerp(ScissorsRig.WideHeavy, ScissorsRig.Closed, u * u);
+                    lungeZ = Mathf.Lerp(0f, 0.34f, 1f - (1f - u) * (1f - u));
+                }
+                else
+                {
+                    bladeDeg = ScissorsRig.Closed;
+                    lungeZ = 0.34f;
+                    if (t > 0.72f)
+                    {
+                        float exit = (t - 0.72f) / 0.28f;
+                        scaleMul = Mathf.Max(0.02f, 1f - exit);
+                        liftY = 0.24f * exit;
+                    }
+                }
+            }
+            else
+            {
+                // Hati-Kalye (gunting_light): alternating right/left shoulder twin-blade snip volley closing Wide -> Closed.
+                if (t < 0.39f)
+                {
+                    float u = t / 0.39f;
+                    bladeDeg = ScissorsRig.CutAngle(u);
+                    sideX = Mathf.Lerp(0.18f, 0.03f, 1f - (1f - u) * (1f - u));
+                    lungeZ = Mathf.Lerp(-0.22f, 0.08f, 1f - (1f - u) * (1f - u));
+                }
+                else if (t < 0.78f)
+                {
+                    float u = (t - 0.39f) / 0.39f;
+                    bladeDeg = u < 0.22f
+                        ? Mathf.Lerp(ScissorsRig.Closed, ScissorsRig.Wide, u / 0.22f)
+                        : ScissorsRig.CutAngle((u - 0.22f) / 0.78f);
+                    sideX = Mathf.Lerp(-0.18f, -0.03f, u);
+                    lungeZ = Mathf.Lerp(-0.14f, 0.14f, u);
+                }
+                else
+                {
+                    bladeDeg = ScissorsRig.Closed;
+                    lungeZ = 0.14f;
+                    float exit = (t - 0.78f) / 0.22f;
+                    scaleMul = Mathf.Max(0.02f, 1f - exit);
+                    liftY = 0.22f * exit;
+                }
+            }
+
+            float baseY = (tv.IsHeavyScissors ? 0.86f : 0.92f) * ViewScale;
+            float baseZ = Mathf.Max(0.45f, tv.GroundTr.localScale.z * 0.48f);
+            baseZ = Mathf.Min(baseZ, 1.35f);
+            tv.Model.Tr.localPosition = new Vector3(sideX, baseY + liftY, baseZ + lungeZ);
+            tv.Model.Tr.localScale = Vector3.one * (baseSz * scaleMul);
+            if (tv.Model.Scissors != null)
+            {
+                tv.Model.Scissors.SetOpen(bladeDeg);
+                LastScissorsAngleDegrees = bladeDeg;
             }
         }
 
@@ -1458,12 +1599,51 @@ namespace Kalyeah.Game
                     _prefabTemplates[modelId] = prefab;
                     _prefabNaturalSizes[modelId] = MeasurePrefabSize(prefab);
                 }
+            }
 
+            PrepareScissorsRigTemplate();
+
+            for (int k = 0; k < AllWeaponModelIds.Length; k++)
+            {
+                string modelId = AllWeaponModelIds[k];
                 var stack = new Stack<ModelNode>(DefaultModelPoolPerKind);
                 _modelPools[modelId] = stack;
                 for (int i = 0; i < DefaultModelPoolPerKind; i++)
                     stack.Push(CreateModelNode(modelId, i));
             }
+        }
+
+        void PrepareScissorsRigTemplate()
+        {
+            Mesh sourceMesh = null;
+            Material bladeMat = _litMaterial;
+            _scissorUsesFallback = true;
+
+            if (_prefabTemplates.TryGetValue("scissor", out GameObject prefab) && prefab != null)
+            {
+                GameObject probe = Object.Instantiate(prefab, _root, false);
+                KidView.SanitizeGltfMaterials(probe);
+                MeshFilter mf = probe.GetComponentInChildren<MeshFilter>(true);
+                if (mf != null && mf.sharedMesh != null && mf.sharedMesh.isReadable && mf.sharedMesh.vertexCount >= 6)
+                {
+                    sourceMesh = mf.sharedMesh;
+                    MeshRenderer mr = mf.GetComponent<MeshRenderer>();
+                    if (mr != null && mr.sharedMaterial != null)
+                        bladeMat = mr.sharedMaterial;
+                    _scissorUsesFallback = false;
+                }
+                KalyeahResources.Kill(probe);
+            }
+
+            ScissorsRig.SplitMesh(
+                sourceMesh,
+                out _scissorBladeAMesh,
+                out _scissorBladeBMesh,
+                out _scissorScrewPivot,
+                out _scissorOpenSignA,
+                out _scissorNaturalLength,
+                out _scissorMinLengthY);
+            _scissorMaterial = bladeMat;
         }
 
         Vector3 MeasurePrefabSize(GameObject prefab)
@@ -1490,6 +1670,11 @@ namespace Kalyeah.Game
             node.Tr.localScale = Vector3.one;
             node.Tilt.localRotation = Quaternion.identity;
             node.Spin.localRotation = Quaternion.identity;
+            if (node.Scissors != null)
+            {
+                node.Scissors.SetOpen(ScissorsRig.OpenAuthored);
+                LastScissorsAngleDegrees = ScissorsRig.OpenAuthored;
+            }
             node.Root.SetActive(true);
             return node;
         }
@@ -1529,8 +1714,22 @@ namespace Kalyeah.Game
             Transform spinTr = spinGo.transform;
             spinTr.SetParent(tiltTr, false);
 
+            ScissorsRig scissorsRig = null;
             bool usesFallback = true;
-            if (_prefabTemplates.TryGetValue(modelId, out GameObject prefab) && prefab != null)
+            if (modelId == "scissor" && _scissorBladeAMesh != null && _scissorBladeBMesh != null)
+            {
+                scissorsRig = new ScissorsRig(
+                    spinTr,
+                    _scissorBladeAMesh,
+                    _scissorBladeBMesh,
+                    _scissorMaterial,
+                    _scissorScrewPivot,
+                    _scissorOpenSignA,
+                    _scissorNaturalLength,
+                    _scissorMinLengthY);
+                usesFallback = _scissorUsesFallback;
+            }
+            else if (_prefabTemplates.TryGetValue(modelId, out GameObject prefab) && prefab != null)
             {
                 GameObject inst = Object.Instantiate(prefab, spinTr, false);
                 KidView.SanitizeGltfMaterials(inst);
@@ -1595,6 +1794,7 @@ namespace Kalyeah.Game
                 Tr = holderTr,
                 Tilt = tiltTr,
                 Spin = spinTr,
+                Scissors = scissorsRig,
                 Renderers = renderers,
                 OutlineRenderers = outlineRenderers,
                 Block = new MaterialPropertyBlock(),
@@ -2147,5 +2347,380 @@ namespace Kalyeah.Game
         }
 
         static Color WithAlpha(Color c, float a) => new Color(c.r, c.g, c.b, Mathf.Clamp01(a));
+    }
+
+    /// <summary>
+    /// Twin-blade articulated scissors rig (<c>scripts/view/art/scissors_rig.gd</c>) for <i>Gunting</i>
+    /// (<i>Hati-Kalye</i> / <i>Gupit-Kidlat</i>). Splits <c>models/weapons/scissor.glb</c> once by triangle centroid
+    /// around the pivot screw (<c>Pivot = (-0.005, 0.515)</c>, <c>PivotKeep = 0.03</c>) into Blade A (upper blade + opposite
+    /// handle + screw) and Blade B (other blade + handle), offset by <c>±BladeGap</c> along the flat face normal so closed
+    /// blades never z-fight, and counter-rotates <c>PivotA</c> (<c>+deg</c>) and <c>PivotB</c> (<c>-deg</c>) around the screw.
+    /// </summary>
+    public sealed class ScissorsRig
+    {
+        public const float OpenAuthored = 0f;
+        public const float Closed = -13.2f;
+        public const float Wide = 24.0f;
+        public const float WideHeavy = 30.0f;
+        public const float TipAngle = 13.2f;
+        public const float PivotKeep = 0.03f;
+        public const float BladeGap = 0.008f;
+        public const float TrembleDegrees = 2.0f;
+        public const float TrembleHz = 15.0f;
+
+        public static readonly Vector2 Pivot = new Vector2(-0.005f, 0.515f);
+
+        public Transform Root { get; }
+        public Transform PivotA { get; }
+        public Transform PivotB { get; }
+        public MeshRenderer BladeA { get; }
+        public MeshRenderer BladeB { get; }
+        public float Angle { get; private set; }
+
+        readonly float _openSignA;
+
+        public ScissorsRig(
+            Transform parent,
+            Mesh bladeAMesh,
+            Mesh bladeBMesh,
+            Material material,
+            Vector3 screwPivot,
+            float openSignA,
+            float naturalLength,
+            float minLengthY = 0f)
+        {
+            _openSignA = Mathf.Abs(openSignA) < 0.01f ? 1f : Mathf.Sign(openSignA);
+            float safeLen = Mathf.Max(0.05f, naturalLength);
+            float midNormalized = (minLengthY + 0.5f * safeLen) / safeLen;
+
+            var rootGo = new GameObject("ScissorsRig");
+            Root = rootGo.transform;
+            if (parent != null) Root.SetParent(parent, false);
+
+            // Orient model frame (handles->tips along +Y, flat face +Z) so tips point along +Z aim and flat face turns +Y toward camera.
+            var modelGo = new GameObject("Model");
+            Transform modelTr = modelGo.transform;
+            modelTr.SetParent(Root, false);
+            modelTr.localRotation = Quaternion.LookRotation(Vector3.up, Vector3.forward);
+            modelTr.localScale = Vector3.one * (1f / safeLen);
+            modelTr.localPosition = new Vector3(0f, 0f, -midNormalized);
+
+            float gap = BladeGap * safeLen;
+            PivotA = CreateBladePivot(modelTr, "PivotA", bladeAMesh, material, screwPivot, gap, out MeshRenderer mrA);
+            PivotB = CreateBladePivot(modelTr, "PivotB", bladeBMesh, material, screwPivot, -gap, out MeshRenderer mrB);
+            BladeA = mrA;
+            BladeB = mrB;
+
+            SetOpen(OpenAuthored);
+        }
+
+        /// <summary>Counter-rotates Blade A (<c>+degrees</c>) and Blade B (<c>-degrees</c>) around the pivot screw.</summary>
+        public void SetOpen(float degrees)
+        {
+            Angle = degrees;
+            float zDeg = _openSignA * degrees;
+            PivotA.localRotation = Quaternion.Euler(0f, 0f, zDeg);
+            PivotB.localRotation = Quaternion.Euler(0f, 0f, -zDeg);
+        }
+
+        /// <summary>Ease-in snip cut curve (<c>fx_motion.gd cut_angle</c>): <see cref="Wide"/> at 0 to <see cref="Closed"/> at 1.</summary>
+        public static float CutAngle(float t)
+        {
+            float x = Mathf.Clamp01(t);
+            return Mathf.Lerp(Wide, Closed, x * x);
+        }
+
+        /// <summary>Delayed heavy cone wind-up blade curve (<c>fx_snips.gd _pose_heavy</c>): opens to <see cref="WideHeavy"/> with end tremble.</summary>
+        public static float WindupAngle(float progress01, float clockSeconds, float timeLeftSeconds, bool reduceMotion)
+        {
+            if (reduceMotion) return WideHeavy;
+            float p = Mathf.Clamp01(progress01);
+            float deg = Mathf.Lerp(OpenAuthored, WideHeavy, p * p);
+            if (timeLeftSeconds > 0f && timeLeftSeconds < 0.10f)
+                deg += TrembleDegrees * Mathf.Sin(Mathf.PI * 2f * TrembleHz * clockSeconds);
+            return deg;
+        }
+
+        /// <summary>
+        /// Splits <paramref name="sourceMesh"/> into compacted <paramref name="bladeA"/> and <paramref name="bladeB"/> meshes
+        /// preserving 100% of triangles, UVs, normals, tangents, and vertex colors (or builds a crisp procedural twin-blade pair
+        /// when <paramref name="sourceMesh"/> is null or non-readable).
+        /// </summary>
+        public static void SplitMesh(
+            Mesh sourceMesh,
+            out Mesh bladeA,
+            out Mesh bladeB,
+            out Vector3 screwPivot,
+            out float openSignA,
+            out float naturalLength,
+            out float minLengthY)
+        {
+            if (sourceMesh == null || !sourceMesh.isReadable || sourceMesh.vertexCount < 6)
+            {
+                screwPivot = new Vector3(Pivot.x, Pivot.y, 0f);
+                openSignA = 1f;
+                naturalLength = 1f;
+                minLengthY = 0f;
+                bladeA = BuildProceduralBladeHalfMesh("ScissorBladeA_Fb", side: -1f);
+                bladeB = BuildProceduralBladeHalfMesh("ScissorBladeB_Fb", side: 1f);
+                return;
+            }
+
+            Vector3[] verts = sourceMesh.vertices;
+            Vector3[] normals = sourceMesh.normals;
+            Vector4[] tangents = sourceMesh.tangents;
+            Vector2[] uvs = sourceMesh.uv;
+            Color32[] colors = sourceMesh.colors32;
+            int[] indices = sourceMesh.triangles;
+
+            Bounds b = sourceMesh.bounds;
+            naturalLength = Mathf.Max(0.05f, b.size.y);
+            minLengthY = b.min.y;
+            float screwX = b.center.x;
+            float screwY = Mathf.Lerp(b.min.y, b.max.y, Pivot.y);
+            float screwZ = b.center.z;
+            screwPivot = new Vector3(screwX, screwY, screwZ);
+
+            // Detect whether glTFast's X-handedness flip placed the front (+Z) blade tip in dx > 0 or dx < 0.
+            float frontTipDxSum = 0f;
+            int frontTipCount = 0;
+            for (int t = 0; t + 2 < indices.Length; t += 3)
+            {
+                Vector3 c = (verts[indices[t]] + verts[indices[t + 1]] + verts[indices[t + 2]]) * (1f / 3f);
+                float dy = c.y - screwY;
+                if (dy > 0.08f * naturalLength && c.z >= screwZ)
+                {
+                    frontTipDxSum += c.x - screwX;
+                    frontTipCount++;
+                }
+            }
+            bool bladeAPositiveDiag = frontTipCount > 0 && frontTipDxSum > 0f;
+
+            var trisA = new List<int>(indices.Length / 2 + 64);
+            var trisB = new List<int>(indices.Length / 2 + 64);
+            float keepR = PivotKeep * naturalLength;
+            float keepSq = keepR * keepR;
+            Vector3 tipSumA = Vector3.zero;
+            int tipCountA = 0;
+
+            for (int t = 0; t + 2 < indices.Length; t += 3)
+            {
+                int i0 = indices[t], i1 = indices[t + 1], i2 = indices[t + 2];
+                Vector3 c = (verts[i0] + verts[i1] + verts[i2]) * (1f / 3f);
+                float dx = c.x - screwX;
+                float dy = c.y - screwY;
+                float distSq = dx * dx + dy * dy;
+                bool onBladeADiagonal = bladeAPositiveDiag ? (dx * dy >= 0f) : (dx * dy < 0f);
+                if (distSq < keepSq || onBladeADiagonal)
+                {
+                    trisA.Add(i0); trisA.Add(i1); trisA.Add(i2);
+                    if (dy > 0.12f * naturalLength)
+                    {
+                        tipSumA += c;
+                        tipCountA++;
+                    }
+                }
+                else
+                {
+                    trisB.Add(i0); trisB.Add(i1); trisB.Add(i2);
+                }
+            }
+
+            if (trisA.Count == 0 || trisB.Count == 0)
+            {
+                trisA.Clear();
+                trisB.Clear();
+                tipSumA = Vector3.zero;
+                tipCountA = 0;
+                for (int t = 0; t + 2 < indices.Length; t += 3)
+                {
+                    int i0 = indices[t], i1 = indices[t + 1], i2 = indices[t + 2];
+                    Vector3 c = (verts[i0] + verts[i1] + verts[i2]) * (1f / 3f);
+                    if (c.x < screwX)
+                    {
+                        trisA.Add(i0); trisA.Add(i1); trisA.Add(i2);
+                        if (c.y > screwY) { tipSumA += c; tipCountA++; }
+                    }
+                    else
+                    {
+                        trisB.Add(i0); trisB.Add(i1); trisB.Add(i2);
+                    }
+                }
+            }
+
+            openSignA = 1f;
+            if (tipCountA > 0)
+            {
+                Vector3 tipOffset = (tipSumA / tipCountA) - screwPivot;
+                Vector3 testPlus = Quaternion.Euler(0f, 0f, 1f) * tipOffset;
+                openSignA = Mathf.Abs(testPlus.x) >= Mathf.Abs(tipOffset.x) ? 1f : -1f;
+            }
+
+            bladeA = CompactSubMesh("ScissorBladeA", verts, normals, tangents, uvs, colors, trisA);
+            bladeB = CompactSubMesh("ScissorBladeB", verts, normals, tangents, uvs, colors, trisB);
+        }
+
+        static Transform CreateBladePivot(
+            Transform parent,
+            string name,
+            Mesh mesh,
+            Material material,
+            Vector3 screwPivot,
+            float zGap,
+            out MeshRenderer renderer)
+        {
+            var pivotGo = new GameObject(name);
+            Transform pivotTr = pivotGo.transform;
+            pivotTr.SetParent(parent, false);
+            pivotTr.localPosition = new Vector3(screwPivot.x, screwPivot.y, screwPivot.z + zGap);
+
+            var bladeGo = new GameObject("Blade");
+            Transform bladeTr = bladeGo.transform;
+            bladeTr.SetParent(pivotTr, false);
+            bladeTr.localPosition = -screwPivot;
+
+            var mf = bladeGo.AddComponent<MeshFilter>();
+            mf.sharedMesh = mesh;
+            renderer = bladeGo.AddComponent<MeshRenderer>();
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            if (material != null) renderer.sharedMaterial = material;
+
+            return pivotTr;
+        }
+
+        static Mesh CompactSubMesh(
+            string name,
+            Vector3[] verts,
+            Vector3[] normals,
+            Vector4[] tangents,
+            Vector2[] uvs,
+            Color32[] colors,
+            List<int> triIndices)
+        {
+            var remap = new Dictionary<int, int>(triIndices.Count / 2 + 16);
+            var used = new List<int>(triIndices.Count / 2 + 16);
+            var localTris = new int[triIndices.Count];
+
+            for (int i = 0; i < triIndices.Count; i++)
+            {
+                int srcIdx = triIndices[i];
+                if (!remap.TryGetValue(srcIdx, out int dstIdx))
+                {
+                    dstIdx = used.Count;
+                    remap[srcIdx] = dstIdx;
+                    used.Add(srcIdx);
+                }
+                localTris[i] = dstIdx;
+            }
+
+            int n = used.Count;
+            var outVerts = new Vector3[n];
+            bool hasNormals = normals != null && normals.Length == verts.Length;
+            bool hasTangents = tangents != null && tangents.Length == verts.Length;
+            bool hasUvs = uvs != null && uvs.Length == verts.Length;
+            bool hasColors = colors != null && colors.Length == verts.Length;
+
+            var outNormals = hasNormals ? new Vector3[n] : null;
+            var outTangents = hasTangents ? new Vector4[n] : null;
+            var outUvs = hasUvs ? new Vector2[n] : null;
+            var outColors = new Color32[n];
+            var white = new Color32(255, 255, 255, 255);
+
+            for (int i = 0; i < n; i++)
+            {
+                int s = used[i];
+                outVerts[i] = verts[s];
+                if (hasNormals) outNormals[i] = normals[s];
+                if (hasTangents) outTangents[i] = tangents[s];
+                if (hasUvs) outUvs[i] = uvs[s];
+                outColors[i] = hasColors ? colors[s] : white;
+            }
+
+            var mesh = new Mesh { name = name };
+            mesh.vertices = outVerts;
+            if (hasNormals) mesh.normals = outNormals;
+            if (hasTangents) mesh.tangents = outTangents;
+            if (hasUvs) mesh.uv = outUvs;
+            mesh.colors32 = outColors;
+            mesh.triangles = localTris;
+            if (!hasNormals) mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        static Mesh BuildProceduralBladeHalfMesh(string name, float side)
+        {
+            // Model frame [0..1] along +Y (handles at 0, screw at 0.515, tips at 1.0), flat face along +Z.
+            var verts = new List<Vector3>(48);
+            var colors = new List<Color32>(48);
+            var tris = new List<int>(72);
+
+            var steel = new Color32(214, 222, 232, 255);
+            var handleRed = new Color32(226, 56, 50, 255);
+            Vector3 pivot = new Vector3(Pivot.x, Pivot.y, 0f);
+            Quaternion bladeRot = Quaternion.Euler(0f, 0f, -side * TipAngle);
+
+            // Honed steel blade from tang (-0.06) to tip (+0.48)
+            AppendColoredBox(verts, colors, tris, pivot + bladeRot * new Vector3(side * 0.012f, 0.21f, 0f), new Vector3(0.026f, 0.27f, 0.008f), bladeRot, steel);
+            // Opposite-quadrant molded red handle neck + finger ring
+            float hSide = -side;
+            Quaternion neckRot = Quaternion.Euler(0f, 0f, hSide * 18f);
+            AppendColoredBox(verts, colors, tris, new Vector3(Pivot.x + hSide * 0.095f, 0.28f, 0f), new Vector3(0.028f, 0.22f, 0.012f), neckRot, handleRed);
+            AppendColoredBox(verts, colors, tris, new Vector3(Pivot.x + hSide * 0.155f, 0.12f, 0f), new Vector3(0.075f, 0.11f, 0.014f), Quaternion.identity, handleRed);
+
+            var mesh = new Mesh { name = name };
+            mesh.SetVertices(verts);
+            mesh.SetColors(colors);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        static void AppendColoredBox(
+            List<Vector3> verts,
+            List<Color32> colors,
+            List<int> tris,
+            Vector3 center,
+            Vector3 halfExtents,
+            Quaternion rot,
+            Color32 color)
+        {
+            Vector3 p000 = center + rot * new Vector3(-halfExtents.x, -halfExtents.y, -halfExtents.z);
+            Vector3 p001 = center + rot * new Vector3(-halfExtents.x, -halfExtents.y,  halfExtents.z);
+            Vector3 p010 = center + rot * new Vector3(-halfExtents.x,  halfExtents.y, -halfExtents.z);
+            Vector3 p011 = center + rot * new Vector3(-halfExtents.x,  halfExtents.y,  halfExtents.z);
+            Vector3 p100 = center + rot * new Vector3( halfExtents.x, -halfExtents.y, -halfExtents.z);
+            Vector3 p101 = center + rot * new Vector3( halfExtents.x, -halfExtents.y,  halfExtents.z);
+            Vector3 p110 = center + rot * new Vector3( halfExtents.x,  halfExtents.y, -halfExtents.z);
+            Vector3 p111 = center + rot * new Vector3( halfExtents.x,  halfExtents.y,  halfExtents.z);
+
+            AddColoredFace(verts, colors, tris, p001, p101, p111, p011, color);
+            AddColoredFace(verts, colors, tris, p100, p000, p010, p110, color);
+            AddColoredFace(verts, colors, tris, p010, p011, p111, p110, color);
+            AddColoredFace(verts, colors, tris, p001, p000, p100, p101, color);
+            AddColoredFace(verts, colors, tris, p101, p100, p110, p111, color);
+            AddColoredFace(verts, colors, tris, p000, p001, p011, p010, color);
+        }
+
+        static void AddColoredFace(
+            List<Vector3> verts,
+            List<Color32> colors,
+            List<int> tris,
+            Vector3 a,
+            Vector3 b,
+            Vector3 c,
+            Vector3 d,
+            Color32 col)
+        {
+            int v = verts.Count;
+            verts.Add(a); verts.Add(b); verts.Add(c); verts.Add(d);
+            colors.Add(col); colors.Add(col); colors.Add(col); colors.Add(col);
+            tris.Add(v); tris.Add(v + 2); tris.Add(v + 1);
+            tris.Add(v); tris.Add(v + 3); tris.Add(v + 2);
+        }
     }
 }

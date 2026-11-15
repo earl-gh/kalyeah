@@ -5,7 +5,6 @@ External-Atlas GLB Exporter for Kalyeah (Blender 5.2+).
 
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 import struct
@@ -1248,68 +1247,6 @@ def bake_bvh_vertex_ao(bm: bmesh.types.BMesh, max_dist: float = 2.15, ground_ao:
             loop[color_layer] = (r_c, g_c, b_c, 1.0)
 
 
-def ensure_glb_import_sidecar(glb_path: Path) -> None:
-    """Preserves existing `.glb.import` untouched; writes a clean Godot 4 `.glb.import` ONLY for brand-new `.glb`s."""
-    sidecar = glb_path.with_name(glb_path.name + ".import")
-    if sidecar.exists():
-        return
-    res_path = f"res://assets/models/barangay/{glb_path.name}"
-    h_md5 = hashlib.md5(res_path.encode("utf-8")).hexdigest()
-    uid_seed = hashlib.sha1(res_path.encode("utf-8")).hexdigest()[:13]
-    alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
-    val = int(uid_seed, 16)
-    uid_chars = ["c"]
-    for _ in range(12):
-        uid_chars.append(alphabet[val % 36])
-        val //= 36
-    uid_str = "uid://" + "".join(uid_chars)
-    scn_path = f"res://.godot/imported/{glb_path.name}-{h_md5}.scn"
-    content = f"""[remap]
-
-importer="scene"
-importer_version=1
-type="PackedScene"
-uid="{uid_str}"
-path="{scn_path}"
-
-[deps]
-
-source_file="{res_path}"
-dest_files=["{scn_path}"]
-
-[params]
-
-nodes/root_type=""
-nodes/root_name=""
-nodes/root_script=null
-nodes/apply_root_scale=true
-nodes/root_scale=1.0
-nodes/import_as_skeleton_bones=false
-nodes/use_name_suffixes=true
-nodes/use_node_type_suffixes=true
-meshes/ensure_tangents=true
-meshes/generate_lods=true
-meshes/create_shadow_meshes=true
-meshes/light_baking=1
-meshes/lightmap_texel_size=0.2
-meshes/force_disable_compression=false
-skins/use_named_skins=true
-animation/import=true
-animation/fps=30
-animation/trimming=false
-animation/remove_immutable_tracks=true
-animation/import_rest_as_RESET=false
-import_script/path=""
-materials/extract=0
-materials/extract_format=0
-materials/extract_path=""
-_subresources={{}}
-gltf/naming_version=2
-gltf/embedded_image_handling=1
-"""
-    sidecar.write_text(content, encoding="utf-8", newline="\n")
-
-
 def _patch_glb_external_textures(
     glb_path: Path,
     albedo_uri: str,
@@ -1518,7 +1455,6 @@ def finalize_and_export_glb(
         normal_scale=normal_scale,
         roughness=roughness,
     )
-    ensure_glb_import_sidecar(out_glb_path)
 
     n_tris = len(me.polygons)
     xs2 = [v.co.x for v in me.vertices]

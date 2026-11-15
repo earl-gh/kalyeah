@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
+using Kalyeah.Net;
+using Kalyeah.Sim;
 using NUnit.Framework;
 using UnityEngine;
 using SVector2 = System.Numerics.Vector2;
@@ -79,12 +81,7 @@ namespace Kalyeah.Game
             };
             var bridge = new SimBridge(data, setup);
 
-#if KALYEAH_SIM_PORTED
-            const bool expectedPorted = true;
-#else
-            const bool expectedPorted = false;
-#endif
-            Assert.AreEqual(expectedPorted, !bridge.UsesStandIn, "KALYEAH_SIM_PORTED must match !SimBridge.UsesStandIn");
+            Assert.IsFalse(bridge.UsesStandIn, "SimBridge must execute authoritative Kalyeah.Sim directly");
             Assert.AreEqual(10, bridge.Kids.Count, "5v5 match spawns 10 kids (1 local + 4 allies + 5 enemies)");
             Assert.That(bridge.TickDt, Is.EqualTo(1f / 30f).Within(0.0001f));
             Assert.Greater(bridge.MaxHp, 0);
@@ -109,7 +106,6 @@ namespace Kalyeah.Game
             Assert.AreEqual(SimBridge.LocalId, bridge.LocalKid.Value.Id);
             Assert.AreEqual("ligaya", bridge.LocalKid.Value.CharacterId);
 
-#if KALYEAH_SIM_PORTED
             Assert.AreEqual(10, characters.Count, "All 10 kids in 5v5 have distinct characters");
             Assert.AreEqual(2, bridge.Bases.Count);
             Assert.AreEqual(2, bridge.Rescues.Count);
@@ -122,7 +118,6 @@ namespace Kalyeah.Game
             Assert.GreaterOrEqual(bridge.AllWeapons.Count, 14);
             Assert.IsTrue(bridge.PrimaryWeaponInfo.HasValue);
             Assert.IsTrue(bridge.UltimateWeaponInfo.HasValue);
-#endif
         }
 
         [Test]
@@ -150,7 +145,6 @@ namespace Kalyeah.Game
             });
             bridge.Step();
 
-#if KALYEAH_SIM_PORTED
             KidSnapshot afterPrimaryJump = bridge.LocalKid.Value;
             Assert.Greater(afterPrimaryJump.PrimaryCooldown, 0f, "Primary Tirador starts cooldown");
             Assert.Greater(afterPrimaryJump.JumpCooldown, 0f, "Jump starts cooldown");
@@ -229,9 +223,6 @@ namespace Kalyeah.Game
             bridge.Step();
             Assert.IsTrue(ultFired, "UltimateCast event fired for local kid");
             Assert.Less(bridge.LocalKid.Value.UltCharge, 10f, "Ultimate consumes UltCharge");
-#else
-            Assert.AreEqual(1, bridge.Tick);
-#endif
         }
 
         [Test]
@@ -261,7 +252,6 @@ namespace Kalyeah.Game
             Assert.IsFalse(bridge.CanSwapLoadout, "Free player cannot D13-swap loadout");
             Assert.IsFalse(bridge.TrySwapLoadout(new[] { "bola", "jacks", "lata" }));
 
-#if KALYEAH_SIM_PORTED
             // Walk toward the fighter at (0, 50) until tagged
             bridge.SetLocalInput(new LocalInputFrame { Move = new SVector2(0f, -1f) });
             for (int i = 0; i < 180 && !bridge.LocalKid.Value.Tagged; i++)
@@ -273,7 +263,6 @@ namespace Kalyeah.Game
             string[] swapped = { "bola", "jacks", "lata" };
             Assert.IsTrue(bridge.TrySwapLoadout(swapped));
             CollectionAssert.AreEqual(swapped, bridge.LocalKid.Value.HandWeaponIds);
-#endif
         }
 
         [Test]
@@ -418,9 +407,8 @@ namespace Kalyeah.Game
             Assert.AreEqual(60, runB.Tick);
             Assert.AreEqual(runA.TimeLeft, runB.TimeLeft, 0.0001f);
             Assert.AreEqual(runA.Kids.Count, runB.Kids.Count);
-#if KALYEAH_SIM_PORTED
             Assert.AreEqual(6, runA.Kids.Count, $"{kind} spawns 6 street players");
-#endif
+
             for (int i = 0; i < runA.Kids.Count; i++)
             {
                 StreetKidSnapshot ka = runA.Kids[i];
@@ -435,7 +423,6 @@ namespace Kalyeah.Game
                 Assert.AreEqual(ka.Stamina, kb.Stamina, 0.0001f);
             }
 
-#if KALYEAH_SIM_PORTED
             switch (kind)
             {
                 case StreetGameKind.Patintero:
@@ -451,7 +438,96 @@ namespace Kalyeah.Game
                     Assert.AreEqual(runA.LangitLupaState.TayaId, runB.LangitLupaState.TayaId);
                     break;
             }
-#endif
+        }
+
+        [Test]
+        public void OnlineSimBridge_ForwardsInputsToServerAndTryGetActiveStreetKindReadsMatchInfoGameKey()
+        {
+            DataSource data = LoadData();
+            AppSession session = AppSession.Current;
+            string savedJson = session.ToJson();
+            try
+            {
+                session.StopAllNetwork();
+                SimData simData = session.EnsureSimData(data);
+                Kalyeah.Net.NetRules netRules = Kalyeah.Net.NetRules.FromData(simData);
+                var catalog = new StreetCatalog(simData);
+                var hub = new Kalyeah.Net.MemoryHub();
+                var server = new Kalyeah.Net.GameServer(simData.GameRules, simData.MapLayout, netRules, 20261115L, catalog)
+                {
+                    AutoJoin = true,
+                };
+                server.Attach(hub);
+
+                Kalyeah.Net.GameClient client = session.EnsureClient(data);
+                client.Attach(hub.Connect(1));
+                session.Mode = GameMode.HotspotHost;
+
+                // Verify TryGetActiveStreetKind reads ServerMatch.Info()'s "game" key even when Room is empty
+                client.Room = new GDict();
+                client.MatchInfo = new GDict();
+                client.MatchInfo["game"] = "patintero";
+                Assert.IsTrue(session.TryGetActiveStreetKind(out StreetGameKind resolvedKind));
+                Assert.AreEqual(StreetGameKind.Patintero, resolvedKind);
+                client.MatchInfo = new GDict();
+
+                // Pump HELLO -> CreateRoom -> SetFillBots -> SetReady -> StartMatch -> Loaded -> PickWeapons into live 5v5 play
+                double dt = 1.0 / 30.0;
+                void Pump(int ticks)
+                {
+                    for (int i = 0; i < ticks; i++)
+                    {
+                        hub.Poll();
+                        server.Poll(dt);
+                        client.Poll(dt);
+                    }
+                }
+
+                Pump(2);
+                Assert.IsTrue(client.IsOnline(), "MemoryHub client must connect");
+                client.CreateRoom();
+                Pump(2);
+                client.SetFillBots(true);
+                client.SetReady(true);
+                Pump(2);
+                client.StartMatch();
+                Pump(2);
+                Assert.IsNotNull(client.Mirror, "Server start must build client Mirror");
+                client.Loaded();
+                Pump(2);
+                client.PickWeapons("bato_light", "tsinelas_light", "junjun", "papel_shield");
+                Pump(45); // advance past pick grace into Stage == "play"
+
+                using (var onlineBridge = new SimBridge(data, new MatchSetup { OnlineClient = client }))
+                {
+                    Assert.IsTrue(onlineBridge.IsOnline);
+                    int seqBefore = client.NextInputSequence;
+                    onlineBridge.SyncInterpolated();
+                    Assert.AreEqual(seqBefore, client.NextInputSequence, "SyncInterpolated alone never advances input sequence");
+
+                    onlineBridge.SetLocalInput(new SVector2(0f, -1f), new SVector2(0f, -1f), 0);
+                    onlineBridge.Step();
+                    Assert.Greater(client.NextInputSequence, seqBefore, "SimBridge.Step() must forward online input frames");
+
+                    // Advance past match intro and step movement ticks
+                    for (int i = 0; i < 150; i++)
+                    {
+                        onlineBridge.SetLocalInput(new SVector2(0f, -1f), new SVector2(0f, -1f), 0);
+                        onlineBridge.Step();
+                        Pump(1);
+                        onlineBridge.SyncInterpolated();
+                    }
+
+                    Assert.IsTrue(onlineBridge.LocalKid.HasValue);
+                    Assert.AreEqual(MatchPhaseKind.Playing, onlineBridge.Phase);
+                }
+            }
+            finally
+            {
+                session.StopAllNetwork();
+                session.Mode = GameMode.Practice;
+                session.LoadJson(savedJson);
+            }
         }
     }
 }

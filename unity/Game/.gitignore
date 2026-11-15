@@ -1,4 +1,4 @@
-# Written by tools/unity_export/sync_assets.sh (the art from the Godot project, the data, the shared sim as an embedded package)
+# Written by tools/unity_export/sync_assets.py (authored art from assets/, data from unity/Data/, and the shared sim/net package)
 /Assets/Imported/
 /Assets/Imported.meta
 /Packages/com.kalyeah.sim/

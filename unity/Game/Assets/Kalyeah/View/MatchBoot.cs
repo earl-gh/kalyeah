@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 using SVector2 = System.Numerics.Vector2;
 
@@ -27,6 +29,10 @@ namespace Kalyeah.Game
 
         readonly List<KidSnapshot> _previous = new List<KidSnapshot>(12);
         readonly bool _ownsAudio;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        readonly PcCombatInput _pcInput;
+        public PcCombatInput PcInput => _pcInput;
+#endif
         bool _disposed;
 
         public MatchWorld(Transform root, DataSource data, long seed, string localCharacter, bool interactive, bool hudCamera)
@@ -115,6 +121,10 @@ namespace Kalyeah.Game
             {
                 Haptics.Enabled = SettingsStore.Current.Haptics;
                 SettingsStore.Current.Changed += OnSettingsChanged;
+                MatchBoot.ApplyDeviceQualityAndFrameRate();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                _pcInput = new PcCombatInput();
+#endif
             }
 
             Draw(1f, 0f);
@@ -130,6 +140,14 @@ namespace Kalyeah.Game
 
             if (Hud.Overlays != null && Hud.Overlays.IsBlockingGameplayInput)
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (_pcInput != null)
+                {
+                    Vector2 blockedStick = Vector2.zero;
+                    AbilityInputState blockedAbility = default;
+                    _pcInput.Sample(Sim, Hud, Shoulder, Camera, View.Layout, screenHeight, Time.unscaledDeltaTime, ref blockedStick, ref blockedAbility);
+                }
+#endif
                 Hud.CancelActiveTouches();
                 View.AimIndicator.HideAim();
                 Sim.SetLocalInput(default);
@@ -142,9 +160,12 @@ namespace Kalyeah.Game
             Vector2 stick = Hud.Joystick != null ? Hud.Joystick.Value : Vector2.zero;
             if (stick.sqrMagnitude < 0.0025f && tilt != null && tilt.Enabled && SettingsStore.Current.TiltToRun)
                 stick = tilt.SampleDirection();
-            SVector2 move = Shoulder.GroundWay(stick);
 
             AbilityInputState ability = Hud.SampleAbilityInput(Sim, Shoulder, Camera, View.Layout);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            _pcInput?.Sample(Sim, Hud, Shoulder, Camera, View.Layout, screenHeight, Time.unscaledDeltaTime, ref stick, ref ability);
+#endif
+            SVector2 move = Shoulder.GroundWay(stick);
             UpdateAimTelegraph(in ability);
 
             LocalInputFrame frame = ability.ToInputFrame(move);
@@ -242,6 +263,7 @@ namespace Kalyeah.Game
         {
             if (_disposed) return;
             Haptics.Enabled = SettingsStore.Current.Haptics;
+            MatchBoot.ApplyDeviceQualityAndFrameRate();
             SyncAudioSettings();
         }
 
@@ -356,6 +378,9 @@ namespace Kalyeah.Game
             Sim?.Dispose();
             if (Interactive)
                 SettingsStore.Current.Changed -= OnSettingsChanged;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            _pcInput?.Dispose();
+#endif
 
             Shoulder?.ClearOccluders();
             Hud?.Dispose();
@@ -396,11 +421,12 @@ namespace Kalyeah.Game
             Screen.autorotateToLandscapeRight = true;
 
             ScreenFitMetrics.EnsureEnhancedTouch();
+            _data = KalyeahResources.Data();
+            ApplyBootResourcesAndGraphics(_data);
             MenuStack.LoadPersistedState(AppSession.Current, SettingsStore.Current);
             ApplyDeviceQualityAndFrameRate();
             Ui.EnsureEventSystem();
 
-            _data = KalyeahResources.Data();
             _tilt = new TiltInput(SettingsStore.Current.TiltToRun);
             SettingsStore.Current.Changed += OnSettingsChanged;
 
@@ -456,10 +482,8 @@ namespace Kalyeah.Game
         {
             float dt = Time.deltaTime;
 
-#if KALYEAH_SIM_PORTED
             if (AppSession.Current.IsNetworkedMode)
                 AppSession.Current.PollNetwork(dt);
-#endif
 
             if (BackPressed())
             {
@@ -483,13 +507,6 @@ namespace Kalyeah.Game
 
             _world.SampleInput(Screen.height, _tilt);
 
-            if (_world.Sim.IsOnline)
-            {
-                _world.Sim.SyncInterpolated();
-                _world.Draw(1f, dt);
-                return;
-            }
-
             _carry += Mathf.Max(0f, dt);
             float tickDt = Mathf.Max(0.001f, _world.Sim.TickDt);
             int ticks = 0;
@@ -502,7 +519,10 @@ namespace Kalyeah.Game
             if (ticks == MatchWorld.MaxTicksPerFrame)
                 _carry = Mathf.Min(_carry, tickDt);
 
-            _world.Draw(_carry / tickDt, dt);
+            if (_world.Sim.IsOnline)
+                _world.Sim.SyncInterpolated();
+
+            _world.Draw(_world.Sim.IsOnline ? 1f : _carry / tickDt, dt);
         }
 
         void HandlePlayAgain()
@@ -519,10 +539,11 @@ namespace Kalyeah.Game
         void ReturnToTitle()
         {
             MenuStack.SavePersistedState(AppSession.Current, SettingsStore.Current);
-#if KALYEAH_SIM_PORTED
-            if (AppSession.Current.IsNetworkedMode)
-                AppSession.Current.StopAllNetwork();
-#endif
+            AppSession session = AppSession.Current;
+            if (session.Mode == GameMode.HotspotHost || session.Mode == GameMode.HotspotClient)
+                AndroidLocalLink.LeaveLocalSession();
+            if (session.IsNetworkedMode)
+                session.StopAllNetwork();
             SceneManager.LoadScene(TitleScreen.SceneName);
         }
 
@@ -532,9 +553,35 @@ namespace Kalyeah.Game
             ApplyDeviceQualityAndFrameRate();
         }
 
-        static void ApplyDeviceQualityAndFrameRate()
+        public static void ApplyBootResourcesAndGraphics(DataSource data = null)
+        {
+            if (I18n.KeyCount == 0)
+            {
+                DataSource resolvedData = data ?? KalyeahResources.Data();
+                if (resolvedData != null)
+                    I18n.LoadFromData(resolvedData);
+                if (I18n.KeyCount == 0)
+                {
+                    TextAsset csv = Resources.Load<TextAsset>("Data/i18n__strings");
+                    if (csv != null && !string.IsNullOrEmpty(csv.text))
+                        I18n.LoadCsv(csv.text);
+                }
+            }
+
+            TextAsset stamp = Resources.Load<TextAsset>("Data/build_stamp");
+            if (stamp != null && !string.IsNullOrWhiteSpace(stamp.text))
+                AppSession.Current.ApplyBuildStampServerUrl(stamp.text);
+
+            ApplyDeviceQualityAndFrameRate();
+        }
+
+        public static void ApplyDeviceQualityAndFrameRate()
         {
             Application.targetFrameRate = SettingsStore.Current.TargetFrameRate;
+            var urp = (QualitySettings.renderPipeline as UniversalRenderPipelineAsset)
+                      ?? (GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset);
+            if (urp != null)
+                urp.renderScale = SettingsStore.Current.IsTurboGraphics ? SettingsStore.TurboRenderScale : 1f;
         }
 
         void DisposeActiveWorld()

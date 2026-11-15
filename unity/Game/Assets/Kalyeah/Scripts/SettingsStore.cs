@@ -49,6 +49,10 @@ namespace Kalyeah.Game
         int _targetFrameRate = 60;
         string _language = "en";
         string _botDifficulty = "medium";
+        int _avatarIndex;
+        bool _hasCustomIdPhoto;
+        string _serverUrl = "";
+        string _defaultServerUrl = "";
 
         public float MasterVolume
         {
@@ -164,11 +168,11 @@ namespace Kalyeah.Game
             set => SetInt(ref _targetFrameRate, SnapFrameRate(value));
         }
 
-        /// <summary>Locale code: "en" (English) or "fil" (Filipino).</summary>
+        /// <summary>Locale code: "en" (English) or "fil" (Filipino; "tl" aliases to "fil").</summary>
         public string Language
         {
             get => _language;
-            set => SetString(ref _language, value == "fil" ? "fil" : "en");
+            set => SetString(ref _language, I18n.NormalizeLanguage(value) == "fil" ? "fil" : "en");
         }
 
         /// <summary>Last chosen Practice bot difficulty ("easy", "medium", "hard").</summary>
@@ -176,6 +180,50 @@ namespace Kalyeah.Game
         {
             get => _botDifficulty;
             set => SetString(ref _botDifficulty, NormalizeDifficulty(value));
+        }
+
+        /// <summary>Selected nametag avatar tile index (0..5 across the 6 <c>ui/avatars/*</c> portraits).</summary>
+        public int AvatarIndex
+        {
+            get => _avatarIndex;
+            set => SetInt(ref _avatarIndex, Math.Clamp(value, 0, AppSession.AvatarPhotoIds.Length - 1));
+        }
+
+        /// <summary>True when a local-only selfie (<c>id_photo.png</c>) is active on the nametag instead of a stock avatar tile.</summary>
+        public bool HasCustomIdPhoto
+        {
+            get => _hasCustomIdPhoto;
+            set => SetBool(ref _hasCustomIdPhoto, value);
+        }
+
+        /// <summary>Normalized online WebSocket endpoint override (falls back to <see cref="DefaultServerUrl"/> when empty).</summary>
+        public string ServerUrl
+        {
+            get => _serverUrl;
+            set => SetString(ref _serverUrl, NormalizeServerUrl(value));
+        }
+
+        /// <summary>CI-stamped online WebSocket endpoint from <c>Data/build_stamp</c>.</summary>
+        public string DefaultServerUrl => _defaultServerUrl;
+
+        public string EffectiveServerUrl =>
+            !string.IsNullOrEmpty(_serverUrl) ? _serverUrl : _defaultServerUrl;
+
+        /// <summary>
+        /// Applies CI build-stamp text (<c>KALYEAH_SERVER_URL</c> / <c>Data/build_stamp</c>) as <see cref="DefaultServerUrl"/>
+        /// and updates <see cref="ServerUrl"/> unless a different custom endpoint is already set.
+        /// </summary>
+        public string ApplyBuildStampServerUrl(string rawStamp)
+        {
+            string normalized = ExtractServerUrlFromBuildStamp(rawStamp);
+            string previousDefault = _defaultServerUrl;
+            _defaultServerUrl = normalized;
+            if (!string.IsNullOrEmpty(normalized) &&
+                (string.IsNullOrEmpty(_serverUrl) || string.Equals(_serverUrl, previousDefault, StringComparison.Ordinal)))
+            {
+                ServerUrl = normalized;
+            }
+            return normalized;
         }
 
         public void NotifyChanged()
@@ -207,6 +255,9 @@ namespace Kalyeah.Game
                 _targetFrameRate = 60;
                 _language = "en";
                 _botDifficulty = "medium";
+                _avatarIndex = 0;
+                _hasCustomIdPhoto = false;
+                _serverUrl = _defaultServerUrl;
             }
             finally
             {
@@ -217,7 +268,7 @@ namespace Kalyeah.Game
 
         public string ToJson()
         {
-            var sb = new StringBuilder(384);
+            var sb = new StringBuilder(448);
             sb.Append('{');
             AppendFloat(sb, "master_volume", _masterVolume, true);
             AppendFloat(sb, "music_volume", _musicVolume, false);
@@ -238,6 +289,9 @@ namespace Kalyeah.Game
             AppendInt(sb, "target_frame_rate", _targetFrameRate);
             AppendString(sb, "language", _language);
             AppendString(sb, "bot_difficulty", _botDifficulty);
+            AppendInt(sb, "avatar_index", _avatarIndex);
+            AppendBool(sb, "has_custom_id_photo", _hasCustomIdPhoto);
+            AppendString(sb, "server_url", _serverUrl);
             sb.Append('}');
             return sb.ToString();
         }
@@ -278,6 +332,10 @@ namespace Kalyeah.Game
                 if (TryInt(d, "target_frame_rate", out int fps)) TargetFrameRate = fps;
                 if (TryString(d, "language", out string lang)) Language = lang;
                 if (TryString(d, "bot_difficulty", out string diff)) BotDifficulty = diff;
+                if (TryInt(d, "avatar_index", out int avIdx)) AvatarIndex = avIdx;
+                if (TryBool(d, "has_custom_id_photo", out bool customPhoto)) HasCustomIdPhoto = customPhoto;
+                if (TryString(d, "server_url", out string srv))
+                    ServerUrl = !string.IsNullOrWhiteSpace(srv) ? srv : _defaultServerUrl;
             }
             finally
             {
@@ -335,6 +393,74 @@ namespace Kalyeah.Game
             if (url.StartsWith("localhost", StringComparison.OrdinalIgnoreCase) || IsLocalAddress(url))
                 return "ws://" + url;
             return "wss://" + url;
+        }
+
+        /// <summary>
+        /// Parses a CI <c>build_stamp</c> payload (plain URL, <c>KALYEAH_SERVER_URL=...</c> / <c>server_url=...</c> lines, or JSON)
+        /// and returns the normalized WebSocket URL, or <c>""</c> when no server URL is stamped.
+        /// </summary>
+        public static string ExtractServerUrlFromBuildStamp(string rawStamp)
+        {
+            if (string.IsNullOrWhiteSpace(rawStamp)) return "";
+            string trimmed = rawStamp.Trim();
+            if (trimmed[0] == '\uFEFF')
+                trimmed = trimmed.Substring(1).Trim();
+            if (string.IsNullOrEmpty(trimmed)) return "";
+
+            if (trimmed.StartsWith("{", StringComparison.Ordinal))
+            {
+                try
+                {
+                    if (MiniJson.Parse(trimmed) is Dictionary<string, object> dict)
+                    {
+                        string[] keys = { "server_url", "KALYEAH_SERVER_URL", "BAYABAS_SERVER_URL", "url" };
+                        for (int i = 0; i < keys.Length; i++)
+                        {
+                            if (TryString(dict, keys[i], out string candidate) && !string.IsNullOrWhiteSpace(candidate))
+                                return NormalizeServerUrl(candidate);
+                        }
+                    }
+                }
+                catch
+                {
+                }
+                return "";
+            }
+
+            string[] lines = trimmed.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            string plainCandidate = "";
+            bool sawKeyValue = false;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i].Trim();
+                if (string.IsNullOrEmpty(line) || line[0] == '#') continue;
+
+                int eq = line.IndexOf('=');
+                if (eq > 0 && !line.StartsWith("ws://", StringComparison.OrdinalIgnoreCase) &&
+                    !line.StartsWith("wss://", StringComparison.OrdinalIgnoreCase) &&
+                    !line.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                    !line.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    sawKeyValue = true;
+                    string key = line.Substring(0, eq).Trim();
+                    string val = line.Substring(eq + 1).Trim().Trim('"', '\'');
+                    if (string.Equals(key, "server_url", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(key, "KALYEAH_SERVER_URL", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(key, "BAYABAS_SERVER_URL", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(key, "url", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return NormalizeServerUrl(val);
+                    }
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(plainCandidate))
+                    plainCandidate = line.Trim('"', '\'');
+            }
+
+            if (!sawKeyValue && !string.IsNullOrWhiteSpace(plainCandidate))
+                return NormalizeServerUrl(plainCandidate);
+            return "";
         }
 
         public static bool IsLocalAddress(string address)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Copies what the Unity project needs from the Godot project and the shared sim into unity/Game, before Unity opens it.
-# Nothing it writes is kept in git (unity/.gitignore, unity/Game/.gitignore): the Godot project stays the one source of the art.
+# Copies authored assets, Android launcher icons, canonical JSON/CSV data, and the shared C# sim/net packages into unity/Game.
+# Nothing written into Assets/Imported or Packages/com.kalyeah.sim is tracked in git (unity/.gitignore, unity/Game/.gitignore).
 #
 # Delegates to tools/unity_export/sync_assets.py (cross-platform Python 3 + Pillow .webp -> .png conversion + i18n CSV sync)
 # when Python 3 is available, keeping a bash fallback below.
@@ -16,6 +16,7 @@ done
 
 GAME="$ROOT/unity/Game"
 IMPORTED="$GAME/Assets/Imported/Resources"
+APP_ICON_DEST="$GAME/Assets/Imported/AppIcon"
 SIM_SRC="$ROOT/unity/Kalyeah.Sim"
 SIM_PKG="$GAME/Packages/com.kalyeah.sim"
 
@@ -48,10 +49,11 @@ for dir in "${ASSET_DIRS[@]}"; do
 	fi
 done
 
-mirror "$ROOT/unity/Data" "$IMPORTED/Data"
-if [[ -f "$ROOT/data/i18n/strings.csv" ]]; then
-	cp "$ROOT/data/i18n/strings.csv" "$IMPORTED/Data/i18n__strings.csv"
+if [[ -d "$ROOT/assets/app_icon" ]]; then
+	mirror "$ROOT/assets/app_icon" "$APP_ICON_DEST" "${GODOT_ONLY[@]}"
 fi
+
+mirror "$ROOT/unity/Data" "$IMPORTED/Data" "${GODOT_ONLY[@]}"
 
 mirror "$SIM_SRC" "$SIM_PKG/Runtime" 'bin' 'obj' '*.csproj' '*.csproj.user'
 mirror "$ROOT/unity/Kalyeah.Net" "$SIM_PKG/Net" 'bin' 'obj' '*.csproj' '*.csproj.user'

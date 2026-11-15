@@ -26,8 +26,8 @@ resources, executed seam tests, and rendered phone captures against canonical sp
   (`16:9` `1280×720` **AND** narrow/notched `844×390` landscape; `720×1280` **AND** `390×844`
   portrait; plus automated 4-aspect bounds checks per `apex-screen-fit` §5) were generated and
   visually inspected by eye. Code-only, scene-diff-only, or headless-test-only signoff is forbidden.
-- **Observable pass/fail grading:** Verify deterministic data-driven rules (`data/*.tres` /
-  `ScriptableObject`) and executed seam-test output (`surgical-focus`). If explicit acceptance
+- **Observable pass/fail grading:** Verify deterministic data-driven rules (`unity/Data/*.json` /
+  `SimData`) and executed seam-test output (`surgical-focus`). If explicit acceptance
   criteria were missing or vague, **write crisp player-observable pass/fail checks first** and fail
   every unverified claim.
 

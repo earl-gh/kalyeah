@@ -139,6 +139,8 @@ namespace Kalyeah.Game
         readonly Dictionary<string, CharacterCardData> _characterById = new Dictionary<string, CharacterCardData>(StringComparer.Ordinal);
         readonly List<WeaponInfo> _deckWeapons = new List<WeaponInfo>(14);
         readonly Dictionary<string, WeaponInfo> _weaponById = new Dictionary<string, WeaponInfo>(StringComparer.Ordinal);
+        readonly List<Kalyeah.Sim.WeaponDef> _simDeckWeapons = new List<Kalyeah.Sim.WeaponDef>(14);
+        readonly Dictionary<string, Kalyeah.Sim.WeaponDef> _simWeaponById = new Dictionary<string, Kalyeah.Sim.WeaponDef>(StringComparer.Ordinal);
         readonly Dictionary<string, Texture2D> _weaponIcons = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
         readonly HashSet<string> _takenCharacters = new HashSet<string>(StringComparer.Ordinal);
         readonly HashSet<string> _takenWeapons = new HashSet<string>(StringComparer.Ordinal);
@@ -238,6 +240,8 @@ namespace Kalyeah.Game
         public int ActiveSlotIndex => _activeSlotIndex;
         public bool IsVisible => Root != null && Root.gameObject.activeSelf;
 
+        public bool IsZeroDamageLoadout => DealsZeroDirectDamage(_selectedWeapons);
+
         public bool CanConfirm
         {
             get
@@ -252,6 +256,8 @@ namespace Kalyeah.Game
                     if (string.IsNullOrEmpty(wid) || _takenWeapons.Contains(wid))
                         return false;
                 }
+                if (DealsZeroDirectDamage(_selectedWeapons))
+                    return false;
                 return true;
             }
         }
@@ -765,17 +771,18 @@ namespace Kalyeah.Game
                 if (!string.IsNullOrEmpty(_selectedCharacterId) && !_takenCharacters.Contains(_selectedCharacterId))
                     AppSession.Current.SelectedCharacter = _selectedCharacterId;
 
-                if (_selectedWeapons.Count > 0)
+                if (_selectedWeapons.Count > 0 && !DealsZeroDirectDamage(_selectedWeapons))
                     savedOk = AppSession.Current.SetSuperpowers(_selectedWeapons);
+                else if (_selectedWeapons.Count > 0)
+                    savedOk = false;
 
                 PlayerPrefs.SetString(AppSession.PlayerPrefsKey, AppSession.Current.ToJson());
                 PlayerPrefs.Save();
 
-#if KALYEAH_SIM_PORTED
                 var client = AppSession.Current.Client;
                 if (client != null && AppSession.Current.IsOnlineConnected && !string.IsNullOrEmpty(_selectedCharacterId))
                 {
-                    if (client.Stage == "pick" && _selectedWeapons.Count >= 2)
+                    if (client.Stage == "pick" && _selectedWeapons.Count >= 2 && !DealsZeroDirectDamage(_selectedWeapons))
                     {
                         string third = _selectedWeapons.Count > 2 ? _selectedWeapons[2] : "";
                         client.PickWeapons(_selectedWeapons[0], _selectedWeapons[1], _selectedCharacterId, third);
@@ -785,7 +792,6 @@ namespace Kalyeah.Game
                         client.SetCharacter(_selectedCharacterId);
                     }
                 }
-#endif
             }
             finally
             {
@@ -1016,7 +1022,7 @@ namespace Kalyeah.Game
             }
             else if (DealsZeroDirectDamage(_selectedWeapons))
             {
-                _subtitleLabel.text = "Heads up: These 3 superpowers deal 0 direct hit damage (utility-only kit)";
+                _subtitleLabel.text = "Pick at least 1 attack superpower that deals damage (or tap SUGGEST)";
                 _subtitleLabel.color = new Color(1.0f, 0.68f, 0.36f, 1f);
             }
             else
@@ -1210,6 +1216,8 @@ namespace Kalyeah.Game
             _characterById.Clear();
             _deckWeapons.Clear();
             _weaponById.Clear();
+            _simDeckWeapons.Clear();
+            _simWeaponById.Clear();
             _weaponIcons.Clear();
 
             Dictionary<string, object> gameRules = TryProps("rules__game_rules");
@@ -1366,6 +1374,38 @@ namespace Kalyeah.Game
 
             _deckWeapons.Add(info);
             _weaponById[id] = info;
+
+            var simDef = new Kalyeah.Sim.WeaponDef
+            {
+                Id = id,
+                DisplayName = info.DisplayName,
+                ShortName = info.ShortName,
+                Description = info.Description,
+                StreetGame = info.StreetGame,
+                Kind = (Kalyeah.Sim.WeaponDef.WeaponKind)Mathf.Clamp((int)info.Kind, 0, 3),
+                Shape = (Kalyeah.Sim.WeaponDef.WeaponShape)Mathf.Clamp((int)info.Shape, 0, 10),
+                Cooldown = info.Cooldown,
+                ElixirCost = info.ElixirCost,
+                MaxRange = info.MaxRange,
+                Damage = info.Damage,
+                Heal = info.Heal,
+                Radius = info.Radius,
+                AngleDegrees = info.AngleDegrees,
+                Delay = info.Delay,
+                Speed = info.Speed,
+                Count = info.Count,
+                Duration = info.Duration,
+                ArmTime = info.ArmTime,
+                TriggerRadius = info.TriggerRadius,
+                Width = info.Width,
+                Offset = info.Offset,
+                ProjectileRadius = info.ProjectileRadius,
+                Look = info.Look,
+                CastLock = info.CastLock,
+                CardPower = info.CardPower,
+            };
+            _simDeckWeapons.Add(simDef);
+            _simWeaponById[id] = simDef;
         }
 
         Texture2D GetWeaponTexture(string weaponId) =>
@@ -1758,35 +1798,33 @@ namespace Kalyeah.Game
 
         List<string> BuildSuggestedTrio()
         {
-            var result = new List<string>(LoadoutSlotCount);
-            string homingAttack = null;
-            string anyAttack = null;
-            string block = null;
-            string control = null;
-
-            for (int i = 0; i < _deckWeapons.Count; i++)
+            var availableDefs = new List<Kalyeah.Sim.WeaponDef>(_simDeckWeapons.Count);
+            for (int i = 0; i < _simDeckWeapons.Count; i++)
             {
-                WeaponInfo w = _deckWeapons[i];
-                if (_takenWeapons.Contains(w.Id)) continue;
-                if (homingAttack == null && w.Kind == WeaponRoleKind.Attack && w.Shape == WeaponShapeKind.Targeted)
-                    homingAttack = w.Id;
-                else if (anyAttack == null && w.Kind == WeaponRoleKind.Attack)
-                    anyAttack = w.Id;
-                else if (block == null && w.Kind == WeaponRoleKind.Block)
-                    block = w.Id;
-                else if (control == null && w.Kind == WeaponRoleKind.CrowdControl)
-                    control = w.Id;
+                Kalyeah.Sim.WeaponDef def = _simDeckWeapons[i];
+                if (def != null && !_takenWeapons.Contains(def.Id))
+                    availableDefs.Add(def);
             }
 
-            string firstAttack = homingAttack ?? anyAttack;
-            if (!string.IsNullOrEmpty(firstAttack)) result.Add(firstAttack);
-            if (!string.IsNullOrEmpty(block) && !result.Contains(block) && result.Count < LoadoutSlotCount) result.Add(block);
-            if (!string.IsNullOrEmpty(control) && !result.Contains(control) && result.Count < LoadoutSlotCount) result.Add(control);
-
-            for (int i = 0; i < _deckWeapons.Count && result.Count < LoadoutSlotCount; i++)
+            var result = new List<string>(LoadoutSlotCount);
+            List<string> corePair = Kalyeah.Sim.WeaponPick.Suggestion(availableDefs);
+            for (int i = 0; i < corePair.Count && result.Count < LoadoutSlotCount; i++)
             {
-                string wid = _deckWeapons[i].Id;
-                if (!_takenWeapons.Contains(wid) && !result.Contains(wid))
+                if (!result.Contains(corePair[i]))
+                    result.Add(corePair[i]);
+            }
+
+            List<string> suggestedSet = Kalyeah.Sim.WeaponPick.SuggestionFor(availableDefs, LoadoutSlotCount);
+            for (int i = 0; i < suggestedSet.Count && result.Count < LoadoutSlotCount; i++)
+            {
+                if (!result.Contains(suggestedSet[i]))
+                    result.Add(suggestedSet[i]);
+            }
+
+            for (int i = 0; i < availableDefs.Count && result.Count < LoadoutSlotCount; i++)
+            {
+                string wid = availableDefs[i].Id;
+                if (!result.Contains(wid))
                     result.Add(wid);
             }
             return result;
@@ -1795,12 +1833,7 @@ namespace Kalyeah.Game
         bool DealsZeroDirectDamage(IList<string> weaponIds)
         {
             if (weaponIds == null || weaponIds.Count == 0) return false;
-            for (int i = 0; i < weaponIds.Count; i++)
-            {
-                if (_weaponById.TryGetValue(weaponIds[i], out WeaponInfo w) && w.Damage > 0)
-                    return false;
-            }
-            return true;
+            return Kalyeah.Sim.WeaponPick.DealsNoDamage(weaponIds, _simWeaponById);
         }
 
         int IndexOfCharacter(string characterId)

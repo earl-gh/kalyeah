@@ -1,4 +1,4 @@
-# .NET builds of the shared sim and its tests
+# .NET builds of the shared sim, net, server, and test assemblies
 bin/
 obj/
 # Unity's generated folders (the Unity project lives in unity/Game)
@@ -10,6 +10,6 @@ Game/Build/
 Game/Builds/
 Game/UserSettings/
 Game/MemoryCaptures/
-# assets copied in from the Godot project at build time (tools/unity_export/sync_assets.sh), not kept twice in git
+# Assets and data synced at build time (python tools/unity_export/sync_assets.py), not duplicated in git
 Game/Assets/Imported/
 *.csproj.user

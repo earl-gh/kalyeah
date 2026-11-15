@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Threading;
 using Kalyeah.Net;
 using Kalyeah.Sim;
 using UnityEngine;
@@ -9,11 +11,30 @@ using UnityEngine;
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Android JNI Wi-Fi/Hotspot IPv4, multicast lock, permission, and link helper (port of scripts/net/local_link.gd)
-    /// with engine-free <see cref="HotspotNet"/> fallback so Editor and Desktop return LAN IPv4 addresses cleanly.
+    /// Android JNI Wi-Fi/Hotspot IPv4, multicast lock, permission, LocalOnlyHotspot, WifiNetworkSpecifier, and NFC Tap-to-Join
+    /// bridge (port of scripts/net/local_link.gd + Assets/Plugins/Android/kalyeah_local.androidlib), with engine-free
+    /// <see cref="HotspotNet"/> fallback so Editor and Desktop return LAN IPv4 addresses and test stand-ins cleanly.
     /// </summary>
     public static class AndroidLocalLink
     {
+        /// <summary>Pluggable backend matching <c>com.kalyeah.local.KalyeahLocal</c> so EditMode tests can verify LocalLink flows.</summary>
+        public interface ILocalPluginBackend
+        {
+            bool HasPermissions();
+            bool LocationNeededAndOff();
+            void StartHotspot();
+            void StopHotspot();
+            bool HotspotRunning();
+            void JoinWifi(string ssid, string password, string security);
+            void LeaveWifi();
+            string NfcState();
+            void NfcShare(string text);
+            void NfcStopShare();
+            void NfcRead(bool on);
+            void OnResume();
+            void OnDestroy();
+        }
+
         public const int DefaultWsPort = 8080;
         public const int DefaultDiscoveryPort = 8081;
         public const string RoomQrPrefix = "KALYEAH:";
@@ -36,11 +57,30 @@ namespace Kalyeah.Game
             "192.168.43.1", "172.20.10.1",
         };
 
+        static readonly ConcurrentQueue<Action> s_pendingMainThread = new ConcurrentQueue<Action>();
+        static int s_mainThreadId = Thread.CurrentThread.ManagedThreadId;
+        static ILocalPluginBackend s_customBackend;
+        static bool s_pendingStartHotspotAfterPerm;
+
         public static event Action<bool> PermissionsAnswered;
         public static event Action<WifiQr.Network> HotspotChanged;
+        public static event Action<WifiQr.Network> HotspotStarted;
+        public static event Action<string> HotspotFailed;
+        public static event Action HotspotStopped;
+        public static event Action WifiJoined;
+        public static event Action<string> WifiFailed;
+        public static event Action WifiLost;
+        public static event Action<string> NfcRead;
 
         /// <summary>Optional test override for network interface discovery.</summary>
         public static Func<IReadOnlyList<NetInterface>> InterfaceProvider { get; set; }
+
+        /// <summary>Optional test override for the native <c>com.kalyeah.local.KalyeahLocal</c> plugin.</summary>
+        public static ILocalPluginBackend PluginBackend
+        {
+            get => s_customBackend ?? GetNativeBackend();
+            set => s_customBackend = value;
+        }
 
         /// <summary>Delegate matching <c>Func&lt;string&gt;</c> for UI screens needing the local LAN/Hotspot IPv4.</summary>
         public static Func<string> DefaultLanIpProvider { get; } = GetLanIpv4;
@@ -57,9 +97,12 @@ namespace Kalyeah.Game
             }
         }
 
+        /// <summary>True when either an Android device with <c>KalyeahLocal</c> or a test <see cref="PluginBackend"/> is active.</summary>
+        public static bool IsNativePluginAvailable => PluginBackend != null;
+
         static WifiQr.Network s_activeHotspot;
 
-        /// <summary>Known active game hotspot credentials when shared via Wi-Fi QR, or null.</summary>
+        /// <summary>Known active game hotspot credentials when shared via Wi-Fi QR / NFC, or null.</summary>
         public static WifiQr.Network ActiveHotspot
         {
             get => s_activeHotspot;
@@ -72,6 +115,288 @@ namespace Kalyeah.Game
 
         public static bool HasActiveHotspot =>
             s_activeHotspot != null && !string.IsNullOrEmpty(s_activeHotspot.Ssid);
+
+        public static bool IsLocalOnlyHotspotRunning
+        {
+            get
+            {
+                ILocalPluginBackend backend = PluginBackend;
+                return HasActiveHotspot || (backend != null && backend.HotspotRunning());
+            }
+        }
+
+        /// <summary>Captures the calling thread as Unity's main thread and drains any queued JNI callbacks.</summary>
+        public static void PumpPendingCallbacks()
+        {
+            s_mainThreadId = Thread.CurrentThread.ManagedThreadId;
+            while (s_pendingMainThread.TryDequeue(out Action action))
+            {
+                try
+                {
+                    action?.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogWarning("AndroidLocalLink callback error: " + ex.Message);
+                }
+            }
+        }
+
+        static void DispatchToMainThread(Action action)
+        {
+            if (action == null) return;
+            if (Thread.CurrentThread.ManagedThreadId == s_mainThreadId)
+            {
+                action();
+                return;
+            }
+            s_pendingMainThread.Enqueue(action);
+        }
+
+        // ---- LocalOnlyHotspot, WifiNetworkSpecifier & NFC Tap-to-Join (KalyeahLocal) ------------------------------------
+
+        public static bool LocationNeededAndOff()
+        {
+            ILocalPluginBackend backend = PluginBackend;
+            return backend != null && backend.LocationNeededAndOff();
+        }
+
+        /// <summary>
+        /// Starts Android's in-app <c>LocalOnlyHotspot</c> (prompting for Nearby Wi-Fi / Location permissions first when needed);
+        /// emits <see cref="HotspotStarted"/> with SSID/password/security or <see cref="HotspotFailed"/> with a short reason code.
+        /// </summary>
+        public static void StartHotspot()
+        {
+            ILocalPluginBackend backend = PluginBackend;
+            if (backend == null)
+            {
+                DispatchToMainThread(() => HotspotFailed?.Invoke("unsupported"));
+                return;
+            }
+
+            if (!backend.HasPermissions() && !HasNearbyWifiPermissions())
+            {
+                s_pendingStartHotspotAfterPerm = true;
+                RequestNearbyWifiPermissions();
+                return;
+            }
+
+            s_pendingStartHotspotAfterPerm = false;
+            backend.StartHotspot();
+        }
+
+        public static void StopHotspot()
+        {
+            s_pendingStartHotspotAfterPerm = false;
+            ActiveHotspot = null;
+            ILocalPluginBackend backend = PluginBackend;
+            if (backend != null)
+            {
+                backend.NfcStopShare();
+                backend.StopHotspot();
+            }
+        }
+
+        /// <summary>
+        /// Joins a friend's Hotspot from inside the game via <c>WifiNetworkSpecifier</c> (API 29+) and binds process sockets to it;
+        /// emits <see cref="WifiJoined"/>, <see cref="WifiFailed"/>, or <see cref="WifiLost"/>.
+        /// </summary>
+        public static void JoinWifi(WifiQr.Network network)
+        {
+            if (network == null || string.IsNullOrWhiteSpace(network.Ssid))
+            {
+                DispatchToMainThread(() => WifiFailed?.Invoke("bad_network"));
+                return;
+            }
+            JoinWifi(network.Ssid, network.Password ?? "", string.IsNullOrWhiteSpace(network.Security) ? "WPA" : network.Security);
+        }
+
+        public static void JoinWifi(string ssid, string password, string security = "WPA")
+        {
+            ILocalPluginBackend backend = PluginBackend;
+            if (backend == null)
+            {
+                DispatchToMainThread(() => WifiFailed?.Invoke("unsupported"));
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(ssid))
+            {
+                DispatchToMainThread(() => WifiFailed?.Invoke("bad_network"));
+                return;
+            }
+            backend.JoinWifi(ssid.Trim(), password ?? "", string.IsNullOrWhiteSpace(security) ? "WPA" : security.Trim());
+        }
+
+        public static void LeaveWifi()
+        {
+            ILocalPluginBackend backend = PluginBackend;
+            backend?.LeaveWifi();
+        }
+
+        /// <summary>Returns <c>"none"</c>, <c>"off"</c>, or <c>"on"</c>.</summary>
+        public static string GetNfcState()
+        {
+            ILocalPluginBackend backend = PluginBackend;
+            return backend != null ? (backend.NfcState() ?? "none") : "none";
+        }
+
+        /// <summary>Shares <paramref name="text"/> over Android HCE (<c>ShareService</c>) when a friend's phone is held against this phone.</summary>
+        public static void NfcShare(string text)
+        {
+            ILocalPluginBackend backend = PluginBackend;
+            if (backend == null) return;
+            if (string.IsNullOrEmpty(text))
+                backend.NfcStopShare();
+            else
+                backend.NfcShare(text);
+        }
+
+        public static void NfcStopShare()
+        {
+            ILocalPluginBackend backend = PluginBackend;
+            backend?.NfcStopShare();
+        }
+
+        /// <summary>Enables or disables NFC reader mode so holding a host phone against this phone triggers <see cref="NfcRead"/>.</summary>
+        public static void SetNfcReading(bool on)
+        {
+            ILocalPluginBackend backend = PluginBackend;
+            backend?.NfcRead(on);
+        }
+
+        /// <summary>Cleans up NFC reader/share, LocalOnlyHotspot, WifiNetworkSpecifier binding, and MulticastLock when leaving Local play.</summary>
+        public static void LeaveLocalSession()
+        {
+            SetNfcReading(false);
+            StopHotspot();
+            LeaveWifi();
+            ReleaseMulticastLock();
+        }
+
+        public static void NotifyApplicationResumed()
+        {
+            ILocalPluginBackend backend = PluginBackend;
+            backend?.OnResume();
+        }
+
+        public static void NotifyApplicationDestroyed()
+        {
+            ILocalPluginBackend backend = PluginBackend;
+            backend?.OnDestroy();
+        }
+
+        /// <summary>Callback entry point invoked by the Android JNI listener proxy (and test doubles) when permissions are answered.</summary>
+        public static void HandlePluginPermissionsAnswered(bool granted)
+        {
+            DispatchToMainThread(() =>
+            {
+                bool shouldStartHotspot = s_pendingStartHotspotAfterPerm;
+                s_pendingStartHotspotAfterPerm = false;
+                PermissionsAnswered?.Invoke(granted);
+                if (shouldStartHotspot)
+                {
+                    if (granted)
+                        PluginBackend?.StartHotspot();
+                    else
+                        HotspotFailed?.Invoke("permission");
+                }
+            });
+        }
+
+        /// <summary>Callback entry point invoked when <c>KalyeahLocal.startHotspot</c> succeeds.</summary>
+        public static void HandlePluginHotspotStarted(string ssid, string password, string security)
+        {
+            DispatchToMainThread(() =>
+            {
+                var net = new WifiQr.Network
+                {
+                    Ssid = ssid ?? "",
+                    Password = password ?? "",
+                    Security = string.IsNullOrWhiteSpace(security) ? "WPA" : security,
+                };
+                ActiveHotspot = net;
+                string qrText = WifiQr.Build(net);
+                PluginBackend?.NfcShare(qrText);
+                HotspotStarted?.Invoke(net);
+            });
+        }
+
+        public static void HandlePluginHotspotFailed(string reason)
+        {
+            DispatchToMainThread(() => HotspotFailed?.Invoke(string.IsNullOrEmpty(reason) ? "generic" : reason));
+        }
+
+        public static void HandlePluginHotspotStopped()
+        {
+            DispatchToMainThread(() =>
+            {
+                ActiveHotspot = null;
+                HotspotStopped?.Invoke();
+            });
+        }
+
+        public static void HandlePluginWifiJoined()
+        {
+            DispatchToMainThread(() => WifiJoined?.Invoke());
+        }
+
+        public static void HandlePluginWifiFailed(string reason)
+        {
+            DispatchToMainThread(() => WifiFailed?.Invoke(string.IsNullOrEmpty(reason) ? "generic" : reason));
+        }
+
+        public static void HandlePluginWifiLost()
+        {
+            DispatchToMainThread(() => WifiLost?.Invoke());
+        }
+
+        public static void HandlePluginNfcRead(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            DispatchToMainThread(() => NfcRead?.Invoke(text));
+        }
+
+        public static string DescribeHotspotFailure(string reason)
+        {
+            switch (reason ?? "")
+            {
+                case "permission":
+                    return "Allow Nearby Wi-Fi / Location permission to start a Game Hotspot, or turn on Personal Hotspot in Settings.";
+                case "location_off":
+                    return "Turn on Location in Android quick settings so Game Hotspot can start (Android 9–12 requirement).";
+                case "incompatible_mode":
+                    return "Turn off Wi-Fi or Personal Hotspot first, or host directly over your active Hotspot / Wi-Fi.";
+                case "tethering_disallowed":
+                    return "Game Hotspot is restricted on this device — connect friends over shared Wi-Fi instead.";
+                case "no_channel":
+                    return "No Wi-Fi channel available right now — wait a moment and tap Retry Host.";
+                case "busy":
+                    return "Game Hotspot is already starting — wait a second.";
+                case "unsupported":
+                    return "Turn on Personal Hotspot or connect to shared Wi-Fi, then tap Retry Host.";
+                default:
+                    return "Could not start Game Hotspot — turn on Personal Hotspot or shared Wi-Fi and tap Retry Host.";
+            }
+        }
+
+        public static string DescribeWifiFailure(string reason)
+        {
+            switch (reason ?? "")
+            {
+                case "declined":
+                    return "Wi-Fi connection prompt cancelled — scan the QR again and tap Connect.";
+                case "permission":
+                    return "Allow Nearby Wi-Fi / Location permission, then scan the QR again.";
+                case "bad_network":
+                    return "Invalid Wi-Fi QR credentials — ask the host to refresh their QR.";
+                case "unsupported":
+                    return "Connect to your friend's Wi-Fi in Android Settings, then tap Scan Again.";
+                default:
+                    return "Could not join friend's Wi-Fi — try again or join in Android Wi-Fi Settings.";
+            }
+        }
+
+        // ---- NetRules, LAN IPv4 & QR helpers ----------------------------------------------------------------------------
 
         /// <summary>Builds a default <see cref="NetRules"/> matching <c>data/rules/net_rules.tres</c>.</summary>
         public static NetRules DefaultNetRules()
@@ -208,7 +533,7 @@ namespace Kalyeah.Game
         }
 
         public static bool IsHotspotActive(NetRules rules = null) =>
-            HotspotNet.HotspotOn(GetInterfaces(), rules ?? DefaultNetRules());
+            HasActiveHotspot || HotspotNet.HotspotOn(GetInterfaces(), rules ?? DefaultNetRules());
 
         public static bool IsWifiConnected(NetRules rules = null) =>
             HotspotNet.WifiConnected(GetInterfaces(), rules ?? DefaultNetRules());
@@ -256,7 +581,7 @@ namespace Kalyeah.Game
         }
 
         /// <summary>
-        /// Classifies a scanned QR or manually pasted string into a Wi-Fi QR network, a room code, or a normalized <c>ws://</c>/<c>wss://</c> URL.
+        /// Classifies a scanned QR, NFC tap, or manually pasted string into a Wi-Fi QR network, a room code, or a normalized <c>ws://</c>/<c>wss://</c> URL.
         /// </summary>
         public static bool TryClassifyJoinPayload(
             string raw,
@@ -381,7 +706,7 @@ namespace Kalyeah.Game
 #if UNITY_ANDROID && !UNITY_EDITOR
             RequestAndroidPermissions(new[] { "android.permission.CAMERA" });
 #else
-            PermissionsAnswered?.Invoke(true);
+            HandlePluginPermissionsAnswered(true);
 #endif
         }
 
@@ -394,7 +719,7 @@ namespace Kalyeah.Game
             return CheckAndroidPermission("android.permission.ACCESS_FINE_LOCATION") &&
                    CheckAndroidPermission("android.permission.ACCESS_COARSE_LOCATION");
 #else
-            return true;
+            return s_customBackend == null || s_customBackend.HasPermissions();
 #endif
         }
 
@@ -407,7 +732,8 @@ namespace Kalyeah.Game
                 : new[] { "android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_FINE_LOCATION" };
             RequestAndroidPermissions(perms);
 #else
-            PermissionsAnswered?.Invoke(true);
+            bool granted = s_customBackend == null || s_customBackend.HasPermissions();
+            HandlePluginPermissionsAnswered(granted);
 #endif
         }
 
@@ -490,8 +816,76 @@ namespace Kalyeah.Game
             }
         }
 
+        static ILocalPluginBackend GetNativeBackend()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            if (s_nativeBackendAttempted)
+                return s_nativeBackend;
+            s_nativeBackendAttempted = true;
+            try
+            {
+                AndroidJavaObject activity = GetCurrentActivity();
+                if (activity != null)
+                {
+                    var proxy = new KalyeahLocalListenerProxy();
+                    var javaObj = new AndroidJavaObject("com.kalyeah.local.KalyeahLocal", activity, proxy);
+                    s_nativeBackend = new JniLocalPluginBackend(javaObj);
+                }
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogWarning("AndroidLocalLink: KalyeahLocal plugin unavailable (" + ex.Message + ")");
+                s_nativeBackend = null;
+            }
+            return s_nativeBackend;
+#else
+            return null;
+#endif
+        }
+
 #if UNITY_ANDROID && !UNITY_EDITOR
         static AndroidJavaObject s_multicastLock;
+        static bool s_nativeBackendAttempted;
+        static ILocalPluginBackend s_nativeBackend;
+
+        sealed class KalyeahLocalListenerProxy : AndroidJavaProxy
+        {
+            public KalyeahLocalListenerProxy() : base("com.kalyeah.local.KalyeahLocal$Listener") { }
+
+            // Exact method names matching com.kalyeah.local.KalyeahLocal.Listener
+            public void onPermissionsAnswered(bool granted) => HandlePluginPermissionsAnswered(granted);
+            public void onHotspotStarted(string ssid, string password, string security) => HandlePluginHotspotStarted(ssid, password, security);
+            public void onHotspotFailed(string reason) => HandlePluginHotspotFailed(reason);
+            public void onHotspotStopped() => HandlePluginHotspotStopped();
+            public void onWifiJoined() => HandlePluginWifiJoined();
+            public void onWifiFailed(string reason) => HandlePluginWifiFailed(reason);
+            public void onWifiLost() => HandlePluginWifiLost();
+            public void onNfcRead(string text) => HandlePluginNfcRead(text);
+        }
+
+        sealed class JniLocalPluginBackend : ILocalPluginBackend
+        {
+            readonly AndroidJavaObject _plugin;
+
+            public JniLocalPluginBackend(AndroidJavaObject plugin)
+            {
+                _plugin = plugin;
+            }
+
+            public bool HasPermissions() => _plugin.Call<bool>("hasPermissions");
+            public bool LocationNeededAndOff() => _plugin.Call<bool>("locationNeededAndOff");
+            public void StartHotspot() => _plugin.Call("startHotspot");
+            public void StopHotspot() => _plugin.Call("stopHotspot");
+            public bool HotspotRunning() => _plugin.Call<bool>("hotspotRunning");
+            public void JoinWifi(string ssid, string password, string security) => _plugin.Call("joinWifi", ssid ?? "", password ?? "", security ?? "WPA");
+            public void LeaveWifi() => _plugin.Call("leaveWifi");
+            public string NfcState() => _plugin.Call<string>("nfcState") ?? "none";
+            public void NfcShare(string text) => _plugin.Call("nfcShare", text ?? "");
+            public void NfcStopShare() => _plugin.Call("nfcStopShare");
+            public void NfcRead(bool on) => _plugin.Call("nfcRead", on);
+            public void OnResume() => _plugin.Call("onResume");
+            public void OnDestroy() => _plugin.Call("onDestroy");
+        }
 
         static AndroidJavaObject GetCurrentActivity()
         {
@@ -539,7 +933,7 @@ namespace Kalyeah.Game
         {
             if (permissions == null || permissions.Length == 0 || GetAndroidSdkInt() < 23 || AllPermissionsGranted(permissions))
             {
-                PermissionsAnswered?.Invoke(true);
+                HandlePluginPermissionsAnswered(true);
                 return;
             }
 
@@ -558,7 +952,7 @@ namespace Kalyeah.Game
                     if (remaining <= 0)
                     {
                         completed = true;
-                        PermissionsAnswered?.Invoke(allGranted);
+                        HandlePluginPermissionsAnswered(allGranted);
                     }
                 }
 
@@ -568,7 +962,7 @@ namespace Kalyeah.Game
             }
             catch
             {
-                PermissionsAnswered?.Invoke(false);
+                HandlePluginPermissionsAnswered(false);
             }
         }
 
@@ -681,7 +1075,7 @@ namespace Kalyeah.Game
     /// <summary>
     /// Lifecycle guard obeying <c>apex-net-frame</c>: flushes a zeroed stop + <see cref="InputButtons.AimCancel"/> frame
     /// immediately on <c>OnApplicationPause(true)</c> (and optional focus loss) so held abilities never auto-fire or run into walls,
-    /// then resets latched bits and performs clean network/hotspot resume on return.
+    /// then resets latched bits, re-enables NFC reader mode, and performs clean network/hotspot resume on return.
     /// </summary>
     public sealed class NetworkPauseGuard : MonoBehaviour
     {
@@ -741,13 +1135,25 @@ namespace Kalyeah.Game
         {
             if (Current == null)
                 Current = this;
+            AndroidLocalLink.PumpPendingCallbacks();
+        }
+
+        void Update()
+        {
+            AndroidLocalLink.PumpPendingCallbacks();
+        }
+
+        void OnApplicationQuit()
+        {
+            AndroidLocalLink.NotifyApplicationDestroyed();
         }
 
         void OnDestroy()
         {
             if (ReferenceEquals(Current, this))
                 Current = null;
-            AndroidLocalLink.ReleaseMulticastLock();
+            if (!AppSession.Current.IsHosting)
+                AndroidLocalLink.ReleaseMulticastLock();
         }
 
         void OnApplicationPause(bool pauseStatus)
@@ -818,11 +1224,12 @@ namespace Kalyeah.Game
             AimCancelFlushed?.Invoke();
         }
 
-        /// <summary>Clears the temporary cancel latch and drains/reconnects active network sessions after a background pause.</summary>
+        /// <summary>Clears the temporary cancel latch, re-arms NFC reader mode, and drains/reconnects active network sessions after pause.</summary>
         public void HandleResume(double pausedSeconds)
         {
             LastPausedSeconds = Math.Max(0.0, pausedSeconds);
             ClearLatchedInput();
+            AndroidLocalLink.NotifyApplicationResumed();
 
             AppSession session = AppSession.Current;
             if (session.IsHosting)

@@ -2,7 +2,7 @@
 
 > **Owner**: `@qa-gatekeeper` (Principal QA Gatekeeper & Lean Architecture Auditor)  
 > **Reference Standard**: [`docs/BARANGAY_AAA_MODEL_QUALITY.md`](BARANGAY_AAA_MODEL_QUALITY.md) (`treat_warnings_as_errors = true`)  
-> **New Acceptance Suite**: [`tests/unit/test_barangay_5v5.gd`](../tests/unit/test_barangay_5v5.gd)
+> **New Acceptance Suite**: [`unity/Kalyeah.Sim.Tests/BarangayNavAndLayoutTests.cs`](../unity/Kalyeah.Sim.Tests/BarangayNavAndLayoutTests.cs) & [`LocomotionAndHeroKitTests.cs`](../unity/Kalyeah.Sim.Tests/LocomotionAndHeroKitTests.cs) *(ported from historical `tests/unit/test_barangay_5v5.gd`)*
 
 ---
 

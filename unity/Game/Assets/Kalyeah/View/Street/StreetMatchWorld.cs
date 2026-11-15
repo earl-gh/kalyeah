@@ -87,20 +87,16 @@ namespace Kalyeah.Game
             string charId = string.IsNullOrWhiteSpace(localCharacter) ? "junjun" : localCharacter.Trim();
             long actualSeed = seed != 0 ? seed : DateTime.UtcNow.Ticks;
 
-#if KALYEAH_SIM_PORTED
             Kalyeah.Net.GameClient client = (interactive && AppSession.Current.IsNetworkedMode)
                 ? AppSession.Current.Client
                 : null;
             Sim = new StreetBridge(data, kind, actualSeed, charId, client);
-#else
-            Sim = new StreetBridge(data, kind, actualSeed, charId);
-#endif
 
             CameraRulesData cameraRules = CameraRulesData.Load(data);
             MapLayoutData mapLayout = MapLayoutData.Load(data);
 
             View = new StreetMatchView(root, mapLayout, cameraRules, Sim);
-            Shoulder = new ShoulderCamera(cameraRules, StreetBridge.LocalTeam, data, layout: null)
+            Shoulder = new ShoulderCamera(cameraRules, Sim.LocalPlayerTeam, data, layout: null)
             {
                 ReduceMotion = SettingsStore.Current.ReduceMotion,
             };
@@ -136,6 +132,11 @@ namespace Kalyeah.Game
                 interactive,
                 onPlayAgain,
                 onHome);
+            if (interactive)
+            {
+                Hud.TumbangRollStepped += OnTumbangRollStepped;
+                Hud.TumbangRollLanded += OnTumbangRollLanded;
+            }
 
             BindSimEvents();
             Draw(1f, 0f);
@@ -145,6 +146,7 @@ namespace Kalyeah.Game
         public void SetBrownoutPreview(bool? forceBrownout)
         {
             View.ForceBrownoutPreview = forceBrownout;
+            if (Hud != null) Hud.ForceBrownoutPreview = forceBrownout;
             Draw(1f, 0f);
         }
 
@@ -239,6 +241,7 @@ namespace Kalyeah.Game
             Shoulder.ReduceMotion = reduceMotion;
             if (Fx != null) Fx.ReduceMotion = reduceMotion;
 
+            Vector3? localWorldSpotlight = null;
             StreetKidSnapshot? me = Sim.LocalKid;
             if (me.HasValue)
             {
@@ -254,6 +257,7 @@ namespace Kalyeah.Game
                 }
 
                 float platformLift = View.GetGroundElevation(feet);
+                localWorldSpotlight = KalyeahResources.World(feet, platformLift + 0.35f);
                 Shoulder.SyncLocalKid(
                     facing: local.Facing,
                     speed01: local.Jailed ? 0f : local.Speed01,
@@ -272,7 +276,7 @@ namespace Kalyeah.Game
                 Shoulder.TooCloseToKid);
 
             Fx?.Tick(stepDt);
-            Hud?.Refresh(Sim, stepDt);
+            Hud?.Refresh(Sim, stepDt, Camera, localWorldSpotlight);
         }
 
         /// <summary>One-call PlayMode frame driver for MatchBoot: samples input, steps fixed 30 Hz accumulator, and draws.</summary>
@@ -475,6 +479,20 @@ namespace Kalyeah.Game
             Haptics.HeavyImpact();
         }
 
+        void OnTumbangRollStepped()
+        {
+            Audio?.PlayUiTap();
+        }
+
+        void OnTumbangRollLanded()
+        {
+            Audio?.PlayUiTap("ready");
+            if (Sim != null && Sim.TumbangPresoState.TayaId == Sim.LocalPlayerId)
+                Haptics.HeavyImpact();
+            else
+                Haptics.LightTap();
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
@@ -486,7 +504,15 @@ namespace Kalyeah.Game
 
             _tilt?.SetEnabled(false);
             Shoulder?.ClearOccluders();
-            Hud?.Dispose();
+            if (Hud != null)
+            {
+                if (Interactive)
+                {
+                    Hud.TumbangRollStepped -= OnTumbangRollStepped;
+                    Hud.TumbangRollLanded -= OnTumbangRollLanded;
+                }
+                Hud.Dispose();
+            }
             View?.Dispose();
             Fx?.Dispose();
             Audio?.Dispose();
