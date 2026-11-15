@@ -141,7 +141,7 @@ for hand in HANDS:
         continue
     print(f"  {hand}: digit tips along the width {np.round(tcl, 3)}, reach {gmax:.3f} m")
     side = "Left" if W[0] > 0 else "Right"
-    plans.append(dict(hand=hand, idx=idx, chains=chains, side=side, axis=axis))
+    plans.append(dict(hand=hand, idx=idx, chains=chains, side=side, axis=axis, normal=normal))
     print(f"{hand} ({side}): {len(idx)} hand verts")
 
 bpy.context.view_layer.objects.active = arm
@@ -155,6 +155,8 @@ for p in plans:
             b = eb.new(f"{p['side']}Hand{name}{j + 1}")
             b.head = AMi @ Vector(tuple(joints[j])); b.tail = AMi @ Vector(tuple(joints[j + 1]))
             b.parent = parent; b.use_connect = j > 0
+            n_ = p["normal"] if p["normal"] @ np.array([-np.sign(joints[0][0]), 0.0, 0.0]) > 0 else -p["normal"]
+            b.align_roll(AMi.to_3x3() @ Vector(tuple(n_)))      # bend axis faces the palm on both hands
             parent = b
 bpy.ops.object.mode_set(mode='OBJECT')
 

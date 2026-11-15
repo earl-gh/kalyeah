@@ -19,6 +19,13 @@ when bending), normalizes, keeps at most 4 bones per vertex, and turns every fin
 palm on both hands. `tube_fingers ... pinky` welds a new finger with an exact boolean (`rebuild` mode is
 unused: the owner kept the authored fused fingers).
 
+Then, for every kid (fixed file or raw): `normalize_kid.py in.glb norm/<Kid>.glb`. It renames the skeleton to
+the shared humanoid names the game's kids use (`mixamorig:Hips`, `mixamorig:LeftForeArm`, `mixamorig:LeftHandIndex1`,
+...; hair, skirt and cloth chains keep their own names), gives vertices tied to the exporter's `neutral_bone` their
+neighbours' weights, smooths weights around the shoulders, elbows, wrists, hips, knees, spine and neck, gives
+seam-split twin vertices identical weights, prunes weights under 1%, normalizes, and keeps at most 4 bones a vertex.
+`pose_test.py norm/<Kid>.glb pose/<Kid>` poses the arm, wrist, fist and knee and renders the joints close up.
+
 Checks: `inspect_chain.py <glb> <hand bone> out.png` colours the hand by chain (chains are listed
 alphabetically); `look_hand.py` renders the textured hand from four sides; `geo_hand.py` renders plain grey
 with back faces in red (holes and flipped faces show up red); `curl_test.py` curls one hand into a fist.
