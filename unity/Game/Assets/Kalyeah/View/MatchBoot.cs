@@ -4,7 +4,6 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
-using UnityEngine.SceneManagement;
 using SVector2 = System.Numerics.Vector2;
 
 namespace Kalyeah.Game
@@ -431,6 +430,7 @@ namespace Kalyeah.Game
             SettingsStore.Current.Changed += OnSettingsChanged;
 
             BuildActiveWorld(seed);
+            LoadingScreenView.CompleteAndHide();
         }
 
         void BuildActiveWorld(long matchSeed)
@@ -497,15 +497,16 @@ namespace Kalyeah.Game
                 }
             }
 
+            float screenHeight = ScreenFitMetrics.ScreenSizePx.y;
             if (_streetWorld != null)
             {
-                _streetWorld.UpdateFrame(dt, Screen.height);
+                _streetWorld.UpdateFrame(dt, screenHeight);
                 return;
             }
 
             if (_world == null) return;
 
-            _world.SampleInput(Screen.height, _tilt);
+            _world.SampleInput(screenHeight, _tilt);
 
             _carry += Mathf.Max(0f, dt);
             float tickDt = Mathf.Max(0.001f, _world.Sim.TickDt);
@@ -544,7 +545,10 @@ namespace Kalyeah.Game
                 AndroidLocalLink.LeaveLocalSession();
             if (session.IsNetworkedMode)
                 session.StopAllNetwork();
-            SceneManager.LoadScene(TitleScreen.SceneName);
+            LoadingScreenView.LoadScene(
+                TitleScreen.SceneName,
+                _data,
+                LoadingScreenView.ResolveHomeModeTitle());
         }
 
         void OnSettingsChanged()
@@ -588,7 +592,7 @@ namespace Kalyeah.Game
         {
             if (_pauseGuard != null)
             {
-                Destroy(_pauseGuard);
+                KalyeahResources.Kill(_pauseGuard);
                 _pauseGuard = null;
             }
             if (_world != null)

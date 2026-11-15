@@ -83,8 +83,9 @@ namespace Kalyeah.Game
 
         public RectTransform Root { get; }
         public float KidViewScale { get; set; } = 0.82f;
-        public float TopReservedPx { get; set; } = 12f;
+        public float TopReservedPx { get; set; } = 86f;
         public int ActivePlateCount { get; private set; }
+        public bool IsVisible => _visible;
 
         /// <summary>data/rules/camera_rules.tres <c>bar_scale</c> (0.78): scales HP and stamina bar dimensions while keeping 2 px borders and badges crisp.</summary>
         public float BarScale
@@ -125,6 +126,7 @@ namespace Kalyeah.Game
         float _prevClockSeconds = -1f;
         float _barScale = DefaultBarScale;
         float _shoulderNameReach = DefaultShoulderNameReach;
+        bool _visible = true;
 
         public OverheadBarsView(Transform parent, Canvas canvas = null)
             : this(parent, canvas, null, null)
@@ -352,6 +354,17 @@ namespace Kalyeah.Game
             return false;
         }
 
+        public void SetVisible(bool visible)
+        {
+            if (_visible == visible && (Root == null || Root.gameObject.activeSelf == visible))
+                return;
+            _visible = visible;
+            if (!visible)
+                HideAll();
+            if (Root != null && Root.gameObject.activeSelf != visible)
+                Root.gameObject.SetActive(visible);
+        }
+
         public void HideAll()
         {
             ActivePlateCount = 0;
@@ -375,7 +388,7 @@ namespace Kalyeah.Game
             Func<int, Vector3?> worldFeetOverride = null,
             MapLayoutData layout = null)
         {
-            if (sim == null || camera == null || sim.Phase == MatchPhaseKind.PointFreeze || sim.Phase == MatchPhaseKind.MatchOver)
+            if (!_visible || sim == null || camera == null || sim.Phase == MatchPhaseKind.PointFreeze || sim.Phase == MatchPhaseKind.MatchOver)
             {
                 HideAll();
                 return;
@@ -506,7 +519,7 @@ namespace Kalyeah.Game
                 float bottomExtent = (barH * 0.5f + (showStamina ? (stamH - BorderPx) : 0f) + 2f) * scale;
                 float topExtent;
                 if (isLocal)
-                    topExtent = (barH * 0.5f + LocalYouTopPadPx + (statusWord.Length > 0 ? 20f : 0f)) * scale + 4f;
+                    topExtent = (barH * 0.5f + LocalYouTopPadPx + (statusWord.Length > 0 ? 24f : 0f)) * scale + 4f;
                 else if (statusWord.Length > 0)
                     topExtent = (barH * 0.5f + 22f) * scale;
                 else
@@ -892,7 +905,7 @@ namespace Kalyeah.Game
                     slot.StatusText.text = statusWord;
                 }
                 slot.StatusText.rectTransform.anchoredPosition = isLocal
-                    ? new Vector2(14f, 18f)
+                    ? new Vector2(6f, 23f)
                     : new Vector2(showHp ? 6f : 0f, 3f);
             }
             else

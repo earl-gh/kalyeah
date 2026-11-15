@@ -40,12 +40,52 @@ namespace Kalyeah.Game
         static Sprite _fallbackQrSprite;
 
         readonly DataSource _data;
-        readonly Canvas _canvas;
+        Canvas _canvas;
         readonly NetRules _netRules;
 
+        readonly RectTransform _safeRoot;
+        readonly RectTransform _frame;
+        readonly RectTransform _topBar;
+        readonly RectTransform _backBtnRect;
+        readonly RectTransform _netBadgePlate;
         readonly RectTransform _choosePanel;
         readonly RectTransform _hostPanel;
         readonly RectTransform _guestPanel;
+
+        RectTransform _chooseSubtitleRect;
+        RectTransform _hostRoleCard;
+        RectTransform _hostRoleDescRect;
+        RectTransform _startHostBtnRect;
+        RectTransform _guestRoleCard;
+        RectTransform _guestRoleDescRect;
+        RectTransform _startGuestBtnRect;
+        RectTransform _recheckBtnRect;
+
+        RectTransform _hostInfoCard;
+        RectTransform _hostStepTitleRect;
+        RectTransform _hostStatusRect;
+        RectTransform _urlBoxRect;
+        RectTransform _hostUrlRect;
+        RectTransform _copyUrlBtnRect;
+        RectTransform _hostPlayersRect;
+        RectTransform _retryHostBtnRect;
+        RectTransform _enterLobbyBtnRect;
+        RectTransform _qrCard;
+        RectTransform _qrTitleRect;
+        RectTransform _qrPlateRect;
+        RectTransform _qrCaptionRect;
+
+        RectTransform _guestListCard;
+        RectTransform _guestStatusRect;
+        RectTransform _scanQrBtnRect;
+        RectTransform _rescanBtnRect;
+        RectTransform _rowsScrollRect;
+        readonly LayoutElement[] _discoveredRowLayouts = new LayoutElement[MaxDiscoveredRows];
+        RectTransform _manualBarRect;
+        RectTransform _manualPromptRect;
+        RectTransform _manualInputRect;
+        RectTransform _pasteUrlBtnRect;
+        RectTransform _manualJoinBtnRect;
 
         readonly Text _headerTitle;
         readonly Text _networkBadge;
@@ -67,6 +107,8 @@ namespace Kalyeah.Game
         bool _openedDirectly;
         bool _hostRoomRequested;
         bool _nativeSubscribed;
+        bool _viewportSubscribed;
+        bool _inLayout;
         string _lastQrPayload = "";
         string _lastNfcPayload = "";
         int _lastRenderedRoomCount = -1;
@@ -115,56 +157,72 @@ namespace Kalyeah.Game
             _canvas = parent.GetComponentInParent<Canvas>();
 
             Root = Ui.Fill("HotspotFlowView", parent);
-            Image dim = Ui.MakeImage("Backdrop", Root, new Color(0.04f, 0.07f, 0.15f, 0.94f), raycast: true);
+            Image dim = Ui.MakeImage("Backdrop", Root, new Color(0.03f, 0.06f, 0.14f, 0.96f), raycast: true);
             Stretch(dim.rectTransform);
 
-            RectTransform frame = Ui.Panel(
+            _safeRoot = Ui.Fill("SafeRoot", Root);
+            _safeRoot.gameObject.AddComponent<SafeArea>();
+
+            _frame = Ui.Panel(
                 "Frame",
-                Root,
+                _safeRoot,
                 new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f),
                 Vector2.zero,
-                new Vector2(1120f, 648f));
-            StyleCard(frame, CardBg);
+                new Vector2(1180f, 660f));
+            StyleCard(_frame, CardBg);
 
-            // Top bar
-            RectTransform topBar = Ui.Panel("TopBar", frame, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -14f), new Vector2(-36f, 56f));
-            MakeActionButton("BackButton", topBar, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(132f, 50f), "BACK", MutedBtn, Ui.Cream, 22, () => HandleBack());
+            // Top bar (>= 108 px tall)
+            _topBar = Ui.Panel("TopBar", _frame, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(-36f, 108f));
+            Button backBtn = MakeActionButton("BackButton", _topBar, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(136f, 96f), "BACK", MutedBtn, Ui.Cream, 21, () => HandleBack());
+            _backBtnRect = backBtn.GetComponent<RectTransform>();
 
-            _headerTitle = Ui.MakeText("HeaderTitle", topBar, "LOCAL HOTSPOT PLAY", 32, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            Stretch(_headerTitle.rectTransform, 150f, 0f, 260f, 0f);
+            _headerTitle = Ui.MakeText("HeaderTitle", _topBar, "LOCAL HOTSPOT PLAY", 28, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            _headerTitle.resizeTextForBestFit = true;
+            _headerTitle.resizeTextMinSize = 18;
+            _headerTitle.resizeTextMaxSize = 30;
+            _headerTitle.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _headerTitle.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(_headerTitle, Ui.Cream);
+            Stretch(_headerTitle.rectTransform, 156f, 6f, 240f, 6f);
 
-            _networkBadge = Ui.MakeText("NetworkBadge", topBar, "", 18, OkText, TextAnchor.MiddleRight);
-            _networkBadge.rectTransform.anchorMin = new Vector2(1f, 0f);
-            _networkBadge.rectTransform.anchorMax = new Vector2(1f, 1f);
-            _networkBadge.rectTransform.pivot = new Vector2(1f, 0.5f);
-            _networkBadge.rectTransform.anchoredPosition = Vector2.zero;
-            _networkBadge.rectTransform.sizeDelta = new Vector2(250f, 0f);
+            _netBadgePlate = Ui.Panel("NetworkBadgePlate", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, new Vector2(224f, 56f));
+            StyleCard(_netBadgePlate, new Color(0.05f, 0.08f, 0.16f, 0.96f));
+            _networkBadge = Ui.MakeText("NetworkBadge", _netBadgePlate, "", 18, OkText, TextAnchor.MiddleCenter);
+            _networkBadge.resizeTextForBestFit = true;
+            _networkBadge.resizeTextMinSize = 16;
+            _networkBadge.resizeTextMaxSize = 18;
+            _networkBadge.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _networkBadge.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(_networkBadge, OkText);
+            Stretch(_networkBadge.rectTransform, 10f, 4f, 10f, 4f);
 
             // Step 1: Choose Role
-            _choosePanel = Ui.Panel("Step1ChooseRole", frame, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), new Vector2(0f, -28f), new Vector2(-44f, -92f));
+            _choosePanel = Ui.Panel("Step1ChooseRole", _frame, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             BuildChoosePanel(_choosePanel);
 
             // Step 2A: Host Wizard
-            _hostPanel = Ui.Panel("Step2HostWizard", frame, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), new Vector2(0f, -28f), new Vector2(-44f, -92f));
+            _hostPanel = Ui.Panel("Step2HostWizard", _frame, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             BuildHostPanel(_hostPanel, out _hostUrlLabel, out _hostStatusLabel, out _hostPlayersLabel, out _qrImage, out _qrCaption);
 
             // Step 2B: Guest Wizard
-            _guestPanel = Ui.Panel("Step2GuestWizard", frame, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), new Vector2(0f, -28f), new Vector2(-44f, -92f));
+            _guestPanel = Ui.Panel("Step2GuestWizard", _frame, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             BuildGuestPanel(_guestPanel, out _guestStatusLabel, out _manualUrlInput, out _emptyListLabel);
 
             var driver = Root.gameObject.AddComponent<HotspotFlowDriver>();
             driver.Bind(this);
 
             SubscribeNativeLink(true);
-            ApplyResponsiveMetrics(frame);
+            SubscribeViewport(true);
+            ApplyResponsiveMetrics(_frame);
             ShowChooseRole();
         }
 
         public void Show()
         {
             SubscribeNativeLink(true);
+            SubscribeViewport(true);
             Root.gameObject.SetActive(true);
             OnShow();
         }
@@ -178,7 +236,7 @@ namespace Kalyeah.Game
 
         public void OnShow()
         {
-            ApplyResponsiveMetrics(Root.Find("Frame") as RectTransform);
+            ApplyResponsiveMetrics(_frame);
             if (AppSession.Current.Mode == GameMode.HotspotHost && AppSession.Current.Intent == LobbyIntent.Create && CurrentRole == FlowRole.Host)
             {
                 RefreshNetworkBadge();
@@ -411,6 +469,7 @@ namespace Kalyeah.Game
 
         public void Dispose()
         {
+            SubscribeViewport(false);
             SubscribeNativeLink(false);
             AndroidLocalLink.SetNfcReading(false);
             BindClient(null);
@@ -419,103 +478,138 @@ namespace Kalyeah.Game
             _lastNfcPayload = "";
         }
 
+        void SubscribeViewport(bool subscribe)
+        {
+            if (subscribe == _viewportSubscribed) return;
+            _viewportSubscribed = subscribe;
+            if (subscribe)
+                ScreenFitMetrics.SimulatedViewportChanged += OnSimulatedViewportChanged;
+            else
+                ScreenFitMetrics.SimulatedViewportChanged -= OnSimulatedViewportChanged;
+        }
+
+        void OnSimulatedViewportChanged() => ApplyResponsiveMetrics(_frame);
+
         void BuildChoosePanel(RectTransform parent)
         {
             Text subtitle = Ui.MakeText(
                 "Subtitle",
                 parent,
                 "Play 5v5 Agawang Base or Larong Kalye together over phone Hotspot or shared Wi-Fi — zero mobile data needed!",
-                20,
+                19,
                 SubtleText,
                 TextAnchor.MiddleCenter);
             subtitle.horizontalOverflow = HorizontalWrapMode.Wrap;
-            subtitle.rectTransform.anchorMin = new Vector2(0.05f, 1f);
-            subtitle.rectTransform.anchorMax = new Vector2(0.95f, 1f);
-            subtitle.rectTransform.pivot = new Vector2(0.5f, 1f);
-            subtitle.rectTransform.anchoredPosition = new Vector2(0f, -6f);
-            subtitle.rectTransform.sizeDelta = new Vector2(0f, 52f);
+            subtitle.verticalOverflow = VerticalWrapMode.Truncate;
+            subtitle.resizeTextForBestFit = true;
+            subtitle.resizeTextMinSize = 12;
+            subtitle.resizeTextMaxSize = 20;
+            SyncOutlineForColor(subtitle, SubtleText);
+            _chooseSubtitleRect = subtitle.rectTransform;
 
-            RectTransform hostCard = Ui.Panel("HostRoleCard", parent, new Vector2(0f, 0.14f), new Vector2(0.485f, 0.86f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(hostCard, SubCardBg);
+            _hostRoleCard = Ui.Panel("HostRoleCard", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            StyleCard(_hostRoleCard, SubCardBg);
 
-            Text hostHeader = Ui.MakeText("HostTitle", hostCard, "1. HOST ROOM", 30, GoldCta, TextAnchor.UpperCenter, KalyeahResources.DisplayFont());
-            hostHeader.rectTransform.anchorMin = new Vector2(0.06f, 0.72f);
-            hostHeader.rectTransform.anchorMax = new Vector2(0.94f, 0.93f);
-            hostHeader.rectTransform.sizeDelta = Vector2.zero;
+            Text hostHeader = Ui.MakeText("HostTitle", _hostRoleCard, "1. HOST ROOM", 28, GoldCta, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            hostHeader.resizeTextForBestFit = true;
+            hostHeader.resizeTextMinSize = 18;
+            hostHeader.resizeTextMaxSize = 30;
+            SyncOutlineForColor(hostHeader, GoldCta);
+            hostHeader.rectTransform.anchorMin = new Vector2(0f, 1f);
+            hostHeader.rectTransform.anchorMax = new Vector2(1f, 1f);
+            hostHeader.rectTransform.pivot = new Vector2(0.5f, 1f);
+            hostHeader.rectTransform.offsetMin = new Vector2(16f, -62f);
+            hostHeader.rectTransform.offsetMax = new Vector2(-16f, -14f);
 
             Text hostDesc = Ui.MakeText(
                 "HostDesc",
-                hostCard,
+                _hostRoleCard,
                 "Turn on Personal Hotspot or Wi-Fi on this phone.\nStarts the 30 Hz authoritative room server + UDP beacon & QR code.",
                 19,
                 Ui.Cream,
                 TextAnchor.MiddleCenter);
             hostDesc.horizontalOverflow = HorizontalWrapMode.Wrap;
-            hostDesc.rectTransform.anchorMin = new Vector2(0.08f, 0.30f);
-            hostDesc.rectTransform.anchorMax = new Vector2(0.92f, 0.72f);
-            hostDesc.rectTransform.sizeDelta = Vector2.zero;
+            hostDesc.verticalOverflow = VerticalWrapMode.Truncate;
+            hostDesc.resizeTextForBestFit = true;
+            hostDesc.resizeTextMinSize = 12;
+            hostDesc.resizeTextMaxSize = 20;
+            SyncOutlineForColor(hostDesc, Ui.Cream);
+            _hostRoleDescRect = hostDesc.rectTransform;
 
-            MakeActionButton(
+            Button startHostBtn = MakeActionButton(
                 "StartHostWizardButton",
-                hostCard,
+                _hostRoleCard,
                 new Vector2(0.5f, 0f),
                 new Vector2(0.5f, 0f),
                 new Vector2(0.5f, 0f),
-                new Vector2(0f, 22f),
-                new Vector2(300f, 60f),
+                new Vector2(0f, 16f),
+                new Vector2(300f, 96f),
                 "HOST HOTSPOT",
                 GoldCta,
                 InkDark,
-                24,
+                22,
                 () => StartHostWizard());
+            _startHostBtnRect = startHostBtn.GetComponent<RectTransform>();
 
-            RectTransform guestCard = Ui.Panel("GuestRoleCard", parent, new Vector2(0.515f, 0.14f), new Vector2(1f, 0.86f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(guestCard, SubCardBg);
+            _guestRoleCard = Ui.Panel("GuestRoleCard", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            StyleCard(_guestRoleCard, SubCardBg);
 
-            Text guestHeader = Ui.MakeText("GuestTitle", guestCard, "2. JOIN FRIEND", 30, new Color(0.45f, 0.95f, 0.88f, 1f), TextAnchor.UpperCenter, KalyeahResources.DisplayFont());
-            guestHeader.rectTransform.anchorMin = new Vector2(0.06f, 0.72f);
-            guestHeader.rectTransform.anchorMax = new Vector2(0.94f, 0.93f);
-            guestHeader.rectTransform.sizeDelta = Vector2.zero;
+            Color guestAccent = new Color(0.45f, 0.95f, 0.88f, 1f);
+            Text guestHeader = Ui.MakeText("GuestTitle", _guestRoleCard, "2. JOIN FRIEND", 28, guestAccent, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            guestHeader.resizeTextForBestFit = true;
+            guestHeader.resizeTextMinSize = 18;
+            guestHeader.resizeTextMaxSize = 30;
+            SyncOutlineForColor(guestHeader, guestAccent);
+            guestHeader.rectTransform.anchorMin = new Vector2(0f, 1f);
+            guestHeader.rectTransform.anchorMax = new Vector2(1f, 1f);
+            guestHeader.rectTransform.pivot = new Vector2(0.5f, 1f);
+            guestHeader.rectTransform.offsetMin = new Vector2(16f, -62f);
+            guestHeader.rectTransform.offsetMax = new Vector2(-16f, -14f);
 
             Text guestDesc = Ui.MakeText(
                 "GuestDesc",
-                guestCard,
+                _guestRoleCard,
                 "Connect to your friend's Hotspot or same Wi-Fi.\nAuto-discovers nearby Kalyeah rooms, or join via QR / ws:// IP.",
                 19,
                 Ui.Cream,
                 TextAnchor.MiddleCenter);
             guestDesc.horizontalOverflow = HorizontalWrapMode.Wrap;
-            guestDesc.rectTransform.anchorMin = new Vector2(0.08f, 0.30f);
-            guestDesc.rectTransform.anchorMax = new Vector2(0.92f, 0.72f);
-            guestDesc.rectTransform.sizeDelta = Vector2.zero;
+            guestDesc.verticalOverflow = VerticalWrapMode.Truncate;
+            guestDesc.resizeTextForBestFit = true;
+            guestDesc.resizeTextMinSize = 12;
+            guestDesc.resizeTextMaxSize = 20;
+            SyncOutlineForColor(guestDesc, Ui.Cream);
+            _guestRoleDescRect = guestDesc.rectTransform;
 
-            MakeActionButton(
+            Button startGuestBtn = MakeActionButton(
                 "StartGuestWizardButton",
-                guestCard,
+                _guestRoleCard,
                 new Vector2(0.5f, 0f),
                 new Vector2(0.5f, 0f),
                 new Vector2(0.5f, 0f),
-                new Vector2(0f, 22f),
-                new Vector2(300f, 60f),
+                new Vector2(0f, 16f),
+                new Vector2(300f, 96f),
                 "FIND ROOMS",
                 TealCta,
                 Ui.Cream,
-                24,
+                22,
                 () => StartGuestWizard());
+            _startGuestBtnRect = startGuestBtn.GetComponent<RectTransform>();
 
-            MakeActionButton(
+            Button recheckBtn = MakeActionButton(
                 "RecheckNetButton",
                 parent,
                 new Vector2(0.5f, 0f),
                 new Vector2(0.5f, 0f),
                 new Vector2(0.5f, 0f),
-                new Vector2(0f, 6f),
-                new Vector2(240f, 48f),
+                new Vector2(0f, 2f),
+                new Vector2(256f, 96f),
                 "RECHECK WI-FI",
                 MutedBtn,
                 Ui.Cream,
-                18,
+                19,
                 RefreshNetworkBadge);
+            _recheckBtnRect = recheckBtn.GetComponent<RectTransform>();
         }
 
         void BuildHostPanel(
@@ -526,94 +620,118 @@ namespace Kalyeah.Game
             out Image qrImage,
             out Text qrCaption)
         {
-            RectTransform leftCol = Ui.Panel("HostInfoCard", parent, new Vector2(0f, 0.04f), new Vector2(0.60f, 0.96f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(leftCol, SubCardBg);
+            _hostInfoCard = Ui.Panel("HostInfoCard", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            StyleCard(_hostInfoCard, SubCardBg);
 
-            Text stepTag = Ui.MakeText("HostStepTitle", leftCol, "SHARE YOUR LAN ROOM", 28, GoldCta, TextAnchor.UpperLeft, KalyeahResources.DisplayFont());
-            stepTag.rectTransform.anchorMin = new Vector2(0.05f, 0.82f);
-            stepTag.rectTransform.anchorMax = new Vector2(0.95f, 0.95f);
-            stepTag.rectTransform.sizeDelta = Vector2.zero;
+            Text stepTag = Ui.MakeText("HostStepTitle", _hostInfoCard, "SHARE YOUR LAN ROOM", 26, GoldCta, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            stepTag.resizeTextForBestFit = true;
+            stepTag.resizeTextMinSize = 18;
+            stepTag.resizeTextMaxSize = 28;
+            SyncOutlineForColor(stepTag, GoldCta);
+            _hostStepTitleRect = stepTag.rectTransform;
 
-            statusLabel = Ui.MakeText("HostStatus", leftCol, "Starting local server...", 19, SubtleText, TextAnchor.UpperLeft);
+            statusLabel = Ui.MakeText("HostStatus", _hostInfoCard, "Starting local server...", 19, SubtleText, TextAnchor.UpperLeft);
             statusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-            statusLabel.rectTransform.anchorMin = new Vector2(0.05f, 0.64f);
-            statusLabel.rectTransform.anchorMax = new Vector2(0.95f, 0.82f);
-            statusLabel.rectTransform.sizeDelta = Vector2.zero;
+            statusLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            statusLabel.resizeTextForBestFit = true;
+            statusLabel.resizeTextMinSize = 12;
+            statusLabel.resizeTextMaxSize = 19;
+            SyncOutlineForColor(statusLabel, SubtleText);
+            _hostStatusRect = statusLabel.rectTransform;
 
-            RectTransform urlBox = Ui.Panel("UrlBox", leftCol, new Vector2(0.05f, 0.43f), new Vector2(0.95f, 0.61f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(urlBox, new Color(0.05f, 0.08f, 0.16f, 1f));
+            _urlBoxRect = Ui.Panel("UrlBox", _hostInfoCard, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 112f));
+            StyleCard(_urlBoxRect, new Color(0.05f, 0.08f, 0.16f, 1f));
 
-            urlLabel = Ui.MakeText("LanUrlText", urlBox, "ws://192.168.43.1:8080", 24, OkText, TextAnchor.MiddleLeft);
-            Stretch(urlLabel.rectTransform, 16f, 0f, 148f, 0f);
+            urlLabel = Ui.MakeText("LanUrlText", _urlBoxRect, "ws://192.168.43.1:8080", 22, OkText, TextAnchor.MiddleLeft);
+            urlLabel.resizeTextForBestFit = true;
+            urlLabel.resizeTextMinSize = 12;
+            urlLabel.resizeTextMaxSize = 24;
+            urlLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+            urlLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(urlLabel, OkText);
+            _hostUrlRect = urlLabel.rectTransform;
 
-            MakeActionButton(
+            Button copyBtn = MakeActionButton(
                 "CopyUrlButton",
-                urlBox,
+                _urlBoxRect,
                 new Vector2(1f, 0.5f),
                 new Vector2(1f, 0.5f),
                 new Vector2(1f, 0.5f),
-                new Vector2(-10f, 0f),
-                new Vector2(126f, 48f),
+                new Vector2(-8f, 0f),
+                new Vector2(140f, 96f),
                 "COPY URL",
                 MutedBtn,
                 Ui.Cream,
-                18,
+                19,
                 CopyShareUrl);
+            _copyUrlBtnRect = copyBtn.GetComponent<RectTransform>();
 
-            playersLabel = Ui.MakeText("HostPlayers", leftCol, "Room preparing...", 20, Ui.Cream, TextAnchor.MiddleLeft);
-            playersLabel.rectTransform.anchorMin = new Vector2(0.05f, 0.25f);
-            playersLabel.rectTransform.anchorMax = new Vector2(0.95f, 0.40f);
-            playersLabel.rectTransform.sizeDelta = Vector2.zero;
+            playersLabel = Ui.MakeText("HostPlayers", _hostInfoCard, "Room preparing...", 19, Ui.Cream, TextAnchor.MiddleLeft);
+            playersLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+            playersLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            playersLabel.resizeTextForBestFit = true;
+            playersLabel.resizeTextMinSize = 12;
+            playersLabel.resizeTextMaxSize = 19;
+            SyncOutlineForColor(playersLabel, Ui.Cream);
+            _hostPlayersRect = playersLabel.rectTransform;
 
-            MakeActionButton(
+            Button retryBtn = MakeActionButton(
                 "RetryHostButton",
-                leftCol,
-                new Vector2(0.05f, 0f),
-                new Vector2(0.05f, 0f),
+                _hostInfoCard,
                 new Vector2(0f, 0f),
-                new Vector2(0f, 20f),
-                new Vector2(190f, 56f),
+                new Vector2(0f, 0f),
+                new Vector2(0f, 0f),
+                new Vector2(20f, 16f),
+                new Vector2(180f, 96f),
                 "RETRY HOST",
                 MutedBtn,
                 Ui.Cream,
                 20,
                 () => StartHostWizard(direct: _openedDirectly));
+            _retryHostBtnRect = retryBtn.GetComponent<RectTransform>();
 
-            MakeActionButton(
+            Button enterBtn = MakeActionButton(
                 "EnterLobbyButton",
-                leftCol,
-                new Vector2(0.95f, 0f),
-                new Vector2(0.95f, 0f),
+                _hostInfoCard,
                 new Vector2(1f, 0f),
-                new Vector2(0f, 20f),
-                new Vector2(340f, 58f),
+                new Vector2(1f, 0f),
+                new Vector2(1f, 0f),
+                new Vector2(-20f, 16f),
+                new Vector2(300f, 96f),
                 "OPEN ROOM LOBBY",
                 GoldCta,
                 InkDark,
-                24,
+                21,
                 EnterHostLobby);
+            _enterLobbyBtnRect = enterBtn.GetComponent<RectTransform>();
 
-            RectTransform rightCol = Ui.Panel("QrCard", parent, new Vector2(0.62f, 0.04f), new Vector2(1f, 0.96f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(rightCol, SubCardBg);
+            _qrCard = Ui.Panel("QrCard", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            StyleCard(_qrCard, SubCardBg);
 
-            Text qrHeader = Ui.MakeText("QrTitle", rightCol, "SCAN TO JOIN", 24, Ui.Cream, TextAnchor.UpperCenter, KalyeahResources.DisplayFont());
-            qrHeader.rectTransform.anchorMin = new Vector2(0.06f, 0.84f);
-            qrHeader.rectTransform.anchorMax = new Vector2(0.94f, 0.95f);
-            qrHeader.rectTransform.sizeDelta = Vector2.zero;
+            Text qrHeader = Ui.MakeText("QrTitle", _qrCard, "SCAN TO JOIN", 24, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            qrHeader.resizeTextForBestFit = true;
+            qrHeader.resizeTextMinSize = 18;
+            qrHeader.resizeTextMaxSize = 26;
+            SyncOutlineForColor(qrHeader, Ui.Cream);
+            _qrTitleRect = qrHeader.rectTransform;
 
-            RectTransform qrPlate = Ui.Panel("QrWhitePlate", rightCol, new Vector2(0.5f, 0.52f), new Vector2(0.5f, 0.52f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(268f, 268f));
-            Ui.MakeImage("WhiteBg", qrPlate, Color.white);
-            Stretch((RectTransform)qrPlate.GetChild(0));
+            _qrPlateRect = Ui.Panel("QrWhitePlate", _qrCard, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(248f, 248f));
+            Image whiteBg = Ui.MakeImage("WhiteBg", _qrPlateRect, Color.white);
+            ApplySlicedPlate(whiteBg, Color.white);
+            Stretch(whiteBg.rectTransform);
 
-            qrImage = Ui.MakeImage("QrSprite", qrPlate, Color.white);
+            qrImage = Ui.MakeImage("QrSprite", _qrPlateRect, Color.white);
             qrImage.preserveAspect = true;
             Stretch(qrImage.rectTransform, 12f, 12f, 12f, 12f);
 
-            qrCaption = Ui.MakeText("QrCaption", rightCol, "Friends on your Hotspot or Wi-Fi scan this QR or tap Find Rooms.", 17, SubtleText, TextAnchor.MiddleCenter);
+            qrCaption = Ui.MakeText("QrCaption", _qrCard, "Friends on your Hotspot or Wi-Fi scan this QR or tap Find Rooms.", 18, SubtleText, TextAnchor.MiddleCenter);
             qrCaption.horizontalOverflow = HorizontalWrapMode.Wrap;
-            qrCaption.rectTransform.anchorMin = new Vector2(0.06f, 0.04f);
-            qrCaption.rectTransform.anchorMax = new Vector2(0.94f, 0.20f);
-            qrCaption.rectTransform.sizeDelta = Vector2.zero;
+            qrCaption.verticalOverflow = VerticalWrapMode.Truncate;
+            qrCaption.resizeTextForBestFit = true;
+            qrCaption.resizeTextMinSize = 12;
+            qrCaption.resizeTextMaxSize = 18;
+            SyncOutlineForColor(qrCaption, SubtleText);
+            _qrCaptionRect = qrCaption.rectTransform;
         }
 
         void BuildGuestPanel(
@@ -622,80 +740,130 @@ namespace Kalyeah.Game
             out InputField manualInput,
             out Text emptyLabel)
         {
-            RectTransform listCard = Ui.Panel("DiscoveredHostsCard", parent, new Vector2(0f, 0.24f), new Vector2(1f, 0.98f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(listCard, SubCardBg);
+            _guestListCard = Ui.Panel("DiscoveredHostsCard", parent, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            StyleCard(_guestListCard, SubCardBg);
 
-            statusLabel = Ui.MakeText("GuestStatus", listCard, "Scanning nearby Wi-Fi...", 20, GoldCta, TextAnchor.MiddleLeft);
-            statusLabel.rectTransform.anchorMin = new Vector2(0.03f, 0.82f);
-            statusLabel.rectTransform.anchorMax = new Vector2(0.64f, 0.97f);
-            statusLabel.rectTransform.sizeDelta = Vector2.zero;
+            statusLabel = Ui.MakeText("GuestStatus", _guestListCard, "Scanning nearby Wi-Fi...", 20, GoldCta, TextAnchor.MiddleLeft);
+            statusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+            statusLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            statusLabel.resizeTextForBestFit = true;
+            statusLabel.resizeTextMinSize = 12;
+            statusLabel.resizeTextMaxSize = 21;
+            SyncOutlineForColor(statusLabel, GoldCta);
+            _guestStatusRect = statusLabel.rectTransform;
 
-            MakeActionButton(
+            Button scanQrBtn = MakeActionButton(
                 "ScanQrButton",
-                listCard,
+                _guestListCard,
                 new Vector2(1f, 1f),
                 new Vector2(1f, 1f),
                 new Vector2(1f, 1f),
-                new Vector2(-190f, -10f),
-                new Vector2(164f, 48f),
+                new Vector2(-198f, -10f),
+                new Vector2(156f, 96f),
                 "SCAN QR",
                 CoralCta,
                 Ui.Cream,
                 19,
                 RequestQrScan);
+            _scanQrBtnRect = scanQrBtn.GetComponent<RectTransform>();
 
-            MakeActionButton(
+            Button rescanBtn = MakeActionButton(
                 "RescanButton",
-                listCard,
+                _guestListCard,
                 new Vector2(1f, 1f),
                 new Vector2(1f, 1f),
                 new Vector2(1f, 1f),
-                new Vector2(-14f, -10f),
-                new Vector2(164f, 48f),
+                new Vector2(-16f, -10f),
+                new Vector2(168f, 96f),
                 "SCAN AGAIN",
                 TealCta,
                 Ui.Cream,
                 19,
                 RescanHosts);
+            _rescanBtnRect = rescanBtn.GetComponent<RectTransform>();
 
-            RectTransform rowsArea = Ui.Panel("RowsArea", listCard, new Vector2(0.025f, 0.04f), new Vector2(0.975f, 0.79f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            _rowsScrollRect = Ui.Panel("RowsArea", _guestListCard, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            Image scrollHit = _rowsScrollRect.gameObject.AddComponent<Image>();
+            scrollHit.color = new Color(0.05f, 0.08f, 0.16f, 0.55f);
+            ApplySlicedPlate(scrollHit, scrollHit.color);
+            scrollHit.raycastTarget = true;
+            _rowsScrollRect.gameObject.AddComponent<RectMask2D>();
+
+            var scroll = _rowsScrollRect.gameObject.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 28f;
+            scroll.viewport = _rowsScrollRect;
+
+            RectTransform content = Ui.Panel("Content", _rowsScrollRect, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
+            var vlg = content.gameObject.AddComponent<VerticalLayoutGroup>();
+            vlg.padding = new RectOffset(8, 8, 8, 8);
+            vlg.spacing = 8f;
+            vlg.childAlignment = TextAnchor.UpperCenter;
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = true;
+            vlg.childForceExpandWidth = true;
+            vlg.childForceExpandHeight = false;
+            var csf = content.gameObject.AddComponent<ContentSizeFitter>();
+            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            scroll.content = content;
+
             emptyLabel = Ui.MakeText(
                 "EmptyRoomsHint",
-                rowsArea,
+                _rowsScrollRect,
                 "Looking for nearby Kalyeah Hotspot rooms...\nAsk the host to stay on Step 2 or inside the Room Lobby.",
                 20,
                 SubtleText,
                 TextAnchor.MiddleCenter);
             emptyLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+            emptyLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            emptyLabel.resizeTextForBestFit = true;
+            emptyLabel.resizeTextMinSize = 12;
+            emptyLabel.resizeTextMaxSize = 20;
+            SyncOutlineForColor(emptyLabel, SubtleText);
             Stretch(emptyLabel.rectTransform, 24f, 12f, 24f, 12f);
 
-            const float rowGap = 6f;
-            float slice = 1f / MaxDiscoveredRows;
             for (int i = 0; i < MaxDiscoveredRows; i++)
             {
                 int captured = i;
-                float yMax = 1f - i * slice;
-                float yMin = yMax - slice;
                 RectTransform rowRect = Ui.Panel(
                     "HostRow_" + i.ToString(CultureInfo.InvariantCulture),
-                    rowsArea,
-                    new Vector2(0f, yMin),
-                    new Vector2(1f, yMax),
-                    new Vector2(0.5f, 0.5f),
+                    content,
+                    new Vector2(0f, 1f),
+                    new Vector2(1f, 1f),
+                    new Vector2(0.5f, 1f),
                     Vector2.zero,
-                    new Vector2(0f, -rowGap));
-                Image bg = Ui.MakeImage("RowBg", rowRect, new Color(0.14f, 0.23f, 0.42f, 1f), raycast: true);
-                Stretch(bg.rectTransform);
-                Button btn = bg.gameObject.AddComponent<Button>();
+                    new Vector2(0f, 96f));
+                Image bg = rowRect.gameObject.AddComponent<Image>();
+                ApplySlicedPlate(bg, new Color(0.14f, 0.23f, 0.42f, 1f));
+                bg.raycastTarget = true;
+
+                Button btn = rowRect.gameObject.AddComponent<Button>();
                 btn.targetGraphic = bg;
                 btn.onClick.AddListener(() => OnDiscoveredRowClicked(captured));
-                _touchTargets.Add(rowRect);
 
-                Text rowTitle = Ui.MakeText("HostName", rowRect, "", 21, Ui.Cream, TextAnchor.MiddleLeft);
-                Stretch(rowTitle.rectTransform, 18f, 0f, 340f, 0f);
+                var le = rowRect.gameObject.AddComponent<LayoutElement>();
+                le.minHeight = 96f;
+                le.preferredHeight = 96f;
+                le.flexibleWidth = 1f;
+                _discoveredRowLayouts[i] = le;
+
+                Text rowTitle = Ui.MakeText("HostName", rowRect, "", 20, Ui.Cream, TextAnchor.MiddleLeft);
+                rowTitle.verticalOverflow = VerticalWrapMode.Truncate;
+                SyncOutlineForColor(rowTitle, Ui.Cream);
+                rowTitle.rectTransform.anchorMin = new Vector2(0f, 0f);
+                rowTitle.rectTransform.anchorMax = new Vector2(0.56f, 1f);
+                rowTitle.rectTransform.offsetMin = new Vector2(18f, 4f);
+                rowTitle.rectTransform.offsetMax = new Vector2(-8f, -4f);
 
                 Text rowUrl = Ui.MakeText("HostUrl", rowRect, "", 18, OkText, TextAnchor.MiddleRight);
-                Stretch(rowUrl.rectTransform, 420f, 0f, 18f, 0f);
+                rowUrl.verticalOverflow = VerticalWrapMode.Truncate;
+                SyncOutlineForColor(rowUrl, OkText);
+                rowUrl.rectTransform.anchorMin = new Vector2(0.58f, 0f);
+                rowUrl.rectTransform.anchorMax = new Vector2(1f, 1f);
+                rowUrl.rectTransform.offsetMin = new Vector2(8f, 4f);
+                rowUrl.rectTransform.offsetMax = new Vector2(-18f, -4f);
 
                 rowRect.gameObject.SetActive(false);
                 _discoveredRows[i] = new DiscoveredRow
@@ -709,50 +877,55 @@ namespace Kalyeah.Game
             }
 
             // Bottom manual ws:// join bar
-            RectTransform manualBar = Ui.Panel("ManualUrlBar", parent, new Vector2(0f, 0.02f), new Vector2(1f, 0.20f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(manualBar, SubCardBg);
+            _manualBarRect = Ui.Panel("ManualUrlBar", parent, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, 116f));
+            StyleCard(_manualBarRect, SubCardBg);
 
-            Text manualLabel = Ui.MakeText("ManualPrompt", manualBar, "DIRECT LAN URL:", 19, SubtleText, TextAnchor.MiddleLeft);
-            manualLabel.rectTransform.anchorMin = new Vector2(0.025f, 0f);
-            manualLabel.rectTransform.anchorMax = new Vector2(0.21f, 1f);
-            manualLabel.rectTransform.sizeDelta = Vector2.zero;
+            Text manualLabel = Ui.MakeText("ManualPrompt", _manualBarRect, "DIRECT URL:", 18, SubtleText, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            manualLabel.resizeTextForBestFit = true;
+            manualLabel.resizeTextMinSize = 15;
+            manualLabel.resizeTextMaxSize = 19;
+            SyncOutlineForColor(manualLabel, SubtleText);
+            _manualPromptRect = manualLabel.rectTransform;
 
             manualInput = MakeInputField(
                 "ManualWsInput",
-                manualBar,
-                new Vector2(0.22f, 0.14f),
-                new Vector2(0.67f, 0.86f),
-                "ws://192.168.43.1:8080",
-                21);
-
-            MakeActionButton(
-                "PasteUrlButton",
-                manualBar,
-                new Vector2(0.685f, 0.5f),
-                new Vector2(0.685f, 0.5f),
+                _manualBarRect,
                 new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                "ws://192.168.43.1:8080",
+                20);
+            _manualInputRect = manualInput.GetComponent<RectTransform>();
+
+            Button pasteBtn = MakeActionButton(
+                "PasteUrlButton",
+                _manualBarRect,
+                new Vector2(1f, 0.5f),
+                new Vector2(1f, 0.5f),
+                new Vector2(1f, 0.5f),
                 Vector2.zero,
-                new Vector2(128f, 50f),
+                new Vector2(128f, 96f),
                 "PASTE",
                 MutedBtn,
                 Ui.Cream,
                 19,
                 PasteIntoManualUrl);
+            _pasteUrlBtnRect = pasteBtn.GetComponent<RectTransform>();
 
             InputField capturedInput = manualInput;
-            MakeActionButton(
+            Button joinBtn = MakeActionButton(
                 "ManualJoinButton",
-                manualBar,
-                new Vector2(0.98f, 0.5f),
-                new Vector2(0.98f, 0.5f),
+                _manualBarRect,
+                new Vector2(1f, 0.5f),
+                new Vector2(1f, 0.5f),
                 new Vector2(1f, 0.5f),
                 Vector2.zero,
-                new Vector2(180f, 52f),
+                new Vector2(168f, 96f),
                 "JOIN URL",
                 GoldCta,
                 InkDark,
-                21,
+                20,
                 () => JoinHostUrl(capturedInput != null ? capturedInput.text : ""));
+            _manualJoinBtnRect = joinBtn.GetComponent<RectTransform>();
         }
 
         void RefreshNetworkBadge()
@@ -1168,21 +1341,327 @@ namespace Kalyeah.Game
 
         void ApplyResponsiveMetrics(RectTransform frame)
         {
-            if (frame != null)
+            if (_inLayout || frame == null) return;
+            _inLayout = true;
+            try
             {
-                Vector2 safe = ScreenFitMetrics.SafeCanvasSize(_canvas);
-                float w = Mathf.Clamp(safe.x - 24f, 680f, 1140f);
-                float h = Mathf.Clamp(safe.y - 20f, 520f, 668f);
-                frame.sizeDelta = new Vector2(w, h);
-            }
+                if (_canvas == null && Root != null)
+                    _canvas = Root.GetComponentInParent<Canvas>();
 
-            for (int i = 0; i < _touchTargets.Count; i++)
-            {
-                RectTransform rt = _touchTargets[i];
-                if (rt == null) continue;
-                if (rt.anchorMin.x == rt.anchorMax.x && rt.anchorMin.y == rt.anchorMax.y)
-                    rt.sizeDelta = ScreenFitMetrics.ClampTouchSize(rt.sizeDelta, ScreenFitMetrics.MinTouchDp, _canvas);
+                Vector2 safe = ScreenFitMetrics.SafeCanvasSize(_canvas);
+                float minTouch = ScreenFitMetrics.ClampTouchSize(48f, ScreenFitMetrics.MinTouchDp, _canvas);
+                float gutter = Mathf.Max(14f, ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinGutterDp, _canvas));
+
+                float frameW = Mathf.Clamp(safe.x - 24f, Mathf.Min(safe.x - 12f, 620f), 1220f);
+                float frameH = Mathf.Clamp(safe.y - 16f, Mathf.Min(safe.y - 8f, 500f), 668f);
+                frame.sizeDelta = new Vector2(frameW, frameH);
+
+                float padX = 18f;
+                float topH = Mathf.Max(108f, minTouch + 12f);
+                if (_topBar != null)
+                {
+                    _topBar.anchorMin = new Vector2(0f, 1f);
+                    _topBar.anchorMax = new Vector2(1f, 1f);
+                    _topBar.pivot = new Vector2(0.5f, 1f);
+                    _topBar.offsetMin = new Vector2(padX, -(6f + topH));
+                    _topBar.offsetMax = new Vector2(-padX, -6f);
+                }
+
+                float backW = Mathf.Max(minTouch, 136f);
+                if (_backBtnRect != null)
+                    _backBtnRect.sizeDelta = new Vector2(backW, minTouch);
+
+                float badgeW = Mathf.Clamp((frameW - padX * 2f) * 0.23f, 176f, 232f);
+                if (_netBadgePlate != null)
+                    _netBadgePlate.sizeDelta = new Vector2(badgeW, Mathf.Min(topH - 16f, 58f));
+                if (_headerTitle != null)
+                    Stretch(_headerTitle.rectTransform, backW + gutter, 6f, badgeW + gutter, 6f);
+
+                float contentTop = topH + 14f;
+                float contentBottom = 16f;
+                float contentW = Mathf.Max(320f, frameW - padX * 2f);
+                float contentH = Mathf.Max(260f, frameH - contentTop - contentBottom);
+
+                SetContentPanelBounds(_choosePanel, padX, contentBottom, contentTop);
+                SetContentPanelBounds(_hostPanel, padX, contentBottom, contentTop);
+                SetContentPanelBounds(_guestPanel, padX, contentBottom, contentTop);
+
+                // Step 1: Choose Role
+                if (_chooseSubtitleRect != null)
+                {
+                    _chooseSubtitleRect.anchorMin = new Vector2(0f, 1f);
+                    _chooseSubtitleRect.anchorMax = new Vector2(1f, 1f);
+                    _chooseSubtitleRect.pivot = new Vector2(0.5f, 1f);
+                    _chooseSubtitleRect.offsetMin = new Vector2(16f, -50f);
+                    _chooseSubtitleRect.offsetMax = new Vector2(-16f, -2f);
+                }
+                if (_recheckBtnRect != null)
+                {
+                    _recheckBtnRect.anchoredPosition = new Vector2(0f, 2f);
+                    _recheckBtnRect.sizeDelta = new Vector2(Mathf.Max(minTouch, 256f), minTouch);
+                }
+                float roleCardW = Mathf.Max(minTouch + 40f, (contentW - gutter) * 0.5f);
+                float roleCardBottom = minTouch + 16f;
+                float roleCardTop = 56f;
+                LayoutRoleCard(_hostRoleCard, _hostRoleDescRect, _startHostBtnRect, 0f, roleCardW, roleCardBottom, roleCardTop, minTouch);
+                LayoutRoleCard(_guestRoleCard, _guestRoleDescRect, _startGuestBtnRect, roleCardW + gutter, roleCardW, roleCardBottom, roleCardTop, minTouch);
+
+                // Step 2A: Host Wizard
+                float hostLeftW = Mathf.Round((contentW - gutter) * 0.58f);
+                float hostRightW = Mathf.Max(240f, contentW - gutter - hostLeftW);
+                if (_hostInfoCard != null)
+                {
+                    _hostInfoCard.anchorMin = new Vector2(0f, 0f);
+                    _hostInfoCard.anchorMax = new Vector2(0f, 1f);
+                    _hostInfoCard.pivot = new Vector2(0f, 0.5f);
+                    _hostInfoCard.offsetMin = new Vector2(0f, 0f);
+                    _hostInfoCard.offsetMax = new Vector2(hostLeftW, 0f);
+                }
+                float innerLeftPad = 20f;
+                float innerLeftW = Mathf.Max(220f, hostLeftW - innerLeftPad * 2f);
+                if (_hostStepTitleRect != null)
+                {
+                    _hostStepTitleRect.anchorMin = new Vector2(0f, 1f);
+                    _hostStepTitleRect.anchorMax = new Vector2(1f, 1f);
+                    _hostStepTitleRect.pivot = new Vector2(0.5f, 1f);
+                    _hostStepTitleRect.offsetMin = new Vector2(innerLeftPad, -56f);
+                    _hostStepTitleRect.offsetMax = new Vector2(-innerLeftPad, -14f);
+                }
+                if (_hostStatusRect != null)
+                {
+                    _hostStatusRect.anchorMin = new Vector2(0f, 1f);
+                    _hostStatusRect.anchorMax = new Vector2(1f, 1f);
+                    _hostStatusRect.pivot = new Vector2(0.5f, 1f);
+                    _hostStatusRect.offsetMin = new Vector2(innerLeftPad, -124f);
+                    _hostStatusRect.offsetMax = new Vector2(-innerLeftPad, -60f);
+                }
+                float urlBoxH = minTouch + 16f;
+                if (_urlBoxRect != null)
+                {
+                    _urlBoxRect.anchorMin = new Vector2(0f, 1f);
+                    _urlBoxRect.anchorMax = new Vector2(1f, 1f);
+                    _urlBoxRect.pivot = new Vector2(0.5f, 1f);
+                    _urlBoxRect.offsetMin = new Vector2(innerLeftPad, -(132f + urlBoxH));
+                    _urlBoxRect.offsetMax = new Vector2(-innerLeftPad, -132f);
+                }
+                float copyUrlW = Mathf.Max(minTouch, 140f);
+                if (_copyUrlBtnRect != null)
+                {
+                    _copyUrlBtnRect.anchoredPosition = new Vector2(-8f, 0f);
+                    _copyUrlBtnRect.sizeDelta = new Vector2(copyUrlW, minTouch);
+                }
+                if (_hostUrlRect != null)
+                    Stretch(_hostUrlRect, 14f, 6f, copyUrlW + 8f + gutter, 6f);
+                if (_hostPlayersRect != null)
+                {
+                    _hostPlayersRect.anchorMin = new Vector2(0f, 0f);
+                    _hostPlayersRect.anchorMax = new Vector2(1f, 1f);
+                    _hostPlayersRect.pivot = new Vector2(0.5f, 0.5f);
+                    _hostPlayersRect.offsetMin = new Vector2(innerLeftPad, minTouch + 28f);
+                    _hostPlayersRect.offsetMax = new Vector2(-innerLeftPad, -(132f + urlBoxH + 10f));
+                }
+                float availHostActions = Mathf.Max(minTouch * 2f, innerLeftW - gutter);
+                float retryW = Mathf.Max(minTouch, Mathf.Round(availHostActions * 0.37f));
+                float enterW = Mathf.Max(minTouch, availHostActions - retryW);
+                retryW = Mathf.Max(minTouch, availHostActions - enterW);
+                if (_retryHostBtnRect != null)
+                {
+                    _retryHostBtnRect.anchoredPosition = new Vector2(innerLeftPad, 16f);
+                    _retryHostBtnRect.sizeDelta = new Vector2(retryW, minTouch);
+                }
+                if (_enterLobbyBtnRect != null)
+                {
+                    _enterLobbyBtnRect.anchoredPosition = new Vector2(-innerLeftPad, 16f);
+                    _enterLobbyBtnRect.sizeDelta = new Vector2(enterW, minTouch);
+                }
+
+                if (_qrCard != null)
+                {
+                    _qrCard.anchorMin = new Vector2(0f, 0f);
+                    _qrCard.anchorMax = new Vector2(0f, 1f);
+                    _qrCard.pivot = new Vector2(0f, 0.5f);
+                    _qrCard.offsetMin = new Vector2(hostLeftW + gutter, 0f);
+                    _qrCard.offsetMax = new Vector2(contentW, 0f);
+                }
+                if (_qrTitleRect != null)
+                {
+                    _qrTitleRect.anchorMin = new Vector2(0f, 1f);
+                    _qrTitleRect.anchorMax = new Vector2(1f, 1f);
+                    _qrTitleRect.pivot = new Vector2(0.5f, 1f);
+                    _qrTitleRect.offsetMin = new Vector2(14f, -54f);
+                    _qrTitleRect.offsetMax = new Vector2(-14f, -14f);
+                }
+                if (_qrCaptionRect != null)
+                {
+                    _qrCaptionRect.anchorMin = new Vector2(0f, 0f);
+                    _qrCaptionRect.anchorMax = new Vector2(1f, 0f);
+                    _qrCaptionRect.pivot = new Vector2(0.5f, 0f);
+                    _qrCaptionRect.offsetMin = new Vector2(14f, 12f);
+                    _qrCaptionRect.offsetMax = new Vector2(-14f, 92f);
+                }
+                if (_qrPlateRect != null)
+                {
+                    float qrAvailH = Mathf.Max(140f, contentH - 60f - 98f);
+                    float qrSize = Mathf.Clamp(Mathf.Min(hostRightW - 36f, qrAvailH - 8f), 148f, 284f);
+                    float centerOffsetY = (98f - 60f) * 0.5f;
+                    _qrPlateRect.anchoredPosition = new Vector2(0f, centerOffsetY);
+                    _qrPlateRect.sizeDelta = new Vector2(qrSize, qrSize);
+                }
+
+                // Step 2B: Guest Wizard
+                float manualBarH = minTouch + 20f;
+                if (_manualBarRect != null)
+                {
+                    _manualBarRect.anchorMin = new Vector2(0f, 0f);
+                    _manualBarRect.anchorMax = new Vector2(1f, 0f);
+                    _manualBarRect.pivot = new Vector2(0.5f, 0f);
+                    _manualBarRect.anchoredPosition = Vector2.zero;
+                    _manualBarRect.sizeDelta = new Vector2(0f, manualBarH);
+                }
+                float barPad = 16f;
+                float joinBtnW = Mathf.Max(minTouch, 164f);
+                float pasteBtnW = Mathf.Max(minTouch, 124f);
+                float promptW = 136f;
+                if (_manualJoinBtnRect != null)
+                {
+                    _manualJoinBtnRect.anchoredPosition = new Vector2(-barPad, 0f);
+                    _manualJoinBtnRect.sizeDelta = new Vector2(joinBtnW, minTouch);
+                }
+                if (_pasteUrlBtnRect != null)
+                {
+                    _pasteUrlBtnRect.anchoredPosition = new Vector2(-(barPad + joinBtnW + gutter), 0f);
+                    _pasteUrlBtnRect.sizeDelta = new Vector2(pasteBtnW, minTouch);
+                }
+                if (_manualPromptRect != null)
+                {
+                    _manualPromptRect.anchorMin = new Vector2(0f, 0f);
+                    _manualPromptRect.anchorMax = new Vector2(0f, 1f);
+                    _manualPromptRect.pivot = new Vector2(0f, 0.5f);
+                    _manualPromptRect.offsetMin = new Vector2(barPad, 6f);
+                    _manualPromptRect.offsetMax = new Vector2(barPad + promptW, -6f);
+                }
+                if (_manualInputRect != null)
+                {
+                    float inputLeft = barPad + promptW + 10f;
+                    float inputRight = barPad + joinBtnW + gutter + pasteBtnW + gutter;
+                    float inputW = Mathf.Max(minTouch, contentW - inputLeft - inputRight);
+                    _manualInputRect.anchorMin = new Vector2(0f, 0.5f);
+                    _manualInputRect.anchorMax = new Vector2(0f, 0.5f);
+                    _manualInputRect.pivot = new Vector2(0f, 0.5f);
+                    _manualInputRect.anchoredPosition = new Vector2(inputLeft, 0f);
+                    _manualInputRect.sizeDelta = new Vector2(inputW, minTouch);
+                }
+
+                if (_guestListCard != null)
+                {
+                    _guestListCard.anchorMin = new Vector2(0f, 0f);
+                    _guestListCard.anchorMax = new Vector2(1f, 1f);
+                    _guestListCard.pivot = new Vector2(0.5f, 0.5f);
+                    _guestListCard.offsetMin = new Vector2(0f, manualBarH + 14f);
+                    _guestListCard.offsetMax = Vector2.zero;
+                }
+                float guestHdrH = minTouch + 16f;
+                float rescanW = Mathf.Max(minTouch, 168f);
+                float scanQrW = Mathf.Max(minTouch, 152f);
+                if (_rescanBtnRect != null)
+                {
+                    _rescanBtnRect.anchoredPosition = new Vector2(-16f, -8f);
+                    _rescanBtnRect.sizeDelta = new Vector2(rescanW, minTouch);
+                }
+                if (_scanQrBtnRect != null)
+                {
+                    _scanQrBtnRect.anchoredPosition = new Vector2(-(16f + rescanW + gutter), -8f);
+                    _scanQrBtnRect.sizeDelta = new Vector2(scanQrW, minTouch);
+                }
+                if (_guestStatusRect != null)
+                {
+                    _guestStatusRect.anchorMin = new Vector2(0f, 1f);
+                    _guestStatusRect.anchorMax = new Vector2(1f, 1f);
+                    _guestStatusRect.pivot = new Vector2(0.5f, 1f);
+                    _guestStatusRect.offsetMin = new Vector2(20f, -guestHdrH);
+                    _guestStatusRect.offsetMax = new Vector2(-(16f + rescanW + gutter + scanQrW + gutter), -6f);
+                }
+                if (_rowsScrollRect != null)
+                {
+                    _rowsScrollRect.anchorMin = Vector2.zero;
+                    _rowsScrollRect.anchorMax = Vector2.one;
+                    _rowsScrollRect.offsetMin = new Vector2(16f, 12f);
+                    _rowsScrollRect.offsetMax = new Vector2(-16f, -(guestHdrH + 6f));
+                }
+                for (int i = 0; i < MaxDiscoveredRows; i++)
+                {
+                    if (_discoveredRowLayouts[i] != null)
+                    {
+                        _discoveredRowLayouts[i].minHeight = minTouch;
+                        _discoveredRowLayouts[i].preferredHeight = minTouch;
+                    }
+                }
             }
+            finally
+            {
+                _inLayout = false;
+            }
+        }
+
+        static void SetContentPanelBounds(RectTransform panel, float padX, float bottom, float top)
+        {
+            if (panel == null) return;
+            panel.anchorMin = Vector2.zero;
+            panel.anchorMax = Vector2.one;
+            panel.pivot = new Vector2(0.5f, 0.5f);
+            panel.offsetMin = new Vector2(padX, bottom);
+            panel.offsetMax = new Vector2(-padX, -top);
+        }
+
+        static void LayoutRoleCard(
+            RectTransform card,
+            RectTransform descRect,
+            RectTransform btnRect,
+            float x,
+            float w,
+            float bottom,
+            float top,
+            float minTouch)
+        {
+            if (card == null) return;
+            card.anchorMin = new Vector2(0f, 0f);
+            card.anchorMax = new Vector2(0f, 1f);
+            card.pivot = new Vector2(0f, 0.5f);
+            card.offsetMin = new Vector2(x, bottom);
+            card.offsetMax = new Vector2(x + w, -top);
+
+            if (descRect != null)
+            {
+                descRect.anchorMin = Vector2.zero;
+                descRect.anchorMax = Vector2.one;
+                descRect.offsetMin = new Vector2(20f, minTouch + 28f);
+                descRect.offsetMax = new Vector2(-20f, -66f);
+            }
+            if (btnRect != null)
+            {
+                btnRect.anchoredPosition = new Vector2(0f, 16f);
+                btnRect.sizeDelta = new Vector2(Mathf.Clamp(w - 36f, minTouch, 320f), minTouch);
+            }
+        }
+
+        static void ApplySlicedPlate(Image img, Color color)
+        {
+            if (img == null) return;
+            Sprite rounded = MenuStack.RoundedSprite();
+            if (rounded != null)
+            {
+                img.sprite = rounded;
+                img.type = Image.Type.Sliced;
+            }
+            img.color = color;
+        }
+
+        static void SyncOutlineForColor(Text label, Color c)
+        {
+            if (label == null) return;
+            Outline ol = label.GetComponent<Outline>();
+            if (ol != null)
+                ol.enabled = (0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b) >= 0.25f;
         }
 
         Button MakeActionButton(
@@ -1201,19 +1680,28 @@ namespace Kalyeah.Game
         {
             Vector2 clamped = ScreenFitMetrics.ClampTouchSize(size, ScreenFitMetrics.MinTouchDp, _canvas);
             RectTransform rt = Ui.Panel(name, parent, anchorMin, anchorMax, pivot, pos, clamped);
-            Image bg = Ui.MakeImage("Bg", rt, fill, raycast: true);
-            Stretch(bg.rectTransform);
-            var outline = bg.gameObject.AddComponent<Outline>();
-            outline.effectColor = new Color(0.03f, 0.05f, 0.12f, 0.95f);
+            Image bg = rt.gameObject.AddComponent<Image>();
+            ApplySlicedPlate(bg, fill);
+            bg.raycastTarget = true;
+            var outline = rt.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0.03f, 0.05f, 0.12f, 0.90f);
             outline.effectDistance = new Vector2(2f, -2f);
 
             Text label = Ui.MakeText("Label", rt, caption, fontSize, textColor, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            if (textColor == InkDark)
-                label.GetComponent<Outline>().enabled = false;
-            Stretch(label.rectTransform, 8f, 4f, 8f, 4f);
+            label.raycastTarget = false;
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 12;
+            label.resizeTextMaxSize = fontSize;
+            label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            label.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(label, textColor);
+            Stretch(label.rectTransform, 12f, 4f, 12f, 4f);
 
-            Button btn = bg.gameObject.AddComponent<Button>();
+            Button btn = rt.gameObject.AddComponent<Button>();
             btn.targetGraphic = bg;
+            ColorBlock cb = btn.colors;
+            cb.disabledColor = new Color(1f, 1f, 1f, 0.55f);
+            btn.colors = cb;
             if (onClick != null)
                 btn.onClick.AddListener(onClick);
             _touchTargets.Add(rt);
@@ -1222,16 +1710,28 @@ namespace Kalyeah.Game
 
         InputField MakeInputField(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax, string placeholderText, int fontSize)
         {
-            RectTransform rt = Ui.Panel(name, parent, anchorMin, anchorMax, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            Image bg = Ui.MakeImage("InputBg", rt, new Color(0.04f, 0.07f, 0.14f, 1f), raycast: true);
-            Stretch(bg.rectTransform);
+            float touchH = ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, _canvas);
+            RectTransform rt = Ui.Panel(name, parent, anchorMin, anchorMax, new Vector2(0f, 0.5f), Vector2.zero, new Vector2(240f, touchH));
+            Image bg = rt.gameObject.AddComponent<Image>();
+            ApplySlicedPlate(bg, new Color(0.04f, 0.07f, 0.14f, 1f));
+            bg.raycastTarget = true;
 
             Text textComp = Ui.MakeText("Text", rt, "", fontSize, Ui.Cream, TextAnchor.MiddleLeft);
+            textComp.raycastTarget = false;
             textComp.supportRichText = false;
             textComp.horizontalOverflow = HorizontalWrapMode.Overflow;
+            textComp.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(textComp, Ui.Cream);
             Stretch(textComp.rectTransform, 14f, 6f, 14f, 6f);
 
-            Text placeholder = Ui.MakeText("Placeholder", rt, placeholderText, fontSize, new Color(0.55f, 0.64f, 0.78f, 0.75f), TextAnchor.MiddleLeft);
+            Text placeholder = Ui.MakeText("Placeholder", rt, placeholderText, Mathf.Max(18, fontSize - 2), new Color(0.62f, 0.70f, 0.84f, 0.85f), TextAnchor.MiddleLeft);
+            placeholder.raycastTarget = false;
+            placeholder.horizontalOverflow = HorizontalWrapMode.Wrap;
+            placeholder.verticalOverflow = VerticalWrapMode.Truncate;
+            placeholder.resizeTextForBestFit = true;
+            placeholder.resizeTextMinSize = 12;
+            placeholder.resizeTextMaxSize = Mathf.Max(18, fontSize - 2);
+            SyncOutlineForColor(placeholder, placeholder.color);
             Stretch(placeholder.rectTransform, 14f, 6f, 14f, 6f);
 
             var field = rt.gameObject.AddComponent<InputField>();
@@ -1245,10 +1745,11 @@ namespace Kalyeah.Game
         static void StyleCard(RectTransform card, Color bg)
         {
             Image fill = Ui.MakeImage("CardBg", card, bg, raycast: false);
+            ApplySlicedPlate(fill, bg);
             Stretch(fill.rectTransform);
             fill.transform.SetAsFirstSibling();
             var border = fill.gameObject.AddComponent<Outline>();
-            border.effectColor = new Color(0.02f, 0.04f, 0.10f, 0.95f);
+            border.effectColor = new Color(0.02f, 0.04f, 0.10f, 0.90f);
             border.effectDistance = new Vector2(3f, -3f);
         }
 
@@ -1314,18 +1815,32 @@ namespace Kalyeah.Game
             }
         }
 
+        [ExecuteAlways]
         sealed class HotspotFlowDriver : MonoBehaviour
         {
             HotspotFlowView _owner;
 
             public void Bind(HotspotFlowView owner) => _owner = owner;
 
-            void Update() => _owner?.Tick(Time.unscaledDeltaTime);
+            void OnEnable()
+            {
+                if (_owner != null)
+                {
+                    _owner.SubscribeViewport(true);
+                    _owner.ApplyResponsiveMetrics(_owner._frame);
+                }
+            }
+
+            void Update()
+            {
+                if (Application.isPlaying)
+                    _owner?.Tick(Time.unscaledDeltaTime);
+            }
 
             void OnRectTransformDimensionsChange()
             {
                 if (_owner != null && _owner.Root != null)
-                    _owner.ApplyResponsiveMetrics(_owner.Root.Find("Frame") as RectTransform);
+                    _owner.ApplyResponsiveMetrics(_owner._frame);
             }
 
             void OnDestroy() => _owner?.Dispose();

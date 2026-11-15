@@ -21,13 +21,13 @@ namespace Kalyeah.Game
         public const string LobbyId = "lobby";
         public const string HotspotId = "hotspot";
 
-        static readonly Color ScrimColor = new Color(0.03f, 0.05f, 0.12f, 0.80f);
-        static readonly Color InkBorderColor = new Color(0.10f, 0.08f, 0.14f, 0.98f);
-        static readonly Color CardBodyColor = new Color(0.98f, 0.95f, 0.88f, 1f);
-        static readonly Color HeaderBandColor = new Color(0.95f, 0.63f, 0.16f, 1f);
-        static readonly Color CancelBtnColor = new Color(0.22f, 0.44f, 0.78f, 1f);
+        static readonly Color ScrimColor = new Color(0.03f, 0.05f, 0.12f, 0.82f);
+        static readonly Color InkBorderColor = new Color(0.09f, 0.07f, 0.14f, 0.98f);
+        static readonly Color CardBodyColor = new Color(0.98f, 0.95f, 0.89f, 1f);
+        static readonly Color HeaderBandColor = new Color(0.92f, 0.47f, 0.16f, 1f);
+        static readonly Color CancelBtnColor = new Color(0.19f, 0.48f, 0.88f, 1f);
         static readonly Color QuitBtnColor = new Color(0.86f, 0.25f, 0.22f, 1f);
-        static readonly Color EspressoText = new Color(0.16f, 0.12f, 0.10f, 1f);
+        static readonly Color EspressoText = new Color(0.14f, 0.10f, 0.08f, 1f);
 
         static readonly Dictionary<string, Sprite> UiSpriteCache = new Dictionary<string, Sprite>(StringComparer.Ordinal);
         static Sprite _roundedSprite;
@@ -41,11 +41,19 @@ namespace Kalyeah.Game
             public Func<bool> OnBackOverride;
         }
 
+        [ExecuteAlways]
         sealed class StackLifecycle : MonoBehaviour
         {
             public MenuStack Owner;
+            bool _viewportSubscribed;
 
-            void OnEnable() => Owner?.RefreshModalLayout();
+            void OnEnable()
+            {
+                SubscribeViewport();
+                Owner?.RefreshModalLayout();
+            }
+
+            void OnDisable() => UnsubscribeViewport();
 
             void OnRectTransformDimensionsChange() => Owner?.RefreshModalLayout();
 
@@ -54,7 +62,35 @@ namespace Kalyeah.Game
                 if (paused) Owner?.SavePersistedState();
             }
 
-            void OnDestroy() => Owner?.DetachPersistenceListeners();
+            void OnDestroy()
+            {
+                UnsubscribeViewport();
+                Owner?.DetachPersistenceListeners();
+            }
+
+            void SubscribeViewport()
+            {
+                if (_viewportSubscribed) return;
+                ScreenFitMetrics.SimulatedViewportChanged += HandleViewportChanged;
+                _viewportSubscribed = true;
+            }
+
+            void UnsubscribeViewport()
+            {
+                if (!_viewportSubscribed) return;
+                ScreenFitMetrics.SimulatedViewportChanged -= HandleViewportChanged;
+                _viewportSubscribed = false;
+            }
+
+            void HandleViewportChanged()
+            {
+                if (this == null)
+                {
+                    UnsubscribeViewport();
+                    return;
+                }
+                Owner?.OnSimulatedViewportChanged();
+            }
         }
 
         readonly Dictionary<string, ScreenEntry> _screens = new Dictionary<string, ScreenEntry>(StringComparer.Ordinal);
@@ -65,7 +101,12 @@ namespace Kalyeah.Game
         Transform _modalParent;
         Canvas _canvas;
         RectTransform _quitModalRoot;
+        RectTransform _quitSafeRoot;
+        SafeArea _quitSafeArea;
+        RectTransform _quitScrimRect;
         RectTransform _quitCard;
+        RectTransform _quitHeaderRect;
+        RectTransform _quitMessageRect;
         RectTransform _cancelRect;
         RectTransform _quitRect;
         Text _quitTitleLabel;
@@ -392,6 +433,11 @@ namespace Kalyeah.Game
             if (_disposed) return;
             _disposed = true;
             DetachPersistenceListeners();
+            if (_quitSafeArea != null)
+            {
+                _quitSafeArea.Changed -= OnQuitSafeAreaChanged;
+                _quitSafeArea = null;
+            }
             if (_quitModalRoot != null)
             {
                 KalyeahResources.Kill(_quitModalRoot.gameObject);
@@ -434,18 +480,35 @@ namespace Kalyeah.Game
             if (_quitModalRoot != null || parent == null) return;
 
             _quitModalRoot = Ui.Fill("QuitModal", parent);
-            Image scrim = _quitModalRoot.gameObject.AddComponent<Image>();
-            scrim.color = ScrimColor;
-            scrim.raycastTarget = true;
+
+            Image scrim = Ui.MakeImage("Scrim", _quitModalRoot, ScrimColor, raycast: true);
+            _quitScrimRect = scrim.rectTransform;
+            _quitScrimRect.anchorMin = Vector2.zero;
+            _quitScrimRect.anchorMax = Vector2.one;
+            _quitScrimRect.sizeDelta = Vector2.zero;
+
+            SafeArea parentSafe = parent.GetComponentInParent<SafeArea>();
+            if (parentSafe != null)
+            {
+                _quitSafeArea = parentSafe;
+                _quitSafeRoot = Ui.Fill("SafeArea", _quitModalRoot);
+            }
+            else
+            {
+                _quitSafeRoot = Ui.Fill("SafeArea", _quitModalRoot);
+                _quitSafeArea = _quitSafeRoot.gameObject.AddComponent<SafeArea>();
+                _quitSafeArea.Apply();
+            }
+            _quitSafeArea.Changed += OnQuitSafeAreaChanged;
 
             RectTransform inkOuter = Ui.Panel(
                 "QuitCardFrame",
-                _quitModalRoot,
+                _quitSafeRoot,
                 new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f),
                 Vector2.zero,
-                new Vector2(500f, 286f));
+                new Vector2(520f, 340f));
             Image outerImg = inkOuter.gameObject.AddComponent<Image>();
             outerImg.sprite = RoundedSprite();
             outerImg.type = Image.Type.Sliced;
@@ -454,23 +517,23 @@ namespace Kalyeah.Game
             _quitCard = inkOuter;
 
             RectTransform body = Ui.Fill("QuitCardBody", inkOuter);
-            body.offsetMin = new Vector2(6f, 6f);
-            body.offsetMax = new Vector2(-6f, -6f);
+            body.offsetMin = new Vector2(5f, 5f);
+            body.offsetMax = new Vector2(-5f, -5f);
             Image bodyImg = body.gameObject.AddComponent<Image>();
-            bodyImg.sprite = TryUiSprite("ui/panel") ?? RoundedSprite();
-            bodyImg.type = bodyImg.sprite == _roundedSprite ? Image.Type.Sliced : Image.Type.Simple;
+            bodyImg.sprite = RoundedSprite();
+            bodyImg.type = Image.Type.Sliced;
             bodyImg.color = CardBodyColor;
             bodyImg.raycastTarget = false;
 
-            RectTransform headerBand = Ui.Panel(
+            _quitHeaderRect = Ui.Panel(
                 "HeaderBand",
                 body,
                 new Vector2(0f, 1f),
                 new Vector2(1f, 1f),
                 new Vector2(0.5f, 1f),
-                Vector2.zero,
-                new Vector2(0f, 74f));
-            Image headerImg = headerBand.gameObject.AddComponent<Image>();
+                new Vector2(0f, -6f),
+                new Vector2(-12f, 76f));
+            Image headerImg = _quitHeaderRect.gameObject.AddComponent<Image>();
             headerImg.sprite = RoundedSprite();
             headerImg.type = Image.Type.Sliced;
             headerImg.color = HeaderBandColor;
@@ -478,12 +541,15 @@ namespace Kalyeah.Game
 
             _quitTitleLabel = Ui.MakeText(
                 "QuitTitle",
-                headerBand,
+                _quitHeaderRect,
                 "Quit Kalyeah?",
-                34,
+                32,
                 Ui.Cream,
                 TextAnchor.MiddleCenter,
                 KalyeahResources.DisplayFont());
+            _quitTitleLabel.resizeTextForBestFit = true;
+            _quitTitleLabel.resizeTextMinSize = 20;
+            _quitTitleLabel.resizeTextMaxSize = 32;
             RectTransform titleRect = _quitTitleLabel.rectTransform;
             titleRect.anchorMin = Vector2.zero;
             titleRect.anchorMax = Vector2.one;
@@ -493,28 +559,31 @@ namespace Kalyeah.Game
             _quitBodyLabel = Ui.MakeText(
                 "QuitMessage",
                 body,
-                "Head home from the street and close the game?",
+                "Leave the street and close the game?",
                 22,
                 EspressoText,
                 TextAnchor.MiddleCenter);
+            _quitBodyLabel.fontStyle = FontStyle.Bold;
             _quitBodyLabel.GetComponent<Outline>().enabled = false;
             _quitBodyLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
             _quitBodyLabel.verticalOverflow = VerticalWrapMode.Truncate;
-            RectTransform msgRect = _quitBodyLabel.rectTransform;
-            msgRect.anchorMin = new Vector2(0f, 0.44f);
-            msgRect.anchorMax = new Vector2(1f, 0.72f);
-            msgRect.offsetMin = new Vector2(24f, 0f);
-            msgRect.offsetMax = new Vector2(-24f, 0f);
+            _quitBodyLabel.resizeTextForBestFit = true;
+            _quitBodyLabel.resizeTextMinSize = 18;
+            _quitBodyLabel.resizeTextMaxSize = 22;
+            _quitMessageRect = _quitBodyLabel.rectTransform;
+            _quitMessageRect.anchorMin = Vector2.zero;
+            _quitMessageRect.anchorMax = Vector2.one;
+            _quitMessageRect.offsetMin = new Vector2(24f, 126f);
+            _quitMessageRect.offsetMax = new Vector2(-24f, -94f);
 
             _cancelButton = MakeModalButton(
                 "Cancel",
                 body,
                 "Cancel",
                 CancelBtnColor,
-                "ui/button_blue",
                 new Vector2(0f, 0f),
                 new Vector2(0f, 0f),
-                new Vector2(22f, 18f),
+                new Vector2(20f, 18f),
                 out _cancelRect,
                 out _cancelLabel);
             _cancelButton.onClick.AddListener(() => HideQuitModal(playSound: true));
@@ -524,10 +593,9 @@ namespace Kalyeah.Game
                 body,
                 "Quit",
                 QuitBtnColor,
-                "ui/button_red",
                 new Vector2(1f, 0f),
                 new Vector2(1f, 0f),
-                new Vector2(-22f, 18f),
+                new Vector2(-20f, 18f),
                 out _quitRect,
                 out _quitLabel);
             _quitButton.onClick.AddListener(ConfirmQuit);
@@ -542,20 +610,27 @@ namespace Kalyeah.Game
             Transform parent,
             string text,
             Color tint,
-            string resourcePath,
             Vector2 anchor,
             Vector2 pivot,
             Vector2 anchoredPos,
             out RectTransform rect,
             out Text label)
         {
-            rect = Ui.Panel(name, parent, anchor, anchor, pivot, anchoredPos, new Vector2(206f, 96f));
-            Image bg = rect.gameObject.AddComponent<Image>();
-            Sprite art = TryUiSprite(resourcePath);
-            bg.sprite = art != null ? art : RoundedSprite();
-            bg.type = art != null ? Image.Type.Simple : Image.Type.Sliced;
-            bg.color = art != null ? Color.white : tint;
-            bg.raycastTarget = true;
+            rect = Ui.Panel(name, parent, anchor, anchor, pivot, anchoredPos, new Vector2(212f, 96f));
+            Image border = rect.gameObject.AddComponent<Image>();
+            border.sprite = RoundedSprite();
+            border.type = Image.Type.Sliced;
+            border.color = InkBorderColor;
+            border.raycastTarget = true;
+
+            RectTransform fillRect = Ui.Fill("Fill", rect);
+            fillRect.offsetMin = new Vector2(3f, 3f);
+            fillRect.offsetMax = new Vector2(-3f, -3f);
+            Image bg = fillRect.gameObject.AddComponent<Image>();
+            bg.sprite = RoundedSprite();
+            bg.type = Image.Type.Sliced;
+            bg.color = tint;
+            bg.raycastTarget = false;
 
             Button btn = rect.gameObject.AddComponent<Button>();
             btn.targetGraphic = bg;
@@ -565,12 +640,15 @@ namespace Kalyeah.Game
             colors.pressedColor = new Color(0.84f, 0.84f, 0.88f, 1f);
             btn.colors = colors;
 
-            label = Ui.MakeText("Label", rect, text, 28, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            label = Ui.MakeText("Label", fillRect, text, 26, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 18;
+            label.resizeTextMaxSize = 26;
             RectTransform lr = label.rectTransform;
             lr.anchorMin = Vector2.zero;
             lr.anchorMax = Vector2.one;
-            lr.offsetMin = new Vector2(10f, 4f);
-            lr.offsetMax = new Vector2(-10f, -4f);
+            lr.offsetMin = new Vector2(12f, 4f);
+            lr.offsetMax = new Vector2(-12f, -4f);
             return btn;
         }
 
@@ -581,28 +659,83 @@ namespace Kalyeah.Game
             _quitTitleLabel.text = "Quit Kalyeah?";
             _quitBodyLabel.text = fil
                 ? "Uuwi ka na ba mula sa kalye at isasara ang laro?"
-                : "Leave the street and close the game?";
+                : "Head home from the street and close the game?";
             _cancelLabel.text = "Cancel";
             _quitLabel.text = "Quit";
         }
 
-        void RefreshModalLayout()
+        void OnQuitSafeAreaChanged(SafeArea _) => RefreshModalLayout();
+
+        void OnSimulatedViewportChanged()
+        {
+            if (_quitSafeArea != null)
+                _quitSafeArea.ForceApply();
+            RefreshModalLayout();
+        }
+
+        public void RefreshModalLayout()
         {
             if (_quitCard == null) return;
             if (_canvas == null && _modalParent != null)
                 _canvas = _modalParent.GetComponentInParent<Canvas>();
 
+            if (_quitSafeArea != null)
+                _quitSafeArea.Apply();
+
+            StretchFullBleedToCanvas(_quitScrimRect, _canvas);
+
             Vector2 safe = ScreenFitMetrics.SafeCanvasSize(_canvas);
             float minTouch = ScreenFitMetrics.ClampTouchSize(96f, ScreenFitMetrics.MinTouchDp, _canvas);
-            float cardWidth = Mathf.Clamp(safe.x - 48f, Mathf.Max(360f, minTouch * 2f + 72f), 520f);
-            float btnHeight = Mathf.Clamp(minTouch, 96f, 112f);
-            float cardHeight = Mathf.Clamp(btnHeight + 190f, 286f, Mathf.Max(286f, safe.y - 32f));
-            float innerWidth = cardWidth - 12f;
-            float btnWidth = Mathf.Max(minTouch, (innerWidth - 56f) * 0.5f);
+            float minGutter = Mathf.Max(16f, ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinGutterDp, _canvas));
+            float btnHeight = Mathf.Clamp(minTouch, 96f, 118f);
+            const float headerH = 76f;
 
+            float cardWidth = Mathf.Clamp(safe.x - 40f, Mathf.Max(380f, minTouch * 2f + minGutter + 52f), 540f);
+            cardWidth = Mathf.Min(cardWidth, Mathf.Max(320f, safe.x - 20f));
+            float cardHeight = Mathf.Clamp(headerH + btnHeight + 164f, 336f, Mathf.Max(336f, safe.y - 24f));
+            cardHeight = Mathf.Min(cardHeight, Mathf.Max(280f, safe.y - 20f));
+
+            float innerWidth = cardWidth - 10f;
+            float btnWidth = Mathf.Max(minTouch, (innerWidth - 40f - minGutter) * 0.5f);
+
+            _quitCard.anchoredPosition = Vector2.zero;
             _quitCard.sizeDelta = new Vector2(cardWidth, cardHeight);
+            if (_quitHeaderRect != null)
+                _quitHeaderRect.sizeDelta = new Vector2(-12f, headerH);
+            if (_quitMessageRect != null)
+            {
+                _quitMessageRect.offsetMin = new Vector2(24f, 18f + btnHeight + 14f);
+                _quitMessageRect.offsetMax = new Vector2(-24f, -(headerH + 18f));
+            }
             if (_cancelRect != null) _cancelRect.sizeDelta = new Vector2(btnWidth, btnHeight);
             if (_quitRect != null) _quitRect.sizeDelta = new Vector2(btnWidth, btnHeight);
+        }
+
+        internal static void StretchFullBleedToCanvas(RectTransform target, Canvas canvas)
+        {
+            if (target == null) return;
+            target.anchorMin = Vector2.zero;
+            target.anchorMax = Vector2.one;
+            target.offsetMin = Vector2.zero;
+            target.offsetMax = Vector2.zero;
+
+            if (canvas == null || !(target.parent is RectTransform parentRt)) return;
+            var canvasRt = canvas.transform as RectTransform;
+            if (canvasRt == null || parentRt == canvasRt) return;
+
+            Canvas.ForceUpdateCanvases();
+            Rect canvasRect = canvasRt.rect;
+            if (canvasRect.width <= 1f || canvasRect.height <= 1f) return;
+
+            Vector3 minWorld = canvasRt.TransformPoint(new Vector3(canvasRect.xMin, canvasRect.yMin, 0f));
+            Vector3 maxWorld = canvasRt.TransformPoint(new Vector3(canvasRect.xMax, canvasRect.yMax, 0f));
+            Vector3 localMin = parentRt.InverseTransformPoint(minWorld);
+            Vector3 localMax = parentRt.InverseTransformPoint(maxWorld);
+            Rect parentRect = parentRt.rect;
+            target.anchorMin = Vector2.zero;
+            target.anchorMax = Vector2.one;
+            target.offsetMin = new Vector2(localMin.x - parentRect.xMin, localMin.y - parentRect.yMin);
+            target.offsetMax = new Vector2(localMax.x - parentRect.xMax, localMax.y - parentRect.yMax);
         }
 
         void KeepModalOnTop()

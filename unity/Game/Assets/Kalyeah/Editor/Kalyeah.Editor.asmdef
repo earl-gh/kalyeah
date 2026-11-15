@@ -4,6 +4,9 @@
     "references": [
         "Kalyeah.Game",
         "Kalyeah.Game.Core",
+        "Kalyeah.Sim",
+        "Kalyeah.Net",
+        "UnityEngine.UI",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.Universal.Runtime"
     ],

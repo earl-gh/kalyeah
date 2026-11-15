@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Kalyeah.Game
@@ -12,6 +13,7 @@ namespace Kalyeah.Game
     /// and UGUI QR Share + Live <see cref="WebCamTexture"/> Scanner modal with manual <c>ws://</c> / Room Code paste fallback
     /// (port of <c>scripts/ui/qr_code.gd</c>, <c>qr_field.gd</c>, <c>qr_reader.gd</c>, and <c>qr_scan_sheet.gd</c>).
     /// </summary>
+    [ExecuteAlways]
     public sealed class QrCodeView : MonoBehaviour
     {
         public enum EccLevel
@@ -197,9 +199,45 @@ namespace Kalyeah.Game
         Func<string, bool> _validator;
         Action _onClosed;
 
+        Canvas _canvas;
+        bool _hasShare;
+        bool _includeScanner;
+        bool _built;
+        bool _inLayout;
+        bool _subscribedViewport;
+        string _sharePayloadText = "";
+
+        RectTransform _borderRect;
+        RectTransform _cardBody;
+        RectTransform _headerRow;
+        RectTransform _headerTitleRect;
+        RectTransform _closeBtnRect;
+        RectTransform _bodyRect;
+        RectTransform _footerRow;
+
+        RectTransform _shareCol;
+        RectTransform _qrFrame;
+        RectTransform _shareCaptionRect;
+        RectTransform _shareStatusRect;
+        Text _shareStatusLabel;
+        RectTransform _copyBtnRect;
+
+        RectTransform _camCol;
+        RectTransform _camFrame;
         RawImage _cameraRawImage;
         RectTransform _cameraPreviewRect;
         Text _cameraHintLabel;
+        RectTransform _cameraHintRect;
+        RectTransform _startCamBtnRect;
+
+        RectTransform _manualCol;
+        RectTransform _manualTitleRect;
+        RectTransform _manualHelpRect;
+        RectTransform _manualInputRect;
+        RectTransform _scanStatusRect;
+        RectTransform _pasteBtnRect;
+        RectTransform _connectBtnRect;
+
         Image _shareQrImage;
         Texture2D _ownedQrTexture;
         Sprite _ownedQrSprite;
@@ -210,6 +248,22 @@ namespace Kalyeah.Game
         float _scanCooldown;
         bool _wantedCameraBeforePause;
         bool _waitingForAndroidPermission;
+
+        sealed class ModalScrimDismiss : MonoBehaviour, IPointerClickHandler
+        {
+            public Action OnDismiss;
+
+            public void OnPointerClick(PointerEventData eventData)
+            {
+                if (eventData != null &&
+                    eventData.pointerCurrentRaycast.gameObject != null &&
+                    eventData.pointerCurrentRaycast.gameObject != gameObject)
+                {
+                    return;
+                }
+                OnDismiss?.Invoke();
+            }
+        }
 
         /// <summary>Opens a modal displaying a crisp scannable QR code plus a one-tap Copy button.</summary>
         public static QrCodeView ShowShareModal(
@@ -249,24 +303,27 @@ namespace Kalyeah.Game
         {
             Ui.EnsureEventSystem();
             RectTransform backdrop = Ui.Fill("QrCodeModal", parent);
-            Image dim = backdrop.gameObject.AddComponent<Image>();
-            dim.color = new Color(0.01f, 0.02f, 0.06f, 0.80f);
-            dim.raycastTarget = true;
 
-            Button backdropBtn = backdrop.gameObject.AddComponent<Button>();
-            backdropBtn.transition = Selectable.Transition.None;
+            RectTransform scrim = Ui.Fill("Scrim", backdrop);
+            Image dim = scrim.gameObject.AddComponent<Image>();
+            dim.color = new Color(0.01f, 0.02f, 0.06f, 0.84f);
+            dim.raycastTarget = true;
+            var scrimDismiss = scrim.gameObject.AddComponent<ModalScrimDismiss>();
 
             RectTransform safe = Ui.Fill("Safe", backdrop);
             safe.gameObject.AddComponent<SafeArea>();
 
             var view = backdrop.gameObject.AddComponent<QrCodeView>();
             view.Root = backdrop;
+            view._canvas = parent != null ? parent.GetComponentInParent<Canvas>() : null;
             view._onAccepted = onPayloadAccepted;
             view._validator = payloadValidator;
             view._onClosed = onClosed;
-            backdropBtn.onClick.AddListener(view.Close);
+            scrimDismiss.OnDismiss = view.Close;
 
             view.BuildContents(safe, title, sharePayload, shareSubtitle, onPayloadAccepted != null, initialManualText);
+            view.SubscribeViewport();
+            view.RefreshLayout();
             return view;
         }
 
@@ -278,271 +335,578 @@ namespace Kalyeah.Game
             bool includeScanner,
             string initialManualText)
         {
-            bool hasShare = !string.IsNullOrEmpty(sharePayload);
-            float cardWidth = (hasShare && includeScanner) ? 1040f : (includeScanner ? 880f : 560f);
-            float cardHeight = 560f;
+            _hasShare = !string.IsNullOrEmpty(sharePayload);
+            _includeScanner = includeScanner;
+            _sharePayloadText = sharePayload ?? "";
 
-            RectTransform borderRect = Ui.Panel(
+            _borderRect = Ui.Panel(
                 "CardBorder",
                 safeParent,
                 new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f),
                 Vector2.zero,
-                new Vector2(cardWidth, cardHeight));
-            Image borderImg = borderRect.gameObject.AddComponent<Image>();
-            borderImg.color = CardBorder;
+                new Vector2(960f, 620f));
+            Image borderImg = _borderRect.gameObject.AddComponent<Image>();
+            ApplySlicedPlate(borderImg, CardBorder);
             borderImg.raycastTarget = true;
 
-            RectTransform card = Ui.Panel(
+            _cardBody = Ui.Panel(
                 "CardBody",
-                borderRect,
+                _borderRect,
                 Vector2.zero,
                 Vector2.one,
                 new Vector2(0.5f, 0.5f),
                 Vector2.zero,
                 new Vector2(-8f, -8f));
-            Image cardImg = card.gameObject.AddComponent<Image>();
-            cardImg.color = CardBg;
+            Image cardImg = _cardBody.gameObject.AddComponent<Image>();
+            ApplySlicedPlate(cardImg, CardBg);
             cardImg.raycastTarget = true;
 
-            // Header bar
+            // Band 1: Dedicated Header Row
+            _headerRow = Ui.Panel(
+                "HeaderRow",
+                _cardBody,
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(0.5f, 1f),
+                Vector2.zero,
+                new Vector2(0f, 112f));
+
+            Image hdrRule = Ui.MakeImage("HeaderDivider", _headerRow, new Color(1f, 1f, 1f, 0.10f));
+            hdrRule.raycastTarget = false;
+            RectTransform hdrRuleRt = hdrRule.rectTransform;
+            hdrRuleRt.anchorMin = new Vector2(0f, 0f);
+            hdrRuleRt.anchorMax = new Vector2(1f, 0f);
+            hdrRuleRt.pivot = new Vector2(0.5f, 0f);
+            hdrRuleRt.offsetMin = new Vector2(16f, 0f);
+            hdrRuleRt.offsetMax = new Vector2(-16f, 2f);
+
             Text headerLabel = Ui.MakeText(
                 "Title",
-                card,
+                _headerRow,
                 string.IsNullOrEmpty(title) ? "QR Room Link" : title,
-                28,
+                26,
                 Ui.Cream,
-                TextAnchor.MiddleLeft);
-            RectTransform headerRect = headerLabel.rectTransform;
-            headerRect.anchorMin = new Vector2(0f, 1f);
-            headerRect.anchorMax = new Vector2(1f, 1f);
-            headerRect.pivot = new Vector2(0.5f, 1f);
-            headerRect.anchoredPosition = new Vector2(0f, -14f);
-            headerRect.sizeDelta = new Vector2(-140f, 44f);
-            headerRect.anchoredPosition = new Vector2(-46f, -14f);
+                TextAnchor.MiddleLeft,
+                KalyeahResources.DisplayFont());
+            headerLabel.resizeTextForBestFit = true;
+            headerLabel.resizeTextMinSize = 18;
+            headerLabel.resizeTextMaxSize = 28;
+            headerLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+            headerLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(headerLabel, Ui.Cream);
+            _headerTitleRect = headerLabel.rectTransform;
 
-            MakeButton("CloseButton", card, "Close", ButtonSlate, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-18f, -12f), new Vector2(108f, 48f), Close);
+            Button closeBtn = MakeButton(
+                "CloseButton",
+                _headerRow,
+                "CLOSE",
+                ButtonSlate,
+                Ui.Cream,
+                new Vector2(1f, 0.5f),
+                new Vector2(1f, 0.5f),
+                new Vector2(-16f, 0f),
+                new Vector2(132f, 96f),
+                Close);
+            _closeBtnRect = closeBtn.GetComponent<RectTransform>();
 
-            // Body area
-            RectTransform body = Ui.Panel(
+            // Band 2: Middle Body
+            _bodyRect = Ui.Panel(
                 "Body",
-                card,
+                _cardBody,
                 Vector2.zero,
                 Vector2.one,
                 new Vector2(0.5f, 0.5f),
-                new Vector2(0f, -24f),
-                new Vector2(-36f, -84f));
+                Vector2.zero,
+                Vector2.zero);
 
-            if (hasShare && !includeScanner)
-            {
-                BuildShareColumn(body, new Vector2(0f, 0f), new Vector2(1f, 1f), sharePayload, shareSubtitle);
-            }
-            else if (!hasShare && includeScanner)
-            {
-                BuildScannerAndManualColumns(body, initialManualText);
-            }
-            else if (hasShare)
-            {
-                BuildShareColumn(body, new Vector2(0f, 0f), new Vector2(0.40f, 1f), sharePayload, shareSubtitle);
-                RectTransform rightArea = Ui.Panel("ScanArea", body, new Vector2(0.42f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-                BuildScannerAndManualColumns(rightArea, initialManualText);
-            }
+            // Band 3: Dedicated Action Footer Row
+            _footerRow = Ui.Panel(
+                "FooterRow",
+                _cardBody,
+                new Vector2(0f, 0f),
+                new Vector2(1f, 0f),
+                new Vector2(0.5f, 0f),
+                Vector2.zero,
+                new Vector2(0f, 116f));
+
+            Image ftrRule = Ui.MakeImage("FooterDivider", _footerRow, new Color(1f, 1f, 1f, 0.10f));
+            ftrRule.raycastTarget = false;
+            RectTransform ftrRuleRt = ftrRule.rectTransform;
+            ftrRuleRt.anchorMin = new Vector2(0f, 1f);
+            ftrRuleRt.anchorMax = new Vector2(1f, 1f);
+            ftrRuleRt.pivot = new Vector2(0.5f, 1f);
+            ftrRuleRt.offsetMin = new Vector2(16f, -2f);
+            ftrRuleRt.offsetMax = new Vector2(-16f, 0f);
+
+            if (_hasShare)
+                BuildShareColumn(_bodyRect, _footerRow, sharePayload, shareSubtitle);
+
+            if (_includeScanner)
+                BuildScannerAndManualColumns(_bodyRect, _footerRow, initialManualText);
+
+            _built = true;
         }
 
-        void BuildShareColumn(Transform parent, Vector2 anchorMin, Vector2 anchorMax, string payload, string subtitle)
+        void BuildShareColumn(Transform bodyParent, Transform footerParent, string payload, string subtitle)
         {
-            RectTransform col = Ui.Panel("ShareColumn", parent, anchorMin, anchorMax, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            _shareCol = Ui.Panel("ShareColumn", bodyParent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
 
-            RectTransform qrFrame = Ui.Panel(
+            _qrFrame = Ui.Panel(
                 "QrFrame",
-                col,
+                _shareCol,
                 new Vector2(0.5f, 1f),
                 new Vector2(0.5f, 1f),
                 new Vector2(0.5f, 1f),
-                new Vector2(0f, -10f),
-                new Vector2(280f, 280f));
-            Image qrBg = qrFrame.gameObject.AddComponent<Image>();
-            qrBg.color = Color.white;
+                new Vector2(0f, -4f),
+                new Vector2(240f, 240f));
+            Image qrBg = _qrFrame.gameObject.AddComponent<Image>();
+            ApplySlicedPlate(qrBg, Color.white);
+            qrBg.raycastTarget = false;
 
-            _shareQrImage = Ui.MakeImage("QrMatrix", qrFrame, Color.white);
+            _shareQrImage = Ui.MakeImage("QrMatrix", _qrFrame, Color.white);
+            _shareQrImage.raycastTarget = false;
             RectTransform qrImgRect = _shareQrImage.rectTransform;
             qrImgRect.anchorMin = Vector2.zero;
             qrImgRect.anchorMax = Vector2.one;
-            qrImgRect.sizeDelta = new Vector2(-16f, -16f);
+            qrImgRect.offsetMin = new Vector2(10f, 10f);
+            qrImgRect.offsetMax = new Vector2(-10f, -10f);
             _shareQrImage.preserveAspect = true;
             SetSharePayload(payload);
 
             string caption = !string.IsNullOrEmpty(subtitle) ? subtitle : payload;
-            Text codeText = Ui.MakeText("ShareCaption", col, caption, 18, MutedCream, TextAnchor.MiddleCenter);
+            Text codeText = Ui.MakeText("ShareCaption", _shareCol, caption, 19, MutedCream, TextAnchor.MiddleCenter);
             codeText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            RectTransform codeRect = codeText.rectTransform;
-            codeRect.anchorMin = new Vector2(0.05f, 0f);
-            codeRect.anchorMax = new Vector2(0.95f, 0f);
-            codeRect.pivot = new Vector2(0.5f, 0f);
-            codeRect.anchoredPosition = new Vector2(0f, 74f);
-            codeRect.sizeDelta = new Vector2(0f, 64f);
+            codeText.verticalOverflow = VerticalWrapMode.Truncate;
+            codeText.resizeTextForBestFit = true;
+            codeText.resizeTextMinSize = 13;
+            codeText.resizeTextMaxSize = 20;
+            SyncOutlineForColor(codeText, MutedCream);
+            _shareCaptionRect = codeText.rectTransform;
 
-            StatusLabel = Ui.MakeText("ShareStatus", col, "", 16, CardBorder, TextAnchor.MiddleCenter);
-            RectTransform statusRect = StatusLabel.rectTransform;
-            statusRect.anchorMin = new Vector2(0.05f, 0f);
-            statusRect.anchorMax = new Vector2(0.95f, 0f);
-            statusRect.pivot = new Vector2(0.5f, 0f);
-            statusRect.anchoredPosition = new Vector2(0f, 52f);
-            statusRect.sizeDelta = new Vector2(0f, 24f);
+            _shareStatusLabel = Ui.MakeText("ShareStatus", _shareCol, "", 18, CardBorder, TextAnchor.MiddleCenter);
+            _shareStatusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _shareStatusLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            _shareStatusLabel.resizeTextForBestFit = true;
+            _shareStatusLabel.resizeTextMinSize = 13;
+            _shareStatusLabel.resizeTextMaxSize = 18;
+            SyncOutlineForColor(_shareStatusLabel, CardBorder);
+            _shareStatusRect = _shareStatusLabel.rectTransform;
+            if (!_includeScanner)
+                StatusLabel = _shareStatusLabel;
 
-            MakeButton(
+            string copyLabel = _includeScanner ? "Copy Link" : "Copy Link / Code";
+            Button copyBtn = MakeButton(
                 "CopyPayloadButton",
-                col,
-                "Copy Link / Code",
+                footerParent,
+                copyLabel,
                 ButtonBlue,
-                new Vector2(0.5f, 0f),
-                new Vector2(0.5f, 0f),
-                new Vector2(0f, 4f),
-                new Vector2(240f, 48f),
+                Ui.Cream,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                Vector2.zero,
+                new Vector2(240f, 96f),
                 () =>
                 {
-                    GUIUtility.systemCopyBuffer = payload ?? "";
+                    GUIUtility.systemCopyBuffer = _sharePayloadText ?? "";
                     Haptics.LightTap();
-                    if (StatusLabel != null) StatusLabel.text = "Copied to clipboard!";
+                    if (_shareStatusLabel != null)
+                        _shareStatusLabel.text = "Copied to clipboard!";
                 });
+            _copyBtnRect = copyBtn.GetComponent<RectTransform>();
         }
 
-        void BuildScannerAndManualColumns(Transform parent, string initialManualText)
+        void BuildScannerAndManualColumns(Transform bodyParent, Transform footerParent, string initialManualText)
         {
-            // Left half: Live WebCamTexture preview
-            RectTransform camCol = Ui.Panel("CameraColumn", parent, new Vector2(0f, 0f), new Vector2(0.48f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            // Camera column
+            _camCol = Ui.Panel("CameraColumn", bodyParent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
 
-            RectTransform camFrame = Ui.Panel(
+            _camFrame = Ui.Panel(
                 "CameraFrame",
-                camCol,
+                _camCol,
                 new Vector2(0.5f, 1f),
                 new Vector2(0.5f, 1f),
                 new Vector2(0.5f, 1f),
-                new Vector2(0f, -8f),
-                new Vector2(290f, 290f));
-            Image camFrameBg = camFrame.gameObject.AddComponent<Image>();
-            camFrameBg.color = SurfaceDark;
+                new Vector2(0f, -4f),
+                new Vector2(240f, 240f));
+            Image camFrameBg = _camFrame.gameObject.AddComponent<Image>();
+            ApplySlicedPlate(camFrameBg, SurfaceDark);
+            camFrameBg.raycastTarget = false;
 
             var rawGo = new GameObject("CameraPreview", typeof(RectTransform), typeof(RawImage));
-            rawGo.transform.SetParent(camFrame, false);
+            rawGo.transform.SetParent(_camFrame, false);
             _cameraPreviewRect = rawGo.GetComponent<RectTransform>();
             _cameraPreviewRect.anchorMin = Vector2.zero;
             _cameraPreviewRect.anchorMax = Vector2.one;
-            _cameraPreviewRect.sizeDelta = new Vector2(-10f, -10f);
+            _cameraPreviewRect.offsetMin = new Vector2(6f, 6f);
+            _cameraPreviewRect.offsetMax = new Vector2(-6f, -6f);
             _cameraRawImage = rawGo.GetComponent<RawImage>();
             _cameraRawImage.color = new Color(0.14f, 0.18f, 0.28f, 1f);
+            _cameraRawImage.raycastTarget = false;
 
             _cameraHintLabel = Ui.MakeText(
                 "CameraHint",
-                camCol,
+                _camCol,
                 "Point camera at host QR. Nothing is saved.",
-                16,
+                18,
                 MutedCream,
-                TextAnchor.MiddleCenter);
+                TextAnchor.UpperCenter);
             _cameraHintLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-            RectTransform hintRect = _cameraHintLabel.rectTransform;
-            hintRect.anchorMin = new Vector2(0.04f, 0f);
-            hintRect.anchorMax = new Vector2(0.96f, 0f);
-            hintRect.pivot = new Vector2(0.5f, 0f);
-            hintRect.anchoredPosition = new Vector2(0f, 64f);
-            hintRect.sizeDelta = new Vector2(0f, 68f);
+            _cameraHintLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            _cameraHintLabel.resizeTextForBestFit = true;
+            _cameraHintLabel.resizeTextMinSize = 13;
+            _cameraHintLabel.resizeTextMaxSize = 18;
+            SyncOutlineForColor(_cameraHintLabel, MutedCream);
+            _cameraHintRect = _cameraHintLabel.rectTransform;
 
-            MakeButton(
+            string camBtnLabel = _hasShare ? "Start Camera" : "Start / Retry Camera";
+            Button camBtn = MakeButton(
                 "StartCameraButton",
-                camCol,
-                "Start / Retry Camera",
+                footerParent,
+                camBtnLabel,
                 ButtonBlue,
-                new Vector2(0.5f, 0f),
-                new Vector2(0.5f, 0f),
-                new Vector2(0f, 6f),
-                new Vector2(250f, 48f),
+                Ui.Cream,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                Vector2.zero,
+                new Vector2(240f, 96f),
                 StartCamera);
+            _startCamBtnRect = camBtn.GetComponent<RectTransform>();
 
-            // Right half: Always-ready manual ws:// or Room Code fallback
-            RectTransform manualCol = Ui.Panel("ManualColumn", parent, new Vector2(0.52f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            // Manual column
+            _manualCol = Ui.Panel("ManualColumn", bodyParent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
 
             Text manualTitle = Ui.MakeText(
                 "ManualHeader",
-                manualCol,
-                "Or Paste ws:// URL / Room Code",
+                _manualCol,
+                "Or Paste Link / Room Code",
                 21,
                 Ui.Cream,
-                TextAnchor.MiddleLeft);
-            RectTransform mtRect = manualTitle.rectTransform;
-            mtRect.anchorMin = new Vector2(0f, 1f);
-            mtRect.anchorMax = new Vector2(1f, 1f);
-            mtRect.pivot = new Vector2(0.5f, 1f);
-            mtRect.anchoredPosition = new Vector2(0f, -12f);
-            mtRect.sizeDelta = new Vector2(0f, 36f);
+                TextAnchor.MiddleLeft,
+                KalyeahResources.DisplayFont());
+            manualTitle.resizeTextForBestFit = true;
+            manualTitle.resizeTextMinSize = 14;
+            manualTitle.resizeTextMaxSize = 22;
+            manualTitle.horizontalOverflow = HorizontalWrapMode.Wrap;
+            manualTitle.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(manualTitle, Ui.Cream);
+            _manualTitleRect = manualTitle.rectTransform;
 
             Text manualDesc = Ui.MakeText(
                 "ManualHelp",
-                manualCol,
-                "No camera needed: paste ws://192.168.43.1:8080, an 8-letter Room Code, or a WIFI: string.",
-                16,
+                _manualCol,
+                "No camera needed: paste ws://192.168.43.1:7777, an 8-letter Room Code, or WIFI: text.",
+                18,
                 MutedCream,
                 TextAnchor.UpperLeft);
+            manualDesc.resizeTextForBestFit = true;
+            manualDesc.resizeTextMinSize = 13;
+            manualDesc.resizeTextMaxSize = 18;
             manualDesc.horizontalOverflow = HorizontalWrapMode.Wrap;
-            RectTransform mdRect = manualDesc.rectTransform;
-            mdRect.anchorMin = new Vector2(0f, 1f);
-            mdRect.anchorMax = new Vector2(1f, 1f);
-            mdRect.pivot = new Vector2(0.5f, 1f);
-            mdRect.anchoredPosition = new Vector2(0f, -54f);
-            mdRect.sizeDelta = new Vector2(0f, 66f);
+            manualDesc.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(manualDesc, MutedCream);
+            _manualHelpRect = manualDesc.rectTransform;
 
             ManualInput = MakeInputField(
                 "ManualCodeInput",
-                manualCol,
+                _manualCol,
                 initialManualText ?? "",
-                "ws://192.168.43.1:8080 or ABCD2345",
-                new Vector2(0f, 1f),
-                new Vector2(1f, 1f),
-                new Vector2(0f, -136f),
-                new Vector2(0f, 56f));
+                "ws://192.168.43.1:7777 or ABCD2345",
+                _canvas);
+            _manualInputRect = ManualInput.GetComponent<RectTransform>();
 
-            MakeButton(
-                "PasteClipboardButton",
-                manualCol,
-                "Paste Clipboard",
-                ButtonSlate,
-                new Vector2(0f, 1f),
-                new Vector2(0.48f, 1f),
-                new Vector2(0f, -210f),
-                new Vector2(0f, 52f),
-                PasteFromClipboard);
-
-            MakeButton(
-                "UseManualCodeButton",
-                manualCol,
-                "Connect / Use",
-                ButtonOrange,
-                new Vector2(0.52f, 1f),
-                new Vector2(1f, 1f),
-                new Vector2(0f, -210f),
-                new Vector2(0f, 52f),
-                SubmitManualInput);
-
-            StatusLabel = Ui.MakeText("ScanStatus", manualCol, "", 17, CardBorder, TextAnchor.UpperLeft);
+            StatusLabel = Ui.MakeText("ScanStatus", _manualCol, "", 18, CardBorder, TextAnchor.UpperLeft);
             StatusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-            RectTransform stRect = StatusLabel.rectTransform;
-            stRect.anchorMin = new Vector2(0f, 0f);
-            stRect.anchorMax = new Vector2(1f, 0f);
-            stRect.pivot = new Vector2(0.5f, 0f);
-            stRect.anchoredPosition = new Vector2(0f, 16f);
-            stRect.sizeDelta = new Vector2(0f, 120f);
+            StatusLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            StatusLabel.resizeTextForBestFit = true;
+            StatusLabel.resizeTextMinSize = 13;
+            StatusLabel.resizeTextMaxSize = 18;
+            SyncOutlineForColor(StatusLabel, CardBorder);
+            _scanStatusRect = StatusLabel.rectTransform;
+
+            Button pasteBtn = MakeButton(
+                "PasteClipboardButton",
+                footerParent,
+                "Paste",
+                ButtonSlate,
+                Ui.Cream,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                Vector2.zero,
+                new Vector2(180f, 96f),
+                PasteFromClipboard);
+            _pasteBtnRect = pasteBtn.GetComponent<RectTransform>();
+
+            Button connectBtn = MakeButton(
+                "UseManualCodeButton",
+                footerParent,
+                "Connect",
+                ButtonOrange,
+                Ui.Cream,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                Vector2.zero,
+                new Vector2(180f, 96f),
+                SubmitManualInput);
+            _connectBtnRect = connectBtn.GetComponent<RectTransform>();
 
             if (Application.isPlaying)
                 StartCamera();
             else
-                SetCameraMessage("Camera preview runs in Play Mode / on device. Manual input is ready.");
+                SetCameraMessage("Camera preview runs on device. Manual input is ready.");
+        }
+
+        /// <summary>Reflows modal card, columns, QR/camera frames, and >= 48 dp action footer across 21:9, 16:9, notched, and 4:3 viewports.</summary>
+        public void RefreshLayout()
+        {
+            if (!_built || _inLayout || _borderRect == null) return;
+            _inLayout = true;
+            try
+            {
+                if (_canvas == null && Root != null)
+                    _canvas = Root.GetComponentInParent<Canvas>();
+
+                Vector2 safe = ScreenFitMetrics.SafeCanvasSize(_canvas);
+                float minTouch = ScreenFitMetrics.ClampTouchSize(48f, ScreenFitMetrics.MinTouchDp, _canvas);
+                float gutter = Mathf.Max(14f, ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinGutterDp, _canvas));
+
+                float targetMaxW = (_hasShare && _includeScanner)
+                    ? 1160f
+                    : (_includeScanner ? 920f : 560f);
+                float cardBorderW = Mathf.Clamp(safe.x - 24f, Mathf.Min(safe.x - 12f, 480f), targetMaxW);
+                float cardBorderH = Mathf.Clamp(safe.y - 20f, Mathf.Min(safe.y - 12f, 500f), 656f);
+                _borderRect.sizeDelta = new Vector2(cardBorderW, cardBorderH);
+
+                float cardW = Mathf.Max(320f, cardBorderW - 8f);
+                float cardH = Mathf.Max(320f, cardBorderH - 8f);
+                float padX = 18f;
+                float innerW = Mathf.Max(260f, cardW - padX * 2f);
+
+                float headerH = Mathf.Max(104f, minTouch + 16f);
+                float footerH = Mathf.Max(108f, minTouch + 20f);
+                _headerRow.sizeDelta = new Vector2(0f, headerH);
+                _footerRow.sizeDelta = new Vector2(0f, footerH);
+
+                float closeW = Mathf.Max(minTouch, 132f);
+                if (_closeBtnRect != null)
+                {
+                    _closeBtnRect.anchorMin = new Vector2(1f, 0.5f);
+                    _closeBtnRect.anchorMax = new Vector2(1f, 0.5f);
+                    _closeBtnRect.pivot = new Vector2(1f, 0.5f);
+                    _closeBtnRect.anchoredPosition = new Vector2(-padX, 0f);
+                    _closeBtnRect.sizeDelta = new Vector2(closeW, minTouch);
+                }
+                if (_headerTitleRect != null)
+                {
+                    _headerTitleRect.anchorMin = new Vector2(0f, 0f);
+                    _headerTitleRect.anchorMax = new Vector2(1f, 1f);
+                    _headerTitleRect.pivot = new Vector2(0.5f, 0.5f);
+                    _headerTitleRect.offsetMin = new Vector2(padX + 2f, 8f);
+                    _headerTitleRect.offsetMax = new Vector2(-(padX + closeW + gutter), -8f);
+                }
+
+                _bodyRect.anchorMin = Vector2.zero;
+                _bodyRect.anchorMax = Vector2.one;
+                _bodyRect.offsetMin = new Vector2(padX, footerH + 8f);
+                _bodyRect.offsetMax = new Vector2(-padX, -(headerH + 8f));
+                float bodyH = Mathf.Max(180f, cardH - headerH - footerH - 16f);
+
+                if (_hasShare && !_includeScanner)
+                {
+                    LayoutShareColumn(0f, innerW, bodyH, padX, minTouch);
+                }
+                else if (!_hasShare && _includeScanner)
+                {
+                    float avail = Mathf.Max(200f, innerW - gutter);
+                    float manW = Mathf.Max(minTouch * 2f + gutter, avail * 0.54f);
+                    float camW = Mathf.Max(minTouch, avail - manW);
+                    manW = Mathf.Max(minTouch * 2f + gutter, avail - camW);
+                    LayoutCameraColumn(0f, camW, bodyH, padX, minTouch);
+                    LayoutManualColumn(camW + gutter, manW, bodyH, padX, minTouch, gutter);
+                }
+                else if (_hasShare && _includeScanner)
+                {
+                    float avail = Mathf.Max(260f, innerW - gutter * 2f);
+                    float minManW = minTouch * 2f + gutter + 16f;
+                    float manW = Mathf.Max(minManW, avail * 0.38f);
+                    float rem = Mathf.Max(minTouch * 2f, avail - manW);
+                    float shareW = rem * 0.5f;
+                    float camW = rem - shareW;
+                    LayoutShareColumn(0f, shareW, bodyH, padX, minTouch);
+                    LayoutCameraColumn(shareW + gutter, camW, bodyH, padX, minTouch);
+                    LayoutManualColumn(shareW + gutter + camW + gutter, manW, bodyH, padX, minTouch, gutter);
+                }
+            }
+            finally
+            {
+                _inLayout = false;
+            }
+        }
+
+        void LayoutShareColumn(float colX, float colW, float bodyH, float footerPadX, float minTouch)
+        {
+            if (_shareCol == null) return;
+            _shareCol.anchorMin = new Vector2(0f, 0f);
+            _shareCol.anchorMax = new Vector2(0f, 1f);
+            _shareCol.pivot = new Vector2(0f, 0.5f);
+            _shareCol.offsetMin = new Vector2(colX, 0f);
+            _shareCol.offsetMax = new Vector2(colX + colW, 0f);
+
+            float qrSize = Mathf.Clamp(Mathf.Min(colW - 8f, bodyH - 116f), 136f, 252f);
+            if (_qrFrame != null)
+            {
+                _qrFrame.anchorMin = new Vector2(0.5f, 1f);
+                _qrFrame.anchorMax = new Vector2(0.5f, 1f);
+                _qrFrame.pivot = new Vector2(0.5f, 1f);
+                _qrFrame.anchoredPosition = new Vector2(0f, -4f);
+                _qrFrame.sizeDelta = new Vector2(qrSize, qrSize);
+            }
+
+            float capTop = qrSize + 8f;
+            float capH = Mathf.Clamp(bodyH - capTop - 36f, 68f, 92f);
+            if (_shareCaptionRect != null)
+            {
+                _shareCaptionRect.anchorMin = new Vector2(0f, 1f);
+                _shareCaptionRect.anchorMax = new Vector2(1f, 1f);
+                _shareCaptionRect.pivot = new Vector2(0.5f, 1f);
+                _shareCaptionRect.offsetMin = new Vector2(4f, -(capTop + capH));
+                _shareCaptionRect.offsetMax = new Vector2(-4f, -capTop);
+            }
+            if (_shareStatusRect != null)
+            {
+                float stTop = capTop + capH + 4f;
+                float stH = Mathf.Max(26f, bodyH - stTop - 2f);
+                _shareStatusRect.anchorMin = new Vector2(0f, 1f);
+                _shareStatusRect.anchorMax = new Vector2(1f, 1f);
+                _shareStatusRect.pivot = new Vector2(0.5f, 1f);
+                _shareStatusRect.offsetMin = new Vector2(4f, -(stTop + stH));
+                _shareStatusRect.offsetMax = new Vector2(-4f, -stTop);
+            }
+            if (_copyBtnRect != null)
+            {
+                float btnW = Mathf.Clamp(colW, minTouch, 310f);
+                float btnX = footerPadX + colX + (colW - btnW) * 0.5f;
+                _copyBtnRect.anchorMin = new Vector2(0f, 0.5f);
+                _copyBtnRect.anchorMax = new Vector2(0f, 0.5f);
+                _copyBtnRect.pivot = new Vector2(0f, 0.5f);
+                _copyBtnRect.anchoredPosition = new Vector2(btnX, 0f);
+                _copyBtnRect.sizeDelta = new Vector2(btnW, minTouch);
+            }
+        }
+
+        void LayoutCameraColumn(float colX, float colW, float bodyH, float footerPadX, float minTouch)
+        {
+            if (_camCol == null) return;
+            _camCol.anchorMin = new Vector2(0f, 0f);
+            _camCol.anchorMax = new Vector2(0f, 1f);
+            _camCol.pivot = new Vector2(0f, 0.5f);
+            _camCol.offsetMin = new Vector2(colX, 0f);
+            _camCol.offsetMax = new Vector2(colX + colW, 0f);
+
+            float camSize = Mathf.Clamp(Mathf.Min(colW - 8f, bodyH - 96f), 136f, 256f);
+            if (_camFrame != null)
+            {
+                _camFrame.anchorMin = new Vector2(0.5f, 1f);
+                _camFrame.anchorMax = new Vector2(0.5f, 1f);
+                _camFrame.pivot = new Vector2(0.5f, 1f);
+                _camFrame.anchoredPosition = new Vector2(0f, -4f);
+                _camFrame.sizeDelta = new Vector2(camSize, camSize);
+            }
+            if (_cameraHintRect != null)
+            {
+                float hintTop = camSize + 10f;
+                _cameraHintRect.anchorMin = new Vector2(0f, 0f);
+                _cameraHintRect.anchorMax = new Vector2(1f, 1f);
+                _cameraHintRect.pivot = new Vector2(0.5f, 1f);
+                _cameraHintRect.offsetMin = new Vector2(4f, 4f);
+                _cameraHintRect.offsetMax = new Vector2(-4f, -hintTop);
+            }
+            if (_startCamBtnRect != null)
+            {
+                float btnW = Mathf.Clamp(colW, minTouch, 310f);
+                float btnX = footerPadX + colX + (colW - btnW) * 0.5f;
+                _startCamBtnRect.anchorMin = new Vector2(0f, 0.5f);
+                _startCamBtnRect.anchorMax = new Vector2(0f, 0.5f);
+                _startCamBtnRect.pivot = new Vector2(0f, 0.5f);
+                _startCamBtnRect.anchoredPosition = new Vector2(btnX, 0f);
+                _startCamBtnRect.sizeDelta = new Vector2(btnW, minTouch);
+            }
+        }
+
+        void LayoutManualColumn(float colX, float colW, float bodyH, float footerPadX, float minTouch, float gutter)
+        {
+            if (_manualCol == null) return;
+            _manualCol.anchorMin = new Vector2(0f, 0f);
+            _manualCol.anchorMax = new Vector2(0f, 1f);
+            _manualCol.pivot = new Vector2(0f, 0.5f);
+            _manualCol.offsetMin = new Vector2(colX, 0f);
+            _manualCol.offsetMax = new Vector2(colX + colW, 0f);
+
+            float y = 4f;
+            if (_manualTitleRect != null)
+            {
+                _manualTitleRect.anchorMin = new Vector2(0f, 1f);
+                _manualTitleRect.anchorMax = new Vector2(1f, 1f);
+                _manualTitleRect.pivot = new Vector2(0.5f, 1f);
+                _manualTitleRect.offsetMin = new Vector2(0f, -(y + 34f));
+                _manualTitleRect.offsetMax = new Vector2(0f, -y);
+                y += 38f;
+            }
+            if (_manualHelpRect != null)
+            {
+                float helpH = Mathf.Clamp(bodyH * 0.22f, 76f, 92f);
+                _manualHelpRect.anchorMin = new Vector2(0f, 1f);
+                _manualHelpRect.anchorMax = new Vector2(1f, 1f);
+                _manualHelpRect.pivot = new Vector2(0.5f, 1f);
+                _manualHelpRect.offsetMin = new Vector2(0f, -(y + helpH));
+                _manualHelpRect.offsetMax = new Vector2(0f, -y);
+                y += helpH + 8f;
+            }
+            if (_manualInputRect != null)
+            {
+                _manualInputRect.anchorMin = new Vector2(0f, 1f);
+                _manualInputRect.anchorMax = new Vector2(1f, 1f);
+                _manualInputRect.pivot = new Vector2(0.5f, 1f);
+                _manualInputRect.offsetMin = new Vector2(0f, -(y + minTouch));
+                _manualInputRect.offsetMax = new Vector2(0f, -y);
+                y += minTouch + 10f;
+            }
+            if (_scanStatusRect != null)
+            {
+                _scanStatusRect.anchorMin = new Vector2(0f, 0f);
+                _scanStatusRect.anchorMax = new Vector2(1f, 1f);
+                _scanStatusRect.pivot = new Vector2(0.5f, 1f);
+                _scanStatusRect.offsetMin = new Vector2(0f, 4f);
+                _scanStatusRect.offsetMax = new Vector2(0f, -y);
+            }
+
+            float pairW = Mathf.Max(minTouch, (colW - gutter) * 0.5f);
+            float baseFooterX = footerPadX + colX;
+            if (_pasteBtnRect != null)
+            {
+                _pasteBtnRect.anchorMin = new Vector2(0f, 0.5f);
+                _pasteBtnRect.anchorMax = new Vector2(0f, 0.5f);
+                _pasteBtnRect.pivot = new Vector2(0f, 0.5f);
+                _pasteBtnRect.anchoredPosition = new Vector2(baseFooterX, 0f);
+                _pasteBtnRect.sizeDelta = new Vector2(pairW, minTouch);
+            }
+            if (_connectBtnRect != null)
+            {
+                _connectBtnRect.anchorMin = new Vector2(0f, 0.5f);
+                _connectBtnRect.anchorMax = new Vector2(0f, 0.5f);
+                _connectBtnRect.pivot = new Vector2(0f, 0.5f);
+                _connectBtnRect.anchoredPosition = new Vector2(baseFooterX + pairW + gutter, 0f);
+                _connectBtnRect.sizeDelta = new Vector2(pairW, minTouch);
+            }
         }
 
         /// <summary>Updates the displayed QR sprite in Share mode without leaking previous textures.</summary>
         public void SetSharePayload(string payload, int scale = 6, int quietZone = 2)
         {
+            _sharePayloadText = payload ?? "";
             ReleaseOwnedQrAssets();
-            _ownedQrTexture = EncodeTexture(payload ?? "", scale, quietZone);
+            _ownedQrTexture = EncodeTexture(_sharePayloadText, scale, quietZone);
             if (_ownedQrTexture != null)
             {
                 _ownedQrSprite = Sprite.Create(
@@ -690,6 +1054,7 @@ namespace Kalyeah.Game
         {
             _waitingForAndroidPermission = false;
             _wantedCameraBeforePause = false;
+            UnsubscribeViewport();
             StopCamera();
             ReleaseOwnedQrAssets();
             Action closed = _onClosed;
@@ -703,8 +1068,21 @@ namespace Kalyeah.Game
             closed?.Invoke();
         }
 
+        void OnEnable()
+        {
+            SubscribeViewport();
+            RefreshLayout();
+        }
+
+        void OnRectTransformDimensionsChange()
+        {
+            RefreshLayout();
+        }
+
         void Update()
         {
+            if (!Application.isPlaying) return;
+
             if (_waitingForAndroidPermission && AndroidLocalLink.HasCameraPermission())
             {
                 _waitingForAndroidPermission = false;
@@ -759,14 +1137,32 @@ namespace Kalyeah.Game
 
         void OnDisable()
         {
+            UnsubscribeViewport();
             StopCamera();
         }
 
         void OnDestroy()
         {
+            UnsubscribeViewport();
             StopCamera();
             ReleaseOwnedQrAssets();
         }
+
+        void SubscribeViewport()
+        {
+            if (_subscribedViewport) return;
+            ScreenFitMetrics.SimulatedViewportChanged += OnSimulatedViewportChanged;
+            _subscribedViewport = true;
+        }
+
+        void UnsubscribeViewport()
+        {
+            if (!_subscribedViewport) return;
+            ScreenFitMetrics.SimulatedViewportChanged -= OnSimulatedViewportChanged;
+            _subscribedViewport = false;
+        }
+
+        void OnSimulatedViewportChanged() => RefreshLayout();
 
         void SetCameraMessage(string text)
         {
@@ -777,7 +1173,9 @@ namespace Kalyeah.Game
         void SetStatus(string text, bool isError)
         {
             if (StatusLabel == null) return;
-            StatusLabel.color = isError ? ErrorCoral : CardBorder;
+            Color c = isError ? ErrorCoral : CardBorder;
+            StatusLabel.color = c;
+            SyncOutlineForColor(StatusLabel, c);
             StatusLabel.text = text ?? "";
         }
 
@@ -804,11 +1202,32 @@ namespace Kalyeah.Game
             else DestroyImmediate(obj);
         }
 
-        static Button MakeButton(
+        static void ApplySlicedPlate(Image img, Color color)
+        {
+            if (img == null) return;
+            Sprite rounded = MenuStack.RoundedSprite();
+            if (rounded != null)
+            {
+                img.sprite = rounded;
+                img.type = Image.Type.Sliced;
+            }
+            img.color = color;
+        }
+
+        static void SyncOutlineForColor(Text label, Color c)
+        {
+            if (label == null) return;
+            Outline ol = label.GetComponent<Outline>();
+            if (ol != null)
+                ol.enabled = (0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b) >= 0.25f;
+        }
+
+        Button MakeButton(
             string name,
             Transform parent,
             string label,
             Color bgColor,
+            Color textColor,
             Vector2 anchorMin,
             Vector2 anchorMax,
             Vector2 anchoredPos,
@@ -816,8 +1235,8 @@ namespace Kalyeah.Game
             Action onClick)
         {
             Vector2 safeSize = anchorMin.x == anchorMax.x
-                ? ScreenFitMetrics.ClampTouchSize(size)
-                : new Vector2(size.x, ScreenFitMetrics.ClampTouchSize(size.y));
+                ? ScreenFitMetrics.ClampTouchSize(size, ScreenFitMetrics.MinTouchDp, _canvas)
+                : new Vector2(size.x, ScreenFitMetrics.ClampTouchSize(size.y, ScreenFitMetrics.MinTouchDp, _canvas));
 
             Vector2 pivot = new Vector2(
                 anchorMin.x == anchorMax.x ? anchorMin.x : 0.5f,
@@ -825,18 +1244,29 @@ namespace Kalyeah.Game
 
             RectTransform rect = Ui.Panel(name, parent, anchorMin, anchorMax, pivot, anchoredPos, safeSize);
             Image bg = rect.gameObject.AddComponent<Image>();
-            bg.color = bgColor;
+            ApplySlicedPlate(bg, bgColor);
             bg.raycastTarget = true;
 
             Button btn = rect.gameObject.AddComponent<Button>();
             btn.targetGraphic = bg;
+            ColorBlock cb = btn.colors;
+            cb.disabledColor = new Color(1f, 1f, 1f, 0.55f);
+            btn.colors = cb;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
 
-            Text txt = Ui.MakeText("Label", rect, label, 19, Ui.Cream, TextAnchor.MiddleCenter);
+            Text txt = Ui.MakeText("Label", rect, label, 20, textColor, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            txt.raycastTarget = false;
+            txt.resizeTextForBestFit = true;
+            txt.resizeTextMinSize = 14;
+            txt.resizeTextMaxSize = 21;
+            txt.horizontalOverflow = HorizontalWrapMode.Wrap;
+            txt.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(txt, textColor);
             RectTransform tr = txt.rectTransform;
             tr.anchorMin = Vector2.zero;
             tr.anchorMax = Vector2.one;
-            tr.sizeDelta = new Vector2(-12f, -4f);
+            tr.offsetMin = new Vector2(12f, 4f);
+            tr.offsetMax = new Vector2(-12f, -4f);
             return btn;
         }
 
@@ -845,36 +1275,45 @@ namespace Kalyeah.Game
             Transform parent,
             string initialValue,
             string placeholderText,
-            Vector2 anchorMin,
-            Vector2 anchorMax,
-            Vector2 anchoredPos,
-            Vector2 size)
+            Canvas canvas)
         {
+            float touchH = ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, canvas);
             RectTransform rect = Ui.Panel(
                 name,
                 parent,
-                anchorMin,
-                anchorMax,
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
                 new Vector2(0.5f, 1f),
-                anchoredPos,
-                new Vector2(size.x, ScreenFitMetrics.ClampTouchSize(size.y)));
+                Vector2.zero,
+                new Vector2(0f, touchH));
             Image bg = rect.gameObject.AddComponent<Image>();
-            bg.color = SurfaceDark;
+            ApplySlicedPlate(bg, SurfaceDark);
             bg.raycastTarget = true;
 
-            Text placeholder = Ui.MakeText("Placeholder", rect, placeholderText, 18, new Color(0.55f, 0.62f, 0.76f, 0.85f), TextAnchor.MiddleLeft);
+            Text placeholder = Ui.MakeText("Placeholder", rect, placeholderText, 18, new Color(0.64f, 0.72f, 0.86f, 0.88f), TextAnchor.MiddleLeft);
+            placeholder.raycastTarget = false;
+            placeholder.resizeTextForBestFit = true;
+            placeholder.resizeTextMinSize = 13;
+            placeholder.resizeTextMaxSize = 18;
+            placeholder.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(placeholder, placeholder.color);
             RectTransform phRect = placeholder.rectTransform;
             phRect.anchorMin = Vector2.zero;
             phRect.anchorMax = Vector2.one;
-            phRect.sizeDelta = new Vector2(-24f, -8f);
+            phRect.offsetMin = new Vector2(14f, 6f);
+            phRect.offsetMax = new Vector2(-14f, -6f);
 
             Text valueText = Ui.MakeText("Text", rect, initialValue ?? "", 20, Ui.Cream, TextAnchor.MiddleLeft);
+            valueText.raycastTarget = false;
             valueText.supportRichText = false;
             valueText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            valueText.verticalOverflow = VerticalWrapMode.Truncate;
+            SyncOutlineForColor(valueText, Ui.Cream);
             RectTransform vtRect = valueText.rectTransform;
             vtRect.anchorMin = Vector2.zero;
             vtRect.anchorMax = Vector2.one;
-            vtRect.sizeDelta = new Vector2(-24f, -8f);
+            vtRect.offsetMin = new Vector2(14f, 6f);
+            vtRect.offsetMax = new Vector2(-14f, -6f);
 
             InputField field = rect.gameObject.AddComponent<InputField>();
             field.targetGraphic = bg;

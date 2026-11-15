@@ -184,7 +184,7 @@ namespace Kalyeah.Game
         const int TumbangRollLaps = 2;
         const float TumbangRollCurve = 1.6f;
         const float TumbangRollFinishShare = 0.78f;
-        const float TumbangRollTotalSeconds = 2.35f;
+        const float TumbangRollTotalSeconds = 2.20f;
 
         static Sprite s_brownoutHoleSprite;
 
@@ -228,6 +228,7 @@ namespace Kalyeah.Game
         float _brownoutShadeStrength;
 
         readonly GameObject _brownoutBannerObj;
+        readonly RectTransform _brownoutBannerRect;
         readonly Image _brownoutBannerBg;
         readonly Text _brownoutBannerText;
         float _lightsOnFlashLeft;
@@ -268,9 +269,18 @@ namespace Kalyeah.Game
         readonly GameObject _tayaCornerBadge;
         readonly Text _tayaCornerText;
 
-        // Leave confirmation & Match over modals
+        // Leave confirmation & Match over modals (full-bleed scrim on Canvas + SafeArea card container)
         readonly GameObject _leaveConfirmRoot;
+        readonly SafeArea _leaveModalSafe;
+        readonly RectTransform _leaveCardRect;
+        readonly RectTransform _leaveResumeBtnRect;
+        readonly RectTransform _leaveConfirmBtnRect;
+
         readonly GameObject _matchOverRoot;
+        readonly SafeArea _matchOverModalSafe;
+        readonly RectTransform _matchOverCardRect;
+        readonly RectTransform _matchOverPlayAgainBtnRect;
+        readonly RectTransform _matchOverHomeBtnRect;
         readonly Text _matchOverHeadline;
         readonly Text _matchOverSubhead;
         readonly Text _matchOverLpText;
@@ -298,6 +308,8 @@ namespace Kalyeah.Game
         public RectTransform LeaveButtonRect => _leaveButtonRect;
         public RectTransform RolePillRect => _rolePillRect;
         public RectTransform StatusHintPillRect => _statusHintPillRect;
+        public RectTransform CancelZoneRect => _cancelZoneRect;
+        public RectTransform TumbangRollRect => _tumbangRollRect;
         public RectTransform PrimaryButtonRect => _primaryBtnRect;
         public RectTransform SecondaryButtonRect => _secondaryBtnRect;
 
@@ -367,29 +379,38 @@ namespace Kalyeah.Game
 
             Font displayFont = KalyeahResources.DisplayFont();
             Sprite navyPillSprite = KomiksUi.BorderedSprite(KomiksUi.RadiusM, 2, NavyPillBg, NavyPillBorder, topGloss: true);
+            Sprite modalCardSprite = KomiksUi.BorderedSprite(KomiksUi.RadiusL, 3, NavyPillBg, NavyPillBorder, topGloss: true);
             Sprite roundedWhiteSprite = KomiksUi.RoundedSprite(KomiksUi.RadiusM);
 
-            // 1. Top-Center Score Header + 6 px Spaced Dark Navy Timer Pill
-            _headerRect = Ui.Panel("Header", Safe, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(332f, 76f));
+            // 1. Top-Center Score Header + 4 px Spaced Dark Navy Timer Pill (compact so TumbangRoll fits outside sightbox)
+            _headerRect = Ui.Panel("Header", Safe, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -6f), new Vector2(316f, 56f));
             Image headerPlate = MakeSlicedPill("Plate", _headerRect, navyPillSprite, Color.white, raycast: false);
             StretchFull(headerPlate.rectTransform);
 
-            _modeTitleText = Ui.MakeText("ModeTitle", _headerRect, "", 18, GoldText, TextAnchor.UpperCenter, displayFont);
+            _modeTitleText = Ui.MakeText("ModeTitle", _headerRect, "", 16, GoldText, TextAnchor.UpperCenter, displayFont);
+            _modeTitleText.raycastTarget = false;
+            _modeTitleText.resizeTextForBestFit = true;
+            _modeTitleText.resizeTextMinSize = 12;
+            _modeTitleText.resizeTextMaxSize = 16;
             RectTransform modeTitleRt = _modeTitleText.rectTransform;
             modeTitleRt.anchorMin = Vector2.zero;
             modeTitleRt.anchorMax = Vector2.one;
-            modeTitleRt.offsetMin = new Vector2(10f, 0f);
-            modeTitleRt.offsetMax = new Vector2(-10f, -6f);
+            modeTitleRt.offsetMin = new Vector2(12f, 30f);
+            modeTitleRt.offsetMax = new Vector2(-12f, -4f);
 
-            _scoreText = Ui.MakeText("Score", _headerRect, "0 - 0", 28, Ui.Cream, TextAnchor.MiddleCenter, displayFont);
+            _scoreText = Ui.MakeText("Score", _headerRect, "0 - 0", 25, Ui.Cream, TextAnchor.MiddleCenter, displayFont);
+            _scoreText.raycastTarget = false;
+            _scoreText.resizeTextForBestFit = true;
+            _scoreText.resizeTextMinSize = 16;
+            _scoreText.resizeTextMaxSize = 25;
             RectTransform scoreRt = _scoreText.rectTransform;
             scoreRt.anchorMin = Vector2.zero;
             scoreRt.anchorMax = Vector2.one;
-            scoreRt.offsetMin = new Vector2(10f, 12f);
-            scoreRt.offsetMax = new Vector2(-10f, -24f);
+            scoreRt.offsetMin = new Vector2(12f, 6f);
+            scoreRt.offsetMax = new Vector2(-12f, -22f);
 
             // Patintero stall bar tucked along bottom inside edge of header
-            RectTransform stallTrack = Ui.Panel("StallTrack", _headerRect, new Vector2(0.08f, 0f), new Vector2(0.92f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 4f), new Vector2(0f, 5f));
+            RectTransform stallTrack = Ui.Panel("StallTrack", _headerRect, new Vector2(0.08f, 0f), new Vector2(0.92f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 3f), new Vector2(0f, 4f));
             Ui.MakeImage("TrackBg", stallTrack, new Color(0f, 0f, 0f, 0.45f)).rectTransform.sizeDelta = Vector2.zero;
             StretchFull(stallTrack.GetChild(0) as RectTransform);
             Image stallFill = Ui.MakeImage("StallFill", stallTrack, new Color(1f, 0.72f, 0.22f, 0.95f));
@@ -401,67 +422,98 @@ namespace Kalyeah.Game
             _stallBarRoot = stallTrack.gameObject;
             _stallBarRoot.SetActive(false);
 
-            // Timer pill spaced exactly 6 px below _headerRect (-8 - 76 - 6 = -90)
-            _timerPillRect = Ui.Panel("TimerPill", Safe, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -90f), new Vector2(132f, 32f));
+            // Timer pill spaced 4 px below _headerRect (-6 - 56 - 4 = -66)
+            _timerPillRect = Ui.Panel("TimerPill", Safe, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -66f), new Vector2(128f, 28f));
             Image timerPillBg = MakeSlicedPill("TimerBg", _timerPillRect, navyPillSprite, Color.white, raycast: false);
             StretchFull(timerPillBg.rectTransform);
-            _timerText = Ui.MakeText("Timer", _timerPillRect, "5:00", 21, Ui.Cream, TextAnchor.MiddleCenter, displayFont);
+            _timerText = Ui.MakeText("Timer", _timerPillRect, "5:00", 19, Ui.Cream, TextAnchor.MiddleCenter, displayFont);
             _timerText.fontStyle = FontStyle.Bold;
-            StretchFull(_timerText.rectTransform);
+            _timerText.raycastTarget = false;
+            RectTransform timerTextRt = _timerText.rectTransform;
+            timerTextRt.anchorMin = Vector2.zero;
+            timerTextRt.anchorMax = Vector2.one;
+            timerTextRt.offsetMin = new Vector2(8f, 2f);
+            timerTextRt.offsetMax = new Vector2(-8f, -2f);
 
-            // 2. Top-Left Pause/Leave Button + Role Pill + Dark Navy Tactical Hint Pill
+            // 2. Top-Left "|| PAUSE" Button (>= 48 dp) + Role Pill + Padded Dark Navy Tactical Hint Pill (>= 8 dp gap below)
             _leaveButtonRect = BuildPillButton(
                 Safe,
                 "PauseButton",
-                "II LEAVE",
+                "|| PAUSE",
                 new Vector2(0f, 1f),
                 new Vector2(0f, 1f),
-                new Vector2(14f, -10f),
-                new Vector2(104f, 48f),
+                new Vector2(14f, -8f),
+                new Vector2(126f, 96f),
                 navyPillSprite,
                 Color.white,
                 displayFont,
-                19,
+                20,
                 interactive,
                 () => ToggleLeaveConfirm());
 
-            _rolePillRect = Ui.Panel("RolePill", Safe, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(126f, -10f), new Vector2(144f, 48f));
+            _rolePillRect = Ui.Panel("RolePill", Safe, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(150f, -8f), new Vector2(134f, 52f));
             _rolePillBg = MakeSlicedPill("RoleBg", _rolePillRect, roundedWhiteSprite, RunnerPillBg, raycast: false);
             StretchFull(_rolePillBg.rectTransform);
-            _rolePillText = Ui.MakeText("RoleLabel", _rolePillRect, "RUNNER", 23, Color.white, TextAnchor.MiddleCenter, displayFont);
-            StretchFull(_rolePillText.rectTransform);
+            _rolePillText = Ui.MakeText("RoleLabel", _rolePillRect, "RUNNER", 21, Color.white, TextAnchor.MiddleCenter, displayFont);
+            _rolePillText.raycastTarget = false;
+            _rolePillText.resizeTextForBestFit = true;
+            _rolePillText.resizeTextMinSize = 14;
+            _rolePillText.resizeTextMaxSize = 21;
+            RectTransform roleLabelRt = _rolePillText.rectTransform;
+            roleLabelRt.anchorMin = Vector2.zero;
+            roleLabelRt.anchorMax = Vector2.one;
+            roleLabelRt.offsetMin = new Vector2(10f, 4f);
+            roleLabelRt.offsetMax = new Vector2(-10f, -4f);
 
-            _statusHintPillRect = Ui.Panel("StatusHintPill", Safe, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -64f), new Vector2(360f, 36f));
+            _statusHintPillRect = Ui.Panel("StatusHintPill", Safe, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -120f), new Vector2(360f, 38f));
             Image hintBg = MakeSlicedPill("HintBg", _statusHintPillRect, navyPillSprite, Color.white, raycast: false);
             StretchFull(hintBg.rectTransform);
-            _statusHintText = Ui.MakeText("StatusHint", _statusHintPillRect, "", 18, Ui.Cream, TextAnchor.MiddleLeft);
+            _statusHintText = Ui.MakeText("StatusHint", _statusHintPillRect, "", 17, Ui.Cream, TextAnchor.MiddleLeft);
             _statusHintText.fontStyle = FontStyle.Bold;
+            _statusHintText.raycastTarget = false;
             _statusHintText.horizontalOverflow = HorizontalWrapMode.Overflow;
-            _statusHintText.verticalOverflow = VerticalWrapMode.Overflow;
+            _statusHintText.verticalOverflow = VerticalWrapMode.Truncate;
             _statusHintText.resizeTextForBestFit = true;
-            _statusHintText.resizeTextMinSize = 12;
-            _statusHintText.resizeTextMaxSize = 18;
+            _statusHintText.resizeTextMinSize = 13;
+            _statusHintText.resizeTextMaxSize = 17;
             RectTransform hintTextRect = _statusHintText.rectTransform;
             hintTextRect.anchorMin = Vector2.zero;
             hintTextRect.anchorMax = Vector2.one;
-            hintTextRect.offsetMin = new Vector2(14f, 2f);
-            hintTextRect.offsetMax = new Vector2(-14f, -2f);
+            hintTextRect.offsetMin = new Vector2(18f, 4f);
+            hintTextRect.offsetMax = new Vector2(-18f, -4f);
 
-            // 3. Brownout Alert Pill (top-right corner during Langit Lupa, completely clear of Header, HintPill, and center sightbox)
-            RectTransform brownoutRect = Ui.Panel("BrownoutAlert", Safe, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-16f, -10f), new Vector2(276f, 44f));
-            _brownoutBannerBg = MakeSlicedPill("AlertBg", brownoutRect, roundedWhiteSprite, BrownoutAlertBg, raycast: false);
+            // 3. Brownout Alert Pill (top-right corner during Langit Lupa, clear of Header, CancelZone, and center sightbox)
+            _brownoutBannerRect = Ui.Panel("BrownoutAlert", Safe, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-16f, -8f), new Vector2(276f, 44f));
+            _brownoutBannerBg = MakeSlicedPill("AlertBg", _brownoutBannerRect, roundedWhiteSprite, BrownoutAlertBg, raycast: false);
             StretchFull(_brownoutBannerBg.rectTransform);
-            _brownoutBannerText = Ui.MakeText("AlertText", brownoutRect, "BROWNOUT! 5M SIGHT", 18, GoldText, TextAnchor.MiddleCenter, displayFont);
-            StretchFull(_brownoutBannerText.rectTransform);
-            _brownoutBannerObj = brownoutRect.gameObject;
+            _brownoutBannerText = Ui.MakeText("AlertText", _brownoutBannerRect, "BROWNOUT! 5M SIGHT", 17, GoldText, TextAnchor.MiddleCenter, displayFont);
+            _brownoutBannerText.raycastTarget = false;
+            _brownoutBannerText.resizeTextForBestFit = true;
+            _brownoutBannerText.resizeTextMinSize = 13;
+            _brownoutBannerText.resizeTextMaxSize = 17;
+            RectTransform brownoutTextRt = _brownoutBannerText.rectTransform;
+            brownoutTextRt.anchorMin = Vector2.zero;
+            brownoutTextRt.anchorMax = Vector2.one;
+            brownoutTextRt.offsetMin = new Vector2(14f, 4f);
+            brownoutTextRt.offsetMax = new Vector2(-14f, -4f);
+            _brownoutBannerObj = _brownoutBannerRect.gameObject;
             _brownoutBannerObj.SetActive(false);
 
-            // 4. Top-Right Cancel Zone (shown while holding/dragging Throw; stays top-right free of PauseButton)
-            _cancelZoneRect = Ui.Panel("CancelZone", Safe, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-16f, -12f), new Vector2(224f, 54f));
+            // 4. Cancel Zone (>= 48 dp, mirrored with LeftHanded, spaced >= 8 dp clear of BrownoutAlert & StatusHintPill)
+            _cancelZoneRect = Ui.Panel("CancelZone", Safe, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-16f, -68f), new Vector2(228f, 96f));
             _cancelZoneBg = MakeSlicedPill("CancelBg", _cancelZoneRect, roundedWhiteSprite, CancelIdleBg, raycast: false);
             StretchFull(_cancelZoneBg.rectTransform);
             Text cancelText = Ui.MakeText("CancelLabel", _cancelZoneRect, "RELEASE HERE TO CANCEL", 18, Color.white, TextAnchor.MiddleCenter, displayFont);
-            StretchFull(cancelText.rectTransform);
+            cancelText.fontStyle = FontStyle.Bold;
+            cancelText.raycastTarget = false;
+            cancelText.resizeTextForBestFit = true;
+            cancelText.resizeTextMinSize = 14;
+            cancelText.resizeTextMaxSize = 18;
+            RectTransform cancelTextRt = cancelText.rectTransform;
+            cancelTextRt.anchorMin = Vector2.zero;
+            cancelTextRt.anchorMax = Vector2.one;
+            cancelTextRt.offsetMin = new Vector2(14f, 6f);
+            cancelTextRt.offsetMax = new Vector2(-14f, -6f);
             _cancelZoneRect.gameObject.SetActive(false);
 
             // 5. Right-Thumb Action Cluster (Primary: TSINELAS/THROW; Secondary: SIPA/DIVE/LUPA)
@@ -497,11 +549,16 @@ namespace Kalyeah.Game
             Image tayaChipBg = MakeSlicedPill("Bg", tayaChip, roundedWhiteSprite, new Color(0.42f, 0.10f, 0.14f, 0.90f), raycast: false);
             StretchFull(tayaChipBg.rectTransform);
             _tayaCornerText = Ui.MakeText("Text", tayaChip, "TAYA: TOUCH TO TAG!", 19, Ui.Cream, TextAnchor.MiddleCenter, displayFont);
-            StretchFull(_tayaCornerText.rectTransform);
+            _tayaCornerText.raycastTarget = false;
+            RectTransform tayaTextRt = _tayaCornerText.rectTransform;
+            tayaTextRt.anchorMin = Vector2.zero;
+            tayaTextRt.anchorMax = Vector2.one;
+            tayaTextRt.offsetMin = new Vector2(12f, 4f);
+            tayaTextRt.offsetMax = new Vector2(-12f, -4f);
             _tayaCornerBadge = tayaChip.gameObject;
             _tayaCornerBadge.SetActive(false);
 
-            // 5b. Interactive-only Tumbang Preso opening roulette ("Mataya-taya!")
+            // 5b. Interactive-only Tumbang Preso opening roulette ("Mataya-taya!"), docked below TimerPill outside sightbox
             if (interactive && bridge.Kind == StreetGameKind.TumbangPreso && bridge.Kids != null && bridge.Kids.Count > 0)
             {
                 _tumbangRollRect = BuildTumbangRollBanner(
@@ -525,11 +582,30 @@ namespace Kalyeah.Game
                 }
             }
 
-            // 6. Leave Confirmation Modal & Match Over Summary Modal
-            _leaveConfirmRoot = BuildLeaveConfirmModal(Safe, displayFont, navyPillSprite, roundedWhiteSprite);
+            // 6. Full-bleed Leave Confirmation & Match Over Modals directly under Canvas (full-bleed scrim + SafeArea card)
+            _leaveConfirmRoot = BuildLeaveConfirmModal(
+                Canvas.transform,
+                displayFont,
+                modalCardSprite,
+                roundedWhiteSprite,
+                out _leaveModalSafe,
+                out _leaveCardRect,
+                out _leaveResumeBtnRect,
+                out _leaveConfirmBtnRect);
             _leaveConfirmRoot.SetActive(false);
 
-            _matchOverRoot = BuildMatchOverModal(Safe, displayFont, out _matchOverHeadline, out _matchOverSubhead, out _matchOverLpText);
+            _matchOverRoot = BuildMatchOverModal(
+                Canvas.transform,
+                displayFont,
+                modalCardSprite,
+                roundedWhiteSprite,
+                out _matchOverModalSafe,
+                out _matchOverCardRect,
+                out _matchOverPlayAgainBtnRect,
+                out _matchOverHomeBtnRect,
+                out _matchOverHeadline,
+                out _matchOverSubhead,
+                out _matchOverLpText);
             _matchOverRoot.SetActive(false);
 
             SafeAreaComponent.Changed += OnSafeAreaChanged;
@@ -643,20 +719,37 @@ namespace Kalyeah.Game
                 new Vector2(0.5f, 1f),
                 new Vector2(0.5f, 1f),
                 new Vector2(0.5f, 1f),
-                new Vector2(0f, -132f),
-                new Vector2(548f, 166f));
+                new Vector2(0f, -98f),
+                new Vector2(640f, 74f));
 
             Image bg = MakeSlicedPill("RollBg", banner, navyPillSprite, Color.white, raycast: false);
             StretchFull(bg.rectTransform);
 
-            Text title = Ui.MakeText("Title", banner, "MATAYA-TAYA!", 21, GoldText, TextAnchor.UpperCenter, displayFont);
+            // Left status column ("MATAYA-TAYA!" + live roulette / landed result)
+            Text title = Ui.MakeText("Title", banner, "MATAYA-TAYA!", 18, GoldText, TextAnchor.UpperLeft, displayFont);
             title.raycastTarget = false;
+            title.resizeTextForBestFit = true;
+            title.resizeTextMinSize = 13;
+            title.resizeTextMaxSize = 18;
             RectTransform titleRt = title.rectTransform;
-            titleRt.anchorMin = new Vector2(0f, 1f);
-            titleRt.anchorMax = new Vector2(1f, 1f);
-            titleRt.pivot = new Vector2(0.5f, 1f);
-            titleRt.anchoredPosition = new Vector2(0f, -8f);
-            titleRt.sizeDelta = new Vector2(-20f, 26f);
+            titleRt.anchorMin = new Vector2(0f, 0.5f);
+            titleRt.anchorMax = new Vector2(0f, 1f);
+            titleRt.pivot = new Vector2(0f, 1f);
+            titleRt.offsetMin = new Vector2(16f, 2f);
+            titleRt.offsetMax = new Vector2(180f, -8f);
+
+            whoText = Ui.MakeText("WhoLabel", banner, "", 18, Ui.Cream, TextAnchor.LowerLeft, displayFont);
+            whoText.fontStyle = FontStyle.Bold;
+            whoText.raycastTarget = false;
+            whoText.resizeTextForBestFit = true;
+            whoText.resizeTextMinSize = 13;
+            whoText.resizeTextMaxSize = 18;
+            RectTransform whoRt = whoText.rectTransform;
+            whoRt.anchorMin = new Vector2(0f, 0f);
+            whoRt.anchorMax = new Vector2(0f, 0.52f);
+            whoRt.pivot = new Vector2(0f, 0f);
+            whoRt.offsetMin = new Vector2(16f, 8f);
+            whoRt.offsetMax = new Vector2(180f, -2f);
 
             var kids = bridge.Kids;
             int count = kids.Count;
@@ -665,12 +758,6 @@ namespace Kalyeah.Game
             slotIds = new int[count];
             spinNames = new string[count];
             landedTexts = new string[count];
-
-            const float gap = 8f;
-            float slotW = Mathf.Clamp((504f - (count - 1) * gap) / Mathf.Max(1, count), 54f, 80f);
-            float slotH = 82f;
-            float totalRowW = count * slotW + Mathf.Max(0, count - 1) * gap;
-            float startX = -totalRowW * 0.5f + slotW * 0.5f;
 
             for (int i = 0; i < count; i++)
             {
@@ -685,11 +772,11 @@ namespace Kalyeah.Game
                 RectTransform slot = Ui.Panel(
                     $"RollSlot_{i}",
                     banner,
+                    new Vector2(0f, 0.5f),
+                    new Vector2(0f, 0.5f),
                     new Vector2(0.5f, 0.5f),
-                    new Vector2(0.5f, 0.5f),
-                    new Vector2(0.5f, 0.5f),
-                    new Vector2(startX + i * (slotW + gap), 2f),
-                    new Vector2(slotW, slotH));
+                    Vector2.zero,
+                    new Vector2(56f, 60f));
                 slotRects[i] = slot;
 
                 Image border = MakeSlicedPill("Border", slot, roundedWhiteSprite, TumbangSlotIdleBorder, raycast: false);
@@ -699,11 +786,11 @@ namespace Kalyeah.Game
                 Image inner = MakeSlicedPill("Inner", slot, roundedWhiteSprite, new Color(0.06f, 0.10f, 0.21f, 0.96f), raycast: false);
                 inner.rectTransform.anchorMin = Vector2.zero;
                 inner.rectTransform.anchorMax = Vector2.one;
-                inner.rectTransform.offsetMin = new Vector2(3f, 3f);
-                inner.rectTransform.offsetMax = new Vector2(-3f, -3f);
+                inner.rectTransform.offsetMin = new Vector2(2f, 2f);
+                inner.rectTransform.offsetMax = new Vector2(-2f, -2f);
 
                 Texture2D portraitTex = !string.IsNullOrEmpty(kid.CharacterId)
-                    ? Resources.Load<Texture2D>("portraits/" + kid.CharacterId)
+                    ? KalyeahResources.Texture("portraits/" + kid.CharacterId)
                     : null;
                 if (portraitTex != null)
                 {
@@ -716,42 +803,64 @@ namespace Kalyeah.Game
                     RectTransform prt = raw.rectTransform;
                     prt.anchorMin = Vector2.zero;
                     prt.anchorMax = Vector2.one;
-                    prt.offsetMin = new Vector2(6f, 20f);
-                    prt.offsetMax = new Vector2(-6f, -6f);
+                    prt.offsetMin = new Vector2(4f, 15f);
+                    prt.offsetMax = new Vector2(-4f, -4f);
                 }
                 else
                 {
                     string initial = upperName.Length > 0 ? upperName.Substring(0, 1) : "?";
-                    Text badge = Ui.MakeText("Initial", slot, initial, 24, GoldText, TextAnchor.MiddleCenter, displayFont);
+                    Text badge = Ui.MakeText("Initial", slot, initial, 20, GoldText, TextAnchor.MiddleCenter, displayFont);
                     badge.raycastTarget = false;
+                    badge.resizeTextForBestFit = true;
+                    badge.resizeTextMinSize = 12;
+                    badge.resizeTextMaxSize = 20;
                     RectTransform brt = badge.rectTransform;
                     brt.anchorMin = Vector2.zero;
                     brt.anchorMax = Vector2.one;
-                    brt.offsetMin = new Vector2(4f, 18f);
-                    brt.offsetMax = new Vector2(-4f, -4f);
+                    brt.offsetMin = new Vector2(3f, 15f);
+                    brt.offsetMax = new Vector2(-3f, -3f);
                 }
 
-                Text cap = Ui.MakeText("Name", slot, cardCaption, 12, isLocal ? GoldText : Ui.Cream, TextAnchor.LowerCenter, displayFont);
+                Text cap = Ui.MakeText("Name", slot, cardCaption, 11, isLocal ? GoldText : Ui.Cream, TextAnchor.LowerCenter, displayFont);
                 cap.raycastTarget = false;
+                cap.resizeTextForBestFit = true;
+                cap.resizeTextMinSize = 9;
+                cap.resizeTextMaxSize = 11;
                 RectTransform crt = cap.rectTransform;
                 crt.anchorMin = new Vector2(0f, 0f);
                 crt.anchorMax = new Vector2(1f, 0f);
                 crt.pivot = new Vector2(0.5f, 0f);
-                crt.anchoredPosition = new Vector2(0f, 4f);
-                crt.sizeDelta = new Vector2(-6f, 16f);
+                crt.anchoredPosition = new Vector2(0f, 2f);
+                crt.sizeDelta = new Vector2(-4f, 13f);
             }
 
-            whoText = Ui.MakeText("WhoLabel", banner, "", 20, Ui.Cream, TextAnchor.LowerCenter, displayFont);
-            whoText.fontStyle = FontStyle.Bold;
-            whoText.raycastTarget = false;
-            RectTransform whoRt = whoText.rectTransform;
-            whoRt.anchorMin = new Vector2(0f, 0f);
-            whoRt.anchorMax = new Vector2(1f, 0f);
-            whoRt.pivot = new Vector2(0.5f, 0f);
-            whoRt.anchoredPosition = new Vector2(0f, 7f);
-            whoRt.sizeDelta = new Vector2(-20f, 26f);
-
+            LayoutTumbangRollSlots(slotRects, 640f, 74f);
             return banner;
+        }
+
+        static void LayoutTumbangRollSlots(RectTransform[] slotRects, float bannerW, float bannerH)
+        {
+            if (slotRects == null || slotRects.Length == 0) return;
+
+            int count = slotRects.Length;
+            const float leftReserved = 186f;
+            const float rightPad = 14f;
+            float availW = Mathf.Max(120f, bannerW - leftReserved - rightPad);
+            float gap = count >= 8 ? 4f : 6f;
+            float slotW = Mathf.Clamp((availW - Mathf.Max(0, count - 1) * gap) / count, 26f, 62f);
+            float slotH = Mathf.Max(48f, bannerH - 12f);
+            float totalRowW = count * slotW + Mathf.Max(0, count - 1) * gap;
+            float startX = leftReserved + (availW - totalRowW) * 0.5f + slotW * 0.5f;
+
+            for (int i = 0; i < count; i++)
+            {
+                RectTransform slot = slotRects[i];
+                if (slot == null) continue;
+                slot.anchorMin = slot.anchorMax = new Vector2(0f, 0.5f);
+                slot.pivot = new Vector2(0.5f, 0.5f);
+                slot.sizeDelta = new Vector2(slotW, slotH);
+                slot.anchoredPosition = new Vector2(startX + i * (slotW + gap), 0f);
+            }
         }
 
         static string FormatKidShortName(string characterId, int fallbackId)
@@ -837,54 +946,73 @@ namespace Kalyeah.Game
             }
             Text txt = Ui.MakeText("Label", rect, label, fontSize, Ui.Cream, TextAnchor.MiddleCenter, font);
             txt.fontStyle = FontStyle.Bold;
-            StretchFull(txt.rectTransform);
+            txt.raycastTarget = false;
+            txt.resizeTextForBestFit = true;
+            txt.resizeTextMinSize = 14;
+            txt.resizeTextMaxSize = fontSize;
+            RectTransform txtRt = txt.rectTransform;
+            txtRt.anchorMin = Vector2.zero;
+            txtRt.anchorMax = Vector2.one;
+            txtRt.offsetMin = new Vector2(12f, 6f);
+            txtRt.offsetMax = new Vector2(-12f, -6f);
             return rect;
         }
 
-        static RectTransform BuildSimpleButton(
-            Transform parent,
-            string name,
-            string label,
-            Vector2 anchor,
-            Vector2 pivot,
-            Vector2 pos,
-            Vector2 size,
-            Color bgColor,
-            Font font,
-            Action onClick)
-        {
-            Sprite sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusM);
-            return BuildPillButton(parent, name, label, anchor, pivot, pos, size, sprite, bgColor, font, 22, true, onClick);
-        }
-
         GameObject BuildLeaveConfirmModal(
-            Transform parent,
+            Transform canvasRoot,
             Font displayFont,
             Sprite cardSprite,
-            Sprite btnSprite)
+            Sprite btnSprite,
+            out SafeArea modalSafe,
+            out RectTransform cardRect,
+            out RectTransform resumeBtnRect,
+            out RectTransform confirmBtnRect)
         {
-            RectTransform overlay = Ui.Fill("LeaveConfirmOverlay", parent);
-            Ui.MakeImage("Dimmer", overlay, new Color(0.03f, 0.05f, 0.12f, 0.78f), raycast: Interactive);
-            StretchFull(overlay.GetChild(0) as RectTransform);
+            RectTransform overlay = Ui.Fill("LeaveConfirmOverlay", canvasRoot);
+            Image dimmer = Ui.MakeImage("Dimmer", overlay, new Color(0.03f, 0.05f, 0.12f, 0.82f), raycast: Interactive);
+            StretchFull(dimmer.rectTransform);
 
-            RectTransform card = Ui.Panel("LeaveCard", overlay, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(468f, 252f));
-            Image cardBg = MakeSlicedPill("CardPlate", card, cardSprite, Color.white, raycast: Interactive);
+            RectTransform safeFrame = Ui.Fill("ModalSafe", overlay);
+            modalSafe = safeFrame.gameObject.AddComponent<SafeArea>();
+            modalSafe.Apply();
+
+            cardRect = Ui.Panel("LeaveCard", safeFrame, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(540f, 304f));
+            Image cardBg = MakeSlicedPill("CardPlate", cardRect, cardSprite, Color.white, raycast: Interactive);
             StretchFull(cardBg.rectTransform);
 
-            Text title = Ui.MakeText("Headline", card, "LEAVE STREET MATCH?", 32, GoldText, TextAnchor.UpperCenter, displayFont);
-            title.rectTransform.anchoredPosition = new Vector2(0f, -24f);
+            Text title = Ui.MakeText("Headline", cardRect, "LEAVE STREET MATCH?", 32, GoldText, TextAnchor.MiddleCenter, displayFont);
+            title.raycastTarget = false;
+            title.resizeTextForBestFit = true;
+            title.resizeTextMinSize = 20;
+            title.resizeTextMaxSize = 32;
+            RectTransform titleRt = title.rectTransform;
+            titleRt.anchorMin = new Vector2(0f, 1f);
+            titleRt.anchorMax = new Vector2(1f, 1f);
+            titleRt.pivot = new Vector2(0.5f, 1f);
+            titleRt.anchoredPosition = new Vector2(0f, -22f);
+            titleRt.sizeDelta = new Vector2(-44f, 48f);
 
-            Text body = Ui.MakeText("Body", card, "Return to the Barangay Home menu?", 20, Ui.Cream, TextAnchor.MiddleCenter);
-            body.rectTransform.anchoredPosition = new Vector2(0f, 12f);
+            Text body = Ui.MakeText("Body", cardRect, "Return to the Barangay Home menu?", 21, Ui.Cream, TextAnchor.MiddleCenter);
+            body.raycastTarget = false;
+            body.resizeTextForBestFit = true;
+            body.resizeTextMinSize = 16;
+            body.resizeTextMaxSize = 21;
+            body.horizontalOverflow = HorizontalWrapMode.Wrap;
+            RectTransform bodyRt = body.rectTransform;
+            bodyRt.anchorMin = new Vector2(0f, 1f);
+            bodyRt.anchorMax = new Vector2(1f, 1f);
+            bodyRt.pivot = new Vector2(0.5f, 1f);
+            bodyRt.anchoredPosition = new Vector2(0f, -80f);
+            bodyRt.sizeDelta = new Vector2(-48f, 68f);
 
-            BuildPillButton(
-                card,
+            resumeBtnRect = BuildPillButton(
+                cardRect,
                 "ResumeButton",
                 "RESUME",
                 new Vector2(0.5f, 0f),
                 new Vector2(0.5f, 0f),
-                new Vector2(-108f, 26f),
-                new Vector2(188f, 56f),
+                new Vector2(-130f, 20f),
+                new Vector2(240f, 96f),
                 btnSprite,
                 new Color(0.18f, 0.68f, 0.38f, 0.98f),
                 displayFont,
@@ -896,14 +1024,14 @@ namespace Kalyeah.Game
                     SetLeaveConfirmOpen(false);
                 });
 
-            BuildPillButton(
-                card,
+            confirmBtnRect = BuildPillButton(
+                cardRect,
                 "ConfirmLeaveButton",
                 "LEAVE TO HOME",
                 new Vector2(0.5f, 0f),
                 new Vector2(0.5f, 0f),
-                new Vector2(108f, 26f),
-                new Vector2(188f, 56f),
+                new Vector2(130f, 20f),
+                new Vector2(240f, 96f),
                 btnSprite,
                 new Color(0.84f, 0.24f, 0.22f, 0.98f),
                 displayFont,
@@ -920,55 +1048,101 @@ namespace Kalyeah.Game
         }
 
         GameObject BuildMatchOverModal(
-            Transform parent,
+            Transform canvasRoot,
             Font displayFont,
+            Sprite cardSprite,
+            Sprite btnSprite,
+            out SafeArea modalSafe,
+            out RectTransform cardRect,
+            out RectTransform playAgainBtnRect,
+            out RectTransform homeBtnRect,
             out Text headline,
             out Text subhead,
             out Text lpText)
         {
-            RectTransform overlay = Ui.Fill("MatchOverOverlay", parent);
-            Ui.MakeImage("Dimmer", overlay, new Color(0.03f, 0.05f, 0.12f, 0.78f), raycast: Interactive);
-            StretchFull(overlay.GetChild(0) as RectTransform);
+            RectTransform overlay = Ui.Fill("MatchOverOverlay", canvasRoot);
+            Image dimmer = Ui.MakeImage("Dimmer", overlay, new Color(0.03f, 0.05f, 0.12f, 0.82f), raycast: Interactive);
+            StretchFull(dimmer.rectTransform);
 
-            RectTransform card = Ui.Panel("SummaryCard", overlay, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(520f, 310f));
-            Image cardBg = Ui.MakeImage("CardPlate", card, new Color(0.08f, 0.13f, 0.28f, 0.96f));
+            RectTransform safeFrame = Ui.Fill("ModalSafe", overlay);
+            modalSafe = safeFrame.gameObject.AddComponent<SafeArea>();
+            modalSafe.Apply();
+
+            cardRect = Ui.Panel("SummaryCard", safeFrame, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(564f, 344f));
+            Image cardBg = MakeSlicedPill("CardPlate", cardRect, cardSprite, Color.white, raycast: Interactive);
             StretchFull(cardBg.rectTransform);
 
-            headline = Ui.MakeText("Headline", card, "PANALO!", 48, GoldText, TextAnchor.UpperCenter, displayFont);
-            headline.rectTransform.anchoredPosition = new Vector2(0f, 96f);
+            headline = Ui.MakeText("Headline", cardRect, "PANALO!", 38, GoldText, TextAnchor.MiddleCenter, displayFont);
+            headline.raycastTarget = false;
+            headline.resizeTextForBestFit = true;
+            headline.resizeTextMinSize = 20;
+            headline.resizeTextMaxSize = 38;
+            RectTransform headRt = headline.rectTransform;
+            headRt.anchorMin = new Vector2(0f, 1f);
+            headRt.anchorMax = new Vector2(1f, 1f);
+            headRt.pivot = new Vector2(0.5f, 1f);
+            headRt.anchoredPosition = new Vector2(0f, -22f);
+            headRt.sizeDelta = new Vector2(-44f, 54f);
 
-            subhead = Ui.MakeText("Subhead", card, "Score 0 - 0", 26, Ui.Cream, TextAnchor.MiddleCenter);
-            subhead.rectTransform.anchoredPosition = new Vector2(0f, 28f);
+            subhead = Ui.MakeText("Subhead", cardRect, "Score 0 - 0", 24, Ui.Cream, TextAnchor.MiddleCenter);
+            subhead.raycastTarget = false;
+            subhead.resizeTextForBestFit = true;
+            subhead.resizeTextMinSize = 16;
+            subhead.resizeTextMaxSize = 24;
+            RectTransform subRt = subhead.rectTransform;
+            subRt.anchorMin = new Vector2(0f, 1f);
+            subRt.anchorMax = new Vector2(1f, 1f);
+            subRt.pivot = new Vector2(0.5f, 1f);
+            subRt.anchoredPosition = new Vector2(0f, -84f);
+            subRt.sizeDelta = new Vector2(-48f, 40f);
 
-            lpText = Ui.MakeText("RankedLp", card, "", 22, new Color(0.48f, 0.96f, 0.64f, 1f), TextAnchor.MiddleCenter, displayFont);
-            lpText.rectTransform.anchoredPosition = new Vector2(0f, -18f);
+            RectTransform lpBadge = Ui.Panel("RankedLpBadge", cardRect, new Vector2(0.08f, 1f), new Vector2(0.92f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -134f), new Vector2(0f, 52f));
+            Image lpBadgeBg = MakeSlicedPill("BadgeBg", lpBadge, btnSprite, new Color(0.04f, 0.08f, 0.18f, 0.76f), raycast: false);
+            StretchFull(lpBadgeBg.rectTransform);
 
-            BuildSimpleButton(
-                card,
+            lpText = Ui.MakeText("RankedLp", lpBadge, "", 22, new Color(0.48f, 0.96f, 0.64f, 1f), TextAnchor.MiddleCenter, displayFont);
+            lpText.raycastTarget = false;
+            lpText.resizeTextForBestFit = true;
+            lpText.resizeTextMinSize = 15;
+            lpText.resizeTextMaxSize = 22;
+            RectTransform lpRt = lpText.rectTransform;
+            lpRt.anchorMin = Vector2.zero;
+            lpRt.anchorMax = Vector2.one;
+            lpRt.offsetMin = new Vector2(16f, 4f);
+            lpRt.offsetMax = new Vector2(-16f, -4f);
+
+            playAgainBtnRect = BuildPillButton(
+                cardRect,
                 "PlayAgainButton",
                 "PLAY AGAIN",
                 new Vector2(0.5f, 0f),
                 new Vector2(0.5f, 0f),
-                new Vector2(-116f, 26f),
-                new Vector2(196f, 58f),
+                new Vector2(-136f, 20f),
+                new Vector2(252f, 96f),
+                btnSprite,
                 new Color(0.18f, 0.68f, 0.36f, 0.98f),
                 displayFont,
+                22,
+                Interactive,
                 () =>
                 {
                     Haptics.LightTap();
                     _onPlayAgain?.Invoke();
                 });
 
-            BuildSimpleButton(
-                card,
+            homeBtnRect = BuildPillButton(
+                cardRect,
                 "HomeButton",
                 "HOME",
                 new Vector2(0.5f, 0f),
                 new Vector2(0.5f, 0f),
-                new Vector2(116f, 26f),
-                new Vector2(196f, 58f),
+                new Vector2(136f, 20f),
+                new Vector2(252f, 96f),
+                btnSprite,
                 new Color(0.22f, 0.34f, 0.56f, 0.98f),
                 displayFont,
+                22,
+                Interactive,
                 () =>
                 {
                     Haptics.LightTap();
@@ -987,13 +1161,20 @@ namespace Kalyeah.Game
             r.offsetMax = Vector2.zero;
         }
 
+        bool _inResponsiveLayout;
+
         void OnSafeAreaChanged(SafeArea _) => ApplyResponsiveLayout();
 
         void OnSettingsChanged() => ApplyResponsiveLayout();
 
         public void ApplyResponsiveLayout()
         {
-            if (Canvas == null || _actionClusterRect == null) return;
+            if (_inResponsiveLayout || Canvas == null || _actionClusterRect == null) return;
+            _inResponsiveLayout = true;
+            try
+            {
+                _leaveModalSafe?.ForceApply();
+                _matchOverModalSafe?.ForceApply();
 
             bool leftHanded = SettingsStore.Current.LeftHanded;
             float userScale = Mathf.Clamp(SettingsStore.Current.ControlScale, 0.85f, 1.2f);
@@ -1004,6 +1185,10 @@ namespace Kalyeah.Game
                 if (Look != null) Look.SetLeftHanded(leftHanded);
             }
             _appliedControlScale = userScale;
+
+            Vector2 safeSize = ScreenFitMetrics.SafeCanvasSize(Canvas);
+            float safeWidth = safeSize.x;
+            float safeHeight = safeSize.y;
 
             float foldableScale = ScreenFitMetrics.ClampFoldableClusterScale(280f * userScale, 236f * userScale, 160f, Canvas);
             float effScale = userScale * foldableScale;
@@ -1028,17 +1213,18 @@ namespace Kalyeah.Game
             _secondaryBtnRect.sizeDelta = Vector2.one * secondarySize;
             _secondaryBtnRect.anchoredPosition = new Vector2(sign * secondaryOffset, 30f + secondarySize * 0.5f);
 
-            Vector2 leaveSize = ScreenFitMetrics.ClampTouchSize(new Vector2(104f, 48f), ScreenFitMetrics.MinTouchDp, Canvas);
+            float gutterPx = Mathf.Max(16f, ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinGutterDp, Canvas));
+            Vector2 leaveSize = ScreenFitMetrics.ClampTouchSize(new Vector2(126f, 96f), ScreenFitMetrics.MinTouchDp, Canvas);
             if (_leaveButtonRect != null)
             {
-                _leaveButtonRect.anchoredPosition = new Vector2(14f, -10f);
+                _leaveButtonRect.anchoredPosition = new Vector2(14f, -8f);
                 _leaveButtonRect.sizeDelta = leaveSize;
             }
 
             if (_rolePillRect != null)
             {
-                _rolePillRect.anchoredPosition = new Vector2(14f + leaveSize.x + 8f, -10f);
-                _rolePillRect.sizeDelta = new Vector2(144f, Mathf.Max(48f, Mathf.Min(leaveSize.y, 62f)));
+                _rolePillRect.anchoredPosition = new Vector2(14f + leaveSize.x + 10f, -8f);
+                _rolePillRect.sizeDelta = new Vector2(134f, 52f);
             }
 
             if (_statusHintPillRect != null)
@@ -1046,11 +1232,33 @@ namespace Kalyeah.Game
                 UpdateStatusHintLayout(leaveSize.y);
             }
 
+            if (_brownoutBannerRect != null)
+            {
+                float maxAlertW = Mathf.Clamp(safeWidth * 0.5f - 184f, 220f, 284f);
+                _brownoutBannerRect.anchoredPosition = new Vector2(-16f, -8f);
+                _brownoutBannerRect.sizeDelta = new Vector2(maxAlertW, 44f);
+            }
+
             if (_cancelZoneRect != null)
             {
-                _cancelZoneRect.anchorMin = _cancelZoneRect.anchorMax = new Vector2(1f, 1f);
-                _cancelZoneRect.pivot = new Vector2(1f, 1f);
-                _cancelZoneRect.anchoredPosition = new Vector2(-16f, -12f);
+                Vector2 cancelSize = ScreenFitMetrics.ClampTouchSize(new Vector2(228f, 96f), ScreenFitMetrics.MinTouchDp, Canvas);
+                _cancelZoneRect.sizeDelta = cancelSize;
+                if (leftHanded)
+                {
+                    float hintBottom = _statusHintPillRect != null
+                        ? (-_statusHintPillRect.anchoredPosition.y + _statusHintPillRect.sizeDelta.y)
+                        : (8f + leaveSize.y);
+                    _cancelZoneRect.anchorMin = _cancelZoneRect.anchorMax = new Vector2(0f, 1f);
+                    _cancelZoneRect.pivot = new Vector2(0f, 1f);
+                    _cancelZoneRect.anchoredPosition = new Vector2(16f, -(hintBottom + gutterPx));
+                }
+                else
+                {
+                    float alertBottom = 8f + 44f;
+                    _cancelZoneRect.anchorMin = _cancelZoneRect.anchorMax = new Vector2(1f, 1f);
+                    _cancelZoneRect.pivot = new Vector2(1f, 1f);
+                    _cancelZoneRect.anchoredPosition = new Vector2(-16f, -(alertBottom + gutterPx));
+                }
             }
 
             if (_tayaCornerBadge != null && _tayaCornerBadge.transform is RectTransform tayaRect)
@@ -1062,18 +1270,62 @@ namespace Kalyeah.Game
 
             if (_tumbangRollRect != null)
             {
-                float safeWidth = Safe != null && Safe.rect.width > 120f
-                    ? Safe.rect.width
-                    : ScreenFitMetrics.SafeCanvasSize(Canvas).x;
-                float rollW = Mathf.Min(548f, Mathf.Max(336f, safeWidth - 40f));
-                float rollTop = 132f;
-                if (_statusHintPillRect != null && safeWidth < 1040f)
-                {
-                    float hintBottom = -_statusHintPillRect.anchoredPosition.y + _statusHintPillRect.sizeDelta.y + 8f;
-                    if (hintBottom > rollTop) rollTop = hintBottom;
-                }
-                _tumbangRollRect.sizeDelta = new Vector2(rollW, 166f);
+                float maxHalfW = safeWidth * 0.5f - (14f + leaveSize.x + 16f);
+                float rollW = Mathf.Clamp(maxHalfW * 2f, 320f, 640f);
+                float rollTop = 98f;
+                float maxSightTop = safeHeight * 0.25f - 3f;
+                float rollH = Mathf.Clamp(maxSightTop - rollTop, 64f, 76f);
+                _tumbangRollRect.sizeDelta = new Vector2(rollW, rollH);
                 _tumbangRollRect.anchoredPosition = new Vector2(0f, -rollTop);
+                LayoutTumbangRollSlots(_tumbangRollSlotRects, rollW, rollH);
+            }
+
+            // Responsive >= 48 dp sizing for LeaveConfirmModal & MatchOverModal cards and buttons
+            if (_leaveModalSafe != null && _leaveConfirmShown) _leaveModalSafe.ForceApply();
+            if (_matchOverModalSafe != null && _matchOverShown) _matchOverModalSafe.ForceApply();
+
+            float minModalTouch = ScreenFitMetrics.ClampTouchSize(96f, ScreenFitMetrics.MinTouchDp, Canvas);
+            float modalBtnH = Mathf.Max(96f, minModalTouch);
+
+            if (_leaveCardRect != null)
+            {
+                float cardW = Mathf.Clamp(safeWidth - 48f, Mathf.Max(420f, minModalTouch * 2f + 96f), 560f);
+                float cardH = Mathf.Clamp(modalBtnH + 208f, 304f, Mathf.Max(304f, safeHeight - 32f));
+                float btnW = Mathf.Max(minModalTouch, (cardW - 60f) * 0.5f);
+                _leaveCardRect.sizeDelta = new Vector2(cardW, cardH);
+                if (_leaveResumeBtnRect != null)
+                {
+                    _leaveResumeBtnRect.sizeDelta = new Vector2(btnW, modalBtnH);
+                    _leaveResumeBtnRect.anchoredPosition = new Vector2(-(btnW * 0.5f + 10f), 20f);
+                }
+                if (_leaveConfirmBtnRect != null)
+                {
+                    _leaveConfirmBtnRect.sizeDelta = new Vector2(btnW, modalBtnH);
+                    _leaveConfirmBtnRect.anchoredPosition = new Vector2(btnW * 0.5f + 10f, 20f);
+                }
+            }
+
+            if (_matchOverCardRect != null)
+            {
+                float cardW = Mathf.Clamp(safeWidth - 48f, Mathf.Max(440f, minModalTouch * 2f + 96f), 584f);
+                float cardH = Mathf.Clamp(modalBtnH + 248f, 344f, Mathf.Max(344f, safeHeight - 32f));
+                float btnW = Mathf.Max(minModalTouch, (cardW - 60f) * 0.5f);
+                _matchOverCardRect.sizeDelta = new Vector2(cardW, cardH);
+                if (_matchOverPlayAgainBtnRect != null)
+                {
+                    _matchOverPlayAgainBtnRect.sizeDelta = new Vector2(btnW, modalBtnH);
+                    _matchOverPlayAgainBtnRect.anchoredPosition = new Vector2(-(btnW * 0.5f + 10f), 20f);
+                }
+                if (_matchOverHomeBtnRect != null)
+                {
+                    _matchOverHomeBtnRect.sizeDelta = new Vector2(btnW, modalBtnH);
+                    _matchOverHomeBtnRect.anchoredPosition = new Vector2(btnW * 0.5f + 10f, 20f);
+                }
+            }
+            }
+            finally
+            {
+                _inResponsiveLayout = false;
             }
         }
 
@@ -1092,6 +1344,8 @@ namespace Kalyeah.Game
             if (_headerRect != null && _headerRect.gameObject.activeInHierarchy) dst.Add(_headerRect);
             if (_timerPillRect != null && _timerPillRect.gameObject.activeInHierarchy) dst.Add(_timerPillRect);
             if (_brownoutBannerObj != null && _brownoutBannerObj.activeInHierarchy && _brownoutBannerObj.transform is RectTransform br) dst.Add(br);
+            if (_tumbangRollRect != null && _tumbangRollRect.gameObject.activeInHierarchy) dst.Add(_tumbangRollRect);
+            if (_cancelZoneRect != null && _cancelZoneRect.gameObject.activeInHierarchy) dst.Add(_cancelZoneRect);
             if (_primaryBtnRect != null && _primaryBtnRect.gameObject.activeInHierarchy) dst.Add(_primaryBtnRect);
             if (_secondaryBtnRect != null && _secondaryBtnRect.gameObject.activeInHierarchy) dst.Add(_secondaryBtnRect);
             if (_tayaCornerBadge != null && _tayaCornerBadge.activeInHierarchy) dst.Add(_tayaCornerBadge.transform as RectTransform);
@@ -1142,7 +1396,47 @@ namespace Kalyeah.Game
             if (_leaveConfirmShown)
                 CancelActiveTouches();
             if (_leaveConfirmRoot != null && _leaveConfirmRoot.activeSelf != _leaveConfirmShown)
+            {
                 _leaveConfirmRoot.SetActive(_leaveConfirmShown);
+                if (_leaveConfirmShown)
+                {
+                    _leaveModalSafe?.ForceApply();
+                    ApplyResponsiveLayout();
+                }
+            }
+            SyncGameplayControlsVisibility(_matchOverShown);
+            if (_statusHintPillRect != null)
+            {
+                bool showHint = !_leaveConfirmShown && !_matchOverShown && !IsTumbangRollVisible && !string.IsNullOrEmpty(_cachedHintLine);
+                if (_statusHintPillRect.gameObject.activeSelf != showHint)
+                    _statusHintPillRect.gameObject.SetActive(showHint);
+            }
+        }
+
+        void SyncGameplayControlsVisibility(bool matchOver)
+        {
+            bool showControls = !matchOver && !IsBlockingGameplayInput;
+            if (Joystick != null && Joystick.gameObject.activeSelf != showControls)
+            {
+                if (!showControls) Joystick.Cancel();
+                Joystick.gameObject.SetActive(showControls);
+            }
+            if (Look != null && Look.gameObject.activeSelf != showControls)
+            {
+                if (!showControls) Look.Cancel();
+                Look.gameObject.SetActive(showControls);
+            }
+            if (_actionClusterRect != null && _actionClusterRect.gameObject.activeSelf != showControls)
+            {
+                if (!showControls)
+                {
+                    _primaryHandler?.CancelSilently(requestSimCancel: true);
+                    _secondaryHandler?.CancelSilently(requestSimCancel: false);
+                }
+                _actionClusterRect.gameObject.SetActive(showControls);
+            }
+            if (!showControls && _cancelZoneRect != null && _cancelZoneRect.gameObject.activeSelf)
+                _cancelZoneRect.gameObject.SetActive(false);
         }
 
         public bool ConsumeSecondaryPress()
@@ -1189,12 +1483,13 @@ namespace Kalyeah.Game
             }
 
             RefreshHeader(bridge);
-            RefreshRoleAndHint(bridge);
             RefreshBrownoutShade(bridge, stepDt, worldCamera, localWorldPos);
             RefreshBrownoutBanner(bridge, stepDt);
             RefreshTumbangRoll(bridge, stepDt);
-            RefreshActionButtons(bridge);
+            RefreshRoleAndHint(bridge);
             RefreshMatchOver(bridge);
+            SyncGameplayControlsVisibility(bridge.IsMatchOver);
+            RefreshActionButtons(bridge);
         }
 
         void RefreshHeader(StreetBridge bridge)
@@ -1292,7 +1587,10 @@ namespace Kalyeah.Game
             _rolePillBg.color = pillColor;
 
             string hint = ResolveTacticalHint(bridge, me);
-            bool showHint = !string.IsNullOrEmpty(hint);
+            bool showHint = !string.IsNullOrEmpty(hint)
+                && !IsTumbangRollVisible
+                && !bridge.IsMatchOver
+                && !IsBlockingGameplayInput;
             if (_statusHintPillRect != null && _statusHintPillRect.gameObject.activeSelf != showHint)
                 _statusHintPillRect.gameObject.SetActive(showHint);
             if (!string.Equals(_cachedHintLine, hint, StringComparison.Ordinal))
@@ -1311,37 +1609,36 @@ namespace Kalyeah.Game
                 ? leaveHeightOverride
                 : (_leaveButtonRect != null && _leaveButtonRect.sizeDelta.y > 1f
                     ? _leaveButtonRect.sizeDelta.y
-                    : ScreenFitMetrics.ClampTouchSize(new Vector2(104f, 48f), ScreenFitMetrics.MinTouchDp, Canvas).y);
+                    : ScreenFitMetrics.ClampTouchSize(new Vector2(126f, 96f), ScreenFitMetrics.MinTouchDp, Canvas).y);
 
-            float safeWidth = Safe != null && Safe.rect.width > 120f
-                ? Safe.rect.width
-                : ScreenFitMetrics.SafeCanvasSize(Canvas).x;
+            Vector2 safeSize = ScreenFitMetrics.SafeCanvasSize(Canvas);
+            float safeWidth = safeSize.x;
+            float safeHeight = safeSize.y;
+
+            float gutterPx = Mathf.Max(16f, ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinGutterDp, Canvas));
+            float topRowBottom = 8f + leaveH + gutterPx;
+            float maxSightTop = safeHeight * 0.25f - 2f;
+            float pillH = Mathf.Clamp(maxSightTop - topRowBottom, 30f, 38f);
 
             string hint = _statusHintText.text ?? "";
-            _statusHintText.horizontalOverflow = HorizontalWrapMode.Overflow;
-            TextGenerationSettings genSettings = _statusHintText.GetGenerationSettings(new Vector2(2048f, 40f));
+            TextGenerationSettings genSettings = _statusHintText.GetGenerationSettings(new Vector2(2048f, pillH));
             genSettings.resizeTextForBestFit = false;
-            genSettings.fontSize = 18;
+            genSettings.fontSize = 17;
             genSettings.horizontalOverflow = HorizontalWrapMode.Overflow;
             genSettings.scaleFactor = 1f;
             float genWidth = _statusHintText.cachedTextGeneratorForLayout.GetPreferredWidth(hint, genSettings);
-            float preferred = Mathf.Max(_statusHintText.preferredWidth, Mathf.Max(genWidth, hint.Length * 9.8f));
+            float preferred = Mathf.Max(genWidth, hint.Length * 9.4f);
 
-            float maxWidth = Mathf.Min(580f, Mathf.Max(240f, safeWidth - 32f));
-            float pillWidth = Mathf.Clamp(preferred + 36f, 240f, maxWidth);
-            _statusHintPillRect.sizeDelta = new Vector2(pillWidth, 36f);
-            _statusHintText.horizontalOverflow = preferred + 34f > pillWidth
-                ? HorizontalWrapMode.Wrap
-                : HorizontalWrapMode.Overflow;
-
-            float topRowBottom = 10f + leaveH + 6f;
-            // On narrow 4:3 viewports where the expanded hint pill reaches horizontally past TimerPill's left edge,
-            // step down just below TimerPill (-90 - 32 - 6 = -128) so zero HUD pills ever overlap.
-            float timerLeftEdge = safeWidth * 0.5f - 72f;
-            if (14f + pillWidth > timerLeftEdge && topRowBottom < 128f)
-                topRowBottom = 128f;
-
+            float maxWidth = Mathf.Min(560f, Mathf.Max(220f, safeWidth - 32f));
+            float pillWidth = Mathf.Clamp(preferred + 46f, 220f, maxWidth);
+            _statusHintText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _statusHintPillRect.sizeDelta = new Vector2(pillWidth, pillH);
             _statusHintPillRect.anchoredPosition = new Vector2(14f, -topRowBottom);
+
+            if (SettingsStore.Current.LeftHanded && _cancelZoneRect != null)
+            {
+                _cancelZoneRect.anchoredPosition = new Vector2(16f, -(topRowBottom + pillH + gutterPx));
+            }
         }
 
         static string ResolveTacticalHint(StreetBridge bridge, StreetKidSnapshot? me)
@@ -1569,9 +1866,8 @@ namespace Kalyeah.Game
             bool reduceMotion = SettingsStore.Current.ReduceMotion;
             _tumbangRollElapsed += dt;
 
-            float dismissAfter = reduceMotion ? 1.15f : TumbangRollTotalSeconds;
-            if ((_tumbangRollElapsed >= dismissAfter && !bridge.IsIntro)
-                || _tumbangRollElapsed >= TumbangRollTotalSeconds + 0.65f)
+            float dismissAfter = reduceMotion ? 1.0f : TumbangRollTotalSeconds;
+            if (!bridge.IsIntro || _tumbangRollElapsed >= dismissAfter)
             {
                 _tumbangRollDismissed = true;
                 if (_tumbangRollRoot.activeSelf)
@@ -1665,7 +1961,7 @@ namespace Kalyeah.Game
 
         void RefreshActionButtons(StreetBridge bridge)
         {
-            bool controlsLive = !bridge.IsMatchOver;
+            bool controlsLive = !bridge.IsMatchOver && !IsBlockingGameplayInput;
             StreetActionInfo info = bridge.LocalActions;
 
             // Primary action (TSINELAS / THROW)
@@ -1763,6 +2059,7 @@ namespace Kalyeah.Game
                 {
                     _matchOverShown = false;
                     _matchOverRoot.SetActive(false);
+                    SyncGameplayControlsVisibility(false);
                 }
                 return;
             }
@@ -1772,6 +2069,9 @@ namespace Kalyeah.Game
             SetLeaveConfirmOpen(false);
             CancelActiveTouches();
             _matchOverRoot.SetActive(true);
+            _matchOverModalSafe?.ForceApply();
+            ApplyResponsiveLayout();
+            SyncGameplayControlsVisibility(true);
 
             StreetMatchResult result = bridge.GetLocalResult();
             _matchOverHeadline.text = result.Won ? "PANALO! VICTORY!" : "TAPOS NA! MATCH OVER";
@@ -1791,6 +2091,7 @@ namespace Kalyeah.Game
                     result.Won,
                     result.MyPoints,
                     result.BestOpponentPoints);
+                MenuStack.SavePersistedState(AppSession.Current, SettingsStore.Current);
                 string sign = lp.Delta >= 0 ? "+" : "";
                 _matchOverLpText.text = $"{lp.TierName}  •  {lp.NewLp} LP ({sign}{lp.Delta})";
             }

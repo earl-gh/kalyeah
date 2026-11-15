@@ -285,8 +285,8 @@ namespace Kalyeah.Game
         static readonly Color SweepShade = new Color(0.03f, 0.05f, 0.10f, 0.74f);
         static readonly Color PrimaryCadenceShade = new Color(1.00f, 0.88f, 0.42f, 0.16f);
         static readonly Color DenyTint = new Color(0.96f, 0.22f, 0.20f, 0.86f);
-        static readonly Color CancelIdlePlate = new Color(0.62f, 0.12f, 0.14f, 0.84f);
-        static readonly Color CancelHotPlate = new Color(0.94f, 0.16f, 0.16f, 0.96f);
+        static readonly Color CancelIdlePlate = new Color(0.68f, 0.12f, 0.14f, 0.92f);
+        static readonly Color CancelHotPlate = new Color(0.94f, 0.16f, 0.16f, 0.98f);
 
         enum ButtonRole
         {
@@ -366,6 +366,8 @@ namespace Kalyeah.Game
         bool _isCancelHovered;
 
         // Tick-safe pulse & release latches so <33ms quick-taps and mid-tick cancels never drop or misfire
+        bool _primaryTapPending;
+        int _primaryTapTick = int.MinValue;
         bool _slotPressObservedBySim;
         int _pendingReleaseSlot = -1;
         bool _pendingReleaseCancel;
@@ -424,7 +426,8 @@ namespace Kalyeah.Game
         public float ControlScale => _controlScale;
         public int HeldSlot => _heldSlot;
         public bool IsAiming => _heldSlot >= 0;
-        public bool IsPrimaryHeld => _primaryPointer != NoPointer;
+        public bool IsDraggingAim => _heldSlot >= 0;
+        public bool IsPrimaryHeld => _primaryPointer != NoPointer || _primaryTapPending;
         public bool IsCrouchHeld => _crouchPointer != NoPointer;
         public bool IsCancelHovered => _isCancelHovered;
         public AbilityInputState CurrentInput { get; private set; }
@@ -463,28 +466,38 @@ namespace Kalyeah.Game
             AssignStaticIcon(ButtonRole.Jump, "ui/hud_icons/jump", "JUMP");
             AssignStaticIcon(ButtonRole.CrouchSlide, "ui/hud_icons/crouch", "DUCK");
 
-            // Unmistakable top-right red cancel target (shown only while holding/dragging a superpower)
-            _cancelZone = Ui.Panel("CancelAimZone", _root, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-24f, -20f), new Vector2(236f, 64f));
+            // Unmistakable top-band red cancel target (shown only while holding/dragging a superpower)
+            _cancelZone = Ui.Panel("CancelAimZone", _root, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-132f, -12f), new Vector2(224f, 96f));
             _cancelPlate = Ui.MakeImage("CancelPlate", _cancelZone, CancelIdlePlate, round: false, raycast: false);
             _cancelPlate.sprite = HudIconCache.RoundedPlateSprite();
             _cancelPlate.type = Image.Type.Sliced;
             FillRect(_cancelPlate.rectTransform, Vector2.zero);
 
-            _cancelRim = Ui.MakeImage("CancelIconDisc", _cancelZone, new Color(1f, 1f, 1f, 0.92f), round: false, raycast: false);
+            Image cancelBorder = Ui.MakeImage("CancelBorder", _cancelZone, new Color(1f, 0.90f, 0.88f, 0.72f), round: false, raycast: false);
+            cancelBorder.sprite = HudIconCache.RoundedPlateSprite();
+            cancelBorder.type = Image.Type.Sliced;
+            cancelBorder.fillCenter = false;
+            FillRect(cancelBorder.rectTransform, Vector2.zero);
+
+            _cancelRim = Ui.MakeImage("CancelIconDisc", _cancelZone, new Color(1f, 1f, 1f, 0.96f), round: false, raycast: false);
             _cancelRim.sprite = HudIconCache.RingSprite();
             _cancelRim.rectTransform.anchorMin = _cancelRim.rectTransform.anchorMax = new Vector2(0f, 0.5f);
             _cancelRim.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            _cancelRim.rectTransform.anchoredPosition = new Vector2(30f, 0f);
-            _cancelRim.rectTransform.sizeDelta = new Vector2(38f, 38f);
+            _cancelRim.rectTransform.anchoredPosition = new Vector2(28f, 0f);
+            _cancelRim.rectTransform.sizeDelta = new Vector2(36f, 36f);
 
             Text xGlyph = Ui.MakeText("CancelX", _cancelRim.transform, "X", 20, Color.white, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             FillRect(xGlyph.rectTransform, Vector2.zero);
 
-            _cancelLabel = Ui.MakeText("CancelLabel", _cancelZone, "Release here to cancel", 18, Ui.Cream, TextAnchor.MiddleLeft);
+            _cancelLabel = Ui.MakeText("CancelLabel", _cancelZone, "Release to\ncancel", 18, Color.white, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _cancelLabel.lineSpacing = 0.95f;
+            _cancelLabel.resizeTextForBestFit = true;
+            _cancelLabel.resizeTextMinSize = 14;
+            _cancelLabel.resizeTextMaxSize = 18;
             _cancelLabel.rectTransform.anchorMin = new Vector2(0f, 0f);
             _cancelLabel.rectTransform.anchorMax = new Vector2(1f, 1f);
-            _cancelLabel.rectTransform.offsetMin = new Vector2(56f, 4f);
-            _cancelLabel.rectTransform.offsetMax = new Vector2(-12f, -4f);
+            _cancelLabel.rectTransform.offsetMin = new Vector2(54f, 8f);
+            _cancelLabel.rectTransform.offsetMax = new Vector2(-12f, -8f);
             _cancelZone.gameObject.SetActive(false);
 
             // Compact lockout pill right above primary cluster when in rescue zone / enemy base
@@ -752,11 +765,25 @@ namespace Kalyeah.Game
                     Vector2 cancelAnchor = _leftHanded ? new Vector2(0f, 1f) : new Vector2(1f, 1f);
                     _cancelZone.anchorMin = _cancelZone.anchorMax = cancelAnchor;
                     _cancelZone.pivot = cancelAnchor;
-                    float cancelH = ScreenFitMetrics.ClampTouchSize(52f * dp, ScreenFitMetrics.MinTouchDp, canvas);
-                    float cancelW = Mathf.Max(228f, cancelH * 2.4f);
-                    _cancelZone.sizeDelta = new Vector2(cancelW, cancelH);
-                    float topOffset = -(minCornerBtnCanvas + 18f);
-                    _cancelZone.anchoredPosition = new Vector2(_leftHanded ? 16f : -16f, topOffset);
+                    float cancelH = ScreenFitMetrics.ClampTouchSize(48f * dp, ScreenFitMetrics.MinTouchDp, canvas);
+                    float cornerInset = Mathf.Max(24f, 12f * dp);
+                    float innerOffset = cornerInset + minCornerBtnCanvas + 12f;
+                    float openWingGap = safeCanvas.x * 0.5f - 344f - innerOffset;
+                    if (openWingGap >= 160f)
+                    {
+                        float cancelW = Mathf.Clamp(openWingGap, 164f, 224f);
+                        _cancelZone.sizeDelta = new Vector2(cancelW, cancelH);
+                        _cancelZone.anchoredPosition = new Vector2(_leftHanded ? innerOffset : -innerOffset, -12f);
+                    }
+                    else
+                    {
+                        float cancelX = _leftHanded ? 232f : -innerOffset;
+                        float cancelW = _leftHanded
+                            ? Mathf.Max(cancelH, Mathf.Min(Mathf.Max(124f, cancelH * 1.35f), safeCanvas.x * 0.5f - 124f - cancelX))
+                            : Mathf.Max(188f, cancelH * 2.1f);
+                        _cancelZone.sizeDelta = new Vector2(cancelW, cancelH);
+                        _cancelZone.anchoredPosition = new Vector2(cancelX, -68f);
+                    }
                 }
 
                 if (_statusBanner != null)
@@ -867,6 +894,8 @@ namespace Kalyeah.Game
         {
             bool wasHoldingAbility = _heldSlot >= 0 || _pendingReleaseSlot >= 0;
             _primaryPointer = NoPointer;
+            _primaryTapPending = false;
+            _primaryTapTick = int.MinValue;
             _crouchPointer = NoPointer;
             _slotPointer = NoPointer;
             _heldSlot = -1;
@@ -932,8 +961,13 @@ namespace Kalyeah.Game
             _canCast = _matchInteractive && statusCanCast && !_castingBlocked;
             _canMove = _matchInteractive && statusCanMove;
 
-            if ((!_canCast && _heldSlot >= 0) || (!_matchInteractive && (_primaryPointer != NoPointer || _crouchPointer != NoPointer)))
+            if ((!_canCast && _heldSlot >= 0) || (!_matchInteractive && (_primaryPointer != NoPointer || _primaryTapPending || _crouchPointer != NoPointer)))
                 CancelAll();
+            else if (!_canCast && _primaryTapPending)
+            {
+                _primaryTapPending = false;
+                _primaryTapTick = int.MinValue;
+            }
 
             if (_statusBanner != null)
             {
@@ -953,7 +987,7 @@ namespace Kalyeah.Game
             float primMax = Mathf.Max(0.1f, kid.PrimaryMaxCooldown > 0.01f
                 ? kid.PrimaryMaxCooldown
                 : (sim.PrimaryWeaponInfo.HasValue ? sim.PrimaryWeaponInfo.Value.Cooldown : 0.48f));
-            UpdatePrimaryVisual(_buttons[(int)ButtonRole.Primary], _canCast, primCd, primMax, _primaryPointer != NoPointer);
+            UpdatePrimaryVisual(_buttons[(int)ButtonRole.Primary], _canCast, primCd, primMax, _primaryPointer != NoPointer || _primaryTapPending);
 
             // 2. 3 Superpower Slots
             int handCount = kid.HandWeaponIds != null ? kid.HandWeaponIds.Length : 0;
@@ -1061,8 +1095,16 @@ namespace Kalyeah.Game
             string previewWid = "";
             bool isDraggingAim = false;
 
-            if (_primaryPointer != NoPointer && _canCast && _heldSlot < 0 && _pendingReleaseSlot < 0)
+            if (_primaryTapPending && _primaryTapTick != int.MinValue && simTick != _primaryTapTick && _primaryPointer == NoPointer)
             {
+                _primaryTapPending = false;
+                _primaryTapTick = int.MinValue;
+            }
+
+            if ((_primaryPointer != NoPointer || _primaryTapPending) && _canCast && _heldSlot < 0 && _pendingReleaseSlot < 0)
+            {
+                if (_primaryTapPending && _primaryTapTick == int.MinValue)
+                    _primaryTapTick = simTick;
                 buttons |= InputButtons.Primary;
                 if (worldCamera != null || shoulder != null)
                 {
@@ -1195,6 +1237,8 @@ namespace Kalyeah.Game
                         return;
                     }
                     _primaryPointer = eventData.pointerId;
+                    _primaryTapPending = true;
+                    _primaryTapTick = int.MinValue;
                     w.FlashTimer = PressFlashDuration;
                     Haptics.LightTap();
                     break;
@@ -1340,7 +1384,11 @@ namespace Kalyeah.Game
         {
             int pid = eventData != null ? eventData.pointerId : NoPointer;
             if (role == ButtonRole.Primary && (eventData == null || pid == _primaryPointer))
+            {
                 _primaryPointer = NoPointer;
+                _primaryTapPending = false;
+                _primaryTapTick = int.MinValue;
+            }
             else if (role == ButtonRole.CrouchSlide && (eventData == null || pid == _crouchPointer))
                 _crouchPointer = NoPointer;
             else if (role >= ButtonRole.Slot0 && role <= ButtonRole.Slot2 && (eventData == null || pid == _slotPointer))
@@ -1357,7 +1405,12 @@ namespace Kalyeah.Game
                 ETouch t = touches[i];
                 if (t.phase != ETouchPhase.Canceled) continue;
                 if (t.touchId == _slotPointer) { CancelAll(); return; }
-                if (t.touchId == _primaryPointer) _primaryPointer = NoPointer;
+                if (t.touchId == _primaryPointer)
+                {
+                    _primaryPointer = NoPointer;
+                    _primaryTapPending = false;
+                    _primaryTapTick = int.MinValue;
+                }
                 if (t.touchId == _crouchPointer) _crouchPointer = NoPointer;
             }
         }
