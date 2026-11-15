@@ -92,6 +92,13 @@ namespace Kalyeah.Game
             return null;
         }
 
+        static string ReadConst(Type type, string name)
+        {
+            FieldInfo field = type.GetField(name, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.IsNotNull(field, type.Name + "." + name + " must exist");
+            return (string)field.GetRawConstantValue();
+        }
+
         [Test]
         public void AndroidPlayerSettings_AndBuildScenes_EnforceLandscapeArm64Il2CppContract()
         {
@@ -135,10 +142,17 @@ namespace Kalyeah.Game
             Assert.AreEqual(720, PlayerSettings.defaultScreenHeight);
             Assert.IsFalse(EditorUserBuildSettings.buildAppBundle, "Direct APK export keeps buildAppBundle disabled");
 
+            // BuildAndroid / Screenshots pass these two paths explicitly; EditorBuildSettings is only written by
+            // KalyeahBuild.Setup, which a fresh CI checkout (ProjectSettings/*.asset gitignored) has not run.
+            string[] scenePaths = { ReadConst(buildType, "TitleScenePath"), ReadConst(buildType, "MatchScenePath") };
+            Assert.IsTrue(scenePaths[0].EndsWith("/Title.unity", StringComparison.Ordinal), "Title scene path: " + scenePaths[0]);
+            Assert.IsTrue(scenePaths[1].EndsWith("/Match.unity", StringComparison.Ordinal), "Match scene path: " + scenePaths[1]);
             EditorBuildSettingsScene[] scenes = EditorBuildSettings.scenes;
-            Assert.GreaterOrEqual(scenes.Length, 2, "EditorBuildSettings must register Title and Match scenes");
-            Assert.IsTrue(scenes.Any(s => s.enabled && s.path.EndsWith("/Title.unity", StringComparison.Ordinal)));
-            Assert.IsTrue(scenes.Any(s => s.enabled && s.path.EndsWith("/Match.unity", StringComparison.Ordinal)));
+            if (scenes.Length > 0)
+            {
+                foreach (string path in scenePaths)
+                    Assert.IsTrue(scenes.Any(s => s.enabled && s.path == path), "EditorBuildSettings must register " + path);
+            }
         }
 
         [Test]
