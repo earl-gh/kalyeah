@@ -6,6 +6,7 @@ from mathutils import Vector, Matrix
 
 SRC, DST = sys.argv[1], sys.argv[2]
 HAND_NAMES = sys.argv[3].split(',')
+FORCE = len(sys.argv) > 4 and sys.argv[4] == 'force'   # reweight hands that already have 5 chains
 FINGERS = ("Index", "Middle", "Ring", "Pinky")
 PHALANX_SPLIT = (0.0, 0.45, 0.75, 1.0)   # share of finger length per phalanx (proximal, middle, distal)
 BLEND = 0.12                              # weight blend width around each joint (share of finger length)
@@ -69,7 +70,7 @@ report = []
 for hand_name in HAND_NAMES:
     hb = arm.data.bones[hand_name]
     chains = list(hb.children)
-    if len(chains) >= 5:
+    if len(chains) >= 5 and not FORCE:
         continue
     hhead = np.array(AM @ hb.head_local)
     bases = {c.name: np.array(AM @ c.head_local) for c in chains}
@@ -270,7 +271,9 @@ for hand_name in HAND_NAMES:
     eb = arm.data.edit_bones
     for n in old_set:
         eb.remove(eb[n])
-    pal_n = Vector(tuple(AMi.to_3x3() @ Vector(tuple(normal))))
+    # the bend axis must face the palm on both hands (palms face the thighs in the rest pose)
+    palm_dir = normal if normal @ np.array([-np.sign(hhead[0]), 0.0, 0.0]) > 0 else -normal
+    pal_n = Vector(tuple(AMi.to_3x3() @ Vector(tuple(palm_dir))))
     for fname, _, _, joints in plans:
         parent = eb[hand_name]
         for j in range(3):
@@ -324,6 +327,66 @@ for hand_name in HAND_NAMES:
     report.append(f"{hand_name} ({side}): thumb {thumb_name}, rebuilt 4 fingers from {len(other_names)} chain(s) {other_names}, "
                   f"{len(cand)} verts via {method}, per finger {[len(p[1]) for p in plans]}")
 
+# ---- weight refinement on the hands: smooth across finger borders, normalize, at most 4 bones per vertex
+SMOOTH_ITERS, SMOOTH_F = 3, 0.5
+hand_sets = set()
+for hand_name in HAND_NAMES:
+    hb = arm.data.bones[hand_name]
+    hand_sets |= {hand_name} | {b.name for b in hb.children_recursive}
+vgs = mesh.vertex_groups
+gidx = {g.name: g.index for g in vgs}
+hand_g = {gidx[n] for n in hand_sets if n in gidx}
+W = [{g.group: g.weight for g in v.groups if g.weight > 0} for v in mesh.data.vertices]
+nbr = [[] for _ in mesh.data.vertices]
+for e in mesh.data.edges:
+    a, b = e.vertices; nbr[a].append(b); nbr[b].append(a)
+# vertices split along texture seams share a position: treat them as neighbours too
+pos = {}
+for i, v in enumerate(mesh.data.vertices):
+    pos.setdefault(tuple(np.round(np.array(v.co) / 1e-5).astype(int)), []).append(i)
+for ids in pos.values():
+    for i in ids:
+        nbr[i].extend(j for j in ids if j != i)
+target = [i for i, w in enumerate(W) if any(g in hand_g for g in w)]
+for _ in range(SMOOTH_ITERS):
+    new = {}
+    for i in target:
+        acc = {}
+        for j in nbr[i]:
+            for g, val in W[j].items():
+                if g in hand_g:
+                    acc[g] = acc.get(g, 0) + val
+        n = max(1, len(nbr[i]))
+        mix = dict(W[i])
+        for g in set(acc) | {g for g in W[i] if g in hand_g}:
+            mix[g] = (1 - SMOOTH_F) * W[i].get(g, 0) + SMOOTH_F * acc.get(g, 0) / n
+        new[i] = mix
+    for i, w in new.items():
+        W[i] = w
+# seam twins (same position, split for texture) must carry identical weights or the skin cracks when it bends
+tset = set(target)
+for ids in pos.values():
+    ids = [i for i in ids if i in tset]
+    if len(ids) < 2:
+        continue
+    avg = {}
+    for i in ids:
+        for g, val in W[i].items():
+            avg[g] = avg.get(g, 0) + val / len(ids)
+    for i in ids:
+        W[i] = dict(avg)
+changed = 0
+for i in target:
+    w = {g: val for g, val in W[i].items() if val > 0.01}
+    top = dict(sorted(w.items(), key=lambda q: -q[1])[:4])
+    tot = sum(top.values()) or 1.0
+    v = mesh.data.vertices[i]
+    for g in list(v.groups):
+        vgs[g.group].remove([i])
+    for g, val in top.items():
+        vgs[g].add([i], val / tot, 'REPLACE')
+    changed += 1
+report.append(f"weight refinement: {changed} hand vertices smoothed, normalized, max 4 bones")
 print("\n".join(report))
 bpy.ops.export_scene.gltf(filepath=DST, export_format='GLB', use_selection=False, export_animations=True,
                           export_skins=True, export_image_format='AUTO')

@@ -189,7 +189,8 @@ if any(tb["new_bones"] for tb in tubes):
             b = eb.new(n)
             b.head = AMi @ V(tb["path"][j]); b.tail = AMi @ V(tb["path"][j + 1])
             b.parent = parent; b.use_connect = j > 0
-            b.align_roll(AMi.to_3x3() @ V(tb["normal"]))
+            n_ = tb["normal"] if tb["normal"] @ np.array([-np.sign(tb["path"][0][0]), 0.0, 0.0]) > 0 else -tb["normal"]
+            b.align_roll(AMi.to_3x3() @ V(n_))     # bend axis faces the palm on both hands
             parent = b
     bpy.ops.object.mode_set(mode='OBJECT')
 for tb in tubes:
