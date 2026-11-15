@@ -194,7 +194,7 @@ namespace Kalyeah.Game
 
         sealed class BackKeyBehaviour : MonoBehaviour
         {
-            public MatchOverlaysView Owner;
+            [NonSerialized] public MatchOverlaysView Owner;
 
             void Update()
             {
@@ -208,7 +208,7 @@ namespace Kalyeah.Game
         /// </summary>
         sealed class DismissTapCatcher : MonoBehaviour, IPointerClickHandler
         {
-            public Action OnTap;
+            [NonSerialized] public Action OnTap;
 
             public void OnPointerClick(PointerEventData eventData)
             {

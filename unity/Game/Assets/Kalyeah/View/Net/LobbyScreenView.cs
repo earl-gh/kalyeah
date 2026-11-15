@@ -154,7 +154,7 @@ namespace Kalyeah.Game
 
         sealed class RoomQrScrimDismiss : MonoBehaviour, IPointerClickHandler
         {
-            public Action OnDismiss;
+            [NonSerialized] public Action OnDismiss;
 
             public void OnPointerClick(PointerEventData eventData)
             {

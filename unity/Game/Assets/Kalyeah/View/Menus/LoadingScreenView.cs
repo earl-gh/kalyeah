@@ -72,7 +72,7 @@ namespace Kalyeah.Game
         [ExecuteAlways]
         sealed class LoadingLayoutHook : MonoBehaviour
         {
-            public LoadingScreenView Owner;
+            [NonSerialized] public LoadingScreenView Owner;
             bool _subscribed;
 
             void OnEnable()

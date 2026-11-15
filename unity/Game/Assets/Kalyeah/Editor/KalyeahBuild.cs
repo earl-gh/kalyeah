@@ -22,6 +22,7 @@ using Object = UnityEngine.Object;
 ///   KalyeahBuild.Setup         player settings (package, landscape, arm64, SDKs, input), the URP pipeline asset, the few materials the
 ///                              code needs, the glTFast import settings, the Title and Match scenes and the build's scene list.
 ///   KalyeahBuild.BuildAndroid  Setup, then the APK at -customBuildPath (GameCI passes it) or Build/Android/kalyeah-unity.apk.
+///   KalyeahBuild.BuildIos      Setup, then the iOS Xcode project at -customBuildPath or Build/iOS.
 ///   KalyeahBuild.Screenshots   Setup, then the title and the match from fixed shoulder-camera spots, 1280 x 720 PNGs in Build/screenshots.
 ///                              Needs a graphics device: run without -nographics (GameCI's editor image wraps Unity in xvfb-run).
 /// Run tools/unity_export/sync_assets.sh first (the art, the data and the sim come from there).
@@ -30,6 +31,7 @@ public static class KalyeahBuild
 {
     public const string PackageId = "com.kalyeah.game";
     public const string ProductName = "Kalyeah";
+    const string TargetIosVersion = "15.0";
     /// <summary>Android SDK floor (24 on Unity 6.0 LTS / GameCI; 26 on Unity 6.3+ where the Editor enforces API 26+) and target 35.</summary>
 #if UNITY_6000_3_OR_NEWER
     const int MinSdk = 26, TargetSdk = 35;
@@ -67,6 +69,20 @@ public static class KalyeahBuild
 
     // ---- Setup ------------------------------------------------------------------------------------------------------------------
 
+    [InitializeOnLoadMethod]
+    static void EnsureTitleSceneOpenOnEditorLoad()
+    {
+        if (Application.isBatchMode) return;
+        EditorApplication.delayCall += () =>
+        {
+            if (Application.isBatchMode || EditorApplication.isPlayingOrWillChangePlaymode) return;
+            if (!File.Exists(Path.Combine(ProjectRoot, TitleScenePath)))
+                Setup();
+            else if (string.IsNullOrEmpty(UnityEngine.SceneManagement.SceneManager.GetActiveScene().path))
+                EditorSceneManager.OpenScene(TitleScenePath, OpenSceneMode.Single);
+        };
+    }
+
     [MenuItem("Kalyeah/Setup Project")]
     public static void Setup()
     {
@@ -90,6 +106,7 @@ public static class KalyeahBuild
         PlayerSettings.companyName = ProductName;
         PlayerSettings.productName = ProductName;
         PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, PackageId);
+        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, PackageId);
         StampVersionAndBuildInfo();
 
         // one APK, arm64-v8a only (IL2CPP is the only backend that builds arm64)
@@ -100,6 +117,13 @@ public static class KalyeahBuild
         PlayerSettings.Android.forceInternetPermission = true;   // Online and Hotspot open sockets (KalyeahAndroidManifest adds the rest)
         PlayerSettings.Android.forceSDCardPermission = false;
         EditorUserBuildSettings.buildAppBundle = false;
+
+        // iOS mobile readiness: IL2CPP arm64 only, iOS 15.0+, full-screen landscape (iPhone + iPad)
+        PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
+        PlayerSettings.SetArchitecture(NamedBuildTarget.iOS, 1); // 1 = ARM64
+        PlayerSettings.iOS.targetOSVersionString = TargetIosVersion;
+        PlayerSettings.iOS.targetDevice = iOSTargetDevice.iPhoneAndiPad;
+        PlayerSettings.iOS.requiresFullScreen = true;
 
         // Android immersive fullscreen + edge-to-edge safe-area rendering (SafeArea.cs handles cutouts and gesture bars)
         PlayerSettings.statusBarHidden = true;
@@ -123,6 +147,7 @@ public static class KalyeahBuild
 
         PlayerSettings.colorSpace = ColorSpace.Linear;
         PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, true);
+        PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.iOS, true);
 
         ConfigureAppIconsAndSplash();
 
@@ -154,9 +179,17 @@ public static class KalyeahBuild
         if (string.IsNullOrEmpty(runNumberRaw))
             runNumberRaw = Environment.GetEnvironmentVariable("KALYEAH_VERSION_CODE")?.Trim();
         if (!string.IsNullOrEmpty(runNumberRaw) && int.TryParse(runNumberRaw, out int versionCode) && versionCode > 0)
+        {
             PlayerSettings.Android.bundleVersionCode = versionCode;
-        else if (PlayerSettings.Android.bundleVersionCode < 1)
-            PlayerSettings.Android.bundleVersionCode = 1;
+            PlayerSettings.iOS.buildNumber = versionCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        else
+        {
+            if (PlayerSettings.Android.bundleVersionCode < 1)
+                PlayerSettings.Android.bundleVersionCode = 1;
+            if (string.IsNullOrWhiteSpace(PlayerSettings.iOS.buildNumber))
+                PlayerSettings.iOS.buildNumber = PlayerSettings.Android.bundleVersionCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
 
         string rawServerUrl = Arg("-serverUrl");
         if (string.IsNullOrWhiteSpace(rawServerUrl))
@@ -209,6 +242,14 @@ public static class KalyeahBuild
             var fallbackArray = new Texture2D[count];
             for (int i = 0; i < count; i++) fallbackArray[i] = fallbackIcon;
             PlayerSettings.SetIcons(NamedBuildTarget.Unknown, fallbackArray, IconKind.Application);
+
+            int[] iosSizes = PlayerSettings.GetIconSizes(NamedBuildTarget.iOS, IconKind.Application);
+            if (iosSizes != null && iosSizes.Length > 0)
+            {
+                var iosIcons = new Texture2D[iosSizes.Length];
+                for (int i = 0; i < iosSizes.Length; i++) iosIcons[i] = fallbackIcon;
+                PlayerSettings.SetIcons(NamedBuildTarget.iOS, iosIcons, IconKind.Application);
+            }
         }
 
         PlatformIconKind[] kinds = PlayerSettings.GetSupportedIconKinds(NamedBuildTarget.Android);
@@ -497,8 +538,8 @@ public static class KalyeahBuild
     static void EnsureScenes()
     {
         if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
-        WriteScene(TitleScenePath, TitleScreen.SceneName, typeof(TitleScreen));
         WriteScene(MatchScenePath, MatchBoot.SceneName, typeof(MatchBoot));
+        WriteScene(TitleScenePath, TitleScreen.SceneName, typeof(TitleScreen));
         EditorBuildSettings.scenes = new[]
         {
             new EditorBuildSettingsScene(TitleScenePath, true),
@@ -524,6 +565,7 @@ public static class KalyeahBuild
 
     // ---- BuildAndroid -----------------------------------------------------------------------------------------------------------
 
+    [MenuItem("Kalyeah/Build Android APK")]
     public static void BuildAndroid()
     {
         Setup();
@@ -586,6 +628,29 @@ public static class KalyeahBuild
             PlayerSettings.Android.keyaliasName = aliasName;
             PlayerSettings.Android.keyaliasPass = aliasPass;
         }
+    }
+
+    // ---- BuildIos ---------------------------------------------------------------------------------------------------------------
+
+    [MenuItem("Kalyeah/Build iOS Xcode Project")]
+    public static void BuildIos()
+    {
+        Setup();
+        string path = Arg("-customBuildPath") ?? Path.Combine(ProjectRoot, "Build", "iOS");
+        Directory.CreateDirectory(path);
+        var options = new BuildPlayerOptions
+        {
+            scenes = new[] { TitleScenePath, MatchScenePath },
+            locationPathName = path,
+            target = BuildTarget.iOS,
+            targetGroup = BuildTargetGroup.iOS,
+            options = BuildOptions.None,
+        };
+        BuildReport report = BuildPipeline.BuildPlayer(options);
+        BuildSummary summary = report.summary;
+        Debug.Log($"KalyeahBuild: {summary.result} {path} {summary.totalSize / (1024 * 1024)} MB in {summary.totalTime}");
+        if (summary.result != BuildResult.Succeeded)
+            throw new BuildFailedException($"iOS build {summary.result}: {summary.totalErrors} errors (see the log above)");
     }
 
     // ---- Screenshots ------------------------------------------------------------------------------------------------------------

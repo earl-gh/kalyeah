@@ -81,7 +81,7 @@ namespace Kalyeah.Game
         [ExecuteAlways]
         sealed class CodexLifecycle : MonoBehaviour
         {
-            public CodexScreenView Owner;
+            [NonSerialized] public CodexScreenView Owner;
             bool _subscribed;
 
             void OnEnable()

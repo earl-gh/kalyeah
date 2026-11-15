@@ -251,7 +251,7 @@ namespace Kalyeah.Game
 
         sealed class ModalScrimDismiss : MonoBehaviour, IPointerClickHandler
         {
-            public Action OnDismiss;
+            [NonSerialized] public Action OnDismiss;
 
             public void OnPointerClick(PointerEventData eventData)
             {

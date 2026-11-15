@@ -132,7 +132,7 @@ namespace Kalyeah.Game
         [ExecuteAlways]
         sealed class LifecycleHook : MonoBehaviour
         {
-            public PickScreenView Owner;
+            [NonSerialized] public PickScreenView Owner;
 
             void OnEnable() => Owner?.OnRootEnabled();
             void OnRectTransformDimensionsChange() => Owner?.RefreshResponsiveLayout();

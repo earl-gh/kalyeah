@@ -63,7 +63,7 @@ namespace Kalyeah.Game
         /// <summary>Degrees: 0 looks down the sim's -Z. Pitch is down-positive.</summary>
         public float Yaw, Pitch;
 
-        public MapLayoutData Layout;
+        [NonSerialized] public MapLayoutData Layout;
         public int CollisionMask = Physics.DefaultRaycastLayers;
         public Transform IgnoreCollisionRoot;
 

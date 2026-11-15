@@ -55,7 +55,7 @@ namespace Kalyeah.Game
         [ExecuteAlways]
         sealed class HomeLifecycle : MonoBehaviour
         {
-            public HomeScreenView Owner;
+            [NonSerialized] public HomeScreenView Owner;
 
             void OnEnable() => Owner?.OnEnabled();
             void OnDisable() => Owner?.OnDisabled();

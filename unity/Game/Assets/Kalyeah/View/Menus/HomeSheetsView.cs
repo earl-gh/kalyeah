@@ -83,7 +83,7 @@ namespace Kalyeah.Game
         [ExecuteAlways]
         sealed class SheetsLifecycle : MonoBehaviour
         {
-            public HomeSheetsView Owner;
+            [NonSerialized] public HomeSheetsView Owner;
             bool _viewportSubscribed;
 
             void OnEnable()
@@ -144,7 +144,7 @@ namespace Kalyeah.Game
 
         sealed class ScrimDismissCatcher : MonoBehaviour, IPointerClickHandler
         {
-            public HomeSheetsView Owner;
+            [NonSerialized] public HomeSheetsView Owner;
 
             public void OnPointerClick(PointerEventData eventData)
             {

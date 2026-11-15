@@ -30,7 +30,7 @@ namespace Kalyeah.Game
         [ExecuteAlways]
         sealed class HistoryLifecycle : MonoBehaviour
         {
-            public HistoryScreenView Owner;
+            [NonSerialized] public HistoryScreenView Owner;
             bool _subscribed;
 
             void OnEnable()

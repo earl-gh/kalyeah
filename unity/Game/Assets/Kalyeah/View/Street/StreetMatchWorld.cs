@@ -31,6 +31,10 @@ namespace Kalyeah.Game
 
         readonly TiltInput _tilt;
         readonly List<StreetKidSnapshot> _previous = new List<StreetKidSnapshot>(8);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        readonly PcCombatInput _pcInput;
+        public PcCombatInput PcInput => _pcInput;
+#endif
 
         SVector2 _sampledMove;
         SVector2 _throwAimDir = new SVector2(0f, -1f);
@@ -123,6 +127,9 @@ namespace Kalyeah.Game
                 if (Application.isPlaying)
                     Audio.PlayBgm("bgm");
                 SettingsStore.Current.Changed += OnSettingsChanged;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                _pcInput = new PcCombatInput();
+#endif
             }
 
             Hud = new StreetHudView(
@@ -163,6 +170,26 @@ namespace Kalyeah.Game
 
             if (Hud.IsBlockingGameplayInput)
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (_pcInput != null)
+                {
+                    Vector2 blockedStick = Vector2.zero;
+                    bool blockedHold = false;
+                    Vector2 blockedDrag = Vector2.zero;
+                    bool blockedSec = false;
+                    _pcInput.SampleStreet(
+                        Sim,
+                        Hud,
+                        Shoulder,
+                        screenHeight,
+                        Time.unscaledDeltaTime,
+                        ref blockedStick,
+                        ref blockedHold,
+                        ref blockedDrag,
+                        ref blockedSec,
+                        ref _pendingCancelAim);
+                }
+#endif
                 Hud.CancelActiveTouches();
                 _sampledMove = SVector2.Zero;
                 if (_wasHoldingThrow)
@@ -178,7 +205,6 @@ namespace Kalyeah.Game
             Vector2 stick = Hud.Joystick != null ? Hud.Joystick.Value : Vector2.zero;
             if (stick.sqrMagnitude < 0.0025f && _tilt != null && _tilt.Enabled)
                 stick = _tilt.SampleDirection();
-            _sampledMove = Shoulder.GroundWay(stick);
 
             if (Hud.ConsumeSecondaryPress())
                 _pendingSecondaryPress = true;
@@ -187,6 +213,24 @@ namespace Kalyeah.Game
 
             bool holdingThrow = Hud.PrimaryHeld && !_pendingCancelAim;
             Vector2 aimDragPx = Hud.TakeAimDragPixels();
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            _pcInput?.SampleStreet(
+                Sim,
+                Hud,
+                Shoulder,
+                screenHeight,
+                Time.unscaledDeltaTime,
+                ref stick,
+                ref holdingThrow,
+                ref aimDragPx,
+                ref _pendingSecondaryPress,
+                ref _pendingCancelAim);
+            if (_pendingCancelAim)
+                holdingThrow = false;
+#endif
+
+            _sampledMove = Shoulder.GroundWay(stick);
 
             if (holdingThrow)
             {
@@ -503,6 +547,9 @@ namespace Kalyeah.Game
                 SettingsStore.Current.Changed -= OnSettingsChanged;
 
             _tilt?.SetEnabled(false);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            _pcInput?.Dispose();
+#endif
             Shoulder?.ClearOccluders();
             if (Hud != null)
             {

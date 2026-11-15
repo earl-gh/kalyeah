@@ -30,7 +30,7 @@ namespace Kalyeah.Game
         [ExecuteAlways]
         sealed class SettingsLifecycle : MonoBehaviour
         {
-            public SettingsScreenView Owner;
+            [NonSerialized] public SettingsScreenView Owner;
             bool _subscribed;
 
             void OnEnable()

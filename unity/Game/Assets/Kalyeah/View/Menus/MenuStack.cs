@@ -44,7 +44,7 @@ namespace Kalyeah.Game
         [ExecuteAlways]
         sealed class StackLifecycle : MonoBehaviour
         {
-            public MenuStack Owner;
+            [NonSerialized] public MenuStack Owner;
             bool _viewportSubscribed;
 
             void OnEnable()

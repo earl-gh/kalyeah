@@ -41,6 +41,9 @@ namespace Kalyeah.Game
         int _latchedPulseButtons;
         bool _latchedAimCancel;
         int _lastSampledSimTick = int.MinValue;
+        bool _streetThrowHeld;
+        Key _streetThrowKey = Key.None;
+        bool _streetThrowObservedBySim;
 
         RectTransform _debugPanel;
         Text _debugText;
@@ -91,7 +94,7 @@ namespace Kalyeah.Game
                 SetDebugStatsVisible(!IsDebugStatsVisible, hud != null ? hud.SafeRoot : null);
 
             if (IsDebugStatsVisible)
-                TickDebugStats(sim, hud != null ? hud.SafeRoot : null, frameDt);
+                TickDebugStats(sim != null ? sim.Tick : 0, hud != null ? hud.SafeRoot : null, frameDt);
 
             if (kb != null && kb.escapeKey.wasPressedThisFrame)
             {
@@ -313,6 +316,193 @@ namespace Kalyeah.Game
             }
         }
 
+        /// <summary>
+        /// Polls keyboard &amp; mouse playtest controls for Larong Kalye modes (Patintero, Tumbang Preso, Langit-Lupa)
+        /// without overwriting active mobile touch controls or adding PC HUD labels.
+        /// </summary>
+        public void SampleStreet(
+            StreetBridge sim,
+            StreetHudView hud,
+            ShoulderCamera shoulder,
+            float screenHeight,
+            float dt,
+            ref Vector2 touchStick,
+            ref bool holdingThrow,
+            ref Vector2 aimDragPx,
+            ref bool secondaryPressed,
+            ref bool cancelAim)
+        {
+            if (_disposed) return;
+
+            float frameDt = Mathf.Clamp(dt > 0f ? dt : Time.unscaledDeltaTime, 0.0005f, 0.1f);
+            _smoothedFrameDt = Mathf.Lerp(_smoothedFrameDt, frameDt, 0.12f);
+
+            Keyboard kb = null;
+            Mouse mouse = null;
+            try
+            {
+                kb = Keyboard.current;
+                mouse = Mouse.current;
+            }
+            catch (Exception)
+            {
+                return;
+            }
+
+            Transform safeRoot = hud != null ? hud.Safe : null;
+            if (kb != null && kb.f1Key.wasPressedThisFrame)
+                SetDebugStatsVisible(!IsDebugStatsVisible, safeRoot);
+
+            if (IsDebugStatsVisible)
+                TickDebugStats(sim != null ? sim.Tick : 0, safeRoot, frameDt);
+
+            if (kb != null && kb.escapeKey.wasPressedThisFrame)
+            {
+                if (_streetThrowHeld)
+                    cancelAim = true;
+                CancelStreetThrow();
+                SetMouseCaptured(false);
+                RmbHeld = false;
+                SyncCursorState();
+            }
+
+            if (hud == null || hud.IsBlockingGameplayInput)
+            {
+                if (_streetThrowHeld)
+                    cancelAim = true;
+                Reset(releaseCursor: true);
+                return;
+            }
+
+            if (kb != null && kb.backquoteKey.wasPressedThisFrame)
+            {
+                SetMouseCaptured(!MouseCaptured);
+                SyncCursorState();
+            }
+
+            bool touchActive = HasActiveTouches();
+            Vector2 mouseDelta = (mouse != null && !touchActive) ? mouse.delta.ReadValue() : Vector2.zero;
+
+            // 1. Mouse look (RMB drag or backquote cursor-capture toggle; yields to mouse throw-steering unless RMB is held)
+            if (mouse != null && !touchActive)
+            {
+                bool rmbNow = mouse.rightButton.isPressed;
+                if (rmbNow != RmbHeld)
+                {
+                    RmbHeld = rmbNow;
+                    SyncCursorState();
+                }
+
+                if ((RmbHeld || (MouseCaptured && !_streetThrowHeld)) && mouseDelta.sqrMagnitude > 0.0001f)
+                    shoulder?.Look(mouseDelta, Mathf.Max(1f, screenHeight));
+            }
+            else if (RmbHeld)
+            {
+                RmbHeld = false;
+                SyncCursorState();
+            }
+
+            // 2. WASD movement (+ Alt walk 0.45x), yielding whenever mobile touch VirtualJoystick is active
+            Vector2 rawWasd = ReadWasd(kb, out _);
+            if (rawWasd.sqrMagnitude > 0.0001f)
+            {
+                bool startingHold = !_wasdActive;
+                _wasdActive = true;
+                _smoothedStick = SmoothWasd(_smoothedStick, rawWasd, frameDt, startingHold, SettingsStore.Current.ReduceMotion);
+                LastStick = _smoothedStick;
+                if (touchStick.sqrMagnitude < 0.0025f)
+                    touchStick = _smoothedStick;
+            }
+            else if (_wasdActive)
+            {
+                _wasdActive = false;
+                _smoothedStick = Vector2.zero;
+                LastStick = Vector2.zero;
+            }
+
+            // 3. Sim tick advance check so sub-tick taps are never dropped at 60..240 FPS
+            int simTick = sim != null ? sim.Tick : (_lastSampledSimTick + 1);
+            bool tickAdvanced = simTick != _lastSampledSimTick;
+            if (tickAdvanced)
+                _lastSampledSimTick = simTick;
+
+            bool canAct = sim != null && !sim.IsMatchOver;
+            StreetActionInfo actions = sim != null ? sim.LocalActions : default;
+
+            // 4. Primary hold-to-charge (TSINELAS in Tumbang Preso): LMB / Q / 1 / Numpad1; C cancels
+            if (!canAct || !actions.PrimaryVisible || !actions.PrimaryEnabled || touchActive)
+            {
+                CancelStreetThrow();
+            }
+            else if (_streetThrowHeld)
+            {
+                if (tickAdvanced)
+                    _streetThrowObservedBySim = true;
+
+                if (kb != null && kb.cKey.wasPressedThisFrame)
+                {
+                    CancelStreetThrow();
+                    cancelAim = true;
+                }
+                else
+                {
+                    bool stillPressed = _streetThrowKey != Key.None
+                        ? (kb != null && kb[_streetThrowKey] != null && kb[_streetThrowKey].isPressed)
+                        : (mouse != null && mouse.leftButton.isPressed);
+                    if (!stillPressed && _streetThrowObservedBySim)
+                        CancelStreetThrow();
+                }
+            }
+            else if (!holdingThrow && !cancelAim)
+            {
+                Key startKey = PollStreetPrimaryKey(kb);
+                if (startKey != Key.None)
+                {
+                    _streetThrowHeld = true;
+                    _streetThrowKey = startKey;
+                    _streetThrowObservedBySim = false;
+                }
+                else if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+                {
+                    bool overUi = !MouseCaptured && !RmbHeld && IsPointerOverInteractiveUi(mouse.position.ReadValue());
+                    if (!overUi)
+                    {
+                        LmbHeld = true;
+                        _streetThrowHeld = true;
+                        _streetThrowKey = Key.None;
+                        _streetThrowObservedBySim = false;
+                    }
+                }
+            }
+
+            if (_streetThrowHeld && !cancelAim)
+            {
+                holdingThrow = true;
+                aimDragPx += mouseDelta;
+                if (LmbHeld && !RmbHeld)
+                    hud.Look?.Cancel();
+            }
+
+            // 5. Secondary pulse (DIVE / SIPA / LUPA): Space / E / Shift / 2 / Numpad2 (+ LMB only when !PrimaryVisible && MouseCaptured)
+            if (canAct && actions.SecondaryVisible && actions.SecondaryEnabled)
+            {
+                bool kbSec = kb != null && (
+                    kb.spaceKey.wasPressedThisFrame ||
+                    kb.eKey.wasPressedThisFrame ||
+                    kb.leftShiftKey.wasPressedThisFrame ||
+                    kb.rightShiftKey.wasPressedThisFrame ||
+                    kb.digit2Key.wasPressedThisFrame ||
+                    kb.numpad2Key.wasPressedThisFrame);
+                bool mouseSec = !actions.PrimaryVisible &&
+                    MouseCaptured &&
+                    !touchActive &&
+                    mouse != null &&
+                    mouse.leftButton.wasPressedThisFrame;
+                if (kbSec || mouseSec)
+                    secondaryPressed = true;
+            }
+        }
+
         public void SetMouseCaptured(bool captured)
         {
             MouseCaptured = captured;
@@ -347,6 +537,7 @@ namespace Kalyeah.Game
             _latchedPulseButtons = 0;
             _latchedAimCancel = false;
             CancelHeldSlot();
+            CancelStreetThrow();
 
             if (releaseCursor)
             {
@@ -509,6 +700,23 @@ namespace Kalyeah.Game
             _pendingReleaseCancel = false;
         }
 
+        void CancelStreetThrow()
+        {
+            _streetThrowHeld = false;
+            _streetThrowKey = Key.None;
+            _streetThrowObservedBySim = false;
+            LmbHeld = false;
+        }
+
+        static Key PollStreetPrimaryKey(Keyboard kb)
+        {
+            if (kb == null) return Key.None;
+            if (kb.qKey.wasPressedThisFrame) return Key.Q;
+            if (kb.digit1Key.wasPressedThisFrame) return Key.Digit1;
+            if (kb.numpad1Key.wasPressedThisFrame) return Key.Numpad1;
+            return Key.None;
+        }
+
         static Vector2 ReadWasd(Keyboard kb, out bool altWalk)
         {
             altWalk = false;
@@ -565,8 +773,10 @@ namespace Kalyeah.Game
                 if (hitGo == null) continue;
                 if (hitGo.GetComponentInParent<Selectable>() != null)
                     return true;
-                // AbilityArcView & CardHandView slots implement IPointerDownHandler directly
-                if (hitGo.GetComponentInParent<AbilityArcView>() != null || hitGo.GetComponentInParent<CardHandView>() != null)
+                // AbilityArcView, CardHandView, & StreetActionButton slots implement IPointerDownHandler directly
+                if (hitGo.GetComponentInParent<AbilityArcView>() != null ||
+                    hitGo.GetComponentInParent<CardHandView>() != null ||
+                    hitGo.GetComponentInParent<StreetActionButton>() != null)
                     return true;
             }
             return false;
@@ -619,7 +829,7 @@ namespace Kalyeah.Game
             _debugText.rectTransform.offsetMax = new Vector2(-8f, -4f);
         }
 
-        void TickDebugStats(SimBridge sim, Transform parent, float dt)
+        void TickDebugStats(int tick, Transform parent, float dt)
         {
             EnsureDebugPanel(parent);
             if (_debugPanel == null || _debugText == null) return;
@@ -629,7 +839,6 @@ namespace Kalyeah.Game
             _debugRefreshTimer = DebugRefreshInterval;
 
             int fps = Mathf.Clamp(Mathf.RoundToInt(1f / Mathf.Max(_smoothedFrameDt, 0.0005f)), 1, 999);
-            int tick = sim != null ? sim.Tick : 0;
             string mode = AppSession.ModeKey(AppSession.Current.Mode).ToUpperInvariant();
             var urp = (QualitySettings.renderPipeline as UniversalRenderPipelineAsset)
                       ?? (GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset);
