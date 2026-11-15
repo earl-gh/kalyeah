@@ -8,7 +8,7 @@ mkdir -p work/<id>
 git show 733a7d06:assets/models/props/nena_store.glb > work/nena_store/orig.glb   # the Nena store as the owner added it
 git show 4adb4887:assets/models/props/<id>.glb > work/<id>/orig.glb               # the others before this rebuild
 BPY=/path/to/python-with-bpy PY=python3 tools/art/buildings/run.sh <id> work
-cp work/<id>/final.glb assets/models/props/<id>.glb                              # Godot extracts <id>_prop_base_color.jpg on import
+cp work/<id>/final.glb assets/models/props/<id>.glb                              # sync_assets.py mirrors <id>.glb into Unity's Assets/Imported/Resources/
 ```
 `run.sh` rebuilds a building byte for byte from `config/<id>.json` and `signs/<id>.png`.
 

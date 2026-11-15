@@ -1,24 +1,27 @@
-# Kalyeah dedicated game server (headless Godot, WebSocket on $PORT).
+# Kalyeah dedicated game server (.NET 8 WebSocket server on $PORT).
 # Build:  docker build -t kalyeah-server .
 # Run:    docker run -p 8080:8080 kalyeah-server
-FROM ubuntu:24.04
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
 
-ARG GODOT_VERSION=4.6.2
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates wget unzip libfontconfig1 \
-    && rm -rf /var/lib/apt/lists/* \
-    && wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -O /tmp/godot.zip \
-    && unzip -q /tmp/godot.zip -d /tmp \
-    && mv "/tmp/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot \
-    && chmod +x /usr/local/bin/godot \
-    && rm /tmp/godot.zip
+COPY unity/Kalyeah.Sim/Kalyeah.Sim.csproj unity/Kalyeah.Sim/
+COPY unity/Kalyeah.Net/Kalyeah.Net.csproj unity/Kalyeah.Net/
+COPY unity/Kalyeah.Server/Kalyeah.Server.csproj unity/Kalyeah.Server/
+RUN dotnet restore unity/Kalyeah.Server/Kalyeah.Server.csproj
 
+COPY unity/Kalyeah.Sim/ unity/Kalyeah.Sim/
+COPY unity/Kalyeah.Net/ unity/Kalyeah.Net/
+COPY unity/Kalyeah.Server/ unity/Kalyeah.Server/
+COPY unity/Data/ unity/Data/
+RUN dotnet publish unity/Kalyeah.Server/Kalyeah.Server.csproj -c Release --no-restore -o /app \
+    && test -f /app/Data/rules__game_rules.json
+
+FROM mcr.microsoft.com/dotnet/runtime:8.0 AS runtime
 WORKDIR /app
-COPY . .
-# Builds the import cache once so the server starts fast.
-RUN godot --headless --import || true
+COPY --from=build /app ./
 
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+ENV KALYEAH_DATA=/app/Data
 ENV PORT=8080
 EXPOSE 8080
-# The title scene sees --server and switches to server/main.tscn.
-CMD ["godot", "--headless", "--", "--server"]
+ENTRYPOINT ["dotnet", "/app/Kalyeah.Server.dll"]

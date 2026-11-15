@@ -1,0 +1,7 @@
+{
+    "name": "Kalyeah.Sim",
+    "rootNamespace": "Kalyeah.Sim",
+    "references": [],
+    "noEngineReferences": true,
+    "autoReferenced": true
+}

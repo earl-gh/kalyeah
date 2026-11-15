@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs inside the emulator (android-emulator-runner). Usage: smoke-test.sh <apk> <output folder>
-# Installs the build, starts it, lets it run 30 s, sends Back and Home like a player would, and fails on a dead process, a SCRIPT ERROR
-# or a fatal signal in logcat. Leaves screenshots and the log in the output folder.
+# Installs the build, starts it, lets it run 30 s, sends Back and Home like a player would, and fails on a dead process, a Unity/C#
+# exception or a fatal signal in logcat. Leaves screenshots and the log in the output folder.
 # A launch that did not start the game is repeated, up to 3 times. The 30 s are watched second by second, so the log says when the game
 # vanished, and a failure prints why the system says it ended (`dumpsys activity exit-info`: crash, native crash, low memory, killed)
 # next to the launch, crash-buffer and memory lines, in the job log itself.
@@ -77,10 +77,10 @@ if [ "$failed" -ne 0 ]; then
   echo "---- activity manager, process and memory lines about the game ----"
   grep -E "ActivityManager|ActivityTaskManager|lmkd|lowmemory|am_kill|am_proc_died|am_crash|$PACKAGE" "$OUT/logcat.txt" | tail -n 40
 fi
-if grep -E "SCRIPT ERROR|Fatal signal|FATAL EXCEPTION|ANR in $PACKAGE" "$OUT/logcat.txt"; then
-  echo "FAIL  logcat has an error (lines above)"; failed=1
+if grep -E "Fatal signal|FATAL EXCEPTION|ANR in $PACKAGE|Unity   : .*Exception:" "$OUT/logcat.txt"; then
+  echo "FAIL  logcat has a Unity exception, fatal signal or crash (lines above)"; failed=1
 else
-  echo "ok    logcat has no SCRIPT ERROR, fatal signal or crash"
+  echo "ok    logcat has no Unity exception, fatal signal or crash"
 fi
-grep -m3 -E "Godot Engine v" "$OUT/logcat.txt" || echo "note  no Godot banner in logcat"
+grep -m3 -E "Unity   : Initialize engine version|Unity version" "$OUT/logcat.txt" || echo "note  no Unity engine banner in logcat"
 exit "$failed"

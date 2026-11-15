@@ -1,0 +1,22 @@
+{
+    "name": "Kalyeah.Game",
+    "rootNamespace": "Kalyeah.Game",
+    "references": [
+        "Kalyeah.Game.Core",
+        "Kalyeah.Sim",
+        "Kalyeah.Net",
+        "Unity.InputSystem",
+        "UnityEngine.UI",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,20 +1,18 @@
 # Mistake log (auto-loaded; keep tiny, one line per rule, no repeats)
 Don't:
-- commit Godot 4.7.2 noise (`project.godot`, rewritten `.import`); stage explicit paths
-- test on anything but Godot 4.6.2; run import+tests in the foreground (<180 s/call)
-- reuse a staged file name in `device_commit_files` (cached)
-- call a model fine before diffing it against its source (size, textures, `.import`)
-- rebuild a material in code without copying all its settings
-- claim a visual you haven't seen; say what was unchecked
-- generate assets (owner makes them)
-- guess a phone network (gateway ".1", "any private IPv4 = hotspot", interface names): read the AOSP or Godot source, or ask the device
-- write an APK or aapt2 parser from memory: capture the tool's real output as a fixture and test against it
-- use `ui_cancel` for Android Back (it is Esc): handle `NOTIFICATION_WM_GO_BACK_REQUEST`, deferred
+- commit generated `unity/Game/Assets/Imported/`, `Assets/Kalyeah/Generated/`, or `Library/` noise; stage explicit paths
+- run Unity batchmode before running `python tools/unity_export/sync_assets.py`
+- hand-edit generated `.unity` scenes or URP assets owned by `KalyeahBuild.Setup`
+- call a 3D model fine before checking its `.glb` scale, `+Z`/`GodotSpace` facing, and sanitized URP materials
+- claim a visual fix you haven't inspected at both `1280×720` (`16:9`) and `844×390` (`~19.5:9` notched); say what was unchecked
+- generate art or audio assets (the owner makes them; advise the asset kind instead)
+- guess phone hotspot interfaces (gateway `.1`, "any private IPv4 = hotspot", interface names): check AOSP / `HotspotNet` rules and vendor interface tests
+- write an APK or `aapt2` parser from memory: test against captured fixtures in `unity/Golden/Android/`
+- wire Android Back directly to `Application.Quit()`: route through `MenuStack.HandleBack()` and `MatchOverlaysView.HandleBack()`
 Do:
-- `md5sum` copied files; remove temp files you made; `git push -u`
-- ask delete permission before removing lock/temp files
+- run targeted `dotnet test` / `EditMode` seam checks while iterating, and full suites before opening a PR
+- remove temporary files you created; ask before deleting lock or user files
 Repeat instructions:
-- "make a PR": read last PRs + template, copy sections, `gh api` REST, give link
-- "fix quality": diff vs source, check `.import` + code materials, fix cause, pin with a test
-- "N passes": import, full GUT N times, start practice scene once, report counts
-- "replace model": bake one mesh per material, foot at origin, height in `data/`, update tests + `docs/ART.md`
+- "make a PR": read recent PRs + `.github/pull_request_template.md`, fill sections, open via `gh`, give link
+- "fix quality": inspect `.glb` / texture sync + URP material properties in code, fix root cause, pin with a test
+- "replace model": keep foot at origin, height in `unity/Data/`, run `sync_assets.py`, update tests + `docs/ART.md`

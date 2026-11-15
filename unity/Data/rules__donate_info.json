@@ -1,0 +1,10 @@
+{
+ "source": "res://data/rules/donate_info.tres",
+ "class": "DonateInfo",
+ "data": {
+  "$class": "DonateInfo",
+  "thanks": "Love Kalyeah? Chip in and help it grow!",
+  "grown_ups": "Ask a grown-up first. Gifts give nothing in the game.",
+  "url": ""
+ }
+}

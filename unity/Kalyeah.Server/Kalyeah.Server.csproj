@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The dedicated headless server (port of server/main.gd): dotnet run, project unity/Kalyeah.Server. Listens on $PORT
+       (else net_rules.default_port) and reads the rules from unity/Data (KALYEAH_DATA, or the Data folder copied next to it). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <RootNamespace>Kalyeah.Server</RootNamespace>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Kalyeah.Net/Kalyeah.Net.csproj" />
+    <ProjectReference Include="../Kalyeah.Sim/Kalyeah.Sim.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../Data/*.json" LinkBase="Data" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

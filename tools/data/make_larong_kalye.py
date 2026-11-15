@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
-"""Writes data/rules/larong_kalye.tres: one Filipino street game for every month (the Game of the month, shown from the calendar icon on
-the main screen). The text lives here so it can be edited in one place; run this to regenerate the data file."""
-import json
+"""Writes unity/Data/rules__larong_kalye.json: one Filipino street game for every month (the Game of the Month card
+and Codex heritage book). The text lives here so it can be edited in one place; run this to regenerate the JSON file."""
+from __future__ import annotations
 
-G = []
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+OUT = ROOT / "unity" / "Data" / "rules__larong_kalye.json"
+
+G: list[dict] = []
+
 
 def game(month, name, also, pmin, pmax, time, place, items, goal, setup, how, rules, safety):
     G.append(dict(month=month, name=name, also=also, players_min=pmin, players_max=pmax, time=time, place=place, items=items, goal=goal,
                   setup=setup, how=how, rules=rules, safety=safety))
+
 
 # Copy voice: short and upbeat, verbs first, about eight words a line (Clash style). Rules differ from street to street: the sheet says so.
 game(1, "Patintero", "Harangang Taga", 6, 12, "20 min", "Street or yard",
@@ -125,22 +133,25 @@ QUICK = [
 for item, (setup, play, win) in zip(G, QUICK):
     item.update(quick_setup=setup, quick_play=play, quick_win=win)
 
-def lit(v):
-    if isinstance(v, bool):
-        return 'true' if v else 'false'
-    if isinstance(v, int):
-        return str(v)
-    if isinstance(v, str):
-        return json.dumps(v, ensure_ascii=False)
-    if isinstance(v, list):
-        return '[' + ', '.join(lit(x) for x in v) + ']'
-    if isinstance(v, dict):
-        return '{\n' + ',\n'.join(f'{json.dumps(k)}: {lit(x)}' for k, x in v.items()) + '\n}'
-    raise TypeError(type(v))
 
-out = ['[gd_resource type="Resource" script_class="LarongKalye" load_steps=2 format=3]', '',
-       '[ext_resource type="Script" path="res://scripts/sim/larong_kalye.gd" id="1_games"]', '', '[resource]',
-       'script = ExtResource("1_games")',
-       'games = Array[Dictionary]([' + ', '.join(lit(g) for g in G) + '])', '']
-open('data/rules/larong_kalye.tres', 'w', encoding='utf-8').write('\n'.join(out))
-print(len(G), 'games')
+def build_payload() -> dict:
+    # Keep "source" matching SimData.LarongKalye ("res://data/rules/larong_kalye.tres").
+    return {
+        "source": "res://data/rules/larong_kalye.tres",
+        "class": "LarongKalye",
+        "data": {
+            "$class": "LarongKalye",
+            "games": G,
+        },
+    }
+
+
+def main(out_path: Path = OUT) -> int:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(build_payload(), indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+    print(f"{len(G)} games -> {out_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

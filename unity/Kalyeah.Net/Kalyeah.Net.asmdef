@@ -1,0 +1,7 @@
+{
+    "name": "Kalyeah.Net",
+    "rootNamespace": "Kalyeah.Net",
+    "references": ["Kalyeah.Sim"],
+    "noEngineReferences": true,
+    "autoReferenced": true
+}

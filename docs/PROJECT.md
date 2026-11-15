@@ -4,7 +4,7 @@
 
 ## 1. Abstract
 
-Kalyeah is a stylised 3D multiplayer action game built in Godot 4 for Android, themed around classic Filipino street games. Instead of heroes and levels, every player shares the same fixed health and equips two weapons from an arsenal of street-game items: bato-bato-pik, tumbang preso tsinelas and lata, jackstones, and trumpo, each reimagined as an attack, crowd-control or block skill. Each player chooses one of six Filipino kids in everyday Pinoy outfits. The core match is **Agawang Base**, played 1v1, 2v2 or 3v3 on a Filipino barangay street. A player brought to 0 HP is tagged and waits in a taped box until a teammate rescues them; a team scores by holding the enemy's electric-post base together or by tagging the whole other team. With no accounts, ranks or leveling, every match is quick to join and decided by skill.
+Kalyeah is a stylised 3D multiplayer action game built in Unity 6 (URP Mobile) and `.NET 8` for Android, themed around classic Filipino street games. Instead of heroes and levels, every player shares the same fixed health and equips street-game superpowers from an arsenal of Filipino *larong kalye* items: bato-bato-pik, tumbang preso tsinelas and lata, jackstones, and trumpo, each reimagined as an attack, crowd-control or block skill. Each player chooses one of ten Filipino kids in everyday Pinoy outfits. The core match is **Agawang Base**, played up to **5v5** in a circular Filipino provincial barangay alongside classic 3v3/6-player street games (*Patintero*, *Tumbang Preso*, *Langit Lupa*). A player brought to 0 HP is tagged and waits beside a waiting-shed rescue zone until a teammate rescues them; a team scores by holding the enemy's base together or by tagging the whole other team. With no accounts or pay-to-win leveling, every match is quick to join and decided by skill.
 
 ## 2. Hardware and Software Requirements (for playing)
 
@@ -15,9 +15,9 @@ Kalyeah is a stylised 3D multiplayer action game built in Godot 4 for Android, t
 | Operating system | Android 8.0 Oreo (API 26) | Android 11 or newer |
 | Processor | Quad-core 1.8 GHz, 64-bit (ARMv8) | Octa-core 2.0 GHz+ (e.g. Snapdragon 680 / Helio G85 class or better) |
 | Memory (RAM) | 3 GB | 4 GB or more |
-| Graphics | OpenGL ES 3.0 support | Adreno 610 / Mali-G52 class or better |
+| Graphics | OpenGL ES 3.0 / Vulkan (Unity 6 URP Mobile) | Adreno 610 / Mali-G52 class or better |
 | Storage | 200 MB free | 500 MB free |
-| Display | 5.0", 720 × 1280, portrait | 6.0"+, 1080 × 1920, portrait |
+| Display | 5.0", 1280 × 720, landscape | 6.0"+, 1920 × 1080+, landscape |
 | Network | Internet for multiplayer (Wi-Fi or 4G), latency under 150 ms | Wi-Fi or 4G/5G, latency under 80 ms |
 | Input | Touchscreen: an on-screen stick to move, drag-to-aim skill buttons | — |
 | Software | Kalyeah APK installed (no Google account or sign-in needed) | — |
@@ -88,9 +88,9 @@ Every weapon has a type icon. All values (damage, cooldowns, ranges) are data-dr
 - None (the guava and the tricycle were removed by the owner).
 
 ### 3.7 Platforms and delivery
-- **Android app** is the only client (APK). There is no web or desktop build; the headless Linux **Server** export is the only other build.
+- **Android app** is the only client (`arm64-v8a` IL2CPP APK). There is no web or desktop build; the headless Linux **`.NET 8` Dedicated Server** (`unity/Kalyeah.Server`, root `Dockerfile`) is the only other build.
 - **Offline practice mode** (vs. training dummies and bots) so builds can be tested on a phone without a server.
-- **Debug APK** from the `Android APK` workflow (every push to `main`, or run on demand) for testing; signed release in M6.
+- **Debug APK** from the `Unity 6 CI` workflow (`kalyeah-unity-apk`, paired with `kalyeah-unity-screenshots`) for testing; signed release in M6.
 
 ### 3.8 Visual style and orientation
 - **Shoulder view (owner, 2026-11-09):** the players' point of view is a third-person camera over the kid's shoulder like Marvel Rivals or Deadlock: look by dragging on the right of the screen, cast cards at the crosshair. See `docs/GDD.md` "Shoulder view".

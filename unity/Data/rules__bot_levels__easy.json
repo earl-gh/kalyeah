@@ -1,0 +1,17 @@
+{
+ "source": "res://data/rules/bot_levels/easy.tres",
+ "class": "BotLevel",
+ "data": {
+  "$class": "BotLevel",
+  "id": "easy",
+  "label": "Easy",
+  "blurb": "Relaxed barangay bots that give you room to explore superpowers.",
+  "skill": 0.2,
+  "aim_error_degrees": 18.0,
+  "cast_gap": 2.0,
+  "aggro_range": 20.0,
+  "assault_delay": 5.0,
+  "assault_window": 42.0,
+  "rest_time": 10.0
+ }
+}

@@ -1,73 +1,51 @@
-# Kalyeah game server
+# Kalyeah game server (`unity/Kalyeah.Server`)
 
-The server is the same Godot project run headless. It listens for WebSocket
-connections on `$PORT` (default 8080), keeps the rooms, and runs every match
-(server-authoritative; clients only send inputs). There's no database and no
-accounts. Rooms live in memory and vanish when the server restarts.
+The public Online server is a standalone headless **`.NET 8`** executable (`unity/Kalyeah.Server/Kalyeah.Server.csproj`) sharing the exact engine-free `Kalyeah.Sim` and `Kalyeah.Net` assemblies used by the Unity 6 Android client. It listens for WebSocket connections and HTTP health checks (`200 kalyeah`) on `$PORT` (default `8080`), manages 10-slot rooms, and steps every match authoritatively at `30 Hz` (clients send `PlayerInput` frames only). There is no database and no accounts: rooms live in memory and reset when the server restarts.
 
-## Hotspot rooms need no server
+## Local (Hotspot) rooms need no internet server
 
-A hotspot room is hosted by the Android app itself (the same server code runs inside the app,
-`Net.start_host`). Friends on the same hotspot tap Join and the app finds the host by itself (no code, no address).
-This file is about the public **Online** server.
+A Local room is hosted inside the Android app itself (`HotspotNet` + `GameServer` over managed `TcpListener`, paired with `kalyeah_local.androidlib` for `LocalOnlyHotspot`, Wi-Fi QR, and NFC Tap-to-Join). Friends on the same hotspot or Wi-Fi tap Join and discover the host automatically via UDP `HotspotBeacon` (no room code or IP entry). This guide covers the public **Online** server.
 
-## Run it on a computer
+## Run locally
 
 ```sh
-godot --headless -- --server            # port 8080
-PORT=9000 godot --headless -- --server  # another port
+dotnet run --project unity/Kalyeah.Server               # port 8080, loads unity/Data/*.json
+PORT=9000 dotnet run --project unity/Kalyeah.Server     # custom port
 ```
 
-The game has no server field: it uses the address the APK was built with (below,
-the `kalyeah/network/server_url` project setting).
+Or build and run the root multi-stage `.NET 8` Docker image:
 
-## Deploy for free (from a phone works too)
+```sh
+docker build -t kalyeah-server .
+docker run --rm -p 8080:8080 kalyeah-server
+```
 
-Online play should use a **wss://** (TLS) server. Both hosts below give you https/wss
-automatically. (Hotspot rooms are the exception: the host's phone is the server and
-friends reach it with a plain `ws://` address on the local network.)
+## Deploy for free (Render or Fly.io)
 
-### Render (easiest, all in the browser)
+Online play uses TLS (`wss://`), which Render and Fly.io terminate automatically in front of container port `8080`:
 
-1. render.com → sign in with GitHub → **New → Web Service** → pick `earl-gh/kalyeah`.
-2. Runtime **Docker** (it finds the `Dockerfile`), instance type **Free**, then **Deploy**.
-3. When it's live you get an address like `https://kalyeah-xxxx.onrender.com`.
-   In the game use `wss://kalyeah-xxxx.onrender.com`.
+### Render
+1. Sign in at `render.com` with GitHub → **New → Web Service** → select the repository.
+2. Runtime **Docker** (uses the root `Dockerfile`, which publishes `unity/Kalyeah.Server` and copies `unity/Data` to `/app/Data`), instance type **Free**, then **Deploy**.
+3. Once live (`https://kalyeah-xxxx.onrender.com`), set `wss://kalyeah-xxxx.onrender.com` as `KALYEAH_SERVER_URL` below.
 
-The free tier sleeps after ~15 minutes without traffic. The first connection
-after that takes about a minute while it wakes up. The app waits for it: an Online
-connection gets `connect_timeout` (75 s, `data/rules/net_rules.tres`) instead of
-Godot's 3 s, and after `wake_hint_after` (4 s) the room screen says "Waking up the
-server. This can take a minute…". (Hotspot connections keep the 3 s.)
-
-The live server is `wss://kalyeah.onrender.com` (Render, free tier).
+Free-tier instances sleep after ~15 minutes of inactivity and take ~60 s to cold-start. Online connections use `connect_timeout` (`75 s` in `unity/Data/rules__net_rules.json`) and display *"Waking up the server. This can take a minute…"* after `wake_hint_after` (`4 s`), whereas Local Hotspot connections keep a fast `3 s` timeout.
 
 ### Fly.io
-
-Fly.io has no free tier for new accounts; a small always-on machine costs a few
-dollars a month and never sleeps.
-
 ```sh
-fly launch --no-deploy        # accept the Dockerfile, internal port 8080
+fly launch --no-deploy        # uses root Dockerfile, internal port 8080
 fly deploy
 ```
-
 Address: `wss://<app-name>.fly.dev`.
 
-## Tell the game where the server is
+## Stamp the server URL into the Android APK
 
-GitHub → Settings → Secrets and variables → Actions → **Variables** → New variable
-`KALYEAH_SERVER_URL` = `wss://kalyeah-xxxx.onrender.com`. The next `Android APK` build
-stamps it into the app.
+GitHub → **Settings → Secrets and variables → Actions → Variables** → `KALYEAH_SERVER_URL` = `wss://kalyeah-xxxx.onrender.com`. `KalyeahBuild.BuildAndroid` writes `Assets/Imported/Resources/Data/build_stamp.txt` during the **Unity 6 CI** Android job, which `AppSession` reads at startup.
 
-## How it works (for developers)
+## How it works (`unity/Kalyeah.Net` & `unity/Kalyeah.Server`)
 
-- `scripts/net/game_server.gd`: WebSocketMultiplayerPeer used as a packet pipe,
-  with messages from `scripts/net/protocol.gd`.
-- `scripts/net/room_service.gd`: passcodes, team slots, ready, start rules, host
-  handover, and the 60 s reconnect window.
-- `scripts/net/server_match.gd`: loading sync, then the weapon pick, then the
-  MatchSim at 30 Hz. Snapshots go out at 20 Hz, and sim signals are relayed as events.
-- `scripts/net/game_client.gd`: the client mirror. It predicts and reconciles the
-  local player's movement and draws the other players 0.1 s in the past between
-  snapshots.
+- `unity/Kalyeah.Server/Program.cs`: parses `$PORT` and `--data`, loads `SimData` from `/app/Data` (`unity/Data`), serves HTTP health checks, and ticks `GameServer` on a monotonic `30 Hz` loop.
+- `unity/Kalyeah.Net/WsServerTransport.cs` & `GameServer.cs`: managed RFC-6455 WebSocket packet pipe and binary `Protocol` router.
+- `unity/Kalyeah.Net/RoomService.cs`: 8-character room passcodes, 5v5 team slots, ready checks, start rules, host handover, and the `60 s` reconnect window.
+- `unity/Kalyeah.Net/ServerMatch.cs`: loading sync, character/superpower pick, authoritative `30 Hz` `MatchSim` stepping, `20 Hz` quantized snapshots (with *Langit Lupa* brownout position masking), and discrete combat events.
+- `unity/Kalyeah.Net/GameClient.cs`: client mirror handling local movement prediction/reconciliation and `100 ms` remote entity interpolation.

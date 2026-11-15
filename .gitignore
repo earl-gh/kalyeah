@@ -1,12 +1,19 @@
-.godot/
-.import/
+# Build & artifact outputs
 build/
-export_credentials.cfg
-*.translation
+[Bb]in/
+[Oo]bj/
+*.apk
+*.aab
 *.keystore
+
+# Python & OS caches
+__pycache__/
+*.py[cod]
 .DS_Store
 Thumbs.db
-__pycache__/
-# The Android build template (installed by the Android APK workflow) and the Local plugin's AAR (built there too)
-android/.build_version
-addons/kalyeah_local/bin/
+
+# IDE & agent scratch worktrees
+.vs/
+.idea/
+*.csproj.user
+.claude/worktrees/

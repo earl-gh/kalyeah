@@ -25,5 +25,5 @@ python paint.py . geo2.glb piece2.npy classes2.json $FONT b/prop_base_color.png 
 python build_geo.py -- geo2.glb b/prop_base_color.png nena_store.glb
 ```
 
-Godot extracts the picture to `nena_store_prop_base_color.jpg` on import. `paint.py` paints every texel from its 3D place on the model;
+`sync_assets.py` mirrors `nena_store.glb` and its base-color texture into Unity's `Assets/Imported/Resources/`. `paint.py` paints every texel from its 3D place on the model;
 only the sign's front comes from the old picture (cleaned by `sign_clean.py`).

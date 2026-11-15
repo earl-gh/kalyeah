@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""Deterministic generator forKalyeah's 21 minimalist white-outline HUD icons.
+"""Deterministic generator for Kalyeah's 21 minimalist white-outline HUD icons.
 
-Outputs crisp 128x128 transparent RGBA8 PNGs into `assets/ui/hud_icons/` plus
-clean lossless Godot 4 `.import` sidecars (`compress/mode=0`,
-`mipmaps/generate=false`, LF newlines, zero `md5=` or `generator_parameters`
-lines).
+Outputs crisp 128x128 transparent RGBA8 PNGs into `assets/ui/hud_icons/`.
 
 Visual spec:
 - Pure white (`#FFFFFF`, RGB = 255, 255, 255 across ALL pixels including alpha=0
@@ -1093,7 +1090,7 @@ def draw_langit_lupa(c: IconCanvas) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Registry (Exact 21 Required Icons) & Godot .import Writer
+# Registry (Exact 21 Required Icons)
 # ---------------------------------------------------------------------------
 
 ICONS: list[tuple[str, Callable[[IconCanvas], None]]] = [
@@ -1123,47 +1120,6 @@ ICONS: list[tuple[str, Callable[[IconCanvas], None]]] = [
 ]
 
 
-def write_lossless_import(png_path: Path, res_path: str) -> None:
-    """Write lossless Texture2D .import sidecar without md5= or generator_parameters."""
-    content = f"""[remap]
-
-importer="texture"
-type="CompressedTexture2D"
-
-[deps]
-
-source_file="{res_path}"
-
-[params]
-
-compress/mode=0
-compress/high_quality=false
-compress/lossy_quality=0.7
-compress/uastc_level=0
-compress/rdo_quality_loss=0.0
-compress/hdr_compression=1
-compress/normal_map=0
-compress/channel_pack=0
-mipmaps/generate=false
-mipmaps/limit=-1
-roughness/mode=0
-roughness/src_normal=""
-process/channel_remap/red=0
-process/channel_remap/green=1
-process/channel_remap/blue=2
-process/channel_remap/alpha=3
-process/fix_alpha_border=true
-process/premult_alpha=false
-process/normal_map_invert_y=false
-process/hdr_as_srgb=false
-process/hdr_clamp_exposure=false
-process/size_limit=0
-detect_3d/compress_to=1
-"""
-    import_path = png_path.with_name(png_path.name + ".import")
-    import_path.write_text(content, encoding="utf-8", newline="\n")
-
-
 def validate_icon(name: str, img: Image.Image) -> tuple[int, tuple[int, int, int, int]]:
     if img.mode != "RGBA" or img.size != (ICON_SIZE, ICON_SIZE):
         raise ValueError(f"{name}: expected 128x128 RGBA, got {img.size} {img.mode}")
@@ -1191,9 +1147,8 @@ def main() -> None:
     assert len(ICONS) == 21, f"Expected exact 21 icons, got {len(ICONS)}"
 
     expected_pngs = {f"{name}.png" for name, _ in ICONS}
-    expected_imports = {f"{name}.png.import" for name, _ in ICONS}
     for existing in OUT_DIR.iterdir():
-        if existing.is_file() and existing.name not in expected_pngs and existing.name not in expected_imports:
+        if existing.is_file() and existing.name not in expected_pngs:
             existing.unlink()
 
     print(f"Building {len(ICONS)} pure-white 128x128 HUD icons into {OUT_DIR}...")
@@ -1204,12 +1159,11 @@ def main() -> None:
         margin, bbox = validate_icon(name, rgba_img)
 
         png_path = OUT_DIR / f"{name}.png"
-        res_path = f"res://assets/ui/hud_icons/{name}.png"
         rgba_img.save(png_path, format="PNG", compress_level=9, optimize=False)
-        write_lossless_import(png_path, res_path)
-        print(f"  [OK] {res_path:<42} margin={margin:2d}px bbox={bbox}")
+        rel_png = png_path.relative_to(ROOT).as_posix()
+        print(f"  [OK] {rel_png:<42} margin={margin:2d}px bbox={bbox}")
 
-    print("All 21 white HUD icons and lossless .import sidecars generated cleanly.")
+    print("All 21 white HUD icons generated cleanly.")
 
 
 if __name__ == "__main__":

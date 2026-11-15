@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Fails the build when the APK is not the app we mean to ship.
 #   inspect-apk.sh <apk> <version from version.txt> [folder to keep the aapt2 dumps in]
-#   inspect-apk.sh --dumps <badging.txt> <manifest.txt> <version>    only the manifest checks, on saved aapt2 output (the unit test)
+#   inspect-apk.sh --dumps <badging.txt> <manifest.txt> <version>    only the manifest checks, on saved aapt2 output (unity/Golden/Android/)
 # Needs the Android build-tools (aapt2, zipalign) and binutils (readelf); all are on the hosted runner.
 # The manifest facts come from `aapt2 dump xmltree` (what the APK really contains); `dump badging` only supplies the package,
 # the permissions and the native code. Whenever a check fails the raw aapt2 output is printed, so the next failure can be read.
 set -euo pipefail
 
 PACKAGE="com.kalyeah.game"
-# CAMERA: the ID photo and the QR scanner. The rest is Local play (android/kalyeah_local/src/main/AndroidManifest.xml): Wi-Fi and network
+# CAMERA: the ID photo and the QR scanner. Local play (KalyeahAndroidManifest.cs + kalyeah_local.androidlib): Wi-Fi and network
 # state for the game hotspot and joining it, NEARBY_WIFI_DEVICES (Android 13+) or location (Android 8 to 12) that Android asks for
 # them, NFC to tap phones together. CHANGE_WIFI_MULTICAST_STATE, INTERNET, VIBRATE: discovery, sockets, haptics.
 PERMISSIONS="android.permission.ACCESS_COARSE_LOCATION android.permission.ACCESS_FINE_LOCATION android.permission.ACCESS_NETWORK_STATE android.permission.ACCESS_WIFI_STATE android.permission.CAMERA android.permission.CHANGE_NETWORK_STATE android.permission.CHANGE_WIFI_MULTICAST_STATE android.permission.CHANGE_WIFI_STATE android.permission.INTERNET android.permission.NEARBY_WIFI_DEVICES android.permission.NFC android.permission.VIBRATE"
@@ -54,13 +54,13 @@ manifest_checks() { # manifest_checks <badging file> <manifest file> <version>
   check "target SDK is 35 or higher" attr_at_least "$manifest_file" "$ATTR_TARGET_SDK" 35
   check "it has a launcher activity" grep -q 'android.intent.category.LAUNCHER' "$manifest_file"
   check "it needs OpenGL ES 3.0" attr_at_least "$manifest_file" "$ATTR_GL_ES" $(( 0x30000 ))
-  check "the activity is locked to portrait" attr_equals "$manifest_file" "$ATTR_ORIENTATION" 1
-  check "backups are off" grep -qE "$ATTR_ALLOW_BACKUP=false\$" "$manifest_file"
+  check "the activity is locked to sensorLandscape" attr_equals "$manifest_file" "$ATTR_ORIENTATION" 6
+  check "backups are off" grep -qE "$ATTR_ALLOW_BACKUP=(false|\(type 0x12\)0x0)\$" "$manifest_file"
   check "arm64-v8a is the only native code" test "$(grep '^native-code:' "$badging_file" || true)" = "native-code: 'arm64-v8a'"
 
   local declared expected
-  declared="$(sed -n "s/^uses-permission: name='\([^']*\)'.*/\1/p" "$badging_file" | grep -v '\.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION$' | sort | tr '\n' ' ' || true)"
-  expected="$(echo "$PERMISSIONS" | tr ' ' '\n' | sort | tr '\n' ' ')"
+  declared="$(sed -n "s/^uses-permission: name='\([^']*\)'.*/\1/p" "$badging_file" | grep -v '\.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION$' | sort -u | tr '\n' ' ' || true)"
+  expected="$(echo "$PERMISSIONS" | tr ' ' '\n' | sort -u | tr '\n' ' ')"
   echo "permissions: $declared"
   check "only the permissions the game uses (see PERMISSIONS)" test "$declared" = "$expected"
 }
@@ -81,21 +81,27 @@ fi
 APK="$1"
 VERSION="$2"
 DUMPS="${3:-}"
-TOOLS="$ANDROID_HOME/build-tools/${ANDROID_BUILD_TOOLS:-35.0.1}"
+if [ -n "${ANDROID_BUILD_TOOLS_DIR:-}" ]; then
+  TOOLS="$ANDROID_BUILD_TOOLS_DIR"
+elif [ -d "${ANDROID_HOME:-}/build-tools/${ANDROID_BUILD_TOOLS:-35.0.1}" ]; then
+  TOOLS="$ANDROID_HOME/build-tools/${ANDROID_BUILD_TOOLS:-35.0.1}"
+else
+  TOOLS="$(dirname "$(command -v aapt2)")"
+fi
 scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 
-# aapt2 warns "mipmap/themed_icon ... no such path exists": harmless, Godot drops that file when no monochrome launcher icon is set.
 "$TOOLS/aapt2" dump badging "$APK" > "$scratch/badging.txt"
 "$TOOLS/aapt2" dump xmltree --file AndroidManifest.xml "$APK" > "$scratch/manifest.txt"
-# kept (when a folder is given) so tests/fixtures/android/ can be refreshed from real output
+# kept (when a folder is given) so unity/Golden/Android/ can be refreshed from real output
 if [ -n "$DUMPS" ]; then mkdir -p "$DUMPS" && cp "$scratch/badging.txt" "$scratch/manifest.txt" "$DUMPS/"; fi
 manifest_checks "$scratch/badging.txt" "$scratch/manifest.txt" "$VERSION"
 if [ "$failed" -ne 0 ]; then show_raw "$scratch/badging.txt" "$scratch/manifest.txt"; fi
 
 libs="$(unzip -Z1 "$APK" | grep '^lib/' || true)"
 check "no lib folder but arm64-v8a" test -z "$(grep -v '^lib/arm64-v8a/' <<< "$libs" || true)"
-check "libgodot_android.so is inside" grep -q 'libgodot_android.so' <<< "$libs"
+check "libunity.so is inside" grep -q 'lib/arm64-v8a/libunity\.so' <<< "$libs"
+check "libil2cpp.so is inside" grep -q 'lib/arm64-v8a/libil2cpp\.so' <<< "$libs"
 
 # Android 15+ on 16 KB pages needs every library aligned to 16 KB (0x4000) in the file and in the zip.
 aligned() { # aligned <lib>: every LOAD segment has p_align >= 16384

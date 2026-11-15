@@ -1,29 +1,32 @@
 #!/usr/bin/env python3
-"""Turns the CSVs of tools/balance/duels.gd into a markdown report.
+"""Turns balance duel CSVs into a markdown report using weapon stats from unity/Data/weapons__*.json.
 
     python3 tools/balance/report.py duels0.csv duels1.csv ... > report.md
 
 A loadout's score is wins plus half its draws, over every duel it played.
 """
+from __future__ import annotations
+
 import csv
-import re
+import json
 import sys
 from collections import defaultdict
 from pathlib import Path
 
-WEAPON_DIR = Path(__file__).resolve().parents[2] / "data" / "weapons"
+DATA_DIR = Path(__file__).resolve().parents[2] / "unity" / "Data"
 KINDS = {0: "Attack", 1: "CC", 2: "Block", 3: "Heal"}
 
 
-def weapon_facts() -> dict:
-    facts = {}
-    for path in sorted(WEAPON_DIR.glob("*.tres")):
-        text = path.read_text()
-        values = dict(re.findall(r"^(\w+) = ([^\n]+)$", text, re.M))
-        facts[path.stem] = {
-            "kind": KINDS.get(int(values.get("kind", 0)), "?"),
-            "damage": int(values.get("damage", 0)),
-            "cooldown": float(values.get("cooldown", 0)),
+def weapon_facts(data_dir: Path = DATA_DIR) -> dict[str, dict]:
+    facts: dict[str, dict] = {}
+    for path in sorted(data_dir.glob("weapons__*.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        data = payload.get("data", payload)
+        weapon_id = data.get("id") or path.stem.removeprefix("weapons__")
+        facts[weapon_id] = {
+            "kind": KINDS.get(int(data.get("kind", 0)), "?"),
+            "damage": int(data.get("damage", 0)),
+            "cooldown": float(data.get("cooldown", 0.0)),
         }
     return facts
 
@@ -34,7 +37,7 @@ def main(paths: list[str]) -> None:
     team0_wins = team1_wins = draws = games = 0
     seconds = 0.0
     for path in paths:
-        with open(path) as handle:
+        with open(path, encoding="utf-8", newline="") as handle:
             for row in csv.DictReader(handle):
                 games += 1
                 a, b = row["first"], row["second"]

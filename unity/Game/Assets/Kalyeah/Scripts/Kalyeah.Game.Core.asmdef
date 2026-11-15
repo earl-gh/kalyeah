@@ -1,0 +1,23 @@
+{
+    "name": "Kalyeah.Game.Core",
+    "rootNamespace": "Kalyeah.Game",
+    "references": [
+        "Kalyeah.Sim",
+        "Kalyeah.Net"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.kalyeah.sim",
+            "expression": "1.0.0",
+            "define": "KALYEAH_SIM_PORTED"
+        }
+    ],
+    "noEngineReferences": true
+}

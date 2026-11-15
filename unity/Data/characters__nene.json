@@ -1,0 +1,60 @@
+{
+ "source": "res://data/characters/nene.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "nene",
+  "display_name": "Nene",
+  "description": "Indigo denim pinafore jumper over a mustard-and-cream striped tee, carved wooden Y-fork tirador slingshot and holen marble pouch at her hips, butterfly-clip twin high buns, nose band-aid, asymmetric polka-dot socks, and strapped outdoor sandals.",
+  "tint": {
+   "r": 0.2800000011920929,
+   "g": 0.4399999976158142,
+   "b": 0.7200000286102295,
+   "a": 1.0
+  },
+  "skin": {
+   "r": 0.6800000071525574,
+   "g": 0.5,
+   "b": 0.3700000047683716,
+   "a": 1.0
+  },
+  "hair_color": {
+   "r": 0.11999999731779099,
+   "g": 0.07999999821186066,
+   "b": 0.07000000029802322,
+   "a": 1.0
+  },
+  "hair": 7,
+  "top": 2,
+  "top_accent": {
+   "r": 0.9200000166893005,
+   "g": 0.7400000095367432,
+   "b": 0.23999999463558197,
+   "a": 1.0
+  },
+  "bottom": 0,
+  "bottom_color": {
+   "r": 0.2199999988079071,
+   "g": 0.3400000035762787,
+   "b": 0.5799999833106995,
+   "a": 1.0
+  },
+  "shoes": true,
+  "shoe_color": {
+   "r": 0.3400000035762787,
+   "g": 0.2199999988079071,
+   "b": 0.1599999964237213,
+   "a": 1.0
+  },
+  "extra": 2,
+  "extra_color": {
+   "r": 0.9399999976158142,
+   "g": 0.6800000071525574,
+   "b": 0.1599999964237213,
+   "a": 1.0
+  },
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 0.95
+ }
+}

@@ -1,57 +1,48 @@
 ---
 name: godot-unity-view
 description: >
-  Port Kalyeah's Godot scenes, view scripts, signals, rigged kid .glb models,
-  and shaders (scenes/**/*.tscn, scripts/view/*.gd) into Unity 6 URP Mobile
-  Prefabs, coordinate-safe rigs/UI, read-only view puppets, and pooled effects.
+  Own Kalyeah's Unity 6 URP Mobile 3D world, read-only view puppets, GodotSpace
+  coordinate mapping, rigged .glb kids, SRP-batched shaders, and pooled VFX/SFX
+  (unity/Game/Assets/Kalyeah/View and Shaders).
 ---
 
-# Godot-to-Unity Migration — Part 2: URP Mobile View & Prefabs (`godot-unity-view`)
+# Unity 6 & .NET 8 Architecture — Part 2: URP Mobile View & Shaders (`godot-unity-view`)
 
-Owns translating `scenes/{match,map,props,fx,ui}/**/*.tscn`, `scripts/view/*.gd`, view signals, `.glb` rigs, and shaders into Unity 6 URP Mobile.
+Owns `unity/Game/Assets/Kalyeah/View/` and `Shaders/`: Unity 6 URP Mobile 3D Barangay world, read-only view puppets, `.glb` character rigs, SRP-batched shaders, and pooled VFX/SFX.
 
 ## Boundary (zero overlap)
 
-- **Owns:** Flat Unity Prefabs, C# `event Action` view wiring, read-only `Kalyeah.View` `MonoBehaviour` puppets, Godot-to-Unity 3D handedness & UI origin conversion, URP Mobile `CBUFFER`/stencil-outline mechanics, `.glb` `Animator` binding, procedural stand-in retention, and `ObjectPool<T>` wiring.
-- **Defers to:** `godot-unity-sim` (`Kalyeah.Sim` & `SimConfig`); `godot-unity-platform` (Bootstrap, WebSocket/Hotspot, `EnhancedTouch`, APK); `apex-combat-cam` (shoulder framing & aim parallax); `apex-street-world` (barangay art & value bands); `apex-mobile-hud` (HUD & overhead bar layout/stacking); `apex-net-frame` (ms, overdraw & VRAM ceilings); `CLAUDE.md` §Assets (asset-kind taxonomy).
+- **Owns:** Modular Unity 6 view hierarchy, typed C# event wiring, read-only `Kalyeah.Game` `MonoBehaviour` puppets, `GodotSpace` 3D handedness & `RectTransform` anchor conventions, URP Mobile `CBUFFER` / silhouette team-outline shaders, `.glb` rig/material sanitization (`KalyeahResources`), procedural stand-in retention, and `FxPool` / `AudioHub` pooling.
+- **Defers to:** `godot-unity-sim` (`Kalyeah.Sim` & `unity/Data/*.json`); `godot-unity-platform` (`AppSession`, WebSocket/Hotspot, `EnhancedTouch`, APK); `apex-combat-cam` (shoulder framing & aim parallax); `apex-street-world` (barangay art & value bands); `apex-mobile-hud` & `apex-screen-fit` (HUD/menu layout & multi-aspect bounds); `apex-net-frame` (ms, overdraw & VRAM ceilings); `CLAUDE.md` §Assets (advise-don't-generate rule).
 
 ## 1. Sim-read-only view puppets & `LateUpdate` transform order
 
-- `Kalyeah.View` references `Kalyeah.Sim` one-way, reading interpolated `SimSnapshot` state and discrete sim events (cast, hit, tag, rescue, score).
-- Never mutate sim state or place hit detection, range clamps, cooldowns, or capture timers in `Update`, `LateUpdate`, `Animator` state behaviors, or Unity `OnTriggerEnter` colliders.
-- Interpolate visual puppet transforms between `30 Hz` sim ticks before updating the `Camera` rig (`Shoulder` or data-toggled `CameraRules.follow`) and camera-facing/screen-projected followers in `LateUpdate`.
-- Drive world ground markers strictly from sim/settings state: flat rescue-zone countdown (`0.5` white alpha while counting -> `0.55` team tint when ready) and `MoveMarker` ease-out ring (static dot when `ReduceMotion` is enabled).
+- `Kalyeah.Game` reads `SimBridge` / `StreetBridge` state and discrete combat events (cast, hit, tag, rescue, score) one-way.
+- Never mutate sim state or put hit detection, range clamps, cooldowns, or capture timers inside `Update`, `LateUpdate`, `Animator` state behaviors, or Unity physics triggers.
+- Interpolate puppet transforms between `30 Hz` sim ticks before updating `ShoulderCamera` (or data-toggled follow/orthographic modes) and screen-projected followers (`OverheadBarsView`, `MatchOverlaysView`) in `LateUpdate`.
+- Drive world ground markers strictly from sim/settings state: rescue-zone countdown (`0.5` white alpha while counting -> `0.55` team tint when ready) and `MoveMarker` ease-out ring (static dot when `ReduceMotion` is enabled).
 
-## 2. 3D handedness (`-Z` vs `+Z`) & UI origin (`+Y` down vs `+Y` up) traps
+## 2. `GodotSpace` 3D handedness & `RectTransform` anchor rules
 
-- **3D right-handed `-Z` -> left-handed `+Z`:** Godot faces `-Z` (`Vector3.FORWARD = (0,0,-1)`), whereas Unity faces `+Z` (`Vector3.forward = (0,0,1)`).
-  - Normalize `.glb` character and prop rigs (`assets/models/characters/<id>.glb`, `kid_view_scale = 0.82` ≈ `1.52 m`) once in `glTFast` / FBX import axis settings so meshes, hand weapon sockets, and clips face Unity `+Z` — never patch `180°` backwards facing with negative `localScale` (flips triangle winding/normals and breaks SRP Batcher).
-  - Route all street positions and facing vectors through one canonical `SimSpace` adapter mapping `SimVec2(X, Z)` onto `Transform.position` and `Transform.forward` (`Quaternion.LookRotation`) so kids, aim telegraphs, and mirrored street halves never invert or animate `180°` backwards.
-- **UI top-left (`+Y` down) -> `RectTransform` bottom-left (`+Y` up):** Godot `Control` anchors/offsets measure downward from top-left `(0,0)`, whereas Unity `RectTransform` normalizes anchors from `(0,0)` bottom-left to `(1,1)` top-right with `+Y` up.
-  - Convert `.tscn` controls by declaring explicit anchor/pivot pairs (e.g., top-anchored `anchorMin = (0,1)`, `anchorMax = (1,1)`, `pivot = (0.5f,1f)`) and negating vertical pixel offsets (`anchoredPosition.y`) instead of copying raw `offset_top`/`offset_bottom` signs.
+- **Canonical `GodotSpace` (`unity/Game/Assets/Kalyeah/Scripts/GodotSpace.cs`):** Route all sim street coordinates and yaw angles through `GodotSpace` (`sim (x, z)` -> Unity `(x, 0, -z)`, yaw `180° - θ`) so kids, `.glb` props (`kid_view_scale = 0.82` ≈ `1.52 m`), aim telegraphs, and North/South bases never invert `180°`. Never patch facing with negative `Transform.localScale` (flips triangle winding/normals and breaks SRP Batcher).
+- **Sanitized `.glb` materials:** Route runtime-loaded `.glb` hierarchies through `KalyeahResources.SanitizeModelMaterials(GameObject)` so `glTF` shaders/UVs resolve cleanly to URP Mobile materials on a shared cache without per-spawn leaks.
+- **Bottom-left `+Y` up `RectTransform` anchors:** Declare explicit normalized anchor/pivot pairs (`anchorMin`, `anchorMax`, `pivot`) and signed `anchoredPosition` offsets — never hardcode raw screen pixel coordinates.
 
-## 3. `.tscn` & `signal` -> flat Prefabs & dirty-driven C# events
+## 3. Explicit references & dirty-driven C# events
 
-| Godot 4.6 (`scenes/` & `scripts/view/`) | Unity 6 (`Prefabs/` & `Kalyeah.View`) |
-|---|---|
-| `.tscn` sub-scene | Flat, single-responsibility modular Prefab (avoid deep nested-Prefab chains) |
-| `%UniqueName` / `@export var path: NodePath` | `[SerializeField] private FooView _foo;` bound on the Prefab (`OnValidate` null-check) |
-| `signal hit_landed(id, pos)` | `public event Action<int, Vector3> HitLanded;` (avoid `UnityEvent` in hot combat paths) |
-| `get_node("../../..")` (banned) | Banned: no `GameObject.Find`, `Transform.Find`, per-frame `GetComponentInChildren`, or `SendMessage` |
+- Wire child views via `[SerializeField]` or explicit builder references — ban `GameObject.Find`, `Transform.Find`, per-frame `GetComponentInChildren`, and `SendMessage`.
+- Pair every `+=` event subscription in `OnEnable` / `Bind` with `-=` in `OnDisable` / `OnDestroy` so round resets and scene transitions leak zero listeners.
+- Redraw UI/follower views only on watched value changes — never rebuild strings or `LayoutGroup` hierarchies every frame.
 
-- Pair every `+=` subscription in `OnEnable` / `Bind` with `-=` in `OnDisable` / `OnDestroy` so round resets and scene loads leak zero listeners.
-- Redraw UI/follower views only on watched value-change events — never rebuild strings or `LayoutGroup` hierarchies per frame.
+## 4. URP Mobile SRP Batcher, team outlines & `FxPool`
 
-## 4. URP Mobile batching, stencil outlines, stand-ins & `ObjectPool<T>`
-
-- Target Unity 6 **URP Mobile** (Forward) with **SRP Batcher** mechanics: wrap per-material uniforms in `CBUFFER_START(UnityPerMaterial)`, share `sharedMaterial` references across `BarangayProps` and houses, reserve `MaterialPropertyBlock` strictly for GPU-instanced prop batches, and merge static overhead wire/*sampayan* meshes.
-- Render `blue` ally / `red` enemy silhouette outlines via a URP `RenderObjects` stencil/hull pass (**never draw ground rings or circles under any kid's feet**) and sync overhead follower transforms to camera/screen space in `LateUpdate` (`apex-mobile-hud` owns overhead bar/badge/status layout).
-- Precompute `static readonly int` IDs via `Animator.StringToHash` (`Idle`, `Walk`, `Run`, `Jump`, `Crouch`, `Slide`, `Trip`, `Cast`, `Tagged`) and `Shader.PropertyToID`.
-- Keep C# procedural mesh/UI stand-ins working until replaced (never generate `.glb`, sprite, texture, icon, or audio files yourself) and defer asset-kind advisories to `CLAUDE.md` §Assets + `apex-street-world`.
-- Pre-warm `UnityEngine.Pool.ObjectPool<T>` instances at match load for projectiles, `FxSketch` impacts, overhead followers, and one-shot `AudioSource` emitters — zero `Instantiate` / `Destroy` mid-round (`apex-net-frame` owns ms, overdraw & VRAM ceilings).
+- Target Unity 6 **URP Mobile** (Forward) with **SRP Batcher** compatibility: wrap per-material uniforms in `CBUFFER_START(UnityPerMaterial)`, share `sharedMaterial` instances across `BarangayEnvironmentBuilder` and props, reserve `MaterialPropertyBlock` strictly for GPU-instanced batches, and merge static `SpaghettiWiresBuilder` meshes.
+- Render `blue` ally / `red` enemy silhouette outlines via `Shaders/TeamOutline.shader` (perpendicular view-space rim projection, **zero ground rings or circles under any kid's feet**).
+- Precompute `static readonly int` IDs via `Animator.StringToHash` and `Shader.PropertyToID`.
+- Pre-warm pools (`FxPool`, `AudioHub`) at match load — zero `Instantiate` / `Destroy` mid-round, and never generate art/audio files (follow `CLAUDE.md` §Assets).
 
 ## Anti-patterns to reject
 
-- Leaving `.glb` rigs or `SimVec2` facing adapters inverted `180°`, or fixing handedness with negative `Transform.localScale`.
-- Copying Godot top-down `+Y` pixel offsets directly into bottom-up `RectTransform.anchoredPosition.y`.
-- Accessing `renderer.material` at runtime, drawing ground rings under kids, or passing string names to `Animator`/`Shader` setters per frame.
+- Bypassing `GodotSpace` on street coordinates/yaws or fixing handedness with negative `Transform.localScale`.
+- Accessing `renderer.material` per instance at runtime, drawing ground rings under kids, or passing string names to `Animator`/`Shader` setters per frame.
+- Running `Instantiate` / `Destroy` or `GameObject.Find` inside combat ticks or `Update`.

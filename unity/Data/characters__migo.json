@@ -1,0 +1,60 @@
+{
+ "source": "res://data/characters/migo.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "migo",
+  "display_name": "Migo",
+  "description": "Side-knotted pastel 90s graphic tee, rolled patched puruntong denim shorts, diagonal holographic belt-bag loaded with plastik-balloon tubes, translucent hot-magenta sun-visor headband, stacked wrist pulseras, and chunky street tsinelas.",
+  "tint": {
+   "r": 0.7799999713897705,
+   "g": 0.7200000286102295,
+   "b": 0.9599999785423279,
+   "a": 1.0
+  },
+  "skin": {
+   "r": 0.6399999856948853,
+   "g": 0.46000000834465027,
+   "b": 0.3400000035762787,
+   "a": 1.0
+  },
+  "hair_color": {
+   "r": 0.20000000298023224,
+   "g": 0.11999999731779099,
+   "b": 0.07999999821186066,
+   "a": 1.0
+  },
+  "hair": 6,
+  "top": 1,
+  "top_accent": {
+   "r": 0.6200000047683716,
+   "g": 0.9399999976158142,
+   "b": 0.8399999737739563,
+   "a": 1.0
+  },
+  "bottom": 0,
+  "bottom_color": {
+   "r": 0.41999998688697815,
+   "g": 0.5799999833106995,
+   "b": 0.8999999761581421,
+   "a": 1.0
+  },
+  "shoes": false,
+  "shoe_color": {
+   "r": 0.20000000298023224,
+   "g": 0.30000001192092896,
+   "b": 0.6800000071525574,
+   "a": 1.0
+  },
+  "extra": 3,
+  "extra_color": {
+   "r": 0.9200000166893005,
+   "g": 0.2199999988079071,
+   "b": 0.6000000238418579,
+   "a": 1.0
+  },
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.0
+ }
+}

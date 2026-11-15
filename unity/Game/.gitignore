@@ -1,0 +1,32 @@
+# Written by tools/unity_export/sync_assets.py (authored art from assets/, data from unity/Data/, and the shared sim/net package)
+/Assets/Imported/
+/Assets/Imported.meta
+/Packages/com.kalyeah.sim/
+/Packages/packages-lock.json
+# Written by KalyeahBuild.Setup on every build (scenes, the URP assets, the few materials the code needs)
+/Assets/Kalyeah/Generated/
+/Assets/Kalyeah/Generated.meta
+# URP writes its global settings the first time it runs
+/Assets/UniversalRenderPipelineGlobalSettings.asset
+/Assets/UniversalRenderPipelineGlobalSettings.asset.meta
+/Assets/DefaultVolumeProfile.asset*
+/Assets/Settings/
+/Assets/Settings.meta
+# Unity's own generated folders and IDE files
+/Library/
+/Temp/
+/Logs/
+/Obj/
+/Build/
+/Builds/
+/UserSettings/
+/MemoryCaptures/
+/.vs/
+/.idea/
+*.csproj
+*.sln
+*.slnx
+# Unity writes every other ProjectSettings/*.asset with its defaults when it opens the project; KalyeahBuild.Setup applies the settings
+# that matter through the PlayerSettings API, so only the editor version is kept
+/ProjectSettings/*
+!/ProjectSettings/ProjectVersion.txt

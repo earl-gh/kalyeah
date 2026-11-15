@@ -1,0 +1,15 @@
+# .NET builds of the shared sim, net, server, and test assemblies
+bin/
+obj/
+# Unity's generated folders (the Unity project lives in unity/Game)
+Game/Library/
+Game/Temp/
+Game/Logs/
+Game/Obj/
+Game/Build/
+Game/Builds/
+Game/UserSettings/
+Game/MemoryCaptures/
+# Assets and data synced at build time (python tools/unity_export/sync_assets.py), not duplicated in git
+Game/Assets/Imported/
+*.csproj.user

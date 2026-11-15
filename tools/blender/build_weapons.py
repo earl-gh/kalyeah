@@ -1304,80 +1304,6 @@ def build_trumpo() -> tuple[bmesh.types.BMesh, list[tuple[float, tuple[int, int,
     return bm, bands
 
 
-def _write_new_import_sidecars(model_id: str) -> None:
-    """Ensure newly introduced weapon assets (`tirador`) have VRAM-compressed .import sidecars without md5=."""
-    glb_import = OUT_DIR / f"{model_id}.glb.import"
-    jpg_import = OUT_DIR / f"{model_id}_prop_base_color.jpg.import"
-
-    if not glb_import.exists():
-        glb_import.write_text(
-            "[remap]\n\n"
-            'importer="scene"\n'
-            "importer_version=1\n"
-            'type="PackedScene"\n'
-            f'uid="uid://wep_{model_id}_v2"\n'
-            f'path="res://.godot/imported/{model_id}.glb-00000000000000000000000000000000.scn"\n\n'
-            "[deps]\n\n"
-            f'source_file="res://assets/models/weapons/{model_id}.glb"\n\n'
-            "[params]\n\n"
-            'nodes/root_type=""\n'
-            'nodes/root_name=""\n'
-            "nodes/apply_root_scale=true\n"
-            "nodes/root_scale=1.0\n"
-            'nodes/import_as_skeleton_bones=false\n'
-            "nodes/use_name_suffixes=true\n"
-            "nodes/use_node_type_suffixes=true\n"
-            "meshes/ensure_tangents=true\n"
-            "meshes/generate_lods=true\n"
-            "meshes/create_shadow_meshes=true\n"
-            "meshes/light_baking=1\n"
-            "meshes/lightmap_texel_size=0.2\n"
-            "meshes/force_disable_compression=false\n"
-            "skins/use_named_skins=true\n"
-            "animation/import=false\n"
-            "gltf/naming_version=2\n"
-            "gltf/embedded_image_handling=1\n",
-            encoding="utf-8",
-            newline="\n",
-        )
-
-    if not jpg_import.exists():
-        jpg_import.write_text(
-            "[remap]\n\n"
-            'importer="texture"\n'
-            'type="CompressedTexture2D"\n'
-            f'uid="uid://wep_{model_id}_tex_v2"\n'
-            f'path="res://.godot/imported/{model_id}_prop_base_color.jpg-00000000000000000000000000000000.ctex"\n'
-            "metadata={\n"
-            '"vram_texture": true\n'
-            "}\n\n"
-            "[deps]\n\n"
-            f'source_file="res://assets/models/weapons/{model_id}_prop_base_color.jpg"\n\n'
-            "[params]\n\n"
-            "compress/mode=2\n"
-            "compress/high_quality=false\n"
-            "compress/lossy_quality=0.7\n"
-            "compress/uastc_level=0\n"
-            "compress/rdo_quality_loss=0.0\n"
-            "compress/hdr_compression=1\n"
-            "compress/normal_map=0\n"
-            "compress/channel_pack=0\n"
-            "mipmaps/generate=true\n"
-            "mipmaps/limit=-1\n"
-            "roughness/mode=0\n"
-            'roughness/src_normal=""\n'
-            "process/fix_alpha_border=true\n"
-            "process/premult_alpha=false\n"
-            "process/normal_map_invert_y=false\n"
-            "process/hdr_as_srgb=false\n"
-            "process/hdr_clamp_exposure=false\n"
-            "process/size_limit=0\n"
-            "detect_3d/compress_to=1\n",
-            encoding="utf-8",
-            newline="\n",
-        )
-
-
 def main() -> None:
     include_pinned = "--include-pinned" in sys.argv
     builders: list[tuple[str, Callable[[], tuple[bmesh.types.BMesh, list[tuple[float, tuple[int, int, int]]]]]]] = [
@@ -1399,8 +1325,6 @@ def main() -> None:
     for model_id, fn in builders:
         bm, bands = fn()
         open_edges, tris = _export_weapon(model_id, bm, bands)
-        if model_id == "tirador":
-            _write_new_import_sidecars(model_id)
         ratio = open_edges / max(tris, 1)
         print(f"  [OK] {model_id:16s} tris={tris:4d}  open_edges={open_edges:3d} (ratio={ratio:.4f})")
         assert 1000 <= tris <= 3500, f"{model_id}: triangle count {tris} outside [1000, 3500]!"

@@ -34,9 +34,9 @@ thumb/ability-arc/cancel/overhead-bar combat UX to `apex-mobile-hud`, Unity URP/
 
 ## 2. Scale Mode & Physical-Millimeter (`dp`) Thumb Constancy
 
-- **Scale-axis locking:** Configure Godot (`canvas_items` + `expand`) and Unity 6 (`CanvasScaler`
-  `Scale With Screen Size`) with `Match = 1.0` height-locked in landscape matches so vertical HUD
-  stacks never overflow, and `Match = 0.0` (or `0.5` width-guarded) in portrait menus so `360 px`
+- **Scale-axis locking:** Configure Unity 6 `CanvasScaler`
+  (`Scale With Screen Size`) with `Match = 1.0` height-locked in landscape matches so vertical HUD
+  stacks never overflow, and `Match = 0.0` (or `0.5` width-guarded) in portrait/narrow containers so `360 px`
   narrow phones never clip horizontally.
 - **Corner-pinned controls (`21:9` vs `4:3`):** Pin the left stick and right ability arc strictly to
   **safe-area bottom corners**, never center-relative percentages—on `21:9` ultra-wides, controls
@@ -44,14 +44,12 @@ thumb/ability-arc/cancel/overhead-bar combat UX to `apex-mobile-hud`, Unity URP/
   HUD cluster height (`<= 42%` viewport height) and enforce a minimum center gap so left stick and
   right arc never collide.
 - **Physical `dp` floors:** Enforce `>= 48 dp` (`~9 mm`) touch targets (`>= 72 dp` primary fire,
-  `>= 8 dp` gutters) via `DisplayServer.screen_get_dpi()` / `Screen.dpi` fallback-clamped to
+  `>= 8 dp` gutters) via `Screen.dpi` fallback-clamped to
   `[160..640]` so bogus `0` DPI reports never collapse or blow up controls.
 
 ## 3. Asymmetric Cutouts, Gesture Pills & Runtime Orientation Flips
 
-- **Dynamic safe-area re-query:** Re-query `DisplayServer.get_display_safe_area()` /
-  `Screen.safeArea` (converted into canvas units) on **every** window resize, `Portrait` ↔
-  `Landscape` scene switch, and `LandscapeLeft` ↔ `LandscapeRight` 180° sensor rotation.
+- **Dynamic safe-area re-query:** Re-query `Screen.safeArea` (converted into canvas units) on **every** window resize, orientation switch, and `LandscapeLeft` ↔ `LandscapeRight` 180° sensor rotation.
 - **Per-edge asymmetric insets & edge bleed:** Punch-hole cameras swap left/right sides on 180°
   flips—apply true per-edge (`left`, `top`, `right`, `bottom`) asymmetric insets instead of
   symmetric hardcoded margins, reserve `16–24 dp` bottom gesture-pill clearance so stick/aim drags
@@ -60,7 +58,7 @@ thumb/ability-arc/cancel/overhead-bar combat UX to `apex-mobile-hud`, Unity URP/
 
 ## 4. 3D Camera Frustum & Cross-Aspect Competitive Fairness
 
-- **Vertical-FOV lock:** Lock **Vertical FOV** (`keep_height` on Godot `Camera3D` / Vertical FOV
+- **Vertical-FOV lock:** Lock **Vertical FOV** (Vertical FOV
   axis on Unity URP `Camera`) in 3P shoulder matches so `16:9` and `4:3` viewports never crop the
   `1.52 m` kid's feet, overhead bar, or nearby `Papel` traps vertically.
 - **Ultra-wide cap & normalized crosshair ray:** Cap horizontal FOV or pillarbox extreme `> 21.5:9`
@@ -70,12 +68,12 @@ thumb/ability-arc/cancel/overhead-bar combat UX to `apex-mobile-hud`, Unity URP/
 
 ## 5. Reflow, Typography & Automated Bounds Gate
 
-- **Anchor reflow & bounded Komiks type:** Ban raw pixel placement (`position = Vector2(980, 540)`);
+- **Anchor reflow & bounded Komiks type:** Ban raw pixel placement (`anchoredPosition = new Vector2(980, 540)` without corner anchors);
   use normalized anchors, aspect-ratio fitters, and scroll fade masks. Scale dark-outlined Komiks
-  fonts (`KomiksStyle` / `UiKit`) within bounded `[18 px .. max]` auto-fit ranges with explicit wrap
+  fonts within bounded `[18 px .. max]` auto-fit ranges with explicit wrap
   or ellipsis rules so badges and stat labels never overflow at `360 px` width.
 - **Automated 4-aspect bounds gate:** Verify UI changes with headless multi-resolution bounds tests
-  asserting **zero** sibling interactive rect intersections (`Rect2.intersects` / `RectTransform`
+  asserting **zero** sibling interactive rect intersections (`RectTransform`
   world bounds) and **100%** safe-rect containment across `844×390` (with simulated `44 px`
   asymmetric cutout), `1280×720` (`16:9`), `934×400` (`21:9`), and `1024×768` (`4:3`)—plus portrait
   `360×840`..`768×1024` when menus change.

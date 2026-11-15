@@ -9,7 +9,6 @@ per-texel heightfields converted into OpenGL Y+ tangent-space normal maps.
 
 from __future__ import annotations
 
-import hashlib
 import math
 from pathlib import Path
 from typing import Dict, Tuple
@@ -352,14 +351,11 @@ class AtlasCanvas:
     def save_pair(self, albedo_jpg: Path, normal_png: Path, orm_png: Path | None = None) -> None:
         OUT_DIR.mkdir(parents=True, exist_ok=True)
         self._save_blender_image(self.albedo, albedo_jpg, fmt="JPEG", quality=93, non_color=False)
-        write_texture_import_sidecar(albedo_jpg, is_normal=False)
         n_rgb = self.build_normal_rgb(strength=2.8)
         self._save_blender_image(n_rgb, normal_png, fmt="PNG", quality=90, non_color=True)
-        write_texture_import_sidecar(normal_png, is_normal=True)
         if orm_png is not None:
             orm_rgb = self.build_orm_rgb()
             self._save_blender_image(orm_rgb, orm_png, fmt="PNG", quality=90, non_color=True)
-            write_texture_import_sidecar(orm_png, is_normal=False)
 
     @staticmethod
     def _save_blender_image(
@@ -388,99 +384,6 @@ class AtlasCanvas:
         scene.render.image_settings.quality = prev_qual
         scene.view_settings.view_transform = prev_cm
         bpy.data.images.remove(img)
-
-
-def write_texture_import_sidecar(tex_path: Path, is_normal: bool = True) -> None:
-    """Writes a clean VRAM-compressed Godot 4.6.2 `.import` sidecar (`compress/mode=2`, zero `md5=`)."""
-    res_path = f"res://assets/models/barangay/{tex_path.name}"
-    h_md5 = hashlib.md5(res_path.encode("utf-8")).hexdigest()
-    uid_seed = hashlib.sha1(res_path.encode("utf-8")).hexdigest()[:13]
-    alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
-    val = int(uid_seed, 16)
-    uid_chars = []
-    for _ in range(13):
-        uid_chars.append(alphabet[val % 36])
-        val //= 36
-    uid_str = "uid://" + "".join(uid_chars)
-
-    norm_flag = 1 if is_normal else 0
-    sidecar = tex_path.with_name(tex_path.name + ".import")
-    if sidecar.exists():
-        raw = sidecar.read_text(encoding="utf-8")
-        if "[params]" in raw:
-            header_part = raw.split("[params]")[0]
-            params_part = f"""[params]
-
-compress/mode=2
-compress/high_quality=false
-compress/lossy_quality=0.7
-compress/uastc_level=0
-compress/rdo_quality_loss=0.0
-compress/hdr_compression=1
-compress/normal_map={norm_flag}
-compress/channel_pack=0
-mipmaps/generate=true
-mipmaps/limit=-1
-roughness/mode=0
-roughness/src_normal=""
-process/channel_remap/red=0
-process/channel_remap/green=1
-process/channel_remap/blue=2
-process/channel_remap/alpha=3
-process/fix_alpha_border=true
-process/premult_alpha=false
-process/normal_map_invert_y=false
-process/hdr_as_srgb=false
-process/hdr_clamp_exposure=false
-process/size_limit=0
-detect_3d/compress_to=0
-"""
-            sidecar.write_text(header_part + params_part, encoding="utf-8", newline="\n")
-            return
-    content = f"""[remap]
-
-importer="texture"
-type="CompressedTexture2D"
-uid="{uid_str}"
-path.s3tc="res://.godot/imported/{tex_path.name}-{h_md5}.s3tc.ctex"
-path.etc2="res://.godot/imported/{tex_path.name}-{h_md5}.etc2.ctex"
-metadata={{
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
-}}
-
-[deps]
-
-source_file="{res_path}"
-dest_files=["res://.godot/imported/{tex_path.name}-{h_md5}.s3tc.ctex", "res://.godot/imported/{tex_path.name}-{h_md5}.etc2.ctex"]
-
-[params]
-
-compress/mode=2
-compress/high_quality=false
-compress/lossy_quality=0.7
-compress/uastc_level=0
-compress/rdo_quality_loss=0.0
-compress/hdr_compression=1
-compress/normal_map={norm_flag}
-compress/channel_pack=0
-mipmaps/generate=true
-mipmaps/limit=-1
-roughness/mode=0
-roughness/src_normal=""
-process/channel_remap/red=0
-process/channel_remap/green=1
-process/channel_remap/blue=2
-process/channel_remap/alpha=3
-process/fix_alpha_border=true
-process/premult_alpha=false
-process/normal_map_invert_y=false
-process/hdr_as_srgb=false
-process/hdr_clamp_exposure=false
-process/size_limit=0
-detect_3d/compress_to=0
-"""
-    sidecar.write_text(content, encoding="utf-8", newline="\n")
 
 
 # ---------------------------------------------------------------------------

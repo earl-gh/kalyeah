@@ -1,0 +1,60 @@
+{
+ "source": "res://data/characters/inday.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "inday",
+  "display_name": "Inday",
+  "description": "Morena Patintero queen in a crisp #95 white-and-gold public-school PE ringer shirt, referee lanyard whistle, navy double-stripe track pants with one leg rolled up below the knee and the other full-length, twin lastiko-braided pigtails, and PE canvas sneakers.",
+  "tint": {
+   "r": 0.9700000286102295,
+   "g": 0.9700000286102295,
+   "b": 0.949999988079071,
+   "a": 1.0
+  },
+  "skin": {
+   "r": 0.3799999952316284,
+   "g": 0.25,
+   "b": 0.17000000178813934,
+   "a": 1.0
+  },
+  "hair_color": {
+   "r": 0.15000000596046448,
+   "g": 0.09000000357627869,
+   "b": 0.05999999865889549,
+   "a": 1.0
+  },
+  "hair": 2,
+  "top": 5,
+  "top_accent": {
+   "r": 0.9200000166893005,
+   "g": 0.7200000286102295,
+   "b": 0.20000000298023224,
+   "a": 1.0
+  },
+  "bottom": 2,
+  "bottom_color": {
+   "r": 0.14000000059604645,
+   "g": 0.2199999988079071,
+   "b": 0.46000000834465027,
+   "a": 1.0
+  },
+  "shoes": true,
+  "shoe_color": {
+   "r": 0.9700000286102295,
+   "g": 0.9700000286102295,
+   "b": 0.949999988079071,
+   "a": 1.0
+  },
+  "extra": 5,
+  "extra_color": {
+   "r": 0.8799999952316284,
+   "g": 0.20000000298023224,
+   "b": 0.20000000298023224,
+   "a": 1.0
+  },
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.0
+ }
+}
