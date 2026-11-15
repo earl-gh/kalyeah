@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The menus' engine-free models (unity/Game/Assets/Kalyeah/UI/Core: settings, session, history, room view-model, lobby and Local
+       flows, Back navigation), compiled straight from the Unity project's files and tested with the real data, Kalyeah.Sim and
+       Kalyeah.Net (rooms played over a MemoryHub). Run: dotnet test unity/Kalyeah.UI.Tests -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <!-- the same C# as Unity 6 compiles the included files with -->
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Kalyeah.Sim/Kalyeah.Sim.csproj" />
+    <ProjectReference Include="../Kalyeah.Net/Kalyeah.Net.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Game/Assets/Kalyeah/UI/Core/**/*.cs" LinkBase="Core" />
+  </ItemGroup>
+</Project>
