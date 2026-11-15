@@ -111,6 +111,15 @@ namespace Kalyeah.Game
     {
         public float ShoulderHeight, ShoulderDistance, ShoulderOffset, ShoulderFov, ShoulderNear;
         public float LookPitchDegrees, LookPitchMin, LookPitchMax, LookSensitivity, KidViewScale;
+        /// <summary>Props within this many metres of the camera are hidden too (StreetMap.hide_between).</summary>
+        public float ShoulderClearReach;
+        /// <summary>The crosshair over the horizon casts this far along the view; its street point counts up to `ShoulderBoundsEdge` past the arena.</summary>
+        public float AimReach, ShoulderBoundsEdge;
+        /// <summary>A name over a kid shows only within this many metres of the camera; `BarScale` scales the overhead bars.</summary>
+        public float ShoulderNameReach, BarScale;
+        /// <summary>The movement auto-follow (arena_camera.gd sync_behind_character) and the turn between views.</summary>
+        public float AutoFollowSmoothTime, AutoFollowMaxSpeed, AutoFollowLateralGain, ManualOverrideCooldown, ManualOverrideBlendTime;
+        public float PivotSmoothTime, FacingSmoothTime, TurnSeconds;
 
         public static CameraRulesData Load(DataSource data)
         {
@@ -127,6 +136,19 @@ namespace Kalyeah.Game
                 LookPitchMax = DataSource.F(p, "look_pitch_max"),
                 LookSensitivity = DataSource.F(p, "look_sensitivity"),
                 KidViewScale = DataSource.F(p, "kid_view_scale"),
+                ShoulderClearReach = DataSource.F(p, "shoulder_clear_reach"),
+                AimReach = DataSource.F(p, "aim_reach"),
+                ShoulderBoundsEdge = DataSource.F(p, "shoulder_bounds_edge"),
+                ShoulderNameReach = DataSource.F(p, "shoulder_name_reach"),
+                BarScale = DataSource.F(p, "bar_scale"),
+                AutoFollowSmoothTime = DataSource.F(p, "auto_follow_smooth_time"),
+                AutoFollowMaxSpeed = DataSource.F(p, "auto_follow_max_speed"),
+                AutoFollowLateralGain = DataSource.F(p, "auto_follow_lateral_gain"),
+                ManualOverrideCooldown = DataSource.F(p, "manual_override_cooldown"),
+                ManualOverrideBlendTime = DataSource.F(p, "manual_override_blend_time"),
+                PivotSmoothTime = DataSource.F(p, "pivot_smooth_time"),
+                FacingSmoothTime = DataSource.F(p, "facing_smooth_time"),
+                TurnSeconds = DataSource.F(p, "turn_seconds"),
             };
         }
 

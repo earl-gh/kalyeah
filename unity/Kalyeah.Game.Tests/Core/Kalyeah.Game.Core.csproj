@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The Unity game's engine-free scripts (unity/Game/Assets/Kalyeah/Scripts, the Kalyeah.Game.Core asmdef) compiled as Unity compiles
+       them: .NET Standard 2.1, C# 9, warnings as errors. SimBridge, MatchInput, ShoulderFollow, ArcLayout and HudText are checked here. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <RootNamespace>Kalyeah.Game</RootNamespace>
+    <AssemblyName>Kalyeah.Game.Core</AssemblyName>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Game/Assets/Kalyeah/Scripts/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Kalyeah.Sim/Kalyeah.Sim.csproj" />
+    <ProjectReference Include="../../Kalyeah.Net/Kalyeah.Net.csproj" />
+  </ItemGroup>
+</Project>

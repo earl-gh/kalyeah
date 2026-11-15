@@ -103,6 +103,84 @@ namespace Kalyeah.Game
             return label;
         }
 
+        static Sprite _ring;
+
+        /// <summary>A white ring (outline only, 6% of the diameter thick), drawn once in code: the HUD's round buttons' rim.</summary>
+        public static Sprite Ring()
+        {
+            if (_ring != null) return _ring;
+            const int size = 128;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false) { name = "KalyeahRing", wrapMode = TextureWrapMode.Clamp };
+            var pixels = new Color32[size * size];
+            float r = size * 0.5f, inner = r - size * 0.06f;
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float d = Mathf.Sqrt((x + 0.5f - r) * (x + 0.5f - r) + (y + 0.5f - r) * (y + 0.5f - r));
+                    float a = Mathf.Clamp01(r - d) * Mathf.Clamp01(d - inner);
+                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+                }
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            _ring = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
+            _ring.name = "KalyeahRing";
+            return _ring;
+        }
+
+        /// <summary>A round image of `radius` (base pixels) centred at `center` (Godot-style pixels of a top-left-pivoted parent: y down).</summary>
+        public static Image Disc(string name, Transform parent, Vector2 center, float radius, Color color, Sprite sprite = null)
+        {
+            Image image = MakeImage(name, parent, color, round: true);
+            if (sprite != null) image.sprite = sprite;
+            RectTransform r = image.rectTransform;
+            r.anchorMin = r.anchorMax = new Vector2(0f, 1f);
+            r.pivot = new Vector2(0.5f, 0.5f);
+            r.sizeDelta = Vector2.one * radius * 2f;
+            r.anchoredPosition = new Vector2(center.x, -center.y);
+            return image;
+        }
+
+        /// <summary>A clockwise sweep from 12 o'clock filling `share` of a disc (a cooldown, a charge): a filled radial image.</summary>
+        public static Image Sweep(string name, Transform parent, float radius, Color color)
+        {
+            Image image = MakeImage(name, parent, color, round: true);
+            image.type = Image.Type.Filled;
+            image.fillMethod = Image.FillMethod.Radial360;
+            image.fillOrigin = (int)Image.Origin360.Top;
+            image.fillClockwise = true;
+            image.rectTransform.sizeDelta = Vector2.one * radius * 2f;
+            return image;
+        }
+
+        /// <summary>A tappable plate with words on it (menus, results). `size` in base pixels; place it with its RectTransform.</summary>
+        public static Button MakeButton(string name, Transform parent, string text, Color plate, Vector2 size, System.Action onClick)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var image = go.GetComponent<Image>();
+            image.color = plate;
+            var rect = (RectTransform)go.transform;
+            rect.sizeDelta = size;
+            var button = go.GetComponent<Button>();
+            button.targetGraphic = image;
+            if (onClick != null) button.onClick.AddListener(() => onClick());
+            Text label = MakeText("Label", go.transform, text, 28, Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            label.rectTransform.anchorMin = Vector2.zero;
+            label.rectTransform.anchorMax = Vector2.one;
+            label.rectTransform.sizeDelta = Vector2.zero;
+            return button;
+        }
+
+        /// <summary>A see-through dark layer over everything under it that takes the touches (a menu, the results).</summary>
+        public static Image Dim(string name, Transform parent, float alpha = 0.55f)
+        {
+            Image dim = MakeImage(name, parent, new Color(0.02f, 0.03f, 0.07f, alpha), raycast: true);
+            dim.rectTransform.anchorMin = Vector2.zero;
+            dim.rectTransform.anchorMax = Vector2.one;
+            dim.rectTransform.sizeDelta = Vector2.zero;
+            return dim;
+        }
+
         /// <summary>A white disc with a soft edge, drawn once in code (a stand-in for the owner's round HUD art).</summary>
         public static Sprite Circle()
         {

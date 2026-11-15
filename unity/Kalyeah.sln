@@ -13,6 +13,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kalyeah.Net.Tests", "Kalyea
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kalyeah.Server", "Kalyeah.Server\Kalyeah.Server.csproj", "{6D8F0151-3D63-4798-BCD7-D2DC5753202A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kalyeah.Game.Tests", "Kalyeah.Game.Tests\Kalyeah.Game.Tests.csproj", "{7B4D77CA-FD27-4B3D-9A16-EA0157422C06}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Kalyeah.Game.Tests", "Kalyeah.Game.Tests", "{ABB56274-09A1-4834-9DB6-A4EF4F8CB798}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kalyeah.Game.Core", "Kalyeah.Game.Tests\Core\Kalyeah.Game.Core.csproj", "{6279E368-B321-4701-8004-F0FDB13ADF23}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -42,5 +48,17 @@ Global
 		{6D8F0151-3D63-4798-BCD7-D2DC5753202A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6D8F0151-3D63-4798-BCD7-D2DC5753202A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6D8F0151-3D63-4798-BCD7-D2DC5753202A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7B4D77CA-FD27-4B3D-9A16-EA0157422C06}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7B4D77CA-FD27-4B3D-9A16-EA0157422C06}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B4D77CA-FD27-4B3D-9A16-EA0157422C06}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7B4D77CA-FD27-4B3D-9A16-EA0157422C06}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6279E368-B321-4701-8004-F0FDB13ADF23}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6279E368-B321-4701-8004-F0FDB13ADF23}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6279E368-B321-4701-8004-F0FDB13ADF23}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6279E368-B321-4701-8004-F0FDB13ADF23}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7B4D77CA-FD27-4B3D-9A16-EA0157422C06} = {ABB56274-09A1-4834-9DB6-A4EF4F8CB798}
+		{6279E368-B321-4701-8004-F0FDB13ADF23} = {ABB56274-09A1-4834-9DB6-A4EF4F8CB798}
 	EndGlobalSection
 EndGlobal

@@ -34,6 +34,9 @@ namespace Kalyeah.Game
         readonly Material _unlit;
         readonly Dictionary<int, KidView> _kids = new Dictionary<int, KidView>();
         readonly Dictionary<string, Vector3> _naturalSizes = new Dictionary<string, Vector3>();
+        /// <summary>The buildings that may stand between the shoulder camera and your kid, with their world bounds (street_map.gd _occluders).</summary>
+        readonly List<(GameObject model, Bounds box)> _occluders = new List<(GameObject, Bounds)>();
+        readonly HashSet<GameObject> _hidden = new HashSet<GameObject>();
         int _missingKits;
 
         public MatchView(Transform parent, MapLayoutData layout, CameraRulesData camera)
@@ -50,7 +53,13 @@ namespace Kalyeah.Game
             if (_missingKits > 0) Debug.LogWarning($"MatchView: {_missingKits} barangay kits are missing (run tools/unity_export/sync_assets.sh)");
         }
 
-        public static Color TeamColor(int team) => team == SimBridge.LocalTeam ? OwnColor : EnemyColor;
+        /// <summary>Your side's colour (blue) or the other side's (red).</summary>
+        public static Color SideColor(bool own) => own ? OwnColor : EnemyColor;
+
+        /// <summary>The team you play for (online it can be 1): its kids are blue.</summary>
+        public int OwnTeam = SimBridge.LocalTeam;
+
+        public Color TeamColor(int team) => SideColor(team == OwnTeam);
 
         void BuildLights()
         {
@@ -153,6 +162,26 @@ namespace Kalyeah.Game
                 Bounds placed = KalyeahResources.RenderBounds(model);
                 t.position += new Vector3(spot.x - placed.center.x, kit.Lift - placed.min.y, spot.z - placed.center.z);
             }
+            if (kit.Occluder) _occluders.Add((model, KalyeahResources.RenderBounds(model)));
+        }
+
+        /// <summary>
+        /// The shoulder view: a building between the camera at `eye` and your kid (feet at `feet`, sim XZ), or within `clear` metres of the
+        /// camera, is left out while it is in the way (street_map.gd hide_between; CameraRules.shoulder_clear_reach).
+        /// </summary>
+        public void HideBetween(Vector3 eye, SVector2 feet, float height, float clear)
+        {
+            Vector3 foot = KalyeahResources.World(feet);
+            var e = new SVector3(eye.x, eye.y, eye.z);
+            var f = new SVector3(foot.x, foot.y, foot.z);
+            foreach (var (model, box) in _occluders)
+            {
+                bool hide = CameraMath.Blocks(e, f, height, clear, new SVector3(box.min.x, box.min.y, box.min.z), new SVector3(box.max.x, box.max.y, box.max.z));
+                if (hide == _hidden.Contains(model)) continue;
+                if (hide) _hidden.Add(model);
+                else _hidden.Remove(model);
+                model.SetActive(!hide);
+            }
         }
 
         /// <summary>A kit's size at scale 1 (street_map.gd _kit_bounds), measured once per kit.</summary>
@@ -186,7 +215,7 @@ namespace Kalyeah.Game
                     foreach (KidSnapshot before in previous)
                         if (before.Id == kid.Id) { from = before.Position; break; }
                 // a tagged kid stays drawn: the sim has already put it on the sidewalk by its rescue area
-                view.Place(SVector2.Lerp(from, kid.Position, Mathf.Clamp01(alpha)), kid.Facing);
+                view.Place(SVector2.Lerp(from, kid.Position, Mathf.Clamp01(alpha)), kid.Facing, kid.AirY, kid.Crouching || kid.Sliding);
                 view.Animate(kid.Tagged ? 0f : kid.Speed01, dt);
             }
         }
