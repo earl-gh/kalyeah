@@ -243,6 +243,10 @@ jobs:
         run: docker image prune -af || true
       - name: Set up Android SDK build-tools for APK inspection
         uses: android-actions/setup-android@v3
+        env:
+          # free-disk-space removed the root-owned /usr/local/lib/android; install into a writable folder instead
+          ANDROID_HOME: ${{ runner.temp }}/android-sdk
+          ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
       - name: Install Android build-tools ${{ env.ANDROID_BUILD_TOOLS }}
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
