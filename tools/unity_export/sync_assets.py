@@ -180,6 +180,30 @@ def _count_non_meta_files(*roots: Path) -> int:
     return total
 
 
+# Active Input Handling must be on disk before Unity starts: the editor compiles its scripts once with the
+# ENABLE_INPUT_SYSTEM define it reads at launch, so switching it inside the build session (KalyeahBuild) makes the
+# editor and the player disagree ("script class layout is incompatible") and the APK build fails.
+INPUT_SYSTEM_ONLY = 1
+PLAYER_SETTINGS = GAME / "ProjectSettings" / "ProjectSettings.asset"
+_INPUT_HANDLER_RE = re.compile(r"^(\s*activeInputHandler:\s*)\d+\s*$", re.MULTILINE)
+
+
+def ensure_input_system_only(path: Path = PLAYER_SETTINGS) -> None:
+    if not path.is_file():
+        _write_lf_if_changed(
+            path,
+            "%YAML 1.1\n%TAG !u! tag:unity3d.com,2011:\n--- !u!129 &1\nPlayerSettings:\n"
+            f"  activeInputHandler: {INPUT_SYSTEM_ONLY}\n",
+        )
+        return
+    text = path.read_text(encoding="utf-8")
+    if _INPUT_HANDLER_RE.search(text):
+        patched = _INPUT_HANDLER_RE.sub(lambda m: f"{m.group(1)}{INPUT_SYSTEM_ONLY}", text)
+    else:
+        patched = text.replace("PlayerSettings:\n", f"PlayerSettings:\n  activeInputHandler: {INPUT_SYSTEM_ONLY}\n", 1)
+    _write_lf_if_changed(path, patched)
+
+
 def main() -> int:
     webp_seen_total = 0
     webp_encoded_total = 0
@@ -232,6 +256,7 @@ def main() -> int:
         "}\n"
     )
     _write_lf_if_changed(SIM_PKG / "package.json", package_json)
+    ensure_input_system_only()
 
     count = _count_non_meta_files(GAME / "Assets" / "Imported", SIM_PKG)
     print(

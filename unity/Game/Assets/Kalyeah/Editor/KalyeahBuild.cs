@@ -151,15 +151,15 @@ public static class KalyeahBuild
 
         ConfigureAppIconsAndSplash();
 
-        // Input System for the touches (and Android Back); "Both" keeps any old-Input code from throwing
+        // Input System only (1): sync_assets.py writes the same value before Unity starts, so this never flips mid-session
         Object playerSettings = Unsupported.GetSerializedAssetInterfaceSingleton("PlayerSettings");
         if (playerSettings != null)
         {
             var serialized = new SerializedObject(playerSettings);
             SerializedProperty handler = serialized.FindProperty("activeInputHandler");
-            if (handler != null && handler.intValue != 2)
+            if (handler != null && handler.intValue != 1)
             {
-                handler.intValue = 2;
+                handler.intValue = 1;
                 serialized.ApplyModifiedPropertiesWithoutUndo();
             }
         }
