@@ -227,7 +227,10 @@ public static class KalyeahBuild
     static void EnsureScenes()
     {
         if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
-        WriteScene(TitleScenePath, TitleScreen.SceneName, typeof(TitleScreen));
+        // the menus' title scene (Kalyeah.UI); the bare TitleScreen stand-in if the menus assembly is missing
+        if (System.Type.GetType("Kalyeah.UI.Editor.MenuSceneBuilder, Kalyeah.UI.Editor")?.GetMethod("BuildTitleScene")?.Invoke(null, new object[] { TitleScenePath }) == null
+            && !System.IO.File.Exists(TitleScenePath))
+            WriteScene(TitleScenePath, TitleScreen.SceneName, typeof(TitleScreen));
         WriteScene(MatchScenePath, MatchBoot.SceneName, typeof(MatchBoot));
         EditorBuildSettings.scenes = new[]
         {

@@ -19,6 +19,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Kalyeah.Game.Tests", "Kalye
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kalyeah.Game.Core", "Kalyeah.Game.Tests\Core\Kalyeah.Game.Core.csproj", "{6279E368-B321-4701-8004-F0FDB13ADF23}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kalyeah.UI.Tests", "Kalyeah.UI.Tests\Kalyeah.UI.Tests.csproj", "{B9890DBE-DC32-429E-B553-288564B991B3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -56,6 +58,10 @@ Global
 		{6279E368-B321-4701-8004-F0FDB13ADF23}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6279E368-B321-4701-8004-F0FDB13ADF23}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6279E368-B321-4701-8004-F0FDB13ADF23}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9890DBE-DC32-429E-B553-288564B991B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9890DBE-DC32-429E-B553-288564B991B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9890DBE-DC32-429E-B553-288564B991B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9890DBE-DC32-429E-B553-288564B991B3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{7B4D77CA-FD27-4B3D-9A16-EA0157422C06} = {ABB56274-09A1-4834-9DB6-A4EF4F8CB798}
