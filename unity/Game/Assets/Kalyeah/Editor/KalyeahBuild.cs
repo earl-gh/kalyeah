@@ -325,11 +325,12 @@ public static class KalyeahBuild
             Capture(world.Camera, Path.Combine(dir, "match_01_spawn.png"));
 
             // two seconds of running forward with the stick pushed up: the bots spread out, the kids run
-            world.Sim.SetLocalInput(world.Shoulder.GroundWay(Vector2.up), 0);
+            world.Sim.SkipIntro();
             for (int i = 0; i < 60; i++)
             {
+                world.Sim.SetLocalInput(world.Shoulder.GroundWay(Vector2.up), 0);
                 world.StepTick();
-                world.Draw(1f, dt);
+                world.Draw(1f, dt, System.Numerics.Vector2.Zero);
             }
             Capture(world.Camera, Path.Combine(dir, "match_02_running.png"));
 

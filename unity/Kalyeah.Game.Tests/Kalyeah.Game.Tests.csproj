@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- NUnit tests of the Unity game's engine-free layer (the gestures to PlayerInput, the arc's geometry, the shoulder camera's maths and
+       follow, the HUD's words, SimBridge driving real matches and street games). Run with `dotnet test unity/Kalyeah.sln`. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Core/**</DefaultItemExcludes>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="Core/Kalyeah.Game.Core.csproj" />
+    <ProjectReference Include="../Kalyeah.Sim/Kalyeah.Sim.csproj" />
+    <ProjectReference Include="../Kalyeah.Net/Kalyeah.Net.csproj" />
+  </ItemGroup>
+</Project>

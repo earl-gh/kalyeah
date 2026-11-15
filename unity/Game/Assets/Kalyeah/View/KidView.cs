@@ -29,6 +29,7 @@ namespace Kalyeah.Game
         readonly string _idle, _run;
         string _playing;
         float _clock;
+        Vector3 _modelScale = Vector3.one;
 
         public KidView(Transform parent, KidSnapshot kid, float viewScale, Color team, Material disc)
         {
@@ -45,6 +46,7 @@ namespace Kalyeah.Game
                 _model.transform.localRotation = Quaternion.identity;
                 float natural = Mathf.Max(KalyeahResources.RenderBounds(_model).size.y, 0.1f);
                 _model.transform.localScale = Vector3.one * (KidHeight * viewScale / natural);
+                _modelScale = _model.transform.localScale;
                 _animation = _model.GetComponentInChildren<Animation>(true);
                 if (_animation != null)
                 {
@@ -63,6 +65,7 @@ namespace Kalyeah.Game
                 float tall = KidHeight * viewScale;
                 _model.transform.localScale = new Vector3(tall * 0.3f, tall * 0.5f, tall * 0.3f);
                 _model.transform.localPosition = Vector3.up * tall * 0.5f;
+                _modelScale = _model.transform.localScale;
             }
 
             GameObject ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -90,10 +93,12 @@ namespace Kalyeah.Game
             return null;
         }
 
-        /// <summary>Feet at `ground` (sim XZ), facing `facing` (sim XZ), the way kid_model.gd turns it.</summary>
-        public void Place(SVector2 ground, SVector2 facing)
+        /// <summary>Feet at `ground` (sim XZ) and `lift` metres up (a jump), facing `facing` (sim XZ) the way kid_model.gd turns it; `low`
+        /// (a crouch or a slide) squats the model to 78% (overhead_hud.gd's crouch height) until the owner's crouch clip is in.</summary>
+        public void Place(SVector2 ground, SVector2 facing, float lift = 0f, bool low = false)
         {
-            Root.transform.position = KalyeahResources.World(ground);
+            Root.transform.position = KalyeahResources.World(ground, lift);
+            if (_model != null) _model.transform.localScale = new Vector3(_modelScale.x, _modelScale.y * (low ? 0.78f : 1f), _modelScale.z);
             if (facing.LengthSquared() > 0.0001f)
                 Root.transform.rotation = Quaternion.Euler(0f, GodotSpace.ModelYawDegrees(GodotSpace.KidYawRad(facing)), 0f);
         }
