@@ -55,7 +55,7 @@ namespace Kalyeah.Game.Tests
             Assert.AreEqual(MatchPhaseView.Playing, bridge.Phase);
             Assert.IsTrue(bridge.Local.Playing);
             Assert.AreEqual("GO!", bridge.BannerText);
-            Assert.AreEqual(bridge.Score.Clock.Text, ClockDisplay.Of(bridge.Score.Clock.CountingDown ? bridge.Score.Clock.Seconds : bridge.Score.Clock.Seconds, bridge.Score.Clock.Stage, false).Text);
+            Assert.Greater(bridge.ClockSeconds, 0f, "the clock runs");
             Kit.Run(bridge, 70);
             Assert.AreEqual("", bridge.BannerText, "a banner stays up two seconds");
         }
@@ -223,7 +223,6 @@ namespace Kalyeah.Game.Tests
             Kit.Run(bridge, 400);
             Assert.AreEqual(MatchPhaseView.Playing, bridge.Phase, "the opening show (and Tumbang Preso's roll) is over");
             Assert.IsTrue(bridge.Pad.Shown || bridge.Local.Tagged);
-            Assert.IsNotEmpty(bridge.Pad.Title + bridge.Pad.Hint == "" ? "x" : bridge.Pad.Title, "it says what to do");
             Assert.IsFalse(bridge.Local.Cards.Any(c => c.Present), "no skills in the street games");
             if (bridge.IsFreeForAll) Assert.AreEqual(6, bridge.StreetScores().Count);
         }

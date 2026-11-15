@@ -59,7 +59,7 @@ namespace Kalyeah.Game
         bool _built;
 
         int _cardPointer = int.MinValue, _heldSlot = -1;
-        Vector2 _pressAt;
+        SVector2 _pressAt;
         bool _onCard, _overCancel;
         int _primaryPointer = int.MinValue, _crouchPointer = int.MinValue;
 

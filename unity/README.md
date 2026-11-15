@@ -41,15 +41,17 @@ Input System, UGUI and the Test Framework. Only text is kept in git: the scripts
 Support), wait for the first import, then *Kalyeah > Setup Project* once, and play `Assets/Kalyeah/Generated/Scenes/Title.unity`.
 
 **Code layout** (`Game/Assets/Kalyeah/`):
-- `Scripts/` (`Kalyeah.Game.Core`, engine-free, compiles in plain .NET too): **`SimBridge.cs`, the one file that calls the sim** (its
-  header lists the assumed C# API of the port; fix names there only), `StandInMatch.cs` (a throwaway stand-in used until the port
-  lands: kids spawn and walk, bots wander, nobody casts or scores; delete it then), the data reader for `Data/*.json`, the Godot-to-Unity
-  space mapping (sim `(x, z)` is Unity `(x, 0, -z)`; a Godot yaw θ is a Unity yaw 180° - θ for a glTFast model), the shoulder pose and
-  `BarangayPlan` (where `street_map.gd` puts the kits).
-- `View/` (`Kalyeah.Game`): `MatchBoot` (fixed 30 Hz ticks, joystick to `PlayerInput.move` through the camera's yaw, Back to the title),
-  `MatchView` (ground, base and rescue discs, sun/fill/sky/fog, kits, kids), `KidView` (GLB, scale, facing, idle/run), `ShoulderCamera`
-  (the `camera_rules` numbers), `MatchHud` (score and clock at the top centre, **own team's health only**, joystick bottom-left, look
-  drag on the right), `TitleScreen`.
+- `Scripts/` (`Kalyeah.Game.Core`, engine-free, compiles in plain .NET too and is tested by `Kalyeah.Game.Tests/`): **`SimBridge.cs`, the one
+  file that touches a match** (practice_match.gd without the nodes: Practice vs bots, Practice street games, online through a `GameClient`
+  mirror; gestures in, `KidSnapshot` / `LocalHud` / `ScoreHud` / `StreetPadState` and banner/feed events out), `MatchInput` (gestures to
+  `PlayerInput`), `ShoulderFollow` (the shoulder camera's look, auto-follow, pivot spring, posture, spring arm, prop-hiding maths),
+  `ArcLayout` (the ability arc's geometry), `HudText` (clock, results words), the data reader, `GodotSpace` and `BarangayPlan`.
+- `View/` (`Kalyeah.Game`): `MatchLaunch` (how the menus start a match: `StartPractice`, `StartStreetGame`, `StartOnline`, and
+  `OnFinished` / `OnLeft`), `MatchBoot` (fixed 30 Hz ticks, Back opens the match menu), `MatchView` (street, kids, hides buildings between
+  the camera and your kid), `KidView`, `ShoulderCamera`, `MatchHud` (score, clock chip with Extended/Overtime, own-team health only,
+  banner, capture alert, crosshair, feed, point freeze, results, match menu), `AbilityArcView` (cards + NEXT + ice water/stamina bars, or
+  the hero kit: primary, superpowers, ultimate, vault, jump, crouch/slide), `StreetPadView` (Throw/Kick/Dive/Lupa), `OverheadView`
+  (badges, names, status words, own-team bars), `VirtualJoystick`, `LookPad`, `TitleScreen`.
 - `Editor/` (`Kalyeah.Editor`): `KalyeahBuild`, `KalyeahAndroidManifest`.
 
 **CI** (`.github/workflows/unity.yml`, on pushes touching `unity/**` and on demand): `dotnet test unity/Kalyeah.sln`; then, when the
@@ -65,12 +67,14 @@ are skipped with a notice and the run stays green.
   `~/.local/share/unity3d/Unity/Unity_lic.ulf` (Linux). Steps: <https://game.ci/docs/github/activation>.
   With a Pro/Plus licence set `UNITY_SERIAL` instead of `UNITY_LICENSE`.
 
-**Ported so far:** the project and its build, data loading, the 5v5 practice match driven through SimBridge (stand-in rules until the
-sim port lands), the barangay's 32 parcels, posts, power-up stands, perimeter wall, trees and two rings of houses, the ten kids' GLBs
-with idle/run, the shoulder camera with look drag, the joystick, the score/clock/own-health HUD, the title, safe areas, landscape.
-**Not yet:** the real rules (waiting on `Kalyeah.Sim`), cards and the ability arc, crosshair and casting, dash/jump/crouch/slide, weapon
-FX and sounds, the creek and bridges, landmarks, wiring and curbs, chalk zones, the outline and overhead badges, the camera's
-auto-follow, spring arm and prop hiding, every menu but a bare title, online/hotspot play, the street games, music.
+**Ported so far:** the project and its build, data loading, the real sim with bots (5v5 Practice), the three street games against
+bots, online play through a `GameClient` mirror, the barangay's parcels, posts, stands, wall, trees and houses, the ten kids' GLBs with
+idle/run, the shoulder camera (look drag, movement auto-follow, pivot spring, crouch/jump posture, FOV kick, shake, spring arm, buildings
+hidden between camera and kid), the joystick, the ability arc (cards/NEXT/ice water/stamina, or the hero kit with dash/jump/crouch/slide/
+ultimate), cast at the crosshair with cancel, overhead badges (own-team health only), score/clock stages, capture alert, banners, feed,
+point freeze, results, match menu (pauses offline), the street games' pads, the title, safe areas, landscape.
+**Not yet:** weapon FX and sounds, kid animations beyond idle/run (casts, dives, tags), the weapon pick screen, quick chat, the aim guide
+on the street, the creek and bridges, landmarks, wiring and curbs, chalk zones, the outline, music, the menus (another port).
 Unverified until the first CI run with a licence: the package versions resolving (glTFast 6.8.0, Input System 1.11.2, URP 17.0.4,
 Test Framework 1.4.5), every Unity-only API call (`View/` was compiled here only against the 2021.3 engine modules and hand UGUI stubs, `Editor/` not at all),
 the look of anything on screen, and the target SDK 35 platform being in GameCI's Android image.
