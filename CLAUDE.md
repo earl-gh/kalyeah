@@ -6,7 +6,7 @@ Read first (with surgical focus): `docs/ROADMAP.md` (what is done, what is next,
 **Android is the only client**: the game is played and tested as an installed **APK**. There is no web or desktop build. The owner works from a phone in cloud sessions and can't run the editor, so every change must be checkable in the **APK that the `Unity 6 CI` workflow builds** (Actions → Unity 6 CI → the run on `main`, or the run you start on a branch → artifacts `kalyeah-unity-apk` and `kalyeah-unity-screenshots`).
 
 ## Stack (do not change without asking)
-- **Unity 6 LTS** (`6000.0.86f1` in `unity/Game/ProjectSettings/ProjectVersion.txt`), **URP Mobile**, strict static-typed C# (`.NET 8` shared assemblies + Unity `netstandard 2.1`).
+- **Unity 6 LTS** (`6000.3.28f1` in `unity/Game/ProjectSettings/ProjectVersion.txt`), **URP Mobile**, strict static-typed C# (`.NET 8` shared assemblies + Unity `netstandard 2.1`).
 - **Android export:** one IL2CPP APK, `arm64-v8a` only, `1280×720` landscape auto-rotation (`sensorLandscape`), minimal permissions (`KalyeahAndroidManifest.cs` + `unity/Game/Assets/Plugins/Android/kalyeah_local.androidlib/`). The standalone **`.NET 8` Dedicated Server** (`unity/Kalyeah.Server`, containerized via root `Dockerfile`) is the only other build target.
 - **Networking:** RFC-6455 WebSocket (`WsClientTransport` / `WsServerTransport` in `Kalyeah.Net`), **server-authoritative** (`Kalyeah.Server` online and in-app `HotspotNet` on LAN Hotspot). Clients send `PlayerInput` frames only.
 - **Tests & Visual Gates:**

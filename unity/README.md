@@ -1,6 +1,6 @@
 # Kalyeah — Unity 6 & .NET 8 Architecture
 
-Canonical **Unity 6 LTS (`6000.0.86f1`, URP Mobile, Android `arm64-v8a` IL2CPP)** client and **headless `.NET 8`** authoritative server (`Kalyeah.Server`) architecture for Kalyeah. Authored 3D/2D/audio source assets live in `assets/`, canonical balance and localization data live in `unity/Data/*.{json,csv}`, and scenes/URP assets are generated deterministically by code (`KalyeahBuild.Setup`) rather than hand-edited YAML.
+Canonical **Unity 6.3 LTS (`6000.3.28f1`, URP Mobile, Android `arm64-v8a` IL2CPP)** client and **headless `.NET 8`** authoritative server (`Kalyeah.Server`) architecture for Kalyeah. Authored 3D/2D/audio source assets live in `assets/`, canonical balance and localization data live in `unity/Data/*.{json,csv}`, and scenes/URP assets are generated deterministically by code (`KalyeahBuild.Setup`) rather than hand-edited YAML.
 
 ## Asset, data & package sync (`sync_assets.py`)
 
@@ -49,7 +49,7 @@ Edit gameplay or balance numbers directly in `unity/Data/*.json` (or regenerate 
   `Unity -batchmode -projectPath unity/Game -runTests -testPlatform EditMode -testResults build/editmode-results.xml -quit`
 - **Dual-aspect visual captures (`KalyeahBuild.Screenshots`):**
   `Unity -batchmode -projectPath unity/Game -executeMethod KalyeahBuild.Screenshots -quit` (run **without `-nographics`**; wrapped in `xvfb-run` on Linux CI). Renders deterministic PNGs into `unity/Game/Build/screenshots/` across both mobile landscape gates: **`1280×720`** (`16:9` base) and **`844×390`** (`~19.5:9` notched phone with simulated safe-area cutout).
-- **Open locally in Unity Hub:** run `python tools/unity_export/sync_assets.py`, open `unity/Game` in Unity `6000.0.86f1` (with Android Build Support), click *Kalyeah > Setup Project*, and play `Assets/Kalyeah/Generated/Scenes/Title.unity`.
+- **Open locally in Unity Hub:** run `python tools/unity_export/sync_assets.py`, open `unity/Game` in Unity `6000.3.28f1` (with Android Build Support), click *Kalyeah > Setup Project*, and play `Assets/Kalyeah/Generated/Scenes/Title.unity`.
 
 ## CI (`.github/workflows/unity.yml`) & licence secrets
 

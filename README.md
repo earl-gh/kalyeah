@@ -1,6 +1,6 @@
 # Kalyeah
 
-*Mga larong Pinoy sa kalye.* A stylized 3D 5v5 hero-brawler & multiplayer street-game arena built on Filipino street games (*Agawang Base*, *Patintero*, *Tumbang Preso*, *Langit Lupa*, *bato-bato-pik*, *jackstones*, and *trumpo*). Native `1280×720` landscape dual-thumb action built with **Unity 6 LTS (`6000.0.86f1`, URP Mobile)** for Android (`arm64-v8a` IL2CPP) and **`.NET 8`** (`Kalyeah.Server`).
+*Mga larong Pinoy sa kalye.* A stylized 3D 5v5 hero-brawler & multiplayer street-game arena built on Filipino street games (*Agawang Base*, *Patintero*, *Tumbang Preso*, *Langit Lupa*, *bato-bato-pik*, *jackstones*, and *trumpo*). Native `1280×720` landscape dual-thumb action built with **Unity 6.3 LTS (`6000.3.28f1`, URP Mobile)** for Android (`arm64-v8a` IL2CPP) and **`.NET 8`** (`Kalyeah.Server`).
 
 - **Website:** [kalyeah-promo.vercel.app](https://kalyeah-promo.vercel.app/), the game's page, with the latest APK to download.
 - **Play:** get the APK from [the website](https://kalyeah-promo.vercel.app/), or install the debug APK from the latest **Unity 6 CI** run (Actions → Unity 6 CI → artifact `kalyeah-unity-apk`).

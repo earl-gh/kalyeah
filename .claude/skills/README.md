@@ -1,6 +1,6 @@
 # Kalyeah project skills
 
-Agent skills shared across the repository for Kalyeah on **Unity 6 LTS (`6000.0.86f1`, URP Mobile)** and **`.NET 8`**. Each skill defers to `CLAUDE.md` and `AGENTS.md` for project rules and workflow constraints.
+Agent skills shared across the repository for Kalyeah on **Unity 6.3 LTS (`6000.3.28f1`, URP Mobile)** and **`.NET 8`**. Each skill defers to `CLAUDE.md` and `AGENTS.md` for project rules and workflow constraints.
 
 ## Installed skills (20)
 
