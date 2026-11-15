@@ -6,7 +6,8 @@ name: Unity 6 CI
 #   editmode-tests  Pillow + tools/unity_export/sync_assets.sh, then GameCI runs EditMode tests (game-ci/unity-test-runner@v4)
 #   android         Pillow + sync_assets.sh, GameCI builds KalyeahBuild.BuildAndroid -> kalyeah-unity-apk + inspect-apk.sh
 #   screenshots     Pillow + sync_assets.sh, KalyeahBuild.Screenshots (multi-aspect PNGs under xvfb) -> kalyeah-unity-screenshots
-# Secrets: UNITY_LICENSE (the contents of a Unity_lic.ulf), UNITY_EMAIL, UNITY_PASSWORD; UNITY_SERIAL instead of UNITY_LICENSE for Pro;
+# Secrets: UNITY_EMAIL, UNITY_PASSWORD (activates Unity Personal seats via game-ci/cli); optional UNITY_SERIAL for Pro/Plus
+#          (or UNITY_LICENSE when running file-only without UNITY_EMAIL/UNITY_PASSWORD);
 #          optional KALYEAH_DEBUG_KEYSTORE_B64 (base64 debug.keystore, alias androiddebugkey, password android).
 # Variables: optional KALYEAH_SERVER_URL (or BAYABAS_SERVER_URL) stamped into the APK as the default online WebSocket server.
 on:
@@ -66,16 +67,16 @@ jobs:
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          if [ -n "$UNITY_EMAIL" ] && [ -n "$UNITY_PASSWORD" ] && { [ -n "$UNITY_LICENSE" ] || [ -n "$UNITY_SERIAL" ]; }; then
+          if { [ -n "$UNITY_EMAIL" ] && [ -n "$UNITY_PASSWORD" ]; } || [ -n "$UNITY_LICENSE" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
             echo "Unity $version: licence secrets found" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Unity build skipped::Add the repository secrets UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD (Settings -> Secrets and variables -> Actions; how: unity/README.md, Unity project) to run Unity EditMode tests, build the APK and render screenshots."
+            echo "::notice title=Unity build skipped::Add the repository secrets UNITY_EMAIL and UNITY_PASSWORD (Settings -> Secrets and variables -> Actions; how: unity/README.md, CI & licence secrets) to run Unity EditMode tests, build the APK and render screenshots."
             {
               echo "### Unity EditMode tests, APK and screenshots skipped"
-              echo "The repository secrets UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD are not set (UNITY_SERIAL replaces UNITY_LICENSE for a Pro licence)."
-              echo "How to get them: unity/README.md, section Unity project, and https://game.ci/docs/github/activation"
+              echo "The repository secrets UNITY_EMAIL and UNITY_PASSWORD are not set (optional UNITY_SERIAL for a Pro/Plus licence)."
+              echo "How to get them: unity/README.md, section CI & licence secrets, and https://game.ci/docs/github/activation"
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
@@ -116,10 +117,10 @@ jobs:
         id: editmode
         uses: game-ci/unity-test-runner@v4
         env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_LICENSE: ${{ secrets.UNITY_EMAIL && '' || secrets.UNITY_LICENSE }}
         with:
           projectPath: unity/Game
           unityVersion: ${{ needs.unity-check.outputs.version }}
@@ -135,7 +136,7 @@ jobs:
 
   android:
     name: Unity Android APK
-    needs: [sim-tests, unity-check]
+    needs: [sim-tests, unity-check, editmode-tests]
     if: needs.unity-check.outputs.ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -177,17 +178,12 @@ jobs:
             unity-library-${{ needs.unity-check.outputs.version }}-${{ hashFiles('unity/Game/Packages/manifest.json') }}-
             unity-library-${{ needs.unity-check.outputs.version }}-
       - name: Build the APK (KalyeahBuild.BuildAndroid)
-        uses: game-ci/unity-builder@v4
+        uses: game-ci/unity-builder@v6
         env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-          KALYEAH_SERVER_URL: ${{ vars.KALYEAH_SERVER_URL || vars.BAYABAS_SERVER_URL }}
-          BAYABAS_SERVER_URL: ${{ vars.BAYABAS_SERVER_URL }}
-          KALYEAH_DEBUG_KEYSTORE_B64: ${{ secrets.KALYEAH_DEBUG_KEYSTORE_B64 }}
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
-          GITHUB_SHA: ${{ github.sha }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_LICENSE: ${{ secrets.UNITY_EMAIL && '' || secrets.UNITY_LICENSE }}
         with:
           projectPath: unity/Game
           unityVersion: ${{ needs.unity-check.outputs.version }}
@@ -195,6 +191,9 @@ jobs:
           buildMethod: KalyeahBuild.BuildAndroid
           buildName: kalyeah-unity
           androidExportType: androidPackage
+          androidVersionCode: ${{ github.run_number }}
+          androidKeystoreBase64: ${{ secrets.KALYEAH_DEBUG_KEYSTORE_B64 }}
+          customParameters: ${{ (vars.KALYEAH_SERVER_URL || vars.BAYABAS_SERVER_URL) && format('-serverUrl {0}', vars.KALYEAH_SERVER_URL || vars.BAYABAS_SERVER_URL) || '' }}
           versioning: None
           allowDirtyBuild: true
       - name: Verify APK size and arm64-v8a ABI
@@ -295,12 +294,12 @@ jobs:
             unity-library-${{ needs.unity-check.outputs.version }}-${{ hashFiles('unity/Game/Packages/manifest.json') }}-
             unity-library-${{ needs.unity-check.outputs.version }}-
       - name: Render the screenshots (KalyeahBuild.Screenshots)
-        uses: game-ci/unity-builder@v4
+        uses: game-ci/unity-builder@v6
         env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_LICENSE: ${{ secrets.UNITY_EMAIL && '' || secrets.UNITY_LICENSE }}
         with:
           projectPath: unity/Game
           unityVersion: ${{ needs.unity-check.outputs.version }}

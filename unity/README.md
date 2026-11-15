@@ -56,11 +56,11 @@ Edit gameplay or balance numbers directly in `unity/Data/*.json` (or regenerate 
 Runs on pushes to `main`, pull requests, and `workflow_dispatch`:
 
 1. **`sim-tests`:** runs `dotnet test unity/Kalyeah.sln` and verifies `dotnet publish unity/Kalyeah.Server` (always runs; needs no Unity secrets).
-2. **`unity-check`:** reads `ProjectVersion.txt` and checks `UNITY_EMAIL`, `UNITY_PASSWORD`, and `UNITY_LICENSE` (or `UNITY_SERIAL`); skips the Unity jobs cleanly with a notice when unset.
+2. **`unity-check`:** reads `ProjectVersion.txt` and checks `UNITY_EMAIL` + `UNITY_PASSWORD` (or standalone `UNITY_LICENSE`); skips the Unity jobs cleanly with a notice when unset.
 3. **`editmode-tests`:** ensures `Pillow`, runs `tools/unity_export/sync_assets.sh`, and executes `game-ci/unity-test-runner@v4` (`EditMode`).
-4. **`android`:** ensures `Pillow`, runs `sync_assets.sh`, builds `KalyeahBuild.BuildAndroid` (`arm64-v8a` APK), runs `.github/scripts/inspect-apk.sh` (verifying `libil2cpp.so`/`libunity.so` `arm64-v8a` ABI, `16 KB` page alignment, permissions, landscape orientation, and informational size in MB), and uploads `kalyeah-unity-apk`.
-5. **`screenshots`:** ensures `Pillow`, runs `sync_assets.sh`, renders `KalyeahBuild.Screenshots` under `xvfb`, and uploads `kalyeah-unity-screenshots`.
+4. **`android`:** runs after `editmode-tests` returns its seat (keeping concurrent Unity activations `<= 2` for Personal accounts), ensures `Pillow`, runs `sync_assets.sh`, builds `KalyeahBuild.BuildAndroid` (`arm64-v8a` APK) via `game-ci/unity-builder@v6`, runs `.github/scripts/inspect-apk.sh` (verifying `libil2cpp.so`/`libunity.so` `arm64-v8a` ABI, `16 KB` page alignment, permissions, landscape orientation, and informational size in MB), and uploads `kalyeah-unity-apk`.
+5. **`screenshots`:** ensures `Pillow`, runs `sync_assets.sh`, renders `KalyeahBuild.Screenshots` under `xvfb` via `game-ci/unity-builder@v6`, and uploads `kalyeah-unity-screenshots`.
 
 **Repository secrets** (*Settings > Secrets and variables > Actions*, see <https://game.ci/docs/github/activation>):
-- `UNITY_EMAIL` & `UNITY_PASSWORD`: Unity account credentials (without 2FA challenge blocking headless sign-in).
-- `UNITY_LICENSE`: full contents of `Unity_lic.ulf` from Unity Hub (`C:\ProgramData\Unity\Unity_lic.ulf` on Windows, `/Library/Application Support/Unity/Unity_lic.ulf` on macOS, `~/.local/share/unity3d/Unity/Unity_lic.ulf` on Linux), or `UNITY_SERIAL` for Pro/Plus.
+- `UNITY_EMAIL` & `UNITY_PASSWORD`: Unity ID credentials (with a direct password and without interactive 2FA challenges). Activates Unity Personal entitlements directly via `game-ci/cli` (`--activate-all --include-personal`) and returns the seat after each job — no Windows `.ulf` file needed.
+- `UNITY_SERIAL` *(optional, Pro/Plus only)*: seat serial key (`XX-XXXX-...`). Leave unset for Unity Personal.

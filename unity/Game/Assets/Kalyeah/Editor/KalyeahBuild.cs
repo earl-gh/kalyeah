@@ -175,7 +175,9 @@ public static class KalyeahBuild
         if (sha.Length > 7) sha = sha.Substring(0, 7);
         PlayerSettings.bundleVersion = sha.Length > 0 ? $"{baseVersion}+{sha}" : baseVersion;
 
-        string runNumberRaw = Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER")?.Trim();
+        string runNumberRaw = Arg("-androidVersionCode")?.Trim();
+        if (string.IsNullOrEmpty(runNumberRaw))
+            runNumberRaw = Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER")?.Trim();
         if (string.IsNullOrEmpty(runNumberRaw))
             runNumberRaw = Environment.GetEnvironmentVariable("KALYEAH_VERSION_CODE")?.Trim();
         if (!string.IsNullOrEmpty(runNumberRaw) && int.TryParse(runNumberRaw, out int versionCode) && versionCode > 0)
@@ -598,11 +600,14 @@ public static class KalyeahBuild
         Debug.Log($"KalyeahBuild: {summary.result} {path} {summary.totalSize / (1024 * 1024)} MB in {summary.totalTime}");
         if (summary.result != BuildResult.Succeeded)
             throw new BuildFailedException($"Android build {summary.result}: {summary.totalErrors} errors (see the log above)");
+        Console.WriteLine("Build succeeded!");
     }
 
     static void ConfigureAndroidKeystoreFromEnv()
     {
         string keystoreB64 = Environment.GetEnvironmentVariable("KALYEAH_DEBUG_KEYSTORE_B64")?.Trim();
+        if (string.IsNullOrEmpty(keystoreB64))
+            keystoreB64 = Environment.GetEnvironmentVariable("ANDROID_KEYSTORE_BASE64")?.Trim();
         string keystorePathEnv = Environment.GetEnvironmentVariable("KALYEAH_ANDROID_KEYSTORE_PATH")?.Trim();
 
         string keystorePath = null;
@@ -651,6 +656,7 @@ public static class KalyeahBuild
         Debug.Log($"KalyeahBuild: {summary.result} {path} {summary.totalSize / (1024 * 1024)} MB in {summary.totalTime}");
         if (summary.result != BuildResult.Succeeded)
             throw new BuildFailedException($"iOS build {summary.result}: {summary.totalErrors} errors (see the log above)");
+        Console.WriteLine("Build succeeded!");
     }
 
     // ---- Screenshots ------------------------------------------------------------------------------------------------------------
@@ -762,6 +768,7 @@ public static class KalyeahBuild
             CaptureStreetShot(data, dir, StreetGameKind.LangitLupa, 23, "street_langit_lupa", dualAspect: true, brownoutPreview: true);
 
             Debug.Log($"KalyeahBuild: screenshots in {dir}");
+            Console.WriteLine("Build succeeded!");
         }
         finally
         {
