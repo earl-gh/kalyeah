@@ -26,6 +26,14 @@ neighbours' weights, smooths weights around the shoulders, elbows, wrists, hips,
 seam-split twin vertices identical weights, prunes weights under 1%, normalizes, and keeps at most 4 bones a vertex.
 `pose_test.py norm/<Kid>.glb pose/<Kid>` poses the arm, wrist, fist and knee and renders the joints close up.
 
+Last: `bake_correctives.py norm/<Kid>.glb corr/<Kid>.glb` adds pose-space corrective shape keys `corr_LeftForeArm`,
+`corr_RightForeArm` (elbows, gentle), `corr_LeftLeg`, `corr_RightLeg` (knees) and `corr_LeftArm`, `corr_RightArm`
+(shoulders). Each joint is bent (110 degrees, shoulders raised 80), Blender's Corrective Smooth restores the volume the
+skinning loses relative to the rest shape, the fix is carried back to rest space through the skinning matrices, and
+seam twins share it. The mesh extra `kalyeah_correctives` lists every shape's bone, its parent and the rest and
+baked bend angles, so the game can drive each shape's weight from the joint's bend (not wired yet).
+`corr_compare.py` renders a bent elbow and knee with the shape off and on.
+
 Checks: `inspect_chain.py <glb> <hand bone> out.png` colours the hand by chain (chains are listed
 alphabetically); `look_hand.py` renders the textured hand from four sides; `geo_hand.py` renders plain grey
 with back faces in red (holes and flipped faces show up red); `curl_test.py` curls one hand into a fist.
