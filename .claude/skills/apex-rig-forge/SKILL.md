@@ -1,190 +1,202 @@
 ---
 name: apex-rig-forge
 description: >
-  Animation-ready character pipeline: intake audit, mesh prep, canonical humanoid skeleton,
-  skinning and weight refinement, range-of-motion deformation QA, pose-space corrective shapes,
-  and the glTF→glTFast import gate (Epic Fortnite × Riot Valorant character-tech bar). Use when a
-  kid .glb arrives or changes, when fingers/joints deform badly, before retargeting clips, or when
-  reviewing rig, weight or corrective work.
+  Animation-ready character pipeline: intake audit, mesh prep and rest-pose rebinding, the roster
+  skeleton contract (shared hierarchy and rest rotations so one clip set drives every kid), joint
+  limits with exported axes, twist and half-angle helper bones, skinning against paper folds and
+  noodle limbs, cloth-vs-body, measured range-of-motion QA, pose-space correctives, face rig,
+  LODs, and the glTF→glTFast import gate (Epic Fortnite × Riot Valorant character-tech bar). Use
+  when a kid .glb arrives or changes, when joints deform badly, before clips are retargeted or
+  shared, or when reviewing rig, weight or corrective work.
 ---
 
 # Apex Rig Forge
 
-Turn an owner-authored character into a rig that animates like **Epic (*Fortnite*)** and
-**Riot (*Valorant*)** characters: identical skeleton contract across the roster, clean
-joint volumes at full range of motion, zero cracks, mobile-safe budgets.
+Turn an owner-authored kid into a rig that animates like **Epic (*Fortnite*)** and **Riot
+(*Valorant*)** characters: one skeleton for the whole roster, joints that bend round (never like
+paper, never like noodles), anatomical limits, zero cracks, mobile budgets.
 
-**Boundary:** owns the asset from intake to an import-clean `.glb` (mesh prep, skeleton, skin
-weights, deformation QA, correctives, export/import gate). Defers clip authoring, retargeting and
-runtime playback to `apex-anim-craft`, materials/shaders and `KalyeahResources` sanitizing to
-`godot-unity-view`, and street props to `apex-street-world`.
+**Boundary:** owns the asset from intake to an import-clean `.glb` plus its rig data. Defers clip
+work and runtime playback to `apex-anim-craft`, materials/shaders and `KalyeahResources` to
+`godot-unity-view`, props to `apex-street-world`.
 
-**Owner rule (binding, `CLAUDE.md` §Assets):** the owner makes models. Repair topology, rig,
-weights or correctives only when the owner asks; never re-sculpt, re-texture or regenerate a
-character. If a fix needs modelling (a missing digit, fused geometry), state it, show it, and
-let the owner choose between a scripted repair and their own remodel.
+**Owner rule (`CLAUDE.md` §Assets):** the owner makes models. Repair rig, weights, helpers and
+correctives when asked; never re-sculpt, re-texture or generate a character, face shapes included.
+A fix that needs modelling (missing digit, fused geometry, missing joint loops, face shapes) is
+shown with renders and offered as scripted repair *or* owner remodel.
 
-Tooling: Blender `bpy` scripts in `tools/blender/kids/` (`README.md` lists order and arguments).
-Every step is a script, re-runnable from `assets/models/raw/`; never hand-edit outputs.
+**Tooling:** Blender `bpy` scripts in `tools/blender/kids/` (`README.md`: order and arguments),
+re-runnable from `assets/models/raw/`; never hand-edit outputs. Probes: `dump_tree.py` (bone tree
+with world positions), `tips.py` (digit tips per hand), `inspect_chain.py` (hand coloured per
+chain), `look_hand.py`/`geo_hand.py` (textured / grey with back faces red), `pose_test.py`,
+`curl_test.py`, `corr_compare.py`. A tool a step needs but `tools/blender/kids/` lacks is built
+first, then the step runs.
 
 ## R0 · Intake audit (report before touching anything)
 
-Measure, don't eyeball (`dump_tree.py`, `tips.py`-style probes):
-- **Transforms:** object/armature scale `1.0` (flag `0.01` cm rigs), rotation applied, bone
-  heads in metres, mesh height vs `CharacterDef` height, soles at `z = 0`, facing glTF `+Z`
-  (Blender `−Y`), left side at `+X` in Blender.
-- **Skeleton:** root count, hips/spine/neck/arm/leg chains, finger chains per hand (count tips at
-  hand height), extra chains (hair, skirt, cape), bones with scale keys, `neutral_bone`.
-- **Skin:** groups without bones, unweighted vertices, influences > 4, cross-side weights,
-  seam-split twins (glTF splits vertices at UV seams) with unequal weights.
-- **Mesh:** triangles, vertex count after splits, materials, texture sizes, non-manifold or
-  fused digits (render the hand textured from 4 sides, then coloured by chain).
-- **Clips:** names, fps, ranges, root motion present.
+- **Transforms:** object and armature scale 1.0 (flag 0.01 cm rigs), rotations applied, mesh
+  height vs `CharacterDef`, soles at z = 0, facing glTF +Z (Blender −Y), character left at
+  Blender +X.
+- **Skeleton:** roots above `Hips`, chains, digits per hand (tips at hand height), metacarpal
+  carriers, extra chains (hair/skirt/cape), scale keys, `neutral_bone`.
+- **Skin:** groups without bones, unweighted vertices, > 4 influences, cross-side weights, seam
+  twins (glTF splits vertices at UV seams) with unequal weights.
+- **Mesh:** triangles, vertices after splits, materials, texture sizes, edge loops per joint,
+  fused or missing digits.
+- **Clips:** names, fps, length, root motion.
 
-## R1 · Mesh prep
+## R1 · Mesh prep and rest pose
 
-- One skinned mesh per kid where possible (each extra mesh is a draw call and a skin pass).
-- Apply transforms; armature and mesh unit scale; feet on origin; forward glTF `+Z`.
-- **Rest pose:** A-pose, arms 35–45° below horizontal, elbows/knees with 3–5° pre-bend in the
-  natural direction (IK and solvers need a bend hint), palms facing the thighs, fingers relaxed.
-- **Joint topology:** 3 edge loops at elbows/knees (the middle loop on the crease), 2–3 at
-  wrists, shoulders and hips, a fan of loops at the knuckles. Joints lacking loops cannot be
-  rescued by weights; report them.
-- **Budgets (defaults until the owner sets them; 10 kids on screen, Android mid-tier):** ≤ 25k triangles in a match LOD
-  (main-screen showcase may use LOD0 up to 60k), ≤ 75 deforming bones, one 2048 base-colour
-  atlas + optional normal/ORM at 1024 (ETC2/ASTC), ≤ 2 materials. Flag anything over budget to the
-  owner with the decimation or bake plan; never decimate silently.
-- Merge seam twins only in working copies (topology analysis); exports keep the authored splits.
+- One skinned mesh per kid where possible (each extra mesh is another draw call and skin pass).
+- **Rest pose (the roster's shared bind pose):** A-pose, upper arms 40° below horizontal, palms to
+  thighs, elbows 5° and knees 3° pre-bent in their bend direction, fingers relaxed and slightly
+  curled, feet straight forward at hip width.
+- **Rebinding to a new rest pose:** pose the armature → duplicate the mesh and apply its Armature
+  modifier (the shape in the new pose) → `Apply Pose as Rest Pose` → re-parent with the original
+  weights (`Data Transfer` of vertex groups from a pre-pose copy) → regenerate inverse bind
+  matrices on export → verify every bone head sits inside its joint volume (offset joints stretch
+  limbs). Shape keys must be re-baked after a rebind.
+- **Joint topology:** 3 loops at elbows/knees (middle loop on the crease), 2–3 at wrists,
+  shoulders, hips, a fan at the knuckles. Missing loops cannot be fixed by weights; report.
+- **Budgets (defaults until the owner sets them; 10 kids on screen, mid-tier Android):** match
+  LOD ≤ 25k triangles, showcase LOD0 ≤ 60k, ≤ 75 deforming bones, one 2048 base-colour atlas
+  + optional normal/ORM 1024 (ASTC/ETC2), ≤ 2 materials. Over budget → plan to the owner, never
+  silent decimation.
+- **LODs:** LOD1 at ~50% triangles (`Decimate` collapse on a seam-welded copy, UV seams locked),
+  LOD2 at ~25%; weights carried by `Data Transfer` (nearest face interpolated) then R3 steps 4–5;
+  LOD1 drops finger chains 2–3 (merged into chain 1), LOD2 keeps one bone per digit group
+  (thumb, fingers); same bone names so clips still bind.
 
-## R2 · Skeleton contract (identical for every kid)
+## R2 · Roster skeleton contract
 
-Canonical names `mixamorig:<Bone>` (the game's existing clips and `KidView` use them):
+**Hierarchy (identical paths for every kid, so one clip set binds to all):**
 
-| Region | Bones (parent → child) |
+| Region | Path |
 |---|---|
+| Root | `Armature` → `mixamorig:Hips` (no other bones between) |
 | Core | `Hips` → `Spine` → `Spine1` → `Spine2` → `Neck` → `Head` → `HeadTop_End` |
-| Arm (×L/R) | `Spine2` → `Shoulder` → `Arm` → `ForeArm` → `Hand` (optional `ForeArmTwist1..n` between) |
-| Leg (×L/R) | `Hips` → `UpLeg` → `Leg` → `Foot` → `ToeBase` → `Toe_End` |
-| Digits (×L/R) | `Hand` → `Hand{Thumb,Index,Middle,Ring,Pinky}{1,2,3}` → `...Tip` |
+| Arm ×L/R | `Spine2` → `Shoulder` → `Arm` → `ForeArm` → `Hand` |
+| Twist ×L/R | `ArmTwist` (child of `Arm`), `ForeArmTwist1`, `ForeArmTwist2` (children of `ForeArm`) |
+| Helpers ×L/R | `ForeArmHelper` (elbow), `LegHelper` (knee), `HandHelper` (wrist), parented to the joint's parent bone |
+| Leg ×L/R | `Hips` → `UpLeg` → `Leg` → `Foot` → `ToeBase` → `Toe_End` |
+| Digits ×L/R | `Hand` → `Hand{Thumb,Index,Middle,Ring,Pinky}{1,2,3}` → `…Tip` (exactly 5, thumb from the wrist side) |
+| Extras | hair/skirt/cape chains hang as leaf branches under their body bone; ≤ 4 chains × ≤ 4 bones |
 
-- Exactly 5 digits per hand, 3 phalanges + tip each; thumb from the wrist side, then index →
-  pinky away from it. Metacarpal carriers (one bone holding two digits) stay unnamed.
-- **Rolls:** finger bend axis (bone local X) faces the palm on both hands; elbow and knee hinge
-  axes perpendicular to the limb plane; mirrored L/R. Wrong rolls make clips bend fingers
-  backward and break mirrored clips.
-- No bone scale or shear in rest; connected chains where possible; leaf `_End` bones for
-  direction only (no weights).
-- Secondary chains (hair, skirt, cape) keep their own names, parent to the nearest body bone,
-  ≤ 4 bones per chain, ≤ 4 chains per kid.
-- Twist bones when the forearm/upper arm must rotate > 90° about its axis (else candy-wrapper).
-- **Half-angle helpers:** each elbow, knee and wrist gets an unanimated helper at the joint pivot
-  that follows 50% of the child's rotation (`Copy Rotation` mix 0.5 in Blender; the same blend in
-  `LateUpdate` at runtime). Crease-band vertices bind to it, so the joint bends round, never on one
-  edge loop.
+- Metacarpal carriers and auto-rig roots are removed after their weights move to the nearest
+  contract bone (paths must match exactly; an extra parent breaks shared clips).
+- **Rest rotations:** every contract bone's rest orientation is the same across the roster (only
+  lengths and positions differ), so a clip's local rotations mean the same pose on every kid.
+  Set heads from the kid's joints, then copy roll and direction from the reference rig.
+- **Rolls:** finger bend axis faces the palm on both hands; elbow/knee hinge axis perpendicular to
+  the limb plane; L/R mirrored. No scale or shear in rest; `_End` bones carry no weights.
+- **Twist bones** take a share of the parent's twist about the bone axis: `ArmTwist` 50% of
+  `Arm`, `ForeArmTwist1` 33%, `ForeArmTwist2` 66% of the hand's twist; the hand keeps its
+  swing. Weights ramp along the forearm 0 → 33 → 66 → 100% toward the wrist.
+- **Half-angle helpers** follow 50% of their joint's swing (`Copy Rotation` mix 0.5). They are
+  baked into every clip; at runtime only IK-modified joints re-evaluate them (`apex-anim-craft`).
 
-### Joint limits (single source of truth)
+### Joint limits (`unity/Data/rig__joint_limits.json`, the single source)
 
-Bone-local axes after R2 rolls: **X = flex (+ toward palm/front)**, **Z = abduct/splay**,
-**Y = twist (along the bone)**. Limits live in `unity/Data/rig__joint_limits.json` (degrees,
-roster-wide, stylized-kid anatomy). The Blender control rig, runtime IK and the clip scan
-(`apex-anim-craft`) all read this file; never copy the numbers anywhere else.
+Ranges in degrees on three axes per bone: **flex** (+ toward palm/front), **abduct/splay**,
+**twist** (about the bone). The export script writes, per bone, these axes as unit vectors in the
+model's rest space next to the ranges, so Blender, Unity (after glTFast's handedness change) and
+the clip scan use the same axes; nothing hard-codes a local X/Y/Z.
 
-| Joint | Flex X (−ext … +flex) | Z (±) | Twist Y (±) |
+| Joint | Flex (−ext … +flex) | Abduct | Twist |
 |---|---|---|---|
-| Spine, Spine1, Spine2 (each) | −15 … 25 | 15 | 20 |
-| Neck / Head | −40 … 40 / −25 … 25 | 30 / 15 | 50 / 30 |
-| Shoulder (clavicle) | −20 … 20 | elevate 30, depress 10 | 0 |
-| Arm | −50 … 170 | −30 … 170 | 80 |
-| ForeArm (hinge) | −5 … 145 | 0 | 85 (spread over twist bones) |
-| Hand | −60 … 70 | radial 20, ulnar 35 | 0 |
-| UpLeg | −20 … 125 | −25 … 45 | 40 |
-| Leg (hinge) | −3 … 140 | 0 | 10 |
-| Foot / ToeBase | −20 … 45 / −30 … 50 | 30 / 0 | 0 |
-| Finger 1 / 2 / 3 | −15 … 90 / 0 … 100 / −5 … 80 | 15 (index, pinky 20) / 0 / 0 | 0 |
-| Thumb 1 / 2 / 3 | −10 … 50 / 0 … 60 / −10 … 80 | 60 / 0 / 0 | 30 / 0 / 0 |
+| Spine, Spine1, Spine2 (each) | −15 … 25 | ±15 | ±20 |
+| Neck / Head | −40 … 40 / −25 … 25 | ±30 / ±15 | ±50 / ±30 |
+| Shoulder (clavicle) | −20 … 20 | −10 … 30 | 0 |
+| Arm | −50 … 160 | −30 … 140 (clavicle adds the rest) | ±80 |
+| ForeArm (hinge) | −5 … 145 | 0 | ±85 (shared with twist bones) |
+| Hand | −60 … 70 | −20 … 35 (radial … ulnar) | ±80 at the source, redistributed to forearm twist bones |
+| UpLeg | −20 … 125 | −25 … 45 | ±40 |
+| Leg (hinge) | −3 … 140 | 0 | ±10, only while flexed > 20° |
+| Foot / ToeBase | −20 … 45 / −30 … 50 | ±30 / 0 | 0 |
+| Finger 1 / 2 / 3 | −15 … 90 / 0 … 100 / −5 … 80 | ±15 (index, pinky ±20) / 0 / 0 | 0 |
+| Thumb 1 / 2 / 3 | −10 … 50 / 0 … 60 / −10 … 80 | ±60 / 0 / 0 | ±30 / 0 / 0 |
 
-Clamp with **swing–twist decomposition** (twist about Y first, then the swing's X/Z ellipse);
-never clamp Euler channels independently (that produces gimbal pops).
+Clamp by **swing–twist decomposition** (extract twist about the twist axis, clamp; clamp the
+swing inside the flex×abduct ellipse); never clamp Euler channels separately.
 
-### Animation control rig (Blender authoring only, never exported)
+### Animation control rig (Blender authoring only, stripped on export)
 
-- A separate control layer drives the deform bones by constraints; the export bakes the result
-  onto the deform skeleton and strips every constraint and control bone.
-- **FK/IK switch** per arm and leg: FK chain plus an IK chain (2-bone `IK`, chain length 2,
-  stretch 0) with a **pole target** at the elbow/knee plane; a switch property blends them, with
-  snap FK↔IK so swapping never pops. Feet: reverse-foot pivots (heel, ball, toe, bank).
-- Every controlled bone gets a `Limit Rotation` constraint from the limits file (local space),
-  and the IK chain gets the same ranges as `ik_min/ik_max` with `lock_ik_*` on hinge axes, so
-  neither FK keys nor IK solves can leave anatomical range.
-- Fingers: FK only, plus a per-hand `curl`/`spread` driver.
+- Control bones drive the deform bones by constraints; export bakes the deform bones and removes
+  every control bone and constraint.
+- **FK/IK** per arm and leg: 2-bone `IK` (chain length 2, stretch 0) with a **pole target** on the
+  elbow/knee plane, an FK/IK blend property with snap both ways (no pop on switch); reverse-foot
+  pivots (heel, ball, toe, bank).
+- `Limit Rotation` (local space) on every controlled bone and matching `ik_min/ik_max` plus
+  `lock_ik_*` on hinge axes, all from the limits file.
+- Fingers FK only, with per-hand `curl`/`spread` drivers.
 
-## R3 · Skinning and weight refinement
+## R3 · Skinning (fixed order, each pass idempotent)
 
-Order is fixed; each pass is idempotent:
-1. **Digit split:** assign finger skin per digit by geometry (trace each digit tip→knuckle
-   slice by slice; nearest centreline), not by the auto-rig's guess. Fused digits keep their mesh;
-   the joining skin blends between neighbours.
-2. **Joint falloff (between paper and noodle):**
-   - **Rigid cores:** the middle 50–60% of every limb segment is 100% one bone, so bone lengths
-     never stretch skin (noodle/rubber-hose limbs come from weights bleeding along the segment).
-   - **Blend band** width between 0.6 and 1.5 × the joint's radius, centred on the crease loop:
-     narrower folds like paper, wider bends like a noodle. Hinges (elbow, knee, finger) ~1.0 ×
-     radius biased 60/40 toward the parent on the outside; ball joints (shoulder, hip) ~1.5 ×
-     with clavicle/spine sharing the deltoid/glute; wrist and ankle ~0.7 ×.
-   - **Crease band** vertices take the half-angle helper (R2) as one of their influences.
-3. **Smoothing:** neighbour-average only inside joint zones (factor 0.35–0.5, 2–3 iterations);
-   never global smoothing (it melts authored detail).
-4. **Integrity:** seam twins get identical weights (else cracks under bend); no influence from
-   the opposite side of the body; vertices on `neutral_bone` take the nearest skinned vertex's
-   weights and the bone is removed.
-5. **Normalize:** prune < 0.01, keep the top **4** influences, renormalize to 1.0.
-6. **Mirror check:** L/R weight maps match within tolerance for symmetric kids.
+1. **Digit split** by geometry (trace each digit tip→knuckle; nearest centreline); fused digits keep
+   their mesh and the joining skin blends between neighbours.
+2. **Rigid cores:** the middle 50–60% of every limb segment is 100% its bone (weights bleeding
+   along a segment make noodle limbs).
+3. **Blend bands** centred on the crease loop, 0.6–1.5 × the joint radius (narrower folds like paper,
+   wider bends like a noodle): hinges ~1.0 × biased 60/40 to the parent on the outside; ball joints
+   ~1.5 × with clavicle/spine sharing deltoid/glute; wrist/ankle ~0.7 ×. Crease-band vertices
+   take the half-angle helper as one influence; forearm vertices take the twist ramp (R2).
+4. **Cloth vs body:** skirt/shorts hems follow the thigh they cover (≥ 70% `UpLeg` near the hem,
+   the hips above) with the skirt chain for the rest; loose cloth gets capsule colliders on
+   `UpLeg`/`Leg` for spring bones (`apex-anim-craft`); clipping at the R4 hip/knee limits fails.
+5. **Smoothing** only inside joint zones (factor 0.35–0.5, 2–3 iterations); never global.
+6. **Integrity:** seam twins identical; no opposite-side influence; `neutral_bone` vertices take the
+   nearest skinned vertex's weights and the bone is removed.
+7. **Normalize:** prune < 0.01, top **4** influences (helpers and twist bones count), renormalize.
+8. **Mirror check:** L/R weight maps match within tolerance on symmetric kids.
 
-## R4 · Deformation QA (range of motion, pass/fail)
+## R4 · Range-of-motion QA (measured, `rom_metrics.py`)
 
-Pose each kid with world-space swings (`pose_test.py`, `curl_test.py`) and render close-ups,
-textured and plain grey with back faces red (`geo_hand.py`):
-
-Test every joint at **each limit** of `rig__joint_limits.json` and at half range, one axis at a
-time, then one combined pose per limb. Measured gates (script them; renders confirm):
+Pose every joint at each limit and half range, one axis at a time, then one combined pose per limb;
+measure, then confirm with renders (textured and grey/red):
 
 | Metric | Measured on | Pass |
 |---|---|---|
-| **Fold sharpness** (paper) | max dihedral angle between adjacent faces across the crease band | ≤ 75° at the flex limit |
-| **Segment stretch** (noodle) | distance between rigid-core vertex rings of a segment, posed vs rest | changes ≤ 2% |
-| **Core rigidity** | rigid-core vertices' distance to their bone axis, posed vs rest | changes ≤ 3% |
-| **Volume** | cross-section area at the joint (outer side) vs rest | loss ≤ 20% (≤ 10% with correctives) |
-| **Self-intersection** | faces crossing other faces of the same body part | none outside the inner crease |
-| **Twist** | forearm/shin cross-section at 85° twist | no pinch (area loss ≤ 25%) |
-| **Integrity** | open edges and back faces (red in `geo_hand.py`) | none new |
+| Fold sharpness (paper) | angle between face normals of adjacent faces, outer side and crease edges (skin-to-skin contact zone excluded) | ≤ 60° at the flex limit |
+| Segment stretch (noodle) | distance between the rigid-core vertex rings of a segment | ≤ 2% change |
+| Core rigidity | rigid-core vertices' distance to their bone axis | ≤ 3% change |
+| Volume | joint cross-section area, outer half | ≤ 20% loss (≤ 10% with correctives) |
+| Twist | forearm/shin cross-section at full twist | ≤ 25% area loss |
+| Self-intersection | faces crossing faces of the same body part | none outside the contact zone |
+| Cloth | hem/skirt faces inside the leg | none at hip/knee limits |
+| Integrity | open edges, back faces | none new |
 
-Visual checks per joint: shoulder (deltoid keeps volume, collar follows, no armpit tear), elbow
-(outer point kept), wrist (twist spreads up the forearm), fingers (fist closes, knuckles keep
-shape), hip (glute/groin keep volume, cloth follows), knee (kneecap keeps shape), spine and neck
-(no shearing at waist or collar).
-Order of fixes: weights (R3) → helpers (R2) → correctives (R5). Never fix two at once blind.
+Fix order: weights (R3) → helpers and twist (R2) → correctives (R5), one at a time.
 
-## R5 · Pose-space correctives
+## R5 · Correctives
 
-- Bake per joint at its flex limit (from `rig__joint_limits.json`): bend → `Corrective Smooth` (rest source = original
-  coordinates) restores lost volume → take the posed delta → invert through the vertex's blended
-  skinning matrix `Σ wᵢ Mᵢ·Bᵢ⁻¹` → shape key `corr_<Bone>` in rest space. Seam twins share
-  the delta (`bake_correctives.py`).
-- Tight folds (elbow inner crease) need gentle settings (≈ 5 iterations, factor 0.35) or the fold
-  passes through itself; verify off/on renders (`corr_compare.py`).
-- Store driver metadata as the mesh extra `kalyeah_correctives`: shape, bone, parent, rest angle,
-  baked angle. Runtime weight = `clamp01((θ − θrest) / (θbaked − θrest))`.
-- Budget: ≤ 8 corrective shapes per kid, deltas only on vertices > 0.5 mm, no correctives for
-  joints that already pass R4.
+- Bake each at its joint's limit: bend → `Corrective Smooth` (rest source = original coordinates)
+  → posed delta → back to rest through the vertex's blended skinning matrix `Σ wᵢ·Mᵢ·Bᵢ⁻¹` →
+  shape key `corr_<Bone>[_<Direction>]`; seam twins share the delta. Tight folds use gentle settings
+  (≈ 5 iterations, factor 0.35) so the inner crease never passes through itself.
+- **Drivers** (mesh extra `kalyeah_correctives`, one entry per shape): hinge shapes read the bend
+  about the stored hinge axis; ball joints get one shape per direction (`_Up`, `_Fwd`, `_Back`) read
+  as the swing's angle toward that stored direction (cone reader); weight =
+  `clamp01((θ − θstart) / (θfull − θstart))`.
+- **Combinations:** where two shapes of one limb overlap (shoulder `_Up` + elbow), bake a combination
+  shape at both limits, driven by the product of both weights, holding the difference between the
+  combined fix and the sum of the singles. Per-vertex total corrective offset is capped at the
+  largest single delta.
+- Budget ≤ 10 shapes per kid; deltas only where > 0.5 mm; none on joints that pass R4 without them.
 
-## R6 · Export and import gate
+## R6 · Face rig (owner-made shapes, wired here)
 
-- glTF export: skins on, morphs on, extras on, animations only if clips belong in the file,
-  `export_image_format='AUTO'`, no `neutral_bone`.
-- After `python tools/unity_export/sync_assets.py`, glTFast must import with zero errors; materials pass
-  `KalyeahResources` sanitizing (`godot-unity-view`).
-- EditMode tests pin the contract per kid: required `mixamorig:` bones exist, 5 digits per hand,
-  ≤ 4 influences, height and sole at origin, `+Z` facing, triangle and texture budgets,
-  `kalyeah_correctives` parse, every limited bone present in `rig__joint_limits.json`, no control
-  bones or constraints left in the export.
+- Minimum set for Fortnite-grade readability: `blink_L`, `blink_R`, `smile`, `open`, `angry`,
+  `surprised`, `hurt` shape keys (owner sculpts them), or jaw/eye bones if the owner prefers
+  bones. Eyes, if separate meshes, parent to `Head`.
+- Shapes are sculpted on the rest mesh, only on face vertices, no seam splits left unwelded.
+
+## R7 · Export and import gate
+
+- glTF: skins, morphs, extras on; the contract hierarchy only (no control bones, constraints or
+  `neutral_bone`); `export_image_format='AUTO'`; the limits-axis data written beside the model.
+- Unity: after `python tools/unity_export/sync_assets.py`, glTFast imports with zero errors;
+  `QualitySettings.skinWeights = FourBones`; GPU skinning on; materials pass `KalyeahResources`.
+- EditMode tests per kid: exact contract paths and rest rotations within 1° of the reference, 5
+  digits per hand, ≤ 4 influences, height and soles, +Z facing, budgets, LOD bone sets,
+  `kalyeah_correctives` and limits-axis data parse, no control bones left.
 - Hand off to `apex-anim-craft` only when R4 passes for the whole roster.
