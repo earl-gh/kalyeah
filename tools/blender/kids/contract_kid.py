@@ -101,25 +101,59 @@ order = sorted([b for b in arm.data.bones if b.name.startswith(P) and b.name[len
                key=lambda b: len(b.parent_recursive))
 arm_dir = {}
 set_mode(arm, 'POSE')
-for b in order:
-    p = pb[b.name]
+HAND_TWIST_MAX = 30.0          # degrees taken at the wrist; the rest needs weighted forearm twist bones
+
+
+def whead(n):
     bpy.context.view_layer.update()
-    d = (AM @ p.tail - AM @ p.head).normalized()
-    R = ref[b.name[len(P):]]["rot"]
-    rr = Vector((R[0][1], R[1][1], R[2][1])).normalized()
-    key = b.name[len(P):]
-    if key.endswith("Arm") and not key.endswith("ForeArm"):
-        horiz = Vector((d.x, d.y, 0.0)).normalized()            # the kid's own direction across the floor
-        elev = math.asin(max(-1.0, min(1.0, rr.z)))              # the reference's elevation (40 deg down)
-        r = (horiz * math.cos(elev) + Vector((0, 0, 1)) * math.sin(elev)).normalized()
-        arm_dir[key[:-3]] = r
-    else:
-        r = arm_dir.get(key.replace("ForeArm", "").replace("Hand", ""), rr)   # forearm and hand in line
-    if (d - r).length < 1e-5:
-        continue
-    q = d.rotation_difference(r).to_matrix().to_4x4()
+    return AM @ pb[P + n].head
+
+
+def signed_angle(a, b, axis):
+    a = (a - a.dot(axis) * axis).normalized(); b = (b - b.dot(axis) * axis).normalized()
+    return math.atan2(a.cross(b).dot(axis), a.dot(b))
+
+
+def turn(n, rot3):
+    p = pb[P + n]
+    bpy.context.view_layer.update()
     pivot = AM @ p.head
-    p.matrix = AMi @ (Matrix.Translation(pivot) @ q @ Matrix.Translation(-pivot) @ AM @ p.matrix)
+    p.matrix = AMi @ (Matrix.Translation(pivot) @ rot3.to_4x4() @ Matrix.Translation(-pivot) @ AM @ p.matrix)
+    bpy.context.view_layer.update()
+
+
+rhead = {k: Vector(v["head"]) for k, v in ref.items()}
+for s_ in ("Left", "Right"):
+    if not all(P + s_ + n in pb for n in ("Arm", "ForeArm", "Hand", "HandMiddle1", "HandIndex1", "HandPinky1")):
+        continue
+    a0 = (whead(s_ + "ForeArm") - whead(s_ + "Arm")).normalized()
+    f0 = (whead(s_ + "Hand") - whead(s_ + "ForeArm")).normalized()
+    prebend = math.degrees(a0.angle(f0)); n0 = a0.cross(f0)
+    # upper arm: the kid's own direction across the floor, the reference's elevation (A-pose)
+    R = ref[s_ + "Arm"]["rot"]; rr = Vector((R[0][1], R[1][1], R[2][1])).normalized()
+    horiz = Vector((a0.x, a0.y, 0.0)).normalized(); elev = math.asin(max(-1.0, min(1.0, rr.z)))
+    r = (horiz * math.cos(elev) + Vector((0, 0, 1)) * math.sin(elev)).normalized()
+    q = a0.rotation_difference(r)
+    turn(s_ + "Arm", q.to_matrix())
+    # elbow direction: roll the whole arm about its axis until its crease folds the forearm forward
+    etw = 0.0
+    if prebend > 4.0:
+        etw = signed_angle(q @ n0, r.cross(Vector((0, -1, 0))), r)
+        turn(s_ + "Arm", Matrix.Rotation(etw, 3, r))
+    # forearm straight in line with the upper arm (the clips' rest is a straight arm)
+    f1 = (whead(s_ + "Hand") - whead(s_ + "ForeArm")).normalized()
+    turn(s_ + "ForeArm", f1.rotation_difference(r).to_matrix())
+    # hand in line, then palm facing as the reference's palm
+    h1 = (whead(s_ + "HandMiddle1") - whead(s_ + "Hand")).normalized()
+    turn(s_ + "Hand", h1.rotation_difference(r).to_matrix())
+    ak = whead(s_ + "HandIndex1") - whead(s_ + "HandPinky1")
+    hr = (rhead[s_ + "HandMiddle1"] - rhead[s_ + "Hand"]).normalized()
+    ar = r.rotation_difference(hr).inverted() @ (rhead[s_ + "HandIndex1"] - rhead[s_ + "HandPinky1"])
+    ptw = signed_angle(ak, ar, r)
+    lim = math.radians(HAND_TWIST_MAX)
+    turn(s_ + "Hand", Matrix.Rotation(max(-lim, min(lim, ptw)), 3, r))
+    log.append(f"{s_}: elbow pre-bend {prebend:.0f} straightened, arm rolled {math.degrees(etw):+.0f}, "
+               f"palm roll {math.degrees(ptw):+.0f} (applied {max(-HAND_TWIST_MAX, min(HAND_TWIST_MAX, math.degrees(ptw))):+.0f})")
 bpy.context.view_layer.update()
 set_mode(mesh, 'OBJECT')
 mod = next(m for m in mesh.modifiers if m.type == 'ARMATURE')
@@ -227,8 +261,11 @@ for s in ("Left", "Right"):
         for i, tt, dd in zip(idx, t, d):
             if "core" in SKIP:
                 break
-            if 0.25 < tt < 0.75 and dd < 1.35 * radius[s + n] and W[i].get(g, 0) >= 0.75:
-                W[i] = {g: 1.0}     # only firm up skin already mostly on this bone (cloth blends stay)
+            if 0.15 < tt < 0.85 and dd < 1.35 * radius[s + n] and W[i].get(g, 0) >= 0.6 and not is_cloth(i):
+                # ease toward 100% this bone: full in the middle half, fading to the authored blend near the joints
+                e = min((tt - 0.15) / 0.2, (0.85 - tt) / 0.2, 1.0)
+                e = e * e * (3 - 2 * e)
+                W[i] = {gg: (vv * (1 - e) + (e if gg == g else 0.0)) for gg, vv in W[i].items()}
 
 # hinge blend bands (elbow, knee): smoothstep across 1.0 x radius at the crease, 60/40 toward the parent outside
 for s in ("Left", "Right"):

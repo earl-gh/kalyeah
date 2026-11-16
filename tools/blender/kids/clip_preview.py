@@ -75,6 +75,14 @@ for k in range(NF):
     delta = Vector((0, 0, delta.z)) * (kleg / sleg)          # in place: height only
     kid.pose.bones[P + "Hips"].location = krest[P + "Hips"].inverted() @ delta
     bpy.context.view_layer.update()
+    _c = os.environ.get("CLOSE")
+    if _c:
+        tgt = kid.matrix_world @ kid.pose.bones[P + _c].head
+        for v, off in enumerate([(0.0, -1.0, 0.15), (1.0 if tgt.x > 0 else -1.0, -0.2, 0.1)]):
+            cam.location = tgt + Vector(off).normalized() * 0.95
+            cam.rotation_euler = (tgt - cam.location).to_track_quat('-Z', 'Y').to_euler()
+            scn.render.filepath = f"{OUT}_{v}_{k}.png"; bpy.ops.render.render(write_still=True)
+        continue
     for v, loc in enumerate([(0.0, -4.0, 1.0), (4.0, 0.0, 0.9)] if __import__("os").environ.get("FRONT") else [(2.6, -3.2, 1.0), (4.0, 0.0, 0.9)]):
         cam.location = loc; cam.rotation_euler = (Vector((0, 0, 0.85)) - Vector(loc)).to_track_quat('-Z', 'Y').to_euler()
         scn.render.filepath = f"{OUT}_{v}_{k}.png"; bpy.ops.render.render(write_still=True)

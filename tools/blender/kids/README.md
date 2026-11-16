@@ -41,7 +41,7 @@ with back faces in red (holes and flipped faces show up red); `curl_test.py` cur
 ## Shared rest pose and real-clip check (current path)
 
 1. `build_reference.py characters/junjun.glb ref_rest.json`: the roster's reference rest frames.
-2. `SKIP=core,hinge,helper,twist,stray contract_kid.py norm/<Kid>.glb ref_rest.json contract/<Kid>.glb contract/<Kid>_rig.json`:
+2. `SKIP=hinge,helper,twist,stray contract_kid.py norm/<Kid>.glb ref_rest.json contract/<Kid>.glb contract/<Kid>_rig.json`:
    strips path-breaking bones, lowers the arms to the reference A-pose, copies the reference rest frames and adds
    (unweighted) twist/helper bones. The `SKIP` list keeps the authored weights: the extra weight passes in the
    script tore skirts under a real run and stay off until they pass the clip check.
@@ -51,3 +51,8 @@ with back faces in red (holes and flipped faces show up red); `curl_test.py` cur
    `clip_preview.py` reads `ref_rest.json` (same folder, or `REF=<path>`): clip rotations are measured from the
    roster reference pose. Measuring them from the source's own rest left every arm 30 degrees too low (arms
    inside the body, no swing, stretched sleeves). `FRONT=1` renders from straight ahead.
+   `contract_kid.py` also fixes bend directions in the rest pose: it straightens the authored elbow pre-bend,
+   rolls each arm until its elbow crease folds the forearm forward (as the clips expect) and turns each palm to
+   the reference (at most 30 degrees at the wrist; the log prints what was left over). The `core` pass is on:
+   limb middles ease toward 100% their bone, cloth untouched. `anat_measure.py norm.glb contract.glb ref_rest.json`
+   prints palm roll, elbow plane and foot yaw mismatch; `CLOSE=LeftForeArm clip_preview.py ...` renders a close-up.
