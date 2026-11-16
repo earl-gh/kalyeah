@@ -48,3 +48,6 @@ with back faces in red (holes and flipped faces show up red); `curl_test.py` cur
 3. `clip_preview.py characters/junjun.glb contract/<Kid>.glb Run out/<Kid> 3`: plays a real game clip on the kid
    and renders a frame strip. Judge deformation with real clips, never with one-joint stress poses.
    Run one kid at a time (two Blender renders in parallel exhaust the session's memory).
+   `clip_preview.py` reads `ref_rest.json` (same folder, or `REF=<path>`): clip rotations are measured from the
+   roster reference pose. Measuring them from the source's own rest left every arm 30 degrees too low (arms
+   inside the body, no swing, stretched sleeves). `FRONT=1` renders from straight ahead.

@@ -31,6 +31,13 @@ except Exception:
 f0, f1 = act.frame_range
 SW, KW = src.matrix_world.to_3x3(), kid.matrix_world.to_3x3()
 srest = {b.name: (SW @ b.matrix_local.to_3x3()) for b in src.data.bones}
+# the kids rest in the roster reference pose (arms lowered), not in the source's rest: measure every
+# rotation from that reference pose, or the arms end up lower than the clip by the difference
+import json, os
+_ref = json.load(open(os.environ.get("REF", os.path.join(os.path.dirname(os.path.abspath(__file__)), "ref_rest.json"))))
+for _n, _v in _ref.items():
+    if P + _n in srest:
+        srest[P + _n] = Matrix(_v["rot"])
 krest = {b.name: (KW @ b.matrix_local.to_3x3()) for b in kid.data.bones}
 order = sorted(kid.data.bones, key=lambda b: len(b.parent_recursive))
 sleg = (src.data.bones[P + "LeftUpLeg"].head_local - src.data.bones[P + "LeftFoot"].head_local).length
@@ -68,7 +75,7 @@ for k in range(NF):
     delta = Vector((0, 0, delta.z)) * (kleg / sleg)          # in place: height only
     kid.pose.bones[P + "Hips"].location = krest[P + "Hips"].inverted() @ delta
     bpy.context.view_layer.update()
-    for v, loc in enumerate([(2.6, -3.2, 1.0), (4.0, 0.0, 0.9)]):
+    for v, loc in enumerate([(0.0, -4.0, 1.0), (4.0, 0.0, 0.9)] if __import__("os").environ.get("FRONT") else [(2.6, -3.2, 1.0), (4.0, 0.0, 0.9)]):
         cam.location = loc; cam.rotation_euler = (Vector((0, 0, 0.85)) - Vector(loc)).to_track_quat('-Z', 'Y').to_euler()
         scn.render.filepath = f"{OUT}_{v}_{k}.png"; bpy.ops.render.render(write_still=True)
 print("done", CLIP, f0, f1)
