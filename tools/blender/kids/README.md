@@ -37,3 +37,14 @@ baked bend angles, so the game can drive each shape's weight from the joint's be
 Checks: `inspect_chain.py <glb> <hand bone> out.png` colours the hand by chain (chains are listed
 alphabetically); `look_hand.py` renders the textured hand from four sides; `geo_hand.py` renders plain grey
 with back faces in red (holes and flipped faces show up red); `curl_test.py` curls one hand into a fist.
+
+## Shared rest pose and real-clip check (current path)
+
+1. `build_reference.py characters/junjun.glb ref_rest.json`: the roster's reference rest frames.
+2. `SKIP=core,hinge,helper,twist,stray contract_kid.py norm/<Kid>.glb ref_rest.json contract/<Kid>.glb contract/<Kid>_rig.json`:
+   strips path-breaking bones, lowers the arms to the reference A-pose, copies the reference rest frames and adds
+   (unweighted) twist/helper bones. The `SKIP` list keeps the authored weights: the extra weight passes in the
+   script tore skirts under a real run and stay off until they pass the clip check.
+3. `clip_preview.py characters/junjun.glb contract/<Kid>.glb Run out/<Kid> 3`: plays a real game clip on the kid
+   and renders a frame strip. Judge deformation with real clips, never with one-joint stress poses.
+   Run one kid at a time (two Blender renders in parallel exhaust the session's memory).

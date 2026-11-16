@@ -95,12 +95,13 @@ else:
         hands[side] = hand
         mapping[hand.name] = f"{side}Hand"
         rest = ach[:-1]
-        if len(rest) >= 3 and rest[0].length < 0.6 * rest[1].length:
+        # collarbone present when 4+ bones lead to the hand, or when 3 do and the first starts at the spine
+        if len(rest) >= 4 or (len(rest) == 3 and abs(head[rest[0].name][0]) < 0.06 * H):
             mapping[rest[0].name] = f"{side}Shoulder"; rest = rest[1:]
         if len(rest) >= 2:
             mapping[rest[0].name] = f"{side}Arm"; mapping[rest[1].name] = f"{side}ForeArm"
         for k, extra in enumerate(rest[2:]):
-            mapping[extra.name] = f"{side}ForeArmTwist{k + 1}"
+            mapping[extra.name] = f"{side}WristExtra{k + 1}"     # in-line auto-rig bone, folded into ForeArm later
 
 # fingers: thumb (named, else the chain that starts nearest the wrist), then index..pinky away from the thumb
 for side, hand in hands.items():
