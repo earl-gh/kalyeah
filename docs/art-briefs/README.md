@@ -4,6 +4,7 @@ One page per asset the owner (or an artist) makes; the game keeps its code-drawn
 
 By priority (how often the player sees it):
 
+0. [The 12 kids: game-ready meshes for rigging and animation](kids-retopo-spec.md) (P0, blocks the roster)
 1. [Painted street ground and mid-street wear](street-ground.md) (P1, seen all match)
 2. [Card frames per kind and the card back](card-frames.md) (P1)
 3. [Impact puff (any hit)](impact-puff.md) (P1)
