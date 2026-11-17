@@ -25,6 +25,7 @@ namespace Kalyeah.Game
         static readonly Color PressTint = new Color(0.82f, 0.82f, 0.86f, 1f);
 
         const float TopBarHeight = 96f;
+        const float HeroCentreX = 0.36f; // hero and slash centre, as a fraction of the screen width (right of the name plate)
         const float HitSize = 96f;
         const float Gutter = 20f;
         const float NarrowTopBarWidth = 1100f;
@@ -258,13 +259,13 @@ namespace Kalyeah.Game
             slashClip.gameObject.AddComponent<RectMask2D>();
             Image slash = Ui.MakeImage("HeroSlash", slashClip, new Color(Red.r, Red.g, Red.b, 0.85f));
             RectTransform sr = slash.rectTransform;
-            sr.anchorMin = sr.anchorMax = new Vector2(0.27f, 0.5f);
+            sr.anchorMin = sr.anchorMax = new Vector2(HeroCentreX, 0.5f);
             sr.pivot = new Vector2(0.5f, 0.5f);
             sr.sizeDelta = new Vector2(130f, 1400f);
             sr.localRotation = Quaternion.Euler(0f, 0f, -16f);
             Image slashEdge = Ui.MakeImage("HeroSlashEdge", slashClip, new Color(Paper.r, Paper.g, Paper.b, 0.5f));
             RectTransform er = slashEdge.rectTransform;
-            er.anchorMin = er.anchorMax = new Vector2(0.27f, 0.5f);
+            er.anchorMin = er.anchorMax = new Vector2(HeroCentreX, 0.5f);
             er.pivot = new Vector2(0.5f, 0.5f);
             er.anchoredPosition = new Vector2(118f, 0f);
             er.sizeDelta = new Vector2(4f, 1400f);
@@ -377,22 +378,22 @@ namespace Kalyeah.Game
 
             // 0. hero zone: the kid's name plate (tap to change kid)
             RectTransform heroZone = Ui.Panel("HeroZone", _hubBody, Vector2.zero, new Vector2(0.46f, 1f), new Vector2(0f, 0f), Vector2.zero, Vector2.zero);
-            RectTransform plate = Ui.Panel("KidPlate", heroZone, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(420f, 112f));
+            // name stacked over CHANGE, bottom-left, clear of the hero's feet
+            RectTransform plate = Ui.Panel("KidPlate", heroZone, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(300f, 124f));
             Image plateHit = plate.gameObject.AddComponent<Image>();
             plateHit.color = Clear;
             Image bar = Ui.MakeImage("Bar", plate, Red);
-            Place(bar.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(8f, 76f));
-            bar.rectTransform.pivot = new Vector2(0f, 0.5f);
-            _kidName = Label("KidName", plate, "", 64, Paper, TextAnchor.MiddleLeft, display: true);
-            Stretch(_kidName.rectTransform, Vector2.zero, Vector2.one);
-            _kidName.rectTransform.offsetMin = new Vector2(26f, 0f);
-            _kidName.rectTransform.offsetMax = new Vector2(-96f, 0f);
+            Place(bar.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(8f, 70f));
+            bar.rectTransform.pivot = new Vector2(0f, 1f);
+            _kidName = Label("KidName", plate, "", 60, Paper, TextAnchor.MiddleLeft, display: true);
+            Place(_kidName.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(13f, 0f), new Vector2(-26f, 70f));
+            _kidName.rectTransform.pivot = new Vector2(0.5f, 1f);
             _kidName.resizeTextForBestFit = true;
-            _kidName.resizeTextMinSize = 34;
-            _kidName.resizeTextMaxSize = 64;
+            _kidName.resizeTextMinSize = 32;
+            _kidName.resizeTextMaxSize = 60;
             Text change = Label("Change", plate, "CHANGE", 16, Paper, TextAnchor.MiddleCenter, display: true);
-            Place(change.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, new Vector2(88f, 34f));
-            change.rectTransform.pivot = new Vector2(1f, 0.5f);
+            Place(change.rectTransform, Vector2.zero, Vector2.zero, new Vector2(26f, 8f), new Vector2(96f, 34f));
+            change.rectTransform.pivot = Vector2.zero;
             Frame(change.rectTransform, Hairline, 2f);
             KidButton = AttachButton(plate.gameObject, plateHit, () => Navigate(MenuStack.PickId));
 
@@ -675,13 +676,13 @@ namespace Kalyeah.Game
             if (_modeZone != null) _modeZone.sizeDelta = new Vector2(rightWidth, 150f);
             if (_playZone != null) _playZone.sizeDelta = new Vector2(rightWidth, 120f);
 
-            // hero: full height, centred on the red slash at 27% of the screen
+            // hero: full height, centred on the red slash, right of the name plate
             float heroHeight = full.height * 1.02f;
             float heroWidth = heroHeight * 0.75f;
             if (_heroImageRect != null)
             {
                 _heroImageRect.sizeDelta = new Vector2(heroWidth, heroHeight);
-                _heroImageRect.anchoredPosition = new Vector2(full.width * 0.27f, -full.height * 0.02f);
+                _heroImageRect.anchoredPosition = new Vector2(full.width * HeroCentreX, -full.height * 0.02f);
             }
             PlaceHeroShadow();
         }
