@@ -42,7 +42,7 @@ namespace Kalyeah.Game
             _texture = new RenderTexture(TextureWidth, TextureHeight, 24, RenderTextureFormat.ARGB32)
             {
                 name = "HeroStage",
-                antiAliasing = 2,
+                antiAliasing = 1, // URP renders MSAA in its own target and resolves into this one; a mismatched count fails the final blit
             };
 
             var cameraGo = new GameObject("HeroCamera", typeof(Camera));
