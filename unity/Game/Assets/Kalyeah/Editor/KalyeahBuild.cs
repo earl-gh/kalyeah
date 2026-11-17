@@ -1473,8 +1473,37 @@ public static class KalyeahBuild
         var titleRoot = new GameObject("TitleShot").transform;
         var titleCamera = new GameObject("TitleCamera", typeof(Camera)).GetComponent<Camera>();
         titleCamera.transform.SetParent(titleRoot, false);
-        TitleScreen.Build(titleRoot, titleCamera, null, stage);
+        HomeScreenView home = null;
+        TitleScreen.Build(titleRoot, titleCamera, null, h =>
+        {
+            home = h;
+            stage?.Invoke(h);
+        });
         Capture(titleCamera, Path.Combine(dir, fileName), width, height);
+        if (home != null && fileName == "title.png") DumpHeroStage(home, dir);
+    }
+
+    /// <summary>Saves the home hero's RenderTexture on its own and logs its alpha coverage, so a blank hero is diagnosable from CI.</summary>
+    static void DumpHeroStage(HomeScreenView home, string dir)
+    {
+        home.RenderHeroNow();
+        if (!(home.HeroTexture is RenderTexture rt)) return;
+        RenderTexture prev = RenderTexture.active;
+        RenderTexture.active = rt;
+        var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
+        tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+        tex.Apply();
+        RenderTexture.active = prev;
+        Color32[] px = tex.GetPixels32();
+        int opaque = 0, lit = 0;
+        for (int i = 0; i < px.Length; i++)
+        {
+            if (px[i].a > 8) opaque++;
+            if (px[i].r + px[i].g + px[i].b > 24) lit++;
+        }
+        File.WriteAllBytes(Path.Combine(dir, "title_hero_rt.png"), tex.EncodeToPNG());
+        UnityEngine.Object.DestroyImmediate(tex);
+        Debug.Log($"[HeroDump] {home.HeroDebug} opaquePx={opaque} litPx={lit} of {px.Length}");
     }
 
     static void CaptureStreetShot(

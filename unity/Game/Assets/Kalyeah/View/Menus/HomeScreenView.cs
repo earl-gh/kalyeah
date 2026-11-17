@@ -82,7 +82,12 @@ namespace Kalyeah.Game
         public Button KidButton { get; private set; }
         public Button PlayButton { get; private set; }
         public bool OfflinePromptOpen => _offlinePrompt != null && _offlinePrompt.gameObject.activeSelf;
-        public bool OfflineHubOpen => _offlineHub != null && _offlineHub.gameObject.activeSelf;
+        /// <summary>The hero stage's texture and state line (capture diagnostics).</summary>
+        public Texture HeroTexture => _stage?.Texture;
+        public string HeroDebug => _stage?.Describe();
+        public void RenderHeroNow() => _stage?.RenderNow();
+
+        public bool OfflineHubOpen =>_offlineHub != null && _offlineHub.gameObject.activeSelf;
 
         public HomeScreenView(
             Transform parent,
@@ -247,19 +252,22 @@ namespace Kalyeah.Game
             Stretch(floorShade.rectTransform, Vector2.zero, new Vector2(1f, 0.42f));
 
             // one bold red slash behind the hero
-            // kept below the top bar (vertical span ~500 of the 720 canvas) so it frames the hero, not the tabs
-            Image slash = Ui.MakeImage("HeroSlash", bg, new Color(Red.r, Red.g, Red.b, 0.85f));
+            // one bold red slash behind the hero, clipped under the top bar so it frames the kid, not the tabs
+            RectTransform slashClip = Ui.Fill("SlashClip", bg);
+            slashClip.offsetMax = new Vector2(0f, -(TopBarHeight + 8f));
+            slashClip.gameObject.AddComponent<RectMask2D>();
+            Image slash = Ui.MakeImage("HeroSlash", slashClip, new Color(Red.r, Red.g, Red.b, 0.85f));
             RectTransform sr = slash.rectTransform;
             sr.anchorMin = sr.anchorMax = new Vector2(0.27f, 0.5f);
             sr.pivot = new Vector2(0.5f, 0.5f);
-            sr.sizeDelta = new Vector2(130f, 520f);
+            sr.sizeDelta = new Vector2(130f, 1400f);
             sr.localRotation = Quaternion.Euler(0f, 0f, -16f);
-            Image slashEdge = Ui.MakeImage("HeroSlashEdge", bg, new Color(Paper.r, Paper.g, Paper.b, 0.5f));
+            Image slashEdge = Ui.MakeImage("HeroSlashEdge", slashClip, new Color(Paper.r, Paper.g, Paper.b, 0.5f));
             RectTransform er = slashEdge.rectTransform;
             er.anchorMin = er.anchorMax = new Vector2(0.27f, 0.5f);
             er.pivot = new Vector2(0.5f, 0.5f);
             er.anchoredPosition = new Vector2(118f, 0f);
-            er.sizeDelta = new Vector2(4f, 520f);
+            er.sizeDelta = new Vector2(4f, 1400f);
             er.localRotation = Quaternion.Euler(0f, 0f, -16f);
         }
 

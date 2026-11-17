@@ -170,6 +170,18 @@ namespace Kalyeah.Game
             else _camera.Render();
         }
 
+        /// <summary>One line of stage state for capture logs: kid, renderers, bounds and camera.</summary>
+        public string Describe()
+        {
+            if (_model == null) return $"HeroStage kid={_kidId} model=null";
+            Renderer[] renderers = _model.GetComponentsInChildren<Renderer>(true);
+            Bounds b = KalyeahResources.RenderBounds(_model);
+            Vector3 vp = _camera.WorldToViewportPoint(b.center);
+            return $"HeroStage kid={_kidId} renderers={renderers.Length} bounds={b.center}/{b.size} scale={_model.transform.lossyScale.x:F3} "
+                + $"cam={_camera.transform.position} fwd={_camera.transform.forward} centreViewport={vp} feet={FeetViewportY:F3} "
+                + $"rt={_texture.width}x{_texture.height} created={_texture.IsCreated()} pipeline={GraphicsSettings.currentRenderPipeline}";
+        }
+
         public void Dispose()
         {
             if (_root != null) KalyeahResources.Kill(_root);
