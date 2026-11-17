@@ -150,7 +150,7 @@ namespace Kalyeah.Game
         /// Builds the Home Hub under <paramref name="parent"/> drawn by <paramref name="camera"/>.
         /// When <paramref name="play"/> is null (screenshot capture), raycasting is disabled while keeping full normal visuals.
         /// </summary>
-        public static Canvas Build(Transform parent, Camera camera, UnityEngine.Events.UnityAction play)
+        public static Canvas Build(Transform parent, Camera camera, UnityEngine.Events.UnityAction play, Action<HomeScreenView> stage = null)
         {
             ScreenFitMetrics.EnsureEnhancedTouch();
             ConfigureCamera(camera);
@@ -176,6 +176,7 @@ namespace Kalyeah.Game
                 });
             home.Refresh();
             home.RefreshLayout();
+            stage?.Invoke(home);
             return canvas;
         }
 
@@ -247,6 +248,13 @@ namespace Kalyeah.Game
                 qrSpriteProvider: QrCodeView.EncodeSprite,
                 lanIpProvider: AndroidLocalLink.GetLanIpv4,
                 qrScanRequester: scanRequester);
+
+            // PLAY is online first: when the lobby can't reach the server, return home and offer offline play
+            _lobby.ConnectionUnavailable += () =>
+            {
+                _stack.Pop();
+                _home.ShowOfflinePrompt();
+            };
 
             _stack.Register(
                 MenuStack.HomeId,

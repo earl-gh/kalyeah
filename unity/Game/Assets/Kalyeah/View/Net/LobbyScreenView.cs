@@ -147,6 +147,13 @@ namespace Kalyeah.Game
         bool _transportWelcomed;
         bool _announcedCharacter;
         bool _matchStartFired;
+        bool _offlineFallbackArmed;
+
+        /// <summary>
+        /// Raised once when PLAY's online attempt (online mode, create intent) can't reach the server, so the home screen can
+        /// offer to play offline instead of leaving the player on a failed connection.
+        /// </summary>
+        public event Action ConnectionUnavailable;
         bool _viewportSubscribed;
         bool _inLayout;
         float _listRefreshLeft;
@@ -291,6 +298,7 @@ namespace Kalyeah.Game
         public void OnShow()
         {
             _matchStartFired = false;
+            _offlineFallbackArmed = false;
             ApplyResponsiveMetrics();
 
             AppSession session = AppSession.Current;
@@ -345,6 +353,7 @@ namespace Kalyeah.Game
             if (session.Intent == LobbyIntent.Create && !string.IsNullOrWhiteSpace(session.ServerUrl))
             {
                 ShowRoomView(false);
+                _offlineFallbackArmed = true;
                 ConnectAndCreateOnlineRoom(session.ServerUrl);
             }
             else
@@ -397,6 +406,7 @@ namespace Kalyeah.Game
             if (!session.StartOnlineClient(_data, url, patient: true))
             {
                 SetStatus("Can't reach " + url + ". Check the Server URL and try again.", ErrorText);
+                FallBackOffline();
                 return;
             }
             BindClient(session.Client);
@@ -751,11 +761,20 @@ namespace Kalyeah.Game
         {
             _listRefreshLeft = BrowseRetrySeconds;
             SetStatus("Can't reach the server. Check the URL or Wi-Fi and try again.", ErrorText);
+            FallBackOffline();
+        }
+
+        void FallBackOffline()
+        {
+            if (!_offlineFallbackArmed) return;
+            _offlineFallbackArmed = false;
+            ConnectionUnavailable?.Invoke();
         }
 
         void OnClientWelcomed(bool reconnected)
         {
             _transportWelcomed = true;
+            _offlineFallbackArmed = false;
             if (IsBrowsingOpenRooms() && _pendingAfterWelcome == null)
             {
                 SetStatus("Connected! Pick an open room or enter an 8-char code.", SubtleText);

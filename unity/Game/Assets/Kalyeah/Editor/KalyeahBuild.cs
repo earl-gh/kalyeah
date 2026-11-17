@@ -705,6 +705,18 @@ public static class KalyeahBuild
                 NarrowWidth,
                 NarrowHeight,
                 ScreenFitMetrics.AsymmetricCutoutSafeRect(NarrowWidth, NarrowHeight));
+            // online-first PLAY: the "can't reach the server" prompt and the offline hub it leads to
+            Action<HomeScreenView> offlinePrompt = home => home.ShowOfflinePrompt();
+            Action<HomeScreenView> offlineHub = home => home.OpenOfflineHub();
+            CaptureTitleShot(dir, "title_offline_prompt.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), offlinePrompt);
+            CaptureTitleShot(dir, "title_offline_hub.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), offlineHub);
+            CaptureTitleShot(
+                dir,
+                $"title_offline_hub_{NarrowWidth}x{NarrowHeight}.png",
+                NarrowWidth,
+                NarrowHeight,
+                ScreenFitMetrics.AsymmetricCutoutSafeRect(NarrowWidth, NarrowHeight),
+                offlineHub);
 
             SetFullViewport();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -1454,14 +1466,14 @@ public static class KalyeahBuild
         return 1;
     }
 
-    static void CaptureTitleShot(string dir, string fileName, int width, int height, Rect safeRect)
+    static void CaptureTitleShot(string dir, string fileName, int width, int height, Rect safeRect, Action<HomeScreenView> stage = null)
     {
         ScreenFitMetrics.SetSimulatedViewport(new Vector2Int(width, height), safeRect);
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         var titleRoot = new GameObject("TitleShot").transform;
         var titleCamera = new GameObject("TitleCamera", typeof(Camera)).GetComponent<Camera>();
         titleCamera.transform.SetParent(titleRoot, false);
-        TitleScreen.Build(titleRoot, titleCamera, null);
+        TitleScreen.Build(titleRoot, titleCamera, null, stage);
         Capture(titleCamera, Path.Combine(dir, fileName), width, height);
     }
 
