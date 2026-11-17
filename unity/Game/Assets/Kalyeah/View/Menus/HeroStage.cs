@@ -48,7 +48,7 @@ namespace Kalyeah.Game
             var cameraGo = new GameObject("HeroCamera", typeof(Camera));
             cameraGo.transform.SetParent(_root.transform, false);
             _camera = cameraGo.GetComponent<Camera>();
-            _camera.enabled = Application.isPlaying;
+            _camera.enabled = true; // URP skips disabled cameras, even for an explicit render request
             _camera.clearFlags = CameraClearFlags.SolidColor;
             _camera.backgroundColor = new Color(0f, 0f, 0f, 0f);
             _camera.fieldOfView = 26f;
