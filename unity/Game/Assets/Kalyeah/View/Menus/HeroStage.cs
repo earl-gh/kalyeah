@@ -1,5 +1,7 @@
 using System;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace Kalyeah.Game
 {
@@ -150,7 +152,22 @@ namespace Kalyeah.Game
         {
             if (_camera == null) return;
             if (!_texture.IsCreated()) _texture.Create();
-            _camera.Render();
+#if UNITY_EDITOR
+            // batchmode screenshots: compile the kid's shaders now instead of skipping it this frame
+            bool prevAsync = UnityEditor.ShaderUtil.allowAsyncCompilation;
+            UnityEditor.ShaderUtil.allowAsyncCompilation = false;
+            try { Submit(); }
+            finally { UnityEditor.ShaderUtil.allowAsyncCompilation = prevAsync; }
+#else
+            Submit();
+#endif
+        }
+
+        void Submit()
+        {
+            var request = new UniversalRenderPipeline.SingleCameraRequest { destination = _texture };
+            if (RenderPipeline.SupportsRenderRequest(_camera, request)) RenderPipeline.SubmitRenderRequest(_camera, request);
+            else _camera.Render();
         }
 
         public void Dispose()

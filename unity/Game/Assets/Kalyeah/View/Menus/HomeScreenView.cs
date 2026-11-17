@@ -247,18 +247,19 @@ namespace Kalyeah.Game
             Stretch(floorShade.rectTransform, Vector2.zero, new Vector2(1f, 0.42f));
 
             // one bold red slash behind the hero
-            Image slash = Ui.MakeImage("HeroSlash", bg, new Color(Red.r, Red.g, Red.b, 0.9f));
+            // kept below the top bar (vertical span ~500 of the 720 canvas) so it frames the hero, not the tabs
+            Image slash = Ui.MakeImage("HeroSlash", bg, new Color(Red.r, Red.g, Red.b, 0.85f));
             RectTransform sr = slash.rectTransform;
             sr.anchorMin = sr.anchorMax = new Vector2(0.27f, 0.5f);
             sr.pivot = new Vector2(0.5f, 0.5f);
-            sr.sizeDelta = new Vector2(150f, 1400f);
+            sr.sizeDelta = new Vector2(130f, 520f);
             sr.localRotation = Quaternion.Euler(0f, 0f, -16f);
             Image slashEdge = Ui.MakeImage("HeroSlashEdge", bg, new Color(Paper.r, Paper.g, Paper.b, 0.5f));
             RectTransform er = slashEdge.rectTransform;
             er.anchorMin = er.anchorMax = new Vector2(0.27f, 0.5f);
             er.pivot = new Vector2(0.5f, 0.5f);
             er.anchoredPosition = new Vector2(118f, 0f);
-            er.sizeDelta = new Vector2(4f, 1400f);
+            er.sizeDelta = new Vector2(4f, 520f);
             er.localRotation = Quaternion.Euler(0f, 0f, -16f);
         }
 
@@ -481,6 +482,7 @@ namespace Kalyeah.Game
             bg.color = new Color(Ink.r, Ink.g, Ink.b, 0.97f);
             bg.raycastTarget = true;
             _offlineHubBackdrop.gameObject.SetActive(false);
+            _offlineHubBackdrop.SetSiblingIndex(SafeRoot.GetSiblingIndex()); // behind the hub, over the hero and backdrop
 
             _offlineHub = Ui.Fill("OfflineHub", SafeRoot);
             RectTransform header = Ui.Panel("Header", _offlineHub, new Vector2(0f, 1f), Vector2.one, new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, TopBarHeight));
