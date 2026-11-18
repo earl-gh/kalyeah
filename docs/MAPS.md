@@ -6,6 +6,9 @@ agents' design (spec §6), changed freely after bot play-tests. Sizes and exact 
 each map's blockout.
 
 ## Rules for every layout
+- **Scale:** about 20 s of running (about 120 m) from base to enemy base on the main route.
+- **Bases and jails:** a base is about 8 m wide and fits a whole team with some cover inside; a jail is a small fenced
+  spot about 4 m wide, about 15 m from its own base, off to the side, so defenders can't guard both at once.
 - **Jails sit beside their base, off to the side,** so a rescue is a flank, not a straight run (like Valorant's offset
   spawns).
 - **Fair side swap:** the walk from each base to the enemy jail is the same length on both halves (within a few steps,

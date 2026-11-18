@@ -67,7 +67,7 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 | **Quick** | First to 5 rounds | Quick Match queue, private rooms, Hotspot, vs AI |
 | **Standard** | First to 7 rounds | **Ranked** (the only ranked mode), private rooms |
 | Practice vs AI, Practice solo | Any mode's rules | Offline; every kid unlocked; bots at easy / medium / hard; Practice solo is a training range with still and moving (strafing, jumping) dummies, distance markers, damage numbers on hits, a no-cooldown toggle, rescue and capture drills with a timer, and a climb and slide course |
-| Explore | None | Offline; roam any of the 4 maps alone: one daily coin per map, hidden teks cards (a full set per map gives a spray), route practice (ghost paths of rescue routes and climb spots, with a personal-best timer only: no score, leaderboard or rewards), try any kid and skin, map callouts, photo mode; no mini-games |
+| Explore | None | Offline; roam any of the 4 maps alone: one daily coin per map, hidden teks cards (a full set per map gives a spray), route practice (ghost paths of rescue routes and climb spots, with a personal-best timer only: no score, leaderboard or rewards), try any kid and skin, map callouts, photo mode (free camera and kid poses; save to the phone or share, not for kid accounts); no mini-games |
 | Tumbang Preso, Patintero | Own rules | Side modes; hidden now, return before launch |
 
 **Bots** (Practice vs AI and leaver takeover) are role-aware: Strikers dive, Defenders guard and rescue, Seekers
@@ -467,7 +467,7 @@ gift-to-a-friend task, a free Pasko emote).
 | Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values and the damage bands in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling saved for a later kid |
 | Q3 | Diamonds per pack | Set with the store build (kid ≈ two weeks of play or ≈ ₱150) |
 | Q4 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
-| Q6 | Exact map sizes | Layouts in `docs/MAPS.md`; sizes set in each blockout, play-tested with bots |
+| Q6 | Exact map sizes | Scale and layouts in `docs/MAPS.md`; exact shapes set in each blockout, play-tested with bots |
 
 ## 12. Built today vs this spec
 The current build still has: 10 placeholder kids (not the 12), the old superpower loadout instead of 3 fixed skills, LP
