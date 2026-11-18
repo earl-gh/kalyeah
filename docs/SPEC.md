@@ -255,8 +255,13 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   account when online. Offline results can't be verified by the server, so their caps stay small.
 - **Account level:** earned by playing; unlocks Ranked (level 8), sprays and emote slots, with a little barya per level;
   a prestige border after level 30.
-- **Diamonds:** standard packs with a double first-purchase bonus per pack and a cheap weekly diamond card; no
-  limited-time pressure offers in kid mode.
+- **Diamonds:** 6 packs at ₱20, ₱50, ₱100, ₱250, ₱500 and ₱2,000, with small bonuses on bigger packs and double diamonds
+  on each pack's first buy, plus a ₱50 weekly diamond card; no limited-time pressure offers in kid mode.
+- **Bundles:** a once-per-account starter bundle (a kid, an Elite skin and diamonds at a very low price); kid + launch
+  skin bundles at a discount; a season set (all the season's skins with a spray and a border, cheaper than one by one).
+- **Skin themes:** season 1 is **summer fiesta** (banderitas, parade costumes, higante masks, sorbetes colours), matching
+  the lore's summer showdowns. Lines that return: **Filipino holidays** (Pasko, Undas, fiesta, summer, yearly with the
+  events) and **dream jobs** (what each kid wants to be, tied to their lore).
 - **Store tabs:** Featured (the season's skins and bundles), Kids, Skins, Daily (4 rotating items), Diamonds; every item
   can be previewed on the 3D kid before buying.
 - **No gacha or loot boxes:** everything is bought directly at a shown price.
@@ -327,7 +332,7 @@ skins and map decorations; an event mini-mode can come later.
 | # | Question | Default |
 |---|---|---|
 | Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling saved for a later kid |
-| Q3 | Exact kid and diamond-pack prices | Set with the store build (kid ≈ two weeks of play) |
+| Q3 | Diamonds per pack, skin prices per tier | Set with the store build (kid ≈ two weeks of play or ≈ ₱150) |
 | Q4 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
 | Q6 | Exact map sizes | Layouts in `docs/MAPS.md`; sizes set in each blockout, play-tested with bots |
 
