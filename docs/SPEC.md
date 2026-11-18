@@ -18,6 +18,8 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
   lowest and is already used; add `armeabi-v7a` next to `arm64-v8a` for older 32-bit phones); Low, Medium, High and Ultra presets (§10). Performance on old phones is
   improved after launch; 60 fps on a mid-range phone is the target, not a gate.
 - **Size:** a Play Store base (AAB) under 200 MB; maps, skins and voices in Play Asset Delivery packs (no total cap).
+  The first download holds only Barangay and the 12 kids' default looks; the rest downloads in the background later.
+  Over 50 MB on mobile data asks first; Wi-Fi downloads quietly.
 - **Permissions:** only what a shipped feature needs (voice chat needs the microphone; hotspot needs the current network set).
 
 ## 3. Accounts, age and safety
@@ -160,7 +162,8 @@ and, in Ranked, loses a star.
 - **Valorant-sized, asymmetric, sides swap at half:** each map is built for different fights and outcomes, the two
   halves differ, and teams swap sides at the halfway round (Blitz after round 2, Quick after round 4, Standard after
   round 6). Each base has its team's jail beside it; rescues happen at the enemy's jail.
-- **Map choice:** before kid select, players vote between **2 maps** drawn from the pool; private rooms let the host pick.
+- **Map choice:** before kid select, players vote between **2 maps** drawn from the maps every player in the match has
+  downloaded; private rooms let the host pick.
 - **One fixed time and weather per map**, bright and sunny like Valorant's Bind and Breeze, so visibility is fair.
 
 | Map | Halves (asymmetric) | Routes (3 each) | Plays like |
@@ -299,7 +302,8 @@ and, in Ranked, loses a star.
 - **Home kid:** the player's **favourite kid** (pinned in the collection) stands in 3D on the home screen.
 - **Accessibility:** colour-blind enemy highlight, visual markers for footsteps and skill sounds, reduce motion and flashes.
 - **Settings at launch:** graphics presets and an FPS cap (30 / 60 / 90 / 120 where the phone allows), a control layout
-  editor (move and resize every HUD button, saved layouts), camera and ADS sensitivity, aim assist on or off.
+  editor (move and resize every HUD button, saved layouts), camera and ADS sensitivity, aim assist on or off, crosshair
+  style and colour, vibration on hits and tags, and a ping and FPS counter.
 
 **First run:** choose an in-game name (IGN), then the age question, then a **tutorial** before the home screen. The
 tutorial uses the real barangay map with **barricades closing the other paths**, and teaches move, jump/vault, crouch/slide,
