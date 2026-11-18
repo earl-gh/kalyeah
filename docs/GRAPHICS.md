@@ -58,3 +58,10 @@ item says which kind of asset the owner makes.
   headshot; a missed stone puffs off the wall and leaves a small chip mark that fades.
 - **Readability limits:** no effect covers a kid's body for long; your own effects are slightly see-through so you can
   aim through them; every preset shows effects at the same size and shape (Low only uses simpler versions).
+- **Ultimates:** big but brief: about 1 s of flair with a bigger version of the skill's object (a giant pot, a huge pog)
+  and one strong burst, then it settles; no camera cut.
+- **Bases and jails:** a chalk outline on the ground in team colour (from your view). While a base is being captured, its
+  zone fills in the capturing team's colour like CODM's Control mode; defenders only see it if they look at it (no HUD
+  warning, per the secret-capture rule), and the capturing team also sees a progress bar on their HUD.
+- **Tag ("Taya!"):** about 1 s pouty freeze in a puff of chalk dust, then a poof to the jail.
+- **Round-start barrier:** a glowing wall like Valorant's spawn barrier, dropped when the 5 s barrier phase ends.
