@@ -334,7 +334,8 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 - **Bundles:** a once-per-account starter bundle (a kid, an Elite skin and diamonds at a very low price); kid + launch
   skin bundles at a discount; a season set (all the season's skins with a spray and a border, cheaper than one by one).
 - **No free starter skins:** kids start in their default look.
-- **Skin themes:** season 1 is **summer fiesta** (headlined by Narda: the pass's level-50 skin is a fiesta parade costume) (banderitas, parade costumes, higante masks, sorbetes colours), matching
+- **Skin themes:** season 1 is **summer fiesta** (banderitas, parade costumes, higante masks, sorbetes colours; Narda headlines
+  it with a fiesta parade costume as the pass's level-50 skin), matching
   the lore's summer showdowns. Lines that return: **Filipino holidays** (Pasko, Undas, fiesta, summer, yearly with the
   events) and **dream jobs** (what each kid wants to be, tied to their lore).
 - **Store tabs:** Featured (the season's skins and bundles), Kids, Skins, Daily (3 items you don't own at a small discount, never kids, plus one free small gift; resets at midnight PH time), Diamonds; every item
