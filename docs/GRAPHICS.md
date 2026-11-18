@@ -47,3 +47,14 @@ item says which kind of asset the owner makes.
 - **Faces:** kids blink, wince when hit and grin on a tag, and their mouths open and close on voice lines. This needs the
   7 face shapes of the model spec (now required, no longer optional).
 - **No wear:** kids stay clean all match; skins look as bought.
+
+## Effects
+- **Skill style:** clean painted shapes built from the street-game objects themselves (slippers, marbles, garters,
+  chalk) with simple trails, swirls and bursts; short and crisp, no huge particle clouds (like Valorant). Asset kind:
+  sprite sheets for painted puffs and bursts, Blender models for the objects.
+- **Ground marks:** every skill area is drawn like street chalk in team colour (blue yours, red the enemy's), always the
+  exact size of the real area; delayed skills (Pabitin Snare, Lupa!) show the area filling up before they land.
+- **Slingshot hits:** a small chalk-dust puff and a brief flash on the target; a distinct star-burst and sound on a
+  headshot; a missed stone puffs off the wall and leaves a small chip mark that fades.
+- **Readability limits:** no effect covers a kid's body for long; your own effects are slightly see-through so you can
+  aim through them; every preset shows effects at the same size and shape (Low only uses simpler versions).

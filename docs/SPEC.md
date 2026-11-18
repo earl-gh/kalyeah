@@ -245,7 +245,7 @@ and, in Ranked, loses a star.
   holding the button only adds range, never damage; ADS tightens accuracy. A stone deals **20** (body) or **30** (head):
   5 body hits or 4 with a headshot tag a kid, so a full load of 7 leaves room for 2 misses. One stone every **0.4 s**,
   reload **1.5 s**; range **18 m** on a tap, up to **30 m** when held 1 s, and a stone drops past its range. The server checks hits with lag compensation.
-- **Skill aiming (Wild Rift):** tap to quick-cast at the crosshair or nearest target; drag from the button to aim with a
+- **Skill aiming (Wild Rift, with a per-skill view like Valorant: normal, ADS, zoom-out or map cast, see `docs/KITS.md`):** tap to quick-cast at the crosshair or nearest target; drag from the button to aim with a
   ground or line indicator; drag to the cancel zone to cancel.
 - **Hits:** slingshot headshots deal +50%. **Aim assist** (a setting) only slows the crosshair slightly over enemies; no
   pull, no snapping, no auto-fire. **No friendly fire:** damage and crowd control never touch allies.
