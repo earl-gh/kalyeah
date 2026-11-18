@@ -117,7 +117,8 @@ and, in Ranked, loses a star.
   with no penalty if the player is back within 3 minutes.
 - **Long queues:** Quick Match and Ranked keep searching for real players and never start with bots, except in a new
   account's first 10 matches (below).
-- **Spectating and replays:** not at launch.
+- **Spectating and replays:** only private-room spectators (up to 2, on a short delay, for casters and referees) at
+  launch; no watching friends' Quick Match or Ranked, and no replays.
 - **Server-authoritative:** the server decides every hit and score; phones send inputs only (anti-cheat backbone).
 
 ## 5. Agawang Base rules
@@ -424,7 +425,12 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   anywhere in the game's screens.
 - **Push notifications:** few and opt-in (friend invites, party ready, pass ending, new season), asked once after the
   first match; kid accounts get party invites only.
-- **Help:** an FAQ and a contact form in Settings that attaches the account id and device info; replies by email.
+- **Maintenance:** a notice on home a day ahead (PH time); the offline hub keeps working; some barya as a gift if it ran
+  over 2 hours.
+- **Required updates:** online play needs the latest version (home sends you to the Play Store); Practice, Explore and
+  Hotspot (between phones on the same version) keep working.
+- **Help:** a "How to play" page with short animated rule cards (tag, rescue, capture, neutrals, water), and an FAQ and a
+  contact form in Settings that attaches the account id and device info; replies by email.
 - **Community:** an official Facebook page at launch (it fits the share task), Discord after the soft launch, a creator
   program later.
 
