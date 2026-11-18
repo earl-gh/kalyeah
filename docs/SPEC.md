@@ -41,6 +41,9 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 | Explore Barangay | None | Offline; roam the map alone; one daily collectible coin; no mini-games |
 | Tumbang Preso, Patintero | Own rules | Side modes; hidden now, return before launch |
 
+**Bots** (Practice vs AI and leaver takeover) are role-aware: Strikers dive, Defenders guard and rescue, Seekers
+scout, Controllers zone; they use skills, vendors and objectives. Easy, medium and hard change aim and reaction time.
+
 **Online first (Mobile Legends way):** PLAY tries the server; if it cannot connect, a prompt offers offline play, which opens
 the offline hub (Hotspot, Practice vs AI, Practice solo, Explore Barangay). **Kids are picked after the queue** (Valorant
 agent select): an owned kid within a time limit, no duplicates within a team, the other team may share.
@@ -70,22 +73,31 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
     from the line, not from zero.
 - **Capture:** standing in the enemy base without being interrupted captures it (time in data).
 
-## 6. Map: one circular barangay
-- A circular barangay with a **main path** between the bases, **narrow side streets** (the jungle) and a **middle**.
-- **The two ends are cemented** (each team's side of town); toward the centre the ground fades to **soil and a provincial
-  river**: the poorest part of the barangay, riverside homes of scrap wood and tin, shown with dignity and warmth (people
-  live there; it is never played as a joke).
-- **Neutral vendors and creatures** (stats are data):
+## 6. Maps: 4 at launch
+- **Valorant-sized, asymmetric, sides swap at half:** each map is built for different fights and outcomes, the two
+  halves differ, and teams swap sides at the halfway round (Blitz after round 2, Quick after round 4, Standard after
+  round 6). Each map has its base, rescue area and jail **beside each base**.
+- **Map choice:** before kid select, players vote between **2 maps** drawn from the pool; private rooms let the host pick.
+- **One fixed time and weather per map**, bright and sunny like Valorant's Bind and Breeze, so visibility is fair.
 
-| What | Where | Like | Gives |
+| Map | Setting | Plays like |
+|---|---|---|
+| **Barangay** | Circular barangay: cemented ends, the centre fading to soil and a provincial river, riverside homes of scrap wood and tin shown with dignity and warmth (people live there; never a joke); main path, narrow side streets, a middle | Balanced: a contested river centre, flanks through the side streets |
+| **Palengke** | City wet market: stalls, tarps, crates | Close range, tight corners, ambushes |
+| **Pier** | Port: cargo containers, cranes, boats | Long sightlines, sharpshooters and seekers shine |
+| **Hacienda** | Province: rice paddies, sugarcane, a bahay na bato | Open fields with tall cover, flanks through the cane |
+
+- **Neutrals on every map, themed to the place** (same roles, stats in data; positions shape each map's strategy):
+
+| Role | Barangay version | Like | Gives |
 |---|---|---|---|
-| Taho vendor, fishball vendor | Fixed spots in the narrow streets | Wild Rift honeyfruit | Food heals but slows the eater briefly |
-| Selecta ice-cream bike | Rides a set loop through the narrow streets | Scuttle crab | Small instant heal and a speed boost |
-| **Crocodile** | The river | Dragon | The whole team gets a slight damage increase |
-| **Philippine Eagle** | The middle | Baron / Lord | The whole team, by role: Strikers slightly more damage, Defenders take slightly less damage, Seekers slightly faster, Controllers slightly shorter cooldowns |
+| 2 healing vendors | Taho and fishball vendors, fixed in the side streets | Wild Rift honeyfruit | Food heals but slows the eater briefly |
+| Roaming buff | Selecta ice-cream bike on a loop | Scuttle crab | Small instant heal and a speed boost |
+| Dragon | **Crocodile** in the river | Dragon | The whole team gets a slight damage increase |
+| Baron | **Philippine Eagle** in the middle | Baron / Lord | By role: Strikers slightly more damage, Defenders take slightly less damage, Seekers slightly faster, Controllers slightly shorter cooldowns |
 
-- The Crocodile and the Eagle spawn on **fixed timers each round** and respawn a set time after they are beaten; their
-  buffs last a set time and end with the round.
+- The dragon and baron spawn on **fixed timers each round** and respawn a set time after they are beaten; their buffs last
+  a set time and end with the round. The other three maps' themed versions are designed with each map.
 
 ## 7. Kids and combat
 - **12 kids in 4 roles:**
@@ -159,6 +171,20 @@ Pure Valorant: flat, confident shapes, the Ink / Paper / Red palette, painted 3D
 (no Riot, Supercell, Valve or Moonton assets, names or logos). The owner makes all art and audio; agents only say which
 kind is needed (3D model, sprite sheet or 2D image).
 
+**Graphics:** the top preset aims at Valorant Mobile: clean stylised PBR, real-time sun shadows, soft ambient light,
+bloom on effects. Lower presets drop cost, never the art or the readability:
+
+| Preset | FPS cap | Render scale | Shadows | Effects | Post (bloom, grading) |
+|---|---|---|---|---|---|
+| Low | 30 | 70% | Blob shadows only | Reduced | Off |
+| Medium | 60 | 85% | Hard, near the camera | Normal | Off |
+| High | 60 | 100% | Soft | Full | On |
+| Ultra | 60 / 90 / 120 (phone limits) | 100% + 4× MSAA | Soft, longer distance | Full | On |
+
+- The first launch picks a preset from a short device check; players can change it.
+- **Readability is the same on every preset:** enemies wear a **Valorant-style highlight** (red, yellow or purple, a
+  setting); allies stay plain; overhead HP bars and team-coloured effects.
+
 ## 11. Open questions (agents use the default until the owner decides)
 | # | Question | Default |
 |---|---|---|
@@ -168,6 +194,7 @@ kind is needed (3D model, sprite sheet or 2D image).
 | Q4 | Which kid each new account gets per role | Narda, Jopay, Kikay, Tere |
 | Q5 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
 | Q6 | Rescue and capture times, vendor and objective numbers, Crocodile and Eagle timers | Rescue 6 s with the line at 3 s; capture 8 s; Crocodile at 1:00 (respawn 2:00), Eagle at 3:00 (respawn 3:00), buffs 90 s; role buffs +8% |
+| Q7 | The 4 maps' layouts, the themed neutrals of Palengke, Pier and Hacienda | Designed map by map, Barangay first |
 
 ## 12. Built today vs this spec
 The current build still has: 10 placeholder kids (not the 12), the old superpower loadout instead of 3 fixed skills, LP
