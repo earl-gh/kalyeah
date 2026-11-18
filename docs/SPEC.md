@@ -254,6 +254,8 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
     test unlock until Play Billing is added.
 
 ## 9b. Launch and data
+- **Closed beta scope:** the core match with all 12 kids, the Barangay map only, accounts and Quick Match, the store and
+  pass with test diamonds.
 - **Launch:** closed beta (Play testing track, invites), then a Philippines-only soft launch to tune servers and the
   economy, then Southeast Asia.
 - **Data:** match stats on `Kalyeah.Server` for balance, plus a crash reporter. No ad tracking; a privacy policy and
