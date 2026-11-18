@@ -112,7 +112,9 @@ and, in Ranked, loses a star.
   - one teammate per rescue, first tagged first freed, then a **15 s cooldown** before that jail can be used for a rescue again;
   - a **checkpoint at the halfway line (3 s):** once the bar passed it, a cancelled rescue (by anyone on the team) restarts
     from the line, not from zero.
-- **In jail:** a tagged kid stands visibly in the jail, watches a teammate's view (switchable), and can ping and chat.
+- **In jail:** a tagged kid stands visibly in the jail, watches a teammate's view (switchable), and can ping and chat. Tapping a free teammate's portrait **cheers** them (they
+  hear your kid's voice line). The tagged kid's team always sees a marker on the enemy jail with how many are inside.
+- **Last free kid:** no help or penalty; a lone kid can still win the round by capturing or rescuing (a clutch).
 - **Capture:** standing in the enemy base fills a capture bar in **8 s** for one kid; each extra teammate inside adds 50%
   speed. A free defender
   standing in the base **pauses** it; stepping out keeps the progress but it **drains slowly**.
@@ -277,9 +279,10 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   ₱150); skins and the paid pass cost diamonds.
 - **Skins:** tiers Basic, Elite, Special, Epic, Legend; higher tiers change the model, effects and sounds, **never stats**.
   Sold in the store, given by the pass and events.
-- **Other cosmetics:** emotes, sprays (stickers painted on walls in a match), profile banners and borders (rank borders from
+- **Other cosmetics:** emotes, sprays (one sticker per round painted on a wall; your team sees it, and a setting hides other players' sprays), profile banners and borders (rank borders from
   seasons), slingshot skins for any kid.
-- **Kid mastery:** each kid gains mastery XP; levels give a badge, a mastery emote and a title, never power.
+- **Kid mastery:** each kid gains mastery XP over 7 levels (about 50 matches to max): a badge at level 3, an emote at 5,
+  a title at 7, with codex chapters along the way; never power.
 - **Seasons: 8 weeks.** Each brings a new 50-level pass, a soft rank reset (down a few divisions) and end-of-season
   rewards by rank (a border and barya).
 - **Barya from matches** (loss / win): Blitz 60 / 100, Quick 90 / 150, Standard 120 / 200, plus 300 for the first win of
