@@ -90,6 +90,12 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
 | **Pier** | **Cargo yard:** stacked containers and a crane (long lanes, high ground). **Ferry terminal:** fishing boats, piers over water, waiting shed | Dock road; container maze; boardwalk over the water | Long sightlines; sharpshooters and seekers shine |
 | **Hacienda** | **Rice terraces:** paddies, dikes, a nipa hut (open, low cover; water slows). **Sugarcane mill:** tall cane that hides kids, an old mill and a bahay na bato | Dirt road; paddy dikes; through the cane | Open fields with tall cover; flanks through the cane |
 
+- **Terrain (light, data-driven):** river and paddy water slow by 15% and make footsteps loud; wet market floors make
+  slides longer. Water is wade-able only; deep water (the Pier sea) is a wall, and falling in puts you back on the dock
+  with a small HP loss.
+- **Hiding:** inside tall cover (cane, laundry lines) a kid is invisible beyond 6 m until they attack or are revealed.
+- **Side swap at half:** teams trade halves, rounds won stay, water and ultimate cooldowns reset, a 10 s swap screen
+  shows the score.
 - **Height:** some climbable spots per map (low roofs, water tanks, jeepney and container tops) give a few high-ground
   angles with clear counters; not every roof.
 
