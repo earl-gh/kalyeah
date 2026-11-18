@@ -83,24 +83,28 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
 - **Map choice:** before kid select, players vote between **2 maps** drawn from the pool; private rooms let the host pick.
 - **One fixed time and weather per map**, bright and sunny like Valorant's Bind and Breeze, so visibility is fair.
 
-| Map | Setting | Plays like |
-|---|---|---|
-| **Barangay** | Circular barangay: cemented ends, the centre fading to soil and a provincial river, riverside homes of scrap wood and tin shown with dignity and warmth (people live there; never a joke); main path, narrow side streets, a middle | Balanced: a contested river centre, flanks through the side streets |
-| **Palengke** | City wet market: stalls, tarps, crates | Close range, tight corners, ambushes |
-| **Pier** | Port: cargo containers, cranes, boats | Long sightlines, sharpshooters and seekers shine |
-| **Hacienda** | Province: rice paddies, sugarcane, a bahay na bato | Open fields with tall cover, flanks through the cane |
+| Map | Halves (asymmetric) | Routes (3 each) | Plays like |
+|---|---|---|---|
+| **Barangay** | **Uptown:** cemented side with the barangay hall, plaza and basketball court (open, long lines). **Riverside:** market and chapel side, tight streets, a sari-sari row (close range). The centre fades to soil and a provincial river with homes of scrap wood and tin, shown with dignity and warmth (people live there; never a joke) | Main path over the river bridge; left alley through the riverside homes; right route along the creek bank; side connectors | Balanced: a contested river centre, flanks through the alleys |
+| **Palengke** | **Wet section:** fish and meat stalls, slippery floors, tight aisles. **Dry section:** dry goods and ukay-ukay racks (soft cover) | Main aisle; loading-bay road; rooftop catwalk (climb) | Close range, ambushes, tight corners |
+| **Pier** | **Cargo yard:** stacked containers and a crane (long lanes, high ground). **Ferry terminal:** fishing boats, piers over water, waiting shed | Dock road; container maze; boardwalk over the water | Long sightlines; sharpshooters and seekers shine |
+| **Hacienda** | **Rice terraces:** paddies, dikes, a nipa hut (open, low cover; water slows). **Sugarcane mill:** tall cane that hides kids, an old mill and a bahay na bato | Dirt road; paddy dikes; through the cane | Open fields with tall cover; flanks through the cane |
+
+- **Height:** some climbable spots per map (low roofs, water tanks, jeepney and container tops) give a few high-ground
+  angles with clear counters; not every roof.
 
 - **Neutrals on every map, themed to the place** (same roles, stats in data; positions shape each map's strategy):
 
-| Role | Barangay version | Like | Gives |
-|---|---|---|---|
-| 2 healing vendors | Taho and fishball vendors, fixed in the side streets | Wild Rift honeyfruit | Food heals but slows the eater briefly |
-| Roaming buff | Selecta ice-cream bike on a loop | Scuttle crab | Small instant heal and a speed boost |
-| Dragon | **Crocodile** in the river | Dragon | The whole team gets a slight damage increase |
-| Baron | **Philippine Eagle** in the middle | Baron / Lord | By role: Strikers slightly more damage, Defenders take slightly less damage, Seekers slightly faster, Controllers slightly shorter cooldowns |
+| Role | Like | Gives | Barangay | Palengke | Pier | Hacienda |
+|---|---|---|---|---|---|---|
+| 2 healing vendors (fixed) | Wild Rift honeyfruit | Food heals but slows the eater briefly | Taho, fishball | Buko juice, banana cue | Balut, inihaw | Halo-halo, kakanin |
+| Roaming buff | Scuttle crab | Small instant heal and a speed boost | Selecta ice-cream bike | Escaped lechon pig | Seagull flock | Native chicken |
+| Dragon | Dragon | The whole team gets a slight damage increase | Crocodile (river) | Giant bangus (fish tank) | Pawikan sea turtle | Carabao |
+| Baron | Baron / Lord | By role: Strikers more damage, Defenders take less damage, Seekers faster, Controllers shorter cooldowns (all slight) | Philippine Eagle | Boss Aspin (giant street dog) | Butanding whale shark | Tamaraw |
 
+- **Placement is different on every map** and chosen for that map's strategy (agents design it with each layout).
 - The dragon and baron spawn on **fixed timers each round** and respawn a set time after they are beaten; their buffs last
-  a set time and end with the round. The other three maps' themed versions are designed with each map.
+  a set time and end with the round. 
 
 ## 7. Kids and combat
 - **12 kids in 4 roles:**
@@ -221,7 +225,7 @@ skins and map decorations; an event mini-mode can come later.
 | Q3 | Kid prices (barya / diamonds) and pass price | Set with the store build |
 | Q5 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
 | Q6 | Rescue and capture times, vendor and objective numbers, Crocodile and Eagle timers | Rescue 6 s with the line at 3 s; capture 8 s; Crocodile at 1:00 (respawn 2:00), Eagle at 3:00 (respawn 3:00), buffs 90 s; role buffs +8% |
-| Q7 | The 4 maps' layouts, the themed neutrals of Palengke, Pier and Hacienda | Designed map by map, Barangay first |
+| Q7 | Exact map geometry and neutral placement | Designed map by map, Barangay first, then blocked out and play-tested with bots |
 
 ## 12. Built today vs this spec
 The current build still has: 10 placeholder kids (not the 12), the old superpower loadout instead of 3 fixed skills, LP
