@@ -27,6 +27,8 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
   - **Under 13 (kid mode):** guest or Google family account, quick chat, emotes and pings only, purchases need parent approval
     (Google Family Link), following Google Play's Families policy.
   - **13 and up:** every feature.
+- **Data rights:** Settings has **Delete account** (7-day grace, then wiped) and **Download my data**; parents can ask
+  to delete a kid's account.
 - **Social:** quick chat, emotes, pings, text chat with a profanity filter, voice chat, report and mute.
   - **Text chat:** team chat by default; all-chat (both teams) is opt-in; the profanity filter is always on under 18 and on
     by default for adults.
@@ -71,6 +73,12 @@ and, in Ranked, loses a star.
   - Top tier: stars keep counting with no divisions, a Philippine leaderboard and top-100 titles.
   - Ranked parties must be within one tier of each other.
 - **Servers:** `Kalyeah.Server` (Docker) on cloud VMs in a Singapore region first; one account and match database.
+- **Private rooms:** the host picks the mode and map, fills empty slots with bots at a chosen level, can set custom rules
+  (neutrals on or off, rescue time, duplicate kids allowed) and allow up to 2 spectators.
+- **Hotspot:** one phone hosts up to 10 phones over its hotspot or the same Wi-Fi; bots fill empty slots; the host needs
+  a mid-range or better phone.
+- **Anti-cheat:** besides the server deciding hits, it validates movement speed and fire rate; Ranked requires a passing
+  Play Integrity check (rooted or modded phones can still play casual modes).
 - **Bad connections:** ping and packet loss on the HUD; a dropped player can reconnect within 3 minutes while a bot plays
   their kid; the queue prefers players under 120 ms.
 - **Spectating and replays:** not at launch.
