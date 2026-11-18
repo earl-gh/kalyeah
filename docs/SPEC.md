@@ -69,7 +69,7 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 | **Quick** | First to 5 rounds | Quick Match queue, private rooms, Hotspot, vs AI |
 | **Standard** | First to 7 rounds | **Ranked** (the only ranked mode), private rooms |
 | Practice vs AI, Practice solo | Any mode's rules | Offline; every kid unlocked; bots at easy / medium / hard; Practice solo is a training range with still and moving (strafing, jumping) dummies, distance markers, damage numbers on hits, a no-cooldown toggle, rescue and capture drills with a timer, and a climb and slide course |
-| Explore | None | Offline; roam any of the 4 maps alone: one daily coin per map, hidden teks cards (a full set per map gives a spray), route practice (ghost paths of rescue routes and climb spots, with a personal-best timer only: no score, leaderboard or rewards), try any kid and skin, map callouts, photo mode (free camera and kid poses; save to the phone or share, not for kid accounts); no mini-games |
+| Explore | None | Offline; roam any of the 4 maps alone: one daily coin per map (20 barya each, outside the weekly cap), hidden teks cards (a full set per map gives a spray), route practice (ghost paths of rescue routes and climb spots, with a personal-best timer only: no score, leaderboard or rewards), try any kid and skin, map callouts, photo mode (free camera and kid poses; save to the phone or share, not for kid accounts); no mini-games |
 | Tumbang Preso, Patintero | Own rules | Side modes; hidden now, return before launch |
 
 **Bots** (Practice vs AI and leaver takeover) are role-aware: Strikers dive, Defenders guard and rescue, Seekers
@@ -101,7 +101,8 @@ and, in Ranked, loses a star.
   - Win streaks: below Ginto, every 3rd win in a row gives +1 bonus star.
   - Top tier: stars keep counting with no divisions, a Philippine leaderboard and top-100 titles.
   - Ranked parties must be within one tier of each other.
-- **Servers:** `Kalyeah.Server` (Docker) on cloud VMs in a Singapore region first; one account and match database.
+- **Servers:** `Kalyeah.Server` (Docker) on cloud VMs in a Singapore region first; one account and match database. When
+  more regions open, the game picks the lowest-ping one and players can switch in Settings; Ranked counts per region.
 - **Private rooms:** the host picks the mode and map, fills empty slots with bots at a chosen level, can set custom rules
   (neutrals on or off, rescue time, duplicate kids allowed) and allow up to 2 spectators.
 - **Hotspot:** one phone hosts up to 10 phones over its hotspot or the same Wi-Fi; bots fill empty slots; the host needs
@@ -300,7 +301,8 @@ and, in Ranked, loses a star.
   components copied from other games.
 - **English only** for text; kid voice lines are short **Taglish** barks on skills, tags, rescues and wins.
 - **Home kid:** the player's **favourite kid** (pinned in the collection) stands in 3D on the home screen.
-- **Accessibility:** colour-blind enemy highlight, visual markers for footsteps and skill sounds, reduce motion and flashes.
+- **Accessibility:** colour-blind enemy highlight, visual markers for footsteps and skill sounds, reduce motion and flashes,
+  and crouch and ADS as toggles instead of holds.
 - **Settings at launch:** graphics presets and an FPS cap (30 / 60 / 90 / 120 where the phone allows), a control layout
   editor (move and resize every HUD button, saved layouts), camera and ADS sensitivity, aim assist on or off, crosshair
   style and colour, vibration on hits and tags, and a ping and FPS counter.
@@ -340,6 +342,8 @@ be MVP), each kid's tags, rescues, captures and damage, stars
 gained or lost, pass XP and barya earned, and honor and report buttons.
 - **Profile stats:** win rate per mode and per kid, the last 20 matches (result, kid, tags, rescues, captures, MVP marks),
   a favourite-role chart and the highest rank of each past season.
+- **MVP reward:** +20 barya (inside the weekly cap) and bonus mastery XP for the kid played; the losing team's MVP also
+  keeps their Ranked star.
 - **Honor:** one honor per match for any player (teammate or rival); being honored raises your credit score a little,
   and your honor level shows on your profile and in kid select.
 
