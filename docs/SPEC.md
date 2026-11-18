@@ -146,6 +146,13 @@ and, in Ranked, loses a star.
 - **Placement is different on every map** and chosen for that map's strategy (agents design it with each layout).
 - The dragon and baron spawn on **fixed timers each round** and respawn a set time after they are beaten; their buffs last
   a set time and end with the round.
+- **Neutral numbers (Barangay names; every map uses the same):**
+  - **Vendors:** 40 HP over 2 s while the eater walks 30% slower; one kid per serving, restocks in 30 s.
+  - **Roaming buff (Selecta bike):** appears at 0:30 and 60 s after it is caught; the catcher gets 20 HP at once and +20%
+    speed for 10 s.
+  - **Dragon (Crocodile):** appears at 1:00, back 2:00 after it is beaten; the whole team deals +8% damage for 90 s.
+  - **Baron (Philippine Eagle):** appears at 3:00, back 3:00 after it is beaten; role buffs of 8% for 90 s.
+- **Two equal ways to win a round:** capture or full tag, one round either way, so each round the team picks a plan.
 
 ## 7. Kids and combat
 - **12 kids in 4 roles:**
@@ -321,7 +328,6 @@ skins and map decorations; an event mini-mode can come later.
 | Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling saved for a later kid |
 | Q3 | Exact kid and diamond-pack prices | Set with the store build (kid ≈ two weeks of play) |
 | Q4 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
-| Q5 | Vendor and objective numbers, Crocodile and Eagle timers | Crocodile at 1:00 (respawn 2:00), Eagle at 3:00 (respawn 3:00), buffs 90 s; role buffs +8% |
 | Q6 | Exact map geometry and neutral placement | Designed map by map, Barangay first, then blocked out and play-tested with bots |
 
 ## 12. Built today vs this spec
