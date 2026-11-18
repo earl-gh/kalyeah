@@ -7,6 +7,9 @@ used for two different things. Numbers are draft defaults for `unity/Data/*.json
 
 **Water:** 100 per kid, refills 4 per second; full at every round start.
 
+**Skill damage (owner: control first, light damage):** skills set up tags and the slingshot finishes them, like Valorant.
+A damage skill deals about one stone (15 to 25); an ultimate about two (35 to 50). No skill tags a full-HP kid alone.
+
 ## Strikers — enter fights, burst, get out
 | Kid | Skill | What it does | Feels like | Water / CD |
 |---|---|---|---|---|

@@ -21,6 +21,7 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 - **Permissions:** only what a shipped feature needs (voice chat needs the microphone; hotspot needs the current network set).
 
 ## 3. Accounts, age and safety
+- **In-game name:** one free change, then a small diamond price, at most once every 30 days; names are filtered.
 - **Sign-in:** guest play first; **Google sign-in first**, then Facebook and Apple. Progress, kids, skins, pass and rank live
   on the `Kalyeah.Server` account; a guest account can be linked later.
 - **All ages, with an age gate:** the player's birth year is asked once.
@@ -86,6 +87,7 @@ and, in Ranked, loses a star.
   Play Integrity check (rooted or modded phones can still play casual modes).
 - **Bad connections:** ping and packet loss on the HUD; a dropped player can reconnect within 3 minutes while a bot plays
   their kid; the queue prefers players under 120 ms.
+- **Long queues:** Quick Match and Ranked keep searching for real players and never start with bots.
 - **Spectating and replays:** not at launch.
 - **Server-authoritative:** the server decides every hit and score; phones send inputs only (anti-cheat backbone).
 
@@ -249,7 +251,9 @@ a combo idea.
   cooldowns; a team that was left behind loses less.
 - **Ranked unlock:** account level 8 (about 15 matches) and at least 4 owned kids (the starters count).
 
-**After a match:** win or loss and the rounds, an MVP per team, each kid's tags, rescues, captures and damage, stars
+**After a match:** win or loss and the rounds, an MVP per team (scored from tags and assists, rescues and captures, and
+support work that led to a tag: heals, shields, reveals, slows and roots; raw damage does not count, so every role can
+be MVP), each kid's tags, rescues, captures and damage, stars
 gained or lost, pass XP and barya earned, and honor and report buttons.
 
 ## 9. Progression and store
@@ -352,7 +356,7 @@ gift-to-a-friend task, a free Pasko emote).
 ## 11. Open questions (agents use the default until the owner decides)
 | # | Question | Default |
 |---|---|---|
-| Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling saved for a later kid |
+| Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values and the damage bands in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling saved for a later kid |
 | Q3 | Diamonds per pack, skin prices per tier | Set with the store build (kid ≈ two weeks of play or ≈ ₱150) |
 | Q4 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
 | Q6 | Exact map sizes | Layouts in `docs/MAPS.md`; sizes set in each blockout, play-tested with bots |
