@@ -170,6 +170,8 @@ and, in Ranked, loses a star.
   Layouts: [`docs/MAPS.md`](MAPS.md).
 - The dragon and baron spawn on **fixed timers each round** and respawn a set time after they are beaten; their buffs last
   a set time and end with the round.
+- **Fighting neutrals:** the team that lands the last hit gets the buff (steals are possible). The dragon and baron hit
+  back lightly at whoever attacks them and have about 600 HP (a team takes about 10 s).
 - **Neutral numbers (Barangay names; every map uses the same):**
   - **Vendors:** 40 HP over 2 s while the eater walks 30% slower; one kid per serving, restocks in 30 s.
   - **Roaming buff (Selecta bike):** appears at 0:30 and 60 s after it is caught; the catcher gets 20 HP at once and +20%
@@ -199,7 +201,8 @@ and, in Ranked, loses a star.
   langit lupa, holens, sili tubig, sipa, luksong baka / tinik / lubid, saranggola, kariling, teks at pogs, piko,
   tagu-taguan, bahay-bahayan, syato, yoyo, palosebo, pukpok palayok, sack race, pabitin, chinese garter, sungka, tiyakad).
 - **Vision (Valorant):** you see enemies in your line of sight; the minimap shows only enemies a teammate sees or that
-  are revealed. Seeker reveals show enemies to the whole team through walls.
+  are revealed. Seeker reveals show enemies to the whole team; what each reveal shows depends on the skill, like Valorant
+  (outline through walls or a one-time snapshot, see `docs/KITS.md`).
 - **Slingshot shots** are fast visible stones with a slight arc and travel time (leading moving targets matters a little);
   holding the button only adds range, never damage; ADS tightens accuracy. A stone deals **20** (body) or **30** (head):
   5 body hits or 4 with a headshot tag a kid, so a full load of 7 leaves room for 2 misses. One stone every **0.4 s**,
@@ -392,6 +395,8 @@ bloom on effects. Lower presets drop cost, never the art or the readability:
 **Audio:** OPM-flavoured electronic and hip-hop music with Filipino instruments (kulintang, bandurria, tambol) and street
 sounds: a menu theme, ambience per map, round-end stingers. **Positional sound is gameplay (Valorant level):** footsteps
 by surface (cement, soil, wood, tin), directional skill cues; crouch-walking is silent.
+- **Audio settings:** separate volumes for music, effects, kid voices, announcer and voice chat, and a switch that mutes
+  friend and rival banter but keeps skill callouts.
 - **Announcer voice:** calls tags, the score, victory and defeat. When a teammate starts a rescue, only their team's
   announcer says so (to cover the rescuer). The enemy never hears a rescue or capture in progress, and defenders get no
   warning that their base is being captured, so a flank to rescue or capture can stay secret.

@@ -10,6 +10,22 @@ used for two different things. Numbers are draft defaults for `unity/Data/*.json
 **Skill damage (owner: control first, light damage):** skills set up tags and the slingshot finishes them, like Valorant.
 A damage skill deals about one stone (15 to 25); an ultimate about two (35 to 50). No skill tags a full-HP kid alone.
 
+**Reveals depend on the skill (owner: like Valorant).** Two kinds:
+- **Outline:** the enemy glows through walls and tall cover for the whole team and shows on the minimap for the time
+  given; the revealed kid sees an eye icon.
+- **Snapshot:** a one-time marker of where the enemy was, on the minimap and in the world; it doesn't follow them.
+
+| Skill | Kind | Does the revealed kid know? |
+|---|---|---|
+| Kikay Teks Tripwire | Outline 6 s | Yes, hears the card snap |
+| Kikay Saranggola | Outline while inside the circle; traps shown | Yes, sees the kite overhead |
+| Karding Yoyo | Outline 5 s | Yes |
+| Karding Piko | Outline while inside the grid | No |
+| Karding Pogs Slam | Snapshot | Yes, hears the slam |
+| Manoy Sili-Tubig | Outline 4 s | Yes (screen blurs) |
+| Manoy Trumpo Bantay | Snapshot every 1 s within 8 m | Yes, hears the top spin |
+| Manoy Taya! | Snapshot of every enemy, after the count | Yes, everyone hears the count |
+
 ## Strikers — enter fights, burst, get out
 | Kid | Skill | What it does | Feels like | Water / CD |
 |---|---|---|---|---|
