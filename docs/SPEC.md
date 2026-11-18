@@ -79,7 +79,10 @@ and, in Ranked, loses a star.
   - one teammate per rescue, first tagged first freed, then a **15 s cooldown** before the area can rescue again;
   - a **checkpoint at the halfway line:** once the bar passed it, a cancelled rescue (by anyone on the team) restarts
     from the line, not from zero.
-- **Capture:** standing in the enemy base without being interrupted captures it (time in data).
+- **In jail:** a tagged kid stands visibly in the jail, watches a teammate's view (switchable), and can ping and chat.
+- **Capture:** standing in the enemy base fills a capture bar (more teammates inside fill it faster). A free defender
+  standing in the base **pauses** it; stepping out keeps the progress but it **drains slowly**.
+- **Interrupts:** being tagged or stunned stops a rescue or a capture; a rescue keeps its checkpoint, a capture drains.
 
 ## 6. Maps: 4 at launch
 - **Valorant-sized, asymmetric, sides swap at half:** each map is built for different fights and outcomes, the two
