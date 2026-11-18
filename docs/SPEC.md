@@ -205,6 +205,14 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 - **Kid mastery:** each kid gains mastery XP; levels give a badge, a mastery emote and a title, never power.
 - **Seasons: 8 weeks.** Each brings a new 50-level pass, a soft rank reset (down a few divisions) and end-of-season
   rewards by rank (a border and barya).
+- **Barya from matches:** every match pays (more for a win, a little more for longer modes) plus a first-win-of-the-day
+  bonus, under a weekly cap that keeps the ~2-weeks-per-kid pace.
+- **Offline rewards:** vs AI gives a little barya and pass XP (capped daily); Hotspot and Explore rewards sync to the
+  account when online. Offline results can't be verified by the server, so their caps stay small.
+- **Account level:** earned by playing; unlocks Ranked (level 8), sprays and emote slots, with a little barya per level;
+  a prestige border after level 30.
+- **Diamonds:** standard packs with a double first-purchase bonus per pack and a cheap weekly diamond card; no
+  limited-time pressure offers in kid mode.
 - **No gacha or loot boxes:** everything is bought directly at a shown price.
 - **Battle pass, 50 levels**, filled by fixed daily and weekly tasks (play 3 games, log in, share to Facebook, …; the share
   counts when the share sheet completes). Task rewards are kept small so 50 takes the season.
