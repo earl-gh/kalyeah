@@ -90,11 +90,12 @@ and, in Ranked, loses a star.
 - **Private rooms:** the host picks the mode and map, fills empty slots with bots at a chosen level, can set custom rules
   (neutrals on or off, rescue time, duplicate kids allowed) and allow up to 2 spectators.
 - **Hotspot:** one phone hosts up to 10 phones over its hotspot or the same Wi-Fi; bots fill empty slots; the host needs
-  a mid-range or better phone.
+  a mid-range or better phone. Every kid is unlocked in Hotspot so friends can play anything together.
 - **Anti-cheat:** besides the server deciding hits, it validates movement speed and fire rate; Ranked requires a passing
   Play Integrity check (rooted or modded phones can still play casual modes).
 - **Bad connections:** ping and packet loss on the HUD; a dropped player can reconnect within 3 minutes while a bot plays
-  their kid; the queue prefers players under 120 ms.
+  their kid; the queue prefers players under 120 ms. A phone call or app switch counts as a disconnect: a bot covers,
+  with no penalty if the player is back within 3 minutes.
 - **Long queues:** Quick Match and Ranked keep searching for real players and never start with bots, except in a new
   account's first 10 matches (below).
 - **Spectating and replays:** not at launch.
@@ -246,7 +247,7 @@ and, in Ranked, loses a star.
   - right top: jump and crouch/slide.
   - Holding the slingshot button and sliding the thumb turns the camera while shooting (like CODM and Wild Rift).
   - Ready-made layouts: this **default 4-finger** one and a **2-thumb simple** one with bigger buttons for new and casual
-    players; the layout editor saves custom ones.
+    players (it keeps a small ADS button next to fire); the layout editor saves custom ones.
 - **HUD read-outs:**
   - top-left corner: a small minimap (tap for the full map) with the dragon and baron on their spots, each showing a
     countdown until it appears (or that it is up); the camera and ADS zone below it;
@@ -409,7 +410,9 @@ bloom on effects. Lower presets drop cost, never the art or the readability:
 | High | 60 | 100% | Soft | Full | On |
 | Ultra | 60 / 90 / 120 (phone limits) | 100% + 4× MSAA | Soft, longer distance | Full | On |
 
-- The first launch picks a preset from a short device check; players can change it.
+- The first launch picks a preset from a short device check; players can change it. When the phone runs hot or the frame
+  rate stays low, a prompt after the match (never during) offers a lower preset. A **battery saver** setting caps at 30
+  fps and dims effects outside matches.
 - **Team colours:** always from your own view: your team blue, enemies red, whichever side you play.
 - **Readability is the same on every preset:** enemies wear a **Valorant-style highlight** (red, yellow or purple, a
   setting); allies stay plain; overhead HP bars and team-coloured effects.
