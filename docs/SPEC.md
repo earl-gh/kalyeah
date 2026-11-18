@@ -144,6 +144,7 @@ and, in Ranked, loses a star.
 | Baron | Baron / Lord | By role: Strikers more damage, Defenders take less damage, Seekers faster, Controllers shorter cooldowns (all slight) | Philippine Eagle | Boss Aspin (giant street dog) | Butanding whale shark | Tamaraw |
 
 - **Placement is different on every map** and chosen for that map's strategy (agents design it with each layout).
+  Layouts: [`docs/MAPS.md`](MAPS.md).
 - The dragon and baron spawn on **fixed timers each round** and respawn a set time after they are beaten; their buffs last
   a set time and end with the round.
 - **Neutral numbers (Barangay names; every map uses the same):**
@@ -328,7 +329,7 @@ skins and map decorations; an event mini-mode can come later.
 | Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling saved for a later kid |
 | Q3 | Exact kid and diamond-pack prices | Set with the store build (kid ≈ two weeks of play) |
 | Q4 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
-| Q6 | Exact map geometry and neutral placement | Designed map by map, Barangay first, then blocked out and play-tested with bots |
+| Q6 | Exact map sizes and the other 3 maps' placement | Barangay placed in `docs/MAPS.md`; sizes set in the blockout, play-tested with bots |
 
 ## 12. Built today vs this spec
 The current build still has: 10 placeholder kids (not the 12), the old superpower loadout instead of 3 fixed skills, LP
