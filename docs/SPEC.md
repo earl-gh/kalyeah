@@ -47,7 +47,7 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 | **Quick** | First to 5 rounds | Quick Match queue, private rooms, Hotspot, vs AI |
 | **Standard** | First to 7 rounds | **Ranked** (the only ranked mode), private rooms |
 | Practice vs AI, Practice solo | Any mode's rules | Offline; bots at easy / medium / hard; Practice solo is a training range with dummies, distance markers and a no-cooldown toggle |
-| Explore | None | Offline; roam any of the 4 maps alone: one daily coin per map, try any kid and skin, map callouts and routes shown, photo mode; no mini-games |
+| Explore | None | Offline; roam any of the 4 maps alone: one daily coin per map, hidden teks cards (a full set per map gives codex pages and a spray), route practice (ghost paths of rescue routes and climb spots, timed against your best run), try any kid and skin, map callouts, photo mode; no mini-games |
 | Tumbang Preso, Patintero | Own rules | Side modes; hidden now, return before launch |
 
 **Bots** (Practice vs AI and leaver takeover) are role-aware: Strikers dive, Defenders guard and rescue, Seekers
@@ -226,6 +226,20 @@ tutorial uses the real barangay map with **barricades closing the other paths**,
 the slingshot and reload, skills, tag, rescue and capture. Each step lends a kid of a different role, so the player tries
 all 4 roles before picking starters. A friendly older neighbour (*Kuya/Ate*, not playable) guides it in Taglish voice with
 English text and later narrates the codex. The tutorial can be replayed from Settings.
+
+**Tutorial steps** (about 6 to 8 minutes, like Valorant's basic training):
+1. **Narda (Striker):** move, jump, vault, slide, the slingshot and reload.
+2. **Kikay (Seeker):** the 3 skills and finding a hidden bot.
+3. **Jopay (Defender):** get tagged, a bot rescues you, then you rescue it.
+4. **Tere (Controller):** slow the defenders and capture their base.
+
+**After the tutorial:** pick 4 starter kids (one per role), then a Blitz match against easy bots with them, then the home
+screen. A 7-day **new-player task list** (a match of each mode, rescue 3 teammates, try every role) pays barya and a
+trial card.
+
+**Easing into online play:** for the first 10 matches Quick Match puts new accounts together (bots fill if needed);
+loading screens show a tip about the map and your kid; the first 3 times you play a kid, a card shows its 3 skills and
+a combo idea.
 
 **Fair play:**
 - **Leavers and AFK:** a bot plays their kid until they reconnect; repeat leavers lose stars in Ranked and get queue
