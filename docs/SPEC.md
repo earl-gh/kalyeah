@@ -162,9 +162,11 @@ the slingshot and reload, skills, tag, rescue and capture.
 gained or lost, pass XP and barya earned, and honor and report buttons.
 
 ## 9. Progression and store
-- **New account:** 4 starter kids, one per role.
+- **New account:** after the tutorial the player **picks 4 starter kids, one per role**.
+- **Daily login:** a 7-day loop of small barya with a bigger day-7 reward; it also counts for the pass's login task.
 - **Currencies:** **barya** (earned by playing, tasks and the pass) and **diamonds** (real money). Kids cost barya or
-  diamonds, and **every kid is earnable with barya**; skins and the paid pass cost diamonds.
+  diamonds, and **every kid is earnable with barya** (a kid costs about two weeks of normal play, or a small
+  diamond pack); skins and the paid pass cost diamonds.
 - **Skins:** tiers Basic, Elite, Special, Epic, Legend; higher tiers change the model, effects and sounds, **never stats**.
   Sold in the store, given by the pass and events.
 - **Other cosmetics:** emotes, sprays (stickers painted on walls in a match), profile banners and borders (rank borders from
@@ -214,10 +216,9 @@ skins and map decorations; an event mini-mode can come later.
 ## 11. Open questions (agents use the default until the owner decides)
 | # | Question | Default |
 |---|---|---|
-| Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling unused until the owner explains it |
+| Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling saved for a later kid |
 | Q2 | Stars per division, divisions per tier | 3 divisions × 4 stars |
 | Q3 | Kid prices (barya / diamonds) and pass price | Set with the store build |
-| Q4 | Which kid each new account gets per role | Narda, Jopay, Kikay, Tere |
 | Q5 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
 | Q6 | Rescue and capture times, vendor and objective numbers, Crocodile and Eagle timers | Rescue 6 s with the line at 3 s; capture 8 s; Crocodile at 1:00 (respawn 2:00), Eagle at 3:00 (respawn 3:00), buffs 90 s; role buffs +8% |
 | Q7 | The 4 maps' layouts, the themed neutrals of Palengke, Pier and Hacienda | Designed map by map, Barangay first |

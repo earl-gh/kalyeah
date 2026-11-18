@@ -64,4 +64,4 @@ Used once or more: bato-bato-pik, tumbang preso (tsinelas, lata), jackstone, tru
 Lupa), holens (marble shot, spill), sili-tubig, sipa, luksong tinik (dash, wall), luksong baka, luksong lubid,
 saranggola, teks (tripwire), pogs, piko, tagu-taguan (stealth, Taya), bahay-bahayan, syato, yoyo, palosebo, pukpok
 palayok, sack race (sack, trap), pabitin (heal, snare), chinese garter (tether, net), sungka, tiyakad, patintero.
-Not used yet: **kariling** (owner to explain it).
+Not used yet: **kariling** (rolling an old wheel rim along with a stick): saved for the first kid added after launch.
