@@ -167,7 +167,8 @@ and, in Ranked, loses a star.
   through street-game showdowns every summer; the skills are their imagination made real on screen. Every kid has a deep
   backstory (family, barangay, friends, rivals) shown in a **codex per kid** (chapters unlock with mastery) and in
   **in-match voice banter** between allies and rivals. Agents draft the text in docs, keeping the respect rule; the owner
-  edits and approves.
+  edits and approves. Draft: [`docs/LORE.md`](LORE.md) (4 puroks of 3 kids, friends and rivals,
+  playful never-mean Taglish banter, a personality, idle and victory pose per kid).
 - **Basic attack for all:** the slingshot (*Tirador*), 7 shots and a reload button; holding the attack button aims farther,
   up to a maximum range.
 - **3 fixed skills per kid: S1, S2 and an ultimate**, all on cooldowns; S1 and S2 also cost **water** (Kalyeah's mana).
