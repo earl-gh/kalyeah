@@ -110,6 +110,7 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
   - Controllers (crowd control and traps): Tere, Pamela, Domeng
 - Every kid is written with respect: identity shows through the clothes and style a kid would choose, never through
   jokes, slurs or exaggerated features; every kid gets the same animation quality.
+- **Heavy lore:** every kid has a deep backstory, relationships and rivalries; voice lines reference each other.
 - **Basic attack for all:** the slingshot (*Tirador*), 7 shots and a reload button; holding the attack button aims farther,
   up to a maximum range.
 - **3 fixed skills per kid: S1, S2 and an ultimate**, all on cooldowns; S1 and S2 also cost **water** (Kalyeah's mana).
@@ -139,6 +140,8 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
 - **Only real content:** a screen, tab or button exists only when the game has the thing behind it; no filler
   components copied from other games.
 - **English only** for text; kid voice lines are short **Taglish** barks on skills, tags, rescues and wins.
+- **Home kid:** the player's **favourite kid** (pinned in the collection) stands in 3D on the home screen.
+- **Accessibility:** colour-blind enemy highlight, visual markers for footsteps and skill sounds, reduce motion and flashes.
 - **Settings at launch:** graphics presets and an FPS cap (30 / 60 / 90 / 120 where the phone allows), a control layout
   editor (move and resize every HUD button, saved layouts), camera and ADS sensitivity, aim assist on or off.
 
@@ -165,6 +168,7 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 - **Kid mastery:** each kid gains mastery XP; levels give a badge, a mastery emote and a title, never power.
 - **Seasons: 8 weeks.** Each brings a new 50-level pass, a soft rank reset (down a few divisions) and end-of-season
   rewards by rank (a border and barya).
+- **No gacha or loot boxes:** everything is bought directly at a shown price.
 - **Battle pass, 50 levels**, filled by fixed daily and weekly tasks (play 3 games, log in, share to Facebook, …; the share
   counts when the share sheet completes). Task rewards are kept small so 50 takes the season.
   - **Free tier:** barya at checkpoints, some levels with no reward; level 50 gives a basic skin.
