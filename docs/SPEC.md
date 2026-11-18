@@ -23,10 +23,12 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 ## 3. Accounts, age and safety
 - **In-game name:** one free change, then a small diamond price, at most once every 30 days; names are filtered.
 - **Sign-in:** guest play first; **Google sign-in first**, then Facebook and Apple. Progress, kids, skins, pass and rank live
-  on the `Kalyeah.Server` account; a guest account can be linked later.
+  on the `Kalyeah.Server` account; a guest account can be linked later. Guests get a reminder to link after 3 matches
+  (at most once a week), a small barya gift for linking, and must link before buying diamonds.
 - **All ages, with an age gate:** the player's birth year is asked once.
   - **Under 13 (kid mode):** guest or Google family account, quick chat, emotes and pings only, purchases need parent approval
-    (Google Family Link), following Google Play's Families policy.
+    (Google Family Link), following Google Play's Families policy. No Facebook sharing (the pass share task becomes
+    "play 1 match").
   - **13 and up:** every feature.
 - **Data rights:** Settings has **Delete account** (7-day grace, then wiped) and **Download my data**; parents can ask
   to delete a kid's account.
@@ -319,7 +321,7 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 - **Skin themes:** season 1 is **summer fiesta** (banderitas, parade costumes, higante masks, sorbetes colours), matching
   the lore's summer showdowns. Lines that return: **Filipino holidays** (Pasko, Undas, fiesta, summer, yearly with the
   events) and **dream jobs** (what each kid wants to be, tied to their lore).
-- **Store tabs:** Featured (the season's skins and bundles), Kids, Skins, Daily (4 rotating items), Diamonds; every item
+- **Store tabs:** Featured (the season's skins and bundles), Kids, Skins, Daily (3 items you don't own at a small discount, never kids, plus one free small gift; resets at midnight PH time), Diamonds; every item
   can be previewed on the 3D kid before buying.
 - **No gacha or loot boxes:** everything is bought directly at a shown price.
 - **Battle pass, 50 levels**, filled by fixed daily and weekly tasks (play 3 games, log in, share to Facebook, …; the share
@@ -349,7 +351,8 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 **After launch:**
 - **New kids** arrive when ready (no fixed pace); kariling is saved for the first one.
 - **Balance:** numbers live in data, so the server pushes small balance hotfixes without an app update; bigger changes
-  land with each season, with in-game patch notes.
+  land with each season. Patch notes appear as a short card on the next login (which kids changed, with stronger or
+  weaker arrows), and each kid's page lists its recent changes.
 - **New maps, skins and voices** download as asset packs; the app updates only for new code.
 - **Admin page:** a password-protected page on `Kalyeah.Server` for the owner to change balance values, store items and
   events and to work the report queue; every change is logged.
