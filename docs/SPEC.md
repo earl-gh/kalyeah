@@ -108,7 +108,8 @@ and, in Ranked, loses a star.
     game; the freed kid reappears **at their own base**.
   - **Revenge:** when the enemy who tagged them is tagged, they reappear at their base **10 s later**.
 - **Rescue works like Valorant's defuse:** it takes **6 s**;
-  - one rescuer at a time; moving or attacking cancels it;
+  - one rescuer at a time; moving or attacking cancels it; enemies standing near the jail don't stop it, they must hit or
+    stop the rescuer;
   - one teammate per rescue, first tagged first freed, then a **15 s cooldown** before that jail can be used for a rescue again;
   - a **checkpoint at the halfway line (3 s):** once the bar passed it, a cancelled rescue (by anyone on the team) restarts
     from the line, not from zero.
@@ -277,13 +278,15 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 - **Currencies:** **barya** (earned by playing, tasks and the pass) and **diamonds** (real money). Kids cost barya or
   diamonds, and **every kid is earnable with barya** (a kid costs 6,000 barya, about two weeks of normal play, or diamonds worth about
   ₱150); skins and the paid pass cost diamonds.
-- **Skins:** tiers Basic, Elite, Special, Epic, Legend; higher tiers change the model, effects and sounds, **never stats**.
+- **Skins:** tiers Basic, Elite, Special, Epic, Legend at diamonds worth about ₱50, ₱150, ₱300, ₱500 and ₱900 (some
+  Basic skins also for barya); higher tiers change the model, effects and sounds, **never stats**.
   Sold in the store, given by the pass and events.
 - **Other cosmetics:** emotes, sprays (one sticker per round painted on a wall; your team sees it, and a setting hides other players' sprays), profile banners and borders (rank borders from
   seasons), slingshot skins for any kid.
 - **Kid mastery:** each kid gains mastery XP over 7 levels (about 50 matches to max): a badge at level 3, an emote at 5,
   a title at 7, with codex chapters along the way; never power.
-- **Seasons: 8 weeks.** Each brings a new 50-level pass, a soft rank reset (down a few divisions) and end-of-season
+- **Seasons: 8 weeks.** Each brings a new 50-level pass, a soft rank reset (down one tier, same division: Ginto II becomes Pilak II; Kahoy and Bakal
+  don't drop) and end-of-season
   rewards by rank (a border and barya).
 - **Barya from matches** (loss / win): Blitz 60 / 100, Quick 90 / 150, Standard 120 / 200, plus 300 for the first win of
   the day, capped at 3,000 a week, so a 6,000-barya kid takes about two weeks.
@@ -371,7 +374,7 @@ gift-to-a-friend task, a free Pasko emote).
 | # | Question | Default |
 |---|---|---|
 | Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values and the damage bands in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling saved for a later kid |
-| Q3 | Diamonds per pack, skin prices per tier | Set with the store build (kid ≈ two weeks of play or ≈ ₱150) |
+| Q3 | Diamonds per pack | Set with the store build (kid ≈ two weeks of play or ≈ ₱150) |
 | Q4 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
 | Q6 | Exact map sizes | Layouts in `docs/MAPS.md`; sizes set in each blockout, play-tested with bots |
 
