@@ -319,7 +319,8 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 
 ## 9. Progression and store
 - **New account:** after the tutorial the player **picks 4 starter kids, one per role**.
-- **Daily login:** a 7-day loop of small barya with a bigger day-7 reward; it also counts for the pass's login task.
+- **Daily login:** a 7-day loop: 50, 50, 100, 50, 100 and 150 barya on days 1 to 6, then on day 7 a 3-day trial card
+  (odd weeks) or a spray (even weeks); it also counts for the pass's login task.
 - **Getting kids:** buy with barya or diamonds; **trial cards** (from tasks and the pass) lend a kid for 1 to 3 days; the
   paid pass's last level and some events give a kid. No free weekly rotation.
 - **Currencies:** **barya** (earned by playing, tasks and the pass) and **diamonds** (real money). Kids cost barya or
@@ -339,7 +340,8 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   the day, capped at 3,000 a week, so a 6,000-barya kid takes about two weeks.
 - **Offline rewards:** vs AI gives a little barya and pass XP (capped daily); Explore's coins sync to the account when
   online; Hotspot gives no rewards (every kid is unlocked there and it is just for fun). Offline results can't be verified by the server, so their caps stay small.
-- **Account level:** earned by playing; unlocks Ranked (level 8), sprays and emote slots, with a little barya per level;
+- **Account level:** earned by playing; unlocks text chat (level 3), voice chat (level 5), Ranked (level 8), sprays and
+  emote slots, with a little barya per level;
   a prestige border after level 30.
 - **Diamonds:** 6 packs at ₱20, ₱50, ₱100, ₱250, ₱500 and ₱2,000, with small bonuses on bigger packs and double diamonds
   on each pack's first buy, plus a ₱50 weekly diamond card; no limited-time pressure offers in kid mode.
@@ -353,8 +355,10 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 - **Store tabs:** Featured (the season's skins and bundles), Kids, Skins, Daily (3 items you don't own at a small discount, never kids, plus one free small gift; resets at midnight PH time), Diamonds; every item
   can be previewed on the 3D kid before buying.
 - **No gacha or loot boxes:** everything is bought directly at a shown price.
-- **Battle pass, 50 levels**, filled by fixed daily and weekly tasks (play 3 games, log in, share to Facebook, …; the share
-  counts when the share sheet completes). Task rewards are kept small so 50 takes the season.
+- **Battle pass, 50 levels**, filled by fixed daily and weekly tasks; the share counts when the share sheet completes:
+  - **Daily:** log in, play 3 matches (vs AI counts for 1), do 1 rescue or capture, win 1 match.
+  - **Weekly:** play 15 matches, play 2 different roles, share to Facebook (kid accounts: play 1 match), take 3 dragons
+    or barons. Task rewards are kept small so 50 takes the season.
   - **Free tier:** barya at checkpoints, some levels with no reward; level 50 gives a basic skin.
   - **Paid tier:** small rewards on every level; level 50 gives a high-tier skin, plus that kid if not owned.
   - Paid in diamonds: the paid tier costs about ₱250 of diamonds a season, with a premium-plus tier (+10 levels and an extra skin) near ₱500; it uses a
