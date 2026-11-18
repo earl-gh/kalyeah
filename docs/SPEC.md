@@ -219,6 +219,8 @@ and, in Ranked, loses a star.
   - Controllers (crowd control and traps): Tere, Pamela, Domeng
 - Every kid is written with respect: identity shows through the clothes and style a kid would choose, never through
   jokes, slurs or exaggerated features; every kid gets the same animation quality.
+- **Heights:** kids look different heights, within about ±10% of the average, but share one hitbox and headshot zone.
+  **Narda is the pilot kid**, built fully first (model, animations, skills) to set the quality bar.
 - **Heavy lore:** grounded **barangay rivalry**: kids aged **8 to 12** from rival puroks and barangays settle disputes
   through street-game showdowns every summer; the skills are their imagination made real on screen. Every kid has a deep
   backstory (family, barangay, friends, rivals) shown in a **codex per kid** (chapters unlock with mastery) and in
@@ -360,7 +362,7 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   and your honor level shows on your profile and in kid select.
 
 ## 9. Progression and store
-- **New account:** after the tutorial the player **picks 4 starter kids, one per role**.
+- **New account:** after the tutorial the player **picks 4 starter kids, one per role**, from all 12.
 - **Daily login:** a 7-day loop: 50, 50, 100, 50, 100 and 150 barya on days 1 to 6, then on day 7 a 3-day trial card
   (odd weeks) or a spray (even weeks); it also counts for the pass's login task.
 - **Getting kids:** buy with barya or diamonds; **trial cards** (from tasks and the pass) lend a kid for 1 to 3 days; the
@@ -500,7 +502,7 @@ gift-to-a-friend task, a free Pasko emote).
 |---|---|---|
 | Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values and the damage bands in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling saved for a later kid |
 | Q3 | Final pack bonuses | Set with the store build (kid ≈ two weeks of play or ≈ ₱150) |
-| Q4 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
+| Q4 | Exact kid heights and showcase meshes | Heights within about ±10% of the average with one shared hitbox and headshot zone; exact values after the Narda pilot (`docs/art-briefs/kids-retopo-spec.md`) |
 | Q6 | Exact map sizes | Scale and layouts in `docs/MAPS.md`; exact shapes set in each blockout, play-tested with bots |
 
 ## 12. Built today vs this spec
