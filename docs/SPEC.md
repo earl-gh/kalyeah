@@ -220,7 +220,8 @@ and, in Ranked, loses a star.
 - **Basic attack for all:** the slingshot (*Tirador*), 7 shots and a reload button (it also reloads by itself when
   empty); full accuracy while jumping, vaulting or sliding; holding the attack button aims farther,
   up to a maximum range.
-- **3 fixed skills per kid: S1, S2 and an ultimate**, all on cooldowns; S1 and S2 also cost **water** (Kalyeah's mana).
+- **3 fixed skills per kid: S1, S2 and an ultimate**, all on cooldowns; S1 and S2 also cost **water** (Kalyeah's mana, like Mobile Legends and Wild Rift: slow refill in the street, very fast
+  in your own base).
   The approved kits are in `docs/KITS.md`. Each skill is a reimagined Filipino street game (bato bato pik, tumbang preso, jackstone, trumpo,
   langit lupa, holens, sili tubig, sipa, luksong baka / tinik / lubid, saranggola, kariling, teks at pogs, piko,
   tagu-taguan, bahay-bahayan, syato, yoyo, palosebo, pukpok palayok, sack race, pabitin, chinese garter, sungka, tiyakad).

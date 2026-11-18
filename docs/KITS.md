@@ -5,7 +5,9 @@ to aim farther); **3 skills: S1, S2 and an ultimate (ULT)**, all on cooldowns. S
 mana); the ULT costs no water but has a long cooldown. Every skill is a different mechanic; a street game used twice is
 used for two different things. Numbers are draft defaults for `unity/Data/*.json`, tuned later by bot-vs-bot runs.
 
-**Water:** 100 per kid, refills 4 per second; full at every round start.
+**Water** works like Mobile Legends / Wild Rift mana (owner): 100 per kid, refills slowly in the street (2 per second)
+and very fast in your own base (25 per second, like the fountain); full at every round start; each skill button shows
+its water cost.
 
 **Skill damage (owner: control first, light damage):** skills set up tags and the slingshot finishes them, like Valorant.
 A damage skill deals about one stone (15 to 25); an ultimate about two (35 to 50). No skill tags a full-HP kid alone.
