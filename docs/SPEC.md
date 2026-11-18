@@ -27,7 +27,8 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
   (at most once a week), a small barya gift for linking, and must link before buying diamonds.
 - **All ages, with an age gate:** the player's birth year is asked once.
   - **Under 13 (kid mode):** guest or Google family account, quick chat, emotes and pings only, purchases need parent approval
-    (Google Family Link), following Google Play's Families policy. No Facebook sharing (the pass share task becomes
+    (Google Family Link), following Google Play's Families policy. Friends only by friend code, approved by a parent on
+    Family Link (no requests from strangers); they can then party up. No Facebook sharing (the pass share task becomes
     "play 1 match").
   - **13 and up:** every feature.
 - **Data rights:** Settings has **Delete account** (7-day grace, then wiped) and **Download my data**; parents can ask
@@ -210,8 +211,8 @@ and, in Ranked, loses a star.
   for 0.3 s, then a 2 s cooldown. A vault takes 0.4 s and a climb about 1 s; a hit while climbing knocks the kid down.
 - **Aim down sight:** shots land exactly at the crosshair (hip-fire spreads a little) and the kid walks 30% slower; a
   setting picks tap-to-toggle or hold.
-- **Camera:** T3 Arena style over the shoulder at mid distance (the kid on the left third, about 4 m behind), a shoulder
-  swap button for corners; **aim down sight** moves in close, some attacks zoom out. FOV slider in a fair range (70 to 90)
+- **Camera:** T3 Arena style, **centred** behind the kid at mid distance (about 4 m behind, raised so the crosshair sits
+  above the kid's head); no shoulder offset and no shoulder swap; **aim down sight** moves in close, some attacks zoom out. FOV slider in a fair range (70 to 90)
   that is the same for everyone.
 - **Feel:** crisp and readable like Valorant: hit markers, a headshot sound, a small kick on firing, a brief flash on the
   target, no screen-filling effects.
@@ -378,12 +379,16 @@ bloom on effects. Lower presets drop cost, never the art or the readability:
 | Ultra | 60 / 90 / 120 (phone limits) | 100% + 4× MSAA | Soft, longer distance | Full | On |
 
 - The first launch picks a preset from a short device check; players can change it.
+- **Team colours:** always from your own view: your team blue, enemies red, whichever side you play.
 - **Readability is the same on every preset:** enemies wear a **Valorant-style highlight** (red, yellow or purple, a
   setting); allies stay plain; overhead HP bars and team-coloured effects.
 
 **Audio:** OPM-flavoured electronic and hip-hop music with Filipino instruments (kulintang, bandurria, tambol) and street
 sounds: a menu theme, ambience per map, round-end stingers. **Positional sound is gameplay (Valorant level):** footsteps
 by surface (cement, soil, wood, tin), directional skill cues; crouch-walking is silent.
+- **Announcer voice:** calls tags, the score, victory and defeat. It never calls rescues or base captures in progress,
+  so a sneaky rescue or capture stays secret.
+- **Cues both teams hear:** a short call when the Crocodile or Eagle appears; every ultimate has a voice line.
 
 **Live events:** limited-time events on the Filipino calendar (Pasko, fiesta, Undas, summer) with themed tasks, event
 skins and map decorations; an event mini-mode can come later. **First year:** a **Summer showdown** at launch (themed
