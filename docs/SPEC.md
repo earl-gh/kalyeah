@@ -80,8 +80,10 @@ and, in Ranked, loses a star.
     Brilyante 5. Batang Kalyeah has no divisions (stars keep counting).
   Replaces the LP system in the current code.
   - No placement matches: everyone starts at Kahoy; a hidden rating (MMR) still matches by skill.
-  - Star protection: the losing team's MVP keeps the star; good play fills protection points that save a star when full;
-    no demotion below a newly reached tier for a few games.
+  - Star protection: the losing team's MVP keeps the star; each loss fills protection points by your match score (tags,
+    rescues, captures, support), and a full bar saves one star automatically; no demotion below a newly reached tier for
+    3 games.
+  - Win streaks: below Ginto, every 3rd win in a row gives +1 bonus star.
   - Top tier: stars keep counting with no divisions, a Philippine leaderboard and top-100 titles.
   - Ranked parties must be within one tier of each other.
 - **Servers:** `Kalyeah.Server` (Docker) on cloud VMs in a Singapore region first; one account and match database.
@@ -325,7 +327,7 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   a title at 7, with codex chapters along the way; never power.
 - **Seasons: 8 weeks.** Each brings a new 50-level pass, a soft rank reset (down one tier, same division: Ginto II becomes Pilak II; Kahoy and Bakal
   don't drop) and end-of-season
-  rewards by rank (a border and barya).
+  rewards by rank (a border and barya; Ginto or higher also gets an Elite skin for that season's featured kid).
 - **Barya from matches** (loss / win): Blitz 60 / 100, Quick 90 / 150, Standard 120 / 200, plus 300 for the first win of
   the day, capped at 3,000 a week, so a 6,000-barya kid takes about two weeks.
 - **Offline rewards:** vs AI gives a little barya and pass XP (capped daily); Hotspot and Explore rewards sync to the
