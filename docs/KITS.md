@@ -29,8 +29,10 @@ A damage skill deals about one stone (15 to 25); an ultimate about two (35 to 50
 | Manoy Taya! | Snapshot of every enemy, after the count | Yes, everyone hears the count |
 
 **Shared skill rules (owner):**
-- **Hard stops** (stun, knock-up, knock-down, turned into a can) block moving, shooting and skills; a **root** blocks only
-  moving.
+- **Hard stops** (stun, knock-up, knock-down, turned into a can) block moving, shooting and skills (a can may only
+  wobble slowly); a **root** blocks only moving.
+- **Blur** (Pukpok Palayok, Sili-Tubig) blurs the screen's edges and keeps the centre around the crosshair clear; the
+  reduce-flashes setting softens it but never removes it.
 - **Neutrals:** damage skills hurt the dragon and baron; control and reveals do nothing to them.
 - **Ally-only skills** stay ally-only: e.g. only teammates can vault off Paeng's Luksong Baka.
 
@@ -55,7 +57,7 @@ A damage skill deals about one stone (15 to 25); an ultimate about two (35 to 50
 | | ULT **Palosebo** | A greased pole in your base for 8 s: enemies can't advance a capture, and slip (slowed) near it | Killjoy Lockdown (defensive) | — / 90 s |
 | **Oriang** (guardian) | S1 **Chinese Garter** | Tether an ally up to 12 m: 30% of the damage they take goes to Oriang; stretching it too far snaps it and speeds both | Taric / Karma link | 25 / 10 s |
 | | S2 **Sungka** | For 3 s Oriang stores damage taken as shells, then releases them as a shield shared by nearby allies | Braum / Galio absorb | 30 / 12 s |
-| | ULT **Langit!** (langit-lupa) | Allies in 8 m can't drop below 1 HP (can't be tagged) for 3 s | Kayle / Taric ULT | — / 100 s |
+| | ULT **Langit!** (langit-lupa) | Allies in 8 m can't drop below 1 HP (can't be tagged) for 3 s; stuns still interrupt their rescues and captures | Kayle / Taric ULT | — / 100 s |
 | **Paeng** (frontline) | S1 **Sack Race** | Hop in a sack 3 s: 40% less damage; bumping an enemy knocks them back | Rammus Powerball | 30 / 12 s |
 | | S2 **Luksong Baka** | Crouch as the "baka" for 4 s: an ally who vaults off Paeng leaps 10 m (rescue runs, escapes) | Bard tunnel (team mobility) | 20 / 14 s |
 | | ULT **Tinik Wall** (luksong tinik) | A row of "tinik" hands across a path for 4 s blocks enemies; enemies on it when it rises are knocked up | Anivia wall, Trundle pillar | — / 85 s |
@@ -71,7 +73,7 @@ A damage skill deals about one stone (15 to 25); an ultimate about two (35 to 50
 | | ULT **Pogs Slam** (teks at pogs) | Slam a giant pog: destroys enemy traps and walls in 6 m, reveals enemies in 14 m for 4 s | Fade Nightfall | — / 85 s |
 | **Manoy** (hunter) | S1 **Sili-Tubig** | Chili-water spray cone: enemies hit are revealed 4 s and their screen blurs 1.5 s | Skye / Fade flash-reveal | 30 / 11 s |
 | | S2 **Trumpo Bantay** | A spinning top sentry for 20 s: pings enemies within 8 m | Killjoy Alarmbot, ward | 20 / 15 s |
-| | ULT **Taya!** (tagu-taguan) | Counts to 3 out loud, then reveals every enemy on the map for 3 s | Raven-style map reveal | — / 100 s |
+| | ULT **Taya!** (tagu-taguan) | Counts to 3 out loud, then shows where every enemy is, hidden or invisible ones too, as a one-time snapshot | Raven-style map reveal | — / 100 s |
 
 ## Controllers — slow, root and split fights
 | Kid | Skill | What it does | Feels like | Water / CD |
@@ -80,7 +82,7 @@ A damage skill deals about one stone (15 to 25); an ultimate about two (35 to 50
 | | S2 **Luksong Lubid** | Stretch a rope between two points: the first enemy across is tripped (knocked down 1 s) | Cypher tripwire, Jinx chompers | 30 / 13 s |
 | | ULT **Garter Net** (chinese garter) | A 6 m net: enemies inside are rooted 1.25 s, then slowed 2 s | Morgana / Neeko ULT | — / 90 s |
 | **Pamela** (disruptor) | S1 **Holens Spill** | Spill marbles in a cone for 3 s: enemies slip (no jump, no sprint, slowed) | Nami bubble zone | 25 / 10 s |
-| | S2 **Lata!** (tumbang preso) | Throw a can: the first enemy hit becomes a can for 1.5 s (can't attack or use skills) | Lulu Whimsy | 35 / 15 s |
+| | S2 **Lata!** (tumbang preso) | Throw a can: the first enemy hit becomes a can for 1.5 s (can't attack or use skills; can only wobble slowly) | Lulu Whimsy | 35 / 15 s |
 | | ULT **Patintero!** | Draw 3 chalk lines for 5 s: an enemy crossing a line is stunned 0.8 s (once per line) | Veigar Event Horizon | — / 90 s |
 | **Domeng** (initiator) | S1 **Pabitin Snare** | After 0.5 s a rack drops on an area: enemies under it are rooted 1.2 s | Lux / Morgana root | 30 / 11 s |
 | | S2 **Sako Trap** (sack race) | Hidden sack trap: the enemy who steps in can only hop (50% slower) for 3 s | Caitlyn trap | 20 / 12 s |
