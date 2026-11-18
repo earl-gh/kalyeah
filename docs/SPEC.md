@@ -28,6 +28,8 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
     (Google Family Link), following Google Play's Families policy.
   - **13 and up:** every feature.
 - **Social:** quick chat, emotes, pings, text chat with a profanity filter, voice chat, report and mute.
+- **Friends and party:** parties of 1 to 5 for Quick Match and private rooms; Ranked allows 1, 2, 3 or 5 (no 4-stacks),
+  within a rank range. No clans at launch (a *barkada* system may follow).
 
 ## 4. Modes
 | Mode | Win | Where |
@@ -127,12 +129,17 @@ the slingshot and reload, skills, tag, rescue and capture.
   cooldowns; a team that was left behind loses less.
 - **Ranked unlock:** account level 8 (about 15 matches) and at least 4 owned kids (the starters count).
 
+**After a match:** win or loss and the rounds, an MVP per team, each kid's tags, rescues, captures and damage, stars
+gained or lost, pass XP and barya earned, and honor and report buttons.
+
 ## 9. Progression and store
 - **New account:** 4 starter kids, one per role.
 - **Currencies:** **barya** (earned by playing, tasks and the pass) and **diamonds** (real money). Kids cost barya or
   diamonds, and **every kid is earnable with barya**; skins and the paid pass cost diamonds.
 - **Skins:** tiers Basic, Elite, Special, Epic, Legend; higher tiers change the model, effects and sounds, **never stats**.
   Sold in the store, given by the pass and events.
+- **Seasons: 8 weeks.** Each brings a new 50-level pass, a soft rank reset (down a few divisions) and end-of-season
+  rewards by rank (a border and barya).
 - **Battle pass, 50 levels**, filled by fixed daily and weekly tasks (play 3 games, log in, share to Facebook, …; the share
   counts when the share sheet completes). Task rewards are kept small so 50 takes the season.
   - **Free tier:** barya at checkpoints, some levels with no reward; level 50 gives a basic skin.
@@ -148,7 +155,7 @@ kind is needed (3D model, sprite sheet or 2D image).
 | # | Question | Default |
 |---|---|---|
 | Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling unused until the owner explains it |
-| Q2 | Stars per division, divisions per tier, season length | 3 divisions × 4 stars; 8-week seasons |
+| Q2 | Stars per division, divisions per tier | 3 divisions × 4 stars |
 | Q3 | Kid prices (barya / diamonds) and pass price | Set with the store build |
 | Q4 | Which kid each new account gets per role | Narda, Jopay, Kikay, Tere |
 | Q5 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
