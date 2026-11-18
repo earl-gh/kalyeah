@@ -176,7 +176,12 @@ and, in Ranked, loses a star.
 - **Movement (CODM-like):** walk and run; **one jump button** does jump, running jump, vault (small obstacles) and climb
   (high obstacles) by context; **one crouch button** crouches when walking and slides when running (slide jump and back
   slide included).
-- **Camera:** T3 Arena style third person; **aim down sight** zooms in, some attacks zoom out.
+- **Camera:** T3 Arena style over the shoulder at mid distance (the kid on the left third, about 4 m behind), a shoulder
+  swap button for corners; **aim down sight** moves in close, some attacks zoom out. FOV slider in a fair range (70 to 90)
+  that is the same for everyone.
+- **Feel:** crisp and readable like Valorant: hit markers, a headshot sound, a small kick on firing, a brief flash on the
+  target, no screen-filling effects.
+- **Being tagged:** no death; the kid freezes in a pouty "Taya!" pose in a puff of chalk dust, then poofs to the jail.
 
 ## 8. Controls and screens
 - **4-finger match layout:**
