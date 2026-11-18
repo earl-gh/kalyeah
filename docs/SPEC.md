@@ -128,7 +128,7 @@ and, in Ranked, loses a star.
   speed. A free defender
   standing in the base **pauses** it; stepping out keeps the progress but it **drains slowly** (a full bar empties in 16 s, half the fill speed).
 - **Giving up:** from the side swap on, a team can vote to give up; 4 of 5 must agree (every teammate still in, if one
-  left).
+  left). A team down a player for good can vote before the side swap too.
 - **Ultimates that stop a capture or a tag** (Palosebo, Langit!) have no extra limit: both teams see the area clearly and
   hear the ultimate's voice line.
 - **Interrupts:** being tagged or stunned stops a rescue or a capture; a rescue keeps its checkpoint, a capture drains.
@@ -249,6 +249,8 @@ and, in Ranked, loses a star.
 - **Screens at launch** (familiar from Mobile Legends, Wild Rift, CODM and Valorant): home (one PLAY, online first), kid
   select after queue, kids and skins collection, store, battle pass and tasks, profile with rank and match history,
   friends and party, settings.
+- **Kid page (collection):** the kid in 3D to rotate, every skin to try and the victory pose; a clip of each skill with a
+  combo tip; purok, friends, rivals and unlocked codex chapters; mastery level, win rate and recent balance changes.
 - **Home:** the favourite kid in 3D; one big PLAY with the mode name above it (tap to switch Blitz, Quick, Ranked or
   offline); party slots beside the kid with an online-friends list; a small card with pass level and today's tasks. No
   event or store banners.
@@ -288,7 +290,9 @@ a combo idea.
 
 **Fair play:**
 - **Leavers and AFK:** a bot plays their kid until they reconnect; repeat leavers lose stars in Ranked and get queue
-  cooldowns; a team that was left behind loses less.
+  cooldowns; a team that was left behind loses less (in Ranked the players who stayed keep their star on a loss). The
+  bot that takes over plays like a medium bot, stays with the team and helps rescues; the player takes control back the
+  moment they reconnect.
 - **Ranked unlock:** account level 8 (about 15 matches) and at least 4 owned kids (the starters count).
 
 **After a match:** win or loss and the rounds, an MVP per team (scored from tags and assists, rescues and captures, and
