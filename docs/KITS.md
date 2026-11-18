@@ -34,6 +34,11 @@ A damage skill deals about one stone (15 to 25); an ultimate about two (35 to 50
 - **Blur** (Pukpok Palayok, Sili-Tubig) blurs the screen's edges and keeps the centre around the crosshair clear; the
   reduce-flashes setting softens it but never removes it.
 - **Neutrals:** damage skills hurt the dragon and baron; control and reveals do nothing to them.
+- **Walls** (Bahay-Bahayan, Tinik Wall) block both teams' movement and shots, like Valorant's Sage wall.
+- **Hidden traps** (Teks Tripwire, Sako Trap): 2 out per kid, lasting until the round ends (a 3rd removes the oldest);
+  enemies see one within 3 m or when revealed.
+- **Breaking traps and sentries:** one stone breaks a trap or sentry once it is seen; Karding's skills disarm them from
+  afar.
 - **Ally-only skills** stay ally-only: e.g. only teammates can vault off Paeng's Luksong Baka.
 
 ## Strikers — enter fights, burst, get out
@@ -52,7 +57,7 @@ A damage skill deals about one stone (15 to 25); an ultimate about two (35 to 50
 ## Defenders — hold the base, keep teammates alive
 | Kid | Skill | What it does | Feels like | Water / CD |
 |---|---|---|---|---|
-| **Jopay** (builder) | S1 **Bahay-Bahayan** | Appliance-box wall, 6 m wide, has HP, blocks shots and movement | Sage wall | 35 / 16 s |
+| **Jopay** (builder) | S1 **Bahay-Bahayan** | Appliance-box wall, 6 m wide, 80 HP (about 4 stones), lasts 8 s, blocks shots and movement | Sage wall | 35 / 16 s |
 | | S2 **Pabitin** | Hang a treat rack: allies under it heal over 4 s | Soraka / Sage heal area | 35 / 14 s |
 | | ULT **Palosebo** | A greased pole in your base for 8 s: enemies can't advance a capture, and slip (slowed) near it | Killjoy Lockdown (defensive) | — / 90 s |
 | **Oriang** (guardian) | S1 **Chinese Garter** | Tether an ally up to 12 m: 30% of the damage they take goes to Oriang; stretching it too far snaps it and speeds both | Taric / Karma link | 25 / 10 s |
@@ -60,7 +65,7 @@ A damage skill deals about one stone (15 to 25); an ultimate about two (35 to 50
 | | ULT **Langit!** (langit-lupa) | Allies in 8 m can't drop below 1 HP (can't be tagged) for 3 s; stuns still interrupt their rescues and captures | Kayle / Taric ULT | — / 100 s |
 | **Paeng** (frontline) | S1 **Sack Race** | Hop in a sack 3 s: 40% less damage; bumping an enemy knocks them back | Rammus Powerball | 30 / 12 s |
 | | S2 **Luksong Baka** | Crouch as the "baka" for 4 s: an ally who vaults off Paeng leaps 10 m (rescue runs, escapes) | Bard tunnel (team mobility) | 20 / 14 s |
-| | ULT **Tinik Wall** (luksong tinik) | A row of "tinik" hands across a path for 4 s blocks enemies; enemies on it when it rises are knocked up | Anivia wall, Trundle pillar | — / 85 s |
+| | ULT **Tinik Wall** (luksong tinik) | A row of "tinik" hands across a path for 4 s blocks both teams; enemies on it when it rises are knocked up | Anivia wall, Trundle pillar | — / 85 s |
 
 ## Seekers — find enemies and their traps
 | Kid | Skill | What it does | Feels like | Water / CD |
