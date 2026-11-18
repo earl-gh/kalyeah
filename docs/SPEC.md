@@ -8,15 +8,15 @@ the order of work. Where this file and an older doc disagree, this file wins and
 A free-to-play 5v5 team shooter-brawler on Android, themed on Filipino street games (*mga larong Pinoy sa kalye*), built as
 a full commercial game for the Play Store (the earlier game-dev competition entry is dropped, and its limits with it).
 
-- **Feel:** T3 Arena camera and pace, Valorant clarity and art, a Wild Rift / Mobile Legends shell (home, store, pass, ranked).
+- **Feel:** T3 Arena camera and pace, Valorant clarity and UI/world art (the kids keep the owner's models), a Wild Rift / Mobile Legends shell (home, store, pass, ranked).
 - **Fair:** every kid has 100 HP, the same speed and hitbox; kids differ **only by their 3 skills**. Money buys kids early,
   skins and the paid pass, never stats.
 
 ## 2. Platforms and devices
 - **Android first**, iOS after launch: game code stays platform-neutral (platform code behind small adapters).
 - **No device floor on purpose:** install on as many phones as the engine allows (Android 8.0, API 26, is Unity 6.3's
-  lowest and is already used; add `armeabi-v7a` next to `arm64-v8a` for older 32-bit phones); low / medium / high quality presets. Performance on old phones is improved after launch;
-  60 fps on a mid-range phone is the target, not a gate.
+  lowest and is already used; add `armeabi-v7a` next to `arm64-v8a` for older 32-bit phones); Low, Medium, High and Ultra presets (§10). Performance on old phones is
+  improved after launch; 60 fps on a mid-range phone is the target, not a gate.
 - **Size:** a Play Store base (AAB) under 200 MB; maps, skins and voices in Play Asset Delivery packs (no total cap).
 - **Permissions:** only what a shipped feature needs (voice chat needs the microphone; hotspot needs the current network set).
 
@@ -100,7 +100,7 @@ and, in Ranked, loses a star.
   - **Revenge:** when the enemy who tagged them is tagged, they reappear at their base **10 s later**.
 - **Rescue works like Valorant's defuse:**
   - one rescuer at a time; moving or attacking cancels it;
-  - one teammate per rescue, first tagged first freed, then a **15 s cooldown** before the area can rescue again;
+  - one teammate per rescue, first tagged first freed, then a **15 s cooldown** before that jail can be used for a rescue again;
   - a **checkpoint at the halfway line:** once the bar passed it, a cancelled rescue (by anyone on the team) restarts
     from the line, not from zero.
 - **In jail:** a tagged kid stands visibly in the jail, watches a teammate's view (switchable), and can ping and chat.
@@ -142,7 +142,7 @@ and, in Ranked, loses a star.
 
 - **Placement is different on every map** and chosen for that map's strategy (agents design it with each layout).
 - The dragon and baron spawn on **fixed timers each round** and respawn a set time after they are beaten; their buffs last
-  a set time and end with the round. 
+  a set time and end with the round.
 
 ## 7. Kids and combat
 - **12 kids in 4 roles:**
@@ -170,8 +170,7 @@ and, in Ranked, loses a star.
 - **Skill aiming (Wild Rift):** tap to quick-cast at the crosshair or nearest target; drag from the button to aim with a
   ground or line indicator; drag to the cancel zone to cancel.
 - **Hits:** slingshot headshots deal +50%. **Aim assist** (a setting) only slows the crosshair slightly over enemies; no
-  pull, no snapping, no auto-fire. **No friendly fire:** damage and
-  crowd control never touch allies.
+  pull, no snapping, no auto-fire. **No friendly fire:** damage and crowd control never touch allies.
 - **Healing:** slow regeneration after 5 s without taking damage; vendors and skills are the fast heals.
 - **Movement (CODM-like):** walk and run; **one jump button** does jump, running jump, vault (small obstacles) and climb
   (high obstacles) by context; **one crouch button** crouches when walking and slides when running (slide jump and back
@@ -314,9 +313,9 @@ skins and map decorations; an event mini-mode can come later.
 | Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling saved for a later kid |
 | Q2 | Stars per division, divisions per tier | 3 divisions × 4 stars |
 | Q3 | Exact kid and diamond-pack prices | Set with the store build (kid ≈ two weeks of play) |
-| Q5 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
-| Q6 | Rescue and capture times, vendor and objective numbers, Crocodile and Eagle timers | Rescue 6 s with the line at 3 s; capture 8 s; Crocodile at 1:00 (respawn 2:00), Eagle at 3:00 (respawn 3:00), buffs 90 s; role buffs +8% |
-| Q7 | Exact map geometry and neutral placement | Designed map by map, Barangay first, then blocked out and play-tested with bots |
+| Q4 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
+| Q5 | Rescue and capture times, vendor and objective numbers, Crocodile and Eagle timers | Rescue 6 s with the line at 3 s; capture 8 s; Crocodile at 1:00 (respawn 2:00), Eagle at 3:00 (respawn 3:00), buffs 90 s; role buffs +8% |
+| Q6 | Exact map geometry and neutral placement | Designed map by map, Barangay first, then blocked out and play-tested with bots |
 
 ## 12. Built today vs this spec
 The current build still has: 10 placeholder kids (not the 12), the old superpower loadout instead of 3 fixed skills, LP
