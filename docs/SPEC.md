@@ -286,7 +286,7 @@ and, in Ranked, loses a star.
   - top-left corner: a small minimap (tap for the full map) with the dragon and baron on their spots, each showing a
     countdown until it appears (or that it is up); the camera and ADS zone below it;
   - top centre: rounds won per team and each team's 5 kid portraits (greyed when tagged, with the jail count);
-  - right edge: a small feed of tags and rescues with the skill used (a rescue appears only once it completes); big centre banners only for team events (capture,
+  - right edge: a small feed of tags and rescues with the skill used (a rescue appears only once it completes); big centre banners only for team events (match point, capture,
     all tagged, dragon or baron taken, side swap);
   - bottom centre between the thumbs: your HP and water; the ammo count (of 7) on the slingshot button; overhead bars on
     every kid.
@@ -484,9 +484,15 @@ bloom on effects. Lower presets drop cost, never the art or the readability:
 **Audio:** OPM-flavoured electronic and hip-hop music with Filipino instruments (kulintang, bandurria, tambol) and street
 sounds: a menu theme, ambience per map, round-end stingers. **Positional sound is gameplay (Valorant level):** footsteps
 by surface (cement, soil, wood, tin), directional skill cues; crouch-walking is silent.
+- **Music in a match** only at key moments, so footsteps stay clear: a short track in the barrier phase and stingers at
+  round end, side swap and match point. Fights have ambience only.
+- **Map ambience:** distant people and radios (a far karaoke, a passing tricycle, a vendor calling "taho!") and animals
+  (roosters, aspin barks, seagulls at the pier, a carabao on the farm), quiet enough not to hide footsteps.
+- **Match point:** the announcer calls "Match point!" with a music sting, and both teams see a MATCH POINT banner in the
+  barrier phase.
 - **Audio settings:** separate volumes for music, effects, kid voices, announcer and voice chat, and a switch that mutes
   friend and rival banter but keeps skill callouts.
-- **Announcer voice:** calls tags, the score, victory and defeat. When a teammate starts a rescue, only their team's
+- **Announcer voice:** a Taglish barangay fiesta emcee with English text ("Na-tag na lahat! Panalo ang Uptown!"); calls tags, the score, victory and defeat. When a teammate starts a rescue, only their team's
   announcer says so (to cover the rescuer). The enemy never hears a rescue or capture in progress, and defenders get no
   warning that their base is being captured, so a flank to rescue or capture can stay secret.
 - **Cues both teams hear:** a short call when the Crocodile or Eagle appears; every ultimate has a voice line.
