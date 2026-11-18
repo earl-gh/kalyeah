@@ -66,6 +66,8 @@ and, in Ranked, loses a star.
   for friends; Hotspot for phones on one local network.
 - **Ranked:** Filipino-themed tiers (Kahoy, Bakal, Tanso, Pilak, Ginto, Brilyante, Batang Kalyeah) with divisions and a
   **star system like Mobile Legends** (win +1 star, loss −1 star, a full division promotes); seasonal resets with rewards.
+  - Each tier has 3 divisions; stars per division grow with the tier: Kahoy and Bakal 3, Tanso and Pilak 4, Ginto and
+    Brilyante 5. Batang Kalyeah has no divisions (stars keep counting).
   Replaces the LP system in the current code.
   - No placement matches: everyone starts at Kahoy; a hidden rating (MMR) still matches by skill.
   - Star protection: the losing team's MVP keeps the star; good play fills protection points that save a star when full;
@@ -98,13 +100,14 @@ and, in Ranked, loses a star.
   - **Rescue:** a teammate reaches the **enemy jail** (beside the enemy base) and frees them there, like the real street
     game; the freed kid reappears **at their own base**.
   - **Revenge:** when the enemy who tagged them is tagged, they reappear at their base **10 s later**.
-- **Rescue works like Valorant's defuse:**
+- **Rescue works like Valorant's defuse:** it takes **6 s**;
   - one rescuer at a time; moving or attacking cancels it;
   - one teammate per rescue, first tagged first freed, then a **15 s cooldown** before that jail can be used for a rescue again;
-  - a **checkpoint at the halfway line:** once the bar passed it, a cancelled rescue (by anyone on the team) restarts
+  - a **checkpoint at the halfway line (3 s):** once the bar passed it, a cancelled rescue (by anyone on the team) restarts
     from the line, not from zero.
 - **In jail:** a tagged kid stands visibly in the jail, watches a teammate's view (switchable), and can ping and chat.
-- **Capture:** standing in the enemy base fills a capture bar (more teammates inside fill it faster). A free defender
+- **Capture:** standing in the enemy base fills a capture bar in **8 s** for one kid; each extra teammate inside adds 50%
+  speed. A free defender
   standing in the base **pauses** it; stepping out keeps the progress but it **drains slowly**.
 - **Interrupts:** being tagged or stunned stops a rescue or a capture; a rescue keeps its checkpoint, a capture drains.
 
@@ -166,7 +169,8 @@ and, in Ranked, loses a star.
 - **Vision (Valorant):** you see enemies in your line of sight; the minimap shows only enemies a teammate sees or that
   are revealed. Seeker reveals show enemies to the whole team through walls.
 - **Slingshot shots** are fast visible stones with a slight arc and travel time (leading moving targets matters a little);
-  holding the button only adds range, never damage; ADS tightens accuracy. The server checks hits with lag compensation.
+  holding the button only adds range, never damage; ADS tightens accuracy. A stone deals **20** (body) or **30** (head):
+  5 body hits or 4 with a headshot tag a kid, so a full load of 7 leaves room for 2 misses. The server checks hits with lag compensation.
 - **Skill aiming (Wild Rift):** tap to quick-cast at the crosshair or nearest target; drag from the button to aim with a
   ground or line indicator; drag to the cancel zone to cancel.
 - **Hits:** slingshot headshots deal +50%. **Aim assist** (a setting) only slows the crosshair slightly over enemies; no
@@ -225,9 +229,11 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 ## 9. Progression and store
 - **New account:** after the tutorial the player **picks 4 starter kids, one per role**.
 - **Daily login:** a 7-day loop of small barya with a bigger day-7 reward; it also counts for the pass's login task.
+- **Getting kids:** buy with barya or diamonds; **trial cards** (from tasks and the pass) lend a kid for 1 to 3 days; the
+  paid pass's last level and some events give a kid. No free weekly rotation.
 - **Currencies:** **barya** (earned by playing, tasks and the pass) and **diamonds** (real money). Kids cost barya or
-  diamonds, and **every kid is earnable with barya** (a kid costs about two weeks of normal play, or a small
-  diamond pack); skins and the paid pass cost diamonds.
+  diamonds, and **every kid is earnable with barya** (a kid costs about two weeks of normal play, or diamonds worth about
+  ₱150); skins and the paid pass cost diamonds.
 - **Skins:** tiers Basic, Elite, Special, Epic, Legend; higher tiers change the model, effects and sounds, **never stats**.
   Sold in the store, given by the pass and events.
 - **Other cosmetics:** emotes, sprays (stickers painted on walls in a match), profile banners and borders (rank borders from
@@ -313,10 +319,9 @@ skins and map decorations; an event mini-mode can come later.
 | # | Question | Default |
 |---|---|---|
 | Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling saved for a later kid |
-| Q2 | Stars per division, divisions per tier | 3 divisions × 4 stars |
 | Q3 | Exact kid and diamond-pack prices | Set with the store build (kid ≈ two weeks of play) |
 | Q4 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
-| Q5 | Rescue and capture times, vendor and objective numbers, Crocodile and Eagle timers | Rescue 6 s with the line at 3 s; capture 8 s; Crocodile at 1:00 (respawn 2:00), Eagle at 3:00 (respawn 3:00), buffs 90 s; role buffs +8% |
+| Q5 | Vendor and objective numbers, Crocodile and Eagle timers | Crocodile at 1:00 (respawn 2:00), Eagle at 3:00 (respawn 3:00), buffs 90 s; role buffs +8% |
 | Q6 | Exact map geometry and neutral placement | Designed map by map, Barangay first, then blocked out and play-tested with bots |
 
 ## 12. Built today vs this spec
