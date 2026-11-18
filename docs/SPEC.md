@@ -61,13 +61,14 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
 - **Server-authoritative:** the server decides every hit and score; phones send inputs only (anti-cheat backbone).
 
 ## 5. Agawang Base rules
-- **Teams:** 5v5. Each team has a **base** (the post) and a **rescue area** at its end of the map.
+- **Teams:** 5v5. Each team has a **base** (the post) and, beside it, a **jail** where the kids it tags wait.
 - **A round ends** when a team **captures the enemy base** or **tags every enemy**. That team scores a round and every kid
   resets at its own base. **No round or match timer:** a round lasts as long as the fight does, and nothing escalates over
   time.
 - **Tagged, not killed:** at 0 HP a kid is tagged and waits in the enemy's jail. There is **no automatic release**. A
   tagged kid comes back only by:
-  - **Rescue:** a teammate frees them at the team's rescue area; the freed kid reappears **at their base**.
+  - **Rescue:** a teammate reaches the **enemy jail** (beside the enemy base) and frees them there, like the real street
+    game; the freed kid reappears **at their own base**.
   - **Revenge:** when the enemy who tagged them is tagged, they reappear at their base **10 s later**.
 - **Rescue works like Valorant's defuse:**
   - one rescuer at a time; moving or attacking cancels it;
@@ -79,7 +80,7 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
 ## 6. Maps: 4 at launch
 - **Valorant-sized, asymmetric, sides swap at half:** each map is built for different fights and outcomes, the two
   halves differ, and teams swap sides at the halfway round (Blitz after round 2, Quick after round 4, Standard after
-  round 6). Each map has its base, rescue area and jail **beside each base**.
+  round 6). Each base has its team's jail beside it; rescues happen at the enemy's jail.
 - **Map choice:** before kid select, players vote between **2 maps** drawn from the pool; private rooms let the host pick.
 - **One fixed time and weather per map**, bright and sunny like Valorant's Bind and Breeze, so visibility is fair.
 
