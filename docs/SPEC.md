@@ -38,14 +38,14 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 | **Quick** | First to 5 rounds | Quick Match queue, private rooms, Hotspot, vs AI |
 | **Standard** | First to 7 rounds | **Ranked** (the only ranked mode), private rooms |
 | Practice vs AI, Practice solo | Any mode's rules | Offline; bots at easy / medium / hard; training sandbox |
-| Explore Barangay | None | Offline; roam the map alone; one daily collectible coin; no mini-games |
+| Explore | None | Offline; roam any of the 4 maps alone, one daily collectible coin per map, try kids and skins freely; no mini-games |
 | Tumbang Preso, Patintero | Own rules | Side modes; hidden now, return before launch |
 
 **Bots** (Practice vs AI and leaver takeover) are role-aware: Strikers dive, Defenders guard and rescue, Seekers
 scout, Controllers zone; they use skills, vendors and objectives. Easy, medium and hard change aim and reaction time.
 
 **Online first (Mobile Legends way):** PLAY tries the server; if it cannot connect, a prompt offers offline play, which opens
-the offline hub (Hotspot, Practice vs AI, Practice solo, Explore Barangay). **Kids are picked after the queue** (Valorant
+the offline hub (Hotspot, Practice vs AI, Practice solo, Explore). **Kids are picked after the queue** (Valorant
 agent select): an owned kid within a time limit, no duplicates within a team, the other team may share.
 
 **Online:**
@@ -184,6 +184,13 @@ bloom on effects. Lower presets drop cost, never the art or the readability:
 - The first launch picks a preset from a short device check; players can change it.
 - **Readability is the same on every preset:** enemies wear a **Valorant-style highlight** (red, yellow or purple, a
   setting); allies stay plain; overhead HP bars and team-coloured effects.
+
+**Audio:** OPM-flavoured electronic and hip-hop music with Filipino instruments (kulintang, bandurria, tambol) and street
+sounds: a menu theme, ambience per map, round-end stingers. **Positional sound is gameplay (Valorant level):** footsteps
+by surface (cement, soil, wood, tin), directional skill cues; crouch-walking is silent.
+
+**Live events:** limited-time events on the Filipino calendar (Pasko, fiesta, Undas, summer) with themed tasks, event
+skins and map decorations; an event mini-mode can come later.
 
 ## 11. Open questions (agents use the default until the owner decides)
 | # | Question | Default |
