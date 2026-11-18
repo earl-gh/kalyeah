@@ -118,7 +118,9 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
   friends and party, settings.
 - **Only real content:** a screen, tab or button exists only when the game has the thing behind it; no filler
   components copied from other games.
-- **English only** for now.
+- **English only** for text; kid voice lines are short **Taglish** barks on skills, tags, rescues and wins.
+- **Settings at launch:** graphics presets and an FPS cap (30 / 60 / 90 / 120 where the phone allows), a control layout
+  editor (move and resize every HUD button, saved layouts), camera and ADS sensitivity, aim assist on or off.
 
 **First run:** choose an in-game name (IGN), then the age question, then a **tutorial** before the home screen. The
 tutorial uses the real barangay map with **barricades closing the other paths**, and teaches move, jump/vault, crouch/slide,
@@ -145,6 +147,12 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   - **Free tier:** barya at checkpoints, some levels with no reward; level 50 gives a basic skin.
   - **Paid tier:** small rewards on every level; level 50 gives a high-tier skin, plus that kid if not owned.
   - The paid tier uses a test unlock until Play Billing is added.
+
+## 9b. Launch and data
+- **Launch:** closed beta (Play testing track, invites), then a Philippines-only soft launch to tune servers and the
+  economy, then Southeast Asia.
+- **Data:** match stats on `Kalyeah.Server` for balance, plus a crash reporter. No ad tracking; a privacy policy and
+  kid-safe defaults.
 
 ## 10. Look
 Pure Valorant: flat, confident shapes, the Ink / Paper / Red palette, painted 3D kids and street. Inspired by, never copied
