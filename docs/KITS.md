@@ -28,6 +28,12 @@ A damage skill deals about one stone (15 to 25); an ultimate about two (35 to 50
 | Manoy Trumpo Bantay | Snapshot every 1 s within 8 m | Yes, hears the top spin |
 | Manoy Taya! | Snapshot of every enemy, after the count | Yes, everyone hears the count |
 
+**Shared skill rules (owner):**
+- **Hard stops** (stun, knock-up, knock-down, turned into a can) block moving, shooting and skills; a **root** blocks only
+  moving.
+- **Neutrals:** damage skills hurt the dragon and baron; control and reveals do nothing to them.
+- **Ally-only skills** stay ally-only: e.g. only teammates can vault off Paeng's Luksong Baka.
+
 ## Strikers — enter fights, burst, get out
 | Kid | Skill | What it does | Feels like | Water / CD |
 |---|---|---|---|---|

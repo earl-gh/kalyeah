@@ -236,6 +236,8 @@ and, in Ranked, loses a star.
   ground or line indicator; drag to the cancel zone to cancel.
 - **Hits:** slingshot headshots deal +50%. **Aim assist** (a setting) only slows the crosshair slightly over enemies; no
   pull, no snapping, no auto-fire. **No friendly fire:** damage and crowd control never touch allies.
+- **Tag credit:** the last hit tags; anyone who damaged, slowed, stunned or revealed that kid in the last 10 s gets an
+  assist (both count for MVP). Revenge release follows the kid who landed the last hit.
 - **Chained control:** after a hard stop (stun, root, knock-up, knock-down, turned into a can) a kid can't be
   hard-stopped again for 1 s; slows still apply.
 - **Healing:** **5 HP a second** once a kid has gone 5 s without taking damage, attacking or being under crowd control; vendors and skills are the fast heals.
