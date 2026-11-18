@@ -22,7 +22,9 @@ Short Taglish barks like real kids at play ("Taya ka!", "Bagal mo naman!"); neve
 When friends or rivals are in the same match they talk to each other at the start and on tags and rescues.
 
 ## Story in the game (owner picks)
-- **Codex** chapters per kid, unlocked with mastery, narrated by the Kuya/Ate neighbour.
+- **Codex** chapters per kid, unlocked with mastery, narrated by **Ate Lorna**, who runs the sari-sari store on the
+  Barangay map; every kid buys snacks from her, so she knows them all. Warm, teasing, a little strict. She also guides
+  the tutorial.
 - **Friend and rival lines** in matches (above).
 
 ## Kids

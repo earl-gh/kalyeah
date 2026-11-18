@@ -270,7 +270,8 @@ and, in Ranked, loses a star.
 **First run:** choose an in-game name (IGN), then the age question, then a **tutorial** before the home screen. The
 tutorial uses the real barangay map with **barricades closing the other paths**, and teaches move, jump/vault, crouch/slide,
 the slingshot and reload, skills, tag, rescue and capture. Each step lends a kid of a different role, so the player tries
-all 4 roles before picking starters. A friendly older neighbour (*Kuya/Ate*, not playable) guides it in Taglish voice with
+all 4 roles before picking starters. A friendly older neighbour, **Ate Lorna** (the sari-sari store owner every kid buys snacks from; warm, teasing, a little
+strict; not playable), guides it in Taglish voice with
 English text and later narrates the codex. The tutorial can be replayed from Settings.
 
 **Tutorial steps** (about 6 to 8 minutes, like Valorant's basic training):
@@ -332,7 +333,8 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   on each pack's first buy, plus a ₱50 weekly diamond card; no limited-time pressure offers in kid mode.
 - **Bundles:** a once-per-account starter bundle (a kid, an Elite skin and diamonds at a very low price); kid + launch
   skin bundles at a discount; a season set (all the season's skins with a spray and a border, cheaper than one by one).
-- **Skin themes:** season 1 is **summer fiesta** (banderitas, parade costumes, higante masks, sorbetes colours), matching
+- **No free starter skins:** kids start in their default look.
+- **Skin themes:** season 1 is **summer fiesta** (headlined by Narda: the pass's level-50 skin is a fiesta parade costume) (banderitas, parade costumes, higante masks, sorbetes colours), matching
   the lore's summer showdowns. Lines that return: **Filipino holidays** (Pasko, Undas, fiesta, summer, yearly with the
   events) and **dream jobs** (what each kid wants to be, tied to their lore).
 - **Store tabs:** Featured (the season's skins and bundles), Kids, Skins, Daily (3 items you don't own at a small discount, never kids, plus one free small gift; resets at midnight PH time), Diamonds; every item
