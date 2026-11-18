@@ -315,7 +315,11 @@ and, in Ranked, loses a star.
   editor (move and resize every HUD button, saved layouts), camera and ADS sensitivity, aim assist on or off, crosshair
   style and colour, vibration on hits and tags, and a ping and FPS counter.
 
-**First run:** choose an in-game name (IGN), then the age question, then a **tutorial** before the home screen. The
+**First run:** a one-tap terms and privacy notice (the graphics device check runs quietly meanwhile), the age question,
+guest or Google sign-in (guest first and biggest), an in-game name (IGN), then a **tutorial** before the home screen.
+**Returning players** go straight to home: the login reward is a small card there, and after an update one "what's new"
+card shows; no launch popups. **While queueing** the player can walk their kid around home and browse the collection or
+store, with the queue timer and an estimated wait on top. The
 tutorial uses the real barangay map with **barricades closing the other paths**, and teaches move, jump/vault, crouch/slide,
 the slingshot and reload, skills, tag, rescue and capture. Each step lends a kid of a different role, so the player tries
 all 4 roles before picking starters. A friendly older neighbour, **Ate Lorna** (the sari-sari store owner every kid buys snacks from; warm, teasing, a little
