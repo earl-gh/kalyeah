@@ -156,6 +156,14 @@ and, in Ranked, loses a star.
   - right bottom: Wild Rift cluster (big slingshot button, 3 skills around it), with **reload** where Wild Rift puts the
     summoner spells (Flash, Heal);
   - right top: jump and crouch/slide.
+- **HUD read-outs:**
+  - top-left corner: a small minimap (tap for the full map), with the camera and ADS zone below it;
+  - top centre: rounds won per team, each team's 5 kid portraits (greyed when tagged, with the jail count), and the
+    dragon and baron timers;
+  - right edge: a small feed of tags and rescues with the skill used; big centre banners only for team events (capture,
+    all tagged, dragon or baron taken, side swap);
+  - bottom centre between the thumbs: your HP and water; the ammo count (of 7) on the slingshot button; overhead bars on
+    every kid.
 - **Screens at launch** (familiar from Mobile Legends, Wild Rift, CODM and Valorant): home (one PLAY, online first), kid
   select after queue, kids and skins collection, store, battle pass and tasks, profile with rank and match history,
   friends and party, settings.
