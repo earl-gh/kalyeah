@@ -95,7 +95,8 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
   jokes, slurs or exaggerated features; every kid gets the same animation quality.
 - **Basic attack for all:** the slingshot (*Tirador*), 7 shots and a reload button; holding the attack button aims farther,
   up to a maximum range.
-- **3 fixed skills per kid**, each a reimagined Filipino street game (bato bato pik, tumbang preso, jackstone, trumpo,
+- **3 fixed skills per kid: S1, S2 and an ultimate**, all on cooldowns; S1 and S2 also cost **water** (Kalyeah's mana).
+  The approved kits are in `docs/KITS.md`. Each skill is a reimagined Filipino street game (bato bato pik, tumbang preso, jackstone, trumpo,
   langit lupa, holens, sili tubig, sipa, luksong baka / tinik / lubid, saranggola, kariling, teks at pogs, piko,
   tagu-taguan, bahay-bahayan, syato, yoyo, palosebo, pukpok palayok, sack race, pabitin, chinese garter, sungka, tiyakad).
 - **Movement (CODM-like):** walk and run; **one jump button** does jump, running jump, vault (small obstacles) and climb
@@ -135,7 +136,7 @@ kind is needed (3D model, sprite sheet or 2D image).
 ## 11. Open questions (agents use the default until the owner decides)
 | # | Question | Default |
 |---|---|---|
-| Q1 | The 36 skills (3 × 12 kids) and their numbers | Draft in `docs/GDD.md`, owner to approve |
+| Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling unused until the owner explains it |
 | Q2 | Stars per division, divisions per tier, season length | 3 divisions × 4 stars; 8-week seasons |
 | Q3 | Kid prices (barya / diamonds) and pass price | Set with the store build |
 | Q4 | Which kid each new account gets per role | Narda, Jopay, Kikay, Tere |
