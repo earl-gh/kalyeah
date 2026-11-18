@@ -74,6 +74,10 @@ and, in Ranked, loses a star.
 - **A round ends** when a team **captures the enemy base** or **tags every enemy**. That team scores a round and every kid
   resets at its own base. **No round or match timer:** a round lasts as long as the fight does, and nothing escalates over
   time.
+- **Round flow:** each round starts with a **5 s barrier phase** at base (look, plan, ping), then the barrier drops. Water,
+  S1 and S2 are full each round; **ultimate cooldowns carry over** between rounds (they reset only at the side swap).
+  The dragon and baron timers restart every round. After the final round, a 6 s victory scene shows the winners posing
+  (skins, emotes) with the MVP in front, then the results screen.
 - **Tagged, not killed:** at 0 HP a kid is tagged and waits in the enemy's jail. There is **no automatic release**. A
   tagged kid comes back only by:
   - **Rescue:** a teammate reaches the **enemy jail** (beside the enemy base) and frees them there, like the real street
