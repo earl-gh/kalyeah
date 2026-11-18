@@ -118,10 +118,21 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
   components copied from other games.
 - **English only** for now.
 
+**First run:** choose an in-game name (IGN), then the age question, then a **tutorial** before the home screen. The
+tutorial uses the real barangay map with **barricades closing the other paths**, and teaches move, jump/vault, crouch/slide,
+the slingshot and reload, skills, tag, rescue and capture.
+
+**Fair play:**
+- **Leavers and AFK:** a bot plays their kid until they reconnect; repeat leavers lose stars in Ranked and get queue
+  cooldowns; a team that was left behind loses less.
+- **Ranked unlock:** account level 8 (about 15 matches) and at least 4 owned kids (the starters count).
+
 ## 9. Progression and store
 - **New account:** 4 starter kids, one per role.
 - **Currencies:** **barya** (earned by playing, tasks and the pass) and **diamonds** (real money). Kids cost barya or
   diamonds, and **every kid is earnable with barya**; skins and the paid pass cost diamonds.
+- **Skins:** tiers Basic, Elite, Special, Epic, Legend; higher tiers change the model, effects and sounds, **never stats**.
+  Sold in the store, given by the pass and events.
 - **Battle pass, 50 levels**, filled by fixed daily and weekly tasks (play 3 games, log in, share to Facebook, …; the share
   counts when the share sheet completes). Task rewards are kept small so 50 takes the season.
   - **Free tier:** barya at checkpoints, some levels with no reward; level 50 gives a basic skin.
