@@ -140,6 +140,8 @@ and, in Ranked, loses a star.
   - one teammate per rescue, first tagged first freed, then a **15 s cooldown** before that jail can be used for a rescue again;
   - a **checkpoint at the halfway line (3 s):** once the bar passed it, a cancelled rescue (by anyone on the team) restarts
     from the line, not from zero.
+- **Skills and jail:** a tagged kid's cooldowns keep counting in jail, and their walls, traps and sentries stay until
+  they run out.
 - **In jail:** a tagged kid stands visibly in the jail, watches a teammate's view (switchable), and can ping and chat. Tapping a free teammate's portrait **cheers** them (they
   hear your kid's voice line). The tagged kid's team always sees a marker on the enemy jail with how many are inside.
 - **Last free kid:** no help or penalty; a lone kid can still win the round by capturing or rescuing (a clutch).
