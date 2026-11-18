@@ -87,7 +87,8 @@ and, in Ranked, loses a star.
   Play Integrity check (rooted or modded phones can still play casual modes).
 - **Bad connections:** ping and packet loss on the HUD; a dropped player can reconnect within 3 minutes while a bot plays
   their kid; the queue prefers players under 120 ms.
-- **Long queues:** Quick Match and Ranked keep searching for real players and never start with bots.
+- **Long queues:** Quick Match and Ranked keep searching for real players and never start with bots, except in a new
+  account's first 10 matches (below).
 - **Spectating and replays:** not at launch.
 - **Server-authoritative:** the server decides every hit and score; phones send inputs only (anti-cheat backbone).
 
@@ -242,7 +243,8 @@ English text and later narrates the codex. The tutorial can be replayed from Set
 screen. A 7-day **new-player task list** (a match of each mode, rescue 3 teammates, try every role) pays barya and a
 trial card.
 
-**Easing into online play:** for the first 10 matches Quick Match puts new accounts together (bots fill if needed);
+**Easing into online play:** for the first 10 matches Quick Match puts new accounts together; every 90 s of waiting it offers to start now with bots,
+showing how many slots bots would fill (the player can keep waiting);
 loading screens show a tip about the map and your kid; the first 3 times you play a kid, a card shows its 3 skills and
 a combo idea.
 
@@ -255,6 +257,8 @@ a combo idea.
 support work that led to a tag: heals, shields, reveals, slows and roots; raw damage does not count, so every role can
 be MVP), each kid's tags, rescues, captures and damage, stars
 gained or lost, pass XP and barya earned, and honor and report buttons.
+- **Honor:** one honor per match for any player (teammate or rival); being honored raises your credit score a little,
+  and your honor level shows on your profile and in kid select.
 
 ## 9. Progression and store
 - **New account:** after the tutorial the player **picks 4 starter kids, one per role**.
@@ -262,7 +266,7 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 - **Getting kids:** buy with barya or diamonds; **trial cards** (from tasks and the pass) lend a kid for 1 to 3 days; the
   paid pass's last level and some events give a kid. No free weekly rotation.
 - **Currencies:** **barya** (earned by playing, tasks and the pass) and **diamonds** (real money). Kids cost barya or
-  diamonds, and **every kid is earnable with barya** (a kid costs about two weeks of normal play, or diamonds worth about
+  diamonds, and **every kid is earnable with barya** (a kid costs 6,000 barya, about two weeks of normal play, or diamonds worth about
   ₱150); skins and the paid pass cost diamonds.
 - **Skins:** tiers Basic, Elite, Special, Epic, Legend; higher tiers change the model, effects and sounds, **never stats**.
   Sold in the store, given by the pass and events.
@@ -271,8 +275,8 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 - **Kid mastery:** each kid gains mastery XP; levels give a badge, a mastery emote and a title, never power.
 - **Seasons: 8 weeks.** Each brings a new 50-level pass, a soft rank reset (down a few divisions) and end-of-season
   rewards by rank (a border and barya).
-- **Barya from matches:** every match pays (more for a win, a little more for longer modes) plus a first-win-of-the-day
-  bonus, under a weekly cap that keeps the ~2-weeks-per-kid pace.
+- **Barya from matches** (loss / win): Blitz 60 / 100, Quick 90 / 150, Standard 120 / 200, plus 300 for the first win of
+  the day, capped at 3,000 a week, so a 6,000-barya kid takes about two weeks.
 - **Offline rewards:** vs AI gives a little barya and pass XP (capped daily); Hotspot and Explore rewards sync to the
   account when online. Offline results can't be verified by the server, so their caps stay small.
 - **Account level:** earned by playing; unlocks Ranked (level 8), sprays and emote slots, with a little barya per level;
@@ -291,7 +295,7 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   counts when the share sheet completes). Task rewards are kept small so 50 takes the season.
   - **Free tier:** barya at checkpoints, some levels with no reward; level 50 gives a basic skin.
   - **Paid tier:** small rewards on every level; level 50 gives a high-tier skin, plus that kid if not owned.
-  - The paid tier costs about ₱250 a season, with a premium-plus tier (+10 levels and an extra skin) near ₱500; it uses a
+  - Paid in diamonds: the paid tier costs about ₱250 of diamonds a season, with a premium-plus tier (+10 levels and an extra skin) near ₱500; it uses a
     test unlock until Play Billing is added.
 
 ## 9b. Launch and data
