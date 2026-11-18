@@ -28,6 +28,13 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
     (Google Family Link), following Google Play's Families policy.
   - **13 and up:** every feature.
 - **Social:** quick chat, emotes, pings, text chat with a profanity filter, voice chat, report and mute.
+  - **Text chat:** team chat by default; all-chat (both teams) is opt-in; the profanity filter is always on under 18 and on
+    by default for adults.
+  - **Voice:** team only, mic off until the player turns it on; party voice in the lobby; never in kid mode.
+  - **Reports** (cheating, AFK, abuse): repeated reports trigger automatic mutes and AFK penalties; serious cases go to a
+    review queue on the server for the owner.
+  - **Credit score:** starts at 100; leaving, AFK and confirmed abuse lower it, good matches raise it; below thresholds a
+    player loses Ranked, then text and voice chat.
 - **Friends and party:** parties of 1 to 5 for Quick Match and private rooms; Ranked allows 1, 2, 3 or 5 (no 4-stacks),
   within a rank range. No clans at launch (a *barkada* system may follow).
 
