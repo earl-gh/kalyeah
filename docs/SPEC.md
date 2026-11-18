@@ -8,15 +8,15 @@ the order of work. Where this file and an older doc disagree, this file wins and
 A free-to-play 5v5 team shooter-brawler on Android, themed on Filipino street games (*mga larong Pinoy sa kalye*), built as
 a full commercial game for the Play Store (the earlier game-dev competition entry is dropped, and its limits with it).
 
-- **Feel:** T3 Arena camera and pace, Valorant clarity and art, a Wild Rift / Mobile Legends shell (home, store, pass, ranked).
+- **Feel:** T3 Arena camera and pace, Valorant clarity and UI/world art (the kids keep the owner's models), a Wild Rift / Mobile Legends shell (home, store, pass, ranked).
 - **Fair:** every kid has 100 HP, the same speed and hitbox; kids differ **only by their 3 skills**. Money buys kids early,
   skins and the paid pass, never stats.
 
 ## 2. Platforms and devices
 - **Android first**, iOS after launch: game code stays platform-neutral (platform code behind small adapters).
 - **No device floor on purpose:** install on as many phones as the engine allows (Android 8.0, API 26, is Unity 6.3's
-  lowest and is already used; add `armeabi-v7a` next to `arm64-v8a` for older 32-bit phones); low / medium / high quality presets. Performance on old phones is improved after launch;
-  60 fps on a mid-range phone is the target, not a gate.
+  lowest and is already used; add `armeabi-v7a` next to `arm64-v8a` for older 32-bit phones); Low, Medium, High and Ultra presets (§10). Performance on old phones is
+  improved after launch; 60 fps on a mid-range phone is the target, not a gate.
 - **Size:** a Play Store base (AAB) under 200 MB; maps, skins and voices in Play Asset Delivery packs (no total cap).
 - **Permissions:** only what a shipped feature needs (voice chat needs the microphone; hotspot needs the current network set).
 
@@ -27,7 +27,18 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
   - **Under 13 (kid mode):** guest or Google family account, quick chat, emotes and pings only, purchases need parent approval
     (Google Family Link), following Google Play's Families policy.
   - **13 and up:** every feature.
+- **Data rights:** Settings has **Delete account** (7-day grace, then wiped) and **Download my data**; parents can ask
+  to delete a kid's account.
 - **Social:** quick chat, emotes, pings, text chat with a profanity filter, voice chat, report and mute.
+  - **Text chat:** team chat by default; all-chat (both teams) is opt-in; the profanity filter is always on under 18 and on
+    by default for adults.
+  - **Voice:** team only, mic off until the player turns it on; party voice in the lobby; never in kid mode.
+  - **Reports** (cheating, AFK, abuse): repeated reports trigger automatic mutes and AFK penalties; serious cases go to a
+    review queue on the server for the owner.
+  - **Credit score:** starts at 100; leaving, AFK and confirmed abuse lower it, good matches raise it; below thresholds a
+    player loses Ranked, then text and voice chat.
+- **Friends and party:** parties of 1 to 5 for Quick Match and private rooms; Ranked allows 1, 2, 3 or 5 (no 4-stacks),
+  within a rank range. No clans at launch (a *barkada* system may follow).
 
 ## 4. Modes
 | Mode | Win | Where |
@@ -35,13 +46,20 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 | **Blitz** | First to 3 rounds | Quick Match queue, private rooms, Hotspot, vs AI |
 | **Quick** | First to 5 rounds | Quick Match queue, private rooms, Hotspot, vs AI |
 | **Standard** | First to 7 rounds | **Ranked** (the only ranked mode), private rooms |
-| Practice vs AI, Practice solo | Any mode's rules | Offline; bots at easy / medium / hard; training sandbox |
-| Explore Barangay | None | Offline; roam the map alone; one daily collectible coin; no mini-games |
+| Practice vs AI, Practice solo | Any mode's rules | Offline; bots at easy / medium / hard; Practice solo is a training range with dummies, distance markers and a no-cooldown toggle |
+| Explore | None | Offline; roam any of the 4 maps alone: one daily coin per map, try any kid and skin, map callouts and routes shown, photo mode; no mini-games |
 | Tumbang Preso, Patintero | Own rules | Side modes; hidden now, return before launch |
 
+**Bots** (Practice vs AI and leaver takeover) are role-aware: Strikers dive, Defenders guard and rescue, Seekers
+scout, Controllers zone; they use skills, vendors and objectives. Easy, medium and hard change aim and reaction time.
+
 **Online first (Mobile Legends way):** PLAY tries the server; if it cannot connect, a prompt offers offline play, which opens
-the offline hub (Hotspot, Practice vs AI, Practice solo, Explore Barangay). **Kids are picked after the queue** (Valorant
-agent select): an owned kid within a time limit, no duplicates within a team, the other team may share.
+the offline hub (Hotspot, Practice vs AI, Practice solo, Explore). **Kids are picked after the queue** (Valorant
+agent select): 30 s, everyone at once; hovering shows teammates your choice and LOCK confirms; an unlocked player gets a
+random owned kid of a missing role at 0 s. No duplicates within a team (the other team may share). Any role mix is
+allowed, with a warning when a role is missing. After locking: skin, slingshot skin, spray and emote wheel. A player who
+leaves during select cancels the match (the others go back to the front of the queue); the dodger gets a queue cooldown
+and, in Ranked, loses a star.
 
 **Online:**
 - **Quick Match** (Blitz or Quick, unranked) and **Ranked** (Standard) fill 5v5 by skill rating; private rooms (code) stay
@@ -49,41 +67,82 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
 - **Ranked:** Filipino-themed tiers (Kahoy, Bakal, Tanso, Pilak, Ginto, Brilyante, Batang Kalyeah) with divisions and a
   **star system like Mobile Legends** (win +1 star, loss −1 star, a full division promotes); seasonal resets with rewards.
   Replaces the LP system in the current code.
+  - No placement matches: everyone starts at Kahoy; a hidden rating (MMR) still matches by skill.
+  - Star protection: the losing team's MVP keeps the star; good play fills protection points that save a star when full;
+    no demotion below a newly reached tier for a few games.
+  - Top tier: stars keep counting with no divisions, a Philippine leaderboard and top-100 titles.
+  - Ranked parties must be within one tier of each other.
 - **Servers:** `Kalyeah.Server` (Docker) on cloud VMs in a Singapore region first; one account and match database.
+- **Private rooms:** the host picks the mode and map, fills empty slots with bots at a chosen level, can set custom rules
+  (neutrals on or off, rescue time, duplicate kids allowed) and allow up to 2 spectators.
+- **Hotspot:** one phone hosts up to 10 phones over its hotspot or the same Wi-Fi; bots fill empty slots; the host needs
+  a mid-range or better phone.
+- **Anti-cheat:** besides the server deciding hits, it validates movement speed and fire rate; Ranked requires a passing
+  Play Integrity check (rooted or modded phones can still play casual modes).
+- **Bad connections:** ping and packet loss on the HUD; a dropped player can reconnect within 3 minutes while a bot plays
+  their kid; the queue prefers players under 120 ms.
+- **Spectating and replays:** not at launch.
 - **Server-authoritative:** the server decides every hit and score; phones send inputs only (anti-cheat backbone).
 
 ## 5. Agawang Base rules
-- **Teams:** 5v5. Each team has a **base** (the post) and a **rescue area** at its end of the map.
+- **Teams:** 5v5. Each team has a **base** (the post) and, beside it, a **jail** where the kids it tags wait.
 - **A round ends** when a team **captures the enemy base** or **tags every enemy**. That team scores a round and every kid
   resets at its own base. **No round or match timer:** a round lasts as long as the fight does, and nothing escalates over
   time.
+- **Round flow:** each round starts with a **5 s barrier phase** at base (look, plan, ping), then the barrier drops. Water,
+  S1 and S2 are full each round; **ultimate cooldowns carry over** between rounds (they reset only at the side swap).
+  The dragon and baron timers restart every round. After the final round, a 6 s victory scene shows the winners posing
+  (skins, emotes) with the MVP in front, then the results screen.
 - **Tagged, not killed:** at 0 HP a kid is tagged and waits in the enemy's jail. There is **no automatic release**. A
   tagged kid comes back only by:
-  - **Rescue:** a teammate frees them at the team's rescue area; the freed kid reappears **at their base**.
+  - **Rescue:** a teammate reaches the **enemy jail** (beside the enemy base) and frees them there, like the real street
+    game; the freed kid reappears **at their own base**.
   - **Revenge:** when the enemy who tagged them is tagged, they reappear at their base **10 s later**.
 - **Rescue works like Valorant's defuse:**
   - one rescuer at a time; moving or attacking cancels it;
-  - one teammate per rescue, first tagged first freed, then a **15 s cooldown** before the area can rescue again;
+  - one teammate per rescue, first tagged first freed, then a **15 s cooldown** before that jail can be used for a rescue again;
   - a **checkpoint at the halfway line:** once the bar passed it, a cancelled rescue (by anyone on the team) restarts
     from the line, not from zero.
-- **Capture:** standing in the enemy base without being interrupted captures it (time in data).
+- **In jail:** a tagged kid stands visibly in the jail, watches a teammate's view (switchable), and can ping and chat.
+- **Capture:** standing in the enemy base fills a capture bar (more teammates inside fill it faster). A free defender
+  standing in the base **pauses** it; stepping out keeps the progress but it **drains slowly**.
+- **Interrupts:** being tagged or stunned stops a rescue or a capture; a rescue keeps its checkpoint, a capture drains.
 
-## 6. Map: one circular barangay
-- A circular barangay with a **main path** between the bases, **narrow side streets** (the jungle) and a **middle**.
-- **The two ends are cemented** (each team's side of town); toward the centre the ground fades to **soil and a provincial
-  river**: the poorest part of the barangay, riverside homes of scrap wood and tin, shown with dignity and warmth (people
-  live there; it is never played as a joke).
-- **Neutral vendors and creatures** (stats are data):
+## 6. Maps: 4 at launch
+- **Valorant-sized, asymmetric, sides swap at half:** each map is built for different fights and outcomes, the two
+  halves differ, and teams swap sides at the halfway round (Blitz after round 2, Quick after round 4, Standard after
+  round 6). Each base has its team's jail beside it; rescues happen at the enemy's jail.
+- **Map choice:** before kid select, players vote between **2 maps** drawn from the pool; private rooms let the host pick.
+- **One fixed time and weather per map**, bright and sunny like Valorant's Bind and Breeze, so visibility is fair.
 
-| What | Where | Like | Gives |
+| Map | Halves (asymmetric) | Routes (3 each) | Plays like |
 |---|---|---|---|
-| Taho vendor, fishball vendor | Fixed spots in the narrow streets | Wild Rift honeyfruit | Food heals but slows the eater briefly |
-| Selecta ice-cream bike | Rides a set loop through the narrow streets | Scuttle crab | Small instant heal and a speed boost |
-| **Crocodile** | The river | Dragon | The whole team gets a slight damage increase |
-| **Philippine Eagle** | The middle | Baron / Lord | The whole team, by role: Strikers slightly more damage, Defenders take slightly less damage, Seekers slightly faster, Controllers slightly shorter cooldowns |
+| **Barangay** | **Uptown:** cemented side with the barangay hall, plaza and basketball court (open, long lines). **Riverside:** market and chapel side, tight streets, a sari-sari row (close range). The centre fades to soil and a provincial river with homes of scrap wood and tin, shown with dignity and warmth (people live there; never a joke) | Main path over the river bridge; left alley through the riverside homes; right route along the creek bank; side connectors | Balanced: a contested river centre, flanks through the alleys |
+| **Palengke** | **Wet section:** fish and meat stalls, slippery floors, tight aisles. **Dry section:** dry goods and ukay-ukay racks (soft cover) | Main aisle; loading-bay road; rooftop catwalk (climb) | Close range, ambushes, tight corners |
+| **Pier** | **Cargo yard:** stacked containers and a crane (long lanes, high ground). **Ferry terminal:** fishing boats, piers over water, waiting shed | Dock road; container maze; boardwalk over the water | Long sightlines; sharpshooters and seekers shine |
+| **Hacienda** | **Rice terraces:** paddies, dikes, a nipa hut (open, low cover; water slows). **Sugarcane mill:** tall cane that hides kids, an old mill and a bahay na bato | Dirt road; paddy dikes; through the cane | Open fields with tall cover; flanks through the cane |
 
-- The Crocodile and the Eagle spawn on **fixed timers each round** and respawn a set time after they are beaten; their
-  buffs last a set time and end with the round.
+- **Terrain (light, data-driven):** river and paddy water slow by 15% and make footsteps loud; wet market floors make
+  slides longer. Water is wade-able only; deep water (the Pier sea) is a wall, and falling in puts you back on the dock
+  with a small HP loss.
+- **Hiding:** inside tall cover (cane, laundry lines) a kid is invisible beyond 6 m until they attack or are revealed.
+- **Side swap at half:** teams trade halves, rounds won stay, water and ultimate cooldowns reset, a 10 s swap screen
+  shows the score.
+- **Height:** some climbable spots per map (low roofs, water tanks, jeepney and container tops) give a few high-ground
+  angles with clear counters; not every roof.
+
+- **Neutrals on every map, themed to the place** (same roles, stats in data; positions shape each map's strategy):
+
+| Role | Like | Gives | Barangay | Palengke | Pier | Hacienda |
+|---|---|---|---|---|---|---|
+| 2 healing vendors (fixed) | Wild Rift honeyfruit | Food heals but slows the eater briefly | Taho, fishball | Buko juice, banana cue | Balut, inihaw | Halo-halo, kakanin |
+| Roaming buff | Scuttle crab | Small instant heal and a speed boost | Selecta ice-cream bike | Escaped lechon pig | Seagull flock | Native chicken |
+| Dragon | Dragon | The whole team gets a slight damage increase | Crocodile (river) | Giant bangus (fish tank) | Pawikan sea turtle | Carabao |
+| Baron | Baron / Lord | By role: Strikers more damage, Defenders take less damage, Seekers faster, Controllers shorter cooldowns (all slight) | Philippine Eagle | Boss Aspin (giant street dog) | Butanding whale shark | Tamaraw |
+
+- **Placement is different on every map** and chosen for that map's strategy (agents design it with each layout).
+- The dragon and baron spawn on **fixed timers each round** and respawn a set time after they are beaten; their buffs last
+  a set time and end with the round.
 
 ## 7. Kids and combat
 - **12 kids in 4 roles:**
@@ -93,15 +152,35 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
   - Controllers (crowd control and traps): Tere, Pamela, Domeng
 - Every kid is written with respect: identity shows through the clothes and style a kid would choose, never through
   jokes, slurs or exaggerated features; every kid gets the same animation quality.
+- **Heavy lore:** grounded **barangay rivalry**: kids aged **8 to 12** from rival puroks and barangays settle disputes
+  through street-game showdowns every summer; the skills are their imagination made real on screen. Every kid has a deep
+  backstory (family, barangay, friends, rivals) shown in a **codex per kid** (chapters unlock with mastery) and in
+  **in-match voice banter** between allies and rivals. Agents draft the text in docs, keeping the respect rule; the owner
+  edits and approves.
 - **Basic attack for all:** the slingshot (*Tirador*), 7 shots and a reload button; holding the attack button aims farther,
   up to a maximum range.
-- **3 fixed skills per kid**, each a reimagined Filipino street game (bato bato pik, tumbang preso, jackstone, trumpo,
+- **3 fixed skills per kid: S1, S2 and an ultimate**, all on cooldowns; S1 and S2 also cost **water** (Kalyeah's mana).
+  The approved kits are in `docs/KITS.md`. Each skill is a reimagined Filipino street game (bato bato pik, tumbang preso, jackstone, trumpo,
   langit lupa, holens, sili tubig, sipa, luksong baka / tinik / lubid, saranggola, kariling, teks at pogs, piko,
   tagu-taguan, bahay-bahayan, syato, yoyo, palosebo, pukpok palayok, sack race, pabitin, chinese garter, sungka, tiyakad).
+- **Vision (Valorant):** you see enemies in your line of sight; the minimap shows only enemies a teammate sees or that
+  are revealed. Seeker reveals show enemies to the whole team through walls.
+- **Slingshot shots** are fast visible stones with a slight arc and travel time (leading moving targets matters a little);
+  holding the button only adds range, never damage; ADS tightens accuracy. The server checks hits with lag compensation.
+- **Skill aiming (Wild Rift):** tap to quick-cast at the crosshair or nearest target; drag from the button to aim with a
+  ground or line indicator; drag to the cancel zone to cancel.
+- **Hits:** slingshot headshots deal +50%. **Aim assist** (a setting) only slows the crosshair slightly over enemies; no
+  pull, no snapping, no auto-fire. **No friendly fire:** damage and crowd control never touch allies.
+- **Healing:** slow regeneration after 5 s without taking damage; vendors and skills are the fast heals.
 - **Movement (CODM-like):** walk and run; **one jump button** does jump, running jump, vault (small obstacles) and climb
   (high obstacles) by context; **one crouch button** crouches when walking and slides when running (slide jump and back
   slide included).
-- **Camera:** T3 Arena style third person; **aim down sight** zooms in, some attacks zoom out.
+- **Camera:** T3 Arena style over the shoulder at mid distance (the kid on the left third, about 4 m behind), a shoulder
+  swap button for corners; **aim down sight** moves in close, some attacks zoom out. FOV slider in a fair range (70 to 90)
+  that is the same for everyone.
+- **Feel:** crisp and readable like Valorant: hit markers, a headshot sound, a small kick on firing, a brief flash on the
+  target, no screen-filling effects.
+- **Being tagged:** no death; the kid freezes in a pouty "Taya!" pose in a puff of chalk dust, then poofs to the jail.
 
 ## 8. Controls and screens
 - **4-finger match layout:**
@@ -110,37 +189,135 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
   - right bottom: Wild Rift cluster (big slingshot button, 3 skills around it), with **reload** where Wild Rift puts the
     summoner spells (Flash, Heal);
   - right top: jump and crouch/slide.
+- **HUD read-outs:**
+  - top-left corner: a small minimap (tap for the full map), with the camera and ADS zone below it;
+  - top centre: rounds won per team, each team's 5 kid portraits (greyed when tagged, with the jail count), and the
+    dragon and baron timers;
+  - right edge: a small feed of tags and rescues with the skill used; big centre banners only for team events (capture,
+    all tagged, dragon or baron taken, side swap);
+  - bottom centre between the thumbs: your HP and water; the ammo count (of 7) on the slingshot button; overhead bars on
+    every kid.
 - **Screens at launch** (familiar from Mobile Legends, Wild Rift, CODM and Valorant): home (one PLAY, online first), kid
   select after queue, kids and skins collection, store, battle pass and tasks, profile with rank and match history,
   friends and party, settings.
 - **Only real content:** a screen, tab or button exists only when the game has the thing behind it; no filler
   components copied from other games.
-- **English only** for now.
+- **English only** for text; kid voice lines are short **Taglish** barks on skills, tags, rescues and wins.
+- **Home kid:** the player's **favourite kid** (pinned in the collection) stands in 3D on the home screen.
+- **Accessibility:** colour-blind enemy highlight, visual markers for footsteps and skill sounds, reduce motion and flashes.
+- **Settings at launch:** graphics presets and an FPS cap (30 / 60 / 90 / 120 where the phone allows), a control layout
+  editor (move and resize every HUD button, saved layouts), camera and ADS sensitivity, aim assist on or off.
+
+**First run:** choose an in-game name (IGN), then the age question, then a **tutorial** before the home screen. The
+tutorial uses the real barangay map with **barricades closing the other paths**, and teaches move, jump/vault, crouch/slide,
+the slingshot and reload, skills, tag, rescue and capture. Each step lends a kid of a different role, so the player tries
+all 4 roles before picking starters. A friendly older neighbour (*Kuya/Ate*, not playable) guides it in Taglish voice with
+English text and later narrates the codex. The tutorial can be replayed from Settings.
+
+**Fair play:**
+- **Leavers and AFK:** a bot plays their kid until they reconnect; repeat leavers lose stars in Ranked and get queue
+  cooldowns; a team that was left behind loses less.
+- **Ranked unlock:** account level 8 (about 15 matches) and at least 4 owned kids (the starters count).
+
+**After a match:** win or loss and the rounds, an MVP per team, each kid's tags, rescues, captures and damage, stars
+gained or lost, pass XP and barya earned, and honor and report buttons.
 
 ## 9. Progression and store
-- **New account:** 4 starter kids, one per role.
+- **New account:** after the tutorial the player **picks 4 starter kids, one per role**.
+- **Daily login:** a 7-day loop of small barya with a bigger day-7 reward; it also counts for the pass's login task.
 - **Currencies:** **barya** (earned by playing, tasks and the pass) and **diamonds** (real money). Kids cost barya or
-  diamonds, and **every kid is earnable with barya**; skins and the paid pass cost diamonds.
+  diamonds, and **every kid is earnable with barya** (a kid costs about two weeks of normal play, or a small
+  diamond pack); skins and the paid pass cost diamonds.
+- **Skins:** tiers Basic, Elite, Special, Epic, Legend; higher tiers change the model, effects and sounds, **never stats**.
+  Sold in the store, given by the pass and events.
+- **Other cosmetics:** emotes, sprays (stickers painted on walls in a match), profile banners and borders (rank borders from
+  seasons), slingshot skins for any kid.
+- **Kid mastery:** each kid gains mastery XP; levels give a badge, a mastery emote and a title, never power.
+- **Seasons: 8 weeks.** Each brings a new 50-level pass, a soft rank reset (down a few divisions) and end-of-season
+  rewards by rank (a border and barya).
+- **Barya from matches:** every match pays (more for a win, a little more for longer modes) plus a first-win-of-the-day
+  bonus, under a weekly cap that keeps the ~2-weeks-per-kid pace.
+- **Offline rewards:** vs AI gives a little barya and pass XP (capped daily); Hotspot and Explore rewards sync to the
+  account when online. Offline results can't be verified by the server, so their caps stay small.
+- **Account level:** earned by playing; unlocks Ranked (level 8), sprays and emote slots, with a little barya per level;
+  a prestige border after level 30.
+- **Diamonds:** standard packs with a double first-purchase bonus per pack and a cheap weekly diamond card; no
+  limited-time pressure offers in kid mode.
+- **Store tabs:** Featured (the season's skins and bundles), Kids, Skins, Daily (4 rotating items), Diamonds; every item
+  can be previewed on the 3D kid before buying.
+- **No gacha or loot boxes:** everything is bought directly at a shown price.
 - **Battle pass, 50 levels**, filled by fixed daily and weekly tasks (play 3 games, log in, share to Facebook, …; the share
   counts when the share sheet completes). Task rewards are kept small so 50 takes the season.
   - **Free tier:** barya at checkpoints, some levels with no reward; level 50 gives a basic skin.
   - **Paid tier:** small rewards on every level; level 50 gives a high-tier skin, plus that kid if not owned.
-  - The paid tier uses a test unlock until Play Billing is added.
+  - The paid tier costs about ₱250 a season, with a premium-plus tier (+10 levels and an extra skin) near ₱500; it uses a
+    test unlock until Play Billing is added.
+
+## 9b. Launch and data
+- **Closed beta scope:** the core match with all 12 kids, the Barangay map only, accounts and Quick Match, the store and
+  pass with test diamonds.
+- **Launch:** closed beta (Play testing track, invites), then a Philippines-only soft launch to tune servers and the
+  economy, then Southeast Asia.
+- **Data:** match stats on `Kalyeah.Server` for balance, plus a crash reporter. No ad tracking; a privacy policy and
+  kid-safe defaults.
+
+**Branding, notices and help:**
+- The name and logo show only on the start-up splash after the publisher screen (like Mobile Legends); no logo or tagline
+  anywhere in the game's screens.
+- **Push notifications:** few and opt-in (friend invites, party ready, pass ending, new season), asked once after the
+  first match; kid accounts get party invites only.
+- **Help:** an FAQ and a contact form in Settings that attaches the account id and device info; replies by email.
+- **Community:** an official Facebook page at launch (it fits the share task), Discord after the soft launch, a creator
+  program later.
+
+**After launch:**
+- **New kids** arrive when ready (no fixed pace); kariling is saved for the first one.
+- **Balance:** numbers live in data, so the server pushes small balance hotfixes without an app update; bigger changes
+  land with each season, with in-game patch notes.
+- **New maps, skins and voices** download as asset packs; the app updates only for new code.
+- **Admin page:** a password-protected page on `Kalyeah.Server` for the owner to change balance values, store items and
+  events and to work the report queue; every change is logged.
 
 ## 10. Look
-Pure Valorant: flat, confident shapes, the Ink / Paper / Red palette, painted 3D kids and street. Inspired by, never copied
+Pure Valorant for the UI and the world: flat, confident shapes, the Ink / Paper / Red palette, a painted 3D street; the
+kids keep the owner's models. Inspired by, never copied
 (no Riot, Supercell, Valve or Moonton assets, names or logos). The owner makes all art and audio; agents only say which
 kind is needed (3D model, sprite sheet or 2D image).
+
+**Kids' look:** the owner's uploaded models (`assets/models/raw/`) define each kid's look; they are only made game-ready
+(`docs/art-briefs/kids-retopo-spec.md`), not restyled. **Role icons** (Striker, Defender, Seeker, Controller) appear in
+select, portraits and profile; there are no role colours, so red and blue stay the team colours.
+
+**Graphics:** the top preset aims at Valorant Mobile: clean stylised PBR, real-time sun shadows, soft ambient light,
+bloom on effects. Lower presets drop cost, never the art or the readability:
+
+| Preset | FPS cap | Render scale | Shadows | Effects | Post (bloom, grading) |
+|---|---|---|---|---|---|
+| Low | 30 | 70% | Blob shadows only | Reduced | Off |
+| Medium | 60 | 85% | Hard, near the camera | Normal | Off |
+| High | 60 | 100% | Soft | Full | On |
+| Ultra | 60 / 90 / 120 (phone limits) | 100% + 4× MSAA | Soft, longer distance | Full | On |
+
+- The first launch picks a preset from a short device check; players can change it.
+- **Readability is the same on every preset:** enemies wear a **Valorant-style highlight** (red, yellow or purple, a
+  setting); allies stay plain; overhead HP bars and team-coloured effects.
+
+**Audio:** OPM-flavoured electronic and hip-hop music with Filipino instruments (kulintang, bandurria, tambol) and street
+sounds: a menu theme, ambience per map, round-end stingers. **Positional sound is gameplay (Valorant level):** footsteps
+by surface (cement, soil, wood, tin), directional skill cues; crouch-walking is silent.
+
+**Live events:** limited-time events on the Filipino calendar (Pasko, fiesta, Undas, summer) with themed tasks, event
+skins and map decorations; an event mini-mode can come later.
 
 ## 11. Open questions (agents use the default until the owner decides)
 | # | Question | Default |
 |---|---|---|
-| Q1 | The 36 skills (3 × 12 kids) and their numbers | Draft in `docs/GDD.md`, owner to approve |
-| Q2 | Stars per division, divisions per tier, season length | 3 divisions × 4 stars; 8-week seasons |
-| Q3 | Kid prices (barya / diamonds) and pass price | Set with the store build |
-| Q4 | Which kid each new account gets per role | Narda, Jopay, Kikay, Tere |
-| Q5 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
-| Q6 | Rescue and capture times, vendor and objective numbers, Crocodile and Eagle timers | Rescue 6 s with the line at 3 s; capture 8 s; Crocodile at 1:00 (respawn 2:00), Eagle at 3:00 (respawn 3:00), buffs 90 s; role buffs +8% |
+| Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling saved for a later kid |
+| Q2 | Stars per division, divisions per tier | 3 divisions × 4 stars |
+| Q3 | Exact kid and diamond-pack prices | Set with the store build (kid ≈ two weeks of play) |
+| Q4 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
+| Q5 | Rescue and capture times, vendor and objective numbers, Crocodile and Eagle timers | Rescue 6 s with the line at 3 s; capture 8 s; Crocodile at 1:00 (respawn 2:00), Eagle at 3:00 (respawn 3:00), buffs 90 s; role buffs +8% |
+| Q6 | Exact map geometry and neutral placement | Designed map by map, Barangay first, then blocked out and play-tested with bots |
 
 ## 12. Built today vs this spec
 The current build still has: 10 placeholder kids (not the 12), the old superpower loadout instead of 3 fixed skills, LP
