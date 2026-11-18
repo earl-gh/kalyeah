@@ -358,7 +358,8 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 - **Battle pass, 50 levels**, filled by fixed daily and weekly tasks; the share counts when the share sheet completes:
   - **Daily:** log in, play 3 matches (vs AI counts for 1), do 1 rescue or capture, win 1 match.
   - **Weekly:** play 15 matches, play 2 different roles, share to Facebook (kid accounts: play 1 match), take 3 dragons
-    or barons. Task rewards are kept small so 50 takes the season.
+    or barons.
+  - Task rewards are kept small so 50 levels take the season.
   - **Free tier:** barya at checkpoints, some levels with no reward; level 50 gives a basic skin.
   - **Paid tier:** small rewards on every level; level 50 gives a high-tier skin, plus that kid if not owned.
   - Paid in diamonds: the paid tier costs about ₱250 of diamonds a season, with a premium-plus tier (+10 levels and an extra skin) near ₱500; it uses a
