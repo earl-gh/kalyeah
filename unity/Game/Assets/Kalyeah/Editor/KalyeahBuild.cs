@@ -151,15 +151,15 @@ public static class KalyeahBuild
 
         ConfigureAppIconsAndSplash();
 
-        // Input System for the touches (and Android Back); "Both" keeps any old-Input code from throwing
+        // Input System only (1): sync_assets.py writes the same value before Unity starts, so this never flips mid-session
         Object playerSettings = Unsupported.GetSerializedAssetInterfaceSingleton("PlayerSettings");
         if (playerSettings != null)
         {
             var serialized = new SerializedObject(playerSettings);
             SerializedProperty handler = serialized.FindProperty("activeInputHandler");
-            if (handler != null && handler.intValue != 2)
+            if (handler != null && handler.intValue != 1)
             {
-                handler.intValue = 2;
+                handler.intValue = 1;
                 serialized.ApplyModifiedPropertiesWithoutUndo();
             }
         }
@@ -175,7 +175,9 @@ public static class KalyeahBuild
         if (sha.Length > 7) sha = sha.Substring(0, 7);
         PlayerSettings.bundleVersion = sha.Length > 0 ? $"{baseVersion}+{sha}" : baseVersion;
 
-        string runNumberRaw = Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER")?.Trim();
+        string runNumberRaw = Arg("-androidVersionCode")?.Trim();
+        if (string.IsNullOrEmpty(runNumberRaw))
+            runNumberRaw = Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER")?.Trim();
         if (string.IsNullOrEmpty(runNumberRaw))
             runNumberRaw = Environment.GetEnvironmentVariable("KALYEAH_VERSION_CODE")?.Trim();
         if (!string.IsNullOrEmpty(runNumberRaw) && int.TryParse(runNumberRaw, out int versionCode) && versionCode > 0)
@@ -598,11 +600,14 @@ public static class KalyeahBuild
         Debug.Log($"KalyeahBuild: {summary.result} {path} {summary.totalSize / (1024 * 1024)} MB in {summary.totalTime}");
         if (summary.result != BuildResult.Succeeded)
             throw new BuildFailedException($"Android build {summary.result}: {summary.totalErrors} errors (see the log above)");
+        Console.WriteLine("Build succeeded!");
     }
 
     static void ConfigureAndroidKeystoreFromEnv()
     {
         string keystoreB64 = Environment.GetEnvironmentVariable("KALYEAH_DEBUG_KEYSTORE_B64")?.Trim();
+        if (string.IsNullOrEmpty(keystoreB64))
+            keystoreB64 = Environment.GetEnvironmentVariable("ANDROID_KEYSTORE_BASE64")?.Trim();
         string keystorePathEnv = Environment.GetEnvironmentVariable("KALYEAH_ANDROID_KEYSTORE_PATH")?.Trim();
 
         string keystorePath = null;
@@ -651,6 +656,7 @@ public static class KalyeahBuild
         Debug.Log($"KalyeahBuild: {summary.result} {path} {summary.totalSize / (1024 * 1024)} MB in {summary.totalTime}");
         if (summary.result != BuildResult.Succeeded)
             throw new BuildFailedException($"iOS build {summary.result}: {summary.totalErrors} errors (see the log above)");
+        Console.WriteLine("Build succeeded!");
     }
 
     // ---- Screenshots ------------------------------------------------------------------------------------------------------------
@@ -699,6 +705,18 @@ public static class KalyeahBuild
                 NarrowWidth,
                 NarrowHeight,
                 ScreenFitMetrics.AsymmetricCutoutSafeRect(NarrowWidth, NarrowHeight));
+            // online-first PLAY: the "can't reach the server" prompt and the offline hub it leads to
+            Action<HomeScreenView> offlinePrompt = home => home.ShowOfflinePrompt();
+            Action<HomeScreenView> offlineHub = home => home.OpenOfflineHub();
+            CaptureTitleShot(dir, "title_offline_prompt.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), offlinePrompt);
+            CaptureTitleShot(dir, "title_offline_hub.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), offlineHub);
+            CaptureTitleShot(
+                dir,
+                $"title_offline_hub_{NarrowWidth}x{NarrowHeight}.png",
+                NarrowWidth,
+                NarrowHeight,
+                ScreenFitMetrics.AsymmetricCutoutSafeRect(NarrowWidth, NarrowHeight),
+                offlineHub);
 
             SetFullViewport();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -762,6 +780,7 @@ public static class KalyeahBuild
             CaptureStreetShot(data, dir, StreetGameKind.LangitLupa, 23, "street_langit_lupa", dualAspect: true, brownoutPreview: true);
 
             Debug.Log($"KalyeahBuild: screenshots in {dir}");
+            Console.WriteLine("Build succeeded!");
         }
         finally
         {
@@ -1447,15 +1466,44 @@ public static class KalyeahBuild
         return 1;
     }
 
-    static void CaptureTitleShot(string dir, string fileName, int width, int height, Rect safeRect)
+    static void CaptureTitleShot(string dir, string fileName, int width, int height, Rect safeRect, Action<HomeScreenView> stage = null)
     {
         ScreenFitMetrics.SetSimulatedViewport(new Vector2Int(width, height), safeRect);
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         var titleRoot = new GameObject("TitleShot").transform;
         var titleCamera = new GameObject("TitleCamera", typeof(Camera)).GetComponent<Camera>();
         titleCamera.transform.SetParent(titleRoot, false);
-        TitleScreen.Build(titleRoot, titleCamera, null);
+        HomeScreenView home = null;
+        TitleScreen.Build(titleRoot, titleCamera, null, h =>
+        {
+            home = h;
+            stage?.Invoke(h);
+        });
         Capture(titleCamera, Path.Combine(dir, fileName), width, height);
+        if (home != null && fileName == "title.png") DumpHeroStage(home, dir);
+    }
+
+    /// <summary>Saves the home hero's RenderTexture on its own and logs its alpha coverage, so a blank hero is diagnosable from CI.</summary>
+    static void DumpHeroStage(HomeScreenView home, string dir)
+    {
+        home.RenderHeroNow();
+        if (!(home.HeroTexture is RenderTexture rt)) return;
+        RenderTexture prev = RenderTexture.active;
+        RenderTexture.active = rt;
+        var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
+        tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+        tex.Apply();
+        RenderTexture.active = prev;
+        Color32[] px = tex.GetPixels32();
+        int opaque = 0, lit = 0;
+        for (int i = 0; i < px.Length; i++)
+        {
+            if (px[i].a > 8) opaque++;
+            if (px[i].r + px[i].g + px[i].b > 24) lit++;
+        }
+        File.WriteAllBytes(Path.Combine(dir, "title_hero_rt.png"), tex.EncodeToPNG());
+        UnityEngine.Object.DestroyImmediate(tex);
+        Debug.Log($"[HeroDump] {home.HeroDebug} opaquePx={opaque} litPx={lit} of {px.Length}");
     }
 
     static void CaptureStreetShot(

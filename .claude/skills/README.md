@@ -1,8 +1,8 @@
 # Kalyeah project skills
 
-Agent skills shared across the repository for Kalyeah on **Unity 6 LTS (`6000.0.86f1`, URP Mobile)** and **`.NET 8`**. Each skill defers to `CLAUDE.md` and `AGENTS.md` for project rules and workflow constraints.
+Agent skills shared across the repository for Kalyeah on **Unity 6.3 LTS (`6000.3.28f1`, URP Mobile)** and **`.NET 8`**. Each skill defers to `CLAUDE.md` and `AGENTS.md` for project rules and workflow constraints.
 
-## Installed skills (20)
+## Installed skills (22)
 
 ### Vendored upstream skills (10)
 
@@ -14,7 +14,7 @@ Pinned in [sources.lock.json](sources.lock.json) with licenses and Apache NOTICE
 | awesome-gamedev-agent-skills | `game-ui-ux`, `performance-optimization` | Engine-neutral responsive HUD/menu patterns, safe areas, frame-budget profiling and pooling (includes Unity 6 LTS references) |
 | Matt Pocock — Skills for Real Engineers | `tdd`, `domain-modeling` | Behavior-first red-green-refactor testing, domain glossary (`GLOSSARY.md`) and proportionate ADRs |
 
-### Custom Kalyeah skills (10)
+### Custom Kalyeah skills (12)
 
 Authored in `.claude/skills/` for fast execution, Unity 6 / `.NET 8` architecture, and AAA mobile craft:
 
@@ -22,7 +22,7 @@ Authored in `.claude/skills/` for fast execution, Unity 6 / `.NET 8` architectur
 |---|---|---|
 | Fast execution (1) | `surgical-focus` | Fast responses by checking only touched files/lines/1-hop callers, skipping unsolicited whole-repo audits, and running targeted seam tests |
 | Unity 6 & `.NET 8` architecture (3) | `godot-unity-sim`, `godot-unity-view`, `godot-unity-platform` | `godot-unity-sim`: pure C# `30 Hz` deterministic `Kalyeah.Sim` & `unity/Data/*.json` parity; `godot-unity-view`: Unity 6 URP Mobile views, C# events, `+Z`/`GodotSpace` `.glb` rigs, shaders & pooled VFX/SFX; `godot-unity-platform`: `AppSession`/`SettingsStore`, WebSocket/Hotspot (`kalyeah_local.androidlib`), `EnhancedTouch`, NUnit/`EditMode` & Android IL2CPP `arm64-v8a` APK + `.NET 8` `Kalyeah.Server` |
-| Apex Mobile Studio (6, Riot Wild Rift & Valorant × Valve Deadlock × CoD Mobile × Fortnite) | `apex-combat-cam`, `apex-street-world`, `apex-mobile-hud`, `apex-screen-fit`, `apex-net-frame`, `apex-roast-gate` | `apex-combat-cam`: 3P shoulder cam, kinetic locomotion & `<150 ms` combat telegraphs; `apex-street-world`: 3D barangay sightlines, 3-band chest-height value clarity & stylized forms; `apex-mobile-hud`: thumb-zone radial arc, drag/tap/cancel UX, clear center screen & overhead team bars; `apex-screen-fit`: `21:9`–`4:3` Android aspect scaling, `dp`/DPI thumb constancy, asymmetric cutouts/orientation flips, vertical-FOV fairness & multi-aspect bounds gates; `apex-net-frame`: `30 Hz` authoritative prediction/reconciliation & sustained 60 FPS Android GPU/GC budgets; `apex-roast-gate`: acceptance criteria gate, over/under-engineering razor, brutal 3D world + GUI/HUD roaster & `ANOTHER PASS REQUIRED` loop |
+| Apex Mobile Studio (8, Riot Wild Rift & Valorant × Valve Deadlock × CoD Mobile × Fortnite) | `apex-combat-cam`, `apex-street-world`, `apex-mobile-hud`, `apex-screen-fit`, `apex-net-frame`, `apex-roast-gate`, `apex-rig-forge`, `apex-anim-craft` | `apex-combat-cam`: 3P shoulder cam, kinetic locomotion & `<150 ms` combat telegraphs; `apex-street-world`: 3D barangay sightlines, 3-band chest-height value clarity & stylized forms; `apex-mobile-hud`: thumb-zone radial arc, drag/tap/cancel UX, clear center screen & overhead team bars; `apex-screen-fit`: `21:9`–`4:3` Android aspect scaling, `dp`/DPI thumb constancy, asymmetric cutouts/orientation flips, vertical-FOV fairness & multi-aspect bounds gates; `apex-net-frame`: `30 Hz` authoritative prediction/reconciliation & sustained 60 FPS Android GPU/GC budgets; `apex-roast-gate`: acceptance criteria gate, over/under-engineering razor, brutal 3D world + GUI/HUD roaster & `ANOTHER PASS REQUIRED` loop; `apex-rig-forge`: kid model intake audit, mesh prep, canonical `mixamorig:` skeleton, skinning, range-of-motion QA, pose-space correctives & glTF import gate; `apex-anim-craft`: clip catalogue, pose-to-pose craft, sim-synced timing, offline retargeting & legacy-`Animation` runtime layering/IK/spring bones |
 
 Load only the `SKILL.md` and `references/` files relevant to the current task:
 - Pair `surgical-focus` and `ponytail` on coding tasks; use `ponytail-review` or `apex-roast-gate` before PRs, `ponytail-audit` for requested codebase audits, and `ponytail-debt` to list `shortcut:` comments.
@@ -36,8 +36,8 @@ Load only the `SKILL.md` and `references/` files relevant to the current task:
 - **Codex** reads `.agents/skills/` (a relative symlink to `../.claude/skills`).
 - **Antigravity** reads `.agents/skills.json` (which resolves `.claude/skills` directly, including on Windows checkouts where Git symlinks are plain files).
 
-[sources.lock.json](sources.lock.json) pins upstream commit SHAs and SHA-256 hashes for all 10 vendored skills; the 10 custom Kalyeah skills live directly in `.claude/skills/`. These are standalone Markdown skills — no upstream CLI binaries, lifecycle hooks, telemetry or auto-updaters are installed.
+[sources.lock.json](sources.lock.json) pins upstream commit SHAs and SHA-256 hashes for all 10 vendored skills; the 12 custom Kalyeah skills live directly in `.claude/skills/`. These are standalone Markdown skills — no upstream CLI binaries, lifecycle hooks, telemetry or auto-updaters are installed.
 
 ## Subagents
 
-- **Antigravity & `/swarm` (`.agents/agents/`):** 27 subagents mapped in [AGENTS.md](../../AGENTS.md) (`ponytail`, `reviewer`, `auditor`, `tdd`, `domain`, `ui-ux`, `perf`, the 10 custom-skill specialists, and `subworker-1` .. `subworker-10`).
+- **Antigravity & `/swarm` (`.agents/agents/`):** 29 subagents mapped in [AGENTS.md](../../AGENTS.md) (`ponytail`, `reviewer`, `auditor`, `tdd`, `domain`, `ui-ux`, `perf`, the 12 custom-skill specialists, and `subworker-1` .. `subworker-10`).

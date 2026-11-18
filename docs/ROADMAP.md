@@ -1,6 +1,6 @@
 # Kalyeah roadmap
 
-What is built, what is next, and the rules for building it. Rules and numbers live in `GDD.md`; look and feel in `ART.md`; scope in `PROJECT.md`.
+What is built, what is next, and the rules for building it. Rules and numbers live in `GDD.md`; look and feel in `ART.md`; what we are building in `SPEC.md`.
 
 ## Done
 
@@ -37,7 +37,7 @@ What is built, what is next, and the rules for building it. Rules and numbers li
 | Scan or tap to join (team-approved plugin) | Online rooms show their code as a QR and Join has **Scan QR** (`QrCode`/`QrReader`, plain GDScript). Local: the first Android plugin (`android/kalyeah_local`, a Gradle export; the `Android APK` workflow builds its AAR and installs Godot's build template) lets the host start a game hotspot and share it as a Wi-Fi QR and by NFC, and lets a friend join it from inside the game. Needs a physical-phone check (two phones, one without Wi-Fi). |
 | Langit Lupa | A fourth street game (Practice, Local and Online): one taya, safe on raised platforms for 3 s in all, a LUPA button that raises your own mound, platforms that wear out, no stamina rest up there, and brownouts in which the server hides the far kids from each phone. Bots, tests, GDD "Langit Lupa"; art stand-ins until the owner's picture and models |
 | **5v5 AAA Provincial Barangay & 90s Komiks Landscape Overhaul** | Circular `168 m`-diameter (`arena_radius = 84.0 m`) provincial Filipino barangay (`South Covered Court` vs `North Barangay Hall Plaza`, Estero creek + 3 bridges, NW/SE waiting-shed rescue zones, 36 mirrored *tabi-tabing bahay* / sari-sari / palengke footprints, 360° skyline, single-`ArrayMesh` spaghetti overhead wires & *sampayan* laundry); **Valorant × Arcane × 90s Filipino Komiks** look (`barangay_ground.gdshader`, `estero_water.gdshader`, `arcane_ink_outline.gdshader`, `arcane_fx_master.gdshader`, UX-balanced `FxSketch`); **all 10 Filipino kids** (`junjun`, `ligaya`, `migo`, `toni`, `popoy`, `inday`, `kiko`, `nene`, `buknoy`, `tala`) with rigged `.glb`s, portraits & cards; **5v5 Hero-Brawler Combat** (`8.2 m/s` + `Street Sprint`, `Tirador` slingshot, 3 chosen superpowers, `Luksong-Tinik` dash + `SLOW` cleanse, `Bagsak ng Kalye` ultimate, `BarangayNav` A\* bot routing); full-game **`1280 × 720` native landscape** UI (`TitleScreen`, 2×5 Codex, 10-slot Lobby, 10-kid + 3-superpower Pick, circular `BarangayMinimap`, 5v5 Squad Wings, `WorldWaypoints`, `TakedownFeed`, `HeroVitalsPanel`, `AbilityArc`, PC `WASD`+Mouse & mobile dual-thumb); and **7-Tier Tagalog Ranked Progression** (`Kahoy` → `Batang Kalyeah`) |
-| **Unity 6 LTS (`6000.0.86f1` URP Mobile) & `.NET 8` Engine Migration** | Pure engine-free C# deterministic 30 Hz `Kalyeah.Sim` + `Kalyeah.Net` + standalone `.NET 8` `Kalyeah.Server` (`Dockerfile`), canonical `unity/Data/*.json` + `i18n__strings.csv` data catalog (`sync_assets.py`), Unity 6 URP Mobile 3D Barangay world & shaders, 10 rigged `.glb` kids with team silhouette outlines, 5v5 HUD/menus/sheets, 3 *Larong Kalye* street modes, pure Java `kalyeah_local.androidlib` Hotspot/Wi-Fi/NFC plugin, NUnit + EditMode suites, dual-aspect `1280×720` & `844×390` visual gate (`KalyeahBuild.Screenshots`), and `Unity 6 CI` `arm64-v8a` IL2CPP APK pipeline |
+| **Unity 6.3 LTS (`6000.3.28f1` URP Mobile) & `.NET 8` Engine Migration** | Pure engine-free C# deterministic 30 Hz `Kalyeah.Sim` + `Kalyeah.Net` + standalone `.NET 8` `Kalyeah.Server` (`Dockerfile`), canonical `unity/Data/*.json` + `i18n__strings.csv` data catalog (`sync_assets.py`), Unity 6 URP Mobile 3D Barangay world & shaders, 10 rigged `.glb` kids with team silhouette outlines, 5v5 HUD/menus/sheets, 3 *Larong Kalye* street modes, pure Java `kalyeah_local.androidlib` Hotspot/Wi-Fi/NFC plugin, NUnit + EditMode suites, dual-aspect `1280×720` & `844×390` visual gate (`KalyeahBuild.Screenshots`), and `Unity 6 CI` `arm64-v8a` IL2CPP APK pipeline |
 
 ## Short-phone GUI follow-up
 
@@ -62,14 +62,29 @@ and off; and report the exact message of any failure with the phone model.
 
 ## Development workflow
 
-Selected awesome-gamedev-agent-skills, standalone Ponytail and compact gstack
-workflow ports are installed for Claude and Codex. Selected Matt Pocock TDD/domain
+Selected awesome-gamedev-agent-skills and standalone Ponytail are installed for Claude and Codex. Selected Matt Pocock TDD/domain
 skills and a project-authored gameplay-engineering companion add behavior-first
 methods without a new engine or test framework. The five project specialists
 retain ownership. [Catalog](../.claude/skills/README.md), provenance lock and
 [first-use review](audits/2026-10-19-skill-adoption.md) record scope and validation.
 
-## Next: the Kalyeah visual overhaul
+## Next: close the gaps to `docs/SPEC.md`
+
+| Step | Work |
+|---|---|
+| S1 | GUI rebuild in the Valorant style: home done (online first, offline hub); Pick, Codex, History, Settings, Lobby, Hotspot next |
+| S2 | 12 kids in 4 roles, slingshot basic attack (7 shots, reload, hold to aim farther), 3 fixed skills per kid (kits draft for owner approval) |
+| S3 | Match rules: Blitz / Quick / Standard, round ends on capture or full tag, no timers, rescue like a defuse (checkpoint line, 15 s cooldown), revenge release after 10 s |
+| S3b | Movement (context jump / vault / climb, crouch / slide) and the T3 Arena camera with aim down sight; the 4-finger HUD |
+| S3c | The circular barangay: cemented ends, soil and river centre, main path, narrow streets; taho and fishball vendors, Selecta bike, Crocodile and Philippine Eagle |
+| S4 | Accounts on `Kalyeah.Server`: guest, Google sign-in, age gate and kid mode |
+| S5 | Starter kids, barya and diamonds, store, 50-level battle pass, daily and weekly tasks (test unlock until Play Billing) |
+| S6 | Quick Match and Ranked (tiers, divisions, stars, seasons); servers in a Singapore region |
+| S7 | Text chat (filter, report, mute), emotes, voice chat |
+| S8 | Explore Barangay (free roam, daily coin); Tumbang Preso and Patintero back as side modes |
+| S9 | `armeabi-v7a`, quality presets, AAB with asset packs, Play Billing, Facebook and Apple sign-in, iOS |
+
+## Earlier: the Kalyeah visual overhaul (history)
 
 Goal: the look of the owner's reference image (League of Legends mid view, Clash of Clans design language, Filipino street): soft, chunky, painted-looking 3D with readable effects. Procedural boxes are not enough; real Blender-authored assets are.
 
@@ -85,18 +100,13 @@ Goal: the look of the owner's reference image (League of Legends mid view, Clash
 | P7 ✅ | `1280 × 720` 90s Filipino Komiks UI & HUD (`KomiksStyle`, circular `BarangayMinimap`, 5v5 Squad Wings, `WorldWaypoints`, `TakedownFeed`, `HeroVitalsPanel`, `AbilityArc`, Rank Crest & 7 Tagalog tiers) | full-game landscape HUD & menus complete |
 | P8 | Performance and Android device verification: frame rate on target phones, signed release APK/AAB, physical Hotspot/QR/NFC checks | budgets below |
 
-Budgets (M6): 60 fps on a recommended Android phone, 30+ on the minimum; there is no hard APK or file size limit during development. The prop, weapon and kid 3D model textures use hardware GPU block compression (**ASTC / ETC2**) on Android for phone GPU memory, pinned by `AssetAndSpaceTests.cs` in `Kalyeah.Tests.EditMode`. A new 3D model's textures must keep hardware VRAM compression enabled.
+Budgets: no device floor (Unity 6.3's Android 8.0 minimum; add `armeabi-v7a`), 60 fps on a mid-range phone as the target and performance work continuing after launch; a Play Store base under 200 MB with Play Asset Delivery packs for the rest (`docs/SPEC.md` §2).
 
 ### HUD spec (owner)
 - No player name above the health bar.
 - A status such as *Stunned* is **italic** and shown **above** the health bar.
 - (Superseded: no cooldown bars under the health bar since dash and the pin were removed.)
 - Skill buttons are art only, plus the weapon type (Attack, Control, Block or Heal, in capitals) as a small tag. No health panel in the top-left corner.
-
-### Camera spec (owner): superseded: now orthographic at 45° (see `docs/GDD.md`); the original League of Legends numbers follow for history
-- Pitch **56°** from horizontal, field of view **30°** (vertical), far camera with a flat perspective.
-- The camera distance is derived from the screen shape so about 13 m of the lane width is visible on any phone; the angle and field of view are not changed for that. It looks 2.5 m ahead of the hero.
-- It follows the hero and eases after them; it does not tilt or roll.
 
 ## Rules for building (to avoid retries)
 1. **Code-built scenes & deterministic setup.** Scenes and URP assets are generated by `KalyeahBuild.Setup` and C# view builders rather than hand-edited `.unity` YAML.
@@ -105,8 +115,8 @@ Budgets (M6): 60 fps on a recommended Android phone, 30+ on the minimum; there i
 4. Pull requests are meaningful chunks, opened by Claude and merged by the owner. See `CLAUDE.md`.
 
 ## Decisions log
-- No basic attack (see `GDD.md`).
-- Tag street (owner): the map, the rules and the camera follow the reference video of the street game; portrait stays binding. The guava, the tricycle, breakable walls and the death delay were removed.
+- 2026-11-18 spec interview (`docs/SPEC.md`): a full commercial game, the competition entry and its limits dropped; free to play with barya and diamonds; guest + Google sign-in first; all ages with an age gate; Quick Match and Ranked stars; servers in Singapore first.
+- The guava, the tricycle, breakable walls and the death delay were removed.
 - Game name: **Kalyeah**. Tagline: *Mga larong Pinoy sa kalye*. Android package `com.kalyeah.game`.
 - Environment assets are made in Blender (the `bpy` Python module works in the cloud session). The kids are rigged, animated GLB models from the owner; `tools/blender/build_kid_game_model.py` makes them light for phones (`build_junjun_model.py` was the first, Mixamo-based Junjun; the owner's rebuilt-rig boy now goes through the same script).
 - Multiplayer is built and tested; deploying the server and setting `KALYEAH_SERVER_URL` is the owner's step (`server/README.md`).

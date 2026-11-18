@@ -38,7 +38,7 @@ Owns `unity/Kalyeah.Net/`, `unity/Kalyeah.Server/`, `unity/Game/Assets/Kalyeah/S
 ## 4. `.NET 8`, `EditMode` & Android IL2CPP APK build gates
 
 - Run `dotnet test unity/Kalyeah.sln` + `python tools/unity_export/sync_assets.py` + Unity `EditMode` tests + `KalyeahBuild.Screenshots` (`1280×720` & `844×390`) before opening a PR.
-- Keep `KalyeahBuild.BuildAndroid` + `KalyeahAndroidManifest` aligned with `.github/scripts/inspect-apk.sh`: IL2CPP `arm64-v8a` only (`libil2cpp.so` + `libunity.so`), `16 KB` page alignment, `sensorLandscape`, `allowBackup="false"`, and the exact 12 declared permissions (including `NFC`).
+- Keep `KalyeahBuild.BuildAndroid` + `KalyeahAndroidManifest` aligned with `.github/scripts/inspect-apk.sh`: IL2CPP `arm64-v8a` today (`libil2cpp.so` + `libunity.so`; `armeabi-v7a` is planned, `docs/SPEC.md` §2), `16 KB` page alignment, `sensorLandscape`, `allowBackup="false"`, and the exact 12 declared permissions (including `NFC`).
 
 ## Anti-patterns to reject
 

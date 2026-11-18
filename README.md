@@ -1,16 +1,16 @@
 # Kalyeah
 
-*Mga larong Pinoy sa kalye.* A stylized 3D 5v5 hero-brawler & multiplayer street-game arena built on Filipino street games (*Agawang Base*, *Patintero*, *Tumbang Preso*, *Langit Lupa*, *bato-bato-pik*, *jackstones*, and *trumpo*). Native `1280×720` landscape dual-thumb action built with **Unity 6 LTS (`6000.0.86f1`, URP Mobile)** for Android (`arm64-v8a` IL2CPP) and **`.NET 8`** (`Kalyeah.Server`).
+*Mga larong Pinoy sa kalye.* A stylized 3D 5v5 hero-brawler & multiplayer street-game arena built on Filipino street games (*Agawang Base*, *Patintero*, *Tumbang Preso*, *Langit Lupa*, *bato-bato-pik*, *jackstones*, and *trumpo*). Native `1280×720` landscape dual-thumb action built with **Unity 6.3 LTS (`6000.3.28f1`, URP Mobile)** for Android (`arm64-v8a` IL2CPP) and **`.NET 8`** (`Kalyeah.Server`).
 
 - **Website:** [kalyeah-promo.vercel.app](https://kalyeah-promo.vercel.app/), the game's page, with the latest APK to download.
 - **Play:** get the APK from [the website](https://kalyeah-promo.vercel.app/), or install the debug APK from the latest **Unity 6 CI** run (Actions → Unity 6 CI → artifact `kalyeah-unity-apk`).
 
 ## Docs
 - [Unity 6 & .NET 8 architecture](unity/README.md): assemblies, asset/data sync, tests, screenshots, and CI
+- [Spec](docs/SPEC.md): what we are building (vision, modes, accounts, store, ranked); wins over older docs
 - [Roadmap](docs/ROADMAP.md): what is done, what is next, and how we build
 - [Game design](docs/GDD.md): rules and balance numbers (the source of truth, backed by `unity/Data/*.json`)
 - [Art, UI and audio](docs/ART.md): look, assets, HUD, sound
-- [Project documentation](docs/PROJECT.md): abstract, requirements, features
 - [Server guide](server/README.md): run and deploy `unity/Kalyeah.Server` (`Dockerfile`)
 - [CLAUDE.md](CLAUDE.md): rules for coding agents (stack, architecture, workflow)
 
