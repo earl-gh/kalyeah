@@ -260,6 +260,15 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 - **Data:** match stats on `Kalyeah.Server` for balance, plus a crash reporter. No ad tracking; a privacy policy and
   kid-safe defaults.
 
+**Branding, notices and help:**
+- The name and logo show only on the start-up splash after the publisher screen (like Mobile Legends); no logo or tagline
+  anywhere in the game's screens.
+- **Push notifications:** few and opt-in (friend invites, party ready, pass ending, new season), asked once after the
+  first match; kid accounts get party invites only.
+- **Help:** an FAQ and a contact form in Settings that attaches the account id and device info; replies by email.
+- **Community:** an official Facebook page at launch (it fits the share task), Discord after the soft launch, a creator
+  program later.
+
 **After launch:**
 - **New kids** arrive when ready (no fixed pace); kariling is saved for the first one.
 - **Balance:** numbers live in data, so the server pushes small balance hotfixes without an app update; bigger changes
