@@ -61,7 +61,7 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 | **Blitz** | First to 3 rounds | Quick Match queue, private rooms, Hotspot, vs AI |
 | **Quick** | First to 5 rounds | Quick Match queue, private rooms, Hotspot, vs AI |
 | **Standard** | First to 7 rounds | **Ranked** (the only ranked mode), private rooms |
-| Practice vs AI, Practice solo | Any mode's rules | Offline; every kid unlocked; bots at easy / medium / hard; Practice solo is a training range with dummies, distance markers and a no-cooldown toggle |
+| Practice vs AI, Practice solo | Any mode's rules | Offline; every kid unlocked; bots at easy / medium / hard; Practice solo is a training range with still and moving (strafing, jumping) dummies, distance markers, damage numbers on hits, a no-cooldown toggle, rescue and capture drills with a timer, and a climb and slide course |
 | Explore | None | Offline; roam any of the 4 maps alone: one daily coin per map, hidden teks cards (a full set per map gives a spray), route practice (ghost paths of rescue routes and climb spots, with a personal-best timer only: no score, leaderboard or rewards), try any kid and skin, map callouts, photo mode; no mini-games |
 | Tumbang Preso, Patintero | Own rules | Side modes; hidden now, return before launch |
 
@@ -115,6 +115,8 @@ and, in Ranked, loses a star.
   resets at its own base. **No round or match timer:** a round lasts as long as the fight does, and nothing escalates over
   time. Design target: a first-to-7 match lasts about 15 to 20 minutes (rounds of 1 to 2 minutes), tuned with map size
   and rescue time.
+- **Round end:** a 3 s banner ("Captured!" or "All tagged!") with the round score, then every kid resets into the
+  barrier phase.
 - **Round flow:** each round starts with a **5 s barrier phase** at base (walk inside the base, ping, draw arrows on the
   full map), then the barrier drops. Water,
   S1 and S2 are full each round; **ultimate cooldowns carry over** between rounds (they reset only at the side swap).
@@ -277,6 +279,10 @@ and, in Ranked, loses a star.
 - **Loading:** every player's kid in their skin, with name, rank and honor badge, and a tip about the map.
 - **Results actions:** add any player from the match as a friend (not in kid mode) and share a result card to Facebook
   (counts for the share task).
+- **Match menu (Back):** online matches keep running (your kid stands still; Practice pauses); quick settings only
+  (sensitivity, volumes, graphics, layout editor), the scoreboard with mute and report, and Leave match, which warns of
+  the penalty (credit score, queue cooldown, a Ranked star) and then counts as a leave with a bot taking over; no penalty
+  in Practice or Hotspot.
 - **Only real content:** a screen, tab or button exists only when the game has the thing behind it; no filler
   components copied from other games.
 - **English only** for text; kid voice lines are short **Taglish** barks on skills, tags, rescues and wins.
