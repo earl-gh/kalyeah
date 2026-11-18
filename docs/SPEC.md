@@ -260,8 +260,8 @@ and, in Ranked, loses a star.
   for 0.3 s, then a 2 s cooldown. A vault takes 0.4 s and a climb about 1 s; a hit while climbing knocks the kid down.
 - **Aim down sight:** shots land exactly at the crosshair (hip-fire spreads a little) and the kid walks 30% slower; a
   setting picks tap-to-toggle or hold.
-- **Camera:** T3 Arena style, **centred** behind the kid at mid distance (about 4 m behind, raised so the crosshair sits
-  above the kid's head); no shoulder offset and no shoulder swap; **aim down sight** moves in close, some attacks zoom out. FOV slider in a fair range (70 to 90)
+- **Camera:** like T3 Arena and Deadlock, always over the kid's **right shoulder** at mid distance (about 4 m behind, the
+  kid on the left third of the screen, the crosshair clear to the kid's right); no shoulder swap; **aim down sight** moves in close, some attacks zoom out. FOV slider in a fair range (70 to 90)
   that is the same for everyone.
 - **Feel:** crisp and readable like Valorant: hit markers, a headshot sound, a small kick on firing, a brief flash on the
   target, no screen-filling effects.
