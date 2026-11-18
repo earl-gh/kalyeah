@@ -21,7 +21,8 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 - **Permissions:** only what a shipped feature needs (voice chat needs the microphone; hotspot needs the current network set).
 
 ## 3. Accounts, age and safety
-- **In-game name:** one free change, then a small diamond price, at most once every 30 days; names are filtered.
+- **In-game name:** 3 to 16 letters and numbers plus `_ . -`, filtered for bad words in English, Filipino and regional
+  languages; one free change, then a small diamond price, at most once every 30 days; names are filtered.
 - **Sign-in:** guest play first; **Google sign-in first**, then Facebook and Apple. Progress, kids, skins, pass and rank live
   on the `Kalyeah.Server` account; a guest account can be linked later. Guests get a reminder to link after 3 matches
   (at most once a week), a small barya gift for linking, and must link before buying diamonds.
@@ -39,13 +40,17 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 - **Social:** quick chat, emotes, pings, text chat with a profanity filter, voice chat, report and mute.
   - **Text chat:** team chat by default; all-chat (both teams) is opt-in; the profanity filter is always on under 18 and on
     by default for adults.
-  - **Voice:** team only, mic off until the player turns it on; party voice in the lobby; never in kid mode.
+  - **Voice:** team only, mic off until the player turns it on; party voice in the lobby; never in kid mode. A setting
+    picks push-to-talk (a HUD button, the default) or always on; a "party only" option hears only your party; a speaker
+    icon on portraits shows who is talking; long-pressing a teammate's portrait (or the scoreboard) mutes their voice and
+    text.
   - **Reports** (cheating, AFK, abuse in chat or voice, bad name; a short optional note), from the results screen or the
     in-match scoreboard; the reporter gets a "thanks, a player you reported was penalised" message when action is taken.
     Repeated reports trigger automatic mutes and AFK penalties; serious cases go to a review queue on the server for the
     owner.
-  - **Credit score:** starts at 100; leaving, AFK and confirmed abuse lower it, good matches raise it; below thresholds a
-    player loses Ranked, then text and voice chat.
+  - **Credit score:** starts at 100; a leave or AFK costs about 5, confirmed abuse 10, and each clean match gives +1 (up
+    to 100). Below 90 no Ranked, below 80 no voice chat, below 70 no text chat.
+  - **AFK:** no input for 30 s while free shows a warning; at 45 s a bot takes over. Waiting in jail never counts.
 - **Friends and party:** parties of 1 to 5 for Quick Match and private rooms; Ranked allows 1, 2, 3 or 5 (no 4-stacks),
   within a rank range. No clans at launch (a *barkada* system may follow).
   - **Adding friends:** by IGN#tag (a short tag after the name, so names can repeat) or friend code, from the last 20
