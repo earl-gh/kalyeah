@@ -70,7 +70,7 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 | **Standard** | First to 7 rounds | **Ranked** (the only ranked mode), private rooms |
 | Practice vs AI, Practice solo | Any mode's rules | Offline; every kid unlocked; bots at easy / medium / hard; Practice solo is a training range with still and moving (strafing, jumping) dummies, distance markers, damage numbers on hits, a no-cooldown toggle, rescue and capture drills with a timer, and a climb and slide course |
 | Explore | None | Offline; roam any of the 4 maps alone: one daily coin per map (20 barya each, outside the weekly cap), hidden teks cards (a full set per map gives a spray), route practice (ghost paths of rescue routes and climb spots, with a personal-best timer only: no score, leaderboard or rewards), try any kid and skin, map callouts, photo mode (free camera and kid poses; save to the phone or share, not for kid accounts); no mini-games |
-| Tumbang Preso, Patintero | Own rules | Side modes; hidden now, return before launch |
+| Tumbang Preso, Patintero | Own rules | Side modes; hidden now, return before launch as a **weekend mode** (Friday to Sunday, alternating weeks, in Quick Match); no skills, any kid; Tumbang Preso 6 free-for-all, Patintero 4v4; pay like Blitz, plus pass XP and a "play 3 side-mode matches" weekend task |
 
 **Bots** (Practice vs AI and leaver takeover) are role-aware: Strikers dive, Defenders guard and rescue, Seekers
 scout, Controllers zone; they use skills, vendors and objectives (rescue, capture, flank, take neutrals). Easy, medium
