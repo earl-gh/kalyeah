@@ -191,15 +191,16 @@ and, in Ranked, loses a star.
   are revealed. Seeker reveals show enemies to the whole team through walls.
 - **Slingshot shots** are fast visible stones with a slight arc and travel time (leading moving targets matters a little);
   holding the button only adds range, never damage; ADS tightens accuracy. A stone deals **20** (body) or **30** (head):
-  5 body hits or 4 with a headshot tag a kid, so a full load of 7 leaves room for 2 misses. The server checks hits with lag compensation.
+  5 body hits or 4 with a headshot tag a kid, so a full load of 7 leaves room for 2 misses. One stone every **0.4 s**,
+  reload **1.5 s**; range **18 m** on a tap, up to **30 m** when held 1 s, and a stone drops past its range. The server checks hits with lag compensation.
 - **Skill aiming (Wild Rift):** tap to quick-cast at the crosshair or nearest target; drag from the button to aim with a
   ground or line indicator; drag to the cancel zone to cancel.
 - **Hits:** slingshot headshots deal +50%. **Aim assist** (a setting) only slows the crosshair slightly over enemies; no
   pull, no snapping, no auto-fire. **No friendly fire:** damage and crowd control never touch allies.
 - **Chained control:** after a hard stop (stun, root, knock-up, knock-down, turned into a can) a kid can't be
   hard-stopped again for 1 s; slows still apply.
-- **Healing:** slow regeneration after 5 s without taking damage; vendors and skills are the fast heals.
-- **Movement (CODM-like):** walk and run; **one jump button** does jump, running jump, vault (small obstacles) and climb
+- **Healing:** **5 HP a second** once a kid has gone 5 s without taking damage, attacking or being under crowd control; vendors and skills are the fast heals.
+- **Movement (CODM-like):** walk **4.5 m/s** and run **6 m/s** (run when the stick is pushed fully); **one jump button** does jump, running jump, vault (small obstacles) and climb
   (high obstacles) by context; **one crouch button** crouches when walking and slides when running (slide jump and back
   slide included). Crouch-walking is silent and 40% slower. A slide is a 3 m burst that drops the head below most shots
   for 0.3 s, then a 2 s cooldown. A vault takes 0.4 s and a climb about 1 s; a hit while climbing knocks the kid down.
