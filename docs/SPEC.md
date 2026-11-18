@@ -60,7 +60,8 @@ scout, Controllers zone; they use skills, vendors and objectives. Easy, medium a
 **Online first (Mobile Legends way):** PLAY tries the server; if it cannot connect, a prompt offers offline play, which opens
 the offline hub (Hotspot, Practice vs AI, Practice solo, Explore). **Kids are picked after the queue** (Valorant
 agent select): 30 s, everyone at once; hovering shows teammates your choice and LOCK confirms; an unlocked player gets a
-random owned kid of a missing role at 0 s. No duplicates within a team (the other team may share). Any role mix is
+random owned kid of a missing role at 0 s. No duplicates within a team (the other team may share). The enemy team's picks stay hidden until the loading
+screen (no counter-picking). Any role mix is
 allowed, with a warning when a role is missing. After locking: skin, slingshot skin, spray and emote wheel. A player who
 leaves during select cancels the match (the others go back to the front of the queue); the dodger gets a queue cooldown
 and, in Ranked, loses a star.
@@ -115,6 +116,8 @@ and, in Ranked, loses a star.
 - **Capture:** standing in the enemy base fills a capture bar in **8 s** for one kid; each extra teammate inside adds 50%
   speed. A free defender
   standing in the base **pauses** it; stepping out keeps the progress but it **drains slowly**.
+- **Giving up:** from the side swap on, a team can vote to give up; 4 of 5 must agree (every teammate still in, if one
+  left).
 - **Interrupts:** being tagged or stunned stops a rescue or a capture; a rescue keeps its checkpoint, a capture drains.
 
 ## 6. Maps: 4 at launch
@@ -190,6 +193,8 @@ and, in Ranked, loses a star.
   ground or line indicator; drag to the cancel zone to cancel.
 - **Hits:** slingshot headshots deal +50%. **Aim assist** (a setting) only slows the crosshair slightly over enemies; no
   pull, no snapping, no auto-fire. **No friendly fire:** damage and crowd control never touch allies.
+- **Chained control:** after a hard stop (stun, root, knock-up, knock-down, turned into a can) a kid can't be
+  hard-stopped again for 1 s; slows still apply.
 - **Healing:** slow regeneration after 5 s without taking damage; vendors and skills are the fast heals.
 - **Movement (CODM-like):** walk and run; **one jump button** does jump, running jump, vault (small obstacles) and climb
   (high obstacles) by context; **one crouch button** crouches when walking and slides when running (slide jump and back
@@ -257,6 +262,8 @@ a combo idea.
 support work that led to a tag: heals, shields, reveals, slows and roots; raw damage does not count, so every role can
 be MVP), each kid's tags, rescues, captures and damage, stars
 gained or lost, pass XP and barya earned, and honor and report buttons.
+- **Profile stats:** win rate per mode and per kid, the last 20 matches (result, kid, tags, rescues, captures, MVP marks),
+  a favourite-role chart and the highest rank of each past season.
 - **Honor:** one honor per match for any player (teammate or rival); being honored raises your credit score a little,
   and your honor level shows on your profile and in kid select.
 
