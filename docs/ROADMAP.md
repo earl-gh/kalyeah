@@ -70,19 +70,21 @@ retain ownership. [Catalog](../.claude/skills/README.md), provenance lock and
 
 ## Next: close the gaps to `docs/SPEC.md`
 
+Owner order: **playable core first**, one PR (with an APK and screenshots) per step.
+
 | Step | Work |
 |---|---|
-| S1 | GUI rebuild in the Valorant style: home done (online first, offline hub); Pick, Codex, History, Settings, Lobby, Hotspot next |
-| S2 | 12 kids in 4 roles, slingshot basic attack (7 shots, reload, hold to aim farther), 3 fixed skills per kid (kits draft for owner approval) |
-| S3 | Match rules: Blitz / Quick / Standard, round ends on capture or full tag, no timers, rescue like a defuse (checkpoint line, 15 s cooldown), revenge release after 10 s |
-| S3b | Movement (context jump / vault / climb, crouch / slide) and the T3 Arena camera with aim down sight; the 4-finger HUD |
-| S3c | The 4 maps (Barangay first, then Palengke, Pier, Hacienda): 3 routes, asymmetric halves with a side swap, terrain and hiding, climb spots; each map's vendors, roaming buff, dragon and baron |
-| S4 | Accounts on `Kalyeah.Server`: guest, Google sign-in, age gate and kid mode |
-| S5 | Starter kids, barya and diamonds, store, 50-level battle pass, daily and weekly tasks (test unlock until Play Billing) |
-| S6 | Quick Match and Ranked (tiers, divisions, stars, seasons); servers in a Singapore region |
-| S7 | Text chat (filter, report, mute), emotes, voice chat |
-| S8 | Explore Barangay (free roam, daily coin); Tumbang Preso and Patintero back as side modes |
-| S9 | `armeabi-v7a`, quality presets, AAB with asset packs, Play Billing, Facebook and Apple sign-in, iOS |
+| 1 | Match rules: Blitz / Quick / Standard, round ends on capture or full tag, no timers, barrier phase, enemy jail and defuse-style rescue (checkpoint, 15 s cooldown), revenge release, contested capture with decay |
+| 2 | Movement (context jump / vault / climb, crouch / slide), the over-the-shoulder camera with ADS, the 4-finger HUD |
+| 3 | Barangay map: 3 routes, asymmetric halves and side swap, terrain and hiding, climb spots, taho and fishball vendors, Selecta bike, Crocodile, Philippine Eagle |
+| 4 | The 12 kids' kits (`docs/KITS.md`) on stand-in models, slingshot (7 shots, reload, hold for range, headshots), water; role-aware bots |
+| 5 | Accounts on `Kalyeah.Server` (guest, Google sign-in, IGN, age gate, kid mode), first run with the tutorial and starter pick |
+| 6 | Quick Match matchmaking, kid select after queue, map vote, reconnects and leaver bots; servers in a Singapore region |
+| 7 | Store and battle pass with test diamonds, tasks, daily login, barya rewards |
+| 8 | The remaining GUI screens (collection, profile and history, friends and party, settings) |
+| **Closed beta** | Steps 1–8 on Barangay; testers through Google Play's testing track |
+| 9 | Palengke, Pier, Hacienda; Ranked (stars, protection, seasons); chat, voice, reports and credit score |
+| 10 | Explore, Tumbang Preso and Patintero, events, admin page, `armeabi-v7a`, quality presets, AAB with asset packs, Play Billing, Facebook and Apple sign-in; then iOS |
 
 ## Earlier: the Kalyeah visual overhaul (history)
 
