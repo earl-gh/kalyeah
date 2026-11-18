@@ -110,7 +110,11 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
   - Controllers (crowd control and traps): Tere, Pamela, Domeng
 - Every kid is written with respect: identity shows through the clothes and style a kid would choose, never through
   jokes, slurs or exaggerated features; every kid gets the same animation quality.
-- **Heavy lore:** every kid has a deep backstory, relationships and rivalries; voice lines reference each other.
+- **Heavy lore:** grounded **barangay rivalry**: kids aged **8 to 12** from rival puroks and barangays settle disputes
+  through street-game showdowns every summer; the skills are their imagination made real on screen. Every kid has a deep
+  backstory (family, barangay, friends, rivals) shown in a **codex per kid** (chapters unlock with mastery) and in
+  **in-match voice banter** between allies and rivals. Agents draft the text in docs, keeping the respect rule; the owner
+  edits and approves.
 - **Basic attack for all:** the slingshot (*Tirador*), 7 shots and a reload button; holding the attack button aims farther,
   up to a maximum range.
 - **3 fixed skills per kid: S1, S2 and an ultimate**, all on cooldowns; S1 and S2 also cost **water** (Kalyeah's mana).
