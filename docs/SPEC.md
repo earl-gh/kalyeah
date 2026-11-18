@@ -237,6 +237,14 @@ and, in Ranked, loses a star.
 - **Screens at launch** (familiar from Mobile Legends, Wild Rift, CODM and Valorant): home (one PLAY, online first), kid
   select after queue, kids and skins collection, store, battle pass and tasks, profile with rank and match history,
   friends and party, settings.
+- **Home:** the favourite kid in 3D; one big PLAY with the mode name above it (tap to switch Blitz, Quick, Ranked or
+  offline); party slots beside the kid with an online-friends list; a small card with pass level and today's tasks. No
+  event or store banners.
+- **Kid select:** the 12 kids in 4 role rows (not-owned greyed, trial-card kids marked); a team bar with hovers, locks
+  and a missing-role warning; tapping a kid previews its 3 skills with short clips.
+- **Loading:** every player's kid in their skin, with name, rank and honor badge, and a tip about the map.
+- **Results actions:** add any player from the match as a friend (not in kid mode) and share a result card to Facebook
+  (counts for the share task).
 - **Only real content:** a screen, tab or button exists only when the game has the thing behind it; no filler
   components copied from other games.
 - **English only** for text; kid voice lines are short **Taglish** barks on skills, tags, rescues and wins.
