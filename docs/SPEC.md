@@ -348,6 +348,12 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 ## 9b. Launch and data
 - **Closed beta scope:** the core match with all 12 kids, the Barangay map only, accounts and Quick Match, the store and
   pass with test diamonds.
+  - **Testers:** about 200, invited friends plus sign-ups through a form on the Facebook page; English text only.
+  - **Filling queues:** Quick Match opens at scheduled evening hours (PH time, announced on the Facebook page); private
+    rooms with bots stay open at any time.
+  - **Reward:** progress resets at launch, but testers keep a beta badge and border.
+  - **Feedback:** a bug report button (Settings and the match menu: a note, a screenshot and device info to the server)
+    and, at most once a day, a one-question survey after a match ("Was that fun?" 1 to 5).
 - **Launch:** closed beta (Play testing track, invites), then a Philippines-only soft launch to tune servers and the
   economy, then Southeast Asia.
 - **Data:** match stats on `Kalyeah.Server` for balance, plus a crash reporter. No ad tracking; a privacy policy and
