@@ -48,6 +48,12 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
     player loses Ranked, then text and voice chat.
 - **Friends and party:** parties of 1 to 5 for Quick Match and private rooms; Ranked allows 1, 2, 3 or 5 (no 4-stacks),
   within a rank range. No clans at launch (a *barkada* system may follow).
+  - **Adding friends:** by IGN#tag (a short tag after the name, so names can repeat) or friend code, from the last 20
+    matches' players, by showing a QR code, and Facebook friends who play (Facebook sign-in). Kid accounts use only the
+    friend code with a parent's OK. Up to 200 friends.
+  - **Privacy:** appear offline; hide match history (rank stays visible); party invites only from friends by default; the
+    Google or Facebook name is never shown, only the IGN.
+  - **Party queue:** every member taps Ready, then the leader starts the queue.
 
 ## 4. Modes
 | Mode | Win | Where |
