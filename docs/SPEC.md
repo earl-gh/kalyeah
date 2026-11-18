@@ -58,6 +58,11 @@ and, in Ranked, loses a star.
 - **Ranked:** Filipino-themed tiers (Kahoy, Bakal, Tanso, Pilak, Ginto, Brilyante, Batang Kalyeah) with divisions and a
   **star system like Mobile Legends** (win +1 star, loss −1 star, a full division promotes); seasonal resets with rewards.
   Replaces the LP system in the current code.
+  - No placement matches: everyone starts at Kahoy; a hidden rating (MMR) still matches by skill.
+  - Star protection: the losing team's MVP keeps the star; good play fills protection points that save a star when full;
+    no demotion below a newly reached tier for a few games.
+  - Top tier: stars keep counting with no divisions, a Philippine leaderboard and top-100 titles.
+  - Ranked parties must be within one tier of each other.
 - **Servers:** `Kalyeah.Server` (Docker) on cloud VMs in a Singapore region first; one account and match database.
 - **Bad connections:** ping and packet loss on the HUD; a dropped player can reconnect within 3 minutes while a bot plays
   their kid; the queue prefers players under 120 ms.
