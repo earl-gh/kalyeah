@@ -76,7 +76,7 @@ retain ownership. [Catalog](../.claude/skills/README.md), provenance lock and
 | S2 | 12 kids in 4 roles, slingshot basic attack (7 shots, reload, hold to aim farther), 3 fixed skills per kid (kits draft for owner approval) |
 | S3 | Match rules: Blitz / Quick / Standard, round ends on capture or full tag, no timers, rescue like a defuse (checkpoint line, 15 s cooldown), revenge release after 10 s |
 | S3b | Movement (context jump / vault / climb, crouch / slide) and the T3 Arena camera with aim down sight; the 4-finger HUD |
-| S3c | The circular barangay: cemented ends, soil and river centre, main path, narrow streets; taho and fishball vendors, Selecta bike, Crocodile and Philippine Eagle |
+| S3c | The 4 maps (Barangay first, then Palengke, Pier, Hacienda): 3 routes, asymmetric halves with a side swap, terrain and hiding, climb spots; each map's vendors, roaming buff, dragon and baron |
 | S4 | Accounts on `Kalyeah.Server`: guest, Google sign-in, age gate and kid mode |
 | S5 | Starter kids, barya and diamonds, store, 50-level battle pass, daily and weekly tasks (test unlock until Play Billing) |
 | S6 | Quick Match and Ranked (tiers, divisions, stars, seasons); servers in a Singapore region |
