@@ -233,7 +233,7 @@ and, in Ranked, loses a star.
   - top-left corner: a small minimap (tap for the full map), with the camera and ADS zone below it;
   - top centre: rounds won per team, each team's 5 kid portraits (greyed when tagged, with the jail count), and the
     dragon and baron timers;
-  - right edge: a small feed of tags and rescues with the skill used; big centre banners only for team events (capture,
+  - right edge: a small feed of tags and rescues with the skill used (a rescue appears only once it completes); big centre banners only for team events (capture,
     all tagged, dragon or baron taken, side swap);
   - bottom centre between the thumbs: your HP and water; the ammo count (of 7) on the slingshot button; overhead bars on
     every kid.
@@ -386,8 +386,9 @@ bloom on effects. Lower presets drop cost, never the art or the readability:
 **Audio:** OPM-flavoured electronic and hip-hop music with Filipino instruments (kulintang, bandurria, tambol) and street
 sounds: a menu theme, ambience per map, round-end stingers. **Positional sound is gameplay (Valorant level):** footsteps
 by surface (cement, soil, wood, tin), directional skill cues; crouch-walking is silent.
-- **Announcer voice:** calls tags, the score, victory and defeat. It never calls rescues or base captures in progress,
-  so a sneaky rescue or capture stays secret.
+- **Announcer voice:** calls tags, the score, victory and defeat. When a teammate starts a rescue, only their team's
+  announcer says so (to cover the rescuer). The enemy never hears a rescue or capture in progress, and defenders get no
+  warning that their base is being captured, so a flank to rescue or capture can stay secret.
 - **Cues both teams hear:** a short call when the Crocodile or Eagle appears; every ultimate has a voice line.
 
 **Live events:** limited-time events on the Filipino calendar (Pasko, fiesta, Undas, summer) with themed tasks, event
