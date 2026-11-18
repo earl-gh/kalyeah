@@ -109,7 +109,10 @@ and, in Ranked, loses a star.
   teams, lock teams and kick. Private rooms give no rewards. A bracket tool for school and barangay cups may come after
   launch with the barkada system.
 - **Hotspot:** one phone hosts up to 10 phones over its hotspot or the same Wi-Fi; bots fill empty slots; the host needs
-  a mid-range or better phone. Every kid is unlocked in Hotspot so friends can play anything together.
+  a mid-range or better phone. Every kid is unlocked in Hotspot so friends can play anything together. The host sets the
+  same custom rules as a private room, bot levels for empty slots, and any map every phone has downloaded. If the host
+  leaves, the match ends for everyone with no penalty. Hotspot works fully offline: a phone that never went online plays
+  as a local guest (after the first-run steps), and kid accounts play with quick chat only.
 - **Anti-cheat:** besides the server deciding hits, it validates movement speed and fire rate; Ranked requires a passing
   Play Integrity check (rooted or modded phones can still play casual modes).
 - **Bad connections:** ping and packet loss on the HUD; a dropped player can reconnect within 3 minutes while a bot plays
