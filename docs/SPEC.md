@@ -146,7 +146,12 @@ and, in Ranked, loses a star.
   tagu-taguan, bahay-bahayan, syato, yoyo, palosebo, pukpok palayok, sack race, pabitin, chinese garter, sungka, tiyakad).
 - **Vision (Valorant):** you see enemies in your line of sight; the minimap shows only enemies a teammate sees or that
   are revealed. Seeker reveals show enemies to the whole team through walls.
-- **Hits:** slingshot headshots deal +50%; aim assist only nudges, never snaps to heads. **No friendly fire:** damage and
+- **Slingshot shots** are fast visible stones with a slight arc and travel time (leading moving targets matters a little);
+  holding the button only adds range, never damage; ADS tightens accuracy. The server checks hits with lag compensation.
+- **Skill aiming (Wild Rift):** tap to quick-cast at the crosshair or nearest target; drag from the button to aim with a
+  ground or line indicator; drag to the cancel zone to cancel.
+- **Hits:** slingshot headshots deal +50%. **Aim assist** (a setting) only slows the crosshair slightly over enemies; no
+  pull, no snapping, no auto-fire. **No friendly fire:** damage and
   crowd control never touch allies.
 - **Healing:** slow regeneration after 5 s without taking damage; vendors and skills are the fast heals.
 - **Movement (CODM-like):** walk and run; **one jump button** does jump, running jump, vault (small obstacles) and climb
