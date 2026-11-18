@@ -451,8 +451,12 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   land with each season. Patch notes appear as a short card on the next login (which kids changed, with stronger or
   weaker arrows), and each kid's page lists its recent changes.
 - **New maps, skins and voices** download as asset packs; the app updates only for new code.
-- **Admin page:** a password-protected page on `Kalyeah.Server` for the owner to change balance values, store items and
-  events and to work the report queue; every change is logged.
+- **Admin page:** a phone-friendly web page on `Kalyeah.Server` behind a password and a second login code, for the owner
+  to change balance values (one-tap undo), store items and events; work the report queue (each report with chat logs and
+  the match's stats); ban, mute or give barya to a player with a reason the player sees; and watch players online, queue
+  times and win rates per kid and map. Every change is logged.
+- **Bans:** abuse and AFK climb 1 day, 7 days, then permanent; confirmed cheating is permanent at once. One appeal per
+  ban through the contact form, landing in the admin queue.
 
 ## 10. Look
 Pure Valorant for the UI and the world: flat, confident shapes, the Ink / Paper / Red palette, a painted 3D street; the
