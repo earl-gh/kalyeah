@@ -259,7 +259,8 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   kid-safe defaults.
 
 ## 10. Look
-Pure Valorant: flat, confident shapes, the Ink / Paper / Red palette, painted 3D kids and street. Inspired by, never copied
+Pure Valorant for the UI and the world: flat, confident shapes, the Ink / Paper / Red palette, a painted 3D street; the
+kids keep the owner's models. Inspired by, never copied
 (no Riot, Supercell, Valve or Moonton assets, names or logos). The owner makes all art and audio; agents only say which
 kind is needed (3D model, sprite sheet or 2D image).
 
