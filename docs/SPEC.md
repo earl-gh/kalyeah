@@ -104,7 +104,10 @@ and, in Ranked, loses a star.
 - **Servers:** `Kalyeah.Server` (Docker) on cloud VMs in a Singapore region first; one account and match database. When
   more regions open, the game picks the lowest-ping one and players can switch in Settings; Ranked counts per region.
 - **Private rooms:** the host picks the mode and map, fills empty slots with bots at a chosen level, can set custom rules
-  (neutrals on or off, rescue time, duplicate kids allowed) and allow up to 2 spectators.
+  (neutrals on or off, rescue time, duplicate kids allowed, a first-to count from 1 to 9, skills off for a slingshot-only
+  match) and allow up to 2 spectators. Players join by room code, invite or QR code; the host can move players between
+  teams, lock teams and kick. Private rooms give no rewards. A bracket tool for school and barangay cups may come after
+  launch with the barkada system.
 - **Hotspot:** one phone hosts up to 10 phones over its hotspot or the same Wi-Fi; bots fill empty slots; the host needs
   a mid-range or better phone. Every kid is unlocked in Hotspot so friends can play anything together.
 - **Anti-cheat:** besides the server deciding hits, it validates movement speed and fire rate; Ranked requires a passing
