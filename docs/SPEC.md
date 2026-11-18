@@ -131,6 +131,8 @@ and, in Ranked, loses a star.
   left). A team down a player for good can vote before the side swap too.
 - **Ultimates that stop a capture or a tag** (Palosebo, Langit!) have no extra limit: both teams see the area clearly and
   hear the ultimate's voice line.
+- **Same-moment finish:** if both teams win a round in the same tick (two captures, or each tags the other's last kid),
+  nobody scores and the round is replayed.
 - **Interrupts:** being tagged or stunned stops a rescue or a capture; a rescue keeps its checkpoint, a capture drains.
 
 ## 6. Maps: 4 at launch
@@ -194,7 +196,8 @@ and, in Ranked, loses a star.
   **in-match voice banter** between allies and rivals. Agents draft the text in docs, keeping the respect rule; the owner
   edits and approves. Draft: [`docs/LORE.md`](LORE.md) (4 puroks of 3 kids, friends and rivals,
   playful never-mean Taglish banter, a personality, idle and victory pose per kid).
-- **Basic attack for all:** the slingshot (*Tirador*), 7 shots and a reload button; holding the attack button aims farther,
+- **Basic attack for all:** the slingshot (*Tirador*), 7 shots and a reload button (it also reloads by itself when
+  empty); full accuracy while jumping, vaulting or sliding; holding the attack button aims farther,
   up to a maximum range.
 - **3 fixed skills per kid: S1, S2 and an ultimate**, all on cooldowns; S1 and S2 also cost **water** (Kalyeah's mana).
   The approved kits are in `docs/KITS.md`. Each skill is a reimagined Filipino street game (bato bato pik, tumbang preso, jackstone, trumpo,
@@ -239,9 +242,9 @@ and, in Ranked, loses a star.
     summoner spells (Flash, Heal);
   - right top: jump and crouch/slide.
 - **HUD read-outs:**
-  - top-left corner: a small minimap (tap for the full map), with the camera and ADS zone below it;
-  - top centre: rounds won per team, each team's 5 kid portraits (greyed when tagged, with the jail count), and the
-    dragon and baron timers;
+  - top-left corner: a small minimap (tap for the full map) with the dragon and baron on their spots, each showing a
+    countdown until it appears (or that it is up); the camera and ADS zone below it;
+  - top centre: rounds won per team and each team's 5 kid portraits (greyed when tagged, with the jail count);
   - right edge: a small feed of tags and rescues with the skill used (a rescue appears only once it completes); big centre banners only for team events (capture,
     all tagged, dragon or baron taken, side swap);
   - bottom centre between the thumbs: your HP and water; the ammo count (of 7) on the slingshot button; overhead bars on
