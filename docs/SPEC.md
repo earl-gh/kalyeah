@@ -29,6 +29,9 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
   - **13 and up:** every feature.
 - **Data rights:** Settings has **Delete account** (7-day grace, then wiped) and **Download my data**; parents can ask
   to delete a kid's account.
+- **Pings and quick chat:** tap to ping what you are looking at (enemy, vendor, neutral, jail); hold for a wheel
+  ("Rescue me", "Going in", "Defend base", "Wait"). Quick chat lines are spoken in your kid's voice in Taglish with English
+  text.
 - **Social:** quick chat, emotes, pings, text chat with a profanity filter, voice chat, report and mute.
   - **Text chat:** team chat by default; all-chat (both teams) is opt-in; the profanity filter is always on under 18 and on
     by default for adults.
@@ -47,7 +50,7 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 | **Quick** | First to 5 rounds | Quick Match queue, private rooms, Hotspot, vs AI |
 | **Standard** | First to 7 rounds | **Ranked** (the only ranked mode), private rooms |
 | Practice vs AI, Practice solo | Any mode's rules | Offline; bots at easy / medium / hard; Practice solo is a training range with dummies, distance markers and a no-cooldown toggle |
-| Explore | None | Offline; roam any of the 4 maps alone: one daily coin per map, hidden teks cards (a full set per map gives codex pages and a spray), route practice (ghost paths of rescue routes and climb spots, timed against your best run), try any kid and skin, map callouts, photo mode; no mini-games |
+| Explore | None | Offline; roam any of the 4 maps alone: one daily coin per map, hidden teks cards (a full set per map gives a spray), route practice (ghost paths of rescue routes and climb spots, with a personal-best timer only: no score, leaderboard or rewards), try any kid and skin, map callouts, photo mode; no mini-games |
 | Tumbang Preso, Patintero | Own rules | Side modes; hidden now, return before launch |
 
 **Bots** (Practice vs AI and leaver takeover) are role-aware: Strikers dive, Defenders guard and rescue, Seekers
@@ -341,7 +344,10 @@ sounds: a menu theme, ambience per map, round-end stingers. **Positional sound i
 by surface (cement, soil, wood, tin), directional skill cues; crouch-walking is silent.
 
 **Live events:** limited-time events on the Filipino calendar (Pasko, fiesta, Undas, summer) with themed tasks, event
-skins and map decorations; an event mini-mode can come later.
+skins and map decorations; an event mini-mode can come later. **First year:** a **Summer showdown** at launch (themed
+tasks, banderitas on the maps, a free summer spray, an earnable fiesta skin), **Undas** (maps at dusk with candles and
+lanterns, kids in kind folk costumes, respectful of the day) and **Pasko** (paról and Christmas lights on every map, a
+gift-to-a-friend task, a free Pasko emote).
 
 ## 11. Open questions (agents use the default until the owner decides)
 | # | Question | Default |
