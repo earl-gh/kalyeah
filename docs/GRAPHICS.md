@@ -38,3 +38,12 @@ item says which kind of asset the owner makes.
   and props, swapped with a short fade so nothing pops.
 - **Map size:** up to 150 MB per map pack. Barangay comes with the install as an install-time asset pack (outside the
   200 MB base app limit); the other 3 maps are on-demand packs.
+
+## Kids in a match
+- **Shading:** soft painted shading with a light rim from behind, so kids separate from walls (like Valorant agents and
+  Fortnite).
+- **Hair and cloth:** ponytails, skirts and sacks swing with physics on High and Ultra; Low and Medium use the baked
+  animation only.
+- **Faces:** kids blink, wince when hit and grin on a tag, and their mouths open and close on voice lines. This needs the
+  7 face shapes of the model spec (now required, no longer optional).
+- **No wear:** kids stay clean all match; skins look as bought.

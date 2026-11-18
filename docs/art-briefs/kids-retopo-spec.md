@@ -49,7 +49,7 @@
 - **UVs:** one clean layout, no overlaps (mirrored halves may share space), seams hidden (inner arms and legs, under hair, along clothing seams), 4 px padding at 2048.
 - File size target: under 6 MB per kid.
 
-## 5. Face (optional now, needed for Fortnite-level appeal later)
+## 5. Face (required: kids blink, react and talk in matches, `docs/GRAPHICS.md`)
 
 Seven shapes sculpted on the final `Body` head, face vertices only: `blink_L`, `blink_R`, `smile`, `open`, `angry`, `surprised`, `hurt`. Rings around the eyes and mouth (section 3) are what make these possible, so include those rings even if the shapes come later.
 
