@@ -1,6 +1,8 @@
 # Art, UI and audio
 
-Look: **Valorant × Arcane painted 3D clarity** fused with **90s Filipino Komiks (*Funny Komiks* / *Bata Batuta*)** bold ink framing, built on top of Kalyeah's chunky stylized Filipino street silhouettes (`docs/BARANGAY_AAA_MODEL_QUALITY.md`, `docs/PROJECT.md` 3.8). Everything runs natively on **Unity 6.3 LTS (`6000.3.28f1`) URP Mobile** (`1280 × 720` & `844 × 390` landscape) with zero third-party asset copying.
+> Target look (owner, `docs/SPEC.md` §8): **pure Valorant**. The Arcane and komiks notes below describe the current build and are replaced screen by screen.
+
+Look: **Valorant × Arcane painted 3D clarity** fused with **90s Filipino Komiks (*Funny Komiks* / *Bata Batuta*)** bold ink framing, built on top of Kalyeah's chunky stylized Filipino street silhouettes (`docs/BARANGAY_AAA_MODEL_QUALITY.md`). Everything runs natively on **Unity 6.3 LTS (`6000.3.28f1`) URP Mobile** (`1280 × 720` & `844 × 390` landscape) with zero third-party asset copying.
 
 ## AAA Barangay 5v5 visual architecture (current — Unity 6 URP Mobile)
 - **Painted Provincial Barangay World (`BarangayEnvironmentBuilder`, `BarangayCurbsAndProps`, `SpaghettiWiresBuilder`):**

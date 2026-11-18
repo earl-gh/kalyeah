@@ -1,6 +1,6 @@
 # Kalyeah agent entry point
 
-Apply **surgical focus**: read `CLAUDE.md` first, plus `.claude/skills/surgical-focus/SKILL.md` and `.claude/skills/ponytail/SKILL.md`. Read `docs/GDD.md`, `docs/PROJECT.md`, `docs/ROADMAP.md`, `docs/ART.md`, or `GLOSSARY.md` **selectively** (targeted sections/lines only when gameplay rules, scope, art, or player terms apply to the task). The same project constraints apply to every coding agent.
+Apply **surgical focus**: read `CLAUDE.md` first, plus `.claude/skills/surgical-focus/SKILL.md` and `.claude/skills/ponytail/SKILL.md`. Read `docs/SPEC.md`, `docs/GDD.md`, `docs/ROADMAP.md`, `docs/ART.md`, or `GLOSSARY.md` **selectively** (targeted sections/lines only when gameplay rules, scope, art, or player terms apply to the task). The same project constraints apply to every coding agent.
 
 Consult `.claude/skills/README.md` and load only the `SKILL.md` and references needed for the task. Canonical skills live in `.claude/skills/`; `.agents/skills/` points to that tree for Codex and `.agents/skills.json` exposes it to Antigravity.
 

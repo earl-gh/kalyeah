@@ -20,7 +20,7 @@ description: >
 
 - Run `rg -n` or `git grep -n` for exact class, method, event, or JSON data field names before opening files.
 - Read only `StartLine..EndLine` around the target function plus 1-hop direct callers, callees, and `unity/Data/*.json` contracts.
-- Never read entire directories, untouched sibling systems, or 400+ line docs (`docs/GDD.md`, `docs/ROADMAP.md`, `docs/PROJECT.md`, `docs/ART.md`, `GLOSSARY.md`) end-to-end when one grepped section answers the question.
+- Never read entire directories, untouched sibling systems, or 400+ line docs (`docs/GDD.md`, `docs/ROADMAP.md`, `docs/SPEC.md`, `docs/ART.md`, `GLOSSARY.md`) end-to-end when one grepped section answers the question.
 - Do not open synced `Assets/Imported/`, `Assets/Kalyeah/Generated/`, `.meta` files, binary assets, or lockfiles unless debugging an asset/import failure.
 
 ## 2. Single-pass batching & bounded thinking
