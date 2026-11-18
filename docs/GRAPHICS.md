@@ -28,3 +28,13 @@ item says which kind of asset the owner makes.
 - Water flows and sparkles (river, sea, paddies).
 - Neighbours on porches, chickens and dogs move outside the play area: never in the way and can't be hit. Asset kind:
   Blender models with simple animation.
+
+## Models and detail levels
+- **Shapes:** chunky, slightly rounded and simple: bevelled edges, thick walls, a few big readable forms; small detail is
+  painted, not modelled (like Valorant and Fortnite). Asset kind: Blender models.
+- **Cover reads the same on every map:** solid-looking cover (walls, crates, cars, containers) blocks stones and sight;
+  soft-looking cover (laundry, cane, nets, ukay-ukay racks) blocks only sight, and stones pass through.
+- **Detail levels:** 3 steps for kids (full up close, about half beyond 15 m, simple beyond 35 m) and 3 for buildings
+  and props, swapped with a short fade so nothing pops.
+- **Map size:** up to 150 MB per map pack. Barangay comes with the install as an install-time asset pack (outside the
+  200 MB base app limit); the other 3 maps are on-demand packs.
