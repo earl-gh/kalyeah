@@ -242,12 +242,15 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   a prestige border after level 30.
 - **Diamonds:** standard packs with a double first-purchase bonus per pack and a cheap weekly diamond card; no
   limited-time pressure offers in kid mode.
+- **Store tabs:** Featured (the season's skins and bundles), Kids, Skins, Daily (4 rotating items), Diamonds; every item
+  can be previewed on the 3D kid before buying.
 - **No gacha or loot boxes:** everything is bought directly at a shown price.
 - **Battle pass, 50 levels**, filled by fixed daily and weekly tasks (play 3 games, log in, share to Facebook, …; the share
   counts when the share sheet completes). Task rewards are kept small so 50 takes the season.
   - **Free tier:** barya at checkpoints, some levels with no reward; level 50 gives a basic skin.
   - **Paid tier:** small rewards on every level; level 50 gives a high-tier skin, plus that kid if not owned.
-  - The paid tier uses a test unlock until Play Billing is added.
+  - The paid tier costs about ₱250 a season, with a premium-plus tier (+10 levels and an extra skin) near ₱500; it uses a
+    test unlock until Play Billing is added.
 
 ## 9b. Launch and data
 - **Launch:** closed beta (Play testing track, invites), then a Philippines-only soft launch to tune servers and the
@@ -259,6 +262,10 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 Pure Valorant: flat, confident shapes, the Ink / Paper / Red palette, painted 3D kids and street. Inspired by, never copied
 (no Riot, Supercell, Valve or Moonton assets, names or logos). The owner makes all art and audio; agents only say which
 kind is needed (3D model, sprite sheet or 2D image).
+
+**Kids' look:** the owner's uploaded models (`assets/models/raw/`) define each kid's look; they are only made game-ready
+(`docs/art-briefs/kids-retopo-spec.md`), not restyled. **Role icons** (Striker, Defender, Seeker, Controller) appear in
+select, portraits and profile; there are no role colours, so red and blue stay the team colours.
 
 **Graphics:** the top preset aims at Valorant Mobile: clean stylised PBR, real-time sun shadows, soft ambient light,
 bloom on effects. Lower presets drop cost, never the art or the readability:
@@ -286,7 +293,7 @@ skins and map decorations; an event mini-mode can come later.
 |---|---|---|
 | Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling saved for a later kid |
 | Q2 | Stars per division, divisions per tier | 3 divisions × 4 stars |
-| Q3 | Kid prices (barya / diamonds) and pass price | Set with the store build |
+| Q3 | Exact kid and diamond-pack prices | Set with the store build (kid ≈ two weeks of play) |
 | Q5 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
 | Q6 | Rescue and capture times, vendor and objective numbers, Crocodile and Eagle timers | Rescue 6 s with the line at 3 s; capture 8 s; Crocodile at 1:00 (respawn 2:00), Eagle at 3:00 (respawn 3:00), buffs 90 s; role buffs +8% |
 | Q7 | Exact map geometry and neutral placement | Designed map by map, Barangay first, then blocked out and play-tested with bots |
