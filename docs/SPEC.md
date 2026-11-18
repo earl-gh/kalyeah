@@ -375,9 +375,9 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   a prestige border after level 30.
 - **Diamonds:** ₱1 = 1 diamond, so prices read like pesos (a kid 149 💎; skins 49 / 149 / 299 / 499 / 899 💎). 6 packs:
   ₱20 = 20, ₱50 = 50, ₱100 = 105, ₱250 = 270, ₱500 = 550, ₱2,000 = 2,300 (small bonuses on bigger packs) and double diamonds
-  on each pack's first buy, plus a ₱50 weekly diamond card; no limited-time pressure offers in kid mode.
+  on each pack's first buy, plus a ₱50 weekly diamond card (50 💎 at once and 10 a day for 7 days, 120 in all); no limited-time pressure offers in kid mode.
 - **Bundles:** a once-per-account **starter bundle** for ₱49 (a kid chosen from 3 not yet owned, one per missing role
-  if possible, an Elite skin and some diamonds); kid + launch
+  if possible, an Elite skin and 50 💎); kid + launch
   skin bundles at a discount; a season set (all the season's skins with a spray and a border, cheaper than one by one).
 - **What each skin tier adds:** Basic new colours; Elite a new outfit; Special also the slingshot look; Epic also skill
   effects and sounds; Legend also voice lines, a victory pose and a home-screen intro.
