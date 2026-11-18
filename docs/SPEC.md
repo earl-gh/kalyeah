@@ -46,8 +46,8 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 | **Blitz** | First to 3 rounds | Quick Match queue, private rooms, Hotspot, vs AI |
 | **Quick** | First to 5 rounds | Quick Match queue, private rooms, Hotspot, vs AI |
 | **Standard** | First to 7 rounds | **Ranked** (the only ranked mode), private rooms |
-| Practice vs AI, Practice solo | Any mode's rules | Offline; bots at easy / medium / hard; training sandbox |
-| Explore | None | Offline; roam any of the 4 maps alone, one daily collectible coin per map, try kids and skins freely; no mini-games |
+| Practice vs AI, Practice solo | Any mode's rules | Offline; bots at easy / medium / hard; Practice solo is a training range with dummies, distance markers and a no-cooldown toggle |
+| Explore | None | Offline; roam any of the 4 maps alone: one daily coin per map, try any kid and skin, map callouts and routes shown, photo mode; no mini-games |
 | Tumbang Preso, Patintero | Own rules | Side modes; hidden now, return before launch |
 
 **Bots** (Practice vs AI and leaver takeover) are role-aware: Strikers dive, Defenders guard and rescue, Seekers
@@ -211,7 +211,9 @@ and, in Ranked, loses a star.
 
 **First run:** choose an in-game name (IGN), then the age question, then a **tutorial** before the home screen. The
 tutorial uses the real barangay map with **barricades closing the other paths**, and teaches move, jump/vault, crouch/slide,
-the slingshot and reload, skills, tag, rescue and capture.
+the slingshot and reload, skills, tag, rescue and capture. Each step lends a kid of a different role, so the player tries
+all 4 roles before picking starters. A friendly older neighbour (*Kuya/Ate*, not playable) guides it in Taglish voice with
+English text and later narrates the codex. The tutorial can be replayed from Settings.
 
 **Fair play:**
 - **Leavers and AFK:** a bot plays their kid until they reconnect; repeat leavers lose stars in Ranked and get queue
