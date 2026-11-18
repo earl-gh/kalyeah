@@ -260,6 +260,14 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 - **Data:** match stats on `Kalyeah.Server` for balance, plus a crash reporter. No ad tracking; a privacy policy and
   kid-safe defaults.
 
+**After launch:**
+- **New kids** arrive when ready (no fixed pace); kariling is saved for the first one.
+- **Balance:** numbers live in data, so the server pushes small balance hotfixes without an app update; bigger changes
+  land with each season, with in-game patch notes.
+- **New maps, skins and voices** download as asset packs; the app updates only for new code.
+- **Admin page:** a password-protected page on `Kalyeah.Server` for the owner to change balance values, store items and
+  events and to work the report queue; every change is logged.
+
 ## 10. Look
 Pure Valorant for the UI and the world: flat, confident shapes, the Ink / Paper / Red palette, a painted 3D street; the
 kids keep the owner's models. Inspired by, never copied
