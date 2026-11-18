@@ -98,7 +98,8 @@ and, in Ranked, loses a star.
 - **A round ends** when a team **captures the enemy base** or **tags every enemy**. That team scores a round and every kid
   resets at its own base. **No round or match timer:** a round lasts as long as the fight does, and nothing escalates over
   time.
-- **Round flow:** each round starts with a **5 s barrier phase** at base (look, plan, ping), then the barrier drops. Water,
+- **Round flow:** each round starts with a **5 s barrier phase** at base (walk inside the base, ping, draw arrows on the
+  full map), then the barrier drops. Water,
   S1 and S2 are full each round; **ultimate cooldowns carry over** between rounds (they reset only at the side swap).
   The dragon and baron timers restart every round. After the final round, a 6 s victory scene shows the winners posing
   (skins, emotes) with the MVP in front, then the results screen.
@@ -106,7 +107,8 @@ and, in Ranked, loses a star.
   tagged kid comes back only by:
   - **Rescue:** a teammate reaches the **enemy jail** (beside the enemy base) and frees them there, like the real street
     game; the freed kid reappears **at their own base**.
-  - **Revenge:** when the enemy who tagged them is tagged, they reappear at their base **10 s later**.
+  - **Revenge:** when the enemy who tagged them is tagged, they reappear at their base **10 s later** with a 2 s shield that blocks
+    all damage, and the feed shows "Revenge!".
 - **Rescue works like Valorant's defuse:** it takes **6 s**;
   - one rescuer at a time; moving or attacking cancels it; enemies standing near the jail don't stop it, they must hit or
     stop the rescuer;
@@ -118,7 +120,7 @@ and, in Ranked, loses a star.
 - **Last free kid:** no help or penalty; a lone kid can still win the round by capturing or rescuing (a clutch).
 - **Capture:** standing in the enemy base fills a capture bar in **8 s** for one kid; each extra teammate inside adds 50%
   speed. A free defender
-  standing in the base **pauses** it; stepping out keeps the progress but it **drains slowly**.
+  standing in the base **pauses** it; stepping out keeps the progress but it **drains slowly** (a full bar empties in 16 s, half the fill speed).
 - **Giving up:** from the side swap on, a team can vote to give up; 4 of 5 must agree (every teammate still in, if one
   left).
 - **Interrupts:** being tagged or stunned stops a rescue or a capture; a rescue keeps its checkpoint, a capture drains.
@@ -204,6 +206,8 @@ and, in Ranked, loses a star.
   (high obstacles) by context; **one crouch button** crouches when walking and slides when running (slide jump and back
   slide included). Crouch-walking is silent and 40% slower. A slide is a 3 m burst that drops the head below most shots
   for 0.3 s, then a 2 s cooldown. A vault takes 0.4 s and a climb about 1 s; a hit while climbing knocks the kid down.
+- **Aim down sight:** shots land exactly at the crosshair (hip-fire spreads a little) and the kid walks 30% slower; a
+  setting picks tap-to-toggle or hold.
 - **Camera:** T3 Arena style over the shoulder at mid distance (the kid on the left third, about 4 m behind), a shoulder
   swap button for corners; **aim down sight** moves in close, some attacks zoom out. FOV slider in a fair range (70 to 90)
   that is the same for everyone.
