@@ -127,8 +127,8 @@ and, in Ranked, loses a star.
 - **Round flow:** each round starts with a **5 s barrier phase** at base (walk inside the base, ping, draw arrows on the
   full map), then the barrier drops. Water,
   S1 and S2 are full each round; **ultimate cooldowns carry over** between rounds (they reset only at the side swap).
-  The dragon and baron timers restart every round. After the final round, a 6 s victory scene shows the winners posing
-  (skins, emotes) with the MVP in front, then the results screen.
+  The dragon and baron timers restart every round. After the final round, a 6 s victory scene shows the 5 winners in their
+  skins doing their victory poses (or a chosen emote) with the MVP front and centre, then the results screen.
 - **Tagged, not killed:** at 0 HP a kid is tagged and waits in the enemy's jail. There is **no automatic release**. A
   tagged kid comes back only by:
   - **Rescue:** a teammate reaches the **enemy jail** (beside the enemy base) and frees them there, like the real street
@@ -373,6 +373,11 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   on each pack's first buy, plus a ₱50 weekly diamond card; no limited-time pressure offers in kid mode.
 - **Bundles:** a once-per-account starter bundle (a kid, an Elite skin and diamonds at a very low price); kid + launch
   skin bundles at a discount; a season set (all the season's skins with a spray and a border, cheaper than one by one).
+- **What each skin tier adds:** Basic new colours; Elite a new outfit; Special also the slingshot look; Epic also skill
+  effects and sounds; Legend also voice lines, a victory pose and a home-screen intro.
+- **Fair skin effects:** a skin restyles and recolours a skill but never changes its size, shape or sound timing, and
+  enemy effects always keep their team colour.
+- **Emotes and sprays** come from the pass, events, the mastery emote per kid, and cheap store items for diamonds.
 - **No free starter skins:** kids start in their default look.
 - **Skin themes:** season 1 is **summer fiesta** (banderitas, parade costumes, higante masks, sorbetes colours; Narda headlines
   it with a fiesta parade costume as the pass's level-50 skin), matching
