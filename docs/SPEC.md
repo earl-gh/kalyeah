@@ -104,7 +104,8 @@ and, in Ranked, loses a star.
 - **Teams:** 5v5. Each team has a **base** (the post) and, beside it, a **jail** where the kids it tags wait.
 - **A round ends** when a team **captures the enemy base** or **tags every enemy**. That team scores a round and every kid
   resets at its own base. **No round or match timer:** a round lasts as long as the fight does, and nothing escalates over
-  time.
+  time. Design target: a first-to-7 match lasts about 15 to 20 minutes (rounds of 1 to 2 minutes), tuned with map size
+  and rescue time.
 - **Round flow:** each round starts with a **5 s barrier phase** at base (walk inside the base, ping, draw arrows on the
   full map), then the barrier drops. Water,
   S1 and S2 are full each round; **ultimate cooldowns carry over** between rounds (they reset only at the side swap).
@@ -243,6 +244,9 @@ and, in Ranked, loses a star.
   - right bottom: Wild Rift cluster (big slingshot button, 3 skills around it), with **reload** where Wild Rift puts the
     summoner spells (Flash, Heal);
   - right top: jump and crouch/slide.
+  - Holding the slingshot button and sliding the thumb turns the camera while shooting (like CODM and Wild Rift).
+  - Ready-made layouts: this **default 4-finger** one and a **2-thumb simple** one with bigger buttons for new and casual
+    players; the layout editor saves custom ones.
 - **HUD read-outs:**
   - top-left corner: a small minimap (tap for the full map) with the dragon and baron on their spots, each showing a
     countdown until it appears (or that it is up); the camera and ADS zone below it;
