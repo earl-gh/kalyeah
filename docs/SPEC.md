@@ -46,7 +46,11 @@ scout, Controllers zone; they use skills, vendors and objectives. Easy, medium a
 
 **Online first (Mobile Legends way):** PLAY tries the server; if it cannot connect, a prompt offers offline play, which opens
 the offline hub (Hotspot, Practice vs AI, Practice solo, Explore). **Kids are picked after the queue** (Valorant
-agent select): an owned kid within a time limit, no duplicates within a team, the other team may share.
+agent select): 30 s, everyone at once; hovering shows teammates your choice and LOCK confirms; an unlocked player gets a
+random owned kid of a missing role at 0 s. No duplicates within a team (the other team may share). Any role mix is
+allowed, with a warning when a role is missing. After locking: skin, slingshot skin, spray and emote wheel. A player who
+leaves during select cancels the match (the others go back to the front of the queue); the dodger gets a queue cooldown
+and, in Ranked, loses a star.
 
 **Online:**
 - **Quick Match** (Blitz or Quick, unranked) and **Ranked** (Standard) fill 5v5 by skill rating; private rooms (code) stay
