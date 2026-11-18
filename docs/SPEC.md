@@ -373,9 +373,11 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 - **Account level:** earned by playing; unlocks text chat (level 3), voice chat (level 5), Ranked (level 8), sprays and
   emote slots, with a little barya per level;
   a prestige border after level 30.
-- **Diamonds:** 6 packs at ₱20, ₱50, ₱100, ₱250, ₱500 and ₱2,000, with small bonuses on bigger packs and double diamonds
+- **Diamonds:** ₱1 = 1 diamond, so prices read like pesos (a kid 149 💎; skins 49 / 149 / 299 / 499 / 899 💎). 6 packs:
+  ₱20 = 20, ₱50 = 50, ₱100 = 105, ₱250 = 270, ₱500 = 550, ₱2,000 = 2,300 (small bonuses on bigger packs) and double diamonds
   on each pack's first buy, plus a ₱50 weekly diamond card; no limited-time pressure offers in kid mode.
-- **Bundles:** a once-per-account starter bundle (a kid, an Elite skin and diamonds at a very low price); kid + launch
+- **Bundles:** a once-per-account **starter bundle** for ₱49 (a kid chosen from 3 not yet owned, one per missing role
+  if possible, an Elite skin and some diamonds); kid + launch
   skin bundles at a discount; a season set (all the season's skins with a spray and a border, cheaper than one by one).
 - **What each skin tier adds:** Basic new colours; Elite a new outfit; Special also the slingshot look; Epic also skill
   effects and sounds; Legend also voice lines, a victory pose and a home-screen intro.
@@ -480,7 +482,7 @@ gift-to-a-friend task, a free Pasko emote).
 | # | Question | Default |
 |---|---|---|
 | Q1 | Skill numbers (damage, water, cooldowns, ranges) | Draft values and the damage bands in `docs/KITS.md`, tuned by bot-vs-bot runs; kariling saved for a later kid |
-| Q3 | Diamonds per pack | Set with the store build (kid ≈ two weeks of play or ≈ ₱150) |
+| Q3 | Final pack bonuses | Set with the store build (kid ≈ two weeks of play or ≈ ₱150) |
 | Q4 | Kid heights and showcase meshes | After the Narda retopology pilot (`docs/art-briefs/kids-retopo-spec.md`) |
 | Q6 | Exact map sizes | Scale and layouts in `docs/MAPS.md`; exact shapes set in each blockout, play-tested with bots |
 
