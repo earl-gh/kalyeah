@@ -201,12 +201,17 @@ and, in Ranked, loses a star.
 - **Healing:** slow regeneration after 5 s without taking damage; vendors and skills are the fast heals.
 - **Movement (CODM-like):** walk and run; **one jump button** does jump, running jump, vault (small obstacles) and climb
   (high obstacles) by context; **one crouch button** crouches when walking and slides when running (slide jump and back
-  slide included).
+  slide included). Crouch-walking is silent and 40% slower. A slide is a 3 m burst that drops the head below most shots
+  for 0.3 s, then a 2 s cooldown. A vault takes 0.4 s and a climb about 1 s; a hit while climbing knocks the kid down.
 - **Camera:** T3 Arena style over the shoulder at mid distance (the kid on the left third, about 4 m behind), a shoulder
   swap button for corners; **aim down sight** moves in close, some attacks zoom out. FOV slider in a fair range (70 to 90)
   that is the same for everyone.
 - **Feel:** crisp and readable like Valorant: hit markers, a headshot sound, a small kick on firing, a brief flash on the
   target, no screen-filling effects.
+- **Low HP (under 30):** a soft red edge on your screen (softer with reduce flashes), and your portrait at the top shows
+  "low" to your team.
+- **Emotes:** a wheel of 6, usable anytime: during a fight a short version plays (you can move to cancel it); the full
+  one plays after a tag, a rescue or at round end. A setting mutes enemy emotes and their sounds.
 - **Being tagged:** no death; the kid freezes in a pouty "Taya!" pose in a puff of chalk dust, then poofs to the jail.
 
 ## 8. Controls and screens
