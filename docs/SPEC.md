@@ -260,6 +260,10 @@ and, in Ranked, loses a star.
   that is the same for everyone.
 - **Feel:** crisp and readable like Valorant: hit markers, a headshot sound, a small kick on firing, a brief flash on the
   target, no screen-filling effects.
+- **Combat read-outs:** damage numbers off by default (a setting turns them on); a red arrow around the crosshair
+  points at whoever hit you for 1 s, and an attacker within 15 m flashes briefly on your own minimap. Enemy overhead bars
+  show HP and a small status icon (Slowed, Rooted, …). When tagged, a 2 s card shows the tagger's kid, the stone or skill
+  and their HP left, with your damage dealt this round.
 - **Low HP (under 30):** a soft red edge on your screen (softer with reduce flashes), and your portrait at the top shows
   "low" to your team.
 - **Emotes:** a wheel of 6, usable anytime: during a fight a short version plays (you can move to cancel it); the full
