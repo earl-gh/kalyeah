@@ -40,8 +40,10 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
   - **Text chat:** team chat by default; all-chat (both teams) is opt-in; the profanity filter is always on under 18 and on
     by default for adults.
   - **Voice:** team only, mic off until the player turns it on; party voice in the lobby; never in kid mode.
-  - **Reports** (cheating, AFK, abuse): repeated reports trigger automatic mutes and AFK penalties; serious cases go to a
-    review queue on the server for the owner.
+  - **Reports** (cheating, AFK, abuse in chat or voice, bad name; a short optional note), from the results screen or the
+    in-match scoreboard; the reporter gets a "thanks, a player you reported was penalised" message when action is taken.
+    Repeated reports trigger automatic mutes and AFK penalties; serious cases go to a review queue on the server for the
+    owner.
   - **Credit score:** starts at 100; leaving, AFK and confirmed abuse lower it, good matches raise it; below thresholds a
     player loses Ranked, then text and voice chat.
 - **Friends and party:** parties of 1 to 5 for Quick Match and private rooms; Ranked allows 1, 2, 3 or 5 (no 4-stacks),
@@ -53,7 +55,7 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 | **Blitz** | First to 3 rounds | Quick Match queue, private rooms, Hotspot, vs AI |
 | **Quick** | First to 5 rounds | Quick Match queue, private rooms, Hotspot, vs AI |
 | **Standard** | First to 7 rounds | **Ranked** (the only ranked mode), private rooms |
-| Practice vs AI, Practice solo | Any mode's rules | Offline; bots at easy / medium / hard; Practice solo is a training range with dummies, distance markers and a no-cooldown toggle |
+| Practice vs AI, Practice solo | Any mode's rules | Offline; every kid unlocked; bots at easy / medium / hard; Practice solo is a training range with dummies, distance markers and a no-cooldown toggle |
 | Explore | None | Offline; roam any of the 4 maps alone: one daily coin per map, hidden teks cards (a full set per map gives a spray), route practice (ghost paths of rescue routes and climb spots, with a personal-best timer only: no score, leaderboard or rewards), try any kid and skin, map callouts, photo mode; no mini-games |
 | Tumbang Preso, Patintero | Own rules | Side modes; hidden now, return before launch |
 
@@ -335,8 +337,8 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   rewards by rank (a border and barya; Ginto or higher also gets an Elite skin for that season's featured kid).
 - **Barya from matches** (loss / win): Blitz 60 / 100, Quick 90 / 150, Standard 120 / 200, plus 300 for the first win of
   the day, capped at 3,000 a week, so a 6,000-barya kid takes about two weeks.
-- **Offline rewards:** vs AI gives a little barya and pass XP (capped daily); Hotspot and Explore rewards sync to the
-  account when online. Offline results can't be verified by the server, so their caps stay small.
+- **Offline rewards:** vs AI gives a little barya and pass XP (capped daily); Explore's coins sync to the account when
+  online; Hotspot gives no rewards (every kid is unlocked there and it is just for fun). Offline results can't be verified by the server, so their caps stay small.
 - **Account level:** earned by playing; unlocks Ranked (level 8), sprays and emote slots, with a little barya per level;
   a prestige border after level 30.
 - **Diamonds:** 6 packs at ₱20, ₱50, ₱100, ₱250, ₱500 and ₱2,000, with small bonuses on bigger packs and double diamonds
@@ -382,7 +384,8 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   program later.
 
 **After launch:**
-- **New kids** arrive when ready (no fixed pace); kariling is saved for the first one.
+- **New kids** arrive when ready (no fixed pace); kariling is saved for the first one. A new kid launches with 30% off
+  in barya and diamonds for 7 days, a free 1-day trial card for every player and a kid + skin bundle.
 - **Balance:** numbers live in data, so the server pushes small balance hotfixes without an app update; bigger changes
   land with each season. Patch notes appear as a short card on the next login (which kids changed, with stronger or
   weaker arrows), and each kid's page lists its recent changes.
