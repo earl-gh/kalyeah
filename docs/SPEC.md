@@ -55,6 +55,9 @@ agent select): an owned kid within a time limit, no duplicates within a team, th
   **star system like Mobile Legends** (win +1 star, loss −1 star, a full division promotes); seasonal resets with rewards.
   Replaces the LP system in the current code.
 - **Servers:** `Kalyeah.Server` (Docker) on cloud VMs in a Singapore region first; one account and match database.
+- **Bad connections:** ping and packet loss on the HUD; a dropped player can reconnect within 3 minutes while a bot plays
+  their kid; the queue prefers players under 120 ms.
+- **Spectating and replays:** not at launch.
 - **Server-authoritative:** the server decides every hit and score; phones send inputs only (anti-cheat backbone).
 
 ## 5. Agawang Base rules
@@ -157,6 +160,9 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   diamonds, and **every kid is earnable with barya**; skins and the paid pass cost diamonds.
 - **Skins:** tiers Basic, Elite, Special, Epic, Legend; higher tiers change the model, effects and sounds, **never stats**.
   Sold in the store, given by the pass and events.
+- **Other cosmetics:** emotes, sprays (stickers painted on walls in a match), profile banners and borders (rank borders from
+  seasons), slingshot skins for any kid.
+- **Kid mastery:** each kid gains mastery XP; levels give a badge, a mastery emote and a title, never power.
 - **Seasons: 8 weeks.** Each brings a new 50-level pass, a soft rank reset (down a few divisions) and end-of-season
   rewards by rank (a border and barya).
 - **Battle pass, 50 levels**, filled by fixed daily and weekly tasks (play 3 games, log in, share to Facebook, …; the share
