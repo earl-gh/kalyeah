@@ -58,7 +58,9 @@ a full commercial game for the Play Store (the earlier game-dev competition entr
 | Tumbang Preso, Patintero | Own rules | Side modes; hidden now, return before launch |
 
 **Bots** (Practice vs AI and leaver takeover) are role-aware: Strikers dive, Defenders guard and rescue, Seekers
-scout, Controllers zone; they use skills, vendors and objectives. Easy, medium and hard change aim and reaction time.
+scout, Controllers zone; they use skills, vendors and objectives (rescue, capture, flank, take neutrals). Easy, medium
+and hard change aim and reaction time; easy bots pause before shooting and say their plans out loud, to teach. Bot names
+are funny Filipino-style IGN puns (like "EddieWow", from "Edi wow!"), never a real person's full name.
 
 **Online first (Mobile Legends way):** PLAY tries the server; if it cannot connect, a prompt offers offline play, which opens
 the offline hub (Hotspot, Practice vs AI, Practice solo, Explore). **Kids are picked after the queue** (Valorant
@@ -113,7 +115,8 @@ and, in Ranked, loses a star.
   - **Revenge:** when the enemy who tagged them is tagged, they reappear at their base **10 s later** with a 2 s shield that blocks
     all damage, and the feed shows "Revenge!".
 - **Rescue works like Valorant's defuse:** it takes **6 s**;
-  - one rescuer at a time; moving or attacking cancels it; enemies standing near the jail don't stop it, they must hit or
+  - one rescuer at a time; moving or attacking (shooting, or a skill that moves or deals damage) cancels it; a skill that
+    does neither, like a self-shield, is allowed; enemies standing near the jail don't stop it, they must hit or
     stop the rescuer;
   - one teammate per rescue, first tagged first freed, then a **15 s cooldown** before that jail can be used for a rescue again;
   - a **checkpoint at the halfway line (3 s):** once the bar passed it, a cancelled rescue (by anyone on the team) restarts
@@ -126,6 +129,8 @@ and, in Ranked, loses a star.
   standing in the base **pauses** it; stepping out keeps the progress but it **drains slowly** (a full bar empties in 16 s, half the fill speed).
 - **Giving up:** from the side swap on, a team can vote to give up; 4 of 5 must agree (every teammate still in, if one
   left).
+- **Ultimates that stop a capture or a tag** (Palosebo, Langit!) have no extra limit: both teams see the area clearly and
+  hear the ultimate's voice line.
 - **Interrupts:** being tagged or stunned stops a rescue or a capture; a rescue keeps its checkpoint, a capture drains.
 
 ## 6. Maps: 4 at launch
@@ -146,6 +151,7 @@ and, in Ranked, loses a star.
   slides longer. Water is wade-able only; deep water (the Pier sea) is a wall, and falling in puts you back on the dock
   with a small HP loss.
 - **Hiding:** inside tall cover (cane, laundry lines) a kid is invisible beyond 6 m until they attack or are revealed.
+  Starting a rescue or standing in the enemy base to capture also ends any hiding or invisibility (tall cover, Tago!).
 - **Side swap at half:** teams trade halves, rounds won stay, water and ultimate cooldowns reset, a 10 s swap screen
   shows the score.
 - **Height:** some climbable spots per map (low roofs, water tanks, jeepney and container tops) give a few high-ground
