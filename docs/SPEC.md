@@ -472,7 +472,7 @@ kind is needed (3D model, sprite sheet or 2D image).
 (`docs/art-briefs/kids-retopo-spec.md`), not restyled. **Role icons** (Striker, Defender, Seeker, Controller) appear in
 select, portraits and profile; there are no role colours, so red and blue stay the team colours.
 
-**Graphics:** the top preset aims at Valorant Mobile: clean stylised PBR, real-time sun shadows, soft ambient light,
+**Graphics** (details in [`docs/GRAPHICS.md`](GRAPHICS.md)): the top preset aims at Valorant Mobile: clean stylised PBR, real-time sun shadows, soft ambient light,
 bloom on effects. Lower presets drop cost, never the art or the readability:
 
 | Preset | FPS cap | Render scale | Shadows | Effects | Post (bloom, grading) |
