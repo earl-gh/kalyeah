@@ -108,6 +108,7 @@ namespace Kalyeah.Game
         public const int Jump = 1 << 11;
         public const int Crouch = 1 << 12;
         public const int Slide = 1 << 13;
+        public const int Ads = 1 << 14;
 
         public static int CardSlotBit(int slot) => (slot >= 0 && slot < 4) ? (1 << slot) : 0;
     }

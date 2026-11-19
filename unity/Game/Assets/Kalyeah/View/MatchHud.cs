@@ -28,6 +28,8 @@ namespace Kalyeah.Game
         public readonly CrosshairView Crosshair;
         public readonly OverheadBarsView OverheadBars;
         public readonly BarangayMinimapView Minimap;
+        /// <summary>Aim down sight, under the minimap on the stick side (docs/SPEC.md §8).</summary>
+        public readonly AdsButton Ads;
         public readonly MatchOverlaysView Overlays;
         public readonly RectTransform HeaderRect;
         public readonly RectTransform OwnTeamRect;
@@ -159,6 +161,10 @@ namespace Kalyeah.Game
             Joystick = VirtualJoystick.Build(SafeRoot);
             Joystick.SetLeftHanded(leftHanded);
             JoystickBaseRect = Joystick.transform.Find("Base") as RectTransform;
+
+            // built after the stick so it takes touches over the top of the move zone
+            Ads = AdsButton.Build(SafeRoot, ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, Canvas), interactive);
+            Ads.ToggleMode = SettingsStore.Current.AdsToggle;
 
             AbilityArc = AbilityArcView.Build(SafeRoot, leftHanded);
             CardHand = CardHandView.Build(SafeRoot, leftHanded, SettingsStore.Current.CardsTrayPlacement);
@@ -400,9 +406,15 @@ namespace Kalyeah.Game
             }
 
             SyncCombatTrayMode(sim);
-            return UsingCardsTray
+            AbilityInputState state = UsingCardsTray
                 ? CardHand.SampleInput(sim, shoulder, worldCamera, layout)
                 : AbilityArc.SampleInput(sim, shoulder, worldCamera, layout);
+            if (Ads != null)
+            {
+                Ads.ToggleMode = SettingsStore.Current.AdsToggle;
+                if (Ads.IsOn) state.Buttons |= InputButtons.Ads;
+            }
+            return state;
         }
 
         public bool HandleBack()
@@ -414,6 +426,7 @@ namespace Kalyeah.Game
         {
             Joystick?.Cancel();
             Look?.Cancel();
+            Ads?.Cancel();
             AbilityArc?.CancelAll();
             CardHand?.CancelAll();
             if (Overlays != null)
@@ -493,6 +506,8 @@ namespace Kalyeah.Game
                 Joystick.gameObject.SetActive(showControls);
             if (Look != null && Look.gameObject.activeSelf != showControls)
                 Look.gameObject.SetActive(showControls);
+            if (Ads != null && Ads.gameObject.activeSelf != showControls)
+                Ads.gameObject.SetActive(showControls);
 
             bool showCards = showControls && UsingCardsTray;
             bool showArc = showControls && !UsingCardsTray;
@@ -660,6 +675,17 @@ namespace Kalyeah.Game
                         : minTouch + 12f;
                     Minimap.Root.anchoredPosition = new Vector2(12f, -(pauseBottom + 10f));
                 }
+            }
+
+            if (Ads != null && Minimap != null && Minimap.Root != null)
+            {
+                // under the minimap, centred on it: the camera and ADS zone of the 4-finger layout (docs/SPEC.md §8)
+                RectTransform ads = Ads.Rect;
+                ads.sizeDelta = new Vector2(minTouch, minTouch);
+                ads.anchorMin = ads.anchorMax = ads.pivot = Minimap.Root.anchorMin;
+                float inward = (BarangayMinimapView.PanelSize - minTouch) * 0.5f;
+                Vector2 at = Minimap.Root.anchoredPosition;
+                ads.anchoredPosition = new Vector2(at.x + (_appliedLeftHanded ? -inward : inward), at.y - BarangayMinimapView.PanelSize - 12f);
             }
 
             LayoutHeroVitals();

@@ -696,6 +696,13 @@ namespace Kalyeah.Game
                 () => SettingsStore.Current.AimGuide,
                 on => CommitChange(() => SettingsStore.Current.AimGuide = on));
 
+            AddToggleRow(
+                content,
+                "AdsToggleRow",
+                () => SettingsStore.Current.Language == "fil" ? "Pindot para Asinta (ADS Tap)" : "Tap to Aim Down Sight (off: hold)",
+                () => SettingsStore.Current.AdsToggle,
+                on => CommitChange(() => SettingsStore.Current.AdsToggle = on));
+
             AddSegmentedRow(
                 content,
                 "CardsTrayRow",

@@ -1172,6 +1172,7 @@ namespace Kalyeah.Sim
         void Move(PlayerState state, PlayerInput input, double dt)
         {
             if (input != null) TakeMoveOrder(state, input);
+            state.AimingDown = Mode == null && input != null && input.IsPressed(PlayerInput.BtnAds);
             StepAir(state, dt);
             if (state.DashLeft > 0.0)
             {
@@ -1224,10 +1225,11 @@ namespace Kalyeah.Sim
             if (Mode != null) speed *= Mode.SpeedScale(state);
             if (state.Overclocked) speed *= Rules.OverclockSpeedShare;
             else if (state.Crouching) speed *= Rules.CrouchSpeedShare;
+            if (state.AimingDown) speed *= Rules.AdsSpeedShare;
             if (Mode == null && state.BuffType == PowerupPalamig && state.BuffLeft > 0.0) speed *= 1.0 + Rules.PalamigSpeedBonus;
             speed *= state.Effects.SpeedMultiplier(Rules.PolymorphSpeedScale);
             bool wantsMove = stickLen > 0.0 || state.HasMoveTarget;
-            bool canRun = wantsMove && !state.Walking && !state.Crouching && Rules.SprintEnabled
+            bool canRun = wantsMove && !state.Walking && !state.Crouching && !state.AimingDown && Rules.SprintEnabled
                 && Mode == null && !state.Overclocked && !state.Effects.Has(StatusEffects.Type.Slow);
             if (Rules.SpecRules)
             {

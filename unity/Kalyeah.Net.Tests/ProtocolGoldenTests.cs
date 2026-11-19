@@ -109,6 +109,14 @@ namespace Kalyeah.Net.Tests
         }
 
         [Test]
+        public void AdsButtonSurvivesTheWire()
+        {
+            PlayerInput sent = PlayerInput.Create(Vec2.Zero, Vec2.Zero, PlayerInput.BtnAds | PlayerInput.BtnPrimary, 7);
+            PlayerInput got = NetProtocol.InputFromDict(NetProtocol.InputToDict(sent));
+            Assert.AreEqual(PlayerInput.BtnAds | PlayerInput.BtnPrimary, got.Buttons);
+        }
+
+        [Test]
         public void InputFromDictCleansUntrustedInputLikeGodot()
         {
             foreach (JsonElement c in Root.GetProperty("input_from_dict").EnumerateArray())
@@ -121,7 +129,8 @@ namespace Kalyeah.Net.Tests
                 Assert.AreEqual(F(o[1]), input.Move.Y, what);
                 Assert.AreEqual(F(o[2]), input.Aim.X, what);
                 Assert.AreEqual(F(o[3]), input.Aim.Y, what);
-                Assert.AreEqual(o[4].GetInt32(), input.Buttons, what);
+                // the Godot goldens predate the ADS bit (docs/SPEC.md §7), which the server now keeps
+                Assert.AreEqual(o[4].GetInt32(), input.Buttons & ~PlayerInput.BtnAds, what);
                 Assert.AreEqual(unchecked((int)o[5].GetInt64()), input.Tick, what);
                 Assert.AreEqual(F(o[6]), input.MoveTarget.X, what);
                 Assert.AreEqual(F(o[7]), input.MoveTarget.Y, what);

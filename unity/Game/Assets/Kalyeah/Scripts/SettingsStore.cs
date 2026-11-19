@@ -40,6 +40,7 @@ namespace Kalyeah.Game
         bool _leftHanded;
         bool _tiltToRun;
         bool _aimGuide = true;
+        bool _adsToggle = true;
         bool _cardsTrayMode;
         string _cardsTrayPlacement = "bottom";
         float _controlScale = ScaleNormal;
@@ -121,6 +122,13 @@ namespace Kalyeah.Game
         {
             get => _aimGuide;
             set => SetBool(ref _aimGuide, value);
+        }
+
+        /// <summary>Aim down sight button (docs/SPEC.md §7): true = tap to toggle (default), false = hold.</summary>
+        public bool AdsToggle
+        {
+            get => _adsToggle;
+            set => SetBool(ref _adsToggle, value);
         }
 
         /// <summary>False = radial superpower arc (default); True = 4-card cycle tray.</summary>
@@ -247,6 +255,7 @@ namespace Kalyeah.Game
                 _leftHanded = false;
                 _tiltToRun = false;
                 _aimGuide = true;
+                _adsToggle = true;
                 _cardsTrayMode = false;
                 _cardsTrayPlacement = "bottom";
                 _controlScale = ScaleNormal;
@@ -281,6 +290,7 @@ namespace Kalyeah.Game
             AppendBool(sb, "left_handed", _leftHanded);
             AppendBool(sb, "tilt_to_run", _tiltToRun);
             AppendBool(sb, "aim_guide", _aimGuide);
+            AppendBool(sb, "ads_toggle", _adsToggle);
             AppendBool(sb, "cards_tray_mode", _cardsTrayMode);
             AppendString(sb, "cards_tray_placement", _cardsTrayPlacement);
             AppendFloat(sb, "control_scale", _controlScale, false);
@@ -324,6 +334,7 @@ namespace Kalyeah.Game
                 if (TryBool(d, "left_handed", out bool lh)) LeftHanded = lh;
                 if (TryBool(d, "tilt_to_run", out bool tr)) TiltToRun = tr;
                 if (TryBool(d, "aim_guide", out bool ag)) AimGuide = ag;
+                if (TryBool(d, "ads_toggle", out bool at)) AdsToggle = at;
                 if (TryBool(d, "cards_tray_mode", out bool ctm)) CardsTrayMode = ctm;
                 if (TryString(d, "cards_tray_placement", out string ctp)) CardsTrayPlacement = ctp;
                 if (TryFloat(d, "control_scale", out float cs)) ControlScale = cs;

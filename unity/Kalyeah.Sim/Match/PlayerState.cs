@@ -73,6 +73,8 @@ namespace Kalyeah.Sim
         public double JogTime;
         public bool Walking;
         public bool Crouching;
+        /// <summary>Aiming down sight this tick (the ADS button held, outside street modes).</summary>
+        public bool AimingDown;
         public double AirY;
         public double VelY;
         public double JumpCd;

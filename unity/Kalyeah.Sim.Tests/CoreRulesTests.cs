@@ -398,6 +398,30 @@ namespace Kalyeah.Sim.Tests
         }
 
         [Test]
+        public void AimingDownSightWalks30PercentSlowerAndNeverRuns()
+        {
+            GameRules r = Data.GameRules;
+            Assert.AreEqual(0.7, r.AdsSpeedShare, 1e-9, "docs/SPEC.md §7: ADS walks 30% slower");
+            MatchSim sim = Sim();
+            PlayerState p = sim.AddPlayer(1, 0);
+            Vec2 forward = new Vec2(0.0, -1.0);
+            int jogTicks = (int)System.Math.Ceiling(r.SprintDelay * 30.0);
+            Run(sim, 1, forward, jogTicks + 2);
+            Assert.IsTrue(p.Sprinting, "running before aiming");
+
+            Tick(sim, 1, forward, PlayerInput.BtnAds);
+            Assert.IsTrue(p.AimingDown);
+            Assert.IsFalse(p.Sprinting, "aiming drops the run");
+            Vec2 before = p.Position;
+            for (int i = 0; i < jogTicks + 30; i++) Tick(sim, 1, forward, PlayerInput.BtnAds);
+            Assert.IsFalse(p.Sprinting, "a held aim never turns into a run");
+            Assert.AreEqual(r.MoveSpeed * r.AdsSpeedShare * (jogTicks + 30) * DT, p.Position.DistanceTo(before), 0.05);
+
+            Run(sim, 1, forward, 1);
+            Assert.IsFalse(p.AimingDown, "letting go of ADS ends it");
+        }
+
+        [Test]
         public void NoInputMeansNoMovement()
         {
             MatchSim sim = Sim();

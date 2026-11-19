@@ -21,6 +21,8 @@
   "shoulder_offset": 0.45,
   "shoulder_fov": 72.0,
   "shoulder_near": 0.3,
+  "ads_distance": 2.4,
+  "ads_fov": 58.0,
   "shoulder_clear_reach": 2.2,
   "look_pitch_degrees": 12.0,
   "look_pitch_max": 55.0,

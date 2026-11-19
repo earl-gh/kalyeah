@@ -33,6 +33,8 @@ namespace Kalyeah.Sim
         public double SprintMultiplier = 1.32;
         public double WalkRunThreshold = 0.62;
         public double CrouchSpeedShare = 0.55;
+        /// <summary>Speed share while aiming down sight (docs/SPEC.md §7: 30% slower).</summary>
+        public double AdsSpeedShare = 0.7;
         public double JumpVelocity = 5.6;
         public double JumpGravity = 16.5;
         public double JumpCooldown = 0.25;
