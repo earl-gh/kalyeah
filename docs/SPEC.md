@@ -507,11 +507,11 @@ by surface (cement, soil, wood, tin), directional skill cues; crouch-walking is 
   warning that their base is being captured, so a flank to rescue or capture can stay secret.
 - **Cues both teams hear:** a short call when the Crocodile or Eagle appears; every ultimate has a voice line.
 
-**Live events:** limited-time events on the Filipino calendar (Pasko, fiesta, Undas, summer) with themed tasks, event
-skins and map decorations; an event mini-mode can come later. **First year:** a **Summer showdown** at launch (themed
-tasks, banderitas on the maps, a free summer spray, an earnable fiesta skin), **Undas** (maps at dusk with candles and
-lanterns, kids in kind folk costumes, respectful of the day) and **Pasko** (paról and Christmas lights on every map, a
-gift-to-a-friend task, a free Pasko emote).
+**Live events:** limited-time events on the Filipino calendar (Pasko, fiesta, Undas, summer) with themed tasks and event
+skins; **maps never change for events** (the theme shows only through skins and cosmetics); an event mini-mode can come
+later. **First year:** a **Summer showdown** at launch (themed tasks, a free summer spray, an earnable fiesta skin),
+**Undas** (kids in kind folk-costume skins, respectful of the day) and **Pasko** (Pasko skins, a gift-to-a-friend task, a
+free Pasko emote).
 
 ## 11. Open questions (agents use the default until the owner decides)
 | # | Question | Default |

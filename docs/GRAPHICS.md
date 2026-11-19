@@ -147,3 +147,10 @@ item says which kind of asset the owner makes.
 - **Selecta bike:** an ice-cream cart pedalled by a vendor, bell ringing; can't be hit, caught by touching it.
 - **Buffs:** an icon in your own HUD's buff row (like Wild Rift) and a circle aura at the kid's feet (like Wild Rift and
   Mobile Legends), so enemies can see who is buffed.
+
+## Events, transitions and HUD style
+- **Events show only through skins and cosmetics:** maps, light and cover never change for an event.
+- **Round reset:** a quick fade with every kid ready at its base; no long animation between rounds. The side swap uses the
+  10 s swap screen with the score and both teams' kids.
+- **HUD style:** pure Valorant: clean flat shapes in the Ink / Paper / Red palette, no street or komiks flavour.
+- **Jailed kids** sit pouting and slightly faded, so they read as "out" at a glance.
