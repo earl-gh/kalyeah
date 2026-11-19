@@ -6,7 +6,7 @@ namespace Kalyeah.Sim
     /// <summary>Tagging, rescue, capture scoring, and between-point round reset rules (port of match_objectives.gd).</summary>
     public sealed class MatchObjectives
     {
-        /// <summary>Off to the sidewalk beside the player's team's rescue area.</summary>
+        /// <summary>Off to the jail that holds the player's team (beside the enemy base under `RescueAtEnemyJail`).</summary>
         public void Tag(MatchSim sim, PlayerState state, int byId = -1)
         {
             int waiting = 0;
@@ -17,10 +17,37 @@ namespace Kalyeah.Sim
             state.TagTime = 0.0;
             sim.TagCounter += 1;
             state.TagOrder = sim.TagCounter;
+            state.TaggedBy = byId;
+            state.RevengeLeft = 0.0;
+            state.ShieldLeft = 0.0;
             ClearActions(state);
-            state.Position = sim.Layout.TaggedPlace(sim.SideForTeam(state.Team), waiting);
-            state.Facing = sim.Layout.TaggedFacing(sim.SideForTeam(state.Team));
+            int jail = sim.JailSideFor(state.Team);
+            state.Position = sim.Layout.TaggedPlace(jail, waiting);
+            state.Facing = sim.Layout.TaggedFacing(jail);
             sim.EmitPlayerTagged(state.Id, byId);
+            StartRevenge(sim, state.Id);
+        }
+
+        /// <summary>Revenge (docs/SPEC.md §5): everyone `taggerId` tagged walks free `RevengeReleaseSeconds` after `taggerId` is tagged.</summary>
+        void StartRevenge(MatchSim sim, int taggerId)
+        {
+            if (sim.Rules.RevengeReleaseSeconds <= 0.0) return;
+            foreach (var pair in sim.Players)
+            {
+                PlayerState waiting = pair.Value;
+                if (waiting.Tagged && waiting.TaggedBy == taggerId && waiting.RevengeLeft <= 0.0)
+                    waiting.RevengeLeft = sim.Rules.RevengeReleaseSeconds;
+            }
+        }
+
+        /// <summary>Counts a pending revenge release down; at 0 the kid is back at its base behind a short shield.</summary>
+        public void StepRevenge(MatchSim sim, PlayerState state, double dt)
+        {
+            if (state.RevengeLeft <= 0.0) return;
+            state.RevengeLeft = GMath.Maxf(0.0, state.RevengeLeft - dt);
+            if (state.RevengeLeft > MatchSim.Epsilon) return;
+            Rescue(sim, state, MatchSim.ReleasedByRevenge);
+            state.ShieldLeft = sim.Rules.RevengeShieldSeconds;
         }
 
         /// <summary>A tagged teammate waits on the sidewalk.</summary>
@@ -31,13 +58,37 @@ namespace Kalyeah.Sim
             return false;
         }
 
-        /// <summary>`state` stands in its own team's rescue area.</summary>
+        /// <summary>`state` stands in the jail where its team's tagged kids wait (the rescue area).</summary>
         public bool InRescueArea(MatchSim sim, PlayerState state) =>
-            sim.Layout.RescueRect(sim.SideForTeam(state.Team)).Grow(state.Radius).HasPoint(state.Position);
+            sim.Layout.RescueRect(sim.JailSideFor(state.Team)).Grow(state.Radius).HasPoint(state.Position);
+
+        /// <summary>A stun-like crowd control (StatusEffects.HardCc) holds the kid.</summary>
+        static bool HardStopped(PlayerState state)
+        {
+            foreach (StatusEffects.Type type in StatusEffects.HardCc)
+                if (state.Effects.Has(type)) return true;
+            return false;
+        }
+
+        /// <summary>The rescue progress a cancel keeps: the checkpoint once it was passed, else nothing.</summary>
+        double KeptOnCancel(MatchSim sim, double elapsed)
+        {
+            double line = sim.Rules.RescueCheckpoint;
+            return line > 0.0 && elapsed + 1e-6 >= line ? line : 0.0;
+        }
+
+        /// <summary>Under `RescueCancelsOnAction`: the rescuer moved off its spot, cast this tick, or is stunned.</summary>
+        bool RescueBroken(MatchSim sim, PlayerState holder, int team)
+        {
+            if (!sim.Rules.RescueCancelsOnAction) return false;
+            if (HardStopped(holder) || sim.CastThisTick(holder.Id)) return true;
+            return holder.Position.DistanceTo(sim.RescueAnchor[team]) > sim.Rules.RescueStillTolerance;
+        }
 
         /// <summary>
         /// Rescuing: one free teammate at a time stays in the rescue area for `rescue_hold_time` and frees the teammate tagged first.
-        /// The area must be ready first (`rescue_cooldown`).
+        /// The area must be ready first (`rescue_cooldown`). With the spec rules (docs/SPEC.md §5) it works like a defuse: moving,
+        /// casting or a stun cancels it, and a cancel keeps the progress back to the checkpoint once that was passed.
         /// </summary>
         public void CheckRescues(MatchSim sim, double dt)
         {
@@ -53,16 +104,21 @@ namespace Kalyeah.Sim
                 int holderId = sim.RescueRescuer[team];
                 PlayerState holder = sim.Players.GetOrDefault(holderId);
                 if (holder != null && (holder.Tagged || holder.Team != team || !InRescueArea(sim, holder))) holder = null;
+                if (holder != null && RescueBroken(sim, holder, team)) holder = null;
                 if (holder == null || !TeammateWaiting(sim, team))
                 {
                     holder = null;
-                    sim.RescueElapsed[team] = 0.0;
+                    sim.RescueElapsed[team] = KeptOnCancel(sim, sim.RescueElapsed[team]);
+                    if (!TeammateWaiting(sim, team)) sim.RescueElapsed[team] = 0.0;
                     foreach (var pair in sim.Players)
                     {
                         PlayerState candidate = pair.Value;
-                        if (candidate.Team == team && !candidate.Tagged && InRescueArea(sim, candidate) && TeammateWaiting(sim, team))
+                        if (candidate.Id == holderId && sim.Rules.RescueCancelsOnAction) continue;
+                        if (candidate.Team == team && !candidate.Tagged && InRescueArea(sim, candidate) && TeammateWaiting(sim, team)
+                            && !(sim.Rules.RescueCancelsOnAction && (HardStopped(candidate) || sim.CastThisTick(candidate.Id))))
                         {
                             holder = candidate;
+                            sim.RescueAnchor[team] = candidate.Position;
                             break;
                         }
                     }
@@ -96,6 +152,8 @@ namespace Kalyeah.Sim
             state.Tagged = false;
             state.TagTime = 0.0;
             state.TagOrder = 0;
+            state.TaggedBy = -1;
+            state.RevengeLeft = 0.0;
             state.Hp = sim.Rules.PlayerMaxHp;
             state.Position = state.SpawnPosition;
             state.Facing = new Vec2(0.0, -sim.SideForTeam(state.Team));
@@ -132,8 +190,18 @@ namespace Kalyeah.Sim
             int enemySide = -sim.SideForTeam(team);
             int count = 0;
             foreach (PlayerState state in CaptureMembers(sim, team, brains))
-                if (!state.Tagged && sim.Layout.InBase(enemySide, state.Position)) count += 1;
+                if (!state.Tagged && sim.Layout.InBase(enemySide, state.Position)
+                    && !(sim.Rules.CaptureContested && HardStopped(state))) count += 1;
             return count;
+        }
+
+        /// <summary>A free player of `team` (training dummies included) stands in its own base: under `CaptureContested` this pauses the enemy capture.</summary>
+        public bool DefenderInOwnBase(MatchSim sim, int team)
+        {
+            int side = sim.SideForTeam(team);
+            foreach (var pair in sim.Players)
+                if (pair.Value.Team == team && !pair.Value.Tagged && sim.Layout.InBase(side, pair.Value.Position)) return true;
+            return false;
         }
 
         /// <summary>Every player of `team` free and standing in the enemy base.</summary>
@@ -167,6 +235,11 @@ namespace Kalyeah.Sim
                 ScorePoint(sim, wipedForZero ? 0 : 1, MatchSim.CaptureKind.AllTagged);
                 return;
             }
+            if (wipedForZero && sim.Rules.ReplayTiedRounds)
+            {
+                ReplayRound(sim);
+                return;
+            }
             int team = -1;
             MatchSim.CaptureKind kind = MatchSim.CaptureKind.None;
             int running = 0;
@@ -192,6 +265,22 @@ namespace Kalyeah.Sim
                 team = -1;
                 kind = MatchSim.CaptureKind.None;
             }
+            double drain = sim.Rules.CaptureDrainShare;
+            if (team >= 0 && sim.Rules.CaptureContested && DefenderInOwnBase(sim, 1 - team))
+            {
+                // a defender in its own base pauses the bar: no progress and no drain while the attackers stay
+                if (team != sim.CaptureTeam) return;
+                sim.CaptureRate = 0.0;
+                return;
+            }
+            if (team < 0 && drain > 0.0 && sim.CaptureTeam >= 0)
+            {
+                // nobody capturing: the bar keeps its progress and empties at `drain` of the fill speed
+                sim.CaptureRate = -drain;
+                sim.CaptureElapsed = GMath.Maxf(0.0, sim.CaptureElapsed - dt * drain);
+                if (sim.CaptureElapsed <= 0.0) ClearCapture(sim);
+                return;
+            }
             if (team != sim.CaptureTeam || kind != sim.CurrentCaptureKind)
             {
                 sim.CaptureTeam = team;
@@ -212,7 +301,18 @@ namespace Kalyeah.Sim
         public double CaptureTimeLeft(MatchSim sim)
         {
             if (sim.CaptureTeam < 0) return 0.0;
-            return GMath.Maxf(0.0, sim.CaptureNeeded - sim.CaptureElapsed) / GMath.Maxf(sim.CaptureRate, 0.001);
+            // paused or draining: report the time one capturer would still need
+            double rate = sim.CaptureRate > 0.0 ? sim.CaptureRate : 1.0;
+            return GMath.Maxf(0.0, sim.CaptureNeeded - sim.CaptureElapsed) / GMath.Maxf(rate, 0.001);
+        }
+
+        /// <summary>Both teams won the round in the same tick: nobody scores and the round starts over (docs/SPEC.md §5).</summary>
+        void ReplayRound(MatchSim sim)
+        {
+            ClearCapture(sim);
+            foreach (var pair in sim.Players) sim.EndMove(pair.Value);
+            sim.Phase = MatchSim.MatchPhase.PointFreeze;
+            sim.FreezeLeft = sim.Rules.PointFreezeTime;
         }
 
         public void EndFreeze(MatchSim sim)
@@ -266,11 +366,16 @@ namespace Kalyeah.Sim
             sim.CaptureNeeded = sim.Rules.CaptureSoloTime;
             sim.RescueRescuer = new[] { -1, -1 };
             sim.RescueElapsed = new[] { 0.0, 0.0 };
-            sim.RescueReadyLeft = new[] { sim.Rules.RescueCooldown, sim.Rules.RescueCooldown };
+            double ready = sim.Rules.RescueReadyAtRoundStart ? 0.0 : sim.Rules.RescueCooldown;
+            sim.RescueReadyLeft = new[] { ready, ready };
+            sim.BarrierLeft = sim.Rules.BarrierSeconds;
             foreach (var pair in sim.Players)
             {
                 PlayerState state = pair.Value;
                 bool wasTagged = state.Tagged;
+                state.TaggedBy = -1;
+                state.RevengeLeft = 0.0;
+                state.ShieldLeft = 0.0;
                 ClearActions(state);
                 state.PrimaryCd = 0.0;
                 state.DashCd = 0.0;

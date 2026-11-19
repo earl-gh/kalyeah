@@ -58,6 +58,28 @@ namespace Kalyeah.Sim
         public double AimDeadzone;
         public double CcImmunity;
         public double BoomerangCatchDistance;
+        // ---- docs/SPEC.md §5 (Agawang Base). Each default below is the "off" value, which keeps the recorded pre-spec rules. ----
+        /// <summary>Tagged kids wait in the jail beside the ENEMY base and are rescued there (false: beside their own base).</summary>
+        public bool RescueAtEnemyJail;
+        /// <summary>Seconds into a rescue that it keeps when cancelled (0: none; a cancel restarts from 0).</summary>
+        public double RescueCheckpoint;
+        /// <summary>Moving (beyond `RescueStillTolerance` metres), casting or a hard crowd control cancels a rescue (false: only leaving the area).</summary>
+        public bool RescueCancelsOnAction;
+        public double RescueStillTolerance = 0.05;
+        /// <summary>The jail can rescue at once when a round starts (false: it waits one `RescueCooldown`).</summary>
+        public bool RescueReadyAtRoundStart;
+        /// <summary>Seconds after its tagger is tagged before a tagged kid walks free (0: no revenge release).</summary>
+        public double RevengeReleaseSeconds;
+        /// <summary>Seconds a revenge-released kid ignores all damage.</summary>
+        public double RevengeShieldSeconds;
+        /// <summary>A free defender in its own base pauses the enemy capture.</summary>
+        public bool CaptureContested;
+        /// <summary>When nobody captures, the bar drains at this share of the fill speed instead of resetting (0: resets).</summary>
+        public double CaptureDrainShare;
+        /// <summary>Seconds at each round start when kids stay inside their own base and can't cast (0: none).</summary>
+        public double BarrierSeconds;
+        /// <summary>Both teams winning a round in the same tick replays it with no point (false: the round goes on).</summary>
+        public bool ReplayTiedRounds;
         public double CaptureSoloTime = 12.0;
         public double CaptureAllyBonus = 0.75;
         public double OvertimeAfter;

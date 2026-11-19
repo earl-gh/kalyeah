@@ -38,6 +38,8 @@ namespace Kalyeah.Sim
         public event Action<int, int, int> PowerupTaken;
 
         public const int ReleasedAlone = -1;
+        /// <summary>PlayerRescued's rescuer id for a revenge release (docs/SPEC.md §5): the tagger was tagged.</summary>
+        public const int ReleasedByRevenge = -2;
         /// <summary>Float slack for timers and the elixir bar (sums of 1/30 s ticks), not a gameplay number.</summary>
         public const double Epsilon = 0.00001;
         /// <summary>Mixed into the match seed for the trip rolls' own generator.</summary>
@@ -89,6 +91,10 @@ namespace Kalyeah.Sim
         public int[] RescueRescuer = { -1, -1 };
         public double[] RescueElapsed = { 0.0, 0.0 };
         public double[] RescueReadyLeft = { 0.0, 0.0 };
+        /// <summary>Per team: where the current rescuer started (a defuse-style rescue cancels when the rescuer moves off it).</summary>
+        public Vec2[] RescueAnchor = { Vec2.Zero, Vec2.Zero };
+        /// <summary>Seconds of the round-start barrier left: kids stay in their own base and can't cast.</summary>
+        public double BarrierLeft;
         public int TagCounter;
         public double RoundTime;
         public MatchPhase Phase = MatchPhase.Playing;
@@ -109,6 +115,7 @@ namespace Kalyeah.Sim
         readonly List<Rect2> _walkObstacles = new List<Rect2>();
         public BarangayNav Nav;
         int _castSerial;
+        readonly Dictionary<int, int> _castTick = new Dictionary<int, int>();
         Rect2 _street;
 
         /// <summary>The bots driving players (id to brain), in the order they were added. Coaches and tests read it.</summary>
@@ -135,7 +142,9 @@ namespace Kalyeah.Sim
             if (rules.UltimateWeapon != null) WeaponDefs[rules.UltimateWeapon.Id] = rules.UltimateWeapon;
             Score = new MatchScore(rules.FirstTo);
             CaptureNeeded = rules.CaptureSoloTime;
-            RescueReadyLeft = new[] { rules.RescueCooldown, rules.RescueCooldown };
+            double ready = rules.RescueReadyAtRoundStart ? 0.0 : rules.RescueCooldown;
+            RescueReadyLeft = new[] { ready, ready };
+            BarrierLeft = rules.BarrierSeconds;
             ResetPowerups();
         }
 
@@ -152,11 +161,19 @@ namespace Kalyeah.Sim
         public void EmitWeaponCast(int id, string weaponId)
         {
             _castSerial += 1;
+            _castTick[id] = Tick;
             WeaponCast?.Invoke(id, weaponId);
         }
 
         /// <summary>Team 0 plays from the own (+Z) end, team 1 from the enemy (-Z) end.</summary>
         public int SideForTeam(int team) => team == 0 ? MapLayout.SideOwn : MapLayout.SideEnemy;
+
+        /// <summary>The end whose jail (MapLayout.RescueRect) holds `team`'s tagged kids and where `team` rescues them: beside the
+        /// enemy base under `RescueAtEnemyJail` (docs/SPEC.md §5), else beside its own base.</summary>
+        public int JailSideFor(int team) => Rules.RescueAtEnemyJail ? -SideForTeam(team) : SideForTeam(team);
+
+        /// <summary>Player `id` cast something during the current tick.</summary>
+        public bool CastThisTick(int id) => _castTick.TryGetValue(id, out int tick) && tick == Tick;
 
         /// <summary>First to `count` points (one of `Rules.FirstToChoices`; anything else is ignored).</summary>
         public void SetFirstTo(int count)
@@ -526,7 +543,7 @@ namespace Kalyeah.Sim
         {
             if (!Players.ContainsKey(id) || amount <= 0) return;
             PlayerState state = Players[id];
-            if (state.Tagged || Mode != null) return;
+            if (state.Tagged || Mode != null || state.ShieldLeft > 0.0) return;
             int finalAmount = amount;
             if (by >= 0 && Players.ContainsKey(by))
             {
@@ -629,6 +646,7 @@ namespace Kalyeah.Sim
             }
             MatchTime += dt;
             RoundTime += dt;
+            BarrierLeft = GMath.Maxf(0.0, BarrierLeft - dt);
             CaptureNeeded = CurrentBaseCaptureTime();
             Weapons.Step(this, dt);
             if (Mode != null)
@@ -652,6 +670,7 @@ namespace Kalyeah.Sim
             state.DashCd = GMath.Maxf(0.0, state.DashCd - dt);
             state.JumpCd = GMath.Maxf(0.0, state.JumpCd - dt);
             state.SlideCd = GMath.Maxf(0.0, state.SlideCd - dt);
+            state.ShieldLeft = GMath.Maxf(0.0, state.ShieldLeft - dt);
             TickBuff(state, dt);
             if (Mode == null && !state.Tagged) state.UltCharge = GMath.Minf(100.0, state.UltCharge + Rules.UltPassivePerS * dt);
             TickShuffler(state, dt);
@@ -675,6 +694,7 @@ namespace Kalyeah.Sim
             Vec2 before = state.Position;
             Move(state, input, dt);
             if (Mode != null) Mode.Constrain(this, state);
+            else KeepBehindBarrier(state, before);
             bool moved = state.Position.DistanceSquaredTo(before) > Epsilon * Epsilon;
             TickStamina(state, moved, dt);
             TickTrip(state, moved, dt);
@@ -1014,7 +1034,17 @@ namespace Kalyeah.Sim
             TickStamina(state, false, dt);
             state.TagTime += dt;
             if (input != null) state.PreviousButtons = input.Buttons;
+            if (Mode == null) Objectives.StepRevenge(this, state, dt);
+            if (!state.Tagged) return;
             if (_brains.ContainsKey(state.Id) && state.TagTime >= Rules.DummyReleaseTime) Objectives.Rescue(this, state, ReleasedAlone);
+        }
+
+        /// <summary>The round-start barrier: a kid that was inside its own base can't step out of it while `BarrierLeft` runs.</summary>
+        void KeepBehindBarrier(PlayerState state, Vec2 before)
+        {
+            if (BarrierLeft <= 0.0) return;
+            int side = SideForTeam(state.Team);
+            if (Layout.InBase(side, before) && !Layout.InBase(side, state.Position)) state.Position = before;
         }
 
         /// <summary>The street point a move target really goes to: pulled into the street and out of cover (the server's own clamp).</summary>
@@ -1115,9 +1145,10 @@ namespace Kalyeah.Sim
         public bool CastingBlockedAt(PlayerState state, Vec2 position)
         {
             if (Mode != null) return false;
+            if (BarrierLeft > 0.0) return true;
             if (Rules.NoCastInEnemyBase && Layout.InBase(-SideForTeam(state.Team), position)) return true;
             return Rules.NoCastInRescueArea && Objectives.TeammateWaiting(this, state.Team)
-                && Layout.RescueRect(SideForTeam(state.Team)).Grow(state.Radius).HasPoint(position);
+                && Layout.RescueRect(JailSideFor(state.Team)).Grow(state.Radius).HasPoint(position);
         }
 
         public Vec2 ResolvedAim(PlayerState state, int slot, Vec2 stick) => Casting.ResolvedAim(this, state, slot, stick);
