@@ -468,7 +468,9 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 Pure Valorant for the UI and the world: flat, confident shapes, the Ink / Paper / Red palette, a painted 3D street; the
 kids keep the owner's models. Inspired by, never copied
 (no Riot, Supercell, Valve or Moonton assets, names or logos). The owner makes all art and audio; agents only say which
-kind is needed (3D model, sprite sheet or 2D image).
+kind is needed (3D model, sprite sheet or 2D image). **Art source:** the owner generates 3D models with **Meshy** (the 12
+kids already are); agents write the briefs and prompts, then make each model game-ready by script (budget, scale,
+facing, texture layout, materials), never restyling it.
 
 **Kids' look:** the owner's uploaded models (`assets/models/raw/`) define each kid's look; they are only made game-ready
 (`docs/art-briefs/kids-retopo-spec.md`), not restyled. **Role icons** (Striker, Defender, Seeker, Controller) appear in
