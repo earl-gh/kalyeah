@@ -207,10 +207,11 @@ namespace Kalyeah.Game
             bool enemyContested = playing && bases != null && enemyIdx < bases.Count && bases[enemyIdx].Contested;
             Zones.SyncBases(ownCap01, ownContested, enemyCap01, enemyContested);
 
+            // docs/SPEC.md §5: the jail at team 0's end (SideOwn) holds and is used by team 1, and the other way round
             IReadOnlyList<RescueObjectiveSnapshot> rescues = sim.Rescues;
-            float ownRescueCd = (rescues != null && ownIdx < rescues.Count) ? rescues[ownIdx].CooldownLeft : 0f;
-            float enemyRescueCd = (rescues != null && enemyIdx < rescues.Count) ? rescues[enemyIdx].CooldownLeft : 0f;
-            Zones.SyncRescue(ownRescueCd, enemyRescueCd, hideCounts: !playing);
+            float sideOwnJailCd = (rescues != null && rescues.Count > 1) ? rescues[1].CooldownLeft : 0f;
+            float sideEnemyJailCd = (rescues != null && rescues.Count > 0) ? rescues[0].CooldownLeft : 0f;
+            Zones.SyncRescue(sideOwnJailCd, sideEnemyJailCd, hideCounts: !playing);
 
             IReadOnlyList<MeriendaStandSnapshot> stands = sim.MeriendaStands;
             if (stands != null)

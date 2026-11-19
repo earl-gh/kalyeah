@@ -409,7 +409,7 @@ namespace Kalyeah.Game
             if (node.ReadyState != targetState)
             {
                 node.ReadyState = targetState;
-                Color sideTint = TintForSide(node.Side);
+                Color sideTint = TintForSide(-node.Side);  // a jail is the rescue spot of the team playing from the other end
                 // Binding rule: 0.50 white while counting -> 0.55 team tint when ready
                 Color chalkCol = ready
                     ? new Color(sideTint.r, sideTint.g, sideTint.b, RescueReadyAlpha)

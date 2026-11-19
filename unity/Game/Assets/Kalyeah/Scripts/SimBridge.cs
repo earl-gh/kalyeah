@@ -530,7 +530,7 @@ namespace Kalyeah.Game
 
             var allySpot = new Vec2(rules.DummyAllyX, rules.DummyAllyZ);
             sim.AddDummy(TrainingAllyRescuerId, LocalTeam, allySpot, DummyBrain.Rescuer(allySpot));
-            sim.AddDummy(TrainingEnemyRescueId, 1, layout.RescueRect(sim.SideForTeam(1)).GetCenter(), DummyBrain.Standing());
+            sim.AddDummy(TrainingEnemyRescueId, 1, layout.RescueRect(sim.JailSideFor(1)).GetCenter(), DummyBrain.Standing());
 
             sim.AssignCharacters();
             sim.SetCharacter(LocalId, avatar);
@@ -1236,7 +1236,6 @@ namespace Kalyeah.Game
 
             int attackers0 = sim.CapturersInEnemyBase(0);
             int attackers1 = sim.CapturersInEnemyBase(1);
-            bool contested = attackers0 > 0 && attackers1 > 0;
 
             for (int team = 0; team < 2; team++)
             {
@@ -1263,10 +1262,11 @@ namespace Kalyeah.Game
                     CaptureTimeLeft = capturingThisBase ? (float)sim.CaptureTimeLeft() : 0f,
                     CapturingTeam = capturingThisBase ? attackingTeam : -1,
                     Holders = holders,
-                    Contested = contested && holders > 0,
+                    // docs/SPEC.md §5: a defender in its own base pauses the capture (the bar stays, at rate 0)
+                    Contested = capturingThisBase && holders > 0 && sim.CaptureRate <= 0.0,
                 };
 
-                Rect2 rRect = sim.Layout.RescueRect(side);
+                Rect2 rRect = sim.Layout.RescueRect(sim.JailSideFor(team));
                 Vec2 rCenter = rRect.GetCenter();
                 int waiting = 0;
                 foreach (var pair in sim.Players)
