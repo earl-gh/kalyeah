@@ -45,8 +45,8 @@ namespace Kalyeah.Game
 
         public static readonly string[] AvatarIds =
         {
-            "junjun", "ligaya", "migo", "toni", "popoy",
-            "inday", "kiko", "nene", "buknoy", "tala",
+            "narda", "jumong", "inggo", "jopay", "oriang", "paeng",
+            "kikay", "karding", "manoy", "tere", "pamela", "domeng",
         };
 
         static readonly string[] MonthNames =

@@ -200,7 +200,7 @@ namespace Kalyeah.Game
         {
             Camera cam = BuildViewportCamera("HudRoot", width, height, rawSafePx, orientation, out GameObject root);
 
-            var sim = new SimBridge(LoadData(), 7L, "junjun");
+            var sim = new SimBridge(LoadData(), 7L, "narda");
             sim.SkipIntro();
             _disposables.Add(sim);
 
@@ -499,7 +499,7 @@ namespace Kalyeah.Game
         {
             for (long seed = 1L; seed <= 32L; seed++)
             {
-                var candidate = new StreetBridge(data, kind, seed, "junjun");
+                var candidate = new StreetBridge(data, kind, seed, "narda");
                 candidate.SkipIntro();
                 for (int w = 0; w < 150 && candidate.IsIntro; w++)
                     candidate.Step();
@@ -507,7 +507,7 @@ namespace Kalyeah.Game
                 if (me.HasValue && me.Value.Role != StreetRoleKind.Taya && me.Value.Role != StreetRoleKind.Guard)
                     return candidate;
             }
-            var fallback = new StreetBridge(data, kind, 1L, "junjun");
+            var fallback = new StreetBridge(data, kind, 1L, "narda");
             fallback.SkipIntro();
             for (int w = 0; w < 150 && fallback.IsIntro; w++)
                 fallback.Step();
@@ -710,12 +710,12 @@ namespace Kalyeah.Game
 
             // Seed deterministic player session + match history rows so HistoryScreenView exercises live match log rows & ladder badges
             AppSession.Current.PlayerName = "Junjun";
-            AppSession.Current.SelectedCharacter = "junjun";
+            AppSession.Current.SelectedCharacter = "narda";
             AppSession.Current.SetSuperpowers(new[] { "bato_light", "tsinelas_light", "papel_shield" });
             if (AppSession.Current.History.Count == 0)
             {
-                AppSession.Current.RecordMatchResult("practice", "junjun", won: true, myScore: 3, theirScore: 1);
-                AppSession.Current.RecordMatchResult("patintero", "ligaya", won: false, myScore: 1, theirScore: 2);
+                AppSession.Current.RecordMatchResult("practice", "narda", won: true, myScore: 3, theirScore: 1);
+                AppSession.Current.RecordMatchResult("patintero", "jumong", won: false, myScore: 1, theirScore: 2);
             }
 
             // 1. LoadingScreenView.BuildPreview
@@ -1042,7 +1042,7 @@ namespace Kalyeah.Game
                     PumpLobby(3);
                     hostPeer.CreateRoom();
                     PumpLobby(3);
-                    hostPeer.SetCharacter("ligaya");
+                    hostPeer.SetCharacter("jumong");
                     hostPeer.SetFillBots(true);
                     hostPeer.SetOpen(true);
                     hostPeer.SetReady(true);
@@ -1087,7 +1087,7 @@ namespace Kalyeah.Game
                     // Join populated 5v5 room
                     localClient.JoinRoom(openCode);
                     PumpLobby(4);
-                    localClient.SetCharacter("junjun");
+                    localClient.SetCharacter("narda");
                     localClient.SetReady(true);
                     PumpLobby(4);
                     lobby.OnShow();
@@ -1248,7 +1248,7 @@ namespace Kalyeah.Game
                 var setup = new MatchSetup
                 {
                     Seed = 7L,
-                    LocalCharacter = "junjun",
+                    LocalCharacter = "narda",
                     SuperpowerLoadout = new[] { "bato_light", "tsinelas_light", "papel_shield" },
                     FirstTo = 3,
                 };
@@ -1474,7 +1474,7 @@ namespace Kalyeah.Game
                 var tagSetup = new MatchSetup
                 {
                     Seed = 123L,
-                    LocalCharacter = "junjun",
+                    LocalCharacter = "narda",
                     SuperpowerLoadout = new[] { "bato_light", "tsinelas_light", "papel_shield" },
                     TrainingMode = true,
                 };
@@ -1554,7 +1554,7 @@ namespace Kalyeah.Game
                 var winSetup = new MatchSetup
                 {
                     Seed = 7L,
-                    LocalCharacter = "junjun",
+                    LocalCharacter = "narda",
                     SuperpowerLoadout = new[] { "bato_light", "tsinelas_light", "papel_shield" },
                     FirstTo = 1,
                 };
@@ -1620,7 +1620,7 @@ namespace Kalyeah.Game
             {
                 long throwerSeed = FindTumbangThrowerSeed(data);
                 Camera tumbangCam = BuildViewportCamera($"TumbangModals_{width}x{height}", width, height, rawSafePx, orientation, out GameObject tumbangRoot);
-                var tumbangBridge = new StreetBridge(data, StreetGameKind.TumbangPreso, throwerSeed, "junjun");
+                var tumbangBridge = new StreetBridge(data, StreetGameKind.TumbangPreso, throwerSeed, "narda");
                 var tumbangHud = new StreetHudView(tumbangRoot.transform, tumbangBridge, tumbangCam, interactive: true, () => { }, () => { });
                 _disposables.Add(tumbangHud);
 
@@ -1715,7 +1715,7 @@ namespace Kalyeah.Game
                 });
 
                 Camera patCam = BuildViewportCamera($"StreetModals_{width}x{height}", width, height, rawSafePx, orientation, out GameObject patRoot);
-                var patBridge = new StreetBridge(fastPatData, StreetGameKind.Patintero, 11L, "junjun");
+                var patBridge = new StreetBridge(fastPatData, StreetGameKind.Patintero, 11L, "narda");
                 patBridge.SkipIntro();
                 for (int w = 0; w < 150 && patBridge.IsIntro; w++)
                     patBridge.Step();
@@ -2165,7 +2165,7 @@ namespace Kalyeah.Game
         {
             for (long seed = 1L; seed <= 30L; seed++)
             {
-                var probe = new StreetBridge(data, StreetGameKind.TumbangPreso, seed, "junjun");
+                var probe = new StreetBridge(data, StreetGameKind.TumbangPreso, seed, "narda");
                 probe.SkipIntro();
                 for (int w = 0; w < 150 && probe.IsIntro; w++)
                     probe.Step();

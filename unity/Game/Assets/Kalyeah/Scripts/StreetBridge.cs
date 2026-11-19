@@ -236,7 +236,7 @@ namespace Kalyeah.Game
             DataSource data,
             StreetGameKind kind,
             long seed,
-            string localCharacter = "junjun",
+            string localCharacter = "narda",
             GameClient onlineClient = null)
         {
             if (data == null) throw new ArgumentNullException(nameof(data));

@@ -128,7 +128,7 @@ namespace Kalyeah.Game
     public sealed class MatchSetup
     {
         public long Seed;
-        public string LocalCharacter = "junjun";
+        public string LocalCharacter = "narda";
         public string[] SuperpowerLoadout;
         public string BotDifficulty;
         public bool TrainingMode;
@@ -438,7 +438,7 @@ namespace Kalyeah.Game
         public SimBridge(DataSource data, MatchSetup setup)
         {
             if (data == null) throw new ArgumentNullException(nameof(data));
-            setup ??= new MatchSetup { Seed = 1L, LocalCharacter = "junjun" };
+            setup ??= new MatchSetup { Seed = 1L, LocalCharacter = "narda" };
 
             SimData simData = LoadSimDataGraph(data, "rules__game_rules", "rules__map_layout");
             GameRules rules = string.IsNullOrWhiteSpace(setup.BotDifficulty)
@@ -480,7 +480,7 @@ namespace Kalyeah.Game
                 _offlineSim.SetFirstTo(setup.FirstTo);
             EnsureBoundSim(_offlineSim);
 
-            string avatar = string.IsNullOrWhiteSpace(setup.LocalCharacter) ? "junjun" : setup.LocalCharacter;
+            string avatar = string.IsNullOrWhiteSpace(setup.LocalCharacter) ? "narda" : setup.LocalCharacter;
             if (IsTraining)
             {
                 _coaches = Array.Empty<TeamCoach>();

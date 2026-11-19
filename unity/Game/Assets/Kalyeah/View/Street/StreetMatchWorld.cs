@@ -78,7 +78,7 @@ namespace Kalyeah.Game
             DataSource data,
             StreetGameKind kind,
             long seed,
-            string localCharacter = "junjun",
+            string localCharacter = "narda",
             bool interactive = true,
             bool hudCamera = false,
             Action onPlayAgain = null,
@@ -88,7 +88,7 @@ namespace Kalyeah.Game
             Kind = kind;
             Interactive = interactive;
 
-            string charId = string.IsNullOrWhiteSpace(localCharacter) ? "junjun" : localCharacter.Trim();
+            string charId = string.IsNullOrWhiteSpace(localCharacter) ? "narda" : localCharacter.Trim();
             long actualSeed = seed != 0 ? seed : DateTime.UtcNow.Ticks;
 
             Kalyeah.Net.GameClient client = (interactive && AppSession.Current.IsNetworkedMode)

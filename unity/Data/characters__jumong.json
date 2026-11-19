@@ -1,0 +1,13 @@
+{
+ "source": "res://data/characters/jumong.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "jumong",
+  "display_name": "Jumong",
+  "description": "Striker from Pantalan. Brave and loud, first into every game; from a fishing family at the pier.",
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.0
+ }
+}

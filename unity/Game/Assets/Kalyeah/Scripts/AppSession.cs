@@ -69,22 +69,25 @@ namespace Kalyeah.Game
     {
         public const string PlayerPrefsKey = "kalyeah.session.v1";
         public const string DefaultPlayerName = "GABO";
-        public const string DefaultCharacter = "junjun";
+        public const string DefaultCharacter = "narda";
         public const string CustomIdPhotoFileName = "id_photo.png";
         public const int MaxNameLength = 12;
         public const int MaxHistoryEntries = 50;
         const double CloseGraceSeconds = 0.5;
 
+        /// <summary>The 12 kids in role order (docs/SPEC.md §7): Strikers, Defenders, Seekers, Controllers.</summary>
         public static readonly string[] DefaultRoster =
         {
-            "junjun", "ligaya", "migo", "toni", "popoy",
-            "inday", "kiko", "nene", "buknoy", "tala",
+            "narda", "jumong", "inggo",
+            "jopay", "oriang", "paeng",
+            "kikay", "karding", "manoy",
+            "tere", "pamela", "domeng",
         };
 
         /// <summary>The 6 nametag avatar photo tiles synced under <c>ui/avatars/*</c> (in <c>Session.AVATARS</c> order).</summary>
         public static readonly string[] AvatarPhotoIds =
         {
-            "junjun", "ligaya", "migo", "toni", "popoy", "inday",
+            "narda", "jumong", "inggo", "jopay", "oriang", "paeng",
         };
 
         public static readonly string[] DefaultSuperpowers =

@@ -74,7 +74,7 @@ namespace Kalyeah.Game
             var setup = new MatchSetup
             {
                 Seed = 4242L,
-                LocalCharacter = "ligaya",
+                LocalCharacter = "jumong",
                 SuperpowerLoadout = new[] { "tsinelas_light", "bola", "papel_shield" },
                 CardCycleOverride = false,
                 FirstTo = 3,
@@ -104,7 +104,7 @@ namespace Kalyeah.Game
             Assert.AreEqual(5, team1);
             Assert.IsTrue(bridge.LocalKid.HasValue);
             Assert.AreEqual(SimBridge.LocalId, bridge.LocalKid.Value.Id);
-            Assert.AreEqual("ligaya", bridge.LocalKid.Value.CharacterId);
+            Assert.AreEqual("jumong", bridge.LocalKid.Value.CharacterId);
 
             Assert.AreEqual(10, characters.Count, "All 10 kids in 5v5 have distinct characters");
             Assert.AreEqual(2, bridge.Bases.Count);
@@ -127,7 +127,7 @@ namespace Kalyeah.Game
             var bridge = new SimBridge(fastUltData, new MatchSetup
             {
                 Seed = 777L,
-                LocalCharacter = "junjun",
+                LocalCharacter = "narda",
                 SuperpowerLoadout = new[] { "tsinelas_light", "bola", "papel_shield" },
                 CardCycleOverride = false,
                 TrainingMode = true,
@@ -242,7 +242,7 @@ namespace Kalyeah.Game
             var bridge = new SimBridge(tagData, new MatchSetup
             {
                 Seed = 99L,
-                LocalCharacter = "toni",
+                LocalCharacter = "jopay",
                 SuperpowerLoadout = new[] { "bato_light", "tsinelas_light", "papel_shield" },
                 CardCycleOverride = false,
                 TrainingMode = true,
@@ -271,7 +271,7 @@ namespace Kalyeah.Game
             var session = new AppSession
             {
                 PlayerName = "  Batang   Kalye! ",
-                SelectedCharacter = "tala",
+                SelectedCharacter = "tere",
                 BotDifficulty = "hard",
                 FirstTo = 5,
                 RoomCode = "KLYH2026",
@@ -285,7 +285,7 @@ namespace Kalyeah.Game
             int previewWin = session.PreviewMatchLp("online", true, 3, 0);
             Assert.Greater(previewWin, 0);
 
-            RankOutcomeInfo outcome = session.RecordMatchResult("online", "tala", true, 3, 0, 1700000123L);
+            RankOutcomeInfo outcome = session.RecordMatchResult("online", "tere", true, 3, 0, 1700000123L);
             Assert.AreEqual(previewWin, outcome.Delta);
             Assert.AreEqual(outcome.NewLp, session.Lp);
             Assert.AreEqual(1, session.TotalMatches);
@@ -296,7 +296,7 @@ namespace Kalyeah.Game
 
             // Advance LP into Bakal (>= 200 LP)
             for (int i = 0; i < 8 && session.Lp < 200; i++)
-                session.RecordMatchResult("online", "tala", true, 3, 0, 1700000200L + i);
+                session.RecordMatchResult("online", "tere", true, 3, 0, 1700000200L + i);
             Assert.GreaterOrEqual(session.Lp, 200);
             Assert.AreEqual("bakal", session.CurrentTier.Id);
 
@@ -304,7 +304,7 @@ namespace Kalyeah.Game
             var restored = new AppSession();
             Assert.IsTrue(restored.LoadJson(json));
             Assert.AreEqual(session.PlayerName, restored.PlayerName);
-            Assert.AreEqual("tala", restored.SelectedCharacter);
+            Assert.AreEqual("tere", restored.SelectedCharacter);
             Assert.AreEqual("hard", restored.BotDifficulty);
             Assert.AreEqual(5, restored.FirstTo);
             Assert.AreEqual("KLYH2026", restored.RoomCode);
@@ -383,8 +383,8 @@ namespace Kalyeah.Game
             DataSource data = LoadData();
             const long seed = 20261114L;
 
-            var runA = new StreetBridge(data, kind, seed, "migo");
-            var runB = new StreetBridge(data, kind, seed, "migo");
+            var runA = new StreetBridge(data, kind, seed, "inggo");
+            var runB = new StreetBridge(data, kind, seed, "inggo");
 
             runA.SkipIntro();
             runB.SkipIntro();
@@ -495,7 +495,7 @@ namespace Kalyeah.Game
                 Assert.IsNotNull(client.Mirror, "Server start must build client Mirror");
                 client.Loaded();
                 Pump(2);
-                client.PickWeapons("bato_light", "tsinelas_light", "junjun", "papel_shield");
+                client.PickWeapons("bato_light", "tsinelas_light", "narda", "papel_shield");
                 Pump(45); // advance past pick grace into Stage == "play"
 
                 using (var onlineBridge = new SimBridge(data, new MatchSetup { OnlineClient = client }))

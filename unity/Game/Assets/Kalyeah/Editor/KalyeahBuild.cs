@@ -737,7 +737,7 @@ public static class KalyeahBuild
             SetFullViewport();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var root = new GameObject("MatchShot").transform;
-            using (var world = new MatchWorld(root, data, 7, "junjun", interactive: false, hudCamera: true))
+            using (var world = new MatchWorld(root, data, 7, "narda", interactive: false, hudCamera: true))
             {
                 world.Sim.SkipIntro();
                 world.Draw(1f, 0f);
@@ -819,14 +819,14 @@ public static class KalyeahBuild
 
             AppSession.Current.LoadJson("{}");
             AppSession.Current.PlayerName = "Junjun";
-            AppSession.Current.SelectedCharacter = "junjun";
+            AppSession.Current.SelectedCharacter = "narda";
             AppSession.Current.SetSuperpowers(new[] { "bato_light", "tsinelas_light", "papel_shield" });
             AppSession.Current.Mode = GameMode.Practice;
             AppSession.Current.BriefingPending = false;
-            AppSession.Current.RecordMatchResult("online", "junjun", true, 3, 1, 1731600100L);
-            AppSession.Current.RecordMatchResult("patintero", "ligaya", true, 5, 2, 1731600400L);
-            AppSession.Current.RecordMatchResult("tumbang_preso", "migo", false, 2, 4, 1731600700L);
-            AppSession.Current.RecordMatchResult("langit_lupa", "tala", true, 6, 3, 1731601000L);
+            AppSession.Current.RecordMatchResult("online", "narda", true, 3, 1, 1731600100L);
+            AppSession.Current.RecordMatchResult("patintero", "jumong", true, 5, 2, 1731600400L);
+            AppSession.Current.RecordMatchResult("tumbang_preso", "inggo", false, 2, 4, 1731600700L);
+            AppSession.Current.RecordMatchResult("langit_lupa", "tere", true, 6, 3, 1731601000L);
             AppSession.Current.ConsumeLastOutcome();
 
             // 1. Home Hub + Home/System Modals (Profile, Monthly, Donate, Quit, QR)
@@ -982,7 +982,7 @@ public static class KalyeahBuild
                 PumpLobby(3);
                 hostPeer.CreateRoom();
                 PumpLobby(3);
-                hostPeer.SetCharacter("ligaya");
+                hostPeer.SetCharacter("jumong");
                 hostPeer.SetFillBots(true);
                 hostPeer.SetOpen(true);
                 hostPeer.SetReady(true);
@@ -1015,7 +1015,7 @@ public static class KalyeahBuild
 
                     localClient.JoinRoom(openCode);
                     PumpLobby(4);
-                    localClient.SetCharacter("junjun");
+                    localClient.SetCharacter("narda");
                     localClient.SetReady(true);
                     PumpLobby(4);
                     lobby.OnShow();
@@ -1078,7 +1078,7 @@ public static class KalyeahBuild
                 var setup = new MatchSetup
                 {
                     Seed = 7L,
-                    LocalCharacter = "junjun",
+                    LocalCharacter = "narda",
                     SuperpowerLoadout = new[] { "bato_light", "tsinelas_light", "papel_shield" },
                     FirstTo = 3,
                 };
@@ -1169,7 +1169,7 @@ public static class KalyeahBuild
                 var tagSetup = new MatchSetup
                 {
                     Seed = 123L,
-                    LocalCharacter = "junjun",
+                    LocalCharacter = "narda",
                     SuperpowerLoadout = new[] { "bato_light", "tsinelas_light", "papel_shield" },
                     TrainingMode = true,
                 };
@@ -1233,7 +1233,7 @@ public static class KalyeahBuild
                 var winSetup = new MatchSetup
                 {
                     Seed = 7L,
-                    LocalCharacter = "junjun",
+                    LocalCharacter = "narda",
                     SuperpowerLoadout = new[] { "bato_light", "tsinelas_light", "papel_shield" },
                     FirstTo = 1,
                 };
@@ -1293,7 +1293,7 @@ public static class KalyeahBuild
                     data,
                     StreetGameKind.TumbangPreso,
                     tumbangSeed,
-                    "junjun",
+                    "narda",
                     interactive: true,
                     hudCamera: true,
                     onPlayAgain: () => { },
@@ -1339,7 +1339,7 @@ public static class KalyeahBuild
                     fastStreetData,
                     StreetGameKind.Patintero,
                     11L,
-                    "junjun",
+                    "narda",
                     interactive: true,
                     hudCamera: true,
                     onPlayAgain: () => { },
@@ -1451,7 +1451,7 @@ public static class KalyeahBuild
             var probeRoot = new GameObject("TumbangSeedProbe");
             try
             {
-                using var probe = new StreetMatchWorld(probeRoot.transform, data, StreetGameKind.TumbangPreso, seed, "junjun", interactive: false, hudCamera: false);
+                using var probe = new StreetMatchWorld(probeRoot.transform, data, StreetGameKind.TumbangPreso, seed, "narda", interactive: false, hudCamera: false);
                 probe.Sim.SkipIntro();
                 for (int w = 0; w < 150 && probe.Sim.IsIntro; w++)
                     probe.StepTick();
@@ -1518,7 +1518,7 @@ public static class KalyeahBuild
         SetFullViewport();
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         var streetRoot = new GameObject("StreetShot_" + kind).transform;
-        using var street = new StreetMatchWorld(streetRoot, data, kind, seed, "junjun", interactive: false, hudCamera: true);
+        using var street = new StreetMatchWorld(streetRoot, data, kind, seed, "narda", interactive: false, hudCamera: true);
         street.Sim.SkipIntro();
         for (int w = 0; w < 150 && street.Sim.IsIntro; w++)
             street.StepTick();

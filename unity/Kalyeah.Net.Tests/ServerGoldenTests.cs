@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -39,7 +40,8 @@ namespace Kalyeah.Net.Tests
             using JsonDocument doc = NetKit.Golden("net_server.json");
             JsonElement session = doc.RootElement.GetProperty(name);
             bool hashed = session.TryGetProperty("hashed", out JsonElement h) && h.GetBoolean();
-            var server = new GameServer(NetKit.Rules, NetKit.Layout, NetKit.Net, session.GetProperty("seed").GetInt64(), NetKit.Games)
+            using IDisposable recorded = Lobby.UseAvatars(NetKit.RecordedRoster);
+            var server = new GameServer(NetKit.WithRecordedRoster(NetKit.Rules.Duplicate()), NetKit.Layout, NetKit.Net, session.GetProperty("seed").GetInt64(), NetKit.Games)
             {
                 AutoJoin = session.GetProperty("auto_join").GetBoolean(),
             };

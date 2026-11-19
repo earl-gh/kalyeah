@@ -1,0 +1,13 @@
+{
+ "source": "res://data/characters/jopay.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "jopay",
+  "display_name": "Jopay",
+  "description": "Defender from Uptown. The organiser who builds forts out of appliance boxes; a parent works at the barangay hall.",
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.0
+ }
+}

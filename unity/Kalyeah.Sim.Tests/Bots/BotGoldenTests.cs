@@ -58,7 +58,7 @@ namespace Kalyeah.Sim.Tests.Bots
             using var doc = JsonDocument.Parse(File.ReadAllText(Golden(name + ".json")));
             JsonElement root = doc.RootElement;
             Assert.AreEqual(level, root.GetProperty("level").GetString());
-            GameRules rules = GoldenMatchTests.Data.GameRules.WithBotLevel(level);
+            GameRules rules = RecordedRoster.Apply(GoldenMatchTests.Data.GameRules.WithBotLevel(level));
             Assert.AreEqual(root.GetProperty("bot_skill").GetDouble(), rules.BotSkill, 1e-12, "the level's skill");
             var sim = new MatchSim(rules, GoldenMatchTests.Data.MapLayout, root.GetProperty("seed").GetInt64());
             // _setup_bot_match

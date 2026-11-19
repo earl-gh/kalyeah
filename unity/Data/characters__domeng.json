@@ -1,0 +1,13 @@
+{
+ "source": "res://data/characters/domeng.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "domeng",
+  "display_name": "Domeng",
+  "description": "Controller from Pantalan. A patient planner whose family hangs the fiesta pabitin every year.",
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.0
+ }
+}

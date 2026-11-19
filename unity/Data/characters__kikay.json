@@ -1,0 +1,13 @@
+{
+ "source": "res://data/characters/kikay.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "kikay",
+  "display_name": "Kikay",
+  "description": "Seeker from Uptown. Sneaky and curious, collects teks cards and flies kites at the plaza every afternoon.",
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.0
+ }
+}

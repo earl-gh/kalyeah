@@ -1,0 +1,13 @@
+{
+ "source": "res://data/characters/pamela.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "pamela",
+  "display_name": "Pamela",
+  "description": "Controller from Palengke. The mischievous rule-maker who referees every game; the eldest at home.",
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.0
+ }
+}

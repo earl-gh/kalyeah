@@ -15,6 +15,22 @@ namespace Kalyeah.Net.Tests
         public static SimData Data => _data ??= SimData.Load(Path.Combine(Root, "Data"));
         public static NetRules Net => NetRules.FromData(Data);
         public static GameRules Rules => Data.GameRules;
+
+        /// <summary>The 10-kid roster the Godot net goldens were recorded with (the game now plays the 12 kids of docs/SPEC.md §7).</summary>
+        public static readonly string[] RecordedRoster =
+        {
+            "junjun", "ligaya", "migo", "toni", "popoy",
+            "inday", "kiko", "nene", "buknoy", "tala",
+        };
+
+        /// <summary>`rules` dealing from the recorded roster, so AssignCharacters draws the RNG as the recording did.</summary>
+        public static GameRules WithRecordedRoster(GameRules rules)
+        {
+            var characters = new List<CharacterDef>();
+            foreach (string id in RecordedRoster) characters.Add(new CharacterDef { Id = id, DisplayName = id, Description = id });
+            rules.Characters = characters;
+            return rules;
+        }
         public static MapLayout Layout => Data.MapLayout;
         public static StreetCatalog Games => new StreetCatalog(Data);
 

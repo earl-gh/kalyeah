@@ -1,0 +1,13 @@
+{
+ "source": "res://data/characters/paeng.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "paeng",
+  "display_name": "Paeng",
+  "description": "Defender from Tubuhan. Strong and steady, never quits a race; helps a Lolo carry sacks at the farm.",
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.0
+ }
+}

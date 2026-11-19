@@ -86,7 +86,7 @@ namespace Kalyeah.Game
             _animRoot = null;
             _idle = null;
 
-            GameObject prefab = KalyeahResources.Model("characters", kidId) ?? KalyeahResources.Model("characters", "junjun");
+            GameObject prefab = KalyeahResources.Model("characters", kidId) ?? KalyeahResources.Model("characters", "narda");
             if (prefab == null) return;
 
             _model = UnityEngine.Object.Instantiate(prefab, _root.transform, false);

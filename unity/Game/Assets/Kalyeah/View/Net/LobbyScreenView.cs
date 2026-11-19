@@ -1067,7 +1067,7 @@ namespace Kalyeah.Game
                     GDict m = teamMembers[i];
                     int pid = m.GetInt("player_id", -1);
                     string pName = m.GetStr("name", "Player");
-                    string charId = m.GetStr("char", "junjun");
+                    string charId = m.GetStr("char", "narda");
                     string rankTier = m.GetStr("rank_tier", "Kahoy");
                     bool ready = m.GetBool("ready", false);
                     bool connected = m.GetBool("connected", true);

@@ -38,7 +38,7 @@ namespace Kalyeah.Sim.Tests
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(Golden(name + ".json")));
             JsonElement root = doc.RootElement;
-            GameRules rules = Data.GameRules.Duplicate();
+            GameRules rules = RecordedRoster.Apply(Data.GameRules.Duplicate());
             if (root.TryGetProperty("rules", out JsonElement overrides) && overrides.ValueKind == JsonValueKind.Object)
                 foreach (JsonProperty o in overrides.EnumerateObject()) SetRule(rules, o.Name, o.Value);
             var sim = new MatchSim(rules, Data.MapLayout, root.GetProperty("seed").GetInt64());

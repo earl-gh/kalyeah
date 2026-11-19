@@ -175,8 +175,8 @@ namespace Kalyeah.Game
             }
 
             string[] kids = data.CharacterIds();
-            Assert.AreEqual(10, kids.Length, "GameRules must reference all 10 Filipino kids");
-            CollectionAssert.AreEqual(AppSession.DefaultRoster, kids, "Canonical 10-kid order must match AppSession.DefaultRoster");
+            Assert.AreEqual(12, kids.Length, "GameRules must reference all 12 kids (docs/SPEC.md §7)");
+            CollectionAssert.AreEqual(AppSession.DefaultRoster, kids, "Canonical 12-kid order must match AppSession.DefaultRoster");
             for (int i = 0; i < kids.Length; i++)
             {
                 var charProps = data.Props("characters__" + kids[i]);
@@ -221,11 +221,11 @@ namespace Kalyeah.Game
         }
 
         [Test]
-        public void AllTenKids_PortraitsFacesCardsAndCharacterCards_ExistWithCellProportions()
+        public void AllTwelveKids_PortraitsFacesCardsAndCharacterCards_ExistWithCellProportions()
         {
             DataSource data = KalyeahResources.Data();
             string[] kids = data.CharacterIds();
-            Assert.AreEqual(10, kids.Length);
+            Assert.AreEqual(12, kids.Length);
 
             float? expectedCardAspect = null;
             for (int i = 0; i < kids.Length; i++)
@@ -352,7 +352,7 @@ namespace Kalyeah.Game
         }
 
         [Test]
-        public void ModelTexturesAndNormalMaps_AreVramCompressedAndPresentForAllTenKids()
+        public void ModelTexturesAndNormalMaps_AreVramCompressedAndPresentForAllTwelveKids()
         {
             string[] modelFolders =
             {

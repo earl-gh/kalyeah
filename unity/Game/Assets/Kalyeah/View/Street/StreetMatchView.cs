@@ -1188,7 +1188,7 @@ namespace Kalyeah.Game
                     {
                         Id = kid.Id,
                         Team = kid.Team,
-                        CharacterId = string.IsNullOrEmpty(kid.CharacterId) ? "junjun" : kid.CharacterId,
+                        CharacterId = string.IsNullOrEmpty(kid.CharacterId) ? "narda" : kid.CharacterId,
                         Position = kid.Position,
                         Facing = kid.Facing,
                         Hp = 100,

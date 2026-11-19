@@ -26,8 +26,32 @@ namespace Kalyeah.Net
     /// <summary>Lobby constants that live outside scripts/net in the Godot game.</summary>
     public static class Lobby
     {
-        /// <summary>The kids a player may pick (session.gd AVATARS), in order: a new member gets the first one free on its team.</summary>
-        public static readonly string[] Avatars = { "junjun", "ligaya", "migo", "toni", "popoy", "inday", "kiko", "nene", "buknoy", "tala" };
+        /// <summary>The 12 kids (docs/SPEC.md §7), in order: a new member gets the first one free on its team.</summary>
+        public static readonly string[] Roster = { "narda", "jumong", "inggo", "jopay", "oriang", "paeng", "kikay", "karding", "manoy", "tere", "pamela", "domeng" };
+
+        static string[] _avatars = Roster;
+
+        /// <summary>The kids a player may pick (session.gd AVATARS): the roster, unless a replay swapped it.</summary>
+        public static string[] Avatars => _avatars;
+
+        /// <summary>Replays recordings made with an older roster (the Godot net goldens); dispose to restore the roster.</summary>
+        public static IDisposable UseAvatars(string[] avatars)
+        {
+            string[] previous = _avatars;
+            _avatars = avatars ?? throw new ArgumentNullException(nameof(avatars));
+            return new Restore(() => _avatars = previous);
+        }
+
+        sealed class Restore : IDisposable
+        {
+            Action _undo;
+            public Restore(Action undo) => _undo = undo;
+            public void Dispose()
+            {
+                _undo?.Invoke();
+                _undo = null;
+            }
+        }
 
         /// <summary>ranked_system.gd `tier_name(lp)`.</summary>
         public static string TierName(long lp) => RankedSystem.TierName((int)Math.Max(int.MinValue, Math.Min(int.MaxValue, lp)));

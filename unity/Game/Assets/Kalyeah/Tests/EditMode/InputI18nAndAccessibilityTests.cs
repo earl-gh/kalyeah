@@ -351,7 +351,7 @@ namespace Kalyeah.Game
             var sim = new SimBridge(data, new MatchSetup
             {
                 Seed = 303L,
-                LocalCharacter = "junjun",
+                LocalCharacter = "narda",
                 SuperpowerLoadout = new[] { "tsinelas_light", "bola", "papel_shield" },
                 CardCycleOverride = false,
                 TrainingMode = true,

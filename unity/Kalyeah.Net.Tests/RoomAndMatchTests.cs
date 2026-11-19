@@ -164,11 +164,11 @@ namespace Kalyeah.Net.Tests
             RoomService.Room room = service.CreateRoom(1, "A");
             service.Join(room.Code, 2, "B");
             service.Join(room.Code, 3, "C");
-            Assert.IsTrue(service.SetCharacter(1, "toni"));
-            Assert.IsFalse(service.SetCharacter(3, "toni"), "C is on A's team");
-            Assert.IsTrue(service.SetCharacter(2, "toni"), "the other team may");
+            Assert.IsTrue(service.SetCharacter(1, "jopay"));
+            Assert.IsFalse(service.SetCharacter(3, "jopay"), "C is on A's team");
+            Assert.IsTrue(service.SetCharacter(2, "jopay"), "the other team may");
             service.SetReady(2, true);
-            Assert.IsTrue(service.SetCharacter(2, "nene"));
+            Assert.IsTrue(service.SetCharacter(2, "karding"));
             Assert.IsFalse(room.Members[1].Ready);
             Assert.IsFalse(service.SetCharacter(1, "nobody"));
         }
@@ -185,18 +185,18 @@ namespace Kalyeah.Net.Tests
             try
             {
                 running.CurrentStage = ServerMatch.Stage.Picking;
-                running.Pick(1, "bato_light", "lata", "toni", "papel_shield");
-                Assert.AreEqual("toni", running.Sim.Players[1].CharacterId);
-                CollectionAssert.AreEqual(new[] { "toni" }, running.TakenKids(2));
+                running.Pick(1, "bato_light", "lata", "jopay", "papel_shield");
+                Assert.AreEqual("jopay", running.Sim.Players[1].CharacterId);
+                CollectionAssert.AreEqual(new[] { "jopay" }, running.TakenKids(2));
                 CollectionAssert.IsEmpty(running.TakenKids(3), "an opponent on team 1 is not blocked by team 0's lock");
 
-                running.Pick(2, "bato_light", "lata", "toni", "papel_shield");
-                Assert.AreNotEqual("toni", running.Sim.Players[2].CharacterId, "player 2 cannot take confirmed teammate player 1's kid");
-                Assert.AreEqual("toni", running.Sim.Players[1].CharacterId, "player 1 keeps toni");
-                CollectionAssert.AreEqual(new[] { "toni" }, running.TakenKids(2));
+                running.Pick(2, "bato_light", "lata", "jopay", "papel_shield");
+                Assert.AreNotEqual("jopay", running.Sim.Players[2].CharacterId, "player 2 cannot take confirmed teammate player 1's kid");
+                Assert.AreEqual("jopay", running.Sim.Players[1].CharacterId, "player 1 keeps toni");
+                CollectionAssert.AreEqual(new[] { "jopay" }, running.TakenKids(2));
 
-                running.Pick(3, "bato_light", "lata", "toni", "papel_shield");
-                Assert.AreEqual("toni", running.Sim.Players[3].CharacterId, "opponent on team 1 may pick toni");
+                running.Pick(3, "bato_light", "lata", "jopay", "papel_shield");
+                Assert.AreEqual("jopay", running.Sim.Players[3].CharacterId, "opponent on team 1 may pick toni");
             }
             finally
             {
