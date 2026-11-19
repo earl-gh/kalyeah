@@ -212,8 +212,9 @@ item says which kind of asset the owner makes.
   wood); no footprints.
 
 ## Building and checking the art
-- **Source:** the owner makes models with **Meshy** (the 12 kids came from it). Agents write each brief and Meshy prompt,
-  then make the result game-ready by script: cut it to the phone budget, fix scale, pivot and `+Z` facing, rebuild the
+- **Source:** the owner makes models with **Meshy** (the 12 kids came from it), and agents may use licence-checked free
+  assets (CC0: Poly Haven, ambientCG, KayKit, Quaternius; CC-BY with credit: Sketchfab), logged in `assets/CREDITS.md`.
+  Agents make every model game-ready by script: cut it to the phone budget, fix scale, pivot and `+Z` facing, rebuild the
   texture layout into the map's atlas, and set the painted materials; the look itself is not restyled. Meshy meshes are
   dense and their textures carry painted-in light, so every one goes through this step before it enters the game.
 - **Stand-ins:** until the owner's art arrives, matches use well-drawn grey-box blocks (code-drawn): clean, readable
