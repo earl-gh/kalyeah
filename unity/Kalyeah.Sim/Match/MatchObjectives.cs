@@ -80,7 +80,7 @@ namespace Kalyeah.Sim
         /// <summary>Under `RescueCancelsOnAction`: the rescuer moved off its spot, cast this tick, or is stunned.</summary>
         bool RescueBroken(MatchSim sim, PlayerState holder, int team)
         {
-            if (!sim.Rules.RescueCancelsOnAction) return false;
+            if (!sim.Rules.SpecRules) return false;
             if (HardStopped(holder) || sim.CastThisTick(holder.Id)) return true;
             return holder.Position.DistanceTo(sim.RescueAnchor[team]) > sim.Rules.RescueStillTolerance;
         }
@@ -113,9 +113,9 @@ namespace Kalyeah.Sim
                     foreach (var pair in sim.Players)
                     {
                         PlayerState candidate = pair.Value;
-                        if (candidate.Id == holderId && sim.Rules.RescueCancelsOnAction) continue;
+                        if (candidate.Id == holderId && sim.Rules.SpecRules) continue;
                         if (candidate.Team == team && !candidate.Tagged && InRescueArea(sim, candidate) && TeammateWaiting(sim, team)
-                            && !(sim.Rules.RescueCancelsOnAction && (HardStopped(candidate) || sim.CastThisTick(candidate.Id))))
+                            && !(sim.Rules.SpecRules && (HardStopped(candidate) || sim.CastThisTick(candidate.Id))))
                         {
                             holder = candidate;
                             sim.RescueAnchor[team] = candidate.Position;
@@ -191,7 +191,7 @@ namespace Kalyeah.Sim
             int count = 0;
             foreach (PlayerState state in CaptureMembers(sim, team, brains))
                 if (!state.Tagged && sim.Layout.InBase(enemySide, state.Position)
-                    && !(sim.Rules.CaptureContested && HardStopped(state))) count += 1;
+                    && !(sim.Rules.SpecRules && HardStopped(state))) count += 1;
             return count;
         }
 
@@ -235,7 +235,7 @@ namespace Kalyeah.Sim
                 ScorePoint(sim, wipedForZero ? 0 : 1, MatchSim.CaptureKind.AllTagged);
                 return;
             }
-            if (wipedForZero && sim.Rules.ReplayTiedRounds)
+            if (wipedForZero && sim.Rules.SpecRules)
             {
                 ReplayRound(sim);
                 return;
@@ -266,7 +266,7 @@ namespace Kalyeah.Sim
                 kind = MatchSim.CaptureKind.None;
             }
             double drain = sim.Rules.CaptureDrainShare;
-            if (team >= 0 && sim.Rules.CaptureContested && DefenderInOwnBase(sim, 1 - team))
+            if (team >= 0 && sim.Rules.SpecRules && DefenderInOwnBase(sim, 1 - team))
             {
                 // a defender in its own base pauses the bar: no progress and no drain while the attackers stay
                 if (team != sim.CaptureTeam) return;
@@ -366,7 +366,7 @@ namespace Kalyeah.Sim
             sim.CaptureNeeded = sim.Rules.CaptureSoloTime;
             sim.RescueRescuer = new[] { -1, -1 };
             sim.RescueElapsed = new[] { 0.0, 0.0 };
-            double ready = sim.Rules.RescueReadyAtRoundStart ? 0.0 : sim.Rules.RescueCooldown;
+            double ready = sim.Rules.SpecRules ? 0.0 : sim.Rules.RescueCooldown;
             sim.RescueReadyLeft = new[] { ready, ready };
             sim.BarrierLeft = sim.Rules.BarrierSeconds;
             foreach (var pair in sim.Players)

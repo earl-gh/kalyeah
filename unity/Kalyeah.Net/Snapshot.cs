@@ -96,6 +96,7 @@ namespace Kalyeah.Net
                 "cap", GDict.Of("team", (long)sim.CaptureTeam, "k", (long)sim.CurrentCaptureKind, "e", sim.CaptureElapsed, "need", sim.CaptureNeeded, "r", sim.CaptureRate),
                 "resc", GDict.Of("who", rescuers, "e", GArray.Floats(sim.RescueElapsed), "ready", GArray.Floats(sim.RescueReadyLeft)),
                 "mode", sim.Mode is StreetMode mode ? StreetWire.Snapshot(mode) : new GDict());
+            if (sim.BarrierLeft > 0.0) output["bar"] = sim.BarrierLeft;
             if (sim.Powerups.Count > 0)
             {
                 var wire = new GArray(VariantType.Dictionary);
@@ -232,6 +233,7 @@ namespace Kalyeah.Net
             sim.IntroLeft = data.GetFloat("intro");
             sim.MatchTime = data.GetFloat("clock", sim.MatchTime);
             sim.RoundTime = data.GetFloat("round", sim.RoundTime);
+            sim.BarrierLeft = data.GetFloat("bar", 0.0);
             if (wasIntro && sim.Phase == MatchSim.MatchPhase.Playing) EventRaiser.Raise(sim, nameof(MatchSim.IntroFinished));
             sim.FreezeLeft = data.GetFloat("freeze");
             GDict score = data.GetDict("score");

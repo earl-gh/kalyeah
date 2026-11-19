@@ -142,7 +142,7 @@ namespace Kalyeah.Sim
             if (rules.UltimateWeapon != null) WeaponDefs[rules.UltimateWeapon.Id] = rules.UltimateWeapon;
             Score = new MatchScore(rules.FirstTo);
             CaptureNeeded = rules.CaptureSoloTime;
-            double ready = rules.RescueReadyAtRoundStart ? 0.0 : rules.RescueCooldown;
+            double ready = rules.SpecRules ? 0.0 : rules.RescueCooldown;
             RescueReadyLeft = new[] { ready, ready };
             BarrierLeft = rules.BarrierSeconds;
             ResetPowerups();
@@ -170,7 +170,7 @@ namespace Kalyeah.Sim
 
         /// <summary>The end whose jail (MapLayout.RescueRect) holds `team`'s tagged kids and where `team` rescues them: beside the
         /// enemy base under `RescueAtEnemyJail` (docs/SPEC.md §5), else beside its own base.</summary>
-        public int JailSideFor(int team) => Rules.RescueAtEnemyJail ? -SideForTeam(team) : SideForTeam(team);
+        public int JailSideFor(int team) => Rules.SpecRules ? -SideForTeam(team) : SideForTeam(team);
 
         /// <summary>Player `id` cast something during the current tick.</summary>
         public bool CastThisTick(int id) => _castTick.TryGetValue(id, out int tick) && tick == Tick;
@@ -201,7 +201,9 @@ namespace Kalyeah.Sim
         {
             PlayerState state = Players.GetOrDefault(id);
             if (state == null || state.Tagged || Phase != MatchPhase.Playing || (Mode != null && Mode.IsResetting())) return;
+            Vec2 before = state.Position;
             Move(state, input, dt);
+            if (Mode == null) KeepBehindBarrier(state, before);
         }
 
         public PlayerState AddPlayer(int id, int team)
