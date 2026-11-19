@@ -201,3 +201,12 @@ item says which kind of asset the owner makes.
   of fiestas and sports above kid height, parody brand ads and election-style posters. Parodies use invented names and
   logos only (never a real brand's name, logo or look-alike packaging), and posters show invented candidates and slogans
   only (never real people or parties). Asset kind: 2D images.
+
+## Height, interiors, foliage and footing
+- **Height:** roof, platform and container edges have a lighter trim so you see where you can stand and fall; a kid up
+  high or mid-jump casts a soft drop shadow below, so height is easy to judge.
+- **Interiors** (covered court, palengke stalls, nipa hut): slightly cooler and shaded, but kids keep their rim light and
+  stay readable; no hiding in the dark.
+- **Foliage:** chunky painted leaf clumps (like Valorant's Breeze) with few see-through cards; no thin noisy leaves.
+- **Footing:** splashes when landing in water and puddles; a dust puff on soil when landing or sliding (none on cement or
+  wood); no footprints.
