@@ -261,14 +261,15 @@ jobs:
           apks=(build/Android/*.apk)
           app_ver="$(tr -d '\r\n' < version.txt)"
           for apk in "${apks[@]}"; do
-            bash .github/scripts/inspect-apk.sh "$apk" "$app_ver" build/Android/dumps
+            # build/Android belongs to the Unity container's root user: keep the dumps in the runner's temp folder
+            bash .github/scripts/inspect-apk.sh "$apk" "$app_ver" "$RUNNER_TEMP/apk-dumps"
           done
       - name: Upload aapt2 dumps
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: kalyeah-apk-dumps
-          path: build/Android/dumps
+          path: ${{ runner.temp }}/apk-dumps
           if-no-files-found: ignore
 
   screenshots:

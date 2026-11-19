@@ -39,6 +39,15 @@ attr_equals() { # attr_equals <manifest file> <attribute pattern> <number>
   value="$(attr_number "$1" "$2" || true)"
   [ -n "$value" ] && (( value == $3 ))
 }
+attr_in() { # attr_in <manifest file> <attribute pattern> <number> [number ...]
+  local file="$1" pattern="$2" value allowed
+  shift 2
+  value="$(attr_number "$file" "$pattern" || true)"
+  [ -n "$value" ] || { echo "      (no $pattern in the manifest)"; return 1; }
+  for allowed in "$@"; do (( value == allowed )) && return 0; done
+  echo "      ($pattern is $value)"
+  return 1
+}
 attr_at_most() { # attr_at_most <manifest file> <attribute pattern> <maximum>
   local value
   value="$(attr_number "$1" "$2" || true)"
@@ -50,11 +59,13 @@ manifest_checks() { # manifest_checks <badging file> <manifest file> <version>
   has() { grep -qE "$1" "$badging_file"; }
   check "package is $PACKAGE" has "^package: name='$PACKAGE' "
   check "version name starts with $version" has "versionName='$version"
-  check "min SDK is 24 or lower" attr_at_most "$manifest_file" "$ATTR_MIN_SDK" 24
+  # Android 8.0 (API 26) is Unity 6.3's floor and the spec's (docs/SPEC.md §2); older fixtures were built for 24
+  check "min SDK is 26 or lower" attr_at_most "$manifest_file" "$ATTR_MIN_SDK" 26
   check "target SDK is 35 or higher" attr_at_least "$manifest_file" "$ATTR_TARGET_SDK" 35
   check "it has a launcher activity" grep -q 'android.intent.category.LAUNCHER' "$manifest_file"
   check "it needs OpenGL ES 3.0" attr_at_least "$manifest_file" "$ATTR_GL_ES" $(( 0x30000 ))
-  check "the activity is locked to sensorLandscape" attr_equals "$manifest_file" "$ATTR_ORIENTATION" 6
+  # landscape either way round: sensorLandscape (6) or userLandscape (11, which also honours the phone's rotation lock)
+  check "the activity is locked to landscape" attr_in "$manifest_file" "$ATTR_ORIENTATION" 6 11
   check "backups are off" grep -qE "$ATTR_ALLOW_BACKUP=(false|\(type 0x12\)0x0)\$" "$manifest_file"
   check "arm64-v8a is the only native code" test "$(grep '^native-code:' "$badging_file" || true)" = "native-code: 'arm64-v8a'"
 
