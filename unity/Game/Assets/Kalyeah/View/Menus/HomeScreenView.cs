@@ -549,13 +549,13 @@ namespace Kalyeah.Game
             _modeKicker.resizeTextMaxSize = 17;
 
             _modeName = Label("ModeName", _modeZone, "", 66, Cream, TextAnchor.LowerLeft, display: true, ink: true);
-            Place(_modeName.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -112f), new Vector2(-48f, 72f));
+            Place(_modeName.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -62f), new Vector2(-48f, 74f));
             _modeName.rectTransform.pivot = new Vector2(0.5f, 1f);
             _modeName.resizeTextForBestFit = true;
             _modeName.resizeTextMinSize = 30;
             _modeName.resizeTextMaxSize = 66;
             _modeDetail = Label("ModeDetail", _modeZone, "", 20, MenuArt.TealLight, TextAnchor.UpperLeft, display: true);
-            Place(_modeDetail.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -190f), new Vector2(-48f, 28f));
+            Place(_modeDetail.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -142f), new Vector2(-48f, 28f));
             _modeDetail.rectTransform.pivot = new Vector2(0.5f, 1f);
 
             // the pager (which of the three modes) and the tap hint
