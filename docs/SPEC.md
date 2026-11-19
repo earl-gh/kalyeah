@@ -152,7 +152,7 @@ and, in Ranked, loses a star.
     from the line, not from zero.
 - **Skills and jail:** a tagged kid's cooldowns keep counting in jail, and their walls, traps and sentries stay until
   they run out.
-- **In jail:** a tagged kid stands visibly in the jail, watches a teammate's view (switchable), and can ping and chat. Tapping a free teammate's portrait **cheers** them (they
+- **In jail:** a tagged kid sits visibly in the jail (pouting, slightly faded), watches a teammate's view (switchable), and can ping and chat. Tapping a free teammate's portrait **cheers** them (they
   hear your kid's voice line). The tagged kid's team always sees a marker on the enemy jail with how many are inside.
 - **Last free kid:** no help or penalty; a lone kid can still win the round by capturing or rescuing (a clutch).
 - **Capture:** standing in the enemy base fills a capture bar in **8 s** for one kid; each extra teammate inside adds 50%
