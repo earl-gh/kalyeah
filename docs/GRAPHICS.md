@@ -74,3 +74,16 @@ item says which kind of asset the owner makes.
 - **Sound markers** (accessibility): small direction ripples at the edge of the minimap for footsteps and skill sounds
   within hearing range.
 - **Taking hits:** a tiny screen shake and a red edge pulse, both softened by reduce motion.
+
+## How the world is built (for phones)
+- **Modular kit per map:** walls, roofs, windows and stalls as reusable pieces snapped together (about 40 to 60 pieces per
+  map), like Valorant's maps. Asset kind: Blender models.
+- **Texture atlases:** each map's props share 2 to 4 big texture sheets, so the phone draws them in fewer passes.
+- **Bevelled edges** are modelled, so edges catch light and read chunky and soft.
+- **Scene budget:** about 300k to 500k triangles on screen on High, 10 kids included (10 × 15k to 25k).
+- **Ground:** painted ground blending 3 to 4 surfaces (cement, soil, wood planks, tin) with soft edges, plus painted
+  decals (cracks, chalk, puddle stains); footstep sounds follow the surface. Asset kind: 2D images (tiling textures and
+  decals).
+- **Lighting:** soft bounce light and corner shading baked into the map on every preset, plus one real-time sun for live
+  shadows on the presets that have them (`docs/SPEC.md` §10: hard near the camera on Medium, soft on High and Ultra;
+  Low keeps blob shadows).
