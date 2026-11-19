@@ -1,8 +1,8 @@
 # Kalyeah gameplay graphics (owner decisions)
 
 How the match looks: world, models, detail levels and effects. The overall look, the 4 presets and enemy readability are
-in `docs/SPEC.md` §10; kid mesh rules in `docs/art-briefs/kids-retopo-spec.md`. Where `docs/ART.md` describes the current
-build differently (komiks ink, Arcane), this file wins and `ART.md` is due for a rewrite. Agents never make art; each
+in `docs/SPEC.md` §10; kid mesh rules in `docs/art-briefs/kids-retopo-spec.md`. The old komiks ink and Arcane look is gone; this file
+and `docs/SPEC.md` §10 decide the look. Agents never make art; each
 item says which kind of asset the owner makes.
 
 ## World look

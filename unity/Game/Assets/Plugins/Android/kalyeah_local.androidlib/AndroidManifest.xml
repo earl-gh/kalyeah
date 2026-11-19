@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Merged into the game's manifest. Every permission and NFC HCE service here is for Local play (docs/GDD.md "Local rooms"). -->
+<!-- Merged into the game's manifest. Every permission and NFC HCE service here is for Local play. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.kalyeah.local">
 

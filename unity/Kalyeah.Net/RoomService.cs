@@ -8,7 +8,7 @@ using Kalyeah.Sim;
 namespace Kalyeah.Net
 {
     /// <summary>
-    /// Online and hotspot rooms (port of room_service.gd; docs/GDD.md "Lobby rules"): open (listed, joined with a tap) or private
+    /// Online and hotspot rooms (port of room_service.gd): open (listed, joined with a tap) or private
     /// (passcode only), ten places, five a team; each game says how many it needs to start (`StartBlocker`). Pure logic, no sockets:
     /// the GameServer feeds it peer ids and sends out whatever changed. A member keeps one `PlayerId` for the whole match (its id in
     /// the MatchSim); `PeerId` is its current connection and changes on reconnect.

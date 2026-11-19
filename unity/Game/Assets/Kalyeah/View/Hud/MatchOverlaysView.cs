@@ -1331,7 +1331,7 @@ namespace Kalyeah.Game
             for (int i = 0; i < SquadWingSlots; i++)
             {
                 _allySlots[i] = CreateWingSlot(allyWing, "AllySlot_" + i, includeHpBar: true);
-                // Binding GDD rule: enemy HP is NEVER created or displayed during play!
+                // Enemy wing slots carry no HP bar: the top row shows portraits only (docs/SPEC.md §8)
                 _enemySlots[i] = CreateWingSlot(enemyWing, "EnemySlot_" + i, includeHpBar: false);
             }
         }

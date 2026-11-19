@@ -7,8 +7,7 @@ using SVector2 = System.Numerics.Vector2;
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Compact toggleable barangay tactical street radar (<c>SetVisible(bool)</c>, default OFF per binding GDD landscape rule
-    /// unless explicitly toggled on). Renders circular barangay streets, Estero canal &amp; 3 bridges, own/enemy bases &amp; posts,
+    /// Compact toggleable barangay tactical street radar (<c>SetVisible(bool)</c>; the match HUD starts it on, docs/SPEC.md §8). Renders circular barangay streets, Estero canal &amp; 3 bridges, own/enemy bases &amp; posts,
     /// NW/SE rescue zones, Merienda stands, local player + camera FOV rays, and free/tagged allies with <c>0 B</c> per-frame GC.
     /// </summary>
     public sealed class BarangayMinimapView : IDisposable
@@ -126,7 +125,7 @@ namespace Kalyeah.Game
             SetCenteredPivot(_selfDotRect, new Vector2(10f, 10f));
             _selfDotImage.gameObject.SetActive(false);
 
-            // Binding GDD landscape rule: minimap is OFF by default unless explicitly toggled on
+            // The caller picks the first state (the match HUD starts it on, docs/SPEC.md §8)
             SetVisible(initialVisible);
         }
 

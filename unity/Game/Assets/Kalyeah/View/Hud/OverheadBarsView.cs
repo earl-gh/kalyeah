@@ -304,7 +304,7 @@ namespace Kalyeah.Game
             return slot;
         }
 
-        /// <summary>Maps camera-to-head distance in meters onto the GDD overhead scale range [0.65..1.05].</summary>
+        /// <summary>Maps camera-to-head distance in meters onto the overhead scale range [0.65..1.05].</summary>
         public static float ComputeDistanceScale(float distanceMeters)
             => ComputeDistanceScale(distanceMeters, DefaultShoulderNameReach);
 

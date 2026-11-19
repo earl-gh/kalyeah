@@ -3,8 +3,7 @@ using System.Collections.Generic;
 namespace Kalyeah.Sim
 {
     /// <summary>
-    /// A street game with one taya (the "it") and every other kid playing for itself (port of scripts/sim/taya_game.gd; docs/GDD.md
-    /// "Tumbang Preso", "Langit Lupa"): the first taya is drawn at random from everyone (the match's seeded generator), each kid keeps its own
+    /// A street game with one taya (the "it") and every other kid playing for itself (port of scripts/sim/taya_game.gd): the first taya is drawn at random from everyone (the match's seeded generator), each kid keeps its own
     /// points and the one with the most wins when the time is up. Tumbang Preso and Langit Lupa fill in what the taya and the others do.
     /// </summary>
     public abstract class TayaGame : StreetMode

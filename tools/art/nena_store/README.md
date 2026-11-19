@@ -2,7 +2,7 @@
 
 # Nena store: rebuild and repaint
 
-How `assets/models/props/nena_store.glb` is made from the owner's Meshy model (docs/ART.md, "The Nena store, polished").
+How `assets/models/props/nena_store.glb` is made from the owner's Meshy model.
 Python 3 with numpy and Pillow; Blender's `bpy` for the `build_geo.py` steps. Run from this folder.
 
 ```

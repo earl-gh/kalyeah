@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Kalyeah.Sim
 {
     /// <summary>
-    /// Patintero (port of scripts/sim/patintero.gd; docs/GDD.md "Patintero"): two horizontal lines across the street are the edges of the
+    /// Patintero (port of scripts/sim/patintero.gd): two horizontal lines across the street are the edges of the
     /// court, with one vertical line down the middle. Three guards keep the lines, one each (two take a horizontal, one the vertical): running
     /// keeps a guard on its line, a dive is the one thing that takes it off it. The runners run free over the whole court.
     /// - A runner has to cross the vertical line once before the far end counts.

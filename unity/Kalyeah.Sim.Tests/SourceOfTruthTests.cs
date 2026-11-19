@@ -17,7 +17,7 @@ namespace Kalyeah.Sim.Tests
         static readonly string[] AllowedDocs =
         {
             "SPEC.md", "KITS.md", "MAPS.md", "LORE.md", "GRAPHICS.md",   // the five
-            "GDD.md", "ART.md", "ROADMAP.md", "DOS_AND_DONTS.md",         // what is built, the order, the mistake log
+            "ROADMAP.md", "DOS_AND_DONTS.md",                             // the order of work and the mistake log
         };
 
         static readonly string[] AllowedDocFolders = { "art-briefs" };
@@ -64,11 +64,12 @@ namespace Kalyeah.Sim.Tests
         public void NoDocOrSkillPointsAtADeletedDoc()
         {
             string root = Root();
-            string[] gone = { "BARANGAY_AAA_MODEL_QUALITY", "QA_AUDIT_SCORECARD", "docs/audits" };
+            string[] gone = { "BARANGAY_AAA_MODEL_QUALITY", "QA_AUDIT_SCORECARD", "docs/audits", "docs/GDD.md", "docs/ART.md", "`GDD.md`", "`ART.md`" };
             foreach (string dir in new[] { "docs", ".claude", ".github" })
                 foreach (string file in Directory.GetFiles(Path.Combine(root, dir), "*.md", SearchOption.AllDirectories))
                 {
-                    string text = File.ReadAllText(file);
+                    // SPEC Q8 points at the old design doc in git history on purpose
+                    string text = File.ReadAllText(file).Replace("40d81b5:docs/GDD.md", "");
                     foreach (string name in gone)
                         Assert.IsFalse(text.Contains(name), Path.GetRelativePath(root, file) + " still points at the deleted doc " + name);
                 }

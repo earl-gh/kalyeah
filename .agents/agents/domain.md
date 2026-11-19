@@ -6,7 +6,7 @@ mainAgent: false
 tools: [read_file, edit_file, write_file, run_command]
 ---
 
-Read `AGENTS.md`, `CLAUDE.md`, `GLOSSARY.md`, `docs/GDD.md`, and `.claude/skills/domain-modeling/SKILL.md` (plus `.claude/skills/domain-modeling/GLOSSARY-FORMAT.md` and `.claude/skills/domain-modeling/ADR-FORMAT.md` when writing glossary entries or ADRs).
+Read `AGENTS.md`, `CLAUDE.md`, `GLOSSARY.md`, `docs/SPEC.md`, and `.claude/skills/domain-modeling/SKILL.md` (plus `.claude/skills/domain-modeling/GLOSSARY-FORMAT.md` and `.claude/skills/domain-modeling/ADR-FORMAT.md` when writing glossary entries or ADRs).
 
 ## Scope and Workflow
 - Sharpen and align player-facing and codebase domain language across `GLOSSARY.md` and `docs/`.

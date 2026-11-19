@@ -9,7 +9,7 @@ namespace Kalyeah.Game
 {
     /// <summary>
     /// AAA third-person right-shoulder camera rig with orthographic top-down follow fallback
-    /// (docs/GDD.md "Shoulder view"; scripts/view/arena_camera.gd &amp; camera_rules.gd).
+    /// (docs/GRAPHICS.md camera; scripts/view/arena_camera.gd &amp; camera_rules.gd).
     /// Owns whisker spring-arm wall pull-in (&lt;=40 ms pull-in, 150 ms critically-damped ease-out across both
     /// Physics.SphereCast and analytic MapLayoutData bounds), &lt;0.75 m kid-proximity flag, building Occluder
     /// renderer fade, lateral-orbit auto-follow, sprint/dash FOV kick, and &gt;21.5:9 horizontal FOV fairness cap.

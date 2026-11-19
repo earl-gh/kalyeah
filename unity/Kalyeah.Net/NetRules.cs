@@ -4,7 +4,7 @@ using Kalyeah.Sim;
 namespace Kalyeah.Net
 {
     /// <summary>
-    /// Networking and lobby numbers (port of net_rules.gd; docs/GDD.md "Lobby rules"). The values live in data/rules/net_rules.tres,
+    /// Networking and lobby numbers (port of net_rules.gd). The values live in data/rules/net_rules.tres,
     /// exported to unity/Data/rules__net_rules.json; `FromData` reads them through `SimData.Raw`.
     /// </summary>
     public sealed class NetRules

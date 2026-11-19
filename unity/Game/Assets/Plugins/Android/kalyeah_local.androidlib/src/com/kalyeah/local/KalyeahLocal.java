@@ -25,7 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 /**
- * Local play without the phone's settings (docs/GDD.md "Local rooms"). The host starts a game hotspot (Android's
+ * Local play without the phone's settings. The host starts a game hotspot (Android's
  * LocalOnlyHotspot, which tells the app its name and password); a friend's phone joins it from inside the game
  * (WifiNetworkSpecifier: Android asks the friend once, then bindProcessToNetwork routes game sockets over it) after reading
  * it from the host's QR code or by holding the phones together (NFC: the host's phone answers as a card, ShareService, and

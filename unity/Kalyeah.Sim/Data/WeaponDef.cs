@@ -3,7 +3,7 @@ using System;
 namespace Kalyeah.Sim
 {
     /// <summary>
-    /// One weapon (docs/GDD.md "Weapons"), port of scripts/sim/weapon_def.gd. Every weapon is one generic <see cref="Shape"/> executor
+    /// One weapon, port of scripts/sim/weapon_def.gd. Every weapon is one generic <see cref="Shape"/> executor
     /// plus numbers; values live in data/weapons/*.tres (unity/Data/weapons__*.json).
     /// </summary>
     [Serializable]

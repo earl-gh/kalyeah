@@ -7,10 +7,10 @@
 
 ## Docs
 - [Unity 6 & .NET 8 architecture](unity/README.md): assemblies, asset/data sync, tests, screenshots, and CI
-- [Spec](docs/SPEC.md): what we are building (vision, modes, accounts, store, ranked); wins over older docs
+- [Spec](docs/SPEC.md): what we are building (vision, modes, accounts, store, ranked); one of the five sources of truth, read `CLAUDE.md`
 - [Roadmap](docs/ROADMAP.md): what is done, what is next, and how we build
-- [Game design](docs/GDD.md): rules and balance numbers (the source of truth, backed by `unity/Data/*.json`)
-- [Art, UI and audio](docs/ART.md): look, assets, HUD, sound
+- [Kits](docs/KITS.md), [Maps](docs/MAPS.md), [Lore](docs/LORE.md), [Graphics](docs/GRAPHICS.md): the other four sources of truth (the 12 kids' skills, the 4 maps, story and banter, how a match looks)
+- Balance numbers live in `unity/Data/*.json`
 - [Server guide](server/README.md): run and deploy `unity/Kalyeah.Server` (`Dockerfile`)
 - [CLAUDE.md](CLAUDE.md): rules for coding agents (stack, architecture, workflow)
 

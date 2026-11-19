@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Kalyeah.Sim
 {
     /// <summary>
-    /// Global gameplay numbers (docs/GDD.md "Core"), port of game_rules.gd. Values come from data/rules/game_rules.tres
+    /// Global gameplay numbers, port of game_rules.gd. Values come from data/rules/game_rules.tres
     /// (unity/Data/rules__game_rules.json); the defaults below are the GDScript ones.
     /// </summary>
     [Serializable]

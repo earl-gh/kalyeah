@@ -6,7 +6,7 @@ namespace Kalyeah.Game
 {
     /// <summary>
     /// Zero-GC match and menu audio hub: 1 looped BGM AudioSource ("audio/bgm") plus 12 pooled 2D SFX AudioSources
-    /// ("audio/sfx/*"), matching scripts/view/sfx_view.gd, scripts/view/match_music.gd, and docs/ART.md ("Audio").
+    /// ("audio/sfx/*"), matching scripts/view/sfx_view.gd, scripts/view/match_music.gd.
     /// View-only: reads sim/UI events and settings, never alters simulation state or RNG.
     /// </summary>
     public sealed class AudioHub : IDisposable
@@ -489,7 +489,7 @@ namespace Kalyeah.Game
 
         static float BaseClipPitch(string sfxId)
         {
-            // SfxView.PITCH sound-audit speeds (docs/ART.md "Sound audit").
+            // SfxView.PITCH sound-audit speeds.
             switch (sfxId)
             {
                 case "lata_hit": return EmptyCanPitch;

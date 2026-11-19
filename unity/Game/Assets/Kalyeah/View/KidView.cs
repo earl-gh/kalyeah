@@ -10,7 +10,7 @@ namespace Kalyeah.Game
     /// <summary>
     /// Read-only visual puppet for one kid in the street: skinned GLB (<c>assets/models/characters/&lt;id&gt;.glb</c>, imported by glTFast
     /// with legacy clips), scaled to <see cref="KidHeight"/> * <c>viewScale</c> like <c>scripts/view/art/kid_model.gd</c>, silhouette-outlined
-    /// in team blue/red via <c>Kalyeah/TeamOutline</c> (ZERO ground rings under feet per binding GDD rule), with full locomotion/status clips,
+    /// in team blue/red via <c>Kalyeah/TeamOutline</c> (zero ground rings under the feet, owner rule), with full locomotion/status clips,
     /// procedural root postures, Lata tin-can polymorph swap, Merienda aura tint, hit flash, and &lt;0.75 m shoulder-camera proximity hide.
     /// </summary>
     public sealed class KidView
@@ -141,7 +141,7 @@ namespace Kalyeah.Game
 
         /// <summary>
         /// Builds the kid puppet. Note: <paramref name="disc"/> is kept strictly for signature compatibility with existing callers;
-        /// per binding GDD rule, no ground ring or cylinder is ever created under any kid's feet.
+        /// per the owner rule, no ground ring or cylinder is ever created under any kid's feet.
         /// </summary>
         public KidView(Transform parent, KidSnapshot kid, float viewScale, Color team, Material disc)
         {

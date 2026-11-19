@@ -33,7 +33,7 @@ Owns `unity/Kalyeah.Sim/` (pure engine-free C# `30 Hz` simulation, bots, and *La
 - Advance sim state exclusively in `Step(dt = 1f / 30f)` in fixed player slot order (`0..9`); never call `System.Random.Shared`, `DateTime`, or unordered `Dictionary`/`HashSet` iteration, and break `BarangayNav` A* f-score ties deterministically.
 - Preallocate fixed arrays/pools (`MaxPlayers = 10`, projectiles/traps/zones, `BarangayNav` buffers) at match construction (`apex-net-frame` owns match frame/GC ceilings).
 - Ban hidden C# allocations inside `MatchSim.Step` and `TeamCoach` / `TeamBrain` / `FightBrain` / `StreetModeCoach`: LINQ (`Where`, `Select`, `OrderBy`), capturing lambdas/closures, boxed `IEnumerable` enumerators, `params` arrays, and per-tick string formatting.
-- Preserve GDD invariants (`docs/GDD.md`): uniform `player_radius` (`0.45 m`) and `100` HP across all 10 cosmetic kids, `walk_run_threshold` (`0.62`) + isolated `TRIP_SEED_MIX` RNG stream, `overclocked` / `exhaust_left` independent of status overwrites, NW/SE rescue hold & `rescue_cooldown`, and `no_cast_in_rescue_area` / `no_cast_in_enemy_base`.
+- Preserve these rule invariants (numbers in `unity/Data/*.json`, design in `docs/SPEC.md`): uniform `player_radius` (`0.45 m`) and `100` HP across all 10 cosmetic kids, `walk_run_threshold` (`0.62`) + isolated `TRIP_SEED_MIX` RNG stream, `overclocked` / `exhaust_left` independent of status overwrites, NW/SE rescue hold & `rescue_cooldown`, and `no_cast_in_rescue_area` / `no_cast_in_enemy_base`.
 
 ## 4. Canonical `unity/Data/*.json` pipeline & verification
 

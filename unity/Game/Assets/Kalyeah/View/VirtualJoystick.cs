@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Corner-pinned movement joystick (docs/GDD.md "Landscape layout", MoveStick): persistent pointerId lock, 12% dead zone, 0.62
+    /// Corner-pinned movement joystick (MoveStick): persistent pointerId lock, 12% dead zone, 0.62
     /// walk/run dual-ring visual threshold, physical dp radius floor, 4:3 foldable height cap, and left-handed corner mirroring.
     /// White only (owner): white outer rim, white 0.62 walk-threshold inner ring, faint white body, white thumb.
     /// </summary>

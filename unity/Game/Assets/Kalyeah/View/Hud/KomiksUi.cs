@@ -116,7 +116,7 @@ namespace Kalyeah.Game
 
         static readonly Dictionary<SpriteKey, Sprite> SpriteCache = new Dictionary<SpriteKey, Sprite>(32);
 
-        /// <summary>GDD rounded-rect bar radius: one quarter of bar height, clamped to [2..8] px.</summary>
+        /// <summary>Rounded-rect bar radius: one quarter of bar height, clamped to [2..8] px.</summary>
         public static int BarRadius(float barHeightPx) => Mathf.Clamp(Mathf.RoundToInt(barHeightPx * 0.25f), 2, RadiusS);
 
         public static int ResolveColorblindMode(int? overrideMode = null)

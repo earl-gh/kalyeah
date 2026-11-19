@@ -6,8 +6,8 @@ using UnityEngine.UI;
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Small UGUI builders shared by the HUD and the title: a landscape canvas on the 1280 x 720 base (docs/GDD.md "Landscape layout":
-    /// expand, so a long phone sees more to the sides), a safe-area panel, text, plain and round images. The round image is a code-drawn
+    /// Small UGUI builders shared by the HUD and the title: a landscape canvas on the 1280 x 720 base (the canvas matches height and
+    /// expands, so a long phone sees more to the sides), a safe-area panel, text, plain and round images. The round image is a code-drawn
     /// stand-in (owner rule: no generated art; the owner's HUD art replaces it).
     /// </summary>
     public static class Ui

@@ -19,4 +19,4 @@ Do:
 Repeat instructions:
 - "make a PR": read recent PRs + `.github/pull_request_template.md`, fill sections, open via `gh`, give link
 - "fix quality": inspect `.glb` / texture sync + URP material properties in code, fix root cause, pin with a test
-- "replace model": keep foot at origin, height in `unity/Data/`, run `sync_assets.py`, update tests + `docs/ART.md`
+- "replace model": keep foot at origin, height in `unity/Data/`, run `sync_assets.py`, update tests + `tools/blender/kids/README.md`

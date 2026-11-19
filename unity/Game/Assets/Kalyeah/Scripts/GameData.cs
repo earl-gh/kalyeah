@@ -106,7 +106,7 @@ namespace Kalyeah.Game
         public bool Contains(Vector2 p) => p.X >= X && p.X <= X + W && p.Y >= Y && p.Y <= Y + H;
     }
 
-    /// <summary>data/rules/camera_rules.tres: the shoulder camera's numbers (docs/GDD.md "Shoulder view").</summary>
+    /// <summary>data/rules/camera_rules.tres: the shoulder camera's numbers.</summary>
     public sealed class CameraRulesData
     {
         public float ShoulderHeight, ShoulderDistance, ShoulderOffset, ShoulderFov, ShoulderNear;

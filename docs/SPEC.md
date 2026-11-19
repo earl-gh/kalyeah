@@ -1,14 +1,13 @@
 # Kalyeah spec (source of truth for what we are building)
 
 Owner decisions from the 2026-11-18 spec interview and earlier owner calls. This file says **what** the game is and **why**;
-`docs/GDD.md` holds the rules and numbers as built (data in `unity/Data/*.json`), `docs/ART.md` the look, `docs/ROADMAP.md`
-the order of work. Where this file and an older doc disagree, this file wins and the older doc is due for a rewrite.
+the numbers as built live in `unity/Data/*.json`, and `docs/ROADMAP.md` holds the order of work. Where this file and an older doc
+disagree, this file wins.
 
 **The five sources of truth** (owner, 2026-11-19): `docs/SPEC.md` (what the game is), `docs/KITS.md` (the 12 kids' skills),
 `docs/MAPS.md` (the 4 maps), `docs/LORE.md` (story, names, banter) and `docs/GRAPHICS.md` (how it looks in a match). Each owns its
-topic; they do not overlap. If two of them seem to disagree, stop and ask the owner. `docs/GDD.md`, `docs/ART.md` and
-`docs/ROADMAP.md` only record what is built and in what order: they never override these five, and a design doc outside the
-five needs the owner's say (a CI test lists the allowed files).
+topic; they do not overlap. If two of them seem to disagree, stop and ask the owner. `docs/ROADMAP.md` only orders the work and
+never overrides these five, and a design doc outside the five needs the owner's say (a CI test lists the allowed files).
 
 ## 1. Vision
 A free-to-play 5v5 team shooter-brawler on Android, themed on Filipino street games (*mga larong Pinoy sa kalye*), built as
@@ -471,6 +470,10 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   ban through the contact form, landing in the admin queue.
 
 ## 10. Look
+**Copy voice (owner, carried over from the old art doc):** short, upbeat and bossy-friendly, like Clash of Clans, everywhere a
+player reads: lead with the verb ("Tap the street to run there"), one idea per sentence, about eight words; an exclamation mark
+for wins, starts and tips, none on errors that are not the player's fault (say what to do next instead).
+
 Pure Valorant for the UI and the world: flat, confident shapes, the Ink / Paper / Red palette, a painted 3D street; the
 kids keep the owner's models. Inspired by, never copied
 (no Riot, Supercell, Valve or Moonton assets, names or logos). The owner makes all art and audio; agents only say which
@@ -530,6 +533,7 @@ free Pasko emote).
 | Q4 | Exact kid heights and showcase meshes | Heights within about ±10% of the average with one shared hitbox and headshot zone; exact values after the Narda pilot (`docs/art-briefs/kids-retopo-spec.md`) |
 | Q6 | Exact map sizes | Scale and layouts in `docs/MAPS.md`; exact shapes set in each blockout, play-tested with bots |
 | Q7 | Prints on two kid models that copy real brands: Inggo's shirt has the Superman "S" logo and Narda's shirt shows *Mulawin* (a GMA TV series) art | Kept as the owner made them for now; replace before any public test (a Meshy re-texture or a new print) |
+| Q8 | Rules of the street games (Tumbang Preso, Patintero, Langit Lupa: Explore and roadmap step 10) | The detailed owner rules from the old game design doc are in git history (`git show 40d81b5:docs/GDD.md`, sections "Tumbang Preso and Patintero" and "Langit Lupa"); the sim and `unity/Data/rules__tumbang_preso.json`, `rules__patintero.json` and `rules__langit_lupa.json` run them today. Re-spec them here before step 10 |
 
 ## 12. Built today vs this spec
 **Done toward this spec:** the 12 kids from the owner's Meshy models, made game-ready by script (about 16k to 20k

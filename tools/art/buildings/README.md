@@ -1,7 +1,7 @@
 # The street's buildings: real roofs, sound structure, painted from their materials
 
 How `assets/models/props/{nena_store,vulcanizing,barber_shop,house_1,house_2,house_3,tricycle_terminal}.glb` are made from the owner's
-Meshy models (docs/ART.md "The street's buildings"). The karinderya is the owner's own model and is not touched.
+Meshy models. The karinderya is the owner's own model and is not touched.
 
 ```
 mkdir -p work/<id>

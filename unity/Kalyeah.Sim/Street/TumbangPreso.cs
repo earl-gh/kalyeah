@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Kalyeah.Sim
 {
     /// <summary>
-    /// Tumbang Preso (port of scripts/sim/tumbang_preso.gd; docs/GDD.md "Tumbang Preso"): one kid is the taya, everyone else is a thrower,
+    /// Tumbang Preso (port of scripts/sim/tumbang_preso.gd): one kid is the taya, everyone else is a thrower,
     /// and every kid plays for itself. The throwers throw their slipper at the can from the throwing area (behind the throw line): hold the
     /// Throw button (BtnCard1) to aim, the aim line grows with the hold, let go to throw. While a thrower has its slipper in hand it cannot
     /// leave the throwing area. A hit flings the can and the slipper away; the taya has to fetch the can and put it back, and cannot tag until

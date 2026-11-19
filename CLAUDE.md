@@ -15,14 +15,14 @@ covers it and read that section (reading only the touched sections is fine; skip
 | How a match looks: models, map detail, effects, camera look, HUD look, materials | `docs/GRAPHICS.md` |
 
 Rules: (1) these five win over every other doc, skill, comment, test name and your own idea of what a game like this does.
-(2) `docs/GDD.md`, `docs/ART.md` and `docs/ROADMAP.md` record what is built and the order of work; they never override the five.
+(2) `docs/ROADMAP.md` only orders the work and never overrides the five; the numbers as built live in `unity/Data/*.json`.
 (3) If the five are silent, use the default in `docs/SPEC.md` §11 or ask the owner; do not invent a rule. If two of them
 disagree, stop and ask. (4) Do not write a new design doc outside the five; record an owner answer in the matching file.
 (5) Every PR names the sections it follows (the PR template has a "Spec check"), and anything that deviates goes under "Decisions
 for you". (6) Never reintroduce what the five dropped (for example a logo on a game screen, a left or swappable shoulder camera).
 A CI test (`SourceOfTruthTests`) fails if one of the five goes missing, an entry file stops naming them, or an unlisted doc appears.
 
-Order of work: `docs/ROADMAP.md`. Rules and numbers as built: `docs/GDD.md`. Look as built: `docs/ART.md`.
+Order of work: `docs/ROADMAP.md`. Numbers as built: `unity/Data/*.json`.
 The owner works from a phone and can't run the editor: every change must be checkable in the **APK built by the
 `Unity 6 CI` workflow** (artifacts `kalyeah-unity-apk` and `kalyeah-unity-screenshots`).
 
@@ -71,8 +71,8 @@ unity/Game/Assets/{Kalyeah/{Scripts,View,Shaders,Editor,Tests},Plugins/Android/k
 - UI or visual changes: screenshots at `1280×720` and `844×390`
   (`Unity -batchmode -projectPath unity/Game -executeMethod KalyeahBuild.Screenshots -quit`); safe areas respected,
   touch targets `>= 48 dp`. With no local Unity, the `Unity 6 CI` run is the gate.
-- Zero compiler warnings, LF line endings, a test for every rule touched, `docs/GDD.md` updated when a rule or number
-  changes.
+- Zero compiler warnings, LF line endings, a test for every rule touched, the matching one of the five (and `unity/Data/*.json`) updated when a rule or number
+  changes, with the owner's OK for the doc.
 
 ## Assets: licence-checked free assets, otherwise advise (owner rule, 2026-11-19)
 Agents may use **licence-checked free 3D assets and textures**: CC0 freely (Poly Haven, ambientCG, KayKit, Quaternius),

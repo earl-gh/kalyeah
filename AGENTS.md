@@ -2,7 +2,7 @@
 
 **Source of truth (owner rule): `docs/SPEC.md`, `docs/KITS.md`, `docs/MAPS.md`, `docs/LORE.md` and `docs/GRAPHICS.md` decide every game and design question; the table in `CLAUDE.md` says which one to read for which task. They beat every other doc, skill, test name and your own memory of how such games work. If they are silent, use `docs/SPEC.md` §11 or ask the owner; never invent a rule.**
 
-Apply **surgical focus**: read `CLAUDE.md` first, plus `.claude/skills/surgical-focus/SKILL.md` and `.claude/skills/ponytail/SKILL.md`. Read the sections of the five files your task touches (always), and `docs/GDD.md`, `docs/ROADMAP.md`, `docs/ART.md` or `GLOSSARY.md` **selectively** (targeted sections only). The same project constraints apply to every coding agent.
+Apply **surgical focus**: read `CLAUDE.md` first, plus `.claude/skills/surgical-focus/SKILL.md` and `.claude/skills/ponytail/SKILL.md`. Read the sections of the five files your task touches (always), and `docs/ROADMAP.md` or `GLOSSARY.md` **selectively** (targeted sections only). The same project constraints apply to every coding agent.
 
 Consult `.claude/skills/README.md` and load only the `SKILL.md` and references needed for the task. Canonical skills live in `.claude/skills/`; `.agents/skills/` points to that tree for Codex and `.agents/skills.json` exposes it to Antigravity.
 

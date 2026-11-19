@@ -60,7 +60,7 @@ Seven shapes sculpted on the final `Body` head, face vertices only: `blink_L`, `
 
 ## 6. Look
 
-Unchanged from the raw sculpts and `docs/ART.md`: same faces, clothes, colours and accessories. Silhouette at 64 px tall must still identify each kid.
+Unchanged from the raw sculpts: same faces, clothes, colours and accessories. Silhouette at 64 px tall must still identify each kid.
 
 ## 7. How it is accepted
 

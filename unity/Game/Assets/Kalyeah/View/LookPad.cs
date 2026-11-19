@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Multi-touch pointerId-isolated camera drag zone (docs/GDD.md "Looking", LookTouch): sits opposite the movement joystick zone,
+    /// Multi-touch pointerId-isolated camera drag zone (LookTouch): sits opposite the movement joystick zone,
     /// ignores secondary touches while a look finger is active, and mirrors horizontally in left-handed mode.
     /// </summary>
     public sealed class LookPad : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler

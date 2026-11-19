@@ -4,8 +4,8 @@ using System.Collections.Generic;
 namespace Kalyeah.Sim
 {
     /// <summary>
-    /// A timed street game played on the Agawang Base street (port of scripts/sim/street_mode.gd; docs/GDD.md "Tumbang Preso and
-    /// Patintero"): Patintero (two teams, runners against guards on their lines), Tumbang Preso and Langit Lupa (every kid for itself against
+    /// A timed street game played on the Agawang Base street (port of scripts/sim/street_mode.gd): Patintero (two teams,
+    /// runners against guards on their lines), Tumbang Preso and Langit Lupa (every kid for itself against
     /// one taya). After `MatchSeconds` the leader wins (a tie plays on to the next point). Plain sim class: MatchSim calls it each tick (through
     /// <see cref="IStreetMode"/>) instead of the rescue and capture rules. There are no skills in these games: casting is off and nothing deals
     /// damage. The subclasses fill in the hooks.

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Kalyeah.Sim
 {
     /// <summary>
-    /// Langit Lupa (port of scripts/sim/langit_lupa.gd; docs/GDD.md "Langit Lupa"): one taya chases everyone else over the whole street. A
+    /// Langit Lupa (port of scripts/sim/langit_lupa.gd): one taya chases everyone else over the whole street. A
     /// kid standing on a langit ("heaven": a raised platform, or a mound it raised itself with the Lupa button, BtnCard2) is safe, but only for
     /// `LangitSeconds` in all, refilled on the lupa (the street). The platforms wear out under the kids' feet and break until the next round;
     /// standing on one never refills stamina; and now and then a brownout leaves each kid seeing only the kids near it. A tagged kid is the new
