@@ -458,6 +458,7 @@ namespace Kalyeah.Game
             _runPerTick = (float)rules.MoveSpeed * TickDt;
             UsesStandIn = false;
             IsTraining = setup.TrainingMode && setup.OnlineClient == null;
+            if (IsTraining) rules.BarrierSeconds = 0.0;  // the training range is a sandbox, not a round of Agawang Base
             IsOnline = setup.OnlineClient != null;
             _client = setup.OnlineClient;
 
