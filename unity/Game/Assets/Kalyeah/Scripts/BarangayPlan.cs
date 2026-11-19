@@ -34,6 +34,11 @@ namespace Kalyeah.Game
         public float Lift;
         /// <summary>A building that may stand between the camera and your kid.</summary>
         public bool Occluder;
+        /// <summary>
+        /// The grey-box stand-in's size in metres (model frame: X width, Y height, Z depth) before `Scale`, drawn when the kit's
+        /// .glb is not in the build (docs/GRAPHICS.md "Building and checking the art").
+        /// </summary>
+        public Vector3 BlockSize;
 
         /// <summary>The final scale for a model whose unscaled size is `natural` (metres, model frame).</summary>
         public Vector3 ScaleFor(Vector3 natural)
@@ -97,13 +102,28 @@ namespace Kalyeah.Game
         public const string PostRed = "brgy_post_red";
         public const string PowerupStand = "brgy_merienda_stand";
 
+        static readonly Vector3 TreeBlock = new Vector3(2.4f, 6f, 2.4f);
+        static readonly Vector3 HouseBlock = new Vector3(7f, 6f, 6f);
+
+        /// <summary>How tall a parcel's grey-box stand-in is, by what stands there (metres).</summary>
+        static float BlockHeight(string prop) => prop switch
+        {
+            "jeepney" or "owner_jeep" or "passenger_jeepney" => 2.4f,
+            "tricycle" => 1.8f,
+            "bench" => 0.9f,
+            "poso_well" => 1.6f,
+            "waiting_shed" or "toda_shed" or "palengke_stall" or "tent" or "bakery_oven" => 3.2f,
+            "kapilya" => 7.5f,
+            _ => 5.5f,
+        };
+
         public static List<KitPlacement> Build(MapLayoutData layout)
         {
             var result = new List<KitPlacement>();
             AddParcels(layout, result);
             AddPosts(layout, result);
             foreach (Vector2 spot in layout.PowerupSpots)
-                result.Add(new KitPlacement { Kit = PowerupStand, Ground = spot, Fit = KitFit.Footprint });
+                result.Add(new KitPlacement { Kit = PowerupStand, Ground = spot, Fit = KitFit.Footprint, BlockSize = new Vector3(1.6f, 1.4f, 1.0f) });
             AddPerimeter(layout, result);
             return result;
         }
@@ -127,6 +147,10 @@ namespace Kalyeah.Game
                     Fit = KitFit.Footprint,
                     Lift = SlabKits.Contains(kit) ? 0f : 0.045f,
                     Occluder = true,
+                    BlockSize = new Vector3(
+                        layout.ParcelRect(index).W,
+                        prop == "cover_wall" ? layout.CoverHeight : BlockHeight(prop),
+                        layout.ParcelRect(index).H),
                 });
             }
         }
@@ -145,6 +169,7 @@ namespace Kalyeah.Game
                     GodotYawRad = own ? MathF.PI : 0f,
                     UniformHeight = layout.PostHeight,
                     Scale = new Vector3(layout.PostWidthShare, 1f, layout.PostWidthShare),
+                    BlockSize = new Vector3(0.6f, layout.PostHeight, 0.6f),
                 });
             }
         }
@@ -181,6 +206,7 @@ namespace Kalyeah.Game
                         AxisTarget = new Vector3(wallChord, 2.25f, 0f),
                         AxisMin = new Vector3(0.96f, 0.92f, 0f),
                         AxisMax = new Vector3(1.88f, 1.15f, 0f),
+                        BlockSize = new Vector3(wallChord, 2.25f, 0.3f),
                     });
                     if (i % 2 == 0)
                     {
@@ -191,6 +217,7 @@ namespace Kalyeah.Game
                             Ground = dir * (ringRadius + 3.9f + 1.8f * MathF.Abs(MathF.Cos(i * 1.9f))),
                             GodotYawRad = i * 1.1f,
                             Scale = new Vector3(ts),
+                            BlockSize = TreeBlock,
                         });
                     }
                 }
@@ -211,6 +238,7 @@ namespace Kalyeah.Game
                         GodotYawRad = inwardYaw + 11.5f * MathF.Sin(i * 3.7f + 0.9f) * MathF.PI / 180f,
                         Scale = new Vector3(us),
                         Occluder = true,
+                        BlockSize = HouseBlock,
                     });
                 }
             }
@@ -231,6 +259,7 @@ namespace Kalyeah.Game
                     GodotYawRad = MathF.Atan2(-dirO.X, -dirO.Y) + 12.5f * MathF.Cos(j * 2.9f) * MathF.PI / 180f,
                     Scale = new Vector3(uso),
                     Occluder = true,
+                    BlockSize = HouseBlock,
                 });
                 if (j % 2 == 0)
                 {
@@ -241,6 +270,7 @@ namespace Kalyeah.Game
                         Ground = dirO * (rO + 8.5f),
                         GodotYawRad = j * 1.4f,
                         Scale = new Vector3(gs),
+                        BlockSize = TreeBlock,
                     });
                 }
             }

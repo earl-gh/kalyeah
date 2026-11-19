@@ -411,6 +411,8 @@ namespace Kalyeah.Game
             if (prefab == null)
             {
                 _missingKits++;
+                GameObject block = GreyBoxKit.Build(parent, kit);
+                if (block != null && kit.Occluder) _occluders.Add(block);
                 return;
             }
 
