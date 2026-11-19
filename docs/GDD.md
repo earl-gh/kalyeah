@@ -372,7 +372,7 @@ The **quick chat button** (the owner's speech bubble) is **fixed at the top righ
   - Your own movement is predicted and corrected; other players are drawn 0.1 s in the past between snapshots.
   - Server-side events (hits, tags, rescues, points) are replayed on the client as the same signals the offline game uses.
 
-**Where a container earns its place (owner, measured in `docs/audits/2026-10-20-containers.md`).** The street is the owner's beige-grey floor (about 25% luminance), so white text on it reads at only about 3.5:1 (a team-coloured number can be worse): small state text cannot stand bare on it. The rule:
+**Where a container earns its place (owner, measured on the street floor).** The street is the owner's beige-grey floor (about 25% luminance), so white text on it reads at only about 3.5:1 (a team-coloured number can be worse): small state text cannot stand bare on it. The rule:
 - **Container: small state text read over the street**, because the container guarantees the contrast: the score card, the TAGGED! / RESCUED! pills, the weapon-type tag (ATK / CC / BLK) under a skill, the connection message.
 - **Container: a group of controls or information that acts as one thing**, as **one** container: the tagged sheet, the menus, the results card, a coach bubble.
 - **No container: big words with an outline** (the opening words, GO!, the capture countdown), **things that are already a shape** (the weapon buttons, the stick, the gear whose art has its own ring, the Cancel ring), and **guidance drawn on the ground** (the aim line, the base chevron).

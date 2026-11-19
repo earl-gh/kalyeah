@@ -1,6 +1,9 @@
 ## What changed
 <!-- The chunk of roadmap work this covers, in plain words -->
 
+## Spec check
+<!-- Which sections of docs/SPEC.md, KITS.md, MAPS.md, LORE.md and GRAPHICS.md this follows, e.g. "SPEC §7 movement, GRAPHICS camera". Anything that deviates or was not covered goes under "Decisions for you". -->
+
 ## Decisions for you
 <!-- Any defaults chosen where the docs were silent (also listed in docs/GDD.md "Open decisions") -->
 
@@ -13,5 +16,6 @@ Device checks (only a phone shows these):
 ## Done
 - [ ] `dotnet test unity/Kalyeah.sln` and Unity `EditMode` tests pass locally
 - [ ] Dual-aspect `1280x720` (`16:9`) and `844x390` (`~19.5:9` notched) screenshots were checked for anything visual
+- [ ] Follows `docs/SPEC.md`, `KITS.md`, `MAPS.md`, `LORE.md` and `GRAPHICS.md` (no invented rules; deviations listed above)
 - [ ] No hardcoded balance numbers (values in `unity/Data/*.json`)
 - [ ] Docs updated (`docs/GDD.md` for rules, `docs/ART.md` for look, `docs/ROADMAP.md` for status)

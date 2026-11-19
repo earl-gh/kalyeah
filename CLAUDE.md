@@ -2,8 +2,27 @@
 
 @docs/DOS_AND_DONTS.md
 
-Read first, only the sections your task touches: `docs/SPEC.md` (what we are building; it wins over older docs),
-`docs/ROADMAP.md` (order of work), `docs/GDD.md` (rules and numbers as built), `docs/ART.md` (look).
+## The five sources of truth (owner rule, 2026-11-19): follow them, never your memory
+Every design decision comes from one of these five files. Before you design, change or build anything, find the section that
+covers it and read that section (reading only the touched sections is fine; skipping them is not):
+
+| Task touches | Read and follow |
+|---|---|
+| Modes, rules, accounts, progression, store, controls, screens, platform, the HUD list | `docs/SPEC.md` |
+| A kid's skills, kit, role, aim view, reveals | `docs/KITS.md` |
+| A map's layout, routes, climb spots, vendors, neutrals | `docs/MAPS.md` |
+| Names, puroks, banter, personality, poses | `docs/LORE.md` |
+| How a match looks: models, map detail, effects, camera look, HUD look, materials | `docs/GRAPHICS.md` |
+
+Rules: (1) these five win over every other doc, skill, comment, test name and your own idea of what a game like this does.
+(2) `docs/GDD.md`, `docs/ART.md` and `docs/ROADMAP.md` record what is built and the order of work; they never override the five.
+(3) If the five are silent, use the default in `docs/SPEC.md` §11 or ask the owner; do not invent a rule. If two of them
+disagree, stop and ask. (4) Do not write a new design doc outside the five; record an owner answer in the matching file.
+(5) Every PR names the sections it follows (the PR template has a "Spec check"), and anything that deviates goes under "Decisions
+for you". (6) Never reintroduce what the five dropped (for example a logo on a game screen, a left or swappable shoulder camera).
+A CI test (`SourceOfTruthTests`) fails if one of the five goes missing, an entry file stops naming them, or an unlisted doc appears.
+
+Order of work: `docs/ROADMAP.md`. Rules and numbers as built: `docs/GDD.md`. Look as built: `docs/ART.md`.
 The owner works from a phone and can't run the editor: every change must be checkable in the **APK built by the
 `Unity 6 CI` workflow** (artifacts `kalyeah-unity-apk` and `kalyeah-unity-screenshots`).
 

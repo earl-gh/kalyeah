@@ -4,6 +4,12 @@ Owner decisions from the 2026-11-18 spec interview and earlier owner calls. This
 `docs/GDD.md` holds the rules and numbers as built (data in `unity/Data/*.json`), `docs/ART.md` the look, `docs/ROADMAP.md`
 the order of work. Where this file and an older doc disagree, this file wins and the older doc is due for a rewrite.
 
+**The five sources of truth** (owner, 2026-11-19): `docs/SPEC.md` (what the game is), `docs/KITS.md` (the 12 kids' skills),
+`docs/MAPS.md` (the 4 maps), `docs/LORE.md` (story, names, banter) and `docs/GRAPHICS.md` (how it looks in a match). Each owns its
+topic; they do not overlap. If two of them seem to disagree, stop and ask the owner. `docs/GDD.md`, `docs/ART.md` and
+`docs/ROADMAP.md` only record what is built and in what order: they never override these five, and a design doc outside the
+five needs the owner's say (a CI test lists the allowed files).
+
 ## 1. Vision
 A free-to-play 5v5 team shooter-brawler on Android, themed on Filipino street games (*mga larong Pinoy sa kalye*), built as
 a full commercial game for the Play Store (the earlier game-dev competition entry is dropped, and its limits with it).

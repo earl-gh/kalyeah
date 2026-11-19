@@ -70,6 +70,8 @@ retain ownership. [Catalog](../.claude/skills/README.md), provenance lock and
 
 ## Next: close the gaps to `docs/SPEC.md`
 
+This list only orders the work; what each step builds comes from `docs/SPEC.md`, `KITS.md`, `MAPS.md`, `LORE.md` and `GRAPHICS.md` (`CLAUDE.md`).
+
 Owner order: **playable core first**, one PR (with an APK and screenshots) per step.
 
 | Step | Work |

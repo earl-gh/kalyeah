@@ -1,5 +1,8 @@
 # Mistake log (auto-loaded; keep tiny, one line per rule, no repeats)
 Don't:
+- design or build from memory, from other games or from an older doc: `docs/SPEC.md`, `KITS.md`, `MAPS.md`, `LORE.md` and `GRAPHICS.md` are the only source of truth (`CLAUDE.md`); if they are silent, use `SPEC.md` §11 or ask the owner
+- add a design doc outside those five, or recreate a deleted one (audits, "AAA quality" or scorecard docs); record owner answers in the matching file
+- put a logo, wordmark or tagline on any game screen (`SPEC.md` §8: the splash only)
 - commit generated `unity/Game/Assets/Imported/`, `Assets/Kalyeah/Generated/`, or `Library/` noise; stage explicit paths
 - run Unity batchmode before running `python tools/unity_export/sync_assets.py`
 - hand-edit generated `.unity` scenes or URP assets owned by `KalyeahBuild.Setup`
@@ -10,6 +13,7 @@ Don't:
 - write an APK or `aapt2` parser from memory: test against captured fixtures in `unity/Golden/Android/`
 - wire Android Back directly to `Application.Quit()`: route through `MenuStack.HandleBack()` and `MatchOverlaysView.HandleBack()`
 Do:
+- name the spec sections a change follows in the PR ("Spec check"), and list every deviation under "Decisions for you"
 - run targeted `dotnet test` / `EditMode` seam checks while iterating, and full suites before opening a PR
 - remove temporary files you created; ask before deleting lock or user files
 Repeat instructions:
