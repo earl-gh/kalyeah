@@ -162,3 +162,11 @@ item says which kind of asset the owner makes.
 - **Walls behind the kid:** in tight spots the camera slides in smoothly; if it gets very close, your own kid turns
   see-through so the crosshair stays clear (walls never fade, so nothing behind them is revealed).
 - **Follow:** tight with a tiny smooth lag: aiming feels direct and running still looks smooth.
+
+## Map edges and spacing
+- **Edges:** natural blockers only (fences, parked jeepneys, house walls, the river or sea, cane too thick to enter); no
+  invisible walls without a visible reason.
+- **Climb spots:** no special marking in the world; the jump button changes its icon when a climb is possible.
+- **Tutorial barricades:** wooden barangay barricades (sawhorses and planks) with "Bawal Dumaan" signs. Asset kind:
+  Blender model and a 2D image for the sign.
+- **Spacing:** doors and alleys at least about 2 m wide, so two kids fit side by side and don't get stuck on each other.
